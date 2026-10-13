@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Per-foot pad telemetry and the sagittal leg DC at every periodic
-  evaluation** (the maintainer's approval of 2026-10-12, after the T. rex
+  evaluation** (#620; the maintainer's approval of 2026-10-12, after the T. rex
   stance run `20261011_165957` was refused by `stance_quality/v2` on its pad
   centre-of-pressure rail, `max_sole_cop_fore_aft`, failing it on 39 of 40
   episodes at a median of 0.9999; 1/40 clean).
@@ -2456,6 +2456,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sampler writes no `terrain_sampling` record).
 
 ### Fixed
+- **A same-stage resume continues `gate_progress.npz` instead of truncating
+  it** (found by the 6M screen). On a resume `seed_resume_eval_state` seeds
+  SB3's evaluation history from `evaluations.npz`, and
+  `StageAwareEvalCallback.seed_prior_history` pads the per-evaluation capture
+  series with an empty row per seeded evaluation. `StageGatePlateauCallback`
+  started its own rows from nothing, though, and took the per-actuator rows as
+  the first *n* of those series for its session-local row count *n*: every
+  resumed write read the padding and left out `action_dc_per_actuator` and
+  `action_ac_rms_per_actuator`, and the file held the resumed session's
+  evaluations only, without the prior session's gate criteria, pad telemetry
+  or leg DC. The plateau callback now reads each evaluation's per-actuator
+  rows by its absolute index, and `seed_resume_eval_state` seeds its rows from
+  the `gate_progress.npz` beside the `evaluations.npz` it seeds from
+  (`seed_prior_gate_progress`): the prior rows stay as they were, the resumed
+  evaluations append, and rows after the resumed checkpoint are dropped as the
+  evaluation history drops them. A key the prior file lacks, such as #620's
+  pad and leg DC keys on a run interrupted before it, reads NaN on the seeded
+  rows. The hop watch, which reads those rows, starts past the seeded ones
+  like every evaluation cursor. The TensorBoard scalars and `evaluations.npz`
+  were already aligned. Report-only: no gate verdict, reward, observation,
+  checkpoint selection, schema or digest changes.
 - **`pre-commit run --all-files` modifies nothing on a fresh checkout** (#618;
   with D-D33). `website/static/img/logo.svg` and `logo-dark.svg` ended without a
   final newline, so `end-of-file-fixer` rewrote both on every run (noted in
