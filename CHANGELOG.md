@@ -2475,8 +2475,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   pad and leg DC keys on a run interrupted before it, reads NaN on the seeded
   rows. The hop watch, which reads those rows, starts past the seeded ones
   like every evaluation cursor. The TensorBoard scalars and `evaluations.npz`
-  were already aligned. Report-only: no gate verdict, reward, observation,
-  checkpoint selection, schema or digest changes.
+  were already aligned; `diagnostics.npz` is not continued either, an older
+  gap now in KNOWN_ISSUES. `test_gate_progress_resume.py` runs in the SB3 job,
+  and `test_ci_tool_pins.py` now requires every test file that skips without
+  SB3 to be named in a step of that job. Report-only: no gate verdict, reward,
+  observation, checkpoint selection, schema or digest changes.
 - **`pre-commit run --all-files` modifies nothing on a fresh checkout** (#618;
   with D-D33). `website/static/img/logo.svg` and `logo-dark.svg` ended without a
   final newline, so `end-of-file-fixer` rewrote both on every run (noted in
