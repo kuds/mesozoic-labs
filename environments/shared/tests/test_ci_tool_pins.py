@@ -23,7 +23,9 @@ exactly once, installing the ``test`` extra, under the check names
 ``test (<python>, <suite>)``. At reduced depth the SB3 job's integration step
 leaves out exactly the compsognathus_longipes/robot parametrisations of
 test_compsognathus_longipes_training.py (decision 10 (a)), which the nightly schedule, a
-manual dispatch and the ``full-ci`` label run.
+manual dispatch and the ``full-ci`` label run. Every test file that skips without
+stable-baselines3 (``pytest.importorskip``) is named, by path or by glob, in a step of
+the SB3 job: the test matrix's ``test`` extra brings no SB3, so no other job runs it.
 """
 
 from __future__ import annotations
@@ -267,3 +269,22 @@ def test_reduced_depth_leaves_out_only_the_robot_training_runs() -> None:
     assert model_ids == [("compsognathus_longipes", "anatomical"), ("compsognathus_longipes", "robot")], model_ids
     anatomical, robot = ("-".join(model_id) for model_id in model_ids)
     assert robot not in anatomical
+
+
+#: A test module's skip without stable-baselines3, of the package or of one of its modules.
+_SB3_IMPORTORSKIP = re.compile(r"""importorskip\(\s*["']stable_baselines3(?:\.[\w.]+)?["']""")
+
+
+def test_every_test_file_that_skips_without_sb3_runs_in_the_sb3_job() -> None:
+    # The test matrix installs the `test` extra, which brings no SB3, so it skips such a file; only a test-sb3
+    # step, by path or by glob, runs it (test_gate_progress_resume.py was left out of every step).
+    named = re.findall(r"environments/\S+?\.py", job_block("test-sb3"))
+    assert named, "the SB3 job names no test file"
+    unrun: list[str] = []
+    for path in sorted(REPOSITORY_ROOT.glob("environments/*/tests/test_*.py")):
+        relative = path.relative_to(REPOSITORY_ROOT).as_posix()
+        if _SB3_IMPORTORSKIP.search(path.read_text(encoding="utf-8")) and not any(
+            glob_matches(pattern, relative) for pattern in named
+        ):
+            unrun.append(relative)
+    assert not unrun, f"these files skip without SB3 and no test-sb3 step runs them: {unrun}"

@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 
 from . import sb3_compat
+from .hop_watch import HopRegimeWatchCallback
 from .sb3_compat import BaseCallback
 
 if TYPE_CHECKING:
@@ -298,7 +299,11 @@ def seed_resume_eval_state(
       diagnostics callbacks (``StageAwareEvalCallback.seed_prior_history``,
       ``_last_seen_n_evals`` / ``_last_published_n`` counters), so consumers
       that index those series by the absolute evaluation index stay aligned
-      and the seeded history is not reprocessed as new evaluations.
+      and the seeded history is not reprocessed as new evaluations;
+    * the plateau callback's ``gate_progress.npz`` rows, from the file beside
+      *prior_npz_path* (``StageGatePlateauCallback.seed_prior_gate_progress``),
+      so the resumed session appends to the prior rows instead of rewriting
+      the file with its own, and the hop watch's cursor over those rows.
 
     A prior record whose per-eval episode count differs from this session's
     ``n_eval_episodes`` seeds only the scalar best trackers: mixing row
@@ -388,6 +393,13 @@ def seed_resume_eval_state(
     seed_prior = getattr(eval_callback, "seed_prior_history", None)
     if callable(seed_prior):
         seed_prior(seeded)
+    # gate_progress.npz is published beside evaluations.npz (both to the stage
+    # directory), so the prior session's file is the one next to the record.
+    gate_rows = 0
+    for callback in callbacks:
+        seed_gate_progress = getattr(callback, "seed_prior_gate_progress", None)
+        if callable(seed_gate_progress):
+            gate_rows = seed_gate_progress(path.with_name("gate_progress.npz"), max_timesteps=max_timesteps)
 
     for callback in callbacks:
         if isinstance(callback, RobustBestModelCallback):
@@ -403,6 +415,9 @@ def seed_resume_eval_state(
             callback._last_seen_n_evals = seeded
         if hasattr(callback, "_last_published_n"):
             callback._last_published_n = seeded
+        # The hop watch's cursor counts gate_progress rows, which need not be one per evaluation.
+        if isinstance(callback, HopRegimeWatchCallback):
+            callback._last_seen = gate_rows
 
     logger.info(
         "Resume: seeded %d prior evaluations from %s (best mean %.1f)",

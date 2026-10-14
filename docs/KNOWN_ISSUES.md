@@ -1523,6 +1523,23 @@ robustness, **LOW** = cosmetic / QoL.
   warning when its sidecar is missing, as the selected replay does, or have
   `record_stage_video` refuse a named `vecnorm_path` that does not exist; no
   cleanup PR owns it yet. (2026-10 CU-8b scouting)
+- **LOW** — **a same-stage resume does not continue `diagnostics.npz`
+  (reproduced 2026-10-13).** `DiagnosticsCallback` starts its rollout
+  history empty in every session (`diagnostics.py:206-217`) and rewrites
+  `diagnostics.npz` from that history alone (`:464`), and nothing seeds it on
+  a resume: `seed_resume_eval_state` (`curriculum/checkpoints.py:272`) seeds
+  the evaluation history and `gate_progress.npz`, not this file.
+  A resume into the stage directory it continues overwrites the prior
+  session's rollout diagnostics at its first save; one into a fresh
+  directory holds the resumed session's rows only. The stage report's
+  training-diagnostics figures (`visualization.py`) and
+  `scripts/compare_run_diagnostics.py` then start at the resumed checkpoint.
+  Report-only: no gate, verdict or digest reads it. Fix: seed the
+  callback from the `diagnostics.npz` beside the `evaluations.npz` being
+  seeded, dropping rows after the resumed checkpoint, as
+  `StageGatePlateauCallback.seed_prior_gate_progress` does for
+  `gate_progress.npz`; no cleanup PR owns it yet. (2026-10 review of the
+  `gate_progress.npz` resume fix)
 - **LOW** — **a result-bundle JSON file that is not UTF-8 escapes as a raw
   `UnicodeDecodeError` instead of the reader's own refusal (reproduced
   2026-10-01).** These readers read with `encoding="utf-8"` but catch only

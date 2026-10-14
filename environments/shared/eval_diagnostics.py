@@ -670,7 +670,11 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
         silently stops for the rest of the session.  The placeholders are the
         exact values ``_on_step``/``_publish_action_statistics`` append for an
         unmeasured evaluation, which every consumer already treats as
-        "no data for this eval".
+        "no data for this eval".  The seeded evaluations' rows of
+        ``gate_progress.npz``, their per-actuator matrices among them, come
+        from the prior session's file
+        (``StageGatePlateauCallback.seed_prior_gate_progress``), not from
+        these placeholders.
         """
         for _ in range(n_evals):
             self.evaluations_forward_velocities.append([])
@@ -856,7 +860,15 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
     _gate_progress_dir: "Path | None" = None
     _gate_progress_timesteps: list[int] = []
     _gate_progress: dict[str, list[float]] = {}
+    _gate_progress_seeded = 0
     _warned_gate_progress_unwritable = False
+
+    #: ``gate_progress.npz``'s per-actuator matrices, each with the capture
+    #: callback's series its rows come from.
+    _GATE_PROGRESS_MATRICES = (
+        ("action_dc_per_actuator", "evaluations_action_dc"),
+        ("action_ac_rms_per_actuator", "evaluations_action_ac_rms"),
+    )
 
     def __init__(
         self,
@@ -898,6 +910,10 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
         self._gate_progress_dir = None if gate_progress_dir is None else Path(gate_progress_dir)
         self._gate_progress_timesteps: list[int] = []
         self._gate_progress: dict[str, list[float]] = {}
+        # Per matrix, one per-actuator row per recorded evaluation (`[]`: unmeasured).
+        self._gate_progress_rows: dict[str, list[list[float]]] = {}
+        # Rows a same-stage resume carried over from the prior session's file.
+        self._gate_progress_seeded = 0
         self._warned_gate_progress_unwritable = False
 
     @staticmethod
@@ -1206,6 +1222,7 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
             if math.isfinite(value):
                 self.logger.record(f"diagnostics/eval_{key}", value)
         self._record_gate_progress(
+            index,
             full_horizon_fraction=panel.full_horizon_fraction,
             duty_episodes=panel.n_duty_episodes,
             unsupported_duty=panel.mean_unsupported_duty if panel.n_duty_episodes else float("nan"),
@@ -1289,7 +1306,7 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
             series = [float("nan")] * len(timesteps)
         return timesteps, series
 
-    def _record_gate_progress(self, **values: float) -> None:
+    def _record_gate_progress(self, index: int | None = None, /, **values: float) -> None:
         """Append one evaluation's gate criteria and rewrite ``gate_progress.npz``.
 
         A separate file rather than columns in ``diagnostics.npz`` because the
@@ -1297,6 +1314,13 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
         is per evaluation. Merging them would force one series to be padded
         with NaN against the other's timeline, which is exactly the alignment
         trap ``_history_algo`` already has to work around.
+
+        *index* is the evaluation's absolute index into the capture callback's
+        series, where its per-actuator rows are read.  ``None`` reads the
+        evaluation at this row's position, which is the same one only while
+        nothing was seeded and every evaluation was recorded: a same-stage
+        resume (:meth:`seed_prior_gate_progress`) pads those series for the
+        seeded evaluations, so reading them by row count took the padding.
         """
         # Bind instance-local containers before appending: the class-scope
         # defaults above exist only so `object.__new__` instances have the
@@ -1305,9 +1329,30 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
         if "_gate_progress_timesteps" not in self.__dict__:
             self._gate_progress_timesteps = []
             self._gate_progress = {}
+        if index is None:
+            index = len(self._gate_progress_timesteps)
+        # A key first supplied after a resume reads NaN on the seeded rows: nothing measured it there.
+        seeded = self._gate_progress_seeded
         self._gate_progress_timesteps.append(int(self.num_timesteps))
         for key, value in values.items():
-            self._gate_progress.setdefault(key, []).append(float(value))
+            self._gate_progress.setdefault(key, [float("nan")] * seeded).append(float(value))
+        # Per-actuator DC and AC, for (n_evals, n_actuators) matrices. Which
+        # actuators carry the offset decides whether a leg-pose weight can
+        # reach it at all -- `leg_home_pose` covers only the leg joints, so
+        # a displacement living in the tail or neck is invisible to it and
+        # unfixable by it (issue #489). Scalar summaries alone cannot answer
+        # that, and the grouping is left to analysis rather than guessed at
+        # here.
+        # `getattr` with defaults, not `self.eval_callback` directly: these
+        # matrices are an enhancement, and an AttributeError here would sink
+        # the run -- or, in the writer, take the ENTIRE file down with it,
+        # losing the gate criteria to a failure in a side channel.
+        source = getattr(self, "eval_callback", None)
+        matrices = self.__dict__.setdefault("_gate_progress_rows", {})
+        for key, name in self._GATE_PROGRESS_MATRICES:
+            series = getattr(source, name, None) or []
+            row = series[index] if 0 <= index < len(series) else None
+            matrices.setdefault(key, [[] for _ in range(seeded)]).append(list(row) if row else [])
         if self._gate_progress_dir is None:
             return
         try:
@@ -1315,28 +1360,11 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
 
             n = len(self._gate_progress_timesteps)
             payload = {"timesteps": np.array(self._gate_progress_timesteps)}
-            # Per-actuator DC and AC as (n_evals, n_actuators) matrices. Which
-            # actuators carry the offset decides whether a leg-pose weight can
-            # reach it at all -- `leg_home_pose` covers only the leg joints, so
-            # a displacement living in the tail or neck is invisible to it and
-            # unfixable by it (issue #489). Scalar summaries alone cannot answer
-            # that, and the grouping is left to analysis rather than guessed at
-            # here.
-            # `getattr` on self, not `self.eval_callback` directly: these
-            # matrices are an enhancement, and an AttributeError here would be
-            # caught by the outer handler and take the ENTIRE file down with
-            # it -- losing the gate criteria to a failure in a side channel.
-            source = getattr(self, "eval_callback", None)
-            for key, name in (
-                ("action_dc_per_actuator", "evaluations_action_dc"),
-                ("action_ac_rms_per_actuator", "evaluations_action_ac_rms"),
-            ):
-                series = getattr(source, name, None) or []
-                rows = [row for row in series[:n] if row]
+            for key, rows in matrices.items():
                 # Ragged rows would need padding, which invents values. A run
                 # whose actuator count changed mid-flight is not a thing that
                 # happens; a run with some empty evaluations is.
-                if len(rows) == n and len({len(row) for row in rows}) == 1:
+                if len(rows) == n and all(rows) and len({len(row) for row in rows}) == 1:
                     payload[key] = np.array(rows, dtype=float)
             # Length-guarded against `timesteps`, like every optional series in
             # `diagnostics.npz`. Today one call site supplies every key on every
@@ -1356,6 +1384,57 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
             if not self._warned_gate_progress_unwritable:
                 self._warned_gate_progress_unwritable = True
                 logger.warning("Could not write gate_progress.npz", exc_info=True)
+
+    def seed_prior_gate_progress(self, path: "str | Path", *, max_timesteps: int | None = None) -> int:
+        """Start from a prior session's ``gate_progress.npz`` at *path*, so a same-stage resume appends to it.
+
+        Without it a resumed session rewrote the file with its own
+        evaluations only.  Called by ``curriculum.seed_resume_eval_state``
+        with the file beside the ``evaluations.npz`` it seeds from.  Every
+        row is kept as it was, except those recorded after *max_timesteps*
+        (the resumed checkpoint), which are dropped as the evaluation history
+        drops them, so the timesteps stay monotonic.  A key this session
+        records that the prior file lacks reads NaN on the seeded rows; a
+        matrix it lacks stays out of the file, as one unmeasured evaluation
+        keeps it out; and a prior key this session stops supplying is left
+        out, like any key recorded on only some evaluations.
+
+        Returns the number of rows seeded: 0 when there is no readable file,
+        and the file then starts over with this session's evaluations.
+        """
+        path = Path(path)
+        if not path.exists():
+            logger.info("Resume: no prior %s; gate_progress.npz starts with this session's evaluations.", path)
+            return 0
+        try:
+            with np.load(path) as data:
+                timesteps = [int(value) for value in data["timesteps"]]
+                columns = {key: np.asarray(data[key], dtype=float) for key in data.files if key != "timesteps"}
+        except Exception:  # noqa: BLE001 - a diagnostic must not sink a run
+            logger.warning(
+                "Resume: could not read %s; gate_progress.npz starts with this session's evaluations.",
+                path,
+                exc_info=True,
+            )
+            return 0
+        rows = len(timesteps)
+        keep = rows if max_timesteps is None else sum(1 for value in timesteps if value <= max_timesteps)
+        matrices = dict(self._GATE_PROGRESS_MATRICES)
+        self._gate_progress_timesteps = timesteps[:keep]
+        self._gate_progress = {
+            key: [float(value) for value in column[:keep]]
+            for key, column in columns.items()
+            if key not in matrices and column.shape == (rows,)
+        }
+        self._gate_progress_rows = {}
+        for key in matrices:
+            column = columns.get(key)
+            if column is not None and column.ndim == 2 and len(column) == rows:
+                self._gate_progress_rows[key] = [[float(value) for value in row] for row in column[:keep]]
+            else:
+                self._gate_progress_rows[key] = [[] for _ in range(keep)]
+        self._gate_progress_seeded = keep
+        return keep
 
     def _process_evaluation(self, index: int) -> None:
         panel = self._stance_panel(index)
