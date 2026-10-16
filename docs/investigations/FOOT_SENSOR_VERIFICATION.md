@@ -203,18 +203,19 @@ reading.
 ## 8. Update 2026-10-16: the T. rex physics-r10 foot (appended)
 
 *Appended 2026-10-16; §1–§7 above are unchanged.* T. rex physics r10 (`configs/plant_versions.toml` note 20, decision
-D-D34) replaces the plantar pad with a sole box and splays and lengthens the three digits, which now carry about a third
-of the statue's load out along their length. It keeps every touch site, so the policy interface stays r15. The r15 toe
-sites rotate with the yawed toe bodies.
+D-D34) replaces the plantar pad with a sole box and splays the three digits, at 0.171 / 0.212 / 0.178 m (II and IV
+longer, III 6 mm shorter), which now carry about a third of the statue's load out along their length. It keeps every
+touch site, so the policy interface stays r15. The r15 toe sites rotate with the yawed toe bodies.
 
 - `foot_sensor_report.py` reads 842.4 N of touch against 842.4 N of contact force and 840.9 N of body weight (sensor /
   contact 1.000, contact / weight 1.002).
-- Over 465 recorded episodes, every touch sensor equals the floor's normal force on its site's body to 0 N on every
-  substep that has no other contact: 320 statue episodes on six seed blocks, 60 under N(0, 0.05) command jitter, 20
-  holding the r9 run A stance's mean action, and 65 holding one ankle toe-ward on the toe-line rule's grid (-2.5 to
-  -5.5°).
-- `test_anatomical_foot.py` pins three more cases. A held toe-ward offset carries the other foot's load onto its
-  digits. A forward push ramped to the 58 N limit unloads both sole boxes and leaves the digits loaded at more than
+- Over 465 recorded episodes, every touch sensor equals the floor's normal force on its site's body to within 1e-6 N
+  (solver precision) on every substep that has no other contact: 320 statue episodes on six seed blocks, 60 under
+  N(0, 0.05) command jitter, 20 holding the r9 run A stance's mean action, and 65 holding one ankle toe-ward on the
+  toe-line rule's grid (-2.5 to -5.5°).
+- `test_anatomical_foot.py` pins three more cases. A held toe-ward offset carries the other foot's load onto its digits.
+  A forward push ramped at 20 N/s and capped at 58 N (the foot proposal's push limit, found with its own fall
+  criterion), until the env's nosedive termination, unloads both sole boxes and leaves the digits loaded at more than
   0.8 of their length. The seed-7068 spawn is the one non-floor contact found: reset noise sets the right digit II on
   the left one for the first 4 substeps of control step 0, and both toe-II sensors read the 118-174 N between them with
   no floor load. The splayed digits leave 7.7 cm between the two digit-II tips at home (14.0 on r9). No window step of

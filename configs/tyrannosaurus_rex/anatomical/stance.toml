@@ -2,13 +2,13 @@
 name = "stance"
 description = "Learn to stand and balance without falling"
 
-[env]                                          # recovery.toml inherits this table (`extends`), all but the keys it writes out (the foot_contact_* keys, and stance_width_settle_steps since D-D27): an edit here moves recovery's task too, and a reward-weight edit means re-measuring recovery.toml's pushed-statue collapse_peak_floor_reference (1329.1 since D-D27), as its note there says
+[env]                                          # recovery.toml inherits this table (`extends`), all but the keys it writes out (the foot_contact_* keys, and stance_width_settle_steps since D-D27): an edit here moves recovery's task too, and a reward-weight edit means re-measuring recovery.toml's pushed-statue collapse_peak_floor_reference (1504.4 since physics r10; 1329.1 from D-D27 to r9), as its note there says
 # Physics r10 (plant_versions note 20, the load-bearing tridactyl foot): no [env] value changes. The
 # per-term statue returns these comments quote (r8 and r9) re-measured on r10, zero action, reset noise
 # 0.05, seeds 3042-3081: flatness 140.9 +/- 8.7 of 150 (it reads the sole box), settled width 77.6 of
 # 80, neck 198.9, tail 244.3, height 599.8, bilateral support 597.5, load balance -4.7, nosedive -5.9;
-# total 3757.3 +/- 16.4. The foot mass is unchanged (85.72 kg, 840.9 N), so the N-valued thresholds
-# and the ~421 N of quiet support per foot carry. One small change: the r10 statue pays the airborne
+# total 3757.3 +/- 16.4. The body mass is unchanged (85.72 kg, 840.9 N; each foot 1.76 kg), so the
+# N-valued thresholds and the ~421 N of quiet support per foot carry. One small change: the r10 statue pays the airborne
 # term on 17 of 40 episodes (-0.45 +/- 0.74 per episode; r9 0), all of it inside the 0.1 s spawn grace.
 forward_vel_weight = 0.0
 backward_vel_penalty_weight = 0.0              # Redundant with drift_penalty — drift covers all horizontal directions equally
@@ -635,16 +635,16 @@ timesteps = 12000000
 # bars where they are; the audit note's appended §12 holds the r9 panels.
 #
 # Physics r10 (plant_versions note 20, D-D34: the load-bearing tridactyl foot)
-# replaces the plantar pad by a sole box under the metatarsal pad, 0.060-0.165
-# m ahead of the ankle, with three splayed digits ahead of it that carry part of
-# the load, and changes one rail: the fore-aft CoP is read on the WHOLE foot
-# (max_foot_cop_fore_aft), and the pad's CoP and its loaded contact points
-# become report-only (their comments below say why). Every other bar is kept;
-# each comment adds the r10 statue's extremes ("r10") on the same 40 + 240
-# episodes as r9's. The r10 statue is clean on 40/40 here (bound 0.928) and on
-# 240/240 out of sample, with no fall in 280 (r9 4). At the median its sole
-# box carries 0.67 of each foot's load and digits II/III/IV 0.15/0.09/0.12
-# (r9's pad 0.83).
+# replaces the plantar pad by a sole box standing for the metatarsal pad,
+# 0.060-0.165 m ahead of the ankle, with three splayed digits ahead of it that
+# carry part of the load, and changes one rail: the fore-aft CoP is read on the
+# WHOLE foot (max_foot_cop_fore_aft), and the pad's CoP and its loaded contact
+# points become report-only (their comments below say why). Every other bar is
+# kept; each comment adds the r10 statue's extremes ("r10") on the same
+# 40 + 240 episodes as r9's. The r10 statue is clean on 40/40 here (bound 0.928) and
+# on 240/240 out of sample, with no fall in 280 (r9 4 on the same seeds, Fisher
+# exact p = 0.12, not significant). At the median its sole box carries 0.67 of
+# each foot's load and digits II/III/IV 0.15/0.09/0.12 (r9's pad 0.83).
 # docs/investigations/TREX_FOOT_R10_2026_10.md holds the evidence.
 #
 # The six-heading certificate (stance_quality_heading/v1, decision D-D32,
@@ -859,8 +859,8 @@ max_hop_or_fall_episodes = 1             # Panel rail (D-D27): episodes that end
                                          # seeds; a statue-quality policy at 4 in 280 passes 0.888 of panels
                                          # (0.967 at r8's 2 in 280). Kept at 1: the difference is not
                                          # significant, and the rail exists for seed 44's hop mode. The r10
-                                         # statue falls on none of the 280 (0 of 200 on the five blocks both
-                                         # plants share against r9's 4, Fisher exact p = 0.12).
+                                         # statue falls on none of the same 280 against r9's 4 (Fisher exact
+                                         # p = 0.12, not significant).
 min_avg_reward = 2250.0                 # Collapse RAIL, not the gate (PLANT_VALIDATION §9/§12): no reward threshold
                                         # can separate a competent policy from a statue, because the statue is at
                                         # or near the reward optimum (on r8 under the keyframe width target a

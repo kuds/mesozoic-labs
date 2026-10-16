@@ -26,27 +26,28 @@ walk and hunt — every one of them a published deliverable:
 1. **`stance`** (recipe `stand`; root, historical stage 1) — settle from a
    randomized spawn and hold a stable upright pose; gated on physical stance
    quality, not reward, because a zero-action "statue" earns nearly all the
-   reward the undisturbed task pays. Since physics r8 the gate is `stance_quality/v2`:
-   every episode of a 40-episode panel is judged on the floor's force under
-   each foot (no hop at reset, both feet planted, soles flat, the whole
-   foot's centre of pressure inside its declared span from heel to toe line
-   since physics r10, no actuator held at its limit, no turning away), and the stance
-   certifies when at least 37 of 40 are clean and at most one hops for the
-   whole episode or falls. Since 2026-10-11 (decision D-D32) the gate is the
-   six-heading certificate `stance_quality_heading/v1`: the same panel is
-   rolled with the whole scene turned −90°, −45°, 0°, 45°, 90° and 180°, every
-   heading must pass that decision, and at least 37 of the 40 seeds must be
-   clean at all six, so a stance that stands only at the heading it trained
-   at fails.
+   reward the undisturbed task pays. Since physics r8 the gate is
+   `stance_quality/v2`: every episode of a 40-episode panel is judged on the
+   floor's force under each foot (no hop at reset, both feet planted, soles
+   flat, the whole foot's centre of pressure within 80% of the half-length of
+   its declared span (0.060-0.213 m ahead of the ankle) from the span's
+   middle, on average over the window, since physics r10, no actuator held at
+   its limit, no turning away), and the stance certifies when at least 37 of
+   40 are clean and at most one hops for the whole episode or falls. Since
+   2026-10-11 (decision D-D32) the gate is the six-heading certificate
+   `stance_quality_heading/v1`: the same panel is rolled with the whole scene
+   turned −90°, −45°, 0°, 45°, 90° and 180°, every heading must pass that
+   decision, and at least 37 of the 40 seeds must be clean at all six, so a
+   stance that stands only at the heading it trained at fails.
 2. **`recovery`** (recipe `stand`; `warm_start_from = "stance"`; no legacy
    number, addressed by id) — the same task plus scheduled external pushes
-   (165.5 N for 0.20 s on the current plant, derived from the plant's own
-   mass and stance geometry), warm-started from the certified stance
-   checkpoint. Only a disturbance can certify *active* balance control; the
-   `recovery_quality/v1` gate judges per-shove recovery against frozen null
-   baselines. It was frozen on 2026-08-28 with measured thresholds; the
-   verdict comes from the stage directory's `gate_resolution.json`, written
-   by `freeze_recovery_gate.py`.
+   (186.8 N for 0.20 s on physics r10, 165.5 N on r7-r9, derived from the
+   plant's own mass and stance geometry), warm-started from the certified
+   stance checkpoint. Only a disturbance can certify *active* balance control;
+   the `recovery_quality/v1` gate judges per-shove recovery against frozen
+   null baselines. It was frozen on 2026-08-28 with measured thresholds; the
+   verdict comes from the stage directory's `gate_resolution.json`, written by
+   `freeze_recovery_gate.py`.
 3. **`locomotion`** (recipe `walk`; `warm_start_from = "stance"`, historical
    stage 2) — forward walking/running. Its edge is declared `stance` today;
    the plan is to re-declare it as `recovery` by a manifest edit once a
@@ -70,7 +71,7 @@ The T-Rex model includes:
 - **Neck + Skull** - Short neck assembly with an elongated skull shape and brow-ridge geoms
 - **Head** - Fixed contact geom used as a bite proxy; there is no articulated jaw
 - **Legs** - Digitigrade-style hind limbs (hip pitch/roll, knee, ankle; 3 passive toe digits per leg since physics r7; hip-roll servos sized for the body mass since physics r8; an elliptic friction cone since physics r9, so every heading is physically identical)
-- **Feet** - A functionally tridactyl pes since physics r10: a sole box under the metatarsal pad (a stance approximation, rigid across the toe joints) and three splayed, load-bearing digits (II–IV) on stiff passive springs, which carry about a third of the standing load; the hallux, the fifth metatarsal and the staggered toe joints are not modelled
+- **Feet** - A functionally tridactyl pes since physics r10: a sole box standing for the metatarsal pad and the soft tissue under the proximal phalanges (a stance approximation, rigid across the toe joints) and three splayed, load-bearing digits (II–IV) on stiff passive springs, which carry about a third of the standing load; the hallux, the fifth metatarsal and the staggered toe joints are not modelled
 - **Arms** - Tiny vestigial forelimbs with 2-fingered hands (passive, not actuated)
 - **Tail** - 5-segment heavy counterbalance to skull (4 actuated segments)
 

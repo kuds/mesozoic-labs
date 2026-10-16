@@ -1756,12 +1756,15 @@ Still open:
   *Update (2026-10-16):* physics r10 (the load-bearing tridactyl foot, D-D34,
   note 20) widens the margin without removing it. The ankle probe: +0.03
   reaches the horizon on 25/40 (r9 14/40), −0.03 on 40/40 (r9 24/40). The
-  plain statue stands on all 280 stance-panel seeds (r9 fell on 4). In the
-  foot proposal's scratch evaluation, the forward push limit is 58.4 N
-  against 55.4 N, and a held single-ankle offset first topples the statue
-  at −5.0 / −5.5° (r9 −3.5 / −4.5°). The closed-chain mechanism, about 6.6
-  N·m/deg per ankle with both feet planted, is unchanged, so a stance
-  policy must still hold fore-aft balance actively.
+  plain statue stands on all 280 stance-panel seeds, against r9's 4 falls on
+  the same seeds (Fisher exact p = 0.12, so not a significant difference).
+  In the foot proposal's scratch evaluation, the forward push limit is
+  58.4 N against 55.4 N, a held single-ankle offset first topples the
+  statue at −5.0 / −5.5° (r9 −3.5 / −4.5°), and the statue's toe margin to
+  each plant's own held-offset line (0.213 / 0.196 m) is 29.1 against
+  22.5 N·m (1.77° against 1.37° of ankle servo error). The closed-chain
+  mechanism, about 6.6 N·m/deg per ankle with both feet planted, is
+  unchanged, so a stance policy must still hold fore-aft balance actively.
 - **MEDIUM** — **the T. rex physics-r10 MTP springs resist toe-off.** The
   passive digits are linear springs of 3000 / 4500 / 3000 N·m/rad (digits II /
   III / IV, note 20): a mechanical choice that makes the digits share the

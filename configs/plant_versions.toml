@@ -566,12 +566,15 @@ observation_schema = "bipedal-target/v1"
 #        this model's MT III, the TOP of the plausible range (leg scale 0.157 /
 #        0.194 / 0.163).  Kept for mechanics: at the leg scale the forward push
 #        limit falls to 49.8 N, under r9's 55.4, and no stiffer spring
-#        recovers it (51.8 / 54.0 / 55.2 N at 4x / 6x / 8x the rung below).
-#        Chord divarication 25 (II) and 33 (IV) deg off digit III, a
-#        compromise below the Bellatoripes means (30, 36 deg); the Hell Creek
-#        track attributed to T. rex (35, 40 deg) is not matched.  Not
-#        modelled: the hallux, MT V, the MTP stagger and a measured MTP
-#        condyle spacing.  Masses unchanged (animal 85.72 kg, foot 1.76 kg).
+#        recovers it (51.8 / 54.0 / 55.2 N at 4x / 6x / 8x the base of the
+#        stiffness ladder under c; this plant's springs are its 3x).  Chord
+#        divarication 25 (II) and 33 (IV) deg off digit III, a compromise
+#        below the Bellatoripes means (30, 36 deg): the phalangeal axes of II
+#        and IV deviate progressively (Brochu 2003), so a straight digit's
+#        chord sits below track angles; the Hell Creek track attributed to
+#        T. rex (35, 40 deg) is not matched.  Not modelled: the hallux, MT V,
+#        the MTP stagger and a measured MTP condyle spacing.  Masses
+#        unchanged (animal 85.72 kg, foot 1.76 kg).
 #     c) MTP springs 3000 / 4500 / 3000 N.m/rad (damping 35 / 43 / 35), a
 #        mechanical choice, not a measurement: the lowest rung of a stiffness
 #        ladder (1x 43.8 N, 2x 54.0 N, 3x 58.4 N of forward push limit) that
@@ -590,8 +593,9 @@ observation_schema = "bipedal-target/v1"
 #     Measured on this plant (mujoco 3.10.0, the stance [env], reset noise
 #     0.05; scratch harnesses on the repository's recorder):
 #     - The statue stands on all 280 stance-panel seeds (3042-3201,
-#       5042-5081, 7042-7081, 9042-9081; r9 fell on 4) and is clean under
-#       the stance gate on all of them.  Its sole box carries 0.67 of each
+#       5042-5081, 7042-7081, 9042-9081; r9 fell on 4 of the same seeds,
+#       Fisher exact p = 0.12, not significant) and is clean under the
+#       stance gate on all of them.  Its sole box carries 0.67 of each
 #       foot's load at the median, digits II / III / IV 0.15 / 0.09 / 0.12
 #       (r9's pad 0.83); the split moves with the stance's roll.  At the home
 #       keyframe a foot transmits 378.6 N on the box and 96.7 N on the digits
@@ -607,14 +611,18 @@ observation_schema = "bipedal-target/v1"
 #       +0.03 reaches the horizon on 25/40 (r9 14/40), -0.03 on 40/40 (r9
 #       24/40).  The foot proposal's scratch evaluation adds a forward push
 #       limit of 58.4 N against 55.4, a first nosedive under a held
-#       single-ankle offset 1.0-1.5 deg later, statue falls under its H4
-#       joint-noise vectors 6/60 against 30/60, and four r9-trained policies
-#       falling 0/80 under that noise against 9/80.
-#     - Touch equals floor truth (0 N) on every floor contact of 465 recorded
-#       episodes.  The one other foot contact is seed 7068's spawn: digit II
-#       on the other foot's digit II for the first 4 substeps of step 0
-#       (118-174 N on both toe-II sensors), which the 7.7 cm between the
-#       digit-II tips at home (14.0 on r9) allows.
+#       single-ankle offset 1.0-1.5 deg later, a statue toe margin to each
+#       plant's own held-offset line (0.213 / 0.196 m) of 29.1 against
+#       22.5 N m (1.77 against 1.37 deg of ankle servo error; the worse
+#       foot 28.4 against 21.4), statue falls under its H4 joint-noise
+#       vectors 6/60 against 30/60, and four r9-trained policies falling
+#       0/80 under that noise against 9/80.
+#     - Touch equals floor truth to within 1e-6 N (solver precision) on
+#       every floor contact of 465 recorded episodes.  The one other foot
+#       contact is seed 7068's spawn: digit II on the other foot's digit II
+#       for the first 4 substeps of step 0 (118-174 N on both toe-II
+#       sensors), which the 7.7 cm between the digit-II tips at home (14.0
+#       on r9) allows.
 #     - Noise-free statue settle (steps 200-999): pelvis 0.92624 m (r9
 #       0.92616), forward_z -0.0282 (-0.0271), neck and tail within 3e-5 and
 #       6e-5 rad of _NECK_SETTLED_QPOS / _TAIL_SETTLED_QPOS, stance width

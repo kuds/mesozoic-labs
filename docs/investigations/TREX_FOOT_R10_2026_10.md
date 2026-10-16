@@ -10,11 +10,13 @@ least as good as the r9 foot.
 On physics r9 each T. rex foot stood on a 14 x 9 cm plantar pad, with three
 near-parallel digits on 40 N·m/rad springs that carried 18% of the statue's
 load near their bases. The stance gate's fore-aft rail read the pad alone
-(`max_sole_cop_fore_aft`, D-D28). r10 replaces the pad with a sole box under
-the metatarsal pad and three splayed, load-bearing digits, and moves the
-rail to the whole foot (`max_foot_cop_fore_aft`, #622's key) on a declared
-span. This note summarises the evidence. The full scratch record (proposal,
-two review rounds, the zero-shot and short-toe checks) was not committed.
+(`max_sole_cop_fore_aft`, D-D28). r10 replaces the pad with a sole box
+standing for the metatarsal pad and the soft tissue under the proximal
+phalanges, splays the three digits and makes them load-bearing, and moves
+the rail to the whole foot (`max_foot_cop_fore_aft`, #622's key) on a
+declared span. This note summarises the evidence. The full scratch record
+(proposal, two review rounds, the zero-shot and short-toe checks) was not
+committed.
 
 ## 1. What changed
 
@@ -46,15 +48,18 @@ its mechanics, not for the literature-row count:
 - **Robustness under noise.** Four r9-trained stance policies fall 0/80
   times under joint-noise vectors on V3 against 9/80 on r9 (Fisher p =
   0.003). The statue under the same vectors falls 6/60 against 30/60 (p =
-  2e-6). Statue falls on five shared seed blocks are 0/200 against 4/200
-  (p = 0.12, not significant).
+  2e-6). On the 280 stance-panel seeds the statue falls 0 times against
+  r9's 4 on the same seeds (p = 0.12, not significant).
 - **No fore-aft rocking.** One policy's 23 mm CoP oscillation at 3.6 Hz on
   r9 becomes 5.3 mm at 0.13 Hz. V1 doubles it, and V2 turns it into a 64 mm,
   5 Hz limit cycle.
 - **A modest toe-ward gain.** The forward push limit is 58.4 N against
   55.4 N (+5.4%; floor moment +4.6%), and the first nosedive under a held
-  single-ankle offset comes 1.0-1.5° later. V1 (62.0 N) and V2 (60.8 N)
-  resist more push; V3 leads only in CoP excursion.
+  single-ankle offset comes 1.0-1.5° later. The statue's toe margin to each
+  plant's own held-offset line (0.213 / 0.196 m) is 29.1 against 22.5 N·m
+  (1.77 against 1.37° of ankle servo error; the worse foot 28.4 against
+  21.4). V1 (62.0 N) and V2 (60.8 N) resist more push; V3 leads only in CoP
+  excursion.
 - **Pitch compliance** is 1.3x r9's (V2 2.6x), and the mirror is exact.
 
 Re-measured in this change: the statue stands on all 280 stance-panel
@@ -95,7 +100,9 @@ Primary sources are marked (P), secondary (S).
   Creek track attributed to T. rex, 35 / 40° (Falkingham et al. 2026, P), is
   not matched.
 - **W/L.** At the contact line it is 0.78, inside Bellatoripes' 0.78-1.00
-  and the T. rex-attributed 0.67-0.83. The Hell Creek R2 track is 0.83 (P).
+  and the T. rex-attributed 0.67-0.83. The Hell Creek R2 track is 0.83 (P;
+  its length includes a rear structure that may be a metatarsal pad or
+  hallux impression, and its digits are truncated by weathering).
   Tyrannosauripus at about 0.67 comes from secondary sources only. The
   claw-tip and outer-margin W/L (0.88, 0.99) are wider than every
   T. rex-attributed print.
@@ -106,9 +113,10 @@ Primary sources are marked (P), secondary (S).
 - **Not modelled:** MTP stagger (MT II and IV are 13 and 7.5% shorter than
   MT III in Sue), a measured condyle spacing, interphalangeal joints and
   digit curvature.
-- **Load is report-only.** Track depth is not load (Boeye et al. 2026: III
-  and IV deeper than II, deepest around the proximal phalanges). The model's
-  central digit carries the least.
+- **Load is report-only.** Track depth is not load. Boeye et al. 2026 (P)
+  report III and IV deeper than II, with depressions around the proximal
+  phalanges, which partly support the box's front corners under II-III and
+  IV. The model's central digit carries the least.
 
 ## 4. Digit length and the springs: V3 against the leg-scale V3s
 
@@ -171,12 +179,12 @@ in pure pitch or pure roll. A diagonal tilt lifts a corner 4 mm at about
 1.07° in each axis, so there the corner-lift bar binds first.
 
 The whole-foot CoP is the vertical load's moment about the ankle axis over
-the limb's floor force (PR #622). The ankle torque over that force is not
-the same thing. `test_anatomical_foot.py` balances the torque against
-three moments: the vertical load's, the floor shear times the contacts'
-height below the ankle, and the foot's own weight. The residual is within
-0.05 mm of CoP. Without the shear term, the torque misses by up to about
-11 mm on the statue.
+the limb's floor force, up to the sole's tilt (PR #622). The ankle torque
+over that force is not the same thing. `test_anatomical_foot.py` balances
+the torque against three moments: the vertical load's, the floor shear times
+the contacts' height below the ankle, and the foot's own weight. The
+residual is within 0.05 mm of CoP. Without the shear term, the torque misses
+by up to about 11 mm on the statue.
 
 ## 7. Open points
 
@@ -191,7 +199,8 @@ height below the ankle, and the foot's own weight. The residual is within
   35). The load split is report-only.
 - **The recovery push** derives to 186.8 N on r10 (165.5 N on r7-r9),
   because the heel-ward support margin grows from 77.3 to 87.2 mm. The
-  pushed statue recovers more of it (2/40 full horizon, 54 of 70 shoves).
+  pushed statue recovers more of it: 2/40 full horizon and 54 of 70 shoves,
+  against r9's 0/40 and 44 of 69 at 165.5 N.
   The frozen recovery gate was measured at 165.5 N and is re-frozen at the
   first r10 stance.
 - **Toe-off, the rigid box and the touch site.** The stiff MTP springs

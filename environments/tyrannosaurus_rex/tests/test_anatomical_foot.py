@@ -1,7 +1,7 @@
 """The physics-r10 foot (``configs/plant_versions.toml`` note 20, decision D-D34).
 
 Physics r10 replaced the plantar pad and the near-parallel digits with a sole
-box under the metatarsal pad and three splayed, load-bearing digits.  These
+box standing for the metatarsal pad and three splayed, load-bearing digits.  These
 tests pin what the stance gate and the touch observation rest on:
 
 * the geometry, as DESIGN values (not literature targets: note 20 and
@@ -10,9 +10,9 @@ tests pin what the stance gate and the touch observation rest on:
 * that the digits carry a share of the statue's load, out along their length
   (a regression pin, not an anatomical target);
 * that the summed touch reading is the floor's normal force on every floor
-  contact, under a held toe-ward ankle offset, at the forward push limit with
-  the load on the digit tips, and through the one spawn that sets a digit on
-  the other foot's;
+  contact, under a held toe-ward ankle offset, under a forward push that
+  moves the load onto the digit tips, and through the one spawn that sets a
+  digit on the other foot's;
 * that the whole-foot centre of pressure is the vertical load's moment about
   the ankle axis, and how it relates to the ankle's own torque.
 """
@@ -285,11 +285,12 @@ class TestTouchIsFloorTruth:
         left_digits = [trace.support_geom_names.index(f"l_toe_{digit}_geom") for digit in DIGITS]
         assert sum(metrics.support_geom_share[i] for i in left_digits) > 0.45  # about a third on the statue
 
-    def test_at_the_forward_push_limit_with_the_load_on_the_digit_tips(self):
-        """The noise-free statue pushed forward at its pelvis, ramped at 20 N/s from step 200 and held at 58 N,
-        the quasi-static push limit (note 20), until it falls: the sole boxes unload with all three digits
-        loaded out at their tips, the load then gathers on digit III's tip, and touch is floor truth on every
-        substep of it."""
+    def test_under_a_forward_push_with_the_load_on_the_digit_tips(self):
+        """The noise-free statue pushed forward at its pelvis, ramped at 20 N/s from step 200 and capped at 58 N
+        (the foot proposal's push limit, 58.4 N, found with its own fall criterion; under the env's termination
+        the statue nosedives at every cap from 40 to 58 N, and holds at 35 N), until the env's nosedive
+        termination: the sole boxes unload with all three digits loaded out at their tips, the load then
+        gathers on digit III's tip, and touch is floor truth on every substep of it."""
         env = TyrannosaurusRexAnatomicalEnv(reset_noise_scale=0.0)
         try:
             recorder = SubstepContactRecorder(env, Morphology.from_env(env, MODEL)).attach()

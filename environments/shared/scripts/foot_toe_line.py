@@ -60,7 +60,8 @@ START_DEG = -2.5
 STEP_DEG = 0.5
 RAMP_STEPS = 200
 RESOLUTION_M = 0.001
-#: A guard, not part of the rule: an ankle that has not fallen this far toe-ward is reported, not extrapolated.
+#: A guard, not part of the rule: an ankle that has not fallen this far toe-ward stops the script with a
+#: ValueError before anything is written, so no line is ever extrapolated.
 MAX_LEVELS = 24
 
 STAGE = "stance"

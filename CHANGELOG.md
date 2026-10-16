@@ -28,14 +28,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     the sole's lateral axis, the one axis about which a contact's distance
     along the sole is its lever arm). Only the T. rex declares them:
     `{s}_ankle`, 0.070 and 0.210, its pad's own heel and toe edges, so its
-    reading is in pad half-lengths (0.060 and 0.213 since its physics r10,
-    under Changed). The other box feet (the anatomical
-    Compsognathus's, the Dibothrosuchus's and the Compsognathus robot's) sit
-    on a toe or ankle-roll hinge below the ankle, so which axis counts as
-    their ankle is left to a later decision. A hinged digit (a registered
-    support capsule on a child body of the sole's, joined to it by one hinge,
-    its MTP joint) is found by rule: the T. rex's three per foot, none
-    elsewhere.
+    reading is in pad half-lengths (since its physics r10, under Changed:
+    0.060 and 0.213, the sole box's heel edge and the held-offset toe line, so
+    the reading is in span half-lengths of 0.0765 m). The other box feet (the
+    anatomical Compsognathus's, the Dibothrosuchus's and the Compsognathus
+    robot's) sit on a toe or ankle-roll hinge below the ankle, so which axis
+    counts as their ankle is left to a later decision. A hinged digit (a
+    registered support capsule on a child body of the sole's, joined to it by
+    one hinge, its MTP joint) is found by rule: the T. rex's three per foot,
+    none elsewhere.
   - The floor-truth recorder's `EpisodeTrace` gains `foot_cop`: every floor
     contact of the limb (pad, digits, any other leg geom), force-weighted,
     along the sole's forward axis of its own substep, in m ahead of the ankle
@@ -740,7 +741,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   note 20; [TREX_FOOT_R10_2026_10.md](docs/investigations/TREX_FOOT_R10_2026_10.md)).
   Physics r9 → r10 and visual r4 → r5; the policy interface stays r15.
   - **The foot** (`tyrannosaurus_rex_anatomical.xml`, both feet):
-    - The 14 x 9 cm plantar pad becomes a sole box under the metatarsal pad,
+    - The 14 x 9 cm plantar pad becomes a sole box standing for the
+      metatarsal pad and the soft tissue under the proximal phalanges,
       0.060-0.165 m ahead of the ankle, 11 cm wide and 6 mm lateral. It is a
       stance approximation, rigid across the MTP and first interphalangeal
       joints.
@@ -776,8 +778,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     stage, and the T. rex's span changed. No constant or metric definition
     changes (see Migration).
   - **Re-measured on r10** with the repository's tools:
-    - The statue stands on all 280 stance-panel seeds (r9 fell on 4) and is
-      clean on all of them.
+    - The statue stands on all 280 stance-panel seeds and is clean on all of
+      them. r9 fell on 4 of the same seeds, which is not a significant
+      difference (Fisher exact p = 0.12).
     - The statue-derived constants: stance 3757.3 (the 3756.8 reference and
       2250 rail carry), locomotion 1092.3 (was 1091.5), behavior 602.0 and
       361 (carry), recovery 1504.4 (was 1329.1).
@@ -791,9 +794,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
       `max_settle_touchdowns` bar of 2 on 89 of 280 episodes. That bar is
       kept.
   - **Tests.** `test_anatomical_foot.py` pins the foot's geometry and its
-    mirror, the digits' share of the statue's load, and touch equal to
-    floor truth in three cases: under a held toe-ward offset, at the push
-    limit with the load on the digit tips, and through seed 7068's
+    mirror, the digits' share of the statue's load, and touch equal to floor
+    truth in three cases: under a held toe-ward offset, under a forward push
+    capped at 58 N with the load on the digit tips, and through seed 7068's
     spawn-time digit-on-digit contact. It also checks the whole-foot CoP
     against the vertical-load moment and the ankle torque, with the
     floor-shear term. `test_gait_morphology.py` pins the toe line to its
@@ -801,8 +804,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     eval-diagnostics, recorder, golden and statue pins follow the new plant
     and rail.
   - **Regenerated:** the plant manifests, the digest snapshot (T. rex lines
-    only), the reset golden's T. rex captures (their reset halves move only
-    in the settled root height), and the species catalog.
+    only), the reset golden's T. rex captures, and the species catalog. In
+    the golden, the reset states move only in the spawn root height. The
+    reset observations' accelerometer and foot-contact channels and the
+    20-step trajectories move with the foot.
   - Recorded in `docs/KNOWN_ISSUES.md`: the stiff MTP springs resist
     toe-off; the 7.7 cm digit II-II clearance is an anatomical constraint;
     and the foot's stance approximations.
