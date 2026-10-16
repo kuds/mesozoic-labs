@@ -180,7 +180,8 @@ episodes, 40 on the stance stages that declare it. Every array has one
 value (or one row) per evaluation, aligned with `timesteps`. A key a run
 cannot supply on every evaluation is dropped rather than written misaligned.
 The file is report-only. No gate verdict, checkpoint selection or reward
-reads it. The opt-in hop watch reads only its `unsupported_duty`.
+reads it. The opt-in hop watch reads only its `unsupported_duty`, and the
+posture-drift advisory (below) only its fore-aft over-bar fractions.
 
 | Keys | Meaning |
 |---|---|
@@ -199,6 +200,10 @@ reads it. The opt-in hop watch reads only its `unsupported_duty`.
 | `<label>_toe_margin_nm`, `<label>_heel_margin_nm` | Per foot that declares a span: the post-settle mean, over loaded steps, of the floor-load moment left before the whole-foot CoP reaches the toe line and the heel line, in N m; means over the full-horizon episodes |
 | `<label>_<digit>_load_share`, `<label>_<digit>_load_pos` | Per digit of a box-soled foot: its share of the limb's post-settle floor force, and (a digit with an MTP joint only) where along it that load sits, force-weighted, 0 at the MTP axis and 1 at the tip; means over the full-horizon episodes |
 | `leg_dc_<left>_minus_<right>_<joint>_deg` | Per left/right foot pair and sagittal joint (`hip_pitch`, `knee`, `ankle`): the left joint's commanded offset from home minus the right one's, in degrees, each signed as a rotation about the animal's leftward axis. A mirror-symmetric posture reads 0 |
+| `<label>_sole_tilt_deg`, `<label>_sole_corner_lift_m` | Per box-soled foot: the evaluation's mean, over its full-horizon episodes, of the sole's post-settle mean tilt from level (degrees) and mean corner lift (the height of its highest bottom corner over its lowest, m). In each episode, the maximum over the feet of each is that episode's `max_sole_tilt_deg` and `max_sole_corner_lift_m`, the gate's two roll rails |
+| `max_sole_tilt_deg_mean`, `max_sole_corner_lift_m_mean` | A model with a box sole: the evaluation's mean, over its full-horizon episodes, of each episode's own `max_sole_tilt_deg` and `max_sole_corner_lift_m` |
+| `max_sole_tilt_deg_over_bar_fraction`, `max_sole_corner_lift_m_over_bar_fraction` | A model with a box sole, on a stage that declares the bar (the T. rex 2.0° and 0.004 m, the anatomical Compsognathus 2.0° and 0.003 m): the fraction of the full-horizon episodes whose value exceeds the bar |
+| `termination_<cause>` | Per evaluation, the number of its episodes that ended by each cause: the env's `termination_reason` for an episode it terminated (`nosedive`, `head_contact`, `fallen`, ...; `terminated` when the env gave none) and `truncated` for one that reached its time limit. Every cause the file has seen is written on every evaluation, so the counts of one evaluation sum to its episodes |
 
 The pad and leg DC keys exist so that an asymmetric pad posture is visible
 when it forms. In the 2026-10-11 T. rex stance run, the left-right leg offset
@@ -282,9 +287,76 @@ pitch, knee and ankle pass, so the keys exist on all six. Each side's joints
 use the prefix of its `FOOT_SUPPORT` foot site (`r_knee`, or `right_knee` on
 the Compsognathus robot).
 
+The roll-rail keys follow the pad keys' rule: they exist on the box-soled
+feet only, so they add no recorder to any model. The Brachiosaurus's
+ellipsoid soles have a tilt the gate would read, which includes the pitch
+the feet are authored at (16 to 19°), and no corners; recording it would
+attach the recorder to every Brachiosaurus evaluation (45% more evaluation
+time, measured) for a bar no Brachiosaurus stage declares, so it is left
+out. A roll-rail key is NaN where no full-horizon episode measured it; the
+corner lift also when a sole had no finite corner reading in the window.
+
+A termination count is 0 for an evaluation in which no episode ended by
+that cause. A cause first seen at a later evaluation reads 0 on the earlier
+rows, except on rows a same-stage resume carried over from a file recorded
+before these counts existed, which read NaN, as does every count of an
+evaluation whose causes were not captured. Before the first cause there is
+no `termination_` key at all.
+
 A training run that names no model (`model_id=None`) records neither the pad
-keys nor the leg DC keys. TensorBoard carries the finite values of the same
-keys as `diagnostics/eval_<key>`.
+and roll-rail keys nor the leg DC keys. TensorBoard carries the finite values
+of the same keys as `diagnostics/eval_<key>`, and the termination counts as
+`terminations/eval_<cause>` (the training rollouts' termination fractions are
+`terminations/<cause>`).
+
+### The posture-drift advisory
+
+On a stage that declares a fore-aft centre-of-pressure bar
+(`max_sole_cop_fore_aft` or `max_foot_cop_fore_aft`), a warning line starting
+`PostureDrift` appears in the training output (in the notebook, the training
+cell's output) when that rail's `_over_bar_fraction` is at least 0.5 on 3
+evaluations in a row. It names the rail, the fractions, the steps and each
+foot's latest signed centre of pressure (+ toward the toe), and repeats at
+most once per 10 evaluations while the drift lasts. It never stops or
+changes training (`curriculum/posture_watch.py`). Three `[curriculum]` keys
+tune it, like `baseline_warn_after_budget_fraction`, and enter no gate, task
+or hyperparameter digest: `posture_drift_warn_over_bar_fraction` (0.5),
+`posture_drift_warn_consecutive_evals` (3) and
+`posture_drift_warn_repeat_evals` (10). No committed stage sets them.
+
+## Training progress: `progress.json`
+
+Each training stage directory also holds `progress.json`, a small
+human-readable snapshot of the stage (about 5 KB), so a run can be checked
+mid-run without opening the binary `.npz` files: on Colab, open it from
+Drive (`MyDrive/mesozoic-labs/logs/<species>/<embodiment>/<algorithm>/<run>/<stage_dir>/progress.json`).
+`TrainingProgressCallback` (`environments/shared/curriculum/progress_report.py`)
+rewrites it atomically (a temporary file in the stage directory, then
+`os.replace`, safe on a Drive mount) when training starts, after every
+periodic evaluation and when training ends. It reads what the evaluation
+callbacks already recorded, the evaluation history and the latest
+`gate_progress.npz` row, and recomputes nothing. Nothing reads it back, and
+a failure to write it is logged once and never stops a run. It is strict
+JSON: a value that could not be measured is `null`, never NaN. Numbers keep
+six significant digits, and the posture statistics four.
+
+| Key | Meaning |
+|---|---|
+| `schema` | `mesozoic.training-progress/v1` |
+| `status` | `training`, or `ended` once `learn()` returns. A run killed mid-stage (a Colab disconnect) is left at `training` with an old `written_at` |
+| `written_at` | When the file was written, UTC (`2026-10-16T20:20:01Z`) |
+| `species`, `embodiment`, `model` | The model's two IDs and its display name (`null` for a run that names no model) |
+| `stage` | The stage id (`stance`) |
+| `run_id`, `run_dir`, `stage_dir` | The run's `provenance.json` `run_id` (`null` when the run directory has none) and the two directory names |
+| `seed` | The run's seed |
+| `timesteps`, `budget_timesteps`, `fraction_done` | Steps trained (cumulative across a same-stage resume), the cumulative step count this session trains to, and their ratio |
+| `session_started_at`, `wall_clock_s`, `steps_per_s`, `projected_finish` | When this session's training started (UTC), the seconds since, the steps per second observed over them (evaluations included), and the UTC time the budget is reached at that rate (`null` before the first step) |
+| `zero_action_reward` | The zero-action statue's mean reward from the run's `zero_action_baseline.json`, when the run captured one |
+| `evaluation` | The latest evaluation: `timesteps`, `episodes`, `mean_reward`, `std_reward`, `mean_episode_length`, `falls` (episodes shorter than the horizon), `full_horizon_fraction` and `termination_causes` (each cause's count, causes no episode ended by left out); `null` before the first |
+| `posture` | Per rail the model measures (`max_sole_cop_fore_aft`, `max_foot_cop_fore_aft`, `max_sole_tilt_deg`, `max_sole_corner_lift_m`): `bar` (the stage's, `null` when it declares none), `mean` (the `_mean` key), `over_bar_fraction` (with a bar only) and `per_foot`. Per foot, the CoP rails give `gate` (the per-foot statistic's mean) with the signed CoP and the digit share or the moment margins where the foot has them; the roll rails a number. Then `leg_dc_deg`, the left-minus-right leg DC per joint pair. `{}` before the first evaluation |
+| `history` | The last 5 evaluations, oldest first: the `evaluation` fields but the causes, with each rail's `_mean` and `_over_bar_fraction` where recorded |
+| `checkpoints` | `latest_periodic_timesteps` (the newest periodic checkpoint in `models/`, by its name), `best_model_timesteps` and `best_mean_reward` (SB3's mean-reward best), `robust_best_model_timesteps` and `robust_best_score` (mean minus one standard deviation). A best checkpoint whose evaluation a resume dropped from the history reads `null` |
+| `warnings` | The advisories the run has raised, in step order, each `{"timesteps", "source", "message"}`: `posture_drift` (with `rails`), `evaluation_plateau`, `zero_action_baseline` and `hop_watch`. Each also appears as a warning line in the training output. A resumed session lists its own |
 
 ## Compatibility and verification
 

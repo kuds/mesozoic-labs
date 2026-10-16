@@ -8,6 +8,93 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **A training progress report and posture telemetry at every evaluation,
+  report-only** (the maintainer's request of 2026-10-16 for better training
+  artifacts and reporting). The T. rex physics-r10 screen's two drifting
+  seeds were found by reading `gate_progress.npz` by hand: at 2.3 to 2.5M
+  steps seeds 52 and 60 stood on their toes (whole-foot centre of pressure
+  1.1 to 1.25 span half-lengths, digit share 0.7 to 0.9) while seed 42 stood
+  clean, and nothing in the training output or in a file a person could open
+  from Drive said so. This change adds a readable snapshot of each stage, the
+  gate's two roll rails and the evaluation episodes' termination causes to
+  the per-evaluation telemetry, and one advisory warning line. No gate
+  verdict, reward, observation, action, checkpoint selection, existing
+  schema, task, plant or hyperparameter digest moves: the 649-line digest
+  snapshot and the exact reward captures (`digest_snapshot --exact`) are
+  byte-identical, and a short T. rex stance run with and without every
+  addition evaluates and saves exactly the same.
+  - `progress.json` in every stage directory
+    (`curriculum/progress_report.py`, schema
+    `mesozoic.training-progress/v1`, about 5 KB of strict JSON): the model,
+    stage, run id, run directory and seed; steps against the session's
+    budget, wall-clock time, observed steps per second and the projected
+    finish (UTC); the latest evaluation (mean and standard deviation of
+    reward, mean episode length, full-horizon fraction, falls and each
+    termination cause's count); the zero-action statue's reward when the run
+    captured one; per rail the model measures (the pad and whole-foot
+    centre of pressure, the sole tilt and corner lift) the stage's bar, the
+    mean of each episode's own rail statistic, the fraction over the bar and
+    the per-foot values; the left-minus-right leg DC; the last five
+    evaluations; the newest periodic checkpoint and the best and robust best
+    models' steps; and the advisories raised. It is rewritten atomically (a
+    temporary file and `os.replace`, safe on a Drive mount) when training
+    starts, after every evaluation and when it ends, from what the evaluation
+    callbacks already recorded (`StageGatePlateauCallback.gate_progress_row`);
+    a failure to write it is logged once and costs the file, never the run.
+  - The roll rails: `pad_telemetry.episode_rail_telemetry` keeps each box
+    sole's post-settle mean tilt and corner lift
+    (`<label>_sole_tilt_deg`, `<label>_sole_corner_lift_m`), whose maxima
+    over the feet are `stance_quality/v2`'s `max_sole_tilt_deg` and
+    `max_sole_corner_lift_m` bit for bit on every model.
+    `gate_progress.npz` and TensorBoard (`diagnostics/eval_<key>`) gain their
+    full-horizon means, `max_sole_tilt_deg_mean` and
+    `max_sole_corner_lift_m_mean` (each episode's own maximum), and, where
+    the stage declares the bar (the T. rex and the anatomical Compsognathus),
+    `max_sole_tilt_deg_over_bar_fraction` and
+    `max_sole_corner_lift_m_over_bar_fraction`. They follow #620's per-foot
+    rule, the box-soled feet, so no model attaches a recorder it did not
+    before; the Brachiosaurus's ellipsoid soles are left out (their tilt is
+    mostly the pitch they are authored at, and recording it would add 45% to
+    every Brachiosaurus evaluation for a bar none of its stages declares). On
+    the T. rex the reduction costs no measurable evaluation time.
+  - Termination causes: `StageAwareEvalCallback` keeps each evaluation
+    episode's cause (the env's `termination_reason`, `terminated` when it
+    gave none, or `truncated` at the time limit), and `gate_progress.npz`
+    gains one `termination_<cause>` count per cause seen, on every evaluation
+    (0 where none ended that way; NaN on rows a resume carried over from a
+    file recorded before the counts), with TensorBoard's
+    `terminations/eval_<cause>`.
+  - The posture-drift advisory (`curriculum/posture_watch.py`): on a stage
+    that declares a fore-aft centre-of-pressure bar (`max_sole_cop_fore_aft`
+    or `max_foot_cop_fore_aft`), one `PostureDrift` warning line in the
+    training output, which the notebook shows, when the rail's over-bar
+    fraction is 0.5 or more on 3 evaluations in a row. It names the rail,
+    the fractions, the steps and each foot's signed centre of pressure,
+    repeats at most once per 10 evaluations while the drift lasts, and is
+    listed in `progress.json`; it never stops or changes training. It is
+    modelled on the below-baseline warning, with its knobs
+    (`posture_drift_warn_over_bar_fraction`,
+    `posture_drift_warn_consecutive_evals`,
+    `posture_drift_warn_repeat_evals`) registered as diagnostic keys like
+    `baseline_warn_after_budget_fraction`: no committed stage sets them and
+    they enter no gate, task or hyperparameter digest. A same-stage resume
+    starts it past the seeded rows, as the hop watch.
+  - The evaluation-plateau, below-baseline and hop-watch warnings are
+    recorded for `progress.json` too, with their log lines unchanged.
+  - Tests: `test_curriculum_progress_report.py` (the record, the atomic
+    rewrite and its failure, and a 768-step T. rex stance run on CPU whose
+    `progress.json` matches its `evaluations.npz` and `gate_progress.npz`,
+    run again with every addition switched off: the same evaluations,
+    `gate_progress.npz` values and checkpoint parameters),
+    `test_curriculum_posture_watch.py` (trigger, no trigger, rate limit,
+    knobs, wiring, resume), and in `test_gait_pad_telemetry.py` and
+    `test_eval_diagnostics.py` the roll rails against the gate on synthetic
+    traces and every model, and the termination counts and their NaN rules.
+    Both new files run in the SB3 job (`test_curriculum_*.py`).
+  - Documented in `docs/TRAINING_ARTIFACT_PRESENTATION.md` (the
+    `progress.json` schema, the new `gate_progress.npz` keys and their NaN
+    rules, the advisory) and the website's training tips (open
+    `progress.json` from Drive while a Colab run trains).
 - **Mirror-symmetric PPO and two T. rex stance options, all off by default**
   (#624; the maintainer's approval of 2026-10-16: land the symmetry module and the
   two reward options as config switches, off by default so nothing changes
@@ -835,7 +922,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **The recovery stage has its own recipe label, `recover`, and `stand` is
-  the stance stage on every model** (decision D-D35, the maintainer's
+  the stance stage on every model** (#625; decision D-D35, the maintainer's
   decision of 2026-10-16). A recipe label resolves to the deepest deliverable
   carrying it, and the recovery stage was labelled `stand` too, so `stand`
   meant stance then push recovery on the three models that have a recovery
