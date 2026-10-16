@@ -127,13 +127,14 @@ latency, motor calibration and sim-to-real validation remain future work.
 
 Each model has three advancing stages and a recovery node that, like
 locomotion, warm-starts from stance (`configs/compsognathus_longipes/<embodiment>/stages.toml`);
-recovery is the second deliverable of the `stand` recipe (`BEHAVIOR = "stand"`
-in the notebook) and the CLI `curriculum` command skips it:
+recovery is the deliverable of the `recover` recipe, stance → recovery
+(`BEHAVIOR = "recover"` in the notebook; `"stand"` is the stance alone,
+decision D-D35), and the CLI `curriculum` command skips it:
 
 | Stage | Objective and advancement criteria | Initial budget |
 |---|---|---:|
 | 1 / `stance` | Supported upright stance. Anatomical: `stance_quality_heading/v1`, the `stance_quality/v2` decision at six whole-scene headings and at least 37 of the 40 panel seeds clean at all six on floor truth, reward rails ≥2,740 and ≥0.60 × the statue's. Robot: ≥95% full-horizon episodes, unsupported duty ≤2%, its one-sided 95% upper bound ≤2%, reward rail ≥1,800 | 11M steps |
-| `recovery` (`stand` recipe) | Recover after calibrated horizontal pushes; frozen paired-null evaluation, with provisional pilot targets | 3M steps |
+| `recovery` (`recover` recipe) | Recover after calibrated horizontal pushes; frozen paired-null evaluation, with provisional pilot targets | 3M steps |
 | 2 / `locomotion` | Forward progress; average speed gate above, average length ≥900 and reward ≥500 | 3M steps |
 | 3 / `behavior` | Upright arrival within 8 cm of the goal in XY, horizontal speed ≤0.10 m/s; success rate ≥70% and reward ≥25 | 3M steps |
 
@@ -206,7 +207,7 @@ each require at least 20. All three advancing stages require three consecutive
 passing checkpoint evaluations. The notebook also applies the shared
 publication gate to the selected checkpoint's evaluation evidence. These
 thresholds and per-chain totals — 17M steps for `hunt` (stance, locomotion,
-behavior), 14M for `stand` (stance, recovery), 20M when both chains run in one
+behavior), 14M for `recover` (stance, recovery), 20M when both chains run in one
 run directory reusing its stance — are **experimental recipes**, not calibrated claims
 about convergence time. The target is a non-contact marker: success is
 `target_success`, distinct from the generic 0.5 m proximity diagnostic.
@@ -241,7 +242,7 @@ For the robot, bilateral support remains a diagnostic: its gate sets no
 minimum bilateral support duty, so passing does not establish sustained
 two-foot loading. The anatomical v2 gate requires both feet down on 98% of the
 window and each carrying at least 40% of the load.
-Set `BEHAVIOR = "stand"` in the SB3 notebook's configuration cell to run the
+Set `BEHAVIOR = "recover"` in the SB3 notebook's configuration cell to run the
 calibrated recovery pilot: the chain loop trains stance → recovery (reusing a
 certified stance from `RUN_DIR` or `TRUNK_FROM` when one exists), freezes the
 null comparisons before recovery trains, rolls the policy panel after, saves

@@ -45,7 +45,7 @@ For the easiest setup, use the pre-configured Google Colab notebooks in the `not
 
 Available notebooks:
 
-- `notebooks/sb3_training.ipynb` - Trains one behavior (`BEHAVIOR = "hunt"` by default; `"stand"`, `"walk"` or a deliverable's stage id) for any of the six models with SB3, reusing a trunk run's certified ancestors through `TRUNK_FROM`; see [Behavior Recipes](/docs/training/recipes)
+- `notebooks/sb3_training.ipynb` - Trains one behavior (`BEHAVIOR = "hunt"` by default; `"stand"`, `"recover"`, `"walk"` or a deliverable's stage id) for any of the six models with SB3, reusing a trunk run's certified ancestors through `TRUNK_FROM`; see [Behavior Recipes](/docs/training/recipes)
 - `notebooks/google_drive_summary.ipynb` - Training-run summaries and comparisons
 
 ## Dependencies

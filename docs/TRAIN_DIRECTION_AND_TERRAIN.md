@@ -6,7 +6,7 @@ outputs.** The behaviors below train through a separate runner
 loop; their bundles are not certified deliverables and are not reused as
 training parents (decision D-D9). The SB3 training notebook has no
 direction/terrain path since the consolidation's notebook-only PR-12 slice
-(decision D-D13): its `BEHAVIOR` takes `stand`, `walk`, `hunt` or a stage id, and
+(decision D-D13): its `BEHAVIOR` takes `stand`, `recover`, `walk`, `hunt` or a stage id, and
 its `BEHAVIOR_*` knobs are gone. The final goal (every model
 follows a direction on difficult terrain) is reached by re-homing
 `follow_direction` and `follow_direction_difficult_terrain` as manifest nodes
@@ -47,9 +47,10 @@ status table).
 The node order is `stance` (the notebook's `stand`), `locomotion` (its
 `walk`), `follow_direction`, then `follow_direction_difficult_terrain`
 (decision G1 in [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2). On
-the T-Rex and the two Compsognathus models, `stand` also trains `recovery`, a side
-branch that `walk` does not use. It is second in their manifests, so their
-walker is node `03_locomotion` (`02_locomotion` elsewhere).
+the T-Rex and the two Compsognathus models, the notebook's `recover` trains
+`recovery` after stance (decision D-D35; `stand` is the stance alone on every
+model), a side branch that `walk` does not use. It is second in their
+manifests, so their walker is node `03_locomotion` (`02_locomotion` elsewhere).
 `difficult_terrain` is an optional diagnostic sibling, not a step. The
 sequence under "Follow directions on difficult terrain" is advice for
 command-line pilots, not this chain.
@@ -137,7 +138,7 @@ one training run.
 Each filename ends in `.toml`; for example,
 [`configs/compsognathus_longipes/anatomical/behaviors/follow_direction_difficult_terrain.toml`](../configs/compsognathus_longipes/anatomical/behaviors/follow_direction_difficult_terrain.toml).
 None of these names is a notebook `BEHAVIOR` value: the notebook's `stand`,
-`walk`, `hunt` and stage-ID selections are the canonical curriculum only, until
+`recover`, `walk`, `hunt` and stage-ID selections are the canonical curriculum only, until
 PR-11 adds the direction and terrain nodes to the models' stage manifests.
 
 ## Model-specific recipe settings
