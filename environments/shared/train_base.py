@@ -712,6 +712,7 @@ def _build_core_callbacks(
         build_baseline_progress_callback,
         build_eval_collapse_early_stop_callback,
         build_hop_watch_callback,
+        build_posture_drift_watch_callback,
     )
     from .diagnostics import DiagnosticsCallback as _DiagCB
     from .eval_diagnostics import build_stage_evaluation_callbacks
@@ -888,6 +889,16 @@ def _build_core_callbacks(
     )
     if hop_watch_cb is not None:
         callbacks.append(hop_watch_cb)
+
+    # Advisory only: one warning line in the training output while the
+    # evaluation panel keeps standing over the stage's fore-aft centre-of-
+    # pressure bar (3 evaluations in a row at an over-bar fraction of 0.5 or
+    # more, at most once per 10).  Reads the plateau callback's
+    # gate_progress rows; None unless the stage declares that bar.  See
+    # `curriculum.posture_watch`.
+    posture_cb = build_posture_drift_watch_callback(plateau_callback, stage_config, verbose=verbose)
+    if posture_cb is not None:
+        callbacks.append(posture_cb)
 
     if use_wandb:
         callbacks.append(WandbCallback())

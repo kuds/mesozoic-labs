@@ -16,6 +16,7 @@ import numpy as np
 
 from . import sb3_compat
 from .hop_watch import HopRegimeWatchCallback
+from .posture_watch import PostureDriftWatchCallback
 from .sb3_compat import BaseCallback
 
 if TYPE_CHECKING:
@@ -303,7 +304,8 @@ def seed_resume_eval_state(
     * the plateau callback's ``gate_progress.npz`` rows, from the file beside
       *prior_npz_path* (``StageGatePlateauCallback.seed_prior_gate_progress``),
       so the resumed session appends to the prior rows instead of rewriting
-      the file with its own, and the hop watch's cursor over those rows.
+      the file with its own, and the hop and posture watches' cursors over
+      those rows.
 
     A prior record whose per-eval episode count differs from this session's
     ``n_eval_episodes`` seeds only the scalar best trackers: mixing row
@@ -415,8 +417,8 @@ def seed_resume_eval_state(
             callback._last_seen_n_evals = seeded
         if hasattr(callback, "_last_published_n"):
             callback._last_published_n = seeded
-        # The hop watch's cursor counts gate_progress rows, which need not be one per evaluation.
-        if isinstance(callback, HopRegimeWatchCallback):
+        # The hop and posture watches' cursors count gate_progress rows, which need not be one per evaluation.
+        if isinstance(callback, (HopRegimeWatchCallback, PostureDriftWatchCallback)):
             callback._last_seen = gate_rows
 
     logger.info(
