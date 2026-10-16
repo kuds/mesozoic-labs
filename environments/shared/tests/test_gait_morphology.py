@@ -105,10 +105,11 @@ SOLE = {
 
 
 #: The registry's ankle and declared support span (heel line, toe line; m ahead of the ankle axis along the
-#: sole's forward axis): only the T. rex declares them, its pad's own edges (pad centre 0.14 m ahead of the
-#: ankle, half-length 0.07), so its whole-foot centre of pressure reads in pad half-lengths.
+#: sole's forward axis): only the T. rex declares them.  Since physics r10 its heel line is the sole box's heel
+#: edge and its toe line the held-offset line of ``scripts/foot_toe_line.py`` (its record pinned below), past
+#: the box's front edge, so its whole-foot centre of pressure reads in half-lengths of that span (0.0765 m).
 SUPPORT_SPAN = {
-    TYRANNOSAURUS_REX: ("{s}_ankle", 0.070, 0.210),
+    TYRANNOSAURUS_REX: ("{s}_ankle", 0.060, 0.213),
     VELOCIRAPTOR_MONGOLIENSIS: None,
     COMPSOGNATHUS_LONGIPES: None,
     COMPSOGNATHUS_LONGIPES_ROBOT: None,
@@ -254,7 +255,7 @@ def test_sole_frames_face_the_floor_and_point_forward(stance_env, model_id):
 
 @pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
 def test_the_declared_support_span_and_the_hinged_digits(stance_env, model_id):
-    """Only the T. rex declares an ankle and a span, and its lines are its pad's own edges measured from the ankle."""
+    """Only the T. rex declares an ankle and a span: its heel line is its sole box's heel edge, its toe line ahead."""
     env = stance_env(model_id)
     model = env.model
     morphology = Morphology.from_env(env, model_id)
@@ -267,13 +268,16 @@ def test_the_declared_support_span_and_the_hinged_digits(stance_env, model_id):
         else:
             assert model.joint(foot.ankle_joint).name == declared[0].format(**names)
             assert (foot.heel_line_m, foot.toe_line_m) == declared[1:]
-            # The pad's heel and toe edges, m ahead of the ankle axis along the pad's forward axis: the
-            # declared lines must be exactly where the plant puts them (a plant revision that moves the pad
-            # without the registry fails here).
+            # The heel line is the sole box's heel edge, m ahead of the ankle axis along its forward axis,
+            # exactly where the plant puts it (a plant revision that moves the box without the registry fails
+            # here).  The toe line lies past the box's front edge, where the digits carry the load: it is the
+            # held-offset line, pinned to its record by the next test.
             half = float(model.geom_size[foot.sole_geom][foot.sole_forward_axis])
             centre_ahead = -foot.ankle_forward_m
-            assert centre_ahead == pytest.approx(0.14, abs=1e-12)
-            assert (centre_ahead - half, centre_ahead + half) == pytest.approx(declared[1:], abs=1e-12)
+            assert centre_ahead == pytest.approx(0.1125, abs=1e-12)
+            assert centre_ahead - half == pytest.approx(declared[1], abs=1e-12)
+            assert centre_ahead + half == pytest.approx(0.165, abs=1e-12)
+            assert centre_ahead + half < declared[2]
     expected = {
         _names([geom], foot.label).pop(): _names([joint], foot.label).pop()
         for foot in morphology.feet
@@ -286,6 +290,26 @@ def test_the_declared_support_span_and_the_hinged_digits(stance_env, model_id):
     }
     assert hinged == expected
     assert morphology.support_geom_names == tuple(model.geom(geom).name for geom in morphology.support_geom_ids)
+
+
+def test_the_tyrannosaurus_rex_toe_line_is_the_held_offset_record_of_the_current_plant():
+    """The toe line is measured, not authored: ``scripts/foot_toe_line.py`` writes the record, the registry's toe line
+    must equal the line the record states, the record's line must be the rule applied to its own episodes, and the
+    record must have been measured on the committed plant.  A physics revision fails here until the script is
+    re-run and the registry follows it."""
+    from environments.shared.paths import REPOSITORY_ROOT
+    from environments.shared.scripts.foot_toe_line import TOE_LINE_SCHEMA, record_path, toe_line_of_record
+
+    record = json.loads(record_path(TYRANNOSAURUS_REX).read_text(encoding="utf-8"))
+    assert record["schema"] == TOE_LINE_SCHEMA
+    assert (record["species"], record["embodiment"]) == (TYRANNOSAURUS_REX.species, TYRANNOSAURUS_REX.embodiment)
+    manifest = json.loads((REPOSITORY_ROOT / "configs" / "plant_manifest.generated.json").read_text(encoding="utf-8"))
+    physics = manifest["plants"][TYRANNOSAURUS_REX.species][TYRANNOSAURUS_REX.embodiment]["physics"]
+    assert (record["physics_revision"], record["physics_sha256"]) == (physics["revision"], physics["sha256"])
+    assert toe_line_of_record(record) == record["toe_line_m"]
+    assert support_entry(TYRANNOSAURUS_REX).toe_line == record["toe_line_m"] == SUPPORT_SPAN[TYRANNOSAURUS_REX][2]
+    # Onsets measured on physics r10: right ankle -5.0 deg (other foot 214.84 mm), left -5.5 deg (213.44 mm).
+    assert {label: ankle["onset_deg"] for label, ankle in record["ankles"].items()} == {"r": -5.0, "l": -5.5}
 
 
 def test_a_foot_without_a_sole_has_no_sole_frame(stance_env):
@@ -473,7 +497,7 @@ def test_the_manifest_records_the_constants_the_registry_and_the_resolved_names(
         "sole_rolled_deg": 2.0,
         "support_geom_down_fraction": 0.5,
     }
-    assert MEASUREMENT_VERSION == "floor-truth/v2"
+    assert MEASUREMENT_VERSION == "floor-truth/v3"
     assert MEASUREMENT_MANIFEST_SCHEMA == "mesozoic.floor-truth-measurement/v3"
     assert (manifest["species"], manifest["embodiment"], manifest["frame_skip"], manifest["dt"]) == (
         "tyrannosaurus_rex",
@@ -487,8 +511,8 @@ def test_the_manifest_records_the_constants_the_registry_and_the_resolved_names(
         "sole": "{s}_plantar_geom",
         "foot_site": "{s}_foot",
         "ankle": "{s}_ankle",
-        "heel_line": 0.07,
-        "toe_line": 0.21,
+        "heel_line": 0.06,
+        "toe_line": 0.213,
     }
     right = manifest["feet"][0]
     assert right == {
@@ -501,7 +525,7 @@ def test_the_manifest_records_the_constants_the_registry_and_the_resolved_names(
         "sole_forward": "+x",
         "sole_lateral": "+y",
         "ankle_joint": "r_ankle",
-        "support_span_m": [0.07, 0.21],
+        "support_span_m": [0.06, 0.213],
         "mtp_joints": [None, "r_toe_d2_joint", "r_toe_d3_joint", "r_toe_d4_joint"],
     }
     generic = measurement_manifest(Morphology.from_env(env, TYRANNOSAURUS_REX, registry={}), env.model)

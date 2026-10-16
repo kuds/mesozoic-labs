@@ -13,7 +13,7 @@ the total dimension is generated in the public species catalog):
     - Pelvis angular velocity (gyroscope, its own site frame) — 3
     - Pelvis linear velocity in the gravity-aligned heading frame (forward, left, up) — 3
     - Pelvis acceleration (accelerometer, its own site frame) — 3
-    - Foot contact forces (plantar pad + three digit touch sensors per foot) — 2
+    - Foot contact forces (sole box + three digit touch sensors per foot) — 2
     - Prey direction in pelvis coordinates (unit vector) — 3
     - Prey distance (scalar) — 1
     - Body-relative command (v_x_cmd, v_y_cmd, yaw_rate_cmd; zeros under command_mode = "none") — 3
@@ -155,29 +155,32 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
     # Settled leg pose for the leg_home_pose term under leg_home_pose_reference
     # = "settled", in leg_home_joint_names order (r_hip_pitch, r_hip_roll,
     # r_knee, r_ankle, l_hip_pitch, l_hip_roll, l_knee, l_ankle).  Measured on
-    # the physics-r9 plant as the zero-action statue's mean over the
+    # the physics-r10 plant as the zero-action statue's mean over the
     # post-settle window (steps 200-999) of the stance config, seeds 3042-3051
     # (all ten full-horizon), then mirror-symmetrised: each left-right pair
-    # replaced by its mean, hip roll sign-mapped (the raw pairs agreed to 5e-5
-    # rad).  Against the keyframe that is hip pitch -2.74, hip roll -/+0.42,
-    # knee -0.40 and ankle +1.67 degrees: the servos do not hold the keyframe
-    # under load.  The statues ran at the stance config's reset_noise_scale
-    # 0.05; the noise-free statue settles at hip roll 0.000 degrees with the
-    # other joints within 0.02 degrees of these, so the -/+0.42 degree hip-roll
-    # splay is the noise-averaged settle.  Centred on the keyframe, the term
+    # replaced by its mean, hip roll sign-mapped (the raw pairs agreed to
+    # 1.5e-4 rad).  Against the keyframe that is hip pitch -2.74, hip roll
+    # -/+0.38, knee -0.40 and ankle +1.65 degrees: the servos do not hold the
+    # keyframe under load.  On physics r9 the same measurement gave
+    # (-0.0931906447971345, -/+0.0073721451044150895, -0.43975640189259646,
+    # 1.3713665366344738), at most 0.66 mrad (hip roll) from these.  The
+    # statues ran at the stance config's reset_noise_scale 0.05; on r9 the
+    # noise-free statue settled at hip roll 0.000 degrees with the other joints
+    # within 0.02 degrees of these, so the hip-roll splay is the noise-averaged
+    # settle.  Centred on the keyframe, the term
     # paid a policy for pulling the hips and ankles back toward it, which leans
     # the animal forward; centred here it does not.
     # Re-measure whenever leg masses, springs, gains or the feet change (any
     # plant revision; test_the_settled_leg_pose_is_the_statues checks it).
     _LEG_SETTLED_QPOS = (
-        -0.0931906447971345,
-        -0.0073721451044150895,
-        -0.43975640189259646,
-        1.3713665366344738,
-        -0.0931906447971345,
-        0.0073721451044150895,
-        -0.43975640189259646,
-        1.3713665366344738,
+        -0.09324800966193827,
+        -0.006711707225014458,
+        -0.4399049656296715,
+        1.3709445713765605,
+        -0.09324800966193827,
+        0.006711707225014458,
+        -0.4399049656296715,
+        1.3709445713765605,
     )
     _LEG_HOME_POSE_REFERENCES = ("keyframe", "settled")
     #: Opt-in task options carved out of the task fingerprint and of the
@@ -569,12 +572,13 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         # are inherited from BaseDinoEnv (0, 3, 6 respectively).
         self._sensor_r_foot = 10
         self._sensor_l_foot = 11
-        # The pad sensors above see the plantar box only: a touch sensor sums
-        # contacts on geoms of its site's own body, and the three digits are
-        # child bodies on their own passive hinges.  Their own sensors are
-        # appended after the tail block, so pad + digits is the force the foot
-        # actually transmits -- at the home keyframe 388.4 N + 112.0 N against
-        # a measured 500.4 N of floor contact.
+        # The foot sensors above see the sole box (r/l_plantar_geom) only: a
+        # touch sensor sums contacts on geoms of its site's own body, and the
+        # three digits are child bodies on their own passive hinges.  Their own
+        # sensors are appended after the tail block, so sole + digits is the
+        # force the foot actually transmits -- at the home keyframe 378.6 N +
+        # 96.7 N against a measured 475.3 N of floor contact on physics r10
+        # (388.4 + 112.0 against 500.4 on the r9 pad).
         self._sensor_r_foot_digits = (24, 25, 26)
         self._sensor_l_foot_digits = (27, 28, 29)
         # Per-foot groups for the base class's substep MIN aggregation and the
@@ -641,10 +645,11 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         # whenever tail masses, springs, or gains change.
         self._tail_home_qpos = np.array(self._TAIL_SETTLED_QPOS)
 
-        # Sole flatness reads the plantar boxes' own frames: each box's local
-        # z is its pad normal.  The pads are level at the home keyframe
-        # (5.6e-5 deg) and tilt 0.10 deg, all of it pitch, under the
-        # noise-free statue, so level is the target without an offset.
+        # Sole flatness reads the sole boxes' own frames: each box's local
+        # z is its sole normal.  The boxes are level at the home keyframe
+        # (5.6e-5 deg) and tilt about 0.1 deg under the noise-free statue
+        # (0.10 deg, all of it pitch, on r9; 0.115 on physics r10), so level
+        # is the target without an offset.
         self._plantar_geom_ids = np.asarray(
             [self._geom_id(name) for name in ("r_plantar_geom", "l_plantar_geom")],
             dtype=np.int64,
@@ -703,11 +708,11 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         return float((heading @ (com - midpoint))[1])
 
     def _sole_tilts_deg(self) -> np.ndarray:
-        """Each plantar pad's tilt from level, in degrees (right, left).
+        """Each sole box's tilt from level, in degrees (right, left).
 
         ``geom_xmat`` is row-major, so element 8 is the world-z component of
-        the box's local z axis: the cosine of the angle between the pad
-        normal and vertical, whichever way the pad rolls or pitches.
+        the box's local z axis: the cosine of the angle between the sole
+        normal and vertical, whichever way the box rolls or pitches.
         """
         cos_tilt = np.clip(self.data.geom_xmat[self._plantar_geom_ids, 8], -1.0, 1.0)
         return np.asarray(np.degrees(np.arccos(cos_tilt)))
@@ -882,7 +887,7 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         )
 
         # 1d. Bilateral support and load balance.  Touch sensors report the
-        # full plantar-plus-digit load for each foot.  Saturation prevents
+        # full sole-plus-digit load for each foot.  Saturation prevents
         # impact spikes from being more valuable than quiet support, while the
         # minimum requires both feet to carry load.
         # AGGREGATED across the control step's physics substeps (per-foot MIN):
@@ -1011,7 +1016,7 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         min_z = self.healthy_z_range[0]
         # Settled pelvis height under the home controller, measured (zero action,
         # zero reset noise, 600 steps: 0.9260 m, sd 0.00001, on physics r8; 0.9262
-        # on r9, which carries it: plant_versions note 16).  This must track the
+        # on r9 and r10, which carry it: plant_versions notes 16 and 20).  This must track the
         # plant: the previous 0.90 was the root height of the PRE-repair plant,
         # and after the July home-equilibrium fix raised the stance to 0.9757 the
         # term saturated at 1.0 everywhere in the healthy band -- a flat constant
@@ -1138,8 +1143,12 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         # statue then forfeits 1.7 per episode on average (0.3 median, 16.4 on
         # its most-leaning spawn) against 105-141 more on episodes that
         # stood on a rolled pad, and the window mean offset separates the two
-        # with AUC 0.99.  A bonus adds about 0.25 x 800 = 200 to every
-        # standing episode's return: re-measure stance.toml's
+        # with AUC 0.99.  Re-checked on physics r10, whose foot sites stay on
+        # the metatarsi where r9 had them: the same zero-action statue panel
+        # (seeds 3042-3081, 40/40 standing) forfeits 1.3 per episode on
+        # average (0.2 median, 16.9 on spawn 3059), at a mean absolute offset
+        # of 0.48 mm after the settle.  A bonus adds about 0.25 x 800 = 200
+        # to every standing episode's return: re-measure stance.toml's
         # collapse_peak_floor_reference before enabling it there, and add
         # reward_lateral_lean to DiagnosticsCallback.REWARD_KEYS and to
         # visualization's reward-decomposition weight map in the same change
@@ -1166,7 +1175,7 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
 
         # 9b. Floor impact and airborne substeps, from every physics substep's
         # per-foot touch (BaseDinoEnv.step keeps the block beside the MIN the
-        # support terms read).  Touch is pad plus digits, and nothing but the
+        # support terms read).  Touch is sole plus digits, and nothing but the
         # feet touches the floor while the animal is standing, so the summed
         # touch is the animal's floor force: it equals floor truth to 1e-12 N
         # on every recorded step of the physics-r8 panels.  The impact term

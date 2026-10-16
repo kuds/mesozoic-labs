@@ -118,13 +118,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Documented in `website/docs/training/mirror-symmetry.md`.
 - **The whole-foot centre of pressure at every evaluation, report-only**
   (#622; the maintainer's approval of 2026-10-16: "record whole-foot centre of
-  pressure, report-only, with no physics change"). `stance_quality/v2`'s pad
+  pressure, report-only, with no physics change"; the T. rex stance gates
+  on it since its physics r10, under Changed). `stance_quality/v2`'s pad
   rail, `max_sole_cop_fore_aft`, reads one contact geom, the plantar pad. Once
   a foot's digits carry load ahead of its pad, the pad's CoP is no longer the
   quantity that decides toppling about the ankle: the whole foot's is, the
   floor load's moment about the ankle over the limb's floor force. This
   change measures it, per step and per foot, beside the pad's. Nothing reads
-  it but telemetry and reports: no reward, observation, action, checkpoint
+  it but telemetry and reports (and, since the T. rex's physics r10, that
+  stance's gate): no reward, observation, action, checkpoint
   selection, policy interface, plant or task digest moves, and no gate
   verdict once a report measured before this change is re-rolled (until
   then it is refused; see Migration).
@@ -136,13 +138,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     the sole's lateral axis, the one axis about which a contact's distance
     along the sole is its lever arm). Only the T. rex declares them:
     `{s}_ankle`, 0.070 and 0.210, its pad's own heel and toe edges, so its
-    reading is in pad half-lengths. The other box feet (the anatomical
-    Compsognathus's, the Dibothrosuchus's and the Compsognathus robot's) sit
-    on a toe or ankle-roll hinge below the ankle, so which axis counts as
-    their ankle is left to a later decision. A hinged digit (a registered
-    support capsule on a child body of the sole's, joined to it by one hinge,
-    its MTP joint) is found by rule: the T. rex's three per foot, none
-    elsewhere.
+    reading is in pad half-lengths (since its physics r10, under Changed:
+    0.060 and 0.213, the sole box's heel edge and the held-offset toe line, so
+    the reading is in span half-lengths of 0.0765 m). The other box feet (the
+    anatomical Compsognathus's, the Dibothrosuchus's and the Compsognathus
+    robot's) sit on a toe or ankle-roll hinge below the ankle, so which axis
+    counts as their ankle is left to a later decision. A hinged digit (a
+    registered support capsule on a child body of the sole's, joined to it by
+    one hinge, its MTP joint) is found by rule: the T. rex's three per foot,
+    none elsewhere.
   - The floor-truth recorder's `EpisodeTrace` gains `foot_cop`: every floor
     contact of the limb (pad, digits, any other leg geom), force-weighted,
     along the sole's forward axis of its own substep, in m ahead of the ankle
@@ -165,7 +169,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     strictly inside (0, 1) (`CRITERION_BAR_RANGES`). It is plumbed through the
     manager's `StageThreshold` and copied keys, the catalog's exported keys,
     the website adapter, and the stance report's report-only rows. No stage
-    declares it, so it is in no verdict. The v2 panel CSV
+    declares it, so it is in no verdict (the T. rex stance does since its
+    physics r10, under Changed). The v2 panel CSV
     (`stance_panel_selected.csv`), the six-heading grid
     (`stance_heading_panel_selected.csv`) and the report's episode evidence
     rows gain a `max_foot_cop_fore_aft` column; no report schema is bumped, as
@@ -187,7 +192,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     as means over full-horizon episodes, with `max_foot_cop_fore_aft_mean`.
     No `max_foot_cop_fore_aft_over_bar_fraction` is written, because no stage
     declares the bar; it would follow a declared bar as the pad rail's
-    over-bar fraction does. The stance replay CSV gains the per-step
+    over-bar fraction does (it is written for the T. rex stance since its
+    physics r10). The stance replay CSV gains the per-step
     whole-foot CoP, both margins and the per-digit columns.
   - On the T. rex physics-r9 statue, the certification seeds 3042-3081, an
     independent per-substep probe of the same panel (every limb floor contact
@@ -221,7 +227,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Tests: the recorder against an independent probe (the ankle's world
     anchor, `mj_contactForce`) and against the vertical-load moment with the
     tilt bound, each hinged digit's load position, the seed-3042 statue
-    reading, the registry's span pinned to the pad's edges on the plant,
+    reading, the registry's span pinned to the pad's edges on the plant
+    (since r10, the heel line to the sole box's edge and the toe line to
+    its held-offset record),
     refusals, the metric and the telemetry on synthetic and real traces of
     every model, the npz keys, and the replay CSV.
   - The recorder's extra reads cost no measurable time on top of #620's
@@ -569,6 +577,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   kind, and its `zero_action_baseline.py` entry is deleted.
 
 ### Migration
+- **Every T. rex physics-r9 checkpoint is refused, and every recorded T. rex
+  video shows the old feet** (T. rex physics r10, D-D34, under Changed).
+  The plant contract compares `physics_sha256`, and no widen applies. The
+  policy interface is unchanged (r15), but a policy trained on r9 stood on
+  other feet, so retrain the T. rex from its stance. The T. rex's frozen
+  recovery gate, stale since r8, must be re-frozen at the first r10 stance.
+  The recovery push is now 186.8 N.
+- **A `stance_quality/v2` or six-heading report or panel measured under
+  `floor-truth/v2` is refused, on every model** (`MEASUREMENT_VERSION`
+  `floor-truth/v3`, T. rex physics r10). Re-roll it as the entry below
+  describes. No constant or metric definition changed, so a re-rolled panel
+  of any other model scores as before.
 - **`BEHAVIOR = "stand"` trains the stance stage alone on every model**
   (D-D35). On the T. rex and both Compsognathus models it used to mean
   stance then push recovery; that chain is now `BEHAVIOR = "recover"`. A
@@ -834,8 +854,100 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   verdicts with the gate they were earned under.
 
 ### Changed
+- **T. rex physics r10: a load-bearing tridactyl foot, and the stance's
+  centre-of-pressure rail on the whole foot** (decision D-D34; the
+  maintainer's approval of 2026-10-16, as a draft held until a training
+  screen shows the new foot at least as good; `configs/plant_versions.toml`
+  note 20; [TREX_FOOT_R10_2026_10.md](docs/investigations/TREX_FOOT_R10_2026_10.md)).
+  Physics r9 → r10 and visual r4 → r5; the policy interface stays r15.
+  - **The foot** (`tyrannosaurus_rex_anatomical.xml`, both feet):
+    - The 14 x 9 cm plantar pad becomes a sole box standing for the
+      metatarsal pad and the soft tissue under the proximal phalanges,
+      0.060-0.165 m ahead of the ankle, 11 cm wide and 6 mm lateral. It is a
+      stance approximation, rigid across the MTP and first interphalangeal
+      joints.
+    - Digits II / III / IV reach 0.171 / 0.212 / 0.178 m from MTP joint to
+      claw tip, the top of the plausible range (Sue's ratios: Brochu 2003
+      via Mortimer, Theropod Database). They are splayed 25° and 33° off
+      digit III (chord angles, a compromise below track angles; note 20).
+    - The MTP springs go from 40 to 3000 / 4500 / 3000 N·m/rad, a mechanical
+      choice: the lowest rung of a ladder that beats r9's forward push limit
+      by 5%.
+    - The digits now carry a third of the statue's load (r9 17%). Names,
+      sites, sensors, masses, the keyframe and the sibling exclusions are
+      unchanged.
+  - **The stance rail.** `configs/tyrannosaurus_rex/anatomical/stance.toml`
+    declares `max_foot_cop_fore_aft` = 0.80, #622's whole-foot key, on
+    `FOOT_SUPPORT`'s span [0.060, 0.213] m: the box's heel edge, and a toe
+    line measured by a fixed held-offset rule.
+    - The rule is `environments/shared/scripts/foot_toe_line.py`, with its
+      record in `environments/tyrannosaurus_rex/anatomical/data/`. On r10
+      the onsets are -5.0 / -5.5° at 214.8 / 213.4 mm, floored to 1 mm.
+    - The statue reads at most 0.351 over 280 episodes, and 0.723 under
+      N(0, 0.05) command jitter. r9 run A's held forward lean reads above
+      the bar on 19 of 20 episodes. Held ankle offsets cross the bar 1.5°
+      before the first fall.
+    - The pad CoP (`max_sole_cop_fore_aft`) and `min_sole_contacts` become
+      report-only for the T. rex, because the 10.5 cm box loads its front
+      edge while the digits carry the front of the foot. The compsognathus
+      keeps its pad bar. The stance report's report-only rows gain the
+      sole's loaded contact points, listed where the block does not gate
+      them.
+    - `max_foot_cop_fore_aft_over_bar_fraction` now appears in
+      `gate_progress.npz` and TensorBoard for the T. rex stance.
+    - The tilt and corner-lift bars stay; their comments give the r10
+      statue's extremes and the corner lift's angle on the new box.
+  - **`MEASUREMENT_VERSION` is `floor-truth/v3`.** `gait/constants.py`
+    versions every change to a model's registry entry under an adopted
+    stage, and the T. rex's span changed. No constant or metric definition
+    changes (see Migration).
+  - **Re-measured on r10** with the repository's tools:
+    - The statue stands on all 280 stance-panel seeds and is clean on all of
+      them. r9 fell on 4 of the same seeds, which is not a significant
+      difference (Fisher exact p = 0.12).
+    - The statue-derived constants: stance 3757.3 (the 3756.8 reference and
+      2250 rail carry), locomotion 1092.3 (was 1091.5), behavior 602.0 and
+      361 (carry), recovery 1504.4 (was 1329.1).
+    - The recovery push derives to 186.8 N (165.5 N on r7-r9): its support
+      margin, the heel-ward side of the home contact hull, grows from 77.3
+      to 87.2 mm. The hand-run off-distribution panel
+      (`recovery_offdist_panel.py`) now converts its 120 N and 210 N rows
+      on the plant it builds, instead of through a pinned 165.5 N
+      (`test_gate_resolution_producer.py`).
+    - The settle (`target_z`, `natural_pitch`, the settled tail and neck
+      targets) carries.
+    - Two statue readings change: its spawn now leaves the floor on 17 of 40
+      episodes (seeds 3042-3081), inside the spawn grace, and it reaches the
+      `max_settle_touchdowns` bar of 2 on 89 of 280 episodes. That bar is
+      kept.
+  - **Tests.** `test_anatomical_foot.py` pins the foot's geometry and its
+    mirror, the digits' share of the statue's load, and touch equal to floor
+    truth in three cases: under a held toe-ward offset, under a forward push
+    capped at 58 N with the load on the digit tips, and through seed 7068's
+    spawn-time digit-on-digit contact. It also checks the whole-foot CoP
+    against the vertical-load moment and the ankle torque, with the
+    floor-shear term. `test_gait_morphology.py` pins the toe line to its
+    record and the record to the plant. The stance-gate, report, catalog,
+    eval-diagnostics, recorder, golden and statue pins follow the new plant
+    and rail.
+  - **Regenerated:** the plant manifests, the digest snapshot (T. rex lines
+    only), the reset golden's T. rex captures, and the species catalog. In
+    the golden, the reset states move only in the spawn root height. The
+    reset observations' accelerometer and foot-contact channels move with
+    the foot, and the prey direction and distance with the root height
+    (channels 51-59); the 20-step trajectories move too.
+  - **#624's plant-bound pieces follow r10:** the T. rex mirror map is
+    regenerated (only its bound physics digest moves; the left-right pairs,
+    the splayed digits included, pass every model check), and the settled
+    leg target of the off-by-default `leg_home_pose_reference = "settled"`
+    is re-measured on r10, at most 0.66 mrad (hip roll) from r9's. The
+    lateral lean term reads foot sites that r10 leaves in place; its
+    statue cost re-checks at 1.3 per episode (r9 1.7).
+  - Recorded in `docs/KNOWN_ISSUES.md`: the stiff MTP springs resist
+    toe-off; the 7.7 cm digit II-II clearance is an anatomical constraint;
+    and the foot's stance approximations.
 - **The recovery stage has its own recipe label, `recover`, and `stand` is
-  the stance stage on every model** (decision D-D35, the maintainer's
+  the stance stage on every model** (#625; decision D-D35, the maintainer's
   decision of 2026-10-16). A recipe label resolves to the deepest deliverable
   carrying it, and the recovery stage was labelled `stand` too, so `stand`
   meant stance then push recovery on the three models that have a recovery

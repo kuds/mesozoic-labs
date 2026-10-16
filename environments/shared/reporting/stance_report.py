@@ -1933,6 +1933,7 @@ def _render_stance_v2_report(report: dict[str, Any]) -> str:
             ("touch_floor_agreement", "touch agrees with floor truth"),
             ("spawn_peak_floor_force_bw", "spawn-grace peak floor force (BW)"),
             ("settle_touchdowns", "settle-window touchdowns"),
+            ("min_sole_contacts", "sole loaded contact points"),
             ("max_sole_cop_fore_aft", "pad CoP fore-aft (|.| / half-length)"),
             ("max_foot_cop_fore_aft", "foot CoP fore-aft (|.| / half-span)"),
             ("window_airborne_substeps", "window both-feet-unloaded substeps"),

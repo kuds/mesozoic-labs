@@ -250,13 +250,13 @@ def test_catalog_publishes_layered_plant_contract() -> None:
     }
     expected_physics_revisions = {
         VELOCIRAPTOR_MONGOLIENSIS: 4,
-        TYRANNOSAURUS_REX: 9,
+        TYRANNOSAURUS_REX: 10,
         BRACHIOSAURUS_ALTITHORAX: 5,
         DIBOTHROSUCHUS_ELAPHROS: 2,
     }
     expected_visual_revisions = {
         VELOCIRAPTOR_MONGOLIENSIS: 4,
-        TYRANNOSAURUS_REX: 4,
+        TYRANNOSAURUS_REX: 5,
         BRACHIOSAURUS_ALTITHORAX: 2,
         DIBOTHROSUCHUS_ELAPHROS: 1,
     }
@@ -413,15 +413,15 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
         "max_nonfoot_load_fraction": 0.02,
         "max_sole_tilt_deg": 2.0,
         "max_sole_corner_lift_m": 0.004,
-        "min_sole_contacts": 1.5,
         "min_avg_reward_statue_ratio": 0.60,
         # The stance follow-up (D-D27): the settle re-seat, settle steps, turning and the hop-or-fall rail.
         "max_settle_stance_width_change_m": 0.08,
         "max_settle_touchdowns": 2,
         "max_episode_yaw_change_deg": 25.0,
         "max_hop_or_fall_episodes": 1,
-        # The pad's fore-aft centre of pressure (D-D28): the seed-44 left foot on its pad's front edge.
-        "max_sole_cop_fore_aft": 0.80,
+        # The whole foot's fore-aft centre of pressure on its declared span (D-D34, physics r10), where the
+        # pad's (D-D28) and its loaded contact points (min_sole_contacts) are report-only and export null.
+        "max_foot_cop_fore_aft": 0.80,
     }
     # Velociraptor 1a's block (configs/velociraptor_mongoliensis/anatomical/stance.toml,
     # D-D25): no box sole, so the flatness bars are the support-geom duty and
