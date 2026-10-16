@@ -210,8 +210,8 @@ class TestTheWarning:
 class TestBuild:
     def test_built_only_where_a_fore_aft_bar_is_declared(self):
         assert build_posture_drift_watch_callback(_Plateau(), {"curriculum_kwargs": {}}) is None
-        velociraptor = load_stage_config(ModelId("velociraptor_mongoliensis", "anatomical"), "stance")
-        assert build_posture_drift_watch_callback(_Plateau(), velociraptor) is None
+        velociraptor_mongoliensis = load_stage_config(ModelId("velociraptor_mongoliensis", "anatomical"), "stance")
+        assert build_posture_drift_watch_callback(_Plateau(), velociraptor_mongoliensis) is None
         assert build_posture_drift_watch_callback(None, load_stage_config(TYRANNOSAURUS_REX, "stance")) is None
 
     def test_a_malformed_knob_is_refused_where_no_bar_is_declared_too(self):

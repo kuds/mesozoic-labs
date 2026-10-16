@@ -173,7 +173,9 @@ def _callback(tmp_path: Path, *, evaluations: int = 3, model_id: ModelId | None 
 class TestTheRecord:
     def test_identity_budget_and_the_latest_evaluation(self, tmp_path):
         callback = _callback(tmp_path)
-        (tmp_path / "run" / "provenance.json").write_text(json.dumps({"run_id": "trex-run-1"}), encoding="utf-8")
+        (tmp_path / "run" / "provenance.json").write_text(
+            json.dumps({"run_id": "tyrannosaurus_rex-anatomical-run-1"}), encoding="utf-8"
+        )
         record = callback.record("training")
         assert record["schema"] == PROGRESS_SCHEMA and record["status"] == "training"
         assert (record["species"], record["embodiment"], record["stage"]) == (
@@ -182,7 +184,11 @@ class TestTheRecord:
             "stance",
         )
         assert record["model"] == "Tyrannosaurus Rex (Anatomical)"
-        assert (record["run_id"], record["run_dir"], record["stage_dir"]) == ("trex-run-1", "run", "01_stance")
+        assert (record["run_id"], record["run_dir"], record["stage_dir"]) == (
+            "tyrannosaurus_rex-anatomical-run-1",
+            "run",
+            "01_stance",
+        )
         assert (record["seed"], record["timesteps"], record["budget_timesteps"]) == (42, 300, 1200)
         assert record["fraction_done"] == 0.25
         assert datetime.fromisoformat(record["written_at"].replace("Z", "+00:00")).tzinfo is not None
@@ -355,7 +361,9 @@ def _train(root: Path, monkeypatch, *, additions: bool) -> Path:
     stance["ppo_kwargs"].update(n_steps=256, batch_size=64, n_epochs=2)
     run = root / "run"
     run.mkdir(parents=True)
-    (run / "provenance.json").write_text(json.dumps({"run_id": "trex-progress-test"}), encoding="utf-8")
+    (run / "provenance.json").write_text(
+        json.dumps({"run_id": "tyrannosaurus_rex-anatomical-progress-test"}), encoding="utf-8"
+    )
     threads = torch.get_num_threads()
     torch.set_num_threads(1)
     try:
@@ -400,7 +408,11 @@ def test_a_real_tyrannosaurus_rex_stance_run_writes_its_progress(trained):
     gate = np.load(stage_dir / "gate_progress.npz")
     assert record["schema"] == PROGRESS_SCHEMA and record["status"] == "ended"
     assert (record["species"], record["embodiment"], record["stage"]) == ("tyrannosaurus_rex", "anatomical", "stance")
-    assert (record["run_id"], record["run_dir"], record["stage_dir"]) == ("trex-progress-test", "run", "01_stance")
+    assert (record["run_id"], record["run_dir"], record["stage_dir"]) == (
+        "tyrannosaurus_rex-anatomical-progress-test",
+        "run",
+        "01_stance",
+    )
     assert (record["seed"], record["timesteps"], record["budget_timesteps"], record["fraction_done"]) == (
         11,
         STEPS,

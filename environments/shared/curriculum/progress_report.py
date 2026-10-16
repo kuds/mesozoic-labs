@@ -26,7 +26,6 @@ schema is :data:`PROGRESS_SCHEMA`, documented in
 
 from __future__ import annotations
 
-import json
 import logging
 import math
 import time
@@ -327,10 +326,9 @@ class TrainingProgressCallback(BaseCallback):  # type: ignore[misc]
     @staticmethod
     def _run_id(run_dir: Path) -> str | None:
         """The ``run_id`` the run directory's ``provenance.json`` records, or ``None`` (a run without a bundle)."""
-        try:
-            value = json.loads((run_dir / "provenance.json").read_text(encoding="utf-8")).get("run_id")
-        except (OSError, ValueError, AttributeError):
-            return None
+        from ..file_io import read_json_object
+
+        value = (read_json_object(run_dir / "provenance.json") or {}).get("run_id")
         return value if isinstance(value, str) and value else None
 
     def _clock(self, now: datetime, timesteps: int) -> dict[str, Any]:
