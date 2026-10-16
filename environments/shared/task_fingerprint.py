@@ -120,10 +120,23 @@ def inert_opt_in_env_kwargs(env_class: Any, effective: Mapping[str, Any]) -> lis
     moves no stage's task_sha256, and turning it on hashes every kwarg it
     lists, defaults included.  The off value is the declared one, not the
     signature default, so a changed default that turns an option on moves the
-    fingerprint.
+    fingerprint.  The declaration fails closed: a switch or kwarg that is not a
+    constructor parameter (a typo, a later rename) would read as always off
+    and keep a live option out of the fingerprint, so it raises
+    :class:`TaskFingerprintError` instead.
     """
+    declared = getattr(env_class, "OPT_IN_TASK_KWARGS", ())
+    if not declared:
+        return []
+    parameters = inspect.signature(env_class).parameters
     names: list[str] = []
-    for switch, off_value, kwargs in getattr(env_class, "OPT_IN_TASK_KWARGS", ()):
+    for switch, off_value, kwargs in declared:
+        if unknown := [name for name in (switch, *kwargs) if name not in parameters]:
+            raise TaskFingerprintError(
+                f"{getattr(env_class, '__name__', env_class)}.OPT_IN_TASK_KWARGS names {', '.join(unknown)}, "
+                "not a constructor parameter: an undeclared switch would read as always off and keep a live "
+                "option out of the task fingerprint"
+            )
         if effective.get(switch, off_value) == off_value:
             names.extend(kwargs)
     return names

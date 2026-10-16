@@ -24,13 +24,13 @@ maps (bodies, geoms, sites, joints, actuators, sensors, ``qpos``, ``qvel``,
 ``ctrl``) from the names (``r_``/``l_`` and the other side tokens of
 :data:`DEFAULT_PREFIX_RULES`) and the compiled geometry.  It refuses a pair whose
 positions, frames, axes, ranges, masses, inertias, gravity compensation, contact,
-fluid, joint or actuator parameters differ, a colliding mesh whose vertices are
-not the mirror image of its partner's, a sensor type without a rule, and a
-feature it does not mirror (tendons, equality constraints, explicit contact
-pairs, plugins, flexes, height fields, SDF geoms).  These are the model fields
-the plants use, not every field MuJoCo has, so a new species' map is accepted
-together with a paired-rollout equivariance test like the T. rex's
-(``tests/test_symmetry.py``), which catches whatever the checks miss.  Link
+fluid, joint, actuator or sensor parameters differ, a colliding mesh whose
+vertices are not the mirror image of its partner's, a sensor type without a
+rule, and a feature it does not mirror (tendons, equality constraints,
+explicit contact pairs, plugins, flexes, height fields, SDF geoms).  These are
+the model fields the plants use, not every field MuJoCo has, so a new species'
+map is accepted together with a paired-rollout equivariance test like the
+T. rex's (``tests/test_symmetry.py``), which catches whatever the checks miss.  Link
 frames that a CAD export rotates differently on the two sides are handled by a
 per-body frame correction, and side tokens may be suffixes (``_r`` / ``_l``).
 No committed plant needs either (the correction is the identity on every plant
@@ -787,6 +787,7 @@ def derive_model_mirror(  # noqa: C901 - one derivation, object kind by object k
             and m.sensor_objtype[p] == m.sensor_objtype[s]
             and m.sensor_dim[p] == m.sensor_dim[s]
             and m.sensor_reftype[p] == m.sensor_reftype[s]
+            and m.sensor_cutoff[p] == m.sensor_cutoff[s]
             and m.sensor_objid[p] == obj
         )
 

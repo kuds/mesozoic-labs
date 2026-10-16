@@ -37,7 +37,11 @@ from environments.shared.plant_contract import (  # noqa: E402
     validate_model_plant,
 )
 from environments.shared.result_bundle import sha256_file  # noqa: E402
-from environments.shared.task_fingerprint import MODEL_TASK_ATTRIBUTE, MODEL_TASK_LINEAGE_ATTRIBUTE  # noqa: E402
+from environments.shared.task_fingerprint import (  # noqa: E402
+    MODEL_TASK_ATTRIBUTE,
+    MODEL_TASK_LINEAGE_ATTRIBUTE,
+    read_checkpoint_attribute,
+)
 
 TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
 
@@ -145,6 +149,23 @@ def _metadata_copy(source: Path, target: Path, key: str, value):
                     metadata[key] = value
                 data = json.dumps(metadata).encode()
             out.writestr(info, data)
+
+
+def test_a_parent_mirror_symmetry_record_does_not_carry_into_a_behavior(parent, tmp_path):
+    # A behavior trains stock PPO, so the loaded model drops the parent's mesozoic_symmetry record.
+    from environments.shared.behavior_checkpoint import _load_ppo
+    from environments.shared.symmetry import CHECKPOINT_ATTRIBUTE
+
+    model_path = parent[0]
+    symmetric = tmp_path / "symmetric_walker.zip"
+    _metadata_copy(model_path, symmetric, CHECKPOINT_ATTRIBUTE, {"method": "mirror_kl"})
+    assert read_checkpoint_attribute(symmetric, CHECKPOINT_ATTRIBUTE) == {"method": "mirror_kl"}
+    venv = VecNormalize(DummyVecEnv([CommandEnv]))
+    try:
+        model = _load_ppo(symmetric, venv, 3e-4)
+    finally:
+        venv.close()
+    assert CHECKPOINT_ATTRIBUTE not in model.__dict__
 
 
 def test_prepare_preserves_body_weights_stats_and_clears_command_moments(parent):

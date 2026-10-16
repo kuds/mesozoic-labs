@@ -47,7 +47,8 @@ floored at ``sigma_floor``, so it stays bounded as the noise shrinks), and the P
 The defaults (kappa 0.3, sigma floor 0.01, mirrored critic on) are those of the T. rex stance screen of 2026-10,
 which trained them with the lean term and the settled leg target of ``TyrannosaurusRexEnv``: three seeds to 6M
 steps gave mirror-symmetric policies (every joint group's median mirror asymmetry under 0.1 degree) that did not
-fall in the 120 final (6M) evaluation episodes and passed ``stance_quality/v2`` on two of three seeds, but not the
+fall in the 120 final (6M) evaluation episodes and passed ``stance_quality/v2`` on two of three seeds at the panel's
+single heading (the stage's six-heading certificate, ``stance_quality_heading/v1``, was not run), but not the
 screen's pad centre-of-pressure and action-noise robustness criteria; so no stage enables it.  A stage that does
 writes all four ``[ppo]`` symmetry keys (:data:`~environments.shared.symmetry.SYMMETRY_KEYS`), so its
 ``hyperparameters_sha256`` pins every setting.  :func:`enable_mirror_kl` turns a constructed or loaded
@@ -249,7 +250,9 @@ class MirrorKLPPO(PPO):
     # ------------------------------------------------------------------ the four steps train() adds
     def _mirror_begin_update(self) -> dict[str, Any]:
         state = self._mirror_state()
-        if not state.tensors or state.tensors["obs_perm"].device != self.device:
+        # Built once per state: SB3 fixes self.device at construction, and a
+        # bare th.device("cuda") would never compare equal to a tensor's cuda:0.
+        if not state.tensors:
             state.tensors = {
                 "obs_perm": th.as_tensor(state.mirror_map.obs.perm, device=self.device),
                 "obs_sign": th.as_tensor(state.mirror_map.obs.sign, dtype=th.float32, device=self.device),

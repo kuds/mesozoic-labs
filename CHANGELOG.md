@@ -18,8 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rex stance (three seeds to 6M steps): the policies were mirror-symmetric
   (every joint group's median mirror asymmetry under 0.1 degree), fell in
   none of the 120 final (6M) panel episodes and passed `stance_quality/v2` on
-  two seeds of three, but failed the screen's pad centre-of-pressure and
-  action-noise robustness criteria, so no stage config enables any of it.
+  two seeds of three at the panel's single heading (the stage's six-heading
+  certificate, `stance_quality_heading/v1`, was not run), but failed the
+  screen's pad centre-of-pressure and action-noise robustness criteria, so no
+  stage config enables any of it.
   Every plant, policy-interface, task, gate, hyperparameter and
   `stage_config.json` digest, the committed digest snapshot and the exact
   reward captures (`digest_snapshot --exact`) are unchanged.
@@ -73,7 +75,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     refuses a checkpoint whose recorded symmetry differs from the stage's,
     either way; a warm start takes the child stage's, and a child that
     enables it needs a parent trained with it (a stock parent's noise scales
-    and observation statistics are not mirror-symmetric, and are refused).
+    and observation statistics are not mirror-symmetric, and are refused). A
+    behavior, which trains stock PPO, drops a parent's `mesozoic_symmetry`.
   - T. rex `[env]` options: `lateral_lean_weight` (0.0, off) and
     `lateral_lean_tolerance_m` (0.015) pay a Gaussian on the whole-body
     centre of mass's lateral offset over the foot-site midpoint, in the
@@ -91,8 +94,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     of the effective `[env]` section and of the defaults `save_stage_config`
     records while its switch holds its declared off value, as the command
     kwargs are under `command_mode = "none"`; on, every kwarg it lists is
-    hashed, defaults included. Without the carve-out the three new defaults
-    would have moved every T. rex task digest. Both options are reward
+    hashed, defaults included. A declared switch or kwarg that is not a
+    constructor parameter is refused (`TaskFingerprintError`), so a typo
+    cannot read as always off and keep a live option out of the fingerprint.
+    Without the carve-out the three new defaults would have moved every
+    T. rex task digest. Both options are reward
     settings a behavior transition may change
     (`behavior_checkpoint._TRANSITION_REWARD_SETTINGS`).
   - Tests: `test_symmetry.py` (derivation on every plant and on a synthetic
@@ -106,8 +112,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     wiring; in the SB3 job) and `test_anatomical_lean_and_settled_legs.py`
     (the lean term's formula, gates and mirror invariance, the settled target
     and its re-measurement, and that the defaults change nothing);
-    `test_behavior_checkpoint.py` turns the options on and off across a
-    behavior transition.
+    `test_task_fingerprint_effective.py` refuses a misdeclared
+    `OPT_IN_TASK_KWARGS`; `test_behavior_checkpoint.py` turns the options on
+    and off across a behavior transition and drops a parent's symmetry record.
   - Documented in `website/docs/training/mirror-symmetry.md`.
 - **Per-foot pad telemetry and the sagittal leg DC at every periodic
   evaluation** (#620; the maintainer's approval of 2026-10-12, after the T. rex

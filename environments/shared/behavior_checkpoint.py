@@ -143,6 +143,11 @@ def _load_ppo(model_path: Path, env: VecNormalize, learning_rate: float) -> PPO:
     )
     for group in model.policy.optimizer.param_groups:
         group["lr"] = float(learning_rate)
+    # A behavior trains stock PPO: a parent's mirror-symmetric training record
+    # does not carry into it, as train_base drops it on a stock warm start.
+    from environments.shared.symmetry import CHECKPOINT_ATTRIBUTE
+
+    model.__dict__.pop(CHECKPOINT_ATTRIBUTE, None)
     return model
 
 

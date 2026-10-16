@@ -30,16 +30,14 @@ command) flips sign; a forward or vertical quantity keeps it.
 The map is derived from the model itself, never written by hand.
 `environments/shared/symmetry.py` pairs every body, joint, actuator and
 sensor with its partner by name (`r_` and `l_`) and checks the pairing against
-the compiled geometry: positions, joint axes and ranges, masses, contact
-settings and actuator gains must all be true mirror images, or the derivation
-refuses the model. The checks cover what the current models use, so a new
-species' map also needs a paired-rollout test like the T. rex's
+the compiled geometry; a model that is not a true mirror image is refused. A
+new species' map also needs a paired-rollout test like the T. rex's
 (`environments/shared/tests/test_symmetry.py`), which runs a situation and its
 mirror image side by side and checks that they stay mirror images. The result
-is written to
-`configs/<species>/<embodiment>/mirror_map.json`, which records the plant's
-physics and policy-interface digests. A map only loads for the exact plant it
-was derived from, so after any change to the model it must be regenerated:
+is written to `configs/<species>/<embodiment>/mirror_map.json`, which records
+the plant's physics and policy-interface digests. A map only loads for the
+exact plant it was derived from, so after any change to the model it must be
+regenerated:
 
 ```bash
 # Derive and write a model's map
@@ -77,7 +75,7 @@ four additions:
 The usual alternative, adding mirrored copies of the experience to the PPO
 batch, was measured on stored stance rollouts and rejected. Its corrective
 push is measured relative to the exploration noise, and a standing policy
-explores very little (a few hundredths of the action range). At that scale a
+explores very little (a few hundredths of an action unit). At that scale a
 small asymmetry already pushes most mirrored samples outside PPO's clipping
 range, where they stop correcting anything, while the few left unclipped make
 the gradient erratic. The mirror loss above keeps pulling toward symmetry at
@@ -142,10 +140,9 @@ leg_home_pose_reference = "settled"   # default "keyframe"
   that at an offset of `lateral_lean_tolerance_m`. It is paid only after the
   stance settle (`stance_width_settle_steps`), only while the command is
   zero and only while both feet carry load (`foot_terms_min_support_force`).
-  A bonus raises every standing episode's return by about
-  `lateral_lean_weight` × 800, so enabling it is a reward change: the
-  stance's collapse floor and the logged reward components are updated in the
-  same change (see the comment in `environments/tyrannosaurus_rex/base_env.py`).
+  It raises every standing episode's return by about
+  `lateral_lean_weight` × 800, so enabling it is a reward change (see the
+  comment in `environments/tyrannosaurus_rex/base_env.py`).
 - **The settled leg target** (`leg_home_pose_reference = "settled"`) centres
   the `leg_home_pose` term on the pose the legs actually settle into when the
   animal stands still (averaged left and right) instead of the authored
