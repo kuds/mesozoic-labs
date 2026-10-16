@@ -569,6 +569,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   kind, and its `zero_action_baseline.py` entry is deleted.
 
 ### Migration
+- **`BEHAVIOR = "stand"` trains the stance stage alone on every model**
+  (D-D35). On the T. rex and both Compsognathus models it used to mean
+  stance then push recovery; that chain is now `BEHAVIOR = "recover"`. A
+  run started with `"stand"` before this change and left before its
+  recovery node finished continues with `"recover"`: re-entered with
+  `"stand"`, it targets stance alone and does not resume recovery.
 - **A `stance_quality/v2` or six-heading report or panel measured under
   `floor-truth/v1` is refused, and is judged again only once re-rolled**
   (`MEASUREMENT_VERSION` `floor-truth/v2`, the whole-foot centre of
