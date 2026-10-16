@@ -1147,7 +1147,12 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         # statue then forfeits 1.7 per episode on average (0.3 median, 16.4 on
         # its most-leaning spawn) against 105-141 more on episodes that
         # stood on a rolled pad, and the window mean offset separates the two
-        # with AUC 0.99.  A bonus adds about 0.25 x 800 = 200 to every
+        # with AUC 0.99.  Re-checked on physics r10 for the never-merged arm L
+        # screen of this branch (the foot sites are unchanged on the
+        # metatarsi): the same zero-action statue panel (seeds 3042-3081,
+        # 40/40 standing) forfeits 1.3 per episode on average (0.2 median,
+        # 16.9 on spawn 3059; r9 1.7, 0.3, 16.4), at a mean absolute offset of
+        # 0.48 mm after the settle.  A bonus adds about 0.25 x 800 = 200 to every
         # standing episode's return: re-measure stance.toml's
         # collapse_peak_floor_reference before enabling it there, and add
         # reward_lateral_lean to DiagnosticsCallback.REWARD_KEYS and to
