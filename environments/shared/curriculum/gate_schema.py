@@ -311,6 +311,13 @@ _DIAGNOSTIC_KEYS = frozenset(
 #: the only place it is meant to be set.
 _RETENTION_KEYS = frozenset({"max_checkpoints"})
 
+#: Keys that set the evaluation and periodic-checkpoint cadence rather than
+#: the gate (``train_base._stage_cadence``, ``train_base._eval_episodes_for_stage``):
+#: ``eval_freq`` and ``checkpoint_freq`` in environment steps, ``eval_episodes``
+#: the in-training evaluation panel.  Like retention they enter no gate,
+#: recipe or task digest.
+_CADENCE_KEYS = frozenset({"eval_freq", "eval_episodes", "checkpoint_freq"})
+
 #: Keys that record measurement provenance rather than configure anything.
 #: ``statue_constants_physics_revision`` pins the plant revision the stage's
 #: statue-derived constants (``min_avg_reward``,
@@ -539,6 +546,7 @@ def validate_gate_config(
         | _SCHEDULE_KEYS
         | _COLLAPSE_KEYS
         | _RETENTION_KEYS
+        | _CADENCE_KEYS
         | _DIAGNOSTIC_KEYS
         | _PROVENANCE_KEYS
         | _PUBLICATION_KEYS

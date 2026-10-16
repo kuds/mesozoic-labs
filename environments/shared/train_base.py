@@ -179,9 +179,42 @@ def _eval_episodes_for_stage(stage_config: dict[str, Any]) -> int:
     It matters for ``stance_quality/v1``, whose bound and whose 28%-rejection
     analysis are both specified at n=40; at n=30 neither describes the gate
     being run.
+
+    A stage that declares ``eval_episodes`` in ``[curriculum]`` gets exactly
+    that many (:func:`_stage_cadence`), even below ``min_eval_episodes``: a
+    screen that judges its checkpoints offline on the full panel, and accepts
+    that the in-training gate cannot pass on the smaller one.
     """
     curriculum = stage_config.get("curriculum_kwargs", {})
+    declared = curriculum.get("eval_episodes")
+    if declared is not None:
+        return _positive_cadence(curriculum, "eval_episodes")
     return max(_DEFAULT_EVAL_EPISODES, int(curriculum.get("min_eval_episodes", 0)))
+
+
+def _positive_cadence(curriculum: dict[str, Any], key: str) -> int:
+    value = curriculum[key]
+    if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+        raise ValueError(f"[curriculum] {key} must be a positive integer, got {value!r}")
+    return value
+
+
+def _stage_cadence(stage_config: dict[str, Any], eval_freq: int, save_freq: int) -> tuple[int, int]:
+    """The evaluation and periodic-checkpoint cadence, in environment steps, a stage trains at.
+
+    ``[curriculum] eval_freq`` and ``checkpoint_freq``, when the stage declares
+    them, replace the caller's ``eval_freq`` / ``save_freq`` (the notebook's
+    and the CLI's defaults, 50,000 and 100,000), so a stage config alone sets
+    them wherever it is trained.  Neither enters the gate, recipe or task
+    digest.  ``max_checkpoints`` (retention) and ``eval_episodes``
+    (:func:`_eval_episodes_for_stage`) are the other two cadence keys.
+    """
+    curriculum = stage_config.get("curriculum_kwargs", {})
+    if "eval_freq" in curriculum:
+        eval_freq = _positive_cadence(curriculum, "eval_freq")
+    if "checkpoint_freq" in curriculum:
+        save_freq = _positive_cadence(curriculum, "checkpoint_freq")
+    return eval_freq, save_freq
 
 
 def make_env(
@@ -719,6 +752,7 @@ def _build_core_callbacks(
     from .wandb_integration import WandbCallback
 
     callbacks: list[Any] = []
+    eval_freq, save_freq = _stage_cadence(stage_config, eval_freq, save_freq)
 
     # EvalCallback rewrites evaluations.npz in place on every eval; on a
     # Drive/GCS FUSE mount that streaming rewrite can be observed — or
