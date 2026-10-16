@@ -27,7 +27,7 @@ from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatom
 TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
 OPTION_KEYS = ("lateral_lean_weight", "lateral_lean_tolerance_m", "leg_home_pose_reference")
 LEAN_INFO_KEYS = {"com_lateral_offset_m", "lateral_lean_quality", "reward_lateral_lean"}
-#: The values the 2026-10 T. rex stance screen trained with (arm L).
+#: The values the 2026-10 T. rex stance screen trained with (the mirror loss, the lean term and the settled leg target).
 SCREENED = {"lateral_lean_weight": 0.25, "lateral_lean_tolerance_m": 0.015, "leg_home_pose_reference": "settled"}
 
 

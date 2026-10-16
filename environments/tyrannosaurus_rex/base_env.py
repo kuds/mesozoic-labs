@@ -161,10 +161,14 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
     # replaced by its mean, hip roll sign-mapped (the raw pairs agreed to 5e-5
     # rad).  Against the keyframe that is hip pitch -2.74, hip roll -/+0.42,
     # knee -0.40 and ankle +1.67 degrees: the servos do not hold the keyframe
-    # under load.  Centred on the keyframe, the term paid a policy for pulling
-    # the hips and ankles back toward it, which leans the animal forward;
-    # centred here it does not.
-    # Re-measure whenever leg masses, springs, gains or the feet change.
+    # under load.  The statues ran at the stance config's reset_noise_scale
+    # 0.05; the noise-free statue settles at hip roll 0.000 degrees with the
+    # other joints within 0.02 degrees of these, so the -/+0.42 degree hip-roll
+    # splay is the noise-averaged settle.  Centred on the keyframe, the term
+    # paid a policy for pulling the hips and ankles back toward it, which leans
+    # the animal forward; centred here it does not.
+    # Re-measure whenever leg masses, springs, gains or the feet change (any
+    # plant revision; test_the_settled_leg_pose_is_the_statues checks it).
     _LEG_SETTLED_QPOS = (
         -0.0931906447971345,
         -0.0073721451044150895,
@@ -1136,7 +1140,10 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         # stood on a rolled pad, and the window mean offset separates the two
         # with AUC 0.99.  A bonus adds about 0.25 x 800 = 200 to every
         # standing episode's return: re-measure stance.toml's
-        # collapse_peak_floor_reference before enabling it there.
+        # collapse_peak_floor_reference before enabling it there, and add
+        # reward_lateral_lean to DiagnosticsCallback.REWARD_KEYS and to
+        # visualization's reward-decomposition weight map in the same change
+        # (left out while no stage pays it, so no run records an empty series).
         if self.lateral_lean_weight > 0.0:
             com_lateral_offset = self._com_lateral_offset()
             reward_lateral_lean, lateral_lean_quality = _reward_lateral_lean_pure(

@@ -32,7 +32,11 @@ The map is derived from the model itself, never written by hand.
 sensor with its partner by name (`r_` and `l_`) and checks the pairing against
 the compiled geometry: positions, joint axes and ranges, masses, contact
 settings and actuator gains must all be true mirror images, or the derivation
-refuses the model. The result is written to
+refuses the model. The checks cover what the current models use, so a new
+species' map also needs a paired-rollout test like the T. rex's
+(`environments/shared/tests/test_symmetry.py`), which runs a situation and its
+mirror image side by side and checks that they stay mirror images. The result
+is written to
 `configs/<species>/<embodiment>/mirror_map.json`, which records the plant's
 physics and policy-interface digests. A map only loads for the exact plant it
 was derived from, so after any change to the model it must be regenerated:
@@ -71,13 +75,13 @@ four additions:
    its right partner.
 
 The usual alternative, adding mirrored copies of the experience to the PPO
-batch, was tried on paper first and rejected. Its corrective push is measured
-relative to the exploration noise, and a standing policy explores very little
-(a few hundredths of the action range). At that scale a small asymmetry
-already pushes most mirrored samples outside PPO's clipping range, where they
-stop correcting anything and make the gradient erratic. The mirror loss above
-keeps pulling toward symmetry at any noise level, and leaves the PPO update
-itself untouched.
+batch, was measured on stored stance rollouts and rejected. Its corrective
+push is measured relative to the exploration noise, and a standing policy
+explores very little (a few hundredths of the action range). At that scale a
+small asymmetry already pushes most mirrored samples outside PPO's clipping
+range, where they stop correcting anything, while the few left unclipped make
+the gradient erratic. The mirror loss above keeps pulling toward symmetry at
+any noise level, and leaves the PPO update itself untouched.
 
 Training changes nothing about the result's format: a checkpoint is a normal
 PPO checkpoint with normal normalisation statistics, and evaluation, reports
@@ -97,12 +101,14 @@ symmetry_sigma_floor = 0.01     # smallest noise scale the loss divides by
 symmetry_mirror_critic = true   # the mirrored critic
 ```
 
-The three numbers shown are the defaults, so `symmetry = "mirror_kl"` alone
+The three settings shown are the defaults, so `symmetry = "mirror_kl"` alone
 gives the same training. They are what the T. rex stance screen of October
-2026 used. The keys work with `--override` too, for example
-`--override ppo.symmetry=mirror_kl`. They are part of the stage's training
-recipe (its `hyperparameters_sha256`), not of its task: the task fingerprint
-does not move.
+2026 used. Still, write all four keys in a stage that turns the option on: the
+stage's training recipe (its `hyperparameters_sha256`) hashes only the keys
+its TOML writes, so a default left implicit could later change without moving
+that digest. The keys work with `--override` too, for example
+`--override ppo.symmetry=mirror_kl`. They are part of the training recipe, not
+of the task: the task fingerprint does not move.
 
 The stage's model must have a committed mirror map for its current plant;
 otherwise training refuses to start.
@@ -127,13 +133,18 @@ leg_home_pose_reference = "settled"   # default "keyframe"
   zero and only while both feet carry load (`foot_terms_min_support_force`).
   A bonus raises every standing episode's return by about
   `lateral_lean_weight` × 800, so the stance's collapse floor has to be
-  re-measured before a stage enables it.
+  re-measured before a stage enables it. The same change adds
+  `reward_lateral_lean` to the logged reward components
+  (`DiagnosticsCallback.REWARD_KEYS`) and to the reward-decomposition plot's
+  weight map (`environments/shared/visualization.py`), which leave it out
+  while no stage pays it.
 - **The settled leg target** (`leg_home_pose_reference = "settled"`) centres
   the `leg_home_pose` term on the pose the legs actually settle into when the
   animal stands still (averaged left and right) instead of the authored
   keyframe. Under the animal's weight the legs settle a few degrees away from
   the keyframe at the hips and ankles, and a policy paid for pulling them
-  back toward it tips the body forward.
+  back toward it tips the body forward. The settled pose is measured on the
+  current plant and re-measured with any plant revision (a test checks it).
 
 Off, the options change no reward, no logged value and no task fingerprint.
 On, they are part of the task like any other `[env]` setting.
@@ -142,9 +153,10 @@ On, they are part of the task like any other `[env]` setting.
 
 In the October 2026 screen, three T. rex stance seeds trained to 6M steps
 with mirror-symmetric training, the lean term and the settled leg target.
-The policies came out symmetric (every joint's median left-right difference
-under a tenth of a degree), did not fall in any of the 120 evaluation
-episodes and passed the stance gate on two of the three seeds. They did not
-pass the screen's stricter criteria for the foot's front-to-back pressure and
-for robustness to action noise, so no stage enables the options yet. They are kept as tested building blocks for later
-stance and walking experiments, and for other species once they have a map.
+The policies came out symmetric (every joint group's median mirror asymmetry
+under 0.1 degree), did not fall in any of the 120 final evaluation episodes
+and passed the stance gate on two of the three seeds. They did not pass the
+screen's stricter criteria for the foot's front-to-back pressure and for
+robustness to action noise, so no stage enables the options yet. They are
+kept as tested building blocks for later stance and walking experiments, and
+for other species once they have a map.

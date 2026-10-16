@@ -16,9 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   left-right ankle offset, that stock PPO has no reason to avoid. A
   pre-registered screen trained this method with the two options on the T.
   rex stance (three seeds to 6M steps): the policies were mirror-symmetric
-  (every joint's median left-right action difference under 0.1 degree), fell
-  in none of the 120 panel episodes and passed `stance_quality/v2` on two
-  seeds of three, but failed the screen's pad centre-of-pressure and
+  (every joint group's median mirror asymmetry under 0.1 degree), fell in
+  none of the 120 final (6M) panel episodes and passed `stance_quality/v2` on
+  two seeds of three, but failed the screen's pad centre-of-pressure and
   action-noise robustness criteria, so no stage config enables any of it.
   Every plant, policy-interface, task, gate, hyperparameter and
   `stage_config.json` digest, the committed digest snapshot and the exact
@@ -27,9 +27,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     compiled MJCF: bodies, geoms, sites, joints, actuators and sensors are
     paired by their side token (`r_`/`l_` and the robot's and quadrupeds'
     forms) and checked against the geometry, joint axes and ranges, inertias,
-    contact parameters and actuator gains (with a per-body frame correction
-    for CAD frames that differ between the sides), and any model it cannot
-    prove mirror-consistent is refused. The five anatomical plants derive;
+    gravity compensation, contact and fluid parameters, colliding mesh
+    vertices and actuator gains (with a per-body frame correction for CAD
+    frames that differ between the sides), and a model that fails a check is
+    refused. The checks cover the model fields the plants use, so a new
+    species' map comes with a paired-rollout equivariance test like the
+    T. rex's. The five anatomical plants derive;
     the Compsognathus robot is refused (its MJCF is not mirror-symmetric as
     authored). `build_env_mirror` adds the observation map from the plant's
     observation layout (`bipedal-target-heading-free/v1`, the T. rex's and
@@ -61,9 +64,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `train/mirror_value_loss`.
   - `[ppo]` keys: `symmetry = "mirror_kl"` selects it on fresh and resumed
     models (`symmetry_kappa` 0.3, `symmetry_sigma_floor` 0.01 and
-    `symmetry_mirror_critic = true` by default, the screened values); absent,
-    or `"none"`, training is stock PPO, bit for bit. The keys enter the
-    stage's `hyperparameters_sha256`, not its task. A same-stage resume
+    `symmetry_mirror_critic = true` by default, the screened values, which a
+    stage that enables it writes out so its digest pins them); absent, or
+    `"none"`, training is stock PPO, bit for bit. The keys enter the stage's
+    `hyperparameters_sha256`, not its task. A same-stage resume
     refuses a checkpoint whose recorded symmetry differs from the stage's,
     either way; a warm start takes the child stage's.
   - T. rex `[env]` options: `lateral_lean_weight` (0.0, off) and
@@ -72,11 +76,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     heading frame, after `stance_width_settle_steps`, under a zero command
     and with both feet loaded (calibrated at 0.25 and 0.015 m, the values
     the screen used; a bonus raises the statue's return by about 200, so
-    `collapse_peak_floor_reference` is re-measured before a stage enables
-    it); `leg_home_pose_reference = "settled"` (default `"keyframe"`) centres
+    `collapse_peak_floor_reference` is re-measured, and `reward_lateral_lean`
+    joins the diagnostics reward keys, before a stage enables it);
+    `leg_home_pose_reference = "settled"` (default `"keyframe"`) centres
     `leg_home_pose` on the statue's settled leg pose, mirror-symmetrised
-    (`_LEG_SETTLED_QPOS`, physics r9). Off, they add no reward and no info
-    key.
+    (`_LEG_SETTLED_QPOS`, physics r9, at the stance's reset noise; re-measured
+    with any plant revision). Off, they add no reward and no info key.
   - Task fingerprints: an env class may declare `OPT_IN_TASK_KWARGS`, and
     `task_fingerprint.inert_opt_in_env_kwargs` carves an option's kwargs out
     of the effective `[env]` section and of the defaults `save_stage_config`

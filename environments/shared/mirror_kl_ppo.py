@@ -39,16 +39,18 @@ asymmetry in units of the exploration noise sigma.  At the stance stage's small 
 most mirrored rows out of the clip band, where their gradient vanishes (on the stored 3M stance rollouts 86% of the
 mirrored rows clip at an asymmetry of 0.03, and the restoring force is about zero beyond 0.1, or beyond 0.06 at
 the projected 6M noise), while the unclipped rows with negative advantage are unbounded, so the gradient norm
-turns heavy-tailed (its largest pre-clip value an order of magnitude or more above stock PPO's).  The KL form has neither problem: its gradient is linear
-in the asymmetry and never collapses, its balance against the PPO gradient depends only on the asymmetry over
-sigma (held fixed, so the loss cannot be lowered by widening the noise, and floored at ``sigma_floor``, so it
-stays bounded as the noise shrinks), and the PPO block is unchanged.
+turns heavy-tailed (its largest pre-clip value an order of magnitude or more above stock PPO's).  The KL form has
+neither problem: its gradient is linear in the asymmetry and never collapses, its balance against the PPO gradient
+depends only on the asymmetry over sigma (held fixed, so the loss cannot be lowered by widening the noise, and
+floored at ``sigma_floor``, so it stays bounded as the noise shrinks), and the PPO block is unchanged.
 
-The defaults (kappa 0.3, sigma floor 0.01, mirrored critic on) are the T. rex stance screen's of 2026-10 (arm L,
-with the lean term and the settled leg centre of ``TyrannosaurusRexEnv``): three seeds to 6M steps trained
-mirror-symmetric policies (every leg group's median left-right action difference under 0.1 degree) that stood
-without falls and passed ``stance_quality/v2`` on two of three seeds, but not the screen's pad centre-of-pressure
-and noise-robustness criteria; so no stage enables it.  :func:`enable_mirror_kl` turns a constructed or loaded
+The defaults (kappa 0.3, sigma floor 0.01, mirrored critic on) are those of the T. rex stance screen of 2026-10,
+which trained them with the lean term and the settled leg target of ``TyrannosaurusRexEnv``: three seeds to 6M
+steps gave mirror-symmetric policies (every joint group's median mirror asymmetry under 0.1 degree) that did not
+fall in the 120 final (6M) evaluation episodes and passed ``stance_quality/v2`` on two of three seeds, but not the
+screen's pad centre-of-pressure and action-noise robustness criteria; so no stage enables it.  A stage that does
+writes all four ``[ppo]`` symmetry keys (:data:`~environments.shared.symmetry.SYMMETRY_KEYS`), so its
+``hyperparameters_sha256`` pins every setting.  :func:`enable_mirror_kl` turns a constructed or loaded
 stock ``PPO`` into a :class:`MirrorKLPPO` in place (``train_base`` does, when a stage's ``[ppo]`` table carries the
 symmetry keys), and records the settings in the checkpoint attribute ``mesozoic_symmetry``.
 """
