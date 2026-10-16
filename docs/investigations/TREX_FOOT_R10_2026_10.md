@@ -8,7 +8,7 @@ approved it as a draft PR, held until a training screen shows the new foot at
 least as good as the r9 foot.
 
 On physics r9 each T. rex foot stood on a 14 x 9 cm plantar pad, with three
-near-parallel digits on 40 N·m/rad springs that carried 18% of the statue's
+near-parallel digits on 40 N·m/rad springs that carried 17% of the statue's
 load near their bases. The stance gate's fore-aft rail read the pad alone
 (`max_sole_cop_fore_aft`, D-D28). r10 replaces the pad with a sole box
 standing for the metatarsal pad and the soft tissue under the proximal
@@ -59,7 +59,8 @@ literature-row count:
   r9 becomes 5.3 mm at 0.13 Hz. V1 doubles it, and V2 turns it into a 64 mm,
   5 Hz limit cycle.
 - **A modest toe-ward gain.** The forward push limit is 58.4 N against
-  55.4 N (+5.4%; floor moment 28.0 against 26.7 N·m, +4.9%), and the first
+  55.4 N (+5.4%; floor moment 28.0 against 26.7 N·m, +4.6% from the
+  unrounded 27.96 / 26.73), and the first
   nosedive under a held single-ankle offset comes 1.0-1.5° later. The
   statue's toe margin to each plant's own held-offset line (0.213 / 0.196
   m) is 29.1 against 22.5 N·m (1.77 against 1.37° of ankle servo error;
@@ -72,9 +73,10 @@ seeds and is clean on them; the KNOWN_ISSUES ankle probe (±0.03 on both
 ankles) reaches the horizon on 25/40 and 40/40 (r9 14/40 and 24/40).
 
 **What it does not show.** The proposal judged the r9-trained policies
-zero-shot: on r10 two of three seeds still lean forward past the new rail
-in some evaluations. Only training on r10 can show whether a policy trained
-there avoids the lean, which is why the PR is held for the screen.
+zero-shot: on r10 seeds 42 and 60 still fail the whole-foot CoP criterion
+(5/1/5 and 9/30/0 of 40 episodes above 0.80 at 4M/5M/6M). Only training on
+r10 can show whether a policy trained there avoids the lean, which is why
+the PR is held for the screen.
 
 ## 3. Anatomy, and where it comes from
 
@@ -100,12 +102,15 @@ Primary sources are marked (P), secondary (S).
   Mortimer's compilation, not checked against Brochu's tables.
 - **Divarication** of 25 / 33° is a chord angle, MTP joint to claw tip, and
   a compromise. The phalangeal axes of II and IV deviate progressively
-  (Brochu 2003, P), so a straight capsule's chord sits below track angles.
+  (Brochu 2003, P), so the digits curve, and their chord, which the
+  straight capsule follows, sits below the track angles measured on the
+  free digits.
   The Bellatoripes means are 29.7 / 35.7° (McCrea et al. 2014). The Hell
   Creek track attributed to T. rex, 35 / 40° (Falkingham et al. 2026, P), is
   not matched.
-- **W/L.** At the contact line it is 0.78, inside Bellatoripes' 0.78-1.00
-  and the T. rex-attributed 0.67-0.83. The Hell Creek R2 track is 0.83 (P;
+- **W/L.** At the contact line it is 0.776, at the lower bound of
+  Bellatoripes' 0.78-1.00 and inside the T. rex-attributed 0.67-0.83. The
+  Hell Creek R2 track is 0.83 (P;
   its length includes a rear structure that may be a metatarsal pad or
   hallux impression, and its digits are truncated by weathering).
   Tyrannosauripus at about 0.67 comes from secondary sources only. The
@@ -224,9 +229,11 @@ by up to about 11 mm on the statue.
   doi:10.2307/3889334
 - McCrea RT et al. 2014. A 'Terror of Tyrannosaurs'. PLoS ONE 9(7):
   e103613.
-- Falkingham PL et al. 2026. A large tridactyl trackway from the Hell Creek
-  Formation of North Dakota. J. Vert. Paleontol. e2706201 (citing Xing et
-  al. 2019 for the Hekou track).
+- Falkingham PL et al. 2026. A large tridactyl trackway from the Upper
+  Cretaceous Hell Creek Formation of North Dakota, likely attributable to
+  an adult *Tyrannosaurus rex*. J. Vert. Paleontol. e2706201.
+  doi:10.1080/02724634.2026.2706201 (citing Xing et al. 2019 for the
+  Hekou track).
 - Boeye AT et al. 2026. Evidence of bird-like foot function in
   *Tyrannosaurus*. R. Soc. Open Sci. 13: 252139.
 - Mortimer M. The Theropod Database, Tyrannosauroidea (accessed

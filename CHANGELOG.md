@@ -10,13 +10,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **The whole-foot centre of pressure at every evaluation, report-only**
   (the maintainer's approval of 2026-10-16: "record whole-foot centre of
-  pressure, report-only, with no physics change"). `stance_quality/v2`'s pad
+  pressure, report-only, with no physics change"; the T. rex stance gates
+  on it since its physics r10, under Changed). `stance_quality/v2`'s pad
   rail, `max_sole_cop_fore_aft`, reads one contact geom, the plantar pad. Once
   a foot's digits carry load ahead of its pad, the pad's CoP is no longer the
   quantity that decides toppling about the ankle: the whole foot's is, the
   floor load's moment about the ankle over the limb's floor force. This
   change measures it, per step and per foot, beside the pad's. Nothing reads
-  it but telemetry and reports: no reward, observation, action, checkpoint
+  it but telemetry and reports (and, since the T. rex's physics r10, that
+  stance's gate): no reward, observation, action, checkpoint
   selection, policy interface, plant or task digest moves, and no gate
   verdict once a report measured before this change is re-rolled (until
   then it is refused; see Migration).
@@ -59,7 +61,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     strictly inside (0, 1) (`CRITERION_BAR_RANGES`). It is plumbed through the
     manager's `StageThreshold` and copied keys, the catalog's exported keys,
     the website adapter, and the stance report's report-only rows. No stage
-    declares it, so it is in no verdict. The v2 panel CSV
+    declares it, so it is in no verdict (the T. rex stance does since its
+    physics r10, under Changed). The v2 panel CSV
     (`stance_panel_selected.csv`), the six-heading grid
     (`stance_heading_panel_selected.csv`) and the report's episode evidence
     rows gain a `max_foot_cop_fore_aft` column; no report schema is bumped, as
@@ -81,7 +84,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     as means over full-horizon episodes, with `max_foot_cop_fore_aft_mean`.
     No `max_foot_cop_fore_aft_over_bar_fraction` is written, because no stage
     declares the bar; it would follow a declared bar as the pad rail's
-    over-bar fraction does. The stance replay CSV gains the per-step
+    over-bar fraction does (it is written for the T. rex stance since its
+    physics r10). The stance replay CSV gains the per-step
     whole-foot CoP, both margins and the per-digit columns.
   - On the T. rex physics-r9 statue, the certification seeds 3042-3081, an
     independent per-substep probe of the same panel (every limb floor contact
@@ -115,7 +119,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Tests: the recorder against an independent probe (the ankle's world
     anchor, `mj_contactForce`) and against the vertical-load moment with the
     tilt bound, each hinged digit's load position, the seed-3042 statue
-    reading, the registry's span pinned to the pad's edges on the plant,
+    reading, the registry's span pinned to the pad's edges on the plant
+    (since r10, the heel line to the sole box's edge and the toe line to
+    its held-offset record),
     refusals, the metric and the telemetry on synthetic and real traces of
     every model, the npz keys, and the replay CSV.
   - The recorder's extra reads cost no measurable time on top of #620's
@@ -753,7 +759,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - The MTP springs go from 40 to 3000 / 4500 / 3000 N·m/rad, a mechanical
       choice: the lowest rung of a ladder that beats r9's forward push limit
       by 5%.
-    - The digits now carry a third of the statue's load (r9 18%). Names,
+    - The digits now carry a third of the statue's load (r9 17%). Names,
       sites, sensors, masses, the keyframe and the sibling exclusions are
       unchanged.
   - **The stance rail.** `configs/tyrannosaurus_rex/anatomical/stance.toml`
@@ -770,7 +776,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - The pad CoP (`max_sole_cop_fore_aft`) and `min_sole_contacts` become
       report-only for the T. rex, because the 10.5 cm box loads its front
       edge while the digits carry the front of the foot. The compsognathus
-      keeps its pad bar.
+      keeps its pad bar. The stance report's report-only rows gain the
+      sole's loaded contact points, listed where the block does not gate
+      them.
+    - `max_foot_cop_fore_aft_over_bar_fraction` now appears in
+      `gate_progress.npz` and TensorBoard for the T. rex stance.
     - The tilt and corner-lift bars stay; their comments give the r10
       statue's extremes and the corner lift's angle on the new box.
   - **`MEASUREMENT_VERSION` is `floor-truth/v3`.** `gait/constants.py`
@@ -786,7 +796,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
       361 (carry), recovery 1504.4 (was 1329.1).
     - The recovery push derives to 186.8 N (165.5 N on r7-r9): its support
       margin, the heel-ward side of the home contact hull, grows from 77.3
-      to 87.2 mm.
+      to 87.2 mm. The hand-run off-distribution panel
+      (`recovery_offdist_panel.py`) now converts its 120 N and 210 N rows
+      on the plant it builds, instead of through a pinned 165.5 N
+      (`test_gate_resolution_producer.py`).
     - The settle (`target_z`, `natural_pitch`, the settled tail and neck
       targets) carries.
     - Two statue readings change: its spawn now leaves the floor on 17 of 40

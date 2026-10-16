@@ -677,6 +677,8 @@ heading design's six-heading certificate the T. rex and anatomical
 compsognathus stance gate; it is outside this sequence too. D-D33 was
 taken the same day too, naming each species by its binomial and each
 model by the pair (species, embodiment); it is outside this sequence too.
+D-D34 was taken on 2026-10-16, giving the T. rex physics r10 and its
+stance a whole-foot CoP rail; it is outside this sequence too.
 
 | Id | Question | Decision | Unblocks |
 |---|---|---|---|

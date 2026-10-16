@@ -33,8 +33,9 @@ class TyrannosaurusRexAnatomicalEnv(TyrannosaurusRexEnv):
     #: r10 (0.213, its record ``data/foot_toe_line.json``), past the box's
     #: front edge (0.165) because the digits carry the front of the foot.
     #: The span-normalised reading is in span half-lengths (0.0765 m);
-    #: ``test_gait_morphology.py`` pins both lines.  The stance gate's
-    #: fore-aft rail (``max_foot_cop_fore_aft``) reads it.
+    #: ``test_gait_morphology.py`` pins both lines (a change to the stance
+    #: [env] also re-runs that script).  The stance gate's fore-aft rail
+    #: (``max_foot_cop_fore_aft``) reads it.
     FOOT_SUPPORT = {
         "support": ("{s}_plantar_geom", "{s}_toe_d2_geom", "{s}_toe_d3_geom", "{s}_toe_d4_geom"),
         "sole": "{s}_plantar_geom",

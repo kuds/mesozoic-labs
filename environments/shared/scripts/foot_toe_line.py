@@ -34,7 +34,9 @@ It writes ``environments/<species>/<embodiment>/data/foot_toe_line.json``
 episode's reading, both onsets and the line.  The model's ``FOOT_SUPPORT``
 ``toe_line`` must equal the record's line, and the record's physics digest
 the committed plant's (``test_gait_morphology.py``), so a physics revision
-re-runs this script.
+re-runs this script.  The rule also rolls under the stance [env] (reset
+noise, action mapping and filter, settle steps, horizon), which the record
+does not pin: a change to the stance [env] also re-runs this script.
 """
 
 from __future__ import annotations

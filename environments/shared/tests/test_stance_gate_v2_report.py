@@ -510,6 +510,7 @@ class TestTheWholeFootCentreOfPressure:
         # The whole foot is gated, so it is listed with the criteria, not as report-only; the pad is report-only.
         assert "max_foot_cop_fore_aft" in text and "foot CoP fore-aft (|.| / half-span)" not in text
         assert "pad CoP fore-aft (|.| / half-length)" in text and "max_sole_cop_fore_aft" not in text
+        assert "sole loaded contact points" in text  # min_sole_contacts: reported, not gated
         # The T. rex declares the hop-or-fall rail without the window pair: the rail's line names the hop keys it
         # declares, and the pair is a report-only reading.
         assert "episodes end early or fail support, touchdowns, drift or saturation)" in text
