@@ -1051,7 +1051,16 @@ collapse_peak_warmup_timesteps = 1000000 # Evaluations before this step cannot S
                                          # candidacy; past it a statue-level peak arms the floor legitimately, and
                                          # collapse_patience consecutive evaluations under half of it are a collapse
                                          # at either start. Untested on a full run at -1.5.
-collapse_peak_floor_reference = 3756.8   # The zero-action statue's standing reward at noise 0.05, 40 episodes,
+collapse_peak_floor_reference = 3981.9   # ARM L SCREEN (this never-merged branch): the r10 production reference
+                                         # 3756.8 (below) plus arm L's statue reward gain on physics r10, +225.1:
+                                         # the zero-action statue panel (seeds 3042-3081, noise 0.05, 40/40
+                                         # standing) under the stance env with lateral_lean_weight 0.25,
+                                         # lateral_lean_tolerance_m 0.015 and leg_home_pose_reference "settled"
+                                         # (the r10 settled target) minus under production; re-centring +26.4,
+                                         # lean +198.7. Measured as the r9 screen measured its own (r9: +224.6,
+                                         # 3981.4); floor 0.45 x 3981.9 = 1791.9. Production (main, r10) keeps
+                                         # 3756.8, which the rest of this note is about:
+                                         # the zero-action statue's standing reward at noise 0.05, 40 episodes,
                                          # on the hip-roll revision (physics r8) with the D-D27 stance task
                                          # (-9.3 against the r8 task's 3766.1, decomposed at min_avg_reward
                                          # above; floor 0.45 x 3756.8 = 1690.6). 3766.1 was the r8 task:
