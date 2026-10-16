@@ -47,8 +47,9 @@ non-SB3 training loop can drive the curriculum without importing SB3 at all:
   evaluation return has collapsed
 * :mod:`~environments.shared.curriculum.checkpoints` — checkpoint selection,
   publication, and VecNormalize statistics
-* :mod:`~environments.shared.curriculum.posture_watch` — the posture-drift
-  advisory, report-only
+* :mod:`~environments.shared.curriculum.posture_watch` and
+  :mod:`~environments.shared.curriculum.progress_report` — the posture-drift
+  advisory and ``progress.json``, report-only
 """
 
 from __future__ import annotations
@@ -95,6 +96,7 @@ from .gate_schema import (
 from .hop_watch import HopRegimeWatchCallback, build_hop_watch_callback
 from .manager import CurriculumManager, StageThreshold, thresholds_from_configs
 from .posture_watch import PostureDriftWatchCallback, build_posture_drift_watch_callback
+from .progress_report import TrainingProgressCallback, build_training_progress_callback
 from .schedules import (
     CosineSchedule,
     EntCoefDecayCallback,
@@ -111,6 +113,7 @@ __all__ = [
     "BaselineProgressCallback",
     "HopRegimeWatchCallback",
     "PostureDriftWatchCallback",
+    "TrainingProgressCallback",
     "GATE_SCHEMA_VERSION",
     "CurriculumCallback",
     "CurriculumManager",
@@ -134,6 +137,7 @@ __all__ = [
     "build_baseline_progress_callback",
     "build_hop_watch_callback",
     "build_posture_drift_watch_callback",
+    "build_training_progress_callback",
     "build_eval_collapse_early_stop_callback",
     "gate_config_differences",
     "declared_certification_seeds",

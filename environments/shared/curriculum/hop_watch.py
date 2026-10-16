@@ -137,15 +137,15 @@ class HopRegimeWatchCallback(BaseCallback):  # type: ignore[misc]
     def _trip(self, timestep: int, duty: float) -> None:
         self._tripped = True
         action = "stopping training" if self.stop else "training continues (hop_watch_stop = false)"
-        logger.warning(
+        message = (
             "HopWatch: evaluation unsupported duty %.4f > %.4f at %d steps (watching from %d); %s. A stance still "
             "hopping when its entropy bonus has run out did not escape the hop regime on the T. rex physics-r8 "
-            "runs; the post-stage report judges the handoff pair as usual, and the remedy is a new seed.",
-            duty,
-            self.max_unsupported_duty,
-            timestep,
-            self.after_timesteps,
-            action,
+            "runs; the post-stage report judges the handoff pair as usual, and the remedy is a new seed."
+        ) % (duty, self.max_unsupported_duty, timestep, self.after_timesteps, action)
+        logger.warning("%s", message)
+        # The training progress report (progress.json) lists the advisories a run has raised.
+        self.__dict__.setdefault("progress_warnings", []).append(
+            {"timesteps": timestep, "source": "hop_watch", "message": message}
         )
         if self.stage_dir is None:
             return
