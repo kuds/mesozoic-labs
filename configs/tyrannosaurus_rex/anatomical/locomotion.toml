@@ -37,7 +37,12 @@ reset_noise_scale = 0.05               # Was omitted, so SB3 silently fell back 
 
 [ppo]
 learning_rate = 5e-5                    # Reduce from 1e-4: prevent catastrophic forgetting of Stage 1 balance
-learning_rate_end = 1e-5
+learning_rate_end = 2.902848e-05            # WALKING PILOT (never merged): production 1e-5. Production anneals 5e-5 -> 1e-5
+                                        # over its 8,000,000 steps; SB3's schedule runs over the pilot's own budget
+                                        # (4,194,304 below), so the pilot ends at production's value at 4,194,304:
+                                        # 5e-5 - 4e-5 x 4194304 / 8000000 = 2.902848e-5. The pilot then follows
+                                        # production's learning-rate path step for step; the entropy anchor
+                                        # (4,000,000), the warm-up (300k) and the ramp (2M) are absolute and unchanged.
 n_steps = 4096                          # Increase from 2048: larger rollout buffer for more stable gradients
 batch_size = 256                       # Increase from 128 to match raptor: more stable gradient estimates
 n_epochs = 10
@@ -86,7 +91,13 @@ net_arch = [512, 256]            # Match raptor width; T-Rex obs is 63 (heading-
 [curriculum]
 gate_schema_version = 1                 # Fail-closed gate declaration; see
 gate_kind = "reward_and_length/v1"      # environments/shared/curriculum/gate_schema.py
-timesteps = 8000000                     # Increase from 5M: your best T-Rex stage2 was only at 2M steps and still improving
+timesteps = 4194304                     # WALKING PILOT (never merged): production 8000000. A short pilot judged at
+                                        # 2,097,152 / 3,145,728 / 4,194,304 (pilot criteria.txt). Production note: Increase
+                                        # from 5M: your best T-Rex stage2 was only at 2M steps and still improving
+eval_freq = 131072                      # WALKING PILOT: an evaluation every 131,072 steps of 10 episodes (the arm L
+eval_episodes = 10                      # screen's cadence; production 50,000 and 30). Evaluation never changes the
+checkpoint_freq = 524288                # training trajectory. A periodic checkpoint every 524,288 steps, all kept
+max_checkpoints = 0                     # (production 100,000, newest 5), so 2M, 3M and 4M exist for the gait probe.
 min_avg_reward = 100.0
 # Collapse backstop: the relative floor pair stance and recovery use
 # (PLANT_VALIDATION §14 item 3), replacing the absolute
