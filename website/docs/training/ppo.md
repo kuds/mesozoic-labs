@@ -81,7 +81,7 @@ and SAC:
 3. **`behavior`** (hunt; `warm_start_from = "locomotion"`, historical stage 3): species-specific task (strike for Velociraptor, a fixed head-contact "bite" proxy for T-Rex, a head-tip distance-based food-reach proxy for Brachiosaurus, snap for Dibothrosuchus, target reach for Compsognathus)
 
 T-Rex, Compsognathus and the Compsognathus robot add a fourth, non-advancing
-node, **`recovery`** (stand; `warm_start_from = "stance"`): balance under
+node, **`recovery`** (recover; `warm_start_from = "stance"`): balance under
 scheduled pushes. It has no legacy number, the CLI curriculum skips it with a
 log line, and it is trained on its own with `train --stage recovery`. Each
 `recovery.toml` extends its model's `stance.toml` (a top-level
@@ -89,8 +89,9 @@ log line, and it is trained on its own with `train --stage recovery`. Each
 tables, changing only the stage's name and description, the push settings
 and the entropy-decay horizon. The T-Rex `recovery.toml` is PPO-only (it
 does not inherit stance's `[sac]`); both Compsognathus models inherit it.
-Every node is a deliverable: stand, walk and hunt are each certified and
-published on their own, and `--trunk-from RUN_DIR`, `--retrain-from STAGE_ID`
+Every node is a deliverable: stand, walk and hunt (and recover, on the
+three models with a recovery node) are each certified and published on their
+own, and `--trunk-from RUN_DIR`, `--retrain-from STAGE_ID`
 and `--label TEXT` let a run reuse an earlier run's certified trunk, retrain
 from a chosen node, and tag its nodes. See [Behavior Recipes](recipes.md).
 

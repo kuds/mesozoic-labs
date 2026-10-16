@@ -4,8 +4,9 @@ sidebar_position: 0
 
 # Behavior Recipes
 
-Every model trains a small set of named behaviors — stand, walk and hunt —
-and each one is its own policy: certified against its own gate, published on
+Every model trains a small set of named behaviors — stand, walk and hunt,
+and recover on the models with a recovery stage — and each one is its own
+policy: certified against its own gate, published on
 its own, and built by reusing the certified trunk beneath it and training
 only what is missing above it. This page owns that vocabulary and workflow;
 the [PPO](ppo.md), [SAC](sac.md) and [hyperparameter](hyperparameters.md)
@@ -26,7 +27,7 @@ already certified.
 | **Trunk** | The shared certified chain every behavior builds on: stance → (recovery) → locomotion. |
 | **Leaf** | A node with no children: today `behavior` (hunt). |
 | **Deliverable** | A node whose certified checkpoint is a published policy (`deliverable = true`). |
-| **Recipe** | A deliverable plus its ancestor chain, *derived* from the edges; the per-entry `recipe` label groups nodes under a behavior name. "walk" = stance → locomotion; "hunt" = stance → locomotion → behavior; "stand" = stance → recovery where a recovery node exists. |
+| **Recipe** | A deliverable plus its ancestor chain, *derived* from the edges; the per-entry `recipe` label groups nodes under a behavior name. "stand" = stance alone, on every model; "recover" = stance → recovery where a recovery node exists; "walk" = stance → locomotion; "hunt" = stance → locomotion → behavior. |
 | **Certified** | A property of one checkpoint: the node's own gate passed *and* every ancestor's gate passed, with every piece of evidence hash-bound to the checkpoint it describes. |
 
 The hunting node keeps its id `behavior` for every model; its recipe
@@ -70,7 +71,7 @@ deliverable = true               # the six-heading certificate since D-D32 (v2 s
 id = "recovery"
 config = "recovery.toml"
 warm_start_from = "stance"
-recipe = "stand"
+recipe = "recover"
 deliverable = true               # recovery_quality/v1, judged against a per-run frozen resolution
 
 [[stages]]
@@ -91,7 +92,7 @@ deliverable = true
 ```
 
 The anatomical Compsognathus and the Compsognathus robot commit the same
-four-node layout. The anatomical Velociraptor, Brachiosaurus and
+four-node layout, labels included. The anatomical Velociraptor, Brachiosaurus and
 Dibothrosuchus commit three nodes — `stance` (`stand`), `locomotion` (`walk`,
 warm-started from stance) and `behavior` (`hunt`, warm-started from
 locomotion) — over `stance.toml`, `locomotion.toml` and their task file
@@ -99,11 +100,18 @@ locomotion) — over `stance.toml`, `locomotion.toml` and their task file
 its stage, with no number. Every node in
 every committed manifest is a deliverable.
 
-Two consequences of label resolution: on a model with a recovery node,
-`"stand"` resolves to `recovery` (the deepest `stand` deliverable), so the
-stance node alone is addressed by its id `"stance"`; and `"hunt"` resolves to
-`behavior` for every model, which is why the notebook's default works
-everywhere. Inside a run, stage directories are named `{position:02d}_{id}`
+The labels read as four verbs: `stand`, `recover`, `walk` and `hunt`. Each
+names one node on every model that has it, so label resolution never
+surprises: `"stand"` resolves to `stance` on every model (the same chain as
+the id `"stance"`), `"recover"` to `recovery` on the T-Rex and both
+Compsognathus models (chain `stance -> recovery`) and to nothing elsewhere,
+and `"hunt"` to `behavior` for every model, which is why the notebook's
+default works everywhere. A label never equals a stage id (the loader refuses
+one that does). Until decision D-D35 (2026-10-16) the recovery node was
+labelled `stand` too, so `"stand"` resolved to `recovery` (the deepest `stand`
+deliverable) on those three models and trained stance then push recovery
+there but stance alone elsewhere; the push-robust standing policy those three
+publish is now the `recover` deliverable. Inside a run, stage directories are named `{position:02d}_{id}`
 (`01_stance`, `02_locomotion`, `03_behavior` for the three-node models;
 `01_stance`, `02_recovery`, `03_locomotion`, `04_behavior` on the T-Rex), and
 file labels keep `stage1`, `stage2`, `stage3` for the legacy-numbered stages
@@ -274,7 +282,7 @@ refuses when the evidence is missing, and cannot backfill
 committed as:
 
 ```python
-BEHAVIOR = "hunt"  # a recipe label ("stand" | "walk" | "hunt") or a deliverable's stage id
+BEHAVIOR = "hunt"  # a recipe label ("stand" | "recover" | "walk" | "hunt") or a deliverable's stage id
 TRUNK_FROM = "auto"  # "auto" (D-A25): the sibling run covering the most of the chain; a run id pins one; "" trains every node here
 RETRAIN_FROM = ""  # optional chain node to train here with every node below it (empty = off; D-A19)
 RUN_LABEL = ""  # optional free-text label recorded beside each trained node's hyperparameter digest (D-A21)
@@ -372,18 +380,19 @@ and `ancestors/locomotion/`, the trained `03_behavior/` records
 stance and locomotion — certified through the trunk's verdicts and still
 published by the trunk run.
 
-**Stand on the T-Rex.** `"stand"` resolves to the deepest `stand`
-deliverable, which on a model with a recovery node is `recovery`:
+**Recover on the T-Rex.** `"recover"` resolves to `recovery`, on the T-Rex
+and both Compsognathus models:
 
 ```python
-BEHAVIOR = "stand"
+BEHAVIOR = "recover"
 ```
 
 The chain is `stance -> recovery`. Stance trains (or is reused), then the
 recovery resolution is frozen from the stance handoff, recovery trains, the
 frozen panel is rolled, and the `recovery_quality/v1` verdict is enforced
-exactly like any other node's. To train the stance node alone, set
-`BEHAVIOR = "stance"`. The old `RUN_RECOVERY_STAGE` switch no longer exists.
+exactly like any other node's. `BEHAVIOR = "stand"` (or `"stance"`) trains
+the stance node alone, on these models as on every other. The old
+`RUN_RECOVERY_STAGE` switch no longer exists.
 
 Two escape hatches remain. The manual single-node cell (`MANUAL_NODE`) trains
 one node outside the chain and records its verdict without enforcing it; it
@@ -428,10 +437,11 @@ no number) — and the run walks that target's chain and stops there, so
 stage, the whole ladder. The target is never reused from a trunk, whichever
 node it is. The chain must be the advancing ladder up to the target, because
 the command-line curriculum judges with the integer-keyed `CurriculumManager`,
-advanced once per node walked: `--target stand` on the T-Rex or Compsognathus,
-whose `stand` chain runs through the non-advancing recovery node, is refused
-before any directory is written, and that chain is trained through the
-notebook (`BEHAVIOR = "stand"`); a chain that skips a ladder stage (an edge
+advanced once per node walked: `--target recover` on the T-Rex or
+Compsognathus, whose chain runs through the non-advancing recovery node, is
+refused before any directory is written, and that chain is trained through the
+notebook (`BEHAVIOR = "recover"`), while `--target stand` is a stance-only run
+on every model; a chain that skips a ladder stage (an edge
 rewired past it) is refused the same way, since the manager would judge the
 node after the gap against the skipped stage's thresholds. `--retrain-from`
 must name a node on the target's chain.

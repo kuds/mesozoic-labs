@@ -16,10 +16,13 @@
 # Schema 2 (decision D-A8, 2026-09-12; BEHAVIOR_RECIPES_PLAN §4.3) added the
 # deliverable tables.  [[species.<species>.embodiments.<embodiment>.deliverable_metrics]]
 # states the success semantics of every behavior a model publishes.
-# `deliverable` is a recipe label ("stand", "walk", "hunt") or a deliverable
-# stage id, resolved exactly as the notebook's BEHAVIOR knob is: a label
-# means its DEEPEST deliverable in manifest order (on the T-Rex "stand" is
-# recovery, so its stance node is addressed by id).  Every manifest
+# `deliverable` is a recipe label ("stand", "recover", "walk", "hunt") or a
+# deliverable stage id, resolved exactly as the notebook's BEHAVIOR knob is: a
+# label means its DEEPEST deliverable in manifest order.  Every model names
+# its deliverables by label: "stand" is the stance node on every model, and
+# "recover" the recovery node of the three models that have one (decision
+# D-D35; before it the T-Rex and both Compsognathus models addressed stance
+# and recovery by id, because "stand" resolved to recovery).  Every manifest
 # deliverable needs a stable-baselines3 entry (the evidence backend, plan
 # §4.9); an unknown deliverable, a backend the model does not train, or two
 # entries for one (stage, backend) fail the generator.  The per-backend
@@ -153,15 +156,15 @@ key = "bite_success"
 label = "Head-contact bite proxy"
 definition = "The head-bite geom contacts the prey geom while the bite reward is enabled; the model has no articulated jaw."
 
-[[species.tyrannosaurus_rex.embodiments.anatomical.deliverable_metrics]]  # by id: the "stand" label resolves to recovery, its deepest deliverable
-deliverable = "stance"
+[[species.tyrannosaurus_rex.embodiments.anatomical.deliverable_metrics]]
+deliverable = "stand"
 backends = ["stable-baselines3"]
 key = "stance_quality"
 label = "Stance quality at six headings (stance_quality_heading/v1)"
 definition = "The stance checkpoint clears the stance_quality_heading/v1 gate (the six-heading certificate, decision D-D32), judged post-stage on the handoff pair: the 40 certification-panel seeds are rolled with the whole scene turned -90, -45, 0, 45, 90 and 180 degrees; at every heading the stance_quality/v2 decision on floor truth (horizon reached, no hop or impact in the settle window, both feet down and loaded, flat pads, no actuator held at its limit) passes against the statue rolled at that heading, and the one-sided 95% lower bound on the share of seeds clean at every heading meets the configured bound, with the reward rails as collapse floors only. The clean-seed count and its bound are recorded in gate_verdict.json but not exported to summary.json until a later phase (decision D-A9, deferred by D-B15), so the catalog names them with no value."
 
 [[species.tyrannosaurus_rex.embodiments.anatomical.deliverable_metrics]]
-deliverable = "recovery"
+deliverable = "recover"
 backends = ["stable-baselines3"]
 key = "recovery_quality"
 label = "Recovery under pushes (recovery_quality/v1)"
@@ -338,15 +341,15 @@ key = "target_success"
 label = "Pelvis target-reaching success"
 definition = "While the target task is enabled, the upright pelvis enters the configured horizontal target radius at or below the configured speed; non-foot floor contact is forbidden."
 
-[[species.compsognathus_longipes.embodiments.anatomical.deliverable_metrics]]  # by id: the "stand" label resolves to recovery, its deepest deliverable
-deliverable = "stance"
+[[species.compsognathus_longipes.embodiments.anatomical.deliverable_metrics]]
+deliverable = "stand"
 backends = ["stable-baselines3"]
 key = "stance_quality"
 label = "Stance quality at six headings (stance_quality_heading/v1)"
 definition = "The stance checkpoint clears the stance_quality_heading/v1 gate (the six-heading certificate, decision D-D32), judged post-stage on the handoff pair: the 40 certification-panel seeds are rolled with the whole scene turned -90, -45, 0, 45, 90 and 180 degrees; at every heading the stance_quality/v2 decision on floor truth (horizon reached, no hop or impact in the settle window, the two-foot flight time and the landing peak bounded over the scored window, both feet down and loaded, the pad and all three digits of each foot loaded, flat pads, no actuator held at its limit) passes against the statue rolled at that heading, and the one-sided 95% lower bound on the share of seeds clean at every heading meets the configured bound, with the reward rails as collapse floors only. The clean-seed count and its bound are recorded in gate_verdict.json but not exported to summary.json until a later phase (decision D-A9, deferred by D-B15), so the catalog names them with no value."
 
 [[species.compsognathus_longipes.embodiments.anatomical.deliverable_metrics]]
-deliverable = "recovery"
+deliverable = "recover"
 backends = ["stable-baselines3"]
 key = "recovery_quality"
 label = "Recovery under pushes (recovery_quality/v1)"
@@ -382,15 +385,15 @@ key = "target_success"
 label = "Pelvis target-reaching success"
 definition = "While the target task is enabled, the upright pelvis enters the configured horizontal target radius at or below the configured speed; non-foot floor contact is forbidden."
 
-[[species.compsognathus_longipes.embodiments.robot.deliverable_metrics]]  # by id: the "stand" label resolves to recovery, its deepest deliverable
-deliverable = "stance"
+[[species.compsognathus_longipes.embodiments.robot.deliverable_metrics]]
+deliverable = "stand"
 backends = ["stable-baselines3"]
 key = "stance_quality"
 label = "Stance quality (stance_quality/v1)"
 definition = "The stance checkpoint clears the stance_quality/v1 gate: the unsupported-duty 95% upper bound and the full-horizon episode fraction meet the configured bounds over 40-episode evaluations, with the reward rail as a collapse floor only. The duty and full-horizon statistics are not exported to summary.json until a later phase (decision D-A9, deferred by D-B15), so the catalog names them with no value."
 
 [[species.compsognathus_longipes.embodiments.robot.deliverable_metrics]]
-deliverable = "recovery"
+deliverable = "recover"
 backends = ["stable-baselines3"]
 key = "recovery_quality"
 label = "Recovery under pushes (recovery_quality/v1)"

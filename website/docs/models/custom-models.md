@@ -165,10 +165,11 @@ declare its `legacy_number`); `config` is the stage TOML filename;
 stage; `warm_start_from` names an **earlier** entry (a self or forward
 reference is fatal); `deliverable = true` marks every node whose certified
 checkpoint is a published policy (a v2 manifest with no deliverable is fatal);
-and `recipe` is the behavior label (`stand`, `walk`, `hunt`). A model with a
-recovery node uses the four-entry T-Rex layout, where `recovery` (recipe
-`stand`, `warm_start_from = "stance"`, no legacy number) sits between stance
-and locomotion. See [Behavior Recipes](/docs/training/recipes) for how the
+and `recipe` is the behavior label (`stand`, `recover`, `walk`, `hunt`), never
+equal to a stage id. A model with a recovery node uses the four-entry T-Rex
+layout, where `recovery` (recipe `recover`, `warm_start_from = "stance"`, no
+legacy number) sits between stance and locomotion; `stand` labels the stance
+node alone on every model (decision D-D35). See [Behavior Recipes](/docs/training/recipes) for how the
 manifest drives training and publication.
 
 ## Config Files
@@ -250,9 +251,9 @@ definition = "The locomotion checkpoint clears the reward_and_length/v1 gate: ..
 ```
 
 `deliverable` resolves exactly as the training notebook's `BEHAVIOR` knob
-does: a recipe label names its deepest deliverable in manifest order (on the
-T-Rex, `"stand"` is the recovery node, so its stance node is addressed by the
-id `"stance"`), and a stage id must be a deliverable. The generator fails
+does: a recipe label names its deepest deliverable in manifest order (`"stand"`
+the stance node and `"recover"` the recovery node, so every committed model
+names its deliverables by label), and a stage id must be a deliverable. The generator fails
 closed on an unknown deliverable or label, on a backend the model does not
 train, and on two entries for the same stage and backend, and it requires a
 `stable-baselines3` entry for every deliverable the stage manifest declares.

@@ -11,7 +11,9 @@
 #                    (initialize_next_stage, lineage recorded); absent = root
 #   deliverable      this node's certified checkpoint is a published policy
 #   recipe           the behavior label the node belongs to; a label resolves
-#                    to its deepest deliverable in manifest order
+#                    to its deepest deliverable in manifest order. stance is
+#                    "stand" and recovery "recover" (decision D-D35, before
+#                    which both were "stand", so "stand" meant recovery here)
 # Recipes are derived from the edges (a deliverable plus its ancestor chain),
 # never declared in a second table.
 #
@@ -32,7 +34,7 @@ deliverable = true               # the six-heading certificate since D-D32 (v2 s
 id = "recovery"
 config = "recovery.toml"
 warm_start_from = "stance"
-recipe = "stand"
+recipe = "recover"
 deliverable = true               # recovery_quality/v1, judged against a per-run frozen resolution
 
 [[stages]]

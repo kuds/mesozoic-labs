@@ -16,7 +16,7 @@ The Rev B robot has a 1.5856 kg allocated mass, 12 leg servos, a fixed head, an 
 
 ## Training
 
-Set `SPECIES = "compsognathus_longipes"` and `EMBODIMENT = "robot"` in the SB3 training notebook. Its manifest (`configs/compsognathus_longipes/robot/stages.toml`) declares four nodes, all published deliverables: `stance` (stand), `recovery` (stand, warm-started from stance), `locomotion` (walk, warm-started from stance) and `behavior` (hunt — the non-contact target-reach task, warm-started from locomotion). The notebook's `BEHAVIOR = "hunt"` default resolves to the behavior node here as for every model. The final task requires an upright, slow arrival within 8 cm of the target, measured at the pelvis in the ground plane.
+Set `SPECIES = "compsognathus_longipes"` and `EMBODIMENT = "robot"` in the SB3 training notebook. Its manifest (`configs/compsognathus_longipes/robot/stages.toml`) declares four nodes, all published deliverables: `stance` (stand), `recovery` (recover, warm-started from stance), `locomotion` (walk, warm-started from stance) and `behavior` (hunt — the non-contact target-reach task, warm-started from locomotion). The notebook's `BEHAVIOR = "hunt"` default resolves to the behavior node here as for every model; `BEHAVIOR = "stand"` trains the stance alone and `BEHAVIOR = "recover"` trains stance then push recovery (decision D-D35; before it `"stand"` meant that chain here). The final task requires an upright, slow arrival within 8 cm of the target, measured at the pelvis in the ground plane.
 
 ```bash
 python -m pip install -e ".[train]"

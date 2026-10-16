@@ -28,9 +28,13 @@ are unchanged.  Each entry may declare three more keys:
   scratch.  "Earlier" is enforced at load, so list order is a topological
   order by construction and every in-order walker stays correct.
 * ``deliverable`` — this node's certified checkpoint is a published policy.
-* ``recipe`` — the behavior label the node belongs to (``stand`` / ``walk``
-  / ``hunt`` / ...).  A label resolves to its deepest deliverable in
-  manifest order.
+* ``recipe`` — the behavior label the node belongs to (``stand`` /
+  ``recover`` / ``walk`` / ``hunt`` / ...).  A label resolves to its deepest
+  deliverable in manifest order.  On every committed manifest ``stand`` is
+  the stance node alone and ``recover`` the recovery node (stance ->
+  recovery) where a model has one (decision D-D35; before it the recovery
+  node was labelled ``stand`` too, so ``stand`` resolved to recovery on the
+  T-Rex and both Compsognathus models).
 
 **Recipes are derived from the edges, never declared in a second table**: a
 recipe is a deliverable plus its ``warm_start_from`` chain
@@ -467,8 +471,9 @@ def stage_display_name(ref: "int | str", configured_name: "str | None" = None) -
     """Readable stage name, including the historical ``balance`` alias.
 
     This formats presentation only. Stage references, directory names and
-    recipe labels keep their existing identities (``stand`` is a recipe,
-    which may include both stance and recovery).
+    recipe labels keep their existing identities (``stand`` is a recipe
+    label, the stance node's; ``recover``, where a model has it, is the
+    recovery node's, whose chain is stance -> recovery).
     """
     if configured_name:
         name = configured_name

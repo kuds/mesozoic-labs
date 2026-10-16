@@ -2977,7 +2977,7 @@ class TestResumeCell:
 
     @pytest.mark.parametrize(
         ("behavior", "resume_stage", "reference"),
-        [("walk", "locomotion", 2), ("walk", 2, 2), ("stand", "recovery", "recovery")],
+        [("walk", "locomotion", 2), ("walk", 2, 2), ("recover", "recovery", "recovery")],
     )
     def test_the_resume_cell_takes_a_stage_number_or_id(self, tmp_path, capsys, behavior, resume_stage, reference):
         """Executed: ``RESUME_STAGE = "locomotion"`` resumes the same node as ``2`` (it used to raise ``KeyError``),
@@ -2997,7 +2997,7 @@ class TestResumeCell:
 
     def test_the_resume_cell_refuses_a_node_off_the_chain_before_it_trains(self, tmp_path):
         """Executed: the chain loop visits only CHAIN, so a node off it would train and never be judged — a
-        ``stand`` run's recovery reopened under ``walk`` is refused with the knobs to restore."""
+        ``recover`` run's recovery reopened under ``walk`` is refused with the knobs to restore."""
         with pytest.raises(RuntimeError, match=r"'recovery', which is not on the chain of behavior 'walk'") as refused:
             self._run_resume_cell(tmp_path, ModelId("compsognathus_longipes", "robot"), "walk", "recovery", "recovery")
         assert "BEHAVIOR" in str(refused.value) and "re-run sections 2-3" in str(refused.value)
@@ -3920,11 +3920,34 @@ class TestNotebookWithoutTheDirectionTerrainMode:
         assert namespace["TARGET_NODE"].id == "stance"
         assert [node.id for node in namespace["CHAIN"]] == ["stance"]
 
+    @pytest.mark.parametrize(
+        ("behavior", "chain"),
+        [("stand", ["stance"]), ("stance", ["stance"]), ("recover", ["stance", "recovery"])],
+    )
+    def test_the_tyrannosaurus_rex_resolves_stand_to_stance_and_recover_to_recovery(self, capsys, behavior, chain):
+        """Decision D-D35, executed: on the T. rex the resolve cell takes ``"stand"`` to the stance stage alone,
+        the same chain as the stage id ``"stance"``, and ``"recover"`` to stance -> recovery (before it,
+        ``"stand"`` resolved to recovery there)."""
+        from environments.shared.config import load_all_stages
+
+        namespace = {"load_all_stages": load_all_stages, "load_stage_manifest": load_stage_manifest}
+        config = _cell(CONFIG_CELL_MARKER)
+        assert config.count('SPECIES = "velociraptor_mongoliensis"') == 1
+        exec(config.replace('SPECIES = "velociraptor_mongoliensis"', 'SPECIES = "tyrannosaurus_rex"'), namespace)
+        namespace["BEHAVIOR"] = behavior
+        exec(_cell("EnvClass = SPECIES_CFG.env_class"), namespace)
+        assert namespace["TARGET_NODE"].id == chain[-1]
+        assert [node.id for node in namespace["CHAIN"]] == chain
+        expected = f"Behavior {behavior!r} -> deliverable {chain[-1]!r}; chain: {' -> '.join(chain)}"
+        assert expected in capsys.readouterr().out
+
     def test_the_behavior_dropdown_allows_free_input_and_every_param_annotation_is_json(self):
         config = _cell(CONFIG_CELL_MARKER)
         behavior_line = next(line for line in config.splitlines() if line.startswith("BEHAVIOR ="))
         options, trailing = json.JSONDecoder().raw_decode(behavior_line.split("# @param ", 1)[1])
-        assert {"stand", "walk", "hunt"} <= set(options)
+        # The four recipe labels, as verbs (decision D-D35): "recover" is the recovery stage's label,
+        # so "stand" is the stance stage alone on every model.
+        assert options == ["stand", "recover", "walk", "hunt"]
         assert not set(options) & set(self.PILOT_BEHAVIORS), "the pilots have no notebook path until PR-11"
         assert json.loads(behavior_line.split("# @param ", 1)[1][trailing:].strip()) == {"allow-input": True}
         for source in (_cell("REPO_REF ="), config):

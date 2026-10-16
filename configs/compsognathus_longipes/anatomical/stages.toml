@@ -4,10 +4,13 @@
 # and order — every artifact and integer reference keeps its meaning — and
 # makes the edges the v1 reader derived explicit (each node warm-starts from
 # the previous advancing entry, so recovery and locomotion both start from
-# stance) so that stand and walk publish as deliverables instead of only the
-# behavior leaf. Recipe labels follow the shared convention: the behavior
-# node is labelled "hunt" whatever its task name (here target_reach), so the
-# notebook's BEHAVIOR="hunt" default resolves for every species.
+# stance) so that stand, recover and walk publish as deliverables instead of
+# only the behavior leaf. Recipe labels follow the shared convention: the
+# behavior node is labelled "hunt" whatever its task name (here
+# target_reach), so the notebook's BEHAVIOR="hunt" default resolves for every
+# species, and the recovery node is labelled "recover" (decision D-D35), so
+# "stand" is the stance node alone, as on every model, and "recover" trains
+# stance -> recovery.
 
 schema = "mesozoic.stage-manifest/v2"
 
@@ -22,7 +25,7 @@ deliverable = true               # the six-heading certificate (D-D32; v2 since 
 id = "recovery"
 config = "recovery.toml"
 warm_start_from = "stance"
-recipe = "stand"
+recipe = "recover"
 deliverable = true               # recovery_quality/v1, judged against a per-run frozen resolution
 
 [[stages]]

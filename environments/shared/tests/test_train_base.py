@@ -1933,12 +1933,29 @@ class TestTrainCurriculumWalksTheManifest:
         assert [stage for stage, _, _ in walks["walk"]["saved"]] == [1, 2]
         assert len([r for r in caplog.records if r.message.startswith("Skipping advancing stage 'behavior'")]) == 3
 
-    @pytest.mark.parametrize("target", ["stand", "recovery"])
+    def test_target_stand_on_the_tyrannosaurus_rex_walks_stance_alone_like_its_stage_id(
+        self, tmp_path, monkeypatch, caplog
+    ):
+        """Decision D-D35: ``stand`` is the stance node on every model, the T-Rex included (before it,
+        ``stand`` resolved to recovery there and this run was refused), so ``target="stand"`` walks
+        exactly what ``"stance"`` and ``1`` walk: stance alone, the manager never advanced."""
+        walks = {}
+        for name, target in (("stand", "stand"), ("stance", "stance"), ("one", 1)):
+            run_dir = tmp_path / name
+            record = self._run(TYRANNOSAURUS_REX, tmp_path, monkeypatch, caplog, output_dir=run_dir, target=target)
+            walks[name] = self._walk(record, run_dir)
+            assert [v["stage_id"] for v in record["verdicts"]] == ["stance"]
+            assert sorted(p.name for p in run_dir.iterdir() if p.is_dir()) == ["01_stance"]
+        assert walks["stand"] == walks["stance"] == walks["one"]
+        assert [stage for stage, _, _ in walks["stand"]["saved"]] == [1]
+
+    @pytest.mark.parametrize("target", ["recover", "recovery"])
     def test_a_target_whose_chain_runs_through_a_non_advancing_stage_raises_before_any_directory_is_written(
         self, tmp_path, monkeypatch, caplog, target
     ):
-        """On T-Rex ``stand`` resolves to recovery (its deepest deliverable) and ``recovery`` names it
-        outright; either chain is stance -> recovery, which the integer-keyed manager cannot judge.
+        """On T-Rex ``recover`` resolves to recovery (the label's only deliverable, decision D-D35) and
+        ``recovery`` names it outright; either chain is stance -> recovery, which the integer-keyed manager
+        cannot judge.
         The ValueError names the offending node, the advancing ids and the notebook's BEHAVIOR knob,
         and the run directory does not exist afterwards."""
         run_dir = tmp_path / "fresh-run"
