@@ -64,9 +64,11 @@ robustness, **LOW** = cosmetic / QoL.
   longer reads the pad: the CoP rail is the whole-foot
   `max_foot_cop_fore_aft` (0.80 on [0.060, 0.213] m ahead of the ankle), and
   the pad CoP and `min_sole_contacts` are report-only for the T. rex. The
-  pad-edge failure above becomes a forward lean onto the digits, which the
-  whole-foot rail reads. The reward is still CoP-indifferent, so the CoP
-  margin penalty remains the candidate to validate, on r10
+  pad-edge failure above would show on r10 as a forward lean onto the
+  digits, which the whole-foot rail reads: the r9-trained policies of seeds
+  42 and 60, read zero-shot on r10, lean past it in some evaluations. No
+  policy has trained on r10 yet. The reward is still CoP-indifferent, so
+  the CoP margin penalty remains the candidate to validate, on r10
   ([TREX_FOOT_R10_2026_10.md](investigations/TREX_FOOT_R10_2026_10.md)).
 
 <!-- The two items below come from the 2026-08-05 stage-1 bounce
@@ -1794,10 +1796,11 @@ Still open:
   - The whole-foot CoP rail is a window mean, so it cannot see an
     oscillation. #622's per-foot CoP spread and dominant frequency are the
     report-only readings that can.
-  - On r10 the statue's reset pops it off the floor on 17 of 40 episodes,
-    for up to 16 substeps, all inside the spawn grace (r9 none). It reaches
-    the `max_settle_touchdowns` bar of 2 on 89 of 280 episodes (r9 at most
-    1), so a statue-like settle plus one re-plant fails on those seeds.
+  - On r10 the statue's reset pops it off the floor on 17 of 40 episodes
+    (seeds 3042-3081), for up to 16 substeps, all inside the spawn grace
+    (r9 none). It reaches the `max_settle_touchdowns` bar of 2 on 89 of 280
+    episodes, and on 10 of those 40, where r9 reached at most 1. So a
+    statue-like settle plus one re-plant fails on those seeds.
 - **LOW** — the raptor's toe-clipping margin now sits at the toes: at
   sprint-like excitation (3–4 Hz, full amplitude) the 0.8×kp toe caps clip
   10–16 % and the 1.5×kp hip pitch ~11–16 % (its physical envelope); the

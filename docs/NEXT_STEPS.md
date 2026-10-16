@@ -408,7 +408,8 @@ rail to the whole foot (`max_foot_cop_fore_aft` 0.80). Its PR stays a draft
 until a training screen shows the new foot at least as good as r9's. The next
 T. rex stance trains on physics r10 and policy interface r15 with fresh
 weights. On its panels, check `max_settle_touchdowns` first: the r10 statue
-reaches its bar of 2 on 89 of 280 episodes (r9 at most 1).*
+reaches its bar of 2 on 89 of 280 episodes (on 3042-3081 on 10 of 40, where
+r9 reached at most 1).*
 
 *Status 2026-10-07: the compsognathus row above (session 2) is history:
 anatomical compsognathus physics r2 (D-D26) strands `20260921_203149`, and

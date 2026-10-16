@@ -52,7 +52,7 @@ class TestHomePoseCOM(HomePoseCOMBase):
     species_label = "T-Rex"
 
     def test_plantar_contacts_are_shallow(self, env):
-        """The home stance loads the pads without a reset impact."""
+        """The home stance loads the sole boxes without a reset impact."""
         floor_id = mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_GEOM, "floor")
         plantar_ids = {
             mujoco.mj_name2id(env.model, mujoco.mjtObj.mjOBJ_GEOM, name)
@@ -68,7 +68,7 @@ class TestHomePoseCOM(HomePoseCOMBase):
             for plantar_id in plantar_ids
         }
 
-        assert all(contacts.values()), "both plantar pads must load the floor"
+        assert all(contacts.values()), "both sole boxes must load the floor"
         assert min(contact.dist for pad_contacts in contacts.values() for contact in pad_contacts) >= -0.001
 
 

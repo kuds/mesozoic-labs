@@ -749,7 +749,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Digits II / III / IV reach 0.171 / 0.212 / 0.178 m from MTP joint to
       claw tip, the top of the plausible range (Sue's ratios: Brochu 2003
       via Mortimer, Theropod Database). They are splayed 25° and 33° off
-      digit III.
+      digit III (chord angles, a compromise below track angles; note 20).
     - The MTP springs go from 40 to 3000 / 4500 / 3000 N·m/rad, a mechanical
       choice: the lowest rung of a ladder that beats r9's forward push limit
       by 5%.
@@ -790,7 +790,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - The settle (`target_z`, `natural_pitch`, the settled tail and neck
       targets) carries.
     - Two statue readings change: its spawn now leaves the floor on 17 of 40
-      episodes, inside the spawn grace, and it reaches the
+      episodes (seeds 3042-3081), inside the spawn grace, and it reaches the
       `max_settle_touchdowns` bar of 2 on 89 of 280 episodes. That bar is
       kept.
   - **Tests.** `test_anatomical_foot.py` pins the foot's geometry and its
@@ -806,8 +806,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Regenerated:** the plant manifests, the digest snapshot (T. rex lines
     only), the reset golden's T. rex captures, and the species catalog. In
     the golden, the reset states move only in the spawn root height. The
-    reset observations' accelerometer and foot-contact channels and the
-    20-step trajectories move with the foot.
+    reset observations' accelerometer and foot-contact channels move with
+    the foot, and the prey direction and distance with the root height
+    (channels 51-59); the 20-step trajectories move too.
   - Recorded in `docs/KNOWN_ISSUES.md`: the stiff MTP springs resist
     toe-off; the 7.7 cm digit II-II clearance is an anatomical constraint;
     and the foot's stance approximations.

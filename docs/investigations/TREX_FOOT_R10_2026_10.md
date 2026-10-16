@@ -28,7 +28,7 @@ committed.
 | MTP springs, N·m/rad | 40 / 40 / 40 | 3000 / 4500 / 3000 |
 | Contact-line width / length (tip centres) | 0.39 | 0.78 (0.18 m / 0.232 m) |
 | Digit II-II clearance at home | 0.140 m | 0.077 m |
-| Statue load: sole / II / III / IV (median) | 0.83 / .065 / .047 / .073 | 0.67 / 0.15 / 0.09 / 0.12 |
+| Statue load: sole / II / III / IV (median per foot, seeds 3042-3081) | 0.83 / 0.064 / 0.047 / 0.073 | 0.66 / 0.124 / 0.099 / 0.143 |
 | Stance CoP rail | pad CoP, 0.80 | whole-foot CoP on [0.060, 0.213] m, 0.80 |
 | Pad CoP, `min_sole_contacts` | gated | report-only |
 
@@ -41,9 +41,14 @@ under an adopted stage, which `gait/constants.py` versions.
 
 ## 2. Why this foot
 
-The proposal compared three variants on the scratch harnesses (V1 digits
-only, V2 digitigrade, V3 the sole box with splayed digits) and chose V3 for
-its mechanics, not for the literature-row count:
+The proposal compared three variants on the scratch harnesses: V1
+load-bearing digits on the r9 pad, V2 a 5 cm heel pad under the MTP joints
+with free digits ahead of it, and V3 the sole box with splayed digits.
+Anatomically V2 and V3 tie on the track outline within what tracks
+resolve. V2 is the more faithful on joint placement (its rigid pad ends
+before the first interphalangeal joints) and on cleft stagger; V3 matches
+only the proximal outline. The choice of V3 is mechanical, not the
+literature-row count:
 
 - **Robustness under noise.** Four r9-trained stance policies fall 0/80
   times under joint-noise vectors on V3 against 9/80 on r9 (Fisher p =
@@ -54,12 +59,12 @@ its mechanics, not for the literature-row count:
   r9 becomes 5.3 mm at 0.13 Hz. V1 doubles it, and V2 turns it into a 64 mm,
   5 Hz limit cycle.
 - **A modest toe-ward gain.** The forward push limit is 58.4 N against
-  55.4 N (+5.4%; floor moment +4.6%), and the first nosedive under a held
-  single-ankle offset comes 1.0-1.5° later. The statue's toe margin to each
-  plant's own held-offset line (0.213 / 0.196 m) is 29.1 against 22.5 N·m
-  (1.77 against 1.37° of ankle servo error; the worse foot 28.4 against
-  21.4). V1 (62.0 N) and V2 (60.8 N) resist more push; V3 leads only in CoP
-  excursion.
+  55.4 N (+5.4%; floor moment 28.0 against 26.7 N·m, +4.9%), and the first
+  nosedive under a held single-ankle offset comes 1.0-1.5° later. The
+  statue's toe margin to each plant's own held-offset line (0.213 / 0.196
+  m) is 29.1 against 22.5 N·m (1.77 against 1.37° of ankle servo error;
+  the worse foot 28.4 against 21.4). V1 (62.0 N) and V2 (60.8 N) resist
+  more push; V3 leads only in CoP excursion.
 - **Pitch compliance** is 1.3x r9's (V2 2.6x), and the mirror is exact.
 
 Re-measured in this change: the statue stands on all 280 stance-panel
@@ -189,14 +194,16 @@ by up to about 11 mm on the statue.
 ## 7. Open points
 
 - **Settle touchdowns.** The r10 statue reaches `max_settle_touchdowns` = 2
-  on 89 of 280 episodes (r9 at most 1). Its spawn leaves the floor on 17 of
-  40 episodes, for up to 16 substeps, all inside the spawn grace (r9 none).
-  The bar was kept, because D-D34 changed only the CoP rail. A policy that
-  settles as the statue does and then re-plants once fails it on those
-  seeds.
-- **Digit loading** moves with the stance's roll. On some statue seeds one
-  digit carries under 2% of its foot (digit IV on 47 of 160, digit II on
-  35). The load split is report-only.
+  on 89 of 280 episodes. On 3042-3081, the block r9 was measured on, it
+  reaches 2 on 10 of 40, where r9 reached at most 1, and its spawn leaves
+  the floor on 17 of 40 episodes, for up to 16 substeps, all inside the
+  spawn grace (r9 none). The bar was kept, because D-D34 changed only the
+  CoP rail. A policy that settles as the statue does and then re-plants
+  once fails it on those seeds.
+- **Digit loading** moves with the stance's roll. On some statue episodes
+  one digit carries under 2% of its foot: over the 280, counting either
+  foot, digit IV on 75, digit II on 71 and digit III on 42 (r9 on
+  3042-3081: 12, 13 and 8 of 40). The load split is report-only.
 - **The recovery push** derives to 186.8 N on r10 (165.5 N on r7-r9),
   because the heel-ward support margin grows from 77.3 to 87.2 mm. The
   pushed statue recovers more of it: 2/40 full horizon and 54 of 70 shoves,

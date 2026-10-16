@@ -595,11 +595,13 @@ observation_schema = "bipedal-target/v1"
 #     - The statue stands on all 280 stance-panel seeds (3042-3201,
 #       5042-5081, 7042-7081, 9042-9081; r9 fell on 4 of the same seeds,
 #       Fisher exact p = 0.12, not significant) and is clean under the
-#       stance gate on all of them.  Its sole box carries 0.67 of each
-#       foot's load at the median, digits II / III / IV 0.15 / 0.09 / 0.12
-#       (r9's pad 0.83); the split moves with the stance's roll.  At the home
-#       keyframe a foot transmits 378.6 N on the box and 96.7 N on the digits
-#       (r9 388.4 + 112.0).
+#       stance gate on all of them.  Over the 280 its sole box carries 0.67
+#       of each foot's load at the median (both feet), digits II / III / IV
+#       0.14 / 0.09 / 0.13; on 3042-3081, where r9 was measured, 0.66 and
+#       0.12 / 0.10 / 0.14 (r9's pad 0.83, digits 0.06 / 0.05 / 0.07).  The
+#       split moves with the stance's roll.  At the home keyframe a foot
+#       transmits 378.6 N on the box and 96.7 N on the digits (r9 388.4 +
+#       112.0).
 #     - The toe line of environments/shared/scripts/foot_toe_line.py is
 #       0.213 m (first falls at -5.0 / -5.5 deg on the right / left ankle, the
 #       other foot's CoP 214.8 / 213.4 mm ahead of its ankle); the foot
@@ -634,10 +636,11 @@ observation_schema = "bipedal-target/v1"
 #       (1329.1 -> 1504.4).  The recovery push derives to 186.8 N (165.5 N on
 #       r7-r9): the derivation's support margin, the heel-ward side of the
 #       home contact hull around the CoM, grows from 77.3 to 87.2 mm.
-#     - Two settle readings change: the statue's spawn now leaves the floor
-#       on 17 of 40 episodes (up to 16 substeps, all inside the 0.1 s spawn
-#       grace; r9 none), and it reaches the max_settle_touchdowns bar of 2 on
-#       89 of the 280 (r9 at most 1).
+#     - Two settle readings change.  On 3042-3081 the statue's spawn now
+#       leaves the floor on 17 of 40 episodes (up to 16 substeps, all inside
+#       the 0.1 s spawn grace; r9 none), and it reaches the
+#       max_settle_touchdowns bar of 2 on 10 of the 40 (r9 at most 1); over
+#       the 280 it reaches it on 89.
 #
 #     Every T. rex physics-r9 checkpoint is invalidated (the plant check
 #     compares physics_sha256) and no widen applies; every recorded T. rex

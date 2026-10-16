@@ -1,7 +1,9 @@
 """The physics-r10 foot (``configs/plant_versions.toml`` note 20, decision D-D34).
 
 Physics r10 replaced the plantar pad and the near-parallel digits with a sole
-box standing for the metatarsal pad and three splayed, load-bearing digits.  These
+box standing for the metatarsal pad and the soft tissue under the proximal
+phalanges (rigid across the MTP and first interphalangeal joints), and three
+splayed, load-bearing digits whose free parts project beyond it.  These
 tests pin what the stance gate and the touch observation rest on:
 
 * the geometry, as DESIGN values (not literature targets: note 20 and
@@ -288,9 +290,9 @@ class TestTouchIsFloorTruth:
     def test_under_a_forward_push_with_the_load_on_the_digit_tips(self):
         """The noise-free statue pushed forward at its pelvis, ramped at 20 N/s from step 200 and capped at 58 N
         (the foot proposal's push limit, 58.4 N, found with its own fall criterion; under the env's termination
-        the statue nosedives at every cap from 40 to 58 N, and holds at 35 N), until the env's nosedive
-        termination: the sole boxes unload with all three digits loaded out at their tips, the load then
-        gathers on digit III's tip, and touch is floor truth on every substep of it."""
+        the statue nosedives at caps of 40 N (step 619) and 58 N (step 575), and holds at 35 N), until the
+        env's nosedive termination: the sole boxes unload with all three digits loaded out at their tips,
+        the load then gathers on digit III's tip, and touch is floor truth on every substep of it."""
         env = TyrannosaurusRexAnatomicalEnv(reset_noise_scale=0.0)
         try:
             recorder = SubstepContactRecorder(env, Morphology.from_env(env, MODEL)).attach()
