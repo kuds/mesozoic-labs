@@ -160,6 +160,15 @@ class TestCalibratedSafeSetIsSingleSourced:
         assert (offdist.T_RECOVER_STEPS, offdist.DWELL_STEPS) == (producer.T_RECOVER_STEPS, producer.DWELL_STEPS)
         assert (offdist.PANEL_EPISODES, offdist.PANEL_SEED) == (producer.MIN_EVAL_EPISODES, producer.PANEL_SEED_START)
 
+    @pytest.mark.parametrize("schedule", sorted(offdist.MAGNITUDE_TARGETS_N))
+    def test_the_magnitude_rows_push_at_their_targets_on_the_current_plant(self, schedule):
+        """§6.1's 120 N / 210 N rows, whatever force the plant derives at the trained multiple."""
+        env = offdist.build_env(schedule, model_id=offdist.SCHEDULE_MODEL_ID)
+        try:
+            assert env._push_force_n == pytest.approx(offdist.MAGNITUDE_TARGETS_N[schedule], rel=1e-9)
+        finally:
+            env.close()
+
     def test_the_support_clause_is_vacuous_under_the_calibrated_set(self, monkeypatch):
         """§4.2: certified stance itself reads 0.0 N, so support cannot gate.
 
