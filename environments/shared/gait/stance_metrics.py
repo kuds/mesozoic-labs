@@ -560,7 +560,7 @@ def whole_foot_cop(trace: "EpisodeTrace") -> tuple[np.ndarray, np.ndarray, np.nd
     their readings agree bit for bit.
     """
     span = np.asarray(trace.foot_support_span, dtype=np.float64).reshape(-1, 2)
-    spanned = np.isfinite(span).all(axis=1)
+    spanned = np.asarray(np.isfinite(span).all(axis=1), dtype=bool)
     middle = np.where(spanned, span.mean(axis=1), np.nan)
     half = np.where(spanned, (span[:, 1] - span[:, 0]) / 2.0, np.nan)
     cop = (np.asarray(trace.foot_cop, dtype=np.float64) - middle) / half
