@@ -348,7 +348,7 @@ def test_notebook_recovery_refuses_invalid_existing_resolution_before_training(t
     Re-pinned for the behavior-chain loop (Phase A WS5): the opt-in recovery
     cell became the loop's frozen-null branch, so the loop is executed over a
     chain of just the recovery node with a stance handoff already certified in
-    NODE_HANDOFF — the state a ``BEHAVIOR = "stand"`` run is in when it reaches
+    NODE_HANDOFF — the state a ``BEHAVIOR = "recover"`` run is in when it reaches
     recovery.
     """
     from environments.shared.curriculum.gate_resolver import GateResolutionError
@@ -376,7 +376,7 @@ def test_notebook_recovery_refuses_invalid_existing_resolution_before_training(t
         "QUICK_TEST": False,
         "ALGORITHM": "ppo",
         "SEED": 42,
-        "BEHAVIOR": "stand",
+        "BEHAVIOR": "recover",
         "MANIFEST": manifest,
         "TARGET_NODE": recovery,
         "CHAIN": (recovery,),
@@ -479,7 +479,7 @@ def test_actual_notebook_training_stance_and_recovery_reports(model_id, algorith
 
     # Execute the real chain loop over the recovery node and the real trainer
     # (Phase A WS5: the opt-in recovery cell became the loop's frozen-null
-    # branch, run here as a `BEHAVIOR = "stand"` chain whose stance is already
+    # branch, run here as a `BEHAVIOR = "recover"` chain whose stance is already
     # certified). Replace only the expensive registered panels: below, one
     # genuine pushed episode checks artifact persistence; the separate profile
     # test exercises the real freeze path.
@@ -581,7 +581,7 @@ def test_actual_notebook_training_stance_and_recovery_reports(model_id, algorith
         RUN_DIR=tmp_path,
         QUICK_TEST=False,
         SEED=42,
-        BEHAVIOR="stand",
+        BEHAVIOR="recover",
         TARGET_NODE=recovery,
         CHAIN=(recovery,),
         RETRAIN_FROM="",

@@ -329,13 +329,13 @@ def main(species_cfg):
         default=None,
         metavar="BEHAVIOR",
         help=(
-            "The behavior this run certifies: a recipe label ('stand', 'walk', 'hunt') or a deliverable's "
-            "stage id ('locomotion'), resolved as the notebook's BEHAVIOR knob resolves them, or a legacy "
-            "number (2), resolved as --stage resolves it. The run walks the target's chain of advancing "
-            "stages and stops there, so `--target walk` certifies a walk-only run. Default: the last advancing "
-            "stage (the whole ladder). A chain through a non-advancing stage ('stand' on "
-            "tyrannosaurus_rex/anatomical runs through recovery) or one that skips a ladder stage is refused "
-            "here; train it through the notebook"
+            "The behavior this run certifies: a recipe label ('stand', 'recover', 'walk', 'hunt') or a "
+            "deliverable's stage id ('locomotion'), resolved as the notebook's BEHAVIOR knob resolves them, or a "
+            "legacy number (2), resolved as --stage resolves it. The run walks the target's chain of advancing "
+            "stages and stops there, so `--target walk` certifies a walk-only run and `--target stand` a "
+            "stance-only one. Default: the last advancing stage (the whole ladder). A chain through a "
+            "non-advancing stage ('recover' on tyrannosaurus_rex/anatomical runs through recovery) or one that "
+            "skips a ladder stage is refused here; train it through the notebook"
         ),
     )
     cur_parser.add_argument("--n-envs", type=int, default=4)

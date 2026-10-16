@@ -535,7 +535,7 @@
       ],
       "deliverable_metrics": [
         {
-          "deliverable": "stance",
+          "deliverable": "stand",
           "stage_id": "stance",
           "backends": [
             "stable-baselines3"
@@ -545,7 +545,7 @@
           "definition": "The stance checkpoint clears the stance_quality_heading/v1 gate (the six-heading certificate, decision D-D32), judged post-stage on the handoff pair: the 40 certification-panel seeds are rolled with the whole scene turned -90, -45, 0, 45, 90 and 180 degrees; at every heading the stance_quality/v2 decision on floor truth (horizon reached, no hop or impact in the settle window, both feet down and loaded, flat pads, no actuator held at its limit) passes against the statue rolled at that heading, and the one-sided 95% lower bound on the share of seeds clean at every heading meets the configured bound, with the reward rails as collapse floors only. The clean-seed count and its bound are recorded in gate_verdict.json but not exported to summary.json until a later phase (decision D-A9, deferred by D-B15), so the catalog names them with no value."
         },
         {
-          "deliverable": "recovery",
+          "deliverable": "recover",
           "stage_id": "recovery",
           "backends": [
             "stable-baselines3"
@@ -661,7 +661,7 @@
           "timesteps": 3000000,
           "deliverable": true,
           "warm_start_from": "stance",
-          "recipe": "stand",
+          "recipe": "recover",
           "certification_seeds": 1,
           "advancement_gate": {
             "gate_kind": "recovery_quality/v1",
@@ -1435,7 +1435,7 @@
       ],
       "deliverable_metrics": [
         {
-          "deliverable": "stance",
+          "deliverable": "stand",
           "stage_id": "stance",
           "backends": [
             "stable-baselines3"
@@ -1445,7 +1445,7 @@
           "definition": "The stance checkpoint clears the stance_quality_heading/v1 gate (the six-heading certificate, decision D-D32), judged post-stage on the handoff pair: the 40 certification-panel seeds are rolled with the whole scene turned -90, -45, 0, 45, 90 and 180 degrees; at every heading the stance_quality/v2 decision on floor truth (horizon reached, no hop or impact in the settle window, the two-foot flight time and the landing peak bounded over the scored window, both feet down and loaded, the pad and all three digits of each foot loaded, flat pads, no actuator held at its limit) passes against the statue rolled at that heading, and the one-sided 95% lower bound on the share of seeds clean at every heading meets the configured bound, with the reward rails as collapse floors only. The clean-seed count and its bound are recorded in gate_verdict.json but not exported to summary.json until a later phase (decision D-A9, deferred by D-B15), so the catalog names them with no value."
         },
         {
-          "deliverable": "recovery",
+          "deliverable": "recover",
           "stage_id": "recovery",
           "backends": [
             "stable-baselines3"
@@ -1551,7 +1551,7 @@
           "timesteps": 3000000,
           "deliverable": true,
           "warm_start_from": "stance",
-          "recipe": "stand",
+          "recipe": "recover",
           "certification_seeds": 1,
           "advancement_gate": {
             "gate_kind": "recovery_quality/v1",
@@ -1699,7 +1699,7 @@
       ],
       "deliverable_metrics": [
         {
-          "deliverable": "stance",
+          "deliverable": "stand",
           "stage_id": "stance",
           "backends": [
             "stable-baselines3"
@@ -1709,7 +1709,7 @@
           "definition": "The stance checkpoint clears the stance_quality/v1 gate: the unsupported-duty 95% upper bound and the full-horizon episode fraction meet the configured bounds over 40-episode evaluations, with the reward rail as a collapse floor only. The duty and full-horizon statistics are not exported to summary.json until a later phase (decision D-A9, deferred by D-B15), so the catalog names them with no value."
         },
         {
-          "deliverable": "recovery",
+          "deliverable": "recover",
           "stage_id": "recovery",
           "backends": [
             "stable-baselines3"
@@ -1786,7 +1786,7 @@
           "timesteps": 3000000,
           "deliverable": true,
           "warm_start_from": "stance",
-          "recipe": "stand",
+          "recipe": "recover",
           "certification_seeds": 1,
           "advancement_gate": {
             "gate_kind": "recovery_quality/v1",

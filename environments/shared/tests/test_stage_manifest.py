@@ -46,6 +46,8 @@ INTEGER_MODELS = [
     ModelId("brachiosaurus_altithorax", "anatomical"),
     ModelId("dibothrosuchus_elaphros", "anatomical"),
 ]
+#: The models whose manifest declares a recovery node, labelled "recover" (decision D-D35).
+RECOVERY_MODELS = [TYRANNOSAURUS_REX, COMPSOGNATHUS_LONGIPES, COMPSOGNATHUS_LONGIPES_ROBOT]
 #: A made-up model for the synthetic manifests below (the reader needs no manifest entry, only its directory).
 PROBE = ModelId("probe_species", "anatomical")
 
@@ -493,8 +495,9 @@ class TestManifestV2Edges:
 
     def test_recipe_labels_resolve_to_the_deepest_deliverable(self, tmp_path):
         tyrannosaurus_rex = load_stage_manifest(ModelId("tyrannosaurus_rex", "anatomical"))
-        assert tyrannosaurus_rex.recipe_labels == ("stand", "walk", "hunt")
-        assert tyrannosaurus_rex.resolve_behavior("stand").id == "recovery"
+        assert tyrannosaurus_rex.recipe_labels == ("stand", "recover", "walk", "hunt")
+        assert tyrannosaurus_rex.resolve_behavior("stand").id == "stance"
+        assert tyrannosaurus_rex.resolve_behavior("recover").id == "recovery"
         assert tyrannosaurus_rex.resolve_behavior("walk").id == "locomotion"
         assert tyrannosaurus_rex.resolve_behavior("hunt").id == "behavior"
         for model_id in INTEGER_MODELS:
@@ -506,8 +509,7 @@ class TestManifestV2Edges:
         for model_id in MODEL_IDS:
             manifest = load_stage_manifest(model_id)
             assert manifest.resolve_behavior("hunt").id == "behavior", model_id
-            has_recovery = any(entry.id == "recovery" for entry in manifest.stages)
-            assert manifest.resolve_behavior("stand").id == ("recovery" if has_recovery else "stance"), model_id
+            assert manifest.resolve_behavior("stand").id == "stance", model_id
             assert manifest.chain_for("behavior")[0].id == "stance", model_id
             with pytest.raises(StageManifestError):
                 manifest.resolve_behavior("sprint")
@@ -559,13 +561,71 @@ class TestManifestV2Edges:
         assert manifest.by_id("follow_direction").reference == "follow_direction"
 
 
+class TestRecipeLabelsAreFourVerbs:
+    """Decision D-D35 (the maintainer, 2026-10-16): the recovery node has its own recipe label, ``recover``.
+
+    Before it the recovery node was labelled ``stand`` too, so ``stand`` resolved to recovery (stance ->
+    recovery) on the three models that have one and to stance elsewhere. Now ``stand`` is the stance node,
+    and its chain the same as the stage id ``stance``'s, on every model; ``recover`` is stance -> recovery
+    where a model has a recovery node and an unknown behavior elsewhere. No label equals a stage id.
+    A behavior's chain is ``chain_for`` of the node it resolves to, as the notebook's resolve cell and
+    ``train_curriculum`` take it (``chain_for`` itself takes a stage reference, never a label).
+    """
+
+    @staticmethod
+    def _chain(manifest, behavior):
+        return manifest.chain_for(manifest.resolve_behavior(behavior).id)
+
+    @pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
+    def test_stand_is_the_stance_stage_on_every_model(self, model_id):
+        manifest = load_stage_manifest(model_id)
+        assert manifest.resolve_behavior("stand") is manifest.resolve_behavior("stance") is manifest.by_id("stance")
+        assert self._chain(manifest, "stand") == self._chain(manifest, "stance") == (manifest.by_id("stance"),)
+
+    @pytest.mark.parametrize("model_id", RECOVERY_MODELS, ids=lambda m: f"{m.species}-{m.embodiment}")
+    def test_recover_is_stance_then_recovery_on_the_three_recovery_models(self, model_id):
+        manifest = load_stage_manifest(model_id)
+        assert (
+            manifest.resolve_behavior("recover") is manifest.resolve_behavior("recovery") is manifest.by_id("recovery")
+        )
+        assert [entry.id for entry in self._chain(manifest, "recover")] == ["stance", "recovery"]
+        assert self._chain(manifest, "recover") == self._chain(manifest, "recovery")
+
+    @pytest.mark.parametrize("model_id", INTEGER_MODELS, ids=lambda m: f"{m.species}-{m.embodiment}")
+    def test_recover_is_not_a_behavior_of_a_model_without_recovery(self, model_id):
+        with pytest.raises(StageManifestError, match=re.escape("has no behavior 'recover'; recipe labels: ['stand', ")):
+            load_stage_manifest(model_id).resolve_behavior("recover")
+
+    def test_recipe_labels_per_model(self):
+        expected = {model_id: ("stand", "walk", "hunt") for model_id in INTEGER_MODELS}
+        expected.update({model_id: ("stand", "recover", "walk", "hunt") for model_id in RECOVERY_MODELS})
+        assert set(expected) == set(MODEL_IDS)
+        assert {model_id: load_stage_manifest(model_id).recipe_labels for model_id in MODEL_IDS} == expected
+        labelled = {
+            model_id: {entry.id: entry.recipe for entry in load_stage_manifest(model_id).stages}
+            for model_id in MODEL_IDS
+        }
+        for model_id, recipes in labelled.items():
+            assert recipes["stance"] == "stand" and recipes["locomotion"] == "walk" and recipes["behavior"] == "hunt"
+            assert recipes.get("recovery", "recover") == "recover", model_id
+
+    @pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
+    def test_no_label_equals_a_stage_id(self, model_id):
+        manifest = load_stage_manifest(model_id)
+        assert not set(manifest.recipe_labels) & {entry.id for entry in manifest.stages}
+        # Nor one of the four historical ids, which model-free readers resolve by name: "recover" is not "recovery".
+        assert not set(manifest.recipe_labels) & set(RESERVED_STAGE_IDS)
+
+
 class TestCommittedManifestsAreV2:
     @pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
     def test_every_model_manifest_is_v2_with_all_nodes_deliverable(self, model_id):
         manifest = load_stage_manifest(model_id)
         assert manifest.schema == STAGE_MANIFEST_SCHEMA_V2
         assert all(entry.deliverable for entry in manifest.stages)
-        assert manifest.recipe_labels == ("stand", "walk", "hunt")
+        assert manifest.recipe_labels == (
+            ("stand", "recover", "walk", "hunt") if model_id in RECOVERY_MODELS else ("stand", "walk", "hunt")
+        )
         for entry in manifest.stages:
             assert (model_id.path(_CONFIGS_DIR) / entry.config_file).is_file()
         assert [entry.id for entry in manifest.advancing_stages] == ["stance", "locomotion", "behavior"]
@@ -575,7 +635,7 @@ class TestCommittedManifestsAreV2:
         assert [(entry.id, entry.warm_start_from, entry.deliverable, entry.recipe) for entry in manifest.stages] == [
             ("stance", None, True, "stand"),
             # locomotion's parent is stance until plan A2 flips it to recovery.
-            ("recovery", "stance", True, "stand"),
+            ("recovery", "stance", True, "recover"),
             ("locomotion", "stance", True, "walk"),
             ("behavior", "locomotion", True, "hunt"),
         ]
