@@ -8,8 +8,116 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **Mirror-symmetric PPO and two T. rex stance options, all off by default**
+  (#624; the maintainer's approval of 2026-10-16: land the symmetry module and the
+  two reward options as config switches, off by default so nothing changes
+  until a config turns them on). The T. rex stance policies of 2026-09 and
+  2026-10 settled into lopsided postures, a lean onto one pad's edge or a
+  left-right ankle offset, that stock PPO has no reason to avoid. A
+  pre-registered screen trained this method with the two options on the T.
+  rex stance (three seeds to 6M steps): the policies were mirror-symmetric
+  (every joint group's median mirror asymmetry under 0.1 degree), fell in
+  none of the 120 final (6M) panel episodes and passed `stance_quality/v2` on
+  two seeds of three at the panel's single heading (the stage's six-heading
+  certificate, `stance_quality_heading/v1`, was not run), but failed the
+  screen's pad centre-of-pressure and action-noise robustness criteria, so no
+  stage config enables any of it.
+  Every plant, policy-interface, task, gate, hyperparameter and
+  `stage_config.json` digest, the committed digest snapshot and the exact
+  reward captures (`digest_snapshot --exact`) are unchanged.
+  - `environments/shared/symmetry.py` derives a model's mirror maps from its
+    compiled MJCF: bodies, geoms, sites, joints, actuators and sensors are
+    paired by their side token (`r_`/`l_` and the robot's and quadrupeds'
+    forms) and checked against the geometry, joint axes and ranges, inertias,
+    gravity compensation, contact and fluid parameters, colliding mesh
+    vertices and actuator gains (with a per-body frame correction for CAD
+    frames that differ between the sides, which no committed plant needs; a
+    synthetic biped in the tests exercises it and the suffix side tokens), and
+    a model that fails a check is refused. The checks cover the model fields
+    the plants use, so a new species' map comes with a paired-rollout
+    equivariance test like the T. rex's. The five anatomical plants derive;
+    the Compsognathus robot is refused (its MJCF is not mirror-symmetric as
+    authored). `build_env_mirror` adds the observation map from the plant's
+    observation layout (`bipedal-target-heading-free/v1`, the T. rex's and the
+    anatomical Compsognathus's) and the action map, after checking that the
+    env's action scaling commutes with it; `mirror_env_state` writes the
+    mirror image of an env's simulator and episode state. Every map is a
+    signed permutation and an involution, validated on construction.
+  - `configs/tyrannosaurus_rex/anatomical/mirror_map.json` is generated
+    (`python -m environments.shared.symmetry --write --species
+    tyrannosaurus_rex --embodiment anatomical`) and checked (`--check`, run by
+    `test_symmetry.py`). It records the plant's `physics_sha256` and
+    `policy_interface_sha256`, and `MirrorMap.load` refuses another plant and
+    a file that differs from a fresh derivation. A T. rex plant revision
+    regenerates the map.
+  - `environments/shared/mirror_kl_ppo.py`: `MirrorKLPPO` is SB3 2.9.0's PPO
+    with a KL-form mirror loss (`kappa` times the KL divergence from the
+    policy at the mirrored observation to the mirror image of the policy,
+    the noise scale held fixed and floored), a mirrored critic, observation
+    statistics kept bitwise mirror-symmetric (`SymmetricRunningMeanStd`,
+    which pickles as the stock class) and a `log_std` tied across mirror
+    pairs. Its `train` is the stock `PPO.train` with four added lines, each
+    marked `# [mirror]`, and refuses another SB3 by the stock source's
+    digest. Mirror augmentation was rejected: at the stance's small
+    exploration noise its clipped corrective signal vanishes for an
+    asymmetry of a few hundredths of an action unit, while the KL form's
+    does not. Checkpoints stay a stock policy zip and a stock VecNormalize
+    pickle, plus the JSON attribute `mesozoic_symmetry` with the settings;
+    the logger gains `train/mirror_kl_loss`, `train/mirror_asymmetry` and
+    `train/mirror_value_loss`.
+  - `[ppo]` keys: `symmetry = "mirror_kl"` selects it on fresh and resumed
+    models (`symmetry_kappa` 0.3, `symmetry_sigma_floor` 0.01 and
+    `symmetry_mirror_critic = true` by default, the screened values, which a
+    stage that enables it writes out so its digest pins them); absent, or
+    `"none"`, training is stock PPO, bit for bit (the settings a table
+    writes are validated either way). The keys enter the stage's
+    `hyperparameters_sha256`, not its task. A same-stage resume
+    refuses a checkpoint whose recorded symmetry differs from the stage's,
+    either way; a warm start takes the child stage's, and a child that
+    enables it needs a parent trained with it (a stock parent's noise scales
+    and observation statistics are not mirror-symmetric, and are refused). A
+    behavior, which trains stock PPO, drops a parent's `mesozoic_symmetry`.
+  - T. rex `[env]` options: `lateral_lean_weight` (0.0, off) and
+    `lateral_lean_tolerance_m` (0.015) pay a Gaussian on the whole-body
+    centre of mass's lateral offset over the foot-site midpoint, in the
+    heading frame, after `stance_width_settle_steps`, under a zero command
+    and with both feet loaded (calibrated at 0.25 and 0.015 m, the values
+    the screen used; a bonus raises the statue's return by about 200, so
+    `collapse_peak_floor_reference` is re-measured, and `reward_lateral_lean`
+    joins the diagnostics reward keys, before a stage enables it);
+    `leg_home_pose_reference = "settled"` (default `"keyframe"`) centres
+    `leg_home_pose` on the statue's settled leg pose, mirror-symmetrised
+    (`_LEG_SETTLED_QPOS`, physics r9, at the stance's reset noise; re-measured
+    with any plant revision). Off, they add no reward and no info key.
+  - Task fingerprints: an env class may declare `OPT_IN_TASK_KWARGS`, and
+    `task_fingerprint.inert_opt_in_env_kwargs` carves an option's kwargs out
+    of the effective `[env]` section and of the defaults `save_stage_config`
+    records while its switch holds its declared off value, as the command
+    kwargs are under `command_mode = "none"`; on, every kwarg it lists is
+    hashed, defaults included. A declared switch or kwarg that is not a
+    constructor parameter is refused (`TaskFingerprintError`), so a typo
+    cannot read as always off and keep a live option out of the fingerprint.
+    Without the carve-out the three new defaults would have moved every
+    T. rex task digest. Both options are reward
+    settings a behavior transition may change
+    (`behavior_checkpoint._TRANSITION_REWARD_SETTINGS`).
+  - Tests: `test_symmetry.py` (derivation on every plant and on a synthetic
+    biped with rotated link frames, kinematics of the mirrored configuration,
+    the committed map's regeneration and its plant binding, paired stance
+    rollouts equivariant to float rounding in observation, reward, info and
+    termination, the `[ppo]` keys), `test_mirror_kl_ppo.py` (symmetric
+    statistics and their pickling, the tie through the gradient clip and Adam,
+    the loss, the confined `train` copy, bitwise equality with stock PPO at
+    `kappa` 0 without the mirrored critic, stock checkpoints, the train_base
+    wiring; in the SB3 job) and `test_anatomical_lean_and_settled_legs.py`
+    (the lean term's formula, gates and mirror invariance, the settled target
+    and its re-measurement, and that the defaults change nothing);
+    `test_task_fingerprint_effective.py` refuses a misdeclared
+    `OPT_IN_TASK_KWARGS`; `test_behavior_checkpoint.py` turns the options on
+    and off across a behavior transition and drops a parent's symmetry record.
+  - Documented in `website/docs/training/mirror-symmetry.md`.
 - **The whole-foot centre of pressure at every evaluation, report-only**
-  (the maintainer's approval of 2026-10-16: "record whole-foot centre of
+  (#622; the maintainer's approval of 2026-10-16: "record whole-foot centre of
   pressure, report-only, with no physics change"; the T. rex stance gates
   on it since its physics r10, under Changed). `stance_quality/v2`'s pad
   rail, `max_sole_cop_fore_aft`, reads one contact geom, the plantar pad. Once
@@ -822,6 +930,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     reset observations' accelerometer and foot-contact channels move with
     the foot, and the prey direction and distance with the root height
     (channels 51-59); the 20-step trajectories move too.
+  - **#624's plant-bound pieces follow r10:** the T. rex mirror map is
+    regenerated (only its bound physics digest moves; the left-right pairs,
+    the splayed digits included, pass every model check), and the settled
+    leg target of the off-by-default `leg_home_pose_reference = "settled"`
+    is re-measured on r10, at most 0.66 mrad (hip roll) from r9's. The
+    lateral lean term reads foot sites that r10 leaves in place; its
+    statue cost re-checks at 1.3 per episode (r9 1.7).
   - Recorded in `docs/KNOWN_ISSUES.md`: the stiff MTP springs resist
     toe-off; the 7.7 cm digit II-II clearance is an anatomical constraint;
     and the foot's stance approximations.

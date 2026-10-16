@@ -143,6 +143,11 @@ def _load_ppo(model_path: Path, env: VecNormalize, learning_rate: float) -> PPO:
     )
     for group in model.policy.optimizer.param_groups:
         group["lr"] = float(learning_rate)
+    # A behavior trains stock PPO: a parent's mirror-symmetric training record
+    # does not carry into it, as train_base drops it on a stock warm start.
+    from environments.shared.symmetry import CHECKPOINT_ATTRIBUTE
+
+    model.__dict__.pop(CHECKPOINT_ATTRIBUTE, None)
     return model
 
 
@@ -358,11 +363,13 @@ _TRANSITION_REWARD_SETTINGS = frozenset(
         "foot_load_balance_airborne_penalty",
         "support_conditioned_alive_fraction",
         "leg_home_pose_tolerance",
+        "leg_home_pose_reference",
         "leg_home_pose_broad_fraction",
         "leg_home_pose_broad_scale",
         "tail_home_pose_tolerance",
         "foot_flatness_tolerance_deg",
         "stance_width_tolerance_m",
+        "lateral_lean_tolerance_m",
         "stance_width_reference",
         "stance_width_settle_steps",
         "foot_terms_min_support_force",

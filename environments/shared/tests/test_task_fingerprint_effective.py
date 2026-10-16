@@ -25,6 +25,7 @@ from environments.shared.task_fingerprint import (
     TaskFingerprintError,
     compute_task_fingerprint,
     derive_stage_task_fingerprint,
+    inert_opt_in_env_kwargs,
     validate_recorded_task,
 )
 
@@ -203,3 +204,42 @@ class TestSchemaV1IsRefused:
         lineage = validate_recorded_task(parent, child, mode="initialize_next_stage")
         assert lineage["parent_task_sha256"] == parent["task_sha256"]
         assert lineage["child_task_sha256"] == child["task_sha256"]
+
+
+class TestOptInTaskKwargsDeclaration:
+    """``OPT_IN_TASK_KWARGS`` carves an off option's kwargs out; a misdeclared entry fails closed."""
+
+    @staticmethod
+    def _env_class(declared):
+        class ToyEnv:
+            OPT_IN_TASK_KWARGS = declared
+
+            def __init__(self, render_mode=None, lean_weight=0.0, lean_tolerance=0.015):
+                pass
+
+        return ToyEnv
+
+    def test_an_off_switch_carves_out_its_kwargs_and_an_on_switch_none(self):
+        env_class = self._env_class((("lean_weight", 0.0, ("lean_weight", "lean_tolerance")),))
+        assert inert_opt_in_env_kwargs(env_class, {"lean_weight": 0.0}) == ["lean_weight", "lean_tolerance"]
+        assert inert_opt_in_env_kwargs(env_class, {}) == ["lean_weight", "lean_tolerance"]
+        assert inert_opt_in_env_kwargs(env_class, {"lean_weight": 0.25}) == []
+
+    def test_a_class_without_a_declaration_carves_out_nothing(self):
+        class PlainEnv:
+            def __init__(self, alive_bonus=1.0):
+                pass
+
+        assert inert_opt_in_env_kwargs(PlainEnv, {"alive_bonus": 1.0}) == []
+
+    @pytest.mark.parametrize(
+        "declared, unknown",
+        [
+            ((("lean_wieght", 0.0, ("lean_weight", "lean_tolerance")),), "lean_wieght"),
+            ((("lean_weight", 0.0, ("lean_weight", "lean_tolerence")),), "lean_tolerence"),
+        ],
+    )
+    def test_a_name_that_is_not_a_constructor_parameter_is_refused(self, declared, unknown):
+        # Read as always off, a misspelt switch would drop a live option's kwargs from the fingerprint.
+        with pytest.raises(TaskFingerprintError, match=unknown):
+            inert_opt_in_env_kwargs(self._env_class(declared), {"lean_weight": 0.25})

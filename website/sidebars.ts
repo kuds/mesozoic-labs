@@ -18,7 +18,7 @@ const sidebars: SidebarsConfig = {
     {
       type: 'category',
       label: 'Training',
-      items: ['training/recipes', 'training/ppo', 'training/sac', 'training/hyperparameters'],
+      items: ['training/recipes', 'training/ppo', 'training/sac', 'training/hyperparameters', 'training/mirror-symmetry'],
     },
     {
       type: 'category',

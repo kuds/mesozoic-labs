@@ -929,6 +929,16 @@ def save_stage_config(
         if isinstance(value, tuple):
             env_kwargs[key] = list(value)
 
+    # An opt-in task option left off records none of its constructor
+    # defaults, as the task fingerprint hashes none of them; a key the TOML
+    # sets is always recorded.
+    if env_class is not None:
+        from .task_fingerprint import inert_opt_in_env_kwargs
+
+        for name in inert_opt_in_env_kwargs(env_class, env_kwargs):
+            if name not in stage_config.get("env_kwargs", {}):
+                env_kwargs.pop(name, None)
+
     data: dict[str, Any] = {
         **model_id.record(),
         "stage": stage,
