@@ -32,7 +32,10 @@ the plants use, not every field MuJoCo has, so a new species' map is accepted
 together with a paired-rollout equivariance test like the T. rex's
 (``tests/test_symmetry.py``), which catches whatever the checks miss.  Link
 frames that a CAD export rotates differently on the two sides are handled by a
-per-body frame correction.  Of the six plants, the five anatomical ones derive
+per-body frame correction, and side tokens may be suffixes (``_r`` / ``_l``).
+No committed plant needs either (the correction is the identity on every plant
+that derives), so a synthetic biped in the tests exercises both, dynamics and
+site-frame sensors included.  Of the six plants, the five anatomical ones derive
 cleanly; the Compsognathus robot does not, because its MJCF is not mirror
 symmetric as authored (one side's ankle chain sits 37 mm from the mirror of the
 other's).
@@ -85,7 +88,8 @@ PSEUDO = np.array([-1.0, 1.0, -1.0])
 QUAT_SIGNS = np.array([1.0, -1.0, 1.0, -1.0])
 
 #: Side tokens, tried in order: prefixes first, then suffixes.  r_/l_ (the dinosaurs), right_/left_ (the
-#: Compsognathus robot), fr_/fl_ and rr_/rl_ (the quadrupeds' front and rear legs).
+#: Compsognathus robot), fr_/fl_ and rr_/rl_ (the quadrupeds' front and rear legs); no committed MJCF uses a suffix
+#: (the tests' synthetic biped does).
 DEFAULT_PREFIX_RULES: tuple[tuple[str, str], ...] = (("r_", "l_"), ("right_", "left_"), ("fr_", "fl_"), ("rr_", "rl_"))
 DEFAULT_SUFFIX_RULES: tuple[tuple[str, str], ...] = (("_r", "_l"), ("_right", "_left"))
 
@@ -1393,7 +1397,11 @@ class SymmetryConfig:
 
 
 def pop_symmetry_config(ppo_kwargs: dict[str, Any]) -> SymmetryConfig | None:
-    """Remove the :data:`SYMMETRY_KEYS` from *ppo_kwargs* (in place): the config, or ``None`` for stock PPO."""
+    """Remove the :data:`SYMMETRY_KEYS` from *ppo_kwargs* (in place): the config, or ``None`` for stock PPO.
+
+    The settings a table writes are validated under ``symmetry = "none"`` too, so an invalid value never passes
+    unnoticed while the option is off.
+    """
     present = {key: ppo_kwargs.pop(key) for key in SYMMETRY_KEYS if key in ppo_kwargs}
     if not present:
         return None
@@ -1403,14 +1411,13 @@ def pop_symmetry_config(ppo_kwargs: dict[str, Any]) -> SymmetryConfig | None:
             f"[ppo] symmetry must be one of {SYMMETRY_METHODS}, got {method!r}"
             + ("" if "symmetry" in present else f" (the table sets {sorted(present)} without it)")
         )
-    if method == "none":
-        return None
     settings = {
         name: present[f"symmetry_{name}"]
         for name in ("kappa", "sigma_floor", "mirror_critic")
         if f"symmetry_{name}" in present
     }
-    return SymmetryConfig(**settings)
+    config = SymmetryConfig(**settings)
+    return None if method == "none" else config
 
 
 def symmetry_mismatch(recorded: Any, wanted: Mapping[str, Any] | None) -> str | None:

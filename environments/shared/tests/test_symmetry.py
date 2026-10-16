@@ -169,6 +169,155 @@ def test_an_asymmetric_pair_is_refused(model_id, edit, message):
         SY.derive_model_mirror(model)
 
 
+def _rotation(axis, degrees: float) -> np.ndarray:
+    quat = np.zeros(4)
+    mujoco.mju_axisAngle2Quat(quat, np.asarray(axis, dtype=np.float64), math.radians(degrees))
+    return SY._quat_to_mat(quat)
+
+
+def _numbers(values) -> str:
+    return " ".join(repr(float(v)) for v in np.ravel(values))
+
+
+def _quat(rotation: np.ndarray) -> str:
+    quat = np.zeros(4)
+    mujoco.mju_mat2Quat(quat, np.asarray(rotation, dtype=np.float64).reshape(-1))
+    return _numbers(quat)
+
+
+#: The CAD-style frame rotations of the synthetic biped's left links (E) and of its left foot site (F).
+_E_THIGH, _E_SHANK, _F_SITE = _rotation((1, 2, 3), 40.0), _rotation((0, 0, 1), 90.0), _rotation((0, 1, 0), -90.0)
+
+
+def _cad_biped_xml(*, correct_the_left_knee: bool = True) -> str:
+    """A free-floating biped whose left links are the mirror of the right ones in a rotated link frame.
+
+    Each left body's world frame is ``S R S E`` (``R`` its partner's, ``E`` a proper rotation, as a CAD export that
+    orients one side's link frames differently gives), so every local point, frame and hinge axis on the left is
+    the mirror one re-expressed through ``E``; the left foot site carries a further quarter turn.  The sides are
+    named by suffix tokens (``_r`` / ``_l``).  ``correct_the_left_knee=False`` authors the left knee axis as if the
+    frames were pure mirror images.
+    """
+    s = SY.S
+    thigh_rot, thigh_pos = _rotation((0, 1, 0), 10.0), np.array([0.05, -0.2, -0.1])
+    knee_rot, knee_pos = _rotation((1, 0, 0), 15.0), np.array([0.02, -0.03, -0.4])  # shank_r in thigh_r's frame
+    tilt, site_rot = _rotation((1, 1, 0), 20.0), _rotation((0, 0, 1), 30.0)
+    left_thigh_rot = s @ thigh_rot @ s @ _E_THIGH
+    left_knee_rot = left_thigh_rot.T @ s @ thigh_rot @ knee_rot @ s @ _E_SHANK
+    left_knee_pos = left_thigh_rot.T @ s @ thigh_rot @ knee_pos
+
+    def side(suffix: str, left: bool) -> str:
+        def polar(e: np.ndarray, v) -> np.ndarray:  # a right-local point or polar axis, mirrored into the left frame
+            return e.T @ s @ np.asarray(v, dtype=np.float64) if left else np.asarray(v, dtype=np.float64)
+
+        def frame(e: np.ndarray, r: np.ndarray) -> np.ndarray:
+            return e.T @ s @ r @ s if left else r
+
+        pitch, roll = np.array([0.0, 1.0, 0.0]), np.array([1.0, 0.0, 0.0])
+        # A hinge axis is a pseudovector: the mirror of a is -E^T S a; the roll axes are authored the other way round.
+        knee_axis = -polar(_E_SHANK, pitch) if left and correct_the_left_knee else pitch
+        return f"""
+      <body name="thigh_{suffix}" pos="{_numbers(s @ thigh_pos if left else thigh_pos)}"
+            quat="{_quat(left_thigh_rot if left else thigh_rot)}">
+        <joint name="hip_pitch_{suffix}" axis="{_numbers(-polar(_E_THIGH, pitch) if left else pitch)}" damping="0.5"/>
+        <joint name="hip_roll_{suffix}" axis="{_numbers(polar(_E_THIGH, roll))}"
+               range="{"-20 30" if left else "-30 20"}"/>
+        <geom name="thigh_geom_{suffix}" type="capsule" size="0.05 0.18"
+              pos="{_numbers(polar(_E_THIGH, [0.01, -0.02, -0.2]))}" quat="{_quat(frame(_E_THIGH, tilt))}"/>
+        <geom name="thigh_box_{suffix}" type="box" size="0.03 0.05 0.07"
+              pos="{_numbers(polar(_E_THIGH, [0.04, 0.0, -0.05]))}" quat="{_quat(frame(_E_THIGH, tilt))}"/>
+        <body name="shank_{suffix}" pos="{_numbers(left_knee_pos if left else knee_pos)}"
+              quat="{_quat(left_knee_rot if left else knee_rot)}">
+          <joint name="knee_{suffix}" axis="{_numbers(knee_axis)}" range="-80 5"/>
+          <geom name="shank_geom_{suffix}" type="capsule" size="0.04 0.16"
+                pos="{_numbers(polar(_E_SHANK, [0.0, 0.01, -0.18]))}" quat="{_quat(frame(_E_SHANK, tilt))}"/>
+          <site name="foot_{suffix}" size="0.02 0.02 0.02" pos="{_numbers(polar(_E_SHANK, [0.03, -0.01, -0.36]))}"
+                quat="{_quat(frame(_E_SHANK, site_rot) @ _F_SITE if left else site_rot)}"/>
+        </body>
+      </body>"""
+
+    actuators = "".join(
+        f'<motor name="{joint}_motor_{side}" joint="{joint}_{side}" gear="40" ctrlrange="-1 1"/>'
+        for side in ("r", "l")
+        for joint in ("hip_pitch", "hip_roll", "knee")
+    )
+    sensors = "".join(
+        f'<gyro name="foot_gyro_{side}" site="foot_{side}"/><accelerometer name="foot_acc_{side}" site="foot_{side}"/>'
+        f'<framepos name="foot_pos_{side}" objtype="site" objname="foot_{side}"/>'
+        f'<jointpos name="knee_pos_{side}" joint="knee_{side}"/>'
+        for side in ("r", "l")
+    )
+    return f"""<mujoco model="cad_biped">
+  <worldbody>
+    <body name="torso" pos="0 0 2">
+      <freejoint name="root"/>
+      <geom name="torso_geom" type="box" size="0.3 0.2 0.1"/>{side("r", False)}{side("l", True)}
+    </body>
+  </worldbody>
+  <actuator>{actuators}</actuator>
+  <sensor>{sensors}</sensor>
+</mujoco>"""
+
+
+def _sensor_mirror_error(mm: SY.ModelMirror, model: mujoco.MjModel, a: mujoco.MjData, b: mujoco.MjData) -> float:
+    """How far *b*'s sensor readings are from the mirror of *a*'s (sensor map, component permutation and signs)."""
+    worst = 0.0
+    for sensor in range(model.nsensor):
+        dim, partner = int(model.sensor_dim[sensor]), int(mm.sensor_map[sensor])
+        mine, theirs = int(model.sensor_adr[sensor]), int(model.sensor_adr[partner])
+        expected = mm.sensor_signs[sensor] * a.sensordata[theirs : theirs + dim][mm.sensor_comp_perm[sensor]]
+        worst = max(worst, float(np.max(np.abs(b.sensordata[mine : mine + dim] - expected))))
+    return worst
+
+
+def test_rotated_link_frames_and_suffix_side_tokens_derive_on_a_synthetic_biped():
+    """No committed plant needs a frame correction (``C = I`` on all five that derive) or names its sides by suffix,
+    so a small biped exercises both: the correction is ``E``, the paired kinematics, dynamics and site-frame sensors
+    are equivariant, and a left axis authored without the correction is refused."""
+    model = mujoco.MjModel.from_xml_string(_cad_biped_xml())
+    mm = SY.derive_model_mirror(model)
+
+    def index(kind, name: str) -> int:
+        return int(mujoco.mj_name2id(model, kind, name))
+
+    body, joint = mujoco.mjtObj.mjOBJ_BODY, mujoco.mjtObj.mjOBJ_JOINT
+    for link, rotation in (("thigh", _E_THIGH), ("shank", _E_SHANK)):
+        right, left = index(body, f"{link}_r"), index(body, f"{link}_l")
+        assert (mm.body_map[right], mm.body_map[left]) == (left, right)
+        np.testing.assert_allclose(mm.body_C[right], rotation, atol=1e-12)
+        np.testing.assert_allclose(mm.body_C[left], SY.S @ rotation.T @ SY.S, atol=1e-12)
+    np.testing.assert_allclose(mm.site_C[index(mujoco.mjtObj.mjOBJ_SITE, "foot_r")], _F_SITE, atol=1e-12)
+    signs = {name: int(mm.joint_sign[index(joint, f"{name}_{side}")]) for name in ("hip_pitch", "hip_roll", "knee")
+             for side in ("r", "l")}  # fmt: skip
+    assert signs == {"hip_pitch": 1, "hip_roll": -1, "knee": 1}
+    assert _kinematics_error(mm, model, n=20, seed=4) <= 1e-12
+    # A mirrored state stays the mirror of the original under the dynamics, sensors included.  The left thigh's
+    # compiled inertia agrees with the mirror of the right's to about 3e-9 (MuJoCo diagonalises it in another
+    # frame), which bounds the agreement here.
+    rng = np.random.default_rng(11)
+    a, b = mujoco.MjData(model), mujoco.MjData(model)
+    a.qpos[:3] = rng.uniform(-1.0, 1.0, 3)
+    a.qpos[3:7] = rng.normal(size=4)
+    a.qpos[3:7] /= np.linalg.norm(a.qpos[3:7])
+    a.qpos[7:] = rng.uniform(-0.4, 0.1, model.nq - 7)
+    a.qvel[:] = rng.normal(0.0, 1.0, model.nv)
+    a.ctrl[:] = rng.uniform(-1.0, 1.0, model.nu)
+    SY.mirror_physics_state(mm, model, a, b)
+    worst_state = worst_sensor = 0.0
+    for _ in range(50):
+        mujoco.mj_step(model, a)
+        mujoco.mj_step(model, b)
+        worst_state = max(
+            worst_state,
+            float(np.max(np.abs(b.qpos - mm.qpos.apply(a.qpos)))),
+            float(np.max(np.abs(b.qvel - mm.qvel.apply(a.qvel)))),
+        )
+        worst_sensor = max(worst_sensor, _sensor_mirror_error(mm, model, a, b))
+    assert worst_state <= 1e-7 and worst_sensor <= 1e-6  # measured 5e-9 and 4e-8, against readings up to 60
+    with pytest.raises(SY.SymmetryError, match="joint 'knee_r': 0 mirror-consistent partners"):
+        SY.derive_model_mirror(mujoco.MjModel.from_xml_string(_cad_biped_xml(correct_the_left_knee=False)))
+
+
 # ---------------------------------------------------------------------------------------------------- the T. rex map
 def test_the_committed_maps_are_current():
     # The CI form of `python -m environments.shared.symmetry --check`.
@@ -386,6 +535,9 @@ def test_the_symmetry_keys_select_mirror_kl_with_the_screened_defaults():
         ({"symmetry": "mirror_kl", "symmetry_sigma_floor": 0.0}, "sigma_floor > 0"),
         ({"symmetry": "mirror_kl", "symmetry_kappa": True}, "finite number"),
         ({"symmetry": "mirror_kl", "symmetry_mirror_critic": "yes"}, "true or false"),
+        # Off, the settings a table writes are still checked.
+        ({"symmetry": "none", "symmetry_kappa": -0.1}, "kappa >= 0"),
+        ({"symmetry": "none", "symmetry_mirror_critic": 1}, "true or false"),
     ],
 )
 def test_bad_symmetry_keys_are_refused(kwargs, message):
