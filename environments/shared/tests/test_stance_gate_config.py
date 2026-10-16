@@ -265,7 +265,7 @@ def test_the_statue_and_its_jitter_clear_the_whole_foot_bar(curriculum, value):
     assert _reasons(curriculum, max_foot_cop_fore_aft=value) == set()
 
 
-def test_only_the_compsognathus_declares_the_pad_bar_and_only_the_tyrannosaurus_rex_the_whole_foot_bar():
+def test_the_pad_bar_and_the_whole_foot_bar_are_each_declared_by_one_stance():
     """An undeclared key is not in a stage's gate view, so no other stage's gate digest moves (recovery extends the
     stance's [env], not its [curriculum]).  The compsognathus declares its own pad bar on its r2 statue (D-D26
     after D-D28; ``test_compsognathus_longipes_stance_gate_config.py``); the T. rex declared it until physics r10."""
