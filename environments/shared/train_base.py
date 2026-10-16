@@ -2285,7 +2285,7 @@ def _resolve_curriculum_target(
     of the advancing ladder (``advancing[:len(chain)]``): the command-line
     curriculum judges with the integer-keyed ``CurriculumManager`` (decision
     D-A7), advanced once per node walked, so a chain through a non-advancing
-    node (``"stand"`` on T-Rex and Compsognathus runs through recovery) or
+    node (``"recover"`` on T-Rex and Compsognathus runs through recovery) or
     one that skips a ladder node (a manifest whose ``behavior`` edge points
     at ``stance``, leaving ``locomotion`` out — the loader pins legacy
     numbers to ids, not the edges between them) would have the manager
@@ -2418,7 +2418,7 @@ def train_curriculum(
     :func:`_resolve_curriculum_target` before any directory is written.  The
     walk is the target's chain — ``manifest.chain_for(target)``, root first
     — and every node on it must be advancing and the chain a prefix of the
-    advancing ladder, so a chain through a non-advancing node (``"stand"``
+    advancing ladder, so a chain through a non-advancing node (``"recover"``
     on T-Rex runs through recovery) or one that skips a ladder node is a
     ``ValueError`` naming the notebook's ``BEHAVIOR`` knob.  ``None`` is the
     last advancing stage and walks the WHOLE advancing ladder — the walk

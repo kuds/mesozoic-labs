@@ -91,14 +91,14 @@ python -m environments.shared.train --species tyrannosaurus_rex --embodiment ana
 python -m environments.shared.train --species tyrannosaurus_rex --embodiment anatomical \
     curriculum --trunk-from <earlier-run-dir> --output-dir <new-run-dir>
 
-# Train the recovery stage — the second node of the `stand` recipe, a published
+# Train the recovery stage — the node of the `recover` recipe, a published
 # deliverable judged post-stage against the frozen recovery_quality/v1 gate
 # (configs/tyrannosaurus_rex/anatomical/recovery.toml, frozen 2026-08-28): the stance task plus scheduled
 # 186.8 N / 0.20 s external pushes (physics r10; 165.5 N on r7-r9) derived from
 # the plant itself. Warm-start from a certified stance checkpoint: the load is
 # refused unless the checkpoint records stance, recovery's declared parent. The
 # `curriculum` command skips this non-advancing node; the notebook runs it with
-# BEHAVIOR = "stand".
+# BEHAVIOR = "recover".
 python -m environments.shared.train --species tyrannosaurus_rex --embodiment anatomical \
     train --stage recovery --load <stance-checkpoint>.zip --load-mode initialize_next_stage
 

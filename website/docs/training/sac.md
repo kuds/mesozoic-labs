@@ -82,8 +82,8 @@ each trained node writes `gate_verdict.json` beside its handoff:
 
 The `recovery` node is PPO-only on the T-Rex, whose `recovery.toml` does
 not inherit stance's `[sac]`; both Compsognathus models do. Every node is a
-deliverable, so stand, walk and hunt are each certified and published on
-their own. `--trunk-from RUN_DIR`, `--retrain-from STAGE_ID` and
+deliverable, so stand, walk and hunt (and recover, where a model has a
+recovery node) are each certified and published on their own. `--trunk-from RUN_DIR`, `--retrain-from STAGE_ID` and
 `--label TEXT` work with `--algorithm sac` exactly as with PPO. Keep SAC
 trunks for SAC runs: the notebook refuses a `TRUNK_FROM` run of a different
 model (species or embodiment), algorithm or backend outright, and the command line reuses a trunk

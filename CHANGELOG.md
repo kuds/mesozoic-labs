@@ -589,6 +589,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `floor-truth/v3`, T. rex physics r10). Re-roll it as the entry below
   describes. No constant or metric definition changed, so a re-rolled panel
   of any other model scores as before.
+- **`BEHAVIOR = "stand"` trains the stance stage alone on every model**
+  (D-D35). On the T. rex and both Compsognathus models it used to mean
+  stance then push recovery; that chain is now `BEHAVIOR = "recover"`. A
+  run started with `"stand"` before this change and left before its
+  recovery node finished continues with `"recover"`: re-entered with
+  `"stand"`, it targets stance alone and does not resume recovery.
 - **A `stance_quality/v2` or six-heading report or panel measured under
   `floor-truth/v1` is refused, and is judged again only once re-rolled**
   (`MEASUREMENT_VERSION` `floor-truth/v2`, the whole-foot centre of
@@ -940,6 +946,66 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Recorded in `docs/KNOWN_ISSUES.md`: the stiff MTP springs resist
     toe-off; the 7.7 cm digit II-II clearance is an anatomical constraint;
     and the foot's stance approximations.
+- **The recovery stage has its own recipe label, `recover`, and `stand` is
+  the stance stage on every model** (#625; decision D-D35, the maintainer's
+  decision of 2026-10-16). A recipe label resolves to the deepest deliverable
+  carrying it, and the recovery stage was labelled `stand` too, so `stand`
+  meant stance then push recovery on the three models that have a recovery
+  stage and stance alone on the other three: someone choosing `stand` in the
+  notebook could not tell which, and `stand` and the stage id `stance` read
+  as the same thing. The recovery entries of
+  `configs/tyrannosaurus_rex/anatomical/stages.toml` and
+  `configs/compsognathus_longipes/{anatomical,robot}/stages.toml` now say
+  `recipe = "recover"` (a label never equals a stage id, and `recover` is not
+  one), so the labels read as four verbs: stand, recover, walk, hunt.
+  - Before → after, per model (`resolve_behavior`, and the chain the notebook
+    and `train_curriculum` walk). `tyrannosaurus_rex`/`anatomical`,
+    `compsognathus_longipes`/`anatomical` and `compsognathus_longipes`/`robot`:
+    `stand` was recovery (stance → recovery) and is stance (stance);
+    `recover` was unknown and is recovery (stance → recovery); `stance`,
+    `recovery`, `walk` and `hunt` are unchanged; recipe labels
+    `stand, walk, hunt` → `stand, recover, walk, hunt`.
+    `velociraptor_mongoliensis`, `brachiosaurus_altithorax` and
+    `dibothrosuchus_elaphros` (`anatomical`): unchanged (`stand` is stance,
+    `recover` is unknown, as `recovery` is).
+  - Trade-off: on those three models `stand` no longer publishes the
+    push-robust standing policy; that deliverable is now `recover`.
+    `BEHAVIOR = "stand"` and `"stance"` give the same chain on every model.
+  - The notebook's `BEHAVIOR` dropdown is `stand`, `recover`, `walk`, `hunt`
+    (free input kept, so a stage id is accepted too); its configuration cell
+    and markdown say what each label trains. On the T. rex the resolve cell
+    now prints `Behavior 'stand' -> deliverable 'stance'; chain: stance`
+    (it printed `-> deliverable 'recovery'; chain: stance -> recovery`).
+  - `curriculum --target stand` on those three models is now a stance-only
+    run (it was refused, its chain running through the non-advancing
+    recovery stage); `--target recover` takes that refusal, naming
+    `BEHAVIOR = 'recover'`. The `--target` help names the four labels.
+  - The species manifest names every model's deliverables by label: the
+    three models' stance and recovery deliverable metrics, addressed by id
+    while `stand` meant recovery, are `stand` and `recover`. The species
+    catalog is regenerated: the three recovery rows read
+    `recover (deliverable)` and their deliverable lines `stand` and
+    `recover` (`docs/SPECIES_CATALOG.md`,
+    `website/src/data/species.generated.json`; the README is unchanged).
+  - Tests: `test_stage_manifest.py`'s `TestRecipeLabelsAreFourVerbs` pins,
+    on every committed manifest, that `stand` resolves to stance with the
+    same chain as `stance`, that `recover` is stance → recovery on the three
+    recovery models and unknown elsewhere, each model's labels, and that no
+    label equals a stage id; `test_cli.py`, `test_train_base.py` (a T. rex
+    `target="stand"` walks what `"stance"` and `1` walk),
+    `test_sb3_notebook_pins.py` (the dropdown, and the resolve cell executed
+    for the T. rex), `test_species_catalog.py` and
+    `test_compsognathus_longipes_training.py` follow the new labels.
+  - Recipe labels enter no training, task, gate, hyperparameter or plant
+    digest: the digest snapshot, the plant manifest and the T. rex symmetry
+    map are byte-identical, no checkpoint is invalidated and nothing retrains.
+  - Records: D-D35 in `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2 (with D-A11 and
+    D-A24 amended, and a dated note on its §3/§4 design) and in the
+    consolidation plan's tables; the recipes guide, the T. rex, Compsognathus
+    and custom-model pages, the PPO, SAC, hyperparameter, installation,
+    quick-start and intro pages, the T. rex and Compsognathus READMEs and
+    calibration guide, NEXT_STEPS, TRAIN_DIRECTION_AND_TERRAIN and
+    TRAINING_ARTIFACT_PRESENTATION.
 - **The development version is `0.4.0.dev1`** (#619; `pyproject.toml`; the
   maintainer's request of 2026-10-11 to bump the version when training
   restarts). Training restarts on the D-D33 identifiers. Every run records

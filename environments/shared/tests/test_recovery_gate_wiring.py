@@ -301,8 +301,8 @@ class TestNotebookRecoveryFlowPin:
 
     Re-pinned for the behavior-chain loop (BEHAVIOR_RECIPES_PLAN §4.7, Phase A
     WS5): the opt-in ``===== RECOVERY STAGE`` cell and its RUN_RECOVERY_STAGE knob
-    are gone — recovery runs when BEHAVIOR's chain includes it (``"stand"`` on a
-    species with a recovery stage) and its verdict is enforced like any node's.
+    are gone — recovery runs when BEHAVIOR's chain includes it (``"recover"`` on a
+    model with a recovery stage, decision D-D35) and its verdict is enforced like any node's.
     The flow now lives inside the loop's ``for NODE in CHAIN:`` body, keyed on the
     FROZEN_NULL_GATE_KINDS set rather than on the id ``"recovery"``, so a second
     frozen-null kind would get the same pre-registration without a new branch.

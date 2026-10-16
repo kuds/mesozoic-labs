@@ -144,13 +144,13 @@ def test_catalog_derives_current_model_and_stage_facts() -> None:
     ]
     # The recipe DAG the committed v2 manifest declares (plan §4.1): every
     # node a deliverable, recovery and locomotion both rooted on stance,
-    # "stand" spanning stance and recovery.
+    # "stand" the stance node and "recover" the recovery node (D-D35).
     assert [
         (stage["id"], stage["deliverable"], stage["warm_start_from"], stage["recipe"])
         for stage in models[TYRANNOSAURUS_REX]["stages"]
     ] == [
         ("stance", True, None, "stand"),
-        ("recovery", True, "stance", "stand"),
+        ("recovery", True, "stance", "recover"),
         ("locomotion", True, "stance", "walk"),
         ("behavior", True, "locomotion", "hunt"),
     ]
@@ -1715,19 +1715,25 @@ def _metric(deliverable: str, *backends: str) -> dict[str, Any]:
 
 def test_deliverable_metrics_reject_unknown_and_duplicate_scopes() -> None:
     """Label resolution follows the manifest; unknown names, backends and duplicate scopes fail closed."""
-    # "stand" is the recovery node on trex (the deepest deliverable carrying
-    # the label) and the stance node everywhere else.
+    # "stand" is the stance node on every model and "recover" the trex
+    # recovery node (decision D-D35); a stage id names its node too.
     tyrannosaurus_rex = _build_deliverable_metrics(
         TYRANNOSAURUS_REX,
-        [_metric("stance"), _metric("stand"), _metric("walk"), _metric("hunt")],
+        [_metric("stand"), _metric("recover"), _metric("walk"), _metric("hunt")],
         {"stable-baselines3", "jax-mjx"},
     )
     assert [(metric["deliverable"], metric["stage_id"]) for metric in tyrannosaurus_rex] == [
-        ("stance", "stance"),
-        ("stand", "recovery"),
+        ("stand", "stance"),
+        ("recover", "recovery"),
         ("walk", "locomotion"),
         ("hunt", "behavior"),
     ]
+    by_id = _build_deliverable_metrics(
+        TYRANNOSAURUS_REX,
+        [_metric("stance"), _metric("recovery"), _metric("locomotion"), _metric("behavior")],
+        {"stable-baselines3"},
+    )
+    assert [metric["stage_id"] for metric in by_id] == [metric["stage_id"] for metric in tyrannosaurus_rex]
     velociraptor_mongoliensis = _build_deliverable_metrics(
         VELOCIRAPTOR_MONGOLIENSIS,
         [_metric("stand"), _metric("walk"), _metric("hunt")],
@@ -1745,7 +1751,12 @@ def test_deliverable_metrics_reject_unknown_and_duplicate_scopes() -> None:
         )
     # Two spellings of one (stage, backend) scope are a duplicate.
     with pytest.raises(CatalogError, match="more than one deliverable metric for stage 'recovery'"):
-        _build_deliverable_metrics(TYRANNOSAURUS_REX, [_metric("stand"), _metric("recovery")], {"stable-baselines3"})
+        _build_deliverable_metrics(TYRANNOSAURUS_REX, [_metric("recover"), _metric("recovery")], {"stable-baselines3"})
+    with pytest.raises(CatalogError, match="more than one deliverable metric for stage 'stance'"):
+        _build_deliverable_metrics(TYRANNOSAURUS_REX, [_metric("stand"), _metric("stance")], {"stable-baselines3"})
+    # "recover" names nothing on a model without a recovery node.
+    with pytest.raises(CatalogError, match="unknown deliverable 'recover'"):
+        _build_deliverable_metrics(VELOCIRAPTOR_MONGOLIENSIS, [_metric("recover")], {"stable-baselines3"})
 
 
 def test_deliverable_metrics_for_reward_gated_stance_say_so() -> None:
@@ -1872,11 +1883,17 @@ def test_readme_species_table_renders_recipe_edges() -> None:
         in rendered
     )
     assert "| 1 — Stance | stand (deliverable) | — |" in rendered
-    assert "| recovery — Recovery | stand (deliverable) | 1 — Stance |" in rendered
+    assert "| recovery — Recovery | recover (deliverable) | 1 — Stance |" in rendered
     assert "| 2 — Locomotion | walk (deliverable) | 1 — Stance |" in rendered
     assert "| 3 — Bite | hunt (deliverable) | 2 — Locomotion |" in rendered
     assert "**Per-deliverable success semantics:**" in rendered
-    assert "- **stance (1 — Stance) · Stable-Baselines3 — Stance quality (stance_quality/v1):**" in rendered
+    # Every model names its deliverables by recipe label (D-D35): the robot's stance is "stand", its recovery "recover".
+    assert "- **stand (1 — Stance) · Stable-Baselines3 — Stance quality (stance_quality/v1):**" in rendered
+    assert (
+        "- **recover (recovery — Recovery) · Stable-Baselines3 — Recovery under pushes (recovery_quality/v1):**"
+        in rendered
+    )
+    assert "- **stance (" not in rendered and "- **recovery (" not in rendered
     assert "- **stand (1 — Stance) · Stable-Baselines3 — Reward-gated stance (reward_and_length/v1):**" in rendered
     # The velociraptor stand certifies under the floor-truth gate since physics r3 (D-D25).
     assert "- **stand (1 — Stance) · Stable-Baselines3 — Stance quality (stance_quality/v2):**" in rendered

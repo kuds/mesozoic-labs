@@ -184,11 +184,11 @@ class TestMainDispatch:
         [
             (
                 TYRANNOSAURUS_REX,
-                "stand",
-                "--target 'stand' resolves to 'recovery', whose chain ['stance', 'recovery'] runs through the "
+                "recover",
+                "--target 'recover' resolves to 'recovery', whose chain ['stance', 'recovery'] runs through the "
                 "non-advancing stage(s) ['recovery']; the command-line curriculum walks only the advancing stages "
                 "['stance', 'locomotion', 'behavior'] (the CurriculumManager is integer-keyed, decision D-A7). "
-                "Train that chain through the notebook's BEHAVIOR knob (BEHAVIOR = 'stand')",
+                "Train that chain through the notebook's BEHAVIOR knob (BEHAVIOR = 'recover')",
             ),
             (
                 VELOCIRAPTOR_MONGOLIENSIS,
@@ -197,11 +197,22 @@ class TestMainDispatch:
                 "velociraptor_mongoliensis/anatomical has no behavior 'fly'; "
                 "recipe labels: ['stand', 'walk', 'hunt'], deliverable ids: ['stance', 'locomotion', 'behavior']",
             ),
+            (
+                VELOCIRAPTOR_MONGOLIENSIS,
+                "recover",
+                "--target 'recover' does not name a behavior of velociraptor_mongoliensis/anatomical: "
+                "velociraptor_mongoliensis/anatomical has no behavior 'recover'; "
+                "recipe labels: ['stand', 'walk', 'hunt'], deliverable ids: ['stance', 'locomotion', 'behavior']",
+            ),
         ],
-        ids=["tyrannosaurus_rex-anatomical-stand", "velociraptor_mongoliensis-anatomical-fly"],
+        ids=[
+            "tyrannosaurus_rex-anatomical-recover",
+            "velociraptor_mongoliensis-anatomical-fly",
+            "velociraptor_mongoliensis-anatomical-recover",
+        ],
     )
     def test_target_must_resolve_to_a_chain_of_advancing_stages(self, species_cfg, target, model_id, expected, capsys):
-        """A chain through a non-advancing node (trex's stand runs through recovery) is a parser.error
+        """A chain through a non-advancing node (trex's recover runs through recovery) is a parser.error
         naming the notebook's BEHAVIOR knob; an unknown label lists the labels — both before
         train_curriculum is reached."""
         species_cfg.model_id = model_id
@@ -209,6 +220,28 @@ class TestMainDispatch:
             self._run_curriculum(species_cfg, ["--target", target])
         assert excinfo.value.code == 2
         assert expected in capsys.readouterr().err
+
+    @pytest.mark.parametrize(
+        "model_id",
+        [
+            TYRANNOSAURUS_REX,
+            ModelId("compsognathus_longipes", "anatomical"),
+            ModelId("compsognathus_longipes", "robot"),
+            VELOCIRAPTOR_MONGOLIENSIS,
+        ],
+        ids=lambda m: f"{m.species}-{m.embodiment}",
+    )
+    def test_target_stand_is_the_stance_stage_on_every_model(self, species_cfg, model_id):
+        """Decision D-D35: ``stand`` is the stance stage alone on every model, so ``--target stand`` is
+        a stance-only run, accepted where it was refused on the three recovery models while ``stand``
+        resolved to recovery; ``recover`` took that chain and its refusal."""
+        from environments.shared.stage_manifest import load_stage_manifest
+        from environments.shared.train_base import _resolve_curriculum_target
+
+        species_cfg.model_id = model_id
+        assert self._run_curriculum(species_cfg, ["--target", "stand"]).call_args.kwargs["target"] == "stand"
+        entry, chain = _resolve_curriculum_target(load_stage_manifest(model_id), "stand", flag="--target")
+        assert entry.id == "stance" and [node.id for node in chain] == ["stance"]
 
     def test_a_target_whose_chain_skips_a_ladder_stage_is_a_usage_error(
         self, species_cfg, tmp_path, monkeypatch, capsys

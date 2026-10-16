@@ -20,8 +20,8 @@ Since policy interface r14 the T-Rex's observation reads no world heading: the p
 ## Curriculum
 
 The T-Rex manifest (`configs/tyrannosaurus_rex/anatomical/stages.toml`, schema
-`mesozoic.stage-manifest/v2`) declares four nodes and three recipes — stand,
-walk and hunt — every one of them a published deliverable:
+`mesozoic.stage-manifest/v2`) declares four nodes and four recipes — stand,
+recover, walk and hunt — every one of them a published deliverable:
 
 1. **`stance`** (recipe `stand`; root, historical stage 1) — settle from a
    randomized spawn and hold a stable upright pose; gated on physical stance
@@ -39,7 +39,7 @@ walk and hunt — every one of them a published deliverable:
    turned −90°, −45°, 0°, 45°, 90° and 180°, every heading must pass that
    decision, and at least 37 of the 40 seeds must be clean at all six, so a
    stance that stands only at the heading it trained at fails.
-2. **`recovery`** (recipe `stand`; `warm_start_from = "stance"`; no legacy
+2. **`recovery`** (recipe `recover`; `warm_start_from = "stance"`; no legacy
    number, addressed by id) — the same task plus scheduled external pushes
    (186.8 N for 0.20 s on physics r10, 165.5 N on r7-r9, derived from the
    plant's own mass and stance geometry), warm-started from the certified
@@ -56,9 +56,11 @@ walk and hunt — every one of them a published deliverable:
 4. **`behavior`** (recipe `hunt`; `warm_start_from = "locomotion"`,
    historical stage 3) — the head-contact "bite" proxy task.
 
-A recipe label resolves to its deepest deliverable, so the notebook's
-`BEHAVIOR = "stand"` trains stance and then recovery and enforces the
-recovery verdict; the stance node alone is addressed by its id. Integer stage
+Each recipe label names one node: the notebook's `BEHAVIOR = "stand"` trains
+the stance node alone (as `"stance"` does), and `BEHAVIOR = "recover"` trains
+stance and then recovery and enforces the recovery verdict. Until decision
+D-D35 (2026-10-16) the recovery node was labelled `stand` too, so `"stand"`
+meant that stance-then-recovery chain here. Integer stage
 references keep their historical meaning everywhere (stage 2 remains
 locomotion). The catalog table above shows each node's recipe and warm-start
 parent, and the video cards below are keyed by stage id. See

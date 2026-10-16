@@ -125,8 +125,10 @@ consolidation plan's status table, the CHANGELOG or the cleanup plan's §3.1; th
 after the 2026-09-19 loader change) are in section 1 at `ace8112`.
 
 Configuration-cell defaults:
-`BEHAVIOR = "hunt"` (dropdown: `stand`, `walk`, `hunt`, stage ids by free input;
-the eleven direction/terrain values leave with the PR-12 slice),
+`BEHAVIOR = "hunt"` (dropdown: `stand`, `recover`, `walk`, `hunt`, stage ids by
+free input; the eleven direction/terrain values leave with the PR-12 slice;
+`recover`, stance then push recovery on the T-Rex and both Compsognathus
+models, since decision D-D35, before which `stand` meant that chain there),
 `TRUNK_FROM = "auto"`, `RETRAIN_FROM = ""`, `RUN_LABEL = ""`, `RUN_ID = ""`
 (a configuration-cell knob since consolidation PR-14a), `SEED = 42`. The knobs the
 consolidation retired are named in the CHANGELOG entries of PR-4, PR-5, the PR-12
@@ -530,9 +532,11 @@ Notes:
   record when the root is an ancestor of `BEHAVIOR`'s node, naming a new run
   id.
 - A widened root is judged in its new run and every node below it trains
-  there (T-Rex `stand` = re-panel stance, then recovery 3M; T-Rex `walk` would
-  train locomotion 8M instead). For velociraptor, brachiosaurus and
-  dibothrosuchus `stand` is stance only (no recovery node).
+  there (T-Rex `stand` = re-panel stance, then recovery 3M, at the time; T-Rex
+  `walk` would train locomotion 8M instead). Since decision D-D35 (2026-10-16)
+  that chain is `recover`, and `stand` is stance only on every model, as it
+  always was for velociraptor, brachiosaurus and dibothrosuchus (no recovery
+  node).
 - Otherwise leave `TRUNK_FROM = "auto"`.
 - A parent `gate_verdict.json` is optional for widening (the r11 and r1 parents
   have none; backfilling first is NOT needed); the parent stage directory must

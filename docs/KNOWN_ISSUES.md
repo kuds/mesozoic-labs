@@ -342,8 +342,9 @@ robustness, **LOW** = cosmetic / QoL.
   reuses both nodes for a hunt session, whose chain runs through both
   (2026-09-17 Drive survey,
   [investigations/DRIVE_RUN_SURVEY_2026_09.md](investigations/DRIVE_RUN_SURVEY_2026_09.md));
-  a stand or walk session considers stance only, which the newer
-  `20260920_010912` also covers since 2026-09-20, so the tie goes to it.
+  a recover or walk session (a stand session before D-D35) considers
+  stance only, which the newer `20260920_010912` also covers since
+  2026-09-20, so the tie goes to it.
   Remedy for that run: none in place (corrected 2026-09-23). Its bundle is
   `complete` under a stance target (`target_deliverable "1"`), not
   `partial`; a re-entry that reuses every node never reaches the chain
