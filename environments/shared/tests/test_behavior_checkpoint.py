@@ -559,15 +559,14 @@ def test_refuses_wrong_task_missing_sidecar_and_existing_normalization(parent, t
         wrapped.close()
 
 
-@pytest.fixture(scope="module")
-def learned_behavior(parent, tmp_path_factory):
+def _heading_task(**env_kwargs):
+    """The T. rex heading-and-speed recipe task the learned behavior below is stamped with; *env_kwargs* add to it."""
     from environments.shared.behavior_env import RECIPE_TASK_STAGE
     from environments.shared.direction_commands import DirectionCommandConfig, DirectionCommandController
     from environments.shared.task_fingerprint import compute_task_fingerprint
 
-    model_path, vecnorm_path, _, _, identity = parent
     config = DirectionCommandConfig()
-    task = compute_task_fingerprint(
+    return compute_task_fingerprint(
         model_id=TYRANNOSAURUS_REX,
         stage=RECIPE_TASK_STAGE,
         backend="stable-baselines3",
@@ -579,11 +578,18 @@ def learned_behavior(parent, tmp_path_factory):
             "terrain_sampler": None,
             "tracking_weight": 2.5,
             "course_distance": 10.0,
+            **env_kwargs,
         },
-        plant_identity=identity.to_dict(),
+        plant_identity=current_plant_identity(TYRANNOSAURUS_REX).to_dict(),
         perturbation_manifest=None,
         command_manifest=DirectionCommandController(config).manifest(),
     )
+
+
+@pytest.fixture(scope="module")
+def learned_behavior(parent, tmp_path_factory):
+    model_path, vecnorm_path, _, _, _ = parent
+    task = _heading_task()
     model, normalizer, _ = prepare_behavior_checkpoint(
         model_path,
         vecnorm_path,
@@ -803,6 +809,29 @@ def test_flat_probability_is_no_longer_a_transition_setting(learned_behavior, re
             BehaviorCheckpointError, match="Incompatible behavior transition fields: env.flat_probability"
         ):
             _validate_behavior_transition(previous, requested)
+
+
+_LEAN_KWARGS = {"lateral_lean_weight", "lateral_lean_tolerance_m"}
+
+
+@pytest.mark.parametrize(
+    ("options", "hashed"),
+    [
+        ({"lateral_lean_weight": 0.25}, _LEAN_KWARGS),
+        ({"lateral_lean_weight": 0.25, "lateral_lean_tolerance_m": 0.02}, _LEAN_KWARGS),
+        ({"leg_home_pose_reference": "settled"}, {"leg_home_pose_reference"}),
+    ],
+)
+def test_a_transition_may_turn_the_opt_in_stance_options_on_and_off(learned_behavior, options, hashed):
+    """The T. rex's lean term and settled leg target are reward settings: off, the task carries none of their kwargs
+    (task_fingerprint.inert_opt_in_env_kwargs); on, it carries each one, defaults included, and a behavior
+    transition may make either change, as it may any other reward setting."""
+    from environments.shared.behavior_checkpoint import _validate_behavior_transition
+
+    off, on = learned_behavior[-1], _heading_task(**options)
+    assert _heading_task() == off and set(on["env"]) - set(off["env"]) == hashed
+    _validate_behavior_transition(off, on)
+    _validate_behavior_transition(on, off)
 
 
 @pytest.mark.parametrize("schema", ["mesozoic.trex-command-terrain/v1", "mesozoic.command-terrain/v1"])
