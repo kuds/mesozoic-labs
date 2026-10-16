@@ -47,12 +47,15 @@ Reward components:
     - Nosedive penalty
     - Height maintenance
     - Bilateral foot support and load balance
-    - Home leg-pose retention
+    - Home leg-pose retention (around the authored keyframe, or the statue's
+      settled leg pose, mirror-symmetrised)
     - Sole flatness and stance width (around the home keyframe's width, or
       the animal's own width at the end of the settle), optionally paid only
       on a loaded foot
     - Floor impact (summed foot force above a body-weight multiple) and
       airborne substeps, read per physics substep
+    - Standing lateral lean (the centre of mass over the feet, left to right;
+      off by default)
     - Head clearance and neck posture
     - Gait symmetry (alternating foot contacts)
     - Action smoothness (penalize jerky action changes)
@@ -72,7 +75,7 @@ import numpy as np
 
 from environments.shared.base_env import BaseDinoEnv
 from environments.shared.direction_commands import DirectionCommandConfig
-from environments.shared.heading_observation import heading_free_root_segments
+from environments.shared.heading_observation import body_to_world, heading_free_root_segments, world_to_heading
 from environments.shared.reward_functions import (
     reward_action_saturation as _reward_action_saturation_pure,
 )
@@ -84,6 +87,9 @@ from environments.shared.reward_functions import (
 )
 from environments.shared.reward_functions import (
     reward_head_clearance as _reward_head_clearance_pure,
+)
+from environments.shared.reward_functions import (
+    reward_lateral_lean as _reward_lateral_lean_pure,
 )
 from environments.shared.reward_functions import (
     reward_soft_home_pose as _reward_soft_home_pose_pure,
@@ -146,6 +152,44 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
     # _cache_ids.
     _NECK_SETTLED_QPOS = (0.21432, 0.0, 0.21963)
     _NECK_POSTURE_REFERENCES = ("keyframe", "settled")
+    # Settled leg pose for the leg_home_pose term under leg_home_pose_reference
+    # = "settled", in leg_home_joint_names order (r_hip_pitch, r_hip_roll,
+    # r_knee, r_ankle, l_hip_pitch, l_hip_roll, l_knee, l_ankle).  Measured on
+    # the physics-r9 plant as the zero-action statue's mean over the
+    # post-settle window (steps 200-999) of the stance config, seeds 3042-3051
+    # (all ten full-horizon), then mirror-symmetrised: each left-right pair
+    # replaced by its mean, hip roll sign-mapped (the raw pairs agreed to 5e-5
+    # rad).  Against the keyframe that is hip pitch -2.74, hip roll -/+0.42,
+    # knee -0.40 and ankle +1.67 degrees: the servos do not hold the keyframe
+    # under load.  The statues ran at the stance config's reset_noise_scale
+    # 0.05; the noise-free statue settles at hip roll 0.000 degrees with the
+    # other joints within 0.02 degrees of these, so the -/+0.42 degree hip-roll
+    # splay is the noise-averaged settle.  Centred on the keyframe, the term
+    # paid a policy for pulling the hips and ankles back toward it, which leans
+    # the animal forward; centred here it does not.
+    # Re-measure whenever leg masses, springs, gains or the feet change (any
+    # plant revision; test_the_settled_leg_pose_is_the_statues checks it).
+    _LEG_SETTLED_QPOS = (
+        -0.0931906447971345,
+        -0.0073721451044150895,
+        -0.43975640189259646,
+        1.3713665366344738,
+        -0.0931906447971345,
+        0.0073721451044150895,
+        -0.43975640189259646,
+        1.3713665366344738,
+    )
+    _LEG_HOME_POSE_REFERENCES = ("keyframe", "settled")
+    #: Opt-in task options carved out of the task fingerprint and of the
+    #: effective config ``stage_config.json`` records while off: each entry is
+    #: (switch, off value, the kwargs the switch makes inert).  Off, they change
+    #: no reward, info key, trajectory or reset draw, so a stage that leaves
+    #: them off keeps its task_sha256; on, every listed kwarg is hashed
+    #: (task_fingerprint.inert_opt_in_env_kwargs).
+    OPT_IN_TASK_KWARGS = (
+        ("lateral_lean_weight", 0.0, ("lateral_lean_weight", "lateral_lean_tolerance_m")),
+        ("leg_home_pose_reference", "keyframe", ("leg_home_pose_reference",)),
+    )
     _STANCE_WIDTH_REFERENCES = ("keyframe", "settled")
     _ACTION_PENALTY_SOURCES = ("filtered", "raw")
     # A foot (or the pair) reads as airborne at or below this touch force, in
@@ -226,6 +270,9 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         floor_impact_threshold_bw: float = 1.4,
         airborne_substep_weight: float = 0.0,
         action_penalty_source: str = "filtered",
+        lateral_lean_weight: float = 0.0,
+        lateral_lean_tolerance_m: float = 0.015,
+        leg_home_pose_reference: str = "keyframe",
         nosedive_termination_threshold: float = 0.62,
         # Environment settings
         prey_distance_range: tuple[float, float] = (3.0, 8.0),
@@ -321,6 +368,9 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         self.floor_impact_threshold_bw = floor_impact_threshold_bw
         self.airborne_substep_weight = airborne_substep_weight
         self.action_penalty_source = action_penalty_source
+        self.lateral_lean_weight = lateral_lean_weight
+        self.lateral_lean_tolerance_m = lateral_lean_tolerance_m
+        self.leg_home_pose_reference = leg_home_pose_reference
         self.nosedive_termination_threshold = nosedive_termination_threshold
 
         if self.height_target_tolerance < 0.0:
@@ -379,6 +429,20 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
                 f"action_penalty_source must be one of {self._ACTION_PENALTY_SOURCES}, "
                 f"got {self.action_penalty_source!r}"
             )
+        if not 0.0 <= self.lateral_lean_weight < np.inf:
+            raise ValueError("lateral_lean_weight must be finite and non-negative")
+        if not 0.0 < self.lateral_lean_tolerance_m < np.inf:
+            raise ValueError("lateral_lean_tolerance_m must be a positive, finite length")
+        if self.leg_home_pose_reference not in self._LEG_HOME_POSE_REFERENCES:
+            raise ValueError(
+                f"leg_home_pose_reference must be one of {self._LEG_HOME_POSE_REFERENCES}, "
+                f"got {self.leg_home_pose_reference!r}"
+            )
+        # The leg target under leg_home_pose_reference = "settled", chosen in
+        # _get_reward_info rather than written over _leg_home_qpos: _cache_ids
+        # (hashed by the plant contract) rebuilds that from the keyframe
+        # whenever an env swaps its compiled model.
+        self._leg_home_settled_qpos = np.array(self._LEG_SETTLED_QPOS)
 
         # Natural forward pitch (~1.55°), measured: the pelvis frame at the home
         # keyframe is level, and under the home controller the plant settles at
@@ -623,6 +687,20 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         """
         foot_offset = data.site_xpos[self.r_foot_site_id, :2] - data.site_xpos[self.l_foot_site_id, :2]
         return float(np.linalg.norm(foot_offset))
+
+    def _com_lateral_offset(self) -> float:
+        """The whole-body centre of mass's lateral offset from the foot-site midpoint, in metres, + left.
+
+        Along the left axis of the gravity-aligned pelvis heading frame (the
+        observation's own, ``world_to_heading``), from the kinematics of the
+        step's last forward pass: ``subtree_com`` of the pelvis (the whole
+        animal; the prey is a separate mocap body), the two foot sites and
+        the pelvis orientation.
+        """
+        com = np.asarray(self.data.subtree_com[self.pelvis_id], dtype=np.float64)
+        midpoint = 0.5 * (self.data.site_xpos[self.r_foot_site_id] + self.data.site_xpos[self.l_foot_site_id])
+        heading = world_to_heading(body_to_world(self.data.xquat[self.pelvis_id]))
+        return float((heading @ (com - midpoint))[1])
 
     def _sole_tilts_deg(self) -> np.ndarray:
         """Each plantar pad's tilt from level, in degrees (right, left).
@@ -967,7 +1045,7 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         # joint, and averaging prevents one joint from dominating the term.
         leg_home_pose_error, leg_home_pose_quality = self._home_pose_quality(
             self._leg_home_qpos_indices,
-            self._leg_home_qpos,
+            self._leg_home_settled_qpos if self.leg_home_pose_reference == "settled" else self._leg_home_qpos,
             self.leg_home_pose_tolerance,
             self.leg_home_pose_broad_fraction,
             self.leg_home_pose_broad_scale,
@@ -1044,6 +1122,39 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         info["stance_width_error"] = float(stance_width_error)
         info["stance_width_quality"] = float(stance_width_quality)
         info["reward_stance_width"] = float(reward_stance_width)
+
+        # 8g. Standing lateral lean (off unless lateral_lean_weight > 0; its
+        # info keys exist only then).  A Gaussian bonus on the whole-body
+        # centre of mass's offset from the foot-site midpoint along the
+        # heading frame's left axis (_com_lateral_offset), paid only after the
+        # settle (step > stance_width_settle_steps), only while the command is
+        # zero and only while both feet carry foot_terms_min_support_force.
+        # The 2026-10 stances that failed the pad rails leaned onto one pad's
+        # edge with both feet down, which the support and width terms price
+        # as a sound stance.  The offset flips sign under the left-right
+        # mirror and enters squared, and every gate is mirror-invariant, so
+        # the term is exactly mirror-invariant.  Calibrated on stored stance
+        # rollouts (physics r9): weight 0.25 and tolerance 0.015 m; the
+        # statue then forfeits 1.7 per episode on average (0.3 median, 16.4 on
+        # its most-leaning spawn) against 105-141 more on episodes that
+        # stood on a rolled pad, and the window mean offset separates the two
+        # with AUC 0.99.  A bonus adds about 0.25 x 800 = 200 to every
+        # standing episode's return: re-measure stance.toml's
+        # collapse_peak_floor_reference before enabling it there, and add
+        # reward_lateral_lean to DiagnosticsCallback.REWARD_KEYS and to
+        # visualization's reward-decomposition weight map in the same change
+        # (left out while no stage pays it, so no run records an empty series).
+        if self.lateral_lean_weight > 0.0:
+            com_lateral_offset = self._com_lateral_offset()
+            reward_lateral_lean, lateral_lean_quality = _reward_lateral_lean_pure(
+                np.asarray(com_lateral_offset), self.lateral_lean_tolerance_m, self.lateral_lean_weight
+            )
+            lean_gate = (
+                self._step_count > self.stance_width_settle_steps and not np.any(self._command) and all(feet_supported)
+            )
+            info["com_lateral_offset_m"] = com_lateral_offset
+            info["lateral_lean_quality"] = float(lateral_lean_quality)
+            info["reward_lateral_lean"] = float(reward_lateral_lean) if lean_gate else 0.0
 
         # 9. Gait symmetry (reward alternating foot contacts, shared helper)
         reward_gait, alternation_ratio = self._compute_gait_symmetry(
@@ -1170,6 +1281,8 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
             total_reward += reward_floor_impact
         if self.airborne_substep_weight > 0.0:
             total_reward += reward_airborne_substeps
+        if self.lateral_lean_weight > 0.0:
+            total_reward += info["reward_lateral_lean"]
         info["reward_total"] = total_reward
 
         return total_reward, info

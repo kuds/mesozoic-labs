@@ -497,6 +497,28 @@ def reward_stance_width(
     return weight * width_quality, width_error, width_quality
 
 
+def reward_lateral_lean(
+    lateral_offset: Array,
+    tolerance: float,
+    weight: float,
+) -> tuple[Array, Array]:
+    """Gaussian bonus for a standing animal's centre of mass held over its feet, left to right.
+
+    ``lateral_offset`` is the whole-body centre of mass's offset from the
+    midpoint of the feet along the heading frame's left axis (a length, ``+``
+    left); ``tolerance`` is the offset that earns ``exp(-1)`` quality.  The
+    offset flips sign under the left-right mirror and enters squared, so the
+    term is exactly mirror-invariant.
+
+    Returns:
+        ``(reward, lean_quality)`` with quality in ``[0, 1]``.
+    """
+    xp = _array_mod(lateral_offset)
+    safe_tolerance = xp.maximum(tolerance, 1e-8)
+    lean_quality = xp.exp(-xp.square(lateral_offset / safe_tolerance))
+    return weight * lean_quality, lean_quality
+
+
 def reward_action_saturation(
     action: Array,
     weight: float,

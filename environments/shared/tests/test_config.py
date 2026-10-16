@@ -118,13 +118,17 @@ class TestLoadStageConfig:
         sb3 = pytest.importorskip("stable_baselines3")
         import inspect
 
-        # Popped by _prepare_alg_kwargs in train_base.py before PPO() is called.
+        from environments.shared.symmetry import SYMMETRY_KEYS
+
+        # Popped by _prepare_alg_kwargs in train_base.py before PPO() is called,
+        # and the symmetry keys by _train_stage_body (they select MirrorKLPPO).
         harness_keys = {
             "ent_coef_end",
             "ent_coef_decay_timesteps",
             "learning_rate_end",
             "lr_schedule",
             "clip_range_end",
+            *SYMMETRY_KEYS,
         }
         accepted = set(inspect.signature(sb3.PPO.__init__).parameters) | harness_keys
         config = load_stage_config(model_id, stage)

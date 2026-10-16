@@ -358,7 +358,11 @@ per species (decision D-D33). None of it exists yet.
    CI's plant-contract job fails on any digest line that moved without it; a
    change that claims to move no digest leaves the file unchanged. A refactor
    that claims to move no number also runs the harness's `--exact` on the base
-   and the head, on one machine, and shows an empty `diff` (see its `--help`)
+   and the head, on one machine, and shows an empty `diff` (see its `--help`).
+   A change to a plant or its policy interface also regenerates that model's
+   committed mirror map, and a T. rex change that moves the statue's legs
+   re-measures `_LEG_SETTLED_QPOS` (`docs/PLANT_CONTRACT.md`, "Regeneration",
+   step 5)
 5. Open a PR with a description of what changed and why
 6. Link any related issues
 

@@ -71,6 +71,7 @@ from .plant_contract import (
 from .policy_loading import load_sb3_model
 from .species_names import model_display_name
 from .stage_manifest import StageEntry, StageManifest, stage_display_name, stage_label
+from .symmetry import SymmetryConfig, pop_symmetry_config
 from .tb_sync import (  # noqa: F401  (used internally; test_train_base also imports them from here)
     _is_gcs_path,
     _make_local_tb_dir,
@@ -519,6 +520,7 @@ def _create_or_load_model(
     allow_legacy_plant: bool = False,
     task_fingerprint: "dict[str, Any] | None" = None,
     task_load_mode: str = "resume_same_stage",
+    symmetry: "SymmetryConfig | None" = None,
 ) -> Any:
     """Create a new model or load from checkpoint.
 
@@ -538,7 +540,15 @@ def _create_or_load_model(
     (:func:`~environments.shared.policy_loading.neutralize_command_columns`,
     :func:`~environments.shared.policy_loading.assert_command_blind`); the
     lineage records the zeroed names as ``zeroed_command_parameters``.
+
+    ``symmetry`` (the stage's ``[ppo]`` symmetry keys, :func:`~environments.shared.symmetry.pop_symmetry_config`)
+    makes the constructed or loaded PPO a ``MirrorKLPPO``, with the model's committed mirror map bound to
+    ``plant_identity``; ``None`` keeps stock PPO.  A same-stage resume must continue the training its checkpoint
+    records (``mesozoic_symmetry``), both ways; a warm start under ``initialize_next_stage`` takes the child's, and
+    a child that enables it needs a parent trained with it (:func:`~environments.shared.mirror_kl_ppo.enable_mirror_kl`
+    refuses a stock parent's asymmetric observation statistics and ``log_std``).
     """
+    from .symmetry import CHECKPOINT_ATTRIBUTE, MirrorMap, SymmetryError, symmetry_mismatch
     from .task_fingerprint import (
         attach_task_fingerprint,
         attach_task_lineage,
@@ -549,9 +559,23 @@ def _create_or_load_model(
     alg_cls = sb3["SAC"] if algorithm == "sac" else sb3["PPO"]
     policy_kwargs = alg_kwargs.pop("policy_kwargs", None)
 
+    mirror_map = None
+    if symmetry is not None:
+        if algorithm != "ppo":
+            raise SymmetryError(f"mirror-symmetric training is a PPO option, not {algorithm!r}")
+        if plant_identity is None:
+            raise SymmetryError("mirror-symmetric training binds its mirror map to the plant identity; none was given")
+        mirror_map = MirrorMap.load(plant_identity.model_id, plant_identity)
+
     task_lineage = None
     if load_path:
         logger.info("Loading model from: %s", load_path)
+        if task_load_mode == "resume_same_stage":
+            # Refused before SB3 rebuilds the model: a same-stage resume continues the training it records.
+            wanted = symmetry.checkpoint_record(mirror_map) if symmetry is not None and mirror_map is not None else None
+            mismatch = symmetry_mismatch(read_checkpoint_attribute(load_path, CHECKPOINT_ATTRIBUTE), wanted)
+            if mismatch:
+                raise SymmetryError(f"refusing to resume {load_path}: {mismatch}")
         if plant_identity is not None:
             # The identity the archive recorded, checked before SB3 rebuilds the
             # model around train_env: SB3 refuses another observation width with
@@ -637,6 +661,14 @@ def _create_or_load_model(
         attach_task_fingerprint(model, task_fingerprint)
         if task_lineage is not None:
             attach_task_lineage(model, task_lineage)
+    if symmetry is not None and mirror_map is not None:
+        from .mirror_kl_ppo import enable_mirror_kl
+
+        model = enable_mirror_kl(model, symmetry, mirror_map)
+        logger.info("Mirror-symmetric PPO: %s", getattr(model, CHECKPOINT_ATTRIBUTE))
+    elif CHECKPOINT_ATTRIBUTE in getattr(model, "__dict__", {}):
+        # A symmetric parent warm-starting a stage trained without symmetry: the child does not record it.
+        delattr(model, CHECKPOINT_ATTRIBUTE)
 
     return model
 
@@ -1185,6 +1217,11 @@ def _train_stage_body(
     # D-D11: the policy is built (or a warm start re-seeded) under the seed the
     # stage records, unless its algorithm block names one (`--override ppo.seed=N`).
     alg_kwargs.setdefault("seed", seed)
+    # The [ppo] symmetry keys select MirrorKLPPO and are not PPO constructor
+    # kwargs: popped from this copy only, so stage_config.json and the
+    # hyperparameters digest record them with the rest of the table.  Absent,
+    # this is None and training is stock PPO.
+    symmetry = pop_symmetry_config(alg_kwargs) if algorithm == "ppo" else None
 
     wandb_run = None
     if use_wandb:
@@ -1210,6 +1247,7 @@ def _train_stage_body(
         # curriculum makes, crosses a stage boundary deliberately (e.g. recovery
         # warm-started from stance) and is recorded as lineage.
         task_load_mode=task_load_mode,
+        symmetry=symmetry,
     )
 
     if announce:

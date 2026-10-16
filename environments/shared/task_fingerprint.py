@@ -107,6 +107,41 @@ NON_TASK_ENV_PARAMS = frozenset({"render_mode"})
 _MISSING = object()
 
 
+def inert_opt_in_env_kwargs(env_class: Any, effective: Mapping[str, Any]) -> list[str]:
+    """The kwargs of *env_class*'s opt-in task options that *effective* leaves off (empty for most classes).
+
+    An env class may declare ``OPT_IN_TASK_KWARGS``, entries ``(switch, off
+    value, kwargs)``: options that change no reward, info key, trajectory or
+    reset draw while the switch holds its off value (the T. rex's lateral lean
+    term and settled leg target).  While the EFFECTIVE switch is off, its
+    kwargs are carved out of the fingerprint's env section and of the
+    constructor defaults ``save_stage_config`` records, exactly as the command
+    kwargs are while ``command_mode`` is ``"none"``: adding such an option
+    moves no stage's task_sha256, and turning it on hashes every kwarg it
+    lists, defaults included.  The off value is the declared one, not the
+    signature default, so a changed default that turns an option on moves the
+    fingerprint.  The declaration fails closed: a switch or kwarg that is not a
+    constructor parameter (a typo, a later rename) would read as always off
+    and keep a live option out of the fingerprint, so it raises
+    :class:`TaskFingerprintError` instead.
+    """
+    declared = getattr(env_class, "OPT_IN_TASK_KWARGS", ())
+    if not declared:
+        return []
+    parameters = inspect.signature(env_class).parameters
+    names: list[str] = []
+    for switch, off_value, kwargs in declared:
+        if unknown := [name for name in (switch, *kwargs) if name not in parameters]:
+            raise TaskFingerprintError(
+                f"{getattr(env_class, '__name__', env_class)}.OPT_IN_TASK_KWARGS names {', '.join(unknown)}, "
+                "not a constructor parameter: an undeclared switch would read as always off and keep a live "
+                "option out of the task fingerprint"
+            )
+        if effective.get(switch, off_value) == off_value:
+            names.extend(kwargs)
+    return names
+
+
 class TaskFingerprintError(RuntimeError):
     """A checkpoint's recorded task does not permit the requested load."""
 
@@ -137,7 +172,10 @@ def _effective_env_kwargs(model_id: ModelId, env_kwargs: Mapping[str, Any]) -> d
     train path constructs.  Params in :data:`NON_TASK_ENV_PARAMS` are
     excluded from both sides.  An unresolvable model fails closed: an
     effective config that silently fell back to the raw kwargs would
-    reopen exactly the identity gap this exists to close (F6).
+    reopen exactly the identity gap this exists to close (F6).  Two
+    carve-outs drop kwargs that are inert at their effective values: the
+    command kwargs under ``command_mode = "none"``, and an env class's
+    declared opt-in task options while off (:func:`inert_opt_in_env_kwargs`).
     """
     from .species_registry import get_species_config
 
@@ -174,6 +212,9 @@ def _effective_env_kwargs(model_id: ModelId, env_kwargs: Mapping[str, Any]) -> d
     if effective.get("command_mode", COMMAND_MODE_NONE) == COMMAND_MODE_NONE:
         for name in COMMAND_ENV_KEYS:
             effective.pop(name, None)
+    # The same carve-out for a class's declared opt-in task options while off.
+    for name in inert_opt_in_env_kwargs(env_class, effective):
+        effective.pop(name, None)
     return effective
 
 

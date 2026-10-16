@@ -95,6 +95,7 @@ and advancement gates read from the same configs.
 | `gae_lambda` | Generalized advantage-estimation factor |
 | `clip_range` | PPO surrogate-objective clipping range |
 | `ent_coef` / `ent_coef_end` | Initial and optional scheduled entropy coefficients |
+| `symmetry` (+ `symmetry_kappa`, `symmetry_sigma_floor`, `symmetry_mirror_critic`) | Optional mirror-symmetric PPO, off unless set; see [Mirror Symmetry](mirror-symmetry.md) |
 
 ## SAC Parameters
 
