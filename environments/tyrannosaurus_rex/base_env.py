@@ -13,7 +13,7 @@ the total dimension is generated in the public species catalog):
     - Pelvis angular velocity (gyroscope, its own site frame) — 3
     - Pelvis linear velocity in the gravity-aligned heading frame (forward, left, up) — 3
     - Pelvis acceleration (accelerometer, its own site frame) — 3
-    - Foot contact forces (plantar pad + three digit touch sensors per foot) — 2
+    - Foot contact forces (sole box + three digit touch sensors per foot) — 2
     - Prey direction in pelvis coordinates (unit vector) — 3
     - Prey distance (scalar) — 1
     - Body-relative command (v_x_cmd, v_y_cmd, yaw_rate_cmd; zeros under command_mode = "none") — 3
@@ -505,12 +505,13 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         # are inherited from BaseDinoEnv (0, 3, 6 respectively).
         self._sensor_r_foot = 10
         self._sensor_l_foot = 11
-        # The pad sensors above see the plantar box only: a touch sensor sums
-        # contacts on geoms of its site's own body, and the three digits are
-        # child bodies on their own passive hinges.  Their own sensors are
-        # appended after the tail block, so pad + digits is the force the foot
-        # actually transmits -- at the home keyframe 388.4 N + 112.0 N against
-        # a measured 500.4 N of floor contact.
+        # The foot sensors above see the sole box (r/l_plantar_geom) only: a
+        # touch sensor sums contacts on geoms of its site's own body, and the
+        # three digits are child bodies on their own passive hinges.  Their own
+        # sensors are appended after the tail block, so sole + digits is the
+        # force the foot actually transmits -- at the home keyframe 378.6 N +
+        # 96.7 N against a measured 475.3 N of floor contact on physics r10
+        # (388.4 + 112.0 against 500.4 on the r9 pad).
         self._sensor_r_foot_digits = (24, 25, 26)
         self._sensor_l_foot_digits = (27, 28, 29)
         # Per-foot groups for the base class's substep MIN aggregation and the
@@ -577,10 +578,11 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         # whenever tail masses, springs, or gains change.
         self._tail_home_qpos = np.array(self._TAIL_SETTLED_QPOS)
 
-        # Sole flatness reads the plantar boxes' own frames: each box's local
-        # z is its pad normal.  The pads are level at the home keyframe
-        # (5.6e-5 deg) and tilt 0.10 deg, all of it pitch, under the
-        # noise-free statue, so level is the target without an offset.
+        # Sole flatness reads the sole boxes' own frames: each box's local
+        # z is its sole normal.  The boxes are level at the home keyframe
+        # (5.6e-5 deg) and tilt about 0.1 deg under the noise-free statue
+        # (0.10 deg, all of it pitch, on r9; 0.115 on physics r10), so level
+        # is the target without an offset.
         self._plantar_geom_ids = np.asarray(
             [self._geom_id(name) for name in ("r_plantar_geom", "l_plantar_geom")],
             dtype=np.int64,
@@ -625,11 +627,11 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         return float(np.linalg.norm(foot_offset))
 
     def _sole_tilts_deg(self) -> np.ndarray:
-        """Each plantar pad's tilt from level, in degrees (right, left).
+        """Each sole box's tilt from level, in degrees (right, left).
 
         ``geom_xmat`` is row-major, so element 8 is the world-z component of
-        the box's local z axis: the cosine of the angle between the pad
-        normal and vertical, whichever way the pad rolls or pitches.
+        the box's local z axis: the cosine of the angle between the sole
+        normal and vertical, whichever way the box rolls or pitches.
         """
         cos_tilt = np.clip(self.data.geom_xmat[self._plantar_geom_ids, 8], -1.0, 1.0)
         return np.asarray(np.degrees(np.arccos(cos_tilt)))
@@ -804,7 +806,7 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         )
 
         # 1d. Bilateral support and load balance.  Touch sensors report the
-        # full plantar-plus-digit load for each foot.  Saturation prevents
+        # full sole-plus-digit load for each foot.  Saturation prevents
         # impact spikes from being more valuable than quiet support, while the
         # minimum requires both feet to carry load.
         # AGGREGATED across the control step's physics substeps (per-foot MIN):
@@ -933,7 +935,7 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         min_z = self.healthy_z_range[0]
         # Settled pelvis height under the home controller, measured (zero action,
         # zero reset noise, 600 steps: 0.9260 m, sd 0.00001, on physics r8; 0.9262
-        # on r9, which carries it: plant_versions note 16).  This must track the
+        # on r9 and r10, which carry it: plant_versions notes 16 and 20).  This must track the
         # plant: the previous 0.90 was the root height of the PRE-repair plant,
         # and after the July home-equilibrium fix raised the stance to 0.9757 the
         # term saturated at 1.0 everywhere in the healthy band -- a flat constant
@@ -1055,7 +1057,7 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
 
         # 9b. Floor impact and airborne substeps, from every physics substep's
         # per-foot touch (BaseDinoEnv.step keeps the block beside the MIN the
-        # support terms read).  Touch is pad plus digits, and nothing but the
+        # support terms read).  Touch is sole plus digits, and nothing but the
         # feet touches the floor while the animal is standing, so the summed
         # touch is the animal's floor force: it equals floor truth to 1e-12 N
         # on every recorded step of the physics-r8 panels.  The impact term

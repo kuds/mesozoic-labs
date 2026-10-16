@@ -467,50 +467,49 @@ def _ramped(command: np.ndarray, *, steps: int, horizon: int) -> Any:
     return predict
 
 
-class TestThePadCentreOfPressure:
-    def test_a_pad_pushed_onto_its_front_edge_fails_the_bar_alone_and_the_statue_reads_under_it(
-        self, tmp_path, monkeypatch
-    ):
-        """Real physics on the current plant (physics r9; the bar was calibrated on r8).
+class TestTheWholeFootCentreOfPressure:
+    def test_a_forward_lean_fails_the_whole_foot_bar_alone_and_the_pad_reads_report_only(self, tmp_path, monkeypatch):
+        """Real physics on the current plant (physics r10, decision D-D34).
 
-        The left ankle, ramped to -0.0825 over the first 300 steps, leans the
-        animal onto its right pad's front edge: that pad pitches about a degree
-        toe-down, as the r8 seed-44 left foot does, and stays inside the
-        block's tilt, corner-lift and contact bars, so the centre-of-pressure
-        bar is the one that refuses it; without it every episode is clean.
-        The statue the same report rolls reads under the bar, whatever this
-        plant's own baseline is.  On r8 -0.075 sufficed (rows 0.864-0.929);
-        r9's elliptic cone leaves 1 of those 3 episodes clean, -0.0825 reads
-        0.829-1.000 with the corner lift at most 3.8 mm, and -0.085 trips
-        the 4 mm corner-lift bar too.
+        Both ankles, ramped to -0.049 (2.45 degrees toe-ward) over the first
+        200 steps, lean the animal forward onto its digits: the worse foot's
+        whole-foot centre of pressure runs past 0.80 of its span's
+        half-length (0.846, 1.017 and 0.862 on the three seeds), while its
+        sole box, on its front edge, stays inside the block's tilt and
+        corner-lift bars (at most 1.51 degrees and 3.84 mm), so the
+        whole-foot bar is the one that refuses it; without it every episode
+        is clean.  The pad's own CoP reads that box at 0.94-0.98 and is
+        reported, not gated.  The statue the same report rolls reads under
+        the bar.
         """
         config = _tyrannosaurus_rex_stage_config()
         curriculum = config["curriculum_kwargs"]
-        assert curriculum["max_sole_cop_fore_aft"] == 0.80
+        assert curriculum["max_foot_cop_fore_aft"] == 0.80
+        assert "max_sole_cop_fore_aft" not in curriculum and "min_sole_contacts" not in curriculum
         _record_stage(tmp_path, config, model_id=TYRANNOSAURUS_REX)
         env = model_env_class(TYRANNOSAURUS_REX)(**config["env_kwargs"])
         try:
             command = np.zeros(int(env.action_space.shape[0]))
-            command[env.model.actuator("l_ankle_act").id] = -0.0825
+            command[[env.model.actuator(name).id for name in ("l_ankle_act", "r_ankle_act")]] = -0.049
         finally:
             env.close()
-        predict = _ramped(command, steps=300, horizon=TYRANNOSAURUS_REX_HORIZON)
+        predict = _ramped(command, steps=200, horizon=TYRANNOSAURUS_REX_HORIZON)
         report = _report(monkeypatch, tmp_path, predict, model_id=TYRANNOSAURUS_REX, stage_config=config)
         assert report["passed"] is False and report["result"]["n_clean"] == 0
         for row in report["episode_evidence"]:
             assert row["length"] == TYRANNOSAURUS_REX_HORIZON and row["all_feet_support"] == 1.0
-            assert row["max_sole_cop_fore_aft"] > 0.82
-            assert _keys(row) == {"max_sole_cop_fore_aft"}, row["reasons"]
+            assert row["max_foot_cop_fore_aft"] > 0.80
+            assert row["max_sole_cop_fore_aft"] > 0.90  # the box on its front edge: reported, not gated
+            assert _keys(row) == {"max_foot_cop_fore_aft"}, row["reasons"]
         statue_rows = report["statue"]["episode_evidence"]
-        assert all(row["max_sole_cop_fore_aft"] < curriculum["max_sole_cop_fore_aft"] for row in statue_rows)
+        assert all(row["max_foot_cop_fore_aft"] < curriculum["max_foot_cop_fore_aft"] for row in statue_rows)
         statue = _reclassified({"episode_evidence": statue_rows}, curriculum, horizon=TYRANNOSAURUS_REX_HORIZON)
         assert all(row["reasons"] == [] for row in statue)
         stance_report.write_stance_gate_report(tmp_path, report)
         text = (tmp_path / "stance_gate_report.txt").read_text(encoding="utf-8")
-        assert "max_sole_cop_fore_aft" in text and "pad CoP fore-aft" not in text  # gated, so not report-only
-        # The whole foot is measured on every episode and reported, never gated: no stage declares its key.
-        assert all(math.isfinite(row["max_foot_cop_fore_aft"]) for row in report["episode_evidence"])
-        assert "foot CoP fore-aft (|.| / half-span)" in text
+        # The whole foot is gated, so it is listed with the criteria, not as report-only; the pad is report-only.
+        assert "max_foot_cop_fore_aft" in text and "foot CoP fore-aft (|.| / half-span)" not in text
+        assert "pad CoP fore-aft (|.| / half-length)" in text and "max_sole_cop_fore_aft" not in text
         # The T. rex declares the hop-or-fall rail without the window pair: the rail's line names the hop keys it
         # declares, and the pair is a report-only reading.
         assert "episodes end early or fail support, touchdowns, drift or saturation)" in text
@@ -520,9 +519,11 @@ class TestThePadCentreOfPressure:
             curriculum, {}, stage=1, stance_report=_written(tmp_path), stage_dir=tmp_path
         )
         assert (passed, reasons) == (False, ["stage 1 clean_stance_lcb 0.0000 < 0.3000 (0/3 episodes clean)"])
-        without = {key: value for key, value in curriculum.items() if key != "max_sole_cop_fore_aft"}
+        without = {key: value for key, value in curriculum.items() if key != "max_foot_cop_fore_aft"}
         assert all(row["reasons"] == [] for row in _reclassified(report, without, horizon=TYRANNOSAURUS_REX_HORIZON))
 
+
+class TestThePadCentreOfPressure:
     def test_compsognathus_longipes_pads_leaned_onto_their_front_edges_fail_the_bar_alone(
         self, tmp_path, monkeypatch, nu
     ):

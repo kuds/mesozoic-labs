@@ -186,10 +186,11 @@ def test_golden_fixture_records_its_provenance():
 #: re-taken on, and the policy interface and observation schema its observation half was taken under (the last
 #: recapture, plant_versions note 18's heading-free observation, an interface-only revision).  Re-pinned 14, 14,
 #: 4 -> 15, 15, 5 by the identity migration (plant_versions note 19, decision D-D33), which refreshed each
-#: recapture's interface revision; no capture was re-taken.
+#: recapture's interface revision; no capture was re-taken.  The two T. rex captures were re-taken on physics r10
+#: (note 20, D-D34): their reset halves moved only in the root height the reset settles to.
 RECAPTURED = {
-    (TYRANNOSAURUS_REX, "stance"): 9,
-    (TYRANNOSAURUS_REX, "recovery"): 9,
+    (TYRANNOSAURUS_REX, "stance"): 10,
+    (TYRANNOSAURUS_REX, "recovery"): 10,
     (COMPSOGNATHUS_LONGIPES, "recovery"): 2,
 }
 RECAPTURED_INTERFACES = {

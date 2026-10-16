@@ -16,7 +16,10 @@ the declaration in the ways that each fail differently:
    trex the two families are what separate the audit's propped stances from
    the statue: without both, the window bars admit seed 42's stance on 40/40
    episodes, v1's blind spot again, and the settle bars alone already pass
-   one measured prop episode, which only the sole bars refuse.
+   one measured prop episode, which only the sole bars refuse.  Since
+   physics r10 (decision D-D34) the fore-aft rail reads the whole foot
+   (``max_foot_cop_fore_aft``), and the pad's CoP and loaded contact points
+   are report-only.
 3. **The bar and the rails agree with the numbers they were derived from**,
    recomputed here rather than copied: the bound admits 37/40 and refuses
    36/40, and the reward rail is 0.60 of the statue reference the stage
@@ -45,8 +48,9 @@ from environments.shared.model_id import ModelId
 
 from .test_gait_stance_metrics import statue_trace
 
-#: The flatness bars of the trex box pad: tilt, corner lift and loaded contact points.
-SOLE_KEYS = ("max_sole_tilt_deg", "max_sole_corner_lift_m", "min_sole_contacts")
+#: The flatness bars of the trex sole box: tilt and corner lift (its loaded contact points are report-only since
+#: physics r10, D-D34).
+SOLE_KEYS = ("max_sole_tilt_deg", "max_sole_corner_lift_m")
 #: The settle-window bars: the reset hop and its impact.
 SETTLE_KEYS = ("max_settle_airborne_substeps", "max_settle_peak_floor_force_bw")
 
@@ -205,66 +209,79 @@ def test_the_r8_seed_44_hop_episode_is_a_hop_for_the_rail(curriculum):
     assert not is_hop_or_fall(classify_stance_episode(replace(clean, max_sole_tilt_deg=2.5), thresholds, horizon=1000))
 
 
-# ── the pad's centre of pressure (decision D-D28, 2026-10-07) ─────────────────
+# ── the whole-foot centre of pressure (decision D-D34, physics r10; D-D28's pad rail before it) ──────
 
-#: The r8 seed-44 robust_best left foot on seed 5058, clean under every other bar: on its pad's front edge on
-#: every window step, the pad 0.67 degrees toe-down on two loaded corners and carrying 0.974 of the foot's load.
-FRONT_EDGE_FOOT: dict[str, float] = {
-    "min_sole_contacts": 2.026,
-    "max_sole_tilt_deg": 0.691,
-    "max_sole_corner_lift_m": 0.00188,
-    "max_sole_cop_fore_aft": 0.999,
+#: The pad rail of D-D28 (2026-10-07) and the loaded-contact bar: report-only on trex since physics r10, whose
+#: 10.5 cm sole box loads its front edge while the digits carry the front of the foot.
+PAD_KEYS = ("max_sole_cop_fore_aft", "min_sole_contacts")
+
+#: The r10 statue with its left ankle held 4.5 degrees toe-ward (seed 3046 of the toe-line rule's levels), clean
+#: under every bar: its foot's load runs forward onto the digits (whole-foot 0.738), and its sole box stands on
+#: its front edge on 1.2 loaded contact points (pad 0.973), which both old pad bars refused.
+FRONT_EDGE_BOX: dict[str, float] = {
+    "max_foot_cop_fore_aft": 0.738,
+    "max_sole_cop_fore_aft": 0.973,
+    "min_sole_contacts": 1.228,
+    "max_sole_tilt_deg": 1.421,
+    "max_sole_corner_lift_m": 0.0036,
 }
 
 
-def test_the_pad_cop_bar_is_declared_beside_the_sole_bars(curriculum):
-    assert curriculum["max_sole_cop_fore_aft"] == 0.80
-    assert StanceV2Thresholds.from_curriculum(curriculum).declared()["max_sole_cop_fore_aft"] == 0.80
-    # It does not replace min_sole_contacts, which stays where the statue's out-of-sample 2.086 put it.
-    assert curriculum["min_sole_contacts"] == 1.5
+def test_the_whole_foot_cop_bar_is_declared_and_the_pad_bars_are_not(curriculum):
+    assert curriculum["max_foot_cop_fore_aft"] == 0.80
+    declared = StanceV2Thresholds.from_curriculum(curriculum).declared()
+    assert declared["max_foot_cop_fore_aft"] == 0.80
+    assert not set(PAD_KEYS) & (set(curriculum) | set(declared))
 
 
-def test_a_pad_on_its_front_edge_is_refused_by_the_cop_bar_alone(curriculum):
-    """Every other sole bar admits the seed-44 left foot: the CoP bar is the one that sees it."""
-    assert _reasons(curriculum, **FRONT_EDGE_FOOT) == {"max_sole_cop_fore_aft"}
-    without = {key: value for key, value in curriculum.items() if key != "max_sole_cop_fore_aft"}
-    assert _reasons(without, **FRONT_EDGE_FOOT) == set()
-    # Its best episode over 140 on four seed blocks (7081, on three loaded points), and seed 42's heel-to-toe
-    # rock, which reads its edges though its signed mean is centred.
-    assert _reasons(curriculum, min_sole_contacts=3.0, max_sole_tilt_deg=0.72, max_sole_cop_fore_aft=0.850) == {
-        "max_sole_cop_fore_aft"
-    }
-    assert _reasons(curriculum, max_sole_cop_fore_aft=0.962) == {"max_sole_cop_fore_aft"}
+def test_a_front_edge_box_with_the_digits_loaded_is_admitted(curriculum):
+    """The whole foot is inside its span, so the stance is clean; under the r9 pad bars both refused it."""
+    assert _reasons(curriculum, **FRONT_EDGE_BOX) == set()
+    r9_rails = {**curriculum, "max_sole_cop_fore_aft": 0.80, "min_sole_contacts": 1.5}
+    assert _reasons(r9_rails, **FRONT_EDGE_BOX) == set(PAD_KEYS)
 
 
 @pytest.mark.parametrize(
     "value",
     [
-        0.362,  # the statue's worst on 3042-3081, 7042-7081 and 3162-3201
-        0.480,  # its worst out of sample: seed 5048's fore-aft sway
-        0.745,  # N(0, 0.05) command jitter on every step of the statue (13042-13081; 0.717 on 3042-3061)
-        0.790,  # the D-D27 369k-step study checkpoint's flat pad, loaded forward, on 7042-7081
+        0.988,  # the physics-r9 run A stance's mean action held from step 200: the median of 3042-3061 (19/20 above)
+        0.807,  # the right ankle held 3.5 deg toe-ward (median of seeds 3042-3046), 1.5 deg before its first fall
+        1.495,  # a nosedive at the right ankle's onset, -5.0 deg (seed 3043)
     ],
 )
-def test_the_statue_and_a_flat_forward_loaded_pad_clear_the_cop_bar(curriculum, value):
-    assert _reasons(curriculum, max_sole_cop_fore_aft=value) == set()
+def test_a_forward_lean_is_refused_by_the_whole_foot_bar_alone(curriculum, value):
+    assert _reasons(curriculum, max_foot_cop_fore_aft=value) == {"max_foot_cop_fore_aft"}
 
 
-def test_only_the_tyrannosaurus_rex_and_compsognathus_longipes_stances_declare_the_cop_bar():
+@pytest.mark.parametrize(
+    "value",
+    [
+        0.321,  # the r10 statue's worst on 3042-3081
+        0.351,  # its worst out of sample (seed 3174, over 240 episodes)
+        0.723,  # N(0, 0.05) command jitter on every step of the statue (13042-13081; 0.685 on 3042-3061)
+    ],
+)
+def test_the_statue_and_its_jitter_clear_the_whole_foot_bar(curriculum, value):
+    assert _reasons(curriculum, max_foot_cop_fore_aft=value) == set()
+
+
+def test_only_the_compsognathus_declares_the_pad_bar_and_only_the_tyrannosaurus_rex_the_whole_foot_bar():
     """An undeclared key is not in a stage's gate view, so no other stage's gate digest moves (recovery extends the
-    stance's [env], not its [curriculum]).  The compsognathus declares its own bar on its r2 statue (D-D26 after
-    D-D28; ``test_compsognathus_longipes_stance_gate_config.py``)."""
+    stance's [env], not its [curriculum]).  The compsognathus declares its own pad bar on its r2 statue (D-D26
+    after D-D28; ``test_compsognathus_longipes_stance_gate_config.py``); the T. rex declared it until physics r10."""
     from environments.shared.curriculum.gate_schema import gate_config_view
     from environments.shared.species_names import model_ids
     from environments.shared.stage_manifest import load_stage_manifest
 
-    declaring = []
+    declaring: dict[str, list[tuple[ModelId, str]]] = {"max_sole_cop_fore_aft": [], "max_foot_cop_fore_aft": []}
     for model_id in model_ids():
         for entry in load_stage_manifest(model_id).stages:
             block = load_stage_config(model_id, entry.reference).get("curriculum_kwargs", {})
-            if "max_sole_cop_fore_aft" in gate_config_view(block)["thresholds"]:
-                declaring.append((model_id, entry.id))
-    assert declaring == [
-        (ModelId("tyrannosaurus_rex", "anatomical"), "stance"),
-        (ModelId("compsognathus_longipes", "anatomical"), "stance"),
-    ]
+            thresholds = gate_config_view(block)["thresholds"]
+            for key, models in declaring.items():
+                if key in thresholds:
+                    models.append((model_id, entry.id))
+    assert declaring == {
+        "max_sole_cop_fore_aft": [(ModelId("compsognathus_longipes", "anatomical"), "stance")],
+        "max_foot_cop_fore_aft": [(ModelId("tyrannosaurus_rex", "anatomical"), "stance")],
+    }

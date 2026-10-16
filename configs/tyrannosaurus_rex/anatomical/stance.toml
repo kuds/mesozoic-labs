@@ -3,6 +3,13 @@ name = "stance"
 description = "Learn to stand and balance without falling"
 
 [env]                                          # recovery.toml inherits this table (`extends`), all but the keys it writes out (the foot_contact_* keys, and stance_width_settle_steps since D-D27): an edit here moves recovery's task too, and a reward-weight edit means re-measuring recovery.toml's pushed-statue collapse_peak_floor_reference (1329.1 since D-D27), as its note there says
+# Physics r10 (plant_versions note 20, the load-bearing tridactyl foot): no [env] value changes. The
+# per-term statue returns these comments quote (r8 and r9) re-measured on r10, zero action, reset noise
+# 0.05, seeds 3042-3081: flatness 140.9 +/- 8.7 of 150 (it reads the sole box), settled width 77.6 of
+# 80, neck 198.9, tail 244.3, height 599.8, bilateral support 597.5, load balance -4.7, nosedive -5.9;
+# total 3757.3 +/- 16.4. The foot mass is unchanged (85.72 kg, 840.9 N), so the N-valued thresholds
+# and the ~421 N of quiet support per foot carry. One small change: the r10 statue pays the airborne
+# term on 17 of 40 episodes (-0.45 +/- 0.74 per episode; r9 0), all of it inside the 0.1 s spawn grace.
 forward_vel_weight = 0.0
 backward_vel_penalty_weight = 0.0              # Redundant with drift_penalty — drift covers all horizontal directions equally
 drift_penalty_weight = 0.3                     # Penalize horizontal displacement from spawn; prevents hop-to-balance exploit
@@ -627,6 +634,19 @@ timesteps = 12000000
 # separation can be measured, and the heading design keeps the pad, CoP and hop
 # bars where they are; the audit note's appended §12 holds the r9 panels.
 #
+# Physics r10 (plant_versions note 20, D-D34: the load-bearing tridactyl foot)
+# replaces the plantar pad by a sole box under the metatarsal pad, 0.060-0.165
+# m ahead of the ankle, with three splayed digits ahead of it that carry part of
+# the load, and changes one rail: the fore-aft CoP is read on the WHOLE foot
+# (max_foot_cop_fore_aft), and the pad's CoP and its loaded contact points
+# become report-only (their comments below say why). Every other bar is kept;
+# each comment adds the r10 statue's extremes ("r10") on the same 40 + 240
+# episodes as r9's. The r10 statue is clean on 40/40 here (bound 0.928) and on
+# 240/240 out of sample, with no fall in 280 (r9 4). At the median its sole
+# box carries 0.67 of each foot's load and digits II/III/IV 0.15/0.09/0.12
+# (r9's pad 0.83).
+# docs/investigations/TREX_FOOT_R10_2026_10.md holds the evidence.
+#
 # The six-heading certificate (stance_quality_heading/v1, decision D-D32,
 # adopted 2026-10-11; docs/HEADING_INVARIANCE_DESIGN_2026_10.md). v2 judges
 # the training heading only, and the stance stage always spawns facing +x,
@@ -672,7 +692,7 @@ min_full_horizon_fraction = 0.95         # Statue: 99.17% pooled over three inde
                                          # The 119/120 above is physics r7's; the r8 statue reaches the horizon on
                                          # 40/40 and 80/80 out of sample, and on 39/40 of seeds 3162-3201 (seed
                                          # 3174 nosedives at step 265). The r9 statue on 39/40 (seed 3081 at step
-                                         # 292) and on 237/240 out of sample.
+                                         # 292) and on 237/240 out of sample; r10 on 40/40 and 240/240.
 min_all_feet_support = 0.98              # Share of window steps with both legs down. Statue 1.000 on every episode;
                                          # 1001 at most 0.724 (fails 40/40), 0920 fails 5, 0930 1. The props stand
                                          # on both feet (best 1.000): the sole bars catch them.
@@ -681,14 +701,14 @@ max_touchdown_rate = 0.25                # Debounced touchdowns per foot per sec
                                          # (catch-up hops); 0914's best is 0.
 max_window_displacement_m = 0.10         # Horizontal root travel over the window. Statue at most 0.023 m, out of
                                          # sample too (0.076, seed 5048, over the r9 figures' 240; r9 0.018 m, and
-                                         # 0.020 out of sample); hop drift reaches 0.49 m (0920, fails 5), 0.62 m
-                                         # (0930, fails 3) and 0.82 m (1001, fails 37).
+                                         # 0.020 out of sample; r10 0.017 and 0.024); hop drift reaches 0.49 m
+                                         # (0920, fails 5), 0.62 m (0930, fails 3) and 0.82 m (1001, fails 37).
 min_foot_load_share = 0.40               # The lighter foot's share of the window's floor load. Statue at least
                                          # 0.498 (out of sample 0.498; 0.500 is symmetric); no hack episode goes
                                          # below 0.436, so this guards against standing on one leg rather than
                                          # separating the hacks. 0.40, not the pre-adoption candidates' 0.30,
                                          # because the r8 statue is symmetric to 0.002 (the r9 statue at least
-                                         # 0.495, and 0.493 out of sample).
+                                         # 0.495, and 0.493 out of sample; r10 0.495 and 0.493).
 max_actuator_saturation_fraction = 0.10  # The most saturated actuator's share of window steps at |a| >= 0.99. Statue
                                          # 0 (it commands zero); 1001 at least 0.81 (fails 40/40), 0920 fails 8 and
                                          # 0930 1 episode.
@@ -699,11 +719,12 @@ max_settle_airborne_substeps = 0         # Substeps with both legs unloaded in s
 max_settle_peak_floor_force_bw = 1.5     # Peak total floor force in steps 10-199, in body weights. Statue at most
                                          # 1.272 (1.276 out of sample); the hacks' push-off and landing at least
                                          # 1.41 (0920, fails 37), 1.55 (0914, fails 40), 1.84 (0930, fails 40) and
-                                         # 2.48 (1001, fails 40). The r9 statue at most 1.280 (1.325 out of sample).
+                                         # 2.48 (1001, fails 40). The r9 statue at most 1.280 (1.325 out of sample;
+                                         # r10 1.279 and 1.298).
 min_foot_load_share_windowed = 0.35      # The lowest foot share over the window's 1 s blocks. Statue at least 0.477
                                          # (0.474 out of sample); no hack episode goes below 0.372: a guard against
                                          # shifting the weight onto one leg a second at a time. The r9 statue at
-                                         # least 0.462 (0.444 out of sample).
+                                         # least 0.462 (0.444 out of sample; r10 0.458 and 0.447).
 max_foot_contact_fraction = 0.02         # Substeps with one foot on the other. Statue and hacks 0: a guard (the
                                          # stacked soles of the compsognathus_robot stance the audit found).
 max_phantom_support_fraction = 0.05      # Window steps where touch reads a load the floor does not. Statue and
@@ -714,12 +735,26 @@ max_sole_tilt_deg = 2.0                  # The worse pad's window-mean tilt from
                                          # (0914), 3.98 (0930) and 4.28 (1001): every episode of each fails. The r9
                                          # statue at most 1.54 here, and out of sample 2.061 on 1 of 240 episodes
                                          # (seed 3121; the next 1.90), 0.05 short of the nearest hack episode. Kept
-                                         # at 2.0 rather than loosened toward the props.
+                                         # at 2.0 rather than loosened toward the props. Since r10 it reads the
+                                         # sole box (10.5 x 11 cm); the r10 statue at most 1.405 here and 1.681
+                                         # out of sample (seed 3121), 1.409 under N(0, 0.05) command jitter.
 max_sole_corner_lift_m = 0.004           # The worse pad's window-mean highest-minus-lowest bottom corner. Statue at
                                          # most 2.3 mm (2.8 out of sample; the r7 statue 5.5); hacks at least 5.1 mm
                                          # (0920), 6.6 (0930), 8.4 (0914) and 11.1 (1001): every episode fails. The
-                                         # r9 statue at most 2.5 mm (3.3 out of sample).
-min_sole_contacts = 1.5                  # The worse pad's window-mean loaded contact points (4 flat, 2 on an edge,
+                                         # r9 statue at most 2.5 mm (3.3 out of sample), r10 2.8 (3.4 out of
+                                         # sample, 3.3 under jitter). Its angle depends on the sole: on the r10 box
+                                         # (0.105 m long, 0.11 wide) 4 mm is 2.18 deg of pure pitch (r9's 0.14 x
+                                         # 0.09 m pad 1.64) and 2.08 deg of pure roll (r9 2.55), so in pure pitch or
+                                         # pure roll the 2.0 deg tilt bar binds first on r10; an equal pitch and
+                                         # roll lifts a corner 4 mm at about 1.07 deg each (1.51 deg of tilt), so
+                                         # for a diagonal tilt this bar binds first.
+# min_sole_contacts = 1.5                # Report-only since physics r10 (D-D34), kept for the record as it read:
+                                         # on the r10 sole box a supported stance loads the box's front edge while
+                                         # the digits carry the front of the foot (the r10 statue reaches 1.95
+                                         # out of sample; jitter 1.565), so the count refuses stances the
+                                         # whole-foot rail admits, and every roll-edge prop it was calibrated
+                                         # against fails max_sole_tilt_deg anyway (5.2 deg, the test's prop). As
+                                         # it read: the worse pad's window-mean loaded contact points (4 flat, 2 on an edge,
                                          # 1 on a corner). Statue at least 2.35, and exactly 2.0 on one out-of-sample
                                          # episode, which is why the bar is 1.5 rather than 2; the props stand on an
                                          # edge or a corner: 0914 fails 39, 0920 16, 0930 39 and 1001 2 episodes.
@@ -729,7 +764,13 @@ min_sole_contacts = 1.5                  # The worse pad's window-mean loaded co
                                          # The r9 statue at least 1.959 here and 1.956 out of sample, and its
                                          # median 2.67 against r8's 3.79: the elliptic cone loads fewer of a pad's
                                          # corners, so this bar's margin is the one to watch on r9 stances.
-max_sole_cop_fore_aft = 0.80             # The worse pad's window mean of its per-step |fore-aft CoP| / half-length
+# max_sole_cop_fore_aft = 0.80           # Report-only since physics r10 (D-D34), kept for the record as it read:
+                                         # the r10 box is 10.5 cm long and the digits carry the front of the foot,
+                                         # so the pad's own CoP reads the box, not the foot (the r10 statue up to
+                                         # 0.61, jitter up to 0.79, and the median of every level of the toe-line
+                                         # rule's held toe-ward ankle offsets, from -2.5 deg, above 0.80);
+                                         # max_foot_cop_fore_aft below is the CoP rail. As it read:
+                                         # the worse pad's window mean of its per-step |fore-aft CoP| / half-length
                                          # (D-D28; 0 centred, 1 on the heel or toe edge, a step with no loaded sole
                                          # contact 1). Statue 0.206-0.362 on 3042-3081 and at most 0.362 on 7042-7081
                                          # and 3162-3201; out of sample 0.480 (seed 5048, a fore-aft sway clean on
@@ -753,10 +794,28 @@ max_sole_cop_fore_aft = 0.80             # The worse pad's window mean of its pe
                                          # toe-down pitch loads three corners and reads about 0.76
                                          # (docs/KNOWN_ISSUES.md). The r9 statue at most 0.475 on 3042-3081 and 0.476
                                          # out of sample (seed 3187).
+max_foot_cop_fore_aft = 0.80             # The worse foot's window mean of its per-step |whole-foot CoP| in half-
+                                         # lengths of its declared span (D-D34; StanceEpisodeMetrics: every floor
+                                         # contact of the limb, sole box and digits, measured from the ankle axis;
+                                         # 0 at the span's middle, 1 on its heel or toe line, a step with no limb
+                                         # load 1). The span is FOOT_SUPPORT's [0.060, 0.213] m: the box's heel
+                                         # edge, and the toe line of scripts/foot_toe_line.py (held single-ankle
+                                         # offsets on this statue; onsets -5.0 / -5.5 deg at 214.8 / 213.4 mm).
+                                         # Measured on the r10 statue: at most 0.321 on 3042-3081 and 0.351 out of
+                                         # sample (seed 3174; median 0.153), 0.330 on 11042-11081; with N(0,
+                                         # 0.05) command jitter on every step at most 0.723 (13042-13081; 0.685 on
+                                         # 3042-3061), 0 of 60 above. The physics-r9 run A stance's mean action
+                                         # held from step 200 (its forward lean) reads above it on 19 of 20
+                                         # episodes (3042-3061, median 0.988). Held single-ankle offsets (seeds
+                                         # 3042-3046, median) cross it at -3.5 deg (right) and -4.0 deg
+                                         # (left) against first nosedives at -5.0 and -5.5: 1.5 deg ahead of the
+                                         # fall on both ankles. 0.80 keeps the old pad rail's number, on a span
+                                         # that reaches out to the digits.
 max_settle_stance_width_change_m = 0.08  # The largest change of the foot-pair distance from spawn to the end of the
                                          # settle (D-D27). Statue at most 0.0523 m (3042-3081), 0.0201 (7042-7081),
                                          # 0.0311 (3162-3201), 0.0508 / 0.0396 (5042-5081 / 9042-9081), and on r9
-                                         # 0.0463 (3042-3081) and 0.0455 out of sample; the physics-r8 runs re-seat
+                                         # 0.0463 (3042-3081) and 0.0455 out of sample (r10 0.0533 and 0.0543);
+                                         # the physics-r8 runs re-seat
                                          # by 2.3-2.8 cm at the median and up to 0.0875 / 0.0821 (seed 44, 1/40 each)
                                          # and 0.0938 (seed 42). 1.5x the statue's largest over 200
                                          # episodes: a guard against the re-seat stance_width_reference no longer
@@ -768,11 +827,15 @@ max_settle_touchdowns = 2                # Debounced landings in steps 0-199, su
                                          # landing plus one re-plant. It closes the one settle re-seat the [env]
                                          # terms leave unpriced: a QUIET single-foot step stays single support and
                                          # lands under floor_impact_threshold_bw, and this file's other settle bars
-                                         # see only flight and peaks.
+                                         # see only flight and peaks. The r9 statue at most 1 on 3042-3081; the r10
+                                         # statue reaches 2 on 10 of those 40 and on 89 of all 280, so on r10 its
+                                         # own spawn landing can use the re-plant this bar allows. Kept at 2 (D-D34
+                                         # changed only the CoP rail); a policy that settles as the statue does
+                                         # and then re-plants once fails it on those seeds.
 max_episode_yaw_change_deg = 25.0        # The root's heading change over the episode (D-D27; report-only until then).
                                          # Statue at most 12.4 deg (3042-3081; 8.0, 10.4, 12.0 and 11.5 on the other
-                                         # four seed sets; r9 12.1, and 12.8 out of sample); seed 42 turns 45.3 at
-                                         # the median, toward an absolute heading of about -45 deg (refused 40/40),
+                                         # four seed sets; r9 12.1, and 12.8 out of sample; r10 10.8 and 11.9); seed
+                                         # 42 turns 45.3 at the median, toward an absolute heading of about -45 deg (refused 40/40),
                                          # seed 44 at most 21.4. 2x the statue's largest. Heading DEPENDENCE -- both
                                          # r8 stances fall when spawned 90 deg off, where the statue stands -- is
                                          # what the six-heading certificate (gate_kind above, D-D32) judges; this
@@ -795,7 +858,9 @@ max_hop_or_fall_episodes = 1             # Panel rail (D-D27): episodes that end
                                          # (r8: 2 of 280), so it uses the whole allowance on its certification
                                          # seeds; a statue-quality policy at 4 in 280 passes 0.888 of panels
                                          # (0.967 at r8's 2 in 280). Kept at 1: the difference is not
-                                         # significant, and the rail exists for seed 44's hop mode.
+                                         # significant, and the rail exists for seed 44's hop mode. The r10
+                                         # statue falls on none of the 280 (0 of 200 on the five blocks both
+                                         # plants share against r9's 4, Fisher exact p = 0.12).
 min_avg_reward = 2250.0                 # Collapse RAIL, not the gate (PLANT_VALIDATION §9/§12): no reward threshold
                                         # can separate a competent policy from a statue, because the statue is at
                                         # or near the reward optimum (on r8 under the keyframe width target a
@@ -865,6 +930,12 @@ min_avg_reward = 2250.0                 # Collapse RAIL, not the gate (PLANT_VAL
                                         # 3081 nosedives at step 292); its 39 standing episodes 3755.72 +/- 19.93,
                                         # -1.1 against 3756.8 at a 3.2 standard error (-1.9 paired over the 39
                                         # episodes both plants stand). The rail carries: 0.60 x 3755.7 = 2253.4,
+                                        # rounded to 2250.
+                                        #
+                                        # Re-measured on physics r10 (plant_versions note 20: the load-bearing
+                                        # tridactyl foot), same command: 3757.30 +/- 16.36 with 40/40 full horizon,
+                                        # +0.5 against 3756.8 at a 2.6 standard error (3758.40 +/- 16.39 over the
+                                        # 240 out-of-sample episodes). The rail carries: 0.60 x 3757.3 = 2254.4,
                                         # rounded to 2250.
                                         #
                                         # Why 0.60 and not §12's 0.89: the measured collapse (run 20260731_132102,
@@ -993,8 +1064,9 @@ collapse_peak_floor_reference = 3756.8   # The zero-action statue's standing rew
                                          # only a re-run is evidence. Forgetting either is silent.
                                          # Re-measured on physics r9 (plant_versions note 16): 3755.7 +/- 19.9 over
                                          # the 39 of 40 episodes that stand (seed 3081 nosedives), so the reference
-                                         # carries (min_avg_reward above has the figures).
-statue_constants_physics_revision = 9    # The trex physics revision the statue-derived constants above
+                                         # carries (min_avg_reward above has the figures). Re-measured on physics
+                                         # r10 (note 20): 3757.3 +/- 16.4, 40/40 standing; it carries.
+statue_constants_physics_revision = 10   # The trex physics revision the statue-derived constants above
                                          # (min_avg_reward, collapse_peak_floor_reference) were measured on.
                                          # test_statue_constant_freshness.py cross-checks this against the
                                          # plant manifest, so a plant revision bump that forgets to re-measure
