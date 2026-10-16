@@ -9,10 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **The whole-foot centre of pressure at every evaluation, report-only**
-  (the maintainer's approval: "record whole-foot centre of pressure,
-  report-only, with no physics change"). `stance_quality/v2`'s pad rail,
-  `max_sole_cop_fore_aft`, reads one contact geom, the plantar pad. Once a
-  foot's digits carry load ahead of its pad, the pad's CoP is no longer the
+  (the maintainer's approval of 2026-10-16: "record whole-foot centre of
+  pressure, report-only, with no physics change"). `stance_quality/v2`'s pad
+  rail, `max_sole_cop_fore_aft`, reads one contact geom, the plantar pad. Once
+  a foot's digits carry load ahead of its pad, the pad's CoP is no longer the
   quantity that decides toppling about the ankle: the whole foot's is, the
   floor load's moment about the ankle over the limb's floor force. This
   change measures it, per step and per foot, beside the pad's. Nothing reads
