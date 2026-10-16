@@ -544,7 +544,9 @@ def _create_or_load_model(
     ``symmetry`` (the stage's ``[ppo]`` symmetry keys, :func:`~environments.shared.symmetry.pop_symmetry_config`)
     makes the constructed or loaded PPO a ``MirrorKLPPO``, with the model's committed mirror map bound to
     ``plant_identity``; ``None`` keeps stock PPO.  A same-stage resume must continue the training its checkpoint
-    records (``mesozoic_symmetry``), both ways; a warm start under ``initialize_next_stage`` takes the child's.
+    records (``mesozoic_symmetry``), both ways; a warm start under ``initialize_next_stage`` takes the child's, and
+    a child that enables it needs a parent trained with it (:func:`~environments.shared.mirror_kl_ppo.enable_mirror_kl`
+    refuses a stock parent's asymmetric observation statistics and ``log_std``).
     """
     from .symmetry import CHECKPOINT_ATTRIBUTE, MirrorMap, SymmetryError, symmetry_mismatch
     from .task_fingerprint import (

@@ -29,15 +29,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     forms) and checked against the geometry, joint axes and ranges, inertias,
     gravity compensation, contact and fluid parameters, colliding mesh
     vertices and actuator gains (with a per-body frame correction for CAD
-    frames that differ between the sides), and a model that fails a check is
-    refused. The checks cover the model fields the plants use, so a new
-    species' map comes with a paired-rollout equivariance test like the
-    T. rex's. The five anatomical plants derive;
+    frames that differ between the sides, which no committed plant needs; a
+    synthetic biped in the tests exercises it and the suffix side tokens), and
+    a model that fails a check is refused. The checks cover the model fields
+    the plants use, so a new species' map comes with a paired-rollout
+    equivariance test like the T. rex's. The five anatomical plants derive;
     the Compsognathus robot is refused (its MJCF is not mirror-symmetric as
     authored). `build_env_mirror` adds the observation map from the plant's
-    observation layout (`bipedal-target-heading-free/v1`, the T. rex's and
-    the anatomical Compsognathus's) and the action map, after checking that
-    the env's action scaling commutes with it; `mirror_env_state` writes the
+    observation layout (`bipedal-target-heading-free/v1`, the T. rex's and the
+    anatomical Compsognathus's) and the action map, after checking that the
+    env's action scaling commutes with it; `mirror_env_state` writes the
     mirror image of an env's simulator and episode state. Every map is a
     signed permutation and an involution, validated on construction.
   - `configs/tyrannosaurus_rex/anatomical/mirror_map.json` is generated
@@ -66,10 +67,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     models (`symmetry_kappa` 0.3, `symmetry_sigma_floor` 0.01 and
     `symmetry_mirror_critic = true` by default, the screened values, which a
     stage that enables it writes out so its digest pins them); absent, or
-    `"none"`, training is stock PPO, bit for bit. The keys enter the stage's
+    `"none"`, training is stock PPO, bit for bit (the settings a table
+    writes are validated either way). The keys enter the stage's
     `hyperparameters_sha256`, not its task. A same-stage resume
     refuses a checkpoint whose recorded symmetry differs from the stage's,
-    either way; a warm start takes the child stage's.
+    either way; a warm start takes the child stage's, and a child that
+    enables it needs a parent trained with it (a stock parent's noise scales
+    and observation statistics are not mirror-symmetric, and are refused).
   - T. rex `[env]` options: `lateral_lean_weight` (0.0, off) and
     `lateral_lean_tolerance_m` (0.015) pay a Gaussian on the whole-body
     centre of mass's lateral offset over the foot-site midpoint, in the
@@ -88,18 +92,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     records while its switch holds its declared off value, as the command
     kwargs are under `command_mode = "none"`; on, every kwarg it lists is
     hashed, defaults included. Without the carve-out the three new defaults
-    would have moved every T. rex task digest.
-  - Tests: `test_symmetry.py` (derivation on every plant, kinematics of the
-    mirrored configuration, the committed map's regeneration and its plant
-    binding, paired stance rollouts equivariant to float rounding in
-    observation, reward, info and termination, the `[ppo]` keys),
-    `test_mirror_kl_ppo.py` (symmetric statistics and their pickling, the tie
-    through the gradient clip and Adam, the loss, the confined `train` copy,
-    bitwise equality with stock PPO at `kappa` 0 without the mirrored critic,
-    stock checkpoints, the train_base wiring; in the SB3 job) and
-    `test_anatomical_lean_and_settled_legs.py` (the lean term's formula,
-    gates and mirror invariance, the settled target and its re-measurement,
-    and that the defaults change nothing).
+    would have moved every T. rex task digest. Both options are reward
+    settings a behavior transition may change
+    (`behavior_checkpoint._TRANSITION_REWARD_SETTINGS`).
+  - Tests: `test_symmetry.py` (derivation on every plant and on a synthetic
+    biped with rotated link frames, kinematics of the mirrored configuration,
+    the committed map's regeneration and its plant binding, paired stance
+    rollouts equivariant to float rounding in observation, reward, info and
+    termination, the `[ppo]` keys), `test_mirror_kl_ppo.py` (symmetric
+    statistics and their pickling, the tie through the gradient clip and Adam,
+    the loss, the confined `train` copy, bitwise equality with stock PPO at
+    `kappa` 0 without the mirrored critic, stock checkpoints, the train_base
+    wiring; in the SB3 job) and `test_anatomical_lean_and_settled_legs.py`
+    (the lean term's formula, gates and mirror invariance, the settled target
+    and its re-measurement, and that the defaults change nothing);
+    `test_behavior_checkpoint.py` turns the options on and off across a
+    behavior transition.
   - Documented in `website/docs/training/mirror-symmetry.md`.
 - **Per-foot pad telemetry and the sagittal leg DC at every periodic
   evaluation** (#620; the maintainer's approval of 2026-10-12, after the T. rex

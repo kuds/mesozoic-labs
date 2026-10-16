@@ -89,11 +89,24 @@ After an intentional model or interface change:
    git diff configs/digest_snapshot.generated.txt
    ```
 
+5. Regenerate the committed mirror map of every model you changed (`configs/<species>/<embodiment>/mirror_map.json`;
+   today the anatomical T. rex has one). A map records the plant's physics and policy-interface digests and refuses
+   to load for any other, so a stale one stops mirror-symmetric training. Then check them all:
+
+   ```bash
+   python -m environments.shared.symmetry --write --species tyrannosaurus_rex --embodiment anatomical
+   python -m environments.shared.symmetry --check
+   ```
+
+   A T. rex change that moves the statue's legs (their masses, springs, gains or the feet) also re-measures
+   `_LEG_SETTLED_QPOS` in `environments/tyrannosaurus_rex/base_env.py`, as its comment describes;
+   `test_the_settled_leg_pose_is_the_statues` fails until it is.
+
 The writer updates both `configs/plant_manifest.generated.json` and the byte-identical runtime copy under
 `environments/shared/data/`. Commit the version counters, both generated manifests, generated public catalog/README
-data, the digest snapshot, and the intentional source change together. CI repeats the check with the canonical MuJoCo
-version, tests revision monotonicity against the PR base, runs the full digest snapshot against
-`configs/digest_snapshot.generated.txt` (a failure names every moved line and prints the `--write` command), and
+data, the digest snapshot, the regenerated mirror maps, and the intentional source change together. CI repeats the
+check with the canonical MuJoCo version, tests revision monotonicity against the PR base, runs the full digest snapshot
+against `configs/digest_snapshot.generated.txt` (a failure names every moved line and prints the `--write` command), and
 verifies identity/config loading from an installed wheel. Any other change that moves a digest on purpose (a stage
 config, a recovery calibration, a behavior recipe, the environment code it hashes, or the reward, info or termination
 code the `reward` lines capture) commits the regenerated snapshot the same way; a change that claims to move no digest
