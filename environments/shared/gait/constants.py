@@ -71,12 +71,24 @@ if TYPE_CHECKING:
 #: The version of the definitions in this package.  Bump it (and say why in
 #: the CHANGELOG) whenever a constant, a registry entry or a metric
 #: definition changes what an adopted ``stance_quality/v2`` key means.
-MEASUREMENT_VERSION = "floor-truth/v1"
+#: ``floor-truth/v2`` (2026-10-16): the registry entry gains the foot's
+#: ``ankle`` and its declared support span (``heel_line``, ``toe_line``;
+#: declared by the T. rex), and the recorder the whole-foot centre of
+#: pressure measured from that ankle (``EpisodeTrace.foot_cop``).  No
+#: constant changes and no adopted key's reading moves -- a re-rolled panel
+#: scores every v1 key bit for bit -- but a registry entry an adopted stage
+#: reads did change, and the module docstring versions any change to a
+#: model's registry entry; a report or panel measured under v1 is refused
+#: and re-rolled, never re-scored.
+MEASUREMENT_VERSION = "floor-truth/v2"
 
 #: Schema of the dict :func:`measurement_manifest` returns.  v2 (decision
 #: D-D33) records the model as ``species`` and ``embodiment``; the definitions
-#: are unchanged, so :data:`MEASUREMENT_VERSION` is not bumped.
-MEASUREMENT_MANIFEST_SCHEMA = "mesozoic.floor-truth-measurement/v2"
+#: are unchanged, so :data:`MEASUREMENT_VERSION` is not bumped.  v3
+#: (``floor-truth/v2``) records the registry's ``ankle``, ``heel_line`` and
+#: ``toe_line`` (null where undeclared), and per foot the resolved
+#: ``ankle_joint`` and ``support_span_m``, and the hinged digits' MTP joints.
+MEASUREMENT_MANIFEST_SCHEMA = "mesozoic.floor-truth-measurement/v3"
 
 CONTACT_THRESHOLD_N = 0.1
 DOWN_SUBSTEP_FRACTION = 0.5
@@ -132,7 +144,10 @@ def measurement_manifest(morphology: "Morphology", model: Any) -> dict[str, Any]
       touch sensors, the reference site, the support geoms and the sole geom
       by NAME, and the sole frame's normal / forward / lateral axes (``"-z"``,
       ``"+x"``, ...) that the sole roll, pitch, corner lift and CoP are
-      expressed in;
+      expressed in; the ankle the whole-foot CoP is measured from
+      (``ankle_joint``, null without one) and its declared
+      ``support_span_m`` (heel line, toe line); and each support geom's MTP
+      joint (``mtp_joints``, null for a geom that is no hinged digit);
     * ``frame_skip`` and ``dt`` -- the substep count every per-step reduction
       runs over, and the step the seconds-defined windows convert with;
     * ``body_weight_n`` -- the divisor of every ``*_bw`` metric.
@@ -163,6 +178,13 @@ def measurement_manifest(morphology: "Morphology", model: Any) -> dict[str, Any]
                 "sole_normal": axis(foot.sole_normal_axis, foot.sole_normal_sign) if has_sole else None,
                 "sole_forward": axis(foot.sole_forward_axis, foot.sole_forward_sign) if has_sole else None,
                 "sole_lateral": axis(foot.sole_lateral_axis, foot.sole_lateral_sign) if has_sole else None,
+                "ankle_joint": None if foot.ankle_joint < 0 else str(model.joint(int(foot.ankle_joint)).name),
+                "support_span_m": None if foot.ankle_joint < 0 else [float(foot.heel_line_m), float(foot.toe_line_m)],
+                "mtp_joints": [
+                    None if mtp < 0 else str(model.joint(int(mtp)).name)
+                    for geom, mtp in zip(morphology.support_geom_ids, morphology.support_geom_mtp)
+                    if geom in foot.support_geoms
+                ],
             }
         )
     return {

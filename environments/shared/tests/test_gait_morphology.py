@@ -104,6 +104,30 @@ SOLE = {
 }
 
 
+#: The registry's ankle and declared support span (heel line, toe line; m ahead of the ankle axis along the
+#: sole's forward axis): only the T. rex declares them, its pad's own edges (pad centre 0.14 m ahead of the
+#: ankle, half-length 0.07), so its whole-foot centre of pressure reads in pad half-lengths.
+SUPPORT_SPAN = {
+    TYRANNOSAURUS_REX: ("{s}_ankle", 0.070, 0.210),
+    VELOCIRAPTOR_MONGOLIENSIS: None,
+    COMPSOGNATHUS_LONGIPES: None,
+    COMPSOGNATHUS_LONGIPES_ROBOT: None,
+    DIBOTHROSUCHUS_ELAPHROS: None,
+    BRACHIOSAURUS_ALTITHORAX: None,
+}
+#: The hinged digits (a support capsule on a child body of the sole's, joined to it by one hinge: the MTP
+#: joint), by support geom template -> joint template.  The anatomical compsognathus's digits share the pad's
+#: body, and the velociraptor has no sole, so only the T. rex has any.
+DIGIT_MTP = {
+    TYRANNOSAURUS_REX: {f"{{s}}_toe_{d}_geom": f"{{s}}_toe_{d}_joint" for d in ("d2", "d3", "d4")},
+    VELOCIRAPTOR_MONGOLIENSIS: {},
+    COMPSOGNATHUS_LONGIPES: {},
+    COMPSOGNATHUS_LONGIPES_ROBOT: {},
+    DIBOTHROSUCHUS_ELAPHROS: {},
+    BRACHIOSAURUS_ALTITHORAX: {},
+}
+
+
 def _names(templates, label):
     side = {"r": "right", "l": "left"}[label[-1]]
     return {template.format(s=label, side=side) for template in templates}
@@ -130,7 +154,18 @@ def stance_env():
 
 
 @pytest.mark.parametrize(
-    "name", ["MODEL_IDS", "BODY_WEIGHT_N", "FEET", "ROOT", "GENERIC_ONLY", "REGISTRY_ONLY", "SOLE"]
+    "name",
+    [
+        "MODEL_IDS",
+        "BODY_WEIGHT_N",
+        "FEET",
+        "ROOT",
+        "GENERIC_ONLY",
+        "REGISTRY_ONLY",
+        "SOLE",
+        "SUPPORT_SPAN",
+        "DIGIT_MTP",
+    ],
 )
 def test_every_per_model_table_covers_every_model(name):
     """A new model fails here, naming the table, instead of going unpinned (review M4)."""
@@ -144,6 +179,8 @@ def test_every_model_has_an_explicit_registry_entry_with_a_pinned_reference_site
         assert isinstance(entry, FootRegistryEntry)
         assert entry.support and entry.foot_site, model_id
         assert entry.sole == SOLE[model_id]
+        declared = None if entry.ankle is None else (entry.ankle, entry.heel_line, entry.toe_line)
+        assert declared == SUPPORT_SPAN[model_id], model_id
 
 
 @pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
@@ -215,6 +252,42 @@ def test_sole_frames_face_the_floor_and_point_forward(stance_env, model_id):
         assert tilts == pytest.approx([0.0] * len(tilts), abs=1e-4)  # acos amplifies rounding near flat
 
 
+@pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
+def test_the_declared_support_span_and_the_hinged_digits(stance_env, model_id):
+    """Only the T. rex declares an ankle and a span, and its lines are its pad's own edges measured from the ankle."""
+    env = stance_env(model_id)
+    model = env.model
+    morphology = Morphology.from_env(env, model_id)
+    for foot in morphology.feet:
+        names = {"s": foot.label, "side": {"r": "right", "l": "left"}.get(foot.label[-1], foot.label)}
+        declared = SUPPORT_SPAN[model_id]
+        if declared is None:
+            assert foot.ankle_joint == -1
+            assert np.isnan([foot.ankle_forward_m, foot.heel_line_m, foot.toe_line_m]).all()
+        else:
+            assert model.joint(foot.ankle_joint).name == declared[0].format(**names)
+            assert (foot.heel_line_m, foot.toe_line_m) == declared[1:]
+            # The pad's heel and toe edges, m ahead of the ankle axis along the pad's forward axis: the
+            # declared lines must be exactly where the plant puts them (a plant revision that moves the pad
+            # without the registry fails here).
+            half = float(model.geom_size[foot.sole_geom][foot.sole_forward_axis])
+            centre_ahead = -foot.ankle_forward_m
+            assert centre_ahead == pytest.approx(0.14, abs=1e-12)
+            assert (centre_ahead - half, centre_ahead + half) == pytest.approx(declared[1:], abs=1e-12)
+    expected = {
+        _names([geom], foot.label).pop(): _names([joint], foot.label).pop()
+        for foot in morphology.feet
+        for geom, joint in DIGIT_MTP[model_id].items()
+    }
+    hinged = {
+        name: model.joint(joint).name
+        for name, joint in zip(morphology.support_geom_names, morphology.support_geom_mtp)
+        if joint >= 0
+    }
+    assert hinged == expected
+    assert morphology.support_geom_names == tuple(model.geom(geom).name for geom in morphology.support_geom_ids)
+
+
 def test_a_foot_without_a_sole_has_no_sole_frame(stance_env):
     for foot in Morphology.from_env(stance_env(VELOCIRAPTOR_MONGOLIENSIS), VELOCIRAPTOR_MONGOLIENSIS).feet:
         assert foot.sole_geom == foot.sole_type == -1
@@ -277,6 +350,81 @@ def test_a_bad_registry_entry_is_refused(stance_env, entry, message):
         Morphology.from_env(stance_env(TYRANNOSAURUS_REX), TYRANNOSAURUS_REX, registry={TYRANNOSAURUS_REX: entry})
 
 
+@pytest.mark.parametrize(
+    ("changes", "message"),
+    [
+        ({"ankle": None}, "together or not at all"),
+        ({"toe_line": None}, "together or not at all"),
+        ({"heel_line": 0.21, "toe_line": 0.07}, "must lie behind"),
+        ({"toe_line": float("nan")}, "finite number"),
+        ({"heel_line": True}, "finite number"),
+    ],
+)
+def test_a_half_declared_or_inverted_support_span_is_refused(changes, message):
+    with pytest.raises(MorphologyError, match=message):
+        replace(_TYRANNOSAURUS_REX_ENTRY, **changes)
+
+
+@pytest.mark.parametrize(
+    ("ankle", "message"),
+    [
+        ("{s}_no_such_joint", "is not a joint of the model"),
+        # The knee is a hinge, but of the tibia: the pad's span would move with the ankle.
+        ("{s}_knee", "is not a joint of the body of foot"),
+        ("root", "is not a hinge"),
+    ],
+)
+def test_an_ankle_that_does_not_carry_the_sole_is_refused(stance_env, ankle, message):
+    entry = replace(_TYRANNOSAURUS_REX_ENTRY, ankle=ankle)
+    with pytest.raises(MorphologyError, match=message):
+        Morphology.from_env(stance_env(TYRANNOSAURUS_REX), TYRANNOSAURUS_REX, registry={TYRANNOSAURUS_REX: entry})
+
+
+def test_an_ankle_whose_axis_is_fore_aft_is_refused(stance_env):
+    env = stance_env(TYRANNOSAURUS_REX)
+    model = env.model
+    joint = model.joint("r_ankle").id
+    axis = model.jnt_axis[joint].copy()
+    try:
+        for axis_now in ([1.0, 0.0, 0.0], [0.0, 0.0, 1.0]):  # fore-aft (it rolls the sole), vertical (it yaws it)
+            model.jnt_axis[joint] = axis_now
+            with pytest.raises(MorphologyError, match="does not pitch the sole"):
+                Morphology.from_env(env, TYRANNOSAURUS_REX)
+    finally:
+        model.jnt_axis[joint] = axis
+    assert Morphology.from_env(env, TYRANNOSAURUS_REX).feet[0].ankle_joint == joint
+
+
+def test_an_ankle_axis_canted_off_the_soles_lateral_axis_is_refused(stance_env):
+    """A small cant is refused too: the forward distance is the lever arm only about the lateral axis.
+
+    For a unit axis ``a`` in the sole frame the vertical load at ``d`` on a level sole has the lever
+    ``a_f d_l - a_l d_f``: a forward component weighs lateral offsets in, a normal one shrinks the arm.
+    """
+    import mujoco
+
+    env = stance_env(TYRANNOSAURUS_REX)
+    model = env.model
+    foot = Morphology.from_env(env, TYRANNOSAURUS_REX).feet[0]
+    joint = foot.ankle_joint
+    rotation = np.zeros(9)
+    mujoco.mju_quat2Mat(rotation, np.asarray(model.geom_quat[foot.sole_geom], dtype=np.float64))
+    sole_axes_in_body = rotation.reshape(3, 3)
+    axis = model.jnt_axis[joint].copy()
+    cant = np.radians(5.0)
+    try:
+        for other in (foot.sole_forward_axis, foot.sole_normal_axis):
+            canted = np.zeros(3)
+            canted[foot.sole_lateral_axis] = np.cos(cant)
+            canted[other] = np.sin(cant)
+            model.jnt_axis[joint] = sole_axes_in_body @ canted
+            with pytest.raises(MorphologyError, match="lateral axis: its axis is 5 degrees off it"):
+                Morphology.from_env(env, TYRANNOSAURUS_REX)
+    finally:
+        model.jnt_axis[joint] = axis
+    assert Morphology.from_env(env, TYRANNOSAURUS_REX).feet[0].ankle_joint == joint
+
+
 def test_an_env_without_foot_sensors_is_refused(stance_env):
     env = stance_env(TYRANNOSAURUS_REX)
     groups = env._foot_sensor_groups
@@ -325,7 +473,8 @@ def test_the_manifest_records_the_constants_the_registry_and_the_resolved_names(
         "sole_rolled_deg": 2.0,
         "support_geom_down_fraction": 0.5,
     }
-    assert MEASUREMENT_VERSION == "floor-truth/v1"
+    assert MEASUREMENT_VERSION == "floor-truth/v2"
+    assert MEASUREMENT_MANIFEST_SCHEMA == "mesozoic.floor-truth-measurement/v3"
     assert (manifest["species"], manifest["embodiment"], manifest["frame_skip"], manifest["dt"]) == (
         "tyrannosaurus_rex",
         "anatomical",
@@ -337,6 +486,9 @@ def test_the_manifest_records_the_constants_the_registry_and_the_resolved_names(
         "support": list(_TYRANNOSAURUS_REX_ENTRY.support),
         "sole": "{s}_plantar_geom",
         "foot_site": "{s}_foot",
+        "ankle": "{s}_ankle",
+        "heel_line": 0.07,
+        "toe_line": 0.21,
     }
     right = manifest["feet"][0]
     assert right == {
@@ -348,9 +500,25 @@ def test_the_manifest_records_the_constants_the_registry_and_the_resolved_names(
         "sole_normal": "-z",
         "sole_forward": "+x",
         "sole_lateral": "+y",
+        "ankle_joint": "r_ankle",
+        "support_span_m": [0.07, 0.21],
+        "mtp_joints": [None, "r_toe_d2_joint", "r_toe_d3_joint", "r_toe_d4_joint"],
     }
     generic = measurement_manifest(Morphology.from_env(env, TYRANNOSAURUS_REX, registry={}), env.model)
     assert generic["registry"] is None
+    # The generic rule declares no ankle; the hinged digits are a model fact, so it still finds them (beside the
+    # metatarsus capsule it also takes, which is on the pad's own body).
+    assert generic["feet"][0]["ankle_joint"] is None and generic["feet"][0]["support_span_m"] is None
+    assert {joint for joint in generic["feet"][0]["mtp_joints"] if joint} == set(right["mtp_joints"][1:])
+    # A model whose entry declares no span records nulls, so its registry block has the same keys.
+    padless_env = stance_env(VELOCIRAPTOR_MONGOLIENSIS)
+    padless = measurement_manifest(Morphology.from_env(padless_env, VELOCIRAPTOR_MONGOLIENSIS), padless_env.model)
+    assert (padless["registry"]["ankle"], padless["registry"]["heel_line"], padless["registry"]["toe_line"]) == (
+        None,
+        None,
+        None,
+    )
+    assert padless["feet"][0]["ankle_joint"] is None and padless["feet"][0]["mtp_joints"] == [None, None, None]
 
 
 def test_the_manifest_digest_is_the_canonical_json_digest_and_survives_a_json_round_trip(stance_env):
@@ -381,6 +549,13 @@ def test_a_constant_or_a_registry_edit_moves_the_manifest_digest(stance_env, mon
     reordered = replace(_TYRANNOSAURUS_REX_ENTRY, support=tuple(reversed(_TYRANNOSAURUS_REX_ENTRY.support)))
     moved = Morphology.from_env(env, TYRANNOSAURUS_REX, registry={TYRANNOSAURUS_REX: reordered})
     assert measurement_sha256(measurement_manifest(moved, env.model)) != digest
+    # The declared support span is measurement data too: another toe line is another whole-foot reading.
+    longer = replace(_TYRANNOSAURUS_REX_ENTRY, toe_line=0.215)
+    spanned = Morphology.from_env(env, TYRANNOSAURUS_REX, registry={TYRANNOSAURUS_REX: longer})
+    assert measurement_sha256(measurement_manifest(spanned, env.model)) != digest
+    undeclared = replace(_TYRANNOSAURUS_REX_ENTRY, ankle=None, heel_line=None, toe_line=None)
+    bare = Morphology.from_env(env, TYRANNOSAURUS_REX, registry={TYRANNOSAURUS_REX: undeclared})
+    assert measurement_sha256(measurement_manifest(bare, env.model)) != digest
 
 
 def test_the_manifest_rounds_away_cross_architecture_noise_in_the_body_weight(stance_env):

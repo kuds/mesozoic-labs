@@ -122,7 +122,11 @@ def test_the_embodiment_class_carries_its_own_identity_and_body_data(model_id: M
     for attribute in ("embodiment", "MODEL_PATH", "FOOT_SUPPORT", "REWARD_PROBE"):
         assert attribute in vars(cls), f"{cls.__qualname__} does not define {attribute}"
     assert cls.embodiment == model_id.embodiment
-    assert set(cls.FOOT_SUPPORT) == {"support", "sole", "foot_site"}
+    # The ankle and its support span are declared together, where the whole-foot centre of pressure is measured.
+    assert set(cls.FOOT_SUPPORT) in (
+        {"support", "sole", "foot_site"},
+        {"support", "sole", "foot_site", "ankle", "heel_line", "toe_line"},
+    )
     # The species base names the species, never an embodiment.
     base = cls.__mro__[1]
     assert base.__module__ == f"environments.{model_id.species}.base_env"
