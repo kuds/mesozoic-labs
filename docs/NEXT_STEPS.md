@@ -402,6 +402,14 @@ grid as the gate's evidence). The r9 statue scores 39/40 seeds clean at
 every heading (seed 3081), as at 0°, so the hop-or-fall rail's allowance is
 the same per heading.*
 
+*2026-10-16: T. rex physics r10 (D-D34, `configs/plant_versions.toml` note
+20) gives the T. rex a load-bearing tridactyl foot and moves its stance's CoP
+rail to the whole foot (`max_foot_cop_fore_aft` 0.80). Its PR stays a draft
+until a training screen shows the new foot at least as good as r9's. The next
+T. rex stance trains on physics r10 and policy interface r15 with fresh
+weights. On its panels, check `max_settle_touchdowns` first: the r10 statue
+reaches its bar of 2 on 89 of 280 episodes (r9 at most 1).*
+
 *Status 2026-10-07: the compsognathus row above (session 2) is history:
 anatomical compsognathus physics r2 (D-D26) strands `20260921_203149`, and
 the next compsognathus session is a fresh `BEHAVIOR="stand"` stance on r2,
