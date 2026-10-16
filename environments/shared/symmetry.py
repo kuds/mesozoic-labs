@@ -22,10 +22,15 @@ Every map is a signed permutation, ``(M x)[i] = sign[i] * x[perm[i]]``, and an
 involution (``M M = I``).  :func:`derive_model_mirror` builds the model-level
 maps (bodies, geoms, sites, joints, actuators, sensors, ``qpos``, ``qvel``,
 ``ctrl``) from the names (``r_``/``l_`` and the other side tokens of
-:data:`DEFAULT_PREFIX_RULES`) and the compiled geometry, and refuses anything it
-cannot prove mirror-consistent: a pair whose positions, axes, ranges, masses,
-inertias, contact or actuator parameters differ, a sensor type without a rule,
-or a feature it does not mirror (tendons, equality constraints, plugins).  Link
+:data:`DEFAULT_PREFIX_RULES`) and the compiled geometry.  It refuses a pair whose
+positions, frames, axes, ranges, masses, inertias, gravity compensation, contact,
+fluid, joint or actuator parameters differ, a colliding mesh whose vertices are
+not the mirror image of its partner's, a sensor type without a rule, and a
+feature it does not mirror (tendons, equality constraints, explicit contact
+pairs, plugins, flexes, height fields, SDF geoms).  These are the model fields
+the plants use, not every field MuJoCo has, so a new species' map is accepted
+together with a paired-rollout equivariance test like the T. rex's
+(``tests/test_symmetry.py``), which catches whatever the checks miss.  Link
 frames that a CAD export rotates differently on the two sides are handled by a
 per-body frame correction.  Of the six plants, the five anatomical ones derive
 cleanly; the Compsognathus robot does not, because its MJCF is not mirror
@@ -321,6 +326,31 @@ def _geom_frame_error(model: mujoco.MjModel, g: int, p: int, correction: np.ndar
     )
 
 
+def _mesh_mirror_error(model: mujoco.MjModel, g: int, p: int, to_partner: np.ndarray) -> float:
+    """How far mesh geom *p*'s vertices are from the mirror image of geom *g*'s, relative to the mesh's extent.
+
+    *to_partner* maps *g*'s body-local polar coordinates into the partner body's frame.  The vertices are compared as
+    point sets (the Hausdorff distance, in chunks), so a mirrored mesh may list them in any order.
+    """
+
+    def vertices(geom: int) -> np.ndarray:
+        mesh = int(model.geom_dataid[geom])
+        start = int(model.mesh_vertadr[mesh])
+        return np.asarray(model.mesh_vert[start : start + int(model.mesh_vertnum[mesh])], dtype=np.float64)
+
+    source, partner = vertices(g), vertices(p)
+    if len(source) != len(partner):
+        return math.inf
+    in_body = model.geom_pos[g] + source @ _quat_to_mat(model.geom_quat[g]).T
+    mirrored = (in_body @ to_partner.T - model.geom_pos[p]) @ _quat_to_mat(model.geom_quat[p])
+    worst = 0.0
+    for a, b in ((mirrored, partner), (partner, mirrored)):
+        for start in range(0, len(a), 256):
+            squared = np.sum((a[start : start + 256, None, :] - b[None, :, :]) ** 2, axis=-1)
+            worst = max(worst, float(np.sqrt(np.max(np.min(squared, axis=1)))))
+    return worst / max(1.0, float(np.max(np.abs(partner))))
+
+
 def derive_model_mirror(  # noqa: C901 - one derivation, object kind by object kind
     model: mujoco.MjModel,
     *,
@@ -336,10 +366,11 @@ def derive_model_mirror(  # noqa: C901 - one derivation, object kind by object k
     """
     rules = (prefix_rules, suffix_rules)
     m = model
-    if m.ntendon or m.neq or m.npair or m.nplugin or m.na:
+    if m.ntendon or m.neq or m.npair or m.nplugin or m.na or m.nflex:
         raise SymmetryError(
-            "tendons, equality constraints, explicit contact pairs, plugins and actuator activations are not "
-            f"mirrored here (ntendon={m.ntendon} neq={m.neq} npair={m.npair} nplugin={m.nplugin} na={m.na})"
+            "tendons, equality constraints, explicit contact pairs, plugins, actuator activations and flexes are not "
+            f"mirrored here (ntendon={m.ntendon} neq={m.neq} npair={m.npair} nplugin={m.nplugin} na={m.na} "
+            f"nflex={m.nflex})"
         )
     _require("opt.gravity", float(np.max(np.abs(m.opt.gravity * POLAR - m.opt.gravity))), tol)
     _require("opt.wind", float(np.max(np.abs(m.opt.wind * POLAR - m.opt.wind))), tol)
@@ -406,6 +437,11 @@ def derive_model_mirror(  # noqa: C901 - one derivation, object kind by object k
             ),
             1e-9,
         )
+        _require(
+            f"body {_name(m, _OBJ.mjOBJ_BODY, b)!r} gravity compensation equals its partner's",
+            abs(float(m.body_gravcomp[body_map[b]] - m.body_gravcomp[b])),
+            0.0,
+        )
     mocap_map = np.full(m.nmocap, -1, dtype=np.int64)
     for b in range(m.nbody):
         if m.body_mocapid[b] >= 0:
@@ -441,6 +477,9 @@ def derive_model_mirror(  # noqa: C901 - one derivation, object kind by object k
     )
     for g in range(m.ngeom):
         p = int(geom_map[g])
+        gname = _name(m, _OBJ.mjOBJ_GEOM, g)
+        if int(m.geom_type[g]) in (int(mujoco.mjtGeom.mjGEOM_HFIELD), int(mujoco.mjtGeom.mjGEOM_SDF)):
+            raise SymmetryError(f"geom {gname!r}: height fields and SDF geoms are not mirrored here")
         same = (
             m.geom_contype[p] == m.geom_contype[g]
             and m.geom_conaffinity[p] == m.geom_conaffinity[g]
@@ -453,11 +492,20 @@ def derive_model_mirror(  # noqa: C901 - one derivation, object kind by object k
             and m.geom_gap[p] == m.geom_gap[g]
             and m.geom_solmix[p] == m.geom_solmix[g]
         )
+        _require(f"geom {gname!r} contact and solver parameters equal its partner's", float(not same), 0.0)
         _require(
-            f"geom {_name(m, _OBJ.mjOBJ_GEOM, g)!r} contact and solver parameters equal its partner's",
-            float(not same),
-            0.0,
+            f"geom {gname!r} fluid parameters equal its partner's",
+            float(np.max(np.abs(m.geom_fluid[p] - m.geom_fluid[g]))) / max(1.0, float(np.max(np.abs(m.geom_fluid[g])))),
+            1e-9,
         )
+        if int(m.geom_type[g]) == mesh and (m.geom_contype[g] or m.geom_conaffinity[g]):
+            # A colliding mesh shapes the contacts, so its vertices must mirror too (a visual mesh's mass is in the
+            # body's, already compared).  Mesh vertices are stored in float32.
+            _require(
+                f"colliding mesh geom {gname!r} vertices are the mirror image of its partner's",
+                _mesh_mirror_error(m, g, p, to_partner(int(m.geom_bodyid[g]))),
+                1e-6,
+            )
     # Contact exclusions (signature (body1 << 16) + body2) must map onto exclusions.
     excluded = {frozenset(((int(s) >> 16), (int(s) & 0xFFFF))) for s in m.exclude_signature}
     mirrored = {frozenset(int(body_map[b]) for b in pair) for pair in excluded}
@@ -540,6 +588,10 @@ def derive_model_mirror(  # noqa: C901 - one derivation, object kind by object k
         pair_word = "self" if p == j else f"pair {jname}<->{pname}"
         if kind in (_FREE, _BALL) and not pure:
             raise SymmetryError(f"joint {jname!r}: a free or ball joint needs pure mirror frames (C = I)")
+        if kind in (_FREE, _BALL) and (m.jnt_actfrclimited[j] or m.jnt_actfrclimited[p]):
+            raise SymmetryError(
+                f"joint {jname!r}: an actuator force range on a free or ball joint is not mirrored here"
+            )
         if kind == _FREE:
             if p != j or body_map[m.jnt_bodyid[j]] != m.jnt_bodyid[j]:
                 raise SymmetryError(f"free joint {jname!r} must sit on a self-mirrored body")
@@ -622,9 +674,20 @@ def derive_model_mirror(  # noqa: C901 - one derivation, object kind by object k
                 ),
                 tol,
             )
+        if m.jnt_actfrclimited[j] or m.jnt_actfrclimited[p]:
+            _require(
+                f"joint {jname!r} actuator force range is the partner's, sign-mapped",
+                max(
+                    float(m.jnt_actfrclimited[j] != m.jnt_actfrclimited[p]),
+                    float(np.max(np.abs(m.jnt_actfrcrange[p] - _sign_mapped_range(m.jnt_actfrcrange[j], sign)))),
+                ),
+                tol,
+            )
         _require(
-            f"joint {jname!r} stiffness, damping, armature, frictionloss, solref, solimp and margin equal the partner's",
+            f"joint {jname!r} stiffness, damping, armature, frictionloss, solref, solimp, margin and actuator gravity "
+            "compensation equal the partner's",
             max(
+                float(m.jnt_actgravcomp[p] != m.jnt_actgravcomp[j]),
                 abs(float(m.jnt_stiffness[p] - m.jnt_stiffness[j])),
                 abs(float(m.dof_damping[dp] - m.dof_damping[da])),
                 abs(float(m.dof_armature[dp] - m.dof_armature[da])),
@@ -1280,7 +1343,9 @@ class MirrorMap:
 # ---------------------------------------------------------------------------------------------------- training switch
 #: The ``[ppo]`` keys of mirror-symmetric training.  ``symmetry = "mirror_kl"`` selects MirrorKLPPO; the others are
 #: optional and default to the values validated on the T. rex stance (SymmetryConfig).  Absent (or
-#: ``symmetry = "none"``), training is stock PPO.
+#: ``symmetry = "none"``), training is stock PPO.  A stage that enables it writes all four keys: the stage's
+#: ``hyperparameters_sha256`` hashes only the keys its TOML sets, so a default left implicit could change without
+#: moving that digest (the checkpoint's ``mesozoic_symmetry`` record holds the effective values either way).
 SYMMETRY_KEYS = ("symmetry", "symmetry_kappa", "symmetry_sigma_floor", "symmetry_mirror_critic")
 SYMMETRY_METHODS = ("none", "mirror_kl")
 #: The SB3 checkpoint attribute (JSON) that records how a checkpoint was trained.
@@ -1290,8 +1355,9 @@ CHECKPOINT_SCHEMA = "mesozoic.mirror-kl/v1"
 
 @dataclass(frozen=True)
 class SymmetryConfig:
-    """MirrorKLPPO's settings.  The defaults are the T. rex stance screen's (arm L, 2026-10): kappa 0.3, a sigma
-    floor of 0.01 in the mirror loss and the mirrored critic on."""
+    """MirrorKLPPO's settings.  The defaults are those of the T. rex stance screen of 2026-10 (the mirror loss with
+    the lean term and the settled leg target): kappa 0.3, a sigma floor of 0.01 in the mirror loss and the mirrored
+    critic on."""
 
     kappa: float = 0.3
     sigma_floor: float = 0.01

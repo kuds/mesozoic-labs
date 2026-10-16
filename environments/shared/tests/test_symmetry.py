@@ -122,11 +122,50 @@ def test_every_anatomical_plant_derives_a_map_and_the_robot_is_refused(model_id)
                 assert mm.joint_sign[j] == (1.0 if label == "pitch" else -1.0), mujoco.mj_id2name(model, 3, j)
 
 
-def test_an_asymmetric_pair_is_refused():
-    model = mujoco.MjModel.from_xml_path(str(TYRANNOSAURUS_REX.asset_path(SY.REPOSITORY_ROOT / "environments")))
-    joint = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, "l_knee")
-    model.jnt_range[joint, 0] -= 0.01
-    with pytest.raises(SY.SymmetryError, match="range"):
+def _left_knee(model: mujoco.MjModel) -> int:
+    return int(mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, "l_knee"))
+
+
+def _shift_the_left_knee_range(model: mujoco.MjModel) -> None:
+    model.jnt_range[_left_knee(model), 0] -= 0.01
+
+
+def _limit_the_left_knee_actuator_force(model: mujoco.MjModel) -> None:
+    model.jnt_actfrclimited[_left_knee(model)] = 1
+    model.jnt_actfrcrange[_left_knee(model)] = (-500.0, 500.0)
+
+
+def _compensate_gravity_on_the_left_shank(model: mujoco.MjModel) -> None:
+    model.body_gravcomp[model.jnt_bodyid[_left_knee(model)]] = 0.5
+
+
+def _give_one_left_geom_fluid_drag(model: mujoco.MjModel) -> None:
+    geom = next(g for g in range(model.ngeom) if SY._name(model, mujoco.mjtObj.mjOBJ_GEOM, g).startswith("l_"))
+    model.geom_fluid[geom, 0] = 1.0
+
+
+def _dent_a_colliding_tail_mesh(model: mujoco.MjModel) -> None:
+    mesh = model.geom_dataid[mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, "tail_1_geom")]
+    model.mesh_vert[model.mesh_vertadr[mesh], 1] += 1e-3
+
+
+@pytest.mark.parametrize(
+    ("model_id", "edit", "message"),
+    [
+        (TYRANNOSAURUS_REX, _shift_the_left_knee_range, "range"),
+        (TYRANNOSAURUS_REX, _limit_the_left_knee_actuator_force, "actuator force range"),
+        (TYRANNOSAURUS_REX, _compensate_gravity_on_the_left_shank, "gravity compensation"),
+        (TYRANNOSAURUS_REX, _give_one_left_geom_fluid_drag, "fluid"),
+        # The anatomical Compsognathus's tail segments are colliding meshes, each its own mirror image.
+        (ModelId("compsognathus_longipes", "anatomical"), _dent_a_colliding_tail_mesh, "vertices"),
+    ],
+    ids=lambda value: getattr(value, "__name__", None),
+)
+def test_an_asymmetric_pair_is_refused(model_id, edit, message):
+    model = mujoco.MjModel.from_xml_path(str(model_id.asset_path(SY.REPOSITORY_ROOT / "environments")))
+    SY.derive_model_mirror(model)
+    edit(model)
+    with pytest.raises(SY.SymmetryError, match=message):
         SY.derive_model_mirror(model)
 
 
@@ -205,9 +244,10 @@ def _swap_sides(info: dict) -> dict:
     return out
 
 
-#: Info keys that are not mirror-invariant scalars: the pelvis yaw rate flips, and the gait history appends "R"
-#: before "L" when both feet touch down in one step (gait_symmetry_weight is 0 on every T. rex stage).
-_SIGNED_INFO = {"pelvis_yaw_vel": -1.0}
+#: Info keys that are not mirror-invariant scalars: the pelvis yaw rate and the lean term's lateral offset flip, and
+#: the gait history appends "R" before "L" when both feet touch down in one step (gait_symmetry_weight is 0 on every
+#: T. rex stage).
+_SIGNED_INFO = {"pelvis_yaw_vel": -1.0, "com_lateral_offset_m": -1.0}
 _ORDER_DEPENDENT_INFO = {"alternation_ratio", "contact_asymmetry"}
 
 
@@ -236,6 +276,7 @@ def _paired_rollout(kwargs, seed, actions, mirror_map):
                     "obs": float(np.max(np.abs(obs_b.astype(np.float64) - em.obs.apply(obs_a).astype(np.float64)))),
                     "reward": abs(float(reward_a) - float(reward_b)),
                     "info": info_error,
+                    "lean_paid": info_a.get("reward_lateral_lean", 0.0) > 0.0,
                     "ended": (bool(term_a), bool(trunc_a), info_a.get("termination_reason")),
                     "ended_b": (bool(term_b), bool(trunc_b), info_b.get("termination_reason")),
                 }
@@ -258,18 +299,34 @@ def _smooth_actions(n: int, seed: int, amplitude: float) -> list[np.ndarray]:
     return out
 
 
+#: The T. rex stance options as the 2026-10 screen trained them (lean term and settled leg target on).
+_SCREENED_OPTIONS = {
+    "lateral_lean_weight": 0.25,
+    "lateral_lean_tolerance_m": 0.015,
+    "leg_home_pose_reference": "settled",
+}
+
+
+@pytest.mark.parametrize(
+    ("options", "steps"),
+    # On, the rollout runs past stance_width_settle_steps (200) so the lean term's gate opens.
+    [({}, 40), (_SCREENED_OPTIONS, 260)],
+    ids=["options off", "screened options on"],
+)
 @pytest.mark.parametrize("seed", [3047, 3059])
-def test_the_simulator_is_mirror_equivariant_on_the_stance(stance_kwargs, mirror_map, seed):
+def test_the_simulator_is_mirror_equivariant_on_the_stance(stance_kwargs, mirror_map, seed, options, steps):
     """Zero action (the statue) and small smooth actions from a mirrored reset: the mirrored episode is the
-    mirror image of the source, its observation to float32 rounding, its reward and info to 1e-9."""
-    for actions in ([np.zeros(15)] * 40, _smooth_actions(40, seed, 0.03)):
-        rows = _paired_rollout(stance_kwargs, seed, actions, mirror_map)
+    mirror image of the source, its observation to float32 rounding, its reward and info to 1e-9, with the stance
+    options off (as every stage has them) and with the lean term and the settled leg target on."""
+    for actions in ([np.zeros(15)] * steps, _smooth_actions(steps, seed, 0.03)):
+        rows = _paired_rollout({**stance_kwargs, **options}, seed, actions, mirror_map)
         assert rows[0]["obs"] == 0.0
         assert rows[1]["obs"] <= 1e-9, "step 1"
-        assert len(rows) == 41
+        assert len(rows) == steps + 1
         assert max(row["obs"] for row in rows) <= 1e-6
         assert max(row["reward"] for row in rows[1:]) <= 1e-9
         assert max(row["info"] for row in rows[1:]) <= 1e-9
+        assert any(row["lean_paid"] for row in rows[1:]) == bool(options)
 
 
 def test_termination_is_mirror_invariant(stance_kwargs, mirror_map):
@@ -312,7 +369,7 @@ def test_the_symmetry_keys_select_mirror_kl_with_the_screened_defaults():
     kwargs = {"symmetry": "mirror_kl", "batch_size": 128}
     config = SY.pop_symmetry_config(kwargs)
     assert kwargs == {"batch_size": 128}
-    # The values the T. rex stance screen trained (arm L): changing a default is a recipe change.
+    # The values the T. rex stance screen trained: changing a default is a recipe change.
     assert config == SY.SymmetryConfig(kappa=0.3, sigma_floor=0.01, mirror_critic=True)
     explicit = SY.pop_symmetry_config(
         {"symmetry": "mirror_kl", "symmetry_kappa": 0, "symmetry_sigma_floor": 0.02, "symmetry_mirror_critic": False}
