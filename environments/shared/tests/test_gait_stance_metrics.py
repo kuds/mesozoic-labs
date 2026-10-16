@@ -38,6 +38,7 @@ from environments.shared.gait.stance_metrics import (
     StanceEpisodeMetrics,
     episode_stance_metrics,
     spawn_grace_steps,
+    whole_foot_cop,
 )
 from environments.shared.model_id import ModelId
 from environments.shared.species_names import model_ids
@@ -85,6 +86,10 @@ def statue_trace(steps: int = 400, *, n_feet: int = 2, dt: float = 0.01, frame_s
         leg_body_substep_frac=np.zeros(steps),
         sole_contacts_mean=np.full((steps, n_feet), 4.0),
         sole_cop=np.zeros((steps, n_feet, 2)),
+        # Each foot declares the span [0.07, 0.21] m ahead of its ankle, and the whole-foot CoP sits at its middle.
+        foot_cop=np.full((steps, n_feet), 0.14),
+        foot_support_span=np.tile([0.07, 0.21], (n_feet, 1)),
+        support_load_pos=np.full((steps, n_feet), np.nan),
         touch=load.copy(),
         foot_pos=np.repeat(feet[None], steps, axis=0),
         root_pos=np.tile([0.0, 0.0, 0.5], (steps, 1)),
@@ -164,6 +169,7 @@ def test_the_statue_scores_the_ideal_on_every_metric():
         "min_sole_contacts": 4.0,
         "max_sole_cop_outer": 0.0,
         "max_sole_cop_fore_aft": 0.0,
+        "max_foot_cop_fore_aft": 0.0,
         "spawn_peak_floor_force_bw": 1.0,
         "spawn_airborne_substeps": 0.0,
         "settle_unsupported_steps": 0.0,
@@ -473,6 +479,69 @@ def test_the_fore_aft_cop_reads_box_soles_only():
     assert math.isnan(metrics(edited(trace, sole_corner_lift=lift)).max_sole_cop_fore_aft)
 
 
+# ── the whole-foot centre of pressure (report-only) ──────────────────────────
+
+
+def _foot_cop(trace: EpisodeTrace, columns: dict[int, Any]) -> EpisodeTrace:
+    """*trace* with foot ``f``'s whole-foot CoP (m ahead of its ankle; span [0.07, 0.21]) set to ``columns[f]``."""
+    cop = trace.foot_cop.copy()
+    for foot, values in columns.items():
+        cop[:, foot] = values
+    return edited(trace, foot_cop=cop)
+
+
+def test_the_whole_foot_cop_reads_span_half_lengths_from_the_midpoint_on_both_sides():
+    """0 at the span's middle (0.14 m ahead of the ankle), 1 on the toe line (0.21) or the heel line (0.07)."""
+    trace = statue_trace()
+    assert metrics(trace).max_foot_cop_fore_aft == 0.0
+    assert metrics(_foot_cop(trace, {0: 0.21})).max_foot_cop_fore_aft == pytest.approx(1.0)
+    assert metrics(_foot_cop(trace, {1: 0.07})).max_foot_cop_fore_aft == pytest.approx(1.0)
+    assert metrics(_foot_cop(trace, {0: 0.161, 1: 0.126})).max_foot_cop_fore_aft == pytest.approx(0.3)
+    # Past the toe line, where the digits carry the front of the foot: it keeps rising past 1, continuous.
+    assert metrics(_foot_cop(trace, {0: 0.245})).max_foot_cop_fore_aft == pytest.approx(1.5)
+    # The pad's own reading is untouched: it is another metric.
+    assert metrics(_foot_cop(trace, {0: 0.245})).max_sole_cop_fore_aft == 0.0
+
+
+def test_the_whole_foot_cop_is_a_per_step_window_mean_and_an_unloaded_step_counts_one():
+    trace = statue_trace()
+    rock = np.where(np.arange(400) % 2 == 0, 0.21, 0.07)  # heel line, toe line, in turn: centred on average
+    assert metrics(_foot_cop(trace, {0: rock})).max_foot_cop_fore_aft == pytest.approx(1.0)
+    settle_edge = np.where(np.arange(400) < 100, 0.21, 0.161)  # the settle window does not count
+    assert metrics(_foot_cop(trace, {0: settle_edge})).max_foot_cop_fore_aft == pytest.approx(0.3)
+    lifted = np.full(400, 0.161)
+    lifted[100:250] = np.nan  # the recorder's whole-foot CoP on a step with no limb floor force
+    assert metrics(_foot_cop(trace, {1: lifted})).max_foot_cop_fore_aft == pytest.approx(0.5 * 1.0 + 0.5 * 0.3)
+    # A limb that only grazes the floor (no substep above CONTACT_THRESHOLD_N) has a CoP and still counts 1.
+    grazing = trace.leg_floor_max.copy()
+    grazing[100:250, 1] = 0.05
+    result = metrics(edited(_foot_cop(trace, {1: 0.161}), leg_floor_max=grazing))
+    assert result.max_foot_cop_fore_aft == pytest.approx(0.5 * 1.0 + 0.5 * 0.3)
+
+
+def test_a_model_whose_feet_declare_no_span_has_no_whole_foot_cop():
+    """The velociraptor, the brachiosaurus, the compsognathus pair and the dibothrosuchus declare none."""
+    trace = statue_trace()
+    span = trace.foot_support_span.copy()
+    span[1] = np.nan  # foot 1 declares none: only foot 0 is read
+    result = metrics(edited(_foot_cop(trace, {0: 0.161, 1: np.nan}), foot_support_span=span))
+    assert result.max_foot_cop_fore_aft == pytest.approx(0.3)
+    span[:] = np.nan
+    unspanned = edited(trace, foot_support_span=span, foot_cop=np.full_like(trace.foot_cop, np.nan))
+    assert math.isnan(metrics(unspanned).max_foot_cop_fore_aft)
+    # NaN only there: every other metric reads the statue.
+    assert metrics(unspanned).max_sole_cop_fore_aft == 0.0
+
+
+def test_the_shared_reduction_is_the_metric():
+    trace = _foot_cop(statue_trace(), {0: np.linspace(0.07, 0.25, 400), 1: 0.15})
+    spanned, cop, loaded = whole_foot_cop(trace)
+    assert spanned.tolist() == [True, True] and loaded.all()
+    assert cop[0, 0] == pytest.approx(-1.0) and cop[-1, 0] == pytest.approx((0.25 - 0.14) / 0.07)
+    window = np.where(loaded[100:], np.abs(cop[100:]), 1.0).mean(axis=0)
+    assert metrics(trace).max_foot_cop_fore_aft == float(window.max())
+
+
 # ── support geoms ────────────────────────────────────────────────────────────
 
 
@@ -718,11 +787,12 @@ def test_from_row_refuses_a_missing_or_unreadable_field():
 
 
 def test_a_row_recorded_before_a_later_metric_reads_it_as_unmeasured():
-    """The window hop pair (D-D26) and the pad's fore-aft CoP (D-D28) postdate the panel CSV contract.
+    """The window hop pair (D-D26), the pad's fore-aft CoP (D-D28) and the whole foot's (floor-truth/v2)
+    postdate the panel CSV contract.
 
     Their absence is NaN; nothing else moves.
     """
-    later = {"window_airborne_substeps", "window_peak_floor_force_bw", "max_sole_cop_fore_aft"}
+    later = {"window_airborne_substeps", "window_peak_floor_force_bw", "max_sole_cop_fore_aft", "max_foot_cop_fore_aft"}
     assert later == STANCE_METRIC_LATER_FIELDS
     assert STANCE_METRIC_LATER_FIELDS <= set(STANCE_METRIC_FIELDS) and STANCE_METRIC_LATER_FIELDS <= set(_WINDOW_FIELDS)
     row = _defective_metrics().as_row()
@@ -766,6 +836,7 @@ def test_the_csv_columns_are_the_scalar_fields_in_order_and_hold_every_gated_met
         "max_sole_cop_fore_aft",
         "window_airborne_substeps",
         "window_peak_floor_force_bw",
+        "max_foot_cop_fore_aft",
     }
     assert gated <= set(STANCE_METRIC_FIELDS)
     assert "foot_load_share" in STANCE_METRIC_FOOT_FIELDS  # the statue-relative share ratio

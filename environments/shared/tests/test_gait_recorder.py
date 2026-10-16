@@ -15,7 +15,13 @@ species (dibothrosuchus switched to the pyramidal cone in memory, compsognathus 
 * the **hook** is chained (the trex behavior env's terrain probe still fires
   every substep), restored exactly, and refused when a foreign hook sits on
   top;
-* every :class:`RecorderError` path fails closed.
+* every :class:`RecorderError` path fails closed;
+* the **whole-foot centre of pressure** is what its definition says (an
+  independent probe of every limb contact, with the ankle's own world
+  anchor, reproduces it), is the vertical-load moment about the ankle axis
+  over the limb's floor force within a tolerance stated from the sole's tilt,
+  and its reading of the T. rex physics-r9 statue (seed 3042) is pinned; each
+  hinged digit's load position is reproduced the same way.
 
 The six-statue registry evidence (GAIT_QUALITY_PLAN_2026_09.md §3.1: the
 foot / non-foot split counts only once each statue is shown putting its
@@ -469,6 +475,216 @@ def test_a_rolled_box_lifts_its_corners_and_reads_as_outer_edge_up(envs):
     toe_up = np.array([[math.cos(angle), 0, -math.sin(angle)], [0, 1, 0], [math.sin(angle), 0, math.cos(angle)]])
     _tilt, _roll, pitch = _sole_angles(morphology, np.repeat(toe_up.reshape(1, 1, 9), 2, axis=1))
     assert pitch[0] == pytest.approx([4.0, 4.0])
+
+
+# ── the whole-foot centre of pressure ────────────────────────────────────────
+
+
+class WholeFootProbe:
+    """An independent read of every limb-floor contact, chained under the recorder (it runs first, every substep).
+
+    Per substep and contact: the ``mj_contactForce`` normal force and the point; per foot, the sole's frame and
+    the ankle's WORLD anchor and axis (``xanchor`` / ``xaxis``, not the recorder's constant offset); per hinged
+    digit, its capsule's frame and its MTP joint's world anchor.  :meth:`end_step` reduces the step's substeps
+    to the definition (force-weighted, along the sole's forward axis from the ankle anchor) and to the physics
+    (the vertical load's moment about the ankle axis over the limb's floor force), with the per-step bound on
+    their difference that the sole's tilt sets.
+    """
+
+    def __init__(self, env, morphology: Morphology) -> None:
+        self.env, self.morphology = env, morphology
+        model = env.model
+        self.force = np.zeros(6)
+        self.digits = [
+            (support, int(geom), int(joint))
+            for support, (geom, joint) in enumerate(zip(morphology.support_geom_ids, morphology.support_geom_mtp))
+            if joint >= 0
+        ]
+        self.reach = {geom: float(model.geom_size[geom][1] + model.geom_size[geom][0]) for _, geom, _ in self.digits}
+        self.rows: list[tuple] = []
+        self.definition: list[np.ndarray] = []
+        self.moment_over_force: list[np.ndarray] = []
+        self.bound: list[np.ndarray] = []
+        self.load_pos: list[np.ndarray] = []
+
+    def __call__(self) -> None:
+        model, data, morphology = self.env.model, self.env.data, self.morphology
+        feet = []
+        for foot in morphology.feet:
+            frame = data.geom_xmat[foot.sole_geom].reshape(3, 3).copy()
+            feet.append((frame, data.xanchor[foot.ankle_joint].copy(), data.xaxis[foot.ankle_joint].copy()))
+        digits = {
+            support: (
+                data.geom_xpos[geom].copy(),
+                data.geom_xmat[geom].reshape(3, 3)[:, 2].copy(),
+                data.xanchor[joint].copy(),
+            )
+            for support, geom, joint in self.digits
+        }
+        contacts = []
+        for index in range(data.ncon):
+            first, second = (int(geom) for geom in data.contact.geom[index])
+            if morphology.is_floor[first] == morphology.is_floor[second]:
+                continue
+            other = second if morphology.is_floor[first] else first
+            if not morphology.is_animal[other] or morphology.geom_foot[other] < 0:
+                continue
+            mujoco.mj_contactForce(model, data, index, self.force)
+            contacts.append(
+                (int(morphology.geom_foot[other]), other, float(self.force[0]), data.contact.pos[index].copy())
+            )
+        self.rows.append((feet, digits, contacts))
+
+    def end_step(self) -> None:
+        morphology = self.morphology
+        n_feet, n_support = morphology.n_feet, len(morphology.support_geom_ids)
+        weight, ahead, lever, bound = np.zeros(n_feet), np.zeros(n_feet), np.zeros(n_feet), np.zeros(n_feet)
+        digit_weight, digit_pos = np.zeros(n_support), np.zeros(n_support)
+        up = np.array([0.0, 0.0, 1.0])
+        for feet, digits, contacts in self.rows:
+            for foot, geom, normal, point in contacts:
+                frame, anchor, axis = feet[foot]
+                forward, lateral, up_sole = frame[:, 0], frame[:, 1], frame[:, 2]
+                arm = point - anchor
+                along = float(forward @ arm)
+                sign = 1.0 if axis @ lateral > 0 else -1.0
+                tilt = math.acos(min(1.0, abs(float(up_sole @ up))))
+                weight[foot] += normal
+                ahead[foot] += normal * along
+                lever[foot] += normal * sign * float(np.cross(up, arm) @ axis)
+                bound[foot] = max(
+                    bound[foot], abs(float(up_sole @ arm)) * math.sin(tilt) + abs(along) * (1 - math.cos(tilt))
+                )
+                support = int(morphology.geom_support[geom])
+                if support in digits:
+                    centre, capsule, mtp = digits[support]
+                    base = float(capsule @ (mtp - centre))
+                    tip = self.reach[int(geom)] * (1.0 if base <= 0 else -1.0)
+                    digit_weight[support] += normal
+                    digit_pos[support] += normal * (float(capsule @ (point - centre)) - base) / (tip - base)
+        with np.errstate(invalid="ignore", divide="ignore"):
+            self.definition.append(np.where(weight > 1e-9, ahead / weight, np.nan))
+            self.moment_over_force.append(np.where(weight > 1e-9, lever / weight, np.nan))
+            self.load_pos.append(np.where(digit_weight > 1e-9, digit_pos / digit_weight, np.nan))
+        self.bound.append(bound)
+        self.rows = []
+
+
+def _whole_foot_rollout(envs, steps: int, *, jitter: float = 0.0, settle: int = 100):
+    """A T. rex statue episode (seed 3042) through the recorder with :class:`WholeFootProbe` under it.
+
+    After *settle* zero-action steps the command gets N(0, *jitter*) noise on every actuator, every step.
+    """
+    env = envs(TYRANNOSAURUS_REX)
+    morphology = Morphology.from_env(env, TYRANNOSAURUS_REX)
+    probe = WholeFootProbe(env, morphology)
+    env._substep_probe_hook = probe
+    rng = np.random.default_rng(7)
+    with SubstepContactRecorder(env, morphology) as recorder:
+        env.reset(seed=3042)
+        for step in range(steps):
+            action = np.zeros(env.model.nu)
+            if step >= settle and jitter:
+                action = np.clip(rng.normal(0.0, jitter, env.model.nu), -1.0, 1.0)
+            _obs, _reward, terminated, truncated, _info = env.step(action)
+            recorder.end_step(action, 0.0)
+            probe.end_step()
+            if terminated or truncated:
+                break
+        trace = recorder.end_episode(terminated=bool(terminated), truncated=bool(truncated))
+    return trace, probe, morphology
+
+
+@pytest.mark.parametrize("jitter", [0.0, 0.1], ids=["statue", "jittered"])
+def test_the_whole_foot_cop_is_its_definition_and_the_vertical_load_moment_about_the_ankle(envs, jitter):
+    """``foot_cop`` is the force-weighted lever arm of every limb contact along the sole, from the ankle axis.
+
+    Exact against the independent probe (the ankle's world anchor, ``mj_contactForce``), and within the stated
+    tolerance of the vertical load's moment about the ankle axis divided by the limb's floor force: a lever arm
+    measured along the sole, not along the floor, differs from it by at most ``|d . n| sin(tilt) + |d . f| (1 -
+    cos(tilt))`` per contact (``d`` from the ankle anchor, ``n`` / ``f`` the sole's normal and forward axes, tilt
+    the sole's angle from level), about the ankle's 0.23 m height times the sine of the tilt.  The bound is exact:
+    in the sole frame the vertical's lever about the lateral ankle axis is ``v_n d_f - v_f d_n``, with the
+    vertical's normal component ``v_n = cos(tilt)`` and its forward one ``|v_f| <= sin(tilt)``.  Not the ankle
+    actuator's torque over the load, which also carries the floor's shear times that height.
+    """
+    trace, probe, morphology = _whole_foot_rollout(envs, 300, jitter=jitter)
+    definition = np.array(probe.definition)
+    moment = np.array(probe.moment_over_force)
+    bound = np.array(probe.bound)
+    assert np.array_equal(np.isnan(trace.foot_cop), np.isnan(definition))
+    np.testing.assert_allclose(trace.foot_cop, definition, rtol=0, atol=1e-12)
+    assert np.isfinite(trace.foot_cop[100:]).all()  # both feet stand on every step after the settle
+    difference = np.abs(trace.foot_cop - moment)
+    assert np.all(difference[np.isfinite(difference)] <= bound[np.isfinite(difference)] + 1e-12)
+    if not jitter:
+        # On the statue after the settle (the sole within about 1.3 degrees of level) the two agree within 2 mm
+        # (measured 1.0, median 0.5; the pad spans 140 mm).  Under N(0, 0.1) command noise the sole tilts up to
+        # about 5 degrees and they differ by up to 21 mm, inside the bound on every step.
+        assert np.nanmax(difference[100:]) < 0.002
+    # The span is the registry's, and the trace's whole-foot CoP sits well inside it on a statue.
+    assert trace.foot_support_span.tolist() == [[0.07, 0.21], [0.07, 0.21]]
+    assert 0.12 < np.nanmean(trace.foot_cop[100:]) < 0.17
+
+
+def test_each_hinged_digits_load_position_is_reproduced_and_other_support_geoms_have_none(envs):
+    trace, probe, morphology = _whole_foot_rollout(envs, 200)
+    reference = np.array(probe.load_pos)
+    hinged = [support for support, joint in enumerate(morphology.support_geom_mtp) if joint >= 0]
+    assert [trace.support_geom_names[support] for support in hinged] == [
+        f"{side}_toe_{digit}_geom" for side in "rl" for digit in ("d2", "d3", "d4")
+    ]
+    np.testing.assert_allclose(trace.support_load_pos[:, hinged], reference[:, hinged], rtol=0, atol=1e-12)
+    others = [support for support in range(len(morphology.support_geom_ids)) if support not in hinged]
+    assert np.isnan(trace.support_load_pos[:, others]).all()  # the pads
+    # On the r9 statue the digits are loaded near their MTP joints (about 0.05-0.08 of their length).
+    assert 0.0 <= np.nanmedian(trace.support_load_pos[100:, hinged]) < 0.2
+
+
+def test_a_foot_that_declares_no_ankle_has_no_whole_foot_cop(envs):
+    """The anatomical compsognathus: a box pad and digits, but no declared span (its digits share the pad's body)."""
+    env = envs(COMPSOGNATHUS_LONGIPES)
+    morphology = Morphology.from_env(env, COMPSOGNATHUS_LONGIPES)
+    zero = np.zeros(env.model.nu)
+    with SubstepContactRecorder(env, morphology) as recorder:
+        env.reset(seed=3042)
+        for _ in range(30):
+            env.step(zero)
+            recorder.end_step(zero, 0.0)
+        trace = recorder.end_episode(truncated=True)
+    assert np.isnan(trace.foot_cop).all() and np.isnan(trace.foot_support_span).all()
+    assert np.isnan(trace.support_load_pos).all()
+    assert np.isfinite(trace.sole_cop[10:, :, 0]).all()  # the pad CoP is measured as before
+    assert math.isnan(episode_stance_metrics(trace, settle_steps=10).max_foot_cop_fore_aft)
+
+
+def test_the_physics_r9_statue_whole_foot_cop_reading(envs):
+    """Seed 3042 of the T. rex statue panel, the full 1,000 steps: the whole-foot reading on the span 0.070-0.210 m.
+
+    An independent per-substep probe of this panel (every limb floor contact decoded with ``mj_contactForce``,
+    in the pad's own frame and pad half-lengths; not in the repository) read 0.1304 (right foot) and 0.0458
+    (left), signed +0.1304 and -0.0171, with the whole-foot CoP 0.149 m ahead of the right ankle on average;
+    over the 39 full-horizon episodes of 3042-3081 it read a median of 0.130 (0.058 to 0.250), the repo's
+    panel the same to 1e-16.
+    """
+    from environments.shared.gait.pad_telemetry import PadLayout, episode_pad_telemetry
+
+    env = envs(TYRANNOSAURUS_REX)
+    morphology = Morphology.from_env(env, TYRANNOSAURUS_REX)
+    zero = np.zeros(env.model.nu)
+    with SubstepContactRecorder(env, morphology) as recorder:
+        env.reset(seed=3042)
+        for _ in range(1000):
+            env.step(zero)
+            recorder.end_step(zero, 0.0)
+        trace = recorder.end_episode(truncated=True)
+    pads = episode_pad_telemetry(trace, PadLayout.from_morphology(morphology), settle_steps=200)
+    assert pads["r_foot_cop_fore_aft_gate"] == pytest.approx(0.1303721171614448, abs=1e-6)
+    assert pads["l_foot_cop_fore_aft_gate"] == pytest.approx(0.0458057900853806, abs=1e-6)
+    assert pads["r_foot_cop_fore_aft"] == pytest.approx(0.1303721171614448, abs=1e-6)
+    assert pads["l_foot_cop_fore_aft"] == pytest.approx(-0.0170667335389278, abs=1e-6)
+    assert np.mean(trace.foot_cop[200:, 0]) == pytest.approx(0.1491260482013012, abs=1e-6)
+    assert episode_stance_metrics(trace, settle_steps=200).max_foot_cop_fore_aft == pads["r_foot_cop_fore_aft_gate"]
 
 
 # ── the six statues put their floor load on the registry ─────────────────────

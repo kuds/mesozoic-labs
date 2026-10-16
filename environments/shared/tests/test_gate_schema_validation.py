@@ -130,14 +130,16 @@ class TestStanceQualityV2Declaration:
             "stance_quality/v2"
         )
 
+    @pytest.mark.parametrize("key", ["max_sole_cop_fore_aft", "max_foot_cop_fore_aft"])
     @pytest.mark.parametrize("value", [80, 0.0, 1.0, -0.2, True, "0.8", float("nan")])
-    def test_a_fraction_bar_outside_its_range_is_refused_at_config_load(self, value):
-        """``max_sole_cop_fore_aft = 80`` (a percent typo) stops the run here, not after it trained (D-D28)."""
-        assert _validate(dict(_STANCE_V2, max_sole_cop_fore_aft=0.8)) == "stance_quality/v2"
-        with pytest.raises(GateSchemaError, match="max_sole_cop_fore_aft must be a number strictly between 0 and 1"):
-            _validate(dict(_STANCE_V2, max_sole_cop_fore_aft=value))
+    def test_a_fraction_bar_outside_its_range_is_refused_at_config_load(self, key, value):
+        """``max_sole_cop_fore_aft = 80`` (a percent typo) stops the run here, not after it trained (D-D28); the
+        report-only whole-foot key, should a stage ever declare it, the same way."""
+        assert _validate(dict(_STANCE_V2, **{key: 0.8})) == "stance_quality/v2"
+        with pytest.raises(GateSchemaError, match=f"{key} must be a number strictly between 0 and 1"):
+            _validate(dict(_STANCE_V2, **{key: value}))
         with pytest.raises(GateSchemaError, match="strictly between 0 and 1"):
-            thresholds_from_configs({1: {"curriculum_kwargs": dict(_STANCE_V2, max_sole_cop_fore_aft=value)}})
+            thresholds_from_configs({1: {"curriculum_kwargs": dict(_STANCE_V2, **{key: value})}})
 
     @pytest.mark.parametrize(
         ("key", "value"),

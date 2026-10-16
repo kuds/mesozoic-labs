@@ -61,7 +61,7 @@ import pytest
 from environments.shared.config import load_stage_config, save_stage_config
 from environments.shared.curriculum.gate_schema import gate_config_view
 from environments.shared.curriculum.stance_gate_v2 import STANCE_GATE_V2_KIND, STANCE_V2_REPORT_SCHEMA, StatueReference
-from environments.shared.gait.constants import measurement_constants, measurement_sha256
+from environments.shared.gait.constants import MEASUREMENT_VERSION, measurement_constants, measurement_sha256
 from environments.shared.gait.stance_metrics import StanceEpisodeMetrics
 from environments.shared.model_id import ModelId
 from environments.shared.plant_contract import current_plant_identity
@@ -247,6 +247,9 @@ class TestThePanel:
         assert all(0.0 < row["max_sole_cop_fore_aft"] < 1.0 for row in report["episode_evidence"])
         text = (stage_dir / "stance_gate_report.txt").read_text()
         assert "pad CoP fore-aft (|.| / half-length)" in text
+        # The compsognathus declares no support span, so it has no whole-foot reading and the report lists none.
+        assert all(math.isnan(row["max_foot_cop_fore_aft"]) for row in report["episode_evidence"])
+        assert "foot CoP fore-aft (|.| / half-span)" not in text
         # So is the window hop pair, which this block does not declare either.
         assert "window both-feet-unloaded substeps" in text and "window peak floor force (BW)" in text
         assert report["result"]["n_clean"] == EPISODES == report["result"]["n_episodes"]
@@ -505,6 +508,9 @@ class TestThePadCentreOfPressure:
         stance_report.write_stance_gate_report(tmp_path, report)
         text = (tmp_path / "stance_gate_report.txt").read_text(encoding="utf-8")
         assert "max_sole_cop_fore_aft" in text and "pad CoP fore-aft" not in text  # gated, so not report-only
+        # The whole foot is measured on every episode and reported, never gated: no stage declares its key.
+        assert all(math.isfinite(row["max_foot_cop_fore_aft"]) for row in report["episode_evidence"])
+        assert "foot CoP fore-aft (|.| / half-span)" in text
         # The T. rex declares the hop-or-fall rail without the window pair: the rail's line names the hop keys it
         # declares, and the pair is a report-only reading.
         assert "episodes end early or fail support, touchdowns, drift or saturation)" in text
@@ -846,7 +852,7 @@ class TestPublication:
         other = tmp_path / "other"
         shutil.copytree(stage_dir, other)
         path = other / "stance_panel_selected.csv"
-        text = path.read_text(encoding="utf-8").replace("floor-truth/v1", "floor-truth/v0")
+        text = path.read_text(encoding="utf-8").replace(MEASUREMENT_VERSION, "floor-truth/v0")
         path.write_text(text, encoding="utf-8")
         with pytest.raises(ResultBundleError, match="measured under 'floor-truth/v0'"):
             self._validate(other)

@@ -15,7 +15,8 @@ The hot path (the hook, once per physics substep) only COPIES raw rows:
    substep of the step seen yet) the spawn geometry is sampled;
 3. the contact geom pairs, their normal forces and their points;
 4. the env's own per-substep touch reading, ``env._foot_contact_forces()``;
-5. the sole geoms' poses (for the CoP);
+5. the sole geoms' poses (for the CoP), and the hinged digits' poses (for
+   where along each digit its load sits);
 6. at the last substep of a control step, the boundary geometry (foot
    sites, sole frames, root pose), the joint qpos and the applied ``ctrl``.
 
@@ -44,6 +45,23 @@ brachiosaurus until D-D30) and the elliptic one (every species since)
 alike, the per-foot and per-geom forces agree EXACTLY (max |diff| 0.0).  No
 plant declares the pyramidal cone now; test_gait_recorder.py keeps its
 decode covered on dibothrosuchus with the cone switched in memory.
+
+The whole-foot centre of pressure
+---------------------------------
+``EpisodeTrace.foot_cop`` measures every floor contact of the limb in the
+SOLE frame of its own substep, as ``sole_cop`` does, but along the forward
+axis from the foot's declared ankle axis (a hinge of the sole's body whose
+axis is the sole's lateral axis, so a fixed line of that frame;
+``morphology.FootSpec.ankle_forward_m``) and in metres, so that
+``foot_cop * leg_floor_mean`` is the step's floor-load moment
+about the ankle axis with each lever arm measured along the sole.  That is
+the vertical load's moment about the ankle axis exactly while the sole is
+level, and differs from it by at most ``|d . n| sin(tilt) + |d . f| (1 -
+cos(tilt))`` per contact otherwise (``d`` from the ankle, ``n`` and ``f`` the
+sole's normal and forward axes): about the ankle's height above the contacts
+times the sine of the sole's tilt (``tests/test_gait_recorder.py`` checks
+both).  It is not the ankle actuator's torque, which also carries the
+floor's shear times that height.
 
 Timing
 ------
@@ -149,6 +167,21 @@ class EpisodeTrace:
     #: (T,F,2) force-weighted centre of pressure on the sole, (fore +, outer +) / half-size;
     #: NaN on a step with no sole contact.
     sole_cop: np.ndarray
+    #: (T,F) the WHOLE-FOOT fore-aft centre of pressure, in m ahead of the foot's declared ankle axis
+    #: (``FOOT_SUPPORT``'s ``ankle``): the force-weighted position of every floor contact of the limb
+    #: (sole, digits and any other leg geom) along the sole's forward axis of the contact's own substep,
+    #: pooled over the step's substeps as ``sole_cop`` is.  Times the limb's floor force
+    #: (``leg_floor_mean``) it is the step's vertical-load moment about the ankle axis, up to the sole's
+    #: tilt (module docstring).  NaN on a step with no limb floor force, and on every step of a foot that
+    #: declares no ankle.
+    foot_cop: np.ndarray
+    #: (F,2) each foot's declared support span (heel line, toe line), m ahead of its ankle axis along the
+    #: sole's forward axis: what normalises ``foot_cop``; NaN for a foot that declares none.
+    foot_support_span: np.ndarray
+    #: (T,G) per support geom that is a hinged digit (``Morphology.support_geom_mtp``): the force-weighted
+    #: position of its floor contacts along the digit, 0 at the MTP joint's axis and 1 at the capsule's
+    #: tip, pooled over the substeps; NaN for every other support geom and on a step the digit carries nothing.
+    support_load_pos: np.ndarray
     #: (T,F) the MIN over substeps of ``env._foot_contact_forces()``: bitwise the env's own
     #: ``_aggregated_foot_contact_forces()``, and still valid after an auto-reset.
     touch: np.ndarray
@@ -254,6 +287,20 @@ class SubstepContactRecorder:
             for foot in morphology.feet
         ]
         self._support_names = tuple(str(model.geom(int(geom)).name) for geom in morphology.support_geom_ids)
+        self._ankle_forward = np.array([foot.ankle_forward_m for foot in morphology.feet], dtype=np.float64)
+        self._support_span = np.array(
+            [[foot.heel_line_m, foot.toe_line_m] for foot in morphology.feet], dtype=np.float64
+        ).reshape(-1, 2)
+        # The hinged digits: their support index, geom, and the MTP axis and the tip along the capsule's
+        # local z axis (constants in the geom frame: the MTP joint is a hinge of the digit's own body).
+        mtp = tuple(morphology.support_geom_mtp) or (-1,) * len(morphology.support_geom_ids)
+        self._digit_support = np.array([index for index, joint in enumerate(mtp) if joint >= 0], dtype=np.int64)
+        self._digit_geoms = np.array(
+            [morphology.support_geom_ids[index] for index in self._digit_support], dtype=np.int64
+        )
+        self._digit_base_z, self._digit_tip_z = _digit_axis_ends(
+            model, self._digit_geoms, [mtp[i] for i in self._digit_support]
+        )
         self._per_geom = bool(per_geom)
         self._animal_index = np.full(model.ngeom, -1, dtype=np.int64)
         self._animal_index[list(morphology.animal_geoms)] = np.arange(len(morphology.animal_geoms))
@@ -324,6 +371,7 @@ class SubstepContactRecorder:
         self._contact_counts: list[int] = []  # per substep
         self._touch: list[tuple[float, ...]] = []  # per substep
         self._sole_pose: list[np.ndarray] = []  # per substep, (F, 12): xpos then xmat
+        self._digit_pose: list[np.ndarray] = []  # per substep, (D, 12): the hinged digits' xpos then xmat
         self._boundary: list[np.ndarray] = []  # per step
         self._joint_qpos: list[np.ndarray] = []  # per step
         self._ctrl: list[np.ndarray] = []  # per step
@@ -395,6 +443,10 @@ class SubstepContactRecorder:
         self._contact_counts.append(ncon)
         self._touch.append(env._foot_contact_forces())
         self._sole_pose.append(np.concatenate([data.geom_xpos[self._soles], data.geom_xmat[self._soles]], axis=1))
+        if self._digit_geoms.size:
+            self._digit_pose.append(
+                np.concatenate([data.geom_xpos[self._digit_geoms], data.geom_xmat[self._digit_geoms]], axis=1)
+            )
         self._n_sub += 1
         if self._n_sub == self._frame_skip:
             self._boundary.append(self._geometry_row(data))
@@ -515,8 +567,9 @@ class SubstepContactRecorder:
             substep_of[loaded] * n_feet + foot[loaded], minlength=total_substeps * n_feet
         ).reshape(steps, substeps, n_feet)
         cop = np.full((steps, n_feet, 2), np.nan)
+        pose = np.stack(self._sole_pose) if on_sole.any() or leg_on_floor.any() else None  # (total_substeps, F, 12)
         if on_sole.any():
-            pose = np.stack(self._sole_pose)  # (total_substeps, F, 12)
+            assert pose is not None
             for index in np.unique(foot[on_sole]).tolist():
                 spec = feet[index]
                 half = self._half_size[index]
@@ -535,6 +588,45 @@ class SubstepContactRecorder:
                 for column, coordinate in enumerate((fore, outer)):
                     weighted = np.bincount(step_of, weights=weight * coordinate, minlength=steps)
                     cop[has_load, index, column] = weighted[has_load] / weight_sum[has_load]
+        # The whole-foot centre of pressure: every floor contact of the limb, in the sole frame of its own
+        # substep, m ahead of the declared ankle axis along the sole's (signed) forward axis.
+        foot_cop = np.full((steps, n_feet), np.nan)
+        if leg_on_floor.any():
+            assert pose is not None
+            for index in np.unique(foot[leg_on_floor]).tolist():
+                if not np.isfinite(self._ankle_forward[index]):
+                    continue
+                spec = feet[index]
+                chosen = np.flatnonzero(leg_on_floor & (foot == index))
+                at = substep_of[chosen]
+                rotation = pose[at, index, 3:].reshape(-1, 3, 3)
+                local = np.einsum("nji,nj->ni", rotation, points[chosen] - pose[at, index, :3])
+                ahead = spec.sole_forward_sign * local[:, spec.sole_forward_axis] - self._ankle_forward[index]
+                weight = normal[chosen]
+                step_of = at // substeps
+                weight_sum = np.bincount(step_of, weights=weight, minlength=steps)
+                has_load = weight_sum > 1e-9
+                weighted = np.bincount(step_of, weights=weight * ahead, minlength=steps)
+                foot_cop[has_load, index] = weighted[has_load] / weight_sum[has_load]
+        # Where along each hinged digit its floor load sits: 0 at the MTP axis, 1 at the tip.
+        load_pos = np.full((steps, n_support), np.nan)
+        if self._digit_geoms.size and on_support.any():
+            digit_pose = np.stack(self._digit_pose)  # (total_substeps, D, 12)
+            for column, support_column in enumerate(self._digit_support.tolist()):
+                chosen = np.flatnonzero(on_support & (support_index == support_column))
+                if not chosen.size:
+                    continue
+                at = substep_of[chosen]
+                axis = digit_pose[at, column, 3:].reshape(-1, 3, 3)[:, :, 2]  # the capsule's local z, in world
+                along = np.einsum("nj,nj->n", axis, points[chosen] - digit_pose[at, column, :3])
+                base, tip = self._digit_base_z[column], self._digit_tip_z[column]
+                position = (along - base) / (tip - base)
+                weight = normal[chosen]
+                step_of = at // substeps
+                weight_sum = np.bincount(step_of, weights=weight, minlength=steps)
+                has_load = weight_sum > 1e-9
+                weighted = np.bincount(step_of, weights=weight * position, minlength=steps)
+                load_pos[has_load, support_column] = weighted[has_load] / weight_sum[has_load]
         touch = np.asarray(self._touch, dtype=np.float64).reshape(steps, substeps, n_feet).min(axis=1)
 
         site, sole_pos, sole_frame, root_pos, root_quat = self._unpack(np.asarray(self._boundary))
@@ -584,6 +676,9 @@ class SubstepContactRecorder:
             leg_body_substep_frac=leg_body_any.mean(axis=1),
             sole_contacts_mean=sole_contacts.mean(axis=1),
             sole_cop=cop,
+            foot_cop=foot_cop,
+            foot_support_span=self._support_span.copy(),
+            support_load_pos=load_pos,
             touch=touch,
             foot_pos=site,
             root_pos=root_pos,
@@ -621,6 +716,27 @@ class SubstepContactRecorder:
             root_pos,
             root_quat,
         )
+
+
+def _digit_axis_ends(model: Any, geoms: np.ndarray, joints: list[int]) -> tuple[np.ndarray, np.ndarray]:
+    """Per hinged digit capsule: its MTP axis and its tip along the capsule's local z axis (m, geom frame).
+
+    The MTP joint's anchor (fixed in the digit's body) projected on the
+    capsule axis is the base; the tip is the end of the capsule farther from
+    it, the segment's half-length plus the radius out.
+    """
+    base = np.zeros(len(geoms))
+    tip = np.zeros(len(geoms))
+    for index, (geom, joint) in enumerate(zip(geoms.tolist(), joints)):
+        rotation = np.zeros(9)
+        mujoco.mju_quat2Mat(rotation, np.asarray(model.geom_quat[geom], dtype=np.float64))
+        anchor = rotation.reshape(3, 3).T @ (
+            np.asarray(model.jnt_pos[joint], dtype=np.float64) - np.asarray(model.geom_pos[geom], dtype=np.float64)
+        )
+        reach = float(model.geom_size[geom][1] + model.geom_size[geom][0])
+        base[index] = float(anchor[2])
+        tip[index] = reach if base[index] <= 0.0 else -reach
+    return base, tip
 
 
 def _sole_corners(model: Any, foot: Any) -> np.ndarray | None:

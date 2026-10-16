@@ -44,10 +44,41 @@ not in ``plant_versions.toml``, and editing an entry after a stage adopts
 ``stance_quality/v2`` needs a new :data:`.constants.MEASUREMENT_VERSION`.  A
 model with no entry falls back to the generic rule, and the manifest records
 ``registry: None``.
+
+The whole-foot centre of pressure
+---------------------------------
+An entry may also declare the foot's ``ankle`` (a joint name template) and
+its support span, ``heel_line`` and ``toe_line``: metres from the ankle's
+hinge axis along the sole's forward axis.  The recorder then measures the
+WHOLE-FOOT fore-aft centre of pressure (every floor contact of the limb,
+sole and digits alike) from that axis, and the span normalises it.  The
+ankle must be a hinge of the sole's own body, so its axis is fixed in the
+sole frame and the span is a property of the foot, not of a pose; its axis
+must be the sole's lateral axis (to :data:`_ANKLE_AXIS_OFF_LATERAL` of its
+length), because only about a lateral axis is a contact's distance along
+the forward axis its lever arm: for a unit axis ``a`` in the sole frame the
+vertical load at ``d`` on a level sole has the lever ``a_f d_l - a_l d_f``,
+so a forward component would weigh in lateral offsets and a normal one
+shrink the arm.  The three keys are declared together or not at all.  A
+foot whose entry declares none has no whole-foot centre of pressure
+(``EpisodeTrace.foot_cop`` is NaN for it).
+Only the T. rex declares one: its pad sits on the body its ankle hinges.
+Every other sole sits on a hinge below the ankle (the anatomical
+compsognathus's, the dibothrosuchus's and the brachiosaurus's on
+``{s}_toe``, the compsognathus robot's on its ankle roll; the velociraptor
+has none), so which axis counts as their ankle is left to a later decision.
+
+Digits with an MTP joint (generic rule): a registered support geom other
+than the sole is a hinged digit when it is a capsule on a CHILD body of the
+sole's body that is joined to it by exactly one hinge, its MTP joint.  The
+recorder reads where along such a digit its floor load sits (0 at the MTP
+axis, 1 at the capsule's tip); ``support_geom_mtp`` names the joint, -1 for
+every other support geom.
 """
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from typing import Any, Callable, Mapping
 
@@ -77,10 +108,47 @@ class FootRegistryEntry:
     support: tuple[str, ...]
     sole: str | None
     foot_site: str | None = None
+    #: The hinge joint the whole-foot centre of pressure is measured from, a
+    #: template like the geom names; ``None`` for a foot that declares no
+    #: support span.  A hinge of the sole's own body (module docstring).
+    ankle: str | None = None
+    #: The declared support span along the sole's forward axis, in m from the
+    #: ankle's axis: the heel line and the toe line the whole-foot centre of
+    #: pressure is normalised on (-1 on the heel line, +1 on the toe line).
+    heel_line: float | None = None
+    toe_line: float | None = None
+
+    def __post_init__(self) -> None:
+        declared = [value is not None for value in (self.ankle, self.heel_line, self.toe_line)]
+        if any(declared) and not all(declared):
+            raise MorphologyError(
+                "a FOOT_SUPPORT entry declares its ankle, heel_line and toe_line together or not at all, not "
+                f"ankle={self.ankle!r}, heel_line={self.heel_line!r}, toe_line={self.toe_line!r}"
+            )
+        if self.heel_line is not None and self.toe_line is not None:
+            for name, value in (("heel_line", self.heel_line), ("toe_line", self.toe_line)):
+                if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+                    raise MorphologyError(f"FOOT_SUPPORT {name} must be a finite number of metres, not {value!r}")
+            if not self.heel_line < self.toe_line:
+                raise MorphologyError(
+                    f"FOOT_SUPPORT heel_line {self.heel_line!r} must lie behind toe_line {self.toe_line!r}"
+                )
+
+    @property
+    def declares_span(self) -> bool:
+        """Whether the entry declares an ankle and a support span (the whole-foot centre of pressure is measured)."""
+        return self.ankle is not None
 
     def as_manifest(self) -> dict[str, Any]:
-        """The entry as a measurement manifest records it (``registry``): the templates, JSON-ready."""
-        return {"support": list(self.support), "sole": self.sole, "foot_site": self.foot_site}
+        """The entry as a measurement manifest records it (``registry``): the templates and the span, JSON-ready."""
+        return {
+            "support": list(self.support),
+            "sole": self.sole,
+            "foot_site": self.foot_site,
+            "ankle": self.ankle,
+            "heel_line": None if self.heel_line is None else float(self.heel_line),
+            "toe_line": None if self.toe_line is None else float(self.toe_line),
+        }
 
 
 def support_entry(model_id: ModelId) -> FootRegistryEntry | None:
@@ -96,13 +164,21 @@ def support_entry(model_id: ModelId) -> FootRegistryEntry | None:
     if declared is None:
         return None
     return FootRegistryEntry(
-        support=tuple(declared["support"]), sole=declared["sole"], foot_site=declared.get("foot_site")
+        support=tuple(declared["support"]),
+        sole=declared["sole"],
+        foot_site=declared.get("foot_site"),
+        ankle=declared.get("ankle"),
+        heel_line=declared.get("heel_line"),
+        toe_line=declared.get("toe_line"),
     )
 
 
 # The foot labels the first sensor's name prefix may give; any other prefix
 # becomes ``foot<i>``.  The last letter is the side.
 _FOOT_LABELS = ("r", "l", "fr", "fl", "rr", "rl")
+#: How far a declared ankle's axis may lie off the sole's lateral axis, as the norm of its forward and
+#: normal components over its length (about 6e-5 degrees): round-off, not a cant.
+_ANKLE_AXIS_OFF_LATERAL = 1e-6
 _PREFIX_ALIASES = {"right": "r", "left": "l"}
 _SIDE_WORDS = {"R": "right", "L": "left"}
 
@@ -141,6 +217,13 @@ class FootSpec:
     sole_lateral_sign: float
     #: The keyframe's own sole tilt (degrees from flat), NaN without a sole.
     home_sole_tilt_deg: float
+    #: The registry's ankle hinge (-1: none declared) and its axis's coordinate along the sole's
+    #: signed forward axis, in the sole frame (m; constant, the ankle being a hinge of the sole's body).
+    ankle_joint: int = -1
+    ankle_forward_m: float = float("nan")
+    #: The declared support span, m from the ankle axis along the sole's forward axis; NaN without one.
+    heel_line_m: float = float("nan")
+    toe_line_m: float = float("nan")
 
 
 @dataclass(frozen=True, eq=False)
@@ -172,6 +255,9 @@ class Morphology:
     support_geom_ids: tuple[int, ...] = ()
     support_geom_foot: tuple[int, ...] = ()
     registry_entry: FootRegistryEntry | None = None
+    #: Per support geom (as ``support_geom_ids``): its name, and the MTP joint of a hinged digit (-1: not one).
+    support_geom_names: tuple[str, ...] = ()
+    support_geom_mtp: tuple[int, ...] = ()
 
     @property
     def n_feet(self) -> int:
@@ -216,9 +302,16 @@ class Morphology:
                     if foot.sole_geom >= 0
                     else None,
                     "home_sole_tilt_deg": foot.home_sole_tilt_deg,
+                    "ankle_joint": None if foot.ankle_joint < 0 else str(model.joint(foot.ankle_joint).name),
+                    "support_span_m": None if foot.ankle_joint < 0 else [foot.heel_line_m, foot.toe_line_m],
                 }
                 for foot in self.feet
             ],
+            "mtp_joints": {
+                name: str(model.joint(joint).name)
+                for name, joint in zip(self.support_geom_names, self.support_geom_mtp)
+                if joint >= 0
+            },
         }
 
     @classmethod
@@ -328,8 +421,10 @@ class Morphology:
                     raise MorphologyError(f"leg geom {model.geom(geom).name} is not in the free-joint subtree")
                 geom_foot[geom] = index
             side = label[-1].upper() if label[-1] in "rl" else "?"
+            ankle = -1
             if entry is not None:
                 support, sole, primary_site = _registered_geoms(model, entry, label, side, model_id, leg_geoms, leg)
+                ankle = _registered_ankle(model, entry, label, side, model_id, sole)
             else:
                 support, sole = _generic_geoms(model, leg_geoms, bodies, subtree)
                 primary_site = site_ids[index][0]
@@ -349,6 +444,8 @@ class Morphology:
                     leg_geoms,
                     support,
                     sole,
+                    ankle,
+                    entry,
                 )
             )
 
@@ -361,12 +458,14 @@ class Morphology:
         is_animal[list(animal)] = True
         support_ids: list[int] = []
         support_foot: list[int] = []
+        support_mtp: list[int] = []
         geom_support = np.full(model.ngeom, -1, dtype=np.int64)
         for index, foot in enumerate(feet):
             for geom in foot.support_geoms:
                 geom_support[geom] = len(support_ids)
                 support_ids.append(geom)
                 support_foot.append(index)
+                support_mtp.append(_digit_mtp_joint(model, geom, foot.sole_geom))
         for array in (geom_foot, geom_support, is_floor, is_animal):
             array.setflags(write=False)
         return cls(
@@ -385,6 +484,8 @@ class Morphology:
             support_geom_ids=tuple(support_ids),
             support_geom_foot=tuple(support_foot),
             registry_entry=entry,
+            support_geom_names=tuple(str(model.geom(int(geom)).name) for geom in support_ids),
+            support_geom_mtp=tuple(support_mtp),
         )
 
 
@@ -451,6 +552,58 @@ def _registered_geoms(
     return support, int(sole), int(site)
 
 
+def _registered_ankle(model: Any, entry: FootRegistryEntry, label: str, side: str, model_id: ModelId, sole: int) -> int:
+    """The registry's ankle hinge for one foot (-1 when the entry declares none): a hinge of the sole's own body.
+
+    On the sole's body its axis is fixed in the sole frame; :func:`_foot_spec`
+    then checks that the axis pitches the sole.
+    """
+    if not entry.declares_span:
+        return -1
+    assert entry.ankle is not None
+    name = entry.ankle.format(s=label, side=_SIDE_WORDS.get(side, label))
+    joint = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_JOINT, name)
+    if joint < 0:
+        raise MorphologyError(f"registry ankle {name!r} ({model_id}) is not a joint of the model")
+    if sole < 0:
+        raise MorphologyError(f"registry ankle {name!r} ({model_id}) is declared for foot {label}, which has no sole")
+    if int(model.jnt_type[joint]) != int(mujoco.mjtJoint.mjJNT_HINGE):
+        raise MorphologyError(f"registry ankle {name!r} ({model_id}) is not a hinge")
+    if int(model.jnt_bodyid[joint]) != int(model.geom_bodyid[sole]):
+        raise MorphologyError(
+            f"registry ankle {name!r} ({model_id}) is not a joint of the body of foot {label}'s sole, so the "
+            "sole's support span would move with another joint"
+        )
+    return int(joint)
+
+
+def _body_to_geom(model: Any, geom: int) -> np.ndarray:
+    """The rotation of *geom*'s frame in its body's frame (3x3; columns are the geom's axes)."""
+    rotation = np.zeros(9)
+    mujoco.mju_quat2Mat(rotation, np.asarray(model.geom_quat[geom], dtype=np.float64))
+    return rotation.reshape(3, 3)
+
+
+def _in_geom_frame(model: Any, geom: int, point_in_body: np.ndarray) -> np.ndarray:
+    """A point fixed in *geom*'s body, expressed in the geom's own frame."""
+    offset = np.asarray(point_in_body, dtype=np.float64) - np.asarray(model.geom_pos[geom], dtype=np.float64)
+    local: np.ndarray = _body_to_geom(model, geom).T @ offset
+    return local
+
+
+def _digit_mtp_joint(model: Any, geom: int, sole: int) -> int:
+    """The MTP joint of a hinged digit (module docstring's generic rule), else -1."""
+    if sole < 0 or geom == sole or int(model.geom_type[geom]) != int(mujoco.mjtGeom.mjGEOM_CAPSULE):
+        return -1
+    body = int(model.geom_bodyid[geom])
+    if int(model.body_parentid[body]) != int(model.geom_bodyid[sole]):
+        return -1
+    joints = [joint for joint in range(model.njnt) if int(model.jnt_bodyid[joint]) == body]
+    if len(joints) != 1 or int(model.jnt_type[joints[0]]) != int(mujoco.mjtJoint.mjJNT_HINGE):
+        return -1
+    return int(joints[0])
+
+
 def _generic_geoms(
     model: Any, leg_geoms: tuple[int, ...], site_bodies: set[int], subtree: Callable[[int], set[int]]
 ) -> tuple[list[int], int]:
@@ -484,6 +637,8 @@ def _foot_spec(
     leg_geoms: tuple[int, ...],
     support: list[int],
     sole: int,
+    ankle: int = -1,
+    entry: FootRegistryEntry | None = None,
 ) -> FootSpec:
     """A :class:`FootSpec`, with the sole frame chosen at the home pose ``home`` (forward-complete scratch data)."""
     normal_axis, forward_axis, lateral_axis = 2, 0, 1
@@ -501,6 +656,22 @@ def _foot_spec(
         lateral_axis = 3 - normal_axis - forward_axis
         lateral_sign = float(np.sign(np.dot(frame[:, lateral_axis], root_left)) or 1.0)
         home_tilt = float(np.degrees(np.arccos(np.clip(abs(down[normal_axis]), -1.0, 1.0))))
+    ankle_forward = heel_line = toe_line = float("nan")
+    if ankle >= 0 and entry is not None and entry.heel_line is not None and entry.toe_line is not None:
+        # The distance along the forward axis is a lever arm about the ankle only when its axis IS the sole's
+        # lateral axis: a forward component would weigh lateral offsets into the moment, a normal one shrink it.
+        axis = _body_to_geom(model, sole).T @ np.asarray(model.jnt_axis[ankle], dtype=np.float64)
+        off_lateral = float(np.linalg.norm(np.delete(axis, lateral_axis)))
+        if off_lateral > _ANKLE_AXIS_OFF_LATERAL * float(np.linalg.norm(axis)):
+            off_deg = math.degrees(math.atan2(off_lateral, abs(float(axis[lateral_axis]))))
+            raise MorphologyError(
+                f"registry ankle {model.joint(ankle).name!r} of foot {label} does not pitch the sole about its "
+                f"lateral axis: its axis is {off_deg:.3g} degrees off it, and a contact's distance along the "
+                "sole's forward axis is its lever arm about the ankle only for a lateral axis"
+            )
+        anchor = _in_geom_frame(model, sole, model.jnt_pos[ankle])
+        ankle_forward = forward_sign * float(anchor[forward_axis])
+        heel_line, toe_line = float(entry.heel_line), float(entry.toe_line)
     return FootSpec(
         label=label,
         side=side,
@@ -518,4 +689,8 @@ def _foot_spec(
         sole_lateral_axis=lateral_axis,
         sole_lateral_sign=lateral_sign,
         home_sole_tilt_deg=home_tilt,
+        ankle_joint=int(ankle),
+        ankle_forward_m=ankle_forward,
+        heel_line_m=heel_line,
+        toe_line_m=toe_line,
     )

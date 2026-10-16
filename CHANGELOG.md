@@ -8,6 +8,120 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **The whole-foot centre of pressure at every evaluation, report-only**
+  (the maintainer's approval of 2026-10-16: "record whole-foot centre of
+  pressure, report-only, with no physics change"). `stance_quality/v2`'s pad
+  rail, `max_sole_cop_fore_aft`, reads one contact geom, the plantar pad. Once
+  a foot's digits carry load ahead of its pad, the pad's CoP is no longer the
+  quantity that decides toppling about the ankle: the whole foot's is, the
+  floor load's moment about the ankle over the limb's floor force. This
+  change measures it, per step and per foot, beside the pad's. Nothing reads
+  it but telemetry and reports: no reward, observation, action, checkpoint
+  selection, policy interface, plant or task digest moves, and no gate
+  verdict once a report measured before this change is re-rolled (until
+  then it is refused; see Migration).
+  - `FOOT_SUPPORT` may declare a foot's `ankle` (a hinge of the sole's own
+    body, a name template) and its support span, `heel_line` and `toe_line`,
+    in m ahead of the ankle axis along the sole's forward axis; all three or
+    none (`gait/morphology.py` refuses a half-declared or inverted span, an
+    ankle that is not a hinge of the sole's body, and one whose axis is not
+    the sole's lateral axis, the one axis about which a contact's distance
+    along the sole is its lever arm). Only the T. rex declares them:
+    `{s}_ankle`, 0.070 and 0.210, its pad's own heel and toe edges, so its
+    reading is in pad half-lengths. The other box feet (the anatomical
+    Compsognathus's, the Dibothrosuchus's and the Compsognathus robot's) sit
+    on a toe or ankle-roll hinge below the ankle, so which axis counts as
+    their ankle is left to a later decision. A hinged digit (a registered
+    support capsule on a child body of the sole's, joined to it by one hinge,
+    its MTP joint) is found by rule: the T. rex's three per foot, none
+    elsewhere.
+  - The floor-truth recorder's `EpisodeTrace` gains `foot_cop`: every floor
+    contact of the limb (pad, digits, any other leg geom), force-weighted,
+    along the sole's forward axis of its own substep, in m ahead of the ankle
+    axis, pooled over the step's substeps as `sole_cop` is; NaN without a
+    declared ankle. It also gains `foot_support_span` and
+    `support_load_pos`, each hinged digit's force-weighted load position, 0
+    at the MTP axis and 1 at the tip. Times the limb's floor force,
+    `foot_cop` is the vertical load's moment about the ankle axis while the
+    sole is level. It is a lever arm along the sole, so the two differ by at
+    most `|d.n| sin(tilt) + |d.f| (1 - cos(tilt))` per contact: within 1.0 mm
+    on the statue after its settle, up to 21 mm under N(0, 0.1) command noise
+    that tilts the pad 5°. It is not the ankle actuator's torque, which
+    also carries the floor's shear times the ankle's height.
+  - `StanceEpisodeMetrics.max_foot_cop_fore_aft` reduces it as the pad rail
+    reduces the pad: per foot, the window mean of the per-step |CoP| in span
+    half-lengths, a step whose limb carries no floor force above 0.1 N on any
+    substep counting 1; the maximum over the feet; NaN on a model whose feet
+    declare no span. It is one of `STANCE_METRIC_LATER_FIELDS`. The matching
+    `stance_quality/v2` key `max_foot_cop_fore_aft` is optional, with its bar
+    strictly inside (0, 1) (`CRITERION_BAR_RANGES`). It is plumbed through the
+    manager's `StageThreshold` and copied keys, the catalog's exported keys,
+    the website adapter, and the stance report's report-only rows. No stage
+    declares it, so it is in no verdict. The v2 panel CSV
+    (`stance_panel_selected.csv`), the six-heading grid
+    (`stance_heading_panel_selected.csv`) and the report's episode evidence
+    rows gain a `max_foot_cop_fore_aft` column; no report schema is bumped, as
+    with D-D28's `max_sole_cop_fore_aft`.
+  - `pad_telemetry` adds, per foot that declares a span:
+    `<label>_foot_cop_fore_aft` (signed), `<label>_foot_cop_fore_aft_gate`
+    (whose maximum over the feet is `max_foot_cop_fore_aft` bit for bit),
+    `<label>_foot_cop_std_m` and `<label>_foot_cop_dominant_hz` (the spread
+    and the strongest frequency of the per-step series, which the window mean
+    cannot see), and `<label>_toe_margin_nm` / `<label>_heel_margin_nm`, the
+    floor-load moment left to each line. It also adds per digit
+    `<label>_<digit>_load_share`, and on a hinged digit
+    `<label>_<digit>_load_pos`. A field exists only on a foot that has what it
+    measures, as in #620: whole-foot fields on the T. rex only, digit shares
+    on the T. rex and the anatomical Compsognathus, load positions on the
+    T. rex only, and none of these on the Velociraptor, the Brachiosaurus,
+    the Compsognathus robot or the Dibothrosuchus.
+  - `gate_progress.npz` and TensorBoard (`diagnostics/eval_<key>`) carry them
+    as means over full-horizon episodes, with `max_foot_cop_fore_aft_mean`.
+    No `max_foot_cop_fore_aft_over_bar_fraction` is written, because no stage
+    declares the bar; it would follow a declared bar as the pad rail's
+    over-bar fraction does. The stance replay CSV gains the per-step
+    whole-foot CoP, both margins and the per-digit columns.
+  - On the T. rex physics-r9 statue, the certification seeds 3042-3081, an
+    independent per-substep probe of the same panel (every limb floor contact
+    decoded with `mj_contactForce`, in the pad's own frame; not in the
+    repository) reads the same whole-foot numbers to 8e-17. Over the 39
+    full-horizon episodes `max_foot_cop_fore_aft` has a median of 0.130 (0.058
+    to 0.250; seed 3081 nosedives). The whole-foot CoP sits 142.5 mm (right)
+    and 145.2 mm (left) ahead of the ankle, median of window means. The toe
+    margins are 28.3 and 27.3 N m and the heel margins 30.5 and 31.7 N m. The
+    per-step spread has a median of 7.3 and 7.8 mm (up to 21.6 and 23.8 mm).
+    The series' strongest frequency (the largest bin of its spectrum, which
+    need not hold most of the power) is 0.5 Hz, a slow 2 s fore-aft sway, on
+    32 of 39 episodes (right) and 31 of 39 (left), and the window's lowest
+    bin, 0.125 Hz, a drift, on the rest, where the sway is still present (on
+    seed 3042 the 0.5 Hz bin holds 36 and 45 percent of the detrended power).
+    The widest spread is seed 3050's, 21.6 mm (right) and 23.8 mm (left), with
+    61 and 57 percent of the detrended power at 0.5 Hz; the right foot's
+    series ranges over 106 mm, more than a sinusoid of that spread would
+    (61 mm), so its range includes excursions beyond the sway. The stance task
+    has no pushes, so this sway is the statue's own. The same panel's
+    `stance_quality/v2` verdict (PASS, 39/40), every existing per-episode
+    metric and pad field, and its `task_sha256` are identical before and after
+    this change. The 649-line digest snapshot is byte-identical and the plant
+    manifest is current.
+  - `MEASUREMENT_VERSION` is `floor-truth/v2`, and the measurement manifest
+    schema `mesozoic.floor-truth-measurement/v3`: its registry block records
+    `ankle`, `heel_line` and `toe_line`, and its feet the resolved ankle, span
+    and MTP joints. No constant changed and no adopted key reads differently,
+    but a registry entry an adopted stage reads did change, and
+    `gait/constants.py` versions every such change (see Migration).
+  - Tests: the recorder against an independent probe (the ankle's world
+    anchor, `mj_contactForce`) and against the vertical-load moment with the
+    tilt bound, each hinged digit's load position, the seed-3042 statue
+    reading, the registry's span pinned to the pad's edges on the plant,
+    refusals, the metric and the telemetry on synthetic and real traces of
+    every model, the npz keys, and the replay CSV.
+  - The recorder's extra reads cost no measurable time on top of #620's
+    recorder. On best-of-five 1,000-step T. rex statue episodes, alternating
+    two runs per tree, the recorded episode took 1.175 and 1.186 s before
+    this change and 1.201 and 1.175 s after it (0.89 to 0.91 s unrecorded);
+    the difference is within the run-to-run spread.
+  - Documented in `docs/TRAINING_ARTIFACT_PRESENTATION.md`.
 - **Per-foot pad telemetry and the sagittal leg DC at every periodic
   evaluation** (#620; the maintainer's approval of 2026-10-12, after the T. rex
   stance run `20261011_165957` was refused by `stance_quality/v2` on its pad
@@ -347,6 +461,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   kind, and its `zero_action_baseline.py` entry is deleted.
 
 ### Migration
+- **A `stance_quality/v2` or six-heading report or panel measured under
+  `floor-truth/v1` is refused, and is judged again only once re-rolled**
+  (`MEASUREMENT_VERSION` `floor-truth/v2`, the whole-foot centre of
+  pressure). The judge refuses a report whose measurement constants or
+  registry entry are not this checkout's, and publication refuses a panel CSV
+  stamped with another version. Ancestor reuse (`--trunk-from`, reuse rule 8,
+  which re-derives a six-heading certificate: the T. rex's and the anatomical
+  Compsognathus's stance nodes) and `backfill_gate_verdict.py` apply the same
+  check, so such a node certified under v1 is reused, and a v1 report
+  backfilled, only after it is re-judged on its handoff pair. Re-roll the
+  panel on the handoff pair (the notebook JUDGE branch, or
+  `generate_stage_artifacts`). A re-rolled panel scores every earlier key
+  bit for bit: on the T. rex statue's 40 seeds the verdict, every metric and
+  every pad field are identical. No checkpoint, task, gate or plant digest
+  moves, so nothing needs retraining.
 - **Nothing recorded under the old identifiers resolves** (D-D33). These are
   refused or not found when they are named `velociraptor`, `trex`,
   `brachiosaurus`, `dibothrosuchus`, `compsognathus` or
@@ -2457,7 +2586,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - **A same-stage resume continues `gate_progress.npz` instead of truncating
-  it** (found by the 6M screen). On a resume `seed_resume_eval_state` seeds
+  it** (#621; found by the 6M screen). On a resume `seed_resume_eval_state` seeds
   SB3's evaluation history from `evaluations.npz`, and
   `StageAwareEvalCallback.seed_prior_history` pads the per-evaluation capture
   series with an empty row per seeded evaluation. `StageGatePlateauCallback`

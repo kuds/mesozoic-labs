@@ -88,6 +88,7 @@ export const STANCE_V2_EPISODE_CRITERIA = [
   'max_sole_cop_fore_aft',
   'max_window_airborne_substeps',
   'max_window_peak_floor_force_bw',
+  'max_foot_cop_fore_aft',
   'min_foot_load_share_statue_ratio',
 ] as const;
 
@@ -336,6 +337,7 @@ interface RawStage {
     max_hop_or_fall_episodes?: number | null;
     max_window_airborne_substeps?: number | null;
     max_window_peak_floor_force_bw?: number | null;
+    max_foot_cop_fore_aft?: number | null;
     min_foot_load_share_statue_ratio?: number | null;
   };
   video: {

@@ -23,11 +23,20 @@ class TyrannosaurusRexAnatomicalEnv(TyrannosaurusRexEnv):
     #: as name templates.  It drops ``{s}_metatarsus_geom``, the capsule above
     #: the plantar box: it carries 0 load in the statue (40-episode means,
     #: seeds 3042-3081), and as a REQUIRED support geom it would fail every
-    #: statue's coverage.
+    #: statue's coverage.  The whole-foot centre of pressure (every floor
+    #: contact of the limb, pad and digits) is measured from the ankle's axis
+    #: along the pad's forward axis, on the support span from the heel line
+    #: to the toe line, in m ahead of that axis: the plantar pad's own heel
+    #: and toe edges (its centre 0.14 m ahead of the ankle, half-length
+    #: 0.07), so the span-normalised reading is in pad half-lengths, the pad
+    #: CoP's scale.  Report-only telemetry: no stage declares a bar on it.
     FOOT_SUPPORT = {
         "support": ("{s}_plantar_geom", "{s}_toe_d2_geom", "{s}_toe_d3_geom", "{s}_toe_d4_geom"),
         "sole": "{s}_plantar_geom",
         "foot_site": "{s}_foot",
+        "ankle": "{s}_ankle",
+        "heel_line": 0.070,
+        "toe_line": 0.210,
     }
     #: The digest snapshot's reward probe: the roll's action-noise amplitude,
     #: and the MJCF element (kind, name) the success probe moves the target onto.
