@@ -73,8 +73,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `<label>_<digit>_load_pos`. A field exists only on a foot that has what it
     measures, as in #620: whole-foot fields on the T. rex only, digit shares
     on the T. rex and the anatomical Compsognathus, load positions on the
-    T. rex only, and none on the Velociraptor, the Brachiosaurus, the
-    Compsognathus robot or the Dibothrosuchus.
+    T. rex only, and none of these on the Velociraptor, the Brachiosaurus,
+    the Compsognathus robot or the Dibothrosuchus.
   - `gate_progress.npz` and TensorBoard (`diagnostics/eval_<key>`) carry them
     as means over full-horizon episodes, with `max_foot_cop_fore_aft_mean`.
     No `max_foot_cop_fore_aft_over_bar_fraction` is written, because no stage

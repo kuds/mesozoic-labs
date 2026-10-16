@@ -77,8 +77,9 @@ if TYPE_CHECKING:
 #: pressure measured from that ankle (``EpisodeTrace.foot_cop``).  No
 #: constant changes and no adopted key's reading moves -- a re-rolled panel
 #: scores every v1 key bit for bit -- but a registry entry an adopted stage
-#: reads did change, which this rule versions; a report or panel measured
-#: under v1 is refused and re-rolled, never re-scored.
+#: reads did change, and the module docstring versions any change to a
+#: model's registry entry; a report or panel measured under v1 is refused
+#: and re-rolled, never re-scored.
 MEASUREMENT_VERSION = "floor-truth/v2"
 
 #: Schema of the dict :func:`measurement_manifest` returns.  v2 (decision

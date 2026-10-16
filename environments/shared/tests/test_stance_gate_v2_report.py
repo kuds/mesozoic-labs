@@ -249,7 +249,7 @@ class TestThePanel:
         assert "pad CoP fore-aft (|.| / half-length)" in text
         # The compsognathus declares no support span, so it has no whole-foot reading and the report lists none.
         assert all(math.isnan(row["max_foot_cop_fore_aft"]) for row in report["episode_evidence"])
-        assert "whole-foot CoP" not in text
+        assert "foot CoP fore-aft (|.| / half-span)" not in text
         # So is the window hop pair, which this block does not declare either.
         assert "window both-feet-unloaded substeps" in text and "window peak floor force (BW)" in text
         assert report["result"]["n_clean"] == EPISODES == report["result"]["n_episodes"]
