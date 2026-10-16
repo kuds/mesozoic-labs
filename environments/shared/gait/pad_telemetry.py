@@ -74,6 +74,31 @@ hinged (the anatomical compsognathus's digits share the pad's body), so
 only they have a load position.  Absent therefore means "the model has no
 such thing", and NaN in a field that exists means "not measured this time".
 
+The sole's roll rails
+---------------------
+``stance_quality/v2`` also rails on how flat each sole stands:
+``max_sole_tilt_deg``, the worse sole's window-mean tilt from level, and
+``max_sole_corner_lift_m``, the worse sole's window-mean height of its
+highest bottom corner over its lowest (a box sole rolled onto an edge lifts
+its outer corners).  :class:`RailLayout` and :func:`episode_rail_telemetry`
+keep them per box-soled foot, reduced as ``stance_metrics._sole_metrics``
+reduces them:
+
+* ``<label>_sole_tilt_deg`` -- the window mean of the sole's tilt from
+  level, in degrees;
+* ``<label>_sole_corner_lift_m`` -- the window mean of its corner lift, in m.
+
+The maximum over the feet of each IS the episode's ``max_sole_tilt_deg`` and
+``max_sole_corner_lift_m``, bit for bit, on every model whose soles are
+boxes.  The fields follow the pad fields' rule, the box-soled feet: the
+T. rex, both Compsognathus embodiments and the Dibothrosuchus.  The
+Velociraptor's capsule feet have no sole.  The Brachiosaurus's ellipsoid
+soles have a tilt the gate would read, which includes the pitch they are
+authored at (16 to 19 degrees), and no corners; they are left out, as their
+pad fields are, because recording them would attach the recorder to every
+Brachiosaurus evaluation (45% more evaluation time, measured) for a bar no
+Brachiosaurus stage declares.
+
 Nothing here is a gate criterion, a reward or an observation, and no
 digest reads it: it is telemetry, for the periodic evaluations
 (``eval_diagnostics.StageAwareEvalCallback``, ``gate_progress.npz``) and the
@@ -87,7 +112,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from .stance_metrics import whole_foot_cop
+from .stance_metrics import _finite_column_means, whole_foot_cop
 
 if TYPE_CHECKING:
     from .morphology import Morphology
@@ -368,4 +393,81 @@ def pad_step_columns(trace: "EpisodeTrace", layout: PadLayout) -> dict[str, np.n
             out[f"{foot.label}_{name}_load_share"] = share
             if hinged:
                 out[f"{foot.label}_{name}_load_pos"] = np.asarray(trace.support_load_pos[:, support], dtype=np.float64)
+    return out
+
+
+# ── the sole's roll rails ──────────────────────────────────────────────────────
+
+#: The per-foot field whose maximum over the feet is the episode's ``max_sole_tilt_deg``.
+RAIL_TILT_FIELD = "sole_tilt_deg"
+#: The per-foot field whose maximum over the feet is the episode's ``max_sole_corner_lift_m``.
+RAIL_LIFT_FIELD = "sole_corner_lift_m"
+#: The roll-rail fields, as suffixes of ``<label>_``, each with the ``stance_quality/v2`` key its maximum over the
+#: feet is.
+RAIL_EPISODE_FIELDS: tuple[tuple[str, str], ...] = (
+    (RAIL_TILT_FIELD, "max_sole_tilt_deg"),
+    (RAIL_LIFT_FIELD, "max_sole_corner_lift_m"),
+)
+
+
+@dataclass(frozen=True)
+class RailFoot:
+    """One box-soled foot: its index in the trace's feet and its label."""
+
+    index: int
+    label: str
+
+
+@dataclass(frozen=True)
+class RailLayout:
+    """The box-soled feet of one model, in ``Morphology.feet`` order (empty when no foot has a box sole)."""
+
+    feet: tuple[RailFoot, ...] = ()
+
+    @classmethod
+    def from_morphology(cls, morphology: "Morphology") -> "RailLayout":
+        """The feet whose registered sole is a box, as :meth:`PadLayout.from_morphology` selects them."""
+        import mujoco  # in the body: this module stays importable without mujoco
+
+        box = int(mujoco.mjtGeom.mjGEOM_BOX)
+        return cls(
+            feet=tuple(
+                RailFoot(index=index, label=foot.label)
+                for index, foot in enumerate(morphology.feet)
+                if foot.sole_geom >= 0 and foot.sole_type == box
+            )
+        )
+
+    def episode_keys(self) -> tuple[str, ...]:
+        """Every foot's keys, foot-major: ``<label>_sole_tilt_deg``, then ``<label>_sole_corner_lift_m``."""
+        return tuple(f"{foot.label}_{field}" for foot in self.feet for field, _metric in RAIL_EPISODE_FIELDS)
+
+
+def episode_rail_telemetry(trace: "EpisodeTrace", layout: RailLayout, *, settle_steps: int) -> dict[str, float]:
+    """The roll-rail fields of one recorded episode, keyed as :meth:`RailLayout.episode_keys` (NaN when unmeasured).
+
+    The window is the gate's, ``[settle_steps, T)``, and the per-foot values
+    are the arrays ``stance_metrics._sole_metrics`` takes the maximum of: the
+    window mean of the tilt over the feet whose tilt is finite on every
+    window step and whose keyframe tilt is finite, and the finite-step mean
+    of the corner lift.  Every field is NaN for an empty window, and a corner
+    lift with no finite window step is NaN.
+    """
+    if isinstance(settle_steps, bool) or int(settle_steps) != settle_steps or settle_steps < 0:
+        raise ValueError(f"settle_steps must be a non-negative whole number of steps, got {settle_steps!r}")
+    out = {key: NAN for key in layout.episode_keys()}
+    steps = trace.length
+    if steps <= settle_steps or not layout.feet:
+        return out
+    window = slice(int(settle_steps), steps)
+    tilt = trace.sole_tilt_deg[window]
+    has_sole = np.isfinite(tilt).all(axis=0) & np.isfinite(trace.home_sole_tilt_deg)
+    mean_tilt = np.full(trace.n_feet, np.nan)
+    mean_lift = np.full(trace.n_feet, np.nan)
+    if has_sole.any():
+        mean_tilt[has_sole] = tilt[:, has_sole].mean(axis=0)
+        mean_lift[has_sole] = _finite_column_means(trace.sole_corner_lift[window][:, has_sole])
+    for foot in layout.feet:
+        out[f"{foot.label}_{RAIL_TILT_FIELD}"] = float(mean_tilt[foot.index])
+        out[f"{foot.label}_{RAIL_LIFT_FIELD}"] = float(mean_lift[foot.index])
     return out
