@@ -50,9 +50,10 @@ The whole-foot centre of pressure
 ---------------------------------
 ``EpisodeTrace.foot_cop`` measures every floor contact of the limb in the
 SOLE frame of its own substep, as ``sole_cop`` does, but along the forward
-axis from the foot's declared ankle axis (a hinge of the sole's body, so a
-fixed point of that frame; ``morphology.FootSpec.ankle_forward_m``) and in
-metres, so that ``foot_cop * leg_floor_mean`` is the step's floor-load moment
+axis from the foot's declared ankle axis (a hinge of the sole's body whose
+axis is the sole's lateral axis, so a fixed line of that frame;
+``morphology.FootSpec.ankle_forward_m``) and in metres, so that
+``foot_cop * leg_floor_mean`` is the step's floor-load moment
 about the ankle axis with each lever arm measured along the sole.  That is
 the vertical load's moment about the ankle axis exactly while the sole is
 level, and differs from it by at most ``|d . n| sin(tilt) + |d . f| (1 -

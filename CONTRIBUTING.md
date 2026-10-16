@@ -191,8 +191,11 @@ snake_case, and `<Species>` its PascalCase form. Follow this checklist:
      embodiment's body data: `embodiment = "anatomical"`, `MODEL_PATH` built
      with `ModelId("<species>", "anatomical").asset_path(...)`, `FOOT_SUPPORT`
      (each foot's support geoms, sole and foot site, which the floor-truth gait
-     measurement reads) and `REWARD_PROBE` (the digest harness's reward-roll
-     amplitude and the MJCF element its success probe moves the target onto)
+     measurement reads, and optionally its `ankle`, `heel_line` and
+     `toe_line`, all three or none: the ankle hinge and the support span the
+     whole-foot centre of pressure is measured on) and `REWARD_PROBE` (the
+     digest harness's reward-roll amplitude and the MJCF element its success
+     probe moves the target onto)
    - Do not call `gym.register`: `environments/__init__.py` registers every
      model of the species manifest as `MesozoicLabs/<Species>-Anatomical-v0`,
      and the species registry imports the manifest's `env_entrypoint`

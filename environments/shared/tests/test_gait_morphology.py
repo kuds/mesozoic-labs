@@ -395,6 +395,36 @@ def test_an_ankle_whose_axis_is_fore_aft_is_refused(stance_env):
     assert Morphology.from_env(env, TYRANNOSAURUS_REX).feet[0].ankle_joint == joint
 
 
+def test_an_ankle_axis_canted_off_the_soles_lateral_axis_is_refused(stance_env):
+    """A small cant is refused too: the forward distance is the lever arm only about the lateral axis.
+
+    For a unit axis ``a`` in the sole frame the vertical load at ``d`` on a level sole has the lever
+    ``a_f d_l - a_l d_f``: a forward component weighs lateral offsets in, a normal one shrinks the arm.
+    """
+    import mujoco
+
+    env = stance_env(TYRANNOSAURUS_REX)
+    model = env.model
+    foot = Morphology.from_env(env, TYRANNOSAURUS_REX).feet[0]
+    joint = foot.ankle_joint
+    rotation = np.zeros(9)
+    mujoco.mju_quat2Mat(rotation, np.asarray(model.geom_quat[foot.sole_geom], dtype=np.float64))
+    sole_axes_in_body = rotation.reshape(3, 3)
+    axis = model.jnt_axis[joint].copy()
+    cant = np.radians(5.0)
+    try:
+        for other in (foot.sole_forward_axis, foot.sole_normal_axis):
+            canted = np.zeros(3)
+            canted[foot.sole_lateral_axis] = np.cos(cant)
+            canted[other] = np.sin(cant)
+            model.jnt_axis[joint] = sole_axes_in_body @ canted
+            with pytest.raises(MorphologyError, match="lateral axis: its axis is 5 degrees off it"):
+                Morphology.from_env(env, TYRANNOSAURUS_REX)
+    finally:
+        model.jnt_axis[joint] = axis
+    assert Morphology.from_env(env, TYRANNOSAURUS_REX).feet[0].ankle_joint == joint
+
+
 def test_an_env_without_foot_sensors_is_refused(stance_env):
     env = stance_env(TYRANNOSAURUS_REX)
     groups = env._foot_sensor_groups

@@ -54,9 +54,14 @@ WHOLE-FOOT fore-aft centre of pressure (every floor contact of the limb,
 sole and digits alike) from that axis, and the span normalises it.  The
 ankle must be a hinge of the sole's own body, so its axis is fixed in the
 sole frame and the span is a property of the foot, not of a pose; its axis
-must lie within about 45 degrees of the sole's lateral axis.  The three keys
-are declared together or not at all.  A foot whose entry declares none has
-no whole-foot centre of pressure (``EpisodeTrace.foot_cop`` is NaN for it).
+must be the sole's lateral axis (to :data:`_ANKLE_AXIS_OFF_LATERAL` of its
+length), because only about a lateral axis is a contact's distance along
+the forward axis its lever arm: for a unit axis ``a`` in the sole frame the
+vertical load at ``d`` on a level sole has the lever ``a_f d_l - a_l d_f``,
+so a forward component would weigh in lateral offsets and a normal one
+shrink the arm.  The three keys are declared together or not at all.  A
+foot whose entry declares none has no whole-foot centre of pressure
+(``EpisodeTrace.foot_cop`` is NaN for it).
 Only the T. rex declares one: its pad sits on the body its ankle hinges.
 Every other sole sits on a hinge below the ankle (the anatomical
 compsognathus's, the dibothrosuchus's and the brachiosaurus's on
@@ -171,6 +176,9 @@ def support_entry(model_id: ModelId) -> FootRegistryEntry | None:
 # The foot labels the first sensor's name prefix may give; any other prefix
 # becomes ``foot<i>``.  The last letter is the side.
 _FOOT_LABELS = ("r", "l", "fr", "fl", "rr", "rl")
+#: How far a declared ankle's axis may lie off the sole's lateral axis, as the norm of its forward and
+#: normal components over its length (about 6e-5 degrees): round-off, not a cant.
+_ANKLE_AXIS_OFF_LATERAL = 1e-6
 _PREFIX_ALIASES = {"right": "r", "left": "l"}
 _SIDE_WORDS = {"R": "right", "L": "left"}
 
@@ -650,13 +658,16 @@ def _foot_spec(
         home_tilt = float(np.degrees(np.arccos(np.clip(abs(down[normal_axis]), -1.0, 1.0))))
     ankle_forward = heel_line = toe_line = float("nan")
     if ankle >= 0 and entry is not None and entry.heel_line is not None and entry.toe_line is not None:
-        # The distance along the forward axis is a lever arm about the ankle only when its axis pitches the
-        # sole: within about 45 degrees of the sole's lateral axis (|axis . lateral| >= 0.7 in the sole frame).
+        # The distance along the forward axis is a lever arm about the ankle only when its axis IS the sole's
+        # lateral axis: a forward component would weigh lateral offsets into the moment, a normal one shrink it.
         axis = _body_to_geom(model, sole).T @ np.asarray(model.jnt_axis[ankle], dtype=np.float64)
-        if abs(float(axis[lateral_axis])) < 0.7 * float(np.linalg.norm(axis)):
+        off_lateral = float(np.linalg.norm(np.delete(axis, lateral_axis)))
+        if off_lateral > _ANKLE_AXIS_OFF_LATERAL * float(np.linalg.norm(axis)):
+            off_deg = math.degrees(math.atan2(off_lateral, abs(float(axis[lateral_axis]))))
             raise MorphologyError(
-                f"registry ankle {model.joint(ankle).name!r} of foot {label} does not pitch the sole: its axis is "
-                "not within 45 degrees of the sole's lateral axis"
+                f"registry ankle {model.joint(ankle).name!r} of foot {label} does not pitch the sole about its "
+                f"lateral axis: its axis is {off_deg:.3g} degrees off it, and a contact's distance along the "
+                "sole's forward axis is its lever arm about the ankle only for a lateral axis"
             )
         anchor = _in_geom_frame(model, sole, model.jnt_pos[ankle])
         ankle_forward = forward_sign * float(anchor[forward_axis])

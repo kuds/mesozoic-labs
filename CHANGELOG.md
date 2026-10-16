@@ -24,15 +24,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     body, a name template) and its support span, `heel_line` and `toe_line`,
     in m ahead of the ankle axis along the sole's forward axis; all three or
     none (`gait/morphology.py` refuses a half-declared or inverted span, an
-    ankle that is not a hinge of the sole's body, and one whose axis does not
-    pitch the sole). Only the T. rex declares them: `{s}_ankle`, 0.070 and
-    0.210, its pad's own heel and toe edges, so its reading is in pad
-    half-lengths. The other box feet (the anatomical Compsognathus's, the
-    Dibothrosuchus's and the Compsognathus robot's) sit on a toe or
-    ankle-roll hinge below the ankle, so which axis counts as their ankle is
-    left to a later decision. A hinged digit (a registered support capsule on
-    a child body of the sole's, joined to it by one hinge, its MTP joint) is
-    found by rule: the T. rex's three per foot, none elsewhere.
+    ankle that is not a hinge of the sole's body, and one whose axis is not
+    the sole's lateral axis, the one axis about which a contact's distance
+    along the sole is its lever arm). Only the T. rex declares them:
+    `{s}_ankle`, 0.070 and 0.210, its pad's own heel and toe edges, so its
+    reading is in pad half-lengths. The other box feet (the anatomical
+    Compsognathus's, the Dibothrosuchus's and the Compsognathus robot's) sit
+    on a toe or ankle-roll hinge below the ankle, so which axis counts as
+    their ankle is left to a later decision. A hinged digit (a registered
+    support capsule on a child body of the sole's, joined to it by one hinge,
+    its MTP joint) is found by rule: the T. rex's three per foot, none
+    elsewhere.
   - The floor-truth recorder's `EpisodeTrace` gains `foot_cop`: every floor
     contact of the limb (pad, digits, any other leg geom), force-weighted,
     along the sole's forward axis of its own substep, in m ahead of the ankle
@@ -55,7 +57,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     strictly inside (0, 1) (`CRITERION_BAR_RANGES`). It is plumbed through the
     manager's `StageThreshold` and copied keys, the catalog's exported keys,
     the website adapter, and the stance report's report-only rows. No stage
-    declares it, so it is in no verdict.
+    declares it, so it is in no verdict. The v2 panel CSV
+    (`stance_panel_selected.csv`), the six-heading grid
+    (`stance_heading_panel_selected.csv`) and the report's episode evidence
+    rows gain a `max_foot_cop_fore_aft` column; no report schema is bumped, as
+    with D-D28's `max_sole_cop_fore_aft`.
   - `pad_telemetry` adds, per foot that declares a span:
     `<label>_foot_cop_fore_aft` (signed), `<label>_foot_cop_fore_aft_gate`
     (whose maximum over the feet is `max_foot_cop_fore_aft` bit for bit),
@@ -79,21 +85,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     independent per-substep probe of the same panel (every limb floor contact
     decoded with `mj_contactForce`, in the pad's own frame; not in the
     repository) reads the same whole-foot numbers to 8e-17. Over the 39
-    full-horizon episodes `max_foot_cop_fore_aft` has a median of 0.130
-    (0.058 to 0.250; seed 3081 nosedives). The whole-foot CoP sits 142.5 mm
-    (right) and 145.2 mm (left) ahead of the ankle, median of window means.
-    The toe margins are 28.3 and 27.3 N m and the heel margins 30.5 and
-    31.7 N m. The per-step spread has a median of 7.3 and 7.8 mm (up to 21.6
-    and 23.8 mm). The series is dominated by a slow 0.5 Hz (2 s) heel-toe
-    sway on 32 of 39 episodes (right) and 31 of 39 (left), and on the rest by
-    a drift in the window's lowest bin, 0.125 Hz; on seed 3050 the right
-    foot's whole-foot CoP swings about 106 mm peak to peak (std 21.6 mm, 61
-    percent of its detrended power at 0.5 Hz). The stance task has no
-    pushes, so this sway is the statue's own. The same panel's
+    full-horizon episodes `max_foot_cop_fore_aft` has a median of 0.130 (0.058
+    to 0.250; seed 3081 nosedives). The whole-foot CoP sits 142.5 mm (right)
+    and 145.2 mm (left) ahead of the ankle, median of window means. The toe
+    margins are 28.3 and 27.3 N m and the heel margins 30.5 and 31.7 N m. The
+    per-step spread has a median of 7.3 and 7.8 mm (up to 21.6 and 23.8 mm).
+    The series' strongest frequency (the largest bin of its spectrum, which
+    need not hold most of the power) is 0.5 Hz, a slow 2 s fore-aft sway, on
+    32 of 39 episodes (right) and 31 of 39 (left), and the window's lowest
+    bin, 0.125 Hz, a drift, on the rest, where the sway is still present (on
+    seed 3042 the 0.5 Hz bin holds 36 and 45 percent of the detrended power).
+    The widest spread is seed 3050's, 21.6 mm (right) and 23.8 mm (left), with
+    61 and 57 percent of the detrended power at 0.5 Hz; the right foot's
+    series ranges over 106 mm, more than a sinusoid of that spread would
+    (61 mm), so its range includes excursions beyond the sway. The stance task
+    has no pushes, so this sway is the statue's own. The same panel's
     `stance_quality/v2` verdict (PASS, 39/40), every existing per-episode
-    metric and pad field, and its `task_sha256` are identical before and
-    after this change. The 649-line digest snapshot is byte-identical and the
-    plant manifest is current.
+    metric and pad field, and its `task_sha256` are identical before and after
+    this change. The 649-line digest snapshot is byte-identical and the plant
+    manifest is current.
   - `MEASUREMENT_VERSION` is `floor-truth/v2`, and the measurement manifest
     schema `mesozoic.floor-truth-measurement/v3`: its registry block records
     `ankle`, `heel_line` and `toe_line`, and its feet the resolved ankle, span

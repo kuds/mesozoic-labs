@@ -510,7 +510,7 @@ class TestThePadCentreOfPressure:
         assert "max_sole_cop_fore_aft" in text and "pad CoP fore-aft" not in text  # gated, so not report-only
         # The whole foot is measured on every episode and reported, never gated: no stage declares its key.
         assert all(math.isfinite(row["max_foot_cop_fore_aft"]) for row in report["episode_evidence"])
-        assert "whole-foot CoP fore-aft (|.| / half-span)" in text
+        assert "foot CoP fore-aft (|.| / half-span)" in text
         # The T. rex declares the hop-or-fall rail without the window pair: the rail's line names the hop keys it
         # declares, and the pair is a report-only reading.
         assert "episodes end early or fail support, touchdowns, drift or saturation)" in text
