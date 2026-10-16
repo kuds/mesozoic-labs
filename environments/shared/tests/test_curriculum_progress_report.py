@@ -239,7 +239,16 @@ class TestTheRecord:
             SimpleNamespace(progress_warnings=[{"timesteps": 200, "source": "evaluation_plateau", "message": "a"}]),
             SimpleNamespace(),
         ]
-        assert [warning["message"] for warning in callback.record("training")["warnings"]] == ["a", "b"]
+        record = callback.record("training")
+        assert [warning["message"] for warning in record["warnings"]] == ["a", "b"] and record["warnings_total"] == 2
+
+    def test_only_the_newest_warnings_are_kept(self, tmp_path):
+        callback = _callback(tmp_path)
+        many = [{"timesteps": step, "source": "posture_drift", "message": str(step)} for step in range(25)]
+        callback.warning_sources = [SimpleNamespace(progress_warnings=many)]
+        record = callback.record("training")
+        assert record["warnings_total"] == 25
+        assert [warning["timesteps"] for warning in record["warnings"]] == list(range(15, 25))
 
     def test_the_zero_action_reward_when_the_run_captured_it(self, tmp_path):
         callback = _callback(tmp_path)

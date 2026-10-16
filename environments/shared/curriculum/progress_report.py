@@ -51,6 +51,8 @@ PROGRESS_SCHEMA = "mesozoic.training-progress/v1"
 HISTORY_EVALUATIONS = 5
 #: Significant digits of the posture statistics (rewards keep six).
 POSTURE_DIGITS = 4
+#: Warnings kept in the ``warnings`` list, the newest; ``warnings_total`` counts them all.
+WARNINGS_KEPT = 10
 
 #: The rails whose ``gate_progress.npz`` statistics the ``posture`` block reports: ``(gate key, per-foot field of
 #: the rail's own statistic, extra per-foot fields)``.
@@ -289,7 +291,9 @@ class TrainingProgressCallback(BaseCallback):  # type: ignore[misc]
         record["posture"] = posture_block(row, self.curriculum_kwargs) if row else {}
         record["history"] = self._history()
         record["checkpoints"] = self._checkpoints()
-        record["warnings"] = self._warnings()
+        warnings = self._warnings()
+        record["warnings_total"] = len(warnings)
+        record["warnings"] = warnings[-WARNINGS_KEPT:]
         return record
 
     def _identity(self) -> dict[str, Any]:
