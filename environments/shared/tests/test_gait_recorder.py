@@ -20,8 +20,8 @@ species (dibothrosuchus switched to the pyramidal cone in memory, compsognathus 
   independent probe of every limb contact, with the ankle's own world
   anchor, reproduces it), is the vertical-load moment about the ankle axis
   over the limb's floor force within a tolerance stated from the sole's tilt,
-  and reads the T. rex physics-r9 statue as the foot audit did; each hinged
-  digit's load position is reproduced the same way.
+  and its reading of the T. rex physics-r9 statue (seed 3042) is pinned; each
+  hinged digit's load position is reproduced the same way.
 
 The six-statue registry evidence (GAIT_QUALITY_PLAN_2026_09.md §3.1: the
 foot / non-foot split counts only once each statue is shown putting its
@@ -637,7 +637,7 @@ def test_each_hinged_digits_load_position_is_reproduced_and_other_support_geoms_
     np.testing.assert_allclose(trace.support_load_pos[:, hinged], reference[:, hinged], rtol=0, atol=1e-12)
     others = [support for support in range(len(morphology.support_geom_ids)) if support not in hinged]
     assert np.isnan(trace.support_load_pos[:, others]).all()  # the pads
-    # On the r9 statue the digits are loaded near their MTP joints (the audit: 0.05-0.08 of their length).
+    # On the r9 statue the digits are loaded near their MTP joints (about 0.05-0.08 of their length).
     assert 0.0 <= np.nanmedian(trace.support_load_pos[100:, hinged]) < 0.2
 
 
@@ -658,13 +658,14 @@ def test_a_foot_that_declares_no_ankle_has_no_whole_foot_cop(envs):
     assert math.isnan(episode_stance_metrics(trace, settle_steps=10).max_foot_cop_fore_aft)
 
 
-def test_the_physics_r9_statue_reads_the_foot_audits_whole_foot_cop(envs):
-    """Seed 3042 of the T. rex statue panel, the full 1,000 steps: the foot audit's whole-foot reading (its
-    ``whole_hl``, every limb contact in pad half-lengths) is ``max_foot_cop_fore_aft`` on the span 0.070-0.210 m.
+def test_the_physics_r9_statue_whole_foot_cop_reading(envs):
+    """Seed 3042 of the T. rex statue panel, the full 1,000 steps: the whole-foot reading on the span 0.070-0.210 m.
 
-    The audit read 0.1304 (right foot) and 0.0458 (left), signed +0.1304 and -0.0171, with the whole-foot CoP
-    0.149 m ahead of the right ankle on average; over the 39 full-horizon episodes of 3042-3081 it read a
-    median of 0.130 (0.058 to 0.250), the repo's panel the same to 1e-16.
+    An independent per-substep probe of this panel (every limb floor contact decoded with ``mj_contactForce``,
+    in the pad's own frame and pad half-lengths; not in the repository) read 0.1304 (right foot) and 0.0458
+    (left), signed +0.1304 and -0.0171, with the whole-foot CoP 0.149 m ahead of the right ankle on average;
+    over the 39 full-horizon episodes of 3042-3081 it read a median of 0.130 (0.058 to 0.250), the repo's
+    panel the same to 1e-16.
     """
     from environments.shared.gait.pad_telemetry import PadLayout, episode_pad_telemetry
 

@@ -57,6 +57,11 @@ sole frame and the span is a property of the foot, not of a pose; its axis
 must lie within about 45 degrees of the sole's lateral axis.  The three keys
 are declared together or not at all.  A foot whose entry declares none has
 no whole-foot centre of pressure (``EpisodeTrace.foot_cop`` is NaN for it).
+Only the T. rex declares one: its pad sits on the body its ankle hinges.
+Every other sole sits on a hinge below the ankle (the anatomical
+compsognathus's, the dibothrosuchus's and the brachiosaurus's on
+``{s}_toe``, the compsognathus robot's on its ankle roll; the velociraptor
+has none), so which axis counts as their ankle is left to a later decision.
 
 Digits with an MTP joint (generic rule): a registered support geom other
 than the sole is a hinged digit when it is a capsule on a CHILD body of the

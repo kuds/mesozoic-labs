@@ -303,7 +303,7 @@ def test_the_max_of_the_per_foot_whole_foot_statistic_is_the_metric_bit_for_bit(
 
 
 def test_a_foot_rocking_heel_to_toe_shows_in_its_spread_and_frequency_not_its_signed_mean():
-    """The window mean is blind to rocking (C42's 3.6 Hz on the r9 foot): the std and the frequency are not."""
+    """The window mean is blind to a foot rocking heel to toe: the std and the frequency are not."""
     t = np.arange(STEPS)
     rock = 0.14 + 0.02 * np.sin(2 * np.pi * 5.0 * t * 0.01)  # 5 Hz, 20 mm amplitude, at dt 0.01
     result = _pads(_with_foot_cop(_trace(), 0, rock), WHOLE)

@@ -239,11 +239,12 @@ _BOOL_FIELDS = frozenset({"terminated"})
 #: centre of pressure, floor-truth/v2): a row or a panel CSV recorded before
 #: then lacks them, and :meth:`StanceEpisodeMetrics.from_row` and
 #: ``curriculum.stance_gate_v2.read_stance_v2_panel`` read them as unmeasured,
-#: so every report recorded before them keeps its verdict under a gate that
-#: does not declare their key.  A new metric changes no adopted key's meaning,
-#: so it needs no new MEASUREMENT_VERSION of its own; a re-rolled panel
-#: measures it.  (The whole-foot one came with ``floor-truth/v2`` because its
-#: span is a registry entry, which that rule versions.)
+#: so a gate that does not declare their key scores such a row as it did
+#: before.  A new metric changes no adopted key's meaning, so it needs no new
+#: MEASUREMENT_VERSION of its own; a re-rolled panel measures it.  The
+#: whole-foot one came with ``floor-truth/v2`` because its span is a registry
+#: entry, so a report measured before it is refused by version and re-rolled,
+#: not read as unmeasured.
 STANCE_METRIC_LATER_FIELDS: frozenset[str] = frozenset(
     {"window_airborne_substeps", "window_peak_floor_force_bw", "max_sole_cop_fore_aft", "max_foot_cop_fore_aft"}
 )

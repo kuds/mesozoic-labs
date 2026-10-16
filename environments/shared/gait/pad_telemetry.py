@@ -50,9 +50,9 @@ the limb, m ahead of the ankle axis along the sole's forward axis):
   ``F * (x - heel_line)``, in N m (``F`` the limb's floor force,
   ``leg_floor_mean``; negative past the line).
 
-and per digit (a registered support geom other than the sole, keyed by its
-geom name less the foot label and ``_geom``: ``r_toe_d2_geom`` gives
-``r_toe_d2``):
+and per digit (a registered support geom other than the sole, named by its
+geom name less the foot label and ``_geom``: ``r_toe_d2_geom`` is the digit
+``toe_d2``, keyed ``r_toe_d2_load_share`` and ``r_toe_d2_load_pos``):
 
 * ``<label>_<digit>_load_share`` -- the digit's window floor force over the
   whole limb's, on every pad foot with digits;
@@ -326,8 +326,8 @@ def pad_step_columns(trace: "EpisodeTrace", layout: PadLayout) -> dict[str, np.n
     On a foot with a support span, ``<label>_foot_cop_fore_aft`` is the
     step's signed whole-foot CoP in span half-lengths and
     ``<label>_toe_margin_nm`` / ``<label>_heel_margin_nm`` its moment margins,
-    NaN on a step the limb is unloaded (so the whole-foot statistic over any
-    window is again the mean of ``|value|`` with NaN read as 1); per digit,
+    NaN on a step the limb is unloaded (so the per-foot whole-foot statistic
+    over any window is again the mean of ``|value|`` with NaN read as 1); per digit,
     ``<label>_<digit>_load_share`` (NaN when the limb carries nothing) and,
     on a hinged digit, ``<label>_<digit>_load_pos`` (NaN when it carries
     nothing).

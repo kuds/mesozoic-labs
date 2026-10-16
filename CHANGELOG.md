@@ -9,16 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **The whole-foot centre of pressure at every evaluation, report-only**
-  (the maintainer's approval of the foot proposal's telemetry step: "record
-  whole-foot centre of pressure, report-only, with no physics change").
-  `stance_quality/v2`'s pad rail, `max_sole_cop_fore_aft`, reads one contact
-  geom, the plantar pad. The T. rex foot study found that once the digits
-  carry load ahead of the pad, the pad's CoP is no longer the quantity that
-  decides toppling: the whole foot's is, the floor load's moment about the
-  ankle over the limb's floor force. This change measures it, per step and
-  per foot, beside the pad's. Nothing reads it but telemetry and reports: no
-  gate verdict, reward, observation, action, checkpoint selection, policy
-  interface, plant or task digest moves.
+  (the maintainer's approval: "record whole-foot centre of pressure,
+  report-only, with no physics change"). `stance_quality/v2`'s pad rail,
+  `max_sole_cop_fore_aft`, reads one contact geom, the plantar pad. Once a
+  foot's digits carry load ahead of its pad, the pad's CoP is no longer the
+  quantity that decides toppling about the ankle: the whole foot's is, the
+  floor load's moment about the ankle over the limb's floor force. This
+  change measures it, per step and per foot, beside the pad's. Nothing reads
+  it but telemetry and reports: no reward, observation, action, checkpoint
+  selection, policy interface, plant or task digest moves, and no gate
+  verdict once a report measured before this change is re-rolled (until
+  then it is refused; see Migration).
   - `FOOT_SUPPORT` may declare a foot's `ankle` (a hinge of the sole's own
     body, a name template) and its support span, `heel_line` and `toe_line`,
     in m ahead of the ankle axis along the sole's forward axis; all three or
@@ -26,9 +27,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     ankle that is not a hinge of the sole's body, and one whose axis does not
     pitch the sole). Only the T. rex declares them: `{s}_ankle`, 0.070 and
     0.210, its pad's own heel and toe edges, so its reading is in pad
-    half-lengths. A hinged digit (a registered support capsule on a child body
-    of the sole's, joined to it by one hinge, its MTP joint) is found by rule:
-    the T. rex's three per foot, none elsewhere.
+    half-lengths. The other box feet (the anatomical Compsognathus's, the
+    Dibothrosuchus's and the Compsognathus robot's) sit on a toe or
+    ankle-roll hinge below the ankle, so which axis counts as their ankle is
+    left to a later decision. A hinged digit (a registered support capsule on
+    a child body of the sole's, joined to it by one hinge, its MTP joint) is
+    found by rule: the T. rex's three per foot, none elsewhere.
   - The floor-truth recorder's `EpisodeTrace` gains `foot_cop`: every floor
     contact of the limb (pad, digits, any other leg geom), force-weighted,
     along the sole's forward axis of its own substep, in m ahead of the ankle
@@ -68,19 +72,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `gate_progress.npz` and TensorBoard (`diagnostics/eval_<key>`) carry them
     as means over full-horizon episodes, with `max_foot_cop_fore_aft_mean`.
     No `max_foot_cop_fore_aft_over_bar_fraction` is written, because no stage
-    declares the bar; the arm is the pad rail's. The stance replay CSV gains
-    the per-step whole-foot CoP, both margins and the per-digit columns.
-  - The T. rex physics-r9 statue on the certification seeds 3042-3081 reads
-    the foot audit's whole-foot numbers to 8e-17. Over the 39 full-horizon
-    episodes `max_foot_cop_fore_aft` has a median of 0.130 (0.058 to 0.250;
-    seed 3081 nosedives). The whole-foot CoP sits 142.5 mm (right) and
-    145.2 mm (left) ahead of the ankle, median of window means. The toe
-    margins are 28.3 and 27.3 N m and the heel margins 30.5 and 31.7 N m. The
-    per-step spread is 7.3 and 7.8 mm, slow drift at 0.5 Hz or less. The
-    same panel's `stance_quality/v2` verdict (PASS, 39/40), every existing
-    per-episode metric and pad field, and its `task_sha256` are identical
-    before and after this change. The 649-line digest snapshot is
-    byte-identical and the plant manifest is current.
+    declares the bar; it would follow a declared bar as the pad rail's
+    over-bar fraction does. The stance replay CSV gains the per-step
+    whole-foot CoP, both margins and the per-digit columns.
+  - On the T. rex physics-r9 statue, the certification seeds 3042-3081, an
+    independent per-substep probe of the same panel (every limb floor contact
+    decoded with `mj_contactForce`, in the pad's own frame; not in the
+    repository) reads the same whole-foot numbers to 8e-17. Over the 39
+    full-horizon episodes `max_foot_cop_fore_aft` has a median of 0.130
+    (0.058 to 0.250; seed 3081 nosedives). The whole-foot CoP sits 142.5 mm
+    (right) and 145.2 mm (left) ahead of the ankle, median of window means.
+    The toe margins are 28.3 and 27.3 N m and the heel margins 30.5 and
+    31.7 N m. The per-step spread has a median of 7.3 and 7.8 mm (up to 21.6
+    and 23.8 mm). The series is dominated by a slow 0.5 Hz (2 s) heel-toe
+    sway on 32 of 39 episodes (right) and 31 of 39 (left), and on the rest by
+    a drift in the window's lowest bin, 0.125 Hz; on seed 3050 the right
+    foot's whole-foot CoP swings about 106 mm peak to peak (std 21.6 mm, 61
+    percent of its detrended power at 0.5 Hz). The stance task has no
+    pushes, so this sway is the statue's own. The same panel's
+    `stance_quality/v2` verdict (PASS, 39/40), every existing per-episode
+    metric and pad field, and its `task_sha256` are identical before and
+    after this change. The 649-line digest snapshot is byte-identical and the
+    plant manifest is current.
   - `MEASUREMENT_VERSION` is `floor-truth/v2`, and the measurement manifest
     schema `mesozoic.floor-truth-measurement/v3`: its registry block records
     `ankle`, `heel_line` and `toe_line`, and its feet the resolved ankle, span
@@ -443,11 +456,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`MEASUREMENT_VERSION` `floor-truth/v2`, the whole-foot centre of
   pressure). The judge refuses a report whose measurement constants or
   registry entry are not this checkout's, and publication refuses a panel CSV
-  stamped with another version. Re-roll the panel on the handoff pair (the
-  notebook JUDGE branch, or `generate_stage_artifacts`). A re-rolled panel
-  scores every earlier key bit for bit: on the T. rex statue's 40 seeds the
-  verdict, every metric and every pad field are identical. No checkpoint,
-  task, gate or plant digest moves, so nothing needs retraining.
+  stamped with another version. Ancestor reuse (`--trunk-from`, reuse rule 8,
+  which re-derives a six-heading certificate: the T. rex's and the anatomical
+  Compsognathus's stance nodes) and `backfill_gate_verdict.py` apply the same
+  check, so such a node certified under v1 is reused, and a v1 report
+  backfilled, only after it is re-judged on its handoff pair. Re-roll the
+  panel on the handoff pair (the notebook JUDGE branch, or
+  `generate_stage_artifacts`). A re-rolled panel scores every earlier key
+  bit for bit: on the T. rex statue's 40 seeds the verdict, every metric and
+  every pad field are identical. No checkpoint, task, gate or plant digest
+  moves, so nothing needs retraining.
 - **Nothing recorded under the old identifiers resolves** (D-D33). These are
   refused or not found when they are named `velociraptor`, `trex`,
   `brachiosaurus`, `dibothrosuchus`, `compsognathus` or

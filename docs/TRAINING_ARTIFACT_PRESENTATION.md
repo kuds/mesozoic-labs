@@ -111,7 +111,8 @@ A pad foot whose `FOOT_SUPPORT` entry declares its ankle and a support span
 its pad's own heel and toe edges, 0.070 and 0.210 m ahead of the ankle) also
 has the whole-foot columns, and every pad foot with digits has per-digit
 columns, named by the digit's geom less the foot label and `_geom`
-(`r_toe_d2_geom` gives `r_toe_d2`):
+(`r_toe_d2_geom` is the digit `toe_d2`, with the columns
+`r_toe_d2_load_share` and `r_toe_d2_load_pos`):
 
 | Column | Meaning |
 |---|---|
@@ -121,8 +122,9 @@ columns, named by the digit's geom less the foot label and `_geom`
 | `<label>_<digit>_load_pos` | Where along the digit its floor load sits, force-weighted: 0 at the MTP joint's axis, 1 at the tip. Only on a digit with its own MTP joint (the Tyrannosaurus Rex's; the anatomical Compsognathus's digits share the pad's body) |
 
 The whole-foot cells are empty on a step the limb carries nothing above
-0.1 N, so `stance_quality/v2`'s report-only `max_foot_cop_fore_aft` over any
-window is again the mean of `|value|` with an empty cell read as 1. The load
+0.1 N, so the per-foot whole-foot statistic over any window is again the
+mean of `|value|` with an empty cell read as 1, and its maximum over the
+feet is `stance_quality/v2`'s report-only `max_foot_cop_fore_aft`. The load
 position is empty on a step its digit carries nothing.
 
 ### Biped feet and leg joints
@@ -238,8 +240,15 @@ columns:
   Tyrannosaurus Rex's three per foot).
 - NaN in a key that exists means the value could not be measured at that
   evaluation. That happens when no episode reached the horizon or the
-  evaluation could not be recorded, and for the signed CoP alone when the pad
-  was never loaded (the gate statistic then reads 1).
+  evaluation could not be recorded. It also happens when no full-horizon
+  episode measured the key: the signed pad CoP when the pad was never loaded;
+  the signed whole-foot CoP, its spread, its dominant frequency and both
+  moment margins when the limb was never loaded (both gate statistics then
+  read 1); the dominant frequency also on a still series (a range of at most
+  1 nm) or one of fewer than 3 loaded steps; the digit shares when the limb
+  carried nothing; and a digit's load position when that digit carried
+  nothing. The frequency drops unloaded steps from its series, so its time
+  base is approximate when a foot lifts within the window.
 
 The leg DC is computed from `action_dc_per_actuator`, which is in action
 units. Each actuator's DC is mapped through the env's own action map
