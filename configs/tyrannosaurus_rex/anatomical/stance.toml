@@ -1,3 +1,11 @@
+# ARM L SCREEN, NEVER MERGED. Branch claude/screen-trex-r10-arm-l: physics r10 (the load-bearing tridactyl
+# foot, #623) with the symmetry options (mirror-symmetric PPO, the lateral lean term and the settled leg
+# target) switched on for the stance stage, so the Colab notebook (REPO_REF = this branch, BEHAVIOR =
+# "stance") trains "arm L" on r10 against arm L on r9 (the foot/symmetry screen, seeds 42 / 52 / 60). The
+# screen-only keys: [env] lateral_lean_weight / lateral_lean_tolerance_m / leg_home_pose_reference, [ppo]
+# symmetry*, [curriculum] eval_freq / eval_episodes / checkpoint_freq / max_checkpoints and
+# collapse_peak_floor_reference. recovery.toml extends [stage], [env] and [ppo], so on this branch it
+# inherits the [env] and [ppo] switches too; the screen trains stance only.
 [stage]
 name = "stance"
 description = "Learn to stand and balance without falling"
@@ -375,6 +383,14 @@ reset_noise_scale = 0.05                       # Stage 1a operating point (PLANT
                                                # reward gate, which §9 retired: the statue is the reward optimum at
                                                # every noise level. Robustness is stage 1b's job, via perturbations,
                                                # not lucky-draw reset noise (§13).
+# ARM L SCREEN (never merged): the two T. rex stance options of website/docs/training/mirror-symmetry.md, at the
+# values the r9 screen trained arm L with (foot/symmetry design frozen_params env_keys.L): the standing
+# lateral-lean bonus on the centre of mass over the feet, paid after stance_width_settle_steps (200) with a zero
+# command and both feet loaded, and the leg_home_pose term centred on the statue's settled leg pose, re-measured
+# on physics r10 (base_env._LEG_SETTLED_QPOS). The collapse reference in [curriculum] moves with them.
+lateral_lean_weight = 0.25
+lateral_lean_tolerance_m = 0.015
+leg_home_pose_reference = "settled"
 
 [ppo]                                   # recovery.toml inherits this and [ppo.policy_kwargs] (`extends`), all but ent_coef_decay_timesteps: an edit here moves recovery's hyperparameters too
 learning_rate = 3e-5                    # Setting 4 sweep: 3.23e-5 — 10x lower. All successful S1→S3 runs used this. Old 3e-4 caused instability.
@@ -449,6 +465,14 @@ ent_coef_decay_timesteps = 7000000      # 64% of the 11M budget (derived as 70% 
                                         # locks in; this anneal and the learning rate are unchanged.
 
 target_kl = 0.03                        # Cap destabilising late PPO updates (early-stop epochs on high approx-KL).
+# ARM L SCREEN (never merged): mirror-symmetric PPO (environments/shared/mirror_kl_ppo.py) with the committed
+# T. rex mirror map (configs/tyrannosaurus_rex/anatomical/mirror_map.json, regenerated on r10): the mirror loss
+# at kappa 0.3 with its sigma floor 0.01, the mirrored critic, symmetric observation statistics and a tied
+# log_std, as the r9 screen's arm L (frozen_params method).
+symmetry = "mirror_kl"
+symmetry_kappa = 0.3
+symmetry_sigma_floor = 0.01
+symmetry_mirror_critic = true
 
 [ppo.policy_kwargs]
 net_arch = [512, 256]
@@ -986,7 +1010,15 @@ certification_seeds = 2                 # Publication bar, not a gate threshold 
                                         # schedule). Every other stage keeps the default 1.
                                         # Enters neither gate_sha256 nor hyperparameters_sha256 nor task_sha256:
                                         # raising it relabels published bundles and invalidates no verdict.
-max_checkpoints = 5                     # Periodic checkpoints kept (CheckpointRetentionCallback). At save_freq = 500k this stage
+eval_freq = 131072                      # ARM L SCREEN (never merged): the r9 screen's cadence. An evaluation every 131,072 steps
+eval_episodes = 10                      # of 10 episodes (fewer than min_eval_episodes, so the in-training gate cannot pass and
+checkpoint_freq = 1048576               # the stage trains its whole budget; the screen judges its checkpoints offline on the
+                                        # 40-episode panel), and a periodic checkpoint every 1,048,576 steps, every one kept
+                                        # (max_checkpoints = 0): models/stage1_{4194304,5242880,6291456}_steps.zip and their
+                                        # _vecnormalize_ pickles are the ones the r9 screen judged. Production: 50,000 / 30-or-
+                                        # min_eval_episodes / 100,000 / 5 (train_base._stage_cadence).
+max_checkpoints = 0                     # ARM L SCREEN: keep every periodic checkpoint. Production: 5, as this note says.
+                                        # Periodic checkpoints kept (CheckpointRetentionCallback). At save_freq = 500k this stage
                                         # wrote 12 and kept all of them: 48 MB of the 60 MB models/ on run 20260801_021545, on a
                                         # Drive mount, for files nothing in this repository reads — they exist for manual rollback,
                                         # which needs recent history, not all of it. 5 is the default (DEFAULT_MAX_CHECKPOINTS), the depth the
