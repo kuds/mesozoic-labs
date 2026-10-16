@@ -1,0 +1,592 @@
+{
+ "schema": "mesozoic.foot-toe-line/v1",
+ "species": "tyrannosaurus_rex",
+ "embodiment": "anatomical",
+ "physics_revision": 10,
+ "physics_sha256": "sha256:1a05bc2df28abd26fcffa74f64ae078549c649060d24865e16c61e29ddd59a28",
+ "mujoco_version": "3.10.0",
+ "rule": {
+  "stage": "stance",
+  "seeds": [
+   3042,
+   3043,
+   3044,
+   3045,
+   3046
+  ],
+  "start_deg": -2.5,
+  "step_deg": 0.5,
+  "ramp_steps": 200,
+  "window_start_step": 200,
+  "horizon": 1000,
+  "resolution_m": 0.001,
+  "statistic": "the other foot's window-mean whole-foot CoP (m ahead of its ankle axis), median over the episodes that do not fall; the onset is the first level with a fall; the line is the smaller onset of the two ankles, floored to the resolution"
+ },
+ "ankles": {
+  "r": {
+   "joint": "r_ankle",
+   "actuator": "r_ankle_act",
+   "other_foot": "l",
+   "onset_deg": -5.0,
+   "onset_m": 0.214842377,
+   "levels": [
+    {
+     "deg": -2.5,
+     "falls": 0,
+     "other_foot_cop_median_m": 0.187730441,
+     "episodes": [
+      {
+       "seed": 3042,
+       "length": 1000,
+       "fell": false,
+       "termination_reason": "",
+       "other_foot_cop_m": 0.172821601
+      },
+      {
+       "seed": 3043,
+       "length": 1000,
+       "fell": false,
+       "termination_reason": "",
+       "other_foot_cop_m": 0.187730441
+      },
+      {
+       "seed": 3044,
+       "length": 1000,
+       "fell": false,
+       "termination_reason": "",
+       "other_foot_cop_m": 0.182973272
+      },
+      {
+       "seed": 3045,
+       "length": 1000,
+       "fell": false,
+       "termination_reason": "",
+       "other_foot_cop_m": 0.189242093
+      },
+      {
+       "seed": 3046,
+       "length": 1000,
+       "fell": false,
+       "termination_reason": "",
+       "other_foot_cop_m": 0.195884195
+      }
+     ]
+    },
+    {
+     "deg": -3.0,
+     "falls": 0,
+     "other_foot_cop_median_m": 0.192646608,
+     "episodes": [
+      {
+       "seed": 3042,
+       "length": 1000,
+       "fell": false,
+       "termination_reason": "",
+       "other_foot_cop_m": 0.179199758
+      },
+      {
+       "seed": 3043,
+       "length": 1000,
+       "fell": false,
+       "termination_reason": "",
+       "other_foot_cop_m": 0.192646608
+      },
+      {
+       "seed": 3044,
+       "length": 1000,
+       "fell": false,
+       "termination_reason": "",
+       "other_foot_cop_m": 0.190091345
+      },
+      {
+       "seed": 3045,
+       "length": 1000,
+       "fell": false,
+       "termination_reason": "",
+       "other_foot_cop_m": 0.195661286
+      },
+      {
+       "seed": 3046,
+       "length": 1000,
+       "fell": false,
+       "termination_reason": "",
+       "other_foot_cop_m": 0.202653608
+      }
+     ]
+    },
+    {
+     "deg": -3.5,
+     "falls": 0,
+     "other_foot_cop_median_m": 0.198217864,
+     "episodes": [
+      {
+       "seed": 3042,
+       "length": 1000,
+       "fell": false,
+       "termination_reason": "",
+       "other_foot_cop_m": 0.18514452
+      },
+      {
+       "seed": 3043,
+       "length": 1000,
+       "fell": false,
+       "termination_reason": "",
+       "other_foot_cop_m": 0.198217864
+      },
+      {
+       "seed": 3044,
+       "length": 1000,
+       "fell": false,
+       "termination_reason": "",
+       "other_foot_cop_m": 0.197076536
+      },
+      {
+       "seed": 3045,
+       "length": 1000,
+       "fell": false,
+       "termination_reason": "",
+       "other_foot_cop_m": 0.201782034
+      },
+      {
+       "seed": 3046,
+       "length": 1000,
+       "fell": false,
+       "termination_reason": "",
+       "other_foot_cop_m": 0.208349737
+      }
+     ]
+    },
+    {
+     "deg": -4.0,
+     "falls": 0,
+     "other_foot_cop_median_m": 0.204826102,
+     "episodes": [
+      {
+       "seed": 3042,
+       "length": 1000,
+       "fell": false,
+       "termination_reason": "",
+       "other_foot_cop_m": 0.190893591
+      },
+      {
+       "seed": 3043,
+       "length": 1000,
+       "fell": false,
+       "termination_reason": "",
+       "other_foot_cop_m": 0.204826102
+      },
+      {
+       "seed": 3044,
+       "length": 1000,
+       "fell": false,
+       "termination_reason": "",
+       "other_foot_cop_m": 0.203538941
+      },
+      {
+       "seed": 3045,
+       "length": 1000,
+       "fell": false,
+       "termination_reason": "",
+       "other_foot_cop_m": 0.20763835
+      },
+      {
+       "seed": 3046,
+       "length": 1000,
+       "fell": false,
+       "termination_reason": "",
+       "other_foot_cop_m": 0.213231531
+      }
+     ]
+    },
+    {
+     "deg": -4.5,
+     "falls": 0,
+     "other_foot_cop_median_m": 0.210792549,
+     "episodes": [
+      {
+       "seed": 3042,
+       "length": 1000,
+       "fell": false,
+       "termination_reason": "",
+       "other_foot_cop_m": 0.196393764
+      },
+      {
+       "seed": 3043,
+       "length": 1000,
+       "fell": false,
+       "termination_reason": "",
+       "other_foot_cop_m": 0.210792549
+      },
+      {
+       "seed": 3044,
+       "length": 1000,
+       "fell": false,
+       "termination_reason": "",
+       "other_foot_cop_m": 0.208965145
+      },
+      {
+       "seed": 3045,
+       "length": 1000,
+       "fell": false,
+       "termination_reason": "",
+       "other_foot_cop_m": 0.213194891
+      },
+      {
+       "seed": 3046,
+       "length": 1000,
+       "fell": false,
+       "termination_reason": "",
+       "other_foot_cop_m": 0.216118437
+      }
+     ]
+    },
+    {
+     "deg": -5.0,
+     "falls": 2,
+     "other_foot_cop_median_m": 0.214842377,
+     "episodes": [
+      {
+       "seed": 3042,
+       "length": 1000,
+       "fell": false,
+       "termination_reason": "",
+       "other_foot_cop_m": 0.202032164
+      },
+      {
+       "seed": 3043,
+       "length": 453,
+       "fell": true,
+       "termination_reason": "nosedive",
+       "other_foot_cop_m": 0.25083274
+      },
+      {
+       "seed": 3044,
+       "length": 1000,
+       "fell": false,
+       "termination_reason": "",
+       "other_foot_cop_m": 0.214842377
+      },
+      {
+       "seed": 3045,
+       "length": 1000,
+       "fell": false,
+       "termination_reason": "",
+       "other_foot_cop_m": 0.217948423
+      },
+      {
+       "seed": 3046,
+       "length": 466,
+       "fell": true,
+       "termination_reason": "nosedive",
+       "other_foot_cop_m": 0.250134811
+      }
+     ]
+    }
+   ]
+  },
+  "l": {
+   "joint": "l_ankle",
+   "actuator": "l_ankle_act",
+   "other_foot": "r",
+   "onset_deg": -5.5,
+   "onset_m": 0.213439362,
+   "levels": [
+    {
+     "deg": -2.5,
+     "falls": 0,
+     "other_foot_cop_median_m": 0.180542183,
+     "episodes": [
+      {
+       "seed": 3042,
+       "length": 1000,
+       "fell": false,
+       "termination_reason": "",
+       "other_foot_cop_m": 0.186374762
+      },
+      {
+       "seed": 3043,
+       "length": 1000,
+       "fell": false,
+       "termination_reason": "",
+       "other_foot_cop_m": 0.173199877
+      },
+      {
+       "seed": 3044,
+       "length": 1000,
+       "fell": false,
+       "termination_reason": "",
+       "other_foot_cop_m": 0.18455188
+      },
+      {
+       "seed": 3045,
+       "length": 1000,
+       "fell": false,
+       "termination_reason": "",
+       "other_foot_cop_m": 0.180542183
+      },
+      {
+       "seed": 3046,
+       "length": 1000,
+       "fell": false,
+       "termination_reason": "",
+       "other_foot_cop_m": 0.166738018
+      }
+     ]
+    },
+    {
+     "deg": -3.0,
+     "falls": 0,
+     "other_foot_cop_median_m": 0.186617031,
+     "episodes": [
+      {
+       "seed": 3042,
+       "length": 1000,
+       "fell": false,
+       "termination_reason": "",
+       "other_foot_cop_m": 0.192355115
+      },
+      {
+       "seed": 3043,
+       "length": 1000,
+       "fell": false,
+       "termination_reason": "",
+       "other_foot_cop_m": 0.179980418
+      },
+      {
+       "seed": 3044,
+       "length": 1000,
+       "fell": false,
+       "termination_reason": "",
+       "other_foot_cop_m": 0.191952925
+      },
+      {
+       "seed": 3045,
+       "length": 1000,
+       "fell": false,
+       "termination_reason": "",
+       "other_foot_cop_m": 0.186617031
+      },
+      {
+       "seed": 3046,
+       "length": 1000,
+       "fell": false,
+       "termination_reason": "",
+       "other_foot_cop_m": 0.173432572
+      }
+     ]
+    },
+    {
+     "deg": -3.5,
+     "falls": 0,
+     "other_foot_cop_median_m": 0.192073729,
+     "episodes": [
+      {
+       "seed": 3042,
+       "length": 1000,
+       "fell": false,
+       "termination_reason": "",
+       "other_foot_cop_m": 0.198420464
+      },
+      {
+       "seed": 3043,
+       "length": 1000,
+       "fell": false,
+       "termination_reason": "",
+       "other_foot_cop_m": 0.186584345
+      },
+      {
+       "seed": 3044,
+       "length": 1000,
+       "fell": false,
+       "termination_reason": "",
+       "other_foot_cop_m": 0.199015637
+      },
+      {
+       "seed": 3045,
+       "length": 1000,
+       "fell": false,
+       "termination_reason": "",
+       "other_foot_cop_m": 0.192073729
+      },
+      {
+       "seed": 3046,
+       "length": 1000,
+       "fell": false,
+       "termination_reason": "",
+       "other_foot_cop_m": 0.180096058
+      }
+     ]
+    },
+    {
+     "deg": -4.0,
+     "falls": 0,
+     "other_foot_cop_median_m": 0.198183036,
+     "episodes": [
+      {
+       "seed": 3042,
+       "length": 1000,
+       "fell": false,
+       "termination_reason": "",
+       "other_foot_cop_m": 0.203891786
+      },
+      {
+       "seed": 3043,
+       "length": 1000,
+       "fell": false,
+       "termination_reason": "",
+       "other_foot_cop_m": 0.193214774
+      },
+      {
+       "seed": 3044,
+       "length": 1000,
+       "fell": false,
+       "termination_reason": "",
+       "other_foot_cop_m": 0.205203483
+      },
+      {
+       "seed": 3045,
+       "length": 1000,
+       "fell": false,
+       "termination_reason": "",
+       "other_foot_cop_m": 0.198183036
+      },
+      {
+       "seed": 3046,
+       "length": 1000,
+       "fell": false,
+       "termination_reason": "",
+       "other_foot_cop_m": 0.186884595
+      }
+     ]
+    },
+    {
+     "deg": -4.5,
+     "falls": 0,
+     "other_foot_cop_median_m": 0.204673117,
+     "episodes": [
+      {
+       "seed": 3042,
+       "length": 1000,
+       "fell": false,
+       "termination_reason": "",
+       "other_foot_cop_m": 0.208573188
+      },
+      {
+       "seed": 3043,
+       "length": 1000,
+       "fell": false,
+       "termination_reason": "",
+       "other_foot_cop_m": 0.200026797
+      },
+      {
+       "seed": 3044,
+       "length": 1000,
+       "fell": false,
+       "termination_reason": "",
+       "other_foot_cop_m": 0.21070286
+      },
+      {
+       "seed": 3045,
+       "length": 1000,
+       "fell": false,
+       "termination_reason": "",
+       "other_foot_cop_m": 0.204673117
+      },
+      {
+       "seed": 3046,
+       "length": 1000,
+       "fell": false,
+       "termination_reason": "",
+       "other_foot_cop_m": 0.19296535
+      }
+     ]
+    },
+    {
+     "deg": -5.0,
+     "falls": 0,
+     "other_foot_cop_median_m": 0.211471955,
+     "episodes": [
+      {
+       "seed": 3042,
+       "length": 1000,
+       "fell": false,
+       "termination_reason": "",
+       "other_foot_cop_m": 0.213420045
+      },
+      {
+       "seed": 3043,
+       "length": 1000,
+       "fell": false,
+       "termination_reason": "",
+       "other_foot_cop_m": 0.206962386
+      },
+      {
+       "seed": 3044,
+       "length": 1000,
+       "fell": false,
+       "termination_reason": "",
+       "other_foot_cop_m": 0.216757925
+      },
+      {
+       "seed": 3045,
+       "length": 1000,
+       "fell": false,
+       "termination_reason": "",
+       "other_foot_cop_m": 0.211471955
+      },
+      {
+       "seed": 3046,
+       "length": 1000,
+       "fell": false,
+       "termination_reason": "",
+       "other_foot_cop_m": 0.199301595
+      }
+     ]
+    },
+    {
+     "deg": -5.5,
+     "falls": 3,
+     "other_foot_cop_median_m": 0.213439362,
+     "episodes": [
+      {
+       "seed": 3042,
+       "length": 464,
+       "fell": true,
+       "termination_reason": "nosedive",
+       "other_foot_cop_m": 0.250697865
+      },
+      {
+       "seed": 3043,
+       "length": 479,
+       "fell": true,
+       "termination_reason": "nosedive",
+       "other_foot_cop_m": 0.245290852
+      },
+      {
+       "seed": 3044,
+       "length": 615,
+       "fell": true,
+       "termination_reason": "nosedive",
+       "other_foot_cop_m": 0.252196763
+      },
+      {
+       "seed": 3045,
+       "length": 1000,
+       "fell": false,
+       "termination_reason": "",
+       "other_foot_cop_m": 0.220090038
+      },
+      {
+       "seed": 3046,
+       "length": 1000,
+       "fell": false,
+       "termination_reason": "",
+       "other_foot_cop_m": 0.206788686
+      }
+     ]
+    }
+   ]
+  }
+ },
+ "toe_line_m": 0.213
+}

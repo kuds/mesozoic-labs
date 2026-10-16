@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 #: The sagittal leg joints whose left-minus-right DC the plateau callback
 #: records (``leg_dc_<left>_minus_<right>_<joint>_deg``): the offsets that,
 #: with both feet planted, move the OTHER pad's centre of pressure (0.19-0.23
-#: pad half-lengths per degree on the T. rex anatomical stance).
+#: pad half-lengths per degree on the physics-r9 T. rex anatomical stance).
 SAGITTAL_LEG_JOINTS: tuple[str, ...] = ("hip_pitch", "knee", "ankle")
 
 #: A sagittal joint's axis must lie within about 45 degrees of the animal's
@@ -1018,8 +1018,8 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
           pressure, from ``<label>_foot_cop_fore_aft_gate``: the mean of each
           episode's own ``max_foot_cop_fore_aft``.  Its over-bar fraction,
           ``max_foot_cop_fore_aft_over_bar_fraction``, is written only where
-          the stage declares that bar, and no stage does: the key is
-          report-only.
+          the stage declares that bar: the T. rex stance since its physics
+          r10 (D-D34).
         * Each ``leg_dc_<left>_minus_<right>_<joint>_deg`` is the capture
           callback's :attr:`~StageAwareEvalCallback.evaluations_leg_dc`
           (:func:`leg_dc_degrees`).

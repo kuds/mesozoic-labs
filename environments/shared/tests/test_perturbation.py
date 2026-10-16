@@ -131,12 +131,16 @@ class TestDerivation:
         )
         params = derive_push_parameters(model, capture_velocity_multiple=1.5, duration_s=0.20)
         # STAGE1_SPLIT_PLAN §3.3 gives "~150 N for 0.20 s" [artifact-derived];
-        # the first-principles derivation lands at 165.5 N on physics r7.
+        # the first-principles derivation landed at 165.5 N on physics r7-r9
+        # (support radius 77.3 mm, the heel-ward side of the home contact hull)
+        # and lands at 186.8 N on r10, whose sole box puts the heel 1 cm further
+        # back (87.2 mm; plant_versions note 20).
         assert params["subtree_mass_kg"] == pytest.approx(85.72, abs=0.5)
         assert params["com_height_m"] == pytest.approx(0.884, abs=0.01)
-        assert params["capture_velocity_mps"] == pytest.approx(0.2574, abs=0.01)
-        assert params["force_n"] == pytest.approx(165.5, abs=2.0)
-        assert params["impulse_ns"] == pytest.approx(33.1, abs=0.5)
+        assert params["support_radius_m"] == pytest.approx(0.0872, abs=5e-4)
+        assert params["capture_velocity_mps"] == pytest.approx(0.2905, abs=0.01)
+        assert params["force_n"] == pytest.approx(186.8, abs=2.0)
+        assert params["impulse_ns"] == pytest.approx(37.36, abs=0.5)
 
     def test_derivation_scales_linearly_with_the_multiple(self):
         mujoco = pytest.importorskip("mujoco")
@@ -232,7 +236,7 @@ class TestEnvIntegration:
         env = self._tyrannosaurus_rex(perturbation_capture_velocity_multiple=1.5)
         manifest = env.perturbation_manifest()
         assert manifest is not None
-        assert manifest["force_n"] == pytest.approx(165.5, abs=2.0)
+        assert manifest["force_n"] == pytest.approx(186.8, abs=2.0)  # physics r10 (165.5 on r7-r9)
         assert manifest["direction"] == "uniform_horizontal"
 
     @pytest.mark.parametrize(

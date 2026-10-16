@@ -519,7 +519,13 @@ def test_every_model_reads_its_pads_as_the_gate_does(model_id):
             for name, is_hinged in zip(foot.digit_names, foot.digit_hinged):
                 assert (f"{foot.label}_{name}_load_pos" in result) == is_hinged
                 if is_hinged:
-                    assert -0.2 <= result[f"{foot.label}_{name}_load_pos"] <= 1.0
+                    # NaN only on a digit that carried nothing in the window (the T. rex's digit IV on this
+                    # physics-r10 statue seed: its share moves with the stance's roll).
+                    position = result[f"{foot.label}_{name}_load_pos"]
+                    if math.isnan(position):
+                        assert result[f"{foot.label}_{name}_load_share"] == 0.0
+                    else:
+                        assert -0.2 <= position <= 1.0
         else:
             assert f"{foot.label}_digit_share" not in result
             assert not any(key.startswith(f"{foot.label}_") and "load_" in key for key in result)

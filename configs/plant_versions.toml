@@ -547,10 +547,111 @@ observation_schema = "bipedal-target/v1"
 #     unchanged, and its fixed-command nulls do not read the observation);
 #     its profile_sha256 moves, so a recovery freeze made before must be
 #     re-frozen.
+# 20. T. rex physics r10: a load-bearing tridactyl foot (decision D-D34;
+#     docs/investigations/TREX_FOOT_R10_2026_10.md).  On r9 each foot stood
+#     on a 14 x 9 cm plantar pad 0.070-0.210 m ahead of the ankle, with three
+#     near-parallel digits (splay +8.7 / -7.6 deg) on 40 N.m/rad MTP springs
+#     that carried 17% of the statue's load near their bases.  Both feet change:
+#
+#     a) The sole box, a stance approximation of the metatarsal (heel) pad and
+#        the soft tissue under the proximal phalanges (McCrea et al. 2014;
+#        "metatarsodigital pad", Xing et al. 2019 via Falkingham et al. 2026):
+#        10.5 x 11 cm, 0.060-0.165 m ahead of the ankle, centred 6 mm lateral,
+#        rigid across the MTP joints (0.080 m) and the first interphalangeal
+#        joints (0.121-0.144 m), which flex in life; the width and shape of
+#        its heel are not measured.  Same 0.02 kg and geom names.
+#     b) Digits II / III / IV 0.171 / 0.212 / 0.178 m from MTP joint to claw
+#        tip: Sue's digit / MT III ratios (FMNH PR 2081; Brochu 2003 via
+#        Mortimer, Theropod Database; digit IV completed from Gorgosaurus) at
+#        this model's MT III, the TOP of the plausible range (leg scale 0.157 /
+#        0.194 / 0.163).  Kept for mechanics: at the leg scale the forward push
+#        limit falls to 49.8 N, under r9's 55.4, and no stiffer spring
+#        recovers it (51.8 / 54.0 / 55.2 N at 4x / 6x / 8x the base of the
+#        stiffness ladder under c; this plant's springs are its 3x).  Chord
+#        divarication 25 (II) and 33 (IV) deg off digit III, a compromise
+#        below the Bellatoripes means (30, 36 deg): the phalangeal axes of II
+#        and IV deviate progressively (Brochu 2003), so the digits curve,
+#        and their chord, which the straight capsule follows, sits below
+#        the track angles measured on the free digits; the Hell Creek
+#        track attributed to T. rex (35, 40 deg) is not matched.  Not
+#        modelled: the hallux, MT V, the MTP stagger and a measured MTP
+#        condyle spacing.  Masses unchanged (animal 85.72 kg, foot 1.76 kg).
+#     c) MTP springs 3000 / 4500 / 3000 N.m/rad (damping 35 / 43 / 35), a
+#        mechanical choice, not a measurement: the lowest rung of a stiffness
+#        ladder (1x 43.8 N, 2x 54.0 N, 3x 58.4 N of forward push limit) that
+#        beats r9's push limit by 5%; omega_n dt 0.42 at the 0.1 armature.
+#        Springs this stiff resist toe-off (docs/KNOWN_ISSUES.md).
+#
+#     Unchanged: every body, joint, geom, site and sensor and its order, the
+#     r/l_foot sites (stance width 0.280 m), the r15 toe touch sites, the
+#     keyframe (root z 0.9266, every foot geom 0.491 mm into the floor) and
+#     the sibling exclusions.  So the POLICY INTERFACE digest (ffbf66..) is
+#     unchanged and policy stays 15; PHYSICS (3d68ae.. -> 1a05bc..) and VISUAL
+#     (7042dc.. -> 053773..: the visual layer hashes geom pose and size)
+#     move, physics 9 -> 10 and visual 4 -> 5.  The digests are the ones the
+#     foot proposal evaluated (its MJCF differs in comments only).
+#
+#     Measured on this plant (mujoco 3.10.0, the stance [env], reset noise
+#     0.05; scratch harnesses on the repository's recorder):
+#     - The statue stands on all 280 stance-panel seeds (3042-3201,
+#       5042-5081, 7042-7081, 9042-9081; r9 fell on 4 of the same seeds,
+#       Fisher exact p = 0.12, not significant) and is clean under the
+#       stance gate on all of them.  Over the 280 its sole box carries 0.67
+#       of each foot's load at the median (both feet), digits II / III / IV
+#       0.14 / 0.09 / 0.13; on 3042-3081, where r9 was measured, 0.66 and
+#       0.12 / 0.10 / 0.14 (r9's pad 0.83, digits 0.06 / 0.05 / 0.07).  The
+#       split moves with the stance's roll.  At the home keyframe a foot
+#       transmits 378.6 N on the box and 96.7 N on the digits (r9 388.4 +
+#       112.0).
+#     - The toe line of environments/shared/scripts/foot_toe_line.py is
+#       0.213 m (first falls at -5.0 / -5.5 deg on the right / left ankle, the
+#       other foot's CoP 214.8 / 213.4 mm ahead of its ankle); the foot
+#       proposal measured r9's at 0.196 by the same rule.
+#     - The whole-foot CoP on [0.060, 0.213] m reads at most 0.351 on the
+#       statue (280 episodes) and 0.723 under N(0, 0.05) command jitter, and
+#       the stance gate's rail moves to it (D-D34; stance.toml).
+#     - The ankle probe of KNOWN_ISSUES (+-0.03 on both ankles, 3042-3081):
+#       +0.03 reaches the horizon on 25/40 (r9 14/40), -0.03 on 40/40 (r9
+#       24/40).  The foot proposal's scratch evaluation adds a forward push
+#       limit of 58.4 N against 55.4, a first nosedive under a held
+#       single-ankle offset 1.0-1.5 deg later, a statue toe margin to each
+#       plant's own held-offset line (0.213 / 0.196 m) of 29.1 against
+#       22.5 N m (1.77 against 1.37 deg of ankle servo error; the worse
+#       foot 28.4 against 21.4), statue falls under its H4 joint-noise
+#       vectors 6/60 against 30/60, and four r9-trained policies falling
+#       0/80 under that noise against 9/80.
+#     - Touch equals floor truth to within 1e-6 N (solver precision) on
+#       every floor contact of 465 recorded episodes.  The one other foot
+#       contact is seed 7068's spawn: digit II on the other foot's digit II
+#       for the first 4 substeps of step 0 (118-174 N on both toe-II
+#       sensors), which the 7.7 cm between the digit-II tips at home (14.0
+#       on r9) allows.
+#     - Noise-free statue settle (steps 200-999): pelvis 0.92624 m (r9
+#       0.92616), forward_z -0.0282 (-0.0271), neck and tail within 3.4e-5
+#       and 6.4e-5 rad of _NECK_SETTLED_QPOS / _TAIL_SETTLED_QPOS, stance width
+#       0.2805 m, so target_z, natural_pitch, healthy_z_range, the
+#       nosedive threshold and the settled-pose targets carry.
+#     - The statue-derived constants: stance 3757.3 +/- 16.4 (3756.8 and the
+#       2250 rail carry), locomotion 1092.3 +/- 4.6 (1091.5 -> 1092.3),
+#       behavior 602.0 (and the 361 rail carry), recovery 1504.4 +/- 654.7
+#       (1329.1 -> 1504.4).  The recovery push derives to 186.8 N (165.5 N on
+#       r7-r9): the derivation's support margin, the heel-ward side of the
+#       home contact hull around the CoM, grows from 77.3 to 87.2 mm.
+#     - Two settle readings change.  On 3042-3081 the statue's spawn now
+#       leaves the floor on 17 of 40 episodes (up to 16 substeps, all inside
+#       the 0.1 s spawn grace; r9 none), and it reaches the
+#       max_settle_touchdowns bar of 2 on 10 of the 40 (r9 at most 1); over
+#       the 280 it reaches it on 89.
+#
+#     Every T. rex physics-r9 checkpoint is invalidated (the plant check
+#     compares physics_sha256) and no widen applies; every recorded T. rex
+#     video shows the r9 feet (visual r4).  The T. rex has no
+#     committed recovery calibration; its frozen recovery gate, stale since
+#     r8, is re-frozen at the first r10 stance it certifies.
 [plants.tyrannosaurus_rex.anatomical]
-physics_revision = 9
+physics_revision = 10
 policy_interface_revision = 15
-visual_revision = 4
+visual_revision = 5
 observation_schema = "bipedal-target-heading-free/v1"
 
 # 7. Brachiosaurus can stand: residual action mapping and load-bearing servos.

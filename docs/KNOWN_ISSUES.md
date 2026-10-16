@@ -59,6 +59,17 @@ robustness, **LOW** = cosmetic / QoL.
   on r3 (support-geom duty at least 0.964 against 1.000; out of sample one
   episode in 240 reads under the 0.35 windowed load-share bar), so the
   digit-IV deficit above has slightly less statue margin to aim at.
+  *Update (2026-10-16):* T. rex physics r10 (D-D34, `configs/plant_versions.toml`
+  note 20) strands every T. rex pilot and reference above. Its stance gate no
+  longer reads the pad: the CoP rail is the whole-foot
+  `max_foot_cop_fore_aft` (0.80 on [0.060, 0.213] m ahead of the ankle), and
+  the pad CoP and `min_sole_contacts` are report-only for the T. rex. The
+  pad-edge failure above would show on r10 as a forward lean onto the
+  digits, which the whole-foot rail reads: the r9-trained policies of seeds
+  42 and 60, read zero-shot on r10, lean past it in some evaluations. No
+  policy has trained on r10 yet. The reward is still CoP-indifferent, so
+  the CoP margin penalty remains the candidate to validate, on r10
+  ([TREX_FOOT_R10_2026_10.md](investigations/TREX_FOOT_R10_2026_10.md)).
 
 <!-- The two items below come from the 2026-08-05 stage-1 bounce
      investigation and its addenda; full evidence in
@@ -1744,6 +1755,52 @@ Still open:
   (nosedive 26, `tail_contact` 14). Every stance bar was kept (the stance
   config's comments carry the r9 extremes); the first r9 stances are where
   the rail and the sole-contact margin need watching.
+  *Update (2026-10-16):* physics r10 (the load-bearing tridactyl foot, D-D34,
+  note 20) widens the margin without removing it. The ankle probe: +0.03
+  reaches the horizon on 25/40 (r9 14/40), −0.03 on 40/40 (r9 24/40). The
+  plain statue stands on all 280 stance-panel seeds, against r9's 4 falls on
+  the same seeds (Fisher exact p = 0.12, so not a significant difference).
+  In the foot proposal's scratch evaluation, the forward push limit is
+  58.4 N against 55.4 N, a held single-ankle offset first topples the
+  statue at −5.0 / −5.5° (r9 −3.5 / −4.5°), and the statue's toe margin to
+  each plant's own held-offset line (0.213 / 0.196 m) is 29.1 against
+  22.5 N·m (1.77° against 1.37° of ankle servo error). The closed-chain
+  mechanism, about 6.6 N·m/deg per ankle with both feet planted, is
+  unchanged, so a stance policy must still hold fore-aft balance actively.
+- **MEDIUM** — **the T. rex physics-r10 MTP springs resist toe-off.** The
+  passive digits are linear springs of 3000 / 4500 / 3000 N·m/rad (digits II /
+  III / IV, note 20): a mechanical choice that makes the digits share the
+  stance load. Dorsiflexing a digit 30° takes 1570-2360 N·m against them, and
+  the joint range (−25..50°, rest 12.5°) stops it at 37.5° (1960-2950 N·m).
+  A toe-off that dorsiflexes the digits fights these springs and meets that
+  stop. Locomotion therefore needs an actuated or
+  nonlinear MTP, a policy-interface revision, or softer springs at a stance
+  cost. Decide it at the locomotion stage; the stance does not need it.
+- **LOW** — **the T. rex's two digit-II tips stand 7.7 cm apart at home
+  (14.0 cm on r9), and that is an anatomical constraint, not a defect.**
+  Tyrannosaurid trackways are narrow, with prints that overlap the midline
+  (40-50% in Falkingham et al. 2026) and turn slightly inward (McCrea et al.
+  2014), so splayed digits on a narrow stance come close. Reset noise on
+  seed 7068 sets the right digit II on the left one for the first 4
+  substeps of control step 0 (118-174 N on both toe-II sensors, with no floor
+  load); `test_anatomical_foot.py` pins that it clears. Narrow stances and
+  gait will meet this clearance. A later change must not "fix" it by cutting
+  digit II's splay.
+- **LOW** — **the T. rex physics-r10 foot is a stance approximation.**
+  - The sole box is rigid from 0.060 to 0.165 m, across the MTP joints and
+    the first interphalangeal joints, which flex in life. Under forward push
+    the heel unloads at 26 N (r9 36 N) and the foot pivots on the box's
+    front edge, 8.5 cm ahead of the MTP joints; this is untested for gait.
+  - Digit II's tip cap leaves its r15 touch box, by up to 6 mm, beyond
+    about 49° of tip-down digit pitch, which no measured episode reached.
+  - The whole-foot CoP rail is a window mean, so it cannot see an
+    oscillation. #622's per-foot CoP spread and dominant frequency are the
+    report-only readings that can.
+  - On r10 the statue's reset pops it off the floor on 17 of 40 episodes
+    (seeds 3042-3081), for up to 16 substeps, all inside the spawn grace
+    (r9 none). It reaches the `max_settle_touchdowns` bar of 2 on 89 of 280
+    episodes, and on 10 of those 40, where r9 reached at most 1. So a
+    statue-like settle plus one re-plant fails on those seeds.
 - **LOW** — the raptor's toe-clipping margin now sits at the toes: at
   sprint-like excitation (3–4 Hz, full amplitude) the 0.8×kp toe caps clip
   10–16 % and the 1.5×kp hip pitch ~11–16 % (its physical envelope); the

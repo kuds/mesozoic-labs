@@ -31,7 +31,8 @@ The species has one model, the pair (species, embodiment) of
 ### Body Structure
 - **Head/Neck**: Heavy head with a fixed contact geom, 3 actuated joints (neck pitch/yaw, head pitch), and no jaw joint
 - **Legs**: Powerful digitigrade legs with 7 joints each (hip pitch/roll, knee, ankle, toe d2/d3/d4); the 4 proximal joints are actuated, the 3 toe digits ride passive springs. Since physics r8 (`configs/plant_versions.toml` note 13) the hip-roll servos are kp 600 / ±480 N·m, stiff enough that both legs together out-resist the body's lateral sway (2 × (kp + 40) = 1280 against m·g·h = 704 N·m/rad); at kp 150 the zero-action statue stood on a rolled pad in some episodes
-- **Contacts**: an elliptic friction cone since physics r9 (note 16), so the box plantar pads, whose contact frames stay on the world axes, grip the same in every direction and every world heading is physically identical; under MuJoCo's default pyramidal cone a 45° turn changed the physics slightly
+- **Feet**: since physics r10 (note 20, decision D-D34) a functionally tridactyl pes: a sole box standing for the metatarsal pad and the soft tissue under the proximal phalanges (0.060-0.165 m ahead of the ankle, a stance approximation rigid across the MTP and first interphalangeal joints) and three splayed, load-bearing digits (II / III / IV 0.171 / 0.212 / 0.178 m, 25° and 33° off digit III: chord angles, a compromise below track angles, note 20) on stiff passive MTP springs, which carry about a third of the statue's load out along their length; the hallux, MT V and the MTP stagger are not modelled. Every load-bearing body has its own touch sensor, and each foot's sole and digit sensors sum to the floor's normal force under it ([the investigation](../../docs/investigations/TREX_FOOT_R10_2026_10.md))
+- **Contacts**: an elliptic friction cone since physics r9 (note 16), so the box soles, whose contact frames stay on the world axes, grip the same in every direction and every world heading is physically identical; under MuJoCo's default pyramidal cone a 45° turn changed the physics slightly
 - **Tail**: 5 segments, 4 actuated (pitch 1, yaw 1, pitch 2, pitch 3), heavy counterbalance to skull
 - **Observation**: heading-free since policy interface r14 (`bipedal-target-heading-free/v1`, decision D-D31, `configs/plant_versions.toml` note 18): projected gravity in place of the world pelvis quaternion, the pelvis velocity in the gravity-aligned heading frame (forward, left, up) and the prey direction in pelvis coordinates, all from the free root's quaternion (`environments/shared/heading_observation.py`), beside the joint state, the site-frame gyro and accelerometer, the two foot-contact sums, the prey distance and the trailing command; no channel reads the world heading. The T-Rex is SB3-only from r14 (its frozen MJX registration was deleted), and every r13 checkpoint is refused
 
@@ -42,17 +43,20 @@ The species has one model, the pair (species, embodiment) of
 - **Tail stability** - Penalizes tail angular velocity
 - **Bite bonus** - Large reward when the fixed head contact geom touches prey
 - **Approach shaping** - Reward for closing distance to prey
-- **Stance shaping** (stance and recovery) - neck posture against the statue's settled pose (`neck_posture_reference = "settled"`), level plantar pads (`foot_flatness_weight`) and a steady stance width (`stance_width_weight`; since D-D27 centred on the animal's own width at the end of the settle, `stance_width_reference = "settled"`), both foot terms paid only on a loaded foot (`foot_terms_min_support_force`), a floor-impact and an airborne-substep penalty over the whole episode (`floor_impact_weight`, `airborne_substep_weight`), and smoothness, jerk and saturation priced on the policy's own command rather than the 10 Hz-filtered one (`action_penalty_source = "raw"`); each a `TyrannosaurusRexEnv` kwarg that is inert at its default and set in `configs/tyrannosaurus_rex/anatomical/stance.toml`. Two further options are off by default and set by no stage: the standing lateral-lean bonus (`lateral_lean_weight`, `lateral_lean_tolerance_m`) and `leg_home_pose_reference = "settled"`; see `website/docs/training/mirror-symmetry.md`
+- **Stance shaping** (stance and recovery) - neck posture against the statue's settled pose (`neck_posture_reference = "settled"`), level sole boxes (`foot_flatness_weight`) and a steady stance width (`stance_width_weight`; since D-D27 centred on the animal's own width at the end of the settle, `stance_width_reference = "settled"`), both foot terms paid only on a loaded foot (`foot_terms_min_support_force`), a floor-impact and an airborne-substep penalty over the whole episode (`floor_impact_weight`, `airborne_substep_weight`), and smoothness, jerk and saturation priced on the policy's own command rather than the 10 Hz-filtered one (`action_penalty_source = "raw"`); each a `TyrannosaurusRexEnv` kwarg that is inert at its default and set in `configs/tyrannosaurus_rex/anatomical/stance.toml`. Two further options are off by default and set by no stage: the standing lateral-lean bonus (`lateral_lean_weight`, `lateral_lean_tolerance_m`) and `leg_home_pose_reference = "settled"`; see `website/docs/training/mirror-symmetry.md`
 
 ### Stance gate
 The stance stage certifies under the six-heading certificate `stance_quality_heading/v1` (decision D-D32), which
-applies the `stance_quality/v2` decision (decision D-D24; its bars revised by D-D27 and D-D28) at each of six
+applies the `stance_quality/v2` decision (decision D-D24; its bars revised by D-D27, D-D28 and D-D34) at each of six
 whole-scene headings. Under v2 each
 episode of the 40-episode panel (seeds 3042-3081) is classified on floor truth, the floor's normal force under each
 leg on every physics substep, and the stance passes when the one-sided 95% lower bound on clean episodes reaches 0.80
 (37 of 40). An episode is clean when it reaches the horizon with no hop or stomp in the settle window, both feet down
-and loaded, no drift or chatter, no actuator held at its limit, flat pads (tilt, corner lift and contact points)
-pushed on along their length rather than on an edge (the pad's fore-aft centre of pressure, D-D28), at most one
+and loaded, no drift or chatter, no actuator held at its limit, flat soles (tilt and corner lift), the whole foot's
+fore-aft centre of pressure (every floor contact of the limb, sole and digits) within 80% of its declared span's
+half-length from the span's middle, on average over the window (the span runs from the sole's heel edge to the toe line
+the toe-line rule measures, 0.060-0.213 m ahead of the ankle; D-D34, which made the pad's own centre of pressure and
+its loaded contact points report-only), at most one
 re-plant in the settle and no more than 25° of turning; and at most one of the 40 may hop for the whole episode or
 fall. The bars and their measured provenance are in `configs/tyrannosaurus_rex/anatomical/stance.toml`. The stance stage always spawns at
 the same heading, so the certificate rolls the panel again with the whole scene (the animal, the prey and the heading
@@ -90,10 +94,11 @@ python -m environments.shared.train --species tyrannosaurus_rex --embodiment ana
 # Train the recovery stage — the second node of the `stand` recipe, a published
 # deliverable judged post-stage against the frozen recovery_quality/v1 gate
 # (configs/tyrannosaurus_rex/anatomical/recovery.toml, frozen 2026-08-28): the stance task plus scheduled
-# 165.5 N / 0.20 s external pushes derived from the plant itself. Warm-start from
-# a certified stance checkpoint: the load is refused unless the checkpoint records
-# stance, recovery's declared parent. The `curriculum` command skips this
-# non-advancing node; the notebook runs it with BEHAVIOR = "stand".
+# 186.8 N / 0.20 s external pushes (physics r10; 165.5 N on r7-r9) derived from
+# the plant itself. Warm-start from a certified stance checkpoint: the load is
+# refused unless the checkpoint records stance, recovery's declared parent. The
+# `curriculum` command skips this non-advancing node; the notebook runs it with
+# BEHAVIOR = "stand".
 python -m environments.shared.train --species tyrannosaurus_rex --embodiment anatomical \
     train --stage recovery --load <stance-checkpoint>.zip --load-mode initialize_next_stage
 

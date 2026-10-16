@@ -79,8 +79,14 @@ if TYPE_CHECKING:
 #: scores every v1 key bit for bit -- but a registry entry an adopted stage
 #: reads did change, and the module docstring versions any change to a
 #: model's registry entry; a report or panel measured under v1 is refused
-#: and re-rolled, never re-scored.
-MEASUREMENT_VERSION = "floor-truth/v2"
+#: and re-rolled, never re-scored.  ``floor-truth/v3`` (2026-10-16, T. rex
+#: physics r10, D-D34): the T. rex's span moves from its old pad's edges
+#: (0.070, 0.210 m) to its sole box's heel edge and the held-offset toe line
+#: (0.060, 0.213 m), and its stance gate now reads the whole-foot key; no
+#: constant and no metric definition changes, but a registry entry an
+#: adopted stage reads did, so a report or panel measured under v2 is
+#: refused and re-rolled on every model.
+MEASUREMENT_VERSION = "floor-truth/v3"
 
 #: Schema of the dict :func:`measurement_manifest` returns.  v2 (decision
 #: D-D33) records the model as ``species`` and ``embodiment``; the definitions

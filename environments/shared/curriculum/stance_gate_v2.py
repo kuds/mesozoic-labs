@@ -124,9 +124,10 @@ pushes: the window mean of the per-step ``|fore-aft CoP| / half-length``
 (``StanceEpisodeMetrics.max_sole_cop_fore_aft``: 0 centred, 1 on an edge
 or with no loaded contact), which separates that foot (0.85-1.00) from the
 statue (at most 0.48).  Box soles only, and two-sided, because the
-compsognathus statue stands heel-side.  Declared by trex since D-D28 (0.80)
-and by the compsognathus since D-D26 (0.70, on its r2 statue); undeclared,
-it is not applied.
+compsognathus statue stands heel-side.  Declared by the compsognathus since
+D-D26 (0.70, on its r2 statue), and by trex from D-D28 (0.80) until its
+physics r10, whose digits carry the front of the foot (D-D34: report-only
+there since); undeclared, it is not applied.
 
 The pad reads one contact geom.  The optional ``max_foot_cop_fore_aft``
 reads the WHOLE foot: the window mean of the per-step ``|whole-foot CoP|``
@@ -136,8 +137,9 @@ contact of the limb, pad and digits, measured from the ankle axis; 0 at the
 span's midpoint, 1 on its heel or toe line or with no loaded step), the
 quantity that stays continuous as load moves between pad and digits.  NaN on
 a model whose feet declare no span.  Its bar must lie strictly inside
-(0, 1).  Report-only for now: the metric is computed for every episode and
-reported, and no stage declares the key, so it is in no verdict.
+(0, 1).  Declared by trex since its physics r10 (0.80 on the span 0.060 to
+0.213 m, D-D34), where it replaces the pad rail; on every other model it is
+reported and in no verdict.
 
 Metrics added later
 -------------------

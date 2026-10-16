@@ -29,7 +29,8 @@ per foot:
 The pad CoP reads one contact geom, and on a foot whose digits carry load
 ahead of the pad it is not the toppling quantity.  A pad foot whose
 ``FOOT_SUPPORT`` entry declares its ankle and a support span (the T. rex:
-its pad's own edges, 0.070 to 0.210 m ahead of the ankle) also gets the
+its sole box's heel edge and its held-offset toe line, 0.060 to 0.213 m
+ahead of the ankle since physics r10) also gets the
 WHOLE-FOOT fields, from ``EpisodeTrace.foot_cop`` (every floor contact of
 the limb, m ahead of the ankle axis along the sole's forward axis):
 

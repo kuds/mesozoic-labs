@@ -7,8 +7,12 @@
 # through the `extends` key below (environments/shared/config.py), so
 # every inherited value's derivation record lives THERE. [env] adds one
 # task delta: the five perturbation_* keys, at the adopted §3.3 values. On
-# the r7 and r8 plants the multiple derives to 165.5 N over 0.20 s (capture-point
-# argument; pinned in test_perturbation.py). Since D-D27 it also moves one
+# the r7, r8 and r9 plants the multiple derives to 165.5 N over 0.20 s
+# (capture-point argument; pinned in test_perturbation.py); on physics r10
+# (plant_versions note 20) to 186.8 N, because the derivation's support margin
+# (the smallest side of the home contact hull around the CoM, heel-ward) grows
+# from 77.3 to 87.2 mm with the sole box's heel 1 cm further back, so every
+# measurement below at 165.5 N predates the r10 push. Since D-D27 it also moves one
 # reward setting, stance_width_settle_steps, ahead of the first push (its
 # note below). The same reward,
 # observations, and terminations are deliberate: the push changes the
@@ -162,14 +166,16 @@ timesteps = 3_000_000                   # Measured, no longer provisional: both 
 # future support term must be windowed and re-derived from certified stance
 # before it can gate.
 #
-# Stale since physics r8 (2026-10-06, decision D-D24; the plant is r9 since
-# D-D29): the safe set and its 0.9267 m reference were measured on the r7
-# certified stance, which r8 retires, and every gate_resolution.json frozen
-# on r7 records an r7 task_sha256 that require_gate_resolution refuses. The
-# thresholds below stay; at the first r9 stance certified under
-# stance_quality/v2, re-measure the safe set on it (the first-runs record's
-# §4 protocol) and re-freeze with freeze_recovery_gate.py before a recovery
-# node trains.
+# Stale since physics r8 (2026-10-06, decision D-D24; the plant is r10 since
+# D-D34, note 20): the safe set and its 0.9267 m reference were measured on
+# the r7 certified stance, which r8 retires, and every gate_resolution.json
+# frozen on r7 records an r7 task_sha256 that require_gate_resolution
+# refuses. The thresholds below stay; at the first r10 stance certified
+# under the stance gate, re-measure the safe set on it (the first-runs
+# record's §4 protocol) and re-freeze with freeze_recovery_gate.py before a
+# recovery node trains. The r10 push is 186.8 N, not the 165.5 N every
+# threshold below was measured at, and the pushed statue recovers more of it
+# (54 of 70 shoves, 2/40 full horizon; below).
 #
 # Every value below must AGREE with the stage's frozen gate_resolution.json:
 # reporting/gates.py::_recovery_spec_disagreements refuses on any mismatch, so
@@ -224,9 +230,10 @@ required_consecutive = 3                # Scheduler hysteresis ONLY, and inert f
 # no rail has been derived for the pushed task and inventing one would gate on
 # an unmeasured number. The failure mode a rail catches — a policy that threw
 # away most of the available return — is already covered here by the collapse
-# backstop below, which is anchored to the pushed statue (1329.1). The frozen
-# capability spec records no rail either, so a declared one could only ever be
-# an extra refusal conjunct (reporting/gates.py::_recovery_reward_rail).
+# backstop below, which is anchored to the pushed statue (1504.4 on physics
+# r10; 1329.1 on r8 and r9). The frozen capability spec records no rail
+# either, so a declared one could only ever be an extra refusal conjunct
+# (reporting/gates.py::_recovery_reward_rail).
 
 # Collapse backstop (PLANT_VALIDATION §14 item 3): the relative floor pair,
 # same mechanism as stance.toml — the fraction re-anchors if the shared
@@ -278,14 +285,20 @@ required_consecutive = 3                # Scheduler hysteresis ONLY, and inert f
 # tail_contact 14, 44 of 69 shoves recovered; the same command reproduces
 # 1329.1 ± 507.3, 431.4, 27 / 13 and 43 of 68 exactly on r8. The +40.3 is
 # half of its 82 standard error, so the reference and its floor carry.
-collapse_peak_floor_reference = 1329.1  # Pushed-task statue reward, noise 0.05, 40 episodes, seeds
-                                        # 3042-3081, physics r8 with the D-D27 stance terms (above);
-                                        # re-measured on r9 (1369.4) and kept.
-                                        # 1337.5 under the r8 task; 974.7 on r7 (first-runs record
+#
+# Re-measured on physics r10 (plant_versions note 20: the load-bearing
+# tridactyl foot) by the same command, 40 episodes, seeds 3042-3081, at the
+# r10 push of 186.8 N: 1504.4 ± 654.7, mean length 470.3, 2/40 full horizon,
+# 54 of 70 shoves recovered. The +175.3 against 1329.1 is 1.7 standard errors
+# (103.5), so the reference moves with it: floor 0.45 x 1504.4 = 677.0.
+collapse_peak_floor_reference = 1504.4  # Pushed-task statue reward, noise 0.05, 40 episodes, seeds
+                                        # 3042-3081, physics r10 at its 186.8 N push (above). 1329.1 on
+                                        # r8 with the D-D27 stance terms (re-measured on r9, 1369.4, and
+                                        # kept); 1337.5 under the r8 task; 974.7 on r7 (first-runs record
                                         # §3/§6.5; reproduced exactly 2026-08-23, review §5.1).
 collapse_peak_floor_fraction = 0.45     # Same fraction as stance; the ratio, not the product, is what carries.
-statue_constants_physics_revision = 9   # The trex PHYSICS revision the 1329.1 reference was measured on
-                                        # (r8 above, re-measured on r9). The 974.7 it replaced was r7's: the 2026-08-23
+statue_constants_physics_revision = 10  # The trex PHYSICS revision the 1504.4 reference was measured on
+                                        # (r10 above; 1329.1 was r8's and r9's). The 974.7 before it was r7's: the 2026-08-23
                                         # panel, review §5.1 — the same r7 plant as the frozen first-runs
                                         # panels; the perturbation engine, plant_versions note 11, bumped only
                                         # the POLICY interface. The freshness test holds this pin against

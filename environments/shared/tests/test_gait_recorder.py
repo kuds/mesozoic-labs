@@ -619,11 +619,11 @@ def test_the_whole_foot_cop_is_its_definition_and_the_vertical_load_moment_about
     assert np.all(difference[np.isfinite(difference)] <= bound[np.isfinite(difference)] + 1e-12)
     if not jitter:
         # On the statue after the settle (the sole within about 1.3 degrees of level) the two agree within 2 mm
-        # (measured 1.0, median 0.5; the pad spans 140 mm).  Under N(0, 0.1) command noise the sole tilts up to
+        # (measured 1.0, median 0.5, on the physics-r9 pad).  Under N(0, 0.1) command noise the sole tilts up to
         # about 5 degrees and they differ by up to 21 mm, inside the bound on every step.
         assert np.nanmax(difference[100:]) < 0.002
     # The span is the registry's, and the trace's whole-foot CoP sits well inside it on a statue.
-    assert trace.foot_support_span.tolist() == [[0.07, 0.21], [0.07, 0.21]]
+    assert trace.foot_support_span.tolist() == [[0.06, 0.213], [0.06, 0.213]]
     assert 0.12 < np.nanmean(trace.foot_cop[100:]) < 0.17
 
 
@@ -637,8 +637,9 @@ def test_each_hinged_digits_load_position_is_reproduced_and_other_support_geoms_
     np.testing.assert_allclose(trace.support_load_pos[:, hinged], reference[:, hinged], rtol=0, atol=1e-12)
     others = [support for support in range(len(morphology.support_geom_ids)) if support not in hinged]
     assert np.isnan(trace.support_load_pos[:, others]).all()  # the pads
-    # On the r9 statue the digits are loaded near their MTP joints (about 0.05-0.08 of their length).
-    assert 0.0 <= np.nanmedian(trace.support_load_pos[100:, hinged]) < 0.2
+    # On the r10 statue the digits carry their load about halfway out (median 0.45; on the r9 statue near their
+    # MTP joints, about 0.05-0.08 of their length).
+    assert 0.3 < np.nanmedian(trace.support_load_pos[100:, hinged]) < 0.7
 
 
 def test_a_foot_that_declares_no_ankle_has_no_whole_foot_cop(envs):
@@ -658,14 +659,15 @@ def test_a_foot_that_declares_no_ankle_has_no_whole_foot_cop(envs):
     assert math.isnan(episode_stance_metrics(trace, settle_steps=10).max_foot_cop_fore_aft)
 
 
-def test_the_physics_r9_statue_whole_foot_cop_reading(envs):
-    """Seed 3042 of the T. rex statue panel, the full 1,000 steps: the whole-foot reading on the span 0.070-0.210 m.
+def test_the_statue_whole_foot_cop_reading(envs):
+    """Seed 3042 of the T. rex statue panel, the full 1,000 steps: the whole-foot reading on the physics-r10 span
+    0.060-0.213 m (the sole box's heel edge and the held-offset toe line).
 
-    An independent per-substep probe of this panel (every limb floor contact decoded with ``mj_contactForce``,
-    in the pad's own frame and pad half-lengths; not in the repository) read 0.1304 (right foot) and 0.0458
-    (left), signed +0.1304 and -0.0171, with the whole-foot CoP 0.149 m ahead of the right ankle on average;
-    over the 39 full-horizon episodes of 3042-3081 it read a median of 0.130 (0.058 to 0.250), the repo's
-    panel the same to 1e-16.
+    The foot proposal's own per-substep probe of this episode (written before this recorder, from its contact
+    buffers and the ankle's world anchor, its series stored in float32; not in the repository) read 0.2046 (right
+    foot) and 0.0608 (left), signed +0.2046 and +0.0126, with the whole-foot CoP 0.1522 m ahead of the right
+    ankle on average, all within 3e-9 of the values pinned here.  On the physics-r9 pad and its span
+    0.070-0.210 m the same seed read 0.1304 and 0.0458, 0.149 m ahead.
     """
     from environments.shared.gait.pad_telemetry import PadLayout, episode_pad_telemetry
 
@@ -679,11 +681,11 @@ def test_the_physics_r9_statue_whole_foot_cop_reading(envs):
             recorder.end_step(zero, 0.0)
         trace = recorder.end_episode(truncated=True)
     pads = episode_pad_telemetry(trace, PadLayout.from_morphology(morphology), settle_steps=200)
-    assert pads["r_foot_cop_fore_aft_gate"] == pytest.approx(0.1303721171614448, abs=1e-6)
-    assert pads["l_foot_cop_fore_aft_gate"] == pytest.approx(0.0458057900853806, abs=1e-6)
-    assert pads["r_foot_cop_fore_aft"] == pytest.approx(0.1303721171614448, abs=1e-6)
-    assert pads["l_foot_cop_fore_aft"] == pytest.approx(-0.0170667335389278, abs=1e-6)
-    assert np.mean(trace.foot_cop[200:, 0]) == pytest.approx(0.1491260482013012, abs=1e-6)
+    assert pads["r_foot_cop_fore_aft_gate"] == pytest.approx(0.2045782572700054, abs=1e-6)
+    assert pads["l_foot_cop_fore_aft_gate"] == pytest.approx(0.0608003291318380, abs=1e-6)
+    assert pads["r_foot_cop_fore_aft"] == pytest.approx(0.2045782572700054, abs=1e-6)
+    assert pads["l_foot_cop_fore_aft"] == pytest.approx(0.0126177583138373, abs=1e-6)
+    assert np.mean(trace.foot_cop[200:, 0]) == pytest.approx(0.1521502366811554, abs=1e-6)
     assert episode_stance_metrics(trace, settle_steps=200).max_foot_cop_fore_aft == pads["r_foot_cop_fore_aft_gate"]
 
 
@@ -691,13 +693,14 @@ def test_the_physics_r9_statue_whole_foot_cop_reading(envs):
 
 
 #: The most each statue's pads read of ``max_sole_cop_fore_aft`` on this episode (D-D28; seed 3042, steps 1 s
-#: to 1 s + 150): trex 0.441 on its r9 plant (0.356 on r8, before the elliptic cone of D-D29), compsognathus
+#: to 1 s + 150): trex 0.588 on its r10 sole box, where the key is report-only (D-D34; 0.441 on the r9 pad, 0.356
+#: on r8, before the elliptic cone of D-D29), compsognathus
 #: 0.173 on its r2 plant (heel side; 0.464 on r1, before D-D26), its robot 0.319, dibothrosuchus 0.758 on its r2
 #: plant (0.699 on r1, its hind feet heel side on four contacts, before the elliptic cone of D-D30).  None where the
 #: foot has no box sole, so the metric is unmeasured: velociraptor (no sole) and brachiosaurus (ellipsoids, whose
 #: one contact sits where the authored pitch puts it).
 STATUE_COP_FORE_AFT_CEILING = {
-    TYRANNOSAURUS_REX: 0.47,
+    TYRANNOSAURUS_REX: 0.60,
     VELOCIRAPTOR_MONGOLIENSIS: None,
     COMPSOGNATHUS_LONGIPES: 0.20,
     COMPSOGNATHUS_LONGIPES_ROBOT: 0.35,

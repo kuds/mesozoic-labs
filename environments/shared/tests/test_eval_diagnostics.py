@@ -1442,7 +1442,8 @@ FOOT_GATE_KEYS = ("r_foot_cop_fore_aft_gate", "l_foot_cop_fore_aft_gate")
 
 
 class TestThePanelsOwnWholeFootStatistic:
-    """``max_foot_cop_fore_aft_mean``: the whole-foot rail's per-episode number, report-only (no stage declares a bar)."""
+    """``max_foot_cop_fore_aft_mean``: the whole-foot rail's per-episode number, with its bar fraction where a stage
+    declares the bar (the T. rex stance since physics r10, D-D34)."""
 
     @staticmethod
     def _scalars(tmp_path, *, pads, keys, curriculum_kwargs=None):
@@ -1463,7 +1464,7 @@ class TestThePanelsOwnWholeFootStatistic:
         assert "max_sole_cop_fore_aft_mean" not in scalars  # no pad gate key: no pad panel key
 
     def test_a_declared_bar_would_add_its_fraction_beside_the_pad_rails(self, tmp_path):
-        """No stage declares ``max_foot_cop_fore_aft``; the arm is the pad rail's, so a later adoption needs no code."""
+        """The arm is the pad rail's, so the T. rex's adoption of ``max_foot_cop_fore_aft`` (D-D34) needed no code."""
         pads = {
             "r_sole_cop_fore_aft_gate": [0.3, 0.3, 0.3],
             "r_foot_cop_fore_aft_gate": [0.13, 0.9, 0.2],
@@ -1731,17 +1732,26 @@ def test_a_real_evaluation_records_each_models_pads_and_leg_dc(model_id, tmp_pat
     assert all(math.isfinite(data[key][0]) for key in pad_keys)
     bar = load_stage_config(model_id, "stance")["curriculum_kwargs"].get("max_sole_cop_fore_aft")
     panel_keys = {key for key in data.files if key.startswith("max_sole_cop_fore_aft_")}
-    # The whole foot's own statistic, on a model that declares a span: report-only, so never a bar fraction.
-    assert "max_foot_cop_fore_aft" not in load_stage_config(model_id, "stance")["curriculum_kwargs"]
+    # The whole foot's own statistic, on a model that declares a span, and its bar fraction where the stance
+    # declares the bar (the T. rex since physics r10, D-D34), in the npz and in TensorBoard alike.
+    whole_bar = load_stage_config(model_id, "stance")["curriculum_kwargs"].get("max_foot_cop_fore_aft")
     whole_keys = {key for key in data.files if key.startswith("max_foot_cop_fore_aft_")}
+    recorded = {call.args[0]: call.args[1] for call in callback.model.logger.record.call_args_list}
     if whole_foot:
         metrics = [episode_stance_metrics(trace, settle_steps=settle).max_foot_cop_fore_aft for trace in traces]
         for number, metric in enumerate(metrics):
             assert max(episodes[f"{foot}_foot_cop_fore_aft_gate"][number] for foot in pad_feet) == metric
-        assert whole_keys == {"max_foot_cop_fore_aft_mean"}
         assert data["max_foot_cop_fore_aft_mean"][0] == pytest.approx(np.mean(metrics))
+        assert recorded["diagnostics/eval_max_foot_cop_fore_aft_mean"] == data["max_foot_cop_fore_aft_mean"][0]
+        if whole_bar is None:
+            assert whole_keys == {"max_foot_cop_fore_aft_mean"}
+        else:
+            fraction = np.mean([metric > whole_bar for metric in metrics])
+            assert whole_keys == {"max_foot_cop_fore_aft_mean", "max_foot_cop_fore_aft_over_bar_fraction"}
+            assert data["max_foot_cop_fore_aft_over_bar_fraction"][0] == fraction
+            assert recorded["diagnostics/eval_max_foot_cop_fore_aft_over_bar_fraction"] == fraction
     else:
-        assert whole_keys == set()
+        assert whole_bar is None and whole_keys == set()
     if not pad_feet:
         assert panel_keys == set()
         return

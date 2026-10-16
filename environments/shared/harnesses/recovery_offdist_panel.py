@@ -75,15 +75,20 @@ SCHEDULE_MODEL_ID = ModelId("tyrannosaurus_rex", "anatomical")
 
 #: §6.1 schedules.  "on" is the training distribution (recovery.toml);
 #: the off-distribution rows change exactly one thing each.  The magnitude
-#: rows are expressed as capture-velocity multiples because that is the
-#: env's parameter; on the r7 plant multiple 1.5 derives 165.5 N, so the
-#: 120 N / 210 N targets of §6.1 are 1.5 * (target / 165.501).
-SCHEDULES = {
+#: rows set only the push force, to their target in MAGNITUDE_TARGETS_N.
+SCHEDULES: dict[str, dict[str, float]] = {
     "on": {},
     "timing": {"perturbation_interval": 3.5, "perturbation_jitter": 1.5},
-    "mag120": {"perturbation_capture_velocity_multiple": 1.5 * 120.0 / 165.501},
-    "mag210": {"perturbation_capture_velocity_multiple": 1.5 * 210.0 / 165.501},
+    "mag120": {},
+    "mag210": {},
 }
+
+#: §6.1's off-distribution push forces, in newtons.  The env's parameter is a
+#: capture-velocity multiple, whose force the plant derives from its own mass
+#: and stance geometry (multiple 1.5: 165.5 N on physics r7-r9, 186.8 N on
+#: r10), so build_env converts each target on the plant it builds instead of
+#: through a pinned force.
+MAGNITUDE_TARGETS_N = {"mag120": 120.0, "mag210": 210.0}
 
 
 def build_env(schedule: str, *, model_id: ModelId) -> Any:
@@ -92,6 +97,14 @@ def build_env(schedule: str, *, model_id: ModelId) -> Any:
     config = load_stage_config(model_id, "recovery")
     env_kwargs = dict(config["env_kwargs"])
     env_kwargs.update(SCHEDULES[schedule])
+    env = env_class(model_id)(**env_kwargs)
+    target_n = MAGNITUDE_TARGETS_N.get(schedule)
+    if target_n is None:
+        return env
+    # The derived force is linear in the multiple (perturbation.derive_push_parameters).
+    multiple = float(env_kwargs["perturbation_capture_velocity_multiple"]) * target_n / float(env._push_force_n)
+    env.close()
+    env_kwargs["perturbation_capture_velocity_multiple"] = multiple
     return env_class(model_id)(**env_kwargs)
 
 

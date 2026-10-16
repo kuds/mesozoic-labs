@@ -149,8 +149,8 @@ class StanceEpisodeMetrics:
     #: limb, sole and digits alike, so it stays continuous as load moves between them.  A step on which the
     #: limb carries no floor force above CONTACT_THRESHOLD_N on any substep counts 1, as an unloaded pad does
     #: for ``max_sole_cop_fore_aft``.  NaN on a model whose feet declare no span (only the T. rex declares
-    #: one, its pad's own edges, so there the reading is in pad half-lengths).  Report-only: no stage
-    #: declares the key.
+    #: one: its sole box's heel edge and its held-offset toe line, 0.060 to 0.213 m ahead of the ankle since
+    #: physics r10).  The T. rex stance declares the key (D-D34); no other stage does.
     max_foot_cop_fore_aft: float
     # --- spawn [0, g) and settle [g, s) ---
     #: Max substep animal floor force / body weight in the spawn grace; substeps there with every
