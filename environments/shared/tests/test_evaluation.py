@@ -2,6 +2,7 @@
 
 import json
 import logging
+import re
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -401,8 +402,14 @@ class TestStanceCsvPadColumns:
         steps = 60
         rows, env_class, env_kwargs = self._replay(tmp_path, TYRANNOSAURUS_REX, steps)
         assert len(rows) == steps
-        names = ("r_sole_cop_fore_aft", "r_digit_share", "l_sole_cop_fore_aft", "l_digit_share")
-        assert set(names) <= set(rows[0])
+        whole_foot = ("foot_cop_fore_aft", "toe_margin_nm", "heel_margin_nm")
+        digits = tuple(f"toe_{digit}_{field}" for digit in ("d2", "d3", "d4") for field in ("load_share", "load_pos"))
+        names = tuple(
+            f"{side}_{field}" for side in "rl" for field in ("sole_cop_fore_aft", "digit_share", *whole_foot, *digits)
+        )
+        # Every column of the layout (a value missing from a step is left out of its row, as the CSV does; a
+        # digit that carries nothing in these 60 steps has no load position on any of them).
+        assert {name for name in names if not name.endswith("_load_pos")} <= {name for row in rows for name in row}
         # The same episode, recorded on its own: the CSV holds the recorder's per-step values, step for step.
         env = env_class(**env_kwargs)
         try:
@@ -416,18 +423,30 @@ class TestStanceCsvPadColumns:
         finally:
             env.close()
         expected = pad_step_columns(trace, PadLayout.from_morphology(morphology))
+        assert set(expected) == set(names)
         for step, row in enumerate(rows):
             for name in names:
                 value = float(expected[name][step])
-                assert row[name] == ("" if np.isnan(value) else str(value)), (step, name)
+                assert row.get(name, "") == ("" if np.isnan(value) else str(value)), (step, name)
         loaded = [float(row["r_sole_cop_fore_aft"]) for row in rows if row["r_sole_cop_fore_aft"]]
         assert loaded and all(-1.0 <= value <= 1.0 for value in loaded)
         assert all(0.0 < float(row["l_digit_share"]) < 1.0 for row in rows[20:])
+        # The whole foot on the statue: inside its span, both margins positive.
+        assert all(-1.0 < float(row["r_foot_cop_fore_aft"]) < 1.0 for row in rows[20:])
+        assert all(float(row["l_toe_margin_nm"]) > 0 and float(row["l_heel_margin_nm"]) > 0 for row in rows[20:])
 
     def test_a_model_without_a_box_sole_gets_no_pad_column(self, tmp_path):
         rows, _env_class, _env_kwargs = self._replay(tmp_path, VELOCIRAPTOR_MONGOLIENSIS, 10)
         assert len(rows) == 10
-        assert not [name for name in rows[0] if name.endswith(("_sole_cop_fore_aft", "_digit_share"))]
+        pad_column = re.compile(
+            r"^[a-z]+_(sole_cop_fore_aft|digit_share|foot_cop_fore_aft|toe_margin_nm|heel_margin_nm|"
+            r"[a-z0-9_]+_load_(share|pos))$"
+        )
+        # The stance snapshot's own per-foot load share stays; no pad, whole-foot or digit column joins it.
+        assert {name for row in rows for name in row if pad_column.match(name)} == {
+            "r_foot_load_share",
+            "l_foot_load_share",
+        }
 
 
 class TestEvaluateFunction:

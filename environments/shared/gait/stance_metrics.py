@@ -10,8 +10,9 @@ NaN means UNMEASURED, and the gate treats it as a failure
 (``curriculum/gate_schema.finite_gate_metric``): a window with no steps
 (``length <= settle_steps``), a sole metric on a foot with no sole
 (velociraptor), a box metric (the corner lift, the fore-aft centre of
-pressure) on a non-box sole (brachiosaurus' ellipsoids), and the saturation
-metrics when a window step has no action.
+pressure) on a non-box sole (brachiosaurus' ellipsoids), the whole-foot
+centre of pressure on a model whose feet declare no support span, and the
+saturation metrics when a window step has no action.
 The whole-number counts (``*_substeps``, ``*_steps``, ``*_events``,
 ``settle_touchdowns``) are floats for that reason.
 
@@ -142,6 +143,15 @@ class StanceEpisodeMetrics:
     #: (bar - s) / (1 - s) of the window beside a centred s, and heel and toe loaded in turn inside one step.  The
     #: statue baseline is the foot's (box statues 0.14 to 0.69), so a bar is per species.
     max_sole_cop_fore_aft: float
+    #: Feet with a declared support span (``FOOT_SUPPORT``'s ``ankle``, ``heel_line``, ``toe_line``): max over
+    #: them of the window mean of the per-step |whole-foot CoP| in span half-lengths (0 at the span's midpoint,
+    #: 1 on the heel or toe line, beyond 1 past it), from ``EpisodeTrace.foot_cop``: every floor contact of the
+    #: limb, sole and digits alike, so it stays continuous as load moves between them.  A step on which the
+    #: limb carries no floor force above CONTACT_THRESHOLD_N on any substep counts 1, as an unloaded pad does
+    #: for ``max_sole_cop_fore_aft``.  NaN on a model whose feet declare no span (only the T. rex declares
+    #: one, its pad's own edges, so there the reading is in pad half-lengths).  Report-only: no stage
+    #: declares the key.
+    max_foot_cop_fore_aft: float
     # --- spawn [0, g) and settle [g, s) ---
     #: Max substep animal floor force / body weight in the spawn grace; substeps there with every
     #: leg unloaded.  The reset pop: plant acceptance, not the policy gate.
@@ -225,15 +235,17 @@ _INT_FIELDS = frozenset({"length", "settle_steps"})
 _BOOL_FIELDS = frozenset({"terminated"})
 
 #: Float fields added after the panel CSV contract shipped (the window hop
-#: pair, D-D26; the pad's fore-aft centre of pressure, D-D28): a row or a panel
-#: CSV recorded before then lacks them, and
-#: :meth:`StanceEpisodeMetrics.from_row` and
+#: pair, D-D26; the pad's fore-aft centre of pressure, D-D28; the whole-foot
+#: centre of pressure, floor-truth/v2): a row or a panel CSV recorded before
+#: then lacks them, and :meth:`StanceEpisodeMetrics.from_row` and
 #: ``curriculum.stance_gate_v2.read_stance_v2_panel`` read them as unmeasured,
 #: so every report recorded before them keeps its verdict under a gate that
 #: does not declare their key.  A new metric changes no adopted key's meaning,
-#: so it needs no new MEASUREMENT_VERSION; a re-rolled panel measures it.
+#: so it needs no new MEASUREMENT_VERSION of its own; a re-rolled panel
+#: measures it.  (The whole-foot one came with ``floor-truth/v2`` because its
+#: span is a registry entry, which that rule versions.)
 STANCE_METRIC_LATER_FIELDS: frozenset[str] = frozenset(
-    {"window_airborne_substeps", "window_peak_floor_force_bw", "max_sole_cop_fore_aft"}
+    {"window_airborne_substeps", "window_peak_floor_force_bw", "max_sole_cop_fore_aft", "max_foot_cop_fore_aft"}
 )
 
 #: The per-foot / per-geom tuple fields, in declaration order.
@@ -402,6 +414,7 @@ def episode_stance_metrics(trace: "EpisodeTrace", *, settle_steps: int) -> Stanc
             "min_support_geom_duty": float(geom_duty.min()) if n_support else NAN,
             "min_support_geom_coverage": min(coverage) if all(map(math.isfinite, coverage)) else NAN,
             **_sole_metrics(trace, window),
+            "max_foot_cop_fore_aft": _foot_cop_metric(trace, window),
             **_saturation_metrics(trace.action[window]),
         }
         foot_load_share = shares
@@ -533,6 +546,36 @@ def _sole_metrics(trace: "EpisodeTrace", window: slice) -> dict[str, float]:
     }
 
 
+def whole_foot_cop(trace: "EpisodeTrace") -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """``(spanned, cop, loaded)``: the whole-foot centre of pressure per step, in its foot's span half-lengths.
+
+    ``spanned`` (F,) marks the feet that declare a support span;
+    ``cop`` (T,F) is ``(foot_cop - midpoint) / half-length`` of the foot's
+    span (-1 on the heel line, +1 on the toe line, + toward the toe), NaN
+    off the spanned feet and on a step with no limb floor force; ``loaded``
+    (T,F) is a finite ``cop`` on a step whose limb carries more than
+    ``CONTACT_THRESHOLD_N`` on some substep (``leg_floor_max``).  The one
+    reduction :func:`episode_stance_metrics` and the pad telemetry share, so
+    their readings agree bit for bit.
+    """
+    span = np.asarray(trace.foot_support_span, dtype=np.float64).reshape(-1, 2)
+    spanned = np.isfinite(span).all(axis=1)
+    middle = np.where(spanned, span.mean(axis=1), np.nan)
+    half = np.where(spanned, (span[:, 1] - span[:, 0]) / 2.0, np.nan)
+    cop = (np.asarray(trace.foot_cop, dtype=np.float64) - middle) / half
+    loaded = np.isfinite(cop) & (np.asarray(trace.leg_floor_max) > CONTACT_THRESHOLD_N)
+    return spanned, cop, loaded
+
+
+def _foot_cop_metric(trace: "EpisodeTrace", window: slice) -> float:
+    """``max_foot_cop_fore_aft`` over *window*: max over the spanned feet of the window mean of |cop|, unloaded 1."""
+    spanned, cop, loaded = whole_foot_cop(trace)
+    if not spanned.any():
+        return NAN
+    per_foot = np.where(loaded[window][:, spanned], np.abs(cop[window][:, spanned]), 1.0).mean(axis=0)
+    return float(per_foot.max())
+
+
 def _saturation_metrics(actions: np.ndarray) -> dict[str, float]:
     """Per-actuator saturated-step fractions over the window: NaN when any window step has no action."""
     actions = np.asarray(actions, dtype=np.float64)
@@ -573,6 +616,7 @@ _WINDOW_FIELDS: tuple[str, ...] = (
     "min_sole_contacts",
     "max_sole_cop_outer",
     "max_sole_cop_fore_aft",
+    "max_foot_cop_fore_aft",
     "max_actuator_saturation_fraction",
     "mean_actuator_saturation_fraction",
 )

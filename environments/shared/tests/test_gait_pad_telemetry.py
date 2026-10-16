@@ -19,6 +19,9 @@ import numpy as np
 import pytest
 
 from environments.shared.gait.pad_telemetry import (
+    DIGIT_FIELDS,
+    FOOT_COP_EPISODE_FIELDS,
+    FOOT_COP_STEP_FIELDS,
     PAD_EPISODE_FIELDS,
     PAD_STEP_FIELDS,
     PadFoot,
@@ -69,6 +72,11 @@ def _trace(steps: int = STEPS) -> EpisodeTrace:
         leg_body_substep_frac=np.zeros(steps),
         sole_contacts_mean=np.full((steps, 2), 4.0),
         sole_cop=np.zeros((steps, 2, 2)),
+        # The whole foot: CoP at 0.14 m ahead of the ankle, the middle of the declared span [0.07, 0.21] m;
+        # each digit loaded at a fifth of its length (the pad, support geoms 0 and 4, has no load position).
+        foot_cop=np.full((steps, 2), 0.14),
+        foot_support_span=np.tile([0.07, 0.21], (2, 1)),
+        support_load_pos=np.tile([np.nan, 0.2, 0.2, 0.2], (steps, 2)),
         touch=leg.copy(),
         foot_pos=np.repeat(feet[None], steps, axis=0),
         root_pos=np.tile([0.0, 0.0, 0.5], (steps, 1)),
@@ -234,6 +242,146 @@ def test_a_foot_with_no_digit_has_no_digit_share_field_and_a_window_with_no_load
     assert math.isnan(_pads(replace(_trace(), leg_floor_mean=leg))["l_digit_share"])
 
 
+# ── the whole foot and its digits (a foot that declares a support span) ──────
+
+DIGITS = ("toe_d2", "toe_d3", "toe_d4")
+#: The T. rex's layout: hinged digits, and the span [0.07, 0.21] m ahead of the ankle (``_trace``'s).
+WHOLE = PadLayout(
+    feet=(
+        PadFoot(0, "r", (1, 2, 3), digit_names=DIGITS, digit_hinged=(True,) * 3, whole_foot=True),
+        PadFoot(1, "l", (5, 6, 7), digit_names=DIGITS, digit_hinged=(True,) * 3, whole_foot=True),
+    )
+)
+
+
+def _with_foot_cop(trace: EpisodeTrace, foot: int, values: Any) -> EpisodeTrace:
+    cop = trace.foot_cop.copy()
+    cop[:, foot] = values
+    return replace(trace, foot_cop=cop)
+
+
+def test_a_foot_with_a_span_and_hinged_digits_has_every_field_foot_major():
+    keys = WHOLE.episode_keys()
+    expected = []
+    for side in "rl":
+        expected += [f"{side}_{field}" for field in PAD_EPISODE_FIELDS + FOOT_COP_EPISODE_FIELDS]
+        expected += [f"{side}_{digit}_{field}" for digit in DIGITS for field in DIGIT_FIELDS]
+    assert keys == tuple(expected) and len(set(keys)) == len(keys)
+    steps = []
+    for side in "rl":
+        steps += [f"{side}_{field}" for field in PAD_STEP_FIELDS + FOOT_COP_STEP_FIELDS]
+        steps += [f"{side}_{digit}_{field}" for digit in DIGITS for field in DIGIT_FIELDS]
+    assert WHOLE.step_keys() == tuple(steps)
+    result = _pads(_trace(), WHOLE)
+    assert set(result) == set(keys)
+    for side in "rl":
+        assert result[f"{side}_foot_cop_fore_aft"] == 0.0 and result[f"{side}_foot_cop_fore_aft_gate"] == 0.0
+        assert result[f"{side}_foot_cop_std_m"] == pytest.approx(0.0, abs=1e-15)
+        assert math.isnan(result[f"{side}_foot_cop_dominant_hz"])  # a still series has no frequency
+        # 95 N on the limb, its CoP 0.07 m behind the toe line and 0.07 m ahead of the heel line.
+        assert result[f"{side}_toe_margin_nm"] == pytest.approx(95.0 * 0.07)
+        assert result[f"{side}_heel_margin_nm"] == pytest.approx(95.0 * 0.07)
+        for digit in DIGITS:
+            assert result[f"{side}_{digit}_load_share"] == pytest.approx(DIGIT_N / (PAD_N + 3 * DIGIT_N))
+            assert result[f"{side}_{digit}_load_pos"] == pytest.approx(0.2)
+    # The pad's fields read as before, the digits' total share included.
+    assert result["r_digit_share"] == pytest.approx(3 * DIGIT_N / (PAD_N + 3 * DIGIT_N))
+
+
+@pytest.mark.parametrize("seed", range(4))
+def test_the_max_of_the_per_foot_whole_foot_statistic_is_the_metric_bit_for_bit(seed):
+    rng = np.random.default_rng(seed)
+    trace = _trace()
+    cop = 0.14 + rng.normal(0.0, 0.05, size=trace.foot_cop.shape)
+    cop[rng.random(cop.shape) < 0.1] = np.nan  # unloaded steps
+    leg_max = trace.leg_floor_max.copy()
+    leg_max[rng.random(leg_max.shape) < 0.05] = 0.05  # a limb that only grazes the floor
+    trace = replace(trace, foot_cop=cop, leg_floor_max=leg_max)
+    result = _pads(trace, WHOLE)
+    metric = episode_stance_metrics(trace, settle_steps=SETTLE).max_foot_cop_fore_aft
+    assert max(result["r_foot_cop_fore_aft_gate"], result["l_foot_cop_fore_aft_gate"]) == metric
+
+
+def test_a_foot_rocking_heel_to_toe_shows_in_its_spread_and_frequency_not_its_signed_mean():
+    """The window mean is blind to rocking (C42's 3.6 Hz on the r9 foot): the std and the frequency are not."""
+    t = np.arange(STEPS)
+    rock = 0.14 + 0.02 * np.sin(2 * np.pi * 5.0 * t * 0.01)  # 5 Hz, 20 mm amplitude, at dt 0.01
+    result = _pads(_with_foot_cop(_trace(), 0, rock), WHOLE)
+    assert abs(result["r_foot_cop_fore_aft"]) < 1e-12
+    assert result["r_foot_cop_std_m"] == pytest.approx(0.02 / math.sqrt(2), rel=1e-6)
+    assert result["r_foot_cop_dominant_hz"] == pytest.approx(5.0)
+    assert result["r_foot_cop_fore_aft_gate"] == pytest.approx(np.mean(np.abs(rock[SETTLE:] - 0.14)) / 0.07)
+
+
+def test_the_margins_are_the_floor_moment_left_to_each_line_and_go_negative_past_it():
+    trace = _with_foot_cop(_trace(), 0, 0.245)  # 35 mm past the toe line, on the digits
+    result = _pads(trace, WHOLE)
+    assert result["r_foot_cop_fore_aft"] == pytest.approx(1.5)
+    assert result["r_toe_margin_nm"] == pytest.approx(95.0 * (0.21 - 0.245))
+    assert result["r_heel_margin_nm"] == pytest.approx(95.0 * (0.245 - 0.07))
+    assert result["l_toe_margin_nm"] == pytest.approx(95.0 * 0.07)  # the other foot is untouched
+
+
+def test_an_unloaded_step_is_left_out_of_the_whole_foot_readings_and_counts_one_in_its_statistic():
+    trace = _trace()
+    cop = trace.foot_cop.copy()
+    cop[:, 1] = 0.161  # 0.3 span half-lengths ahead of the middle
+    cop[SETTLE : SETTLE + 150, 1] = np.nan  # half the window: no limb floor force
+    leg_max = trace.leg_floor_max.copy()
+    leg_max[SETTLE + 150 : SETTLE + 225, 1] = 0.05  # a quarter: grazing, a CoP but no load
+    result = _pads(replace(trace, foot_cop=cop, leg_floor_max=leg_max), WHOLE)
+    assert result["l_foot_cop_fore_aft"] == pytest.approx(0.3)
+    assert result["l_foot_cop_fore_aft_gate"] == pytest.approx(0.75 * 1.0 + 0.25 * 0.3)
+    assert result["l_foot_cop_std_m"] == pytest.approx(0.0, abs=1e-15)
+    assert result["l_toe_margin_nm"] == pytest.approx(95.0 * (0.21 - 0.161))
+    never = _pads(_with_foot_cop(_trace(), 1, np.nan), WHOLE)
+    assert never["l_foot_cop_fore_aft_gate"] == 1.0
+    for field in ("foot_cop_fore_aft", "foot_cop_std_m", "foot_cop_dominant_hz", "toe_margin_nm", "heel_margin_nm"):
+        assert math.isnan(never[f"l_{field}"]), field
+
+
+def test_a_digits_load_position_is_force_weighted_and_exists_only_on_a_hinged_digit():
+    trace = _trace()
+    support = trace.support_floor_mean.copy()
+    position = trace.support_load_pos.copy()
+    support[SETTLE:, 1] = np.where(np.arange(STEPS - SETTLE) % 2 == 0, 9.0, 1.0)
+    position[SETTLE:, 1] = np.where(np.arange(STEPS - SETTLE) % 2 == 0, 0.1, 0.9)
+    position[SETTLE:, 2] = np.nan  # digit III never loaded in the window
+    support[SETTLE:, 2] = 0.0
+    result = _pads(replace(trace, support_floor_mean=support, support_load_pos=position), WHOLE)
+    assert result["r_toe_d2_load_pos"] == pytest.approx((9 * 0.1 + 1 * 0.9) / 10)  # not the plain mean 0.5
+    assert math.isnan(result["r_toe_d3_load_pos"]) and result["r_toe_d3_load_share"] == 0.0
+    # The anatomical compsognathus: digits on the pad's own body, no MTP joint, so no load position.
+    fixed = PadLayout(feet=(PadFoot(0, "r", (1, 2, 3), digit_names=DIGITS, digit_hinged=(False,) * 3),))
+    assert fixed.episode_keys() == (
+        "r_sole_cop_fore_aft",
+        "r_sole_cop_fore_aft_gate",
+        "r_digit_share",
+        "r_toe_d2_load_share",
+        "r_toe_d3_load_share",
+        "r_toe_d4_load_share",
+    )
+    assert "r_toe_d2_load_pos" not in _pads(_trace(), fixed)
+
+
+def test_the_whole_foot_step_columns_reproduce_the_episode_values():
+    trace = _with_foot_cop(_trace(), 0, np.linspace(0.05, 0.25, STEPS))
+    cop = trace.foot_cop.copy()
+    cop[SETTLE + 10 : SETTLE + 40, 0] = np.nan
+    trace = replace(trace, foot_cop=cop)
+    columns = pad_step_columns(trace, WHOLE)
+    assert tuple(columns) == WHOLE.step_keys()
+    result = _pads(trace, WHOLE)
+    signed = columns["r_foot_cop_fore_aft"][SETTLE:]
+    assert np.nanmean(signed) == pytest.approx(result["r_foot_cop_fore_aft"])
+    gate = np.mean(np.where(np.isnan(signed), 1.0, np.abs(signed)))
+    assert gate == pytest.approx(result["r_foot_cop_fore_aft_gate"])
+    for field in ("toe_margin_nm", "heel_margin_nm"):
+        assert np.nanmean(columns[f"r_{field}"][SETTLE:]) == pytest.approx(result[f"r_{field}"])
+    assert columns["r_toe_d3_load_share"] == pytest.approx(np.full(STEPS, DIGIT_N / 95.0))
+    assert columns["r_toe_d3_load_pos"] == pytest.approx(np.full(STEPS, 0.2))
+
+
 # ── windows, layouts and arguments ───────────────────────────────────────────
 
 
@@ -277,6 +425,16 @@ def test_the_step_columns_reproduce_the_episode_values():
 
 # ── every manifest model ─────────────────────────────────────────────────────
 
+#: Per model: whether its pad feet declare a support span (the whole-foot fields), and how many of each foot's
+#: digits are hinged (the load position).  Only the T. rex has either.
+WHOLE_FOOT = {
+    ModelId("tyrannosaurus_rex", "anatomical"): (True, 3),
+    ModelId("compsognathus_longipes", "anatomical"): (False, 0),
+    ModelId("compsognathus_longipes", "robot"): (False, 0),
+    ModelId("dibothrosuchus_elaphros", "anatomical"): (False, 0),
+    ModelId("velociraptor_mongoliensis", "anatomical"): (False, 0),
+    ModelId("brachiosaurus_altithorax", "anatomical"): (False, 0),
+}
 #: Each model's pad feet and digit count per foot (the box soles of FOOT_SUPPORT; digits = its support less its sole).
 PAD_FEET = {
     ModelId("tyrannosaurus_rex", "anatomical"): {"r": 3, "l": 3},
@@ -291,7 +449,7 @@ PAD_FEET = {
 def test_the_table_covers_every_manifest_model():
     from environments.shared.species_names import model_ids
 
-    assert set(PAD_FEET) == set(model_ids())
+    assert set(PAD_FEET) == set(model_ids()) == set(WHOLE_FOOT)
 
 
 def _rollout(model_id: ModelId, steps: int) -> tuple[EpisodeTrace, Any]:
@@ -332,10 +490,22 @@ def test_every_model_reads_its_pads_as_the_gate_does(model_id):
     settle = 100
     result = episode_pad_telemetry(trace, layout, settle_steps=settle)
     gate = episode_stance_metrics(trace, settle_steps=settle).max_sole_cop_fore_aft
+    whole_metric = episode_stance_metrics(trace, settle_steps=settle).max_foot_cop_fore_aft
+    spanned, hinged = WHOLE_FOOT[model_id]
+    assert len(set(layout.episode_keys())) == len(layout.episode_keys())
+    if not spanned:
+        # A field exists only on a foot that has what it measures: no span, no whole-foot field or metric.
+        assert not any("foot_cop" in key or "margin" in key for key in layout.episode_keys())
+        assert math.isnan(whole_metric) and np.isnan(trace.foot_cop).all()
     if not layout.feet:
         assert result == {} and pad_step_columns(trace, layout) == {}
         assert math.isnan(gate)  # no box sole: the gate's fore-aft CoP is unmeasured too
         return
+    assert all(foot.whole_foot == spanned for foot in layout.feet)
+    assert all(sum(foot.digit_hinged) == hinged for foot in layout.feet)
+    if spanned:
+        whole = [result[f"{foot.label}_foot_cop_fore_aft_gate"] for foot in layout.feet]
+        assert max(whole) == whole_metric
     per_foot = [result[f"{foot.label}_sole_cop_fore_aft_gate"] for foot in layout.feet]
     assert max(per_foot) == gate
     for foot in layout.feet:
@@ -344,5 +514,12 @@ def test_every_model_reads_its_pads_as_the_gate_does(model_id):
         assert abs(signed) <= result[f"{foot.label}_sole_cop_fore_aft_gate"] + 1e-12
         if foot.digit_support:
             assert 0.0 < result[f"{foot.label}_digit_share"] < 1.0
+            shares = [result[f"{foot.label}_{name}_load_share"] for name in foot.digit_names]
+            assert sum(shares) == pytest.approx(result[f"{foot.label}_digit_share"], rel=1e-12)
+            for name, is_hinged in zip(foot.digit_names, foot.digit_hinged):
+                assert (f"{foot.label}_{name}_load_pos" in result) == is_hinged
+                if is_hinged:
+                    assert -0.2 <= result[f"{foot.label}_{name}_load_pos"] <= 1.0
         else:
             assert f"{foot.label}_digit_share" not in result
+            assert not any(key.startswith(f"{foot.label}_") and "load_" in key for key in result)

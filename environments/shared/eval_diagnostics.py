@@ -243,7 +243,10 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
     episode is reduced by
     :func:`~environments.shared.gait.pad_telemetry.episode_pad_telemetry`
     (each box-soled foot's signed fore-aft centre of pressure, the gate's own
-    per-foot statistic, and the digits' share of the foot's load).  It reads
+    per-foot statistic, and the digits' share of the foot's load; on a foot
+    that declares a support span, the whole-foot centre of pressure, its
+    rocking and its moment margins; and each digit's load share and, on a
+    hinged digit, where along it the load sits).  It reads
     the physics and never writes it, so the evaluation is the one an
     unrecorded callback runs, and anything that goes wrong with it costs the
     telemetry, not the run.  The model is also described once for the
@@ -1010,11 +1013,18 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
           those episodes whose value exceeds the bar (``value > bar``, the
           gate's comparison): the rail's own criterion on this panel.  An
           episode measured on no foot is left out of both.
+        * ``max_foot_cop_fore_aft_mean`` (a model whose feet declare a
+          support span: the T. rex) is the same for the whole-foot centre of
+          pressure, from ``<label>_foot_cop_fore_aft_gate``: the mean of each
+          episode's own ``max_foot_cop_fore_aft``.  Its over-bar fraction,
+          ``max_foot_cop_fore_aft_over_bar_fraction``, is written only where
+          the stage declares that bar, and no stage does: the key is
+          report-only.
         * Each ``leg_dc_<left>_minus_<right>_<joint>_deg`` is the capture
           callback's :attr:`~StageAwareEvalCallback.evaluations_leg_dc`
           (:func:`leg_dc_degrees`).
         """
-        from .gait.pad_telemetry import GATE_COP_FIELD
+        from .gait.pad_telemetry import FOOT_GATE_COP_FIELD, GATE_COP_FIELD
 
         source = getattr(self, "eval_callback", None)
         nan = float("nan")
@@ -1025,18 +1035,24 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
         for key in pad_keys:
             value = self._full_horizon_mean_of(pads.get(key), lengths)
             out[key] = nan if value is None else value
-        gate_keys = tuple(key for key in pad_keys if key.endswith(f"_{GATE_COP_FIELD}"))
-        if gate_keys:
+        # Each rail's own per-episode number: the pad CoP's, and the whole foot's.
+        for field, metric in (
+            (GATE_COP_FIELD, "max_sole_cop_fore_aft"),
+            (FOOT_GATE_COP_FIELD, "max_foot_cop_fore_aft"),
+        ):
+            gate_keys = tuple(key for key in pad_keys if key.endswith(f"_{field}"))
+            if not gate_keys:
+                continue
             per_episode = _episode_max_over_feet([pads.get(key) for key in gate_keys])
             mean = self._full_horizon_mean_of(per_episode, lengths)
-            out["max_sole_cop_fore_aft_mean"] = nan if mean is None else mean
-            bar = _declared_bar(getattr(self, "curriculum_kwargs", None), "max_sole_cop_fore_aft")
+            out[f"{metric}_mean"] = nan if mean is None else mean
+            bar = _declared_bar(getattr(self, "curriculum_kwargs", None), metric)
             if bar is not None:
                 above = (
                     None if per_episode is None else [float(v > bar) if math.isfinite(v) else nan for v in per_episode]
                 )
                 fraction = self._full_horizon_mean_of(above, lengths)
-                out["max_sole_cop_fore_aft_over_bar_fraction"] = nan if fraction is None else fraction
+                out[f"{metric}_over_bar_fraction"] = nan if fraction is None else fraction
         leg_dc = self._eval_series("evaluations_leg_dc", index) or {}
         for pair in tuple(getattr(source, "leg_dc_pairs", ()) or ()):
             out[pair.key] = float(leg_dc.get(pair.key, nan))

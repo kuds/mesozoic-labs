@@ -269,7 +269,12 @@ def record_stage_video(
     *model_id* whose feet have a box sole it also carries, per such foot,
     the step's signed fore-aft pad centre of pressure and the digits' share
     of the foot's load (``<label>_sole_cop_fore_aft``, ``<label>_digit_share``,
-    :func:`~environments.shared.gait.pad_telemetry.pad_step_columns`), from
+    :func:`~environments.shared.gait.pad_telemetry.pad_step_columns`); on a
+    foot that declares a support span, the whole-foot centre of pressure and
+    its toe and heel moment margins (``<label>_foot_cop_fore_aft``,
+    ``<label>_toe_margin_nm``, ``<label>_heel_margin_nm``); and per digit its
+    load share and, on a hinged digit, its load position
+    (``<label>_<digit>_load_share``, ``<label>_<digit>_load_pos``), from
     the floor-truth recorder attached to the replay env. Playback
     follows the environment's control timestep, including 0.02 s species.
 

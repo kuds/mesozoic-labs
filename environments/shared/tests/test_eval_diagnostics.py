@@ -1438,6 +1438,44 @@ class TestThePanelsOwnCopStatistic:
         assert set(callback._foot_telemetry_scalars(0)) == {"leg_dc_l_minus_r_ankle_deg"}
 
 
+FOOT_GATE_KEYS = ("r_foot_cop_fore_aft_gate", "l_foot_cop_fore_aft_gate")
+
+
+class TestThePanelsOwnWholeFootStatistic:
+    """``max_foot_cop_fore_aft_mean``: the whole-foot rail's per-episode number, report-only (no stage declares a bar)."""
+
+    @staticmethod
+    def _scalars(tmp_path, *, pads, keys, curriculum_kwargs=None):
+        callback = TestPadTelemetryReachesGateProgress._plateau(
+            tmp_path, lengths=[1000] * 3, pads=pads, keys=keys, pairs=(), curriculum_kwargs=curriculum_kwargs
+        )
+        return callback._foot_telemetry_scalars(0)
+
+    def test_the_mean_of_each_episodes_worse_foot_and_no_fraction_without_a_bar(self, tmp_path):
+        pads = {"r_foot_cop_fore_aft_gate": [0.13, 0.9, 0.2], "l_foot_cop_fore_aft_gate": [0.05, 0.1, 0.85]}
+        scalars = self._scalars(tmp_path, pads=pads, keys=FOOT_GATE_KEYS)
+        assert scalars["max_foot_cop_fore_aft_mean"] == pytest.approx((0.13 + 0.9 + 0.85) / 3)
+        assert "max_foot_cop_fore_aft_over_bar_fraction" not in scalars
+        # The pad rail's bar does not count for the whole foot's statistic.
+        assert "max_foot_cop_fore_aft_over_bar_fraction" not in self._scalars(
+            tmp_path, pads=pads, keys=FOOT_GATE_KEYS, curriculum_kwargs={"max_sole_cop_fore_aft": 0.8}
+        )
+        assert "max_sole_cop_fore_aft_mean" not in scalars  # no pad gate key: no pad panel key
+
+    def test_a_declared_bar_would_add_its_fraction_beside_the_pad_rails(self, tmp_path):
+        """No stage declares ``max_foot_cop_fore_aft``; the arm is the pad rail's, so a later adoption needs no code."""
+        pads = {
+            "r_sole_cop_fore_aft_gate": [0.3, 0.3, 0.3],
+            "r_foot_cop_fore_aft_gate": [0.13, 0.9, 0.2],
+            "l_foot_cop_fore_aft_gate": [0.05, 0.1, 0.85],
+        }
+        keys = ("r_sole_cop_fore_aft_gate", *FOOT_GATE_KEYS)
+        scalars = self._scalars(tmp_path, pads=pads, keys=keys, curriculum_kwargs={"max_foot_cop_fore_aft": 0.8})
+        assert scalars["max_sole_cop_fore_aft_mean"] == pytest.approx(0.3)
+        assert scalars["max_foot_cop_fore_aft_over_bar_fraction"] == pytest.approx(2 / 3)
+        assert "max_sole_cop_fore_aft_over_bar_fraction" not in scalars
+
+
 # ── the sagittal leg DC, in degrees about the leftward axis ──────────────────
 
 #: Two mirrored legs: the left hip pitch axis points right (-y) and the right one left (+y), as on the
@@ -1561,6 +1599,19 @@ class TestSagittalLegDc:
         assert callback.evaluations_leg_dc == [{}, {}]
 
 
+#: Every manifest model: its pad feet's whole-foot fields (a declared support span) and digit fields -- the digits'
+#: key names and whether each is hinged (FOOT_SUPPORT and the MTP rule).
+REAL_FOOT_FIELDS = {
+    ModelId("tyrannosaurus_rex", "anatomical"): (True, (("toe_d2", True), ("toe_d3", True), ("toe_d4", True))),
+    ModelId("compsognathus_longipes", "anatomical"): (
+        False,
+        (("toe_d2", False), ("toe_d3", False), ("toe_d4", False)),
+    ),
+    ModelId("compsognathus_longipes", "robot"): (False, ()),
+    ModelId("dibothrosuchus_elaphros", "anatomical"): (False, ()),
+    ModelId("velociraptor_mongoliensis", "anatomical"): (False, ()),
+    ModelId("brachiosaurus_altithorax", "anatomical"): (False, ()),
+}
 #: Every manifest model: its box-soled feet, whether they have digits, and its sagittal leg DC pairs (FOOT_SUPPORT
 #: and the actuated joints).
 REAL_TELEMETRY = {
@@ -1645,12 +1696,21 @@ def test_a_real_evaluation_records_each_models_pads_and_leg_dc(model_id, tmp_pat
     the recorder is off the env after the evaluation; and each episode's per-foot gate statistic tops out at the
     gate's own ``max_sole_cop_fore_aft``."""
     from environments.shared.config import load_stage_config
-    from environments.shared.gait.pad_telemetry import PAD_EPISODE_FIELDS
+    from environments.shared.gait.pad_telemetry import FOOT_COP_EPISODE_FIELDS, PAD_EPISODE_FIELDS
     from environments.shared.gait.stance_metrics import episode_stance_metrics
 
+    assert set(REAL_FOOT_FIELDS) == set(REAL_TELEMETRY)
     pad_feet, has_digits, pairs = REAL_TELEMETRY[model_id]
+    whole_foot, digits = REAL_FOOT_FIELDS[model_id]
     callback, data, traces, settle, hook_left = _real_evaluation(model_id, tmp_path, monkeypatch)
     fields = PAD_EPISODE_FIELDS if has_digits else tuple(f for f in PAD_EPISODE_FIELDS if f != "digit_share")
+    fields += FOOT_COP_EPISODE_FIELDS if whole_foot else ()
+    fields += tuple(
+        f"{name}_{field}"
+        for name, hinged in digits
+        for field in ("load_share", "load_pos")
+        if hinged or field != "load_pos"
+    )
     pad_keys = tuple(f"{foot}_{field}" for foot in pad_feet for field in fields)
     leg_keys = tuple(
         f"leg_dc_{left}_minus_{right}_{joint}_deg" for left, right in pairs for joint in ("hip_pitch", "knee", "ankle")
@@ -1658,7 +1718,7 @@ def test_a_real_evaluation_records_each_models_pads_and_leg_dc(model_id, tmp_pat
     assert callback.foot_pad_keys == pad_keys
     assert tuple(pair.key for pair in callback.leg_dc_pairs) == leg_keys
     assert not hook_left
-    assert {key for key in data.files if key.endswith(("_sole_cop_fore_aft", "_gate", "_digit_share"))} == set(pad_keys)
+    assert {key for key in data.files if key.startswith(tuple(f"{foot}_" for foot in pad_feet))} == set(pad_keys)
     assert {key for key in data.files if key.startswith("leg_dc_")} == set(leg_keys)
     assert all(data[key][0] == 0.0 for key in leg_keys)  # the zero action holds no offset
     (episodes,) = callback.evaluations_foot_pad
@@ -1671,6 +1731,17 @@ def test_a_real_evaluation_records_each_models_pads_and_leg_dc(model_id, tmp_pat
     assert all(math.isfinite(data[key][0]) for key in pad_keys)
     bar = load_stage_config(model_id, "stance")["curriculum_kwargs"].get("max_sole_cop_fore_aft")
     panel_keys = {key for key in data.files if key.startswith("max_sole_cop_fore_aft_")}
+    # The whole foot's own statistic, on a model that declares a span: report-only, so never a bar fraction.
+    assert "max_foot_cop_fore_aft" not in load_stage_config(model_id, "stance")["curriculum_kwargs"]
+    whole_keys = {key for key in data.files if key.startswith("max_foot_cop_fore_aft_")}
+    if whole_foot:
+        metrics = [episode_stance_metrics(trace, settle_steps=settle).max_foot_cop_fore_aft for trace in traces]
+        for number, metric in enumerate(metrics):
+            assert max(episodes[f"{foot}_foot_cop_fore_aft_gate"][number] for foot in pad_feet) == metric
+        assert whole_keys == {"max_foot_cop_fore_aft_mean"}
+        assert data["max_foot_cop_fore_aft_mean"][0] == pytest.approx(np.mean(metrics))
+    else:
+        assert whole_keys == set()
     if not pad_feet:
         assert panel_keys == set()
         return

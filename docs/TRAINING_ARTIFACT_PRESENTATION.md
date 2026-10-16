@@ -106,6 +106,25 @@ Compsognathus embodiments and Dibothrosuchus. The Velociraptor's capsule feet
 and the Brachiosaurus's ellipsoids have no box pad, so their CSVs have no pad
 column, just as their gates have no fore-aft CoP.
 
+A pad foot whose `FOOT_SUPPORT` entry declares its ankle and a support span
+(`ankle`, `heel_line`, `toe_line`; only the Tyrannosaurus Rex, whose span is
+its pad's own heel and toe edges, 0.070 and 0.210 m ahead of the ankle) also
+has the whole-foot columns, and every pad foot with digits has per-digit
+columns, named by the digit's geom less the foot label and `_geom`
+(`r_toe_d2_geom` gives `r_toe_d2`):
+
+| Column | Meaning |
+|---|---|
+| `<label>_foot_cop_fore_aft` | The step's signed WHOLE-FOOT centre of pressure: every floor contact of the limb (pad, digits, any other leg geom), force-weighted along the pad's forward axis from the ankle axis, in half-lengths of the declared span (`-1` the heel line, `+1` the toe line, beyond `+1` past it on the digits) |
+| `<label>_toe_margin_nm`, `<label>_heel_margin_nm` | The floor-load moment left before that CoP reaches the toe line, `F (toe_line - x)`, and the heel line, `F (x - heel_line)`, in N m, with `F` the limb's floor force; negative past the line |
+| `<label>_<digit>_load_share` | The step's floor force on that digit over the whole limb's |
+| `<label>_<digit>_load_pos` | Where along the digit its floor load sits, force-weighted: 0 at the MTP joint's axis, 1 at the tip. Only on a digit with its own MTP joint (the Tyrannosaurus Rex's; the anatomical Compsognathus's digits share the pad's body) |
+
+The whole-foot cells are empty on a step the limb carries nothing above
+0.1 N, so `stance_quality/v2`'s report-only `max_foot_cop_fore_aft` over any
+window is again the mean of `|value|` with an empty cell read as 1. The load
+position is empty on a step its digit carries nothing.
+
 ### Biped feet and leg joints
 
 | Model | Foot site (`r_`/`l_` columns) | Leg joints |
@@ -170,6 +189,11 @@ reads it. The opt-in hop watch reads only its `unsupported_duty`.
 | `max_sole_cop_fore_aft_mean` | A model with a box pad: the evaluation's mean, over its full-horizon episodes, of each episode's own `max_sole_cop_fore_aft` (the maximum over the feet of `<label>_sole_cop_fore_aft_gate`), the number the gate's pad rail reads |
 | `max_sole_cop_fore_aft_over_bar_fraction` | A model with a box pad, on a stage that declares the `max_sole_cop_fore_aft` bar (the T. rex 0.80, the anatomical Compsognathus 0.70): the fraction of the full-horizon episodes whose `max_sole_cop_fore_aft` exceeds the bar, the rail's own criterion on this panel |
 | `<label>_digit_share` | Per box-soled foot with digits: the evaluation's mean, over its full-horizon episodes, of the post-settle floor force on its digits (its `FOOT_SUPPORT` support geoms other than the sole) over the whole limb's |
+| `<label>_foot_cop_fore_aft`, `<label>_foot_cop_fore_aft_gate` | Per foot that declares a support span (the T. rex): the same pair for the whole-foot centre of pressure (every floor contact of the limb, from the ankle axis, in half-lengths of the declared span; an unloaded step counts 1 in the second). In each episode the maximum over the feet of the second is that episode's `max_foot_cop_fore_aft`. On the T. rex's span, its pad's own edges, it reads in pad half-lengths |
+| `max_foot_cop_fore_aft_mean` | A model whose feet declare a span: the evaluation's mean, over its full-horizon episodes, of each episode's own `max_foot_cop_fore_aft`. Report-only: no stage declares that bar, so there is no `max_foot_cop_fore_aft_over_bar_fraction` (it would follow a declared bar as the pad rail's does) |
+| `<label>_foot_cop_std_m`, `<label>_foot_cop_dominant_hz` | Per foot that declares a span: the standard deviation (m) of the per-step whole-foot CoP over the post-settle loaded steps, and the strongest non-zero frequency of that series (unloaded steps dropped), means over the full-horizon episodes. The window means cannot see a foot rocking heel to toe; these can |
+| `<label>_toe_margin_nm`, `<label>_heel_margin_nm` | Per foot that declares a span: the post-settle mean, over loaded steps, of the floor-load moment left before the whole-foot CoP reaches the toe line and the heel line, in N m; means over the full-horizon episodes |
+| `<label>_<digit>_load_share`, `<label>_<digit>_load_pos` | Per digit of a box-soled foot: its share of the limb's post-settle floor force, and (a digit with an MTP joint only) where along it that load sits, force-weighted, 0 at the MTP axis and 1 at the tip; means over the full-horizon episodes |
 | `leg_dc_<left>_minus_<right>_<joint>_deg` | Per left/right foot pair and sagittal joint (`hip_pitch`, `knee`, `ankle`): the left joint's commanded offset from home minus the right one's, in degrees, each signed as a rotation about the animal's leftward axis. A mirror-symmetric posture reads 0 |
 
 The pad and leg DC keys exist so that an asymmetric pad posture is visible
@@ -207,6 +231,11 @@ columns:
 - The Velociraptor and the Brachiosaurus have no pad key: they have no box pad.
 - The `max_sole_cop_fore_aft_*` keys follow the pad keys, and the bar
   fraction exists only where the stage declares the bar.
+- The whole-foot keys, and `max_foot_cop_fore_aft_mean`, exist only on a foot
+  whose `FOOT_SUPPORT` entry declares its ankle and support span: the
+  Tyrannosaurus Rex. The per-digit load share exists on every box-soled foot
+  with digits; the load position only on a digit with its own MTP joint (the
+  Tyrannosaurus Rex's three per foot).
 - NaN in a key that exists means the value could not be measured at that
   evaluation. That happens when no episode reached the horizon or the
   evaluation could not be recorded, and for the signed CoP alone when the pad

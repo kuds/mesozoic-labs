@@ -1934,6 +1934,7 @@ def _render_stance_v2_report(report: dict[str, Any]) -> str:
             ("spawn_peak_floor_force_bw", "spawn-grace peak floor force (BW)"),
             ("settle_touchdowns", "settle-window touchdowns"),
             ("max_sole_cop_fore_aft", "pad CoP fore-aft (|.| / half-length)"),
+            ("max_foot_cop_fore_aft", "whole-foot CoP fore-aft (|.| / half-span)"),
             ("window_airborne_substeps", "window both-feet-unloaded substeps"),
             ("window_peak_floor_force_bw", "window peak floor force (BW)"),
         )

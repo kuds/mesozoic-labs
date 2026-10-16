@@ -128,6 +128,17 @@ compsognathus statue stands heel-side.  Declared by trex since D-D28 (0.80)
 and by the compsognathus since D-D26 (0.70, on its r2 statue); undeclared,
 it is not applied.
 
+The pad reads one contact geom.  The optional ``max_foot_cop_fore_aft``
+reads the WHOLE foot: the window mean of the per-step ``|whole-foot CoP|``
+in half-lengths of the support span the foot's ``FOOT_SUPPORT`` entry
+declares (``StanceEpisodeMetrics.max_foot_cop_fore_aft``: every floor
+contact of the limb, pad and digits, measured from the ankle axis; 0 at the
+span's midpoint, 1 on its heel or toe line or with no loaded step), the
+quantity that stays continuous as load moves between pad and digits.  NaN on
+a model whose feet declare no span.  Its bar must lie strictly inside
+(0, 1).  Report-only for now: the metric is computed for every episode and
+reported, and no stage declares the key, so it is in no verdict.
+
 Metrics added later
 -------------------
 A report row or panel CSV recorded before a
@@ -205,6 +216,7 @@ EPISODE_CRITERIA: tuple[tuple[str, str, str], ...] = (
     ("max_sole_cop_fore_aft", "max_sole_cop_fore_aft", "max"),
     ("max_window_airborne_substeps", "window_airborne_substeps", "max"),
     ("max_window_peak_floor_force_bw", "window_peak_floor_force_bw", "max"),
+    ("max_foot_cop_fore_aft", "max_foot_cop_fore_aft", "max"),
 )
 
 #: Optional keys whose bar must lie strictly inside ``(low, high)``, ``(key,
@@ -217,6 +229,13 @@ CRITERION_BAR_RANGES: tuple[tuple[str, float, float, str], ...] = (
         0.0,
         1.0,
         "it is a fraction of the pad's half-length: 0 refuses every loaded pad, and a pad on its edge reads 1",
+    ),
+    (
+        "max_foot_cop_fore_aft",
+        0.0,
+        1.0,
+        "it is a fraction of the declared support span's half-length: 0 refuses every loaded foot, and a centre "
+        "of pressure on the heel or toe line reads 1",
     ),
 )
 
@@ -387,6 +406,7 @@ class StanceV2Thresholds:
     max_hop_or_fall_episodes: int | None = None
     max_window_airborne_substeps: float | None = None
     max_window_peak_floor_force_bw: float | None = None
+    max_foot_cop_fore_aft: float | None = None
     required_consecutive: int = 3
 
     @classmethod

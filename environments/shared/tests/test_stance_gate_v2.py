@@ -139,6 +139,7 @@ class TestRegistration:
             "max_hop_or_fall_episodes",
             "max_window_airborne_substeps",
             "max_window_peak_floor_force_bw",
+            "max_foot_cop_fore_aft",
             "required_consecutive",
         }
 
@@ -245,6 +246,16 @@ class TestFromCurriculum:
         assert thresholds(max_sole_cop_fore_aft=0.8).max_sole_cop_fore_aft == 0.8
         assert thresholds().max_sole_cop_fore_aft is None and "max_sole_cop_fore_aft" not in thresholds().declared()
 
+    @pytest.mark.parametrize("value", [0.0, -0.2, 1.0, 1.25])
+    def test_the_whole_foot_cop_bar_must_lie_strictly_inside_zero_one(self, value):
+        """A fraction of the declared span's half-length; report-only, so no stage declares it."""
+        assert ("max_foot_cop_fore_aft", 0.0, 1.0) in [entry[:3] for entry in CRITERION_BAR_RANGES]
+        with pytest.raises(ValueError, match="max_foot_cop_fore_aft must lie strictly between 0 and 1"):
+            StanceV2Thresholds.from_curriculum({**BLOCK, "max_foot_cop_fore_aft": value})
+        assert thresholds(max_foot_cop_fore_aft=0.8).max_foot_cop_fore_aft == 0.8
+        assert thresholds().max_foot_cop_fore_aft is None and "max_foot_cop_fore_aft" not in thresholds().declared()
+        assert "max_foot_cop_fore_aft" not in stance_gate_v2.HOP_OR_FALL_KEYS
+
     def test_an_undeclared_optional_criterion_is_none_never_a_permissive_default(self):
         read = thresholds()
         assert read.max_foot_contact_fraction is None
@@ -327,6 +338,7 @@ class TestClassification:
             ("max_sole_cop_fore_aft", "max_sole_cop_fore_aft", 0.85),
             ("max_window_airborne_substeps", "window_airborne_substeps", 472.0),
             ("max_window_peak_floor_force_bw", "window_peak_floor_force_bw", 3.99),
+            ("max_foot_cop_fore_aft", "max_foot_cop_fore_aft", 0.96),
         ],
     )
     def test_every_optional_criterion_refuses_its_defect_once_declared(self, clean, key, field_name, value):
@@ -335,7 +347,7 @@ class TestClassification:
                "min_support_geom_duty": 0.9, "min_support_geom_coverage": 0.9,
                "max_sole_tilt_excess_deg": 10.0, "max_episode_yaw_change_deg": 25.0,
                "max_settle_touchdowns": 2, "max_sole_cop_fore_aft": 0.8, "max_window_airborne_substeps": 30,
-               "max_window_peak_floor_force_bw": 3.0}[key]  # fmt: skip
+               "max_window_peak_floor_force_bw": 3.0, "max_foot_cop_fore_aft": 0.8}[key]  # fmt: skip
         declared = thresholds(**{key: bar})
         assert classify_stance_episode(clean, declared, horizon=HORIZON) == ()
         reasons = classify_stance_episode(replace(clean, **{field_name: value}), declared, horizon=HORIZON)
