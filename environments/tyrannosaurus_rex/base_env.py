@@ -169,15 +169,22 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
     # the animal forward; centred here it does not.
     # Re-measure whenever leg masses, springs, gains or the feet change (any
     # plant revision; test_the_settled_leg_pose_is_the_statues checks it).
+    # Re-measured on physics r10 (the load-bearing tridactyl foot) for the
+    # never-merged arm L screen of this branch, the same way (stance config,
+    # zero action, seeds 3042-3051, all ten full-horizon, steps 200-999,
+    # mirror-symmetrised; the raw pairs agreed to 1.5e-4 rad): hip pitch
+    # -2.74, hip roll -/+0.38, knee -0.40 and ankle +1.65 degrees against the
+    # keyframe, at most 0.66 mrad from the r9 values (-0.0931906447971345,
+    # -/+0.0073721451044150895, -0.43975640189259646, 1.3713665366344738).
     _LEG_SETTLED_QPOS = (
-        -0.0931906447971345,
-        -0.0073721451044150895,
-        -0.43975640189259646,
-        1.3713665366344738,
-        -0.0931906447971345,
-        0.0073721451044150895,
-        -0.43975640189259646,
-        1.3713665366344738,
+        -0.09324800966193827,
+        -0.006711707225014458,
+        -0.4399049656296715,
+        1.3709445713765605,
+        -0.09324800966193827,
+        0.006711707225014458,
+        -0.4399049656296715,
+        1.3709445713765605,
     )
     _LEG_HOME_POSE_REFERENCES = ("keyframe", "settled")
     #: Opt-in task options carved out of the task fingerprint and of the
