@@ -1,0 +1,291 @@
+T. rex walking pilot: fixed criteria (written 2026-10-16; revised three times on 2026-10-17; all before any pilot
+training step)
+
+Maintainer decisions of 2026-10-17 (taken by the maintainer after the r10 arm L screen was judged; recorded here and in
+design.txt and the branch's SOURCE.txt; decision D-D36 in the repository's decision tables will record them in a
+later records PR, not now)
+  The screen's verdict that came first: r10 arm L FAILED K1-K4 (foot/r10screen/criteria.txt; judged at 4M/5M/6M:
+  K1 only s42 passed stance_quality/v2 at 6M; K2 s52 and s60 stood on their toes, 37-40 of 40 full-horizon episodes
+  over the whole-foot fore-aft CoP rail at every checkpoint, and s42 had 5 at 4M; K3 16 of 60 pooled joint-space
+  noise falls; K4 12 of 120 pooled roll-rail failures). r10 arm L s42 6M alone was 40/40 clean with 0 noise falls.
+  r9 arm L had FAILED K2 and K3 (the symmetry screen's verdict O9). Draft #623 (the r10 foot) is parked; main keeps
+  physics r9.
+  (1) Run ONE short T. rex walking pilot now, as a deliberate exception to the gait-quality plan's open GQ-3 (a)
+      ("no walker session on today's rewards") and to GQ-17's retrain order (robot first). To be recorded as
+      decision D-D36 in the decision tables by a later records PR.
+  (2) The parent is r9 arm L seed 60 at 6M (40/40 clean panel episodes, 6 joint-space + 0 own-sigma noise falls),
+      on main's r9 plant: path A, branch claude/pilot-walk-r9. This is a recorded DEPARTURE from the screen
+      criteria's parent rule. On the failed screen that rule ("What follows": the best of the six 6M checkpoints,
+      most clean, then fewer noise falls) names r10 arm L s42 6M (40/40 clean, 0 noise falls; tools/pilot_parent.py
+      on the screen's score.json prints exactly that, path B). It is not used because it sits on the unmerged r10
+      foot, which the project is not adopting. Path B and branch claude/pilot-walk-r10 are not used.
+  (3) Three seeds (42, 52, 60), the pilot's fixed hop-detecting criteria below, PLUS a video review: the pilot is
+      scored WALKS only if the automatic rule says WALKS and the maintainer's look at the recorded videos agrees
+      ("Video review", below).
+
+Revisions (what changed against the 2026-10-16 text; all before any pilot step)
+  First (2026-10-17):
+  1. The parent rule followed the r10 screen's criteria exactly. (Superseded by decision (2) above.)
+  2. WALK also requires the probe's hip-pitch joint lag in [0.35, 0.65]. (This item first said that this kept every
+     staggered two-footed hop out. It does not: a hop whose touchdown offset is at least 35% of its cycle passes the
+     band, e.g. 40 ms at 9.2 and 10 Hz, and so does a scissor hop with anti-phase hips. Second revision, item 5.)
+  3. Scoring names the launched seeds; a missing seed counts as missing; a collapse-stopped seed is scored from its
+     newest periodic checkpoint; a run resumed before the forward-weight ramp ended is off-schedule and never scored.
+  4. Judging checks the run's parent checkpoint sha256 against the chosen parent's.
+  Second (2026-10-17, after the round-2 check):
+  5. WALK also requires floor_stride_frequency_hz <= 5.0 (the stride cap). (It said the cap keeps out every staggered
+     and scissor hop above 5 Hz. That holds only for hops whose feet lift for several control steps: a hop whose
+     lifts last 1-2 steps reads a stride far below its real cadence. Third revision, item 8.)
+  6. A tie on clean episodes involving an unmeasured noise-fall count gives no parent; the "best r10" reading. (Moot
+     after decision (2).)
+  7. An off-schedule run judged for the report goes to OUT/off_schedule/<run>/, never to the seed's OUT/s<seed>/.
+  Third (2026-10-17, after the round-3 check and the maintainer's decisions):
+  8. WALK also requires each foot's floor duty <= 0.80 (the duty guard): "Why the guards" and "Known limits", below.
+  9. Video review is REQUIRED for WALKS ("Video review", below; tools/pilot_score.py --video-review,
+     tools/pilot_video.py).
+  10. The parent is fixed by decision (2): path A only.
+  11. Corrected in place: the seed-outcome note that "a seed of staggered or scissor hops above 5 Hz reads OTHER" (it
+      was false for short-lift hops); the re-touch walk limit (now tested, by the round-3 verifier).
+  Fourth (2026-10-17, after the round-4 check; wording only, no label, outcome or verdict rule changed):
+  12. Known limits: the 5 Hz limit is on the MEASURED stride frequency, and a mixed-lift hop is not starred.
+  13. Video review: a seed with no notebook replay for any reason is reviewed on (b) alone (it said only a resumed
+      seed); the manual cell plays two videos at the end, the final replay first.
+
+What is trained
+  The production T. rex locomotion stage (stock PPO, the production [env] reward, [ppo] hyperparameters and
+  reward_and_length/v1 gate), warm-started under initialize_next_stage from the parent (decision 2, committed on the
+  branch: pilot_checkpoints/r9_arm_l_s60_6291456/, sha256 70f3a444...), through the notebook's manual single-node
+  cell, for 4,194,304 steps (production 8,000,000; the learning-rate schedule is production's first 4,194,304
+  steps, everything else in the schedule is production's). Seeds 42, 52 and 60, one runtime each (decision 3).
+  None of arm L's options is on in the pilot: the lean term and the settled leg target are stance reward terms (the
+  locomotion stage sets lateral_lean_weight 0 and leg_home_pose_weight 0), and the pilot trains stock PPO.
+
+How it is judged
+  The frozen 2026-09 gait-audit probe (docs/investigations/gait_2026_09/gait_probe.py, run on today's API by the
+  scratch adapter tools/gait_probe_pilot.py, no measurement line changed), on the pilot branch's tree, at the
+  periodic checkpoints 2,097,152, 3,145,728 and 4,194,304 of each seed with their VecNormalize sidecars: 40 episodes,
+  deterministic actions, resets seeded 3042-3081 (panel scheme), gait window from 1 s (100 steps) after reset, every
+  contact metric on the floor-truth channel (whole-leg floor normal force above 0.1 N on at least half the substeps;
+  2-step debounce for touchdown and lift-off events; left and right touchdowns within 2 steps are one simultaneous
+  event; duty and support fractions use the raw per-step contact, before the debounce).
+  tools/pilot_judge.py runs it and binds the run: the pilot budget, the seed, initialize_next_stage, the plant, the
+  tree's hyperparameter digest and commit, and the parent checkpoint's sha256 (run.parent_checkpoint_sha256 must
+  equal sha256:70f3a4447794a01036c27bca5e0377a17db96d0e3d7bfb2d179e9ce94e6f353e). tools/pilot_score.py applies the
+  rules below; tools/pilot_video.py renders the panel episodes the video review watches.
+
+Episode labels (first that applies)
+  FALL   the episode ends before 1,000 steps
+  HOP    at least 0.5 touchdowns per second (all feet) and a simultaneous-touchdown fraction >= 0.5, at any speed
+         (the probe's classify_biped hop rule; every September T. rex walker episode met it: 0.865-1.0)
+  STILL  window displacement speed below 0.10 m/s
+  WALK   all six:
+           alternation index >= 0.6, lead swaps per stride >= 1.0, flight fraction <= 0.2 (the gait plan's section
+           5.5 bar for a T. rex locomotion pilot; the September hops read 0-0.055, 0-0.05 and 0.32-0.45);
+           jointlag_frac_hip_pitch in [0.35, 0.65] (the probe's own hip-pitch joint lag: the lag in [0, P) that best
+           correlates the left and right hip pitch, as a fraction of the floor stride P; walk ~0.5, hop ~0);
+           floor_stride_frequency_hz <= 5.0 (per foot, 1 over the mean time from one debounced touchdown to the next
+           of the same foot, averaged over the two feet); and
+           floor_duty_L <= 0.80 and floor_duty_R <= 0.80 (the duty guard: the fraction of the gait window that foot
+           is on the floor, from the raw per-step contact).
+  OTHER  anything else (staggered hop, scissor hop, short-lift shuffle-hop, staggered scoot, shuffle, irregular)
+  A metric the probe cannot define (too few touchdowns, no oscillation to phase) fails the test that reads it.
+
+  Why the guards, and not floor_gait_class == 'walk' (evidence: tools/fixtures/gait_cases.json, rows computed by the
+  frozen probe's own analyze_episode through tools/make_gait_cases.py with three generators: the round-1
+  integer-step traces, the round-2 verifier's continuous-time traces and the round-3 verifier's event traces;
+  tools/test_pilot_score.py recomputes every row from the probe and asserts each label; the grids behind the duty
+  cut are in finalwork/duty_grid_*.json and finalwork/duty_cut_summary.json):
+    - The probe merges left and right touchdowns only within 2 steps (20 ms). A two-footed hop whose second foot lands
+      30 ms or more after the first reads alternation 0.87-1.0 and simultaneous 0-0.08 in the cases; its lead swaps
+      read ~2 per stride and its flight stays under 0.2. The section 5.5 contact bar passes it, and the probe's own
+      floor_gait_class reads 'walk' for it, so floor_gait_class is no guard (reported, never decides).
+    - The hip-lag band rejects such a hop only while the offset is under 35% of its cycle (at 7.7-8.3 Hz, 30-40 ms
+      read 0.23-0.33, out; 50 ms reads 0.38-0.42, in; at 9.2 and 10 Hz 40 ms reads 0.36 and 0.40, in; a scissor hop
+      with anti-phase hips reads 0.5, in).
+    - The stride cap rejects those hops above 5 Hz while their feet lift for several control steps (the cases at
+      7.7-10 Hz). The September T. rex hops cycled at 7.64-7.67 Hz (seed 42) and 9.21 Hz (seed 44): audit CSV means.
+    - The duty guard closes the case the round-3 verifier found: a hop whose feet lift for only 1-2 control steps.
+      The debounce fills a one-step lift, so the stride reads far below the real cadence (a 6-12 Hz hop read
+      0.7-4.9 Hz), the inflated stride period can move the hip lag into the band, and the round-2 rule read WALK.
+      Such a hop keeps its feet down most of the time. The cut is taken from the data:
+        the round-3 verifier's false WALKs: 332 (262 of its 11,088 event-generator hops and 70 of 896 trace_ct hops,
+          a true 6-12 Hz): both feet's duty 0.842-0.929;
+        this round's extension (12,128 more hops, both generators: 13-25 Hz at duties 0.5-0.9, a dense grid at
+          14-25 Hz and duties 0.74-0.82, and 6-12 Hz hops with one foot at duty 0.85-0.9 and the other at 0.6-0.8,
+          none of which read WALK): 138 more distinct false WALKs, all at 13-22 Hz, duty 0.740-0.856; the lowest duty
+          a false WALK reaches falls with its cadence (about 0.82 at
+          14 Hz, 0.800 at 16 Hz, 0.789 at 17 Hz, 0.780 at 18 Hz, 0.762 at 19 Hz, 0.740 at 22 Hz), as the arithmetic of
+          one-step lifts says (duty about 1 - 0.01 x cadence in Hz);
+        walks: the audit's real walker (compsognathus 20260921_203149, 30 episodes) reads 0.489-0.624 (higher foot
+          0.600-0.624); the probe-computed walks in the fixtures 0.59-0.75; the audit's real T. rex recovery
+          shuffle-hop read a lowest-foot duty of 0.954 (audit CSV mean).
+      At 0.80 the guard rejects all 332 of the verifier's cases and every one of these 470 false WALKs at a true
+      15 Hz or below (not every hop: see "Known limits", the mixed-lift hop),
+      and keeps the real walker 30/30. Lower cuts close more of the fast residual and cost slow walks (0.78: 28 of
+      the 470 distinct false WALKs still WALK, all at 18-22 Hz; 0.75: 2, at 22 Hz); 0.85 (the first proposal) lets
+      10 of the verifier's 332 through. 0.80 is chosen because: the residual then starts at 16 Hz, nearly twice the
+      fastest T. rex hop the audit saw (9.2 Hz); it leaves room for a creeping walk with a foot down up to 80% of
+      the time (at the pilot's expected 0.1-0.3 m/s a genuine walk may be that slow, and an OTHER cannot be turned
+      into a WALK by the video review); and every episode it rejects that is not STILL is on the video review's
+      watch list (foot duty > 0.8).
+    - Walks pass: the real walker reads hip lag 0.385-0.500, stride frequency 3.97-4.10 Hz and duty 0.489-0.624 on
+      all 30 episodes; 30/30 WALK. Probe-computed walks at 0.7, 1.0, 1.2 (with a 2f pelvis term), 1.6 (with joint
+      noise) and 4.0 Hz, a walk timed 40/60, an event-generator 4 Hz walk at duty 0.62 and creeping 1 Hz walks at
+      duty 0.70 and 0.75 are WALK.
+
+  Known limits of the WALK label (what the tests show; nothing stronger is claimed)
+    - Short-lift chatter at about 16 Hz and faster can still read WALK. A foot that lifts for one or two control steps
+      at a high cadence keeps its duty near 1 - 0.01 x cadence; at 16-22 Hz that is 0.74-0.80, under the guard. Of
+      the 470 distinct false WALKs of the round-2 rule found over 6-25 Hz, 61 still read WALK at the 0.80 cut, all at
+      a true 16-22 Hz (fixture rows ev_chatter_16Hz_d0.80 and ct_chatter_22Hz_d0.74 read WALK; tested). Faster than
+      22 Hz nothing was found (25 Hz tested at duty 0.5-0.9), and the arithmetic does not exclude it. Every one of
+      these short-lift false WALKs, at any cadence, has a mean floor swing of 0.020-0.021 s on both feet (two
+      control steps), against
+      0.092-0.126 s for the real walker and at least 0.045 s for every probe-computed walk that reads WALK (fixtures
+      and this round's 297-walk grid; the shortest is a 4.5 Hz walk at duty 0.80); pilot_score.py flags such
+      episodes (short_swing, report only) in the video review's watch list. A minimum-swing guard would separate every
+      case found, but it is not part of this fixed rule.
+    - The 5 Hz cap is on the MEASURED stride frequency (debounced touchdowns), not the true cadence: a hop the probe
+      measures at 5 Hz or below is inside it however fast it really cycles. A hop that mixes lift lengths, every
+      other lift one control step (filled by the debounce) and the rest 4-6 steps, legs in opposite phase, at a true
+      6-12 Hz, is measured at 2.7-4.5 Hz and reads WALK at duty 0.68-0.80 with a mean swing of 0.04-0.06 s, so it
+      is NOT starred short_swing (42 such cases, round-4 verifier's my_cases.py). The video review is the check.
+    - A staggered or scissor hop at 5 Hz or below that passes the hip-lag band, with normal swings, reads WALK
+      (tested at 4.5 Hz: a scissor hop with feet landing 30 ms apart, lag 0.5, and a staggered hop offset 80 ms, lag
+      0.36; its feet are down 70% of the time, so the duty guard does not reject it). The audit's closest T. rex case,
+      the recovery stance's two-footed shuffle-hop at 3.07 Hz, was mostly synchronous (simultaneous fraction 0.59,
+      lead swaps 0.13 per stride) and its feet were down 95% of the time (audit CSV means).
+    - A walk can read OTHER (all conservative against WALK, and the video review cannot undo them):
+        a creeping walk with a foot down more than 80% of the time (tested: a 1 Hz walk at duty 0.85 reads OTHER,
+          at 0.75 WALK);
+        a genuine alternating gait faster than 5 Hz (tested: 5.5 Hz reads OTHER; the cap is absolute, not scaled by
+          leg length; a T. rex walk dynamically similar to the compsognathus walker would cycle near
+          4.05 x sqrt(0.244 / 0.877) = 2.1 Hz, scaling arithmetic, not a test);
+        an asymmetric walk: timed 30/70 it reads hip lag 0.30 and is OTHER (tested); 40/60 reads 0.40 and is WALK
+          (tested); the real walker's lowest lag, 0.385, is 0.035 inside the band's edge;
+        a walk whose feet re-touch within a stance: the stride frequency doubles, alternation falls to 0.50-0.51 and
+          the hip lag to 0.94-0.97, so it reads OTHER at any cadence (tested by the round-3 verifier at 1.5, 2.5 and
+          3 Hz with a 30 ms lift mid-stance);
+        any undefined metric.
+  Report only: per checkpoint, the OTHER episodes that pass the contact bar, by the guards that reject them
+  (hip_lag, stride, duty and their combinations: a staggered or scissor hop fails the band or the cap, a short-lift
+  shuffle-hop the duty guard), and the WALK episodes with a short swing.
+
+Video review (REQUIRED for WALKS; decision 3)
+  A seed's WALKS counts only when the maintainer has watched its videos and agrees they show a walk. Without the
+  review a WALKS seed is "pending", and the pilot outcome is PENDING_VIDEO_REVIEW whenever the review could change
+  it. Not required for HOPS, FALLS, STILL or MIXED.
+  Which videos, for each launched seed:
+    (a) The notebook's replay of the final model. The manual cell plays two videos at the end of its output, this one
+        first ("Playing: tyrannosaurus_rex_anatomical_ppo_stage2_final.mp4"), then the selected one; it saves both
+        to Drive:
+          MyDrive/mesozoic-labs/logs/tyrannosaurus_rex/anatomical/ppo/pilot_walk_s<seed>/03_locomotion/replays/
+          tyrannosaurus_rex_anatomical_ppo_stage2_final.mp4   (pilot_walk_s<seed>_b for a restarted seed)
+        It shows stage2_final, the policy at the end of training: for an uninterrupted run the 4,194,304 checkpoint
+        plus the last PPO update (SB3 saves the periodic checkpoint during the last rollout, before that update). One
+        deterministic 1,000-step episode (10 s, 100 frames per second), reset seed 2002 + the training seed (2044,
+        2054, 2062), the default camera. The ..._stage2_selected.mp4 beside it is the in-training best checkpoint,
+        which may be an earlier step: context only. The notebook's section 8 cell "Replay the chain's videos" lists
+        only certified nodes and never shows the pilot node (the Colab steps do not run it). A seed with no notebook
+        replay is reviewed on (b) alone: a resumed seed (the RESUME path does not evaluate), or a seed whose runtime
+        was lost after its 4,194,304 checkpoint but before the final save (its outcome is read at 4,194,304 as
+        usual; no rerun).
+    (b) The panel episodes pilot_score.py lists under "VIDEO REVIEW REQUIRED", at the checkpoint the seed's outcome
+        is read at (4,194,304, or a collapse-stopped seed's newest periodic checkpoint): every WALK-labelled episode,
+        and every episode that is not STILL with a foot's floor duty above 0.8. These are the probe's own episodes
+        (reset seed 3042 + episode), rendered by tools/pilot_video.py from the judged checkpoint pair on the judging
+        tree. The tool re-rolls the panel through the probe's own rollout and calls a video the probe's episode only
+        if every metric of the re-rolled episode equals probe.json's; it writes a real-time and a quarter-speed mp4,
+        each frame marked with the time and two boxes, L and R, filled while that foot is on the floor.
+  What to look for:
+    A walk (agree): the feet take turns. One foot stays planted and carries the body while the other lifts clearly
+      off the floor, swings forward and lands ahead; then they swap. In the boxes, L and R are each empty for a
+      visible stretch of every step, never both at once, and the empty box alternates L, R, L, R. The body moves
+      forward over the planted foot.
+    Not a walk (disagree): both feet leave the floor together or land together, even when one lands a moment after
+      the other (a two-footed hop or skip: both boxes empty together, or both refill within a frame or two); the feet
+      hardly leave the floor, the boxes blinking off for a frame or two while the body slides or bounces forward (a
+      shuffle or short-lift shuffle-hop: watch the quarter-speed copy; a starred episode in the watch list has this
+      signature); one foot always ahead and the other only catching up (a scoot); one leg doing all the stepping.
+  The verdict per seed: "agree" only if the final replay (a), where the seed has one, shows a walk and at most (WALK
+  count - 30) of the seed's WALK-labelled panel episodes (b) are not walks, so that at least 30 of its 40 episodes
+  remain walks on video; otherwise "disagree". Record it in a JSON file, {"42": "agree", "52": "disagree", ...} (a
+  note may be added: {"42": {"verdict": "agree", "note": "..."}}), and pass it to pilot_score.py --video-review. A
+  disagree makes the seed MIXED ("WALKS by the rule, not on video"). The duty > 0.8 episodes in (b) are watched for
+  what the policy does; they change no verdict.
+
+Seed outcome at a checkpoint (40 episodes; first that applies)
+  WALKS  WALK >= 30 and FALL <= 4
+  HOPS   HOP >= 20
+  FALLS  FALL >= 5
+  STILL  STILL >= 20
+  MIXED  otherwise
+  (A seed of staggered or scissor hops cycling above 5 Hz with normal swings reads OTHER per episode, so MIXED; so does
+  a short-lift shuffle-hop whose feet are down more than 80% of the time. The report-only counts name which guard
+  rejected them. For what can still read WALK see "Known limits of the WALK label".)
+
+A seed's outcome, and which judgements count
+  The seed outcome at 4,194,304, then the video review if it is WALKS. Exceptions:
+  - Collapse-stopped seed: the collapse backstop (EvalCollapseEarlyStop, the only callback that ends the manual node
+    early; at the pilot's cadence it cannot stop a run before step 3,801,088) leaves a final model short of
+    4,194,304 and no 4,194,304 checkpoint. Its outcome is the seed outcome at its newest periodic checkpoint (judged
+    the same way), reported as collapse-stopped, and it counts in the tally.
+  - Off-schedule run: a run resumed (the notebook's RESUME cell) from a checkpoint before ramp_timesteps (2,000,000;
+    every periodic checkpoint below 2,097,152) trained part of the forward-weight ramp at the full weight and skipped
+    any remaining warm-up (a resume attaches no stage-entry shaping). pilot_judge.py refuses it; judged anyway with
+    --report-off-schedule, it is written to OUT/off_schedule/<the run copy's directory name>/s<seed>/<steps>/ (never
+    to OUT/s<seed>/<steps>), and pilot_score.py lists it as reported and never scores it. The Colab steps restart such
+    a seed from the parent in a fresh RUN_ID instead; the fresh run is the seed's run and is judged into
+    OUT/s<seed>/<steps> as usual.
+  - Missing: any launched seed with no scored outcome by the rules above (a lost runtime not restarted, an unjudged
+    checkpoint, a run that fails a binding check). Its judged checkpoints are reported, not scored.
+
+Pilot outcome
+  pilot_score.py --seeds 42,52,60. The outcome shared by at least 2 of the launched seeds; MIXED when every launched
+  seed has an outcome and no two share one; INCOMPLETE (no outcome yet) when no two share one and a missing seed could
+  still decide it; PENDING_VIDEO_REVIEW (never WALKS) while a WALKS seed's review is pending and its verdict could
+  change the outcome. 2,097,152 and 3,145,728 are scored and reported as the trajectory but do not decide.
+
+What each outcome means (no decision table; the maintainer decides what follows)
+  WALKS  Today's walk reward, from this stance on this plant, starts an alternating gait by 4.2M, confirmed on video,
+         which neither September walker did (both hopped; their in-training airborne duty already exceeded their
+         single-support duty by 4.2M, below). A possible next run: the full production locomotion node (8M) from the
+         same parent, judged by the same probe at 8M, since both September hops strengthened between 4M and 8M. It
+         would again be a manual node from an uncertified parent, never published or reused.
+  HOPS   The September hop reproduces from a new stance: the walk reward pays the hop whatever the stance, which points
+         at the locomotion reward (the gait plan's section 5: gait-r1, GQ-5 and GQ-15), not at the stance. No stance
+         experiment follows from it.
+  FALLS  The policy falls in at least 5 of 40 deterministic episodes. The fall episodes' traces say whether it fell
+         while stepping or while standing; falls while standing would point back at the stance's robustness (the
+         screen's K3 noise test), the one outcome here that can. The parent is the r9 checkpoint behind r9's K3
+         failure (6 of 20 joint-space noise falls): read FALLS against that.
+  STILL  The policy is not moving by 4.2M (the September walkers moved about 0.19 and 0.29 m/s by 4.2M, estimated
+         as their certified speed times their forward-reward term at 4.2M over that at 8M). The pilot was too short to
+         say anything about the gait.
+  MIXED  Report the per-episode labels; the maintainer reads them (a seed made MIXED by the video review says so).
+  INCOMPLETE, PENDING_VIDEO_REVIEW  Not outcomes: judge or restart the missing seeds; finish the video review.
+
+The locomotion gate (recorded, not a pilot criterion)
+  The manual cell judges the node's handoff on reward_and_length/v1 (mean reward >= 100, mean length >= 750, mean
+  speed >= 1.0 m/s) and records the verdict without enforcing it. Expected: FAIL on speed (the September walkers
+  reached 1.05 and 1.57 m/s only by 8M). A PASS changes nothing above: the gate reads no foot contact.
+
+Report only (never part of the outcome)
+  Median speed, alternation, simultaneous fraction, lead swaps, flight, hip-pitch lag, single support, stride
+  frequency, foot duty, foot swing and stride length over the leg length L = 0.877 m; the probe's own gait classes;
+  the OTHER episodes that pass the contact bar, by the guards that reject them; the short-swing WALK episodes;
+  left-lead fraction (the September hops kept the left foot ahead 99.9% of the time); falls by step; the in-training
+  telemetry in gate_progress.npz (touch: airborne duty, two-foot duty, the forward-reward term, whole-foot CoP)
+  beside the September walkers' at the same steps; the gate verdict.
+
+The September production walkers at matching steps (in-training evaluation, touch channel, 30 episodes, r7 plant)
+  steps        run (seed)           reward  full   airborne  two-foot  one-foot  forward term
+  2,100,000    20260914_123816 (42)  1106   0.97    0.044     0.925     0.030       39
+  3,150,000                          1174   1.00    0.095     0.852     0.053       83
+  4,200,000                          1233   1.00    0.164     0.733     0.103      148
+  8,000,000                          1927   1.00    0.381     0.526     0.092      840   (certified 1.05 m/s, a hop)
+  2,100,000    20260925_033501 (44)  1127   0.93    0.050     0.925     0.026       54
+  3,150,000                          1188   1.00    0.113     0.832     0.055       97
+  4,200,000                          1322   1.00    0.212     0.676     0.111      234
+  8,000,000                          2310   1.00    0.499     0.385     0.116     1248   (certified 1.57 m/s, a hop)
+  (Their stance, plant, observation and task digests all differ from the pilot's; context, not a control.)

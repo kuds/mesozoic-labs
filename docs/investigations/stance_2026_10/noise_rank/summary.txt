@@ -1,0 +1,126 @@
+Offline noise-ranking check (REPORT section 6 item 2), tyrannosaurus_rex/anatomical stance on main ef9a569a
+(physics r9, interface r15).  CORRECTED after verification (findings F1-F6, C1-C2).  The first version is summary_v1.txt.
+Scratch only: nothing in the repo was written (git status clean, no new .pyc).
+
+VERDICT: no candidate meets the REPORT section 6 pass criterion as written, so `passing` stays empty.
+  - The brief's uniform sigma 0.16 / 0.22 makes every posture fall in 20/20 episodes, so the 20-episode test cannot rank.
+  - Under the policy-shaped supplement (p16 / p22), no candidate meets the criterion at mean 0.22 either.  Two problems:
+    - The unbounded d_joint quadratic, the check's "nearest" candidate, rewards falling sooner (F1).  It should not be
+      proposed in that form.
+    - Its bounded replacement keeps the p16 ranking but not a 20-per-episode gap at p22.
+
+Panels.  A = seeds 3042-3061 (the brief's).  B = 3062-3081 (fresh; uniform cells added now).  C = 5000-5019 (the
+verifier's own z draws and decode, read only).  D = 3082-3141 (60 new seeds, noisy cells only, recorded for the falls test).
+Every pairwise ranking check now uses each faller's window minus its last 50 steps (ex50).  F3 asked for this; the plain
+window is reported beside it.
+
+F1 (blocker): the falls claim is withdrawn.
+  - d_joint at w = 0.012 rewards falling sooner once a fall is under way.  Suffix-sum test over every faller of A-D
+    (fixes_falls.txt):
+      noise        worst gain from falling sooner   base reward alone
+      u.22         177                              14.5
+      u.16         142                              13.3
+      p.16          71                              10.0
+      p.22          65                              14.7
+  - At u.22, 166 of 288 fallers gain more than 5 above the base reward's gain.  49% of post-settle steps have net reward
+    below zero, against 20% for the base reward alone.
+  - The cell-average cost / living-rate ratio is 0.65-1.48 at u.22.  The check's 0.87 came from one 20-seed panel.
+  - At u.22 (PPO's initial std) the term costs 0.85 per post-settle step on average.  stance.toml's rule keeps a fresh
+    policy's per-step penalties near half the 1.0 alive bonus.  The raw-command and contact terms already take 0.41 at
+    std 0.22 (stance.toml [ppo.policy_kwargs]).
+  - Bounded kernels (fixes_sweep.txt): saturating, capped, clipped, and EMA-then-saturating, at per-step caps of
+    0.05-0.5.
+    - For every kernel, the worst added fall gain is at most about 29 x the cap (17-29x across kernels and caps).  The
+      worst collapses spend about 28 steps with the term saturated while the base living reward is already negative.
+    - A rule stated before the sweep was run picks d_ema50_sat5 at a cap of 0.15.  The rule's selection uses panels A+B
+      only; E5, the F2 width rule, was added after the first run (fixes_sweep.py header).  C and D validate it.
+  - d_ema50_sat5:
+      m_t  = EMA of (q_left - q_right) in deg, over hip pitch, knee and ankle; time constant 50 control steps (0.5 s);
+             started at the settle (step 200) from 0
+      c_t  = sum of m_t^2
+      cost = w * 5 * (1 - exp(-c_t / 5)),  w = 0.03 per deg^2,  so the cost is at most 0.15 per step
+  - d_ema50_sat5 adds at most 3.1-4.2 per episode to any faller's gain from falling sooner.  That is 0 of 1997 fallers
+    above 5; the worst total gain is 13-18, against 10-15 for the base reward alone.  For comparison, control (a) at
+    w 0.10 adds 2.1-2.8.  At u.22 it costs 0.094 per post-settle step.
+  - Bonus form: w * 5 * exp(-c/5) paid as a positive reward ranks identically and adds nothing to the fall gain
+    (measured 0.0).  The price is up to +0.15 per step of survival reward, an alive-bonus change.
+  - The trade-off: bounding removes what made the quadratic noise-robust.  E[(mu + eps)^2] keeps its slope only while
+    unbounded.  The EMA averages the noise before the kernel, which keeps the p16 gap.
+    - Ex50 gaps, p.16: A 37.8 +- 2.8 (z 13.6), B 40.7 +- 3.2 (12.6), C 38.1 +- 3.5 (11.0), D 35.1 +- 2.0 (17.2).
+    - Ex50 gaps, p.22: 16.2 +- 3.3 (z 4.9), 19.3 +- 5.6 (3.5), 23.4 +- 3.7 (6.4), 13.8 +- 2.3 (5.9).
+    - So the p.22 gap is below 20 on 3 of 4 panels, and the 5-SE bar is met on C and D only.
+  - In the sweep, no bounded kernel with a cap of 0.15 or less reaches 20 per episode at p.22 (best: 16.8 on A+B, 14.2 on
+    C+D).  At a cap of 0.2 the best p.22 gap is 18-22, with an added fall gain of 5.2-5.6.
+F2: the p16 pass/fail does not discriminate.
+  - Control (a) passes all six ex50 checks at p.16 on B (z 5.0) and C (z 5.4).  It fails on A and D only on the hips
+    check (12.0%, 13.3%).
+  - Its p.16-only weight window is non-empty on C (1.10x wide) and empty on A (0.81x) and B (0.61x).
+  - The evidence is effect size instead:
+      p.16 window width:   d_joint 16-22x;  d_ema50_sat5 4.4-6.3x;  b_box 8.7-32x;  a 0.6-1.1x
+      p.16 z / control z:  d_joint 2.1-2.6;  d_ema50_sat5 2.2-3.9;  b_box 1.3-1.4
+  - A window at least 3x wide at p.16 is now required.  It rejects (a) on every panel.
+F3: every pairwise check uses ex50 now (fixes_checks.txt).
+  - The hips check is fragile to one collapsing episode.  d_joint on C at p.16: hips-statue is 15.0% of the gap on the
+    plain window, 7.1% ex50, 4.3% ex100, and 2.3% by median.  Seed 5007's hips episode collapsed for about 100 steps.
+  - Under ex50, d_joint passes all p.16 checks on A, B, C and D.  The substantive claim (hips about equal to the statue)
+    holds.
+F4: at mean 0.22 the d_joint (quadratic) ordering is not established on A or B.
+  - Ex50: x0.5 > statue fails, and z is 3.8 / 2.4.  It passes on C (z 5.9) and D (z 6.6).
+  - The x0.5-statue gap at w = 0.012 is 18.3-22.8 (ex50) at p.16, which exceeds x0.5's deterministic base advantage of
+    +10.1..+11.2.  At p.22 it is 8.3 +- 5.7 (A), 9.5 +- 9.5 (B), 16.2 +- 5.1 (C) and 15.0 +- 4.6 (D), so not clearly.
+  - For d_ema50_sat5 the x0.5 margin is 13.9-17.4 at p.16 and 4.6-9.3 at p.22.
+F5: conservative margins.
+  - d_joint at 0.012, against the REPORT's +14..+18:
+    - deterministic full-statue gap 47.7 / 50.8 / 49.9 (A / B / C), which is 2.7-3.6x;
+    - ex50 p.16 62-74;
+    - ex100 47-62.
+  - The 86 quoted before is the plain window and includes pre-fall collapse.
+  - d_ema50_sat5:
+    - deterministic 62.9-66.1, which is 3.5-4.7x;
+    - ex50 p.16 35-41 (1.9-2.9x);
+    - ex50 p.22 14-23 (0.8-1.7x).
+F6: under uniform noise a CoP term can rank the edge above the statue on a 20-seed panel.
+  - b_box full-statue at u.16, unit weight: C -22.4 +- 10.6 (z -2.1); A +68 +- 33; B +57 +- 30; D +97 +- 21 (60 seeds).
+  - The sign is not stable.
+C1, C2 confirmed.  d_joint's core p.16 numbers reproduce on every panel, and (a)'s noisy saturation reproduces.
+
+New observation, outside the REPORT criterion (fixes_combined.txt):
+  - Under noise, the deterministic +14..+18 understates what a term must beat.  In the pre-fall (ex50) windows the base
+    reward per step already prefers the full edge hold over the statue, on all four panels, per episode-equivalent:
+      p.16: +19 to +28
+      p.22: +50 to +62
+  - Base plus term, statue minus full, ex50:
+      d_ema50_sat5 at 0.03:  +10.5 to +16.3 at p.16 (1.3-2.5 SE);  -30 to -45 at p.22
+      d_joint at 0.012:      +39 to +47 at p.16;  -16 to +14 at p.22
+  - On plain windows the statue leads by +51 to +255, but that lead comes from the edge holds' pre-fall collapse.
+  - These are open-loop holds; a closed-loop policy that survives would see something nearer the ex50 slice.
+
+Other candidates: their verdicts are unchanged.
+  - b_box passes p.16 on all panels.  It fails p.22 everywhere (ex50 z 1.3-3.2), and its A+B window over both levels is
+    1.9x wide.
+  - The rest fail as before (fixes_grid.txt).
+
+Runtime and digests, if the maintainer approves the bounded term:
+  - Runtime: six qpos reads (already indexed by _leg_home_qpos_indices), a 3-float EMA per env and one exp per step.
+    There is no contact decode, which costs +47% per step for the CoP terms.
+  - task_sha256:
+    - stance moves, through the new stance.toml keys (weight, bound, time constant).
+    - Every other T. rex anatomical stage also moves if the keys are constructor parameters.  The fingerprint hashes
+      constructor defaults overlaid with [env] (environments/shared/task_fingerprint.py:133-177); a carve-out at the
+      inert default would avoid this.
+  - No physics revision.
+  - No policy-interface revision, on three conditions:
+    - The term stays in the reward path.
+    - It adds no token to _cache_ids (hashed as sb3_sensor_cache, policy_layer.py:551).
+    - The EMA is re-initialised at the settle step inside the reward, not in reset().  T. rex's action mapping is
+      home-keyframe-residual/v1, so env.reset's source is hashed as home_reset (policy_layer.py:552-559).
+  - Scope: it prices the antisymmetric leg offset (the observed mode), not CoP.  A symmetric toe-ward lean is invisible
+    to it.
+
+Files.
+  - Corrected: table_corrected.txt (the table), pass_corrected.txt, fixes_grid.txt / fixes_checks.txt (rank checks,
+    windows, widths, all panels), fixes_atweight.txt, fixes_falls.txt, fixes_sweep.txt/.json, fixes_results.json,
+    table_v2.txt (panel A, all candidates incl. bounded).
+  - Scripts: fixes.py, fixes_sweep.py, make_corrected.py, make_pass_corrected.py, combined.py (fixes_combined.txt),
+    record_extra.py (+ episodes_extra/, episodes_extra.jsonl).
+  - Superseded: pass.txt / pass_rep.txt / summary_v1.txt (plain-window checks, no falls test).

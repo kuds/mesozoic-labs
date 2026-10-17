@@ -1,0 +1,40 @@
+T. rex r10 foot + arm L screen: fixed criteria (written 2026-10-16, before any r10 training step)
+
+What is trained
+  Arm L (mirror-symmetric PPO, kappa 0.3; lateral lean term w 0.25, tolerance 0.015 m; settled leg target)
+  on the T. rex stance, physics r10 (the confluent-sole foot of #623), from branch
+  claude/screen-trex-r10-arm-l, with the notebook, seeds 42, 52 and 60, n_envs 4, the stage's 12M budget.
+  Judged at 4,194,304 (4M), 5,242,880 (5M) and 6,291,456 (6M) steps, the checkpoints the r9 arm L runs were judged at.
+
+How it is judged
+  The symmetry screen's judge, pointed at the r10 code: the 40-episode panel (seeds 3042-3081) scored by
+  stance_quality/v2 at the r10 stance stage's own bars, and the action-noise test (20 spawns per seed,
+  3042-3061; joint-space noise at the frozen control sigma vectors, and the policy's own sigma).
+  On r10 the fore-aft rail is the whole-foot centre of pressure, max_foot_cop_fore_aft > 0.80; on r9 it was the pad's.
+
+Pass criteria (all four must hold)
+  K1 gate:        stance_quality/v2 PASS at 6M on at least 2 of the 3 seeds
+                  (clean >= 37/40 with LCB >= 0.80, full horizon >= 0.95, hop-or-fall <= 1).
+  K2 fore-aft:    on every seed, at most 3 of 40 full-horizon panel episodes over the fore-aft CoP rail,
+                  at each of 4M, 5M and 6M.
+  K3 robustness:  at 6M, joint-space noise falls <= 7 of 60 pooled, and own-sigma noise falls <= 3 of 60 pooled.
+  K4 roll:        at 6M, full-horizon roll-rail failures (max_sole_tilt_deg > 2.0 or max_sole_corner_lift_m > 0.004)
+                  <= 6 of 120 pooled and <= 3 of 40 on each seed.
+
+Where r9 arm L stood (same tests, symmetry screen verdict O9)
+  K1  pass  (clean 29 / 38 / 40 of 40; seeds 52 and 60 pass)
+  K2  FAIL  (CoP > 0.8 episodes at 4M / 5M / 6M: s42 9 / 8 / 11, s52 3 / 1 / 2, s60 8 / 39 / 0)
+  K3  FAIL  (joint-space noise falls 1 + 1 + 6 = 8 of 60; own-sigma 0 of 60)
+  K4  pass  (roll-rail failures 2 / 0 / 0)
+
+What follows (no decision table)
+  All four hold: r10 + arm L becomes the proposed stance setup (#623 and the arm L config go to the maintainer),
+  and the walking pilot starts from the best r10 arm L checkpoint.
+  Any fails: the report says which and by how much, and the walking pilot still starts, from the best stance
+  policy among the six 6M checkpoints (three r10, three r9): most clean panel episodes; tie -> fewer noise falls
+  (joint-space + own-sigma falls summed; clarified 2026-10-16 before any r10 checkpoint existed).
+  No more stance-only reward experiments unless walking points back to stance.
+
+Report only (never part of the verdict)
+  The r10 pad CoP (report-only on r10), whole-foot CoP means, symmetry asymmetry, the runs' 12M results and the
+  six-heading certificate if the notebook reaches it.

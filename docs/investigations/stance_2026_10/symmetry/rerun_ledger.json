@@ -1,0 +1,119 @@
+{
+ "seed_segments": {
+  "sym_lean_settled_s42": {
+   "fresh": {
+    "infrastructure": 1,
+    "implementation": 0,
+    "moves": [
+     {
+      "at": "20261015T044734",
+      "to": "scratchpad/foot/symmetry/screen/runs_invalid/20261015T044734/sym_lean_settled_s42/",
+      "cause": "infrastructure",
+      "reason": "cloud container reclaimed at ~02:35Z while the session was idle; trainer killed after the 131,072-step eval, no segment record"
+     }
+    ]
+   }
+  },
+  "sym_lean_settled_fa_s42": {
+   "fresh": {
+    "infrastructure": 1,
+    "implementation": 0,
+    "moves": [
+     {
+      "at": "20261015T044734",
+      "to": "scratchpad/foot/symmetry/screen/runs_invalid/20261015T044734/sym_lean_settled_fa_s42/",
+      "cause": "infrastructure",
+      "reason": "cloud container reclaimed at ~02:35Z while the session was idle; trainer killed after the 131,072-step eval, no segment record"
+     }
+    ]
+   }
+  },
+  "sym_lean_settled_s60": {
+   "resume": {
+    "infrastructure": 1,
+    "implementation": 0,
+    "moves": [
+     {
+      "at": "20261015T175853",
+      "to": "scratchpad/foot/symmetry/screen/runs_invalid/20261015T175853/sym_lean_settled_s60/resume6m",
+      "cause": "infrastructure",
+      "reason": "cloud container restarted at ~17:57Z (uptime reset) while the monitoring workflow was active; resume trainer killed about 19 min into W6, before the 4M checkpoint, no segment record"
+     }
+    ]
+   }
+  },
+  "sym_lean_settled_fa_s60": {
+   "resume": {
+    "infrastructure": 1,
+    "implementation": 0,
+    "moves": [
+     {
+      "at": "20261015T175853",
+      "to": "scratchpad/foot/symmetry/screen/runs_invalid/20261015T175853/sym_lean_settled_fa_s60/resume6m",
+      "cause": "infrastructure",
+      "reason": "cloud container restarted at ~17:57Z (uptime reset) while the monitoring workflow was active; resume trainer killed about 19 min into W6, before the 4M checkpoint, no segment record"
+     }
+    ]
+   }
+  }
+ },
+ "seed_arm": {
+  "sym_lean_settled_s42": "sym_lean_settled",
+  "sym_lean_settled_fa_s42": "sym_lean_settled_fa",
+  "sym_lean_settled_s60": "sym_lean_settled",
+  "sym_lean_settled_fa_s60": "sym_lean_settled_fa"
+ },
+ "arms": {},
+ "log": [
+  {
+   "at": "20261015T044734",
+   "key": "L42",
+   "segment": "fresh",
+   "cause": "infrastructure",
+   "event": null,
+   "reason": "cloud container reclaimed at ~02:35Z while the session was idle; trainer killed after the 131,072-step eval, no segment record",
+   "steps": [
+    "move scratchpad/foot/symmetry/screen/runs/sym_lean_settled_s42 -> scratchpad/foot/symmetry/screen/runs_invalid/20261015T044734/sym_lean_settled_s42/",
+    "ledger: sym_lean_settled_s42/fresh infrastructure 1 (one re-run allowed)"
+   ]
+  },
+  {
+   "at": "20261015T044734",
+   "key": "C42",
+   "segment": "fresh",
+   "cause": "infrastructure",
+   "event": null,
+   "reason": "cloud container reclaimed at ~02:35Z while the session was idle; trainer killed after the 131,072-step eval, no segment record",
+   "steps": [
+    "move scratchpad/foot/symmetry/screen/runs/sym_lean_settled_fa_s42 -> scratchpad/foot/symmetry/screen/runs_invalid/20261015T044734/sym_lean_settled_fa_s42/",
+    "ledger: sym_lean_settled_fa_s42/fresh infrastructure 1 (one re-run allowed)"
+   ]
+  },
+  {
+   "at": "20261015T175853",
+   "key": "L60",
+   "segment": "resume",
+   "cause": "infrastructure",
+   "event": null,
+   "reason": "cloud container restarted at ~17:57Z (uptime reset) while the monitoring workflow was active; resume trainer killed about 19 min into W6, before the 4M checkpoint, no segment record",
+   "steps": [
+    "move scratchpad/foot/symmetry/screen/runs/sym_lean_settled_s60/resume6m -> scratchpad/foot/symmetry/screen/runs_invalid/20261015T175853/sym_lean_settled_s60/resume6m",
+    "ledger: sym_lean_settled_s60/resume infrastructure 1 (one re-run allowed)",
+    "validity.json: infrastructure_failures.resume = 1; segments.resume -> segments_invalid"
+   ]
+  },
+  {
+   "at": "20261015T175853",
+   "key": "C60",
+   "segment": "resume",
+   "cause": "infrastructure",
+   "event": null,
+   "reason": "cloud container restarted at ~17:57Z (uptime reset) while the monitoring workflow was active; resume trainer killed about 19 min into W6, before the 4M checkpoint, no segment record",
+   "steps": [
+    "move scratchpad/foot/symmetry/screen/runs/sym_lean_settled_fa_s60/resume6m -> scratchpad/foot/symmetry/screen/runs_invalid/20261015T175853/sym_lean_settled_fa_s60/resume6m",
+    "ledger: sym_lean_settled_fa_s60/resume infrastructure 1 (one re-run allowed)",
+    "validity.json: infrastructure_failures.resume = 1; segments.resume -> segments_invalid"
+   ]
+  }
+ ]
+}

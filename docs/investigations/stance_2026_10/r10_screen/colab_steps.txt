@@ -1,0 +1,66 @@
+T. rex r10 foot + arm L screen: how to run it on Colab
+=====================================================
+
+Three runs, one per seed: 42, 52 and 60. Each gets its own Colab runtime. Run them at the same time if
+your plan allows; otherwise run them one after another.
+
+Branch: claude/screen-trex-r10-arm-l (commit 026eb833). It holds the r10 foot (#623), arm L switched on
+(#624's options: mirror-symmetric PPO, the lean term and the settled leg target), and the r9 screen's
+evaluation and checkpoint cadence. The pass/fail criteria were fixed before any training:
+foot/r10screen/criteria.txt.
+
+FOR EACH SEED
+
+1. Open the notebook:
+   https://colab.research.google.com/github/kuds/mesozoic-labs/blob/main/notebooks/sb3_training.ipynb
+   (main's notebook is identical to the branch's; REPO_REF below picks the branch's code.)
+
+2. File > Save a copy in Drive, named for the seed (e.g. "r10 arm L s42"), and work in that copy.
+   Each copy gets its own runtime.
+
+3. Runtime > Change runtime type: CPU is enough.
+
+4. First code cell (section 1):
+     REPO_REF = "claude/screen-trex-r10-arm-l"
+
+5. Configuration cell (section 2, "# ===== SPECIES SELECTION ====="):
+     SPECIES          = "tyrannosaurus_rex"
+     EMBODIMENT       = "anatomical"
+     ALGORITHM        = "ppo"
+     N_ENVS           = 4
+     SEED             = 42                       (52 / 60)
+     QUICK_TEST       = False
+     USE_GOOGLE_DRIVE = True
+     AUTO_DISCONNECT  = True
+     BEHAVIOR         = "stance"                 (type it; "stand" would also train recovery)
+     TRUNK_FROM       = ""                       (empty, not "auto")
+     RETRAIN_FROM     = ""
+     RUN_LABEL        = "screen r10 arm L s42"   ("... s52" / "... s60")
+     RUN_ID           = "r10_armL_s42"           ("r10_armL_s52" / "r10_armL_s60")
+   Leave everything else as it is.
+
+6. Runtime > Run all, and allow Google Drive access when asked.
+
+7. Check the output for:
+   - "Repository ref: claude/screen-trex-r10-arm-l; commit: 026eb833..."
+   - "Behavior 'stance' -> deliverable 'stance'; chain: stance"
+   - the zero-action baseline row reading about 3982 (about 3757 would mean arm L is NOT on: stop and
+     tell me)
+   - "Timesteps: 12,000,000", then an "Eval num_timesteps=..." line every 131,072 steps.
+
+8. Leave it running. Estimated: about 5-8 hours to step 6,291,456 (the last checkpoint the screen
+   judges), about 10-16 hours to the full 12M. Letting it finish 12M is useful (it gives a final
+   stance policy and the six-heading verdict), but the screen only needs 6,291,456. At the end it may
+   PASS or FAIL its gate; either is fine. Ignore the "never beaten the zero-action baseline" warning
+   (arm L's statue scores higher, so it is expected). Tell me if you see "collapse" or an early stop
+   before 6,291,456.
+
+IF COLAB DISCONNECTS BEFORE THE 6,291,456 CHECKPOINT
+9. Open the same copy, fresh runtime, same settings as step 5 (same RUN_ID), and in section 5
+   ("Resume an Interrupted Node") set RESUME_STAGE = "stance". Run all. It continues from the newest
+   1,048,576-step checkpoint, so up to about an hour is redone.
+
+WHEN THEY'RE RUNNING
+10. Nothing to send. I read the checkpoints from your Drive myself
+    (MyDrive/mesozoic-labs/logs/tyrannosaurus_rex/anatomical/ppo/r10_armL_s{42,52,60}/01_stance/).
+    Just tell me they've started, and again when they've passed 6.3M steps (or have finished).

@@ -23,6 +23,9 @@ amendment).*
 interface lands with a revised stance task and the compsognathus stance on `stance_quality/v2`, which gains two
 optional window hop criteria for it and strands the genuine compsognathus walker GQ-11 would re-panel (§16, the dated
 amendment).*
+*Updated 2026-10-17: the maintainer took D-D36: one short T. rex walking pilot from an uncertified stance checkpoint,
+on a branch that is never merged, as a deliberate exception to GQ-3 (a) and GQ-17's retrain order; both stay open, and
+nothing the pilot trains is certified (§17, the dated amendment).*
 
 ## How to use this document
 
@@ -849,3 +852,49 @@ and so is its `gait-r1` (GQ-14).
   window pair admits rocks its pad from edge to edge (0.826–0.848); this bar alone refuses each. 0.70, not the T. rex's
   0.80, because this statue stands at 0.15; the partial edge stance stays open at (0.70 − s)/(1 − s) of the window, 65%
   at the statue's 0.15 (KNOWN_ISSUES). The calibration is the D-D28 paragraph of the stance-hack audit's §11.
+
+## 17. Amendment (2026-10-17): one T. rex walking pilot before the plan's preconditions
+
+*Appended 2026-10-17; §1–§16 above are unchanged.* The maintainer chose on 2026-10-17, after the T. rex physics-r10
+stance screen of arm L (the T. rex stance trained with #624's three switches on: mirror-symmetric PPO, the lateral lean
+term and the settled leg target, all off by default on `main`) was judged, to run one short T. rex walking pilot now:
+decision D-D36 ([BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2, which holds the full text with the screen's
+numbers, and the consolidation plan's table). It is a deliberate, one-off exception: it answers none of GQ-1..GQ-18,
+and nothing below changes what the plan recommends for any other session. The screens' evidence (the symmetry and
+r10 screens' criteria, scores and verdicts, the toe-lean diagnosis) and the pilot's criteria and scoring tools are in
+[investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md)
+and its evidence folder [investigations/stance_2026_10/](investigations/stance_2026_10/README.md).
+
+**What it departs from.**
+
+- **GQ-3 (a).** The pilot is a walker session on today's rewards, which GQ-3's recommended option (a) rules out ("no
+  walker session on today's rewards"): the production T. rex locomotion stage (stock PPO, its walk reward,
+  hyperparameters and `reward_and_length/v1` gate; the learning rate follows production's first 4,194,304 steps),
+  4,194,304 steps (production 8,000,000) on seeds 42, 52 and 60, with an evaluation every 131,072 steps (production
+  50,000), so the collapse backstop cannot stop a run before 3,801,088 steps. GQ-3 stays open, with the same
+  recommendation.
+- **GQ-17 and §12's note on it.** GQ-17's order puts the robot first, and §12 says the trex needs a stance retrain
+  (two seeds at today's `certification_seeds`) before any trex walk. The pilot runs before the robot's retrain and
+  from an uncertified stance checkpoint: its parent, r9 arm L seed 60 at 6,291,456 steps on `main`'s physics-r9 plant
+  (sha256 `70f3a4447794a01036c27bca5e0377a17db96d0e3d7bfb2d179e9ce94e6f353e`), is 40/40 clean on the
+  `stance_quality/v2` panel at one heading and has no gate verdict (the trex stance's gate is D-D32's six-heading
+  `stance_quality_heading/v1`); it is the seed behind 6 of r9 arm L's 8 pooled joint-space noise falls. Using it
+  departs from the r10 screen's pre-registered parent rule, which named r10 arm L seed 42 at 6M, a checkpoint on the
+  unmerged r10 foot of draft #623, now parked (`main` keeps physics r9). The trex `gait-r1` walk (§5.4, §14) still
+  waits for a certified stance, and the order of the retrains stays the maintainer's.
+
+**What it takes from this plan.** §5.5's contact bar for a T. rex locomotion pilot (alternation ≥ 0.6, at least one lead
+swap per stride, flight ≤ 0.2) is part of the pilot's WALK label, which was fixed before any pilot training step and
+adds a hip-pitch joint-lag band of [0.35, 0.65], a 5 Hz cap on the measured stride frequency and a 0.80 cap on each
+foot's floor duty: in probe-computed cases a two-footed hop whose feet land 30 ms or more apart passes the §5.5 bar and
+reads `walk` in the probe's own `floor_gait_class`. The measurement is the frozen audit probe
+(`docs/investigations/gait_2026_09/gait_probe.py`; §3.1's library has no locomotion part on `main`), on 40 deterministic
+episodes per seed; a seed WALKS with at least 30 WALK and at most 4 FALL episodes at 4,194,304 steps and counts only
+when the maintainer's review of its videos agrees, and the pilot's outcome is the one 2 of the 3 seeds share. Some
+short-lift chatter at about 16 Hz or faster, and some hops the probe measures at 5 Hz or below, can still read WALK; the
+video review is the check. Unlike §5.5's pilots, it trains today's reward, not a `gait-r1` revision, so it can say
+whether that reward, from this stance, starts an alternating gait or the two-footed hop of §1.1's trex walkers; it can
+say nothing about §5's `gait-r1` reward changes. It runs from the branch `claude/pilot-walk-r9` (`eaeef50f`), which is
+never merged; nothing it trains is certified, published or reused, and `main` and its digests are unchanged (on the
+branch the locomotion stage's task and gate digests are `main`'s, and only its PPO hyperparameter and stage-config-view
+digests differ). A later PR records its outcome.
