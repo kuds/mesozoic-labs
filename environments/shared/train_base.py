@@ -39,6 +39,7 @@ from __future__ import annotations
 
 import dataclasses
 import logging
+import math
 import time
 from datetime import datetime
 from pathlib import Path
@@ -52,7 +53,7 @@ from .constants import (
     PUBLICATION_SEED_START,
 )
 from .curriculum.checkpoints import select_handoff_checkpoint as _select_handoff_checkpoint  # re-exported (docstring)
-from .curriculum.gate_schema import FLOOR_TRUTH_STANCE_GATE_KINDS
+from .curriculum.gate_schema import FLOOR_TRUTH_STANCE_GATE_KINDS, WARM_START_LOG_STD_KEY, declared_warm_start_log_std
 from .curriculum.schedules import CosineSchedule, LinearSchedule
 from .curriculum.stance_gate_v2 import STANCE_GATE_V2_KIND
 from .curriculum.stance_heading_gate import STANCE_HEADING_GATE_KIND
@@ -215,6 +216,118 @@ def _stage_cadence(stage_config: dict[str, Any], eval_freq: int, save_freq: int)
     if "checkpoint_freq" in curriculum:
         save_freq = _positive_cadence(curriculum, "checkpoint_freq")
     return eval_freq, save_freq
+
+
+def _warm_start_log_std(
+    stage_config: dict[str, Any],
+    *,
+    stage: "int | str",
+    algorithm: str,
+    task_load_mode: str,
+    parent_id: str | None,
+    load_path: str | None,
+) -> float | None:
+    """The ``log_std`` this load writes into the policy, or ``None`` when it writes none (walking pilot 2).
+
+    ``[curriculum] warm_start_log_std`` applies exactly when stage-entry
+    shaping does (:func:`_stage_entry_shaping_callbacks`): the node has an
+    edge (``parent_id``, the manifest's ``warm_start_from``) and a checkpoint
+    is loaded across it under ``initialize_next_stage``.  A same-stage resume
+    continues the noise its checkpoint learned, a fresh start keeps the
+    policy's ``log_std_init``, and a root has no edge: ``None`` for each, as
+    for a stage that declares no key.  The value is validated on every call
+    (:func:`~environments.shared.curriculum.gate_schema.declared_warm_start_log_std`),
+    so a malformed key fails a fresh start too.  Where it applies it needs a
+    PPO policy: SAC's noise is state-dependent, with no ``log_std`` parameter
+    to set.
+    """
+    value = declared_warm_start_log_std(stage_config.get("curriculum_kwargs", {}), stage=stage)
+    if value is None or task_load_mode != "initialize_next_stage" or parent_id is None or not load_path:
+        return None
+    if algorithm != "ppo":
+        raise ValueError(
+            f"stage {stage}: [curriculum] {WARM_START_LOG_STD_KEY} sets a PPO policy's log_std at a warm start; "
+            f"{algorithm.upper()} has no state-independent log_std to set"
+        )
+    return value
+
+
+def _warm_start_record(
+    stage_dir: Path,
+    value: float | None,
+    *,
+    task_load_mode: str,
+    load_path: str | None,
+) -> dict[str, Any]:
+    """The ``run``-block record of a warm start's ``log_std`` (walking pilot 2): ``{"warm_start_log_std": value}``.
+
+    Recorded when this load sets it (*value*, from :func:`_warm_start_log_std`).  A same-stage resume sets
+    nothing, but the stage it continues entered with the value its ``stage_config.json`` records, and the
+    re-save keeps it, as :func:`~environments.shared.config.save_stage_config` keeps that stage's edge.
+    Otherwise empty, so a stage without the key records nothing new.  The value the config declares is
+    recorded in ``curriculum`` either way, and ``run.hyperparameters_sha256`` covers it
+    (``config.SHAPING_KEY_PREFIXES``).
+    """
+    if value is not None:
+        return {WARM_START_LOG_STD_KEY: value}
+    if load_path and task_load_mode == "resume_same_stage":
+        from .config import read_recorded_stage_config
+
+        record = read_recorded_stage_config(stage_dir)
+        run_block = record.get("run") if record is not None else None
+        if (
+            isinstance(run_block, dict)
+            and run_block.get("load_mode") == "initialize_next_stage"
+            and WARM_START_LOG_STD_KEY in run_block
+        ):
+            return {WARM_START_LOG_STD_KEY: run_block[WARM_START_LOG_STD_KEY]}
+    return {}
+
+
+def _apply_warm_start_log_std(model: Any, value: float) -> None:
+    """Write *value* into every entry of the policy's ``log_std``, after the parent's parameters are loaded.
+
+    In place (``fill_`` under ``no_grad``), so the ``Parameter`` the
+    optimizer holds is the one changed, and its Adam moments are KEPT, as
+    every other parameter's are across the warm start.  They are running
+    estimates of the gradient's mean and square, and the PPO loss's gradient
+    with respect to ``log_std`` does not scale with the std (normalised
+    advantages times ``(a - mu)^2 / sigma^2 - 1`` with ``a`` drawn at sigma,
+    plus the constant entropy coefficient), so the parent's second moment
+    stays a valid step normaliser and its first moment decays by beta1 = 0.9
+    per minibatch.  Clearing them would change the optimizer as well as the
+    value: zeroed moments under the parent's step count lose Adam's bias
+    correction (the next few hundred steps several times larger), and a
+    dropped state restarts this one tensor's bias correction alone.
+
+    Refused for a policy without a state-independent, per-actuator
+    ``log_std`` (gSDE, or no Gaussian head).  Logged at WARNING so the line
+    shows wherever the trainer runs: the notebook configures no logging, and
+    Python's last-resort handler prints warnings only.
+    """
+    import torch as th
+
+    policy = model.policy
+    log_std = getattr(policy, "log_std", None)
+    if not isinstance(log_std, th.nn.Parameter) or log_std.dim() != 1 or getattr(policy, "use_sde", False):
+        raise ValueError(
+            f"[curriculum] {WARM_START_LOG_STD_KEY} needs a Gaussian policy with one state-independent log_std "
+            f"per actuator; {type(policy).__name__} has none"
+            + (" (gSDE)" if getattr(policy, "use_sde", False) is True else "")
+        )
+    parent_std = log_std.detach().double().exp().cpu()
+    with th.no_grad():
+        log_std.fill_(value)
+    logger.warning(
+        "Warm start: policy log_std set to %g (std %.3f) on all %d actuators (the parent's std: mean %.3f, "
+        "min %.3f, max %.3f; Adam moments kept)",
+        value,
+        math.exp(value),
+        log_std.numel(),
+        float(parent_std.mean()),
+        float(parent_std.min()),
+        float(parent_std.max()),
+    )
 
 
 def make_env(
@@ -1283,6 +1396,19 @@ def _train_stage_body(
         task_load_mode=task_load_mode,
         symmetry=symmetry,
     )
+    # Walking pilot 2: [curriculum] warm_start_log_std, written over the
+    # parent's loaded log_std before anything learns; only on a load across
+    # the node's edge, as the stage-entry shaping below.
+    warm_start_log_std = _warm_start_log_std(
+        config,
+        stage=stage,
+        algorithm=algorithm,
+        task_load_mode=task_load_mode,
+        parent_id=parent_id,
+        load_path=load_path,
+    )
+    if warm_start_log_std is not None:
+        _apply_warm_start_log_std(model, warm_start_log_std)
 
     if announce:
         logger.info("Model architecture:")
@@ -1635,6 +1761,16 @@ def train(
         handoff = _select_handoff_checkpoint(loaded.parent) if loaded.parent.name == "models" else None
         if handoff is not None and loaded.name.removesuffix(".zip") == handoff[0]:
             _warn_on_heading_probe_handoff(loaded.parent.parent, stage=entry.id)
+    # Walking pilot 2: a malformed warm_start_log_std, or one a SAC warm start
+    # cannot apply, is refused before the stage directory exists.
+    warm_start_log_std = _warm_start_log_std(
+        config,
+        stage=stage,
+        algorithm=algorithm,
+        task_load_mode=task_load_mode,
+        parent_id=entry.warm_start_from,
+        load_path=load_path,
+    )
 
     sb3 = _ensure_sb3()
 
@@ -1671,13 +1807,17 @@ def train(
     # D-A15: a same-stage resume continues a recorded stage, so its duration
     # accumulates on the record's, read before the re-save below rewrites it.
     prior_duration = read_stage_duration(log_path) if (load_path and task_load_mode == "resume_same_stage") else None
+    # Read before the re-save below rewrites the record a resume keeps it from.
+    warm_start_record = _warm_start_record(
+        log_path, warm_start_log_std, task_load_mode=task_load_mode, load_path=load_path
+    )
 
     save_stage_config(
         log_path,
         stage,
         config,
         algorithm.upper(),
-        extra={"seed": seed, "n_envs": n_envs, "timesteps": total_timesteps},
+        extra={"seed": seed, "n_envs": n_envs, "timesteps": total_timesteps, **warm_start_record},
         env_class=species_cfg.env_class,
         model_id=model_id,
         plant_identity=plant_identity,
@@ -2810,12 +2950,26 @@ def train_curriculum(
         model_dir = stage_dir / "models"
         model_dir.mkdir(exist_ok=True)
 
+        # Walking pilot 2: the node's warm_start_log_std, when its entry sets one (the body applies it).
+        warm_start_log_std = _warm_start_log_std(
+            config,
+            stage=stage,
+            algorithm=algorithm,
+            task_load_mode="initialize_next_stage",
+            parent_id=entry.warm_start_from,
+            load_path=load_path,
+        )
         save_stage_config(
             stage_dir,
             stage,
             config,
             algorithm.upper(),
-            extra={"seed": seed, "n_envs": n_envs, "timesteps": total_timesteps},
+            extra={
+                "seed": seed,
+                "n_envs": n_envs,
+                "timesteps": total_timesteps,
+                **({WARM_START_LOG_STD_KEY: warm_start_log_std} if warm_start_log_std is not None else {}),
+            },
             env_class=species_cfg.env_class,
             model_id=model_id,
             plant_identity=plant_identity,

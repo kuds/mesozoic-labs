@@ -986,6 +986,8 @@ class TestTrainCurriculumWalksTheManifest:
             "managers": [],
             "seeds": [],
             "durations": [],
+            "warm_starts": [],
+            "run_extras": [],
         }
         model = MagicMock()
         model.num_timesteps = 10
@@ -1036,6 +1038,7 @@ class TestTrainCurriculumWalksTheManifest:
             record["saved"].append((stage, kwargs.get("load_path"), kwargs.get("load_mode")))
             record["parent_run_ids"].append((stage, kwargs.get("parent_run_id")))
             record["labels"].append((stage, kwargs.get("label")))
+            record["run_extras"].append((stage, kwargs.get("extra")))
 
         def record_duration(stage_dir, duration_seconds):
             # The real writer refuses a directory without stage_config.json, which the stub above
@@ -1069,6 +1072,14 @@ class TestTrainCurriculumWalksTheManifest:
         )
         monkeypatch.setattr(train_base, "_maybe_ent_coef_decay_callback", lambda *args, **kwargs: None)
         monkeypatch.setattr(train_base, "_stage_entry_shaping_callbacks", shaping)
+        # Walking pilot 2 (pilot-only): the T. rex locomotion stage declares warm_start_log_std, which the
+        # stubbed MagicMock model cannot take; record the warm start instead (test_curriculum_warm_start_log_std.py
+        # applies it to a real policy).
+        monkeypatch.setattr(
+            train_base,
+            "_apply_warm_start_log_std",
+            lambda model, value: record["warm_starts"].append(value),
+        )
         monkeypatch.setattr(
             train_base,
             "_save_final_and_sync_tb",
@@ -1530,6 +1541,14 @@ class TestTrainCurriculumWalksTheManifest:
         # §4.2), never on its position: stance is a root, locomotion (legacy
         # 2, position 3) enters from stance and behavior from locomotion.
         assert record["parents"] == [None, "stance", "locomotion"]
+        # Walking pilot 2 (pilot-only): only locomotion declares warm_start_log_std; its warm start from stance
+        # sets it once and its stage config's run block records it.
+        assert record["warm_starts"] == [-1.5]
+        assert [(stage, extra.get("warm_start_log_std")) for stage, extra in record["run_extras"]] == [
+            (1, None),
+            (2, -1.5),
+            (3, None),
+        ]
 
     def test_the_handoff_skips_over_the_non_advancing_stage(self, tmp_path, monkeypatch, caplog):
         record = self._run(TYRANNOSAURUS_REX, tmp_path, monkeypatch, caplog)

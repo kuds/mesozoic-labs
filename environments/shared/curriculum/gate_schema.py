@@ -318,6 +318,19 @@ _RETENTION_KEYS = frozenset({"max_checkpoints"})
 #: recipe or task digest.
 _CADENCE_KEYS = frozenset({"eval_freq", "eval_episodes", "checkpoint_freq"})
 
+#: The stage-entry key that sets the policy's exploration noise when the
+#: stage is warm-started (walking pilot 2; pilot-only):
+#: ``warm_start_log_std``, the value written into every entry of a PPO
+#: policy's state-independent ``log_std`` after the parent's parameters are
+#: loaded (``train_base._warm_start_log_std``).  Like the warm-up and ramp
+#: keys it acts only on a load that crosses the node's edge
+#: (``initialize_next_stage``), never on a same-stage resume, a fresh start
+#: or a root; and like them it enters the recipe digest
+#: (``config.SHAPING_KEY_PREFIXES`` has ``warm_start_``), not the gate or
+#: task digest.  :func:`declared_warm_start_log_std` is its one reader.
+WARM_START_LOG_STD_KEY = "warm_start_log_std"
+_WARM_START_KEYS = frozenset({WARM_START_LOG_STD_KEY})
+
 #: Keys that record measurement provenance rather than configure anything.
 #: ``statue_constants_physics_revision`` pins the plant revision the stage's
 #: statue-derived constants (``min_avg_reward``,
@@ -508,6 +521,27 @@ def declared_certification_seeds(curriculum: Mapping[str, Any], *, stage: int | 
     return value
 
 
+def declared_warm_start_log_std(curriculum: Mapping[str, Any], *, stage: int | str = "?") -> float | None:
+    """The ``warm_start_log_std`` a ``[curriculum]`` block declares, as a float; ``None`` when it declares none.
+
+    The one reader the schema check and the trainer share, so the type rule
+    cannot drift between them.  A present value must be a finite real number
+    (a bool is not one): the natural log of the standard deviation every
+    actuator's exploration noise is set to, e.g. -1.5 for 0.223 (the T. rex
+    stance's own ``log_std_init``).  Anything else is a
+    :class:`GateSchemaError`, whether or not the run warm-starts.
+    """
+    if WARM_START_LOG_STD_KEY not in curriculum:
+        return None
+    value = curriculum[WARM_START_LOG_STD_KEY]
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+        raise GateSchemaError(
+            f"{_describe(stage)}: {WARM_START_LOG_STD_KEY} must be a finite number (the log of the policy's "
+            f"exploration std set at a warm start, e.g. -1.5 for std 0.223), not {value!r}"
+        )
+    return float(value)
+
+
 def validate_gate_config(
     stage: int | str,
     curriculum_kwargs: Mapping[str, Any],
@@ -538,6 +572,7 @@ def validate_gate_config(
             below its floor (``stance_gate_v2.WINDOW_HOP_KEY_FLOORS``),
             declares the report-only heading probe
             (``stance_probe_spawn_yaw_deg``) beside the heading certificate,
+            declares a ``warm_start_log_std`` that is not a finite number,
             or omits the gate declaration entirely while advancement is
             enabled.
     """
@@ -547,6 +582,7 @@ def validate_gate_config(
         | _COLLAPSE_KEYS
         | _RETENTION_KEYS
         | _CADENCE_KEYS
+        | _WARM_START_KEYS
         | _DIAGNOSTIC_KEYS
         | _PROVENANCE_KEYS
         | _PUBLICATION_KEYS
@@ -565,6 +601,8 @@ def validate_gate_config(
     # A publication key is validated for every kind, before the gate: it is
     # never a threshold, so it can be neither misplaced nor missing.
     declared_certification_seeds(curriculum_kwargs, stage=stage)
+    # Likewise the warm-start key: never a threshold, validated for every kind.
+    declared_warm_start_log_std(curriculum_kwargs, stage=stage)
 
     declared_kind = curriculum_kwargs.get("gate_kind")
     declared_version = curriculum_kwargs.get("gate_schema_version")

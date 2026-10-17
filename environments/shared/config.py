@@ -630,9 +630,12 @@ WIDEN_LINEAGE_KEYS = (
 _ALGORITHM_KWARGS_KEYS = {"PPO": "ppo_kwargs", "SAC": "sac_kwargs", "JAX_PPO": "jax_kwargs"}
 
 #: Prefixes of the ``curriculum_kwargs`` keys that shape a stage's ENTRY
-#: (the warm-up and ramp callbacks): they change what a node is trained
-#: under without touching the task fingerprint, so the digest covers them.
-SHAPING_KEY_PREFIXES = ("warmup_", "ramp_")
+#: (the warm-up and ramp callbacks, and the warm start's ``log_std`` reset,
+#: ``warm_start_log_std``; walking pilot 2, pilot-only): they change what a
+#: node is trained under without touching the task fingerprint, so the digest
+#: covers them.  No committed config declared a ``warm_start_`` key before
+#: that prefix was added, so no digest recorded earlier moves.
+SHAPING_KEY_PREFIXES = ("warmup_", "ramp_", "warm_start_")
 
 
 def _algorithm_kwargs_key(algorithm: str) -> str:

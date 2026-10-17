@@ -170,3 +170,16 @@ warmup_clip_range = 0.02                # Small clip range during warm-up to lim
 warmup_ent_coef = 0.02                  # Higher entropy during warm-up to maintain exploration
 ramp_timesteps = 2000000                # Increased from 500k: much slower ramp prevents reward-chasing collapse. 500k was only 6% of 8M budget; 2M is 25%, matching raptor stage 2 proportion.
 ramp_start_value = 0.2                  # Increased from 0.1: start with detectable forward signal (matches raptor stage 2)
+warm_start_log_std = -1.5               # WALKING PILOT 2 (never merged; production and pilot 1 have no such key and
+                                        # keep the parent's log_std as loaded). At the warm start from the stance
+                                        # parent (initialize_next_stage only; nothing on a RESUME of this stage, a
+                                        # fresh start or a root) every actuator's log_std is set to -1.5, std
+                                        # exp(-1.5) = 0.2231: the T. rex stance stage's own starting noise
+                                        # (log_std_init = -1.5 in stance.toml's [ppo.policy_kwargs], D-D27; "0.22";
+                                        # log(0.22) = -1.514, and -1.5 is used exactly). Pilot 1 read STILL on all
+                                        # three seeds with the parent's std, mean 0.095 (min 0.018, max 0.164), still
+                                        # only 0.108-0.111 at 4,194,304. Applied after the parent's parameters load
+                                        # and before learning, with the parent's Adam moments kept
+                                        # (train_base._apply_warm_start_log_std); recorded as run.warm_start_log_std
+                                        # in stage_config.json, and the recipe digest (hyperparameters_sha256)
+                                        # covers it (config.SHAPING_KEY_PREFIXES has warm_start_).
