@@ -129,6 +129,9 @@ class DiagnosticsCallback(_BaseCallback):
         "reward_floor_impact",
         "reward_airborne_substeps",
         "reward_action_saturation",
+        # The second difference of the command (every stance stage pays it: action_jerk_weight), emitted by
+        # the env since the T. rex stance shaping and recorded nowhere until it joined this list.
+        "reward_action_jerk",
         "reward_support_geom_coverage",  # Compsognathus stance shaping
         "reward_home_pose",  # Compsognathus
         "reward_target",  # Compsognathus target reaching

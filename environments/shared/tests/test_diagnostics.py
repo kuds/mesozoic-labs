@@ -558,3 +558,27 @@ class TestActionJerkIsNotDiscarded:
 
         source = (Path(__file__).resolve().parents[3] / "environments/tyrannosaurus_rex/base_env.py").read_text()
         assert 'info["action_jerk"]' in source
+
+
+class TestTheActionJerkRewardKey:
+    """``reward_action_jerk``: the env emits it on every stance stage; it is recorded like every reward term."""
+
+    def test_it_is_recorded_from_the_infos_into_the_npz(self, callback, tmp_path):
+        assert DiagnosticsCallback.REWARD_KEYS.index("reward_action_jerk") == (
+            DiagnosticsCallback.REWARD_KEYS.index("reward_action_saturation") + 1
+        )
+        callback.locals = {"infos": [{"reward_action_jerk": -0.25, "forward_vel": 0.0}]}
+        callback._on_step()
+        callback.locals = {"infos": [{"reward_action_jerk": -0.75, "forward_vel": 0.0}]}
+        callback._on_step()
+        assert callback._step_infos["reward_action_jerk"] == [-0.25, -0.75]
+        callback._on_rollout_end()
+        assert ("diagnostics/reward_action_jerk", -0.5) in [call.args for call in callback.logger.record.call_args_list]
+        data = np.load(str(tmp_path / "diagnostics.npz"))
+        assert data["reward_action_jerk"].tolist() == [-0.5]
+
+    def test_the_reward_decomposition_reads_its_weight(self):
+        """Scoped to this key: five older REWARD_KEYS entries have no weight entry, which is not this change's."""
+        from environments.shared.visualization import _REWARD_KEY_TO_CONFIG_WEIGHTS
+
+        assert _REWARD_KEY_TO_CONFIG_WEIGHTS["reward_action_jerk"] == ("action_jerk_weight",)
