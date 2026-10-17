@@ -95,9 +95,10 @@ timesteps = 4194304                     # WALKING PILOT (never merged): producti
                                         # 2,097,152 / 3,145,728 / 4,194,304 (pilot criteria.txt). Production note: Increase
                                         # from 5M: your best T-Rex stage2 was only at 2M steps and still improving
 eval_freq = 131072                      # WALKING PILOT: an evaluation every 131,072 steps of 10 episodes (the arm L
-eval_episodes = 10                      # screen's cadence; production 50,000 and 30). Evaluation never changes the
-checkpoint_freq = 524288                # training trajectory. A periodic checkpoint every 524,288 steps, all kept
-max_checkpoints = 0                     # (production 100,000, newest 5), so 2M, 3M and 4M exist for the gait probe.
+eval_episodes = 10                      # screen's cadence; production 50,000 and 30). Evaluations reach training only
+checkpoint_freq = 524288                # through the collapse backstop, which counts evaluations (note at
+max_checkpoints = 0                     # collapse_patience). A periodic checkpoint every 524,288 steps, all kept
+                                        # (production 100,000, newest 5), so 2M, 3M and 4M exist for the gait probe.
 min_avg_reward = 100.0
 # Collapse backstop: the relative floor pair stance and recovery use
 # (PLANT_VALIDATION §14 item 3), replacing the absolute
@@ -158,6 +159,11 @@ min_avg_forward_vel = 1.0               # A firm walk, re-derived from this plan
 required_consecutive = 3
 collapse_min_evals = 20                 # Backstop early-stop (EvalCollapseEarlyStopCallback): wait ~1M steps before it can fire.
 collapse_patience = 10                  # Require 10 consecutive raw per-eval mean drops so a transient dip won't abort the stage.
+                                        # WALKING PILOT: min_evals and patience count EVALUATIONS, so at the pilot's
+                                        # 131,072-step cadence they span 2,621,440 and 1,310,720 steps (production's
+                                        # 50,000: 1,000,000 and 500,000), and the earliest stop is the 29th
+                                        # evaluation, step 3,801,088 (production: 1,450,000), on noisier 10-episode
+                                        # means. A stopped run ends with stage2_final.zip short of the budget.
 collapse_drop_fraction = 0.5            # Only raw means >50% below the robust rolling-median peak count, so the normal early-locomotion dip survives.
 warmup_timesteps = 300000               # Increased from 100k: give critic more time to adapt to new reward landscape (matches raptor stage 2 proportional warmup)
 warmup_clip_range = 0.02                # Small clip range during warm-up to limit policy change
