@@ -3322,3 +3322,228 @@ class TestLibraryBoundary:
         )
         result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=300)
         assert result.returncode == 0, result.stderr
+
+
+# ── the handoff's in-training step and score, beside the certificate ─────────
+
+
+def _checkpoint_zip(path: Path, *, num_timesteps: int | None = 655_360, members: bool = True) -> Path:
+    """A checkpoint-shaped zip: SB3's ``data`` member (JSON) holding ``num_timesteps``, or none at all."""
+    import json
+    import zipfile
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(path, "w") as archive:
+        if members:
+            archive.writestr("data", json.dumps({"num_timesteps": num_timesteps, "policy_class": {":type:": "x"}}))
+        archive.writestr("policy.pth", b"weights")
+    return path
+
+
+#: Five evaluations: the robust score (mean - std) peaks at 655,360 steps, the mean at 524,288.
+HANDOFF_STEPS = [131_072 * k for k in range(1, 6)]
+HANDOFF_RESULTS = [[1.0, 3.0], [2.0, 2.5], [3.0, 3.5], [3.0, 9.0], [4.0, 4.4]]
+
+
+def _evaluations(stage_dir: Path, steps=HANDOFF_STEPS, results=HANDOFF_RESULTS) -> None:
+    stage_dir.mkdir(parents=True, exist_ok=True)
+    np.savez(stage_dir / "evaluations.npz", timesteps=np.array(steps), results=np.array(results))
+
+
+class TestTheHandoffSidecar:
+    def test_the_step_and_score_of_the_robust_handoff_and_of_the_mean_one(self, tmp_path):
+        from environments.shared.reporting.stage_artifacts import _handoff_in_training
+
+        _evaluations(tmp_path)
+        robust = _handoff_in_training(tmp_path, "robust_best_model", _checkpoint_zip(tmp_path / "models" / "r.zip"))
+        assert robust == {
+            "selected": "robust_best_model",
+            "timesteps": 655_360,
+            "mean_reward": pytest.approx(4.2),
+            "std_reward": pytest.approx(0.2),
+            "episodes": 2,
+            "selection_rule": "mean - 1.0 x std",
+            "selection_score": pytest.approx(4.0),
+            "first_scoring_timesteps": 655_360,
+            "step_agrees": True,
+        }
+        best = _handoff_in_training(
+            tmp_path, "best_model", _checkpoint_zip(tmp_path / "models" / "b.zip", num_timesteps=524_288)
+        )
+        assert (best["selection_rule"], best["selection_score"], best["step_agrees"]) == ("mean", 6.0, True)
+        # A checkpoint saved at another evaluation than the history's best scorer says so.
+        stale = _handoff_in_training(
+            tmp_path, "robust_best_model", _checkpoint_zip(tmp_path / "models" / "s.zip", num_timesteps=393_216)
+        )
+        assert (stale["first_scoring_timesteps"], stale["step_agrees"]) == (655_360, False)
+        assert "error" not in stale
+
+    @pytest.mark.parametrize("case", ["truncated zip", "no data member", "no evaluations.npz", "step not evaluated"])
+    def test_every_failure_reads_none_with_an_error_and_never_raises(self, tmp_path, case):
+        from environments.shared.reporting.stage_artifacts import _handoff_in_training
+
+        model_zip = _checkpoint_zip(tmp_path / "models" / "robust_best_model.zip", members=case != "no data member")
+        if case == "truncated zip":
+            model_zip.write_bytes(model_zip.read_bytes()[:40])
+        if case != "no evaluations.npz":
+            _evaluations(tmp_path, steps=HANDOFF_STEPS[:-1] if case == "step not evaluated" else HANDOFF_STEPS)
+        block = _handoff_in_training(tmp_path, "robust_best_model", model_zip)
+        assert set(block) == {
+            "selected",
+            "timesteps",
+            "mean_reward",
+            "std_reward",
+            "episodes",
+            "selection_rule",
+            "selection_score",
+            "first_scoring_timesteps",
+            "step_agrees",
+            "error",
+        }
+        assert block["error"] and block["mean_reward"] is None and block["selection_score"] is None
+        # The step is the checkpoint's own: known whenever its data member can be read.
+        assert block["timesteps"] == (None if case in ("truncated zip", "no data member") else 655_360)
+
+    @staticmethod
+    def _certify(stage_dir: Path, monkeypatch) -> "tuple[dict | None, dict]":
+        """The stance report path with a stub panel, then the verdict, as generate_stage_artifacts runs them."""
+        from environments.shared.reporting import stage_artifacts
+
+        def stub(model_id, stage, *, stage_config, model_path, vecnorm_path=None, **kwargs):
+            return {
+                "schema": "mesozoic.stance-gate-report/v2",
+                **model_id.record(),
+                "stage": stage,
+                "gate_kind": "stance_quality/v1",
+                "policy": "stub",
+                "episodes": 40,
+                "seed": 3042,
+                "settle_steps": 200,
+                "horizon": 1000,
+                "passed": True,
+                "failures": [],
+                "thresholds": {
+                    "min_full_horizon_fraction": 0.95,
+                    "max_unsupported_duty": 0.02,
+                    "max_unsupported_duty_ucb": 0.02,
+                    "min_avg_reward": 1950.0,
+                    "min_eval_episodes": 40,
+                },
+                "metrics": {
+                    "reward_mean": 2313.7,
+                    "reward_std": 25.2,
+                    "episode_length_mean": 1000.0,
+                    "full_horizon_fraction": 1.0,
+                    "mean_unsupported_duty": 0.01,
+                    "unsupported_duty_ucb": 0.015,
+                    "n_duty_episodes": 40,
+                    "bilateral_support_duty": 0.9,
+                    "single_support_duty": 0.09,
+                },
+                "terminations": {"truncated": 40},
+                "reward_components": {"reward_alive": 832.23},
+            }
+
+        monkeypatch.setattr(stance_report, "build_stance_gate_report", stub)
+        config = TestTrainingPipelineHook()._stage_config("stance_quality/v1")
+        report = stage_artifacts._write_stance_gate_report(
+            model_id=TYRANNOSAURUS_REX,
+            stage=1,
+            stage_config=config,
+            stage_dir=stage_dir,
+            model_dir=stage_dir / "models",
+        )
+        results: dict = {"best_model_reward": 2313.7, "best_eval_reward": 2313.7}
+        stage_artifacts._apply_stage_gate(
+            stage=1,
+            stage_config=config,
+            stage_results=results,
+            stance_report=report,
+            stage_dir=stage_dir,
+            model_id=TYRANNOSAURUS_REX,
+        )
+        return report, results
+
+    def test_the_certificate_and_the_verdict_are_untouched_by_the_sidecar(self, tmp_path, monkeypatch):
+        """With the sidecar code off, failing to build its block, and failing to write it: the same bytes."""
+        import json
+
+        from environments.shared import file_io
+        from environments.shared.reporting import stage_artifacts
+
+        stage_dir = tmp_path / "01_stance"
+        _checkpoint_zip(stage_dir / "models" / "robust_best_model.zip")
+        (stage_dir / "models" / "robust_best_model_vecnorm.pkl").write_bytes(b"stats")
+        _evaluations(stage_dir)
+        outputs = ("stance_gate_report.json", "stance_gate_report.txt", "gate_verdict.json")
+        real_write = file_io.atomic_write_json
+
+        def refuse_the_sidecar(path, value, **kwargs):
+            if Path(path).name == "handoff_in_training.json":
+                raise OSError("the Drive mount went away")
+            return real_write(path, value, **kwargs)
+
+        variants = {
+            "no sidecar code": [(stage_artifacts, "_write_handoff_sidecar", lambda *a, **k: None)],
+            "a raising block": [
+                (stage_artifacts, "_handoff_in_training", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("x")))
+            ],
+            "a failing write": [(file_io, "atomic_write_json", refuse_the_sidecar)],
+            "the sidecar": [],
+        }
+        seen = {}
+        for name, patches in variants.items():
+            for path in (*outputs, "handoff_in_training.json"):
+                (stage_dir / path).unlink(missing_ok=True)
+            with monkeypatch.context() as patched:
+                for target, attribute, value in patches:
+                    patched.setattr(target, attribute, value)
+                report, results = self._certify(stage_dir, patched)
+            verdict = json.loads((stage_dir / "gate_verdict.json").read_text(encoding="utf-8"))
+            verdict.pop("judged_at")  # a wall clock
+            seen[name] = (
+                [(stage_dir / path).read_bytes() for path in outputs[:2]],
+                report["passed"],
+                (results["gate_passed"], results["gate_failures"]),
+                verdict,
+                (stage_dir / "handoff_in_training.json").exists(),
+            )
+        baseline = seen.pop("no sidecar code")
+        assert baseline[-1] is False and baseline[1] is True
+        for name, observed in seen.items():
+            assert observed[:4] == baseline[:4], name
+        assert seen["the sidecar"][-1] and not seen["a failing write"][-1]
+        assert json.loads((stage_dir / "handoff_in_training.json").read_text(encoding="utf-8"))["step_agrees"] is True
+        assert seen["a raising block"][-1] is False  # the writer's own guard caught it before any write
+
+    @pytest.mark.parametrize("certified", [True, False], ids=["certificate", "certificate failed"])
+    def test_the_heading_certificate_path_writes_it_after_the_certificate_returned(
+        self, tmp_path, monkeypatch, certified
+    ):
+        import json
+
+        from environments.shared.reporting import stage_artifacts
+
+        stage_dir = tmp_path / "01_stance"
+        _checkpoint_zip(stage_dir / "models" / "robust_best_model.zip")
+        (stage_dir / "models" / "robust_best_model_vecnorm.pkl").write_bytes(b"stats")
+        _evaluations(stage_dir)
+        order: list[str] = []
+
+        def certificate(**kwargs):
+            order.append("certificate")
+            assert not (stage_dir / "handoff_in_training.json").exists()
+            return {"passed": True} if certified else None
+
+        monkeypatch.setattr(stage_artifacts, "_write_stance_heading_certificate", certificate)
+        config = {"curriculum_kwargs": {"gate_kind": "stance_quality_heading/v1", "min_eval_episodes": 40}}
+        report = stage_artifacts._write_stance_gate_report(
+            model_id=TYRANNOSAURUS_REX,
+            stage=1,
+            stage_config=config,
+            stage_dir=stage_dir,
+            model_dir=stage_dir / "models",
+        )
+        assert order == ["certificate"] and report == ({"passed": True} if certified else None)
+        block = json.loads((stage_dir / "handoff_in_training.json").read_text(encoding="utf-8"))
+        assert (block["selected"], block["timesteps"], block["step_agrees"]) == ("robust_best_model", 655_360, True)
