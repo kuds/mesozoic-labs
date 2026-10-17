@@ -7,18 +7,24 @@ What it is
   screen's scratch harness (head 964b7075: e3cf5216 plus one scratch commit whose experiment_* env keys implement the
   lean term and the settled target). Not certified: no gate verdict exists for it.
 
-Why this one
-  The pilot's parent is fixed by the r10 screen's rule (foot/r10screen/criteria.txt, "What follows"). If the screen's
-  K1-K4 all hold, the parent is the best r10 arm L 6M checkpoint (r10 only) and this checkpoint is not used. Only if
-  any of K1-K4 fails is the parent the best of the six 6M arm L checkpoints (three r10 on Drive, three r9): the most
-  clean stance_quality/v2 panel episodes (seeds 3042-3081), ties broken by fewer noise falls (joint-space +
-  own-sigma). Among the three r9 checkpoints this one is first (40/40 clean, 6 joint-space + 0 own-sigma noise falls;
-  s52 38/40, s42 29/40), so it is the r9 candidate in that fallback; it is the parent only if the screen fails and no
-  r10 checkpoint ranks above it (40/40 clean with at most 5 noise falls ranks above; 40/40 with exactly 6 is a tie the
-  rule does not break, and so is 40/40 with its noise falls unmeasured: an unmeasured count cannot win or lose the
-  tie-break, so no parent is chosen until the maintainer decides).
-  On a passing screen the screen's text says only "the best r10 arm L checkpoint". The pilot reads that as the 6M
-  checkpoint ranked the same way (most clean, then fewer noise falls); this reading is for the maintainer to confirm.
+Why this one: the maintainer's decisions of 2026-10-17
+  The r10 arm L screen (foot/r10screen/criteria.txt) was judged first: r10 arm L FAILED K1-K4 (K1 only seed 42
+  passed the stance gate; K2 seeds 52 and 60 stood on their toes, 37-40 of 40 episodes over the fore-aft CoP rail;
+  K3 16 of 60 joint-space noise falls; K4 12 of 120 roll-rail failures); r10 arm L s42 6M alone was 40/40 clean with
+  0 noise falls. r9 arm L had FAILED K2 and K3. Draft #623 (the r10 foot) is parked; main keeps physics r9.
+  The maintainer then decided:
+  (1) Run ONE short T. rex walking pilot now, a deliberate exception to the gait-quality plan's open GQ-3 (a) ("no
+      walker session on today's rewards") and to GQ-17's retrain order (robot first). It will be recorded as decision
+      D-D36 in the repository's decision tables by a later records PR, not in this branch.
+  (2) The parent is THIS checkpoint, r9 arm L s60 6M (40/40 clean stance_quality/v2 panel episodes, seeds 3042-3081;
+      6 joint-space + 0 own-sigma noise falls), on main's r9 plant: path A, this branch. That is a recorded departure
+      from the screen criteria's parent rule: on a failed screen the rule takes the best of the six 6M arm L
+      checkpoints (most clean, then fewer noise falls), which names r10 arm L s42 6M (40/40 clean, 0 noise falls). It
+      is not used because it sits on the unmerged r10 foot, which the project is not adopting.
+  (3) Three training seeds (42, 52, 60), the pilot's fixed hop-detecting criteria, plus a video review: the pilot
+      is scored WALKS only if the automatic rule says WALKS and the maintainer's look at the recorded videos agrees.
+  The criteria, the design and the judging tools are scratch files outside the repository (foot/meanwhile/pilot/:
+  criteria.txt, design.txt, tools/); nothing on this branch is merged.
 
 Files (sha256, as the r9 judge recorded them)
   stage1_6291456_steps.zip                 70f3a4447794a01036c27bca5e0377a17db96d0e3d7bfb2d179e9ce94e6f353e  4032661 bytes
@@ -26,7 +32,8 @@ Files (sha256, as the r9 judge recorded them)
 
 How it is loaded
   The notebook's manual single-node cell (section 7): MANUAL_NODE = "locomotion",
-  MANUAL_LOAD_MODE = "initialize_next_stage", MANUAL_LOAD_PATH = this directory's stage1_6291456_steps (the stem),
+  MANUAL_LOAD_MODE = "initialize_next_stage", MANUAL_LOAD_PATH = this directory's stage1_6291456_steps (the stem; on
+  Colab "/content/mesozoic-labs/pilot_checkpoints/r9_arm_l_s60_6291456/stage1_6291456_steps"),
   MANUAL_VECNORM_PATH = this directory's stage1_vecnormalize_6291456_steps.pkl. The loader checks the plant (physics
   r9 and policy interface r15 match this branch) and that the checkpoint's recorded stage is stance, the locomotion
   node's declared parent. The child's lineage records the parent's task digest,
