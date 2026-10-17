@@ -14,9 +14,13 @@ form the sweep command PR-A retired last wrote (``sweeps/<algorithm>_<timestamp>
 no row (the 2026-08 gap review's NB2, retired by D-D17 without a fix) and which only
 ``discover_runs``' ``sweeps/`` branch keeps out of the run walk (the cleanup plan's section 7).
 
-Cell 5 pip-installs pandas when it cannot import it, so the reader test skips without pandas: the
-SB3 job, which lists this module, has it through ``stable-baselines3[extra]``, and the shared
-matrix installs only the ``test`` extra. The setup and install cell tests need neither.
+Section 9's cell (24) saves the table to ``runs_summary.csv`` with the repository's offline judgements
+(``reporting.runs_summary``, tested by itself in ``test_reporting_runs_summary.py``); its test runs the
+cell with runs and a ledger, with each alone, with neither, and with no logs directory.
+
+Cell 5 pip-installs pandas when it cannot import it, so the reader and export tests skip without
+pandas: the SB3 job, which lists this module, has it through ``stable-baselines3[extra]``, and the
+shared matrix installs only the ``test`` extra. The setup and install cell tests need neither.
 """
 
 from __future__ import annotations
@@ -306,9 +310,12 @@ def test_the_reader_cells_read_todays_layout(tmp_path, monkeypatch, capsys, stab
     assert json.loads(capsys.readouterr().out.split("---\n", 1)[1])["name"] == "Stage 1"
 
 
-def test_display_and_export_cells_align_historical_stance_names_without_rewriting_ids(tmp_path, capsys):
+def test_display_and_export_cells_align_historical_stance_names_without_rewriting_ids(tmp_path, monkeypatch, capsys):
     pd = pytest.importorskip("pandas")
+    from environments.shared import reporting
     from environments.shared.species_names import model_ids, species_display_name, species_ids
+
+    monkeypatch.setattr(reporting, "OFFLINE_JUDGEMENTS_PATH", tmp_path / "no_ledger.csv")
 
     labels = {species: species_display_name(species) for species in species_ids()}
 
@@ -334,7 +341,7 @@ def test_display_and_export_cells_align_historical_stance_names_without_rewritin
     displayed = []
     namespace = {"df": frame, "LOGS_DIR": tmp_path, "display": displayed.append}
     exec(compile(code_cell(DRIVE_SUMMARY_PATH, "import pandas as pd"), "summary_imports", "exec"), namespace)
-    for marker in ("Training runs pivot", "styled =", "Settings vs Outcome", "Combined CSV across all species"):
+    for marker in ("Training runs pivot", "styled =", "Settings vs Outcome", "Combined CSV across all models"):
         exec(compile(code_cell(DRIVE_SUMMARY_PATH, marker), marker, "exec"), namespace)
     # Both old and new records occupy the same Stance column in each pivot.
     for pivot in displayed[:2]:
@@ -354,3 +361,140 @@ def test_display_and_export_cells_align_historical_stance_names_without_rewritin
     for model_id in model_ids():
         assert (model_id.path(tmp_path) / "runs_summary.csv").is_file()
         assert (model_id.path(tmp_path) / "sweeps" / "sweeps_summary.csv").is_file()
+
+
+#: A synthetic offline judgement of a T. rex run: a six-heading certificate's PASS.
+_CERTIFICATE = {
+    "judged_on": "2026-10-17",
+    "species": "tyrannosaurus_rex",
+    "embodiment": "anatomical",
+    "algorithm": "PPO",
+    "run_id": "",
+    "run_path": "ppo/20260101_000000",
+    "stage": "1",
+    "checkpoint_step": "6291456",
+    "checkpoint_sha256": "sha256:" + "ab" * 32,
+    "gate_kind": "stance_quality_heading/v1",
+    "verdict": "PASS",
+    "passing_count": "40",
+    "panel_size": "40",
+    "lower_bound": "0.9278",
+    "lower_bound_bar": "0.8",
+    "binding_bar": "",
+    "panel_seeds": "3042-3081",
+    "judging_commit": "2e734e29",
+    "judged_by": "environments/shared/scripts/stance_gate_report.py",
+    "evidence": "docs/investigations/example/certificate.json",
+    "note": "synthetic",
+    "source": "offline",
+}
+#: The certificate, and a pilot's outcome on the same run's next stage.
+OFFLINE_ROWS = (_CERTIFICATE, {**_CERTIFICATE, "stage": "2", "gate_kind": "walking_pilot/v1", "verdict": "MIXED"})
+
+
+def _write_ledger(path: Path) -> Path:
+    from environments.shared.reporting import OFFLINE_JUDGEMENT_COLUMNS
+
+    lines = [",".join(OFFLINE_JUDGEMENT_COLUMNS)]
+    lines += [",".join(row[column] for column in OFFLINE_JUDGEMENT_COLUMNS) for row in OFFLINE_ROWS]
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return path
+
+
+def _training_rows():
+    """Two training stages of the T. rex run and one legacy sweep trial of the anatomical Compsognathus."""
+    common = {"algorithm": "PPO", "library_version": "test", "run_date": "2026-10-08", "stage_name": "stance"}
+    return [
+        {
+            **ModelId("tyrannosaurus_rex", "anatomical").record(),
+            **common,
+            "source": "training",
+            "run_dir": "ppo/20260101_000000",
+            "run_path": "ppo/20260101_000000",
+            "stage": stage,
+            "stage_passed": passed,
+            "best_mean_reward": reward,
+        }
+        for stage, passed, reward in ((1, True, 812.5), ("recovery", None, float("nan")))
+    ] + [
+        {
+            **ModelId("compsognathus_longipes", "anatomical").record(),
+            **common,
+            "source": "sweep",
+            "run_dir": "sweeps/stage1_ppo_20260315_101500",
+            "trial_id": "t1",
+            "stage": 1,
+            "stage_passed": False,
+            "best_mean_reward": 7.0,
+            "quality_score": 0.5,
+        }
+    ]
+
+
+@pytest.mark.parametrize(
+    "runs,ledger,logs,expected",
+    [
+        (True, True, True, {"training": 2, "sweep": 1, "offline": 2}),
+        (False, True, True, {"offline": 2}),
+        (True, False, True, {"training": 2, "sweep": 1}),
+        (True, True, False, None),
+        (False, False, True, None),
+    ],
+    ids=["runs-and-ledger", "ledger-only", "runs-only", "no-logs-directory", "nothing"],
+)
+def test_the_export_cell_saves_the_table_with_the_offline_judgements(
+    tmp_path, monkeypatch, capsys, runs, ledger, logs, expected
+):
+    """Section 9 adds the repository's offline judgements to the table and replaces runs_summary.csv on Drive."""
+    pd = pytest.importorskip("pandas")
+    from environments.shared import reporting
+
+    ledger_path = tmp_path / "repo" / "offline_judgements.csv"
+    ledger_path.parent.mkdir()
+    if ledger:
+        _write_ledger(ledger_path)
+    monkeypatch.setattr(reporting, "OFFLINE_JUDGEMENTS_PATH", ledger_path)
+    logs_dir = tmp_path / "drive" / "logs"
+    if logs:
+        logs_dir.mkdir(parents=True)
+    displayed = []
+    namespace = {
+        "df": pd.DataFrame(_training_rows() if runs else []),
+        "LOGS_DIR": logs_dir,
+        "display": displayed.append,
+    }
+    exec(compile(code_cell(DRIVE_SUMMARY_PATH, "import pandas as pd"), "summary_imports", "exec"), namespace)
+    exec(compile(code_cell(DRIVE_SUMMARY_PATH, "write_runs_summary("), "summary_export", "exec"), namespace)
+    out = capsys.readouterr().out
+
+    combined = logs_dir / "runs_summary.csv"
+    if not ledger:
+        assert f"No offline-judgement ledger at {ledger_path}; no offline rows added." in out
+    else:
+        assert f"Offline judgements: 2 row(s) from {ledger_path}" in out
+        assert list(displayed[0]["verdict"]) == ["PASS", "MIXED"]
+        assert set(displayed[0]["species"]) == {"Tyrannosaurus Rex"}  # display labels; the file keeps the IDs
+    if expected is None:
+        assert ("Logs directory not found" in out) == (not logs) and ("No data to export." in out) == logs
+        assert not combined.exists() and logs_dir.exists() == logs
+        return
+    counts = ", ".join(f"{count} {source}" for source, count in expected.items())
+    assert f"Combined summary ({sum(expected.values())} rows: {counts}) written to: {combined}" in out
+    table = pd.read_csv(combined, dtype=str, keep_default_na=False)  # the cells as written
+    assert dict(table["source"].value_counts()) == expected
+    assert sorted(entry.name for entry in logs_dir.rglob("*") if entry.is_file() and entry.name.startswith(".")) == []
+    tyrannosaurus = pd.read_csv(ModelId("tyrannosaurus_rex", "anatomical").path(logs_dir) / "runs_summary.csv")
+    assert list(tyrannosaurus["source"]) == [s for s in ("training", "training", "offline", "offline") if s in expected]
+    if runs:
+        sweeps = pd.read_csv(
+            ModelId("compsognathus_longipes", "anatomical").path(logs_dir) / "sweeps" / "sweeps_summary.csv"
+        )
+        assert list(sweeps["trial_id"]) == ["t1"] and "judged_on" not in sweeps
+    if ledger:
+        offline = table[table["source"] == "offline"]
+        assert list(offline["verdict"]) == ["PASS", "MIXED"] and list(offline["stage"]) == ["1", "2"]
+        assert list(offline["stage_passed"]) == ["True", ""] and list(offline["best_mean_reward"]) == ["", ""]
+        assert list(offline["run_dir"]) == ["ppo/20260101_000000"] * 2
+        assert list(offline["checkpoint_step"]) == ["6291456"] * 2 and list(offline["binding_bar"]) == ["", ""]
+    else:
+        assert "judged_on" not in table and "verdict" not in table
