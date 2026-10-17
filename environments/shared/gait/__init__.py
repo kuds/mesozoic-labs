@@ -28,7 +28,14 @@ Modules, bottom-up:
 * :mod:`~environments.shared.gait.pad_telemetry` -- report-only per-foot
   pad telemetry on the same trace (each box pad's signed fore-aft centre of
   pressure, the gate's per-foot statistic, the digits' load share) for the
-  periodic evaluations and the stance replay CSV; pure numpy.
+  periodic evaluations and the stance replay CSV; pure numpy;
+* :mod:`~environments.shared.gait.balance_telemetry` -- report-only
+  whole-body balance and floor-force telemetry on a trace recorded with
+  ``balance=True`` (the centre of mass and its extrapolation against the
+  toe line, Hof's split of its acceleration, the achieved leg offsets, the
+  actuators' force limits, the floor's shear and friction-cone use, the
+  ankle torque's lever) for the periodic evaluations; pure numpy at module
+  level.
 
 Layering rules: no species env module imports this package (an import line
 would change the env module's bytes, and with them its identity), and this

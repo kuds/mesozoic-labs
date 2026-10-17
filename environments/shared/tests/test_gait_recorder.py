@@ -174,12 +174,17 @@ def test_each_case_runs_on_its_cone(envs, case):
 
 @pytest.mark.parametrize("case", list(CONE_CASES))
 def test_recording_leaves_the_trajectory_bit_identical(envs, case):
+    """Unrecorded, recorded, and recorded with the opt-in balance capture: the same trajectory, bit for bit."""
     steps = 120
     trajectories = []
-    for record in (False, True):
+    for record in (None, "plain", "balance"):
         model_id, env = cone_env(envs, case)
         actions = random_actions(env, steps)
-        recorder = SubstepContactRecorder(env, Morphology.from_env(env, model_id)).attach() if record else None
+        recorder = (
+            SubstepContactRecorder(env, Morphology.from_env(env, model_id), balance=record == "balance").attach()
+            if record
+            else None
+        )
         env.reset(seed=3042)
         rows = []
         for action in actions:
@@ -192,6 +197,7 @@ def test_recording_leaves_the_trajectory_bit_identical(envs, case):
             recorder.detach()
         trajectories.append(np.array(rows))
     np.testing.assert_array_equal(trajectories[0], trajectories[1])
+    np.testing.assert_array_equal(trajectories[0], trajectories[2])
 
 
 @pytest.mark.parametrize("case", list(CONE_CASES))
