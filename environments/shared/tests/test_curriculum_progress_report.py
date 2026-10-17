@@ -446,7 +446,15 @@ def test_a_real_tyrannosaurus_rex_stance_run_writes_its_progress(trained):
         assert ("over_bar_fraction" in posture[rail]) == (bar is not None)
         if math.isfinite(float(gate[f"{rail}_mean"][-1])):
             assert posture[rail]["mean"] == pytest.approx(float(gate[f"{rail}_mean"][-1]), rel=1e-3)
-    assert set(posture["leg_dc_deg"]) == {"l_minus_r_hip_pitch", "l_minus_r_knee", "l_minus_r_ankle"}
+    # The left-minus-right leg DC, and its mirror-even mean beside it (the eval extensions' leg_dc_ keys).
+    assert set(posture["leg_dc_deg"]) == {
+        "l_minus_r_hip_pitch",
+        "l_minus_r_knee",
+        "l_minus_r_ankle",
+        "l_r_mean_hip_pitch",
+        "l_r_mean_knee",
+        "l_r_mean_ankle",
+    }
     assert [entry["timesteps"] for entry in record["history"]] == [int(step) for step in evaluations["timesteps"]]
     checkpoints = record["checkpoints"]
     assert checkpoints["latest_periodic_timesteps"] == 512
