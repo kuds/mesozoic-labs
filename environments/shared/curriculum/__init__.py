@@ -95,7 +95,12 @@ from .gate_schema import (
 )
 from .hop_watch import HopRegimeWatchCallback, build_hop_watch_callback
 from .manager import CurriculumManager, StageThreshold, thresholds_from_configs
-from .posture_watch import PostureDriftWatchCallback, build_posture_drift_watch_callback
+from .posture_watch import (
+    PostureDriftWatchCallback,
+    PostureTrendWatchCallback,
+    build_posture_drift_watch_callback,
+    build_posture_trend_watch_callback,
+)
 from .progress_report import TrainingProgressCallback, build_training_progress_callback
 from .schedules import (
     CosineSchedule,
@@ -113,6 +118,7 @@ __all__ = [
     "BaselineProgressCallback",
     "HopRegimeWatchCallback",
     "PostureDriftWatchCallback",
+    "PostureTrendWatchCallback",
     "TrainingProgressCallback",
     "GATE_SCHEMA_VERSION",
     "CurriculumCallback",
@@ -137,6 +143,7 @@ __all__ = [
     "build_baseline_progress_callback",
     "build_hop_watch_callback",
     "build_posture_drift_watch_callback",
+    "build_posture_trend_watch_callback",
     "build_training_progress_callback",
     "build_eval_collapse_early_stop_callback",
     "gate_config_differences",

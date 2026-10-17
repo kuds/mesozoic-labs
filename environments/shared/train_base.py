@@ -715,6 +715,7 @@ def _build_core_callbacks(
         build_eval_collapse_early_stop_callback,
         build_hop_watch_callback,
         build_posture_drift_watch_callback,
+        build_posture_trend_watch_callback,
         build_training_progress_callback,
     )
     from .diagnostics import DiagnosticsCallback as _DiagCB
@@ -903,6 +904,13 @@ def _build_core_callbacks(
     posture_cb = build_posture_drift_watch_callback(plateau_callback, stage_config, verbose=verbose)
     if posture_cb is not None:
         callbacks.append(posture_cb)
+    # Advisory only, and earlier: one line when the panel stands over a
+    # fore-aft bar (0.1 of its full-horizon episodes, 2 in a row) and its
+    # signed centre of pressure moves toward that edge.  Reads the same
+    # gate_progress rows; None unless the stage declares that bar.
+    posture_trend_cb = build_posture_trend_watch_callback(plateau_callback, stage_config, verbose=verbose)
+    if posture_trend_cb is not None:
+        callbacks.append(posture_trend_cb)
 
     # Report-only: progress.json in the stage directory, rewritten atomically
     # at the start, after every evaluation and at the end, from what the
@@ -918,7 +926,7 @@ def _build_core_callbacks(
         seed=seed,
         total_timesteps=total_timesteps,
         stage_config=stage_config,
-        warning_sources=[plateau_callback, baseline_cb, hop_watch_cb, posture_cb],
+        warning_sources=[plateau_callback, baseline_cb, hop_watch_cb, posture_cb, posture_trend_cb],
         robust_callback=robust_callback,
         verbose=verbose,
     )

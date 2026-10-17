@@ -16,7 +16,7 @@ import numpy as np
 
 from . import sb3_compat
 from .hop_watch import HopRegimeWatchCallback
-from .posture_watch import PostureDriftWatchCallback
+from .posture_watch import PostureDriftWatchCallback, PostureTrendWatchCallback
 from .sb3_compat import BaseCallback
 
 if TYPE_CHECKING:
@@ -427,7 +427,7 @@ def seed_resume_eval_state(
         if hasattr(callback, "_last_published_n"):
             callback._last_published_n = seeded
         # The hop and posture watches' cursors count gate_progress rows, which need not be one per evaluation.
-        if isinstance(callback, (HopRegimeWatchCallback, PostureDriftWatchCallback)):
+        if isinstance(callback, (HopRegimeWatchCallback, PostureDriftWatchCallback, PostureTrendWatchCallback)):
             callback._last_seen = gate_rows
 
     logger.info(

@@ -302,6 +302,11 @@ _DIAGNOSTIC_KEYS = frozenset(
         "posture_drift_warn_over_bar_fraction",
         "posture_drift_warn_consecutive_evals",
         "posture_drift_warn_repeat_evals",
+        # Its earlier companion, the signed CoP trend toward an edge (posture_watch.PostureTrendWatchCallback).
+        "posture_trend_warn_over_bar_fraction",
+        "posture_trend_warn_consecutive_evals",
+        "posture_trend_window_evals",
+        "posture_trend_warn_repeat_evals",
         "stance_probe_filter_hz",
         "stance_probe_hold_constant",
         "stance_probe_release_ablation",
