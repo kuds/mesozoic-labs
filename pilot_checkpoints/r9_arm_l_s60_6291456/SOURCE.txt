@@ -15,7 +15,10 @@ Why this one
   own-sigma). Among the three r9 checkpoints this one is first (40/40 clean, 6 joint-space + 0 own-sigma noise falls;
   s52 38/40, s42 29/40), so it is the r9 candidate in that fallback; it is the parent only if the screen fails and no
   r10 checkpoint ranks above it (40/40 clean with at most 5 noise falls ranks above; 40/40 with exactly 6 is a tie the
-  rule does not break).
+  rule does not break, and so is 40/40 with its noise falls unmeasured: an unmeasured count cannot win or lose the
+  tie-break, so no parent is chosen until the maintainer decides).
+  On a passing screen the screen's text says only "the best r10 arm L checkpoint". The pilot reads that as the 6M
+  checkpoint ranked the same way (most clean, then fewer noise falls); this reading is for the maintainer to confirm.
 
 Files (sha256, as the r9 judge recorded them)
   stage1_6291456_steps.zip                 70f3a4447794a01036c27bca5e0377a17db96d0e3d7bfb2d179e9ce94e6f353e  4032661 bytes
