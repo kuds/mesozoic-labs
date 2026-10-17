@@ -435,7 +435,8 @@ the gait plan's GQ-3 (a) and GQ-17): the production locomotion stage,
 4,194,304 steps on seeds 42, 52 and 60, from the uncertified r9 arm L
 seed-60 stance checkpoint at 6,291,456 steps (arm L: the T-Rex stance
 trained with mirror-symmetric PPO, the lateral lean term and the settled
-leg target, three switches off by default on `main`), through the manual
+leg target, here the symmetry screen's scratch versions of the three
+switches #624 adds, off by default on `main`), through the manual
 single-node cell on the branch `claude/pilot-walk-r9`, which is never
 merged. Nothing it trains is certified, published or reused, so the next
 T-Rex session above is unchanged. A later PR records the pilot's

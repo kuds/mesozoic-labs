@@ -159,9 +159,9 @@ robustness, **LOW** = cosmetic / QoL.
   that still creep forward; the options are in the library, off by default),
   and the same on the draft physics-r10 foot, where two of three seeds stood
   on their toes. The two-seed ask stands; the next step is a short walking
-  pilot (the maintainer's decision of 2026-10-17; launched that day, not yet
-  judged). Record, numbers and
-  evidence:
+  pilot (decision D-D36 of 2026-10-17,
+  [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2; launched that
+  day, not yet judged). Record, numbers and evidence:
   [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).
 - **LOW** — **stage 1a (stance) contains no in-episode disturbance, so a
   stance-gate PASS certifies stance quality, not active balance control.** The

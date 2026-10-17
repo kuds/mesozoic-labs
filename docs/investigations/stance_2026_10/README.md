@@ -33,7 +33,7 @@ else:
   read is unchanged (`decide_final.py` and `test_decide_final.py` run on it as
   it is).
 
-[SHA256SUMS](SHA256SUMS) pins every file here but this README
+[SHA256SUMS](SHA256SUMS) pins every file here but this README and itself
 (`sha256sum -c SHA256SUMS` in this directory).
 
 ## Contents

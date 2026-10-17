@@ -3,11 +3,12 @@
 **Date:** 2026-10-17 (the experiments of 2026-10-12 to 2026-10-17)
 
 **Status:** completed screens and analyses, the technical record of the T. rex
-stance work since the blog post of 2026-10-11. The walking pilot of §9 is
-pre-registered, **launched on Colab on 2026-10-17 and not yet judged**; its
-outcome is appended to this note when it is judged. The evidence, frozen
-copies of the scripts that decided each verdict, and their sums are in
-[stance_2026_10/](stance_2026_10/README.md).
+stance work since the blog post of 2026-10-11. The walking pilot of §9
+(decision D-D36, [BEHAVIOR_RECIPES_PLAN.md](../BEHAVIOR_RECIPES_PLAN.md) §6.2)
+is pre-registered, **launched on Colab on 2026-10-17 and not yet judged**; its
+outcome will be appended to this note as a dated note when it is judged. The
+evidence, frozen copies of the scripts that decided each verdict, and their
+sums are in [stance_2026_10/](stance_2026_10/README.md).
 
 It continues [STANCE_REWARD_PILOT_FINDINGS_2026_10.md](STANCE_REWARD_PILOT_FINDINGS_2026_10.md)
 (2026-10-10), [STANCE_HACK_AUDIT_2026_10.md](STANCE_HACK_AUDIT_2026_10.md)
@@ -40,12 +41,13 @@ It continues [STANCE_REWARD_PILOT_FINDINGS_2026_10.md](STANCE_REWARD_PILOT_FINDI
   verdict was O9 (both arms fail: no PR, no 12M run; §5).
 - **On the r10 foot, arm L's forward lean was worse on 2 of 3 seeds.** With
   load-bearing digits (draft #623), arm L trained from scratch put seeds 52
-  and 60 on their toes: 37-40 of 40 full-horizon panel episodes over the
-  whole-foot CoP rail at 4M, 5M and 6M, through 12M in training. All four
-  fixed criteria failed (§6). On r10 a held forward lean that most spawns
-  survive reaches CoP 0.89-0.94, against 0.76-0.79 on r9: falls no longer cut
-  the drift off before the 0.80 rail (§7). The r9 and r10 runs also differ
-  in harness (§6.4). #623 is parked; `main` keeps physics r9.
+  and 60 on their toes: 37-40 of their 40 panel episodes full-horizon and
+  over the whole-foot CoP rail at each of 4M, 5M and 6M, and through 12M in
+  training. All four fixed criteria failed (§6). On r10 a held forward lean
+  that most spawns survive reaches CoP 0.89-0.94, against 0.76-0.79 on r9:
+  falls no longer cut the drift off before the 0.80 rail (§7). The r9 and r10
+  runs also differ in harness (§6.4). #623 is parked; `main` keeps physics
+  r9.
 - **Why the lean starts is not explained.** All three r10 seeds leaned
   forward by the first evaluation (whole-foot CoP 0.18, 0.33 and 0.32 at
   0.125M steps, against a held statue's 0.11). The explanation offered first,
@@ -60,16 +62,16 @@ It continues [STANCE_REWARD_PILOT_FINDINGS_2026_10.md](STANCE_REWARD_PILOT_FINDI
   stance options, off by default (#624), and the recipe label `recover`
   (#625, D-D35). Their landing records are in the status table of
   [CONSOLIDATION_PLAN_2026_09.md](../CONSOLIDATION_PLAN_2026_09.md) and in
-  [CHANGELOG.md](../../CHANGELOG.md) (#626's once the records change lands).
+  [CHANGELOG.md](../../CHANGELOG.md) (#626's added with this note).
   Not on `main` before this note: draft #623, the screens' criteria, judges
   and verdicts (copied into [stance_2026_10/](stance_2026_10/README.md) by
   this note) and the walking pilot's branch.
 - **Next:** one short walking pilot from r9 arm L seed 60 at 6M, judged by
   hop-detecting criteria fixed before training plus a video review (§9;
-  launched on 2026-10-17; the maintainer's decision of 2026-10-17, to be
-  recorded as D-D36 by a separate records change). By the maintainer's
-  choice of 2026-10-16, no more stance-only reward experiments unless walking
-  points back to stance.
+  decision D-D36 of 2026-10-17,
+  [BEHAVIOR_RECIPES_PLAN.md](../BEHAVIOR_RECIPES_PLAN.md) §6.2; launched that
+  day). By the maintainer's choice of 2026-10-16, no more stance-only reward
+  experiments unless walking points back to stance.
 
 ## 1. Scope and conventions
 
@@ -102,8 +104,8 @@ It continues [STANCE_REWARD_PILOT_FINDINGS_2026_10.md](STANCE_REWARD_PILOT_FINDI
   measured directly.
 - The source files quoted here name paths of the session's scratch tree
   (`foot/...`, `scratchpad/...`). Only the files copied into
-  [stance_2026_10/](stance_2026_10/README.md) are kept; its README maps each
-  one to its source.
+  [stance_2026_10/](stance_2026_10/README.md) are kept; its `SOURCES.txt`
+  maps each one to its source.
 
 ## 2. Timeline
 
@@ -129,15 +131,15 @@ All times UTC.
 | 2026-10-16 | Recipe label `recover` for the recovery stage (D-D35, #625) | CHANGELOG |
 | 2026-10-16 20:25 | `gate_progress.npz` read by hand from Drive: seeds 52 and 60 on their toes at 2.3-2.5M; the runs are left alone | §6.4 |
 | 2026-10-16 22:33 | The maintainer asks for side work: the reporting change (became #626), walking-pilot preparation, the toe-lean diagnosis | session record |
-| 2026-10-17 00:30-03:57 | Toe-lean diagnosis v1, v2, v3; pilot criteria verified in rounds at 01:22, 03:07 and 04:11 | `diagnosis/`, `pilot/criteria.txt` |
+| 2026-10-17 00:30-04:11 | Toe-lean diagnosis v1, v2, v3; pilot criteria verified in rounds at 01:22, 03:07 and 04:11 | `diagnosis/`, `pilot/criteria.txt` |
 | 2026-10-17 04:11-12:38 | The organisation's monthly spend limit stops the agents; the round-3 verifications of the diagnosis and of the reporting change fail to run | session record |
 | 2026-10-17 05:24-05:48 | The three r10 runs finish 12,001,280 steps | `r10_screen/report_only_summary.json` |
 | 2026-10-17 12:46-13:20 | Nine r10 checkpoints judged and scored (FAIL on K1-K4), then independently re-derived | `r10_screen/` |
-| 2026-10-17 13:21 | The maintainer parks #623 and chooses the pilot's parent, r9 arm L seed 60 at 6M (the maintainer's decision of 2026-10-17, to be recorded as D-D36) | `pilot/criteria.txt` |
+| 2026-10-17 13:21 | The maintainer parks #623 and chooses the pilot's parent, r9 arm L seed 60 at 6M (decision D-D36 of 2026-10-17) | `pilot/criteria.txt`; D-D36 in [BEHAVIOR_RECIPES_PLAN.md](../BEHAVIOR_RECIPES_PLAN.md) §6.2 |
 | 2026-10-17 13:22 | Screen result posted on #623 | [comment](https://github.com/kuds/mesozoic-labs/pull/623#issuecomment-6234386057) |
 | 2026-10-17 13:32-14:46 | Duty-guard grids; round-4 verification (no blocking item); fourth wording revision; branch `claude/pilot-walk-r9` pushed at `eaeef50f`, no PR | `pilot/` |
 | 2026-10-17 | `main` at `1b9be186`, which includes #626 | git |
-| 2026-10-17 17:00-17:28 | The walking pilot is launched on Colab. The first launch (Run all, the manual cell left at its defaults) ran the chain loop and began training a stance from scratch; a Drive check caught it minutes later, the runtimes were stopped and their folders deleted, and the three seeds were relaunched into fresh `pilot_walk_s42/52/60` folders (17:13-17:25), each with only `03_locomotion` | session record; Drive |
+| 2026-10-17 17:01-17:28 | The walking pilot is launched on Colab. The first launch (about 17:01-17:03) ran the chain loop and began training a stance from scratch; that it was Runtime > Run all with the manual cell at its defaults is an inference from the notebook state (cells run in order to the chain loop, `MANUAL_NODE` None), not confirmed. A Drive check caught it at 17:06; the runtimes were stopped and the three run folders deleted, and the seeds were relaunched under the same names: `pilot_walk_s42`, `_s52` and `_s60` created at 17:13, 17:23 and 17:24, each holding the run-level files (`provenance.json`, `trunk_run.json`, `zero_action_baseline.json`) and a `03_locomotion` stage (created 17:17, 17:26 and 17:28), no `01_stance` | session record; Drive |
 
 ## 3. Run A: the right pad on its toe edge
 
@@ -451,7 +453,8 @@ Per seed, clean / 40 (CoP > 0.8 episodes, all 40 counted), from
   of the stance failures (arm L's joint groups mirror-symmetric to under
   0.1°; roll-rail 2/0/0 at 6M), but a symmetric policy can still creep onto
   one pad: the verdict classed arm L seed 42 at 4M and 5M (pad bias 0.20 and
-  0.17) and arm C seed 52 at 6M (0.43, 22 CoP failures) as one-pad creep.
+  0.17), arm C seed 42 at 4M (0.16, 2 CoP failures) and arm C seed 52 at 6M
+  (0.43, 22 CoP failures) as one-pad creep.
 - Out: symmetry alone does not stop a mirror-even forward creep; arm L's
   seed 60 went from 0 to 39 and back to 0 CoP failures between 3M and 6M, so
   a single checkpoint says little.
@@ -688,10 +691,11 @@ The fixed criteria are `pilot/criteria.txt` (sha256 `1cdd495c…`; written
 step; the file's first line says "three", its Revisions list has four),
 applied by `pilot/pilot_score.py`. The branch is
 `claude/pilot-walk-r9` (`origin/main` `56621ebd` plus seven pilot-only
-commits, head `eaeef50f`, pushed 2026-10-17 14:46, no PR); the maintainer's
-decision of 2026-10-17, to be recorded as D-D36 by a separate records change,
+commits, head `eaeef50f`, pushed 2026-10-17 14:46, no PR). Decision D-D36 of
+2026-10-17 ([BEHAVIOR_RECIPES_PLAN.md](../BEHAVIOR_RECIPES_PLAN.md) §6.2)
 makes the pilot a deliberate exception to the gait plan's open GQ-3 (a) and
-GQ-17 ([GAIT_QUALITY_PLAN_2026_09.md](../GAIT_QUALITY_PLAN_2026_09.md)).
+GQ-17 ([GAIT_QUALITY_PLAN_2026_09.md](../GAIT_QUALITY_PLAN_2026_09.md), its
+dated §17).
 
 - **What is trained.** The production T. rex locomotion stage (stock PPO, the
   production reward and hyperparameters, none of arm L's options), warm-
@@ -739,13 +743,27 @@ GQ-17 ([GAIT_QUALITY_PLAN_2026_09.md](../GAIT_QUALITY_PLAN_2026_09.md)).
   to fail on speed.
 
 **Outcome:** launched on Colab on 2026-10-17 and not yet judged. A first
-launch (Runtime > Run all with the manual cell at its defaults) ran the chain
-loop and began training a stance from scratch; it was stopped within minutes
-and its folders deleted, and seeds 42, 52 and 60 were relaunched from the
-parent into fresh `pilot_walk_s42`, `pilot_walk_s52` and `pilot_walk_s60`
-folders (created 17:13, 17:23 and 17:25 UTC; not the `_b` run ids the
-criteria allow for a restart). The outcome is to be appended here with the
-scored `pilot_score.py` output and the video review.
+launch, at about 17:01-17:03 UTC, ran the notebook's chain loop, which began
+training a stance from scratch (`01_stance`, stage 1, a 12M budget). That it
+was Runtime > Run all with the manual cell at its defaults is an inference
+from the notebook state (cells run in order to the chain loop, `MANUAL_NODE`
+None), not confirmed. A Drive check caught it at 17:06; the maintainer
+stopped the runtimes and deleted the three run folders (no `03_locomotion`
+was written in them). Seeds 42, 52 and 60 were then relaunched from the
+parent under the same names, `pilot_walk_s42`, `pilot_walk_s52` and
+`pilot_walk_s60` (the same setup steps rerun with the old folders deleted
+first, not the `_b` run ids the criteria allow for a seed restarted after a
+cut-off); the new folders were created at 17:13, 17:23 and 17:24 UTC, so the
+first launch ran at most about 10-12 minutes on seed 42 and 20-24 on seeds 52
+and 60 (its stop times are not recorded). Each holds the run-level
+`provenance.json`, `trunk_run.json` and `zero_action_baseline.json` and a
+`03_locomotion` stage (created 17:17, 17:26 and 17:28 UTC) whose
+`stage_config.json` reads stage 2, commit `eaeef50f`, its seed, 4,194,304
+steps, `initialize_next_stage` from the parent (sha256 `70f3a444…6f353e`),
+physics r9, interface r15, no resume, and hyperparameter and task digests
+(`af78e500…`, `23d50a6d…`) equal to the branch's digest snapshot. The outcome
+will be appended to this note as a dated note, with the scored
+`pilot_score.py` output and the video review.
 
 ## 10. What did not work
 
@@ -874,11 +892,11 @@ them. None of the superseded wording is in the repository except where noted.
   symmetry screen's harness; all were git-ignored or removed and the frozen
   sums still passed (session record). Set `PYTHONDONTWRITEBYTECODE=1` and a
   scratch ruff cache directory.
-- **Check a Colab launch on Drive at once.** The pilot's first launch ran
-  Runtime > Run all with the manual cell at its defaults, so the chain loop
-  started training a stance from scratch; reading the new run folder (a
-  `01_stance` stage with a 12M budget, no `03_locomotion`) caught it minutes
-  later (§9).
+- **Check a Colab launch on Drive at once.** The pilot's first launch ran the
+  chain loop with the manual cell at its defaults (by the notebook state,
+  Runtime > Run all; not confirmed), so it started training a stance from
+  scratch; reading the new run folder (a `01_stance` stage with a 12M budget,
+  no `03_locomotion`) caught it a few minutes later, at 17:06 (§9).
 
 ## 13. Open questions and next steps
 
@@ -922,14 +940,16 @@ Decisions below are the maintainer's; none is taken here.
   the first 2M locomotion steps skips the forward-weight ramp (measured:
   `forward_vel_weight` 2.0 and `ent_coef` 0.00497 after a resume at 16,384;
   KNOWN_ISSUES has the entry, read from code).
-- **The public #623 comment** quotes the superseded "CoP 1.06-1.10 against
-  about 0.85" (§11).
+- **The public #623 comment** quotes the superseded "CoP 1.06-1.10, against
+  about 0.85 on r9" (§11).
 
 ## 14. Where the evidence is
 
-- **This repository:** [stance_2026_10/](stance_2026_10/README.md), with a
-  README that maps every file to its source and says how to re-check each
-  verdict, and `SHA256SUMS`.
+- **This repository:** [stance_2026_10/](stance_2026_10/README.md), with
+  `SOURCES.txt`, which maps every copy to its source, a README that says how
+  to re-check each verdict, and `SHA256SUMS`. The walking pilot's decision,
+  D-D36, is in [BEHAVIOR_RECIPES_PLAN.md](../BEHAVIOR_RECIPES_PLAN.md) §6.2,
+  with the gait plan's dated §17.
 - **Pull requests and branches** (none merged unless stated):
   - #623 ([draft](https://github.com/kuds/mesozoic-labs/pull/623), parked):
     branch `claude/trex-foot-r10`, head `0ee0917d`; carries
@@ -943,7 +963,7 @@ Decisions below are the maintainer's; none is taken here.
   - #620, #621, #622, #624, #625 and #626 are on `main`; their landing
     records are in the status table of
     [CONSOLIDATION_PLAN_2026_09.md](../CONSOLIDATION_PLAN_2026_09.md)
-    (#626's once the records change lands).
+    (#626's added with this note).
 - **Google Drive:**
   - Run A: `MyDrive/mesozoic-labs/logs/trex/ppo/20261011_165957/` (the
     layout before D-D33's binomial species ids and embodiment axis); its
@@ -958,8 +978,10 @@ Decisions below are the maintainer's; none is taken here.
     (VecNormalize `6e22ae9aef095062a23ff358cac5ed269d74084012fd58e595797ef094ed40c4`).
   - The walking pilot writes `pilot_walk_s{42,52,60}/03_locomotion/` under
     the same directory: the folders of the relaunch of 2026-10-17 (created
-    17:13-17:25 UTC). The first launch's folders, which held a stance
-    trained from scratch, were deleted before the relaunch (§9).
+    17:13, 17:23 and 17:24 UTC), each also holding the run-level
+    `provenance.json`, `trunk_run.json` and `zero_action_baseline.json`. The
+    first launch's folders, which held a stance trained from scratch, were
+    deleted before the relaunch (§9).
 - **Not copied** (session scratch only): the r9 screens' checkpoints, rollouts
   and traces (about 1.7 GB; the r9 arm L seed 60 6M pair survives on the pilot
   branch, sha256

@@ -9,11 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Decision D-D36 recorded: one short T. rex walking pilot, a deliberate
-  exception to the gait plan's GQ-3 (a) and GQ-17** (the maintainer's decision
-  of 2026-10-17; `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2,
+  exception to the gait plan's GQ-3 (a) and GQ-17; and a record of the
+  T. rex stance experiments of 2026-10-12 to 2026-10-17** (the maintainer's
+  decision of 2026-10-17; `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2,
   `docs/CONSOLIDATION_PLAN_2026_09.md` §6, the dated §17 of
-  `docs/GAIT_QUALITY_PLAN_2026_09.md`, `docs/NEXT_STEPS.md` §3). Records only:
-  no code, configuration, test, notebook, digest or generated file changes.
+  `docs/GAIT_QUALITY_PLAN_2026_09.md`, `docs/NEXT_STEPS.md` §3;
+  `docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md` and its
+  evidence directory `docs/investigations/stance_2026_10/`). Records only:
+  no library code, configuration, test, notebook, digest or generated file
+  changes.
   After the T. rex physics-r10 stance screen of arm L (the T. rex stance with
   #624's three switches on: mirror-symmetric PPO, the lateral lean term and
   the settled leg target, all off by default) failed all four of its fixed
@@ -41,6 +45,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   that stage's PPO hyperparameter and stage-config-view digests; its task and
   gate digests are production's). Its outcome is not yet known; a later PR
   records it.
+  The record (`docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md`)
+  is the dated technical account of the T. rex stance work since the blog post
+  of 2026-10-11, and the D-D36 rows cite it for the screens' evidence: run
+  `20261011_165957` (seed 56, 12M steps) refused by `stance_quality/v2` with
+  its right pad on the toe edge (1/40 clean), from a small
+  left/right-antisymmetric leg command that the closed chain of two planted
+  legs turns into a one-pad edge under a reward flat in the centre of
+  pressure; the lower-noise, CoP-term and capped-leg-authority screens, each
+  failing its predeclared criteria; the symmetry screen (arm L and the
+  fore-aft arm C, verdict O9: symmetric policies, a forward creep and
+  joint-noise falls); the r10 screen above; the toe-lean diagnosis (no reward
+  term pays for the lean, the r10 digits let a held lean that most spawns
+  survive reach a whole-foot CoP of 0.89 to 0.94, against 0.76 to 0.79 on r9,
+  past the 0.80 rail, and what starts it is unexplained); the pilot's
+  pre-registration and launch, its outcome to be appended as a dated note; and
+  corrections, withdrawn claims and method lessons. The evidence directory
+  holds 72 files (about 1.2 MB): the criteria texts, the frozen judges,
+  scorers and verdict scripts with their tests (research copies, imported by
+  nothing and run by no CI job), the score and verdict files, the diagnosis,
+  the pilot's criteria and scoring tools, `SOURCES.txt`, which maps each copy
+  to its source, a README that says how to re-check each verdict, and
+  `SHA256SUMS`, which pins every file but the README and itself; checkpoints,
+  rollouts and traces stay on Drive or in the session's scratch.
+  `docs/README.md` gains its row, and `docs/KNOWN_ISSUES.md` Update 7 of the
+  T-Rex stance entry.
 - **A training progress report and posture telemetry at every evaluation,
   report-only** (#626; the maintainer's request of 2026-10-16 for better training
   artifacts and reporting). The T. rex physics-r10 screen's two drifting

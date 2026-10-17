@@ -860,7 +860,10 @@ stance screen of arm L (the T. rex stance trained with #624's three switches on:
 term and the settled leg target, all off by default on `main`) was judged, to run one short T. rex walking pilot now:
 decision D-D36 ([BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2, which holds the full text with the screen's
 numbers, and the consolidation plan's table). It is a deliberate, one-off exception: it answers none of GQ-1..GQ-18,
-and nothing below changes what the plan recommends for any other session.
+and nothing below changes what the plan recommends for any other session. The screens' evidence (the symmetry and
+r10 screens' criteria, scores and verdicts, the toe-lean diagnosis) and the pilot's criteria and scoring tools are in
+[investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md)
+and its evidence folder [investigations/stance_2026_10/](investigations/stance_2026_10/README.md).
 
 **What it departs from.**
 
