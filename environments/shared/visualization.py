@@ -801,3 +801,146 @@ def plot_stance_diagnostics(
     if not show:
         plt.close(fig)
     return fig
+
+
+#: ``plot_gate_progress``'s panels, in order: a group is drawn when ``gate_progress.npz`` holds any of its keys.
+GATE_PROGRESS_PANELS: tuple[str, ...] = ("reward", "cop", "over_bar", "screen", "balance", "leg_dc")
+#: The advisories' over-bar thresholds drawn on the over-bar panel: PostureDrift's and PostureTrend's defaults.
+_OVER_BAR_LINES: tuple[tuple[float, str], ...] = ((0.5, "PostureDrift 0.5"), (0.1, "PostureTrend 0.1"))
+
+
+def _gate_progress_groups(keys: Sequence[str]) -> dict[str, list[str]]:
+    """The ``gate_progress.npz`` keys of each of :data:`GATE_PROGRESS_PANELS`' groups (only those present)."""
+    groups: dict[str, list[str]] = {
+        "reward": [key for key in ("mean_reward", "full_horizon_fraction") if key in keys],
+        "cop": [
+            key
+            for key in keys
+            if key.endswith(("_sole_cop_fore_aft", "_foot_cop_fore_aft")) and not key.startswith("max_")
+        ],
+        "over_bar": [key for key in keys if key.endswith("_over_bar_fraction")],
+        "screen": [key for key in ("screen_v2_clean_lcb",) if key in keys],
+        "balance": [key for key in ("com_fore_aft_mean_m", "xcom_toe_margin_min_m") if key in keys],
+        "leg_dc": [key for key in keys if key.startswith(("leg_dc_", "leg_q_"))],
+    }
+    if "mean_reward" not in groups["reward"]:
+        groups["reward"] = []
+    return {name: groups[name] for name in GATE_PROGRESS_PANELS if groups[name]}
+
+
+def plot_gate_progress(
+    stage_dir: "str | Path",
+    *,
+    curriculum_kwargs: "dict[str, Any] | None" = None,
+    model_id: ModelId | None = None,
+    save_path: "str | Path | None" = None,
+    show: bool = False,
+) -> Any:
+    """One figure of a stage's ``gate_progress.npz``: a panel per group it holds, against millions of steps.
+
+    1. ``mean_reward``, with the run's zero-action (statue) reward when its
+       ``zero_action_baseline.json`` covers the model, and
+       ``full_horizon_fraction`` on a twin axis;
+    2. the signed per-foot pad and whole-foot centres of pressure
+       (``<label>_sole_cop_fore_aft``, ``<label>_foot_cop_fore_aft``), with
+       each declared bar at plus and minus;
+    3. each rail's over-bar fraction, with PostureDrift's 0.5 and
+       PostureTrend's 0.1 dashed;
+    4. the in-training v2 screen's ``screen_v2_clean_lcb`` against the
+       stage's ``min_clean_stance_lcb``;
+    5. ``com_fore_aft_mean_m`` and ``xcom_toe_margin_min_m``, with 0;
+    6. the leg DC, left-minus-right and mirror-even, commanded
+       (``leg_dc_``, solid) and achieved (``leg_q_``, dashed).
+
+    Returns the figure, or ``None`` when there is no file or no row.
+    Report-only; reads the file and writes *save_path* only.
+    """
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    path = Path(stage_dir) / "gate_progress.npz"
+    if not path.is_file():
+        return None
+    with np.load(path) as data:
+        series = {key: np.asarray(data[key], dtype=float) for key in data.files}
+    timesteps = series.get("timesteps")
+    if timesteps is None or not timesteps.size:
+        return None
+    steps = timesteps / 1e6
+    rows = {key: values for key, values in series.items() if values.shape == timesteps.shape and key != "timesteps"}
+    groups = _gate_progress_groups(tuple(rows))
+    if not groups:
+        return None
+    curriculum = dict(curriculum_kwargs or {})
+
+    def bar(key: str) -> float | None:
+        value = curriculum.get(key)
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not np.isfinite(float(value)):
+            return None
+        return float(value)
+
+    figure, axes = plt.subplots(len(groups), 1, figsize=(12, 3.2 * len(groups)), sharex=True, squeeze=False)
+    title = model_display_name(model_id) if model_id is not None else Path(stage_dir).name
+    figure.suptitle(f"{title} – gate progress ({Path(stage_dir).name})", fontsize=13, fontweight="bold")
+    for axis, (name, keys) in zip(axes[:, 0], groups.items()):
+        if name == "reward":
+            axis.plot(steps, rows["mean_reward"], label="mean reward", color="C0")
+            statue = None
+            if model_id is not None:
+                from .curriculum.baseline_watch import read_zero_action_baseline
+
+                statue = read_zero_action_baseline(Path(stage_dir).parent, model_id)
+            if statue is not None:
+                axis.axhline(statue, color="0.4", linestyle=":", label=f"zero action {statue:.0f}")
+            axis.set_ylabel("reward")
+            if "full_horizon_fraction" in rows:
+                twin = axis.twinx()
+                twin.plot(steps, rows["full_horizon_fraction"], color="C1", alpha=0.7, label="full horizon")
+                twin.set_ylim(-0.05, 1.05)
+                twin.set_ylabel("full-horizon fraction")
+                _safe_legend(twin, loc="lower right", fontsize=8)
+        elif name == "cop":
+            for key in keys:
+                style = "-" if key.endswith("_sole_cop_fore_aft") else "--"
+                axis.plot(steps, rows[key], style, label=key)
+            for key, color in (("max_sole_cop_fore_aft", "C3"), ("max_foot_cop_fore_aft", "C4")):
+                limit = bar(key)
+                if limit is not None:
+                    for sign in (1.0, -1.0):
+                        axis.axhline(sign * limit, color=color, linestyle=":", label=f"{key} bar" if sign > 0 else None)
+            axis.axhline(0.0, color="0.7", linewidth=0.8)
+            axis.set_ylabel("signed CoP (half-lengths)")
+        elif name == "over_bar":
+            for key in keys:
+                axis.plot(steps, rows[key], label=key)
+            for level, label in _OVER_BAR_LINES:
+                axis.axhline(level, color="0.5", linestyle="--", linewidth=0.8, label=label)
+            axis.set_ylim(-0.05, 1.05)
+            axis.set_ylabel("over-bar fraction")
+        elif name == "screen":
+            axis.plot(steps, rows["screen_v2_clean_lcb"], label="screen clean LCB (yaw 0, no statue criteria)")
+            limit = bar("min_clean_stance_lcb")
+            if limit is not None:
+                axis.axhline(limit, color="C3", linestyle=":", label=f"min_clean_stance_lcb {limit:.2f}")
+            axis.set_ylim(-0.05, 1.05)
+            axis.set_ylabel("clean LCB")
+        elif name == "balance":
+            for key in keys:
+                axis.plot(steps, rows[key], label=key)
+            axis.axhline(0.0, color="0.5", linewidth=0.8)
+            axis.set_ylabel("m")
+        else:
+            for key in keys:
+                axis.plot(steps, rows[key], "-" if key.startswith("leg_dc_") else "--", label=key)
+            axis.axhline(0.0, color="0.7", linewidth=0.8)
+            axis.set_ylabel("degrees")
+        axis.grid(alpha=0.3)
+        _safe_legend(axis, loc="upper left", fontsize=7, ncol=2)
+    axes[-1, 0].set_xlabel("steps (millions)")
+    figure.tight_layout()
+    if save_path is not None:
+        figure.savefig(save_path, dpi=120, bbox_inches="tight")
+        logger.info("Gate progress figure saved to: %s", save_path)
+    if not show:
+        plt.close(figure)
+    return figure

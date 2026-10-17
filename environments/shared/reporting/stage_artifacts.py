@@ -1934,6 +1934,21 @@ def generate_stage_artifacts(
                 logger.warning("Skipping graph generation (matplotlib not installed).")
             except Exception:
                 logger.warning("Graph generation failed.", exc_info=True)
+            # In its own guard, after the four above: a failure costs gate_progress.png only.
+            try:
+                from environments.shared.visualization import plot_gate_progress
+
+                plot_gate_progress(
+                    stage_dir,
+                    curriculum_kwargs=stage_config.get("curriculum_kwargs", {}),
+                    model_id=model_id,
+                    save_path=figures_out / "gate_progress.png",
+                    show=False,
+                )
+            except ImportError:
+                logger.warning("Skipping the gate progress figure (matplotlib not installed).")
+            except Exception:
+                logger.warning("The gate progress figure failed; the other figures are unaffected.", exc_info=True)
 
         if record_videos:
             stage_results = _record_stage_replays(

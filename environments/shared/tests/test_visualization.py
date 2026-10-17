@@ -393,3 +393,97 @@ class TestPlotStanceDiagnostics:
 
         assert result is None
         assert not (tmp_path / "stance_diagnostics.png").exists()
+
+
+def _gate_progress(stage_dir, *, every_group=True):
+    """A synthetic ``gate_progress.npz`` of five evaluations: every panel's keys, or the reward keys only."""
+    import numpy as np
+
+    steps = np.arange(1, 6) * 131_072
+    ramp = np.linspace(0.1, 0.5, 5)
+    keys = {"timesteps": steps, "mean_reward": 100.0 * ramp, "full_horizon_fraction": np.ones(5)}
+    if every_group:
+        keys.update(
+            {
+                "r_sole_cop_fore_aft": ramp,
+                "l_sole_cop_fore_aft": ramp - 0.05,
+                "r_foot_cop_fore_aft": ramp + 0.1,
+                "max_sole_cop_fore_aft_mean": ramp,  # a panel key, never a foot
+                "max_sole_cop_fore_aft_over_bar_fraction": np.array([0.0, 0.0, 0.1, 0.3, np.nan]),
+                "screen_v2_clean_lcb": np.array([0.1, 0.3, 0.5, 0.6, np.nan]),
+                "com_fore_aft_mean_m": -0.01 + 0.01 * ramp,
+                "xcom_toe_margin_min_m": 0.06 - 0.05 * ramp,
+                "leg_dc_l_minus_r_ankle_deg": ramp,
+                "leg_dc_l_r_mean_ankle_deg": -ramp,
+                "leg_q_l_minus_r_ankle_deg": ramp / 2,
+                "action_dc_per_actuator": np.zeros((5, 3)),  # a matrix: not a series
+            }
+        )
+    stage_dir.mkdir(parents=True, exist_ok=True)
+    np.savez(stage_dir / "gate_progress.npz", **keys)
+    return stage_dir
+
+
+class TestPlotGateProgress:
+    def test_one_panel_per_group_with_the_declared_bars(self, tmp_path):
+        pytest.importorskip("matplotlib")
+        from environments.shared.visualization import _gate_progress_groups, plot_gate_progress
+
+        stage_dir = _gate_progress(tmp_path / "run" / "01_stance")
+        out = tmp_path / "figure.png"
+        figure = plot_gate_progress(
+            stage_dir,
+            curriculum_kwargs={"max_sole_cop_fore_aft": 0.8, "min_clean_stance_lcb": 0.8},
+            model_id=ModelId("tyrannosaurus_rex", "anatomical"),
+            save_path=out,
+        )
+        assert out.stat().st_size > 0
+        import numpy as np
+
+        with np.load(stage_dir / "gate_progress.npz") as data:
+            groups = _gate_progress_groups(tuple(key for key in data.files if data[key].ndim == 1))
+        assert list(groups) == ["reward", "cop", "over_bar", "screen", "balance", "leg_dc"]
+        assert "max_sole_cop_fore_aft_mean" not in groups["cop"]
+        assert len([axis for axis in figure.axes if axis.get_ylabel() != "full-horizon fraction"]) == 6
+
+    def test_a_reward_only_file_draws_one_panel_and_no_file_draws_none(self, tmp_path):
+        pytest.importorskip("matplotlib")
+        from environments.shared.visualization import plot_gate_progress
+
+        stage_dir = _gate_progress(tmp_path / "plain", every_group=False)
+        figure = plot_gate_progress(stage_dir, save_path=tmp_path / "plain.png")
+        assert len(figure.axes) == 2  # the reward panel and its full-horizon twin
+        assert plot_gate_progress(tmp_path / "missing") is None
+
+    def test_the_script_writes_to_the_current_directory_and_refuses_the_run_directory(
+        self, tmp_path, monkeypatch, capsys
+    ):
+        pytest.importorskip("matplotlib")
+        import json
+
+        from environments.shared.scripts import plot_gate_progress as script
+
+        run = tmp_path / "run"
+        stage_dir = _gate_progress(run / "01_stance")
+        (run / "provenance.json").write_text(json.dumps({"run_id": "test"}), encoding="utf-8")
+        (stage_dir / "stage_config.json").write_text(
+            json.dumps(
+                {
+                    "species": "tyrannosaurus_rex",
+                    "embodiment": "anatomical",
+                    "curriculum": {"max_sole_cop_fore_aft": 0.8},
+                }
+            ),
+            encoding="utf-8",
+        )
+        elsewhere = tmp_path / "elsewhere"
+        elsewhere.mkdir()
+        monkeypatch.chdir(elsewhere)
+        assert script.main([str(stage_dir)]) == 0
+        assert (elsewhere / "gate_progress_01_stance.png").stat().st_size > 0
+        before = sorted(path.relative_to(run) for path in run.rglob("*"))
+        for inside in (run / "figure.png", stage_dir / "figures" / "gate_progress.png"):
+            assert script.main([str(stage_dir), "--out", str(inside)]) == 2
+            assert "result_bundle/manifest.py" in capsys.readouterr().err
+        assert sorted(path.relative_to(run) for path in run.rglob("*")) == before  # nothing written into the run
+        assert script.main([str(tmp_path / "missing")]) == 1

@@ -1,5 +1,6 @@
 """Tests for ``generate_stage_artifacts`` on a trainer-shaped stage directory."""
 
+import contextlib
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -236,3 +237,69 @@ def test_the_compsognathus_longipes_pair_steps_at_twenty_milliseconds(model_id):
         assert env.dt == pytest.approx(0.02)
     finally:
         env.close()
+
+
+@pytest.mark.parametrize("figure_fails", [False, True], ids=["drawn", "raises"])
+def test_the_gate_progress_figure_is_drawn_in_its_own_guard(tmp_path, figure_fails):
+    """``figures/gate_progress.png`` beside the other figures; a failure drawing it costs that file only."""
+    pytest.importorskip("matplotlib")
+    import numpy as np
+
+    from environments.shared.plant_contract import attach_plant_identity, current_plant_identity
+    from environments.shared.reporting import generate_stage_artifacts, stage_layout
+
+    model_id = ModelId("velociraptor_mongoliensis", "anatomical")
+    model_dir = tmp_path / "models"
+    model_dir.mkdir()
+    for name in ("best_model.zip", "best_model_vecnorm.pkl", "stage1_final.zip", "stage1_final_vecnorm.pkl"):
+        (model_dir / name).write_bytes(b"fake")
+    np.savez(
+        tmp_path / "evaluations.npz",
+        results=np.array([[10.0, 12.0], [20.0, 22.0]]),
+        ep_lengths=np.array([[100, 110], [200, 210]]),
+        timesteps=np.array([50000, 100000]),
+    )
+    np.savez(
+        tmp_path / "gate_progress.npz",
+        timesteps=np.array([50000, 100000]),
+        mean_reward=np.array([11.0, 21.0]),
+        full_horizon_fraction=np.array([0.0, 0.0]),
+    )
+    species_cfg = MagicMock()
+    species_cfg.model_id = model_id
+    species_cfg.env_class = MagicMock
+    fake_model = MagicMock()
+    attach_plant_identity(fake_model, current_plant_identity(model_id, verify_generated=False))
+    algorithm = MagicMock()
+    algorithm.load.return_value = fake_model
+
+    with contextlib.ExitStack() as stack:
+        stack.enter_context(
+            patch("environments.shared.policy_loading._ensure_sb3", return_value={"PPO": algorithm, "SAC": algorithm})
+        )
+        stack.enter_context(patch("environments.shared.evaluation.record_stage_video"))
+        if figure_fails:
+            stack.enter_context(
+                patch(
+                    "environments.shared.visualization.plot_gate_progress",
+                    side_effect=RuntimeError("a figure went wrong"),
+                )
+            )
+        generate_stage_artifacts(
+            species_cfg=species_cfg,
+            stage_config={
+                "name": "Balance",
+                "description": "Stand up",
+                "env_kwargs": {"sim_dt": 0.01},
+                "ppo_kwargs": {},
+            },
+            stage=1,
+            algorithm="ppo",
+            stage_dir=tmp_path,
+            seed=42,
+            timesteps=100_000,
+        )
+    figures = stage_layout.figures_dir(tmp_path)
+    for name in ("training_curves.png", "locomotion_health.png", "behavioral_metrics.png"):
+        assert (figures / name).exists(), name
+    assert (figures / "gate_progress.png").exists() is not figure_fails
