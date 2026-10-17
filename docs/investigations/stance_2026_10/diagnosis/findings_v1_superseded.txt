@@ -1,0 +1,212 @@
+T. rex r10 arm L: why seeds 52 and 60 stand on their toes (diagnosis, analysis only)
+======================================================================================
+Written 2026-10-17.  No training, no config change; Drive read-only.  Every number is in findings.json, built by
+tools/build_findings.py from out/*.json (in-training: intrain.py, training_rollouts.py, matched.py; probe:
+lean_probe.py, analyze_probe.py).  CoP units: the r10 whole-foot span half-length (76.5 mm), -1 heel line
+(0.060 m), +1 toe line (0.213 m), on both plants; 'm' = metres ahead of the ankle axis.
+
+SHORT ANSWER
+  No reward term pulls the r10 policies onto their toes.  Along a held forward lean the reward falls the same way
+  on both plants: total return -192 (r10) and -196 (r9) per unit CoP per episode over 0.1-1.0.
+  Two physical differences explain the drift instead.
+  (1) Under exploration noise the r10 statue falls BACKWARD (tail contact), while r9 falls FORWARD (nosedive).
+      So a forward leg lean pays under noise on r10 and costs on r9.  All three r10 seeds leaned forward within
+      the first 0.25M steps; no r9 seed did.
+  (2) The r10 digits keep a held forward lean standing out to CoP 1.06-1.10, against at most 0.85 on r9, so a
+      forward-drifting r10 policy is not stopped by falls until it is past the 0.80 rail.
+  Seed 42 made the same early excursion and came back.  Seeds 52 and 60 went on to r10's fall edge and stayed,
+  in a basin that is worse on every reward term.  What holds them there cannot be identified without their checkpoints.
+
+1. DATA
+  r10_s42: 46 evals, last at 6,029,312 steps (Drive, refreshed 2026-10-16 23:49 UTC)
+  r10_s52: 47 evals, last at 6,160,384 steps (Drive, refreshed 2026-10-16 23:49 UTC)
+  r10_s60: 47 evals, last at 6,160,384 steps (Drive, refreshed 2026-10-16 23:49 UTC)
+  r9_s42: 48 evals to 6,291,456 (r9 arm L screen, fresh + resume6m)
+  r9_s52: 48 evals to 6,291,456 (r9 arm L screen, fresh + resume6m)
+  r9_s60: 48 evals to 6,291,456 (r9 arm L screen, fresh + resume6m)
+  evaluations.npz was not refreshed: the s42 download came back inline, and saving it would have meant pasting
+  base64.  gate_progress.npz carries the same mean_reward and full-horizon series.  Probe instrument: the substep
+  hook matches the r10 recorder's whole-foot CoP, pad CoP and digit share to 1.1e-15.
+
+2. IN-TRAINING EVIDENCE
+  4M-6M eval means          r10 s42   r10 s52   r10 s60 |  r9 s42   r9 s52   r9 s60
+  whole-foot CoP            0.327    0.930    1.049 |        -        -        -
+  pad CoP                   0.565    0.985    0.998 |    0.303   -0.330    0.662
+  digit share                0.41     0.62     0.72 |     0.16     0.27     0.09
+  toe margin N m             21.7      2.3     -1.6 |        -        -        -
+  leg DC hip pitch          0.031    0.104    0.114 |    0.028   -0.006    0.054
+  leg DC ankle             -0.032   -0.084   -0.081 |   -0.016    0.039   -0.068
+  eval return                3915     3818     3752 |     3852     3921     3818
+  leg_home_pose             453.2    387.2    378.2 |    464.3    468.8    413.0
+  foot_flatness             142.3    131.6    122.5 |    133.1    139.0    134.7
+  neck_posture              195.6    177.1    177.5 |    191.2    196.0    191.1
+  stance_width               73.7     69.5     65.4 |     74.8     76.7     75.7
+  head_clearance            344.2    348.3    344.3 |    342.9    348.3    343.1
+  alive                     992.0    994.6    983.8 |    985.7    993.9    981.4
+  lean term                 196.4    196.8    193.8 |        -        -        -
+  r9 lean term                  -        -        - |    190.7    197.3    189.7
+  rail over-bar frac         0.03     1.00     1.00 |     0.21     0.01     0.54
+  (r9 CoP readings are the pad's; r9's whole-foot CoP is estimated from the probe as 0.1308 + 0.0824 x pad, in m.)
+
+  Drifted seeds minus seed 42 (4M-6M eval sums per episode):
+   s52: mean_reward -97.0, leg_home_pose -66.0, foot_flatness -10.8, neck_posture -18.5, stance_width -4.2, head_clearance +4.1, height +1.1, alive +2.6, bilateral_support +1.6, nosedive +0.1, posture -0.2, energy -1.4, lateral_lean +0.4
+   s60: mean_reward -163.1, leg_home_pose -75.0, foot_flatness -19.9, neck_posture -18.1, stance_width -8.3, head_clearance +0.1, height -5.8, alive -8.2, bilateral_support -4.9, nosedive -8.5, posture -1.2, energy -1.4, lateral_lean -2.6
+  Every material term is lower on the drifted seeds.  No term is materially higher: the largest gains are
+  head_clearance (+4.1, s52) and alive (+2.6, s52).
+  Pooled across the three r10 runs after 1M (n=119 evals), per unit CoP: total -264 (r -0.56),
+  leg_home_pose -114 (r -0.94), foot_flatness -29, neck -16; no term has a
+  positive pooled slope above +1.
+   within r10_s42 (evals after 0.5M), r with CoP: hip-pitch DC +0.96, ankle DC -0.96, digit share +0.80, leg_home_pose -0.73, foot_flatness -0.18
+   within r10_s52 (evals after 0.5M), r with CoP: hip-pitch DC +0.93, ankle DC -0.78, digit share +0.98, leg_home_pose -0.59, foot_flatness -0.50
+   within r10_s60 (evals after 0.5M), r with CoP: hip-pitch DC +0.98, ankle DC -0.79, digit share +0.99, leg_home_pose -0.74, foot_flatness -0.71
+  The CoP is set by the leg DC (+hip pitch / -ankle); the digits take the load as it moves.
+  Training rollouts (stochastic policy, 5M-6M), per-step return and the share of rollouts with a termination:
+   r10_s42: 3.881 per step, 0.04 of rollouts, reasons {'fallen': 0.0, 'nosedive': 0.8, 'tail_contact': 0.2}
+   r10_s52: 3.780 per step, 0.24 of rollouts, reasons {'fallen': 0.04, 'head_contact': 0.96, 'nosedive': 0.0, 'tail_contact': 0.0}
+   r10_s60: 3.740 per step, 0.46 of rollouts, reasons {'fallen': 0.16, 'head_contact': 0.38, 'nosedive': 0.46, 'tail_contact': 0.0}
+   r9_s42: 3.636 per step, 0.22 of rollouts, reasons {'fallen': 0.0, 'head_contact': 0.09, 'nosedive': 0.8, 'tail_contact': 0.11}
+   r9_s52: 3.694 per step, 0.05 of rollouts, reasons {'fallen': 0.0, 'head_contact': 0.0, 'nosedive': 1.0, 'tail_contact': 0.0}
+   r9_s60: 3.617 per step, 0.26 of rollouts, reasons {'fallen': 0.0, 'head_contact': 1.0, 'nosedive': 0.0, 'tail_contact': 0.0}
+  So the drifted seeds are also worse under their own exploration noise at 4-6M.  (Compare within a plant only:
+  r9's per-step reward_total leaves out its wrapper's lateral bonus, about 0.19 per step; r10's includes its lean term.)
+
+  The divergence starts in the first 0.25M steps (leg DC: + hip pitch / - ankle is the toe-ward lean):
+   s42 at 0.25M: r10 hip +0.039 ankle -0.044 CoP 0.1690 m | r9 hip +0.007 ankle -0.001 CoP~0.1438 m
+   s52 at 0.25M: r10 hip +0.042 ankle -0.048 CoP 0.1719 m | r9 hip +0.009 ankle -0.009 CoP~0.1480 m
+   s60 at 0.25M: r10 hip +0.043 ankle -0.045 CoP 0.1719 m | r9 hip +0.026 ankle -0.008 CoP~0.1491 m
+  Termination reasons in the first 131k steps (share of terminations):
+   r10_s42: {'nosedive': 0.43, 'tail_contact': 0.54, 'fallen': 0.03}
+   r10_s52: {'nosedive': 0.4, 'tail_contact': 0.59, 'fallen': 0.01}
+   r10_s60: {'nosedive': 0.47, 'tail_contact': 0.52, 'fallen': 0.01}
+   r9_s42: {'nosedive': 0.63, 'tail_contact': 0.3, 'fallen': 0.08}
+   r9_s52: {'nosedive': 0.58, 'fallen': 0.06, 'tail_contact': 0.37}
+   r9_s60: {'nosedive': 0.56, 'fallen': 0.06, 'tail_contact': 0.38}
+  At the start, r10's falls are mostly backward (tail contact 0.52-0.59) and r9's mostly forward (nosedive
+  0.56-0.63).  At 0.5M the r10 seeds stand at CoP 0.60-0.63; the r9 seeds at about 0.18-0.33 (estimated).
+  Seed 42 came back to CoP 0.06-0.19 by 1.5-2.3M (raising its head while its leg DC returned to zero).
+  Seeds 52 and 60 kept the leg lean and later raised their heads and tails (neck / head DC about -0.3).  s60 passed
+  0.8 at 0.88M and 1.0 at 1.25M; s52 passed 0.8 at 1.75M.
+  On r9, seed 60 drifted to pad CoP 0.86 (whole-foot about 0.85) at 5.38M, which is r9's own held-lean
+  edge (0.85), and was back at 0.27 at 6.00M.  The drifting seeds on both plants went to the plant's edge;
+  the edge is further forward on r10.
+
+3. CONTROLLED PROBE (held symmetric postures, the arm L env exactly as trained, both plants)
+  Direction: the mean action DC of r10 seeds 52 and 60 at 4-6M.  Legs: hip pitch +0.110, knee +0.005,
+  ankle -0.083 (both sides).  Axial: neck -0.264, head -0.297, tail +0.204 / +0.024 / +0.135.  lambda scales it.
+  The ankle is what moves the CoP toe-ward; hip pitch alone moves it heel-ward (ankle_only / hip_only families).
+
+  Deterministic lean (leg_dc), survivors' whole-foot CoP, survival of 8 spawns, return:
+   lambda |  r10 CoP  surv  return  digits |  r9 CoP  surv  return  digits
+   -0.500 |  -0.281  8/8     3930    0.27 |  -0.278  7/8     3930    0.21
+   -0.250 |  -0.087  8/8     3966    0.29 |  -0.092  8/8     3965    0.18
+    0.000 |   0.106  8/8     3981    0.31 |   0.096  8/8     3980    0.14
+    0.125 |   0.202  8/8     3980    0.32 |   0.190  8/8     3978    0.13
+    0.250 |   0.300  8/8     3972    0.34 |   0.285  8/8     3969    0.11
+    0.375 |   0.399  8/8     3958    0.36 |   0.382  8/8     3956    0.10
+    0.500 |   0.501  8/8     3939    0.38 |   0.479  8/8     3939    0.08
+    0.625 |   0.612  8/8     3914    0.42 |   0.581  7/8     3923    0.07
+    0.750 |   0.744  8/8     3881    0.48 |   0.686  7/8     3896    0.05
+    0.800 |   0.788  7/8     3880    0.50 |   0.722  5/8     3886    0.04
+    0.825 |   0.824  7/8     3874    0.53 |   0.743  5/8     3881    0.04
+    0.850 |   0.864  7/8     3866    0.56 |   0.765  5/8     3878    0.04
+    0.875 |   0.918  7/8     3854    0.60 |   0.793  5/8     3871    0.04
+    0.900 |   0.939  5/8     3848    0.61 |   0.802  3/8     3891    0.04
+    0.925 |   1.010  4/8     3834    0.67 |   0.832  2/8     3887    0.03
+    0.950 |   0.970  2/8     3869    0.63 |   0.847  1/8     3873    0.02
+    1.000 |       -  0/8        -       - |       -  0/8        -       -
+    1.125 |       -  0/8        -       - |       -  0/8        -       -
+  Largest surviving held CoP: r10 1.103 (0.2209 m), r9 0.847 (0.2013 m).
+  Every fall is a nosedive.
+
+  Reward slopes per unit whole-foot CoP per episode (held postures, survivors, seed fixed effects, 90% seed-block
+  bootstrap):
+   term                        r10 0.1-0.6            r9 0.1-0.6            r10 0.1-1.0           r9 0.1-1.0
+   total return               -129.7 [-141.1,-121.3]  -142.6 [-153.8,-133.6]  -191.6 [-217.9,-173.4]  -196.0 [-233.3,-166.6]
+   leg_home_pose              -121.6 [-125.8,-117.2]  -138.4 [-144.7,-133.2]  -138.9 [-142.2,-135.2]  -163.9 [-168.9,-156.6]
+   foot_flatness                -4.2 [  -5.7,  -3.3]    -4.6 [  -8.1,  -2.7]   -18.5 [ -21.4, -16.1]    -5.2 [  -6.5,  -4.3]
+   neck_posture                 -4.1 [  -5.1,  -3.3]    -3.0 [  -3.8,  -2.5]    -5.3 [  -5.7,  -4.9]    -7.5 [  -8.0,  -7.0]
+   stance_width                 -0.7 [  -1.1,  -0.4]    -0.5 [  -1.0,  -0.1]    -0.3 [  -0.6,  -0.1]    -0.6 [  -1.4,  -0.1]
+   head_clearance                1.9 [   1.4,   2.4]     1.8 [   1.2,   2.5]     1.3 [   0.9,   1.6]     1.4 [   0.9,   2.0]
+   nosedive                      4.9 [   3.5,   6.0]     2.8 [  -0.9,   5.3]    -7.9 [ -10.1,  -5.9]     1.7 [   0.6,   2.8]
+   posture                       1.0 [   0.9,   1.1]     0.9 [   0.5,   1.2]    -0.4 [  -0.7,  -0.2]     0.8 [   0.6,   0.9]
+   height                       -0.8 [  -0.9,  -0.7]    -0.7 [  -0.8,  -0.6]    -0.3 [  -0.4,  -0.2]    -0.2 [  -0.3,  -0.1]
+   tail_home_pose               -1.1 [  -1.3,  -0.9]    -0.9 [  -1.0,  -0.8]    -1.3 [  -1.4,  -1.1]    -1.9 [  -2.0,  -1.8]
+   energy                       -0.4 [  -0.5,  -0.3]    -0.3 [  -0.4,  -0.3]    -0.5 [  -0.6,  -0.5]    -0.7 [  -0.8,  -0.7]
+   lateral lean term            -4.1 [  -8.6,  -1.3]    -0.4 [  -1.7,   0.8]   -17.6 [ -37.9,  -2.9]   -16.1 [ -45.2,   2.9]
+   alive                         0.0 [  -0.0,   0.0]     0.0 [   0.0,   0.0]     0.0 [  -0.0,   0.0]     0.0 [   0.0,   0.0]
+   bilateral_support             0.0 [  -0.0,   0.0]     0.0 [   0.0,   0.0]     0.0 [  -0.0,   0.0]     0.0 [   0.0,   0.0]
+   leg_home @keyframe (cf.)     34.5 [  28.1,  41.3]    13.4 [   3.7,  20.7]   -54.0 [ -59.6, -48.0]   -62.1 [ -73.9, -43.5]
+  -> On both plants only head_clearance, nosedive (r10 up to about 0.6) and posture pay more for the toes, together
+     under +10 per unit.  The restoring slope is the same on both plants, made up mostly of leg_home_pose under the
+     settled target, plus foot_flatness on r10 past about 0.75, where the sole box starts to tilt.
+     Centred on the keyframe instead, leg_home_pose would pay for a lean up to about 0.6, more on r10 than on r9.
+     The lateral lean term is flat along a symmetric lean to 0.6 and charges a little beyond that.
+
+  Under policy-space action noise (open-loop, 10 spawns): survival, mean return including falls, falls by reason:
+   sigma 0.10 r10: l-0.25: 4/10 2060 {'tail_contact': 6} | l+0.00: 8/10 2812 {'tail_contact': 2} | l+0.25: 10/10 3276 {} | l+0.50: 4/10 2182 {'nosedive': 6}
+   sigma 0.10  r9: l-0.25: 2/10 1595 {'tail_contact': 5, 'nosedive': 3} | l+0.00: 4/10 1893 {'nosedive': 6} | l+0.25: 0/10 1174 {'nosedive': 10} | l+0.50: 1/10 872 {'nosedive': 9}
+   sigma 0.15 r10: l-0.25: 1/10 1056 {'tail_contact': 9} | l+0.00: 2/10 1570 {'tail_contact': 6, 'nosedive': 2} | l+0.25: 1/10 1688 {'nosedive': 8, 'tail_contact': 1} | l+0.50: 0/10 1025 {'nosedive': 9, 'tail_contact': 1}
+   sigma 0.15  r9: l-0.25: 0/10 682 {'tail_contact': 6, 'nosedive': 4} | l+0.00: 0/10 643 {'nosedive': 8, 'tail_contact': 2} | l+0.25: 0/10 448 {'nosedive': 9, 'tail_contact': 1} | l+0.50: 0/10 389 {'nosedive': 9, 'tail_contact': 1}
+  -> Under noise the r10 statue falls backward (tail contact) and a modest forward lean (lambda 0.25,
+     deterministic CoP 0.30) is the best posture.  r9 falls forward (nosedive) at the statue and gets worse with any
+     lean.  sigma 0.21 (the policies' std at the start) kills every open-loop posture on both plants, so it is not
+     read.
+
+  Escape path on r10 (head and tail kept raised at axial 1.0, legs brought back from 0.875 to 0):
+   deterministic: l0.000 10/10 3965 | l0.250 10/10 3955 | l0.500 10/10 3923 | l0.750 10/10 3870 | l0.875 9/10 3620
+   sigma 0.10: l0.000 9/10 3077 | l0.250 8/10 3017 | l0.500 6/10 2795 | l0.750 0/10 1466 | l0.875 0/10 1120
+  -> Return and survival rise all the way back, so no barrier is visible in held postures.
+
+4. RANKED HYPOTHESES
+  1. H1_noise_fall_asymmetry_plus_wider_forward_margin [best supported]
+     No reward term pulls the r10 policies onto their toes.  Two physical differences do.  Under exploration noise, the r10 statue tends to fall BACKWARD (tail contact), while r9 falls FORWARD (nosedive).  A forward leg lean therefore raises the noisy return on r10 and lowers it on r9.  And the r10 digits move the survivable forward lean 0.21-0.26 units (16-20 mm) further toe-ward, past the 0.80 rail, so a forward-drifting r10 policy is not stopped by falls until about CoP 1.0.  On r9 the physics stopped it at about 0.8 (r9 seed 60 drifted to pad 0.86, whole-foot about 0.85, at 5.38M: r9's own edge).
+     - against / limits: the probe's noise is open-loop (no feedback), harsher than a closed-loop policy's own noise; only the ordering across lean levels and plants is read, not absolute survival
+     - against / limits: the noise optimum on r10 is a modest lean (lambda 0.25, deterministic CoP about 0.3, about 0.5 under the noise), not the 0.9-1.1 where seeds 52 / 60 sit: H1 explains the early forward excursion of all three r10 seeds and why nothing stops it, not why two seeds went on to the edge and stayed
+  2. H2_trapped_in_a_worse_basin [consistent, mechanism not identified]
+     Seeds 52 and 60 are in a worse posture basin, not a better one.  At 4-6M they earn less than seed 42 on deterministic evals and on stochastic training rollouts, and they terminate more often.  Seed 42 made the same early excursion (CoP about 0.6 at 0.4-1.0M) and came back between 1.0M and 1.6M.  Seeds 52 and 60 kept going until they reached r10's fall edge.
+     - against / limits: the open-loop escape path (keep the raised head and tail, bring the legs back) shows no valley on r10: return and survival rise steadily all the way back, so what holds the policies is not visible in held postures.  The likely candidate is that a policy's balance feedback is tuned to its own operating point.  Testing that needs the checkpoints.
+     - against / limits: seed 60 is creeping back slowly (CoP 1.19 at 2M -> 1.07 at 6M); seed 52 is not (0.92 -> 0.96)
+  3. H3_a_reward_term_pays_for_the_toes [rejected as a driver (only small positive terms)]
+     A reward term pays more for standing further onto the toes.
+  4. H4_settled_leg_target [not a cause; it is most of the restoring force]
+     The settled leg target of arm L drives the drift.
+  5. H5_lateral_lean_term [no role]
+     The lateral lean term pays for the fore-aft drift.
+
+5. ANSWERS TO THE QUESTIONS
+  does any term pay more for the toes on r10: only marginally.  Over whole-foot CoP 0.1-0.6, head_clearance, nosedive and posture rise with the lean on both plants, together under +10 per unit CoP per episode, against a total-return slope of -130 (r10) and -143 (r9).  On r10, beyond 0.6, nosedive and posture turn negative.  The only material 'penalises less' difference is leg_home_pose: -122 on r10 against -138 on r9 per unit (0.1-0.6).  Over 0.1-1.0 the total slope is the same within its interval on both plants: -192 and -196.
+  is the slope steeper than on r9: no material difference.  See slopes_per_unit_cop_per_episode (seed-block bootstrap, 90% intervals).
+  settled target or lean term: neither drives the drift.  The settled leg target supplies most of the restoring slope and removes the forward pull that the keyframe target would have.  The lateral lean term is flat along a symmetric lean to CoP 0.6 and charges a little beyond that.
+  does digit support let a forward lean survive: yes.  A held symmetric lean survives open-loop to CoP 1.06 (level mean of survivors; single episodes to 1.10, 0.221 m) on r10, against at most 0.85 (0.201 m) on r9, which falls (nosedive) everywhere past that.  Held leans that 7 of 8 spawns survive reach CoP 0.92 on r10 and 0.69 on r9.  So the 0.80 rail on r10 sits inside the region the plant can hold, while on r9 the rail coincided with the toppling line (0.196 m = pad 0.80).
+
+6. WHAT THE DATA CANNOT TELL
+  - no checkpoint was replayed (analysis only; the policies stay on Drive).  What holds seeds 52 / 60 in their basin (H2) needs their policies, e.g. a closed-loop noise panel or a DC shift back toward seed 42's posture
+  - the probe holds open-loop postures along one direction, the mean leg (and axial) action DC of seeds 52 / 60.  A closed-loop policy can hold postures and CoPs the probe cannot, and the probe's noise has no feedback
+  - r9 training telemetry has the pad CoP only.  r9 whole-foot values are estimates from the probe's held-posture fit (whole-foot m = 0.1308 + 0.0824 x pad).  The r9 pad span [0.070, 0.210] and the r10 whole-foot span [0.060, 0.213] make the normalised readings roughly comparable (within about 0.05 unit over the observed range), not identical
+  - three seeds per plant.  Why seed 42 escaped and seeds 52 / 60 did not cannot be attributed: the early excursion is common to all three, and in the divergence window (0.6-1.6M) the eval terms only follow the posture (seed 42: leg_home_pose up, neck_posture down as it raised its head; seeds 52 / 60: leg_home_pose down).  That says what changed, not why
+  - the in-training termination record is the share of each reason among a rollout's terminations, not counts, so the early backward / forward asymmetry is a share, not a rate
+  - why the r10 statue falls backward under noise is not isolated.  Candidates are a rebound off the stiff MTP springs, or a forward margin so much larger (toe margin 29.1 against 22.5 N m) that the backward falls remain.  The probe only shows that it does
+  - the runs are still training.  The data stop at 6.03M (s42) and 6.16M (s52 / s60) of gate_progress
+
+7. IMPLICATIONS
+  For reading tomorrow's verdict:
+  - K2 (fore-aft) will fail on seeds 52 and 60: their in-training evals are over the 0.80 rail on 10 of 10 episodes at every eval since 3.75M (s52) and 0.88M (s60).  The 40-episode panel is the same deterministic policy on other spawns.
+  - K1 will very likely fail: max_foot_cop_fore_aft is a stance_quality/v2 clean criterion, so seeds 52 / 60 will be unclean on nearly every panel episode, and only seed 42 can pass (1 of 3 < 2).
+  - read the failure as plant + training dynamics (r10's wider forward margin and backward-falling statue under exploration noise), not as a reward term paying for toes and not as an arm L defect.  The deterministic reward landscape along the lean is the same on both plants.
+  - on r10 the 0.80 rail is a gate criterion with no physical backstop between 0.8 and about 1.0, where on r9 the rail coincided with the toppling line.  The rail did its job here: it is the only thing that marks seeds 52 / 60.
+  - seed 42 is a clean-looking r10 stance (4-6M CoP 0.33, digits 41% of the load, toe margin 22 N m, rail over-bar fraction 0.03) and a candidate under the agreed pilot-start rule, against r9 seed 60 (40/40 clean at 6M).
+  For the walking pilot:
+  - do not start from a drifted r10 checkpoint.  It stands at its toe line (4-6M toe margin 2.3 / -1.6 N m, digits 62 / 72% of the load), so a forward step has no margin left.  The agreed rule (most clean panel episodes) already excludes them.
+  - the walking stage's own early training uses the same initial exploration noise (log_std_init -1.5, sigma about 0.22).  On r10 that noise favours a forward lean near stance-like states, and a forward-velocity reward will add to it.  Watch the whole-foot CoP, digit share and toe margin in the pilot's gate_progress from the first evals: a drift toward 1.0 would be this mechanism.
+  - if the pilot starts from an r9 checkpoint, it inherits r9's physics backstop at 0.196 m.
+
+8. OPTIONS FOR THE MAINTAINER (descriptions only)
+  - these are descriptions, not plans: under the agreed policy no new stance-only reward experiment is proposed
+  - physics: r10's forward margin comes from the MTP springs (3000-4500 N m/rad, the lowest rung that beat r9's push limit) and the top-of-range digit lengths.  Either sets where a forward drift is stopped.  The leg-scale digits (0.157 / 0.194 / 0.163) or a softer rung would move the edge back toward the rail, at a cost in forward push limit (note 20)
+  - gate (no change involved): the whole-foot rail at 0.80, as set, is what separates seeds 52 / 60 from seed 42 here; full horizon and the return bar barely do (eval return differs by 2.5-4%)
+  - exploration: the early forward push comes from falls under the initial noise.  A lower initial log_std would change it, but that is a training change that only a new run could test
+  - reward: a fore-aft CoM / CoP price (arm C's term on r9) would act on the drift directly.  It exists in the r9 harness only and is not proposed here
+
+Files: findings.json (all numbers); out/intrain.json, out/training_rollouts.json, out/matched.json (in-training);
+out/probe_{r10,r9}.json, out/refine_*.json, out/escape_*.json (raw probe episodes), out/probe_summary.json (tables,
+slopes); plans/*.json (the probe plans and directions); tools/*.py; logs/*.txt; data/ (the refreshed Drive npz files).

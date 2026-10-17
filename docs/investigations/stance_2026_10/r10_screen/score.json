@@ -1,0 +1,1285 @@
+{
+ "schema": "r10screen-score/v1",
+ "criteria_file": "scratchpad/foot/r10screen/criteria.txt",
+ "r10_root": "scratchpad/foot/r10screen/judged/judge",
+ "validation_synthetic": false,
+ "expect_head": "026eb833a0c84989a3656f92b6229eab11febade",
+ "frozen_params_sha256": "58b2c8fbb135ecddf1bf2212d5e243514d90ff1069f5f3e2cb1c3ece9c3e7af8",
+ "r10": {
+  "K1": {
+   "pass": false,
+   "seeds_passing": [
+    42
+   ],
+   "per_seed": {
+    "42": {
+     "repo_verdict": "PASS",
+     "clean": 40,
+     "lcb": 0.9278424754944773,
+     "full": 40,
+     "hop_or_fall": 0,
+     "components": {
+      "n_eq_40": true,
+      "clean_ge_37": true,
+      "lcb_ge_0.80": true,
+      "full_ge_0.95": true,
+      "hop_or_fall_le_1": true
+     },
+     "pass": true
+    },
+    "52": {
+     "repo_verdict": "FAIL",
+     "clean": 0,
+     "lcb": 0.0,
+     "full": 38,
+     "hop_or_fall": 2,
+     "components": {
+      "n_eq_40": true,
+      "clean_ge_37": false,
+      "lcb_ge_0.80": false,
+      "full_ge_0.95": true,
+      "hop_or_fall_le_1": false
+     },
+     "pass": false
+    },
+    "60": {
+     "repo_verdict": "FAIL",
+     "clean": 0,
+     "lcb": 0.0,
+     "full": 39,
+     "hop_or_fall": 1,
+     "components": {
+      "n_eq_40": true,
+      "clean_ge_37": false,
+      "lcb_ge_0.80": false,
+      "full_ge_0.95": true,
+      "hop_or_fall_le_1": true
+     },
+     "pass": false
+    }
+   },
+   "bar": "v2 PASS on >= 2 of 3 seeds (clean >= 37/40, LCB >= 0.8, full >= 0.95, hop-or-fall <= 1)"
+  },
+  "K2": {
+   "pass": false,
+   "counts": {
+    "42": {
+     "4M": 5,
+     "5M": 2,
+     "6M": 0
+    },
+    "52": {
+     "4M": 37,
+     "5M": 40,
+     "6M": 38
+    },
+    "60": {
+     "4M": 39,
+     "5M": 40,
+     "6M": 39
+    }
+   },
+   "over": [
+    "s42 4M: 5",
+    "s52 4M: 37",
+    "s52 5M: 40",
+    "s52 6M: 38",
+    "s60 4M: 39",
+    "s60 5M: 40",
+    "s60 6M: 39"
+   ],
+   "bar": "<= 3 of 40 per seed at each of 4M/5M/6M (r10: full-horizon, max_foot_cop_fore_aft > 0.80)"
+  },
+  "K3": {
+   "pass": false,
+   "joint_falls": [
+    0,
+    7,
+    9
+   ],
+   "own_falls": [
+    0,
+    2,
+    0
+   ],
+   "joint_pooled": 16,
+   "own_pooled": 2,
+   "complete": true,
+   "bar": "joint <= 7/60 pooled and own <= 3/60 pooled at 6M"
+  },
+  "K4": {
+   "pass": false,
+   "per_seed": [
+    0,
+    4,
+    8
+   ],
+   "pooled": 12,
+   "complete": true,
+   "bar": "<= 6/120 pooled and <= 3/40 per seed at 6M (tilt > 2.0 deg or corner lift > 0.004 m, full horizon)"
+  },
+  "failed": [
+   "K1",
+   "K2",
+   "K3",
+   "K4"
+  ],
+  "overall": "FAIL"
+ },
+ "r9": {
+  "K1": {
+   "pass": true,
+   "seeds_passing": [
+    52,
+    60
+   ],
+   "per_seed": {
+    "42": {
+     "repo_verdict": "FAIL",
+     "clean": 29,
+     "lcb": 0.5861225567734873,
+     "full": 40,
+     "hop_or_fall": 0,
+     "components": {
+      "n_eq_40": true,
+      "clean_ge_37": false,
+      "lcb_ge_0.80": false,
+      "full_ge_0.95": true,
+      "hop_or_fall_le_1": true
+     },
+     "pass": false
+    },
+    "52": {
+     "repo_verdict": "PASS",
+     "clean": 38,
+     "lcb": 0.8508480387267765,
+     "full": 40,
+     "hop_or_fall": 0,
+     "components": {
+      "n_eq_40": true,
+      "clean_ge_37": true,
+      "lcb_ge_0.80": true,
+      "full_ge_0.95": true,
+      "hop_or_fall_le_1": true
+     },
+     "pass": true
+    },
+    "60": {
+     "repo_verdict": "PASS",
+     "clean": 40,
+     "lcb": 0.9278424754944773,
+     "full": 40,
+     "hop_or_fall": 0,
+     "components": {
+      "n_eq_40": true,
+      "clean_ge_37": true,
+      "lcb_ge_0.80": true,
+      "full_ge_0.95": true,
+      "hop_or_fall_le_1": true
+     },
+     "pass": true
+    }
+   },
+   "bar": "v2 PASS on >= 2 of 3 seeds (clean >= 37/40, LCB >= 0.8, full >= 0.95, hop-or-fall <= 1)"
+  },
+  "K2": {
+   "pass": false,
+   "counts": {
+    "42": {
+     "4M": 9,
+     "5M": 8,
+     "6M": 11
+    },
+    "52": {
+     "4M": 3,
+     "5M": 1,
+     "6M": 2
+    },
+    "60": {
+     "4M": 8,
+     "5M": 39,
+     "6M": 0
+    }
+   },
+   "over": [
+    "s42 4M: 9",
+    "s42 5M: 8",
+    "s42 6M: 11",
+    "s60 4M: 8",
+    "s60 5M: 39"
+   ],
+   "bar": "<= 3 of 40 per seed at each of 4M/5M/6M (r9: all episodes, pad max_sole_cop_fore_aft > 0.8 (H3a))"
+  },
+  "K3": {
+   "pass": false,
+   "joint_falls": [
+    1,
+    1,
+    6
+   ],
+   "own_falls": [
+    0,
+    0,
+    0
+   ],
+   "joint_pooled": 8,
+   "own_pooled": 0,
+   "complete": true,
+   "bar": "joint <= 7/60 pooled and own <= 3/60 pooled at 6M"
+  },
+  "K4": {
+   "pass": true,
+   "per_seed": [
+    2,
+    0,
+    0
+   ],
+   "pooled": 2,
+   "complete": true,
+   "bar": "<= 6/120 pooled and <= 3/40 per seed at 6M (tilt > 2.0 deg or corner lift > 0.004 m, full horizon)"
+  },
+  "failed": [
+   "K2",
+   "K3"
+  ],
+  "overall": "FAIL"
+ },
+ "overall": "FAIL",
+ "failed": [
+  "K1",
+  "K2",
+  "K3",
+  "K4"
+ ],
+ "missing": [],
+ "invalid": [],
+ "best_stance_policy": {
+  "best": "r10 arm L s42 6M",
+  "tied": [],
+  "rule": "most clean panel episodes; tie -> fewer noise falls (joint-space + own-sigma)",
+  "candidates": [
+   {
+    "run": "r10 arm L s42 6M",
+    "clean": 40,
+    "joint_noise_falls": 0,
+    "own_noise_falls": 0,
+    "noise_falls": 0,
+    "path": "scratchpad/foot/r10screen/judged/judge/s42/judge_6291456.json"
+   },
+   {
+    "run": "r9 arm L s60 6M",
+    "clean": 40,
+    "joint_noise_falls": 6,
+    "own_noise_falls": 0,
+    "noise_falls": 6,
+    "path": "scratchpad/foot/symmetry/screen/runs/sym_lean_settled_s60/judge_6291456.json"
+   },
+   {
+    "run": "r9 arm L s52 6M",
+    "clean": 38,
+    "joint_noise_falls": 1,
+    "own_noise_falls": 0,
+    "noise_falls": 1,
+    "path": "scratchpad/foot/symmetry/screen/runs/sym_lean_settled_s52/judge_6291456.json"
+   },
+   {
+    "run": "r9 arm L s42 6M",
+    "clean": 29,
+    "joint_noise_falls": 1,
+    "own_noise_falls": 0,
+    "noise_falls": 1,
+    "path": "scratchpad/foot/symmetry/screen/runs/sym_lean_settled_s42/judge_6291456.json"
+   },
+   {
+    "run": "r10 arm L s52 6M",
+    "clean": 0,
+    "joint_noise_falls": 7,
+    "own_noise_falls": 2,
+    "noise_falls": 9,
+    "path": "scratchpad/foot/r10screen/judged/judge/s52/judge_6291456.json"
+   },
+   {
+    "run": "r10 arm L s60 6M",
+    "clean": 0,
+    "joint_noise_falls": 9,
+    "own_noise_falls": 0,
+    "noise_falls": 9,
+    "path": "scratchpad/foot/r10screen/judged/judge/s60/judge_6291456.json"
+   }
+  ]
+ },
+ "r9_meta": {
+  "verdict": "scratchpad/foot/symmetry/screen/analysis/verdict.json",
+  "params_sha256": "58b2c8fbb135ecddf1bf2212d5e243514d90ff1069f5f3e2cb1c3ece9c3e7af8",
+  "H": {
+   "H1": true,
+   "H2": true,
+   "H3a": false,
+   "H3b": false,
+   "H3": false,
+   "H4": false,
+   "H5": true,
+   "H6": true
+  },
+  "H_detail_used": {
+   "H1_per_seed": {
+    "42": false,
+    "52": true,
+    "60": true
+   },
+   "H2_roll_rail_per_seed": [
+    2,
+    0,
+    0
+   ],
+   "H3a_cop_any_4_5_6M": {
+    "42": [
+     9,
+     8,
+     11
+    ],
+    "52": [
+     3,
+     1,
+     2
+    ],
+    "60": [
+     8,
+     39,
+     0
+    ]
+   },
+   "H4_joint_falls": [
+    1,
+    1,
+    6
+   ],
+   "H4_own_falls": [
+    0,
+    0,
+    0
+   ]
+  },
+  "recomputed": {
+   "H1_per_seed": {
+    "42": false,
+    "52": true,
+    "60": true
+   },
+   "H2_roll_rail_per_seed": [
+    2,
+    0,
+    0
+   ],
+   "H3a_cop_any_4_5_6M": {
+    "42": [
+     9,
+     8,
+     11
+    ],
+    "52": [
+     3,
+     1,
+     2
+    ],
+    "60": [
+     8,
+     39,
+     0
+    ]
+   },
+   "H4_joint_falls": [
+    1,
+    1,
+    6
+   ],
+   "H4_own_falls": [
+    0,
+    0,
+    0
+   ]
+  },
+  "agrees_with_verdict_json": {
+   "H1_per_seed": true,
+   "H2_roll_rail_per_seed": true,
+   "H3a_cop_any_4_5_6M": true,
+   "H4_joint_falls": true,
+   "H4_own_falls": true
+  }
+ },
+ "notes": [],
+ "r10_cells": {
+  "s42_4M": {
+   "n": 40,
+   "n_clean": 35,
+   "lcb": 0.7549694873502772,
+   "lcb_recorded": 0.7549694873502772,
+   "full": 40,
+   "falls": 0,
+   "hop_or_fall": 0,
+   "hop_or_fall_recorded": 0,
+   "verdict": "FAIL",
+   "roll_rail": 1,
+   "foot_cop_fh": 5,
+   "foot_cop_any": 5,
+   "foot_cop_unmeasured_fh": 0,
+   "pad_cop_any": 17,
+   "pad_cop_fh": 17,
+   "mean_reward": 3935.884822513296,
+   "statue_mean_reward": 3982.4041474205637,
+   "terminations": {
+    "truncated": 40
+   },
+   "noise_joint_falls": 0,
+   "noise_own_falls": 0,
+   "k2_count": 5,
+   "k1_components": {
+    "n_eq_40": true,
+    "clean_ge_37": false,
+    "lcb_ge_0.80": false,
+    "full_ge_0.95": true,
+    "hop_or_fall_le_1": true
+   },
+   "k1_components_pass": false,
+   "k1_repo_pass": false,
+   "k1_pass": false,
+   "k1_agree": true,
+   "noise_joint_falls_recorded": 0,
+   "noise_own_falls_recorded": 0,
+   "foot_signed_cop_mean": {
+    "r": 0.2961815838562555,
+    "l": 0.3066958344341494
+   },
+   "foot_gate_cop_mean": {
+    "r": 0.3670143667509682,
+    "l": 0.375290779928089
+   },
+   "path": "scratchpad/foot/r10screen/judged/judge/s42/judge_4194304.json",
+   "model_sha256": "sha256:57195f8c117007487c0aa3ee25aee845a9b98c08fabc9d452735592c6ea4477d",
+   "synthetic": false
+  },
+  "s42_5M": {
+   "n": 40,
+   "n_clean": 38,
+   "lcb": 0.8508480387267765,
+   "lcb_recorded": 0.8508480387267765,
+   "full": 40,
+   "falls": 0,
+   "hop_or_fall": 0,
+   "hop_or_fall_recorded": 0,
+   "verdict": "PASS",
+   "roll_rail": 0,
+   "foot_cop_fh": 2,
+   "foot_cop_any": 2,
+   "foot_cop_unmeasured_fh": 0,
+   "pad_cop_any": 25,
+   "pad_cop_fh": 25,
+   "mean_reward": 3929.502955887303,
+   "statue_mean_reward": 3982.4041474205637,
+   "terminations": {
+    "truncated": 40
+   },
+   "noise_joint_falls": 0,
+   "noise_own_falls": 0,
+   "k2_count": 2,
+   "k1_components": {
+    "n_eq_40": true,
+    "clean_ge_37": true,
+    "lcb_ge_0.80": true,
+    "full_ge_0.95": true,
+    "hop_or_fall_le_1": true
+   },
+   "k1_components_pass": true,
+   "k1_repo_pass": true,
+   "k1_pass": true,
+   "k1_agree": true,
+   "noise_joint_falls_recorded": 0,
+   "noise_own_falls_recorded": 0,
+   "foot_signed_cop_mean": {
+    "r": 0.475208569898076,
+    "l": 0.4766979580339356
+   },
+   "foot_gate_cop_mean": {
+    "r": 0.4961763154640481,
+    "l": 0.49206524303864835
+   },
+   "path": "scratchpad/foot/r10screen/judged/judge/s42/judge_5242880.json",
+   "model_sha256": "sha256:e48eeb3ee7b847faf6fcde2f3b572aac9d6be7603503cff7da0fa8aecc6096d0",
+   "synthetic": false
+  },
+  "s42_6M": {
+   "n": 40,
+   "n_clean": 40,
+   "lcb": 0.9278424754944773,
+   "lcb_recorded": 0.9278424754944773,
+   "full": 40,
+   "falls": 0,
+   "hop_or_fall": 0,
+   "hop_or_fall_recorded": 0,
+   "verdict": "PASS",
+   "roll_rail": 0,
+   "foot_cop_fh": 0,
+   "foot_cop_any": 0,
+   "foot_cop_unmeasured_fh": 0,
+   "pad_cop_any": 17,
+   "pad_cop_fh": 17,
+   "mean_reward": 3951.668008991529,
+   "statue_mean_reward": 3982.4041474205637,
+   "terminations": {
+    "truncated": 40
+   },
+   "noise_joint_falls": 0,
+   "noise_own_falls": 0,
+   "k2_count": 0,
+   "k1_components": {
+    "n_eq_40": true,
+    "clean_ge_37": true,
+    "lcb_ge_0.80": true,
+    "full_ge_0.95": true,
+    "hop_or_fall_le_1": true
+   },
+   "k1_components_pass": true,
+   "k1_repo_pass": true,
+   "k1_pass": true,
+   "k1_agree": true,
+   "noise_joint_falls_recorded": 0,
+   "noise_own_falls_recorded": 0,
+   "foot_signed_cop_mean": {
+    "r": 0.33954800739604674,
+    "l": 0.3801401416682729
+   },
+   "foot_gate_cop_mean": {
+    "r": 0.37675492254495196,
+    "l": 0.40460618833834117
+   },
+   "path": "scratchpad/foot/r10screen/judged/judge/s42/judge_6291456.json",
+   "model_sha256": "sha256:7c3c1df77be4d041fe51e48fec45e70ded2fde34e70af6b111038444250cb51d",
+   "synthetic": false
+  },
+  "s52_4M": {
+   "n": 40,
+   "n_clean": 3,
+   "lcb": 0.020753601475699487,
+   "lcb_recorded": 0.020753601475699487,
+   "full": 40,
+   "falls": 0,
+   "hop_or_fall": 0,
+   "hop_or_fall_recorded": 0,
+   "verdict": "FAIL",
+   "roll_rail": 9,
+   "foot_cop_fh": 37,
+   "foot_cop_any": 37,
+   "foot_cop_unmeasured_fh": 0,
+   "pad_cop_any": 40,
+   "pad_cop_fh": 40,
+   "mean_reward": 3829.5566754250276,
+   "statue_mean_reward": 3982.4041474205637,
+   "terminations": {
+    "truncated": 40
+   },
+   "noise_joint_falls": 7,
+   "noise_own_falls": 0,
+   "k2_count": 37,
+   "k1_components": {
+    "n_eq_40": true,
+    "clean_ge_37": false,
+    "lcb_ge_0.80": false,
+    "full_ge_0.95": true,
+    "hop_or_fall_le_1": true
+   },
+   "k1_components_pass": false,
+   "k1_repo_pass": false,
+   "k1_pass": false,
+   "k1_agree": true,
+   "noise_joint_falls_recorded": 7,
+   "noise_own_falls_recorded": 0,
+   "foot_signed_cop_mean": {
+    "r": 0.8478456833220942,
+    "l": 0.9587236247733009
+   },
+   "foot_gate_cop_mean": {
+    "r": 0.8478456833220942,
+    "l": 0.9587236247733009
+   },
+   "path": "scratchpad/foot/r10screen/judged/judge/s52/judge_4194304.json",
+   "model_sha256": "sha256:5df0eccf647b27bbd21bf562a820f378e08495e34d9a5fba3d41870cd70e2bd1",
+   "synthetic": false
+  },
+  "s52_5M": {
+   "n": 40,
+   "n_clean": 0,
+   "lcb": 0.0,
+   "lcb_recorded": 0.0,
+   "full": 40,
+   "falls": 0,
+   "hop_or_fall": 0,
+   "hop_or_fall_recorded": 0,
+   "verdict": "FAIL",
+   "roll_rail": 11,
+   "foot_cop_fh": 40,
+   "foot_cop_any": 40,
+   "foot_cop_unmeasured_fh": 0,
+   "pad_cop_any": 40,
+   "pad_cop_fh": 40,
+   "mean_reward": 3834.9045906067804,
+   "statue_mean_reward": 3982.4041474205637,
+   "terminations": {
+    "truncated": 40
+   },
+   "noise_joint_falls": 2,
+   "noise_own_falls": 0,
+   "k2_count": 40,
+   "k1_components": {
+    "n_eq_40": true,
+    "clean_ge_37": false,
+    "lcb_ge_0.80": false,
+    "full_ge_0.95": true,
+    "hop_or_fall_le_1": true
+   },
+   "k1_components_pass": false,
+   "k1_repo_pass": false,
+   "k1_pass": false,
+   "k1_agree": true,
+   "noise_joint_falls_recorded": 2,
+   "noise_own_falls_recorded": 0,
+   "foot_signed_cop_mean": {
+    "r": 0.9439443780834159,
+    "l": 0.9772077068188411
+   },
+   "foot_gate_cop_mean": {
+    "r": 0.9439443780834159,
+    "l": 0.9772077068188411
+   },
+   "path": "scratchpad/foot/r10screen/judged/judge/s52/judge_5242880.json",
+   "model_sha256": "sha256:d9ad6cb12551dbbff76b8bfe9579337f79f1d23082c88f0e13c2879217d75b20",
+   "synthetic": false
+  },
+  "s52_6M": {
+   "n": 40,
+   "n_clean": 0,
+   "lcb": 0.0,
+   "lcb_recorded": 0.0,
+   "full": 38,
+   "falls": 2,
+   "hop_or_fall": 2,
+   "hop_or_fall_recorded": 2,
+   "verdict": "FAIL",
+   "roll_rail": 4,
+   "foot_cop_fh": 38,
+   "foot_cop_any": 40,
+   "foot_cop_unmeasured_fh": 0,
+   "pad_cop_any": 40,
+   "pad_cop_fh": 38,
+   "mean_reward": 3683.848356708405,
+   "statue_mean_reward": 3982.4041474205637,
+   "terminations": {
+    "truncated": 38,
+    "head_contact": 2
+   },
+   "noise_joint_falls": 7,
+   "noise_own_falls": 2,
+   "k2_count": 38,
+   "k1_components": {
+    "n_eq_40": true,
+    "clean_ge_37": false,
+    "lcb_ge_0.80": false,
+    "full_ge_0.95": true,
+    "hop_or_fall_le_1": false
+   },
+   "k1_components_pass": false,
+   "k1_repo_pass": false,
+   "k1_pass": false,
+   "k1_agree": true,
+   "noise_joint_falls_recorded": 7,
+   "noise_own_falls_recorded": 2,
+   "foot_signed_cop_mean": {
+    "r": 1.0038446083367691,
+    "l": 1.0086256418706743
+   },
+   "foot_gate_cop_mean": {
+    "r": 1.0038446083367691,
+    "l": 1.0086256418706743
+   },
+   "path": "scratchpad/foot/r10screen/judged/judge/s52/judge_6291456.json",
+   "model_sha256": "sha256:4ecfdd00b1abf55bcb54ee7521978a51401e3eaee8c3ad23c0682602d1b5bd4d",
+   "synthetic": false
+  },
+  "s60_4M": {
+   "n": 40,
+   "n_clean": 0,
+   "lcb": 0.0,
+   "lcb_recorded": 0.0,
+   "full": 39,
+   "falls": 1,
+   "hop_or_fall": 1,
+   "hop_or_fall_recorded": 1,
+   "verdict": "FAIL",
+   "roll_rail": 2,
+   "foot_cop_fh": 39,
+   "foot_cop_any": 40,
+   "foot_cop_unmeasured_fh": 0,
+   "pad_cop_any": 40,
+   "pad_cop_fh": 39,
+   "mean_reward": 3756.453042667904,
+   "statue_mean_reward": 3982.4041474205637,
+   "terminations": {
+    "truncated": 39,
+    "fallen": 1
+   },
+   "noise_joint_falls": 0,
+   "noise_own_falls": 0,
+   "k2_count": 39,
+   "k1_components": {
+    "n_eq_40": true,
+    "clean_ge_37": false,
+    "lcb_ge_0.80": false,
+    "full_ge_0.95": true,
+    "hop_or_fall_le_1": true
+   },
+   "k1_components_pass": false,
+   "k1_repo_pass": false,
+   "k1_pass": false,
+   "k1_agree": true,
+   "noise_joint_falls_recorded": 0,
+   "noise_own_falls_recorded": 0,
+   "foot_signed_cop_mean": {
+    "r": 1.0548415083803098,
+    "l": 1.0847670551360413
+   },
+   "foot_gate_cop_mean": {
+    "r": 1.0548415083803098,
+    "l": 1.0847670551360413
+   },
+   "path": "scratchpad/foot/r10screen/judged/judge/s60/judge_4194304.json",
+   "model_sha256": "sha256:d6c6724bb9f5537443cd1e83a33b87fa15e9a00519fa02374411832a124942aa",
+   "synthetic": false
+  },
+  "s60_5M": {
+   "n": 40,
+   "n_clean": 0,
+   "lcb": 0.0,
+   "lcb_recorded": 0.0,
+   "full": 40,
+   "falls": 0,
+   "hop_or_fall": 0,
+   "hop_or_fall_recorded": 0,
+   "verdict": "FAIL",
+   "roll_rail": 1,
+   "foot_cop_fh": 40,
+   "foot_cop_any": 40,
+   "foot_cop_unmeasured_fh": 0,
+   "pad_cop_any": 40,
+   "pad_cop_fh": 40,
+   "mean_reward": 3822.4211512682705,
+   "statue_mean_reward": 3982.4041474205637,
+   "terminations": {
+    "truncated": 40
+   },
+   "noise_joint_falls": 4,
+   "noise_own_falls": 0,
+   "k2_count": 40,
+   "k1_components": {
+    "n_eq_40": true,
+    "clean_ge_37": false,
+    "lcb_ge_0.80": false,
+    "full_ge_0.95": true,
+    "hop_or_fall_le_1": true
+   },
+   "k1_components_pass": false,
+   "k1_repo_pass": false,
+   "k1_pass": false,
+   "k1_agree": true,
+   "noise_joint_falls_recorded": 4,
+   "noise_own_falls_recorded": 0,
+   "foot_signed_cop_mean": {
+    "r": 1.0453718851510836,
+    "l": 1.0872073770946047
+   },
+   "foot_gate_cop_mean": {
+    "r": 1.0453718851510836,
+    "l": 1.0872073770946047
+   },
+   "path": "scratchpad/foot/r10screen/judged/judge/s60/judge_5242880.json",
+   "model_sha256": "sha256:705e58af7b90fc894d8c7f917b55e14d7987ef6fa104317a6c214252d2043953",
+   "synthetic": false
+  },
+  "s60_6M": {
+   "n": 40,
+   "n_clean": 0,
+   "lcb": 0.0,
+   "lcb_recorded": 0.0,
+   "full": 39,
+   "falls": 1,
+   "hop_or_fall": 1,
+   "hop_or_fall_recorded": 1,
+   "verdict": "FAIL",
+   "roll_rail": 8,
+   "foot_cop_fh": 39,
+   "foot_cop_any": 40,
+   "foot_cop_unmeasured_fh": 0,
+   "pad_cop_any": 40,
+   "pad_cop_fh": 39,
+   "mean_reward": 3740.474304152205,
+   "statue_mean_reward": 3982.4041474205637,
+   "terminations": {
+    "truncated": 39,
+    "fallen": 1
+   },
+   "noise_joint_falls": 9,
+   "noise_own_falls": 0,
+   "k2_count": 39,
+   "k1_components": {
+    "n_eq_40": true,
+    "clean_ge_37": false,
+    "lcb_ge_0.80": false,
+    "full_ge_0.95": true,
+    "hop_or_fall_le_1": true
+   },
+   "k1_components_pass": false,
+   "k1_repo_pass": false,
+   "k1_pass": false,
+   "k1_agree": true,
+   "noise_joint_falls_recorded": 9,
+   "noise_own_falls_recorded": 0,
+   "foot_signed_cop_mean": {
+    "r": 0.9758403513392546,
+    "l": 1.002668658751481
+   },
+   "foot_gate_cop_mean": {
+    "r": 0.9758403513392546,
+    "l": 1.002668658751481
+   },
+   "path": "scratchpad/foot/r10screen/judged/judge/s60/judge_6291456.json",
+   "model_sha256": "sha256:13769557948541b4619ff85d9410131b063cb933b7f4f57f38eb4e95a0f7cfa3",
+   "synthetic": false
+  }
+ },
+ "r9_cells": {
+  "s42_4M": {
+   "n": 40,
+   "n_clean": 30,
+   "lcb": 0.6129397599079672,
+   "lcb_recorded": 0.6129397599079676,
+   "full": 39,
+   "falls": 1,
+   "hop_or_fall": 1,
+   "hop_or_fall_recorded": 1,
+   "verdict": "FAIL",
+   "roll_rail": 5,
+   "foot_cop_fh": 39,
+   "foot_cop_any": 0,
+   "foot_cop_unmeasured_fh": 39,
+   "pad_cop_any": 9,
+   "pad_cop_fh": 8,
+   "mean_reward": 3705.8055859180104,
+   "statue_mean_reward": 3755.722010497341,
+   "terminations": {
+    "truncated": 39,
+    "fallen": 1
+   },
+   "noise_joint_falls": 6,
+   "noise_own_falls": 0,
+   "k2_count": 9,
+   "k1_components": {
+    "n_eq_40": true,
+    "clean_ge_37": false,
+    "lcb_ge_0.80": false,
+    "full_ge_0.95": true,
+    "hop_or_fall_le_1": true
+   },
+   "k1_components_pass": false,
+   "k1_repo_pass": false,
+   "k1_pass": false,
+   "k1_agree": true,
+   "noise_joint_falls_recorded": 6,
+   "noise_own_falls_recorded": 0,
+   "foot_signed_cop_mean": {
+    "r": null,
+    "l": null
+   },
+   "foot_gate_cop_mean": {
+    "r": null,
+    "l": null
+   },
+   "path": "scratchpad/foot/symmetry/screen/runs/sym_lean_settled_s42/judge_4194304.json"
+  },
+  "s42_5M": {
+   "n": 40,
+   "n_clean": 32,
+   "lcb": 0.6679722549414008,
+   "lcb_recorded": 0.6679722549414008,
+   "full": 39,
+   "falls": 1,
+   "hop_or_fall": 1,
+   "hop_or_fall_recorded": 1,
+   "verdict": "FAIL",
+   "roll_rail": 1,
+   "foot_cop_fh": 39,
+   "foot_cop_any": 0,
+   "foot_cop_unmeasured_fh": 39,
+   "pad_cop_any": 8,
+   "pad_cop_fh": 7,
+   "mean_reward": 3682.424636020537,
+   "statue_mean_reward": 3755.722010497341,
+   "terminations": {
+    "truncated": 39,
+    "nosedive": 1
+   },
+   "noise_joint_falls": 5,
+   "noise_own_falls": 0,
+   "k2_count": 8,
+   "k1_components": {
+    "n_eq_40": true,
+    "clean_ge_37": false,
+    "lcb_ge_0.80": false,
+    "full_ge_0.95": true,
+    "hop_or_fall_le_1": true
+   },
+   "k1_components_pass": false,
+   "k1_repo_pass": false,
+   "k1_pass": false,
+   "k1_agree": true,
+   "noise_joint_falls_recorded": 5,
+   "noise_own_falls_recorded": 0,
+   "foot_signed_cop_mean": {
+    "r": null,
+    "l": null
+   },
+   "foot_gate_cop_mean": {
+    "r": null,
+    "l": null
+   },
+   "path": "scratchpad/foot/symmetry/screen/runs/sym_lean_settled_s42/judge_5242880.json"
+  },
+  "s42_6M": {
+   "n": 40,
+   "n_clean": 29,
+   "lcb": 0.5861225567734873,
+   "lcb_recorded": 0.5861225567734873,
+   "full": 40,
+   "falls": 0,
+   "hop_or_fall": 0,
+   "hop_or_fall_recorded": 0,
+   "verdict": "FAIL",
+   "roll_rail": 2,
+   "foot_cop_fh": 40,
+   "foot_cop_any": 0,
+   "foot_cop_unmeasured_fh": 40,
+   "pad_cop_any": 11,
+   "pad_cop_fh": 11,
+   "mean_reward": 3738.408840789643,
+   "statue_mean_reward": 3755.722010497341,
+   "terminations": {
+    "truncated": 40
+   },
+   "noise_joint_falls": 1,
+   "noise_own_falls": 0,
+   "k2_count": 11,
+   "k1_components": {
+    "n_eq_40": true,
+    "clean_ge_37": false,
+    "lcb_ge_0.80": false,
+    "full_ge_0.95": true,
+    "hop_or_fall_le_1": true
+   },
+   "k1_components_pass": false,
+   "k1_repo_pass": false,
+   "k1_pass": false,
+   "k1_agree": true,
+   "noise_joint_falls_recorded": 1,
+   "noise_own_falls_recorded": 0,
+   "foot_signed_cop_mean": {
+    "r": null,
+    "l": null
+   },
+   "foot_gate_cop_mean": {
+    "r": null,
+    "l": null
+   },
+   "path": "scratchpad/foot/symmetry/screen/runs/sym_lean_settled_s42/judge_6291456.json"
+  },
+  "s52_4M": {
+   "n": 40,
+   "n_clean": 36,
+   "lcb": 0.785602361483844,
+   "lcb_recorded": 0.785602361483844,
+   "full": 40,
+   "falls": 0,
+   "hop_or_fall": 1,
+   "hop_or_fall_recorded": 1,
+   "verdict": "FAIL",
+   "roll_rail": 0,
+   "foot_cop_fh": 40,
+   "foot_cop_any": 0,
+   "foot_cop_unmeasured_fh": 40,
+   "pad_cop_any": 3,
+   "pad_cop_fh": 3,
+   "mean_reward": 3679.0524301452106,
+   "statue_mean_reward": 3755.722010497341,
+   "terminations": {
+    "truncated": 40
+   },
+   "noise_joint_falls": 2,
+   "noise_own_falls": 0,
+   "k2_count": 3,
+   "k1_components": {
+    "n_eq_40": true,
+    "clean_ge_37": false,
+    "lcb_ge_0.80": false,
+    "full_ge_0.95": true,
+    "hop_or_fall_le_1": true
+   },
+   "k1_components_pass": false,
+   "k1_repo_pass": false,
+   "k1_pass": false,
+   "k1_agree": true,
+   "noise_joint_falls_recorded": 2,
+   "noise_own_falls_recorded": 0,
+   "foot_signed_cop_mean": {
+    "r": null,
+    "l": null
+   },
+   "foot_gate_cop_mean": {
+    "r": null,
+    "l": null
+   },
+   "path": "scratchpad/foot/symmetry/screen/runs/sym_lean_settled_s52/judge_4194304.json"
+  },
+  "s52_5M": {
+   "n": 40,
+   "n_clean": 39,
+   "lcb": 0.8868116390552528,
+   "lcb_recorded": 0.8868116390552528,
+   "full": 40,
+   "falls": 0,
+   "hop_or_fall": 0,
+   "hop_or_fall_recorded": 0,
+   "verdict": "PASS",
+   "roll_rail": 0,
+   "foot_cop_fh": 40,
+   "foot_cop_any": 0,
+   "foot_cop_unmeasured_fh": 40,
+   "pad_cop_any": 1,
+   "pad_cop_fh": 1,
+   "mean_reward": 3716.7006848206242,
+   "statue_mean_reward": 3755.722010497341,
+   "terminations": {
+    "truncated": 40
+   },
+   "noise_joint_falls": 1,
+   "noise_own_falls": 0,
+   "k2_count": 1,
+   "k1_components": {
+    "n_eq_40": true,
+    "clean_ge_37": true,
+    "lcb_ge_0.80": true,
+    "full_ge_0.95": true,
+    "hop_or_fall_le_1": true
+   },
+   "k1_components_pass": true,
+   "k1_repo_pass": true,
+   "k1_pass": true,
+   "k1_agree": true,
+   "noise_joint_falls_recorded": 1,
+   "noise_own_falls_recorded": 0,
+   "foot_signed_cop_mean": {
+    "r": null,
+    "l": null
+   },
+   "foot_gate_cop_mean": {
+    "r": null,
+    "l": null
+   },
+   "path": "scratchpad/foot/symmetry/screen/runs/sym_lean_settled_s52/judge_5242880.json"
+  },
+  "s52_6M": {
+   "n": 40,
+   "n_clean": 38,
+   "lcb": 0.8508480387267765,
+   "lcb_recorded": 0.8508480387267765,
+   "full": 40,
+   "falls": 0,
+   "hop_or_fall": 0,
+   "hop_or_fall_recorded": 0,
+   "verdict": "PASS",
+   "roll_rail": 0,
+   "foot_cop_fh": 40,
+   "foot_cop_any": 0,
+   "foot_cop_unmeasured_fh": 40,
+   "pad_cop_any": 2,
+   "pad_cop_fh": 2,
+   "mean_reward": 3724.7667433898473,
+   "statue_mean_reward": 3755.722010497341,
+   "terminations": {
+    "truncated": 40
+   },
+   "noise_joint_falls": 1,
+   "noise_own_falls": 0,
+   "k2_count": 2,
+   "k1_components": {
+    "n_eq_40": true,
+    "clean_ge_37": true,
+    "lcb_ge_0.80": true,
+    "full_ge_0.95": true,
+    "hop_or_fall_le_1": true
+   },
+   "k1_components_pass": true,
+   "k1_repo_pass": true,
+   "k1_pass": true,
+   "k1_agree": true,
+   "noise_joint_falls_recorded": 1,
+   "noise_own_falls_recorded": 0,
+   "foot_signed_cop_mean": {
+    "r": null,
+    "l": null
+   },
+   "foot_gate_cop_mean": {
+    "r": null,
+    "l": null
+   },
+   "path": "scratchpad/foot/symmetry/screen/runs/sym_lean_settled_s52/judge_6291456.json"
+  },
+  "s60_4M": {
+   "n": 40,
+   "n_clean": 31,
+   "lcb": 0.6402076090746042,
+   "lcb_recorded": 0.6402076090746042,
+   "full": 40,
+   "falls": 0,
+   "hop_or_fall": 0,
+   "hop_or_fall_recorded": 0,
+   "verdict": "FAIL",
+   "roll_rail": 1,
+   "foot_cop_fh": 40,
+   "foot_cop_any": 0,
+   "foot_cop_unmeasured_fh": 40,
+   "pad_cop_any": 8,
+   "pad_cop_fh": 8,
+   "mean_reward": 3754.379474401042,
+   "statue_mean_reward": 3755.722010497341,
+   "terminations": {
+    "truncated": 40
+   },
+   "noise_joint_falls": 2,
+   "noise_own_falls": 0,
+   "k2_count": 8,
+   "k1_components": {
+    "n_eq_40": true,
+    "clean_ge_37": false,
+    "lcb_ge_0.80": false,
+    "full_ge_0.95": true,
+    "hop_or_fall_le_1": true
+   },
+   "k1_components_pass": false,
+   "k1_repo_pass": false,
+   "k1_pass": false,
+   "k1_agree": true,
+   "noise_joint_falls_recorded": 2,
+   "noise_own_falls_recorded": 0,
+   "foot_signed_cop_mean": {
+    "r": null,
+    "l": null
+   },
+   "foot_gate_cop_mean": {
+    "r": null,
+    "l": null
+   },
+   "path": "scratchpad/foot/symmetry/screen/runs/sym_lean_settled_s60/judge_4194304.json"
+  },
+  "s60_5M": {
+   "n": 40,
+   "n_clean": 1,
+   "lcb": 0.0012815105228752598,
+   "lcb_recorded": 0.0012815105228752598,
+   "full": 39,
+   "falls": 1,
+   "hop_or_fall": 1,
+   "hop_or_fall_recorded": 1,
+   "verdict": "FAIL",
+   "roll_rail": 0,
+   "foot_cop_fh": 39,
+   "foot_cop_any": 0,
+   "foot_cop_unmeasured_fh": 39,
+   "pad_cop_any": 39,
+   "pad_cop_fh": 38,
+   "mean_reward": 3705.1195240255024,
+   "statue_mean_reward": 3755.722010497341,
+   "terminations": {
+    "truncated": 39,
+    "head_contact": 1
+   },
+   "noise_joint_falls": 18,
+   "noise_own_falls": 3,
+   "k2_count": 39,
+   "k1_components": {
+    "n_eq_40": true,
+    "clean_ge_37": false,
+    "lcb_ge_0.80": false,
+    "full_ge_0.95": true,
+    "hop_or_fall_le_1": true
+   },
+   "k1_components_pass": false,
+   "k1_repo_pass": false,
+   "k1_pass": false,
+   "k1_agree": true,
+   "noise_joint_falls_recorded": 18,
+   "noise_own_falls_recorded": 3,
+   "foot_signed_cop_mean": {
+    "r": null,
+    "l": null
+   },
+   "foot_gate_cop_mean": {
+    "r": null,
+    "l": null
+   },
+   "path": "scratchpad/foot/symmetry/screen/runs/sym_lean_settled_s60/judge_5242880.json"
+  },
+  "s60_6M": {
+   "n": 40,
+   "n_clean": 40,
+   "lcb": 0.9278424754944773,
+   "lcb_recorded": 0.9278424754944773,
+   "full": 40,
+   "falls": 0,
+   "hop_or_fall": 0,
+   "hop_or_fall_recorded": 0,
+   "verdict": "PASS",
+   "roll_rail": 0,
+   "foot_cop_fh": 40,
+   "foot_cop_any": 0,
+   "foot_cop_unmeasured_fh": 40,
+   "pad_cop_any": 0,
+   "pad_cop_fh": 0,
+   "mean_reward": 3722.774398497986,
+   "statue_mean_reward": 3755.722010497341,
+   "terminations": {
+    "truncated": 40
+   },
+   "noise_joint_falls": 6,
+   "noise_own_falls": 0,
+   "k2_count": 0,
+   "k1_components": {
+    "n_eq_40": true,
+    "clean_ge_37": true,
+    "lcb_ge_0.80": true,
+    "full_ge_0.95": true,
+    "hop_or_fall_le_1": true
+   },
+   "k1_components_pass": true,
+   "k1_repo_pass": true,
+   "k1_pass": true,
+   "k1_agree": true,
+   "noise_joint_falls_recorded": 6,
+   "noise_own_falls_recorded": 0,
+   "foot_signed_cop_mean": {
+    "r": null,
+    "l": null
+   },
+   "foot_gate_cop_mean": {
+    "r": null,
+    "l": null
+   },
+   "path": "scratchpad/foot/symmetry/screen/runs/sym_lean_settled_s60/judge_6291456.json"
+  }
+ }
+}

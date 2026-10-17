@@ -1,0 +1,52 @@
+== per-step window means (steps 200-999), full-horizon episodes; x1000 for small terms
+posture            n       alive bilateral_     height leg_home_p head_clear tail_home_ neck_postu foot_flatn    heading stance_wid foot_load_   nosedive    posture     energy       tail      total
+statue             39    1.00000    0.60000    0.59998    0.47074    0.35000    0.24997    0.20000    0.14195    0.09907    0.09830   -0.00167   -0.00292   -0.00105    0.00000   -0.00022    3.80392
+runA_mean          28    1.00000    0.60000    0.59982    0.48948    0.35000    0.24779    0.19633    0.13006    0.09946    0.09846   -0.01071   -0.00144   -0.00041   -0.00067   -0.00013    3.79790
+runA_legs          29    1.00000    0.60000    0.59987    0.49069    0.34998    0.24969    0.19999    0.13558    0.09944    0.09834   -0.00721   -0.00131   -0.00027   -0.00006   -0.00013    3.81445
+hips_only          38    1.00000    0.60000    0.59834    0.48751    0.35000    0.24877    0.19997    0.14172    0.09903    0.09824   -0.00211    0.00000   -0.00200   -0.00003   -0.00041    3.81867
+legs_both_right    20    1.00000    0.60000    0.59981    0.48044    0.35000    0.24698    0.19994    0.13959    0.09906    0.09793   -0.00250    0.00000   -0.00753   -0.00004   -0.00055    3.80264
+legs_right_only    37    1.00000    0.60000    0.59998    0.47968    0.35000    0.24924    0.19998    0.14058    0.09877    0.09796   -0.00448    0.00000   -0.00075   -0.00002   -0.00031    3.81030
+sym_ankle_+0.75    39    1.00000    0.60000    0.59993    0.45992    0.35000    0.24980    0.19999    0.14163    0.09906    0.09828   -0.00149   -0.00030   -0.00020   -0.00000   -0.00035    3.79588
+sym_ankle_-0.75    36    1.00000    0.60000    0.59999    0.47683    0.34999    0.24989    0.20000    0.14195    0.09926    0.09841   -0.00167   -0.03176   -0.00321   -0.00000   -0.00019    3.77930
+sym_ankle_+1.5     14    1.00000    0.60000    0.59993    0.44636    0.35000    0.24937    0.19998    0.14132    0.09907    0.09816   -0.00199    0.00000   -0.00054   -0.00001   -0.00037    3.78093
+runA+r_ankle+3     20    0.99997    0.59997    0.59894    0.48118    0.35000    0.24797    0.19627    0.12546    0.09919    0.09865   -0.01073    0.00000   -0.00309   -0.00068   -0.00019    3.78268
+
+runA_legs minus hips_only: n=28 seeds both full-horizon; gate CoP median 0.941 vs 0.218; clean 1 vs 28
+   height +1.50+-0.08, leg_home_pose +3.40+-0.25, tail_home_pose +0.81+-0.07, foot_flatness -5.86+-2.37, foot_load_balance -4.21+-0.79, nosedive -1.33+-0.96, posture +1.90+-0.11, total -3.41+-4.26
+   per-step window total -0.00578 +- 0.00485; cop_margin re-price diff -53.5
+
+runA_mean minus hips_only: n=27 seeds both full-horizon; gate CoP median 0.991 vs 0.218; clean 0 vs 27
+   height +1.47+-0.07, leg_home_pose +2.27+-0.31, head_clearance +1.15+-0.13, tail_home_pose -1.03+-0.13, neck_posture -3.47+-0.02, foot_flatness -10.64+-2.21, foot_load_balance -7.59+-1.28, nosedive -1.52+-0.74, posture +1.75+-0.13, energy -0.62+-0.00, total -17.71+-4.06
+   per-step window total -0.02242 +- 0.00412; cop_margin re-price diff -63.4
+
+runA_mean minus statue: n=28 seeds both full-horizon; gate CoP median 0.993 vs 0.277; clean 0 vs 28
+   leg_home_pose +18.37+-0.29, head_clearance +3.31+-0.29, tail_home_pose -2.17+-0.12, neck_posture -3.52+-0.02, foot_flatness -11.00+-2.10, foot_load_balance -7.90+-1.28, nosedive +2.40+-0.94, posture +0.68+-0.12, energy -0.65+-0.00, total -0.46+-4.08
+   per-step window total -0.00738 +- 0.00405; cop_margin re-price diff -64.3
+
+runA_legs minus statue: n=29 seeds both full-horizon; gate CoP median 0.943 vs 0.266; clean 1 vs 29
+   leg_home_pose +19.50+-0.24, head_clearance +2.02+-0.16, tail_home_pose -0.32+-0.07, foot_flatness -6.12+-2.28, foot_load_balance -4.59+-0.75, nosedive +2.69+-0.99, posture +0.81+-0.13, total +13.96+-4.12
+   per-step window total +0.00944 +- 0.00461; cop_margin re-price diff -54.5
+
+hips_only minus statue: n=38 seeds both full-horizon; gate CoP median 0.219 vs 0.276; clean 38 vs 38
+   height -1.65+-0.04, leg_home_pose +16.04+-0.04, head_clearance +2.58+-0.26, tail_home_pose -1.14+-0.01, foot_flatness -0.66+-0.15, foot_load_balance -0.43+-0.15, nosedive +4.74+-0.59, posture -1.05+-0.06, total +17.92+-0.74
+   per-step window total +0.01495 +- 0.00029; cop_margin re-price diff -0.6
+
+runA_mean minus sym_ankle_+0.75: n=28 seeds both full-horizon; gate CoP median 0.993 vs 0.147; clean 0 vs 28
+   leg_home_pose +29.27+-0.32, head_clearance +2.59+-0.25, tail_home_pose -2.03+-0.13, neck_posture -3.49+-0.02, foot_flatness -10.17+-2.21, foot_load_balance -7.98+-1.24, nosedive -0.63+-0.78, energy -0.65+-0.00, total +7.32+-4.20
+   per-step window total +0.00113 +- 0.00409; cop_margin re-price diff -63.6
+
+runA+r_ankle+3 minus statue: n=20 seeds both full-horizon; gate CoP median 0.992 vs 0.296; clean 1 vs 20
+   alive -0.40+-0.20, bilateral_support -0.48+-0.23, height -1.18+-0.30, leg_home_pose +9.69+-0.70, head_clearance +3.09+-0.40, tail_home_pose -2.24+-0.37, neck_posture -3.60+-0.04, foot_flatness -20.04+-3.77, foot_load_balance -9.34+-1.44, nosedive +3.59+-0.66, posture -2.01+-0.58, energy -0.66+-0.00, total -23.86+-5.03
+   per-step window total -0.02565 +- 0.00525; cop_margin re-price diff -67.2
+
+legs_right_only minus hips_only: n=37 seeds both full-horizon; gate CoP median 0.630 vs 0.219; clean 37 vs 37
+   height +1.64+-0.05, leg_home_pose -6.83+-0.21, head_clearance -0.71+-0.05, tail_home_pose +0.36+-0.03, foot_flatness -0.80+-0.30, foot_load_balance -2.06+-0.37, posture +1.23+-0.03, total -7.97+-0.94
+   per-step window total -0.00809 +- 0.00078; cop_margin re-price diff -9.3
+
+sym_ankle_+0.75 minus statue: n=38 seeds both full-horizon; gate CoP median 0.165 vs 0.276; clean 38 vs 38
+   leg_home_pose -10.84+-0.08, head_clearance +1.02+-0.19, foot_flatness -0.48+-0.46, nosedive +3.73+-0.46, posture +0.81+-0.06, total -6.20+-1.13
+   per-step window total -0.00777 +- 0.00058; cop_margin re-price diff -0.6
+
+sym_ankle_+1.5 minus statue: n=14 seeds both full-horizon; gate CoP median 0.217 vs 0.253; clean 14 vs 14
+   leg_home_pose -24.40+-0.06, head_clearance +1.43+-0.39, tail_home_pose -0.53+-0.03, foot_flatness -0.50+-0.30, nosedive +3.41+-1.17, posture +0.36+-0.06, total -21.21+-1.14
+   per-step window total -0.02322 +- 0.00042; cop_margin re-price diff -1.0

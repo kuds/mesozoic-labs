@@ -1,0 +1,5 @@
+Screen: FAIL (failed: ['K1', 'K2', 'K3', 'K4']); rule: a criterion fails: best of the six 6M checkpoints (most clean, tie -> fewer noise falls)
+Pool: ['r10 arm L s42 6M', 'r9 arm L s60 6M', 'r9 arm L s52 6M', 'r9 arm L s42 6M', 'r10 arm L s52 6M', 'r10 arm L s60 6M']
+PARENT: r10 arm L s42 6M -> PATH B, branch claude/pilot-walk-r10 (most clean (40/40); tie on clean broken by fewer noise falls (0))
+  MANUAL_LOAD_PATH = "/content/drive/MyDrive/mesozoic-labs/logs/tyrannosaurus_rex/anatomical/ppo/r10_armL_s42/01_stance/models/stage1_6291456_steps"
+  pilot_judge.py --parent-sha256 sha256:7c3c1df77be4d041fe51e48fec45e70ded2fde34e70af6b111038444250cb51d   [scratchpad/foot/r10screen/judged/judge/s42/judge_6291456.json model_sha256]

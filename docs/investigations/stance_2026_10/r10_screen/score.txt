@@ -1,0 +1,52 @@
+r10 foot + arm L screen: score against foot/r10screen/criteria.txt (fixed 2026-10-16)
+r10 judges: scratchpad/foot/r10screen/judged/judge
+r9 arm L:   scratchpad/foot/symmetry/screen/runs/sym_lean_settled_s*/judge_*.json, checked against scratchpad/foot/symmetry/screen/analysis/verdict.json: all r9 numbers agree
+
+K1  stance_quality/v2 PASS at 6M on >= 2 of 3 seeds (clean >= 37/40 with LCB >= 0.80, full >= 0.95, hop-or-fall <= 1)
+      seed |  r10: verdict clean  LCB    full hop  pass |  r9:  verdict clean  LCB    full hop  pass
+        42 |     PASS  40/40 0.928   40   0   yes |     FAIL  29/40 0.586   40   0   no
+        52 |     FAIL   0/40 0.000   38   2   no  |     PASS  38/40 0.851   40   0   yes
+        60 |     FAIL   0/40 0.000   39   1   no  |     PASS  40/40 0.928   40   0   yes
+   -> r10 K1 FAIL (1 of 3 seeds: [42])   | r9 K1 pass (2 of 3: [52, 60])
+
+K2  fore-aft CoP: <= 3 of 40 panel episodes over the rail, every seed, at each of 4M / 5M / 6M
+      r10 = full-horizon episodes with max_foot_cop_fore_aft > 0.80 [all-episode count in brackets, report only]
+      r9  = episodes with the pad's max_sole_cop_fore_aft > 0.8, all 40 counted (H3a) [full-horizon count in brackets]
+      seed |  r10   4M      5M      6M     |  r9   4M      5M      6M
+        42 |        5 [ 5]    2 [ 2]    0 [ 0] |        9 [ 8]    8 [ 7]   11 [11]
+        52 |       37 [37]   40 [40]   38 [40] |        3 [ 3]    1 [ 1]    2 [ 2]
+        60 |       39 [40]   40 [40]   39 [40] |        8 [ 8]   39 [38]    0 [ 0]
+   -> r10 K2 FAIL (over 3 or missing: s42 4M: 5, s52 4M: 37, s52 5M: 40, s52 6M: 38, s60 4M: 39, s60 5M: 40, s60 6M: 39)   | r9 K2 FAIL (s42 4M: 9, s42 5M: 8, s42 6M: 11, s60 4M: 8, s60 5M: 39)
+
+K3  at 6M: joint-space control-vector noise falls <= 7 of 60 pooled; own-sigma noise falls <= 3 of 60 pooled
+      r10 joint [0, 7, 9] = 16/60, own [0, 2, 0] = 2/60   | r9 joint [1, 1, 6] = 8/60, own [0, 0, 0] = 0/60
+   -> r10 K3 FAIL   | r9 K3 FAIL
+
+K4  at 6M: full-horizon roll-rail failures (tilt > 2.0 deg or corner lift > 0.004 m) <= 6 of 120 pooled, <= 3 of 40 per seed
+      r10 [0, 4, 8] = 12/120   | r9 [2, 0, 0] = 2/120
+   -> r10 K4 FAIL   | r9 K4 pass
+
+OVERALL (r10 + arm L): FAIL -- failed: K1, K2, K3, K4   (r9 arm L on the same tests: FAIL -- K2, K3)
+
+Best stance policy among the six 6M checkpoints (most clean panel episodes; tie -> fewer noise falls, joint-space + own-sigma): r10 arm L s42 6M
+   r10 arm L s42 6M       clean 40/40  joint noise falls 0
+   r9 arm L s60 6M        clean 40/40  joint noise falls 6
+   r9 arm L s52 6M        clean 38/40  joint noise falls 1
+   r9 arm L s42 6M        clean 29/40  joint noise falls 1
+   r10 arm L s52 6M       clean  0/40  joint noise falls 7
+   r10 arm L s60 6M       clean  0/40  joint noise falls 9
+
+Report only (never in the verdict):
+      seed ckpt  r10 pad CoP>0.8 all [fh]  foot CoP mean (signed r / l; |.| window r / l)   reward / statue       terminations
+        42   4M    17 [17]                0.296 / 0.307; 0.367 / 0.375       3935.9 / 3982.4 (0.988)   {'truncated': 40}
+        42   5M    25 [25]                0.475 / 0.477; 0.496 / 0.492       3929.5 / 3982.4 (0.987)   {'truncated': 40}
+        42   6M    17 [17]                0.340 / 0.380; 0.377 / 0.405       3951.7 / 3982.4 (0.992)   {'truncated': 40}
+        52   4M    40 [40]                0.848 / 0.959; 0.848 / 0.959       3829.6 / 3982.4 (0.962)   {'truncated': 40}
+        52   5M    40 [40]                0.944 / 0.977; 0.944 / 0.977       3834.9 / 3982.4 (0.963)   {'truncated': 40}
+        52   6M    40 [38]                1.004 / 1.009; 1.004 / 1.009       3683.8 / 3982.4 (0.925)   {'truncated': 38, 'head_contact': 2}
+        60   4M    40 [39]                1.055 / 1.085; 1.055 / 1.085       3756.5 / 3982.4 (0.943)   {'truncated': 39, 'fallen': 1}
+        60   5M    40 [40]                1.045 / 1.087; 1.045 / 1.087       3822.4 / 3982.4 (0.960)   {'truncated': 40}
+        60   6M    40 [39]                0.976 / 1.003; 0.976 / 1.003       3740.5 / 3982.4 (0.939)   {'truncated': 39, 'fallen': 1}
+      (r9 arm L rewards are on the r9 stage's production [env], without the arm's reward terms; r10's include them)
+
+wrote scratchpad/foot/r10screen/judged/judge/score.json

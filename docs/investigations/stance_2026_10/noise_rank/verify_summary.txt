@@ -1,0 +1,36 @@
+Independent re-derivation of the offline noise-ranking check (scratch only; repo untouched, check data read-only).
+Own scripts: vroll.py (rollouts, own pad-CoP decode via mj_contactForce), vroll_u22.py, vanalyze.py, vdig.py, vdig2.py.
+Env: build_env(ModelId("tyrannosaurus_rex","anatomical"), "stance") on main ef9a569a.  Env seeds 5000-5019 (disjoint from
+3042-3081), own z = default_rng(SeedSequence([seed, 7777])), CRN across postures as in the brief, plus a no-CRN set.
+Decode check: on seed 3042 det statue/full my per-step cop, loaded, q, r match the check's recorded npz to <= 3e-8.
+
+claim (check)                                   | mine (20 fresh seeds, own draws)                | verdict
+------------------------------------------------+-------------------------------------------------+-------------------------
+uniform 0.16/0.22: all postures fall 20/20      | 20/20 in all 12 cells                           | holds
+median fall ~280 / ~190; 12/20 <200 at 0.22     | 274 / 192; statue 11/20 <200 at 0.22            | holds
+n paired windows >=25: 15 / 5                   | 14 / 5                                          | holds
+no candidate >= 5 SE under uniform              | d_joint z 4.3 / 1.0; b_box -2.1 / 1.6; a -0.1/1.9| holds (b_box sign flips)
+noisy statue a = 0.951/step, CoP>0.8 96.4%      | 0.9506, 96.4%                                   | holds
+d_joint p16 full-statue z 13.1 (13.0 fresh)     | z 12.5 (n 18); no-CRN unpaired z 8.5            | holds
+d_joint p16 all ranking checks pass             | 5/6; hips-statue 1033+-829 = 15% (>10%), one    | holds in substance
+                                                |  collapsing seed; 50-step tail excl -> 7.1%     |  (check is fall-fragile)
+d_joint p22 z 4.2 (3.9)                         | z 3.5; also x0.5>statue fails (1.8 SE)          | not passing (as claimed)
+d_joint det statue cost @0.012: 0.84 (1.17)     | 0.80                                            | holds
+d_joint det full-statue gap @0.012: 48 (51)     | 49.5 +- 3.4                                     | holds
+d_joint noisy gap @0.012: 86+-7 / 84+-20        | 82.5+-6.6 / 60.8+-17.4                          | p16 holds, p22 lower
+weight window 0.0029-0.072                      | 0.0039-0.075 (p16 only 0.0029-0.075)            | holds; 0.012 inside
+zero ref == settled ref                         | 66.51 vs 66.45; gap 4145 vs 4126                | holds
+term/living ratio @0.012: p16 0.07, p22 0.16    | 0.074, 0.157                                    | holds
+                          u16 0.23, u22 0.87    | 0.246, 1.08-1.21 in all six u22 cells           | u22 NOT < 1
+"surviving a step stays net positive,           | max gain from falling sooner (suffix-sum of     | does NOT hold per
+ term does not reward falling early"            |  net): p16 70.5 (base-only <=10), p22 63,       |  trajectory
+                                                |  u22 157 (> fall penalty 100); u22 6/54 >50     |
+b_box p16: all checks pass, z 6.9 (7.0)         | all 6 pass, z 8.1; no-CRN 5.5; tail-excl 5.6    | holds
+b_box window 0.18-3.5                           | 0.32-3.46 (p16 alone 0.076-3.46)                | holds
+(a) control: window empty (w_min 4.4 > 0.67)    | w_min 4.43 > w_max 0.73                         | holds (both noise levels)
+(a) at p16 alone                                | ALL 6 ranking checks pass (z 5.9, no-CRN 6.9),  | control NOT rejected at
+                                                |  window 0.654-0.727 non-empty                   |  p16 alone
+det base adv x0.5/x0.9/full: +11.2/+4.6/-4.7    | +10.1/+3.8/-2.5                                 | holds
+
+Full tables: verify_tables.txt (cells, checks, no-CRN, stated weights, falls), vdig.txt / vdig2.txt (drill-downs),
+verify_results.json.

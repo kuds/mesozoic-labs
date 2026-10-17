@@ -1,0 +1,1033 @@
+{
+ "schema": "foot/symmetry/frozen_params/final",
+ "binding": "The analysis (verify_final.py, recount_final.py, arbiter_final.py through decide_final.py) reads every threshold from this file and asserts its sha256 (recorded in READY-v1).  Nothing here changes after the first training step.",
+ "repo": {
+  "clone": "scratchpad/fix/symmetry",
+  "branch": "scratch/symmetry-screen",
+  "base_commit": "e3cf5216650ca1ea60b9c36a1a2b6f4f8d290070",
+  "push_url": "DISABLED-no-push",
+  "main_checkout_read_only": "/home/user/mesozoic-labs",
+  "commit_trailer": [
+   "<redacted: the scratch clone's two commit-trailer lines>"
+  ]
+ },
+ "seeds": [
+  42,
+  52,
+  60
+ ],
+ "arms": {
+  "L": "sym_lean_settled",
+  "C": "sym_lean_settled_fa"
+ },
+ "control_reuse": {
+  "runs": "scratchpad/foot/screen3m_cop/runs/control_s{42,52,60}",
+  "task_sha256": "sha256:bde44225b024856c200b3e9a75840bc5bc5859c577599248b116681b21d846a6",
+  "hyperparameters_sha256": "sha256:418a7639a875740ea47551337743b7d86e44ff743036d69dea10c1052ccf25b6",
+  "p1_params_before": "b8870621262d31125c2ed84ee377d956a45c18fa3aa3a4995dbf4686882f2740",
+  "p1_params_after": "d8ac639235d56d98b1dee9d428d4b8a9ab3168d82d05b2fae6d62adc5a0819cd",
+  "p1_reference": "scratchpad/foot/screen3m_cop/validate/equiv/screen_control.npz"
+ },
+ "checkpoints": {
+  "1M": 1048576,
+  "2M": 2097152,
+  "3M": 3145728,
+  "4M": 4194304,
+  "5M": 5242880,
+  "6M": 6291456
+ },
+ "segments": {
+  "fresh": [
+   0,
+   3145728
+  ],
+  "resume": [
+   3145728,
+   6291456
+  ],
+  "checkpoint_every": 1048576,
+  "eval_every": 131072,
+  "evals_per_segment": 24,
+  "eval_episodes": 10
+ },
+ "ppo": {
+  "stance_toml": {
+   "learning_rate": 3e-05,
+   "learning_rate_end": 1e-05,
+   "n_steps": 2048,
+   "batch_size": 128,
+   "n_epochs": 10,
+   "gamma": 0.98,
+   "gae_lambda": 0.95,
+   "clip_range": 0.2,
+   "ent_coef": 0.005,
+   "ent_coef_end": 0.0,
+   "ent_coef_decay_timesteps": 7000000,
+   "target_kl": 0.03,
+   "policy_kwargs": {
+    "net_arch": [
+     512,
+     256
+    ],
+    "log_std_init": -1.5
+   }
+  },
+  "n_envs": 4,
+  "max_grad_norm (SB3 default)": 0.5,
+  "vecnormalize": {
+   "obs": true,
+   "reward": true,
+   "clip": 10.0
+  },
+  "sb3": "2.9.0"
+ },
+ "lr_schedule": {
+  "lr_start": 3e-05,
+  "lr_end": 1e-05,
+  "budget_steps": 12000000,
+  "learning_rate_end_run": {
+   "fresh": 2.475712e-05,
+   "resume": 1.951424e-05
+  },
+  "formula": "lr(t) = lr_start - (lr_start - lr_end) t / budget_steps, re-anchored per segment"
+ },
+ "method": {
+  "symmetry": "mirror_kl",
+  "symmetry_map": "tyrannosaurus_rex/anatomical:mirror/v1",
+  "kappa": 0.3,
+  "sigma_floor": 0.01,
+  "mirror_critic": true,
+  "obs_rms": "symmetric",
+  "tie_log_std": true,
+  "init": "fresh SB3 init, same seed as control",
+  "loss": "L_K = mean_rows sum_i (mu(M_o s)_i - [M_a mu(s)]_i)^2 / (2 sigma_i^2), sigma = exp(log_std).detach().clamp_min(0.01), second argument stopped",
+  "value_loss": "0.5 (mse(R, V(o)) + mse(R, V(o_m)))",
+  "next_screen_only": {
+   "kappa_range": [
+    0.2,
+    0.5
+   ],
+   "fallback": "E2",
+   "kappa_x3": 0.9
+  }
+ },
+ "env_keys": {
+  "L": {
+   "experiment_leg_home_reference": "settled_sym",
+   "experiment_com_lateral_weight": 0.25,
+   "experiment_com_lateral_sigma_m": 0.015,
+   "experiment_com_lateral_settle_steps": 200
+  },
+  "C": {
+   "experiment_leg_home_reference": "settled_sym",
+   "experiment_com_lateral_weight": 0.25,
+   "experiment_com_lateral_sigma_m": 0.015,
+   "experiment_com_lateral_settle_steps": 200,
+   "experiment_com_foreaft_weight": 0.375,
+   "experiment_com_foreaft_sigma_m": 0.015,
+   "experiment_com_foreaft_deadband_m": 0.0075,
+   "experiment_com_foreaft_ref_m": -0.01609060039353694,
+   "experiment_com_foreaft_start_steps": 300
+  }
+ },
+ "reward_terms": {
+  "recentring": {
+   "leg_home_pose_weight": 0.5,
+   "tolerance_rad": 0.1,
+   "broad_fraction": 0.25,
+   "broad_scale": 6.0,
+   "settled_sym_rad_r_hip_pitch_roll_knee_ankle_l_hip_pitch_roll_knee_ankle": [
+    -0.0931906447971345,
+    -0.0073721451044150895,
+    -0.43975640189259646,
+    1.3713665366344738,
+    -0.0931906447971345,
+    0.0073721451044150895,
+    -0.43975640189259646,
+    1.3713665366344738
+   ]
+  },
+  "lateral": {
+   "formula": "0.25 exp(-(d_lat / 0.015 m)^2) when env._step_count > 200 and both feet supported",
+   "w": 0.25,
+   "sigma_m": 0.015,
+   "start_steps": 200
+  },
+  "fore_aft_C_only": {
+   "formula": "w exp(-(max(|d_fa - d_ref| - b, 0) / s)^2) when env._step_count > start and both feet supported (instantaneous; no EMA)",
+   "w": 0.375,
+   "sigma_m": 0.015,
+   "deadband_m": 0.0075,
+   "d_ref_m": -0.01609060039353694,
+   "start_steps": 300
+  },
+  "gate": "command all zero and info r/l_foot_terms_supported (substep-min touch >= 168 N)",
+  "geometry": "v = subtree_com[pelvis] - 0.5 (site_xpos[r_foot] + site_xpos[l_foot]); f = normalised horizontal pelvis x axis; l = (-f_y, f_x); d_fa = v[:2].f, d_lat = v[:2].l; read after env.step"
+ },
+ "collapse_backstop": {
+  "production_reference": 3756.8,
+  "fraction": 0.45,
+  "per_arm_reference": "3756.8 + (statue standing reward under the arm's training env - under production), measured in V11 on the 39 standing panel spawns",
+  "expected_gain": {
+   "L": 224.64625248054236,
+   "C": 486.89566598336387,
+   "components": {
+    "recentring": 26.37957941181736,
+    "lateral": 198.266673068725,
+    "fore_aft": 262.24941350282154
+   }
+  }
+ },
+ "panel": {
+  "seeds": [
+   3042,
+   3043,
+   3044,
+   3045,
+   3046,
+   3047,
+   3048,
+   3049,
+   3050,
+   3051,
+   3052,
+   3053,
+   3054,
+   3055,
+   3056,
+   3057,
+   3058,
+   3059,
+   3060,
+   3061,
+   3062,
+   3063,
+   3064,
+   3065,
+   3066,
+   3067,
+   3068,
+   3069,
+   3070,
+   3071,
+   3072,
+   3073,
+   3074,
+   3075,
+   3076,
+   3077,
+   3078,
+   3079,
+   3080,
+   3081
+  ],
+  "n": 40,
+  "out_of_sample_C5": [
+   7042,
+   7043,
+   7044,
+   7045,
+   7046,
+   7047,
+   7048,
+   7049,
+   7050,
+   7051,
+   7052,
+   7053,
+   7054,
+   7055,
+   7056,
+   7057,
+   7058,
+   7059,
+   7060,
+   7061,
+   7062,
+   7063,
+   7064,
+   7065,
+   7066,
+   7067,
+   7068,
+   7069,
+   7070,
+   7071,
+   7072,
+   7073,
+   7074,
+   7075,
+   7076,
+   7077,
+   7078,
+   7079,
+   7080,
+   7081
+  ],
+  "statue_reference": "scratchpad/foot/screen_hr/statue.json"
+ },
+ "gate": {
+  "min_eval_episodes": 40,
+  "min_clean_stance_lcb": 0.8,
+  "lcb_alpha": 0.05,
+  "lcb": "exact one-sided Clopper-Pearson (recovery_gate.binomial_lcb)",
+  "min_full_horizon_fraction": 0.95,
+  "max_hop_or_fall_episodes": 1,
+  "min_avg_reward": 2250.0,
+  "min_avg_reward_statue_ratio": 0.6,
+  "stance_toml_curriculum": {
+   "gate_schema_version": 1,
+   "gate_kind": "stance_quality_heading/v1",
+   "timesteps": 12000000,
+   "min_eval_episodes": 40,
+   "min_clean_stance_lcb": 0.8,
+   "settle_steps": 200,
+   "min_full_horizon_fraction": 0.95,
+   "min_all_feet_support": 0.98,
+   "max_touchdown_rate": 0.25,
+   "max_window_displacement_m": 0.1,
+   "min_foot_load_share": 0.4,
+   "max_actuator_saturation_fraction": 0.1,
+   "max_settle_airborne_substeps": 0,
+   "max_settle_peak_floor_force_bw": 1.5,
+   "min_foot_load_share_windowed": 0.35,
+   "max_foot_contact_fraction": 0.02,
+   "max_phantom_support_fraction": 0.05,
+   "max_nonfoot_load_fraction": 0.02,
+   "max_sole_tilt_deg": 2.0,
+   "max_sole_corner_lift_m": 0.004,
+   "min_sole_contacts": 1.5,
+   "max_sole_cop_fore_aft": 0.8,
+   "max_settle_stance_width_change_m": 0.08,
+   "max_settle_touchdowns": 2,
+   "max_episode_yaw_change_deg": 25.0,
+   "max_hop_or_fall_episodes": 1,
+   "min_avg_reward": 2250.0,
+   "min_avg_reward_statue_ratio": 0.6,
+   "required_consecutive": 3,
+   "certification_seeds": 2,
+   "max_checkpoints": 5,
+   "collapse_min_evals": 20,
+   "collapse_patience": 10,
+   "collapse_drop_fraction": 0.5,
+   "baseline_warn_after_budget_fraction": 0.35,
+   "collapse_peak_warmup_timesteps": 1000000,
+   "collapse_peak_floor_reference": 3756.8,
+   "statue_constants_physics_revision": 9,
+   "hop_watch_max_unsupported_duty": 0.05,
+   "hop_watch_after_timesteps": 7000000,
+   "hop_watch_stop": true,
+   "stance_probe_hold_constant": true,
+   "stance_probe_release_ablation": true,
+   "collapse_peak_floor_fraction": 0.45
+  },
+  "hop_or_fall_keys": [
+   "min_all_feet_support",
+   "max_touchdown_rate",
+   "max_window_displacement_m",
+   "max_actuator_saturation_fraction",
+   "max_window_airborne_substeps",
+   "max_window_peak_floor_force_bw"
+  ],
+  "horizon": 1000,
+  "settle_steps": 200
+ },
+ "criteria": {
+  "roll_rail_tilt_deg": 2.0,
+  "roll_rail_corner_lift_m": 0.004,
+  "cop_bar": 0.8,
+  "I1": {
+   "pooled_max": 5
+  },
+  "I2": {
+   "pooled_max": 2
+  },
+  "I3": {
+   "per_seed_bar": 3,
+   "max_seeds_over": 1
+  },
+  "H1": {
+   "min_seeds": 2
+  },
+  "H2": {
+   "pooled_max": 6,
+   "per_seed_max": 3
+  },
+  "H3a": {
+   "per_seed_max": 3,
+   "checkpoints": [
+    "4M",
+    "5M",
+    "6M"
+   ]
+  },
+  "H3b": {
+   "bar": 0.6,
+   "x_eval_M": 12.0,
+   "t_quantile": 0.95,
+   "df": 22,
+   "n_evals": 24,
+   "eval_every": 131072,
+   "pads": [
+    "r",
+    "l"
+   ],
+   "regressor": "timesteps / 1e6 over the 24 evals in (3145728, 6291456]"
+  },
+  "H4": {
+   "joint_pooled_max": 7,
+   "own_pooled_max": 3,
+   "episodes_per_seed": 20,
+   "panel": "3042-3061",
+   "spawn_range": [
+    3042,
+    3061
+   ],
+   "space": "joint",
+   "control_sigma": {
+    "42": {
+     "source": "scratchpad/foot/screen/runs/control_s42/models/stage1_final.zip",
+     "vector": [
+      0.20186392782030615,
+      0.20333393720998824,
+      0.2053598238797726,
+      0.1443473904927571,
+      0.19039211106793075,
+      0.08101838567599319,
+      0.06609290480696646,
+      0.13806865860889478,
+      0.1856579171077884,
+      0.07738903837681835,
+      0.06764202678068382,
+      0.21903493294701956,
+      0.2119845773118292,
+      0.2151566837069071,
+      0.20624944349269564
+     ]
+    },
+    "52": {
+     "source": "scratchpad/foot/screen/runs/control_s52/models/stage1_final.zip",
+     "vector": [
+      0.19955514739138744,
+      0.20907469155887745,
+      0.20913591299379514,
+      0.1410844273295132,
+      0.19187830680611906,
+      0.0772450518501284,
+      0.06645114827210256,
+      0.14113721388836864,
+      0.18844400490969168,
+      0.08029778942129226,
+      0.06611455953852458,
+      0.20873662668521797,
+      0.20694748716480424,
+      0.20615082463696904,
+      0.2168313315017048
+     ]
+    },
+    "60": {
+     "source": "scratchpad/foot/screen/runs/control_s60/models/stage1_final.zip",
+     "vector": [
+      0.19839539961438388,
+      0.20454227906297318,
+      0.20470354085846235,
+      0.14262054581381123,
+      0.18807095099753157,
+      0.07828738775563462,
+      0.06732367106417673,
+      0.1507255320734424,
+      0.19085124673861734,
+      0.08231613896794421,
+      0.06604708132776022,
+      0.20581640797876813,
+      0.2053580367892429,
+      0.21131495725827426,
+      0.21301439354281795
+     ]
+    }
+   },
+   "asserted_by_verify": "every 6M judge: noise_matched_control_joint sigma_source / sigma_vector == control_sigma[seed], n == 20 with 20 episode rows, seeds == spawn_range, space == joint; noise_matched_own sigma_source 'own', n == 20, seeds == spawn_range; else INVALID-infrastructure"
+  },
+  "H5": {
+   "bar_deg": 0.3,
+   "focus_spawns": [
+    3044,
+    3045,
+    3047,
+    3048,
+    3054,
+    3058,
+    3059,
+    3063,
+    3064,
+    3069,
+    3071,
+    3072,
+    3074,
+    3077
+   ]
+  },
+  "H6": {
+   "pooled_max": 2
+  },
+  "S1": {
+   "groups": {
+    "hip_roll": {
+     "actuators": [
+      4,
+      8
+     ],
+     "bound_deg": 0.1
+    },
+    "hip_pitch": {
+     "actuators": [
+      3,
+      7
+     ],
+     "bound_deg": 0.3
+    },
+    "knee": {
+     "actuators": [
+      5,
+      9
+     ],
+     "bound_deg": 0.3
+    },
+    "ankle": {
+     "actuators": [
+      6,
+      10
+     ],
+     "bound_deg": 0.3
+    },
+    "neck_yaw": {
+     "actuators": [
+      1
+     ],
+     "bound_deg": 0.3
+    },
+    "tail_1_yaw": {
+     "actuators": [
+      12
+     ],
+     "bound_deg": 0.3
+    }
+   },
+   "k90": 4.0,
+   "channels": {
+    "hip_pitch_diff": {
+     "odd_index": 3,
+     "deg_per_unit": 64.9998,
+     "bound_deg": 0.3
+    },
+    "knee_diff": {
+     "odd_index": 5,
+     "deg_per_unit": 49.9997,
+     "bound_deg": 0.3
+    },
+    "ankle_diff": {
+     "odd_index": 6,
+     "deg_per_unit": 49.9997,
+     "bound_deg": 0.3
+    },
+    "hip_roll_common": {
+     "odd_index": 4,
+     "deg_per_unit": 24.9981,
+     "bound_deg": 0.1
+    },
+    "neck_yaw": {
+     "odd_index": 1,
+     "deg_per_unit": 20.002,
+     "bound_deg": 0.3
+    },
+    "tail_1_yaw": {
+     "odd_index": 12,
+     "deg_per_unit": 7.9985,
+     "bound_deg": 0.3
+    }
+   },
+   "deg_per_unit_by_actuator": [
+    34.9991,
+    20.002,
+    30.0001,
+    64.9998,
+    24.9981,
+    49.9997,
+    49.9997,
+    64.9998,
+    24.9981,
+    49.9997,
+    49.9997,
+    11.9977,
+    7.9985,
+    11.9977,
+    11.9977
+   ],
+   "window_start": 200,
+   "window_end": 999,
+   "min_full_horizon_episodes": 20
+  },
+  "S2": {
+   "floor": {
+    "F_S2": 5,
+    "D_S2": 5
+   },
+   "cap": {
+    "F_S2": 8,
+    "D_S2": 6
+   },
+   "fallback_bars": {
+    "F_S2": 6,
+    "D_S2": 5
+   },
+   "set_by": "V12 before READY-v1: 90th percentile over the null runs, floored and capped; written to screen/validate/S2_bars.json and hashed"
+  }
+ },
+ "classification": {
+  "creep_even_g": 0.38,
+  "pad_bias_max": 0.15,
+  "pad_bias_statistic": "|median over the seed's full-horizon panel episodes of (g_r - g_l)|",
+  "statue_even_g": 0.23021944879576145,
+  "evals_corroboration": "last 8 in-training evals <= the checkpoint: mean (gate_r + gate_l)/2 and |mean gate_r - mean gate_l|"
+ },
+ "fa_needed": {
+  "rule": "r2: fa_needed iff >= min_seeds DISTINCT evidence seeds of L (no single-seed path); an exploratory L gives no binding evidence",
+  "count_bar": 3,
+  "count_statistic": "full-horizon CoP>0.8 episodes at an observed checkpoint (3M; 4M-6M if L reached them in its main run or as the comparator)",
+  "min_seeds": 2,
+  "evidence_seed (i) count": "count > count_bar at an observed checkpoint AND the seed's class there is MIRROR-EVEN CREEP",
+  "evidence_seed (ii) even-series CI": "the EVEN in-training series (g_r + g_l)/2 over the 24 evals in (3,145,728, 6,291,456]: OLS projection to x = 12.0 (timesteps / 1e6), 90% CI lower bound (t 0.95, 22 df) > H3b.bar (0.60), the 24 evals complete, 6M observed, AND the seed's 6M class is MIRROR-EVEN CREEP",
+  "per_pad_CI": "report only since r2 (h3b_pad_ci_fail)",
+  "imputed": "imputed checkpoints are never evidence",
+  "falls": "never evidence (full-horizon count; the in-training gate series are means over full-horizon episodes)"
+ },
+ "exploratory": {
+  "set_by": [
+   "decision_rules.pre_registration: any deviation after the first training step other than (a) / (b) of READY-final",
+   "decision_rules.validity.implementation_defect: a second implementation defect in the same arm"
+  ],
+  "recorded_in": "validity.json of every affected seed: exploratory = true, exploratory_reason = text (the arm is exploratory if any of its seeds is)",
+  "consequences (decide_final, binding)": [
+   "never the 6M PR arm (pr_arm None; the outcome class and its 12M arms are kept: eligible for the 12M confirmation only)",
+   "an exploratory L (incl. the comparator) gives no binding fa evidence: fa_needed False (so O2 / O5 cannot follow from it)",
+   "at 12M an exploratory L's 6M families are not replication evidence (ladder path 2)",
+   "labels are prefixed 'EXPLORATORY'"
+  ]
+ },
+ "ladder_12M": {
+  "min_cop_seeds": 2,
+  "cop_class": "MIRROR-EVEN CREEP",
+  "replicable_families": [
+   "ROLL",
+   "ROBUSTNESS",
+   "SYMMETRY"
+  ],
+  "criterion_family": {
+   "C1": "BY_FAILING_RAIL",
+   "C2": "COP",
+   "C3": "COP",
+   "C4": "ROBUSTNESS",
+   "C5": "GENERALISATION",
+   "C6": "GENERALISATION",
+   "C7": "SYMMETRY"
+  },
+  "rule": "decide_final.ladder_12M: 1. L passes C1-C7 -> L.  2. C passes C1-C7 and (path 1) on >= 2 of the 5 seeds L fails C2 on the full-horizon count or C3, each such seed MIRROR-EVEN CREEP at 12M -> C, 'needed for COP'; or (path 2) L failed at 12M a REPLICABLE family (C1 by its failing rails, C4, C7) that L also failed at 6M (not if L was exploratory) -> C, 'necessity for COP not shown'.  3. else no adoption (rollback).",
+  "input_record": {
+   "L|C": {
+    "C1-C7": "bool each",
+    "C1_families": "families of the failing rails of C1's failing seeds",
+    "per_seed": {
+     "<seed>": {
+      "C2_fh_fail": "bool",
+      "C3": "bool",
+      "class_12M": "class of the seed's 12M panel (decide_final.classify_cop, last 8 evals corroborate)"
+     }
+    }
+   },
+   "L_6M": {
+    "families": "decide_final.outcome(...)['L_6M_families'] of the 6M verdict",
+    "exploratory": "bool"
+   }
+  },
+  "null_operating_characteristics": "final/power/ladder12_final.json (rule constants asserted equal by the builder)"
+ },
+ "labels": {
+  "R1": {
+   "even_g_max": 0.545,
+   "ankle_common_dc_abs_max_deg": 2.0
+  },
+  "R_lat": {
+   "roll_rail_pooled_max": 3,
+   "policy_added_abs_d_lat_max_mm": 5.0
+  }
+ },
+ "outcomes": [
+  {
+   "id": "O1",
+   "L_state": "HS",
+   "C_state": null,
+   "fa_needed": false,
+   "pr_arm": "L",
+   "arms_12M": [
+    "L"
+   ]
+  },
+  {
+   "id": "O2",
+   "L_state": "FAIL",
+   "C_state": "HS",
+   "fa_needed": true,
+   "pr_arm": "C",
+   "arms_12M": [
+    "C",
+    "L"
+   ]
+  },
+  {
+   "id": "O3",
+   "L_state": "HnS",
+   "C_state": "HS",
+   "fa_needed": false,
+   "pr_arm": null,
+   "arms_12M": [
+    "L",
+    "C"
+   ]
+  },
+  {
+   "id": "O4",
+   "L_state": "FAIL",
+   "C_state": "HS",
+   "fa_needed": false,
+   "pr_arm": null,
+   "arms_12M": [
+    "C",
+    "L"
+   ]
+  },
+  {
+   "id": "O5",
+   "L_state": "FAIL",
+   "C_state": "HnS",
+   "fa_needed": true,
+   "pr_arm": null,
+   "arms_12M": [
+    "C",
+    "L"
+   ]
+  },
+  {
+   "id": "O6",
+   "L_state": "HnS",
+   "C_state": "HnS",
+   "fa_needed": false,
+   "pr_arm": null,
+   "arms_12M": [
+    "L",
+    "C"
+   ]
+  },
+  {
+   "id": "O7",
+   "L_state": "FAIL",
+   "C_state": "HnS",
+   "fa_needed": false,
+   "pr_arm": null,
+   "arms_12M": [
+    "C",
+    "L"
+   ]
+  },
+  {
+   "id": "O8",
+   "L_state": "HnS",
+   "C_state": "FAIL",
+   "fa_needed": false,
+   "pr_arm": null,
+   "arms_12M": [
+    "L"
+   ]
+  },
+  {
+   "id": "O9",
+   "L_state": "FAIL",
+   "C_state": "FAIL",
+   "fa_needed": null,
+   "pr_arm": null,
+   "arms_12M": []
+  }
+ ],
+ "confirmation_12M": {
+  "seeds": [
+   62,
+   64,
+   66,
+   68,
+   70
+  ],
+  "criteria": [
+   "C1",
+   "C2",
+   "C3",
+   "C4",
+   "C5",
+   "C6",
+   "C7"
+  ],
+  "L_always_with_C": true,
+  "source": {
+   "path": "scratchpad/foot/screen3m_cop/analysis.json",
+   "sha256": "d15e93ae106131fa26f785dd7a7ff51d0230d9f58b96d1f94cc6db829c2819ce",
+   "as_on_file": [
+    "C1: v2 PASS at 12M on >= 4 of 5 seeds: clean >= 37/40 (LCB >= 0.80), full horizon >= 0.95, hop-or-fall <= 1.",
+    "C2: CoP>0.8 <= 3/40 on every seed at 3M, 6M, 9M and 12M.",
+    "C3: in-training edge-pad gate CoP: no eval after 2M with mean > 0.8 or >= 5/10 episodes over the bar; on every seed the 11-12M mean is <= 0.60 and the 9-12M slope is <= +0.02/M.",
+    "C4: joint-space control-vector falls at 12M <= 11/100 pooled (the five 1M production controls' 6/100 + 5); own-sigma falls <= 5/100.",
+    "C5: the out-of-sample panel 7042-7081 at 12M passes on every seed that passes in sample, with CoP>0.8 <= 3/40 on every seed.",
+    "C6: the six-heading certificate passes on the selected and the final checkpoint of every seed that passes C1.",
+    "Report only: tail_1 pitch and hip-roll DC, and the policy-space leg DC as a fraction of full scale."
+   ]
+  },
+  "judged_checkpoints": {
+   "3M": 3145728,
+   "6M": 6291456,
+   "9M": 9437184,
+   "12M": "stage1_final (end of the 12,000,000-step budget)"
+  },
+  "budget_steps": 12000000,
+  "definitions (frozen; r2 copies them here, C3 applied to both pads)": {
+   "C1": "v2 PASS at 12M on >= 4 of the 5 seeds: judge.py's panel (40 episodes, 3042-3081) passes the stance_quality/v2 gate components exactly as H1 (clean >= 37/40 with the exact one-sided 95% LCB >= 0.80, full-horizon fraction >= 0.95, hop-or-fall <= 1, reward rails).  Family of a C1 failure = the most frequent failing rail over the unclean episodes of the failing seeds (tilt / corner -> ROLL, CoP -> COP, fall / hop / reward / other -> ROBUSTNESS; ties -> every tied family)",
+   "C2": "any-length CoP>0.8 (max_sole_cop_fore_aft > 0.8) <= 3/40 on every seed at each judged checkpoint (3M, 6M, 9M, 12M).  Per seed also C2_fh_fail := more than 3 FULL-HORIZON CoP>0.8 episodes at one of the judged checkpoints (ladder path 1 only)",
+   "C3 (both pads)": "per seed and pad p in {r, l}, on the seed's in-training evals (gate_progress.npz, every 131,072 steps, 10 episodes; p_sole_cop_fore_aft_gate = the mean over the eval's full-horizon episodes): (a) no eval with timesteps > 2,000,000 has p_sole_cop_fore_aft_gate > 0.8 or max_sole_cop_fore_aft_over_bar_fraction >= 0.5 (>= 5/10 episodes over the bar); (b) the mean of p_sole_cop_fore_aft_gate over the evals with timesteps > 11,000,000 is <= 0.60; (c) the OLS slope of p_sole_cop_fore_aft_gate on timesteps / 1e6 over the evals with timesteps > 9,000,000 is <= +0.02.  C3 holds on a seed iff (a)-(c) hold on both pads; C3 iff it holds on every seed",
+   "C4": "at 12M: joint-space control-vector falls <= 11/100 pooled (20 episodes per seed on 3042-3061; sigma = exp(log_std) of the 1M production control paired by order: seeds 62/64/66/68/70 -> foot/screen/runs/control_s42/s48/s52/s56/s60/models/stage1_final.zip; numpy default_rng(episode seed)) AND own-sigma falls <= 5/100",
+   "C5": "the out-of-sample panel 7042-7081 at 12M passes the v2 gate on every seed that passes C1 in sample, and its any-length CoP>0.8 <= 3/40 on every seed",
+   "C6": "the six-heading certificate (stance_quality_heading/v1) passes on the selected checkpoint and on stage1_final of every seed that passes C1",
+   "C7": "S1 (criteria.S1 here: per-group median <= bound and p90 <= k90 x bound; per-channel |mean odd part of mu(s_bar)| <= bound) at 12M on every seed that passes C1, from judge_sym --log-obs on the in-sample panel",
+   "class_12M": "decide_final.classify_cop on the seed's 12M panel (median even_g and pad bias over its full-horizon episodes; the last 8 in-training evals corroborate)"
+  },
+  "C4_control_sigma_sources": {
+   "62": "scratchpad/foot/screen/runs/control_s42/models/stage1_final.zip",
+   "64": "scratchpad/foot/screen/runs/control_s48/models/stage1_final.zip",
+   "66": "scratchpad/foot/screen/runs/control_s52/models/stage1_final.zip",
+   "68": "scratchpad/foot/screen/runs/control_s56/models/stage1_final.zip",
+   "70": "scratchpad/foot/screen/runs/control_s60/models/stage1_final.zip"
+  },
+  "analysis_script": "verify12 (C1-C7 per the definitions above, producing ladder_12M's input record) is written, validated and hashed before the first 12M run; it may not change these definitions"
+ },
+ "flags": {
+  "window_updates": 16,
+  "F1": {
+   "hip_roll_deg": 0.1,
+   "others_deg": 0.3
+  },
+  "F2": {
+   "loss_share": 0.5,
+   "sigma_collapse": 0.012
+  },
+  "F3": {
+   "spike_x_control_median": 3.0
+  },
+  "F4": {
+   "p99_r": 3.0,
+   "unbounded_fraction": 0.1
+  },
+  "F6": {
+   "epochs_gap": 1.5,
+   "control_epochs_per_window": [
+    9.860066731770834,
+    7.515625,
+    4.4095458984375
+   ]
+  },
+  "F7": {
+   "V_asym": 0.25
+  }
+ },
+ "validity": {
+  "method_failure": "FAIL ROBUSTNESS, no re-run",
+  "infrastructure_reruns_per_seed_segment": 1,
+  "implementation_defect": "re-run the affected segments once (READY-final-r2)",
+  "collapse_backstop": "missing checkpoints count as failed"
+ },
+ "compute": {
+  "max_heavy_processes": 2,
+  "threads": 1,
+  "waves_fresh": [
+   [
+    "L42",
+    "C42"
+   ],
+   [
+    "L52",
+    "C52"
+   ],
+   [
+    "L60",
+    "C60"
+   ]
+  ],
+  "waves_resume": [
+   [
+    "L42",
+    "C42"
+   ],
+   [
+    "L52",
+    "C52"
+   ],
+   [
+    "L60",
+    "C60"
+   ]
+  ],
+  "min_free_disk_GB": 2.5,
+  "wave_disk_budget_GB": 0.30335044800000005,
+  "colab": false
+ },
+ "layout": {
+  "run": "{runs}/{arm}_s{seed}",
+  "judge": "{run}/judge_{steps}.json",
+  "gate_progress": [
+   "{run}/resume6m/gate_progress.npz",
+   "{run}/gate_progress.npz"
+  ],
+  "roll_diag_measure": "{run}/roll_diag_{steps}/measure.json",
+  "roll_diag_statue": "{run}/roll_diag_{steps}/statue.npz",
+  "judge_sym": "{run}/judge_sym_{steps}/{mode}/judge_{steps}.json",
+  "obslog": "{run}/judge_sym_{steps}/{mode}/obslog_{steps}.npz",
+  "roll_diag_com": "{run}/roll_diag_com_{steps}",
+  "validity": "{run}/validity.json"
+ },
+ "runs_root": "scratchpad/foot/symmetry/screen/runs",
+ "validity_json_schema": {
+  "method_failure": "bool",
+  "collapse_backstop_fired": "bool",
+  "infrastructure_failures": "int per segment",
+  "imputed_checkpoints": "list of labels among 1M..6M that count as failed in the verdict and are never fa evidence",
+  "exploratory": "bool (decision_rules.pre_registration / validity.implementation_defect)",
+  "exploratory_reason": "text or null"
+ },
+ "ready_v1_slots (recorded in READY-v1 before P1; passed to verify on the command line)": {
+  "frozen_params_sha256": "sha256 of this file",
+  "s2_bars_sha256": "sha256 of screen/validate/S2_bars.json written by V12 (or by READY-v1 with the fallback bars and source 'fallback' if V12 cannot run)",
+  "statue_rolls_sha256": "sha256 of the statue.npz roll_diag.py writes under the clone (V13); the stored screen_hr value is e4e40fe2196b92c5be804d3f4790a40d3f6243ecbfe1963c7b348bedaeba9ef0 (expected if the plant is unchanged, which the bit-for-bit plant check of final/fresh supports)"
+ },
+ "verdict_commands": {
+  "J1_interim": "verify_final.py --params <frozen_params.json> --params-sha256 <READY-v1 value> --runs <runs_root> --interim --out <screen/analysis/interim.json>; recount_final.py ... --verify <interim.json>",
+  "J2_verdict": "verify_final.py --params <frozen_params.json> --params-sha256 <READY-v1 value> --runs <runs_root> --s2-bars <screen/validate/S2_bars.json> --s2-bars-sha256 <READY-v1 value> --statue-rolls-sha256 <READY-v1 value> --out <screen/analysis/verdict.json>; recount_final.py --params ... --params-sha256 ... --runs <runs_root> --verify <verdict.json> --with-symmetry --s2-bars <S2_bars.json> --s2-bars-sha256 <READY-v1 value>",
+  "exit_status": "verify 0 = decided; 3 = INVALID-infrastructure (a required input missing for a non-imputed checkpoint, or a judge / statue configuration differing from the frozen one): regenerate the input and re-run, nothing is decided; any other non-zero = refused (hash mismatch, missing READY-v1 argument).  recount 0 = agrees; 1 = INVALID-analysis -> arbiter_final.py",
+  "never": "--single-arm and --layout are validation modes on older screens and never produce a verdict",
+  "dispute": "arbiter_final.py --params <frozen_params.json> --params-sha256 <READY-v1 value> --runs <runs_root> --q <quantity>",
+  "env": "PYTHONDONTWRITEBYTECODE=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1"
+ },
+ "judge_sym_obslog_keys": [
+  "episode",
+  "t",
+  "obs (raw)",
+  "out",
+  "mu",
+  "mu_m",
+  "v",
+  "v_m",
+  "mu_bar (mu(s_bar); verify computes it by a stock forward pass if absent)"
+ ],
+ "files": {
+  "mirror_map": {
+   "path": "scratchpad/foot/symmetry/map/map_trex.json",
+   "sha256": "18e3c1a7fa984535a51d93d379c8453e56fc230ebf92fc5572ad9adc2eda9c04"
+  },
+  "statue": {
+   "path": "scratchpad/foot/screen_hr/statue.json",
+   "sha256": "344b371839c5b4f024cf0f8beb17766d0507332ad42fd36bf971164322f2e51d",
+   "statue_mean_reward": 3755.722010497341,
+   "asserted_by_verify": "every judge / judge_sym (raw, sym) panel's statue_mean_reward equals this value exactly"
+  },
+  "screen3m_cop_analysis (C1-C6 as on file)": {
+   "path": "scratchpad/foot/screen3m_cop/analysis.json",
+   "sha256": "d15e93ae106131fa26f785dd7a7ff51d0230d9f58b96d1f94cc6db829c2819ce"
+  }
+ },
+ "scripts": {
+  "verdict (frozen; READY-v1 asserts these)": {
+   "scratchpad/foot/symmetry/design/final/analysis/decide_final.py": "206d2766efd5b8ee4adf00a387d1fde7f27b543af1686cad1ae1870bdf95c487",
+   "scratchpad/foot/symmetry/design/final/analysis/verify_final.py": "f5c606860f0c5d465ca9e6002eb03df6868a9a5c8ec36fc1987988b0207c9f02",
+   "scratchpad/foot/symmetry/design/final/analysis/recount_final.py": "bbb230e7635aba7e841fd360ab13be11a50cc32631cd44a5379206f50af834b2",
+   "scratchpad/foot/symmetry/design/final/analysis/arbiter_final.py": "857b375addb8828af25a95aabd82098935b7a168de295237eb72d0ecb6c3a3be",
+   "scratchpad/foot/symmetry/design/final/analysis/test_decide_final.py": "e02f78831fa14cae0925398df79c54c72ba46197d5ae7b22b3ab09d6e184b776"
+  },
+  "design_computations": {
+   "fa_inst": {
+    "scratchpad/foot/symmetry/design/final/fa_inst/fa_inst.py": "4a46a8b49bc952c6ee5ed57fe9498e84b15f29748b868b459d35c0c337303242",
+    "scratchpad/foot/symmetry/design/final/fa_inst/fa_inst.json": "848b0d1e4104acef7cb0c28d96dad963a07bf9c049b1d2b74858ea78f9130392"
+   },
+   "power_final": {
+    "scratchpad/foot/symmetry/design/final/power/power_final.py": "5565f76843d1aeabdf51edb9e7742c6183bb2cc6600a792991c84ce6a66e50b7",
+    "scratchpad/foot/symmetry/design/final/power/power_final.json": "577f5d4634253178c8625672e9c231867b255423d9498a50ec17776b91bdf6ed",
+    "scratchpad/foot/symmetry/design/v3/power_v3.py": "b1738412bbbcf2fde56ff27708cbbd3bd61912eabf9d960053efeea6d14dd5fc"
+   },
+   "s1_p90": {
+    "scratchpad/foot/symmetry/design/final/s1/s1_p90.py": "15be28762965606b493730c74edc6f12365b2963c8c07ac234f684e8c03c10ff",
+    "scratchpad/foot/symmetry/design/final/s1/s1_p90.json": "ab02013d140afc5b98d53cf22e426b7f794a17dd9c7269848d6b159488fb2d99"
+   },
+   "numbers_final": {
+    "scratchpad/foot/symmetry/design/final/numbers/numbers_final.py": "297cbf20e5c964b86674dd60f7a1f6349cfbac1cb26a4f09335539fd1cb5b0cc",
+    "scratchpad/foot/symmetry/design/final/numbers/numbers_final.json": "8ae1bdff64675087b34ae16f17cb8942934701bd92a0c56ff27e8b7bcccb8240"
+   },
+   "verdict_script_validation": {
+    "scratchpad/foot/symmetry/design/final/analysis/validation/validate_final.py": "2c6a0851e8a0b09a09d9a69f3af0e0dba3f75d97ebf6fa7fe22f0d5483bc94cc",
+    "scratchpad/foot/symmetry/design/final/analysis/validation/validation_summary.json": "d1194dba19ba60d9f91810b596f83e9659ade58df74108880f9233b7c3ece87f",
+    "scratchpad/foot/symmetry/design/final/analysis/validation/layout_authority_hr.json": "da3fa5957f8ca815e77af96c8e2b58604743b902a959c7bc3807f22492b31c8c"
+   },
+   "foreaft_tools_imported": {
+    "scratchpad/foot/symmetry/foreaft/tools/fa_lib.py": "555f7e0dd7f432741f1808b357d6d2ee89ad5efbeaf1a395f77a63adcaf64ace",
+    "scratchpad/foot/symmetry/foreaft/tools/analyze_rolls.py": "417bcc0897cc8926707a67f35bb06b439a4101fb084d9551ff9e81843ec64343",
+    "scratchpad/foot/symmetry/foreaft/tools/calibrate_fa.py": "b65700c5a536ef2c54443be813bab92b2c83be17e3f8e1b64470467c0a4a8d77",
+    "scratchpad/foot/symmetry/foreaft/tools/recentre.py": "a3ff2e5b84109a65625b9469ba3817eec01c9c6d557a15b70357aac9a3def4a2",
+    "scratchpad/foot/symmetry/foreaft/tools/fa_roll.py": "674753ab0077db752ed4b96063a3c1d89cc3d76c03529b6cba388c54c9587d7b",
+    "scratchpad/foot/symmetry/foreaft/tools/judge_fa.py": "79b62dbf119e907d0b33a280555a80179165a43a4a2c3424d34f52a360e52b39"
+   },
+   "power_r2 (fa_needed r2, comparator path, non-stationary CI models)": {
+    "scratchpad/foot/symmetry/design/final/power/power_r2.py": "58e367a58eace33735d4305689abbcdc1362b676f7a8c088f6963a85f3967445",
+    "scratchpad/foot/symmetry/design/final/power/power_r2.json": "8954a94b4685ea1e8d447f9aee84c865d5cc7b5c5f99e095bde3d4cf1987f095"
+   },
+   "ladder12_final (the r2 12M ladder under the null, through the 6M outcome classes)": {
+    "scratchpad/foot/symmetry/design/final/power/ladder12_final.py": "e6e10c567d4a033154f8a2379268900e28dac31ff4acc48753bee8a900a4265b",
+    "scratchpad/foot/symmetry/design/final/power/ladder12_final.json": "9c4ea15d7647d851ae39f3e54c411518587749b4eb2d8e0c107e1e16de7998d1"
+   },
+   "fresh (out-of-sample re-score of the chosen fore-aft term)": {
+    "scratchpad/foot/symmetry/design/final/fresh/make_spec_fresh.py": "cdee18f8576706d44d6789bb708dedda1ece875e997164b12a255a6fd7db3691",
+    "scratchpad/foot/symmetry/design/final/fresh/fa_roll_fresh.py": "26183076bd1cae01fec1ad0ed28fb832081e872b9d96d31888e7b92b4c684c6c",
+    "scratchpad/foot/symmetry/design/final/fresh/score_fresh.py": "f41440ceef3a81c1d6406b03e82402f2e46c73fab389b30809fb357ce765ca49",
+    "scratchpad/foot/symmetry/design/final/fresh/spec_F1.json": "cdbc6c9747219763db9b62c74c2de14190e94c12321b578734a47a8f9d7e1ed4",
+    "scratchpad/foot/symmetry/design/final/fresh/spec_F2.json": "54581737a642ff7fb85203691358cc23fde0aaa16785a05111abcde4bf04886e",
+    "scratchpad/foot/symmetry/design/final/fresh/fresh.json": "4f9427db834f1923df0acfc9bb334f483416b745770eddd7531d7336710374f4"
+   },
+   "review3 inputs (review of the r1 final)": {
+    "scratchpad/foot/symmetry/design/critique_final_r1.json": "ef95b6c3f6ab3911b9e767f6c57f95c345f828521d0bc2b737e6b8959168cb7f",
+    "scratchpad/foot/symmetry/review3/h3b_ci_null.py": "cc905c5382470341c11b4284919e2651be8a1e8f6af90296ebef8da9431df9c0",
+    "scratchpad/foot/symmetry/review3/h3b_ci_null.json": "a50d7c1921b206d692cab474c4c563d63df2ba72326acc1d6e58e7661c589c6b",
+    "scratchpad/foot/symmetry/review3/ladder12_null.py": "7a0feb7e94e245a3392bf7bea26fd650b252a3b5e5241b6ff8f50cb7ca397632",
+    "scratchpad/foot/symmetry/review3/ladder12_null.json": "9e17e47b3b26fc4cb6a06beb5fa2729ab97653ad1d67a6e60cd54f0f0a38cea5"
+   },
+   "r1_archive (the first final design, superseded)": {
+    "scratchpad/foot/symmetry/design/final/r1_archive/screen_design_final.json": "3dcf708a21e30fe69565ea6189fb91c03504cf8890da6e4ae56b50e8b6d081b2",
+    "scratchpad/foot/symmetry/design/final/r1_archive/frozen_params.json": "1985e686d041c347ad3b760f3798a5ff87ead5f1b91e7e49d625c28641fe51d5",
+    "scratchpad/foot/symmetry/design/final/r1_archive/build_design_final.py": "ce2a640cbe0fd71e1a9718e83ed097f204333b860c0b43b16683220d160d0b2d",
+    "scratchpad/foot/symmetry/design/final/r1_archive/power_final.py": "5565f76843d1aeabdf51edb9e7742c6183bb2cc6600a792991c84ce6a66e50b7",
+    "scratchpad/foot/symmetry/design/final/r1_archive/power_final.json": "577f5d4634253178c8625672e9c231867b255423d9498a50ec17776b91bdf6ed",
+    "scratchpad/foot/symmetry/design/final/r1_archive/analysis/decide_final.py": "d84eb3dfb942c369036ab82d285c24fe74eb9f4b61dc1ece5db9e7ad65c5e977",
+    "scratchpad/foot/symmetry/design/final/r1_archive/analysis/verify_final.py": "615d3384b9c8d27d6cebd918677145358677a0377e345ff509ae00254cf630a4",
+    "scratchpad/foot/symmetry/design/final/r1_archive/analysis/recount_final.py": "4c84e5c385d3326166bc0ad035064e8ca66bf4e17297768a4973dae9b5830cc9",
+    "scratchpad/foot/symmetry/design/final/r1_archive/analysis/arbiter_final.py": "c991842d4e0350546bc3f48f93c9ee2d15c89177e307162d07da09f0f54c1f2e",
+    "scratchpad/foot/symmetry/design/final/r1_archive/analysis/test_decide_final.py": "04002f649005a2bb03d216719f113dd61c69b1ceead91965d4ddf9cf2e144b24"
+   },
+   "builder": {
+    "scratchpad/foot/symmetry/design/build_design_final.py": "2a1950bf090b7ba4d8f5b289823132aa693eec7c4ba6797cfb932e1af1a91b98"
+   }
+  }
+ },
+ "design_file": {
+  "path": "scratchpad/foot/symmetry/design/screen_design_final.json",
+  "sha256": "a61c6a2c3a687ab54e87a38fe53578c154ad1fd4866d7b46851187263d48b379"
+ }
+}

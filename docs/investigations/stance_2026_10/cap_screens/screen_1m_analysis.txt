@@ -1,0 +1,156 @@
+SCREEN ANALYSIS: T. rex anatomical stance, lower exploration noise and the leg-asymmetry term
+ModelId("tyrannosaurus_rex", "anatomical"), stance, physics r9 / interface r15, 1,048,576 steps per run.
+All 15 cells trained and judged on the screen worktree d6d0bd74 (#620's a0013b52 plus the scratch arm switch), clean tree,
+task_sha256 bde44225... The LR schedule is the first 1M of the 12M schedule (3e-5 to 2.825e-5).
+Panel: stance_quality/v2 on seeds 3042-3081 at stage1_524288_steps and stage1_final. Noise survival: 20 episodes at final,
+each policy sampling its own std (control 0.160-0.161, both low-noise arms 0.069-0.070).
+Data: analysis.json beside this file; extraction and test scripts in analysis_tools/ (extract.py, analyze.py, cells.json).
+
+ANSWER
+- #620 is already merged: main /home/user/mesozoic-labs is at 64612615 "Merge pull request #620". There is nothing to merge.
+- The control put a pad on its toe edge on all 5 seeds within 1M steps (12-30 CoP failures per seed, 9-26/40 clean).
+  The batch is informative, and an unchanged training run on main would very likely reproduce the edge.
+- Neither arm passes the predeclared criteria, so neither goes to a PR or to the 12M confirmation.
+- Lower sigma (log_std_init -2.5) removed most of the edge at 1M: 110 -> 15 CoP failures of 200 (rank-sum p = 0.004).
+  The leg-asymmetry term added nothing measurable on top: 11 vs 15 (p = 0.42).
+- The edge is no longer what keeps the arms below 37/40. Two other things do:
+  - marginal sole tilt (2.0-3.4 deg against 2 deg) and corner lift (4.0-5.8 mm against 4 mm), almost all on six panel seeds;
+  - a few deterministic falls just after the settle.
+
+PER ARM x SEED
+CoP = episodes whose measured gate statistic max_sole_cop_fore_aft > 0.8. The (r/l) split counts each foot, so an
+episode with both pads over 0.8 counts on both sides. tilt and corner are rail counts. Statue on the same panel:
+39/40 clean (LCB 0.887), 1 fall (3081), 1 CoP failure, tilt 1, corner 1.
+arm            seed | final clean (LCB) CoP>0.8 (r/l)  falls tilt corner | 524k clean (LCB) 524k CoP (r/l) 524k falls | noise falls/20 noise CoP/20 | verdict
+control          42 | 17/40 (0.292)    21 (21/1)           2    5      4 | 34/40 (0.725)    2 (2/0)                1 |              3           17 | final FAIL, 524k FAIL
+control          48 | 21/40 (0.385)    19 (2/17)           0    3      3 | 33/40 (0.696)    6 (6/0)                0 |              2           19 | final FAIL, 524k FAIL
+control          52 | 12/40 (0.183)    28 (1/28)           1    1      1 | 27/40 (0.534)   10 (3/7)                0 |              1           19 | final FAIL, 524k FAIL
+control          56 |  9/40 (0.123)    30 (23/8)           2    4      5 | 33/40 (0.696)    3 (3/0)                0 |              2           18 | final FAIL, 524k FAIL
+control          60 | 26/40 (0.508)    12 (1/12)           1    3      4 | 30/40 (0.613)    7 (0/7)                0 |              2           18 | final FAIL, 524k FAIL
+lownoise         42 | 35/40 (0.755)     4 (3/3)           3    5      5 | 33/40 (0.696)    2 (2/2)                2 |              0            0 | final FAIL, 524k FAIL
+lownoise         48 | 33/40 (0.696)     1 (0/1)           1    7      6 | 30/40 (0.613)    5 (2/3)                0 |              0            0 | final FAIL, 524k FAIL
+lownoise         52 | 30/40 (0.613)     6 (3/3)           0    5      5 | 30/40 (0.613)    8 (3/8)                3 |              0            5 | final FAIL, 524k FAIL
+lownoise         56 | 35/40 (0.755)     2 (2/1)           2    5      4 | 29/40 (0.586)    6 (6/1)                1 |              1            2 | final FAIL, 524k FAIL
+lownoise         60 | 35/40 (0.755)     2 (1/1)           0    4      3 | 36/40 (0.786)    0 (0/0)                0 |              0            0 | final FAIL, 524k FAIL
+lownoise_asym    42 | 30/40 (0.613)     4 (4/0)           1    7      7 | 32/40 (0.668)    0 (0/0)                0 |              0            1 | final FAIL, 524k FAIL
+lownoise_asym    48 | 36/40 (0.786)     3 (0/3)           0    2      1 | 26/40 (0.508)   13 (4/11)                2 |              0            0 | final FAIL, 524k FAIL
+lownoise_asym    52 | 36/40 (0.786)     2 (2/2)           2    4      4 | 34/40 (0.725)    4 (4/3)                4 |              1            1 | final FAIL, 524k FAIL
+lownoise_asym    56 | 36/40 (0.786)     0 (0/0)           0    4      3 | 37/40 (0.817)    0 (0/0)                0 |              0            0 | final FAIL, 524k PASS
+lownoise_asym    60 | 36/40 (0.786)     2 (1/1)           1    3      2 | 36/40 (0.786)    1 (1/0)                1 |              0            0 | final FAIL, 524k FAIL
+
+Pooled over 5 seeds (final):  clean /200 | CoP /200 | falls | tilt | corner | noise falls /100 | noise CoP /100
+  control                       85       |   110    |   6   |  16  |   17   |        10        |       91
+  lownoise                     168       |    15    |   6   |  26  |   23   |         1        |        7
+  lownoise_asym                174       |    11    |   4   |  20  |   17   |         1        |        2
+
+1. IS THE BATCH INFORMATIVE?  YES
+- Control CoP failures at final: s42 21, s48 19, s52 28, s56 30, s60 12. That is at least 10 on 5 of 5 seeds; the bar was 2 of 5.
+- The edge side varies with the seed: right on s42 and s56, left on s48, s52 and s60.
+- Control s48 and s56 are bit-identical replays of probe 0: policy.pth sha256 is equal at 524k, 1,048,576 and final.
+  Only s42, s52 and s60 are new samples, and all three reproduce the edge.
+
+2. PREDECLARED CRITERIA (REPORT section 6), FINAL CHECKPOINT
+                                         lownoise                              lownoise_asym
+  C1 CoP <= 3 on >= 4/5 seeds           [4,1,6,2,2] -> 3/5  FAIL               [4,3,2,0,2] -> 4/5  pass
+  C2 clean >= 37 (LCB>=0.80) on >= 3/5  [35,33,30,35,35] -> 0/5  FAIL          [30,36,36,36,36] -> 0/5  FAIL
+  C3 falls (control 6)                  6   pass (equal)                       4   pass
+     tilt rail (control 16)             26  FAIL                               20  FAIL
+     corner-lift rail (control 17)      23  FAIL                               17  pass (equal)
+  C4 noise falls (control 10/100)       1/100  pass                            1/100  pass
+  C5 rank-sum vs control, CoP           p = 0.004  pass                        p = 0.004  pass
+  VERDICT                               FAIL (C1, C2, C3)                      FAIL (C2, C3 on tilt)
+- Sensitivity of C1 to how a CoP failure is counted:
+  - Rail count, which adds unmeasured falls: lownoise [4,1,6,2,2], 3/5 FAIL; asym [5,3,2,0,2], 4/5 pass.
+  - Full-horizon episodes only: lownoise [1,0,6,0,2], 4/5 pass; asym [4,3,0,0,1], 4/5 pass.
+  So lownoise's C1 failure depends on the definition. 3 of seed 42's 4 CoP failures are fall episodes.
+  C2 and C3 fail under every definition.
+- lownoise_asym misses C2 by one episode on four seeds (36/40, LCB 0.786 < 0.80). As declared, that is a fail.
+- The tilt difference is not significant for asym (one-sided rank-sum p = 0.35). For lownoise it is nominal, p = 0.028, post hoc.
+- C4 compares each policy under its own noise, so the low-noise arms were tested at less than half the control's sigma.
+  This is not a matched-sigma robustness comparison.
+
+3. RANK-SUM (one-sided exact Mann-Whitney on per-seed CoP-failure counts, 5 vs 5)
+- At final, both arms vs control: p = 0.0040 (= 1/252, complete separation).
+  This holds for all three CoP definitions, and the predeclared bar is p <= 0.05.
+- At 524k, before the control's edge forms:
+  - lownoise vs control: p = 0.27 (21 vs 28 of 200);
+  - asym vs control: p = 0.15 (18 vs 28);
+  - clean counts: control 157, lownoise 158, asym 165 of 200 (p 0.58 and 0.27).
+
+4. THE 524k CHECKPOINT
+- No arm separates from control at 524k on CoP or clean.
+- Only lownoise_asym s56 passes (37/40, LCB 0.817).
+- The low-noise arms fell more often on the deterministic panel at 524k than the control: 6 and 7 falls vs 1.
+  The one-sided p is 0.15 for each, so this is not established. By final, falls are 6 / 6 / 4.
+- Tilt rail at 524k: control 17, lownoise 30, asym 21.
+- lownoise_asym s48's 524k checkpoint is the worst cell at that step: 26/40, 13 CoP failures (left pad), 2 falls.
+  Its left-pad edge peaked at 786k and partly receded by final (3 CoP failures).
+
+5. WHEN THE EDGE FORMED IN EACH CONTROL SEED
+Source: gate_progress.npz, 10 deterministic episodes per eval.
+- Onset is the first eval with the edge foot's mean gate CoP > 0.5.
+- The edge is the first eval with the mean > 0.8 or at least half the episodes over 0.8.
+  s42 right: onset 393k (0.58). Edge at 917k (0.83, 8/10 over).
+             The ankle DC (left minus right) flipped to negative at 524k (-1.8 to -2.9 deg from 655k); the knee DC reached -1.3 deg at 917k.
+  s48 left:  The right pad drifted first (0.59-0.66 at 393k-655k), then reversed.
+             Left onset 786k (0.55). Edge at 917k (0.84, 6/10). The hip DC went from -2.8 to +2.2 deg.
+  s52 left:  onset 524k (0.55). Half over at 917k (mean 0.63). Mean over 0.8 at 1049k (0.87, 8/10).
+             The hip and knee DC changed sign over the last interval.
+  s56 right: first episode over at 262k, onset 393k (0.61). Edge at 786k (0.92, 7/9).
+             The knee and ankle DC were about -2 deg; the right digit share fell from 0.12-0.17 to 0.05.
+  s60 left:  onset 524k (0.66). Edge at 655k (0.82, 6/10), then it held at 0.71-0.73.
+             The knee DC turned left-positive from 393k (+0.8 to +1.9 deg); the hip and ankle DC widened to about -2.7 / +2.8 deg from 786k.
+- Every control edge formed after the 524k checkpoint, between 655k and 1049k. This agrees with REPORT section 5 (0.5-1M).
+- The in-training eval reward stayed at 3740-3790 through edge formation, apart from evals that contained a fall.
+
+6. DOES lownoise_asym BEAT lownoise? (the term's own contribution: NOT ESTABLISHED)
+These are one-sided rank-sum tests, asym better than lownoise, 5 vs 5. They are post hoc and not corrected for multiplicity.
+  CoP final   11 vs 15        p 0.42      full-horizon only 8 vs 9   p 0.58
+  clean final 174 vs 168      p 0.075
+  falls final 4 vs 6          p 0.42      noise falls 1 vs 1
+  tilt final  20 vs 26        p 0.11      corner 17 vs 23   p 0.15
+  CoP > 0.6, full horizon: 64 vs 53 (asym is not lower on the sub-bar drift)
+- By the predeclared tally asym looks better: it meets C1 and lownoise does not. That rests on one seed: lownoise s42 has
+  4 CoP failures, 3 of them in fall episodes.
+- Telemetry at 1M: the edge foot's mean gate CoP is 0.34-0.53 for asym and 0.28-0.64 for lownoise.
+- The signed CoP on the edge foot is still rising over the last four evals on 3/5 asym seeds (42, 52, 60: +0.35 to +0.39 per M)
+  and 2/5 lownoise seeds (52, 60: +0.59 and +0.51 per M).
+- The term's in-eval cost was 6-35 per episode, roughly 0.01-0.04 per post-settle step against the 0.15 cap.
+  It did not track the CoP drift: asym s48 paid most at 524k (-34.6), not at the 786k CoP peak (-11.6).
+
+7. WHAT NOW FAILS THE ARMS (not the edge)
+- Tilt and corner lift: 46 of the 48 tilt/corner-lift failures among final full-horizon episodes, across all three arms,
+  fall on six panel seeds: 3045, 3047, 3059, 3063, 3074 and 3077.
+  The same seeds fail in the control's 524k checkpoint, before its edge forms.
+  On those seeds the statue already reaches 1.04-1.54 deg of pad tilt; its median over all seeds is 0.56 deg.
+  The failing margins are small: tilt 2.0-3.4 deg against 2 deg, corner lift 4.0-5.8 mm against 4 mm.
+- Falls: most occur 160-370 steps in, just after the settle at step 200.
+  They cluster on panel seeds 3043 (control), 3050, 3063 and 3072 (low-noise arms) and 3081 (the statue's own fall seed).
+- Under its own noise, settle_peak_floor_force_bw > 1.5 trips in 17-20 of 20 episodes in every cell, the control included.
+  It is a settle transient under sampling and is not one of the success criteria.
+
+8. CAVEATS
+- 5 training seeds per arm, 1M steps against run A's 12M, and two checkpoints.
+- The episodes of one policy are not replicates.
+- The 10-episode in-training evals are coarse, in steps of 0.1.
+- The noise-survival comparison is not at matched sigma.
+- The low-noise arms change the exploration noise that the D-D27 per-step penalty budget in stance.toml was calibrated against.
+- Edge drift is slowed, not shown to be stopped: on lownoise s60 the left pad went from 0.29 to 0.59 between 524k and 1M and was still rising.
+
+RECOMMENDATION
+- Do not merge anything for this. #620 is already on main.
+- Do not start a production stance run on main as it is.
+- Do not open a PR for either arm: neither passed, and lownoise_asym's 36/40 on four seeds is a near miss, not a pass.
+- The data point to sigma as the lever, with the asym term unproven.
+- Next, two scratch steps, both under the maintainer's existing approval for scratch screens:
+  (1) No training, about an hour. Diagnose the residual tilt/corner-lift and early-fall failures on panel seeds 3045, 3047,
+      3059, 3063, 3074, 3077 and 3050, 3063, 3072, using the existing final checkpoints of lownoise and lownoise_asym.
+      Decide whether it is a policy defect or a 2 deg / 4 mm rail that is too tight for those initial conditions (the statue
+      sits at 1.4-1.5 deg there). The rail is a gate question for the maintainer.
+  (2) A 3M continuation screen: lownoise and lownoise_asym on seeds 42, 52 and 60, the seeds still drifting at 1M.
+      - Keep the 12M LR schedule truncated at 3M, and judge at 1M, 2M and 3M with the same panel and noise test.
+      - It answers whether low sigma prevents the edge or only delays it, and whether the term matters over a longer horizon.
+      - Cost: about 1.9 h per run two at a time, so about 6 h for 6 runs.
+- Only if an arm holds at most 3 CoP failures per seed at 3M and clears the clean bar should it go to a PR and the 12M Colab
+  confirmation on seeds 56, 48 and one more. If only sigma is needed, the PR is the one-line log_std_init change plus a
+  re-check of the D-D27 calibration.

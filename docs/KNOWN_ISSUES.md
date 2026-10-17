@@ -151,6 +151,17 @@ robustness, **LOW** = cosmetic / QoL.
   below;
   [investigations/STANCE_REWARD_PILOT_FINDINGS_2026_10.md](investigations/STANCE_REWARD_PILOT_FINDINGS_2026_10.md)
   §1.2–§1.3).
+  **Update 7 (2026-10-17):** the physics-r9 stance run `20261011_165957`
+  (seed 56, 12M steps) fails v2 with one pad on its toe edge (1/40 clean),
+  and every screen since has failed its predeclared criteria: lower
+  exploration noise, a CoP term, capped leg authority, mirror-symmetric PPO
+  with the lateral lean term and the settled leg target (symmetric policies
+  that still creep forward; the options are in the library, off by default),
+  and the same on the draft physics-r10 foot, where two of three seeds stood
+  on their toes. The two-seed ask stands; the next step is a short walking
+  pilot (the maintainer's decision of 2026-10-17). Record, numbers and
+  evidence:
+  [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).
 - **LOW** — **stage 1a (stance) contains no in-episode disturbance, so a
   stance-gate PASS certifies stance quality, not active balance control.** The
   only perturbation is joint-angle noise at reset (`reset_noise_scale 0.05`).

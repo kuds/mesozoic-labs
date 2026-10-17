@@ -1,0 +1,158 @@
+PASS CRITERION, corrected operationalisation (supersedes pass.txt / pass_rep.txt).
+Per noise level: the six rank checks on the ex50 windows (each faller's last 50 steps dropped, F3): full-statue z >= 5; x0.5-statue > 2 SE; x0.9-x0.5 > 2 SE; full-x0.5 > 2 SE; hips-statue <= 10% of the gap; mirror-statue >= 50% of the gap.
+Weight window: w_max = 5 / det statue cost; w_min = 20 / min(plain, ex50) noisy gap; at least 3x wide (F2).
+Falls (F1): the term may add at most 5 per episode to any faller's suffix-sum gain over the base reward alone.
+The brief's criterion needs both 0.16 and 0.22; uniform cells cannot rank (every posture falls), so p16/p22 = policy-shaped.
+Cells: P/f = ex50 checks pass/fail (plain in brackets), z50.  width16 = p16-only window width per panel (A/B/C).
+
+== a
+   p16: A f(f) z5.3, B P(P) z5.0, C P(P) z5.4, D f(f) z8.5
+   p22: A f(f) z2.6, B f(f) z-0.4, C f(f) z1.9, D f(f) z3.0
+   u16: A f(f) z0.6, B f(f) z-1.5, C f(f) z-0.3, D f(f) z2.7
+   u22: A f(f) z1.4, B f(f) z1.1, C f(f) z1.8, D f(f) z-0.4
+   width16: 0.81x / 0.61x / 1.10x
+   A+B window over p16 & p22: inf-0.4796 (0.00x)
+   falls at w 0.1: max added gain u16 2.5, u22 2.8, p16 2.1, p22 2.3
+   -> p16 ranks on A, B, C: no; p22 ranks on A and B: no; p16 window >= 3x on A, B, C: no; PASSES: no
+
+== b_ema
+   p16: A f(f) z2.9, B f(f) z3.0
+   p22: A f(f) z1.9, B f(f) z1.0
+   u16: A f(f) z1.5, B f(f) z1.3
+   u22: A f(f) z1.0, B f(f) z-1.0
+   width16: 10.93x / 4.57x
+   A+B window over p16 & p22: 2.314-0.8054 (0.35x)
+   -> p16 ranks on A, B, C: no; p22 ranks on A and B: no; p16 window >= 3x on A, B, C: yes; PASSES: no
+
+== b_box
+   p16: A P(P) z5.2, B P(P) z6.0, C P(P) z5.6, D P(P) z9.7
+   p22: A f(f) z2.4, B f(f) z1.3, C f(f) z1.6, D f(f) z3.2
+   u16: A f(f) z1.7, B f(f) z1.4, C f(f) z-1.9, D f(f) z3.9
+   u22: A f(f) z1.0, B f(f) z-1.2, C f(f) z1.6, D f(f) z1.4
+   width16: 24.24x / 8.66x / 32.30x
+   A+B window over p16 & p22: 0.3812-0.7242 (1.90x)
+   -> p16 ranks on A, B, C: yes; p22 ranks on A and B: no; p16 window >= 3x on A, B, C: yes; PASSES: no
+
+== c_tau
+   p16: A f(f) z-1.0, B f(f) z1.5
+   p22: A f(f) z-1.9, B f(f) z-0.5
+   u16: A f(f) z-1.3, B f(f) z-0.8
+   u22: A f(f) z1.9, B f(f) z-6.9
+   width16: 0.00x / 0.42x
+   A+B window over p16 & p22: inf-0.17 (0.00x)
+   -> p16 ranks on A, B, C: no; p22 ranks on A and B: no; p16 window >= 3x on A, B, C: no; PASSES: no
+
+== c_tau25
+   p16: A f(f) z-1.1, B f(f) z1.3
+   p22: A f(f) z-1.8, B f(f) z-0.5
+   u16: A f(f) z-1.3, B f(f) z-0.8
+   u22: A f(f) z1.9, B f(f) z-6.8
+   width16: 0.00x / 1.97x
+   A+B window over p16 & p22: inf-1.154 (0.00x)
+   -> p16 ranks on A, B, C: no; p22 ranks on A and B: no; p16 window >= 3x on A, B, C: no; PASSES: no
+
+== c_cop
+   p16: A f(f) z5.8, B P(P) z5.1
+   p22: A f(f) z2.8, B f(f) z1.2
+   u16: A f(f) z2.1, B f(f) z0.3
+   u22: A f(f) z-0.2, B f(f) z-1.5
+   width16: 0.21x / 0.19x
+   A+B window over p16 & p22: 1.354-0.0374 (0.03x)
+   -> p16 ranks on A, B, C: no; p22 ranks on A and B: no; p16 window >= 3x on A, B, C: no; PASSES: no
+
+== e1_ema_cop
+   p16: A P(P) z5.6, B P(P) z5.4
+   p22: A f(f) z2.7, B f(f) z2.0
+   u16: A f(f) z1.9, B f(f) z0.4
+   u22: A f(f) z1.0, B f(f) z-1.3
+   width16: 0.39x / 0.49x
+   A+B window over p16 & p22: 0.3084-0.03888 (0.13x)
+   -> p16 ranks on A, B, C: yes; p22 ranks on A and B: no; p16 window >= 3x on A, B, C: no; PASSES: no
+
+== e2_ema_tau
+   p16: A f(P) z4.0, B P(P) z5.5
+   p22: A f(f) z0.8, B f(f) z1.9
+   u16: A f(f) z0.8, B f(f) z-0.6
+   u22: A f(f) z-1.9, B f(f) z-0.0
+   width16: 0.78x / 1.19x
+   A+B window over p16 & p22: 1.109-0.1323 (0.12x)
+   -> p16 ranks on A, B, C: no; p22 ranks on A and B: no; p16 window >= 3x on A, B, C: no; PASSES: no
+
+== e1r_ema_cop_statue_ref
+   p16: A f(f) z4.1, B f(f) z4.7
+   p22: A f(f) z2.6, B f(f) z0.1
+   u16: A f(f) z1.8, B f(f) z-1.9
+   u22: A f(f) z1.2, B f(f) z-1.3
+   width16: 0.51x / 0.72x
+   A+B window over p16 & p22: 5.964-0.09686 (0.02x)
+   -> p16 ranks on A, B, C: no; p22 ranks on A and B: no; p16 window >= 3x on A, B, C: no; PASSES: no
+
+== e2r_ema_tau_statue_ref
+   p16: A f(P) z4.1, B P(P) z5.7
+   p22: A f(f) z0.9, B f(f) z2.0
+   u16: A f(f) z0.9, B f(f) z-0.6
+   u22: A f(f) z-1.7, B f(f) z-0.0
+   width16: 1.07x / 1.49x
+   A+B window over p16 & p22: 1.069-0.1745 (0.16x)
+   -> p16 ranks on A, B, C: no; p22 ranks on A and B: no; p16 window >= 3x on A, B, C: no; PASSES: no
+
+== d_joint_ema
+   p16: A P(P) z8.4, B P(P) z6.8
+   p22: A f(f) z3.8, B f(f) z2.9
+   u16: A f(f) z2.9, B f(f) z2.9
+   u22: A f(f) z1.5, B f(f) z0.5
+   width16: 2.05x / 2.18x
+   A+B window over p16 & p22: 0.02559-0.02077 (0.81x)
+   -> p16 ranks on A, B, C: yes; p22 ranks on A and B: no; p16 window >= 3x on A, B, C: no; PASSES: no
+
+== d_joint
+   p16: A P(P) z13.7, B P(P) z11.9, C P(f) z10.3, D P(P) z17.1
+   p22: A f(f) z3.8, B f(f) z2.4, C P(f) z5.9, D P(P) z6.6
+   u16: A f(f) z2.2, B f(f) z2.5, C f(f) z2.9, D P(P) z6.4
+   u22: A f(f) z1.7, B f(f) z0.2, C f(f) z2.1, D f(f) z4.0
+   width16: 19.68x / 15.85x / 21.99x
+   A+B window over p16 & p22: 0.005309-0.05112 (9.63x)
+   falls at w 0.012: max added gain u16 128.7, u22 162.2, p16 60.5, p22 63.4
+   -> p16 ranks on A, B, C: yes; p22 ranks on A and B: no; p16 window >= 3x on A, B, C: yes; PASSES: no
+
+== d_ema50_sat5
+   p16: A P(P) z13.6, B P(P) z12.6, C P(P) z11.0, D P(P) z17.2
+   p22: A f(P) z4.9, B f(f) z3.5, C P(f) z6.4, D P(P) z5.9
+   u16: A f(f) z2.5, B f(f) z2.8, C f(f) z1.2, D P(P) z5.9
+   u22: A f(f) z1.0, B f(f) z3.4, C f(f) z2.3, D f(f) z2.2
+   width16: 5.75x / 4.42x / 6.27x
+   A+B window over p16 & p22: 0.03714-0.06513 (1.75x)
+   falls at w 0.03: max added gain u16 3.8, u22 4.2, p16 3.1, p22 3.5
+   -> p16 ranks on A, B, C: yes; p22 ranks on A and B: no; p16 window >= 3x on A, B, C: yes; PASSES: no
+
+== d_cap20
+   p16: A P(P) z13.1, B P(P) z11.7, C P(P) z10.8, D P(P) z15.5
+   p22: A f(P) z4.5, B f(f) z2.5, C f(f) z4.7, D f(P) z4.8
+   u16: A f(f) z3.0, B f(f) z1.4, C f(f) z2.5, D f(P) z3.7
+   u22: A f(f) z1.0, B f(f) z-0.1, C f(f) z2.2, D f(f) z0.2
+   width16: 10.78x / 8.88x / 11.63x
+   A+B window over p16 & p22: 0.01613-0.05112 (3.17x)
+   falls at w 0.0075: max added gain u16 3.8, u22 4.2, p16 3.1, p22 3.5
+   -> p16 ranks on A, B, C: yes; p22 ranks on A and B: no; p16 window >= 3x on A, B, C: yes; PASSES: no
+
+== d_clip3
+   p16: A P(P) z14.4, B P(P) z12.4, C P(P) z10.7, D P(P) z15.6
+   p22: A f(P) z4.1, B f(P) z3.6, C f(f) z6.7, D P(P) z5.1
+   u16: A f(f) z2.6, B f(f) z1.3, C f(P) z3.0, D f(P) z4.7
+   u22: A f(f) z0.8, B f(f) z5.4, C f(f) z1.1, D f(f) z0.6
+   width16: 11.73x / 9.72x / 13.50x
+   A+B window over p16 & p22: 0.01446-0.05112 (3.54x)
+   falls at w 0.007407407407407408: max added gain u16 4.2, u22 4.5, p16 3.5, p22 3.6
+   -> p16 ranks on A, B, C: yes; p22 ranks on A and B: no; p16 window >= 3x on A, B, C: yes; PASSES: no
+
+== d_ema100_sat2
+   p16: A P(P) z12.8, B P(P) z12.9, C P(P) z10.8, D P(P) z16.8
+   p22: A f(P) z4.9, B f(f) z3.4, C P(P) z6.1, D P(P) z5.9
+   u16: A f(f) z2.4, B f(f) z2.6, C f(f) z0.9, D P(P) z5.7
+   u22: A f(f) z1.0, B f(f) z16.7, C f(f) z2.2, D f(f) z1.9
+   width16: 3.10x / 2.27x / 3.33x
+   A+B window over p16 & p22: 0.08953-0.07874 (0.88x)
+   falls at w 0.075: max added gain u16 3.8, u22 4.2, p16 3.1, p22 3.5
+   -> p16 ranks on A, B, C: yes; p22 ranks on A and B: no; p16 window >= 3x on A, B, C: no; PASSES: no
+
+No candidate passes.  The unbounded d_joint fails the falls rule (adds up to 162 at u22); the bounded d_ema50_sat5 at w 0.03 passes the falls rule and p16 everywhere but not p22 on A and B (z 4.9 / 3.5; ex50 gap 16.2 / 19.3 < 20).

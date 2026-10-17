@@ -1,0 +1,260 @@
+3M SCREEN ANALYSIS: T. rex anatomical stance, low noise (log_std_init -2.5) and middle noise (-2.0) to 3M steps
+ModelId("tyrannosaurus_rex", "anatomical"), stage 1 stance, physics r9 / interface r15. Seeds 42, 52, 60; 3,145,728 steps per run.
+- LR schedule: the production 12M linear schedule, cut at 3M (learning_rate_end_run 2.4757e-5).
+- Worktree: fix/screen at d6d0bd74, clean tree; gait, curriculum, reporting and configs identical to main 64612615.
+- Harness: screen3m/harness; each run agent verified its SHA256SUMS.
+- Judged checkpoints: stage1_1048576_steps (1M), stage1_2097152_steps (2M), stage1_3145728_steps (3M), and stage1_final
+  (one PPO update after 3M).
+- Panel: stance_quality/v2, 40 episodes on seeds 3042-3081. The statue scores 39/40 on the same seeds.
+- Noise tests:
+  - own sigma: 20 episodes;
+  - matched sigma 0.16: 20 episodes, seeds 3042-3061, policy mean + N(0, 0.16^2), numpy RNG. This is the procedure of the 1M
+    screen's verify/tools/noise.py, so its control figure (6/100) is the comparable one.
+- Control comparators come from the 1M screen only (control_s42/s52/s60 at 524k and 1M). No control was run to 3M.
+- lownoise s42/s52/s60 replay the 1M screen's lownoise runs bit for bit up to 1M, so their 1M point is not a new sample.
+  midnoise is new.
+- Nothing was committed, pushed or merged. No gate was edited, and the main checkout was not touched.
+- Data: analysis.json beside this file. Tools in tools_final/: collect.py, tables.py and make_analysis.py, which only read
+  judge_*.json and gate_progress.npz.
+
+ANSWER
+- Low noise (-2.5) delays the toe edge but does not prevent it.
+  - CoP failures by seed (s42/s52/s60): 1M 4/10/2, 2M 3/13/23, 3M 16/19/22 (stage1_final 17/20/22).
+  - Only s42 at 2M stays at <=3/40. At 3M no seed does.
+  - At 3M it has 57/120 CoP failures, about the control's 61/120 at 1M.
+- Middle noise (-2.0) neither prevents nor delays the edge. It behaves like the control:
+  - CoP failures 36/25/25 at 1M, 40/24/38 at 2M, 40/32/40 at 3M;
+  - its edge forms in training at 0.39-0.79M, against the control's 0.66-0.92M.
+- Noise tolerance at matched sigma 0.16 (falls of 60 episodes on these seeds):
+  - low noise 23 (1M), 35 (2M), 33 (3M);
+  - middle noise 32, 58, 57;
+  - control at 1M, same test: 4/60 (6/100 over five seeds; 10/100 with torch-sampled own noise).
+  Middle noise is worse than low noise on both the edge and the noise test, so it is not a better balance.
+- Gate: at 2M and 3M no seed of either arm reaches 37/40 clean.
+  - That holds under the current bars and under every option tested: absolute bars up to 3.5 deg / 7 mm, both bars removed,
+    and the statue-relative rails.
+  - The CoP rail is what binds. With CoP removed as well (reference only, not an option), 2 of 3 seeds pass in each arm.
+- Recommendation:
+  - No PR for either log_std_init value; main keeps -1.5.
+  - No gate decision is needed first.
+  - No 12M Colab confirmation for these arms.
+  - The edge does not change the training reward, and the reward has no fore-aft CoP term. The next lever is therefore a
+    training-side CoP signal at the production noise level, screened at 3M on seeds 42, 52 and 60. That needs maintainer
+    approval.
+
+PER ARM x SEED x CHECKPOINT
+Column key:
+- CoP = episodes whose gate statistic max_sole_cop_fore_aft > 0.8. The (r/l) split counts each foot, so an episode with both
+  pads over 0.8 counts on both sides.
+- fhCoP = CoP failures among full-horizon episodes.
+- tilt and corner = rail counts.
+- own = falls and CoP>0.8 under the policy's own sigma, of 20. s0.16 = the same under matched sigma 0.16, of 20.
+- signed = the panel median of the signed pad CoP (+ is toward the toe).
+arm      seed ckpt  clean  LCB    CoP(r/l)     fhCoP falls tilt corner | own: sigma falls CoP | s0.16 falls CoP | signed r / l
+lownoise   42 1M    35/40 0.755   4 ( 4/ 3)      1     3    5      5 | 0.069  0/20  0/20 | 10/20 19/20 | +0.41 / +0.24
+lownoise   42 2M    34/40 0.725   3 ( 2/ 1)      2     1    4      4 | 0.065  0/20  0/20 | 11/20 18/20 | +0.59 / +0.09
+lownoise   42 3M    22/40 0.409  16 (13/ 3)     13     3    6      6 | 0.063  0/20  3/20 | 12/20 18/20 | +0.77 / +0.00
+lownoise   42 final 21/40 0.385  17 (16/ 1)     16     1    4      4 | 0.063  0/20  5/20 | 11/20 18/20 | +0.79 / -0.01
+lownoise   52 1M    26/40 0.508  10 ( 2/ 8)     10     0    5      5 | 0.070  0/20  7/20 |  8/20 19/20 | +0.13 / +0.62
+lownoise   52 2M    24/40 0.458  13 ( 0/13)     13     0    5      3 | 0.066  0/20  7/20 | 10/20 19/20 | -0.15 / +0.75
+lownoise   52 3M    17/40 0.292  19 ( 0/19)     19     0    4      4 | 0.063  0/20  5/20 | 14/20 18/20 | -0.14 / +0.78
+lownoise   52 final 16/40 0.269  20 ( 0/20)     20     0    4      3 | 0.063  0/20  5/20 | 17/20 18/20 | -0.10 / +0.80
+lownoise   60 1M    35/40 0.755   2 ( 1/ 1)      2     0    4      3 | 0.069  0/20  0/20 |  5/20 20/20 | +0.02 / +0.59
+lownoise   60 2M    16/40 0.269  23 ( 1/22)     21     2    6      6 | 0.065  2/20  9/20 | 14/20 20/20 | -0.25 / +0.80
+lownoise   60 3M    15/40 0.247  22 ( 1/22)     21     1    6      6 | 0.062  0/20 10/20 |  7/20 19/20 | -0.33 / +0.80
+lownoise   60 final 15/40 0.247  22 ( 1/22)     21     1    6      6 | 0.062  0/20 12/20 |  8/20 19/20 | -0.32 / +0.81
+midnoise   42 1M     1/40 0.001  36 (35/ 1)     35     1    4      4 | 0.105  0/20 20/20 |  5/20 18/20 | +1.00 / +0.34
+midnoise   42 2M     0/40 0.000  40 (39/ 1)     39     1    3      8 | 0.094  0/20 20/20 | 20/20 18/20 | +1.00 / +0.51
+midnoise   42 3M     0/40 0.000  40 (40/ 0)     40     0    5     29 | 0.089  0/20 20/20 | 20/20 18/20 | +1.00 / +0.37
+midnoise   42 final  0/40 0.000  40 (40/ 0)     40     0    5     28 | 0.089  0/20 20/20 | 20/20 19/20 | +1.00 / +0.37
+midnoise   52 1M    15/40 0.247  25 (13/12)     25     0    3      3 | 0.106  1/20 20/20 | 20/20 18/20 | +0.72 / +0.63
+midnoise   52 2M    16/40 0.269  24 ( 3/22)     24     0    4      3 | 0.096  0/20 17/20 | 20/20 20/20 | +0.66 / +0.83
+midnoise   52 3M     8/40 0.104  32 ( 7/25)     32     0    4      7 | 0.089  0/20 17/20 | 20/20 19/20 | +0.68 / +0.85
+midnoise   52 final  8/40 0.104  32 ( 6/26)     32     0    4      8 | 0.089  0/20 17/20 | 20/20 20/20 | +0.68 / +0.86
+midnoise   60 1M    15/40 0.247  25 ( 0/25)     25     0    3      3 | 0.105  0/20 18/20 |  7/20 19/20 | +0.20 / +0.86
+midnoise   60 2M     1/40 0.001  38 ( 1/38)     37     1    3      4 | 0.094  0/20 19/20 | 18/20 19/20 | +0.34 / +0.99
+midnoise   60 3M     0/40 0.000  40 ( 1/40)     39     1    2      3 | 0.088  0/20 20/20 | 17/20 19/20 | +0.55 / +1.00
+midnoise   60 final  0/40 0.000  40 ( 1/40)     39     1    3      3 | 0.088  0/20 20/20 | 17/20 20/20 | +0.56 / +1.00
+Every cell's verdict is FAIL.
+Control comparators from the 1M screen on the same seeds (s42/s52/s60):
+- clean 34/27/30 at 524k and 17/12/26 at 1M;
+- CoP 2/10/7 at 524k and 21/28/12 at 1M;
+- falls 2/1/1 at 1M.
+
+Pooled over the 3 seeds:
+                     clean /120 | CoP /120 | CoP<=3 seeds | falls | tilt | corner | s0.16 falls /60 | own falls /60
+  lownoise   1M          96     |    16    |     1/3      |   3   |  14  |   13   |       23        |      0
+  lownoise   2M          74     |    39    |     1/3      |   3   |  15  |   13   |       35        |      2
+  lownoise   3M          54     |    57    |     0/3      |   4   |  16  |   16   |       33        |      0
+  midnoise   1M          31     |    86    |     0/3      |   1   |  10  |   10   |       32        |      1
+  midnoise   2M          17     |   102    |     0/3      |   2   |  10  |   15   |       58        |      0
+  midnoise   3M           8     |   112    |     0/3      |   1   |  11  |   39   |       57        |      0
+  control    1M          55     |    61    |     0/3      |   4   |   9  |    9   |   4 (numpy)     |  6 (torch)
+  lownoise   1M (1M screen, stage1_final)  100 | 12 | 1/3 | 3 | 14 | 13 | 19 | -
+
+1. PREVENT OR DELAY?  LOW NOISE DELAYS THE EDGE; MIDDLE NOISE DOES NEITHER
+Criterion: CoP>0.8 <= 3/40 per seed at 2M and 3M.
+  lownoise: 2M [3, 13, 23] -> 1/3 (s42)   3M [16, 19, 22] -> 0/3   stage1_final [17, 20, 22]
+  midnoise: 2M [40, 24, 38] -> 0/3        3M [40, 32, 40] -> 0/3   stage1_final [40, 32, 40]
+- Low noise at 3M is no better than the control at 1M: [16, 19, 22] against [21, 28, 12] (overlapping).
+- Low noise beats middle noise at 3M on every seed, with complete separation (one-sided exact rank-sum p = 0.05, the smallest
+  that 3 vs 3 allows).
+
+When the edge formed in training. Source: gate_progress.npz, 10 deterministic episodes per eval. The definitions are the 1M
+screen's: onset = the edge pad's mean gate CoP first exceeds 0.5; edge = the mean first exceeds 0.8, or at least half the
+episodes do.
+  seed | control (1M screen)       | lownoise                                   | midnoise
+  42   | r: onset 0.39M, edge 0.92M | r: onset 0.52M; eval edge never reached     | r: onset 0.13M, edge 0.39M, at 0.99-1.00 from 1.15M
+       |                            | (max 0.75 at 3.01M); panel 3 -> 16 CoP      |
+       |                            | between 2.10M and 3.15M                     |
+  52   | l: onset 0.52M, edge 0.92M | l: onset 0.39M, edge 1.44M (peak 0.95)      | both pads forward; l edge 0.79M
+  60   | l: onset 0.52M, edge 0.66M | l: onset 0.92M, edge 1.97M (peak 0.85)      | l: onset 0.39M, edge 0.79M, 0.96-0.99 from 2.2M
+- Edge side: on every seed it is the same pad as the control's on that seed.
+- Delay against the control:
+  - low noise: +0.52M (s52), +1.31M (s60), +1.2 to +2.2M (s42, on the panel);
+  - middle noise: -0.53M, -0.13M, +0.13M.
+
+Per-foot CoP trends. Values are the signed pad CoP (+ toe), mean per 1M window, with slopes per 1M steps:
+- low noise, edge pad:
+  - s42 r: 0.36 / 0.50 / 0.62 (slopes +0.10 / -0.07 / +0.17)
+  - s52 l: 0.43 / 0.64 / 0.77 (+0.29 / +0.36 / +0.09)
+  - s60 l: 0.32 / 0.71 / 0.78 (+0.51 / +0.24 / -0.09)
+- low noise, other pad, moving toward the heel: s42 l 0.20 / 0.15 / 0.05; s52 r 0.07 / 0.01 / -0.10; s60 r 0.14 / -0.18 / -0.27.
+  This is a fore-aft split stance: one pad on its toe, the other on its heel.
+- middle noise, edge pad: s42 r 0.84 / 0.995 / 0.998; s52 l 0.45 / 0.77 / 0.83, with r also forward at 0.53 / 0.66 / 0.67;
+  s60 l 0.59 / 0.86 / 0.98. The other pad also moves forward: s42 l to 0.47, s60 r to 0.48.
+- control, 0-1M: edge pad 0.44-0.57, slopes +0.56 to +0.83.
+Reading:
+- Low noise roughly halves the edge pad's early drift rate: +0.10 to +0.51/M against the control's +0.56 to +0.83/M.
+- The drift goes on through 1-2M and ends in the same place.
+- On s52 and s60 the 2-3M slope is about zero. The edge reached a plateau there; it did not recede. The panel still has 19-22 CoP
+  failures at 3M and 20-22 at stage1_final.
+- On s42 the drift is still rising at 3M (+0.17/M).
+Leg DC (left minus right, deg) grows with the edge:
+- low noise s52: knee +0.94 / +1.42 / +1.96, ankle +0.39 / +1.21 / +2.28;
+- low noise s60: hip pitch +0.47 / +2.34 / +1.93, knee +0.16 / +1.20 / +1.95;
+- low noise s42: ankle -0.31 / -1.28 / -1.91;
+- middle noise: up to +5.3 hip / -3.4 ankle (s52) and +4.6 ankle (s60).
+
+Why sigma alone cannot fix it:
+- Reward does not register the edge. On full-horizon evals, total in-training reward changes by -38 to +21 (about +/-1%, with no
+  consistent sign) from before the edge to after it. That holds in all six runs and in the control.
+- foot_flatness moves -1.9 to +3.8 in the arms and +0.7 to +9.0 in the control. It prices tilt, and the edge pad stays flat.
+- The reward has no fore-aft CoP term. CoP is priced only by the gate's max_sole_cop_fore_aft (D-D28, stance.toml).
+- So the edge does not change reward, and a lower sigma only slows the drift onto it.
+
+2. NOISE TOLERANCE (matched sigma 0.16, falls of 20 per seed, s42/s52/s60)
+  lownoise  1M [10, 8, 5] = 23/60   2M [11, 10, 14] = 35/60   3M [12, 14, 7] = 33/60   final [11, 17, 8] = 36/60
+            (1M screen stage1_final: [6, 10, 3] = 19/60; 37/100 over five seeds)
+  midnoise  1M [5, 20, 7] = 32/60   2M [20, 20, 18] = 58/60   3M [20, 20, 17] = 57/60  final 57/60
+  control   1M [1, 1, 2] = 4/60 (numpy, same test; 6/100 over five seeds); torch-sampled own sigma [3, 1, 2] = 6/60, 10/100
+  statue    20/20 at 0.16, 3/20 at 0.07
+- Falls happen at steps 121-996.
+- Both arms lose robustness at 0.16 as they train.
+- At 3M, low noise falls about 8x as often as the control and middle noise about 14x.
+- At their own sigma both arms survive:
+  - low noise: sigma 0.070 -> 0.063, falls 0, 2 and 0 of 60;
+  - middle noise: sigma 0.105 -> 0.089, falls 1, 0 and 0 of 60.
+- At sigma 0.07 there is no cost at small perturbations:
+  - the control falls 3/60 on these seeds (5/100 over its five seeds);
+  - the 1M low-noise policies fall 1/100 at their own sigma of about 0.07.
+- The CoP count at 0.16 is saturated (17-20/20 everywhere, statue 17/20). Only falls discriminate.
+- Is middle noise a better balance? No.
+  - It carries the edge from 0.4-0.8M.
+  - It falls more than low noise at 0.16: [20, 20, 17] against [12, 14, 7] at 3M (complete separation, p = 0.05).
+  - So it is worse than low noise on both axes, and worse than the control on both.
+
+3. GATE OPTIONS: SEEDS AT 37/40 CLEAN
+Method:
+- Recomputed from each episode's reasons and its own tilt and corner values. An option moves only those two bars.
+- The verdict's full-horizon, hop-or-fall and reward rails carry over unchanged.
+- Check against diag/gate_options.json (the repo's evaluate_stance_v2_gate re-run on rolled metrics): 15 1M-screen targets x 23
+  options, 345/345 identical. "As declared" reproduces every 3M cell's judged n_clean.
+Seeds reaching 37/40 (= full PASS in every case here) of 3. n_clean per seed in brackets.
+  option                                     | lownoise 1M      2M            3M            | midnoise 1M   2M           3M
+  as declared (2.0 deg, 4 mm)                | 0 [35,26,35]     0 [34,24,16]  0 [22,17,15]  | 0 [1,15,15]   0 [0,16,1]   0 [0,8,0]
+  2.0 deg with 5 / 6 / 7 mm                  | 0 (same)         0             0             | 0             0            0
+  2.5 deg / 4 mm                             | 0 [35,26,36]     0 [34,25,16]  0 [22,17,15]  | 0             0            0
+  2.5 deg / 5-7 mm                           | 0 [35,27,36]     0 [35,26,16]  0 [22,19,15]  | 0             0 [0,16,2]   0
+  3.0 deg / 4 mm                             | 0 [35,26,36]     0             0             | 0             0            0
+  3.0 deg / 5 mm                             | 1 [35,27,37]     0 [35,27,16]  0 [22,20,16]  | 0             0            0
+  3.0 deg / 6-7 mm                           | 1 [35,27,37]     0 [35,27,16]  0 [23,21,16]  | 0             0            0
+  3.5 deg / 6 mm                             | 1 [35,30,37]     0 [35,27,17]  0 [24,21,17]  | 0 [3,15,15]   0            0
+  both bars removed                          | 1 [36,30,37]     0 [35,27,17]  0 [24,21,18]  | 0 [3,15,15]   0 [0,16,2]   0 [0,8,0]
+  statue-relative, floor, +0.5 / +1 mm       | 0                0             0             | 0             0            0
+  statue-relative, floor, +1.0 / +2 mm       | 0 [35,26,36]     0 [34,26,16]  0 [22,18,15]  | 0             0            0
+  statue-relative, floor, +1.5 / +2.5 mm     | 1 [35,26,37]     0 [35,27,16]  0 [22,19,16]  | 0             0            0
+  statue-relative, no floor, +1.5 / +3 mm    | 1 [35,27,37]     0 [35,27,16]  0 [23,20,16]  | 0             0            0
+  reference only: tilt, corner AND CoP off   | 2 [37,40,39]     2 [37,40,36]  2 [36,40,37]  | 2 [35,38,39]  2 [35,39,39] 2 [36,39,39]
+(stage1_final matches the 3M row within 1-2 episodes. Full rows for all 23 options are in analysis.json gate_options.rows.)
+- Current bars: 0 of 3 seeds in either arm at every checkpoint.
+- Every option: 0 of 3 at 2M and 3M in both arms.
+- The only seed that passes under any option is low noise s60 at 1M (37/40). It is the 1M screen's lownoise_s60 replayed, which
+  the diagnosis already counted.
+- A pad-roll asymmetry rail cannot be computed from judge.json, which has no per-pad roll. Whether it replaces the tilt/corner
+  bars or is added to them, it cannot pass more than the "both bars removed" row. Its ceiling here is 0/3 at 2M and 3M.
+- With CoP also removed (reference only, not a gate option), 2 of 3 pass in both arms. The remaining failures:
+  - falls: low noise s42 (3 at 1M and 3M) and s60 (2 at 2M);
+  - min_sole_contacts and settle peak force on middle noise s42.
+  So CoP is the rail that binds.
+- The statue passes 39/40 under every option.
+
+4. RECOMMENDATION
+- PR: none.
+  - Neither log_std_init -2.5 nor -2.0 should become a PR, and main keeps -1.5.
+  - Neither meets the 1M screen's entry rule (<=3 CoP failures per seed at 3M, plus the clean bar):
+    - low noise at 3M: CoP 16/19/22, clean 15-22/40;
+    - middle noise at 3M: CoP 40/32/40, clean 0-8/40.
+- Cost if adopted anyway:
+  - matched-sigma 0.16 falls of 33/60 (low noise) and 57/60 (middle noise) at 3M, against the control's 4/60;
+  - a change to the exploration noise that the D-D27 per-step penalty budget was calibrated against;
+  - and the edge comes back by 1.4-3M anyway.
+- Gate decision first: not needed.
+  - No option changes any 2M or 3M outcome, because the CoP rail binds.
+  - The tilt/corner question returns only once the edge is fixed. The diagnosis then argues for keeping the absolute bars: the
+    residual failure is a policy lean of about 0.8x the statue's width roll, on 7 panel seeds.
+  - Any statue-relative or asymmetry rail can be decided before the next screen's success criteria are predeclared.
+- Next step (needs maintainer approval): a 3M scratch screen of a training-side signal for fore-aft pad CoP.
+  - For example: a load-gated per-pad CoP-centring term on #620's per-foot pad CoP, priced the way foot_flatness is.
+  - Train it at the production log_std_init -1.5, against an unchanged control taken to 3M.
+  - Seeds 42, 52 and 60, judged at 1M, 2M and 3M with the same judge, panel and noise tests.
+  - Calibrate it against the statue's CoP range (0.21-0.48) and the seed-44 edge props, as D-D27/D-D28 did.
+- 12M Colab confirmation: none now for -2.5 or -2.0.
+  For a future candidate:
+  - Entry rule, at the 3M screen, all of:
+    - CoP>0.8 <= 3/40 on each of seeds 42, 52 and 60 at 2M and 3M;
+    - edge-pad telemetry slope over 2-3M <= 0, and no eval with a mean > 0.8;
+    - matched-sigma 0.16 falls <= 10/60;
+    - clean >= 37/40 on >= 2 of the 3 seeds at 3M, under the declared bars.
+  - Seeds: 42, 52 and 60 (the edge formed on all three at every noise level tried), plus 48 and 56 (the original probe seeds).
+    Five runs.
+  - Config: production stance.toml except for the candidate change. Full 12M schedule: entropy reaches 0 at 7M, and the hop watch
+    starts at 7M.
+  - Judging: the screen judge at 3M, 6M, 9M and 12M/final, with the v2 panel on 3042-3081 and the own-sigma and matched-sigma 0.16
+    tests. At final, also an out-of-sample panel on 7042-7081.
+  - Success criteria, to predeclare:
+    (a) v2 PASS at 12M on >= 4 of 5 seeds under the declared bars (2.0 deg, 4 mm, CoP 0.80): clean >= 37/40 (LCB >= 0.80),
+        full horizon >= 0.95, hop-or-fall <= 1;
+    (b) CoP>0.8 <= 3/40 on every seed at 6M, 9M and 12M;
+    (c) in-training telemetry: no eval after 2M with the edge pad's mean gate CoP > 0.8, or half the episodes over 0.8;
+    (d) matched-sigma 0.16 falls <= 10/100 pooled (control 6-10/100);
+    (e) the out-of-sample panel passes on every seed that passes in sample.
+
+CAVEATS
+- Three seeds per arm, one run each. A one-sided exact rank-sum test at 3 vs 3 cannot go below p = 0.05.
+- Adjacent PPO updates move a cell by up to 4 episodes. lownoise_s52 at stage1_1048576_steps is 26/40 with 10 CoP failures; one
+  update later (the 1M screen's stage1_final) it is 30/40 with 6. stage1_3145728_steps and stage1_final agree within 1-2 episodes.
+- The control was not run past 1M, so its CoP and matched-sigma comparators are at 1M.
+- In-training evals are 10 deterministic episodes, so fractions move in steps of 0.1. lownoise s42's edge shows on the 40-episode
+  panel (16/40 at 3M) but never meets the eval-level edge definition.
+- Middle noise forming the edge faster than the control on s42 is a single seed. Over the three seeds its timing is
+  indistinguishable from the control's.
+
+DATA
+scratchpad/foot/screen3m/
+- analysis.json and analysis.txt: this analysis.
+- tools_final/: collect.py, tables.py, make_analysis.py, plus collect.json and tables.json.
+- runs/{lownoise,midnoise}_s{42,52,60}/: judge_{1048576,2097152,3145728,stage1_final}.json and gate_progress.npz.
+- runs/analysis_s{42,52,60}.json: the per-seed agents' summaries.
+- diag/: the no-training diagnosis.
+Control comparators: foot/screen/runs/control_s{42,52,60}/judge.json, gate_progress.npz and foot/screen/verify/out/noise/.

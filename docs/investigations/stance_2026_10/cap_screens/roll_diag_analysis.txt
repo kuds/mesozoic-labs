@@ -1,0 +1,127 @@
+T. rex anatomical stance: lateral pad-roll diagnosis (no training)
+2026-10-13 | fix/screen2 94cab5ce (isolated import) | authority 6M s42/s52/s60, control 3M s42/s52/s60, statue | 19 spawns x 22 conditions
+Roll is outer edge up +, in deg, and window means are over steps 200-999. 'Reset-set' is the statue on the same spawn and pad; 'policy-added' is base minus that.
+
+1. ANSWER
+The authority policy does not merely hold the reset's lateral splay; it drives most of the roll that fails, through the hip-roll actuators, during the settle, and holds it actively through the window. But it does so only on spawns the reset splayed. On its 15 full-horizon roll failures (6M, 3 seeds, 14 focus spawns) the failing pad's window roll is 2.34 deg (median). Of that, 35% is reset-set: the statue on the same spawn and pad, 0.91 deg of hip-roll reset splay that friction holds. The other 65% (1.64 deg, range 0.57-2.79) is policy-added. 49% of the roll is a sideways sway: the hip-roll common mode at 1.42 deg commanded, which moves the pelvis 18.7 mm over the feet while pelvis roll stays within 0.2 deg, flattening one pad and rolling the other further. Another 16% is stance narrowing from an inward hip-roll differential DC of +1.98 deg, which makes the window width 13.7 mm narrower. Ablations: the policy's hip-roll command alone, replayed on the statue, reproduces the added roll (60% of the failing roll) and 17/18 focus failures, falls included. Tail and neck yaw alone reproduce 1. Zeroing hip roll in closed loop cuts focus failures 18 -> 5 (falls 3 -> 0), and removing its common mode cuts them to 2. Zeroing tail and neck yaw cuts them to 13 in closed loop and to 18 in open loop, so yaw has no mechanical path: s42 ties its lean direction to its tail yaw. A nominal-width reset cuts them to 1. The sway builds from step ~50 to ~200 (onset of a 0.5 deg excess at median step 45; about 82% of the final excess is there by step 195). Zeroing every command at step 200 brings every failing pad back under the bar, to within 0.6 deg of the statue (median 0.2). 1 failure is left, a fall already committed. 47 of 48 authority full-horizon roll failures at 3-6M are on the 15 most-splayed of the 40 panel spawns.
+
+2. PER CHANNEL
+Shares are of the failing pad's window roll, on the 15 authority 6M full-horizon roll failures (median [range]). Reset-set (the statue, hip-roll reset splay held by friction): 35% [25%-73%]. Policy-added: 65%, of which the lean (sway) is 49% and narrowing 16%. Each channel's share (base minus the ablation): HIP ROLL 59% in closed loop, 59% in open loop, and 60% alone on the statue. Its common mode is 49% and its differential 26%; these do not add, because removing the differential leaves the lean on one pad (focus failures 16). In the window only, hip roll is 51%: it is held actively. TAIL_1 YAW + NECK YAW: 14% in closed loop (tail 13%, neck 9%), but 1% in open loop and 2% alone on the statue. That makes yaw a closed-loop partner, not a cause. On s42 (tail_1 yaw -4.2 deg, neck +2.7 deg commanded), centring the tail in closed loop flips or shrinks the hip-roll common command (3071 -1.55 -> +1.03 deg, 3074 -2.09 -> +2.11, 3064 -1.50 -> -0.57). NON-LATERAL CHANNELS (sagittal legs inside the bound, tail and neck pitch): 6%. With every lateral channel zeroed, these still lean the two widest spawns, 3047 and 3059, over the bar (5 focus failures, all there). PELVIS ROLL: within 0.2 deg (median 0.01), so the lean is a translation, not a pelvis roll. Kinematics over 2,503 episodes: lean = -(pelvis roll + 0.95 x hip-roll common qpos), width part = -0.95 x hip-roll splay qpos, r2 0.9999. AT NOMINAL WIDTH the same policy adds 10%. The 3M control fails these spawns differently: pelvis roll 0.4-0.7 deg, and roll through full-authority legs and yaw, with corrective hip roll (zeroing it in closed loop raises focus failures 11 -> 15).
+
+3. ABLATIONS
+Focus failures are the 14 focus spawns x 3 authority 6M seeds = 42 episodes; each count is roll-rail failures (tilt > 2.0 deg or corner > 4 mm, falls included), with falls in brackets. base 18 (3); cl_hr0 5 (0); cl_hr0_w 8 (1); cl_hrc0 2 (0); cl_hrd0 16 (1); cl_yaw0 13 (2); cl_tyaw0 14 (3); cl_nyaw0 14 (1); cl_lat0 5 (0); cl_lat0_w 6 (1); cl_all0_w 1 (1); nom 1 (0); nom_hr0 0 (0); nf 0 (0); ol_full 18 (3); ol_hr0 2 (0); ol_hr0_w 5 (1); ol_yaw0 18 (3); ol_lat0 2 (0); st_hr 17 (4); st_yaw 1 (0); st_lat 18 (4). On the 5 recurring spawns (15 episodes): base 10, cl_hr0 5, cl_hrc0 2, nom 0, cl_all0_w 0. No ablation produces a failure on the 5 clean spawns. The statue is 0/14 on the focus spawns. Its window roll is 0.56-1.54 deg there, with lean <= 0.08 deg, and it falls to <= 0.2 deg with the hip-roll reset noise removed. Episode return barely moves when the lean is removed: cl_hrc0 - base is -1.2 and cl_hr0 - base is 9.9, both medians over the 15 failures, against base 3725.5. The reward does not price the lean. Full-panel proxies use the trained 6M policies squeezed, with no training; clean counts are s42/s52/s60 against base 30/34/36, and base reproduces the judge bit for bit. Hip roll x0.25 gives 37/36/36, x0.1 36/38/36, x0.04 36/38/37, x0 38/39/38, and common mode removed 38/40/39. A nominal-width reset gives 39/40/40 and half the hip-roll noise 39/38/40. The statue is 40/40 under both resets. Joint-space control-vector falls go 3/60 (the judge reproduced) -> 2/60 (x0.1) -> 2/60 (x0). The falls at 6M (s42 3074, s52 3059, s60 3050/3063) all disappear under any hip-roll squeeze.
+
+4. WHEN (median over the 15 failures, sign-normalised)
+  step                              0     25     50     75    100    150    195    300    500    750    995
+  excess_roll_on_failing_pad    +0.02  +0.12  -0.04  +0.30  +0.88  +1.34  +1.40  +1.62  +1.63  +1.66  +1.70
+  hip_roll_ctrl_common_in_lean_direction  +2.51  -0.20  +0.15  +0.34  +0.60  +1.03  +1.39  +1.54  +1.50  +1.43  +1.43
+  hip_roll_q_common_in_lean_direction  -0.36  -0.37  +0.05  +0.42  +0.64  +1.10  +1.26  +1.45  +1.32  +1.22  +1.21
+  onset (excess > 0.5 deg): step 45 [2-178]; > 1.0 deg: step 77
+
+5. THE 15 FAILURES (authority 6M, full horizon)
+  target         seed pad tilt  roll  statue added dLean dWidth pelvis lat_mm hipC  hipQc hipS  | cl_hr0 cl_hrc0 cl_yaw0 hr0_w all0_w nom  st_hr st_yaw | onset x199
+  authority_s42  3047 r  2.16 +2.15 +1.48 +0.67 +1.09 -0.42 -0.19  +17.0 -1.16 -0.91 +4.22 | +2.55 +1.44 +1.86 +2.22 +1.39 -0.05 +2.09 +2.11 | 126 +1.72
+  authority_s42  3071 l  2.55 -2.55 -0.91 -1.64 -1.26 -0.38 -0.02  +20.4 -1.55 -1.32 +1.98 | -1.14 -1.42 -1.76 -1.22 -1.02 -0.49 -2.48 -0.97 | 27 -1.81
+  authority_s42  3077 l  3.19 -3.19 -1.38 -1.81 -1.63 -0.18 -0.10  +26.2 -1.79 -1.61 +0.46 | -1.77 -1.69 -2.58 -1.78 -1.44 -0.24 -2.97 -1.47 | 178 -0.90
+  authority_s42  3064 l  2.34 -2.34 -0.83 -1.52 -1.15 -0.36 +0.01  +18.7 -1.50 -1.24 +1.46 | -1.00 -1.21 -1.47 -1.17 -0.97 -0.28 -2.21 -0.89 | 84 -1.39
+  authority_s42  3044 l  2.14 -2.14 -0.72 -1.42 -0.93 -0.49 -0.02  +15.2 -1.19 -0.97 +1.82 | -0.88 -1.15 -1.28 -1.13 -0.94 -0.38 -2.00 -0.76 | 45 +0.20
+  authority_s42  3054 l  2.65 -2.65 -0.65 -1.99 -1.30 -0.69 -0.02  +21.0 -1.58 -1.35 +2.52 | -0.76 -1.43 -1.87 -1.23 -1.02 -0.56 -2.47 -0.71 | 29 -0.52
+  authority_s42  3058 l  2.09 -2.09 -0.72 -1.37 -1.04 -0.33 +0.02  +16.4 -1.35 -1.10 +2.13 | -0.91 -1.16 -1.12 -0.97 -0.82 -0.38 -1.97 -0.77 | 29 -0.93
+  authority_s42  3069 l  2.17 -2.17 -0.64 -1.53 -1.07 -0.46 +0.03  +17.1 -1.42 -1.15 +1.43 | -0.73 -1.11 -1.32 -1.07 -0.90 -0.46 -2.03 -0.67 | 14 -1.33
+  authority_s52  3071 l  2.93 -2.93 -0.91 -2.01 -1.38 -0.64 +0.09  +22.5 -1.50 -1.56 +2.06 | -1.07 -1.32 -3.12 -1.25 -1.26 -0.37 -2.62 -0.92 | 99 -2.04
+  authority_s52  3074 l  4.29 -4.29 -1.54 -2.75 -2.19 -0.56 +0.03  +35.4 -2.29 -2.34 +2.12 | -1.62 -1.74 -4.22 -1.71 -1.74 -0.33 -4.16 -1.56 | 54 -2.37
+  authority_s52  3077 l  4.17 -4.17 -1.38 -2.79 -2.12 -0.67 -0.05  +34.2 -2.11 -2.18 +2.15 | -1.56 -1.88 -4.06 -1.89 -1.72 -0.34 -4.17 -1.40 | 10 -2.31
+  authority_s52  3048 r  2.30 -2.30 -0.56 -1.73 -1.04 -0.69 -0.16  -17.0 +1.28 +1.28 +0.11 | -0.55 -1.03 -2.03 -1.12 -1.16 -0.63 -2.30 -0.55 | 2 -1.89
+  authority_s52  3064 l  2.11 -2.11 -0.83 -1.28 -0.90 -0.38 +0.02  +14.7 -0.91 -0.98 +1.83 | -0.91 -1.01 -2.25 -1.08 -0.99 -0.12 -2.07 -0.83 | 72 -1.23
+  authority_s60  3059 l  3.09 +3.09 +1.27 +1.82 +1.58 +0.24 +0.13  -24.3 +1.40 +1.45 +3.07 | +0.62 +0.58 +3.17 +1.22 +1.80 +0.17 +3.17 +1.20 | 32 +2.44
+  authority_s60  3074 l  2.11 -2.11 -1.54 -0.57 -0.94 +0.37 +0.04  +15.2 -1.02 -1.03 -3.58 | -1.81 -0.95 -2.73 -1.70 -1.46 -0.06 -2.02 -1.54 | 58 -1.22
+
+6. SHARES OF THE FAILING PAD'S ROLL (median [min, max] over the 15)
+  reset_set (statue, same spawn and pad)                             +0.35 [+0.25, +0.73]
+  policy_added                                                       +0.65 [+0.27, +0.75]
+  policy_added.lean_part (hip-roll common mode / pelvis sway)        +0.49 [+0.43, +0.51]
+  policy_added.width_part (stance narrowing, hip-roll differential)  +0.16 [-0.19, +0.30]
+  hip_roll, closed loop (base - cl_hr0)                              +0.59 [-0.18, +0.80]
+  hip_roll common mode, closed loop (base - cl_hrc0)                 +0.49 [+0.33, +0.81]
+  hip_roll differential, closed loop (base - cl_hrd0)                +0.26 [-0.65, +0.68]
+  hip_roll, window only (base - cl_hr0_w)                            +0.51 [-0.03, +0.60]
+  hip_roll, open loop (base - ol_hr0)                                +0.59 [-0.12, +0.77]
+  hip_roll alone on the statue (st_hr - statue)                      +0.60 [+0.22, +0.76]
+  tail+neck yaw, closed loop (base - cl_yaw0)                        +0.14 [-0.29, +0.46]
+  tail_1 yaw, closed loop (base - cl_tyaw0)                          +0.13 [-0.13, +0.89]
+  neck yaw, closed loop (base - cl_nyaw0)                            +0.09 [-0.37, +0.45]
+  tail+neck yaw, open loop (base - ol_yaw0)                          +0.01 [-0.01, +0.02]
+  tail+neck yaw alone on the statue (st_yaw - statue)                +0.02 [-0.02, +0.29]
+  every lateral channel, closed loop (base - cl_lat0)                +0.58 [-0.16, +0.80]
+  non-lateral channels, closed loop (cl_lat0 - statue)               +0.06 [-0.21, +0.48]
+  all commands zeroed from step 200 (base - cl_all0_w)               +0.57 [+0.31, +0.61]
+  policy-added at nominal width (nom - statue nom)                   +0.10 [-0.05, +0.28]
+
+7. SPAWN DEPENDENCE
+  47 of 48 authority full-horizon roll failures at 3-6M are on the 15 most-splayed spawns (statue |width part| >= 0.65 deg); 41 are on the top 10. Fall ranks: [1, 1, 3, 3, 4, 5, 6, 21].
+  top 15: 3074 (-1.54), 3047 (+1.51), 3077 (-1.39), 3059 (+1.35), 3063 (+1.01), 3072 (-1.01), 3045 (+0.99), 3071 (-0.90), 3064 (-0.82), 3060 (+0.80), 3058 (-0.74), 3044 (-0.71), 3081 (-0.67), 3054 (-0.65), 3069 (-0.65)
+
+8. PROXIES FOR THE OPTIONS (no training; full 40 panel; clean s42/s52/s60)
+  base     clean 30/34/36   roll-fail FH 8/5/2  falls 1/1/2
+  hrk0.25  clean 37/36/36   roll-fail FH 3/4/4  falls 0/0/0
+  hrk0.1   clean 36/38/36   roll-fail FH 4/2/4  falls 0/0/0
+  hrk0.04  clean 36/38/37   roll-fail FH 4/2/3  falls 0/0/0
+  hrk0     clean 38/39/38   roll-fail FH 2/1/2  falls 0/0/0
+  hrc0     clean 38/40/39   roll-fail FH 1/0/1  falls 0/0/0
+  nom      clean 39/40/40   roll-fail FH 1/0/0  falls 0/0/0
+  half     clean 39/38/40   roll-fail FH 1/2/0  falls 0/0/0
+  statue nom 40/40, half 40/40; joint-space control-vector falls k=1 3/60, k=0.1 2/60, k=0 2/60
+
+9. NEXT SCREEN (predeclared; needs approval; nothing trained here)
+  Recommended: (a) as a scratch screen, if the maintainer approves the compute: authority plus hip roll x0.01 (+-0.25 deg reach), trained fresh to 6M on seeds 42/52/60, with an interim stop at 3M. (b) is the fallback if (a) only re-routes the lean. (c) is a task-design question for the maintainer, and its proxy is the strongest of all. (d) is not recommended: these failures are mostly policy-added, so a statue-relative rail would not pass them.
+  (a_bound_hip_roll)
+    what: Arm 'authority+HR': LegAuthority with hip pitch x0.055, knee and ankle x0.025 and hip roll x0.01 (+-0.25 deg reach). The wrapper needs k > 0. The reach is chosen so that a policy saturating the lean keeps the most-splayed panel spawn (statue 1.54 deg) under 2.0 deg (1.54 + 0.95 x 0.25 = 1.78). A variant arm, 'authority+HRc', bounds only the hip-roll common mode and keeps the differential. It needs a common/differential reparametrisation of the two hip-roll actions in the scratch wrapper.
+    expected_effect: The driver is removed mechanically. No-training proxy with the 6M policies: x0 gives 38/39/38 clean (3/3 v2 PASS) and common-mode removal 38/40/39. The panel falls go away, and joint-space noise falls go 3 -> 2/60. Partial bounds (x0.1-0.25: 36/38/36, 37/36/36) do not suffice, because the observed sway (1.4-2.3 deg common) fits inside them. Risk: a policy trained under the bound may lean through the sagittal channels instead. That route exists: with every lateral channel zeroed, 3047/3059 still fail, and the control, with full sagittal authority, leans that way. Hip roll is also the only lateral foot-placement DOF, so the bound must be per-stage (stance only), and the stance->locomotion handoff decision already open for r16 extends to it.
+    cost: 3 fresh 6M runs, about 4-5 h wall on 4 CPUs, plus about 15 min of judging per run per 3 checkpoints. Stopping at the 3M interim saves about half. The variant arm doubles it.
+    approval: Maintainer approval for the scratch compute. A production version is the r16 per-joint authority vector extended to hip roll: a policy-interface revision, with the handoff decision.
+    criteria (all must hold at 6M):
+      H1: v2 PASS on >= 2 of 3 seeds: clean >= 37/40 (LCB >= 0.80), full horizon >= 0.95, hop-or-fall <= 1 (E4's bar, unchanged).
+      H2: full-horizon roll-rail failures (window tilt > 2.0 deg or corner lift > 4 mm) <= 6/120 pooled and <= 3/40 on every seed (authority 6M: 15/120 = 8/5/2; the hip-roll x0 proxy: 5/120 = 2/1/2).
+      H3: the fore-aft gains hold. CoP>0.8 <= 3/40 per seed at 4M, 5M and 6M. Edge-pad gate CoP projected linearly to 12M from the 3-6M fit <= 0.60 (E1/E2, unchanged).
+      H4: joint-space control-vector falls <= 7/60 pooled and own-sigma falls <= 3/60 (E3, unchanged).
+      H5 (mechanism): over the 14 focus spawns x 3 seeds (full horizon), roll_diag.py's base condition gives a median |policy-added roll| on the worse pad, against the statue on the same spawn, of <= 0.30 deg (authority 6M: 0.60; the hip-roll x0 proxy: 0.21; nominal width: 0.17).
+      Interim at 3M (stop early if it fails): pooled full-horizon roll-rail failures <= 5/120 (authority 3M: 10/120 = 2/6/2) and falls <= 2/120.
+      Report only: hip-roll common and differential command and qpos DC; pelvis lateral offset over the feet; tail_1 yaw/pitch DC; sagittal leg DC; re-routed lean (a roll failure with |hip-roll common qpos| < 0.5 deg but |lateral offset| > 10 mm).
+    if pass: The r16 spec extends to a per-stage hip-roll bound (a maintainer decision with the handoff), then the 12M Colab confirmation runs as predeclared (C1-C6, unchanged).
+    if fail: If H2 or H5 fails with a re-routed lean, go to (b). If H1 fails on falls or H4 fails, hip roll is load-bearing for balance, so drop (a).
+  (b_lateral_lean_term)
+    what: A stance-only bounded reward on the pelvis's lateral offset over the feet midpoint, w * exp(-(d/tol)^2) with tol about 10 mm. Across the authority episodes the added lean correlates 0.9996 with this offset. Alternatives are pricing the hip-roll common-mode qpos, or the pad-roll asymmetry |roll_r - roll_l|. w is calibrated on these replays, with no training, so the observed 15-35 mm sway costs clearly more than the reward's current indifference to it (-1 to +28 per episode on ~3700).
+    expected_effect: It targets the lean share (49% of the failing roll), whichever joint produces it, so it also covers a lean re-routed after (a). It keeps hip-roll authority for corrections. It does not address the narrowing share (16%) or the reset-set roll. Risk: a weak gradient that acts on about 15/40 spawns, and no reward term has held the CoP edge at this budget.
+    cost: About 1 h of calibration on the rolls here (no training), then the same 3M/6M screen as (a).
+    approval: Maintainer: it is a reward change, so the task_sha moves, and a production version is a stance.toml change.
+    criteria: H1-H5 as in (a), plus: the term's per-episode cost on the 6M statue <= 2 (it must not tax a sound stance).
+  (c_reset_width_variation)
+    what: A task-design question for the maintainer. Lower the T. rex hip-roll reset noise (0.05 -> 0.025 rad), or drop hip roll from the reset's joint noise. That noise sets a spawn splay of up to +-2.9 deg, which friction holds (statue window roll up to 1.54 deg), and which the statue cannot correct either.
+    expected_effect: No-training proxy with the 6M policies: no hip-roll noise gives 39/40/40, half the noise 39/38/40, and the statue is 40/40 under both. But it hides the lean rather than removing it. The lean is the policy's response to a splayed stance, and recovery pushes and locomotion splay the stance too. It also changes the initial-state distribution, the gate's panel and the statue reference. reset() is fingerprinted by the plant contract (home_reset), so this is a policy-interface revision unless the noise is made per joint.
+    cost: No training to measure: re-judge the existing checkpoints on the new reset. A production version needs a contract revision and retraining.
+    approval: Maintainer only: a task and gate design change.
+  (d_gate_statue_relative_roll_rail)
+    what: A rail on a pad's window roll relative to the statue on the same seed, instead of or beside the absolute 2.0 deg / 4 mm bars.
+    expected_effect: It would not rescue these failures: 65% of the failing roll is policy-added (the smallest |added| is 0.57 deg). A statue+0.5 deg rail fails all 15; statue+1.0 passes 2. It only matters if the maintainer decides that reset-set roll should not count.
+    cost: No training.
+    approval: Maintainer only. Not recommended. No re-judging of existing runs under it.
+
+10. REPRODUCTION AND CAVEATS
+  rolls_vs_judges: every base episode (7 targets x 19 spawns) equals its judge's length, max_sole_tilt_deg, max_sole_corner_lift_m and max_sole_cop_fore_aft bit for bit
+  open_loop_replay: ol_full reproduces base exactly on all 6 policies x 19 spawns
+  proxy_panels: base on the full 40 panel reproduces judge_6291456 per episode and n_clean (30/34/36)
+  noise: joint-space control-vector noise at k=1 reproduces the judge's fall seeds (s42 3051; s52 3052, 3061; s60 none)
+  - One trained policy per seed; the 19 spawns are a chosen subset (14 focus by recurrence and splay, 5 clean by a predeclared rule in spawns.json), not a random sample.
+  - Channel shares come from single-channel ablations and do not add: closed-loop ablations let the policy compensate, open-loop ones do not, and hip-roll common and differential interact through the one-pad flattening.
+  - The proxies squeeze trained policies. A policy trained under a hip-roll bound or a new reset may behave differently (re-routing is the named risk for (a)).
+  - The control is the 3M checkpoint, which also fails CoP and pad pitch, so its comparison is qualitative.
+  - Nothing was trained, committed or pushed. The main checkout and every run directory were only read. Outputs are under scratchpad/foot/roll_diag/.
+
+11. DATA
+  rolls: scratchpad/foot/roll_diag/rolls/<target>.npz|json (per-step arrays [condition, spawn, step, ...])
+  features: scratchpad/foot/roll_diag/features.json
+  timeseries: scratchpad/foot/roll_diag/timeseries.json
+  analysis_data: scratchpad/foot/roll_diag/analysis_data.json
+  tables: scratchpad/foot/roll_diag/tables.txt
+  proxy: scratchpad/foot/roll_diag/proxy/*.json
+  tools: scratchpad/foot/roll_diag/tools/ (roll_diag.py, analyze.py, tables.py, proxy_panel.py, report.py, peek.py)
