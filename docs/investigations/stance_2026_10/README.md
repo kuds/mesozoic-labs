@@ -121,9 +121,12 @@ because its figures reached the public #623 comment: its noise hypothesis (H1)
 is withdrawn, its edge "1.06" and its slopes -192 / -196 are superseded (v3,
 section 4 and its header).
 
-**`pilot/`: the walking pilot's pre-registration (§9; not trained).**
+**`pilot/`: the walking pilot's pre-registration (§9; launched on 2026-10-17,
+not yet judged).**
 
 - `criteria.txt`: the fixed criteria, byte-identical (sha256 `1cdd495c…`).
+  Its first line says "revised three times on 2026-10-17"; its Revisions
+  list has four (the fourth, wording only), and the copy is left as frozen.
 - `pilot_score.py` (applies the rule), `pilot_judge.py` (runs the probe and
   binds the run, including the parent's sha256), `pilot_parent.py` (the
   screen's parent rule), `gait_probe_pilot.py` (the adapter that runs the
@@ -147,14 +150,19 @@ full series (two in a row against three).
 
 Commands as run on 2026-10-17 from a copy of this directory (Python 3.13;
 `PYTHONDONTWRITEBYTECODE=1`). None needs the repository except where stated.
+The three r10 rows needed the session's scratch tree and are not reproducible
+from the repository alone: the original `frozen_params.json` (sha256
+`58b2c8fb…`, which `judge_r10.py` and `score_r10.py` assert) and the r9 judge
+files are not kept, so `verify_recompute.json` and `score.json` are the
+retained records.
 
 | Check | Command | Result |
 |---|---|---|
 | The symmetry screen's outcome from its stored per-arm records | in `symmetry/verdict_scripts/`: `python3 -c "import json, decide_final as D; P = json.load(open('../frozen_params.json')); V = json.load(open('../verdict.json')); print(D.outcome(V['arms']['L'], V['arms']['C'], P))"` | `O9`, no PR arm, no 12M arms |
 | The symmetry decision table | `python3 test_decide_final.py ../frozen_params.json` | `"ok": true`, every combination mapped |
-| The r10 verdict from the per-episode rows | `python3 r10_screen/verify_recompute.py <judge dir> out.json` on the nine judge JSONs (not copied; regenerate them with `judge_r10.py` from the Drive checkpoints in `fetch_record.json` on a clone of `claude/screen-trex-r10-arm-l` at `026eb833`) | identical to `verify_recompute.json`: K1-K4 all FAIL |
-| The r10 score | `python3 r10_screen/score_r10.py <judge dir> --json score.json`, with the r9 judge files and the original `frozen_params.json` under `scratchpad/foot/...` | identical to `score.json` apart from the judge directory's path |
-| The r10 scorer at every bar | `python3 r10_screen/test_score_r10.py` (reads the original `frozen_params.json` at `scratchpad/foot/symmetry/design/`) | 33/33 |
+| The r10 verdict from the per-episode rows (session scratch only) | `python3 r10_screen/verify_recompute.py <judge dir> out.json` on the nine judge JSONs (not copied; `judge_r10.py` regenerates them from the Drive checkpoints in `fetch_record.json` on a clone of `claude/screen-trex-r10-arm-l` at `026eb833`, but only with the original `frozen_params.json`) | identical to `verify_recompute.json`: K1-K4 all FAIL |
+| The r10 score (session scratch only) | `python3 r10_screen/score_r10.py <judge dir> --json score.json`, with the r9 judge files and the original `frozen_params.json` under `scratchpad/foot/...` | identical to `score.json` apart from the judge directory's path |
+| The r10 scorer at every bar (session scratch only) | `python3 r10_screen/test_score_r10.py` (reads the original `frozen_params.json` at `scratchpad/foot/symmetry/design/`) | 33/33 |
 | The pilot rule | in `pilot/`: `python3 test_pilot_score.py` | 203/203 (probe recomputation skipped) |
 | The pilot rule, with every fixture row recomputed by the frozen probe | `python3 test_pilot_score.py <tree>` with `<tree>` a checkout of `claude/pilot-walk-r9` at `eaeef50f` and numpy, MuJoCo and the repository's dependencies installed | 254/254 |
 | The parent rule and the judge's bindings | `python3 test_pilot_parent.py` | 40/40 |
@@ -165,7 +173,8 @@ they score synthetic panels, not the pilot.
 
 ## Lint
 
-Under the repository's ruff configuration (ruff 0.16.8), `ruff check` passes on
+Under the repository's ruff configuration (ruff 0.16.9, the version CI and
+pre-commit pin; 0.16.8 gives the same), `ruff check` passes on
 14 of the 16 scripts here. It reports 11 findings in
 `r10_screen/verify_recompute.py` (a verifier's quick script: a multi-module
 import, an unused `os`, statements joined by `;` and `:`) and 2 in

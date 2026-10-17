@@ -4,9 +4,10 @@
 
 **Status:** completed screens and analyses, the technical record of the T. rex
 stance work since the blog post of 2026-10-11. The walking pilot of §9 is
-pre-registered and **not trained**; its outcome is appended to this note when
-it is judged. The evidence, frozen copies of the scripts that decided each
-verdict, and their sums are in [stance_2026_10/](stance_2026_10/README.md).
+pre-registered, **launched on Colab on 2026-10-17 and not yet judged**; its
+outcome is appended to this note when it is judged. The evidence, frozen
+copies of the scripts that decided each verdict, and their sums are in
+[stance_2026_10/](stance_2026_10/README.md).
 
 It continues [STANCE_REWARD_PILOT_FINDINGS_2026_10.md](STANCE_REWARD_PILOT_FINDINGS_2026_10.md)
 (2026-10-10), [STANCE_HACK_AUDIT_2026_10.md](STANCE_HACK_AUDIT_2026_10.md)
@@ -17,28 +18,34 @@ It continues [STANCE_REWARD_PILOT_FINDINGS_2026_10.md](STANCE_REWARD_PILOT_FINDI
 
 - **No stance reward term reads where the weight sits fore and aft.** None
   reads contact positions or the centre of pressure (CoP). On the production
-  reward, run A's toe-edge postures earned 3762-3767 per episode against the
-  statue's 3755.7 (§3.3): the lean was free. Under arm L's settled leg
-  target a symmetric forward lean costs about 109 per episode per unit of
-  CoP on identical postures, on r9 and r10 alike, and the r10 seeds still
-  drifted onto their toes and earned less for it (§7). No term pays for the
-  drift, and the restoring slope did not stop it.
-- **Symmetry fixed the lopsidedness, not the forward lean.** Mirror-symmetric
-  PPO with a lateral lean term and a settled leg target (arm L) trained
-  policies whose joint groups are mirror-symmetric to under 0.1° (median),
-  with no falls on the 120 final panel episodes and `stance_quality/v2` passed
-  on two seeds of three. It failed the pre-registered fore-aft criteria (a
-  mirror-even forward creep: seed 42 with 9, 8 and 11 episodes over the pad
-  CoP bar at 4M, 5M and 6M; seed 60 with 0, 8, 39 and 0 at 3M to 6M) and the
-  joint-noise criterion (8 of 60 falls against 7). With its fore-aft arm C
-  also failing, the screen's verdict was O9 (§5).
-- **The r10 foot made the forward lean worse.** With load-bearing digits
-  (draft #623), arm L trained from scratch put seeds 52 and 60 on their toes:
-  37-40 of 40 full-horizon panel episodes over the whole-foot CoP rail at
-  4M, 5M and 6M, through 12M in training. All four fixed criteria failed
-  (§6). On r10 a held forward lean that most spawns survive reaches CoP
-  0.89-0.94, against 0.76-0.79 on r9: falls no longer cut the drift off
-  before the 0.80 rail (§7). #623 is parked; `main` keeps physics r9.
+  reward, the held mean action of run A (the 12M physics-r9 stance run
+  `20261011_165957`) earned 3758.9, 3766.8 and 3762.4 per episode scaled
+  x0.1, x0.5 and x0.9 (right pad CoP 0.275, 0.623 and 0.940; only x0.9 is
+  past the 0.80 bar), against 3755.7 for the statue (the zero-action policy)
+  (§3.3): the lean was free. Under arm L's settled leg target a symmetric
+  forward lean costs about 109 per episode per unit of CoP on identical
+  postures, on physics r9 (`main`'s plant) and r10 (draft #623's foot) alike,
+  and the r10 seeds still drifted onto their toes and earned less for it (§7).
+  No term pays for the drift, and the restoring slope did not stop it.
+- **Symmetry removed most of the lopsidedness, not the forward lean.**
+  Mirror-symmetric PPO with a lateral lean term and a settled leg target
+  (arm L) trained policies whose joint groups are mirror-symmetric to under
+  0.1° (median), with no falls on the 120 final panel episodes and
+  `stance_quality/v2` passed on two seeds of three. It failed the
+  pre-registered fore-aft criteria (a forward creep: seed 42 with 9, 8 and 11
+  episodes over the pad CoP bar at 4M, 5M and 6M, which the verdict classed
+  as one-pad creep at 4M and 5M and mirror-even at 6M; seed 60 mirror-even,
+  with 8 and 39 at 4M and 5M and 0 at 6M) and the joint-noise criterion (8 of
+  60 falls against 7). With its fore-aft arm C also failing, the screen's
+  verdict was O9 (both arms fail: no PR, no 12M run; §5).
+- **On the r10 foot, arm L's forward lean was worse on 2 of 3 seeds.** With
+  load-bearing digits (draft #623), arm L trained from scratch put seeds 52
+  and 60 on their toes: 37-40 of 40 full-horizon panel episodes over the
+  whole-foot CoP rail at 4M, 5M and 6M, through 12M in training. All four
+  fixed criteria failed (§6). On r10 a held forward lean that most spawns
+  survive reaches CoP 0.89-0.94, against 0.76-0.79 on r9: falls no longer cut
+  the drift off before the 0.80 rail (§7). The r9 and r10 runs also differ
+  in harness (§6.4). #623 is parked; `main` keeps physics r9.
 - **Why the lean starts is not explained.** All three r10 seeds leaned
   forward by the first evaluation (whole-foot CoP 0.18, 0.33 and 0.32 at
   0.125M steps, against a held statue's 0.11). The explanation offered first,
@@ -53,14 +60,16 @@ It continues [STANCE_REWARD_PILOT_FINDINGS_2026_10.md](STANCE_REWARD_PILOT_FINDI
   stance options, off by default (#624), and the recipe label `recover`
   (#625, D-D35). Their landing records are in the status table of
   [CONSOLIDATION_PLAN_2026_09.md](../CONSOLIDATION_PLAN_2026_09.md) and in
-  [CHANGELOG.md](../../CHANGELOG.md). Not in the repository: draft #623, the
-  screens' criteria, judges and verdicts (copied into
-  [stance_2026_10/](stance_2026_10/README.md)) and the walking pilot's branch.
+  [CHANGELOG.md](../../CHANGELOG.md) (#626's once the records change lands).
+  Not on `main` before this note: draft #623, the screens' criteria, judges
+  and verdicts (copied into [stance_2026_10/](stance_2026_10/README.md) by
+  this note) and the walking pilot's branch.
 - **Next:** one short walking pilot from r9 arm L seed 60 at 6M, judged by
   hop-detecting criteria fixed before training plus a video review (§9;
-  decision D-D36, recorded by a separate records change). By the
-  maintainer's choice of 2026-10-16, no more stance-only reward experiments
-  unless walking points back to stance.
+  launched on 2026-10-17; the maintainer's decision of 2026-10-17, to be
+  recorded as D-D36 by a separate records change). By the maintainer's
+  choice of 2026-10-16, no more stance-only reward experiments unless walking
+  points back to stance.
 
 ## 1. Scope and conventions
 
@@ -72,7 +81,10 @@ It continues [STANCE_REWARD_PILOT_FINDINGS_2026_10.md](STANCE_REWARD_PILOT_FINDI
   3042-3081, at the panel's single heading. "Clean" is an episode that meets
   every episode criterion, so "29/40" means 29 clean. A v2 PASS needs at
   least 37/40 clean (exact one-sided 95% lower bound, LCB, at least 0.80),
-  full horizon on at least 0.95 and at most one hop-or-fall episode. The
+  full horizon on at least 0.95 and at most one hop-or-fall episode. A
+  full-horizon episode reaches the 1,000-step horizon; a hop-or-fall episode
+  ends early or fails a support, touchdown, drift or command-saturation
+  criterion (the gate's hop-or-fall keys). The
   stage's six-heading certificate (`stance_quality_heading/v1`, D-D32) was
   not part of any screen.
 - Steps: in the screens M = 1,048,576 steps (4M = 4,194,304, 6M =
@@ -99,7 +111,7 @@ All times UTC.
 
 | When | What | Evidence |
 |---|---|---|
-| 2026-10-11 | Run A (`20261011_165957`, seed 56, 12,001,280 steps, 17 h 23 min) finishes and is refused by `stance_quality/v2`: 1/40 clean, the pad CoP rail failing on 39/40 | `run_a/stance_gate_report_20261011_165957.txt` |
+| 2026-10-12 10:34 | Run A (`20261011_165957`, started 2026-10-11 16:59, so the blog post of 2026-10-11 predates its verdict; seed 56, 12,001,280 steps, 17 h 23 min) finishes and is refused by `stance_quality/v2`: 1/40 clean, the pad CoP rail failing on 39/40 | `run_a/stance_gate_report_20261011_165957.txt`; the run's `stage_summary.txt` and `gate_verdict.json` on Drive |
 | 2026-10-12 | Foot and CoP investigation: mechanism, reward, per-species anatomy, three 1M probes, two independent verifiers; report at 15:38 with 11 corrections | `run_a/report.md` |
 | 2026-10-12 | Offline noise-ranking check of candidate terms (no training): no candidate passes | `noise_rank/` |
 | 2026-10-12 | The maintainer approves per-foot pad telemetry, report-only (became #620) | CHANGELOG |
@@ -121,10 +133,11 @@ All times UTC.
 | 2026-10-17 04:11-12:38 | The organisation's monthly spend limit stops the agents; the round-3 verifications of the diagnosis and of the reporting change fail to run | session record |
 | 2026-10-17 05:24-05:48 | The three r10 runs finish 12,001,280 steps | `r10_screen/report_only_summary.json` |
 | 2026-10-17 12:46-13:20 | Nine r10 checkpoints judged and scored (FAIL on K1-K4), then independently re-derived | `r10_screen/` |
-| 2026-10-17 13:21 | The maintainer parks #623 and chooses the pilot's parent, r9 arm L seed 60 at 6M (to be recorded as D-D36) | `pilot/criteria.txt` |
+| 2026-10-17 13:21 | The maintainer parks #623 and chooses the pilot's parent, r9 arm L seed 60 at 6M (the maintainer's decision of 2026-10-17, to be recorded as D-D36) | `pilot/criteria.txt` |
 | 2026-10-17 13:22 | Screen result posted on #623 | [comment](https://github.com/kuds/mesozoic-labs/pull/623#issuecomment-6234386057) |
 | 2026-10-17 13:32-14:46 | Duty-guard grids; round-4 verification (no blocking item); fourth wording revision; branch `claude/pilot-walk-r9` pushed at `eaeef50f`, no PR | `pilot/` |
 | 2026-10-17 | `main` at `1b9be186`, which includes #626 | git |
+| 2026-10-17 17:00-17:28 | The walking pilot is launched on Colab. The first launch (Run all, the manual cell left at its defaults) ran the chain loop and began training a stance from scratch; a Drive check caught it minutes later, the runtimes were stopped and their folders deleted, and the three seeds were relaunched into fresh `pilot_walk_s42/52/60` folders (17:13-17:25), each with only `03_locomotion` | session record; Drive |
 
 ## 3. Run A: the right pad on its toe edge
 
@@ -183,16 +196,17 @@ ankle or knee target offset moves the *other* foot's CoP by -0.19 to -0.23
 half-lengths per degree, and its own by -0.04 (ankle) or +0.11 (knee)
 (`run_a/report.md` §2). Ramped in after the settle, one ankle offset brings
 the other pad to 0.80 at -3.1 to -3.25° (right ankle) and -3.5° (left)
-(`run_a/thresholds.txt`). Both Compsognathus models couple the feet the same
-way (anatomical: other foot -0.22 and -0.39 per degree of ankle and knee;
-robot: +0.22), so this is a property of two position-servoed legs in double
-support, not of the T. rex foot (inference for robots in general).
+(`run_a/thresholds.txt`). Both Compsognathus models couple the feet as
+strongly (anatomical: other foot -0.22 and -0.39 per degree of ankle and knee;
+robot: +0.22 per degree of ankle, opposite in sign, not examined), so this is
+a property of two position-servoed legs in double support, not of the T. rex
+foot (inference for robots in general).
 
-**When it formed.** Run A's left-minus-right ankle DC went from +0.007
-(before 0.35M) to -0.049 by 0.85-1.0M and stayed at -0.048 to -0.066 to 12M:
-the edge posture was in place about 11M steps before the verdict. On `main`
-both 1M probe seeds formed the edge between 0.5M and 1M, so 1M screens are
-informative.
+**When it formed.** Run A's left-minus-right ankle DC (the mean commanded
+action, in action units) went from +0.007 (before 0.35M) to -0.049 by
+0.85-1.0M and stayed at -0.048 to -0.066 to 12M: the edge posture was in
+place about 11M steps before the verdict. On `main` both 1M probe seeds
+formed the edge between 0.5M and 1M, so 1M screens are informative.
 
 **Ruled out.** Physics r9 (the same front-edge pad appeared on r8; the r9
 statue is 39/40 clean). The policy interface (the heading-free observation
@@ -342,8 +356,8 @@ file, not triggered. The hip-roll cap was safe for balance (panel falls 4 →
   sags off (+18.3 per window at the deterministic optimum). This motivated
   re-centring the leg target on the settled pose and a fore-aft term.
 - **Method: a KL-form mirror loss, not mirror augmentation.** On the 3M
-  control's own rollouts 100% of augmented mirrored rows fall outside PPO's
-  clip band, and at an asymmetry of 0.03 still 87%
+  control's own rollouts 99.7-100% of augmented mirrored rows fall outside
+  PPO's clip band (per seed), and at an asymmetry of 0.03 still 80-91%
   (`symmetry/mirror_ratio.json`); the corrective signal vanishes at the
   stance's small exploration noise. `MirrorKLPPO` adds kappa times a KL-form
   mirror loss whose gradient is linear in the asymmetry.
@@ -379,7 +393,12 @@ judgement, then resumed to 6,291,456; at most two heavy processes.
   seed; H3 (a) CoP > 0.8 ≤ 3/40 on every seed at 4M, 5M and 6M and (b) each
   pad's 3-6M linear fit projected to 12M ≤ 0.60; H4 joint-space falls ≤ 7/60
   and own-sigma falls ≤ 3/60; H5 pooled median policy-added roll ≤ 0.30° on
-  the focus spawns; H6 6M panel falls ≤ 2/120; S1 and S2 symmetry checks.
+  the focus spawns; H6 6M panel falls ≤ 2/120; S1 and S2 symmetry checks
+  (S1: per joint group, the 6M mirror asymmetry within 0.1° for hip roll and
+  0.3° for the others at the median and four times that at the 90th
+  percentile, and the mean antisymmetric command within the same bounds; S2:
+  replacing the policy by its mirror average π_sym changes at most 8
+  episodes' clean labels and the clean count by at most 5).
 - Outcomes O1-O9 in a total order; O9 = both arms fail: no PR, no 12M run.
 
 Both the lean term and the re-centring are in both arms, so the screen cannot
@@ -428,8 +447,11 @@ Per seed, clean / 40 (CoP > 0.8 episodes, all 40 counted), from
 
 ### 5.5 What it rules in and out
 
-- In: the left/right antisymmetric part of the stance failures (the
-  one-pad edge, the hip-roll sway) is removed by symmetric training.
+- In: symmetric training removed most of the left/right antisymmetric part
+  of the stance failures (arm L's joint groups mirror-symmetric to under
+  0.1°; roll-rail 2/0/0 at 6M), but a symmetric policy can still creep onto
+  one pad: the verdict classed arm L seed 42 at 4M and 5M (pad bias 0.20 and
+  0.17) and arm C seed 52 at 6M (0.43, 22 CoP failures) as one-pad creep.
 - Out: symmetry alone does not stop a mirror-even forward creep; arm L's
   seed 60 went from 0 to 39 and back to 0 CoP failures between 3M and 6M, so
   a single checkpoint says little.
@@ -437,10 +459,13 @@ Per seed, clean / 40 (CoP > 0.8 episodes, all 40 counted), from
   arms had them), and how much of the arms' behaviour comes from extra
   optimisation (the symmetry arms ran 9.46-9.76 Adam epochs per update over
   0-3M, against the control's cumulative 7.13-7.52 at 3M; the in-training
-  flags F1 and F6 fired in all six fresh segments and are record-only).
-- The predeclared follow-ups on a failure (kappa x3, the E2 fallback, a
-  recalibrated fore-aft term) were not taken up: the maintainer chose foot
-  anatomy first.
+  flags F1, the rollout mirror asymmetry above 0.1° of hip roll or 0.3°
+  elsewhere for 16 updates, and F6, a 1M window's mean Adam epochs per update
+  more than 1.5 away from the control's, fired in all six fresh segments and
+  are record-only).
+- The predeclared follow-ups on a failure (kappa x3, the E2 fallback of
+  dual-clip mirror augmentation plus the KL loss, a recalibrated fore-aft
+  term) were not taken up: the maintainer chose foot anatomy first.
 
 ### 5.6 What landed
 
@@ -474,11 +499,12 @@ the evidence is summarised in the #623 body):
 ### 6.2 Zero-shot evidence did not predict training
 
 r9-trained arm L checkpoints read zero-shot on r10 looked better: episodes
-over 0.80 at 4M/5M/6M of seed 42 5/1/5, seed 52 1/0/1, seed 60 9/30/0, and
-H4 joint-noise falls 3/2/0 of 60 against 10/24/8 (the #623 body, one common
-CoP statistic on each plant's own held-offset line). The PR body said that
-only training on r10 could show whether a policy trained there avoids the
-forward lean, and held the PR for that.
+over 0.80 at 4M/5M/6M of seed 42 5/1/5 (16/11/18 on r9, as trained), seed 52
+1/0/1 (3/1/2), seed 60 9/30/0 (19/40/1), and H4 joint-noise falls 3/2/0 of 60
+against 10/24/8 (the #623 body, one common whole-foot CoP statistic on each
+plant's own held-offset line; not the pad-CoP counts of §5.4 or K2). The PR
+body said that only training on r10 could show whether a policy trained there
+avoids the forward lean, and held the PR for that.
 
 ### 6.3 Criteria, fixed before training
 
@@ -508,7 +534,8 @@ falls alone pick the same checkpoint.
 At 2.3-2.5M steps the in-training telemetry, decoded by hand from Drive,
 already showed seeds 52 and 60 on their toes (whole-foot CoP 1.11 and about
 1.25; digits carrying 70-90% of the load). The runs were left alone so the
-fixed criteria stayed valid. Per checkpoint (`r10_screen/score.txt`):
+fixed criteria stayed valid. Per checkpoint (`r10_screen/score.json`,
+`r10_cells`; recomputed in `r10_screen/verify_recompute.json`):
 
 | Seed, step | v2, clean (LCB) | Full-horizon over the rail | Roll-rail | Noise falls, joint / own | Reward (statue 3982.4) |
 |---|---|---|---|---|---|
@@ -525,13 +552,19 @@ fixed criteria stayed valid. Per checkpoint (`r10_screen/score.txt`):
 | Criterion | r10 + arm L | r9 + arm L (same tests, §5) |
 |---|---|---|
 | K1 | FAIL: 1 of 3 (clean 40/0/0) | pass: 2 of 3 (29/38/40) |
-| K2 | FAIL: seed 42 5/2/0, seed 52 37/40/38, seed 60 39/40/39 | FAIL (pad rail): 9/8/11, 3/1/2, 8/39/0 |
+| K2 | FAIL: seed 42 5/2/0, seed 52 37/40/38, seed 60 39/40/39 | FAIL (pad rail, all 40 episodes counted as in H3a): 9/8/11, 3/1/2, 8/39/0 (full horizon only: 8/7/11, 3/1/2, 8/38/0) |
 | K3 | FAIL: joint 0 + 7 + 9 = 16/60, own 2/60 | FAIL: joint 8/60, own 0/60 |
 | K4 | FAIL: 0 + 4 + 8 = 12/120 | pass: 2/120 |
 
 Whole-foot CoP means (signed, right / left): seed 52 0.848/0.959,
 0.944/0.977, 1.004/1.009 at 4M/5M/6M; seed 60 1.055/1.085, 1.045/1.087,
 0.976/1.003; seed 42 0.30-0.48.
+
+The comparison with r9 is not of the foot alone. The r9 arm L runs trained
+locally with the screen's scratch wrapper, fresh to 3M and then resumed to
+6M; the r10 runs trained on Colab with the notebook and #624's options in
+one 12M run. The environments were shown equivalent, the training side was
+not (`diagnosis/findings_v3.txt` §6), and there are three seeds per plant.
 
 ### 6.5 Verification
 
@@ -557,10 +590,14 @@ parent, because the rule's choice sits on the unmerged r10 foot (§9).
 ### 6.7 Report only: 12M and the second half of training
 
 - The notebook's end-of-stage six-heading certificate judged
-  `robust_best_model.zip`, chosen by evaluation reward, not the 12M policy:
-  seed 42 PASS (37/40 seeds clean at all six headings, LCB 0.8174), seed 52
-  FAIL (35/40), seed 60 FAIL (36/40). For seeds 52 and 60 the best evaluation
-  was the first one, at 131,072 steps; seed 42's file dates from about 4.3M.
+  `robust_best_model.zip`, chosen by evaluation reward (highest mean minus
+  standard deviation), not the 12M policy: seed 42 PASS (37/40 seeds clean at
+  all six headings, LCB 0.8174), seed 52 FAIL (35/40), seed 60 FAIL (36/40).
+  By its Drive modification times that file was last written at about 4.3M
+  steps on seed 42, about 262k on seed 52 and at the first evaluation
+  (131,072) on seed 60. The certificate's `best_eval_timestep` (5,636,096,
+  131,072 and 131,072) is the best evaluation by mean reward, a different
+  selection.
 - 6M-12M in training (44 evaluations of 10 episodes per seed,
   `r10_screen/report_only_summary.json`): seed 52 over the rail on 423 of 423
   full-horizon episodes, 17 falls; seed 60 on 371 of 371, 69 falls (10, 12,
@@ -584,8 +621,8 @@ both plants, in the arm L environment as trained; CoP on the r10 span.
   terms that rise with the lean (head_clearance, nosedive, posture) total
   under +10 per unit.
   The settled leg target supplies most of the restoring slope, and the
-  lateral lean term is small along a symmetric lean: neither arm L option
-  drives the drift.
+  lateral lean term is small along a symmetric lean: neither arm L reward
+  option drives the drift.
 - **Falls no longer stop the drift (H1a: a permissive condition, not a
   driver).** The highest held lean that at least 5 of 8 spawns survive is at
   CoP 0.89-0.94 on r10 against 0.76-0.79 on r9 (the diagnosis's spawns and
@@ -612,7 +649,9 @@ both plants, in the arm L environment as trained; CoP on the r10 span.
   steps against 0.30-0.38 on r9 (shares, not rates). The noise mechanism of
   v1 is withdrawn (§11).
 - **Reading.** The failure is plant plus training dynamics, not a reward term
-  paying for the toes and not an arm L defect. On r10 the 0.80 rail is a gate
+  paying for the toes and not caused by arm L's two reward options (the
+  settled target and the lean term; `MirrorKLPPO` was not tested, and the r9
+  and r10 runs differ in harness, §6.4). On r10 the 0.80 rail is a gate
   criterion with no physical backstop between 0.8 and about 0.9, and it did
   its job: of the gate readings `gate_progress.npz` records, only the rail
   marks seeds 52 and 60.
@@ -642,15 +681,17 @@ both plants, in the arm L environment as trained; CoP on the r10 span.
   the maintainer asked twice, the recovery stage's label became `recover`;
   `stand` now means stance on every model, and no digest or checkpoint moved.
 
-## 9. Walking pilot: pre-registration (not trained)
+## 9. Walking pilot: pre-registration (launched, not yet judged)
 
 The fixed criteria are `pilot/criteria.txt` (sha256 `1cdd495c…`; written
 2026-10-16, revised four times on 2026-10-17, all before any pilot training
-step), applied by `pilot/pilot_score.py`. The branch is
+step; the file's first line says "three", its Revisions list has four),
+applied by `pilot/pilot_score.py`. The branch is
 `claude/pilot-walk-r9` (`origin/main` `56621ebd` plus seven pilot-only
-commits, head `eaeef50f`, pushed 2026-10-17 14:46, no PR); D-D36, recorded by
-a separate records change, makes the pilot a deliberate exception to the gait
-plan's open GQ-3 (a) and GQ-17 ([GAIT_QUALITY_PLAN_2026_09.md](../GAIT_QUALITY_PLAN_2026_09.md)).
+commits, head `eaeef50f`, pushed 2026-10-17 14:46, no PR); the maintainer's
+decision of 2026-10-17, to be recorded as D-D36 by a separate records change,
+makes the pilot a deliberate exception to the gait plan's open GQ-3 (a) and
+GQ-17 ([GAIT_QUALITY_PLAN_2026_09.md](../GAIT_QUALITY_PLAN_2026_09.md)).
 
 - **What is trained.** The production T. rex locomotion stage (stock PPO, the
   production reward and hyperparameters, none of arm L's options), warm-
@@ -659,10 +700,10 @@ plan's open GQ-3 (a) and GQ-17 ([GAIT_QUALITY_PLAN_2026_09.md](../GAIT_QUALITY_P
   seeds 42, 52 and 60.
 - **The parent.** r9 arm L seed 60 at 6,291,456 steps: 40/40 clean, 6
   joint-space and 0 own-sigma noise falls; committed on the branch, zip
-  sha256 `70f3a444…6f353e`, VecNormalize `0567d610…0c1`. It is the checkpoint
-  behind r9's K3 failure, and its run stood over the pad CoP bar on 39/40
-  episodes at 5M, one checkpoint earlier; both weaken a FALLS reading that
-  points back at the stance.
+  sha256 `70f3a444…6f353e`, VecNormalize `0567d610…7c0fc1`. It is the
+  checkpoint behind r9's K3 failure, and its run stood over the pad CoP bar
+  on 39/40 episodes at 5M, one checkpoint earlier; both weaken a FALLS
+  reading that points back at the stance.
 - **How it is judged.** The frozen 2026-09 gait-audit probe
   ([gait_2026_09/gait_probe.py](gait_2026_09/gait_probe.py), run on today's
   API by the adapter `pilot/gait_probe_pilot.py`, no measurement line
@@ -682,10 +723,10 @@ plan's open GQ-3 (a) and GQ-17 ([GAIT_QUALITY_PLAN_2026_09.md](../GAIT_QUALITY_P
 - **Why the guards.** Four verification rounds, each with its own hop
   generator run through the frozen probe, found a hop that read WALK under
   the rule of the time: a 30 ms staggered hop (→ the hip-lag band), 40 ms
-  staggered and scissor hops at 9.2-10 Hz (→ the stride cap), short-lift
-  shuffle-hops whose 1-2-step lifts the debounce fills (→ the duty guard), and
-  mixed-lift hops (→ wording; the video review is the check). The 0.80 duty
-  cut came from a cost table over 24,112 hops and 297 walks
+  staggered hops at 9.2-10 Hz and an 8.3 Hz scissor hop (→ the stride cap),
+  short-lift shuffle-hops whose 1-2-step lifts the debounce fills (→ the duty
+  guard), and mixed-lift hops (→ wording; the video review is the check).
+  The 0.80 duty cut came from a cost table over 24,112 hops and 297 walks
   (`pilot/duty_cut_summary.json`): 61 of 470 distinct false WALKs, all at a
   true 16-22 Hz, still read WALK at 0.80, and the real Compsognathus walker
   stays 30/30 WALK at every cut tested.
@@ -697,8 +738,14 @@ plan's open GQ-3 (a) and GQ-17 ([GAIT_QUALITY_PLAN_2026_09.md](../GAIT_QUALITY_P
   gate (`reward_and_length/v1`) is recorded, not a criterion, and is expected
   to fail on speed.
 
-**Outcome:** not yet trained. To be appended here with the scored
-`pilot_score.py` output and the video review.
+**Outcome:** launched on Colab on 2026-10-17 and not yet judged. A first
+launch (Runtime > Run all with the manual cell at its defaults) ran the chain
+loop and began training a stance from scratch; it was stopped within minutes
+and its folders deleted, and seeds 42, 52 and 60 were relaunched from the
+parent into fresh `pilot_walk_s42`, `pilot_walk_s52` and `pilot_walk_s60`
+folders (created 17:13, 17:23 and 17:25 UTC; not the `_b` run ids the
+criteria allow for a restart). The outcome is to be appended here with the
+scored `pilot_score.py` output and the video review.
 
 ## 10. What did not work
 
@@ -742,15 +789,15 @@ them. None of the superseded wording is in the repository except where noted.
 | The first symmetry research stage: per-mini-batch mirror augmentation | Replaced by the KL-form loss (§5.1) | `symmetry/mirror_ratio.json` |
 | "All six runs finished with no errors, no invalid segments and no restarts" (3M interim message) | L42 and C42 fresh were re-run after the container reclaim | `symmetry/rerun_ledger.json` |
 | Arm L seed 60 at 3M was "the first uncapped policy ever to pass"; "no uncapped policy had ever passed" | lownoise_asym seed 56 at 524k passed 37/40 and `cop` seed 42 at 2M passed 37/40. Arm L is the first uncapped arm to pass v2 at a screen's verdict checkpoint on 2 of 3 seeds | `cap_screens/screen_1m_analysis.txt`, `screen_3m_cop_authority_analysis.txt` |
-| The r10 certificate "judged robust_best_model.zip at 12,001,280 steps" ("12M: PASS/FAIL") | It judged reward-selected checkpoints (131,072 steps on seeds 52 and 60, about 4.3M on seed 42); 12,001,280 is the run total | §6.7 |
+| The r10 certificate "judged robust_best_model.zip at 12,001,280 steps" ("12M: PASS/FAIL") | It judged reward-selected checkpoints (about 262k steps on seed 52, 131,072 on seed 60, about 4.3M on seed 42); 12,001,280 is the run total | §6.7 |
 | r10 seed 60's falls per 1M bin "9, 10, 13, 9, 9, 2" (sum 52) | 10, 12, 20, 12, 13, 2 (sum 69) | `r10_screen/report_only_summary.json` |
 | Diagnosis v1: r10's digits keep a forward lean standing out to CoP 1.06-1.10 against about 0.85 on r9 | 1.06 was a level with 2 of 8 survivors; use 0.89-0.94 (at least 5 of 8 survive) against 0.76-0.79, and 1.10 against 0.85 for single episodes. The v1 figure survives in the public #623 result comment | `diagnosis/findings_v3.txt` |
 | Diagnosis v1: reward slopes -192 (r10) and -196 (r9) per unit CoP; `leg_home_pose` "penalises less on r10" | Pooling artefacts; -109 / -109 on identical postures, and `leg_home_pose` is the same per posture on both plants | `diagnosis/findings_v3.txt` |
-| Diagnosis v1 (H1): under exploration noise the r10 statue falls backward and r9's forward, so a forward lean pays on r10 (withdrawn) | Not on 20 new spawns: at σ 0.10 the paired difference is +149 [-67, +381] over 30 pairs; at σ 0.15 and 0.21 the lean costs on r10 too | `diagnosis/findings_v3.txt` §4 |
+| Diagnosis v1 (H1): under exploration noise the r10 statue falls backward and r9's forward, so a forward lean pays on r10 (withdrawn) | Not on 20 new spawns: at σ 0.10 their paired difference was -8 [-237, +229]; pooled over all 30 pairs it is +149 [-67, +381], which includes zero; at σ 0.15 and 0.21 the lean costs on r10 too | `diagnosis/findings_v3.txt` §4 |
 | Diagnosis v2: the walking pilot starts at the stance's initial noise (std 0.218) | SB3's load restores the parent's learned std (about 0.09); the locomotion warm-up's effect on it is unmeasured | `diagnosis/findings_v3.txt` §7 |
 | PostureDrift's default: "a streak of three would have missed seed 52" | True only of a snapshot that ended one evaluation short; on the full series three warn 1.44M steps after two. Only the corrected wording landed (#626) | `telemetry/posture_drift_replay.json` |
 | Each WALK-rule revision's own claim ("a staggered hop cannot pass"; "staggered or scissor hops above 5 Hz read OTHER") | Each falsified by the next round; the final text states limits as tested | `pilot/criteria.txt`, Revisions |
-| The foot proposal's comparison table: r9 track W/L 0.43 at the contact line and 0.65 at the outer margins; the floor-moment gain +4.9% | 0.39 and 0.61; +4.6% from unrounded values (as the #623 body states) | the proposal's second review (not copied), #623 |
+| The foot proposal's comparison table: the r9 foot's print W/L 0.43 at the contact line and 0.65 at the outer margins; the floor-moment gain +4.9% | 0.39 and 0.61; +4.6% from unrounded values (as the #623 body states) | the proposal's second review (not copied), #623 |
 
 ## 12. Method lessons
 
@@ -769,7 +816,14 @@ them. None of the superseded wording is in the repository except where noted.
 - **Dry-run the verdict scripts on stored data.** Running the frozen symmetry
   verdict on old screens before training caught a class statistic (an
   unsigned median pad difference) that would never have fired on the policy
-  it was built for.
+  it was built for; the final design replaced it with the signed pad bias
+  that `symmetry/frozen_params.json` records (the design's final-revision
+  record; session scratch only).
+- **No significant regression is not non-inferiority.** The foot proposal's
+  first merge rule (one-sided Fisher p ≥ 0.05 against the r9 arm) would have
+  passed 16/60 joint-noise falls against 8/60 (p = 0.054), the very counts
+  the r10 screen later got (K3); a review caught it (session record), and the
+  r10 screen used fixed bars instead.
 - **Verifiers re-implement.** Independent rollout, decode and statistics code
   agreed on 30/30 re-judged cells (1M screen), 120 and 537 verdict quantities
   (symmetry), and every r10 cell. Verifiers err too: the 1M screen's
@@ -788,7 +842,8 @@ them. None of the superseded wording is in the repository except where noted.
   deterministically**; offline rankings on policies trained without a term
   did not predict training (arm C).
 - **Judge several checkpoints.** Arm L seed 60 went 0/8/39/0 CoP failures over
-  3-6M; reward-selected "best" checkpoints were 131k-step policies.
+  3-6M; on two r10 seeds the reward-selected "best" checkpoints were 131k- and
+  262k-step policies.
 - **Hold physics changes as drafts until a training screen.** Zero-shot,
   r9-trained policies looked better on r10; policies trained on r10 found a
   toe-standing basin.
@@ -798,6 +853,10 @@ them. None of the superseded wording is in the repository except where noted.
 - **Report-only first, then prove it inert.** Each telemetry change showed the
   digest snapshot unchanged; #626 also showed a short training run identical
   with and without it.
+- **A regression test can skip silently in CI.** #621's test skipped without
+  SB3 and was named in no SB3 job step until review caught it;
+  `test_ci_tool_pins.py` now requires every such file to be named there
+  (CHANGELOG, #621).
 - **Telemetry gaps decide what gets noticed.** Run A's left-foot CoP was not
   recorded (→ #620); a resume dropped gate rows (→ #621); the r10 drift was
   visible only to a hand decode of a Drive file (→ #626).
@@ -810,6 +869,16 @@ them. None of the superseded wording is in the repository except where noted.
   Runs longer than a couple of hours went to Colab afterwards. When the
   spend limit stopped the agents, the reporting change's checks were re-run
   directly before it opened, and the unverified pieces are labelled (§7).
+- **Keep caches out of the checkouts.** Agents wrote bytecode or a ruff cache
+  into the main checkout at least twice, and once bytecode into the frozen
+  symmetry screen's harness; all were git-ignored or removed and the frozen
+  sums still passed (session record). Set `PYTHONDONTWRITEBYTECODE=1` and a
+  scratch ruff cache directory.
+- **Check a Colab launch on Drive at once.** The pilot's first launch ran
+  Runtime > Run all with the manual cell at its defaults, so the chain loop
+  started training a stance from scratch; reading the new run folder (a
+  `01_stance` stage with a 12M budget, no `03_locomotion`) caught it minutes
+  later (§9).
 
 ## 13. Open questions and next steps
 
@@ -873,10 +942,12 @@ Decisions below are the maintainer's; none is taken here.
     `SOURCE.txt`.
   - #620, #621, #622, #624, #625 and #626 are on `main`; their landing
     records are in the status table of
-    [CONSOLIDATION_PLAN_2026_09.md](../CONSOLIDATION_PLAN_2026_09.md).
+    [CONSOLIDATION_PLAN_2026_09.md](../CONSOLIDATION_PLAN_2026_09.md)
+    (#626's once the records change lands).
 - **Google Drive:**
-  - Run A: run id `20261011_165957` on the maintainer's Drive; its gate
-    report is copied (`run_a/`).
+  - Run A: `MyDrive/mesozoic-labs/logs/trex/ppo/20261011_165957/` (the
+    layout before D-D33's binomial species ids and embodiment axis); its
+    gate report is copied (`run_a/`).
   - The r10 screen, under `MyDrive/mesozoic-labs/logs/tyrannosaurus_rex/anatomical/ppo/`:
     `r10_armL_s42/`, `r10_armL_s52/`, `r10_armL_s60/`
     (`01_stance/models/` with the judged 4M, 5M and 6M checkpoints and their
@@ -885,8 +956,10 @@ Decisions below are the maintainer's; none is taken here.
     `r10_armL_s42/01_stance/models/stage1_6291456_steps.zip`, sha256
     `7c3c1df77be4d041fe51e48fec45e70ded2fde34e70af6b111038444250cb51d`
     (VecNormalize `6e22ae9aef095062a23ff358cac5ed269d74084012fd58e595797ef094ed40c4`).
-  - The walking pilot will write `pilot_walk_s{42,52,60}/03_locomotion/`
-    under the same directory.
+  - The walking pilot writes `pilot_walk_s{42,52,60}/03_locomotion/` under
+    the same directory: the folders of the relaunch of 2026-10-17 (created
+    17:13-17:25 UTC). The first launch's folders, which held a stance
+    trained from scratch, were deleted before the relaunch (§9).
 - **Not copied** (session scratch only): the r9 screens' checkpoints, rollouts
   and traces (about 1.7 GB; the r9 arm L seed 60 6M pair survives on the pilot
   branch, sha256
