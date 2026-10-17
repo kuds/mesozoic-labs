@@ -77,6 +77,126 @@ ROW = {
 CURRICULUM = {"max_sole_cop_fore_aft": 0.8, "max_sole_tilt_deg": 2.0, "max_sole_corner_lift_m": 0.004}
 
 
+#: The balance and force telemetry a T. rex row adds (gait.balance_telemetry): its keys and the blocks they fill.
+BALANCE_ROW = {
+    "com_fore_aft_mean_m": 0.012345678,
+    "root_pitch_mean_deg": -1.5,
+    "xcom_toe_margin_min_m": 0.05,
+    "fall_xcom_toe_lead_s": NAN,
+    "hof_cop_term_mean_mps2": -0.003,
+    "leg_q_l_minus_r_ankle_deg": 0.25,
+    "leg_q_l_r_mean_ankle_deg": 1.5,
+    "leg_dc_l_r_mean_ankle_deg": 2.0,
+    "actuator_force_frac_max": 0.27,
+    "actuator_force_limited_fraction": 0.0,
+    "shear_over_normal": -0.0002,
+    "r_shear_over_normal": -0.017,
+    "r_cone_use_mean": 0.044,
+    "r_cone_use_max": 0.05,
+    "r_ankle_moment_arm_m": 0.145,
+    "l_shear_over_normal": 0.016,
+    "l_cone_use_mean": 0.045,
+    "l_cone_use_max": 0.056,
+    "l_ankle_moment_arm_m": 0.136,
+    "screen_v2_clean_count": 37.0,
+    "screen_v2_clean_lcb": 0.81,
+    "screen_v2_fail_max_sole_cop_fore_aft_count": 3.0,
+}
+
+
+class TestTheBalanceBlocks:
+    """The balance telemetry's blocks: added beside the posture block, never inside a rail's per-foot entry."""
+
+    def test_the_balance_and_forces_blocks_and_the_achieved_leg_offsets(self):
+        from environments.shared.curriculum.progress_report import balance_block, forces_block
+
+        row = {**ROW, **BALANCE_ROW}
+        assert balance_block(row) == {
+            "com_fore_aft_mean_m": 0.01235,
+            "root_pitch_mean_deg": -1.5,
+            "hof_cop_term_mean_mps2": -0.003,
+            "xcom_toe_margin_min_m": 0.05,
+            "fall_xcom_toe_lead_s": None,
+        }
+        assert forces_block(row) == {
+            "actuator_force_frac_max": 0.27,
+            "actuator_force_limited_fraction": 0.0,
+            "shear_over_normal": -0.0002,
+            "per_foot": {
+                "r": {
+                    "ankle_moment_arm_m": 0.145,
+                    "shear_over_normal": -0.017,
+                    "cone_use_mean": 0.044,
+                    "cone_use_max": 0.05,
+                },
+                "l": {
+                    "ankle_moment_arm_m": 0.136,
+                    "shear_over_normal": 0.016,
+                    "cone_use_mean": 0.045,
+                    "cone_use_max": 0.056,
+                },
+            },
+        }
+        posture = posture_block(row, CURRICULUM)
+        assert posture["leg_q_deg"] == {"l_minus_r_ankle": 0.25, "l_r_mean_ankle": 1.5}
+        assert posture["leg_dc_deg"] == {"l_minus_r_ankle": -3.165, "l_r_mean_ankle": 2.0}
+        # The rails' feet are the model's, whatever else the row holds.
+        assert {
+            rail: set(entry["per_foot"]) for rail, entry in posture.items() if "per_foot" in entry
+        } == dict.fromkeys(
+            ("max_sole_cop_fore_aft", "max_foot_cop_fore_aft", "max_sole_tilt_deg", "max_sole_corner_lift_m"),
+            {"r", "l"},
+        )
+        assert posture_block(row, CURRICULUM) == {
+            **posture_block(ROW, CURRICULUM),
+            **{
+                "leg_dc_deg": posture["leg_dc_deg"],
+                "leg_q_deg": posture["leg_q_deg"],
+            },
+        }
+        assert balance_block(ROW) == {} and forces_block(ROW) == {}
+
+    def test_the_record_carries_them_and_the_screen_only_where_recorded(self, tmp_path):
+        callback = _callback(tmp_path)
+        plain = callback.record("training")
+        assert "balance" not in plain and "forces" not in plain and "screen_v2" not in plain["evaluation"]
+        callback.plateau_callback.rows = [{**row, **BALANCE_ROW} for row in callback.plateau_callback.rows]
+        callback.curriculum_kwargs = {**CURRICULUM, "min_clean_stance_lcb": 0.8, "max_hop_or_fall_episodes": 1}
+        callback.eval_callback.evaluations_screen_v2 = [
+            None,
+            None,
+            {
+                "passed": False,
+                "n_episodes": 40,
+                "n_clean": 37,
+                "clean_lcb": 0.8123456,
+                "hop_or_fall_episodes": 2,
+                "criterion_failures": {"horizon": 2, "max_sole_cop_fore_aft": 3, "min_all_feet_support": 0},
+                "skipped_criteria": ["min_avg_reward_statue_ratio"],
+            },
+        ]
+        record = callback.record("training")
+        assert record["balance"]["com_fore_aft_mean_m"] == 0.01235 and record["forces"]["per_foot"]["r"]
+        assert record["evaluation"]["screen_v2"] == {
+            "clean": 37,
+            "episodes": 40,
+            "clean_lcb": 0.8123,
+            "bar": 0.8,
+            "yaw0_bars_met": False,
+            "hop_or_fall": 2,
+            "hop_or_fall_bar": 1.0,
+            "failing": {"horizon": 2, "max_sole_cop_fore_aft": 3},
+            "skipped": ["min_avg_reward_statue_ratio"],
+        }
+        assert (
+            record["history"][-1]["screen_v2_clean_count"] == 37.0
+            and record["history"][-1]["screen_v2_clean_lcb"] == 0.81
+        )
+        callback.eval_callback.evaluations_screen_v2[-1] = None  # an unjudged evaluation: no block, not nulls
+        assert "screen_v2" not in callback.record("training")["evaluation"]
+        json.dumps(record, allow_nan=False)  # strict JSON
+
+
 class TestTheBlocks:
     def test_the_posture_block_reports_each_rail_against_its_declared_bar_per_foot(self):
         block = posture_block(ROW, CURRICULUM)
@@ -435,7 +555,64 @@ def test_a_real_tyrannosaurus_rex_stance_run_writes_its_progress(trained):
         "max_sole_tilt_deg",
         "max_sole_corner_lift_m",
         "leg_dc_deg",
+        "leg_q_deg",
     }
+    # Every key and type of #626's record is still there; the balance telemetry adds blocks beside them.
+    types_626 = {
+        "schema": str,
+        "status": str,
+        "written_at": str,
+        "species": str,
+        "embodiment": str,
+        "model": str,
+        "stage": str,
+        "run_id": str,
+        "run_dir": str,
+        "stage_dir": str,
+        "seed": int,
+        "timesteps": int,
+        "budget_timesteps": int,
+        "fraction_done": float,
+        "session_started_at": str,
+        "wall_clock_s": float,
+        "steps_per_s": float,
+        "projected_finish": str,
+        "evaluation": dict,
+        "posture": dict,
+        "history": list,
+        "checkpoints": dict,
+        "warnings_total": int,
+        "warnings": list,
+    }
+    for key, kind in types_626.items():
+        assert isinstance(record[key], kind), key
+    assert set(record) - set(types_626) == {"zero_action_reward", "balance", "forces"}
+    assert set(record["balance"]) == {
+        "com_fore_aft_mean_m",
+        "root_pitch_mean_deg",
+        "xcom_fore_aft_max_m",
+        "hof_cop_term_mean_mps2",
+        "hof_counter_rotation_mean_mps2",
+        "hof_counter_rotation_rms_mps2",
+        "xcom_toe_margin_min_m",
+        "xcom_toe_margin_mean_m",
+        "xcom_heel_margin_min_m",
+        "xcom_past_toe_fraction",
+        "time_to_toe_min_s",
+        "fall_xcom_toe_lead_s",
+        "xcom_tip_margin_min_m",
+    }
+    assert set(record["forces"]["per_foot"]) == {"r", "l"}
+    assert set(posture["leg_q_deg"]) == {
+        f"l_{kind}_{joint}" for kind in ("minus_r", "r_mean") for joint in ("hip_pitch", "knee", "ankle")
+    }
+    screen = latest["screen_v2"]
+    assert (
+        screen["episodes"] == EPISODES and screen["bar"] == 0.8 and screen["skipped"] == ["min_avg_reward_statue_ratio"]
+    )
+    assert screen["clean_lcb"] == pytest.approx(float(gate["screen_v2_clean_lcb"][-1]), rel=1e-3)
+    assert all("screen_v2_clean_count" in entry for entry in record["history"])
+    assert len(json.dumps(record)) < 20_000
     for rail, bar in (
         ("max_sole_cop_fore_aft", 0.8),
         ("max_foot_cop_fore_aft", None),
