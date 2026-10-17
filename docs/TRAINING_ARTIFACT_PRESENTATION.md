@@ -181,7 +181,8 @@ value (or one row) per evaluation, aligned with `timesteps`. A key a run
 cannot supply on every evaluation is dropped rather than written misaligned.
 The file is report-only. No gate verdict, checkpoint selection or reward
 reads it. The opt-in hop watch reads only its `unsupported_duty`, and the
-posture-drift advisory (below) only its fore-aft over-bar fractions.
+posture-drift advisory (below) its fore-aft over-bar fractions and, for the
+line it prints, the latest row's signed per-foot centre of pressure.
 
 | Keys | Meaning |
 |---|---|
@@ -294,7 +295,9 @@ the feet are authored at (16 to 19°), and no corners; recording it would
 attach the recorder to every Brachiosaurus evaluation (45% more evaluation
 time, measured) for a bar no Brachiosaurus stage declares, so it is left
 out. A roll-rail key is NaN where no full-horizon episode measured it; the
-corner lift also when a sole had no finite corner reading in the window.
+corner lift also when a sole had no finite corner reading in the window. An
+episode whose roll rails cannot be reduced reads NaN on them alone (logged
+once); its pad and whole-foot values stand.
 
 A termination count is 0 for an evaluation in which no episode ended by
 that cause. A cause first seen at a later evaluation reads 0 on the earlier
@@ -314,21 +317,40 @@ of the same keys as `diagnostics/eval_<key>`, and the termination counts as
 On a stage that declares a fore-aft centre-of-pressure bar
 (`max_sole_cop_fore_aft` or `max_foot_cop_fore_aft`), a warning line starting
 `PostureDrift` appears in the training output (in the notebook, the training
-cell's output) when that rail's `_over_bar_fraction` is at least 0.5 on 3
+cell's output) when that rail's `_over_bar_fraction` is at least 0.5 on 2
 evaluations in a row. It names the rail, the fractions, the steps and each
 foot's latest signed centre of pressure (+ toward the toe), and repeats at
 most once per 10 evaluations while the drift lasts. It never stops or
 changes training (`curriculum/posture_watch.py`). Three `[curriculum]` keys
 tune it, like `baseline_warn_after_budget_fraction`, and enter no gate, task
 or hyperparameter digest: `posture_drift_warn_over_bar_fraction` (0.5),
-`posture_drift_warn_consecutive_evals` (3) and
+`posture_drift_warn_consecutive_evals` (2) and
 `posture_drift_warn_repeat_evals` (10). No committed stage sets them.
+
+Two evaluations in a row, not three, because two warn earlier, and on no
+series that three would not warn on. Replayed on the T. rex physics-r10
+screen's own whole-foot series (bar 0.80, one evaluation per 131,072 steps,
+to 6.16M steps), two first warn on the drifting seeds 52 and 60 at 917,504
+steps and never warn on seed 42 (through 6.03M). Three first warn on seed 52
+at 2,359,296 steps, 1.44M steps later, and on seed 60 at 1,048,576, one
+evaluation later. Over the 69 pad-rail series of 3M steps or more from the
+earlier T. rex stance screens, every series two warn on, three warn on too,
+1 to 10 evaluations later, and none warns under two only.
+
+An evaluation with no full-horizon episode has a NaN over-bar fraction
+(nothing measured the posture), and NaN ends the streak of drifting
+evaluations. A seed whose evaluation episodes all fall therefore goes quiet
+in this advisory exactly when it is worst. The falls still show in
+`progress.json`'s `evaluation.falls` and in `gate_progress.npz`'s
+`full_horizon_fraction`.
 
 ## Training progress: `progress.json`
 
 Each training stage directory also holds `progress.json`, a small
-human-readable snapshot of the stage (about 5 KB), so a run can be checked
-mid-run without opening the binary `.npz` files: on Colab, open it from
+human-readable snapshot of the stage, so a run can be checked mid-run
+without opening the binary `.npz` files. It is 4 to 6 KB before any
+warning; each warning it keeps adds 0.6 to 0.9 KB, and it keeps the newest
+ten, so it stays under about 15 KB. On Colab, open it from
 Drive (`MyDrive/mesozoic-labs/logs/<species>/<embodiment>/<algorithm>/<run>/<stage_dir>/progress.json`).
 `TrainingProgressCallback` (`environments/shared/curriculum/progress_report.py`)
 rewrites it atomically (a temporary file in the stage directory, then
@@ -355,7 +377,7 @@ six significant digits, and the posture statistics four.
 | `evaluation` | The latest evaluation: `timesteps`, `episodes`, `mean_reward`, `std_reward`, `mean_episode_length`, `falls` (episodes shorter than the horizon), `full_horizon_fraction` and `termination_causes` (each cause's count, causes no episode ended by left out); `null` before the first |
 | `posture` | Per rail the model measures (`max_sole_cop_fore_aft`, `max_foot_cop_fore_aft`, `max_sole_tilt_deg`, `max_sole_corner_lift_m`): `bar` (the stage's, `null` when it declares none), `mean` (the `_mean` key), `over_bar_fraction` (with a bar only) and `per_foot`. Per foot, the CoP rails give `gate` (the per-foot statistic's mean) with the signed CoP and the digit share or the moment margins where the foot has them; the roll rails a number. Then `leg_dc_deg`, the left-minus-right leg DC per joint pair. `{}` before the first evaluation |
 | `history` | The last 5 evaluations, oldest first: the `evaluation` fields but the causes, with each rail's `_mean` and `_over_bar_fraction` where recorded |
-| `checkpoints` | `latest_periodic_timesteps` (the newest periodic checkpoint in `models/`, by its name), `best_model_timesteps` and `best_mean_reward` (SB3's mean-reward best), `robust_best_model_timesteps` and `robust_best_score` (mean minus one standard deviation). A best checkpoint whose evaluation a resume dropped from the history reads `null` |
+| `checkpoints` | `latest_periodic_timesteps` (the newest periodic checkpoint in `models/`, by its name), `best_model_timesteps` and `best_mean_reward` (SB3's mean-reward best), `robust_best_model_timesteps` and `robust_best_score` (mean minus one standard deviation). A best checkpoint whose evaluation a resume dropped from the history reads `null`, while its score (`best_mean_reward`, `robust_best_score`) keeps the value the resumed tracker carried over |
 | `warnings_total`, `warnings` | How many advisories this session has raised, and the newest 10 in step order, each `{"timesteps", "source", "message"}`: `posture_drift` (with `rails`), `evaluation_plateau`, `zero_action_baseline` and `hop_watch`. Each also appears as a warning line in the training output. A resumed session counts its own |
 
 ## Compatibility and verification

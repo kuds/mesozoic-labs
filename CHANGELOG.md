@@ -22,11 +22,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   schema, task, plant or hyperparameter digest moves: the 649-line digest
   snapshot and the exact reward captures (`digest_snapshot --exact`) are
   byte-identical, and a short T. rex stance run with and without every
-  addition evaluates and saves exactly the same.
+  addition evaluates the same and saves the same parameters and
+  VecNormalize statistics.
   - `progress.json` in every stage directory
     (`curriculum/progress_report.py`, schema
-    `mesozoic.training-progress/v1`, about 5 KB of strict JSON): the model,
-    stage, run id, run directory and seed; steps against the session's
+    `mesozoic.training-progress/v1`, strict JSON of 4 to 6 KB plus 0.6 to
+    0.9 KB per kept warning, under about 15 KB): the model, stage, run id,
+    run directory and seed; steps against the session's
     budget, wall-clock time, observed steps per second and the projected
     finish (UTC); the latest evaluation (mean and standard deviation of
     reward, mean episode length, full-horizon fraction, falls and each
@@ -56,7 +58,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     before; the Brachiosaurus's ellipsoid soles are left out (their tilt is
     mostly the pitch they are authored at, and recording it would add 45% to
     every Brachiosaurus evaluation for a bar none of its stages declares). On
-    the T. rex the reduction costs no measurable evaluation time.
+    the T. rex the reduction costs no measurable evaluation time. An episode
+    whose roll rails cannot be reduced reads NaN on them alone, logged once;
+    its pad and whole-foot fields stand.
   - Termination causes: `StageAwareEvalCallback` keeps each evaluation
     episode's cause (the env's `termination_reason`, `terminated` when it
     gave none, or `truncated` at the time limit), and `gate_progress.npz`
@@ -68,12 +72,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     that declares a fore-aft centre-of-pressure bar (`max_sole_cop_fore_aft`
     or `max_foot_cop_fore_aft`), one `PostureDrift` warning line in the
     training output, which the notebook shows, when the rail's over-bar
-    fraction is 0.5 or more on 3 evaluations in a row. It names the rail,
+    fraction is 0.5 or more on 2 evaluations in a row. It names the rail,
     the fractions, the steps and each foot's signed centre of pressure,
     repeats at most once per 10 evaluations while the drift lasts, and is
-    listed in `progress.json`; it never stops or changes training. It is
-    modelled on the below-baseline warning, with its knobs
-    (`posture_drift_warn_over_bar_fraction`,
+    listed in `progress.json`; it never stops or changes training. Two in a
+    row, not three, warn earlier: replayed on the r10 screen's own
+    whole-foot series to 6.16M steps, two first warn on seeds 52 and 60 at
+    917,504 steps and never on seed 42 (through 6.03M), while three first
+    warn on seed 52 at 2,359,296 (1.44M steps later) and on seed 60 one
+    evaluation later; over 69 pad-rail series of 3M steps or more from the
+    earlier T. rex stance screens, three warn on every series two warn on,
+    1 to 10 evaluations later, and on no other. An evaluation with no
+    full-horizon episode has no over-bar fraction and ends the streak, so a
+    seed whose episodes all fall goes quiet here; `progress.json`'s falls
+    still show it. It is modelled on the below-baseline warning, with its
+    knobs (`posture_drift_warn_over_bar_fraction`,
     `posture_drift_warn_consecutive_evals`,
     `posture_drift_warn_repeat_evals`) registered as diagnostic keys like
     `baseline_warn_after_budget_fraction`: no committed stage sets them and
@@ -87,9 +100,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     run again with every addition switched off: the same evaluations,
     `gate_progress.npz` values and checkpoint parameters),
     `test_curriculum_posture_watch.py` (trigger, no trigger, rate limit,
-    knobs, wiring, resume), and in `test_gait_pad_telemetry.py` and
-    `test_eval_diagnostics.py` the roll rails against the gate on synthetic
-    traces and every model, and the termination counts and their NaN rules.
+    knobs, wiring, resume, and the r10 screen's three seeds replayed), and
+    in `test_gait_pad_telemetry.py` and `test_eval_diagnostics.py` the roll
+    rails against the gate on synthetic traces and every model, a failed
+    roll-rail reduction, and the termination counts and their NaN rules.
     Both new files run in the SB3 job (`test_curriculum_*.py`).
   - Documented in `docs/TRAINING_ARTIFACT_PRESENTATION.md` (the
     `progress.json` schema, the new `gate_progress.npz` keys and their NaN

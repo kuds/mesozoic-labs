@@ -12,11 +12,23 @@ found by reading the file by hand.
 
 This callback reads that over-bar fraction after each evaluation and, when
 it is at least ``posture_drift_warn_over_bar_fraction`` (0.5) on
-``posture_drift_warn_consecutive_evals`` (3) evaluations in a row, prints
+``posture_drift_warn_consecutive_evals`` (2) evaluations in a row, prints
 one warning line in the training output, which the notebook shows, and
 records it for ``progress.json`` (:mod:`.progress_report`).  It repeats at
 most once per ``posture_drift_warn_repeat_evals`` (10) evaluations while the
-drift lasts.
+drift lasts.  Two in a row, not three, to warn earlier: replayed on the r10
+screen's own whole-foot series (to 6.16M steps), two first warn on seeds 52
+and 60 at 917,504 steps and never warn on seed 42 (through 6.03M), while
+three first warn on seed 52 at 2,359,296 steps, 1.44M steps later, and on
+seed 60 one evaluation later.  Over the 69 pad-rail series of 3M steps or
+more from the earlier T. rex stance screens, every series two warn on, three
+warn on too, 1 to 10 evaluations later, and none warns under two only.
+
+An evaluation with no full-horizon episode has a NaN over-bar fraction
+(nothing measured the posture), and NaN ends the streak of drifting
+evaluations.  A seed whose evaluation episodes all fall therefore goes quiet
+here exactly when it is worst; its falls show in ``progress.json``'s
+``evaluation.falls`` and ``gate_progress.npz``'s ``full_horizon_fraction``.
 
 Deliberately **advisory only**, like the below-baseline warning
 (:mod:`.baseline_watch`): it never stops or changes training.  The rail is
@@ -52,7 +64,7 @@ POSTURE_DRIFT_KEYS = (
 #: The over-bar fraction at or above which an evaluation counts as drifting.
 DEFAULT_OVER_BAR_FRACTION = 0.5
 #: Drifting evaluations in a row that raise the warning.
-DEFAULT_CONSECUTIVE_EVALS = 3
+DEFAULT_CONSECUTIVE_EVALS = 2
 #: Evaluations after a warning before the next one may be printed.
 DEFAULT_REPEAT_EVALS = 10
 
@@ -102,16 +114,19 @@ class PostureDriftWatchCallback(BaseCallback):  # type: ignore[misc]
     """Warn, at most once per *repeat_evals* evaluations, while a fore-aft rail's over-bar fraction stays high.
 
     Args:
-        plateau_callback: The ``StageGatePlateauCallback`` whose
-            ``gate_progress_series`` (each rail's ``<key>_over_bar_fraction``,
-            the per-foot signed CoP) to read.  It runs earlier in the same
-            callback list, so each new evaluation is already recorded when
-            this callback sees the step.
+        plateau_callback: The ``StageGatePlateauCallback`` to read: its
+            ``gate_progress_series`` for each rail's
+            ``<key>_over_bar_fraction``, and its ``gate_progress_row`` for
+            the latest row's per-foot signed CoP, which the warning line
+            names.  It runs earlier in the same callback list, so each new
+            evaluation is already recorded when this callback sees the step.
         rails: ``(gate key, bar)`` per declared fore-aft rail
             (:func:`declared_fore_aft_rails`).
         over_bar_fraction: An evaluation drifts when a rail's over-bar
             fraction is at least this (NaN, an evaluation with no
-            full-horizon episode, never does, and ends a run of drifting ones).
+            full-horizon episode, never does, and ends the streak of
+            drifting ones: a seed whose episodes all fall goes quiet here,
+            and its falls show in ``progress.json``).
         consecutive_evals: Drifting evaluations in a row that warn.
         repeat_evals: Evaluations after a warning before the next may print.
     """

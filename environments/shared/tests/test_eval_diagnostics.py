@@ -1273,6 +1273,33 @@ class TestPadTelemetryCapture:
         (published,) = callback.evaluations_foot_pad
         assert all(len(values) == 2 and all(math.isnan(v) for v in values) for values in published.values())
 
+    def test_a_roll_rail_failure_costs_only_the_roll_rails(self, monkeypatch, caplog):
+        from environments.shared.gait import pad_telemetry
+
+        callback = _pad_capturing_callback(monkeypatch, [_StubRecorder()], quota=3)
+        callback.foot_rail_keys = ("r_sole_tilt_deg", "r_sole_corner_lift_m")
+        callback._rail_layouts = ["rails"]
+
+        def rails(trace, layout, *, settle_steps):
+            if trace != "trace1":
+                raise FloatingPointError("a corner reading went wrong")
+            return {"r_sole_tilt_deg": 1.5, "r_sole_corner_lift_m": 0.002}
+
+        monkeypatch.setattr(pad_telemetry, "episode_rail_telemetry", rails)
+        with caplog.at_level(logging.WARNING, logger="environments.shared.eval_diagnostics"):
+            for _ in range(3):
+                _step(callback, done=True)
+        assert not callback._pad_failed
+        callback._publish_pad_telemetry()
+        (published,) = callback.evaluations_foot_pad
+        # The pad fields (#620) keep every episode; only the episodes whose roll rails failed read NaN there.
+        assert published["r_sole_cop_fore_aft"] == pytest.approx([0.1, 0.2, 0.3])
+        assert published["r_sole_tilt_deg"][0] == 1.5 and published["r_sole_corner_lift_m"][0] == 0.002
+        assert all(
+            math.isnan(value) for value in published["r_sole_tilt_deg"][1:] + published["r_sole_corner_lift_m"][1:]
+        )
+        assert sum("Roll-rail telemetry" in record.message for record in caplog.records) == 1
+
     def test_a_callback_without_a_model_records_no_pad_field(self):
         pytest.importorskip("stable_baselines3")
         callback = _bare_stage_aware_callback(success_applicable=False)

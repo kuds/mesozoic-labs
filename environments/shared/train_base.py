@@ -896,7 +896,7 @@ def _build_core_callbacks(
 
     # Advisory only: one warning line in the training output while the
     # evaluation panel keeps standing over the stage's fore-aft centre-of-
-    # pressure bar (3 evaluations in a row at an over-bar fraction of 0.5 or
+    # pressure bar (2 evaluations in a row at an over-bar fraction of 0.5 or
     # more, at most once per 10).  Reads the plateau callback's
     # gate_progress rows; None unless the stage declares that bar.  See
     # `curriculum.posture_watch`.

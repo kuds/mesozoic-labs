@@ -597,14 +597,7 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
                     values = episode_pad_telemetry(
                         trace, self._foot_setup[env_index][3], settle_steps=self.settle_steps
                     )
-                    rails = self.__dict__.get("_rail_layouts") or []
-                    if env_index < len(rails):
-                        from .gait.pad_telemetry import episode_rail_telemetry
-
-                        values = {
-                            **values,
-                            **episode_rail_telemetry(trace, rails[env_index], settle_steps=self.settle_steps),
-                        }
+                    values = {**values, **self._episode_rails(trace, env_index)}
             except Exception:  # noqa: BLE001 - a diagnostic must not sink a run
                 self._fail_pad_capture()
                 values = {}
@@ -617,6 +610,29 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
             self._pad_quota[env_index] = remaining
             if remaining <= 0:
                 self._detach_pad_recorder(env_index)
+
+    def _episode_rails(self, trace: Any, env_index: int) -> dict[str, float]:
+        """One recorded episode's roll rails (``foot_rail_keys``); ``{}``, so NaN, when they cannot be reduced.
+
+        Guarded apart from the pad reduction: a failure here costs only this
+        episode's roll-rail values, never the evaluation's pad and whole-foot
+        fields (#620, #622), and is logged once.
+        """
+        rails = self.__dict__.get("_rail_layouts") or []
+        if env_index >= len(rails):
+            return {}
+        try:
+            from .gait.pad_telemetry import episode_rail_telemetry
+
+            return episode_rail_telemetry(trace, rails[env_index], settle_steps=self.settle_steps)
+        except Exception:  # noqa: BLE001 - a diagnostic must not sink a run
+            if not self.__dict__.get("_warned_rail_capture", False):
+                self._warned_rail_capture = True
+                logger.warning(
+                    "Roll-rail telemetry: an episode could not be reduced; its sole tilt and corner lift read NaN.",
+                    exc_info=True,
+                )
+            return {}
 
     def _publish_pad_telemetry(self) -> None:
         """Append this evaluation's per-episode pad values (all NaN when its capture failed)."""

@@ -6,7 +6,8 @@ atomically.  Last, a short real T. rex stance training run on CPU writes it,
 and the same run with every addition of this change switched off (the file,
 the posture watch, the roll rails and the termination counts) trains and
 evaluates exactly the same: the same ``evaluations.npz``, the same
-``gate_progress.npz`` values on the keys both write, and the same checkpoints.
+``gate_progress.npz`` values on the keys both write, and the same policy
+parameters in every checkpoint.
 """
 
 from __future__ import annotations
@@ -469,7 +470,7 @@ def _policy_tensors(path: Path) -> dict[str, np.ndarray]:
 
 
 def test_the_additions_change_no_evaluation_and_no_checkpoint(trained):
-    """Report-only: the same run without this change's additions evaluates and saves exactly the same."""
+    """Report-only: the run without this change's additions gets the same evaluations and policy parameters."""
     with_additions, without = trained
     assert not (without / PROGRESS_FILENAME).exists()
     first, second = np.load(with_additions / "evaluations.npz"), np.load(without / "evaluations.npz")
