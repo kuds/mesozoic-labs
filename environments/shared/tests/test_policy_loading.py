@@ -677,6 +677,8 @@ CALL_TIME_READS = {
     "environments/shared/cli.py": {"_PERIODIC_CHECKPOINT_RE": 1},
     # The SB3 notebook RESUME cell's periodic-pair walk (cleanup CU-6), which replaced the cell's own pattern.
     "environments/shared/curriculum/checkpoints.py": {"_PERIODIC_CHECKPOINT_RE": 1},
+    # progress.json's newest periodic checkpoint, read from the names alone (no pair check on every evaluation).
+    "environments/shared/curriculum/progress_report.py": {"_PERIODIC_CHECKPOINT_RE": 1},
 }
 #: The only bindings of a moved name made outside a function body (at import
 #: or class-definition time) outside this module: ``train_base``'s

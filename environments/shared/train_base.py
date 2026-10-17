@@ -689,6 +689,7 @@ def _build_core_callbacks(
     gcs_tb_path: Path | None = None,
     model_id: ModelId | None = None,
     total_timesteps: int | None = None,
+    seed: int | None = None,
 ) -> tuple[list, Any, Any]:
     """Build the standard callback set shared by train() and train_curriculum().
 
@@ -701,7 +702,8 @@ def _build_core_callbacks(
     collapse warm-up sanity log — read it instead of re-reading the TOML
     budget, which a ``--timesteps`` override or a shortened resume budget
     silently mis-timed (review TC9).  ``None`` keeps the TOML fallback for
-    callers that predate the parameter.
+    callers that predate the parameter.  ``seed`` is the run's seed, which
+    ``progress.json`` records (``None``: not recorded).
     """
     from .curriculum import (
         DEFAULT_MAX_CHECKPOINTS,
@@ -712,6 +714,8 @@ def _build_core_callbacks(
         build_baseline_progress_callback,
         build_eval_collapse_early_stop_callback,
         build_hop_watch_callback,
+        build_posture_drift_watch_callback,
+        build_training_progress_callback,
     )
     from .diagnostics import DiagnosticsCallback as _DiagCB
     from .eval_diagnostics import build_stage_evaluation_callbacks
@@ -768,9 +772,10 @@ def _build_core_callbacks(
     callbacks.append(PublishEvalArtifactsCallback(eval_callback, publish_dir=log_path))
     # Risk-adjusted (mean - std) checkpoint alongside SB3's mean-reward
     # best_model; next-stage loading prefers it when present.
-    callbacks.append(
-        RobustBestModelCallback(eval_callback, model_dir=model_dir, verbose=verbose, staging_dir=handoff_staging_dir)
+    robust_callback = RobustBestModelCallback(
+        eval_callback, model_dir=model_dir, verbose=verbose, staging_dir=handoff_staging_dir
     )
+    callbacks.append(robust_callback)
 
     checkpoint_stride = max(1, save_freq // n_envs)
     # On a Drive/GCS FUSE mount, stream the periodic checkpoint pair to fast
@@ -888,6 +893,37 @@ def _build_core_callbacks(
     )
     if hop_watch_cb is not None:
         callbacks.append(hop_watch_cb)
+
+    # Advisory only: one warning line in the training output while the
+    # evaluation panel keeps standing over the stage's fore-aft centre-of-
+    # pressure bar (2 evaluations in a row at an over-bar fraction of 0.5 or
+    # more, at most once per 10).  Reads the plateau callback's
+    # gate_progress rows; None unless the stage declares that bar.  See
+    # `curriculum.posture_watch`.
+    posture_cb = build_posture_drift_watch_callback(plateau_callback, stage_config, verbose=verbose)
+    if posture_cb is not None:
+        callbacks.append(posture_cb)
+
+    # Report-only: progress.json in the stage directory, rewritten atomically
+    # at the start, after every evaluation and at the end, from what the
+    # callbacks above recorded (after all of them, so it reads this step's
+    # evaluation, checkpoint and warnings).  See `curriculum.progress_report`.
+    progress_cb = build_training_progress_callback(
+        eval_callback,
+        plateau_callback,
+        stage_dir=log_path,
+        model_dir=model_dir,
+        stage=stage,
+        model_id=model_id,
+        seed=seed,
+        total_timesteps=total_timesteps,
+        stage_config=stage_config,
+        warning_sources=[plateau_callback, baseline_cb, hop_watch_cb, posture_cb],
+        robust_callback=robust_callback,
+        verbose=verbose,
+    )
+    if progress_cb is not None:
+        callbacks.append(progress_cb)
 
     if use_wandb:
         callbacks.append(WandbCallback())
@@ -1309,6 +1345,7 @@ def _train_stage_body(
         # The cumulative target this session trains to, not the TOML budget:
         # the budget-anchored advisories must follow --timesteps and resumes.
         total_timesteps=target_timesteps,
+        seed=seed,
     )
 
     if resuming:

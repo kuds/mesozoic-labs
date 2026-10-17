@@ -297,6 +297,11 @@ _DIAGNOSTIC_KEYS = frozenset(
         "stance_report_episodes",
         "task_success_panel_episodes",
         "baseline_warn_after_budget_fraction",
+        # The posture-drift advisory (curriculum/posture_watch.py): a warning
+        # line, never a stop; like the baseline warning, in no digest.
+        "posture_drift_warn_over_bar_fraction",
+        "posture_drift_warn_consecutive_evals",
+        "posture_drift_warn_repeat_evals",
         "stance_probe_filter_hz",
         "stance_probe_hold_constant",
         "stance_probe_release_ablation",

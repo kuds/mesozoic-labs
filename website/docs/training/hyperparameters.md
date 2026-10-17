@@ -199,8 +199,9 @@ the original run's checkpoint. See
 1. **Start from the committed config** — Treat it as a reproducible baseline, not a validated optimum
 2. **Compare algorithms under the same protocol** — The published historical runs do not provide a controlled PPO-versus-SAC comparison
 3. **Monitor with W&B** — Use `--wandb` to track per-component rewards across stages
-4. **Measure throughput** — Compare CPU and GPU performance for your algorithm and parallel-environment count
-5. **Increase timesteps for stage 3** — The sparse terminal reward (strike/bite/food) often needs more samples to converge
+4. **Watch a run mid-training** — Every stage directory holds `progress.json`, rewritten after each evaluation: steps against the budget, steps per second and the projected finish, the latest evaluation and how its episodes ended, the posture against the stage's bars (centre of pressure, sole tilt and corner lift, per foot), the checkpoints so far and any warnings. On Colab, open it from Drive at `MyDrive/mesozoic-labs/logs/<species>/<embodiment>/<algorithm>/<run>/<stage_dir>/progress.json` while the notebook trains; the full per-evaluation series are in `gate_progress.npz` beside it. A line starting `PostureDrift` in the training output means that on two evaluations in a row, half or more of the evaluation episodes that reached the horizon stood over the stage's fore-aft centre-of-pressure bar; training continues. An evaluation in which no episode reached the horizon measures no posture and breaks the streak, so a seed whose episodes all fall gets no `PostureDrift` line; its falls show in `progress.json`'s `evaluation.falls`. The schema is in `docs/TRAINING_ARTIFACT_PRESENTATION.md` in the repository
+5. **Measure throughput** — Compare CPU and GPU performance for your algorithm and parallel-environment count
+6. **Increase timesteps for stage 3** — The sparse terminal reward (strike/bite/food) often needs more samples to converge
 
 ## Tuning Playbook
 

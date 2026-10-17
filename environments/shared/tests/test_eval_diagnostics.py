@@ -1273,6 +1273,33 @@ class TestPadTelemetryCapture:
         (published,) = callback.evaluations_foot_pad
         assert all(len(values) == 2 and all(math.isnan(v) for v in values) for values in published.values())
 
+    def test_a_roll_rail_failure_costs_only_the_roll_rails(self, monkeypatch, caplog):
+        from environments.shared.gait import pad_telemetry
+
+        callback = _pad_capturing_callback(monkeypatch, [_StubRecorder()], quota=3)
+        callback.foot_rail_keys = ("r_sole_tilt_deg", "r_sole_corner_lift_m")
+        callback._rail_layouts = ["rails"]
+
+        def rails(trace, layout, *, settle_steps):
+            if trace != "trace1":
+                raise FloatingPointError("a corner reading went wrong")
+            return {"r_sole_tilt_deg": 1.5, "r_sole_corner_lift_m": 0.002}
+
+        monkeypatch.setattr(pad_telemetry, "episode_rail_telemetry", rails)
+        with caplog.at_level(logging.WARNING, logger="environments.shared.eval_diagnostics"):
+            for _ in range(3):
+                _step(callback, done=True)
+        assert not callback._pad_failed
+        callback._publish_pad_telemetry()
+        (published,) = callback.evaluations_foot_pad
+        # The pad fields (#620) keep every episode; only the episodes whose roll rails failed read NaN there.
+        assert published["r_sole_cop_fore_aft"] == pytest.approx([0.1, 0.2, 0.3])
+        assert published["r_sole_tilt_deg"][0] == 1.5 and published["r_sole_corner_lift_m"][0] == 0.002
+        assert all(
+            math.isnan(value) for value in published["r_sole_tilt_deg"][1:] + published["r_sole_corner_lift_m"][1:]
+        )
+        assert sum("Roll-rail telemetry" in record.message for record in caplog.records) == 1
+
     def test_a_callback_without_a_model_records_no_pad_field(self):
         pytest.importorskip("stable_baselines3")
         callback = _bare_stage_aware_callback(success_applicable=False)
@@ -1622,6 +1649,14 @@ REAL_TELEMETRY = {
     ModelId("velociraptor_mongoliensis", "anatomical"): ((), False, (("l", "r"),)),
     ModelId("brachiosaurus_altithorax", "anatomical"): ((), False, (("fl", "fr"), ("rl", "rr"))),
 }
+#: Every manifest model: its box-soled feet (FOOT_SUPPORT), the roll rails' feet -- the pad feet.
+REAL_RAIL_FEET = {model_id: feet for model_id, (feet, _digits, _pairs) in REAL_TELEMETRY.items()}
+
+
+def _rail_keys(model_id) -> tuple[str, ...]:
+    return tuple(
+        f"{foot}_{field}" for foot in REAL_RAIL_FEET[model_id] for field in ("sole_tilt_deg", "sole_corner_lift_m")
+    )
 
 
 def _real_evaluation(model_id, tmp_path, monkeypatch, *, action=None, episodes=2, extra_steps=40, seed=0):
@@ -1699,8 +1734,9 @@ def test_a_real_evaluation_records_each_models_pads_and_leg_dc(model_id, tmp_pat
     from environments.shared.gait.pad_telemetry import FOOT_COP_EPISODE_FIELDS, PAD_EPISODE_FIELDS
     from environments.shared.gait.stance_metrics import episode_stance_metrics
 
-    assert set(REAL_FOOT_FIELDS) == set(REAL_TELEMETRY)
+    assert set(REAL_FOOT_FIELDS) == set(REAL_TELEMETRY) == set(REAL_RAIL_FEET)
     pad_feet, has_digits, pairs = REAL_TELEMETRY[model_id]
+    rail_keys = _rail_keys(model_id)
     whole_foot, digits = REAL_FOOT_FIELDS[model_id]
     callback, data, traces, settle, hook_left = _real_evaluation(model_id, tmp_path, monkeypatch)
     fields = PAD_EPISODE_FIELDS if has_digits else tuple(f for f in PAD_EPISODE_FIELDS if f != "digit_share")
@@ -1716,19 +1752,21 @@ def test_a_real_evaluation_records_each_models_pads_and_leg_dc(model_id, tmp_pat
         f"leg_dc_{left}_minus_{right}_{joint}_deg" for left, right in pairs for joint in ("hip_pitch", "knee", "ankle")
     )
     assert callback.foot_pad_keys == pad_keys
+    assert callback.foot_rail_keys == rail_keys
     assert tuple(pair.key for pair in callback.leg_dc_pairs) == leg_keys
     assert not hook_left
-    assert {key for key in data.files if key.startswith(tuple(f"{foot}_" for foot in pad_feet))} == set(pad_keys)
+    feet = tuple(f"{foot}_" for foot in pad_feet)
+    assert {key for key in data.files if key.startswith(feet)} == set(pad_keys) | set(rail_keys)
     assert {key for key in data.files if key.startswith("leg_dc_")} == set(leg_keys)
     assert all(data[key][0] == 0.0 for key in leg_keys)  # the zero action holds no offset
     (episodes,) = callback.evaluations_foot_pad
-    assert set(episodes) == set(pad_keys) and all(len(values) == 2 for values in episodes.values())
+    assert set(episodes) == set(pad_keys) | set(rail_keys) and all(len(values) == 2 for values in episodes.values())
     assert len(traces) == (2 if pad_feet else 0)  # a pad-less model attaches no recorder at all
     gates = [episode_stance_metrics(trace, settle_steps=settle).max_sole_cop_fore_aft for trace in traces]
     for number, gate in enumerate(gates):
         assert max(episodes[f"{foot}_sole_cop_fore_aft_gate"][number] for foot in pad_feet) == gate
     # A standing statue measures every field its model has.
-    assert all(math.isfinite(data[key][0]) for key in pad_keys)
+    assert all(math.isfinite(data[key][0]) for key in pad_keys + rail_keys)
     bar = load_stage_config(model_id, "stance")["curriculum_kwargs"].get("max_sole_cop_fore_aft")
     panel_keys = {key for key in data.files if key.startswith("max_sole_cop_fore_aft_")}
     # The whole foot's own statistic, on a model that declares a span: report-only, so never a bar fraction.
@@ -1805,3 +1843,223 @@ def test_the_robots_mirrored_hips_read_a_held_symmetric_offset_as_zero(tmp_path,
     )
     assert data["leg_dc_l_minus_r_hip_pitch_deg"][0] == pytest.approx(expected, abs=1e-5)  # a float32 action
     assert data["leg_dc_l_minus_r_knee_deg"][0] == 0.0 and data["leg_dc_l_minus_r_ankle_deg"][0] == 0.0
+
+
+# ── the roll rails and the termination causes ────────────────────────────────
+
+RAIL_KEYS = ("r_sole_tilt_deg", "r_sole_corner_lift_m", "l_sole_tilt_deg", "l_sole_corner_lift_m")
+
+
+class TestTheRollRails:
+    """``max_sole_tilt_deg_*`` and ``max_sole_corner_lift_m_*``: each episode's worse sole, as the gate reads it."""
+
+    @staticmethod
+    def _plateau(tmp_path, *, lengths, pads, rail_keys=RAIL_KEYS, curriculum_kwargs=None):
+        callback = TestPadTelemetryReachesGateProgress._plateau(
+            tmp_path, lengths=lengths, pads=pads, keys=(), pairs=(), curriculum_kwargs=curriculum_kwargs
+        )
+        callback.eval_callback.foot_rail_keys = rail_keys
+        return callback
+
+    def test_per_foot_means_and_the_mean_of_each_episodes_worse_sole_with_a_fraction_per_declared_bar(self, tmp_path):
+        nan = float("nan")
+        pads = {
+            # the worse sole changes between episodes; the fourth episode falls and is left out
+            "r_sole_tilt_deg": [2.5, 0.5, 1.0, 9.0],
+            "l_sole_tilt_deg": [0.5, 2.2, 1.0, 9.0],
+            "r_sole_corner_lift_m": [0.001, 0.005, nan, 0.02],
+            "l_sole_corner_lift_m": [0.002, 0.001, 0.003, 0.02],
+        }
+        callback = self._plateau(
+            tmp_path,
+            lengths=[1000, 1000, 1000, 400],
+            pads=pads,
+            curriculum_kwargs={"max_sole_tilt_deg": 2.0, "max_sole_corner_lift_m": 0.004},
+        )
+        scalars = callback._foot_telemetry_scalars(0)
+        assert scalars["r_sole_tilt_deg"] == pytest.approx(4.0 / 3)
+        assert scalars["r_sole_corner_lift_m"] == pytest.approx(0.003)  # the unmeasured episode drops
+        assert scalars["max_sole_tilt_deg_mean"] == pytest.approx((2.5 + 2.2 + 1.0) / 3)
+        assert scalars["max_sole_tilt_deg_over_bar_fraction"] == pytest.approx(2 / 3)
+        # An episode measured on one foot reads that foot, as the gate's maximum over the finite feet does.
+        assert scalars["max_sole_corner_lift_m_mean"] == pytest.approx((0.002 + 0.005 + 0.003) / 3)
+        assert scalars["max_sole_corner_lift_m_over_bar_fraction"] == pytest.approx(1 / 3)
+
+    def test_no_fraction_without_a_declared_bar_and_no_key_without_a_box_sole(self, tmp_path):
+        callback = self._plateau(
+            tmp_path, lengths=[1000], pads={"fr_sole_tilt_deg": [1.7], "fl_sole_tilt_deg": [1.65]}, rail_keys=()
+        )
+        assert callback._foot_telemetry_scalars(0) == {}
+        callback.eval_callback.foot_rail_keys = ("fr_sole_tilt_deg", "fl_sole_tilt_deg")
+        scalars = callback._foot_telemetry_scalars(0)
+        assert scalars == pytest.approx(
+            {"fr_sole_tilt_deg": 1.7, "fl_sole_tilt_deg": 1.65, "max_sole_tilt_deg_mean": 1.7}
+        )
+
+    def test_the_rails_reach_the_npz_and_tensorboard(self, tmp_path):
+        from environments.shared.curriculum.stance_gate import stance_panel_from_episode_duties
+
+        callback = self._plateau(
+            tmp_path,
+            lengths=[1000],
+            pads={key: [1.0] for key in RAIL_KEYS},
+            curriculum_kwargs={"max_sole_tilt_deg": 2.0},
+        )
+        panel = stance_panel_from_episode_duties(
+            episode_lengths=[1000.0], episode_duties=[0.0], episode_rewards=[1.0], horizon=1000
+        )
+        callback._record_stance_scalars(0, panel)
+        data = np.load(tmp_path / "gate_progress.npz")
+        assert {key for key in data.files if "sole_tilt" in key or "corner_lift" in key} == {
+            *RAIL_KEYS,
+            "max_sole_tilt_deg_mean",
+            "max_sole_tilt_deg_over_bar_fraction",
+            "max_sole_corner_lift_m_mean",
+        }
+        assert data["max_sole_tilt_deg_over_bar_fraction"].tolist() == [0.0]
+        recorded = {call.args[0] for call in callback.logger.record.call_args_list}
+        assert {"diagnostics/eval_max_sole_tilt_deg_mean", "diagnostics/eval_r_sole_corner_lift_m"} <= recorded
+
+
+class TestTerminationCauses:
+    """Each evaluation episode's cause, captured from its last info and counted per evaluation."""
+
+    @pytest.mark.parametrize(
+        ("info", "cause"),
+        [
+            ({"TimeLimit.truncated": True}, "truncated"),
+            ({"TimeLimit.truncated": False, "termination_reason": "nosedive"}, "nosedive"),
+            ({"termination_reason": "head_contact"}, "head_contact"),
+            ({"TimeLimit.truncated": False}, "terminated"),
+            ({"TimeLimit.truncated": False, "termination_reason": ""}, "terminated"),
+        ],
+    )
+    def test_the_cause_of_an_episode(self, info, cause):
+        assert StageAwareEvalCallback.termination_cause(info) == cause
+
+    def test_each_finished_episode_appends_its_cause_and_the_evaluation_publishes_them(self):
+        pytest.importorskip("stable_baselines3")
+        callback = _bare_stage_aware_callback(success_applicable=False)
+        callback.eval_freq = 10
+        callback.n_calls = 10
+        callback.verbose = 0
+
+        def evaluate():
+            for index, (done, info) in enumerate(
+                [
+                    (False, {}),
+                    (True, {"TimeLimit.truncated": False, "termination_reason": "nosedive"}),
+                    (True, {"TimeLimit.truncated": True}),
+                ]
+            ):
+                callback._log_success_callback({"i": 0, "done": done, "info": info, "actions": np.zeros((1, 2))}, {})
+            return True
+
+        with patch.object(eval_diagnostics_module._EvalCallback, "_on_step", side_effect=evaluate):
+            assert callback._on_step() is True
+        assert callback.evaluations_termination_causes == [["nosedive", "truncated"]]
+
+    def test_seeded_prior_evaluations_carry_no_cause(self):
+        callback = _bare_stage_aware_callback(success_applicable=False)
+        callback.seed_prior_history(2)
+        assert callback.evaluations_termination_causes == [[], []]
+
+    @staticmethod
+    def _record(callback, eval_callback, causes, *, timesteps):
+        from environments.shared.curriculum.stance_gate import stance_panel_from_episode_duties
+
+        index = len(eval_callback.evaluations_length)
+        eval_callback.evaluations_length.append([1000.0] * len(causes))
+        eval_callback.evaluations_termination_causes.append(causes)
+        callback.num_timesteps = timesteps
+        panel = stance_panel_from_episode_duties(
+            episode_lengths=[1000.0] * len(causes),
+            episode_duties=[0.0] * len(causes),
+            episode_rewards=[1.0] * len(causes),
+            horizon=1000,
+        )
+        callback._record_stance_scalars(index, panel)
+
+    def test_counts_per_evaluation_with_a_later_cause_reading_zero_on_the_earlier_rows(self, tmp_path):
+        callback, eval_callback = _plateau_callback({"min_avg_reward": 0.0}, stage=1)
+        callback._gate_progress_dir = tmp_path
+        eval_callback.evaluations_termination_causes = []
+        self._record(callback, eval_callback, ["truncated"] * 3, timesteps=100)
+        self._record(callback, eval_callback, ["truncated", "nosedive", "nosedive"], timesteps=200)
+        self._record(callback, eval_callback, ["head_contact", "truncated", "truncated"], timesteps=300)
+        data = np.load(tmp_path / "gate_progress.npz")
+        assert data["termination_truncated"].tolist() == [3.0, 1.0, 2.0]
+        assert data["termination_nosedive"].tolist() == [0.0, 2.0, 0.0]
+        assert data["termination_head_contact"].tolist() == [0.0, 0.0, 1.0]
+        recorded = [call.args for call in callback.logger.record.call_args_list if call.args[0].startswith("termin")]
+        assert ("terminations/eval_head_contact", 1.0) in recorded and ("terminations/eval_nosedive", 0.0) in recorded
+
+    def test_rows_seeded_from_a_file_without_causes_read_nan(self, tmp_path):
+        callback, eval_callback = _plateau_callback({"min_avg_reward": 0.0}, stage=1)
+        callback._gate_progress_dir = tmp_path
+        np.savez(tmp_path / "prior.npz", timesteps=np.array([50, 100]), mean_reward=np.array([1.0, 2.0]))
+        assert callback.seed_prior_gate_progress(tmp_path / "prior.npz") == 2
+        eval_callback.evaluations_length.extend([[], []])
+        eval_callback.evaluations_termination_causes = [[], []]
+        self._record(callback, eval_callback, ["nosedive", "truncated"], timesteps=150)
+        data = np.load(tmp_path / "gate_progress.npz")
+        assert data["timesteps"].tolist() == [50, 100, 150]
+        for key, last in (("termination_nosedive", 1.0), ("termination_truncated", 1.0)):
+            values = data[key].tolist()
+            assert math.isnan(values[0]) and math.isnan(values[1]) and values[2] == last
+
+    def test_an_evaluation_without_captured_causes_reads_nan_for_every_known_cause(self, tmp_path):
+        callback, eval_callback = _plateau_callback({"min_avg_reward": 0.0}, stage=1)
+        callback._gate_progress_dir = tmp_path
+        eval_callback.evaluations_termination_causes = []
+        self._record(callback, eval_callback, ["truncated"], timesteps=100)
+        self._record(callback, eval_callback, [], timesteps=200)
+        data = np.load(tmp_path / "gate_progress.npz")
+        assert data["termination_truncated"][0] == 1.0 and math.isnan(data["termination_truncated"][1])
+
+
+def test_the_plateau_warning_is_recorded_for_the_progress_report(caplog):
+    callback, eval_callback = _plateau_callback({"min_avg_episode_length": 1000.0}, stage=1, plateau_window=3)
+    with caplog.at_level(logging.WARNING, logger="environments.shared.eval_diagnostics"):
+        for _ in range(3):
+            _add_evaluation(callback, eval_callback, reward=10.0, length=400.0)
+            callback._on_step()
+    (warning,) = callback.progress_warnings
+    assert warning["source"] == "evaluation_plateau" and warning["timesteps"] == callback.num_timesteps
+    assert warning["message"] in caplog.messages
+
+
+@pytest.mark.parametrize("model_id", sorted(REAL_RAIL_FEET), ids=str)
+def test_a_real_evaluation_records_each_models_roll_rails_and_termination_causes(model_id, tmp_path, monkeypatch):
+    """Every model: each episode's worse sole is the gate's own ``max_sole_tilt_deg`` / ``max_sole_corner_lift_m``,
+    the npz holds their means (and the over-bar fractions where the stage declares the bars), and the panel's
+    episodes, all cut by the time limit here, count as truncated in the npz and TensorBoard."""
+    from environments.shared.config import load_stage_config
+    from environments.shared.gait.stance_metrics import episode_stance_metrics
+
+    callback, data, traces, settle, _hook = _real_evaluation(model_id, tmp_path, monkeypatch)
+    assert callback.evaluations_termination_causes == [["truncated", "truncated"]]
+    assert data["termination_truncated"].tolist() == [2.0]
+    assert [key for key in data.files if key.startswith("termination_")] == ["termination_truncated"]
+    recorded = [call.args for call in callback.logger.record.call_args_list]
+    assert ("terminations/eval_truncated", 2.0) in recorded
+    rail_keys = _rail_keys(model_id)
+    curriculum = load_stage_config(model_id, "stance")["curriculum_kwargs"]
+    rail_panel = {key for key in data.files if key.startswith(("max_sole_tilt_deg_", "max_sole_corner_lift_m_"))}
+    if not rail_keys:
+        assert rail_panel == set() and traces == []
+        return
+    (episodes,) = callback.evaluations_foot_pad
+    for field, metric in (("sole_tilt_deg", "max_sole_tilt_deg"), ("sole_corner_lift_m", "max_sole_corner_lift_m")):
+        feet = [key for key in rail_keys if key.endswith(f"_{field}")]
+        if not feet:
+            assert not any(key.startswith(f"{metric}_") for key in rail_panel)
+            continue
+        gates = [getattr(episode_stance_metrics(trace, settle_steps=settle), metric) for trace in traces]
+        for number, gate in enumerate(gates):
+            assert max(episodes[key][number] for key in feet) == gate
+        assert data[f"{metric}_mean"][0] == pytest.approx(np.mean(gates))
+        bar = curriculum.get(metric)
+        assert (f"{metric}_over_bar_fraction" in data.files) == (bar is not None)
+        if bar is not None:
+            assert data[f"{metric}_over_bar_fraction"][0] == np.mean([gate > bar for gate in gates])

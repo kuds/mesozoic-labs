@@ -5,7 +5,9 @@ on a box pad and three digits, edited one defect at a time.  Then every
 manifest model: which feet are pad feet, and on a short zero-action rollout
 through the floor-truth recorder, that the per-foot gate statistic's max IS
 the gate's ``max_sole_cop_fore_aft``, bit for bit, and that a model with no
-box sole gets no pad field at all.
+box sole gets no pad field at all.  Last, the sole's two roll rails (the tilt
+and the corner lift), whose per-foot maxima are the gate's, bit for bit, on
+synthetic traces and on every model.
 """
 
 from __future__ import annotations
@@ -24,9 +26,13 @@ from environments.shared.gait.pad_telemetry import (
     FOOT_COP_STEP_FIELDS,
     PAD_EPISODE_FIELDS,
     PAD_STEP_FIELDS,
+    RAIL_EPISODE_FIELDS,
     PadFoot,
     PadLayout,
+    RailFoot,
+    RailLayout,
     episode_pad_telemetry,
+    episode_rail_telemetry,
     pad_step_columns,
 )
 from environments.shared.gait.recorder import EpisodeTrace
@@ -523,3 +529,113 @@ def test_every_model_reads_its_pads_as_the_gate_does(model_id):
         else:
             assert f"{foot.label}_digit_share" not in result
             assert not any(key.startswith(f"{foot.label}_") and "load_" in key for key in result)
+
+
+# ── the sole's roll rails ────────────────────────────────────────────────────
+
+RAILS = RailLayout(feet=(RailFoot(index=0, label="r"), RailFoot(index=1, label="l")))
+
+
+def _rails(trace: EpisodeTrace, layout: RailLayout = RAILS, settle: int = SETTLE) -> dict[str, float]:
+    return episode_rail_telemetry(trace, layout, settle_steps=settle)
+
+
+def _with_sole(trace: EpisodeTrace, foot: int, *, tilt: Any = None, lift: Any = None) -> EpisodeTrace:
+    tilts, lifts = trace.sole_tilt_deg.copy(), trace.sole_corner_lift.copy()
+    if tilt is not None:
+        tilts[:, foot] = tilt
+    if lift is not None:
+        lifts[:, foot] = lift
+    return replace(trace, sole_tilt_deg=tilts, sole_corner_lift=lifts)
+
+
+def test_the_rail_keys_are_foot_major():
+    assert RAILS.episode_keys() == (
+        "r_sole_tilt_deg",
+        "r_sole_corner_lift_m",
+        "l_sole_tilt_deg",
+        "l_sole_corner_lift_m",
+    )
+    assert [metric for _field, metric in RAIL_EPISODE_FIELDS] == ["max_sole_tilt_deg", "max_sole_corner_lift_m"]
+    assert RailLayout().episode_keys() == ()
+
+
+def test_each_foots_window_mean_tilt_and_corner_lift_and_only_the_window_counts():
+    settled = np.where(np.arange(STEPS) < SETTLE, 9.0, 1.5)
+    trace = _with_sole(_trace(), 0, tilt=settled, lift=np.where(np.arange(STEPS) < SETTLE, 0.02, 0.003))
+    trace = _with_sole(trace, 1, tilt=0.4, lift=0.001)
+    result = _rails(trace)
+    assert result == pytest.approx(
+        {"r_sole_tilt_deg": 1.5, "r_sole_corner_lift_m": 0.003, "l_sole_tilt_deg": 0.4, "l_sole_corner_lift_m": 0.001}
+    )
+    metrics = episode_stance_metrics(trace, settle_steps=SETTLE)
+    assert max(result["r_sole_tilt_deg"], result["l_sole_tilt_deg"]) == metrics.max_sole_tilt_deg
+    assert max(result["r_sole_corner_lift_m"], result["l_sole_corner_lift_m"]) == metrics.max_sole_corner_lift_m
+
+
+@pytest.mark.parametrize("seed", range(5))
+def test_the_max_of_the_per_foot_rails_is_the_gates_value_bit_for_bit(seed):
+    rng = np.random.default_rng(seed)
+    lift = rng.uniform(0.0, 0.01, size=(STEPS, 2))
+    lift[rng.random((STEPS, 2)) < 0.05] = np.nan  # the finite-step mean the gate takes
+    trace = replace(_trace(), sole_tilt_deg=rng.uniform(0.0, 4.0, size=(STEPS, 2)), sole_corner_lift=lift)
+    result = _rails(trace)
+    metrics = episode_stance_metrics(trace, settle_steps=SETTLE)
+    assert max(result["r_sole_tilt_deg"], result["l_sole_tilt_deg"]) == metrics.max_sole_tilt_deg
+    assert max(result["r_sole_corner_lift_m"], result["l_sole_corner_lift_m"]) == metrics.max_sole_corner_lift_m
+
+
+def test_an_unmeasured_corner_lift_reads_nan_and_the_gate_skips_it():
+    trace = _with_sole(_with_sole(_trace(), 1, lift=np.nan), 0, lift=0.002)
+    result = _rails(trace)
+    assert math.isnan(result["l_sole_corner_lift_m"]) and result["r_sole_corner_lift_m"] == pytest.approx(0.002)
+    assert episode_stance_metrics(trace, settle_steps=SETTLE).max_sole_corner_lift_m == result["r_sole_corner_lift_m"]
+
+
+def test_an_empty_window_or_layout_reads_nan_or_nothing():
+    assert all(math.isnan(value) for value in _rails(_trace(), settle=STEPS).values())
+    assert _rails(_trace(), RailLayout()) == {}
+    with pytest.raises(ValueError, match="settle_steps"):
+        _rails(_trace(), settle=-1)
+
+
+def test_the_rail_feet_are_the_pad_feet():
+    """The roll rails follow the pad fields' rule, so they add no foot, and no recorder, to any model."""
+    assert set(RAIL_FEET) == set(PAD_FEET)
+    assert all(RAIL_FEET[model_id] == tuple(PAD_FEET[model_id]) for model_id in PAD_FEET)
+
+
+#: Each model's box-soled feet, the roll rails' feet (``FOOT_SUPPORT``).
+RAIL_FEET = {
+    ModelId("tyrannosaurus_rex", "anatomical"): ("r", "l"),
+    ModelId("compsognathus_longipes", "anatomical"): ("r", "l"),
+    ModelId("compsognathus_longipes", "robot"): ("r", "l"),
+    ModelId("dibothrosuchus_elaphros", "anatomical"): ("fr", "fl", "rr", "rl"),
+    ModelId("velociraptor_mongoliensis", "anatomical"): (),
+    ModelId("brachiosaurus_altithorax", "anatomical"): (),
+}
+
+
+@pytest.mark.parametrize("model_id", sorted(RAIL_FEET), ids=str)
+def test_every_model_reads_its_roll_rails_as_the_gate_does(model_id):
+    """The layout is the box soles, and each per-foot rail's max is the gate's own value, bit for bit."""
+    trace, morphology = _rollout(model_id, steps=160)
+    layout = RailLayout.from_morphology(morphology)
+    assert tuple(foot.label for foot in layout.feet) == RAIL_FEET[model_id]
+    result = episode_rail_telemetry(trace, layout, settle_steps=100)
+    metrics = episode_stance_metrics(trace, settle_steps=100)
+    assert tuple(result) == layout.episode_keys()
+    if not layout.feet:
+        assert result == {}
+        # The brachiosaurus's ellipsoids have a tilt the gate reads (their authored pitch) and no corners.
+        assert math.isfinite(metrics.max_sole_tilt_deg) == (model_id.species == "brachiosaurus_altithorax")
+        assert math.isnan(metrics.max_sole_corner_lift_m)
+        return
+    assert all(math.isfinite(value) for value in result.values())
+    tilts = [result[f"{foot.label}_sole_tilt_deg"] for foot in layout.feet]
+    lifts = [result[f"{foot.label}_sole_corner_lift_m"] for foot in layout.feet]
+    assert max(tilts) == metrics.max_sole_tilt_deg
+    assert max(lifts) == metrics.max_sole_corner_lift_m
+    # The report's per-foot means, reduced the same way but not by the same array expression.
+    assert tilts == pytest.approx([metrics.mean_sole_tilt_deg[foot.index] for foot in layout.feet], rel=1e-12)
+    assert lifts == pytest.approx([metrics.mean_sole_corner_lift_m[foot.index] for foot in layout.feet], rel=1e-12)

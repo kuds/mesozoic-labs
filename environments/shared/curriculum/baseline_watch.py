@@ -157,18 +157,24 @@ class BaselineProgressCallback(BaseCallback):  # type: ignore[misc]
             and self.num_timesteps >= self.warn_after_budget_fraction * self.total_timesteps
         ):
             self._warned_below_baseline = True
-            logger.warning(
+            message = (
                 "BaselineProgress: %d of %d steps (%.0f%% of budget) and the policy has never "
                 "beaten the zero-action baseline — latest eval %.1f vs %.1f (%.1f%%). On a stage "
                 "whose reward optimum IS the do-nothing policy this means the run is in a "
                 "worse-than-trivial local optimum, not merely early. Run 20260804_143747 spent "
-                "its whole 10M budget in exactly this state and failed its gate (issue #486).",
+                "its whole 10M budget in exactly this state and failed its gate (issue #486)."
+            ) % (
                 self.num_timesteps,
                 self.total_timesteps,
                 100.0 * self.num_timesteps / self.total_timesteps,
                 latest,
                 self.baseline_reward,
                 100.0 * share,
+            )
+            logger.warning("%s", message)
+            # The training progress report (progress.json) lists the advisories a run has raised.
+            self.__dict__.setdefault("progress_warnings", []).append(
+                {"timesteps": int(self.num_timesteps), "source": "zero_action_baseline", "message": message}
             )
         return True
 

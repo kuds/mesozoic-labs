@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 import math
+from collections import Counter
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -30,6 +31,10 @@ logger = logging.getLogger(__name__)
 #: with both feet planted, move the OTHER pad's centre of pressure (0.19-0.23
 #: pad half-lengths per degree on the T. rex anatomical stance).
 SAGITTAL_LEG_JOINTS: tuple[str, ...] = ("hip_pitch", "knee", "ankle")
+
+#: The prefix of ``gate_progress.npz``'s per-evaluation termination-cause counts: ``termination_<cause>``
+#: (``termination_truncated`` for the episodes that reached their time limit).
+TERMINATION_KEY_PREFIX = "termination_"
 
 #: A sagittal joint's axis must lie within about 45 degrees of the animal's
 #: lateral axis at the home pose (``|axis . lateral| >= 0.7``) for its pair to
@@ -254,6 +259,19 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
     its per-actuator action DC is mapped through the env's action map into
     each pair's left-minus-right commanded joint offset, in degrees about
     the leftward axis (:func:`leg_dc_degrees`, :attr:`evaluations_leg_dc`).
+    The same recorded episodes give each box sole's **roll rails**
+    (:func:`~environments.shared.gait.pad_telemetry.episode_rail_telemetry`:
+    its window-mean tilt and corner lift, whose maxima over the feet are the
+    gate's ``max_sole_tilt_deg`` and ``max_sole_corner_lift_m``), kept with
+    the pad values (:attr:`foot_rail_keys`): the pad feet, so no model
+    records them without a recorder it already attaches.
+
+    Every evaluation episode's **termination cause** is kept too
+    (:attr:`evaluations_termination_causes`): the env's
+    ``termination_reason`` for an episode it terminated (``"terminated"``
+    when it gave none), and ``"truncated"`` for one that reached its time
+    limit, read from the episode's last ``info`` as the stance report reads
+    it.
     """
 
     #: Declared at class scope so an instance built without ``__init__`` (the
@@ -267,6 +285,11 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
     #: keys.
     model_id: "ModelId | None" = None
     foot_pad_keys: tuple[str, ...] = ()
+    #: The roll-rail keys of the model's box-soled feet
+    #: (:meth:`~environments.shared.gait.pad_telemetry.RailLayout.episode_keys`),
+    #: resolved with the pad keys; their per-episode values are kept in the
+    #: same :attr:`evaluations_foot_pad` records.
+    foot_rail_keys: tuple[str, ...] = ()
     leg_dc_pairs: tuple[SagittalLegPair, ...] = ()
     _foot_resolved = False
     _warned_foot_telemetry = False
@@ -291,9 +314,13 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
         self.settle_steps = int(settle_steps)
         self.model_id = model_id
         # Per evaluation, the pad telemetry's per-episode values by key
-        # (`foot_pad_keys`), positionally aligned with `evaluations_length`
-        # like the duties; `{}` for a model with no box sole.
+        # (`foot_pad_keys`, then the roll rails' `foot_rail_keys`),
+        # positionally aligned with `evaluations_length` like the duties; `{}`
+        # for a model with no box sole.
         self.evaluations_foot_pad: list[dict[str, list[float]]] = []
+        # Per evaluation, each episode's termination cause, aligned with `evaluations_length`.
+        self.evaluations_termination_causes: list[list[str]] = []
+        self._current_eval_termination_causes: list[str] = []
         # Per evaluation, each sagittal pair's left-minus-right commanded joint offset in degrees
         # (`leg_dc_pairs`, `leg_dc_degrees`); `{}` for a model with no pair.
         self.evaluations_leg_dc: list[dict[str, float]] = []
@@ -302,6 +329,8 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
         # during an evaluation the attached recorders and the episodes each
         # sub-env still owes SB3's evaluate_policy.
         self._foot_setup: list[tuple[Any, Any, Any, Any]] = []
+        # Per sub-env, its RailLayout (the box-soled feet), beside `_foot_setup`.
+        self._rail_layouts: list[Any] = []
         self._pad_recorders: dict[int, Any] = {}
         self._pad_quota: dict[int, int] = {}
         self._pad_failed = False
@@ -381,6 +410,7 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
         self._episode_measured.clear()
         self._current_eval_unsupported_duties = []
         self._current_eval_bilateral_duties = []
+        self._current_eval_termination_causes = []
         self._action_sum = None
         self._action_sq_sum = None
         self._action_delta_sum = 0.0
@@ -438,13 +468,13 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
         if not self.__dict__.get("_warned_foot_telemetry", False):
             self._warned_foot_telemetry = True
             logger.warning(
-                "Pad telemetry: %s; this run's gate_progress.npz carries no pad or leg DC fields.",
+                "Pad telemetry: %s; this run's gate_progress.npz carries no pad, roll-rail or leg DC fields.",
                 message,
                 exc_info=exc_info,
             )
 
     def _resolve_foot_telemetry(self) -> None:
-        """Describe the evaluation env's model, once: its pad layout and its sagittal leg DC pairs.
+        """Describe the evaluation env's model, once: its pad and roll-rail layouts and its sagittal leg DC pairs.
 
         Nothing is resolved without a ``model_id``.  With one, an env that
         cannot be described -- a SubprocVecEnv, an env with no substep hook,
@@ -465,42 +495,54 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
             return
         try:
             from .gait.morphology import Morphology
-            from .gait.pad_telemetry import PadLayout
+            from .gait.pad_telemetry import PadLayout, RailLayout
 
             setup = []
+            rails = []
             for env in envs:
                 unwrapped = getattr(env, "unwrapped", env)
                 morphology = Morphology.from_env(unwrapped, model_id)
                 setup.append((unwrapped, unwrapped.model, morphology, PadLayout.from_morphology(morphology)))
+                rails.append(RailLayout.from_morphology(morphology))
             pairs = sagittal_leg_dc_pairs(setup[0][0], setup[0][2])
         except Exception:  # noqa: BLE001 - a diagnostic must not sink a run
             self._warn_foot_telemetry(f"cannot describe the {model_id} evaluation env", exc_info=True)
             return
         self._foot_setup = setup
+        self._rail_layouts = rails
         self.foot_pad_keys = setup[0][3].episode_keys()
+        self.foot_rail_keys = rails[0].episode_keys()
         self.leg_dc_pairs = pairs
+
+    def _foot_keys(self) -> tuple[str, ...]:
+        """Every per-episode foot key: the pad keys, then the roll-rail keys."""
+        return tuple(self.foot_pad_keys or ()) + tuple(self.foot_rail_keys or ())
 
     def _begin_pad_capture(self) -> None:
         """Attach a recorder to each evaluation sub-env, for this evaluation only (a no-op without pad feet)."""
         self._resolve_foot_telemetry()
-        self._current_eval_foot_pad = {key: [] for key in self.foot_pad_keys}
+        keys = self._foot_keys()
+        self._current_eval_foot_pad = {key: [] for key in keys}
         self._pad_recorders = {}
         self._pad_quota = {}
         self._pad_failed = False
         model_id = self.model_id
-        if not self.foot_pad_keys or model_id is None:
+        if not keys or model_id is None:
             return
         try:
             from .gait.morphology import Morphology
-            from .gait.pad_telemetry import PadLayout
+            from .gait.pad_telemetry import PadLayout, RailLayout
             from .gait.recorder import SubstepContactRecorder
 
             setup = self._foot_setup
+            rails = self.__dict__.setdefault("_rail_layouts", [])
             for index, (env, model, morphology, layout) in enumerate(setup):
                 if env.model is not model:
                     # An env that swapped its model (a terrain rebuild) gets a fresh description.
                     morphology = Morphology.from_env(env, model_id)
                     setup[index] = (env, env.model, morphology, PadLayout.from_morphology(morphology))
+                    if index < len(rails):
+                        rails[index] = RailLayout.from_morphology(morphology)
                 # SB3's evaluate_policy splits the panel this way and stops calling back for a
                 # sub-env that has finished its share, so its recorder is detached right then.
                 self._pad_quota[index] = (int(self.n_eval_episodes) + index) // len(setup)
@@ -533,8 +575,8 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
             self._detach_pad_recorder(env_index)
 
     def _capture_pad(self, locals_: dict[str, Any], env_index: int, done: bool) -> None:
-        """Close this step on the sub-env's recorder; at an episode end, reduce it into one value per pad key."""
-        keys = self.foot_pad_keys
+        """Close this step on the sub-env's recorder; at an episode end, reduce it into one value per foot key."""
+        keys = self._foot_keys()
         if not keys:
             return
         values: dict[str, float] = {}
@@ -555,6 +597,7 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
                     values = episode_pad_telemetry(
                         trace, self._foot_setup[env_index][3], settle_steps=self.settle_steps
                     )
+                    values = {**values, **self._episode_rails(trace, env_index)}
             except Exception:  # noqa: BLE001 - a diagnostic must not sink a run
                 self._fail_pad_capture()
                 values = {}
@@ -567,6 +610,29 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
             self._pad_quota[env_index] = remaining
             if remaining <= 0:
                 self._detach_pad_recorder(env_index)
+
+    def _episode_rails(self, trace: Any, env_index: int) -> dict[str, float]:
+        """One recorded episode's roll rails (``foot_rail_keys``); ``{}``, so NaN, when they cannot be reduced.
+
+        Guarded apart from the pad reduction: a failure here costs only this
+        episode's roll-rail values, never the evaluation's pad and whole-foot
+        fields (#620, #622), and is logged once.
+        """
+        rails = self.__dict__.get("_rail_layouts") or []
+        if env_index >= len(rails):
+            return {}
+        try:
+            from .gait.pad_telemetry import episode_rail_telemetry
+
+            return episode_rail_telemetry(trace, rails[env_index], settle_steps=self.settle_steps)
+        except Exception:  # noqa: BLE001 - a diagnostic must not sink a run
+            if not self.__dict__.get("_warned_rail_capture", False):
+                self._warned_rail_capture = True
+                logger.warning(
+                    "Roll-rail telemetry: an episode could not be reduced; its sole tilt and corner lift read NaN.",
+                    exc_info=True,
+                )
+            return {}
 
     def _publish_pad_telemetry(self) -> None:
         """Append this evaluation's per-episode pad values (all NaN when its capture failed)."""
@@ -597,6 +663,19 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
                         "Leg DC: the action DC could not be mapped to joint targets; it reads NaN.", exc_info=True
                     )
         self.__dict__.setdefault("evaluations_leg_dc", []).append(values)
+
+    @staticmethod
+    def termination_cause(info: Mapping[str, Any]) -> str:
+        """The cause of the episode whose last ``info`` this is: its ``termination_reason``, or how it ended.
+
+        A VecEnv marks a time-limit end ``TimeLimit.truncated``; a terminated
+        episode carries the env's ``termination_reason`` (``"terminated"``
+        when the env gave none), the stance report's reading.
+        """
+        if info.get("TimeLimit.truncated"):
+            return "truncated"
+        reason = info.get("termination_reason")
+        return str(reason) if reason else "terminated"
 
     def _log_success_callback(self, locals_: dict[str, Any], globals_: dict[str, Any]) -> None:
         """Capture evaluation velocity and duty, conditionally delegate success."""
@@ -651,6 +730,7 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
             # panel builder drops those rather than scoring them as zero.
             self._current_eval_unsupported_duties.append(unsupported / measured if measured else float("nan"))
             self._current_eval_bilateral_duties.append(bilateral / measured if measured else float("nan"))
+            self.__dict__.setdefault("_current_eval_termination_causes", []).append(self.termination_cause(info))
             self._reward_term_episodes += 1
             self._prev_action.pop(env_index, None)
             self._prev_prev_action.pop(env_index, None)
@@ -690,6 +770,7 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
             self.evaluations_reward_terms.append({})
             self.__dict__.setdefault("evaluations_foot_pad", []).append({})
             self.__dict__.setdefault("evaluations_leg_dc", []).append({})
+            self.__dict__.setdefault("evaluations_termination_causes", []).append([])
 
     def _publish_action_statistics(self) -> None:
         """Reduce one evaluation's accumulators into the published series.
@@ -746,6 +827,9 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
             self.evaluations_forward_velocities.append(list(self._current_eval_forward_velocities))
             self.evaluations_unsupported_duties.append(list(self._current_eval_unsupported_duties))
             self.evaluations_bilateral_duties.append(list(self._current_eval_bilateral_duties))
+            self.__dict__.setdefault("evaluations_termination_causes", []).append(
+                list(self.__dict__.get("_current_eval_termination_causes", []))
+            )
             self._publish_action_statistics()
             self._publish_pad_telemetry()
             self._publish_leg_dc()
@@ -1020,25 +1104,38 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
           ``max_foot_cop_fore_aft_over_bar_fraction``, is written only where
           the stage declares that bar, and no stage does: the key is
           report-only.
+        * Each roll-rail key (``foot_rail_keys``: ``<label>_sole_tilt_deg``
+          and ``<label>_sole_corner_lift_m`` per box-soled foot) is likewise
+          the full-horizon mean of its per-episode values, and
+          ``max_sole_tilt_deg_mean`` and ``max_sole_corner_lift_m_mean`` are
+          the means of each episode's own maximum over the feet, the numbers
+          the gate's two roll rails read.  Their over-bar fractions,
+          ``max_sole_tilt_deg_over_bar_fraction`` and
+          ``max_sole_corner_lift_m_over_bar_fraction``, are written where the
+          stage declares the bar (the T. rex and the anatomical
+          Compsognathus).
         * Each ``leg_dc_<left>_minus_<right>_<joint>_deg`` is the capture
           callback's :attr:`~StageAwareEvalCallback.evaluations_leg_dc`
           (:func:`leg_dc_degrees`).
         """
-        from .gait.pad_telemetry import FOOT_GATE_COP_FIELD, GATE_COP_FIELD
+        from .gait.pad_telemetry import FOOT_GATE_COP_FIELD, GATE_COP_FIELD, RAIL_EPISODE_FIELDS
 
         source = getattr(self, "eval_callback", None)
         nan = float("nan")
         out: dict[str, float] = {}
         pads = self._eval_series("evaluations_foot_pad", index) or {}
         lengths = self._series("evaluations_length", index)
-        pad_keys = tuple(getattr(source, "foot_pad_keys", ()) or ())
+        pad_keys = tuple(getattr(source, "foot_pad_keys", ()) or ()) + tuple(
+            getattr(source, "foot_rail_keys", ()) or ()
+        )
         for key in pad_keys:
             value = self._full_horizon_mean_of(pads.get(key), lengths)
             out[key] = nan if value is None else value
-        # Each rail's own per-episode number: the pad CoP's, and the whole foot's.
+        # Each rail's own per-episode number: the pad CoP's, the whole foot's, and the two roll rails'.
         for field, metric in (
             (GATE_COP_FIELD, "max_sole_cop_fore_aft"),
             (FOOT_GATE_COP_FIELD, "max_foot_cop_fore_aft"),
+            *RAIL_EPISODE_FIELDS,
         ):
             gate_keys = tuple(key for key in pad_keys if key.endswith(f"_{field}"))
             if not gate_keys:
@@ -1237,6 +1334,11 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
         for key, value in foot_telemetry.items():
             if math.isfinite(value):
                 self.logger.record(f"diagnostics/eval_{key}", value)
+        # Report-only: how the panel's episodes ended (the env's termination reasons, and the time limit).
+        terminations = self._termination_scalars(index)
+        for key, value in terminations.items():
+            if math.isfinite(value):
+                self.logger.record(f"terminations/eval_{key[len(TERMINATION_KEY_PREFIX) :]}", value)
         self._record_gate_progress(
             index,
             full_horizon_fraction=panel.full_horizon_fraction,
@@ -1252,6 +1354,7 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
             **action_stats,
             **self._reward_term_scalars(index),
             **foot_telemetry,
+            **terminations,
         )
         if not panel.n_duty_episodes:
             return
@@ -1308,6 +1411,56 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
             return {}
         return {f"term_{key[len('reward_') :]}": float(value) for key, value in terms.items()}
 
+    def _bind_gate_progress(self) -> None:
+        """Bind instance-local ``gate_progress.npz`` containers, so nothing appends to the class-scope defaults."""
+        if "_gate_progress_timesteps" not in self.__dict__:
+            self._gate_progress_timesteps = []
+            self._gate_progress = {}
+
+    def _termination_scalars(self, index: int) -> dict[str, float]:
+        """This evaluation's episode count per termination cause, as ``termination_<cause>`` keys.
+
+        Every cause seen so far in the file is supplied (0 when no episode
+        ended that way), so each series stays aligned with ``timesteps``.  A
+        cause first seen now reads 0 on the earlier rows that counted causes
+        and NaN on rows that did not (a resumed run's rows from before this
+        telemetry).  An evaluation whose causes were not captured reads NaN
+        for every known cause, and no key at all before the first cause.
+        """
+        self._bind_gate_progress()
+        recorded = self._gate_progress
+        known = [key for key in recorded if key.startswith(TERMINATION_KEY_PREFIX)]
+        causes = self._eval_series("evaluations_termination_causes", index)
+        if not causes:
+            return dict.fromkeys(known, float("nan"))
+        counts = Counter(str(cause) for cause in causes)
+        rows = len(self._gate_progress_timesteps)
+        counted = [
+            any(row < len(recorded[key]) and math.isfinite(recorded[key][row]) for key in known) for row in range(rows)
+        ]
+        for cause in sorted(counts):
+            key = f"{TERMINATION_KEY_PREFIX}{cause}"
+            if key not in recorded:
+                recorded[key] = [0.0 if counted[row] else float("nan") for row in range(rows)]
+                known.append(key)
+        return {key: float(counts.get(key[len(TERMINATION_KEY_PREFIX) :], 0)) for key in known}
+
+    def gate_progress_row(self, row: int = -1) -> dict[str, float]:
+        """One recorded row of ``gate_progress.npz``'s scalar series, by key (the latest by default).
+
+        Only the series aligned with ``timesteps`` (the ones the file holds)
+        are returned, with ``"timesteps"`` itself; ``{}`` before the first
+        row.  Read by the training progress report (``curriculum/progress_report.py``).
+        """
+        timesteps = list(self.__dict__.get("_gate_progress_timesteps", []))
+        if not timesteps or not -len(timesteps) <= row < len(timesteps):
+            return {}
+        out = {"timesteps": float(timesteps[row])}
+        for key, series in self.__dict__.get("_gate_progress", {}).items():
+            if len(series) == len(timesteps):
+                out[key] = float(series[row])
+        return out
+
     def gate_progress_series(self, key: str) -> tuple[list[int], list[float]]:
         """``(timesteps, values)`` of one ``gate_progress.npz`` series recorded so far.
 
@@ -1342,9 +1495,7 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
         # defaults above exist only so `object.__new__` instances have the
         # attribute, and appending to them would share state across every
         # instance in the process.
-        if "_gate_progress_timesteps" not in self.__dict__:
-            self._gate_progress_timesteps = []
-            self._gate_progress = {}
+        self._bind_gate_progress()
         if index is None:
             index = len(self._gate_progress_timesteps)
         # A key first supplied after a resume reads NaN on the seeded rows: nothing measured it there.
@@ -1553,20 +1704,19 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
                 f"{blocking.label} moved by {relative_range:.1%} of its gate over the evaluation window"
             )
         elif not self._plateau_active:
-            logger.warning(
-                "STAGE %s EVALUATION PLATEAU: %s stayed within a %s range (%s of its gate) "
-                "across the last %d evaluations; latest %s, required %s, step %d. %s%s "
-                "Training continues; this diagnostic is not the curriculum gate or collapse early-stop.",
-                self.stage,
-                blocking.label,
-                self._format_value(blocking, absolute_range),
-                f"{relative_range:.1%}",
-                self.plateau_window,
-                self._format_value(blocking, blocking.value),
-                self._format_value(blocking, blocking.threshold),
-                self.num_timesteps,
-                self._GUIDANCE[blocking.key],
-                caveat,
+            message = (
+                f"STAGE {self.stage} EVALUATION PLATEAU: {blocking.label} stayed within a "
+                f"{self._format_value(blocking, absolute_range)} range ({relative_range:.1%} of its gate) "
+                f"across the last {self.plateau_window} evaluations; latest "
+                f"{self._format_value(blocking, blocking.value)}, required "
+                f"{self._format_value(blocking, blocking.threshold)}, step {self.num_timesteps}. "
+                f"{self._GUIDANCE[blocking.key]}{caveat} "
+                "Training continues; this diagnostic is not the curriculum gate or collapse early-stop."
+            )
+            logger.warning("%s", message)
+            # The training progress report (progress.json) lists the advisories a run has raised.
+            self.__dict__.setdefault("progress_warnings", []).append(
+                {"timesteps": int(self.num_timesteps), "source": "evaluation_plateau", "message": message}
             )
             self._plateau_active = True
 
