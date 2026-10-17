@@ -428,6 +428,20 @@ against).* *2026-10-11: the gate check is the six-heading certificate
 (D-D32, the T-Rex note above), which the compsognathus stance declares too;
 its r2 statue is clean on 40/40 seeds at every heading.*
 
+*Status 2026-10-17: decision D-D36. The maintainer decided to run one short
+T-Rex walking pilot outside the sessions above, an exception to this
+section's rule that a certified stance comes before any T-Rex walk (and to
+the gait plan's GQ-3 (a) and GQ-17): the production locomotion stage,
+4,194,304 steps on seeds 42, 52 and 60, from the uncertified r9 arm L
+seed-60 stance checkpoint at 6,291,456 steps (arm L: the T-Rex stance
+trained with mirror-symmetric PPO, the lateral lean term and the settled
+leg target, three switches off by default on `main`), through the manual
+single-node cell on the branch `claude/pilot-walk-r9`, which is never
+merged. Nothing it trains is certified, published or reused, so the next
+T-Rex session above is unchanged. A later PR records the pilot's
+outcome; the decision's full text is in
+[BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2.*
+
 Notes:
 
 - **The runtime image moved (by 2026-09-14).** Colab's L4 image went from Python

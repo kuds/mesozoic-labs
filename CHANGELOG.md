@@ -8,8 +8,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **Decision D-D36 recorded: one short T. rex walking pilot, a deliberate
+  exception to the gait plan's GQ-3 (a) and GQ-17** (the maintainer's decision
+  of 2026-10-17; `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2,
+  `docs/CONSOLIDATION_PLAN_2026_09.md` §6, the dated §17 of
+  `docs/GAIT_QUALITY_PLAN_2026_09.md`, `docs/NEXT_STEPS.md` §3). Records only:
+  no code, configuration, test, notebook, digest or generated file changes.
+  After the T. rex physics-r10 stance screen of arm L (the T. rex stance with
+  #624's three switches on: mirror-symmetric PPO, the lateral lean term and
+  the settled leg target, all off by default) failed all four of its fixed
+  criteria (K1 seed 42 alone passing `stance_quality/v2` at 6M; K2 seeds 52
+  and 60 on their toes, 37 to 40 of 40 panel episodes over the whole-foot
+  fore-aft centre-of-pressure rail at 4M, 5M and 6M; K3 16 of 60 joint-space
+  noise falls; K4 12 of 120 roll-rail failures), while arm L on physics r9 had
+  failed only K2 (on the pad's centre-of-pressure rail) and K3, the maintainer
+  parked draft #623 (`main` keeps physics r9) and decided to run one short
+  T. rex walking pilot now. It is an exception to GQ-3's recommended option
+  (a) ("no walker session on today's rewards") and to GQ-17's retrain order
+  (robot first), both still open, and it starts from an uncertified stance
+  checkpoint: r9 arm L seed 60 at 6,291,456 steps (sha256 `70f3a444…353e`), a
+  recorded departure from the r10 screen's parent rule, which named r10 arm L
+  seed 42 at 6M on the unmerged r10 foot. The production locomotion stage,
+  stock PPO, trains from it under `initialize_next_stage` through the
+  notebook's manual single-node cell on seeds 42, 52 and 60, 4,194,304 steps
+  each (production 8,000,000; the learning rate follows production's first
+  4,194,304 steps, and an evaluation runs every 131,072 steps), and the frozen
+  2026-09 gait-audit probe judges it on hop-detecting criteria fixed before
+  any pilot training step, with the maintainer's video review required before
+  a seed counts as walking. It runs from the branch `claude/pilot-walk-r9`,
+  which is never merged; nothing it trains is certified or published, and no
+  digest on `main` moves (the branch's shortened locomotion stage moves only
+  that stage's PPO hyperparameter and stage-config-view digests; its task and
+  gate digests are production's). Its outcome is not yet known; a later PR
+  records it.
 - **A training progress report and posture telemetry at every evaluation,
-  report-only** (the maintainer's request of 2026-10-16 for better training
+  report-only** (#626; the maintainer's request of 2026-10-16 for better training
   artifacts and reporting). The T. rex physics-r10 screen's two drifting
   seeds were found by reading `gate_progress.npz` by hand: at 2.3 to 2.5M
   steps seeds 52 and 60 stood on their toes (whole-foot centre of pressure
