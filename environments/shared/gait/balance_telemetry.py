@@ -426,7 +426,9 @@ def _along(forward: np.ndarray, vectors: np.ndarray) -> np.ndarray:
 def _hof_split(trace: "EpisodeTrace", layout: BalanceLayout, kin: _Kinematics) -> tuple[np.ndarray, ...]:
     """Per sample ``(a, cop_term, counter_rotation)`` of the CoM's forward acceleration (m/s^2): Hof's split."""
     assert trace.floor_force is not None and trace.floor_cop is not None
-    total = np.asarray(trace.floor_force, dtype=np.float64).sum(axis=1)  # (T,3): the floor is the only horizontal force
+    # (T,3): the floor is the only horizontal external force on a stage without pushes; a recovery stage's push
+    # (xfrc_applied on the root) is not in it, so there the split is the floor's share only (the docs say so).
+    total = np.asarray(trace.floor_force, dtype=np.float64).sum(axis=1)
     mass = layout.mass_kg
     acceleration = _along(kin.forward, total) / mass
     with np.errstate(invalid="ignore", divide="ignore"):
@@ -445,6 +447,13 @@ def hof_split(trace: "EpisodeTrace", layout: BalanceLayout) -> tuple[np.ndarray,
     angular momentum about the CoM over ``m h``).  NaN where the floor
     forces are unmeasured.  Raises ``ValueError`` for a trace without
     balance fields.
+
+    ``F`` is the floor's force alone: while a recovery stage's scheduled
+    push acts (``xfrc_applied`` on the root), ``a`` is the floor's share of
+    the CoM's acceleration, not all of it.  Each sample is the control
+    step's last substep, so where contacts chatter between substeps (the
+    ``frame_skip``-10 Compsognathus) one sample can stand far from the
+    step's mean.
     """
     if not _has_balance_fields(trace):
         raise ValueError("the trace has no balance fields: record it with balance=True")

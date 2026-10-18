@@ -342,7 +342,7 @@ full-horizon episodes, of the per-episode value, except where noted.
 | `com_fore_aft_mean_m` | The whole animal's centre of mass (CoM) ahead of the mean of the feet's reference sites, along the heading (m), window mean |
 | `root_pitch_mean_deg` | The root's forward axis above horizontal (degrees, + nose up), window mean |
 | `xcom_fore_aft_max_m` | The extrapolated centre of mass (XcoM, Hof 2008: `xi = c + v / omega0`, `omega0 = sqrt(g / h)`, with `h` the CoM's height above the floor plane and `v` from the differences of successive samples) ahead of the feet's reference point, window maximum (m) |
-| `hof_cop_term_mean_mps2`, `hof_counter_rotation_mean_mps2`, `hof_counter_rotation_rms_mps2` | Hof's split (2007) of the CoM's forward acceleration `a = f . F / m`, with `F` the net floor force on the animal, the only horizontal external force. The centre-of-pressure term `F_z f . (c - CoP) / (m h)` is the part the floor centre of pressure's offset from the CoM explains; the counter-rotation term is the rest, body segments rotating about the CoM. The two sum to `a` at every sample. Window means of both, and the counter-rotation term's root mean square (m/s²) |
+| `hof_cop_term_mean_mps2`, `hof_counter_rotation_mean_mps2`, `hof_counter_rotation_rms_mps2` | Hof's split (2007) of the CoM's forward acceleration `a = f . F / m`, with `F` the net floor force on the animal, the only horizontal external force on a stage without pushes (see below). The centre-of-pressure term `F_z f . (c - CoP) / (m h)` is the part the floor centre of pressure's offset from the CoM explains; the counter-rotation term is the rest, body segments rotating about the CoM. The two sum to `a` at every sample. Window means of both, and the counter-rotation term's root mean square (m/s²) |
 | `leg_q_<left>_minus_<right>_<joint>_deg`, `leg_q_<left>_<right>_mean_<joint>_deg` | The achieved counterpart of the commanded leg DC: each sagittal joint's angle offset from the home pose (the env's reset keyframe), each side signed about the leftward axis as the `leg_dc_` keys are; left minus right, and the mirror-even mean; window means in degrees |
 | `xcom_toe_margin_min_m`, `xcom_toe_margin_mean_m`, `xcom_heel_margin_min_m` | Feet that declare a support span (the T. rex): how far the XcoM is inside the declared toe line and heel line, each line the mean over those feet along the heading (m, + inside): the toe margin's window minimum and mean, and the heel margin's window minimum. In Hof's inverted-pendulum model, once the XcoM is past the toe line, moving the centre of pressure within the feet can no longer stop the CoM |
 | `xcom_past_toe_fraction` | The same feet: the window fraction of steps with the XcoM past the toe line |
@@ -359,7 +359,32 @@ full-horizon episodes, of the per-episode value, except where noted.
 The positions are those of the control step's last physics substep, one
 physics step (2 ms on the T. rex) before the control boundary, as for every
 other recorder field. The CoM's height is measured from the z = 0 plane:
-the stance floors are flat. The force keys decode the elliptic friction
+the stance floors are flat.
+
+Two limits of the Hof keys (`hof_*`):
+
+- **Pushes.** The split assumes the floor is the only horizontal external
+  force. A recovery stage's env also pushes the animal on a schedule,
+  through `xfrc_applied` on its root, and the split does not include the
+  push: while one acts, `a` is the floor's share of the CoM's acceleration
+  only, not the CoM's acceleration, and the counter-rotation term and its
+  RMS take in the push's effect on the floor forces. In one zero-action T.
+  rex recovery episode (seed 3042, 561 steps, 40 of them pushed), the
+  root mean square of the CoM's second difference less `F/m` was
+  0.84 m/s² on the pushed steps (correlation -0.47) and 0.024 m/s² on the
+  others (correlation 0.999). On a stage with pushes, read the `hof_*`
+  keys as the floor's share only.
+- **One substep per control step.** `F` is decoded exactly, but at one
+  substep, the control step's last. Where the contacts chatter between
+  substeps, that one sample can stand far from the step's mean. On the T.
+  rex (`frame_skip` 5) `F/m` and the CoM's second difference agree with
+  correlation 1.000 even in a nosedive, and every model's statue gives
+  0.998 or more. On the Compsognathus robot (`frame_skip` 10) holding a
+  -0.05 ankle offset, the correlation was 0.42 forward and 0.03 vertical,
+  and the window mean of `F/m` was -0.0099 m/s² forward against the CoM's
+  -0.0001: on a quiet `frame_skip`-10 stance the `hof_*` window means are
+  mostly the sampling phase of that substep, not the body's balance.
+ The force keys decode the elliptic friction
 cone, which every model uses; under a pyramidal cone every force key but
 the two actuator ones would read NaN.
 
