@@ -467,6 +467,13 @@ decision's full text is in
 evidence in §16 of
 [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).*
 
+*Note 2026-10-18 (decision D-D38): where §2 and this section record
+`BEHAVIOR = "stand"` or a `stand` session, they give the setting as it was
+typed then. The stance stage's recipe label is now `stance`, its own id:
+type `BEHAVIOR = "stance"` for the same chain (the stance stage alone), also
+to re-enter a run started with `"stand"`, which is now refused with a
+pointer to `"stance"`.*
+
 Notes:
 
 - **The runtime image moved (by 2026-09-14).** Colab's L4 image went from Python
