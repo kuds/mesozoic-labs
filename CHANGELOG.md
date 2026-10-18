@@ -40,13 +40,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   runs, the 2026-10-16 rule against further stance-only reward experiments
   unless walking points back to stance, and parks walking pilot 2 (its branch
   and criteria kept). Run 1's `stage_config.json` on Drive confirms its
-  commit, arm L's keys, its task and PPO hyperparameter digests, a statue
-  standing at 3980.37 (39 of 40) and an L4 GPU. `stance3/` holds the
-  criteria (byte-identical), the Colab steps, the recommendation and frozen
-  copies of the judge, the scorer and its tests (80 cases); `SOURCES.txt`
-  and `SHA256SUMS` (now 291 files) are extended. `docs/README.md` adds a note
-  to the record's and the gait plan's rows, and `docs/KNOWN_ISSUES.md` gains
-  Update 9 of the T-Rex stance entry. The outcome is not yet known.
+  commit, arm L's keys, its task and PPO hyperparameter digests and an L4
+  GPU, and its run folder's `zero_action_baseline.json` a statue standing at
+  3980.37 (39 of 40); Runs 2 and 3's `stage_config.json` files confirm
+  commit `1af2d4d7`, seeds 60 and 52, the two leg keys, collapse reference
+  4460.5 and an L4. `stance3/` holds the criteria (byte-identical), the
+  Colab steps, the recommendation and frozen copies of the judge, the scorer
+  and its tests (80 cases); `SOURCES.txt` and `SHA256SUMS` (now 291 files)
+  are extended. `docs/README.md` adds a note to the record's and the gait
+  plan's rows, and `docs/KNOWN_ISSUES.md` gains Update 9 of the T-Rex stance
+  entry. The outcome is not yet known.
 - **Balance, force and policy telemetry at every evaluation and PPO update,
   and the T. rex stance's onset checkpoints kept, report-only** (#630; the
   maintainer's approval of 2026-10-17 of the T. rex stance telemetry
@@ -1289,12 +1292,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     and is now its label too, with the same chain (stance); `recover`, `walk`
     and `hunt` are unchanged; recipe labels `stand, [recover,] walk, hunt` →
     `stance, [recover,] walk, hunt`.
-  - The loader rule: a recipe label equal to a stage id was refused (D-D35);
-    it is now accepted only when it resolves to that stage, the deepest
-    deliverable carrying it being the node with that id, so `resolve_behavior`'s
-    label-before-id precedence still never names two nodes. A label equal to
-    another stage's id, equal to its own while a deeper deliverable shares
-    it, or carried only by non-deliverables is refused as before.
+  - The loader rule: a recipe label equal to a stage id was refused (since
+    manifest v2, 2026-09-06; restated by D-D35); it is now accepted only
+    when it resolves to that stage, the deepest deliverable carrying it
+    being the node with that id, so `resolve_behavior`'s label-before-id
+    precedence still never names two nodes. A label equal to another stage's
+    id, equal to its own while a deeper deliverable shares it, or carried
+    only by non-deliverables is refused as before.
   - The refusal: `stand` is retired, not aliased, by D-D33's rule that
     retired identifiers do not resolve (`RETIRED_RECIPE_LABELS` and
     `retired_recipe_label_message` in `environments/shared/stage_manifest.py`).

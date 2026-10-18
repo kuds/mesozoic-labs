@@ -378,7 +378,8 @@ neither branch is ever merged or has a pull request.
   step (sha256 `1ce910dc…`). Its title's "2026-10-19" is the date first
   planned; the runs started on 2026-10-18.
 - `colab_steps.txt`: how the runs are launched and resumed, as sent. It names
-  a CPU runtime; the maintainer kept L4 for all three (the note's §16.2).
+  a CPU runtime as the maintainer's choice of 2026-10-18; the runs went on
+  L4, which the maintainer kept for all three (the note's §16.2).
 - `recommendation.md`: the offline diagnosis of 2026-10-18 ("What the offline
   work found"), the three runs, the criteria, an alternative layout, the
   concerns, the decisions it asked for and the build specification. Its `T/`

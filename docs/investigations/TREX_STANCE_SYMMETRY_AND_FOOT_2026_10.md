@@ -1447,9 +1447,10 @@ the statue's.
 term holds the stance where the drift starts: by arithmetic on the term's
 form, which is an inference about gradients and not a training result, its
 per-ankle restoring slope at weight 1.0 and tolerance 0.05 rad is 7.3 times
-arm L's at 1°, 3.6 times at 3°, 1.9 times at 4° and 0.5 to 0.9 times past 5°
-(`recommendation.md`, Run 2, item 3), so it is a strong centring price inside
-the gate's range and a weaker backstop once a seed has leaned past about 5°.
+arm L's at 1°, 3.6 times at 3°, 1.9 times at 4°, about 0.9 times at 5° and
+0.54 times at 5.8° (`recommendation.md`, Run 2, item 3), so it is a strong
+centring price inside the gate's range and a weaker backstop once a seed has
+leaned past about 5°.
 (b) Nothing here explains what starts the drift, or why arm L seed 60 leaned
 back by 6M; the runs test whether a price suppresses the drift, not why it
 starts.
@@ -1476,18 +1477,27 @@ criteria are kept and nothing of it is trained.
   kept. Both branches are built on #630's code (`04ced045`) with the cadence
   keys of `412f19ae` cherry-picked; neither is ever merged, and neither has a
   pull request (full commits in `colab_steps.txt`). The collapse references
-  are the statue's measured rewards: 3980.37 under arm L and 4459.40 under
-  L+T, each standing on 39 of 40 seeds, against production's 3755.72
-  (`refine_plan/out/statue_ref.json`).
+  are production's 3756.8 plus each configuration's measured statue gain,
+  224.6 under arm L and 703.7 under L+T: 3981.4 and 4460.5
+  (`scratchpad/foot/stance3/statue/statue_L.json` and `statue_LT.json`;
+  checked). The statues themselves score 3980.37 under arm L and 4459.40
+  under L+T, each standing on 39 of 40 seeds, against 3755.72 re-measured
+  for production (`refine_plan/out/statue_ref.json`; checked).
 - **Runtime.** All three train on Colab L4 runtimes, the maintainer's choice of
-  2026-10-18. `colab_steps.txt` and `recommendation.md` recommended CPU, the
-  only runtime the mirror-symmetric trainer had trained 12M on, and asked for
-  one type for all three; the maintainer kept L4 for all three. Run 1's
-  `stage_config.json` on Drive, read on 2026-10-18, records commit
-  `7e6b557d`, arm L's keys, the task `sha256:cd963518…`, the PPO
+  2026-10-18. `recommendation.md` recommended CPU, the only runtime the
+  mirror-symmetric trainer had trained 12M on; `colab_steps.txt`, as sent,
+  named CPU as the maintainer's choice of that day; both asked for one type
+  for all three. The runs went on L4, and the maintainer kept L4 for all
+  three. Run 1's `stage_config.json` on Drive, read on 2026-10-18, records
+  commit `7e6b557d`, arm L's keys, the task `sha256:cd963518…`, the PPO
   hyperparameters `sha256:054ab483…` (`recommendation.md`'s expected value)
-  and an NVIDIA L4; its zero-action baseline stood at 3980.37 (39 of 40), and
-  it trains from 16:10 UTC. Runs 2 and 3 started later the same day.
+  and an NVIDIA L4, and it trains from 16:10 UTC; the run folder's
+  `zero_action_baseline.json` has the statue standing at 3980.37 (39 of 40).
+  Runs 2 and 3's `stage_config.json` files on Drive record commit
+  `1af2d4d7`, seeds 60 and 52, collapse reference 4460.5, the two leg keys,
+  the task `sha256:d4a3b8f8…`, the same PPO hyperparameters and an L4, from
+  16:20 and 16:23 UTC; their `zero_action_baseline.json` files have the
+  statue standing at 4459.40 (39 of 40).
 - **The criteria, fixed before any training step** (`criteria.txt`, sha256
   `1ce910dcd6e2ff7b41a4f592b9f34b9a6c9cb398c523e88f0ebd19af754f18fa`): judged
   at 4,194,304, 5,242,880, 6,291,456, 8,388,608, 10,485,760 and the final, on
