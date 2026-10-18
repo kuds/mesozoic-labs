@@ -664,8 +664,18 @@ pair, with each side's leftward-axis sign, so it is the same posture on
 every model. The bank is built once per session on a separate env instance
 that nothing else steps, with a horizon of its own (the stage's, or 601
 steps if that is longer), so a short stage horizon still yields all ten
-states. A guard snapshots and restores the global random generators around
-the build, which draws from none of them. The build costs about 5.6 s per
+states. On a stage with scheduled pushes (a recovery stage's
+`perturbation_capture_velocity_multiple`), the bank env runs with the
+pushes off (`policy_probe.bank_env_kwargs`): a push topples the statue and
+the leans before their kept steps, and with the pushes on the T. rex
+recovery stage kept 4 of the 10 states (no `statue` row) and the anatomical
+Compsognathus recovery stage 6. With the multiple at 0 the env's reset
+draws exactly what a push-free reset of the same seed draws, and the
+observation does not depend on it. A row whose episode still ends before
+its kept step is dropped, with one warning naming every dropped row, and
+the scalars that compare with it read NaN (`null` in `progress.json`). A
+guard snapshots and restores the global random generators around the
+build, which draws from none of them. The build costs about 5.6 s per
 session on the T. rex. SAC gets no bank and no rows.
 
 Per update the probe reads parameters and runs `torch.no_grad()` forward
@@ -705,9 +715,22 @@ console:
 | `policy_probe/obs_var_min`, `obs_var_max` | The normalizer's per-dimension extremes |
 | `policy_probe/value_statue` | The critic's value at the two `statue` states |
 | `policy_probe/value_ankle_plus_minus_statue`, `value_ankle_minus_minus_statue`, `value_ankle_minus_0.05_minus_statue` | Each lean's value less the statue's on the same seed, averaged over the seeds |
-| `policy_probe/value_normalization_shift_statue` | The statue's value under the current normalization less its value under the frozen one |
+| `policy_probe/value_normalization_shift_statue` | The statue's value under the current normalization less its value under the frozen one (on a fresh normalizer, against the initial statistics: see below) |
 | `policy_probe/statue_ankle_action_mean` | The mirror-even ankle action at the statue states, averaged over the ankle pairs |
 | `policy_probe/ankle_gain_per_m` | The difference of the mirror-even ankle action between the +0.03 and -0.03 leans over the difference of their CoM positions, averaged over the seeds: the deterministic policy's ankle feedback gain to a CoM lean, in action units per metre |
+
+The frozen statistics are VecNormalize's at the session's start. On a
+stage that loads a normalizer (a later stage, or a resume) they are that
+normalizer's. On a stage that starts with a fresh one they hold only the
+initial reset observations (a count of about the number of envs), so some
+variances are tiny and the frozen reference is near-degenerate: on the
+short T. rex proof run the smallest frozen variance was 2.5e-5 (median
+7.5e-4), 1.4% of the bank's inputs clipped at ±10 under it and none under
+the first update's statistics, and the first row's `bank_value_frozen`
+read 0.63 at the settled statue against 0.16 for `bank_value_now`. There
+`bank_*_frozen` and `value_normalization_shift_statue` measure against the
+initial statistics, not a meaningful earlier normalizer; compare rows of
+`bank_value_now` with `obs_rms_*` instead.
 
 ## Training progress: `progress.json`
 

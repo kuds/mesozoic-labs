@@ -175,6 +175,62 @@ class TestTheBank:
             assert built.ankle_signs.tolist() == [[-1.0, -1.0]]
 
 
+#: Three rows on seed 3043, where the T. rex recovery stage's pushes topple the statue at step 364 and the
+#: -0.05 lean at step 347: the settled statue (step 199) survives them, the other two do not.
+_PUSHED_SPEC = (
+    ("statue_settled", 3043, 0.0, 199),
+    ("statue", 3043, 0.0, 599),
+    ("ankle_minus_0.05_at400", 3043, -0.05, 400),
+)
+
+
+class TestAStageWithPushes:
+    """A recovery stage pushes the animal on a schedule; the bank env runs with the pushes off."""
+
+    def test_the_bank_env_keywords_switch_off_the_pushes_and_nothing_else(self):
+        from environments.shared.config import load_stage_config
+        from environments.shared.policy_probe import PUSH_MULTIPLE_KWARG, bank_env_kwargs
+
+        recovery = load_stage_config(TYRANNOSAURUS_REX, "recovery")["env_kwargs"]
+        assert recovery[PUSH_MULTIPLE_KWARG] > 0.0
+        kwargs = bank_env_kwargs(recovery, 601)
+        assert kwargs == {**recovery, "max_episode_steps": 601, PUSH_MULTIPLE_KWARG: 0.0}
+        assert recovery[PUSH_MULTIPLE_KWARG] > 0.0  # the stage's own mapping is untouched
+        # A stage that declares no pushes is handed no push keyword at all.
+        stance = load_stage_config(TYRANNOSAURUS_REX, "stance")["env_kwargs"]
+        assert PUSH_MULTIPLE_KWARG not in stance
+        assert bank_env_kwargs(stance, 601) == {**stance, "max_episode_steps": 601}
+
+    def test_with_the_pushes_off_every_row_survives_and_with_them_on_the_lost_rows_warn_once(self, caplog):
+        from environments.shared.config import load_stage_config
+        from environments.shared.policy_probe import bank_env_kwargs, build_state_bank
+        from environments.shared.species_registry import get_species_config
+
+        env_class = get_species_config(TYRANNOSAURUS_REX).env_class
+        recovery = load_stage_config(TYRANNOSAURUS_REX, "recovery")["env_kwargs"]
+        horizon = int(recovery["max_episode_steps"])
+        with caplog.at_level(logging.WARNING, logger="environments.shared.policy_probe"):
+            whole = build_state_bank(
+                lambda h: env_class(**bank_env_kwargs(recovery, h)),
+                TYRANNOSAURUS_REX,
+                _PUSHED_SPEC,
+                stage_horizon=horizon,
+            )
+        assert whole.labels == tuple(label for label, *_rest in _PUSHED_SPEC)
+        assert not [r for r in caplog.records if "bank rows dropped" in r.getMessage()]
+        with caplog.at_level(logging.WARNING, logger="environments.shared.policy_probe"):
+            pushed = build_state_bank(
+                lambda h: env_class(**{**recovery, "max_episode_steps": h}),
+                TYRANNOSAURUS_REX,
+                _PUSHED_SPEC,
+                stage_horizon=horizon,
+            )
+        assert pushed.labels == ("statue_settled",)
+        dropped = [r.getMessage() for r in caplog.records if "bank rows dropped" in r.getMessage()]
+        assert len(dropped) == 1 and dropped[0].startswith("Policy probe: 2 of 3 bank rows dropped")
+        assert "'statue' (seed 3043" in dropped[0] and "'ankle_minus_0.05_at400' (seed 3043" in dropped[0]
+
+
 class TestNeutrality:
     def test_the_probe_draws_no_random_number_and_writes_nothing(self):
         """The real bank build and three rows leave the generators, the policy and the normalizer bit-equal."""
@@ -525,4 +581,4 @@ class TestTheTrainerWiring:
         source = inspect.getsource(train_base._train_stage_body)
         call = source[source.index("_build_core_callbacks(") :]
         assert "policy_probe_env_factory=lambda horizon: species_cfg.env_class(" in call
-        assert '"max_episode_steps": horizon' in call
+        assert 'bank_env_kwargs(config["env_kwargs"], horizon)' in call

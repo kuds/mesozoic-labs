@@ -80,7 +80,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     update applies, and the critic's value and the deterministic action on
     a fixed bank of ten states (the statue and held ankle leans on two
     seeds), under the current and the session-start normalization. The bank
-    is built once per session on a separate env, under a guard that
+    is built once per session on a separate env, with any scheduled pushes
+    off (a recovery stage's would topple its states), under a guard that
     restores the global generators (it draws none), and each update is a
     gradient-free forward pass. TensorBoard gets `policy_probe/*`.
   - A `PostureTrend` advisory (`curriculum/posture_watch.py`): one warning

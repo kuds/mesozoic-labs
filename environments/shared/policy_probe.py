@@ -13,14 +13,17 @@ records, at the end of every rollout (the policy that collected it, before
 * the critic's value and the deterministic mean action at every bank state,
   under the current normalization and under the one frozen at the session's
   start (so a value change can be split into the policy's and the
-  normalizer's share).
+  normalizer's share).  On a stage that starts with a fresh VecNormalize the
+  frozen statistics are the initial reset observations' alone, a
+  near-degenerate reference (the docs say how to read it).
 
 The bank (:data:`BANK_SPEC`) is ten states of the stage's own env, on two
 reset seeds: the settled statue (step 199) and the statue at step 599,
 mirror-symmetric ankle leans of +0.03 and -0.03 (action units, ramped over
 steps 200-300 and held) at step 599, and a -0.05 lean at step 400.  It is
 built on a separate env instance that nothing else steps, with its own
-horizon long enough for every row (:func:`bank_horizon`), under
+horizon long enough for every row (:func:`bank_horizon`) and any scheduled
+pushes off (:func:`bank_env_kwargs`), under
 :class:`GlobalRngGuard`, which snapshots and restores the global generators
 (the build draws none; the guard is a backstop and warns if one moved).
 
@@ -126,6 +129,28 @@ def bank_horizon(stage_horizon: int, spec: Sequence[tuple[str, int, float, int]]
     return max(int(stage_horizon), max(int(step) for *_rest, step in spec) + 2)
 
 
+#: The env keyword that switches a stage's scheduled pushes on (the recovery stages'); 0 is off.
+PUSH_MULTIPLE_KWARG = "perturbation_capture_velocity_multiple"
+
+
+def bank_env_kwargs(env_kwargs: Mapping[str, Any], horizon: int) -> dict[str, Any]:
+    """The bank env's keywords: the stage's own, at *horizon*, with any scheduled pushes off.
+
+    A recovery stage pushes the animal on a schedule, and a push topples
+    the statue and the leans before their kept steps: on the T. rex
+    recovery stage 6 of the 10 rows were lost, every statue row among them.
+    The bank is the unpushed statue and held leans on every stage.  With
+    the multiple at 0 the env runs no push code and its reset draws exactly
+    what a push-free reset of the same seed draws (``base_env``); the
+    observation does not depend on it.  The key is set only where the stage
+    declares it, so an env class without it is never handed it.
+    """
+    kwargs = {**dict(env_kwargs), "max_episode_steps": int(horizon)}
+    if PUSH_MULTIPLE_KWARG in kwargs:
+        kwargs[PUSH_MULTIPLE_KWARG] = 0.0
+    return kwargs
+
+
 def ankle_ramp(step: int) -> float:
     """The fraction of the ankle offset applied at step *step*: 0 before 200, linear to 1 at 300, then held."""
     return min(max((step - RAMP_START) / float(RAMP_END - RAMP_START), 0.0), 1.0)
@@ -156,8 +181,10 @@ def build_state_bank(
     whose key ends in ``_ankle_deg``) as ``sign * x``: mirror-symmetric on
     every model, whatever its axes.  The rows of one group share the episode
     (the same reset and actions give the same states).  A row whose episode
-    ends at or before its kept step is dropped and logged.  A model with no
-    ankle pair keeps its statue rows only.  The env is closed afterwards.
+    ends at or before its kept step is dropped, with one warning naming every
+    dropped row (the scalars that compare with it then read NaN).  A model
+    with no ankle pair keeps its statue rows only.  The env is closed
+    afterwards.
     """
     from .eval_diagnostics import SagittalLegPair, sagittal_leg_dc_pairs
     from .gait.morphology import Morphology
@@ -190,6 +217,7 @@ def build_state_bank(
                 continue
             groups.setdefault((int(seed), float(offset)), []).append(index)
         kept: dict[int, tuple[np.ndarray, float]] = {}
+        dropped: list[str] = []
         for (seed, offset), members in groups.items():
             wanted: dict[int, list[int]] = {int(spec[index][3]): [] for index in members}
             for index in members:
@@ -203,19 +231,26 @@ def build_state_bank(
                     action[pair.right] = pair.right_sign * lean
                 obs, _reward, terminated, truncated, _info = env.step(np.clip(action, low, high).astype(space.dtype))
                 if terminated or truncated:
-                    for index in (index for kept_step, rows in wanted.items() if kept_step >= step for index in rows):
-                        logger.info(
-                            "Policy probe: bank row %r (seed %d) dropped: its episode ended at step %d.",
-                            spec[index][0],
-                            seed,
-                            step,
-                        )
+                    dropped += [
+                        f"{spec[index][0]!r} (seed {seed}, ended at step {step})"
+                        for kept_step, rows in wanted.items()
+                        if kept_step >= step
+                        for index in rows
+                    ]
                     break
                 for index in wanted.get(step, ()):
                     kept[index] = (
                         np.asarray(obs, dtype=np.float64).reshape(-1).copy(),
                         _com_fore_aft(unwrapped.data, root, sites),
                     )
+        if dropped:
+            logger.warning(
+                "Policy probe: %d of %d bank rows dropped, their episodes ending before the kept step: %s. "
+                "The probe's scalars that compare with a dropped row read NaN.",
+                len(dropped),
+                len(spec),
+                "; ".join(dropped),
+            )
         order = [index for index in range(len(spec)) if index in kept]
         if not order:
             raise RuntimeError("no bank state could be built")
