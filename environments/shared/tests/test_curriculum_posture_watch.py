@@ -573,11 +573,13 @@ class TestTheTrendLine:
 
 #: The replays at design time (2026-10-17): per series, each evaluation's over-bar fraction of the rail and the
 #: mean over the feet of its signed per-foot CoP (``k/n`` is k of the n full-horizon episodes, of ten), ten
-#: evaluations to a line, evaluations every 131,072 steps, read at 22:44 UTC from
-#: * r9 arm L, pad rail (``max_sole_cop_fore_aft``, bar 0.80, 48 evaluations to 6,291,456 steps):
-#:   ``scratchpad/foot/symmetry/screen/runs/sym_lean_settled_s<seed>/resume6m/gate_progress.npz``;
-#: * r10 arm L, whole-foot rail (``max_foot_cop_fore_aft``, bar 0.80, 91 evaluations to 11,927,552 steps):
-#:   ``scratchpad/foot/r10screen/judged/report_only/s<seed>/gate_progress.npz``.
+#: evaluations to a line, evaluations every 131,072 steps, read at 22:44 UTC from each run's ``gate_progress.npz``:
+#: * the r9 arm L symmetry screen's seeds, pad rail (``max_sole_cop_fore_aft``, bar 0.80, 48 evaluations to
+#:   6,291,456 steps, through the 6M resume);
+#: * the r10 arm L screen's seeds, whole-foot rail (``max_foot_cop_fore_aft``, bar 0.80, 91 evaluations to
+#:   11,927,552 steps, the report-only run to 12M).
+#: Both screens are written up in ``docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md`` (sections 5
+#: and 6), with their evidence in ``docs/investigations/stance_2026_10/``.
 #: The signed means are rounded to four decimals; the warnings are the same on the unrounded series.
 TREND_R9 = {
     42: (
