@@ -20,6 +20,9 @@ on:
       - "docs/**"
       - "notebooks/**"
       - "results/**/summary.json"
+      # test_reporting_runs_summary.py validates the offline-judgement ledger,
+      # so a records PR that only adds rows to it must run that check.
+      - "results/offline_judgements.csv"
       - "website/blog/**"
       - "website/docs/**"
       # website/src/** rather than website/src/data/**: test_species_catalog.py

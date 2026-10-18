@@ -8,7 +8,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
-- **Decision D-D36 recorded: one short T. rex walking pilot, a deliberate
+- **The cross-run results table saved with the offline judgements:
+  `logs/runs_summary.csv` and `results/offline_judgements.csv`** (the
+  maintainer's approval of 2026-10-17: "Persistent results ledger: the Drive
+  summary notebook saves its cross-run table as logs/runs_summary.csv, with
+  offline judgements addable as rows marked 'offline'"). Every run writes its
+  own records to its Drive folder, and the Drive summary notebook read them
+  into one table and wrote it to `logs/runs_summary.csv` in place. A judgement
+  made outside training (a gate certificate scored on a saved checkpoint after
+  its run, or a pilot's fixed criteria applied by a script) had no place in it,
+  since the session agent that makes these never writes to Drive. No training,
+  reward, task, gate, plant or digest change: the 649-line digest snapshot is
+  byte-identical.
+  - `results/offline_judgements.csv`, a ledger tracked in the repository with
+    one row per judged checkpoint, added by pull request: the date, the model,
+    the algorithm, the run (`run_id` or `run_path`), the stage, the
+    checkpoint's step and sha256, the gate kind (or the criteria's name), the
+    verdict, the key numbers (the passing count and panel size, the lower bound
+    and its bar, the binding bar), the panel's seeds, the judging tree's
+    commit, the tool, the evidence, a note, and `source` `offline`. It is
+    committed with its header alone; the judgements of 2026-10-17 are added by
+    a separate records change. `results/README.md` documents its 22 columns.
+  - `environments/shared/reporting/runs_summary.py`, re-exported by
+    `environments.shared.reporting`: `load_offline_judgements` reads the
+    ledger strictly (the header exactly the 22 columns in order; the date, the
+    model against the species manifest, the stage as `collected_results.csv`
+    writes it, the hash, the commit, the counts and the bounds checked; every
+    problem listed with its line; an empty file or a header alone has no rows),
+    `merge_runs_summary` appends its rows to the notebook's (a PASS verdict
+    reads `stage_passed` true, FAIL false and any other verdict empty), and
+    `write_runs_summary` writes the union of the rows' columns atomically (a
+    temporary file and `os.replace`, as `progress.json` is written).
+  - `notebooks/google_drive_summary.ipynb`, section 9 ("Save the Cross-Run
+    Table", cell 24), loads the ledger from its checkout, shows its rows, and
+    saves `logs/runs_summary.csv`, each model's `runs_summary.csv` (its offline
+    rows included) and each model's `sweeps/sweeps_summary.csv` through these,
+    printing where it wrote and how many rows of each source. Two things
+    change in those files: each is replaced atomically instead of rewritten in
+    place, and a missing cell is written empty instead of `nan` (pandas reads
+    both as missing). The notebook still runs without Drive (it writes nothing
+    when the logs directory does not exist, and never creates it), without
+    runs (the offline rows are saved alone) and without the ledger (no offline
+    rows). Its run reader stays in the notebook.
+  - `.github/workflows/python-ci.yml`'s path filter gains
+    `results/offline_judgements.csv`, so a records PR that only adds rows runs
+    their check.
+  - Tests: `test_reporting_runs_summary.py` (the committed ledger, its
+    documentation and its CI trigger; the loader's types and each refusal;
+    the merge; the writer's column union, empty cells and atomic replacement)
+    and, in `test_drive_summary_notebook.py`, the section 9 cell run with runs
+    and a ledger, with each alone, with neither, and with no logs directory.
+  - Documented in `docs/RESULT_BUNDLES.md` (the cross-run table and the
+    ledger), `results/README.md` (the ledger's columns) and the notebook's own
+    markdown.
+- **#627; Decision D-D36 recorded: one short T. rex walking pilot, a deliberate
   exception to the gait plan's GQ-3 (a) and GQ-17; and a record of the
   T. rex stance experiments of 2026-10-12 to 2026-10-17** (the maintainer's
   decision of 2026-10-17; `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2,
