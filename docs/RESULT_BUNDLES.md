@@ -411,8 +411,9 @@ pilot judgements of a checkpoint made outside training, by someone who cannot
 write to the run's Drive folder, and recorded by pull request instead
 ([results/README.md](../results/README.md#offline-judgements-offline_judgementscsv)
 documents its columns). The ledger is read from the notebook's own checkout
-(`REPO_REF`), so a row added on `main` appears the next time the notebook runs.
-A row records a judgement only: it certifies no run and promotes nothing.
+(on Colab, `REPO_REF`, `main` by default), so a row added on `main` appears
+the next time the notebook runs on Colab. A row records a judgement only: it
+certifies no run and promotes nothing.
 
 `environments.shared.reporting.runs_summary` holds what the notebook calls:
 `load_offline_judgements` validates the ledger; `merge_runs_summary` appends
@@ -424,14 +425,18 @@ when the file holds an offline row, then every other column sorted, then the
 metric columns of `collected_results.csv`. Each file is written to a
 temporary file beside it and moved over it with `os.replace`, as
 `progress.json` is, so a runtime reclaimed mid-write leaves the previous
-table, never half of one. The notebook rewrites the files whole each time it
-runs and keeps no dated copies. It writes nothing when the logs directory does
-not exist (Drive not mounted), and without the ledger file it saves the table
-with no offline rows.
+table, never half of one. Each time the table has rows, the notebook rewrites
+the combined file and the files of the models in the table whole, and keeps no
+dated copies; a model with offline rows but no folder on Drive gets its
+`logs/<species>/<embodiment>/` folder, to hold its `runs_summary.csv`. It
+writes nothing when the logs directory does not exist (Drive not mounted; it
+never creates that directory) or when the table has no rows, and then leaves
+any earlier file as it was; a model no longer in the table also keeps its
+earlier file. Without the ledger file it saves the table with no offline rows.
 
-The table is a view, rebuilt from the run folders and the ledger on every
-run, and nothing reads it back. It is not a promotion record: a run is
-promoted only through its bundle, as above.
+The table is a view, rebuilt from the run folders and the ledger each time
+the notebook saves it, and nothing reads it back. It is not a promotion record:
+a run is promoted only through its bundle, as above.
 
 ## Public result paths
 
