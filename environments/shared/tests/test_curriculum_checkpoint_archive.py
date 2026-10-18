@@ -209,3 +209,21 @@ class TestTheKey:
             _save(tmp_path, step)
         callback._prune()
         assert _present(tmp_path) == [300, 500]
+
+
+def test_the_tyrannosaurus_rex_stance_keeps_one_checkpoint_per_half_million_steps_and_no_other_stage_declares_it():
+    """The one stage that keeps its onset record; every other stage's retention is unchanged."""
+    from environments.shared.config import load_all_stages, load_stage_config
+    from environments.shared.model_id import ModelId
+    from environments.shared.species_names import model_ids
+
+    tyrannosaurus_rex = ModelId("tyrannosaurus_rex", "anatomical")
+    stance = load_stage_config(tyrannosaurus_rex, "stance")["curriculum_kwargs"]
+    assert checkpoint_archive_every(stance) == 500_000 and stance["max_checkpoints"] == 5
+    declared = [
+        (str(model_id), config.get("name"))
+        for model_id in model_ids()
+        for config in load_all_stages(model_id).values()
+        if CHECKPOINT_ARCHIVE_KEY in config.get("curriculum_kwargs", {})
+    ]
+    assert declared == [(str(tyrannosaurus_rex), "stance")]
