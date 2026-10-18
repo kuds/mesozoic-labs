@@ -180,9 +180,11 @@ episodes, 40 on the stance stages that declare it. Every array has one
 value (or one row) per evaluation, aligned with `timesteps`. A key a run
 cannot supply on every evaluation is dropped rather than written misaligned.
 The file is report-only. No gate verdict, checkpoint selection or reward
-reads it. The opt-in hop watch reads only its `unsupported_duty`, and the
-posture-drift advisory (below) its fore-aft over-bar fractions and, for the
-line it prints, the latest row's signed per-foot centre of pressure.
+reads it. The opt-in hop watch reads only its `unsupported_duty`. The
+posture-drift advisory (below) reads its fore-aft over-bar fractions and,
+for the line it prints, the latest row's signed per-foot centre of
+pressure. The posture-trend advisory reads the same fractions and the
+signed per-foot centre-of-pressure series.
 
 | Keys | Meaning |
 |---|---|
@@ -190,6 +192,7 @@ line it prints, the latest row's signed per-foot centre of pressure.
 | `full_horizon_fraction`, `duty_episodes`, `unsupported_duty`, `unsupported_duty_ucb`, `bilateral_support_duty`, `mean_reward` | The stance panel's gate quantities, as `curriculum/stance_gate.py` reduces them |
 | `action_dc_rms`, `action_ac_rms`, `action_delta`, `action_jerk`, `action_freq_hz`; `action_dc_per_actuator`, `action_ac_rms_per_actuator` | The deterministic action's static offset from the home control and its tremor, over the post-settle window, as scalars and as (evaluations, actuators) matrices |
 | `term_*` | Each reward term's per-episode mean |
+| `full_horizon_term_*`, `fall_term_*` | Each reward term's per-episode mean over the evaluation's full-horizon episodes, and over its fallen ones (shorter than the horizon); NaN when it has no episode of that kind. With `n_fh` full-horizon and `n_fall` fallen episodes of `n`, `n_fh × full_horizon_term_x + n_fall × fall_term_x = n × term_x`. TensorBoard gets only the totals, `reward_terms/eval_full_horizon_total` and `reward_terms/eval_fall_total` |
 | `<label>_sole_cop_fore_aft` | Per box-soled foot: the evaluation's mean, over its full-horizon episodes, of the foot's signed fore-aft pad centre of pressure, in pad half-lengths, positive toward the toe. An episode's value is the mean over the post-settle steps the gate counts as loaded |
 | `<label>_sole_cop_fore_aft_gate` | Per box-soled foot: the evaluation's mean, over its full-horizon episodes, of the foot's per-episode gate statistic: the post-settle mean of `\|CoP\|`, with an unloaded step counted as 1. In each episode, its maximum over the feet is that episode's `max_sole_cop_fore_aft`. The maximum over the feet of these per-evaluation means is not the panel's statistic, only a lower bound of the next key |
 | `max_sole_cop_fore_aft_mean` | A model with a box pad: the evaluation's mean, over its full-horizon episodes, of each episode's own `max_sole_cop_fore_aft` (the maximum over the feet of `<label>_sole_cop_fore_aft_gate`), the number the gate's pad rail reads |
@@ -201,6 +204,7 @@ line it prints, the latest row's signed per-foot centre of pressure.
 | `<label>_toe_margin_nm`, `<label>_heel_margin_nm` | Per foot that declares a span: the post-settle mean, over loaded steps, of the floor-load moment left before the whole-foot CoP reaches the toe line and the heel line, in N m; means over the full-horizon episodes |
 | `<label>_<digit>_load_share`, `<label>_<digit>_load_pos` | Per digit of a box-soled foot: its share of the limb's post-settle floor force, and (a digit with an MTP joint only) where along it that load sits, force-weighted, 0 at the MTP axis and 1 at the tip; means over the full-horizon episodes |
 | `leg_dc_<left>_minus_<right>_<joint>_deg` | Per left/right foot pair and sagittal joint (`hip_pitch`, `knee`, `ankle`): the left joint's commanded offset from home minus the right one's, in degrees, each signed as a rotation about the animal's leftward axis. A mirror-symmetric posture reads 0 |
+| `leg_dc_<left>_<right>_mean_<joint>_deg` | The same pair's mirror-even mean, `(left + right) / 2` of the two signed offsets, in degrees: a symmetric crouch or lean, which the left-minus-right key reads as 0 |
 | `<label>_sole_tilt_deg`, `<label>_sole_corner_lift_m` | Per box-soled foot: the evaluation's mean, over its full-horizon episodes, of the sole's post-settle mean tilt from level (degrees) and mean corner lift (the height of its highest bottom corner over its lowest, m). In each episode, the maximum over the feet of each is that episode's `max_sole_tilt_deg` and `max_sole_corner_lift_m`, the gate's two roll rails |
 | `max_sole_tilt_deg_mean`, `max_sole_corner_lift_m_mean` | A model with a box sole: the evaluation's mean, over its full-horizon episodes, of each episode's own `max_sole_tilt_deg` and `max_sole_corner_lift_m` |
 | `max_sole_tilt_deg_over_bar_fraction`, `max_sole_corner_lift_m_over_bar_fraction` | A model with a box sole, on a stage that declares the bar (the T. rex 2.0° and 0.004 m, the anatomical Compsognathus 2.0° and 0.003 m): the fraction of the full-horizon episodes whose value exceeds the bar |
@@ -312,6 +316,121 @@ of the same keys as `diagnostics/eval_<key>`, and the termination counts as
 `terminations/eval_<cause>` (the training rollouts' termination fractions are
 `terminations/<cause>`).
 
+### Whole-body balance and floor forces
+
+The pad and whole-foot centres of pressure say where each foot carries its
+load. They cannot say how close the animal stands to falling over its toes,
+or how it holds a lean: the T. rex stance runs that nosedived reached the
+toe line with every foot rail still inside its bar. So on a model whose
+recorder runs (the box-soled models), each evaluation episode is also
+reduced to whole-body balance and force numbers. For the evaluation only,
+the recorder is built with its balance capture on. At the last physics
+substep of every control step, and once at the episode's first substep, it
+copies the whole animal's centre of mass (`subtree_com` of the free root),
+the applied actuator forces, the torque at each declared ankle
+(`qfrc_actuator + qfrc_passive`), and each floor contact's frame, tangential
+constraint forces and sliding friction. It reads the physics and writes
+nothing, so the evaluation is unchanged.
+`environments/shared/gait/balance_telemetry.py` reduces each episode over
+the gate's post-settle window. The heading of every sample is the one
+`heading_observation` uses: forward is the horizontal projection of the
+root's forward axis. Each key below is the evaluation's mean, over its
+full-horizon episodes, of the per-episode value, except where noted.
+
+| Keys | Meaning |
+|---|---|
+| `com_fore_aft_mean_m` | The whole animal's centre of mass (CoM) ahead of the mean of the feet's reference sites, along the heading (m), window mean |
+| `root_pitch_mean_deg` | The root's forward axis above horizontal (degrees, + nose up), window mean |
+| `xcom_fore_aft_max_m` | The extrapolated centre of mass (XcoM, Hof 2008: `xi = c + v / omega0`, `omega0 = sqrt(g / h)`, with `h` the CoM's height above the floor plane and `v` from the differences of successive samples) ahead of the feet's reference point, window maximum (m) |
+| `hof_cop_term_mean_mps2`, `hof_counter_rotation_mean_mps2`, `hof_counter_rotation_rms_mps2` | Hof's split (2007) of the CoM's forward acceleration `a = f . F / m`, with `F` the net floor force on the animal, the only horizontal external force. The centre-of-pressure term `F_z f . (c - CoP) / (m h)` is the part the floor centre of pressure's offset from the CoM explains; the counter-rotation term is the rest, body segments rotating about the CoM. The two sum to `a` at every sample. Window means of both, and the counter-rotation term's root mean square (m/s²) |
+| `leg_q_<left>_minus_<right>_<joint>_deg`, `leg_q_<left>_<right>_mean_<joint>_deg` | The achieved counterpart of the commanded leg DC: each sagittal joint's angle offset from the home pose (the env's reset keyframe), each side signed about the leftward axis as the `leg_dc_` keys are; left minus right, and the mirror-even mean; window means in degrees |
+| `xcom_toe_margin_min_m`, `xcom_toe_margin_mean_m`, `xcom_heel_margin_min_m` | Feet that declare a support span (the T. rex): how far the XcoM is inside the declared toe line and heel line, each line the mean over those feet along the heading (m, + inside): the toe margin's window minimum and mean, and the heel margin's window minimum. In Hof's inverted-pendulum model, once the XcoM is past the toe line, moving the centre of pressure within the feet can no longer stop the CoM |
+| `xcom_past_toe_fraction` | The same feet: the window fraction of steps with the XcoM past the toe line |
+| `time_to_toe_min_s` | The same feet: the shortest time for the CoM to reach the toe line at its forward speed, over the window steps on which it moves toward a line still ahead of it; NaN when it never does |
+| `fall_xcom_toe_lead_s` | The same feet: over the evaluation's fallen episodes, the mean time from the XcoM's first step past the toe line in the window to the episode's end (s). Only a fallen episode has the value, so there is no full-horizon mean of it; NaN when no fallen episode passed the toe line |
+| `xcom_tip_margin_min_m` | Hinged digits (the T. rex): the XcoM's margin to the digit tips (the forward-most tip of each foot along the heading, averaged over the feet), window minimum (m) |
+| `actuator_force_frac_max` | The highest, over the force-limited actuators, of the window mean of `\|F\| / limit` (the upper limit for a positive force, the lower one negated for a negative force) |
+| `actuator_force_limited_fraction` | The window fraction of steps on which some force-limited actuator is at 0.99 of its limit or more |
+| `actuator_force_frac_per_actuator` | An (evaluations, actuators) matrix: each actuator's window mean of `\|F\| / limit`, averaged over the evaluation's episodes that have a window, fallen ones included, as the action DC is; NaN for an actuator without a force limit |
+| `shear_over_normal`, `<label>_shear_over_normal` | The floor's forward force over its normal force, each summed over the loaded window steps, for the whole animal and per limb (+ the floor pushes the animal forward) |
+| `<label>_cone_use_mean`, `<label>_cone_use_max` | Per limb: the horizontal floor force over `mu F_z`, with `mu` the limb's load-weighted sliding friction, the fraction of the friction cone used; mean and maximum over the loaded window steps |
+| `<label>_ankle_moment_arm_m` | Per foot with a declared ankle (the T. rex): the ankle torque about the leftward axis over the normal force on the limb, each summed over the loaded window steps (m, + ahead of the ankle). It estimates the whole-foot centre of pressure's lever about the ankle from the joint side; it also carries the shear times the ankle's height and the foot's own weight |
+
+The positions are those of the control step's last physics substep, one
+physics step (2 ms on the T. rex) before the control boundary, as for every
+other recorder field. The CoM's height is measured from the z = 0 plane:
+the stance floors are flat. The force keys decode the elliptic friction
+cone, which every model uses; under a pyramidal cone every force key but
+the two actuator ones would read NaN.
+
+The keys follow the pad keys' rule: a key exists only where the model has
+what it measures, so no model attaches a recorder it did not attach
+before.
+
+- `com_fore_aft_mean_m`, `root_pitch_mean_deg`, `xcom_fore_aft_max_m`, the
+  Hof terms, the achieved leg offsets and the force keys but the ankle's:
+  the four box-soled models (the Tyrannosaurus Rex, both Compsognathus
+  embodiments and the Dibothrosuchus).
+- The toe and heel margins, `xcom_past_toe_fraction`, `time_to_toe_min_s`,
+  `fall_xcom_toe_lead_s` and the ankle moment arm need a declared support
+  span and ankle, and the tip margin needs hinged digits: the
+  Tyrannosaurus Rex only.
+- The Velociraptor and the Brachiosaurus have none of them: no box pad, no
+  recorder.
+- `leg_dc_<left>_<right>_mean_<joint>_deg` follows the left-minus-right leg
+  DC keys: every model.
+
+NaN in a key that exists means it was not measured at that evaluation: no
+full-horizon episode (no episode with a window, for the matrix), an empty
+window, a limb never loaded in it, or a failed capture. The balance capture
+and its reduction each have their own guard: a failure reads NaN on the
+balance and force keys alone, logged once, and leaves the evaluation, the
+run, and the pad, whole-foot and roll-rail fields as they were. If the
+recorder cannot be built with the balance capture, it is built without it,
+and those keys read NaN for the rest of the run. The capture copies at
+most a few hundred numbers per control step, and the reductions run once
+per episode, vectorised. On the T. rex, a four-episode evaluation of
+1,000-step zero-action episodes takes about 3% longer with them: over ten
+interleaved rounds on one CPU, the median of each round's best of three
+was 7.33 s at the base of this change and 7.58 s with it. TensorBoard
+carries the finite scalars as `diagnostics/eval_<key>`, and never the
+console.
+
+### The in-training `stance_quality/v2` screen
+
+On a stage whose gate is `stance_quality/v2` or the six-heading certificate
+`stance_quality_heading/v1` (which applies v2's decision) and whose recorder
+runs, every evaluation is also judged by the stage's own v2 bars:
+`evaluate_stance_v2_gate(..., in_training=True)` on the evaluation's
+episodes, at yaw 0, on the evaluation env's own resets, without the
+statue-relative criteria (on the T. rex, `min_avg_reward_statue_ratio`).
+Today that is the T. rex and the anatomical Compsognathus stances. The
+Velociraptor's `stance_quality/v2` stance has no box pad and no recorder,
+so it has no screen. The screen shows during training whether an
+evaluation's episodes clear the stage's clean-episode bound at yaw 0. It
+is never a verdict: the certificate applies the full decision at six
+headings on its own seeded panel after the stage, and no gate, verdict or
+checkpoint selection reads these keys.
+
+| Keys | Meaning |
+|---|---|
+| `screen_v2_episodes` | The episodes judged, the evaluation's |
+| `screen_v2_clean_count` | Those clean on every per-episode bar the screen applies |
+| `screen_v2_clean_lcb` | The lower confidence bound on the clean fraction the gate certifies with (`binomial_lcb`) |
+| `screen_v2_yaw0_bars_met` | 1 when the screen's decision passes, else 0 |
+| `screen_v2_hop_or_fall_episodes` | Where the stage declares `max_hop_or_fall_episodes`: the episodes that hopped or fell |
+| `screen_v2_fail_<criterion>_count` | Per criterion the gate counts (`horizon`, then each declared episode criterion): the episodes failing it |
+
+The key set is fixed by the stage's declaration, and every key is NaN on an
+evaluation the screen could not judge (a failed capture, an episode
+without metrics). The names keep the screen apart from a verdict:
+`screen_v2_yaw0_bars_met` says what it is; no key is the recorded-history
+gate's `stance_clean_count` (`reporting/gates.py`), so nothing reads the
+screen as one; the per-criterion counts end in `_count`, so that no key
+ends in a foot rail's suffix (`..._sole_cop_fore_aft`), which the posture
+readers would take for a foot; and TensorBoard files them under their own
+namespace, `screen_v2/`, apart from `diagnostics/eval_gate_met`.
+
 ### The posture-drift advisory
 
 On a stage that declares a fore-aft centre-of-pressure bar
@@ -344,23 +463,276 @@ in this advisory exactly when it is worst. The falls still show in
 `progress.json`'s `evaluation.falls` and in `gate_progress.npz`'s
 `full_horizon_fraction`.
 
+### The posture-trend advisory
+
+`PostureDrift` warns once half the panel stands over a fore-aft bar. A line
+starting `PostureTrend` (`PostureTrendWatchCallback`,
+`curriculum/posture_watch.py`) reads earlier. On a stage that declares a
+fore-aft centre-of-pressure bar, after every evaluation and for each such
+rail, it takes:
+
+- the rail's over-bar fraction;
+- the mean over the feet of their signed per-foot centre of pressure
+  (`<label>_sole_cop_fore_aft` for the pad rail, `<label>_foot_cop_fore_aft`
+  for the whole-foot rail; + toward the toe);
+- that mean's least-squares slope against the steps, in half-lengths per
+  million steps, over the finite values among the last 5 evaluations (at
+  least 3).
+
+It prints one line when the last 2 evaluations both have an over-bar
+fraction of 0.1 or more and the signed mean moves toward the edge it is on
+(slope times mean above 0). The line names the rail, its fractions and
+steps, the signed mean and its slope, and each foot's signed centre of
+pressure, and says that training continues unchanged. It repeats at most
+once per 10 evaluations, and a NaN fraction (no full-horizon episode) ends
+the streak, as for `PostureDrift`. It is listed in `progress.json`'s
+warnings (`source: "posture_trend"`). TensorBoard gets
+`posture/<rail>_signed_mean` and `posture/<rail>_trend_per_mstep` at every
+evaluation. It never stops or changes training.
+
+Why 0.1: on the T. rex's 40-episode panel, 4 episodes of 40 over a bar
+already fail the 37-of-40 bound on that rail alone. Four `[curriculum]`
+keys tune it, registered and validated like the drift watch's, set by no
+committed stage and in no digest: `posture_trend_warn_over_bar_fraction`
+(0.1), `posture_trend_warn_consecutive_evals` (2),
+`posture_trend_window_evals` (5, at least 3) and
+`posture_trend_warn_repeat_evals` (10).
+
+Replayed on the arm L screens' own series (10-episode evaluations every
+131,072 steps; r9 on the pad rail to 6,291,456 steps, r10 on the
+whole-foot rail to 11,927,552; the first four lines of each r10 series),
+against `PostureDrift` at its defaults:
+
+| Series | `PostureTrend` lines | `PostureDrift` lines |
+|---|---|---|
+| r9 arm L seed 60, pad rail | 4,325,376; 5,636,096 | 4,849,664 |
+| r9 arm L seed 52, pad rail | 3,407,872 | none |
+| r9 arm L seed 42, pad rail | 2,621,440; 4,063,232; 5,505,024 | none |
+| r10 arm L seed 60, whole-foot rail | 393,216; 1,703,936; 3,014,656; 5,111,808 | 917,504; 2,228,224; 3,538,944; 4,849,664 |
+| r10 arm L seed 52, whole-foot rail | 786,432; 2,097,152; 3,801,088; 5,111,808 | 917,504; 2,228,224; 3,538,944; 4,849,664 |
+| r10 arm L seed 42, whole-foot rail | 655,360; 3,407,872; 4,718,592; 6,553,600 | none |
+
+On r9 seed 60 the first line came at 4,325,376 steps, one evaluation into
+the drift that lasted (from 4,194,304) and four evaluations before
+`PostureDrift`. In these 10-episode series 0.1 is a single episode, so the
+rule fires more readily there than it will on a 40-episode panel: it
+printed on all six series, r10 seed 42 included, the one r10 seed that
+passed `stance_quality/v2` at 6M. A `PostureTrend` line says "look at this
+run's posture", not that the stage will fail.
+`test_curriculum_posture_watch.py::TestTheReplays` holds the series and
+pins these steps.
+
+### The gate progress figure
+
+When a stage ends, `generate_stage_artifacts` draws
+`figures/gate_progress.png` from `gate_progress.npz`
+(`visualization.plot_gate_progress`): one panel per group the file holds,
+against millions of steps.
+
+1. The mean reward, with the zero-action statue's reward when the run
+   captured one, and the full-horizon fraction.
+2. The signed per-foot pad and whole-foot centres of pressure, with each
+   declared bar at plus and minus.
+3. Each rail's over-bar fraction, with `PostureDrift`'s 0.5 and
+   `PostureTrend`'s 0.1 dashed.
+4. The screen's `screen_v2_clean_lcb` against the stage's
+   `min_clean_stance_lcb`.
+5. `com_fore_aft_mean_m` and `xcom_toe_margin_min_m`, with 0.
+6. The leg DC, left minus right and mirror-even: commanded (`leg_dc_`,
+   solid) and achieved (`leg_q_`, dashed).
+
+It is drawn after the other figures in its own guard, so a failure costs
+this figure only. To plot a run while it trains, from a copy of its stage
+directory (a Drive download): `python
+environments/shared/scripts/plot_gate_progress.py <stage_dir> [--out
+PNG]`. It reads the bars from the copy's `stage_config.json` and writes
+`gate_progress_<stage dir name>.png` in the current directory. It refuses
+an `--out` inside the run directory (the nearest ancestor holding
+`provenance.json`): a result bundle's manifest hashes every file there, and
+verification rejects a file it did not list.
+
+## Evaluation episodes: `eval_episodes.csv`
+
+`gate_progress.npz` keeps one value per evaluation, a mean over its
+episodes. Each stage directory also holds `eval_episodes.csv`, one row per
+evaluation episode (`StageAwareEvalCallback` with
+`environments/shared/episode_ledger.py`), on every model. It is rewritten
+atomically after every evaluation and when training ends, so every row up
+to a checkpoint's step is on disk before a run can resume from that
+checkpoint (SB3's `best_model`, saved inside the evaluation just before
+the rewrite, is the one exception). A same-stage resume keeps the previous session's rows at or
+before the resumed step. It does so where it seeds `gate_progress.npz`:
+when the resume can seed the evaluation history from the stage's
+`evaluations.npz`. When that file is missing, unreadable or holds another
+panel size, this file, `train_episodes.csv` and `policy_probe.npz` start
+again with the resumed session's rows. Floats are written in full
+(`repr`), `nan` where not measured, and a column whose values the
+evaluation could not align with its episodes reads empty.
+
+| Columns | Meaning |
+|---|---|
+| `evaluation`, `timesteps`, `episode`, `env` | The evaluation's index and training step, the episode's index in it, and the evaluation env it ran on |
+| `return`, `length`, `full_horizon`, `cause` | The episode's return and length (in `evaluations.npz`'s order), 1 when it reached the horizon, and how it ended: `truncated`, the env's `termination_reason`, or `terminated` |
+| `screen_v2_clean`, `screen_v2_reasons` | Where the screen runs: 1 when the episode met every bar the screen applies, and the bars it failed, `;`-joined |
+| `spawn_stance_width_change_m`, `<label>_spawn_tilt_deg` | Where the recorder runs: at the episode's first substep, the largest change of a foot pair's horizontal distance from the home pose (m), and each box sole's tilt (degrees). In this file only |
+| `<label>_sole_cop_fore_aft`, `<label>_sole_cop_fore_aft_gate`, `<label>_digit_share`, `<label>_foot_cop_fore_aft`, `<label>_foot_cop_fore_aft_gate`, `<label>_toe_margin_nm`, `<label>_sole_tilt_deg`, `<label>_sole_corner_lift_m` | Per foot, where it has them: the episode values whose full-horizon means `gate_progress.npz` holds |
+| `max_sole_cop_fore_aft`, `max_foot_cop_fore_aft`, `max_sole_tilt_deg`, `max_sole_corner_lift_m` | The episode's maxima over the feet, the per-episode numbers the gate's rails read |
+| The balance and force keys | The episode's own values of the keys in the balance table above, with `xcom_toe_lead_s` in place of its fall mean (NaN on an episode that did not fall) |
+
+The per-digit load fields and the whole-foot CoP spread and frequency stay
+in `gate_progress.npz` only. On the T. rex a row has 63 columns and about
+1.06 KB (measured), so the file of a 12M stance (40 episodes every 50,000
+steps, 9,600 rows) ends at about 10 MB, and rewriting it at every
+evaluation writes about 1.2 GB to Drive over the run.
+
+## Training episodes: `train_episodes.csv` and the rollout counts
+
+The evaluation episodes are the deterministic policy's. The falls a
+stance run learns from are its training episodes: 15 to 17% of one T. rex
+seed's training episodes ended early at 4.7 to 5.2M steps while its
+evaluations stood. `TrainingEpisodeLedgerCallback`
+(`environments/shared/rollout_ledger.py`) writes one row per training
+episode to `train_episodes.csv`, on every model trained by `train()` or
+the command-line curriculum:
+
+| Columns | Meaning |
+|---|---|
+| `timesteps`, `env`, `length`, `return`, `cause` | The run's step count when the episode ended, its training env, Monitor's length and return, and how it ended, as in `eval_episodes.csv` |
+| `com_fore_aft_mean_m`, `root_pitch_mean_deg` | The evaluation keys' definitions, over the post-settle window |
+| `com_fore_aft_last_m`, `root_pitch_last_deg` | The same at the last reading before the episode ended |
+| `actuator_force_limited_fraction` | The evaluation key's definition (one function serves both), over the window |
+| `<label>_touch_share_pad`, `<label>_touch_share_<stem>`, `<label>_touch_share_digits` | On a foot with a sole, one touch sensor on the sole's body and at least one on a hinged digit (the T. rex: `toe_d2`, `toe_d3` and `toe_d4`): each sensor's share of the foot's summed touch readings over the window, and the digits' sum. Measured against floor truth, these four shares predict the whole-foot centre of pressure with R² 0.91. No other model has such a foot |
+
+When an env reports `done` it has already reset, so its data belong to the
+next episode: the terminal state is never read, and the window is the
+post-step readings past `settle_steps`, the terminal one excluded. An
+episode that ends inside the settle window has NaN means and finite last
+values. Per step the callback only copies raw `mjData` reads of the envs
+that are not done (the root's CoM and orientation, the feet's reference
+sites, those touch sensors and the actuator forces); the frames and
+reductions run once per episode. A `SubprocVecEnv`'s envs live in other
+processes: their rows keep the outcome columns and read NaN in the rest
+(one warning). A failure costs that env's episode (NaN, one warning), never
+the run. The file is rewritten on the checkpoint cadence (in the calls a
+periodic checkpoint is saved in) and at training end, and a same-stage
+resume keeps the previous session's rows at or before the resumed step.
+On four T. rex envs the per-step copies cost 44 to 48 µs per vector step
+against a 4.8 to 5.2 ms physics step (about 0.9%). TensorBoard gets, per
+rollout, over the episodes that ended in it: `rollout_balance/episodes`,
+`falls`, `com_fore_aft_mean_m`, `com_fore_aft_last_falls_m` and
+`force_limited_fraction_falls`.
+
+`diagnostics.npz` gains the counts behind its termination fractions:
+`rollout_episodes` (episodes that ended in each rollout) and
+`rollout_falls` (those that terminated), aligned with `timesteps`, and
+`rollout_term_count_<reason>`, aligned with `term_timesteps` like the
+`term_<reason>` fractions and back-filled with 0 the same way. A fraction
+alone cannot say whether a rollout ended two episodes or forty. They are
+deliberately not `term_count_<reason>`: every `term_` key but
+`term_timesteps` is read as a termination fraction
+(`visualization.termination_fraction_keys`,
+`scripts/compare_run_diagnostics.py`). TensorBoard gets
+`terminations/rollout_episodes` and `terminations/rollout_falls`. Like the
+rest of `diagnostics.npz`, the counts start again on a same-stage resume
+(`docs/KNOWN_ISSUES.md`).
+`diagnostics.npz` also gains `reward_action_jerk`, the action-jerk reward
+term every stance stage pays (`action_jerk_weight`): the env emitted it,
+but nothing recorded it. It reaches TensorBoard
+(`diagnostics/reward_action_jerk`), W&B and the post-training results CSV
+(`eval_reward_action_jerk`) as the other reward terms do.
+
+## The policy probe: `policy_probe.npz`
+
+TensorBoard's `train/std` is the exploration noise averaged over the
+actuators; on the r9 arm L runs it hid a 9- to 13-fold spread between
+them. Nothing recorded what the policy does at a known posture as it
+trains, or what its critic makes of a lean. `PolicyProbeCallback`
+(`environments/shared/policy_probe.py`) records, at the end of every PPO
+rollout (so for the policy that collected it, before `train()` updates
+it), the policy's state and its outputs on a fixed bank of states.
+
+The bank is ten states of the stage's own env, on reset seeds 3042 and
+3043: the settled statue at step 199, the statue at step 599,
+mirror-symmetric ankle leans of +0.03 and -0.03 action units (ramped over
+steps 200 to 300, then held) at step 599, and a -0.05 lean at step 400.
+The lean is applied as `sign × x` to each side of every sagittal ankle
+pair, with each side's leftward-axis sign, so it is the same posture on
+every model. The bank is built once per session on a separate env instance
+that nothing else steps, with a horizon of its own (the stage's, or 601
+steps if that is longer), so a short stage horizon still yields all ten
+states. A guard snapshots and restores the global random generators around
+the build, which draws from none of them. The build costs about 5.6 s per
+session on the T. rex. SAC gets no bank and no rows.
+
+Per update the probe reads parameters and runs `torch.no_grad()` forward
+passes of the constant bank: no sampling, no gradient, and no parameter,
+optimizer, buffer or training-mode change. It cost 1.6 to 2.3 ms per update
+on the T. rex. The file is rewritten atomically on the checkpoint cadence
+and at training end. A same-stage resume keeps the previous session's rows
+at or before the resumed step when its bank equals this session's (the
+labels, seeds, steps, offsets and raw observations); otherwise it drops
+them with one warning.
+
+| Key | Shape | Meaning |
+|---|---|---|
+| `update_timesteps` | (U,) | The step count at each rollout's end |
+| `std_per_actuator` | (U, actuators) | The exploration standard deviation, `exp(log_std)` |
+| `obs_rms_mean`, `obs_rms_var`, `obs_rms_count`, `ret_rms_var` | (U, observations), (U,) | VecNormalize's statistics (NaN without VecNormalize) |
+| `ent_coef`, `learning_rate` | (U,) | The entropy coefficient and the learning rate the coming `train()` applies (the rate from SB3's own schedule, not the optimizer's current value, which is the previous update's) |
+| `bank_value_now`, `bank_value_frozen` | (U, B) | The critic's value at each bank state, under the current observation normalization and under the one frozen at the session's start, so that a change of value can be told apart from a change of the normalizer |
+| `bank_action_now`, `bank_action_frozen` | (U, B, actuators) | The deterministic mean action at each bank state, under both normalizations, before clipping |
+| `frozen_reference_timesteps` | (U,) | The step the frozen statistics were taken at (the session's start) |
+| `frozen_obs_mean`, `frozen_obs_var` | (observations,) | The frozen statistics |
+| `bank_raw_obs` | (B, observations) | The bank's observations, before normalization |
+| `bank_labels`, `bank_seeds`, `bank_steps`, `bank_ankle_offset`, `bank_com_fore_aft_m` | (B,) | The bank: each state's label, reset seed, step, lean, and its CoM ahead of the feet (m) |
+| `bank_horizon`, `bank_build_seconds` | () | The bank env's horizon and the build's wall time |
+| `ankle_actuators`, `ankle_signs` | (P, 2) | Each ankle pair's left and right actuators and leftward-axis signs: one pair on a biped, two on the Dibothrosuchus and the Brachiosaurus |
+
+The per-update arrays are float32, but the step counts (int64) and
+`obs_rms_count` (float64): about 1.9 KB per update on the T. rex
+(15 actuators, 63 observations, 10 states), about 2.8 MB over the 1,465
+updates of a 12M run. TensorBoard gets, at every update and never on the
+console:
+
+| Tag | Meaning |
+|---|---|
+| `policy_probe/std_min`, `std_max`, `std_max_over_min` | The spread of the per-actuator exploration noise that the mean `train/std` hides |
+| `policy_probe/ent_coef` | The entropy coefficient the next `train()` uses, logged nowhere else |
+| `policy_probe/obs_var_min`, `obs_var_max` | The normalizer's per-dimension extremes |
+| `policy_probe/value_statue` | The critic's value at the two `statue` states |
+| `policy_probe/value_ankle_plus_minus_statue`, `value_ankle_minus_minus_statue`, `value_ankle_minus_0.05_minus_statue` | Each lean's value less the statue's on the same seed, averaged over the seeds |
+| `policy_probe/value_normalization_shift_statue` | The statue's value under the current normalization less its value under the frozen one |
+| `policy_probe/statue_ankle_action_mean` | The mirror-even ankle action at the statue states, averaged over the ankle pairs |
+| `policy_probe/ankle_gain_per_m` | The difference of the mirror-even ankle action between the +0.03 and -0.03 leans over the difference of their CoM positions, averaged over the seeds: the deterministic policy's ankle feedback gain to a CoM lean, in action units per metre |
+
 ## Training progress: `progress.json`
 
 Each training stage directory also holds `progress.json`, a small
 human-readable snapshot of the stage, so a run can be checked mid-run
-without opening the binary `.npz` files. It is 4 to 6 KB before any
-warning; each warning it keeps adds 0.6 to 0.9 KB, and it keeps the newest
-ten, so it stays under about 15 KB. On Colab, open it from
+without opening the binary `.npz` files. On the T. rex it is about 8 KB
+before any warning (7.8 KB measured on a short stance run, which wrote
+4.6 KB without the balance, force, policy and training-rollout blocks
+below); each warning it keeps adds 0.6 to 0.9 KB, and it keeps the
+newest ten, so it stays under about 17 KB. On Colab, open it from
 Drive (`MyDrive/mesozoic-labs/logs/<species>/<embodiment>/<algorithm>/<run>/<stage_dir>/progress.json`).
 `TrainingProgressCallback` (`environments/shared/curriculum/progress_report.py`)
 rewrites it atomically (a temporary file in the stage directory, then
 `os.replace`, safe on a Drive mount) when training starts, after every
 periodic evaluation and when training ends. It reads what the evaluation
-callbacks already recorded, the evaluation history and the latest
-`gate_progress.npz` row, and recomputes nothing. Nothing reads it back, and
+callbacks already recorded (the evaluation history, the latest
+`gate_progress.npz` row, the policy probe's latest row and the training
+ledger's summary) and recomputes nothing. Nothing reads it back, and
 a failure to write it is logged once and never stops a run. It is strict
 JSON: a value that could not be measured is `null`, never NaN. Numbers keep
-six significant digits, and the posture statistics four.
+six significant digits, and the posture, balance, force and probe
+statistics four. A block whose source a run does not have is left out,
+never filled with `null`.
+
+The schema string changes only when a key is removed or renamed, or changes
+its meaning, units or type. Adding a key or a block does not change it:
+the balance, force, policy and training-rollout blocks, the screen and the
+achieved leg offsets were added under `mesozoic.training-progress/v1`, and
+every key and type the file had before is kept.
 
 | Key | Meaning |
 |---|---|
@@ -374,11 +746,98 @@ six significant digits, and the posture statistics four.
 | `timesteps`, `budget_timesteps`, `fraction_done` | Steps trained (cumulative across a same-stage resume), the cumulative step count this session trains to, and their ratio |
 | `session_started_at`, `wall_clock_s`, `steps_per_s`, `projected_finish` | When this session's training started (UTC), the seconds since, the steps per second observed over them (evaluations included), and the UTC time the budget is reached at that rate (`null` before the first step) |
 | `zero_action_reward` | The zero-action statue's mean reward from the run's `zero_action_baseline.json`, when the run captured one |
-| `evaluation` | The latest evaluation: `timesteps`, `episodes`, `mean_reward`, `std_reward`, `mean_episode_length`, `falls` (episodes shorter than the horizon), `full_horizon_fraction` and `termination_causes` (each cause's count, causes no episode ended by left out); `null` before the first |
-| `posture` | Per rail the model measures (`max_sole_cop_fore_aft`, `max_foot_cop_fore_aft`, `max_sole_tilt_deg`, `max_sole_corner_lift_m`): `bar` (the stage's, `null` when it declares none), `mean` (the `_mean` key), `over_bar_fraction` (with a bar only) and `per_foot`. Per foot, the CoP rails give `gate` (the per-foot statistic's mean) with the signed CoP and the digit share or the moment margins where the foot has them; the roll rails a number. Then `leg_dc_deg`, the left-minus-right leg DC per joint pair. `{}` before the first evaluation |
-| `history` | The last 5 evaluations, oldest first: the `evaluation` fields but the causes, with each rail's `_mean` and `_over_bar_fraction` where recorded |
-| `checkpoints` | `latest_periodic_timesteps` (the newest periodic checkpoint in `models/`, by its name), `best_model_timesteps` and `best_mean_reward` (SB3's mean-reward best), `robust_best_model_timesteps` and `robust_best_score` (mean minus one standard deviation). A best checkpoint whose evaluation a resume dropped from the history reads `null`, while its score (`best_mean_reward`, `robust_best_score`) keeps the value the resumed tracker carried over |
-| `warnings_total`, `warnings` | How many advisories this session has raised, and the newest 10 in step order, each `{"timesteps", "source", "message"}`: `posture_drift` (with `rails`), `evaluation_plateau`, `zero_action_baseline` and `hop_watch`. Each also appears as a warning line in the training output. A resumed session counts its own |
+| `evaluation` | The latest evaluation: `timesteps`, `episodes`, `mean_reward`, `std_reward`, `mean_episode_length`, `falls` (episodes shorter than the horizon), `full_horizon_fraction` and `termination_causes` (each cause's count, causes no episode ended by left out); `null` before the first. Where the screen runs, `screen_v2`: `clean`, `episodes`, `clean_lcb`, `bar` (the stage's `min_clean_stance_lcb`), `yaw0_bars_met` (never a verdict), `hop_or_fall` and `hop_or_fall_bar` where the stage declares that bar, `failing` (each criterion some episode failed, with its count) and `skipped` (the statue-relative criteria the screen leaves out) |
+| `posture` | Per rail the model measures (`max_sole_cop_fore_aft`, `max_foot_cop_fore_aft`, `max_sole_tilt_deg`, `max_sole_corner_lift_m`): `bar` (the stage's, `null` when it declares none), `mean` (the `_mean` key), `over_bar_fraction` (with a bar only) and `per_foot`. Per foot, the CoP rails give `gate` (the per-foot statistic's mean) with the signed CoP and the digit share or the moment margins where the foot has them; the roll rails a number. Then `leg_dc_deg`, the commanded leg DC per joint pair, left minus right (`l_minus_r_ankle`) and mirror-even (`l_r_mean_ankle`), and, where the recorder runs, `leg_q_deg`, the achieved joint offsets in the same form. `{}` before the first evaluation |
+| `balance` | Where the recorder runs: the latest row's balance keys (`com_fore_aft_mean_m`, `root_pitch_mean_deg`, `xcom_fore_aft_max_m`, the Hof terms, and on the T. rex the XcoM margins, `xcom_past_toe_fraction`, `time_to_toe_min_s`, `fall_xcom_toe_lead_s` and `xcom_tip_margin_min_m`) |
+| `forces` | Where the recorder runs: `actuator_force_frac_max`, `actuator_force_limited_fraction`, `shear_over_normal`, and `per_foot` with `shear_over_normal`, `cone_use_mean`, `cone_use_max` and, on a declared ankle, `ankle_moment_arm_m` |
+| `policy` | PPO stages: the policy probe's latest row, its `policy_probe/*` scalars (without the prefix) and `update_timesteps` |
+| `training_rollouts` | The training episodes that ended in the last 262,144 steps (`window_timesteps`): `episodes`, `falls` (episodes that did not reach the time limit), `fall_fraction`, `com_fore_aft_mean_m` over them, `com_fore_aft_last_falls_m` and `force_limited_fraction_falls` over the falls, and per foot with touch shares `touch_shares` (`pad`, each digit, `digits`; each a mean of the episodes' shares); then this session's `episodes_total` and `falls_total` |
+| `history` | The last 5 evaluations, oldest first: the `evaluation` fields but the causes and the screen, with each rail's `_mean` and `_over_bar_fraction`, and the screen's `screen_v2_clean_count` and `screen_v2_clean_lcb`, where recorded |
+| `checkpoints` | `latest_periodic_timesteps` (the newest periodic checkpoint in `models/`, by its name), `periodic_timesteps` (every periodic checkpoint kept, sorted: the newest few and, under the archive rule below, one per interval), `best_model_timesteps` and `best_mean_reward` (SB3's mean-reward best), `robust_best_model_timesteps` and `robust_best_score` (mean minus one standard deviation). A best checkpoint whose evaluation a resume dropped from the history reads `null`, while its score (`best_mean_reward`, `robust_best_score`) keeps the value the resumed tracker carried over |
+| `warnings_total`, `warnings` | How many advisories this session has raised, and the newest 10 in step order, each `{"timesteps", "source", "message"}`: `posture_drift` and `posture_trend` (each with `rails`), `evaluation_plateau`, `zero_action_baseline` and `hop_watch`. Each also appears as a warning line in the training output. A resumed session counts its own |
+
+## The handoff's in-training score: `handoff_in_training.json`
+
+A stance certificate scores the handoff checkpoint (`robust_best_model`
+first) on its own panel, but nothing beside it said at which in-training
+evaluation that checkpoint was saved, or how it scored there. Whenever a
+stance gate (any of its kinds) scores the handoff checkpoint, after that
+attempt has returned, whatever it returned, the stage writes
+`handoff_in_training.json` into its directory and logs one line, for
+example `Handoff in training: robust_best_model, saved at
+655,360 steps: evaluation mean 3959.1, std 0.0 over 40 episodes (mean -
+1.0 x std = 3959.1)`.
+
+| Key | Meaning |
+|---|---|
+| `selected` | The handoff checkpoint's name |
+| `timesteps` | Its own `num_timesteps`, from the zip's `data` member (no torch load) |
+| `mean_reward`, `std_reward`, `episodes` | The evaluation at exactly that step in `evaluations.npz` (the standard deviation with ddof 0, as the robust selector computes it) |
+| `selection_rule`, `selection_score` | `mean - 1.0 x std` for `robust_best_model` and `mean` for `best_model`, and its value at that evaluation |
+| `first_scoring_timesteps`, `step_agrees` | The first evaluation whose score equals the history's best (`progress.json`'s reading) and whether it is the checkpoint's own step |
+| `error` | Only when a value could not be found (a truncated zip, no `evaluations.npz`, no evaluation at that step, as for `stage1_final`): the reason, with the values not found `null` |
+
+It is a sidecar, not a key of the certificate: a failure inside the
+certificate's own guard fails the stage closed, so nothing new runs there.
+It never raises, nothing reads it back, and the certificate's bytes, its
+verdict and `gate_verdict.json` are the same with or without it. It sits in
+the stage directory before the result bundle is built, so the bundle's
+manifest lists it with the other artifacts.
+
+## Onset checkpoints: the archive rule
+
+`CheckpointRetentionCallback` keeps the newest `max_checkpoints` periodic
+checkpoints (5 by default) and deletes older ones. By the end of a 12M
+stance, nothing more than about 0.5M steps old remains, so the checkpoints
+from when a posture set in cannot be replayed. A retention key adds an
+archive: with `checkpoint_archive_every_timesteps = A`, a periodic
+checkpoint outside the newest `max_checkpoints` is also kept when it is
+the newest one present in its interval `(k A, (k + 1) A]`. The kept set
+depends on the checkpoint names alone, so a restart or a resume prunes the
+same way. `best_model`, `robust_best_model` and `stage1_final` are never
+periodic checkpoints and are never pruned, and a zip's VecNormalize pickle
+is kept or deleted with it. The key must be a whole number of steps, 0 or
+more (0 or absent: no archive). Like `max_checkpoints`, it enters no gate,
+task or hyperparameter digest; only the stage's two
+`stage_config_view_sha256` lines of the digest snapshot move with it.
+
+The T. rex stance sets 500,000. At the notebook's stance cadence (a
+checkpoint every 100,000 steps) a 12M run keeps, at 4.04 MB per pair (a
+policy zip and its VecNormalize pickle, measured on the T. rex):
+
+| Retention | Pairs kept at 12M | Drive | Onset resolution |
+|---|---|---|---|
+| The newest 5 only (before) | 5 | 20.2 MB | none older than 0.5M steps before the end |
+| `max_checkpoints = 0` (every one) | 120 | 484.5 MB | 0.1M steps |
+| Archive every 1,048,576 steps | 16 | 64.6 MB | about 1.05M steps |
+| **Archive every 500,000 steps (the T. rex stance)** | **28** | **113.1 MB** | **0.5M steps** |
+| Archive every 250,000 steps | 51 | 205.9 MB | 0.25M steps |
+
+The result bundle's manifest reads each kept pair once when the bundle is
+written. At a cadence of 1,048,576 steps the rule keeps every checkpoint,
+so there the cadence sets the resolution. `progress.json`'s
+`checkpoints.periodic_timesteps` lists the steps kept.
+
+## Which model records what
+
+Every model whose stage is trained by `train()` or the command-line
+curriculum records `train_episodes.csv` (its outcome, posture and
+limited-force columns), the rollout counts and `reward_action_jerk` in
+`diagnostics.npz`, `eval_episodes.csv` (its outcome columns), the reward
+terms split by outcome, the mirror-even leg DC, and, on PPO,
+`policy_probe.npz`. The rest follows each model's feet:
+
+| Model | Balance and force keys | Span, tip and ankle keys | In-training screen | Touch shares | Probe ankle pairs |
+|---|---|---|---|---|---|
+| Tyrannosaurus Rex | yes | yes | yes | `pad`, `toe_d2`, `toe_d3`, `toe_d4`, `digits` per foot | 1 |
+| Compsognathus Longipes (Anatomical) | yes | no | yes | no | 1 |
+| Compsognathus Longipes (Robot) | yes | no | no (`stance_quality/v1`) | no | 1 |
+| Dibothrosuchus Elaphros | yes | no | no (`reward_and_length/v1`) | no | 2 |
+| Velociraptor Mongoliensis | no (no box pad) | no | no (no recorder) | no | 1 |
+| Brachiosaurus Altithorax | no (no box pad) | no | no | no | 2 |
+
+Behaviour stages trained by `train_behaviors.py` build their own callbacks
+and get none of these, nor `progress.json`.
 
 ## Compatibility and verification
 
