@@ -365,6 +365,10 @@ def test_the_full_run_writes_the_ledger_and_the_progress_blocks(trained):
     diagnostics = _keys(full / "diagnostics.npz")
     assert int(diagnostics["rollout_episodes"].sum()) == len(train_rows)
     assert int(diagnostics["rollout_falls"].sum()) == sum(row["cause"] != "truncated" for row in train_rows)
+    assert record["training_rollouts"]["episodes_total"] == len(train_rows)
+    assert record["policy"]["update_timesteps"] == STEPS
+    plain_record = json.loads((_plain / "progress.json").read_text(encoding="utf-8"))
+    assert not {"policy", "training_rollouts"} & set(plain_record)
     with np.load(full / "policy_probe.npz", allow_pickle=False) as probe:
         # One row per PPO update, and the whole bank although the stage's horizon is 240 steps.
         assert probe["update_timesteps"].tolist() == [256, 512, 768]

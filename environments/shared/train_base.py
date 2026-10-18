@@ -968,6 +968,9 @@ def _build_core_callbacks(
         stage_config=stage_config,
         warning_sources=[plateau_callback, baseline_cb, hop_watch_cb, posture_cb, posture_trend_cb],
         robust_callback=robust_callback,
+        # The training side: the probe's latest update and the ledger's recent episodes (None: no block).
+        policy_probe=policy_probe_cb,
+        rollout_ledger=training_ledger_cb,
         verbose=verbose,
     )
     if progress_cb is not None:

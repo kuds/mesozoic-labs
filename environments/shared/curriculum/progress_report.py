@@ -14,14 +14,17 @@ checkpoints so far, and the advisories the run has raised.  Where the
 evaluation callbacks record them, it also carries the in-training v2
 screen (``evaluation.screen_v2``, never a verdict), the whole-body balance
 and force telemetry (``balance``, ``forces``) and the achieved leg offsets
-(``posture.leg_q_deg``); a block whose source is absent is left out, and
-the schema string changes only when a key is removed, renamed, or changes
-meaning, units or type, never for an added one.
+(``posture.leg_q_deg``); and from the training side, the policy probe's
+latest update (``policy``) and the training episodes of the last 262,144
+steps (``training_rollouts``).  A block whose source is absent is left out,
+and the schema string changes only when a key is removed, renamed, or
+changes meaning, units or type, never for an added one.
 
 It is **report-only**.  It reads what the evaluation callbacks already
-recorded (``StageAwareEvalCallback``'s evaluation history and
+recorded (``StageAwareEvalCallback``'s evaluation history,
 ``StageGatePlateauCallback``'s latest ``gate_progress.npz`` row, through
-``gate_progress_row``) and recomputes nothing; nothing reads the file back.
+``gate_progress_row``, the policy probe's ``latest()`` and the training
+ledger's ``summary()``) and recomputes nothing; nothing reads the file back.
 It is rewritten atomically (:func:`~environments.shared.file_io.atomic_write_json`,
 a temporary file and ``os.replace``, safe on a Drive mount) at the start of
 training, after every periodic evaluation and when training ends, and a
@@ -79,6 +82,8 @@ _LEG_Q_PREFIX = "leg_q_"
 _SCREEN_HISTORY_KEYS = ("screen_v2_clean_count", "screen_v2_clean_lcb")
 #: The ``gate_progress.npz`` prefix of the termination-cause counts (``eval_diagnostics.TERMINATION_KEY_PREFIX``).
 _TERMINATION_PREFIX = "termination_"
+#: The ``training_rollouts`` entries that are counts (whole numbers); the rest are statistics.
+_COUNT_KEYS = frozenset({"window_timesteps", "episodes", "falls", "episodes_total", "falls_total"})
 
 
 def _iso(moment: datetime) -> str:
@@ -262,6 +267,9 @@ class TrainingProgressCallback(BaseCallback):  # type: ignore[misc]
         curriculum_kwargs: The stage's ``[curriculum]`` table: its declared bars.
         warning_sources: Callbacks whose ``progress_warnings`` lists to report.
         robust_callback: The ``RobustBestModelCallback``, for the robust best step.
+        policy_probe: The ``PolicyProbeCallback`` whose ``latest()`` is the ``policy`` block (``None``: none).
+        rollout_ledger: The ``TrainingEpisodeLedgerCallback`` whose ``summary()`` is the
+            ``training_rollouts`` block (``None``: none).
     """
 
     #: Class-scope defaults so an instance built without ``__init__`` (as the
@@ -269,6 +277,8 @@ class TrainingProgressCallback(BaseCallback):  # type: ignore[misc]
     _last_seen_n_evals = 0
     _warned_unwritable = False
     _session_start: "tuple[float, datetime, int] | None" = None
+    policy_probe: Any = None
+    rollout_ledger: Any = None
 
     def __init__(
         self,
@@ -284,6 +294,8 @@ class TrainingProgressCallback(BaseCallback):  # type: ignore[misc]
         curriculum_kwargs: Mapping[str, Any],
         warning_sources: Sequence[Any] = (),
         robust_callback: Any = None,
+        policy_probe: Any = None,
+        rollout_ledger: Any = None,
         verbose: int = 0,
     ):
         if not sb3_compat._SB3_AVAILABLE:
@@ -300,6 +312,8 @@ class TrainingProgressCallback(BaseCallback):  # type: ignore[misc]
         self.curriculum_kwargs = dict(curriculum_kwargs)
         self.warning_sources = list(warning_sources)
         self.robust_callback = robust_callback
+        self.policy_probe = policy_probe
+        self.rollout_ledger = rollout_ledger
         self._last_seen_n_evals = 0
         self._warned_unwritable = False
         self._session_start = None
@@ -359,6 +373,10 @@ class TrainingProgressCallback(BaseCallback):  # type: ignore[misc]
         # The balance and force telemetry (a block whose source is absent is omitted, never null-filled).
         for name, block in (("balance", balance_block), ("forces", forces_block)):
             values = block(row) if row else {}
+            if values:
+                record[name] = values
+        # The training side: the policy probe's latest update and the recent training episodes.
+        for name, values in (("policy", self._policy()), ("training_rollouts", self._training_rollouts(timesteps))):
             if values:
                 record[name] = values
         record["history"] = self._history()
@@ -534,6 +552,42 @@ class TrainingProgressCallback(BaseCallback):  # type: ignore[misc]
             out["robust_best_score"] = _number(score)
         return out
 
+    def _policy(self) -> dict[str, Any]:
+        """``policy``: the probe's latest row (its ``policy_probe/*`` scalars and ``update_timesteps``)."""
+        latest = getattr(self.policy_probe, "latest", None)
+        if not callable(latest):
+            return {}
+        try:
+            values = dict(latest())
+        except Exception:  # noqa: BLE001 - a report must not sink a run
+            return {}
+        return {
+            key: int(value) if key == "update_timesteps" else _number(value, POSTURE_DIGITS)
+            for key, value in values.items()
+        }
+
+    def _training_rollouts(self, timesteps: int) -> dict[str, Any]:
+        """``training_rollouts``: the training ledger's summary of the episodes that ended in its window."""
+        summary = getattr(self.rollout_ledger, "summary", None)
+        if not callable(summary):
+            return {}
+        try:
+            values = dict(summary(timesteps))
+        except Exception:  # noqa: BLE001 - a report must not sink a run
+            return {}
+        out: dict[str, Any] = {}
+        for key, value in values.items():
+            if key == "touch_shares":
+                out[key] = {
+                    str(label): {str(stem): _number(share, POSTURE_DIGITS) for stem, share in dict(shares).items()}
+                    for label, shares in dict(value).items()
+                }
+            elif key in _COUNT_KEYS:
+                out[key] = int(value)
+            else:
+                out[key] = _number(value, POSTURE_DIGITS)
+        return out
+
     def _warnings(self) -> list[dict[str, Any]]:
         warnings: list[dict[str, Any]] = []
         for source in self.warning_sources:
@@ -556,6 +610,8 @@ def build_training_progress_callback(
     stage_config: Mapping[str, Any],
     warning_sources: Sequence[Any] = (),
     robust_callback: Any = None,
+    policy_probe: Any = None,
+    rollout_ledger: Any = None,
     verbose: int = 0,
 ) -> TrainingProgressCallback | None:
     """Build the writer, or ``None`` without a stage directory to write into."""
@@ -573,5 +629,7 @@ def build_training_progress_callback(
         curriculum_kwargs=stage_config.get("curriculum_kwargs", {}) or {},
         warning_sources=[source for source in warning_sources if source is not None],
         robust_callback=robust_callback,
+        policy_probe=policy_probe,
+        rollout_ledger=rollout_ledger,
         verbose=verbose,
     )

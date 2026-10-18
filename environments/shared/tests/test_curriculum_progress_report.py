@@ -197,6 +197,77 @@ class TestTheBalanceBlocks:
         json.dumps(record, allow_nan=False)  # strict JSON
 
 
+class TestTheTrainingSideBlocks:
+    """``policy`` and ``training_rollouts``: the policy probe's latest update and the training ledger's summary."""
+
+    LATEST = {
+        "update_timesteps": 8192,
+        "std_min": 0.123456789,
+        "std_max_over_min": 9.87654321,
+        "value_statue": 41.234567,
+        "value_normalization_shift_statue": NAN,
+        "ankle_gain_per_m": -1.23456789,
+    }
+    SUMMARY = {
+        "window_timesteps": 262144,
+        "episodes": 12,
+        "falls": 2,
+        "fall_fraction": 2 / 12,
+        "com_fore_aft_mean_m": 0.0123456,
+        "com_fore_aft_last_falls_m": NAN,
+        "force_limited_fraction_falls": 0.25,
+        "touch_shares": {"r": {"pad": 0.7912345, "toe_d2": 0.0312345, "digits": 0.2087655}},
+        "episodes_total": 30,
+        "falls_total": 5,
+    }
+
+    def test_the_record_carries_them_rounded_and_strict(self, tmp_path):
+        callback = _callback(tmp_path)
+        seen = []
+        callback.policy_probe = SimpleNamespace(latest=lambda: dict(self.LATEST))
+        callback.rollout_ledger = SimpleNamespace(
+            summary=lambda timesteps: seen.append(timesteps) or dict(self.SUMMARY)
+        )
+        record = callback.record("training")
+        assert record["policy"] == {
+            "update_timesteps": 8192,
+            "std_min": 0.1235,
+            "std_max_over_min": 9.877,
+            "value_statue": 41.23,
+            "value_normalization_shift_statue": None,
+            "ankle_gain_per_m": -1.235,
+        }
+        assert record["training_rollouts"] == {
+            "window_timesteps": 262144,
+            "episodes": 12,
+            "falls": 2,
+            "fall_fraction": 0.1667,
+            "com_fore_aft_mean_m": 0.01235,
+            "com_fore_aft_last_falls_m": None,
+            "force_limited_fraction_falls": 0.25,
+            "touch_shares": {"r": {"pad": 0.7912, "toe_d2": 0.03123, "digits": 0.2088}},
+            "episodes_total": 30,
+            "falls_total": 5,
+        }
+        assert seen == [record["timesteps"]]  # the ledger's window ends at the record's own step
+        json.dumps(record, allow_nan=False)
+
+    def test_a_missing_empty_or_failing_source_leaves_its_block_out(self, tmp_path):
+        callback = _callback(tmp_path)
+        assert not {"policy", "training_rollouts"} & set(callback.record("training"))
+        callback.policy_probe = SimpleNamespace(latest=dict)
+        callback.rollout_ledger = SimpleNamespace(summary=lambda timesteps: {})
+        assert not {"policy", "training_rollouts"} & set(callback.record("training"))
+
+        def failing(*_args):
+            raise RuntimeError("no rows")
+
+        callback.policy_probe = SimpleNamespace(latest=failing)
+        callback.rollout_ledger = SimpleNamespace(summary=failing)
+        record = callback.record("training")
+        assert not {"policy", "training_rollouts"} & set(record) and record["evaluation"]["timesteps"] == 300
+
+
 class TestTheBlocks:
     def test_the_posture_block_reports_each_rail_against_its_declared_bar_per_foot(self):
         block = posture_block(ROW, CURRICULUM)
@@ -586,7 +657,13 @@ def test_a_real_tyrannosaurus_rex_stance_run_writes_its_progress(trained):
     }
     for key, kind in types_626.items():
         assert isinstance(record[key], kind), key
-    assert set(record) - set(types_626) == {"zero_action_reward", "balance", "forces"}
+    assert set(record) - set(types_626) == {"zero_action_reward", "balance", "forces", "policy", "training_rollouts"}
+    # The training side: the probe's update at the end of the run, and the run's training episodes.
+    assert record["policy"]["update_timesteps"] == STEPS and record["policy"]["std_min"] > 0
+    assert set(record["policy"]) >= {"value_statue", "ankle_gain_per_m", "statue_ankle_action_mean"}
+    rollouts = record["training_rollouts"]
+    assert rollouts["episodes"] == rollouts["episodes_total"] > 0 and rollouts["window_timesteps"] == 262144
+    assert set(rollouts["touch_shares"]) == {"r", "l"}
     assert set(record["balance"]) == {
         "com_fore_aft_mean_m",
         "root_pitch_mean_deg",
