@@ -1,3 +1,10 @@
+# SCREEN, NEVER MERGED. Branch claude/screen-trex-r9-arml-12m: stance screen Run 1 (arm L as #624 ships it) on
+# physics r9, 12M. Criteria SP/foot/stance3/criteria.txt,
+# sha256 1ce910dcd6e2ff7b41a4f592b9f34b9a6c9cb398c523e88f0ebd19af754f18fa.
+# recovery.toml inherits [env] and [ppo] here; only stance is trained.
+# The screen-only keys: [env] lateral_lean_weight / lateral_lean_tolerance_m / leg_home_pose_reference, [ppo]
+# symmetry*, [curriculum] eval_freq / eval_episodes / checkpoint_freq / max_checkpoints and
+# collapse_peak_floor_reference. Everything else is the committed stance stage.
 [stage]
 name = "stance"
 description = "Learn to stand and balance without falling"
@@ -368,6 +375,14 @@ reset_noise_scale = 0.05                       # Stage 1a operating point (PLANT
                                                # reward gate, which §9 retired: the statue is the reward optimum at
                                                # every noise level. Robustness is stage 1b's job, via perturbations,
                                                # not lucky-draw reset noise (§13).
+# SCREEN (never merged): arm L's two T. rex stance options as #624 ships them (website/docs/training/
+# mirror-symmetry.md), off by default on main: the standing lateral-lean bonus on the centre of mass over the
+# feet, paid after stance_width_settle_steps with a zero command and both feet loaded, and the leg_home_pose term
+# centred on the statue's settled leg pose (base_env._LEG_SETTLED_QPOS, physics r9). The collapse reference in
+# [curriculum] moves with them.
+lateral_lean_weight = 0.25
+lateral_lean_tolerance_m = 0.015
+leg_home_pose_reference = "settled"
 
 [ppo]                                   # recovery.toml inherits this and [ppo.policy_kwargs] (`extends`), all but ent_coef_decay_timesteps: an edit here moves recovery's hyperparameters too
 learning_rate = 3e-5                    # Setting 4 sweep: 3.23e-5 — 10x lower. All successful S1→S3 runs used this. Old 3e-4 caused instability.
@@ -442,6 +457,13 @@ ent_coef_decay_timesteps = 7000000      # 64% of the 11M budget (derived as 70% 
                                         # locks in; this anneal and the learning rate are unchanged.
 
 target_kl = 0.03                        # Cap destabilising late PPO updates (early-stop epochs on high approx-KL).
+# SCREEN (never merged): mirror-symmetric PPO (environments/shared/mirror_kl_ppo.py) with the committed T. rex
+# mirror map (configs/tyrannosaurus_rex/anatomical/mirror_map.json): the mirror loss at kappa 0.3 with its sigma
+# floor 0.01 and the mirrored critic, as arm L ships them (#624). The schedules above are unchanged.
+symmetry = "mirror_kl"
+symmetry_kappa = 0.3
+symmetry_sigma_floor = 0.01
+symmetry_mirror_critic = true
 
 [ppo.policy_kwargs]
 net_arch = [512, 256]
@@ -911,7 +933,15 @@ certification_seeds = 2                 # Publication bar, not a gate threshold 
                                         # schedule). Every other stage keeps the default 1.
                                         # Enters neither gate_sha256 nor hyperparameters_sha256 nor task_sha256:
                                         # raising it relabels published bundles and invalidates no verdict.
-max_checkpoints = 5                     # Periodic checkpoints kept (CheckpointRetentionCallback). At save_freq = 500k this stage
+eval_freq = 131072                      # SCREEN (never merged): an evaluation every 131,072 steps of 10 episodes (fewer than
+eval_episodes = 10                      # min_eval_episodes, so the in-training gate cannot pass and the stage trains its whole
+checkpoint_freq = 524288                # budget; the screen judges its checkpoints offline on the 40-episode panel), and a
+                                        # periodic checkpoint every 524,288 steps, every one kept (max_checkpoints = 0), so
+                                        # models/stage1_{4194304,5242880,6291456,8388608,10485760}_steps.zip and their
+                                        # _vecnormalize_ pickles exist for the judge. Production: 50,000 / 30-or-
+                                        # min_eval_episodes / 100,000 / 5 (train_base._stage_cadence).
+max_checkpoints = 0                     # SCREEN: keep every periodic checkpoint. Production: 5, as this note says.
+                                        # Periodic checkpoints kept (CheckpointRetentionCallback). At save_freq = 500k this stage
                                         # wrote 12 and kept all of them: 48 MB of the 60 MB models/ on run 20260801_021545, on a
                                         # Drive mount, for files nothing in this repository reads — they exist for manual rollback,
                                         # which needs recent history, not all of it. 5 is the default (DEFAULT_MAX_CHECKPOINTS), the depth the
@@ -982,7 +1012,13 @@ collapse_peak_warmup_timesteps = 1000000 # Evaluations before this step cannot S
                                          # candidacy; past it a statue-level peak arms the floor legitimately, and
                                          # collapse_patience consecutive evaluations under half of it are a collapse
                                          # at either start. Untested on a full run at -1.5.
-collapse_peak_floor_reference = 3756.8   # The zero-action statue's standing reward at noise 0.05, 40 episodes,
+collapse_peak_floor_reference = 3981.4   # SCREEN (never merged): 3756.8 + arm L statue gain 224.6. The gain is
+                                         # the zero-action statue panel (seeds 3042-3081, noise 0.05, 39/40
+                                         # standing; seed 3081 falls) through train_base.make_env under this
+                                         # branch's stance env minus under production, re-measured on this branch:
+                                         # 3980.37 against 3755.72 (+224.65). Floor 0.45 x 3981.4 = 1791.6.
+                                         # Production keeps 3756.8, which the rest of this note is about:
+                                         # the zero-action statue's standing reward at noise 0.05, 40 episodes,
                                          # on the hip-roll revision (physics r8) with the D-D27 stance task
                                          # (-9.3 against the r8 task's 3766.1, decomposed at min_avg_reward
                                          # above; floor 0.45 x 3756.8 = 1690.6). 3766.1 was the r8 task:
