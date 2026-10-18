@@ -720,6 +720,7 @@ def _build_core_callbacks(
     )
     from .diagnostics import DiagnosticsCallback as _DiagCB
     from .eval_diagnostics import build_stage_evaluation_callbacks
+    from .rollout_ledger import build_training_ledger_callback
     from .tb_sync import PeriodicTbSyncCallback
     from .wandb_integration import WandbCallback
 
@@ -836,6 +837,23 @@ def _build_core_callbacks(
     )
 
     callbacks.append(_DiagCB(log_dir=str(log_path), verbose=verbose))
+
+    # Report-only: one row per training episode in train_episodes.csv (its
+    # outcome, the post-settle centre of mass and root pitch, the
+    # limited-force fraction, and the T. rex's per-sensor touch shares),
+    # from raw mjData copies after each step; rewritten on the checkpoint
+    # cadence, so it sits after CheckpointCallback and writes on the call
+    # that saved the checkpoint.  None without a model or a stage dir.  See
+    # `rollout_ledger`.
+    training_ledger_cb = build_training_ledger_callback(
+        model_id=model_id,
+        stage_config=stage_config,
+        log_dir=log_path,
+        flush_every_calls=checkpoint_stride,
+        verbose=verbose,
+    )
+    if training_ledger_cb is not None:
+        callbacks.append(training_ledger_cb)
 
     # Collapse early-stop is a backstop against a genuinely diverging stage.
     # Its thresholds are configurable via the stage's [curriculum] section;

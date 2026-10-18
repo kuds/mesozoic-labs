@@ -147,6 +147,24 @@ def actuator_force_fraction(force: np.ndarray, limits: np.ndarray) -> np.ndarray
     return fraction
 
 
+def actuator_limited_fraction(force: np.ndarray, limits: np.ndarray) -> float:
+    """The fraction of samples (rows of the (T, nu) *force*) on which some force-limited actuator is at its limit.
+
+    "At its limit" is :data:`FORCE_LIMIT_FRACTION` of it or more
+    (:func:`actuator_force_fraction`); the limited actuators are those with a
+    finite (nu, 2) *limits* row.  NaN without a limited actuator or a sample.
+    The evaluation key ``actuator_force_limited_fraction`` and the training
+    ledger's column of that name are this one definition.
+    """
+    force = np.asarray(force, dtype=np.float64).reshape(-1, limits.shape[0])
+    limited = np.isfinite(limits).all(axis=1)
+    if not limited.any() or not force.shape[0]:
+        return NAN
+    fraction = actuator_force_fraction(force, limits)
+    at_limit = np.nan_to_num(fraction[:, limited], nan=0.0) >= FORCE_LIMIT_FRACTION
+    return float(np.mean(at_limit.any(axis=1)))
+
+
 @dataclass(frozen=True)
 class LegJointPair:
     """The achieved-angle counterpart of ``eval_diagnostics.SagittalLegPair``: joint qpos columns, not actuators."""
@@ -551,12 +569,10 @@ def episode_force_telemetry(trace: "EpisodeTrace", layout: BalanceLayout, *, set
         return out
     window = slice(settle, steps)
     assert trace.actuator_force is not None
-    fraction = actuator_force_fraction(np.asarray(trace.actuator_force, dtype=np.float64)[window], layout.force_limits)
     out["actuator_force_frac_max"] = _max(episode_actuator_force_fraction(trace, layout, settle_steps=settle))
-    limited = np.isfinite(layout.force_limits).all(axis=1)
-    if limited.any():
-        at_limit = np.nan_to_num(fraction[:, limited], nan=0.0) >= FORCE_LIMIT_FRACTION
-        out["actuator_force_limited_fraction"] = float(np.mean(at_limit.any(axis=1)))
+    out["actuator_force_limited_fraction"] = actuator_limited_fraction(
+        np.asarray(trace.actuator_force, dtype=np.float64)[window], layout.force_limits
+    )
     if not _has_balance_fields(trace):
         return out
     forward, _pitch = heading_frames(trace.root_quat)

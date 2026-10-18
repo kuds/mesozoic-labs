@@ -307,8 +307,9 @@ def seed_resume_eval_state(
       the file with its own, and the hop and posture watches' cursors over
       those rows;
     * every callback's per-episode record in that directory (its
-      ``seed_prior_record``: the eval-episode ledger ``eval_episodes.csv``),
-      each keeping its prior rows at or before ``max_timesteps``.
+      ``seed_prior_record``: the eval-episode ledger ``eval_episodes.csv``
+      and the training-episode ledger ``train_episodes.csv``), each keeping
+      its prior rows at or before ``max_timesteps``.
 
     A prior record whose per-eval episode count differs from this session's
     ``n_eval_episodes`` seeds only the scalar best trackers: mixing row
@@ -405,8 +406,8 @@ def seed_resume_eval_state(
         seed_gate_progress = getattr(callback, "seed_prior_gate_progress", None)
         if callable(seed_gate_progress):
             gate_rows = seed_gate_progress(path.with_name("gate_progress.npz"), max_timesteps=max_timesteps)
-    # The per-episode records written beside it (the eval-episode ledger), each keeping its prior rows at or
-    # before the resumed step, as gate_progress.npz does.
+    # The per-episode records written beside it (the eval- and training-episode ledgers), each keeping its
+    # prior rows at or before the resumed step, as gate_progress.npz does.
     for callback in callbacks:
         seed_record = getattr(callback, "seed_prior_record", None)
         if callable(seed_record):

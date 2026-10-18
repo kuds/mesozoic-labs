@@ -1,4 +1,4 @@
-"""The balance telemetry's evaluation-side additions change no training: the in-suite inertness proof.
+"""The balance telemetry's additions change no training: the in-suite inertness proof.
 
 A short real T. rex stance run on CPU (768 steps, one env, an evaluation of
 two episodes every 256 steps, the horizon 40 steps past the settle window,
@@ -6,12 +6,13 @@ seed 11) is trained twice: with every addition of this change, and with
 each switched off -- the capture callback's ``report_extensions`` (the
 eval-episode ledger, the in-training v2 screen, the balance and force
 fields, the mirror-even leg DC, the reward-term split and the force
-matrix), the action-jerk reward key and the PostureTrend watch.  The two
-runs train and evaluate exactly alike (the same ``evaluations.npz``, the
-same tensors in every checkpoint, the same VecNormalize statistics), the
-plain run writes the key sets the base of this change (``2e734e29``) writes
-for the same run, pinned below as they were derived there, and the full
-run adds exactly this change's keys and its ledger.
+matrix), the action-jerk reward key, the PostureTrend watch, the
+per-rollout episode and fall counts and the training-episode ledger.  The
+two runs train and evaluate exactly alike (the same ``evaluations.npz``,
+the same tensors in every checkpoint, the same VecNormalize statistics),
+the plain run writes the key sets the base of this change (``2e734e29``)
+writes for the same run, pinned below as they were derived there, and the
+full run adds exactly this change's keys and its ledgers.
 """
 
 from __future__ import annotations
@@ -100,7 +101,7 @@ def _train(root: Path, monkeypatch, *, additions: bool) -> Path:
     pytest.importorskip("mujoco")
     import torch
 
-    from environments.shared import curriculum, train_base
+    from environments.shared import curriculum, rollout_ledger, train_base
     from environments.shared.config import load_all_stages
     from environments.shared.diagnostics import DiagnosticsCallback
     from environments.shared.eval_diagnostics import StageAwareEvalCallback
@@ -116,6 +117,8 @@ def _train(root: Path, monkeypatch, *, additions: bool) -> Path:
             [key for key in DiagnosticsCallback.REWARD_KEYS if key != "reward_action_jerk"],
         )
         monkeypatch.setattr(curriculum, "build_posture_trend_watch_callback", lambda *a, **k: None)
+        monkeypatch.setattr(DiagnosticsCallback, "record_rollout_counts", False)
+        monkeypatch.setattr(rollout_ledger, "build_training_ledger_callback", lambda *a, **k: None)
     configs = load_all_stages(TYRANNOSAURUS_REX)
     stance = configs[1]
     stance["env_kwargs"]["max_episode_steps"] = int(stance["curriculum_kwargs"]["settle_steps"]) + 40
@@ -213,6 +216,7 @@ def test_the_additions_change_no_evaluation_no_checkpoint_and_no_normalization(t
 def test_the_plain_run_writes_the_bases_artifacts(trained):
     _full, plain = trained
     assert not (plain / "eval_episodes.csv").exists()
+    assert not (plain / "train_episodes.csv").exists()
     gate = _keys(plain / "gate_progress.npz")
     diagnostics = _keys(plain / "diagnostics.npz")
     assert {key for key in gate if not key.startswith("termination_")} == BASE_GATE_PROGRESS_KEYS
@@ -240,7 +244,14 @@ def test_the_full_run_adds_exactly_this_changes_keys_and_keeps_every_value_of_th
         *(key for key in screen_scalar_keys(thresholds) if "_fail_" in key),
     }
     assert set(gate) - set(plain_gate) == expected
-    assert set(_keys(full / "diagnostics.npz")) - set(_keys(plain / "diagnostics.npz")) == {"reward_action_jerk"}
+    plain_diagnostics = _keys(plain / "diagnostics.npz")
+    causes = [key[len("term_") :] for key in plain_diagnostics if key.startswith("term_") and key != "term_timesteps"]
+    assert set(_keys(full / "diagnostics.npz")) - set(plain_diagnostics) == {
+        "reward_action_jerk",
+        "rollout_episodes",
+        "rollout_falls",
+        *(f"rollout_term_count_{cause}" for cause in causes),
+    }
 
 
 def test_the_full_run_writes_the_ledger_and_the_progress_blocks(trained):
@@ -254,3 +265,12 @@ def test_the_full_run_writes_the_ledger_and_the_progress_blocks(trained):
     record = json.loads((full / "progress.json").read_text(encoding="utf-8"))
     assert {"balance", "forces"} <= set(record) and "leg_q_deg" in record["posture"]
     assert "screen_v2" in record["evaluation"]
+    with open(full / "train_episodes.csv", newline="", encoding="utf-8") as handle:
+        train_rows = list(csv.DictReader(handle))
+    # One env: each episode ends at the step count of the one before it plus its own length.
+    steps = [int(row["timesteps"]) for row in train_rows]
+    assert train_rows and steps == list(np.cumsum([int(row["length"]) for row in train_rows])) and steps[-1] <= STEPS
+    assert all(int(row["length"]) <= 240 for row in train_rows)
+    diagnostics = _keys(full / "diagnostics.npz")
+    assert int(diagnostics["rollout_episodes"].sum()) == len(train_rows)
+    assert int(diagnostics["rollout_falls"].sum()) == sum(row["cause"] != "truncated" for row in train_rows)

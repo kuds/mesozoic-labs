@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import logging
 import zlib
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -212,6 +212,16 @@ def plot_training_curves(
     return fig
 
 
+def termination_fraction_keys(files: Iterable[str]) -> list[str]:
+    """The ``diagnostics.npz`` keys the termination panel reads as fractions: every ``term_`` key but ``term_timesteps``.
+
+    The per-rollout counts beside them are ``rollout_term_count_<reason>``,
+    outside this prefix by design: under ``term_`` they would be plotted on
+    the fraction axis as a reason named ``count_<reason>``.
+    """
+    return [key for key in files if key.startswith("term_") and key != "term_timesteps"]
+
+
 #: Mapping from diagnostic reward key -> config weight parameter name(s).  A signal "matters" to a stage if any
 #: of its config weights is non-zero (``plot_diagnostics_graphs``' reward decomposition).  A reward key added to
 #: ``DiagnosticsCallback.REWARD_KEYS`` gets its entry here in the same change.
@@ -321,7 +331,7 @@ def plot_diagnostics_graphs(
         color = _reward_colors[style_idx % 10]
 
         # [0,0] Collect termination breakdown per stage
-        _term_keys = [k for k in diag.files if k.startswith("term_") and k != "term_timesteps"]
+        _term_keys = termination_fraction_keys(diag.files)
         if _term_keys:
             _all_term_data[label] = {k[5:]: float(np.mean(diag[k])) for k in _term_keys}
 
