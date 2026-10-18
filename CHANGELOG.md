@@ -61,7 +61,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Documented in `docs/RESULT_BUNDLES.md` (the cross-run table and the
     ledger), `results/README.md` (the ledger's columns) and the notebook's own
     markdown.
-- **Decision D-D36 recorded: one short T. rex walking pilot, a deliberate
+- **#627; Decision D-D36 recorded: one short T. rex walking pilot, a deliberate
   exception to the gait plan's GQ-3 (a) and GQ-17; and a record of the
   T. rex stance experiments of 2026-10-12 to 2026-10-17** (the maintainer's
   decision of 2026-10-17; `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2,
