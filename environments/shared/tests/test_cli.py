@@ -195,14 +195,14 @@ class TestMainDispatch:
                 "fly",
                 "--target 'fly' does not name a behavior of velociraptor_mongoliensis/anatomical: "
                 "velociraptor_mongoliensis/anatomical has no behavior 'fly'; "
-                "recipe labels: ['stand', 'walk', 'hunt'], deliverable ids: ['stance', 'locomotion', 'behavior']",
+                "recipe labels: ['stance', 'walk', 'hunt'], deliverable ids: ['stance', 'locomotion', 'behavior']",
             ),
             (
                 VELOCIRAPTOR_MONGOLIENSIS,
                 "recover",
                 "--target 'recover' does not name a behavior of velociraptor_mongoliensis/anatomical: "
                 "velociraptor_mongoliensis/anatomical has no behavior 'recover'; "
-                "recipe labels: ['stand', 'walk', 'hunt'], deliverable ids: ['stance', 'locomotion', 'behavior']",
+                "recipe labels: ['stance', 'walk', 'hunt'], deliverable ids: ['stance', 'locomotion', 'behavior']",
             ),
         ],
         ids=[
@@ -231,17 +231,43 @@ class TestMainDispatch:
         ],
         ids=lambda m: f"{m.species}-{m.embodiment}",
     )
-    def test_target_stand_is_the_stance_stage_on_every_model(self, species_cfg, model_id):
-        """Decision D-D35: ``stand`` is the stance stage alone on every model, so ``--target stand`` is
-        a stance-only run, accepted where it was refused on the three recovery models while ``stand``
-        resolved to recovery; ``recover`` took that chain and its refusal."""
+    def test_target_stance_is_the_stance_stage_on_every_model(self, species_cfg, model_id):
+        """Decisions D-D35 and D-D38: ``stance``, the stance stage's id and its recipe label, is the
+        stance stage alone on every model, so ``--target stance`` is a stance-only run (D-D35 made the
+        label, then ``stand``, the stance stage on the three recovery models too; ``recover`` took the
+        chain through recovery and its refusal)."""
         from environments.shared.stage_manifest import load_stage_manifest
         from environments.shared.train_base import _resolve_curriculum_target
 
         species_cfg.model_id = model_id
-        assert self._run_curriculum(species_cfg, ["--target", "stand"]).call_args.kwargs["target"] == "stand"
-        entry, chain = _resolve_curriculum_target(load_stage_manifest(model_id), "stand", flag="--target")
+        assert self._run_curriculum(species_cfg, ["--target", "stance"]).call_args.kwargs["target"] == "stance"
+        entry, chain = _resolve_curriculum_target(load_stage_manifest(model_id), "stance", flag="--target")
         assert entry.id == "stance" and [node.id for node in chain] == ["stance"]
+
+    @pytest.mark.parametrize(
+        "model_id",
+        [
+            TYRANNOSAURUS_REX,
+            ModelId("compsognathus_longipes", "anatomical"),
+            ModelId("compsognathus_longipes", "robot"),
+            VELOCIRAPTOR_MONGOLIENSIS,
+            ModelId("brachiosaurus_altithorax", "anatomical"),
+            ModelId("dibothrosuchus_elaphros", "anatomical"),
+        ],
+        ids=lambda m: f"{m.species}-{m.embodiment}",
+    )
+    def test_target_stand_is_refused_naming_stance(self, species_cfg, model_id, capsys):
+        """Decision D-D38: ``stand``, the stance label until then, is retired and does not resolve, so
+        ``--target stand`` is a usage error pointing at ``stance`` on every model, before
+        train_curriculum is reached."""
+        species_cfg.model_id = model_id
+        with pytest.raises(SystemExit) as excinfo:
+            self._run_curriculum(species_cfg, ["--target", "stand"])
+        assert excinfo.value.code == 2
+        assert (
+            f"--target 'stand' does not name a behavior of {model_id}: {model_id} has no behavior 'stand': "
+            "'stand' was renamed to 'stance' (decision D-D38); use 'stance'"
+        ) in capsys.readouterr().err
 
     def test_a_target_whose_chain_skips_a_ladder_stage_is_a_usage_error(
         self, species_cfg, tmp_path, monkeypatch, capsys

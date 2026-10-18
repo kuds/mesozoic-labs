@@ -12,8 +12,11 @@
 #   deliverable      this node's certified checkpoint is a published policy
 #   recipe           the behavior label the node belongs to; a label resolves
 #                    to its deepest deliverable in manifest order. stance is
-#                    "stand" and recovery "recover" (decision D-D35, before
-#                    which both were "stand", so "stand" meant recovery here)
+#                    "stance" and recovery "recover" (decision D-D35, before
+#                    which both were "stand", so "stand" meant recovery here;
+#                    stance was "stand" until decision D-D38, which refuses
+#                    "stand" naming "stance"). A label may equal a stage id
+#                    only when it resolves to that stage.
 # Recipes are derived from the edges (a deliverable plus its ancestor chain),
 # never declared in a second table.
 #
@@ -27,7 +30,7 @@ schema = "mesozoic.stage-manifest/v2"
 id = "stance"
 config = "stance.toml"
 legacy_number = 1
-recipe = "stand"
+recipe = "stance"
 deliverable = true               # the six-heading certificate since D-D32 (v2 since physics r8, D-D24); no r9 seed yet (bar 2)
 
 [[stages]]                       # balance under pushes

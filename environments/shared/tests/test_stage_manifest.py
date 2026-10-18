@@ -15,7 +15,12 @@ deleted the manifest synthesized from stage file names).
 
 from __future__ import annotations
 
+import ast
+import json
 import re
+import tomllib
+from collections.abc import Iterator
+from typing import Any
 
 import pytest
 
@@ -25,6 +30,7 @@ from environments.shared.stage_manifest import (
     _CONFIGS_DIR,
     LEGACY_STAGE_IDS,
     RESERVED_STAGE_IDS,
+    RETIRED_RECIPE_LABELS,
     STAGE_ID_PATTERN,
     STAGE_MANIFEST_SCHEMA_V1,
     STAGE_MANIFEST_SCHEMA_V2,
@@ -32,8 +38,11 @@ from environments.shared.stage_manifest import (
     StageEntry,
     StageManifestError,
     load_stage_manifest,
+    retired_recipe_label_message,
     stage_ref_from_dirname,
 )
+
+from .notebook_cells import REPO_ROOT, code_cells, strip_magics
 
 TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
 VELOCIRAPTOR_MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
@@ -48,6 +57,8 @@ INTEGER_MODELS = [
 ]
 #: The models whose manifest declares a recovery node, labelled "recover" (decision D-D35).
 RECOVERY_MODELS = [TYRANNOSAURUS_REX, COMPSOGNATHUS_LONGIPES, COMPSOGNATHUS_LONGIPES_ROBOT]
+#: The pointer a retired "stand" is refused with (decision D-D38).
+STAND_POINTER = "'stand' was renamed to 'stance' (decision D-D38); use 'stance'"
 #: A made-up model for the synthetic manifests below (the reader needs no manifest entry, only its directory).
 PROBE = ModelId("probe_species", "anatomical")
 
@@ -96,7 +107,7 @@ legacy_number = 3
 #: A v2 manifest with two open ids off the legacy trunk — the plan's
 #: "follow" recipe (§4.1) — used wherever a test needs an open id.
 OPEN_ID_BODY = (
-    V2 + '[[stages]]\nid = "stance"\nconfig = "stance.toml"\nlegacy_number = 1\nrecipe = "stand"\ndeliverable = true\n'
+    V2 + '[[stages]]\nid = "stance"\nconfig = "stance.toml"\nlegacy_number = 1\nrecipe = "stance"\ndeliverable = true\n'
     '[[stages]]\nid = "locomotion"\nconfig = "locomotion.toml"\nlegacy_number = 2\nwarm_start_from = "stance"\n'
     'recipe = "walk"\ndeliverable = true\n'
     '[[stages]]\nid = "follow_direction"\nconfig = "follow_direction.toml"\nwarm_start_from = "locomotion"\n'
@@ -192,7 +203,7 @@ class TestSchemaVersions:
         with pytest.raises(StageManifestError, match=re.escape(f"accepts one of {STAGE_MANIFEST_SCHEMAS}")):
             load_stage_manifest(PROBE, configs_dir=root)
 
-    @pytest.mark.parametrize("key", ['warm_start_from = "stance"', "deliverable = true", 'recipe = "stand"'])
+    @pytest.mark.parametrize("key", ['warm_start_from = "stance"', "deliverable = true", 'recipe = "stance"'])
     def test_v1_body_with_v2_keys_is_fatal(self, tmp_path, key):
         """A v1 file cannot smuggle an edge past a reader that would derive one."""
         body = V1 + '[[stages]]\nid = "stance"\nconfig = "stance.toml"\nlegacy_number = 1\n' + key + "\n"
@@ -327,7 +338,7 @@ class TestFailClosedValidation:
         # The three v2 keys are accepted under v2 and fatal under v1.
         v2_entry = (
             '[[stages]]\nid = "stance"\nconfig = "stance.toml"\nlegacy_number = 1\ndeliverable = true\n'
-            'recipe = "stand"\n'
+            'recipe = "stance"\n'
             '[[stages]]\nid = "recovery"\nconfig = "recovery.toml"\nwarm_start_from = "stance"\n'
         )
         root = _write_manifest(tmp_path / "v2", TYRANNOSAURUS_REX, V2 + v2_entry)
@@ -389,6 +400,45 @@ class TestV2Validators:
             StageManifestError, match=re.escape("recipe label collides with a stage id: ['locomotion']")
         ):
             self._load(tmp_path, body)
+
+    def test_a_label_may_equal_a_stage_id_only_when_it_resolves_to_that_stage(self, tmp_path):
+        """Decision D-D38: resolve_behavior reads a name as a label first, so a label equal to a stage id
+        is accepted only when the deepest deliverable carrying it IS that stage; then the label and the id
+        name one node."""
+        stance = '[[stages]]\nid = "stance"\nconfig = "stance.toml"\nlegacy_number = 1\n'
+        recovery = '[[stages]]\nid = "recovery"\nconfig = "recovery.toml"\nwarm_start_from = "stance"\n'
+        # Its own id, on its own deliverable: accepted, and the label and the id resolve to one node.
+        manifest = self._load(tmp_path / "own", stance + 'recipe = "stance"\ndeliverable = true\n')
+        assert manifest.resolve_behavior("stance") is manifest.by_id("stance")
+        assert manifest.recipe_labels == ("stance",)
+        # A deeper deliverable sharing it would make the label mean recovery and shadow the id: refused.
+        body = stance + 'recipe = "stance"\ndeliverable = true\n' + recovery + 'recipe = "stance"\ndeliverable = true\n'
+        with pytest.raises(StageManifestError, match=re.escape("recipe label collides with a stage id: ['stance']")):
+            self._load(tmp_path / "deeper", body)
+        # Only on a non-deliverable, the label resolves to nothing while the id names a stage: refused.
+        body = stance + 'recipe = "stance"\n' + recovery + "deliverable = true\n"
+        with pytest.raises(StageManifestError, match=re.escape("only when it resolves to that stage, decision D-D38")):
+            self._load(tmp_path / "non_deliverable", body)
+        # Another stage's id on this one is refused as before.
+        body = stance + 'recipe = "recovery"\ndeliverable = true\n' + recovery
+        with pytest.raises(StageManifestError, match=re.escape("recipe label collides with a stage id: ['recovery']")):
+            self._load(tmp_path / "other", body)
+
+    def test_a_retired_recipe_label_is_refused_at_load_naming_its_replacement(self, tmp_path):
+        """Decision D-D38: ``stand`` was the stance node's label; a manifest declaring it is refused with
+        the pointer, on any node, so a custom manifest cannot bring the old name back as an alias."""
+        assert retired_recipe_label_message("stand") == STAND_POINTER
+        body = '[[stages]]\nid = "stance"\nconfig = "stance.toml"\nlegacy_number = 1\nrecipe = "stand"\ndeliverable = true\n'
+        with pytest.raises(StageManifestError) as excinfo:
+            self._load(tmp_path / "stance", body)
+        assert str(excinfo.value).endswith(f"stages.toml stage 'stance': recipe label {STAND_POINTER}")
+        body = (
+            '[[stages]]\nid = "stance"\nconfig = "stance.toml"\nlegacy_number = 1\ndeliverable = true\n'
+            '[[stages]]\nid = "recovery"\nconfig = "recovery.toml"\nwarm_start_from = "stance"\n'
+            'recipe = "stand"\ndeliverable = true\n'
+        )
+        with pytest.raises(StageManifestError, match=re.escape(f"stage 'recovery': recipe label {STAND_POINTER}")):
+            self._load(tmp_path / "recovery", body)
 
     def test_legacy_rules_are_unchanged_under_v2(self, tmp_path):
         cases = {
@@ -495,26 +545,26 @@ class TestManifestV2Edges:
 
     def test_recipe_labels_resolve_to_the_deepest_deliverable(self, tmp_path):
         tyrannosaurus_rex = load_stage_manifest(ModelId("tyrannosaurus_rex", "anatomical"))
-        assert tyrannosaurus_rex.recipe_labels == ("stand", "recover", "walk", "hunt")
-        assert tyrannosaurus_rex.resolve_behavior("stand").id == "stance"
+        assert tyrannosaurus_rex.recipe_labels == ("stance", "recover", "walk", "hunt")
+        assert tyrannosaurus_rex.resolve_behavior("stance").id == "stance"
         assert tyrannosaurus_rex.resolve_behavior("recover").id == "recovery"
         assert tyrannosaurus_rex.resolve_behavior("walk").id == "locomotion"
         assert tyrannosaurus_rex.resolve_behavior("hunt").id == "behavior"
         for model_id in INTEGER_MODELS:
             manifest = load_stage_manifest(model_id)
-            assert manifest.resolve_behavior("stand").id == "stance"
+            assert manifest.resolve_behavior("stance").id == "stance"
             assert manifest.resolve_behavior("walk").id == "locomotion"
             assert manifest.resolve_behavior("hunt").id == "behavior"
         # Every committed manifest, the Compsognathus pair included: root-first chains, no unknown label.
         for model_id in MODEL_IDS:
             manifest = load_stage_manifest(model_id)
             assert manifest.resolve_behavior("hunt").id == "behavior", model_id
-            assert manifest.resolve_behavior("stand").id == "stance", model_id
+            assert manifest.resolve_behavior("stance").id == "stance", model_id
             assert manifest.chain_for("behavior")[0].id == "stance", model_id
             with pytest.raises(StageManifestError):
                 manifest.resolve_behavior("sprint")
         pilot = load_stage_manifest(PROBE, configs_dir=_write_manifest(tmp_path, PROBE, OPEN_ID_BODY))
-        assert pilot.recipe_labels == ("stand", "walk", "follow")
+        assert pilot.recipe_labels == ("stance", "walk", "follow")
         follow = pilot.resolve_behavior("follow")
         assert follow.id == "follow_direction_speed"
         assert [entry.id for entry in pilot.chain_for(follow.id)] == [
@@ -561,15 +611,19 @@ class TestManifestV2Edges:
         assert manifest.by_id("follow_direction").reference == "follow_direction"
 
 
-class TestRecipeLabelsAreFourVerbs:
-    """Decision D-D35 (the maintainer, 2026-10-16): the recovery node has its own recipe label, ``recover``.
+class TestRecipeLabels:
+    """The recipe labels on every committed manifest: ``stance``, ``recover`` (where a model has a recovery
+    node), ``walk`` and ``hunt``.
 
-    Before it the recovery node was labelled ``stand`` too, so ``stand`` resolved to recovery (stance ->
-    recovery) on the three models that have one and to stance elsewhere. Now ``stand`` is the stance node,
-    and its chain the same as the stage id ``stance``'s, on every model; ``recover`` is stance -> recovery
-    where a model has a recovery node and an unknown behavior elsewhere. No label equals a stage id.
-    A behavior's chain is ``chain_for`` of the node it resolves to, as the notebook's resolve cell and
-    ``train_curriculum`` take it (``chain_for`` itself takes a stage reference, never a label).
+    Decision D-D35 (the maintainer, 2026-10-16) gave the recovery node its own label, ``recover``: before it
+    the recovery node was labelled ``stand`` too, so ``stand`` resolved to recovery (stance -> recovery) on
+    the three models that have one and to stance elsewhere. Decision D-D38 (2026-10-18) made the stance
+    behavior's name ``stance`` everywhere: the stance node's label is its own id, so the label and the id
+    name one node with one chain on every model, and ``stand`` is retired, refused naming ``stance`` (no
+    alias; decision D-D33's rule for retired identifiers). ``recover`` is stance -> recovery where a model
+    has a recovery node and an unknown behavior elsewhere. A behavior's chain is ``chain_for`` of the node
+    it resolves to, as the notebook's resolve cell and ``train_curriculum`` take it (``chain_for`` itself
+    takes a stage reference, never a label).
     """
 
     @staticmethod
@@ -577,10 +631,33 @@ class TestRecipeLabelsAreFourVerbs:
         return manifest.chain_for(manifest.resolve_behavior(behavior).id)
 
     @pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
-    def test_stand_is_the_stance_stage_on_every_model(self, model_id):
+    def test_stance_is_the_stance_stage_on_every_model(self, model_id):
         manifest = load_stage_manifest(model_id)
-        assert manifest.resolve_behavior("stand") is manifest.resolve_behavior("stance") is manifest.by_id("stance")
-        assert self._chain(manifest, "stand") == self._chain(manifest, "stance") == (manifest.by_id("stance"),)
+        assert manifest.by_id("stance").recipe == "stance"
+        assert manifest.resolve_behavior("stance") is manifest.by_id("stance")
+        assert self._chain(manifest, "stance") == manifest.chain_for("stance") == (manifest.by_id("stance"),)
+
+    @pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
+    def test_stand_is_refused_naming_stance_on_every_model(self, model_id):
+        """``stand``, the stance label until D-D38, does not resolve: the refusal names ``stance`` and the
+        decision, in the "has no behavior" shape every caller wraps."""
+        with pytest.raises(StageManifestError) as excinfo:
+            load_stage_manifest(model_id).resolve_behavior("stand")
+        assert str(excinfo.value) == f"{model_id} has no behavior 'stand': {STAND_POINTER}"
+
+    def test_stand_is_refused_even_by_a_manifest_that_could_not_declare_it(self, tmp_path):
+        """The refusal is the vocabulary's, not the manifest's: a v1 manifest, which carries no labels at
+        all, and a synthetic v2 one refuse ``stand`` with the same pointer."""
+        v1 = load_stage_manifest(
+            PROBE,
+            configs_dir=_write_manifest(
+                tmp_path / "v1", PROBE, V1 + '[[stages]]\nid = "stance"\nconfig = "stance.toml"\nlegacy_number = 1\n'
+            ),
+        )
+        open_ids = load_stage_manifest(PROBE, configs_dir=_write_manifest(tmp_path / "v2", PROBE, OPEN_ID_BODY))
+        for manifest in (v1, open_ids):
+            with pytest.raises(StageManifestError, match=re.escape(f"has no behavior 'stand': {STAND_POINTER}")):
+                manifest.resolve_behavior("stand")
 
     @pytest.mark.parametrize("model_id", RECOVERY_MODELS, ids=lambda m: f"{m.species}-{m.embodiment}")
     def test_recover_is_stance_then_recovery_on_the_three_recovery_models(self, model_id):
@@ -593,12 +670,14 @@ class TestRecipeLabelsAreFourVerbs:
 
     @pytest.mark.parametrize("model_id", INTEGER_MODELS, ids=lambda m: f"{m.species}-{m.embodiment}")
     def test_recover_is_not_a_behavior_of_a_model_without_recovery(self, model_id):
-        with pytest.raises(StageManifestError, match=re.escape("has no behavior 'recover'; recipe labels: ['stand', ")):
+        with pytest.raises(
+            StageManifestError, match=re.escape("has no behavior 'recover'; recipe labels: ['stance', ")
+        ):
             load_stage_manifest(model_id).resolve_behavior("recover")
 
     def test_recipe_labels_per_model(self):
-        expected = {model_id: ("stand", "walk", "hunt") for model_id in INTEGER_MODELS}
-        expected.update({model_id: ("stand", "recover", "walk", "hunt") for model_id in RECOVERY_MODELS})
+        expected = {model_id: ("stance", "walk", "hunt") for model_id in INTEGER_MODELS}
+        expected.update({model_id: ("stance", "recover", "walk", "hunt") for model_id in RECOVERY_MODELS})
         assert set(expected) == set(MODEL_IDS)
         assert {model_id: load_stage_manifest(model_id).recipe_labels for model_id in MODEL_IDS} == expected
         labelled = {
@@ -606,15 +685,74 @@ class TestRecipeLabelsAreFourVerbs:
             for model_id in MODEL_IDS
         }
         for model_id, recipes in labelled.items():
-            assert recipes["stance"] == "stand" and recipes["locomotion"] == "walk" and recipes["behavior"] == "hunt"
+            assert recipes["stance"] == "stance" and recipes["locomotion"] == "walk" and recipes["behavior"] == "hunt"
             assert recipes.get("recovery", "recover") == "recover", model_id
 
     @pytest.mark.parametrize("model_id", MODEL_IDS, ids=lambda m: f"{m.species}-{m.embodiment}")
-    def test_no_label_equals_a_stage_id(self, model_id):
+    def test_a_label_equal_to_a_stage_id_names_that_stage(self, model_id):
+        """Only ``stance`` equals a stage id, and it resolves to that stage; every other label is no id.
+        A label that is one of the four historical ids, which model-free readers resolve by name, resolves
+        to that id's node, so the two readings agree ("recover" is not "recovery")."""
         manifest = load_stage_manifest(model_id)
-        assert not set(manifest.recipe_labels) & {entry.id for entry in manifest.stages}
-        # Nor one of the four historical ids, which model-free readers resolve by name: "recover" is not "recovery".
-        assert not set(manifest.recipe_labels) & set(RESERVED_STAGE_IDS)
+        ids = {entry.id for entry in manifest.stages}
+        assert set(manifest.recipe_labels) & ids == {"stance"}
+        for label in set(manifest.recipe_labels) & ids:
+            assert manifest.resolve_behavior(label) is manifest.by_id(label)
+        assert set(manifest.recipe_labels) & set(RESERVED_STAGE_IDS) == {"stance"}
+        assert not set(manifest.recipe_labels) & set(RETIRED_RECIPE_LABELS)
+
+
+def _toml_strings(value: Any) -> Iterator[str]:
+    """Every string value of a parsed TOML document, at any depth."""
+    if isinstance(value, str):
+        yield value
+    elif isinstance(value, dict):
+        for item in value.values():
+            yield from _toml_strings(item)
+    elif isinstance(value, list):
+        for item in value:
+            yield from _toml_strings(item)
+
+
+class TestRetiredRecipeLabelsAreNamedNowhere:
+    """Decision D-D38 under decision D-D33's rule for retired identifiers: ``stand`` was renamed to ``stance``,
+    and nothing resolves or offers it. The loader and ``resolve_behavior`` refuse it (above); here, no
+    committed configuration value (a stage manifest's ``recipe``, a species-manifest ``deliverable``) and no
+    notebook code cell (a string constant, or an ``@param`` dropdown option) names it, so no shipped default
+    or choice leads to the refusal. Prose may still say "stand"."""
+
+    def test_no_committed_config_value_is_a_retired_recipe_label(self):
+        hits = []
+        for path in sorted(_CONFIGS_DIR.rglob("*.toml")):
+            with path.open("rb") as handle:
+                document = tomllib.load(handle)
+            hits += [
+                (str(path.relative_to(_CONFIGS_DIR)), value)
+                for value in _toml_strings(document)
+                if value in RETIRED_RECIPE_LABELS
+            ]
+        assert hits == []
+
+    def test_no_notebook_code_cell_names_a_retired_recipe_label(self):
+        notebooks = sorted((REPO_ROOT / "notebooks").glob("*.ipynb"))
+        assert notebooks
+        hits = []
+        for notebook in notebooks:
+            for index, source in code_cells(notebook):
+                constants = [
+                    node.value
+                    for node in ast.walk(ast.parse(strip_magics(source)))
+                    if isinstance(node, ast.Constant) and isinstance(node.value, str)
+                ]
+                options: list[Any] = []
+                for line in source.splitlines():
+                    if "# @param [" in line:
+                        found, _ = json.JSONDecoder().raw_decode(line.split("# @param ", 1)[1])
+                        options += found
+                hits += [
+                    (notebook.name, index, value) for value in constants + options if value in RETIRED_RECIPE_LABELS
+                ]
+        assert hits == []
 
 
 class TestCommittedManifestsAreV2:
@@ -624,7 +762,7 @@ class TestCommittedManifestsAreV2:
         assert manifest.schema == STAGE_MANIFEST_SCHEMA_V2
         assert all(entry.deliverable for entry in manifest.stages)
         assert manifest.recipe_labels == (
-            ("stand", "recover", "walk", "hunt") if model_id in RECOVERY_MODELS else ("stand", "walk", "hunt")
+            ("stance", "recover", "walk", "hunt") if model_id in RECOVERY_MODELS else ("stance", "walk", "hunt")
         )
         for entry in manifest.stages:
             assert (model_id.path(_CONFIGS_DIR) / entry.config_file).is_file()
@@ -633,7 +771,7 @@ class TestCommittedManifestsAreV2:
     def test_tyrannosaurus_rex_declares_edges_deliverables_and_labels(self):
         manifest = load_stage_manifest(ModelId("tyrannosaurus_rex", "anatomical"))
         assert [(entry.id, entry.warm_start_from, entry.deliverable, entry.recipe) for entry in manifest.stages] == [
-            ("stance", None, True, "stand"),
+            ("stance", None, True, "stance"),
             # locomotion's parent is stance until plan A2 flips it to recovery.
             ("recovery", "stance", True, "recover"),
             ("locomotion", "stance", True, "walk"),
@@ -644,7 +782,7 @@ class TestCommittedManifestsAreV2:
     def test_the_integer_models_declare_no_recovery(self, model_id):
         manifest = load_stage_manifest(model_id)
         assert [(entry.id, entry.warm_start_from, entry.recipe) for entry in manifest.stages] == [
-            ("stance", None, "stand"),
+            ("stance", None, "stance"),
             ("locomotion", "stance", "walk"),
             ("behavior", "locomotion", "hunt"),
         ]

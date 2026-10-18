@@ -1933,21 +1933,35 @@ class TestTrainCurriculumWalksTheManifest:
         assert [stage for stage, _, _ in walks["walk"]["saved"]] == [1, 2]
         assert len([r for r in caplog.records if r.message.startswith("Skipping advancing stage 'behavior'")]) == 3
 
-    def test_target_stand_on_the_tyrannosaurus_rex_walks_stance_alone_like_its_stage_id(
+    def test_target_stance_on_the_tyrannosaurus_rex_walks_stance_alone_like_its_legacy_number(
         self, tmp_path, monkeypatch, caplog
     ):
-        """Decision D-D35: ``stand`` is the stance node on every model, the T-Rex included (before it,
-        ``stand`` resolved to recovery there and this run was refused), so ``target="stand"`` walks
-        exactly what ``"stance"`` and ``1`` walk: stance alone, the manager never advanced."""
+        """Decisions D-D35 and D-D38: ``stance`` is the stance node's id and its recipe label on every
+        model, the T-Rex included (D-D35 made the label, then ``stand``, the stance node there; before
+        it this run was refused), so ``target="stance"`` walks exactly what ``1`` walks: stance alone,
+        the manager never advanced."""
         walks = {}
-        for name, target in (("stand", "stand"), ("stance", "stance"), ("one", 1)):
+        for name, target in (("stance", "stance"), ("one", 1)):
             run_dir = tmp_path / name
             record = self._run(TYRANNOSAURUS_REX, tmp_path, monkeypatch, caplog, output_dir=run_dir, target=target)
             walks[name] = self._walk(record, run_dir)
             assert [v["stage_id"] for v in record["verdicts"]] == ["stance"]
             assert sorted(p.name for p in run_dir.iterdir() if p.is_dir()) == ["01_stance"]
-        assert walks["stand"] == walks["stance"] == walks["one"]
-        assert [stage for stage, _, _ in walks["stand"]["saved"]] == [1]
+        assert walks["stance"] == walks["one"]
+        assert [stage for stage, _, _ in walks["stance"]["saved"]] == [1]
+
+    def test_target_stand_raises_naming_stance_before_any_directory_is_written(self, tmp_path, monkeypatch, caplog):
+        """Decision D-D38: ``stand``, the stance label until then, is retired, not an alias:
+        ``target="stand"`` raises the pointer to ``stance`` and leaves no footprint."""
+        run_dir = tmp_path / "fresh-run"
+        with pytest.raises(ValueError) as excinfo:
+            self._run(TYRANNOSAURUS_REX, tmp_path, monkeypatch, caplog, output_dir=run_dir, target="stand")
+        assert str(excinfo.value) == (
+            "target 'stand' does not name a behavior of tyrannosaurus_rex/anatomical: "
+            "tyrannosaurus_rex/anatomical has no behavior 'stand': "
+            "'stand' was renamed to 'stance' (decision D-D38); use 'stance'"
+        )
+        assert not run_dir.exists()
 
     @pytest.mark.parametrize("target", ["recover", "recovery"])
     def test_a_target_whose_chain_runs_through_a_non_advancing_stage_raises_before_any_directory_is_written(
@@ -2034,7 +2048,7 @@ class TestTrainCurriculumWalksTheManifest:
         [
             (
                 "fly",
-                "target 'fly' does not name a behavior of velociraptor_mongoliensis/anatomical: velociraptor_mongoliensis/anatomical has no behavior 'fly'; recipe labels: \\['stand', 'walk', 'hunt'\\], deliverable ids: \\['stance', 'locomotion', 'behavior'\\]",
+                "target 'fly' does not name a behavior of velociraptor_mongoliensis/anatomical: velociraptor_mongoliensis/anatomical has no behavior 'fly'; recipe labels: \\['stance', 'walk', 'hunt'\\], deliverable ids: \\['stance', 'locomotion', 'behavior'\\]",
             ),
             (
                 7,
