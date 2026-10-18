@@ -302,6 +302,11 @@ _DIAGNOSTIC_KEYS = frozenset(
         "posture_drift_warn_over_bar_fraction",
         "posture_drift_warn_consecutive_evals",
         "posture_drift_warn_repeat_evals",
+        # Its earlier companion, the signed CoP trend toward an edge (posture_watch.PostureTrendWatchCallback).
+        "posture_trend_warn_over_bar_fraction",
+        "posture_trend_warn_consecutive_evals",
+        "posture_trend_window_evals",
+        "posture_trend_warn_repeat_evals",
         "stance_probe_filter_hz",
         "stance_probe_hold_constant",
         "stance_probe_release_ablation",
@@ -313,8 +318,11 @@ _DIAGNOSTIC_KEYS = frozenset(
 #: Keys that configure artifact retention rather than the gate.  Without an
 #: entry here the fail-closed unknown-key check below would reject any TOML
 #: that set one, which would make the setting unreachable from config —
-#: the only place it is meant to be set.
-_RETENTION_KEYS = frozenset({"max_checkpoints"})
+#: the only place it is meant to be set.  ``checkpoint_archive_every_timesteps``
+#: also keeps the newest periodic checkpoint of every interval of that many
+#: steps (``checkpoints.prune_periodic_checkpoints``; validated by
+#: ``checkpoints.checkpoint_archive_every``).
+_RETENTION_KEYS = frozenset({"max_checkpoints", "checkpoint_archive_every_timesteps"})
 
 #: Keys that record measurement provenance rather than configure anything.
 #: ``statue_constants_physics_revision`` pins the plant revision the stage's

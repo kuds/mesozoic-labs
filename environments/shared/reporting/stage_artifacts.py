@@ -276,7 +276,7 @@ def _write_stance_gate_report(
     from ..curriculum.stance_heading_gate import STANCE_HEADING_GATE_KIND
 
     if curriculum.get("gate_kind") == STANCE_HEADING_GATE_KIND:
-        return _write_stance_heading_certificate(
+        heading_report = _write_stance_heading_certificate(
             model_id=model_id,
             stage=stage,
             stage_config=stage_config,
@@ -286,6 +286,10 @@ def _write_stance_gate_report(
             vecnorm_path=selected_vecnorm,
             episodes=report_episodes,
         )
+        # Beside the certificate, after it returned, whatever it returned: never read by the gate.
+        _write_handoff_sidecar(stage_dir, selected_name, f"{selected_path}.zip")
+        return heading_report
+    report: dict[str, Any] | None = None
     try:
         from environments.shared.reporting.stance_report import (
             build_stance_gate_report,
@@ -320,10 +324,121 @@ def _write_stance_gate_report(
                 report["metrics"]["bilateral_support_duty"],
                 written["stance_gate_report_txt"],
             )
-        return report
     except Exception:  # noqa: BLE001 - a diagnostic must not sink the run
         logger.warning("Stance gate report failed for stage %s", stage, exc_info=True)
-    return None
+        report = None
+    # Beside the report, after its attempt returned, whatever it returned: never read by the gate.
+    _write_handoff_sidecar(stage_dir, selected_name, f"{selected_path}.zip")
+    return report
+
+
+#: The stage-end sidecar that says which in-training evaluation the handoff checkpoint was saved at, and its
+#: score; beside the certificate, never inside it (``_write_handoff_sidecar``).
+HANDOFF_SIDECAR_FILENAME = "handoff_in_training.json"
+#: Each handoff's selection rule: ``RobustBestModelCallback``'s ``mean - risk_coef x std`` at the ``risk_coef``
+#: train_base uses (its default, 1.0), and SB3's mean for ``best_model``.
+_HANDOFF_SELECTION_RULES: dict[str, tuple[str, float]] = {
+    "robust_best_model": ("mean - 1.0 x std", 1.0),
+    "best_model": ("mean", 0.0),
+}
+_HANDOFF_KEYS: tuple[str, ...] = (
+    "selected",
+    "timesteps",
+    "mean_reward",
+    "std_reward",
+    "episodes",
+    "selection_rule",
+    "selection_score",
+    "first_scoring_timesteps",
+    "step_agrees",
+)
+
+
+def _handoff_in_training(stage_dir: "str | Path", selected_name: str, model_zip: "str | Path") -> dict[str, Any]:
+    """Which in-training evaluation the handoff checkpoint was saved at, and its score there.  Never raises.
+
+    ``timesteps`` is the checkpoint's own ``num_timesteps`` (SB3 stores it
+    in the zip's ``data`` member at save; read with
+    ``task_fingerprint.read_checkpoint_attribute``, no torch load).  The evaluation
+    of that exact step in the stage's ``evaluations.npz`` gives
+    ``mean_reward``, ``std_reward`` (ddof 0, as ``RobustBestModelCallback``)
+    and ``episodes``; ``selection_rule`` and ``selection_score`` are the
+    handoff's own (``mean - 1.0 x std`` for ``robust_best_model``, ``mean``
+    for ``best_model``).  As a cross-check, ``first_scoring_timesteps`` is
+    the step of the first evaluation whose score equals the history's best
+    (``progress_report._first_evaluation_scoring``, ``progress.json``'s
+    reading), and ``step_agrees`` whether it is the checkpoint's step.
+
+    On any failure (a truncated zip, a zip without ``data``, no
+    ``evaluations.npz``, no evaluation at the checkpoint's step) it returns
+    the same keys, ``None`` where unknown, plus ``"error"``.
+    """
+    out: dict[str, Any] = dict.fromkeys(_HANDOFF_KEYS)
+    out["selected"] = str(selected_name)
+    try:
+        import numpy as np
+
+        from ..curriculum.progress_report import _first_evaluation_scoring
+        from ..task_fingerprint import read_checkpoint_attribute
+
+        recorded = read_checkpoint_attribute(model_zip, "num_timesteps")
+        if recorded is None:
+            raise LookupError(f"{Path(model_zip).name} records no num_timesteps (not a readable SB3 zip)")
+        timesteps = int(recorded)
+        out["timesteps"] = timesteps
+        rule = _HANDOFF_SELECTION_RULES.get(str(selected_name))
+        with np.load(Path(stage_dir) / "evaluations.npz") as record:
+            steps = [int(value) for value in record["timesteps"]]
+            results = [np.asarray(row, dtype=float) for row in record["results"]]
+        if timesteps not in steps:
+            raise LookupError(f"evaluations.npz holds no evaluation at the checkpoint's {timesteps:,} steps")
+        rewards = results[steps.index(timesteps)]
+        mean, std = float(rewards.mean()), float(rewards.std())
+        out.update(mean_reward=mean, std_reward=std, episodes=int(rewards.size))
+        if rule is not None:
+            name, risk = rule
+
+            def score(values: Any) -> float:
+                return float(np.mean(values) - risk * np.std(values))
+
+            best = max(score(row) for row in results)
+            out["selection_rule"] = name
+            out["selection_score"] = score(rewards)
+            out["first_scoring_timesteps"] = _first_evaluation_scoring(results, steps, best, score)
+            out["step_agrees"] = out["first_scoring_timesteps"] == timesteps
+    except Exception as exc:  # noqa: BLE001 - a sidecar must never cost the certificate or the run
+        out["error"] = f"{type(exc).__name__}: {exc}"
+    return out
+
+
+def _write_handoff_sidecar(stage_dir: "str | Path", selected_name: str, model_zip: "str | Path") -> None:
+    """Write ``handoff_in_training.json`` beside the certificate and log one line; never raises.
+
+    Called after the certificate attempt has returned, on every stance
+    path, and never read by ``_apply_stage_gate``: the certificate's bytes,
+    its verdict and ``gate_verdict.json`` are what they are without it.
+    """
+    try:
+        from ..file_io import atomic_write_json
+
+        block = _handoff_in_training(stage_dir, selected_name, model_zip)
+        atomic_write_json(Path(stage_dir) / HANDOFF_SIDECAR_FILENAME, block)
+
+        def shown(value: Any, spec: str = "") -> str:
+            return "n/a" if value is None else format(value, spec)
+
+        logger.info(
+            "Handoff in training: %s, saved at %s steps: evaluation mean %s, std %s over %s episodes (%s = %s)",
+            block["selected"],
+            shown(block["timesteps"], ","),
+            shown(block["mean_reward"], ".1f"),
+            shown(block["std_reward"], ".1f"),
+            shown(block["episodes"]),
+            shown(block["selection_rule"]),
+            shown(block["selection_score"], ".1f"),
+        )
+    except Exception:  # noqa: BLE001 - a sidecar must never cost the certificate or the run
+        logger.warning("Could not write %s; the certificate is unaffected.", HANDOFF_SIDECAR_FILENAME, exc_info=True)
 
 
 def _write_stance_heading_certificate(
@@ -1934,6 +2049,21 @@ def generate_stage_artifacts(
                 logger.warning("Skipping graph generation (matplotlib not installed).")
             except Exception:
                 logger.warning("Graph generation failed.", exc_info=True)
+            # In its own guard, after the four above: a failure costs gate_progress.png only.
+            try:
+                from environments.shared.visualization import plot_gate_progress
+
+                plot_gate_progress(
+                    stage_dir,
+                    curriculum_kwargs=stage_config.get("curriculum_kwargs", {}),
+                    model_id=model_id,
+                    save_path=figures_out / "gate_progress.png",
+                    show=False,
+                )
+            except ImportError:
+                logger.warning("Skipping the gate progress figure (matplotlib not installed).")
+            except Exception:
+                logger.warning("The gate progress figure failed; the other figures are unaffected.", exc_info=True)
 
         if record_videos:
             stage_results = _record_stage_replays(

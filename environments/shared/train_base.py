@@ -690,6 +690,7 @@ def _build_core_callbacks(
     model_id: ModelId | None = None,
     total_timesteps: int | None = None,
     seed: int | None = None,
+    policy_probe_env_factory: Callable[[int], Any] | None = None,
 ) -> tuple[list, Any, Any]:
     """Build the standard callback set shared by train() and train_curriculum().
 
@@ -704,6 +705,10 @@ def _build_core_callbacks(
     silently mis-timed (review TC9).  ``None`` keeps the TOML fallback for
     callers that predate the parameter.  ``seed`` is the run's seed, which
     ``progress.json`` records (``None``: not recorded).
+    ``policy_probe_env_factory(horizon)`` builds a bare env of the stage
+    with that ``max_episode_steps`` and any scheduled pushes off
+    (``policy_probe.bank_env_kwargs``), the policy probe's state-bank env
+    (``None``: no probe).
     """
     from .curriculum import (
         DEFAULT_MAX_CHECKPOINTS,
@@ -715,10 +720,14 @@ def _build_core_callbacks(
         build_eval_collapse_early_stop_callback,
         build_hop_watch_callback,
         build_posture_drift_watch_callback,
+        build_posture_trend_watch_callback,
         build_training_progress_callback,
+        checkpoint_archive_every,
     )
     from .diagnostics import DiagnosticsCallback as _DiagCB
     from .eval_diagnostics import build_stage_evaluation_callbacks
+    from .policy_probe import build_policy_probe_callback
+    from .rollout_ledger import build_training_ledger_callback
     from .tb_sync import PeriodicTbSyncCallback
     from .wandb_integration import WandbCallback
 
@@ -821,7 +830,9 @@ def _build_core_callbacks(
     # nothing in this repository reads. Retention (keep 5) is what makes the
     # denser 100k cadence — chosen so a Colab session cap discards at most
     # ~30 min of training instead of ~2.2 h (review CO4) — storage-neutral.
-    # Set `max_checkpoints = 0` in [curriculum] to keep every one.
+    # Set `max_checkpoints = 0` in [curriculum] to keep every one, or
+    # `checkpoint_archive_every_timesteps = A` to also keep the newest of
+    # every A steps (the onset record, at a fraction of keeping all).
     callbacks.append(
         CheckpointRetentionCallback(
             model_dir=model_dir,
@@ -831,10 +842,45 @@ def _build_core_callbacks(
                 stage_config.get("curriculum_kwargs", {}).get("max_checkpoints", DEFAULT_MAX_CHECKPOINTS)
             ),
             verbose=verbose,
+            archive_every_timesteps=checkpoint_archive_every(stage_config.get("curriculum_kwargs", {})),
         )
     )
 
     callbacks.append(_DiagCB(log_dir=str(log_path), verbose=verbose))
+
+    # Report-only: one row per training episode in train_episodes.csv (its
+    # outcome, the post-settle centre of mass and root pitch, the
+    # limited-force fraction, and the T. rex's per-sensor touch shares),
+    # from raw mjData copies after each step; rewritten on the checkpoint
+    # cadence, so it sits after CheckpointCallback and writes on the call
+    # that saved the checkpoint.  None without a model or a stage dir.  See
+    # `rollout_ledger`.
+    training_ledger_cb = build_training_ledger_callback(
+        model_id=model_id,
+        stage_config=stage_config,
+        log_dir=log_path,
+        flush_every_calls=checkpoint_stride,
+        verbose=verbose,
+    )
+    if training_ledger_cb is not None:
+        callbacks.append(training_ledger_cb)
+
+    # Report-only: at every PPO update, the policy's per-actuator std, the
+    # normalizer, and its values and mean actions on a fixed bank of states
+    # (statue and ankle leans, built once per session on its own env under a
+    # guard of the global generators), in policy_probe.npz on the checkpoint
+    # cadence.  Forward passes under no_grad only; none for SAC.  None
+    # without a bank env factory.  See `policy_probe`.
+    policy_probe_cb = build_policy_probe_callback(
+        model_id=model_id,
+        env_factory=policy_probe_env_factory,
+        stage_horizon=int(stage_config.get("env_kwargs", {}).get("max_episode_steps", 1000)),
+        log_dir=log_path,
+        flush_every_calls=checkpoint_stride,
+        verbose=verbose,
+    )
+    if policy_probe_cb is not None:
+        callbacks.append(policy_probe_cb)
 
     # Collapse early-stop is a backstop against a genuinely diverging stage.
     # Its thresholds are configurable via the stage's [curriculum] section;
@@ -903,6 +949,13 @@ def _build_core_callbacks(
     posture_cb = build_posture_drift_watch_callback(plateau_callback, stage_config, verbose=verbose)
     if posture_cb is not None:
         callbacks.append(posture_cb)
+    # Advisory only, and earlier: one line when the panel stands over a
+    # fore-aft bar (0.1 of its full-horizon episodes, 2 in a row) and its
+    # signed centre of pressure moves toward that edge.  Reads the same
+    # gate_progress rows; None unless the stage declares that bar.
+    posture_trend_cb = build_posture_trend_watch_callback(plateau_callback, stage_config, verbose=verbose)
+    if posture_trend_cb is not None:
+        callbacks.append(posture_trend_cb)
 
     # Report-only: progress.json in the stage directory, rewritten atomically
     # at the start, after every evaluation and at the end, from what the
@@ -918,8 +971,11 @@ def _build_core_callbacks(
         seed=seed,
         total_timesteps=total_timesteps,
         stage_config=stage_config,
-        warning_sources=[plateau_callback, baseline_cb, hop_watch_cb, posture_cb],
+        warning_sources=[plateau_callback, baseline_cb, hop_watch_cb, posture_cb, posture_trend_cb],
         robust_callback=robust_callback,
+        # The training side: the probe's latest update and the ledger's recent episodes (None: no block).
+        policy_probe=policy_probe_cb,
+        rollout_ledger=training_ledger_cb,
         verbose=verbose,
     )
     if progress_cb is not None:
@@ -1327,6 +1383,8 @@ def _train_stage_body(
                 "training runs with a fresh step counter rather than continuation semantics."
             )
 
+    from .policy_probe import bank_env_kwargs
+
     callbacks, eval_callback, _ = _build_core_callbacks(
         sb3,
         eval_env,
@@ -1346,6 +1404,13 @@ def _train_stage_body(
         # the budget-anchored advisories must follow --timesteps and resumes.
         total_timesteps=target_timesteps,
         seed=seed,
+        # The policy probe's state bank runs on its own bare env of this
+        # stage, at a horizon it chooses and with any scheduled pushes off:
+        # never make_env (which seeds the global generators) and never a
+        # training or evaluation env.
+        policy_probe_env_factory=lambda horizon: species_cfg.env_class(
+            **bank_env_kwargs(config["env_kwargs"], horizon)
+        ),
     )
 
     if resuming:

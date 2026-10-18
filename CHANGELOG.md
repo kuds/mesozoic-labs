@@ -8,9 +8,141 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **Balance, force and policy telemetry at every evaluation and PPO update,
+  and the T. rex stance's onset checkpoints kept, report-only** (the
+  maintainer's approval of 2026-10-17 of the T. rex stance telemetry
+  recommended after the physics-r10 screen). The T. rex stance runs that
+  nosedived reached the toe line with every foot rail still inside its
+  bar; 15 to 17% of one r9 arm L seed's training episodes fell at 4.7 to
+  5.2M steps while its evaluations stood; the mean exploration noise hid a
+  9- to 13-fold spread between actuators; and only the newest five
+  checkpoints survived a run, so when a lean set in could not be replayed.
+  Nothing recorded any of it. No gate verdict, reward, observation,
+  action, termination, task, checkpoint selection, plant or
+  hyperparameter digest moves, no env info key or MJCF sensor is added,
+  and nothing draws a random number on a training or evaluation path: the
+  exact reward captures (`digest_snapshot --exact`, 37,034 lines) are
+  byte-identical; the digest snapshot moves only the T. rex stance's two
+  `stage_config_view_sha256` lines, for the retention key below; and a
+  short T. rex stance run (57,344 steps on 4 envs) on main and on this
+  change adds the same data to every rollout, draws the same random
+  numbers, evaluates the same and saves the same parameters and
+  VecNormalize statistics.
+  - Whole-body balance and floor forces (`gait/balance_telemetry.py`), from
+    the floor-truth recorder's opt-in balance capture
+    (`SubstepContactRecorder(..., balance=True)`, evaluations only, its
+    other fields unchanged): per evaluation, as full-horizon means in
+    `gate_progress.npz` and TensorBoard (`diagnostics/eval_<key>`), the
+    centre of mass ahead of the feet and the root pitch, the extrapolated
+    centre of mass (Hof's XcoM), Hof's split of the centre of mass's
+    forward acceleration into its centre-of-pressure and counter-rotation
+    terms, the achieved leg joint offsets (left minus right and
+    mirror-even), the actuator force-limit fraction (also per actuator, as
+    a matrix) and the fraction of steps at a limit, the floor's shear over
+    its normal force and the friction-cone use per foot; on the T. rex's
+    declared span, ankles and hinged digits, the XcoM's margins to the toe,
+    heel and digit-tip lines, the fraction of steps past the toe line, the
+    time to the toe line, the XcoM's lead before a fall and the ankle
+    moment arm. #620's per-foot rule: the four box-soled models record
+    them, and no model attaches a recorder it did not before. The capture
+    and its reduction each have their own guard, so a failure costs only
+    these keys. On the T. rex an evaluation takes about 3% longer.
+  - Every model gains the mirror-even commanded leg DC
+    (`leg_dc_<l>_<r>_mean_<joint>_deg`) and each reward term split into
+    the evaluation's full-horizon and fallen episodes (`full_horizon_term_*`,
+    `fall_term_*`).
+  - The in-training `stance_quality/v2` screen: on the T. rex and the
+    anatomical Compsognathus stances, every evaluation is judged on the
+    stage's own v2 bars at yaw 0 without the statue-relative criteria
+    (`screen_v2_*` in `gate_progress.npz`, TensorBoard's `screen_v2/`). It
+    is never a verdict, and its names keep it apart from the gate's
+    recorded-history reading. A criterion it skips keeps its fail-count
+    key, which reads NaN, not 0.
+  - `eval_episodes.csv`: one row per evaluation episode (return, length,
+    cause, the screen's per-episode result, the spawn, the per-foot pad,
+    whole-foot and roll-rail values, the gate's per-episode maxima, and the
+    balance and force values), rewritten atomically after every
+    evaluation.
+  - `train_episodes.csv` (`rollout_ledger.py`): one row per training
+    episode (its cause and length, the post-settle and last pre-terminal
+    centre of mass and root pitch, the limited-force fraction and, on the
+    T. rex, each touch sensor's share of its foot's load), copying raw
+    `mjData` reads per step and reducing once per episode, rewritten on
+    the checkpoint cadence. `diagnostics.npz` gains `rollout_episodes`,
+    `rollout_falls` and `rollout_term_count_<reason>` (named so that no
+    reader takes them for termination fractions) and
+    `reward_action_jerk`, which the env emitted and nothing recorded; the
+    jerk term also reaches W&B and the post-training results CSV
+    (`eval_reward_action_jerk`).
+  - `policy_probe.npz` (`policy_probe.py`): at every PPO update, the
+    per-actuator exploration std, VecNormalize's per-dimension
+    statistics, the entropy coefficient, the learning rate the coming
+    update applies, and the critic's value and the deterministic action on
+    a fixed bank of ten states (the statue and held ankle leans on two
+    seeds), under the current and the session-start normalization. The bank
+    is built once per session on a separate env, with any scheduled pushes
+    off (a recovery stage's would topple its states), under a guard that
+    restores the global generators (it draws none), and each update is a
+    gradient-free forward pass. TensorBoard gets `policy_probe/*`.
+  - A `PostureTrend` advisory (`curriculum/posture_watch.py`): one warning
+    line when 2 evaluations in a row have a fore-aft over-bar fraction of
+    0.1 or more and the signed centre of pressure moves toward that edge,
+    at most once per 10 evaluations, with four `[curriculum]` diagnostic
+    knobs that no stage sets. Replayed on the r9 and r10 arm L screens'
+    series, it first warns on r9 seed 60 one evaluation into the drift
+    that lasted, four evaluations before `PostureDrift`; at those screens'
+    10-episode evaluations it warned on all six series, including the r10
+    seed that passed `stance_quality/v2`.
+  - `figures/gate_progress.png` at stage end, in its own guard, and
+    `scripts/plot_gate_progress.py` for a copy of a stage directory mid-run
+    (it refuses to write into a run directory, which the result bundle's
+    manifest would then reject).
+  - `handoff_in_training.json`: the stance handoff checkpoint's
+    in-training step, evaluation and selection score, written beside the
+    certificate after it returns; the certificate, its verdict and
+    `gate_verdict.json` are untouched.
+  - `progress.json` gains `balance`, `forces`, `policy`,
+    `training_rollouts`, `evaluation.screen_v2`, `posture.leg_q_deg` and
+    `checkpoints.periodic_timesteps`, under the same schema string: it now
+    changes only when a key is removed or renamed or changes meaning,
+    units or type.
+  - The archive rule (`curriculum/checkpoints.py`): with the new retention
+    key `checkpoint_archive_every_timesteps = A`, checkpoint retention also
+    keeps the newest periodic checkpoint of every interval of `A` steps.
+    The T. rex stance sets 500,000, its own commit and the only
+    stage-configuration change (the one other configuration edit drops
+    `compare_run_diagnostics.py` from the coverage omit list, now that a
+    test imports it): at the notebook's 100,000-step cadence a 12M run
+    keeps 28 checkpoint pairs (113 MB) instead of 5 (20 MB), against 120
+    (485 MB) for `max_checkpoints = 0`. The key enters no gate, task or
+    hyperparameter digest; `configs/digest_snapshot.generated.txt` was
+    regenerated with the tool, and exactly its two T. rex stance
+    `stage_config_view_sha256` lines moved.
+  - Tests: new `test_gait_balance_telemetry.py` (bit-identity with and
+    without the capture on every box-soled model, the force decode against
+    body weight, the statue and a scripted nosedive, the frames, and the
+    failure isolation), `test_episode_ledger.py`,
+    `test_curriculum_rollout_ledger.py`, `test_curriculum_policy_probe.py`
+    (no random number drawn, nothing written to the policy, the bank whole
+    at a short horizon), `test_curriculum_checkpoint_archive.py` and
+    `test_curriculum_balance_telemetry.py`, a 768-step T. rex stance run
+    with every addition on and off: the same hash of every rollout-buffer
+    addition, the same policy, optimizer and generator state at every
+    update, the same evaluations, checkpoint tensors and VecNormalize
+    statistics, the base's key sets when off and exactly this change's
+    keys added when on. `test_eval_diagnostics.py`, `test_diagnostics.py`,
+    `test_curriculum_posture_watch.py` (the replays),
+    `test_curriculum_progress_report.py`, `test_visualization.py`,
+    `test_stance_gate_report.py` and others are extended. The
+    `test_curriculum_*.py` files run in the SB3 job.
+  - Documented in `docs/TRAINING_ARTIFACT_PRESENTATION.md` (every new key
+    and file, their NaN rules, the screen, the advisory and its replays,
+    the figure, the sidecar, the archive rule and its cost, the additive
+    schema rule and which model records what) and the website's training
+    tips.
 - **Decision D-D36 amended: walking pilot 1 read STILL, and a second pilot with
   wider exploration; and the evidence of the T. rex stance follow-ups of
-  2026-10-17** (the maintainer's decision of 2026-10-17;
+  2026-10-17** (#629; the maintainer's decision of 2026-10-17;
   `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2, `docs/CONSOLIDATION_PLAN_2026_09.md`
   §6, a dated note in §17 of `docs/GAIT_QUALITY_PLAN_2026_09.md`,
   `docs/NEXT_STEPS.md` §3; the appended §15 of
@@ -50,8 +182,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   evidence file. `docs/README.md` adds a note to the record's and the gait
   plan's rows, and `docs/KNOWN_ISSUES.md` gains Update 8 of the T-Rex stance
   entry.
-- **#628; The cross-run results table saved with the offline judgements:
-  `logs/runs_summary.csv` and `results/offline_judgements.csv`** (the
+- **The cross-run results table saved with the offline judgements:
+  `logs/runs_summary.csv` and `results/offline_judgements.csv`** (#628; the
   maintainer's approval of 2026-10-17: "Persistent results ledger: the Drive
   summary notebook saves its cross-run table as logs/runs_summary.csv, with
   offline judgements addable as rows marked 'offline'"). Every run writes its
@@ -103,10 +235,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Documented in `docs/RESULT_BUNDLES.md` (the cross-run table and the
     ledger), `results/README.md` (the ledger's columns) and the notebook's own
     markdown.
-- **#627; Decision D-D36 recorded: one short T. rex walking pilot, a deliberate
+- **Decision D-D36 recorded: one short T. rex walking pilot, a deliberate
   exception to the gait plan's GQ-3 (a) and GQ-17; and a record of the
-  T. rex stance experiments of 2026-10-12 to 2026-10-17** (the maintainer's
-  decision of 2026-10-17; `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2,
+  T. rex stance experiments of 2026-10-12 to 2026-10-17** (#627; the
+  maintainer's decision of 2026-10-17; `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2,
   `docs/CONSOLIDATION_PLAN_2026_09.md` §6, the dated §17 of
   `docs/GAIT_QUALITY_PLAN_2026_09.md`, `docs/NEXT_STEPS.md` §3;
   `docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md` and its

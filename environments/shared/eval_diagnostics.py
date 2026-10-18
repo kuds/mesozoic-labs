@@ -36,6 +36,43 @@ SAGITTAL_LEG_JOINTS: tuple[str, ...] = ("hip_pitch", "knee", "ankle")
 #: (``termination_truncated`` for the episodes that reached their time limit).
 TERMINATION_KEY_PREFIX = "termination_"
 
+#: The eval-episode ledger (:mod:`~environments.shared.episode_ledger`): its file, in the stage directory
+#: beside ``gate_progress.npz``, and its fixed columns; the foot, balance and force columns follow
+#: (:meth:`StageAwareEvalCallback._ledger_rows`).
+EVAL_LEDGER_FILENAME = "eval_episodes.csv"
+EVAL_LEDGER_FIXED_COLUMNS: tuple[str, ...] = (
+    "evaluation",
+    "timesteps",
+    "episode",
+    "env",
+    "return",
+    "length",
+    "full_horizon",
+    "cause",
+)
+#: The prefix of ``gate_progress.npz``'s in-training ``stance_quality/v2`` screen keys (and their TensorBoard
+#: namespace, ``screen_v2/``): deliberately not the recorded-history gate's ``stance_clean_count``.
+SCREEN_KEY_PREFIX = "screen_v2_"
+#: The per-pad-foot fields the ledger keeps, in order (of the pad and roll-rail keys a foot has).
+_LEDGER_FOOT_FIELDS: tuple[str, ...] = (
+    "sole_cop_fore_aft",
+    "sole_cop_fore_aft_gate",
+    "digit_share",
+    "foot_cop_fore_aft",
+    "foot_cop_fore_aft_gate",
+    "toe_margin_nm",
+    "sole_tilt_deg",
+    "sole_corner_lift_m",
+)
+#: The episode maxima the ledger keeps: ``(column, the per-foot field it is the maximum over the feet of)``,
+#: the numbers the gate's four foot rails read.
+_LEDGER_EPISODE_MAXIMA: tuple[tuple[str, str], ...] = (
+    ("max_sole_cop_fore_aft", "sole_cop_fore_aft_gate"),
+    ("max_foot_cop_fore_aft", "foot_cop_fore_aft_gate"),
+    ("max_sole_tilt_deg", "sole_tilt_deg"),
+    ("max_sole_corner_lift_m", "sole_corner_lift_m"),
+)
+
 #: A sagittal joint's axis must lie within about 45 degrees of the animal's
 #: lateral axis at the home pose (``|axis . lateral| >= 0.7``) for its pair to
 #: be read: the leg DC is a rotation about that axis, and a joint far off it
@@ -185,6 +222,78 @@ def leg_dc_degrees(env: Any, pairs: "tuple[SagittalLegPair, ...]", action_dc: An
     return out
 
 
+def leg_dc_mean_degrees(env: Any, pairs: "tuple[SagittalLegPair, ...]", action_dc: Any) -> dict[str, float]:
+    """Each pair's mirror-even commanded joint offset, ``(left + right) / 2`` in degrees about the leftward axis.
+
+    :func:`leg_dc_degrees`'s counterpart, keyed
+    ``leg_dc_<left>_<right>_mean_<joint>_deg``
+    (:func:`~environments.shared.gait.balance_telemetry.mirror_even_key`):
+    the part of the DC a mirror-symmetric posture holds, which the
+    left-minus-right key reads as 0.  The same map, signs and NaN rule.
+    """
+    from .gait.balance_telemetry import mirror_even_key
+
+    out = {mirror_even_key(pair): float("nan") for pair in pairs}
+    if not pairs:
+        return out
+    unwrapped = getattr(env, "unwrapped", env)
+    dc = np.asarray(action_dc, dtype=np.float64).reshape(-1)
+    if dc.size != int(unwrapped.model.nu) or not np.isfinite(dc).all():
+        return out
+    target = np.asarray(unwrapped._scale_action(dc), dtype=np.float64).reshape(-1)
+    home = np.asarray(unwrapped._scale_action(np.zeros_like(dc)), dtype=np.float64).reshape(-1)
+    offset = target - home
+    for pair in pairs:
+        out[mirror_even_key(pair)] = math.degrees(
+            (pair.left_sign * offset[pair.left] + pair.right_sign * offset[pair.right]) / 2.0
+        )
+    return out
+
+
+def _screen_thresholds(curriculum_kwargs: Mapping[str, Any]) -> Any:
+    """The ``stance_quality/v2`` thresholds the in-training screen judges on, or ``None``.
+
+    The stage's own ``StanceV2Thresholds`` when it declares
+    ``stance_quality/v2`` or ``stance_quality_heading/v1`` (both judge v2's
+    keys); ``None`` for any other kind, and, with one warning, for a block
+    the reader refuses (the run's config check refuses it first).
+    """
+    from .curriculum.stance_gate_v2 import STANCE_GATE_V2_KIND, StanceV2Thresholds
+    from .curriculum.stance_heading_gate import STANCE_HEADING_GATE_KIND
+
+    if curriculum_kwargs.get("gate_kind") not in (STANCE_GATE_V2_KIND, STANCE_HEADING_GATE_KIND):
+        return None
+    try:
+        return StanceV2Thresholds.from_curriculum(curriculum_kwargs)
+    except ValueError:
+        logger.warning("In-training v2 screen: the stage's thresholds cannot be read; no screen.", exc_info=True)
+        return None
+
+
+def screen_scalar_keys(thresholds: Any) -> tuple[str, ...]:
+    """``gate_progress.npz``'s screen keys for *thresholds*: fixed by the stage's declaration, not by the data.
+
+    ``screen_v2_episodes``, ``_clean_count``, ``_clean_lcb``,
+    ``_yaw0_bars_met``, ``_hop_or_fall_episodes`` (only with
+    ``max_hop_or_fall_episodes`` declared), then
+    ``screen_v2_fail_<criterion>_count`` per criterion the gate counts
+    (``horizon``, then every declared episode criterion): the count of
+    episodes failing it, NaN for a criterion the screen skips (the
+    statue-relative ``min_foot_load_share_statue_ratio``, which the screen
+    never judges).  The count is a suffix so that no key ends in a
+    per-foot rail suffix (``..._sole_cop_fore_aft``), which the posture
+    readers would take for a foot.
+    """
+    from .curriculum.stance_gate_v2 import EPISODE_CRITERION_KEYS, HORIZON_REASON
+
+    keys = [f"{SCREEN_KEY_PREFIX}{name}" for name in ("episodes", "clean_count", "clean_lcb", "yaw0_bars_met")]
+    if getattr(thresholds, "max_hop_or_fall_episodes", None) is not None:
+        keys.append(f"{SCREEN_KEY_PREFIX}hop_or_fall_episodes")
+    criteria = [HORIZON_REASON, *(key for key in EPISODE_CRITERION_KEYS if getattr(thresholds, key, None) is not None)]
+    keys += [f"{SCREEN_KEY_PREFIX}fail_{criterion}_count" for criterion in criteria]
+    return tuple(keys)
+
+
 try:
     from stable_baselines3.common.callbacks import BaseCallback as _BaseCallback
     from stable_baselines3.common.callbacks import EvalCallback as _EvalCallback
@@ -272,6 +381,33 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
     when it gave none), and ``"truncated"`` for one that reached its time
     limit, read from the episode's last ``info`` as the stance report reads
     it.
+
+    Behind one switch, :attr:`report_extensions` (on; the in-suite inertness
+    proof turns it off to reproduce the callback without them), it also
+    keeps, all report-only:
+
+    * the **eval-episode ledger**, ``eval_episodes.csv`` beside
+      ``gate_progress.npz`` (:mod:`~environments.shared.episode_ledger`):
+      one row per evaluation episode, its outcome beside its foot, balance
+      and force values, rewritten after every evaluation;
+    * the **in-training v2 screen** (:attr:`evaluations_screen_v2`): on a
+      stage that declares ``stance_quality/v2``'s keys and runs the
+      recorder, ``evaluate_stance_v2_gate(..., in_training=True)`` on the
+      evaluation's own episodes -- the gate's bars at yaw 0 without the
+      statue-relative criteria, never a verdict;
+    * the **balance and force fields** (:attr:`balance_keys`,
+      :mod:`~environments.shared.gait.balance_telemetry`) of each episode,
+      recorded with the recorder's opt-in balance capture and kept with the
+      pad values, and each evaluation's per-actuator force fraction
+      (:attr:`evaluations_actuator_force_frac`);
+    * the **mirror-even leg DC** beside the left-minus-right one
+      (:func:`leg_dc_mean_degrees`), and the reward terms **split** into
+      the full-horizon and the fallen episodes'
+      (:attr:`evaluations_reward_terms_split`).
+
+    Each group is reduced in its own guard, after the pad capture's: a
+    failure costs that group's values (NaN), never the pad and rail fields,
+    another group, or the run.
     """
 
     #: Declared at class scope so an instance built without ``__init__`` (the
@@ -293,6 +429,19 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
     leg_dc_pairs: tuple[SagittalLegPair, ...] = ()
     _foot_resolved = False
     _warned_foot_telemetry = False
+    #: The single switch for the report-only extensions (the class docstring); the in-suite inertness proof
+    #: patches it to ``False`` on the class.
+    report_extensions = True
+    #: The stage horizon and control step (the screen's), and its ``stance_quality/v2`` thresholds (``None``:
+    #: no screen).
+    horizon = 1000
+    control_dt = 0.01
+    screen_thresholds: Any = None
+    #: The balance and force keys of the model's episodes (:meth:`~environments.shared.gait.balance_telemetry.
+    #: BalanceLayout.episode_keys`), resolved with the pad keys; empty for a model with no box sole.
+    balance_keys: tuple[str, ...] = ()
+    _ledger: Any = None
+    _balance_disabled = False
 
     def __init__(
         self,
@@ -302,6 +451,10 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
         success_applicable: bool,
         settle_steps: int = 0,
         model_id: "ModelId | None" = None,
+        horizon: int = 1000,
+        control_dt: float = 0.01,
+        screen_thresholds: Any = None,
+        ledger_dir: "str | Path | None" = None,
         **kwargs: Any,
     ) -> None:
         if not _SB3_AVAILABLE:
@@ -313,6 +466,24 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
         self.success_applicable = success_applicable
         self.settle_steps = int(settle_steps)
         self.model_id = model_id
+        self.horizon = int(horizon)
+        self.control_dt = float(control_dt) if control_dt and control_dt > 0 else 0.01
+        self.screen_thresholds = screen_thresholds
+        # Per evaluation, the in-training v2 screen's result (None: unmeasured, or no screen), each
+        # evaluation's per-actuator force fraction (`[]` on a model whose recorder does not run) and its
+        # reward terms split into the full-horizon and the fallen episodes' means.
+        self.evaluations_screen_v2: list[dict[str, Any] | None] = []
+        self.evaluations_actuator_force_frac: list[list[float]] = []
+        self.evaluations_reward_terms_split: list[dict[str, dict[str, float]]] = []
+        self._balance_layouts: list[Any] = []
+        self._ledger = None
+        if self.report_extensions:
+            from .episode_ledger import EpisodeLedger
+
+            self._ledger = EpisodeLedger(
+                None if ledger_dir is None else Path(ledger_dir) / EVAL_LEDGER_FILENAME,
+                fixed_columns=EVAL_LEDGER_FIXED_COLUMNS,
+            )
         # Per evaluation, the pad telemetry's per-episode values by key
         # (`foot_pad_keys`, then the roll rails' `foot_rail_keys`),
         # positionally aligned with `evaluations_length` like the duties; `{}`
@@ -422,6 +593,17 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
         self._prev_prev_action.clear()
         self._reward_term_sums.clear()
         self._reward_term_episodes = 0
+        # The extensions' per-evaluation state (report_extensions): the ledger-only per-episode values
+        # (the screen's and the spawn's), the screen's per-episode metrics, the per-episode actuator force
+        # fractions, each episode's sub-env, and the reward terms by episode and by kind.
+        self._current_eval_ledger_only: dict[str, list[Any]] = {}
+        self._current_eval_screen: list[Any] = []
+        self._current_eval_actuator_frac: list[Any] = []
+        self._current_eval_episode_envs: list[int] = []
+        self._episode_term_sums: dict[int, dict[str, float]] = {}
+        self._episode_term_steps: dict[int, int] = {}
+        self._split_term_sums: dict[str, dict[str, float]] = {"full_horizon": {}, "fall": {}}
+        self._split_term_episodes: dict[str, int] = {"full_horizon": 0, "fall": 0}
 
     def _capture_action(self, locals_: dict[str, Any], env_index: int, after_settle: bool) -> None:
         """Accumulate deterministic-policy action statistics for one step.
@@ -513,10 +695,74 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
         self.foot_pad_keys = setup[0][3].episode_keys()
         self.foot_rail_keys = rails[0].episode_keys()
         self.leg_dc_pairs = pairs
+        # After the pad setup, outside its guard: a model the balance layout cannot describe keeps its pad,
+        # roll-rail and leg DC fields.  Resolved here, at the first evaluation, so the key set is fixed
+        # before any row is published.
+        if self.report_extensions:
+            self._resolve_balance(setup, pairs)
+
+    def _warn_balance(self, message: str) -> None:
+        """Warn once per callback that the balance and force fields read NaN, with the reason."""
+        if not self.__dict__.get("_warned_balance", False):
+            self._warned_balance = True
+            logger.warning(
+                "Balance telemetry: %s; the balance and force fields read NaN (the pad and roll-rail fields are "
+                "unaffected).",
+                message,
+                exc_info=True,
+            )
+
+    def _resolve_balance(self, setup: "list[tuple[Any, Any, Any, Any]]", pairs: "tuple[SagittalLegPair, ...]") -> None:
+        """Each sub-env's ``BalanceLayout`` and the run's :attr:`balance_keys` (empty when it cannot be described)."""
+        try:
+            from .gait.balance_telemetry import BalanceLayout
+
+            layouts = [BalanceLayout.from_env(env, morphology, pairs) for env, _model, morphology, _pad in setup]
+        except Exception:  # noqa: BLE001 - a diagnostic must not sink a run
+            self._balance_layouts = []
+            self.balance_keys = ()
+            self._warn_balance("cannot describe the evaluation env's balance")
+            return
+        self._balance_layouts = list(layouts)
+        self.balance_keys = layouts[0].episode_keys() if layouts and not layouts[0].is_empty() else ()
+
+    def _refresh_balance_layout(self, index: int, env: Any, morphology: Any) -> None:
+        """A fresh ``BalanceLayout`` for a sub-env that swapped its model; ``None`` (NaN fields) when it fails."""
+        layouts = self.__dict__.get("_balance_layouts") or []
+        if not self.report_extensions or index >= len(layouts):
+            return
+        try:
+            from .gait.balance_telemetry import BalanceLayout
+
+            layouts[index] = BalanceLayout.from_env(env, morphology, tuple(self.leg_dc_pairs or ()))
+        except Exception:  # noqa: BLE001 - a diagnostic must not sink a run
+            layouts[index] = None
+            self._warn_balance("cannot describe a swapped evaluation model's balance")
+
+    def _balance_recorder(self, env: Any, morphology: Any) -> Any:
+        """A recorder with the balance capture, or ``None``: the caller then builds the plain one, as without it.
+
+        Tried in its own guard before the plain recorder, so a model the
+        capture cannot set up costs the balance fields only: the failure is
+        deterministic, so it disables the capture for the rest of the run
+        (:attr:`balance_keys` stay, read NaN, so the key set the first
+        evaluation fixed does not change).
+        """
+        if not (self.report_extensions and self.balance_keys) or self.__dict__.get("_balance_disabled", False):
+            return None
+        try:
+            from .gait.recorder import SubstepContactRecorder
+
+            return SubstepContactRecorder(env, morphology, balance=True)
+        except Exception:  # noqa: BLE001 - a diagnostic must not sink a run
+            self._balance_disabled = True
+            self._warn_balance("the recorder cannot capture the balance fields")
+            return None
 
     def _foot_keys(self) -> tuple[str, ...]:
-        """Every per-episode foot key: the pad keys, then the roll-rail keys."""
-        return tuple(self.foot_pad_keys or ()) + tuple(self.foot_rail_keys or ())
+        """Every per-episode foot key: the pad keys, then the roll-rail keys, then the balance and force keys."""
+        balance = tuple(self.balance_keys or ()) if self.report_extensions else ()
+        return tuple(self.foot_pad_keys or ()) + tuple(self.foot_rail_keys or ()) + balance
 
     def _begin_pad_capture(self) -> None:
         """Attach a recorder to each evaluation sub-env, for this evaluation only (a no-op without pad feet)."""
@@ -543,11 +789,17 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
                     setup[index] = (env, env.model, morphology, PadLayout.from_morphology(morphology))
                     if index < len(rails):
                         rails[index] = RailLayout.from_morphology(morphology)
+                    self._refresh_balance_layout(index, env, morphology)  # never raises
                 # SB3's evaluate_policy splits the panel this way and stops calling back for a
                 # sub-env that has finished its share, so its recorder is detached right then.
                 self._pad_quota[index] = (int(self.n_eval_episodes) + index) // len(setup)
                 if self._pad_quota[index] > 0:
-                    self._pad_recorders[index] = SubstepContactRecorder(env, setup[index][2]).attach()
+                    # The balance capture first, in its own guard (it never raises); the plain recorder as
+                    # before when it is off or cannot be built.
+                    recorder = self._balance_recorder(env, setup[index][2])
+                    if recorder is None:
+                        recorder = SubstepContactRecorder(env, setup[index][2])
+                    self._pad_recorders[index] = recorder.attach()
         except Exception:  # noqa: BLE001 - a diagnostic must not sink a run
             self._fail_pad_capture()
 
@@ -574,13 +826,27 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
         for env_index in list(self.__dict__.get("_pad_recorders", {})):
             self._detach_pad_recorder(env_index)
 
+    def _episode_end_flags(self, info: Any) -> dict[str, Any]:
+        """``end_episode``'s flags for the episode whose last ``info`` this is; ``{}`` (its defaults) when unread."""
+        if not self.report_extensions or not isinstance(info, Mapping):
+            return {}
+        try:
+            truncated = bool(info.get("TimeLimit.truncated"))
+            cause = self.termination_cause(info)
+            reason = "" if cause in ("truncated", "terminated") else cause
+            return {"terminated": not truncated, "truncated": truncated, "termination_reason": reason}
+        except Exception:  # noqa: BLE001 - a diagnostic must not sink a run
+            return {}
+
     def _capture_pad(self, locals_: dict[str, Any], env_index: int, done: bool) -> None:
         """Close this step on the sub-env's recorder; at an episode end, reduce it into one value per foot key."""
         keys = self._foot_keys()
         if not keys:
             return
         values: dict[str, float] = {}
+        trace = None
         recorder = self._pad_recorders.get(env_index)
+        flags = self._episode_end_flags(locals_.get("info")) if done else {}
         if recorder is not None and not self._pad_failed:
             try:
                 from .gait.pad_telemetry import episode_pad_telemetry
@@ -593,7 +859,7 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
                 reward = locals_.get("reward")
                 recorder.end_step(action, float("nan") if reward is None else float(reward))
                 if done:
-                    trace = recorder.end_episode()
+                    trace = recorder.end_episode(**flags)
                     values = episode_pad_telemetry(
                         trace, self._foot_setup[env_index][3], settle_steps=self.settle_steps
                     )
@@ -601,7 +867,13 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
             except Exception:  # noqa: BLE001 - a diagnostic must not sink a run
                 self._fail_pad_capture()
                 values = {}
+                trace = None
         if done:
+            if self.report_extensions:
+                # After the pad guard, never inside it: each group has its own guard, so a failure here
+                # costs that group's values (NaN), never the pad and roll-rail ones above.
+                values = {**values, **self._episode_balance(trace, env_index)}
+                self._capture_ledger_only(trace, env_index)
             # One value per key per episode, NaN when unmeasured, so every list stays aligned with
             # the episode lengths SB3 records -- the duties' contract.
             for key in keys:
@@ -634,6 +906,103 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
                 )
             return {}
 
+    def _episode_balance(self, trace: Any, env_index: int) -> dict[str, float]:
+        """One recorded episode's balance and force fields (:attr:`balance_keys`); ``{}``, so NaN, when unmeasured.
+
+        Its own guard: a failure costs this episode's balance and force
+        values, logged once.  A trace whose balance capture failed (its
+        balance fields ``None``) reads NaN without raising.  The episode's
+        per-actuator force fraction joins the evaluation's mean when its
+        window is not empty.
+        """
+        if not self.balance_keys or trace is None or getattr(trace, "com_pos", None) is None:
+            return {}
+        layouts = self.__dict__.get("_balance_layouts") or []
+        layout = layouts[env_index] if env_index < len(layouts) else None
+        if layout is None:
+            return {}
+        try:
+            from .gait.balance_telemetry import (
+                episode_actuator_force_fraction,
+                episode_balance_telemetry,
+                episode_force_telemetry,
+            )
+
+            values = {
+                **episode_balance_telemetry(trace, layout, settle_steps=self.settle_steps),
+                **episode_force_telemetry(trace, layout, settle_steps=self.settle_steps),
+            }
+            fraction = episode_actuator_force_fraction(trace, layout, settle_steps=self.settle_steps)
+        except Exception:  # noqa: BLE001 - a diagnostic must not sink a run
+            self._warn_balance("an episode could not be reduced")
+            return {}
+        if int(trace.length) > int(self.settle_steps):
+            self.__dict__.setdefault("_current_eval_actuator_frac", []).append(fraction)
+        return values
+
+    def _spawn_columns(self) -> tuple[str, ...]:
+        """The ledger's spawn columns: ``spawn_stance_width_change_m``, then ``<label>_spawn_tilt_deg`` per box sole.
+
+        Deliberately not ``<label>_spawn_sole_tilt_deg``: no per-episode
+        name may end in a per-foot rail suffix (``_sole_tilt_deg``).
+        """
+        rails = self.__dict__.get("_rail_layouts") or []
+        feet = getattr(rails[0], "feet", ()) if rails else ()
+        labels = [str(getattr(foot, "label", "")) for foot in feet]
+        return ("spawn_stance_width_change_m", *(f"{label}_spawn_tilt_deg" for label in labels if label))
+
+    def _episode_spawn(self, trace: Any, env_index: int) -> dict[str, float]:
+        """The episode's spawn: the largest change of a foot pair's horizontal distance from home, each sole's tilt."""
+        out = dict.fromkeys(self._spawn_columns(), float("nan"))
+        if trace is None:
+            return out
+        try:
+            from .gait.balance_telemetry import pair_distances
+
+            layouts = self.__dict__.get("_balance_layouts") or []
+            layout = layouts[env_index] if env_index < len(layouts) else None
+            if layout is not None and layout.home_pair_distances.size:
+                spawn = pair_distances(np.asarray(trace.spawn_foot_pos, dtype=np.float64)[None])[0]
+                out["spawn_stance_width_change_m"] = float(np.max(np.abs(spawn - layout.home_pair_distances)))
+            tilts = dict(zip(trace.labels, np.asarray(trace.spawn_sole_tilt_deg, dtype=np.float64).tolist()))
+            for key in out:
+                if key.endswith("_spawn_tilt_deg"):
+                    out[key] = float(tilts.get(key[: -len("_spawn_tilt_deg")], float("nan")))
+        except Exception:  # noqa: BLE001 - a diagnostic must not sink a run
+            self._warn_ledger("an episode's spawn could not be read")
+        return out
+
+    def _episode_screen(self, trace: Any) -> Any:
+        """The episode's ``StanceEpisodeMetrics`` for the in-training screen, or ``None`` (no screen, unmeasured)."""
+        if self.screen_thresholds is None or trace is None:
+            return None
+        try:
+            from .gait.stance_metrics import episode_stance_metrics
+
+            return episode_stance_metrics(trace, settle_steps=self.settle_steps)
+        except Exception:  # noqa: BLE001 - a diagnostic must not sink a run
+            self._warn_ledger("an episode's stance metrics could not be computed for the in-training screen")
+            return None
+
+    def _capture_ledger_only(self, trace: Any, env_index: int) -> None:
+        """Keep one episode's ledger-only values: its screen metrics and its spawn (NaN when unmeasured).
+
+        Ledger-only: nothing publishes them to the plateau callback, so the
+        spawn columns can never reach ``gate_progress.npz``.
+        """
+        self.__dict__.setdefault("_current_eval_screen", []).append(self._episode_screen(trace))
+        try:
+            store = self.__dict__.setdefault("_current_eval_ledger_only", {})
+            for key, value in self._episode_spawn(trace, env_index).items():
+                store.setdefault(key, []).append(value)
+        except Exception:  # noqa: BLE001 - a diagnostic must not sink a run
+            self._warn_ledger("an episode's ledger-only values could not be kept")
+
+    def _warn_ledger(self, message: str) -> None:
+        if not self.__dict__.get("_warned_ledger", False):
+            self._warned_ledger = True
+            logger.warning("Eval-episode ledger: %s; those values read NaN.", message, exc_info=True)
+
     def _publish_pad_telemetry(self) -> None:
         """Append this evaluation's per-episode pad values (all NaN when its capture failed)."""
         current = self.__dict__.get("_current_eval_foot_pad", {})
@@ -653,9 +1022,16 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
         values: dict[str, float] = {pair.key: float("nan") for pair in pairs}
         setup = self.__dict__.get("_foot_setup") or []
         series = self.__dict__.get("evaluations_action_dc") or []
+        extended = bool(self.report_extensions)
+        if extended:
+            from .gait.balance_telemetry import mirror_even_key
+
+            values.update({mirror_even_key(pair): float("nan") for pair in pairs})
         if pairs and setup and series and series[-1]:
             try:
                 values = leg_dc_degrees(setup[0][0], pairs, series[-1])
+                if extended:
+                    values.update(leg_dc_mean_degrees(setup[0][0], pairs, series[-1]))
             except Exception:  # noqa: BLE001 - a diagnostic must not sink a run
                 if not self.__dict__.get("_warned_leg_dc", False):
                     self._warned_leg_dc = True
@@ -683,6 +1059,7 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
         info = locals_["info"]
         env_index = int(locals_.get("i", 0))
         self._capture_pad(locals_, env_index, bool(locals_["done"]))
+        terms: dict[str, float] = {}  # this step's finite reward terms, for the full-horizon/fall split
         for key, value in info.items():
             if not key.startswith("reward_"):
                 continue
@@ -692,6 +1069,7 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
                 continue
             if math.isfinite(number):
                 self._reward_term_sums[key] = self._reward_term_sums.get(key, 0.0) + number
+                terms[key] = number
         forward_vel = info.get("forward_vel")
         if forward_vel is not None:
             value = float(forward_vel)
@@ -735,8 +1113,36 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
             self._prev_action.pop(env_index, None)
             self._prev_prev_action.pop(env_index, None)
 
+        if self.report_extensions:
+            self._capture_term_split(terms, env_index, bool(locals_["done"]))
+
         if self.success_applicable:
             super()._log_success_callback(locals_, globals_)
+
+    def _capture_term_split(self, terms: Mapping[str, float], env_index: int, done: bool) -> None:
+        """Sum each episode's reward terms apart, and at its end add them to the full-horizon or the fallen sums.
+
+        Beside ``_reward_term_sums``, which stays as it was: *terms* are the
+        finite ``reward_*`` values the step added to it, so the two kinds'
+        sums add up to the evaluation's.  An episode is full-horizon when its
+        step count reaches :attr:`horizon`.
+        """
+        try:
+            sums = self.__dict__.setdefault("_episode_term_sums", {}).setdefault(env_index, {})
+            steps = self.__dict__.setdefault("_episode_term_steps", {})
+            steps[env_index] = steps.get(env_index, 0) + 1
+            for key, number in terms.items():
+                sums[key] = sums.get(key, 0.0) + number
+            if done:
+                self.__dict__.setdefault("_current_eval_episode_envs", []).append(env_index)
+                kind = "full_horizon" if steps.pop(env_index, 0) >= self.horizon else "fall"
+                split = self.__dict__.setdefault("_split_term_sums", {"full_horizon": {}, "fall": {}})
+                counts = self.__dict__.setdefault("_split_term_episodes", {"full_horizon": 0, "fall": 0})
+                for key, value in self._episode_term_sums.pop(env_index, {}).items():
+                    split[kind][key] = split[kind].get(key, 0.0) + value
+                counts[kind] += 1
+        except Exception:  # noqa: BLE001 - a diagnostic must not sink a run
+            return
 
     def seed_prior_history(self, n_evals: int) -> None:
         """Pad the parallel per-eval capture series for *n_evals* seeded evals.
@@ -771,6 +1177,22 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
             self.__dict__.setdefault("evaluations_foot_pad", []).append({})
             self.__dict__.setdefault("evaluations_leg_dc", []).append({})
             self.__dict__.setdefault("evaluations_termination_causes", []).append([])
+            # The extensions' series (the seeded rows of gate_progress.npz, the force matrix's among them,
+            # come from the prior file, never from these placeholders).
+            self.__dict__.setdefault("evaluations_screen_v2", []).append(None)
+            self.__dict__.setdefault("evaluations_actuator_force_frac", []).append([])
+            self.__dict__.setdefault("evaluations_reward_terms_split", []).append({})
+
+    def seed_prior_record(self, directory: "str | Path", *, max_timesteps: int | None = None) -> int:
+        """Keep the prior session's ``eval_episodes.csv`` rows at or before *max_timesteps* (a same-stage resume).
+
+        Called by ``curriculum.seed_resume_eval_state`` with the directory of
+        the ``evaluations.npz`` it seeds from; a no-op (0) without a ledger.
+        """
+        ledger = self.__dict__.get("_ledger")
+        if ledger is None:
+            return 0
+        return int(ledger.seed_prior(Path(directory) / EVAL_LEDGER_FILENAME, max_timesteps=max_timesteps))
 
     def _publish_action_statistics(self) -> None:
         """Reduce one evaluation's accumulators into the published series.
@@ -833,10 +1255,205 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
             self._publish_action_statistics()
             self._publish_pad_telemetry()
             self._publish_leg_dc()
+            if self.report_extensions:
+                # After every existing publish; each appends exactly one entry per evaluation, a placeholder
+                # when it fails, so every series stays aligned with the evaluation index.
+                self._publish_actuator_force_frac()
+                self._publish_reward_terms_split()
+                self._publish_screen()
+                self._publish_ledger()
             if not self.success_applicable and self.verbose >= 1:
                 print(f"Success rate: N/A (not an active Stage {self.stage} gate)")
 
         return bool(continue_training)
+
+    def _on_training_end(self) -> None:
+        parent = getattr(super(), "_on_training_end", None)
+        if callable(parent):
+            parent()
+        ledger = self.__dict__.get("_ledger")
+        if self.report_extensions and ledger is not None:
+            ledger.write()
+
+    def _force_frac_width(self) -> int | None:
+        """The force matrix's row width (the model's ``nu``) where the recorder runs; ``None`` elsewhere."""
+        setup = self.__dict__.get("_foot_setup") or []
+        nu = getattr(setup[0][1], "nu", None) if self.foot_pad_keys and setup else None
+        return None if nu is None else int(nu)
+
+    def _publish_actuator_force_frac(self) -> None:
+        """Append this evaluation's per-actuator force fraction: the mean over its episodes with a window.
+
+        Always ``nu`` long where the recorder runs (NaN when unmeasured: a
+        failed capture, a disabled balance capture, no episode with a
+        window), because one ``[]`` row would drop the matrix from
+        ``gate_progress.npz`` for the rest of the run; ``[]`` only where no
+        recorder runs, which keeps the matrix out of the file there.
+        """
+        row: list[float] = []
+        try:
+            width = self._force_frac_width()
+            if width is not None:
+                row = [float("nan")] * width
+                rows = [
+                    np.asarray(value, dtype=np.float64)
+                    for value in self.__dict__.get("_current_eval_actuator_frac", [])
+                ]
+                usable = (
+                    rows
+                    and self.balance_keys
+                    and not self.__dict__.get("_pad_failed", False)
+                    and not self.__dict__.get("_balance_disabled", False)
+                    and all(value.shape == (width,) for value in rows)
+                )
+                if usable:
+                    stack = np.stack(rows)
+                    finite = np.isfinite(stack)
+                    count = finite.sum(axis=0)
+                    means = np.where(count > 0, np.where(finite, stack, 0.0).sum(axis=0) / np.maximum(count, 1), np.nan)
+                    row = [float(value) for value in means]
+        except Exception:  # noqa: BLE001 - a diagnostic must not sink a run
+            self._warn_balance("an evaluation's actuator force fraction could not be reduced")
+        self.__dict__.setdefault("evaluations_actuator_force_frac", []).append(row)
+
+    def _publish_reward_terms_split(self) -> None:
+        """Append this evaluation's reward terms split into its full-horizon and fallen episodes' means.
+
+        The keys are the evaluation's reward terms (``evaluations_reward_terms``);
+        a kind with no episode reads NaN, and
+        ``n_fh * full_horizon + n_fall * fall = n * all`` per term.
+        """
+        entry: dict[str, dict[str, float]] = {}
+        try:
+            terms = (self.__dict__.get("evaluations_reward_terms") or [{}])[-1] or {}
+            sums = self.__dict__.get("_split_term_sums") or {}
+            counts = self.__dict__.get("_split_term_episodes") or {}
+            for kind in ("full_horizon", "fall"):
+                count = int(counts.get(kind, 0))
+                kind_sums = sums.get(kind, {})
+                entry[kind] = {key: (kind_sums.get(key, 0.0) / count if count else float("nan")) for key in terms}
+        except Exception:  # noqa: BLE001 - a diagnostic must not sink a run
+            entry = {}
+        self.__dict__.setdefault("evaluations_reward_terms_split", []).append(entry)
+
+    def _publish_screen(self) -> None:
+        """Append this evaluation's in-training v2 screen (``None`` when unmeasured) and its ledger columns.
+
+        The stage's own ``evaluate_stance_v2_gate(..., in_training=True)`` on
+        this evaluation's episodes, when every one of them has metrics: the
+        gate's bars at yaw 0 on the evaluation env's own resets, without
+        the statue-relative criteria.  It is never a verdict: the
+        certificate applies the full decision on its own panel.  The
+        per-episode metrics are dropped after it (memory).
+        """
+        entry: dict[str, Any] | None = None
+        thresholds = self.screen_thresholds
+        metrics = list(self.__dict__.get("_current_eval_screen", []))
+        self._current_eval_screen = []
+        results = self.__dict__.get("evaluations_results") or []
+        episodes = len(results[-1]) if results else len(metrics)
+        if (
+            thresholds is not None
+            and metrics
+            and len(metrics) == episodes
+            and all(row is not None for row in metrics)
+            and not self.__dict__.get("_pad_failed", False)
+        ):
+            try:
+                from .curriculum.stance_gate_v2 import evaluate_stance_v2_gate
+
+                result = evaluate_stance_v2_gate(
+                    metrics, thresholds, horizon=self.horizon, control_dt=self.control_dt, in_training=True
+                )
+                entry = {**result.as_dict(), "episode_reasons": [list(reasons) for reasons in result.episode_reasons]}
+            except Exception:  # noqa: BLE001 - a diagnostic must not sink a run
+                self._warn_ledger("the in-training screen could not be judged")
+                entry = None
+        self.__dict__.setdefault("evaluations_screen_v2", []).append(entry)
+        if thresholds is not None and self._foot_keys():
+            from .curriculum.stance_gate_v2 import reason_key
+
+            store = self.__dict__.setdefault("_current_eval_ledger_only", {})
+            reasons = entry["episode_reasons"] if entry is not None else None
+            store["screen_v2_clean"] = [int(not r) for r in reasons] if reasons else [float("nan")] * episodes
+            store["screen_v2_reasons"] = (
+                [";".join(dict.fromkeys(reason_key(reason) for reason in r)) for r in reasons]
+                if reasons
+                else [""] * episodes
+            )
+
+    def _ledger_rows(self) -> list[dict[str, Any]]:
+        """This evaluation's ledger rows: its outcomes, then its screen, spawn, foot, balance and force columns.
+
+        Positionally aligned, as every per-episode series is: the outcome
+        columns from ``evaluations_results[-1]``, ``evaluations_length[-1]``
+        and the causes; the foot, balance and force columns from this
+        evaluation's ``evaluations_foot_pad`` record; the screen and spawn
+        columns from the ledger-only store.  A column whose values are not
+        one per episode reads ``""``.
+        """
+        results = self.__dict__.get("evaluations_results") or []
+        lengths = self.__dict__.get("evaluations_length") or []
+        timesteps = self.__dict__.get("evaluations_timesteps") or []
+        if not results or len(lengths) != len(results) or len(timesteps) != len(results):
+            return []
+        rewards = [float(value) for value in results[-1]]
+        episode_lengths = [float(value) for value in lengths[-1]]
+        count = len(rewards)
+
+        def aligned(values: Any, blank: Any = "") -> list[Any]:
+            return list(values) if values is not None and len(values) == count else [blank] * count
+
+        causes = aligned((self.__dict__.get("evaluations_termination_causes") or [[]])[-1])
+        envs = aligned(self.__dict__.get("_current_eval_episode_envs"))
+        pads = (self.__dict__.get("evaluations_foot_pad") or [{}])[-1] or {}
+        store = self.__dict__.get("_current_eval_ledger_only") or {}
+        columns: dict[str, list[Any]] = {
+            "evaluation": [len(results) - 1] * count,
+            "timesteps": [int(timesteps[-1])] * count,
+            "episode": list(range(count)),
+            "env": envs,
+            "return": rewards,
+            "length": [int(value) if float(value).is_integer() else value for value in episode_lengths],
+            "full_horizon": [int(value >= self.horizon) for value in episode_lengths],
+            "cause": causes,
+        }
+        for key in ("screen_v2_clean", "screen_v2_reasons"):
+            if key in store:
+                columns[key] = aligned(store[key])
+        for key in self._spawn_columns():
+            if key in store:
+                columns[key] = aligned(store[key])
+        labels = [
+            key[: -len("_sole_cop_fore_aft_gate")]
+            for key in self.foot_pad_keys
+            if key.endswith("_sole_cop_fore_aft_gate")
+        ]
+        for label in labels:
+            for field in _LEDGER_FOOT_FIELDS:
+                key = f"{label}_{field}"
+                if key in pads:
+                    columns[key] = aligned(pads[key])
+        for column, field in _LEDGER_EPISODE_MAXIMA:
+            keys = [f"{label}_{field}" for label in labels if f"{label}_{field}" in pads]
+            if keys:
+                columns[column] = aligned(_episode_max_over_feet([pads[key] for key in keys]))
+        for key in tuple(self.balance_keys or ()):
+            columns[key] = aligned(pads.get(key))
+        return [{name: values[row] for name, values in columns.items()} for row in range(count)]
+
+    def _publish_ledger(self) -> None:
+        """Append this evaluation's rows to the ledger and rewrite ``eval_episodes.csv`` (every evaluation)."""
+        ledger = self.__dict__.get("_ledger")
+        try:
+            if ledger is not None:
+                ledger.extend(self._ledger_rows())
+        except Exception:  # noqa: BLE001 - a diagnostic must not sink a run
+            self._warn_ledger("an evaluation's rows could not be assembled")
+        finally:
+            self._current_eval_ledger_only = {}
+        if ledger is not None:
+            ledger.write()
 
 
 def _episode_max_over_feet(series: "list[Any]") -> list[float] | None:
@@ -955,6 +1572,7 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
     _GATE_PROGRESS_MATRICES = (
         ("action_dc_per_actuator", "evaluations_action_dc"),
         ("action_ac_rms_per_actuator", "evaluations_action_ac_rms"),
+        ("actuator_force_frac_per_actuator", "evaluations_actuator_force_frac"),
     )
 
     def __init__(
@@ -1116,8 +1734,17 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
           Compsognathus).
         * Each ``leg_dc_<left>_minus_<right>_<joint>_deg`` is the capture
           callback's :attr:`~StageAwareEvalCallback.evaluations_leg_dc`
-          (:func:`leg_dc_degrees`).
+          (:func:`leg_dc_degrees`), and, with the capture callback's
+          ``report_extensions``, so is each mirror-even
+          ``leg_dc_<left>_<right>_mean_<joint>_deg``
+          (:func:`leg_dc_mean_degrees`); the key set follows the pairs.
+        * Each balance and force key (``balance_keys``) is the full-horizon
+          mean of its per-episode values, as the pad keys are, except the
+          fall-only ones (``FALL_ONLY_KEYS``: ``xcom_toe_lead_s``), which
+          are defined on a fall only: for each, ``fall_<key>`` is the mean
+          of its finite values over the episodes shorter than the horizon.
         """
+        from .gait.balance_telemetry import FALL_ONLY_KEYS, mirror_even_key
         from .gait.pad_telemetry import FOOT_GATE_COP_FIELD, GATE_COP_FIELD, RAIL_EPISODE_FIELDS
 
         source = getattr(self, "eval_callback", None)
@@ -1151,8 +1778,99 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
                 fraction = self._full_horizon_mean_of(above, lengths)
                 out[f"{metric}_over_bar_fraction"] = nan if fraction is None else fraction
         leg_dc = self._eval_series("evaluations_leg_dc", index) or {}
+        extended = self._extensions()
         for pair in tuple(getattr(source, "leg_dc_pairs", ()) or ()):
             out[pair.key] = float(leg_dc.get(pair.key, nan))
+            if extended:
+                out[mirror_even_key(pair)] = float(leg_dc.get(mirror_even_key(pair), nan))
+        if extended:
+            for key in tuple(getattr(source, "balance_keys", ()) or ()):
+                if key in FALL_ONLY_KEYS:
+                    out[f"fall_{key}"] = self._fall_mean_of(pads.get(key), lengths)
+                else:
+                    value = self._full_horizon_mean_of(pads.get(key), lengths)
+                    out[key] = nan if value is None else value
+        return out
+
+    def _extensions(self) -> bool:
+        """Whether the capture callback's report-only extensions are on (its class switch for a stand-in)."""
+        return bool(
+            getattr(getattr(self, "eval_callback", None), "report_extensions", StageAwareEvalCallback.report_extensions)
+        )
+
+    def _fall_mean_of(self, series: Any, lengths: Any) -> float:
+        """The mean of the finite values of *series* over the episodes shorter than the horizon; NaN when none."""
+        if series is None or lengths is None or len(series) != len(lengths):
+            return float("nan")
+        kept = [
+            float(value)
+            for value, length in zip(series, lengths)
+            if float(length) < self.horizon and math.isfinite(float(value))
+        ]
+        return float(np.mean(kept)) if kept else float("nan")
+
+    def _extension_keys(self) -> frozenset[str]:
+        """The keys :meth:`_foot_telemetry_scalars` adds with the extensions: logged without the console."""
+        from .gait.balance_telemetry import FALL_ONLY_KEYS, mirror_even_key
+
+        if not self._extensions():
+            return frozenset()
+        source = getattr(self, "eval_callback", None)
+        balance = tuple(getattr(source, "balance_keys", ()) or ())
+        return frozenset(
+            (
+                *(mirror_even_key(pair) for pair in tuple(getattr(source, "leg_dc_pairs", ()) or ())),
+                *(key for key in balance if key not in FALL_ONLY_KEYS),
+                *(f"fall_{key}" for key in balance if key in FALL_ONLY_KEYS),
+            )
+        )
+
+    def _screen_scalars(self, index: int) -> dict[str, float]:
+        """This evaluation's in-training v2 screen as ``gate_progress.npz`` scalars (:func:`screen_scalar_keys`).
+
+        Only where the screen runs: the capture callback's extensions are on,
+        the stage declares ``stance_quality/v2``'s keys and the recorder runs
+        (a model with pad keys).  The key set is fixed by the declaration;
+        every key is NaN on an evaluation the screen did not judge (a failed
+        capture, an episode without metrics), and a criterion the screen
+        skips (``skipped_criteria``: the statue-relative ones) has a NaN
+        count on every evaluation.
+        """
+        source = getattr(self, "eval_callback", None)
+        thresholds = getattr(source, "screen_thresholds", None)
+        if thresholds is None or not self._extensions() or not tuple(getattr(source, "foot_pad_keys", ()) or ()):
+            return {}
+        out = dict.fromkeys(screen_scalar_keys(thresholds), float("nan"))
+        entry = self._eval_series("evaluations_screen_v2", index)
+        if not isinstance(entry, Mapping):
+            return out
+        prefix = SCREEN_KEY_PREFIX
+        out[f"{prefix}episodes"] = float(entry.get("n_episodes", float("nan")))
+        out[f"{prefix}clean_count"] = float(entry.get("n_clean", float("nan")))
+        out[f"{prefix}clean_lcb"] = float(entry.get("clean_lcb", float("nan")))
+        out[f"{prefix}yaw0_bars_met"] = 1.0 if entry.get("passed") else 0.0
+        if f"{prefix}hop_or_fall_episodes" in out and entry.get("hop_or_fall_episodes") is not None:
+            out[f"{prefix}hop_or_fall_episodes"] = float(entry["hop_or_fall_episodes"])
+        # A criterion the screen skips (the statue-relative ones) was never judged: its count stays NaN,
+        # not the gate's tally of 0, which would read as "no episode failed it".
+        skipped = {str(criterion) for criterion in entry.get("skipped_criteria") or ()}
+        for criterion, failed in dict(entry.get("criterion_failures") or {}).items():
+            key = f"{prefix}fail_{criterion}_count"
+            if key in out and criterion not in skipped:
+                out[key] = float(failed)
+        return out
+
+    def _reward_term_split_scalars(self, index: int) -> dict[str, float]:
+        """``full_horizon_term_<x>`` and ``fall_term_<x>`` per reward term of the evaluation (NaN: no such episode)."""
+        if not self._extensions():
+            return {}
+        terms = self._eval_series("evaluations_reward_terms", index) or {}
+        split = self._eval_series("evaluations_reward_terms_split", index) or {}
+        out: dict[str, float] = {}
+        for kind in ("full_horizon", "fall"):
+            values = split.get(kind) or {}
+            for key in terms:
+                out[f"{kind}_term_{key[len('reward_') :]}"] = float(values.get(key, float("nan")))
         return out
 
     def _metrics_for_evaluation(self, index: int, panel: Any | None = None) -> list[_GateMetric]:
@@ -1331,9 +2049,25 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
         # digits carry, and the left/right leg offset that puts it there -- per evaluation, so a
         # posture the gate will refuse at the end shows up when it forms rather than 11M steps later.
         foot_telemetry = self._foot_telemetry_scalars(index)
+        added = self._extension_keys()
         for key, value in foot_telemetry.items():
             if math.isfinite(value):
-                self.logger.record(f"diagnostics/eval_{key}", value)
+                if key in added:
+                    # The extensions' keys go to TensorBoard only: the console keeps its length.
+                    self.logger.record(f"diagnostics/eval_{key}", value, exclude=("stdout", "log"))
+                else:
+                    self.logger.record(f"diagnostics/eval_{key}", value)
+        # Report-only, and never a verdict: the stage's own v2 bars at yaw 0 on this evaluation's episodes,
+        # in its own TensorBoard section, apart from diagnostics/eval_gate_met.
+        screen = self._screen_scalars(index)
+        for key, value in screen.items():
+            if math.isfinite(value):
+                self.logger.record(f"screen_v2/{key[len(SCREEN_KEY_PREFIX) :]}", value, exclude=("stdout", "log"))
+        split = self._reward_term_split_scalars(index)
+        for kind in ("full_horizon", "fall"):
+            total = split.get(f"{kind}_term_total", float("nan"))
+            if math.isfinite(total):
+                self.logger.record(f"reward_terms/eval_{kind}_total", total, exclude=("stdout", "log"))
         # Report-only: how the panel's episodes ended (the env's termination reasons, and the time limit).
         terminations = self._termination_scalars(index)
         for key, value in terminations.items():
@@ -1355,6 +2089,8 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
             **self._reward_term_scalars(index),
             **foot_telemetry,
             **terminations,
+            **screen,
+            **split,
         )
         if not panel.n_duty_episodes:
             return
@@ -1757,6 +2493,9 @@ def build_stage_evaluation_callbacks(
     """
 
     curriculum_kwargs = stage_config.get("curriculum_kwargs", {})
+    env_kwargs = stage_config.get("env_kwargs", {})
+    horizon = int(env_kwargs.get("max_episode_steps", 1000))
+    control_dt = float(env_kwargs.get("timestep", 0.002)) * int(env_kwargs.get("frame_skip", 5))
     eval_callback = StageAwareEvalCallback(
         eval_env,
         stage=stage,
@@ -1767,6 +2506,12 @@ def build_stage_evaluation_callbacks(
         # whole episode and costs nothing.
         settle_steps=int(curriculum_kwargs.get("settle_steps", 0)),
         model_id=model_id,
+        # The report-only extensions: the screen judges on the stage's own horizon, control step and v2
+        # thresholds (None for any other gate kind), and the eval-episode ledger lands beside gate_progress.npz.
+        horizon=horizon,
+        control_dt=control_dt,
+        screen_thresholds=_screen_thresholds(curriculum_kwargs),
+        ledger_dir=gate_progress_dir,
         **eval_callback_kwargs,
     )
     plateau_callback = StageGatePlateauCallback(

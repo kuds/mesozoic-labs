@@ -62,12 +62,14 @@ from .baseline_watch import (
     read_zero_action_baseline,
 )
 from .checkpoints import (
+    CHECKPOINT_ARCHIVE_KEY,
     DEFAULT_MAX_CHECKPOINTS,
     CheckpointRetentionCallback,
     PublishCheckpointPairCallback,
     PublishEvalArtifactsCallback,
     RobustBestModelCallback,
     SaveVecNormalizeCallback,
+    checkpoint_archive_every,
     checkpoint_pair_problem,
     load_vecnorm_stats,
     newest_intact_periodic_pair,
@@ -95,7 +97,12 @@ from .gate_schema import (
 )
 from .hop_watch import HopRegimeWatchCallback, build_hop_watch_callback
 from .manager import CurriculumManager, StageThreshold, thresholds_from_configs
-from .posture_watch import PostureDriftWatchCallback, build_posture_drift_watch_callback
+from .posture_watch import (
+    PostureDriftWatchCallback,
+    PostureTrendWatchCallback,
+    build_posture_drift_watch_callback,
+    build_posture_trend_watch_callback,
+)
 from .progress_report import TrainingProgressCallback, build_training_progress_callback
 from .schedules import (
     CosineSchedule,
@@ -113,6 +120,7 @@ __all__ = [
     "BaselineProgressCallback",
     "HopRegimeWatchCallback",
     "PostureDriftWatchCallback",
+    "PostureTrendWatchCallback",
     "TrainingProgressCallback",
     "GATE_SCHEMA_VERSION",
     "CurriculumCallback",
@@ -123,6 +131,7 @@ __all__ = [
     "EvalCollapseEarlyStopCallback",
     "GateSchemaError",
     "CheckpointRetentionCallback",
+    "CHECKPOINT_ARCHIVE_KEY",
     "DEFAULT_MAX_CHECKPOINTS",
     "PublishCheckpointPairCallback",
     "PublishEvalArtifactsCallback",
@@ -137,6 +146,7 @@ __all__ = [
     "build_baseline_progress_callback",
     "build_hop_watch_callback",
     "build_posture_drift_watch_callback",
+    "build_posture_trend_watch_callback",
     "build_training_progress_callback",
     "build_eval_collapse_early_stop_callback",
     "gate_config_differences",
@@ -146,6 +156,7 @@ __all__ = [
     "load_vecnorm_stats",
     "read_zero_action_baseline",
     "prune_periodic_checkpoints",
+    "checkpoint_archive_every",
     "seed_resume_eval_state",
     "checkpoint_pair_problem",
     "newest_intact_periodic_pair",

@@ -10,12 +10,21 @@ directory, beside ``gate_progress.npz``, that a person can open from Drive:
 the run's identity, its step count against its budget and projected finish,
 the latest evaluation and how its episodes ended, the stage's posture
 telemetry against the bars it declares, a few evaluations of history, the
-checkpoints so far, and the advisories the run has raised.
+checkpoints so far, and the advisories the run has raised.  Where the
+evaluation callbacks record them, it also carries the in-training v2
+screen (``evaluation.screen_v2``, never a verdict), the whole-body balance
+and force telemetry (``balance``, ``forces``) and the achieved leg offsets
+(``posture.leg_q_deg``); and from the training side, the policy probe's
+latest update (``policy``) and the training episodes of the last 262,144
+steps (``training_rollouts``).  A block whose source is absent is left out,
+and the schema string changes only when a key is removed, renamed, or
+changes meaning, units or type, never for an added one.
 
 It is **report-only**.  It reads what the evaluation callbacks already
-recorded (``StageAwareEvalCallback``'s evaluation history and
+recorded (``StageAwareEvalCallback``'s evaluation history,
 ``StageGatePlateauCallback``'s latest ``gate_progress.npz`` row, through
-``gate_progress_row``) and recomputes nothing; nothing reads the file back.
+``gate_progress_row``, the policy probe's ``latest()`` and the training
+ledger's ``summary()``) and recomputes nothing; nothing reads the file back.
 It is rewritten atomically (:func:`~environments.shared.file_io.atomic_write_json`,
 a temporary file and ``os.replace``, safe on a Drive mount) at the start of
 training, after every periodic evaluation and when training ends, and a
@@ -65,10 +74,16 @@ _POSTURE_RAILS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
     ("max_sole_tilt_deg", "sole_tilt_deg", ()),
     ("max_sole_corner_lift_m", "sole_corner_lift_m", ()),
 )
-#: The ``gate_progress.npz`` prefix of the left-minus-right leg DC keys.
+#: The ``gate_progress.npz`` prefix of the commanded leg DC keys (left-minus-right, and the mirror-even mean).
 _LEG_DC_PREFIX = "leg_dc_"
+#: The ``gate_progress.npz`` prefix of the achieved leg offsets (``gait.balance_telemetry.LEG_Q_PREFIX``).
+_LEG_Q_PREFIX = "leg_q_"
+#: The in-training v2 screen's history keys (``eval_diagnostics.SCREEN_KEY_PREFIX``).
+_SCREEN_HISTORY_KEYS = ("screen_v2_clean_count", "screen_v2_clean_lcb")
 #: The ``gate_progress.npz`` prefix of the termination-cause counts (``eval_diagnostics.TERMINATION_KEY_PREFIX``).
 _TERMINATION_PREFIX = "termination_"
+#: The ``training_rollouts`` entries that are counts (whole numbers); the rest are statistics.
+_COUNT_KEYS = frozenset({"window_timesteps", "episodes", "falls", "episodes_total", "falls_total"})
 
 
 def _iso(moment: datetime) -> str:
@@ -134,13 +149,71 @@ def posture_block(row: Mapping[str, float], curriculum: Mapping[str, Any]) -> di
             feet[label] = values if len(values) > 1 else values["gate"]
         entry["per_foot"] = feet
         out[key] = entry
-    leg_dc = {
-        key[len(_LEG_DC_PREFIX) :].removesuffix("_deg"): _number(value, POSTURE_DIGITS)
-        for key, value in row.items()
-        if key.startswith(_LEG_DC_PREFIX)
+    for prefix, block in ((_LEG_DC_PREFIX, "leg_dc_deg"), (_LEG_Q_PREFIX, "leg_q_deg")):
+        values = {
+            key[len(prefix) :].removesuffix("_deg"): _number(value, POSTURE_DIGITS)
+            for key, value in row.items()
+            if key.startswith(prefix)
+        }
+        if values:
+            out[block] = values
+    return out
+
+
+def balance_block(row: Mapping[str, float]) -> dict[str, Any]:
+    """The ``balance`` block of one ``gate_progress.npz`` row: its balance scalars, four significant digits.
+
+    The keys of ``gait.balance_telemetry.BALANCE_SCALAR_KEYS`` the row holds
+    (the CoM and root pitch, the XcoM and its margins, Hof's split, the
+    fall-only lead time's mean over the falls); the achieved leg offsets
+    are ``posture.leg_q_deg``.  ``{}`` for a row without them.
+    """
+    from ..gait.balance_telemetry import BALANCE_SCALAR_KEYS
+
+    return {key: _number(row[key], POSTURE_DIGITS) for key in BALANCE_SCALAR_KEYS if key in row}
+
+
+def forces_block(row: Mapping[str, float]) -> dict[str, Any]:
+    """The ``forces`` block of one row: the whole-animal force keys, then ``per_foot`` (``{}`` without them)."""
+    from ..gait.balance_telemetry import ANKLE_FORCE_FIELD, FOOT_FORCE_FIELDS, FORCE_KEYS
+
+    out: dict[str, Any] = {key: _number(row[key], POSTURE_DIGITS) for key in FORCE_KEYS if key in row}
+    per_foot: dict[str, Any] = {}
+    suffix = f"_{FOOT_FORCE_FIELDS[0]}"
+    for label in [key[: -len(suffix)] for key in row if key.endswith(suffix)]:
+        per_foot[label] = {
+            field: _number(row[f"{label}_{field}"], POSTURE_DIGITS)
+            for field in (ANKLE_FORCE_FIELD, *FOOT_FORCE_FIELDS)
+            if f"{label}_{field}" in row
+        }
+    if per_foot:
+        out["per_foot"] = per_foot
+    return out
+
+
+def screen_block(entry: Mapping[str, Any], curriculum: Mapping[str, Any]) -> dict[str, Any]:
+    """``evaluation.screen_v2``: one evaluation's in-training v2 screen against the stage's bars.
+
+    The stage's own ``stance_quality/v2`` bars at yaw 0 on the evaluation's
+    episodes, without the statue-relative criteria (``skipped``):
+    ``yaw0_bars_met`` is never a verdict, which only the post-stage
+    certificate gives.
+    """
+    failing = {
+        str(key): int(count) for key, count in dict(entry.get("criterion_failures") or {}).items() if int(count) > 0
     }
-    if leg_dc:
-        out["leg_dc_deg"] = leg_dc
+    out: dict[str, Any] = {
+        "clean": entry.get("n_clean"),
+        "episodes": entry.get("n_episodes"),
+        "clean_lcb": _number(entry.get("clean_lcb"), POSTURE_DIGITS),
+        "bar": _declared_bar(curriculum, "min_clean_stance_lcb"),
+        "yaw0_bars_met": bool(entry.get("passed")),
+    }
+    if entry.get("hop_or_fall_episodes") is not None:
+        out["hop_or_fall"] = int(entry["hop_or_fall_episodes"])
+        out["hop_or_fall_bar"] = _declared_bar(curriculum, "max_hop_or_fall_episodes")
+    out["failing"] = failing
+    out["skipped"] = [str(key) for key in entry.get("skipped_criteria") or ()]
     return out
 
 
@@ -153,8 +226,8 @@ def termination_counts(row: Mapping[str, float]) -> dict[str, int]:
     return out
 
 
-def _periodic_checkpoint_steps(model_dir: Path, name_prefix: str) -> int | None:
-    """The newest periodic checkpoint's step count in *model_dir*, by its name (never its mtime); ``None``: none."""
+def _periodic_checkpoint_steps(model_dir: Path, name_prefix: str) -> list[int]:
+    """Every periodic checkpoint's step count in *model_dir*, sorted, by its name (never its mtime)."""
     from ..policy_loading import _PERIODIC_CHECKPOINT_RE
 
     steps = []
@@ -162,7 +235,7 @@ def _periodic_checkpoint_steps(model_dir: Path, name_prefix: str) -> int | None:
         match = _PERIODIC_CHECKPOINT_RE.fullmatch(path.stem)
         if match is not None and match.group(1) == name_prefix:
             steps.append(int(match.group(2)))
-    return max(steps) if steps else None
+    return sorted(steps)
 
 
 def _first_evaluation_scoring(results: Sequence[Any], timesteps: Sequence[Any], best: float, score: Any) -> int | None:
@@ -194,6 +267,9 @@ class TrainingProgressCallback(BaseCallback):  # type: ignore[misc]
         curriculum_kwargs: The stage's ``[curriculum]`` table: its declared bars.
         warning_sources: Callbacks whose ``progress_warnings`` lists to report.
         robust_callback: The ``RobustBestModelCallback``, for the robust best step.
+        policy_probe: The ``PolicyProbeCallback`` whose ``latest()`` is the ``policy`` block (``None``: none).
+        rollout_ledger: The ``TrainingEpisodeLedgerCallback`` whose ``summary()`` is the
+            ``training_rollouts`` block (``None``: none).
     """
 
     #: Class-scope defaults so an instance built without ``__init__`` (as the
@@ -201,6 +277,8 @@ class TrainingProgressCallback(BaseCallback):  # type: ignore[misc]
     _last_seen_n_evals = 0
     _warned_unwritable = False
     _session_start: "tuple[float, datetime, int] | None" = None
+    policy_probe: Any = None
+    rollout_ledger: Any = None
 
     def __init__(
         self,
@@ -216,6 +294,8 @@ class TrainingProgressCallback(BaseCallback):  # type: ignore[misc]
         curriculum_kwargs: Mapping[str, Any],
         warning_sources: Sequence[Any] = (),
         robust_callback: Any = None,
+        policy_probe: Any = None,
+        rollout_ledger: Any = None,
         verbose: int = 0,
     ):
         if not sb3_compat._SB3_AVAILABLE:
@@ -232,6 +312,8 @@ class TrainingProgressCallback(BaseCallback):  # type: ignore[misc]
         self.curriculum_kwargs = dict(curriculum_kwargs)
         self.warning_sources = list(warning_sources)
         self.robust_callback = robust_callback
+        self.policy_probe = policy_probe
+        self.rollout_ledger = rollout_ledger
         self._last_seen_n_evals = 0
         self._warned_unwritable = False
         self._session_start = None
@@ -288,6 +370,15 @@ class TrainingProgressCallback(BaseCallback):  # type: ignore[misc]
         row = self._gate_row()
         record["evaluation"] = self._latest_evaluation(row)
         record["posture"] = posture_block(row, self.curriculum_kwargs) if row else {}
+        # The balance and force telemetry (a block whose source is absent is omitted, never null-filled).
+        for name, block in (("balance", balance_block), ("forces", forces_block)):
+            values = block(row) if row else {}
+            if values:
+                record[name] = values
+        # The training side: the policy probe's latest update and the recent training episodes.
+        for name, values in (("policy", self._policy()), ("training_rollouts", self._training_rollouts(timesteps))):
+            if values:
+                record[name] = values
         record["history"] = self._history()
         record["checkpoints"] = self._checkpoints()
         warnings = self._warnings()
@@ -397,12 +488,17 @@ class TrainingProgressCallback(BaseCallback):  # type: ignore[misc]
         source = self.eval_callback
         if not getattr(source, "evaluations_results", None):
             return None
-        latest = self._evaluation_at(len(source.evaluations_results) - 1)
+        index = len(source.evaluations_results) - 1
+        latest = self._evaluation_at(index)
         if row and int(row.get("timesteps", -1)) == latest["timesteps"]:
             latest["full_horizon_fraction"] = _number(row.get("full_horizon_fraction"))
             causes = termination_counts(row)
             if causes:
                 latest["termination_causes"] = causes
+        screens = getattr(source, "evaluations_screen_v2", None) or []
+        entry = screens[index] if index < len(screens) else None
+        if isinstance(entry, Mapping):
+            latest["screen_v2"] = screen_block(entry, self.curriculum_kwargs)
         return latest
 
     def _history(self) -> list[dict[str, Any]]:
@@ -415,6 +511,7 @@ class TrainingProgressCallback(BaseCallback):  # type: ignore[misc]
             for key in (
                 "full_horizon_fraction",
                 *(f"{rail}_{stat}" for rail, _f, _x in _POSTURE_RAILS for stat in ("mean", "over_bar_fraction")),
+                *_SCREEN_HISTORY_KEYS,
             )
             if key in latest_row
         ]
@@ -433,15 +530,17 @@ class TrainingProgressCallback(BaseCallback):  # type: ignore[misc]
         from ..stage_manifest import stage_label
 
         try:
-            latest = _periodic_checkpoint_steps(Path(self.model_dir), stage_label(self.stage))
+            periodic = _periodic_checkpoint_steps(Path(self.model_dir), stage_label(self.stage))
         except Exception:  # noqa: BLE001 - a report must not sink a run
-            latest = None
+            periodic = []
         source = self.eval_callback
         results = getattr(source, "evaluations_results", None) or []
         timesteps = getattr(source, "evaluations_timesteps", None) or []
         best = float(getattr(source, "best_mean_reward", -math.inf))
         out: dict[str, Any] = {
-            "latest_periodic_timesteps": latest,
+            "latest_periodic_timesteps": periodic[-1] if periodic else None,
+            # Every periodic checkpoint kept: the newest few and, with the archive rule, one per interval.
+            "periodic_timesteps": periodic,
             "best_model_timesteps": _first_evaluation_scoring(results, timesteps, best, lambda r: float(np.mean(r))),
             "best_mean_reward": _number(best),
         }
@@ -453,6 +552,42 @@ class TrainingProgressCallback(BaseCallback):  # type: ignore[misc]
                 results, timesteps, score, lambda r: float(r.mean() - risk * r.std())
             )
             out["robust_best_score"] = _number(score)
+        return out
+
+    def _policy(self) -> dict[str, Any]:
+        """``policy``: the probe's latest row (its ``policy_probe/*`` scalars and ``update_timesteps``)."""
+        latest = getattr(self.policy_probe, "latest", None)
+        if not callable(latest):
+            return {}
+        try:
+            values = dict(latest())
+        except Exception:  # noqa: BLE001 - a report must not sink a run
+            return {}
+        return {
+            key: int(value) if key == "update_timesteps" else _number(value, POSTURE_DIGITS)
+            for key, value in values.items()
+        }
+
+    def _training_rollouts(self, timesteps: int) -> dict[str, Any]:
+        """``training_rollouts``: the training ledger's summary of the episodes that ended in its window."""
+        summary = getattr(self.rollout_ledger, "summary", None)
+        if not callable(summary):
+            return {}
+        try:
+            values = dict(summary(timesteps))
+        except Exception:  # noqa: BLE001 - a report must not sink a run
+            return {}
+        out: dict[str, Any] = {}
+        for key, value in values.items():
+            if key == "touch_shares":
+                out[key] = {
+                    str(label): {str(stem): _number(share, POSTURE_DIGITS) for stem, share in dict(shares).items()}
+                    for label, shares in dict(value).items()
+                }
+            elif key in _COUNT_KEYS:
+                out[key] = int(value)
+            else:
+                out[key] = _number(value, POSTURE_DIGITS)
         return out
 
     def _warnings(self) -> list[dict[str, Any]]:
@@ -477,6 +612,8 @@ def build_training_progress_callback(
     stage_config: Mapping[str, Any],
     warning_sources: Sequence[Any] = (),
     robust_callback: Any = None,
+    policy_probe: Any = None,
+    rollout_ledger: Any = None,
     verbose: int = 0,
 ) -> TrainingProgressCallback | None:
     """Build the writer, or ``None`` without a stage directory to write into."""
@@ -494,5 +631,7 @@ def build_training_progress_callback(
         curriculum_kwargs=stage_config.get("curriculum_kwargs", {}) or {},
         warning_sources=[source for source in warning_sources if source is not None],
         robust_callback=robust_callback,
+        policy_probe=policy_probe,
+        rollout_ledger=rollout_ledger,
         verbose=verbose,
     )

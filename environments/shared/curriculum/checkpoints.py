@@ -16,7 +16,7 @@ import numpy as np
 
 from . import sb3_compat
 from .hop_watch import HopRegimeWatchCallback
-from .posture_watch import PostureDriftWatchCallback
+from .posture_watch import PostureDriftWatchCallback, PostureTrendWatchCallback
 from .sb3_compat import BaseCallback
 
 if TYPE_CHECKING:
@@ -305,7 +305,13 @@ def seed_resume_eval_state(
       *prior_npz_path* (``StageGatePlateauCallback.seed_prior_gate_progress``),
       so the resumed session appends to the prior rows instead of rewriting
       the file with its own, and the hop and posture watches' cursors over
-      those rows.
+      those rows;
+    * every callback's own record in that directory (its
+      ``seed_prior_record``: the eval-episode ledger ``eval_episodes.csv``,
+      the training-episode ledger ``train_episodes.csv`` and the policy
+      probe's ``policy_probe.npz``), each keeping its prior rows at or
+      before ``max_timesteps`` (the probe holds them until it has built its
+      state bank in ``_on_training_start`` and found it equal to the prior one).
 
     A prior record whose per-eval episode count differs from this session's
     ``n_eval_episodes`` seeds only the scalar best trackers: mixing row
@@ -402,6 +408,12 @@ def seed_resume_eval_state(
         seed_gate_progress = getattr(callback, "seed_prior_gate_progress", None)
         if callable(seed_gate_progress):
             gate_rows = seed_gate_progress(path.with_name("gate_progress.npz"), max_timesteps=max_timesteps)
+    # The records written beside it (the eval- and training-episode ledgers, the policy probe), each keeping its
+    # prior rows at or before the resumed step, as gate_progress.npz does.
+    for callback in callbacks:
+        seed_record = getattr(callback, "seed_prior_record", None)
+        if callable(seed_record):
+            seed_record(path.parent, max_timesteps=max_timesteps)
 
     for callback in callbacks:
         if isinstance(callback, RobustBestModelCallback):
@@ -418,7 +430,7 @@ def seed_resume_eval_state(
         if hasattr(callback, "_last_published_n"):
             callback._last_published_n = seeded
         # The hop and posture watches' cursors count gate_progress rows, which need not be one per evaluation.
-        if isinstance(callback, (HopRegimeWatchCallback, PostureDriftWatchCallback)):
+        if isinstance(callback, (HopRegimeWatchCallback, PostureDriftWatchCallback, PostureTrendWatchCallback)):
             callback._last_seen = gate_rows
 
     logger.info(
@@ -752,6 +764,39 @@ def load_vecnorm_stats(
 #: trained before and after the retirement keep the same history.
 DEFAULT_MAX_CHECKPOINTS = 5
 
+#: The ``[curriculum]`` key of the archive rule (:func:`prune_periodic_checkpoints`); absent or 0: no archive.
+CHECKPOINT_ARCHIVE_KEY = "checkpoint_archive_every_timesteps"
+
+
+def checkpoint_archive_every(curriculum: Any) -> int:
+    """The stage's ``checkpoint_archive_every_timesteps`` (0 when absent): a whole, non-negative step count.
+
+    Refuses a bool, a non-integer and a negative value with a ``ValueError``
+    naming the key, so a typo cannot silently turn the archive off.
+    """
+    value = (curriculum or {}).get(CHECKPOINT_ARCHIVE_KEY, 0)
+    if isinstance(value, bool) or not isinstance(value, (int, np.integer)) or int(value) < 0:
+        raise ValueError(
+            f"[curriculum] {CHECKPOINT_ARCHIVE_KEY} must be a whole number of steps, 0 or more; got {value!r}"
+        )
+    return int(value)
+
+
+def archived_steps(steps: "set[int] | list[int]", archive_every_timesteps: int) -> set[int]:
+    """The steps the archive rule keeps: the largest step present in each interval ``(k A, (k+1) A]``.
+
+    ``k = (s - 1) // A`` for a step ``s``; nothing with ``A <= 0``.  A function
+    of the step counts alone, so a restart or a resume keeps the same set.
+    """
+    if archive_every_timesteps <= 0:
+        return set()
+    newest: dict[int, int] = {}
+    for step in steps:
+        interval = (int(step) - 1) // archive_every_timesteps
+        newest[interval] = max(newest.get(interval, int(step)), int(step))
+    return set(newest.values())
+
+
 #: The three artifact families SB3's ``CheckpointCallback`` emits, as
 #: ``(infix, extension)``.  Its filenames are
 #: ``f"{name_prefix}_{infix}{num_timesteps}_steps.{ext}"``
@@ -767,8 +812,17 @@ def prune_periodic_checkpoints(
     model_dir: "str | Path",
     name_prefix: str,
     max_checkpoints: int,
+    *,
+    archive_every_timesteps: int = 0,
 ) -> list[Path]:
-    """Delete all but the newest *max_checkpoints* periodic checkpoints.
+    """Delete all but the newest *max_checkpoints* periodic checkpoints, and the archive's.
+
+    With ``archive_every_timesteps = A > 0`` a step outside the newest
+    *max_checkpoints* is also kept when it is the largest step present in its
+    interval ``(k A, (k+1) A]`` (:func:`archived_steps`): one checkpoint per
+    ``A`` steps survives the run, the record of when a posture set in, at a
+    fraction of keeping every one.  ``A = 0`` (the default) is the rule
+    without an archive.
 
     Matches only SB3's periodic ``{prefix}_{steps}_steps.*`` files and their
     ``vecnormalize_`` / ``replay_buffer_`` siblings.  ``best_model``,
@@ -809,7 +863,8 @@ def prune_periodic_checkpoints(
                 continue
             by_step.setdefault(int(remainder), []).append(path)
 
-    doomed_steps = sorted(sorted(by_step, reverse=True)[max_checkpoints:])
+    archived = archived_steps(set(by_step), archive_every_timesteps)
+    doomed_steps = sorted(step for step in sorted(by_step, reverse=True)[max_checkpoints:] if step not in archived)
     removed: list[Path] = []
     for step in doomed_steps:
         for path in by_step[step]:
@@ -849,6 +904,9 @@ class CheckpointRetentionCallback(BaseCallback):  # type: ignore[misc]
             the storage it reclaims.
         max_checkpoints: How many step-points to keep. ``0`` disables
             pruning, which is how a stage opts out of retention entirely.
+        archive_every_timesteps: Also keep the newest step-point of every
+            interval of this many steps (``0``: no archive); see
+            :func:`prune_periodic_checkpoints`.
         verbose: Verbosity level.
     """
 
@@ -859,6 +917,7 @@ class CheckpointRetentionCallback(BaseCallback):  # type: ignore[misc]
         save_freq: int,
         max_checkpoints: int = DEFAULT_MAX_CHECKPOINTS,
         verbose: int = 0,
+        archive_every_timesteps: int = 0,
     ):
         if not sb3_compat._SB3_AVAILABLE:
             raise ImportError("stable-baselines3 is required for CheckpointRetentionCallback.")
@@ -869,14 +928,19 @@ class CheckpointRetentionCallback(BaseCallback):  # type: ignore[misc]
         self.name_prefix = name_prefix
         self.save_freq = int(save_freq)
         self.max_checkpoints = int(max_checkpoints)
+        self.archive_every_timesteps = int(archive_every_timesteps)
 
     def _prune(self) -> None:
-        removed = prune_periodic_checkpoints(self.model_dir, self.name_prefix, self.max_checkpoints)
+        archive = int(getattr(self, "archive_every_timesteps", 0))  # getattr: tests build this without __init__
+        removed = prune_periodic_checkpoints(
+            self.model_dir, self.name_prefix, self.max_checkpoints, archive_every_timesteps=archive
+        )
         if removed:
             logger.info(
-                "Pruned %d periodic checkpoint file(s), keeping the newest %d step-points: %s",
+                "Pruned %d periodic checkpoint file(s), keeping the newest %d step-points%s: %s",
                 len(removed),
                 self.max_checkpoints,
+                f" and the newest of every {archive:,} steps" if archive > 0 else "",
                 ", ".join(sorted(path.name for path in removed)),
             )
 

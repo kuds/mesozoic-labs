@@ -287,6 +287,7 @@ SYS_PATH_BOOTSTRAPS = {
     "environments/shared/scripts/hw_chassis_study.py",
     "environments/shared/scripts/joint_excursion_report.py",
     "environments/shared/scripts/observation_ablation_report.py",
+    "environments/shared/scripts/plot_gate_progress.py",
     "environments/shared/scripts/stance_duty_validation.py",
     "environments/shared/scripts/stance_gate_report.py",
     "environments/shared/scripts/zero_action_baseline.py",

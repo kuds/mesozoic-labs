@@ -558,3 +558,133 @@ class TestActionJerkIsNotDiscarded:
 
         source = (Path(__file__).resolve().parents[3] / "environments/tyrannosaurus_rex/base_env.py").read_text()
         assert 'info["action_jerk"]' in source
+
+
+class TestTheActionJerkRewardKey:
+    """``reward_action_jerk``: the env emits it on every stance stage; it is recorded like every reward term."""
+
+    def test_it_is_recorded_from_the_infos_into_the_npz(self, callback, tmp_path):
+        assert DiagnosticsCallback.REWARD_KEYS.index("reward_action_jerk") == (
+            DiagnosticsCallback.REWARD_KEYS.index("reward_action_saturation") + 1
+        )
+        callback.locals = {"infos": [{"reward_action_jerk": -0.25, "forward_vel": 0.0}]}
+        callback._on_step()
+        callback.locals = {"infos": [{"reward_action_jerk": -0.75, "forward_vel": 0.0}]}
+        callback._on_step()
+        assert callback._step_infos["reward_action_jerk"] == [-0.25, -0.75]
+        callback._on_rollout_end()
+        assert ("diagnostics/reward_action_jerk", -0.5) in [call.args for call in callback.logger.record.call_args_list]
+        data = np.load(str(tmp_path / "diagnostics.npz"))
+        assert data["reward_action_jerk"].tolist() == [-0.5]
+
+    def test_the_reward_decomposition_reads_its_weight(self):
+        """Scoped to this key: five older REWARD_KEYS entries have no weight entry, which is not this change's."""
+        from environments.shared.visualization import _REWARD_KEY_TO_CONFIG_WEIGHTS
+
+        assert _REWARD_KEY_TO_CONFIG_WEIGHTS["reward_action_jerk"] == ("action_jerk_weight",)
+
+
+class TestRolloutCounts:
+    """The counts behind the termination fractions: episodes and falls per rollout, report-only."""
+
+    @staticmethod
+    def _rollout(callback, timesteps, episode_dones, terminations):
+        """One rollout: a step per entry of *episode_dones* (each a ``dones`` array), then the rollout end."""
+        callback.num_timesteps = timesteps
+        for dones in episode_dones:
+            callback.locals = {"infos": [{"forward_vel": 0.0}], "dones": np.asarray(dones)}
+            callback._on_step()
+        callback._rollout_terminations = Counter(terminations)
+        callback._on_rollout_end()
+
+    def _three_rollouts(self, callback):
+        self._rollout(callback, 100, [[True, False], [True, True]], {"fallen": 2})
+        self._rollout(callback, 200, [[False, False], [True, False]], {})
+        self._rollout(callback, 300, [[True, True], [True, True]], {"fallen": 1, "skull_low": 2})
+
+    def test_the_counts_are_recorded_and_aligned_with_their_clocks(self, callback, tmp_path):
+        self._three_rollouts(callback)
+        callback._on_training_end()
+        data = np.load(str(tmp_path / "diagnostics.npz"))
+        assert data["timesteps"].tolist() == [100, 200, 300]
+        assert data["rollout_episodes"].tolist() == [3, 1, 4]
+        assert data["rollout_falls"].tolist() == [2, 0, 3]
+        assert data["term_timesteps"].tolist() == [100, 300]
+        # Aligned with term_timesteps and back-filled with 0 exactly as the fractions are.
+        assert data["rollout_term_count_fallen"].tolist() == [2, 1]
+        assert data["rollout_term_count_skull_low"].tolist() == [0, 2]
+        assert data["term_skull_low"].tolist() == pytest.approx([0.0, 2 / 3])
+
+    def test_the_falls_are_the_sum_of_the_per_reason_counts_and_never_exceed_the_episodes(self, callback, tmp_path):
+        self._three_rollouts(callback)
+        callback._on_training_end()
+        data = np.load(str(tmp_path / "diagnostics.npz"))
+        counts = sum(data[key] for key in data.files if key.startswith("rollout_term_count_"))
+        falls = dict(zip(data["timesteps"].tolist(), data["rollout_falls"].tolist()))
+        assert [falls[step] for step in data["term_timesteps"].tolist()] == counts.tolist()
+        assert all(falls[step] == 0 for step in set(falls) - set(data["term_timesteps"].tolist()))
+        assert np.all(data["rollout_episodes"] >= data["rollout_falls"])
+
+    def test_tensorboard_gets_them_without_the_console(self, callback):
+        self._rollout(callback, 100, [[True, True]], {"fallen": 1})
+        records = {call.args[0]: call for call in callback.logger.record.call_args_list}
+        for tag, value in (("terminations/rollout_episodes", 2), ("terminations/rollout_falls", 1)):
+            assert records[tag].args[1] == value
+            assert records[tag].kwargs == {"exclude": ("stdout", "log")}
+
+    def test_switched_off_they_add_nothing(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(DiagnosticsCallback, "record_rollout_counts", False)
+        cb = DiagnosticsCallback(log_dir=str(tmp_path))
+        cb.init_callback(_make_mock_model())
+        self._three_rollouts(cb)
+        cb._on_training_end()
+        data = np.load(str(tmp_path / "diagnostics.npz"))
+        assert not [key for key in data.files if key.startswith("rollout_")]
+        assert not [call for call in cb.logger.record.call_args_list if "rollout_" in call.args[0]]
+
+    def test_the_added_keys_collide_with_no_enumerated_prefix(self, callback, tmp_path, monkeypatch):
+        """Every ``term_`` key is read as a fraction, and ``algo_`` is the trainer metrics' family."""
+        self._three_rollouts(callback)
+        callback._on_training_end()
+        with_counts = set(np.load(str(tmp_path / "diagnostics.npz")).files)
+        monkeypatch.setattr(DiagnosticsCallback, "record_rollout_counts", False)
+        plain = DiagnosticsCallback(log_dir=str(tmp_path / "plain"))
+        (tmp_path / "plain").mkdir()
+        plain.init_callback(_make_mock_model())
+        self._three_rollouts(plain)
+        plain._on_training_end()
+        added = with_counts - set(np.load(str(tmp_path / "plain" / "diagnostics.npz")).files)
+        assert added == {
+            "rollout_episodes",
+            "rollout_falls",
+            "rollout_term_count_fallen",
+            "rollout_term_count_skull_low",
+        }
+        assert not [key for key in added if key.startswith(("term_", "algo_"))]
+
+    def test_no_reader_takes_the_counts_for_fractions(self, tmp_path):
+        """The termination panel's filter and ``compare_run_diagnostics`` read the same reasons and values."""
+        from environments.shared.scripts.compare_run_diagnostics import Run
+        from environments.shared.visualization import termination_fraction_keys
+
+        fractions = {
+            "timesteps": np.arange(1, 11) * 100,
+            "term_timesteps": np.arange(1, 11) * 100,
+            "term_fallen": np.full(10, 0.25),
+            "term_skull_low": np.full(10, 0.75),
+        }
+        counts = {
+            "rollout_episodes": np.full(10, 8),
+            "rollout_falls": np.full(10, 4),
+            "rollout_term_count_fallen": np.full(10, 1),
+            "rollout_term_count_skull_low": np.full(10, 3),
+        }
+        shares = []
+        for name, arrays in (("plain", fractions), ("counted", {**fractions, **counts})):
+            directory = tmp_path / name
+            directory.mkdir()
+            np.savez(directory / "diagnostics.npz", **arrays)
+            with np.load(directory / "diagnostics.npz") as data:
+                assert sorted(termination_fraction_keys(data.files)) == ["term_fallen", "term_skull_low"]
+            shares.append(Run(name, directory).termination_shares())
+        assert shares[0] == shares[1] == {"fallen": pytest.approx(0.25), "skull_low": pytest.approx(0.75)}

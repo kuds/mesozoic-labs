@@ -246,3 +246,22 @@ def test_the_hop_watch_judges_the_resumed_evaluations_only(tmp_path):
     _evaluate(resumed_eval, resumed, 4)
     watch.num_timesteps = 4 * STEP
     assert watch._on_step() is False
+
+
+def test_the_eval_episode_ledger_keeps_its_rows_at_or_before_the_resumed_step(tmp_path):
+    """The ledger beside the record is seeded too (``seed_prior_record``), as gate_progress.npz is."""
+    from environments.shared.episode_ledger import EpisodeLedger
+    from environments.shared.eval_diagnostics import EVAL_LEDGER_FIXED_COLUMNS
+
+    _first_session(tmp_path, 3)
+    prior = EpisodeLedger(tmp_path / "eval_episodes.csv", fixed_columns=EVAL_LEDGER_FIXED_COLUMNS)
+    prior.extend(
+        {"evaluation": number - 1, "timesteps": number * STEP, "episode": episode, "return": 1.0}
+        for number in range(1, 4)
+        for episode in range(EPISODES)
+    )
+    prior.write()
+    resumed_eval, resumed = _session(tmp_path)
+    resumed_eval._ledger = EpisodeLedger(tmp_path / "eval_episodes.csv", fixed_columns=EVAL_LEDGER_FIXED_COLUMNS)
+    seed_resume_eval_state(resumed_eval, [resumed_eval, resumed], tmp_path / "evaluations.npz", max_timesteps=2 * STEP)
+    assert resumed_eval._ledger.column("timesteps") == [str(STEP)] * EPISODES + [str(2 * STEP)] * EPISODES

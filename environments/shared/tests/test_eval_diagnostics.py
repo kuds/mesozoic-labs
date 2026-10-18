@@ -2,6 +2,7 @@
 
 import logging
 import math
+from dataclasses import replace
 from types import SimpleNamespace
 from typing import cast
 from unittest.mock import MagicMock, patch
@@ -1372,7 +1373,8 @@ class TestPadTelemetryReachesGateProgress:
     def test_an_unmeasured_value_is_nan_and_its_key_is_still_supplied(self, tmp_path, lengths, pads, leg_dc):
         callback = self._plateau(tmp_path, lengths=lengths, pads=pads, leg_dc=leg_dc)
         scalars = callback._foot_telemetry_scalars(0)
-        assert set(scalars) == {"r_sole_cop_fore_aft", "leg_dc_l_minus_r_ankle_deg"}  # no gate key, no panel key
+        # No gate key and no panel key; the mirror-even leg DC beside the left-minus-right one (the extensions).
+        assert set(scalars) == {"r_sole_cop_fore_aft", "leg_dc_l_minus_r_ankle_deg", "leg_dc_l_r_mean_ankle_deg"}
         assert math.isnan(scalars["r_sole_cop_fore_aft"])
         assert math.isnan(scalars["leg_dc_l_minus_r_ankle_deg"]) or leg_dc == {"leg_dc_l_minus_r_ankle_deg": 1.5}
 
@@ -1462,7 +1464,7 @@ class TestThePanelsOwnCopStatistic:
         callback = TestPadTelemetryReachesGateProgress._plateau(
             tmp_path, lengths=[1000], pads={}, keys=(), curriculum_kwargs={"max_sole_cop_fore_aft": 0.8}
         )
-        assert set(callback._foot_telemetry_scalars(0)) == {"leg_dc_l_minus_r_ankle_deg"}
+        assert set(callback._foot_telemetry_scalars(0)) == {"leg_dc_l_minus_r_ankle_deg", "leg_dc_l_r_mean_ankle_deg"}
 
 
 FOOT_GATE_KEYS = ("r_foot_cop_fore_aft_gate", "l_foot_cop_fore_aft_gate")
@@ -1591,6 +1593,12 @@ class TestSagittalLegDc:
         assert symmetric == pytest.approx(dict.fromkeys(symmetric, 0.0), abs=1e-9)
         antisymmetric = leg_dc_degrees(env, pairs, action(theta, -theta))
         assert antisymmetric == pytest.approx(dict.fromkeys(antisymmetric, math.degrees(2 * theta)))
+        # The mirror-even mean reads the other half: the symmetric offset whole, the antisymmetric one as 0.
+        mean = eval_diagnostics_module.leg_dc_mean_degrees(env, pairs, action(theta, theta))
+        assert set(mean) == {"leg_dc_l_r_mean_hip_pitch_deg", "leg_dc_l_r_mean_knee_deg"}
+        assert mean == pytest.approx(dict.fromkeys(mean, math.degrees(theta)))
+        opposite = eval_diagnostics_module.leg_dc_mean_degrees(env, pairs, action(theta, -theta))
+        assert opposite == pytest.approx(dict.fromkeys(opposite, 0.0), abs=1e-9)
         # The bug this replaced: on the mirrored hips the raw action difference reads a symmetric offset as one.
         raw = action(theta, theta)
         assert abs(raw[0] - raw[1]) > 0.01
@@ -1618,7 +1626,13 @@ class TestSagittalLegDc:
         assert callback.evaluations_leg_dc[1] == {
             "leg_dc_l_minus_r_hip_pitch_deg": 0.0,
             "leg_dc_l_minus_r_knee_deg": 0.0,
+            "leg_dc_l_r_mean_hip_pitch_deg": 0.0,
+            "leg_dc_l_r_mean_knee_deg": 0.0,
         }
+        # Without the extensions the record holds exactly the left-minus-right keys.
+        with patch.object(StageAwareEvalCallback, "report_extensions", False):
+            callback._publish_leg_dc()
+        assert set(callback.evaluations_leg_dc[2]) == {"leg_dc_l_minus_r_hip_pitch_deg", "leg_dc_l_minus_r_knee_deg"}
 
     def test_seeded_prior_evaluations_carry_an_empty_leg_dc_record(self):
         callback = _bare_stage_aware_callback(success_applicable=False)
@@ -1653,14 +1667,50 @@ REAL_TELEMETRY = {
 REAL_RAIL_FEET = {model_id: feet for model_id, (feet, _digits, _pairs) in REAL_TELEMETRY.items()}
 
 
+def _balance_keys(model_id) -> tuple[str, ...]:
+    """The model's balance and force keys (gait.balance_telemetry): only where the recorder runs (box soles)."""
+    pad_feet, _digits, pairs = REAL_TELEMETRY[model_id]
+    if not pad_feet:
+        return ()
+    tyrannosaurus = model_id == TYRANNOSAURUS_REX
+    keys = [
+        "com_fore_aft_mean_m",
+        "root_pitch_mean_deg",
+        "xcom_fore_aft_max_m",
+        "hof_cop_term_mean_mps2",
+        "hof_counter_rotation_mean_mps2",
+        "hof_counter_rotation_rms_mps2",
+    ]
+    for left, right in pairs:
+        for joint in ("hip_pitch", "knee", "ankle"):
+            keys += [f"leg_q_{left}_minus_{right}_{joint}_deg", f"leg_q_{left}_{right}_mean_{joint}_deg"]
+    if tyrannosaurus:
+        keys += [
+            "xcom_toe_margin_min_m",
+            "xcom_toe_margin_mean_m",
+            "xcom_heel_margin_min_m",
+            "xcom_past_toe_fraction",
+            "time_to_toe_min_s",
+            "xcom_toe_lead_s",
+            "xcom_tip_margin_min_m",
+        ]
+    keys += ["actuator_force_frac_max", "actuator_force_limited_fraction", "shear_over_normal"]
+    for foot in pad_feet:
+        keys += [f"{foot}_shear_over_normal", f"{foot}_cone_use_mean", f"{foot}_cone_use_max"]
+        keys += [f"{foot}_ankle_moment_arm_m"] if tyrannosaurus else []
+    return tuple(keys)
+
+
 def _rail_keys(model_id) -> tuple[str, ...]:
     return tuple(
         f"{foot}_{field}" for foot in REAL_RAIL_FEET[model_id] for field in ("sole_tilt_deg", "sole_corner_lift_m")
     )
 
 
-def _real_evaluation(model_id, tmp_path, monkeypatch, *, action=None, episodes=2, extra_steps=40, seed=0):
-    """One short evaluation of *model_id*'s stance on its real eval env (VecNormalize over a DummyVecEnv).
+def _real_evaluation(
+    model_id, tmp_path, monkeypatch, *, action=None, episodes=2, extra_steps=40, seed=0, evaluations=1
+):
+    """*evaluations* short evaluations of *model_id*'s stance on its real eval env (VecNormalize over a DummyVecEnv).
 
     Seeded: an unseeded reset draws a new spawn on every run, and some spawns fall before the settle window ends
     (the T. rex statue on reset seed 4 at step 178; the held left ankle on seeds 4 and 9), which leaves no
@@ -1716,9 +1766,11 @@ def _real_evaluation(model_id, tmp_path, monkeypatch, *, action=None, episodes=2
     callback.init_callback(model)
     plateau.init_callback(model)
     try:
-        assert callback.on_step() is True
-        plateau.on_step()
+        for _ in range(evaluations):
+            assert callback.on_step() is True
+            plateau.on_step()
         hook_left = "_substep_probe_hook" in vars(eval_env.venv.envs[0].unwrapped)
+        callback.on_training_end()
     finally:
         eval_env.close()
     return callback, np.load(tmp_path / "gate_progress.npz"), traces, settle, hook_left
@@ -1751,16 +1803,24 @@ def test_a_real_evaluation_records_each_models_pads_and_leg_dc(model_id, tmp_pat
     leg_keys = tuple(
         f"leg_dc_{left}_minus_{right}_{joint}_deg" for left, right in pairs for joint in ("hip_pitch", "knee", "ankle")
     )
+    mean_keys = tuple(
+        f"leg_dc_{left}_{right}_mean_{joint}_deg" for left, right in pairs for joint in ("hip_pitch", "knee", "ankle")
+    )
+    balance_keys = _balance_keys(model_id)
     assert callback.foot_pad_keys == pad_keys
     assert callback.foot_rail_keys == rail_keys
+    assert callback.balance_keys == balance_keys
     assert tuple(pair.key for pair in callback.leg_dc_pairs) == leg_keys
     assert not hook_left
     feet = tuple(f"{foot}_" for foot in pad_feet)
-    assert {key for key in data.files if key.startswith(feet)} == set(pad_keys) | set(rail_keys)
-    assert {key for key in data.files if key.startswith("leg_dc_")} == set(leg_keys)
-    assert all(data[key][0] == 0.0 for key in leg_keys)  # the zero action holds no offset
+    # The per-foot force keys start with a foot label too; none ends in a rail suffix (gait.balance_telemetry).
+    per_foot_balance = {key for key in balance_keys if key.startswith(feet)}
+    assert {key for key in data.files if key.startswith(feet)} == set(pad_keys) | set(rail_keys) | per_foot_balance
+    assert {key for key in data.files if key.startswith("leg_dc_")} == set(leg_keys) | set(mean_keys)
+    assert all(data[key][0] == 0.0 for key in leg_keys + mean_keys)  # the zero action holds no offset
     (episodes,) = callback.evaluations_foot_pad
-    assert set(episodes) == set(pad_keys) | set(rail_keys) and all(len(values) == 2 for values in episodes.values())
+    assert set(episodes) == set(pad_keys) | set(rail_keys) | set(balance_keys)
+    assert all(len(values) == 2 for values in episodes.values())
     assert len(traces) == (2 if pad_feet else 0)  # a pad-less model attaches no recorder at all
     gates = [episode_stance_metrics(trace, settle_steps=settle).max_sole_cop_fore_aft for trace in traces]
     for number, gate in enumerate(gates):
@@ -2063,3 +2123,606 @@ def test_a_real_evaluation_records_each_models_roll_rails_and_termination_causes
         assert (f"{metric}_over_bar_fraction" in data.files) == (bar is not None)
         if bar is not None:
             assert data[f"{metric}_over_bar_fraction"][0] == np.mean([gate > bar for gate in gates])
+
+
+# ── the report-only extensions: the v2 screen, the eval-episode ledger, balance and forces ──────────
+
+#: A synthetic v2 block for the synthetic statue of test_gait_pad_telemetry (400 steps, settle 100), with
+#: generous bars but the pad's fore-aft one, and the hop-or-fall rail.
+SCREEN_CURRICULUM = {
+    "gate_kind": "stance_quality/v2",
+    "min_eval_episodes": 4,
+    "min_clean_stance_lcb": 0.05,
+    "settle_steps": 100,
+    "min_all_feet_support": 0.5,
+    "max_touchdown_rate": 10.0,
+    "max_window_displacement_m": 1.0,
+    "min_foot_load_share": 0.1,
+    "max_actuator_saturation_fraction": 0.5,
+    "max_settle_airborne_substeps": 100.0,
+    "max_settle_peak_floor_force_bw": 10.0,
+    "max_sole_cop_fore_aft": 0.8,
+    "max_hop_or_fall_episodes": 1,
+    "min_avg_reward_statue_ratio": 0.5,
+}
+
+
+class _TraceRecorder(_StubRecorder):
+    """A stub recorder whose episodes are the given traces, in turn."""
+
+    def __init__(self, traces) -> None:
+        super().__init__()
+        self.traces = list(traces)
+        self.flags: list[dict] = []
+
+    def end_episode(self, **kwargs):
+        self.flags.append(kwargs)
+        self.episodes += 1
+        return self.traces.pop(0)
+
+
+def _screened_evaluation(traces, *, ledger_dir=None, timesteps=1000, causes=None):
+    """A bare capture callback run through one evaluation of *traces* (synthetic pad statues), as SB3 drives it."""
+    pytest.importorskip("stable_baselines3")
+    from environments.shared.curriculum.stance_gate_v2 import StanceV2Thresholds
+    from environments.shared.episode_ledger import EpisodeLedger
+    from environments.shared.gait.pad_telemetry import RailFoot, RailLayout
+    from environments.shared.tests.test_gait_pad_telemetry import LAYOUT
+
+    callback = _bare_stage_aware_callback(success_applicable=False, settle_steps=100)
+    callback.eval_freq = 10
+    callback.n_calls = 10
+    callback.verbose = 0
+    callback.n_eval_episodes = len(traces)
+    callback.horizon = 400
+    callback.control_dt = 0.01
+    callback.screen_thresholds = StanceV2Thresholds.from_curriculum(SCREEN_CURRICULUM)
+    callback.evaluations_results, callback.evaluations_length, callback.evaluations_timesteps = [], [], []
+    callback.evaluations_screen_v2 = []
+    callback._ledger = EpisodeLedger(
+        None if ledger_dir is None else ledger_dir / "eval_episodes.csv",
+        fixed_columns=eval_diagnostics_module.EVAL_LEDGER_FIXED_COLUMNS,
+    )
+    callback._foot_resolved = True
+    callback.foot_pad_keys = LAYOUT.episode_keys()
+    rails = RailLayout(feet=(RailFoot(0, "r"), RailFoot(1, "l")))
+    callback.foot_rail_keys = rails.episode_keys()
+    recorder = _TraceRecorder(traces)
+    causes = causes or ["truncated" if trace.length >= 400 else "nosedive" for trace in traces]
+
+    def evaluate():
+        callback._foot_setup = [(None, None, None, LAYOUT)]
+        callback._rail_layouts = [rails]
+        callback._pad_recorders = {0: recorder}
+        callback._pad_quota = {0: len(traces)}
+        for trace, cause in zip(traces, causes):
+            for step in range(trace.length):
+                done = step == trace.length - 1
+                info = {"reward_alive": 1.0, "reward_posture": 0.5 if trace.length >= 400 else 0.25}
+                if done:
+                    info.update(
+                        {"TimeLimit.truncated": True}
+                        if cause == "truncated"
+                        else {"TimeLimit.truncated": False, "termination_reason": cause}
+                    )
+                callback._log_success_callback(
+                    {"i": 0, "done": done, "info": info, "actions": np.zeros((1, 4)), "reward": 1.0}, {}
+                )
+        callback.evaluations_timesteps.append(timesteps)
+        callback.evaluations_results.append([float(trace.length) for trace in traces])
+        callback.evaluations_length.append([trace.length for trace in traces])
+        return True
+
+    with patch.object(eval_diagnostics_module._EvalCallback, "_on_step", side_effect=evaluate):
+        assert callback._on_step() is True
+    return callback, recorder
+
+
+def _screen_traces():
+    """Four synthetic statues: two clean, one on its right pad's toe edge, one that falls at step 300."""
+    from environments.shared.tests.test_gait_pad_telemetry import _trace, _with_cop
+
+    toe = _with_cop(_trace(), 0, 0.95)
+    fell = replace(_trace(300), truncated=False, terminated=True)
+    return [_trace(), toe, _trace(), fell]
+
+
+class TestTheInTrainingScreen:
+    """The stage's own v2 decision at yaw 0 on each evaluation's episodes, without the statue criteria."""
+
+    def test_the_screen_is_the_gates_in_training_decision_on_the_same_episodes(self):
+        from environments.shared.curriculum.stance_gate_v2 import evaluate_stance_v2_gate
+        from environments.shared.gait.stance_metrics import episode_stance_metrics
+
+        traces = _screen_traces()
+        callback, recorder = _screened_evaluation(traces)
+        expected = evaluate_stance_v2_gate(
+            [episode_stance_metrics(trace, settle_steps=100) for trace in traces],
+            callback.screen_thresholds,
+            horizon=400,
+            control_dt=0.01,
+            in_training=True,
+        )
+        (entry,) = callback.evaluations_screen_v2
+        assert entry == {**expected.as_dict(), "episode_reasons": [list(r) for r in expected.episode_reasons]}
+        assert (entry["n_clean"], entry["n_episodes"], entry["hop_or_fall_episodes"]) == (2, 4, 1)
+        assert entry["criterion_failures"]["max_sole_cop_fore_aft"] == 1 and entry["criterion_failures"]["horizon"] == 1
+        assert entry["skipped_criteria"] == ["min_avg_reward_statue_ratio"]  # never a statue-relative judgement
+        # The recorder was told how each episode ended.
+        assert recorder.flags[1] == {"terminated": False, "truncated": True, "termination_reason": ""}
+        assert recorder.flags[3] == {"terminated": True, "truncated": False, "termination_reason": "nosedive"}
+        assert callback.__dict__["_current_eval_screen"] == []  # the per-episode metrics are dropped
+
+    def test_the_plateau_records_a_fixed_key_set_in_its_own_tensorboard_section(self, tmp_path):
+        from environments.shared.curriculum.stance_gate import stance_panel_from_episode_duties
+
+        callback, _recorder = _screened_evaluation(_screen_traces())
+        plateau, _ = _plateau_callback({"min_avg_reward": 0.0}, stage=1)
+        plateau.horizon = 400
+        plateau.eval_callback = callback
+        plateau._gate_progress_dir = tmp_path
+        scalars = plateau._screen_scalars(0)
+        assert set(scalars) == set(eval_diagnostics_module.screen_scalar_keys(callback.screen_thresholds))
+        assert scalars["screen_v2_clean_count"] == 2.0 and scalars["screen_v2_episodes"] == 4.0
+        # 2 of 4 clean bounds at 0.098, over this synthetic bar of 0.05; one fall is within the hop-or-fall rail.
+        assert scalars["screen_v2_yaw0_bars_met"] == 1.0 and scalars["screen_v2_hop_or_fall_episodes"] == 1.0
+        assert scalars["screen_v2_clean_lcb"] == pytest.approx(callback.evaluations_screen_v2[0]["clean_lcb"])
+        assert scalars["screen_v2_fail_max_sole_cop_fore_aft_count"] == 1.0
+        assert scalars["screen_v2_fail_horizon_count"] == 1.0
+        assert "screen_v2_fail_min_foot_load_share_statue_ratio_count" not in scalars  # not declared
+        panel = stance_panel_from_episode_duties(
+            episode_lengths=[400.0, 400.0, 400.0, 300.0],
+            episode_duties=[0.0, 0.0, 0.0, 0.0],
+            episode_rewards=[1.0, 1.0, 1.0, 1.0],
+            horizon=400,
+        )
+        callback.evaluations_unsupported_duties = [[0.0] * 4]
+        plateau._record_stance_scalars(0, panel)
+        records = [call for call in plateau.logger.record.call_args_list]
+        screen = [call for call in records if call.args[0].startswith("screen_v2/")]
+        assert {call.args[0] for call in screen} == {f"screen_v2/{key[len('screen_v2_') :]}" for key in scalars}
+        assert all(call.kwargs.get("exclude") == ("stdout", "log") for call in screen)
+        assert not any("screen" in call.args[0] for call in records if call.args[0].startswith("diagnostics/"))
+        data = np.load(tmp_path / "gate_progress.npz")
+        assert {key for key in data.files if key.startswith("screen_v2_")} == set(scalars)
+
+    def test_an_unjudged_evaluation_reads_nan_for_every_screen_key(self):
+        callback, _recorder = _screened_evaluation(_screen_traces())
+        callback.evaluations_screen_v2.append(None)
+        plateau, _ = _plateau_callback({}, stage=1)
+        plateau.eval_callback = callback
+        scalars = plateau._screen_scalars(1)
+        assert scalars and all(math.isnan(value) for value in scalars.values())
+
+    def test_a_skipped_statue_criterion_reads_nan_not_the_gates_zero(self):
+        """The anatomical Compsognathus declares ``min_foot_load_share_statue_ratio``, which the screen never judges.
+
+        The gate's tally starts every declared criterion at 0, the skipped
+        ones too; the screen's count for it must read NaN ("never judged"),
+        not 0 ("no episode failed it"), in ``gate_progress.npz`` and so in
+        TensorBoard, which records finite values only.
+        """
+        from environments.shared.config import load_stage_config
+        from environments.shared.curriculum.stance_gate_v2 import evaluate_stance_v2_gate
+        from environments.shared.gait.stance_metrics import episode_stance_metrics
+        from environments.shared.tests.test_gait_pad_telemetry import LAYOUT, _trace
+
+        curriculum = load_stage_config(ModelId("compsognathus_longipes", "anatomical"), "stance")["curriculum_kwargs"]
+        thresholds = eval_diagnostics_module._screen_thresholds(curriculum)
+        assert thresholds is not None and thresholds.min_foot_load_share_statue_ratio is not None
+        skipped_key = "screen_v2_fail_min_foot_load_share_statue_ratio_count"
+        # The key set stays the declaration's.
+        assert skipped_key in eval_diagnostics_module.screen_scalar_keys(thresholds)
+        result = evaluate_stance_v2_gate(
+            [episode_stance_metrics(_trace(), settle_steps=thresholds.settle_steps) for _ in range(3)],
+            thresholds,
+            horizon=400,
+            in_training=True,
+        )
+        assert "min_foot_load_share_statue_ratio" in result.skipped_criteria
+        assert dict(result.criterion_failures)["min_foot_load_share_statue_ratio"] == 0  # the gate's tally: a 0
+        plateau, eval_callback = _plateau_callback({}, stage=1)
+        eval_callback.screen_thresholds = thresholds
+        eval_callback.foot_pad_keys = LAYOUT.episode_keys()
+        eval_callback.evaluations_screen_v2 = [result.as_dict()]
+        scalars = plateau._screen_scalars(0)
+        assert set(scalars) == set(eval_diagnostics_module.screen_scalar_keys(thresholds))
+        assert math.isnan(scalars[skipped_key])
+        # Every criterion the screen does judge keeps its count, the horizon's among them.
+        judged = {f"screen_v2_fail_{key}_count": float(count) for key, count in result.criterion_failures}
+        del judged[skipped_key]
+        assert judged and all(scalars[key] == value for key, value in judged.items())
+        assert scalars["screen_v2_fail_horizon_count"] == 0.0
+
+    @pytest.mark.parametrize(
+        ("model_id", "screened"),
+        [
+            (TYRANNOSAURUS_REX, True),  # stance_quality_heading/v1
+            (ModelId("compsognathus_longipes", "anatomical"), True),  # stance_quality_heading/v1
+            (ModelId("compsognathus_longipes", "robot"), False),  # stance_quality/v1
+            (ModelId("dibothrosuchus_elaphros", "anatomical"), False),  # reward_and_length/v1
+            (BRACHIOSAURUS_ALTITHORAX, False),  # reward_and_length/v1
+        ],
+        ids=str,
+    )
+    def test_the_screen_runs_only_on_a_stage_that_declares_v2s_keys(self, model_id, screened):
+        from environments.shared.config import load_stage_config
+
+        curriculum = load_stage_config(model_id, "stance")["curriculum_kwargs"]
+        thresholds = eval_diagnostics_module._screen_thresholds(curriculum)
+        assert (thresholds is not None) == screened
+        if screened:
+            keys = eval_diagnostics_module.screen_scalar_keys(thresholds)
+            assert keys[:4] == (
+                "screen_v2_episodes",
+                "screen_v2_clean_count",
+                "screen_v2_clean_lcb",
+                "screen_v2_yaw0_bars_met",
+            )
+
+    def test_no_screen_key_reads_as_a_foot_a_reward_term_a_cause_or_a_recorded_gate_count(self):
+        from environments.shared.curriculum.stance_gate_v2 import (
+            CRITERION_BAR_RANGES,
+            EPISODE_CRITERIA,
+            StanceV2Thresholds,
+        )
+
+        fractions = {key for key, _low, _high, _why in CRITERION_BAR_RANGES}
+        everything = {
+            **SCREEN_CURRICULUM,
+            **{key: 0.5 if key in fractions else 1.5 for key, _metric, _direction in EPISODE_CRITERIA},
+        }
+        keys = eval_diagnostics_module.screen_scalar_keys(StanceV2Thresholds.from_curriculum(everything))
+        for key in keys:
+            assert not key.endswith(RAIL_SUFFIXES) and not key.startswith(("term_", "termination_")), key
+            assert key not in {"stance_clean_count", "n_stance_samples", "success_count", "n_success_samples"}
+
+
+#: The per-foot rail suffixes progress_report._feet_of and PostureDriftWatchCallback._feet read as a foot.
+RAIL_SUFFIXES = (
+    "_sole_cop_fore_aft",
+    "_sole_cop_fore_aft_gate",
+    "_foot_cop_fore_aft",
+    "_foot_cop_fore_aft_gate",
+    "_sole_tilt_deg",
+    "_sole_corner_lift_m",
+    "_digit_share",
+    "_toe_margin_nm",
+    "_heel_margin_nm",
+)
+
+
+class TestTheEvalEpisodeLedger:
+    """One row per evaluation episode, aligned with SB3's own records, rewritten after every evaluation."""
+
+    def test_one_row_per_episode_aligned_with_the_evaluation_records(self, tmp_path):
+        import csv
+
+        traces = _screen_traces()
+        callback, _recorder = _screened_evaluation(traces, ledger_dir=tmp_path)
+        with open(tmp_path / "eval_episodes.csv", newline="") as handle:
+            rows = list(csv.DictReader(handle))
+        assert len(rows) == 4
+        header = list(rows[0])
+        assert tuple(header[:8]) == eval_diagnostics_module.EVAL_LEDGER_FIXED_COLUMNS
+        assert [float(row["return"]) for row in rows] == callback.evaluations_results[0]
+        assert [int(row["length"]) for row in rows] == callback.evaluations_length[0]
+        assert [row["cause"] for row in rows] == callback.evaluations_termination_causes[0]
+        assert [row["full_horizon"] for row in rows] == ["1", "1", "1", "0"]
+        assert [row["screen_v2_clean"] for row in rows] == ["1", "0", "1", "0"]
+        assert rows[1]["screen_v2_reasons"] == "max_sole_cop_fore_aft" and rows[0]["screen_v2_reasons"] == ""
+        assert rows[3]["screen_v2_reasons"].split(";")[0] == "horizon"
+        # The ledger-only columns, then the pad, roll-rail and maxima columns of each foot.
+        assert header[8:13] == [
+            "screen_v2_clean",
+            "screen_v2_reasons",
+            "spawn_stance_width_change_m",
+            "r_spawn_tilt_deg",
+            "l_spawn_tilt_deg",
+        ]
+        assert float(rows[1]["max_sole_cop_fore_aft"]) == pytest.approx(0.95 * 300 / 300)
+        assert rows[0]["spawn_stance_width_change_m"] == "nan"  # no balance layout: unmeasured, written as nan
+        assert rows[0]["r_spawn_tilt_deg"] == "0.0"
+        # The ledger holds columns, not one dict per row.
+        ledger = callback._ledger
+        assert len(ledger) == 4 and ledger.column("episode") == [0, 1, 2, 3]
+        assert all(type(values) is list and len(values) == 4 for values in ledger._columns.values())
+
+    def test_every_evaluation_rewrites_the_whole_file(self, tmp_path):
+        import csv
+
+        callback, _recorder = _screened_evaluation(_screen_traces()[:2], ledger_dir=tmp_path)
+        recorder = _TraceRecorder(_screen_traces()[:2])
+
+        def evaluate():
+            callback._pad_recorders = {0: recorder}
+            callback._pad_quota = {0: 2}
+            for trace in recorder.traces[:]:
+                for step in range(trace.length):
+                    done = step == trace.length - 1
+                    callback._log_success_callback(
+                        {"i": 0, "done": done, "info": {"TimeLimit.truncated": done}, "actions": np.zeros((1, 4))}, {}
+                    )
+            callback.evaluations_timesteps.append(2000)
+            callback.evaluations_results.append([1.0, 2.0])
+            callback.evaluations_length.append([400, 400])
+            return True
+
+        with patch.object(eval_diagnostics_module._EvalCallback, "_on_step", side_effect=evaluate):
+            callback._on_step()
+        with open(tmp_path / "eval_episodes.csv", newline="") as handle:
+            rows = list(csv.DictReader(handle))
+        assert [(row["evaluation"], row["timesteps"], row["episode"]) for row in rows] == [
+            ("0", "1000", "0"),
+            ("0", "1000", "1"),
+            ("1", "2000", "0"),
+            ("1", "2000", "1"),
+        ]
+
+    def test_a_failed_write_leaves_the_previous_file_whole_and_warns_once(self, tmp_path, monkeypatch, caplog):
+        import os
+
+        _screened_evaluation(_screen_traces()[:1], ledger_dir=tmp_path)
+        before = (tmp_path / "eval_episodes.csv").read_bytes()
+        real_replace = os.replace
+
+        def refuse(source, destination):
+            if str(destination).endswith("eval_episodes.csv"):
+                raise OSError("the Drive mount went away")
+            real_replace(source, destination)
+
+        monkeypatch.setattr(os, "replace", refuse)
+        callback, _recorder = _screened_evaluation(_screen_traces(), ledger_dir=tmp_path)
+        with caplog.at_level(logging.WARNING, logger="environments.shared.episode_ledger"):
+            for _ in range(2):
+                callback._ledger.extend([{"evaluation": 9}])
+                assert callback._ledger.write() is False
+        assert (tmp_path / "eval_episodes.csv").read_bytes() == before
+        assert sum("eval_episodes.csv" in record.getMessage() for record in caplog.records) == 1
+
+    def test_a_resume_keeps_the_prior_rows_at_or_before_the_resumed_step(self, tmp_path):
+        _screened_evaluation(_screen_traces()[:2], ledger_dir=tmp_path, timesteps=1000)
+        prior = (tmp_path / "eval_episodes.csv").read_text()
+        from environments.shared.episode_ledger import EpisodeLedger
+
+        callback = _bare_stage_aware_callback(success_applicable=False)
+        assert callback.seed_prior_record(tmp_path, max_timesteps=None) == 0  # no ledger: nothing to seed
+        callback._ledger = EpisodeLedger(None, fixed_columns=eval_diagnostics_module.EVAL_LEDGER_FIXED_COLUMNS)
+        assert callback.seed_prior_record(tmp_path, max_timesteps=999) == 0
+        callback._ledger = EpisodeLedger(None, fixed_columns=eval_diagnostics_module.EVAL_LEDGER_FIXED_COLUMNS)
+        assert callback.seed_prior_record(tmp_path, max_timesteps=1000) == 2
+        assert callback._ledger.column("timesteps") == ["1000", "1000"]
+        assert (tmp_path / "eval_episodes.csv").read_text() == prior  # seeding writes nothing
+
+    def test_without_the_extensions_no_ledger_is_written_and_the_records_are_mains(self, tmp_path, monkeypatch):
+        pytest.importorskip("stable_baselines3")
+        monkeypatch.setattr(StageAwareEvalCallback, "report_extensions", False)
+        callback, _data, _traces, _settle, _hook = _real_evaluation(TYRANNOSAURUS_REX, tmp_path, monkeypatch)
+        assert callback._ledger is None and not (tmp_path / "eval_episodes.csv").exists()
+        assert callback.balance_keys == ()
+        assert set(callback.evaluations_foot_pad[0]) == set(callback.foot_pad_keys + callback.foot_rail_keys)
+        assert set(callback.evaluations_leg_dc[0]) == {pair.key for pair in callback.leg_dc_pairs}
+        assert callback.__dict__.get("evaluations_screen_v2") == []
+        assert callback.__dict__.get("evaluations_actuator_force_frac") == []
+        assert callback.__dict__.get("evaluations_reward_terms_split") == []
+
+
+class TestTheExtensionsOnARealEvaluation:
+    """The T. rex: the ledger, the balance keys, the force matrix and the screen through its real eval env."""
+
+    def test_the_ledger_and_the_balance_fields_and_no_ledger_only_column_in_the_npz(self, tmp_path, monkeypatch):
+        import csv
+
+        callback, data, traces, settle, _hook = _real_evaluation(TYRANNOSAURUS_REX, tmp_path, monkeypatch)
+        with open(tmp_path / "eval_episodes.csv", newline="") as handle:
+            rows = list(csv.DictReader(handle))
+        assert len(rows) == 2 and set(rows[0]) >= {"screen_v2_clean", "spawn_stance_width_change_m", "l_spawn_tilt_deg"}
+        assert set(callback.balance_keys) <= set(rows[0])
+        # The ledger-only columns never reach gate_progress.npz.
+        assert not any("spawn" in key for key in data.files)
+        assert "screen_v2_clean" not in data.files and "screen_v2_reasons" not in data.files
+        assert all(math.isfinite(data[key][0]) for key in callback.balance_keys if key != "xcom_toe_lead_s")
+        assert "xcom_toe_lead_s" not in data.files and math.isnan(data["fall_xcom_toe_lead_s"][0])  # no fall
+        assert data["actuator_force_frac_per_actuator"].shape == (1, 15)
+        assert data["screen_v2_episodes"].tolist() == [2.0]
+        for key in data.files:  # no new key reads as a foot to the posture readers, as a term or as a cause
+            if key in callback.balance_keys or key.startswith(("screen_v2_", "fall_", "full_horizon_term_")):
+                assert not key.endswith(RAIL_SUFFIXES) and not key.startswith(("term_", "termination_")), key
+
+    @pytest.mark.parametrize("failure", ["hook", "reducer", "constructor"])
+    def test_a_failing_balance_capture_costs_only_the_balance_keys(self, tmp_path, monkeypatch, failure):
+        from environments.shared.gait.recorder import RecorderError, SubstepContactRecorder
+
+        plain_dir, failing_dir = tmp_path / "plain", tmp_path / "failing"
+        with monkeypatch.context() as patched:
+            patched.setattr(StageAwareEvalCallback, "_resolve_balance", lambda self, setup, pairs: None)
+            plain, plain_data, _traces, _settle, _hook = _real_evaluation(
+                TYRANNOSAURUS_REX, plain_dir, patched, evaluations=2
+            )
+        assert plain.balance_keys == ()
+        if failure == "hook":
+            capture = SubstepContactRecorder._balance_capture
+
+            def raising(self, env, data):
+                if int(env._step_count) == 10:
+                    raise FloatingPointError("a balance read went wrong")
+                capture(self, env, data)
+
+            monkeypatch.setattr(SubstepContactRecorder, "_balance_capture", raising)
+        elif failure == "reducer":
+
+            def raising_reduction(self, **_kwargs):
+                raise FloatingPointError("a balance reduction went wrong")
+
+            monkeypatch.setattr(SubstepContactRecorder, "_reduce_balance", raising_reduction)
+        else:
+            build = SubstepContactRecorder.__init__
+
+            def refusing(self, env, morphology, *, per_geom=False, balance=False):
+                if balance:
+                    raise RecorderError("no balance capture here")
+                build(self, env, morphology, per_geom=per_geom, balance=balance)
+
+            monkeypatch.setattr(SubstepContactRecorder, "__init__", refusing)
+        failing, data, _traces, _settle, _hook = _real_evaluation(
+            TYRANNOSAURUS_REX, failing_dir, monkeypatch, evaluations=2
+        )
+        # Two evaluations: training went on past the failure.
+        assert len(failing.evaluations_foot_pad) == 2 and failing.balance_keys
+        evaluations = (np.load(plain_dir / "evaluations.npz"), np.load(failing_dir / "evaluations.npz"))
+        for key in ("timesteps", "results", "ep_lengths"):
+            np.testing.assert_array_equal(evaluations[0][key], evaluations[1][key])
+        for before, after in zip(plain.evaluations_foot_pad, failing.evaluations_foot_pad):
+            for key, values in before.items():
+                np.testing.assert_array_equal(values, after[key], err_msg=key)
+                assert all(math.isfinite(value) for value in after[key] if key.endswith(RAIL_SUFFIXES[:2])), key
+            assert all(math.isnan(value) for key in failing.balance_keys for value in after[key])
+        for key in failing.balance_keys:
+            if key != "xcom_toe_lead_s":
+                assert np.isnan(data[key]).all(), key
+        for key in plain_data.files:
+            if key in data.files:
+                np.testing.assert_array_equal(plain_data[key], data[key], err_msg=key)
+        # The force matrix stays in the file, NaN where unmeasured (a failed reduction measures no fraction).
+        assert data["actuator_force_frac_per_actuator"].shape == (2, 15)
+
+    def test_a_failed_capture_appends_a_nan_force_row_and_keeps_the_matrix(self, tmp_path, monkeypatch):
+        from environments.shared.gait.recorder import SubstepContactRecorder
+
+        def refuse(self, action=None, reward=float("nan")):
+            raise RuntimeError("the substep hook fired 0 times")
+
+        monkeypatch.setattr(SubstepContactRecorder, "end_step", refuse)
+        callback, data, _traces, _settle, _hook = _real_evaluation(TYRANNOSAURUS_REX, tmp_path, monkeypatch)
+        (row,) = callback.evaluations_actuator_force_frac
+        assert len(row) == 15 and all(math.isnan(value) for value in row)
+        assert data["actuator_force_frac_per_actuator"].shape == (1, 15)
+        assert np.isnan(data["actuator_force_frac_per_actuator"]).all()
+
+    def test_a_padless_model_has_no_force_matrix_and_no_balance_key(self, tmp_path, monkeypatch):
+        callback, data, _traces, _settle, _hook = _real_evaluation(VELOCIRAPTOR_MONGOLIENSIS, tmp_path, monkeypatch)
+        assert callback.balance_keys == () and callback.evaluations_actuator_force_frac == [[]]
+        assert "actuator_force_frac_per_actuator" not in data.files
+        assert not any(key.startswith("screen_v2_") for key in data.files)  # no recorder, no screen
+
+
+class TestTheBalanceKeysReachGateProgress:
+    """The plateau's side: full-horizon means, the fall-only lead time and the mirror-even leg DC."""
+
+    def test_the_full_horizon_means_and_the_fall_mean_of_the_lead_time(self, tmp_path):
+        nan = float("nan")
+        callback = TestPadTelemetryReachesGateProgress._plateau(
+            tmp_path,
+            lengths=[1000, 1000, 400, 600],
+            pads={
+                "com_fore_aft_mean_m": [0.01, 0.03, 0.5, 0.4],  # the falls are left out of the mean
+                "xcom_toe_lead_s": [nan, nan, 1.5, 2.5],  # defined on the falls only
+                "r_cone_use_max": [0.05, nan, 0.3, 0.3],
+            },
+            keys=(),
+            pairs=(),
+        )
+        callback.eval_callback.balance_keys = ("com_fore_aft_mean_m", "xcom_toe_lead_s", "r_cone_use_max")
+        scalars = callback._foot_telemetry_scalars(0)
+        assert scalars == pytest.approx(
+            {"com_fore_aft_mean_m": 0.02, "fall_xcom_toe_lead_s": 2.0, "r_cone_use_max": 0.05}
+        )
+        assert "xcom_toe_lead_s" not in scalars
+        callback.eval_callback.evaluations_length = [[1000, 1000]]
+        callback.eval_callback.evaluations_foot_pad = [{"xcom_toe_lead_s": [nan, nan]}]
+        assert math.isnan(callback._foot_telemetry_scalars(0)["fall_xcom_toe_lead_s"])  # no fall: NaN, still supplied
+
+    def test_the_matrix_row_is_the_mean_over_the_episodes_with_a_window(self):
+        callback = _bare_stage_aware_callback(success_applicable=False)
+        callback.foot_pad_keys = PAD_KEYS
+        callback.balance_keys = ("com_fore_aft_mean_m",)
+        callback._foot_setup = [(None, SimpleNamespace(nu=3), None, None)]
+        callback._current_eval_actuator_frac = [np.array([0.1, 0.2, np.nan]), np.array([0.3, 0.4, np.nan])]
+        callback._publish_actuator_force_frac()
+        callback._current_eval_actuator_frac = []  # no episode had a window: a NaN row, never []
+        callback._publish_actuator_force_frac()
+        first, second = callback.evaluations_actuator_force_frac
+        assert first[:2] == pytest.approx([0.2, 0.3]) and math.isnan(first[2])
+        assert len(second) == 3 and all(math.isnan(value) for value in second)
+        callback.foot_pad_keys = ()  # a model whose recorder does not run
+        callback._publish_actuator_force_frac()
+        assert callback.evaluations_actuator_force_frac[-1] == []
+
+    def test_the_extensions_tensorboard_tags_skip_the_console(self, tmp_path):
+        from environments.shared.curriculum.stance_gate import stance_panel_from_episode_duties
+
+        callback = TestPadTelemetryReachesGateProgress._plateau(
+            tmp_path,
+            lengths=[1000],
+            pads={"r_sole_cop_fore_aft": [0.4], "com_fore_aft_mean_m": [0.02]},
+            leg_dc={"leg_dc_l_minus_r_ankle_deg": 1.0, "leg_dc_l_r_mean_ankle_deg": 2.0},
+        )
+        callback.eval_callback.balance_keys = ("com_fore_aft_mean_m",)
+        panel = stance_panel_from_episode_duties(
+            episode_lengths=[1000.0], episode_duties=[0.0], episode_rewards=[1.0], horizon=1000
+        )
+        callback._record_stance_scalars(0, panel)
+        calls = {call.args[0]: call.kwargs for call in callback.logger.record.call_args_list}
+        assert calls["diagnostics/eval_com_fore_aft_mean_m"] == {"exclude": ("stdout", "log")}
+        assert calls["diagnostics/eval_leg_dc_l_r_mean_ankle_deg"] == {"exclude": ("stdout", "log")}
+        assert calls["diagnostics/eval_r_sole_cop_fore_aft"] == {}  # main's tags print as before
+        assert calls["diagnostics/eval_leg_dc_l_minus_r_ankle_deg"] == {}
+
+
+class TestTheRewardTermSplit:
+    """Each reward term's per-episode mean over the full-horizon episodes and over the falls."""
+
+    @staticmethod
+    def _callback(episodes):
+        callback = _bare_stage_aware_callback(success_applicable=False)
+        callback.horizon = 4
+        callback._reset_forward_velocity_capture()
+        for length, alive in episodes:
+            for step in range(length):
+                callback._log_success_callback(
+                    {"i": 0, "done": step == length - 1, "info": {"reward_alive": alive, "reward_total": 2 * alive}}, {}
+                )
+        callback._publish_action_statistics()
+        callback._publish_reward_terms_split()
+        return callback
+
+    def test_the_two_kinds_add_up_to_the_evaluations_mean(self):
+        callback = self._callback([(4, 1.0), (2, 0.5), (4, 3.0), (3, 0.1)])
+        (terms,) = callback.evaluations_reward_terms
+        (split,) = callback.evaluations_reward_terms_split
+        assert split["full_horizon"]["reward_alive"] == pytest.approx((4 * 1.0 + 4 * 3.0) / 2)
+        assert split["fall"]["reward_alive"] == pytest.approx((2 * 0.5 + 3 * 0.1) / 2)
+        for key in terms:
+            assert 2 * split["full_horizon"][key] + 2 * split["fall"][key] == pytest.approx(4 * terms[key], rel=1e-9)
+        plateau, _ = _plateau_callback({}, stage=1)
+        plateau.eval_callback = callback
+        scalars = plateau._reward_term_split_scalars(0)
+        assert set(scalars) == {f"{kind}_term_{key}" for kind in ("full_horizon", "fall") for key in ("alive", "total")}
+
+    def test_a_kind_without_episodes_reads_nan(self):
+        callback = self._callback([(4, 1.0), (4, 1.0)])
+        (split,) = callback.evaluations_reward_terms_split
+        assert split["full_horizon"]["reward_alive"] == 4.0 and math.isnan(split["fall"]["reward_alive"])
+
+
+def test_seeded_prior_evaluations_carry_the_extensions_placeholders():
+    callback = _bare_stage_aware_callback(success_applicable=False)
+    callback.seed_prior_history(2)
+    assert callback.evaluations_screen_v2 == [None, None]
+    assert callback.evaluations_actuator_force_frac == [[], []]
+    assert callback.evaluations_reward_terms_split == [{}, {}]
+
+
+def test_the_recorded_history_reads_no_stance_v2_gate_from_the_npz_keys(tmp_path, monkeypatch):
+    """The screen's keys are not the recorded-history gate's: a history built from every npz key reads None."""
+    from environments.shared.config import load_stage_config
+    from environments.shared.reporting.gates import _recorded_stance_v2_gate
+
+    _callback, data, _traces, _settle, _hook = _real_evaluation(TYRANNOSAURUS_REX, tmp_path, monkeypatch)
+    rows = [{key: float(data[key][0]) for key in data.files if data[key].ndim == 1}]
+    curriculum = {
+        **load_stage_config(TYRANNOSAURUS_REX, "stance")["curriculum_kwargs"],
+        "gate_kind": "stance_quality/v2",
+    }
+    assert _recorded_stance_v2_gate(curriculum, rows) is None
+    assert not set(data.files) & {"stance_clean_count", "n_stance_samples", "success_count", "n_success_samples"}

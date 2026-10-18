@@ -84,6 +84,30 @@ substep -- while ``qpos`` is already integrated.  Hence:
 ``data.contact.<field>`` returns VIEWS into MjData's contact buffer, which
 the next ``mj_step`` overwrites, so every per-substep row is copied.
 
+Whole-body balance and floor forces (opt-in)
+--------------------------------------------
+``balance=True`` also copies, once per control step at the boundary
+substep, the animal's centre of mass (``subtree_com`` of the free root),
+the applied actuator forces, the declared ankles' applied torques
+(``qfrc_actuator + qfrc_passive`` at the ankle dof), and each contact's
+frame, constraint rows (``efc_address``, ``dim`` and the step's
+``efc_force``) and sliding friction, plus the centre of mass at the
+episode's first substep.  ``_reduce`` turns them into the
+:class:`EpisodeTrace` balance fields (``com_pos`` ... ``digit_tip_foot``),
+which :mod:`.balance_telemetry` reduces, decoding the tangential forces
+of the whole episode in one vectorised pass (decoded at each step, they
+cost about 12 us a T. rex step).  The tangential forces are the
+elliptic cone's two tangential ``efc_force`` rows, so the force on the
+animal of a floor contact is ``s * frame^T (normal, t1, t2)`` with ``s = +1``
+when geom1 is the floor (exactly ``mj_contactForce``'s first three
+components, rotated to the world); under a pyramidal cone they are NaN, and
+so is every floor force.  Every addition is behind ``balance``: with it off
+(the certificate, the replay CSV, the probes), the hot path and the trace
+are what they were.  With it on, the copies run last in the hook, in their
+own guard, and the reduction builds the balance fields in its own guard
+after every other field, so a failure in either costs the balance fields
+(``None``) and logs once, never the step, the episode or the other fields.
+
 Hook ownership and failing closed
 ---------------------------------
 The hook is a single slot.  :meth:`SubstepContactRecorder.attach` chains
@@ -100,6 +124,8 @@ starts before the previous one was closed.
 
 from __future__ import annotations
 
+import logging
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any, Callable
 
@@ -111,6 +137,8 @@ from .constants import CONTACT_THRESHOLD_N
 from .morphology import Morphology
 
 _HOOK = "_substep_probe_hook"
+
+logger = logging.getLogger(__name__)
 
 
 class RecorderError(RuntimeError):
@@ -218,6 +246,32 @@ class EpisodeTrace:
     #: ``per_geom=True`` only: (T,A) each colliding animal geom's mean floor force, and the names.
     geom_floor_mean: np.ndarray | None = None
     geom_floor_names: tuple[str, ...] = ()
+    # --- ``balance=True`` only (``None`` otherwise, and when the balance capture failed) ---
+    #: (T,3) the whole animal's centre of mass (``subtree_com`` of the free root; a prey is a separate
+    #: mocap body), boundary sample; (3,) the same at the episode's first substep, ``frame_skip - 1``
+    #: substeps before the first boundary sample.
+    com_pos: np.ndarray | None = None
+    spawn_com_pos: np.ndarray | None = None
+    #: (T,nu) the applied actuator forces, boundary substep.
+    actuator_force: np.ndarray | None = None
+    #: (T,F) ``qfrc_actuator + qfrc_passive`` at each foot's declared ankle dof (N m about the joint
+    #: axis); NaN for a foot that declares no ankle.
+    ankle_torque: np.ndarray | None = None
+    #: (T,F+1,3) the net floor force ON the animal, world frame, boundary substep: per limb, then the
+    #: rest of the animal (trunk, tail, arms).  NaN wherever a contact's tangential force is unknown
+    #: (a pyramidal cone).
+    floor_force: np.ndarray | None = None
+    #: (T,3) the whole animal's floor centre of pressure, ``sum F_z p / sum F_z`` over its floor
+    #: contacts with ``F_z > 0``; NaN when that sum is at most ``CONTACT_THRESHOLD_N``.
+    floor_cop: np.ndarray | None = None
+    #: (T,F) the ``F_z``-weighted mean sliding friction of the limb's floor contacts; NaN unloaded.
+    floor_mu: np.ndarray | None = None
+    #: (T,F,2,3) a foot with a declared support span: its heel line and toe line points on the
+    #: sole's centre line, from the boundary sole pose; NaN for every other foot.
+    support_line_pos: np.ndarray | None = None
+    #: (T,D,3) each hinged digit's tip (the capsule's far end), boundary substep; (D,) its foot.
+    digit_tip_pos: np.ndarray | None = None
+    digit_tip_foot: np.ndarray | None = None
 
     @property
     def length(self) -> int:
@@ -249,10 +303,13 @@ class SubstepContactRecorder:
     ``end_step(actions[0], rewards[0])`` after each vec step: the auto-reset
     needs no wrapper.  ``per_geom=True`` also records every colliding animal
     geom's floor force (``EpisodeTrace.geom_floor_mean``), a debugging aid
-    that roughly doubles the trace.
+    that roughly doubles the trace.  ``balance=True`` also records the
+    whole-body balance and floor-force fields (the module docstring); a
+    model the recorder cannot set them up for raises :class:`RecorderError`
+    here, so a caller can fall back to ``balance=False``.
     """
 
-    def __init__(self, env: Any, morphology: Morphology, *, per_geom: bool = False) -> None:
+    def __init__(self, env: Any, morphology: Morphology, *, per_geom: bool = False, balance: bool = False) -> None:
         unwrapped = getattr(env, "unwrapped", env)
         if not hasattr(type(unwrapped), _HOOK) or not hasattr(unwrapped, "_foot_contact_forces"):
             raise RecorderError(f"{type(unwrapped).__name__} has no {_HOOK} slot; it is not a BaseDinoEnv")
@@ -271,16 +328,7 @@ class SubstepContactRecorder:
         # A foot without a sole samples geom 0 in its slot; the reduction masks it out.
         self._soles = np.array([max(foot.sole_geom, 0) for foot in morphology.feet], dtype=np.int64)
         self._root = int(morphology.root_body)
-        free = [
-            joint
-            for joint in range(model.njnt)
-            if int(model.jnt_type[joint]) == int(mujoco.mjtJoint.mjJNT_FREE)
-            and int(model.jnt_bodyid[joint]) == self._root
-        ]
-        root_address = int(model.jnt_qposadr[free[0]]) if free else -7
-        self._joint_qpos_index = np.array(
-            [address for address in range(model.nq) if not root_address <= address < root_address + 7], dtype=np.int64
-        )
+        self._joint_qpos_index = joint_qpos_addresses(model, self._root)
         self._corners_local = [_sole_corners(model, foot) for foot in morphology.feet]
         self._half_size = [
             np.asarray(model.geom_size[foot.sole_geom], dtype=np.float64) if foot.sole_geom >= 0 else None
@@ -312,7 +360,40 @@ class SubstepContactRecorder:
         self._had_instance_hook = False
         self._previous_hook: Callable[[], None] | None = None
         self._bound_hook = self._hook
+        self._balance = bool(balance)
+        self._balance_failed = False
+        self._warned_balance = False
+        if self._balance:
+            self._setup_balance(model, morphology)
         self._reset_episode_buffers()
+
+    def _setup_balance(self, model: Any, morphology: Morphology) -> None:
+        """Resolve the indices the balance capture reads (read-only); :class:`RecorderError` when it cannot."""
+        try:
+            feet = morphology.feet
+            ankle_dofs = np.array(
+                [int(model.jnt_dofadr[foot.ankle_joint]) if foot.ankle_joint >= 0 else -1 for foot in feet],
+                dtype=np.int64,
+            )
+            # The -1 is never an index: the hot path gathers at `_ankle_take` and writes NaN off the ankles
+            # (a bare [-1] would silently read the last dof).
+            self._ankle_dofs = ankle_dofs
+            self._has_ankle = ankle_dofs >= 0
+            self._ankle_take = np.maximum(ankle_dofs, 0)
+            support_foot = tuple(morphology.support_geom_foot)
+            self._digit_tip_foot = np.array(
+                [support_foot[int(index)] for index in self._digit_support.tolist()], dtype=np.int64
+            )
+            self._digit_tip_local = np.asarray(self._digit_tip_z, dtype=np.float64).copy()
+            self._line_offsets = np.array(
+                [[foot.ankle_forward_m + foot.heel_line_m, foot.ankle_forward_m + foot.toe_line_m] for foot in feet],
+                dtype=np.float64,
+            ).reshape(-1, 2)
+            self._forward_axis = np.array([foot.sole_forward_axis for foot in feet], dtype=np.int64)
+            self._forward_sign = np.array([foot.sole_forward_sign for foot in feet], dtype=np.float64)
+            self._nonleg_foot = len(feet)
+        except Exception as exc:  # noqa: BLE001 - reported as the recorder's own refusal
+            raise RecorderError(f"the balance capture cannot be set up for this model: {exc!r}") from exc
 
     # ------------------------------------------------------------------ attachment
     @property
@@ -378,6 +459,14 @@ class SubstepContactRecorder:
         self._actions: list[np.ndarray] = []  # per closed step
         self._rewards: list[float] = []
         self._spawn: np.ndarray | None = None
+        # balance=True only: per step at the boundary substep, and the spawn sample.
+        self._bal_spawn_com: np.ndarray | None = None
+        self._bal_com: list[np.ndarray] = []
+        self._bal_force: list[np.ndarray] = []
+        self._bal_ankle: list[np.ndarray] = []
+        self._bal_frame: list[np.ndarray] = []  # per boundary substep with contacts, (ncon, 9)
+        self._bal_rows: list[tuple[np.ndarray, np.ndarray, np.ndarray]] = []  # efc_address, dim, efc_force
+        self._bal_mu: list[np.ndarray] = []  # (ncon,)
 
     def _configure_decode(self, model: Any) -> None:
         """Choose the normal-force decode for ``model`` (re-run when an env swaps its model)."""
@@ -452,6 +541,80 @@ class SubstepContactRecorder:
             self._boundary.append(self._geometry_row(data))
             self._joint_qpos.append(data.qpos[self._joint_qpos_index])
             self._ctrl.append(data.ctrl.copy())
+        # Called only at the substeps it copies: the spawn substep and the boundary one.
+        if (
+            self._balance
+            and not self._balance_failed
+            and (self._n_sub == self._frame_skip or (self._n_sub == 1 and int(env._step_count) == 0))
+        ):
+            try:
+                self._balance_capture(env, data)
+            except Exception:  # noqa: BLE001 - the hook runs inside mj_step's loop: a failure costs the balance fields
+                self._balance_failed = True
+                self._warn_balance("the balance capture failed in the substep hook")
+
+    def _warn_balance(self, message: str) -> None:
+        """Warn once per recorder: a failed capture costs its remaining episodes' balance fields, a failed
+        reduction that episode's (``None``)."""
+        if not self._warned_balance:
+            self._warned_balance = True
+            logger.warning(
+                "Balance telemetry: %s; the balance fields read None (logged once per recorder).",
+                message,
+                exc_info=True,
+            )
+
+    def _balance_capture(self, env: Any, data: Any) -> None:
+        """Copy the balance rows: the spawn centre of mass at an episode's first substep, the rest at the boundary."""
+        if self._n_sub == 1 and int(env._step_count) == 0:
+            self._bal_spawn_com = data.subtree_com[self._root].copy()
+        if self._n_sub != self._frame_skip:
+            return
+        self._bal_com.append(data.subtree_com[self._root].copy())
+        self._bal_force.append(data.actuator_force.copy())
+        take = self._ankle_take  # an undeclared ankle reads dof 0 here, NaN after the reduction
+        self._bal_ankle.append(data.qfrc_actuator[take] + data.qfrc_passive[take])
+        ncon = int(data.ncon)
+        if ncon:
+            contact = data.contact
+            self._bal_frame.append(contact.frame.copy())
+            self._bal_rows.append((contact.efc_address.copy(), contact.dim.copy(), data.efc_force.copy()))
+            self._bal_mu.append(contact.friction[:, 0].copy())
+
+    def _tangential_forces(self, rows: Sequence[tuple[np.ndarray, np.ndarray, np.ndarray]]) -> np.ndarray:
+        """Each contact's two tangential forces (contact frame), as ``mj_contactForce`` returns ``force[1:3]``.
+
+        *rows* holds one ``(efc_address, dim, efc_force)`` per boundary
+        substep with contacts, as the capture copied them; the result has
+        one row per contact, in that order.  The elliptic cone's rows after
+        the normal one, each contact's address read in its own substep's
+        ``efc_force``; 0 for a contact with no rows (``efc_address`` -1) or
+        of too low a dimension (condim 1), and for every contact of a
+        substep whose ``efc_force`` is empty (the guard
+        :meth:`_normal_forces` applies).  NaN under a pyramidal cone, whose
+        rows are pyramid edges.
+        """
+        counts = np.array([len(address) for address, _dim, _efc in rows], dtype=np.int64)
+        total = int(counts.sum())
+        if not self._elliptic:
+            return np.full((total, 2), np.nan)
+        if not total:
+            return np.zeros((0, 2), dtype=np.float64)
+        sizes = np.array([efc.size for _address, _dim, efc in rows], dtype=np.int64)
+        efc_force = np.concatenate([efc for _address, _dim, efc in rows])
+        address = np.concatenate([address for address, _dim, _efc in rows]).astype(np.int64)
+        dim = np.concatenate([dim for _address, dim, _efc in rows])
+        size = np.repeat(sizes, counts)  # each contact's own substep's row count
+        start = np.repeat(np.cumsum(sizes) - sizes, counts)
+        offsets = np.array([1, 2], dtype=np.int64)[None, :]
+        valid = (address >= 0) & (size > 0)
+        if not efc_force.size:
+            return np.zeros((total, 2), dtype=np.float64)
+        local = np.minimum(np.where(valid, address, 0)[:, None] + offsets, np.maximum(size, 1)[:, None] - 1)
+        gathered = efc_force[np.minimum(start[:, None] + local, efc_force.size - 1)]
+        keep = valid[:, None] & (dim[:, None] > offsets)
+        tangential: np.ndarray = np.where(keep, gathered, 0.0)
+        return tangential
 
     # ------------------------------------------------------------------ closing steps and episodes
     def end_step(self, action: Any = None, reward: float = float("nan")) -> None:
@@ -650,6 +813,25 @@ class SubstepContactRecorder:
             geom_floor_mean = per_substep(animal >= 0, animal, len(self._animal_names)).mean(axis=1)
             geom_floor_names = self._animal_names
 
+        # The balance fields last, in their own guard: a failure costs them alone (None), never the fields above.
+        balance: dict[str, Any] = {}
+        if self._balance and not self._balance_failed:  # a failed capture has already warned
+            try:
+                balance = self._reduce_balance(
+                    steps=steps,
+                    substep_of=substep_of,
+                    geoms=geoms,
+                    normal=normal,
+                    points=points,
+                    on_floor=on_floor,
+                    foot=foot,
+                    sole_pos=sole_pos,
+                    sole_frame=sole_frame,
+                )
+            except Exception:  # noqa: BLE001 - the balance reduction must not cost the episode's other fields
+                balance = {}
+                self._warn_balance("an episode's balance fields could not be reduced")
+
         return EpisodeTrace(
             model_id=morphology.model_id,
             dt=morphology.dt,
@@ -702,7 +884,118 @@ class SubstepContactRecorder:
             termination_reason=reason,
             geom_floor_mean=geom_floor_mean,
             geom_floor_names=geom_floor_names,
+            **balance,
         )
+
+    def _reduce_balance(
+        self,
+        *,
+        steps: int,
+        substep_of: np.ndarray,
+        geoms: np.ndarray,
+        normal: np.ndarray,
+        points: np.ndarray,
+        on_floor: np.ndarray,
+        foot: np.ndarray,
+        sole_pos: np.ndarray,
+        sole_frame: np.ndarray,
+    ) -> dict[str, Any]:
+        """The :class:`EpisodeTrace` balance fields of the episode just recorded (``balance=True``).
+
+        The boundary contacts are the last per-substep entries the hook
+        appended for each step (substep ``s * frame_skip + frame_skip - 1``),
+        in the order the balance capture copied their frames, constraint rows
+        forces and friction.
+        """
+        morphology = self._morphology
+        n_feet = morphology.n_feet
+        substeps = self._frame_skip
+        if (
+            self._bal_spawn_com is None
+            or len(self._bal_com) != steps
+            or len(self._bal_force) != steps
+            or len(self._bal_ankle) != steps
+        ):
+            raise RecorderError(f"{len(self._bal_com)} balance samples recorded for {steps} steps (or no spawn sample)")
+        boundary = (substep_of % substeps) == substeps - 1
+        if self._bal_frame:
+            frames = np.concatenate(self._bal_frame).reshape(-1, 3, 3)
+            tangent = self._tangential_forces(self._bal_rows)
+            friction = np.concatenate(self._bal_mu)
+        else:
+            frames, tangent, friction = np.zeros((0, 3, 3)), np.zeros((0, 2)), np.zeros(0)
+        if frames.shape[0] != int(boundary.sum()):
+            raise RecorderError(
+                f"{frames.shape[0]} boundary contact frames recorded for {int(boundary.sum())} boundary contacts"
+            )
+        step_of = substep_of[boundary] // substeps
+        floor1 = morphology.is_floor[geoms[boundary, 0]]
+        animal_floor = on_floor[boundary]
+        limb = np.where(foot[boundary] >= 0, foot[boundary], self._nonleg_foot)
+        # The force ON the animal: + the contact force when the floor is geom1 (the normal points from geom1 to
+        # geom2), - when it is geom2.  frame^T (normal, t1, t2) is the contact force in the world frame.
+        local = np.concatenate([normal[boundary][:, None], tangent], axis=1)
+        world = np.einsum("nij,ni->nj", frames, local) * np.where(floor1, 1.0, -1.0)[:, None]
+        chosen = np.flatnonzero(animal_floor)
+        width = n_feet + 1
+        floor_force = np.zeros((steps, width, 3))
+        for axis in range(3):
+            floor_force[:, :, axis] = np.bincount(
+                step_of[chosen] * width + limb[chosen], weights=world[chosen, axis], minlength=steps * width
+            ).reshape(steps, width)
+        # The whole animal's floor CoP, from the contacts that press on it (F_z > 0).
+        vertical = world[:, 2]
+        pressing = animal_floor & (vertical > 0)
+        press = np.flatnonzero(pressing)
+        weight = np.bincount(step_of[press], weights=vertical[press], minlength=steps)
+        cop = np.full((steps, 3), np.nan)
+        loaded = weight > CONTACT_THRESHOLD_N
+        boundary_points = points[boundary]
+        for axis in range(3):
+            moment = np.bincount(
+                step_of[press], weights=vertical[press] * boundary_points[press, axis], minlength=steps
+            )
+            cop[loaded, axis] = moment[loaded] / weight[loaded]
+        # Each limb's F_z-weighted sliding friction.
+        on_limb = pressing & (limb < n_feet)
+        mine = np.flatnonzero(on_limb)
+        index = step_of[mine] * n_feet + limb[mine]
+        limb_weight = np.bincount(index, weights=vertical[mine], minlength=steps * n_feet).reshape(steps, n_feet)
+        limb_mu = np.bincount(index, weights=vertical[mine] * friction[mine], minlength=steps * n_feet).reshape(
+            steps, n_feet
+        )
+        floor_mu = np.full((steps, n_feet), np.nan)
+        limb_loaded = limb_weight > CONTACT_THRESHOLD_N
+        floor_mu[limb_loaded] = limb_mu[limb_loaded] / limb_weight[limb_loaded]
+        # The declared heel and toe lines on each spanned sole's centre line, from the boundary sole pose.
+        lines = np.full((steps, n_feet, 2, 3), np.nan)
+        rotation = sole_frame.reshape(steps, n_feet, 3, 3)
+        for index_foot in range(n_feet):
+            offsets = self._line_offsets[index_foot]
+            if not np.isfinite(offsets).all():
+                continue
+            forward = rotation[:, index_foot, :, self._forward_axis[index_foot]] * self._forward_sign[index_foot]
+            for column in range(2):
+                lines[:, index_foot, column] = sole_pos[:, index_foot] + forward * offsets[column]
+        # The hinged digits' tips at the boundary substep.
+        digits = self._digit_geoms.size
+        tips = np.zeros((steps, digits, 3))
+        if digits:
+            pose = np.stack(self._digit_pose[substeps - 1 :: substeps])  # (T, D, 12): the boundary substeps
+            axis_z = pose[:, :, 3:].reshape(steps, digits, 3, 3)[:, :, :, 2]
+            tips = pose[:, :, :3] + axis_z * self._digit_tip_local[None, :, None]
+        return {
+            "com_pos": np.asarray(self._bal_com, dtype=np.float64),
+            "spawn_com_pos": np.asarray(self._bal_spawn_com, dtype=np.float64),
+            "actuator_force": np.asarray(self._bal_force, dtype=np.float64),
+            "ankle_torque": np.where(self._has_ankle, np.asarray(self._bal_ankle, dtype=np.float64), np.nan),
+            "floor_force": floor_force,
+            "floor_cop": cop,
+            "floor_mu": floor_mu,
+            "support_line_pos": lines,
+            "digit_tip_pos": tips,
+            "digit_tip_foot": self._digit_tip_foot.copy(),
+        }
 
     def _unpack(self, rows: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """Split :meth:`_geometry_row` rows into sites (N,F,3), sole xpos (N,F,3), sole xmat (N,F,9), root pos, quat."""
@@ -716,6 +1009,19 @@ class SubstepContactRecorder:
             root_pos,
             root_quat,
         )
+
+
+def joint_qpos_addresses(model: Any, root_body: int) -> np.ndarray:
+    """Every qpos address but the root free joint's seven, in order: the columns of ``EpisodeTrace.joint_qpos``."""
+    free = [
+        joint
+        for joint in range(model.njnt)
+        if int(model.jnt_type[joint]) == int(mujoco.mjtJoint.mjJNT_FREE) and int(model.jnt_bodyid[joint]) == root_body
+    ]
+    root_address = int(model.jnt_qposadr[free[0]]) if free else -7
+    return np.array(
+        [address for address in range(model.nq) if not root_address <= address < root_address + 7], dtype=np.int64
+    )
 
 
 def _digit_axis_ends(model: Any, geoms: np.ndarray, joints: list[int]) -> tuple[np.ndarray, np.ndarray]:

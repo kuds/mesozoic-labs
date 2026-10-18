@@ -83,13 +83,30 @@ class DiagnosticsCallback(_BaseCallback):
         critic_loss, actor_loss, ent_coef, …)
       - VecNormalize running variance for observations and returns
       - Termination reason breakdown (fraction per reason)
+      - Episode and fall counts per rollout (``terminations/rollout_episodes``
+        and ``terminations/rollout_falls``, TensorBoard only)
 
     When *log_dir* is provided, per-rollout averages of INFO_KEYS, the
     captured algorithm metrics (under ``algo_*`` keys, on their own
     ``algo_timesteps`` axis), and termination fractions are saved to
     ``diagnostics.npz`` so they can be plotted alongside the evaluation curves
     produced by the notebook's ``plot_training_curves``.
+
+    The counts behind the fractions are saved too, report-only:
+    ``rollout_episodes`` (episodes that ended in the rollout) and
+    ``rollout_falls`` (those that terminated, the sum of the per-reason
+    counts: on a task stage its success terminations, such as
+    ``bite_success``, count too), aligned with ``timesteps``; and ``rollout_term_count_<reason>``,
+    aligned with ``term_timesteps`` like the ``term_<reason>`` fractions and
+    back-filled with 0 the same way.  A fraction alone cannot say whether a
+    rollout ended two episodes or forty.  The counts are deliberately not
+    ``term_count_<reason>``: every ``term_`` key but ``term_timesteps`` is
+    read as a termination fraction (``visualization.termination_fraction_keys``,
+    ``compare_run_diagnostics.Run.termination_shares``).
     """
+
+    #: Record the per-rollout episode and fall counts (the switch the in-suite inertness proof turns off).
+    record_rollout_counts = True
 
     REWARD_KEYS = [
         "reward_forward",
@@ -129,6 +146,9 @@ class DiagnosticsCallback(_BaseCallback):
         "reward_floor_impact",
         "reward_airborne_substeps",
         "reward_action_saturation",
+        # The second difference of the command (every stance stage pays it: action_jerk_weight), emitted by
+        # the env since the T. rex stance shaping and recorded nowhere until it joined this list.
+        "reward_action_jerk",
         "reward_support_geom_coverage",  # Compsognathus stance shaping
         "reward_home_pose",  # Compsognathus
         "reward_target",  # Compsognathus target reaching
@@ -209,6 +229,11 @@ class DiagnosticsCallback(_BaseCallback):
         self._history_heading_std: list[float] = []
         self._history_terminations: dict[str, list[float]] = {}
         self._history_term_timesteps: list[int] = []
+        # Episodes that ended in the current rollout, and the per-rollout counts (record_rollout_counts).
+        self._rollout_episodes = 0
+        self._history_rollout_episodes: list[int] = []
+        self._history_rollout_falls: list[int] = []
+        self._history_rollout_term_counts: dict[str, list[int]] = {}
         # Algorithm-specific metrics (PPO clip_fraction/approx_kl/…,
         # SAC critic_loss/ent_coef/…) captured from SB3's logger.
         self._history_algo_timesteps: list[int] = []
@@ -238,6 +263,10 @@ class DiagnosticsCallback(_BaseCallback):
                     self._step_infos[key].append(float(stance_info[key]))
             if "termination_reason" in info:
                 self._rollout_terminations[info["termination_reason"]] += 1
+        if self.record_rollout_counts:
+            dones = self.locals.get("dones")
+            if dones is not None and _np is not None:
+                self._rollout_episodes += int(_np.count_nonzero(dones))
         # Accumulate the actions taken this step. self.locals["actions"] is
         # populated by both the on-policy (PPO) and off-policy (SAC) collection
         # loops, so this works uniformly for both algorithms.
@@ -263,8 +292,19 @@ class DiagnosticsCallback(_BaseCallback):
             # Track heading alignment std to distinguish spinning from stable heading
             heading_vals = self._step_infos.get("heading_alignment", [])
             self._history_heading_std.append(float(_np.std(heading_vals)) if len(heading_vals) > 1 else float("nan"))
+            if self.record_rollout_counts:
+                # Aligned with _history_timesteps, appended in this same branch.
+                self._history_rollout_episodes.append(self._rollout_episodes)
+                self._history_rollout_falls.append(int(sum(self._rollout_terminations.values())))
 
         self._step_infos = {k: [] for k in self.REWARD_KEYS + self.INFO_KEYS}
+        if self.record_rollout_counts and getattr(self, "logger", None) is not None:
+            # TensorBoard only: SB3's logger prints every recorded key at each dump.
+            self.logger.record("terminations/rollout_episodes", self._rollout_episodes, exclude=("stdout", "log"))
+            self.logger.record(
+                "terminations/rollout_falls", int(sum(self._rollout_terminations.values())), exclude=("stdout", "log")
+            )
+        self._rollout_episodes = 0
 
         total_terminations = sum(self._rollout_terminations.values())
         if total_terminations > 0:
@@ -282,6 +322,13 @@ class DiagnosticsCallback(_BaseCallback):
             for reason, series in self._history_terminations.items():
                 if len(series) < n_term_points:
                     series.append(0.0)
+            if self.record_rollout_counts:
+                # The counts behind those fractions, on the same clock and back-filled the same way.
+                for reason, count in self._rollout_terminations.items():
+                    self._history_rollout_term_counts.setdefault(reason, [0] * (n_term_points - 1)).append(int(count))
+                for series_counts in self._history_rollout_term_counts.values():
+                    if len(series_counts) < n_term_points:
+                        series_counts.append(0)
             self.logger.record("terminations/total_count", total_terminations)
         self._rollout_terminations.clear()
 
@@ -447,10 +494,21 @@ class DiagnosticsCallback(_BaseCallback):
             # mis-align against `timesteps`.
             if len(series) == len(self._history_timesteps):
                 save_dict[name] = _np.array(series)
+        for name, counts in (
+            ("rollout_episodes", self._history_rollout_episodes),
+            ("rollout_falls", self._history_rollout_falls),
+        ):
+            # Empty when record_rollout_counts is off: the length guard then leaves them out.
+            if counts and len(counts) == len(self._history_timesteps):
+                save_dict[name] = _np.array(counts)
         if self._history_term_timesteps:
             save_dict["term_timesteps"] = _np.array(self._history_term_timesteps)
             for reason, fracs in self._history_terminations.items():
                 save_dict[f"term_{reason}"] = _np.array(fracs)
+            # Not ``term_count_<reason>``: every ``term_`` key is read as a termination fraction.
+            for reason, counts in self._history_rollout_term_counts.items():
+                if len(counts) == len(self._history_term_timesteps):
+                    save_dict[f"rollout_term_count_{reason}"] = _np.array(counts)
         if self._history_algo_timesteps:
             save_dict["algo_timesteps"] = _np.array(self._history_algo_timesteps)
             for key, series in self._history_algo.items():
