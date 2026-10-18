@@ -11,7 +11,7 @@ export const MODEL = requireModel('velociraptor_mongoliensis', 'anatomical');
 
 # Velociraptor Model
 
-A dinosaur-inspired bipedal simulation model with actuated sickle-claw geoms, trained for locomotion and target-contact tasks. Its manifest (`configs/velociraptor_mongoliensis/anatomical/stages.toml`) declares three published behaviors on one trunk: `stance` (stand), `locomotion` (walk, warm-started from stance) and `behavior` (hunt — the strike task, warm-started from locomotion). See [Behavior Recipes](/docs/training/recipes).
+A dinosaur-inspired bipedal simulation model with actuated sickle-claw geoms, trained for locomotion and target-contact tasks. Its manifest (`configs/velociraptor_mongoliensis/anatomical/stages.toml`) declares three published behaviors on one trunk: `stance` (stance), `locomotion` (walk, warm-started from stance) and `behavior` (hunt — the strike task, warm-started from locomotion). See [Behavior Recipes](/docs/training/recipes).
 
 The stance node certifies stance quality, not reward: since physics r3 its gate is `stance_quality/v2`, which judges
 every episode of a 40-episode panel on the floor's force under each foot (no hop at reset, both feet planted, both

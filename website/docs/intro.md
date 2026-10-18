@@ -15,7 +15,7 @@ We use articulated MuJoCo models to study how reinforcement-learning agents can 
 
 - **Physics-Based Models** - Articulated MuJoCo models inspired by dinosaur morphology
 - **Reinforcement Learning** - PPO and SAC algorithms for training locomotion
-- **Behavior Recipes** - Every model trains stand, walk and hunt (and recover, on the models with a recovery stage) as separately certified, separately published policies on one shared trunk, declared in `configs/<species>/<embodiment>/stages.toml`
+- **Behavior Recipes** - Every model trains stance, walk and hunt (and recover, on the models with a recovery stage) as separately certified, separately published policies on one shared trunk, declared in `configs/<species>/<embodiment>/stages.toml`
 - **Six Models of Five Species** - The anatomical T-Rex, Velociraptor, Brachiosaurus, Dibothrosuchus and Compsognathus, and the Compsognathus robot; each model is a species and an embodiment (`anatomical` or `robot`)
 - **Sim-to-Real Roadmap** - Planned hardware, system-identification, and transfer experiments; not yet validated
 - **Open Source** - Fully open codebase for research and education
@@ -24,7 +24,7 @@ We use articulated MuJoCo models to study how reinforcement-learning agents can 
 
 The model pages render observation and action dimensions, compiled-model facts,
 current curriculum stages, and published result summaries from the generated
-species catalog. Each stage row shows its recipe label (stand, recover, walk or hunt),
+species catalog. Each stage row shows its recipe label (stance, recover, walk or hunt),
 whether it is a published deliverable, and the parent it warm-starts from;
 published results list one row per deliverable, headlined by the metric its
 gate kind certifies:
@@ -46,7 +46,7 @@ current model revision and configs.
 
 - [Getting Started](/docs/getting-started/installation) - Set up your development environment
 - [Models](/docs/models/tyrannosaurus_rex/anatomical) - Explore available species models
-- [Behavior Recipes](/docs/training/recipes) - Train stand, walk and hunt on one certified trunk
+- [Behavior Recipes](/docs/training/recipes) - Train stance, walk and hunt on one certified trunk
 - [Training](/docs/training/ppo) - Learn how to train your own dinosaur
 - [GitHub](https://github.com/kuds/mesozoic-labs) - View the source code
 

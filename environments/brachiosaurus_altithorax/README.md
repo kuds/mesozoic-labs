@@ -67,7 +67,7 @@ python -m environments.shared.train --species brachiosaurus_altithorax --embodim
 python environments/brachiosaurus_altithorax/scripts/view_model.py --embodiment anatomical
 ```
 
-Stance, locomotion and food reach are each a published deliverable (`stand`,
+Stance, locomotion and food reach are each a published deliverable (`stance`,
 `walk`, `hunt`); see [docs/BEHAVIOR_RECIPES_PLAN.md](../../docs/BEHAVIOR_RECIPES_PLAN.md).
 
 ## Files

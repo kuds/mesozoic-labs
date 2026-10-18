@@ -19,12 +19,13 @@ legends, notebook tables, the public catalog, and W&B run titles.
 | `compsognathus_longipes` | `robot` | Compsognathus Longipes (Robot) | `stance_quality/v1` |
 
 Consistent presentation does not imply identical anatomy or certification
-criteria. The gate kind remains visible in each report. `stand` and `recover`
-are **recipes**, not aliases to rename: `stand` resolves to the stance stage on
-every model, and `recover`, on the anatomical Tyrannosaurus Rex and both
-Compsognathus embodiments, through stance and recovery (decision D-D35; before
-it `stand` resolved through both there). Their recovery outputs are labeled
-**Recovery**.
+criteria. The gate kind remains visible in each report. `stance` and `recover`
+are **recipes**: `stance`, the stance stage's id and its label, resolves to the
+stance stage on every model, and `recover`, on the anatomical Tyrannosaurus Rex
+and both Compsognathus embodiments, through stance and recovery (decision D-D35;
+before it the stance label, then `stand`, resolved through both there). The
+stance label was `stand` until decision D-D38, which refuses `stand` naming
+`stance`. Their recovery outputs are labeled **Recovery**.
 
 ## Shared replay layout
 

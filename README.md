@@ -15,7 +15,7 @@ the crocodylomorph Dibothrosuchus, whose erect, long-limbed posture is a differe
 of a modern crocodilian, and Compsognathus also has a twelve-servo robot. The models are research abstractions rather
 than validated anatomical reconstructions.
 
-Each model learns a small set of behaviors, such as stand, walk and hunt (a species task such as a claw strike or a
+Each model learns a small set of behaviors, such as stance, walk and hunt (a species task such as a claw strike or a
 reach for food). Each behavior is a policy of its own, checked against its own gate and published on its own, and it
 builds on the certified policies beneath it instead of training them again. The goals are locomotion controllers for
 these bodies, predatory behaviors (hunting, striking and, later, pack coordination) and the groundwork for moving
@@ -106,7 +106,7 @@ notebook's settings are covered in the [behavior recipes guide](https://mesozoic
 | To… | Read |
 |---|---|
 | Install, view a model, train, evaluate and override hyperparameters step by step | [Installation](https://mesozoiclabs.com/docs/getting-started/installation) and [quick start](https://mesozoiclabs.com/docs/getting-started/quick-start) |
-| Train stand, walk and hunt, reuse certified stages across runs and read a run directory; the curriculum's command-line flags and the notebook's settings | [Behavior recipes](https://mesozoiclabs.com/docs/training/recipes) |
+| Train stance, walk and hunt, reuse certified stages across runs and read a run directory; the curriculum's command-line flags and the notebook's settings | [Behavior recipes](https://mesozoiclabs.com/docs/training/recipes) |
 | Tune PPO, SAC and the stage configs | [Training guides](https://mesozoiclabs.com/docs/training/ppo) |
 | Look up one model: specifications, stages with their budgets and gates, success definitions, published run summaries | The generated [species catalog](docs/SPECIES_CATALOG.md), or the model's page; both are linked from the table above |
 | Find the published run-summary files and the rules for when a summary counts as current | [results/README.md](results/README.md) |

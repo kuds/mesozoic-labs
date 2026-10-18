@@ -132,7 +132,7 @@ export interface SpeciesStage {
   deliverable: boolean;
   /** Stage id this node warm-starts from, or null for a root node. */
   warmStartFrom: string | null;
-  /** Behavior recipe label (stand/recover/walk/hunt) the node belongs to, or null. */
+  /** Behavior recipe label (stance/recover/walk/hunt) the node belongs to, or null. */
   recipe: string | null;
   /** Distinct-seed runs a deliverable needs before it stops being provisional (plan §4.5, D-B9; default 1). */
   certificationSeeds: number;

@@ -99,7 +99,7 @@ python -m environments.shared.train --species dibothrosuchus_elaphros --embodime
 python environments/dibothrosuchus_elaphros/scripts/view_model.py --embodiment anatomical
 ```
 
-Stance, locomotion and snap are each a published deliverable (`stand`,
+Stance, locomotion and snap are each a published deliverable (`stance`,
 `walk`, `hunt`); see [docs/BEHAVIOR_RECIPES_PLAN.md](../../docs/BEHAVIOR_RECIPES_PLAN.md).
 
 ## Environment Details

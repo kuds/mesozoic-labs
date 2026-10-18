@@ -125,10 +125,12 @@ consolidation plan's status table, the CHANGELOG or the cleanup plan's §3.1; th
 after the 2026-09-19 loader change) are in section 1 at `ace8112`.
 
 Configuration-cell defaults:
-`BEHAVIOR = "hunt"` (dropdown: `stand`, `recover`, `walk`, `hunt`, stage ids by
+`BEHAVIOR = "hunt"` (dropdown: `stance`, `recover`, `walk`, `hunt`, stage ids by
 free input; the eleven direction/terrain values leave with the PR-12 slice;
 `recover`, stance then push recovery on the T-Rex and both Compsognathus
-models, since decision D-D35, before which `stand` meant that chain there),
+models, since decision D-D35, before which `stand` meant that chain there;
+`stance`, the stance stage alone on every model, labelled `stand` until
+decision D-D38, which refuses `stand` naming `stance`),
 `TRUNK_FROM = "auto"`, `RETRAIN_FROM = ""`, `RUN_LABEL = ""`, `RUN_ID = ""`
 (a configuration-cell knob since consolidation PR-14a), `SEED = 42`. The knobs the
 consolidation retired are named in the CHANGELOG entries of PR-4, PR-5, the PR-12

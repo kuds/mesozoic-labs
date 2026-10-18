@@ -260,7 +260,8 @@ The historical Tyrannosaurus Rex gate retains its original single-null rule.
    recovery training and requires revisiting the reference calibration.
 3. Set `BEHAVIOR = "recover"` in the SB3 notebook's configuration cell
    (`"stand"` before decision D-D35 of 2026-10-16, which gave recovery its own
-   label; `"stand"` now trains the stance alone). The
+   label; `"stance"` trains the stance alone, and `"stand"`, its label until
+   decision D-D38 of 2026-10-18, is refused naming `"stance"`). The
    chain loop trains stance → recovery (a certified stance in `RUN_DIR` or
    `TRUNK_FROM` is reused rather than retrained), freezes the same-task null
    panels before recovery trains, trains from the stance handoff, rolls the

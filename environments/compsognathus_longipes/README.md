@@ -128,8 +128,8 @@ latency, motor calibration and sim-to-real validation remain future work.
 Each model has three advancing stages and a recovery node that, like
 locomotion, warm-starts from stance (`configs/compsognathus_longipes/<embodiment>/stages.toml`);
 recovery is the deliverable of the `recover` recipe, stance → recovery
-(`BEHAVIOR = "recover"` in the notebook; `"stand"` is the stance alone,
-decision D-D35), and the CLI `curriculum` command skips it:
+(`BEHAVIOR = "recover"` in the notebook; `"stance"` is the stance alone,
+decisions D-D35 and D-D38), and the CLI `curriculum` command skips it:
 
 | Stage | Objective and advancement criteria | Initial budget |
 |---|---|---:|
