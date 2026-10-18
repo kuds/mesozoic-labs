@@ -245,7 +245,7 @@ def build_state_bank(
                     )
         if dropped:
             logger.warning(
-                "Policy probe: %d of %d bank rows dropped, their episodes ending before the kept step: %s. "
+                "Policy probe: %d of %d bank rows dropped, their episodes ending at or before the kept step: %s. "
                 "The probe's scalars that compare with a dropped row read NaN.",
                 len(dropped),
                 len(spec),

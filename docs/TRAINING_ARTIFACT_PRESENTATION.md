@@ -712,8 +712,8 @@ the leans before their kept steps, and with the pushes on the T. rex
 recovery stage kept 4 of the 10 states (no `statue` row) and the anatomical
 Compsognathus recovery stage 6. With the multiple at 0 the env's reset
 draws exactly what a push-free reset of the same seed draws, and the
-observation does not depend on it. A row whose episode still ends before
-its kept step is dropped, with one warning naming every dropped row, and
+observation does not depend on it. A row whose episode still ends at or
+before its kept step is dropped, with one warning naming every dropped row, and
 the scalars that compare with it read NaN (`null` in `progress.json`). A
 guard snapshots and restores the global random generators around the
 build, which draws from none of them. The build costs about 5.6 s per
