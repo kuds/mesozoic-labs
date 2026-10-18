@@ -10,10 +10,11 @@ matrix), the action-jerk reward key, the PostureTrend watch, the
 per-rollout episode and fall counts, the training-episode ledger, the
 policy probe and the checkpoint archive rule.  The two runs train and evaluate exactly alike (the same
 ``evaluations.npz``, the same tensors in every checkpoint, the same
-VecNormalize statistics), the plain run writes the key sets the base of
-this change (``2e734e29``) writes for the same run, pinned below as they
-were derived there, and the full run adds exactly this change's keys, its
-ledgers and its probe file.
+VecNormalize statistics), the plain run writes the key sets main writes
+for the same run without this change, pinned below as they were derived on
+``2e734e29`` (main's commits since, through ``c6292b1e``, change no
+training, evaluation or configuration code), and the full run adds exactly
+this change's keys, its ledgers and its probe file.
 
 Both runs are instrumented alike, outside the code under test: a hash of
 every ``RolloutBuffer.add`` (observation, action, reward, episode start,
@@ -46,9 +47,9 @@ TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
 EPISODES = 2
 STEPS = 768
 
-#: The keys the base of this change (``2e734e29``) writes for this run, termination causes aside (which causes a
-#: run meets is the run's; both runs here must meet the same ones).  Derived by running this module's ``_train``
-#: in an export of that tree (2026-10-17).
+#: The keys main writes for this run without this change (at ``2e734e29``, unchanged through ``c6292b1e``),
+#: termination causes aside (which causes a run meets is the run's; both runs here must meet the same ones).
+#: Derived by running this module's ``_train`` in an export of ``2e734e29`` (2026-10-17).
 BASE_GATE_PROGRESS_KEYS = frozenset(
     """
     action_ac_rms action_ac_rms_per_actuator action_dc_per_actuator action_dc_rms action_delta action_freq_hz

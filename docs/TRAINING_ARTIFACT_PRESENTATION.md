@@ -418,7 +418,7 @@ most a few hundred numbers per control step, and the reductions run once
 per episode, vectorised. On the T. rex, a four-episode evaluation of
 1,000-step zero-action episodes takes about 3% longer with them: over ten
 interleaved rounds on one CPU, the median of each round's best of three
-was 7.33 s at the base of this change and 7.58 s with it. TensorBoard
+was 7.33 s on main before this change and 7.58 s with it. TensorBoard
 carries the finite scalars as `diagnostics/eval_<key>`, and never the
 console.
 

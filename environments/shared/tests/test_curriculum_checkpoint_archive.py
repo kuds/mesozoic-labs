@@ -37,7 +37,10 @@ def _present(directory: Path) -> list[int]:
 
 
 def _main_prune(directory: Path, max_checkpoints: int) -> set[str]:
-    """A frozen copy of the base's rule (``2e734e29``), on names: what it would delete."""
+    """A frozen copy of main's rule before this change (``2e734e29``, unchanged through ``c6292b1e``).
+
+    On names: what it would delete.
+    """
     if max_checkpoints <= 0:
         return set()
     by_step: dict[int, list[str]] = {}
