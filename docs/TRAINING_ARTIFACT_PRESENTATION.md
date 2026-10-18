@@ -646,14 +646,28 @@ the run. The file is rewritten on the checkpoint cadence (in the calls a
 periodic checkpoint is saved in) and at training end, and a same-stage
 resume keeps the previous session's rows at or before the resumed step.
 On four T. rex envs the per-step copies cost 44 to 48 µs per vector step
-against a 4.8 to 5.2 ms physics step (about 0.9%). TensorBoard gets, per
+in a micro-benchmark, against a 4.8 to 5.2 ms physics step (about 0.9%);
+the short T. rex proof run clocked the whole callback, row closes and
+checkpoint-cadence writes included, at about 59 µs per vector step (0.85 s
+over 14,336 vector steps, about 1.2% of the physics step), with the main
+run beside it on the same machine. TensorBoard gets, per
 rollout, over the episodes that ended in it: `rollout_balance/episodes`,
 `falls`, `com_fore_aft_mean_m`, `com_fore_aft_last_falls_m` and
 `force_limited_fraction_falls`.
 
+A fall here is any episode that did not reach the time limit (`cause` not
+`truncated`). On a stance stage no termination is a success. On a task stage
+the env also terminates on success (`bite_success`, `strike_success`,
+`food_reached`, `target_reached`, `snap_success`), and those episodes
+count as falls in the ledger's summaries (`rollout_balance/falls`,
+`training_rollouts.falls`, `fall_fraction`, `falls_total` and the `_falls`
+means) and in `rollout_falls` below; the ledger's `cause` column and
+`rollout_term_count_<reason>` name them.
+
 `diagnostics.npz` gains the counts behind its termination fractions:
 `rollout_episodes` (episodes that ended in each rollout) and
-`rollout_falls` (those that terminated), aligned with `timesteps`, and
+`rollout_falls` (those that terminated, success terminations included
+on a task stage), aligned with `timesteps`, and
 `rollout_term_count_<reason>`, aligned with `term_timesteps` like the
 `term_<reason>` fractions and back-filled with 0 the same way. A fraction
 alone cannot say whether a rollout ended two episodes or forty. They are
@@ -803,7 +817,7 @@ every key and type the file had before is kept.
 | `balance` | Where the recorder runs: the latest row's balance keys (`com_fore_aft_mean_m`, `root_pitch_mean_deg`, `xcom_fore_aft_max_m`, the Hof terms, and on the T. rex the XcoM margins, `xcom_past_toe_fraction`, `time_to_toe_min_s`, `fall_xcom_toe_lead_s` and `xcom_tip_margin_min_m`) |
 | `forces` | Where the recorder runs: `actuator_force_frac_max`, `actuator_force_limited_fraction`, `shear_over_normal`, and `per_foot` with `shear_over_normal`, `cone_use_mean`, `cone_use_max` and, on a declared ankle, `ankle_moment_arm_m` |
 | `policy` | PPO stages: the policy probe's latest row, its `policy_probe/*` scalars (without the prefix) and `update_timesteps` |
-| `training_rollouts` | The training episodes that ended in the last 262,144 steps (`window_timesteps`): `episodes`, `falls` (episodes that did not reach the time limit), `fall_fraction`, `com_fore_aft_mean_m` over them, `com_fore_aft_last_falls_m` and `force_limited_fraction_falls` over the falls, and per foot with touch shares `touch_shares` (`pad`, each digit, `digits`; each a mean of the episodes' shares); then this session's `episodes_total` and `falls_total` |
+| `training_rollouts` | The training episodes that ended in the last 262,144 steps (`window_timesteps`): `episodes`, `falls` (episodes that did not reach the time limit, a task stage's success terminations included), `fall_fraction`, `com_fore_aft_mean_m` over them, `com_fore_aft_last_falls_m` and `force_limited_fraction_falls` over the falls, and per foot with touch shares `touch_shares` (`pad`, each digit, `digits`; each a mean of the episodes' shares); then this session's `episodes_total` and `falls_total` |
 | `history` | The last 5 evaluations, oldest first: the `evaluation` fields but the causes and the screen, with each rail's `_mean` and `_over_bar_fraction`, and the screen's `screen_v2_clean_count` and `screen_v2_clean_lcb`, where recorded |
 | `checkpoints` | `latest_periodic_timesteps` (the newest periodic checkpoint in `models/`, by its name), `periodic_timesteps` (every periodic checkpoint kept, sorted: the newest few and, under the archive rule below, one per interval), `best_model_timesteps` and `best_mean_reward` (SB3's mean-reward best), `robust_best_model_timesteps` and `robust_best_score` (mean minus one standard deviation). A best checkpoint whose evaluation a resume dropped from the history reads `null`, while its score (`best_mean_reward`, `robust_best_score`) keeps the value the resumed tracker carried over |
 | `warnings_total`, `warnings` | How many advisories this session has raised, and the newest 10 in step order, each `{"timesteps", "source", "message"}`: `posture_drift` and `posture_trend` (each with `rails`), `evaluation_plateau`, `zero_action_baseline` and `hop_watch`. Each also appears as a warning line in the training output. A resumed session counts its own |

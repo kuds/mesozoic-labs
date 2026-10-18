@@ -95,7 +95,8 @@ class DiagnosticsCallback(_BaseCallback):
     The counts behind the fractions are saved too, report-only:
     ``rollout_episodes`` (episodes that ended in the rollout) and
     ``rollout_falls`` (those that terminated, the sum of the per-reason
-    counts), aligned with ``timesteps``; and ``rollout_term_count_<reason>``,
+    counts: on a task stage its success terminations, such as
+    ``bite_success``, count too), aligned with ``timesteps``; and ``rollout_term_count_<reason>``,
     aligned with ``term_timesteps`` like the ``term_<reason>`` fractions and
     back-filled with 0 the same way.  A fraction alone cannot say whether a
     rollout ended two episodes or forty.  The counts are deliberately not

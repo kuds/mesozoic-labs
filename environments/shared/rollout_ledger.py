@@ -499,8 +499,8 @@ class TrainingEpisodeLedgerCallback(BaseCallback):  # type: ignore[misc]
     def summary(self, timesteps: int | None = None) -> dict[str, Any]:
         """``progress.json``'s ``training_rollouts``: the episodes that ended in the last :attr:`window_timesteps`.
 
-        ``episodes``, ``falls`` (episodes that did not reach the time limit)
-        and ``fall_fraction``; the mean ``com_fore_aft_mean_m`` over them,
+        ``episodes``, ``falls`` (episodes that did not reach the time limit:
+        on a task stage its success terminations too) and ``fall_fraction``; the mean ``com_fore_aft_mean_m`` over them,
         ``com_fore_aft_last_falls_m`` and ``force_limited_fraction_falls``
         over the falls; per foot with touch shares, the mean of each share
         (``touch_shares``); then this session's ``episodes_total`` and
