@@ -1,10 +1,12 @@
-# SCREEN, NEVER MERGED. Branch claude/screen-trex-r9-arml-12m: stance screen Run 1 (arm L as #624 ships it) on
-# physics r9, 12M. Criteria SP/foot/stance3/criteria.txt,
+# SCREEN, NEVER MERGED. Branch claude/screen-trex-r9-armlt: stance screen Runs 2-3 (L+T: arm L as #624 ships
+# it, plus leg_home_pose_weight 1.0 and leg_home_pose_tolerance 0.05) on physics r9, 12M; Run 2 seed 60, Run 3
+# seed 52. Built on Run 1's branch (claude/screen-trex-r9-arml-12m) plus this commit.
+# Criteria SP/foot/stance3/criteria.txt,
 # sha256 1ce910dcd6e2ff7b41a4f592b9f34b9a6c9cb398c523e88f0ebd19af754f18fa.
 # recovery.toml inherits [env] and [ppo] here; only stance is trained.
-# The screen-only keys: [env] lateral_lean_weight / lateral_lean_tolerance_m / leg_home_pose_reference, [ppo]
-# symmetry*, [curriculum] eval_freq / eval_episodes / checkpoint_freq / max_checkpoints and
-# collapse_peak_floor_reference. Everything else is the committed stance stage.
+# The screen-only keys: [env] leg_home_pose_weight / leg_home_pose_tolerance / lateral_lean_weight /
+# lateral_lean_tolerance_m / leg_home_pose_reference, [ppo] symmetry*, [curriculum] eval_freq / eval_episodes /
+# checkpoint_freq / max_checkpoints and collapse_peak_floor_reference. Everything else is the committed stance stage.
 [stage]
 name = "stance"
 description = "Learn to stand and balance without falling"
@@ -72,7 +74,8 @@ action_jerk_weight = 3.0                       # Frequency-aware smoothness: pen
                                                # ~8e4, so the term is nearly free for the behaviour we want and is
                                                # charged almost entirely to chatter.
 support_conditioned_alive_fraction = 0.5       # Keep recovery headroom while making one-foot survival less profitable
-leg_home_pose_weight = 0.5                     # Softly retain the authored p5 theropod leg stance.
+leg_home_pose_weight = 1.0                     # SCREEN, Runs 2-3 (L+T; never merged): 1.0 here, production 0.5.
+                                               # Softly retain the authored p5 theropod leg stance.
                                                # REVERTED from 1.5 (issue #491): the 1.5 experiment could not have
                                                # worked, and measurement says why. This term governs 8 joints --
                                                # r/l hip_pitch, hip_roll, knee, ankle -- and those 8 carry only
@@ -85,7 +88,10 @@ leg_home_pose_weight = 0.5                     # Softly retain the authored p5 t
                                                # weight had nothing to pull on: measured DC moved 0.766 -> 0.738,
                                                # 3.7%, while the run took ~2M extra steps to escape its early
                                                # collapse. The list, not the weight, is the problem (#491).
-leg_home_pose_tolerance = 0.10                 # rad; Gaussian width of the home-pose bonus, narrowed from 0.20
+leg_home_pose_tolerance = 0.05                 # SCREEN, Runs 2-3 (L+T; never merged): 0.05 rad here, production
+                                               # 0.10. leg_home_pose_broad_fraction 0.25 and _broad_scale 6.0 are
+                                               # unchanged, so the broad component's width becomes 0.30 rad.
+                                               # rad; Gaussian width of the home-pose bonus, narrowed from 0.20
                                                # after the 20260808 run (postmortem: TREX_STAGE1_PASSIVE_TOES_RUN_
                                                # 2026_08.md section 6). At 0.20 the statue-breaking left-knee/ankle
                                                # offsets the release ablation convicted (0.21/0.17 rad measured)
@@ -1012,11 +1018,12 @@ collapse_peak_warmup_timesteps = 1000000 # Evaluations before this step cannot S
                                          # candidacy; past it a statue-level peak arms the floor legitimately, and
                                          # collapse_patience consecutive evaluations under half of it are a collapse
                                          # at either start. Untested on a full run at -1.5.
-collapse_peak_floor_reference = 3981.4   # SCREEN (never merged): 3756.8 + arm L statue gain 224.6. The gain is
-                                         # the zero-action statue panel (seeds 3042-3081, noise 0.05, 39/40
-                                         # standing; seed 3081 falls) through train_base.make_env under this
+collapse_peak_floor_reference = 4460.5   # SCREEN, Runs 2-3 (never merged): 3756.8 + L+T statue gain 703.7. The
+                                         # gain is the zero-action statue panel (seeds 3042-3081, noise 0.05,
+                                         # 39/40 standing; seed 3081 falls) through train_base.make_env under this
                                          # branch's stance env minus under production, re-measured on this branch:
-                                         # 3980.37 against 3755.72 (+224.65). Floor 0.45 x 3981.4 = 1791.6.
+                                         # 4459.40 against 3755.72 (+703.68: leg term +505.42, lean +198.27).
+                                         # Floor 0.45 x 4460.5 = 2007.2. Run 1's branch (arm L alone): 3981.4.
                                          # Production keeps 3756.8, which the rest of this note is about:
                                          # the zero-action statue's standing reward at noise 0.05, 40 episodes,
                                          # on the hip-roll revision (physics r8) with the D-D27 stance task
