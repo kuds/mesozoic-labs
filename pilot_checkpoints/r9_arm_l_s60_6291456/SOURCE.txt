@@ -26,6 +26,20 @@ Why this one: the maintainer's decisions of 2026-10-17
   The criteria, the design and the judging tools are scratch files outside the repository (foot/meanwhile/pilot/:
   criteria.txt, design.txt, tools/); nothing on this branch is merged.
 
+Walking pilot 2 (branch claude/pilot-walk-r9-b only): the maintainer's decision of 2026-10-17, after pilot 1
+  The text above is pilot 1's (branch claude/pilot-walk-r9 at eaeef50f), left as it was: it still describes this
+  checkpoint and why it was chosen. Pilot 1 (run IDs pilot_walk_s42/52/60) read STILL on all three seeds: no steps by
+  4,194,304. The policy's action std (exp(log_std) over the 15 actuators) was 0.095 mean in this checkpoint (min
+  0.018, max 0.164) and only 0.108-0.111 at 4,194,304. The maintainer chose "Second pilot, wider exploration": the
+  same pilot from this same checkpoint, with ONE change. At the warm start (initialize_next_stage only; never on a
+  RESUME of the same stage), every actuator's log_std is set to -1.5, std 0.2231: the T. rex stance stage's own
+  log_std_init, which the maintainer was told as "0.22" (log(0.22) = -1.514; -1.5 is used exactly). The change is
+  [curriculum] warm_start_log_std in configs/tyrannosaurus_rex/anatomical/locomotion.toml. The stage settings, the
+  seeds 42/52/60, the probe, the WALK rule and the video review are pilot 1's; the run IDs are pilot2_walk_s42/52/60.
+  Like pilot 1 it is an exception under D-D36, to be recorded as an amendment to D-D36 by a later records change,
+  not in this branch. Its criteria and Colab steps are scratch files outside the repository (foot/pilot2/:
+  criteria.txt, colab_steps.txt), and it is judged with pilot 1's tools (foot/meanwhile/pilot/tools/), unchanged.
+
 Files (sha256, as the r9 judge recorded them)
   stage1_6291456_steps.zip                 70f3a4447794a01036c27bca5e0377a17db96d0e3d7bfb2d179e9ce94e6f353e  4032661 bytes
   stage1_vecnormalize_6291456_steps.pkl    0567d6104a0795c0201ff8db4b1045e907bf3100ca9ae60fa4028c4f907c0fc1     4917 bytes
