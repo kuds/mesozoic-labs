@@ -295,7 +295,10 @@ class StageManifest:
         accepts a label equal to a stage id only when it resolves to that
         stage (``stance``, decision D-D38), so a label and an id never name
         two nodes.  A retired label (:data:`RETIRED_RECIPE_LABELS`) is
-        refused naming its replacement, whatever the manifest declares.
+        refused naming its replacement, whatever the manifest declares, so a
+        custom manifest's stage whose id is a retired label (no committed
+        manifest has one) is never a behavior; stage-id references
+        (:meth:`by_id`, :meth:`resolve`) still name it.
         """
         if name in RETIRED_RECIPE_LABELS:
             raise StageManifestError(f"{self._owner} has no behavior {name!r}: {retired_recipe_label_message(name)}")

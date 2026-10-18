@@ -247,7 +247,7 @@ class TestLegacyReadsAreBitIdentical:
         assert [entry.id for entry in legacy.advancing_stages] == ["stance", "locomotion", "behavior"]
         assert legacy.recipe_labels == ()
 
-    def test_committed_v2_files_are_the_only_place_stand_and_walk_become_deliverables(self, tmp_path):
+    def test_committed_v2_files_are_the_only_place_stance_and_walk_become_deliverables(self, tmp_path):
         legacy_tyrannosaurus_rex = load_stage_manifest(
             ModelId("tyrannosaurus_rex", "anatomical"),
             configs_dir=_write_manifest(tmp_path / "t", TYRANNOSAURUS_REX, TYRANNOSAURUS_REX_V1_BODY),

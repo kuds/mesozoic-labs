@@ -228,6 +228,8 @@ class TestMainDispatch:
             ModelId("compsognathus_longipes", "anatomical"),
             ModelId("compsognathus_longipes", "robot"),
             VELOCIRAPTOR_MONGOLIENSIS,
+            ModelId("brachiosaurus_altithorax", "anatomical"),
+            ModelId("dibothrosuchus_elaphros", "anatomical"),
         ],
         ids=lambda m: f"{m.species}-{m.embodiment}",
     )

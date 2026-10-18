@@ -1330,11 +1330,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     stage's id and `recipe = "stand"`; `TestRetiredRecipeLabelsAreNamedNowhere`
     checks that no committed configuration value and no notebook code cell
     (string constant or `@param` option) names a retired label.
-    `test_cli.py` (`--target stance` on four models; `--target stand`
-    refused on all six), `test_train_base.py` (`target="stance"` walks what
-    `1` walks; `target="stand"` raises the pointer and leaves no directory),
-    `test_sb3_notebook_pins.py` (the dropdown, and the resolve cell executed
-    for the T. rex with `"stance"`, `"recover"` and `"stand"`),
+    `test_cli.py` (`--target stance` the stance stage and `--target stand`
+    refused, on all six models), `test_train_base.py` (`target="stance"`
+    walks what `1` walks; `target="stand"` raises the pointer and leaves no
+    directory), `test_sb3_notebook_pins.py` (the dropdown, and the resolve
+    cell executed for the T. rex with `"stance"`, `"recover"` and `"stand"`),
     `test_species_catalog.py` (a `deliverable = "stand"` refused naming
     `stance`) and `test_result_schema_v4.py` follow.
   - Recipe labels enter no training, task, gate, hyperparameter or plant
