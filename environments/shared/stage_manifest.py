@@ -28,13 +28,17 @@ are unchanged.  Each entry may declare three more keys:
   scratch.  "Earlier" is enforced at load, so list order is a topological
   order by construction and every in-order walker stays correct.
 * ``deliverable`` — this node's certified checkpoint is a published policy.
-* ``recipe`` — the behavior label the node belongs to (``stand`` /
+* ``recipe`` — the behavior label the node belongs to (``stance`` /
   ``recover`` / ``walk`` / ``hunt`` / ...).  A label resolves to its deepest
-  deliverable in manifest order.  On every committed manifest ``stand`` is
+  deliverable in manifest order.  On every committed manifest ``stance`` is
   the stance node alone and ``recover`` the recovery node (stance ->
   recovery) where a model has one (decision D-D35; before it the recovery
   node was labelled ``stand`` too, so ``stand`` resolved to recovery on the
-  T-Rex and both Compsognathus models).
+  T-Rex and both Compsognathus models).  A label may equal a stage id only
+  when it resolves to that stage, as ``stance`` does (decision D-D38).  The
+  stance node's label was ``stand`` until D-D38; a retired label
+  (:data:`RETIRED_RECIPE_LABELS`) does not resolve and is refused naming
+  its replacement, the rule for retired identifiers of decision D-D33.
 
 **Recipes are derived from the edges, never declared in a second table**: a
 recipe is a deliverable plus its ``warm_start_from`` chain
@@ -54,7 +58,7 @@ They coincide for the legacy trio only by coincidence.
 A v1 manifest reads bit-identically to before: the same entries and
 advancing trio, with ``warm_start_from`` derived as the previous advancing
 entry and ``deliverable`` set on the last advancing entry only
-(:func:`_derive_legacy_edges`).  Stand and walk become deliverables only
+(:func:`_derive_legacy_edges`).  Stance and walk become deliverables only
 where a v2 file declares them.
 
 Every model (species, embodiment; decision D-D33) declares its manifest in
@@ -103,6 +107,28 @@ _POSITION_PREFIXED_DIRNAME = re.compile(r"^[0-9]{2}_(?P<id>[a-z][a-z0-9_]*)$")
 
 _V1_ENTRY_KEYS = frozenset({"id", "config", "legacy_number"})
 _V2_ENTRY_KEYS = _V1_ENTRY_KEYS | {"warm_start_from", "deliverable", "recipe"}
+
+#: Recipe labels retired by a decision: the old label, mapped to the label
+#: that replaced it and the decision.  A retired label is no alias: it does not
+#: resolve (decision D-D33's rule for retired identifiers), and every place
+#: that takes a label refuses it naming its replacement
+#: (:func:`retired_recipe_label_message`): :meth:`StageManifest.resolve_behavior`
+#: (the notebook's ``BEHAVIOR``, ``curriculum --target``, ``train_curriculum``'s
+#: ``target`` and the species manifest's deliverables) and the loader (a
+#: manifest declaring one).
+RETIRED_RECIPE_LABELS: "dict[str, tuple[str, str]]" = {"stand": ("stance", "D-D38")}
+
+
+def retired_recipe_label_message(name: str) -> str:
+    """The pointer a retired recipe label is refused with.
+
+    ``retired_recipe_label_message("stand")`` is ``"'stand' was renamed to
+    'stance' (decision D-D38); use 'stance'"``.  *name* must be a key of
+    :data:`RETIRED_RECIPE_LABELS`.
+    """
+    replacement, decision = RETIRED_RECIPE_LABELS[name]
+    return f"{name!r} was renamed to {replacement!r} (decision {decision}); use {replacement!r}"
+
 
 _CONFIGS_DIR = Path(__file__).resolve().parent.parent.parent / "configs"
 
@@ -266,8 +292,16 @@ class StageManifest:
         manifest order (list order is topological, so last is deepest along
         its chain).  Otherwise *name* must be the id of a deliverable node.
         The label-before-id precedence is unambiguous because the loader
-        refuses a label equal to any stage id.
+        accepts a label equal to a stage id only when it resolves to that
+        stage (``stance``, decision D-D38), so a label and an id never name
+        two nodes.  A retired label (:data:`RETIRED_RECIPE_LABELS`) is
+        refused naming its replacement, whatever the manifest declares, so a
+        custom manifest's stage whose id is a retired label (no committed
+        manifest has one) is never a behavior; stage-id references
+        (:meth:`by_id`, :meth:`resolve`) still name it.
         """
+        if name in RETIRED_RECIPE_LABELS:
+            raise StageManifestError(f"{self._owner} has no behavior {name!r}: {retired_recipe_label_message(name)}")
         labelled = [entry for entry in self.deliverables if entry.recipe == name]
         if labelled:
             return labelled[-1]
@@ -342,9 +376,11 @@ def load_stage_manifest_file(path: "Path | str") -> StageManifest:
     duplicate or historically-wrong legacy numbers, legacy ordering that
     disagrees with the declared order, and — under v2 — an edge that does
     not name an earlier entry, a non-boolean ``deliverable``, a recipe label
-    that is malformed or collides with a stage id, a numbered reserved id
-    without its legacy number, or a manifest with nothing to publish.  A v1
-    body carrying v2 keys is fatal rather than silently derived over.
+    that is malformed, retired (:data:`RETIRED_RECIPE_LABELS`, refused naming
+    its replacement) or equal to a stage id it does not resolve to, a
+    numbered reserved id without its legacy number, or a manifest with
+    nothing to publish.  A v1 body carrying v2 keys is fatal rather than
+    silently derived over.
     """
     manifest_path = Path(path)
     model_dir = manifest_path.parent
@@ -408,6 +444,10 @@ def load_stage_manifest_file(path: "Path | str") -> StageManifest:
             raise StageManifestError(
                 f"{manifest_path} stage {stage_id!r}: recipe label {recipe!r} must match {STAGE_ID_PATTERN.pattern}"
             )
+        if recipe in RETIRED_RECIPE_LABELS:
+            raise StageManifestError(
+                f"{manifest_path} stage {stage_id!r}: recipe label {retired_recipe_label_message(recipe)}"
+            )
         entries.append(
             StageEntry(
                 id=stage_id,
@@ -441,12 +481,22 @@ def load_stage_manifest_file(path: "Path | str") -> StageManifest:
             f"{manifest_path}: legacy stages must appear in their historical order "
             "(new stages may be inserted between them, never reorder them)"
         )
+    # resolve_behavior reads a name as a label first, so a label equal to a
+    # stage id would shadow that id unless the label resolves to that very
+    # stage: the deepest deliverable carrying it must be the node with that id
+    # (decision D-D38; ``stance`` on the stance node).  Then the label and the
+    # id name one node, and every other overlap is refused.
     labels = {entry.recipe for entry in entries if entry.recipe is not None}
-    colliding = sorted(labels & set(ids))
+    colliding: list[str] = []
+    for label in sorted(labels & set(ids)):
+        labelled = [entry for entry in entries if entry.recipe == label and entry.deliverable]
+        if not labelled or labelled[-1].id != label:
+            colliding.append(label)
     if colliding:
         raise StageManifestError(
             f"{manifest_path}: recipe label collides with a stage id: {colliding} "
-            "(a behavior name must resolve to exactly one thing)"
+            "(a label may equal a stage id only when it resolves to that stage, decision D-D38; "
+            "a behavior name must resolve to exactly one thing)"
         )
     if is_v2:
         # Model-free readers map these ids through LEGACY_STAGE_IDS no
@@ -471,9 +521,10 @@ def stage_display_name(ref: "int | str", configured_name: "str | None" = None) -
     """Readable stage name, including the historical ``balance`` alias.
 
     This formats presentation only. Stage references, directory names and
-    recipe labels keep their existing identities (``stand`` is a recipe
-    label, the stance node's; ``recover``, where a model has it, is the
-    recovery node's, whose chain is stance -> recovery).
+    recipe labels keep their existing identities (``stance`` is both the
+    stance node's id and its recipe label, decision D-D38; ``recover``, where
+    a model has it, is the recovery node's label, whose chain is stance ->
+    recovery).
     """
     if configured_name:
         name = configured_name

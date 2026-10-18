@@ -123,7 +123,7 @@ def test_primary_is_the_target_when_certified_else_the_deepest_certified() -> No
     assert primary_deliverable_key(deliverables, model_id=TYRANNOSAURUS_REX, target=3) == "2"
     # Walk targeted and certified: walk.
     assert primary_deliverable_key(deliverables, model_id=TYRANNOSAURUS_REX, target="2") == "2"
-    # Only the stand and recover recipes certified: recovery is deeper than stance along its chain.
+    # Only the stance and recover recipes certified: recovery is deeper than stance along its chain.
     assert (
         primary_deliverable_key({"1": True, "recovery": True, "2": False}, model_id=TYRANNOSAURUS_REX, target=3)
         == "recovery"

@@ -1,0 +1,159 @@
+T. rex stance, three screen runs.
+================================
+
+Three runs, one Colab runtime each, all started at the same time.
+
+Runtime type: CPU, the same for all three (your choice of 2026-10-18; the mirror-symmetric trainer has trained
+  12M on Colab CPU runtimes before, the r10 screen, and never on CUDA).
+
+The runs:
+- Run 1, "armL s60": branch claude/screen-trex-r9-arml-12m (commit 7e6b557db999900bbc95df63ca651b1f2f4e2df1),
+  SEED 60, RUN_ID stance3_armL_s60.
+- Run 2, "armLT s60": branch claude/screen-trex-r9-armlt (commit 1af2d4d767aebc89fa2cf73fc59a11004048f797),
+  SEED 60, RUN_ID stance3_armLT_s60.
+- Run 3, "armLT s52": the same branch as Run 2 (commit 1af2d4d767aebc89fa2cf73fc59a11004048f797), SEED 52,
+  RUN_ID stance3_armLT_s52.
+Both branches are screen branches: never merged, no pull request. Both were pushed to GitHub on 2026-10-18 at
+these commits.
+
+The criteria were fixed before training: criteria.txt, sha256
+1ce910dcd6e2ff7b41a4f592b9f34b9a6c9cb398c523e88f0ebd19af754f18fa. Its full text comes with these steps, so you can
+check that hash (sha256sum criteria.txt); it is also recorded verbatim in the next records PR.
+
+FOR EACH RUN
+
+1. Open https://colab.research.google.com/github/kuds/mesozoic-labs/blob/<branch>/notebooks/sb3_training.ipynb
+     Run 1:     https://colab.research.google.com/github/kuds/mesozoic-labs/blob/claude/screen-trex-r9-arml-12m/notebooks/sb3_training.ipynb
+     Runs 2-3:  https://colab.research.google.com/github/kuds/mesozoic-labs/blob/claude/screen-trex-r9-armlt/notebooks/sb3_training.ipynb
+   If that fails, open the same path on main
+   (https://colab.research.google.com/github/kuds/mesozoic-labs/blob/main/notebooks/sb3_training.ipynb): it is the
+   same notebook (byte-identical on 2026-10-18), and REPO_REF picks the code.
+   Use File > Save a copy in Drive, named for the run ("stance3 armL s60", "stance3 armLT s60", "stance3 armLT s52"),
+   and work in that copy.
+
+2. Runtime > Change runtime type: CPU (the default; the same for all three).
+
+3. In section 1, set
+     REPO_REF = "claude/screen-trex-r9-arml-12m"     (Run 1)
+     REPO_REF = "claude/screen-trex-r9-armlt"        (Runs 2 and 3)
+
+4. In the section 2 configuration cell ("# ===== SPECIES SELECTION ====="), set:
+     SPECIES          = "tyrannosaurus_rex"
+     EMBODIMENT       = "anatomical"
+     ALGORITHM        = "ppo"
+     N_ENVS           = 4
+     SEED             = 60                         (Run 1: 60 / Run 2: 60 / Run 3: 52)
+     QUICK_TEST       = False
+     USE_GOOGLE_DRIVE = True
+     AUTO_DISCONNECT  = True
+     BEHAVIOR         = "stance"                   (type it)
+     TRUNK_FROM       = ""                         (empty, not "auto")
+     RETRAIN_FROM     = ""
+     RUN_LABEL        = "stance screen armL s60"   ("stance screen armLT s60" / "stance screen armLT s52")
+     RUN_ID           = "stance3_armL_s60"         ("stance3_armLT_s60" / "stance3_armLT_s52")
+   Leave everything else as it is. RESUME_STAGE (section 5) stays None.
+
+5. Runtime > Run all, and allow Drive access.
+
+6. Check the output for:
+   - "Repository ref: <branch>; commit: <sha>"
+       Run 1:     "Repository ref: claude/screen-trex-r9-arml-12m; commit: 7e6b557db999900bbc95df63ca651b1f2f4e2df1"
+       Runs 2-3:  "Repository ref: claude/screen-trex-r9-armlt; commit: 1af2d4d767aebc89fa2cf73fc59a11004048f797"
+     A different commit: stop and tell me;
+   - "Run directory: .../ppo/<RUN_ID> (new run: RUN_ID names no existing run)". If it reads "re-entering run"
+     instead, stop and tell me (do not change RUN_ID on your own; only a resume, below, re-enters a run);
+   - "Behavior 'stance' -> deliverable 'stance'; chain: stance";
+   - the zero-action baseline row, its "standing" column reading about 3980 for Run 1, or about 4459 for Runs 2-3
+     (its "reward" column, which also averages in the one spawn that falls, reads about 3901 / 4372). A standing
+     value of about 3757 means the screen config is not on: stop and tell me. (On Runs 2-3, about 3980 means the
+     L+T leg keys are not on: stop and tell me.)
+   - "Timesteps: 12,000,000";
+   - an "Eval num_timesteps=..." line every 131,072 steps, the first within about 15 minutes.
+
+7. Leave it running: about 11-12 h of training on CPU (the r10 screen's 12M Colab CPU trainings took 10.9-11.5 h;
+   the CPU smoke runs of these branches, telemetry included, trained at 362 and 332 steps/s against the r10
+   smoke's 352), then about 30 min of end-of-stage evaluation, certificate and videos. A PASS or
+   a FAIL at the end is fine: it is report-only. Ignore "never beaten the zero-action baseline". Tell me if you see
+   "collapse" or an early stop.
+   Every run disconnects by itself at the end (AUTO_DISCONNECT True). On a FAIL section 6 prints
+   "stance failed its curriculum gate: ..." and then "Disconnecting runtime in 5 seconds..." (a RuntimeError after
+   it, if it shows at all, is expected); on a PASS it prints "stance: gate PASSED ...", then section 8's report and
+   section 9's "Training finished — behavior 'stance' (stance) chain complete." before disconnecting. Either way the
+   run is FINISHED: do not resume it, do not start it again under any RUN_ID, just tell me.
+
+8. Only on a PASS whose section 9 did not run (the runtime is still connected after "stance: gate PASSED"): run
+   section 9, Auto-Disconnect, by hand, and if a section 8 cell stopped Run all with an error, tell me its message.
+   After a FAIL there is nothing to run: the runtime is already released, and Run all stops at section 6 by design.
+
+IF COLAB DISCONNECTS
+
+   First check that the run really disconnected and did not finish: if
+   MyDrive/mesozoic-labs/logs/tyrannosaurus_rex/anatomical/ppo/<RUN_ID>/01_stance/gate_verdict.json exists, the run
+   FINISHED (step 7): do nothing, just tell me. Only without that file is it a disconnect.
+
+9. Open the same copy on a fresh runtime with the same settings and the same RUN_ID. Set RESUME_STAGE = "stance" in
+   section 5 and Run all. It continues from the newest 524,288-step checkpoint, so up to about 35 min is redone.
+   If MyDrive/mesozoic-labs/logs/tyrannosaurus_rex/anatomical/ppo/<RUN_ID>/01_stance/models/ has no
+   stage1_*_steps.zip yet, restart instead under RUN_ID "<RUN_ID>_b" (e.g. "stance3_armLT_s52_b") with
+   RESUME_STAGE None, and leave the first folder alone. Before either, find your case in "Resuming after a
+   disconnect" below: it has the details and the two cases (a finished run, a cut-short final save) where you
+   must not resume.
+
+WHEN TO TELL ME
+
+10. Tell me when all three have started (with the commit and the baseline row), when each passes 6.3M steps, and
+    when each finishes, stops or resumes. There is nothing to send: I read the checkpoints and telemetry from Drive
+    (MyDrive/mesozoic-labs/logs/tyrannosaurus_rex/anatomical/ppo/stance3_*/01_stance/).
+
+RESUMING AFTER A DISCONNECT (what the notebook does on these two branches)
+
+- What is on Drive. Every 524,288 steps (about every 30 min on CPU) the run writes
+  01_stance/models/stage1_<steps>_steps.zip and stage1_vecnormalize_<steps>_steps.pkl, and keeps every one (this
+  branch's [curriculum] checkpoint_freq = 524288, max_checkpoints = 0). The first pair lands at 524,288 steps; the
+  last periodic pair is 11,534,336; the end of training writes stage1_final.zip and stage1_final_vecnorm.pkl at
+  12,001,280.
+- Which case you are in. Look in MyDrive/mesozoic-labs/logs/tyrannosaurus_rex/anatomical/ppo/<RUN_ID>/01_stance/
+  and its models/ folder, in this order:
+  0) 01_stance/gate_verdict.json is there: the run FINISHED (PASS or FAIL; step 7), whatever else is or is not there
+     (its summary, graphs or videos may be missing if the end was cut off). Do nothing, do not resume, do not start a
+     new RUN_ID: just tell me.
+  a) no gate_verdict.json; models/ holds stage1_final.zip AND stage1_final_vecnorm.pkl: the training finished and
+     the disconnect hit the end-of-stage evaluation. Resume as in step 9 anyway. Section 5 prints "Nothing to
+     resume: 'stance' already holds its final pair stage1_final.zip ..." and trains nothing; section 6 then runs the
+     end-of-stage evaluation, certificate and videos again. (If section 5 raises an error instead, the final pair
+     was cut short: follow the stop rule below.)
+  b) no gate_verdict.json; models/ holds stage1_final.zip but no stage1_final_vecnorm.pkl: the disconnect hit the
+     few seconds of the final save. Do not resume: stop and tell me (I will tell you how to finish it).
+  c) no gate_verdict.json, no stage1_final.zip, at least one stage1_<steps>_steps.zip: resume (step 9).
+  d) no stage1_*_steps.zip at all (cut off in the first ~30 min): restart under "<RUN_ID>_b" (step 9).
+- Resume, in the same Drive copy (the section 1-2 settings are kept; check them: same REPO_REF, SEED, N_ENVS 4,
+  BEHAVIOR "stance", TRUNK_FROM "", RETRAIN_FROM "", RUN_LABEL and the SAME RUN_ID), fresh runtime of the same type,
+  RESUME_STAGE = "stance" in section 5, Runtime > Run all. Expect:
+  - "Repository ref: <branch>; commit: <the same sha as before>";
+  - "Run directory: .../ppo/<RUN_ID> (re-entering run '<RUN_ID>': holds ...)" (NOT "new run");
+  - the zero-action baseline row again ("standing" about 3980 / 4459);
+  - in section 5: "Resuming 'stance' (stage 1) from .../01_stance/models", "Newest intact periodic checkpoint:
+    .../stage1_<N>_steps.zip", "Matched VecNormalize: .../stage1_vecnormalize_<N>_steps.pkl" and
+    "Checkpoint steps: <N> of 12,000,000 — remaining budget: <12,000,000 - N>". <N> is a multiple of 524,288.
+    A "WARNING: skipping ..." line means the newest pair was cut off mid-write and it fell back to the one before:
+    fine, up to about 1 h is then redone.
+  - then "Timesteps: <the remaining budget>" (not 12,000,000: that is correct for a resume), and "Eval
+    num_timesteps=..." lines continuing from N + 131,072 on the same 131,072-step grid. The resumed run keeps the
+    same checkpoint grid (N + 524,288, ...), ends at the same 12,001,280 steps, and keeps the evaluation history,
+    eval_episodes.csv, train_episodes.csv and policy_probe.npz rows up to step N, appending after them.
+  - When the rest of the budget is trained, section 6 judges the node from disk (end-of-stage evaluation,
+    certificate, videos), as at the end of an uninterrupted run, and the run then ends and disconnects by itself as
+    in step 7 (a FAIL ends with "stance failed its curriculum gate: ..."; step 8 applies only to a PASS whose
+    section 9 did not run). The run is then FINISHED: do not resume it again.
+- Tell me the RUN_ID, the <N> it resumed from, and the time.
+- Stop and tell me (do not restart, do not delete anything, and never start a new RUN_ID on the advice of an error
+  message) if section 5 or section 6 raises an error instead, in particular:
+  - "... an early stop whose final save was cut short, not an interruption ..." (section 5). On these branches that
+    message can also mean a disconnect during the few seconds of the final save: the cell measures the shortfall
+    against the notebook's default 100,000-step checkpoint cadence, not this branch's 524,288. Every periodic
+    checkpoint up to 11,534,336 is kept on Drive either way, and I will tell you how to finish it.
+  - "'stance' already holds a FAILED gate verdict ... start a new run (a fresh RUN_ID ...)" (section 6). It means the
+    run had already finished (case 0): it must not be trained again under any RUN_ID.
+- Do not set RESUME_STAGE on a run that has not disconnected (a run with gate_verdict.json has finished, not
+  disconnected), and never point RUN_ID at another run's folder. Leave RESUME_STAGE = "stance" set only for that
+  copy's resume; a later Run all with it still set trains nothing once the node holds its final pair.

@@ -10,7 +10,7 @@ Train your first dinosaur-inspired simulated agent.
 
 Open the unified training notebook in the `notebooks/` directory:
 
-- `notebooks/sb3_training.ipynb` - PPO or SAC training of one behavior with Stable-Baselines3. Pick a model with two dropdowns, `SPECIES` (`velociraptor_mongoliensis`, `tyrannosaurus_rex`, `brachiosaurus_altithorax`, `dibothrosuchus_elaphros` or `compsognathus_longipes`) and `EMBODIMENT` (`anatomical`, or `robot` for the Compsognathus robot), set `BEHAVIOR = "hunt"` (a recipe label `"stand"`, `"recover"`, `"walk"` or `"hunt"`, or a deliverable's stage id) and, optionally, `TRUNK_FROM` (an earlier run whose certified stance and walk are reused), `RETRAIN_FROM` and `RUN_LABEL`. One chain-loop cell then walks the behavior's ancestor chain root-first, reusing, judging or training each node. See [Behavior Recipes](/docs/training/recipes).
+- `notebooks/sb3_training.ipynb` - PPO or SAC training of one behavior with Stable-Baselines3. Pick a model with two dropdowns, `SPECIES` (`velociraptor_mongoliensis`, `tyrannosaurus_rex`, `brachiosaurus_altithorax`, `dibothrosuchus_elaphros` or `compsognathus_longipes`) and `EMBODIMENT` (`anatomical`, or `robot` for the Compsognathus robot), set `BEHAVIOR = "hunt"` (a recipe label `"stance"`, `"recover"`, `"walk"` or `"hunt"`, or a deliverable's stage id) and, optionally, `TRUNK_FROM` (an earlier run whose certified stance and walk are reused), `RETRAIN_FROM` and `RUN_LABEL`. One chain-loop cell then walks the behavior's ancestor chain root-first, reusing, judging or training each node. See [Behavior Recipes](/docs/training/recipes).
 
 The notebook handles dependency installation automatically.
 
@@ -44,7 +44,7 @@ locomotion, behavior) in manifest order in a single call. Each node loads its
 own hyperparameters from its TOML config, warm-starts from its declared
 `warm_start_from` parent's handoff checkpoint, and writes a `gate_verdict.json`
 beside that handoff; a node whose parent has no certified checkpoint stops the
-run. Stand, walk and hunt are each published on their own — see
+run. Stance, walk and hunt are each published on their own — see
 [Behavior Recipes](/docs/training/recipes).
 
 ```bash

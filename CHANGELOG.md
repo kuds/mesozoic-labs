@@ -8,8 +8,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **Decision D-D37 recorded: three full T. rex stance screen runs in place of
+  walking pilot 2; the offline diagnosis behind them** (the maintainer's
+  decision of 2026-10-18; `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2,
+  `docs/CONSOLIDATION_PLAN_2026_09.md` §6, a dated note in §17 of
+  `docs/GAIT_QUALITY_PLAN_2026_09.md`, `docs/NEXT_STEPS.md` §3; the appended
+  §16 of `docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md` and
+  the folder `docs/investigations/stance_2026_10/stance3/`). Records only: no
+  library code, configuration, test, notebook, digest or generated file
+  changes with it. After walking pilot 1 read STILL, the maintainer asked for
+  three stance runs with "different reward settings, slightly different
+  mechanics, or a refinement", and the offline diagnosis of 2026-10-18 (rolls of
+  existing checkpoints, the statue and held poses; no training) found that
+  the committed stance reward pays for a forward lean of about 23 mm through
+  its keyframe-centred leg pose term, that arm L's settled leg target removes
+  the pay but prices a 14 mm lean at only about 0.3% of the reward, and that
+  the lean lives in the ankles (about 10.7 mm per degree). D-D37 trains three
+  12M stance screen runs on `main`'s physics r9, started on 2026-10-18 on
+  Colab L4 runtimes (the maintainer kept L4 for all three): arm L as #624
+  ships it on seed 60 (`stance3_armL_s60`, branch
+  `claude/screen-trex-r9-arml-12m` at `7e6b557d`), and arm L with
+  `leg_home_pose_weight` 1.0 and `leg_home_pose_tolerance` 0.05 rad on seeds
+  60 and 52 (`stance3_armLT_s60`, `stance3_armLT_s52`, branch
+  `claude/screen-trex-r9-armlt` at `1af2d4d7`); neither branch is ever
+  merged or has a pull request. They are judged by criteria fixed before
+  training (sha256 `1ce910dc…`: K1 the gate held, K2 fore-aft held with the
+  screen-only K2b, a signed per-foot whole-foot centre of pressure, and K2c,
+  no drift, K3 robustness, K4 roll) and a decision table; screens certify
+  nothing, and whether a screen run could ever count toward
+  `certification_seeds` is left to the maintainer. It supersedes, for these
+  runs, the 2026-10-16 rule against further stance-only reward experiments
+  unless walking points back to stance, and parks walking pilot 2 (its branch
+  and criteria kept). Run 1's `stage_config.json` on Drive confirms its
+  commit, arm L's keys, its task and PPO hyperparameter digests and an L4
+  GPU, and its run folder's `zero_action_baseline.json` a statue standing at
+  3980.37 (39 of 40); Runs 2 and 3's `stage_config.json` files confirm
+  commit `1af2d4d7`, seeds 60 and 52, the two leg keys, collapse reference
+  4460.5 and an L4. `stance3/` holds the criteria (byte-identical), the
+  Colab steps, the recommendation and frozen copies of the judge, the scorer
+  and its tests (80 cases); `SOURCES.txt` and `SHA256SUMS` (now 291 files)
+  are extended. `docs/README.md` adds a note to the record's and the gait
+  plan's rows, and `docs/KNOWN_ISSUES.md` gains Update 9 of the T-Rex stance
+  entry. The outcome is not yet known.
 - **Balance, force and policy telemetry at every evaluation and PPO update,
-  and the T. rex stance's onset checkpoints kept, report-only** (the
+  and the T. rex stance's onset checkpoints kept, report-only** (#630; the
   maintainer's approval of 2026-10-17 of the T. rex stance telemetry
   recommended after the physics-r10 screen). The T. rex stance runs that
   nosedived reached the toe line with every foot rail still inside its
@@ -959,6 +1001,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   kind, and its `zero_action_baseline.py` entry is deleted.
 
 ### Migration
+- **`BEHAVIOR = "stand"` is refused; use `"stance"`** (D-D38). `"stance"`
+  trains exactly what `"stand"` did since D-D35: the stance stage alone, on
+  every model. A run started with `BEHAVIOR = "stand"` re-enters with
+  `BEHAVIOR = "stance"` under the same `RUN_ID`: the same chain, the same
+  target key (`"1"`) and the same trunk selection, since no artifact records
+  the label. The same holds for `curriculum --target stand` and
+  `train_curriculum(target="stand")` (use `stance`), for a custom
+  `stages.toml` declaring `recipe = "stand"` (declare `recipe = "stance"` on
+  the stance entry; the loader refuses `"stand"` naming it) and for a species
+  manifest `deliverable = "stand"` (use `"stance"`). Each refusal reads
+  "'stand' was renamed to 'stance' (decision D-D38); use 'stance'".
 - **`BEHAVIOR = "stand"` trains the stance stage alone on every model**
   (D-D35). On the T. rex and both Compsognathus models it used to mean
   stance then push recovery; that chain is now `BEHAVIOR = "recover"`. A
@@ -1224,6 +1277,86 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   verdicts with the gate they were earned under.
 
 ### Changed
+- **The standing behavior has one name: the stance stage's recipe label is
+  `stance`, and `stand` is refused with a pointer** (decision D-D38, the
+  maintainer's decision of 2026-10-18, "make the standing behavior's name
+  consistent"). The notebook's `BEHAVIOR` dropdown said `stand` while the
+  stage id, its config (`stance.toml`), its run folder (`01_stance`) and its
+  gates (`stance_quality…`) said `stance`. The stance entry of all six
+  `configs/<species>/<embodiment>/stages.toml` files now says
+  `recipe = "stance"`, so the label is the stage's own id on every model;
+  stage ids, configs, folders, gates, legacy numbers and edges are unchanged.
+  - Before → after, on every model (`resolve_behavior`, and the chain the
+    notebook and `train_curriculum` walk): `stand` was the stance stage
+    (stance) and is refused; `stance` named the stance stage as a stage id
+    and is now its label too, with the same chain (stance); `recover`, `walk`
+    and `hunt` are unchanged; recipe labels `stand, [recover,] walk, hunt` →
+    `stance, [recover,] walk, hunt`.
+  - The loader rule: a recipe label equal to a stage id was refused (since
+    manifest v2, 2026-09-06; restated by D-D35); it is now accepted only
+    when it resolves to that stage, the deepest deliverable carrying it
+    being the node with that id, so `resolve_behavior`'s label-before-id
+    precedence still never names two nodes. A label equal to another stage's
+    id, equal to its own while a deeper deliverable shares it, or carried
+    only by non-deliverables is refused as before.
+  - The refusal: `stand` is retired, not aliased, by D-D33's rule that
+    retired identifiers do not resolve (`RETIRED_RECIPE_LABELS` and
+    `retired_recipe_label_message` in `environments/shared/stage_manifest.py`).
+    `resolve_behavior("stand")` raises `<model> has no behavior 'stand':
+    'stand' was renamed to 'stance' (decision D-D38); use 'stance'`, so the
+    notebook's resolve cell, `curriculum --target stand` (a usage error,
+    exit 2), `train_curriculum(target="stand")` (before any directory is
+    written) and a species-manifest `deliverable = "stand"` all refuse it, and
+    a manifest declaring `recipe = "stand"` is refused at load. Nothing that
+    takes a stage id (`RETRAIN_FROM`, `RESUME_STAGE`, `--stage`) ever
+    resolved it, and `train_behaviors` takes behavior files whose parent is a
+    stage id.
+  - The notebook's `BEHAVIOR` dropdown is `stance`, `recover`, `walk`,
+    `hunt` (free input kept); its intro, `BEHAVIOR` bullet and configuration
+    comment follow. On the T. rex the resolve cell prints
+    `Behavior 'stance' -> deliverable 'stance'; chain: stance`. The
+    `--target` help names the four labels.
+  - The species manifest names the six stance deliverables `stance` (and
+    words the two reward-gated definitions "the stance deliverable is
+    labelled by its gate kind"). The species catalog is regenerated with its
+    tool: `docs/SPECIES_CATALOG.md` (12 lines: six recipe cells
+    `stance (deliverable)` and six deliverable lines `stance (1 — Stance)`)
+    and `website/src/data/species.generated.json` (18 lines: 6
+    `deliverable`, 10 `recipe` and 2 `definition`); the README's generated
+    block is unchanged.
+  - Tests: `test_stage_manifest.py`'s `TestRecipeLabels` (replacing
+    `TestRecipeLabelsAreFourVerbs`) pins that `stance` is the stance stage
+    with chain [stance] on every model, that `stand` is refused with the
+    exact pointer on every model and on a v1 and a synthetic manifest, each
+    model's labels, and that a label equal to a stage id names that stage;
+    new loader cases accept a label on its own deliverable id and refuse a
+    deeper deliverable sharing it, a non-deliverable carrying it, another
+    stage's id and `recipe = "stand"`; `TestRetiredRecipeLabelsAreNamedNowhere`
+    checks that no committed configuration value and no notebook code cell
+    (string constant or `@param` option) names a retired label.
+    `test_cli.py` (`--target stance` the stance stage and `--target stand`
+    refused, on all six models), `test_train_base.py` (`target="stance"`
+    walks what `1` walks; `target="stand"` raises the pointer and leaves no
+    directory), `test_sb3_notebook_pins.py` (the dropdown, and the resolve
+    cell executed for the T. rex with `"stance"`, `"recover"` and `"stand"`),
+    `test_species_catalog.py` (a `deliverable = "stand"` refused naming
+    `stance`) and `test_result_schema_v4.py` follow.
+  - Recipe labels enter no training, task, gate, hyperparameter or plant
+    digest, and no artifact records one (a bundle names its target by the
+    stage key, `"1"` for stance; progress files, ledgers and the offline
+    judgements key on stage ids): the digest snapshot (649 lines), the plant
+    manifest and the T. rex symmetry map are byte-identical and their checks
+    current, no checkpoint is invalidated and nothing retrains.
+  - Records: D-D38 in `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2 (with D-A11,
+    D-A24 and D-D35 amended, and a dated note on its design text) and in the
+    consolidation plan's tables; the recipes guide, the PPO, SAC,
+    hyperparameter and custom-model pages, the six model pages, the intro,
+    installation and quick-start pages, `species.ts`'s comment, the README's
+    two hand-written behavior lines, the Brachiosaurus, Dibothrosuchus and
+    Compsognathus READMEs and calibration guide, NEXT_STEPS,
+    TRAIN_DIRECTION_AND_TERRAIN and TRAINING_ARTIFACT_PRESENTATION. Dated
+    records of sessions that ran with `BEHAVIOR = "stand"` stay as written,
+    with a NEXT_STEPS §3 note.
 - **The recovery stage has its own recipe label, `recover`, and `stand` is
   the stance stage on every model** (#625; decision D-D35, the maintainer's
   decision of 2026-10-16). A recipe label resolves to the deepest deliverable

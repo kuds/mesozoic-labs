@@ -33,7 +33,7 @@ import pytest
 
 from environments.shared.model_id import ModelId
 from environments.shared.species_names import model_ids
-from environments.shared.stage_manifest import load_stage_manifest
+from environments.shared.stage_manifest import StageManifestError, load_stage_manifest
 
 from .notebook_cells import cell_index as _cell_index
 from .notebook_cells import cell_sources, code_cell, code_cell_sources, code_cells, exec_top_level_def
@@ -3920,20 +3920,22 @@ class TestNotebookWithoutTheDirectionTerrainMode:
         assert namespace["TARGET_NODE"].id == "stance"
         assert [node.id for node in namespace["CHAIN"]] == ["stance"]
 
-    @pytest.mark.parametrize(
-        ("behavior", "chain"),
-        [("stand", ["stance"]), ("stance", ["stance"]), ("recover", ["stance", "recovery"])],
-    )
-    def test_the_tyrannosaurus_rex_resolves_stand_to_stance_and_recover_to_recovery(self, capsys, behavior, chain):
-        """Decision D-D35, executed: on the T. rex the resolve cell takes ``"stand"`` to the stance stage alone,
-        the same chain as the stage id ``"stance"``, and ``"recover"`` to stance -> recovery (before it,
-        ``"stand"`` resolved to recovery there)."""
+    @staticmethod
+    def _tyrannosaurus_rex_configuration():
         from environments.shared.config import load_all_stages
 
         namespace = {"load_all_stages": load_all_stages, "load_stage_manifest": load_stage_manifest}
         config = _cell(CONFIG_CELL_MARKER)
         assert config.count('SPECIES = "velociraptor_mongoliensis"') == 1
         exec(config.replace('SPECIES = "velociraptor_mongoliensis"', 'SPECIES = "tyrannosaurus_rex"'), namespace)
+        return namespace
+
+    @pytest.mark.parametrize(("behavior", "chain"), [("stance", ["stance"]), ("recover", ["stance", "recovery"])])
+    def test_the_tyrannosaurus_rex_resolves_stance_to_stance_and_recover_to_recovery(self, capsys, behavior, chain):
+        """Decisions D-D35 and D-D38, executed: on the T. rex the resolve cell takes ``"stance"``, the stance
+        stage's id and its recipe label, to the stance stage alone, and ``"recover"`` to stance -> recovery
+        (before D-D35 the stance label, then ``"stand"``, resolved to recovery there)."""
+        namespace = self._tyrannosaurus_rex_configuration()
         namespace["BEHAVIOR"] = behavior
         exec(_cell("EnvClass = SPECIES_CFG.env_class"), namespace)
         assert namespace["TARGET_NODE"].id == chain[-1]
@@ -3941,13 +3943,22 @@ class TestNotebookWithoutTheDirectionTerrainMode:
         expected = f"Behavior {behavior!r} -> deliverable {chain[-1]!r}; chain: {' -> '.join(chain)}"
         assert expected in capsys.readouterr().out
 
+    def test_the_resolve_cell_refuses_stand_naming_stance(self):
+        """Decision D-D38, executed: ``BEHAVIOR = "stand"``, the stance label until then, stops the resolve
+        cell with the pointer to ``"stance"``; it is no alias, so no chain is bound."""
+        namespace = self._tyrannosaurus_rex_configuration()
+        namespace["BEHAVIOR"] = "stand"
+        with pytest.raises(StageManifestError, match=r"renamed to .stance. \(decision D-D38\); use .stance.$"):
+            exec(_cell("EnvClass = SPECIES_CFG.env_class"), namespace)
+        assert "TARGET_NODE" not in namespace and "CHAIN" not in namespace
+
     def test_the_behavior_dropdown_allows_free_input_and_every_param_annotation_is_json(self):
         config = _cell(CONFIG_CELL_MARKER)
         behavior_line = next(line for line in config.splitlines() if line.startswith("BEHAVIOR ="))
         options, trailing = json.JSONDecoder().raw_decode(behavior_line.split("# @param ", 1)[1])
-        # The four recipe labels, as verbs (decision D-D35): "recover" is the recovery stage's label,
-        # so "stand" is the stance stage alone on every model.
-        assert options == ["stand", "recover", "walk", "hunt"]
+        # The four recipe labels (decisions D-D35 and D-D38): "recover" is the recovery stage's label,
+        # and "stance", the stance stage's id and label, is the stance stage alone on every model.
+        assert options == ["stance", "recover", "walk", "hunt"]
         assert not set(options) & set(self.PILOT_BEHAVIORS), "the pilots have no notebook path until PR-11"
         assert json.loads(behavior_line.split("# @param ", 1)[1][trailing:].strip()) == {"allow-input": True}
         for source in (_cell("REPO_REF ="), config):

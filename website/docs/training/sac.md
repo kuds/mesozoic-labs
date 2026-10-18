@@ -76,13 +76,13 @@ declared `warm_start_from` parent's handoff checkpoint and VecNormalize
 sidecar, a node whose parent has no certified checkpoint stops the run, and
 each trained node writes `gate_verdict.json` beside its handoff:
 
-1. **`stance`** (stand; root, historical stage 1): stand upright without falling (`forward_vel_weight=0`, high `alive_bonus`)
+1. **`stance`** (stance; root, historical stage 1): stand upright without falling (`forward_vel_weight=0`, high `alive_bonus`)
 2. **`locomotion`** (walk; `warm_start_from = "stance"`, historical stage 2): walk and run forward (increase `forward_vel_weight`, add gait rewards)
 3. **`behavior`** (hunt; `warm_start_from = "locomotion"`, historical stage 3): species-specific task (strike for Velociraptor, a fixed head-contact "bite" proxy for T-Rex, a head-tip distance-based food-reach proxy for Brachiosaurus, snap for Dibothrosuchus, target reach for Compsognathus)
 
 The `recovery` node is PPO-only on the T-Rex, whose `recovery.toml` does
 not inherit stance's `[sac]`; both Compsognathus models do. Every node is a
-deliverable, so stand, walk and hunt (and recover, where a model has a
+deliverable, so stance, walk and hunt (and recover, where a model has a
 recovery node) are each certified and published on their own. `--trunk-from RUN_DIR`, `--retrain-from STAGE_ID` and
 `--label TEXT` work with `--algorithm sac` exactly as with PPO. Keep SAC
 trunks for SAC runs: the notebook refuses a `TRUNK_FROM` run of a different

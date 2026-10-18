@@ -76,7 +76,7 @@ checkpoint stops the run, and each trained node writes `gate_verdict.json`
 beside its handoff. The nodes, by id and recipe label, are the same for PPO
 and SAC:
 
-1. **`stance`** (stand; root, historical stage 1): stand upright without falling (`forward_vel_weight=0`, high `alive_bonus`)
+1. **`stance`** (stance; root, historical stage 1): stand upright without falling (`forward_vel_weight=0`, high `alive_bonus`)
 2. **`locomotion`** (walk; `warm_start_from = "stance"`, historical stage 2): walk and run forward (increase `forward_vel_weight`, add gait rewards)
 3. **`behavior`** (hunt; `warm_start_from = "locomotion"`, historical stage 3): species-specific task (strike for Velociraptor, a fixed head-contact "bite" proxy for T-Rex, a head-tip distance-based food-reach proxy for Brachiosaurus, snap for Dibothrosuchus, target reach for Compsognathus)
 
@@ -89,7 +89,7 @@ log line, and it is trained on its own with `train --stage recovery`. Each
 tables, changing only the stage's name and description, the push settings
 and the entropy-decay horizon. The T-Rex `recovery.toml` is PPO-only (it
 does not inherit stance's `[sac]`); both Compsognathus models inherit it.
-Every node is a deliverable: stand, walk and hunt (and recover, on the
+Every node is a deliverable: stance, walk and hunt (and recover, on the
 three models with a recovery node) are each certified and published on their
 own, and `--trunk-from RUN_DIR`, `--retrain-from STAGE_ID`
 and `--label TEXT` let a run reuse an earlier run's certified trunk, retrain

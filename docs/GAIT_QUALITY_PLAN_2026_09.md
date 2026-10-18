@@ -29,6 +29,9 @@ nothing the pilot trains is certified (§17, the dated amendment).*
 *Updated 2026-10-18: D-D36 is amended: the pilot read STILL on all three seeds, and on 2026-10-17 the maintainer chose
 a second pilot, not yet trained, with one change, the action std reset to the T. rex stance's starting 0.2231 at the
 warm start; it is the same exception to GQ-3 (a) and GQ-17, both still open (§17, its note of 2026-10-18).*
+*Updated 2026-10-18, later: the maintainer took D-D37: three full T. rex stance screen runs instead of the second
+pilot, which is parked and not trained; they are stance runs, not walker sessions, and answer none of GQ-1..GQ-18
+(§17, its second note of 2026-10-18).*
 
 ## How to use this document
 
@@ -918,4 +921,15 @@ trained. It is the same deliberate exception to GQ-3 (a) and GQ-17, both still o
 §14) still waits for a certified stance; nothing it trains is certified, published or reused, and `main` and its digests
 are unchanged. A later PR records its outcome. The evidence
 for both pilots is in §15 of
+[investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).
+
+*Appended 2026-10-18 (decision D-D37); the text above is unchanged.* **The second pilot is parked.** On 2026-10-18
+the maintainer chose three full 12M T. rex stance screen runs on `main`'s physics r9 instead (D-D37 in
+[BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2): arm L as #624 ships it on seed 60, and arm L with the
+settled leg pose term at weight 1.0 and tolerance 0.05 rad on seeds 60 and 52, each from a screen branch that is never
+merged, judged by criteria fixed before training. Pilot 2 is not trained: its branch `claude/pilot-walk-r9-b` and its
+criteria are kept, and the screens' decision table offers the best final stance checkpoint of the three as its parent.
+The screen runs are stance runs, not walker sessions: they are no exception to GQ-3 (a) or GQ-17, answer none of
+GQ-1..GQ-18 and certify nothing, and the trex `gait-r1` walk (§5.4, §14) still waits for a certified stance. Their
+evidence is in §16 of
 [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).

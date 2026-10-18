@@ -138,7 +138,7 @@ schema = "mesozoic.stage-manifest/v2"
 id = "stance"
 config = "stance.toml"
 legacy_number = 1
-recipe = "stand"
+recipe = "stance"
 deliverable = true
 
 [[stages]]
@@ -165,11 +165,13 @@ declare its `legacy_number`); `config` is the stage TOML filename;
 stage; `warm_start_from` names an **earlier** entry (a self or forward
 reference is fatal); `deliverable = true` marks every node whose certified
 checkpoint is a published policy (a v2 manifest with no deliverable is fatal);
-and `recipe` is the behavior label (`stand`, `recover`, `walk`, `hunt`), never
-equal to a stage id. A model with a recovery node uses the four-entry T-Rex
+and `recipe` is the behavior label (`stance`, `recover`, `walk`, `hunt`), equal
+to a stage id only when it resolves to that stage (a label naming another
+stage's id is fatal). A model with a recovery node uses the four-entry T-Rex
 layout, where `recovery` (recipe `recover`, `warm_start_from = "stance"`, no
-legacy number) sits between stance and locomotion; `stand` labels the stance
-node alone on every model (decision D-D35). See [Behavior Recipes](/docs/training/recipes) for how the
+legacy number) sits between stance and locomotion; `stance` labels the stance
+node alone on every model (decisions D-D35 and D-D38). `stand`, the stance
+label until D-D38, is refused at load, naming `stance`. See [Behavior Recipes](/docs/training/recipes) for how the
 manifest drives training and publication.
 
 ## Config Files
@@ -251,7 +253,7 @@ definition = "The locomotion checkpoint clears the reward_and_length/v1 gate: ..
 ```
 
 `deliverable` resolves exactly as the training notebook's `BEHAVIOR` knob
-does: a recipe label names its deepest deliverable in manifest order (`"stand"`
+does: a recipe label names its deepest deliverable in manifest order (`"stance"`
 the stance node and `"recover"` the recovery node, so every committed model
 names its deliverables by label), and a stage id must be a deliverable. The generator fails
 closed on an unknown deliverable or label, on a backend the model does not

@@ -125,10 +125,12 @@ consolidation plan's status table, the CHANGELOG or the cleanup plan's §3.1; th
 after the 2026-09-19 loader change) are in section 1 at `ace8112`.
 
 Configuration-cell defaults:
-`BEHAVIOR = "hunt"` (dropdown: `stand`, `recover`, `walk`, `hunt`, stage ids by
+`BEHAVIOR = "hunt"` (dropdown: `stance`, `recover`, `walk`, `hunt`, stage ids by
 free input; the eleven direction/terrain values leave with the PR-12 slice;
 `recover`, stance then push recovery on the T-Rex and both Compsognathus
-models, since decision D-D35, before which `stand` meant that chain there),
+models, since decision D-D35, before which `stand` meant that chain there;
+`stance`, the stance stage alone on every model, labelled `stand` until
+decision D-D38, which refuses `stand` naming `stance`),
 `TRUNK_FROM = "auto"`, `RETRAIN_FROM = ""`, `RUN_LABEL = ""`, `RUN_ID = ""`
 (a configuration-cell knob since consolidation PR-14a), `SEED = 42`. The knobs the
 consolidation retired are named in the CHANGELOG entries of PR-4, PR-5, the PR-12
@@ -450,6 +452,28 @@ merged; it is not yet trained (D-D36's amendment of 2026-10-18). Nothing it
 trains is certified, published or reused either, so the next T-Rex session
 above is still unchanged.*
 
+*Status 2026-10-18: decision D-D37. Instead of the second pilot, which is
+parked and not trained (its branch and criteria are kept), the maintainer
+chose three full 12M T-Rex stance screen runs on `main`'s physics r9,
+started on 2026-10-18 on Colab L4 runtimes: `stance3_armL_s60` (arm L as
+#624 ships it, seed 60, branch `claude/screen-trex-r9-arml-12m`) and
+`stance3_armLT_s60` and `stance3_armLT_s52` (arm L with the settled leg pose
+term at weight 1.0 and tolerance 0.05 rad, seeds 60 and 52, branch
+`claude/screen-trex-r9-armlt`). Each branch is never merged; each run is
+judged by criteria fixed before training and certifies nothing, so the next
+T-Rex session above is still unchanged. A later PR records the outcome; the
+decision's full text is in
+[BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2 and the runs'
+evidence in §16 of
+[investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).*
+
+*Note 2026-10-18 (decision D-D38): where §2, this section and §8 record
+`BEHAVIOR = "stand"` or a `stand` session, they give the setting as it was
+typed then. The stance stage's recipe label is now `stance`, its own id:
+type `BEHAVIOR = "stance"` for the same chain (the stance stage alone), also
+to re-enter a run started with `"stand"`, which is now refused with a
+pointer to `"stance"`.*
+
 Notes:
 
 - **The runtime image moved (by 2026-09-14).** Colab's L4 image went from Python
@@ -547,7 +571,8 @@ Notes:
 - A widened root is judged in its new run and every node below it trains
   there (T-Rex `stand` = re-panel stance, then recovery 3M, at the time; T-Rex
   `walk` would train locomotion 8M instead). Since decision D-D35 (2026-10-16)
-  that chain is `recover`, and `stand` is stance only on every model, as it
+  that chain is `recover`, and `stand` was stance only on every model (its
+  label is `stance` since decision D-D38, which refuses `stand`), as it
   always was for velociraptor, brachiosaurus and dibothrosuchus (no recovery
   node).
 - Otherwise leave `TRUNK_FROM = "auto"`.

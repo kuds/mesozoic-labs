@@ -144,12 +144,13 @@ def test_catalog_derives_current_model_and_stage_facts() -> None:
     ]
     # The recipe DAG the committed v2 manifest declares (plan §4.1): every
     # node a deliverable, recovery and locomotion both rooted on stance,
-    # "stand" the stance node and "recover" the recovery node (D-D35).
+    # "stance" the stance node (its own id, D-D38) and "recover" the
+    # recovery node (D-D35).
     assert [
         (stage["id"], stage["deliverable"], stage["warm_start_from"], stage["recipe"])
         for stage in models[TYRANNOSAURUS_REX]["stages"]
     ] == [
-        ("stance", True, None, "stand"),
+        ("stance", True, None, "stance"),
         ("recovery", True, "stance", "recover"),
         ("locomotion", True, "stance", "walk"),
         ("behavior", True, "locomotion", "hunt"),
@@ -157,7 +158,7 @@ def test_catalog_derives_current_model_and_stage_facts() -> None:
     for model_id in (VELOCIRAPTOR_MONGOLIENSIS, BRACHIOSAURUS_ALTITHORAX, DIBOTHROSUCHUS_ELAPHROS):
         assert [stage["deliverable"] for stage in models[model_id]["stages"]] == [True, True, True]
         assert [stage["warm_start_from"] for stage in models[model_id]["stages"]] == [None, "stance", "locomotion"]
-        assert [stage["recipe"] for stage in models[model_id]["stages"]] == ["stand", "walk", "hunt"]
+        assert [stage["recipe"] for stage in models[model_id]["stages"]] == ["stance", "walk", "hunt"]
     assert [stage["timesteps"] for stage in models[BRACHIOSAURUS_ALTITHORAX]["stages"]] == [
         6_000_000,
         16_000_000,
@@ -1297,7 +1298,7 @@ def test_v4_partial_summary_publishes_certified_deliverables(tmp_path: Path, mon
     assert [
         (row["id"], row["stage_key"], row["label"], row["recipe"], row["certified"]) for row in result["deliverables"]
     ] == [
-        ("stance", "1", "1", "stand", True),
+        ("stance", "1", "1", "stance", True),
         ("locomotion", "2", "2", "walk", True),
         ("behavior", "3", "3", "hunt", False),
     ]
@@ -1695,7 +1696,7 @@ def test_deliverable_metrics_cover_every_declared_deliverable() -> None:
             VELOCIRAPTOR_MONGOLIENSIS,
             [
                 {
-                    "deliverable": "stand",
+                    "deliverable": "stance",
                     "backends": ["stable-baselines3"],
                     "key": "k",
                     "label": "l",
@@ -1715,15 +1716,16 @@ def _metric(deliverable: str, *backends: str) -> dict[str, Any]:
 
 def test_deliverable_metrics_reject_unknown_and_duplicate_scopes() -> None:
     """Label resolution follows the manifest; unknown names, backends and duplicate scopes fail closed."""
-    # "stand" is the stance node on every model and "recover" the trex
-    # recovery node (decision D-D35); a stage id names its node too.
+    # "stance" is the stance node on every model, its id and its label
+    # (decision D-D38), and "recover" the trex recovery node (decision
+    # D-D35); a stage id names its node too.
     tyrannosaurus_rex = _build_deliverable_metrics(
         TYRANNOSAURUS_REX,
-        [_metric("stand"), _metric("recover"), _metric("walk"), _metric("hunt")],
+        [_metric("stance"), _metric("recover"), _metric("walk"), _metric("hunt")],
         {"stable-baselines3", "jax-mjx"},
     )
     assert [(metric["deliverable"], metric["stage_id"]) for metric in tyrannosaurus_rex] == [
-        ("stand", "stance"),
+        ("stance", "stance"),
         ("recover", "recovery"),
         ("walk", "locomotion"),
         ("hunt", "behavior"),
@@ -1736,7 +1738,7 @@ def test_deliverable_metrics_reject_unknown_and_duplicate_scopes() -> None:
     assert [metric["stage_id"] for metric in by_id] == [metric["stage_id"] for metric in tyrannosaurus_rex]
     velociraptor_mongoliensis = _build_deliverable_metrics(
         VELOCIRAPTOR_MONGOLIENSIS,
-        [_metric("stand"), _metric("walk"), _metric("hunt")],
+        [_metric("stance"), _metric("walk"), _metric("hunt")],
         {"stable-baselines3", "jax-mjx"},
     )
     assert [metric["stage_id"] for metric in velociraptor_mongoliensis] == ["stance", "locomotion", "behavior"]
@@ -1753,7 +1755,15 @@ def test_deliverable_metrics_reject_unknown_and_duplicate_scopes() -> None:
     with pytest.raises(CatalogError, match="more than one deliverable metric for stage 'recovery'"):
         _build_deliverable_metrics(TYRANNOSAURUS_REX, [_metric("recover"), _metric("recovery")], {"stable-baselines3"})
     with pytest.raises(CatalogError, match="more than one deliverable metric for stage 'stance'"):
-        _build_deliverable_metrics(TYRANNOSAURUS_REX, [_metric("stand"), _metric("stance")], {"stable-baselines3"})
+        _build_deliverable_metrics(TYRANNOSAURUS_REX, [_metric("stance"), _metric("stance")], {"stable-baselines3"})
+    # "stand", the stance label until decision D-D38, is retired: refused naming "stance", not aliased.
+    with pytest.raises(
+        CatalogError,
+        match=re.escape("unknown deliverable 'stand'")
+        + ".*"
+        + re.escape("'stand' was renamed to 'stance' (decision D-D38); use 'stance'"),
+    ):
+        _build_deliverable_metrics(VELOCIRAPTOR_MONGOLIENSIS, [_metric("stand")], {"stable-baselines3"})
     # "recover" names nothing on a model without a recovery node.
     with pytest.raises(CatalogError, match="unknown deliverable 'recover'"):
         _build_deliverable_metrics(VELOCIRAPTOR_MONGOLIENSIS, [_metric("recover")], {"stable-baselines3"})
@@ -1882,21 +1892,22 @@ def test_readme_species_table_renders_recipe_edges() -> None:
         "| Current stage | Recipe | Warm-start from | Objective | SB3 configured budget | SB3 early-advancement gate |"
         in rendered
     )
-    assert "| 1 — Stance | stand (deliverable) | — |" in rendered
+    assert "| 1 — Stance | stance (deliverable) | — |" in rendered
     assert "| recovery — Recovery | recover (deliverable) | 1 — Stance |" in rendered
     assert "| 2 — Locomotion | walk (deliverable) | 1 — Stance |" in rendered
     assert "| 3 — Bite | hunt (deliverable) | 2 — Locomotion |" in rendered
     assert "**Per-deliverable success semantics:**" in rendered
-    # Every model names its deliverables by recipe label (D-D35): the robot's stance is "stand", its recovery "recover".
-    assert "- **stand (1 — Stance) · Stable-Baselines3 — Stance quality (stance_quality/v1):**" in rendered
+    # Every model names its deliverables by recipe label (D-D35): the robot's stance is "stance" (its id
+    # and its label, D-D38), its recovery "recover".
+    assert "- **stance (1 — Stance) · Stable-Baselines3 — Stance quality (stance_quality/v1):**" in rendered
     assert (
         "- **recover (recovery — Recovery) · Stable-Baselines3 — Recovery under pushes (recovery_quality/v1):**"
         in rendered
     )
-    assert "- **stance (" not in rendered and "- **recovery (" not in rendered
-    assert "- **stand (1 — Stance) · Stable-Baselines3 — Reward-gated stance (reward_and_length/v1):**" in rendered
-    # The velociraptor stand certifies under the floor-truth gate since physics r3 (D-D25).
-    assert "- **stand (1 — Stance) · Stable-Baselines3 — Stance quality (stance_quality/v2):**" in rendered
+    assert "- **recovery (" not in rendered and "- **stand (" not in rendered
+    assert "- **stance (1 — Stance) · Stable-Baselines3 — Reward-gated stance (reward_and_length/v1):**" in rendered
+    # The velociraptor stance certifies under the floor-truth gate since physics r3 (D-D25).
+    assert "- **stance (1 — Stance) · Stable-Baselines3 — Stance quality (stance_quality/v2):**" in rendered
 
 
 def test_readme_results_block_preserves_ladder_history_with_stance_labels() -> None:
@@ -2130,7 +2141,7 @@ def test_readme_results_render_deliverables_for_v4_summary(tmp_path: Path, monke
 
     assert "**Deliverables:** " in rendered
     assert (
-        "1 — stand (certified; gate stance_quality_heading/v1; 1 run of 2 seeds; provisional; "
+        "1 — stance (certified; gate stance_quality_heading/v1; 1 run of 2 seeds; provisional; "
         "seeds clean at all six headings LCB95 not recorded; seeds clean at all six headings not recorded) · "
         "2 — walk (certified, primary; gate reward_and_length/v1; 1 run of 1 seed; avg. forward velocity 3.47 m/s) · "
         "3 — hunt (not certified; gate task_success/v1; 1 run of 1 seed; task success LCB95 not recorded; "
