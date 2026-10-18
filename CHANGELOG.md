@@ -110,7 +110,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     key `checkpoint_archive_every_timesteps = A`, checkpoint retention also
     keeps the newest periodic checkpoint of every interval of `A` steps.
     The T. rex stance sets 500,000, its own commit and the only
-    configuration change: at the notebook's 100,000-step cadence a 12M run
+    stage-configuration change (the one other configuration edit drops
+    `compare_run_diagnostics.py` from the coverage omit list, now that a
+    test imports it): at the notebook's 100,000-step cadence a 12M run
     keeps 28 checkpoint pairs (113 MB) instead of 5 (20 MB), against 120
     (485 MB) for `max_checkpoints = 0`. The key enters no gate, task or
     hyperparameter digest; `configs/digest_snapshot.generated.txt` was
