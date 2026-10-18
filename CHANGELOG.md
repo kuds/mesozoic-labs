@@ -8,6 +8,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **Decision D-D36 amended: walking pilot 1 read STILL, and a second pilot with
+  wider exploration; and the evidence of the T. rex stance follow-ups of
+  2026-10-17** (the maintainer's decision of 2026-10-17;
+  `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2, `docs/CONSOLIDATION_PLAN_2026_09.md`
+  §6, a dated note in §17 of `docs/GAIT_QUALITY_PLAN_2026_09.md`,
+  `docs/NEXT_STEPS.md` §3; the appended §15 of
+  `docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md`, seven folders
+  in `docs/investigations/stance_2026_10/` and 28 rows of
+  `results/offline_judgements.csv`). Records only: no library code,
+  configuration, test, notebook, digest or generated file changes.
+  D-D36's walking pilot, now pilot 1, was judged on 2026-10-17 by its fixed
+  criteria and read STILL on all three seeds, final: each seed STILL on 40 of
+  its 40 panel episodes at 4,194,304 steps, with no WALK episode, which by the
+  criteria is too short to tell; the outcome is the criteria's, not a gate's.
+  Report only: its forward-velocity term earned 0.5 to 3.2 per episode from 2M
+  to 4.2M steps (the September T. rex walkers: 148 to 234 at 4.2M), and its
+  action std was 0.108 to 0.111 at 4,194,304 steps against the parent's 0.095.
+  The same day the maintainer chose a second pilot, the same with one change:
+  the action std reset to 0.2231 (`log_std` -1.5, the T. rex stance stage's own
+  starting noise) on every actuator at the warm start, from the branch
+  `claude/pilot-walk-r9-b` (`ba464855`), which is never merged; it is
+  pre-registered, not yet trained and has no result, it is still an exception
+  to the gait plan's GQ-3 (a) and GQ-17, and it certifies nothing.
+  The stance record's appended §15 records pilot 1's outcome, the second
+  pilot's criteria and the offline work of 2026-10-17, all report only: the
+  stage's six-heading certificate rolled on the r9 arm L symmetry-screen
+  checkpoints (seed 60 40/40 and seed 52 38/40 PASS, seed 42 29/40 FAIL at 6M,
+  on checkpoints from a scratch harness that the judge would refuse on task);
+  an offline battery (the passes replicate on fresh seeds but thinly, and the
+  reward-selected `robust_best` checkpoints are clean on 0 of 40 under their
+  own action noise); the fore-aft bar's two blind spots (it reads the pad's own
+  CoP, and it is unsigned); a foot and ankle audit (nothing in the anatomy
+  pushes the stance forward; seven candidate physics changes, none decided);
+  and a literature report. The evidence folder gains 215 files (about 3.0 MB),
+  with `SOURCES.txt` and `SHA256SUMS` (now 285 files) extended; per-episode
+  files, traces and checkpoints stay in the session's scratch or on Drive. The
+  ledger's 28 rows (19 certificates, 17 PASS and 2 FAIL, and pilot 1's nine
+  panels, STILL) are marked offline and report only, and each points at its
+  evidence file. `docs/README.md` adds a note to the record's and the gait
+  plan's rows, and `docs/KNOWN_ISSUES.md` gains Update 8 of the T-Rex stance
+  entry.
 - **The cross-run results table saved with the offline judgements:
   `logs/runs_summary.csv` and `results/offline_judgements.csv`** (the
   maintainer's approval of 2026-10-17: "Persistent results ledger: the Drive
