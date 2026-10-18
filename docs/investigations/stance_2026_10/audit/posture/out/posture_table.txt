@@ -1,0 +1,130 @@
+T. rex anatomical, main 2e734e29 (physics r9), stance stage UNMODIFIED (options off), heading 0, deterministic, seeds 3042-3051 (10 per target), horizon 1000
+  s60: scratchpad/foot/symmetry/screen/runs/sym_lean_settled_s60/resume6m/models/stage1_6291456_steps.zip sha256 70f3a4447794a010... vecnorm sha256 0567d6104a0795c0...
+  s52: scratchpad/foot/symmetry/screen/runs/sym_lean_settled_s52/resume6m/models/stage1_6291456_steps.zip sha256 278637b9d4dc526b... vecnorm sha256 1d2ada496798ff6f...
+Values: mean ± sd over the 10 episodes of each episode's window mean; per-foot quantities averaged over the two feet unless split.  Windows: w40 = steps 40-999 (40-step settle), w200 = steps 200-999 (the gate's settle), last40 = steps 960-999.
+  statue: full-horizon 10/10, clean on the non-statue v2 criteria 10/10
+  s60: full-horizon 10/10, clean on the non-statue v2 criteria 10/10
+  s52: full-horizon 10/10, clean on the non-statue v2 criteria 9/10
+Checks: {"femur_len_range_m": [0.3512833614050051, 0.35128336140500677], "max_abs_diff_gate_stat_vs_repo_pad_telemetry": 0.0, "max_abs_diff_digit_share_vs_repo_pad_telemetry": 5.551115123125783e-17, "max_abs_diff_wholefoot_cop_probe_vs_recorder_padstat": 0.003133269757346957}
+
+=== window w40
+quantity                                               home keyframe                statue                   s60                   s52
+Femur from vertical, deg (+ knee ahead of hip)                  22.5            23.6 ± 0.2            22.1 ± 0.6            27.1 ± 0.9
+Tibia from vertical, deg (+ ankle ahead of knee)               -22.5           -21.0 ± 0.1           -21.9 ± 1.0           -18.3 ± 0.4
+Metatarsus from vertical, deg                                   21.8            21.7 ± 0.1            21.7 ± 0.0            21.9 ± 0.1
+Knee included angle, deg (180 straight)                        135.0           135.4 ± 0.0           136.0 ± 0.5           134.6 ± 0.8
+Ankle included angle, deg                                      135.7           137.3 ± 0.1           136.4 ± 0.9           139.8 ± 0.4
+MTP included angle (metatarsus vs digit III), deg              111.8           111.7 ± 0.1           111.6 ± 0.1           111.8 ± 0.1
+Digit III from horizontal, deg                                                 0.01 ± 0.08           0.04 ± 0.03           0.12 ± 0.08
+Pelvis pitch, deg (+ nose down)                                -0.00           1.60 ± 0.17           0.22 ± 0.15          -2.10 ± 0.39
+COM ahead of hip, % femur                                       41.9            45.4 ± 0.0            43.5 ± 0.1            45.5 ± 0.1
+COM below hip, % femur                                          -2.1            11.3 ± 0.1             6.9 ± 0.4             7.9 ± 0.4
+COM over foot, pad statistic (signed)                           0.10           0.06 ± 0.03           0.17 ± 0.12          -0.44 ± 0.09
+COM over foot, footprint fraction from rear                    0.339         0.326 ± 0.009         0.360 ± 0.037         0.172 ± 0.028
+Pad CoP signed (recorder, gate normalisation)                                  0.19 ± 0.06           0.32 ± 0.14          -0.34 ± 0.12
+Pad CoP gate statistic, worse foot                                             0.31 ± 0.11           0.42 ± 0.15           0.49 ± 0.17
+Whole-foot CoP, pad statistic (signed)                                         0.07 ± 0.03           0.18 ± 0.12          -0.44 ± 0.08
+Whole-foot CoP, footprint fraction from rear                                 0.328 ± 0.010         0.361 ± 0.035         0.171 ± 0.026
+Whole-foot CoP ahead of digit-III MTP, m                                     0.065 ± 0.002         0.072 ± 0.008         0.029 ± 0.006
+Knee ahead of foot's vertical GRF line, m                                   -0.019 ± 0.001        -0.021 ± 0.002         0.001 ± 0.004
+Knee ahead of vertical GRF line, % femur                                        -5.4 ± 0.3            -6.0 ± 0.7             0.2 ± 1.2
+Knee to actual GRF line (signed), m                                         -0.019 ± 0.001        -0.021 ± 0.003         0.000 ± 0.004
+Hip ahead of vertical GRF line, m                                           -0.160 ± 0.000        -0.153 ± 0.001        -0.159 ± 0.001
+Ankle ahead of vertical GRF line, m                                         -0.144 ± 0.002        -0.152 ± 0.008        -0.110 ± 0.005
+GRF tilt from vertical, deg (+ forward)                                       -0.01 ± 0.02          -0.03 ± 0.04           0.03 ± 0.02
+Pad load share (per-foot mean)                                               0.847 ± 0.049         0.844 ± 0.023         0.738 ± 0.047
+Digit load share (per-foot mean)                                             0.153 ± 0.049         0.156 ± 0.023         0.262 ± 0.047
+  right / left digit share                                                   0.153 / 0.153         0.169 / 0.143         0.264 / 0.261
+  digit II / III / IV share                                          0.080 / 0.038 / 0.035 0.078 / 0.041 / 0.036 0.124 / 0.071 / 0.068
+Right foot share of both feet' load                                          0.500 ± 0.003         0.501 ± 0.009         0.501 ± 0.006
+COM horizontal speed RMS, m/s                                              0.0211 ± 0.0091       0.0090 ± 0.0029       0.0160 ± 0.0047
+
+=== window w200
+quantity                                               home keyframe                statue                   s60                   s52
+Femur from vertical, deg (+ knee ahead of hip)                  22.5            23.7 ± 0.1            22.4 ± 0.5            27.6 ± 1.0
+Tibia from vertical, deg (+ ankle ahead of knee)               -22.5           -20.9 ± 0.0           -21.5 ± 0.9           -17.9 ± 0.4
+Metatarsus from vertical, deg                                   21.8            21.7 ± 0.0            21.7 ± 0.0            22.0 ± 0.2
+Knee included angle, deg (180 straight)                        135.0           135.4 ± 0.0           136.1 ± 0.5           134.5 ± 0.8
+Ankle included angle, deg                                      135.7           137.4 ± 0.0           136.8 ± 0.9           140.1 ± 0.4
+MTP included angle (metatarsus vs digit III), deg              111.8           111.7 ± 0.1           111.6 ± 0.1           111.8 ± 0.1
+Digit III from horizontal, deg                                                 0.05 ± 0.06           0.07 ± 0.03           0.16 ± 0.14
+Pelvis pitch, deg (+ nose down)                                -0.00           1.53 ± 0.06           0.12 ± 0.14          -2.41 ± 0.46
+COM ahead of hip, % femur                                       41.9            45.4 ± 0.0            43.5 ± 0.1            45.6 ± 0.1
+COM below hip, % femur                                          -2.1            11.2 ± 0.1             6.6 ± 0.4             7.7 ± 0.5
+COM over foot, pad statistic (signed)                           0.10           0.05 ± 0.01           0.11 ± 0.11          -0.51 ± 0.11
+COM over foot, footprint fraction from rear                    0.339         0.322 ± 0.004         0.341 ± 0.034         0.150 ± 0.033
+Pad CoP signed (recorder, gate normalisation)                                  0.19 ± 0.06           0.27 ± 0.13          -0.41 ± 0.14
+Pad CoP gate statistic, worse foot                                             0.26 ± 0.10           0.39 ± 0.15           0.52 ± 0.19
+Whole-foot CoP, pad statistic (signed)                                         0.05 ± 0.02           0.11 ± 0.11          -0.51 ± 0.10
+Whole-foot CoP, footprint fraction from rear                                 0.323 ± 0.006         0.342 ± 0.033         0.149 ± 0.032
+Whole-foot CoP ahead of digit-III MTP, m                                     0.064 ± 0.001         0.068 ± 0.008         0.024 ± 0.007
+Knee ahead of foot's vertical GRF line, m                                   -0.018 ± 0.001        -0.019 ± 0.002         0.003 ± 0.005
+Knee ahead of vertical GRF line, % femur                                        -5.2 ± 0.3            -5.4 ± 0.7             0.9 ± 1.4
+Knee to actual GRF line (signed), m                                         -0.018 ± 0.001        -0.019 ± 0.003         0.003 ± 0.005
+Hip ahead of vertical GRF line, m                                           -0.160 ± 0.001        -0.153 ± 0.000        -0.160 ± 0.000
+Ankle ahead of vertical GRF line, m                                         -0.144 ± 0.001        -0.148 ± 0.007        -0.105 ± 0.007
+GRF tilt from vertical, deg (+ forward)                                        0.00 ± 0.03           0.01 ± 0.01           0.01 ± 0.01
+Pad load share (per-foot mean)                                               0.842 ± 0.050         0.829 ± 0.027         0.717 ± 0.045
+Digit load share (per-foot mean)                                             0.158 ± 0.050         0.171 ± 0.027         0.283 ± 0.045
+  right / left digit share                                                   0.157 / 0.159         0.186 / 0.156         0.282 / 0.285
+  digit II / III / IV share                                          0.083 / 0.039 / 0.035 0.085 / 0.046 / 0.040 0.131 / 0.078 / 0.074
+Right foot share of both feet' load                                          0.500 ± 0.002         0.501 ± 0.007         0.500 ± 0.006
+COM horizontal speed RMS, m/s                                              0.0116 ± 0.0076       0.0049 ± 0.0015       0.0038 ± 0.0021
+
+=== window last40
+quantity                                               home keyframe                statue                   s60                   s52
+Femur from vertical, deg (+ knee ahead of hip)                  22.5            23.7 ± 0.0            23.0 ± 0.2            27.6 ± 1.2
+Tibia from vertical, deg (+ ankle ahead of knee)               -22.5           -20.9 ± 0.0           -20.8 ± 0.6           -17.9 ± 0.5
+Metatarsus from vertical, deg                                   21.8            21.7 ± 0.0            21.7 ± 0.0            22.0 ± 0.2
+Knee included angle, deg (180 straight)                        135.0           135.4 ± 0.0           136.2 ± 0.4           134.5 ± 0.9
+Ankle included angle, deg                                      135.7           137.4 ± 0.0           137.4 ± 0.5           140.1 ± 0.4
+MTP included angle (metatarsus vs digit III), deg              111.8           111.7 ± 0.1           111.6 ± 0.0           111.8 ± 0.1
+Digit III from horizontal, deg                                                 0.07 ± 0.05           0.10 ± 0.02           0.19 ± 0.16
+Pelvis pitch, deg (+ nose down)                                -0.00           1.53 ± 0.05           0.01 ± 0.11          -2.39 ± 0.64
+COM ahead of hip, % femur                                       41.9            45.4 ± 0.0            43.6 ± 0.1            45.6 ± 0.1
+COM below hip, % femur                                          -2.1            11.2 ± 0.0             6.2 ± 0.2             7.7 ± 0.6
+COM over foot, pad statistic (signed)                           0.10           0.05 ± 0.01           0.02 ± 0.06          -0.51 ± 0.13
+COM over foot, footprint fraction from rear                    0.339         0.322 ± 0.004         0.313 ± 0.018         0.151 ± 0.041
+Pad CoP signed (recorder, gate normalisation)                                  0.23 ± 0.07           0.22 ± 0.07          -0.38 ± 0.18
+Pad CoP gate statistic, worse foot                                             0.24 ± 0.07           0.37 ± 0.15           0.47 ± 0.21
+Whole-foot CoP, pad statistic (signed)                                         0.05 ± 0.02           0.02 ± 0.06          -0.51 ± 0.13
+Whole-foot CoP, footprint fraction from rear                                 0.323 ± 0.006         0.314 ± 0.018         0.151 ± 0.040
+Whole-foot CoP ahead of digit-III MTP, m                                     0.064 ± 0.001         0.062 ± 0.004         0.025 ± 0.009
+Knee ahead of foot's vertical GRF line, m                                   -0.018 ± 0.001        -0.016 ± 0.001         0.003 ± 0.006
+Knee ahead of vertical GRF line, % femur                                        -5.2 ± 0.3            -4.7 ± 0.3             0.8 ± 1.7
+Knee to actual GRF line (signed), m                                         -0.018 ± 0.001        -0.016 ± 0.001         0.003 ± 0.006
+Hip ahead of vertical GRF line, m                                           -0.159 ± 0.001        -0.153 ± 0.000        -0.160 ± 0.001
+Ankle ahead of vertical GRF line, m                                         -0.144 ± 0.001        -0.141 ± 0.004        -0.105 ± 0.008
+GRF tilt from vertical, deg (+ forward)                                       -0.00 ± 0.03           0.00 ± 0.00           0.00 ± 0.00
+Pad load share (per-foot mean)                                               0.818 ± 0.048         0.783 ± 0.024         0.685 ± 0.026
+Digit load share (per-foot mean)                                             0.182 ± 0.048         0.217 ± 0.024         0.315 ± 0.026
+  right / left digit share                                                   0.182 / 0.182         0.239 / 0.194         0.314 / 0.316
+  digit II / III / IV share                                          0.090 / 0.049 / 0.043 0.095 / 0.064 / 0.058 0.130 / 0.094 / 0.091
+Right foot share of both feet' load                                          0.500 ± 0.000         0.502 ± 0.007         0.500 ± 0.005
+COM horizontal speed RMS, m/s                                              0.0017 ± 0.0015       0.0002 ± 0.0002       0.0005 ± 0.0004
+
+Home keyframe geometry (mj_forward at key 'home'): {"femur_len_m": 0.3513, "tibia_len_m": 0.3513, "metatarsus_len_m": 0.2154, "pelvis_pitch_deg": -0.0, "com_ahead_of_hip_pct_femur": 41.9259, "com_below_hip_pct_femur": -2.1141, "total_mass_kg": 85.72, "femur_from_vertical_deg": 22.4991, "tibia_from_vertical_deg": -22.499, "metatarsus_from_vertical_deg": 21.8015, "knee_included_deg": 135.0018, "ankle_included_deg": 135.6995, "mtp_included_deg": 111.8014, "footprint_len_m": 0.228, "pad_centre_footfrac": 0.307, "mtp_footfrac": 0.0439, "mtp_padstat": -0.8571, "com_ahead_of_padmid_padstat": 0.104, "com_footfrac": 0.3389, "knee_ahead_of_padcentre_m": -0.0056, "knee_ahead_of_padcentre_pct_femur": -1.5871, "hip_ahead_of_ankle_m": -0.0, "hip_height_m": 0.8766, "com_height_m": 0.884}
+
+Digit load position along the digit (0 = MTP axis, 1 = tip), repo pad telemetry, gate window, mean of 10 episodes:
+  statue: r_toe_d2 0.114, r_toe_d3 0.176, r_toe_d4 0.182, l_toe_d2 0.110, l_toe_d3 0.179, l_toe_d4 0.188
+  s60: r_toe_d2 0.062, r_toe_d3 0.066, r_toe_d4 0.079, l_toe_d2 0.124, l_toe_d3 0.108, l_toe_d4 0.209
+  s52: r_toe_d2 0.026, r_toe_d3 0.032, r_toe_d4 0.020, l_toe_d2 0.017, l_toe_d3 0.026, l_toe_d4 0.019
+
+Time course (100-step blocks, mean over episodes): COM pad statistic / femur deg / digit share
+  statue COM padstat: +0.21 +0.06 +0.06 +0.05 +0.06 +0.05 +0.05 +0.05 +0.05 +0.05
+  statue femur deg  : 22.6 23.7 23.7 23.7 23.7 23.7 23.7 23.7 23.7 23.7
+  statue digit share: 0.11 0.15 0.13 0.15 0.15 0.15 0.16 0.17 0.17 0.18
+  statue knee height m: 0.556 0.556 0.556 0.556 0.556 0.556 0.556 0.556 0.556 0.556
+  s60 COM padstat: +0.43 +0.46 +0.34 +0.23 +0.14 +0.08 +0.05 +0.03 +0.02 +0.02
+  s60 femur deg  : 20.9 20.5 21.1 21.7 22.2 22.6 22.8 22.9 23.0 23.0
+  s60 digit share: 0.09 0.08 0.10 0.13 0.15 0.17 0.19 0.20 0.21 0.21
+  s60 knee height m: 0.551 0.549 0.551 0.553 0.554 0.555 0.555 0.556 0.556 0.556
+  s52 COM padstat: +0.22 -0.21 -0.43 -0.51 -0.53 -0.53 -0.53 -0.52 -0.52 -0.51
+  s52 femur deg  : 22.9 25.3 26.9 27.6 27.8 27.8 27.8 27.8 27.7 27.6
+  s52 digit share: 0.11 0.18 0.23 0.26 0.27 0.28 0.29 0.30 0.31 0.31
+  s52 knee height m: 0.554 0.559 0.561 0.562 0.562 0.562 0.562 0.562 0.562 0.562
+
+Per-episode worse-foot gate statistic (w200) and signed pad CoP r/l:
+  statue: 3042: 0.30 (+0.30/+0.15); 3043: 0.33 (+0.15/+0.33); 3044: 0.19 (+0.19/+0.15); 3045: 0.16 (+0.08/+0.16); 3046: 0.29 (+0.06/+0.29); 3047: 0.10 (+0.06/+0.10); 3048: 0.22 (+0.22/+0.21); 3049: 0.27 (+0.18/+0.27); 3050: 0.33 (+0.27/+0.05); 3051: 0.43 (+0.43/+0.18)
+  s60: 3042: 0.28 (+0.28/+0.18); 3043: 0.39 (+0.20/+0.39); 3044: 0.31 (+0.24/+0.31); 3045: 0.16 (+0.16/+0.07); 3046: 0.51 (-0.10/+0.51); 3047: 0.51 (-0.19/+0.51); 3048: 0.27 (+0.27/+0.24); 3049: 0.31 (+0.31/+0.07); 3050: 0.68 (+0.44/+0.68); 3051: 0.47 (+0.40/+0.47)
+  s52: 3042: 0.51 (-0.16/-0.51); 3043: 0.34 (-0.31/-0.34); 3044: 0.58 (-0.17/-0.58); 3045: 0.64 (-0.64/-0.38); 3046: 0.51 (-0.51/-0.31); 3047: 0.51 (-0.51/-0.46); 3048: 0.33 (-0.26/-0.33); 3049: 0.38 (-0.38/-0.26); 3050: 1.00 (-0.49/-1.00); 3051: 0.45 (-0.05/-0.45)

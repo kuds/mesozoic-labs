@@ -1,0 +1,141 @@
+[
+ {
+  "quantity": "Metatarsus / femur (model: ankle-to-MTP III joint distance; published: MT III bone length / femur)",
+  "model": "0.613 (0.2154 / 0.3513 m)",
+  "published": "adults 0.523-0.600 (MOR 555 0.523, CM 9380 0.536, RTMP 81.12.1 0.542, BHI 6230 0.600); juvenile LACM 23845 0.616; Sue from Brochu Fig. 100 (digitised MT III 70.4-72.4 cm / femur 131.2 cm) 0.537-0.552 [figure estimate]",
+  "reading": "Model sits at the juvenile LACM 23845 value and above all adults. Even with Hutchinson 2005's soft-tissue padding (metatarsus +10%, femur +7.5%), adults reach 0.536-0.614, so the model is at the top of that range (BHI 6230) [padding arithmetic is inference].",
+  "evidence": "out/model_frame.json; Persons & Currie 2016 Table 2 (doi:10.1038/srep19828, parsed from dl/persons_currie2016/PMC4728391.xml); Brochu 2003 Fig. 100 (zenodo 3740035) via out/brochu_pes_summary.json; Hutchinson 2011 Table 3 femur"
+ },
+ {
+  "quantity": "Tibia / femur",
+  "model": "1.000",
+  "published": "adults 0.898-0.932; juvenile LACM 23845 1.000",
+  "reading": "Model = juvenile proportion; adults 0.90-0.93 (0.878-0.910 with Hutchinson 2005 padding). Confirmed.",
+  "evidence": "out/model_frame.json; Persons & Currie 2016 Table 2"
+ },
+ {
+  "quantity": "Hindlimb length (femur+tibia+metatarsus) / femur",
+  "model": "2.613",
+  "published": "adults 2.42-2.53 (Persons & Currie sums); Hutchinson 2011 Table 3 'leg length'/femur 2.39-2.52; juvenile LACM 23845 2.62",
+  "reading": "Model limb is long for its femur, again juvenile-like (driven by tibia 1.00 and metatarsus 0.61).",
+  "evidence": "out/model_frame.json; Persons & Currie 2016 Table 2; Hutchinson 2011 Table 3 (dl/hutchinson2011/PMC3192160.xml)"
+ },
+ {
+  "quantity": "Digit III length / metatarsus (model: MTP III joint to capsule tip)",
+  "model": "1.01 with the capsule end-cap (0.218 m), 0.88 without (0.190 m)",
+  "published": "MOR 555 model pes segment 0.584 m (Hutchinson 2005 App. 2) / MT III 0.670 m = 0.87; Sue summed digit III phalanges 67.5-70.0 cm / MT III 71.5 cm = 0.94-0.98 (summing overstates the articulated digit) [figure estimate]; Boeye 2026 Table 1 'complete leg minus femur+tibia+tarsometatarsus' / Persons & Currie MT III: MOR 555 0.75, LACM 23845 0.79 [2D reconstructions, indirect]",
+  "reading": "Inside the published spread (0.75-0.98) without the cap and slightly above it with the cap. The digits are not over-long relative to the metatarsus.",
+  "evidence": "out/model_frame.json; Hutchinson 2005 Appendix 2 (dl/hutchinson2005/h2005.txt); out/brochu_pes_summary.json; Boeye 2026 Table 1"
+ },
+ {
+  "quantity": "Digit II and IV length relative to digit III",
+  "model": "from the pad rear (track convention): II 0.72, IV 0.81 of III; from MTP joints: II 0.72, IV 0.81",
+  "published": "Bellatoripes digit lengths from the track rear (prints without a flagged digit II): II/III 0.65-0.89, IV/III 0.75-0.98 (McCrea 2014 Table 1); Sue summed phalanges II/III 0.82-0.87 (digit IV incomplete) [figure estimate]",
+  "reading": "Within or near the track ranges; digit II slightly short against Sue's skeleton. Not a fore-aft concern.",
+  "evidence": "out/model_frame.json; McCrea 2014 Table 1; out/brochu_pes_summary.json"
+ },
+ {
+  "quantity": "Proximal phalanx (III-1) share of digit III, which locates the 'proximal phalanges' load zone",
+  "model": "no phalanges in the model (one rigid capsule); the pad centre sits 27.5% of the way along digit III",
+  "published": "MOR 555: III-1 = 0.224 of 0.584 m = 0.384 (Hutchinson 2005 App. 2); Sue: III-1 / summed digit III = 0.320-0.322, III-1+III-2 = 0.54-0.56, ungual III-4 = 0.24-0.26 [figure estimate]",
+  "reading": "On the model's digit III (0.218 m) the III-1 zone spans 0 to 0.070-0.084 m ahead of MTP III, i.e. pad statistic -0.86 to 0.14..0.34. The pad centre (0) lies inside it [inference].",
+  "evidence": "out/model_frame.json; Hutchinson 2005 App. 2; Brochu 2003 Figs. 105-106 via out/brochu_pes_summary.json"
+ },
+ {
+  "quantity": "COM ahead of hip",
+  "model": "41.9% femur (0.147 m); 16.0% of femur+tibia+metatarsus",
+  "published": "'most plausible' 30-45% femur, Sue 44-61% (Hutchinson 2011 text) = 0.105-0.158 m on the model femur; Table 7 adult minimal/maximal models 29.7-66.8% femur, 12.4-26.6% leg length; Bates 2009 best estimates 36.6-44.8% femur (MOR 555 0.468 m, BHI 3033 0.572 m)",
+  "reading": "Inside the band. Note: Hutchinson 2011 Table 7 lists Sue at 66.8/46.0% femur, but Table 6 x / Table 3 femur gives 43.6-61.1%, which matches the text's 44-61%.",
+  "evidence": "out/model_frame.json; Hutchinson 2011 Tables 3, 6, 7 + text; Bates 2009 Table 8 (dl/bates2009/PMC2639725.xml)"
+ },
+ {
+  "quantity": "COM below hip",
+  "model": "-2.1% femur, i.e. 0.0074 m ABOVE the hip",
+  "published": "22-35% (Carnegie, MOR), 26-28% (Sue), 38-50% (Stan) femur below (Hutchinson 2011 text) = 0.077-0.176 m below on the model femur; Table 7 adult min/max 24.9-40.8% femur, 9.9-17.0% leg length below; Bates 2009 23.2-25.5% femur below",
+  "reading": "Mismatch: model COM is 0.085-0.183 m higher relative to the hip than any published model, which raises mgh and the toppling rate.",
+  "evidence": "out/model_frame.json; Hutchinson 2011 text + Table 7; Bates 2009 Table 8"
+ },
+ {
+  "quantity": "Segment mass shares (% body mass; limb segments per single limb)",
+  "model": "head 10.1, neck 5.8, tail 18.2; per limb thigh 5.8, shank 4.1, foot 2.1; both hindlimbs 23.9",
+  "published": "adult minimal models: head 4.1-11.1, neck 3.2-7.3, tail 9.9-20.7; per limb thigh 12.6-17.4, shank 4.3-5.8, foot 1.3-2.9; both hindlimbs 38.2-52.0 (Table 10 gives 35-65 for left+right, upper-end estimates)",
+  "reading": "Per-limb reading confirmed by Table 10 footnote ('for left and right limbs'). Model thigh is 2.2-3.0x too light and the hindlimbs carry about half the published share; shank slightly light; head, neck, tail, foot inside.",
+  "evidence": "out/model_frame.json; Hutchinson 2011 Tables 4, 5, 10 (parsed)"
+ },
+ {
+  "quantity": "Footprint length / hip height",
+  "model": "0.260 (0.228 / 0.8766 m)",
+  "published": "Bellatoripes holotype FL 62.0 cm (prints 52.3-67.0 cm) with hip height 2.3-2.87 m: 0.216-0.270; Alexander's h ~ 4 FL gives 0.25; Sue FL proxy (1.05 x summed digit III) / femur 0.54-0.56 vs model footprint/femur 0.65",
+  "reading": "Inside the trackway-derived band. Footprint/femur runs high in the model, but the model femur is short.",
+  "evidence": "out/model_frame.json; McCrea 2014 Table 1 + Discussion (dl/mccrea2014/PMC4108409.xml); out/brochu_pes_summary.json"
+ },
+ {
+  "quantity": "Rear contact (track 'heel')",
+  "model": "midline box pad, rear edge -0.010 m (statistic -1.00) under MTP III; digit IV MTP joint at 0.000 m fore-aft, 0.025 m lateral",
+  "published": "digit IV MTP pad commonly impressed, II-III MTP pads held clear (Lallensack 2022); Bellatoripes 'metatarsal pad impression present with a wide caudal margin' (McCrea 2014). In the model frame the track's rear edge lies at or behind the MTP joint: statistic <= -0.86, footprint fraction <= 0.044 [inference]",
+  "reading": "Fore-aft placement of the rear edge agrees (within 1 cm). The side is wrong: the published rear contact is the lateral digit IV pad, not a midline pad under III.",
+  "evidence": "out/model_frame.json; Lallensack 2022 (dl/lallensack2022/l2022.pdf); McCrea 2014 diagnosis"
+ },
+ {
+  "quantity": "Load centre (where weight sits)",
+  "model": "pad centre 0.060 m ahead of MTP III = 27.5% of digit III (statistic 0); home COM projection statistic 0.104",
+  "published": "tracks: depressions 'around the proximal pedal phalanges' (Boeye 2026) = statistic -0.86 to 0.14..0.34; Bellatoripes metatarsal-pad depth = 0.50-0.82 of digit III depth (McCrea 2014 Table 1); ostrich digit III 77-84% of load, claw 1.5-2.4% at toe-off (Zhang 2017)",
+  "reading": "Plausible: the pad centre and the home COM projection fall inside the proximal-phalanx zone. The rear pad carries real load in tracks.",
+  "evidence": "out/model_frame.json; Boeye 2026 (dl/boeye2026/boeye.txt l.101); McCrea 2014 Table 1; Zhang 2017; Hutchinson 2005 App. 2; out/brochu_pes_summary.json",
+  "_mccrea_duplicate_depth_rows": [
+   [
+    "B1(R)",
+    "C1(R)"
+   ]
+  ]
+ },
+ {
+  "quantity": "Digit spread (included angles between digit axes, ground plane)",
+  "model": "II-III 8.7 deg, III-IV 7.6 deg, total 16.3 deg",
+  "published": "Bellatoripes prints: II-III 22-38 deg, III-IV 29-42 deg, total 51-80 deg ('generally no greater than 80', III-IV > II-III)",
+  "reading": "Model is 3.1-4.9x too narrow and its order is reversed (II-III > III-IV). This affects roll support, not fore-aft.",
+  "evidence": "out/model_frame.json; McCrea 2014 Table 1"
+ },
+ {
+  "quantity": "Ankle (intertarsal) range, included angle (180 = straight)",
+  "model": "91.2-191.2 deg (width 100), home 135.7",
+  "published": "T. rex MOR 555 model (Hutchinson 2005 Table 1): 90-180 deg (width 90); flexed T. rex hip-height pose ankle 140 deg (McCrea 2014); ostrich stance >= 160-164, full extension 168, snap-through 115 (Schaller 2009; convention assumed included); guineafowl knee/ankle FE amount 162-176 deg (Kambic 2017)",
+  "reading": "Flexion end matches Hutchinson 2005 (91 vs 90). The model allows 11.2 deg of hyperextension past straight, which Hutchinson 2005 does not. Home 135.7 is near the 140 used for a flexed T. rex.",
+  "evidence": "out/model_frame.json; Hutchinson 2005 Table 1 (signs restored); McCrea 2014; Schaller 2009; Kambic 2017"
+ },
+ {
+  "quantity": "Toe (MTP III) range, included metatarsus-digit angle",
+  "model": "74.3-149.3 deg (width 75), home 111.8; digit III can tilt 37.5 deg below horizontal; passive 40 N m/rad, damping 15",
+  "published": "T. rex MOR 555 model (Hutchinson 2005 Table 1, 0 = digits at 90 deg to metatarsus): 45-180 deg included (width 135); guineafowl toe reached 30 deg below horizontal in soft substrate (Falkingham & Gatesy 2014)",
+  "reading": "The model range lies inside the published model range, narrower at both ends. The report's 'no published T. rex MTP/ankle range' needs qualifying: Hutchinson 2005 publishes model-allowed ranges, though not measured anatomical limits.",
+  "evidence": "out/model_frame.json; Hutchinson 2005 Table 1 + App. 2; Falkingham & Gatesy 2014 abstract"
+ },
+ {
+  "quantity": "Knee and hip ranges",
+  "model": "knee included 85.0-185.0; femur from vertical -42.5 (back) to +87.5 (forward), home +22.5",
+  "published": "Hutchinson 2005: knee included 90-190; hip -65 (flexion) to +45 (extension) from the columnar pose (femur at 90 deg to pelvis); hip-extensor moment arms ~94% of peak at 15 deg flexion (Fig. 6)",
+  "reading": "Knee matches within 5 deg. Model hip flexes 22.5 deg further [assumes the pelvis is level in both]. Home femur at 22.5 deg sits near the 15 deg moment-arm optimum.",
+  "evidence": "out/model_frame.json; Hutchinson 2005 Table 1, Fig. 6"
+ },
+ {
+  "quantity": "Standing posture",
+  "model": "femur 22.5 deg from vertical, knee 135.0, ankle 135.7, metatarsus 68.2 deg above horizontal; hip height / femur 2.50",
+  "published": "subvertical femur, knee near the vertical GRF line (Bishop 2018; Gatesy 2009 via Bishop); flexed T. rex pose knee 110 / ankle 140 (McCrea 2014); MOR 555 hip height 2.5-3.15 m = 1.95-2.46 femur lengths (Boeye 2026)",
+  "reading": "Model knee is less flexed than McCrea's flexed case. Model hip height per femur sits at the top of the MOR 555 range because of its long juvenile-like shank. Knee-to-CoP offset is not measured here (needs posture telemetry).",
+  "evidence": "out/model_frame.json; Bishop 2018 (dl/bishop2018); McCrea 2014; Boeye 2026 Sec. 2.3"
+ },
+ {
+  "quantity": "Hallux and claws",
+  "model": "no hallux; digit capsules carry contact to the tip, with no separate ungual",
+  "published": "MT I attached posteriorly on MT II, digit I 'not reversed', narrow curved ungual (Brochu 2003); hallux impression on one Bellatoripes print only (McCrea 2014); unguals II-III flat-bottomed (Brochu); ostrich claw only at push-off (Schaller 2011), 1.5-2.4% of load (Zhang 2017); ungual = 0.24-0.26 of summed digit III = statistic 1.45 to 2.26 on the model [figure estimate]",
+  "reading": "Omitting the hallux is consistent with the evidence. Load at the claw zone (statistic > ~+1.5) would be a push-off pattern, not a standing one.",
+  "evidence": "Brochu 2003 text (dl/plazi_brochu2003); McCrea 2014; Schaller 2011; Zhang 2017; out/brochu_pes_summary.json"
+ },
+ {
+  "quantity": "Passive stiffness / mgh",
+  "model": "six digit springs 0.323; two ankle servos kp 2.42 (mgh 743.4 N m/rad at home)",
+  "published": "human intrinsic ankle stiffness 91 +- 23% (tiny perturbations; Loram & Lakie 2002), 64 +- 8% (1 deg; Casadio 2005)",
+  "reading": "Rough index only. Digit springs are about half the human passive fraction; the servos are active stiffness, not passive.",
+  "evidence": "out/model_frame.json; Loram & Lakie 2002 + Casadio 2005 abstracts (dl/abstracts)"
+ }
+]

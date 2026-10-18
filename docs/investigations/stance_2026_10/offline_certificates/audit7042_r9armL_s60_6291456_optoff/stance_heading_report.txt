@@ -1,0 +1,78 @@
+policy              stage1_6291456_steps.zip — VecNormalize stats applied (clip 10)
+stage               Tyrannosaurus Rex (Anatomical) — Stance (stage 1, stance_quality_heading/v1, floor truth)
+protocol            whole_scene_yaw/v1: the whole scene turned about vertical through the root (the animal, the prey and the reference direction)
+grid                -90, -45, +0, +45, +90, +180 deg; 40 seeds 7042-7081 at every heading
+settle_steps        200; horizon 1000; control step 0.01 s
+measurement         floor-truth/v2 (sha256:16ecfdedccc43917c95e3a55b619285f3ffccc76ca66f078b998d58334806567)
+task                sha256:bde44225b024856c200b3e9a75840bc5bc5859c577599248b116681b21d846a6
+gate                sha256:06375c211ddae7a57b102b19d9bd8e81aefe602b4b7ff77da35466f6e0fff7f6
+
+seeds clean at every heading     39 / 40   LCB95 0.8868   (>= 0.8000, min_eval_episodes 40: the statistic)
+episodes clean, pooled          234 / 240   LCB95 0.9513   (NOT the statistic: the turns of a seed are not independent)
+
+each heading's full v2 decision, against the statue rolled at that heading:
+   heading   clean   LCB95  full-hz    reward  statue fh  statue reward  v2
+       -90  39/40   0.8868   0.9750    3641.4      40/40         3760.0  PASS
+       -45  39/40   0.8868   0.9750    3641.4      40/40         3760.0  PASS
+        +0  39/40   0.8868   0.9750    3641.4      40/40         3760.0  PASS
+       +45  39/40   0.8868   0.9750    3641.4      40/40         3760.0  PASS
+       +90  39/40   0.8868   0.9750    3641.4      40/40         3760.0  PASS
+      +180  39/40   0.8868   0.9750    3641.4      40/40         3760.0  PASS
+
+seeds not clean at every heading (1; first 1 shown):
+  seed 7047: -90, -45, +0, +45, +90, +180 deg
+
+the 0 deg cell in detail (that heading's v2 decision; the certificate's verdict closes this report):
+
+policy              stage1_6291456_steps.zip — VecNormalize stats applied (clip 10)
+stage               Tyrannosaurus Rex (Anatomical) — Stance (stage 1, stance_quality/v2, floor truth)
+panel               40 episodes, seeds 7042-7081
+settle_steps        200 (window criteria over the remaining 800; settle criteria after the 0.1 s spawn grace)
+measurement         floor-truth/v2 (sha256:16ecfdedccc43917c95e3a55b619285f3ffccc76ca66f078b998d58334806567)
+task                sha256:bde44225b024856c200b3e9a75840bc5bc5859c577599248b116681b21d846a6
+
+clean episodes           39 / 40   LCB95 0.8868   (>= 0.8000, min_eval_episodes 40)
+full_horizon_fraction     0.9750
+reward                    3641.4 +/- 520.5
+terminations           {'truncated': 39, 'head_contact': 1}
+
+per-episode criteria (fails = episodes failing it; median and worst over the panel):
+  horizon                              reach 1000 steps         fails   1/40
+  min_all_feet_support                 >= 0.98         fails   1/40   median 1, worst 1, 1 unmeasured
+  max_touchdown_rate                   <= 0.25         fails   1/40   median 0, worst 0, 1 unmeasured
+  max_window_displacement_m            <= 0.1          fails   1/40   median 0.03008, worst 0.04931, 1 unmeasured
+  min_foot_load_share                  >= 0.4          fails   1/40   median 0.4974, worst 0.4888, 1 unmeasured
+  max_actuator_saturation_fraction     <= 0.1          fails   1/40   median 0, worst 0, 1 unmeasured
+  max_settle_airborne_substeps         <= 0            fails   0/40   median 0, worst 0
+  max_settle_peak_floor_force_bw       <= 1.5          fails   0/40   median 1.24, worst 1.359
+  min_foot_load_share_windowed         >= 0.35         fails   1/40   median 0.4935, worst 0.4832, 1 unmeasured
+  max_foot_contact_fraction            <= 0.02         fails   1/40   median 0, worst 0, 1 unmeasured
+  max_phantom_support_fraction         <= 0.05         fails   1/40   median 0, worst 0, 1 unmeasured
+  max_nonfoot_load_fraction            <= 0.02         fails   1/40   median 0, worst 0, 1 unmeasured
+  max_settle_stance_width_change_m     <= 0.08         fails   1/40   median 0.006987, worst 0.02602, 1 unmeasured
+  max_sole_tilt_deg                    <= 2            fails   1/40   median 0.4306, worst 1.619, 1 unmeasured
+  max_sole_corner_lift_m               <= 0.004        fails   1/40   median 0.0008567, worst 0.002802, 1 unmeasured
+  min_sole_contacts                    >= 1.5          fails   1/40   median 3.534, worst 2, 1 unmeasured
+  max_episode_yaw_change_deg           <= 25           fails   0/40   median 1.537, worst 5.922
+  max_settle_touchdowns                <= 2            fails   0/40   median 1, worst 1
+  max_sole_cop_fore_aft                <= 0.8          fails   1/40   median 0.3738, worst 0.5214, 1 unmeasured
+  min_avg_reward                       2250 (panel rail)
+  min_avg_reward_statue_ratio          0.6 (panel rail)
+  min_full_horizon_fraction            0.95 (panel rail)
+  max_hop_or_fall_episodes             <= 1 (panel rail: 1 episodes end early or fail support, touchdowns, drift or saturation)
+
+statue reference (zero action, same seeds): 40/40 full-horizon, mean reward 3760.0, foot load shares [0.500, 0.500]
+
+report-only (not gated; median and max over the panel):
+  touch agrees with floor truth        1, max 1
+  spawn-grace peak floor force (BW)    1.208, max 1.563
+  foot CoP fore-aft (|.| / half-span)  0.1868, max 0.4444
+  window both-feet-unloaded substeps   0, max 0
+  window peak floor force (BW)         1.002, max 1.01
+  touch unsupported duty (v1 measure)  0.0000
+
+unclean episodes (1; first 1 shown):
+  seed 7047: horizon: length 173 < 1000; min_all_feet_support: all_feet_support is unmeasured (nan); max_touchdown_rate: touchdown_rate is unmeasured (nan); max_window_displacement_m: window_displacement_m is unmeasured (nan); min_foot_load_share: min_foot_load_share is unmeasured (nan); max_actuator_saturation_fraction: max_actuator_saturation_fraction is unmeasured (nan); min_foot_load_share_windowed: min_foot_load_share_windowed is unmeasured (nan); max_foot_contact_fraction: foot_on_foot_fraction is unmeasured (nan); max_phantom_support_fraction: phantom_support_fraction is unmeasured (nan); max_nonfoot_load_fraction: nonfoot_load_fraction is unmeasured (nan); max_settle_stance_width_change_m: settle_stance_width_change_m is unmeasured (nan); max_sole_tilt_deg: max_sole_tilt_deg is unmeasured (nan); max_sole_corner_lift_m: max_sole_corner_lift_m is unmeasured (nan); min_sole_contacts: min_sole_contacts is unmeasured (nan); max_sole_cop_fore_aft: max_sole_cop_fore_aft is unmeasured (nan)
+
+
+GATE: PASS

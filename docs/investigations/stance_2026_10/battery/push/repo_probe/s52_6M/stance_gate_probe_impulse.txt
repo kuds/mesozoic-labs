@@ -1,0 +1,43 @@
+PROBE: a lateral impulse applied to the root partway through each episode.
+Scores the unmodified policy on a MODIFIED TASK. No row is a gate verdict.
+
+policy              stage1_6291456_steps.zip
+stage               Tyrannosaurus Rex (Anatomical) — Stance (stage 1)
+panel               8 episodes per row, horizon 1000, impulse at step 200
+control             the zero-action statue, which commands a constant and CANNOT respond
+
+    impulse direction        policy len  policy fh statue len  statue fh   margin
+       none none (control)       1000.0     1.0000     1000.0     1.0000       +0
+   0.50 m/s backward -x           254.6     0.0000      269.6     0.0000      -15
+   0.50 m/s forward +x            339.8     0.0000      298.2     0.0000      +42
+   0.50 m/s lateral +y            588.9     0.2500      411.9     0.0000     +177
+   0.50 m/s lateral -y            504.9     0.1250      485.5     0.1250      +19
+   1.00 m/s backward -x           236.0     0.0000      238.5     0.0000       -2
+   1.00 m/s forward +x            275.5     0.0000      256.6     0.0000      +19
+   1.00 m/s lateral +y            277.1     0.0000      277.4     0.0000       -0
+   1.00 m/s lateral -y            276.2     0.0000      276.9     0.0000       -1
+   2.00 m/s backward -x           230.0     0.0000      231.0     0.0000       -1
+   2.00 m/s forward +x            246.2     0.0000      234.0     0.0000      +12
+   2.00 m/s lateral +y            242.0     0.0000      242.2     0.0000       -0
+   2.00 m/s lateral -y            241.1     0.0000      241.9     0.0000       -1
+
+How to read it:
+  recovery envelope, backward -x      policy      none   statue      none
+  recovery envelope, forward +x       policy      none   statue      none
+  recovery envelope, lateral +y       policy      none   statue      none
+  recovery envelope, lateral -y       policy      none   statue      none
+
+  Neither side recovers from anything, and the policy's survival is within noise
+  of the statue's (+21 steps on average). Nothing has learned to recover --
+  exactly what the task structure predicts, since no reward term can pay for a
+  correction that is never needed. No reweighting fixes this; the disturbance has
+  to enter the TASK. See STAGE1_SPLIT_PLAN's 1a stance / 1b recovery split.
+
+  (Mean step margin over disturbed rows is +21, reported second because it
+  pools a full recovery with a total failure and can describe neither.)
+
+  Both signs are run because a learned stance is generally asymmetric --
+  commanded pose and tremor differ between the left and right legs -- so a
+  one-sided sweep would measure whichever direction it happens to be good at
+  and report that as the answer.
+  The zero-impulse row is the harness check: both columns must reach the horizon.

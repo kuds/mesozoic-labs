@@ -1,0 +1,139 @@
+{
+  "_note": "Hand-entered published values that are not parsed from a machine-readable table. Each entry names the fetched copy it was read from (path relative to the literature/ directory) and a locator. Tables that ARE machine-readable (Persons & Currie 2016 Table 2, Hutchinson et al. 2011 Tables 3-7, McCrea et al. 2014 Table 1) are parsed directly by lit_convert.py from the fetched XML.",
+
+  "hutchinson2005": {
+    "cite": "Hutchinson, Anderson, Blemker & Delp 2005, Paleobiology 31:676-701, doi:10.1666/0094-8373(2005)031[0676:AOHMMA]2.0.CO;2",
+    "copy": "dl/hutchinson2005/h2005.pdf (from https://nmbl.stanford.edu/publications/pdf/Hutchinson2005.pdf); text h2005.txt",
+    "specimen": "MOR 555",
+    "table1_ranges_deg": {
+      "_locator": "Table 1, p. 683; minus signs restored (pdftotext drops them: '265' = -65). 0 deg = fully straightened (columnar reference pose). Negative = flexion for hip/ankle; for the MTP joint -45 is dorsiflexion and +90 plantarflexion (text p. 683: 'peaking ... at extreme joint extension (-45 deg dorsiflexion from the reference pose ...) ... extreme joint flexion (90 deg plantarflexion)').",
+      "hip_flexion_extension": [-65, 45],
+      "hip_abduction": [0, 45],
+      "hip_long_axis_rotation": [-30, 30],
+      "knee_extension_flexion": [-10, 90],
+      "ankle_flexion_extension": [-90, 0],
+      "mtp_flexion_extension": [-45, 90],
+      "interphalangeal_d3": [-45, 0],
+      "foot_ground_roll": [-45, 45]
+    },
+    "conventions": {
+      "_locator": "Table 1 caption; Appendix 2 (p. ~698 in text dump line ~1308)",
+      "knee_included_equals": "180 - angle",
+      "ankle_included_equals": "180 + angle",
+      "mtp_zero_means": "phalanges at 90 deg to the metatarsus in the sagittal plane ('the metatarsophalangeal joint angle was 0 deg when the phalanges were at 90 deg to the metatarsus'); so included metatarsus-digit angle = 90 + angle",
+      "hip_zero_means": "columnar reference pose 'with the femur at a 90 deg angle to the pelvis'"
+    },
+    "pes_segment_m": {
+      "_locator": "Appendix 2: interphalangeal hinge of digit 3, phalanx 1 'dividing the pes segment into lengths of 0.224 and 0.360 m, proximally and distally in the pes'",
+      "proximal_III1": 0.224,
+      "distal": 0.360
+    },
+    "soft_tissue_padding": "Appendix 2: 'we added an additional 7.5% to the length of the femur, 5% to the tibiotarsus, and 10% to the metatarsus to accommodate cartilages and other soft tissues such as the foot pad beneath metatarsal 3'",
+    "hip_extensor_moment_arm_optimum_deg": {
+      "value": -15,
+      "_locator": "Fig. 6 caption: optimum 'quite upright: at about -15 deg (flexion from the fully columnar reference pose), the moment arms are at about 94% of the peak'"
+    },
+    "pose_conclusion": "p. 692: 'it seems reasonable to reconstruct T. rex in a more upright (but not completely columnar) pose, rather than a more crouched pose'"
+  },
+
+  "brochu2003": {
+    "cite": "Brochu 2003, SVP Memoir 7 / JVP 22(4 suppl.):1-138, doi:10.1080/02724634.2003.10010947 (Plazi lists DOI 10.2307/3889334)",
+    "text_copy": "dl/plazi_brochu2003/x/desc_big.txt (Plazi TreatmentBank DwC-A 6603FFA80B5D0D64FFF6AB533D39FF9A via GBIF dataset 6f85aa0a-0368-41a5-83d3-21c33f40845e); measurement tables are NOT in the Plazi text",
+    "figures": {
+      "fig099_MTII": "zenodo.org/records/3740183 (Scale = 10 cm)",
+      "fig100_MTIII": "zenodo.org/records/3740035 (Scale = 10 cm)",
+      "fig101_MTIV": "zenodo.org/records/3740185 (Scale = 10 cm)",
+      "fig104_articulated_pes": "zenodo.org/records/3740043 (no scale)",
+      "fig105_phalanges_dorsal": "zenodo.org/records/3740187 (Scale = 10 cm)",
+      "fig106_phalanges_ventral": "zenodo.org/records/3740189 (Scale = 10 cm)"
+    },
+    "quotes": {
+      "material": "The right metatarsus of FMNH PR 2081 (Figs. 99 - 104) is virtually complete, lacking only the metatarsal for digit I. All phalanges for the second and third digits are present, and only the distalmost two phalanges are missing from the fourth (Figs. 105 - 108). An isolated claw is all that remains of the first digit.",
+      "hallux": "Immediately distal to this is a much larger teardrop-shaped feature ... This marks the attachment surface for MT I. Although MT I attached to the rest of the metatarsus posteriorly, the distal trochlea on MT I was oriented such that digit I was not reversed. [on the posteromedial surface of MT II]",
+      "digit_I_ungual": "The ungual of digit I is much narrower than those of digits II and III, with an oval cross section and stronger ventral curvature in lateral view.",
+      "unguals_II_III": "The unguals of digits II and III are triangular in cross-section, with broad, flattened ventral surfaces.",
+      "phalanges": "The nonungual phalanges on each digit (Figs. 105 - 108) are progressively shorter distally.",
+      "mt_divergence": "the shaft of MT IV diverges further laterally than its counterpart does medially; as a result, the distal condyle of MT III is closer to that of MT II than MT IV. This is reflected in footprints attributed to Tyrannosauridae (Lockley and Hunt, 1994), in which the cleft between the second and third digits lies anterior to that for the third and fourth."
+    },
+    "femur_m_from_hutchinson2011_table3": 1.312
+  },
+
+  "boeye2026": {
+    "cite": "Boeye, Atkins-Weltman, King & Swann 2026, R. Soc. Open Sci. 13:252139, doi:10.1098/rsos.252139 (CC BY 4.0)",
+    "copy": "dl/boeye2026/boeye.pdf (publisher PDF mirrored at dinodata.de; publisher site returned a bot challenge); text boeye.txt",
+    "depth_quote": "In some well-preserved trackways of tyrannosaurs [34,36], digits III and IV appear to have a greater depth than impressions left by digit II, creating two distinct depressions in areas around the proximal pedal phalanges, with one centred on digits II and III and a second on digit IV [31,34-36].",
+    "strike_quote": "a 'distal-first' foot-strike pattern where flesh of the foot ventral to the distal pedal phalanges make initial contact with the ground",
+    "hip_height_MOR555_m": {"crouch75": 2.5, "crouch95": 3.15, "_locator": "Section 2.3: 'A minimum hip height at 75% crouch, representing a standing hip height of 2.5 m to the proximal pedal phalanx, was derived from MOR 555. The highest hip height at 95% crouch was 3.15 m.'"},
+    "table1_2D_m": {
+      "_locator": "Table 1: two-dimensional measurements (complete leg) vs (femur, tibiotarsus and tarsometatarsus); from Hartman skeletal reconstructions, Persons & Currie, Zanno & Napoli",
+      "LACM 23845": {"complete_leg": 2.558, "FTM": 2.158},
+      "MOR 555": {"complete_leg": 3.6, "FTM": 3.1},
+      "exBHI 3033": {"complete_leg": 3.61, "FTM": 3.11},
+      "FMNH PR 2081": {"complete_leg": 3.77, "FTM": 3.25}
+    }
+  },
+
+  "mccrea2014_text": {
+    "cite": "McCrea et al. 2014, PLoS ONE 9:e103613, doi:10.1371/journal.pone.0103613",
+    "copy": "dl/mccrea2014/PMC4108409.xml",
+    "fl_proxy": "Digit III length is calculated by summing the lengths of the pedal phalanges and adding 5% to the total ... the osteologic FL of digit III ... as a proxy for ichnologic FL",
+    "fl_proxy_factor": 1.05,
+    "hip_height_m": {"tyrannosaurid_eq": 2.87, "general_large_theropod_eq": 2.80, "flexed": 2.30, "flexed_pose_knee_deg": 110, "flexed_pose_ankle_deg": 140, "_locator": "Discussion: 'Taking into account a flexion of the knee of 110 deg and a flexion at the ankle of 140 deg [65],[66], an estimated hip height of 2.30 m is obtained'"},
+    "alexander_h_over_fl": 4.0,
+    "diagnosis": "Total divarication is variable, but is generally no greater than 80o. Divarication between digits III and IV is normally greater than between digits II and III. Metatarsal pad impression present with a wide caudal margin."
+  },
+
+  "lallensack2022": {
+    "cite": "Lallensack, Farlow & Falkingham 2022, Palaeontology (author PDF https://researchonline.ljmu.ac.uk/15899/)",
+    "copy": "dl/lallensack2022/l2022.pdf",
+    "quote_mtp_pads": "The metatarsophalangeal pads of digits II and III seem to have been typically held clear of the ground by non-avian theropods, but may occasionally leave an impression (Thulborn 1990). The metatarsophalangeal pad of digit IV, on the other hand, is thought to have commonly been impressed (Farlow et al. 2000).",
+    "quote_resting": "the metatarso-phalangeal pad of digit IV is lying nearly along the axis of digit III instead of being located laterally as in walking trackways (Olsen & Rainforth 2003)"
+  },
+
+  "persons_currie2016": {"cite": "Persons & Currie 2016, Sci. Rep. 6:19828, doi:10.1038/srep19828", "copy": "dl/persons_currie2016/PMC4728391.xml"},
+  "hutchinson2011": {"cite": "Hutchinson et al. 2011, PLoS ONE 6:e26037, doi:10.1371/journal.pone.0026037", "copy": "dl/hutchinson2011/PMC3192160.xml",
+    "text_plausible_com": "the range of ~30-45% femur length for most minimal and maximal (also most dorsal and ventral) models; albeit with Sue at 44-61%; would cover our qualitative assessment of the most plausible COM range for adult Tyrannosaurus",
+    "text_ventral_com": "Expressed as % femur length ventral to the hip, the COM was estimated to be 22-35% for the Carnegie and MOR specimens, a surprisingly conservative but otherwise similar 26-28% for Sue, 38-50% for Stan, and 35-54% for Jane.",
+    "plausible_ahead_pct_femur": [30, 45], "plausible_ahead_pct_femur_sue": [44, 61],
+    "ventral_pct_femur": {"Carnegie_MOR": [22, 35], "Sue": [26, 28], "Stan": [38, 50], "Jane": [35, 54]},
+    "table10_footnote": "'Mlimbs / Mbody' shows the percentage of body mass that the sampled limb mass (for left and right limbs) constitutes ... Tyrannosaurus ... 35-65 [upper-end (over)estimates]",
+    "segment_text": "foot segment represents the distal tarsals (when present), metatarsus and all preserved digits"},
+  "bates2009": {"cite": "Bates et al. 2009, PLoS ONE 4:e4532, doi:10.1371/journal.pone.0004532", "copy": "dl/bates2009/PMC2639725.xml",
+    "best_estimate_com_rel_hip_m": {"BHI 3033": [0.572, -0.297], "MOR 555": [0.468, -0.326]}, "_locator": "Table 8 rows 'Best estimate'"},
+
+  "birds": {
+    "chang_ting2017": {"cite": "Chang & Ting 2017, Biol. Lett. 13:20160948, doi:10.1098/rsbl.2016.0948", "copy": "WebFetch of https://pmc.ncbi.nlm.nih.gov/articles/PMC5454233/ (2026-10-17)",
+      "quote": "CoP movements were remarkably small and located directly under the tarsometatarsophalangeal (TMP) joint", "radius_mm": [3.2, 0.5], "radius_pct_foot_length": [5, 10],
+      "foot_length_defined": false, "implied_foot_length_mm": "32-64 (3.2 mm / 10% to 3.2 mm / 5%; arithmetic, not stated in the paper)", "birds": "8 juvenile Phoenicopterus chilensis, 0.25-1.40 kg, leg length 0.17-0.40 m"},
+    "schaller2009": {"cite": "Schaller et al. 2009, J. Anat. 214:830-847, doi:10.1111/j.1469-7580.2009.01083.x", "copy": "WebFetch of https://pmc.ncbi.nlm.nih.gov/articles/PMC2705294/ + Europe PMC abstract dl/abstracts/",
+      "transition_deg": 115, "max_extension_deg": 168, "stance_min_walk_deg": 164, "stance_min_run_deg": 160,
+      "angle_definition": "'Degrees of flexion/extension were obtained as angular displacement of the tarsometatarsus relative to the tibiotarsus' (no numeric statement that 180 = straight)",
+      "mtp_quote": "the supra-jointed metatarsophalangeal posture is maintained primarily by ligaments"},
+    "kambic2017": {"cite": "Kambic, Roberts & Gatesy 2017, J. Anat. 231:906, doi:10.1111/joa.12680", "copy": "WebFetch of https://pmc.ncbi.nlm.nih.gov/articles/PMC5696129/",
+      "quote": "The hip allows the smallest range of FE (95-116 deg) ... the knee and ankle can undergo amounts that are similar in magnitude (162-176 deg)", "hip_fe_amount": [95, 116], "knee_ankle_fe_amount": [162, 176]},
+    "falkingham_gatesy2014": {"cite": "Falkingham & Gatesy 2014, PNAS 111:18279, doi:10.1073/pnas.1416252111", "copy": "dl/abstracts (Europe PMC abstract)",
+      "quote": "the longest toe penetrated to a depth of ~5 cm, reaching an angle of 30 deg below horizontal before slipping backward on withdrawal", "toe_below_horizontal_deg": 30},
+    "zhang2017": {"cite": "Zhang et al. 2017, PeerJ 5:e3613, doi:10.7717/peerj.3613", "copy": "dl/zhang2017/PMC5530993.xml",
+      "d3_share": {"sand": 0.84, "ground": 0.77}, "d4_share": {"sand": 0.14, "ground": 0.23}, "claw_share_toeoff": {"sand": 0.015, "ground": 0.024},
+      "quote_cop_sand": "When the ostrich ran on the loose sand, the COP mostly originated from the middle of the 3rd toe",
+      "quote_cop_ground": "These discrete points of the initial COP, located on the lateral distal part of the 3rd toe, indicate the ostrich landed on the ground with the lateral foreparts of the 3rd toe."},
+    "schaller2011": {"cite": "Schaller et al. 2011, J. Exp. Biol. 214:1123-1130, doi:10.1242/jeb.043596", "copy": "dl/abstracts (Europe PMC abstract)",
+      "quote": "In walking, the 3rd and particularly the 4th toe exhibited notable variation in load distribution with minor claw participation only at push-off. Running trials yielded a distinctly triangular load distribution pattern defined by the 4th toe tip, the proximal part of the 3rd toe and the claw tip"},
+    "lin2024": {"cite": "Lin et al. 2024, J. Exp. Biol. 227:jeb247519, doi:10.1242/jeb.247519", "copy": "dl/lin2024/PMC11708823.xml",
+      "quote_bos": "This approach ensured that the right-limb COP remained within the base of support (BOS), consisting of the right tarsometatarsus and digit segments.",
+      "quote_tmp": "The foot position affects how horizontally close the COM ... is to the plantar/caudal edge of the third tarsometatarsophalangeal (TMP) joint."},
+    "grossi2014": {"cite": "Grossi et al. 2014, PLoS ONE 9:e88458, doi:10.1371/journal.pone.0088458", "copy": "dl/grossi2014/PMC3915051.xml",
+      "quote": "The location of the CoM in a control subject was assumed to be vertically aligned with the middle of the subject's foot during standing (Fig. 1A)."}
+  },
+  "humans": {
+    "fujiwara2003": {"cite": "Fujiwara et al. 2003, Percept. Mot. Skills 96:381, doi:10.2466/pms.2003.96.2.381", "copy": "dl/abstracts", "qs_pct_fl": 45.7, "ref_range_pct_fl": [20, 80], "fl_from": "heel"},
+    "fujiwara2010": {"cite": "Fujiwara et al. 2010, J. Physiol. Anthropol. 29:197, doi:10.2114/jpa2.29.197", "copy": "dl/abstracts", "qs_individual_pct_fl": [31, 58], "ref_range_pct_fl": [20, 80], "least_perceptible_pct_fl": 53, "fl_from": "hindmost point of the heel"},
+    "loram_lakie2002": {"cite": "Loram & Lakie 2002, J. Physiol. 545:1041, doi:10.1113/jphysiol.2002.025049", "copy": "dl/abstracts", "ankle_stiffness_pct_mgh": [91, 23]},
+    "casadio2005": {"cite": "Casadio, Morasso & Sanguineti 2005, Gait Posture 21:410, doi:10.1016/j.gaitpost.2004.05.005", "copy": "dl/abstracts", "ankle_stiffness_pct_mgh": [64, 8]}
+  },
+  "unpublished_hypotheses_from_notes": {
+    "anatomy_note": {"range_frac_track_from_rear": [0.30, 0.55], "src": "research_notes/.../trex_foot_anatomy_posture.md Sec. 4 Inferences ('working hypothesis', unpublished)"},
+    "balance_note": {"range_frac_contact_from_rear": [0.40, 0.55], "src": "research_notes/.../balance_control_foot_mechanics.md Sec. 5 Inferences (analogy, unpublished)"}
+  },
+  "project": {"gate_bar_stat": 0.80, "drifted_stance_stat": 1.0, "r9_diag_stat": [0.76, 0.79], "src": "report 'T rex foot and standing balance.md' (frame table)"}
+}

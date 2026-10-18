@@ -1,0 +1,401 @@
+PUSH-AND-RELEASE PROBE -- OFFLINE EVALUATION of uncertified scratch-recipe checkpoints (r9 arm L symmetry screen,
+MirrorKLPPO + experiment_* keys, 6,291,456 steps) and of the zero-action statue. Report only; certifies nothing;
+no training. Clean checkout of origin/main 2e734e29 (physics r9), stance stage config as committed (options off;
+arm L's lean term and settled leg target are reward-only, so the rollout is the same either way).
+Every number below is read from scratchpad/foot/battery/push/push_summary.json (key path in [brackets]), which
+scripts/analyze_push.py reduces from telemetry/push_<role>.json + telemetry/push_series_<role>.npz (Part B) and
+repo_probe/sweep_<role>.pkl (Part A). Part A's own rendered outputs are repo_probe/<ckpt>/stance_gate_probe_impulse.{txt,json}.
+
+  s60_6M  model scratchpad/foot/symmetry/screen/runs/sym_lean_settled_s60/resume6m/models/stage1_6291456_steps.zip
+          sha256 70f3a4447794a010..., vecnorm sha256 0567d6104a0795c0...
+  s52_6M  model scratchpad/foot/symmetry/screen/runs/sym_lean_settled_s52/resume6m/models/stage1_6291456_steps.zip
+          sha256 278637b9d4dc526b..., vecnorm sha256 1d2ada496798ff6f...
+  s42_6M  model scratchpad/foot/symmetry/screen/runs/sym_lean_settled_s42/resume6m/models/stage1_6291456_steps.zip
+          sha256 96c5f865be34f30c..., vecnorm sha256 647e0af9d14d70f3...
+  statue  model none (statue: action 0 = home control every step)
+
+0. WHAT WAS RUN
+  The probe exists in main: environments/shared/reporting/stance_report.py RootImpulse / _apply_root_impulse /
+  impulse_variants / render_impulse_probe / write_impulse_probe, driven by stage_artifacts._write_impulse_probe when
+  a stage sets stance_probe_impulse_speeds (T. rex stance.toml: [0.5, 1.0, 2.0]). The shove is qvel[0:3] += delta_v
+  on the root free joint (a uniform velocity step of the whole animal) at the control boundary of step 200
+  (= settle_steps), applied before the action is computed; no random number is drawn for it. 'Survived' is the
+  probe's criterion: the episode reaches the 1000-step horizon (no fall termination).
+  Part A = main's probe as shipped: 8 episodes per row from seed 3042, policy and statue. main's impulse_variants()
+  only builds lateral +y/-y rows, so forward (+x) and backward (-x) rows were added as plain RootImpulse objects
+  through the same build_stance_gate_report call (the stance stage spawns facing +x; +y is the animal's left).
+  Part B = scripts/push_trace.py: the same rollout replicated line for line (one env per row, reset(seed), the
+  impulse before the action) with read-only telemetry (main's SubstepContactRecorder, a chained contact hook,
+  CoM from a scratch MjData), 16 episodes per row (seeds 3042-3057) on a finer grid 0.05-0.5 m/s plus 1.0, 2.0.
+  Crosscheck: Part B's first 8 seeds reproduce Part A episode for episode [crosscheck_telemetry_vs_repo_probe]:
+    s60_6M  104/104 episodes equal length, max |reward diff| 0
+    s52_6M  104/104 episodes equal length, max |reward diff| 0
+    s42_6M  104/104 episodes equal length, max |reward diff| 0
+    statue  104/104 episodes equal length, max |reward diff| 0
+
+  Files (all under the push/ directory): push_report.txt (this), push_summary.json (every reduced number),
+  telemetry/push_<role>.json (per-episode rows), telemetry/push_series_<role>.npz (per-episode series),
+  repo_probe/sweep_<role>.pkl + repo_probe/<ckpt>/stance_gate_probe_impulse.{txt,json} (main's probe output),
+  checks/ (one re-rolled episode), scripts/ (repo_impulse_probe.py, write_repo_probe.py, push_trace.py,
+  analyze_push.py, make_report.py, run_repo_probe.sh, run_push_trace.sh), logs/.
+  Fall terminations seen (main's T. rex env): head_contact (head tip < 0.12 m), nosedive, tail_contact, and
+  'fallen' (pelvis below 0.70 m).
+
+1. MAIN'S PROBE AS SHIPPED (Part A; 8 episodes per row, seeds 3042-3049) [repo_probe_rows.<role>]
+   survived/8 per (direction, speed); statue column is the passive control
+   direction       speed    s60_6M    s52_6M    s42_6M    statue
+   forward +x       0.50       0/8       0/8       0/8       0/8
+   forward +x       1.00       0/8       0/8       0/8       0/8
+   forward +x       2.00       0/8       0/8       0/8       0/8
+   backward -x      0.50       0/8       0/8       0/8       0/8
+   backward -x      1.00       0/8       0/8       0/8       0/8
+   backward -x      2.00       0/8       0/8       0/8       0/8
+   left +y          0.50       0/8       2/8       0/8       0/8
+   left +y          1.00       0/8       0/8       0/8       0/8
+   left +y          2.00       0/8       0/8       0/8       0/8
+   right -y         0.50       0/8       1/8       0/8       1/8
+   right -y         1.00       0/8       0/8       0/8       0/8
+   right -y         2.00       0/8       0/8       0/8       0/8
+   no push          0.00       8/8       8/8       8/8       8/8
+   main's own rendering of these rows (repo_probe/<ckpt>/stance_gate_probe_impulse.txt) reads, for all three
+   checkpoints: 'recovery envelope ... policy none, statue none' in every direction, and 'Neither side recovers
+   from anything'. At 0.5 m/s and above nothing survives reliably, so the shipped grid sits entirely above the
+   recovery envelope of every role and cannot rank them; Part B's grid resolves where the envelopes are.
+
+2. SURVIVAL PER SPEED AND DIRECTION (Part B; 16 episodes per row, seeds 3042-3057) [roles.<role>.directions.<dir>.survival_by_speed]
+   forward +x
+        m/s    s60_6M    s52_6M    s42_6M    statue
+       0.05     16/16     16/16     16/16     16/16
+       0.10     15/16     16/16     16/16     16/16
+       0.15     12/16     16/16     16/16     16/16
+       0.20      8/16     16/16      6/16     14/16
+       0.25      1/16     16/16      0/16      9/16
+       0.30      0/16     16/16      0/16      3/16
+       0.35      0/16     16/16      0/16      2/16
+       0.40      0/16      8/16      0/16      1/16
+       0.45      0/16      0/16      0/16      1/16
+       0.50      0/16      0/16      0/16      0/16
+       1.00      0/16      0/16      0/16      0/16
+       2.00      0/16      0/16      0/16      0/16
+   backward -x
+        m/s    s60_6M    s52_6M    s42_6M    statue
+       0.05     16/16     16/16     16/16     16/16
+       0.10     16/16     16/16     16/16     16/16
+       0.15     16/16      8/16     16/16     15/16
+       0.20     16/16      0/16     16/16     14/16
+       0.25     16/16      0/16     16/16     14/16
+       0.30     16/16      0/16     16/16     13/16
+       0.35     10/16      0/16     13/16      5/16
+       0.40      7/16      0/16      0/16      2/16
+       0.45      3/16      0/16      0/16      0/16
+       0.50      0/16      0/16      0/16      0/16
+       1.00      0/16      0/16      0/16      0/16
+       2.00      0/16      0/16      0/16      0/16
+   left +y
+        m/s    s60_6M    s52_6M    s42_6M    statue
+       0.05     16/16     16/16     16/16     16/16
+       0.10     16/16     16/16     16/16     16/16
+       0.15     16/16     16/16     16/16     16/16
+       0.20     16/16     16/16     16/16     16/16
+       0.25     16/16     15/16     16/16     16/16
+       0.30     16/16     15/16     16/16     16/16
+       0.35     16/16     12/16     14/16     16/16
+       0.40     10/16      7/16     11/16     12/16
+       0.45      6/16      3/16      7/16      8/16
+       0.50      0/16      2/16      0/16      0/16
+       1.00      0/16      0/16      0/16      0/16
+       2.00      0/16      0/16      0/16      0/16
+   right -y
+        m/s    s60_6M    s52_6M    s42_6M    statue
+       0.05     16/16     16/16     16/16     16/16
+       0.10     16/16     16/16     16/16     16/16
+       0.15     16/16     16/16     16/16     16/16
+       0.20     16/16     16/16     16/16     16/16
+       0.25     16/16     16/16     16/16     16/16
+       0.30     16/16     14/16     16/16     16/16
+       0.35     15/16     10/16     16/16     16/16
+       0.40      7/16      7/16     11/16     13/16
+       0.45      2/16      3/16      4/16      7/16
+       0.50      0/16      2/16      0/16      2/16
+       1.00      0/16      0/16      0/16      0/16
+       2.00      0/16      0/16      0/16      0/16
+   no push: s60_6M 16/16, s52_6M 16/16, s42_6M 16/16, statue 16/16 [roles.<role>.control.survived]
+
+3. ENVELOPE AGAINST THE MARGIN ARITHMETIC  dv_max ~ b * omega0 [roles.<role>.directions.<dir>.margin_arithmetic]
+   b = ray distance along the push from the pre-impulse CoP (mean net floor CoP over steps 181-200) to the edge of
+   the convex hull of the loaded pads' bottom corners ('pad') or pads + loaded digit tips ('full'); omega0 =
+   sqrt(g / CoM height) at the impulse; medians over the 16 seeds (the pre-impulse state is the same in every row of
+   a seed: max |diff| across rows printed as 'same'). env = largest speed up to which every row is 16/16 (main's 0.95 share at n = 16),
+   50% = largest speed up to which every row keeps >= 8/16, fall1 = first speed with any fall; per-seed ratio =
+   median over seeds of (largest speed that seed survived, every lower speed survived too) / (its own omega0*b_pad);
+   rho = Spearman rank correlation of those two over seeds; hit = seeds whose own omega0*b_pad lies within one grid
+   step (0.05 m/s) of its observed bracket [largest survived, first fall]; ratioX / rhoX = the same with b measured
+   from the pre-impulse XCoM instead of the CoP.
+   role    dir           b_pad b_full    w0 pred_pad pred_full   env   50% fall1  ratio   rho    hit ratioX  rhoX    same
+   s60_6M  forward +x    0.046  0.129  3.40     0.16      0.44  0.05  0.20  0.10   1.08  0.85  16/16   0.98  0.86       0
+   s60_6M  backward -x   0.104  0.104  3.40     0.35      0.35  0.30  0.35  0.35   1.03  0.93  16/16   1.06  0.94       0
+   s60_6M  left +y       0.189  0.191  3.40     0.64      0.65  0.35  0.40  0.40   0.61  0.69   0/16   0.61  0.69       0
+   s60_6M  right -y      0.189  0.193  3.40     0.64      0.66  0.30  0.35  0.35   0.60  0.67   0/16   0.60  0.64       0
+   s52_6M  forward +x    0.098  0.183  3.40     0.33      0.62  0.35  0.40  0.40   1.14  0.78   9/16   1.10  0.63       0
+   s52_6M  backward -x   0.048  0.048  3.40     0.17      0.17  0.10  0.15  0.15   0.78  0.69  16/16   0.84  0.71       0
+   s52_6M  left +y       0.190  0.191  3.40     0.65      0.65  0.20  0.35  0.25   0.61  0.36   2/16   0.60  0.50       0
+   s52_6M  right -y      0.187  0.188  3.40     0.64      0.64  0.25  0.35  0.30   0.61  0.17   1/16   0.61  0.29       0
+   s42_6M  forward +x    0.052  0.135  3.41     0.18      0.46  0.15  0.15  0.20   0.92  0.81  16/16   0.92  0.77       0
+   s42_6M  backward -x   0.096  0.096  3.41     0.33      0.33  0.30  0.35  0.35   1.05  0.23  16/16   1.05  0.22       0
+   s42_6M  left +y       0.186  0.188  3.41     0.64      0.64  0.30  0.40  0.35   0.64  0.70   0/16   0.65  0.74       0
+   s42_6M  right -y      0.187  0.188  3.41     0.64      0.64  0.35  0.40  0.40   0.62  0.57   0/16   0.62  0.54       0
+   statue  forward +x    0.067  0.154  3.42     0.23      0.53  0.15  0.25  0.20   1.00  0.52  15/16   1.07  0.96       0
+   statue  backward -x   0.075  0.075  3.42     0.26      0.26  0.10  0.30  0.15   1.18  0.37   8/16   1.14  0.85       0
+   statue  left +y       0.186  0.187  3.42     0.64      0.64  0.35  0.45  0.40   0.65  0.58   0/16   0.65  0.73       0
+   statue  right -y      0.190  0.191  3.42     0.65      0.65  0.35  0.40  0.40   0.67  0.52   2/16   0.66  0.65       0
+   (XCoM-based b agrees with CoP-based b to within a few mm: [..margin_arithmetic.b_m_median.xcom_pad]).
+
+4. RECOVERY TIME AND PEAK CoP EXCURSION [roles.<role>.directions.<dir>.speeds.<speed>]
+   Rows with survivors, plus the first speed at which all 16 fall. Columns:
+   rec med/max = recovery time (s, survivors): horizontal CoM speed back under the role's adaptive threshold
+     [roles.<role>.control.adaptive_settle_threshold_mps] and held for 0.5 s; never = survivors that never settle;
+     v.05 = the same with a fixed 0.05 m/s threshold (median) [recovery_time_s_v0.05_median].
+   CoP m = peak net floor CoP excursion along the push within 1 s of it, from the pre-impulse mean (m, survivors
+     median) [win_cop_peak_disp_along_push_m_survivors_median]; CoP/b = the same over that seed's b_pad (survivors
+     median / max) [win_cop_peak_fraction_of_b_pad_survivors_*]; 1.0 = the net CoP reached the pad-hull edge.
+   pad = peak per-foot pad CoP |fore-aft| within 1 s (main's recorder, half-lengths, 1 = pad edge; survivors
+     median) [win_pad_cop_fore_aft_max_survivors_median].
+   XCoM = smallest ray margin of the XCoM (pre-impulse omega0) to the pre-impulse pad hull along the push, over the
+     first 3 s after it (m; survivors min) [xcom_min_margin_pad_first3s_m_survivors_min]; < 0 = past the hull edge.
+     xout = fallers whose XCoM crossed that hull edge at some step [fallers_with_xcom_outside_pad].
+   lift = episodes with any leg fully unloaded after the push [liftoff_any]; step = survivors that lifted a foot and
+     moved it > 2 cm [survivors_stepped]; fall s = median time from push to termination (fallers).
+   no-push baseline over the same 1 s window [roles.<role>.control]:
+     s60_6M  pad |fore-aft| peak median 0.595, pad |outer| peak median 0.992; net-CoP drift peak (m) fwd -0.0008, back +0.0097, left +0.0002, right +0.0003; CoM speed p99 0.0119 m/s -> threshold 0.030
+     s52_6M  pad |fore-aft| peak median 0.494, pad |outer| peak median 1.000; net-CoP drift peak (m) fwd -0.0010, back +0.0075, left +0.0002, right +0.0005; CoM speed p99 0.0167 m/s -> threshold 0.030
+     s42_6M  pad |fore-aft| peak median 0.737, pad |outer| peak median 0.957; net-CoP drift peak (m) fwd +0.0010, back +0.0005, left +0.0007, right +0.0003; CoM speed p99 0.0064 m/s -> threshold 0.030
+     statue  pad |fore-aft| peak median 0.559, pad |outer| peak median 1.000; net-CoP drift peak (m) fwd +0.0152, back +0.0063, left +0.0054, right -0.0001; CoM speed p99 0.0465 m/s -> threshold 0.070
+   role    dir           m/s   surv rec med   max never  v.05   CoP m  CoP/b   max    pad    XCoM xout lift step fall s
+   s60_6M  forward +x   0.05  16/16    0.03  0.05     0  0.01  0.0404   0.90  1.05  1.000  +0.011    0    0    0      -
+   s60_6M  forward +x   0.10  15/16    0.09  0.61     0  0.06  0.0456   1.00  1.09  1.000  +0.002    1    0    0   2.45
+   s60_6M  forward +x   0.15  12/16    0.41  0.65     0  0.11  0.0534   1.02  1.12  1.000  -0.002    4    0    0   1.84
+   s60_6M  forward +x   0.20   8/16    0.58  0.69     0  0.20  0.0570   1.02  1.08  1.000  -0.002    8    0    0   1.72
+   s60_6M  forward +x   0.25   1/16    0.70  0.70     0  0.27  0.0676   1.05  1.05  1.000  -0.004   15    0    0   1.54
+   s60_6M  forward +x   0.30   0/16       -     -     0     -       -      -     -      -       -   16    0    0   1.37
+   s60_6M  backward -x  0.05  16/16    0.05  0.06     0  0.02  0.0465   0.45  0.56  0.580  +0.064    0    0    0      -
+   s60_6M  backward -x  0.10  16/16    0.08  0.09     0  0.06  0.0830   0.82  0.93  1.000  +0.050    0    0    0      -
+   s60_6M  backward -x  0.15  16/16    0.11  0.13     0  0.08  0.0981   0.95  0.98  1.000  +0.036    0    0    0      -
+   s60_6M  backward -x  0.20  16/16    0.15  0.20     0  0.12  0.0994   0.96  0.99  1.000  +0.021    0    0    0      -
+   s60_6M  backward -x  0.25  16/16    0.21  0.58     0  0.17  0.1007   0.98  1.00  1.000  +0.007    0    0    0      -
+   s60_6M  backward -x  0.30  16/16    0.46  0.79     0  0.26  0.1018   0.99  1.01  1.000  -0.007    0    0    0      -
+   s60_6M  backward -x  0.35  10/16    0.60  1.28     0  0.34  0.1064   0.99  1.02  1.000  -0.008    6    0    0   1.68
+   s60_6M  backward -x  0.40   7/16    0.73  1.79     0  0.42  0.1154   1.00  1.03  1.000  -0.012    9    0    0   1.16
+   s60_6M  backward -x  0.45   3/16    1.25  1.45     0  1.01  0.1198   1.01  1.02  1.000  -0.012   13    0    0   1.00
+   s60_6M  backward -x  0.50   0/16       -     -     0     -       -      -     -      -       -   16    0    0   0.95
+   s60_6M  left +y      0.05  16/16    0.08  0.11     0  0.01  0.0260   0.14  0.17  1.000  +0.158    0    0    0      -
+   s60_6M  left +y      0.10  16/16    0.54  0.65     0  0.12  0.0448   0.24  0.28  1.000  +0.143    0    0    0      -
+   s60_6M  left +y      0.15  16/16    0.77  0.87     0  0.20  0.0611   0.33  0.38  1.000  +0.129    0    0    0      -
+   s60_6M  left +y      0.20  16/16    0.96  1.05     0  0.83  0.0772   0.42  0.48  1.000  +0.115    0    0    0      -
+   s60_6M  left +y      0.25  16/16    1.21  1.27     0  1.10  0.0931   0.51  0.58  1.000  +0.100    0    0    0      -
+   s60_6M  left +y      0.30  16/16    1.50  1.95     0  1.24  0.1082   0.59  0.68  1.000  +0.086    0    0    0      -
+   s60_6M  left +y      0.35  16/16    1.81  2.57     0  0.54  0.1237   0.66  0.77  1.000  +0.072    0    0    0      -
+   s60_6M  left +y      0.40  10/16    2.33  2.94     0  0.57  0.1405   0.70  0.83  1.000  +0.075    6    5    0   2.78
+   s60_6M  left +y      0.45   6/16    1.50  2.97     0  0.58  0.1567   0.81  0.86  1.000  +0.019   10    9    0   2.36
+   s60_6M  left +y      0.50   0/16       -     -     0     -       -      -     -      -       -   16   11    0   2.18
+   s60_6M  right -y     0.05  16/16    0.08  0.13     0  0.01  0.0261   0.14  0.20  1.000  +0.130    0    0    0      -
+   s60_6M  right -y     0.10  16/16    0.43  0.73     0  0.12  0.0466   0.25  0.36  1.000  +0.098    0    0    0      -
+   s60_6M  right -y     0.15  16/16    0.76  0.96     0  0.20  0.0624   0.34  0.47  1.000  +0.069    0    0    0      -
+   s60_6M  right -y     0.20  16/16    0.95  1.09     0  0.83  0.0794   0.43  0.57  1.000  +0.045    0    0    0      -
+   s60_6M  right -y     0.25  16/16    1.19  1.60     0  1.10  0.0944   0.51  0.68  1.000  +0.024    0    0    0      -
+   s60_6M  right -y     0.30  16/16    1.57  2.06     0  1.42  0.1080   0.60  0.78  1.000  +0.004    0    0    0      -
+   s60_6M  right -y     0.35  15/16    2.22  2.65     0  0.49  0.1201   0.69  0.72  1.000  +0.043    1    0    0   2.40
+   s60_6M  right -y     0.40   7/16    2.48  3.14     0  0.61  0.1342   0.69  0.77  1.000  +0.076    8    5    0   2.91
+   s60_6M  right -y     0.45   2/16    3.17  3.25     0  0.62  0.1604   0.81  0.82  1.000  +0.066   14   10    0   2.21
+   s60_6M  right -y     0.50   0/16       -     -     0     -       -      -     -      -       -   15   10    0   1.98
+   s52_6M  forward +x   0.05  16/16    0.02  0.03     0  0.01  0.0356   0.37  0.46  0.544  +0.079    0    0    0      -
+   s52_6M  forward +x   0.10  16/16    0.06  0.40     0  0.04  0.0691   0.72  0.86  0.808  +0.065    0    0    0      -
+   s52_6M  forward +x   0.15  16/16    0.08  0.48     0  0.06  0.0919   0.97  1.04  1.000  +0.051    0    0    0      -
+   s52_6M  forward +x   0.20  16/16    0.12  0.83     0  0.10  0.0978   1.03  1.05  1.000  +0.036    0    0    0      -
+   s52_6M  forward +x   0.25  16/16    0.32  1.02     0  0.15  0.0992   1.04  1.06  1.000  +0.022    0    0    0      -
+   s52_6M  forward +x   0.30  16/16    0.45  1.21     0  0.26  0.1001   1.05  1.07  1.000  +0.008    0    0    0      -
+   s52_6M  forward +x   0.35  16/16    1.23  1.50     0  0.62  0.1008   1.06  1.08  1.000  -0.006    0    0    0      -
+   s52_6M  forward +x   0.40   8/16    1.79  2.06     0  1.29  0.1054   1.05  1.08  1.000  -0.011    8    0    0   1.96
+   s52_6M  forward +x   0.45   0/16       -     -     0     -       -      -     -      -       -   16    0    0   1.60
+   s52_6M  backward -x  0.05  16/16    0.07  0.11     0  0.03  0.0395   0.84  0.93  1.000  +0.017    0    0    0      -
+   s52_6M  backward -x  0.10  16/16    0.18  0.35     0  0.12  0.0454   0.93  0.97  1.000  +0.002    0    0    0      -
+   s52_6M  backward -x  0.15   8/16    0.36  0.81     0  0.28  0.0512   0.96  0.99  1.000  +0.002    8    0    0   1.82
+   s52_6M  backward -x  0.20   0/16       -     -     0     -       -      -     -      -       -   16    0    0   1.18
+   s52_6M  left +y      0.05  16/16    0.12  0.44     0  0.01  0.0201   0.12  0.16  1.000  +0.075    0    0    0      -
+   s52_6M  left +y      0.10  16/16    0.37  0.65     0  0.17  0.0409   0.23  0.27  1.000  +0.078    0    0    0      -
+   s52_6M  left +y      0.15  16/16    0.78  1.02     0  0.33  0.0630   0.34  0.36  1.000  +0.054    0    0    0      -
+   s52_6M  left +y      0.20  16/16    0.96  1.26     0  0.83  0.0782   0.42  0.46  1.000  +0.020    0    0    0      -
+   s52_6M  left +y      0.25  15/16    1.14  1.25     0  1.01  0.0898   0.48  0.54  1.000  +0.092    1    0    0   1.89
+   s52_6M  left +y      0.30  15/16    1.28  1.56     0  1.21  0.1013   0.54  0.61  1.000  +0.078    1    0    0   1.54
+   s52_6M  left +y      0.35  12/16    1.45  2.23     0  1.33  0.1140   0.60  0.69  1.000  +0.064    4    2    0   3.14
+   s52_6M  left +y      0.40   7/16    1.83  2.62     0  1.63  0.1259   0.66  0.68  1.000  +0.063    8    5    0   2.43
+   s52_6M  left +y      0.45   3/16    2.00  4.37     0  1.68  0.1509   0.73  0.74  1.000  +0.069   13   11    0   2.37
+   s52_6M  left +y      0.50   2/16    2.22  3.17     0  0.79  0.1661   0.81  0.81  1.000  +0.057   14   13    0   2.09
+   s52_6M  left +y      1.00   0/16       -     -     0     -       -      -     -      -       -   16   16    0   0.76
+   s52_6M  right -y     0.05  16/16    0.12  0.25     0  0.01  0.0225   0.12  0.16  1.000  +0.147    0    0    0      -
+   s52_6M  right -y     0.10  16/16    0.57  0.85     0  0.16  0.0432   0.23  0.27  1.000  +0.133    0    0    0      -
+   s52_6M  right -y     0.15  16/16    0.80  0.95     0  0.46  0.0640   0.34  0.39  1.000  +0.101    0    0    0      -
+   s52_6M  right -y     0.20  16/16    0.98  1.09     0  0.88  0.0787   0.42  0.48  1.000  +0.064    0    0    0      -
+   s52_6M  right -y     0.25  16/16    1.16  1.33     0  1.06  0.0889   0.48  0.54  1.000  +0.026    0    0    0      -
+   s52_6M  right -y     0.30  14/16    1.33  1.82     0  1.23  0.0991   0.53  0.60  1.000  +0.006    2    0    0   2.44
+   s52_6M  right -y     0.35  10/16    1.48  2.60     0  1.29  0.1102   0.59  0.66  1.000  +0.061    6    2    0   2.42
+   s52_6M  right -y     0.40   7/16    1.55  1.97     0  1.46  0.1252   0.65  0.66  1.000  +0.072    9    6    0   2.29
+   s52_6M  right -y     0.45   3/16    1.71  2.38     0  1.61  0.1389   0.73  0.74  1.000  +0.063   13   10    0   1.95
+   s52_6M  right -y     0.50   2/16    2.67  3.35     0  1.58  0.1574   0.80  0.82  1.000  +0.018   14   12    0   1.83
+   s52_6M  right -y     1.00   0/16       -     -     0     -       -      -     -      -       -   16   16    0   0.77
+   s42_6M  forward +x   0.05  16/16    0.04  0.05     0  0.01  0.0455   0.87  0.97  1.000  +0.032    0    0    0      -
+   s42_6M  forward +x   0.10  16/16    0.11  0.34     0  0.07  0.0509   0.99  1.07  1.000  +0.018    0    0    0      -
+   s42_6M  forward +x   0.15  16/16    0.61  0.78     0  0.53  0.0528   1.01  1.11  1.000  +0.004    0    0    0      -
+   s42_6M  forward +x   0.20   6/16    1.00  1.29     0  0.51  0.0609   1.03  1.11  1.000  -0.003   10    0    0   1.91
+   s42_6M  forward +x   0.25   0/16       -     -     0     -       -      -     -      -       -   16    0    0   1.50
+   s42_6M  backward -x  0.05  16/16    0.04  0.05     0  0.01  0.0496   0.53  0.61  0.789  +0.072    0    0    0      -
+   s42_6M  backward -x  0.10  16/16    0.06  0.09     0  0.05  0.0843   0.88  0.96  1.000  +0.058    0    0    0      -
+   s42_6M  backward -x  0.15  16/16    0.10  0.12     0  0.08  0.0900   0.94  0.98  1.000  +0.044    0    0    0      -
+   s42_6M  backward -x  0.20  16/16    0.38  0.46     0  0.12  0.0929   0.96  0.99  1.000  +0.030    0    0    0      -
+   s42_6M  backward -x  0.25  16/16    0.57  0.69     0  0.44  0.0941   0.97  1.00  1.000  +0.016    0    0    0      -
+   s42_6M  backward -x  0.30  16/16    0.85  1.21     0  0.71  0.0951   0.98  1.02  1.000  +0.002    0    0    0      -
+   s42_6M  backward -x  0.35  13/16    1.32  1.81     0  1.12  0.0974   0.99  1.03  1.000  -0.009    3    0    0   1.75
+   s42_6M  backward -x  0.40   0/16       -     -     0     -       -      -     -      -       -   16    0    0   1.44
+   s42_6M  left +y      0.05  16/16    0.11  0.21     0  0.01  0.0236   0.13  0.16  0.951  +0.148    0    0    0      -
+   s42_6M  left +y      0.10  16/16    0.43  0.66     0  0.14  0.0473   0.26  0.29  1.000  +0.134    0    0    0      -
+   s42_6M  left +y      0.15  16/16    0.75  0.94     0  0.25  0.0680   0.36  0.40  1.000  +0.119    0    0    0      -
+   s42_6M  left +y      0.20  16/16    0.91  1.08     0  0.81  0.0804   0.45  0.49  1.000  +0.105    0    0    0      -
+   s42_6M  left +y      0.25  16/16    1.11  1.36     0  1.01  0.0925   0.51  0.57  1.000  +0.090    0    0    0      -
+   s42_6M  left +y      0.30  16/16    1.40  2.06     0  1.23  0.1029   0.56  0.64  1.000  +0.075    0    0    0      -
+   s42_6M  left +y      0.35  14/16    1.71  2.03     0  1.38  0.1146   0.62  0.69  1.000  +0.068    2    2    0   2.73
+   s42_6M  left +y      0.40  11/16    1.80  2.41     0  0.55  0.1283   0.68  0.76  1.000  +0.054    5    5    0   2.68
+   s42_6M  left +y      0.45   7/16    0.75  2.22     0  0.58  0.1496   0.74  0.82  1.000  +0.056    9    9    0   2.18
+   s42_6M  left +y      0.50   0/16       -     -     0     -       -      -     -      -       -   16    9    0   2.14
+   s42_6M  right -y     0.05  16/16    0.10  0.12     0  0.01  0.0227   0.12  0.16  0.951  +0.148    0    0    0      -
+   s42_6M  right -y     0.10  16/16    0.56  0.69     0  0.12  0.0478   0.25  0.29  1.000  +0.134    0    0    0      -
+   s42_6M  right -y     0.15  16/16    0.78  0.92     0  0.59  0.0658   0.36  0.40  1.000  +0.120    0    0    0      -
+   s42_6M  right -y     0.20  16/16    0.93  1.14     0  0.83  0.0792   0.44  0.48  1.000  +0.105    0    0    0      -
+   s42_6M  right -y     0.25  16/16    1.17  1.38     0  1.08  0.0907   0.49  0.58  1.000  +0.091    0    0    0      -
+   s42_6M  right -y     0.30  16/16    1.50  1.74     0  1.41  0.1021   0.56  0.65  1.000  +0.077    0    0    0      -
+   s42_6M  right -y     0.35  16/16    1.71  2.27     0  0.55  0.1135   0.62  0.71  1.000  +0.062    0    0    0      -
+   s42_6M  right -y     0.40  11/16    1.93  2.53     0  0.57  0.1278   0.69  0.78  1.000  +0.048    5    5    0   2.51
+   s42_6M  right -y     0.45   4/16    1.37  2.50     0  0.63  0.1434   0.76  0.78  1.000  +0.057   12   11    0   2.48
+   s42_6M  right -y     0.50   0/16       -     -     0     -       -      -     -      -       -   15   11    0   2.03
+   statue  forward +x   0.05  16/16    0.01  0.13     0  0.07  0.0269   0.40  0.76  0.721  +0.032    0    0    0      -
+   statue  forward +x   0.10  16/16    0.10  0.20     0  0.15  0.0417   0.61  1.01  0.837  +0.018    0    0    0      -
+   statue  forward +x   0.15  16/16    0.14  0.24     0  0.18  0.0563   0.84  1.04  0.979  +0.004    0    0    0      -
+   statue  forward +x   0.20  14/16    0.17  0.30     0  0.21  0.0673   0.98  1.05  1.000  -0.002    2    0    0   1.75
+   statue  forward +x   0.25   9/16    0.20  0.26     0  0.25  0.0715   1.03  1.06  1.000  -0.009    7    0    0   1.63
+   statue  forward +x   0.30   3/16    0.21  0.25     0  0.28  0.0827   0.98  1.05  1.000  -0.011   13    0    0   1.49
+   statue  forward +x   0.35   2/16    0.20  0.25     0  0.29  0.0817   0.96  1.01  1.000  -0.004   14    0    0   1.26
+   statue  forward +x   0.40   1/16    0.18  0.18     0  0.20  0.0628   0.99  0.99  1.000  -0.012   15    0    0   1.12
+   statue  forward +x   0.45   1/16    0.23  0.23     0  0.80  0.0643   1.01  1.01  1.000  -0.026   15    0    0   1.01
+   statue  forward +x   0.50   0/16       -     -     0     -       -      -     -      -       -   16    0    0   0.94
+   statue  backward -x  0.05  16/16    0.01  0.24     0  0.01  0.0145   0.20  0.99  0.449  +0.033    0    0    0      -
+   statue  backward -x  0.10  16/16    0.04  0.30     0  0.08  0.0274   0.38  1.00  0.487  +0.017    0    0    0      -
+   statue  backward -x  0.15  15/16    0.09  0.19     0  0.13  0.0411   0.55  0.97  0.570  +0.009    1    0    0   1.38
+   statue  backward -x  0.20  14/16    0.13  0.16     0  0.16  0.0558   0.74  0.92  0.816  +0.013    2    0    0   1.24
+   statue  backward -x  0.25  14/16    0.16  0.21     0  0.19  0.0674   0.92  0.99  1.000  -0.001    2    0    0   0.95
+   statue  backward -x  0.30  13/16    0.20  0.26     0  0.24  0.0736   0.98  1.01  1.000  -0.011    3    0    0   0.84
+   statue  backward -x  0.35   5/16    0.21  0.23     0  0.26  0.0767   0.97  1.00  1.000  -0.013   11    0    0   1.22
+   statue  backward -x  0.40   2/16    0.23  0.23     0  0.27  0.0878   0.99  1.00  1.000  -0.019   14    0    0   1.04
+   statue  backward -x  0.45   0/16       -     -     0     -       -      -     -      -       -   16    0    0   0.86
+   statue  left +y      0.05  16/16    0.01  0.16     0  0.08  0.0298   0.16  0.23  0.615  +0.151    0    0    0      -
+   statue  left +y      0.10  16/16    0.15  0.67     0  0.43  0.0560   0.29  0.37  0.722  +0.136    0    0    0      -
+   statue  left +y      0.15  16/16    0.66  0.84     0  0.84  0.0760   0.40  0.47  0.806  +0.122    0    0    0      -
+   statue  left +y      0.20  16/16    0.88  1.37     0  1.44  0.0897   0.47  0.54  0.908  +0.107    0    0    0      -
+   statue  left +y      0.25  16/16    1.45  1.65     0  1.62  0.1038   0.54  0.60  1.000  +0.092    0    0    0      -
+   statue  left +y      0.30  16/16    1.71  1.92     0  2.27  0.1174   0.61  0.67  1.000  +0.076    0    0    0      -
+   statue  left +y      0.35  16/16    1.94  2.22     0  2.54  0.1324   0.69  0.76  1.000  +0.057    0    0    0      -
+   statue  left +y      0.40  12/16    2.39  2.88     0  2.75  0.1485   0.77  0.83  1.000  +0.044    1    0    0   2.88
+   statue  left +y      0.45   8/16    2.70  2.87     0  2.94  0.1695   0.85  0.88  1.000  +0.029    6    2    0   2.17
+   statue  left +y      0.50   0/16       -     -     0     -       -      -     -      -       -   15    6    0   1.99
+   statue  right -y     0.05  16/16    0.01  0.23     0  0.02  0.0236   0.12  0.23  0.578  +0.152    0    0    0      -
+   statue  right -y     0.10  16/16    0.10  0.90     0  0.23  0.0494   0.28  0.35  0.741  +0.138    0    0    0      -
+   statue  right -y     0.15  16/16    0.61  0.93     0  0.82  0.0684   0.39  0.43  0.805  +0.123    0    0    0      -
+   statue  right -y     0.20  16/16    0.85  1.15     0  1.38  0.0816   0.46  0.50  0.853  +0.109    0    0    0      -
+   statue  right -y     0.25  16/16    1.42  1.62     0  1.64  0.0952   0.53  0.58  1.000  +0.094    0    0    0      -
+   statue  right -y     0.30  16/16    1.75  1.89     0  2.20  0.1101   0.60  0.65  1.000  +0.078    0    0    0      -
+   statue  right -y     0.35  16/16    1.98  2.78     0  2.54  0.1267   0.68  0.73  1.000  +0.059    0    0    0      -
+   statue  right -y     0.40  13/16    2.47  2.67     0  2.78  0.1426   0.77  0.81  1.000  +0.044    1    0    0   2.92
+   statue  right -y     0.45   7/16    2.49  2.78     0  3.12  0.1688   0.84  0.85  1.000  +0.052    8    1    0   2.18
+   statue  right -y     0.50   2/16    2.45  2.65     0  3.04  0.1865   0.90  0.93  1.000  +0.040    8    6    0   1.92
+   statue  right -y     1.00   0/16       -     -     0     -       -      -     -      -       -   16   16    0   0.77
+
+5. HEADLINE TABLE: recovery envelopes (m/s) per direction [roles.<role>.directions.<dir>.envelope_*]
+   env = largest speed up to which every row is 16/16 (main's 0.95 share at n = 16); 50% = same at >= 8/16;
+   weakest = the direction with the smallest env; vs statue = env minus the statue's env in that direction.
+   role           forward +x       backward -x           left +y          right -y   weakest
+   s60_6M        0.05 / 0.20       0.30 / 0.35       0.35 / 0.40       0.30 / 0.35   forward +x 0.05
+   s52_6M        0.35 / 0.40       0.10 / 0.15       0.20 / 0.35       0.25 / 0.35   backward -x 0.10
+   s42_6M        0.15 / 0.15       0.30 / 0.35       0.30 / 0.40       0.35 / 0.40   forward +x 0.15
+   statue        0.15 / 0.25       0.10 / 0.30       0.35 / 0.45       0.35 / 0.40   backward -x 0.10
+   s60_6M vs statue: forward +x -0.10 (-0.05 at 50%); backward -x +0.20 (+0.05 at 50%); left +y +0.00 (-0.05 at 50%); right -y -0.05 (-0.05 at 50%)
+   s52_6M vs statue: forward +x +0.20 (+0.15 at 50%); backward -x +0.00 (-0.15 at 50%); left +y -0.15 (-0.10 at 50%); right -y -0.10 (-0.05 at 50%)
+   s42_6M vs statue: forward +x +0.00 (-0.10 at 50%); backward -x +0.20 (+0.05 at 50%); left +y -0.05 (-0.05 at 50%); right -y +0.00 (+0.00 at 50%)
+
+6. READING (offline evaluation of uncertified scratch-recipe checkpoints; certifies nothing)
+  a. Main's probe as shipped cannot tell these roles apart. Its first speed, 0.50 m/s, is above every role's
+     envelope in every direction (the largest 50% envelope anywhere in section 5 is 0.45 m/s), so every
+     forward/backward row is 0/8 and the lateral rows are at most 2/8 for policy and statue alike, and main's text
+     verdict reads 'Neither side recovers from anything' for all three checkpoints [section 1].
+  b. Where each policy parks its CoP on the pads sets its weak direction. No-push pad CoP fore-aft, signed (+ toe),
+     median per foot over steps 200-499 [roles.<role>.control.pad_cop_fore_aft_signed_median_per_foot_steps_200_499]:
+       s60_6M  +0.312 / +0.356;  b_pad forward 0.046 m, backward 0.104 m;  envelope forward 0.05 / 0.20, backward 0.30 / 0.35 m/s (16/16 / >=8/16)
+       s52_6M  -0.388 / -0.362;  b_pad forward 0.098 m, backward 0.048 m;  envelope forward 0.35 / 0.40, backward 0.10 / 0.15 m/s (16/16 / >=8/16)
+       s42_6M  +0.311 / +0.411;  b_pad forward 0.052 m, backward 0.096 m;  envelope forward 0.15 / 0.15, backward 0.30 / 0.35 m/s (16/16 / >=8/16)
+       statue  +0.161 / +0.190;  b_pad forward 0.067 m, backward 0.075 m;  envelope forward 0.15 / 0.25, backward 0.10 / 0.30 m/s (16/16 / >=8/16)
+     s60 and s42 stand toe-loaded and are weakest forward; s52 stands heel-loaded and is weakest backward. s52 has
+     the best forward envelope of the four; s60 and s42 share the best backward one.
+  c. Sagittal pushes follow the margin arithmetic. omega0 * b (b = pre-impulse CoP to the pad edge, per seed) falls
+     within one grid step (0.05 m/s) of that seed's observed bracket [largest survived, first fall] in:
+       s60_6M: forward +x 16/16 (observed/predicted 1.08, rho 0.85; XCoM-based rho 0.86), backward -x 16/16 (observed/predicted 1.03, rho 0.93; XCoM-based rho 0.94)
+       s52_6M: forward +x 9/16 (observed/predicted 1.14, rho 0.78; XCoM-based rho 0.63), backward -x 16/16 (observed/predicted 0.78, rho 0.69; XCoM-based rho 0.71)
+       s42_6M: forward +x 16/16 (observed/predicted 0.92, rho 0.81; XCoM-based rho 0.77), backward -x 16/16 (observed/predicted 1.05, rho 0.23; XCoM-based rho 0.22)
+       statue: forward +x 15/16 (observed/predicted 1.00, rho 0.52; XCoM-based rho 0.96), backward -x 8/16 (observed/predicted 1.18, rho 0.37; XCoM-based rho 0.85)
+     The fit is per seed in each policy's weak direction (s60 forward, s52 backward, s42 forward: 16/16). The
+     statue, whose no-push CoM keeps moving more (section 4 baseline), is fitted better with the XCoM-based b.
+     At each role's >=8/16 envelope speed the survivors' net CoP travels 0.96-1.05 of b_pad
+     within 1 s and the pad CoP reaches the pad edge (pad = 1.000); 616 of the 616 sagittal fallers at
+     <= 0.5 m/s had their XCoM cross the pad-hull edge; legs fully unloaded in sagittal rows: 0. The
+     passive digits add little: the prediction with digit tips in the hull (pred_full) overshoots every forward
+     envelope.
+  d. Lateral pushes fall short of the arithmetic for every role, the statue included: b_pad ~0.19 m predicts
+     ~0.64 m/s, the per-seed observed/predicted medians are 0.60-0.67, and the envelopes (left/right,
+     16/16) are s60_6M 0.35/0.30, s52_6M 0.20/0.25, s42_6M 0.30/0.35, statue 0.35/0.35 m/s.
+     Because the statue shows the same shortfall it is a property of the plant and pose, not of a policy.
+     Lateral survivors' net CoP stays short of the hull edge (largest CoP/b of any lateral survivor 0.93);
+     of the 277 lateral fallers at <= 0.5 m/s, 178 fully unloaded a leg and 157 ended 'fallen'
+     (pelvis below healthy_z_range's 0.70 m); survivors that ever fully unloaded a leg, any row: 0;
+     no survivor steps.
+     Why the lateral limit sits near 0.6 of b*omega0 is NOT tested here (candidates: no ankle-roll actuation,
+     pads rocking edge to edge with no push -- pad |outer| peak ~1.0 for every role -- leg/trunk roll compliance).
+  e. Against the statue (the plant's passive robustness), no policy is better in every direction [section 5].
+     Weakest direction per role, at 16/16 and at >=8/16:
+       s60_6M  forward +x 0.05 m/s;  forward +x 0.20 m/s
+       s52_6M  backward -x 0.10 m/s;  backward -x 0.15 m/s
+       s42_6M  forward +x 0.15 m/s;  forward +x 0.15 m/s
+       statue  backward -x 0.10 m/s;  forward +x 0.25 m/s
+     At >=8/16 the statue's weakest direction is better than every policy's; at 16/16 only s42's is better than
+     the statue's (whose backward row is 15/16 at 0.15 m/s). The policies trade one sagittal direction for the
+     other by where they park the CoP, and sideways they are level with or below the statue.
+  f. Recovery time (policies; survivors' median; CoM speed back under 0.03 m/s and held 0.5 s): sagittal rows with
+     16/16 survivors 0.02-1.23 s, sagittal rows with some falls 0.09-1.79 s; lateral rows with
+     16/16 0.08-1.81 s, lateral rows with some falls 0.75-3.17 s (a slow sideways sway).
+     The statue's own no-push CoM speed is higher (p99 0.0465 m/s,
+     threshold 0.070), so compare it on the fixed 0.05 m/s column (v.05).
+  g. Relation to the certificate's pad-CoP bar: the certificate bounds the window mean of |pad CoP fore-aft| per
+     foot; it does not see which side the CoP is parked on. s60 passes it comfortably in the howclose certificate
+     (policy median 0.3627, worst 0.7801 over 240 episodes: next_signals/howclose/cert_margins.txt,
+     cert_r9armL_s60_6291456_optoff) and still has the smallest forward b and forward 16/16 envelope here; s42,
+     which fails that bar (median 0.6882, 66/240 past 0.8; same file, cert_r9armL_s42_6291456_optoff), is
+     likewise toe-loaded.
+
+7. CHECKS AND CAVEATS
+  - Part B reproduces Part A bit for bit on the shared rows (section 0); the telemetry is read-only.
+  - Every survivor is at rest at the horizon (survivors with CoM speed > 0.05 m/s at step 1000: 0)
+    [roles.<role>.directions.<dir>.speeds.<speed>.survivors_moving_at_horizon], so 'survived' is not a fall cut
+    short by the 1000-step horizon.
+  - The pre-impulse state of a seed is identical in every row (max |diff| of omega0 and b across rows 0).
+  - The XCoM ray margin along the push can also go negative when the XCoM crosses a DIFFERENT hull edge; one
+    whole-episode survivor value (s52 right -y 0.50 m/s, seed 3047: -0.231 m at 311 steps after the push) was
+    re-rolled with the full series (checks/push_s52_6M_check3047.json, checks/push_series_s52_6M_check3047.npz:
+    signed distance to the hull at that step -0.0076 m, across the heel edge); the section 4 XCoM column therefore
+    uses the first 3 s after the push.
+  - 16 episodes per row, 0.05 m/s grid, one impulse time (step 200), the training heading only, a pure root
+    velocity step (no force duration). b uses the pad boxes' bottom corners of the loaded feet; omega0 uses the
+    CoM height at the push (LIPM). The robust_best checkpoints were not run in this battery.

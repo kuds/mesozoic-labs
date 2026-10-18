@@ -1,0 +1,7 @@
+environments.__file__ scratchpad/fix/main_ro/environments/__init__.py
+baseline {'policy_interface_sha256': 'sha256:ffbf6631e4de', 'physics_sha256': 'sha256:3d68aec73fbc', 'visual_sha256': 'sha256:7042dcd597fb'}
+append force+torque sensors at r_foot/l_foot sites (ankle reaction, telemetry only): nsensor 19 nsensordata 42 nsite 11 -> layers moved: ['policy_interface_sha256', 'physics_sha256']
+append subtreecom sensor on pelvis (telemetry only): nsensor 16 nsensordata 33 nsite 11 -> layers moved: ['policy_interface_sha256', 'physics_sha256']
+add one invisible site, no sensor: nsensor 15 nsensordata 30 nsite 12 -> layers moved: ['policy_interface_sha256', 'physics_sha256', 'visual_sha256']
+add sensor noise 0.01 to pelvis_gyro (noise attribute only): nsensor 15 nsensordata 30 nsite 11 -> layers moved: ['policy_interface_sha256']
+unmodified xml string reproduces baseline: True

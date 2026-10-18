@@ -1,0 +1,313 @@
+T. rex stance: unexplained phenomena, competing hypotheses, and the measurement that would discriminate them
+==========================================================================================================
+Written 2026-10-17 against origin/main 2e734e29 (scratchpad/fix/main_ro). Analysis only: nothing trained, no checkpoint
+replayed, Drive and GitHub read only. Reward changes are out of scope (the maintainer's rule of 2026-10-16) and are not
+proposed; where the record names one it is marked OUT OF SCOPE.
+
+Abbreviations
+  REC  docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md
+  EV   docs/investigations/stance_2026_10/
+  V3   EV/diagnosis/findings_v3.txt
+  KI   docs/KNOWN_ISSUES.md
+  CC   code_coverage.txt (this folder): what main records, with file:line
+  DA   data_availability.txt (this folder): where the data are, with Drive ids
+  T1   r9_armL_training_rollouts_by_quarterM.txt (this folder)
+  T2   r9_armL_reward_selection_and_s60_eval_series.txt (this folder)
+Measurement classes
+  [OFF-LOG]  analysis of files that already exist; no simulation.
+  [OFF-SIM]  offline rollouts of existing checkpoints or the statue. Allowed only when a prompt says so; proposed here.
+  [TEL]      report-only telemetry for future runs: a code change (PR, maintainer approval), no task/gate/reward change.
+  [TRAIN]    needs a training run: blocked by the stance-only rule unless walking points back to stance.
+"det" = deterministic policy / fixed seeds; "stoch" = sampled actions or noise.
+
+---------------------------------------------------------------------------------------------------------------
+Q1  What starts the forward lean in the first 131,072 steps
+---------------------------------------------------------------------------------------------------------------
+Observed. All three r10 seeds leaned forward by the first evaluation: whole-foot CoP 0.18 / 0.33 / 0.32 at 0.125M,
+  against a held statue's 0.11; r9 (estimated from the pad) 0.04 / 0.18 / 0.17 against 0.10; policy std 0.218-0.219
+  (V3 lines 103-105). By 0.25M the r10 leg DC is hip pitch +0.039 to +0.043 and ankle -0.044 to -0.048 (V3 lines
+  106-109). s60 passed 0.8 at 0.88M, s52 at 1.75M; s42 peaked at 0.65 at 0.62M (V3 lines 121-125; REC section 7).
+Hypotheses in the record.
+  H1b  Noise-fall asymmetry: under exploration noise the r10 statue falls backward (tail contact), so a forward lean
+       raises the noisy return. Withdrawn as stated: 20 new spawns gave -8 [-237, +229] at sigma 0.10, pooled +149
+       [-67, +381]; the lean costs at sigma 0.15 and 0.21 (V3 section 4 item 3; REC section 11). What survives: at sigma
+       0.10 a modest lean costs about nothing on r10 but about 807 on r9; the r10 statue falls backward more often.
+  Correlate only: tail contact was 0.52-0.59 of r10's terminations in the first 131k steps against 0.30-0.38 on r9
+       (V3 lines 110-120); shares, not rates (V3 section 6).
+  Exploration: the push coincides with the high initial std; a lower log_std_init is "not shown to help" (V3 section 8).
+  Keyframe pull: about half the incentive of the r9 control's mirror-even lean was leg_home_pose pulling toward the
+       keyframe (REC section 5.1); under arm L's settled target the term is the main RESTORING slope (-106 / -109 per
+       unit, V3 section 5), so it is not the driver in the r10 runs.
+  Stated limit: V3's probe is open loop; a closed-loop policy's own noise was never tested (V3 section 4, H1b limits).
+Discriminating measurements.
+  M1a [OFF-LOG, stoch, per rollout of 8,192 steps, 0-0.5M] Termination RATES by cause: TensorBoard
+      'terminations/total_count' (diagnostics.py:285, TensorBoard only) times diagnostics.npz term_* shares
+      (diagnostics.py:450-453), r10 s42/s52/s60 (TB event files on Drive, DA section 1); r9 arm L from updates.jsonl
+      episode lengths (T1: first 262k-step bin 82-86% of ended episodes early, then 1-3%). Then regress the per-eval
+      change in leg DC (gate_progress action_dc_per_actuator, 131k cadence) on the preceding backward-fall and
+      forward-fall counts. H1b-in-closed-loop predicts r10 backward-fall counts precede and scale the forward DC move;
+      no relation favours a non-fall cause.
+  M1b [OFF-SIM, stoch with fixed noise streams + det] Closed-loop version of V3's test on the EARLY r10 checkpoints that
+      exist on Drive (s52 best_model ~131k and robust_best ~262k; s60 best/robust 131k; all seeds at 1M; DA section 1):
+      paired spawns 3042-3061 and paired noise streams at the checkpoint's own sigma (about 0.218), policy as is versus
+      policy with its own leg DC subtracted from its action (closed loop). Read survival, return, fall cause, whole-foot
+      CoP. If removing the lean lowers the noisy return or survival, the lean is paid for under the policy's own noise;
+      if not, H1b is dead in closed loop too. Same on r9 arm L 1M checkpoints (session scratch, DA section 2).
+  M1c [TEL, for any future approved run, det + stoch, every PPO update for the first 0.5M] (i) a probe-set readout: the
+      deterministic policy's per-actuator action on a fixed bank of about 256 recorded stance states, logged each update
+      (no simulation; gives the DC trajectory at 8,192-step resolution, which no evaluation cadence can); (ii) a
+      per-episode training-rollout record: length, termination cause, termination step and the window fore-aft CoM
+      offset (cheap: subtree_com, as base_env.py:691-702 already computes laterally). The r9 scratch harness logged
+      (ii) per episode (DA section 2); main does not (CC C1-C3).
+  Note: the onset is inside the first evaluation interval on every r10 seed, so only [TRAIN] data at sub-131k resolution
+  can time it; M1a/M1b can only test the mechanism after the fact.
+
+---------------------------------------------------------------------------------------------------------------
+Q2  Why seeds diverge: seed 42 came back, seeds 52 and 60 stayed on their toes
+---------------------------------------------------------------------------------------------------------------
+Observed. s42's excursion (0.65 at 0.62M) came back under 0.2 by 1.50M; s52/s60 stood at whole-foot CoP 0.93 / 1.05 at
+  4-6M, earned 97 / 163 less per episode than s42, and 28/115 and 55/121 of their 5-6M training rollouts had a
+  termination against 5/112 (V3 section 2; REC section 7). Their own mean action DC held open loop survives 0/8 (legs)
+  and 2/8 (with head and tail); an open-loop escape path shows no barrier (V3 section 3). s42 drifted back up later:
+  0.32-0.42 in the last four evals before 6M (V3 section 2), over-bar fraction 0.035 over 0-6M against 0.169 over
+  6-12M (EV/r10_screen/report_only_summary.json; REC section 6.7). s52/s60 later raised head and tail (4-6M neck/head
+  DC -0.26 / -0.30, V3 section 2).
+Hypotheses in the record.
+  H1a  Permissive plant: on r10 nothing physical stops a drift between CoP 0.8 and about 0.9 (5-of-8 edge 0.89-0.94
+       against 0.76-0.79 on r9) (V3 section 4 item 1; REC section 7). Permits, does not cause.
+  H2   A worse basin held by closed-loop feedback: "the likely candidate is that a policy's balance feedback is tuned to
+       its own operating point. Testing that needs the checkpoints" (V3 section 4 item 2).
+  Not attributable: in the divergence window (0.6-1.6M) the eval terms only follow the posture (V3 section 6).
+  Historical: one config, two basins, seed-sensitive (KI lines 71-143, r7/r8).
+  Additional hypothesis NOT in the record (flagged as new): sensing. On r9 the passive toe angles predict pad CoP on
+       held-out postures (rms 0.07-0.29) while foot_contact carries none (R^2 <= 0.13) (EV/run_a/observability.txt);
+       r10 stiffens the MTP springs from 40 to 3000/4500/3000 N m/rad (REC section 6.1), which may remove that implicit
+       load sensor, leaving the policy blind to where its weight sits (the observation has no CoP or CoM channel,
+       base_env.py:813-866).
+Discriminating measurements.
+  M2a [OFF-SIM, det, closed loop] Basin-stability (perturb-and-release): on r10 s42/s52/s60 at 1M, 2M, 4M, 6M (Drive),
+      add a constant leg offset of +/-lambda along the s52/s60 DC direction (V3 lines 132-134: hip pitch +0.110, knee
+      +0.0045, ankle -0.083 per side) for steps 200-400, release, and record whole-foot CoP every step to 1,000. H2 predicts each policy
+      returns to its own CoP (an attractor, different per seed); H1a alone predicts neutral drift or a fall.
+  M2b [OFF-SIM, det] State transplant: start s52's policy from states recorded under s42's policy at step 400 (and the
+      reverse). H2 predicts s52 carries s42's posture forward to its own operating point within a few seconds.
+  M2c [OFF-SIM, det, no rollouts] Local feedback gains: finite-difference Jacobian of the deterministic action with
+      respect to the pitch-related observation channels (projected gravity, gyro, toe angles) at each policy's own
+      operating states; compare s42 with s52/s60 and across 1M-6M.
+  M2d [OFF-SIM, det] Sensing: repeat run_a/observability.txt's fits on r10 (statue and held postures, and the r10
+      checkpoints' panel rollouts): whole-foot CoP from toe angles alone and from the full observation. If toe angles
+      lose their predictive power on r10, the r10 policies sense less of their fore-aft load than r9's.
+  M2e [OFF-LOG, det, per eval at 131k] Divergence window 0.6-1.6M: per-actuator DC (gate_progress
+      action_dc_per_actuator), digit share, toe margin, whole-foot CoP std and dominant Hz (pad_telemetry.py:298-319)
+      and TB termination counts, on all three r10 seeds: which channel moved first on s42 when it came back.
+  M2f [TEL] Keep checkpoints every 262,144 steps through 3M in a future run (the stage keeps 5 periodic checkpoints,
+      stance.toml:914; the r10 screen kept every 1,048,576, DA section 1), so a divergence window can be replayed.
+
+---------------------------------------------------------------------------------------------------------------
+Q3  r9 arm L seed 60: CoP failures 0 / 8 / 39 / 0 at 3M / 4M / 5M / 6M (the walking pilot's parent run)
+---------------------------------------------------------------------------------------------------------------
+Observed. Panel: median even CoP 0.548 / 0.649 / 0.846 / 0.286 and joint-space noise falls 1 / 2 / 18 / 6 of 20 at
+  3/4/5/6M; the 6M class is SPAWN-CLUSTERED COP, the others MIRROR-EVEN CREEP (EV/symmetry/verdict.json,
+  arms.L._cells.60 and cop_evidence.per_seed.60). In training (T2): eval over-bar fraction 0 to 4.06M, 0.30 at 4.19M,
+  1.00 at 5.51-5.64M, 0.40 at 6.03M, 0 at 6.16M and 6.29M; full horizon dipped to 0.70 at 4.72M. Training rollouts
+  (T1): early terminations rose from 0-1% to 15% and 17% of ended episodes in the 4.72-5.24M bins while the window CoM
+  fore-aft rose to +34 to +40 mm, then 6%, 6%, 3%, 0% with the CoM back to -2.4 mm in the last bin. The pilot parent
+  (6,291,456) sits two evaluations after that reversal.
+Hypotheses in the record.
+  (a) The r9 physical backstop: on r9 the open-loop edge lies at about the rail, so a drift past it costs falls; s60
+      "drifted to pad CoP 0.86 at 5.38M and was back at 0.27 by 6.00M" (REC section 7; V3 section 2 and item 1).
+  (b) A single checkpoint says little: the policy oscillates (REC section 5.5; method lesson "judge several checkpoints",
+      REC section 12).
+  (c) Extra optimisation: the symmetry arms ran 9.46-9.76 Adam epochs per update against the control's 7.13-7.52; flags
+      F1 and F6 fired (REC section 5.5).
+Discriminating measurements.
+  M3a [OFF-LOG, stoch, per update] On all six symmetry runs (arm L and arm C, scratch updates.jsonl), a lagged test: does
+      a rise in training-rollout early terminations at high CoM fore-aft precede a reversal of the CoM trend (falls push
+      back, hypothesis a), or are reversals unrelated to terminations (b)? Add per-update approx_kl, clip_fraction,
+      epochs_adam (same file) to test (c): (c) predicts swings coincide with optimisation-size spikes. T1 shows the
+      termination peak (4.72-5.24M) leads the reversal (5.90-6.16M) by about 0.7-1M on s60: suggestive of (a), not a test.
+  M3b [OFF-SIM, det] M2a's perturb-and-release on s60 at 4M, 5M and 6M (scratch) and on the pilot parent: is the 6M
+      posture an attractor or a point on the way back toward the statue?
+  M3c [OFF-SIM, stoch] For hypothesis (a) directly: the 5M checkpoint at its own sigma (about 0.10, T1 sigma column) on
+      paired streams: falls should be frequent and forward (nosedive) at its 0.85 posture.
+
+---------------------------------------------------------------------------------------------------------------
+Q4  Reward-selected "best" checkpoints are early (or wrong) ones
+---------------------------------------------------------------------------------------------------------------
+Observed. 1M probes: robust_best at 50k-350k steps, 34-39/40 clean; run A: robust_best the edge policy at 3.2M (REC
+  sections 3.1, 3.4). r10: the certificate judged robust_best last written at about 4.3M / 262k / 131k
+  (s42 / s52 / s60); best_eval_timestep 5,636,096 / 131,072 / 131,072 (REC section 6.7). r9 arm L: SB3 best at 0.39-0.52M
+  and robust_best at 0.52-0.92M on all three seeds, best eval means 3973.5-3982.4 against the arm L statue's 3980 (T2).
+Hypotheses in the record.
+  The deterministic return peaks near the statue: without noise the trained policies earn 10.6-29.6 less than the statue;
+  "(inference) PPO's return mostly prices surviving the noise"; the return is flat in CoP (REC section 3.3). Hence
+  "reward-based selection is not a safeguard" (REC sections 3.4, 10, 12).
+  Not in the record (flagged): selection noise. Each evaluation rolls different spawns (eval env seeded once,
+  train_base.py:201, 211, 1222-1231), and an eval mean's standard error (7.5-11.3) is comparable to the change between
+  consecutive evaluations (11.1-20.7) on the r9 arm L runs (T2), so a max over about 48-90 noisy means favours lucky
+  evaluations.
+Discriminating measurements.
+  M4a [OFF-SIM, det] Re-score every retained checkpoint on ONE fixed panel (3042-3081): r10 at 131k, 262k and 1M-11M
+      (Drive), r9 arm L at 1M-6M (scratch). If the fixed-panel return still peaks early, the record's hypothesis holds; if
+      the fixed-panel ranking departs from the in-training ranking, selection noise contributes.
+  M4b [OFF-SIM, stoch] The same checkpoints at their own sigma: the record's hypothesis predicts the noisy return rises
+      with training while the deterministic one falls.
+  M4c [TEL] Record each evaluation's reset seeds (or roll the same spawns every evaluation, which changes evaluation
+      semantics: maintainer). Selection is in scope: the handoff, the certificate and every stance probe use the
+      reward-selected checkpoint (checkpoints.py:108-122; stance.toml:1062-1066); a gate-metric selection (most clean, or
+      lowest over-bar fraction on a fixed panel) is a proposal for the maintainer.
+
+---------------------------------------------------------------------------------------------------------------
+Q5  Joint-space noise falls (H4, K3)
+---------------------------------------------------------------------------------------------------------------
+Observed. 6M joint-space falls 1 + 1 + 6 = 8/60 on r9 arm L (own-sigma 0/60) and 0 + 7 + 9 = 16/60 on r10 (own 2/60)
+  (REC sections 5.4, 6.4). r9 s60 by checkpoint: 1 / 2 / 18 / 6 of 20 at 3-6M (EV/symmetry/verdict.json). The noise is
+  the production control's per-actuator vector, mean 0.161 (REC section 1), against the trained policies' own std of
+  about 0.09 at 6M (V3 section 7); the statue falls 20/20 at uniform 0.16 and 3/20 at 0.07
+  (EV/cap_screens/screen_3m_noise_analysis.txt line 151). Zero-shot, four r9-trained policies fall 0/80 on r10 against
+  9/80 on r9 (REC section 6.1).
+Hypotheses in the record.
+  Posture margin: drifted r10 seeds fall (7, 9) and s42 does not (REC section 6.4); the pilot criteria read a FALLS
+  outcome against the parent's "6 of 20 joint-space noise falls" (EV/pilot/criteria.txt lines 258-261).
+  Plant margin: the r10 foot helps r9-trained policies zero-shot (REC section 6.1), yet r10-trained policies fall more.
+  The test measures what trained policies add over the statue (REC section 13).
+  Against posture alone (reading of verdict.json, not a record claim): s60 falls 6/20 at 6M at even CoP 0.29 but
+  1/20 at 3M at 0.55.
+Discriminating measurements.
+  M5a [OFF-SIM, stoch, fixed streams: numpy default_rng(episode seed) as the frozen judges] An amplitude sweep,
+      k in {0.25, 0.5, 0.75, 1.0, 1.25} x the control vector, per checkpoint: the k at which half the spawns fall (a
+      continuous margin instead of a count), each fall's cause and step, and whole-foot CoP and toe margin over the 50
+      steps before it; beside the same spawn's deterministic toe margin. Posture margin predicts k50 tracks toe margin
+      across checkpoints and seeds; feedback quality predicts it does not.
+  M5b [OFF-SIM, stoch] Per-channel noise (legs only, axial only, hip roll only): which channel's noise topples.
+  M5c [OFF-SIM, stoch] Each checkpoint's mean action held open loop under the same noise: the closed-loop minus
+      open-loop difference is the policy's added robustness.
+  Runs: r9 arm L s42/s52/s60 at 3-6M (scratch), r10 s42/s52/s60 at 1M-6M (Drive), the pilot parent.
+
+---------------------------------------------------------------------------------------------------------------
+Q6  Roll-rail failures (lateral pad roll)
+---------------------------------------------------------------------------------------------------------------
+Observed. Authority arm 6M: 15 full-horizon roll failures; of the failing pad's roll 35% reset-set and 65% policy-added
+  (49% a sway from the hip-roll common mode, 16% stance narrowing); 47 of 48 at 3-6M on the 15 most-splayed spawns
+  (EV/cap_screens/roll_diag_analysis.txt sections 1, 6, 7). Hip-roll arm: reset-set 62%; the lean re-routed through the
+  sagittal L-R differential and tail/neck yaw (EV/cap_screens/screen_hip_roll_analysis.txt lines 12, 93-94). r9 arm L:
+  roll-rail 2/0/0 at 6M. r10 arm L: 0 + 4 + 8 = 12/120 at 6M, on the toe-standing seeds (REC section 6.4); never
+  diagnosed.
+Hypotheses in the record. Reset hip-roll splay held by friction (option c); policy hip-roll common-mode sway; narrowing;
+  a re-routed lean when hip roll is bounded (roll diagnosis and hip-roll analysis above; REC section 4.3). For r10's K4
+  failures the record offers none.
+Discriminating measurements.
+  M6a [OFF-SIM, det] Run the existing roll decomposition (reset-set vs policy-added, channel ablations) on r10 s52/s60
+      4-6M roll failures: is it the hip-roll sway again, or a consequence of standing on splayed digits (62-72% digit load,
+      V3 section 2; digits splay 25 and 33 degrees off digit III, REC section 6.1)?
+  M6b [TEL, det, every evaluation] Signed per-foot sole roll and lateral CoP (both already in the recorder trace,
+      recorder.py:167-169, 194-197, and in the judge, stance_metrics.py:491, 529-531, but not in gate_progress,
+      pad_telemetry.py:446-472), the spawn's hip-roll splay (trace spawn pose, recorder.py:208-212, or joint_qpos at step
+      0), hip-roll common and differential DC, and the CoM lateral offset (base_env.py:691-702), as means and per-episode
+      maxima. Today only unsigned tilt and corner-lift means are kept.
+  M6c [OFF-SIM, det] The statue on r10 at default and nominal-width resets: the r10 reset-set share.
+  OUT OF SCOPE: option (b), a lateral lean term, is a reward change (it is #624's lean term, off by default).
+  Option (c), lower hip-roll reset noise, is a task-design decision for the maintainer.
+
+---------------------------------------------------------------------------------------------------------------
+Q7  The statue stands on a lateral pad edge (outer CoP 0.954, not gated)
+---------------------------------------------------------------------------------------------------------------
+Observed. REC section 3.5; EV/run_a/report.md section 7 question 5 ("Is it acceptable for a robot?").
+Hypotheses in the record. Documented as acceptable (the hack audit, cited in run_a/report.md section 7 Q5); the model's
+  digit load order "follows lateral pad roll" (REC section 11, Corrections 5); the reset's hip-roll splay held by
+  friction gives the statue 0.56-1.54 degrees of window roll on the focus spawns, at most 0.2 degrees without hip-roll
+  reset noise (roll_diag_analysis.txt section 3).
+Discriminating measurement. M7 [OFF-SIM, det, no policy] The statue panel 3042-3081 at the default and at a nominal-width
+  reset, on r9 (and r10 if #623 returns): per-episode max_sole_cop_outer and mean_sole_roll_deg (stance_metrics.py:531,
+  491). Outer CoP still near 0.95 at nominal width means home-pose geometry (the box loads only its corner lines);
+  a drop means reset-set. It also says whether a lateral CoP bar (REC section 13) has statue headroom.
+
+---------------------------------------------------------------------------------------------------------------
+Q8  Slow toe-ward and one-pad creep under bounded or symmetric policies
+---------------------------------------------------------------------------------------------------------------
+Observed. Authority s42 right pad +0.0297 per M, concave (quadratic t -4.3)
+  (EV/cap_screens/screen_6m_authority_analysis.txt lines 8, 54); hip-roll arm s42 +0.0310 per M and s60 left
+  +0.0532 per M with no curvature, s60 co-moving with the ankle L-R differential (r 0.95) and tail_1 yaw (r 0.79)
+  (screen_hip_roll_analysis.txt lines 73-75, 101); arm L s42 one-pad creep, pad bias 0.197 / 0.173 at 4M / 5M
+  (EV/symmetry/verdict.json); r10 s42 over-bar fraction 0.035 (0-6M) to 0.169 (6-12M), foot CoP slope +0.0115 per M
+  (EV/r10_screen/report_only_summary.json).
+Hypotheses in the record. (inference) the bound, not a learned preference, holds the pad while the sagittal drive grows
+  behind it (authority analysis line 54); lateral balancing through an asymmetric ankle and the tail loads one pad
+  toe-ward (hip-roll analysis line 101, inference); a free walk along a flat reward direction versus a product of
+  surviving the exploration noise (run_a/report.md section 7 Q2); and whether a linear projection is the right creep
+  test (REC section 13).
+Discriminating measurements.
+  M8a [OFF-LOG, det, per eval at 131k] From gate_progress action_dc_per_actuator (exists in every screen): split each
+      eval's leg DC into mirror-even and antisymmetric parts and add tail_1 yaw; test which leads each pad's CoP (lagged
+      regression across evals). Lateral-balancing predicts the antisymmetric ankle and tail yaw lead.
+  M8b [TEL, det, every eval] Per-actuator saturation fraction (the gate keeps only the worst actuator,
+      stance.toml:692) beside the existing per-actuator DC: is the drive pressing on its clip?
+  M8c [OFF-SIM, det] A fixed-panel creep test with the checkpoint as the unit (r10 s42 at 6M-11M on Drive): a slope over
+      checkpoints on the same 40 spawns, instead of 10-episode evaluations on moving spawns (CC D1-D2).
+  M8d [OFF-SIM, stoch] Flat walk versus noise survival: M1b's closed-loop DC-removal test at the policy's own sigma on
+      the creeping checkpoints. Noise survival predicts the creep raises the noisy return; a flat walk predicts no change.
+
+---------------------------------------------------------------------------------------------------------------
+Q9  Why the r10 statue falls backward under noise more often than r9's
+---------------------------------------------------------------------------------------------------------------
+Observed. Tail contact is a larger share of the r10 statue's noise falls at every sigma: 3/4, 13/19, 13/29 against
+  3/14, 8/29, 8/30 at sigma 0.10 / 0.15 / 0.21 (V3 section 3).
+Hypotheses in the record. A larger forward margin measured to each plant's own toe line (29.1 against 22.5 N m), which
+  does not hold against a common line (28.8 against 29.1); or a rebound off the stiff MTP springs; "neither is tested"
+  (V3 section 6).
+Discriminating measurement. M9 [OFF-SIM, stoch with paired streams, both plants] Open-loop statue under action noise at
+  sigma 0.10-0.21: per substep, MTP joint angle and velocity, digit load position (recorder support_load_pos), whole-foot
+  CoP and pelvis pitch rate over the 100 steps before each tail-contact fall. A rebound predicts a heel-ward CoP
+  transient right after digit unloading; a margin effect predicts a slow heel-ward drift with no MTP transient.
+  Priority: low while #623 is parked.
+
+---------------------------------------------------------------------------------------------------------------
+Q10 Training-side differences between the r9 and r10 screens (harness and optimisation confounds)
+---------------------------------------------------------------------------------------------------------------
+Observed. The r9 arm L runs trained locally with the scratch wrapper, fresh to 3M and then resumed; the r10 runs on Colab
+  with #624's options in one 12M run; "the environments were shown equivalent, the training side was not" (REC section
+  6.4; V3 section 6). The symmetry arms also ran more Adam epochs than the control (REC section 5.5).
+Hypotheses in the record. Plant (r10 foot) versus harness/training differences as the cause of r10's worse outcome
+  (REC section 6.4: "the comparison with r9 is not of the foot alone"); extra optimisation (REC section 5.5).
+Discriminating measurement. M10 [OFF-LOG] For seeds 42/52/60 on both plants over 0-1M: per-update approx_kl,
+  clip_fraction, epochs, learning rate, train/std, mirror KL loss and per-joint mirror asymmetry (r9: updates.jsonl;
+  r10: TensorBoard train/* and diagnostics.npz algo_*), and the VecNormalize statistics at 1M. Matching trajectories
+  leave the plant as the remaining difference; systematic gaps confound "r10 made it worse".
+
+---------------------------------------------------------------------------------------------------------------
+Q11 Certification depends on the spawn panel
+---------------------------------------------------------------------------------------------------------------
+Observed. D-D27 seed 52 passed v2 on 3042-3081 (39/40) but was clean on 32/40 of 7042-7081 (KI lines 144-153 and 1046-1050);
+  the r10 six-heading certificate failed s52 at 35/40 and s60 at 36/40 seeds clean at all headings, on early
+  reward-selected checkpoints (REC section 6.7). Roll failures cluster on splayed spawns (Q6).
+Hypotheses in the record. Spawn-clustered failures (roll diagnosis); 40 episodes of one policy are not replicates
+  (REC section 11, Corrections 8; section 12 "the training seed is the unit").
+Discriminating measurement. M11 [OFF-SIM, det] Re-judge candidate checkpoints on disjoint 40-seed panels (3042, 5042,
+  7042, 9042) with each spawn's hip-roll splay recorded; a logistic fit of unclean on splay separates spawn-driven
+  failures from panel luck.
+
+---------------------------------------------------------------------------------------------------------------
+Q12 Whether the walking pilot points back to stance (the condition for any further stance work)
+---------------------------------------------------------------------------------------------------------------
+Observed / fixed. A FALLS outcome is to be read from the traces: falls while standing point back at the stance
+  (EV/pilot/criteria.txt lines 258-261; REC section 9).
+What decides it. M12 [OFF-SIM at the pilot's judging, det; plus the pilot's own in-training files] For each FALL
+  episode: the step of the fall, touchdowns and airborne duty in the last second (floor truth from the frozen probe),
+  whole-foot CoP and toe margin over the last 50 steps, and the termination cause. Standing falls show no touchdowns in
+  the last second and a CoP at the toe line before a nosedive.
+  Caveat for watching it live: the pilot branch (eaeef50f, base 56621ebd) predates #626, so its gate_progress has the
+  whole-foot CoP, digit share and toe margin but no termination counts, no roll rails, no progress.json and no
+  PostureDrift; locomotion declares no settle_steps and no fore-aft bar, so the means start at step 0 and no over-bar
+  fraction is written (DA section 3; CC D6, D10). Training-rollout termination shares are in diagnostics.npz and the
+  counts in TensorBoard.
+
+---------------------------------------------------------------------------------------------------------------
+Out of scope or not a measurement question
+---------------------------------------------------------------------------------------------------------------
+  - Why the per-step CoP term helped on r8 (62 -> 21 of 120) but not on r9 (run_a/report.md section 7 Q1): a reward
+    experiment. OUT OF SCOPE.
+  - Arm C's fore-aft CoM term, the E2 fallback, kappa x3, the fore-aft term's recalibration, whether the lean term and
+    the settled target are needed (REC section 13): reward or training experiments. OUT OF SCOPE.
+  - Pad or whole-foot CoP for the bar, a lateral CoP bar, what the stance stage should certify beyond the statue
+    (REC section 13): gate decisions for the maintainer; M7 and M5 supply numbers for them.
+  - A revised r10 foot (leg-scale digits, softer MTP springs): a physics decision (REC section 13).

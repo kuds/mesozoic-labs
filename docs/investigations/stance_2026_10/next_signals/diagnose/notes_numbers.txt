@@ -1,0 +1,14 @@
+Numbers computed in the diagnose step (no simulation, no checkpoint loaded).
+
+1. Exact (Clopper-Pearson) 95% intervals for per-seed pass rates, scipy.stats.beta:
+   3 of 3 seeds pass (r9 arm L robust_best pairs, howclose/offline_certificates.txt): [0.292, 1.000]
+   2 of 3 seeds pass (r9 arm L at 6,291,456, same file):                            [0.094, 0.932]
+   (beta.ppf(0.025,3,1)=0.2924; beta.ppf(0.025,2,2)=0.0943; beta.ppf(0.975,3,2)=0.9324)
+
+2. GitHub read-only check of PR #623's comments (2026-10-17): the single comment (id 6234386057, updated
+   2026-10-17T18:54:09Z) already opens with "Correction (added 2026-10-17, after this comment was posted)", giving
+   0.89-0.94 (r10) vs 0.76-0.79 (r9) for leans at least 5 of 8 spawns survive and 1.10 vs 0.85 for single episodes,
+   citing diagnosis/findings_v3.txt and the record's section 11 (#627). The in-text figure is marked "superseded figure:
+   see the correction at the top". No further GitHub write was made or is needed for that request.
+
+3. Files written by this step: lag_r9armL.py/.json, opt_events_r9armL.py/.json, signed_pad_cop_r9armL.txt, this file.

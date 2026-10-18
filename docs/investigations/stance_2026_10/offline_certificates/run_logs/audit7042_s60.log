@@ -1,0 +1,20 @@
+2026-10-17 19:31:43,984 environments.shared.reporting.stance_report Heading certificate for tyrannosaurus_rex/anatomical stage 1: heading -90 deg (1 of 6), 40 seeds and the statue
+2026-10-17 19:35:10,106 environments.shared.reporting.stance_report Heading certificate for tyrannosaurus_rex/anatomical stage 1: heading -45 deg (2 of 6), 40 seeds and the statue
+2026-10-17 19:39:08,366 environments.shared.reporting.stance_report Heading certificate for tyrannosaurus_rex/anatomical stage 1: heading +0 deg (3 of 6), 40 seeds and the statue
+2026-10-17 19:42:58,573 environments.shared.reporting.stance_report Heading certificate for tyrannosaurus_rex/anatomical stage 1: heading +45 deg (4 of 6), 40 seeds and the statue
+2026-10-17 19:46:52,901 environments.shared.reporting.stance_report Heading certificate for tyrannosaurus_rex/anatomical stage 1: heading +90 deg (5 of 6), 40 seeds and the statue
+2026-10-17 19:51:09,357 environments.shared.reporting.stance_report Heading certificate for tyrannosaurus_rex/anatomical stage 1: heading +180 deg (6 of 6), 40 seeds and the statue
+{"options": "off", "seconds": 1459.584522485733, "passed": true, "n_clean_seeds": 39, "n_seeds": 40, "clean_seed_lcb": 0.8868116390552528}
+Exception ignored in atexit callback <function dump_compile_times at 0x7f96f14cfb00>:
+Traceback (most recent call last):
+  File "/usr/local/lib/python3.13/dist-packages/torch/_dynamo/utils.py", line 925, in dump_compile_times
+    log.info(compile_times(repr="str", aggregate=True))
+  File "/usr/local/lib/python3.13/dist-packages/torch/_dynamo/utils.py", line 911, in compile_times
+    out += tabulate(rows, headers=("Function", "Runtimes (s)"))
+  File "/usr/local/lib/python3.13/dist-packages/torch/_dynamo/utils.py", line 249, in tabulate
+    import tabulate
+  File "scratchpad/foot/next_signals/howclose/scripts/tabulate.py", line 5, in <module>
+    dirs = sorted([d for d in O.iterdir() if d.is_dir() and (d / "run_summary.json").exists() and not d.name.startswith("smoke")])
+  File "/usr/lib/python3.13/pathlib/_local.py", line 575, in iterdir
+    with os.scandir(root_dir) as scandir_it:
+FileNotFoundError: [Errno 2] No such file or directory: '--model'

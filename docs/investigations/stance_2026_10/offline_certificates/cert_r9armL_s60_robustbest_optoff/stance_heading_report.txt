@@ -1,0 +1,72 @@
+policy              robust_best_model.zip — VecNormalize stats applied (clip 10)
+stage               Tyrannosaurus Rex (Anatomical) — Stance (stage 1, stance_quality_heading/v1, floor truth)
+protocol            whole_scene_yaw/v1: the whole scene turned about vertical through the root (the animal, the prey and the reference direction)
+grid                -90, -45, +0, +45, +90, +180 deg; 40 seeds 3042-3081 at every heading
+settle_steps        200; horizon 1000; control step 0.01 s
+measurement         floor-truth/v2 (sha256:16ecfdedccc43917c95e3a55b619285f3ffccc76ca66f078b998d58334806567)
+task                sha256:bde44225b024856c200b3e9a75840bc5bc5859c577599248b116681b21d846a6
+gate                sha256:06375c211ddae7a57b102b19d9bd8e81aefe602b4b7ff77da35466f6e0fff7f6
+
+seeds clean at every heading     40 / 40   LCB95 0.9278   (>= 0.8000, min_eval_episodes 40: the statistic)
+episodes clean, pooled          240 / 240   LCB95 0.9876   (NOT the statistic: the turns of a seed are not independent)
+
+each heading's full v2 decision, against the statue rolled at that heading:
+   heading   clean   LCB95  full-hz    reward  statue fh  statue reward  v2
+       -90  40/40   0.9278   1.0000    3794.6      39/40         3755.7  PASS
+       -45  40/40   0.9278   1.0000    3794.6      39/40         3755.7  PASS
+        +0  40/40   0.9278   1.0000    3794.6      39/40         3755.7  PASS
+       +45  40/40   0.9278   1.0000    3794.6      39/40         3755.7  PASS
+       +90  40/40   0.9278   1.0000    3794.6      39/40         3755.7  PASS
+      +180  40/40   0.9278   1.0000    3794.6      39/40         3755.7  PASS
+
+the 0 deg cell in detail (that heading's v2 decision; the certificate's verdict closes this report):
+
+policy              robust_best_model.zip — VecNormalize stats applied (clip 10)
+stage               Tyrannosaurus Rex (Anatomical) — Stance (stage 1, stance_quality/v2, floor truth)
+panel               40 episodes, seeds 3042-3081
+settle_steps        200 (window criteria over the remaining 800; settle criteria after the 0.1 s spawn grace)
+measurement         floor-truth/v2 (sha256:16ecfdedccc43917c95e3a55b619285f3ffccc76ca66f078b998d58334806567)
+task                sha256:bde44225b024856c200b3e9a75840bc5bc5859c577599248b116681b21d846a6
+
+clean episodes           40 / 40   LCB95 0.9278   (>= 0.8000, min_eval_episodes 40)
+full_horizon_fraction     1.0000
+reward                    3794.6 +/- 16.4
+terminations           {'truncated': 40}
+
+per-episode criteria (fails = episodes failing it; median and worst over the panel):
+  horizon                              reach 1000 steps         fails   0/40
+  min_all_feet_support                 >= 0.98         fails   0/40   median 1, worst 1
+  max_touchdown_rate                   <= 0.25         fails   0/40   median 0, worst 0
+  max_window_displacement_m            <= 0.1          fails   0/40   median 0.00233, worst 0.01239
+  min_foot_load_share                  >= 0.4          fails   0/40   median 0.4976, worst 0.4798
+  max_actuator_saturation_fraction     <= 0.1          fails   0/40   median 0, worst 0
+  max_settle_airborne_substeps         <= 0            fails   0/40   median 0, worst 0
+  max_settle_peak_floor_force_bw       <= 1.5          fails   0/40   median 1.198, worst 1.276
+  min_foot_load_share_windowed         >= 0.35         fails   0/40   median 0.4953, worst 0.4589
+  max_foot_contact_fraction            <= 0.02         fails   0/40   median 0, worst 0
+  max_phantom_support_fraction         <= 0.05         fails   0/40   median 0, worst 0
+  max_nonfoot_load_fraction            <= 0.02         fails   0/40   median 0, worst 0
+  max_settle_stance_width_change_m     <= 0.08         fails   0/40   median 0.004494, worst 0.04044
+  max_sole_tilt_deg                    <= 2            fails   0/40   median 0.568, worst 1.711
+  max_sole_corner_lift_m               <= 0.004        fails   0/40   median 0.001201, worst 0.003048
+  min_sole_contacts                    >= 1.5          fails   0/40   median 2.808, worst 1.937
+  max_episode_yaw_change_deg           <= 25           fails   0/40   median 2.817, worst 11.09
+  max_settle_touchdowns                <= 2            fails   0/40   median 1, worst 1
+  max_sole_cop_fore_aft                <= 0.8          fails   0/40   median 0.4552, worst 0.6235
+  min_avg_reward                       2250 (panel rail)
+  min_avg_reward_statue_ratio          0.6 (panel rail)
+  min_full_horizon_fraction            0.95 (panel rail)
+  max_hop_or_fall_episodes             <= 1 (panel rail: 0 episodes end early or fail support, touchdowns, drift or saturation)
+
+statue reference (zero action, same seeds): 39/40 full-horizon, mean reward 3755.7, foot load shares [0.500, 0.500]
+
+report-only (not gated; median and max over the panel):
+  touch agrees with floor truth        1, max 1
+  spawn-grace peak floor force (BW)    1.115, max 1.411
+  foot CoP fore-aft (|.| / half-span)  0.2869, max 0.5069
+  window both-feet-unloaded substeps   0, max 0
+  window peak floor force (BW)         1.006, max 1.023
+  touch unsupported duty (v1 measure)  0.0000
+
+
+GATE: PASS

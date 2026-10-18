@@ -1,0 +1,38 @@
+r9 arm L (sym_lean_settled) in-training evaluations (deterministic, 10 episodes per evaluation, every 131,072 steps)
+source: scratchpad/foot/symmetry/screen/runs/sym_lean_settled_s{seed}/resume6m/{evaluations,gate_progress}.npz (session scratch, not in the repo)
+
+1. Where reward-based selection lands (SB3 best = max mean; robust_best = max mean - std, checkpoints.py:28-104 on main)
+  seed 42: 48 evals x 10 eps; best mean 3980.3 at 524288; robust_best 3959.1 at 655360; mean of evals >= 3M 3850.0; median SE of an eval mean 11.3; median |change between consecutive eval means| 20.7
+  seed 52: 48 evals x 10 eps; best mean 3982.4 at 393216; robust_best 3974.9 at 917504; mean of evals >= 3M 3905.6; median SE of an eval mean 9.3; median |change between consecutive eval means| 11.1
+  seed 60: 48 evals x 10 eps; best mean 3973.5 at 524288; robust_best 3965.6 at 524288; mean of evals >= 3M 3851.0; median SE of an eval mean 7.5; median |change between consecutive eval means| 14.6
+  (arm L statue return: 3980 on r9, 3981 on r10, per docs/investigations/stance_2026_10/diagnosis/findings_v3.txt section 6, 'statue return 3981 / 3980')
+
+2. Seed 60 (the walking pilot's parent run), 3-6.3M, gate_progress.npz
+      step r_gate l_gate max_mean over_bar full_h  reward ankle_LR_deg r_digit
+   3014656  0.493  0.560    0.587     0.00   1.00  3917.1         0.26    0.13
+   3145728  0.484  0.569    0.593     0.00   1.00  3931.9         0.85    0.13
+   3276800  0.526  0.549    0.595     0.00   1.00  3933.7         1.38    0.12
+   3407872  0.568  0.400    0.582     0.00   1.00  3923.8         1.89    0.08
+   3538944  0.469  0.549    0.550     0.00   1.00  3938.4         0.53    0.14
+   3670016  0.470  0.507    0.536     0.00   1.00  3935.9         1.01    0.15
+   3801088  0.512  0.511    0.566     0.00   1.00  3918.8         0.50    0.14
+   3932160  0.458  0.444    0.492     0.00   1.00  3905.9         0.70    0.11
+   4063232  0.527  0.547    0.590     0.00   1.00  3932.3         0.21    0.14
+   4194304  0.667  0.567    0.723     0.30   1.00  3910.7        -0.66    0.11
+   4325376  0.596  0.571    0.676     0.33   0.90  3597.1        -0.01    0.10
+   4456448  0.572  0.635    0.710     0.40   1.00  3895.3         1.48    0.10
+   4587520  0.613  0.454    0.638     0.30   1.00  3919.5         1.03    0.09
+   4718592  0.760  0.689    0.854     0.57   0.70  3215.8        -0.45    0.09
+   4849664  0.774  0.668    0.847     0.56   0.90  3731.8         0.13    0.06
+   4980736  0.821  0.621    0.835     0.67   0.90  3687.3         0.26    0.04
+   5111808  0.745  0.789    0.846     0.70   1.00  3885.7        -0.76    0.07
+   5242880  0.814  0.830    0.892     0.90   1.00  3869.5         0.69    0.07
+   5373952  0.771  0.843    0.885     0.80   1.00  3874.6        -0.74    0.07
+   5505024  0.872  0.821    0.921     1.00   1.00  3881.8        -0.20    0.06
+   5636096  0.841  0.873    0.940     1.00   1.00  3855.8        -0.22    0.05
+   5767168  0.842  0.854    0.899     0.90   1.00  3860.3        -0.83    0.05
+   5898240  0.766  0.842    0.850     0.80   1.00  3899.1        -0.34    0.07
+   6029312  0.679  0.713    0.742     0.40   1.00  3904.9         0.17    0.10
+   6160384  0.237  0.316    0.342     0.00   1.00  3904.6         0.03    0.15
+   6291456  0.214  0.401    0.434     0.00   1.00  3894.7        -0.96    0.19
+  Reading (exploratory, not a test): the over-bar fraction rose from 0 (<=4.06M) to 1.00 (5.51-5.64M) and fell to 0 by 6.16M; the 6,291,456 checkpoint (the pilot parent) sits two evaluations after that reversal.
