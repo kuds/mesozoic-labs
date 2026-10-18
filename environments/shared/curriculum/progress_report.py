@@ -226,8 +226,8 @@ def termination_counts(row: Mapping[str, float]) -> dict[str, int]:
     return out
 
 
-def _periodic_checkpoint_steps(model_dir: Path, name_prefix: str) -> int | None:
-    """The newest periodic checkpoint's step count in *model_dir*, by its name (never its mtime); ``None``: none."""
+def _periodic_checkpoint_steps(model_dir: Path, name_prefix: str) -> list[int]:
+    """Every periodic checkpoint's step count in *model_dir*, sorted, by its name (never its mtime)."""
     from ..policy_loading import _PERIODIC_CHECKPOINT_RE
 
     steps = []
@@ -235,7 +235,7 @@ def _periodic_checkpoint_steps(model_dir: Path, name_prefix: str) -> int | None:
         match = _PERIODIC_CHECKPOINT_RE.fullmatch(path.stem)
         if match is not None and match.group(1) == name_prefix:
             steps.append(int(match.group(2)))
-    return max(steps) if steps else None
+    return sorted(steps)
 
 
 def _first_evaluation_scoring(results: Sequence[Any], timesteps: Sequence[Any], best: float, score: Any) -> int | None:
@@ -530,15 +530,17 @@ class TrainingProgressCallback(BaseCallback):  # type: ignore[misc]
         from ..stage_manifest import stage_label
 
         try:
-            latest = _periodic_checkpoint_steps(Path(self.model_dir), stage_label(self.stage))
+            periodic = _periodic_checkpoint_steps(Path(self.model_dir), stage_label(self.stage))
         except Exception:  # noqa: BLE001 - a report must not sink a run
-            latest = None
+            periodic = []
         source = self.eval_callback
         results = getattr(source, "evaluations_results", None) or []
         timesteps = getattr(source, "evaluations_timesteps", None) or []
         best = float(getattr(source, "best_mean_reward", -math.inf))
         out: dict[str, Any] = {
-            "latest_periodic_timesteps": latest,
+            "latest_periodic_timesteps": periodic[-1] if periodic else None,
+            # Every periodic checkpoint kept: the newest few and, with the archive rule, one per interval.
+            "periodic_timesteps": periodic,
             "best_model_timesteps": _first_evaluation_scoring(results, timesteps, best, lambda r: float(np.mean(r))),
             "best_mean_reward": _number(best),
         }

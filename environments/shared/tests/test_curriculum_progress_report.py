@@ -427,6 +427,7 @@ class TestTheRecord:
         )
         checkpoints = callback.record("training")["checkpoints"]
         assert checkpoints["latest_periodic_timesteps"] == 200
+        assert checkpoints["periodic_timesteps"] == [100, 200]  # every one kept, by name, sorted
         assert checkpoints["best_model_timesteps"] == 300 and checkpoints["best_mean_reward"] == 103.5
         assert checkpoints["robust_best_model_timesteps"] == 300
 
@@ -711,7 +712,7 @@ def test_a_real_tyrannosaurus_rex_stance_run_writes_its_progress(trained):
     }
     assert [entry["timesteps"] for entry in record["history"]] == [int(step) for step in evaluations["timesteps"]]
     checkpoints = record["checkpoints"]
-    assert checkpoints["latest_periodic_timesteps"] == 512
+    assert checkpoints["latest_periodic_timesteps"] == 512 and checkpoints["periodic_timesteps"] == [512]
     assert checkpoints["best_model_timesteps"] in evaluations["timesteps"].tolist()
     assert checkpoints["robust_best_model_timesteps"] in evaluations["timesteps"].tolist()
     assert isinstance(record["warnings"], list)

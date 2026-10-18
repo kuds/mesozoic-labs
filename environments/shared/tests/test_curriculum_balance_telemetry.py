@@ -7,8 +7,8 @@ each switched off -- the capture callback's ``report_extensions`` (the
 eval-episode ledger, the in-training v2 screen, the balance and force
 fields, the mirror-even leg DC, the reward-term split and the force
 matrix), the action-jerk reward key, the PostureTrend watch, the
-per-rollout episode and fall counts, the training-episode ledger and the
-policy probe.  The two runs train and evaluate exactly alike (the same
+per-rollout episode and fall counts, the training-episode ledger, the
+policy probe and the checkpoint archive rule.  The two runs train and evaluate exactly alike (the same
 ``evaluations.npz``, the same tensors in every checkpoint, the same
 VecNormalize statistics), the plain run writes the key sets the base of
 this change (``2e734e29``) writes for the same run, pinned below as they
@@ -197,6 +197,7 @@ def _train(root: Path, monkeypatch, *, additions: bool) -> Path:
         monkeypatch.setattr(DiagnosticsCallback, "record_rollout_counts", False)
         monkeypatch.setattr(rollout_ledger, "build_training_ledger_callback", lambda *a, **k: None)
         monkeypatch.setattr(policy_probe, "build_policy_probe_callback", lambda *a, **k: None)
+        monkeypatch.setattr(curriculum, "checkpoint_archive_every", lambda curriculum_kwargs: 0)
     record: dict[str, Any] = {"rollout_add": [], "updates": [], "learn_end": None}
     _instrument(monkeypatch, record)
     configs = load_all_stages(TYRANNOSAURUS_REX)

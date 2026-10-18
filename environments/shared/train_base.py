@@ -721,6 +721,7 @@ def _build_core_callbacks(
         build_posture_drift_watch_callback,
         build_posture_trend_watch_callback,
         build_training_progress_callback,
+        checkpoint_archive_every,
     )
     from .diagnostics import DiagnosticsCallback as _DiagCB
     from .eval_diagnostics import build_stage_evaluation_callbacks
@@ -828,7 +829,9 @@ def _build_core_callbacks(
     # nothing in this repository reads. Retention (keep 5) is what makes the
     # denser 100k cadence — chosen so a Colab session cap discards at most
     # ~30 min of training instead of ~2.2 h (review CO4) — storage-neutral.
-    # Set `max_checkpoints = 0` in [curriculum] to keep every one.
+    # Set `max_checkpoints = 0` in [curriculum] to keep every one, or
+    # `checkpoint_archive_every_timesteps = A` to also keep the newest of
+    # every A steps (the onset record, at a fraction of keeping all).
     callbacks.append(
         CheckpointRetentionCallback(
             model_dir=model_dir,
@@ -838,6 +841,7 @@ def _build_core_callbacks(
                 stage_config.get("curriculum_kwargs", {}).get("max_checkpoints", DEFAULT_MAX_CHECKPOINTS)
             ),
             verbose=verbose,
+            archive_every_timesteps=checkpoint_archive_every(stage_config.get("curriculum_kwargs", {})),
         )
     )
 
