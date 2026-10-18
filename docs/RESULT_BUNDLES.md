@@ -395,6 +395,49 @@ undeclared files. If artifacts are added manually, regenerate the manifest
 before promotion. The SB3 notebook flushes Google Drive before an automatic
 runtime disconnect.
 
+## The cross-run table and offline judgements
+
+Each run's records stay in its own folder. The Google Drive summary notebook
+reads every model's runs into one table, one row per stage of each training
+run (`source` `training`, with the stage's gate verdict in `stage_passed`) and
+per trial of each legacy sweep (`sweep` or `sweep-analysis`), and its section 9
+saves the table on Drive as `logs/runs_summary.csv`, each model's rows as
+`logs/<species>/<embodiment>/runs_summary.csv` and each model's legacy sweep
+rows as `logs/<species>/<embodiment>/sweeps/sweeps_summary.csv`.
+
+Before saving, it adds the rows of the repository's offline-judgement ledger,
+`results/offline_judgements.csv`, as `source` `offline`: gate certificates and
+pilot judgements of a checkpoint made outside training, by someone who cannot
+write to the run's Drive folder, and recorded by pull request instead
+([results/README.md](../results/README.md#offline-judgements-offline_judgementscsv)
+documents its columns). The ledger is read from the notebook's own checkout
+(on Colab, `REPO_REF`, `main` by default), so a row added on `main` appears
+the next time the notebook runs on Colab. A row records a judgement only: it
+certifies no run and promotes nothing.
+
+`environments.shared.reporting.runs_summary` holds what the notebook calls:
+`load_offline_judgements` validates the ledger; `merge_runs_summary` appends
+its rows after the notebook's (a `PASS` verdict reads `stage_passed` true, a
+`FAIL` false and any other verdict empty, and a row's `run_path` is its
+`run_dir`); and `write_runs_summary` writes the union of every row's columns,
+with a missing cell empty: the identity columns first, then the ledger's own
+when the file holds an offline row, then every other column sorted, then the
+metric columns of `collected_results.csv`. Each file is written to a
+temporary file beside it and moved over it with `os.replace`, as
+`progress.json` is, so a runtime reclaimed mid-write leaves the previous
+table, never half of one. Each time the table has rows, the notebook rewrites
+the combined file and the files of the models in the table whole, and keeps no
+dated copies; a model with offline rows but no folder on Drive gets its
+`logs/<species>/<embodiment>/` folder, to hold its `runs_summary.csv`. It
+writes nothing when the logs directory does not exist (Drive not mounted; it
+never creates that directory) or when the table has no rows, and then leaves
+any earlier file as it was; a model no longer in the table also keeps its
+earlier file. Without the ledger file it saves the table with no offline rows.
+
+The table is a view, rebuilt from the run folders and the ledger each time
+the notebook saves it, and nothing reads it back. It is not a promotion record:
+a run is promoted only through its bundle, as above.
+
 ## Public result paths
 
 The public algorithm remains `PPO` or `SAC`; backend identity is separate:

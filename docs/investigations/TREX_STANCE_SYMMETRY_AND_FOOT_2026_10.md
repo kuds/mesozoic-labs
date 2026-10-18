@@ -10,6 +10,15 @@ outcome will be appended to this note as a dated note when it is judged. The
 evidence, frozen copies of the scripts that decided each verdict, and their
 sums are in [stance_2026_10/](stance_2026_10/README.md).
 
+*Status 2026-10-18 (appended): the walking pilot was judged on 2026-10-17
+and read STILL on all three seeds, final. §15, appended on 2026-10-18,
+records that outcome, the offline, report-only certificates, battery, foot
+and ankle audit and literature report of 2026-10-17, and the maintainer's
+decision of 2026-10-17 to run a second pilot (pre-registered, not yet
+trained, no result); their evidence was added to
+[stance_2026_10/](stance_2026_10/README.md) on 2026-10-18. The status above
+is unchanged.*
+
 It continues [STANCE_REWARD_PILOT_FINDINGS_2026_10.md](STANCE_REWARD_PILOT_FINDINGS_2026_10.md)
 (2026-10-10), [STANCE_HACK_AUDIT_2026_10.md](STANCE_HACK_AUDIT_2026_10.md)
 §12 (the physics-r9 statue) and the blog post
@@ -989,3 +998,362 @@ Decisions below are the maintainer's; none is taken here.
   `0567d6104a0795c0201ff8db4b1045e907bf3100ca9ae60fa4028c4f907c0fc1`),
   the per-episode judge files, the probes' raw episodes and the session's
   workflow journals.
+
+## 15. Status 2026-10-18 (appended): pilot 1's outcome, the offline follow-ups and pilot 2
+
+*Appended 2026-10-18; §1–§14 above are unchanged, so their "not yet judged"
+is the wording of 2026-10-17.* This section records walking pilot 1's
+outcome, the offline work of 2026-10-17 that followed the note (the stage's
+own certificate rolled on the r9 arm L checkpoints, an offline battery on
+them, a foot and ankle audit, a literature report and a recommendation on
+what to log next) and the maintainer's decision of 2026-10-17 to run a
+second pilot. Pilot 1 is the only part that trained. Everything else is
+offline and report only: the certificates were rolled on uncertified
+checkpoints that the judge would refuse, and nothing here certifies a run,
+writes a result bundle or promotes anything. The evidence is in seven
+folders added to [stance_2026_10/](stance_2026_10/README.md) on 2026-10-18
+(its README's "Added on 2026-10-18" says what each holds and how to re-check
+it); paths in backticks below are relative to that directory. The 28
+judgements among them (19 certificates and pilot 1's 9 panels) are rows of
+the repository's ledger,
+[`results/offline_judgements.csv`](../../results/README.md#offline-judgements-offline_judgementscsv),
+each pointing at its evidence file.
+
+### 15.1 Walking pilot 1: STILL on all three seeds (judged 2026-10-17, final)
+
+- **The runs.** All three seeds finished 4,194,304 steps on L4 runtimes
+  (3 h 36 min to 3 h 41 min), with no collapse and no early stop. The judge
+  bound each checkpoint to the branch's tree `eaeef50f`, the parent's sha256
+  `70f3a444…`, the budget and the plant, and accepted all nine
+  (`pilot1_judging/run_log.txt`;
+  `pilot1_judging/OUT/s<seed>/<steps>/binding.json`).
+  The small files fetched from Drive were transcribed twice and matched (16
+  files), and seed 42's 2M VecNormalize file, repaired by hand at the 2M
+  pipeline check, matched its final fetch (`run_log.txt`).
+- **The outcome**, by the criteria of §9 (`pilot/pilot_score.py --seeds
+  42,52,60`; `pilot1_judging/OUT/score.json`, sha256 `86d7350e…` before the
+  copy's final newline; printout `pilot1_judging/judge_logs/score.log.txt`):
+  at 4,194,304 steps every seed is STILL on 40 of its 40 panel episodes, with
+  no WALK, HOP or FALL episode; median speed 0.001-0.002 m/s, no touchdowns,
+  flight 0, foot duty 1.00 on each foot. **PILOT OUTCOME: STILL (3 of 3
+  seeds).** It is final; no video review was needed, since only WALKS needs
+  one. On the trajectory, which decides nothing, every cell at 2,097,152 and
+  3,145,728 is STILL 40 except seed 42 at 2,097,152 (STILL 39, FALL 1: one
+  episode sliding at 0.108 m/s, ended at step 837; `run_log.txt`).
+- **What STILL means, as fixed before training** (§9; `pilot/criteria.txt`,
+  "What each outcome means"): the policy is not moving by 4.2M, and the pilot
+  was too short to say anything about the gait. By the same text only FALLS
+  could have pointed back at the stance; no seed fell at 4,194,304.
+- **Report only** (`run_log.txt`, and the runs' own `gate_progress.npz`
+  where stated; none of it is a pilot criterion):
+  - The in-training evaluation reward was about 1,097-1,100 at the 2M, 3M
+    and 4.2M evaluations, the parent's standing reward under the walk task
+    (the run log's "flat at ~1,097-1,100 throughout"). Over all 96
+    evaluations (`gate_progress.npz`) it was 1,093-1,101 wherever all ten
+    episodes ran the full horizon; 10 of the 96 dipped to 993-1,080, each
+    with one of its ten episodes ending early (`full_horizon_fraction`
+    0.9; seed 60 7 times, seed 52 twice, seed 42 once).
+  - The forward-velocity term was 0.5-3.2 per episode at the 2M, 3M and
+    4.2M evaluations, against the September T. rex walkers' 39-54 at 2.1M
+    and 148-234 at 4.2M. Over all 51 evaluations from 2M to 4.2M it was
+    0.1-7.5, 12 of them outside 0.5-3.2 (`gate_progress.npz`); the run
+    log's "0.5-3.2 at 2-4.2M (max 7.5)" is the range at those three
+    evaluations.
+  - The `gate_progress.npz` figures were read on 2026-10-18 from each
+    run's `03_locomotion/gate_progress.npz` on Drive (32 evaluations, the
+    last at 4,194,304; folder ids in `run_log.txt`), transcribed twice for
+    the final judging and byte-identical (sha256 `86896545…`, `b0317e62…`
+    and `29858fd4…` for seeds 42, 52 and 60); they are not copied into
+    the evidence folder.
+  - The policy's action std (exp(log_std), mean over the 15 actuators, read
+    from the checkpoints by `pilot1_judging/tools/stdcheck.py`) was 0.095 in
+    the parent (min 0.018, max 0.164, as `pilot2/criteria.txt` quotes it) and
+    0.108-0.111 at 4,194,304 (min 0.022, max 0.196): exploration barely
+    widened. §11's "Diagnosis v2" row left the locomotion training's effect
+    on the parent's learned std (its "about 0.09") unmeasured; these two
+    readings, the parent and the 4,194,304 checkpoints, are the only ones
+    taken.
+  - The notebook's locomotion gate (`reward_and_length/v1`) read FAIL on
+    speed (0.00 against 1.00 m/s), as expected; recorded, never enforced.
+- **Hypotheses, not findings.** (a) With its noise at about 0.1, under half
+  the stance stage's starting 0.2231, the training rollouts barely left the
+  parent's standing actions, so they rarely produced the displacement the
+  forward term pays, and the reward had little to pull toward stepping (the
+  reason given for pilot 2, §15.7). (b) Today's walk reward does not pay
+  stepping from this stance within 4.2M steps at any noise. Pilot 1 cannot
+  tell them apart, and neither was tested.
+
+### 15.2 The stage's own certificate, rolled offline (2026-10-17, report only)
+
+The stage's certificate (`stance_quality_heading/v1`, D-D32) had never judged
+an arm L checkpoint. `offline_certificates/scripts/run_cert.py` called
+`build_stance_heading_report`, the function the notebook's end-of-stage
+certificate calls, on `main` `2e734e29` (physics r9) with `stance.toml` as
+committed (options off) or with arm L's three env options (armL), on the r9
+arm L symmetry-screen checkpoints of §5
+(`offline_certificates/offline_certificates.txt`; the table is in the
+evidence README):
+
+- At 6,291,456 steps on 3042-3081: seed 60, the pilots' parent, **PASS**
+  40/40 seeds clean at all six headings (LCB 0.9278); seed 52 **PASS** 38/40
+  (0.8508), failing pad CoP on seeds 3050 (0.997) and 3063 (0.823); seed 42
+  **FAIL** 29/40 (0.5861), on pad CoP, sole tilt and corner lift. Options off
+  and armL give the same verdicts and identical floor metrics: the options
+  change only the reward (`offline_certificates/cert_summary.json`).
+- The reward-selected `robust_best` checkpoints (seed 60 at 524,288, seed 42
+  at 655,360 and seed 52 at 917,504 steps) **PASS** 40/40, 40/40 and 39/40.
+- The fresh audit panel 7042-7081 passes both 6M checkpoints it was run on
+  (seed 60 39/40, seed 52 38/40), but both fall on seed 7047, where the
+  statue stands, so each sits on the `max_hop_or_fall_episodes` rail of 1.
+- **Margin.** The forward pad CoP is the bar that binds: seed 60's worst
+  full-horizon pad CoP is 0.780 against the 0.80 bar, the statue's 0.475
+  (`offline_certificates/cert_margins.txt`).
+- **None of it is gate evidence.** The runs were trained in the session's
+  scratch harness (`MirrorKLPPO` with scratch `experiment_*` keys; not on
+  Drive) and recorded task `a2af3c5c…`; these certificates roll task
+  `bde44225…` (off) or `cd963518…` (armL), so the judge would refuse them on
+  task, and an audit panel is refused as gate evidence by design
+  (`offline_certificates/evidence_table.txt` §E). Each verdict was re-derived
+  from its per-episode panel by the library's gate (all 11 agree,
+  `offline_certificates/rederive_from_csv.json`).
+- **How close** (`next_signals/recommendation.md` §1): close in behaviour,
+  not in certification. The stage needs two certified seeds under one
+  committed config and has none: the passing runs used a recipe
+  `stance.toml` does not enable, their `robust_best` pairs were selected under
+  the scratch reward, and the only production-config r9 run, run A, was
+  clean on 1/40 (§3).
+
+### 15.3 The offline battery (2026-10-17, report only)
+
+`battery/battery_report.md`, on the same checkpoints, `main` `2e734e29`,
+options off, no training:
+
+- **Fresh seeds.** Eight more certificates on 5042-5081 and 9042-9081 all
+  PASS: seed 60 6M 40/40 and 39/40, seed 52 6M 37/40 (LCB 0.8174, the
+  minimum passing count; 36/40 would give 0.7856) and 39/40, both
+  `robust_best` checkpoints 40/40 on both (`battery/fresh_seeds/`). No policy
+  episode fell, and every unclean fresh seed failed the pad CoP bar. Pooled
+  over the four panels, which is not a gate statistic, seed 60 6M is clean on
+  158/160 (exact 95% interval 0.9556-0.9985) and seed 52 6M on 152/160
+  (0.9039-0.9782)
+  (`battery/fresh_seeds/fresh_seed_summary.txt`); at seed 52's pooled rate,
+  and assuming independent seeds, about one fresh 40-seed panel in seven would
+  fail (`battery/report/panel_pass_prob.json`, an illustration). Seed 42 6M
+  had no fresh panel.
+- **The shared fall on 7047** (`battery/shared_fall/`): the reset leaves the
+  animal tipped forward, its most toe-down and forward start of the 40 audit
+  seeds. The statue survives by folding (its hips sag and its heels come
+  down); both policies hold the hips at or above home, pin the pad CoP on the
+  toe edge and topple forward (seed 60 by head contact at step 173, seed 52 by
+  nosedive at step 212), with no actuator saturated and nothing slipping.
+- **Push and release** (`battery/push/`): `main`'s impulse probe as shipped
+  cannot tell the policies apart, as its grid starts above every envelope. On
+  a 16-seed copy with a finer grid and fore-aft rows, the weak direction
+  follows where each policy parks its pad CoP: seed 60 6M, toe-loaded (+0.31
+  and +0.36), survives forward pushes of 0.05 m/s on all 16 seeds (0.20 on at
+  least 8), against the statue's 0.15 (0.25), and the heel-loaded seed 52 is
+  weak backward. No policy beats the statue in every direction.
+- **Own noise** (`battery/own_sigma/`): on the heading-0 panel with actions
+  sampled from each policy's own Gaussian, no policy falls and the 6M verdicts
+  hold, but every `robust_best` checkpoint is clean on 0 of 40 (settle force
+  over 1.5 body weights on every seed, and pad CoP), against 39-40 when run
+  deterministically; its own leg noise (0.114-0.152) is about three times the
+  6M checkpoints' (0.036-0.045). The reward-selected handoff is clean only
+  when run deterministically.
+- **The report's verdict:** seed 60 6M is a real but thin pass, and seed 52 6M
+  is on the rail.
+
+### 15.4 What the fore-aft bar does not see
+
+Measured by the battery and the audit, and changed by neither; a gate change
+needs the maintainer's approval.
+
+- **Pad only.** The bar reads the pad's own CoP, not the whole foot's or the
+  COM's. With 16-28% of the load on the digits at the MTP joints, the pad CoP
+  reads 0.10-0.25 pad half-lengths ahead of the COM projection (seed 60 +0.27
+  against +0.11; the noise-free statue +0.31 against +0.06)
+  (`audit/foot_ankle_audit.md`, "The CoP statistic in the anatomical frame").
+- **Unsigned.** The bar bounds |CoP|, not the side it sits on. Seed 60 6M
+  passes it (median 0.36, worst 0.78) and has the smallest forward push margin
+  of any role tested (§15.3; `battery/battery_report.md` §4). A track-like
+  stance with its load over the MTP joints reads 0.86 and would fail, and seed
+  52 failed reset seed 3050 at the heel edge (-1.00) (the audit). Seed 52 sat
+  heel-ward on both pads in 30 of its 48 in-training evaluations, seeds 42 and
+  60 toe-ward on 46 and 47
+  (`next_signals/diagnose/signed_pad_cop_r9armL.txt`).
+- The battery's first next step is to report the signed pad CoP beside the
+  unsigned one, report only; the audit adds that a signed whole-foot
+  statistic would close both gaps. Neither is decided.
+
+### 15.5 The foot, ankle and posture audit (2026-10-17, measurement only)
+
+`audit/foot_ankle_audit.md`, on `main` `2e734e29` (physics r9), with the
+published values restated in the model's frame (`audit/literature/out/`):
+
+- **Nothing measured in the anatomy pushes the quiet stance forward.** In the
+  statue and both 6M policies the COM projects 2.4-6.8 cm ahead of MTP III,
+  inside the proximal-phalanx zone where tyrannosaur tracks are deepest, and
+  none of the three stances leans forward (each subvertical and slightly
+  flexed, every joint within 5° of home;
+  `audit/posture/out/posture_table.txt`).
+  The drift state itself (seed 60 at 5M) was not rolled.
+- **Matches:** footprint over hip height (0.260, published 0.216-0.270),
+  digit lengths, the load centre, the COM ahead of the hip (41.9-45.6% of
+  femur length against 30-45%, the top of the band once settled), the knee's
+  range, and a knee near the ground-force line.
+- **Departures:** the COM sits 4-18 cm too high relative to the hip in every
+  pose; the thigh is light, the forelimbs heavy, and the shank and metatarsus
+  proportions juvenile (metatarsus over femur 0.613, tibia over femur 1.000,
+  against adults' 0.52-0.60 and 0.90-0.93); the digit spread is 3-5× too
+  narrow and in reversed order (roll, not fore-aft); the rear contact is a
+  midline pad, not a lateral digit IV pad; the ankle extends 11.2° past the
+  only published T. rex model range (Hutchinson et al. 2005, 90-180°
+  included). The tail cannot lift off its stop, so it has no static fore-aft
+  authority, and the neck and head move the COM rearward only.
+- **Two features let the stance read, or go, further forward:** the pad-only
+  reading of §15.4, and the rigid pad front edge, 4.6-6.0 cm beyond the
+  published load zone; the 0.80 bar sits 3-5 cm ahead of that zone (the
+  audit's inference).
+- **Seven candidate physics changes, none decided, each needing the
+  maintainer's approval:** lower the COM into the published band; cap ankle
+  extension at 180°; pull the rigid tipping edge back to about 0.07-0.08 m
+  ahead of MTP III; a lateral digit IV rear pad; a wider digit spread; a tail
+  that can hold level; adult limb proportions. The audit supports neither
+  changing the neck or head nor extending rigid support forward.
+
+### 15.6 The literature report and what to log next (2026-10-17)
+
+`literature/trex_foot_and_standing_balance.md` ("Longer toes cannot cure a
+forward lean") and its four research notes. Where its model figures differ
+from the audit's, the audit's "Corrections to the literature report"
+supersede them.
+
+- **The published record:** a standing T. rex, like the birds, carried its
+  weight on the proximal parts of its digits near the toe joints, with its
+  COM about 30-45% of a femur length ahead of the hip; in human and robot
+  balance, robustness comes from the distance between the centre of pressure
+  and the tipping edge, not from foot length.
+- **Its reading:** the drift onto the toes is a control problem, not an
+  anatomy problem. No reward term pays for fore-aft placement, the policy's
+  foot channels report each foot's total load and not where it sits, a
+  left-right mirror loss cannot act on a symmetric fore-aft lean, and
+  extending the support forward (r10) moved the edge the policy drifted to.
+  In footprint terms the 0.80 bar already accepts stances forward of the human
+  quiet-stance analogue and far forward of the bird's (load under the toe
+  joint); a target nearer the pad centre has anatomical support, but moving
+  the gate needs approval.
+- **Its ranked ideas:** first, needing no approval, log the stability margin
+  and the pad and digit load split, and select checkpoints by margin and
+  action-noise survival rather than reward, with about eight seeds per arm;
+  then, with approval, a fore-aft load signal for the critic or the actor, a
+  floor on exploration noise or training under injected action noise, and,
+  only if walking points back to stance, a CoP- or ZMP-centring term.
+- **Its limits:** no measured T. rex ankle or toe range of motion (the audit
+  adds Hutchinson et al. 2005's model range), no standing pressure data for
+  any large theropod or ratite, and no RL ablation of a CoP term in standing.
+  That shrinking exploration noise lets a stance drift toward the edge is, in
+  its words, a hypothesis to test. It cites a Cassie study (Li et al. 2024),
+  in which stepping rescued leans that stance-only policies fell from, as the
+  clearest reason to expect the walking pilot to say something about stance.
+- **What to log and sense next** (`next_signals/recommendation.md`): sixteen
+  numbered items, from report-only telemetry (a per-episode evaluation
+  ledger, whole-body balance, a signed CoP trend) through evaluation and
+  selection (keeping the onset checkpoints, the offline battery of §15.3) to
+  policy-interface changes (pad and digit touch sensors, a privileged critic),
+  each with the approval it needs. None could be added to pilot 1, whose
+  callbacks are assembled before training and whose branch predates #626.
+  The battery of §15.3 carries out item 9's fresh panels, seed-7047 replay,
+  push-and-release and own-sigma parts (not its "what the policy senses on
+  its own states"); no other item is taken here.
+
+### 15.7 Walking pilot 2: pre-registration (decided 2026-10-17; not yet trained, no result)
+
+After pilot 1 was judged, the maintainer chose "Second pilot, wider
+exploration" on 2026-10-17: pilot 1 again with one change. D-D36's
+amendment of 2026-10-18 records it
+([BEHAVIOR_RECIPES_PLAN.md](../BEHAVIOR_RECIPES_PLAN.md) §6.2; the gait
+plan's §17 note of the same date). The fixed criteria are
+`pilot2/criteria.txt` (written 2026-10-17 and amended 2026-10-18, both before
+any pilot-2 training step), and `pilot2/colab_steps.txt` is how the runs are
+launched.
+
+- **The one change.** At the warm start only (`initialize_next_stage`; never
+  on a resume, a fresh start or a root), every one of the 15 actuators'
+  `log_std` is set to -1.5, std 0.2231, the T. rex stance stage's own starting
+  noise (`log_std_init = -1.5`, D-D27), after the parent's parameters load and
+  before the first update, with the optimizer's moments kept. The maintainer
+  was told 0.22; the pilot uses -1.5 exactly, so its noise is the stance's own
+  starting noise and not a new number. A pilot-only key on the branch,
+  `[curriculum] warm_start_log_std = -1.5` in the locomotion stage, sets it;
+  on the branch it moves that stage's hyperparameter and stage-config-view
+  digests (PPO hyperparameters `ec9925f9…`, pilot 1's `af78e500…`), and the
+  task and gate digests are unchanged (`23d50a6d…`, `02602cb0…`). It leaves
+  the policy's mean action, the value network and the normalisation statistics
+  as pilot 1 had them, so the deterministic panel would read the parent's
+  STILL before any update; the noise acts only through what training learns.
+- **Everything else is pilot 1's:** the parent (r9 arm L seed 60 at 6,291,456
+  steps, sha256 `70f3a444…`), the production locomotion stage and its
+  4,194,304-step schedule, seeds 42, 52 and 60, the frozen probe, the episode
+  labels and the WALK rule's guards, the seed and pilot outcomes, the video
+  review, and pilot 1's judging tools, unchanged (their sha256 are in the
+  criteria). Three rules are added because they follow from the change: the
+  judging reads each run's `stage_config.json`, and a run that does not record
+  the reset (`curriculum.warm_start_log_std` and `run.warm_start_log_std` both
+  -1.5) is not scored and counts as missing; and a resume never applies the
+  reset.
+- **Where it runs:** the branch `claude/pilot-walk-r9-b` at `ba464855`
+  (pilot 1's `eaeef50f` plus three pilot-only commits: the key with the
+  `train_base` code that applies it, its tests and the regenerated digest
+  snapshot; the printed "Warm start" line; and a note in the parent's
+  `SOURCE.txt`), pushed with no pull request and never merged; run IDs
+  `pilot2_walk_s42`, `pilot2_walk_s52` and `pilot2_walk_s60`; pilot 1's
+  folders are never reused. The pre-launch checks on that branch (a
+  `QUICK_TEST` notebook smoke and the judge run on it on the session's
+  machine, the key's tests and the shared and T. rex test suites) are listed
+  in the criteria; none is a pilot-2 training step.
+- **What each outcome would mean** (fixed before training; a sequential
+  comparison with pilot 1, not a randomized one, and GPU training is not
+  bit-reproducible): WALKS, the reset was sufficient from this stance
+  (not shown necessary); HOPS, the walk reward pays the hop once exploration
+  widens, which points at the locomotion reward (the gait plan's §5), not the
+  stance; FALLS, the traces say whether the wider noise broke the stance or
+  stepping started and failed; STILL again, either 0.22 is not enough or the
+  reward does not pay stepping by 4.2M, which this pilot cannot tell apart
+  (the report-only std and forward-term trajectories say which is likelier).
+- **Status:** not yet trained; no result. Like pilot 1 it is a deliberate
+  exception to the gait plan's GQ-3 (a) and GQ-17, under D-D36: nothing it
+  trains is certified, published or reused, and no result bundle is written.
+  Its outcome will be appended as a dated note.
+
+### 15.8 What changes in §13 and §14
+
+- **§13, the walking pilot's outcome:** pilot 1 read STILL, so neither its
+  WALKS nor its HOPS branch arises; pilot 2 (§15.7) is pre-registered and
+  not yet trained. The other open questions of §13 stand. The follow-ups
+  sharpen its "Pad or whole-foot CoP for the T. rex bar" with a signed
+  statistic (§15.4), and add two: whether the reward-selected `robust_best`
+  should stay the handoff when it is clean only without its own noise
+  (§15.3), and which, if any, of the audit's seven physics changes to take
+  (§15.5).
+- **§13, the public #623 comment:** it already opens with a correction
+  (updated 2026-10-17 18:54 UTC) giving 0.89-0.94 against 0.76-0.79 and 1.10
+  against 0.85, and marks the in-text 1.06-1.10 as superseded (a read-only
+  check on 2026-10-17, `next_signals/diagnose/notes_numbers.txt` item 2). No
+  further edit is needed.
+- **§14, this repository:** the seven folders above
+  (`pilot1_judging/`, `pilot2/`, `offline_certificates/`, `battery/`,
+  `audit/`, `literature/`, `next_signals/`), with their sources and sha256 in
+  `SOURCES.txt` and `SHA256SUMS`, and the 28 ledger rows.
+- **§14, branches:** `claude/pilot-walk-r9-b` at `ba464855` (pilot 2), beside
+  `claude/pilot-walk-r9` at `eaeef50f` (pilot 1); neither has a pull request.
+- **§14, Google Drive:** pilot 1's checkpoints are in
+  `pilot_walk_s{42,52,60}/03_locomotion/models/` under
+  `MyDrive/mesozoic-labs/logs/tyrannosaurus_rex/anatomical/ppo/` (folder ids
+  in `pilot1_judging/run_log.txt`, sha256 in each `binding.json`); pilot 2's
+  runs are to write `pilot2_walk_s{42,52,60}/` beside them.
+- **§14, session scratch only:** the per-episode certificate files (their
+  sha256 and sizes at the end of `SOURCES.txt`), the scratch-harness
+  checkpoints the certificates rolled (sha256 in each `run_summary.json`;
+  only the seed 60 6M pair survives elsewhere, on both pilot branches),
+  pilot 1's traces and plots, the battery's per-episode panels and traces,
+  and the audit's downloaded papers and posture rolls.

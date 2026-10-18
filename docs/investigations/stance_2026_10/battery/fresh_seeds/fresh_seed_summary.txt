@@ -1,0 +1,116 @@
+OFFLINE EVALUATION of uncertified scratch-recipe checkpoints (r9 arm L symmetry screen, MirrorKLPPO, experiment_* keys); report only; certifies nothing. main 2e734e29, options off, runner foot/next_signals/howclose/scripts/run_cert.py.
+
+=== s60_6M (step 6,291,456)
+ panel 3042-3081: PASS 40/40 clean at all six, LCB 0.9278   [foot/next_signals/howclose/cert_r9armL_s60_6291456_optoff/stance_heading_report.json]
+   binding: verdict passes with 3 unclean seed(s) of slack on the grouped LCB bar 0.80; tightest unviolated bar (full-horizon episodes): max_sole_cop_fore_aft worst 0.7801 vs 0.8 (margin 2.5%)
+   worst pad CoP (full-horizon): 0.7801 seed 3080 heading +0; seeds past 0.80: none
+   falls: none (240/240 policy episodes full horizon)
+   statue: min full horizon 39/40 over headings, statue fall seeds [3081], worst pad CoP 0.9985
+   reward/statue ratio 0.991-0.991; min full horizon 40/40; sha 70f3a4447794; 955 s
+ panel 5042-5081: PASS 40/40 clean at all six, LCB 0.9278   [foot/battery/fresh_seeds/cert5042_r9armL_s60_6291456_optoff/stance_heading_report.json]
+   binding: verdict passes with 3 unclean seed(s) of slack on the grouped LCB bar 0.80; tightest unviolated bar (full-horizon episodes): max_sole_cop_fore_aft worst 0.7528 vs 0.8 (margin 5.9%)
+   worst pad CoP (full-horizon): 0.7528 seed 5048 heading -90; seeds past 0.80: none
+   falls: none (240/240 policy episodes full horizon)
+   statue: min full horizon 39/40 over headings, statue fall seeds [5048], worst pad CoP 0.9980
+   reward/statue ratio 0.991-0.991; min full horizon 40/40; sha 70f3a4447794; 916 s
+ panel 7042-7081: PASS 39/40 clean at all six, LCB 0.8868   [foot/next_signals/howclose/audit7042_r9armL_s60_6291456_optoff/stance_heading_report.json]
+   binding: verdict passes with 2 unclean seed(s) of slack on the grouped LCB bar 0.80; hop_or_fall 1 per heading = rail 1 (one more fall fails); episode bars that made seeds unclean: horizon (1 seed); tightest unviolated bar (full-horizon episodes): settle_peak_floor_force_bw worst 1.359 vs 1.5 (margin 9.4%)
+   worst pad CoP (full-horizon): 0.5214 seed 7081 heading +180; seeds past 0.80: none
+   falls: seed 7047 at 6/6 headings, length [173], statue full horizon True; terminations {'-90.0': {'head_contact': 1}, '-45.0': {'head_contact': 1}, '0.0': {'head_contact': 1}, '45.0': {'head_contact': 1}, '90.0': {'head_contact': 1}, '180.0': {'head_contact': 1}}
+   unclean seeds: 7047 (6/6: horizon; policy pad CoP unmeasured, statue 0.2759, statue full horizon True)
+   statue: min full horizon 40/40 over headings, statue fall seeds none, worst pad CoP 0.4556
+   reward/statue ratio 0.968-0.968; min full horizon 39/40; sha 70f3a4447794; 1460 s
+ panel 9042-9081: PASS 39/40 clean at all six, LCB 0.8868   [foot/battery/fresh_seeds/cert9042_r9armL_s60_6291456_optoff/stance_heading_report.json]
+   binding: verdict passes with 2 unclean seed(s) of slack on the grouped LCB bar 0.80; episode bars that made seeds unclean: max_sole_cop_fore_aft (1 seed); tightest unviolated bar (full-horizon episodes): settle_peak_floor_force_bw worst 1.369 vs 1.5 (margin 8.7%)
+   worst pad CoP (full-horizon): 0.9969 seed 9062 heading -90; seeds past 0.80: {9062: 0.9969}
+   falls: none (240/240 policy episodes full horizon)
+   unclean seeds: 9062 (6/6: max_sole_cop_fore_aft; policy pad CoP 0.9969, statue 0.9982, statue full horizon False)
+   statue: min full horizon 39/40 over headings, statue fall seeds [9062], worst pad CoP 0.9982
+   reward/statue ratio 0.991-0.991; min full horizon 40/40; sha 70f3a4447794; 927 s
+ POOLED 158/160 = 0.9875, 95% CI [0.9556, 0.9985], one-sided 95% LCB 0.9612 over panels 3042, 5042, 7042, 9042 ({'3042': '40/40', '5042': '40/40', '7042': '39/40', '9042': '39/40'}); model sha consistent True
+ 3042 verdict PASS; fresh verdicts {'5042': 'PASS', '9042': 'PASS'}; replicates {'5042': True, '9042': True}
+ fresh panels only (5042+9042): 79/80, 95% CI [0.9323, 0.9997]
+
+=== s52_6M (step 6,291,456)
+ panel 3042-3081: PASS 38/40 clean at all six, LCB 0.8508   [foot/next_signals/howclose/cert_r9armL_s52_6291456_optoff/stance_heading_report.json]
+   binding: verdict passes with 1 unclean seed(s) of slack on the grouped LCB bar 0.80; episode bars that made seeds unclean: max_sole_cop_fore_aft (2 seeds); tightest unviolated bar (full-horizon episodes): max_sole_tilt_deg worst 1.823 vs 2 (margin 8.8%)
+   worst pad CoP (full-horizon): 0.9972 seed 3050 heading -90; seeds past 0.80: {3050: 0.9972, 3063: 0.8234}
+   falls: none (240/240 policy episodes full horizon)
+   unclean seeds: 3050 (6/6: max_sole_cop_fore_aft; policy pad CoP 0.9972, statue 0.3270, statue full horizon True); 3063 (6/6: max_sole_cop_fore_aft; policy pad CoP 0.8234, statue 0.2423, statue full horizon True)
+   statue: min full horizon 39/40 over headings, statue fall seeds [3081], worst pad CoP 0.9985
+   reward/statue ratio 0.992-0.992; min full horizon 40/40; sha 278637b9d4dc; 962 s
+ panel 5042-5081: PASS 37/40 clean at all six, LCB 0.8174   [foot/battery/fresh_seeds/cert5042_r9armL_s52_6291456_optoff/stance_heading_report.json]
+   binding: verdict passes with 0 unclean seed(s) of slack on the grouped LCB bar 0.80; episode bars that made seeds unclean: max_sole_cop_fore_aft (3 seeds), max_sole_tilt_deg (1 seed), max_sole_corner_lift_m (1 seed), min_sole_contacts (1 seed); tightest unviolated bar (full-horizon episodes): settle_peak_floor_force_bw worst 1.357 vs 1.5 (margin 9.5%)
+   worst pad CoP (full-horizon): 0.9920 seed 5073 heading -90; seeds past 0.80: {5048: 0.8931, 5061: 0.9628, 5073: 0.992}
+   falls: none (240/240 policy episodes full horizon)
+   unclean seeds: 5048 (6/6: max_sole_cop_fore_aft; policy pad CoP 0.8931, statue 0.9980, statue full horizon False); 5061 (6/6: max_sole_cop_fore_aft; policy pad CoP 0.9628, statue 0.2793, statue full horizon True); 5073 (6/6: max_sole_cop_fore_aft, max_sole_corner_lift_m, max_sole_tilt_deg, min_sole_contacts; policy pad CoP 0.9920, statue 0.1180, statue full horizon True)
+   statue: min full horizon 39/40 over headings, statue fall seeds [5048], worst pad CoP 0.9980
+   reward/statue ratio 0.991-0.991; min full horizon 40/40; sha 278637b9d4dc; 935 s
+ panel 7042-7081: PASS 38/40 clean at all six, LCB 0.8508   [foot/next_signals/howclose/audit7042_r9armL_s52_6291456_optoff/stance_heading_report.json]
+   binding: verdict passes with 1 unclean seed(s) of slack on the grouped LCB bar 0.80; hop_or_fall 1 per heading = rail 1 (one more fall fails); episode bars that made seeds unclean: max_sole_cop_fore_aft (2 seeds), horizon (1 seed), max_window_displacement_m (1 seed), max_sole_tilt_deg (1 seed), max_sole_corner_lift_m (1 seed), min_sole_contacts (1 seed); tightest unviolated bar (full-horizon episodes): max_sole_tilt_deg worst 1.859 vs 2 (margin 7.0%)
+   worst pad CoP (full-horizon): 0.8767 seed 7065 heading -45; seeds past 0.80: {7065: 0.8767}
+   falls: seed 7047 at 6/6 headings, length [212], statue full horizon True; terminations {'-90.0': {'nosedive': 1}, '-45.0': {'nosedive': 1}, '0.0': {'nosedive': 1}, '45.0': {'nosedive': 1}, '90.0': {'nosedive': 1}, '180.0': {'nosedive': 1}}
+   unclean seeds: 7047 (6/6: horizon, max_sole_cop_fore_aft, max_sole_corner_lift_m, max_sole_tilt_deg, max_window_displacement_m, min_sole_contacts; policy pad CoP 1.0000, statue 0.2759, statue full horizon True); 7065 (6/6: max_sole_cop_fore_aft; policy pad CoP 0.8767, statue 0.1581, statue full horizon True)
+   statue: min full horizon 40/40 over headings, statue fall seeds none, worst pad CoP 0.4556
+   reward/statue ratio 0.968-0.968; min full horizon 39/40; sha 278637b9d4dc; 1474 s
+ panel 9042-9081: PASS 39/40 clean at all six, LCB 0.8868   [foot/battery/fresh_seeds/cert9042_r9armL_s52_6291456_optoff/stance_heading_report.json]
+   binding: verdict passes with 2 unclean seed(s) of slack on the grouped LCB bar 0.80; episode bars that made seeds unclean: max_sole_cop_fore_aft (1 seed); tightest unviolated bar (full-horizon episodes): max_sole_corner_lift_m worst 0.00369 vs 0.004 (margin 7.7%)
+   worst pad CoP (full-horizon): 0.8208 seed 9062 heading +180; seeds past 0.80: {9062: 0.8208}
+   falls: none (240/240 policy episodes full horizon)
+   unclean seeds: 9062 (6/6: max_sole_cop_fore_aft; policy pad CoP 0.8208, statue 0.9982, statue full horizon False)
+   statue: min full horizon 39/40 over headings, statue fall seeds [9062], worst pad CoP 0.9982
+   reward/statue ratio 0.991-0.991; min full horizon 40/40; sha 278637b9d4dc; 936 s
+ POOLED 152/160 = 0.9500, 95% CI [0.9039, 0.9782], one-sided 95% LCB 0.9116 over panels 3042, 5042, 7042, 9042 ({'3042': '38/40', '5042': '37/40', '7042': '38/40', '9042': '39/40'}); model sha consistent True
+ 3042 verdict PASS; fresh verdicts {'5042': 'PASS', '9042': 'PASS'}; replicates {'5042': True, '9042': True}
+ fresh panels only (5042+9042): 76/80, 95% CI [0.8769, 0.9862]
+
+=== s60_robust_best (step 524,288)
+ panel 3042-3081: PASS 40/40 clean at all six, LCB 0.9278   [foot/next_signals/howclose/cert_r9armL_s60_robustbest_optoff/stance_heading_report.json]
+   binding: verdict passes with 3 unclean seed(s) of slack on the grouped LCB bar 0.80; tightest unviolated bar (full-horizon episodes): max_sole_tilt_deg worst 1.711 vs 2 (margin 14.4%)
+   worst pad CoP (full-horizon): 0.6235 seed 3051 heading -45; seeds past 0.80: none
+   falls: none (240/240 policy episodes full horizon)
+   statue: min full horizon 39/40 over headings, statue fall seeds [3081], worst pad CoP 0.9985
+   reward/statue ratio 1.010-1.010; min full horizon 40/40; sha c99f555ce7a3; 1765 s
+ panel 5042-5081: PASS 40/40 clean at all six, LCB 0.9278   [foot/battery/fresh_seeds/cert5042_r9armL_s60_robustbest_optoff/stance_heading_report.json]
+   binding: verdict passes with 3 unclean seed(s) of slack on the grouped LCB bar 0.80; tightest unviolated bar (full-horizon episodes): settle_peak_floor_force_bw worst 1.309 vs 1.5 (margin 12.7%)
+   worst pad CoP (full-horizon): 0.6927 seed 5061 heading +180; seeds past 0.80: none
+   falls: none (240/240 policy episodes full horizon)
+   statue: min full horizon 39/40 over headings, statue fall seeds [5048], worst pad CoP 0.9980
+   reward/statue ratio 1.010-1.010; min full horizon 40/40; sha c99f555ce7a3; 956 s
+ panel 9042-9081: PASS 40/40 clean at all six, LCB 0.9278   [foot/battery/fresh_seeds/cert9042_r9armL_s60_robustbest_optoff/stance_heading_report.json]
+   binding: verdict passes with 3 unclean seed(s) of slack on the grouped LCB bar 0.80; tightest unviolated bar (full-horizon episodes): settle_touchdowns worst 2 vs 2 (margin 0.0%)
+   worst pad CoP (full-horizon): 0.6230 seed 9062 heading -90; seeds past 0.80: none
+   falls: none (240/240 policy episodes full horizon)
+   statue: min full horizon 39/40 over headings, statue fall seeds [9062], worst pad CoP 0.9982
+   reward/statue ratio 1.010-1.010; min full horizon 40/40; sha c99f555ce7a3; 991 s
+ POOLED 120/120 = 1.0000, 95% CI [0.9697, 1.0000], one-sided 95% LCB 0.9753 over panels 3042, 5042, 9042 ({'3042': '40/40', '5042': '40/40', '9042': '40/40'}); model sha consistent True
+ 3042 verdict PASS; fresh verdicts {'5042': 'PASS', '9042': 'PASS'}; replicates {'5042': True, '9042': True}
+ fresh panels only (5042+9042): 80/80, 95% CI [0.9549, 1.0000]
+
+=== s52_robust_best (step 917,504)
+ panel 3042-3081: PASS 39/40 clean at all six, LCB 0.8868   [foot/next_signals/howclose/cert_r9armL_s52_robustbest_optoff/stance_heading_report.json]
+   binding: verdict passes with 2 unclean seed(s) of slack on the grouped LCB bar 0.80; episode bars that made seeds unclean: max_sole_cop_fore_aft (1 seed); tightest unviolated bar (full-horizon episodes): settle_touchdowns worst 2 vs 2 (margin 0.0%)
+   worst pad CoP (full-horizon): 0.8012 seed 3050 heading +45; seeds past 0.80: {3050: 0.8012}
+   falls: none (240/240 policy episodes full horizon)
+   unclean seeds: 3050 (6/6: max_sole_cop_fore_aft; policy pad CoP 0.8012, statue 0.3270, statue full horizon True)
+   statue: min full horizon 39/40 over headings, statue fall seeds [3081], worst pad CoP 0.9985
+   reward/statue ratio 1.006-1.006; min full horizon 40/40; sha aff76f537be5; 1765 s
+ panel 5042-5081: PASS 40/40 clean at all six, LCB 0.9278   [foot/battery/fresh_seeds/cert5042_r9armL_s52_robustbest_optoff/stance_heading_report.json]
+   binding: verdict passes with 3 unclean seed(s) of slack on the grouped LCB bar 0.80; tightest unviolated bar (full-horizon episodes): max_sole_cop_fore_aft worst 0.7455 vs 0.8 (margin 6.8%)
+   worst pad CoP (full-horizon): 0.7455 seed 5062 heading +180; seeds past 0.80: none
+   falls: none (240/240 policy episodes full horizon)
+   statue: min full horizon 39/40 over headings, statue fall seeds [5048], worst pad CoP 0.9980
+   reward/statue ratio 1.005-1.005; min full horizon 40/40; sha aff76f537be5; 947 s
+ panel 9042-9081: PASS 40/40 clean at all six, LCB 0.9278   [foot/battery/fresh_seeds/cert9042_r9armL_s52_robustbest_optoff/stance_heading_report.json]
+   binding: verdict passes with 3 unclean seed(s) of slack on the grouped LCB bar 0.80; tightest unviolated bar (full-horizon episodes): settle_peak_floor_force_bw worst 1.458 vs 1.5 (margin 2.8%)
+   worst pad CoP (full-horizon): 0.7694 seed 9062 heading -45; seeds past 0.80: none
+   falls: none (240/240 policy episodes full horizon)
+   statue: min full horizon 39/40 over headings, statue fall seeds [9062], worst pad CoP 0.9982
+   reward/statue ratio 1.005-1.005; min full horizon 40/40; sha aff76f537be5; 987 s
+ POOLED 119/120 = 0.9917, 95% CI [0.9544, 0.9998], one-sided 95% LCB 0.9611 over panels 3042, 5042, 9042 ({'3042': '39/40', '5042': '40/40', '9042': '40/40'}); model sha consistent True
+ 3042 verdict PASS; fresh verdicts {'5042': 'PASS', '9042': 'PASS'}; replicates {'5042': True, '9042': True}
+ fresh panels only (5042+9042): 80/80, 95% CI [0.9549, 1.0000]
+
+unclean seeds by panel -> checkpoints unclean on that seed: {"3042": {"3050": ["s52_6M", "s52_robust_best"], "3063": ["s52_6M"]}, "5042": {"5048": ["s52_6M"], "5061": ["s52_6M"], "5073": ["s52_6M"]}, "7042": {"7047": ["s52_6M", "s60_6M"], "7065": ["s52_6M"]}, "9042": {"9062": ["s52_6M", "s60_6M"]}}
+
+pooled over disjoint 40-seed panels 3042-3081, 5042-5081, 7042-7081, 9042-9081 where a run exists; a seed is one trial (clean at all six headings); interval = exact Clopper-Pearson (main's binomial_lcb/binomial_ucb, alpha 0.025 each side); one-sided 95% LCB = the gate's statistic form applied to the pool (not a gate quantity: the gate reads one 40-seed panel).

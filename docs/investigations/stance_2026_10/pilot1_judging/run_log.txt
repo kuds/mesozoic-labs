@@ -1,0 +1,39 @@
+T. rex walking pilot: run log (Drive, read-only checks)
+
+2026-10-17, first attempt (not pilot runs; nothing judged):
+  ~17:01-17:03 UTC the three notebook copies (RUN_ID pilot_walk_s42/52/60) were run with Run all and default MANUAL_ lines,
+  so the chain-loop cell started a fresh stance (01_stance: stage 1, 12,000,000-step budget, commit eaeef50f). Seen on
+  Drive at 17:06 (s60 notebook: cells ran in order to the chain loop, MANUAL_NODE = None). The maintainer stopped them and
+  deleted the three run folders; no 03_locomotion was ever written there.
+
+2026-10-17, pilot runs (the seeds' runs; the Colab steps' restart path, folder names kept, the old folders deleted first):
+  seed  run folder (Drive id)                          03_locomotion created  stage_config.json checks
+  42    pilot_walk_s42 (1kupwItC3lCkACA-lykG3vlJZO8rJQmf8)  17:17:34 UTC        stage 2, eaeef50f, seed 42
+  52    pilot_walk_s52 (1PkC7RskvPwMCTvaC50nOm-3stTyTVHsZ)  17:26:35 UTC        stage 2, eaeef50f, seed 52
+  60    pilot_walk_s60 (1Hs4f8DeJ2KGXNSqEcUi7o4fnzkq5bEaH)  17:28:13 UTC        stage 2, eaeef50f, seed 60
+  All three: timesteps 4,194,304; eval_freq 131,072 x 10 episodes; checkpoint_freq 524,288; learning_rate_end 2.902848e-05;
+  load_mode initialize_next_stage from /content/mesozoic-labs/pilot_checkpoints/r9_arm_l_s60_6291456/stage1_6291456_steps.zip;
+  parent_checkpoint_sha256 sha256:70f3a4447794a01036c27bca5e0377a17db96d0e3d7bfb2d179e9ce94e6f353e;
+  hyperparameters_sha256 sha256:af78e500... and task_sha256 sha256:23d50a6d..., both equal to the branch's digest snapshot;
+  physics r9 (sha256:3d68aec7...), interface r15; no resume. L4 GPU runtimes.
+  Expected end: about 20:20-21:00 UTC (3-3.5 h on L4, allow 4).
+
+2026-10-17 ~19:55 UTC, pipeline check at 2,097,152 (trajectory only, decides nothing):
+  Models folder ids (verified by parentId): s42 1VGedrU5pkX1_VP2xJLQwE3V9H4JLcZSG, s52 1MxWuVPI11pxIyoXGE_-H_k3sJwIXyvOd,
+  s60 1YbHefTPDy_6OUVwy0oKmDLf5CGODTtF9 (s52/s60 had been swapped in the session's notes; the fetch used the verified ones).
+  Judge accepted all three (no override): commit eaeef50f, parent 70f3a444..., budget 4,194,304, plant r9, hyperparameter
+  digest af78e500.... Labels: s42 STILL 39 + FALL 1 (ep 30, step 837, sliding 0.108 m/s); s52 STILL 40; s60 STILL 40; median
+  speed 0.001-0.002 m/s; no steps. CAVEAT: s42's 2M VecNormalize pkl was hand-transcribed from an inline download and
+  repaired after a size mismatch; Drive exposes no checksum, so it is re-fetched by two independent transcriptions at the
+  final judging and s42 2M re-judged if it differs. Outputs: S/pilot_runs/tree/_judge/OUT, logs in _judge/logs.
+
+2026-10-17 ~22:20 UTC, FINAL JUDGING (pilot_score.py --seeds 42,52,60; score.json sha256 86d7350e...):
+  All three runs finished 4,194,304 steps (no collapse, no early stop; 3h36-3h41 on L4). Small files double-transcribed
+  and byte-identical (16 files); s42's 2M pkl confirmed identical to the earlier copy. Judge accepted every checkpoint.
+  s42: 2M STILL 39 + FALL 1; 3M STILL 40; 4M STILL 40.   s52: STILL 40 at 2M/3M/4M.   s60: STILL 40 at 2M/3M/4M.
+  Median speed 0.001-0.002 m/s; no touchdowns, flight 0, foot duty 1.00/1.00.
+  PILOT OUTCOME: STILL (3 of 3 seeds; final; no video review needed).
+  Report only: in-training eval reward flat at ~1,097-1,100 throughout (parent's standing reward under the walk task);
+  forward-reward term per episode 0.5-3.2 at 2-4.2M (max 7.5), against the September walkers' 39-54 at 2.1M and
+  148-234 at 4.2M. Policy action std (mean over 15 actuators): parent 0.095, pilot 0.108-0.111 at 4.2M (min 0.022,
+  max 0.196) -- exploration barely widened from the parent's. Gate verdict FAIL on speed (0.00 < 1.00 m/s), as expected.

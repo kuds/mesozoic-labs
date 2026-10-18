@@ -9,6 +9,21 @@ outside the library, its tests and CI (CI's ruff, mypy and pytest cover
 are not here; where they are, and their sha256, is in the note's §14 and in
 `r10_screen/fetch_record.json`.
 
+Seven folders were added on 2026-10-18 with the evidence of the follow-ups of
+2026-10-17, which the note predates: walking pilot 1's judging
+(`pilot1_judging/`), pilot 2's pre-registration (`pilot2/`), the offline
+six-heading certificates (`offline_certificates/`), the offline battery
+(`battery/`), the foot and ankle audit (`audit/`), the literature report
+(`literature/`) and the recommendation on what to log and sense next
+(`next_signals/`). Every one of
+them is offline and report only: the certificates were rolled on uncertified
+scratch-recipe checkpoints that the judge would refuse on task, the pilot's
+verdict is its fixed criteria's and no gate's, and nothing here certifies a
+run, writes a result bundle or promotes anything. The judgements among them
+are rows of the repository's ledger,
+[`results/offline_judgements.csv`](../../../results/README.md#offline-judgements-offline_judgementscsv)
+(28 rows, each pointing at its file here).
+
 ## What changed in the copies
 
 [SOURCES.txt](SOURCES.txt) lists every file with the scratch file it came from,
@@ -32,6 +47,24 @@ else:
   so against this copy they stop with a sha256 mismatch; every threshold they
   read is unchanged (`decide_final.py` and `test_decide_final.py` run on it as
   it is).
+
+*Added 2026-10-18:* the copies of 2026-10-18 add two more kinds of
+change, nothing else:
+
+- **links:** `literature/trex_foot_and_standing_balance.md` linked four times to
+  files of the session's checkout (`/home/user/mesozoic-labs/...`); the links
+  now lead to the same files relative to the repository root.
+- **gzip:** the ten largest JSON files copied (pilot 1's nine probe outputs, about
+  0.7 MB each, and the battery's `push_summary.json`, 0.65 MB) are kept as
+  `<name>.gz` (Python's `gzip.compress`, level 9, mtime 0) after the other
+  changes; `gunzip` gives the changed copy back.
+
+No copy of 2026-10-18 needed a redaction: none held a model identifier, an
+email address or a commit trailer. The folders added on 2026-10-18 rename the
+scratch's `logs/` directories `run_logs/` or `judge_logs/`, because the
+repository's `.gitignore` ignores every directory named `logs`. SOURCES.txt
+ends with the per-episode certificate files that were not copied (about 1.8 MB
+and 0.76 MB each), with their sha256 and size.
 
 [SHA256SUMS](SHA256SUMS) pins every file here but this README and itself
 (`sha256sum -c SHA256SUMS` in this directory).
@@ -123,6 +156,7 @@ section 4 and its header).
 
 **`pilot/`: the walking pilot's pre-registration (§9; launched on 2026-10-17,
 not yet judged).**
+*Added 2026-10-18: it was judged on 2026-10-17; see `pilot1_judging/` below.*
 
 - `criteria.txt`: the fixed criteria, byte-identical (sha256 `1cdd495c…`).
   Its first line says "revised three times on 2026-10-17"; its Revisions
@@ -146,6 +180,171 @@ not yet judged).**
 replayed on the r10 runs' `gate_progress.npz`, on the 20:20 snapshot and on the
 full series (two in a row against three).
 
+### Added on 2026-10-18
+
+**`pilot1_judging/`: walking pilot 1's judging (D-D36; judged 2026-10-17,
+final).** Outcome **STILL on 3 of 3 seeds** at 4,194,304 steps: each seed
+STILL on 40 of 40 panel episodes, no WALK episode, median speed 0.001-0.002 m/s,
+no touchdowns, foot duty 1.00/1.00; at 2,097,152 seed 42 read STILL 39 and
+FALL 1. 2,097,152 and 3,145,728 are the trajectory and decide nothing, and no
+video review was needed (only WALKS needs one). The rule is the fixed criteria
+in `pilot/criteria.txt`; the verdict is the criteria's, not a gate's.
+
+- `run_log.txt`: the runs (Drive folder ids, launch times, what each
+  `stage_config.json` was checked for), the 2M pipeline check and the final
+  judging, with report-only figures: the in-training evaluation reward "flat at
+  ~1,097-1,100 throughout" and the forward-reward term "0.5-3.2 at 2-4.2M (max
+  7.5)", both of which hold at the 2M, 3M and 4.2M evaluations only (the
+  note's §15.1 gives every evaluation's range, from the runs'
+  `gate_progress.npz`, which stay on Drive), the policy's action std
+  0.108-0.111 at 4.2M against the parent's 0.095, and the notebook's own
+  locomotion gate FAIL on speed (recorded, not a pilot criterion). The log is
+  kept as written.
+- `OUT/score.json`: `pilot_score.py --seeds 42,52,60` on the nine panels (the
+  original's sha256 `86d7350e…`, the value `run_log.txt` records; the copy adds
+  a final newline).
+- `OUT/s<seed>/<steps>/binding.json`: what `pilot_judge.py` bound (tree
+  `eaeef50f`, the checkpoint's and VecNormalize sidecar's sha256, the parent
+  `sha256:70f3a444…`, the budget, the plant). `probe.json.gz`: the frozen gait
+  probe's 40-episode output for that checkpoint (gzipped; `pilot_score.py` reads
+  it unzipped). The traces and plots stay with the session; the checkpoints are
+  on Drive (folder ids in `run_log.txt`).
+- `judge_logs/`: each judge run's log and the scorer's printout.
+- `tools/`: `loadcheck.py` (loads every VecNormalize pickle under an allow-list
+  of classes and checks each run's `stage_config.json`, `stage_summary.txt` and
+  `gate_progress.npz`), `globals.py` (lists the globals a pickle names) and
+  `stdcheck.py` (the policy's action std from a checkpoint's `log_std`, the
+  source of the run log's std figures).
+
+**`pilot2/`: walking pilot 2's pre-registration (decided 2026-10-17; not yet
+trained, no result).** The maintainer chose "Second pilot, wider exploration":
+pilot 1 again with one change, every actuator's `log_std` set to -1.5 (std
+0.2231, the stance stage's own starting noise) at the warm start.
+`criteria.txt` (written 2026-10-17 and amended 2026-10-18, both before any
+pilot-2 training step) states the change, its checks and everything kept from
+pilot 1; `colab_steps.txt` is how the runs are launched (run IDs
+`pilot2_walk_s42/52/60`). The pilot trains from the branch
+`claude/pilot-walk-r9-b` (`ba464855`: pilot 1's `eaeef50f` plus three commits),
+pushed with no pull request and never merged.
+
+**`offline_certificates/`: the stage's own six-heading certificate rolled
+offline on the r9 arm L symmetry-screen checkpoints (2026-10-17, report only).**
+`scripts/run_cert.py` calls `build_stance_heading_report`, the function the
+notebook's end-of-stage certificate calls, on `main` `2e734e29` (physics r9)
+with `stance.toml` as committed (`--options off`) or with arm L's three env
+options added (`--options armL`). Eleven certificates:
+
+| Checkpoint (run `sym_lean_settled_s<seed>`) | Panel | Options | Verdict | Seeds clean at all six headings | LCB (bar 0.80) |
+|---|---|---|---|---|---|
+| s42 6,291,456 | 3042-3081 | off; armL | FAIL; FAIL | 29/40; 29/40 | 0.5861 |
+| s52 6,291,456 | 3042-3081 | off; armL | PASS; PASS | 38/40; 38/40 | 0.8508 |
+| s60 6,291,456 (the pilots' parent) | 3042-3081 | off; armL | PASS; PASS | 40/40; 40/40 | 0.9278 |
+| s42 robust_best (655,360) | 3042-3081 | off | PASS | 40/40 | 0.9278 |
+| s52 robust_best (917,504) | 3042-3081 | off | PASS | 39/40 | 0.8868 |
+| s60 robust_best (524,288) | 3042-3081 | off | PASS | 40/40 | 0.9278 |
+| s52 6,291,456, audit | 7042-7081 | off | PASS | 38/40 | 0.8508 |
+| s60 6,291,456, audit | 7042-7081 | off | PASS | 39/40 | 0.8868 |
+
+Source: `offline_certificates.txt` and each folder's `run_summary.json`. **None
+is gate evidence.** The runs were trained in the session's scratch harness
+(MirrorKLPPO with scratch `experiment_*` keys, not on Drive) and recorded task
+`a2af3c5c…`; these certificates roll `bde44225…` (off) or `cd963518…` (armL), so
+the judge would refuse them on task, and an audit panel on 7042-7081 is refused
+as gate evidence by design (`evidence_table.txt` §E). Both audits sit on the
+`max_hop_or_fall_episodes` 1 rail: both checkpoints fall on seed 7047, where the
+statue stands.
+
+- `offline_certificates.txt`: every certificate per heading, its unclean seeds
+  and the reasons. `evidence_table.txt`: the bar with its `stance.toml` lines,
+  every earlier result and these. `cert_margins.txt`: each bar's worst and
+  median value over the 240 policy and 240 statue episodes (s60 6M's worst pad
+  CoP is 0.780 against the 0.80 bar). `cert_summary.json`: the cross-checks (the
+  0° cells of the three 6M options-off certificates reproduce the scratch
+  judge's v2 panels; options off and armL give identical floor metrics, so the
+  options change only the reward). `rederive_from_csv.json`: each verdict
+  re-derived from its panel CSV by the library's own gate (all 11 agree).
+- `<certificate>/run_summary.json` (checkpoint and sidecar sha256, verdict,
+  counts, LCB, per-heading means) and `stance_heading_report.txt` (the
+  certificate as printed). The per-episode `stance_heading_report.json` and
+  `stance_heading_panel_selected.csv` stay with the session (sha256 at the end
+  of SOURCES.txt).
+- `scripts/`: `run_cert.py` and the shell lines that ran it (`run_all.sh`,
+  `run_audit.sh`, `run_robust.sh`), `rederive.py`, `analyze.py` (wrote
+  `cert_summary.json`), `margins.py` and `tab_certs.py`. `run_logs/`: each
+  run's log.
+
+**`battery/`: the offline battery on the same checkpoints (2026-10-17, report
+only).** `battery_report.md` is the report; its citation prefixes `B/`, `H/`,
+`N/` and `V/` (printed as `scratchpad/foot/...` paths) are `battery/`,
+`offline_certificates/`, `next_signals/` and `battery/verify_skeptic/` here.
+Its verdict: **s60 6M is a real but thin pass; s52 6M is on the rail.**
+
+- `fresh_seeds/`: eight more certificates (options off) on fresh panels
+  5042-5081 and 9042-9081 for s52 and s60 at 6M and at robust_best, by the same
+  `run_cert.py` (`scripts/one_cert.sh`). All eight PASS: s60 6M 40/40 and
+  39/40, s52 6M 37/40 (the minimum passing count, LCB 0.8174) and 39/40, both
+  robust_best checkpoints 40/40 on both. `fresh_seed_summary.txt` and `.json`
+  pool them with the 3042 and 7042 panels (exact Clopper-Pearson intervals; a
+  pooled rate is not a gate statistic); `offline_certificates.txt`,
+  `cert_margins.txt`, `rederive_from_csv.json` (all eight agree) and each
+  certificate's `run_summary.json` and `stance_heading_report.txt` as above.
+- `shared_fall/`: seed 7047 replayed at six headings for s60 6M, s52 6M and the
+  statue (`shared_fall_summary.json`, `shared_fall_report.txt`, the figure
+  `shared_fall_7047.png`): the reset leaves the animal tipped forward, the
+  statue survives by folding (its hips sag and its heels come down), and both
+  policies hold the hips at or above home and topple forward.
+- `push/`: `main`'s impulse probe as shipped and a 16-seed copy with a finer
+  grid and fore-aft rows (`push_summary.json.gz`, `push_report.txt`,
+  `repo_probe/*/stance_gate_probe_impulse.txt`). The weak push direction
+  follows where each policy parks its pad CoP, and no policy beats the statue
+  in every direction.
+- `own_sigma/`: heading-0 v2 panels with actions sampled from each policy's own
+  Gaussian beside deterministic re-runs (`own_sigma_summary.json`,
+  `own_sigma_report.txt`): no policy falls, the 6M verdicts hold, and every
+  robust_best checkpoint is clean only when run deterministically (0 of 40
+  clean under its own noise).
+- `report/`: `panel_pass_prob.py` and its output (an illustration under an
+  i.i.d. assumption, not a gate statistic) and `disk_usage.txt`.
+  `verify_skeptic/`: the independent verifier's scripts and outputs; the
+  corrections they forced are applied in the report (its last table).
+
+**`audit/`: the T. rex foot, ankle and posture audit (2026-10-17, main
+`2e734e29`, physics r9; measurement only).** `foot_ankle_audit.md` is the
+report; its evidence paths are relative to `audit/`. It finds nothing in the
+anatomy that pushes the quiet stance forward (in the statue and both 6M
+policies the COM projects 2.4-6.8 cm ahead of MTP III, inside the zone where
+tyrannosaur tracks are deepest); the COM sits 4-18 cm too high relative to the
+hip, the digit spread is 3-5× too narrow, the ankle extends 11° past the only
+published T. rex range, and the gate's unsigned pad statistic would fail a
+track-like stance over the MTP joints. Its seven candidate physics changes each
+need the maintainer's approval.
+
+- `geometry/` (`geometry_audit.json`, `geometry_summary.txt`, the scripts),
+  `verify/` (the verifier's static, settle and posture measurements and its
+  scripts), `posture/` (`posture_table.txt`, `posture_timecourse.json`, the
+  tools), `literature/` (`out/`: the published values restated in the model's
+  frame, the digitised Brochu 2003 figures and `literature_crosscheck.md`;
+  `scripts/` with `published_inputs.json`, the hand-entered values with their
+  locators). The downloaded papers the scripts parse (`literature/dl/`), the
+  posture rolls and the per-episode posture files stay with the session.
+
+**`literature/`: the literature report of 2026-10-17 and its research notes.**
+`trex_foot_and_standing_balance.md` ("Longer toes cannot cure a forward lean")
+and `research_notes/`, the four notes it draws on and cites (T. rex foot
+anatomy and posture, bird standing balance, standing-balance mechanics and foot
+control, RL for standing). Read its model figures with the audit's
+"Corrections to the literature report" (`audit/foot_ankle_audit.md`), which
+supersede them where they differ.
+
+**`next_signals/`: what to log and sense next (2026-10-17, report only; nothing
+trained).** `recommendation.md`: in behaviour a certified stance is close, in
+certification it is not (0 of the 2 certifying seeds), and sixteen numbered
+items, from report-only telemetry to policy-interface changes, each with its
+approval. Its `NS/` citations are the files beside it here (`certify/`,
+`diagnose/`, `questions/`, `sensing/`, `sensing_robotics/`), except
+`NS/howclose/`, which is `offline_certificates/`. Its code citations are to
+`main` `2e734e29`.
+
 ## How to re-check each verdict
 
 Commands as run on 2026-10-17 from a copy of this directory (Python 3.13;
@@ -155,6 +354,10 @@ from the repository alone: the original `frozen_params.json` (sha256
 `58b2c8fb…`, which `judge_r10.py` and `score_r10.py` assert) and the r9 judge
 files are not kept, so `verify_recompute.json` and `score.json` are the
 retained records.
+
+*Added 2026-10-18:* the rows below the first "The files themselves" row were
+added that day; those marked 2026-10-18 were run that day on the committed
+copies.
 
 | Check | Command | Result |
 |---|---|---|
@@ -167,9 +370,50 @@ retained records.
 | The pilot rule, with every fixture row recomputed by the frozen probe | `python3 test_pilot_score.py <tree>` with `<tree>` a checkout of `claude/pilot-walk-r9` at `eaeef50f` and numpy, MuJoCo and the repository's dependencies installed | 254/254 |
 | The parent rule and the judge's bindings | `python3 test_pilot_parent.py` | 40/40 |
 | The files themselves | `sha256sum -c SHA256SUMS` | all 70 files OK |
+| Pilot 1's outcome from its stored panels (2026-10-18) | copy `pilot1_judging/OUT` to `<work>`, `gunzip <work>/s*/*/probe.json.gz`, then `python3 pilot/pilot_score.py <work> --seeds 42,52,60 --json score.json` | `PILOT OUTCOME: STILL (3 of 3 launched seeds)`; `score.json` has the original's sha256 `86d7350e…` (`OUT/score.json` is it plus a final newline), and the printout is `judge_logs/score.log.txt` apart from the directory it names |
+| Pilot 1's panels themselves (Drive checkpoints) | `pilot/pilot_judge.py` on a clone of `claude/pilot-walk-r9` at `eaeef50f`, with the checkpoints from the Drive folders in `pilot1_judging/run_log.txt` (sha256 in each `binding.json`) | not re-run on 2026-10-18 |
+| The ledger's 28 rows against their evidence, and each certificate's LCB against its counts (2026-10-18; needs the repository) | from the repository root, the block below | `28 rows agree with their evidence` |
+| A certificate's verdict from its per-episode rows (session scratch only) | `python3 offline_certificates/scripts/rederive.py <dir>` on `main` `2e734e29`, `<dir>` holding the certificate folders with their `stance_heading_panel_selected.csv` (not copied; sha256 at the end of SOURCES.txt) | as `rederive_from_csv.json` here and in `battery/fresh_seeds/`: all 11 and all 8 agree with their reports |
+| The certificates themselves (session scratch only) | `offline_certificates/scripts/run_cert.py` on the scratch-harness checkpoints (not on Drive; sha256 in each `run_summary.json`) on `main` `2e734e29` | not re-run on 2026-10-18 |
+| The battery's panel-pass illustration (2026-10-18) | `python3 battery/report/panel_pass_prob.py battery/fresh_seeds/fresh_seed_summary.json` (writes `panel_pass_prob.json` in the working directory) | the source's bytes (sha256 `09d0be6b…`; the copy adds a final newline) |
+| The push report from its summary (2026-10-18) | `gunzip` a copy of `battery/push/push_summary.json.gz` into `<dir>`, then `python3 battery/push/scripts/make_report.py <dir>` | `push_report.txt`, apart from the summary path it names and one trailing blank line |
+| The shared-fall report from its summary (2026-10-18) | in a directory holding a copy of `battery/shared_fall/shared_fall_summary.json` at `scratchpad/foot/battery/shared_fall/`: `python3 <this directory>/battery/shared_fall/scripts/make_report.py` | identical to `shared_fall_report.txt` |
+| The audit's geometry summary (2026-10-18) | `python3 audit/geometry/scripts/trex_geom_summary.py audit/geometry/geometry_audit.json out.txt` | the source's bytes (sha256 `1632ed48…`; the copy drops one trailing space) |
+| The rest of `battery/` and `audit/` (session scratch only) | their scripts read per-episode panels, traces, MuJoCo rolls on `main` `2e734e29` and downloaded papers, none of which is kept here | not re-run on 2026-10-18 |
+| The files themselves (2026-10-18) | `sha256sum -c SHA256SUMS` | all 285 files OK |
 
 `test_pilot_score.py` prints sample "Walking pilot score" blocks while it runs;
 they score synthetic panels, not the pilot.
+
+The ledger check (from the repository root, with its dependencies installed):
+
+```python
+import json
+from environments.shared.curriculum.recovery_gate import binomial_lcb
+from environments.shared.reporting import load_offline_judgements
+
+rows = load_offline_judgements()
+for r in rows:
+    ev = json.load(open(r["evidence"]))
+    if r["gate_kind"] == "stance_quality_heading/v1":
+        assert abs(binomial_lcb(ev["n_clean_seeds"], ev["n_seeds"]) - ev["clean_seed_lcb"]) < 1e-12
+        got = (ev["passed"], ev["n_clean_seeds"], ev["n_seeds"], round(ev["clean_seed_lcb"], 4),
+               "sha256:" + ev["model_sha256"])
+        want = (r["verdict"] == "PASS", r["passing_count"], r["panel_size"], r["lower_bound"],
+                r["checkpoint_sha256"])
+    else:  # walking pilot 1: the outcome in score.json, the checkpoint in binding.json
+        seed, step = r["run_path"][-2:], str(r["checkpoint_step"])
+        cell = ev["seeds"][seed][step]
+        binding = json.load(open(r["evidence"].replace("score.json", f"s{seed}/{step}/binding.json")))
+        got = (cell["outcome"], cell["counts"]["WALK"], sum(cell["counts"].values()),
+               binding["checkpoint_sha256"])
+        want = (r["verdict"], r["passing_count"], r["panel_size"], r["checkpoint_sha256"])
+    assert got == want, (r["evidence"], got, want)
+print(len(rows), "rows agree with their evidence")
+```
+
+It checks what the rows say against the files here; it does not re-run a
+judgement.
 
 ## Lint
 
@@ -182,3 +426,14 @@ import, an unused `os`, statements joined by `;` and `:`) and 2 in
 `I`). `ruff format --check` would reformat all 16. They are left as they ran,
 so that each stays the file that decided its verdict (and the verdict scripts
 keep the sha256 the screen recorded).
+
+The 43 scripts added on 2026-10-18 (ruff 0.16.8, the same configuration) are
+left as they ran too, apart from the prefix and the two lines of trailing
+whitespace SOURCES.txt records. `ruff check` passes on 12 of them and reports
+193 findings in the other 31, all of them quick-script style: statements
+joined by `;` (67) or `:` (19), unsorted imports (31), several modules on one
+import line (23), variables named `l` or `O` (16), imports below
+code (14), unused imports (14), f-strings without placeholders (4), stray
+semicolons (2), and one each of a bare `except`, a lambda assigned to a name
+and an unused variable. Most are in the verifiers' scripts
+(`battery/verify_skeptic/`, 91). `ruff format --check` would reformat all 43.

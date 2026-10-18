@@ -1,0 +1,113 @@
+Geometry audit, anatomical T. rex, main 2e734e29 (physics r9). Source: geometry_audit.json (same directory).
+Columns: quantity | report value | home keyframe (measured) | env settle, noise-free zero-action statue (measured)
+
+total mass (kg)
+    report: 85.7
+    home:   85.72
+    settle: same at settle
+COM ahead of hip (% femur)
+    report: 42%
+    home:   41.9% (0.1473 m)
+    settle: settled 45.4% (0.1594 m)
+COM vs hip height
+    report: at hip height, 2% above
+    home:   +2.1% femur (+0.0074 m)
+    settle: settled -11.3% femur (-0.0395 m)
+COM height above floor (m)
+    report: 0.88
+    home:   0.8840
+    settle: settled 0.8380
+COM projection, signed pad statistic
+    report: +0.10
+    home:   +0.104
+    settle: settled +0.058 (window +0.028..+0.096)
+pad-only CoP statistic (gate quantity) at statue
+    report: (not given)
+    home:   keyframe instant +1.00 (solver artefact)
+    settle: settled +0.311 (window +0.231..+0.417)
+whole-foot CoP, pad half-lengths
+    report: (not given)
+    home:   -
+    settle: settled +0.060
+footprint pad rear -> digit III tip (m)
+    report: ~0.23
+    home:   0.228 (0.200 to capsule end, no cap)
+    settle: same
+footprint / hip height
+    report: 0.26
+    home:   0.260 (hip 0.8766 m)
+    settle: settled 0.260
+pad about digit III MTP (m)
+    report: -0.01 to +0.13
+    home:   -0.010 to +0.130
+    settle: same
+mgh about floor (N m/rad)
+    report: ~740
+    home:   743.4
+    settle: settled 704.7
+mgh about ankle axis (N m/rad)
+    report: (not given)
+    home:   552.1
+    settle: settled 513.2
+six digit springs (sum) / mgh
+    report: 240, ~1/3
+    home:   240 = 0.323
+    settle: settled floor 0.341; MTP pivot 0.352; ankle pivot 0.468
+two ankle servos kp (sum) / mgh
+    report: 1,800, ~2.4x
+    home:   1800 = 2.421
+    settle: settled floor 2.554; ankle pivot 3.507
+metatarsus / femur
+    report: 0.61
+    home:   0.613 (0.2154/0.3513 m)
+    settle: same
+tibia / femur
+    report: 1.00
+    home:   1.000
+    settle: same
+digit share of foot load
+    report: ~22-23% at home
+    home:   keyframe instant 13.5%
+    settle: settled 24.1% (window 21.7-25.8%)
+digit load position (0 MTP, 1 tip)
+    report: (not given)
+    home:   -
+    settle: settled d2 0.049, d3 0.048, d4 0.046; load centre 8.7 mm ahead of MTP III
+digit spread II-III / III-IV / total (deg)
+    report: ~9 / ~8 / ~16
+    home:   8.75 / 7.59 / 16.34
+    settle: same
+segment shares (% body mass)
+    report: head 10.1, neck 5.8, tail 18.2; per side thigh 5.8, shank 4.1, foot 2.1
+    home:   head 10.1, neck 5.8, tail 18.2, trunk 40.8, forelimbs 1.05; per side thigh 5.83, shank 4.08, foot 2.05, digits 0.63
+    settle:
+tail pitch actuators
+    report: +-0.21 rad (+-12 deg), kp 60-100
+    home:   ctrl +-0.2094 rad; kp 100/80/60; forcerange 80/65/50 N m
+    settle: tail_1 rests on its -12 deg stop at the statue; full-up command short by 11.9 N m
+
+Joint ranges in the included-angle convention (sagittal, 180 = straight; right leg, others at home):
+  hip: MJCF qpos -67.6..62.4 (ref 15.0, springref -2.6) -> included 2.5..132.5, home 67.5, settled 64.8; d(included)/d(qpos) = +1
+  knee: MJCF qpos -74.8..25.2 (ref -60.0, springref -24.8) -> included 185.0..85.0, home 135.0, settled 135.4; d(included)/d(qpos) = -1
+  ankle (intertarsal): MJCF qpos 32.4..132.4 (ref 94.5, springref 76.9) -> included 91.2..191.2, home 135.7, settled 137.4; d(included)/d(qpos) = +1
+  MTP / digit III: MJCF qpos -25.0..50.0 (ref 12.5, springref 12.5) -> included 74.3..149.3, home 111.8, settled 111.6; d(included)/d(qpos) = +1
+  hip femur-from-vertical at range ends: 87.5 .. -42.5 (home 22.5, settled 23.7)
+  digit III below horizontal at range ends (metatarsus at home slope): -37.5 .. 37.5
+
+Balance authority (quasi-static; window means; pad statistic units):
+  baseline (home ctrl) [step at t=0, raw MuJoCo]: COM proj +0.058 (d +0.000), pad CoP +0.311, whole-foot CoP +0.060, fell=False, tail_1 -12.07 deg
+  tail pitch residual +1 (up) [step at t=0, raw MuJoCo]: COM proj +0.007 (d -0.051), pad CoP +0.261, whole-foot CoP +0.010, fell=False, tail_1 -12.04 deg
+  tail pitch residual -1 (down) [step at t=0, raw MuJoCo]: COM proj +0.079 (d +0.022), pad CoP +0.331, whole-foot CoP +0.080, fell=False, tail_1 -12.12 deg
+  neck+head pitch residual -1 (up) [step at t=0, raw MuJoCo]: COM proj -6.158 (d -6.215), pad CoP -0.998, whole-foot CoP -1.043, fell=True, tail_1 12.37 deg
+  neck+head pitch residual +1 (down) [step at t=0, raw MuJoCo]: COM proj -0.222 (d -0.280), pad CoP +0.008, whole-foot CoP -0.225, fell=False, tail_1 -12.07 deg
+  tail pitch residual +1 (up) [ramped over 3 s, hold 5 s, raw MuJoCo]: COM proj +0.005 (d -0.053), pad CoP +0.257, whole-foot CoP +0.005, fell=False, tail_1 -12.04 deg
+  tail pitch residual -1 (down) [ramped over 3 s, hold 5 s, raw MuJoCo]: COM proj +0.078 (d +0.020), pad CoP +0.329, whole-foot CoP +0.078, fell=False, tail_1 -12.12 deg
+  neck+head pitch residual -1 (up) [ramped over 3 s, hold 5 s, raw MuJoCo]: COM proj -0.340 (d -0.397), pad CoP -0.146, whole-foot CoP -0.350, fell=False, tail_1 -12.07 deg
+  neck+head pitch residual +1 (down) [ramped over 3 s, hold 5 s, raw MuJoCo]: COM proj -0.221 (d -0.278), pad CoP +0.015, whole-foot CoP -0.220, fell=False, tail_1 -12.07 deg
+  tail pitch residual +0.5 (up) [step at t=0, raw MuJoCo]: COM proj +0.030 (d -0.027), pad CoP +0.285, whole-foot CoP +0.033, fell=False, tail_1 -12.05 deg
+  neck+head pitch residual -0.5 (up) [step at t=0, raw MuJoCo]: COM proj -0.010 (d -0.068), pad CoP +0.239, whole-foot CoP -0.008, fell=False, tail_1 -12.07 deg
+  ENV neck+head residual -1 (up) via env.step (10 Hz filter): first terminated step 224, min pelvis z 0.559
+  ENV neck+head residual -0.5 (up) via env.step: first terminated step None, min pelvis z 0.926
+  ENV tail pitch residual +1 (up) via env.step: first terminated step None, min pelvis z 0.925
+  ENV tail pitch residual -1 (down) via env.step: first terminated step None, min pelvis z 0.925
+  tail_1 at ventral stop: gravity -70.6 N m vs servo(full up) 41.9 + spring 16.8

@@ -1,0 +1,3646 @@
+{
+ "label": "OFFLINE EVALUATION of uncertified scratch-recipe checkpoints (r9 arm L symmetry screen, 6,291,456 steps); report only; certifies nothing",
+ "seed": 7047,
+ "sources": {
+  "s60_6M": "scratchpad/foot/battery/shared_fall/replays/replay_s60_6M.json",
+  "s52_6M": "scratchpad/foot/battery/shared_fall/replays/replay_s52_6M.json",
+  "statue": "scratchpad/foot/battery/shared_fall/replays/replay_statue.json"
+ },
+ "traces": {
+  "s60_6M": "scratchpad/foot/battery/shared_fall/replays/trace_s60_6M_y+0.npz",
+  "s52_6M": "scratchpad/foot/battery/shared_fall/replays/trace_s52_6M_y+0.npz",
+  "statue": "scratchpad/foot/battery/shared_fall/replays/trace_statue_y+0.npz"
+ },
+ "checkpoints": {
+  "s60_6M": {
+   "model": "scratchpad/foot/symmetry/screen/runs/sym_lean_settled_s60/resume6m/models/stage1_6291456_steps.zip",
+   "model_sha256": "70f3a4447794a01036c27bca5e0377a17db96d0e3d7bfb2d179e9ce94e6f353e",
+   "vecnorm": "scratchpad/foot/symmetry/screen/runs/sym_lean_settled_s60/resume6m/models/stage1_vecnormalize_6291456_steps.pkl",
+   "vecnorm_sha256": "0567d6104a0795c0201ff8db4b1045e907bf3100ca9ae60fa4028c4f907c0fc1"
+  },
+  "s52_6M": {
+   "model": "scratchpad/foot/symmetry/screen/runs/sym_lean_settled_s52/resume6m/models/stage1_6291456_steps.zip",
+   "model_sha256": "278637b9d4dc526bfc46ca52c6be34f08355476a82b23c2af645df2bb1e9dfaf",
+   "vecnorm": "scratchpad/foot/symmetry/screen/runs/sym_lean_settled_s52/resume6m/models/stage1_vecnormalize_6291456_steps.pkl",
+   "vecnorm_sha256": "1d2ada496798ff6f4fc379d983758a20902d4660cf5183adb8f557554363dd84"
+  },
+  "statue": {
+   "model": null,
+   "model_sha256": null,
+   "vecnorm": null,
+   "vecnorm_sha256": null
+  }
+ },
+ "conventions": {
+  "heading_frame": "fwd = the root's heading after the spawn turn, lat = its left; origin = spawn midpoint of the two plantar pads; all margins in m",
+  "xcom": "CoM_xy + v_xy / omega0, omega0 = sqrt(9.81 / CoM height above the floor), boundary state after each step",
+  "pad_hull": "convex hull of the floor-facing corners of each LOADED foot's plantar pad (the declared heel line 0.07 m and toe line 0.21 m from the ankle axis)",
+  "full_hull": "pad hull plus the tips of the loaded feet's three digit capsules",
+  "contact_hull": "convex hull of the contact points carrying > 0.1 N at the step's last substep",
+  "toe_margin": "front edge of the hull at the XCoM's lateral coordinate minus the XCoM's fwd coordinate (negative = XCoM ahead of the toe line)",
+  "signed_margin": "distance to the hull boundary, + inside, - outside",
+  "pad_cop": "recorder sole_cop: force-weighted pad CoP / pad half-length, +1 = pad toe edge, -1 = heel edge",
+  "whole_foot_cop": "recorder foot_cop normalised on the declared span: -1 heel line, +1 toe line (beyond +1 = load on the digits ahead of the pad)",
+  "actuator_force_fraction": "|actuator_force| / forcerange bound, max over the 5 substeps of a step",
+  "step": "1-based control step; step k ends at t = k * 0.01 s; steps 1-200 are the gate's settle window"
+ },
+ "crosscheck_vs_audit_certificates": {
+  "s60_6M": {
+   "source": "scratchpad/foot/next_signals/howclose/audit7042_r9armL_s60_6291456_optoff/stance_heading_panel_selected.csv",
+   "all_lengths_equal": true,
+   "max_abs_reward_diff": 4.547473508864641e-12,
+   "cells": [
+    {
+     "role": "policy",
+     "yaw": -90,
+     "cert_length": 173,
+     "replay_length": 173,
+     "cert_reward": 392.25094927798114,
+     "replay_reward": 392.2509492779813,
+     "cert_max_sole_cop_fore_aft": "nan",
+     "replay_max_sole_cop_fore_aft": null
+    },
+    {
+     "role": "statue",
+     "yaw": -90,
+     "cert_length": 1000,
+     "replay_length": 1000,
+     "cert_reward": 3730.9258266715046,
+     "replay_reward": 3730.9258266715055,
+     "cert_max_sole_cop_fore_aft": "0.2758896256942245",
+     "replay_max_sole_cop_fore_aft": 0.2758896256942245
+    },
+    {
+     "role": "policy",
+     "yaw": -45,
+     "cert_length": 173,
+     "replay_length": 173,
+     "cert_reward": 392.2509492779826,
+     "replay_reward": 392.25094927798267,
+     "cert_max_sole_cop_fore_aft": "nan",
+     "replay_max_sole_cop_fore_aft": null
+    },
+    {
+     "role": "statue",
+     "yaw": -45,
+     "cert_length": 1000,
+     "replay_length": 1000,
+     "cert_reward": 3730.9258266715055,
+     "replay_reward": 3730.925826671505,
+     "cert_max_sole_cop_fore_aft": "0.2758896256942273",
+     "replay_max_sole_cop_fore_aft": 0.2758896256942273
+    },
+    {
+     "role": "policy",
+     "yaw": 0,
+     "cert_length": 173,
+     "replay_length": 173,
+     "cert_reward": 392.25094927798216,
+     "replay_reward": 392.2509492779824,
+     "cert_max_sole_cop_fore_aft": "nan",
+     "replay_max_sole_cop_fore_aft": null
+    },
+    {
+     "role": "statue",
+     "yaw": 0,
+     "cert_length": 1000,
+     "replay_length": 1000,
+     "cert_reward": 3730.9258266715005,
+     "replay_reward": 3730.9258266715,
+     "cert_max_sole_cop_fore_aft": "0.27588962569421904",
+     "replay_max_sole_cop_fore_aft": 0.27588962569421904
+    },
+    {
+     "role": "policy",
+     "yaw": 45,
+     "cert_length": 173,
+     "replay_length": 173,
+     "cert_reward": 392.2509492779824,
+     "replay_reward": 392.2509492779826,
+     "cert_max_sole_cop_fore_aft": "nan",
+     "replay_max_sole_cop_fore_aft": null
+    },
+    {
+     "role": "statue",
+     "yaw": 45,
+     "cert_length": 1000,
+     "replay_length": 1000,
+     "cert_reward": 3730.925826671476,
+     "replay_reward": 3730.9258266714796,
+     "cert_max_sole_cop_fore_aft": "0.2758896256942079",
+     "replay_max_sole_cop_fore_aft": 0.2758896256942079
+    },
+    {
+     "role": "policy",
+     "yaw": 90,
+     "cert_length": 173,
+     "replay_length": 173,
+     "cert_reward": 392.250949277982,
+     "replay_reward": 392.2509492779822,
+     "cert_max_sole_cop_fore_aft": "nan",
+     "replay_max_sole_cop_fore_aft": null
+    },
+    {
+     "role": "statue",
+     "yaw": 90,
+     "cert_length": 1000,
+     "replay_length": 1000,
+     "cert_reward": 3730.92582667148,
+     "replay_reward": 3730.9258266714846,
+     "cert_max_sole_cop_fore_aft": "0.2758896256942198",
+     "replay_max_sole_cop_fore_aft": 0.2758896256942198
+    },
+    {
+     "role": "policy",
+     "yaw": 180,
+     "cert_length": 173,
+     "replay_length": 173,
+     "cert_reward": 392.250949277981,
+     "replay_reward": 392.250949277981,
+     "cert_max_sole_cop_fore_aft": "nan",
+     "replay_max_sole_cop_fore_aft": null
+    },
+    {
+     "role": "statue",
+     "yaw": 180,
+     "cert_length": 1000,
+     "replay_length": 1000,
+     "cert_reward": 3730.9258266714783,
+     "replay_reward": 3730.925826671482,
+     "cert_max_sole_cop_fore_aft": "0.2758896256942212",
+     "replay_max_sole_cop_fore_aft": 0.2758896256942212
+    }
+   ]
+  },
+  "s52_6M": {
+   "source": "scratchpad/foot/next_signals/howclose/audit7042_r9armL_s52_6291456_optoff/stance_heading_panel_selected.csv",
+   "all_lengths_equal": true,
+   "max_abs_reward_diff": 4.547473508864641e-12,
+   "cells": [
+    {
+     "role": "policy",
+     "yaw": -90,
+     "cert_length": 212,
+     "replay_length": 212,
+     "cert_reward": 548.5797894058692,
+     "replay_reward": 548.5797894058691,
+     "cert_max_sole_cop_fore_aft": "0.999996178378331",
+     "replay_max_sole_cop_fore_aft": 0.999996178378331
+    },
+    {
+     "role": "statue",
+     "yaw": -90,
+     "cert_length": 1000,
+     "replay_length": 1000,
+     "cert_reward": 3730.9258266715046,
+     "replay_reward": 3730.9258266715055,
+     "cert_max_sole_cop_fore_aft": "0.2758896256942245",
+     "replay_max_sole_cop_fore_aft": 0.2758896256942245
+    },
+    {
+     "role": "policy",
+     "yaw": -45,
+     "cert_length": 212,
+     "replay_length": 212,
+     "cert_reward": 548.5797894058588,
+     "replay_reward": 548.579789405859,
+     "cert_max_sole_cop_fore_aft": "0.9999961783783328",
+     "replay_max_sole_cop_fore_aft": 0.9999961783783328
+    },
+    {
+     "role": "statue",
+     "yaw": -45,
+     "cert_length": 1000,
+     "replay_length": 1000,
+     "cert_reward": 3730.9258266715055,
+     "replay_reward": 3730.925826671505,
+     "cert_max_sole_cop_fore_aft": "0.2758896256942273",
+     "replay_max_sole_cop_fore_aft": 0.2758896256942273
+    },
+    {
+     "role": "policy",
+     "yaw": 0,
+     "cert_length": 212,
+     "replay_length": 212,
+     "cert_reward": 548.5797894058682,
+     "replay_reward": 548.579789405868,
+     "cert_max_sole_cop_fore_aft": "0.9999961783783314",
+     "replay_max_sole_cop_fore_aft": 0.9999961783783314
+    },
+    {
+     "role": "statue",
+     "yaw": 0,
+     "cert_length": 1000,
+     "replay_length": 1000,
+     "cert_reward": 3730.9258266715005,
+     "replay_reward": 3730.9258266715,
+     "cert_max_sole_cop_fore_aft": "0.27588962569421904",
+     "replay_max_sole_cop_fore_aft": 0.27588962569421904
+    },
+    {
+     "role": "policy",
+     "yaw": 45,
+     "cert_length": 212,
+     "replay_length": 212,
+     "cert_reward": 548.5797894058737,
+     "replay_reward": 548.5797894058741,
+     "cert_max_sole_cop_fore_aft": "0.9999961783783303",
+     "replay_max_sole_cop_fore_aft": 0.9999961783783303
+    },
+    {
+     "role": "statue",
+     "yaw": 45,
+     "cert_length": 1000,
+     "replay_length": 1000,
+     "cert_reward": 3730.925826671476,
+     "replay_reward": 3730.9258266714796,
+     "cert_max_sole_cop_fore_aft": "0.2758896256942079",
+     "replay_max_sole_cop_fore_aft": 0.2758896256942079
+    },
+    {
+     "role": "policy",
+     "yaw": 90,
+     "cert_length": 212,
+     "replay_length": 212,
+     "cert_reward": 548.5797894058715,
+     "replay_reward": 548.5797894058708,
+     "cert_max_sole_cop_fore_aft": "0.9999961783783314",
+     "replay_max_sole_cop_fore_aft": 0.9999961783783314
+    },
+    {
+     "role": "statue",
+     "yaw": 90,
+     "cert_length": 1000,
+     "replay_length": 1000,
+     "cert_reward": 3730.92582667148,
+     "replay_reward": 3730.9258266714846,
+     "cert_max_sole_cop_fore_aft": "0.2758896256942198",
+     "replay_max_sole_cop_fore_aft": 0.2758896256942198
+    },
+    {
+     "role": "policy",
+     "yaw": 180,
+     "cert_length": 212,
+     "replay_length": 212,
+     "cert_reward": 548.5797894058705,
+     "replay_reward": 548.5797894058695,
+     "cert_max_sole_cop_fore_aft": "0.9999961783783321",
+     "replay_max_sole_cop_fore_aft": 0.9999961783783321
+    },
+    {
+     "role": "statue",
+     "yaw": 180,
+     "cert_length": 1000,
+     "replay_length": 1000,
+     "cert_reward": 3730.9258266714783,
+     "replay_reward": 3730.925826671482,
+     "cert_max_sole_cop_fore_aft": "0.2758896256942212",
+     "replay_max_sole_cop_fore_aft": 0.2758896256942212
+    }
+   ]
+  }
+ },
+ "headings": {
+  "s60_6M": [
+   {
+    "yaw_deg": -90,
+    "length": 173,
+    "termination_reason": "head_contact",
+    "reward": 392.2509492779813,
+    "max_abs_com_dev_vs_yaw0_m": 0.0,
+    "xcom_pad_toe_margin_negative_for_good_from_step": 14,
+    "pitch_down_deg_at_end": 28.52
+   },
+   {
+    "yaw_deg": -45,
+    "length": 173,
+    "termination_reason": "head_contact",
+    "reward": 392.25094927798267,
+    "max_abs_com_dev_vs_yaw0_m": 0.0,
+    "xcom_pad_toe_margin_negative_for_good_from_step": 14,
+    "pitch_down_deg_at_end": 28.52
+   },
+   {
+    "yaw_deg": 0,
+    "length": 173,
+    "termination_reason": "head_contact",
+    "reward": 392.2509492779824,
+    "max_abs_com_dev_vs_yaw0_m": 0.0,
+    "xcom_pad_toe_margin_negative_for_good_from_step": 14,
+    "pitch_down_deg_at_end": 28.52
+   },
+   {
+    "yaw_deg": 45,
+    "length": 173,
+    "termination_reason": "head_contact",
+    "reward": 392.2509492779826,
+    "max_abs_com_dev_vs_yaw0_m": 0.0,
+    "xcom_pad_toe_margin_negative_for_good_from_step": 14,
+    "pitch_down_deg_at_end": 28.52
+   },
+   {
+    "yaw_deg": 90,
+    "length": 173,
+    "termination_reason": "head_contact",
+    "reward": 392.2509492779822,
+    "max_abs_com_dev_vs_yaw0_m": 0.0,
+    "xcom_pad_toe_margin_negative_for_good_from_step": 14,
+    "pitch_down_deg_at_end": 28.52
+   },
+   {
+    "yaw_deg": 180,
+    "length": 173,
+    "termination_reason": "head_contact",
+    "reward": 392.250949277981,
+    "max_abs_com_dev_vs_yaw0_m": 0.0,
+    "xcom_pad_toe_margin_negative_for_good_from_step": 14,
+    "pitch_down_deg_at_end": 28.52
+   }
+  ],
+  "s52_6M": [
+   {
+    "yaw_deg": -90,
+    "length": 212,
+    "termination_reason": "nosedive",
+    "reward": 548.5797894058691,
+    "max_abs_com_dev_vs_yaw0_m": 0.0,
+    "xcom_pad_toe_margin_negative_for_good_from_step": 18,
+    "pitch_down_deg_at_end": 31.8
+   },
+   {
+    "yaw_deg": -45,
+    "length": 212,
+    "termination_reason": "nosedive",
+    "reward": 548.579789405859,
+    "max_abs_com_dev_vs_yaw0_m": 0.0,
+    "xcom_pad_toe_margin_negative_for_good_from_step": 18,
+    "pitch_down_deg_at_end": 31.8
+   },
+   {
+    "yaw_deg": 0,
+    "length": 212,
+    "termination_reason": "nosedive",
+    "reward": 548.579789405868,
+    "max_abs_com_dev_vs_yaw0_m": 0.0,
+    "xcom_pad_toe_margin_negative_for_good_from_step": 18,
+    "pitch_down_deg_at_end": 31.8
+   },
+   {
+    "yaw_deg": 45,
+    "length": 212,
+    "termination_reason": "nosedive",
+    "reward": 548.5797894058741,
+    "max_abs_com_dev_vs_yaw0_m": 0.0,
+    "xcom_pad_toe_margin_negative_for_good_from_step": 18,
+    "pitch_down_deg_at_end": 31.8
+   },
+   {
+    "yaw_deg": 90,
+    "length": 212,
+    "termination_reason": "nosedive",
+    "reward": 548.5797894058708,
+    "max_abs_com_dev_vs_yaw0_m": 0.0,
+    "xcom_pad_toe_margin_negative_for_good_from_step": 18,
+    "pitch_down_deg_at_end": 31.8
+   },
+   {
+    "yaw_deg": 180,
+    "length": 212,
+    "termination_reason": "nosedive",
+    "reward": 548.5797894058695,
+    "max_abs_com_dev_vs_yaw0_m": 0.0,
+    "xcom_pad_toe_margin_negative_for_good_from_step": 18,
+    "pitch_down_deg_at_end": 31.8
+   }
+  ],
+  "statue": [
+   {
+    "yaw_deg": -90,
+    "length": 1000,
+    "termination_reason": "truncated",
+    "reward": 3730.9258266715055,
+    "max_abs_com_dev_vs_yaw0_m": 0.0,
+    "xcom_pad_toe_margin_negative_for_good_from_step": null,
+    "pitch_down_deg_at_end": 1.53
+   },
+   {
+    "yaw_deg": -45,
+    "length": 1000,
+    "termination_reason": "truncated",
+    "reward": 3730.925826671505,
+    "max_abs_com_dev_vs_yaw0_m": 0.0,
+    "xcom_pad_toe_margin_negative_for_good_from_step": null,
+    "pitch_down_deg_at_end": 1.53
+   },
+   {
+    "yaw_deg": 0,
+    "length": 1000,
+    "termination_reason": "truncated",
+    "reward": 3730.9258266715,
+    "max_abs_com_dev_vs_yaw0_m": 0.0,
+    "xcom_pad_toe_margin_negative_for_good_from_step": null,
+    "pitch_down_deg_at_end": 1.53
+   },
+   {
+    "yaw_deg": 45,
+    "length": 1000,
+    "termination_reason": "truncated",
+    "reward": 3730.9258266714796,
+    "max_abs_com_dev_vs_yaw0_m": 0.0,
+    "xcom_pad_toe_margin_negative_for_good_from_step": null,
+    "pitch_down_deg_at_end": 1.53
+   },
+   {
+    "yaw_deg": 90,
+    "length": 1000,
+    "termination_reason": "truncated",
+    "reward": 3730.9258266714846,
+    "max_abs_com_dev_vs_yaw0_m": 0.0,
+    "xcom_pad_toe_margin_negative_for_good_from_step": null,
+    "pitch_down_deg_at_end": 1.53
+   },
+   {
+    "yaw_deg": 180,
+    "length": 1000,
+    "termination_reason": "truncated",
+    "reward": 3730.925826671482,
+    "max_abs_com_dev_vs_yaw0_m": 0.0,
+    "xcom_pad_toe_margin_negative_for_good_from_step": null,
+    "pitch_down_deg_at_end": 1.53
+   }
+  ]
+ },
+ "events": {
+  "s60_6M": {
+   "length": 173,
+   "termination_reason": "head_contact",
+   "spawn": {
+    "com_minus_pad_centre_fwd_m": 0.0563,
+    "xcom_minus_pad_centre_fwd_m": 0.0697,
+    "pad_toe_line_minus_pad_centre_m": 0.0687,
+    "com_fwd_velocity_mps": 0.0441,
+    "omega0_per_s": 3.2846
+   },
+   "pad_cop_at_toe_edge_both_feet_first_step": 5,
+   "pad_cop_at_toe_edge_both_feet_fraction_steps_11_to_end": 0.933,
+   "pad_cop_at_heel_edge_any_foot_fraction_steps_11_to_end": 0.0,
+   "xcom_vs_pad_toe_line": {
+    "first_negative_step": 14,
+    "negative_for_good_from_step": 14,
+    "min_m": -0.8252,
+    "max_m": 0.0062
+   },
+   "com_vs_pad_toe_line": {
+    "first_negative_step": 26,
+    "negative_for_good_from_step": 26,
+    "min_m": -0.527
+   },
+   "xcom_vs_pad_plus_digit_tip_hull": {
+    "first_outside_step": 89,
+    "outside_for_good_from_step": 89,
+    "min_signed_m": -0.6968
+   },
+   "xcom_vs_loaded_contact_hull": {
+    "first_outside_step": 11,
+    "outside_for_good_from_step": 76,
+    "min_signed_m": -0.7213
+   },
+   "topple": {
+    "fit_steps": [
+     89,
+     170
+    ],
+    "forward_speed_growth_rate_per_s": 2.536,
+    "omega0_mean_per_s": 3.464,
+    "forward_speed_at_hull_exit_mps": 0.1456,
+    "forward_speed_at_end_mps": 1.1261
+   },
+   "creep_steps_31_81": {
+    "xcom_fwd_rate_mm_per_step": 0.759
+   },
+   "pelvis_minus_pad_centre_fwd_m": {
+    "1": -0.0363,
+    "21": -0.0297,
+    "41": -0.0143,
+    "61": -0.0034,
+    "81": 0.0145,
+    "101": 0.0486,
+    "121": 0.1104,
+    "141": 0.2171
+   },
+   "com_minus_pelvis_fwd_m": {
+    "1": 0.0926,
+    "21": 0.096,
+    "41": 0.0996,
+    "61": 0.0978,
+    "81": 0.096,
+    "101": 0.0923,
+    "121": 0.085,
+    "141": 0.0726
+   },
+   "heel": {
+    "sole_pitch_deg_mean_steps_11_60": [
+     -4.26,
+     -5.02
+    ],
+    "corner_lift_mm_mean_steps_11_60": [
+     10.6,
+     15.0
+    ],
+    "corner_lift_mm_end": [
+     109.4,
+     108.4
+    ],
+    "sole_pitch_deg_closest_to_flat_steps_11_to_end": [
+     -3.11,
+     -3.62
+    ],
+    "corner_lift_mm_min_steps_11_to_end": [
+     8.1,
+     11.5
+    ],
+    "sole_pitch_deg_spawn": [
+     -5.32,
+     -5.63
+    ],
+    "corner_lift_mm_spawn": [
+     14.6,
+     15.7
+    ],
+    "sole_pitch_deg_end": [
+     -50.7,
+     -50.4
+    ]
+   },
+   "loads_fraction_BW": {
+    "11": {
+     "pad": [
+      0.498,
+      0.484
+     ],
+     "digits": [
+      0.008,
+      0.0
+     ],
+     "nonleg": 0.0
+    },
+    "41": {
+     "pad": [
+      0.526,
+      0.497
+     ],
+     "digits": [
+      0.011,
+      0.012
+     ],
+     "nonleg": 0.0
+    },
+    "81": {
+     "pad": [
+      0.443,
+      0.466
+     ],
+     "digits": [
+      0.048,
+      0.046
+     ],
+     "nonleg": 0.0
+    },
+    "121": {
+     "pad": [
+      0.35,
+      0.395
+     ],
+     "digits": [
+      0.109,
+      0.108
+     ],
+     "nonleg": 0.0
+    },
+    "161": {
+     "pad": [
+      0.044,
+      0.073
+     ],
+     "digits": [
+      0.314,
+      0.313
+     ],
+     "nonleg": 0.0
+    },
+    "173": {
+     "pad": [
+      0.0,
+      0.0
+     ],
+     "digits": [
+      0.291,
+      0.33
+     ],
+     "nonleg": 0.0
+    }
+   },
+   "whole_foot_cop_norm_heel_m1_toe_p1": {
+    "11": [
+     1.004,
+     0.999
+    ],
+    "41": [
+     1.012,
+     1.012
+    ],
+    "81": [
+     1.06,
+     1.054
+    ],
+    "121": [
+     1.167,
+     1.149
+    ],
+    "161": [
+     1.701,
+     1.641
+    ],
+    "173": [
+     1.841,
+     1.808
+    ]
+   },
+   "digit_load_position_0mtp_1tip": {
+    "41": [
+     null,
+     0.878,
+     0.867,
+     0.854,
+     0.88,
+     0.871
+    ],
+    "121": [
+     0.888,
+     0.898,
+     0.896,
+     0.886,
+     0.897,
+     0.894
+    ]
+   },
+   "actuators": {
+    "max_force_fraction_of_forcerange": {
+     "neck_pitch": 0.588,
+     "neck_yaw": 0.029,
+     "head_pitch": 0.581,
+     "r_hip_pitch": 0.051,
+     "r_hip_roll": 0.202,
+     "r_knee": 0.02,
+     "r_ankle": 0.083,
+     "l_hip_pitch": 0.054,
+     "l_hip_roll": 0.194,
+     "l_knee": 0.027,
+     "l_ankle": 0.081,
+     "tail_1_pitch": 0.307,
+     "tail_1_yaw": 0.077,
+     "tail_2_pitch": 0.347,
+     "tail_3_pitch": 0.214
+    },
+    "max_force_fraction_leg": 0.202,
+    "any_substep_at_force_limit": {
+     "neck_pitch": false,
+     "neck_yaw": false,
+     "head_pitch": false,
+     "r_hip_pitch": false,
+     "r_hip_roll": false,
+     "r_knee": false,
+     "r_ankle": false,
+     "l_hip_pitch": false,
+     "l_hip_roll": false,
+     "l_knee": false,
+     "l_ankle": false,
+     "tail_1_pitch": false,
+     "tail_1_yaw": false,
+     "tail_2_pitch": false,
+     "tail_3_pitch": false
+    },
+    "action_abs_ge_0p99_fraction": {
+     "neck_pitch": 0.173
+    },
+    "action_abs_ge_0p99_first_step": {
+     "neck_pitch": 144
+    },
+    "max_abs_action_leg": 0.349,
+    "action_at_steps": {
+     "41": {
+      "neck_pitch": 0.2,
+      "neck_yaw": -0.026,
+      "head_pitch": 0.006,
+      "r_hip_pitch": 0.074,
+      "r_hip_roll": 0.22,
+      "r_knee": 0.039,
+      "r_ankle": -0.058,
+      "l_hip_pitch": 0.031,
+      "l_hip_roll": -0.145,
+      "l_knee": 0.061,
+      "l_ankle": -0.053,
+      "tail_1_pitch": -0.032,
+      "tail_1_yaw": -0.119,
+      "tail_2_pitch": 0.225,
+      "tail_3_pitch": 0.178
+     },
+     "101": {
+      "neck_pitch": 0.586,
+      "neck_yaw": -0.035,
+      "head_pitch": -0.023,
+      "r_hip_pitch": 0.095,
+      "r_hip_roll": 0.261,
+      "r_knee": 0.074,
+      "r_ankle": 0.068,
+      "l_hip_pitch": 0.087,
+      "l_hip_roll": -0.215,
+      "l_knee": 0.086,
+      "l_ankle": 0.071,
+      "tail_1_pitch": 0.133,
+      "tail_1_yaw": 0.027,
+      "tail_2_pitch": 0.524,
+      "tail_3_pitch": -0.105
+     },
+     "173": {
+      "neck_pitch": 1.0,
+      "neck_yaw": -0.025,
+      "head_pitch": 0.085,
+      "r_hip_pitch": 0.084,
+      "r_hip_roll": 0.315,
+      "r_knee": 0.111,
+      "r_ankle": 0.132,
+      "l_hip_pitch": 0.083,
+      "l_hip_roll": -0.326,
+      "l_knee": 0.136,
+      "l_ankle": 0.139,
+      "tail_1_pitch": -0.281,
+      "tail_1_yaw": -0.032,
+      "tail_2_pitch": 0.305,
+      "tail_3_pitch": -0.221
+     }
+    }
+   },
+   "applied_target_deg_vs_home_ctrl": {
+    "21": {
+     "neck_pitch": -1.7,
+     "neck_yaw": -1.06,
+     "head_pitch": -1.84,
+     "r_hip_pitch": 7.16,
+     "r_hip_roll": 5.02,
+     "r_knee": 0.4,
+     "r_ankle": 0.08,
+     "l_hip_pitch": 6.88,
+     "l_hip_roll": -4.65,
+     "l_knee": 1.6,
+     "l_ankle": 1.39,
+     "tail_1_pitch": -4.41,
+     "tail_1_yaw": -0.96,
+     "tail_2_pitch": 0.43,
+     "tail_3_pitch": 6.73
+    },
+    "41": {
+     "neck_pitch": 5.98,
+     "neck_yaw": -0.59,
+     "head_pitch": -1.9,
+     "r_hip_pitch": 4.86,
+     "r_hip_roll": 5.63,
+     "r_knee": 2.07,
+     "r_ankle": -2.62,
+     "l_hip_pitch": 2.23,
+     "l_hip_roll": -3.75,
+     "l_knee": 3.14,
+     "l_ankle": -2.12,
+     "tail_1_pitch": -0.47,
+     "tail_1_yaw": -0.92,
+     "tail_2_pitch": 3.26,
+     "tail_3_pitch": 1.54
+    },
+    "61": {
+     "neck_pitch": 9.22,
+     "neck_yaw": -0.29,
+     "head_pitch": 0.57,
+     "r_hip_pitch": 6.61,
+     "r_hip_roll": 5.67,
+     "r_knee": 2.44,
+     "r_ankle": -1.28,
+     "l_hip_pitch": 5.24,
+     "l_hip_roll": -4.0,
+     "l_knee": 3.79,
+     "l_ankle": -0.97,
+     "tail_1_pitch": 0.72,
+     "tail_1_yaw": -0.11,
+     "tail_2_pitch": 3.66,
+     "tail_3_pitch": 2.18
+    },
+    "101": {
+     "neck_pitch": 22.9,
+     "neck_yaw": -0.7,
+     "head_pitch": -0.58,
+     "r_hip_pitch": 6.2,
+     "r_hip_roll": 6.45,
+     "r_knee": 3.69,
+     "r_ankle": 3.22,
+     "l_hip_pitch": 5.63,
+     "l_hip_roll": -5.29,
+     "l_knee": 4.27,
+     "l_ankle": 3.37,
+     "tail_1_pitch": 1.66,
+     "tail_1_yaw": 0.22,
+     "tail_2_pitch": 6.31,
+     "tail_3_pitch": -1.17
+    }
+   },
+   "joint_within_0p5deg_of_range_limit_fraction": {
+    "neck_pitch": 0.289,
+    "tail_1_pitch": 0.855,
+    "tail_2_pitch": 0.214
+   },
+   "mtp_deg_vs_home": {
+    "41": {
+     "r_toe_d2_joint": -0.81,
+     "r_toe_d3_joint": -1.76,
+     "r_toe_d4_joint": -0.98,
+     "l_toe_d2_joint": -0.83,
+     "l_toe_d3_joint": -1.89,
+     "l_toe_d4_joint": -0.36
+    },
+    "121": {
+     "r_toe_d2_joint": -1.16,
+     "r_toe_d3_joint": -6.53,
+     "r_toe_d4_joint": -2.92,
+     "l_toe_d2_joint": -1.11,
+     "l_toe_d3_joint": -6.31,
+     "l_toe_d4_joint": -2.93
+    },
+    "173": {
+     "r_toe_d2_joint": -4.87,
+     "r_toe_d3_joint": -21.31,
+     "r_toe_d4_joint": -11.69,
+     "l_toe_d2_joint": -5.09,
+     "l_toe_d3_joint": -21.41,
+     "l_toe_d4_joint": -12.15
+    }
+   },
+   "joint_deg_vs_home": {
+    "at_steps": {
+     "21": {
+      "neck_pitch": 13.73,
+      "neck_yaw": -1.1,
+      "head_pitch": 8.49,
+      "r_hip_pitch": 3.54,
+      "r_hip_roll": -0.71,
+      "r_knee": -0.85,
+      "r_ankle": -0.76,
+      "l_hip_pitch": 2.43,
+      "l_hip_roll": 1.3,
+      "l_knee": -0.42,
+      "l_ankle": 0.58,
+      "tail_1_pitch": -8.43,
+      "tail_1_yaw": 0.8,
+      "tail_2_pitch": -1.74,
+      "tail_3_pitch": -0.31
+     },
+     "61": {
+      "neck_pitch": 22.32,
+      "neck_yaw": -0.55,
+      "head_pitch": 12.13,
+      "r_hip_pitch": 3.85,
+      "r_hip_roll": -0.04,
+      "r_knee": 1.48,
+      "r_ankle": -1.43,
+      "l_hip_pitch": 2.26,
+      "l_hip_roll": 1.75,
+      "l_knee": 2.98,
+      "l_ankle": -0.75,
+      "tail_1_pitch": -12.08,
+      "tail_1_yaw": -0.03,
+      "tail_2_pitch": -11.38,
+      "tail_3_pitch": -5.17
+     },
+     "101": {
+      "neck_pitch": 32.78,
+      "neck_yaw": -0.39,
+      "head_pitch": 10.1,
+      "r_hip_pitch": 3.63,
+      "r_hip_roll": -0.38,
+      "r_knee": 3.13,
+      "r_ankle": 3.54,
+      "l_hip_pitch": 2.76,
+      "l_hip_roll": 1.21,
+      "l_knee": 3.68,
+      "l_ankle": 3.37,
+      "tail_1_pitch": -12.07,
+      "tail_1_yaw": -0.18,
+      "tail_2_pitch": -9.07,
+      "tail_3_pitch": -5.39
+     },
+     "173": {
+      "neck_pitch": 40.03,
+      "neck_yaw": 0.0,
+      "head_pitch": 4.95,
+      "r_hip_pitch": 6.42,
+      "r_hip_roll": -0.7,
+      "r_knee": 6.36,
+      "r_ankle": 9.57,
+      "l_hip_pitch": 5.51,
+      "l_hip_roll": 0.35,
+      "l_knee": 7.41,
+      "l_ankle": 9.18,
+      "tail_1_pitch": -12.11,
+      "tail_1_yaw": -0.03,
+      "tail_2_pitch": -12.05,
+      "tail_3_pitch": -7.64
+     }
+    },
+    "max_abs_over_episode": {
+     "neck_pitch": 40.21,
+     "neck_yaw": 1.68,
+     "head_pitch": 17.53,
+     "r_hip_pitch": 6.42,
+     "r_hip_roll": 1.25,
+     "r_knee": 6.47,
+     "r_ankle": 9.57,
+     "l_hip_pitch": 5.62,
+     "l_hip_roll": 1.8,
+     "l_knee": 7.41,
+     "l_ankle": 9.18,
+     "tail_1_pitch": 12.65,
+     "tail_1_yaw": 1.67,
+     "tail_2_pitch": 12.38,
+     "tail_3_pitch": 7.64
+    }
+   },
+   "friction": {
+    "net_shear_over_mu_normal_max_steps_11_to_end": [
+     0.394,
+     0.381
+    ],
+    "net_shear_over_mu_normal_mean_steps_11_60": [
+     0.134,
+     0.167
+    ],
+    "forceweighted_contact_cone_use_max_steps_11_to_end": [
+     0.734,
+     0.747
+    ],
+    "foot_site_slide_mm_step11_to_end": [
+     11.0,
+     10.2
+    ]
+   },
+   "fall_direction": {
+    "com_displacement_fwd_lat_m_step11_to_end": [
+     0.5164,
+     0.0197
+    ],
+    "direction_deg_from_heading": 2.2,
+    "pitch_down_deg_end": 28.52,
+    "roll_deg_end": -0.03,
+    "yaw_change_deg_end": 0.67,
+    "com_height_m_end": 0.688,
+    "head_tip_z_m_end": 0.105,
+    "forward_z_end": -0.4775,
+    "nosedive_forward_z_threshold": -0.52
+   }
+  },
+  "s52_6M": {
+   "length": 212,
+   "termination_reason": "nosedive",
+   "spawn": {
+    "com_minus_pad_centre_fwd_m": 0.0556,
+    "xcom_minus_pad_centre_fwd_m": 0.0689,
+    "pad_toe_line_minus_pad_centre_m": 0.0687,
+    "com_fwd_velocity_mps": 0.044,
+    "omega0_per_s": 3.2846
+   },
+   "pad_cop_at_toe_edge_both_feet_first_step": 6,
+   "pad_cop_at_toe_edge_both_feet_fraction_steps_11_to_end": 0.955,
+   "pad_cop_at_heel_edge_any_foot_fraction_steps_11_to_end": 0.0,
+   "xcom_vs_pad_toe_line": {
+    "first_negative_step": 18,
+    "negative_for_good_from_step": 18,
+    "min_m": -0.8521,
+    "max_m": 0.0224
+   },
+   "com_vs_pad_toe_line": {
+    "first_negative_step": 36,
+    "negative_for_good_from_step": 36,
+    "min_m": -0.5478
+   },
+   "xcom_vs_pad_plus_digit_tip_hull": {
+    "first_outside_step": 124,
+    "outside_for_good_from_step": 124,
+    "min_signed_m": -0.7271
+   },
+   "xcom_vs_loaded_contact_hull": {
+    "first_outside_step": 11,
+    "outside_for_good_from_step": 111,
+    "min_signed_m": -0.7517
+   },
+   "topple": {
+    "fit_steps": [
+     124,
+     209
+    ],
+    "forward_speed_growth_rate_per_s": 2.363,
+    "omega0_mean_per_s": 3.439,
+    "forward_speed_at_hull_exit_mps": 0.1487,
+    "forward_speed_at_end_mps": 1.1543
+   },
+   "creep_steps_31_81": {
+    "xcom_fwd_rate_mm_per_step": 0.139
+   },
+   "pelvis_minus_pad_centre_fwd_m": {
+    "1": -0.0372,
+    "21": -0.0406,
+    "41": -0.0274,
+    "61": -0.0214,
+    "81": -0.0148,
+    "101": -0.0034,
+    "121": 0.018,
+    "141": 0.0578
+   },
+   "com_minus_pelvis_fwd_m": {
+    "1": 0.0927,
+    "21": 0.0986,
+    "41": 0.1009,
+    "61": 0.1005,
+    "81": 0.0995,
+    "101": 0.0983,
+    "121": 0.0964,
+    "141": 0.093
+   },
+   "heel": {
+    "sole_pitch_deg_mean_steps_11_60": [
+     -3.95,
+     -5.35
+    ],
+    "corner_lift_mm_mean_steps_11_60": [
+     9.9,
+     16.0
+    ],
+    "corner_lift_mm_end": [
+     108.3,
+     106.8
+    ],
+    "sole_pitch_deg_closest_to_flat_steps_11_to_end": [
+     -2.94,
+     -3.39
+    ],
+    "corner_lift_mm_min_steps_11_to_end": [
+     7.9,
+     10.6
+    ],
+    "sole_pitch_deg_spawn": [
+     -5.33,
+     -5.64
+    ],
+    "corner_lift_mm_spawn": [
+     14.7,
+     15.8
+    ],
+    "sole_pitch_deg_end": [
+     -48.1,
+     -49.6
+    ]
+   },
+   "loads_fraction_BW": {
+    "11": {
+     "pad": [
+      0.566,
+      0.566
+     ],
+     "digits": [
+      0.01,
+      0.004
+     ],
+     "nonleg": 0.0
+    },
+    "41": {
+     "pad": [
+      0.502,
+      0.473
+     ],
+     "digits": [
+      0.016,
+      0.017
+     ],
+     "nonleg": 0.0
+    },
+    "81": {
+     "pad": [
+      0.495,
+      0.447
+     ],
+     "digits": [
+      0.027,
+      0.029
+     ],
+     "nonleg": 0.0
+    },
+    "121": {
+     "pad": [
+      0.475,
+      0.447
+     ],
+     "digits": [
+      0.035,
+      0.047
+     ],
+     "nonleg": 0.0
+    },
+    "161": {
+     "pad": [
+      0.355,
+      0.382
+     ],
+     "digits": [
+      0.094,
+      0.126
+     ],
+     "nonleg": 0.0
+    },
+    "212": {
+     "pad": [
+      0.0,
+      0.0
+     ],
+     "digits": [
+      0.309,
+      0.308
+     ],
+     "nonleg": 0.0
+    }
+   },
+   "whole_foot_cop_norm_heel_m1_toe_p1": {
+    "11": [
+     1.005,
+     1.001
+    ],
+    "41": [
+     1.02,
+     1.021
+    ],
+    "81": [
+     1.025,
+     1.032
+    ],
+    "121": [
+     1.042,
+     1.059
+    ],
+    "161": [
+     1.153,
+     1.175
+    ],
+    "212": [
+     1.778,
+     1.815
+    ]
+   },
+   "digit_load_position_0mtp_1tip": {
+    "41": [
+     null,
+     0.877,
+     0.866,
+     0.855,
+     0.881,
+     0.872
+    ],
+    "121": [
+     0.864,
+     0.885,
+     0.877,
+     0.864,
+     0.885,
+     0.877
+    ]
+   },
+   "actuators": {
+    "max_force_fraction_of_forcerange": {
+     "neck_pitch": 0.534,
+     "neck_yaw": 0.032,
+     "head_pitch": 0.534,
+     "r_hip_pitch": 0.041,
+     "r_hip_roll": 0.171,
+     "r_knee": 0.038,
+     "r_ankle": 0.071,
+     "l_hip_pitch": 0.073,
+     "l_hip_roll": 0.181,
+     "l_knee": 0.042,
+     "l_ankle": 0.091,
+     "tail_1_pitch": 0.344,
+     "tail_1_yaw": 0.065,
+     "tail_2_pitch": 0.375,
+     "tail_3_pitch": 0.195
+    },
+    "max_force_fraction_leg": 0.181,
+    "any_substep_at_force_limit": {
+     "neck_pitch": false,
+     "neck_yaw": false,
+     "head_pitch": false,
+     "r_hip_pitch": false,
+     "r_hip_roll": false,
+     "r_knee": false,
+     "r_ankle": false,
+     "l_hip_pitch": false,
+     "l_hip_roll": false,
+     "l_knee": false,
+     "l_ankle": false,
+     "tail_1_pitch": false,
+     "tail_1_yaw": false,
+     "tail_2_pitch": false,
+     "tail_3_pitch": false
+    },
+    "action_abs_ge_0p99_fraction": {},
+    "action_abs_ge_0p99_first_step": {},
+    "max_abs_action_leg": 0.375,
+    "action_at_steps": {
+     "41": {
+      "neck_pitch": 0.091,
+      "neck_yaw": -0.015,
+      "head_pitch": -0.07,
+      "r_hip_pitch": 0.023,
+      "r_hip_roll": -0.158,
+      "r_knee": 0.024,
+      "r_ankle": -0.022,
+      "l_hip_pitch": 0.058,
+      "l_hip_roll": 0.156,
+      "l_knee": 0.062,
+      "l_ankle": 0.016,
+      "tail_1_pitch": -0.008,
+      "tail_1_yaw": -0.117,
+      "tail_2_pitch": 0.434,
+      "tail_3_pitch": 0.148
+     },
+     "101": {
+      "neck_pitch": 0.046,
+      "neck_yaw": 0.013,
+      "head_pitch": -0.132,
+      "r_hip_pitch": 0.051,
+      "r_hip_roll": -0.232,
+      "r_knee": 0.044,
+      "r_ankle": 0.042,
+      "l_hip_pitch": 0.086,
+      "l_hip_roll": 0.208,
+      "l_knee": 0.028,
+      "l_ankle": 0.006,
+      "tail_1_pitch": -0.042,
+      "tail_1_yaw": 0.105,
+      "tail_2_pitch": 0.311,
+      "tail_3_pitch": 0.171
+     },
+     "212": {
+      "neck_pitch": 0.556,
+      "neck_yaw": -0.04,
+      "head_pitch": -0.008,
+      "r_hip_pitch": 0.109,
+      "r_hip_roll": -0.259,
+      "r_knee": 0.08,
+      "r_ankle": 0.094,
+      "l_hip_pitch": 0.098,
+      "l_hip_roll": 0.266,
+      "l_knee": 0.071,
+      "l_ankle": 0.086,
+      "tail_1_pitch": 0.198,
+      "tail_1_yaw": -0.023,
+      "tail_2_pitch": 0.409,
+      "tail_3_pitch": 0.184
+     }
+    }
+   },
+   "applied_target_deg_vs_home_ctrl": {
+    "21": {
+     "neck_pitch": -8.18,
+     "neck_yaw": -0.77,
+     "head_pitch": -6.44,
+     "r_hip_pitch": 2.78,
+     "r_hip_roll": -0.03,
+     "r_knee": 2.41,
+     "r_ankle": 0.43,
+     "l_hip_pitch": 5.59,
+     "l_hip_roll": -0.21,
+     "l_knee": 3.97,
+     "l_ankle": 2.86,
+     "tail_1_pitch": -4.59,
+     "tail_1_yaw": -1.42,
+     "tail_2_pitch": 7.03,
+     "tail_3_pitch": 5.37
+    },
+    "41": {
+     "neck_pitch": 3.09,
+     "neck_yaw": -0.34,
+     "head_pitch": -2.83,
+     "r_hip_pitch": 1.45,
+     "r_hip_roll": -3.73,
+     "r_knee": 1.29,
+     "r_ankle": -1.04,
+     "l_hip_pitch": 3.66,
+     "l_hip_roll": 3.64,
+     "l_knee": 3.14,
+     "l_ankle": 0.84,
+     "tail_1_pitch": -0.24,
+     "tail_1_yaw": -0.89,
+     "tail_2_pitch": 5.7,
+     "tail_3_pitch": 2.21
+    },
+    "61": {
+     "neck_pitch": 1.73,
+     "neck_yaw": 0.07,
+     "head_pitch": -3.18,
+     "r_hip_pitch": 2.68,
+     "r_hip_roll": -3.63,
+     "r_knee": 1.41,
+     "r_ankle": 0.2,
+     "l_hip_pitch": 5.21,
+     "l_hip_roll": 3.35,
+     "l_knee": 2.03,
+     "l_ankle": 0.57,
+     "tail_1_pitch": -0.95,
+     "tail_1_yaw": -0.24,
+     "tail_2_pitch": 2.42,
+     "tail_3_pitch": 1.15
+    },
+    "101": {
+     "neck_pitch": 1.76,
+     "neck_yaw": 0.29,
+     "head_pitch": -3.28,
+     "r_hip_pitch": 3.31,
+     "r_hip_roll": -5.72,
+     "r_knee": 2.21,
+     "r_ankle": 2.1,
+     "l_hip_pitch": 5.68,
+     "l_hip_roll": 5.08,
+     "l_knee": 1.46,
+     "l_ankle": 0.3,
+     "tail_1_pitch": -0.57,
+     "tail_1_yaw": 0.85,
+     "tail_2_pitch": 3.64,
+     "tail_3_pitch": 2.04
+    }
+   },
+   "joint_within_0p5deg_of_range_limit_fraction": {
+    "tail_1_pitch": 0.896,
+    "tail_2_pitch": 0.047
+   },
+   "mtp_deg_vs_home": {
+    "41": {
+     "r_toe_d2_joint": -0.81,
+     "r_toe_d3_joint": -1.6,
+     "r_toe_d4_joint": -0.89,
+     "l_toe_d2_joint": -0.78,
+     "l_toe_d3_joint": -1.92,
+     "l_toe_d4_joint": -0.29
+    },
+    "121": {
+     "r_toe_d2_joint": -0.83,
+     "r_toe_d3_joint": -3.08,
+     "r_toe_d4_joint": -1.08,
+     "l_toe_d2_joint": -0.73,
+     "l_toe_d3_joint": -3.18,
+     "l_toe_d4_joint": -1.39
+    },
+    "212": {
+     "r_toe_d2_joint": -4.91,
+     "r_toe_d3_joint": -19.71,
+     "r_toe_d4_joint": -9.78,
+     "l_toe_d2_joint": -4.76,
+     "l_toe_d3_joint": -20.9,
+     "l_toe_d4_joint": -11.86
+    }
+   },
+   "joint_deg_vs_home": {
+    "at_steps": {
+     "21": {
+      "neck_pitch": 11.67,
+      "neck_yaw": -1.17,
+      "head_pitch": 11.26,
+      "r_hip_pitch": -0.38,
+      "r_hip_roll": -1.31,
+      "r_knee": 1.13,
+      "r_ankle": -0.03,
+      "l_hip_pitch": -0.39,
+      "l_hip_roll": 0.73,
+      "l_knee": 0.97,
+      "l_ankle": 1.4,
+      "tail_1_pitch": -10.39,
+      "tail_1_yaw": 1.22,
+      "tail_2_pitch": -1.13,
+      "tail_3_pitch": -0.87
+     },
+     "61": {
+      "neck_pitch": 13.89,
+      "neck_yaw": -0.45,
+      "head_pitch": 8.85,
+      "r_hip_pitch": 0.78,
+      "r_hip_roll": -0.94,
+      "r_knee": 1.18,
+      "r_ankle": 0.63,
+      "l_hip_pitch": 1.62,
+      "l_hip_roll": 1.14,
+      "l_knee": 1.13,
+      "l_ankle": 1.1,
+      "tail_1_pitch": -12.08,
+      "tail_1_yaw": 0.65,
+      "tail_2_pitch": -11.19,
+      "tail_3_pitch": -5.39
+     },
+     "101": {
+      "neck_pitch": 13.9,
+      "neck_yaw": -0.21,
+      "head_pitch": 9.21,
+      "r_hip_pitch": 0.45,
+      "r_hip_roll": -1.14,
+      "r_knee": 1.48,
+      "r_ankle": 2.21,
+      "l_hip_pitch": 2.86,
+      "l_hip_roll": 0.99,
+      "l_knee": 0.72,
+      "l_ankle": 0.84,
+      "tail_1_pitch": -12.08,
+      "tail_1_yaw": 0.22,
+      "tail_2_pitch": -10.44,
+      "tail_3_pitch": -4.77
+     },
+     "212": {
+      "neck_pitch": 24.16,
+      "neck_yaw": -0.47,
+      "head_pitch": 3.76,
+      "r_hip_pitch": 6.32,
+      "r_hip_roll": -1.27,
+      "r_knee": 3.95,
+      "r_ankle": 6.31,
+      "l_hip_pitch": 7.15,
+      "l_hip_roll": 1.59,
+      "l_knee": 3.89,
+      "l_ankle": 6.96,
+      "tail_1_pitch": -12.09,
+      "tail_1_yaw": -0.13,
+      "tail_2_pitch": -12.06,
+      "tail_3_pitch": -5.54
+     }
+    },
+    "max_abs_over_episode": {
+     "neck_pitch": 25.18,
+     "neck_yaw": 1.63,
+     "head_pitch": 16.82,
+     "r_hip_pitch": 6.54,
+     "r_hip_roll": 1.57,
+     "r_knee": 4.56,
+     "r_ankle": 6.78,
+     "l_hip_pitch": 7.38,
+     "l_hip_roll": 1.59,
+     "l_knee": 4.88,
+     "l_ankle": 7.16,
+     "tail_1_pitch": 12.55,
+     "tail_1_yaw": 1.69,
+     "tail_2_pitch": 12.08,
+     "tail_3_pitch": 5.54
+    }
+   },
+   "friction": {
+    "net_shear_over_mu_normal_max_steps_11_to_end": [
+     0.417,
+     0.334
+    ],
+    "net_shear_over_mu_normal_mean_steps_11_60": [
+     0.076,
+     0.08
+    ],
+    "forceweighted_contact_cone_use_max_steps_11_to_end": [
+     0.736,
+     0.735
+    ],
+    "foot_site_slide_mm_step11_to_end": [
+     9.2,
+     11.8
+    ]
+   },
+   "fall_direction": {
+    "com_displacement_fwd_lat_m_step11_to_end": [
+     0.5484,
+     0.0086
+    ],
+    "direction_deg_from_heading": 0.9,
+    "pitch_down_deg_end": 31.8,
+    "roll_deg_end": -1.6,
+    "yaw_change_deg_end": -2.46,
+    "com_height_m_end": 0.682,
+    "head_tip_z_m_end": 0.154,
+    "forward_z_end": -0.527,
+    "nosedive_forward_z_threshold": -0.52
+   }
+  },
+  "statue": {
+   "length": 1000,
+   "termination_reason": "truncated",
+   "spawn": {
+    "com_minus_pad_centre_fwd_m": 0.0549,
+    "xcom_minus_pad_centre_fwd_m": 0.0658,
+    "pad_toe_line_minus_pad_centre_m": 0.0687,
+    "com_fwd_velocity_mps": 0.0356,
+    "omega0_per_s": 3.2846
+   },
+   "pad_cop_at_toe_edge_both_feet_first_step": 5,
+   "pad_cop_at_toe_edge_both_feet_fraction_steps_11_to_end": 0.041,
+   "pad_cop_at_heel_edge_any_foot_fraction_steps_11_to_end": 0.066,
+   "xcom_vs_pad_toe_line": {
+    "first_negative_step": null,
+    "negative_for_good_from_step": null,
+    "min_m": 0.0336,
+    "max_m": 0.1215
+   },
+   "com_vs_pad_toe_line": {
+    "first_negative_step": null,
+    "negative_for_good_from_step": null,
+    "min_m": 0.0171
+   },
+   "xcom_vs_pad_plus_digit_tip_hull": {
+    "first_outside_step": null,
+    "outside_for_good_from_step": null,
+    "min_signed_m": 0.0192
+   },
+   "xcom_vs_loaded_contact_hull": {
+    "first_outside_step": 11,
+    "outside_for_good_from_step": null,
+    "min_signed_m": -0.0828
+   },
+   "creep_steps_31_81": {
+    "xcom_fwd_rate_mm_per_step": -0.64
+   },
+   "pelvis_minus_pad_centre_fwd_m": {
+    "1": -0.0378,
+    "21": -0.054,
+    "41": -0.0606,
+    "61": -0.067,
+    "81": -0.0774,
+    "101": -0.1108,
+    "121": -0.1369,
+    "141": -0.1467
+   },
+   "com_minus_pelvis_fwd_m": {
+    "1": 0.0928,
+    "21": 0.1009,
+    "41": 0.1003,
+    "61": 0.1029,
+    "81": 0.1052,
+    "101": 0.1091,
+    "121": 0.1116,
+    "141": 0.1125
+   },
+   "heel": {
+    "sole_pitch_deg_mean_steps_11_60": [
+     -0.89,
+     -1.47
+    ],
+    "corner_lift_mm_mean_steps_11_60": [
+     2.6,
+     6.5
+    ],
+    "corner_lift_mm_end": [
+     1.0,
+     1.0
+    ],
+    "sole_pitch_deg_closest_to_flat_steps_11_to_end": [
+     1.16,
+     1.18
+    ],
+    "corner_lift_mm_min_steps_11_to_end": [
+     1.0,
+     1.0
+    ],
+    "sole_pitch_deg_spawn": [
+     -5.2,
+     -5.67
+    ],
+    "corner_lift_mm_spawn": [
+     14.4,
+     15.8
+    ],
+    "sole_pitch_deg_end": [
+     -0.1,
+     -0.1
+    ]
+   },
+   "loads_fraction_BW": {
+    "11": {
+     "pad": [
+      0.494,
+      0.444
+     ],
+     "digits": [
+      0.005,
+      0.0
+     ],
+     "nonleg": 0.0
+    },
+    "41": {
+     "pad": [
+      0.588,
+      0.521
+     ],
+     "digits": [
+      0.017,
+      0.005
+     ],
+     "nonleg": 0.0
+    },
+    "81": {
+     "pad": [
+      0.462,
+      0.46
+     ],
+     "digits": [
+      0.009,
+      0.012
+     ],
+     "nonleg": 0.0
+    },
+    "121": {
+     "pad": [
+      0.376,
+      0.347
+     ],
+     "digits": [
+      0.096,
+      0.188
+     ],
+     "nonleg": 0.0
+    },
+    "161": {
+     "pad": [
+      0.374,
+      0.352
+     ],
+     "digits": [
+      0.106,
+      0.162
+     ],
+     "nonleg": 0.0
+    },
+    "1000": {
+     "pad": [
+      0.415,
+      0.416
+     ],
+     "digits": [
+      0.086,
+      0.084
+     ],
+     "nonleg": 0.0
+    }
+   },
+   "whole_foot_cop_norm_heel_m1_toe_p1": {
+    "11": [
+     1.002,
+     0.999
+    ],
+    "41": [
+     0.901,
+     1.0
+    ],
+    "81": [
+     1.004,
+     1.007
+    ],
+    "121": [
+     -0.972,
+     -0.951
+    ],
+    "161": [
+     -0.97,
+     -0.957
+    ],
+    "1000": [
+     0.057,
+     0.062
+    ]
+   },
+   "digit_load_position_0mtp_1tip": {
+    "41": [
+     -0.001,
+     -0.0,
+     0.837,
+     0.842,
+     null,
+     null
+    ],
+    "121": [
+     -0.002,
+     -0.002,
+     null,
+     -0.002,
+     -0.001,
+     -0.001
+    ]
+   },
+   "actuators": {
+    "max_force_fraction_of_forcerange": {
+     "neck_pitch": 0.483,
+     "neck_yaw": 0.036,
+     "head_pitch": 0.467,
+     "r_hip_pitch": 0.047,
+     "r_hip_roll": 0.029,
+     "r_knee": 0.017,
+     "r_ankle": 0.077,
+     "l_hip_pitch": 0.045,
+     "l_hip_roll": 0.032,
+     "l_knee": 0.017,
+     "l_ankle": 0.07,
+     "tail_1_pitch": 0.273,
+     "tail_1_yaw": 0.037,
+     "tail_2_pitch": 0.266,
+     "tail_3_pitch": 0.147
+    },
+    "max_force_fraction_leg": 0.077,
+    "any_substep_at_force_limit": {
+     "neck_pitch": false,
+     "neck_yaw": false,
+     "head_pitch": false,
+     "r_hip_pitch": false,
+     "r_hip_roll": false,
+     "r_knee": false,
+     "r_ankle": false,
+     "l_hip_pitch": false,
+     "l_hip_roll": false,
+     "l_knee": false,
+     "l_ankle": false,
+     "tail_1_pitch": false,
+     "tail_1_yaw": false,
+     "tail_2_pitch": false,
+     "tail_3_pitch": false
+    },
+    "action_abs_ge_0p99_fraction": {},
+    "action_abs_ge_0p99_first_step": {},
+    "max_abs_action_leg": 0.0,
+    "action_at_steps": {
+     "41": {
+      "neck_pitch": 0.0,
+      "neck_yaw": 0.0,
+      "head_pitch": 0.0,
+      "r_hip_pitch": 0.0,
+      "r_hip_roll": 0.0,
+      "r_knee": 0.0,
+      "r_ankle": 0.0,
+      "l_hip_pitch": 0.0,
+      "l_hip_roll": 0.0,
+      "l_knee": 0.0,
+      "l_ankle": 0.0,
+      "tail_1_pitch": 0.0,
+      "tail_1_yaw": 0.0,
+      "tail_2_pitch": 0.0,
+      "tail_3_pitch": 0.0
+     },
+     "101": {
+      "neck_pitch": 0.0,
+      "neck_yaw": 0.0,
+      "head_pitch": 0.0,
+      "r_hip_pitch": 0.0,
+      "r_hip_roll": 0.0,
+      "r_knee": 0.0,
+      "r_ankle": 0.0,
+      "l_hip_pitch": 0.0,
+      "l_hip_roll": 0.0,
+      "l_knee": 0.0,
+      "l_ankle": 0.0,
+      "tail_1_pitch": 0.0,
+      "tail_1_yaw": 0.0,
+      "tail_2_pitch": 0.0,
+      "tail_3_pitch": 0.0
+     },
+     "1000": {
+      "neck_pitch": 0.0,
+      "neck_yaw": 0.0,
+      "head_pitch": 0.0,
+      "r_hip_pitch": 0.0,
+      "r_hip_roll": 0.0,
+      "r_knee": 0.0,
+      "r_ankle": 0.0,
+      "l_hip_pitch": 0.0,
+      "l_hip_roll": 0.0,
+      "l_knee": 0.0,
+      "l_ankle": 0.0,
+      "tail_1_pitch": 0.0,
+      "tail_1_yaw": 0.0,
+      "tail_2_pitch": 0.0,
+      "tail_3_pitch": 0.0
+     }
+    }
+   },
+   "applied_target_deg_vs_home_ctrl": {
+    "21": {
+     "neck_pitch": 0.0,
+     "neck_yaw": 0.0,
+     "head_pitch": 0.0,
+     "r_hip_pitch": -0.0,
+     "r_hip_roll": 0.0,
+     "r_knee": 0.0,
+     "r_ankle": 0.0,
+     "l_hip_pitch": -0.0,
+     "l_hip_roll": 0.0,
+     "l_knee": 0.0,
+     "l_ankle": 0.0,
+     "tail_1_pitch": 0.0,
+     "tail_1_yaw": 0.0,
+     "tail_2_pitch": 0.0,
+     "tail_3_pitch": 0.0
+    },
+    "41": {
+     "neck_pitch": 0.0,
+     "neck_yaw": 0.0,
+     "head_pitch": 0.0,
+     "r_hip_pitch": -0.0,
+     "r_hip_roll": 0.0,
+     "r_knee": 0.0,
+     "r_ankle": 0.0,
+     "l_hip_pitch": -0.0,
+     "l_hip_roll": 0.0,
+     "l_knee": 0.0,
+     "l_ankle": 0.0,
+     "tail_1_pitch": 0.0,
+     "tail_1_yaw": 0.0,
+     "tail_2_pitch": 0.0,
+     "tail_3_pitch": 0.0
+    },
+    "61": {
+     "neck_pitch": 0.0,
+     "neck_yaw": 0.0,
+     "head_pitch": 0.0,
+     "r_hip_pitch": -0.0,
+     "r_hip_roll": 0.0,
+     "r_knee": 0.0,
+     "r_ankle": 0.0,
+     "l_hip_pitch": -0.0,
+     "l_hip_roll": 0.0,
+     "l_knee": 0.0,
+     "l_ankle": 0.0,
+     "tail_1_pitch": 0.0,
+     "tail_1_yaw": 0.0,
+     "tail_2_pitch": 0.0,
+     "tail_3_pitch": 0.0
+    },
+    "101": {
+     "neck_pitch": 0.0,
+     "neck_yaw": 0.0,
+     "head_pitch": 0.0,
+     "r_hip_pitch": -0.0,
+     "r_hip_roll": 0.0,
+     "r_knee": 0.0,
+     "r_ankle": 0.0,
+     "l_hip_pitch": -0.0,
+     "l_hip_roll": 0.0,
+     "l_knee": 0.0,
+     "l_ankle": 0.0,
+     "tail_1_pitch": 0.0,
+     "tail_1_yaw": 0.0,
+     "tail_2_pitch": 0.0,
+     "tail_3_pitch": 0.0
+    }
+   },
+   "joint_within_0p5deg_of_range_limit_fraction": {
+    "tail_1_pitch": 0.977,
+    "tail_2_pitch": 0.84
+   },
+   "mtp_deg_vs_home": {
+    "41": {
+     "r_toe_d2_joint": -0.85,
+     "r_toe_d3_joint": -0.54,
+     "r_toe_d4_joint": -0.34,
+     "l_toe_d2_joint": -0.76,
+     "l_toe_d3_joint": -0.55,
+     "l_toe_d4_joint": -0.04
+    },
+    "121": {
+     "r_toe_d2_joint": -0.26,
+     "r_toe_d3_joint": -0.03,
+     "r_toe_d4_joint": 0.05,
+     "l_toe_d2_joint": -0.25,
+     "l_toe_d3_joint": -0.04,
+     "l_toe_d4_joint": 0.07
+    },
+    "1000": {
+     "r_toe_d2_joint": -0.36,
+     "r_toe_d3_joint": -0.15,
+     "r_toe_d4_joint": -0.02,
+     "l_toe_d2_joint": -0.36,
+     "l_toe_d3_joint": -0.15,
+     "l_toe_d4_joint": -0.01
+    }
+   },
+   "joint_deg_vs_home": {
+    "at_steps": {
+     "21": {
+      "neck_pitch": 7.83,
+      "neck_yaw": -0.26,
+      "head_pitch": 3.53,
+      "r_hip_pitch": -3.58,
+      "r_hip_roll": -0.91,
+      "r_knee": -1.26,
+      "r_ankle": -0.22,
+      "l_hip_pitch": -3.46,
+      "l_hip_roll": 1.33,
+      "l_knee": -1.3,
+      "l_ankle": 0.37,
+      "tail_1_pitch": -9.86,
+      "tail_1_yaw": 1.09,
+      "tail_2_pitch": -4.58,
+      "tail_3_pitch": -2.29
+     },
+     "61": {
+      "neck_pitch": 15.06,
+      "neck_yaw": -0.44,
+      "head_pitch": 16.0,
+      "r_hip_pitch": -3.63,
+      "r_hip_roll": -0.86,
+      "r_knee": -1.21,
+      "r_ankle": -0.25,
+      "l_hip_pitch": -3.51,
+      "l_hip_roll": 1.31,
+      "l_knee": -1.25,
+      "l_ankle": 0.06,
+      "tail_1_pitch": -12.06,
+      "tail_1_yaw": 0.7,
+      "tail_2_pitch": -11.4,
+      "tail_3_pitch": -5.95
+     },
+     "101": {
+      "neck_pitch": 10.77,
+      "neck_yaw": 0.05,
+      "head_pitch": 10.14,
+      "r_hip_pitch": -2.6,
+      "r_hip_roll": -1.13,
+      "r_knee": -0.25,
+      "r_ankle": 2.01,
+      "l_hip_pitch": -2.47,
+      "l_hip_roll": 0.96,
+      "l_knee": -0.15,
+      "l_ankle": 1.83,
+      "tail_1_pitch": -12.07,
+      "tail_1_yaw": -0.04,
+      "tail_2_pitch": -11.69,
+      "tail_3_pitch": -5.41
+     },
+     "1000": {
+      "neck_pitch": 12.27,
+      "neck_yaw": -0.01,
+      "head_pitch": 12.59,
+      "r_hip_pitch": -2.74,
+      "r_hip_roll": -0.56,
+      "r_knee": -0.4,
+      "r_ankle": 1.68,
+      "l_hip_pitch": -2.74,
+      "l_hip_roll": 0.57,
+      "l_knee": -0.4,
+      "l_ankle": 1.68,
+      "tail_1_pitch": -12.07,
+      "tail_1_yaw": 0.0,
+      "tail_2_pitch": -11.62,
+      "tail_3_pitch": -5.3
+     }
+    },
+    "max_abs_over_episode": {
+     "neck_pitch": 22.15,
+     "neck_yaw": 1.63,
+     "head_pitch": 21.74,
+     "r_hip_pitch": 4.0,
+     "r_hip_roll": 1.33,
+     "r_knee": 1.42,
+     "r_ankle": 3.52,
+     "l_hip_pitch": 3.9,
+     "l_hip_roll": 1.48,
+     "l_knee": 1.48,
+     "l_ankle": 3.28,
+     "tail_1_pitch": 12.52,
+     "tail_1_yaw": 1.71,
+     "tail_2_pitch": 12.4,
+     "tail_3_pitch": 7.01
+    }
+   },
+   "friction": {
+    "net_shear_over_mu_normal_max_steps_11_to_end": [
+     0.09,
+     0.093
+    ],
+    "net_shear_over_mu_normal_mean_steps_11_60": [
+     0.027,
+     0.055
+    ],
+    "forceweighted_contact_cone_use_max_steps_11_to_end": [
+     0.094,
+     0.093
+    ],
+    "foot_site_slide_mm_step11_to_end": [
+     8.8,
+     8.4
+    ]
+   },
+   "fall_direction": {
+    "com_displacement_fwd_lat_m_step11_to_end": [
+     -0.0497,
+     0.01
+    ],
+    "direction_deg_from_heading": 168.6,
+    "pitch_down_deg_end": 1.53,
+    "roll_deg_end": 0.0,
+    "yaw_change_deg_end": 1.4,
+    "com_height_m_end": 0.838,
+    "head_tip_z_m_end": 0.946,
+    "forward_z_end": -0.0268,
+    "nosedive_forward_z_threshold": -0.52
+   },
+   "statue_extremes_steps_11_to_1000": {
+    "xcom_pad_signed_margin_min_m": 0.0192,
+    "xcom_pad_toe_margin_min_m": 0.0336,
+    "xcom_pad_heel_margin_min_m": 0.0192,
+    "pitch_down_deg_range": [
+     -2.18,
+     6.75
+    ],
+    "pad_cop_fore_range": [
+     -1.0,
+     1.0
+    ],
+    "xcom_fwd_rel_pad_centre_range_m": [
+     -0.0513,
+     0.0366
+    ]
+   }
+  }
+ },
+ "home_keyframe_static": {
+  "keyframe": "home",
+  "com_minus_pad_centre_fwd_m": 0.0073,
+  "pad_toe_line_minus_pad_centre_m": 0.07,
+  "com_toe_margin_m": 0.0627,
+  "com_height_m": 0.885,
+  "note": "world x = animal forward at the home keyframe; pad half-length 0.07 m"
+ },
+ "kinematic_attribution_com_fwd_shift_m": {
+  "definition": "CoM forward position minus the CoM with that joint group set to its home value, each foot held at its actual pose (mean of the two feet); + means the group's deviation from home carries the CoM forward. Kinematic only (no re-balancing); the closed chain is broken for leg groups.",
+  "by_role_step": {
+   "s60_6M": {
+    "21": {
+     "hip_pitch": -0.0032,
+     "hip_roll": -0.0006,
+     "knee": 0.0038,
+     "ankle": 0.001,
+     "toes(passive)": 0.0,
+     "neck_head": 0.0023,
+     "tail": 0.0018,
+     "all_leg_joints": 0.0009,
+     "all_joints": 0.0038
+    },
+    "61": {
+     "hip_pitch": -0.0021,
+     "hip_roll": -0.0005,
+     "knee": -0.0124,
+     "ankle": 0.0115,
+     "toes(passive)": 0.0,
+     "neck_head": 0.0016,
+     "tail": 0.006,
+     "all_leg_joints": -0.0033,
+     "all_joints": 0.0004
+    },
+    "101": {
+     "hip_pitch": -0.0016,
+     "hip_roll": -0.0004,
+     "knee": -0.0183,
+     "ankle": -0.0348,
+     "toes(passive)": 0.0,
+     "neck_head": -0.0003,
+     "tail": 0.0047,
+     "all_leg_joints": -0.0536,
+     "all_joints": -0.0596
+    }
+   },
+   "s52_6M": {
+    "21": {
+     "hip_pitch": 0.0004,
+     "hip_roll": -0.0007,
+     "knee": -0.0061,
+     "ankle": -0.0074,
+     "toes(passive)": 0.0,
+     "neck_head": 0.0014,
+     "tail": 0.002,
+     "all_leg_joints": -0.0137,
+     "all_joints": -0.011
+    },
+    "61": {
+     "hip_pitch": -0.001,
+     "hip_roll": -0.0006,
+     "knee": -0.0065,
+     "ankle": -0.0092,
+     "toes(passive)": 0.0,
+     "neck_head": 0.002,
+     "tail": 0.0056,
+     "all_leg_joints": -0.0171,
+     "all_joints": -0.012
+    },
+    "101": {
+     "hip_pitch": -0.0013,
+     "hip_roll": -0.0006,
+     "knee": -0.0062,
+     "ankle": -0.0161,
+     "toes(passive)": 0.0,
+     "neck_head": 0.0018,
+     "tail": 0.005,
+     "all_leg_joints": -0.024,
+     "all_joints": -0.0204
+    }
+   },
+   "statue": {
+    "21": {
+     "hip_pitch": 0.0037,
+     "hip_roll": -0.0007,
+     "knee": 0.0074,
+     "ankle": -0.0008,
+     "toes(passive)": 0.0,
+     "neck_head": 0.0013,
+     "tail": 0.0013,
+     "all_leg_joints": 0.0097,
+     "all_joints": 0.0145
+    },
+    "61": {
+     "hip_pitch": 0.0026,
+     "hip_roll": -0.0007,
+     "knee": 0.0067,
+     "ankle": 0.001,
+     "toes(passive)": 0.0,
+     "neck_head": -0.0003,
+     "tail": 0.0041,
+     "all_leg_joints": 0.0097,
+     "all_joints": 0.0176
+    },
+    "101": {
+     "hip_pitch": 0.0026,
+     "hip_roll": -0.0008,
+     "knee": 0.0011,
+     "ankle": -0.0208,
+     "toes(passive)": -0.0,
+     "neck_head": 0.002,
+     "tail": 0.0065,
+     "all_leg_joints": -0.018,
+     "all_joints": -0.009
+    }
+   }
+  }
+ },
+ "context_audit_panel_heading0": {
+  "ctx_s60_6M": {
+   "source": "scratchpad/foot/battery/shared_fall/context/replay_ctx_s60_6M.json",
+   "rows": [
+    {
+     "seed": 7042,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": -0.0002,
+     "spawn_mean_sole_pitch_deg": -0.7,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0306,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0228,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0904,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": -0.27
+    },
+    {
+     "seed": 7043,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": -0.0241,
+     "spawn_mean_sole_pitch_deg": 2.57,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0299,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0274,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0885,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": -0.17
+    },
+    {
+     "seed": 7044,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": -0.0013,
+     "spawn_mean_sole_pitch_deg": 1.33,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0271,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0289,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0912,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.047,
+     "mean_sole_pitch_deg_steps_11_200": -0.31
+    },
+    {
+     "seed": 7045,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0073,
+     "spawn_mean_sole_pitch_deg": 0.09,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0337,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0184,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0929,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.074,
+     "mean_sole_pitch_deg_steps_11_200": -0.24
+    },
+    {
+     "seed": 7046,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0323,
+     "spawn_mean_sole_pitch_deg": -2.52,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0442,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0153,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0978,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.095,
+     "mean_sole_pitch_deg_steps_11_200": -0.43
+    },
+    {
+     "seed": 7047,
+     "length": 173,
+     "reason": "head_contact",
+     "spawn_xcom_minus_pad_centre_m": 0.0697,
+     "spawn_mean_sole_pitch_deg": -5.48,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.2758,
+     "min_xcom_pad_toe_margin_m_steps_11_200": -0.8252,
+     "min_xcom_full_hull_margin_m_steps_11_200": -0.6968,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.933,
+     "mean_sole_pitch_deg_steps_11_200": -15.66
+    },
+    {
+     "seed": 7048,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0078,
+     "spawn_mean_sole_pitch_deg": -1.77,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0338,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0219,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0728,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.032,
+     "mean_sole_pitch_deg_steps_11_200": -0.3
+    },
+    {
+     "seed": 7049,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": -0.0009,
+     "spawn_mean_sole_pitch_deg": 0.31,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0321,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0241,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0893,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.058,
+     "mean_sole_pitch_deg_steps_11_200": -0.29
+    },
+    {
+     "seed": 7050,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.008,
+     "spawn_mean_sole_pitch_deg": 1.2,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0381,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.018,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.1024,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.053,
+     "mean_sole_pitch_deg_steps_11_200": -0.3
+    },
+    {
+     "seed": 7051,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0188,
+     "spawn_mean_sole_pitch_deg": -1.3,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0371,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0186,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0852,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": -0.32
+    },
+    {
+     "seed": 7052,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": -0.0034,
+     "spawn_mean_sole_pitch_deg": -0.61,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0317,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0273,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0955,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.005,
+     "mean_sole_pitch_deg_steps_11_200": -0.27
+    },
+    {
+     "seed": 7053,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": -0.0156,
+     "spawn_mean_sole_pitch_deg": 2.55,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0207,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0415,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0869,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": -0.11
+    },
+    {
+     "seed": 7054,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": -0.0276,
+     "spawn_mean_sole_pitch_deg": 3.54,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0208,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0302,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0791,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.011,
+     "mean_sole_pitch_deg_steps_11_200": -0.1
+    },
+    {
+     "seed": 7055,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": -0.0032,
+     "spawn_mean_sole_pitch_deg": 2.37,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0251,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0325,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0883,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": -0.21
+    },
+    {
+     "seed": 7056,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.021,
+     "spawn_mean_sole_pitch_deg": 0.5,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0469,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0069,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0902,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.137,
+     "mean_sole_pitch_deg_steps_11_200": -0.49
+    },
+    {
+     "seed": 7057,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.016,
+     "spawn_mean_sole_pitch_deg": -0.5,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0452,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0115,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0959,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.105,
+     "mean_sole_pitch_deg_steps_11_200": -0.52
+    },
+    {
+     "seed": 7058,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": -0.0129,
+     "spawn_mean_sole_pitch_deg": 0.88,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0329,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0331,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0898,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": -0.23
+    },
+    {
+     "seed": 7059,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0103,
+     "spawn_mean_sole_pitch_deg": -1.3,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.038,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0149,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.1002,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.1,
+     "mean_sole_pitch_deg_steps_11_200": -0.29
+    },
+    {
+     "seed": 7060,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": -0.0052,
+     "spawn_mean_sole_pitch_deg": 1.23,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0327,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0302,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0973,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": -0.23
+    },
+    {
+     "seed": 7061,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0034,
+     "spawn_mean_sole_pitch_deg": -0.14,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.038,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0173,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0944,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.089,
+     "mean_sole_pitch_deg_steps_11_200": -0.25
+    },
+    {
+     "seed": 7062,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.002,
+     "spawn_mean_sole_pitch_deg": 0.2,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0324,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.028,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0992,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.032,
+     "mean_sole_pitch_deg_steps_11_200": -0.31
+    },
+    {
+     "seed": 7063,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0299,
+     "spawn_mean_sole_pitch_deg": -4.24,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0443,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0129,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0826,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.084,
+     "mean_sole_pitch_deg_steps_11_200": -0.4
+    },
+    {
+     "seed": 7064,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.023,
+     "spawn_mean_sole_pitch_deg": -2.82,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0381,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0175,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0884,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.058,
+     "mean_sole_pitch_deg_steps_11_200": -0.32
+    },
+    {
+     "seed": 7065,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0411,
+     "spawn_mean_sole_pitch_deg": -2.66,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0421,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0134,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.097,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.074,
+     "mean_sole_pitch_deg_steps_11_200": -0.8
+    },
+    {
+     "seed": 7066,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": -0.0361,
+     "spawn_mean_sole_pitch_deg": 3.45,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0155,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0498,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0739,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": -0.07
+    },
+    {
+     "seed": 7067,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0281,
+     "spawn_mean_sole_pitch_deg": -2.11,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0388,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.018,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0886,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.079,
+     "mean_sole_pitch_deg_steps_11_200": -0.35
+    },
+    {
+     "seed": 7068,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0005,
+     "spawn_mean_sole_pitch_deg": -0.52,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0321,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0275,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0901,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": -0.22
+    },
+    {
+     "seed": 7069,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": -0.021,
+     "spawn_mean_sole_pitch_deg": 1.9,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0211,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0291,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0822,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.021,
+     "mean_sole_pitch_deg_steps_11_200": -0.11
+    },
+    {
+     "seed": 7070,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0024,
+     "spawn_mean_sole_pitch_deg": -0.49,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0282,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0285,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0854,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.037,
+     "mean_sole_pitch_deg_steps_11_200": -0.21
+    },
+    {
+     "seed": 7071,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0427,
+     "spawn_mean_sole_pitch_deg": -0.62,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0428,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0202,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.1004,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.1,
+     "mean_sole_pitch_deg_steps_11_200": -0.54
+    },
+    {
+     "seed": 7072,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0033,
+     "spawn_mean_sole_pitch_deg": 1.47,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0307,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0276,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0958,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": -0.27
+    },
+    {
+     "seed": 7073,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": -0.0137,
+     "spawn_mean_sole_pitch_deg": 1.16,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.031,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0315,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0822,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": -0.26
+    },
+    {
+     "seed": 7074,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0302,
+     "spawn_mean_sole_pitch_deg": -1.01,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0521,
+     "min_xcom_pad_toe_margin_m_steps_11_200": -0.0047,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0815,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.205,
+     "mean_sole_pitch_deg_steps_11_200": -0.62
+    },
+    {
+     "seed": 7075,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0024,
+     "spawn_mean_sole_pitch_deg": -1.27,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.038,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0231,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0891,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": -0.39
+    },
+    {
+     "seed": 7076,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0247,
+     "spawn_mean_sole_pitch_deg": -1.27,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.037,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0139,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0961,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.142,
+     "mean_sole_pitch_deg_steps_11_200": -0.36
+    },
+    {
+     "seed": 7077,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0318,
+     "spawn_mean_sole_pitch_deg": -2.12,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0284,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.024,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0889,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.011,
+     "mean_sole_pitch_deg_steps_11_200": -0.25
+    },
+    {
+     "seed": 7078,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0089,
+     "spawn_mean_sole_pitch_deg": 0.35,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0401,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0247,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.1002,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.021,
+     "mean_sole_pitch_deg_steps_11_200": -0.41
+    },
+    {
+     "seed": 7079,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0108,
+     "spawn_mean_sole_pitch_deg": -0.9,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0279,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0322,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0923,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": -0.2
+    },
+    {
+     "seed": 7080,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": -0.0143,
+     "spawn_mean_sole_pitch_deg": 2.66,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0141,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0425,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0644,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": -0.04
+    },
+    {
+     "seed": 7081,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0283,
+     "spawn_mean_sole_pitch_deg": -1.28,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0488,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0057,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0943,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.105,
+     "mean_sole_pitch_deg_steps_11_200": -0.49
+    }
+   ]
+  },
+  "ctx_s52_6M": {
+   "source": "scratchpad/foot/battery/shared_fall/context/replay_ctx_s52_6M.json",
+   "rows": [
+    {
+     "seed": 7042,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.002,
+     "spawn_mean_sole_pitch_deg": -0.77,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": -0.0099,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0394,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0447,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": -0.07
+    },
+    {
+     "seed": 7043,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": -0.0199,
+     "spawn_mean_sole_pitch_deg": 2.29,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": -0.0103,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0473,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0474,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": -0.03
+    },
+    {
+     "seed": 7044,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": -0.0004,
+     "spawn_mean_sole_pitch_deg": 1.34,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": -0.0121,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0312,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0425,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": -0.09
+    },
+    {
+     "seed": 7045,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0101,
+     "spawn_mean_sole_pitch_deg": -0.08,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": -0.0089,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0382,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.046,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": -0.11
+    },
+    {
+     "seed": 7046,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0351,
+     "spawn_mean_sole_pitch_deg": -2.65,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": -0.0014,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0244,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0502,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.111,
+     "mean_sole_pitch_deg_steps_11_200": -0.23
+    },
+    {
+     "seed": 7047,
+     "length": 212,
+     "reason": "nosedive",
+     "spawn_xcom_minus_pad_centre_m": 0.0689,
+     "spawn_mean_sole_pitch_deg": -5.48,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.2122,
+     "min_xcom_pad_toe_margin_m_steps_11_200": -0.6824,
+     "min_xcom_full_hull_margin_m_steps_11_200": -0.5692,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 1.0,
+     "mean_sole_pitch_deg_steps_11_200": -11.94
+    },
+    {
+     "seed": 7048,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0185,
+     "spawn_mean_sole_pitch_deg": -2.16,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": -0.0224,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0579,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0316,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": 0.04
+    },
+    {
+     "seed": 7049,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0016,
+     "spawn_mean_sole_pitch_deg": 0.12,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": -0.0079,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0428,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0462,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": -0.08
+    },
+    {
+     "seed": 7050,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0047,
+     "spawn_mean_sole_pitch_deg": 1.31,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": -0.0045,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0298,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.048,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.053,
+     "mean_sole_pitch_deg_steps_11_200": -0.11
+    },
+    {
+     "seed": 7051,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.025,
+     "spawn_mean_sole_pitch_deg": -1.56,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": -0.0079,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0359,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0446,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": -0.04
+    },
+    {
+     "seed": 7052,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": -0.003,
+     "spawn_mean_sole_pitch_deg": -0.66,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": -0.0085,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0427,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0429,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": -0.01
+    },
+    {
+     "seed": 7053,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": -0.0125,
+     "spawn_mean_sole_pitch_deg": 2.36,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": -0.0129,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0487,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0443,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": 0.07
+    },
+    {
+     "seed": 7054,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": -0.0206,
+     "spawn_mean_sole_pitch_deg": 3.14,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": -0.0209,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0491,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0354,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": 0.05
+    },
+    {
+     "seed": 7055,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": -0.0075,
+     "spawn_mean_sole_pitch_deg": 2.54,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": -0.0082,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0424,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0454,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": -0.06
+    },
+    {
+     "seed": 7056,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0265,
+     "spawn_mean_sole_pitch_deg": 0.44,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0009,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0192,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0524,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.047,
+     "mean_sole_pitch_deg_steps_11_200": -0.34
+    },
+    {
+     "seed": 7057,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.015,
+     "spawn_mean_sole_pitch_deg": -0.41,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": -0.0074,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0354,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0395,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.074,
+     "mean_sole_pitch_deg_steps_11_200": -0.15
+    },
+    {
+     "seed": 7058,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": -0.0144,
+     "spawn_mean_sole_pitch_deg": 0.82,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": -0.0079,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0453,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0422,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": -0.04
+    },
+    {
+     "seed": 7059,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0097,
+     "spawn_mean_sole_pitch_deg": -1.33,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": -0.0049,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0273,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0496,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.063,
+     "mean_sole_pitch_deg_steps_11_200": -0.12
+    },
+    {
+     "seed": 7060,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": -0.0035,
+     "spawn_mean_sole_pitch_deg": 1.06,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": -0.0147,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0487,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0402,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": 0.06
+    },
+    {
+     "seed": 7061,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0117,
+     "spawn_mean_sole_pitch_deg": -0.51,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": -0.0068,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.039,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0465,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": -0.05
+    },
+    {
+     "seed": 7062,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": -0.0008,
+     "spawn_mean_sole_pitch_deg": 0.18,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": -0.0111,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0471,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0451,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": -0.04
+    },
+    {
+     "seed": 7063,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0376,
+     "spawn_mean_sole_pitch_deg": -4.57,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.001,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0013,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0464,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.158,
+     "mean_sole_pitch_deg_steps_11_200": -0.34
+    },
+    {
+     "seed": 7064,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0268,
+     "spawn_mean_sole_pitch_deg": -2.97,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": -0.0068,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0301,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0455,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.074,
+     "mean_sole_pitch_deg_steps_11_200": -0.08
+    },
+    {
+     "seed": 7065,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0454,
+     "spawn_mean_sole_pitch_deg": -2.93,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0093,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0061,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0476,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.153,
+     "mean_sole_pitch_deg_steps_11_200": -1.24
+    },
+    {
+     "seed": 7066,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": -0.0375,
+     "spawn_mean_sole_pitch_deg": 3.36,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": -0.0164,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0622,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0436,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": 0.11
+    },
+    {
+     "seed": 7067,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0363,
+     "spawn_mean_sole_pitch_deg": -2.51,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": -0.001,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0232,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0508,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.105,
+     "mean_sole_pitch_deg_steps_11_200": -0.22
+    },
+    {
+     "seed": 7068,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0028,
+     "spawn_mean_sole_pitch_deg": -0.51,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": -0.0175,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0495,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0368,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": 0.08
+    },
+    {
+     "seed": 7069,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": -0.0263,
+     "spawn_mean_sole_pitch_deg": 1.99,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": -0.0072,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0348,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0477,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": 0.01
+    },
+    {
+     "seed": 7070,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0079,
+     "spawn_mean_sole_pitch_deg": -0.8,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": -0.0114,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0429,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0432,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": 0.02
+    },
+    {
+     "seed": 7071,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0431,
+     "spawn_mean_sole_pitch_deg": -0.65,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": -0.0041,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0155,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0457,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.142,
+     "mean_sole_pitch_deg_steps_11_200": -0.47
+    },
+    {
+     "seed": 7072,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0006,
+     "spawn_mean_sole_pitch_deg": 1.43,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": -0.0083,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0452,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0479,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": -0.09
+    },
+    {
+     "seed": 7073,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": -0.0064,
+     "spawn_mean_sole_pitch_deg": 0.79,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": -0.0068,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0407,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0497,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": -0.07
+    },
+    {
+     "seed": 7074,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0338,
+     "spawn_mean_sole_pitch_deg": -1.11,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0049,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0056,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0549,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.158,
+     "mean_sole_pitch_deg_steps_11_200": -0.39
+    },
+    {
+     "seed": 7075,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0103,
+     "spawn_mean_sole_pitch_deg": -1.57,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": -0.0055,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0406,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0493,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": -0.23
+    },
+    {
+     "seed": 7076,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0259,
+     "spawn_mean_sole_pitch_deg": -1.38,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": -0.0021,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0261,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0509,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.058,
+     "mean_sole_pitch_deg_steps_11_200": -0.23
+    },
+    {
+     "seed": 7077,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0284,
+     "spawn_mean_sole_pitch_deg": -2.07,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": -0.0125,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0454,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0383,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.011,
+     "mean_sole_pitch_deg_steps_11_200": -0.05
+    },
+    {
+     "seed": 7078,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0072,
+     "spawn_mean_sole_pitch_deg": 0.22,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": -0.0078,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0457,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0436,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": -0.02
+    },
+    {
+     "seed": 7079,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.007,
+     "spawn_mean_sole_pitch_deg": -0.82,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": -0.0081,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0449,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0425,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": -0.02
+    },
+    {
+     "seed": 7080,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": -0.0063,
+     "spawn_mean_sole_pitch_deg": 2.46,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": -0.0207,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.058,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.04,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": 0.03
+    },
+    {
+     "seed": 7081,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0346,
+     "spawn_mean_sole_pitch_deg": -1.69,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": -0.0054,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0218,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0444,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.1,
+     "mean_sole_pitch_deg_steps_11_200": -0.17
+    }
+   ]
+  },
+  "ctx_statue": {
+   "source": "scratchpad/foot/battery/shared_fall/context/replay_ctx_statue.json",
+   "rows": [
+    {
+     "seed": 7042,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0009,
+     "spawn_mean_sole_pitch_deg": -0.8,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0023,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0594,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0448,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": -0.05
+    },
+    {
+     "seed": 7043,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": -0.0258,
+     "spawn_mean_sole_pitch_deg": 2.49,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0051,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0442,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.066,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": -0.06
+    },
+    {
+     "seed": 7044,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": -0.0031,
+     "spawn_mean_sole_pitch_deg": 1.17,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0033,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0602,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.061,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": -0.1
+    },
+    {
+     "seed": 7045,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.005,
+     "spawn_mean_sole_pitch_deg": 0.04,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0022,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0587,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0482,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": -0.06
+    },
+    {
+     "seed": 7046,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0306,
+     "spawn_mean_sole_pitch_deg": -2.6,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0015,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0504,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0439,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.005,
+     "mean_sole_pitch_deg_steps_11_200": -0.12
+    },
+    {
+     "seed": 7047,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0658,
+     "spawn_mean_sole_pitch_deg": -5.43,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": -0.0056,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0362,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0192,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.216,
+     "mean_sole_pitch_deg_steps_11_200": -0.1
+    },
+    {
+     "seed": 7048,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0078,
+     "spawn_mean_sole_pitch_deg": -1.9,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0008,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0515,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0379,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.011,
+     "mean_sole_pitch_deg_steps_11_200": -0.04
+    },
+    {
+     "seed": 7049,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": -0.0025,
+     "spawn_mean_sole_pitch_deg": 0.25,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.005,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0464,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0619,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": -0.08
+    },
+    {
+     "seed": 7050,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0072,
+     "spawn_mean_sole_pitch_deg": 1.09,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.004,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0482,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0575,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": -0.08
+    },
+    {
+     "seed": 7051,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0176,
+     "spawn_mean_sole_pitch_deg": -1.48,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0001,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0569,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0506,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.005,
+     "mean_sole_pitch_deg_steps_11_200": -0.03
+    },
+    {
+     "seed": 7052,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": -0.0031,
+     "spawn_mean_sole_pitch_deg": -0.79,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0024,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0526,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0533,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": -0.04
+    },
+    {
+     "seed": 7053,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": -0.0183,
+     "spawn_mean_sole_pitch_deg": 2.43,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0033,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0572,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0626,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": 0.14
+    },
+    {
+     "seed": 7054,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": -0.0286,
+     "spawn_mean_sole_pitch_deg": 3.45,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0061,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0493,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0663,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": -0.04
+    },
+    {
+     "seed": 7055,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": -0.0051,
+     "spawn_mean_sole_pitch_deg": 2.29,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0028,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0597,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.064,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": -0.04
+    },
+    {
+     "seed": 7056,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0228,
+     "spawn_mean_sole_pitch_deg": 0.35,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0042,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0377,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0531,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": -0.28
+    },
+    {
+     "seed": 7057,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.016,
+     "spawn_mean_sole_pitch_deg": -0.54,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0039,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.049,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0535,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": -0.11
+    },
+    {
+     "seed": 7058,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": -0.0171,
+     "spawn_mean_sole_pitch_deg": 0.87,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0026,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0614,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0583,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": -0.03
+    },
+    {
+     "seed": 7059,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0104,
+     "spawn_mean_sole_pitch_deg": -1.43,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0037,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0481,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0569,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": -0.07
+    },
+    {
+     "seed": 7060,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": -0.0061,
+     "spawn_mean_sole_pitch_deg": 1.16,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0036,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0502,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0651,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": -0.02
+    },
+    {
+     "seed": 7061,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.004,
+     "spawn_mean_sole_pitch_deg": -0.34,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0023,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0589,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0566,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": -0.05
+    },
+    {
+     "seed": 7062,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": -0.0002,
+     "spawn_mean_sole_pitch_deg": 0.15,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.004,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0515,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0621,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": -0.07
+    },
+    {
+     "seed": 7063,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0307,
+     "spawn_mean_sole_pitch_deg": -4.4,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0007,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0524,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0438,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.016,
+     "mean_sole_pitch_deg_steps_11_200": -0.23
+    },
+    {
+     "seed": 7064,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0228,
+     "spawn_mean_sole_pitch_deg": -2.96,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0003,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0553,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0481,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.021,
+     "mean_sole_pitch_deg_steps_11_200": -0.04
+    },
+    {
+     "seed": 7065,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.039,
+     "spawn_mean_sole_pitch_deg": -2.72,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0029,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0459,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0475,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.026,
+     "mean_sole_pitch_deg_steps_11_200": -0.26
+    },
+    {
+     "seed": 7066,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": -0.0397,
+     "spawn_mean_sole_pitch_deg": 3.38,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0054,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0485,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0522,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": 0.02
+    },
+    {
+     "seed": 7067,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0272,
+     "spawn_mean_sole_pitch_deg": -2.27,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0004,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0493,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0453,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": -0.12
+    },
+    {
+     "seed": 7068,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0006,
+     "spawn_mean_sole_pitch_deg": -0.56,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0028,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0485,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0548,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": -0.0
+    },
+    {
+     "seed": 7069,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": -0.0173,
+     "spawn_mean_sole_pitch_deg": 1.46,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0046,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0498,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0649,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": -0.07
+    },
+    {
+     "seed": 7070,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0028,
+     "spawn_mean_sole_pitch_deg": -0.6,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0021,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0547,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0521,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": -0.01
+    },
+    {
+     "seed": 7071,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0393,
+     "spawn_mean_sole_pitch_deg": -0.71,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0081,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0387,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0618,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.016,
+     "mean_sole_pitch_deg_steps_11_200": -0.48
+    },
+    {
+     "seed": 7072,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": -0.0002,
+     "spawn_mean_sole_pitch_deg": 1.36,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0036,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0571,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0635,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": -0.07
+    },
+    {
+     "seed": 7073,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": -0.0132,
+     "spawn_mean_sole_pitch_deg": 1.01,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0012,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0578,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.056,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": 0.12
+    },
+    {
+     "seed": 7074,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0312,
+     "spawn_mean_sole_pitch_deg": -1.15,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0019,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0457,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0402,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": -0.11
+    },
+    {
+     "seed": 7075,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0027,
+     "spawn_mean_sole_pitch_deg": -1.47,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0009,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0585,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0502,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": -0.01
+    },
+    {
+     "seed": 7076,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0235,
+     "spawn_mean_sole_pitch_deg": -1.39,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0057,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0376,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.055,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": -0.28
+    },
+    {
+     "seed": 7077,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0277,
+     "spawn_mean_sole_pitch_deg": -2.17,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0008,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0473,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0468,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.032,
+     "mean_sole_pitch_deg_steps_11_200": -0.09
+    },
+    {
+     "seed": 7078,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.009,
+     "spawn_mean_sole_pitch_deg": 0.12,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0015,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0594,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0552,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": -0.08
+    },
+    {
+     "seed": 7079,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.007,
+     "spawn_mean_sole_pitch_deg": -0.99,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0008,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0594,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0502,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": 0.0
+    },
+    {
+     "seed": 7080,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": -0.0164,
+     "spawn_mean_sole_pitch_deg": 2.4,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0047,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0454,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0536,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.0,
+     "mean_sole_pitch_deg_steps_11_200": -0.03
+    },
+    {
+     "seed": 7081,
+     "length": 1000,
+     "reason": "truncated",
+     "spawn_xcom_minus_pad_centre_m": 0.0267,
+     "spawn_mean_sole_pitch_deg": -1.42,
+     "mean_xcom_minus_pad_centre_m_steps_11_200": 0.0015,
+     "min_xcom_pad_toe_margin_m_steps_11_200": 0.0539,
+     "min_xcom_full_hull_margin_m_steps_11_200": 0.0479,
+     "pad_cop_both_toe_edge_frac_steps_11_200": 0.011,
+     "mean_sole_pitch_deg_steps_11_200": -0.06
+    }
+   ]
+  }
+ }
+}

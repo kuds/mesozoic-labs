@@ -22,6 +22,10 @@ from that layout:
   ``summary.json`` construction and its provenance block
 * :mod:`~environments.shared.reporting.bundles` — idempotent, Drive-portable
   result bundle publication
+* :mod:`~environments.shared.reporting.runs_summary` — the Drive summary
+  notebook's cross-run table (``runs_summary.csv``), written atomically, and the
+  repository's offline-judgement ledger (``results/offline_judgements.csv``) it
+  takes rows from
 * :mod:`~environments.shared.reporting.stage_layout` — where a stage's
   generated figures and replays live, and the local-staging publish
 * :mod:`~environments.shared.reporting.stage_artifacts` — post-training
@@ -45,6 +49,15 @@ from .csv_output import (
 )
 from .formatting import format_duration, format_duration_hms, parse_optional_bool
 from .gates import evaluate_recorded_gate, evaluate_stage_gate
+from .runs_summary import (
+    OFFLINE_JUDGEMENT_COLUMNS,
+    OFFLINE_JUDGEMENTS_PATH,
+    OfflineJudgementError,
+    load_offline_judgements,
+    merge_runs_summary,
+    source_counts,
+    write_runs_summary,
+)
 from .stage_artifacts import (
     build_stage_results_from_eval_data,
     evaluate_stage_checkpoints,
@@ -55,6 +68,9 @@ from .text_summaries import write_stage_summary, write_training_summary
 
 __all__ = [
     "CSV_METRIC_COLUMNS",
+    "OFFLINE_JUDGEMENTS_PATH",
+    "OFFLINE_JUDGEMENT_COLUMNS",
+    "OfflineJudgementError",
     "build_result_summary",
     "build_results_csv_rows",
     "build_stage_results_from_eval_data",
@@ -64,13 +80,17 @@ __all__ = [
     "format_duration",
     "format_duration_hms",
     "generate_stage_artifacts",
+    "load_offline_judgements",
+    "merge_runs_summary",
     "parse_optional_bool",
     "save_evaluation_episodes",
     "save_result_bundle",
     "save_results_csv",
     "save_results_json",
+    "source_counts",
     "stage_layout",
     "write_results_csv",
+    "write_runs_summary",
     "write_stage_summary",
     "write_training_summary",
 ]
