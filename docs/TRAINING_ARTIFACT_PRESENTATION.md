@@ -384,9 +384,10 @@ Two limits of the Hof keys (`hof_*`):
   and the window mean of `F/m` was -0.0099 m/s² forward against the CoM's
   -0.0001: on a quiet `frame_skip`-10 stance the `hof_*` window means are
   mostly the sampling phase of that substep, not the body's balance.
- The force keys decode the elliptic friction
-cone, which every model uses; under a pyramidal cone every force key but
-the two actuator ones would read NaN.
+
+The force keys decode the elliptic friction cone, which every model uses;
+under a pyramidal cone every force key but the two actuator ones would
+read NaN.
 
 The keys follow the pad keys' rule: a key exists only where the model has
 what it measures, so no model attaches a recorder it did not attach
@@ -424,19 +425,19 @@ console.
 ### The in-training `stance_quality/v2` screen
 
 On a stage whose gate is `stance_quality/v2` or the six-heading certificate
-`stance_quality_heading/v1` (which applies v2's decision) and whose recorder
-runs, every evaluation is also judged by the stage's own v2 bars:
+`stance_quality_heading/v1` (which applies v2's decision) and whose
+recorder runs, every evaluation is also judged by the stage's own v2 bars:
 `evaluate_stance_v2_gate(..., in_training=True)` on the evaluation's
 episodes, at yaw 0, on the evaluation env's own resets, without the
-statue-relative criteria (on the T. rex, `min_avg_reward_statue_ratio`;
-on the anatomical Compsognathus, that and
-`min_foot_load_share_statue_ratio`). Today that is the T. rex and the anatomical Compsognathus stances. The
+statue-relative criteria (on the T. rex, `min_avg_reward_statue_ratio`; on
+the anatomical Compsognathus, that and `min_foot_load_share_statue_ratio`).
+Today that is the T. rex and the anatomical Compsognathus stances. The
 Velociraptor's `stance_quality/v2` stance has no box pad and no recorder,
 so it has no screen. The screen shows during training whether an
-evaluation's episodes clear the stage's clean-episode bound at yaw 0. It
-is never a verdict: the certificate applies the full decision at six
-headings on its own seeded panel after the stage, and no gate, verdict or
-checkpoint selection reads these keys.
+evaluation's episodes clear the stage's clean-episode bound at yaw 0. It is
+never a verdict: the certificate applies the full decision at six headings
+on its own seeded panel after the stage, and no gate, verdict or checkpoint
+selection reads these keys.
 
 | Keys | Meaning |
 |---|---|
@@ -448,17 +449,18 @@ checkpoint selection reads these keys.
 | `screen_v2_fail_<criterion>_count` | Per criterion the gate counts (`horizon`, then each declared episode criterion): the episodes failing it; NaN for a criterion the screen skips (`min_foot_load_share_statue_ratio`), which it never judges |
 
 The key set is fixed by the stage's declaration, and every key is NaN on an
-evaluation the screen could not judge (a failed capture, an episode
-without metrics). A skipped criterion keeps its key, but its count is NaN
-on every evaluation: the gate's own tally starts it at 0, which would read
-as "no episode failed it" when the screen never applied it
-(`progress.json` lists it under `evaluation.screen_v2.skipped`). The names keep the screen apart from a verdict:
-`screen_v2_yaw0_bars_met` says what it is; no key is the recorded-history
-gate's `stance_clean_count` (`reporting/gates.py`), so nothing reads the
-screen as one; the per-criterion counts end in `_count`, so that no key
-ends in a foot rail's suffix (`..._sole_cop_fore_aft`), which the posture
-readers would take for a foot; and TensorBoard files them under their own
-namespace, `screen_v2/`, apart from `diagnostics/eval_gate_met`.
+evaluation the screen could not judge (a failed capture, an episode without
+metrics). A skipped criterion keeps its key, but its count is NaN on every
+evaluation: the gate's own tally starts it at 0, which would read as "no
+episode failed it" when the screen never applied it (`progress.json` lists
+it under `evaluation.screen_v2.skipped`). The names keep the screen apart
+from a verdict: `screen_v2_yaw0_bars_met` says what it is; no key is the
+recorded-history gate's `stance_clean_count` (`reporting/gates.py`), so
+nothing reads the screen as one; the per-criterion counts end in `_count`,
+so that no key ends in a foot rail's suffix (`..._sole_cop_fore_aft`),
+which the posture readers would take for a foot; and TensorBoard files them
+under their own namespace, `screen_v2/`, apart from
+`diagnostics/eval_gate_met`.
 
 ### The posture-drift advisory
 
