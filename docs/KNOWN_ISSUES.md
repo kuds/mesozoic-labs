@@ -163,6 +163,31 @@ robustness, **LOW** = cosmetic / QoL.
   [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2; launched that
   day, not yet judged). Record, numbers and evidence:
   [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).
+  **Update 8 (2026-10-18):** the walking pilot read STILL on all three seeds
+  (each STILL on 40 of 40 panel episodes at 4,194,304 steps; judged
+  2026-10-17, final), which by its criteria is too short to tell, and the
+  maintainer chose a second pilot with wider exploration (D-D36's amendment of
+  2026-10-18; not yet trained, no result). The stage's own six-heading
+  certificate, rolled offline on the r9 arm L symmetry-screen checkpoints
+  (report only: they were trained in a scratch harness on another task, so the
+  judge would refuse them), passes seed 60 (40/40) and seed 52 (38/40) at 6M
+  and fails seed 42 (29/40). The passes replicate on fresh seeds, but thinly:
+  seed 52 is at the minimum passing count (37/40) on one fresh panel, both 6M
+  checkpoints fall on audit seed 7047 where the statue stands, and the
+  reward-selected `robust_best` checkpoints are clean on 0 of 40 seeds under
+  their own action noise. The fore-aft bar has two blind spots. It reads the
+  pad's own CoP, which sits 0.10–0.25 pad half-lengths ahead of the COM
+  projection because part of the load rides on the digits at the MTP joints;
+  and it is unsigned, bounding |CoP| without telling a toe-ward stance from a
+  heel-ward one (seed 60 passes it with the smallest forward push margin of
+  the policies tested, and a track-like stance over the MTP joints would fail
+  it). Changing either is a gate decision for the maintainer. A foot and ankle
+  audit (measurement only) found nothing in the anatomy that pushes the stance
+  forward and lists seven candidate physics changes, none decided. The
+  two-seed ask stands: the only T-Rex stance trained on a committed physics-r9
+  config (run `20261011_165957`, Update 7) was refused, and no seed is
+  certified. Record, numbers and evidence: §15 of
+  [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).
 - **LOW** — **stage 1a (stance) contains no in-episode disturbance, so a
   stance-gate PASS certifies stance quality, not active balance control.** The
   only perturbation is joint-angle noise at reset (`reset_noise_scale 0.05`).

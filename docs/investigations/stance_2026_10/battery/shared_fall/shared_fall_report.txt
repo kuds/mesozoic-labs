@@ -1,0 +1,115 @@
+SHARED FALL REPLAY, seed 7047 -- OFFLINE EVALUATION of uncertified scratch-recipe checkpoints (r9 arm L symmetry
+screen, MirrorKLPPO + experiment_* keys, 6,291,456 steps). Report only; certifies nothing; no training.
+Every number below is read from scratchpad/foot/battery/shared_fall/shared_fall_summary.json (key path in [brackets]); that file is reduced by scripts/analyze_fall.py
+from replays/replay_<role>.json and replays/trace_<role>_y+0.npz (scripts/fall_replay.py). Figure: shared_fall_7047.png.
+
+  s60_6M: scratchpad/foot/symmetry/screen/runs/sym_lean_settled_s60/resume6m/models/stage1_6291456_steps.zip sha256 70f3a4447794a010..., vecnorm sha256 0567d6104a0795c0...
+  s52_6M: scratchpad/foot/symmetry/screen/runs/sym_lean_settled_s52/resume6m/models/stage1_6291456_steps.zip sha256 278637b9d4dc526b..., vecnorm sha256 1d2ada496798ff6f...
+  statue: zero action (home control) every step.
+Rollout: main 2e734e29 stance stage config (options off; arm L's lean term and settled leg target are reward-only),
+fresh env per heading, reset(seed=7047), whole-scene SpawnYaw turn, deterministic policy with frozen VecNormalize
+(stance_report._load_policy), main's SubstepContactRecorder attached; a read-only probe and a scratch MjData give the
+extra telemetry. Conventions: [conventions].
+
+0. IN PLAIN TERMS
+  Seed 7047's reset tips the animal forward: both pads start [-5.2, -5.67] deg toe-down with the heels
+  [14.4, 15.8] mm up and the XCoM 0.0658 m ahead of the pad centre,
+  0.0029 m short of the pad toe line (the most toe-down and most forward spawn of the 40 audit seeds, section 7).
+  The statue folds: trunk up to 6.75 deg nose-down, hips sag -3.58 deg into flexion, pelvis slides back, heels come down,
+  and it rocks between toe and heel edges with the XCoM never closer than 0.0192 m to the pad boundary.
+  Both policies hold the hips at or above home, extended relative to the statue's sag (servo targets +4.86/+2.23 deg s60, +1.45/+3.66 deg s52 at step 41) and the trunk near level, so the heels never
+  come down (closest to flat [-3.11, -3.62] / [-2.94, -3.39] deg). The pad CoP sits on the pad toe edge from step 5 / 6,
+  the XCoM passes the pad toe line at step 14 / 18 and never returns. With the CoP already at the edge the ankles
+  have nothing left to push with; the remaining support is the passive, spring-hinged digits, which take load near their tips
+  and bend up. The XCoM creeps forward (0.759 / 0.139 mm/step) and leaves the pad + digit-tip support at step 89 / 124
+  (t = 0.89 / 1.24 s). From there it is an inverted-pendulum topple straight forward over the toes (forward speed growth
+  2.536 / 2.363 1/s, a little under omega0 3.464 / 3.439 1/s), ending in head_contact at step 173 (s60) and nosedive at step 212 (s52),
+  both inside the 200-step settle window.
+  Nothing saturates: leg actuators peak at 0.202 / 0.181 of their force range, leg commands at |a| <= 0.349 / 0.375,
+  feet stay well inside the friction cone (net shear <= 0.394 / 0.417 of mu N). The only command at its bound is s60's neck pitch
+  (+1 from step 144, head driven down to its joint limit), a late response inside the topple, not its cause.
+  The failure is posture and support geometry, not actuator authority: on the worst spawn of the panel the policies keep
+  the body tipped over the pad toe edges instead of folding back onto the heels as the statue does.
+
+1. REPRODUCTION AND HEADINGS [crosscheck_vs_audit_certificates, headings]
+  s60_6M: lengths equal to the audit panel at all six headings (policy and statue): True; max |reward diff| 4.5e-12; source of the audit numbers scratchpad/foot/next_signals/howclose/audit7042_r9armL_s60_6291456_optoff/stance_heading_panel_selected.csv
+     replay: length 173, head_contact, at every heading [-90, -45, 0, 45, 90, 180]; max |CoM(heading frame) - CoM at heading 0| over the six = 0.0 m (6 dp)
+  s52_6M: lengths equal to the audit panel at all six headings (policy and statue): True; max |reward diff| 4.5e-12; source of the audit numbers scratchpad/foot/next_signals/howclose/audit7042_r9armL_s52_6291456_optoff/stance_heading_panel_selected.csv
+     replay: length 212, nosedive, at every heading [-90, -45, 0, 45, 90, 180]; max |CoM(heading frame) - CoM at heading 0| over the six = 0.0 m (6 dp)
+  statue: length 1000 (truncated) at all six headings, same max deviation 0.0 m. The fall is one episode repeated six times; heading 0 stands for all.
+
+2. THE SPAWN (identical for all three; [events.<role>.spawn], [events.<role>.heel.*spawn])
+  CoM 0.0549 m ahead of the pad centre; pad toe line 0.0687 m; XCoM 0.0658 m (s60/s52 0.0697/0.0689 after their first action); CoM forward speed 0.0441 m/s; omega0 3.2846 1/s.
+  Both pads spawn pitched toe-down [-5.2, -5.67] deg (R, L), heel corners [14.4, 15.8] mm up. The authored home keyframe has the CoM 0.0073 m ahead of the pad centre [home_keyframe_static].
+  So seed 7047 starts with the XCoM within 0.0029 m of the pad toe line (statue, after step 1) and the animal
+  tipped forward on its pad toe edges. The six sagittal leg joints all drew positive reset noise (replays/replay_statue.json:
+  episodes[].spawn_joint_offset_from_home).
+
+3. TIMELINE OF THE TWO FALLS (1-based control steps, 0.01 s each)
+  s60_6M [events.s60_6M.*]:
+    pad CoP reaches the pad toe edge on both feet at step 5 (t=0.05 s) and stays there for 93.3% of steps 11-end (heel edge 0.0%).
+    pads never flatten: closest to flat [-3.11, -3.62] deg, mean steps 11-60 [-4.26, -5.02] deg, heel corner lift mean steps 11-60 [10.6, 15.0] mm, min [8.1, 11.5] mm.
+    XCoM passes the pad toe line at step 14 (t=0.14 s) and never returns (negative for good from step 14 (t=0.14 s); largest margin after step 10 0.0062 m).
+    the CoM itself passes the pad toe line at step 26 (t=0.26 s).
+    support then = pad toe edge + the passive digits, loaded near their tips (load position along the digit, 0 = MTP, 1 = tip, at step 41: [None, 0.878, 0.867, 0.854, 0.88, 0.871]); whole-foot CoP on the span (+1 = pad toe line): {'11': [1.004, 0.999], '41': [1.012, 1.012], '81': [1.06, 1.054], '121': [1.167, 1.149], '161': [1.701, 1.641], '173': [1.841, 1.808]}.
+    creep: XCoM moves forward 0.759 mm/step over steps 31-81; pelvis over the pad centre (m) {'1': -0.0363, '21': -0.0297, '41': -0.0143, '61': -0.0034, '81': 0.0145, '101': 0.0486, '121': 0.1104, '141': 0.2171}.
+    the passive digits yield as they take load: MTP joints vs home (deg; negative = digit bent up against the metatarsus) {'41': {'r_toe_d2_joint': -0.81, 'r_toe_d3_joint': -1.76, 'r_toe_d4_joint': -0.98, 'l_toe_d2_joint': -0.83, 'l_toe_d3_joint': -1.89, 'l_toe_d4_joint': -0.36}, '121': {'r_toe_d2_joint': -1.16, 'r_toe_d3_joint': -6.53, 'r_toe_d4_joint': -2.92, 'l_toe_d2_joint': -1.11, 'l_toe_d3_joint': -6.31, 'l_toe_d4_joint': -2.93}, '173': {'r_toe_d2_joint': -4.87, 'r_toe_d3_joint': -21.31, 'r_toe_d4_joint': -11.69, 'l_toe_d2_joint': -5.09, 'l_toe_d3_joint': -21.41, 'l_toe_d4_joint': -12.15}}.
+    XCoM leaves the pad + digit-tip hull at step 89 (t=0.89 s) (first outside step 89 (t=0.89 s)); point of no return with the feet planted.
+    topple: forward CoM speed 0.1456 -> 1.1261 m/s, growth rate 2.536 1/s vs omega0 3.464 1/s (fit over steps [89, 170]): an inverted-pendulum topple about the toes.
+    end: head_contact at step 173; trunk 28.52 deg nose-down, head tip 0.105 m (head_contact < 0.12), forward_z -0.4775 (nosedive < -0.52), heels [109.4, 108.4] mm up, pad pitch [-50.7, -50.4] deg, pads unloaded / digits {'pad': [0.0, 0.0], 'digits': [0.291, 0.33], 'nonleg': 0.0} x BW.
+    direction: CoM moved [0.5164, 0.0197] m (fwd, left) from step 11, 2.2 deg off the heading; roll -0.03 deg, yaw change 0.67 deg. Straight forward, over the toes.
+  s52_6M [events.s52_6M.*]:
+    pad CoP reaches the pad toe edge on both feet at step 6 (t=0.06 s) and stays there for 95.5% of steps 11-end (heel edge 0.0%).
+    pads never flatten: closest to flat [-2.94, -3.39] deg, mean steps 11-60 [-3.95, -5.35] deg, heel corner lift mean steps 11-60 [9.9, 16.0] mm, min [7.9, 10.6] mm.
+    XCoM passes the pad toe line at step 18 (t=0.18 s) and never returns (negative for good from step 18 (t=0.18 s); largest margin after step 10 0.0224 m).
+    the CoM itself passes the pad toe line at step 36 (t=0.36 s).
+    support then = pad toe edge + the passive digits, loaded near their tips (load position along the digit, 0 = MTP, 1 = tip, at step 41: [None, 0.877, 0.866, 0.855, 0.881, 0.872]); whole-foot CoP on the span (+1 = pad toe line): {'11': [1.005, 1.001], '41': [1.02, 1.021], '81': [1.025, 1.032], '121': [1.042, 1.059], '161': [1.153, 1.175], '212': [1.778, 1.815]}.
+    creep: XCoM moves forward 0.139 mm/step over steps 31-81; pelvis over the pad centre (m) {'1': -0.0372, '21': -0.0406, '41': -0.0274, '61': -0.0214, '81': -0.0148, '101': -0.0034, '121': 0.018, '141': 0.0578}.
+    the passive digits yield as they take load: MTP joints vs home (deg; negative = digit bent up against the metatarsus) {'41': {'r_toe_d2_joint': -0.81, 'r_toe_d3_joint': -1.6, 'r_toe_d4_joint': -0.89, 'l_toe_d2_joint': -0.78, 'l_toe_d3_joint': -1.92, 'l_toe_d4_joint': -0.29}, '121': {'r_toe_d2_joint': -0.83, 'r_toe_d3_joint': -3.08, 'r_toe_d4_joint': -1.08, 'l_toe_d2_joint': -0.73, 'l_toe_d3_joint': -3.18, 'l_toe_d4_joint': -1.39}, '212': {'r_toe_d2_joint': -4.91, 'r_toe_d3_joint': -19.71, 'r_toe_d4_joint': -9.78, 'l_toe_d2_joint': -4.76, 'l_toe_d3_joint': -20.9, 'l_toe_d4_joint': -11.86}}.
+    XCoM leaves the pad + digit-tip hull at step 124 (t=1.24 s) (first outside step 124 (t=1.24 s)); point of no return with the feet planted.
+    topple: forward CoM speed 0.1487 -> 1.1543 m/s, growth rate 2.363 1/s vs omega0 3.439 1/s (fit over steps [124, 209]): an inverted-pendulum topple about the toes.
+    end: nosedive at step 212; trunk 31.8 deg nose-down, head tip 0.154 m (head_contact < 0.12), forward_z -0.527 (nosedive < -0.52), heels [108.3, 106.8] mm up, pad pitch [-48.1, -49.6] deg, pads unloaded / digits {'pad': [0.0, 0.0], 'digits': [0.309, 0.308], 'nonleg': 0.0} x BW.
+    direction: CoM moved [0.5484, 0.0086] m (fwd, left) from step 11, 0.9 deg off the heading; roll -1.6 deg, yaw change -2.46 deg. Straight forward, over the toes.
+
+4. THE STATUE ON THE SAME SEED [events.statue.*]
+  pads flatten (mean pitch steps 11-60 [-0.89, -1.47] deg, corner lift [2.6, 6.5] mm); pelvis moves back over the pads (m) {'1': -0.0378, '21': -0.054, '41': -0.0606, '61': -0.067, '81': -0.0774, '101': -0.1108, '121': -0.1369, '141': -0.1467}.
+  XCoM range [-0.0513, 0.0366] m about the pad centre; min signed margin to the pad hull 0.0192 m (toe 0.0336, heel 0.0192); pad CoP spans [-1.0, 1.0] (it rocks to the heel edge for 6.6% of steps and back); trunk [-2.18, 6.75] deg.
+  posture: trunk drops nose-down to 6.75 deg while the hips sag into flexion (hip pitch vs home at step 21/61: -3.58/-3.63 deg right).
+
+5. WHAT IS NOT LIMITING [events.<role>.actuators, .friction, .joint_deg_vs_home]
+  s60_6M: largest leg-actuator |force|/forcerange over the episode 0.202 (ankles 0.083/0.081, hip pitch 0.051/0.054); no actuator ever at its force limit: True; max |leg action| 0.349; commands at |a|>=0.99: {'neck_pitch': 0.173} (first step {'neck_pitch': 144}).
+     friction: net shear / (mu N) per foot max [0.394, 0.381] (steps 11-60 mean [0.134, 0.167]); force-weighted contact cone use max [0.734, 0.747]; foot-site slide [11.0, 10.2] mm.
+     joints within 0.5 deg of a range limit (fraction of steps): {'neck_pitch': 0.289, 'tail_1_pitch': 0.855, 'tail_2_pitch': 0.214} (statue: {'tail_1_pitch': 0.977, 'tail_2_pitch': 0.84})
+     largest joint excursions from home (deg): legs {'r_hip_pitch': 6.42, 'r_hip_roll': 1.25, 'r_knee': 6.47, 'r_ankle': 9.57, 'l_hip_pitch': 5.62, 'l_hip_roll': 1.8, 'l_knee': 7.41, 'l_ankle': 9.18}
+  s52_6M: largest leg-actuator |force|/forcerange over the episode 0.181 (ankles 0.071/0.091, hip pitch 0.041/0.073); no actuator ever at its force limit: True; max |leg action| 0.375; commands at |a|>=0.99: none (first step -).
+     friction: net shear / (mu N) per foot max [0.417, 0.334] (steps 11-60 mean [0.076, 0.08]); force-weighted contact cone use max [0.736, 0.735]; foot-site slide [9.2, 11.8] mm.
+     joints within 0.5 deg of a range limit (fraction of steps): {'tail_1_pitch': 0.896, 'tail_2_pitch': 0.047} (statue: {'tail_1_pitch': 0.977, 'tail_2_pitch': 0.84})
+     largest joint excursions from home (deg): legs {'r_hip_pitch': 6.54, 'r_hip_roll': 1.57, 'r_knee': 4.56, 'r_ankle': 6.78, 'l_hip_pitch': 7.38, 'l_hip_roll': 1.59, 'l_knee': 4.88, 'l_ankle': 7.16}
+  statue for scale: leg force fraction 0.077, friction [0.09, 0.093].
+
+6. WHAT THE POLICIES DO INSTEAD [events.<role>.applied_target_deg_vs_home_ctrl, .joint_deg_vs_home, kinematic_attribution_com_fwd_shift_m]
+  s60_6M: applied servo targets vs home at step 41 (deg): hip pitch 4.86/2.23, knee 2.07/3.14, ankle -2.62/-2.12, neck 5.98; joint angles at step 61: hip pitch 3.85/2.26, knee 1.48/2.98, ankle -1.43/-0.75 (statue -3.63/-1.21/-0.25 hip/knee/ankle right).
+  s52_6M: applied servo targets vs home at step 41 (deg): hip pitch 1.45/3.66, knee 1.29/3.14, ankle -1.04/0.84, neck 3.09; joint angles at step 61: hip pitch 0.78/1.62, knee 1.18/1.13, ankle 0.63/1.1 (statue -3.63/-1.21/-0.25 hip/knee/ankle right).
+  feet-held kinematic attribution (CoM fwd minus CoM with the group at home): all joints s60 step 61 0.0004 m, s52 step 61 -0.012 m, statue step 61 0.0176 m; neck+head s60 0.0016 m, tail 0.006 m. The joints stay near home; the forward CoM comes from the whole body staying tipped forward on the toe edges, not from a joint excursion.
+
+7. CONTEXT: the audit panel 7042-7081 at heading 0 [context_audit_panel_heading0]
+  ctx_s60_6M: falls [7047]; source scratchpad/foot/battery/shared_fall/context/replay_ctx_s60_6M.json
+  ctx_s52_6M: falls [7047]; source scratchpad/foot/battery/shared_fall/context/replay_ctx_s52_6M.json
+  ctx_statue: falls []; source scratchpad/foot/battery/shared_fall/context/replay_ctx_statue.json
+  spawn pad pitch (mean of feet): 7047 = -5.43 deg, rank 1 of 40 most toe-down; panel range -5.43 .. 3.45 deg.
+  spawn XCoM ahead of pad centre: 7047 = 0.0658 m, rank 1 of 40 (panel max 0.0658, min -0.0397).
+  ctx_s60_6M: lowest other-seed pad-toe margin on seed 7074; all 39 other seeds reach the horizon: True
+  ctx_s60_6M, the 39 other seeds, steps 11-200: pad CoP at the toe edge on both feet median 0.032 (range 0.0..0.205); min XCoM pad-toe margin median 0.024 m (lowest -0.0047); min XCoM pad+digit hull margin lowest 0.0644 m.
+  ctx_s52_6M: lowest other-seed pad-toe margin on seed 7063; all 39 other seeds reach the horizon: True
+  ctx_s52_6M, the 39 other seeds, steps 11-200: pad CoP at the toe edge on both feet median 0.0 (range 0.0..0.158); min XCoM pad-toe margin median 0.0406 m (lowest 0.0013); min XCoM pad+digit hull margin lowest 0.0316 m.
+  ctx_statue: lowest other-seed pad-toe margin on seed 7076; all 39 other seeds reach the horizon: True
+  ctx_statue, the 39 other seeds, steps 11-200: pad CoP at the toe edge on both feet median 0.0 (range 0.0..0.032); min XCoM pad-toe margin median 0.0515 m (lowest 0.0376); min XCoM pad+digit hull margin lowest 0.0379 m.
+
+CAVEATS
+  - Offline evaluation of uncertified scratch-recipe checkpoints; one seed; certifies nothing.
+  - The loaded-contact hull ([events.*.xcom_vs_loaded_contact_hull]) is a thin sliver when a pad bears on its toe
+    edge only, so it reads 'outside' from step 11 even for the statue; the pad and pad+digit-tip hulls carry the story.
+  - The digit-tip hull uses the capsule tips of the loaded feet; the digits are passive (MTP springs), so that edge
+    is softer than the pad edge. The kinematic attribution holds each foot at its pose and breaks the closed chain.
+  - Geometry is the boundary state after each step (scratch MjData forward pass); loads and CoPs are the recorder's
+    means over the step's 5 substeps.

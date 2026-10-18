@@ -441,7 +441,14 @@ single-node cell on the branch `claude/pilot-walk-r9`, which is never
 merged. Nothing it trains is certified, published or reused, so the next
 T-Rex session above is unchanged. A later PR records the pilot's
 outcome; the decision's full text is in
-[BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2.*
+[BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2.* *2026-10-18:
+the pilot read STILL on all three seeds (judged 2026-10-17, final; too
+short to tell, by its criteria), and the maintainer chose a second pilot,
+the same with one change: the action std reset to 0.2231 on every actuator
+at the warm start, from the branch `claude/pilot-walk-r9-b`, which is never
+merged; it is not yet trained (D-D36's amendment of 2026-10-18). Nothing it
+trains is certified, published or reused either, so the next T-Rex session
+above is still unchanged.*
 
 Notes:
 

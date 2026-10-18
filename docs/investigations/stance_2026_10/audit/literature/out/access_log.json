@@ -1,0 +1,29 @@
+{
+  "_what": "What the literature cross-check could and could not reach on 2026-10-17. Local copies are under literature/dl/ (each source in its own directory).",
+  "accessed": [
+    {"source": "Brochu 2003 (FMNH PR 2081 monograph), doi:10.1080/02724634.2003.10010947", "how": "Full DESCRIPTION text via the Plazi TreatmentBank DwC-A (GBIF dataset 6f85aa0a-0368-41a5-83d3-21c33f40845e) -> dl/plazi_brochu2003/x/desc_big.txt; pes figures 99-101, 104-106 from Zenodo (records 3740183, 3740035, 3740185, 3740043, 3740187, 3740189)", "got": "pes description (MT II-V, phalanges, unguals, MT I attachment, digit I not reversed); preserved material list; figure-digitised element lengths (out/brochu_pes_summary.json)", "missing": "the measurement tables (not in the Plazi text; the full article on Zenodo 3739929 is restricted; publisher page paywalled)"},
+    {"source": "Persons & Currie 2016, doi:10.1038/srep19828", "how": "Europe PMC full-text XML PMC4728391", "got": "Tables 1, 2, 4 (femur, tibia, MT III for five T. rex and Nanotyrannus specimens)", "missing": "no phalangeal data in this paper"},
+    {"source": "Hutchinson et al. 2011, doi:10.1371/journal.pone.0026037", "how": "Europe PMC XML PMC3192160", "got": "Tables 2-10 and text (COM, segment masses, per-limb convention via Table 10 footnote, femur and leg lengths)"},
+    {"source": "Hutchinson, Anderson, Blemker & Delp 2005, Paleobiology 31:676", "how": "Author-lab PDF https://nmbl.stanford.edu/publications/pdf/Hutchinson2005.pdf", "got": "Table 1 joint ranges (signs restored), MTP convention, MOR 555 pes segment 0.224 + 0.360 m, soft-tissue padding, hip-moment-arm optimum"},
+    {"source": "McCrea et al. 2014, doi:10.1371/journal.pone.0103613", "how": "Europe PMC XML PMC4108409", "got": "Table 1 (FL, digit lengths, divarication, digit and metatarsal-pad depths), hip heights, FL = 1.05 x summed digit III phalanges convention", "note": "Table 1 rows B1(R) and C1(R) have identical depth columns (possible duplication in the source)"},
+    {"source": "Boeye et al. 2026, doi:10.1098/rsos.252139 (CC BY 4.0)", "how": "publisher PDF mirrored at dinodata.de (publisher site served a bot challenge)", "got": "track-depth sentence, distal-first strike, MOR 555 hip heights 2.5-3.15 m, Table 1 2D leg lengths"},
+    {"source": "Lallensack, Farlow & Falkingham 2022", "how": "LJMU author PDF", "got": "digit IV MTP pad quote; resting-trace note"},
+    {"source": "Bates et al. 2009, doi:10.1371/journal.pone.0004532", "how": "Europe PMC XML PMC2639725", "got": "Table 8 best-estimate COM (MOR 555 0.468/-0.326 m; BHI 3033 0.572/-0.297 m)"},
+    {"source": "Bishop et al. 2018, doi:10.7717/peerj.5777", "how": "Europe PMC XML PMC6215443", "got": "subvertical femur, knee near vertical GRF rule, MTP reserve actuator", "missing": "numeric joint angles (figures only)"},
+    {"source": "Zhang et al. 2017 ostrich, doi:10.7717/peerj.3613", "how": "Europe PMC XML PMC5530993", "got": "digit III 84/77%, digit IV 14/23%, CoP origins"},
+    {"source": "Lin et al. 2024 emu, doi:10.1242/jeb.247519", "how": "Europe PMC XML PMC11708823", "got": "CoP within tarsometatarsus+digit BOS; COM vs caudal edge of TMP III"},
+    {"source": "Grossi et al. 2014, doi:10.1371/journal.pone.0088458", "how": "Europe PMC XML PMC3915051", "got": "CoM assumed over the middle of the foot (an assumption, not a measurement)"},
+    {"source": "Chang & Ting 2017, doi:10.1098/rsbl.2016.0948", "how": "WebFetch of PMC5454233 page", "got": "CoP directly under TMP joint; 3.2 +- 0.5 mm radius = 5-10% foot length", "missing": "foot length is never defined in the paper"},
+    {"source": "Schaller et al. 2009, doi:10.1111/j.1469-7580.2009.01083.x", "how": "WebFetch of PMC2705294 page + Europe PMC abstract", "got": "115/168/164/160 deg values; MTP elevated by ligaments", "missing": "explicit numeric angle convention"},
+    {"source": "Kambic et al. 2017, doi:10.1111/joa.12680", "how": "WebFetch of PMC5696129 page", "got": "hip FE 95-116 deg; knee and ankle 162-176 deg (amounts)"},
+    {"source": "Abstracts via Europe PMC", "how": "dl/abstracts/*.json", "got": "Fujiwara 2003 (45.7% FL), Fujiwara 2010 (31-58% FL), Falkingham & Gatesy 2014 (30 deg below horizontal), Schaller 2011 (claw at push-off; running load triangle), Loram & Lakie 2002 (91 +- 23%), Casadio 2005 (64 +- 8%)"}
+  ],
+  "not_accessed": [
+    {"source": "Brochu 2003 measurement tables", "why": "paywalled (T&F); Zenodo full-article record restricted; ResearchGate has no preview"},
+    {"source": "Farlow, Holtz, Worthy & Chapman 2013 'Feet of the fierce' (Tyrannosaurid Paleobiology, Indiana UP, pp. 89-134)", "why": "book chapter, no open copy found"},
+    {"source": "Farlow et al. 2000 (Am. Zool.), Lockley & Hunt 1994 (Tyrannosauripus), Manning et al. 2008, Enriquez et al. 2021", "why": "not attempted in full / no open copy found in this pass"},
+    {"source": "Gatesy, Baker & Hutchinson 2009; Hutchinson 2004a,b; Hutchinson & Garcia 2002 supplement", "why": "paywalled; pose angles not retrieved"},
+    {"source": "Osborn 1906/1916 T. rex pes", "why": "the AMNH 5027 foot was restored from Allosaurus material (secondary account), so it would not give T. rex pes data"},
+    {"source": "Plantar pressure of standing chickens/ratites", "why": "two searches found no pressure-plate study of quiet standing in any bird other than the flamingo"}
+  ]
+}

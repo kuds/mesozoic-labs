@@ -1,0 +1,67 @@
+{
+ "schema": "walking-pilot-judge/v2",
+ "tree": "scratchpad/pilot_runs/tree",
+ "branch": "claude/pilot-walk-r9",
+ "head": "eaeef50f7967afaf29e46beab468462b16e95f95",
+ "run": "scratchpad/pilot_runs/RUN_s52",
+ "seed": 52,
+ "steps": 3145728,
+ "checkpoint": "scratchpad/pilot_runs/RUN_s52/03_locomotion/models/stage2_3145728_steps.zip",
+ "checkpoint_sha256": "sha256:fd04623227848c2615a7107c908b5367bbffe8e49bbc07cb76f9ed4adbe2b588",
+ "vecnorm": "scratchpad/pilot_runs/RUN_s52/03_locomotion/models/stage2_vecnormalize_3145728_steps.pkl",
+ "vecnorm_sha256": "sha256:6d3cda02584bbaef4138f54da861948a83e711c4e14f5cb3b8556d1bf881064f",
+ "stage_config_run": {
+  "seed": 52,
+  "n_envs": 4,
+  "timesteps": 4194304,
+  "hyperparameters_sha256": "sha256:af78e50070229b4b397fe3c2487bde07615aeb439f24dafe1738be0b2f0e279a",
+  "label": "walking pilot s52",
+  "load_path": "/content/mesozoic-labs/pilot_checkpoints/r9_arm_l_s60_6291456/stage1_6291456_steps.zip",
+  "load_mode": "initialize_next_stage",
+  "parent_checkpoint_sha256": "sha256:70f3a4447794a01036c27bca5e0377a17db96d0e3d7bfb2d179e9ce94e6f353e",
+  "parent_task_sha256": "sha256:a2af3c5c828497c7600a7d4e62ffba1d1492ef64537da32a8fa007f64e94f5a4",
+  "duration_seconds": 13234.948277668
+ },
+ "stage_config_git_commit": "eaeef50f7967afaf29e46beab468462b16e95f95",
+ "commit_note": null,
+ "parent_checkpoint_sha256": "sha256:70f3a4447794a01036c27bca5e0377a17db96d0e3d7bfb2d179e9ce94e6f353e",
+ "hyperparameters_sha256": "sha256:af78e50070229b4b397fe3c2487bde07615aeb439f24dafe1738be0b2f0e279a",
+ "plant": {
+  "physics_revision": 9,
+  "physics_sha256": "sha256:3d68aec73fbc4642681ed601bedaf3524459d693d6a7afce036bb14bac872d67",
+  "policy_interface_sha256": "sha256:ffbf6631e4de0469cfcaa6771e80f47973b127342bc362f74190451e8555cbd8"
+ },
+ "ramp_timesteps": 2000000,
+ "warmup_timesteps": 300000,
+ "resume_step": null,
+ "off_schedule": false,
+ "off_schedule_reason": null,
+ "run_end": {
+  "periodic_steps": [
+   2097152,
+   3145728,
+   4194304
+  ],
+  "newest_periodic_steps": 4194304,
+  "final_num_timesteps": 4194304,
+  "final_source": "stage2_final.zip num_timesteps",
+  "budget": 4194304,
+  "stopped_early": false
+ },
+ "probe_args": [
+  "--species",
+  "tyrannosaurus_rex",
+  "--stage",
+  "locomotion",
+  "--episodes",
+  "40",
+  "--seed-scheme",
+  "panel",
+  "--seed-base",
+  "3042",
+  "--settle-steps",
+  "100"
+ ],
+ "expected_budget": 4194304,
+ "validation_only": false
+}

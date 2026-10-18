@@ -1,0 +1,38 @@
+CELL-LEVEL: in-training eval (10 eps, new spawns) at the checkpoint's own step vs the v2 panel (40 eps, 3042-3081)
+arm                    seed     step | train_over_bar train_cop_mean full_h | panel_cop_fail/40 panel_clean verdict
+sym_lean_settled         42  3145728 |          0.100          0.546  1.000 |                 6          30    FAIL
+sym_lean_settled         42  4194304 |          0.300          0.642  1.000 |                 9          30    FAIL
+sym_lean_settled         42  5242880 |          0.300          0.706  1.000 |                 8          32    FAIL
+sym_lean_settled         42  6291456 |          0.000          0.573  0.900 |                11          29    FAIL
+sym_lean_settled         52  3145728 |          0.000          0.393  1.000 |                 2          35    FAIL
+sym_lean_settled         52  4194304 |          0.000          0.457  1.000 |                 3          36    FAIL
+sym_lean_settled         52  5242880 |          0.000          0.424  1.000 |                 1          39    PASS
+sym_lean_settled         52  6291456 |          0.000          0.457  1.000 |                 2          38    PASS
+sym_lean_settled         60  3145728 |          0.000          0.593  1.000 |                 0          40    PASS
+sym_lean_settled         60  4194304 |          0.300          0.723  1.000 |                 8          31    FAIL
+sym_lean_settled         60  5242880 |          0.900          0.892  1.000 |                39           1    FAIL
+sym_lean_settled         60  6291456 |          0.000          0.434  1.000 |                 0          40    PASS
+sym_lean_settled_fa      42  3145728 |          0.000          0.442  1.000 |                 0           7    FAIL
+sym_lean_settled_fa      42  4194304 |          0.100          0.622  1.000 |                 2          19    FAIL
+sym_lean_settled_fa      42  5242880 |          0.000          0.498  0.900 |                 0           8    FAIL
+sym_lean_settled_fa      42  6291456 |          0.000          0.357  1.000 |                 0          39    PASS
+sym_lean_settled_fa      52  3145728 |          0.000          0.441  1.000 |                 0           1    FAIL
+sym_lean_settled_fa      52  4194304 |          0.000          0.442  1.000 |                 1           1    FAIL
+sym_lean_settled_fa      52  5242880 |          0.000          0.451  1.000 |                 1          31    FAIL
+sym_lean_settled_fa      52  6291456 |          0.300          0.691  1.000 |                22           4    FAIL
+sym_lean_settled_fa      60  3145728 |          0.000          0.756  1.000 |                 0          10    FAIL
+sym_lean_settled_fa      60  4194304 |          0.000          0.632  1.000 |                 2           2    FAIL
+sym_lean_settled_fa      60  5242880 |          0.000          0.644  1.000 |                 0           0    FAIL
+sym_lean_settled_fa      60  6291456 |          0.000          0.467  1.000 |                 2          38    FAIL
+
+n cells 24; Pearson r(train_over_bar, panel_cop_fail_fraction) = 0.921; Spearman = 0.423
+cells with train_over_bar == 0: 17; of them panel PASS: 5; panel cop failures in them: [11, 2, 3, 1, 2, 0, 0, 0, 0, 0, 0, 1, 1, 0, 2, 0, 2]
+cells with train_over_bar > 0: 7; of them panel PASS: 0
+
+SELECTION BACKTEST over every in-training evaluation (eval every 131,072 steps, 10 episodes):
+{'arm': 'sym_lean_settled', 'seed': 42, 'n_evals': 48, 'best_step': 524288, 'robust_step': 655360, 'robust_over_bar': 0.0, 'frac_evals_over_bar_zero': 0.4791666666666667, 'frac_evals_over_bar_zero_after_1M': 0.3902439024390244}
+{'arm': 'sym_lean_settled', 'seed': 52, 'n_evals': 48, 'best_step': 393216, 'robust_step': 917504, 'robust_over_bar': 0.0, 'frac_evals_over_bar_zero': 0.8125, 'frac_evals_over_bar_zero_after_1M': 0.8048780487804879}
+{'arm': 'sym_lean_settled', 'seed': 60, 'n_evals': 48, 'best_step': 524288, 'robust_step': 524288, 'robust_over_bar': 0.0, 'frac_evals_over_bar_zero': 0.6458333333333334, 'frac_evals_over_bar_zero_after_1M': 0.5853658536585366}
+{'arm': 'sym_lean_settled_fa', 'seed': 42, 'n_evals': 48, 'best_step': 917504, 'robust_step': 917504, 'robust_over_bar': 0.0, 'frac_evals_over_bar_zero': 0.7291666666666666, 'frac_evals_over_bar_zero_after_1M': 0.6829268292682927}
+{'arm': 'sym_lean_settled_fa', 'seed': 52, 'n_evals': 48, 'best_step': 917504, 'robust_step': 917504, 'robust_over_bar': 0.0, 'frac_evals_over_bar_zero': 0.7916666666666666, 'frac_evals_over_bar_zero_after_1M': 0.7560975609756098}
+{'arm': 'sym_lean_settled_fa', 'seed': 60, 'n_evals': 48, 'best_step': 393216, 'robust_step': 131072, 'robust_over_bar': 0.0, 'frac_evals_over_bar_zero': 0.8958333333333334, 'frac_evals_over_bar_zero_after_1M': 0.926829268292683}

@@ -1,0 +1,96 @@
+HOW CLOSE IS A CERTIFIED T. REX STANCE? Evidence tables (2026-10-17), report only.
+Tree: scratchpad/fix/main_ro = origin/main 2e734e29. "REC" = docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md,
+"EV" = docs/investigations/stance_2026_10/. Offline runs of this session: see offline_certificates.txt beside this file.
+
+A. THE BAR (configs/tyrannosaurus_rex/anatomical/stance.toml, main 2e734e29)
+  gate_kind = "stance_quality_heading/v1"                      stance.toml:513
+  6 whole-scene headings -90,-45,0,45,90,180 (fixed in code)   environments/shared/curriculum/stance_heading_gate.py:134
+  seeds 3042-3081 (PUBLICATION_SEED_START 3042)                 environments/shared/constants.py:34; stance.toml:652
+  min_eval_episodes = 40 (per heading, and the seed groups)     stance.toml:652
+  min_clean_stance_lcb = 0.80 -> 37/40 passes (LCB 0.8174), 36/40 fails (0.7856); applied at EACH heading AND to
+      seeds clean at ALL six headings                            stance.toml:656-659; stance_heading_gate.py:31-46
+  per-heading rails: min_full_horizon_fraction 0.95 (667), max_hop_or_fall_episodes 1 (780),
+      min_avg_reward 2250 (799), min_avg_reward_statue_ratio 0.60 (888)
+  episode bars (v2): all_feet_support>=0.98 (676), touchdown_rate<=0.25 (679), window displacement<=0.10 m (682),
+      foot_load_share>=0.40 (686), actuator_saturation<=0.10 (692), settle airborne substeps 0 (695),
+      settle peak force<=1.5 BW (699), windowed share>=0.35 (703), foot contact<=0.02 (707), phantom<=0.05 (709),
+      nonfoot load<=0.02 (711), sole tilt<=2.0 deg (712), corner lift<=0.004 m (718), sole contacts>=1.5 (722),
+      pad CoP fore-aft<=0.80 (732), settle width change<=0.08 m (756), settle touchdowns<=2 (765), yaw change<=25 deg (772)
+  required_consecutive = 3: scheduler hysteresis only; the in-training manager refuses this kind, nothing reads it   stance.toml:895-901
+  certification_seeds = 2: distinct-seed runs that must certify before the deliverable stops being "provisional"     stance.toml:902-913
+  Judge binding: the certificate must be for the stage's handoff pair (robust_best_model, else best_model) and the
+      task_sha256 the stage ran                                  environments/shared/reporting/gates.py:487-494, 653-679, 701-711;
+                                                                 environments/shared/curriculum/checkpoints.py:108-122
+  robust_best_model = highest (eval mean - risk_coef*std) reward  environments/shared/curriculum/checkpoints.py:37, 83
+  Statue (zero action) on r9: clean on 39/40 seeds at every heading, grouped LCB 0.887 = PASS   stance.toml:645-648
+
+B. SINGLE-HEADING stance_quality/v2 (yaw 0 only; NOT the stage's gate since D-D32)
+  Plant r9 = main. Clean/40 (LCB). Source: EV/r10_screen/score.json r9_cells (= the scratch judge files
+  foot/symmetry/screen/runs/sym_lean_settled_s*/judge_*.json) and EV/symmetry/verdict.json.
+  run                          4M            5M            6M             pad CoP>0.8 (4/5/6M, all 40)   reward 6M (statue 3755.7)
+  r9 arm L s42                 30 (0.613)    32 (0.668)    29 (0.586) F   9 / 8 / 11                    3738.4
+  r9 arm L s52                 36 (0.786)    39 (0.887) P  38 (0.851) P   3 / 1 / 2                     3724.8
+  r9 arm L s60                 31 (0.640)    1 (0.001)     40 (0.928) P   8 / 39 / 0                    3722.8
+  Earlier r9/r8 stance runs: run A 20261011_165957 (r9, seed 56, 12M, production config) 1/40 (REC:151-155;
+  KNOWN_ISSUES.md:154-155); D-D27 runs (r8) s42 0/40, s48 36/40, s52 39/40 on 3042 but 32/40 on 7042-7081 and 0/8
+  at -90/-45 deg (KNOWN_ISSUES.md:144-153; stance.toml:633-635).
+
+  Plant r10 (draft #623, PARKED; not main). Source: EV/r10_screen/score.json r10_cells; REC §6.4 (lines 535-571).
+  r10 arm L s42                35 (0.755)    38 (0.851) P  40 (0.928) P   foot-CoP rail 5 / 2 / 0       3951.7 (statue 3982.4)
+  r10 arm L s52                3 (0.021)     0             0              37 / 40 / 38                  3683.8
+  r10 arm L s60                0             0             0              39 / 40 / 39                  3740.5
+
+C. SIX-HEADING CERTIFICATE (stance_quality_heading/v1, the stage's gate) -- every result that exists
+  r10 notebook end-of-stage certificates, on robust_best_model (reward-selected), plant r10 (parked), arm L options on.
+  Source: EV/r10_screen/report_only_summary.json ("gate_verdict_12M"); REC:595-603, 810.
+  r10 s42  PASS  37/40 seeds clean at all six, LCB 0.8174 (exactly at the bar)   robust_best last written ~4.3M
+  r10 s52  FAIL  35/40, LCB 0.7550; hop_or_fall 2 > 1 at every heading            robust_best ~262k
+  r10 s60  FAIL  36/40, LCB 0.7856                                                robust_best = first eval (131,072)
+  No r9 (main plant) checkpoint had been rolled through the six-heading certificate before this session
+  (REC:89-91: "The stage's six-heading certificate ... was not part of any screen"). This session's offline runs:
+  offline_certificates.txt.
+
+D. ROBUSTNESS (report only; no committed gate reads it -- REC:919-921)
+  Joint-space noise falls / own-sigma falls, 20 spawns per seed (3042-3061), at 6M. Bars of the screens (not of the
+  gate): joint <= 7/60 pooled, own <= 3/60 pooled (REC:396-397, 524-525).
+  r9 arm L 6M:  s42 1/0, s52 1/0, s60 6/0 -> 8/60 joint (H4 FAIL), 0/60 own   EV/symmetry/verdict.json H_detail.H4_*
+  r10 arm L 6M: s42 0/0, s52 7/2, s60 9/0 -> 16/60 joint (K3 FAIL), 2/60 own  EV/r10_screen/score.json r10_cells
+  Roll rail at 6M (tilt>2 deg or corner lift>4 mm, full-horizon episodes): r9 arm L 2/0/0; r10 0/4/8   REC:429, 560
+  Fore-aft stability over training: r9 arm L s60 went 0 -> 39 -> 0 pad-CoP failures over 3-6M (REC:422-424, 458-460);
+  r10 s42 over-bar fraction 0.035 over 0-6M -> 0.169 over 6-12M in training evals (REC:604-608;
+  EV/r10_screen/report_only_summary.json).
+  Fresh-seed audit (7042-7081): no arm L checkpoint had one before this session; see offline_certificates.txt.
+
+E. THIS SESSION'S OFFLINE SIX-HEADING CERTIFICATES (main 2e734e29, plant r9 = main's; report only, no training)
+  Details per heading and per seed: offline_certificates.txt; per-bar margins: cert_margins.txt; CSV re-derivation:
+  rederive_from_csv.json (all 11 agree with their reports); cross-checks: cert_summary.json.
+  checkpoint (r9 arm L, scratch harness)          options  seeds       verdict  seeds clean at all 6  LCB     per heading clean
+  s42 stage1_6291456 (sha 96c5f865...)            off      3042-3081   FAIL     29/40                 0.5861  29 at every heading
+  s42 stage1_6291456                              armL     3042-3081   FAIL     29/40                 0.5861  29 at every heading
+  s52 stage1_6291456 (sha 278637b9...)            off      3042-3081   PASS     38/40                 0.8508  38 at every heading
+  s52 stage1_6291456                              armL     3042-3081   PASS     38/40                 0.8508  38 at every heading
+  s60 stage1_6291456 (sha 70f3a444..., pilot parent) off   3042-3081   PASS     40/40                 0.9278  40 at every heading
+  s60 stage1_6291456                              armL     3042-3081   PASS     40/40                 0.9278  40 at every heading
+  s52 stage1_6291456  AUDIT                       off      7042-7081   (PASS)   38/40                 0.8508  hop_or_fall 1 (= rail) per heading
+  s60 stage1_6291456  AUDIT                       off      7042-7081   (PASS)   39/40                 0.8868  hop_or_fall 1 (= rail) per heading
+  s42 robust_best_model (step 655,360)            off      3042-3081   PASS     40/40                 0.9278  40 at every heading
+  s52 robust_best_model (step 917,504)            off      3042-3081   PASS     39/40                 0.8868  39 at every heading
+  s60 robust_best_model (step 524,288)            off      3042-3081   PASS     40/40                 0.9278  40 at every heading
+  - 0 deg cells reproduce the scratch judge's v2 panels (judge_6291456.json) exactly: clean labels, reward and pad CoP
+    identical on all 40 seeds for s42/s52/s60 (cert_summary.json zero_deg_vs_scratch_judge_diffs = []).
+  - off vs armL: floor metrics identical (max abs diff 0.0, 0 clean-label differences): the options change only reward.
+    Rewards: off 3738.4/3724.8/3722.8 vs statue 3755.7 (ratio 0.991-0.995); armL 3902.1/3950.3/3903.1 vs statue 3980.4
+    (0.981-0.992). Rails 2250 and 0.60 x statue hold with wide margin either way.
+  - Every heading gives the same clean set (the policies observe no world heading; stance_heading_gate.py:21-25).
+  - Audit seed 7047: both s52 (nosedive, step 212) and s60 (head contact, step 173) fall; the statue stands on it.
+  - Unclean reasons: s42 pad CoP 66/240, tilt 12, corner 12; s52 pad CoP only (seeds 3050, 3063); s60 none, worst pad
+    CoP 0.780 (seed 3080) against the 0.80 bar (cert_margins.txt).
+  - robust_best_model = the pair select_handoff_checkpoint would hand the gate (checkpoints.py:108-122); in all three
+    runs its eval score (mean - std) stayed the best through 6M (evaluations.npz of the 0-3M and 3-6M segments; train.log
+    "RobustBestModel" lines at 524,288 / 655,360 / 917,504).
+  - Wall time: 955-985 s per checkpoint with 4 runs in parallel on this 4-CPU machine (single-threaded each);
+    1460-1776 s when 7 ran at once.
+  - Not gate evidence: the runs recorded task_sha256 a2af3c5c... (scratch experiment_* keys; resume6m/task_fingerprint.json);
+    these certificates roll bde44225... (off) and cd963518... (armL), so the judge refuses them
+    (environments/shared/reporting/gates.py:701-711); audits on 7042 are refused as gate evidence by design
+    (environments/shared/scripts/stance_gate_report.py:44-47, 377-383).

@@ -1,0 +1,108 @@
+OFFLINE SIX-HEADING CERTIFICATES (stance_quality_heading/v1), main 2e734e29, report only, no training.
+Function: environments/shared/reporting/stance_report.py:2089 build_stance_heading_report (the call the notebook's
+end-of-stage certificate makes, environments/shared/reporting/stage_artifacts.py:357-369), stage config from
+load_stage_config(tyrannosaurus_rex/anatomical, 1) = configs/tyrannosaurus_rex/anatomical/stance.toml.
+opt off = stance.toml [env] as committed; opt armL = plus lateral_lean_weight 0.25, lateral_lean_tolerance_m 0.015,
+leg_home_pose_reference 'settled' (environments/tyrannosaurus_rex/base_env.py:273-275). Runner: scripts/run_cert.py.
+
+== cert5042_r9armL_s52_6291456_optoff
+   model stage1_6291456_steps.zip sha256 278637b9d4dc526bfc46ca52c6be34f08355476a82b23c2af645df2bb1e9dfaf
+   vecnorm stage1_vecnormalize_6291456_steps.pkl sha256 1d2ada496798ff6f4fc379d983758a20902d4660cf5183adb8f557554363dd84
+   options off; seeds 5042-5081; task_sha256 sha256:bde44225b024856c200b3e9a75840bc5bc5859c577599248b116681b21d846a6; gate_sha256 sha256:06375c211ddae7a57b102b19d9bd8e81aefe602b4b7ff77da35466f6e0fff7f6; 935 s
+   VERDICT PASS: 37/40 seeds clean at all six headings, LCB 0.8174 (bar 0.80)
+     heading    -90: clean 37/40 LCB 0.8174 full-horizon 40/40 hop_or_fall 0 reward 3719.0 statue 3753.0 ratio 0.991 heading PASS
+     heading    -45: clean 37/40 LCB 0.8174 full-horizon 40/40 hop_or_fall 0 reward 3719.0 statue 3753.0 ratio 0.991 heading PASS
+     heading     +0: clean 37/40 LCB 0.8174 full-horizon 40/40 hop_or_fall 0 reward 3719.0 statue 3753.0 ratio 0.991 heading PASS
+     heading    +45: clean 37/40 LCB 0.8174 full-horizon 40/40 hop_or_fall 0 reward 3719.0 statue 3753.0 ratio 0.991 heading PASS
+     heading    +90: clean 37/40 LCB 0.8174 full-horizon 40/40 hop_or_fall 0 reward 3719.0 statue 3753.0 ratio 0.991 heading PASS
+     heading   +180: clean 37/40 LCB 0.8174 full-horizon 40/40 hop_or_fall 0 reward 3719.0 statue 3753.0 ratio 0.991 heading PASS
+   unclean seeds (headings): 5048 (6/6); 5061 (6/6); 5073 (6/6)
+   episode-reason counts over 240: max_sole_cop_fore_aft 18, max_sole_tilt_deg 6, max_sole_corner_lift_m 6, min_sole_contacts 6
+
+== cert5042_r9armL_s52_robustbest_optoff
+   model robust_best_model.zip sha256 aff76f537be53e355042f9150ed9a24bb3ba5c49402f1a1b3823ddca485995da
+   vecnorm robust_best_model_vecnorm.pkl sha256 759f90af588644af667fe42bcc9480025bc73ff093becf4d6c3f8d240b2c907a
+   options off; seeds 5042-5081; task_sha256 sha256:bde44225b024856c200b3e9a75840bc5bc5859c577599248b116681b21d846a6; gate_sha256 sha256:06375c211ddae7a57b102b19d9bd8e81aefe602b4b7ff77da35466f6e0fff7f6; 947 s
+   VERDICT PASS: 40/40 seeds clean at all six headings, LCB 0.9278 (bar 0.80)
+     heading    -90: clean 40/40 LCB 0.9278 full-horizon 40/40 hop_or_fall 0 reward 3772.1 statue 3753.0 ratio 1.005 heading PASS
+     heading    -45: clean 40/40 LCB 0.9278 full-horizon 40/40 hop_or_fall 0 reward 3772.1 statue 3753.0 ratio 1.005 heading PASS
+     heading     +0: clean 40/40 LCB 0.9278 full-horizon 40/40 hop_or_fall 0 reward 3772.1 statue 3753.0 ratio 1.005 heading PASS
+     heading    +45: clean 40/40 LCB 0.9278 full-horizon 40/40 hop_or_fall 0 reward 3772.1 statue 3753.0 ratio 1.005 heading PASS
+     heading    +90: clean 40/40 LCB 0.9278 full-horizon 40/40 hop_or_fall 0 reward 3772.1 statue 3753.0 ratio 1.005 heading PASS
+     heading   +180: clean 40/40 LCB 0.9278 full-horizon 40/40 hop_or_fall 0 reward 3772.1 statue 3753.0 ratio 1.005 heading PASS
+
+== cert5042_r9armL_s60_6291456_optoff
+   model stage1_6291456_steps.zip sha256 70f3a4447794a01036c27bca5e0377a17db96d0e3d7bfb2d179e9ce94e6f353e
+   vecnorm stage1_vecnormalize_6291456_steps.pkl sha256 0567d6104a0795c0201ff8db4b1045e907bf3100ca9ae60fa4028c4f907c0fc1
+   options off; seeds 5042-5081; task_sha256 sha256:bde44225b024856c200b3e9a75840bc5bc5859c577599248b116681b21d846a6; gate_sha256 sha256:06375c211ddae7a57b102b19d9bd8e81aefe602b4b7ff77da35466f6e0fff7f6; 916 s
+   VERDICT PASS: 40/40 seeds clean at all six headings, LCB 0.9278 (bar 0.80)
+     heading    -90: clean 40/40 LCB 0.9278 full-horizon 40/40 hop_or_fall 0 reward 3719.4 statue 3753.0 ratio 0.991 heading PASS
+     heading    -45: clean 40/40 LCB 0.9278 full-horizon 40/40 hop_or_fall 0 reward 3719.4 statue 3753.0 ratio 0.991 heading PASS
+     heading     +0: clean 40/40 LCB 0.9278 full-horizon 40/40 hop_or_fall 0 reward 3719.4 statue 3753.0 ratio 0.991 heading PASS
+     heading    +45: clean 40/40 LCB 0.9278 full-horizon 40/40 hop_or_fall 0 reward 3719.4 statue 3753.0 ratio 0.991 heading PASS
+     heading    +90: clean 40/40 LCB 0.9278 full-horizon 40/40 hop_or_fall 0 reward 3719.4 statue 3753.0 ratio 0.991 heading PASS
+     heading   +180: clean 40/40 LCB 0.9278 full-horizon 40/40 hop_or_fall 0 reward 3719.4 statue 3753.0 ratio 0.991 heading PASS
+
+== cert5042_r9armL_s60_robustbest_optoff
+   model robust_best_model.zip sha256 c99f555ce7a36ac4654f71d2a412010e37cd4f64412d81e595262112526c276c
+   vecnorm robust_best_model_vecnorm.pkl sha256 70f2d19d405ff475222bd0255a979632181cecd05d4b55df74590bb63b0b6f9b
+   options off; seeds 5042-5081; task_sha256 sha256:bde44225b024856c200b3e9a75840bc5bc5859c577599248b116681b21d846a6; gate_sha256 sha256:06375c211ddae7a57b102b19d9bd8e81aefe602b4b7ff77da35466f6e0fff7f6; 956 s
+   VERDICT PASS: 40/40 seeds clean at all six headings, LCB 0.9278 (bar 0.80)
+     heading    -90: clean 40/40 LCB 0.9278 full-horizon 40/40 hop_or_fall 0 reward 3790.5 statue 3753.0 ratio 1.010 heading PASS
+     heading    -45: clean 40/40 LCB 0.9278 full-horizon 40/40 hop_or_fall 0 reward 3790.5 statue 3753.0 ratio 1.010 heading PASS
+     heading     +0: clean 40/40 LCB 0.9278 full-horizon 40/40 hop_or_fall 0 reward 3790.5 statue 3753.0 ratio 1.010 heading PASS
+     heading    +45: clean 40/40 LCB 0.9278 full-horizon 40/40 hop_or_fall 0 reward 3790.5 statue 3753.0 ratio 1.010 heading PASS
+     heading    +90: clean 40/40 LCB 0.9278 full-horizon 40/40 hop_or_fall 0 reward 3790.5 statue 3753.0 ratio 1.010 heading PASS
+     heading   +180: clean 40/40 LCB 0.9278 full-horizon 40/40 hop_or_fall 0 reward 3790.5 statue 3753.0 ratio 1.010 heading PASS
+
+== cert9042_r9armL_s52_6291456_optoff
+   model stage1_6291456_steps.zip sha256 278637b9d4dc526bfc46ca52c6be34f08355476a82b23c2af645df2bb1e9dfaf
+   vecnorm stage1_vecnormalize_6291456_steps.pkl sha256 1d2ada496798ff6f4fc379d983758a20902d4660cf5183adb8f557554363dd84
+   options off; seeds 9042-9081; task_sha256 sha256:bde44225b024856c200b3e9a75840bc5bc5859c577599248b116681b21d846a6; gate_sha256 sha256:06375c211ddae7a57b102b19d9bd8e81aefe602b4b7ff77da35466f6e0fff7f6; 936 s
+   VERDICT PASS: 39/40 seeds clean at all six headings, LCB 0.8868 (bar 0.80)
+     heading    -90: clean 39/40 LCB 0.8868 full-horizon 40/40 hop_or_fall 0 reward 3721.9 statue 3756.8 ratio 0.991 heading PASS
+     heading    -45: clean 39/40 LCB 0.8868 full-horizon 40/40 hop_or_fall 0 reward 3721.9 statue 3756.8 ratio 0.991 heading PASS
+     heading     +0: clean 39/40 LCB 0.8868 full-horizon 40/40 hop_or_fall 0 reward 3721.9 statue 3756.8 ratio 0.991 heading PASS
+     heading    +45: clean 39/40 LCB 0.8868 full-horizon 40/40 hop_or_fall 0 reward 3721.9 statue 3756.8 ratio 0.991 heading PASS
+     heading    +90: clean 39/40 LCB 0.8868 full-horizon 40/40 hop_or_fall 0 reward 3721.9 statue 3756.8 ratio 0.991 heading PASS
+     heading   +180: clean 39/40 LCB 0.8868 full-horizon 40/40 hop_or_fall 0 reward 3721.9 statue 3756.8 ratio 0.991 heading PASS
+   unclean seeds (headings): 9062 (6/6)
+   episode-reason counts over 240: max_sole_cop_fore_aft 6
+
+== cert9042_r9armL_s52_robustbest_optoff
+   model robust_best_model.zip sha256 aff76f537be53e355042f9150ed9a24bb3ba5c49402f1a1b3823ddca485995da
+   vecnorm robust_best_model_vecnorm.pkl sha256 759f90af588644af667fe42bcc9480025bc73ff093becf4d6c3f8d240b2c907a
+   options off; seeds 9042-9081; task_sha256 sha256:bde44225b024856c200b3e9a75840bc5bc5859c577599248b116681b21d846a6; gate_sha256 sha256:06375c211ddae7a57b102b19d9bd8e81aefe602b4b7ff77da35466f6e0fff7f6; 987 s
+   VERDICT PASS: 40/40 seeds clean at all six headings, LCB 0.9278 (bar 0.80)
+     heading    -90: clean 40/40 LCB 0.9278 full-horizon 40/40 hop_or_fall 0 reward 3776.6 statue 3756.8 ratio 1.005 heading PASS
+     heading    -45: clean 40/40 LCB 0.9278 full-horizon 40/40 hop_or_fall 0 reward 3776.6 statue 3756.8 ratio 1.005 heading PASS
+     heading     +0: clean 40/40 LCB 0.9278 full-horizon 40/40 hop_or_fall 0 reward 3776.6 statue 3756.8 ratio 1.005 heading PASS
+     heading    +45: clean 40/40 LCB 0.9278 full-horizon 40/40 hop_or_fall 0 reward 3776.6 statue 3756.8 ratio 1.005 heading PASS
+     heading    +90: clean 40/40 LCB 0.9278 full-horizon 40/40 hop_or_fall 0 reward 3776.6 statue 3756.8 ratio 1.005 heading PASS
+     heading   +180: clean 40/40 LCB 0.9278 full-horizon 40/40 hop_or_fall 0 reward 3776.6 statue 3756.8 ratio 1.005 heading PASS
+
+== cert9042_r9armL_s60_6291456_optoff
+   model stage1_6291456_steps.zip sha256 70f3a4447794a01036c27bca5e0377a17db96d0e3d7bfb2d179e9ce94e6f353e
+   vecnorm stage1_vecnormalize_6291456_steps.pkl sha256 0567d6104a0795c0201ff8db4b1045e907bf3100ca9ae60fa4028c4f907c0fc1
+   options off; seeds 9042-9081; task_sha256 sha256:bde44225b024856c200b3e9a75840bc5bc5859c577599248b116681b21d846a6; gate_sha256 sha256:06375c211ddae7a57b102b19d9bd8e81aefe602b4b7ff77da35466f6e0fff7f6; 927 s
+   VERDICT PASS: 39/40 seeds clean at all six headings, LCB 0.8868 (bar 0.80)
+     heading    -90: clean 39/40 LCB 0.8868 full-horizon 40/40 hop_or_fall 0 reward 3722.7 statue 3756.8 ratio 0.991 heading PASS
+     heading    -45: clean 39/40 LCB 0.8868 full-horizon 40/40 hop_or_fall 0 reward 3722.7 statue 3756.8 ratio 0.991 heading PASS
+     heading     +0: clean 39/40 LCB 0.8868 full-horizon 40/40 hop_or_fall 0 reward 3722.7 statue 3756.8 ratio 0.991 heading PASS
+     heading    +45: clean 39/40 LCB 0.8868 full-horizon 40/40 hop_or_fall 0 reward 3722.7 statue 3756.8 ratio 0.991 heading PASS
+     heading    +90: clean 39/40 LCB 0.8868 full-horizon 40/40 hop_or_fall 0 reward 3722.7 statue 3756.8 ratio 0.991 heading PASS
+     heading   +180: clean 39/40 LCB 0.8868 full-horizon 40/40 hop_or_fall 0 reward 3722.7 statue 3756.8 ratio 0.991 heading PASS
+   unclean seeds (headings): 9062 (6/6)
+   episode-reason counts over 240: max_sole_cop_fore_aft 6
+
+== cert9042_r9armL_s60_robustbest_optoff
+   model robust_best_model.zip sha256 c99f555ce7a36ac4654f71d2a412010e37cd4f64412d81e595262112526c276c
+   vecnorm robust_best_model_vecnorm.pkl sha256 70f2d19d405ff475222bd0255a979632181cecd05d4b55df74590bb63b0b6f9b
+   options off; seeds 9042-9081; task_sha256 sha256:bde44225b024856c200b3e9a75840bc5bc5859c577599248b116681b21d846a6; gate_sha256 sha256:06375c211ddae7a57b102b19d9bd8e81aefe602b4b7ff77da35466f6e0fff7f6; 991 s
+   VERDICT PASS: 40/40 seeds clean at all six headings, LCB 0.9278 (bar 0.80)
+     heading    -90: clean 40/40 LCB 0.9278 full-horizon 40/40 hop_or_fall 0 reward 3793.4 statue 3756.8 ratio 1.010 heading PASS
+     heading    -45: clean 40/40 LCB 0.9278 full-horizon 40/40 hop_or_fall 0 reward 3793.4 statue 3756.8 ratio 1.010 heading PASS
+     heading     +0: clean 40/40 LCB 0.9278 full-horizon 40/40 hop_or_fall 0 reward 3793.4 statue 3756.8 ratio 1.010 heading PASS
+     heading    +45: clean 40/40 LCB 0.9278 full-horizon 40/40 hop_or_fall 0 reward 3793.4 statue 3756.8 ratio 1.010 heading PASS
+     heading    +90: clean 40/40 LCB 0.9278 full-horizon 40/40 hop_or_fall 0 reward 3793.4 statue 3756.8 ratio 1.010 heading PASS
+     heading   +180: clean 40/40 LCB 0.9278 full-horizon 40/40 hop_or_fall 0 reward 3793.4 statue 3756.8 ratio 1.010 heading PASS
