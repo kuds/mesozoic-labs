@@ -7,22 +7,35 @@ each switched off -- the capture callback's ``report_extensions`` (the
 eval-episode ledger, the in-training v2 screen, the balance and force
 fields, the mirror-even leg DC, the reward-term split and the force
 matrix), the action-jerk reward key, the PostureTrend watch, the
-per-rollout episode and fall counts and the training-episode ledger.  The
-two runs train and evaluate exactly alike (the same ``evaluations.npz``,
-the same tensors in every checkpoint, the same VecNormalize statistics),
-the plain run writes the key sets the base of this change (``2e734e29``)
-writes for the same run, pinned below as they were derived there, and the
-full run adds exactly this change's keys and its ledgers.
+per-rollout episode and fall counts, the training-episode ledger and the
+policy probe.  The two runs train and evaluate exactly alike (the same
+``evaluations.npz``, the same tensors in every checkpoint, the same
+VecNormalize statistics), the plain run writes the key sets the base of
+this change (``2e734e29``) writes for the same run, pinned below as they
+were derived there, and the full run adds exactly this change's keys, its
+ledgers and its probe file.
+
+Both runs are instrumented alike, outside the code under test: a hash of
+every ``RolloutBuffer.add`` (observation, action, reward, episode start,
+value, log-probability), and before every rollout (so after every PPO
+update) and at the end of ``learn()`` a hash of the policy's parameters,
+its optimizer state and the global generators (``numpy.random``,
+``random``, torch).  The two sequences must be identical: the training-side
+telemetry, the probe's state bank included, draws no random number and
+changes no update.
 """
 
 from __future__ import annotations
 
 import csv
+import hashlib
 import io
 import json
 import pickle
+import random
 import zipfile
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pytest
@@ -94,14 +107,78 @@ ADDED_GATE_PROGRESS_KEYS = frozenset(
 )
 
 
+def _digest(*arrays) -> str:
+    digest = hashlib.sha256()
+    for array in arrays:
+        if hasattr(array, "detach"):
+            array = array.detach().cpu().numpy()
+        digest.update(np.ascontiguousarray(np.asarray(array)).tobytes())
+    return digest.hexdigest()
+
+
+def _state_digest(model) -> str:
+    """The policy's parameters, its optimizer's state and the global generators, as one hash."""
+    import torch
+
+    tensors: list = []
+
+    def walk(value) -> None:
+        if isinstance(value, torch.Tensor):
+            tensors.append(value)
+        elif isinstance(value, dict):
+            for key in sorted(value, key=str):
+                walk(value[key])
+        elif isinstance(value, (list, tuple)):
+            for item in value:
+                walk(item)
+        elif isinstance(value, (int, float)):
+            tensors.append(np.float64(value))
+
+    walk(model.policy.state_dict())
+    walk(model.policy.optimizer.state_dict())
+    numpy_state: Any = np.random.get_state()  # the legacy tuple: (name, keys, pos, has_gauss, cached_gaussian)
+    return _digest(
+        *tensors,
+        numpy_state[1],
+        np.array(numpy_state[2:4], dtype=np.int64),
+        np.frombuffer(repr(random.getstate()).encode(), dtype=np.uint8),
+        torch.get_rng_state(),
+    )
+
+
+def _instrument(monkeypatch, record: dict) -> None:
+    """Hash every rollout-buffer add, and the state before every rollout and at the end of ``learn()``."""
+    from stable_baselines3.common.buffers import RolloutBuffer
+    from stable_baselines3.common.on_policy_algorithm import OnPolicyAlgorithm
+
+    add, collect, learn = RolloutBuffer.add, OnPolicyAlgorithm.collect_rollouts, OnPolicyAlgorithm.learn
+
+    def hashed_add(self, *args, **kwargs):
+        record["rollout_add"].append(_digest(*args, *kwargs.values()))
+        return add(self, *args, **kwargs)
+
+    def hashed_collect(self, *args, **kwargs):
+        record["updates"].append(_state_digest(self))
+        return collect(self, *args, **kwargs)
+
+    def hashed_learn(self, *args, **kwargs):
+        result = learn(self, *args, **kwargs)
+        record["learn_end"] = _state_digest(self)
+        return result
+
+    monkeypatch.setattr(RolloutBuffer, "add", hashed_add)
+    monkeypatch.setattr(OnPolicyAlgorithm, "collect_rollouts", hashed_collect)
+    monkeypatch.setattr(OnPolicyAlgorithm, "learn", hashed_learn)
+
+
 def _train(root: Path, monkeypatch, *, additions: bool) -> Path:
     """Train the T. rex stance for 768 steps into ``root/run/01_stance``; ``additions=False`` switches every
-    addition of this change off."""
+    addition of this change off.  The instrumentation's record goes to ``root/run/instrumentation.json``."""
     pytest.importorskip("stable_baselines3")
     pytest.importorskip("mujoco")
     import torch
 
-    from environments.shared import curriculum, rollout_ledger, train_base
+    from environments.shared import curriculum, policy_probe, rollout_ledger, train_base
     from environments.shared.config import load_all_stages
     from environments.shared.diagnostics import DiagnosticsCallback
     from environments.shared.eval_diagnostics import StageAwareEvalCallback
@@ -119,6 +196,9 @@ def _train(root: Path, monkeypatch, *, additions: bool) -> Path:
         monkeypatch.setattr(curriculum, "build_posture_trend_watch_callback", lambda *a, **k: None)
         monkeypatch.setattr(DiagnosticsCallback, "record_rollout_counts", False)
         monkeypatch.setattr(rollout_ledger, "build_training_ledger_callback", lambda *a, **k: None)
+        monkeypatch.setattr(policy_probe, "build_policy_probe_callback", lambda *a, **k: None)
+    record: dict[str, Any] = {"rollout_add": [], "updates": [], "learn_end": None}
+    _instrument(monkeypatch, record)
     configs = load_all_stages(TYRANNOSAURUS_REX)
     stance = configs[1]
     stance["env_kwargs"]["max_episode_steps"] = int(stance["curriculum_kwargs"]["settle_steps"]) + 40
@@ -144,6 +224,7 @@ def _train(root: Path, monkeypatch, *, additions: bool) -> Path:
         )
     finally:
         torch.set_num_threads(threads)
+    (run / "instrumentation.json").write_text(json.dumps(record), encoding="utf-8")
     return run / "01_stance"
 
 
@@ -213,10 +294,20 @@ def test_the_additions_change_no_evaluation_no_checkpoint_and_no_normalization(t
         assert (mine.clip_obs, mine.clip_reward, mine.gamma) == (theirs.clip_obs, theirs.clip_reward, theirs.gamma)
 
 
+def test_the_training_side_telemetry_draws_no_random_number_and_changes_no_update(trained):
+    """Every rollout step, every PPO update and the generators at the end of ``learn()`` are the same."""
+    full, plain = (json.loads((stage.parent / "instrumentation.json").read_text(encoding="utf-8")) for stage in trained)
+    assert len(full["rollout_add"]) == STEPS and len(full["updates"]) == STEPS // 256 and full["learn_end"]
+    assert full["rollout_add"] == plain["rollout_add"]
+    assert full["updates"] == plain["updates"]
+    assert full["learn_end"] == plain["learn_end"]
+
+
 def test_the_plain_run_writes_the_bases_artifacts(trained):
     _full, plain = trained
     assert not (plain / "eval_episodes.csv").exists()
     assert not (plain / "train_episodes.csv").exists()
+    assert not (plain / "policy_probe.npz").exists()
     gate = _keys(plain / "gate_progress.npz")
     diagnostics = _keys(plain / "diagnostics.npz")
     assert {key for key in gate if not key.startswith("termination_")} == BASE_GATE_PROGRESS_KEYS
@@ -274,3 +365,8 @@ def test_the_full_run_writes_the_ledger_and_the_progress_blocks(trained):
     diagnostics = _keys(full / "diagnostics.npz")
     assert int(diagnostics["rollout_episodes"].sum()) == len(train_rows)
     assert int(diagnostics["rollout_falls"].sum()) == sum(row["cause"] != "truncated" for row in train_rows)
+    with np.load(full / "policy_probe.npz", allow_pickle=False) as probe:
+        # One row per PPO update, and the whole bank although the stage's horizon is 240 steps.
+        assert probe["update_timesteps"].tolist() == [256, 512, 768]
+        assert len(probe["bank_labels"]) == 10 and int(probe["bank_horizon"]) == 601
+        assert probe["bank_action_now"].shape == (3, 10, 15)

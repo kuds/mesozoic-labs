@@ -690,6 +690,7 @@ def _build_core_callbacks(
     model_id: ModelId | None = None,
     total_timesteps: int | None = None,
     seed: int | None = None,
+    policy_probe_env_factory: Callable[[int], Any] | None = None,
 ) -> tuple[list, Any, Any]:
     """Build the standard callback set shared by train() and train_curriculum().
 
@@ -704,6 +705,9 @@ def _build_core_callbacks(
     silently mis-timed (review TC9).  ``None`` keeps the TOML fallback for
     callers that predate the parameter.  ``seed`` is the run's seed, which
     ``progress.json`` records (``None``: not recorded).
+    ``policy_probe_env_factory(horizon)`` builds a bare env of the stage
+    with that ``max_episode_steps``, the policy probe's state-bank env
+    (``None``: no probe).
     """
     from .curriculum import (
         DEFAULT_MAX_CHECKPOINTS,
@@ -720,6 +724,7 @@ def _build_core_callbacks(
     )
     from .diagnostics import DiagnosticsCallback as _DiagCB
     from .eval_diagnostics import build_stage_evaluation_callbacks
+    from .policy_probe import build_policy_probe_callback
     from .rollout_ledger import build_training_ledger_callback
     from .tb_sync import PeriodicTbSyncCallback
     from .wandb_integration import WandbCallback
@@ -854,6 +859,23 @@ def _build_core_callbacks(
     )
     if training_ledger_cb is not None:
         callbacks.append(training_ledger_cb)
+
+    # Report-only: at every PPO update, the policy's per-actuator std, the
+    # normalizer, and its values and mean actions on a fixed bank of states
+    # (statue and ankle leans, built once per session on its own env under a
+    # guard of the global generators), in policy_probe.npz on the checkpoint
+    # cadence.  Forward passes under no_grad only; none for SAC.  None
+    # without a bank env factory.  See `policy_probe`.
+    policy_probe_cb = build_policy_probe_callback(
+        model_id=model_id,
+        env_factory=policy_probe_env_factory,
+        stage_horizon=int(stage_config.get("env_kwargs", {}).get("max_episode_steps", 1000)),
+        log_dir=log_path,
+        flush_every_calls=checkpoint_stride,
+        verbose=verbose,
+    )
+    if policy_probe_cb is not None:
+        callbacks.append(policy_probe_cb)
 
     # Collapse early-stop is a backstop against a genuinely diverging stage.
     # Its thresholds are configurable via the stage's [curriculum] section;
@@ -1372,6 +1394,12 @@ def _train_stage_body(
         # the budget-anchored advisories must follow --timesteps and resumes.
         total_timesteps=target_timesteps,
         seed=seed,
+        # The policy probe's state bank runs on its own bare env of this
+        # stage, at a horizon it chooses: never make_env (which seeds the
+        # global generators) and never a training or evaluation env.
+        policy_probe_env_factory=lambda horizon: species_cfg.env_class(
+            **{**dict(config["env_kwargs"]), "max_episode_steps": horizon}
+        ),
     )
 
     if resuming:
