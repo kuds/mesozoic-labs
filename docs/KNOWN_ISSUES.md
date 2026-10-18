@@ -188,6 +188,22 @@ robustness, **LOW** = cosmetic / QoL.
   config (run `20261011_165957`, Update 7) was refused, and no seed is
   certified. Record, numbers and evidence: §15 of
   [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).
+  **Update 9 (2026-10-18):** an offline diagnosis (no training) found that
+  the committed stance reward pays for a forward lean of about 23 mm through
+  its keyframe-centred leg pose term; arm L's settled leg target removes that
+  pay but prices a 14 mm lean at only about 0.3% of the reward, and the lean
+  lives in the ankles (about 10.7 mm of the centre of mass per degree, so the
+  pad bar is about 4° away). On 2026-10-18 the maintainer chose three full
+  12M stance screen runs on physics r9 instead of the second walking pilot,
+  which is parked (decision D-D37,
+  [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2): arm L on seed
+  60, and arm L with the settled leg pose term at weight 1.0 and tolerance
+  0.05 rad on seeds 60 and 52, judged by criteria fixed before training that
+  add a signed per-foot whole-foot centre-of-pressure bar and a no-drift bar,
+  both screen only. They were launched on Colab L4 runtimes that day and are
+  not yet judged; as screens they certify nothing. The two-seed ask stands.
+  Record, numbers and evidence: §16 of
+  [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).
 - **LOW** — **stage 1a (stance) contains no in-episode disturbance, so a
   stance-gate PASS certifies stance quality, not active balance control.** The
   only perturbation is joint-angle noise at reset (`reset_noise_scale 0.05`).

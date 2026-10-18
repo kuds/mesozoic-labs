@@ -24,6 +24,13 @@ are rows of the repository's ledger,
 [`results/offline_judgements.csv`](../../../results/README.md#offline-judgements-offline_judgementscsv)
 (28 rows, each pointing at its file here).
 
+One more folder was added later on 2026-10-18: `stance3/`, the
+pre-registration of the three full T. rex stance screen runs of decision
+D-D37 (the note's §16): their fixed criteria, Colab steps, the recommendation
+that designed them from the offline diagnosis of 2026-10-18, and frozen copies
+of their judge and scorer. It holds no judgement: the runs were launched on
+2026-10-18 and are not yet judged, and as screens they certify nothing.
+
 ## What changed in the copies
 
 [SOURCES.txt](SOURCES.txt) lists every file with the scratch file it came from,
@@ -65,6 +72,17 @@ scratch's `logs/` directories `run_logs/` or `judge_logs/`, because the
 repository's `.gitignore` ignores every directory named `logs`. SOURCES.txt
 ends with the per-episode certificate files that were not copied (about 1.8 MB
 and 0.76 MB each), with their sha256 and size.
+
+*Added 2026-10-18 (`stance3/`):* `stance3/criteria.txt` and
+`stance3/colab_steps.txt` are byte-identical to the files the maintainer
+received (the criteria's sha256 `1ce910dc…` is the one recorded before
+training, and the file has no final newline, which is kept so that its hash
+stays that one; the repository's pre-commit `end-of-file-fixer` would add one,
+so leave it out of a manual pre-commit run). `stance3/recommendation.md` and
+the judge and scorer carry the **prefix** change only; as in `judge_r10.py`,
+their `SCRATCH` constant now resolves `scratchpad` relative to the working
+directory. Nothing else differs, and none of the six held a model
+identifier, an email address or a commit trailer.
 
 [SHA256SUMS](SHA256SUMS) pins every file here but this README and itself
 (`sha256sum -c SHA256SUMS` in this directory).
@@ -345,6 +363,33 @@ approval. Its `NS/` citations are the files beside it here (`certify/`,
 `NS/howclose/`, which is `offline_certificates/`. Its code citations are to
 `main` `2e734e29`.
 
+### Added on 2026-10-18 (decision D-D37)
+
+**`stance3/`: three full T. rex stance screen runs, pre-registered
+(decided 2026-10-18; launched that day on Colab L4 runtimes, not yet judged).**
+Run 1 `stance3_armL_s60` (arm L as #624 ships it, seed 60; branch
+`claude/screen-trex-r9-arml-12m` at `7e6b557d`), Runs 2 and 3
+`stance3_armLT_s60` and `stance3_armLT_s52` (arm L plus
+`leg_home_pose_weight` 1.0 and `leg_home_pose_tolerance` 0.05 rad; branch
+`claude/screen-trex-r9-armlt` at `1af2d4d7`), each 12M steps on physics r9;
+neither branch is ever merged or has a pull request.
+
+- `criteria.txt`: K1-K4 and the decision table, written before any training
+  step (sha256 `1ce910dc…`). Its title's "2026-10-19" is the date first
+  planned; the runs started on 2026-10-18.
+- `colab_steps.txt`: how the runs are launched and resumed, as sent. It names
+  a CPU runtime; the maintainer kept L4 for all three (the note's §16.2).
+- `recommendation.md`: the offline diagnosis of 2026-10-18 ("What the offline
+  work found"), the three runs, the criteria, an alternative layout, the
+  concerns, the decisions it asked for and the build specification. Its `T/`
+  paths (`scratchpad/foot/tonight/`) and `SP/` paths name the session's
+  scratch, where the diagnosis' tables and scripts stay.
+- `judge/judge_stance3.py` (judges one checkpoint against its branch clone,
+  binding plant, task, symmetry record and commit), `judge/score_stance3.py`
+  (scores K1-K4, the run verdicts and the decision-table line, and the
+  report-only readouts) and `judge/test_score_stance3.py` (80 cases at every
+  bar).
+
 ## How to re-check each verdict
 
 Commands as run on 2026-10-17 from a copy of this directory (Python 3.13;
@@ -381,6 +426,9 @@ copies.
 | The audit's geometry summary (2026-10-18) | `python3 audit/geometry/scripts/trex_geom_summary.py audit/geometry/geometry_audit.json out.txt` | the source's bytes (sha256 `1632ed48…`; the copy drops one trailing space) |
 | The rest of `battery/` and `audit/` (session scratch only) | their scripts read per-episode panels, traces, MuJoCo rolls on `main` `2e734e29` and downloaded papers, none of which is kept here | not re-run on 2026-10-18 |
 | The files themselves (2026-10-18) | `sha256sum -c SHA256SUMS` | all 285 files OK |
+| The stance3 scorer at every bar (2026-10-18; session scratch only) | from a directory holding the session's scratch as `scratchpad/` (the scorer asserts the original `frozen_params.json`, sha256 `58b2c8fb…`, and the criteria's `1ce910dc…` there): `python3 -I <this directory>/stance3/judge/test_score_stance3.py` | 80/80 cases as expected |
+| The stance3 criteria (2026-10-18) | `sha256sum stance3/criteria.txt` | `1ce910dcd6e2ff7b41a4f592b9f34b9a6c9cb398c523e88f0ebd19af754f18fa` |
+| The files themselves (2026-10-18, with `stance3/`) | `sha256sum -c SHA256SUMS` | all 291 files OK |
 
 `test_pilot_score.py` prints sample "Walking pilot score" blocks while it runs;
 they score synthetic panels, not the pilot.
@@ -437,3 +485,7 @@ code (14), unused imports (14), f-strings without placeholders (4), stray
 semicolons (2), and one each of a bare `except`, a lambda assigned to a name
 and an unused variable. Most are in the verifiers' scripts
 (`battery/verify_skeptic/`, 91). `ruff format --check` would reformat all 43.
+
+The three `stance3/judge/` scripts added later on 2026-10-18 pass `ruff check`
+under the same configuration (ruff 0.16.9); `ruff format --check` would
+reformat all three. They are left as they ran.

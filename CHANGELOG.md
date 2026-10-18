@@ -8,8 +8,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **Decision D-D37 recorded: three full T. rex stance screen runs in place of
+  walking pilot 2; the offline diagnosis behind them** (the maintainer's
+  decision of 2026-10-18; `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2,
+  `docs/CONSOLIDATION_PLAN_2026_09.md` §6, a dated note in §17 of
+  `docs/GAIT_QUALITY_PLAN_2026_09.md`, `docs/NEXT_STEPS.md` §3; the appended
+  §16 of `docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md` and
+  the folder `docs/investigations/stance_2026_10/stance3/`). Records only: no
+  library code, configuration, test, notebook, digest or generated file
+  changes with it. After walking pilot 1 read STILL, the maintainer asked for
+  three stance runs with "different reward settings, slightly different
+  mechanics, or a refinement", and the offline diagnosis of 2026-10-18 (rolls of
+  existing checkpoints, the statue and held poses; no training) found that
+  the committed stance reward pays for a forward lean of about 23 mm through
+  its keyframe-centred leg pose term, that arm L's settled leg target removes
+  the pay but prices a 14 mm lean at only about 0.3% of the reward, and that
+  the lean lives in the ankles (about 10.7 mm per degree). D-D37 trains three
+  12M stance screen runs on `main`'s physics r9, started on 2026-10-18 on
+  Colab L4 runtimes (the maintainer kept L4 for all three): arm L as #624
+  ships it on seed 60 (`stance3_armL_s60`, branch
+  `claude/screen-trex-r9-arml-12m` at `7e6b557d`), and arm L with
+  `leg_home_pose_weight` 1.0 and `leg_home_pose_tolerance` 0.05 rad on seeds
+  60 and 52 (`stance3_armLT_s60`, `stance3_armLT_s52`, branch
+  `claude/screen-trex-r9-armlt` at `1af2d4d7`); neither branch is ever
+  merged or has a pull request. They are judged by criteria fixed before
+  training (sha256 `1ce910dc…`: K1 the gate held, K2 fore-aft held with the
+  screen-only K2b, a signed per-foot whole-foot centre of pressure, and K2c,
+  no drift, K3 robustness, K4 roll) and a decision table; screens certify
+  nothing, and whether a screen run could ever count toward
+  `certification_seeds` is left to the maintainer. It supersedes, for these
+  runs, the 2026-10-16 rule against further stance-only reward experiments
+  unless walking points back to stance, and parks walking pilot 2 (its branch
+  and criteria kept). Run 1's `stage_config.json` on Drive confirms its
+  commit, arm L's keys, its task and PPO hyperparameter digests, a statue
+  standing at 3980.37 (39 of 40) and an L4 GPU. `stance3/` holds the
+  criteria (byte-identical), the Colab steps, the recommendation and frozen
+  copies of the judge, the scorer and its tests (80 cases); `SOURCES.txt`
+  and `SHA256SUMS` (now 291 files) are extended. `docs/README.md` adds a note
+  to the record's and the gait plan's rows, and `docs/KNOWN_ISSUES.md` gains
+  Update 9 of the T-Rex stance entry. The outcome is not yet known.
 - **Balance, force and policy telemetry at every evaluation and PPO update,
-  and the T. rex stance's onset checkpoints kept, report-only** (the
+  and the T. rex stance's onset checkpoints kept, report-only** (#630; the
   maintainer's approval of 2026-10-17 of the T. rex stance telemetry
   recommended after the physics-r10 screen). The T. rex stance runs that
   nosedived reached the toe line with every foot rail still inside its

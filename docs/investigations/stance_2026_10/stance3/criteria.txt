@@ -1,0 +1,80 @@
+T. REX STANCE, THREE SCREEN RUNS OF 2026-10-19: FIXED CRITERIA
+
+Write this to SP/foot/stance3/criteria.txt before any training step. Record its sha256 in both config commit messages and in colab_steps.txt. Do not edit it after the first training step.
+
+WHAT IS TRAINED
+All three runs share these settings:
+- physics r9; the stance stage; the SB3 notebook; n_envs 4;
+- 12,000,000 steps (final 12,001,280);
+- an evaluation of 10 episodes every 131,072 steps;
+- a checkpoint every 524,288 steps, all kept;
+- the committed PPO schedules.
+
+The runs:
+- Run 1 (stance3_armL_s60, branch claude/screen-trex-r9-arml-12m): arm L as #624 ships it (lateral_lean_weight 0.25, lateral_lean_tolerance_m 0.015, leg_home_pose_reference "settled"; mirror_kl kappa 0.3, sigma floor 0.01, mirrored critic). Seed 60.
+- Run 2 (stance3_armLT_s60, branch claude/screen-trex-r9-armlt): Run 1 plus leg_home_pose_weight 1.0 (was 0.5) and leg_home_pose_tolerance 0.05 rad (was 0.10). Seed 60.
+- Run 3 (stance3_armLT_s52): Run 2's branch and config. Seed 52.
+
+HOW IT IS JUDGED
+The judge is judge_stance3.py: the r10 screen's judge, ported to r9 and to each branch's clone, with all binding checks on (plant, task, symmetry record, commit).
+- Deterministic, heading 0. The 40-episode panel on seeds 3042-3081 runs under the branch's own stance [env] and r9 bars, scored by stance_quality/v2.
+- The zero-action statue runs on the same seeds under the same env.
+- Noise tests: spawns 3042-3061. Joint-space noise uses frozen_params.json control_sigma[seed] (sha256 58b2c8fb...); the own-sigma test uses the checkpoint's own exp(log_std). A fall is an episode shorter than 1000 steps.
+- Judged checkpoints J: 4,194,304; 5,242,880; 6,291,456; 8,388,608; 10,485,760; and final (stage1_final, 12,001,280).
+- A missing or invalid judge file fails every criterion that needs it.
+
+CRITERIA, PER RUN
+
+K1 gate held:
+- v2 PASS at 6,291,456 and at final. PASS means clean >= 37/40 with exact Clopper-Pearson LCB >= 0.80, full horizon >= 38/40, hop-or-fall <= 1, and the repository verdict PASS.
+- Across J, at most one checkpoint below 37/40 clean and none below 33/40.
+
+K2 fore-aft held, at every checkpoint in J:
+- K2a, pad rail: at most 3 of 40 episodes with max_sole_cop_fore_aft > 0.80. A non-full-horizon episode counts as over.
+- K2b, signed per-foot whole-foot CoP: at most 3 of 40 episodes in which either foot's <label>_foot_cop_fore_aft lies outside [-0.929, +0.571] span half-lengths. The statistic is the mean over loaded steps in the window, steps 200-999. On r9 the range is [-5, +100] mm ahead of that foot's MTP III, with x = 60 + 70 w mm. A non-full-horizon episode counts as outside.
+- K2c, no drift: the panel median of the both-feet whole-foot CoP (which equals the COM projection to within 0.5 mm) lies within [-60, +30] mm of the statue's median on the same seeds, and its range over the six checkpoints is at most 30 mm.
+
+K3 robustness, at 6,291,456 and at final: joint-space noise falls <= 2 of 20, and own-sigma falls <= 1 of 20.
+
+K4 roll, at 6,291,456 and at final: at most 3 of 40 full-horizon episodes with max_sole_tilt_deg > 2.0 or max_sole_corner_lift_m > 0.004.
+
+Run verdicts:
+- HOLDS: K1-K4 all hold.
+- FORE-AFT HOLDS: K1 and K2 hold.
+
+WHERE SCRATCH R9 ARM L STOOD
+Reference only: a scratch harness, 6.29M, the same tests where they exist.
+- K1 at 6M: clean 29/38/40, so s42 fails.
+- K2a at 4M/5M/6M: s42 9/8/11, s52 3/1/2, s60 8/39/0.
+- K2b: s60 at 5M had 40 episodes outside; s60 at 6M had 1 (seed 3080); s52 at 6M had 1 (seed 3050).
+- K2c: s60 at +26/+52/+3 mm fails; s52 at -44/-37/-38 mm passes; s42 at +11/+3/+18 mm passes.
+- K3: joint-noise falls 1/1/6 of 20, so s60 fails; own-sigma 0.
+- K4: 2/0/0.
+Sources: r10_screen/score.txt, T/cop_statistic/out/analysis2.txt, T/onset/out/tables.txt.
+
+RECIPE VERDICTS AND WHAT FOLLOWS (decided now)
+1. L+T HOLDS on both Run 2 and Run 3: propose committing L+T to the maintainer (arm L's switches plus the two leg keys, collapse reference 4460.5), then certify it on 2 seeds under the committed config.
+2. L+T FORE-AFT HOLDS on both but fails K3 or K4: the drift is fixed. The next round adds the leg exploration-noise floor to L+T (new PPO-side code: log_std >= ln 0.08 on the hip-pitch, knee and ankle actuators).
+3. L+T fails K2 on either seed:
+   a. If Run 1 HOLDS, arm L (config-only) stays the candidate. Replicate it on 2 more seeds before committing.
+   b. If Run 1 also fails K2, a joint-space price does not hold the stance. The next round tests either a fore-aft term that needs code (the ankle anchor, w 0.4, tolerance 0.10 rad; or the COM band penalty with a neck guard) or the v6b ankle spring.
+4. L+T fails K1 through new failure modes (saturation, hop, nosedive, head contact) while K2 holds: the dose is too strong. Next: weight 0.75 at tolerance 0.05 (statue 4215.5, measured in T/refine_plan/out/statue_ref.json).
+5. Exactly one L+T seed HOLDS: the recipe is not separated from seed luck. Replicate before any commit.
+
+In every case, the best final checkpoint of the three runs is offered as the stance parent for the parked walking pilot 2: most clean panel episodes, with ties going to fewer joint-space plus own-sigma falls.
+
+Fails stay fails. Runs are never stopped or changed on their readouts. Early reads at 1M and 2M are report-only.
+
+PRE-REGISTERED READOUTS (report only, never in a verdict)
+- K5 trajectory, from eval_episodes.csv: after 3,145,728 steps, any 4 consecutive evaluations whose full-horizon mean com_fore_aft_mean_m lies outside [statue - 0.060, statue + 0.030] m. The statue reads about -0.016 m in that foot-site frame.
+- The late-fall fraction (200 < length < 1000) per 262,144-step bin, from train_episodes.csv. Flag anything above 5%. Arm L s60 peaked at 15.8% (T/noise_robustness/work/falls_by_phase.txt).
+- A 20-episode quick panel (3042-3061) at every 524,288-step checkpoint; 3,145,728 judged like J.
+- Common noise: sigma = exp(log_std) of scratch arm L s60 robust_best (legs about 0.152), 40 seeds, falls only. Reference: arm L s60 at 6M 38/40.
+- Forward-start tail panel: the 32 seeds of T/noise_robustness/work/tail_seeds.txt. References: statue 0, arm L s60 6M 3, s52 6M 7, s42 6M 26.
+- At final: the fresh panel 7042-7081 and the six-heading certificate.
+- Per-term reward decomposition; ankle, knee and hip DC; neck and tail posture; per-actuator saturation; leg log_std.
+- Selection comparison, each candidate on the 40-seed panel and own-noise falls:
+  - S0: robust_best.
+  - S1: best.
+  - S2: final.
+  - S3, late-stable: the latest periodic checkpoint at or after 3,145,728 steps whose preceding 8 evaluations were all 10/10 full horizon, with pad and whole-foot over-bar fractions of 0.

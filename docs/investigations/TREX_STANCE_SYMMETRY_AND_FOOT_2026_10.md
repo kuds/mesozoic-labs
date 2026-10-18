@@ -19,6 +19,14 @@ trained, no result); their evidence was added to
 [stance_2026_10/](stance_2026_10/README.md) on 2026-10-18. The status above
 is unchanged.*
 
+*Status 2026-10-18, later (appended): §16, appended the same day, records
+the offline diagnosis of 2026-10-18 and the maintainer's decision D-D37 of
+that day: three full T. rex stance screen runs on physics r9 instead of
+walking pilot 2, which is parked; the runs were launched that day and are
+not yet judged. Their criteria, Colab steps, recommendation and frozen judge
+are in [stance_2026_10/stance3/](stance_2026_10/README.md). The statuses
+above are unchanged.*
+
 It continues [STANCE_REWARD_PILOT_FINDINGS_2026_10.md](STANCE_REWARD_PILOT_FINDINGS_2026_10.md)
 (2026-10-10), [STANCE_HACK_AUDIT_2026_10.md](STANCE_HACK_AUDIT_2026_10.md)
 §12 (the physics-r9 statue) and the blog post
@@ -1357,3 +1365,171 @@ launched.
   only the seed 60 6M pair survives elsewhere, on both pilot branches),
   pilot 1's traces and plots, the battery's per-episode panels and traces,
   and the audit's downloaded papers and posture rolls.
+
+## 16. Status 2026-10-18 (appended): the offline diagnosis and three full stance screen runs
+
+*Appended 2026-10-18; §1–§15 above are unchanged.* After pilot 1 read
+STILL (§15.1), the maintainer asked on 2026-10-18 for three T. rex stance
+runs with "different reward settings, slightly different mechanics, or a
+refinement". The offline diagnosis of 2026-10-18 (rolls of existing
+checkpoints, of the zero-action statue and of scripted held poses; nothing
+trained) designed them, and the maintainer took decision D-D37
+([BEHAVIOR_RECIPES_PLAN.md](../BEHAVIOR_RECIPES_PLAN.md) §6.2): three full
+12M stance screen runs on `main`'s physics r9 instead of walking pilot 2,
+which is parked. This section records what the diagnosis found and the three
+runs. Their evidence is the folder `stance3/` added to
+[stance_2026_10/](stance_2026_10/README.md) on 2026-10-18:
+`recommendation.md` (the diagnosis' summary and the run design, as the
+maintainer received them), `criteria.txt` (byte-identical, sha256
+`1ce910dc…`), `colab_steps.txt`, and frozen copies of the judge, the scorer
+and the scorer's tests. The diagnosis' tables and scripts stay in the
+session's scratch under `scratchpad/foot/tonight/` (the `T/` of
+`recommendation.md`); each number below names the file it comes from, paths
+relative to that directory, and "checked" marks a number re-read from that
+file on 2026-10-18 for this section.
+
+### 16.1 What the offline diagnosis found (2026-10-18, no training)
+
+Figures are on the r9 plant at heading 0, per 1,000-step episode or per step
+of the 800-step window after step 200. `wcop` is the both-feet whole-foot
+centre of pressure in span half-lengths ahead of the mean MTP III joint
+(x = 60 + 70 w mm), and a lean is the centre of mass's fore-aft shift from
+the statue's.
+
+1. **The committed stance reward pays for a small forward lean.** Its leg
+   pose term is centred on the authored keyframe, which the servos cannot hold
+   under the animal's weight, so moving toward the keyframe means leaning
+   forward. Along the held leg-DC direction the committed reward peaks at a
+   wcop offset of +0.332 from the statue (about 23 mm), every held lean with a
+   pad statistic from 0.28 to 0.65 earns more than the statue, and a lean to
+   0.746 (the gate's bar is 0.80) costs only 0.008 per step, −6.3 per window
+   (`reward_landscape/out/derived.txt`; checked). Arm L's settled leg target,
+   one of #624's options and off by default on `main`, moves the peak to
+   +0.032, about 2 mm (the same file; checked).
+2. **Under arm L the lean is not paid for, but it is barely resisted.** A
+   held forward lean of 14 mm costs 0.013 per step (−10.7 per window), about
+   0.3% of the statue's 4.08 per step, and the same lean backward 0.018 per
+   step; nearly all of it is the settled leg pose term
+   (`reward_landscape/out/derived.txt` and `held_tables.txt`; checked). The
+   symmetry screen's arm L seed 60 drifted against its own reward: at 5M it
+   scored 114.0 per episode below the arm L statue (10 deterministic seeds,
+   9 full-horizon, one ending on head contact;
+   `reward_landscape/out/ckpt_tables.txt`; checked).
+3. **The lean lives in the ankles.** Over 51 panels of the symmetry screen's
+   checkpoints, the ankles' part of the centre of mass's shift follows the
+   shift with slope 1.00 (r 0.92), and each degree of ankle closure moves the
+   centre of mass about 10.7 mm forward (the ankle angle changes −0.093° per
+   mm, r −0.92), so the pad bar at 0.80 is about 4° of ankle from the statue
+   (the pad statistic is 0.194 + 0.0142 per mm) (`onset/out/xstats.json`;
+   checked). Over arm L seed 60's training evaluations from 1.05M steps the
+   leg pose term fell as the signed centre of pressure rose, r −0.95
+   (`onset/out/timeline.txt`; checked). At the term's width of 0.10 rad, 4°
+   costs little.
+4. **Other suspects look weaker** (as `recommendation.md` states them; not
+   re-read here). The exploration noise falls smoothly and does not time the
+   drift (`noise_robustness/work/training_noise_bins.txt`). The checkpoints
+   picked by reward come from the first 1M steps and are fragile under their
+   own noise (`onset/out/selection.txt`; §15.3 found the same). Of the physics
+   changes rolled offline with policies trained on the unchanged plant, only a
+   stiffer ankle spring set at the settled angle moved a drifted stance back;
+   pulling the toe edge back made the statue fall, and the other foot changes
+   did nothing for the lean (`mechanics/out/tables.txt`).
+5. **A signed per-foot bar separates the drifted stances better than the pad
+   rail.** Requiring each foot's whole-foot centre of pressure to lie
+   [−5, +100] mm ahead of its MTP III, in place of the pad rail, fails 9 of
+   seed 42's 29 clean episodes at 6M and 1 of seed 60's 40 (seed 3080),
+   passes the one seed 52 6M episode the pad rail failed (seed 3063), and
+   leaves the statue at 39 of 40 (`cop_statistic/out/analysis2.txt`;
+   checked). The three runs below judge it as the screen-only criterion K2b;
+   putting it in the gate would be a gate change, which is the maintainer's.
+
+**Hypotheses, not findings.** (a) A heavier and narrower settled leg pose
+term holds the stance where the drift starts: by arithmetic on the term's
+form, which is an inference about gradients and not a training result, its
+per-ankle restoring slope at weight 1.0 and tolerance 0.05 rad is 7.3 times
+arm L's at 1°, 3.6 times at 3°, 1.9 times at 4° and 0.5 to 0.9 times past 5°
+(`recommendation.md`, Run 2, item 3), so it is a strong centring price inside
+the gate's range and a weaker backstop once a seed has leaned past about 5°.
+(b) Nothing here explains what starts the drift, or why arm L seed 60 leaned
+back by 6M; the runs test whether a price suppresses the drift, not why it
+starts.
+
+### 16.2 Decision D-D37: three full stance screen runs instead of walking pilot 2
+
+The maintainer took D-D37 on 2026-10-18, superseding for these runs the rule
+of 2026-10-16 (the short answer, §2 and §13: "no more stance-only reward
+experiments unless walking points back to stance"); pilot 1 read STILL,
+which by its criteria does not point back at the stance (§15.1). Walking
+pilot 2 (§15.7) is parked: its branch `claude/pilot-walk-r9-b` and its
+criteria are kept and nothing of it is trained.
+
+| Run | Run id | Branch, commit | Configuration | Seed |
+|---|---|---|---|---|
+| 1 | `stance3_armL_s60` | `claude/screen-trex-r9-arml-12m`, `7e6b557d` | arm L as #624 ships it: the lateral lean term (weight 0.25, tolerance 0.015 m) and the settled leg target on the stance task, and `MirrorKLPPO` (kappa 0.3, sigma floor 0.01, mirrored critic); collapse reference 3981.4 | 60 |
+| 2 | `stance3_armLT_s60` | `claude/screen-trex-r9-armlt`, `1af2d4d7` | arm L plus `leg_home_pose_weight` 1.0 (0.5) and `leg_home_pose_tolerance` 0.05 rad (0.10), "L+T"; collapse reference 4460.5 | 60 |
+| 3 | `stance3_armLT_s52` | as Run 2 | as Run 2 | 52 |
+
+- **What they share** (`criteria.txt`): physics r9, the stance stage through
+  the SB3 notebook, 4 environments, 12,000,000 steps (the final checkpoint at
+  12,001,280), the committed PPO schedules, gate and bars, an evaluation of 10
+  episodes every 131,072 steps and a checkpoint every 524,288 steps, all
+  kept. Both branches are built on #630's code (`04ced045`) with the cadence
+  keys of `412f19ae` cherry-picked; neither is ever merged, and neither has a
+  pull request (full commits in `colab_steps.txt`). The collapse references
+  are the statue's measured rewards: 3980.37 under arm L and 4459.40 under
+  L+T, each standing on 39 of 40 seeds, against production's 3755.72
+  (`refine_plan/out/statue_ref.json`).
+- **Runtime.** All three train on Colab L4 runtimes, the maintainer's choice of
+  2026-10-18. `colab_steps.txt` and `recommendation.md` recommended CPU, the
+  only runtime the mirror-symmetric trainer had trained 12M on, and asked for
+  one type for all three; the maintainer kept L4 for all three. Run 1's
+  `stage_config.json` on Drive, read on 2026-10-18, records commit
+  `7e6b557d`, arm L's keys, the task `sha256:cd963518…`, the PPO
+  hyperparameters `sha256:054ab483…` (`recommendation.md`'s expected value)
+  and an NVIDIA L4; its zero-action baseline stood at 3980.37 (39 of 40), and
+  it trains from 16:10 UTC. Runs 2 and 3 started later the same day.
+- **The criteria, fixed before any training step** (`criteria.txt`, sha256
+  `1ce910dcd6e2ff7b41a4f592b9f34b9a6c9cb398c523e88f0ebd19af754f18fa`): judged
+  at 4,194,304, 5,242,880, 6,291,456, 8,388,608, 10,485,760 and the final, on
+  the 40-episode panel (seeds 3042–3081) at heading 0. K1, the gate held:
+  `stance_quality/v2` PASS at 6,291,456 and at the final, and at most one
+  judged checkpoint below 37 of 40 clean and none below 33. K2, fore-aft held
+  at every judged checkpoint: K2a, the pad rail over 0.80 on at most 3 of 40;
+  K2b, screen only, each foot's signed whole-foot centre of pressure outside
+  [−5, +100] mm of its MTP III on at most 3 of 40; K2c, screen only, no drift:
+  the panel median within −60 to +30 mm of the statue's, and its range over
+  the six checkpoints at most 30 mm. K3, robustness at 6,291,456 and the
+  final: at most 2 of 20 joint-space noise falls and 1 of 20 own-noise falls.
+  K4, roll at the same two: at most 3 of 40 full-horizon episodes over the
+  tilt or corner-lift bar. A decision table fixed with them says what follows
+  (L+T holding on both seeds is proposed for committing and certifying on two
+  seeds; each other outcome names the next round), and the best final
+  checkpoint of the three is offered as walking pilot 2's parent. Fails stay
+  fails, and no run is stopped or changed on its readouts.
+- **What they can show.** A screen certifies nothing: the configurations are
+  not committed, so the official judge refuses the runs' task fingerprint,
+  and the notebook's end-of-stage certificate on them is report only.
+  Whether a screen run could ever count toward `certification_seeds` if its
+  configuration were later committed byte-identically is not ruled; it is an
+  open question for the maintainer (`recommendation.md` recommends no).
+  `main` and its digests are unchanged.
+- **Status:** launched on 2026-10-18; not yet judged. A later PR records the
+  outcome, scored by the frozen `stance3/judge/score_stance3.py` from the
+  judge files of `stance3/judge/judge_stance3.py`.
+
+### 16.3 What changes in §13–§15
+
+- **§13 and §15.7, walking pilot 2:** parked, not trained; its branch and
+  criteria are kept, and the decision table above names its parent.
+- **§13, "no more stance-only reward experiments":** superseded for these
+  three runs by D-D37.
+- **§14, this repository:** the folder `stance3/`, with its sources and sha256
+  in `SOURCES.txt` and `SHA256SUMS`.
+- **§14, branches:** `claude/screen-trex-r9-arml-12m` at `7e6b557d` and
+  `claude/screen-trex-r9-armlt` at `1af2d4d7`; neither has a pull request.
+- **§14, Google Drive:** the runs write `stance3_armL_s60/`,
+  `stance3_armLT_s60/` and `stance3_armLT_s52/` under
+  `MyDrive/mesozoic-labs/logs/tyrannosaurus_rex/anatomical/ppo/`.
+- **§14, session scratch only:** the diagnosis' tables and scripts
+  (`scratchpad/foot/tonight/`), and the branches' build record, smoke runs
+  and judge validation (`scratchpad/foot/stance3/`).

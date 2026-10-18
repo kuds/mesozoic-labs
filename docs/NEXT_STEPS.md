@@ -452,6 +452,21 @@ merged; it is not yet trained (D-D36's amendment of 2026-10-18). Nothing it
 trains is certified, published or reused either, so the next T-Rex session
 above is still unchanged.*
 
+*Status 2026-10-18: decision D-D37. Instead of the second pilot, which is
+parked and not trained (its branch and criteria are kept), the maintainer
+chose three full 12M T-Rex stance screen runs on `main`'s physics r9,
+started on 2026-10-18 on Colab L4 runtimes: `stance3_armL_s60` (arm L as
+#624 ships it, seed 60, branch `claude/screen-trex-r9-arml-12m`) and
+`stance3_armLT_s60` and `stance3_armLT_s52` (arm L with the settled leg pose
+term at weight 1.0 and tolerance 0.05 rad, seeds 60 and 52, branch
+`claude/screen-trex-r9-armlt`). Each branch is never merged; each run is
+judged by criteria fixed before training and certifies nothing, so the next
+T-Rex session above is still unchanged. A later PR records the outcome; the
+decision's full text is in
+[BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2 and the runs'
+evidence in §16 of
+[investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).*
+
 Notes:
 
 - **The runtime image moved (by 2026-09-14).** Colab's L4 image went from Python
