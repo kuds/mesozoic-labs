@@ -278,7 +278,9 @@ def screen_scalar_keys(thresholds: Any) -> tuple[str, ...]:
     ``max_hop_or_fall_episodes`` declared), then
     ``screen_v2_fail_<criterion>_count`` per criterion the gate counts
     (``horizon``, then every declared episode criterion): the count of
-    episodes failing it.  The count is a suffix so that no key ends in a
+    episodes failing it, NaN for a criterion the screen skips (the
+    statue-relative ``min_foot_load_share_statue_ratio``, which the screen
+    never judges).  The count is a suffix so that no key ends in a
     per-foot rail suffix (``..._sole_cop_fore_aft``), which the posture
     readers would take for a foot.
     """
@@ -1830,7 +1832,9 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
         the stage declares ``stance_quality/v2``'s keys and the recorder runs
         (a model with pad keys).  The key set is fixed by the declaration;
         every key is NaN on an evaluation the screen did not judge (a failed
-        capture, an episode without metrics).
+        capture, an episode without metrics), and a criterion the screen
+        skips (``skipped_criteria``: the statue-relative ones) has a NaN
+        count on every evaluation.
         """
         source = getattr(self, "eval_callback", None)
         thresholds = getattr(source, "screen_thresholds", None)
@@ -1847,9 +1851,12 @@ class StageGatePlateauCallback(_BaseCallback):  # type: ignore[misc]
         out[f"{prefix}yaw0_bars_met"] = 1.0 if entry.get("passed") else 0.0
         if f"{prefix}hop_or_fall_episodes" in out and entry.get("hop_or_fall_episodes") is not None:
             out[f"{prefix}hop_or_fall_episodes"] = float(entry["hop_or_fall_episodes"])
+        # A criterion the screen skips (the statue-relative ones) was never judged: its count stays NaN,
+        # not the gate's tally of 0, which would read as "no episode failed it".
+        skipped = {str(criterion) for criterion in entry.get("skipped_criteria") or ()}
         for criterion, failed in dict(entry.get("criterion_failures") or {}).items():
             key = f"{prefix}fail_{criterion}_count"
-            if key in out:
+            if key in out and criterion not in skipped:
                 out[key] = float(failed)
         return out
 

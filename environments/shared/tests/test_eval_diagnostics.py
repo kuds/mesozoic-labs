@@ -2294,6 +2294,46 @@ class TestTheInTrainingScreen:
         scalars = plateau._screen_scalars(1)
         assert scalars and all(math.isnan(value) for value in scalars.values())
 
+    def test_a_skipped_statue_criterion_reads_nan_not_the_gates_zero(self):
+        """The anatomical Compsognathus declares ``min_foot_load_share_statue_ratio``, which the screen never judges.
+
+        The gate's tally starts every declared criterion at 0, the skipped
+        ones too; the screen's count for it must read NaN ("never judged"),
+        not 0 ("no episode failed it"), in ``gate_progress.npz`` and so in
+        TensorBoard, which records finite values only.
+        """
+        from environments.shared.config import load_stage_config
+        from environments.shared.curriculum.stance_gate_v2 import evaluate_stance_v2_gate
+        from environments.shared.gait.stance_metrics import episode_stance_metrics
+        from environments.shared.tests.test_gait_pad_telemetry import LAYOUT, _trace
+
+        curriculum = load_stage_config(ModelId("compsognathus_longipes", "anatomical"), "stance")["curriculum_kwargs"]
+        thresholds = eval_diagnostics_module._screen_thresholds(curriculum)
+        assert thresholds is not None and thresholds.min_foot_load_share_statue_ratio is not None
+        skipped_key = "screen_v2_fail_min_foot_load_share_statue_ratio_count"
+        # The key set stays the declaration's.
+        assert skipped_key in eval_diagnostics_module.screen_scalar_keys(thresholds)
+        result = evaluate_stance_v2_gate(
+            [episode_stance_metrics(_trace(), settle_steps=thresholds.settle_steps) for _ in range(3)],
+            thresholds,
+            horizon=400,
+            in_training=True,
+        )
+        assert "min_foot_load_share_statue_ratio" in result.skipped_criteria
+        assert dict(result.criterion_failures)["min_foot_load_share_statue_ratio"] == 0  # the gate's tally: a 0
+        plateau, eval_callback = _plateau_callback({}, stage=1)
+        eval_callback.screen_thresholds = thresholds
+        eval_callback.foot_pad_keys = LAYOUT.episode_keys()
+        eval_callback.evaluations_screen_v2 = [result.as_dict()]
+        scalars = plateau._screen_scalars(0)
+        assert set(scalars) == set(eval_diagnostics_module.screen_scalar_keys(thresholds))
+        assert math.isnan(scalars[skipped_key])
+        # Every criterion the screen does judge keeps its count, the horizon's among them.
+        judged = {f"screen_v2_fail_{key}_count": float(count) for key, count in result.criterion_failures}
+        del judged[skipped_key]
+        assert judged and all(scalars[key] == value for key, value in judged.items())
+        assert scalars["screen_v2_fail_horizon_count"] == 0.0
+
     @pytest.mark.parametrize(
         ("model_id", "screened"),
         [

@@ -56,7 +56,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     stage's own v2 bars at yaw 0 without the statue-relative criteria
     (`screen_v2_*` in `gate_progress.npz`, TensorBoard's `screen_v2/`). It
     is never a verdict, and its names keep it apart from the gate's
-    recorded-history reading.
+    recorded-history reading. A criterion it skips keeps its fail-count
+    key, which reads NaN, not 0.
   - `eval_episodes.csv`: one row per evaluation episode (return, length,
     cause, the screen's per-episode result, the spawn, the per-foot pad,
     whole-foot and roll-rail values, the gate's per-episode maxima, and the

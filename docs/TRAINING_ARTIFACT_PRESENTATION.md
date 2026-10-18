@@ -403,8 +403,9 @@ On a stage whose gate is `stance_quality/v2` or the six-heading certificate
 runs, every evaluation is also judged by the stage's own v2 bars:
 `evaluate_stance_v2_gate(..., in_training=True)` on the evaluation's
 episodes, at yaw 0, on the evaluation env's own resets, without the
-statue-relative criteria (on the T. rex, `min_avg_reward_statue_ratio`).
-Today that is the T. rex and the anatomical Compsognathus stances. The
+statue-relative criteria (on the T. rex, `min_avg_reward_statue_ratio`;
+on the anatomical Compsognathus, that and
+`min_foot_load_share_statue_ratio`). Today that is the T. rex and the anatomical Compsognathus stances. The
 Velociraptor's `stance_quality/v2` stance has no box pad and no recorder,
 so it has no screen. The screen shows during training whether an
 evaluation's episodes clear the stage's clean-episode bound at yaw 0. It
@@ -419,11 +420,14 @@ checkpoint selection reads these keys.
 | `screen_v2_clean_lcb` | The lower confidence bound on the clean fraction the gate certifies with (`binomial_lcb`) |
 | `screen_v2_yaw0_bars_met` | 1 when the screen's decision passes, else 0 |
 | `screen_v2_hop_or_fall_episodes` | Where the stage declares `max_hop_or_fall_episodes`: the episodes that hopped or fell |
-| `screen_v2_fail_<criterion>_count` | Per criterion the gate counts (`horizon`, then each declared episode criterion): the episodes failing it |
+| `screen_v2_fail_<criterion>_count` | Per criterion the gate counts (`horizon`, then each declared episode criterion): the episodes failing it; NaN for a criterion the screen skips (`min_foot_load_share_statue_ratio`), which it never judges |
 
 The key set is fixed by the stage's declaration, and every key is NaN on an
 evaluation the screen could not judge (a failed capture, an episode
-without metrics). The names keep the screen apart from a verdict:
+without metrics). A skipped criterion keeps its key, but its count is NaN
+on every evaluation: the gate's own tally starts it at 0, which would read
+as "no episode failed it" when the screen never applied it
+(`progress.json` lists it under `evaluation.screen_v2.skipped`). The names keep the screen apart from a verdict:
 `screen_v2_yaw0_bars_met` says what it is; no key is the recorded-history
 gate's `stance_clean_count` (`reporting/gates.py`), so nothing reads the
 screen as one; the per-criterion counts end in `_count`, so that no key
