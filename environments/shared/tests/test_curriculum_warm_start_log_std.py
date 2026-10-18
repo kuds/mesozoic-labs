@@ -4,8 +4,10 @@ The key writes one value into every entry of a PPO policy's ``log_std`` after th
 learning, on a load across the node's edge under ``initialize_next_stage`` only: never on a same-stage resume, a
 fresh start or a root, and never when the stage declares no key.  The gate schema validates it (its one reader,
 ``declared_warm_start_log_std``); ``stage_config.json`` records it in the ``curriculum`` block, as
-``run.warm_start_log_std`` (kept across a resume, like the edge) and in ``run.hyperparameters_sha256``; and the
-optimizer keeps the same parameter with the parent's Adam moments.
+``run.warm_start_log_std`` (kept across a resume, like the edge) and in ``run.hyperparameters_sha256``; the
+optimizer keeps the same parameter with the parent's Adam moments; the "Warm start:" line is printed to stdout, not
+logged; and ``train`` refuses a malformed value or a SAC warm start before its stage directory exists, as
+``train_curriculum`` does for every chain node before the run has a footprint.
 
 The schema and the rule run everywhere; the policy and ``train`` cases need stable-baselines3 and skip without it
 (the SB3 job runs this file through its ``test_curriculum_*.py`` glob).
@@ -197,7 +199,7 @@ def _adam_state(model, parameter) -> dict:
 
 
 class TestTheReset:
-    def test_every_actuator_is_set_in_place_and_the_optimizer_keeps_its_parameter_and_moments(self, th, caplog):
+    def test_every_actuator_is_set_in_place_and_the_optimizer_keeps_its_parameter_and_moments(self, th, capsys, caplog):
         from environments.shared.train_base import _apply_warm_start_log_std
 
         model = _model()
@@ -207,7 +209,8 @@ class TestTheReset:
         others = {k: v.clone() for k, v in model.policy.state_dict().items() if k != "log_std"}
         parent = log_std.detach().exp()
 
-        with caplog.at_level(logging.WARNING, logger="environments.shared.train_base"):
+        capsys.readouterr()
+        with caplog.at_level(logging.DEBUG, logger="environments.shared.train_base"):
             _apply_warm_start_log_std(model, -1.5)
 
         assert model.policy.log_std is log_std
@@ -216,10 +219,11 @@ class TestTheReset:
         kept = _adam_state(model, log_std)
         assert kept.keys() == moments.keys() and all(th.equal(kept[n], moments[n]) for n in moments)
         assert all(th.equal(v, others[k]) for k, v in model.policy.state_dict().items() if k != "log_std")
-        (record,) = [r for r in caplog.records if r.getMessage().startswith("Warm start:")]
-        assert record.levelno == logging.WARNING
-        assert record.getMessage().startswith("Warm start: policy log_std set to -1.5 (std 0.223) on all 15 actuators")
-        assert f"mean {float(parent.mean()):.3f}" in record.getMessage()
+        # Printed to stdout, not logged: Colab step 8 checks for the line, whatever logging the kernel has.
+        (line,) = [text for text in capsys.readouterr().out.splitlines() if text.startswith("Warm start:")]
+        assert line.startswith("Warm start: policy log_std set to -1.5 (std 0.223) on all 15 actuators")
+        assert f"mean {float(parent.mean()):.3f}" in line
+        assert not [r for r in caplog.records if "Warm start" in r.getMessage()]
 
         model.learn(total_timesteps=128, reset_num_timesteps=False)  # learning continues from the new value
         assert not th.equal(log_std.detach(), th.full((15,), -1.5))
@@ -246,7 +250,7 @@ class TestThroughTrain:
     and what ``stage_config.json`` records."""
 
     def _train(
-        self, tmp_path, monkeypatch, caplog, *, stage_dir, load_path=None, mode="resume_same_stage", configs=None
+        self, tmp_path, monkeypatch, capsys, *, stage_dir, load_path=None, mode="resume_same_stage", configs=None
     ):
         from environments.shared import plant_contract, task_fingerprint, train_base
 
@@ -279,33 +283,32 @@ class TestThroughTrain:
         monkeypatch.setattr(train_base, "_maybe_ent_coef_decay_callback", lambda *args, **kwargs: None)
         monkeypatch.setattr(train_base, "_stage_entry_shaping_callbacks", lambda *args, **kwargs: [])
         monkeypatch.setattr(train_base, "_save_final_and_sync_tb", save_final)
-        caplog.clear()
-        with caplog.at_level(logging.WARNING, logger="environments.shared.train_base"):
-            train_base.train(
-                SimpleNamespace(model_id=TYRANNOSAURUS_REX, env_class=object),
-                load_all_stages(TYRANNOSAURUS_REX) if configs is None else configs,
-                2,
-                total_timesteps=64,
-                load_path=None if load_path is None else str(load_path),
-                task_load_mode=mode,
-                output_dir=str(stage_dir),
-                use_tensorboard=False,
-                verbose=0,
-                report_metrics=False,
-            )
+        capsys.readouterr()
+        train_base.train(
+            SimpleNamespace(model_id=TYRANNOSAURUS_REX, env_class=object),
+            load_all_stages(TYRANNOSAURUS_REX) if configs is None else configs,
+            2,
+            total_timesteps=64,
+            load_path=None if load_path is None else str(load_path),
+            task_load_mode=mode,
+            output_dir=str(stage_dir),
+            use_tensorboard=False,
+            verbose=0,
+            report_metrics=False,
+        )
         seen["record"] = json.loads((stage_dir / "stage_config.json").read_text())
-        seen["lines"] = [r.getMessage() for r in caplog.records if r.getMessage().startswith("Warm start:")]
+        seen["lines"] = [text for text in capsys.readouterr().out.splitlines() if text.startswith("Warm start:")]
         return seen
 
     def test_the_warm_start_sets_it_and_a_resume_keeps_the_record_without_setting_it(
-        self, th, tmp_path, monkeypatch, caplog
+        self, th, tmp_path, monkeypatch, capsys
     ):
         configs = load_all_stages(TYRANNOSAURUS_REX)
         parent = _zip(tmp_path / "parent" / "stage1_6291456_steps.zip")
         stage_dir = tmp_path / "run" / "03_locomotion"
 
         entered = self._train(
-            tmp_path, monkeypatch, caplog, stage_dir=stage_dir, load_path=parent, mode="initialize_next_stage"
+            tmp_path, monkeypatch, capsys, stage_dir=stage_dir, load_path=parent, mode="initialize_next_stage"
         )
         assert entered["loaded"] == str(parent)
         assert th.allclose(entered["std_at_learn"], th.full((15,), math.exp(-1.5)))
@@ -320,7 +323,7 @@ class TestThroughTrain:
 
         # The notebook's RESUME cell: the same stage directory, a periodic checkpoint, resume_same_stage.
         periodic = _zip(stage_dir / "models" / "stage2_2097152_steps.zip")
-        resumed = self._train(tmp_path, monkeypatch, caplog, stage_dir=stage_dir, load_path=periodic)
+        resumed = self._train(tmp_path, monkeypatch, capsys, stage_dir=stage_dir, load_path=periodic)
         assert resumed["loaded"] == str(periodic)
         assert th.allclose(resumed["std_at_learn"], th.full((15,), 0.095))  # as loaded, not reset
         assert resumed["lines"] == []
@@ -328,20 +331,20 @@ class TestThroughTrain:
         assert run[WARM_START_LOG_STD_KEY] == -1.5  # the stage entered with it; kept like the edge
         assert run["load_mode"] == "initialize_next_stage" and run["resume_load_path"] == str(periodic)
 
-    def test_a_fresh_start_does_not_set_it(self, th, tmp_path, monkeypatch, caplog):
-        fresh = self._train(tmp_path, monkeypatch, caplog, stage_dir=tmp_path / "fresh")
+    def test_a_fresh_start_does_not_set_it(self, th, tmp_path, monkeypatch, capsys):
+        fresh = self._train(tmp_path, monkeypatch, capsys, stage_dir=tmp_path / "fresh")
         assert fresh["loaded"] is None
         assert th.allclose(fresh["std_at_learn"], th.full((15,), 0.095))
         assert fresh["lines"] == [] and WARM_START_LOG_STD_KEY not in fresh["record"]["run"]
 
-    def test_a_stage_without_the_key_does_not_set_it(self, th, tmp_path, monkeypatch, caplog):
+    def test_a_stage_without_the_key_does_not_set_it(self, th, tmp_path, monkeypatch, capsys):
         configs = load_all_stages(TYRANNOSAURUS_REX)
         del configs[2]["curriculum_kwargs"][WARM_START_LOG_STD_KEY]
         parent = _zip(tmp_path / "parent.zip")
         absent = self._train(
             tmp_path,
             monkeypatch,
-            caplog,
+            capsys,
             stage_dir=tmp_path / "absent",
             load_path=parent,
             mode="initialize_next_stage",
@@ -351,9 +354,49 @@ class TestThroughTrain:
         assert absent["lines"] == [] and WARM_START_LOG_STD_KEY not in absent["record"]["run"]
         assert WARM_START_LOG_STD_KEY not in absent["record"]["curriculum"]
 
-    def test_a_malformed_value_is_refused_before_the_stage_directory_exists(self, th, tmp_path, monkeypatch, caplog):
+    def test_a_malformed_value_is_refused_before_the_stage_directory_exists(self, th, tmp_path, monkeypatch, capsys):
         configs = load_all_stages(TYRANNOSAURUS_REX)
         configs[2]["curriculum_kwargs"][WARM_START_LOG_STD_KEY] = "-1.5"
         with pytest.raises(GateSchemaError):
-            self._train(tmp_path, monkeypatch, caplog, stage_dir=tmp_path / "bad", configs=configs)
+            self._train(tmp_path, monkeypatch, capsys, stage_dir=tmp_path / "bad", configs=configs)
         assert not (tmp_path / "bad").exists()
+
+
+# ---------------------------------------------------------------------------------------------------- the curriculum
+class TestThroughTheCurriculum:
+    """``train_curriculum`` checks every chain node's key before the run has a footprint and before any node trains,
+    as ``train`` checks its one node before its stage directory exists (the walk itself, with the key applied to
+    locomotion alone, is test_train_base.py's T. rex curriculum walk)."""
+
+    def _run(self, tmp_path, monkeypatch, configs, *, algorithm):
+        from environments.shared import train_base
+
+        def train_stage_body(*args, **kwargs):
+            raise AssertionError("a node trained before the refusal")
+
+        monkeypatch.setattr("environments.shared.policy_loading._ensure_sb3", lambda: {})
+        monkeypatch.setattr(train_base, "current_plant_identity", lambda model_id: make_plant_identity())
+        monkeypatch.setattr(train_base, "_train_stage_body", train_stage_body)
+        train_base.train_curriculum(
+            SimpleNamespace(model_id=TYRANNOSAURUS_REX, env_class=object),
+            configs,
+            n_envs=1,
+            seed=1,
+            verbose=0,
+            algorithm=algorithm,
+            use_tensorboard=False,
+            output_dir=str(tmp_path / "run"),
+            target="walk",
+        )
+
+    def test_a_sac_chain_that_declares_it_is_refused_before_the_run_has_a_footprint(self, tmp_path, monkeypatch):
+        with pytest.raises(ValueError, match="SAC has no state-independent log_std"):
+            self._run(tmp_path, monkeypatch, load_all_stages(TYRANNOSAURUS_REX), algorithm="sac")
+        assert not (tmp_path / "run").exists()
+
+    def test_a_malformed_value_on_the_chain_is_refused_before_the_run_has_a_footprint(self, tmp_path, monkeypatch):
+        configs = load_all_stages(TYRANNOSAURUS_REX)
+        configs[2]["curriculum_kwargs"][WARM_START_LOG_STD_KEY] = float("nan")
+        with pytest.raises(GateSchemaError, match=WARM_START_LOG_STD_KEY):
+            self._run(tmp_path, monkeypatch, configs, algorithm="ppo")
+        assert not (tmp_path / "run").exists()

@@ -301,9 +301,13 @@ def _apply_warm_start_log_std(model: Any, value: float) -> None:
     dropped state restarts this one tensor's bias correction alone.
 
     Refused for a policy without a state-independent, per-actuator
-    ``log_std`` (gSDE, or no Gaussian head).  Logged at WARNING so the line
-    shows wherever the trainer runs: the notebook configures no logging, and
-    Python's last-resort handler prints warnings only.
+    ``log_std`` (gSDE, or no Gaussian head).  The "Warm start:" line is
+    PRINTED to stdout, not logged, so it shows wherever the trainer runs
+    whatever logging is configured: the walking pilot's Colab steps check
+    for it, the notebook configures no logging, and a logged line would rest
+    on Python's last-resort handler, which a handler or level any imported
+    library put on the root logger would silence.  ``stage_config.json``'s
+    ``run.warm_start_log_std`` is the durable record.
     """
     import torch as th
 
@@ -318,15 +322,11 @@ def _apply_warm_start_log_std(model: Any, value: float) -> None:
     parent_std = log_std.detach().double().exp().cpu()
     with th.no_grad():
         log_std.fill_(value)
-    logger.warning(
-        "Warm start: policy log_std set to %g (std %.3f) on all %d actuators (the parent's std: mean %.3f, "
-        "min %.3f, max %.3f; Adam moments kept)",
-        value,
-        math.exp(value),
-        log_std.numel(),
-        float(parent_std.mean()),
-        float(parent_std.min()),
-        float(parent_std.max()),
+    print(
+        f"Warm start: policy log_std set to {value:g} (std {math.exp(value):.3f}) on all {log_std.numel()} "
+        f"actuators (the parent's std: mean {float(parent_std.mean()):.3f}, min {float(parent_std.min()):.3f}, "
+        f"max {float(parent_std.max()):.3f}; Adam moments kept)",
+        flush=True,
     )
 
 
@@ -2718,6 +2718,26 @@ def train_curriculum(
                 retrain_entry.id,
             )
 
+    # Walking pilot 2: every chain node's warm_start_log_std is checked here,
+    # before the run has a footprint and before any node trains, as train()
+    # checks its one node before its stage directory exists: a malformed
+    # value, or a SAC run whose chain declares the key on a node with an
+    # edge, is refused now rather than after the earlier nodes have trained.
+    # A node with an edge that this run trains enters on its parent's handoff
+    # under initialize_next_stage, which the check assumes (the stand-in path
+    # below; the real one is not known until the parent resolves).  A node
+    # reused from trunk_from would not apply the key, but under SAC the key
+    # has no meaning on any node, so it is refused there too.
+    for chain_entry in chain:
+        _warm_start_log_std(
+            stage_configs[chain_entry.reference],
+            stage=chain_entry.reference,
+            algorithm=algorithm,
+            task_load_mode="initialize_next_stage",
+            parent_id=chain_entry.warm_start_from,
+            load_path="<the parent's handoff checkpoint>",
+        )
+
     thresholds = thresholds_from_configs(stage_configs)
     manager = CurriculumManager(model_id=model_id, stage_thresholds=thresholds, total_stages=len(advancing))
 
@@ -2941,6 +2961,17 @@ def train_curriculum(
         if parent_node is not None:
             _warn_on_heading_probe_handoff(parent_node.stage_dir, stage=entry.id)
 
+        # Walking pilot 2: the node's warm_start_log_std, when its entry sets one (the body applies it),
+        # resolved before its stage directory exists (the chain was checked before the run began).
+        warm_start_log_std = _warm_start_log_std(
+            config,
+            stage=stage,
+            algorithm=algorithm,
+            task_load_mode="initialize_next_stage",
+            parent_id=entry.warm_start_from,
+            load_path=load_path,
+        )
+
         stage_dir = base_dir / stage_dirname(model_id, stage)
         # D-A20: the curriculum has no resume mode, so a stage directory
         # that already records a stage is never written into.  The mode
@@ -2950,15 +2981,6 @@ def train_curriculum(
         model_dir = stage_dir / "models"
         model_dir.mkdir(exist_ok=True)
 
-        # Walking pilot 2: the node's warm_start_log_std, when its entry sets one (the body applies it).
-        warm_start_log_std = _warm_start_log_std(
-            config,
-            stage=stage,
-            algorithm=algorithm,
-            task_load_mode="initialize_next_stage",
-            parent_id=entry.warm_start_from,
-            load_path=load_path,
-        )
         save_stage_config(
             stage_dir,
             stage,
