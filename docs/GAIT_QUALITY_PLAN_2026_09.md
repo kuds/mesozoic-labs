@@ -907,14 +907,15 @@ digests differ). A later PR records its outcome.
 judged on 2026-10-17 and read STILL on all three seeds, final: at 4,194,304 steps each seed was STILL on 40 of its 40
 panel episodes, with no WALK, HOP or FALL episode, so neither an alternating gait nor §1.1's two-footed hop appeared,
 and by its criteria STILL is too short to tell. It says nothing about §5's `gait-r1` changes and answers none of
-GQ-1..GQ-18. Report only: its forward-velocity term earned 0.5–3.2 per episode from 2M to 4.2M steps, against the
-September T. rex walkers' 39–54 at 2.1M and 148–234 at 4.2M, and its action std (the mean over the 15 actuators) was
-0.108–0.111 at 4,194,304 steps against the parent's 0.095. On 2026-10-17 the maintainer chose a second pilot with the
-same parent, stage, budget, seeds, probe and criteria (§5.5's contact bar and the added guards included; the criteria
-add three rules that follow from the change) and one change: the action std reset to 0.2231 (`log_std` −1.5, the T. rex
-stance stage's own starting noise) on every actuator at the warm start. It runs from the branch `claude/pilot-walk-r9-b`
-(`ba464855`), which is never merged, and is not yet trained. It is the same deliberate exception to GQ-3 (a) and GQ-17,
-both still open, and the trex `gait-r1` walk (§5.4, §14) still waits for a certified stance; nothing it trains is
-certified, published or reused, and `main` and its digests are unchanged. A later PR records its outcome. The evidence
+GQ-1..GQ-18. Report only: its forward-velocity term earned 0.5–3.2 per episode at the 2M, 3M and 4.2M evaluations
+(0.1–7.5 over every evaluation from 2M to 4.2M steps), against the September T. rex walkers' 39–54 at 2.1M and 148–234
+at 4.2M, and its action std (the mean over the 15 actuators) was 0.108–0.111 at 4,194,304 steps against the parent's
+0.095. On 2026-10-17 the maintainer chose a second pilot with the same parent, stage, budget, seeds, probe and criteria
+(§5.5's contact bar and the added guards included; the criteria add three rules that follow from the change) and one
+change: the action std reset to 0.2231 (`log_std` −1.5, the T. rex stance stage's own starting noise) on every actuator
+at the warm start. It runs from the branch `claude/pilot-walk-r9-b` (`ba464855`), which is never merged, and is not yet
+trained. It is the same deliberate exception to GQ-3 (a) and GQ-17, both still open, and the trex `gait-r1` walk (§5.4,
+§14) still waits for a certified stance; nothing it trains is certified, published or reused, and `main` and its digests
+are unchanged. A later PR records its outcome. The evidence
 for both pilots is in §15 of
 [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).

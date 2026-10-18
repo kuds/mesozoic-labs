@@ -22,11 +22,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   criteria and read STILL on all three seeds, final: each seed STILL on 40 of
   its 40 panel episodes at 4,194,304 steps, with no WALK episode, which by the
   criteria is too short to tell; the outcome is the criteria's, not a gate's.
-  Report only: its forward-velocity term earned 0.5 to 3.2 per episode from 2M
-  to 4.2M steps (the September T. rex walkers: 148 to 234 at 4.2M), and its
+  Report only: its forward-velocity term earned 0.5 to 3.2 per episode at the
+  2M, 3M and 4.2M evaluations (0.1 to 7.5 over every evaluation from 2M to
+  4.2M steps; the September T. rex walkers: 148 to 234 at 4.2M), and its
   action std was 0.108 to 0.111 at 4,194,304 steps against the parent's 0.095.
   The same day the maintainer chose a second pilot, the same with one change:
-  the action std reset to 0.2231 (`log_std` -1.5, the T. rex stance stage's own
+  the action std reset to 0.2231 (`log_std` −1.5, the T. rex stance stage's own
   starting noise) on every actuator at the warm start, from the branch
   `claude/pilot-walk-r9-b` (`ba464855`), which is never merged; it is
   pre-registered, not yet trained and has no result, it is still an exception

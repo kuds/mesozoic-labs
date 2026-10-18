@@ -1,4 +1,4 @@
-# T. rex stance evidence (2026-10-12 to 2026-10-18)
+# T. rex stance evidence (2026-10-12 to 2026-10-17)
 
 Evidence for [TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](../TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md),
 frozen with it on 2026-10-17. These are copies of the files that decided or
@@ -27,7 +27,7 @@ are rows of the repository's ledger,
 ## What changed in the copies
 
 [SOURCES.txt](SOURCES.txt) lists every file with the scratch file it came from,
-that file's sha256, and what the copy changed. Five kinds of change, nothing
+that file's sha256, and what the copy changed. Three kinds of change, nothing
 else:
 
 - **prefix:** the absolute path of the session's scratch directory is replaced
@@ -47,6 +47,10 @@ else:
   so against this copy they stop with a sha256 mismatch; every threshold they
   read is unchanged (`decide_final.py` and `test_decide_final.py` run on it as
   it is).
+
+*Added 2026-10-18:* the copies of 2026-10-18 add two more kinds of
+change, nothing else:
+
 - **links:** `literature/trex_foot_and_standing_balance.md` linked four times to
   files of the session's checkout (`/home/user/mesozoic-labs/...`); the links
   now lead to the same files relative to the repository root.
@@ -151,7 +155,8 @@ is withdrawn, its edge "1.06" and its slopes -192 / -196 are superseded (v3,
 section 4 and its header).
 
 **`pilot/`: the walking pilot's pre-registration (§9; launched on 2026-10-17,
-judged the same day: see `pilot1_judging/`).**
+not yet judged).**
+*Added 2026-10-18: it was judged on 2026-10-17; see `pilot1_judging/` below.*
 
 - `criteria.txt`: the fixed criteria, byte-identical (sha256 `1cdd495c…`).
   Its first line says "revised three times on 2026-10-17"; its Revisions
@@ -187,10 +192,14 @@ in `pilot/criteria.txt`; the verdict is the criteria's, not a gate's.
 
 - `run_log.txt`: the runs (Drive folder ids, launch times, what each
   `stage_config.json` was checked for), the 2M pipeline check and the final
-  judging, with report-only figures: in-training evaluation reward flat at about
-  1,097-1,100, the forward-reward term 0.5-3.2 per episode, the policy's action
-  std 0.108-0.111 at 4.2M against the parent's 0.095, and the notebook's own
-  locomotion gate FAIL on speed (recorded, not a pilot criterion).
+  judging, with report-only figures: the in-training evaluation reward "flat at
+  ~1,097-1,100 throughout" and the forward-reward term "0.5-3.2 at 2-4.2M (max
+  7.5)", both of which hold at the 2M, 3M and 4.2M evaluations only (the
+  note's §15.1 gives every evaluation's range, from the runs'
+  `gate_progress.npz`, which stay on Drive), the policy's action std
+  0.108-0.111 at 4.2M against the parent's 0.095, and the notebook's own
+  locomotion gate FAIL on speed (recorded, not a pilot criterion). The log is
+  kept as written.
 - `OUT/score.json`: `pilot_score.py --seeds 42,52,60` on the nine panels (the
   original's sha256 `86d7350e…`, the value `run_log.txt` records; the copy adds
   a final newline).
@@ -339,13 +348,16 @@ approval. Its `NS/` citations are the files beside it here (`certify/`,
 ## How to re-check each verdict
 
 Commands as run on 2026-10-17 from a copy of this directory (Python 3.13;
-`PYTHONDONTWRITEBYTECODE=1`); the rows marked 2026-10-18 were run that day on
-the committed copies. None needs the repository except where stated.
+`PYTHONDONTWRITEBYTECODE=1`). None needs the repository except where stated.
 The three r10 rows needed the session's scratch tree and are not reproducible
 from the repository alone: the original `frozen_params.json` (sha256
 `58b2c8fb…`, which `judge_r10.py` and `score_r10.py` assert) and the r9 judge
 files are not kept, so `verify_recompute.json` and `score.json` are the
 retained records.
+
+*Added 2026-10-18:* the rows below the first "The files themselves" row were
+added that day; those marked 2026-10-18 were run that day on the committed
+copies.
 
 | Check | Command | Result |
 |---|---|---|
@@ -357,6 +369,7 @@ retained records.
 | The pilot rule | in `pilot/`: `python3 test_pilot_score.py` | 203/203 (probe recomputation skipped) |
 | The pilot rule, with every fixture row recomputed by the frozen probe | `python3 test_pilot_score.py <tree>` with `<tree>` a checkout of `claude/pilot-walk-r9` at `eaeef50f` and numpy, MuJoCo and the repository's dependencies installed | 254/254 |
 | The parent rule and the judge's bindings | `python3 test_pilot_parent.py` | 40/40 |
+| The files themselves | `sha256sum -c SHA256SUMS` | all 70 files OK |
 | Pilot 1's outcome from its stored panels (2026-10-18) | copy `pilot1_judging/OUT` to `<work>`, `gunzip <work>/s*/*/probe.json.gz`, then `python3 pilot/pilot_score.py <work> --seeds 42,52,60 --json score.json` | `PILOT OUTCOME: STILL (3 of 3 launched seeds)`; `score.json` has the original's sha256 `86d7350e…` (`OUT/score.json` is it plus a final newline), and the printout is `judge_logs/score.log.txt` apart from the directory it names |
 | Pilot 1's panels themselves (Drive checkpoints) | `pilot/pilot_judge.py` on a clone of `claude/pilot-walk-r9` at `eaeef50f`, with the checkpoints from the Drive folders in `pilot1_judging/run_log.txt` (sha256 in each `binding.json`) | not re-run on 2026-10-18 |
 | The ledger's 28 rows against their evidence, and each certificate's LCB against its counts (2026-10-18; needs the repository) | from the repository root, the block below | `28 rows agree with their evidence` |
@@ -367,7 +380,7 @@ retained records.
 | The shared-fall report from its summary (2026-10-18) | in a directory holding a copy of `battery/shared_fall/shared_fall_summary.json` at `scratchpad/foot/battery/shared_fall/`: `python3 <this directory>/battery/shared_fall/scripts/make_report.py` | identical to `shared_fall_report.txt` |
 | The audit's geometry summary (2026-10-18) | `python3 audit/geometry/scripts/trex_geom_summary.py audit/geometry/geometry_audit.json out.txt` | the source's bytes (sha256 `1632ed48…`; the copy drops one trailing space) |
 | The rest of `battery/` and `audit/` (session scratch only) | their scripts read per-episode panels, traces, MuJoCo rolls on `main` `2e734e29` and downloaded papers, none of which is kept here | not re-run on 2026-10-18 |
-| The files themselves | `sha256sum -c SHA256SUMS` | all 285 files OK |
+| The files themselves (2026-10-18) | `sha256sum -c SHA256SUMS` | all 285 files OK |
 
 `test_pilot_score.py` prints sample "Walking pilot score" blocks while it runs;
 they score synthetic panels, not the pilot.

@@ -1025,7 +1025,8 @@ each pointing at its evidence file.
   (3 h 36 min to 3 h 41 min), with no collapse and no early stop. The judge
   bound each checkpoint to the branch's tree `eaeef50f`, the parent's sha256
   `70f3a444…`, the budget and the plant, and accepted all nine
-  (`pilot1_judging/run_log.txt`; `pilot1_judging/OUT/s<seed>/<steps>/binding.json`).
+  (`pilot1_judging/run_log.txt`;
+  `pilot1_judging/OUT/s<seed>/<steps>/binding.json`).
   The small files fetched from Drive were transcribed twice and matched (16
   files), and seed 42's 2M VecNormalize file, repaired by hand at the 2M
   pipeline check, matched its final fetch (`run_log.txt`).
@@ -1043,12 +1044,27 @@ each pointing at its evidence file.
   "What each outcome means"): the policy is not moving by 4.2M, and the pilot
   was too short to say anything about the gait. By the same text only FALLS
   could have pointed back at the stance; no seed fell at 4,194,304.
-- **Report only** (`run_log.txt`; none of it is a pilot criterion):
-  - The in-training evaluation reward stayed flat at about 1,097-1,100, the
-    parent's standing reward under the walk task.
-  - The forward-velocity term earned 0.5-3.2 per episode from 2M to 4.2M
-    (max 7.5), against the September T. rex walkers' 39-54 at 2.1M and
-    148-234 at 4.2M.
+- **Report only** (`run_log.txt`, and the runs' own `gate_progress.npz`
+  where stated; none of it is a pilot criterion):
+  - The in-training evaluation reward was about 1,097-1,100 at the 2M, 3M
+    and 4.2M evaluations, the parent's standing reward under the walk task
+    (the run log's "flat at ~1,097-1,100 throughout"). Over all 96
+    evaluations (`gate_progress.npz`) it was 1,093-1,101 wherever all ten
+    episodes ran the full horizon; 10 of the 96 dipped to 993-1,080, each
+    with one of its ten episodes ending early (`full_horizon_fraction`
+    0.9; seed 60 7 times, seed 52 twice, seed 42 once).
+  - The forward-velocity term was 0.5-3.2 per episode at the 2M, 3M and
+    4.2M evaluations, against the September T. rex walkers' 39-54 at 2.1M
+    and 148-234 at 4.2M. Over all 51 evaluations from 2M to 4.2M it was
+    0.1-7.5, 12 of them outside 0.5-3.2 (`gate_progress.npz`); the run
+    log's "0.5-3.2 at 2-4.2M (max 7.5)" is the range at those three
+    evaluations.
+  - The `gate_progress.npz` figures were read on 2026-10-18 from each
+    run's `03_locomotion/gate_progress.npz` on Drive (32 evaluations, the
+    last at 4,194,304; folder ids in `run_log.txt`), transcribed twice for
+    the final judging and byte-identical (sha256 `86896545…`, `b0317e62…`
+    and `29858fd4…` for seeds 42, 52 and 60); they are not copied into
+    the evidence folder.
   - The policy's action std (exp(log_std), mean over the 15 actuators, read
     from the checkpoints by `pilot1_judging/tools/stdcheck.py`) was 0.095 in
     the parent (min 0.018, max 0.164, as `pilot2/criteria.txt` quotes it) and
@@ -1074,8 +1090,9 @@ an arm L checkpoint. `offline_certificates/scripts/run_cert.py` called
 `build_stance_heading_report`, the function the notebook's end-of-stage
 certificate calls, on `main` `2e734e29` (physics r9) with `stance.toml` as
 committed (options off) or with arm L's three env options (armL), on the r9
-arm L symmetry-screen checkpoints of §5 (`offline_certificates/offline_certificates.txt`;
-the table is in the evidence README):
+arm L symmetry-screen checkpoints of §5
+(`offline_certificates/offline_certificates.txt`; the table is in the
+evidence README):
 
 - At 6,291,456 steps on 3042-3081: seed 60, the pilots' parent, **PASS**
   40/40 seeds clean at all six headings (LCB 0.9278); seed 52 **PASS** 38/40
@@ -1160,7 +1177,7 @@ needs the maintainer's approval.
   passes it (median 0.36, worst 0.78) and has the smallest forward push margin
   of any role tested (§15.3; `battery/battery_report.md` §4). A track-like
   stance with its load over the MTP joints reads 0.86 and would fail, and seed
-  52 failed reset seed 3050 at the heel edge (−1.00) (the audit). Seed 52 sat
+  52 failed reset seed 3050 at the heel edge (-1.00) (the audit). Seed 52 sat
   heel-ward on both pads in 30 of its 48 in-training evaluations, seeds 42 and
   60 toe-ward on 46 and 47
   (`next_signals/diagnose/signed_pad_cop_r9armL.txt`).
@@ -1177,7 +1194,8 @@ published values restated in the model's frame (`audit/literature/out/`):
   statue and both 6M policies the COM projects 2.4-6.8 cm ahead of MTP III,
   inside the proximal-phalanx zone where tyrannosaur tracks are deepest, and
   none of the three stances leans forward (each subvertical and slightly
-  flexed, every joint within 5° of home; `audit/posture/out/posture_table.txt`).
+  flexed, every joint within 5° of home;
+  `audit/posture/out/posture_table.txt`).
   The drift state itself (seed 60 at 5M) was not rolled.
 - **Matches:** footprint over hip height (0.260, published 0.216-0.270),
   digit lengths, the load centre, the COM ahead of the hip (41.9-45.6% of
@@ -1273,11 +1291,11 @@ launched.
   the policy's mean action, the value network and the normalisation statistics
   as pilot 1 had them, so the deterministic panel would read the parent's
   STILL before any update; the noise acts only through what training learns.
-- **Everything else is pilot 1's:** the parent (r9 arm L seed 60 at
-  6,291,456 steps, sha256 `70f3a444…`), the production locomotion stage and
-  its 4,194,304-step schedule, seeds 42, 52 and 60, the frozen probe, the
-  episode labels and the WALK rule's guards, the seed and pilot outcomes, the
-  video review, and pilot 1's judging tools, unchanged (their sha256 are in the
+- **Everything else is pilot 1's:** the parent (r9 arm L seed 60 at 6,291,456
+  steps, sha256 `70f3a444…`), the production locomotion stage and its
+  4,194,304-step schedule, seeds 42, 52 and 60, the frozen probe, the episode
+  labels and the WALK rule's guards, the seed and pilot outcomes, the video
+  review, and pilot 1's judging tools, unchanged (their sha256 are in the
   criteria). Three rules are added because they follow from the change: the
   judging reads each run's `stage_config.json`, and a run that does not record
   the reset (`curriculum.warm_start_log_std` and `run.warm_start_log_std` both
@@ -1311,12 +1329,12 @@ launched.
 
 - **§13, the walking pilot's outcome:** pilot 1 read STILL, so neither its
   WALKS nor its HOPS branch arises; pilot 2 (§15.7) is pre-registered and
-  not yet trained. The other open questions of §13 stand, and the follow-ups
-  add three: whether the fore-aft bar should read a signed or whole-foot CoP
-  (§15.4); whether the
-  reward-selected `robust_best` should stay the handoff when it is clean only
-  without its own noise (§15.3); and which, if any, of the audit's seven
-  physics changes to take (§15.5).
+  not yet trained. The other open questions of §13 stand. The follow-ups
+  sharpen its "Pad or whole-foot CoP for the T. rex bar" with a signed
+  statistic (§15.4), and add two: whether the reward-selected `robust_best`
+  should stay the handoff when it is clean only without its own noise
+  (§15.3), and which, if any, of the audit's seven physics changes to take
+  (§15.5).
 - **§13, the public #623 comment:** it already opens with a correction
   (updated 2026-10-17 18:54 UTC) giving 0.89-0.94 against 0.76-0.79 and 1.10
   against 0.85, and marks the in-text 1.06-1.10 as superseded (a read-only
