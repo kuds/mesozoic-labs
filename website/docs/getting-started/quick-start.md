@@ -44,7 +44,7 @@ locomotion, behavior) in manifest order in a single call. Each node loads its
 own hyperparameters from its TOML config, warm-starts from its declared
 `warm_start_from` parent's handoff checkpoint, and writes a `gate_verdict.json`
 beside that handoff; a node whose parent has no certified checkpoint stops the
-run. Stand, walk and hunt are each published on their own — see
+run. Stance, walk and hunt are each published on their own — see
 [Behavior Recipes](/docs/training/recipes).
 
 ```bash

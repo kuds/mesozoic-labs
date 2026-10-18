@@ -44,13 +44,14 @@ On 2026-10-05 the maintainer paused the consolidation after PR-10: PR-11
 onward waits until one or two species walk well (the consolidation plan's
 status table).
 
-The node order is `stance` (the notebook's `stance`), `locomotion` (its
-`walk`), `follow_direction`, then `follow_direction_difficult_terrain`
+The node order is `stance` (also the notebook's label), `locomotion` (the
+notebook's `walk`), `follow_direction`, then `follow_direction_difficult_terrain`
 (decision G1 in [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2). On
 the T-Rex and the two Compsognathus models, the notebook's `recover` trains
 `recovery` after stance (decision D-D35; `stance` is the stance alone on every
-model, its label `stand` until decision D-D38), a side branch that `walk` does not use. It is second in their
-manifests, so their walker is node `03_locomotion` (`02_locomotion` elsewhere).
+model, its label `stand` until decision D-D38), a side branch that `walk` does
+not use. It is second in their manifests, so their walker is node
+`03_locomotion` (`02_locomotion` elsewhere).
 `difficult_terrain` is an optional diagnostic sibling, not a step. The
 sequence under "Follow directions on difficult terrain" is advice for
 command-line pilots, not this chain.

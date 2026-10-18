@@ -467,7 +467,7 @@ decision's full text is in
 evidence in §16 of
 [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).*
 
-*Note 2026-10-18 (decision D-D38): where §2 and this section record
+*Note 2026-10-18 (decision D-D38): where §2, this section and §8 record
 `BEHAVIOR = "stand"` or a `stand` session, they give the setting as it was
 typed then. The stance stage's recipe label is now `stance`, its own id:
 type `BEHAVIOR = "stance"` for the same chain (the stance stage alone), also
@@ -571,7 +571,8 @@ Notes:
 - A widened root is judged in its new run and every node below it trains
   there (T-Rex `stand` = re-panel stance, then recovery 3M, at the time; T-Rex
   `walk` would train locomotion 8M instead). Since decision D-D35 (2026-10-16)
-  that chain is `recover`, and `stand` is stance only on every model, as it
+  that chain is `recover`, and `stand` was stance only on every model (its
+  label is `stance` since decision D-D38, which refuses `stand`), as it
   always was for velociraptor, brachiosaurus and dibothrosuchus (no recovery
   node).
 - Otherwise leave `TRUNK_FROM = "auto"`.
