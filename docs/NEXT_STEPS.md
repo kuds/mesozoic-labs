@@ -474,6 +474,23 @@ they certify nothing, so the next T-Rex session above is still unchanged;
 the next round, the second pilot's parent and any criteria change are the
 maintainer's and not yet decided (D-D37's amendment of 2026-10-19; §17 of
 the same record).*
+*2026-10-19, later: decision D-D39. The maintainer chose three more 12M
+T-Rex stance screen runs: the heavier leg term plus a foot-stagger penalty
+(weight 0.30, tolerance 0.045 m), from scratch, seeds 52, 60 and 42
+(`stance4_LTS_s52`, `stance4_LTS_s60`, `stance4_LTS_s42`), from the branch
+`claude/screen-trex-r9-armlt-stagger`, which is never merged, with
+`stance3_armLT_s60` and `stance3_armLT_s52` as the control, not retrained.
+They are judged by criteria fixed before training and certify nothing, so
+the next T-Rex session above is still unchanged; the second pilot stays
+parked. The decision named Colab CPU runtimes, as D-D37's Colab steps had.
+Measured, D-D37's runs trained on Colab L4 GPU runtimes (in the
+`stage_config.json` files fetched at 4,194,304 steps; that the control
+stayed on L4 throughout is inferred). Before any of the three runs
+started, the criteria were re-fixed for L4, the control's runtime type,
+for the maintainer to confirm when starting the runs. A later PR records
+the outcome; the decision's full text is in
+[BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2 and the runs'
+design in §18 of the same record.*
 
 *Note 2026-10-18 (decision D-D38): where §2, this section and §8 record
 `BEHAVIOR = "stand"` or a `stand` session, they give the setting as it was

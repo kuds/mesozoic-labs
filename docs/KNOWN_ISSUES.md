@@ -218,6 +218,18 @@ robustness, **LOW** = cosmetic / QoL.
   two-seed ask stands: no T-Rex stance is certified. Record, numbers and
   evidence: §17 of
   [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).
+  **Update 11 (2026-10-19):** the maintainer chose the next round
+  (decision D-D39, [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md)
+  §6.2): three more 12M stance screen runs on physics r9, the heavier leg
+  term plus a penalty on a fore-aft stagger of the feet, from scratch on
+  seeds 52, 60 and 42, judged against two of the runs of Update 10 by the
+  same four criteria, fixed before training. The penalty is proposed for
+  committing only if at least two of the three runs hold and the arm does
+  no worse than the control on any criterion. The ankle anchor and arm L
+  without the heavier leg term are dropped from further screens. As
+  screens they certify nothing. The two-seed ask stands. Record and
+  criteria: §18 of
+  [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).
 - **LOW** — **stage 1a (stance) contains no in-episode disturbance, so a
   stance-gate PASS certifies stance quality, not active balance control.** The
   only perturbation is joint-angle noise at reset (`reset_noise_scale 0.05`).

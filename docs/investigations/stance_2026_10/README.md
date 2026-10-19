@@ -37,6 +37,12 @@ report-only readouts and the overnight scratch experiment that followed, and
 an index of its own, [stance3/results/README.md](stance3/results/README.md)
 (the note's §17). As screens they certify nothing.
 
+*Added 2026-10-19, later:* `stance3/night/` holds the overnight
+experiment's harness-matched no-change comparison (the note's §17.8), and
+`stance4/` the criteria of the next screen, decision D-D39 (the note's
+§18), fixed before training. `stance4/` holds no judgement, and as a screen
+it certifies nothing.
+
 ## What changed in the copies
 
 [SOURCES.txt](SOURCES.txt) lists every file with the scratch file it came from,
@@ -107,6 +113,11 @@ trailer.
 (one line of trailing spaces); nothing else. `stance3/night/interpretation.md`
 has the same source as `stance3/results/night_scratch/interpretation.md` and
 is byte-identical to it.
+
+*Added 2026-10-19, later (`stance4/`):* `stance4/criteria.txt` is
+byte-identical to the file fixed before training (sha256 `978a93da…`; it
+ends with a newline). It holds no model identifier, email address or commit
+trailer.
 
 [SHA256SUMS](SHA256SUMS) pins every file here but this README and itself
 (`sha256sum -c SHA256SUMS` in this directory). *Added 2026-10-19:* nor
@@ -470,6 +481,37 @@ Its judge files, rollouts and scripts stay in the session's scratch
 (`scratchpad/foot/stance3/night/cont/`). Its paths: `S3` is
 `scratchpad/foot/stance3` and `C` is `S3/night/cont`.
 
+### Added on 2026-10-19, later (decision D-D39)
+
+**`stance4/`: the next T. rex stance screen, pre-registered (decided
+2026-10-19; not yet trained when recorded).** Three new runs of arm LTS,
+the stance3 L+T recipe plus a stance stagger penalty (weight 0.30,
+tolerance 0.045 m), from scratch on physics r9: `stance4_LTS_s52`,
+`stance4_LTS_s60` and `stance4_LTS_s42`, from the branch
+`claude/screen-trex-r9-armlt-stagger` (`1af2d4d7` plus `ff7114c0` and
+`c1e146a8`), which is never merged and has no pull request. The control is
+stance3 Runs 2 and 3 as already judged, not retrained. The maintainer's
+decision named Colab CPU runtimes, as stance3's Colab steps had. Measured,
+stance3's runs trained on Colab L4 GPU runtimes (in the `stage_config.json`
+files fetched at 4,194,304 steps; that the control stayed on L4 throughout
+is inferred). Before any of the three runs started, the criteria were
+re-fixed for L4, the control's runtime type, for the maintainer to confirm
+when starting the runs.
+
+- `criteria.txt`: what is trained, how it is judged (K1–K4 exactly as
+  stance3's), the control and its caveats, the credit rule, the decision
+  table, when the decision is read and the pre-registered readouts, written
+  before any training step (sha256 `978a93da…`). Its `SP/` paths name the
+  session's scratch (`scratchpad/`), where the judge, the scorer, the build
+  record and the statue measurement stay. It replaces a first file (sha256
+  `8bda933e…`) that named a Colab CPU runtime, as the decision did. The
+  control's L4 is measured in the `gpu` block of its `stage_config.json`
+  files, as fetched at 4,194,304 steps; each records the session that wrote
+  it, so that the control stayed on L4 throughout is inferred. The first
+  file was re-fixed before any of the three runs started and differs only
+  in the runtime (measured: line 7 changed and two lines added); it stays
+  in the session's scratch (`scratchpad/foot/stance4/superseded/`).
+
 ## How to re-check each verdict
 
 Commands as run on 2026-10-17 from a copy of this directory (Python 3.13;
@@ -514,6 +556,8 @@ copies.
 | `stance3/results/checkpoints.csv` (2026-10-19; session scratch only) | `python3 -I stance3/results/checkpoints_csv.py <judged dir> out.csv --check <score_final2.json>` | 28 cells agree with the scorer; `out.csv` identical |
 | The files themselves (2026-10-19, with `stance3/results/`) | `sha256sum -c SHA256SUMS` | all 319 files OK |
 | The files themselves (2026-10-19, later, with `stance3/night/`) | `sha256sum -c SHA256SUMS` | all 321 files OK |
+| The stance4 criteria (2026-10-19) | `sha256sum stance4/criteria.txt` | `978a93da8da469c1acde7b9f7261d9236e4799eb2111b3af0f0cbeaa153f0f38` |
+| The files themselves (2026-10-19, later, with `stance4/`) | `sha256sum -c SHA256SUMS` | all 322 files OK |
 
 `test_pilot_score.py` prints sample "Walking pilot score" blocks while it runs;
 they score synthetic panels, not the pilot.

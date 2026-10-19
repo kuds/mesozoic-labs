@@ -36,6 +36,13 @@ Their evidence is in
 [stance_2026_10/stance3/results/](stance_2026_10/stance3/results/README.md).
 The statuses above are unchanged.*
 
+*Status 2026-10-19, later (appended): §18, appended that day, records the
+maintainer's decision D-D39: the stance4 screen, another T. rex stance
+screen, of three runs with a foot-stagger penalty, from scratch, judged
+against two of §16's runs by criteria fixed before training (in
+[stance_2026_10/stance4/](stance_2026_10/README.md)); not yet trained. The
+statuses above are unchanged.*
+
 It continues [STANCE_REWARD_PILOT_FINDINGS_2026_10.md](STANCE_REWARD_PILOT_FINDINGS_2026_10.md)
 (2026-10-10), [STANCE_HACK_AUDIT_2026_10.md](STANCE_HACK_AUDIT_2026_10.md)
 §12 (the physics-r9 statue) and the blog post
@@ -1923,3 +1930,135 @@ evaluation after 8.91M (5.6–10.9 mm per evaluation, against 11.4–43.5 mm
 for the local no-change run and 10.2–51.9 mm for the Colab one), which
 favours the term at n = 1. More seeds of both arms, not a longer single
 run, would settle it.
+
+## 18. Status 2026-10-19, later (appended): decision D-D39, the stance4 screen
+
+*Appended 2026-10-19; §1–§17 above are unchanged.* After §17's verdicts the
+maintainer took decision D-D39 on 2026-10-19
+([BEHAVIOR_RECIPES_PLAN.md](../BEHAVIOR_RECIPES_PLAN.md) §6.2): another
+T. rex stance screen, stance4, that tests the foot-stagger penalty of §17.5
+and §17.8 from scratch. It takes item 1 of §17.6 and parts of items 2 and 3.
+Its criteria were fixed before any training step:
+[stance_2026_10/stance4/criteria.txt](stance_2026_10/stance4/criteria.txt),
+sha256 `978a93da8da469c1acde7b9f7261d9236e4799eb2111b3af0f0cbeaa153f0f38`.
+They replace a first file that named a Colab CPU runtime, as the decision
+did; they name an L4 GPU runtime, for the maintainer to confirm (§18.1). As
+a screen it certifies nothing.
+
+### 18.1 The runs and the control
+
+- **Arm LTS ("L+T + stagger"):** §16.2's L+T recipe (branch
+  `claude/screen-trex-r9-armlt` at `1af2d4d7`) plus the stance stagger
+  penalty. After the settle (step > 200), while the command is zero, each
+  step pays −0.30 × (1 − exp(−(s / 0.045)²)), where s is the right foot
+  site's lead over the left along the gravity-aligned pelvis heading
+  (`stance_stagger_weight` 0.30, `stance_stagger_tolerance_m` 0.045). s
+  enters squared, so the term is mirror-invariant. The statue's mean |s| in
+  the window is about 2 mm (measured; the criteria).
+- **The branch** `claude/screen-trex-r9-armlt-stagger`: `1af2d4d7` plus
+  `ff7114c0` (the term as an opt-in `[env]` option, off by default; off, it
+  leaves the L+T task digest `d4a3b8f8…` unchanged) and `c1e146a8` (the two
+  keys on in the stance config; the task `sha256:3fa46708…`; the collapse
+  reference 4459.3 against L+T's 4460.5). It is never merged and has no pull
+  request.
+- **The runs:** `stance4_LTS_s52`, `stance4_LTS_s60` and `stance4_LTS_s42`
+  (seeds 52, 60 and 42), from scratch on physics r9, 12,000,000 steps (final
+  12,001,280) with the SB3 notebook, `n_envs` 4 and the committed PPO
+  schedules; an evaluation of 10 episodes every 131,072 steps and a
+  checkpoint every 524,288 steps, all kept, as for §16's runs.
+- **The runtime: CPU in the decision, L4 in the criteria.** The maintainer's
+  decision named Colab CPU runtimes, as stance3's Colab steps had. Measured,
+  stance3's runs trained on Colab L4 GPU runtimes: the `gpu` block of each
+  run's `01_stance/stage_config.json`, in the copies fetched for the judging
+  at 4,194,304 steps, reads `L4` (§16.2). Each copy records only the session
+  that wrote it, and its run block has no load keys (measured), so that
+  session started the run. A resume would rewrite the file, and none is
+  recorded, so that each control run stayed on L4 throughout is inferred.
+  Before any of the three runs started, the session preparing them re-fixed
+  the criteria for L4, the control's runtime type, and told the maintainer.
+  The Colab steps ask the maintainer to choose L4 and to report each run's
+  runtime type at its start. The maintainer's confirmation is pending; a
+  later PR records it with the runs. That the networks ran on the GPU is
+  inferred, not measured: the trainer gives SB3 no device, and SB3's default
+  picks CUDA when it finds one. If no L4 is available, the maintainer may
+  pick another runtime. Each run's runtime is read from the `gpu` block of
+  its `stage_config.json` (no block means a CPU runtime) and reported beside
+  the verdicts; the runtime never changes a verdict.
+- **The first criteria file named a CPU runtime.** That file (sha256
+  `8bda933e682955e36e0f4bafcd184df9ed1df1238ae1a92479dfebead04caf9e`) said
+  "a Colab CPU runtime", as the decision did. The two files differ only in
+  the runtime (measured: line 7 changed and two lines added). The first file
+  stays in the session's scratch (`scratchpad/foot/stance4/superseded/`).
+  Measured, the r10 screen's `01_stance/stage_config.json` files (§6; seeds
+  42, 52 and 60) also record an L4, so §16.2's statement that CPU was the
+  only runtime the mirror-symmetric trainer had trained 12M on is wrong, as
+  is the same claim in `stance3/colab_steps.txt`; both are left unedited.
+- **The control is not retrained.** It is §16's Run 2 (`stance3_armLT_s60`)
+  and Run 3 (`stance3_armLT_s52`), as judged in §17.2: Run 2 fails K1 and
+  K2 and passes K3 and K4; Run 3 fails K2 and passes K1, K3 and K4. The term
+  is the only task difference between the arms. The control trained a day
+  earlier, not beside the stagger runs, and seed 42 has none; the criteria
+  name both as caveats. Not retraining it departs from the recommendation in
+  §17.6 item 1 of an unchanged L+T arm in the same screen on the same seeds.
+
+### 18.2 Criteria, credit rule and decision table
+
+- **K1–K4 exactly as §16.2's**, with the same judge settings, the same six
+  judged checkpoints (4,194,304, 5,242,880, 6,291,456, 8,388,608,
+  10,485,760 and the final), the same HOLDS (K1–K4 all hold) and FORE-AFT
+  HOLDS (K1 and K2), and K2c's 30 mm range bar unchanged.
+- **The credit rule.** The term is adopted, that is proposed to the
+  maintainer for committing, only if (a) at least 2 of the 3 stagger runs
+  hold, and (b) for each of K1–K4 the fraction of stagger runs passing it is
+  at least the control's. With the control's results (K1 1/2, K2 0/2, K3
+  2/2, K4 2/2) and (a), (b) means that no stagger run fails K3 or K4.
+- **The decision table** (H, the stagger runs that hold; K2p, those passing
+  K2):
+  1. H ≥ 2 and (b): adopt. Propose the option (off by default) and the two
+     keys as the T. rex stance recipe, with the best holding final as the
+     stance parent.
+  2. H ≥ 2 without (b): not adopted; replicate on 2 more seeds before any
+     commit.
+  3. H = 1: not adopted; not separated from seed luck; replicate on 2 more
+     seeds before any commit.
+  4. H = 0 and K2p ≥ 2: not adopted; the next round targets the other
+     failures (for K3, the leg exploration-noise floor that line 2 of
+     stance3's decision table names, §17.4).
+  5. H = 0 and K2p ≤ 1: not adopted; the next round tests a per-foot
+     centre-of-pressure band term (new contact-reward code) or the v6b ankle
+     spring.
+- **Walking pilot 2's parent, in every case:** the best stagger final by
+  §17.2's rule is compared with Run 2's final (40/40 clean, no noise falls;
+  in the maintainer's words, "the current walking pilot 2 parent"), and the
+  better is offered. Pilot 2 stays parked until the maintainer says
+  otherwise.
+- Fails stay fails, and no run is stopped or changed on its readouts.
+
+### 18.3 What else D-D39 settles
+
+- **Dropped from further screens:** the ankle anchor (§17.5, §17.8) and arm
+  L (§17.2, §17.4).
+- **Report only, never in a verdict:** every 1,048,576-step checkpoint
+  outside the six, judged like them, for the stagger runs and for the
+  controls where fetched; diagnostic panels at each judged checkpoint for
+  both arms (mirrored leg noise, the prey straight ahead, both); §16's
+  pre-registered readouts; a saturation alarm on the eval ledger (two
+  evaluations in a row with at least 5 of 10 episodes listing
+  `max_actuator_saturation_fraction`, §17.6 item 3); and stagger watches
+  (the episode yaw change, training-fall causes with tail and head contact,
+  and the stagger at step 200 against the window).
+- **Still open:** the signed per-foot bar in the gate (§16.1 item 5) and
+  whether a screen run could ever count toward `certification_seeds`
+  (§16.2).
+- The runs had not started when this was recorded. A later PR records their
+  outcome.
+
+### 18.4 What changes in §13–§17
+
+- **§13, §16.3 and §17.7:** the next round is decided (D-D39). Walking
+  pilot 2 stays parked, its branch and criteria kept.
+- **§14, this repository:** `stance4/criteria.txt`, byte-identical to the
+  file fixed before training, with its source in `SOURCES.txt` and its
+  sha256 in `SHA256SUMS` (now 322 files).
+- **§14, branches:** `claude/screen-trex-r9-armlt-stagger` at `c1e146a8`,
+  never merged, with no pull request.

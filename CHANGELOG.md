@@ -8,6 +8,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **Decision D-D39 recorded: another T. rex stance screen, three runs of L+T
+  with a foot-stagger penalty against two D-D37 runs as the control** (the
+  maintainer's decisions of 2026-10-19; `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2,
+  `docs/CONSOLIDATION_PLAN_2026_09.md` §6, a dated note in §17 of
+  `docs/GAIT_QUALITY_PLAN_2026_09.md`, `docs/NEXT_STEPS.md` §3; the appended
+  §18 of `docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md` and
+  `docs/investigations/stance_2026_10/stance4/criteria.txt`). Records only: no
+  library code, configuration, test, notebook, digest or generated file changes
+  with it. After the three D-D37 runs failed their fixed criteria (line 3b) and
+  the overnight scratch experiment left a foot-stagger penalty unattributed at
+  one run per arm, D-D39 trains three new 12M runs of arm LTS: D-D37's L+T (arm
+  L with `leg_home_pose_weight` 1.0 and `leg_home_pose_tolerance` 0.05 rad)
+  plus a stance stagger penalty (`stance_stagger_weight` 0.30,
+  `stance_stagger_tolerance_m` 0.045; after the settle, each step pays −0.30 ×
+  (1 − exp(−(s / 0.045)²)) for the right foot's fore-aft lead s over the left).
+  They train from scratch on physics r9, seeds 52, 60 and 42
+  (`stance4_LTS_s52`, `stance4_LTS_s60`, `stance4_LTS_s42`), from the screen
+  branch `claude/screen-trex-r9-armlt-stagger` (`1af2d4d7` plus `ff7114c0`, the
+  opt-in term off by default, and `c1e146a8`, the two keys on), which is never
+  merged and has no pull request. The maintainer's decision named Colab CPU
+  runtimes, as D-D37's Colab steps had. Measured, D-D37's runs trained on Colab
+  L4 GPU runtimes: the `gpu` block of each run's `stage_config.json`, as
+  fetched at 4,194,304 steps, reads L4. It records only the session that wrote
+  it, so that the control stayed on L4 throughout is inferred. Before any of
+  the three runs started, the criteria were re-fixed for L4, the control's
+  runtime type, for the maintainer to confirm when starting the runs; a later
+  PR records the confirmation. The control is not retrained: D-D37's Runs 2 and
+  3, as already judged. The criteria were fixed before training (sha256
+  `978a93da…`; a first file, `8bda933e…`, named a Colab CPU runtime): K1–K4
+  exactly as D-D37's, with K2c's 30 mm bar unchanged. The term is adopted, that
+  is proposed for committing, only if at least 2 of the 3 runs hold and the arm
+  passes each of K1–K4 at least as often as the control (here: no stagger run
+  fails K3 or K4); a five-line decision table names the next step for every
+  other outcome; and the better of the best stagger final and D-D37 Run 2's
+  final is offered as walking pilot 2's parent, while pilot 2 stays parked. The
+  ankle anchor and arm L are dropped from further screens. Report only: every
+  1,048,576-step checkpoint, diagnostic panels (mirrored leg noise, the prey
+  straight ahead, both), a saturation alarm on the eval ledger and stagger
+  watches. Screens certify nothing. `stance4/criteria.txt` is byte-identical to
+  the criteria file; `SOURCES.txt` and `SHA256SUMS` (now 322 files) are
+  extended. `docs/README.md` adds a note to the record's and the gait plan's
+  rows, and `docs/KNOWN_ISSUES.md` gains Update 11 of the T-Rex stance entry.
+  The outcome is not yet known.
 - **The three T. rex stance screen runs of D-D37 judged: all three fail their
   fixed criteria; the readouts and an overnight scratch experiment recorded,
   report only** (D-D37's amendment of 2026-10-19;
@@ -45,13 +88,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   stagger arm's 40, 0 and 7.5 mm), but the Colab no-change run from the same
   checkpoint did (40, 0 and 9.7 mm), so with one run per arm the penalty's
   effect stays unattributed, report only (`stance3/night/`). The next round,
-  walking pilot 2's parent and any criteria or telemetry change are not
-  decided; the record lists them as proposals for the maintainer.
-  `stance3/results/` (28 files and its README, about 0.38 MB) holds the run
-  log, the scorer's printouts, a per-checkpoint summary (`checkpoints.csv`, 37
-  rows, with the script that recomputes it from the judge files), the
-  certificates, the readouts and the night experiment's pre-registration,
-  readouts, interpretation and verification, and `stance3/night/` the no-change
+  walking pilot 2's parent and any criteria or telemetry change were not
+  decided when the runs were judged; the record lists them as proposals for the
+  maintainer, and D-D39 (above) decides the next round. `stance3/results/` (28
+  files and its README, about 0.38 MB) holds the run log, the scorer's
+  printouts, a per-checkpoint summary (`checkpoints.csv`, 37 rows, with the
+  script that recomputes it from the judge files), the certificates, the
+  readouts and the night experiment's pre-registration, readouts,
+  interpretation and verification, and `stance3/night/` the no-change
   comparison and the interpretation it cites; `SOURCES.txt` and `SHA256SUMS`
   (now 321 files) are extended. `docs/README.md` adds a note to the record's
   and the gait plan's rows, and `docs/KNOWN_ISSUES.md` gains Update 10 of the
