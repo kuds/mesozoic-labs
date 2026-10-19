@@ -466,6 +466,14 @@ decision's full text is in
 [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2 and the runs'
 evidence in §16 of
 [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).*
+*2026-10-19: the three runs were judged by their fixed criteria, final: all
+three fail, and their decision table's line is 3b (a joint-space price does
+not hold the stance). The best final checkpoint by the fixed rule, offered
+as the second pilot's parent, is `stance3_armLT_s60`'s final. As screens
+they certify nothing, so the next T-Rex session above is still unchanged;
+the next round, the second pilot's parent and any criteria change are the
+maintainer's and not yet decided (D-D37's amendment of 2026-10-19; §17 of
+the same record).*
 
 *Note 2026-10-18 (decision D-D38): where §2, this section and §8 record
 `BEHAVIOR = "stand"` or a `stand` session, they give the setting as it was

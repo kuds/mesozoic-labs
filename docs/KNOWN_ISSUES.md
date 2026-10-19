@@ -204,6 +204,20 @@ robustness, **LOW** = cosmetic / QoL.
   not yet judged; as screens they certify nothing. The two-seed ask stands.
   Record, numbers and evidence: §16 of
   [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).
+  **Update 10 (2026-10-19):** the three screen runs were judged by their
+  fixed criteria, final, and **all three fail**: arm L on seed 60 on the
+  no-drift bar (its panel median ranged over 33.9 mm against 30, an
+  ankle-carried whole-body drift) and on joint-space noise (7 and 11 of 20
+  falls at 6M and 12M); the heavier, narrower leg term on seed 60 on the gate
+  and fore-aft early (one tail actuator pinned at full command, and a
+  left-right fore-aft split of the feet left from the spawn stagger); and on
+  seed 52 on fore-aft (6 of 40 episodes over the pad bar at 8.4M, 4 outside
+  the signed per-foot bar at 12M, a no-drift range of 30.6 mm). Their
+  decision table's line is 3b: a joint-space price does not hold the stance.
+  What the next round tests is the maintainer's decision, not taken. The
+  two-seed ask stands: no T-Rex stance is certified. Record, numbers and
+  evidence: §17 of
+  [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).
 - **LOW** — **stage 1a (stance) contains no in-episode disturbance, so a
   stance-gate PASS certifies stance quality, not active balance control.** The
   only perturbation is joint-angle noise at reset (`reset_noise_scale 0.05`).

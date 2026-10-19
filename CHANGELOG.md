@@ -8,6 +8,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **The three T. rex stance screen runs of D-D37 judged: all three fail their
+  fixed criteria; the readouts and an overnight scratch experiment recorded,
+  report only** (D-D37's amendment of 2026-10-19;
+  `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2, `docs/CONSOLIDATION_PLAN_2026_09.md`
+  §6, a dated note in §17 of `docs/GAIT_QUALITY_PLAN_2026_09.md`,
+  `docs/NEXT_STEPS.md` §3; the appended §17 of
+  `docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md` and the folder
+  `docs/investigations/stance_2026_10/stance3/results/`). Records only: no
+  library code, configuration, test, notebook, digest or generated file changes
+  with it. The three 12M runs trained to their final 12,001,280 steps and were
+  judged on 2026-10-18 and 2026-10-19 by the criteria fixed before training
+  (sha256 `1ce910dc…`) with the frozen judge and scorer, final. Run 1
+  (`stance3_armL_s60`, arm L) fails K2 on the no-drift range (33.9 mm against
+  30) and K3 (7 and 11 of 20 joint-space noise falls at 6,291,456 and the
+  final, against 2). Run 2 (`stance3_armLT_s60`, arm L with
+  `leg_home_pose_weight` 1.0 and `leg_home_pose_tolerance` 0.05 rad) fails K1
+  and K2 early: clean 0, 0 and 36 of 40 at 4,194,304, 5,242,880 and 6,291,456,
+  with one tail actuator pinned at full command, and K2a 10 and 6, K2b 14, 10
+  and 6. Run 3 (`stance3_armLT_s52`) fails K2: K2a 6 at 8,388,608, K2b 4 at the
+  final and a no-drift range of 30.6 mm. The decision table's line is 3b: a
+  joint-space price does not hold the stance, and the line names a fore-aft
+  term that needs code or the v6b ankle spring as the next round's candidates.
+  The best final checkpoint by the fixed rule is Run 2's (40 of 40 clean, no
+  noise falls), which the criteria offer as walking pilot 2's parent. Screens
+  certify nothing, and the stage's six-heading certificate rolled offline on
+  the three finals (all three PASS) is report only. Report only too: the
+  readouts (arm L's ankle-carried whole-body drift, L+T's left-right foot split
+  left from the spawn stagger, Run 2's tail-actuator saturation) and an
+  overnight scratch experiment of three continuations from a scratch clone that
+  is never merged (the ankle anchor refuted at its pre-registered dose by its
+  own line, a foot-stagger penalty inconclusive against the matched no-change
+  control, the same penalty on Run 1 refuted). The next round, walking pilot
+  2's parent and any criteria or telemetry change are not decided; the record
+  lists them as proposals for the maintainer. `stance3/results/` (28 files and
+  its README, about 0.38 MB) holds the run log, the scorer's printouts, a
+  per-checkpoint summary (`checkpoints.csv`, 37 rows, with the script that
+  recomputes it from the judge files), the certificates, the readouts and the
+  night experiment's pre-registration, readouts, interpretation and
+  verification; `SOURCES.txt` and `SHA256SUMS` (now 319 files) are extended.
+  `docs/README.md` adds a note to the record's and the gait plan's rows, and
+  `docs/KNOWN_ISSUES.md` gains Update 10 of the T-Rex stance entry.
 - **Decision D-D37 recorded: three full T. rex stance screen runs in place of
   walking pilot 2; the offline diagnosis behind them** (#631; the maintainer's
   decision of 2026-10-18; `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2,
