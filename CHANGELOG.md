@@ -39,16 +39,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   overnight scratch experiment of three continuations from a scratch clone that
   is never merged (the ankle anchor refuted at its pre-registered dose by its
   own line, a foot-stagger penalty inconclusive against the matched no-change
-  control, the same penalty on Run 1 refuted). The next round, walking pilot
-  2's parent and any criteria or telemetry change are not decided; the record
-  lists them as proposals for the maintainer. `stance3/results/` (28 files and
-  its README, about 0.38 MB) holds the run log, the scorer's printouts, a
-  per-checkpoint summary (`checkpoints.csv`, 37 rows, with the script that
-  recomputes it from the judge files), the certificates, the readouts and the
-  night experiment's pre-registration, readouts, interpretation and
-  verification; `SOURCES.txt` and `SHA256SUMS` (now 319 files) are extended.
-  `docs/README.md` adds a note to the record's and the gait plan's rows, and
-  `docs/KNOWN_ISSUES.md` gains Update 10 of the T-Rex stance entry.
+  control, the same penalty on Run 1 refuted). The spec's harness-matched local
+  no-change continuation of Run 3, compared afterwards, did not recover (clean
+  25 of 40, K2a 15 and a stagger sd of 25.9 mm at 9,961,472, against the
+  stagger arm's 40, 0 and 7.5 mm), but the Colab no-change run from the same
+  checkpoint did (40, 0 and 9.7 mm), so with one run per arm the penalty's
+  effect stays unattributed, report only (`stance3/night/`). The next round,
+  walking pilot 2's parent and any criteria or telemetry change are not
+  decided; the record lists them as proposals for the maintainer.
+  `stance3/results/` (28 files and its README, about 0.38 MB) holds the run
+  log, the scorer's printouts, a per-checkpoint summary (`checkpoints.csv`, 37
+  rows, with the script that recomputes it from the judge files), the
+  certificates, the readouts and the night experiment's pre-registration,
+  readouts, interpretation and verification, and `stance3/night/` the no-change
+  comparison and the interpretation it cites; `SOURCES.txt` and `SHA256SUMS`
+  (now 321 files) are extended. `docs/README.md` adds a note to the record's
+  and the gait plan's rows, and `docs/KNOWN_ISSUES.md` gains Update 10 of the
+  T-Rex stance entry.
 - **Decision D-D37 recorded: three full T. rex stance screen runs in place of
   walking pilot 2; the offline diagnosis behind them** (#631; the maintainer's
   decision of 2026-10-18; `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2,

@@ -193,6 +193,10 @@ are relaxed-binding, so the scorer refuses them and they never enter K1–K4.
 Its paths: `S3` is `scratchpad/foot/stance3`, `C` is `S3/night/cont`, `K` is
 `C/control` and `D` is `S3/night/design`.
 
+*Added 2026-10-19, later:* the spec's local no-change control is compared
+with A and B in [`../night/nochange_compare.md`](../night/nochange_compare.md)
+(the record's §17.8).
+
 ## How to re-check
 
 Run on 2026-10-19 (Python 3.13; `PYTHONDONTWRITEBYTECODE=1`). The rows that

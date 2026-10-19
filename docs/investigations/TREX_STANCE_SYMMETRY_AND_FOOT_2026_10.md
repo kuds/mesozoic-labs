@@ -1810,7 +1810,7 @@ whose corrections are applied here.
 
 The spec's own follow-up, a local no-change continuation of Run 3 from
 8,388,608 to 9,961,472 (`night_R3_nochange`), was launched at 08:15 UTC on
-2026-10-19; its outcome is not part of this record.
+2026-10-19; its outcome is in §17.8.
 
 ### 17.6 Pending: proposals for the maintainer
 
@@ -1858,8 +1858,9 @@ Nothing below is decided; each item is the maintainer's.
   decision table's line is 3b. No T. rex stance is certified, and the
   two-seed ask stands. Walking pilot 2 stays parked, its branch and criteria
   kept.
-- **§14, this repository:** the folder `stance3/results/`, with its sources
-  and sha256 in `SOURCES.txt` and `SHA256SUMS` (now 319 files).
+- **§14, this repository:** the folders `stance3/results/` and
+  `stance3/night/` (§17.8), with their sources and sha256 in `SOURCES.txt`
+  and `SHA256SUMS` (now 321 files).
 - **§14, branches:** unchanged; `claude/screen-trex-r9-arml-12m` at
   `7e6b557d` and `claude/screen-trex-r9-armlt` at `1af2d4d7`, neither with a
   pull request. The overnight experiment's branch `scratch/stance3-night`
@@ -1874,3 +1875,51 @@ Nothing below is decided; each item is the maintainer's.
   rollouts, tables and scripts, the certificates' per-episode files, and the
   overnight runs, their judge files and the verifier's scripts
   (`scratchpad/foot/stance3/night/`).
+
+### 17.8 Night continuations (report only)
+
+*Added 2026-10-19, later.* The spec's local no-change control of §17.5
+(`night_R3_nochange`: Run 3 from the Colab 8,388,608 checkpoint with no
+added term, in the same scratch clone and harness as A and B) reached
+9,961,472 at 09:59 UTC, after a container restart and a resume from
+9,437,184 (A and B resumed from 8,912,896; inferred to add noise, not bias).
+It was judged, relaxed-binding as A and B, and rolled at 9,437,184 and
+9,961,472; each rollout set reproduces its judge file on all 40 seeds. None
+of it enters K1–K4. The comparison is `../night/nochange_compare.md`;
+`../night/interpretation.md`, which it cites, is the same file as
+`night_scratch/interpretation.md`.
+
+At 9,961,472, on the 40-seed panel (measured):
+
+| Continuation | Clean of 40 | K2a | K2b | Window stagger sd (mm) |
+|---|---|---|---|---|
+| A, Run 3 plus the stagger term | 40 | 0 | 0 | 7.5 |
+| B, Run 3 plus the ankle anchor | 30 | 10 | 13 | 18.1 |
+| Local no-change | 25 | 15 | 6 | 25.9 |
+| Colab no-change (§17.5's control) | 40 | 0 | 0 | 9.7 |
+
+- **H_B (the ankle anchor) stays refuted** by its own pre-registered line
+  (§17.5). Against the local no-change run, B is worse only on K2b (13
+  against 6; exact McNemar p 0.016) and better on K2a (10 against 15) and
+  on the stagger.
+- **H_C (the stagger term on Run 1) stays refuted** (§17.5). The
+  comparison adds no Run 1 continuation.
+- **H_A (the stagger term on Run 3) stays inconclusive.** The local
+  no-change run did not recover, so "the unchanged recipe did what A did"
+  does not hold in this harness: A minus the local run is −18.5 mm of
+  stagger sd (95% paired seed-bootstrap interval −23.3 to −12.9) and −15
+  K2a episodes (−21 to −9). But the Colab no-change run, from the same
+  checkpoint to the same step, differs from the local one by as much:
+  −16.3 mm (−22.8 to −9.1) and −15 K2a (−21 to −9). A is level with the
+  Colab run: −2.2 mm (−4.9 to +0.5), and K2a and K2b 0 against 0.
+
+**Why attribution is unclear.** There is one run per arm (n = 1). The
+bootstrap intervals cover only which 40 spawns the panel draws, not the
+run-to-run variance of training, and the two no-change runs from one
+checkpoint show that variance to be as large as A's apparent effect.
+Inferred, not tested: A is the only one of the four continuations whose
+stagger stayed closed at both judged checkpoints and in every ledger
+evaluation after 8.91M (5.6–10.9 mm per evaluation, against 11.4–43.5 mm
+for the local no-change run and 10.2–51.9 mm for the Colab one), which
+favours the term at n = 1. More seeds of both arms, not a longer single
+run, would settle it.

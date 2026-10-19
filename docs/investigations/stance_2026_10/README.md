@@ -102,6 +102,12 @@ applies to. A source outside the scratch root is written below `session`. No
 copy of 2026-10-19 held a model identifier, an email address or a commit
 trailer.
 
+*Added 2026-10-19, later (`stance3/night/`):* its two copies carry the
+**prefix** change, and `nochange_compare.md` the **whitespace** change too
+(one line of trailing spaces); nothing else. `stance3/night/interpretation.md`
+has the same source as `stance3/results/night_scratch/interpretation.md` and
+is byte-identical to it.
+
 [SHA256SUMS](SHA256SUMS) pins every file here but this README and itself
 (`sha256sum -c SHA256SUMS` in this directory). *Added 2026-10-19:* nor
 `stance3/results/README.md`, which, like this README, has no source.
@@ -439,6 +445,31 @@ checkpoint by the fixed rule is Run 2's (40/40 clean, no noise falls). Its
   and of the matched no-change controls, the interpretation as written, and
   the verifier's verdicts, which correct it.
 
+### Added on 2026-10-19, later (the night continuations' no-change comparison)
+
+**`stance3/night/`: the harness-matched no-change comparison of the overnight
+scratch experiment (2026-10-19, report only).** The spec's local no-change
+continuation of Run 3 (`night_R3_nochange`, from the Colab 8,388,608
+checkpoint with no added term) was judged and rolled at 9,437,184 and
+9,961,472 like the arms. It did not recover: at 9,961,472 it was clean on 25
+of 40, with K2a 15 and a window stagger sd of 25.9 mm, against the stagger
+arm's 40, 0 and 7.5 mm and the Colab no-change run's 40, 0 and 9.7 mm. The
+ankle anchor (H_B) and the stagger term on Run 1 (H_C) stay refuted; the
+stagger term on Run 3 (H_A) stays inconclusive, since the two no-change runs
+differ by as much as the stagger arm and the local one do, with one run per
+arm. None of it enters K1–K4 or certifies anything.
+
+- `nochange_compare.md`: the comparison as written (R1 and R2 at both
+  checkpoints, a paired seed bootstrap and exact McNemar tests, the eval
+  ledgers and the reading).
+- `interpretation.md`: the night interpretation it cites by name,
+  byte-identical to `stance3/results/night_scratch/interpretation.md`; read
+  it with that folder's `verify_result.json`.
+
+Its judge files, rollouts and scripts stay in the session's scratch
+(`scratchpad/foot/stance3/night/cont/`). Its paths: `S3` is
+`scratchpad/foot/stance3` and `C` is `S3/night/cont`.
+
 ## How to re-check each verdict
 
 Commands as run on 2026-10-17 from a copy of this directory (Python 3.13;
@@ -482,6 +513,7 @@ copies.
 | The stance3 scorer at every bar (2026-10-19; session scratch only) | as on 2026-10-18 | 80/80 cases as expected |
 | `stance3/results/checkpoints.csv` (2026-10-19; session scratch only) | `python3 -I stance3/results/checkpoints_csv.py <judged dir> out.csv --check <score_final2.json>` | 28 cells agree with the scorer; `out.csv` identical |
 | The files themselves (2026-10-19, with `stance3/results/`) | `sha256sum -c SHA256SUMS` | all 319 files OK |
+| The files themselves (2026-10-19, later, with `stance3/night/`) | `sha256sum -c SHA256SUMS` | all 321 files OK |
 
 `test_pilot_score.py` prints sample "Walking pilot score" blocks while it runs;
 they score synthetic panels, not the pilot.
