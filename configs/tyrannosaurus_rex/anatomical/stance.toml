@@ -1,12 +1,16 @@
-# SCREEN, NEVER MERGED. Branch claude/screen-trex-r9-armlt: stance screen Runs 2-3 (L+T: arm L as #624 ships
-# it, plus leg_home_pose_weight 1.0 and leg_home_pose_tolerance 0.05) on physics r9, 12M; Run 2 seed 60, Run 3
-# seed 52. Built on Run 1's branch (claude/screen-trex-r9-arml-12m) plus this commit.
-# Criteria SP/foot/stance3/criteria.txt,
+# SCREEN, NEVER MERGED. Branch claude/screen-trex-r9-armlt-stagger: stance4 screen arm LTS (L+T as stance3
+# Runs 2-3 trained it, plus the stance stagger penalty: stance_stagger_weight 0.30, stance_stagger_tolerance_m
+# 0.045) on physics r9, 12M, from scratch; runs stance4_LTS_s52, stance4_LTS_s60 and stance4_LTS_s42 (seeds 52,
+# 60, 42). Built on the L+T branch (claude/screen-trex-r9-armlt, 1af2d4d7) plus the commit adding the opt-in term
+# and this commit. Criteria SP/foot/stance4/criteria.txt,
+# sha256 978a93da8da469c1acde7b9f7261d9236e4799eb2111b3af0f0cbeaa153f0f38.
+# K1-K4 exactly as stance3: SP/foot/stance3/criteria.txt,
 # sha256 1ce910dcd6e2ff7b41a4f592b9f34b9a6c9cb398c523e88f0ebd19af754f18fa.
 # recovery.toml inherits [env] and [ppo] here; only stance is trained.
-# The screen-only keys: [env] leg_home_pose_weight / leg_home_pose_tolerance / lateral_lean_weight /
-# lateral_lean_tolerance_m / leg_home_pose_reference, [ppo] symmetry*, [curriculum] eval_freq / eval_episodes /
-# checkpoint_freq / max_checkpoints and collapse_peak_floor_reference. Everything else is the committed stance stage.
+# The screen-only keys: [env] stance_stagger_weight / stance_stagger_tolerance_m / leg_home_pose_weight /
+# leg_home_pose_tolerance / lateral_lean_weight / lateral_lean_tolerance_m / leg_home_pose_reference, [ppo]
+# symmetry*, [curriculum] eval_freq / eval_episodes / checkpoint_freq / max_checkpoints and
+# collapse_peak_floor_reference. Everything else is the committed stance stage.
 [stage]
 name = "stance"
 description = "Learn to stand and balance without falling"
@@ -389,6 +393,12 @@ reset_noise_scale = 0.05                       # Stage 1a operating point (PLANT
 lateral_lean_weight = 0.25
 lateral_lean_tolerance_m = 0.015
 leg_home_pose_reference = "settled"
+# SCREEN, stance4 arm LTS (never merged): the stance stagger penalty (base_env 8h), off by default: -w (1 -
+# exp(-(s/tol)^2)), s the right foot site's lead over the left along the pelvis heading, paid after
+# stance_width_settle_steps with a zero command. Design SP/foot/stance3/night/design/spec.md section 3.1. The
+# collapse reference in [curriculum] moves with it.
+stance_stagger_weight = 0.30
+stance_stagger_tolerance_m = 0.045
 
 [ppo]                                   # recovery.toml inherits this and [ppo.policy_kwargs] (`extends`), all but ent_coef_decay_timesteps: an edit here moves recovery's hyperparameters too
 learning_rate = 3e-5                    # Setting 4 sweep: 3.23e-5 — 10x lower. All successful S1→S3 runs used this. Old 3e-4 caused instability.
@@ -1018,12 +1028,13 @@ collapse_peak_warmup_timesteps = 1000000 # Evaluations before this step cannot S
                                          # candidacy; past it a statue-level peak arms the floor legitimately, and
                                          # collapse_patience consecutive evaluations under half of it are a collapse
                                          # at either start. Untested on a full run at -1.5.
-collapse_peak_floor_reference = 4460.5   # SCREEN, Runs 2-3 (never merged): 3756.8 + L+T statue gain 703.7. The
-                                         # gain is the zero-action statue panel (seeds 3042-3081, noise 0.05,
+collapse_peak_floor_reference = 4459.3   # SCREEN, stance4 LTS (never merged): 3756.8 + LTS statue gain 702.5.
+                                         # The gain is the zero-action statue panel (seeds 3042-3081, noise 0.05,
                                          # 39/40 standing; seed 3081 falls) through train_base.make_env under this
                                          # branch's stance env minus under production, re-measured on this branch:
-                                         # 4459.40 against 3755.72 (+703.68: leg term +505.42, lean +198.27).
-                                         # Floor 0.45 x 4460.5 = 2007.2. Run 1's branch (arm L alone): 3981.4.
+                                         # 4458.18 against 3755.72 (+702.46: leg term +505.42, lean +198.27,
+                                         # stagger -1.22). Floor 0.45 x 4459.3 = 2006.7. L+T (stance3 Runs 2-3):
+                                         # 4460.5; Run 1's branch (arm L alone): 3981.4.
                                          # Production keeps 3756.8, which the rest of this note is about:
                                          # the zero-action statue's standing reward at noise 0.05, 40 episodes,
                                          # on the hip-roll revision (physics r8) with the D-D27 stance task
