@@ -1674,8 +1674,9 @@ None of these enters a criterion (`checkpoints.csv`; `run_log.txt`).
 
 ### 17.4 What the readouts found (report only)
 
-Three mechanisms, each measured on rollouts that first reproduce the judge
-files exactly; "inferred" marks what is not measured.
+Three mechanisms, measured on rollouts that first reproduce the judge files
+exactly and on the runs' evaluation ledgers; "inferred" marks what is not
+measured.
 
 1. **Arm L's whole-body ankle drift (Run 1).** At 4,194,304 Run 1's centre
    of mass had moved backward since about 2.3M steps, from −6 mm at 1M to
@@ -1689,8 +1690,8 @@ files exactly; "inferred" marks what is not measured.
    3063) are backward: the extrapolated centre of mass and then the centre
    of mass pass behind the heel line before any leg joint leaves its
    envelope by 5° (`readouts/r4194304_posture_notes.md`). Over the run it
-   made three abrupt swings of 50–65 mm, carried by the ankle (up to +27 mm
-   in one evaluation), the forward one between 6.16M and 6.55M; on the same
+   made three swings of 50–65 mm, carried by the ankle (up to +27 mm in one
+   evaluation), the forward one between 6.16M and 6.55M; on the same
    seed under L+T (Run 2) the range after 3.15M was 14.3 mm against 64.7, the
    worst change over 1M steps −8.0 against +59.7 mm, and the ankle's range
    0.7° against 8.2° (`run_log.txt`; `readouts/drift_notes.md`). That drift
@@ -1718,9 +1719,10 @@ files exactly; "inferred" marks what is not measured.
    both to 1 (counterfactual rollouts, not the judge's task). The
    observation has no stagger or centre-of-pressure channel, but the
    stagger is a linear function of the observed leg angles
-   (`readouts/split_notes.md`). Under arm L, Run 1 has the largest stagger
-   but almost no split: its ankles follow the stagger and keep the soles
-   parallel.
+   (`readouts/split_notes.md`). Under arm L, Run 1 had the largest stagger
+   at 4,194,304 (sd 21.2 mm) but almost no split: its ankle difference
+   tracks the stagger and keeps the soles parallel
+   (`readouts/r4194304_saturation_notes.md` §3).
 3. **Run 2's tail-actuator saturation.** Run 2's 0 of 40 at 4,194,304 and
    5,242,880 is the gate's `max_actuator_saturation_fraction` (40 and 39
    episodes). One actuator, `tail_3_pitch_act`, is pinned at +1 in 40 of 40
@@ -1731,11 +1733,16 @@ files exactly; "inferred" marks what is not measured.
    the limit, so the command is pinned and the force is not; the statue's
    tail_3 hangs at −0.093 rad with 5.6 N·m. The L+T leg term does not cover
    the tail, and Run 2's legs sit within 0.005 rad of their settled targets.
-   In the evaluations it started at 2.23M and was gone by about 6.2M (2 of 40
-   at 6,291,456); it returned from 9.31M to 10.09M (8–10 of 10 evaluation
-   episodes; 28 of 40 panel episodes over the bar at 9,961,472) and the final
-   is clean. The gate's threshold is 0.99 on clipped actions
-   (`SATURATION_ABS`); the env's 0.9 is the reward ramp
+   It came and went. In the evaluation ledger it held 6–10 of 10 episodes
+   from 2.23M to 6.03M and was gone at 6.16M (2 of 40 panel episodes at
+   6,291,456); it returned in 10 and 8 of 10 at 7.21M and 7.34M, in 8–10 of
+   10 from 9.31M to 10.09M (28 of 40 panel episodes over the bar at
+   9,961,472) and in 9, 10 and 9 of 10 from 10.88M to 11.14M (5 at 11.27M;
+   6 of 40 panel episodes at 11,534,336, the S3 pick); 39 of the run's 91
+   evaluations have 8 or more of 10 saturated, and the final's panel is
+   clean (the run's `eval_episodes.csv`, counted for this record, session
+   scratch only; `checkpoints.csv`). The gate's threshold is 0.99 on clipped
+   actions (`SATURATION_ABS`); the env's 0.9 is the reward ramp
    (`readouts/r4194304_saturation_notes.md`; `run_log.txt`). Inferred: a
    tail habit of this seed, not line 4's "dose too strong" on the legs (K2
    failed in any case).
@@ -1757,9 +1764,11 @@ foot-stagger penalty (weight 0.3, tolerance 45 mm); **B**, Run 3 plus the
 ankle anchor (weight 0.4, tolerance 0.10 rad, line 3b's named candidate at its
 pre-registered dose); **C**, Run 1 plus the same stagger penalty. Two
 container restarts interrupted them, and the second left the pre-registered
-fallback endpoint, E = 9,961,472. The matched no-change controls are the Colab runs' own checkpoints
-at E, fully bound. The arms' judge files are relaxed-binding, so the scorer
-refuses them and none enters K1–K4. The readouts are
+fallback endpoint, E = 9,961,472. The matched no-change controls are the
+Colab runs' own checkpoints at E, fully bound (their VecNormalize files,
+transcribed twice and compared as for the other fetched checkpoints, are not
+checksum-verified against Drive). The arms' judge files are relaxed-binding,
+so the scorer refuses them and none enters K1–K4. The readouts are
 `night_scratch/readouts_night.md` and `readouts_control.md`; the
 interpretation as written is `night_scratch/interpretation.md`, and
 `night_scratch/verify_result.json` is the adversarial verifier's check of it,
@@ -1770,9 +1779,11 @@ whose corrections are applied here.
   from −0.253 to −0.039, yet K2a went from 6 to 10 and K2b from 3 to 13 (the
   split's sd from 0.685 to 1.029). At this dose, on this checkpoint, pricing
   the common ankle opening did not bring K2a to 3 or below. Not claimed: that
-  it made the stance worse than no change (that rests on the panel alone, 10
-  against the control's 0; on the eval ledger its pad-over count is no worse
-  than the control's), or that the refutation holds whatever n is (H_B's
+  K2a rose in a meaningful sense (6 against 10 of 40 is within panel noise,
+  Fisher p 0.40); that it made the stance worse than no change (that rests
+  on the panel alone, 10 against the control's 0; on the eval ledger its
+  pad-over count is no worse than the control's); or that the refutation
+  holds whatever n is, or refutes the two-part recombination model (H_B's
   premise that the split stays did not hold).
 - **The stagger term (H_A, on Run 3) is inconclusive against the matched
   control.** Its outcome rows sit on the supports side: the stagger's sd went
@@ -1827,9 +1838,10 @@ Nothing below is decided; each item is the maintainer's.
    as the best judged checkpoint so far, by another rule. Whether pilot 2
    runs, and from which parent, is open.
 3. **Criteria and telemetry.** Proposed in the readouts and the
-   interpretation: a saturation alarm on the eval-ledger read (Run 2 spent
-   about 1M steps with 8–10 of 10 evaluation episodes saturated, which
-   `eval_episodes.csv` already records); the side-door checks (touchdown,
+   interpretation: a saturation alarm on the eval-ledger read (39 of Run 2's
+   91 evaluations had 8 or more of 10 episodes saturated, in four spells
+   from 2.23M to 11.14M (§17.4), which `eval_episodes.csv` already records
+   and nothing watched); the side-door checks (touchdown,
    all-feet support, settle touchdowns, yaw change, roll, saturation, reward
    ratio, the `x_c` window, the hop watch and the collapse stop) kept as
    pre-registered flags; the stagger and the ankle opening as readouts (the
@@ -1856,7 +1868,9 @@ Nothing below is decided; each item is the maintainer's.
   `stance3_armLT_s60/` and `stance3_armLT_s52/` under
   `MyDrive/mesozoic-labs/logs/tyrannosaurus_rex/anatomical/ppo/` hold their
   checkpoints; each judged one's sha256 is in `checkpoints.csv`.
-- **§14, session scratch only:** the judge files (`scratchpad/foot/stance3/judged/`),
-  the readouts' rollouts, tables and scripts, the certificates' per-episode
-  files, and the overnight runs, their judge files and the verifier's
-  scripts (`scratchpad/foot/stance3/night/`).
+- **§14, session scratch only:** the judge files
+  (`scratchpad/foot/stance3/judged/`), the runs' fetched evaluation and
+  training ledgers (`scratchpad/foot/stance3/runs/`), the readouts'
+  rollouts, tables and scripts, the certificates' per-episode files, and the
+  overnight runs, their judge files and the verifier's scripts
+  (`scratchpad/foot/stance3/night/`).

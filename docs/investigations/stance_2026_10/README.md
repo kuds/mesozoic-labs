@@ -418,9 +418,9 @@ experiment.** Outcome: **all three runs fail** their fixed criteria, so none
 holds and none holds fore-aft: Run 1 (arm L, seed 60) fails K2 on the K2c
 range (33.9 mm against 30) and K3 (joint-space noise falls 7 and 11 of 20);
 Run 2 (L+T, seed 60) fails K1 and K2 early (from 4,194,304 to 6,291,456);
-Run 3 (L+T, seed 52) fails K2 (K2a 6 at 8,388,608, K2b 4 at the final, K2c range 30.6 mm). The
-decision table's line is **3b**. The best final checkpoint by the fixed rule
-is Run 2's (40/40 clean, no noise falls). Its
+Run 3 (L+T, seed 52) fails K2 (K2a 6 at 8,388,608, K2b 4 at the final, K2c
+range 30.6 mm). The decision table's line is **3b**. The best final
+checkpoint by the fixed rule is Run 2's (40/40 clean, no noise falls). Its
 [README](stance3/results/README.md) indexes the folder:
 
 - `run_log.txt` (the judging log, ids removed), `scores/` (the frozen

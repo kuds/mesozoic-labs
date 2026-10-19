@@ -53,9 +53,11 @@ it `session`) and **whitespace** changes apply as its
 - **trim:** each `certificates/<run id>/run_summary.json` keeps the
   certificate's verdict fields (the panel seeds, the arm's leg and lean keys,
   the checkpoint path and its and the normaliser's sha256, the verdict and its
-  failures, the clean seeds, their LCB, the task and gate sha256, and per
-  heading its clean count, LCB and full-horizon fraction) and drops the reward
-  means, the timing and the paths of the files it wrote.
+  failures, the clean-seed and seed counts, their LCB, the task and gate
+  sha256, and per heading its clean count, LCB and full-horizon fraction) and
+  drops the per-heading reward means, reward spreads and mean episode
+  lengths, the timing, the paths of the clone, its `environments` module and
+  the normaliser, and the paths of the files it wrote.
 - **extract:** `night_scratch/verify_result.json` is the value of the key
   `result.verify` of the night analysis workflow's output
   (`session/tasks/[id removed].output`; the task id is removed), written
