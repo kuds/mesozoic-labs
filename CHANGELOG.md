@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Decision D-D37 recorded: three full T. rex stance screen runs in place of
-  walking pilot 2; the offline diagnosis behind them** (the maintainer's
+  walking pilot 2; the offline diagnosis behind them** (#631; the maintainer's
   decision of 2026-10-18; `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2,
   `docs/CONSOLIDATION_PLAN_2026_09.md` §6, a dated note in §17 of
   `docs/GAIT_QUALITY_PLAN_2026_09.md`, `docs/NEXT_STEPS.md` §3; the appended
@@ -1278,8 +1278,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **The standing behavior has one name: the stance stage's recipe label is
-  `stance`, and `stand` is refused with a pointer** (decision D-D38, the
-  maintainer's decision of 2026-10-18, "make the standing behavior's name
+  `stance`, and `stand` is refused with a pointer** (#631; decision D-D38,
+  the maintainer's decision of 2026-10-18, "make the standing behavior's name
   consistent"). The notebook's `BEHAVIOR` dropdown said `stand` while the
   stage id, its config (`stance.toml`), its run folder (`01_stance`) and its
   gates (`stance_quality…`) said `stance`. The stance entry of all six
