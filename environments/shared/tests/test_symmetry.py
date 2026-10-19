@@ -393,10 +393,10 @@ def _swap_sides(info: dict) -> dict:
     return out
 
 
-#: Info keys that are not mirror-invariant scalars: the pelvis yaw rate and the lean term's lateral offset flip, and
-#: the gait history appends "R" before "L" when both feet touch down in one step (gait_symmetry_weight is 0 on every
-#: T. rex stage).
-_SIGNED_INFO = {"pelvis_yaw_vel": -1.0, "com_lateral_offset_m": -1.0}
+#: Info keys that are not mirror-invariant scalars: the pelvis yaw rate, the lean term's lateral offset and the
+#: stagger term's fore-aft foot lead (screen-only) flip, and the gait history appends "R" before "L" when both feet
+#: touch down in one step (gait_symmetry_weight is 0 on every T. rex stage).
+_SIGNED_INFO = {"pelvis_yaw_vel": -1.0, "com_lateral_offset_m": -1.0, "foot_stagger_m": -1.0}
 _ORDER_DEPENDENT_INFO = {"alternation_ratio", "contact_asymmetry"}
 
 
@@ -426,6 +426,7 @@ def _paired_rollout(kwargs, seed, actions, mirror_map):
                     "reward": abs(float(reward_a) - float(reward_b)),
                     "info": info_error,
                     "lean_paid": info_a.get("reward_lateral_lean", 0.0) > 0.0,
+                    "stagger_paid": info_a.get("reward_stance_stagger", 0.0) < 0.0,
                     "ended": (bool(term_a), bool(trunc_a), info_a.get("termination_reason")),
                     "ended_b": (bool(term_b), bool(trunc_b), info_b.get("termination_reason")),
                 }
@@ -454,21 +455,26 @@ _SCREENED_OPTIONS = {
     "lateral_lean_tolerance_m": 0.015,
     "leg_home_pose_reference": "settled",
 }
+#: Screen-only (stance4, never merged): the screened options plus the standing foot stagger penalty.
+_STAGGER_OPTIONS = {**_SCREENED_OPTIONS, "stance_stagger_weight": 0.30, "stance_stagger_tolerance_m": 0.045}
 
 
 @pytest.mark.parametrize(
     ("options", "steps"),
-    # On, the rollout runs past stance_width_settle_steps (200) so the lean term's gate opens.
-    [({}, 40), (_SCREENED_OPTIONS, 260)],
-    ids=["options off", "screened options on"],
+    # On, the rollout runs past stance_width_settle_steps (200) so the lean and stagger terms' gates open.
+    [({}, 40), (_SCREENED_OPTIONS, 260), (_STAGGER_OPTIONS, 260)],
+    ids=["options off", "screened options on", "screened options and stagger on"],
 )
 @pytest.mark.parametrize("seed", [3047, 3059])
 def test_the_simulator_is_mirror_equivariant_on_the_stance(stance_kwargs, mirror_map, seed, options, steps):
     """Zero action (the statue) and small smooth actions from a mirrored reset: the mirrored episode is the
     mirror image of the source, its observation to float32 rounding, its reward and info to 1e-9, with the stance
-    options off (as every stage has them) and with the lean term and the settled leg target on."""
+    options off (as every stage has them), with the lean term and the settled leg target on, and with the stagger
+    penalty on as well."""
+    kwargs = {**stance_kwargs, **options}
+    stagger_live = steps > kwargs.get("stance_width_settle_steps", 200) and kwargs.get("stance_stagger_weight", 0) > 0
     for actions in ([np.zeros(15)] * steps, _smooth_actions(steps, seed, 0.03)):
-        rows = _paired_rollout({**stance_kwargs, **options}, seed, actions, mirror_map)
+        rows = _paired_rollout(kwargs, seed, actions, mirror_map)
         assert rows[0]["obs"] == 0.0
         assert rows[1]["obs"] <= 1e-9, "step 1"
         assert len(rows) == steps + 1
@@ -476,6 +482,7 @@ def test_the_simulator_is_mirror_equivariant_on_the_stance(stance_kwargs, mirror
         assert max(row["reward"] for row in rows[1:]) <= 1e-9
         assert max(row["info"] for row in rows[1:]) <= 1e-9
         assert any(row["lean_paid"] for row in rows[1:]) == bool(options)
+        assert any(row["stagger_paid"] for row in rows[1:]) == stagger_live
 
 
 def test_termination_is_mirror_invariant(stance_kwargs, mirror_map):

@@ -841,6 +841,12 @@ _LEAN_KWARGS = {"lateral_lean_weight", "lateral_lean_tolerance_m"}
         ({"lateral_lean_weight": 0.25}, _LEAN_KWARGS),
         ({"lateral_lean_weight": 0.25, "lateral_lean_tolerance_m": 0.02}, _LEAN_KWARGS),
         ({"leg_home_pose_reference": "settled"}, {"leg_home_pose_reference"}),
+        # Screen-only (stance4, never merged): the standing foot stagger penalty.
+        ({"stance_stagger_weight": 0.3}, {"stance_stagger_weight", "stance_stagger_tolerance_m"}),
+        (
+            {"stance_stagger_weight": 0.3, "stance_stagger_tolerance_m": 0.03},
+            {"stance_stagger_weight", "stance_stagger_tolerance_m"},
+        ),
     ],
 )
 def test_a_transition_may_turn_the_opt_in_stance_options_on_and_off(learned_behavior, options, hashed):
