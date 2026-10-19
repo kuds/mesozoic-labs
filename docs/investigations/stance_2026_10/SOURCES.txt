@@ -10,6 +10,17 @@
 # Nothing else differs.  Format: <file> <source> <source sha256> <changes>; a source whose path holds spaces is
 # written in double quotes.  The folders added on 2026-10-18 rename the scratch's logs/ directories run_logs/ or
 # judge_logs/ (the repository's .gitignore ignores every directory named logs).
+# Added 2026-10-19 (stance3/results/): four more changes, nothing else:
+#   excerpt     one section of a Markdown file, verbatim (its heading to the line before the next section)
+#   trim        a JSON file cut to the keys its folder's README names, written with indent 1
+#   extract     the value of one key of a JSON file, written on its own with indent 1
+#   redact      the session's tool identifiers each replaced by '[id removed]' (a bare workflow run id by
+#               'workflow [id removed]'): in stance3/results/run_log.txt, 12 workflow run ids (11 distinct)
+#               and the id prefix of the report document
+# A source outside the scratch root is written below 'session' (the session directory above it), with a task
+# id in its path replaced by '[id removed]'.  The run log's source was appended to after it was copied: the
+# sha256 given is that of its first 221 lines, the whole file when copied.
+# stance3/results/README.md, like this folder's README, has no source.
 
 audit/foot_ankle_audit.md foot/audit_2026_10_17/foot_ankle_audit.md e9da4ef84be17a87b70096d1e2aede87609ad22f446b10786f9e14d5064725c8 prefix
 audit/geometry/geometry_audit.json foot/audit_2026_10_17/geometry/geometry_audit.json 934110bec337b9693f894800efb309bf1a9529ae87f91f129bfefc8fef5b650a prefix,whitespace
@@ -285,6 +296,34 @@ stance3/judge/judge_stance3.py foot/stance3/judge/judge_stance3.py 5dd3cf4d67ac6
 stance3/judge/score_stance3.py foot/stance3/judge/score_stance3.py 2c3879d3a83d453159773d6fed7cacdfbe88e5337c83605834b14377588cc66a prefix
 stance3/judge/test_score_stance3.py foot/stance3/judge/test_score_stance3.py d1d9e0894d333e954bd1e4980b19cbffe870fda6adffc100c6f24b4173684e26 none
 stance3/recommendation.md foot/stance3/plan/recommendation.md 10a4b3a41d622daa53d0226006068607f5b7b3bf64c701846318d9b0b77ab686 prefix
+stance3/results/certificates/run_cert_clone.py foot/stance3/cert/scripts/run_cert_clone.py 725dc02c03f58b1586423810e58b74ffb9bfff4fe64d932f9ae12ff83a2e1b72 none
+stance3/results/certificates/stance3_armLT_s52/run_summary.json foot/stance3/cert/stance3_armLT_s52/run_summary.json ef4cd9e7185c24aa4747685f3917ee83ac373717ec8b33dd62d3788ead3616f6 trim,prefix,whitespace
+stance3/results/certificates/stance3_armLT_s52/stance_heading_report.txt foot/stance3/cert/stance3_armLT_s52/stance_heading_report.txt 3607f4e1b608856673fc4625da7cbf0d3aa5ce327ce02a24ea0afe613353558a none
+stance3/results/certificates/stance3_armLT_s60/run_summary.json foot/stance3/cert/stance3_armLT_s60/run_summary.json 650179ef3588e62ed8532caa1d148ab85a5031885380def78b9d0e6fec38f06e trim,prefix,whitespace
+stance3/results/certificates/stance3_armLT_s60/stance_heading_report.txt foot/stance3/cert/stance3_armLT_s60/stance_heading_report.txt ad5a94140e27758d28fa312f874b54cfb068cc5e763d5f4d3ba4f5bdfa1fe9ef none
+stance3/results/certificates/stance3_armL_s60/run_summary.json foot/stance3/cert/stance3_armL_s60/run_summary.json 199dcfdaf7778f601c1b809a7e6dd7778752e6de288217301cb5cabbd6a6b1f3 trim,prefix,whitespace
+stance3/results/certificates/stance3_armL_s60/stance_heading_report.txt foot/stance3/cert/stance3_armL_s60/stance_heading_report.txt c3187b957c1afb2a3410fce0f367b9ebefac5000e25905cdfde79580527a51f9 none
+stance3/results/checkpoints.csv foot/stance3/results_tools/checkpoints.csv ff5fbac1f11f2d6631c90dab35c47c0e4b7ad995f1f545dd720e7ced3ebc7498 none
+stance3/results/checkpoints_csv.py foot/stance3/results_tools/checkpoints_csv.py 1f05b26fafcdeb941d0611f31cdce6f2615e034c160a9646d7cb7301f2e56748 none
+stance3/results/night_scratch/interpretation.md foot/stance3/night/cont/interpretation.md 97f767cd46aeb0ee62250e6f6b30988d50768b495b7123a916993228bae21ed4 prefix
+stance3/results/night_scratch/readouts_control.md foot/stance3/night/cont/readouts_control.md 7e19aff9e0b96d9995afa181b07acfdf111141eb54264cc8b0b22f1386b72b1c prefix
+stance3/results/night_scratch/readouts_night.md foot/stance3/night/cont/readouts_night.md 62ad71f53d0ec98590bfd993bb741cfe3d8f15e29a4e471f02bd8816bf2ea466 prefix
+stance3/results/night_scratch/spec_section7.md foot/stance3/night/design/spec.md 13f75dfbf0c96dc3a8948ce16c31154d76724e49d71845c07d5cb1fcaa017139 excerpt
+stance3/results/night_scratch/verify_result.json "session/tasks/[id removed].output" 1c0af7105fe65a4acb8274c104839e743706f2a465e6e20208db1198e3916af3 extract,prefix,whitespace
+stance3/results/readouts/drift_notes.md foot/stance3/night/diag_drift/notes.md af7a39b32f9d42085ff15dcec3c2ab379cf5c090810f19177c199794d9fe00e1 none
+stance3/results/readouts/r4194304_k2_recount.txt foot/stance3/diag/r4194304/verify_saturation/k2_recount.txt ba3791627cb721dafbbe7a8ce2b92af883e29f543ae0ddc6c85b9a3f9fc458b3 none
+stance3/results/readouts/r4194304_posture_notes.md foot/stance3/diag/r4194304/posture/notes.md c04f07ddd09e992a05e156052f68ffc728aa0ce57975e0622d115dab9da61355 none
+stance3/results/readouts/r4194304_saturation_notes.md foot/stance3/diag/r4194304/saturation/notes.md 88eb6c4769bf0ee0595eb0070958fccc454e8166d284262fbf6b749216d5f960 none
+stance3/results/readouts/split_notes.md foot/stance3/night/diag_split/notes.md 4999a81be4a4f1bb1439a7fb2871ded605c18654f79e965812b520c126bfe9bf none
+stance3/results/run_log.txt foot/stance3/live/run_log.txt 939278e1f3187b3a4b91b398b402d612c9b9d5893756446523a70a3b43208262 redact
+stance3/results/scores/score_10485760.txt foot/stance3/scores/score_10485760.txt b98d363e2bc58e06aa6278562fe3a5da6afb103151c2cc1f7185836d9f733bc1 prefix
+stance3/results/scores/score_4194304.txt foot/stance3/scores/score_4194304.txt 44b1e5e580f3f9fc13d125e3b5528b697f0dfb1d02a9a0b2869cbfdc84f7fa26 prefix
+stance3/results/scores/score_5242880.txt foot/stance3/scores/score_5242880.txt 796d505d1f58564842cbc95bcefd55945ecfb61a286ca0491228bcd2a978655f prefix
+stance3/results/scores/score_6291456.txt foot/stance3/scores/score_6291456.txt 2f73ca494e5dd94aa8e63cba831d0775975bd53c48672f02b10bceedf905214b prefix
+stance3/results/scores/score_8388608.txt foot/stance3/scores/score_8388608.txt 50c7b102148dd5175286a1b36120c4f3c09c79790820a10cac5f89363cb3b5f9 prefix
+stance3/results/scores/score_final.txt foot/stance3/scores/score_final.txt ed98ad153990b2d462e116bc947c7a7eab1839018deac2c087512f4c3f8f6c22 prefix
+stance3/results/scores/score_final2.json foot/stance3/scores/score_final2.json e46c02a45242b4ba3b12c10a60c6b958f934c1f711ce03a893e414a4c2c11d6c prefix,whitespace
+stance3/results/scores/score_final2.txt foot/stance3/scores/score_final2.txt fac3576bbf295e2d1db3a7c464ff337e63b8e8c2544d2d699320bbb1b769584c prefix
 symmetry/J1_recount.log foot/symmetry/screen/analysis/J1_recount.log ad7297a2009227b47fa20eba17c5e5e730aa2b761a15be0615489188ff247a31 none
 symmetry/J2_recount.log foot/symmetry/screen/analysis/J2_recount.log a2eb01c9f5df0c0bb695cfca5524972260208134419ce8a348bc21d4e2560378 none
 symmetry/ema_credit.json foot/symmetry/review2/ema_credit.json 90ec310e68f8c0c6380c090a83b6b06fa1c8cafb6c397a171f051ee224e4cfe1 whitespace

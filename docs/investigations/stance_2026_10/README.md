@@ -31,6 +31,12 @@ that designed them from the offline diagnosis of 2026-10-18, and frozen copies
 of their judge and scorer. It holds no judgement: the runs were launched on
 2026-10-18 and are not yet judged, and as screens they certify nothing.
 
+*Added 2026-10-19:* `stance3/results/` holds the three runs' judgement by
+their fixed criteria (all three fail; the decision table's line is 3b), the
+report-only readouts and the overnight scratch experiment that followed, and
+an index of its own, [stance3/results/README.md](stance3/results/README.md)
+(the note's §17). As screens they certify nothing.
+
 ## What changed in the copies
 
 [SOURCES.txt](SOURCES.txt) lists every file with the scratch file it came from,
@@ -84,8 +90,21 @@ their `SCRATCH` constant now resolves `scratchpad` relative to the working
 directory. Nothing else differs, and none of the six held a model
 identifier, an email address or a commit trailer.
 
+*Added 2026-10-19 (`stance3/results/`):* the copies of 2026-10-19 add four
+more kinds of change, nothing else: **excerpt** (one section of the overnight
+design, verbatim), **trim** (the six-heading certificates' `run_summary.json`
+cut to their verdict fields), **extract** (one key of the night analysis
+workflow's output, written on its own) and **redact** (the session's
+workflow run ids and the report document's id removed from the run log);
+SOURCES.txt defines them, and
+[stance3/results/README.md](stance3/results/README.md) says which file each
+applies to. A source outside the scratch root is written below `session`. No
+copy of 2026-10-19 held a model identifier, an email address or a commit
+trailer.
+
 [SHA256SUMS](SHA256SUMS) pins every file here but this README and itself
-(`sha256sum -c SHA256SUMS` in this directory).
+(`sha256sum -c SHA256SUMS` in this directory). *Added 2026-10-19:* nor
+`stance3/results/README.md`, which, like this README, has no source.
 
 ## Contents
 
@@ -391,6 +410,35 @@ neither branch is ever merged or has a pull request.
   report-only readouts) and `judge/test_score_stance3.py` (80 cases at every
   bar).
 
+### Added on 2026-10-19 (decision D-D37's outcome)
+
+**`stance3/results/`: the three stance3 screen runs judged (2026-10-18 to
+2026-10-19, final), with report-only readouts and the overnight scratch
+experiment.** Outcome: **all three runs fail** their fixed criteria, so none
+holds and none holds fore-aft: Run 1 (arm L, seed 60) fails K2 on the K2c
+range (33.9 mm against 30) and K3 (joint-space noise falls 7 and 11 of 20);
+Run 2 (L+T, seed 60) fails K1 and K2 early (from 4,194,304 to 6,291,456);
+Run 3 (L+T, seed 52) fails K2 (K2a 6 at 8,388,608, K2b 4 at the final, K2c range 30.6 mm). The
+decision table's line is **3b**. The best final checkpoint by the fixed rule
+is Run 2's (40/40 clean, no noise falls). Its
+[README](stance3/results/README.md) indexes the folder:
+
+- `run_log.txt` (the judging log, ids removed), `scores/` (the frozen
+  scorer's printouts: `score_final2.txt` and `.json` are the verdict of
+  record), `checkpoints.csv` (one row per judge file, 37, with the
+  `checkpoints_csv.py` that recomputes it with the scorer's own counts) and
+  `certificates/` (the stage's six-heading certificate rolled offline on the
+  three finals, report only: all three PASS, none gate evidence).
+- `readouts/`: report-only readouts of the Colab checkpoints (Run 2's tail
+  actuator saturation and left-right foot split at 4,194,304, Run 1's
+  ankle-carried drift and falls, Run 3's split at 8,388,608, and the
+  whole-body drift in the eval ledgers).
+- `night_scratch/`: the overnight scratch experiment of 2026-10-19 (three
+  continuations with a candidate term each, from a scratch clone never
+  merged; report only): its pre-registered readouts, the readouts of the arms
+  and of the matched no-change controls, the interpretation as written, and
+  the verifier's verdicts, which correct it.
+
 ## How to re-check each verdict
 
 Commands as run on 2026-10-17 from a copy of this directory (Python 3.13;
@@ -430,6 +478,10 @@ copies.
 | The stance3 scorer at every bar (2026-10-18; session scratch only) | from a directory holding the session's scratch as `scratchpad/` (the scorer asserts the original `frozen_params.json`, sha256 `58b2c8fb…`, and the criteria's `1ce910dc…` there): `python3 -I <this directory>/stance3/judge/test_score_stance3.py` | 80/80 cases as expected |
 | The stance3 criteria (2026-10-18) | `sha256sum stance3/criteria.txt` | `1ce910dcd6e2ff7b41a4f592b9f34b9a6c9cb398c523e88f0ebd19af754f18fa` |
 | The files themselves (2026-10-18, with `stance3/`) | `sha256sum -c SHA256SUMS` | all 291 files OK |
+| The stance3 verdicts, decision line and best final checkpoint (2026-10-19; session scratch only) | from a directory holding the session's scratch as `scratchpad/`: `python3 -I <this directory>/stance3/judge/score_stance3.py scratchpad/foot/stance3/judged --runs-root scratchpad/foot/stance3/runs --json score.json` | identical to `stance3/results/scores/score_final2.txt` and `.json` apart from the paths they name |
+| The stance3 scorer at every bar (2026-10-19; session scratch only) | as on 2026-10-18 | 80/80 cases as expected |
+| `stance3/results/checkpoints.csv` (2026-10-19; session scratch only) | `python3 -I stance3/results/checkpoints_csv.py <judged dir> out.csv --check <score_final2.json>` | 28 cells agree with the scorer; `out.csv` identical |
+| The files themselves (2026-10-19, with `stance3/results/`) | `sha256sum -c SHA256SUMS` | all 319 files OK |
 
 `test_pilot_score.py` prints sample "Walking pilot score" blocks while it runs;
 they score synthetic panels, not the pilot.
@@ -490,3 +542,10 @@ and an unused variable. Most are in the verifiers' scripts
 The three `stance3/judge/` scripts added later on 2026-10-18 pass `ruff check`
 under the same configuration (ruff 0.16.9); `ruff format --check` would
 reformat all three. They are left as they ran.
+
+Of the two scripts added on 2026-10-19 in `stance3/results/`,
+`checkpoints_csv.py`, written for the record, passes `ruff check` and
+`ruff format --check` under the same configuration (ruff 0.16.8);
+`certificates/run_cert_clone.py` is left as it ran, with 8 findings (several
+modules on one import line, unsorted imports, imports below code), and
+`ruff format --check` would reformat it.
