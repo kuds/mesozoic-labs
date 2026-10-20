@@ -1,0 +1,207 @@
+2026-10-19 ~14:40 UTC  Stance4 round decided by the maintainer (AskUserQuestion):
+  - Design: 3 stagger runs (L+T + stagger w 0.30, tol 0.045 m), seeds 52, 60, 42, from scratch 12M on Colab CPU;
+    the control is stance3 Runs 2 and 3 (not retrained).
+  - Criteria: stance3 K1-K4 unchanged (6 checkpoints, K2c 30 mm) + credit rule: adopt only if >= 2 of 3 HOLD and
+    no worse than the control on every K test. Checkpoints every 1M judged report-only.
+  - Alongside: open the stance3 records PR; diagnostic panels (mirrored legs, prey ahead) in judging, report-only.
+  - Not chosen: walking pilot 2 (stays parked).
+2026-10-19 ~14:30 UTC  Disk: freed ~2.9 GB (pytest temp dirs of merged #631, mypy/pyc/ruff caches, two stale verify venvs); 5.3 GB free.
+2026-10-19 ~14:45 UTC  Build workflow launched (stance4-build): branch claude/screen-trex-r9-armlt-stagger, criteria, judge/scorer,
+  panels, smoke, Colab steps, records PR finalize, 4 reviews. Nothing pushed by it.
+2026-10-19 ~18:00 UTC  Build workflow done (13 agents, about 3.25 h). Branch built locally: ff7114c0 (term, off by default) + 7113bde0
+  (config, cites criteria 8bda933e). CPU smoke passed (81/81 checks; 333 steps/s; baseline standing 4458.2). Panels tool reproduces
+  diag_split exactly. Scorer reproduces the stance3 control verdicts. Records branch finalized locally (D-D39), not pushed.
+  Reviews: V1 code clean; V2/V3/V4 minor issues plus one blocking (scorer pins and sha PENDING in the steps).
+2026-10-19 ~18:05 UTC  Found: the stance3 runs trained on Colab L4 GPU runtimes (stage_config.json gpu block = NVIDIA L4 for all three;
+  the trainer builds SB3 with the default device "auto"). The stance3 steps had said CPU. The stance4 criteria (8bda933e) copied "CPU".
+  Decision (mine, before any training step): re-fix the criteria for an L4 runtime to match the control; supersede 8bda933e.
+  Main checkout: nothing written today (ignored pyc/pytest caches there date from 10-10 and 10-18).
+2026-10-19 ~18:10 UTC  Fix workflow launched (stance4-fix): criteria re-fix, amend commit 2, scorer pins + V2 fixes, re-smoke, steps and
+  records fixes, three reviews.
+2026-10-19 ~19:55 UTC  Branch claude/screen-trex-r9-armlt-stagger on GitHub at c1e146a82658112a9a1c0838250020b214ef303a. Steps sent
+  (stance4_colab_steps.txt 73a30040..., short cebc4e97...). Records branch finalized locally at 03dc5504 (458 docs tests pass);
+  its push was refused by the permission check; waiting for the maintainer.
+2026-10-19 23:55 UTC  stance4_LTS_s52 started (folder 23:55:17; training from 23:58:45). Read from Drive (read-only, file snippets):
+  provenance: commit c1e146a8, dirty false, training_seed 52, n_envs 4, gymnasium 1.3.0, mujoco 3.10.0, SB3 2.9.0.
+  zero_action_baseline: standing 4458.18, reward 4370.34, mean-std 3820.70, 39/40 standing (1 nosedive), gate OK; env_kwargs carry
+    stance_stagger_weight 0.3 / tolerance 0.045 and the L+T keys. Equals the local CPU smoke to the decimal.
+  01_stance/stage_config.json: git_commit c1e146a8; stagger 0.3/0.045; leg_home_pose 1.0/0.05; lateral lean 0.25/0.015; mirror_kl
+    kappa 0.3, sigma floor 0.01, mirror critic; timesteps 12,000,000; eval 131072 x 10; checkpoints 524288, keep all;
+    collapse ref 4459.3; hyperparameters_sha256 054ab483 (unchanged); gpu block L4 (NVIDIA L4, 23.7 GB, CUDA 13.0).
+  task_fingerprint: task_sha256 3fa46708... (the term-on task). progress.json: status training.
+2026-10-19 23:58 UTC  stance4_LTS_s60 started (folder 23:58:36). provenance: commit c1e146a8, dirty false, training_seed 60.
+2026-10-20 00:01 UTC  stance4_LTS_s60 training (stage_config 00:01:49): git_commit c1e146a8; seed 60; label "stance screen LTS s60";
+  stagger 0.3/0.045, L+T keys, mirror_kl keys, cadence, collapse 4459.3, hyperparameters 054ab483 as s52; task_sha256 3fa46708...;
+  gpu L4. zero_action_baseline identical to s52 (standing 4458.18, reward 4370.34, 39/40).
+2026-10-20 00:01 UTC  stance4_LTS_s42 started (folder 00:01:11). provenance: commit c1e146a8, dirty false, training_seed 42.
+2026-10-20 ~00:05 UTC  Maintainer approved pushing the records branch: pushed claude/records-stance3-results at 03dc5504; opened PR #632;
+  subscribed to its activity.
+2026-10-20 00:04 UTC  stance4_LTS_s42 training (stage_config 00:04:23): git_commit c1e146a8; seed 42; label "stance screen LTS s42";
+  same keys, cadence, collapse ref, hyperparameters and task_sha256 3fa46708... as s52/s60; gpu L4; baseline standing 4458.18 (39/40).
+  All three stance4 runs verified at start. Expected J times (inferred, ~275 steps/s): 4.19M ~04:20, 6.29M ~06:30, final ~12:30-13:00 UTC.
+2026-10-20 ~00:10 UTC  Maintainer asked for useful overnight work ("either way is fine"). Launched workflow stance4-night: pre-registered
+  replicate continuations from stance3 Run 3 @ 8,388,608 (NC2, NC3 no change; ST2, ST3 stagger; new seeds) to E = 9,961,472, giving
+  stagger n=3 vs no-change n=4 with last night's runs; control diagnostic panels (11 J checkpoints); stance4 fetch/judge tooling;
+  code-only CoP-band fallback prototype (line 5), never trained.
+2026-10-20 00:29 UTC  PR #632 CI green on 03dc5504 (run 39345281616): lint, plant-contract, tests 3.11/3.12/3.13 shared+species, test-sb3
+  (00:03:26-00:29:21, 25:55), coverage success. mergeable_state clean. No [name removed] check on this repo. Waiting on the maintainer.
+  For the landing record later: read the coverage percent from the coverage job's log.
+2026-10-20 00:35 UTC  PR #632 MERGED by the maintainer (unsubscribed automatically). For the next records PR, its landing row:
+  "**Landed** as #632 on 2026-10-20 (measured on its CI, at reduced depth: SB3 job 25:55, coverage 90 percent)" - run 39345281616,
+  head 03dc5504; coverage TOTAL 90% (coverage job 118384963564, measured). "At reduced depth" to be CONFIRMED from the test-sb3 job's
+  step list (job 118376423083) before writing, as was done for #631. Also record the maintainer's L4 confirmation (all three runs'
+  stage_config gpu block = L4, measured) with the stance4 results.
+2026-10-20 ~01:55 UTC  stance4-night workflow done (6 agents).
+  Replicate study: spec frozen 01:48:58Z, sha256 24af508a...; review findings 8/8 applied. Reading line (1) is unreachable because
+    K2a cannot separate completely (Colab no-change K2a 0); kept the fixed lines (option a): best attainable is line (2). Conditional
+    p given last night's order is reported beside the 35-split p (the old three generated the hypothesis). Seeds 152 (NC2/ST2) and
+    252 (NC3/ST3). Queue pid 2391 launched 01:49:08Z; NC2 and ST2 training. ETA all judged ~04:20-04:50 UTC (inferred).
+    Relaunch after a restart: setsid nohup bash S4/night/build/queue.sh >> S4/night/logs/queue.out 2>&1 < /dev/null &
+  Control panels: queue_controls.sh launched 01:50:40Z (11 jobs, 1 at a time, nice 5, ~2 h); relaunch: run the script again.
+  stance4 tooling: S4/tools (stance4-fetch-checkpoint.js, stance4-fetch-named.js, place4.py, judge_one4.sh, panels4_one.sh,
+    queue4.sh, README). Run records of all three runs fetched and placed in S4/runs/<RUN>/01_stance (verified vs local refs).
+  CoP-band prototype: scratch commit f94452ad on scratch/cop-band (S/fix/scratch_copband), never pushed; design S4/copband/design.md.
+    Caveats: needs a D-D23 layering exception (env imports gait/ lazily); +45% env step time; proposal only.
+2026-10-20 02:20 UTC  Wake 1. The container had restarted (up 0 min at 02:20:45): the replicate trainers stopped at 02:01 (~8.68M, before
+  their first new checkpoint at 8,912,896, so they restart from 8,388,608), and the control panels job (s60 final) died; s60 8.39M
+  panels were done (564 s). Inferred: the container is reclaimed a few minutes after the session goes idle (my turn ended ~01:56).
+  Relaunched: replicate queue (pid 251, 02:21:17; NC2 and ST2 restarted), control panels (worker 399), and started queue4 judge
+  (611) and panels (620) watchers. Started a harness background watcher (2 h) to keep the session active.
+  s52 progress.json 02:20: 2,228,224 steps, 262.8 steps/s, projected finish 12:39:42Z; checkpoints 0.52/1.05/1.57/2.10M; evals 10/10
+  full horizon, screen_v2 clean 5-7/10 since 1.8M, failing max_sole_cop_fore_aft (30-50% over 0.8); falls 0 in evals; training
+  fall fraction 0.8% in the last 262k; warnings 0.
+  Launched fetch workflows for 1,048,576 (with ledgers) and 2,097,152 (no csv). PR #632 merged (nothing to do).
+2026-10-20 02:50 UTC  2,097,152 fetched and placed for s52/s60/s42 (pkl A=B on all three; zips testzip OK). Judge queue started s52 2M at 02:47. Load 4.0 (2 trainers + control panels + judge). Container up 30 min (no restart since 02:20).
+2026-10-20 03:00 UTC  1,048,576 fetched and placed for all three (pkl A=B; ledgers placed for s52 at 1M fetch). Judges at 2,097,152
+  (report only; S4/analysis/summ.py): s52 FAIL 33/40, K2a 7, K2b 16, xc -2.2 mm, noise 1/0; s60 FAIL 37/40, K2a 3, K2b 3, xc -4.4 mm,
+  noise 0/0, reward ratio 0.937. (Controls for reference at 3.1M: Run 2 6/40, Run 3 40/40.) Early; no verdict meaning.
+  Replicates: NC2 9.30M, ST2 9.27M at 02:58 (~400-430 steps/s).
+2026-10-20 03:25 UTC  Wake 2. Container up 1:05 (no restart since 02:20; the harness watcher keeps it alive). All queues alive.
+  Judges (report only): 1,048,576: s52 PASS 40/40, s60 PASS 39/40 (roll 1), s42 PASS 39/40; all noise 0/0, xc within 4 mm of the statue.
+  2,097,152: s52 FAIL 33/40 (pad rail 7, K2b 16); s60 FAIL 37/40 (3 panel falls: horizon, support, displacement); s42 FAIL 5/40,
+  max_actuator_saturation_fraction in 35/40 episodes (the stance3 Run 2 habit, which recovered by 6.3M there). Fails stay report only.
+  Replicates: NC2 9.93M, ST2 9.89M at 03:25 (E 9,961,472 imminent). Control panels: 5 done or running (s52 5.24M done 03:18).
+  Launched fetch 3,145,728 (with ledgers).
+2026-10-20 04:00 UTC  3,145,728 fetched and placed for all three (pkl A=B; ledgers placed). Judges running.
+  Replicates: NC2 reached E at 03:27:53, ST2 at 03:29:59; NC3 (seed 252) and ST3 started 03:27/03:30.
+  Found: queue.sh's panels-slot check (pgrep on 'queue_controls.sh|panels4.py') also matched two of MY shells: pid 249 (the 02:20
+  relaunch wrapper, parent of queue.sh 251) and pid 587 (my keep-alive watcher, whose pattern text contained the script names).
+  NC2's judge was waiting on them and would have waited forever after the control panels finished. Killed 249 and 587 (queue.sh 251
+  survives in its own session) and restarted the watcher with bracketed patterns that do not match.
+2026-10-20 04:36 UTC  Wake 3. Container up 2:15 (no restart). Judges at 3,145,728 (report only): s52 FAIL 35/40 (K2a 5, K2b 11, xc -5.3);
+  s60 FAIL 35/40 (K2a 5, K2b 10, xc -4.2); s42 FAIL 1/40 (K2a 0, K2b 3; saturation). Noise 0/0 on all three.
+  SATURATION ALARM (report only, pre-registered): s42 has >= 5/10 eval episodes flagged for max_actuator_saturation_fraction at every
+  evaluation from 2,097,152 to 3,538,944 and 10/10 at 3,670,016 (12 alarm pairs, first 2.10M). s52 and s60: none. Same habit as stance3
+  Run 2 (which failed K1 from it). Runs are not stopped or changed on readouts.
+  Replicates: NC2 and ST2 judged + R2 rolled + pruned (04:15-04:22); NC3 9.95M, ST3 9.89M at 04:36.
+  Launched fetch 4,194,304 (J) with ledgers.
+2026-10-20 05:10 UTC  4,194,304 (J) fetched and placed for all three (s60 needed the tie-break transcription, resolved). Container up 2:47.
+  J judge s52 @ 4.19M: FAIL 28/40, K2a 12, K2b 16, xc +1.1 mm, noise 0/0 -> by the fixed criteria s52 now FAILS K2 (K2a/K2b > 3 at a J
+  checkpoint) and K1 (a J checkpoint below 33/40). Fails stay fails. s60 and s42 at 4.19M: judging.
+  REPLICATE STUDY DONE (queue done 04:52; readout S4/night/readout.md, report only): reading line (2), partial.
+  - window stagger sd: stagger 7.5, 7.7, 4.2 mm vs no change 25.9, 9.7, 14.8, 29.3 mm -> complete separation (35-split p 1/35 = 0.029;
+    p given last night's order 0.086; new runs alone 2 vs 2 complete, p 1/6; stagger lower within both new seeds).
+  - K2a: stagger 0, 3, 0 vs no change 15, 0, 3, 8 -> no separation (p 0.20). ST2 carries safety flags (2 panel falls, reward ratio
+    0.945); NC3 too (3 falls). All seven R2 sets reproduce their judge files exactly.
+  Reading: the term reliably shrinks the left-right stagger it targets, in continuation; that does not translate reliably into the
+  judged fore-aft pad statistic (K2a).
+2026-10-20 05:46 UTC  Wake 4. Container up 3:25. J @ 4,194,304: s52 FAIL 28/40 (K2a 12, K2b 16); s60 FAIL 29/40 (K2a 11, K2b 16);
+  s42 FAIL 0/40 (K2a 0, K2b 2; saturation). Noise 0/0 on all. By the fixed criteria all three now fail K1 (a J checkpoint < 33/40) and
+  s52, s60 fail K2: H = 0 and K2p <= 1 are fixed whatever the later checkpoints show -> decision line 5 is determined (the formal
+  reading waits for --runs-ended). score_stance4.py now: H 0, K2p 0 (missing files counted as fails), DECISION incomplete.
+  Diagnostic panels @ 4.19M (report only): s52 standard K2a 12, stagger sd 4.8 mm, CoP split sd 0.99, common CoP +0.07; mirror_legs
+  K2a 4; prey_ahead K2a 2; mirror+prey K2a 0, split sd 0.16. s60 standard K2a 11, stagger sd 2.3 mm, split sd 1.09, common -0.01;
+  mirror+prey K2a 1, split 0.07. Reading (inferred): the term removed the positional stagger, but the left-right split persists as a
+  per-foot LOADING split (one heel, one toe) with no common lean; it is driven by spawn asymmetry and the prey bearing.
+  Launched fetch 5,242,880 (J).
+2026-10-20 05:50 UTC  Launched workflow stance4-copband-night: pre-registered report-only paired continuation test of the CoP-band fallback (CB vs NC from stance4 s52 and s60 @ 4.19M to 5,767,168; same seeds) + split-form analysis (S4/analysis/split_form.md). Decided: no overnight push to the user (asleep); morning push ~11:00 UTC.
+2026-10-20 06:20 UTC  5,242,880 (J) fetched and placed for all three (pkl A=B).
+2026-10-20 06:56 UTC  Wake 5. Container up 4:35 (no restart since 02:20). J @ 5,242,880: s52 FAIL 28/40 (K2a 12, K2b 20, xc -5.4);
+  s60 FAIL 29/40 (K2a 11, K2b 13, roll 1, xc -12.6, joint noise 1/20); s42 FAIL 3/40 (K2a 1, K2b 6; saturation).
+  CB experiment (night2): spec frozen, queue2 started 06:52:16Z; CB52 and NC52 training (seed 52), then CB60/NC60. Launched fetch 6,291,456.
+2026-10-20 07:05 UTC  stance4-copband-night workflow done. CB experiment spec frozen 06:29 (sha256 b1606f74...); 8 review findings, all
+  minor, handled in review_handling.md (no frozen file changed). Launched 06:52 (queue2 pid 745): CB52 272 steps/s, NC52 370 steps/s;
+  pairing checked for s52 (first progress lines equal). ETA: NC52 ~08:04, CB52 ~08:29, CB60/NC60 ~09:41, readout ~10:00-10:25 UTC.
+  Relaunch: S4/night2/RELAUNCH.txt. Split-form analysis S4/analysis/split_form.md: stance4 split is a per-foot loading split at near-
+  zero stagger (3.2-7.3x the statue's geometric coupling per mm; controls 0.5-1.4x); drivers unchanged (spawn leg asymmetry + prey
+  bearing, two-factor R2 0.89-0.91); s60/s42 over-correct the spawn stagger. Next round (inferred): CoP band first (either foot outside
+  [-0.6,+0.4] in 20/22/11 of 40 episodes at 4.19M); hold the v6b spring for a common-shift failure.
+2026-10-20 07:35 UTC  6,291,456 (J) fetched and placed for all three (pkl A=B; ledgers placed).
+2026-10-20 08:56 UTC  Wake 6. The container had been reclaimed at ~07:35 (my turn ended ~07:31; the 2 h watcher had hit its time limit
+  at ~06:00 and, per the harness, was not restarted). Lost: the 6.29M judges (never ran) and ~80 min of the CB experiment (CB52 4.87M,
+  NC52 5.10M at 07:35; both resume from their 4,718,592 checkpoints). Relaunched at 08:57: queue4 judge (249) + panels (267), queue2
+  (282). Started a background wait on queue2 (2 h max). Launched fetches 7,340,032 (report) and 8,388,608 (J). CB ETA now ~11:45-12:15
+  UTC (inferred).
+2026-10-20 09:30 UTC  7,340,032 (report) fetched and placed for all three (pkl A=B).
+2026-10-20 09:30 UTC  J @ 6,291,456: s52 FAIL 21/40 (K2a 19, K2b 20); s60 FAIL 30/40 (K2a 10, K2b 16); s42 FAIL 0/40 (K2a 4, K2b 10; saturation). Noise 0/0 all. All three fail K1's 6.3M v2-PASS requirement too; s42 now also fails K2 (K2b 10 > 3) -> K2p 0.
+2026-10-20 09:40 UTC  8,388,608 (J) fetched and placed for all three (with ledgers).
+2026-10-20 10:56 UTC  Wake 7. Container up 2:00 (no restart since 08:56). J/report judges: 7.34M s52 27/40 (K2a 13), s60 31/40 (K2a 9),
+  s42 0/40; 8.39M (J) s52 FAIL 23/40 (K2a 17, K2b 20), s60 FAIL 27/40 (K2a 13, K2b 13, roll 3), s42 FAIL 3/40 (K2a 0, K2b 0). Noise 0/0.
+  CB experiment: CB52 and NC52 done (judge, R2, guard, panels). CB52 @ 5,767,168: PASS 40/40, K2a 0, K2b 0, falls 0, ratio 0.996;
+  NC52: FAIL 22/40, K2a 18, K2b 18, falls 0, ratio 0.994. CB60 5.43M, NC60 5.51M at 10:56 (readout ~11:30-12:00).
+  Pushed the user the morning headline (~10:57 UTC). Launched fetches 9,437,184 (report) and 10,485,760 (J).
+2026-10-20 11:25 UTC  10,485,760 (J) fetched and placed for all three (with ledgers).
+2026-10-20 11:30 UTC  CB EXPERIMENT DONE (S4/night2/readout2.md, report only): reading line (2) partial. CB lower than NC on K2a and
+  CoP split sd for both parents (s52: K2a 0 vs 18, split 0.29 vs 1.20; s60: K2a 3 vs 22, split 0.11 vs 1.27), but CB60 raised new
+  safety flags (3 panel falls, hop-or-fall 3, reward ratio 0.928); its guards fired only in those 3 episodes (0.4% of foot-steps
+  uncounted: unloaded/below share/digit-only). CB52 PASS 40/40, no guard events. Digit share 0.20-0.22 (no digit loading).
+  Paired bootstrap and McNemar strongly favour CB within each pair (panel sampling only). Panels for CB60/NC60 skipped (deadline).
+  Morning report doc created: claude.ai artifact [id removed] (bottom line, why it failed,
+  overnight experiments filled; results by checkpoint, parent and next steps after the finals).
+2026-10-20 11:55 UTC  9,437,184 (report) fetched and placed for all three (s52 needed the tie-break: A differed, B = C).
+2026-10-20 11:52 UTC  9.44M (report): s52 FAIL 24/40 (K2a 16), s60 PASS 39/40 (K2a 1), s42 FAIL 5/40. 10.49M (J): s52 FAIL 23/40 (K2a 17, K2b 21), s60 FAIL 30/40 (K2a 10, K2b 5), s42 FAIL 17/40 (K2a 1, K2b 10). J panels at 10.49M queued.
+2026-10-20 12:39 UTC  11,534,336 (report) fetched and placed for all three (pkl A = B for each). Judge and panels queues pick it up.
+2026-10-20 12:50 UTC  Runs ended earlier than projected (measured on Drive): s52 progress.json status "ended" at 12:29:41 (12,001,280,
+  final pair at 12:29; gate_verdict.json not yet written, end-of-stage evaluation running); s42 final pair 12:08, gate_verdict 12:34;
+  s60 final pair 12:10, gate_verdict 12:38. Named fetch (tag final) launched for s60 and s42 (workflow [id removed]);
+  s52 follows when its gate_verdict.json appears. Report chart widget drafted in the doc (not yet placed).
+2026-10-20 12:56 UTC  11.53M (report): s52 FAIL 28/40 (K2a 12, K2b 18), s60 PASS 40/40 (K2a 0, noise joint 2/20), s42 FAIL 16/40 (K2a 1, K2b 6).
+2026-10-20 13:19 UTC  s60 and s42 named finals placed (final, best, robust_best; extras progress.json and gate_verdict.json). s52 gate_verdict.json on Drive at 12:56; its named fetch launched (workflow [id removed]). Judge queue started s60 final at 13:16.
+2026-10-20 13:22 UTC  Named fetch workflow [id removed] done: s60 agree, s42 agree, final/best/robust_best placed for both (pkl A = B). s60 best = robust_best byte-identical (both at 2,752,512). s60 final zip 4e42cc62..., pkl 6b644516...; s60 notebook gate (robust_best) FAIL 33/40 per heading (report only).
+2026-10-20 13:25 UTC  Notebook gates (report only, robust_best, six headings): s60 FAIL 33/40 seeds (robust_best = best at 2,752,512); s42 PASS 38/40 seeds (robust_best at 917,504, best at 524,288).
+2026-10-20 13:23 UTC  Finals wake fired ([id removed]). Container up, queue4 judge and panels workers alive; finals already in progress (above).
+2026-10-20 13:26 UTC  Finals (J): s60 PASS 39/40 (K2a 0, K2b 0, roll 1, noise joint 1/20 own 0/20, x_c -20.9 mm vs statue); s42 FAIL 14/40 (K2a 5, K2b 5, roll 4, noise joint 8/20 own 0/20). s52 final pending (fetch running).
+2026-10-20 13:41 UTC  Named fetch workflow [id removed] done: s52 agree, final/best/robust_best placed (final zip c83aeb04..., pkl a02178c0...).
+  s52 progress.json not fetched by the workflow (transcriber A's reply was stopped by a safety classifier; report only, not worked
+  around; its content was read earlier through Drive metadata: status ended, 12,001,280). s52 notebook gate (report only): PASS
+  40/40 seeds on robust_best (917,504 steps). Notebook gates: s52 PASS, s60 FAIL 33/40, s42 PASS 38/40, each on an early robust_best.
+2026-10-20 14:07 UTC  s52 final (J): PASS 39/40 (K2a 1, K2b 4, roll 0, noise joint 0/20 own 0/20, x_c -2.2 mm vs statue).
+2026-10-20 14:09 UTC  SCORED, runs ended: score_stance4.py --runs-ended -> S4/scores/score_final.txt and score_final.json (verdict of record).
+  Run 1 s52 fails K1, K2 (passes K3, K4); Run 2 s60 fails K1, K2 (passes K3, K4); Run 3 s42 fails K1-K4. H = 0, K2p = 0.
+  Credit rule: K1 0/3 vs 1/2 worse, K2 0/3 vs 0/2 ok, K3 2/3 vs 2/2 worse, K4 2/3 vs 2/2 worse; (a) no, (b) fails.
+  DECISION (final, not provisional): line 5. Not adopted; next round tests the per-foot CoP band or the v6b ankle spring.
+  Parent: best stagger final s52 (39/40, 0 noise falls); stance3 Run 2 final (40/40, 0) stays the walking pilot 2 parent. Pilot 2 parked.
+  Control verdicts reproduce stance3 score_final.json: yes.
+2026-10-20 14:25 UTC  Report doc: Results by checkpoint (chart with finals, K1-K4 table) and Stance parent sections filled; bottom line updated; one anchored comment asks which arm the CoP-band screen should use. Verification workflow [id removed] checking the doc against sources.
+2026-10-20 14:28 UTC  Report-only extras on the finals: s52 fresh PASS 39/40 (0 falls), tail 2/32 falls, common noise 5/40 falls; s60 fresh PASS 38/40 (1 fall), tail 6/32, common noise 1/40; s42 fresh FAIL 14/40 (1 fall), tail 5/32, common noise 30/40. best / robust_best (report only): s52 PASS 40/40 both; s60 FAIL 33/40 both (identical files); s42 best PASS 39/40, robust_best PASS 38/40. Parent table in the report doc completed.
+2026-10-20 15:25 UTC  Report verification (workflow [id removed], 4 section checkers + 2 skeptics per finding, 54 agents): 288 claims
+  checked, 25 problems flagged, all 25 upheld 2-0 (no wrong verdicts or K results; mostly over-broad or imprecise wording; three
+  unsupported claims: "tail actuator" for s42, "may have caused the seed-60 falls", "no foot gamed the band"). All 25 corrected in
+  the doc (rev 32), plus the chart caption. Summary: S4/report/verify_summary.txt.
+2026-10-20 (after 15:30 UTC)  MAINTAINER DECISION: option 1a locked. Approve a from-scratch screen of the per-foot CoP band
+  (new reward term, opt-in [env] option, off by default) instead of the v6b ankle spring. Still open: the arm (A: L+T + stagger
+  + band, or B: L+T + band), the three prototype fixes (smooth guard, speed, D-D23), criteria to be fixed before training
+  (K1-K4 unchanged). To be recorded as a D-D decision in the next records PR.
+2026-10-20  MAINTAINER DECISION: option 2A locked. The CoP-band screen arm is L+T + stagger penalty + band (the stance4 recipe
+  plus the band only); the three stance4 runs are its single-difference control. Note told to the maintainer: the overnight
+  design note (copband/design.md section 8 item 5) had recommended L+T + band alone for a line-5 outcome; the recommendation
+  changed to A because the overnight band test ran on stagger parents and the stagger term prices the twist route (design
+  section 5, "open: the main risk"). Still open: the three prototype fixes.
+2026-10-20  MAINTAINER DECISION: decision 3 locked as recommended: (3a) the 35% load-share guard becomes a ramp (full price at a
+  load share <= 0.25, no guard price at >= 0.35, linear between); (3b) a speed pass: one fused per-step reduction, pinned
+  byte-identical to the recorder; (3c) move the contact reduction out of gait/ into a neutral shared module (no exception to
+  the gait layering rule); (3d) band weight 0.30. Build of the fixed band starts on a scratch branch (never pushed).
+2026-10-20  MAINTAINER DECISION: option 4a locked. Hold the v6b ankle spring (ankle stiffness 40 -> 250 N.m/rad, damping 45 -> 90,
+  springref at the statue's settled 78.6 deg; a plant revision) in reserve. The band screen's fixed decision table gets a trigger
+  line: the band fixes the split but runs fail K2 on drift (a common fore-aft shift) -> the next round tests the v6b spring.
+2026-10-20  MAINTAINER DECISION: option 5a locked. Actuator saturation: no training change. During the band screen, read each
+  run's eval ledger at every check-in and tell the maintainer at once when the saturation alarm fires (run, step, actuator).
+  In parallel, an offline report-only diagnosis of stance4 s42's saturation (which actuator, onset, trigger). The diagnosis
+  starts after the band build's timing measurement, so it does not load the machine during it. Fails stay fails; no run is
+  stopped or restarted on an alarm.
+2026-10-20  MAINTAINER DECISION: decision 6 locked. Mirrored-leg spawns and prey-straight-ahead stay diagnostic panels only (not
+  adopted into training or the criteria). The band screen runs them at every scored checkpoint, report only, as a yardstick.
+2026-10-20  MAINTAINER DECISIONS: 7a (i): rebuild walking pilot 2 for stance3 Run 2's final (criteria amendment before any pilot-2
+  training step, new parent committed on its branch, start-up checks re-run) right after the band screen package is ready; the
+  maintainer starts it when a fourth Colab slot is free. 7b: open the stance4 records PR now (documentation only). 7c: the Colab
+  L4 GPU runtime is CONFIRMED for stance4 (all three runs recorded L4) and is the band screen's runtime.

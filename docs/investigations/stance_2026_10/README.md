@@ -43,6 +43,16 @@ experiment's harness-matched no-change comparison (the note's §17.8), and
 §18), fixed before training. `stance4/` holds no judgement, and as a screen
 it certifies nothing.
 
+*Added 2026-10-20:* `stance4/results/` holds the stance4 screen's judgement
+by its fixed criteria (all three runs fail; the decision table's line is 5,
+final), with report-only readouts and an index of its own,
+[stance4/results/README.md](stance4/results/README.md). `stance4/night/`
+holds the replicate study of the stagger penalty and `stance4/night2/` the
+CoP-band continuation test, both overnight scratch experiments of
+2026-10-20 and report only, and `stance4/copband/` the design note of the
+per-foot CoP band prototype, the basis of decision D-D40. As a screen and as
+scratch experiments they certify nothing.
+
 ## What changed in the copies
 
 [SOURCES.txt](SOURCES.txt) lists every file with the scratch file it came from,
@@ -119,9 +129,27 @@ byte-identical to the file fixed before training (sha256 `978a93da…`; it
 ends with a newline). It holds no model identifier, email address or commit
 trailer.
 
+*Added 2026-10-20 (`stance4/results/`, `stance4/night/`, `stance4/night2/`,
+`stance4/copband/`):* the copies carry the **prefix**, **whitespace** (here a
+final newline added to three JSON files and a blank last line removed from
+`stance4/results/split_form.md`), **trim** (the notebook's gate verdicts cut to
+their verdict fields) and **redact** changes, and one more kind, nothing else:
+**checkout**, the session's checkout directory (an absolute path below the home
+directory) replaced by `checkout`, once each in `stance4/night/spec.md`,
+`stance4/night2/spec.md` and `stance4/copband/design.md`. The redaction is in
+`stance4/results/run_log.txt` only: 6 workflow run ids (3 distinct), one
+scheduled-task id and the report document's artifact link, each now
+`[id removed]`, and the assistant's name in a GitHub check's name, now
+`[name removed]`. SOURCES.txt defines them and
+[stance4/results/README.md](stance4/results/README.md) says which file each
+applies to. No copy holds a model identifier, an email address or a commit
+trailer. `stance4/copband/design.md` is kept as written: what later decisions
+supersede in it is in its entry under Contents, not in the file.
+
 [SHA256SUMS](SHA256SUMS) pins every file here but this README and itself
 (`sha256sum -c SHA256SUMS` in this directory). *Added 2026-10-19:* nor
 `stance3/results/README.md`, which, like this README, has no source.
+*Added 2026-10-20:* nor `stance4/results/README.md`, likewise.
 
 ## Contents
 
@@ -512,6 +540,114 @@ when starting the runs.
   in the runtime (measured: line 7 changed and two lines added); it stays
   in the session's scratch (`scratchpad/foot/stance4/superseded/`).
 
+### Added on 2026-10-20 (decision D-D39's outcome)
+
+**`stance4/results/`: the stance4 screen judged (2026-10-20, final), with
+report-only readouts.** Outcome: **all three runs fail** their fixed
+criteria (H = 0, K2p = 0): Run 1 `stance4_LTS_s52` and Run 2
+`stance4_LTS_s60` fail K1 and K2, and Run 3 `stance4_LTS_s42` fails K1–K4.
+The decision table's line is **5**, final: the stagger penalty is not
+adopted. The best stagger final by stance3's rule is Run 1's (39/40 clean, no
+noise falls), one episode short of stance3 Run 2's final (40/40), which stays
+the walking pilot 2 parent the criteria offer. Measured, all three runs
+recorded a Colab L4 GPU runtime (the `gpu` block of each run's
+`stage_config.json`), and the maintainer confirmed it. Its
+[README](stance4/results/README.md) indexes the folder:
+
+- `run_log.txt` (the stance4 log, ids removed, ending with the maintainer's
+  decisions of 2026-10-20), `scores/` (`score_final.txt` and `.json`, the
+  verdict of record), `checkpoints.csv` (one row per judge file, 51, with the
+  `checkpoints_csv.py` that recomputes it with the frozen scorer's own
+  counts), `extras.txt` and `extras.py` (the fresh, tail and common-noise
+  panels on each final, report only) and `notebook_gates/` (the notebook's
+  own six-heading gate on each run's `robust_best`, trimmed; report only).
+- `panels_summary.csv` and `panels_summary.py`: the diagnostic panels
+  (mirrored-leg spawns, the prey straight ahead, both) at every J checkpoint
+  of the three runs and the two controls, report only.
+- `split_form.md`: where the left-right split went, at 4,194,304 (the
+  stance4 feet nearly in line there, the per-foot CoP split not; report
+  only).
+
+**`stance4/night/`: the replicate study of the stagger penalty (2026-10-20,
+scratch only, report only).** Pre-registered continuations from stance3 Run
+3's Colab 8,388,608 checkpoint to 9,961,472, on two new training seeds (152
+and 252) with the stagger penalty and without, read beside the three runs
+of the night before: stagger n = 3 against no change n = 4. Its reading is
+line (2), partial, met through a flagged run (the seed-152 stagger run had 2
+panel falls and a reward ratio of 0.945; the seed-252 no-change run was
+flagged too). The window stagger sd separates completely (7.5, 7.7 and 4.2
+mm against 25.9, 9.7, 14.8 and 29.3; one-sided p 1/35 = 0.029, optimistic
+because three of the seven runs suggested the idea, and 0.086 given their
+known order); K2a does not (0, 3 and 0 against 15, 0, 3 and 8; p 0.200).
+None of it enters a stance4 verdict.
+
+- `spec.md`: the pre-registration, frozen at 01:50 UTC before any training
+  step (sha256 `24af508a…` as frozen; this copy carries the prefix and
+  checkout changes).
+- `review_handling.md`: the review's findings and how each was handled
+  before launch.
+- `readout.md` and `readout.json`: the readouts R1 (the judge) and R2 (the
+  split rollout) at 9,961,472, the tests and the reading, with the R2
+  reproduction log.
+
+**`stance4/night2/`: the CoP-band continuation test (2026-10-20, scratch
+only, report only).** Pre-registered, paired continuations from stance4
+s52's and s60's Colab 4,194,304 checkpoints to 5,767,168, with the band
+prototype on (CB) and off (NC), one run per arm per parent, from the scratch
+commit `f94452ad` (never pushed). Its reading is line (2), partial: CB is
+lower than NC on both readouts for both parents (K2a 0 against 18 for s52
+and 3 against 22 for s60; CoP split sd 0.29 against 1.20 and 0.11 against
+1.27), but the s60 band run raised new safety flags (3 panel falls,
+hop-or-fall 3, a reward ratio of 0.928). In that run the guards left 242 of
+59,836 window foot-steps uncounted, all in those 3 episodes (a foot unloaded
+or under the 35% load share; in 2 of them a foot also on its digits alone);
+in the s52 band run, none. The guards cannot see the route the design calls
+its main risk (each foot's CoP held in band by asymmetric ankle torque while
+the feet stay staggered); in the s52 pair the band run's window stagger sd
+was the higher (9.4 against 6.7 mm). A continuation is not a from-scratch
+screen, and none of it enters a stance4 verdict.
+
+- `spec.md`: the pre-registration, frozen at 06:29 UTC before any training
+  step (sha256 `b1606f74…` as frozen; this copy carries the prefix and
+  checkout changes).
+- `review_handling.md`: the review's eight findings and how they were
+  handled; no frozen file changed.
+- `readout2.md` and `readout2.json`: R1 and R2 at 5,767,168, the guard
+  readouts, a paired panel-seed bootstrap, the Colab no-change references
+  and the diagnostic panels of the s52 pair (the s60 pair's were skipped at
+  the deadline).
+
+**`stance4/copband/design.md`: the per-foot CoP band prototype's design note
+(2026-10-20, 00:35–01:30 UTC; a proposal, nothing trained), the basis of
+decision D-D40. Decisions 3a–3c of 2026-10-20 supersede its sections on the
+step guard, the gait import exception and the speed**; the file is kept as
+written:
+
+- 3a, the step guard: guard 1's 35% load-share step (§4.1, and the reward
+  cliff of §7 item 4) becomes a ramp, the full price at a load share of 0.25
+  or less, none at 0.35 or more, linear between;
+- 3b, the speed: the measured +0.62 ms per env step (one thread, 1.40 to
+  2.02 ms; §6.3, §7 item 6 and §8 item 3) is to come down to at most 0.15 ms
+  over band-off, with one fused per-step reduction byte-identical to the
+  recorder's readings;
+- 3c, the gait import exception: the contact reduction moves out of
+  `environments/shared/gait/` into a neutral shared module, so the gait
+  layering rule (D-D23) holds with no exception (§1's file table, §6.1's
+  layering-test exception, §7 item 5 and §8 item 2), with a pinned test of
+  the band's readings.
+
+The note's other proposals stand as written or as decided: 3d keeps its
+weight, 0.30 (§0 and §3.4). §8 item 5 recommended L+T plus the band alone
+for a line-5 outcome; the arm decided (2A) is L+T plus the stagger penalty
+plus the band, with the three stance4 runs as its single-difference control,
+because the overnight band test ran on stagger parents and the stagger term
+prices the route the note calls its main risk (§5's last row). The prototype
+is the scratch commit `f94452ad` on `c1e146a8`, never pushed: an opt-in
+`[env]` option of the T. rex env, off by default, that charges a foot whose
+whole-foot CoP lies outside [−0.6, +0.4] span half-lengths. The band's code,
+criteria, judge and Colab steps are not part of this change: they are being
+built separately and are not committed anywhere public.
+
 ## How to re-check each verdict
 
 Commands as run on 2026-10-17 from a copy of this directory (Python 3.13;
@@ -558,6 +694,10 @@ copies.
 | The files themselves (2026-10-19, later, with `stance3/night/`) | `sha256sum -c SHA256SUMS` | all 321 files OK |
 | The stance4 criteria (2026-10-19) | `sha256sum stance4/criteria.txt` | `978a93da8da469c1acde7b9f7261d9236e4799eb2111b3af0f0cbeaa153f0f38` |
 | The files themselves (2026-10-19, later, with `stance4/`) | `sha256sum -c SHA256SUMS` | all 322 files OK |
+| The stance4 verdicts, decision line and parent inputs (2026-10-20; session scratch only) | in the session's scratch: `python3 -I -B scratchpad/foot/stance4/judge/score_stance4.py --runs-ended --json score.json` | identical to `stance4/results/scores/score_final.txt` and `.json` apart from the JSON's path and s52's two selection cells, judged after the record |
+| `stance4/results/checkpoints.csv` (2026-10-20; session scratch only) | `python3 -I -B stance4/results/checkpoints_csv.py <judged dir> out.csv --check <score_final.json>` | 40 cells agree with the scorer; `out.csv` identical |
+| `stance4/results/panels_summary.csv` (2026-10-20; session scratch only) | `python3 -I -B stance4/results/panels_summary.py <panels dir> out.csv --judged <stance4 judged dir> --control-judged <stance3 judged dir>` | `out.csv` identical; the model sha256 and the standard K2a and K2b equal the judge files' |
+| The files themselves (2026-10-20, with `stance4/results/`, `night/`, `night2/` and `copband/`) | `sha256sum -c SHA256SUMS` | all 344 files OK |
 
 `test_pilot_score.py` prints sample "Walking pilot score" blocks while it runs;
 they score synthetic panels, not the pilot.
@@ -624,4 +764,11 @@ Of the two scripts added on 2026-10-19 in `stance3/results/`,
 `ruff format --check` under the same configuration (ruff 0.16.8);
 `certificates/run_cert_clone.py` is left as it ran, with 8 findings (several
 modules on one import line, unsorted imports, imports below code), and
+`ruff format --check` would reformat it.
+
+Of the three scripts added on 2026-10-20 in `stance4/results/`,
+`checkpoints_csv.py` and `panels_summary.py`, written for the record, pass
+`ruff check` and `ruff format --check` under the same configuration (ruff
+0.16.8); `extras.py` is left as it ran, with 3 findings (several modules on
+one import line, unsorted imports, two statements joined by `;`), and
 `ruff format --check` would reformat it.

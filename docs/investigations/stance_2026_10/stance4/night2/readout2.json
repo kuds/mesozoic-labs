@@ -1,0 +1,2408 @@
+{
+ "schema": "stance4-night2-copband-readout/v1",
+ "endpoint": 5767168,
+ "root": "scratchpad/foot/stance4/night2",
+ "smoke": false,
+ "states": {
+  "CB52": "ok",
+  "NC52": "ok",
+  "CB60": "ok",
+  "NC60": "ok"
+ },
+ "incomplete": [],
+ "below_plan": [],
+ "rows": {
+  "CB52": {
+   "key": "CB52",
+   "arm": "CB",
+   "parent_seed": 52,
+   "paths": {
+    "judge": "scratchpad/foot/stance4/night2/judged/CB52/judge_5767168.json",
+    "npz": "scratchpad/foot/stance4/night2/r2/out/CB52_5767168.npz",
+    "guard": "scratchpad/foot/stance4/night2/guard/out/CB52_5767168.npz",
+    "run_dir": "scratchpad/foot/stance4/night2/runs/CB52",
+    "panels": "scratchpad/foot/stance4/night2/panels/CB52/panels_5767168.json",
+    "panels_skipped": "scratchpad/foot/stance4/night2/panels/CB52/SKIPPED.json"
+   },
+   "state": "ok",
+   "r1": {
+    "verdict": "PASS",
+    "clean": 40,
+    "lcb": 0.9278424754944773,
+    "full": 40,
+    "hop_or_fall": 0,
+    "falls": 0,
+    "fall_seeds": [],
+    "k2a": 0,
+    "k2a_seeds": [],
+    "k2b": 0,
+    "k2b_seeds": [],
+    "roll": 0,
+    "xc_minus_statue_mm": 0.6545367341537628,
+    "reward": 4438.580708161816,
+    "statue_reward": 4458.1835011480425,
+    "reward_ratio": 0.995602964081407,
+    "noise_joint_falls": 0,
+    "noise_joint_n": 20,
+    "noise_own_falls": 0,
+    "noise_own_n": 20,
+    "own_sigma_mean": 0.09317234715222004,
+    "saturation_fail_eps": 0,
+    "side_door": {
+     "max_touchdown_rate": 0,
+     "min_all_feet_support": 0,
+     "max_settle_touchdowns": 0,
+     "max_episode_yaw_change_deg": 0
+    },
+    "criterion_failures": {},
+    "model_sha256": "sha256:d2d18942712bc79388c98152eef2d9612babf80dc0c83c2c67630b0213fb5d16",
+    "head": "f94452ad880933ca91c9aab422873ba72d1dec4c",
+    "relaxed": {
+     "no_symmetry_check": false,
+     "task_binding": "report",
+     "allow_missing_records": false,
+     "allow_seed_mismatch": false,
+     "allow_commit_mismatch": true
+    },
+    "task_rolled": "sha256:3fa467083e34fa280ccb6d1bd04eebccdd3aac2b820fd89901b8d418ef32f2db",
+    "steps": 5767168,
+    "judge_seed": 52
+   },
+   "r2": {
+    "n_full": 40,
+    "stag_sd_win": 9.36551762755513,
+    "stag_mean_abs_win": 7.839056240344467,
+    "six_abs": 16.54890666071581,
+    "six_each": [
+     -14.3,
+     -17.1,
+     20.0,
+     -13.7,
+     -15.9,
+     18.3
+    ],
+    "stag_sd_i200": 10.918534994616202,
+    "stag_sd_i999": 9.257329932087389,
+    "stag_sd_reset": 45.09418802543403,
+    "cop_split_sd": 0.2879581851969835,
+    "cop_common": 0.06339230908923826,
+    "heel_min": -0.23447652976598532,
+    "corr_split_stagger": -0.9933519985526528,
+    "ankle_off": -0.19278975532053652,
+    "ankle_r": -0.17694359239076407,
+    "ankle_l": -0.20863591825030894,
+    "ankle_lr_abs": 0.6033815171588209,
+    "com_mtp3_mm": 64.53715329120685,
+    "knee_off": 0.1989881497211492,
+    "hip_pitch_off": 0.5731819590568019,
+    "hip_pitch_servo_slope": 0.41752449349255805,
+    "hip_pitch_force_per_mm": -0.7208300066115174,
+    "knee_servo_slope": -2.348275388429213,
+    "knee_force_per_mm": -0.6281107769420666,
+    "ankle_servo_slope": -0.8640101300938765,
+    "ankle_force_per_mm": -1.054115873272421,
+    "corr_yaw_bearing": 0.374464552677813,
+    "yaw_creep_abs": 0.8148530311684103,
+    "dstag_per_dyaw": -6.243947753329072,
+    "slide_r": 19.171083335255346,
+    "slide_l": 19.488430824300753,
+    "slide_max": 77.47133380391239,
+    "yaw_change_abs": 3.422017800172985,
+    "yaw_change_max": 9.377900657010885,
+    "cost_stagger": 0.012808285432825497,
+    "cost_anchor": 0.002585868089249622,
+    "sat_worst_max": 0.0,
+    "sat_over_bar": 0,
+    "sat_worst_actuator": 0,
+    "k2a": 0,
+    "k2b": 0
+   },
+   "guard": {
+    "n_episodes": 40,
+    "n_full_horizon": 40,
+    "n_window_foot_steps": 64000,
+    "share_unloaded": 0.0,
+    "count_unloaded": 0,
+    "share_light": 0.0,
+    "count_light": 0,
+    "share_digit_only": 0.0,
+    "count_digit_only": 0,
+    "share_uncounted": 0.0,
+    "count_uncounted": 0,
+    "share_uncounted_rule": 0.0,
+    "count_uncounted_rule": 0,
+    "share_pad_hit": 0.0059375,
+    "count_pad_hit": 380,
+    "share_pad_binds": 0.0,
+    "count_pad_binds": 0,
+    "share_foot_out": 0.0125625,
+    "count_foot_out": 804,
+    "digit_share_mean_counted": 0.22202216959689577,
+    "episodes_with_uncounted": 0,
+    "episodes_with_digit_only": 0,
+    "band_reward_mean_per_window_step": -0.0001304157362419096,
+    "band_cost_per_window_full_horizon": 0.10433258899352768,
+    "band_reward_nonzero_before_gate": 0,
+    "band_quality_mean_window": 0.9995652808791935,
+    "checks": {
+     "counted_equals_rule_mismatches": 0,
+     "foot_cop_vs_trace_max_abs": 0.0,
+     "pad_cop_vs_trace_max_abs": 0.0,
+     "gate_index_mismatches": 0
+    },
+    "checks_ok": true
+   },
+   "guard_identity": {
+    "seed": true,
+    "length": true,
+    "termination": true,
+    "qpos": true,
+    "action": true,
+    "foot_cop_m": true,
+    "pad_cop_fore": true,
+    "loaded": true,
+    "model_sha256": true,
+    "vecnorm_sha256": true
+   },
+   "flags": {
+    "clean below start for a NEW reason": false,
+    "new reasons": [],
+    "hop-or-fall >= 2": false,
+    "any panel fall": false,
+    "joint-noise >= 3/20 or own >= 2/20": false,
+    "side door (touchdown/support/settle/yaw) > 0": false,
+    "saturation >= 2 episodes": false,
+    "roll rail up by >= 2": false,
+    "x_c outside [-60, +30] mm": false,
+    "reward ratio < 0.95": false,
+    "hop_watch.json / ENDED_ON_ITS_OWN.json present": false,
+    "guards fire more than NC (uncounted foot-steps, +1.0 pp)": false,
+    "pad band binds more than NC (+1.0 pp)": false
+   },
+   "relaxations": {
+    "relaxed": {
+     "no_symmetry_check": false,
+     "task_binding": "report",
+     "allow_missing_records": false,
+     "allow_seed_mismatch": false,
+     "allow_commit_mismatch": true
+    },
+    "task_rolled": "sha256:3fa467083e34fa280ccb6d1bd04eebccdd3aac2b820fd89901b8d418ef32f2db",
+    "task_checkpoint": "sha256:7f95bf70a389c6d6c4263d5d1d805ec8ee6692facfb519543a00302df8864315",
+    "task_run": "sha256:7f95bf70a389c6d6c4263d5d1d805ec8ee6692facfb519543a00302df8864315",
+    "task_checkpoint_match": false,
+    "task_run_match": false,
+    "env_kwargs_differences": [
+     "stance_cop_band_weight (not a default)"
+    ],
+    "git_commit": "f94452ad880933ca91c9aab422873ba72d1dec4c",
+    "clone_head": "f94452ad880933ca91c9aab422873ba72d1dec4c",
+    "git_commit_match": true,
+    "run_seed_match": true,
+    "seed_check": {
+     "label": 52,
+     "checkpoint": 52,
+     "match": true
+    },
+    "n_envs_match": true,
+    "hyperparameters_sha256_match": true,
+    "symmetry_mirror_map_match": true,
+    "plant_physics_match": true,
+    "checkpoint_num_timesteps": 5767168,
+    "hard_failures": []
+   },
+   "panels": {
+    "smoke": false,
+    "statue_rolled": false,
+    "model_sha256": "sha256:d2d18942712bc79388c98152eef2d9612babf80dc0c83c2c67630b0213fb5d16",
+    "variants": {
+     "standard": {
+      "clean": 40,
+      "k2a": 0,
+      "k2b": 0,
+      "full_horizon": 40,
+      "falls": 0,
+      "stagger_window_sd_mm": 9.36551762755513,
+      "cop_split_sd": 0.2879581851969835,
+      "cop_common_mean": 0.06339230908923826,
+      "heel_min": -0.23447652976598532
+     },
+     "mirror_legs": {
+      "clean": 40,
+      "k2a": 0,
+      "k2b": 0,
+      "full_horizon": 40,
+      "falls": 0,
+      "stagger_window_sd_mm": 5.76022761846095,
+      "cop_split_sd": 0.16881398824734226,
+      "cop_common_mean": 0.06145523462033873,
+      "heel_min": -0.14491042928384185
+     },
+     "prey_ahead": {
+      "clean": 40,
+      "k2a": 0,
+      "k2b": 0,
+      "full_horizon": 40,
+      "falls": 0,
+      "stagger_window_sd_mm": 7.477316573730869,
+      "cop_split_sd": 0.2330682334930514,
+      "cop_common_mean": 0.06046508100696293,
+      "heel_min": -0.23625985158277849
+     },
+     "mirror_prey_ahead": {
+      "clean": 40,
+      "k2a": 0,
+      "k2b": 0,
+      "full_horizon": 40,
+      "falls": 0,
+      "stagger_window_sd_mm": 4.443656331078302,
+      "cop_split_sd": 0.10734338117278378,
+      "cop_common_mean": 0.058426532300989334,
+      "heel_min": -0.18101512679096046
+     }
+    }
+   },
+   "panels_state": "done",
+   "primary": {
+    "k2a": 0.0,
+    "cop_split_sd": 0.2879581851969835
+   },
+   "n_full": 40,
+   "notes": []
+  },
+  "NC52": {
+   "key": "NC52",
+   "arm": "NC",
+   "parent_seed": 52,
+   "paths": {
+    "judge": "scratchpad/foot/stance4/night2/judged/NC52/judge_5767168.json",
+    "npz": "scratchpad/foot/stance4/night2/r2/out/NC52_5767168.npz",
+    "guard": "scratchpad/foot/stance4/night2/guard/out/NC52_5767168.npz",
+    "run_dir": "scratchpad/foot/stance4/night2/runs/NC52",
+    "panels": "scratchpad/foot/stance4/night2/panels/NC52/panels_5767168.json",
+    "panels_skipped": "scratchpad/foot/stance4/night2/panels/NC52/SKIPPED.json"
+   },
+   "state": "ok",
+   "r1": {
+    "verdict": "FAIL",
+    "clean": 22,
+    "lcb": 0.4088118200552674,
+    "full": 40,
+    "hop_or_fall": 0,
+    "falls": 0,
+    "fall_seeds": [],
+    "k2a": 18,
+    "k2a_seeds": [
+     3042,
+     3044,
+     3045,
+     3050,
+     3051,
+     3052,
+     3053,
+     3061,
+     3062,
+     3063,
+     3067,
+     3069,
+     3071,
+     3072,
+     3073,
+     3074,
+     3075,
+     3081
+    ],
+    "k2b": 18,
+    "k2b_seeds": [
+     3042,
+     3044,
+     3045,
+     3050,
+     3051,
+     3052,
+     3053,
+     3061,
+     3062,
+     3063,
+     3067,
+     3069,
+     3071,
+     3072,
+     3073,
+     3074,
+     3075,
+     3081
+    ],
+    "roll": 1,
+    "xc_minus_statue_mm": -3.2720618699737942,
+    "reward": 4432.052358655517,
+    "statue_reward": 4458.1835011480425,
+    "reward_ratio": 0.9941386121756101,
+    "noise_joint_falls": 0,
+    "noise_joint_n": 20,
+    "noise_own_falls": 0,
+    "noise_own_n": 20,
+    "own_sigma_mean": 0.09252690341763577,
+    "saturation_fail_eps": 0,
+    "side_door": {
+     "max_touchdown_rate": 0,
+     "min_all_feet_support": 0,
+     "max_settle_touchdowns": 0,
+     "max_episode_yaw_change_deg": 0
+    },
+    "criterion_failures": {
+     "max_sole_corner_lift_m": 1,
+     "max_sole_cop_fore_aft": 18
+    },
+    "model_sha256": "sha256:e8f6d4d963860bca8bfa32ebebc4979c2c6a91733cdc416e3fa33f14d22937d9",
+    "head": "f94452ad880933ca91c9aab422873ba72d1dec4c",
+    "relaxed": {
+     "no_symmetry_check": false,
+     "task_binding": "report",
+     "allow_missing_records": false,
+     "allow_seed_mismatch": false,
+     "allow_commit_mismatch": true
+    },
+    "task_rolled": "sha256:3fa467083e34fa280ccb6d1bd04eebccdd3aac2b820fd89901b8d418ef32f2db",
+    "steps": 5767168,
+    "judge_seed": 52
+   },
+   "r2": {
+    "n_full": 40,
+    "stag_sd_win": 6.665543559370468,
+    "stag_mean_abs_win": 5.022042246263314,
+    "six_abs": 11.629327673713568,
+    "six_each": [
+     -19.6,
+     -5.6,
+     10.9,
+     -7.8,
+     -15.7,
+     10.2
+    ],
+    "stag_sd_i200": 8.172731942981923,
+    "stag_sd_i999": 8.749437236508362,
+    "stag_sd_reset": 45.09418802543403,
+    "cop_split_sd": 1.202944483663446,
+    "cop_common": 0.0016925681014509288,
+    "heel_min": -0.9557850919274352,
+    "corr_split_stagger": -0.9271800412168064,
+    "ankle_off": 0.21292704124944833,
+    "ankle_r": 0.22286246370170693,
+    "ankle_l": 0.20299161879718977,
+    "ankle_lr_abs": 0.08207062441915589,
+    "com_mtp3_mm": 59.9623878838564,
+    "knee_off": 0.16579716334046068,
+    "hip_pitch_off": 0.25167664247042154,
+    "hip_pitch_servo_slope": 6.228346040982389,
+    "hip_pitch_force_per_mm": -5.5152398528291595,
+    "knee_servo_slope": 4.227819778965308,
+    "knee_force_per_mm": -5.303386185249512,
+    "ankle_servo_slope": -1.5815546130075897,
+    "ankle_force_per_mm": -4.960231316075824,
+    "corr_yaw_bearing": 0.15255394532343622,
+    "yaw_creep_abs": 0.7144999863981946,
+    "dstag_per_dyaw": -7.308313573236724,
+    "slide_r": 18.519130290827796,
+    "slide_l": 20.315875813610553,
+    "slide_max": 71.12526380436601,
+    "yaw_change_abs": 4.146097529992497,
+    "yaw_change_max": 10.553310511620648,
+    "cost_stagger": 0.007057195120726048,
+    "cost_anchor": 0.0015278354779269165,
+    "sat_worst_max": 0.0,
+    "sat_over_bar": 0,
+    "sat_worst_actuator": 0,
+    "k2a": 18,
+    "k2b": 18
+   },
+   "guard": {
+    "n_episodes": 40,
+    "n_full_horizon": 40,
+    "n_window_foot_steps": 64000,
+    "share_unloaded": 0.0,
+    "count_unloaded": 0,
+    "share_light": 0.0,
+    "count_light": 0,
+    "share_digit_only": 0.0,
+    "count_digit_only": 0,
+    "share_uncounted": 0.0,
+    "count_uncounted": 0,
+    "share_uncounted_rule": 0.0,
+    "count_uncounted_rule": 0,
+    "share_pad_hit": 0.459984375,
+    "count_pad_hit": 29439,
+    "share_pad_binds": 0.038875,
+    "count_pad_binds": 2488,
+    "share_foot_out": 0.501234375,
+    "count_foot_out": 32079,
+    "digit_share_mean_counted": 0.22657042599994373,
+    "episodes_with_uncounted": 0,
+    "episodes_with_digit_only": 0,
+    "band_reward_mean_per_window_step": -0.07639635379279006,
+    "band_cost_per_window_full_horizon": 61.11708303423204,
+    "band_reward_nonzero_before_gate": 0,
+    "band_quality_mean_window": 0.7453454873573664,
+    "checks": {
+     "counted_equals_rule_mismatches": 0,
+     "foot_cop_vs_trace_max_abs": 0.0,
+     "pad_cop_vs_trace_max_abs": 0.0,
+     "gate_index_mismatches": 0
+    },
+    "checks_ok": true
+   },
+   "guard_identity": {
+    "seed": true,
+    "length": true,
+    "termination": true,
+    "qpos": true,
+    "action": true,
+    "foot_cop_m": true,
+    "pad_cop_fore": true,
+    "loaded": true,
+    "model_sha256": true,
+    "vecnorm_sha256": true
+   },
+   "flags": {
+    "clean below start for a NEW reason": true,
+    "new reasons": [
+     "max_sole_corner_lift_m"
+    ],
+    "hop-or-fall >= 2": false,
+    "any panel fall": false,
+    "joint-noise >= 3/20 or own >= 2/20": false,
+    "side door (touchdown/support/settle/yaw) > 0": false,
+    "saturation >= 2 episodes": false,
+    "roll rail up by >= 2": false,
+    "x_c outside [-60, +30] mm": false,
+    "reward ratio < 0.95": false,
+    "hop_watch.json / ENDED_ON_ITS_OWN.json present": false
+   },
+   "relaxations": {
+    "relaxed": {
+     "no_symmetry_check": false,
+     "task_binding": "report",
+     "allow_missing_records": false,
+     "allow_seed_mismatch": false,
+     "allow_commit_mismatch": true
+    },
+    "task_rolled": "sha256:3fa467083e34fa280ccb6d1bd04eebccdd3aac2b820fd89901b8d418ef32f2db",
+    "task_checkpoint": "sha256:3fa467083e34fa280ccb6d1bd04eebccdd3aac2b820fd89901b8d418ef32f2db",
+    "task_run": "sha256:3fa467083e34fa280ccb6d1bd04eebccdd3aac2b820fd89901b8d418ef32f2db",
+    "task_checkpoint_match": true,
+    "task_run_match": true,
+    "env_kwargs_differences": [],
+    "git_commit": "f94452ad880933ca91c9aab422873ba72d1dec4c",
+    "clone_head": "f94452ad880933ca91c9aab422873ba72d1dec4c",
+    "git_commit_match": true,
+    "run_seed_match": true,
+    "seed_check": {
+     "label": 52,
+     "checkpoint": 52,
+     "match": true
+    },
+    "n_envs_match": true,
+    "hyperparameters_sha256_match": true,
+    "symmetry_mirror_map_match": true,
+    "plant_physics_match": true,
+    "checkpoint_num_timesteps": 5767168,
+    "hard_failures": []
+   },
+   "panels": {
+    "smoke": false,
+    "statue_rolled": false,
+    "model_sha256": "sha256:e8f6d4d963860bca8bfa32ebebc4979c2c6a91733cdc416e3fa33f14d22937d9",
+    "variants": {
+     "standard": {
+      "clean": 22,
+      "k2a": 18,
+      "k2b": 18,
+      "full_horizon": 40,
+      "falls": 0,
+      "stagger_window_sd_mm": 6.665543559370468,
+      "cop_split_sd": 1.202944483663446,
+      "cop_common_mean": 0.0016925681014509288,
+      "heel_min": -0.9557850919274352
+     },
+     "mirror_legs": {
+      "clean": 33,
+      "k2a": 7,
+      "k2b": 11,
+      "full_horizon": 40,
+      "falls": 0,
+      "stagger_window_sd_mm": 4.231476476160039,
+      "cop_split_sd": 0.9067259796867382,
+      "cop_common_mean": 0.014995140654520803,
+      "heel_min": -0.8544226728685999
+     },
+     "prey_ahead": {
+      "clean": 35,
+      "k2a": 5,
+      "k2b": 8,
+      "full_horizon": 40,
+      "falls": 0,
+      "stagger_window_sd_mm": 3.8091979999832053,
+      "cop_split_sd": 0.9077734007913421,
+      "cop_common_mean": 0.01026423371209341,
+      "heel_min": -0.8759555024304254
+     },
+     "mirror_prey_ahead": {
+      "clean": 40,
+      "k2a": 0,
+      "k2b": 0,
+      "full_horizon": 40,
+      "falls": 0,
+      "stagger_window_sd_mm": 1.4777818782448742,
+      "cop_split_sd": 0.1109234632891217,
+      "cop_common_mean": 0.013668660351818329,
+      "heel_min": -0.21304183387254416
+     }
+    }
+   },
+   "panels_state": "done",
+   "primary": {
+    "k2a": 18.0,
+    "cop_split_sd": 1.202944483663446
+   },
+   "n_full": 40,
+   "notes": []
+  },
+  "CB60": {
+   "key": "CB60",
+   "arm": "CB",
+   "parent_seed": 60,
+   "paths": {
+    "judge": "scratchpad/foot/stance4/night2/judged/CB60/judge_5767168.json",
+    "npz": "scratchpad/foot/stance4/night2/r2/out/CB60_5767168.npz",
+    "guard": "scratchpad/foot/stance4/night2/guard/out/CB60_5767168.npz",
+    "run_dir": "scratchpad/foot/stance4/night2/runs/CB60",
+    "panels": "scratchpad/foot/stance4/night2/panels/CB60/panels_5767168.json",
+    "panels_skipped": "scratchpad/foot/stance4/night2/panels/CB60/SKIPPED.json"
+   },
+   "state": "ok",
+   "r1": {
+    "verdict": "FAIL",
+    "clean": 37,
+    "lcb": 0.8174131499840884,
+    "full": 37,
+    "hop_or_fall": 3,
+    "falls": 3,
+    "fall_seeds": [
+     3050,
+     3063,
+     3081
+    ],
+    "k2a": 3,
+    "k2a_seeds": [
+     3050,
+     3063,
+     3081
+    ],
+    "k2b": 3,
+    "k2b_seeds": [
+     3050,
+     3063,
+     3081
+    ],
+    "roll": 0,
+    "xc_minus_statue_mm": -5.626801577796589,
+    "reward": 4136.700829504043,
+    "statue_reward": 4458.1835011480425,
+    "reward_ratio": 0.9278893137617119,
+    "noise_joint_falls": 0,
+    "noise_joint_n": 20,
+    "noise_own_falls": 1,
+    "noise_own_n": 20,
+    "own_sigma_mean": 0.09270886827654806,
+    "saturation_fail_eps": 0,
+    "side_door": {
+     "max_touchdown_rate": 0,
+     "min_all_feet_support": 3,
+     "max_settle_touchdowns": 0,
+     "max_episode_yaw_change_deg": 0
+    },
+    "criterion_failures": {
+     "horizon": 3,
+     "min_all_feet_support": 3,
+     "max_window_displacement_m": 3,
+     "min_foot_load_share": 3,
+     "min_foot_load_share_windowed": 3,
+     "max_sole_tilt_deg": 3,
+     "max_sole_corner_lift_m": 3,
+     "min_sole_contacts": 3,
+     "max_sole_cop_fore_aft": 3
+    },
+    "model_sha256": "sha256:4344926f02cb70148ef158d0f87b4c761bba3c4bef39170552672987eb3ee129",
+    "head": "f94452ad880933ca91c9aab422873ba72d1dec4c",
+    "relaxed": {
+     "no_symmetry_check": false,
+     "task_binding": "report",
+     "allow_missing_records": false,
+     "allow_seed_mismatch": false,
+     "allow_commit_mismatch": true
+    },
+    "task_rolled": "sha256:3fa467083e34fa280ccb6d1bd04eebccdd3aac2b820fd89901b8d418ef32f2db",
+    "steps": 5767168,
+    "judge_seed": 60
+   },
+   "r2": {
+    "n_full": 37,
+    "stag_sd_win": 2.686741514063322,
+    "stag_mean_abs_win": 2.2198719656314254,
+    "six_abs": 48.67589381694662,
+    "six_each": [
+     -68.8,
+     2.0,
+     -6.8,
+     2.0,
+     3.9,
+     208.6
+    ],
+    "stag_sd_i200": 4.004689146893808,
+    "stag_sd_i999": 3.0227134321091347,
+    "stag_sd_reset": 37.95916405720363,
+    "cop_split_sd": 0.10518908231261764,
+    "cop_common": -0.03631812039511997,
+    "heel_min": -0.26324476775950045,
+    "corr_split_stagger": -0.6546779576440092,
+    "ankle_off": 0.6088110724879214,
+    "ankle_r": 0.6158821181911418,
+    "ankle_l": 0.6017400267847008,
+    "ankle_lr_abs": 0.13056405879424568,
+    "com_mtp3_mm": 57.54381973557381,
+    "knee_off": -0.6698019408708227,
+    "hip_pitch_off": -0.0714268404753815,
+    "hip_pitch_servo_slope": 0.4085905055583784,
+    "hip_pitch_force_per_mm": -0.8204840149188101,
+    "knee_servo_slope": -0.982055217965537,
+    "knee_force_per_mm": -0.9085677778308184,
+    "ankle_servo_slope": -0.5054759470232725,
+    "ankle_force_per_mm": -0.656545103232232,
+    "corr_yaw_bearing": -0.497126748981843,
+    "yaw_creep_abs": 0.6214631812364201,
+    "dstag_per_dyaw": -6.3136595671316105,
+    "slide_r": 17.51948159792736,
+    "slide_l": 16.50148220909163,
+    "slide_max": 52.95280512678699,
+    "yaw_change_abs": 3.5365004751654343,
+    "yaw_change_max": 9.319517051389685,
+    "cost_stagger": 0.0013039068689878566,
+    "cost_anchor": 0.004971472903122424,
+    "sat_worst_max": 0.0,
+    "sat_over_bar": 0,
+    "sat_worst_actuator": 0,
+    "k2a": 3,
+    "k2b": 3
+   },
+   "guard": {
+    "n_episodes": 40,
+    "n_full_horizon": 37,
+    "n_window_foot_steps": 59836,
+    "share_unloaded": 0.0017213717494484926,
+    "count_unloaded": 103,
+    "share_light": 0.0023230162444013635,
+    "count_light": 139,
+    "share_digit_only": 0.0008857543953472826,
+    "count_digit_only": 53,
+    "share_uncounted": 0.0040443879938498566,
+    "count_uncounted": 242,
+    "share_uncounted_rule": 0.0040443879938498566,
+    "count_uncounted_rule": 242,
+    "share_pad_hit": 0.004077812688013905,
+    "count_pad_hit": 244,
+    "share_pad_binds": 0.0,
+    "count_pad_binds": 0,
+    "share_foot_out": 0.004813155959622969,
+    "count_foot_out": 288,
+    "digit_share_mean_counted": 0.19920738552492073,
+    "episodes_with_uncounted": 3,
+    "episodes_with_digit_only": 2,
+    "band_reward_mean_per_window_step": -0.0023724086676532407,
+    "band_cost_per_window_full_horizon": 0.002529064297816596,
+    "band_reward_nonzero_before_gate": 0,
+    "band_quality_mean_window": 0.9920919711078225,
+    "checks": {
+     "counted_equals_rule_mismatches": 0,
+     "foot_cop_vs_trace_max_abs": 0.0,
+     "pad_cop_vs_trace_max_abs": 0.0,
+     "gate_index_mismatches": 0
+    },
+    "checks_ok": true
+   },
+   "guard_identity": {
+    "seed": true,
+    "length": true,
+    "termination": true,
+    "qpos": true,
+    "action": true,
+    "foot_cop_m": true,
+    "pad_cop_fore": true,
+    "loaded": true,
+    "model_sha256": true,
+    "vecnorm_sha256": true
+   },
+   "flags": {
+    "clean below start for a NEW reason": false,
+    "new reasons": [
+     "horizon",
+     "max_sole_corner_lift_m",
+     "max_sole_tilt_deg",
+     "max_window_displacement_m",
+     "min_all_feet_support",
+     "min_foot_load_share",
+     "min_foot_load_share_windowed",
+     "min_sole_contacts"
+    ],
+    "hop-or-fall >= 2": true,
+    "any panel fall": true,
+    "joint-noise >= 3/20 or own >= 2/20": false,
+    "side door (touchdown/support/settle/yaw) > 0": true,
+    "saturation >= 2 episodes": false,
+    "roll rail up by >= 2": false,
+    "x_c outside [-60, +30] mm": false,
+    "reward ratio < 0.95": true,
+    "hop_watch.json / ENDED_ON_ITS_OWN.json present": false,
+    "guards fire more than NC (uncounted foot-steps, +1.0 pp)": false,
+    "pad band binds more than NC (+1.0 pp)": false
+   },
+   "relaxations": {
+    "relaxed": {
+     "no_symmetry_check": false,
+     "task_binding": "report",
+     "allow_missing_records": false,
+     "allow_seed_mismatch": false,
+     "allow_commit_mismatch": true
+    },
+    "task_rolled": "sha256:3fa467083e34fa280ccb6d1bd04eebccdd3aac2b820fd89901b8d418ef32f2db",
+    "task_checkpoint": "sha256:7f95bf70a389c6d6c4263d5d1d805ec8ee6692facfb519543a00302df8864315",
+    "task_run": "sha256:7f95bf70a389c6d6c4263d5d1d805ec8ee6692facfb519543a00302df8864315",
+    "task_checkpoint_match": false,
+    "task_run_match": false,
+    "env_kwargs_differences": [
+     "stance_cop_band_weight (not a default)"
+    ],
+    "git_commit": "f94452ad880933ca91c9aab422873ba72d1dec4c",
+    "clone_head": "f94452ad880933ca91c9aab422873ba72d1dec4c",
+    "git_commit_match": true,
+    "run_seed_match": true,
+    "seed_check": {
+     "label": 60,
+     "checkpoint": 60,
+     "match": true
+    },
+    "n_envs_match": true,
+    "hyperparameters_sha256_match": true,
+    "symmetry_mirror_map_match": true,
+    "plant_physics_match": true,
+    "checkpoint_num_timesteps": 5767168,
+    "hard_failures": []
+   },
+   "panels": null,
+   "panels_state": "skipped (deadline)",
+   "primary": {
+    "k2a": 3.0,
+    "cop_split_sd": 0.10518908231261764
+   },
+   "n_full": 37,
+   "notes": []
+  },
+  "NC60": {
+   "key": "NC60",
+   "arm": "NC",
+   "parent_seed": 60,
+   "paths": {
+    "judge": "scratchpad/foot/stance4/night2/judged/NC60/judge_5767168.json",
+    "npz": "scratchpad/foot/stance4/night2/r2/out/NC60_5767168.npz",
+    "guard": "scratchpad/foot/stance4/night2/guard/out/NC60_5767168.npz",
+    "run_dir": "scratchpad/foot/stance4/night2/runs/NC60",
+    "panels": "scratchpad/foot/stance4/night2/panels/NC60/panels_5767168.json",
+    "panels_skipped": "scratchpad/foot/stance4/night2/panels/NC60/SKIPPED.json"
+   },
+   "state": "ok",
+   "r1": {
+    "verdict": "FAIL",
+    "clean": 18,
+    "lcb": 0.31461315098997966,
+    "full": 40,
+    "hop_or_fall": 0,
+    "falls": 0,
+    "fall_seeds": [],
+    "k2a": 22,
+    "k2a_seeds": [
+     3042,
+     3044,
+     3045,
+     3050,
+     3051,
+     3052,
+     3053,
+     3055,
+     3061,
+     3062,
+     3063,
+     3065,
+     3066,
+     3067,
+     3069,
+     3071,
+     3072,
+     3073,
+     3075,
+     3076,
+     3078,
+     3081
+    ],
+    "k2b": 21,
+    "k2b_seeds": [
+     3042,
+     3044,
+     3050,
+     3051,
+     3052,
+     3053,
+     3055,
+     3061,
+     3062,
+     3063,
+     3065,
+     3066,
+     3067,
+     3069,
+     3071,
+     3072,
+     3073,
+     3075,
+     3076,
+     3078,
+     3081
+    ],
+    "roll": 6,
+    "xc_minus_statue_mm": -15.645151394420923,
+    "reward": 4372.067845205625,
+    "statue_reward": 4458.1835011480425,
+    "reward_ratio": 0.9806836896865638,
+    "noise_joint_falls": 0,
+    "noise_joint_n": 20,
+    "noise_own_falls": 0,
+    "noise_own_n": 20,
+    "own_sigma_mean": 0.09492945651662699,
+    "saturation_fail_eps": 0,
+    "side_door": {
+     "max_touchdown_rate": 0,
+     "min_all_feet_support": 0,
+     "max_settle_touchdowns": 0,
+     "max_episode_yaw_change_deg": 0
+    },
+    "criterion_failures": {
+     "max_sole_tilt_deg": 1,
+     "max_sole_corner_lift_m": 6,
+     "max_sole_cop_fore_aft": 22
+    },
+    "model_sha256": "sha256:b1d3dd0ab04eca0e8515d0f8b90552ea2d3ef90eac540b165c1592d81a35755b",
+    "head": "f94452ad880933ca91c9aab422873ba72d1dec4c",
+    "relaxed": {
+     "no_symmetry_check": false,
+     "task_binding": "report",
+     "allow_missing_records": false,
+     "allow_seed_mismatch": false,
+     "allow_commit_mismatch": true
+    },
+    "task_rolled": "sha256:3fa467083e34fa280ccb6d1bd04eebccdd3aac2b820fd89901b8d418ef32f2db",
+    "steps": 5767168,
+    "judge_seed": 60
+   },
+   "r2": {
+    "n_full": 40,
+    "stag_sd_win": 6.089305165798583,
+    "stag_mean_abs_win": 4.56482132898107,
+    "six_abs": 9.026123123124764,
+    "six_each": [
+     9.1,
+     4.7,
+     -16.3,
+     4.7,
+     8.0,
+     -11.3
+    ],
+    "stag_sd_i200": 3.1286270177121667,
+    "stag_sd_i999": 7.3205245257711855,
+    "stag_sd_reset": 45.09418802543403,
+    "cop_split_sd": 1.2718974352426597,
+    "cop_common": -0.14329824684151643,
+    "heel_min": -0.9714120262478368,
+    "corr_split_stagger": -0.8774296642813809,
+    "ankle_off": 0.9113354777915245,
+    "ankle_r": 0.914773888890369,
+    "ankle_l": 0.90789706669268,
+    "ankle_lr_abs": 0.6904643747832082,
+    "com_mtp3_mm": 49.21482017093912,
+    "knee_off": -0.44598481639103227,
+    "hip_pitch_off": -0.6389810991788947,
+    "hip_pitch_servo_slope": 6.962095205051518,
+    "hip_pitch_force_per_mm": -4.8538257205857995,
+    "knee_servo_slope": 1.3001437246867762,
+    "knee_force_per_mm": -5.243925339899473,
+    "ankle_servo_slope": 2.3555314867469956,
+    "ankle_force_per_mm": -4.8671187547843395,
+    "corr_yaw_bearing": -0.7482386233186746,
+    "yaw_creep_abs": 0.8535430757177476,
+    "dstag_per_dyaw": -5.148100809630568,
+    "slide_r": 20.1445549788507,
+    "slide_l": 21.48265424410321,
+    "slide_max": 90.60451895032368,
+    "yaw_change_abs": 4.3218486070524404,
+    "yaw_change_max": 14.096005019770097,
+    "cost_stagger": 0.005753023871329798,
+    "cost_anchor": 0.01245512407446776,
+    "sat_worst_max": 0.0,
+    "sat_over_bar": 0,
+    "sat_worst_actuator": 0,
+    "k2a": 22,
+    "k2b": 21
+   },
+   "guard": {
+    "n_episodes": 40,
+    "n_full_horizon": 40,
+    "n_window_foot_steps": 64000,
+    "share_unloaded": 0.0,
+    "count_unloaded": 0,
+    "share_light": 0.0,
+    "count_light": 0,
+    "share_digit_only": 0.0,
+    "count_digit_only": 0,
+    "share_uncounted": 0.0,
+    "count_uncounted": 0,
+    "share_uncounted_rule": 0.0,
+    "count_uncounted_rule": 0,
+    "share_pad_hit": 0.60465625,
+    "count_pad_hit": 38698,
+    "share_pad_binds": 0.03903125,
+    "count_pad_binds": 2498,
+    "share_foot_out": 0.669421875,
+    "count_foot_out": 42843,
+    "digit_share_mean_counted": 0.21449931726785093,
+    "episodes_with_uncounted": 0,
+    "episodes_with_digit_only": 0,
+    "band_reward_mean_per_window_step": -0.08208342549408647,
+    "band_cost_per_window_full_horizon": 65.66674039526917,
+    "band_reward_nonzero_before_gate": 0,
+    "band_quality_mean_window": 0.7263885816863783,
+    "checks": {
+     "counted_equals_rule_mismatches": 0,
+     "foot_cop_vs_trace_max_abs": 0.0,
+     "pad_cop_vs_trace_max_abs": 0.0,
+     "gate_index_mismatches": 0
+    },
+    "checks_ok": true
+   },
+   "guard_identity": {
+    "seed": true,
+    "length": true,
+    "termination": true,
+    "qpos": true,
+    "action": true,
+    "foot_cop_m": true,
+    "pad_cop_fore": true,
+    "loaded": true,
+    "model_sha256": true,
+    "vecnorm_sha256": true
+   },
+   "flags": {
+    "clean below start for a NEW reason": true,
+    "new reasons": [
+     "max_sole_corner_lift_m",
+     "max_sole_tilt_deg"
+    ],
+    "hop-or-fall >= 2": false,
+    "any panel fall": false,
+    "joint-noise >= 3/20 or own >= 2/20": false,
+    "side door (touchdown/support/settle/yaw) > 0": false,
+    "saturation >= 2 episodes": false,
+    "roll rail up by >= 2": true,
+    "x_c outside [-60, +30] mm": false,
+    "reward ratio < 0.95": false,
+    "hop_watch.json / ENDED_ON_ITS_OWN.json present": false
+   },
+   "relaxations": {
+    "relaxed": {
+     "no_symmetry_check": false,
+     "task_binding": "report",
+     "allow_missing_records": false,
+     "allow_seed_mismatch": false,
+     "allow_commit_mismatch": true
+    },
+    "task_rolled": "sha256:3fa467083e34fa280ccb6d1bd04eebccdd3aac2b820fd89901b8d418ef32f2db",
+    "task_checkpoint": "sha256:3fa467083e34fa280ccb6d1bd04eebccdd3aac2b820fd89901b8d418ef32f2db",
+    "task_run": "sha256:3fa467083e34fa280ccb6d1bd04eebccdd3aac2b820fd89901b8d418ef32f2db",
+    "task_checkpoint_match": true,
+    "task_run_match": true,
+    "env_kwargs_differences": [],
+    "git_commit": "f94452ad880933ca91c9aab422873ba72d1dec4c",
+    "clone_head": "f94452ad880933ca91c9aab422873ba72d1dec4c",
+    "git_commit_match": true,
+    "run_seed_match": true,
+    "seed_check": {
+     "label": 60,
+     "checkpoint": 60,
+     "match": true
+    },
+    "n_envs_match": true,
+    "hyperparameters_sha256_match": true,
+    "symmetry_mirror_map_match": true,
+    "plant_physics_match": true,
+    "checkpoint_num_timesteps": 5767168,
+    "hard_failures": []
+   },
+   "panels": null,
+   "panels_state": "skipped (deadline)",
+   "primary": {
+    "k2a": 22.0,
+    "cop_split_sd": 1.2718974352426597
+   },
+   "n_full": 40,
+   "notes": []
+  }
+ },
+ "comparison_cb_lower": {
+  "52": {
+   "k2a": true,
+   "cop_split_sd": true
+  },
+  "60": {
+   "k2a": true,
+   "cop_split_sd": true
+  }
+ },
+ "comparison_cb_at_or_below": {
+  "52": {
+   "k2a": true,
+   "cop_split_sd": true
+  },
+  "60": {
+   "k2a": true,
+   "cop_split_sd": true
+  }
+ },
+ "differences_cb_minus_nc": {
+  "52": {
+   "k2a": -18.0,
+   "cop_split_sd": -0.9149862984664625
+  },
+  "60": {
+   "k2a": -19.0,
+   "cop_split_sd": -1.1667083529300422
+  }
+ },
+ "new_safety_flags": {
+  "52": [],
+  "60": [
+   "any panel fall",
+   "hop-or-fall >= 2",
+   "reward ratio < 0.95"
+  ]
+ },
+ "reading_line": 2,
+ "reading": "(2) partial: CB lower on both readouts for both parents, but through a run with a new safety flag {60: ['any panel fall', 'hop-or-fall >= 2', 'reward ratio < 0.95']} (spec 7, line (1) needs none)",
+ "caveat": "n = 1 run per arm per parent (2 parents). A continuation from a 4,194,304 checkpoint is not a from-scratch screen. Report only: nothing here enters or changes a stance4 verdict or the stance4 criteria (SP/foot/stance4/criteria.txt, sha256 978a93da...). Fails stay fails.",
+ "band": {
+  "lower": -0.6,
+  "upper": 0.4,
+  "pad_lower": -0.65,
+  "pad_upper": 0.65,
+  "tolerance": 0.357,
+  "min_load_share": 0.35,
+  "weight": 0.3
+ },
+ "parents": {
+  "52": {
+   "judge": "scratchpad/foot/stance4/judged/stance4_LTS_s52/judge_4194304.json",
+   "r1": {
+    "file": "scratchpad/foot/stance4/judged/stance4_LTS_s52/judge_4194304.json",
+    "steps": 4194304,
+    "clone": "scratchpad/fix/screen_s4_LTS",
+    "head": "c1e146a82658112a9a1c0838250020b214ef303a",
+    "relaxed": {
+     "no_symmetry_check": false,
+     "task_binding": "require",
+     "allow_missing_records": false,
+     "allow_seed_mismatch": false,
+     "allow_commit_mismatch": false
+    },
+    "model_sha256": "sha256:1773f3cf3f671360b5f474e6220a0588809e49aa322eb7625a72e297fda977bb",
+    "task_rolled": "sha256:3fa467083e34fa280ccb6d1bd04eebccdd3aac2b820fd89901b8d418ef32f2db",
+    "verdict": "FAIL",
+    "clean": 28,
+    "lcb": 0.5597202622342541,
+    "full": 40,
+    "hop_or_fall": 0,
+    "falls": 0,
+    "fall_seeds": [],
+    "k2a": 12,
+    "k2a_seeds": [
+     3044,
+     3050,
+     3052,
+     3053,
+     3061,
+     3062,
+     3067,
+     3072,
+     3073,
+     3074,
+     3075,
+     3081
+    ],
+    "k2b": 16,
+    "k2b_seeds": [
+     3044,
+     3050,
+     3051,
+     3052,
+     3053,
+     3061,
+     3062,
+     3063,
+     3067,
+     3069,
+     3071,
+     3072,
+     3073,
+     3074,
+     3075,
+     3081
+    ],
+    "roll": 0,
+    "roll_eps": 0,
+    "xc_mm": 65.15692432110586,
+    "statue_xc_mm": 64.04835902741958,
+    "xc_minus_statue_mm": 1.1085652936862895,
+    "reward": 4397.03961741411,
+    "statue_reward": 4458.1835011480425,
+    "reward_ratio": 0.9862850231000614,
+    "statue_falls": [
+     3081
+    ],
+    "noise_joint_falls": 0,
+    "noise_joint_n": 20,
+    "noise_joint_fall_seeds": [],
+    "noise_own_falls": 0,
+    "noise_own_n": 20,
+    "noise_own_fall_seeds": [],
+    "own_sigma_mean": 0.10418336242174321,
+    "criterion_failures": {
+     "max_sole_cop_fore_aft": 12
+    },
+    "side_door": {
+     "max_touchdown_rate": 0,
+     "min_all_feet_support": 0,
+     "max_settle_touchdowns": 0,
+     "max_episode_yaw_change_deg": 0
+    },
+    "saturation_fail_eps": 0,
+    "gate_failures": [
+     "clean_stance_lcb 0.5597 < 0.8000 (28/40 episodes clean)"
+    ],
+    "reason_tally": {
+     "max_sole_cop_fore_aft: max_sole_cop_fore_aft 0.816412 > 0.8": 1,
+     "max_sole_cop_fore_aft: max_sole_cop_fore_aft 0.874684 > 0.8": 1,
+     "max_sole_cop_fore_aft: max_sole_cop_fore_aft 0.975818 > 0.8": 1,
+     "max_sole_cop_fore_aft: max_sole_cop_fore_aft 0.867804 > 0.8": 1,
+     "max_sole_cop_fore_aft: max_sole_cop_fore_aft 0.835653 > 0.8": 1,
+     "max_sole_cop_fore_aft: max_sole_cop_fore_aft 0.990811 > 0.8": 1,
+     "max_sole_cop_fore_aft: max_sole_cop_fore_aft 0.804694 > 0.8": 1,
+     "max_sole_cop_fore_aft: max_sole_cop_fore_aft 0.939775 > 0.8": 1,
+     "max_sole_cop_fore_aft: max_sole_cop_fore_aft 0.939302 > 0.8": 1,
+     "max_sole_cop_fore_aft: max_sole_cop_fore_aft 0.83194 > 0.8": 1,
+     "max_sole_cop_fore_aft: max_sole_cop_fore_aft 0.845086 > 0.8": 1,
+     "max_sole_cop_fore_aft: max_sole_cop_fore_aft 0.900447 > 0.8": 1
+    },
+    "unclean": {
+     "3044": [
+      "max_sole_cop_fore_aft: max_sole_cop_fore_aft 0.816412 > 0.8"
+     ],
+     "3050": [
+      "max_sole_cop_fore_aft: max_sole_cop_fore_aft 0.874684 > 0.8"
+     ],
+     "3052": [
+      "max_sole_cop_fore_aft: max_sole_cop_fore_aft 0.975818 > 0.8"
+     ],
+     "3053": [
+      "max_sole_cop_fore_aft: max_sole_cop_fore_aft 0.867804 > 0.8"
+     ],
+     "3061": [
+      "max_sole_cop_fore_aft: max_sole_cop_fore_aft 0.835653 > 0.8"
+     ],
+     "3062": [
+      "max_sole_cop_fore_aft: max_sole_cop_fore_aft 0.990811 > 0.8"
+     ],
+     "3067": [
+      "max_sole_cop_fore_aft: max_sole_cop_fore_aft 0.804694 > 0.8"
+     ],
+     "3072": [
+      "max_sole_cop_fore_aft: max_sole_cop_fore_aft 0.939775 > 0.8"
+     ],
+     "3073": [
+      "max_sole_cop_fore_aft: max_sole_cop_fore_aft 0.939302 > 0.8"
+     ],
+     "3074": [
+      "max_sole_cop_fore_aft: max_sole_cop_fore_aft 0.83194 > 0.8"
+     ],
+     "3075": [
+      "max_sole_cop_fore_aft: max_sole_cop_fore_aft 0.845086 > 0.8"
+     ],
+     "3081": [
+      "max_sole_cop_fore_aft: max_sole_cop_fore_aft 0.900447 > 0.8"
+     ]
+    },
+    "lengths": [
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000
+    ],
+    "terms": [
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated"
+    ]
+   },
+   "panels": {
+    "smoke": false,
+    "statue_rolled": true,
+    "model_sha256": "sha256:1773f3cf3f671360b5f474e6220a0588809e49aa322eb7625a72e297fda977bb",
+    "variants": {
+     "standard": {
+      "clean": 28,
+      "k2a": 12,
+      "k2b": 16,
+      "full_horizon": 40,
+      "falls": 0,
+      "stagger_window_sd_mm": 4.80992471411988,
+      "cop_split_sd": 0.9889288855253404,
+      "cop_common_mean": 0.06735758850849405,
+      "heel_min": -0.8404762647663648
+     },
+     "mirror_legs": {
+      "clean": 36,
+      "k2a": 4,
+      "k2b": 8,
+      "full_horizon": 40,
+      "falls": 0,
+      "stagger_window_sd_mm": 4.620293993587194,
+      "cop_split_sd": 0.7071041632697368,
+      "cop_common_mean": 0.06574520611363965,
+      "heel_min": -0.5949735345136301
+     },
+     "prey_ahead": {
+      "clean": 38,
+      "k2a": 2,
+      "k2b": 5,
+      "full_horizon": 40,
+      "falls": 0,
+      "stagger_window_sd_mm": 3.274736249388952,
+      "cop_split_sd": 0.6952699762892912,
+      "cop_common_mean": 0.07042322559330104,
+      "heel_min": -0.8020288478849316
+     },
+     "mirror_prey_ahead": {
+      "clean": 40,
+      "k2a": 0,
+      "k2b": 0,
+      "full_horizon": 40,
+      "falls": 0,
+      "stagger_window_sd_mm": 2.6649327999042236,
+      "cop_split_sd": 0.16113291734711022,
+      "cop_common_mean": 0.06685387909481486,
+      "heel_min": -0.16885819614562628
+     }
+    }
+   }
+  },
+  "60": {
+   "judge": "scratchpad/foot/stance4/judged/stance4_LTS_s60/judge_4194304.json",
+   "r1": {
+    "file": "scratchpad/foot/stance4/judged/stance4_LTS_s60/judge_4194304.json",
+    "steps": 4194304,
+    "clone": "scratchpad/fix/screen_s4_LTS",
+    "head": "c1e146a82658112a9a1c0838250020b214ef303a",
+    "relaxed": {
+     "no_symmetry_check": false,
+     "task_binding": "require",
+     "allow_missing_records": false,
+     "allow_seed_mismatch": false,
+     "allow_commit_mismatch": false
+    },
+    "model_sha256": "sha256:3ab1709a4abea8211403662c419b7f4c1ce95217a17aece52e0d9d35e0228c32",
+    "task_rolled": "sha256:3fa467083e34fa280ccb6d1bd04eebccdd3aac2b820fd89901b8d418ef32f2db",
+    "verdict": "FAIL",
+    "clean": 29,
+    "lcb": 0.5861225567734873,
+    "full": 40,
+    "hop_or_fall": 0,
+    "falls": 0,
+    "fall_seeds": [],
+    "k2a": 11,
+    "k2a_seeds": [
+     3050,
+     3051,
+     3052,
+     3053,
+     3062,
+     3063,
+     3067,
+     3073,
+     3075,
+     3076,
+     3081
+    ],
+    "k2b": 16,
+    "k2b_seeds": [
+     3044,
+     3050,
+     3051,
+     3052,
+     3053,
+     3061,
+     3062,
+     3063,
+     3067,
+     3069,
+     3072,
+     3073,
+     3075,
+     3076,
+     3078,
+     3081
+    ],
+    "roll": 0,
+    "roll_eps": 0,
+    "xc_mm": 58.22524065812748,
+    "statue_xc_mm": 64.04835902741958,
+    "xc_minus_statue_mm": -5.823118369292099,
+    "reward": 4435.368733930682,
+    "statue_reward": 4458.1835011480425,
+    "reward_ratio": 0.9948824970503153,
+    "statue_falls": [
+     3081
+    ],
+    "noise_joint_falls": 0,
+    "noise_joint_n": 20,
+    "noise_joint_fall_seeds": [],
+    "noise_own_falls": 0,
+    "noise_own_n": 20,
+    "noise_own_fall_seeds": [],
+    "own_sigma_mean": 0.10532827321386515,
+    "criterion_failures": {
+     "max_sole_cop_fore_aft": 11
+    },
+    "side_door": {
+     "max_touchdown_rate": 0,
+     "min_all_feet_support": 0,
+     "max_settle_touchdowns": 0,
+     "max_episode_yaw_change_deg": 0
+    },
+    "saturation_fail_eps": 0,
+    "gate_failures": [
+     "clean_stance_lcb 0.5861 < 0.8000 (29/40 episodes clean)"
+    ],
+    "reason_tally": {
+     "max_sole_cop_fore_aft: max_sole_cop_fore_aft 0.970568 > 0.8": 1,
+     "max_sole_cop_fore_aft: max_sole_cop_fore_aft 0.83185 > 0.8": 1,
+     "max_sole_cop_fore_aft: max_sole_cop_fore_aft 0.98145 > 0.8": 1,
+     "max_sole_cop_fore_aft: max_sole_cop_fore_aft 0.899939 > 0.8": 1,
+     "max_sole_cop_fore_aft: max_sole_cop_fore_aft 0.846281 > 0.8": 1,
+     "max_sole_cop_fore_aft: max_sole_cop_fore_aft 0.917774 > 0.8": 1,
+     "max_sole_cop_fore_aft: max_sole_cop_fore_aft 0.812666 > 0.8": 1,
+     "max_sole_cop_fore_aft: max_sole_cop_fore_aft 0.926103 > 0.8": 1,
+     "max_sole_cop_fore_aft: max_sole_cop_fore_aft 0.961458 > 0.8": 1,
+     "max_sole_cop_fore_aft: max_sole_cop_fore_aft 0.911272 > 0.8": 1,
+     "max_sole_cop_fore_aft: max_sole_cop_fore_aft 0.850563 > 0.8": 1
+    },
+    "unclean": {
+     "3050": [
+      "max_sole_cop_fore_aft: max_sole_cop_fore_aft 0.970568 > 0.8"
+     ],
+     "3051": [
+      "max_sole_cop_fore_aft: max_sole_cop_fore_aft 0.83185 > 0.8"
+     ],
+     "3052": [
+      "max_sole_cop_fore_aft: max_sole_cop_fore_aft 0.98145 > 0.8"
+     ],
+     "3053": [
+      "max_sole_cop_fore_aft: max_sole_cop_fore_aft 0.899939 > 0.8"
+     ],
+     "3062": [
+      "max_sole_cop_fore_aft: max_sole_cop_fore_aft 0.846281 > 0.8"
+     ],
+     "3063": [
+      "max_sole_cop_fore_aft: max_sole_cop_fore_aft 0.917774 > 0.8"
+     ],
+     "3067": [
+      "max_sole_cop_fore_aft: max_sole_cop_fore_aft 0.812666 > 0.8"
+     ],
+     "3073": [
+      "max_sole_cop_fore_aft: max_sole_cop_fore_aft 0.926103 > 0.8"
+     ],
+     "3075": [
+      "max_sole_cop_fore_aft: max_sole_cop_fore_aft 0.961458 > 0.8"
+     ],
+     "3076": [
+      "max_sole_cop_fore_aft: max_sole_cop_fore_aft 0.911272 > 0.8"
+     ],
+     "3081": [
+      "max_sole_cop_fore_aft: max_sole_cop_fore_aft 0.850563 > 0.8"
+     ]
+    },
+    "lengths": [
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000,
+     1000
+    ],
+    "terms": [
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated",
+     "truncated"
+    ]
+   },
+   "panels": {
+    "smoke": false,
+    "statue_rolled": true,
+    "model_sha256": "sha256:3ab1709a4abea8211403662c419b7f4c1ce95217a17aece52e0d9d35e0228c32",
+    "variants": {
+     "standard": {
+      "clean": 29,
+      "k2a": 11,
+      "k2b": 16,
+      "full_horizon": 40,
+      "falls": 0,
+      "stagger_window_sd_mm": 2.337290043457505,
+      "cop_split_sd": 1.0905102261189459,
+      "cop_common_mean": -0.01370450784045788,
+      "heel_min": -0.9190754993072869
+     },
+     "mirror_legs": {
+      "clean": 38,
+      "k2a": 2,
+      "k2b": 5,
+      "full_horizon": 40,
+      "falls": 0,
+      "stagger_window_sd_mm": 2.032483303447361,
+      "cop_split_sd": 0.7189576749478238,
+      "cop_common_mean": -0.03215752251020902,
+      "heel_min": -0.7605852887885248
+     },
+     "prey_ahead": {
+      "clean": 38,
+      "k2a": 2,
+      "k2b": 3,
+      "full_horizon": 40,
+      "falls": 0,
+      "stagger_window_sd_mm": 1.5519183051246508,
+      "cop_split_sd": 0.7018832095467863,
+      "cop_common_mean": -0.025195801457193058,
+      "heel_min": -0.8908248018039769
+     },
+     "mirror_prey_ahead": {
+      "clean": 39,
+      "k2a": 1,
+      "k2b": 1,
+      "full_horizon": 39,
+      "falls": 1,
+      "stagger_window_sd_mm": 0.6609441084482142,
+      "cop_split_sd": 0.0741204765731845,
+      "cop_common_mean": -0.043300758541673985,
+      "heel_min": -0.17383473646775918
+     }
+    }
+   }
+  }
+ },
+ "colab_references": {
+  "52": {
+   "4194304": {
+    "judge": "scratchpad/foot/stance4/judged/stance4_LTS_s52/judge_4194304.json",
+    "r1": {
+     "verdict": "FAIL",
+     "clean": 28,
+     "full": 40,
+     "falls": 0,
+     "k2a": 12,
+     "k2b": 16,
+     "roll": 0,
+     "reward_ratio": 0.9862850231000614,
+     "saturation_fail_eps": 0,
+     "noise_joint_falls": 0,
+     "noise_own_falls": 0,
+     "criterion_failures": {
+      "max_sole_cop_fore_aft": 12
+     },
+     "model_sha256": "sha256:1773f3cf3f671360b5f474e6220a0588809e49aa322eb7625a72e297fda977bb"
+    },
+    "panels": {
+     "smoke": false,
+     "statue_rolled": true,
+     "model_sha256": "sha256:1773f3cf3f671360b5f474e6220a0588809e49aa322eb7625a72e297fda977bb",
+     "variants": {
+      "standard": {
+       "clean": 28,
+       "k2a": 12,
+       "k2b": 16,
+       "full_horizon": 40,
+       "falls": 0,
+       "stagger_window_sd_mm": 4.80992471411988,
+       "cop_split_sd": 0.9889288855253404,
+       "cop_common_mean": 0.06735758850849405,
+       "heel_min": -0.8404762647663648
+      },
+      "mirror_legs": {
+       "clean": 36,
+       "k2a": 4,
+       "k2b": 8,
+       "full_horizon": 40,
+       "falls": 0,
+       "stagger_window_sd_mm": 4.620293993587194,
+       "cop_split_sd": 0.7071041632697368,
+       "cop_common_mean": 0.06574520611363965,
+       "heel_min": -0.5949735345136301
+      },
+      "prey_ahead": {
+       "clean": 38,
+       "k2a": 2,
+       "k2b": 5,
+       "full_horizon": 40,
+       "falls": 0,
+       "stagger_window_sd_mm": 3.274736249388952,
+       "cop_split_sd": 0.6952699762892912,
+       "cop_common_mean": 0.07042322559330104,
+       "heel_min": -0.8020288478849316
+      },
+      "mirror_prey_ahead": {
+       "clean": 40,
+       "k2a": 0,
+       "k2b": 0,
+       "full_horizon": 40,
+       "falls": 0,
+       "stagger_window_sd_mm": 2.6649327999042236,
+       "cop_split_sd": 0.16113291734711022,
+       "cop_common_mean": 0.06685387909481486,
+       "heel_min": -0.16885819614562628
+      }
+     }
+    }
+   },
+   "5242880": {
+    "judge": "scratchpad/foot/stance4/judged/stance4_LTS_s52/judge_5242880.json",
+    "r1": {
+     "verdict": "FAIL",
+     "clean": 28,
+     "full": 40,
+     "falls": 0,
+     "k2a": 12,
+     "k2b": 20,
+     "roll": 0,
+     "reward_ratio": 0.9967295974694096,
+     "saturation_fail_eps": 0,
+     "noise_joint_falls": 0,
+     "noise_own_falls": 0,
+     "criterion_failures": {
+      "max_sole_cop_fore_aft": 12
+     },
+     "model_sha256": "sha256:5c6de37b19ba80458321cdd4e39d09c9f326fd077d27b7ff2b5568e27bf4271e"
+    },
+    "panels": {
+     "smoke": false,
+     "statue_rolled": true,
+     "model_sha256": "sha256:5c6de37b19ba80458321cdd4e39d09c9f326fd077d27b7ff2b5568e27bf4271e",
+     "variants": {
+      "standard": {
+       "clean": 28,
+       "k2a": 12,
+       "k2b": 20,
+       "full_horizon": 40,
+       "falls": 0,
+       "stagger_window_sd_mm": 7.302775204405032,
+       "cop_split_sd": 1.1114572284014974,
+       "cop_common_mean": -0.006334732291864259,
+       "heel_min": -0.9274934748649829
+      },
+      "mirror_legs": {
+       "clean": 32,
+       "k2a": 8,
+       "k2b": 9,
+       "full_horizon": 39,
+       "falls": 1,
+       "stagger_window_sd_mm": 5.028029619419598,
+       "cop_split_sd": 0.8541678958906764,
+       "cop_common_mean": -0.004808951767899361,
+       "heel_min": -0.7584093141802635
+      },
+      "prey_ahead": {
+       "clean": 38,
+       "k2a": 2,
+       "k2b": 7,
+       "full_horizon": 40,
+       "falls": 0,
+       "stagger_window_sd_mm": 4.4825138038296455,
+       "cop_split_sd": 0.7626969022663805,
+       "cop_common_mean": -0.009941864606889894,
+       "heel_min": -0.9117353530459645
+      },
+      "mirror_prey_ahead": {
+       "clean": 40,
+       "k2a": 0,
+       "k2b": 0,
+       "full_horizon": 40,
+       "falls": 0,
+       "stagger_window_sd_mm": 1.4648630463459837,
+       "cop_split_sd": 0.07529030251443651,
+       "cop_common_mean": -0.008197991909971062,
+       "heel_min": -0.12239422904383389
+      }
+     }
+    }
+   },
+   "6291456": {
+    "judge": "scratchpad/foot/stance4/judged/stance4_LTS_s52/judge_6291456.json",
+    "r1": {
+     "verdict": "FAIL",
+     "clean": 21,
+     "full": 40,
+     "falls": 0,
+     "k2a": 19,
+     "k2b": 20,
+     "roll": 1,
+     "reward_ratio": 0.990425520222398,
+     "saturation_fail_eps": 0,
+     "noise_joint_falls": 0,
+     "noise_own_falls": 0,
+     "criterion_failures": {
+      "max_sole_tilt_deg": 1,
+      "max_sole_corner_lift_m": 1,
+      "max_sole_cop_fore_aft": 19
+     },
+     "model_sha256": "sha256:55f36283ce20e620d9c40cb1b1399be08d11ee603ed5e9870d605cda2b74f58b"
+    },
+    "panels": {
+     "smoke": false,
+     "statue_rolled": true,
+     "model_sha256": "sha256:55f36283ce20e620d9c40cb1b1399be08d11ee603ed5e9870d605cda2b74f58b",
+     "variants": {
+      "standard": {
+       "clean": 21,
+       "k2a": 19,
+       "k2b": 20,
+       "full_horizon": 40,
+       "falls": 0,
+       "stagger_window_sd_mm": 8.671014406664346,
+       "cop_split_sd": 1.2466481938754663,
+       "cop_common_mean": 0.04392884309147702,
+       "heel_min": -0.9744437172455821
+      },
+      "mirror_legs": {
+       "clean": 30,
+       "k2a": 10,
+       "k2b": 14,
+       "full_horizon": 40,
+       "falls": 0,
+       "stagger_window_sd_mm": 6.138082300719316,
+       "cop_split_sd": 0.9872437795553344,
+       "cop_common_mean": 0.04404721385380202,
+       "heel_min": -0.8330855973987957
+      },
+      "prey_ahead": {
+       "clean": 33,
+       "k2a": 7,
+       "k2b": 10,
+       "full_horizon": 40,
+       "falls": 0,
+       "stagger_window_sd_mm": 5.4137733186565855,
+       "cop_split_sd": 0.9341777581891896,
+       "cop_common_mean": 0.04569771525780376,
+       "heel_min": -0.8665097819341869
+      },
+      "mirror_prey_ahead": {
+       "clean": 40,
+       "k2a": 0,
+       "k2b": 0,
+       "full_horizon": 40,
+       "falls": 0,
+       "stagger_window_sd_mm": 3.601991904522216,
+       "cop_split_sd": 0.04644940031800202,
+       "cop_common_mean": 0.035576731567768846,
+       "heel_min": -0.042410098615571504
+      }
+     }
+    }
+   }
+  },
+  "60": {
+   "4194304": {
+    "judge": "scratchpad/foot/stance4/judged/stance4_LTS_s60/judge_4194304.json",
+    "r1": {
+     "verdict": "FAIL",
+     "clean": 29,
+     "full": 40,
+     "falls": 0,
+     "k2a": 11,
+     "k2b": 16,
+     "roll": 0,
+     "reward_ratio": 0.9948824970503153,
+     "saturation_fail_eps": 0,
+     "noise_joint_falls": 0,
+     "noise_own_falls": 0,
+     "criterion_failures": {
+      "max_sole_cop_fore_aft": 11
+     },
+     "model_sha256": "sha256:3ab1709a4abea8211403662c419b7f4c1ce95217a17aece52e0d9d35e0228c32"
+    },
+    "panels": {
+     "smoke": false,
+     "statue_rolled": true,
+     "model_sha256": "sha256:3ab1709a4abea8211403662c419b7f4c1ce95217a17aece52e0d9d35e0228c32",
+     "variants": {
+      "standard": {
+       "clean": 29,
+       "k2a": 11,
+       "k2b": 16,
+       "full_horizon": 40,
+       "falls": 0,
+       "stagger_window_sd_mm": 2.337290043457505,
+       "cop_split_sd": 1.0905102261189459,
+       "cop_common_mean": -0.01370450784045788,
+       "heel_min": -0.9190754993072869
+      },
+      "mirror_legs": {
+       "clean": 38,
+       "k2a": 2,
+       "k2b": 5,
+       "full_horizon": 40,
+       "falls": 0,
+       "stagger_window_sd_mm": 2.032483303447361,
+       "cop_split_sd": 0.7189576749478238,
+       "cop_common_mean": -0.03215752251020902,
+       "heel_min": -0.7605852887885248
+      },
+      "prey_ahead": {
+       "clean": 38,
+       "k2a": 2,
+       "k2b": 3,
+       "full_horizon": 40,
+       "falls": 0,
+       "stagger_window_sd_mm": 1.5519183051246508,
+       "cop_split_sd": 0.7018832095467863,
+       "cop_common_mean": -0.025195801457193058,
+       "heel_min": -0.8908248018039769
+      },
+      "mirror_prey_ahead": {
+       "clean": 39,
+       "k2a": 1,
+       "k2b": 1,
+       "full_horizon": 39,
+       "falls": 1,
+       "stagger_window_sd_mm": 0.6609441084482142,
+       "cop_split_sd": 0.0741204765731845,
+       "cop_common_mean": -0.043300758541673985,
+       "heel_min": -0.17383473646775918
+      }
+     }
+    }
+   },
+   "5242880": {
+    "judge": "scratchpad/foot/stance4/judged/stance4_LTS_s60/judge_5242880.json",
+    "r1": {
+     "verdict": "FAIL",
+     "clean": 29,
+     "full": 40,
+     "falls": 0,
+     "k2a": 11,
+     "k2b": 13,
+     "roll": 1,
+     "reward_ratio": 0.98440891883973,
+     "saturation_fail_eps": 0,
+     "noise_joint_falls": 1,
+     "noise_own_falls": 0,
+     "criterion_failures": {
+      "max_settle_stance_width_change_m": 1,
+      "max_sole_corner_lift_m": 1,
+      "max_sole_cop_fore_aft": 11
+     },
+     "model_sha256": "sha256:0049af58554ed254bea7e3b89c8ebef702df5c36ed6c1b7ef8cccc8c34c55ad7"
+    },
+    "panels": {
+     "smoke": false,
+     "statue_rolled": true,
+     "model_sha256": "sha256:0049af58554ed254bea7e3b89c8ebef702df5c36ed6c1b7ef8cccc8c34c55ad7",
+     "variants": {
+      "standard": {
+       "clean": 29,
+       "k2a": 11,
+       "k2b": 13,
+       "full_horizon": 40,
+       "falls": 0,
+       "stagger_window_sd_mm": 2.487960541210507,
+       "cop_split_sd": 1.08820275589689,
+       "cop_common_mean": -0.1029228550784456,
+       "heel_min": -0.9616047838070072
+      },
+      "mirror_legs": {
+       "clean": 35,
+       "k2a": 5,
+       "k2b": 6,
+       "full_horizon": 38,
+       "falls": 2,
+       "stagger_window_sd_mm": 1.9000948365993315,
+       "cop_split_sd": 0.7788042822603364,
+       "cop_common_mean": -0.11451097685804956,
+       "heel_min": -0.8470278919187095
+      },
+      "prey_ahead": {
+       "clean": 38,
+       "k2a": 2,
+       "k2b": 2,
+       "full_horizon": 40,
+       "falls": 0,
+       "stagger_window_sd_mm": 1.8475147047160556,
+       "cop_split_sd": 0.7150248237080291,
+       "cop_common_mean": -0.1184560172802784,
+       "heel_min": -0.9586616795300129
+      },
+      "mirror_prey_ahead": {
+       "clean": 38,
+       "k2a": 2,
+       "k2b": 2,
+       "full_horizon": 38,
+       "falls": 2,
+       "stagger_window_sd_mm": 1.170427780408455,
+       "cop_split_sd": 0.06985513412050215,
+       "cop_common_mean": -0.1305547546941277,
+       "heel_min": -0.2278009599644981
+      }
+     }
+    }
+   },
+   "6291456": {
+    "judge": "scratchpad/foot/stance4/judged/stance4_LTS_s60/judge_6291456.json",
+    "r1": {
+     "verdict": "FAIL",
+     "clean": 30,
+     "full": 40,
+     "falls": 0,
+     "k2a": 10,
+     "k2b": 16,
+     "roll": 0,
+     "reward_ratio": 0.9868969447051708,
+     "saturation_fail_eps": 0,
+     "noise_joint_falls": 0,
+     "noise_own_falls": 0,
+     "criterion_failures": {
+      "max_sole_cop_fore_aft": 10
+     },
+     "model_sha256": "sha256:3ca37d1b8730831ae23db848421036d5e8aaeefda5b74cddb9ec1c56775fd4c9"
+    },
+    "panels": {
+     "smoke": false,
+     "statue_rolled": true,
+     "model_sha256": "sha256:3ca37d1b8730831ae23db848421036d5e8aaeefda5b74cddb9ec1c56775fd4c9",
+     "variants": {
+      "standard": {
+       "clean": 30,
+       "k2a": 10,
+       "k2b": 16,
+       "full_horizon": 40,
+       "falls": 0,
+       "stagger_window_sd_mm": 1.8457632646667583,
+       "cop_split_sd": 1.0903408445629243,
+       "cop_common_mean": -0.02618730540633506,
+       "heel_min": -0.9568186849792645
+      },
+      "mirror_legs": {
+       "clean": 36,
+       "k2a": 3,
+       "k2b": 7,
+       "full_horizon": 39,
+       "falls": 1,
+       "stagger_window_sd_mm": 2.1060602681365546,
+       "cop_split_sd": 0.7641848521765008,
+       "cop_common_mean": -0.04394586239059556,
+       "heel_min": -0.7669785107678996
+      },
+      "prey_ahead": {
+       "clean": 38,
+       "k2a": 2,
+       "k2b": 4,
+       "full_horizon": 40,
+       "falls": 0,
+       "stagger_window_sd_mm": 1.6175020291566822,
+       "cop_split_sd": 0.6989409231521639,
+       "cop_common_mean": -0.03294828563342943,
+       "heel_min": -0.954447980106738
+      },
+      "mirror_prey_ahead": {
+       "clean": 39,
+       "k2a": 1,
+       "k2b": 1,
+       "full_horizon": 39,
+       "falls": 1,
+       "stagger_window_sd_mm": 2.3996410593492734,
+       "cop_split_sd": 0.17332893275964487,
+       "cop_common_mean": -0.05085653931636796,
+       "heel_min": -0.283304776474347
+      }
+     }
+    }
+   }
+  }
+ },
+ "bootstrap_report_only": {
+  "52": {
+   "stagger sd (mm)": {
+    "point": {
+     "CB52": 9.36551762755513,
+     "NC52": 6.665543559370468
+    },
+    "ci": {
+     "CB52": [
+      7.5701933975558795,
+      10.878712368899984
+     ],
+     "NC52": [
+      4.92384915376455,
+      8.190151202045282
+     ]
+    },
+    "diff": {
+     "CB52 - NC52": {
+      "point": 2.6999740681846625,
+      "ci": [
+       1.1966655686356102,
+       4.101947579709775
+      ],
+      "frac_lt0": 0.0003,
+      "frac_gt0": 0.9997
+     }
+    }
+   },
+   "CoP split sd": {
+    "point": {
+     "CB52": 0.2879581851969835,
+     "NC52": 1.202944483663446
+    },
+    "ci": {
+     "CB52": [
+      0.22838659948853451,
+      0.33936611221645907
+     ],
+     "NC52": [
+      1.0096933958095127,
+      1.3479560566474682
+     ]
+    },
+    "diff": {
+     "CB52 - NC52": {
+      "point": -0.9149862984664625,
+      "ci": [
+       -1.0347540310526229,
+       -0.7586149929064779
+      ],
+      "frac_lt0": 1.0,
+      "frac_gt0": 0.0
+     }
+    }
+   },
+   "K2a": {
+    "point": {
+     "CB52": 0,
+     "NC52": 18
+    },
+    "ci": {
+     "CB52": [
+      0.0,
+      0.0
+     ],
+     "NC52": [
+      12.0,
+      24.0
+     ]
+    },
+    "diff": {
+     "CB52 - NC52": {
+      "point": -18,
+      "ci": [
+       -24.0,
+       -12.0
+      ],
+      "frac_lt0": 1.0,
+      "frac_gt0": 0.0
+     }
+    }
+   },
+   "K2b": {
+    "point": {
+     "CB52": 0,
+     "NC52": 18
+    },
+    "ci": {
+     "CB52": [
+      0.0,
+      0.0
+     ],
+     "NC52": [
+      12.0,
+      24.0
+     ]
+    },
+    "diff": {
+     "CB52 - NC52": {
+      "point": -18,
+      "ci": [
+       -24.0,
+       -12.0
+      ],
+      "frac_lt0": 1.0,
+      "frac_gt0": 0.0
+     }
+    }
+   }
+  },
+  "60": {
+   "stagger sd (mm)": {
+    "point": {
+     "CB60": 2.686741514063322,
+     "NC60": 6.089305165798583
+    },
+    "ci": {
+     "CB60": [
+      2.1282845165515516,
+      3.155807535708314
+     ],
+     "NC60": [
+      4.599197499233083,
+      7.3309204328808395
+     ]
+    },
+    "diff": {
+     "CB60 - NC60": {
+      "point": -3.402563651735261,
+      "ci": [
+       -4.333379021000953,
+       -2.2756707254010378
+      ],
+      "frac_lt0": 1.0,
+      "frac_gt0": 0.0
+     }
+    }
+   },
+   "CoP split sd": {
+    "point": {
+     "CB60": 0.10518908231261764,
+     "NC60": 1.2718974352426597
+    },
+    "ci": {
+     "CB60": [
+      0.07614157461651702,
+      0.12904468791406656
+     ],
+     "NC60": [
+      1.115408016817605,
+      1.378615100792491
+     ]
+    },
+    "diff": {
+     "CB60 - NC60": {
+      "point": -1.1667083529300422,
+      "ci": [
+       -1.2797240904765863,
+       -1.0111729227587345
+      ],
+      "frac_lt0": 1.0,
+      "frac_gt0": 0.0
+     }
+    }
+   },
+   "K2a": {
+    "point": {
+     "CB60": 3,
+     "NC60": 22
+    },
+    "ci": {
+     "CB60": [
+      0.0,
+      7.0
+     ],
+     "NC60": [
+      16.0,
+      28.0
+     ]
+    },
+    "diff": {
+     "CB60 - NC60": {
+      "point": -19,
+      "ci": [
+       -25.0,
+       -13.0
+      ],
+      "frac_lt0": 1.0,
+      "frac_gt0": 0.0
+     }
+    }
+   },
+   "K2b": {
+    "point": {
+     "CB60": 3,
+     "NC60": 21
+    },
+    "ci": {
+     "CB60": [
+      0.0,
+      7.0
+     ],
+     "NC60": [
+      15.0,
+      27.0
+     ]
+    },
+    "diff": {
+     "CB60 - NC60": {
+      "point": -18,
+      "ci": [
+       -24.0,
+       -12.0
+      ],
+      "frac_lt0": 1.0,
+      "frac_gt0": 0.0
+     }
+    }
+   }
+  }
+ },
+ "bootstrap_notes": [],
+ "mcnemar_report_only": {
+  "52": {
+   "k2a": {
+    "cb_only": 0,
+    "nc_only": 18,
+    "p": 7.62939453125e-06
+   },
+   "k2b": {
+    "cb_only": 0,
+    "nc_only": 18,
+    "p": 7.62939453125e-06
+   }
+  },
+  "60": {
+   "k2a": {
+    "cb_only": 0,
+    "nc_only": 19,
+    "p": 3.814697265625e-06
+   },
+   "k2b": {
+    "cb_only": 0,
+    "nc_only": 18,
+    "p": 7.62939453125e-06
+   }
+  }
+ },
+ "criteria_sha256": "978a93da8da469c1acde7b9f7261d9236e4799eb2111b3af0f0cbeaa153f0f38",
+ "criteria_unchanged": true,
+ "tools": {
+  "nochange_compare.py": {
+   "path": "scratchpad/foot/stance3/night/cont/nochange/scripts/nochange_compare.py",
+   "sha256": "f1e7378c387380b1acdb15aeccb2bea59e1ef5d3027829e71881aef7c438bd9d",
+   "pinned": "f1e7378c387380b1acdb15aeccb2bea59e1ef5d3027829e71881aef7c438bd9d",
+   "match": true
+  },
+  "analyze_night.py": {
+   "path": "scratchpad/foot/stance3/night/cont/r2/scripts/analyze_night.py",
+   "sha256": "76b9b7fbe33d440610cb0a3639ff4bb20dda3d30bd68d735f0e0961a29844884",
+   "pinned": "76b9b7fbe33d440610cb0a3639ff4bb20dda3d30bd68d735f0e0961a29844884",
+   "match": true
+  },
+  "analyze_split.py": {
+   "path": "scratchpad/foot/stance3/night/diag_split/analyze_split.py",
+   "sha256": "f69fec92e63e3cc8da4085975e8e6ba973fe477c80a3cc3abef34a1bbbcb37f2",
+   "pinned": "f69fec92e63e3cc8da4085975e8e6ba973fe477c80a3cc3abef34a1bbbcb37f2",
+   "match": true
+  },
+  "r1_summary.py": {
+   "path": "scratchpad/foot/stance3/night/cont/r1_summary.py",
+   "sha256": "eed740ed64873a865950583bf56ee426296075ed4df118407d80d377e9eae57c",
+   "pinned": "eed740ed64873a865950583bf56ee426296075ed4df118407d80d377e9eae57c",
+   "match": true
+  }
+ },
+ "readout2_py_sha256": "f91e447066725bc82740c4464896254c9b972fd76d11ca02ec42bb91ddd5bb30",
+ "inputs_sha256": {
+  "CB52": {
+   "judge": "24d0794bbbf2e9ddf0a50e78a5a4be6a24f158a1105155a5392823fe8453a255",
+   "npz": "e9a0b360ad3e25165c47b2229c281906b2cfd9f1d9122327927a019c20e125ca",
+   "guard": "8742391efa4b70d8a5e8c93618b3d766b60f13db005b5dbd79b841a2f4f733ef",
+   "panels": "ae1fa76f345dfae065c0f812dba7a168f83b40d1e2f7f18b4758d699ba03a0dc"
+  },
+  "NC52": {
+   "judge": "927175276f05a899cc80a790462fc4a99c3adb9755028a689cd1a3d716bba913",
+   "npz": "42ec3e8cd4a844a67892e794a20b3bc9186576e6c184b946bf26754ce826bf12",
+   "guard": "262a9a753b82cf35a279f26622ac9bea028efbe469b59e694430c933b0b8768e",
+   "panels": "807e0130efa73243808136cf9420c0eca0c59a062b1d0ffd464be5bfc09b4dbb"
+  },
+  "CB60": {
+   "judge": "33ebc7d1bfc9adc5af3f78b7b8381f153cd86c720127f763f8c75ca644c35cd2",
+   "npz": "071e1b277c94ad3488243af3fdaac77676fae4aa3b87fce9e8afd093b429ddef",
+   "guard": "a6d8c4a0e7cf53fed950e999a53a447872721e03ade2798d302a461a6619c160",
+   "panels": null
+  },
+  "NC60": {
+   "judge": "18436cb4defd17c3c8719441ad62a65796dc9b39ac233c62d8b375da1b254980",
+   "npz": "51d1abaaaa37dfe17029ddf1a05d9d780ce0880652a9e16a0a038891f3c87ab6",
+   "guard": "467d152afe2508c17d3f7c2bd9dce938f493dd00392766561e170c6828771239",
+   "panels": null
+  }
+ },
+ "r2_reproduction_log": "== CB52 (R2 against its judge file)\n   CB52                       seeds equal True; lengths equal True; terminations equal True; |foot_cop_fore_aft - judge| max r 0.0e+00 l 0.0e+00; pad metric |diff| 0.0e+00; K2a flags equal True; K2b flags equal True -> REPRODUCED\n                              model sha256 equal to the judge file's: True (sha256:d2d189427); short episodes []\n== NC52 (R2 against its judge file)\n   NC52                       seeds equal True; lengths equal True; terminations equal True; |foot_cop_fore_aft - judge| max r 0.0e+00 l 0.0e+00; pad metric |diff| 0.0e+00; K2a flags equal True; K2b flags equal True -> REPRODUCED\n                              model sha256 equal to the judge file's: True (sha256:e8f6d4d96); short episodes []\n== CB60 (R2 against its judge file)\n   CB60                       seeds equal True; lengths equal True; terminations equal True; |foot_cop_fore_aft - judge| max r 0.0e+00 l 0.0e+00; pad metric |diff| 0.0e+00; K2a flags equal True; K2b flags equal True -> REPRODUCED\n                              model sha256 equal to the judge file's: True (sha256:4344926f0); short episodes [(3050, 431, 'fallen'), (3063, 264, 'fallen'), (3081, 223, 'fallen')]\n== NC60 (R2 against its judge file)\n   NC60                       seeds equal True; lengths equal True; terminations equal True; |foot_cop_fore_aft - judge| max r 0.0e+00 l 0.0e+00; pad metric |diff| 0.0e+00; K2a flags equal True; K2b flags equal True -> REPRODUCED\n                              model sha256 equal to the judge file's: True (sha256:b1d3dd0ab); short episodes []\n"
+}
