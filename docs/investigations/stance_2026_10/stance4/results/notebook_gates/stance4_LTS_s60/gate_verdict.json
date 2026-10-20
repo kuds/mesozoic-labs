@@ -1,0 +1,40 @@
+{
+ "schema": "mesozoic.gate-verdict/v2",
+ "species": "tyrannosaurus_rex",
+ "stage_id": "stance",
+ "gate_kind": "stance_quality_heading/v1",
+ "gate_sha256": "sha256:06375c211ddae7a57b102b19d9bd8e81aefe602b4b7ff77da35466f6e0fff7f6",
+ "task_sha256": "sha256:3fa467083e34fa280ccb6d1bd04eebccdd3aac2b820fd89901b8d418ef32f2db",
+ "checkpoint": "models/robust_best_model.zip",
+ "checkpoint_sha256": "sha256:55ae759afcd02bd549cd15f6f6b2a947d90e35b68c23ae9d5e7e0522a4ff5e40",
+ "normalization_sha256": "sha256:c29b8a13d773e82db853ee02367df80c348505e1fd7821611dc5f638c8933eaa",
+ "judged_at": "2026-10-20T12:38:03+00:00",
+ "passed": false,
+ "failures": [
+  "stage 1 clean_seed_lcb 0.6963 < 0.8000 (33/40 seeds clean at every heading of -90, -45, +0, +45, +90, +180)",
+  "stage 1 heading -90: clean_stance_lcb 0.6963 < 0.8000 (33/40 episodes clean)",
+  "stage 1 heading -45: clean_stance_lcb 0.6963 < 0.8000 (33/40 episodes clean)",
+  "stage 1 heading +0: clean_stance_lcb 0.6963 < 0.8000 (33/40 episodes clean)",
+  "stage 1 heading +45: clean_stance_lcb 0.6963 < 0.8000 (33/40 episodes clean)",
+  "stage 1 heading +90: clean_stance_lcb 0.6963 < 0.8000 (33/40 episodes clean)",
+  "stage 1 heading +180: clean_stance_lcb 0.6963 < 0.8000 (33/40 episodes clean)"
+ ],
+ "stage_result": {
+  "timesteps": 12001280,
+  "best_eval_timestep": 2752512,
+  "gate_passed": false,
+  "gate_failures": [
+   "stage 1 clean_seed_lcb 0.6963 < 0.8000 (33/40 seeds clean at every heading of -90, -45, +0, +45, +90, +180)",
+   "stage 1 heading -90: clean_stance_lcb 0.6963 < 0.8000 (33/40 episodes clean)",
+   "stage 1 heading -45: clean_stance_lcb 0.6963 < 0.8000 (33/40 episodes clean)",
+   "stage 1 heading +0: clean_stance_lcb 0.6963 < 0.8000 (33/40 episodes clean)",
+   "stage 1 heading +45: clean_stance_lcb 0.6963 < 0.8000 (33/40 episodes clean)",
+   "stage 1 heading +90: clean_stance_lcb 0.6963 < 0.8000 (33/40 episodes clean)",
+   "stage 1 heading +180: clean_stance_lcb 0.6963 < 0.8000 (33/40 episodes clean)"
+  ],
+  "stance_heading_clean_seeds": 33,
+  "stance_heading_n_seeds": 40,
+  "stance_heading_clean_seed_fraction": 0.825,
+  "stance_heading_clean_seed_lcb": 0.6962943329965735
+ }
+}

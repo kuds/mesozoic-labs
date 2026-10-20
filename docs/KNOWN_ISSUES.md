@@ -230,6 +230,34 @@ robustness, **LOW** = cosmetic / QoL.
   screens they certify nothing. The two-seed ask stands. Record and
   criteria: §18 of
   [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).
+  **Update 12 (2026-10-20):** the three stance screen runs of Update 11 were
+  judged by their fixed criteria, final, and **all three fail**: on seeds 52
+  and 60 on the gate and on fore-aft (21–30 of 40 episodes clean, and 10–19 of
+  40 over the pad bar, at every judged checkpoint from 4.2M to 10.5M steps;
+  both 39 of 40 clean at 12M), and on seed 42 on all four criteria (the
+  actuator-saturation rail failed in most episodes up to 12M, which actuator
+  is not recorded, and at 12M 8 of 20 joint-space noise falls and 4 of 40
+  roll-rail failures). The penalty had lined the feet up by 4.2M, but on seeds
+  52 and 60 the left-right fore-aft split stayed, now as one foot heel-loaded
+  and the other toe-loaded. Their decision table's line is 5: the penalty is
+  not adopted, and the next round tests a per-foot centre-of-pressure band
+  term or the v6b ankle spring. As screens they certify nothing. The two-seed
+  ask stands: no T-Rex stance is certified. Record, numbers and
+  evidence: §19 of
+  [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).
+  **Update 13 (2026-10-20):** the maintainer chose the next round (decision
+  D-D40, [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2): three
+  more 12M stance screen runs, from scratch on seeds 52, 60 and 42, of Update
+  12's recipe plus a new term that charges a foot whose centre of pressure
+  leaves a band of its sole (opt-in, off by default), judged against the runs
+  of Update 12 by the same four criteria, fixed before training. The v6b ankle
+  spring is held in reserve: if the band fixes the split but runs fail K2 on a
+  common fore-aft drift, the next round tests it. Mirrored-leg spawns and the
+  prey straight ahead stay diagnostic panels. The term's code, criteria, judge
+  and Colab steps are being built separately and are not yet committed
+  anywhere public. As screens they certify nothing. The two-seed ask stands.
+  Record: §20 of
+  [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).
 - **LOW** — **stage 1a (stance) contains no in-episode disturbance, so a
   stance-gate PASS certifies stance quality, not active balance control.** The
   only perturbation is joint-angle noise at reset (`reset_noise_scale 0.05`).

@@ -37,6 +37,11 @@ pilot stays parked, and whether it runs, and from which parent, is not decided (
 *Updated 2026-10-19, later: the maintainer took D-D39: three more T. rex stance screen runs, with a foot-stagger
 penalty; the second pilot stays parked, and the parent they offer it is the better of their best final and
 `stance3_armLT_s60`'s final (§17, its second note of 2026-10-19).*
+*Updated 2026-10-20: the D-D39 stance screen runs fail their fixed criteria (their decision table's line 5); the second
+pilot stays parked, and the parent they offer it is still `stance3_armLT_s60`'s final (§17, its note of 2026-10-20).*
+*Updated 2026-10-20, later: the maintainer took D-D40, another T. rex stance screen, of a per-foot centre-of-pressure
+band, and amended D-D36: the second pilot is to be rebuilt for `stance3_armLT_s60`'s final as its parent, and stays
+parked until then (§17, its second note of 2026-10-20).*
 
 ## How to use this document
 
@@ -958,4 +963,26 @@ maintainer says otherwise. Its own criteria still name r9 arm L seed 60 at 6M; t
 the choice of its parent is the maintainer's. The screens are stance runs: they are no exception to GQ-3 (a) or
 GQ-17, answer none of GQ-1..GQ-18 and certify nothing. The decision's full text is in
 [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2 and its record in §18 of
+[investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).
+
+*Appended 2026-10-20 (D-D39's outcome); the text above is unchanged.* **The foot-stagger screen runs fail.** Judged on
+2026-10-20 by their fixed criteria, final, none of the three holds, and their decision table's line is 5: the penalty is
+not adopted. The best of their final checkpoints, seed 52's (39 of 40 clean, no noise falls), is one episode short of
+`stance3_armLT_s60`'s final (40 of 40), so the parent the screens' criteria offer the second pilot is still
+`stance3_armLT_s60`'s final. The second pilot stays parked and untrained, and its own criteria still name r9 arm L seed
+60 at 6M as its parent. The screens certify nothing, are no exception to GQ-3 (a) or GQ-17 and answer none of
+GQ-1..GQ-18, and the trex `gait-r1` walk (§5.4, §14) still waits for a certified stance. Their evidence is in §19 of
+[investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).
+
+*Appended 2026-10-20, later (D-D40, and D-D36's amendment); the text above is unchanged.* **The second pilot gets its
+parent; another stance screen.** On 2026-10-20 the maintainer amended D-D36: the second pilot will be rebuilt for
+`stance3_armLT_s60`'s final as its parent. Its criteria, which still name r9 arm L seed 60 at 6M, are amended before any
+of its training steps, the new parent is committed on its branch and its start-up checks are re-run, right after the
+package of the next stance screen is ready; the maintainer starts it when a fourth Colab slot is free, and until then it
+stays parked and untrained. It is still the same deliberate exception to GQ-3 (a) and GQ-17, both still open, and
+certifies nothing. The same day the maintainer took D-D40: a from-scratch T. rex stance screen of a per-foot
+centre-of-pressure band term on the foot-stagger arm, three runs judged by criteria fixed before training. Those runs
+are stance runs, not walker sessions: they are no exception to GQ-3 (a) or GQ-17, answer none of GQ-1..GQ-18 and certify
+nothing, and the trex `gait-r1` walk (§5.4, §14) still waits for a certified stance. The decisions' full text is in
+[BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2 and their record in §20 of
 [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).

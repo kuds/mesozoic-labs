@@ -8,10 +8,127 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
-- **Decision D-D39 recorded: another T. rex stance screen, three runs of L+T
-  with a foot-stagger penalty against two D-D37 runs as the control** (the
-  maintainer's decisions of 2026-10-19; `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2,
+- **Decision D-D40 recorded: a from-scratch T. rex stance screen of a per-foot
+  centre-of-pressure band; D-D39 and D-D36 amended** (the maintainer's decisions
+  of 2026-10-20; `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2,
   `docs/CONSOLIDATION_PLAN_2026_09.md` §6, a dated note in §17 of
+  `docs/GAIT_QUALITY_PLAN_2026_09.md`, `docs/NEXT_STEPS.md` §3; the appended §20
+  of `docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md` and
+  `docs/investigations/stance_2026_10/stance4/copband/design.md`). Records only:
+  no library code, configuration, test, notebook, digest or generated file
+  changes with it. After D-D39's screen read its line 5 (the entry below), D-D40
+  trains a from-scratch screen of a per-foot centre-of-pressure band rather than
+  the v6b ankle spring: a new reward term, an opt-in `[env]` option of the T.
+  rex env, off by default, that after the settle charges a foot whose whole-foot
+  centre of pressure lies outside [−0.6, +0.4] span half-lengths, or whose pad
+  centre of pressure lies outside [−0.65, +0.65], up to half the term's weight
+  per step, with guards that give an unloaded or digit-borne foot the full price
+  and a lightly loaded one a ramped price (the first fix below). It is the
+  design note's prototype (a scratch commit, never pushed) with three fixes and
+  its weight: the 35% load-share guard becomes a ramp (the full price at a load
+  share of 0.25 or less, no guard price at 0.35 or more, linear between); a
+  speed pass, one fused per-step reduction pinned byte-identical to the
+  recorder's readings (the prototype measured +0.62 ms per env step over
+  band-off; no numeric target was decided); the contact reduction moves out of
+  `environments/shared/gait/` into a neutral shared module, so that D-D23's gait
+  layering rule holds with no exception, and the test that pins its readings to
+  the recorder's moves with it; and weight 0.30. Three 12M runs train from
+  scratch on seeds 52, 60 and 42 on Colab L4 GPU runtimes (the seeds and the 12M
+  from the option text the maintainer locked in the chat; physics r9 and
+  `n_envs` 4 follow from the arm), judged by criteria fixed before training,
+  with K1–K4 unchanged. The arm is D-D39's (L+T plus the stagger penalty, 0.30
+  and 0.045 m) plus the band, so the three D-D39 runs are its control, one
+  difference apart; the design note had recommended L+T plus the band alone, and
+  the recommendation changed because the overnight band test ran on stagger
+  parents and the stagger term prices the route the note calls its main risk
+  (each foot's centre of pressure held in band by asymmetric ankle torque while
+  the feet stay staggered). The v6b ankle spring (ankle stiffness 40 → 250
+  N·m/rad, damping 45 → 90, the spring reference at the statue's settled 78.6°;
+  a plant revision) is held in reserve behind a trigger line in the band
+  screen's decision table: the band fixes the split but runs fail K2 on drift, a
+  common fore-aft shift. Actuator saturation gets no training change: the band
+  screen's evaluation ledgers are read at every check-in and an alarm is
+  reported at once (run, step, actuator), and an offline, report-only diagnosis
+  of the saturation of `stance4_LTS_s42` runs in parallel, started after the
+  band build's timing measurement; fails stay fails, and no run is stopped or
+  restarted on an alarm. Mirrored-leg spawns and the prey straight ahead stay
+  diagnostic panels, run at every scored checkpoint, report only. The band's
+  code, criteria, judge and Colab steps are being built separately and are not
+  committed anywhere public. The same day two rows were amended. D-D39's records
+  its outcome and the maintainer's confirmation of the Colab L4 GPU runtime for
+  all three of its runs, which closes the confirmation its entry left pending.
+  D-D36's records that walking pilot 2 is to be rebuilt for D-D37 Run 2's final
+  as its parent: its criteria, which still name r9 arm L seed 60 at 6M, are
+  amended before any of its training steps, the new parent is committed on its
+  branch and its start-up checks are re-run, right after the band screen's
+  package is ready, and the maintainer starts it when a fourth Colab slot is
+  free. Screens and pilots certify nothing. `docs/README.md` adds a note to the
+  record's and the gait plan's rows, and `docs/KNOWN_ISSUES.md` gains Update 13
+  of the T-Rex stance entry. The band screen's outcome is not yet known.
+- **The stance4 screen of D-D39 judged: all three runs fail their fixed criteria
+  (line 5); the stagger penalty is not adopted; two overnight scratch
+  experiments recorded, report only** (D-D39's amendment of 2026-10-20;
+  `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2, `docs/CONSOLIDATION_PLAN_2026_09.md` §6,
+  a dated note in §17 of `docs/GAIT_QUALITY_PLAN_2026_09.md`,
+  `docs/NEXT_STEPS.md` §3; the appended §19 of
+  `docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md` and the folders
+  `results/`, `night/`, `night2/` and `copband/` of
+  `docs/investigations/stance_2026_10/stance4/`). Records only: no library code,
+  configuration, test, notebook, digest or generated file changes with it. The
+  three 12M runs of arm LTS (D-D37's L+T plus the stance stagger penalty, weight
+  0.30, tolerance 0.045 m; `stance4_LTS_s52`, `stance4_LTS_s60`,
+  `stance4_LTS_s42`) trained from scratch to 12,001,280 steps on Colab L4 GPU
+  runtimes (the `gpu` block of each run's `stage_config.json`) and were judged
+  on 2026-10-20 by the criteria fixed before training (sha256 `978a93da…`),
+  final. s52 and s60 fail K1 and K2: five of their six judged checkpoints are
+  below 33 of 40 clean (21 to 30), with K2a 10 to 19 of 40 at each; both reach
+  39 of 40 at the final. s42 fails K1–K4: 0 to 17 of 40 clean, the
+  actuator-saturation rail failing in most panel episodes up to the final (which
+  actuator is not recorded), and 8 of 20 joint-space noise falls and 4 of 40
+  roll-rail failures at the final. H = 0 and K2p = 0, the credit rule fails
+  against the control (D-D37's Runs 2 and 3, not retrained: K1 0 of 3 against 1
+  of 2, K3 and K4 2 of 3 against 2 of 2), and the decision table's line is 5,
+  final: the stagger penalty is not adopted, and the next round tests a per-foot
+  centre-of-pressure band term or the v6b ankle spring. The best stagger final,
+  s52's (39 of 40, no noise falls), is one episode short of D-D37 Run 2's final
+  (40 of 40), which stays the walking pilot 2 parent the criteria offer. Screens
+  certify nothing. Report only: the 1,048,576-step and selection checkpoints,
+  the fresh, tail and common-noise panels on the finals, the notebook's own
+  six-heading gate on each run's early `robust_best` (s52 and s42 PASS, s60
+  FAIL), diagnostic panels (mirrored leg noise, the prey straight ahead, both)
+  at every judged checkpoint of both arms, and the readouts: by 4,194,304 the
+  penalty had lined the feet up (window stagger sd 1.2–4.8 mm, against 11.9 for
+  D-D37 Run 2), but in s52 and s60 the left-right split stayed as a per-foot
+  loading split, still driven by the spawn's leg asymmetry and the prey's
+  bearing, and s52's stagger grew again later (7.3–12.7 mm). Report only too,
+  entering no verdict (the new runs' judge files are relaxed-binding): a
+  pre-registered replicate study of the stagger penalty in continuation from
+  D-D37 Run 3's 8,388,608 checkpoint on two new seeds (stagger n = 3 against no
+  change n = 4), whose reading is line (2), partial, met through a flagged run:
+  the window stagger sd separates completely (one-sided p 0.029, optimistic
+  because three of the seven runs suggested the idea; 0.086 given their known
+  order) and K2a does not (p 0.200); and a pre-registered paired continuation
+  test of a per-foot centre-of-pressure band prototype (an opt-in term, off by
+  default, on a scratch commit never pushed) from s52's and s60's 4,194,304
+  checkpoints, whose reading is line (2), partial: the band runs are lower on
+  K2a (0 against 18 and 3 against 22) and on the split's sd for both parents,
+  but the s60 band run raised new safety flags (3 panel falls, a reward ratio of
+  0.928), and the band's guards cannot see an ankle-torque route that keeps the
+  stagger (in the s52 pair the band run's stagger sd was the higher, 9.4 against
+  6.7 mm). `stance4/results/` (13 files and its README, about 0.32 MB) holds the
+  run log (tool ids removed), the verdict of record, a per-checkpoint summary
+  (`checkpoints.csv`, 51 rows, with the script that recomputes it from the judge
+  files), the extras, the notebook's gates (trimmed), the panels' summary with
+  its script and the split-form analysis, `stance4/night/` and `stance4/night2/`
+  hold each experiment's pre-registration, review handling and readout, and
+  `stance4/copband/` the band prototype's design note; `SOURCES.txt` and
+  `SHA256SUMS` (now 344 files) are extended. `docs/README.md` adds a note to the
+  record's and the gait plan's rows, and `docs/KNOWN_ISSUES.md` gains Update 12
+  of the T-Rex stance entry.
+- **Decision D-D39 recorded: another T. rex stance screen, three runs of L+T
+  with a foot-stagger penalty against two D-D37 runs as the control** (#632;
+  the maintainer's decisions of 2026-10-19; `docs/BEHAVIOR_RECIPES_PLAN.md`
+  §6.2, `docs/CONSOLIDATION_PLAN_2026_09.md` §6, a dated note in §17 of
   `docs/GAIT_QUALITY_PLAN_2026_09.md`, `docs/NEXT_STEPS.md` §3; the appended
   §18 of `docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md` and
   `docs/investigations/stance_2026_10/stance4/criteria.txt`). Records only: no
@@ -53,7 +170,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The outcome is not yet known.
 - **The three T. rex stance screen runs of D-D37 judged: all three fail their
   fixed criteria; the readouts and an overnight scratch experiment recorded,
-  report only** (D-D37's amendment of 2026-10-19;
+  report only** (#632; D-D37's amendment of 2026-10-19;
   `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2, `docs/CONSOLIDATION_PLAN_2026_09.md`
   §6, a dated note in §17 of `docs/GAIT_QUALITY_PLAN_2026_09.md`,
   `docs/NEXT_STEPS.md` §3; the appended §17 of
