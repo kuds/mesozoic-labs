@@ -96,22 +96,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   D-D37 Run 2), but in s52 and s60 the left-right split stayed as a per-foot
   loading split, still driven by the spawn's leg asymmetry and the prey's
   bearing, and s52's stagger grew again later (7.3–12.7 mm). Report only too,
-  with relaxed-binding judge files that enter no verdict: a pre-registered
-  replicate study of the stagger penalty in continuation from D-D37 Run 3's
-  8,388,608 checkpoint on two new seeds (stagger n = 3 against no change n = 4),
-  whose reading is line (2), partial, met through a flagged run: the window
-  stagger sd separates completely (one-sided p 0.029, optimistic because three
-  of the seven runs suggested the idea; 0.086 given their known order) and K2a
-  does not (p 0.200); and a pre-registered paired continuation test of a
-  per-foot centre-of-pressure band prototype (an opt-in term, off by default, on
-  a scratch commit never pushed) from s52's and s60's 4,194,304 checkpoints,
-  whose reading is line (2), partial: the band runs are lower on K2a (0 against
-  18 and 3 against 22) and on the split's sd for both parents, but the s60 band
-  run raised new safety flags (3 panel falls, a reward ratio of 0.928), and the
-  band's guards cannot see an ankle-torque route that keeps the stagger (in the
-  s52 pair the band run's stagger sd was the higher, 9.4 against 6.7 mm).
-  `stance4/results/` (13 files and its README, about 0.32 MB) holds the run log
-  (tool ids removed), the verdict of record, a per-checkpoint summary
+  entering no verdict (the new runs' judge files are relaxed-binding): a
+  pre-registered replicate study of the stagger penalty in continuation from
+  D-D37 Run 3's 8,388,608 checkpoint on two new seeds (stagger n = 3 against no
+  change n = 4), whose reading is line (2), partial, met through a flagged run:
+  the window stagger sd separates completely (one-sided p 0.029, optimistic
+  because three of the seven runs suggested the idea; 0.086 given their known
+  order) and K2a does not (p 0.200); and a pre-registered paired continuation
+  test of a per-foot centre-of-pressure band prototype (an opt-in term, off by
+  default, on a scratch commit never pushed) from s52's and s60's 4,194,304
+  checkpoints, whose reading is line (2), partial: the band runs are lower on
+  K2a (0 against 18 and 3 against 22) and on the split's sd for both parents,
+  but the s60 band run raised new safety flags (3 panel falls, a reward ratio of
+  0.928), and the band's guards cannot see an ankle-torque route that keeps the
+  stagger (in the s52 pair the band run's stagger sd was the higher, 9.4 against
+  6.7 mm). `stance4/results/` (13 files and its README, about 0.32 MB) holds the
+  run log (tool ids removed), the verdict of record, a per-checkpoint summary
   (`checkpoints.csv`, 51 rows, with the script that recomputes it from the judge
   files), the extras, the notebook's gates (trimmed), the panels' summary with
   its script and the split-form analysis, `stance4/night/` and `stance4/night2/`

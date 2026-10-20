@@ -2376,8 +2376,11 @@ replication; a safety flag on a stagger run is named beside the line ("met
 through a flagged run"). Measured before launch, the Colab no-change run
 already had K2a 0, so K2a could not separate completely and line (1) could not
 be reached; the spec kept the lines as fixed (its option (a), decided at 01:48
-UTC), so the strongest attainable reading was line (2). Every judge file is
-relaxed-binding (report mode; seed and commit mismatches allowed), so none
+UTC), so the strongest attainable reading was line (2). The four new runs'
+judge files are relaxed-binding (report mode; seed and commit mismatches
+allowed), and so are A's and the local no-change run's (report mode; commit
+mismatch allowed); the Colab no-change run's is stance3 Run 3's own judge file
+at E, fully bound (§17.5). The study is report only, so none of its readings
 enters a stance4 verdict.
 
 At E, on the 40-seed panel (measured; `night/readout.md`,
@@ -2411,7 +2414,8 @@ At E, on the 40-seed panel (measured; `night/readout.md`,
   line 5.
 - **Caveats.** Continuations of one parent, not runs from scratch; two new
   runs per arm; one flagged stagger run; a local CPU harness beside one Colab
-  no-change run; relaxed-binding judge files.
+  no-change run; relaxed-binding judge files for all but the Colab no-change
+  run.
 
 ### 19.7 The CoP-band continuation test (scratch only, report only)
 
