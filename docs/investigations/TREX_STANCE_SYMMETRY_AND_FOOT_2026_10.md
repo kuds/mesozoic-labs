@@ -2563,8 +2563,8 @@ pilots the runs they start certify nothing.
   otherwise: its §8 item 5 recommended L+T plus the band alone (on
   `1af2d4d7`), so that the stance3 L+T runs stay a valid control, with a
   band-plus-stagger arm as the alternative if stance4 landed on line 4 rather
-  than 5. The recommendation changed, and the maintainer was told so before
-  choosing, because the overnight band test (§19.7) ran on stagger parents,
+  than 5. The recommendation changed, and the maintainer was told so with
+  the decision, because the overnight band test (§19.7) ran on stagger parents,
   and the stagger term prices the route the note calls its main risk (its §5,
   last row: each foot's centre of pressure held in band by asymmetric ankle
   torque while the feet stay staggered), which the band's guards cannot see.
