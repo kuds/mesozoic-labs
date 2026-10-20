@@ -491,6 +491,15 @@ for the maintainer to confirm when starting the runs. A later PR records
 the outcome; the decision's full text is in
 [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2 and the runs'
 design in §18 of the same record.*
+*2026-10-20: the three D-D39 runs were judged by their fixed criteria,
+final: all three fail, and their decision table's line is 5 (the stagger
+penalty does not hold fore-aft from scratch; the next round tests a per-foot
+centre-of-pressure band term or the v6b ankle spring). The best stagger
+final, `stance4_LTS_s52`'s (39 of 40 clean), is one episode short of
+`stance3_armLT_s60`'s final, which stays the second pilot's parent the
+criteria offer. All three runs recorded a Colab L4 GPU runtime. As screens
+they certify nothing, so the next T-Rex session above is still unchanged,
+and the second pilot stays parked (§19 of the same record).*
 
 *Note 2026-10-18 (decision D-D38): where §2, this section and §8 record
 `BEHAVIOR = "stand"` or a `stand` session, they give the setting as it was

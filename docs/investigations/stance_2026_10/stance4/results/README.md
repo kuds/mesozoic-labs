@@ -1,7 +1,8 @@
 # T. rex stance4 screen results (judged 2026-10-20)
 
-Evidence for the outcome of decision D-D39, the stance4 screen that §18 of
-[TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](../../../TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md)
+Evidence for §19 of
+[TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](../../../TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md):
+the outcome of decision D-D39, the stance4 screen that the record's §18
 pre-registers: three 12M T. rex stance runs of arm LTS (the stance3 L+T recipe
 plus the stance stagger penalty, weight 0.30, tolerance 0.045 m), from scratch
 on physics r9, `stance4_LTS_s52`, `stance4_LTS_s60` and `stance4_LTS_s42`,

@@ -45,7 +45,7 @@ it certifies nothing.
 
 *Added 2026-10-20:* `stance4/results/` holds the stance4 screen's judgement
 by its fixed criteria (all three runs fail; the decision table's line is 5,
-final), with report-only readouts and an index of its own,
+final; the note's §19), with report-only readouts and an index of its own,
 [stance4/results/README.md](stance4/results/README.md). `stance4/night/`
 holds the replicate study of the stagger penalty and `stance4/night2/` the
 CoP-band continuation test, both overnight scratch experiments of

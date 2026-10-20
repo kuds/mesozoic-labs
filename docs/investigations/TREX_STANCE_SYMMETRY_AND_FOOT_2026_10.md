@@ -43,6 +43,16 @@ against two of §16's runs by criteria fixed before training (in
 [stance_2026_10/stance4/](stance_2026_10/README.md)); not yet trained. The
 statuses above are unchanged.*
 
+*Status 2026-10-20 (appended): §19, appended that day, records the judging of
+the stance4 screen by its fixed criteria: all three runs fail, the decision
+table's line is 5, final, and the stagger penalty is not adopted; the best
+stagger final is one episode short of stance3 Run 2's final, which stays the
+walking pilot 2 parent the criteria offer; with the report-only extras, the
+notebook's own gates, the diagnostic panels and the readouts. Their evidence
+is in
+[stance_2026_10/stance4/results/](stance_2026_10/stance4/results/README.md).
+The statuses above are unchanged.*
+
 It continues [STANCE_REWARD_PILOT_FINDINGS_2026_10.md](STANCE_REWARD_PILOT_FINDINGS_2026_10.md)
 (2026-10-10), [STANCE_HACK_AUDIT_2026_10.md](STANCE_HACK_AUDIT_2026_10.md)
 §12 (the physics-r9 statue) and the blog post
@@ -2062,3 +2072,288 @@ a screen it certifies nothing.
   sha256 in `SHA256SUMS` (now 322 files).
 - **§14, branches:** `claude/screen-trex-r9-armlt-stagger` at `c1e146a8`,
   never merged, with no pull request.
+
+## 19. Status 2026-10-20 (appended): the stance4 screen judged
+
+*Appended 2026-10-20; §1–§18 above are unchanged, so §18's "not yet trained"
+and "pending" are the wording of 2026-10-19.* The three runs of D-D39 (§18)
+trained to their final 12,001,280 steps on Colab L4 GPU runtimes and were
+judged by their fixed criteria with the stance4 judge and scorer on
+2026-10-20, the 1,048,576-step checkpoints from 02:47 UTC and the verdict of
+record at 14:08 UTC. This section records the verdicts, the decision-table
+line and the parent comparison, which are results; the report-only extras, the
+notebook's own gates, the diagnostic panels and the readouts. The maintainer's
+decisions that followed, on 2026-10-20, are the last lines of
+`results/run_log.txt` (those beginning "MAINTAINER DECISION"). A screen
+certifies nothing: the verdicts are the criteria's, not a gate's, nothing here
+certifies a run, writes a result bundle or promotes anything, and `main` and
+its digests are unchanged. The evidence is in the folder `stance4/` of
+[stance_2026_10/](stance_2026_10/README.md), with the subfolders `results/`
+(its own [README](stance_2026_10/stance4/results/README.md) indexes it),
+`night/`, `night2/` and `copband/`, added on 2026-10-20; paths in backticks
+below are relative to `stance4/`, and every number below is read from
+`results/run_log.txt`, the score files in `results/scores/` or the files
+named. A verification pass over the session's human-facing report on these
+runs (a document outside the repository, not copied) found 25 statements
+over-broad or unsupported, all corrected there (`results/run_log.txt`); this
+section uses the corrected forms.
+
+### 19.1 The runs and the judging
+
+- **The runs.** `stance4_LTS_s52` started training at 23:58 UTC on 2026-10-19,
+  `stance4_LTS_s60` and `stance4_LTS_s42` at 00:01 and 00:04 UTC on
+  2026-10-20. Each was read from Drive at its start (read-only): commit
+  `c1e146a8`, not dirty, the run's seed, `n_envs` 4, the two stagger keys
+  (0.30 and 0.045 m), the L+T and symmetry keys, the cadence, the collapse
+  reference 4459.3, the PPO hyperparameters `054ab483…`, the task
+  `sha256:3fa46708…`, and a zero-action baseline standing at 4458.18 (39 of 40
+  standing). All three trained to 12,001,280 steps: s42's and s60's final
+  checkpoints were saved at 12:08 and 12:10 UTC, and s52's `progress.json`
+  on Drive read "ended" at 12:29 UTC. Each kept a checkpoint every 524,288 steps on
+  Drive, as the criteria ask.
+- **The runtime, measured.** The `gpu` block of each run's
+  `01_stance/stage_config.json` reads an NVIDIA L4 (23.7 GB, CUDA 13.0), the
+  runtime the criteria name. That file records only the session that wrote it.
+  The `progress.json` files of s60 and s42 record one session each, from 00:02
+  to 12:10 UTC and from 00:04 to 12:08 UTC, so that those two stayed on the L4
+  throughout is inferred; s52's `progress.json` was not fetched (its status,
+  ended at 12,001,280 steps, was read from Drive's metadata). The maintainer
+  confirmed the L4 for all three on 2026-10-20 (the run log's last line).
+- **Fetch and binding.** Each judged checkpoint was fetched read-only from
+  Drive; each VecNormalize file was transcribed twice, independently, and the
+  copies compared, with a third transcription where the two differed (the log
+  records two: s60 at 4,194,304 and s52 at 9,437,184). The judge
+  (`judge_stance4.py`, sha256 `3c8c0759…`, in the session's scratch only)
+  bound the plant (r9), the seed, the task, the symmetry map and the run's
+  `stage_config.json` (commit, seed, `n_envs`, hyperparameters, environment
+  and symmetry keys, gate bars); in all 51 judge files every binding matched,
+  with no hard failure and no relaxation (the judge files, session scratch
+  only). The six judged checkpoints (J) were judged as they arrived: 4,194,304
+  by 05:46 UTC, 5,242,880 by 06:56, 6,291,456 at 09:30 (the container was
+  reclaimed at about 07:35, before the first launch ran), 8,388,608 by 10:56,
+  10,485,760 at 11:52, and the finals at 13:26 (s60 and s42) and 14:07 (s52).
+- **The score.** `results/scores/score_final.txt` and `.json`, written at
+  14:08 UTC by `score_stance4.py --runs-ended` (sha256 `0d35e540…`, session
+  scratch only), the verdict of record: it loads stance3's frozen scorer
+  unchanged (`../stance3/judge/score_stance3.py`, sha256 `2c3879d3…`), extends
+  only its judge-identity constants, and checks the criteria's sha256
+  (`978a93da…`, matched). Re-run on the judge files, it reproduces the record
+  apart from the path it names and s52's `robust_best` and `best` cells, which
+  were judged after it (`best` at 14:13 and `robust_best` at 14:18 UTC).
+  `results/checkpoints.csv` has one row per judge file (51), recomputed with
+  the frozen scorer's own counts (40 cells agree with the score).
+
+### 19.2 The verdicts: all three runs fail
+
+Per run, the judged checkpoints are 4,194,304, 5,242,880, 6,291,456,
+8,388,608, 10,485,760 and the final (4.2M to 12M below); `x_c` is the panel
+median of the both-feet whole-foot centre of pressure, in mm ahead of the MTP
+III joints, against the statue's 64.0 mm on the same seeds.
+
+- **Run 1, `stance4_LTS_s52` (seed 52): fails K1 and K2.** Clean 28, 28, 21,
+  23, 23 and 39 of 40 from 4.2M to the final. **K1 fails**:
+  `stance_quality/v2` FAIL at 6,291,456 (PASS at the final), and five judged
+  checkpoints below 33 of 40. **K2 fails**: K2a 12, 12, 19, 17 and 17 from
+  4.2M to 10.5M, and K2b 16, 20, 20, 20 and 21 there and 4 at the final (K2c
+  passes: `x_c` 58.6 to 65.2 mm, a range of 6.6 mm). K3 passes (0 and 0 of 20
+  joint-space and own-sigma noise falls at 6,291,456 and the final) and K4
+  passes (roll rail 1 and 0 of 40).
+- **Run 2, `stance4_LTS_s60` (seed 60): fails K1 and K2.** Clean 29, 29, 30,
+  27, 30 and 39 of 40. **K1 fails**: v2 FAIL at 6,291,456 (PASS at the final),
+  and five judged checkpoints below 33 of 40. **K2 fails**: K2a 11, 11, 10, 13
+  and 10 from 4.2M to 10.5M, and K2b 16, 13, 16, 13 and 5 (the final 0 and 0;
+  K2c passes: `x_c` 43.2 to 58.2 mm, a range of 15.0 mm). K3 passes
+  (joint-space 0 and 1 of 20, own-sigma 0 and 0) and K4 passes (0 and 1 of
+  40).
+- **Run 3, `stance4_LTS_s42` (seed 42): fails K1–K4.** Clean 0, 3, 0, 3, 17
+  and 14 of 40: in most panel episodes up to the final the gate's
+  actuator-saturation rail failed (§19.5 item 3). **K1 fails**: v2 FAIL at
+  6,291,456 and at the final, and all six judged checkpoints below 33 of 40.
+  **K2 fails**: K2a 4 at 6.3M and 5 at the final, and K2b 6, 10, 10 and 5 at
+  5.2M, 6.3M, 10.5M and the final (K2c passes: a range of 7.4 mm). **K3
+  fails**: 8 of 20 joint-space noise falls at the final (bar 2; own-sigma 0).
+  **K4 fails**: 4 of 40 roll-rail failures at the final (bar 3).
+
+Per K test, against the control (§18.1: stance3 Runs 2 and 3, as judged in
+§17.2, not retrained; the scorer reproduces their verdicts from their judge
+files):
+
+| Test | s52 | s60 | s42 | Stagger runs passing | Control passing |
+|---|---|---|---|---|---|
+| K1, the gate held | FAIL | FAIL | FAIL | 0 of 3 | 1 of 2 (Run 3) |
+| K2, fore-aft held | FAIL | FAIL | FAIL | 0 of 3 | 0 of 2 |
+| K3, robustness | PASS | PASS | FAIL | 2 of 3 | 2 of 2 |
+| K4, roll | PASS | PASS | FAIL | 2 of 3 | 2 of 2 |
+
+**The recipe verdicts: all three runs fail; H = 0 and K2p = 0.** None holds,
+and none holds fore-aft. The credit rule fails on both parts: (a) no stagger
+run holds, and (b) the arm passes K1, K3 and K4 less often than the control.
+**The decision table's line is 5, final**: "H == 0 and K2p <= 1: not adopted;
+the stagger penalty does not hold fore-aft from scratch; the next round tests
+the per-foot CoP band term (new contact-reward code) or the v6b ankle spring
+(stance3 line 3b)". The line was fixed at 4,194,304, where all three runs had
+a judged checkpoint below 33 of 40 (K1) and s52 and s60 failed K2, so no later
+checkpoint could change it; the formal reading waited for the runs to end. The
+stagger penalty is not adopted. Which round comes next is the maintainer's
+decision.
+
+**The parent comparison** (stance3's rule: most clean panel episodes at the
+final, ties to fewer joint-space plus own-sigma noise falls): **the best
+stagger final is Run 1's, s52's** (`stage1_final`, sha256 `c83aeb04…`: 39 of
+40 clean, 0 noise falls, K2a 1, K2b 4, `x_c` −2.2 mm from the statue), then
+s60's (39 of 40, 1 fall) and s42's (14 of 40, 8). It is one episode short of
+stance3 Run 2's final (`cc21604a…`: 40 of 40, 0 falls), so **the incumbent
+stays**: the criteria offer stance3 Run 2's final as walking pilot 2's parent,
+as before. No stagger final holds, so line 1's stance parent does not arise.
+Pilot 2 stays parked.
+
+### 19.3 Report only: the extras
+
+None of these enters a criterion (`results/checkpoints.csv`;
+`results/scores/`; `results/extras.txt`).
+
+- **The 1,048,576-step checkpoints outside the six, judged like them:** at
+  1,048,576 all three PASS (40, 39 and 39 of 40 for s52, s60 and s42, no noise
+  falls, `x_c` within 4 mm of the statue). At 2,097,152, 3,145,728, 7,340,032,
+  9,437,184 and 11,534,336: s52 33, 35, 27, 24 and 28 of 40 (K2a 7, 5, 13, 16
+  and 12); s60 37, 35, 31, 39 and 40 (K2a 3, 5, 9, 1 and 0; 3 panel falls at
+  2,097,152; PASS at 9,437,184 and 11,534,336); s42 5, 1, 0, 5 and 16.
+- **Selection (S0–S3; clean of 40, own-noise falls, K2a and K2b).** s52:
+  `robust_best` (917,504 steps) and `best` (524,288) 40/40, 0, 0 and 0 both,
+  judged after the score was written. s60: `robust_best` and `best` are one
+  file, saved at 2,752,512: 33/40, 0, 5 and 9. s42: `robust_best` (917,504)
+  38/40 and `best` (524,288) 39/40, both 0, 0 and 0. The finals: s52 39/40, 0,
+  1 and 4; s60 39/40, 0, 0 and 0; s42 14/40, 0, 5 and 5. The late-stable S3 is
+  s42's 8,388,608 (3/40); s52 and s60 have none (no periodic checkpoint met
+  its rule).
+- **The fresh panel 7042–7081 at the final:** s52 PASS 39/40 (0 falls), s60
+  PASS 38/40 (1 fall), s42 FAIL 14/40 (1 fall); stance3 Run 2's final 40/40
+  and Run 3's 39/40.
+- **The forward-start tail panel (32 seeds) at the final:** 2, 6 and 5 falls
+  for s52, s60 and s42; the statue 0, stance3 Run 2's final 0 and Run 3's 4.
+- **The common-noise panel (40 seeds) at the final:** 5, 1 and 30 falls; no
+  control reference was measured.
+- **The pre-registered readouts:** K5 flags no run. The late-fall fraction is
+  above 5% only in the first 262,144-step bin (50.2%, 48.7% and 49.1%). The
+  saturation alarm (two evaluations in a row with at least 5 of 10 episodes on
+  the saturation rail) fires on s42 (§19.5 item 3) and on neither s52 nor s60
+  (0 of 91 evaluations each).
+
+### 19.4 Report only: the notebook's gates and the diagnostic panels
+
+- **The notebook's own end-of-stage gate**, `stance_quality_heading/v1`,
+  judged each run's `robust_best` checkpoint at six headings
+  (`results/notebook_gates/`, trimmed): s52 PASS, 40/40 seeds clean (LCB
+  0.928, at 917,504 steps); s60 FAIL, 33/40 (0.696, at 2,752,512); s42 PASS,
+  38/40 (0.851, at 917,504). Each `checkpoint_sha256` equals the `robust_best`
+  row's in `results/checkpoints.csv` (measured). These are not the screen's
+  verdicts: the gate judged an early checkpoint, not the finals the criteria
+  judge, and as screen runs none is gate evidence.
+- **The diagnostic panels** (`results/panels_summary.csv`): the judge's panel
+  with the legs mirrored at reset, with the prey straight ahead, and with
+  both, at every J checkpoint of the three runs and of the two controls (and
+  the unchanged panel for the stance4 runs and control Run 3 at 8,388,608,
+  whose K2a and K2b equal the judge's). With both changes, at 4,194,304 K2a is
+  0, 1 and 0 for s52, s60 and s42 (CoP split sd 0.16, 0.07 and 0.03) where the
+  standard panel has 12, 11 and 0; through 10,485,760 the stance4 split under
+  both stays at 0.03–0.21. At the finals it is K2a 0, 3 and 2 (split sd 0.20,
+  0.27 and 0.32, with 0, 2 and 1 panel falls). The controls with both changes
+  have K2a 0 at every J but Run 3's 8,388,608 (1). These panels change the
+  task the judge rolls, so they diagnose; they are no fix and no verdict.
+
+### 19.5 What the readouts found (report only)
+
+Measured on the judge and panel files, the runs' evaluation ledgers and the
+stored rollouts; "inferred" marks what is not measured.
+
+1. **The stagger went, the split stayed (s52 and s60).** At 4,194,304 the feet
+   were nearly in line: window stagger sd 4.8, 2.3 and 1.2 mm for s52, s60 and
+   s42, against the zero-action statue's 2.5 mm and control Run 2's 11.9 mm at
+   the same checkpoint. The per-foot centre-of-pressure split did not shrink:
+   sd 0.99 and 1.09 in s52 and s60, against Run 2's 1.05 (s42 0.48, inside its
+   saturation habit). Per mm of stagger that is 3.2, 7.3 and 6.4 times what
+   the statue's flat-sole geometry gives; the controls are 0.5–1.4 times where
+   their stagger was measured (3 of their 12 J checkpoints; at 4,194,304 only
+   Run 2, 1.39). So in s52 and s60 the split moved from foot position to
+   per-foot loading, one foot heel-loaded and the other toe-loaded, with no
+   common lean (common CoP +0.07, −0.01 and +0.11 span half-lengths): their
+   K2a failures there come from the split alone. Its drivers are the
+   controls': the spawn's leg asymmetry and the prey's bearing (a two-factor
+   fit explains R² 0.91, 0.89 and 0.90 of the stance4 split at 4,194,304 and
+   0.86 of Run 2's). In s60 and s42 the policy over-corrects the spawn stagger
+   (the window stagger's correlation with the spawn's is −0.56 and −0.31, the
+   statue's +0.85), and the heel-loaded foot is still the forward one in 36
+   and 26 of 40 episodes (s52 37). In the evaluation ledgers the split rose
+   first (s52 from about 1.2M steps, s60 from about 2.5M) and the pad rail
+   followed (first flags at 1.57M and 2.49M). (`results/split_form.md`,
+   written at 06:01 UTC when only 4,194,304 had been judged.) Later the
+   penalty held s60's feet in line (window stagger sd 1.8–5.5 mm to the
+   final), but s52's stagger grew to 7.3–12.7 mm from 5,242,880 to 10,485,760
+   (6.4 mm at the final), and s42's reached 19.5 mm at the final
+   (`results/panels_summary.csv`); inferred, through that stretch part of
+   s52's split was positional again. Inferred too, as the split-form analysis
+   puts it: the stagger term removed the carrier it measures, not the split,
+   and the next term should act on what remains, each foot's centre of
+   pressure; the CoP-band prototype's band, [−0.6, +0.4] span half-lengths,
+   has either foot's window mean outside it in 20, 22 and 11 of 40 stance4
+   episodes at 4,194,304 (control Run 3 at 4,194,304: 0).
+2. **The trajectory.** Every stagger run stood 39–40 of 40 clean at 1,048,576
+   and had lost it by 2,097,152 (33, 37 and 5 of 40). At every judged
+   checkpoint from 4,194,304 to 10,485,760, s52 and s60 read 21–30 of 40 (s52
+   21–28, s60 27–30); s60's report-only checkpoints read 31 at 7,340,032, 39
+   at 9,437,184 and 40 at 11,534,336. Both were back at 39 of 40 at the final;
+   K1 counts only the judged checkpoints. s42 never recovered: 0–5 of 40 from
+   2,097,152 to 9,437,184, then 17, 16 and 14.
+3. **s42's actuator saturation.** From 1.83M steps s42's evaluations flagged
+   the gate's actuator-saturation rail (`max_actuator_saturation_fraction`):
+   70 of its 91 evaluations had at least 5 of 10 episodes on it, all from
+   2,097,152 on, and the pre-registered alarm first fired at 2,228,224, in
+   three spells (2,097,152–5,373,952, 26 evaluations; 5,636,096–10,616,832,
+   39; 11,272,192–11,796,480, 5; `results/scores/`). On the panel the rail
+   failed in 40, 37, 39, 37, 23 and 23 of 40 episodes at the six judged
+   checkpoints (the judge files, session scratch only). At the final, besides
+   those 23, 8 of 20 joint-space noise episodes fell (K3 allows 2) and 4
+   full-horizon episodes broke the roll rail (K4 allows 3); the saturation
+   rail is part of neither K3 nor K4. The s42 records give only the aggregate
+   rail, not which actuator saturated: in stance3 Run 2 the same rail's habit
+   was the tail actuator `tail_3_pitch_act` (§17.4), and whether s42's is the
+   same actuator is not known. Applied afterwards, the same alarm fires on
+   control Run 2 at 2,359,296 (44 of 91 evaluations; its criteria had no
+   alarm) and not on Run 3 (1 of 91). The alarm is report only and was not
+   acted on while s42 trained: it was first logged at the 04:36 UTC check-in,
+   from evaluations up to 3,670,016 (`results/run_log.txt`). In stance3 Run 2
+   it cost K1 (0, 0 and 36 of 40 clean at the first three judged checkpoints),
+   after which that run passed every judged checkpoint; s42 never shook it.
+   Which actuator saturated, when it began and what set it off are not
+   diagnosed.
+4. **s60's late backward shift.** s60's panel median moved back at the later
+   judged checkpoints: `x_c` −10.4, −17.4 and −20.9 mm from the statue at
+   8,388,608, 10,485,760 and the final (−5.8 to −12.6 mm before), with a
+   common centre of pressure of −0.11, −0.18 and −0.24 span half-lengths on
+   the standard panel, near control Run 3's −0.25 at its 8,388,608 K2a failure
+   (`results/split_form.md` §2). K2c passed (range 15.0 mm against 30), and
+   through 10,485,760 its K2a failures still came with a split sd of 1.01–1.09
+   (`results/panels_summary.csv`). Inferred: a common fore-aft shift built up
+   in s60 late, the kind the v6b ankle spring resists.
+
+### 19.6 What changes in §13–§18
+
+- **§13 and §18, the stance4 screen:** judged; all three runs fail, and the
+  decision table's line is 5, final. The stagger penalty is not adopted. No T.
+  rex stance is certified, and the two-seed ask stands. Walking pilot 2 stays
+  parked, its branch and criteria kept.
+- **§14, this repository:** the folders `stance4/results/`, `stance4/night/`,
+  `stance4/night2/` and `stance4/copband/`, with their sources and sha256 in
+  `SOURCES.txt` and `SHA256SUMS` (now 344 files).
+- **§14, branches:** unchanged; `claude/screen-trex-r9-armlt-stagger` at
+  `c1e146a8`, never merged, with no pull request.
+- **§14, Google Drive:** the three runs' folders `stance4_LTS_s52/`,
+  `stance4_LTS_s60/` and `stance4_LTS_s42/` under
+  `MyDrive/mesozoic-labs/logs/tyrannosaurus_rex/anatomical/ppo/` hold their
+  checkpoints; each judged one's sha256 is in `results/checkpoints.csv`.
+- **§14, session scratch only:** the stance4 judge and scorer
+  (`scratchpad/foot/stance4/judge/`), the judge files
+  (`scratchpad/foot/stance4/judged/`), the diagnostic panels' files
+  (`scratchpad/foot/stance4/panels/out/`), the runs' fetched records and
+  evaluation ledgers (`scratchpad/foot/stance4/runs/`) and the split-form
+  analysis's tables and scripts (`scratchpad/foot/stance4/analysis/`).

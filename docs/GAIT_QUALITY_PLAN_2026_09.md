@@ -37,6 +37,8 @@ pilot stays parked, and whether it runs, and from which parent, is not decided (
 *Updated 2026-10-19, later: the maintainer took D-D39: three more T. rex stance screen runs, with a foot-stagger
 penalty; the second pilot stays parked, and the parent they offer it is the better of their best final and
 `stance3_armLT_s60`'s final (§17, its second note of 2026-10-19).*
+*Updated 2026-10-20: the D-D39 stance screen runs fail their fixed criteria (their decision table's line 5); the second
+pilot stays parked, and the parent they offer it is still `stance3_armLT_s60`'s final (§17, its note of 2026-10-20).*
 
 ## How to use this document
 
@@ -958,4 +960,13 @@ maintainer says otherwise. Its own criteria still name r9 arm L seed 60 at 6M; t
 the choice of its parent is the maintainer's. The screens are stance runs: they are no exception to GQ-3 (a) or
 GQ-17, answer none of GQ-1..GQ-18 and certify nothing. The decision's full text is in
 [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2 and its record in §18 of
+[investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).
+
+*Appended 2026-10-20 (D-D39's outcome); the text above is unchanged.* **The foot-stagger screen runs fail.** Judged on
+2026-10-20 by their fixed criteria, final, none of the three holds, and their decision table's line is 5: the penalty is
+not adopted. The best of their final checkpoints, seed 52's (39 of 40 clean, no noise falls), is one episode short of
+`stance3_armLT_s60`'s final (40 of 40), so the parent the screens' criteria offer the second pilot is still
+`stance3_armLT_s60`'s final. The second pilot stays parked and untrained, and its own criteria still name r9 arm L seed
+60 at 6M as its parent. The screens certify nothing, are no exception to GQ-3 (a) or GQ-17 and answer none of
+GQ-1..GQ-18, and the trex `gait-r1` walk (§5.4, §14) still waits for a certified stance. Their evidence is in §19 of
 [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).
