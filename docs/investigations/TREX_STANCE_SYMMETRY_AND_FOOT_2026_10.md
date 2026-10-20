@@ -48,10 +48,13 @@ the stance4 screen by its fixed criteria: all three runs fail, the decision
 table's line is 5, final, and the stagger penalty is not adopted; the best
 stagger final is one episode short of stance3 Run 2's final, which stays the
 walking pilot 2 parent the criteria offer; with the report-only extras, the
-notebook's own gates, the diagnostic panels and the readouts. Their evidence
-is in
-[stance_2026_10/stance4/results/](stance_2026_10/stance4/results/README.md).
-The statuses above are unchanged.*
+notebook's own gates, the diagnostic panels and the readouts, and two
+overnight scratch experiments, report only: a replicate study of the stagger
+penalty and a continuation test of a per-foot CoP band prototype. Their
+evidence is in
+[stance_2026_10/stance4/results/](stance_2026_10/stance4/results/README.md)
+and the same folder's `night/`, `night2/` and `copband/`. The statuses above
+are unchanged.*
 
 It continues [STANCE_REWARD_PILOT_FINDINGS_2026_10.md](STANCE_REWARD_PILOT_FINDINGS_2026_10.md)
 (2026-10-10), [STANCE_HACK_AUDIT_2026_10.md](STANCE_HACK_AUDIT_2026_10.md)
@@ -2082,7 +2085,8 @@ judged by their fixed criteria with the stance4 judge and scorer on
 2026-10-20, the 1,048,576-step checkpoints from 02:47 UTC and the verdict of
 record at 14:08 UTC. This section records the verdicts, the decision-table
 line and the parent comparison, which are results; the report-only extras, the
-notebook's own gates, the diagnostic panels and the readouts. The maintainer's
+notebook's own gates, the diagnostic panels and the readouts; and two
+overnight scratch experiments, report only (§19.6 and §19.7). The maintainer's
 decisions that followed, on 2026-10-20, are the last lines of
 `results/run_log.txt` (those beginning "MAINTAINER DECISION"). A screen
 certifies nothing: the verdicts are the criteria's, not a gate's, nothing here
@@ -2109,8 +2113,8 @@ section uses the corrected forms.
   `sha256:3fa46708…`, and a zero-action baseline standing at 4458.18 (39 of 40
   standing). All three trained to 12,001,280 steps: s42's and s60's final
   checkpoints were saved at 12:08 and 12:10 UTC, and s52's `progress.json`
-  on Drive read "ended" at 12:29 UTC. Each kept a checkpoint every 524,288 steps on
-  Drive, as the criteria ask.
+  on Drive read "ended" at 12:29 UTC. Each kept a checkpoint every 524,288
+  steps on Drive, as the criteria ask.
 - **The runtime, measured.** The `gpu` block of each run's
   `01_stance/stage_config.json` reads an NVIDIA L4 (23.7 GB, CUDA 13.0), the
   runtime the criteria name. That file records only the session that wrote it.
@@ -2336,7 +2340,139 @@ stored rollouts; "inferred" marks what is not measured.
    (`results/panels_summary.csv`). Inferred: a common fore-aft shift built up
    in s60 late, the kind the v6b ankle spring resists.
 
-### 19.6 What changes in §13–§18
+### 19.6 Replicate study of the stagger penalty (scratch only, report only)
+
+While the stance4 runs trained, the session ran a replicate of §17.5's and
+§17.8's continuations: does the stagger term's continuation effect survive
+more seeds? It was pre-registered in `night/spec.md`, written 00:10–00:35 UTC
+on 2026-10-20, amended 01:36–01:50 UTC after a review
+(`night/review_handling.md`: eight findings, all accepted) and frozen at 01:50
+UTC (sha256 `24af508a…` as frozen), all before any of its training steps. Four
+new continuations ran from stance3 Run 3's Colab 8,388,608 checkpoint to E =
+9,961,472, in the same local CPU harness as §17.5's A and §17.8's local
+no-change run: two with the stagger penalty (ST2 and ST3, weight 0.30,
+tolerance 0.045 m) and two without (NC2 and NC3), on two new training seeds,
+152 (ST2, NC2) and 252 (ST3, NC3). With the three runs of the night before
+that makes stagger n = 3 against no change n = 4. The primary readouts at E
+are the window stagger sd and the K2a count, tested by an exact one-sided
+permutation (rank-sum) test, 3 against 4. The reading lines, fixed before
+launch: (1) complete separation on both readouts, the term's continuation
+effect is real; (2) on one only, partial; (3) on neither, it does not survive
+replication; a safety flag on a stagger run is named beside the line ("met
+through a flagged run"). Measured before launch, the Colab no-change run
+already had K2a 0, so K2a could not separate completely and line (1) could not
+be reached; the spec kept the lines as fixed (its option (a), decided at 01:48
+UTC), so the strongest attainable reading was line (2). Every judge file is
+relaxed-binding (report mode; seed and commit mismatches allowed), so none
+enters a stance4 verdict.
+
+At E, on the 40-seed panel (measured; `night/readout.md`,
+`night/readout.json`):
+
+| Run | Arm, training seed | Clean of 40 | K2a | Window stagger sd (mm) | Safety flags |
+|---|---|---|---|---|---|
+| A (§17.5) | stagger, 52 | 40 | 0 | 7.5 | none |
+| ST2 | stagger, 152 | 37 | 3 | 7.7 | 2 panel falls, a side door, reward ratio 0.945 |
+| ST3 | stagger, 252 | 40 | 0 | 4.2 | none |
+| local no-change (§17.8) | none, 52 | 25 | 15 | 25.9 | none |
+| Colab no-change (§17.5) | none, 52 | 40 | 0 | 9.7 | none |
+| NC2 | none, 152 | 37 | 3 | 14.8 | none |
+| NC3 | none, 252 | 32 | 8 | 29.3 | 3 panel falls, a side door, reward ratio 0.942 |
+
+- **The reading is line (2), partial, met through a flagged run (ST2).** The
+  window stagger sd separates completely: every stagger run is below every
+  no-change run (one-sided p 1/35 = 0.029). That p is optimistic, because
+  three of the seven runs (A and the two no-change runs of §17.5 and §17.8)
+  suggested the hypothesis and their order was known before the study: given
+  that order it is 72/840 = 0.086 (3/35), and the new runs alone, 2 against 2,
+  give 1/6 = 0.167. Within each seed the stagger run is the lower (−18.5, −7.1
+  and −25.1 mm for seeds 52, 152 and 252; descriptive, no test). K2a does not
+  separate: 0, 3 and 0 against 15, 0, 3 and 8 (p 7/35 = 0.200, or 192/672 =
+  0.286 given the order). Each of the seven rollout sets reproduces its judge
+  file exactly.
+- **What it says, as read in the log (report only):** in continuation the term
+  shrank the stagger it prices on every seed, and that did not carry over to
+  the judged pad statistic, K2a. It does not bear on a from-scratch run: the
+  stance4 screen (§19.2) is the deciding evidence for the term, and it read
+  line 5.
+- **Caveats.** Continuations of one parent, not runs from scratch; two new
+  runs per arm; one flagged stagger run; a local CPU harness beside one Colab
+  no-change run; relaxed-binding judge files.
+
+### 19.7 The CoP-band continuation test (scratch only, report only)
+
+Line 5 names "the per-foot CoP band term (new contact-reward code)". The
+session wrote it as a code-only prototype between 00:35 and 01:30 UTC on
+2026-10-20 (`copband/design.md`; a proposal, nothing trained): an opt-in
+`[env]` option of the T. rex env, off by default, on the scratch commit
+`f94452ad` on `c1e146a8` (branch `scratch/cop-band`, never pushed). Each step
+after the settle (step > 200), while the command is zero, it reads each foot's
+whole-foot centre of pressure exactly as the judge's K2b statistic does, with
+the recorder's own code, and charges a foot whose centre of pressure lies
+outside [−0.6, +0.4] span half-lengths, or whose pad centre of pressure lies
+outside [−0.65, +0.65], up to w/2 per step, as 1 − exp(−(u / 0.357)²) of it
+for a distance u outside (tolerance 0.357, 25 mm), with w 0.30. Two guards
+close side doors: a foot that is unloaded, carries under 35% of the load or
+stands off its pad pays the full per-foot price. Off, it changes nothing
+(measured on the prototype, byte for byte). After the diagnostic panels at
+4,194,304 showed the per-foot loading split (§19.5 item 1), the session tested
+it in continuation, pre-registered in `night2/spec.md` (frozen at 06:29 UTC,
+sha256 `b1606f74…` as frozen, before its runs were launched at 06:52;
+`night2/review_handling.md`: eight findings, all minor, no frozen file
+changed). Two parents, s52 and s60 at their Colab 4,194,304 checkpoints, each
+continued to E2 = 5,767,168 with its own training seed, with the band on (CB)
+and with no change (NC): one run per arm per parent. The primary comparison is
+CB minus NC within each parent, on K2a and on the CoP split sd. The reading
+lines, fixed before launch: (1) CB lower on both readouts for both parents,
+with no new safety flag: support for a CB arm in the next from-scratch screen;
+(2) lower on both for one parent only, or on one readout for both: partial;
+(3) otherwise, no support. A container reclaim at about 07:35 UTC cost about
+80 minutes; CB52 and NC52 resumed from their 4,718,592 checkpoints. The judge
+files are relaxed-binding (report mode; commit mismatch allowed), so none
+enters a stance4 verdict.
+
+At E2, on the 40-seed panel (measured; `night2/readout2.md`,
+`night2/readout2.json`; the parents at 4,194,304 had K2a 12 and 11 and a split
+sd of 0.99 and 1.09):
+
+| Run | Clean of 40 | K2a | K2b | CoP split sd | Window stagger sd (mm) | Panel falls | Reward ratio |
+|---|---|---|---|---|---|---|---|
+| CB52 | 40 | 0 | 0 | 0.288 | 9.4 | 0 | 0.996 |
+| NC52 | 22 | 18 | 18 | 1.203 | 6.7 | 0 | 0.994 |
+| CB60 | 37 | 3 | 3 | 0.105 | 2.7 | 3 | 0.928 |
+| NC60 | 18 | 22 | 21 | 1.272 | 6.1 | 0 | 0.981 |
+
+- **The reading is line (2), partial**: CB is lower than NC on both readouts
+  for both parents (K2a 0 against 18 and 3 against 22; split sd 0.29 against
+  1.20 and 0.11 against 1.27), but through a run with new safety flags: CB60
+  has 3 panel falls (hop-or-fall 3) and a reward ratio of 0.928, which NC60
+  does not. The paired panel-seed bootstrap and exact McNemar tests favour CB
+  within each pair (K2a −18, 95% interval −24 to −12, and −19, −25 to −13);
+  they cover only which 40 spawns the panel draws, not the run-to-run variance
+  of training.
+- **The guards** (a guard rollout of the same panel with the band observing):
+  in CB60, 242 of 59,836 window foot-steps (0.40%) were left uncounted, all in
+  its 3 falling episodes, a foot unloaded (103) or under the 35% load share
+  (139), and in 2 of the 3 a foot also on its digits alone (53 foot-steps); in
+  CB52, none. Outside those falls no foot-step was lifted, lightened below 35%
+  or carried on its digits, and the band runs' digit share stayed at
+  0.20–0.22. The guards cannot see the route the design calls its main risk
+  (`copband/design.md` §5, last row): each foot's centre of pressure held in
+  band by asymmetric ankle torque while the feet stay staggered. In the s52
+  pair the band run's window stagger sd was the higher, 9.4 against 6.7 mm
+  (paired bootstrap +2.7 mm, interval +1.2 to +4.1), and its mean left-right
+  ankle difference the larger, 0.60° against 0.08°; in the s60 pair both were
+  lower (2.7 against 6.1 mm, 0.13° against 0.69°). That no foot found such a
+  route is not claimed.
+- **Cost.** The prototype adds 0.62 ms to an env step on one thread (1.40 to
+  2.02 ms, +45%; `copband/design.md` §6.3); at launch CB52 trained at 272
+  steps per second against NC52's 370 (`results/run_log.txt`).
+- **Caveats.** One run per arm per parent; continuations from stance4's
+  4,194,304 checkpoints, not runs from scratch; a local CPU harness;
+  relaxed-binding judge files; the s60 pair's diagnostic panels were skipped
+  at the deadline. At most it supports a band arm in a from-scratch screen.
+
+### 19.8 What changes in §13–§18
 
 - **§13 and §18, the stance4 screen:** judged; all three runs fail, and the
   decision table's line is 5, final. The stagger penalty is not adopted. No T.
@@ -2346,7 +2482,8 @@ stored rollouts; "inferred" marks what is not measured.
   `stance4/night2/` and `stance4/copband/`, with their sources and sha256 in
   `SOURCES.txt` and `SHA256SUMS` (now 344 files).
 - **§14, branches:** unchanged; `claude/screen-trex-r9-armlt-stagger` at
-  `c1e146a8`, never merged, with no pull request.
+  `c1e146a8`, never merged, with no pull request. The band prototype's branch
+  `scratch/cop-band` (`f94452ad`) exists only in the session's scratch.
 - **§14, Google Drive:** the three runs' folders `stance4_LTS_s52/`,
   `stance4_LTS_s60/` and `stance4_LTS_s42/` under
   `MyDrive/mesozoic-labs/logs/tyrannosaurus_rex/anatomical/ppo/` hold their
@@ -2355,5 +2492,9 @@ stored rollouts; "inferred" marks what is not measured.
   (`scratchpad/foot/stance4/judge/`), the judge files
   (`scratchpad/foot/stance4/judged/`), the diagnostic panels' files
   (`scratchpad/foot/stance4/panels/out/`), the runs' fetched records and
-  evaluation ledgers (`scratchpad/foot/stance4/runs/`) and the split-form
-  analysis's tables and scripts (`scratchpad/foot/stance4/analysis/`).
+  evaluation ledgers (`scratchpad/foot/stance4/runs/`), the split-form
+  analysis's tables and scripts (`scratchpad/foot/stance4/analysis/`), the
+  overnight runs with their judge files, rollouts, guard readouts and scripts
+  (`scratchpad/foot/stance4/night/` and `scratchpad/foot/stance4/night2/`),
+  and the band prototype's clone with its calibration tables and checks
+  (`scratchpad/fix/scratch_copband/`, `scratchpad/foot/stance4/copband/`).

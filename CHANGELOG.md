@@ -9,14 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **The stance4 screen of D-D39 judged: all three runs fail their fixed criteria
-  (line 5); the stagger penalty is not adopted** (D-D39's outcome, recorded
-  2026-10-20; a dated note in §17 of `docs/GAIT_QUALITY_PLAN_2026_09.md`,
-  `docs/NEXT_STEPS.md` §3; the appended §19 of
-  `docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md` and the folder
-  `docs/investigations/stance_2026_10/stance4/results/`). Records only: no
-  library code, configuration, test, notebook, digest or generated file changes
-  with it. The three 12M runs of arm LTS (D-D37's L+T plus the stance stagger
-  penalty, weight 0.30, tolerance 0.045 m; `stance4_LTS_s52`, `stance4_LTS_s60`,
+  (line 5); the stagger penalty is not adopted; two overnight scratch
+  experiments recorded, report only** (D-D39's outcome, recorded 2026-10-20; a
+  dated note in §17 of `docs/GAIT_QUALITY_PLAN_2026_09.md`, `docs/NEXT_STEPS.md`
+  §3; the appended §19 of
+  `docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md` and the folders
+  `results/`, `night/`, `night2/` and `copband/` of
+  `docs/investigations/stance_2026_10/stance4/`). Records only: no library code,
+  configuration, test, notebook, digest or generated file changes with it. The
+  three 12M runs of arm LTS (D-D37's L+T plus the stance stagger penalty, weight
+  0.30, tolerance 0.045 m; `stance4_LTS_s52`, `stance4_LTS_s60`,
   `stance4_LTS_s42`) trained from scratch to 12,001,280 steps on Colab L4 GPU
   runtimes (the `gpu` block of each run's `stage_config.json`) and were judged
   on 2026-10-20 by the criteria fixed before training (sha256 `978a93da…`),
@@ -40,14 +42,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   penalty had lined the feet up (window stagger sd 1.2–4.8 mm, against 11.9 for
   D-D37 Run 2), but in s52 and s60 the left-right split stayed as a per-foot
   loading split, still driven by the spawn's leg asymmetry and the prey's
-  bearing, and s52's stagger grew again later (7.3–12.7 mm). `stance4/results/`
-  (13 files and its README, about 0.32 MB) holds the run log (tool ids removed),
-  the verdict of record, a per-checkpoint summary (`checkpoints.csv`, 51 rows,
-  with the script that recomputes it from the judge files), the extras, the
-  notebook's gates (trimmed), the panels' summary with its script and the
-  split-form analysis; `SOURCES.txt` and `SHA256SUMS` (now 344 files) are
-  extended. `docs/README.md` adds a note to the record's and the gait plan's
-  rows, and `docs/KNOWN_ISSUES.md` gains Update 12 of the T-Rex stance entry.
+  bearing, and s52's stagger grew again later (7.3–12.7 mm). Report only too,
+  with relaxed-binding judge files that enter no verdict: a pre-registered
+  replicate study of the stagger penalty in continuation from D-D37 Run 3's
+  8,388,608 checkpoint on two new seeds (stagger n = 3 against no change n = 4),
+  whose reading is line (2), partial, met through a flagged run: the window
+  stagger sd separates completely (one-sided p 0.029, optimistic because three
+  of the seven runs suggested the idea; 0.086 given their known order) and K2a
+  does not (p 0.200); and a pre-registered paired continuation test of a
+  per-foot centre-of-pressure band prototype (an opt-in term, off by default, on
+  a scratch commit never pushed) from s52's and s60's 4,194,304 checkpoints,
+  whose reading is line (2), partial: the band runs are lower on K2a (0 against
+  18 and 3 against 22) and on the split's sd for both parents, but the s60 band
+  run raised new safety flags (3 panel falls, a reward ratio of 0.928), and the
+  band's guards cannot see an ankle-torque route that keeps the stagger (in the
+  s52 pair the band run's stagger sd was the higher, 9.4 against 6.7 mm).
+  `stance4/results/` (13 files and its README, about 0.32 MB) holds the run log
+  (tool ids removed), the verdict of record, a per-checkpoint summary
+  (`checkpoints.csv`, 51 rows, with the script that recomputes it from the judge
+  files), the extras, the notebook's gates (trimmed), the panels' summary with
+  its script and the split-form analysis, `stance4/night/` and `stance4/night2/`
+  hold each experiment's pre-registration, review handling and readout, and
+  `stance4/copband/` the band prototype's design note; `SOURCES.txt` and
+  `SHA256SUMS` (now 344 files) are extended. `docs/README.md` adds a note to the
+  record's and the gait plan's rows, and `docs/KNOWN_ISSUES.md` gains Update 12
+  of the T-Rex stance entry.
 - **Decision D-D39 recorded: another T. rex stance screen, three runs of L+T
   with a foot-stagger penalty against two D-D37 runs as the control** (#632;
   the maintainer's decisions of 2026-10-19; `docs/BEHAVIOR_RECIPES_PLAN.md`
