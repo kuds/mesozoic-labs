@@ -31,6 +31,18 @@ that designed them from the offline diagnosis of 2026-10-18, and frozen copies
 of their judge and scorer. It holds no judgement: the runs were launched on
 2026-10-18 and are not yet judged, and as screens they certify nothing.
 
+*Added 2026-10-19:* `stance3/results/` holds the three runs' judgement by
+their fixed criteria (all three fail; the decision table's line is 3b), the
+report-only readouts and the overnight scratch experiment that followed, and
+an index of its own, [stance3/results/README.md](stance3/results/README.md)
+(the note's §17). As screens they certify nothing.
+
+*Added 2026-10-19, later:* `stance3/night/` holds the overnight
+experiment's harness-matched no-change comparison (the note's §17.8), and
+`stance4/` the criteria of the next screen, decision D-D39 (the note's
+§18), fixed before training. `stance4/` holds no judgement, and as a screen
+it certifies nothing.
+
 ## What changed in the copies
 
 [SOURCES.txt](SOURCES.txt) lists every file with the scratch file it came from,
@@ -84,8 +96,32 @@ their `SCRATCH` constant now resolves `scratchpad` relative to the working
 directory. Nothing else differs, and none of the six held a model
 identifier, an email address or a commit trailer.
 
+*Added 2026-10-19 (`stance3/results/`):* the copies of 2026-10-19 add four
+more kinds of change, nothing else: **excerpt** (one section of the overnight
+design, verbatim), **trim** (the six-heading certificates' `run_summary.json`
+cut to their verdict fields), **extract** (one key of the night analysis
+workflow's output, written on its own) and **redact** (the session's
+workflow run ids and the report document's id removed from the run log);
+SOURCES.txt defines them, and
+[stance3/results/README.md](stance3/results/README.md) says which file each
+applies to. A source outside the scratch root is written below `session`. No
+copy of 2026-10-19 held a model identifier, an email address or a commit
+trailer.
+
+*Added 2026-10-19, later (`stance3/night/`):* its two copies carry the
+**prefix** change, and `nochange_compare.md` the **whitespace** change too
+(one line of trailing spaces); nothing else. `stance3/night/interpretation.md`
+has the same source as `stance3/results/night_scratch/interpretation.md` and
+is byte-identical to it.
+
+*Added 2026-10-19, later (`stance4/`):* `stance4/criteria.txt` is
+byte-identical to the file fixed before training (sha256 `978a93da…`; it
+ends with a newline). It holds no model identifier, email address or commit
+trailer.
+
 [SHA256SUMS](SHA256SUMS) pins every file here but this README and itself
-(`sha256sum -c SHA256SUMS` in this directory).
+(`sha256sum -c SHA256SUMS` in this directory). *Added 2026-10-19:* nor
+`stance3/results/README.md`, which, like this README, has no source.
 
 ## Contents
 
@@ -391,6 +427,91 @@ neither branch is ever merged or has a pull request.
   report-only readouts) and `judge/test_score_stance3.py` (80 cases at every
   bar).
 
+### Added on 2026-10-19 (decision D-D37's outcome)
+
+**`stance3/results/`: the three stance3 screen runs judged (2026-10-18 to
+2026-10-19, final), with report-only readouts and the overnight scratch
+experiment.** Outcome: **all three runs fail** their fixed criteria, so none
+holds and none holds fore-aft: Run 1 (arm L, seed 60) fails K2 on the K2c
+range (33.9 mm against 30) and K3 (joint-space noise falls 7 and 11 of 20);
+Run 2 (L+T, seed 60) fails K1 and K2 early (from 4,194,304 to 6,291,456);
+Run 3 (L+T, seed 52) fails K2 (K2a 6 at 8,388,608, K2b 4 at the final, K2c
+range 30.6 mm). The decision table's line is **3b**. The best final
+checkpoint by the fixed rule is Run 2's (40/40 clean, no noise falls). Its
+[README](stance3/results/README.md) indexes the folder:
+
+- `run_log.txt` (the judging log, ids removed), `scores/` (the frozen
+  scorer's printouts: `score_final2.txt` and `.json` are the verdict of
+  record), `checkpoints.csv` (one row per judge file, 37, with the
+  `checkpoints_csv.py` that recomputes it with the scorer's own counts) and
+  `certificates/` (the stage's six-heading certificate rolled offline on the
+  three finals, report only: all three PASS, none gate evidence).
+- `readouts/`: report-only readouts of the Colab checkpoints (Run 2's tail
+  actuator saturation and left-right foot split at 4,194,304, Run 1's
+  ankle-carried drift and falls, Run 3's split at 8,388,608, and the
+  whole-body drift in the eval ledgers).
+- `night_scratch/`: the overnight scratch experiment of 2026-10-19 (three
+  continuations with a candidate term each, from a scratch clone never
+  merged; report only): its pre-registered readouts, the readouts of the arms
+  and of the matched no-change controls, the interpretation as written, and
+  the verifier's verdicts, which correct it.
+
+### Added on 2026-10-19, later (the night continuations' no-change comparison)
+
+**`stance3/night/`: the harness-matched no-change comparison of the overnight
+scratch experiment (2026-10-19, report only).** The spec's local no-change
+continuation of Run 3 (`night_R3_nochange`, from the Colab 8,388,608
+checkpoint with no added term) was judged and rolled at 9,437,184 and
+9,961,472 like the arms. It did not recover: at 9,961,472 it was clean on 25
+of 40, with K2a 15 and a window stagger sd of 25.9 mm, against the stagger
+arm's 40, 0 and 7.5 mm and the Colab no-change run's 40, 0 and 9.7 mm. The
+ankle anchor (H_B) and the stagger term on Run 1 (H_C) stay refuted; the
+stagger term on Run 3 (H_A) stays inconclusive, since the two no-change runs
+differ by as much as the stagger arm and the local one do, with one run per
+arm. None of it enters K1–K4 or certifies anything.
+
+- `nochange_compare.md`: the comparison as written (R1 and R2 at both
+  checkpoints, a paired seed bootstrap and exact McNemar tests, the eval
+  ledgers and the reading).
+- `interpretation.md`: the night interpretation it cites by name,
+  byte-identical to `stance3/results/night_scratch/interpretation.md`; read
+  it with that folder's `verify_result.json`.
+
+Its judge files, rollouts and scripts stay in the session's scratch
+(`scratchpad/foot/stance3/night/cont/`). Its paths: `S3` is
+`scratchpad/foot/stance3` and `C` is `S3/night/cont`.
+
+### Added on 2026-10-19, later (decision D-D39)
+
+**`stance4/`: the next T. rex stance screen, pre-registered (decided
+2026-10-19; not yet trained when recorded).** Three new runs of arm LTS,
+the stance3 L+T recipe plus a stance stagger penalty (weight 0.30,
+tolerance 0.045 m), from scratch on physics r9: `stance4_LTS_s52`,
+`stance4_LTS_s60` and `stance4_LTS_s42`, from the branch
+`claude/screen-trex-r9-armlt-stagger` (`1af2d4d7` plus `ff7114c0` and
+`c1e146a8`), which is never merged and has no pull request. The control is
+stance3 Runs 2 and 3 as already judged, not retrained. The maintainer's
+decision named Colab CPU runtimes, as stance3's Colab steps had. Measured,
+stance3's runs trained on Colab L4 GPU runtimes (in the `stage_config.json`
+files fetched at 4,194,304 steps; that the control stayed on L4 throughout
+is inferred). Before any of the three runs started, the criteria were
+re-fixed for L4, the control's runtime type, for the maintainer to confirm
+when starting the runs.
+
+- `criteria.txt`: what is trained, how it is judged (K1–K4 exactly as
+  stance3's), the control and its caveats, the credit rule, the decision
+  table, when the decision is read and the pre-registered readouts, written
+  before any training step (sha256 `978a93da…`). Its `SP/` paths name the
+  session's scratch (`scratchpad/`), where the judge, the scorer, the build
+  record and the statue measurement stay. It replaces a first file (sha256
+  `8bda933e…`) that named a Colab CPU runtime, as the decision did. The
+  control's L4 is measured in the `gpu` block of its `stage_config.json`
+  files, as fetched at 4,194,304 steps; each records the session that wrote
+  it, so that the control stayed on L4 throughout is inferred. The first
+  file was re-fixed before any of the three runs started and differs only
+  in the runtime (measured: line 7 changed and two lines added); it stays
+  in the session's scratch (`scratchpad/foot/stance4/superseded/`).
+
 ## How to re-check each verdict
 
 Commands as run on 2026-10-17 from a copy of this directory (Python 3.13;
@@ -430,6 +551,13 @@ copies.
 | The stance3 scorer at every bar (2026-10-18; session scratch only) | from a directory holding the session's scratch as `scratchpad/` (the scorer asserts the original `frozen_params.json`, sha256 `58b2c8fb…`, and the criteria's `1ce910dc…` there): `python3 -I <this directory>/stance3/judge/test_score_stance3.py` | 80/80 cases as expected |
 | The stance3 criteria (2026-10-18) | `sha256sum stance3/criteria.txt` | `1ce910dcd6e2ff7b41a4f592b9f34b9a6c9cb398c523e88f0ebd19af754f18fa` |
 | The files themselves (2026-10-18, with `stance3/`) | `sha256sum -c SHA256SUMS` | all 291 files OK |
+| The stance3 verdicts, decision line and best final checkpoint (2026-10-19; session scratch only) | from a directory holding the session's scratch as `scratchpad/`: `python3 -I <this directory>/stance3/judge/score_stance3.py scratchpad/foot/stance3/judged --runs-root scratchpad/foot/stance3/runs --json score.json` | identical to `stance3/results/scores/score_final2.txt` and `.json` apart from the paths they name |
+| The stance3 scorer at every bar (2026-10-19; session scratch only) | as on 2026-10-18 | 80/80 cases as expected |
+| `stance3/results/checkpoints.csv` (2026-10-19; session scratch only) | `python3 -I stance3/results/checkpoints_csv.py <judged dir> out.csv --check <score_final2.json>` | 28 cells agree with the scorer; `out.csv` identical |
+| The files themselves (2026-10-19, with `stance3/results/`) | `sha256sum -c SHA256SUMS` | all 319 files OK |
+| The files themselves (2026-10-19, later, with `stance3/night/`) | `sha256sum -c SHA256SUMS` | all 321 files OK |
+| The stance4 criteria (2026-10-19) | `sha256sum stance4/criteria.txt` | `978a93da8da469c1acde7b9f7261d9236e4799eb2111b3af0f0cbeaa153f0f38` |
+| The files themselves (2026-10-19, later, with `stance4/`) | `sha256sum -c SHA256SUMS` | all 322 files OK |
 
 `test_pilot_score.py` prints sample "Walking pilot score" blocks while it runs;
 they score synthetic panels, not the pilot.
@@ -490,3 +618,10 @@ and an unused variable. Most are in the verifiers' scripts
 The three `stance3/judge/` scripts added later on 2026-10-18 pass `ruff check`
 under the same configuration (ruff 0.16.9); `ruff format --check` would
 reformat all three. They are left as they ran.
+
+Of the two scripts added on 2026-10-19 in `stance3/results/`,
+`checkpoints_csv.py`, written for the record, passes `ruff check` and
+`ruff format --check` under the same configuration (ruff 0.16.8);
+`certificates/run_cert_clone.py` is left as it ran, with 8 findings (several
+modules on one import line, unsorted imports, imports below code), and
+`ruff format --check` would reformat it.

@@ -27,6 +27,22 @@ not yet judged. Their criteria, Colab steps, recommendation and frozen judge
 are in [stance_2026_10/stance3/](stance_2026_10/README.md). The statuses
 above are unchanged.*
 
+*Status 2026-10-19 (appended): §17, appended that day, records the judging of
+the three stance screen runs by their fixed criteria: all three fail, the
+decision table's line is 3b, and the best final checkpoint by the fixed rule
+is Run 2's; with the report-only readouts, an overnight scratch experiment
+(report only) and the maintainer's pending decisions, listed as proposals.
+Their evidence is in
+[stance_2026_10/stance3/results/](stance_2026_10/stance3/results/README.md).
+The statuses above are unchanged.*
+
+*Status 2026-10-19, later (appended): §18, appended that day, records the
+maintainer's decision D-D39: the stance4 screen, another T. rex stance
+screen, of three runs with a foot-stagger penalty, from scratch, judged
+against two of §16's runs by criteria fixed before training (in
+[stance_2026_10/stance4/](stance_2026_10/README.md)); not yet trained. The
+statuses above are unchanged.*
+
 It continues [STANCE_REWARD_PILOT_FINDINGS_2026_10.md](STANCE_REWARD_PILOT_FINDINGS_2026_10.md)
 (2026-10-10), [STANCE_HACK_AUDIT_2026_10.md](STANCE_HACK_AUDIT_2026_10.md)
 §12 (the physics-r9 statue) and the blog post
@@ -1543,3 +1559,506 @@ criteria are kept and nothing of it is trained.
 - **§14, session scratch only:** the diagnosis' tables and scripts
   (`scratchpad/foot/tonight/`), and the branches' build record, smoke runs
   and judge validation (`scratchpad/foot/stance3/`).
+
+## 17. Status 2026-10-19 (appended): the three stance screen runs judged
+
+*Appended 2026-10-19; §1–§16 above are unchanged, so their "not yet judged"
+is the wording of 2026-10-18.* The three runs of D-D37 (§16.2) trained to
+their final 12,001,280 steps and were judged by their fixed criteria with the
+frozen judge and scorer between 2026-10-18 20:45 and 2026-10-19 06:14 UTC.
+This section records the verdicts, the decision-table line and the best final
+checkpoint, which are results; the report-only readouts and the overnight
+scratch experiment that followed; and what is left for the maintainer, which
+is listed as proposals only. A screen certifies nothing: the verdicts are the
+criteria's, not a gate's, nothing here certifies a run, writes a result bundle
+or promotes anything, and `main` and its digests are unchanged. The evidence
+is the folder `stance3/results/` added to
+[stance_2026_10/](stance_2026_10/README.md) on 2026-10-19, which its own
+[README](stance_2026_10/stance3/results/README.md) indexes; paths in
+backticks below are relative to it, and every number below is read from
+`run_log.txt`, the score files in `scores/` or the files named.
+
+### 17.1 The judging
+
+- **The runs.** All three trained to 12,001,280 steps on their Colab L4
+  runtimes (`progress.json` "ended"; Run 2 last, at 04:58 UTC on
+  2026-10-19), each keeping a checkpoint every 524,288 steps on Drive, as the
+  criteria ask.
+- **Fetch and binding** (`run_log.txt`). Each judged checkpoint was fetched
+  read-only from Drive; each VecNormalize file was transcribed twice,
+  independently, and the two copies were identical, and each zip passed
+  `testzip`. The judge (`../judge/judge_stance3.py`, in each branch's clean
+  clone) bound the plant (r9), the seed, the task, the symmetry map and the
+  run's `stage_config.json` (commit, `n_envs`, hyperparameters, seed); every
+  binding matched, with no hard failure. The checkpoints were judged as they
+  arrived: 4,194,304 at 21:11–21:16 UTC, 5,242,880 at 22:30–22:35, 6,291,456
+  at 23:39–23:45 (a container restart killed the first launch, which wrote
+  nothing), 8,388,608 at 01:44–01:49, 10,485,760 at 04:00–04:05 and the
+  final at 06:00–06:14.
+- **The score.** `scores/score_final2.txt` and `.json`, written by the
+  frozen scorer (`../judge/score_stance3.py`; the criteria's sha256
+  `1ce910dc…` matches) at 08:17 UTC with the report-only extras judged; its
+  verdict lines equal those of `scores/score_final.txt` (06:14 UTC). The
+  committed scorer copy, run on 2026-10-19 on the judge files, reproduces it
+  apart from the paths it names, and its tests pass 80 of 80.
+  `checkpoints.csv` has one row per judge file.
+
+### 17.2 The verdicts: all three runs fail
+
+Per run, the judged checkpoints are 4,194,304, 5,242,880, 6,291,456,
+8,388,608, 10,485,760 and the final (4.2M to 12M below); `x_c` is the panel
+median of the both-feet whole-foot centre of pressure, in mm ahead of the MTP
+III joints, against the statue's 64.0 mm on the same seeds.
+
+- **Run 1, `stance3_armL_s60` (arm L, seed 60): fails K2 and K3.** K1
+  passes: `stance_quality/v2` PASS at 6,291,456 (39/40) and at the final
+  (38/40), and no judged checkpoint below 37/40. **K2 fails on K2c**: the
+  offsets from the statue are −22.0, −32.6, −20.1, −28.0, −6.7 and −40.6 mm,
+  all inside the [−60, +30] mm window, but `x_c` ranges from 23.4 to 57.3 mm,
+  **33.9 mm** against the 30 mm bar (K2a and K2b pass, at most 2 per
+  checkpoint). **K3 fails**: **7 and 11 of 20** joint-space noise falls at
+  6,291,456 and the final (bar 2); own-sigma 1 and 0. K4 passes (0 and 0).
+- **Run 2, `stance3_armLT_s60` (L+T, seed 60): fails K1 and K2, early.**
+  Clean 0, 0, 36, 39, 39 and 40 of 40 from 4.2M to the final: **K1 fails**,
+  with v2 FAIL at 6,291,456 and three judged checkpoints below 37/40 (two
+  below 33). **K2 fails** from 4.2M to 6.3M: K2a 10 and 6 at 4,194,304 and
+  5,242,880, K2b 14, 10 and 6 at 4,194,304, 5,242,880 and 6,291,456 (K2c
+  passes: range 11.3 mm). K3 passes (0/0 at both) and K4 passes. The 0 of 40
+  at 4.2M and 5.2M is actuator saturation (§17.4).
+- **Run 3, `stance3_armLT_s52` (L+T, seed 52): fails K2.** K1 passes (v2
+  PASS at 6,291,456, 40/40, and at the final, 39/40; one judged checkpoint
+  below 37/40, 34/40 at 8,388,608, where one is allowed). **K2 fails three
+  ways**: **K2a 6 at 8,388,608** (all six on the heel side), **K2b 4 at the
+  final**, and the **K2c range 30.6 mm** (`x_c` 42.8 at 8,388,608 to 73.4 at
+  the final, +9.3 mm from the statue). K3 passes (0/0 at both) and K4 passes.
+
+**The recipe verdicts: all three runs fail.** None holds, and none holds
+fore-aft. **The decision table's line is 3b**: "L+T fails K2 on a seed and
+Run 1 also fails K2: a joint-space price does not hold the stance; the next
+round tests a fore-aft term that needs code or the v6b ankle spring" (the
+criteria name the ankle anchor at weight 0.4 and tolerance 0.10 rad, or the
+COM band penalty with a neck guard). The line is the result; what the next
+round is, if there is one, is the maintainer's decision (§17.6). Neither
+configuration is proposed for committing by the table.
+
+**The best final checkpoint by the fixed rule** (most clean panel episodes,
+ties to fewer joint-space plus own-sigma noise falls) is **Run 2's final**
+(`stage1_final`, sha256 `cc21604a…`): 40/40 clean, 0 joint-space and 0
+own-sigma noise falls, K2a and K2b 0, `x_c` −10.2 mm from the statue. Run
+3's final is next (39/40, 0 falls), then Run 1's (38/40, 11). On the
+report-only extras it is clean everywhere: the fresh panel 7042–7081 40/40,
+the forward-start tail panel 0 falls of 32, and the stage's six-heading
+certificate, rolled offline, 40/40 at every heading. The criteria offer it as
+the stance parent of the parked walking pilot 2; that is not decided (§17.6).
+
+### 17.3 Report only: the extras
+
+None of these enters a criterion (`checkpoints.csv`; `run_log.txt`).
+
+- **3,145,728, judged like the J checkpoints:** Run 1 PASS 40/40 (`x_c`
+  −22.0 mm), Run 2 FAIL 6/40 (saturation in 31; K2a 7, K2b 14), Run 3 PASS
+  40/40 (−13.5).
+- **Selection (S0–S3; clean of 40, own-noise falls, K2a and K2b).**
+  `robust_best` and `best` are the same file in every run, saved at 2,752,512
+  steps in Run 1 and 917,504 in Runs 2 and 3: 40/40, 0, 0 and 0 in all three.
+  The final: Run 1 38/40, 0, 2 and 1; Run 2 40/40, 0, 0 and 0; Run 3 39/40, 0,
+  1 and 4. The late-stable S3: Run 1 at 10,485,760 39/40, 0, 0 and 0; Run 2 at
+  11,534,336 34/40, 0, 0 and 0; Run 3 at 4,194,304 38/40, 1, 2 and 2.
+- **The fresh panel 7042–7081 at the final:** Run 1 PASS 39/40 (a fall on
+  7047), Run 2 PASS 40/40, Run 3 PASS 39/40 (a fall on 7047).
+- **The forward-start tail panel (32 seeds) at the final:** 6, 0 and 4 falls
+  for Runs 1, 2 and 3; the statue 0 (the r9 arm L symmetry screen at 6M:
+  seed 60 3, seed 52 7, seed 42 26).
+- **The stage's six-heading certificate (`stance_quality_heading/v1`) on the
+  finals, rolled offline in each branch's clone on the run's own task:** Run
+  1 PASS 38/40 seeds clean at every heading (LCB 0.851), Run 2 PASS 40/40
+  (0.928), Run 3 PASS 39/40 (0.887) (`certificates/`). **None is gate
+  evidence**: the screen configurations are not committed, so the official
+  judge refuses their task fingerprints.
+- **The pre-registered readouts:** K5 flags no run; the late-fall fraction
+  is above 5% only in the first 262,144-step bin (52.6%, 49.2% and 49.1%)
+  and in Run 1's bin ending at 7,340,032 (5.1%).
+
+### 17.4 What the readouts found (report only)
+
+Three mechanisms, measured on rollouts that first reproduce the judge files
+exactly and on the runs' evaluation ledgers; "inferred" marks what is not
+measured.
+
+1. **Arm L's whole-body ankle drift (Run 1).** At 4,194,304 Run 1's centre
+   of mass had moved backward since about 2.3M steps, from −6 mm at 1M to
+   −35 mm at 3–4.2M (the eval ledger's foot-site frame; the statue reads
+   about −16 mm), and its signed whole-foot centre of pressure from
+   +0.1..+0.3 to −0.40..−0.55. The ankle carries it: the centre of mass
+   moves −10.6 mm per degree of ankle, −5.3 per degree of knee and −0.8 per
+   degree of hip; from 2.3M it moved −14 mm per million steps while the ankle
+   opened +1.43° per million, and the joint attribution predicts −32.2 mm
+   against −34.5 mm measured. Its two falls at 4,194,304 (seeds 3059 and
+   3063) are backward: the extrapolated centre of mass and then the centre
+   of mass pass behind the heel line before any leg joint leaves its
+   envelope by 5° (`readouts/r4194304_posture_notes.md`). Over the run it
+   made three swings of 50–65 mm, carried by the ankle (up to +27 mm in one
+   evaluation), the forward one between 6.16M and 6.55M; on the same
+   seed under L+T (Run 2) the range after 3.15M was 14.3 mm against 64.7, the
+   worst change over 1M steps −8.0 against +59.7 mm, and the ankle's range
+   0.7° against 8.2° (`run_log.txt`; `readouts/drift_notes.md`). That drift
+   is Run 1's K2c failure. It is the joint of the earlier forward lean (§7,
+   §16.1), now in both directions.
+2. **L+T's left-right foot split from the spawn stagger (Runs 2 and 3).**
+   The reset noise (`reset_noise_scale` 0.05 on hip pitch and knee) starts
+   the feet about 42–45 mm apart fore-aft (sd). The statue closes this to
+   0.5 mm by step 999, mostly by yawing the pelvis square to the foot line;
+   at 4,194,304 Run 3 kept 3.6 mm and Run 2 10.6 mm, with the rear foot
+   toe-loaded and the forward foot heel-loaded: every K2b-outside episode
+   has a stagger of at least 10.3 mm, and the correlation of the per-foot
+   centre-of-pressure split with the stagger is −0.97. It is not marginal:
+   with the pad bar at 0.90, K2a is still 6, and with K2b widened by 0.10
+   still 13 (`run_log.txt`; `readouts/r4194304_saturation_notes.md` §3;
+   `readouts/r4194304_k2_recount.txt`). Run 3's K2a failure at 8,388,608 is
+   the same split, larger: the forward foot is heel-loaded in 39 of 40
+   episodes, the policies keep 5–24 mm because their hip commands push into
+   the twist (a right-left hip servo slope of +0.62 to +1.38 against the
+   statue's −1.00), and at 8,388,608 only the policy turns toward the prey
+   during the window (correlation 0.88). Its K2a needs the split and a
+   common backward ankle opening together (+2.0°, the centre of pressure
+   −0.14 against 6,291,456). On the fixed 8,388,608 policy, mirrored leg
+   noise at reset cuts K2a from 6 to 3, the prey straight ahead to 4, and
+   both to 1 (counterfactual rollouts, not the judge's task). The
+   observation has no stagger or centre-of-pressure channel, but the
+   stagger is a linear function of the observed leg angles
+   (`readouts/split_notes.md`). Under arm L, Run 1 had the largest stagger
+   at 4,194,304 (sd 21.2 mm) but almost no split: its ankle difference
+   tracks the stagger and keeps the soles parallel
+   (`readouts/r4194304_saturation_notes.md` §3).
+3. **Run 2's tail-actuator saturation.** Run 2's 0 of 40 at 4,194,304 and
+   5,242,880 is the gate's `max_actuator_saturation_fraction` (40 and 39
+   episodes). One actuator, `tail_3_pitch_act`, is pinned at +1 in 40 of 40
+   episodes (the fraction at 0.99 is 0.79–1.00, mean 0.96; the raw mean
+   +1.05); no other actuator in any run exceeds 0.10. It is a position servo
+   (kp 60, joint and control range ±0.209 rad, force range ±50): its target
+   sits at the stop while the joint sits at −0.007 rad with 12.9 N·m, 0.26 of
+   the limit, so the command is pinned and the force is not; the statue's
+   tail_3 hangs at −0.093 rad with 5.6 N·m. The L+T leg term does not cover
+   the tail, and Run 2's legs sit within 0.005 rad of their settled targets.
+   It came and went. In the evaluation ledger it held 6–10 of 10 episodes
+   from 2.23M to 6.03M and was gone at 6.16M (2 of 40 panel episodes at
+   6,291,456); it returned in 10 and 8 of 10 at 7.21M and 7.34M, in 8–10 of
+   10 from 9.31M to 10.09M (28 of 40 panel episodes over the bar at
+   9,961,472) and in 9, 10 and 9 of 10 from 10.88M to 11.14M (5 at 11.27M;
+   6 of 40 panel episodes at 11,534,336, the S3 pick); 39 of the run's 91
+   evaluations have 8 or more of 10 saturated, and the final's panel is
+   clean (the run's `eval_episodes.csv`, counted for this record, session
+   scratch only; `checkpoints.csv`). The gate's threshold is 0.99 on clipped
+   actions (`SATURATION_ABS`); the env's 0.9 is the reward ramp
+   (`readouts/r4194304_saturation_notes.md`; `run_log.txt`). Inferred: a
+   tail habit of this seed, not line 4's "dose too strong" on the legs (K2
+   failed in any case).
+
+Also measured: at 4,194,304 every run's hip-pitch, knee and ankle
+`exp(log_std)` (0.037–0.044, 0.017–0.019 and 0.022–0.024) is below the 0.08
+floor that the criteria's line 2 would add.
+
+### 17.5 The overnight scratch experiment (scratch only, report only)
+
+Between 02:10 and 04:30 UTC on 2026-10-19 the split and drift diagnoses above
+designed three continuations, with their readouts and the lines that would
+support or refute each hypothesis fixed before launch
+(`night_scratch/spec_section7.md`). Each ran locally on CPU from a Colab
+8,388,608 checkpoint with one candidate reward term on, from a scratch clone
+(`80328abf`, branch `scratch/stance3-night`; never pushed, never merged; the
+terms off are bitwise identical to the screen): **A**, Run 3 plus a
+foot-stagger penalty (weight 0.3, tolerance 45 mm); **B**, Run 3 plus the
+ankle anchor (weight 0.4, tolerance 0.10 rad, line 3b's named candidate at its
+pre-registered dose); **C**, Run 1 plus the same stagger penalty. Two
+container restarts interrupted them, and the second left the pre-registered
+fallback endpoint, E = 9,961,472. The matched no-change controls are the
+Colab runs' own checkpoints at E, fully bound (their VecNormalize files,
+transcribed twice and compared as for the other fetched checkpoints, are not
+checksum-verified against Drive). The arms' judge files are relaxed-binding,
+so the scorer refuses them and none enters K1–K4. The readouts are
+`night_scratch/readouts_night.md` and `readouts_control.md`; the
+interpretation as written is `night_scratch/interpretation.md`, and
+`night_scratch/verify_result.json` is the adversarial verifier's check of it,
+whose corrections are applied here.
+
+- **The anchor (H_B) is refuted** by its own pre-registered line: the ankles
+  went from +2.00° to +0.13° past settled and the common centre of pressure
+  from −0.253 to −0.039, yet K2a went from 6 to 10 and K2b from 3 to 13 (the
+  split's sd from 0.685 to 1.029). At this dose, on this checkpoint, pricing
+  the common ankle opening did not bring K2a to 3 or below. Not claimed: that
+  K2a rose in a meaningful sense (6 against 10 of 40 is within panel noise,
+  Fisher p 0.40); that it made the stance worse than no change (that rests
+  on the panel alone, 10 against the control's 0; on the eval ledger its
+  pad-over count is no worse than the control's); or that the refutation
+  holds whatever n is, or refutes the two-part recombination model (H_B's
+  premise that the split stays did not hold).
+- **The stagger term (H_A, on Run 3) is inconclusive against the matched
+  control.** Its outcome rows sit on the supports side: the stagger's sd went
+  from 20.9 to 7.5 mm, the split's from 0.685 to 0.471, K2a, K2b and roll from
+  6, 3 and 3 to 0, 0 and 0, 40/40 clean, no noise falls and no safety flag.
+  But the mechanism it names is not shown: the right-left hip slope is +0.52
+  (95% seed-bootstrap interval 0.36 to 0.70) against the refute bar of +0.5;
+  and the no-change control also reached a clean panel at E (stagger sd 9.7
+  mm, K2a and K2b 0), so the E panel cannot separate them (the stagger's sd
+  differs by −2.2 mm, interval −4.8 to +0.7). Attribution to the term is not
+  established, neither shown nor excluded. The pre-registered eval ledger
+  favours A over the control (pad-over 6 of 120 against 29 of 120), confounded
+  by harness and evaluation seeds. The control's recovery did not last: Run
+  3's final relapsed to K2b 4.
+- **The stagger term on Run 1 (H_C) is refuted**: the stagger's sd went from
+  29.3 to 22.6 mm against the refute bar of 20 or more, beside the control's
+  24.2 (difference −1.6 mm, interval −5.2 to +2.4). C's two panel falls, on
+  seeds 3046 and 3063, are also in the control at E.
+- **The fixed reading rules** (spec §7.3): no reading applies cleanly; the
+  nearest are reading 1's "C refutes" branch and reading 4 in substance for
+  A, and both lead to the same proposals (§17.6).
+- **Also seen at E:** Run 2's control relapsed into saturation (12/40 clean,
+  28 episodes over the bar), as in §17.4.
+
+The spec's own follow-up, a local no-change continuation of Run 3 from
+8,388,608 to 9,961,472 (`night_R3_nochange`), was launched at 08:15 UTC on
+2026-10-19; its outcome is in §17.8.
+
+### 17.6 Pending: proposals for the maintainer
+
+Nothing below is decided; each item is the maintainer's.
+
+1. **The next screen's design.** Line 3b names candidates fixed before
+   training: a fore-aft term that needs code (the ankle anchor at weight 0.4
+   and tolerance 0.10 rad, or the COM band penalty with a neck guard) or the
+   v6b ankle spring. The overnight experiment bears on them at n = 1, on
+   continuations rather than runs from scratch: the anchor at that dose is
+   refuted on its own line, and the stagger term is unattributed. Its
+   interpretation and verifier propose: commit neither term; run the local
+   no-change continuation before any Colab arm; test the stagger term, if at
+   all, from scratch beside an unchanged L+T arm on the same seeds, with at
+   least 2 seeds per arm; drop the anchor at this dose; use L+T rather than
+   arm L as the base; and put an unchanged arm in any screen and judge more
+   than one checkpoint, since a single checkpoint swung between PASS and
+   FAIL within 0.5M steps. Inferred, not tested: the v6b spring acts on the
+   same common ankle opening as the anchor.
+2. **Walking pilot 2's parent.** The fixed rule picks Run 2's final (§17.2),
+   and the criteria offer it as the parent. Pilot 2 is parked, and its own
+   criteria (§15.7) name r9 arm L seed 60 at 6M (`70f3a444…`) as its
+   parent, so another parent would need new pilot 2 criteria. The overnight
+   drift diagnosis, before the finals were judged, named Run 3 at 6,291,456
+   as the best judged checkpoint so far, by another rule. Whether pilot 2
+   runs, and from which parent, is open.
+3. **Criteria and telemetry.** Proposed in the readouts and the
+   interpretation: a saturation alarm on the eval-ledger read (39 of Run 2's
+   91 evaluations had 8 or more of 10 episodes saturated, in four spells
+   from 2.23M to 11.14M (§17.4), which `eval_episodes.csv` already records
+   and nothing watched); the side-door checks (touchdown,
+   all-feet support, settle touchdowns, yaw change, roll, saturation, reward
+   ratio, the `x_c` window, the hop watch and the collapse stop) kept as
+   pre-registered flags; the stagger and the ankle opening as readouts (the
+   ankle opening led Run 3's slip by 12–13 evaluations, the centre of mass
+   by 5–6, while the clean and pad counts lagged); and mirrored spawn noise
+   and the prey straight ahead as diagnostic panels only, not in the
+   training task. Still open from §16: the signed per-foot whole-foot bar
+   (K2b) in the gate, a gate change (§16.1 item 5), and whether a screen run
+   could ever count toward `certification_seeds` (§16.2).
+
+### 17.7 What changes in §13–§16
+
+- **§13 and §16.3, the three runs:** judged; all three fail, and the
+  decision table's line is 3b. No T. rex stance is certified, and the
+  two-seed ask stands. Walking pilot 2 stays parked, its branch and criteria
+  kept.
+- **§14, this repository:** the folders `stance3/results/` and
+  `stance3/night/` (§17.8), with their sources and sha256 in `SOURCES.txt`
+  and `SHA256SUMS` (now 321 files).
+- **§14, branches:** unchanged; `claude/screen-trex-r9-arml-12m` at
+  `7e6b557d` and `claude/screen-trex-r9-armlt` at `1af2d4d7`, neither with a
+  pull request. The overnight experiment's branch `scratch/stance3-night`
+  (`80328abf`) exists only in the session's scratch.
+- **§14, Google Drive:** the three runs' folders `stance3_armL_s60/`,
+  `stance3_armLT_s60/` and `stance3_armLT_s52/` under
+  `MyDrive/mesozoic-labs/logs/tyrannosaurus_rex/anatomical/ppo/` hold their
+  checkpoints; each judged one's sha256 is in `checkpoints.csv`.
+- **§14, session scratch only:** the judge files
+  (`scratchpad/foot/stance3/judged/`), the runs' fetched evaluation and
+  training ledgers (`scratchpad/foot/stance3/runs/`), the readouts'
+  rollouts, tables and scripts, the certificates' per-episode files, and the
+  overnight runs, their judge files and the verifier's scripts
+  (`scratchpad/foot/stance3/night/`).
+
+### 17.8 Night continuations (report only)
+
+*Added 2026-10-19, later.* The spec's local no-change control of §17.5
+(`night_R3_nochange`: Run 3 from the Colab 8,388,608 checkpoint with no
+added term, in the same scratch clone and harness as A and B) reached
+9,961,472 at 09:59 UTC, after a container restart and a resume from
+9,437,184 (A and B resumed from 8,912,896; inferred to add noise, not bias).
+It was judged, relaxed-binding as A and B, and rolled at 9,437,184 and
+9,961,472; each rollout set reproduces its judge file on all 40 seeds. None
+of it enters K1–K4. The comparison is `../night/nochange_compare.md`;
+`../night/interpretation.md`, which it cites, is the same file as
+`night_scratch/interpretation.md`.
+
+At 9,961,472, on the 40-seed panel (measured):
+
+| Continuation | Clean of 40 | K2a | K2b | Window stagger sd (mm) |
+|---|---|---|---|---|
+| A, Run 3 plus the stagger term | 40 | 0 | 0 | 7.5 |
+| B, Run 3 plus the ankle anchor | 30 | 10 | 13 | 18.1 |
+| Local no-change | 25 | 15 | 6 | 25.9 |
+| Colab no-change (§17.5's control) | 40 | 0 | 0 | 9.7 |
+
+- **H_B (the ankle anchor) stays refuted** by its own pre-registered line
+  (§17.5). Against the local no-change run, B is worse only on K2b (13
+  against 6; exact McNemar p 0.016) and better on K2a (10 against 15) and
+  on the stagger.
+- **H_C (the stagger term on Run 1) stays refuted** (§17.5). The
+  comparison adds no Run 1 continuation.
+- **H_A (the stagger term on Run 3) stays inconclusive.** The local
+  no-change run did not recover, so "the unchanged recipe did what A did"
+  does not hold in this harness: A minus the local run is −18.5 mm of
+  stagger sd (95% paired seed-bootstrap interval −23.3 to −12.9) and −15
+  K2a episodes (−21 to −9). But the Colab no-change run, from the same
+  checkpoint to the same step, differs from the local one by as much:
+  −16.3 mm (−22.8 to −9.1) and −15 K2a (−21 to −9). A is level with the
+  Colab run: −2.2 mm (−4.9 to +0.5), and K2a and K2b 0 against 0.
+
+**Why attribution is unclear.** There is one run per arm (n = 1). The
+bootstrap intervals cover only which 40 spawns the panel draws, not the
+run-to-run variance of training, and the two no-change runs from one
+checkpoint show that variance to be as large as A's apparent effect.
+Inferred, not tested: A is the only one of the four continuations whose
+stagger stayed closed at both judged checkpoints and in every ledger
+evaluation after 8.91M (5.6–10.9 mm per evaluation, against 11.4–43.5 mm
+for the local no-change run and 10.2–51.9 mm for the Colab one), which
+favours the term at n = 1. More seeds of both arms, not a longer single
+run, would settle it.
+
+## 18. Status 2026-10-19, later (appended): decision D-D39, the stance4 screen
+
+*Appended 2026-10-19; §1–§17 above are unchanged.* After §17's verdicts the
+maintainer took decision D-D39 on 2026-10-19
+([BEHAVIOR_RECIPES_PLAN.md](../BEHAVIOR_RECIPES_PLAN.md) §6.2): another
+T. rex stance screen, stance4, that tests the foot-stagger penalty of §17.5
+and §17.8 from scratch. It takes item 1 of §17.6 and parts of items 2 and 3.
+Its criteria were fixed before any training step:
+[stance_2026_10/stance4/criteria.txt](stance_2026_10/stance4/criteria.txt),
+sha256 `978a93da8da469c1acde7b9f7261d9236e4799eb2111b3af0f0cbeaa153f0f38`.
+They replace a first file that named a Colab CPU runtime, as the decision
+did; they name an L4 GPU runtime, for the maintainer to confirm (§18.1). As
+a screen it certifies nothing.
+
+### 18.1 The runs and the control
+
+- **Arm LTS ("L+T + stagger"):** §16.2's L+T recipe (branch
+  `claude/screen-trex-r9-armlt` at `1af2d4d7`) plus the stance stagger
+  penalty. After the settle (step > 200), while the command is zero, each
+  step pays −0.30 × (1 − exp(−(s / 0.045)²)), where s is the right foot
+  site's lead over the left along the gravity-aligned pelvis heading
+  (`stance_stagger_weight` 0.30, `stance_stagger_tolerance_m` 0.045). s
+  enters squared, so the term is mirror-invariant. The statue's mean |s| in
+  the window is about 2 mm (measured; the criteria).
+- **The branch** `claude/screen-trex-r9-armlt-stagger`: `1af2d4d7` plus
+  `ff7114c0` (the term as an opt-in `[env]` option, off by default; off, it
+  leaves the L+T task digest `d4a3b8f8…` unchanged) and `c1e146a8` (the two
+  keys on in the stance config; the task `sha256:3fa46708…`; the collapse
+  reference 4459.3 against L+T's 4460.5). It is never merged and has no pull
+  request.
+- **The runs:** `stance4_LTS_s52`, `stance4_LTS_s60` and `stance4_LTS_s42`
+  (seeds 52, 60 and 42), from scratch on physics r9, 12,000,000 steps (final
+  12,001,280) with the SB3 notebook, `n_envs` 4 and the committed PPO
+  schedules; an evaluation of 10 episodes every 131,072 steps and a
+  checkpoint every 524,288 steps, all kept, as for §16's runs.
+- **The runtime: CPU in the decision, L4 in the criteria.** The maintainer's
+  decision named Colab CPU runtimes, as stance3's Colab steps had. Measured,
+  stance3's runs trained on Colab L4 GPU runtimes: the `gpu` block of each
+  run's `01_stance/stage_config.json`, in the copies fetched for the judging
+  at 4,194,304 steps, reads `L4` (§16.2). Each copy records only the session
+  that wrote it, and its run block has no load keys (measured), so that
+  session started the run. A resume would rewrite the file, and none is
+  recorded, so that each control run stayed on L4 throughout is inferred.
+  Before any of the three runs started, the session preparing them re-fixed
+  the criteria for L4, the control's runtime type, and told the maintainer.
+  The Colab steps ask the maintainer to choose L4 and to report each run's
+  runtime type at its start. The maintainer's confirmation is pending; a
+  later PR records it with the runs. That the networks ran on the GPU is
+  inferred, not measured: the trainer gives SB3 no device, and SB3's default
+  picks CUDA when it finds one. If no L4 is available, the maintainer may
+  pick another runtime. Each run's runtime is read from the `gpu` block of
+  its `stage_config.json` (no block means a CPU runtime) and reported beside
+  the verdicts; the runtime never changes a verdict.
+- **The first criteria file named a CPU runtime.** That file (sha256
+  `8bda933e682955e36e0f4bafcd184df9ed1df1238ae1a92479dfebead04caf9e`) said
+  "a Colab CPU runtime", as the decision did. The two files differ only in
+  the runtime (measured: line 7 changed and two lines added). The first file
+  stays in the session's scratch (`scratchpad/foot/stance4/superseded/`).
+  Measured, the r10 screen's `01_stance/stage_config.json` files (§6; seeds
+  42, 52 and 60) also record an L4, so §16.2's statement that CPU was the
+  only runtime the mirror-symmetric trainer had trained 12M on is wrong, as
+  is the same claim in `stance3/colab_steps.txt`; both are left unedited.
+- **The control is not retrained.** It is §16's Run 2 (`stance3_armLT_s60`)
+  and Run 3 (`stance3_armLT_s52`), as judged in §17.2: Run 2 fails K1 and
+  K2 and passes K3 and K4; Run 3 fails K2 and passes K1, K3 and K4. The term
+  is the only task difference between the arms. The control trained a day
+  earlier, not beside the stagger runs, and seed 42 has none; the criteria
+  name both as caveats. Not retraining it departs from the recommendation in
+  §17.6 item 1 of an unchanged L+T arm in the same screen on the same seeds.
+
+### 18.2 Criteria, credit rule and decision table
+
+- **K1–K4 exactly as §16.2's**, with the same judge settings, the same six
+  judged checkpoints (4,194,304, 5,242,880, 6,291,456, 8,388,608,
+  10,485,760 and the final), the same HOLDS (K1–K4 all hold) and FORE-AFT
+  HOLDS (K1 and K2), and K2c's 30 mm range bar unchanged.
+- **The credit rule.** The term is adopted, that is proposed to the
+  maintainer for committing, only if (a) at least 2 of the 3 stagger runs
+  hold, and (b) for each of K1–K4 the fraction of stagger runs passing it is
+  at least the control's. With the control's results (K1 1/2, K2 0/2, K3
+  2/2, K4 2/2) and (a), (b) means that no stagger run fails K3 or K4.
+- **The decision table** (H, the stagger runs that hold; K2p, those passing
+  K2):
+  1. H ≥ 2 and (b): adopt. Propose the option (off by default) and the two
+     keys as the T. rex stance recipe, with the best holding final as the
+     stance parent.
+  2. H ≥ 2 without (b): not adopted; replicate on 2 more seeds before any
+     commit.
+  3. H = 1: not adopted; not separated from seed luck; replicate on 2 more
+     seeds before any commit.
+  4. H = 0 and K2p ≥ 2: not adopted; the next round targets the other
+     failures (for K3, the leg exploration-noise floor that line 2 of
+     stance3's decision table names, §17.4).
+  5. H = 0 and K2p ≤ 1: not adopted; the next round tests a per-foot
+     centre-of-pressure band term (new contact-reward code) or the v6b ankle
+     spring.
+- **Walking pilot 2's parent, in every case:** the best stagger final by
+  §17.2's rule is compared with Run 2's final (40/40 clean, no noise falls;
+  in the maintainer's words, "the current walking pilot 2 parent"), and the
+  better is offered. Pilot 2 stays parked until the maintainer says
+  otherwise.
+- Fails stay fails, and no run is stopped or changed on its readouts.
+
+### 18.3 What else D-D39 settles
+
+- **Dropped from further screens:** the ankle anchor (§17.5, §17.8) and arm
+  L (§17.2, §17.4).
+- **Report only, never in a verdict:** every 1,048,576-step checkpoint
+  outside the six, judged like them, for the stagger runs and for the
+  controls where fetched; diagnostic panels at each judged checkpoint for
+  both arms (mirrored leg noise, the prey straight ahead, both); §16's
+  pre-registered readouts; a saturation alarm on the eval ledger (two
+  evaluations in a row with at least 5 of 10 episodes listing
+  `max_actuator_saturation_fraction`, §17.6 item 3); and stagger watches
+  (the episode yaw change, training-fall causes with tail and head contact,
+  and the stagger at step 200 against the window).
+- **Still open:** the signed per-foot bar in the gate (§16.1 item 5) and
+  whether a screen run could ever count toward `certification_seeds`
+  (§16.2).
+- The runs had not started when this was recorded. A later PR records their
+  outcome.
+
+### 18.4 What changes in §13–§17
+
+- **§13, §16.3 and §17.7:** the next round is decided (D-D39). Walking
+  pilot 2 stays parked, its branch and criteria kept.
+- **§14, this repository:** `stance4/criteria.txt`, byte-identical to the
+  file fixed before training, with its source in `SOURCES.txt` and its
+  sha256 in `SHA256SUMS` (now 322 files).
+- **§14, branches:** `claude/screen-trex-r9-armlt-stagger` at `c1e146a8`,
+  never merged, with no pull request.

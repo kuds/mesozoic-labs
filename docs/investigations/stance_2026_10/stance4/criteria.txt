@@ -1,0 +1,142 @@
+T. REX STANCE4 SCREEN, THREE STAGGER RUNS: FIXED CRITERIA
+
+Write this to SP/foot/stance4/criteria.txt before any training step. Record its path and sha256 in the config commit message, in the stance.toml header (beside the stance3 citation) and in colab_steps.txt. Do not edit it after the first training step.
+
+WHAT IS TRAINED
+All three runs share these settings:
+- physics r9; the stance stage; the SB3 notebook; n_envs 4; a Colab L4 GPU runtime, as the control ran (measured: its stage_config.json "gpu" block reads L4; see THE CONTROL ARM);
+- trained from scratch;
+- 12,000,000 steps (final 12,001,280);
+- an evaluation of 10 episodes every 131,072 steps;
+- a checkpoint every 524,288 steps, all kept;
+- the committed PPO schedules.
+If no L4 is available, the maintainer may pick another runtime; each run's runtime is read from the "gpu" block of its 01_stance/stage_config.json (no block: a CPU runtime) and reported beside the verdicts, and the runtime never changes a verdict.
+
+The recipe, arm LTS ("L+T + stagger"), branch claude/screen-trex-r9-armlt-stagger:
+- the stance3 L+T recipe: branch claude/screen-trex-r9-armlt at 1af2d4d767aebc89fa2cf73fc59a11004048f797;
+- plus a commit adding the stance stagger penalty as an opt-in [env] option, off by default (ff7114c0ca7f1bf977211c43012b4f5f86825ae9);
+- plus a config commit turning it on in configs/tyrannosaurus_rex/anatomical/stance.toml: stance_stagger_weight 0.30 and stance_stagger_tolerance_m 0.045. That commit's message cites this file's sha256.
+- It is a screen branch: never merged, no PR.
+
+The term:
+- s is the right foot site's lead over the left foot site along the gravity-aligned pelvis heading, in metres.
+- Each step pays -0.30 x (1 - exp(-(s / 0.045)^2)) after the settle (step > 200) while the command is zero, and 0 otherwise.
+- s enters squared, so the term is mirror-invariant. Centre 0: the statue's window mean |s| is 2.0 mm (measured, SP/foot/stance3/night/design/spec.md section 3.1; re-measured on the config tree: 2.04 mm).
+- Off, it leaves the L+T task_sha256 unchanged at sha256:d4a3b8f83586b38852f80295387b0cc19f97b17188b3e4991da9e3e81e42faef (measured on the term commit's tree).
+- On, the stance task_sha256 is sha256:3fa467083e34fa280ccb6d1bd04eebccdd3aac2b820fd89901b8d418ef32f2db (measured on the config tree).
+- On, collapse_peak_floor_reference is 4459.3 (L+T: 4460.5). Measured by the L+T config commit's method: production reference 3756.8 plus the LTS statue gain 702.46 = 4459.26, rounded. The collapse floor is 0.45 x 4459.3 = 2006.7 (L+T: 2007.2).
+- Statue returns (measured, zero action, seeds 3042-3081): production 3755.72, L+T 4459.40, LTS 4458.18. The term costs the statue 1.22 per episode. The statue stands 39/40 in all three (seed 3081 falls). Source: SP/foot/stance4/build/statue_LTS.json.
+- recovery.toml inherits the stance [env], so its task moves too (measured: sha256:6b0eb99a...). Only stance is trained.
+
+The runs:
+- Run 1 (stance4_LTS_s52, RUN_LABEL "stance screen LTS s52"): seed 52.
+- Run 2 (stance4_LTS_s60, RUN_LABEL "stance screen LTS s60"): seed 60.
+- Run 3 (stance4_LTS_s42, RUN_LABEL "stance screen LTS s42"): seed 42.
+
+HOW IT IS JUDGED
+The judge is judge_stance4.py: judge_stance3.py plus arm LTS (this branch's clone, its stance [env] with the two stagger keys, its HEAD and its collapse reference), seed 42, the six 1,048,576-step report-only slots and the schema stance4-judge/v1. All binding checks are on (plant, task, symmetry record, commit). Arms L and LT, the bars, the slots and the K statistics are unchanged.
+- Deterministic, heading 0. The 40-episode panel on seeds 3042-3081 runs under the branch's own stance [env] and r9 bars, scored by stance_quality/v2.
+- The zero-action statue runs on the same seeds under the same env.
+- Noise tests: spawns 3042-3061. Joint-space noise uses frozen_params.json control_sigma[seed] (sha256 58b2c8fb...); the own-sigma test uses the checkpoint's own exp(log_std). A fall is an episode shorter than 1000 steps.
+- frozen_params.json holds control_sigma for seeds 42, 52 and 60.
+- Judged checkpoints J: 4,194,304; 5,242,880; 6,291,456; 8,388,608; 10,485,760; and final (stage1_final, 12,001,280).
+- A missing or invalid judge file fails every criterion that needs it.
+- The scorer is score_stance4.py. It applies K1-K4 per run with score_stance3.py's own code, loaded unchanged (sha256 2c3879d3...). For the stagger arm only the judge-identity constants are extended: the schema stance4-judge/v1, arm LTS's [env] and its HEAD.
+- The reward rails in the repository verdict (min_avg_reward 2250 and min_avg_reward_statue_ratio 0.60) apply to each arm's own reward and own statue. The stagger arm's reward includes the term, so its mean reward and reward ratio are not compared across arms. The control's panel rewards were 0.947-0.998 of its statue across J (measured). Inferred: the term costs a policy at most about 240 per episode (0.30 per step after step 200), so no verdict effect is expected.
+- The tools are fixed before training. Before the first training step, the judge's and the scorer's placeholders are filled: the config commit's HEAD, the collapse reference, this file's sha256, the term-on task_sha256 and the judge's sha256. The sha256s of judge_stance4.py and score_stance4.py are recorded in colab_steps.txt. They are not edited after.
+
+CRITERIA, PER RUN
+
+K1 gate held:
+- v2 PASS at 6,291,456 and at final. PASS means clean >= 37/40 with exact Clopper-Pearson LCB >= 0.80, full horizon >= 38/40, hop-or-fall <= 1, and the repository verdict PASS.
+- Across J, at most one checkpoint below 37/40 clean and none below 33/40.
+
+K2 fore-aft held, at every checkpoint in J:
+- K2a, pad rail: at most 3 of 40 episodes with max_sole_cop_fore_aft > 0.80. A non-full-horizon episode counts as over.
+- K2b, signed per-foot whole-foot CoP: at most 3 of 40 episodes in which either foot's <label>_foot_cop_fore_aft lies outside [-0.929, +0.571] span half-lengths. The statistic is the mean over loaded steps in the window, steps 200-999. On r9 the range is [-5, +100] mm ahead of that foot's MTP III, with x = 60 + 70 w mm. A non-full-horizon episode counts as outside.
+- K2c, no drift: the panel median of the both-feet whole-foot CoP (which equals the COM projection to within 0.5 mm) lies within [-60, +30] mm of the statue's median on the same seeds, and its range over the six checkpoints is at most 30 mm.
+
+K3 robustness, at 6,291,456 and at final: joint-space noise falls <= 2 of 20, and own-sigma falls <= 1 of 20.
+
+K4 roll, at 6,291,456 and at final: at most 3 of 40 full-horizon episodes with max_sole_tilt_deg > 2.0 or max_sole_corner_lift_m > 0.004.
+
+Run verdicts:
+- HOLDS: K1-K4 all hold.
+- FORE-AFT HOLDS: K1 and K2 hold.
+
+THE CONTROL ARM (NOT RETRAINED)
+The control is stance3 Run 2 (stance3_armLT_s60) and stance3 Run 3 (stance3_armLT_s52), as already judged and scored under the stance3 criteria: SP/foot/stance3/criteria.txt, sha256 1ce910dcd6e2ff7b41a4f592b9f34b9a6c9cb398c523e88f0ebd19af754f18fa. Their verdicts are in SP/foot/stance3/scores/score_final.txt and score_final.json (sha256 559b7ef1...). They are not re-judged.
+- stance3 Run 2: fails K1 and K2; passes K3 and K4.
+- stance3 Run 3: fails K2; passes K1, K3 and K4.
+- Control runs passing each test: K1 1/2, K2 0/2, K3 2/2, K4 2/2. Neither run HOLDS.
+- The control's passes are those recorded in score_final.json. The scorer recomputes them from SP/foot/stance3/judged only as a cross-check.
+Why they are valid controls:
+- Same branch base, 1af2d4d767aebc89fa2cf73fc59a11004048f797. The stagger branch adds only the term and the config commit.
+- The term off leaves the L+T task_sha256 unchanged (above), so the term is the only task difference between the arms.
+- The arms also differ in collapse_peak_floor_reference, 4459.3 against 4460.5 (floor 2006.7 against 2007.2), because the term moves the statue's reward. It acts only if a run collapses.
+- The same K1-K4 and judge settings: the stance4 judge is the stance3 judge plus arm LTS, and the scorer runs the stance3 code.
+- The same physics, notebook, n_envs, budget, cadences and PPO schedules (stance hyperparameters_sha256 054ab483...).
+- The same runtime type. Measured: the control trained on Colab NVIDIA L4 GPU runtimes (gpu_model L4 in the "gpu" block of SP/foot/stance3/runs/stance3_armLT_s60/01_stance/stage_config.json and of stance3_armLT_s52's). The stance4 runs use the same runtime type.
+Caveats:
+- The control was not trained side by side with the stagger runs. It trained on Colab from 2026-10-18 into 2026-10-19 (measured, SP/foot/stance3/live/run_log.txt: all three stance3 runs had ended at the 05:30 UTC check on 2026-10-19, Run 2 at 04:58 UTC).
+- Measured: run-to-run training variance was as large as the term's apparent effect. Two no-change runs from the same checkpoint differed by as much as the stagger continuation and no change did (stagger sd -16.3 against -18.5 mm, K2a -15 against -15; SP/foot/stance3/night/cont/nochange_compare.md section 0).
+- Not retraining the control is the maintainer's decision of 2026-10-19. It departs from SP/foot/stance3/night/cont/interpretation.md section 7, which recommends an unchanged L+T arm in the same screen, on the same seeds.
+- Seed 42 has no control run. The credit rule compares pass fractions, not seeds.
+
+CREDIT RULE (FIXED NOW)
+The stagger term is ADOPTED (proposed to the maintainer for committing) only if both hold:
+(a) at least 2 of the 3 stagger runs HOLD (K1-K4 all hold);
+(b) the stagger arm does no worse than the control on every K test: for each of K1, K2, K3 and K4, the fraction of stagger runs passing it is at least the fraction of control runs passing it.
+With the control's actual results (K1 1/2, K2 0/2, K3 2/2, K4 2/2) and (a), (b) is equivalent to: no stagger run fails K3 or K4. (Under (a) at least 2/3 pass K1, which is at least 1/2; any K2 fraction is at least 0/2; K3 and K4 need 3/3.)
+Both forms are stated here. The scorer computes the general form from the control's recorded passes in score_final.json.
+
+DECISION TABLE (exclusive and exhaustive; H = number of stagger runs that HOLD; K2p = number of stagger runs passing K2)
+1. H >= 2 and (b) holds: ADOPT. Propose committing the stagger option (off by default) plus the two config keys to the maintainer as the T. rex stance recipe; the best holding stagger final is offered as the stance parent.
+2. H >= 2 but (b) fails (a stagger run fails K3 or K4): not adopted. The term holds fore-aft but may cost robustness; replicate on 2 more seeds before any commit.
+3. H == 1: not adopted; not separated from seed luck; replicate on 2 more seeds before any commit.
+4. H == 0 and K2p >= 2: not adopted; the term holds fore-aft from scratch but the runs fail elsewhere (K1, K3 or K4); the next round targets those failures (for K3, the leg exploration-noise floor of stance3 line 2).
+5. H == 0 and K2p <= 1: not adopted; the stagger penalty does not hold fore-aft from scratch; the next round tests the per-foot CoP band term (new contact-reward code) or the v6b ankle spring (stance3 line 3b).
+Note: in lines 2 and 4, "holds fore-aft" means passes K2. FORE-AFT HOLDS is reported, not used in the table.
+
+In every case: the best stagger final (stance3's rule: most clean panel episodes, ties to fewer joint-space plus own-sigma falls) is compared with stance3 Run 2's final (40/40 clean, 0/0 noise falls, the current walking pilot 2 parent) and the better one is offered as the walking pilot 2 parent. Walking pilot 2 stays parked until the maintainer says otherwise.
+Ties (the maintainer's call; this text does not settle them):
+- stance3 Run 2's final is already at the top of the rule (measured: 40/40 clean, 0 joint plus own-sigma falls). A stagger final can at best tie it.
+- If no candidate is better than the others under the rule (a stagger final ties stance3 Run 2's final, or stagger finals tie for best, or holding stagger finals tie in line 1), every tied final is named and the maintainer chooses.
+- Line 1's stance parent and the walking pilot 2 parent are both reported. If they name different checkpoints, both are named and the maintainer chooses.
+
+Dropped from further screens: the ankle anchor and arm L.
+
+Fails stay fails. Runs are never stopped or changed on their readouts. Early reads at 1M and 2M are report-only.
+
+WHEN THE DECISION IS READ
+- The decision is read once all three stagger runs have ended: finished at 12,001,280, or lost past recovery and declared ended by the maintainer.
+- Until then, while a stagger J judge file is missing, the decision is "incomplete" and the scorer gives no line.
+- Once the runs have ended and every J checkpoint that exists has been judged, a J judge file still missing or invalid fails every criterion that needs it. The table is read with those fails (score_stance4.py --runs-ended), and the scorer lists the files counted as fails.
+- The decision is PROVISIONAL, and is not acted on, while any of these stands (the scorer prints each one):
+  - a judge or scorer placeholder is not filled (HEAD, this file's sha256, the term-on task_sha256, the judge's sha256), or this file's sha256 is not the pinned one;
+  - the scorer runs with --validation, or with a HEAD other than the pinned one;
+  - a stagger J judge file has a task_sha256 other than the term-on one above, or a judge_sha256 other than the recorded judge's;
+  - before the runs have ended, a stagger J judge file is invalid;
+  - the control check fails: score_final.json missing or not its pinned sha256, its passes not the ones stated above, or the control's verdicts not reproduced from SP/foot/stance3/judged (task_sha256 included).
+- A decision that is neither incomplete nor provisional is final.
+
+PRE-REGISTERED READOUTS (report only, never in a verdict)
+- K5 trajectory, from eval_episodes.csv: after 3,145,728 steps, any 4 consecutive evaluations whose full-horizon mean com_fore_aft_mean_m lies outside [statue - 0.060, statue + 0.030] m. The statue reads about -0.016 m in that foot-site frame.
+- The late-fall fraction (200 < length < 1000) per 262,144-step bin, from train_episodes.csv. Flag anything above 5%. stance3 Run 2 peaked at 49.2% and Run 3 at 49.1%, both in the first bin (SP/foot/stance3/scores/score_final.txt).
+- A 20-episode quick panel (3042-3061) at every 524,288-step checkpoint.
+- Every 1,048,576-step checkpoint not in J, judged like J: 1,048,576; 2,097,152; 3,145,728; 7,340,032; 9,437,184; 11,534,336. For the stagger runs, and for the controls where those checkpoints are fetched. Already judged: 3,145,728 for both controls, 11,534,336 for stance3 Run 2.
+- Common noise: sigma = exp(log_std) of scratch arm L s60 robust_best (legs about 0.152), 40 seeds, falls only. No control reference was measured in stance3.
+- Forward-start tail panel: the 32 seeds of T/noise_robustness/work/tail_seeds.txt. References: statue 0, stance3 Run 2 final 0, stance3 Run 3 final 4.
+- The judge's JSON keeps stance3's scratch reference strings for the common-noise and tail panels; the references above replace them.
+- At final: the fresh panel 7042-7081 and the six-heading certificate. Fresh-panel references: stance3 Run 2 final 40/40 clean, stance3 Run 3 final 39/40.
+- Per-term reward decomposition, the stagger term included; ankle, knee and hip DC; neck and tail posture; per-actuator saturation; leg log_std. The stagger term is read from the env's info key reward_stance_stagger in a rollout of the checkpoint. The training logs do not carry it (it is not in DiagnosticsCallback.REWARD_KEYS).
+- Diagnostic panels at each J checkpoint, for both arms, with SP/foot/stance4/panels/panels4.py: mirrored legs, prey straight ahead, and both. For the stagger runs it also rolls the standard variant (--variants standard mirror_legs prey_ahead mirror_prey_ahead).
+- Saturation alarm, from eval_episodes.csv: an evaluation with at least 5 of its 10 episodes listing max_actuator_saturation_fraction in screen_v2_reasons. Two such evaluations in a row is an alarm.
+- Stagger watches:
+  - the episode yaw change, and the stagger at step 200 against the window: panels4.py's standard variant at each J checkpoint;
+  - training-fall causes, tail and head contact among them: the cause column of train_episodes.csv. stance3 references (measured): Run 2 tail_contact 144, head_contact 5; Run 3 168 and 15.
+- Selection comparison, each candidate on the 40-seed panel and own-noise falls:
+  - S0: robust_best.
+  - S1: best.
+  - S2: final.
+  - S3, late-stable: the latest periodic checkpoint at or after 3,145,728 steps whose preceding 8 evaluations were all 10/10 full horizon, with pad and whole-foot over-bar fractions of 0.

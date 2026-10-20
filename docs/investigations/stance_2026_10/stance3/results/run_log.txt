@@ -1,0 +1,221 @@
+2026-10-18 ~20:45-21:25 UTC, INTERIM JUDGING AT 4,194,304 (report: the verdict needs every J checkpoint)
+  Training status at 20:41-20:46 UTC: all three runs training. Run 1 4.46M, Run 3 4.19M, Run 2 4.06M (Run 2 reached 4.19M ~20:55).
+  Fetch: workflow [id removed]. The small files (plant_identity, stage_config, task_fingerprint, 4.2M vecnorm pkl) were
+    transcribed twice, independently, by agents A and B; all 12 files are byte-identical A=B, re-checked on disk. The zips
+    were decoded from the tool-results files with testzip OK. eval/train_episodes.csv were fetched report-only.
+  Placed: runs/<RUN>/01_stance. sha256: Run 1 zip 8b7bc53b..., pkl c62d4dcd...; Run 3 zip 901569fb..., pkl 60ca12ba...;
+    Run 2 zip 33f6070a..., pkl 326e88bc....
+  Judge: tools/judge_one.sh, 3 in parallel, 21:11:35 -> 21:16:28 UTC; all rc=0. Every binding matched: plant r9, seed, task,
+    symmetry map, stage_config env/bars/symmetry/commit/n_envs/hyperparameters.
+  Score: scores/score_4194304.{txt,json} (criteria sha256 1ce910dc... matches).
+    Run 1 armL s60: v2 FAIL. Clean 38/40 (LCB 0.851), full 38, hop-or-fall 2 (tail_contact on seeds 3059 at 339 and 3063 at
+      300). K2a 2 and K2b 2 (only the 2 falls; full-horizon pad max 0.61, signed CoP r -0.23 / l -0.30 median).
+      x_c 42.1 vs statue 64.0 = -22.0 mm. Roll 0. Noise: joint 3/20 (seeds 3050, 3059, 3061), own 2/20.
+    Run 2 armLT s60: v2 FAIL. Clean 0/40, full 40/40, hop-or-fall 40: max_actuator_saturation_fraction fails in all 40.
+      K2a 10/40 (pad > 0.80), K2b 14/40 (7 r and 7 l above +0.571, none below -0.929). Per-foot split: one foot toe-loaded,
+      the other heel-loaded. x_c 63.8 vs 64.0 = -0.3 mm. Roll 0. Noise 0/0. Reward ratio to statue 0.974.
+      -> K2 FAILS for Run 2 (K2a and K2b at a J checkpoint). Fails stay fails.
+    Run 3 armLT s52: v2 FAIL. Clean 38/40 (LCB 0.851), full 38, hop-or-fall 2 (fallen on 3050 at 218 and 3063 at 281).
+      K2a 2 and K2b 2 (the falls; full-horizon pad max 0.46). x_c 48.4 vs 64.0 = -15.7 mm. Roll 0. Noise: joint 1/20, own 1/20.
+    Decision line (PROVISIONAL): case 3 (L+T fails K2 on a seed); 3a or 3b turns on Run 1.
+  Report only (eval_episodes.csv, analysis/drift.py): Run 1's COM moved backward after ~2.3M, from -6 mm at 1M to -35 mm at
+    3-4.2M and -52 / -59 mm at 4.46M / 4.59M. Its signed whole-foot CoP went from +0.1..+0.3 to -0.40..-0.55, and root
+    pitch from -0.5 to -2.3 deg. The K5 window lower edge is -76 mm. Run 3's COM is steady at about -32 mm. Run 2's COM is
+    steady at about -16 mm, with saturation in 9-10 of 10 eval episodes since 2.23M.
+    Late falls (train_episodes.csv) peak only in the 262,144 bin (49-53%, the start of training); none flagged later.
+2026-10-18 21:20-21:58 UTC, REPORT-ONLY READOUTS AT 4,194,304 (workflow [id removed]; outputs diag/r4194304/{saturation,posture,verify_*})
+  Two independent rollouts reproduce the judge exactly: 160 episodes, lengths, terminations, CoP and COM. Clones still clean.
+  The gate's saturation threshold is SATURATION_ABS = 0.99 on clipped actions (gait/constants.py:98). The env's 0.9 is the
+    reward ramp (weight 0.5).
+  Run 2 saturation: one actuator, tail_3_pitch_act, pinned at +1 in 40/40 episodes (0.99-fraction 0.79-1.00, mean 0.96;
+    raw mu +1.05). No other actuator in any run exceeds 0.10. It is a position servo (kp 60, ctrl/joint range +-0.209 rad,
+    forcerange +-50). The target sits at the stop while q is -0.007 rad and the force is 12.9 N·m (0.26 of the limit), so the
+    command is pinned and the force is not. The statue's tail_3 hangs at -0.093 rad with 5.6 N·m. The cost is tail_home_pose
+    quality (tail_3 0.05 against 1.00) plus the 0.033 per-step ramp. The L+T leg term does not cover the tail; Run 2's legs
+    are within 0.005 rad of the settled targets. In evals it started at 2.23M.
+    -> Not "dose too strong" on the legs (case 4's reading). It is a tail habit of this seed.
+  Run 2 K2 failure: spawn stagger. The feet start about 42 mm apart fore-aft (sd); the statue closes this to 0.5 mm by
+    step 999 and Run 3 to 3.6 mm, but Run 2 keeps 10.6 mm (sd), with the rear foot toe-loaded and the front foot
+    heel-loaded. Every K2b-outside episode has |stagger| >= 10.3 mm. corr(CoP split, stagger) = -0.97. Run 2 also
+    compensates less at the ankle than the statue: 0.048 deg/mm against 0.066.
+    Adversarial recount: K2a 10/40 and K2b 14/40 confirmed; the judge file is valid. Not marginal: at a 0.90 pad bar K2a is
+    still 6, and widening K2b by 0.10 still gives 13.
+  Run 1 backward drift: carried by the ankle. Opposite sign to the old forward lean, the same joint; the COM moves
+    -10.6 mm/deg at the ankle, -5.3 at the knee and -0.8 at the hip. From 2.3M: COM -14 mm/M, ankle +1.43 deg/M. The
+    attribution predicts -32.2 against -34.5 mm measured. Heel margin (xcom) 80 -> 43 mm (29 at 4.59M). At 4.2M vs the
+    statue: hip -6.0 vs -2.7, knee +0.6 vs -0.4, ankle +3.5 vs +1.7 deg; COM 23 mm behind.
+    Falls 3059 and 3063 are backward. The XcoM, then the COM, pass behind the heel line (XcoM at steps 222 / 197) before
+    any leg joint leaves its envelope by 5 deg; yaw leaves its envelope earlier, at 91 / 83 (twisting stance; inferred).
+  Run 3 falls 3050 and 3063: sideways left. The right foot never sets down flat after the spawn (toe-loaded, sole -13 deg),
+    and the right ankle opens first. Run 3's neck is held 22.6 deg above the statue's (worth about -6 mm of COM).
+  Leg exp(log_std), Run 1 / 2 / 3: hip pitch 0.044 / 0.038 / 0.037; knee 0.019 / 0.017 / 0.017; ankle 0.023 / 0.022 / 0.024.
+    All are below the 0.08 floor of recipe 2.
+  Corrections from the verifiers:
+    - tail_2 rests on its stop only in Runs 1 and 3; tail_1 rests on its stop in all four sets.
+    - The statue's returns differ between the L and L+T reward weights.
+    - The 803 mm figure is the whole-model COM.
+2026-10-18 22:10-22:40 UTC, INTERIM JUDGING AT 5,242,880
+  Training at 22:05-22:06 UTC: Run 1 5.90M, Run 3 5.64M, Run 2 5.37M; all status "training".
+  Fetch: workflow [id removed] (generic script, args {steps}); the pkl was transcribed by A and B and is identical on disk
+    for all three runs (Run 3's A needed 2 attempts after a size mismatch). Zips pass testzip. The csvs were refreshed.
+    place.py was patched to keep the already-placed config files.
+  sha256: Run 1 zip a86a5efb..., pkl 97892b60...; Run 3 zip 4b00da46..., pkl 47df7afc...; Run 2 zip 51e0608c..., pkl bbfc9b20....
+  Judge: 22:30 -> 22:34:52 UTC, all rc=0, hard_failures [] for each. Score: scores/score_5242880.{txt,json}.
+    Run 1: v2 FAIL. 38/40 clean, falls 3059 (451, tail_contact) and 3063 (357, fallen). K2a 2 and K2b 2 (the falls;
+      full-horizon pad max 0.76). x_c 31.4 = -32.6 mm (4.2M: -22.0). Roll 0. Noise: joint 2/20, own 1/20.
+    Run 2: v2 FAIL. 0/40 clean, 40 full, saturation in 39. K2a 6, K2b 10. x_c -4.5 mm. Noise 1/0.
+      -> K1 now also FAILS for good: two J checkpoints below 37/40, and below 33/40.
+    Run 3: v2 PASS. 40/40 clean, LCB 0.928, 0 falls. K2a 0, K2b 0 (pad max 0.60). x_c 54.8 = -9.3 mm (4.2M: -15.7).
+      Roll 0. Noise: joint 1/20, own 0/20.
+    Decision line (PROVISIONAL): case 3; 3a or 3b turns on Run 1.
+  Eval ledger (report only): Run 1's COM levelled off at -48 to -58 mm from 4.46M to 6.03M. Run 3 is moving forward
+    (-32 -> -25 mm). Run 2 is steady at about -21 mm, with saturation in 9-10 of 10.
+2026-10-18 23:15-23:50 UTC, JUDGING AT 6,291,456 (the first K1/K3/K4 checkpoint)
+  Training at 23:08-23:15 UTC: Run 1 7.08M, Run 3 6.68M, Run 2 6.42M; all "training".
+  Projected finishes: Run 1 04:11, Run 3 04:30, Run 2 05:09 UTC.
+  Fetch: workflow [id removed]. The pkl was identical A=B for all three runs; zips pass testzip.
+  sha256: Run 1 zip efeb2e1a..., pkl e98cff4c...; Run 3 zip c730a38d..., pkl 6cde7b9a...; Run 2 zip 01eb224f..., pkl b420171f....
+  A container restart killed the first judge launch (23:38:29); no output was written. Rerun 23:39 -> 23:44:48, all rc=0,
+    hard_failures [] for each.
+  Score: scores/score_6291456.{txt,json}.
+    Run 1: v2 PASS. 39/40 clean (LCB 0.887); 1 fall, 3063 (309, fallen). K2a 1, K2b 1 (full-horizon pad max 0.45).
+      x_c 43.9 = -20.1 mm; K2c range so far 12.5 mm. Roll 0.
+      Noise: joint 7/20 (3050, 3051, 3054, 3055, 3058, 3059, 3061), own 1/20.
+      -> K3 FAILS for good (joint-space noise > 2/20 at 6.29M). Run 1 cannot HOLD, so line 3a is closed.
+         FORE-AFT HOLDS (K1 + K2) is still open.
+    Run 2: v2 FAIL. 36/40 clean (LCB 0.786), 40 full; saturation in only 2/40 (down from 39-40). K2a 2, K2b 6. x_c -8.5 mm.
+      Noise 0/0. Already failed K1 and K2.
+    Run 3: v2 PASS. 40/40 clean (LCB 0.928), 0 falls. K2a 0, K2b 0 (pad max 0.74). x_c 52.4 = -11.6 mm; K2c range
+      so far 6.4 mm. Roll 0. Noise 0/20 and 0/20.
+      -> holding every criterion so far.
+    Decision line (PROVISIONAL): case 3. 3a is closed (Run 1 fails K3). It is 3b if Run 1 fails K2. If Run 1 holds K2
+      while failing K3, the table names no line (a gap, to be put to the maintainer). If Run 3 HOLDS, line 5 ("exactly one
+      L+T seed HOLDS: replicate before any commit") applies too.
+  Eval ledger (report only, drift_6291456.txt):
+    Run 1 swung FORWARD about 60 mm between 6.16M and 6.55M. COM (foot-site frame) went -51 -> -34 (6.29M) -> -8.5 -> +7.4
+      -> +8.5 mm, then about -4 mm at 7.08-7.21M. Signed CoP is +0.2..+0.46, and pad over-bar in 1-2/10 per eval since 6.55M.
+      This is the old forward lean returning; the fore-aft position oscillates with no anchor. The 6.29M checkpoint
+      caught it mid-swing. K2c range (<= 30 mm) and K2a are at risk at 8.39M.
+    Run 3: COM drifting slowly back (-24 -> -34 mm). The 7.08M eval had 1 fall and 7/10 clean (a wobble).
+    Run 2: saturation listings gone since about 6.2M; COM about -25 mm.
+  Push sent 23:5x UTC (6.29M headline).
+2026-10-19 01:25-01:50 UTC, JUDGING AT 8,388,608
+  Training at 01:18-01:22 UTC: Run 1 9.18M, Run 3 8.91M, Run 2 8.52M; all "training".
+  Projected finishes: Run 1 04:11, Run 3 04:29, Run 2 04:59 UTC.
+  Fetch: workflow [id removed]. The pkl was identical A=B for all three runs (Run 3's A needed 2 attempts after dropping a
+    16-char unit); zips pass testzip.
+  sha256: Run 1 zip 22d776e9..., pkl 1a0cb6cd...; Run 3 zip c67576b6..., pkl 49ce291a...; Run 2 zip 6d192907..., pkl c00771bf....
+  Judge: 01:44 -> 01:48:36 UTC, all rc=0, hard_failures [] for each. Score: scores/score_8388608.{txt,json}.
+    Run 1: v2 PASS. 38/40 clean (LCB 0.851), 40 full, 0 falls. K2a 0, K2b 0. x_c 36.0 = -28.0 mm; K2c range so far 12.5 mm
+      (31.4..43.9). Roll 2. Noise: joint 7/20, own 0/20 (K3 already failed at 6.29M).
+      K1 and K2 are still alive -> FORE-AFT HOLDS is still possible.
+    Run 2: v2 PASS. 39/40 clean, K2a 1, K2b 0, x_c -11.6 mm, noise 2/0. Already failed K1 and K2.
+    Run 3: v2 FAIL. 34/40 clean (LCB 0.725), 40 full, 0 falls. K2a 6, K2b 3, roll 3. x_c 42.8 = -21.2 mm. Noise 0/0.
+      -> K2 FAILS for good (K2a 6 > 3 at a J checkpoint). It is the first K1 checkpoint below 37/40 (one is allowed).
+      All 6 K2a episodes are HEEL-side: one foot at -0.86..-1.00 (heel), the other mid or forward. A split stance like
+      Run 2's, not the old toe-lean. The eval ledger has shown it since about 8.1M: 6-8/10 clean, pad over the bar 2-4/10.
+    -> Both L+T seeds have now failed K2 (Run 2 at 4.2M, Run 3 at 8.39M). Run 1 cannot HOLD (K3).
+       Decision line: 3b if Run 1 fails K2. If Run 1 FORE-AFT HOLDS but fails K3, the table has no line for it, and the
+       maintainer decides. Line 5 cannot apply now (no L+T seed can HOLD).
+  Eval ledger: Run 1 is back behind, at -35..-49 mm (after its 6.5-7.2M forward swing). Run 2 is steady at about -28 mm.
+    Run 3 is at -35..-41 mm, with heel-side over-bar episodes.
+2026-10-19 03:40-04:05 UTC, JUDGING AT 10,485,760
+  Training at 03:35-03:38 UTC: Run 1 11.27M, Run 3 11.14M, Run 2 10.75M; all "training".
+  Projected finishes: Run 1 04:19, Run 3 04:30, Run 2 04:58 UTC.
+  Fetch: workflow [id removed]. The pkl was identical A=B for all three runs; zips pass testzip.
+  sha256: Run 1 zip c8cbd64c..., pkl c303e093...; Run 3 zip 5aca7a3e..., pkl 395008df...; Run 2 zip b8b1678e..., pkl 57a2f75c....
+  Judge: 04:00 -> 04:04:56 UTC, all rc=0, hard_failures [] for each. Score: scores/score_10485760.{txt,json}.
+    Run 1: v2 PASS. 39/40 clean, 0 falls. K2a 0, K2b 0. x_c 57.3 = -6.7 mm. Roll 1. Noise: joint 7/20 again.
+      K2c range so far 25.9 mm (31.4..57.3), so the final x_c must lie in [27.3, 61.4] mm to keep it <= 30.
+    Run 2: v2 PASS. 39/40 clean, K2 0/0, x_c -6.9 mm. Noise 1/0.
+    Run 3: v2 PASS. 40/40 clean, K2 0/0, x_c -6.0 mm. Noise 0/0. It recovered from its 8.39M slip; the K2 fail at
+      8.39M stands (fails stay fails).
+    All three sit within 7 mm of the statue's x_c at 10.49M.
+2026-10-19 02:10-04:30 UTC, NIGHT DIAGNOSIS, DESIGN AND BUILD (workflow [id removed]; outputs foot/stance3/night/)
+  Diagnosis (split): the L+T K2 failures are LEFT-RIGHT foot splits.
+    - The feet are staggered fore-aft (carried by hip pitch); the forward foot is heel-loaded in 39/40 episodes at 8.39M.
+    - Spawn stagger comes from reset_noise_scale 0.05 on hip pitch and knee: sd 45 mm at reset.
+    - The statue closes it to 0.5 mm, mostly by yawing the pelvis square to the foot line. The policies keep 5-24 mm because
+      their hip commands push into the twist (r-l hip servo slope +0.62..+1.38, against the statue's -1.00).
+    - At 8.39M (only) the policy also turns toward the prey during the window (corr 0.88), growing the stagger.
+    - The 8.39M K2a needs both the split and a common backward ankle opening (+2.0 deg, CoP -0.14 vs 6.29M).
+    - Counterfactual on the fixed 8.39M policy: mirrored leg noise cuts K2a 6 -> 3, prey ahead 6 -> 4, both 6 -> 1.
+    - The policy has no explicit stagger/CoP observation but can recover it from joint angles.
+    - Terms against the split (AUC): ankle anchor 0.50 (blind), COM band blind, leg_home_pose 0.84, stagger penalty and a
+      tight per-foot CoP band 1.00.
+  Diagnosis (drift): L+T bounds whole-body drift far better than arm L.
+    - Same seed 60: COM range after 3.15M 64.7 -> 14.3 mm, worst 1M change +59.7 -> -8.0 mm, ankle range 8.2 -> 0.7 deg.
+    - Run 1 made three abrupt 50-65 mm swings carried by the ankle (up to +27 mm in one eval).
+    - Along the drift path L+T's leg_home_pose already gives the anchor's restoring slope at 3-5 deg.
+    - The pre-run COM band [0, 84] mm has zero slope for backward drift < 64 mm.
+    - Early warning: ankle opening gave 12-13 evals' lead on Run 3's slip; COM 5-6; clean/pad counts lag.
+    - Best J parent so far: Run 3 @ 6,291,456 (40/40, 0+0 noise falls); Run 3 @ 5,242,880 is the conservative alternative.
+  Design (spec night/design/spec.md): three scratch continuations from the Colab 8,388,608 checkpoints, up to 10,485,760:
+    A night_R3_stagger: Run 3 + stance_stagger (w 0.3, tol 45 mm)
+    B night_R3_anchor:  Run 3 + ankle_anchor (w 0.4, tol 0.10 rad)
+    C night_R1_stagger: Run 1 + stance_stagger
+    Control: the Colab runs' own 10,485,760 checkpoints. Note: Colab Run 3 recovered on its own by 10.49M (K2 0/0), so the
+    comparison rests on stagger sd, hip servo slope, ankle level and common CoP, not K2 counts alone.
+  Build: scratch clone fix/exp_night @ 80328abf, branch scratch/stance3-night, never pushed. Off means bitwise identical.
+    Tests 22/22 new pass; the 5 existing failures are the screen head's own. Review fixed launch/watcher issues.
+  Deviation logged: a review agent's ruff run created /home/user/mesozoic-labs/.ruff_cache (04:14-04:21), which it removed;
+    git status is clean.
+  Launched 04:30 UTC (3 processes, about 410 sps each). Endpoint rule: E = 10,485,760 if all reach it by 06:10, else 9,961,472.
+2026-10-19 05:30-06:15 UTC, FINAL JUDGING (the verdict)
+  A container restart at about 05:08 (down until 05:30) killed the night continuation runs at 9.22-9.23M. They were
+    relaunched at 05:31 from 8,912,896 with --no-watch, stopping at 10,485,760 (relaunch.log).
+  All three Colab runs ended at 12,001,280 (progress.json "ended"; Run 2 at 04:58 UTC).
+  Fetch: finals workflow [id removed] (pkl identical A=B for all three) and extras workflow [id removed] (robust_best, best, 3,145,728;
+    all pkls identical A=B). best == robust_best byte for byte in every run; Run 1's was saved at about 2.75M.
+  sha256 finals: Run 1 zip 8a66c7b3..., pkl 385c0418...; Run 3 zip e9d4b8b1..., pkl 267b17b0...; Run 2 zip cc21604a..., pkl 894e86f4....
+  Judge: finals 06:00 -> 06:14:21 UTC, all rc=0. Score: scores/score_final.{txt,json} (criteria sha256 1ce910dc... matches).
+    Run 1 armL s60: final v2 PASS 38/40 (1 fall), K2a 2, K2b 1, x_c 23.4 = -40.6 mm, noise joint 11/20, own 0.
+      K1 PASS, K2 FAIL (K2c range 33.9 mm > 30), K3 FAIL (joint 7 and 11 / 20), K4 PASS. -> does not hold; FORE-AFT does not hold.
+    Run 2 armLT s60: final v2 PASS 40/40, K2 0/0, x_c -10.2 mm, noise 0/0.
+      K1 FAIL, K2 FAIL (4.2-6.3M), K3 PASS, K4 PASS. -> does not hold.
+    Run 3 armLT s52: final v2 PASS 39/40, K2a 1, K2b 4, x_c 73.4 = +9.3 mm, noise 0/0.
+      K1 PASS, K2 FAIL (K2a at 8.4M, K2b at final, K2c range 30.6 mm > 30), K3 PASS, K4 PASS. -> does not hold; FORE-AFT does not hold.
+    RECIPE VERDICTS: all three fail. DECISION TABLE: line 3b. L+T fails K2 on a seed and Run 1 also fails K2: a joint-space
+      price does not hold the stance; the next round tests a fore-aft term that needs code, or the v6b ankle spring.
+    Best final checkpoint (walking pilot 2 parent, pre-registered rule): Run 2 stance3_armLT_s60 final, 40/40 clean,
+      0 joint + own noise falls. Runner-up: Run 3 final, 39/40, 0.
+  Extras queue (3.1M, robust_best, best, fresh, tail, six-heading certificates) started 06:14 UTC, 2 lanes.
+2026-10-19 06:15-07:05 UTC
+  Report doc "T. rex stance screen report" (claude.ai artifact [id removed]): outline plus "What we learned" and
+    "Results by checkpoint" (grid and drift charts) filled. Doc ids are in foot/stance3/report_doc_ids.txt.
+  Fetched 11,534,336 for all three runs (workflow [id removed]; pkl A=B): the S3 rule picks it for Run 2. Placed.
+  A container restart at about 06:41 (down until 07:02) killed:
+    - the night runs at 10.38-10.40M. Per spec 4.3, E = 9,961,472 (all three have it); not relaunched.
+    - the extras queue (Run 3 / Run 2 robust_best in flight; no outputs). Requeued 07:02 together with the Run 2 11,534,336 judge.
+  Night analysis workflow [id removed] launched 07:05: R1-R6 at E, the matched Colab controls at E (fetched inside the
+    workflow), interpretation by spec 7.2/7.3, then adversarial verification.
+2026-10-19 07:05-08:20 UTC, REPORT-ONLY EXTRAS AND THE NIGHT ANALYSIS
+  Extras (judged/<RUN>/; scores/score_final2.*; the verdict lines are identical to score_final):
+    3,145,728 (judged like J): Run 1 PASS 40/40, x_c -22.0; Run 2 FAIL 6/40 (saturation 31, K2a 7, K2b 14); Run 3 PASS 40/40, -13.5.
+    Selection S0-S3 (40-seed panel / own-noise falls / K2a K2b):
+      Run 1: S0 = S1 (same file, about 2.75M) 40/40, 0, 0 0 | S2 final 38/40, 0, 2 1 | S3 10,485,760 39/40, 0, 0 0
+      Run 2: S0 = S1 40/40, 0, 0 0 | S2 final 40/40, 0, 0 0 | S3 11,534,336 34/40, 0, 0 0
+      Run 3: S0 = S1 40/40, 0, 0 0 | S2 final 39/40, 0, 1 4 | S3 4,194,304 38/40, 1, 2 2
+    Fresh panel (7042-7081) at final: Run 1 PASS 39/40 (fall 7047), Run 2 PASS 40/40, Run 3 PASS 39/40 (fall 7047).
+    Tail panel (32 forward-start seeds) at final: Run 1 6 falls, Run 2 0, Run 3 4; statue 0.
+      References: arm L s60 at 6M 3, s52 7, s42 26.
+    Six-heading certificate of the finals (stance_quality_heading/v1, report-only, clone stage configs):
+      Run 1 PASS 38/40 (LCB 0.851); Run 2 PASS 40/40 (LCB 0.928, all six headings 40/40); Run 3 PASS 39/40 (LCB 0.887).
+    -> Walking pilot 2 parent: Run 2 final is clean on every panel: 40/40, cert 40/40, fresh 40/40, tail 0/32, noise 0/0.
+  Night analysis (workflow [id removed]; night/cont/{readouts_night,readouts_control,interpretation}.md; night/verify/):
+    E = 9,961,472 (spec fallback). Matched Colab controls at E judged fully bound:
+      Run 3 PASS 40/40, K2 0/0, x_c -17.0, noise 2/0. Run 1 FAIL 35/40 (2 falls). Run 2 FAIL 12/40: a saturation relapse
+      (28/40 over the bar; evals saturated 8-10/10 from 9.31 to 10.09M).
+    A night_R3_stagger: stagger sd 20.9 -> 7.5 mm, split 0.685 -> 0.471, K2a/K2b/roll 6/3/3 -> 0/0/0, clean 40/40,
+      noise 0/0, no safety flag. But the hip-slope mechanism row is +0.52 (at the refute bar), and the matched control
+      reached a clean panel too (9.7 mm, 0/0). -> H_A INCONCLUSIVE.
+    B night_R3_anchor: ankle +2.00 -> +0.13 deg, common CoP -0.253 -> -0.039, yet K2a 6 -> 10, K2b 3 -> 13, split sd
+      0.685 -> 1.029. -> H_B REFUTED by its own pre-registered line.
+    C night_R1_stagger: stagger 29.3 -> 22.6 mm (control 24.2, difference -1.6 [-5.2, +2.4]); 2 falls shared with the
+      control. -> H_C REFUTED.
+    No 7.3 reading applies cleanly; the nearest are reading 1 (its "C refutes" branch) and reading 4 in substance for A.
+      Both lead to: commit neither term; run the local no-change continuation first.
+    Verifier (may not claim): that the control "did everything A did" (the R3 ledger favours A: pad-over 6/120 against
+      29/120, confounded by harness); that the unchanged recipe "fixed" Run 3 (its final relapsed to K2b 4); that the
+      anchor made it "worse than no change" (panel only).
+  08:15 UTC: launched night_R3_nochange, the spec section 6 local no-change control: Run 3 8.39M, no override, stop 9,961,472.

@@ -32,6 +32,11 @@ warm start; it is the same exception to GQ-3 (a) and GQ-17, both still open (§1
 *Updated 2026-10-18, later: the maintainer took D-D37: three full T. rex stance screen runs instead of the second
 pilot, which is parked and not trained; they are stance runs, not walker sessions, and answer none of GQ-1..GQ-18
 (§17, its second note of 2026-10-18).*
+*Updated 2026-10-19: the three stance screen runs fail their fixed criteria (their decision table's line 3b); the second
+pilot stays parked, and whether it runs, and from which parent, is not decided (§17, its note of 2026-10-19).*
+*Updated 2026-10-19, later: the maintainer took D-D39: three more T. rex stance screen runs, with a foot-stagger
+penalty; the second pilot stays parked, and the parent they offer it is the better of their best final and
+`stance3_armLT_s60`'s final (§17, its second note of 2026-10-19).*
 
 ## How to use this document
 
@@ -932,4 +937,25 @@ criteria are kept, and the screens' decision table offers the best final stance 
 The screen runs are stance runs, not walker sessions: they are no exception to GQ-3 (a) or GQ-17, answer none of
 GQ-1..GQ-18 and certify nothing, and the trex `gait-r1` walk (§5.4, §14) still waits for a certified stance. Their
 evidence is in §16 of
+[investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).
+
+*Appended 2026-10-19 (D-D37's outcome); the text above is unchanged.* **The three stance screen runs fail.** Judged on
+2026-10-18 and 2026-10-19 by their fixed criteria, final, none of the three holds, and their decision table's line is 3b
+(a joint-space price does not hold the stance). The best final stance checkpoint of the three by the screens' rule is
+`stance3_armLT_s60`'s final (40 of 40 clean, no noise falls), which the screens' criteria offer as the second pilot's
+parent. The second pilot stays parked and untrained, and its own criteria still name r9 arm L seed 60 at 6M as its
+parent; whether it runs, and from which parent, is the maintainer's decision and not taken. The screens certify
+nothing, are no exception to GQ-3 (a) or GQ-17 and answer none of GQ-1..GQ-18, and the trex `gait-r1` walk (§5.4,
+§14) still waits for a certified stance. Their evidence is in §17 of
+[investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).
+
+*Appended 2026-10-19, later (D-D39); the text above is unchanged.* **Another T. rex stance screen; the second pilot
+stays parked.** On 2026-10-19 the maintainer chose three more full T. rex stance screen runs: the heavier leg term of
+D-D37 plus a foot-stagger penalty, from scratch on seeds 52, 60 and 42, judged against two of the D-D37 runs by
+criteria fixed before training. Whatever their outcome, the better of their best final checkpoint and
+`stance3_armLT_s60`'s final is offered as the second pilot's parent. The second pilot stays parked until the
+maintainer says otherwise. Its own criteria still name r9 arm L seed 60 at 6M; their text has not been updated, and
+the choice of its parent is the maintainer's. The screens are stance runs: they are no exception to GQ-3 (a) or
+GQ-17, answer none of GQ-1..GQ-18 and certify nothing. The decision's full text is in
+[BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2 and its record in §18 of
 [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).
