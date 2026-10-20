@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Decision D-D39 recorded: another T. rex stance screen, three runs of L+T
-  with a foot-stagger penalty against two D-D37 runs as the control** (the
-  maintainer's decisions of 2026-10-19; `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2,
-  `docs/CONSOLIDATION_PLAN_2026_09.md` §6, a dated note in §17 of
+  with a foot-stagger penalty against two D-D37 runs as the control** (#632;
+  the maintainer's decisions of 2026-10-19; `docs/BEHAVIOR_RECIPES_PLAN.md`
+  §6.2, `docs/CONSOLIDATION_PLAN_2026_09.md` §6, a dated note in §17 of
   `docs/GAIT_QUALITY_PLAN_2026_09.md`, `docs/NEXT_STEPS.md` §3; the appended
   §18 of `docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md` and
   `docs/investigations/stance_2026_10/stance4/criteria.txt`). Records only: no
@@ -53,7 +53,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The outcome is not yet known.
 - **The three T. rex stance screen runs of D-D37 judged: all three fail their
   fixed criteria; the readouts and an overnight scratch experiment recorded,
-  report only** (D-D37's amendment of 2026-10-19;
+  report only** (#632; D-D37's amendment of 2026-10-19;
   `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2, `docs/CONSOLIDATION_PLAN_2026_09.md`
   §6, a dated note in §17 of `docs/GAIT_QUALITY_PLAN_2026_09.md`,
   `docs/NEXT_STEPS.md` §3; the appended §17 of
