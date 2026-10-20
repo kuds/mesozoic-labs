@@ -21,46 +21,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the v6b ankle spring: a new reward term, an opt-in `[env]` option of the T.
   rex env, off by default, that after the settle charges a foot whose whole-foot
   centre of pressure lies outside [−0.6, +0.4] span half-lengths, or whose pad
-  centre of pressure lies outside [−0.65, +0.65], up to half its weight, with
-  guards that give an unloaded, lightly loaded or digit-borne foot the full
-  price. It is the design note's prototype (a scratch commit, never pushed) with
-  four fixes: the 35% load-share guard becomes a ramp (the full price at a load
-  share of 0.25 or less, none at 0.35 or more); one fused per-step reduction,
-  pinned byte-identical to the recorder's readings, with a target of at most
-  0.15 ms per env step over band-off (the prototype measured +0.62 ms); the
-  contact reduction moves out of `environments/shared/gait/` into a neutral
-  shared module, so that D-D23's gait layering rule holds with no exception,
-  with a pinned test; and weight 0.30. Three 12M runs train from scratch on
-  seeds 52, 60 and 42, on physics r9 with `n_envs` 4 and Colab L4 GPU runtimes,
-  judged by criteria fixed before training, with K1–K4 unchanged. The arm is
-  D-D39's (L+T plus the stagger penalty, 0.30 and 0.045 m) plus the band, so the
-  three D-D39 runs are its control, one difference apart; the design note had
-  recommended L+T plus the band alone, and the recommendation changed because
-  the overnight band test ran on stagger parents and the stagger term prices the
-  route the note calls its main risk (each foot's centre of pressure held in
-  band by asymmetric ankle torque while the feet stay staggered). The v6b ankle
-  spring (ankle stiffness 40 → 250 N·m/rad, damping 45 → 90, the spring
-  reference at the statue's settled 78.6°; a plant revision) is held in reserve
-  behind a trigger line in the band screen's decision table: the band fixes the
-  split but runs fail K2 on drift, a common fore-aft shift. Actuator saturation
-  gets no training change: the band screen's evaluation ledgers are read at
-  every check-in and an alarm is reported at once (run, step, actuator), and an
-  offline, report-only diagnosis of the saturation of `stance4_LTS_s42` runs in
-  parallel; fails stay fails, and no run is stopped or restarted on an alarm.
-  Mirrored-leg spawns and the prey straight ahead stay diagnostic panels, run at
-  every scored checkpoint, report only. The band's code, criteria, judge and
-  Colab steps are being built separately and are not committed anywhere public.
-  The same day two rows were amended. D-D39's records its outcome and the
-  maintainer's confirmation of the Colab L4 GPU runtime for all three of its
-  runs, which closes the confirmation its entry left pending. D-D36's records
-  that walking pilot 2 is to be rebuilt for D-D37 Run 2's final as its parent:
-  its criteria, which still name r9 arm L seed 60 at 6M, are amended before any
-  of its training steps, the new parent is committed on its branch and its
-  start-up checks are re-run, right after the band screen's package is ready,
-  and the maintainer starts it when a fourth Colab slot is free. Screens and
-  pilots certify nothing. `docs/README.md` adds a note to the record's and the
-  gait plan's rows, and `docs/KNOWN_ISSUES.md` gains Update 13 of the T-Rex
-  stance entry. The band screen's outcome is not yet known.
+  centre of pressure lies outside [−0.65, +0.65], up to half the term's weight
+  per step, with guards that give an unloaded or digit-borne foot the full price
+  and a lightly loaded one a ramped price (the first fix below). It is the
+  design note's prototype (a scratch commit, never pushed) with three fixes and
+  its weight: the 35% load-share guard becomes a ramp (the full price at a load
+  share of 0.25 or less, no guard price at 0.35 or more, linear between); a
+  speed pass, one fused per-step reduction pinned byte-identical to the
+  recorder's readings (the prototype measured +0.62 ms per env step over
+  band-off; no numeric target was decided); the contact reduction moves out of
+  `environments/shared/gait/` into a neutral shared module, so that D-D23's gait
+  layering rule holds with no exception, and the test that pins its readings to
+  the recorder's moves with it; and weight 0.30. Three 12M runs train from
+  scratch on seeds 52, 60 and 42 on Colab L4 GPU runtimes (the seeds and the 12M
+  from the option text the maintainer locked in the chat; physics r9 and
+  `n_envs` 4 follow from the arm), judged by criteria fixed before training,
+  with K1–K4 unchanged. The arm is D-D39's (L+T plus the stagger penalty, 0.30
+  and 0.045 m) plus the band, so the three D-D39 runs are its control, one
+  difference apart; the design note had recommended L+T plus the band alone, and
+  the recommendation changed because the overnight band test ran on stagger
+  parents and the stagger term prices the route the note calls its main risk
+  (each foot's centre of pressure held in band by asymmetric ankle torque while
+  the feet stay staggered). The v6b ankle spring (ankle stiffness 40 → 250
+  N·m/rad, damping 45 → 90, the spring reference at the statue's settled 78.6°;
+  a plant revision) is held in reserve behind a trigger line in the band
+  screen's decision table: the band fixes the split but runs fail K2 on drift, a
+  common fore-aft shift. Actuator saturation gets no training change: the band
+  screen's evaluation ledgers are read at every check-in and an alarm is
+  reported at once (run, step, actuator), and an offline, report-only diagnosis
+  of the saturation of `stance4_LTS_s42` runs in parallel, started after the
+  band build's timing measurement; fails stay fails, and no run is stopped or
+  restarted on an alarm. Mirrored-leg spawns and the prey straight ahead stay
+  diagnostic panels, run at every scored checkpoint, report only. The band's
+  code, criteria, judge and Colab steps are being built separately and are not
+  committed anywhere public. The same day two rows were amended. D-D39's records
+  its outcome and the maintainer's confirmation of the Colab L4 GPU runtime for
+  all three of its runs, which closes the confirmation its entry left pending.
+  D-D36's records that walking pilot 2 is to be rebuilt for D-D37 Run 2's final
+  as its parent: its criteria, which still name r9 arm L seed 60 at 6M, are
+  amended before any of its training steps, the new parent is committed on its
+  branch and its start-up checks are re-run, right after the band screen's
+  package is ready, and the maintainer starts it when a fourth Colab slot is
+  free. Screens and pilots certify nothing. `docs/README.md` adds a note to the
+  record's and the gait plan's rows, and `docs/KNOWN_ISSUES.md` gains Update 13
+  of the T-Rex stance entry. The band screen's outcome is not yet known.
 - **The stance4 screen of D-D39 judged: all three runs fail their fixed criteria
   (line 5); the stagger penalty is not adopted; two overnight scratch
   experiments recorded, report only** (D-D39's outcome, recorded 2026-10-20; a

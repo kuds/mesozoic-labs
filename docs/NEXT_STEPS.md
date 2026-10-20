@@ -505,14 +505,14 @@ maintainer confirmed the Colab L4 GPU runtime for the three D-D39 runs and
 chose the next round: three 12M T-Rex stance screen runs, from scratch on
 seeds 52, 60 and 42 on Colab L4, of the D-D39 arm plus a per-foot
 centre-of-pressure band (a new reward term, off by default), with the three
-D-D39 runs as the control; the term's code, criteria and Colab steps are
-built separately and are not yet committed anywhere public. The second pilot
-is to be rebuilt for `stance3_armLT_s60`'s final as its parent (its criteria
-amended first), right after that screen's package is ready, and stays parked
-until then. As screens and pilots they certify nothing, so the next T-Rex
-session above is still unchanged; the decisions' full text is in
-[BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2 and their record
-in §20 of the same record.*
+D-D39 runs as the control; the term's code, criteria, judge and Colab steps
+are being built separately and are not yet committed anywhere public. The
+second pilot is to be rebuilt for `stance3_armLT_s60`'s final as its parent
+(its criteria amended first), right after that screen's package is ready,
+and stays parked until then. As screens and pilots they certify nothing, so
+the next T-Rex session above is still unchanged; the decisions' full text is
+in [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2 and their
+record in §20 of the same record.*
 
 *Note 2026-10-18 (decision D-D38): where §2, this section and §8 record
 `BEHAVIOR = "stand"` or a `stand` session, they give the setting as it was

@@ -625,28 +625,34 @@ written:
 
 - 3a, the step guard: guard 1's 35% load-share step (§4.1, and the reward
   cliff of §7 item 4) becomes a ramp, the full price at a load share of 0.25
-  or less, none at 0.35 or more, linear between;
+  or less, no guard price at 0.35 or more, linear between;
 - 3b, the speed: the measured +0.62 ms per env step (one thread, 1.40 to
-  2.02 ms; §6.3, §7 item 6 and §8 item 3) is to come down to at most 0.15 ms
-  over band-off, with one fused per-step reduction byte-identical to the
-  recorder's readings;
+  2.02 ms; §6.3, §7 item 6 and §8 item 3) is to come down, with one fused
+  per-step reduction byte-identical to the recorder's readings (no numeric
+  target was decided);
 - 3c, the gait import exception: the contact reduction moves out of
   `environments/shared/gait/` into a neutral shared module, so the gait
   layering rule (D-D23) holds with no exception (§1's file table, §6.1's
-  layering-test exception, §7 item 5 and §8 item 2), with a pinned test of
-  the band's readings.
+  layering-test exception, §7 item 5 and §8 item 2); the recorder
+  bit-identity test, which pins the band's readings, moves with it (§8 items
+  2 and 3).
 
-The note's other proposals stand as written or as decided: 3d keeps its
-weight, 0.30 (§0 and §3.4). §8 item 5 recommended L+T plus the band alone
-for a line-5 outcome; the arm decided (2A) is L+T plus the stagger penalty
-plus the band, with the three stance4 runs as its single-difference control,
-because the overnight band test ran on stagger parents and the stagger term
-prices the route the note calls its main risk (§5's last row). The prototype
-is the scratch commit `f94452ad` on `c1e146a8`, never pushed: an opt-in
-`[env]` option of the T. rex env, off by default, that charges a foot whose
-whole-foot CoP lies outside [−0.6, +0.4] span half-lengths. The band's code,
-criteria, judge and Colab steps are not part of this change: they are being
-built separately and are not committed anywhere public.
+Decision 1a takes the note's term (§2 and §4) as an opt-in `[env]` option,
+off by default, with the fixes above, and the runs its §8 item 7 names
+(three seeds from scratch, 12M steps, Colab L4); 3d takes its proposed
+weight, 0.30 (§0 and §3.4). No recorded decision adopts or supersedes the
+note's other proposals, such as §8's reward plumbing (item 4) and the
+criteria's contents (item 6), except its recommended arm: §8 item 5
+recommended L+T plus the band alone for a line-5 outcome; the arm decided
+(2A) is L+T plus the stagger penalty plus the band, with the three stance4
+runs as its single-difference control, because the overnight band test ran
+on stagger parents and the stagger term prices the route the note calls its
+main risk (§5's last row). The prototype is the scratch commit `f94452ad` on
+`c1e146a8`, never pushed: an opt-in `[env]` option of the T. rex env, off by
+default, that charges a foot whose whole-foot CoP lies outside [−0.6, +0.4]
+span half-lengths. The band's code, criteria, judge and Colab steps are not
+part of this change: they are being built separately and are not committed
+anywhere public.
 
 ## How to re-check each verdict
 

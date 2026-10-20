@@ -50,8 +50,9 @@ The best stagger final by stance3's rule (most clean panel episodes, ties to
 fewer joint-space plus own-sigma noise falls) is Run 1's, s52: 39/40 clean, 0
 noise falls, one episode short of stance3 Run 2's final (40/40, 0), which stays
 the walking pilot 2 parent the criteria offer. The maintainer's decisions of
-2026-10-20 that follow from the outcome are the last lines of `run_log.txt`
-(those beginning "MAINTAINER DECISION").
+2026-10-20 that follow from the outcome are logged, in short, in the last lines
+of `run_log.txt` (those beginning "MAINTAINER DECISION"); the stance record's
+§20 records them and names the source of each detail those lines leave out.
 
 The runtime, measured: the `gpu` block of each run's
 `01_stance/stage_config.json` reads an NVIDIA L4 (23.7 GB, CUDA 13.0), as the

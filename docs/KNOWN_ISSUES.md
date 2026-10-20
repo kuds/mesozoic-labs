@@ -251,10 +251,12 @@ robustness, **LOW** = cosmetic / QoL.
   12's recipe plus a new term that charges a foot whose centre of pressure
   leaves a band of its sole (opt-in, off by default), judged against the runs
   of Update 12 by the same four criteria, fixed before training. The v6b ankle
-  spring is held in reserve for a common fore-aft drift; mirrored-leg spawns
-  and the prey straight ahead stay diagnostic panels. The term's code and
-  criteria are not yet committed. As screens they certify nothing. The
-  two-seed ask stands. Record: §20 of
+  spring is held in reserve: if the band fixes the split but runs fail K2 on a
+  common fore-aft drift, the next round tests it. Mirrored-leg spawns and the
+  prey straight ahead stay diagnostic panels. The term's code, criteria, judge
+  and Colab steps are being built separately and are not yet committed
+  anywhere public. As screens they certify nothing. The two-seed ask stands.
+  Record: §20 of
   [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).
 - **LOW** — **stage 1a (stance) contains no in-episode disturbance, so a
   stance-gate PASS certifies stance quality, not active balance control.** The
