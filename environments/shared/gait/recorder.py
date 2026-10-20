@@ -282,6 +282,161 @@ class EpisodeTrace:
         return int(self.leg_floor_mean.shape[1])
 
 
+def decode_settings(model: Any) -> tuple[bool, np.ndarray | None]:
+    """``(elliptic, edge_offsets)``: the normal-force decode for ``model``.
+
+    ``edge_offsets`` is the one gather every contact shares when every geom
+    has one condim and the model declares no explicit ``<pair>``, else
+    ``None`` (the per-contact decode).  Shared by
+    :class:`SubstepContactRecorder` and :class:`.step_foot_cop.StepFootCop`.
+    """
+    elliptic = int(model.opt.cone) == int(mujoco.mjtCone.mjCONE_ELLIPTIC)
+    condims = {int(value) for value in model.geom_condim}
+    edge_offsets = None
+    if len(condims) == 1 and int(model.npair) == 0:
+        condim = condims.pop()
+        edges = 1 if (elliptic or condim == 1) else 2 * (condim - 1)
+        edge_offsets = np.arange(edges, dtype=np.int64)[None, :]
+    return elliptic, edge_offsets
+
+
+def decode_normal_forces(
+    contact: Any, efc_force: np.ndarray, *, elliptic: bool, edge_offsets: np.ndarray | None
+) -> np.ndarray:
+    """Each contact's normal force, exactly as ``mj_contactForce`` returns ``force[0]`` (module docstring)."""
+    address = np.asarray(contact.efc_address)
+    valid = address >= 0
+    if efc_force.size == 0:
+        return np.zeros(address.shape[0], dtype=np.float64)
+    base = np.where(valid, address, 0)[:, None]
+    last = efc_force.size - 1
+    if edge_offsets is not None:
+        gathered = efc_force[np.minimum(base + edge_offsets, last)]
+        return np.where(valid, gathered.sum(axis=1), 0.0)
+    dim = np.asarray(contact.dim)
+    edges = np.ones_like(dim) if elliptic else np.where(dim > 1, 2 * (dim - 1), 1)
+    offsets = np.arange(int(edges.max()), dtype=np.int64)[None, :]
+    gathered = efc_force[np.minimum(base + offsets, last)]
+    keep = (offsets < edges[:, None]) & valid[:, None]
+    normal: np.ndarray = np.where(keep, gathered, 0.0).sum(axis=1)
+    return normal
+
+
+def classify_floor_contacts(
+    morphology: Morphology, geoms: np.ndarray
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """``(other, on_floor, foot, leg_on_floor)`` for contact geom pairs ``geoms`` (N, 2).
+
+    ``other`` is the non-floor side of a floor contact; ``on_floor`` marks a
+    floor-against-animal contact; ``foot`` is its leg index (-1 off the legs);
+    ``leg_on_floor`` a floor contact of some leg.
+    """
+    geom1, geom2 = geoms[:, 0], geoms[:, 1]
+    floor1, floor2 = morphology.is_floor[geom1], morphology.is_floor[geom2]
+    other = np.where(floor1, geom2, geom1)  # the non-floor side of a floor contact
+    on_floor = (floor1 ^ floor2) & morphology.is_animal[other]
+    foot = np.where(on_floor, morphology.geom_foot[other], -1)
+    leg_on_floor = on_floor & (foot >= 0)
+    return other, on_floor, foot, leg_on_floor
+
+
+def per_substep_force(
+    substep_of: np.ndarray,
+    normal: np.ndarray,
+    mask: np.ndarray,
+    index: np.ndarray,
+    width: int,
+    steps: int,
+    substeps: int,
+) -> np.ndarray:
+    """The normal force of the ``mask`` contacts summed per (step, substep, ``index``): (steps, substeps, width)."""
+    flat = np.bincount(substep_of[mask] * width + index[mask], weights=normal[mask], minlength=steps * substeps * width)
+    return flat.reshape(steps, substeps, width)
+
+
+def sole_cop_steps(
+    feet: Sequence[Any],
+    half_size: Sequence[np.ndarray | None],
+    pose: np.ndarray | None,
+    substep_of: np.ndarray,
+    foot: np.ndarray,
+    on_sole: np.ndarray,
+    points: np.ndarray,
+    normal: np.ndarray,
+    steps: int,
+    substeps: int,
+) -> np.ndarray:
+    """Per step and foot, the sole CoP ``(fore, outer)`` in sole half-lengths (``EpisodeTrace.sole_cop``).
+
+    Every sole contact in the sole frame of its own substep (``pose``: per
+    substep and foot, the sole geom's xpos then xmat), weighted by its normal
+    force; NaN on a step whose sole contacts carry no force.
+    """
+    n_feet = len(feet)
+    cop = np.full((steps, n_feet, 2), np.nan)
+    if on_sole.any():
+        assert pose is not None
+        for index in np.unique(foot[on_sole]).tolist():
+            spec = feet[index]
+            half = half_size[index]
+            assert half is not None  # a foot with sole contacts has a sole
+            chosen = np.flatnonzero(on_sole & (foot == index))
+            at = substep_of[chosen]
+            rotation = pose[at, index, 3:].reshape(-1, 3, 3)
+            local = np.einsum("nji,nj->ni", rotation, points[chosen] - pose[at, index, :3])
+            fore = spec.sole_forward_sign * local[:, spec.sole_forward_axis] / half[spec.sole_forward_axis]
+            left = spec.sole_lateral_sign * local[:, spec.sole_lateral_axis] / half[spec.sole_lateral_axis]
+            outer = -left if spec.side == "R" else left
+            weight = normal[chosen]
+            step_of = at // substeps
+            weight_sum = np.bincount(step_of, weights=weight, minlength=steps)
+            has_load = weight_sum > 1e-9
+            for column, coordinate in enumerate((fore, outer)):
+                weighted = np.bincount(step_of, weights=weight * coordinate, minlength=steps)
+                cop[has_load, index, column] = weighted[has_load] / weight_sum[has_load]
+    return cop
+
+
+def whole_foot_cop_steps(
+    feet: Sequence[Any],
+    ankle_forward: np.ndarray,
+    pose: np.ndarray | None,
+    substep_of: np.ndarray,
+    foot: np.ndarray,
+    leg_on_floor: np.ndarray,
+    points: np.ndarray,
+    normal: np.ndarray,
+    steps: int,
+    substeps: int,
+) -> np.ndarray:
+    """Per step and foot, the whole-foot CoP in m ahead of the ankle axis (``EpisodeTrace.foot_cop``).
+
+    Every floor contact of the limb, in the sole frame of its own substep,
+    along the sole's signed forward axis less the ankle's coordinate there,
+    weighted by its normal force; NaN off the feet that declare an ankle and
+    on a step whose limb contacts carry no force.
+    """
+    foot_cop = np.full((steps, len(feet)), np.nan)
+    if leg_on_floor.any():
+        assert pose is not None
+        for index in np.unique(foot[leg_on_floor]).tolist():
+            if not np.isfinite(ankle_forward[index]):
+                continue
+            spec = feet[index]
+            chosen = np.flatnonzero(leg_on_floor & (foot == index))
+            at = substep_of[chosen]
+            rotation = pose[at, index, 3:].reshape(-1, 3, 3)
+            local = np.einsum("nji,nj->ni", rotation, points[chosen] - pose[at, index, :3])
+            ahead = spec.sole_forward_sign * local[:, spec.sole_forward_axis] - ankle_forward[index]
+            weight = normal[chosen]
+            step_of = at // substeps
+            weight_sum = np.bincount(step_of, weights=weight, minlength=steps)
+            has_load = weight_sum > 1e-9
+            weighted = np.bincount(step_of, weights=weight * ahead, minlength=steps)
+            foot_cop[has_load, index] = weighted[has_load] / weight_sum[has_load]
+    return foot_cop
+
+
 class SubstepContactRecorder:
     """Records floor truth on one env: ``attach()``, ``end_step`` after every step, ``end_episode`` at the end.
 
@@ -471,32 +626,11 @@ class SubstepContactRecorder:
     def _configure_decode(self, model: Any) -> None:
         """Choose the normal-force decode for ``model`` (re-run when an env swaps its model)."""
         self._decoded_model = model
-        self._elliptic = int(model.opt.cone) == int(mujoco.mjtCone.mjCONE_ELLIPTIC)
-        condims = {int(value) for value in model.geom_condim}
-        self._edge_offsets = None
-        if len(condims) == 1 and int(model.npair) == 0:
-            condim = condims.pop()
-            edges = 1 if (self._elliptic or condim == 1) else 2 * (condim - 1)
-            self._edge_offsets = np.arange(edges, dtype=np.int64)[None, :]
+        self._elliptic, self._edge_offsets = decode_settings(model)
 
     def _normal_forces(self, contact: Any, efc_force: np.ndarray) -> np.ndarray:
         """Each contact's normal force, exactly as ``mj_contactForce`` returns ``force[0]``."""
-        address = np.asarray(contact.efc_address)
-        valid = address >= 0
-        if efc_force.size == 0:
-            return np.zeros(address.shape[0], dtype=np.float64)
-        base = np.where(valid, address, 0)[:, None]
-        last = efc_force.size - 1
-        if self._edge_offsets is not None:
-            gathered = efc_force[np.minimum(base + self._edge_offsets, last)]
-            return np.where(valid, gathered.sum(axis=1), 0.0)
-        dim = np.asarray(contact.dim)
-        edges = np.ones_like(dim) if self._elliptic else np.where(dim > 1, 2 * (dim - 1), 1)
-        offsets = np.arange(int(edges.max()), dtype=np.int64)[None, :]
-        gathered = efc_force[np.minimum(base + offsets, last)]
-        keep = (offsets < edges[:, None]) & valid[:, None]
-        normal: np.ndarray = np.where(keep, gathered, 0.0).sum(axis=1)
-        return normal
+        return decode_normal_forces(contact, efc_force, elliptic=self._elliptic, edge_offsets=self._edge_offsets)
 
     def _geometry_row(self, data: Any) -> np.ndarray:
         return np.concatenate(
@@ -690,16 +824,10 @@ class SubstepContactRecorder:
             points = np.zeros((0, 3))
         geom1, geom2 = geoms[:, 0], geoms[:, 1]
         floor1, floor2 = morphology.is_floor[geom1], morphology.is_floor[geom2]
-        other = np.where(floor1, geom2, geom1)  # the non-floor side of a floor contact
-        on_floor = (floor1 ^ floor2) & morphology.is_animal[other]
-        foot = np.where(on_floor, morphology.geom_foot[other], -1)
-        leg_on_floor = on_floor & (foot >= 0)
+        other, on_floor, foot, leg_on_floor = classify_floor_contacts(morphology, geoms)
 
         def per_substep(mask: np.ndarray, index: np.ndarray, width: int) -> np.ndarray:
-            flat = np.bincount(
-                substep_of[mask] * width + index[mask], weights=normal[mask], minlength=total_substeps * width
-            )
-            return flat.reshape(steps, substeps, width)
+            return per_substep_force(substep_of, normal, mask, index, width, steps, substeps)
 
         zero = np.zeros_like(substep_of)
         leg = per_substep(leg_on_floor, foot, n_feet)
@@ -729,48 +857,13 @@ class SubstepContactRecorder:
         sole_contacts = np.bincount(
             substep_of[loaded] * n_feet + foot[loaded], minlength=total_substeps * n_feet
         ).reshape(steps, substeps, n_feet)
-        cop = np.full((steps, n_feet, 2), np.nan)
         pose = np.stack(self._sole_pose) if on_sole.any() or leg_on_floor.any() else None  # (total_substeps, F, 12)
-        if on_sole.any():
-            assert pose is not None
-            for index in np.unique(foot[on_sole]).tolist():
-                spec = feet[index]
-                half = self._half_size[index]
-                assert half is not None  # a foot with sole contacts has a sole
-                chosen = np.flatnonzero(on_sole & (foot == index))
-                at = substep_of[chosen]
-                rotation = pose[at, index, 3:].reshape(-1, 3, 3)
-                local = np.einsum("nji,nj->ni", rotation, points[chosen] - pose[at, index, :3])
-                fore = spec.sole_forward_sign * local[:, spec.sole_forward_axis] / half[spec.sole_forward_axis]
-                left = spec.sole_lateral_sign * local[:, spec.sole_lateral_axis] / half[spec.sole_lateral_axis]
-                outer = -left if spec.side == "R" else left
-                weight = normal[chosen]
-                step_of = at // substeps
-                weight_sum = np.bincount(step_of, weights=weight, minlength=steps)
-                has_load = weight_sum > 1e-9
-                for column, coordinate in enumerate((fore, outer)):
-                    weighted = np.bincount(step_of, weights=weight * coordinate, minlength=steps)
-                    cop[has_load, index, column] = weighted[has_load] / weight_sum[has_load]
+        cop = sole_cop_steps(feet, self._half_size, pose, substep_of, foot, on_sole, points, normal, steps, substeps)
         # The whole-foot centre of pressure: every floor contact of the limb, in the sole frame of its own
         # substep, m ahead of the declared ankle axis along the sole's (signed) forward axis.
-        foot_cop = np.full((steps, n_feet), np.nan)
-        if leg_on_floor.any():
-            assert pose is not None
-            for index in np.unique(foot[leg_on_floor]).tolist():
-                if not np.isfinite(self._ankle_forward[index]):
-                    continue
-                spec = feet[index]
-                chosen = np.flatnonzero(leg_on_floor & (foot == index))
-                at = substep_of[chosen]
-                rotation = pose[at, index, 3:].reshape(-1, 3, 3)
-                local = np.einsum("nji,nj->ni", rotation, points[chosen] - pose[at, index, :3])
-                ahead = spec.sole_forward_sign * local[:, spec.sole_forward_axis] - self._ankle_forward[index]
-                weight = normal[chosen]
-                step_of = at // substeps
-                weight_sum = np.bincount(step_of, weights=weight, minlength=steps)
-                has_load = weight_sum > 1e-9
-                weighted = np.bincount(step_of, weights=weight * ahead, minlength=steps)
-                foot_cop[has_load, index] = weighted[has_load] / weight_sum[has_load]
+        foot_cop = whole_foot_cop_steps(
+            feet, self._ankle_forward, pose, substep_of, foot, leg_on_floor, points, normal, steps, substeps
+        )
         # Where along each hinged digit its floor load sits: 0 at the MTP axis, 1 at the tip.
         load_pos = np.full((steps, n_support), np.nan)
         if self._digit_geoms.size and on_support.any():

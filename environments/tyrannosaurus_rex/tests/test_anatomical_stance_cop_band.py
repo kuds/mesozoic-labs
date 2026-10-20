@@ -1,0 +1,542 @@
+"""The T. rex's opt-in per-foot CoP band (scratch prototype for the stance4 fallback; never merged, never trained).
+
+stance4 decision line 5 names it: if the stagger penalty does not hold fore-aft from scratch, the next round tests a
+per-foot centre-of-pressure band.  Off by default, and off it changes nothing: no reward, no info key, no trajectory,
+no task fingerprint, no recorded stage config, and the env never loads the gait package.  On, per foot k:
+
+    u_k = max(excess(whole-foot CoP, [lower, upper]), excess(pad CoP, [pad_lower, pad_upper]))
+    q_k = exp(-(u_k / tolerance)^2), or 0 when the foot is unloaded, carries less than min_load_share of the two
+          limbs' floor load, or stands off its pad
+    reward = -w * mean_k (1 - q_k), paid only after stance_width_settle_steps and only while the command is zero
+
+The whole-foot CoP is the judge's K2b reading for the step (every floor contact of the limb over the step's
+substeps, span half-lengths), computed with the recorder's own reduction (gait/step_foot_cop.py); the tests pin it
+to the recorder bit for bit, and to an independent mj_contactForce computation on hand-posed states.
+
+Every test starts from the stance stage's env kwargs with the stagger keys removed, so "off" means off.
+"""
+
+from __future__ import annotations
+
+import inspect
+import json
+import math
+import sys
+
+import mujoco
+import numpy as np
+import pytest
+
+from environments.shared import symmetry as SY
+from environments.shared.config import load_stage_config, save_stage_config
+from environments.shared.gait.morphology import Morphology
+from environments.shared.gait.recorder import SubstepContactRecorder
+from environments.shared.gait.stance_metrics import whole_foot_cop
+from environments.shared.model_id import ModelId
+from environments.shared.reward_functions import band_excess, reward_stance_cop_band
+from environments.shared.stage_manifest import load_stage_manifest
+from environments.shared.task_fingerprint import stage_task_fingerprint
+from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
+
+TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
+OPTION_KEYS = (
+    "stance_cop_band_weight",
+    "stance_cop_band_lower",
+    "stance_cop_band_upper",
+    "stance_cop_band_pad_lower",
+    "stance_cop_band_pad_upper",
+    "stance_cop_band_tolerance",
+    "stance_cop_band_min_load_share",
+)
+DEFAULTS = {
+    "stance_cop_band_weight": 0.0,
+    "stance_cop_band_lower": -0.6,
+    "stance_cop_band_upper": 0.4,
+    "stance_cop_band_pad_lower": -0.65,
+    "stance_cop_band_pad_upper": 0.65,
+    "stance_cop_band_tolerance": 0.357,
+    "stance_cop_band_min_load_share": 0.35,
+}
+PER_FOOT = ("foot_cop", "pad_cop", "load_share", "digit_share", "counted", "quality")
+BAND_INFO_KEYS = {f"{side}_cop_band_{name}" for side in "rl" for name in PER_FOOT} | {
+    "stance_cop_band_quality",
+    "reward_stance_cop_band",
+}
+#: The proposed dose (copband design.md): the stagger term's maximum price.
+ON = {"stance_cop_band_weight": 0.30}
+SETTLE_STEPS = 250
+
+
+@pytest.fixture(scope="module")
+def off_kwargs():
+    """The stance stage's env kwargs with the stagger keys (and any band key) removed."""
+    kwargs = dict(load_stage_config(TYRANNOSAURUS_REX, "stance")["env_kwargs"])
+    for key in ("stance_stagger_weight", "stance_stagger_tolerance_m", *OPTION_KEYS):
+        kwargs.pop(key, None)
+    return kwargs
+
+
+def _pair(kwargs_a, kwargs_b, steps, seed=3052, amplitude=0.05):
+    """Two envs, same seed, same actions: per step (reward, info, qpos) for each."""
+    envs = [TyrannosaurusRexAnatomicalEnv(**kwargs_a), TyrannosaurusRexAnatomicalEnv(**kwargs_b)]
+    try:
+        for env in envs:
+            env.reset(seed=seed)
+        rng = np.random.default_rng(seed)
+        rows = []
+        for _ in range(steps):
+            action = rng.uniform(-amplitude, amplitude, 15)
+            out = []
+            for env in envs:
+                _, reward, terminated, truncated, info = env.step(action)
+                out.append((reward, info, env.data.qpos.copy(), terminated or truncated))
+            rows.append(out)
+            if out[0][3] or out[1][3]:
+                break
+        return rows
+    finally:
+        for env in envs:
+            env.close()
+
+
+def _bytes(value) -> bytes:
+    return np.float64(value).tobytes()
+
+
+def _quality(foot_cop, pad_cop, counted, kwargs=None):
+    k = {**DEFAULTS, **(kwargs or {})}
+    if not counted:
+        return 0.0
+    u = max(
+        max(k["stance_cop_band_lower"] - foot_cop, 0.0) + max(foot_cop - k["stance_cop_band_upper"], 0.0),
+        max(k["stance_cop_band_pad_lower"] - pad_cop, 0.0) + max(pad_cop - k["stance_cop_band_pad_upper"], 0.0),
+    )
+    return math.exp(-((u / k["stance_cop_band_tolerance"]) ** 2))
+
+
+def _expected(info, weight=0.30, kwargs=None):
+    """The term from the env's own per-foot info readings, by the formula."""
+    qualities = [
+        _quality(
+            info[f"{s}_cop_band_foot_cop"], info[f"{s}_cop_band_pad_cop"], info[f"{s}_cop_band_counted"] > 0, kwargs
+        )
+        for s in "rl"
+    ]
+    return -weight * (2.0 - sum(qualities)) / 2.0, qualities
+
+
+# ---------------------------------------------------------------------------------------------- an independent oracle
+def _oracle(env, morphology):
+    """Per foot, from the CURRENT data only, by a plain loop over data.contact with mj_contactForce (not the
+    recorder's decode or bincount): the whole-foot CoP and its loaded flag, the pad CoP and its loaded flag, and the
+    limb's floor force."""
+    model, data = env.model, env.data
+    out = []
+    for index, foot in enumerate(morphology.feet):
+        rotation = data.geom_xmat[foot.sole_geom].reshape(3, 3)
+        origin = data.geom_xpos[foot.sole_geom]
+        half_pad = float(model.geom_size[foot.sole_geom][foot.sole_forward_axis])
+        force = moment = pad_force = pad_moment = 0.0
+        pad_contact = False
+        for i in range(data.ncon):
+            contact = data.contact[i]
+            g1, g2 = int(contact.geom1), int(contact.geom2)
+            if morphology.is_floor[g1] == morphology.is_floor[g2]:
+                continue
+            other = g2 if morphology.is_floor[g1] else g1
+            if not morphology.is_animal[other] or morphology.geom_foot[other] != index:
+                continue
+            wrench = np.zeros(6)
+            mujoco.mj_contactForce(model, data, i, wrench)
+            normal = float(wrench[0])
+            forward = foot.sole_forward_sign * float((rotation.T @ (contact.pos - origin))[foot.sole_forward_axis])
+            force += normal
+            moment += normal * (forward - foot.ankle_forward_m)
+            if other == foot.sole_geom:
+                pad_force += normal
+                pad_moment += normal * forward / half_pad
+                pad_contact |= normal > 0.1
+        middle = 0.5 * (foot.heel_line_m + foot.toe_line_m)
+        half = 0.5 * (foot.toe_line_m - foot.heel_line_m)
+        foot_cop = (moment / force - middle) / half if force > 1e-9 else float("nan")
+        pad_cop = pad_moment / pad_force if pad_force > 1e-9 else float("nan")
+        out.append(
+            {
+                "foot_cop": foot_cop,
+                "foot_loaded": bool(np.isfinite(foot_cop) and force > 0.1),
+                "pad_cop": pad_cop,
+                "pad_loaded": bool(np.isfinite(pad_cop) and pad_contact),
+                "force": force,
+            }
+        )
+    return out
+
+
+def _settled(kwargs, seed=3042):
+    """An env stood SETTLE_STEPS zero-action steps from a seeded reset, and that state's qpos."""
+    env = TyrannosaurusRexAnatomicalEnv(**kwargs)
+    env.reset(seed=seed)
+    for _ in range(SETTLE_STEPS):
+        env.step(np.zeros(15))
+    return env, env.data.qpos.copy()
+
+
+def _pose(env, base_qpos, edits, step=None):
+    """Hand-pose: base_qpos plus joint offsets, zero velocity, forward kinematics; the record dropped and the step
+    counter past the settle (or at ``step``) with a zero command.  Returns the reward info."""
+    env.data.qpos[:] = base_qpos
+    env.data.qvel[:] = 0.0
+    for name, offset in edits.items():
+        env.data.qpos[int(env.model.jnt_qposadr[env.model.joint(name).id])] += offset
+    mujoco.mj_forward(env.model, env.data)
+    env._invalidate_substep_aggregates()
+    env._step_count = env.stance_width_settle_steps + 1 if step is None else step
+    env._command = np.zeros_like(env._command)
+    return env._get_reward_info(np.zeros(15))[1]
+
+
+# ---------------------------------------------------------------------------------------------------- off by default
+def test_the_option_defaults_to_off_and_is_an_opt_in_task_option():
+    parameters = inspect.signature(TyrannosaurusRexAnatomicalEnv).parameters
+    assert {key: parameters[key].default for key in OPTION_KEYS} == DEFAULTS
+    assert ("stance_cop_band_weight", 0.0, OPTION_KEYS) in TyrannosaurusRexAnatomicalEnv.OPT_IN_TASK_KWARGS
+
+
+def test_off_it_changes_no_reward_no_info_key_and_no_trajectory(off_kwargs):
+    explicit_off = {**off_kwargs, "stance_cop_band_weight": 0.0, "stance_cop_band_lower": -0.2}
+    rows = _pair(off_kwargs, explicit_off, 240)
+    assert len(rows) == 240
+    for (reward_a, info_a, qpos_a, _), (reward_b, info_b, qpos_b, _) in rows:
+        assert _bytes(reward_a) == _bytes(reward_b) == _bytes(info_b["reward_total"])
+        assert list(info_a) == list(info_b) and not BAND_INFO_KEYS & set(info_a)
+        assert all(_bytes(info_a[k]) == _bytes(info_b[k]) for k in info_a if isinstance(info_a[k], float))
+        np.testing.assert_array_equal(qpos_a, qpos_b)
+
+
+def test_off_the_env_never_loads_the_band_reader(off_kwargs, monkeypatch):
+    """The gait import sits in _cop_band's body and runs only when the band is on."""
+    monkeypatch.delitem(sys.modules, "environments.shared.gait.step_foot_cop", raising=False)
+    env = TyrannosaurusRexAnatomicalEnv(**off_kwargs)
+    try:
+        env.reset(seed=3042)
+        for _ in range(5):
+            env.step(np.zeros(15))
+        assert env._cop_band_reader is None
+        assert "environments.shared.gait.step_foot_cop" not in sys.modules
+    finally:
+        env.close()
+
+
+def test_off_it_moves_no_task_fingerprint_and_no_recorded_config(tmp_path, off_kwargs):
+    base = stage_task_fingerprint(TYRANNOSAURUS_REX, "stance", env_kwargs=off_kwargs)
+    explicit_off = {**off_kwargs, "stance_cop_band_weight": 0, "stance_cop_band_upper": 0.9}
+    assert stage_task_fingerprint(TYRANNOSAURUS_REX, "stance", env_kwargs=explicit_off) == base
+    assert not set(OPTION_KEYS) & set(base["env"])
+    # Every stage that leaves it off keeps its committed fingerprint with the keys written out at off values.
+    for entry in load_stage_manifest(TYRANNOSAURUS_REX).stages:
+        env_kwargs = load_stage_config(TYRANNOSAURUS_REX, entry.reference)["env_kwargs"]
+        if env_kwargs.get("stance_cop_band_weight", 0.0) == 0.0:
+            written = {**env_kwargs, "stance_cop_band_weight": 0.0, "stance_cop_band_tolerance": 0.5}
+            committed = stage_task_fingerprint(TYRANNOSAURUS_REX, entry.reference)
+            assert stage_task_fingerprint(TYRANNOSAURUS_REX, entry.reference, env_kwargs=written) == committed, entry.id
+    # On, the switch and every band setting are hashed, defaults included, and nothing else moves.
+    on = stage_task_fingerprint(TYRANNOSAURUS_REX, "stance", env_kwargs={**off_kwargs, **ON})
+    assert {k: v for k, v in on["env"].items() if k not in base["env"]} == {**DEFAULTS, **ON}
+    assert {k: v for k, v in on["env"].items() if k in base["env"]} == base["env"]
+    tighter = stage_task_fingerprint(
+        TYRANNOSAURUS_REX, "stance", env_kwargs={**off_kwargs, **ON, "stance_cop_band_pad_upper": 0.6}
+    )
+    assert len({base["task_sha256"], on["task_sha256"], tighter["task_sha256"]}) == 3
+    # stage_config.json records no off option's defaults; on, all seven keys.
+    config = {**load_stage_config(TYRANNOSAURUS_REX, "stance"), "env_kwargs": off_kwargs}
+    path = save_stage_config(
+        tmp_path / "off", "stance", config, "PPO", env_class=TyrannosaurusRexAnatomicalEnv, model_id=TYRANNOSAURUS_REX
+    )
+    assert not set(OPTION_KEYS) & set(json.loads(path.read_text())["reward_weights"])
+    config_on = {**config, "env_kwargs": {**off_kwargs, **ON}}
+    path = save_stage_config(
+        tmp_path / "on", "stance", config_on, "PPO", env_class=TyrannosaurusRexAnatomicalEnv, model_id=TYRANNOSAURUS_REX
+    )
+    recorded = json.loads(path.read_text())["reward_weights"]
+    assert {key: recorded[key] for key in OPTION_KEYS} == {**DEFAULTS, **ON}
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "message"),
+    [
+        ({"stance_cop_band_weight": -0.1}, "stance_cop_band_weight"),
+        ({"stance_cop_band_weight": math.inf}, "stance_cop_band_weight"),
+        ({"stance_cop_band_weight": math.nan}, "stance_cop_band_weight"),
+        ({"stance_cop_band_lower": 0.5}, "stance_cop_band_lower"),
+        ({"stance_cop_band_upper": -math.inf}, "stance_cop_band_lower"),
+        ({"stance_cop_band_pad_lower": 0.7}, "stance_cop_band_pad_lower"),
+        ({"stance_cop_band_tolerance": 0.0}, "stance_cop_band_tolerance"),
+        ({"stance_cop_band_tolerance": math.inf}, "stance_cop_band_tolerance"),
+        ({"stance_cop_band_min_load_share": 0.5}, "stance_cop_band_min_load_share"),
+        ({"stance_cop_band_min_load_share": -0.1}, "stance_cop_band_min_load_share"),
+    ],
+)
+def test_invalid_values_fail_fast(kwargs, message):
+    with pytest.raises(ValueError, match=message):
+        TyrannosaurusRexAnatomicalEnv(**kwargs)
+
+
+# ---------------------------------------------------------------------------------------------------- on: the reading
+def test_on_the_reading_is_the_recorders_bit_for_bit(off_kwargs):
+    """Every step of a 300-step noisy episode: each foot's whole-foot CoP is the recorder's trace (whole_foot_cop,
+    the K2b reading) and the pad CoP its sole_cop, byte for byte, with the loaded flags the gate uses."""
+    env = TyrannosaurusRexAnatomicalEnv(**off_kwargs, **ON)
+    recorder = SubstepContactRecorder(env, Morphology.from_env(env, TYRANNOSAURUS_REX)).attach()
+    try:
+        env.reset(seed=3052)
+        rng = np.random.default_rng(1)
+        rows = []
+        for _ in range(300):
+            action = rng.uniform(-0.1, 0.1, 15)
+            _, reward, terminated, truncated, info = env.step(action)
+            recorder.end_step(action, reward)
+            rows.append(info)
+            if terminated or truncated:
+                break
+        trace = recorder.end_episode(terminated=terminated, truncated=truncated)
+    finally:
+        recorder.detach()
+        env.close()
+    assert len(rows) == 300
+    _spanned, cop, loaded = whole_foot_cop(trace)
+    pad = trace.sole_cop[:, :, 0]
+    pad_loaded = np.isfinite(pad) & (trace.sole_contacts_mean > 0)
+    seen_out = 0
+    for step, info in enumerate(rows):
+        for index, side in enumerate("rl"):
+            assert _bytes(info[f"{side}_cop_band_foot_cop"]) == _bytes(cop[step, index] if loaded[step, index] else 0)
+            assert _bytes(info[f"{side}_cop_band_pad_cop"]) == _bytes(
+                pad[step, index] if pad_loaded[step, index] else 0
+            )
+            share = trace.leg_floor_mean[step, index] / trace.leg_floor_mean[step].sum()
+            assert info[f"{side}_cop_band_load_share"] == pytest.approx(share, rel=1e-12)
+            seen_out += not -0.6 <= cop[step, index] <= 0.4
+    assert seen_out > 20  # the noisy episode leaves the band, so the comparison covers paid steps
+
+
+def test_on_it_matches_the_formula_and_an_independent_oracle_on_constructed_states(off_kwargs):
+    """Hand-posed states from a settled stance: as stood (inside the band), both ankles opened 0.06 rad (the right
+    foot's whole-foot CoP past the toe edge), and the right toes flexed 0.2 rad (the right foot's load onto its
+    digits: whole-foot CoP far past the toe edge, pad CoP on its heel edge).  The readings match a plain
+    mj_contactForce loop and the reward matches the formula."""
+    env, base = _settled({**off_kwargs, **ON})
+    try:
+        morphology = Morphology.from_env(env, TYRANNOSAURUS_REX)
+        toes = {f"r_toe_d{d}_joint": 0.2 for d in (2, 3, 4)}
+        rewards = []
+        for edits in ({}, {"r_ankle": 0.06, "l_ankle": 0.06}, toes):
+            info = _pose(env, base, edits)
+            oracle = _oracle(env, morphology)
+            for index, side in enumerate("rl"):
+                assert info[f"{side}_cop_band_foot_cop"] == pytest.approx(oracle[index]["foot_cop"], abs=1e-9)
+                assert info[f"{side}_cop_band_pad_cop"] == pytest.approx(oracle[index]["pad_cop"], abs=1e-9)
+                share = oracle[index]["force"] / (oracle[0]["force"] + oracle[1]["force"])
+                assert info[f"{side}_cop_band_load_share"] == pytest.approx(share, abs=1e-9)
+                assert info[f"{side}_cop_band_counted"] == 1.0
+            want, qualities = _expected(info)
+            assert info["reward_stance_cop_band"] == pytest.approx(want, rel=1e-12, abs=1e-15)
+            assert [info["r_cop_band_quality"], info["l_cop_band_quality"]] == pytest.approx(qualities, rel=1e-12)
+            rewards.append(info["reward_stance_cop_band"])
+        assert rewards[0] == 0.0  # the settled stance stands inside both bands
+        assert -0.3 < rewards[1] < -0.01  # the right foot's CoP just past the toe edge
+        assert rewards[2] < rewards[1]  # the digit-loaded right foot: far past it
+    finally:
+        env.close()
+
+
+def test_the_gates_pay_nothing_at_or_before_the_settle_and_under_a_command(off_kwargs):
+    env, base = _settled({**off_kwargs, **ON})
+    try:
+        edits = {"r_ankle": 0.06, "l_ankle": 0.06}
+        paid = _pose(env, base, edits)
+        assert paid["reward_stance_cop_band"] < 0.0
+        for step in (0, 1, env.stance_width_settle_steps):
+            info = _pose(env, base, edits, step=step)
+            assert info["reward_stance_cop_band"] == 0.0
+            assert info["stance_cop_band_quality"] == paid["stance_cop_band_quality"] < 1.0  # still reported
+        _pose(env, base, edits)
+        env._command = np.array([0.0, 0.1, 0.0], dtype=env._command.dtype)
+        _, info = env._get_reward_info(np.zeros(15))
+        assert info["reward_stance_cop_band"] == 0.0 and info["stance_cop_band_quality"] < 1.0
+    finally:
+        env.close()
+
+
+def test_on_it_changes_no_dynamics_and_adds_exactly_its_term(off_kwargs):
+    rows = _pair(off_kwargs, {**off_kwargs, **ON}, 320)
+    assert len(rows) == 320
+    settle = off_kwargs.get("stance_width_settle_steps", 200)
+    paid = 0
+    for step, ((r_off, i_off, q_off, _), (r_on, i_on, q_on, _)) in enumerate(rows, start=1):
+        np.testing.assert_array_equal(q_off, q_on)  # the reader only copies: the trajectory is untouched
+        assert set(i_on) - set(i_off) == BAND_INFO_KEYS
+        assert _bytes(r_on) == _bytes(r_off + i_on["reward_stance_cop_band"]) == _bytes(i_on["reward_total"])
+        if step <= settle:
+            assert i_on["reward_stance_cop_band"] == 0.0 and _bytes(r_on) == _bytes(r_off)
+        else:
+            assert i_on["reward_stance_cop_band"] == pytest.approx(_expected(i_on)[0], rel=1e-12, abs=1e-15)
+            paid += i_on["reward_stance_cop_band"] < 0.0
+    assert paid > 0
+
+
+# ---------------------------------------------------------------------------------------------------- on: the guards
+def test_guard_1_a_lifted_foot_pays_the_maximum(off_kwargs):
+    """The right hip swung 0.3 rad forward lifts the right foot off the floor: it is not counted and pays the full
+    per-foot price (0.30 / 2), whatever its readings; the left foot carries everything and stands in the band."""
+    env, base = _settled({**off_kwargs, **ON})
+    try:
+        info = _pose(env, base, {"r_hip_pitch": -0.3})
+        oracle = _oracle(env, Morphology.from_env(env, TYRANNOSAURUS_REX))
+        assert oracle[0]["force"] == 0.0 and not oracle[0]["foot_loaded"]
+        assert info["r_cop_band_counted"] == 0.0 and info["r_cop_band_quality"] == 0.0
+        assert info["r_cop_band_foot_cop"] == 0.0 and info["r_cop_band_load_share"] == 0.0
+        assert info["l_cop_band_counted"] == 1.0 and info["l_cop_band_quality"] == 1.0
+        assert info["reward_stance_cop_band"] == pytest.approx(-0.15, abs=1e-15)
+    finally:
+        env.close()
+
+
+def test_guard_1_a_lightly_loaded_foot_pays_the_maximum(off_kwargs):
+    """Opening the right ankle 0.06 rad leaves the right foot about 43% of the limbs' load.  At the default minimum
+    share (0.35) it is counted; with a 0.45 minimum it is not, and pays the full per-foot price."""
+    for min_share, counted in ((0.35, True), (0.45, False)):
+        env, base = _settled({**off_kwargs, **ON, "stance_cop_band_min_load_share": min_share})
+        try:
+            info = _pose(env, base, {"r_ankle": 0.06})
+            assert 0.35 < info["r_cop_band_load_share"] < 0.45 < info["l_cop_band_load_share"]
+            assert info["r_cop_band_counted"] == float(counted)
+            if not counted:
+                assert info["r_cop_band_quality"] == 0.0
+                left = info["l_cop_band_quality"]
+                assert info["reward_stance_cop_band"] == pytest.approx(-0.30 * (2.0 - left) / 2.0, rel=1e-12)
+        finally:
+            env.close()
+
+
+def test_guard_2_a_foot_off_its_pad_pays_the_maximum(off_kwargs):
+    """The right toes flexed 0.4 rad lift the right pad: the limb is loaded, on its digits alone.  The pad is
+    unloaded, so the foot is not counted, whatever its whole-foot CoP; and the left foot, now under 35% of the
+    load, is not counted either."""
+    env, base = _settled({**off_kwargs, **ON})
+    try:
+        info = _pose(env, base, {f"r_toe_d{d}_joint": 0.4 for d in (2, 3, 4)})
+        oracle = _oracle(env, Morphology.from_env(env, TYRANNOSAURUS_REX))
+        assert oracle[0]["foot_loaded"] and not oracle[0]["pad_loaded"]
+        assert info["r_cop_band_digit_share"] == pytest.approx(1.0)
+        assert info["r_cop_band_counted"] == 0.0 and info["r_cop_band_pad_cop"] == 0.0
+        assert info["l_cop_band_load_share"] < 0.35 and info["l_cop_band_counted"] == 0.0
+        assert info["reward_stance_cop_band"] == pytest.approx(-0.30, abs=1e-15)
+    finally:
+        env.close()
+
+
+def test_guard_2_the_pad_band_prices_load_moved_onto_the_digits(off_kwargs):
+    """The right toes extended 0.6 rad: about 40% of the right foot's load moves onto its digits near their MTP
+    joints, which pulls the whole-foot CoP back inside the band (+0.03) while the pad itself sits toe-loaded
+    (+0.63).  The whole-foot band alone pays nothing; the pad band prices the pad's own excursion (here with its
+    upper edge at 0.5 to show it binding; the default 0.65 sits just past this pose)."""
+    toes = {f"r_toe_d{d}_joint": -0.6 for d in (2, 3, 4)}
+    env, base = _settled({**off_kwargs, **ON})
+    try:
+        info = _pose(env, base, toes)
+        assert -0.6 < info["r_cop_band_foot_cop"] < 0.4 < info["r_cop_band_pad_cop"] < 0.65
+        assert info["r_cop_band_digit_share"] > 0.3
+        assert info["reward_stance_cop_band"] == 0.0
+    finally:
+        env.close()
+    tight = {"stance_cop_band_pad_upper": 0.5}
+    env, base = _settled({**off_kwargs, **ON, **tight})
+    try:
+        info = _pose(env, base, toes)
+        pad = info["r_cop_band_pad_cop"]
+        want = 0.30 * (1.0 - math.exp(-(((pad - 0.5) / 0.357) ** 2))) / 2.0
+        assert info["r_cop_band_quality"] < 1.0
+        assert info["reward_stance_cop_band"] == pytest.approx(-want, rel=1e-12)
+        assert info["reward_stance_cop_band"] == pytest.approx(_expected(info, kwargs=tight)[0], rel=1e-12)
+    finally:
+        env.close()
+
+
+# ---------------------------------------------------------------------------------------------------- on: the mirror
+def test_the_readings_swap_feet_under_the_mirror_and_the_term_does_not_move(off_kwargs):
+    env = TyrannosaurusRexAnatomicalEnv(**off_kwargs, **ON)
+    try:
+        mirror = SY.build_env_mirror(env, SY.HEADING_FREE_OBSERVATION_SCHEMA)
+        env.reset(seed=3052)
+        for action in np.random.default_rng(2).uniform(-0.2, 0.2, (40, 15)):
+            env.step(action)
+        mujoco.mj_forward(env.model, env.data)
+        env._invalidate_substep_aggregates()
+        env._step_count = env.stance_width_settle_steps + 1  # the gate open, so the paid reward is compared
+        _, before = env._get_reward_info(np.zeros(15))
+        SY.mirror_env_state(env, env, mirror)
+        env._invalidate_substep_aggregates()
+        _, after = env._get_reward_info(np.zeros(15))
+        assert before["reward_stance_cop_band"] < 0.0
+        for name in PER_FOOT:
+            assert after[f"r_cop_band_{name}"] == pytest.approx(before[f"l_cop_band_{name}"], abs=1e-9)
+            assert after[f"l_cop_band_{name}"] == pytest.approx(before[f"r_cop_band_{name}"], abs=1e-9)
+        for key in ("stance_cop_band_quality", "reward_stance_cop_band"):
+            assert after[key] == pytest.approx(before[key], abs=1e-9)
+    finally:
+        env.close()
+
+
+# ---------------------------------------------------------------------------------------------------- pure function
+@pytest.mark.parametrize(
+    ("foot_cop", "pad_cop", "counted"),
+    [
+        ((0.0, -0.1), (0.2, 0.1), (True, True)),  # inside both bands
+        ((-0.9, 0.1), (-0.95, 0.3), (True, True)),  # a heel-side split foot (K2a-like)
+        ((0.6, 0.0), (0.62, 0.2), (True, True)),  # past the toe edge
+        ((-0.5, 0.0), (-0.95, 0.2), (True, True)),  # whole foot inside, pad on its heel: the pad band binds
+        ((math.nan, 0.0), (math.nan, 0.2), (False, True)),  # an unloaded foot: NaN readings, the maximum
+        ((-0.3, 0.0), (0.0, 0.2), (False, False)),  # neither counted: -w
+    ],
+)
+def test_the_pure_function_is_the_design_formula(foot_cop, pad_cop, counted):
+    reward, quality = reward_stance_cop_band(
+        np.asarray(foot_cop), np.asarray(pad_cop), np.asarray(counted), (-0.6, 0.4), (-0.65, 0.65), 0.357, 0.30
+    )
+    want = [_quality(f, p, c) for f, p, c in zip(foot_cop, pad_cop, counted)]
+    np.testing.assert_allclose(quality, want, rtol=1e-12, atol=1e-15)
+    assert float(reward) == pytest.approx(-0.30 * (2.0 - sum(want)) / 2.0, rel=1e-12, abs=1e-15)
+    assert -0.30 <= float(reward) <= 0.0 and np.isfinite(float(reward))
+    swapped = reward_stance_cop_band(
+        np.asarray(foot_cop[::-1]),
+        np.asarray(pad_cop[::-1]),
+        np.asarray(counted[::-1]),
+        (-0.6, 0.4),
+        (-0.65, 0.65),
+        0.357,
+        0.30,
+    )
+    assert _bytes(swapped[0]) == _bytes(reward)  # exactly invariant when the feet swap
+    np.testing.assert_array_equal(swapped[1], np.asarray(quality)[::-1])
+
+
+def test_band_excess():
+    values = np.array([-1.0, -0.6, 0.0, 0.4, 0.7])
+    np.testing.assert_allclose(band_excess(values, -0.6, 0.4), [0.4, 0.0, 0.0, 0.0, 0.3], atol=1e-15)
+
+
+def test_the_slopes_match_the_design_table():
+    """design.md: one foot u past the band edge, per step per 0.1 span half-length, w 0.30 and tolerance 0.357:
+    0.0360 / 0.0349 / 0.0331 / 0.0297 / 0.0268 at u = 0.26 / 0.30 / 0.33 / 0.37 / 0.40."""
+    h = 1e-7
+    for u, want in ((0.26, 0.0360), (0.30, 0.0349), (0.33, 0.0331), (0.37, 0.0297), (0.40, 0.0268)):
+
+        def cost(x):
+            reward, _ = reward_stance_cop_band(
+                np.array([-0.6 - x, 0.0]), np.array([0.0, 0.0]), np.array([True, True]), (-0.6, 0.4), (-0.65, 0.65),
+                0.357, 0.30,
+            )  # fmt: skip
+            return -float(reward)
+
+        slope = (cost(u + h) - cost(u - h)) / (2 * h) * 0.1
+        assert slope == pytest.approx(want, abs=6e-5), u

@@ -542,6 +542,50 @@ def reward_stance_stagger(
     return -weight * (1.0 - stagger_quality), stagger_quality
 
 
+def band_excess(value: Array, lower: float, upper: float) -> Array:
+    """How far ``value`` lies outside ``[lower, upper]``: 0 inside, ``lower - value`` below, ``value - upper`` above."""
+    xp = _array_mod(value)
+    return xp.maximum(lower - value, 0.0) + xp.maximum(value - upper, 0.0)
+
+
+def reward_stance_cop_band(
+    foot_cop: Array,
+    pad_cop: Array,
+    counted: Array,
+    band: tuple[float, float],
+    pad_band: tuple[float, float],
+    tolerance: float,
+    weight: float,
+) -> tuple[Array, Array]:
+    """Per-foot centre-of-pressure band PENALTY for a standing animal (screen-only, never merged).
+
+    Per foot ``k`` (arrays over the feet): ``u_k`` is the larger of how far
+    its whole-foot CoP ``foot_cop`` lies outside ``band`` and how far its pad
+    CoP ``pad_cop`` lies outside ``pad_band`` (both in the foot's span
+    half-lengths); ``quality_k = exp(-(u_k / tolerance)^2)``, and 0 for a
+    foot that is not ``counted`` (unloaded, too lightly loaded, or standing
+    off its pad: the caller's guards), whatever its readings.  The penalty
+    is ``-weight * mean_k (1 - quality_k)``: 0 with every foot counted and
+    inside both bands, ``-weight`` at most.  The mean over the feet is
+    symmetric and the readings are fore-aft, so swapping the feet (the
+    left-right mirror) leaves the term unchanged.
+
+    Returns:
+        ``(reward, quality)`` with reward in ``[-weight, 0]`` and ``quality`` the per-foot qualities in ``[0, 1]``.
+    """
+    xp = _array_mod(foot_cop)
+    counted = xp.asarray(counted, dtype=bool)
+    lower, upper = band
+    pad_lower, pad_upper = pad_band
+    # An uncounted foot's readings may be NaN: read it at its band's lower edge (excess 0); it scores 0 below.
+    whole = band_excess(xp.where(counted, foot_cop, lower), lower, upper)
+    pad = band_excess(xp.where(counted, pad_cop, pad_lower), pad_lower, pad_upper)
+    excess = xp.maximum(whole, pad)
+    safe_tolerance = xp.maximum(tolerance, 1e-8)
+    quality = xp.where(counted, xp.exp(-xp.square(excess / safe_tolerance)), 0.0)
+    return -weight * xp.mean(1.0 - quality), quality
+
+
 def reward_action_saturation(
     action: Array,
     weight: float,

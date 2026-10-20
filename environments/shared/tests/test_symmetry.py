@@ -427,6 +427,7 @@ def _paired_rollout(kwargs, seed, actions, mirror_map):
                     "info": info_error,
                     "lean_paid": info_a.get("reward_lateral_lean", 0.0) > 0.0,
                     "stagger_paid": info_a.get("reward_stance_stagger", 0.0) < 0.0,
+                    "band_paid": info_a.get("reward_stance_cop_band", 0.0) < 0.0,
                     "ended": (bool(term_a), bool(trunc_a), info_a.get("termination_reason")),
                     "ended_b": (bool(term_b), bool(trunc_b), info_b.get("termination_reason")),
                 }
@@ -457,13 +458,15 @@ _SCREENED_OPTIONS = {
 }
 #: Screen-only (stance4, never merged): the screened options plus the standing foot stagger penalty.
 _STAGGER_OPTIONS = {**_SCREENED_OPTIONS, "stance_stagger_weight": 0.30, "stance_stagger_tolerance_m": 0.045}
+#: Scratch prototype (stance4 copband design, never merged): the screened options plus the per-foot CoP band.
+_BAND_OPTIONS = {**_SCREENED_OPTIONS, "stance_cop_band_weight": 0.30}
 
 
 @pytest.mark.parametrize(
     ("options", "steps"),
     # On, the rollout runs past stance_width_settle_steps (200) so the lean and stagger terms' gates open.
-    [({}, 40), (_SCREENED_OPTIONS, 260), (_STAGGER_OPTIONS, 260)],
-    ids=["options off", "screened options on", "screened options and stagger on"],
+    [({}, 40), (_SCREENED_OPTIONS, 260), (_STAGGER_OPTIONS, 260), (_BAND_OPTIONS, 260)],
+    ids=["options off", "screened options on", "screened options and stagger on", "screened options and CoP band on"],
 )
 @pytest.mark.parametrize("seed", [3047, 3059])
 def test_the_simulator_is_mirror_equivariant_on_the_stance(stance_kwargs, mirror_map, seed, options, steps):
@@ -473,6 +476,7 @@ def test_the_simulator_is_mirror_equivariant_on_the_stance(stance_kwargs, mirror
     penalty on as well."""
     kwargs = {**stance_kwargs, **options}
     stagger_live = steps > kwargs.get("stance_width_settle_steps", 200) and kwargs.get("stance_stagger_weight", 0) > 0
+    band_on = steps > kwargs.get("stance_width_settle_steps", 200) and kwargs.get("stance_cop_band_weight", 0) > 0
     for actions in ([np.zeros(15)] * steps, _smooth_actions(steps, seed, 0.03)):
         rows = _paired_rollout(kwargs, seed, actions, mirror_map)
         assert rows[0]["obs"] == 0.0
@@ -483,6 +487,8 @@ def test_the_simulator_is_mirror_equivariant_on_the_stance(stance_kwargs, mirror
         assert max(row["info"] for row in rows[1:]) <= 1e-9
         assert any(row["lean_paid"] for row in rows[1:]) == bool(options)
         assert any(row["stagger_paid"] for row in rows[1:]) == stagger_live
+        if not band_on:  # the band pays only steps a foot leaves it; on, the reward and info checks above cover it
+            assert not any(row["band_paid"] for row in rows[1:])
 
 
 def test_termination_is_mirror_invariant(stance_kwargs, mirror_map):
