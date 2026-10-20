@@ -10,10 +10,11 @@ no task fingerprint, no recorded stage config, and the env never loads the band'
     reward = -w * mean_k (1 - q_k), paid only after stance_width_settle_steps and only while the command is zero
 
 The whole-foot CoP is the judge's K2b reading for the step (every floor contact of the limb over the step's
-substeps, span half-lengths), computed with the recorder's own reduction, which lives in the neutral
+substeps, span half-lengths), computed with the recorder's reduction fused into one pass per step, in the neutral
 environments/shared/floor_contact package so the env imports nothing from gait (floor_contact/step_cop.py); the tests
-pin it to the recorder bit for bit, to an independent mj_contactForce computation on hand-posed states, and to a
-golden band-on rollout, so a later change to the shared reduction cannot move the reward unseen.
+pin it to the recorder bit for bit, to the shared reduction functions bit for bit on synthetic contacts, to an
+independent mj_contactForce computation on hand-posed states, and to a golden band-on rollout, so a later change to
+the shared reduction or the fused reader cannot move the reward unseen.
 
 Every test starts from the stance stage's env kwargs with the stagger keys removed, so "off" means off.
 """
@@ -561,6 +562,183 @@ def test_the_shared_reduction_is_pinned_on_contacts_that_straddle_its_thresholds
         name for name in REDUCTION_GOLDEN.keys() | digests.keys() if REDUCTION_GOLDEN.get(name) != digests.get(name)
     )
     assert moved == [], f"the shared reduction's outputs moved ({moved}): {digests}"
+
+
+#: The band's reader runs the shared reduction's rules and arithmetic in one fused pass per step (floor_contact/
+#: step_cop.py), so it is pinned to the shared functions themselves, byte for byte, on synthetic steps of two substeps
+#: (the geoms of _synthetic_reduction).  Step 1: a right sole contact at 0.105 N (CONTACT_THRESHOLD_N 0.1), a right
+#: digit contact in floor-second order, one without constraint rows (efc_address -1), a left sole contact at 0.0999 N
+#: and the left limb's largest substep force 0.104 N (its digit), a body and a prop on the floor, a sole on the other
+#: sole.  Step 2: the right foot carries 4e-10 N (the 1e-9 N load rule: no CoP), the left 5e-4 N on its digit (a CoP,
+#: not loaded).  Step 3: an empty substep, then the right sole alone at 0.1 N.  Each sole moves between substeps; the
+#: left one is turned 90 degrees about z.
+FUSED_STEPS = (
+    (  # (geom1, geom2, normal force, world point), per substep
+        [
+            (0, 1, 0.105, (0.03, 0.01, 0.0)),
+            (2, 0, 0.3, (0.09, -0.005, 0.0)),
+            (0, 2, None, (0.08, 0.0, 0.0)),
+            (0, 3, 0.0999, (0.02, 0.33, 0.0)),
+            (0, 5, 1.0, (0.5, 0.0, 0.4)),
+            (0, 6, 2.0, (1.0, 1.0, 0.0)),
+            (1, 3, 0.5, (0.0, 0.15, 0.0)),
+        ],
+        [(0, 1, 0.2, (-0.01, 0.02, 0.0)), (4, 0, 0.104, (-0.03, 0.4, 0.0))],
+    ),
+    ([(0, 4, 3e-4, (-0.02, 0.41, 0.0)), (0, 1, 4e-10, (0.01, 0.0, 0.0))], [(0, 4, 2e-4, (-0.01, 0.41, 0.0))]),
+    ([], [(0, 1, 0.1, (0.01, 0.005, 0.0))]),
+)
+
+
+def _fused_scene(cone, condims):
+    """The synthetic morphology, a model with ``cone`` and per-geom ``condims``, and per step and substep the data the
+    reader copies (a contact's constraint rows decode to its normal force; None: no rows)."""
+    morphology = SimpleNamespace(
+        is_floor=np.array([1, 0, 0, 0, 0, 0, 0], dtype=bool),
+        is_animal=np.array([0, 1, 1, 1, 1, 1, 0], dtype=bool),
+        geom_foot=np.array([-1, 0, 0, 1, 1, -1, -1]),
+        geom_support=np.array([-1, 0, 1, 2, 3, -1, -1]),
+        support_geom_ids=(1, 2, 3, 4),
+        support_geom_foot=(0, 0, 1, 1),
+        n_feet=2,
+        feet=[
+            SimpleNamespace(
+                side=side,
+                sole_geom=sole,
+                sole_forward_axis=0,
+                sole_forward_sign=1.0,
+                sole_lateral_axis=1,
+                sole_lateral_sign=1.0,
+                ankle_forward_m=ankle,
+                heel_line_m=heel,
+                toe_line_m=toe,
+            )
+            for side, sole, ankle, heel, toe in (("R", 1, 0.02, -0.05, 0.09), ("L", 3, -0.01, -0.06, 0.08))
+        ],
+    )
+    model = SimpleNamespace(
+        opt=SimpleNamespace(cone=cone),
+        geom_condim=np.array(condims),
+        npair=0,
+        geom_size=np.tile([0.07, 0.04, 0.01], (7, 1)),
+    )
+    turned = np.array([[0.0, -1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]])
+    steps = []
+    for rows in FUSED_STEPS:
+        substeps = []
+        for substep, contacts in enumerate(rows):
+            geom_xpos = np.zeros((7, 3))
+            geom_xpos[1] = (0.002 * substep, 0.0, 0.001)
+            geom_xpos[3] = (-0.001 * substep, 0.3, 0.0)
+            geom_xmat = np.tile(np.eye(3).ravel(), (7, 1))
+            geom_xmat[3] = turned.ravel()
+            address, dim, efc_force = [], [], []
+            for geom1, geom2, force, _point in contacts:
+                condim = int(max(condims[geom1], condims[geom2]))
+                dim.append(condim)
+                if force is None:
+                    address.append(-1)
+                    continue
+                address.append(len(efc_force))
+                edges = 1 if (cone == 1 or condim == 1) else 2 * (condim - 1)
+                efc_force += [force] + [0.1 * force] * (condim - 1) if edges == 1 else [force / edges] * edges
+            contact = SimpleNamespace(
+                geom=np.array([c[:2] for c in contacts], dtype=np.int32).reshape(-1, 2),
+                pos=np.array([c[3] for c in contacts], dtype=np.float64).reshape(-1, 3),
+                efc_address=np.array(address, dtype=np.int32),
+                dim=np.array(dim, dtype=np.int32),
+            )
+            substeps.append(
+                SimpleNamespace(
+                    ncon=len(contacts),
+                    contact=contact,
+                    efc_force=np.array(efc_force),
+                    geom_xpos=geom_xpos,
+                    geom_xmat=geom_xmat,
+                )
+            )
+        steps.append(substeps)
+    return morphology, model, steps
+
+
+def _shared_reading(morphology, model, substeps) -> dict[str, np.ndarray]:
+    """One step read by the shared reduction functions, as the recorder runs them (``SubstepContactRecorder._reduce``
+    and pad_telemetry's loaded rule), for the step's ``substeps``."""
+    feet, n_feet = morphology.feet, morphology.n_feet
+    elliptic, edge_offsets = reduction.decode_settings(model)
+    counts = [data.ncon for data in substeps]
+    present = [data for data in substeps if data.ncon]
+    normal = np.concatenate(
+        [np.zeros(0)]
+        + [
+            reduction.decode_normal_forces(d.contact, d.efc_force, elliptic=elliptic, edge_offsets=edge_offsets)
+            for d in present
+        ]
+    )
+    geoms = np.concatenate([np.zeros((0, 2), dtype=np.int64)] + [d.contact.geom.astype(np.int64) for d in present])
+    points = np.concatenate([np.zeros((0, 3))] + [d.contact.pos for d in present])
+    substep_of = np.repeat(np.arange(len(substeps)), counts)
+    other, _on_floor, foot, leg_on_floor = reduction.classify_floor_contacts(morphology, geoms)
+    leg = reduction.per_substep_force(substep_of, normal, leg_on_floor, foot, n_feet, 1, len(substeps))
+    support_index = np.where(leg_on_floor, morphology.geom_support[other], -1)
+    support = reduction.per_substep_force(substep_of, normal, support_index >= 0, support_index, 4, 1, len(substeps))
+    on_sole = leg_on_floor & (other == np.array([1, 3, -2])[foot])
+    loaded = on_sole & (normal > reduction.CONTACT_THRESHOLD_N)
+    sole_contacts = np.bincount(foot[loaded], minlength=n_feet)
+    soles = [1, 3]
+    pose = np.stack([np.concatenate([d.geom_xpos[soles], d.geom_xmat[soles]], axis=1) for d in substeps])
+    half_size = [model.geom_size[sole] for sole in soles]
+    sole_cop = reduction.sole_cop_steps(
+        feet, half_size, pose, substep_of, foot, on_sole, points, normal, 1, len(substeps)
+    )
+    ankle_forward = np.array([spec.ankle_forward_m for spec in feet])
+    foot_cop_m = reduction.whole_foot_cop_steps(
+        feet, ankle_forward, pose, substep_of, foot, leg_on_floor, points, normal, 1, len(substeps)
+    )
+    span = np.array([[spec.heel_line_m, spec.toe_line_m] for spec in feet])
+    _spanned, foot_cop, foot_loaded = reduction.normalized_foot_cop(foot_cop_m, leg.max(axis=1), span)
+    limb = leg.mean(axis=1)[0]
+    digits = np.array([[0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 0.0, 1.0]]) @ support.mean(axis=1)[0]
+    with np.errstate(invalid="ignore", divide="ignore"):
+        digit_share = np.where(limb > 0, digits / np.where(limb > 0, limb, 1.0), np.nan)
+    return {
+        "foot_cop": foot_cop[0],
+        "foot_loaded": foot_loaded[0],
+        "pad_cop": sole_cop[0, :, 0],
+        "pad_loaded": np.isfinite(sole_cop[0, :, 0]) & (sole_contacts > 0),
+        "leg_force_mean": limb,
+        "leg_force_max": leg.max(axis=1)[0],
+        "digit_share": digit_share,
+    }
+
+
+@pytest.mark.parametrize(
+    "cone, condims",
+    [(1, [3] * 7), (0, [3] * 7), (0, [3, 3, 3, 3, 3, 1, 3])],
+    ids=["elliptic", "pyramidal", "per-contact decode"],
+)
+def test_the_fused_reader_is_the_shared_reduction_on_contacts_that_straddle_its_thresholds(cone, condims):
+    from environments.shared.floor_contact.step_cop import StepFootCop
+
+    morphology, model, steps = _fused_scene(cone, condims)
+    reader = StepFootCop(SimpleNamespace(model=model, frame_skip=2), morphology)
+    readings = []
+    for step, substeps in enumerate(steps, start=1):
+        for substep, data in enumerate(substeps):
+            reader.record(model, data, step, substep)
+        readings.append((reader.reading(step, model, substeps[-1]), _shared_reading(morphology, model, substeps)))
+    # A state read outside a recorded step: its current data as one substep.
+    readings.append((reader.reading(99, model, steps[0][0]), _shared_reading(morphology, model, steps[0][:1])))
+    for fused, shared in readings:
+        for name, want in shared.items():
+            got = getattr(fused, name)
+            assert got.dtype == want.dtype and got.tobytes() == want.tobytes(), (name, got, want)
+    (first, _), (second, _), (third, _), _fallback = readings
+    assert first.pad_loaded.tolist() == [True, False]  # a 0.105 N sole contact passes 0.1 N, a 0.0999 N one does not
+    assert first.foot_loaded.tolist() == [True, True]  # the 0.104 N limb is loaded at 0.1 N
+    assert np.isnan(second.foot_cop[0]) and np.isnan(second.pad_cop[0])  # 4e-10 N: under the 1e-9 N load rule
+    assert np.isfinite(second.foot_cop[1]) and not second.foot_loaded[1]  # 5e-4 N: a CoP, not loaded
+    assert np.isfinite(third.foot_cop[0]) and not third.foot_loaded[0] and not third.pad_loaded[0]  # 0.1 N: not above
 
 
 # ---------------------------------------------------------------------------------------------------- on: the guards

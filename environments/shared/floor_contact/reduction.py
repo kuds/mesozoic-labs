@@ -5,11 +5,12 @@ were :class:`environments.shared.gait.recorder.SubstepContactRecorder`'s
 own reduction steps: the per-contact normal-force decode, the floor-contact
 classification, the per-substep force sums and the sole and whole-foot
 centres of pressure.  The recorder reduces a whole episode with them, and
-:class:`.step_cop.StepFootCop` one control step, so the band's reading is
-the judge's K2b reading for that step bit for bit.  They live here, outside
-``gait/``, so that a species env module never imports the gait package (the
-layering rule ``test_no_species_env_module_imports_the_gait_package`` pins,
-with no exception), and this package imports nothing from ``gait/``.
+:class:`.step_cop.StepFootCop` reads one control step with the same rules
+and arithmetic in one fused pass, so the band's reading is the judge's K2b
+reading for that step bit for bit.  They live here, outside ``gait/``, so
+that a species env module never imports the gait package (the layering rule
+``test_no_species_env_module_imports_the_gait_package`` pins, with no
+exception), and this package imports nothing from ``gait/``.
 
 Pure: the standard library and numpy only at import time (the decode
 settings read mujoco's cone enum in their body), because two of gait's pure
@@ -22,7 +23,9 @@ whole-foot CoP with :func:`normalized_foot_cop`.
 A reward that reads this code depends on measurement code no task
 fingerprint hashes, so ``tests/test_anatomical_stance_cop_band.py`` pins a
 short band-on rollout's per-step readings (the golden), and its byte-for-byte
-comparison with the recorder's trace pins the two paths together.
+comparisons of the band's reader with the recorder's trace and with these
+functions (on synthetic contacts that straddle their thresholds) pin the two
+paths together.
 """
 
 from __future__ import annotations
@@ -37,6 +40,8 @@ if TYPE_CHECKING:
 
 #: A contact, a limb or a sole bears load above this normal force, in N (``gait/constants.py`` documents the value).
 CONTACT_THRESHOLD_N = 0.1
+#: A centre of pressure is read only where its contacts' normal forces sum to more than this, in N (else NaN).
+COP_LOAD_N = 1e-9
 
 
 def decode_settings(model: Any) -> tuple[bool, np.ndarray | None]:
@@ -150,7 +155,7 @@ def sole_cop_steps(
             weight = normal[chosen]
             step_of = at // substeps
             weight_sum = np.bincount(step_of, weights=weight, minlength=steps)
-            has_load = weight_sum > 1e-9
+            has_load = weight_sum > COP_LOAD_N
             for column, coordinate in enumerate((fore, outer)):
                 weighted = np.bincount(step_of, weights=weight * coordinate, minlength=steps)
                 cop[has_load, index, column] = weighted[has_load] / weight_sum[has_load]
@@ -191,26 +196,37 @@ def whole_foot_cop_steps(
             weight = normal[chosen]
             step_of = at // substeps
             weight_sum = np.bincount(step_of, weights=weight, minlength=steps)
-            has_load = weight_sum > 1e-9
+            has_load = weight_sum > COP_LOAD_N
             weighted = np.bincount(step_of, weights=weight * ahead, minlength=steps)
             foot_cop[has_load, index] = weighted[has_load] / weight_sum[has_load]
     return foot_cop
 
 
+def support_span_scale(support_span: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """``(spanned, middle, half)`` per foot of ``support_span`` (F,2): the span :func:`normalized_foot_cop` reads in."""
+    span = np.asarray(support_span, dtype=np.float64).reshape(-1, 2)
+    spanned = np.asarray(np.isfinite(span).all(axis=1), dtype=bool)
+    middle = np.where(spanned, span.mean(axis=1), np.nan)
+    half = np.where(spanned, (span[:, 1] - span[:, 0]) / 2.0, np.nan)
+    return spanned, middle, half
+
+
 def normalized_foot_cop(
-    foot_cop: np.ndarray, leg_floor_max: np.ndarray, support_span: np.ndarray
+    foot_cop: np.ndarray,
+    leg_floor_max: np.ndarray,
+    support_span: np.ndarray,
+    *,
+    scale: tuple[np.ndarray, np.ndarray, np.ndarray] | None = None,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """``whole_foot_cop`` on bare arrays: ``foot_cop`` and ``leg_floor_max`` (T,F), ``support_span`` (F,2).
 
     The one normalization and loaded rule: the gait package's
     :func:`~environments.shared.gait.stance_metrics.whole_foot_cop` reads an
     episode through it, and the T. rex's opt-in CoP band
-    (:class:`.step_cop.StepFootCop`) a single step.
+    (:class:`.step_cop.StepFootCop`) a single step, with ``scale``, its
+    span's :func:`support_span_scale` computed once.
     """
-    span = np.asarray(support_span, dtype=np.float64).reshape(-1, 2)
-    spanned = np.asarray(np.isfinite(span).all(axis=1), dtype=bool)
-    middle = np.where(spanned, span.mean(axis=1), np.nan)
-    half = np.where(spanned, (span[:, 1] - span[:, 0]) / 2.0, np.nan)
+    spanned, middle, half = support_span_scale(support_span) if scale is None else scale
     cop = (np.asarray(foot_cop, dtype=np.float64) - middle) / half
     loaded = np.isfinite(cop) & (np.asarray(leg_floor_max) > CONTACT_THRESHOLD_N)
     return spanned, cop, loaded

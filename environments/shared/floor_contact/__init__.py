@@ -21,7 +21,9 @@ Modules, bottom-up:
   re-exports it);
 * :mod:`~environments.shared.floor_contact.step_cop` -- ``StepFootCop``, the
   band's per-step reader: it copies each substep's contacts and reduces one
-  control step with :mod:`.reduction`.
+  control step in one fused pass, with :mod:`.reduction`'s decode,
+  classification, thresholds and normalization and the recorder's
+  arithmetic.
 
 Layering: this package imports nothing from ``gait``, ``curriculum`` or
 ``reporting``, and this file imports nothing, so a pure reader of
