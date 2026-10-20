@@ -3,21 +3,22 @@
 The stance judge's K2b statistic is each foot's whole-foot centre of
 pressure (``<label>_foot_cop_fore_aft``): every floor contact of the limb, on
 every physics substep, in the sole frame of its own substep, force-weighted,
-in span half-lengths (:mod:`.pad_telemetry`).  Only
-:class:`.recorder.SubstepContactRecorder` computes it, per episode, after the
-fact.  :class:`StepFootCop` computes the same reading for ONE control step,
-inside the env, so a reward can price it.  It does not reimplement anything:
+in span half-lengths (``gait/pad_telemetry.py``).  Only
+:class:`environments.shared.gait.recorder.SubstepContactRecorder` computes
+it, per episode, after the fact.  :class:`StepFootCop` computes the same
+reading for ONE control step, inside the env, so a reward can price it.  It
+does not reimplement anything:
 
 * the hot path copies the rows the recorder's hook copies (the contact geom
-  pairs, their normal forces decoded by :func:`.recorder.decode_normal_forces`,
+  pairs, their normal forces decoded by :func:`.reduction.decode_normal_forces`,
   their points, and the sole geoms' poses), once per substep, from the env's
   ``_accumulate_substep`` slot (``BaseDinoEnv.step`` calls it right after the
   probe hook the recorder owns, so both read the same ``data``);
 * :meth:`StepFootCop.reading` reduces them with the recorder's own
-  functions (:func:`.recorder.classify_floor_contacts`,
-  :func:`.recorder.per_substep_force`, :func:`.recorder.sole_cop_steps`,
-  :func:`.recorder.whole_foot_cop_steps`) and the gate's normalization and
-  loaded rule (:func:`.stance_metrics.normalized_foot_cop`), with one step
+  functions (:func:`.reduction.classify_floor_contacts`,
+  :func:`.reduction.per_substep_force`, :func:`.reduction.sole_cop_steps`,
+  :func:`.reduction.whole_foot_cop_steps`) and the gate's normalization and
+  loaded rule (:func:`.reduction.normalized_foot_cop`), with one step
   of ``frame_skip`` substeps.  ``np.bincount`` sums each step's contacts in
   the same order either way, so the reading equals the recorder's trace for
   that step bit for bit (``tests/test_anatomical_stance_cop_band.py`` pins
@@ -26,15 +27,15 @@ inside the env, so a reward can price it.  It does not reimplement anything:
 It reads ``model`` and ``data`` and never writes them: a trajectory with it
 is bit-identical to one without.
 
-Layering: :mod:`environments.shared.gait` is a measurement library, and no
-species env module imported it before this.  The T. rex env imports this
-module only inside the method that builds the band's reader, and only when
-the band is on, so an env with the band off never loads it.  That is still
-an exception to the rule ``test_no_species_env_module_imports_the_gait_package``
-pins; the test names it.  A reward that reads this code depends on
-measurement code that no task fingerprint hashes: a later change to the
-recorder's reduction would change the reward.  See the stance4 copband
-design note (screen-only).
+Layering: this module and everything it imports sit in
+:mod:`environments.shared.floor_contact`, outside the gait package, so the
+T. rex env imports it without breaking the rule that no species env module
+imports ``gait``.  The env imports it only inside the method that builds the
+band's reader, and only when the band is on, so an env with the band off
+never loads it.  A reward that reads this code depends on measurement code
+that no task fingerprint hashes: a later change to the shared reduction
+would change the reward, so the band's tests pin a band-on rollout's
+readings (the golden).  See the stance4 copband design note (screen-only).
 """
 
 from __future__ import annotations
@@ -44,17 +45,17 @@ from typing import Any
 
 import numpy as np
 
-from .constants import CONTACT_THRESHOLD_N
 from .morphology import Morphology
-from .recorder import (
+from .reduction import (
+    CONTACT_THRESHOLD_N,
     classify_floor_contacts,
     decode_normal_forces,
     decode_settings,
+    normalized_foot_cop,
     per_substep_force,
     sole_cop_steps,
     whole_foot_cop_steps,
 )
-from .stance_metrics import normalized_foot_cop
 
 
 @dataclass(frozen=True)

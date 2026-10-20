@@ -411,7 +411,7 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         self.stance_cop_band_pad_upper = stance_cop_band_pad_upper
         self.stance_cop_band_tolerance = stance_cop_band_tolerance
         self.stance_cop_band_min_load_share = stance_cop_band_min_load_share
-        # The band's per-step contact reader (gait/step_foot_cop.py), built on first use when the band is on.
+        # The band's per-step contact reader (floor_contact/step_cop.py), built on first use when the band is on.
         self._cop_band_reader: Any = None
         self.nosedive_termination_threshold = nosedive_termination_threshold
 
@@ -565,18 +565,19 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
             self._cop_band()
 
     def _cop_band(self) -> Any:
-        """The CoP band's per-step contact reader, :class:`environments.shared.gait.step_foot_cop.StepFootCop`.
+        """The CoP band's per-step contact reader, :class:`environments.shared.floor_contact.step_cop.StepFootCop`.
 
-        Scratch prototype (stance4 copband design, never merged).  Imported
-        here, only when the band is on, so an env with it off never loads the
-        gait package (an exception to the layering rule, named in
-        test_gait_stance_metrics.py).  It needs the model's foot registry
-        entry with an ankle and a support span (FOOT_SUPPORT): the anatomical
-        T. rex declares both.
+        Scratch prototype (stance4 copband design, never merged).  The reader
+        and the morphology it reduces with live in the neutral floor_contact
+        package, which the gait recorder imports too, so this env imports
+        nothing from the gait package.  Imported here, only when the band is
+        on, so an env with it off never loads the reader.  It needs the
+        model's foot registry entry with an ankle and a support span
+        (FOOT_SUPPORT): the anatomical T. rex declares both.
         """
         if self._cop_band_reader is None:
-            from environments.shared.gait.morphology import Morphology
-            from environments.shared.gait.step_foot_cop import StepFootCop
+            from environments.shared.floor_contact.morphology import Morphology
+            from environments.shared.floor_contact.step_cop import StepFootCop
             from environments.shared.model_id import ModelId
 
             embodiment = getattr(type(self), "embodiment", None)
@@ -1295,8 +1296,8 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         # stance_cop_band_weight > 0, its info keys exist only then).  A
         # Gaussian PENALTY on each foot's whole-foot CoP (the judge's K2b
         # reading for this step: every floor contact of the limb over the
-        # step's substeps, in span half-lengths, gait/step_foot_cop.py) outside
-        # [stance_cop_band_lower, stance_cop_band_upper], with the pad's own
+        # step's substeps, in span half-lengths, floor_contact/step_cop.py)
+        # outside [stance_cop_band_lower, stance_cop_band_upper], with the pad's own
         # CoP held to [stance_cop_band_pad_lower, stance_cop_band_pad_upper]
         # as well, so load moved onto the digits cannot pay the band (guard 2).
         # A foot that is unloaded, carries less than

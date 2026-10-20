@@ -2,7 +2,7 @@
 
 stance4 decision line 5 names it: if the stagger penalty does not hold fore-aft from scratch, the next round tests a
 per-foot centre-of-pressure band.  Off by default, and off it changes nothing: no reward, no info key, no trajectory,
-no task fingerprint, no recorded stage config, and the env never loads the gait package.  On, per foot k:
+no task fingerprint, no recorded stage config, and the env never loads the band's reader.  On, per foot k:
 
     u_k = max(excess(whole-foot CoP, [lower, upper]), excess(pad CoP, [pad_lower, pad_upper]))
     q_k = exp(-(u_k / tolerance)^2), or 0 when the foot is unloaded, carries less than min_load_share of the two
@@ -10,18 +10,22 @@ no task fingerprint, no recorded stage config, and the env never loads the gait 
     reward = -w * mean_k (1 - q_k), paid only after stance_width_settle_steps and only while the command is zero
 
 The whole-foot CoP is the judge's K2b reading for the step (every floor contact of the limb over the step's
-substeps, span half-lengths), computed with the recorder's own reduction (gait/step_foot_cop.py); the tests pin it
-to the recorder bit for bit, and to an independent mj_contactForce computation on hand-posed states.
+substeps, span half-lengths), computed with the recorder's own reduction, which lives in the neutral
+environments/shared/floor_contact package so the env imports nothing from gait (floor_contact/step_cop.py); the tests
+pin it to the recorder bit for bit, to an independent mj_contactForce computation on hand-posed states, and to a
+golden band-on rollout, so a later change to the shared reduction cannot move the reward unseen.
 
 Every test starts from the stance stage's env kwargs with the stagger keys removed, so "off" means off.
 """
 
 from __future__ import annotations
 
+import hashlib
 import inspect
 import json
 import math
 import sys
+from types import SimpleNamespace
 
 import mujoco
 import numpy as np
@@ -29,7 +33,8 @@ import pytest
 
 from environments.shared import symmetry as SY
 from environments.shared.config import load_stage_config, save_stage_config
-from environments.shared.gait.morphology import Morphology
+from environments.shared.floor_contact import reduction
+from environments.shared.floor_contact.morphology import Morphology
 from environments.shared.gait.recorder import SubstepContactRecorder
 from environments.shared.gait.stance_metrics import whole_foot_cop
 from environments.shared.model_id import ModelId
@@ -67,13 +72,17 @@ ON = {"stance_cop_band_weight": 0.30}
 SETTLE_STEPS = 250
 
 
-@pytest.fixture(scope="module")
-def off_kwargs():
+def _off_kwargs() -> dict:
     """The stance stage's env kwargs with the stagger keys (and any band key) removed."""
     kwargs = dict(load_stage_config(TYRANNOSAURUS_REX, "stance")["env_kwargs"])
     for key in ("stance_stagger_weight", "stance_stagger_tolerance_m", *OPTION_KEYS):
         kwargs.pop(key, None)
     return kwargs
+
+
+@pytest.fixture(scope="module")
+def off_kwargs():
+    return _off_kwargs()
 
 
 def _pair(kwargs_a, kwargs_b, steps, seed=3052, amplitude=0.05):
@@ -214,15 +223,15 @@ def test_off_it_changes_no_reward_no_info_key_and_no_trajectory(off_kwargs):
 
 
 def test_off_the_env_never_loads_the_band_reader(off_kwargs, monkeypatch):
-    """The gait import sits in _cop_band's body and runs only when the band is on."""
-    monkeypatch.delitem(sys.modules, "environments.shared.gait.step_foot_cop", raising=False)
+    """The reader's import sits in _cop_band's body and runs only when the band is on."""
+    monkeypatch.delitem(sys.modules, "environments.shared.floor_contact.step_cop", raising=False)
     env = TyrannosaurusRexAnatomicalEnv(**off_kwargs)
     try:
         env.reset(seed=3042)
         for _ in range(5):
             env.step(np.zeros(15))
         assert env._cop_band_reader is None
-        assert "environments.shared.gait.step_foot_cop" not in sys.modules
+        assert "environments.shared.floor_contact.step_cop" not in sys.modules
     finally:
         env.close()
 
@@ -382,6 +391,176 @@ def test_on_it_changes_no_dynamics_and_adds_exactly_its_term(off_kwargs):
             assert i_on["reward_stance_cop_band"] == pytest.approx(_expected(i_on)[0], rel=1e-12, abs=1e-15)
             paid += i_on["reward_stance_cop_band"] < 0.0
     assert paid > 0
+
+
+# ---------------------------------------------------------------------------------------------------- on: the golden
+#: The reward runs the shared floor-contact reduction (floor_contact/), which no task fingerprint hashes, so a change
+#: to it would move the reward with no fingerprint move (copband design section 7, risk 5).  This pins it: a 60-step
+#: band-on rollout from a seeded reset under uniform(-0.2, 0.2) actions, with the gate open from step 11
+#: (stance_width_settle_steps 10), so the spawn transient's lifted, light and off-pad feet are read and 50 steps are
+#: paid.  Per band info key: the sha256 of its per-step values quantized to 6 decimals (the digest snapshot's portable
+#: rounding; negative zero folded to zero).  Stepping crosses the solver, so it compares only under this MuJoCo.
+#: Re-pin from the failure message's digests only with a change that is meant to move the band's readings, and say
+#: which keys moved.
+GOLDEN_MUJOCO = "3.10.0"
+GOLDEN_STEPS = 60
+GOLDEN = {
+    "l_cop_band_counted": "2ef683d346aa2ef2c78c774881d1ed74fb4a35b671b08de3e168b895b90e3bb9",
+    "l_cop_band_digit_share": "cd6acb09122511149cbf1aaf088cc89f6f03336a967817ce506d075f0b993a1c",
+    "l_cop_band_foot_cop": "9c26b615d48fc35e009cddf01e030d3d1467db88dc405834cbd0b37cb42ee921",
+    "l_cop_band_load_share": "8beaacd30795cdc5bad6bdc39d9bb493e74c8c55547f012fa2e3058b17f9805e",
+    "l_cop_band_pad_cop": "3727b9c534e1bccb3f1bba1684a11393bf7a41877599e10ee7d194dc7cccf1bf",
+    "l_cop_band_quality": "01187557e7c64a5ec5961e9418d61020d8852c9815390ee7a460d5960b6f8475",
+    "r_cop_band_counted": "3e48d7e29fa41f25ca9e45597f9827d4ade3f242e687605091bc582de0f873a9",
+    "r_cop_band_digit_share": "f8ea879b7902755d4d6fd4f99d63c94fb4b14b045fb20a8d9409ac9c7dd7053c",
+    "r_cop_band_foot_cop": "0084fee3b6b1ad7853fbe0e7329074446d4b2d982801d69bf001534fafabbc6d",
+    "r_cop_band_load_share": "1864e45c647c70b85583434ba32e5ff2faaee8257a56eb4d3dc31639fb083ae9",
+    "r_cop_band_pad_cop": "e826fe34cd686ab8e1b6073be86b69fd0278e8aec3b07f6bfe433f7faa253174",
+    "r_cop_band_quality": "6e61280822b1afd15d3a34d70c6245253938c2d4484eafef1f914634e25e4b3f",
+    "reward_stance_cop_band": "16b413362fb27562100926a39850a7f10336a0274de2e9a748f9c88a2022a3e1",
+    "stance_cop_band_quality": "346031ca4b59f5343a33bf6c3b9f01a90677c047e9de9d7eb71ad3f283df949d",
+}
+
+
+def _golden_rows(kwargs) -> list[dict]:
+    """The golden rollout's band info, step by step (``kwargs``: the band-off stance kwargs)."""
+    env = TyrannosaurusRexAnatomicalEnv(**{**kwargs, **ON, "stance_width_settle_steps": 10})
+    try:
+        env.reset(seed=3052)
+        rng = np.random.default_rng(3052)
+        rows = []
+        for _ in range(GOLDEN_STEPS):
+            _, _, terminated, truncated, info = env.step(rng.uniform(-0.2, 0.2, 15))
+            rows.append({key: info[key] for key in sorted(BAND_INFO_KEYS)})
+            if terminated or truncated:
+                break
+        return rows
+    finally:
+        env.close()
+
+
+def _golden_digests(rows) -> dict[str, str]:
+    digests = {}
+    for key in sorted(BAND_INFO_KEYS):
+        values = np.round(np.array([row[key] for row in rows], dtype=np.float64), 6) + 0.0
+        digests[key] = hashlib.sha256(values.tobytes()).hexdigest()
+    return digests
+
+
+def test_the_shared_reduction_is_pinned_by_a_golden_band_on_rollout(off_kwargs):
+    if mujoco.__version__ != GOLDEN_MUJOCO:
+        pytest.skip(f"the golden steps the solver: running mujoco {mujoco.__version__} != {GOLDEN_MUJOCO}")
+    rows = _golden_rows(off_kwargs)
+    assert len(rows) == GOLDEN_STEPS
+    paid = [row["reward_stance_cop_band"] for row in rows]
+    assert sum(value < 0.0 for value in paid) == 50  # the gate opens after step 10, and every open step pays
+    counted = np.array([[row["r_cop_band_counted"], row["l_cop_band_counted"]] for row in rows])
+    quality = np.array([[row["r_cop_band_quality"], row["l_cop_band_quality"]] for row in rows])
+    assert (counted == 0.0).any() and ((quality > 0.0) & (quality < 1.0)).any()  # guards and the slope both read
+    digests = _golden_digests(rows)
+    moved = sorted(key for key in GOLDEN.keys() | digests.keys() if GOLDEN.get(key) != digests.get(key))
+    assert moved == [], f"the band's readings moved ({moved}): {digests}"
+
+
+#: The rollout reads no contact near the reduction's thresholds, so it would not see an edit of one (measured: the
+#: contact threshold 0.1 -> 0.11 N and the 1e-9 N load rule -> 1e-3 N both leave it unmoved).  This second pin feeds
+#: the pure reduction synthetic contacts that straddle each one: no physics step, so no solver dependence.  Per output:
+#: the sha256 of its values quantized to 12 decimals, NaN canonicalized.
+REDUCTION_GOLDEN = {
+    "classify": "9e628d6fd06a3b18eeef39fb43c05f5af10198b47516924d8e529821a9d31a6b",
+    "leg_force": "4772050c8eb3258d94f5b3c9001c54a353b524374da604a57ce64f4f21646ee8",
+    "support_force": "dd9b9be2153360b564722b91fef8414ab22d120242a300eda04800622940cae8",
+    "sole_cop": "610cf0a562370dc9d40a8651d378314b75740fb7a13e9f4ca267042491e4ffcc",
+    "foot_cop": "cf0c78b9a3cdc4bffb8853482de99ccf0a11b221a67602bb38132e99b1a50e31",
+    "normalized": "51fa6142b8f13b3d451c250a39757b945c4d0897b4d32982787819b333d1840c",
+    "decoded": "88cef0ab4c9954e179ca214f5fa2c2a6fda8d04df7abc01db2b239dbf78d40cc",
+}
+
+
+def _synthetic_reduction() -> dict[str, np.ndarray]:
+    """Two steps of two substeps on two feet (floor 0; right sole 1 and digit 2; left sole 3 and digit 4; a body
+    geom 5; a prop 6).  Step 0: a right sole contact at 0.105 N (CONTACT_THRESHOLD_N 0.1), the left limb's largest
+    substep force 0.104 N, a digit contact with its geoms in floor-second order, a body and a prop on the floor and a
+    sole on the other sole.  Step 1: the right foot carries nothing, the left only 5e-4 N on its digit (the 1e-9 N
+    load rule).  The left sole is turned 90 degrees about z.  Plus the normal-force decode, pyramidal and elliptic."""
+    morphology = SimpleNamespace(
+        is_floor=np.array([1, 0, 0, 0, 0, 0, 0], dtype=bool),
+        is_animal=np.array([0, 1, 1, 1, 1, 1, 0], dtype=bool),
+        geom_foot=np.array([-1, 0, 0, 1, 1, -1, -1]),
+        geom_support=np.array([-1, 0, 1, 2, 3, -1, -1]),
+    )
+    feet = [
+        SimpleNamespace(
+            side=side, sole_forward_axis=0, sole_forward_sign=1.0, sole_lateral_axis=1, sole_lateral_sign=1.0
+        )
+        for side in "RL"
+    ]
+    rows = [  # (substep of the episode, geom1, geom2, normal force, world point)
+        (0, 0, 1, 0.105, (0.03, 0.01, 0.0)),
+        (0, 2, 0, 0.3, (0.09, -0.005, 0.0)),
+        (0, 0, 3, 0.104, (0.02, 0.33, 0.0)),
+        (0, 0, 5, 1.0, (0.5, 0.0, 0.4)),
+        (0, 0, 6, 2.0, (1.0, 1.0, 0.0)),
+        (0, 1, 3, 0.5, (0.0, 0.15, 0.0)),
+        (1, 0, 1, 0.2, (-0.01, 0.02, 0.0)),
+        (1, 4, 0, 0.05, (-0.03, 0.4, 0.0)),
+        (2, 0, 4, 3e-4, (-0.02, 0.41, 0.0)),
+        (3, 0, 4, 2e-4, (-0.01, 0.41, 0.0)),
+    ]
+    substep_of = np.array([row[0] for row in rows])
+    geoms = np.array([row[1:3] for row in rows])
+    normal = np.array([row[3] for row in rows])
+    points = np.array([row[4] for row in rows])
+    turned = np.array([[0.0, -1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]])
+    pose = np.tile(np.concatenate([[0.0, 0.0, 0.0], np.eye(3).ravel(), [0.0, 0.3, 0.0], turned.ravel()]), (4, 1))
+    pose = pose.reshape(4, 2, 12)
+    other, on_floor, foot, leg_on_floor = reduction.classify_floor_contacts(morphology, geoms)
+    leg = reduction.per_substep_force(substep_of, normal, leg_on_floor, foot, 2, 2, 2)
+    support_index = np.where(leg_on_floor, morphology.geom_support[other], -1)
+    support = reduction.per_substep_force(substep_of, normal, support_index >= 0, support_index, 4, 2, 2)
+    on_sole = leg_on_floor & (other == np.array([1, 3, -2])[foot])
+    half_size = [np.array([0.07, 0.04, 0.01])] * 2
+    sole_cop = reduction.sole_cop_steps(feet, half_size, pose, substep_of, foot, on_sole, points, normal, 2, 2)
+    ankle_forward = np.array([0.02, -0.01])
+    foot_cop = reduction.whole_foot_cop_steps(
+        feet, ankle_forward, pose, substep_of, foot, leg_on_floor, points, normal, 2, 2
+    )
+    span = np.array([[-0.05, 0.09], [-0.06, 0.08]])
+    spanned, cop, loaded = reduction.normalized_foot_cop(foot_cop, leg.max(axis=1), span)
+    contact = SimpleNamespace(efc_address=np.array([0, 4, -1, 8]), dim=np.array([3, 3, 3, 1]))
+    efc_force = np.array([0.5, 0.25, 0.125, 0.0625, 1.0, 2.0, 0.5, 0.25, 3.0])
+    decoded = []
+    for cone, condims in ((0, [3, 3]), (0, [3, 1]), (1, [3, 3])):
+        model = SimpleNamespace(opt=SimpleNamespace(cone=cone), geom_condim=np.array(condims), npair=0)
+        elliptic, edge_offsets = reduction.decode_settings(model)
+        decoded.append(reduction.decode_normal_forces(contact, efc_force, elliptic=elliptic, edge_offsets=edge_offsets))
+    return {
+        "classify": np.stack([other, on_floor, foot, leg_on_floor]),
+        "leg_force": leg,
+        "support_force": support,
+        "sole_cop": sole_cop,
+        "foot_cop": foot_cop,
+        "normalized": np.stack([np.broadcast_to(spanned, cop.shape), cop, loaded]),
+        "decoded": np.stack(decoded),
+    }
+
+
+def _reduction_digest(values) -> str:
+    values = np.asarray(values, dtype=np.float64)
+    values = np.where(np.isnan(values), np.nan, np.round(values, 12) + 0.0)
+    return hashlib.sha256(values.tobytes()).hexdigest()
+
+
+def test_the_shared_reduction_is_pinned_on_contacts_that_straddle_its_thresholds():
+    outputs = _synthetic_reduction()
+    loaded = outputs["normalized"][2]
+    assert loaded.tolist() == [[1.0, 1.0], [0.0, 0.0]]  # the 0.104 N limb is loaded at 0.1 N, the 5e-4 N one is not
+    assert np.isnan(outputs["foot_cop"][1, 0]) and np.isfinite(outputs["foot_cop"][1, 1])  # 5e-4 N passes 1e-9 N
+    digests = {name: _reduction_digest(values) for name, values in outputs.items()}
+    moved = sorted(
+        name for name in REDUCTION_GOLDEN.keys() | digests.keys() if REDUCTION_GOLDEN.get(name) != digests.get(name)
+    )
+    assert moved == [], f"the shared reduction's outputs moved ({moved}): {digests}"
 
 
 # ---------------------------------------------------------------------------------------------------- on: the guards
