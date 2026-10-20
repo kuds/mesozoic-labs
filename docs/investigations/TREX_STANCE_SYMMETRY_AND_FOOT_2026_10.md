@@ -56,6 +56,14 @@ evidence is in
 and the same folder's `night/`, `night2/` and `copband/`. The statuses above
 are unchanged.*
 
+*Status 2026-10-20, later (appended): §20, appended that day, records the
+maintainer's decisions of 2026-10-20 that followed §19: D-D40, a from-scratch
+screen of a per-foot centre-of-pressure band on the stagger arm, with the
+stance4 runs as its control (its code, criteria and Colab steps not yet
+committed anywhere public); D-D39 amended with its outcome and the L4 runtime
+confirmed; and D-D36 amended: walking pilot 2 is to be rebuilt for stance3 Run
+2's final as its parent. The statuses above are unchanged.*
+
 It continues [STANCE_REWARD_PILOT_FINDINGS_2026_10.md](STANCE_REWARD_PILOT_FINDINGS_2026_10.md)
 (2026-10-10), [STANCE_HACK_AUDIT_2026_10.md](STANCE_HACK_AUDIT_2026_10.md)
 §12 (the physics-r9 statue) and the blog post
@@ -2088,14 +2096,15 @@ line and the parent comparison, which are results; the report-only extras, the
 notebook's own gates, the diagnostic panels and the readouts; and two
 overnight scratch experiments, report only (§19.6 and §19.7). The maintainer's
 decisions that followed, on 2026-10-20, are the last lines of
-`results/run_log.txt` (those beginning "MAINTAINER DECISION"). A screen
-certifies nothing: the verdicts are the criteria's, not a gate's, nothing here
-certifies a run, writes a result bundle or promotes anything, and `main` and
-its digests are unchanged. The evidence is in the folder `stance4/` of
-[stance_2026_10/](stance_2026_10/README.md), with the subfolders `results/`
-(its own [README](stance_2026_10/stance4/results/README.md) indexes it),
-`night/`, `night2/` and `copband/`, added on 2026-10-20; paths in backticks
-below are relative to `stance4/`, and every number below is read from
+`results/run_log.txt` (those beginning "MAINTAINER DECISION"), recorded in
+§20. A screen certifies nothing: the verdicts are the criteria's, not a
+gate's, nothing here certifies a run, writes a result bundle or promotes
+anything, and `main` and its digests are unchanged. The evidence is in the
+folder `stance4/` of [stance_2026_10/](stance_2026_10/README.md), with the
+subfolders `results/` (its own
+[README](stance_2026_10/stance4/results/README.md) indexes it), `night/`,
+`night2/` and `copband/`, added on 2026-10-20; paths in backticks below are
+relative to `stance4/`, and every number below is read from
 `results/run_log.txt`, the score files in `results/scores/` or the files
 named. A verification pass over the session's human-facing report on these
 runs (a document outside the repository, not copied) found 25 statements
@@ -2122,7 +2131,8 @@ section uses the corrected forms.
   to 12:10 UTC and from 00:04 to 12:08 UTC, so that those two stayed on the L4
   throughout is inferred; s52's `progress.json` was not fetched (its status,
   ended at 12,001,280 steps, was read from Drive's metadata). The maintainer
-  confirmed the L4 for all three on 2026-10-20 (the run log's last line).
+  confirmed the L4 for all three on 2026-10-20 (the run log's last line;
+  §20.1).
 - **Fetch and binding.** Each judged checkpoint was fetched read-only from
   Drive; each VecNormalize file was transcribed twice, independently, and the
   copies compared, with a third transcription where the two differed (the log
@@ -2199,7 +2209,8 @@ the per-foot CoP band term (new contact-reward code) or the v6b ankle spring
 a judged checkpoint below 33 of 40 (K1) and s52 and s60 failed K2, so no later
 checkpoint could change it; the formal reading waited for the runs to end. The
 stagger penalty is not adopted. Which round comes next is the maintainer's
-decision.
+decision: D-D40, a from-scratch screen of a per-foot centre-of-pressure band
+(§20.2).
 
 **The parent comparison** (stance3's rule: most clean panel episodes at the
 final, ties to fewer joint-space plus own-sigma noise falls): **the best
@@ -2209,7 +2220,7 @@ s60's (39 of 40, 1 fall) and s42's (14 of 40, 8). It is one episode short of
 stance3 Run 2's final (`cc21604a…`: 40 of 40, 0 falls), so **the incumbent
 stays**: the criteria offer stance3 Run 2's final as walking pilot 2's parent,
 as before. No stagger final holds, so line 1's stance parent does not arise.
-Pilot 2 stays parked.
+Pilot 2's parent is decided in §20.4.
 
 ### 19.3 Report only: the extras
 
@@ -2263,7 +2274,8 @@ None of these enters a criterion (`results/checkpoints.csv`;
   both stays at 0.03–0.21. At the finals it is K2a 0, 3 and 2 (split sd 0.20,
   0.27 and 0.32, with 0, 2 and 1 panel falls). The controls with both changes
   have K2a 0 at every J but Run 3's 8,388,608 (1). These panels change the
-  task the judge rolls, so they diagnose; they are no fix and no verdict.
+  task the judge rolls, so they diagnose; they are no fix and no verdict
+  (D-D40 keeps them so, §20.3).
 
 ### 19.5 What the readouts found (report only)
 
@@ -2329,7 +2341,8 @@ stored rollouts; "inferred" marks what is not measured.
    it cost K1 (0, 0 and 36 of 40 clean at the first three judged checkpoints),
    after which that run passed every judged checkpoint; s42 never shook it.
    Which actuator saturated, when it began and what set it off are not
-   diagnosed.
+   diagnosed; an offline, report-only diagnosis is decided (D-D40's item 5a,
+   §20.3) and has not run.
 4. **s60's late backward shift.** s60's panel median moved back at the later
    judged checkpoints: `x_c` −10.4, −17.4 and −20.9 mm from the statue at
    8,388,608, 10,485,760 and the final (−5.8 to −12.6 mm before), with a
@@ -2338,7 +2351,8 @@ stored rollouts; "inferred" marks what is not measured.
    (`results/split_form.md` §2). K2c passed (range 15.0 mm against 30), and
    through 10,485,760 its K2a failures still came with a split sd of 1.01–1.09
    (`results/panels_summary.csv`). Inferred: a common fore-aft shift built up
-   in s60 late, the kind the v6b ankle spring resists.
+   in s60 late, the kind the v6b ankle spring resists (D-D40's item 4a,
+   §20.3).
 
 ### 19.6 Replicate study of the stagger penalty (scratch only, report only)
 
@@ -2470,14 +2484,16 @@ sd of 0.99 and 1.09):
 - **Caveats.** One run per arm per parent; continuations from stance4's
   4,194,304 checkpoints, not runs from scratch; a local CPU harness;
   relaxed-binding judge files; the s60 pair's diagnostic panels were skipped
-  at the deadline. At most it supports a band arm in a from-scratch screen.
+  at the deadline. At most it supports a band arm in a from-scratch screen,
+  which D-D40 decides (§20.2).
 
 ### 19.8 What changes in §13–§18
 
 - **§13 and §18, the stance4 screen:** judged; all three runs fail, and the
   decision table's line is 5, final. The stagger penalty is not adopted. No T.
   rex stance is certified, and the two-seed ask stands. Walking pilot 2 stays
-  parked, its branch and criteria kept.
+  parked, its branch and criteria kept; the next round and its parent are
+  decided in §20.
 - **§14, this repository:** the folders `stance4/results/`, `stance4/night/`,
   `stance4/night2/` and `stance4/copband/`, with their sources and sha256 in
   `SOURCES.txt` and `SHA256SUMS` (now 344 files).
@@ -2498,3 +2514,139 @@ sd of 0.99 and 1.09):
   (`scratchpad/foot/stance4/night/` and `scratchpad/foot/stance4/night2/`),
   and the band prototype's clone with its calibration tables and checks
   (`scratchpad/fix/scratch_copband/`, `scratchpad/foot/stance4/copband/`).
+
+## 20. Status 2026-10-20, later (appended): decision D-D40, the CoP-band screen; D-D39 and D-D36 amended
+
+*Appended 2026-10-20; §1–§18 above are unchanged, and §19 gains only pointers
+to this section.* After §19's outcome the maintainer took decisions in the
+session's chat on 2026-10-20, after 15:30 UTC; they are the last lines of
+`stance_2026_10/stance4/results/run_log.txt` (those beginning "MAINTAINER
+DECISION"), numbered 1a, 2A, 3a–3d, 4a, 5a, 6 and 7a–7c there.
+[BEHAVIOR_RECIPES_PLAN.md](../BEHAVIOR_RECIPES_PLAN.md) §6.2 records them as
+decision D-D40, the next screen (1a to 6), and as dated amendments of D-D39
+(its outcome, §19, and its runtime, 7c) and of D-D36 (walking pilot 2's
+parent, 7a). Decision 7b asked for this record now, documentation only. None
+of them trains anything on `main` or changes its digests, and as screens and
+pilots the runs they start certify nothing.
+
+### 20.1 D-D39 amended: the outcome, and the runtime confirmed
+
+- **The outcome** (§19.2): all three runs fail (s52 and s60 fail K1 and K2,
+  s42 fails K1–K4), H = 0 and K2p = 0, the credit rule fails, and the decision
+  table's line is 5, final: the stagger penalty is not adopted. The best
+  stagger final, s52's (39 of 40 clean, no noise falls), is one episode short
+  of stance3 Run 2's final (40 of 40, no noise falls), which stays walking
+  pilot 2's parent (§20.4). Of the two candidates line 5 names, D-D40 takes
+  the band (§20.2).
+- **The runtime.** The maintainer confirmed the Colab L4 GPU runtime for the
+  stance4 screen (7c): all three runs recorded an L4 (the `gpu` block of each
+  run's `stage_config.json`, measured; §19.1). This closes the confirmation
+  §18.1 left pending. What §18.1 and §19.1 mark inferred stays inferred: that
+  each run stayed on the L4 throughout (s60's and s42's `progress.json` record
+  one session each; s52's was not fetched) and that the networks ran on the
+  GPU. The L4 is also the band screen's runtime (7c).
+
+### 20.2 D-D40: a from-scratch screen of the per-foot CoP band
+
+- **The term (1a).** The maintainer approved a from-scratch screen of the
+  per-foot centre-of-pressure band, line 5's "per-foot CoP band term (new
+  contact-reward code)": a new reward term, an opt-in `[env]` option of the T.
+  rex env, off by default, rather than the v6b ankle spring, line 5's other
+  candidate. The term is §19.7's prototype
+  (`stance_2026_10/stance4/copband/design.md`) with the fixes 3a–3d below.
+- **The runs.** Three 12M runs from scratch on seeds 52, 60 and 42, on physics
+  r9, `n_envs` 4 and Colab L4 GPU runtimes (7c), judged by criteria fixed
+  before any training step, with K1–K4 unchanged.
+- **The arm (2A): L+T + the stagger penalty (0.30, 0.045 m) + the band**, that
+  is the stance4 recipe plus the band only, so the three stance4 runs (§19)
+  are its control, one difference apart. The design note had recommended
+  otherwise: its §8 item 5 recommended L+T plus the band alone (on
+  `1af2d4d7`), so that the stance3 L+T runs stay a valid control, with a
+  band-plus-stagger arm as the alternative if stance4 landed on line 4 rather
+  than 5. The recommendation changed, and the maintainer was told so before
+  choosing, because the overnight band test (§19.7) ran on stagger parents,
+  and the stagger term prices the route the note calls its main risk (its §5,
+  last row: each foot's centre of pressure held in band by asymmetric ankle
+  torque while the feet stay staggered), which the band's guards cannot see.
+  Inferred, not tested: without the stagger term nothing in the arm would
+  price that route.
+- **The prototype's fixes (3a–3d), as recommended:**
+  - 3a: guard 1's 35% load-share step becomes a ramp: the full price at a load
+    share of 0.25 or less, none at 0.35 or more, linear between. The note's
+    §4.1 and §7 item 4 had named the step as a reward cliff that early
+    training might sit near (inferred there); it never fired on the stored
+    panels, and in §19.7's CB60 it fired only inside the 3 falling episodes.
+    Nothing recorded says that the step caused those falls.
+  - 3b: a speed pass: one fused per-step reduction, pinned byte-identical to
+    the recorder's readings, with a target of at most 0.15 ms per env step
+    over band-off (the prototype measured +0.62 ms, 1.40 to 2.02 ms on one
+    thread; §19.7).
+  - 3c: the contact reduction moves out of `environments/shared/gait/` into a
+    neutral shared module, so that the gait layering rule (D-D23: no species
+    env module imports the gait package) holds with no exception (the
+    prototype imported the gait package lazily, and its layering test named
+    that one exception), with a pinned test of the band's readings.
+  - 3d: the band weight is 0.30, the note's proposed dose, whose maximum
+    equals the stagger term's (its alternative, 0.50, is not taken).
+- **Not part of this change.** The band's code, criteria, judge and Colab
+  steps are being built separately, on a scratch branch that is not pushed,
+  and are not committed anywhere public; this records the decision only. The
+  criteria are to be fixed before any training step, with K1–K4 unchanged and
+  4a's trigger line in the decision table; their other contents are not
+  recorded here. A later PR records them and the screen's outcome.
+
+### 20.3 What else D-D40 settles
+
+- **The v6b ankle spring is held in reserve (4a):** ankle stiffness 40 → 250
+  N·m/rad, damping 45 → 90 and the spring reference at the statue's settled
+  78.6°, a plant revision. The band screen's fixed decision table gets a
+  trigger line: if the band fixes the split but runs fail K2 on drift (a
+  common fore-aft shift), the next round tests the v6b spring. Inferred: the
+  spring resists mainly a common ankle opening, which is not what failed at
+  4,194,304 (§19.5 item 1), and s60's late backward shift (§19.5 item 4) is
+  the kind of failure it addresses.
+- **Actuator saturation (5a): no training change.** During the band screen the
+  session reads each run's evaluation ledger at every check-in and tells the
+  maintainer at once when the saturation alarm fires (run, step, actuator). In
+  parallel, an offline, report-only diagnosis of s42's saturation (which
+  actuator, its onset, its trigger; §19.5 item 3), started after the band
+  build's timing measurement so that it does not load the machine during it.
+  Fails stay fails, and no run is stopped or restarted on an alarm.
+- **Diagnostic panels (6):** mirrored-leg spawns and the prey straight ahead
+  stay diagnostic panels only, adopted into neither training nor the criteria;
+  the band screen runs them at every scored checkpoint, report only, as a
+  yardstick (§19.4).
+- **Still open:** the signed per-foot bar in the gate (§16.1 item 5), and
+  whether a screen run could ever count toward `certification_seeds` (§16.2).
+
+### 20.4 D-D36 amended: walking pilot 2's parent (7a, option i)
+
+Walking pilot 2 will be rebuilt for stance3 Run 2's final
+(`stance3_armLT_s60`'s `stage1_final`, sha256 `cc21604a…`: 40 of 40 clean, no
+noise falls; §17.2) as its parent, the parent that D-D39's comparison keeps
+(§19.2). Pilot 2's criteria (§15.7) still name r9 arm L seed 60 at 6,291,456
+steps (`70f3a444…`), so they are amended before any pilot-2 training step, the
+new parent is committed on pilot 2's branch, and its start-up checks are
+re-run. The rebuild comes right after the band screen's package is ready, and
+the maintainer starts the pilot when a fourth Colab slot is free. Until then
+pilot 2 stays parked and untrained. It is still a deliberate exception to GQ-3
+(a) and GQ-17 of
+[GAIT_QUALITY_PLAN_2026_09.md](../GAIT_QUALITY_PLAN_2026_09.md), both still
+open, and it certifies nothing. The amended criteria and the rebuilt branch
+are not part of this change; a later PR records them and the pilot's outcome.
+
+### 20.5 What changes in §13–§19
+
+- **§13, §18 and §19:** the next round is decided (D-D40, a from-scratch
+  screen of the band on the stagger arm); it is not yet built in public and
+  not trained. No T. rex stance is certified, and the two-seed ask stands.
+- **§13, §17.6 item 2 and §19.2, walking pilot 2:** its parent is decided,
+  stance3 Run 2's final; the pilot is to be rebuilt, and it stays parked until
+  then.
+- **§17.6 item 3 and §19.5 item 3:** the saturation alarm is read at every
+  check-in of the band screen and reported at once; s42's saturation gets an
+  offline diagnosis, report only, not yet run.
+- **§18.1, the runtime:** confirmed, the L4.
+- **§14:** no folder, file or branch is added to this repository by §20; the
+  band's package and pilot 2's rebuild are outside this change. Pilot 2's
+  branch `claude/pilot-walk-r9-b` (`ba464855`) is unchanged.

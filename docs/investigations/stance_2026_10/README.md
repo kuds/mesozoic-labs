@@ -50,8 +50,8 @@ final; the note's §19), with report-only readouts and an index of its own,
 holds the replicate study of the stagger penalty and `stance4/night2/` the
 CoP-band continuation test, both overnight scratch experiments of
 2026-10-20 and report only, and `stance4/copband/` the design note of the
-per-foot CoP band prototype, the basis of decision D-D40. As a screen and as
-scratch experiments they certify nothing.
+per-foot CoP band prototype, the basis of decision D-D40 (the note's §20).
+As a screen and as scratch experiments they certify nothing.
 
 ## What changed in the copies
 

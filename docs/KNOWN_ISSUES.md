@@ -245,6 +245,17 @@ robustness, **LOW** = cosmetic / QoL.
   ask stands: no T-Rex stance is certified. Record, numbers and
   evidence: §19 of
   [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).
+  **Update 13 (2026-10-20):** the maintainer chose the next round (decision
+  D-D40, [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2): three
+  more 12M stance screen runs, from scratch on seeds 52, 60 and 42, of Update
+  12's recipe plus a new term that charges a foot whose centre of pressure
+  leaves a band of its sole (opt-in, off by default), judged against the runs
+  of Update 12 by the same four criteria, fixed before training. The v6b ankle
+  spring is held in reserve for a common fore-aft drift; mirrored-leg spawns
+  and the prey straight ahead stay diagnostic panels. The term's code and
+  criteria are not yet committed. As screens they certify nothing. The
+  two-seed ask stands. Record: §20 of
+  [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).
 - **LOW** — **stage 1a (stance) contains no in-episode disturbance, so a
   stance-gate PASS certifies stance quality, not active balance control.** The
   only perturbation is joint-angle noise at reset (`reset_noise_scale 0.05`).
