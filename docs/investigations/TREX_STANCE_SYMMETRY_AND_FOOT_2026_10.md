@@ -2114,16 +2114,16 @@ section uses the corrected forms.
 ### 19.1 The runs and the judging
 
 - **The runs.** `stance4_LTS_s52` started training at 23:58 UTC on 2026-10-19,
-  `stance4_LTS_s60` and `stance4_LTS_s42` at 00:01 and 00:04 UTC on
-  2026-10-20. Each was read from Drive at its start (read-only): commit
-  `c1e146a8`, not dirty, the run's seed, `n_envs` 4, the two stagger keys
-  (0.30 and 0.045 m), the L+T and symmetry keys, the cadence, the collapse
-  reference 4459.3, the PPO hyperparameters `054ab483…`, the task
-  `sha256:3fa46708…`, and a zero-action baseline standing at 4458.18 (39 of 40
-  standing). All three trained to 12,001,280 steps: s42's and s60's final
-  checkpoints were saved at 12:08 and 12:10 UTC, and s52's `progress.json`
-  on Drive read "ended" at 12:29 UTC. Each kept a checkpoint every 524,288
-  steps on Drive, as the criteria ask.
+  `stance4_LTS_s60` and `stance4_LTS_s42` at 00:01 and 00:04 UTC on 2026-10-20
+  (when each wrote its `stage_config.json`). Each was read from Drive at its
+  start (read-only): commit `c1e146a8`, not dirty, the run's seed, `n_envs` 4,
+  the two stagger keys (0.30 and 0.045 m), the L+T and symmetry keys, the
+  cadence, the collapse reference 4459.3, the PPO hyperparameters `054ab483…`,
+  the task `sha256:3fa46708…`, and a zero-action baseline standing at 4458.18
+  (39 of 40 standing). All three trained to 12,001,280 steps: s42's and s60's
+  final checkpoints were saved at 12:08 and 12:10 UTC, and s52's
+  `progress.json` on Drive read "ended" at 12:29 UTC. Each kept a checkpoint
+  every 524,288 steps on Drive, as the criteria ask.
 - **The runtime, measured.** The `gpu` block of each run's
   `01_stance/stage_config.json` reads an NVIDIA L4 (23.7 GB, CUDA 13.0), the
   runtime the criteria name. That file records only the session that wrote it.
@@ -2143,9 +2143,9 @@ section uses the corrected forms.
   and symmetry keys, gate bars); in all 51 judge files every binding matched,
   with no hard failure and no relaxation (the judge files, session scratch
   only). The six judged checkpoints (J) were judged as they arrived: 4,194,304
-  by 05:46 UTC, 5,242,880 by 06:56, 6,291,456 at 09:30 (the container was
+  by 05:46 UTC, 5,242,880 by 06:56, 6,291,456 by 09:30 (the container was
   reclaimed at about 07:35, before the first launch ran), 8,388,608 by 10:56,
-  10,485,760 at 11:52, and the finals at 13:26 (s60 and s42) and 14:07 (s52).
+  10,485,760 by 11:52, and the finals by 13:26 (s60, s42) and at 14:07 (s52).
 - **The score.** `results/scores/score_final.txt` and `.json`, written at
   14:08 UTC by `score_stance4.py --runs-ended` (sha256 `0d35e540…`, session
   scratch only), the verdict of record: it loads stance3's frozen scorer
@@ -2267,15 +2267,15 @@ None of these enters a criterion (`results/checkpoints.csv`;
 - **The diagnostic panels** (`results/panels_summary.csv`): the judge's panel
   with the legs mirrored at reset, with the prey straight ahead, and with
   both, at every J checkpoint of the three runs and of the two controls (and
-  the unchanged panel for the stance4 runs and control Run 3 at 8,388,608,
-  whose K2a and K2b equal the judge's). With both changes, at 4,194,304 K2a is
-  0, 1 and 0 for s52, s60 and s42 (CoP split sd 0.16, 0.07 and 0.03) where the
-  standard panel has 12, 11 and 0; through 10,485,760 the stance4 split under
-  both stays at 0.03–0.21. At the finals it is K2a 0, 3 and 2 (split sd 0.20,
-  0.27 and 0.32, with 0, 2 and 1 panel falls). The controls with both changes
-  have K2a 0 at every J but Run 3's 8,388,608 (1). These panels change the
-  task the judge rolls, so they diagnose; they are no fix and no verdict
-  (D-D40 keeps them so, §20.3).
+  the unchanged panel at every J checkpoint of the stance4 runs and at
+  8,388,608 of control Run 3, whose K2a and K2b equal the judge's). With both
+  changes, at 4,194,304 K2a is 0, 1 and 0 for s52, s60 and s42 (CoP split sd
+  0.16, 0.07 and 0.03) where the standard panel has 12, 11 and 0; through
+  10,485,760 the stance4 split under both stays at 0.03–0.21. At the finals it
+  is K2a 0, 3 and 2 (split sd 0.20, 0.27 and 0.32, with 0, 2 and 1 panel
+  falls). The controls with both changes have K2a 0 at every J but Run 3's
+  8,388,608 (1). These panels change the task the judge rolls, so they
+  diagnose; they are no fix and no verdict (D-D40 keeps them so, §20.3).
 
 ### 19.5 What the readouts found (report only)
 
@@ -2339,49 +2339,53 @@ stored rollouts; "inferred" marks what is not measured.
    acted on while s42 trained: it was first logged at the 04:36 UTC check-in,
    from evaluations up to 3,670,016 (`results/run_log.txt`). In stance3 Run 2
    it cost K1 (0, 0 and 36 of 40 clean at the first three judged checkpoints),
-   after which that run passed every judged checkpoint; s42 never shook it.
+   after which that run passed every judged checkpoint, although the habit
+   came back in its evaluations between them (§17.4); s42 never shook it.
    Which actuator saturated, when it began and what set it off are not
    diagnosed; an offline, report-only diagnosis is decided (D-D40's item 5a,
    §20.3) and has not run.
-4. **s60's late backward shift.** s60's panel median moved back at the later
-   judged checkpoints: `x_c` −10.4, −17.4 and −20.9 mm from the statue at
-   8,388,608, 10,485,760 and the final (−5.8 to −12.6 mm before), with a
-   common centre of pressure of −0.11, −0.18 and −0.24 span half-lengths on
-   the standard panel, near control Run 3's −0.25 at its 8,388,608 K2a failure
-   (`results/split_form.md` §2). K2c passed (range 15.0 mm against 30), and
-   through 10,485,760 its K2a failures still came with a split sd of 1.01–1.09
-   (`results/panels_summary.csv`). Inferred: a common fore-aft shift built up
-   in s60 late, the kind the v6b ankle spring resists (D-D40's item 4a,
-   §20.3).
+4. **s60's late backward shift.** s60's panel median moved back from
+   10,485,760 on: `x_c` −17.4 and −20.9 mm from the statue at 10,485,760 and
+   the final, against −5.8 to −12.6 mm at the four judged checkpoints before
+   (−10.4 at 8,388,608; `results/checkpoints.csv`), with a common centre of
+   pressure of −0.18 and −0.24 span half-lengths on the standard panel (−0.11
+   to −0.01 before; `results/panels_summary.csv`), near control Run 3's −0.25
+   at its 8,388,608 K2a failure (`results/split_form.md` §2). K2c passed
+   (range 15.0 mm against 30), and through 10,485,760 its K2a failures still
+   came with a split sd of 1.01–1.09 (`results/panels_summary.csv`). Inferred:
+   a common fore-aft shift built up in s60 late, the kind the v6b ankle spring
+   resists (D-D40's item 4a, §20.3).
 
 ### 19.6 Replicate study of the stagger penalty (scratch only, report only)
 
 While the stance4 runs trained, the session ran a replicate of §17.5's and
 §17.8's continuations: does the stagger term's continuation effect survive
 more seeds? It was pre-registered in `night/spec.md`, written 00:10–00:35 UTC
-on 2026-10-20, amended 01:36–01:50 UTC after a review
-(`night/review_handling.md`: eight findings, all accepted) and frozen at 01:50
-UTC (sha256 `24af508a…` as frozen), all before any of its training steps. Four
-new continuations ran from stance3 Run 3's Colab 8,388,608 checkpoint to E =
-9,961,472, in the same local CPU harness as §17.5's A and §17.8's local
-no-change run: two with the stagger penalty (ST2 and ST3, weight 0.30,
-tolerance 0.045 m) and two without (NC2 and NC3), on two new training seeds,
-152 (ST2, NC2) and 252 (ST3, NC3). With the three runs of the night before
-that makes stagger n = 3 against no change n = 4. The primary readouts at E
-are the window stagger sd and the K2a count, tested by an exact one-sided
-permutation (rank-sum) test, 3 against 4. The reading lines, fixed before
-launch: (1) complete separation on both readouts, the term's continuation
-effect is real; (2) on one only, partial; (3) on neither, it does not survive
-replication; a safety flag on a stagger run is named beside the line ("met
-through a flagged run"). Measured before launch, the Colab no-change run
-already had K2a 0, so K2a could not separate completely and line (1) could not
-be reached; the spec kept the lines as fixed (its option (a), decided at 01:48
-UTC), so the strongest attainable reading was line (2). The four new runs'
-judge files are relaxed-binding (report mode; seed and commit mismatches
-allowed), and so are A's and the local no-change run's (report mode; commit
-mismatch allowed); the Colab no-change run's is stance3 Run 3's own judge file
-at E, fully bound (§17.5). The study is report only, so none of its readings
-enters a stance4 verdict.
+on 2026-10-20, amended from 01:36 UTC after a review
+(`night/review_handling.md`: eight findings, all accepted) and frozen at
+01:48:58 UTC (sha256 `24af508a…` as frozen; its header's "01:50" was written a
+minute before, as `night/review_handling.md` records), before the queue
+launched at 01:49:08 UTC (`results/run_log.txt`) and so before any of its
+training steps. Four new continuations ran from stance3 Run 3's Colab
+8,388,608 checkpoint to E = 9,961,472, in the same local CPU harness as
+§17.5's A and §17.8's local no-change run: two with the stagger penalty (ST2
+and ST3, weight 0.30, tolerance 0.045 m) and two without (NC2 and NC3), on two
+new training seeds, 152 (ST2, NC2) and 252 (ST3, NC3). With the three runs of
+the night before that makes stagger n = 3 against no change n = 4. The primary
+readouts at E are the window stagger sd and the K2a count, tested by an exact
+one-sided permutation (rank-sum) test, 3 against 4. The reading lines, fixed
+before launch: (1) complete separation on both readouts, the term's
+continuation effect is real; (2) on one only, partial; (3) on neither, it does
+not survive replication; a safety flag on a stagger run is named beside the
+line ("met through a flagged run"). Measured before launch, the Colab
+no-change run already had K2a 0, so K2a could not separate completely and line
+(1) could not be reached; the spec kept the lines as fixed (its option (a),
+decided at 01:48 UTC), so the strongest attainable reading was line (2). The
+four new runs' judge files are relaxed-binding (report mode; seed and commit
+mismatches allowed), and so are A's and the local no-change run's (report
+mode; commit mismatch allowed); the Colab no-change run's is stance3 Run 3's
+own judge file at E, fully bound (§17.5). The study is report only, so none of
+its readings enters a stance4 verdict.
 
 At E, on the 40-seed panel (measured; `night/readout.md`,
 `night/readout.json`):
@@ -2394,7 +2398,7 @@ At E, on the 40-seed panel (measured; `night/readout.md`,
 | local no-change (§17.8) | none, 52 | 25 | 15 | 25.9 | none |
 | Colab no-change (§17.5) | none, 52 | 40 | 0 | 9.7 | none |
 | NC2 | none, 152 | 37 | 3 | 14.8 | none |
-| NC3 | none, 252 | 32 | 8 | 29.3 | 3 panel falls, a side door, reward ratio 0.942 |
+| NC3 | none, 252 | 32 | 8 | 29.3 | clean below start for a new reason, 3 panel falls, a side door, reward ratio 0.942 |
 
 - **The reading is line (2), partial, met through a flagged run (ST2).** The
   window stagger sd separates completely: every stagger run is below every
@@ -2521,8 +2525,9 @@ sd of 0.99 and 1.09):
 
 ## 20. Status 2026-10-20, later (appended): decision D-D40, the CoP-band screen; D-D39 and D-D36 amended
 
-*Appended 2026-10-20; §1–§18 above are unchanged, and §19 gains only pointers
-to this section.* After §19's outcome the maintainer took decisions in the
+*Appended 2026-10-20; §1–§18 above are unchanged, and §19 gains pointers to
+this section (§19.2's last sentence and §19.5 item 3's last clause now say
+what §20 decides).* After §19's outcome the maintainer took decisions in the
 session's chat on 2026-10-20, after 15:30 UTC; the last lines of
 `stance_2026_10/stance4/results/run_log.txt` (those beginning "MAINTAINER
 DECISION") log them in short, numbered 1a, 2A, 3a–3d, 4a, 5a, 6 and 7a–7c
@@ -2656,9 +2661,9 @@ are not part of this change; a later PR records them and the pilot's outcome.
 - **§13, §18 and §19:** the next round is decided (D-D40, a from-scratch
   screen of the band on the stagger arm); it is not yet built in public and
   not trained. No T. rex stance is certified, and the two-seed ask stands.
-- **§13, §17.6 item 2 and §19.2, walking pilot 2:** its parent is decided,
-  stance3 Run 2's final; the pilot is to be rebuilt, and it stays parked until
-  then.
+- **§13, §17.6 item 2, §18.2, §19.2 and §19.8, walking pilot 2:** its parent
+  is decided, stance3 Run 2's final; its criteria are to be amended and its
+  branch rebuilt, and it stays parked until then.
 - **§17.6 item 3 and §19.5 item 3:** the saturation alarm is read at every
   check-in of the band screen and reported at once; s42's saturation gets an
   offline diagnosis, report only, not yet run.

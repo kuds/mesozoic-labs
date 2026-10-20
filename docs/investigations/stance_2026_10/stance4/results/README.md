@@ -19,12 +19,12 @@ The judge and scorer stay in the session's scratch and are not copied
 (`scratchpad/foot/stance4/judge/`: `judge_stance4.py`, sha256 `3c8c0759…`, the
 value each judge file records; `score_stance4.py`, `0d35e540…`, which loads the
 scratch original of `../../stance3/judge/score_stance3.py`, sha256 `2c3879d3…`,
-unchanged and extends only its judge-identity constants). So do the
-per-episode judge files (51 for the three runs, about 15 MB together), the
-diagnostic panels' files (30, about 7.6 MB), the rollouts and the runs' ledgers;
-the checkpoints are on Drive under
-`MyDrive/mesozoic-labs/logs/tyrannosaurus_rex/anatomical/ppo/stance4_*/`
-(each judged checkpoint's sha256 is in `checkpoints.csv`).
+unchanged and extends only its judge-identity constants). So do the per-episode
+judge files (51 for the three runs, about 15 MB together), the diagnostic
+panels' files (30, about 7.8 MB), the rollouts and the runs' ledgers; the
+checkpoints are on Drive under
+`MyDrive/mesozoic-labs/logs/tyrannosaurus_rex/anatomical/ppo/stance4_*/` (each
+judged checkpoint's sha256 is in `checkpoints.csv`).
 
 **Outcome: all three runs fail their fixed criteria; H = 0 and K2p = 0; the
 decision table's line is 5, final.** The stagger penalty is not adopted. Fails
@@ -77,13 +77,14 @@ newline to `scores/score_final.json` and removes a blank last line from
 SOURCES.txt defines them, nothing else:
 
 - **trim:** each `notebook_gates/<run id>/gate_verdict.json` keeps the gate
-  verdict's identity and verdict fields (the schema, species and stage, the
-  gate kind and its sha256, the task sha256, the checkpoint and its and the
+  verdict's identity and verdict fields (the schema, species and stage, the gate
+  kind and its sha256, the task sha256, the checkpoint and its and the
   normaliser's sha256, the time it was judged, the verdict and its failures)
   and, of its `stage_result`, the timesteps, the best evaluation's step, the
   gate's verdict and failures, and the clean-seed count, seed count, fraction
-  and LCB; it drops the gate's thresholds, the plant identity, the reward, length, distance and velocity statistics, the
-  timing and the Drive paths of the model and its normaliser.
+  and LCB; it drops the gate's thresholds, the plant identity, the reward,
+  length, distance and velocity statistics, the timing and the Drive paths of
+  the model and its normaliser.
 - **redact:** in `run_log.txt`, each of the session's tool identifiers is
   replaced by `[id removed]`: 6 workflow run ids (3 distinct; a bare one
   becomes `workflow [id removed]`), one scheduled-task id, and the report
@@ -127,23 +128,21 @@ saturated episodes, the first alarm at 2,228,224; s52 and s60: none). s52's
 `robust_best` and `best` were judged after it was written (14:18 and 14:13 UTC),
 so it lists them as not judged; both are 40/40 clean in `checkpoints.csv`.
 
-**`checkpoints.csv`: one row per judge file (51 rows, 17 per run).** The
-columns of stance3's (its
-[README](../../stance3/results/README.md) names them), plus
+**`checkpoints.csv`: one row per judge file (51 rows, 17 per run).** The columns
+of stance3's (its [README](../../stance3/results/README.md) names them), plus
 `common_noise_falls`. Roles: `J`, the six judged checkpoints;
 `report (1,048,576-step)`, the five other 1,048,576-step checkpoints;
 `selection S0` and `S1`, `robust_best` and `best` (917,504 and 524,288 steps in
-s52 and s42;
-byte-identical at 2,752,512 in s60); the fresh panel 7042–7081, the 32-seed
-forward-start tail panel and the 40-seed common-noise panel at the final. S3,
-the late-stable pick, is s42's 8,388,608 J row; s52 and s60 have none. Only the
-J rows and the noise counts at 6,291,456 and the final enter a criterion; every
-other row is report only. `checkpoints_csv.py` wrote it: it recomputes every
-number with `panel_counts` from `../../stance3/judge/score_stance3.py` (the
-function `score_stance4.py` loads unchanged) on the per-episode rows, and with
-`--check` stops on any difference from the scorer's JSON (40 cells agree: all 42
-periodic, final and selection cells but s52's `robust_best` and `best`, which
-the JSON does not have).
+s52 and s42; byte-identical at 2,752,512 in s60); the fresh panel 7042–7081, the
+32-seed forward-start tail panel and the 40-seed common-noise panel at the
+final. S3, the late-stable pick, is s42's 8,388,608 J row; s52 and s60 have
+none. Only the J rows and the noise counts at 6,291,456 and the final enter a
+criterion; every other row is report only. `checkpoints_csv.py` wrote it: it
+recomputes every number with `panel_counts` from
+`../../stance3/judge/score_stance3.py` (the function `score_stance4.py` loads
+unchanged) on the per-episode rows, and with `--check` stops on any difference
+from the scorer's JSON (40 cells agree: all 42 periodic, final and selection
+cells but s52's `robust_best` and `best`, which the JSON does not have).
 
 **`extras.txt` and `extras.py`: the report-only extras on each final.** The
 fresh panel: s52 PASS 39/40 (0 falls), s60 PASS 38/40 (1 fall), s42 FAIL 14/40
@@ -163,21 +162,21 @@ judged an early checkpoint, not the finals the criteria judge. The runs'
 
 **`panels_summary.csv` and `panels_summary.py`: the diagnostic panels, report
 only.** One row per variant (109 rows): the three stance4 runs and the two
-controls at each of the six J checkpoints, under the judge's panel with the
-legs mirrored at reset (`mirror_legs`), the prey straight ahead
-(`prey_ahead`), both (`mirror_prey_ahead`) and, for the stance4 runs and
-control Run 3 at 8,388,608, no change (`standard`): the clean count, K2a, K2b,
-falls, the window stagger sd (mm), the per-foot CoP split's sd, the common
-CoP and the lowest foot CoP (span half-lengths), copied from `panels4.py`'s
-files. `panels_summary.py` checks each file's model sha256 against the judge
-file of the same checkpoint and the standard variant's K2a and K2b against the
-judge's (all equal; 19 standard rows). Read across (measured): at 4.2M the
-mirrored, prey-ahead panel has K2a 0, 1 and 0 (split sd 0.16, 0.07 and 0.03)
-where the standard panel has 12, 11 and 0; at the finals it has K2a 0, 3 and 2
-(split sd 0.20, 0.27 and 0.32). The standard window stagger sd of s60 stays at
-1.8–5.5 mm to the final; s52's is 4.8 mm at 4.2M and 7.3–12.7 mm from 5.2M to
-10.5M (6.4 at the final); s42's is 0.9–4.6 mm to 10.5M and 19.5 mm at the
-final.
+controls at each of the six J checkpoints, under the judge's panel with the legs
+mirrored at reset (`mirror_legs`), the prey straight ahead (`prey_ahead`), both
+(`mirror_prey_ahead`) and, at every J checkpoint of the stance4 runs and at
+8,388,608 of control Run 3, no change (`standard`): the clean count, K2a, K2b,
+falls, the window stagger sd (mm), the per-foot CoP split's sd, the common CoP
+and the lowest foot CoP (span half-lengths), copied from `panels4.py`'s files.
+`panels_summary.py` checks each file's model sha256 against the judge file of
+the same checkpoint and the standard variant's K2a and K2b against the judge's
+(all equal; 19 standard rows, 18 for the stance4 runs and 1 for the control).
+Read across (measured): at 4.2M the mirrored, prey-ahead panel has K2a 0, 1 and
+0 (split sd 0.16, 0.07 and 0.03) where the standard panel has 12, 11 and 0; at
+the finals it has K2a 0, 3 and 2 (split sd 0.20, 0.27 and 0.32). The standard
+window stagger sd of s60 stays at 1.8–5.5 mm to the final; s52's is 4.8 mm at
+4.2M and 7.3–12.7 mm from 5.2M to 10.5M (6.4 at the final); s42's is 0.9–4.6 mm
+to 10.5M and 19.5 mm at the final.
 
 **`split_form.md`: where the left-right split went, report only** (written at
 06:01 UTC on 2026-10-20 from the stored judge files, panels and the controls'

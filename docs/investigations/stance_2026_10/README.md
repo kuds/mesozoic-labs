@@ -581,9 +581,10 @@ because three of the seven runs suggested the idea, and 0.086 given their
 known order); K2a does not (0, 3 and 0 against 15, 0, 3 and 8; p 0.200).
 None of it enters a stance4 verdict.
 
-- `spec.md`: the pre-registration, frozen at 01:50 UTC before any training
-  step (sha256 `24af508a…` as frozen; this copy carries the prefix and
-  checkout changes).
+- `spec.md`: the pre-registration, frozen at 01:48:58 UTC (its header says
+  01:50, written a minute before; `review_handling.md`), before the queue
+  launched at 01:49:08 UTC and so before any training step (sha256
+  `24af508a…` as frozen; this copy carries the prefix and checkout changes).
 - `review_handling.md`: the review's findings and how each was handled
   before launch.
 - `readout.md` and `readout.json`: the readouts R1 (the judge) and R2 (the
@@ -703,6 +704,8 @@ copies.
 | The stance4 verdicts, decision line and parent inputs (2026-10-20; session scratch only) | in the session's scratch: `python3 -I -B scratchpad/foot/stance4/judge/score_stance4.py --runs-ended --json score.json` | identical to `stance4/results/scores/score_final.txt` and `.json` apart from the JSON's path and s52's two selection cells, judged after the record |
 | `stance4/results/checkpoints.csv` (2026-10-20; session scratch only) | `python3 -I -B stance4/results/checkpoints_csv.py <judged dir> out.csv --check <score_final.json>` | 40 cells agree with the scorer; `out.csv` identical |
 | `stance4/results/panels_summary.csv` (2026-10-20; session scratch only) | `python3 -I -B stance4/results/panels_summary.py <panels dir> out.csv --judged <stance4 judged dir> --control-judged <stance3 judged dir>` | `out.csv` identical; the model sha256 and the standard K2a and K2b equal the judge files' |
+| `stance4/results/extras.txt` (2026-10-20; session scratch only) | from a directory holding the session's scratch as `scratchpad/`: `python3 -I -B <this directory>/stance4/results/extras.py` | identical to `stance4/results/extras.txt` |
+| The notebook gates' checkpoints (2026-10-20, `stance4/results/notebook_gates/`) | compare each `gate_verdict.json`'s `checkpoint_sha256` with the `robust_best` row of `stance4/results/checkpoints.csv` | equal for all three |
 | The files themselves (2026-10-20, with `stance4/results/`, `night/`, `night2/` and `copband/`) | `sha256sum -c SHA256SUMS` | all 344 files OK |
 
 `test_pilot_score.py` prints sample "Walking pilot score" blocks while it runs;

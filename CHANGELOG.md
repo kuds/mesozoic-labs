@@ -67,9 +67,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   of the T-Rex stance entry. The band screen's outcome is not yet known.
 - **The stance4 screen of D-D39 judged: all three runs fail their fixed criteria
   (line 5); the stagger penalty is not adopted; two overnight scratch
-  experiments recorded, report only** (D-D39's outcome, recorded 2026-10-20; a
-  dated note in §17 of `docs/GAIT_QUALITY_PLAN_2026_09.md`, `docs/NEXT_STEPS.md`
-  §3; the appended §19 of
+  experiments recorded, report only** (D-D39's amendment of 2026-10-20;
+  `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2, `docs/CONSOLIDATION_PLAN_2026_09.md` §6,
+  a dated note in §17 of `docs/GAIT_QUALITY_PLAN_2026_09.md`,
+  `docs/NEXT_STEPS.md` §3; the appended §19 of
   `docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md` and the folders
   `results/`, `night/`, `night2/` and `copband/` of
   `docs/investigations/stance_2026_10/stance4/`). Records only: no library code,
