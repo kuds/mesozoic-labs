@@ -377,6 +377,7 @@ _TRANSITION_REWARD_SETTINGS = frozenset(
         "stance_cop_band_pad_lower",
         "stance_cop_band_pad_upper",
         "stance_cop_band_tolerance",
+        "stance_cop_band_full_price_load_share",
         "stance_cop_band_min_load_share",
         "stance_width_reference",
         "stance_width_settle_steps",

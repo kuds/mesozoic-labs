@@ -428,6 +428,7 @@ def _paired_rollout(kwargs, seed, actions, mirror_map):
                     "lean_paid": info_a.get("reward_lateral_lean", 0.0) > 0.0,
                     "stagger_paid": info_a.get("reward_stance_stagger", 0.0) < 0.0,
                     "band_paid": info_a.get("reward_stance_cop_band", 0.0) < 0.0,
+                    "band_ramped": any(0.0 < info_a.get(f"{s}_cop_band_guard", 0.0) < 1.0 for s in "rl"),
                     "ended": (bool(term_a), bool(trunc_a), info_a.get("termination_reason")),
                     "ended_b": (bool(term_b), bool(trunc_b), info_b.get("termination_reason")),
                 }
@@ -460,20 +461,33 @@ _SCREENED_OPTIONS = {
 _STAGGER_OPTIONS = {**_SCREENED_OPTIONS, "stance_stagger_weight": 0.30, "stance_stagger_tolerance_m": 0.045}
 #: Scratch prototype (stance4 copband design, never merged): the screened options plus the per-foot CoP band.
 _BAND_OPTIONS = {**_SCREENED_OPTIONS, "stance_cop_band_weight": 0.30}
+#: The band with its load guard's ramp widened to 0.40 -> 0.49, so a foot sits on the ramp on most steps of every
+#: rollout here (measured: 145-233 of 260 per seed and action set; the default 0.25 -> 0.35 ramp, 0-22).
+_BAND_RAMP_OPTIONS = {
+    **_BAND_OPTIONS,
+    "stance_cop_band_full_price_load_share": 0.40,
+    "stance_cop_band_min_load_share": 0.49,
+}
 
 
 @pytest.mark.parametrize(
     ("options", "steps"),
     # On, the rollout runs past stance_width_settle_steps (200) so the lean and stagger terms' gates open.
-    [({}, 40), (_SCREENED_OPTIONS, 260), (_STAGGER_OPTIONS, 260), (_BAND_OPTIONS, 260)],
-    ids=["options off", "screened options on", "screened options and stagger on", "screened options and CoP band on"],
+    [({}, 40), (_SCREENED_OPTIONS, 260), (_STAGGER_OPTIONS, 260), (_BAND_OPTIONS, 260), (_BAND_RAMP_OPTIONS, 260)],
+    ids=[
+        "options off",
+        "screened options on",
+        "screened options and stagger on",
+        "screened options and CoP band on",
+        "screened options and CoP band on its load ramp",
+    ],
 )
 @pytest.mark.parametrize("seed", [3047, 3059])
 def test_the_simulator_is_mirror_equivariant_on_the_stance(stance_kwargs, mirror_map, seed, options, steps):
     """Zero action (the statue) and small smooth actions from a mirrored reset: the mirrored episode is the
     mirror image of the source, its observation to float32 rounding, its reward and info to 1e-9, with the stance
     options off (as every stage has them), with the lean term and the settled leg target on, and with the stagger
-    penalty on as well."""
+    penalty on as well; and with the CoP band on instead, its load guard's ramp at its defaults and widened."""
     kwargs = {**stance_kwargs, **options}
     stagger_live = steps > kwargs.get("stance_width_settle_steps", 200) and kwargs.get("stance_stagger_weight", 0) > 0
     band_on = steps > kwargs.get("stance_width_settle_steps", 200) and kwargs.get("stance_cop_band_weight", 0) > 0
@@ -489,6 +503,8 @@ def test_the_simulator_is_mirror_equivariant_on_the_stance(stance_kwargs, mirror
         assert any(row["stagger_paid"] for row in rows[1:]) == stagger_live
         if not band_on:  # the band pays only steps a foot leaves it; on, the reward and info checks above cover it
             assert not any(row["band_paid"] for row in rows[1:])
+        if options is _BAND_RAMP_OPTIONS:  # the guard factor read strictly between 0 and 1, mirrored to 1e-9
+            assert any(row["band_ramped"] for row in rows[1:])
 
 
 def test_termination_is_mirror_invariant(stance_kwargs, mirror_map):

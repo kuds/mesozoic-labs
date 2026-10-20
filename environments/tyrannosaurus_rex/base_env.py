@@ -77,6 +77,9 @@ from environments.shared.base_env import BaseDinoEnv
 from environments.shared.direction_commands import DirectionCommandConfig
 from environments.shared.heading_observation import body_to_world, heading_free_root_segments, world_to_heading
 from environments.shared.reward_functions import (
+    cop_band_load_guard as _cop_band_load_guard_pure,
+)
+from environments.shared.reward_functions import (
     reward_action_saturation as _reward_action_saturation_pure,
 )
 from environments.shared.reward_functions import (
@@ -208,6 +211,7 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
                 "stance_cop_band_pad_lower",
                 "stance_cop_band_pad_upper",
                 "stance_cop_band_tolerance",
+                "stance_cop_band_full_price_load_share",
                 "stance_cop_band_min_load_share",
             ),
         ),
@@ -303,6 +307,7 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         stance_cop_band_pad_lower: float = -0.65,
         stance_cop_band_pad_upper: float = 0.65,
         stance_cop_band_tolerance: float = 0.357,
+        stance_cop_band_full_price_load_share: float = 0.25,
         stance_cop_band_min_load_share: float = 0.35,
         nosedive_termination_threshold: float = 0.62,
         # Environment settings
@@ -410,6 +415,7 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         self.stance_cop_band_pad_lower = stance_cop_band_pad_lower
         self.stance_cop_band_pad_upper = stance_cop_band_pad_upper
         self.stance_cop_band_tolerance = stance_cop_band_tolerance
+        self.stance_cop_band_full_price_load_share = stance_cop_band_full_price_load_share
         self.stance_cop_band_min_load_share = stance_cop_band_min_load_share
         # The band's per-step contact reader (floor_contact/step_cop.py), built on first use when the band is on.
         self._cop_band_reader: Any = None
@@ -487,8 +493,11 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
                 raise ValueError(f"{name}_lower and {name}_upper must be finite with lower < upper")
         if not 0.0 < self.stance_cop_band_tolerance < np.inf:
             raise ValueError("stance_cop_band_tolerance must be positive and finite")
-        if not 0.0 <= self.stance_cop_band_min_load_share < 0.5:
-            raise ValueError("stance_cop_band_min_load_share must lie in [0, 0.5)")
+        if not 0.0 <= self.stance_cop_band_full_price_load_share < self.stance_cop_band_min_load_share < 0.5:
+            raise ValueError(
+                "stance_cop_band_full_price_load_share and stance_cop_band_min_load_share must satisfy "
+                "0 <= full_price_load_share < min_load_share < 0.5"
+            )
         if self.leg_home_pose_reference not in self._LEG_HOME_POSE_REFERENCES:
             raise ValueError(
                 f"leg_home_pose_reference must be one of {self._LEG_HOME_POSE_REFERENCES}, "
@@ -1300,29 +1309,42 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         # outside [stance_cop_band_lower, stance_cop_band_upper], with the pad's own
         # CoP held to [stance_cop_band_pad_lower, stance_cop_band_pad_upper]
         # as well, so load moved onto the digits cannot pay the band (guard 2).
-        # A foot that is unloaded, carries less than
-        # stance_cop_band_min_load_share of the two limbs' floor load, or
-        # stands off its pad pays the per-foot maximum (guard 1), so lifting
-        # or lightening a foot never lowers the price.  Paid only after the
-        # settle and only while the command is zero, like the stagger term.
-        # -w mean_feet (1 - q); every reading is fore-aft and the mean is
-        # symmetric, so the term is exactly mirror-invariant.  Defaults (spans
-        # of 70 mm): band [-0.6, +0.4] (the split diagnosis' tight band, AUC
-        # 1.000 on both failing panels), pad band [-0.65, +0.65] (the band
-        # widened by the digits' observed whole-foot-minus-pad shift, p1..p99
-        # -0.25..+0.04), tolerance 0.357 (25 mm), min share 0.35 (the v2
-        # gate's windowed load-share bar).  The proposed dose is w 0.30, the
-        # stagger term's maximum (stance4 copband design.md).
+        # Each foot's quality is scaled by a guard factor (guard 1, a ramp): 0
+        # for a foot that is unloaded or stands off its pad, or carries at
+        # most stance_cop_band_full_price_load_share of the two limbs' floor
+        # load, 1 from stance_cop_band_min_load_share up, linear between.  A
+        # foot whose guard is 0 pays the per-foot maximum, so lifting or
+        # lightening a foot never lowers the price, and the price has no step
+        # at the bar.  Paid only after the settle and only while the command is
+        # zero, like the stagger term.  -w mean_feet (1 - q); every reading is
+        # fore-aft, the guard is per foot and the mean is symmetric, so the
+        # term is exactly mirror-invariant.  Defaults (spans of 70 mm): band
+        # [-0.6, +0.4] (the split diagnosis' tight band, AUC 1.000 on both
+        # failing panels), pad band [-0.65, +0.65] (the band widened by the
+        # digits' observed whole-foot-minus-pad shift, p1..p99 -0.25..+0.04),
+        # tolerance 0.357 (25 mm), the guard's ramp from share 0.25 to 0.35
+        # (the v2 gate's windowed load-share bar; the maintainer's 2026-10-20
+        # decision 3a).  The proposed dose is w 0.30, the stagger term's
+        # maximum (stance4 copband design.md).  Like reward_stance_stagger, it
+        # is not in DiagnosticsCallback.REWARD_KEYS: a listed key that no info
+        # carries is still written to every run's diagnostics.npz as a NaN
+        # series, so listing it would change the band-off runs' records.
         if self.stance_cop_band_weight > 0.0:
             reading = self._cop_band().reading(self._step_count, self.model, self.data)
             limb = reading.leg_force_mean
             limb_total = float(limb.sum())
             share = limb / limb_total if limb_total > 0.0 else np.zeros_like(limb)
-            counted = reading.foot_loaded & reading.pad_loaded & (share >= self.stance_cop_band_min_load_share)
+            guard = _cop_band_load_guard_pure(
+                share,
+                reading.foot_loaded,
+                reading.pad_loaded,
+                self.stance_cop_band_full_price_load_share,
+                self.stance_cop_band_min_load_share,
+            )
             reward_stance_cop_band, band_quality = _reward_stance_cop_band_pure(
                 reading.foot_cop,
                 reading.pad_cop,
-                counted,
+                guard,
                 (self.stance_cop_band_lower, self.stance_cop_band_upper),
                 (self.stance_cop_band_pad_lower, self.stance_cop_band_pad_upper),
                 self.stance_cop_band_tolerance,
@@ -1337,7 +1359,8 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
                 info[f"{label}_cop_band_load_share"] = float(share[index])
                 digit_share = float(reading.digit_share[index])
                 info[f"{label}_cop_band_digit_share"] = digit_share if np.isfinite(digit_share) else 0.0
-                info[f"{label}_cop_band_counted"] = 1.0 if counted[index] else 0.0
+                info[f"{label}_cop_band_guard"] = float(guard[index])
+                info[f"{label}_cop_band_counted"] = 1.0 if guard[index] > 0.0 else 0.0
                 info[f"{label}_cop_band_quality"] = float(band_quality[index])
             info["stance_cop_band_quality"] = float(np.mean(band_quality))
             info["reward_stance_cop_band"] = float(reward_stance_cop_band) if band_gate else 0.0

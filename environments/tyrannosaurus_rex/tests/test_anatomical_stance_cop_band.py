@@ -5,8 +5,9 @@ per-foot centre-of-pressure band.  Off by default, and off it changes nothing: n
 no task fingerprint, no recorded stage config, and the env never loads the band's reader.  On, per foot k:
 
     u_k = max(excess(whole-foot CoP, [lower, upper]), excess(pad CoP, [pad_lower, pad_upper]))
-    q_k = exp(-(u_k / tolerance)^2), or 0 when the foot is unloaded, carries less than min_load_share of the two
-          limbs' floor load, or stands off its pad
+    g_k = the load guard: 0 when the foot is unloaded or stands off its pad, or carries at most
+          full_price_load_share of the two limbs' floor load; 1 from min_load_share up; linear between
+    q_k = g_k * exp(-(u_k / tolerance)^2)
     reward = -w * mean_k (1 - q_k), paid only after stance_width_settle_steps and only while the command is zero
 
 The whole-foot CoP is the judge's K2b reading for the step (every floor contact of the limb over the step's
@@ -39,7 +40,7 @@ from environments.shared.floor_contact.morphology import Morphology
 from environments.shared.gait.recorder import SubstepContactRecorder
 from environments.shared.gait.stance_metrics import whole_foot_cop
 from environments.shared.model_id import ModelId
-from environments.shared.reward_functions import band_excess, reward_stance_cop_band
+from environments.shared.reward_functions import band_excess, cop_band_load_guard, reward_stance_cop_band
 from environments.shared.stage_manifest import load_stage_manifest
 from environments.shared.task_fingerprint import stage_task_fingerprint
 from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
@@ -52,6 +53,7 @@ OPTION_KEYS = (
     "stance_cop_band_pad_lower",
     "stance_cop_band_pad_upper",
     "stance_cop_band_tolerance",
+    "stance_cop_band_full_price_load_share",
     "stance_cop_band_min_load_share",
 )
 DEFAULTS = {
@@ -61,9 +63,10 @@ DEFAULTS = {
     "stance_cop_band_pad_lower": -0.65,
     "stance_cop_band_pad_upper": 0.65,
     "stance_cop_band_tolerance": 0.357,
+    "stance_cop_band_full_price_load_share": 0.25,
     "stance_cop_band_min_load_share": 0.35,
 }
-PER_FOOT = ("foot_cop", "pad_cop", "load_share", "digit_share", "counted", "quality")
+PER_FOOT = ("foot_cop", "pad_cop", "load_share", "digit_share", "guard", "counted", "quality")
 BAND_INFO_KEYS = {f"{side}_cop_band_{name}" for side in "rl" for name in PER_FOOT} | {
     "stance_cop_band_quality",
     "reward_stance_cop_band",
@@ -113,23 +116,28 @@ def _bytes(value) -> bytes:
     return np.float64(value).tobytes()
 
 
-def _quality(foot_cop, pad_cop, counted, kwargs=None):
+def _guard(share, loaded, kwargs=None):
+    """The load guard by the formula: 0 off (unloaded or off the pad), a linear ramp in the share between."""
     k = {**DEFAULTS, **(kwargs or {})}
-    if not counted:
+    low, high = k["stance_cop_band_full_price_load_share"], k["stance_cop_band_min_load_share"]
+    return min(max((share - low) / (high - low), 0.0), 1.0) if loaded else 0.0
+
+
+def _quality(foot_cop, pad_cop, guard, kwargs=None):
+    k = {**DEFAULTS, **(kwargs or {})}
+    if not guard > 0.0:
         return 0.0
     u = max(
         max(k["stance_cop_band_lower"] - foot_cop, 0.0) + max(foot_cop - k["stance_cop_band_upper"], 0.0),
         max(k["stance_cop_band_pad_lower"] - pad_cop, 0.0) + max(pad_cop - k["stance_cop_band_pad_upper"], 0.0),
     )
-    return math.exp(-((u / k["stance_cop_band_tolerance"]) ** 2))
+    return guard * math.exp(-((u / k["stance_cop_band_tolerance"]) ** 2))
 
 
 def _expected(info, weight=0.30, kwargs=None):
     """The term from the env's own per-foot info readings, by the formula."""
     qualities = [
-        _quality(
-            info[f"{s}_cop_band_foot_cop"], info[f"{s}_cop_band_pad_cop"], info[f"{s}_cop_band_counted"] > 0, kwargs
-        )
+        _quality(info[f"{s}_cop_band_foot_cop"], info[f"{s}_cop_band_pad_cop"], info[f"{s}_cop_band_guard"], kwargs)
         for s in "rl"
     ]
     return -weight * (2.0 - sum(qualities)) / 2.0, qualities
@@ -257,7 +265,7 @@ def test_off_it_moves_no_task_fingerprint_and_no_recorded_config(tmp_path, off_k
         TYRANNOSAURUS_REX, "stance", env_kwargs={**off_kwargs, **ON, "stance_cop_band_pad_upper": 0.6}
     )
     assert len({base["task_sha256"], on["task_sha256"], tighter["task_sha256"]}) == 3
-    # stage_config.json records no off option's defaults; on, all seven keys.
+    # stage_config.json records no off option's defaults; on, all eight keys.
     config = {**load_stage_config(TYRANNOSAURUS_REX, "stance"), "env_kwargs": off_kwargs}
     path = save_stage_config(
         tmp_path / "off", "stance", config, "PPO", env_class=TyrannosaurusRexAnatomicalEnv, model_id=TYRANNOSAURUS_REX
@@ -284,6 +292,10 @@ def test_off_it_moves_no_task_fingerprint_and_no_recorded_config(tmp_path, off_k
         ({"stance_cop_band_tolerance": math.inf}, "stance_cop_band_tolerance"),
         ({"stance_cop_band_min_load_share": 0.5}, "stance_cop_band_min_load_share"),
         ({"stance_cop_band_min_load_share": -0.1}, "stance_cop_band_min_load_share"),
+        ({"stance_cop_band_min_load_share": 0.2}, "stance_cop_band_min_load_share"),  # under the ramp's lower end
+        ({"stance_cop_band_full_price_load_share": 0.35}, "stance_cop_band_full_price_load_share"),  # no ramp
+        ({"stance_cop_band_full_price_load_share": -0.01}, "stance_cop_band_full_price_load_share"),
+        ({"stance_cop_band_full_price_load_share": math.nan}, "stance_cop_band_full_price_load_share"),
     ],
 )
 def test_invalid_values_fail_fast(kwargs, message):
@@ -325,6 +337,8 @@ def test_on_the_reading_is_the_recorders_bit_for_bit(off_kwargs):
             )
             share = trace.leg_floor_mean[step, index] / trace.leg_floor_mean[step].sum()
             assert info[f"{side}_cop_band_load_share"] == pytest.approx(share, rel=1e-12)
+            guard = _guard(share, loaded[step, index] and pad_loaded[step, index])
+            assert info[f"{side}_cop_band_guard"] == pytest.approx(guard, rel=1e-12, abs=1e-15)
             seen_out += not -0.6 <= cop[step, index] <= 0.4
     assert seen_out > 20  # the noisy episode leaves the band, so the comparison covers paid steps
 
@@ -347,7 +361,7 @@ def test_on_it_matches_the_formula_and_an_independent_oracle_on_constructed_stat
                 assert info[f"{side}_cop_band_pad_cop"] == pytest.approx(oracle[index]["pad_cop"], abs=1e-9)
                 share = oracle[index]["force"] / (oracle[0]["force"] + oracle[1]["force"])
                 assert info[f"{side}_cop_band_load_share"] == pytest.approx(share, abs=1e-9)
-                assert info[f"{side}_cop_band_counted"] == 1.0
+                assert info[f"{side}_cop_band_counted"] == info[f"{side}_cop_band_guard"] == 1.0
             want, qualities = _expected(info)
             assert info["reward_stance_cop_band"] == pytest.approx(want, rel=1e-12, abs=1e-15)
             assert [info["r_cop_band_quality"], info["l_cop_band_quality"]] == pytest.approx(qualities, rel=1e-12)
@@ -402,24 +416,28 @@ def test_on_it_changes_no_dynamics_and_adds_exactly_its_term(off_kwargs):
 #: paid.  Per band info key: the sha256 of its per-step values quantized to 6 decimals (the digest snapshot's portable
 #: rounding; negative zero folded to zero).  Stepping crosses the solver, so it compares only under this MuJoCo.
 #: Re-pin from the failure message's digests only with a change that is meant to move the band's readings, and say
-#: which keys moved.
+#: which keys moved.  Re-pinned once, for the load guard's ramp (decision 3a): the guard keys are new, and the
+#: counted, quality and reward keys moved on the 16 foot-steps whose share lies in (0.25, 0.35), 14 of them paid; the
+#: foot CoP, pad CoP, load share and digit share kept their digests (and their bytes).
 GOLDEN_MUJOCO = "3.10.0"
 GOLDEN_STEPS = 60
 GOLDEN = {
-    "l_cop_band_counted": "2ef683d346aa2ef2c78c774881d1ed74fb4a35b671b08de3e168b895b90e3bb9",
+    "l_cop_band_counted": "5b6ffc09e6e6672f63b9ebcc7aa8f75431b43ba52c2a5848aef3ffb24af744cf",
     "l_cop_band_digit_share": "cd6acb09122511149cbf1aaf088cc89f6f03336a967817ce506d075f0b993a1c",
     "l_cop_band_foot_cop": "9c26b615d48fc35e009cddf01e030d3d1467db88dc405834cbd0b37cb42ee921",
+    "l_cop_band_guard": "987725e9730fa444ea8ac7505136ce7ab0487b7b60070103c73270697333b7c0",
     "l_cop_band_load_share": "8beaacd30795cdc5bad6bdc39d9bb493e74c8c55547f012fa2e3058b17f9805e",
     "l_cop_band_pad_cop": "3727b9c534e1bccb3f1bba1684a11393bf7a41877599e10ee7d194dc7cccf1bf",
-    "l_cop_band_quality": "01187557e7c64a5ec5961e9418d61020d8852c9815390ee7a460d5960b6f8475",
-    "r_cop_band_counted": "3e48d7e29fa41f25ca9e45597f9827d4ade3f242e687605091bc582de0f873a9",
+    "l_cop_band_quality": "7042d46e08fe3c24212af47b6c6ed68ad65b856bfa78ae88746e2fff3262cbe4",
+    "r_cop_band_counted": "95bd79cff7c2c8ba619e8896f3cc2cc4e26fa3f75c289e759f141f286260d3a8",
     "r_cop_band_digit_share": "f8ea879b7902755d4d6fd4f99d63c94fb4b14b045fb20a8d9409ac9c7dd7053c",
     "r_cop_band_foot_cop": "0084fee3b6b1ad7853fbe0e7329074446d4b2d982801d69bf001534fafabbc6d",
+    "r_cop_band_guard": "b7ce226b3d2a85408a395c120520180207b5faf9fffe7a142159cc92f8b2d8e2",
     "r_cop_band_load_share": "1864e45c647c70b85583434ba32e5ff2faaee8257a56eb4d3dc31639fb083ae9",
     "r_cop_band_pad_cop": "e826fe34cd686ab8e1b6073be86b69fd0278e8aec3b07f6bfe433f7faa253174",
-    "r_cop_band_quality": "6e61280822b1afd15d3a34d70c6245253938c2d4484eafef1f914634e25e4b3f",
-    "reward_stance_cop_band": "16b413362fb27562100926a39850a7f10336a0274de2e9a748f9c88a2022a3e1",
-    "stance_cop_band_quality": "346031ca4b59f5343a33bf6c3b9f01a90677c047e9de9d7eb71ad3f283df949d",
+    "r_cop_band_quality": "e5e46024f350ccae89f2a721e248ca1209682e41a2812dda14f14cf9eb7bfa9a",
+    "reward_stance_cop_band": "689f731979b8bcafd16e24eb07659e60d6d9279e3de72667090bbecfa7612181",
+    "stance_cop_band_quality": "6e1e465579884c13dd7cf0660f1ce715957254145020a9a343b9208271cb9f8a",
 }
 
 
@@ -458,6 +476,8 @@ def test_the_shared_reduction_is_pinned_by_a_golden_band_on_rollout(off_kwargs):
     counted = np.array([[row["r_cop_band_counted"], row["l_cop_band_counted"]] for row in rows])
     quality = np.array([[row["r_cop_band_quality"], row["l_cop_band_quality"]] for row in rows])
     assert (counted == 0.0).any() and ((quality > 0.0) & (quality < 1.0)).any()  # guards and the slope both read
+    guard = np.array([[row["r_cop_band_guard"], row["l_cop_band_guard"]] for row in rows])
+    assert ((guard > 0.0) & (guard < 1.0)).sum() == 16  # the load guard's ramp too
     digests = _golden_digests(rows)
     moved = sorted(key for key in GOLDEN.keys() | digests.keys() if GOLDEN.get(key) != digests.get(key))
     assert moved == [], f"the band's readings moved ({moved}): {digests}"
@@ -750,44 +770,61 @@ def test_guard_1_a_lifted_foot_pays_the_maximum(off_kwargs):
         info = _pose(env, base, {"r_hip_pitch": -0.3})
         oracle = _oracle(env, Morphology.from_env(env, TYRANNOSAURUS_REX))
         assert oracle[0]["force"] == 0.0 and not oracle[0]["foot_loaded"]
-        assert info["r_cop_band_counted"] == 0.0 and info["r_cop_band_quality"] == 0.0
+        assert info["r_cop_band_guard"] == info["r_cop_band_counted"] == info["r_cop_band_quality"] == 0.0
         assert info["r_cop_band_foot_cop"] == 0.0 and info["r_cop_band_load_share"] == 0.0
-        assert info["l_cop_band_counted"] == 1.0 and info["l_cop_band_quality"] == 1.0
+        assert info["l_cop_band_guard"] == info["l_cop_band_counted"] == info["l_cop_band_quality"] == 1.0
         assert info["reward_stance_cop_band"] == pytest.approx(-0.15, abs=1e-15)
     finally:
         env.close()
 
 
-def test_guard_1_a_lightly_loaded_foot_pays_the_maximum(off_kwargs):
-    """Opening the right ankle 0.06 rad leaves the right foot about 43% of the limbs' load.  At the default minimum
-    share (0.35) it is counted; with a 0.45 minimum it is not, and pays the full per-foot price."""
-    for min_share, counted in ((0.35, True), (0.45, False)):
-        env, base = _settled({**off_kwargs, **ON, "stance_cop_band_min_load_share": min_share})
+def test_guard_1_a_lightly_loaded_foot_pays_by_the_load_ramp(off_kwargs):
+    """Opening the right ankle 0.06 rad leaves the right foot about 43% of the limbs' load, its whole-foot CoP just
+    past the toe edge.  Its guard factor is 1 on the default ramp (0.25 -> 0.35), about 0.9 on a 0.25 -> 0.45 ramp,
+    and 0 on a 0.44 -> 0.45 ramp, where it pays the full per-foot price: the lighter the foot against the ramp, the
+    higher the price, and the quality is the guard times the band's Gaussian."""
+    rewards = []
+    for ramp, low, high in (
+        ({}, 1.0, 1.0),
+        ({"stance_cop_band_min_load_share": 0.45}, 0.85, 0.95),
+        ({"stance_cop_band_full_price_load_share": 0.44, "stance_cop_band_min_load_share": 0.45}, 0.0, 0.0),
+    ):
+        env, base = _settled({**off_kwargs, **ON, **ramp})
         try:
             info = _pose(env, base, {"r_ankle": 0.06})
-            assert 0.35 < info["r_cop_band_load_share"] < 0.45 < info["l_cop_band_load_share"]
-            assert info["r_cop_band_counted"] == float(counted)
-            if not counted:
-                assert info["r_cop_band_quality"] == 0.0
+            share = info["r_cop_band_load_share"]
+            assert 0.35 < share < 0.44 and 0.45 < info["l_cop_band_load_share"]
+            guard = info["r_cop_band_guard"]
+            assert low <= guard <= high and guard == pytest.approx(_guard(share, True, ramp), rel=1e-12, abs=1e-15)
+            assert info["r_cop_band_counted"] == float(guard > 0.0) and info["l_cop_band_guard"] == 1.0
+            want, qualities = _expected(info, kwargs=ramp)
+            assert [info["r_cop_band_quality"], info["l_cop_band_quality"]] == pytest.approx(qualities, rel=1e-12)
+            assert info["reward_stance_cop_band"] == pytest.approx(want, rel=1e-12)
+            rewards.append(info["reward_stance_cop_band"])
+            if guard == 0.0:
                 left = info["l_cop_band_quality"]
                 assert info["reward_stance_cop_band"] == pytest.approx(-0.30 * (2.0 - left) / 2.0, rel=1e-12)
         finally:
             env.close()
+    assert rewards[0] > rewards[1] > rewards[2]
 
 
 def test_guard_2_a_foot_off_its_pad_pays_the_maximum(off_kwargs):
     """The right toes flexed 0.4 rad lift the right pad: the limb is loaded, on its digits alone.  The pad is
-    unloaded, so the foot is not counted, whatever its whole-foot CoP; and the left foot, now under 35% of the
-    load, is not counted either."""
+    unloaded, so the foot's guard is 0 and it pays the full per-foot price, whatever its whole-foot CoP.  The left
+    foot, now carrying about 32% of the load, sits on the load guard's ramp (0.25 -> 0.35) and pays part of its
+    price; it stands inside both bands, so its quality is its guard factor."""
     env, base = _settled({**off_kwargs, **ON})
     try:
         info = _pose(env, base, {f"r_toe_d{d}_joint": 0.4 for d in (2, 3, 4)})
         oracle = _oracle(env, Morphology.from_env(env, TYRANNOSAURUS_REX))
         assert oracle[0]["foot_loaded"] and not oracle[0]["pad_loaded"]
         assert info["r_cop_band_digit_share"] == pytest.approx(1.0)
-        assert info["r_cop_band_counted"] == 0.0 and info["r_cop_band_pad_cop"] == 0.0
-        assert info["l_cop_band_load_share"] < 0.35 and info["l_cop_band_counted"] == 0.0
-        assert info["reward_stance_cop_band"] == pytest.approx(-0.30, abs=1e-15)
+        assert info["r_cop_band_guard"] == info["r_cop_band_counted"] == info["r_cop_band_pad_cop"] == 0.0
+        share, left = info["l_cop_band_load_share"], info["l_cop_band_guard"]
+        assert 0.25 < share < 0.35 and 0.0 < left < 1.0 and left == pytest.approx(_guard(share, True), rel=1e-12)
+        assert info["l_cop_band_counted"] == 1.0 and info["l_cop_band_quality"] == left
+        assert info["reward_stance_cop_band"] == pytest.approx(-0.30 * (2.0 - left) / 2.0, rel=1e-12)
     finally:
         env.close()
 
@@ -820,8 +857,13 @@ def test_guard_2_the_pad_band_prices_load_moved_onto_the_digits(off_kwargs):
 
 
 # ---------------------------------------------------------------------------------------------------- on: the mirror
-def test_the_readings_swap_feet_under_the_mirror_and_the_term_does_not_move(off_kwargs):
-    env = TyrannosaurusRexAnatomicalEnv(**off_kwargs, **ON)
+@pytest.mark.parametrize(
+    "ramp",
+    [{}, {"stance_cop_band_full_price_load_share": 0.40, "stance_cop_band_min_load_share": 0.49}],
+    ids=["defaults", "the right foot on the load ramp"],
+)
+def test_the_readings_swap_feet_under_the_mirror_and_the_term_does_not_move(off_kwargs, ramp):
+    env = TyrannosaurusRexAnatomicalEnv(**off_kwargs, **ON, **ramp)
     try:
         mirror = SY.build_env_mirror(env, SY.HEADING_FREE_OBSERVATION_SCHEMA)
         env.reset(seed=3052)
@@ -835,6 +877,8 @@ def test_the_readings_swap_feet_under_the_mirror_and_the_term_does_not_move(off_
         env._invalidate_substep_aggregates()
         _, after = env._get_reward_info(np.zeros(15))
         assert before["reward_stance_cop_band"] < 0.0
+        if ramp:  # the right foot carries about 45% of the load here: on the 0.40 -> 0.49 ramp
+            assert 0.0 < before["r_cop_band_guard"] < 1.0 == before["l_cop_band_guard"]
         for name in PER_FOOT:
             assert after[f"r_cop_band_{name}"] == pytest.approx(before[f"l_cop_band_{name}"], abs=1e-9)
             assert after[f"l_cop_band_{name}"] == pytest.approx(before[f"r_cop_band_{name}"], abs=1e-9)
@@ -846,28 +890,29 @@ def test_the_readings_swap_feet_under_the_mirror_and_the_term_does_not_move(off_
 
 # ---------------------------------------------------------------------------------------------------- pure function
 @pytest.mark.parametrize(
-    ("foot_cop", "pad_cop", "counted"),
+    ("foot_cop", "pad_cop", "guard"),
     [
-        ((0.0, -0.1), (0.2, 0.1), (True, True)),  # inside both bands
-        ((-0.9, 0.1), (-0.95, 0.3), (True, True)),  # a heel-side split foot (K2a-like)
-        ((0.6, 0.0), (0.62, 0.2), (True, True)),  # past the toe edge
-        ((-0.5, 0.0), (-0.95, 0.2), (True, True)),  # whole foot inside, pad on its heel: the pad band binds
-        ((math.nan, 0.0), (math.nan, 0.2), (False, True)),  # an unloaded foot: NaN readings, the maximum
-        ((-0.3, 0.0), (0.0, 0.2), (False, False)),  # neither counted: -w
+        ((0.0, -0.1), (0.2, 0.1), (1.0, 1.0)),  # inside both bands
+        ((-0.9, 0.1), (-0.95, 0.3), (1.0, 1.0)),  # a heel-side split foot (K2a-like)
+        ((0.6, 0.0), (0.62, 0.2), (1.0, 1.0)),  # past the toe edge
+        ((-0.5, 0.0), (-0.95, 0.2), (1.0, 1.0)),  # whole foot inside, pad on its heel: the pad band binds
+        ((0.6, 0.0), (0.62, 0.2), (0.5, 1.0)),  # past the toe edge, halfway up the load ramp
+        ((math.nan, 0.0), (math.nan, 0.2), (0.0, 1.0)),  # an unloaded foot: NaN readings, the maximum
+        ((-0.3, 0.0), (0.0, 0.2), (0.0, 0.0)),  # neither counted: -w
     ],
 )
-def test_the_pure_function_is_the_design_formula(foot_cop, pad_cop, counted):
+def test_the_pure_function_is_the_design_formula(foot_cop, pad_cop, guard):
     reward, quality = reward_stance_cop_band(
-        np.asarray(foot_cop), np.asarray(pad_cop), np.asarray(counted), (-0.6, 0.4), (-0.65, 0.65), 0.357, 0.30
+        np.asarray(foot_cop), np.asarray(pad_cop), np.asarray(guard), (-0.6, 0.4), (-0.65, 0.65), 0.357, 0.30
     )
-    want = [_quality(f, p, c) for f, p, c in zip(foot_cop, pad_cop, counted)]
+    want = [_quality(f, p, g) for f, p, g in zip(foot_cop, pad_cop, guard)]
     np.testing.assert_allclose(quality, want, rtol=1e-12, atol=1e-15)
     assert float(reward) == pytest.approx(-0.30 * (2.0 - sum(want)) / 2.0, rel=1e-12, abs=1e-15)
     assert -0.30 <= float(reward) <= 0.0 and np.isfinite(float(reward))
     swapped = reward_stance_cop_band(
         np.asarray(foot_cop[::-1]),
         np.asarray(pad_cop[::-1]),
-        np.asarray(counted[::-1]),
+        np.asarray(guard[::-1]),
         (-0.6, 0.4),
         (-0.65, 0.65),
         0.357,
@@ -875,6 +920,35 @@ def test_the_pure_function_is_the_design_formula(foot_cop, pad_cop, counted):
     )
     assert _bytes(swapped[0]) == _bytes(reward)  # exactly invariant when the feet swap
     np.testing.assert_array_equal(swapped[1], np.asarray(quality)[::-1])
+
+
+@pytest.mark.parametrize(("share", "guard"), [(0.20, 0.0), (0.25, 0.0), (0.30, 0.5), (0.35, 1.0), (0.40, 1.0)])
+def test_the_load_guard_ramps_from_the_full_price_share_to_the_min_share(share, guard):
+    """Guard 1 as the maintainer's decision 3a sets it: a loaded foot on its pad pays the full per-foot price at a
+    share of 0.25 or less, none of the guard's price from 0.35 up, and a linear part between.  The other foot (1 -
+    share) is fully guarded.  Both stand inside both bands, so each quality is its guard factor."""
+    loaded = np.array([True, True])
+    got = cop_band_load_guard(np.array([share, 1.0 - share]), loaded, loaded, 0.25, 0.35)
+    np.testing.assert_allclose(got, [guard, 1.0], rtol=1e-12, atol=0.0)
+    assert (got[0] == 0.0) == (share <= 0.25) and (got[0] == 1.0) == (share >= 0.35)  # exact at both ends
+    reward, quality = reward_stance_cop_band(np.zeros(2), np.zeros(2), got, (-0.6, 0.4), (-0.65, 0.65), 0.357, 0.30)
+    np.testing.assert_array_equal(quality, got)
+    assert float(reward) == pytest.approx(-0.15 * (1.0 - guard), rel=1e-12, abs=1e-15)
+
+
+@pytest.mark.parametrize(("foot_loaded", "pad_loaded"), [(False, True), (True, False)], ids=["unloaded", "off its pad"])
+def test_the_load_guard_is_0_on_an_unloaded_foot_and_off_the_pad_whatever_its_share(foot_loaded, pad_loaded):
+    """A foot that is unloaded or stands off its pad keeps the full per-foot price at any share; its readings may be
+    NaN (nothing read), and the term reads none of them."""
+    got = cop_band_load_guard(
+        np.array([0.6, 0.4]), np.array([foot_loaded, True]), np.array([pad_loaded, True]), 0.25, 0.35
+    )
+    np.testing.assert_array_equal(got, [0.0, 1.0])
+    reward, quality = reward_stance_cop_band(
+        np.array([math.nan, 0.0]), np.array([math.nan, 0.0]), got, (-0.6, 0.4), (-0.65, 0.65), 0.357, 0.30
+    )
+    np.testing.assert_array_equal(quality, [0.0, 1.0])
+    assert float(reward) == pytest.approx(-0.15, abs=1e-15)
 
 
 def test_band_excess():
@@ -890,7 +964,7 @@ def test_the_slopes_match_the_design_table():
 
         def cost(x):
             reward, _ = reward_stance_cop_band(
-                np.array([-0.6 - x, 0.0]), np.array([0.0, 0.0]), np.array([True, True]), (-0.6, 0.4), (-0.65, 0.65),
+                np.array([-0.6 - x, 0.0]), np.array([0.0, 0.0]), np.array([1.0, 1.0]), (-0.6, 0.4), (-0.65, 0.65),
                 0.357, 0.30,
             )  # fmt: skip
             return -float(reward)

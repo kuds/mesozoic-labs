@@ -840,6 +840,7 @@ _COP_BAND_KWARGS = {
     "stance_cop_band_pad_lower",
     "stance_cop_band_pad_upper",
     "stance_cop_band_tolerance",
+    "stance_cop_band_full_price_load_share",
     "stance_cop_band_min_load_share",
 }
 
