@@ -60,7 +60,11 @@ judge_stance3.py sha256 5dd3cf4d..., on the screen clone at 1af2d4d7, every bind
   The run did NOT hold: K1 FAIL (below 37/40 at 4.2M, 5.2M and 6.3M; below 33/40 at 4.2M and 5.2M), K2 FAIL (K2a
   at 4.2M and 5.2M, K2b at 4.2M-6.3M), K3 PASS, K4 PASS, "does not hold". Its trajectory: 4.2M 0/40 (actuator
   saturation in all 40), 5.2M 0/40, 6.3M 36/40, 8.4M 39/40, 10.5M 39/40, final 40/40; report only, 3,145,728
-  6/40, 9,961,472 12/40 (a saturation relapse) and 11,534,336 34/40. Only this final checkpoint is clean.
+  6/40, 9,961,472 12/40 clean (a saturation relapse: the saturation rail failed in 28/40) and 11,534,336 34/40.
+  Of its judged periodic checkpoints and its final, only the final is 40/40 clean. Its best_model (=
+  robust_best_model, 917,504 steps, sha256 9fb82a7c...) also judged 40/40 clean, with 0 + 0 noise falls, K2a 0 and
+  K2b 0 (report only: foot/stance3/judged/stance3_armLT_s60/judge_best.json and judge_robust_best.json); stance3's
+  parent rule offers final checkpoints only.
   Pilot 1's parent, for comparison: 40/40 clean, but 6/20 joint-space noise falls (K3 fails), K2c fails, tail
   panel 3 of 32 falls.
 
@@ -87,15 +91,15 @@ Files (sha256, as the stance3 judge bound them)
   reach training.
 
 How it is loaded
-  The notebook's manual single-node cell (section 7): MANUAL_NODE = "locomotion",
-  MANUAL_LOAD_MODE = "initialize_next_stage", MANUAL_LOAD_PATH = this directory's stage1_final (the stem; on Colab
-  "/content/mesozoic-labs/pilot_checkpoints/stance3_armLT_s60_final/stage1_final"),
-  MANUAL_VECNORM_PATH = this directory's stage1_final_vecnorm.pkl (MANUAL_LOAD_PATH + "_vecnorm.pkl"; pilot 1's
-  replace("stage1_", "stage1_vecnormalize_") expression would name a file that does not exist, which the notebook
-  refuses before anything is written). The loader checks the plant (physics r9 and policy interface r15 match this
+  The notebook's manual single-node cell (section 7): MANUAL_NODE = "locomotion", MANUAL_LOAD_MODE =
+  "initialize_next_stage", MANUAL_LOAD_PATH = this directory's stage1_final (the stem; on Colab
+  "/content/mesozoic-labs/pilot_checkpoints/stance3_armLT_s60_final/stage1_final"), MANUAL_VECNORM_PATH = this
+  directory's stage1_final_vecnorm.pkl (MANUAL_LOAD_PATH + "_vecnorm.pkl"; pilot 1's replace("stage1_",
+  "stage1_vecnormalize_") expression would name a file that does not exist, which the notebook's train_stage refuses
+  with FileNotFoundError before train() creates 03_locomotion/; the cells that run before it have already written
+  the run directory's own records). The loader checks the plant (physics r9 and policy interface r15 match this
   branch) and that the checkpoint's recorded stage is stance, the locomotion node's declared parent. The child
   records parent_checkpoint_sha256 sha256:cc21604a981810566c647f2956bed0b71de697f3fbfb8888b8117b6a89d81903 (the
-  zip's; the sidecar's sha256 is not recorded) and parent_task_sha256 sha256:d4a3b8f8...; the warm start then
-  prints "Warm start: policy log_std set to -1.5 (std 0.223) on all 15 actuators (the parent's std: mean 0.064,
-  min 0.009, max 0.125; Adam moments kept)" (measured 2026-10-21 through this branch's own load path, without
-  training).
+  zip's; the sidecar's sha256 is not recorded) and parent_task_sha256 sha256:d4a3b8f8...; the warm start then prints
+  "Warm start: policy log_std set to -1.5 (std 0.223) on all 15 actuators (the parent's std: mean 0.064, min 0.009,
+  max 0.125; Adam moments kept)" (measured 2026-10-21 through this branch's own load path, without training).
