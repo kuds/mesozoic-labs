@@ -27,5 +27,10 @@ Modules, bottom-up:
 
 Layering: this package imports nothing from ``gait``, ``curriculum`` or
 ``reporting``, and this file imports nothing, so a pure reader of
-:mod:`.reduction` loads no mujoco.
+:mod:`.reduction` loads no mujoco.  One call reaches further:
+:func:`.morphology.support_entry` reads the manifest's class through
+``species_registry``, which loads ``train_base`` and, through it, the
+curriculum and ``gait``.  The recorder's side calls it; the T. rex's band
+passes its own class's entry (:func:`.morphology.entry_from_support`)
+instead, so a band-on env loads none of them.
 """

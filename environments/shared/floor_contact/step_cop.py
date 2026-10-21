@@ -41,13 +41,15 @@ is bit-identical to one without.
 Layering: this module and everything it imports sit in
 :mod:`environments.shared.floor_contact`, outside the gait package, so the
 T. rex env imports it without breaking the rule that no species env module
-imports ``gait``.  The env imports it only inside the method that builds the
-band's reader, and only when the band is on, so an env with the band off
-never loads it.  A reward that reads this code depends on measurement code
-that no task fingerprint hashes: a later change to it, or to the shared
-reduction, would change the reward, so the band's tests pin a band-on
-rollout's readings (the golden).  See the stance4 copband design note
-(screen-only).
+imports ``gait``; the env builds the reader's morphology from its own
+``FOOT_SUPPORT``, not through ``species_registry``, so it loads no ``gait``
+module at run time either.  The env imports it only inside the method that
+builds the band's reader, and only when the band is on, so an env with the
+band off never loads it.  A reward that reads this code depends on
+measurement code that no task fingerprint hashes: a later change to it, or
+to the shared reduction, would change the reward, so the band's tests pin a
+band-on rollout's readings (the golden).  See the stance4 copband design
+note (screen-only).
 """
 
 from __future__ import annotations

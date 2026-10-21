@@ -164,11 +164,19 @@ def support_entry(model_id: ModelId) -> FootRegistryEntry | None:
 
     Read off the class the manifest names (``species_registry.env_class``),
     so no model instance is built; a class without ``FOOT_SUPPORT`` gets the
-    generic rule.
+    generic rule.  The import loads ``species_registry`` and, through it,
+    ``train_base`` and the curriculum (which builds on ``gait``); an env that
+    knows its own class passes :func:`entry_from_support` of its
+    ``FOOT_SUPPORT`` to :meth:`Morphology.from_env` instead, as the T. rex's
+    CoP band does.
     """
     from ..species_registry import env_class
 
-    declared = getattr(env_class(model_id), "FOOT_SUPPORT", None)
+    return entry_from_support(getattr(env_class(model_id), "FOOT_SUPPORT", None))
+
+
+def entry_from_support(declared: Mapping[str, Any] | None) -> FootRegistryEntry | None:
+    """The registry entry a ``FOOT_SUPPORT`` class attribute declares, or ``None`` (the generic rule) for none."""
     if declared is None:
         return None
     return FootRegistryEntry(

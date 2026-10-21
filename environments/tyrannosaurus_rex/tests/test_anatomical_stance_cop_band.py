@@ -7,15 +7,18 @@ no task fingerprint, no recorded stage config, and the env never loads the band'
     u_k = max(excess(whole-foot CoP, [lower, upper]), excess(pad CoP, [pad_lower, pad_upper]))
     g_k = the load guard: 0 when the foot is unloaded or stands off its pad, or carries at most
           full_price_load_share of the two limbs' floor load; 1 from min_load_share up; linear between
+          (info <s>_cop_band_guard; <s>_cop_band_counted is 1 only at g_k = 1)
     q_k = g_k * exp(-(u_k / tolerance)^2)
     reward = -w * mean_k (1 - q_k), paid only after stance_width_settle_steps and only while the command is zero
 
 The whole-foot CoP is the judge's K2b reading for the step (every floor contact of the limb over the step's
 substeps, span half-lengths), computed with the recorder's reduction fused into one pass per step, in the neutral
-environments/shared/floor_contact package so the env imports nothing from gait (floor_contact/step_cop.py); the tests
-pin it to the recorder bit for bit, to the shared reduction functions bit for bit on synthetic contacts, to an
-independent mj_contactForce computation on hand-posed states, and to a golden band-on rollout, so a later change to
-the shared reduction or the fused reader cannot move the reward unseen.
+environments/shared/floor_contact package so the env imports nothing from gait, and loads none of it at run time
+(floor_contact/step_cop.py); the tests pin it to the recorder bit for bit, to the shared reduction functions bit for
+bit on synthetic contacts, to an independent mj_contactForce computation on hand-posed states, and to a golden band-on
+rollout, so a later change to the shared reduction or the fused reader cannot move the reward unseen.  The env
+computes the guard, quality and term on Python floats; the tests pin every value to the pure reward functions byte
+for byte.
 
 Every test starts from the stance stage's env kwargs with the stagger keys removed, so "off" means off.
 """
@@ -26,8 +29,11 @@ import hashlib
 import inspect
 import json
 import math
+import subprocess
 import sys
+from pathlib import Path
 from types import SimpleNamespace
+from typing import Any, cast
 
 import mujoco
 import numpy as np
@@ -37,6 +43,7 @@ from environments.shared import symmetry as SY
 from environments.shared.config import load_stage_config, save_stage_config
 from environments.shared.floor_contact import reduction
 from environments.shared.floor_contact.morphology import Morphology
+from environments.shared.floor_contact.step_cop import StepCopReading
 from environments.shared.gait.recorder import SubstepContactRecorder
 from environments.shared.gait.stance_metrics import whole_foot_cop
 from environments.shared.model_id import ModelId
@@ -141,6 +148,44 @@ def _expected(info, weight=0.30, kwargs=None):
         for s in "rl"
     ]
     return -weight * (2.0 - sum(qualities)) / 2.0, qualities
+
+
+def _pure_info(reading, gate, kwargs=None) -> dict:
+    """The band's info values from one of the env reader's readings by the pure functions (cop_band_load_guard and
+    reward_stance_cop_band on numpy arrays), which the env's section 8i runs on Python floats."""
+    k = {**DEFAULTS, **ON, **(kwargs or {})}
+    limb = reading.leg_force_mean
+    share = limb / float(limb.sum()) if float(limb.sum()) > 0.0 else np.zeros_like(limb)
+    guard = cop_band_load_guard(
+        share,
+        reading.foot_loaded,
+        reading.pad_loaded,
+        k["stance_cop_band_full_price_load_share"],
+        k["stance_cop_band_min_load_share"],
+    )
+    reward, quality = reward_stance_cop_band(
+        reading.foot_cop,
+        reading.pad_cop,
+        guard,
+        (k["stance_cop_band_lower"], k["stance_cop_band_upper"]),
+        (k["stance_cop_band_pad_lower"], k["stance_cop_band_pad_upper"]),
+        k["stance_cop_band_tolerance"],
+        k["stance_cop_band_weight"],
+    )
+    info = {
+        "stance_cop_band_quality": float(np.mean(quality)),
+        "reward_stance_cop_band": float(reward) if gate else 0.0,
+    }
+    for index, side in enumerate("rl"):
+        info[f"{side}_cop_band_foot_cop"] = float(reading.foot_cop[index]) if reading.foot_loaded[index] else 0.0
+        info[f"{side}_cop_band_pad_cop"] = float(reading.pad_cop[index]) if reading.pad_loaded[index] else 0.0
+        info[f"{side}_cop_band_load_share"] = float(share[index])
+        digit_share = float(reading.digit_share[index])
+        info[f"{side}_cop_band_digit_share"] = digit_share if np.isfinite(digit_share) else 0.0
+        info[f"{side}_cop_band_guard"] = float(guard[index])
+        info[f"{side}_cop_band_counted"] = float(guard[index] >= 1.0)
+        info[f"{side}_cop_band_quality"] = float(quality[index])
+    return info
 
 
 # ---------------------------------------------------------------------------------------------- an independent oracle
@@ -408,6 +453,146 @@ def test_on_it_changes_no_dynamics_and_adds_exactly_its_term(off_kwargs):
     assert paid > 0
 
 
+# --------------------------------------------------------------------------------------------------- on: the arithmetic
+def _kept_readings(env) -> list:
+    """Every reading the env's reward takes from its band reader, in order (the reader's method wrapped)."""
+    reader, kept = env._cop_band(), []
+    read = reader.reading
+
+    def keep(*args):
+        kept.append(read(*args))
+        return kept[-1]
+
+    reader.reading = keep
+    return kept
+
+
+@pytest.mark.parametrize(
+    "ramp",
+    [{}, {"stance_cop_band_full_price_load_share": 0.10, "stance_cop_band_min_load_share": 0.49}],
+    ids=["defaults", "a wide load ramp"],
+)
+def test_on_the_env_computes_the_pure_functions_values_byte_for_byte(off_kwargs, ramp):
+    """Section 8i runs cop_band_load_guard's and reward_stance_cop_band's arithmetic on the two feet as Python floats
+    (their 2-element numpy calls cost about 35 us a step).  Every step of a noisy rollout, the gate open from step 11:
+    each band info value is the pure functions' on the env's own reading, byte for byte and a Python float.  The
+    rollouts read guards of 0, of 1 and on the ramp, and feet and pads out of their bands, so a transcription that
+    moves any value by an ulp fails it (math.exp in place of the one np.exp moves 10-12 qualities here)."""
+    kwargs = {**off_kwargs, **ON, **ramp, "stance_width_settle_steps": 10}
+    env = TyrannosaurusRexAnatomicalEnv(**kwargs)
+    try:
+        kept = _kept_readings(env)
+        env.reset(seed=3081)
+        rng = np.random.default_rng(3081)
+        rows = []
+        for _ in range(300):
+            before = len(kept)
+            _, _, terminated, truncated, info = env.step(rng.uniform(-0.2, 0.2, 15))
+            assert len(kept) == before + 1  # one reading a step, the one the reward took
+            gate = env._step_count > env.stance_width_settle_steps and not np.any(env._command)
+            rows.append((info, _pure_info(kept[-1], gate, kwargs)))
+            if terminated or truncated:
+                break
+    finally:
+        env.close()
+    for info, want in rows:
+        for key in sorted(BAND_INFO_KEYS):
+            assert type(info[key]) is float and _bytes(info[key]) == _bytes(want[key]), (key, info[key], want[key])
+    guard = np.array([[info[f"{side}_cop_band_guard"] for side in "rl"] for info, _ in rows])
+    quality = np.array([[info[f"{side}_cop_band_quality"] for side in "rl"] for info, _ in rows])
+    assert (guard == 0.0).sum() > 5 and (guard == 1.0).sum() > 5 and ((guard > 0.0) & (guard < 1.0)).sum() > 20
+    assert ((guard > 0.0) & (quality < guard)).sum() > 20  # feet out of the band, so the Gaussian is read
+
+
+def _reading(foot_cop, pad_cop, limb, foot_loaded=(True, True), pad_loaded=(True, True), digit_share=(0.2, 0.2)):
+    """A reading built by hand, per foot (right, left): whole-foot and pad CoP, limb force (N), loaded flags."""
+    return StepCopReading(
+        foot_cop=np.array(foot_cop, dtype=np.float64),
+        foot_loaded=np.array(foot_loaded),
+        pad_cop=np.array(pad_cop, dtype=np.float64),
+        pad_loaded=np.array(pad_loaded),
+        leg_force_mean=np.array(limb, dtype=np.float64),
+        leg_force_max=np.array(limb, dtype=np.float64),
+        digit_share=np.array(digit_share, dtype=np.float64),
+        substeps=5,
+    )
+
+
+NAN = math.nan
+
+
+@pytest.mark.parametrize(
+    ("reading", "guards"),
+    [
+        (_reading((0.1, 0.0), (0.1, 0.0), (25.0, 75.0)), (0.0, 1.0)),
+        (_reading((0.1, 0.0), (0.1, 0.0), (35.0, 65.0)), (1.0, 1.0)),
+        (_reading((-0.9, 0.0), (0.1, 0.0), (30.0, 70.0)), None),
+        (_reading((-0.9, 0.7), (-0.5, 0.2), (400.0, 400.0)), (1.0, 1.0)),
+        (_reading((-0.5, 0.0), (-0.9, 0.7), (400.0, 400.0)), (1.0, 1.0)),
+        (_reading((NAN, 0.0), (NAN, 0.0), (0.0, 800.0), (False, True), (False, True), (NAN, 0.2)), (0.0, 1.0)),
+        (_reading((0.9, 0.0), (NAN, 0.0), (300.0, 500.0), (True, True), (False, True), (1.0, 0.2)), (0.0, 1.0)),
+        (_reading((NAN, NAN), (NAN, NAN), (0.0, 0.0), (False, False), (False, False), (NAN, NAN)), (0.0, 0.0)),
+    ],
+    ids=[
+        "share 0.25, the ramp's foot",
+        "share 0.35, its top",
+        "share 0.30, out of the band",
+        "out of the band at the heel and the toe",
+        "pads out of their band",
+        "an unloaded foot",
+        "a foot off its pad",
+        "airborne",
+    ],
+)
+def test_on_the_env_computes_the_pure_functions_values_on_constructed_readings(off_kwargs, reading, guards):
+    """The same pin on readings built by hand and fed to the env's own reward section: a share exactly at either end
+    of the ramp and between, feet and pads out of their bands at either edge, an unloaded foot (NaN readings), a foot
+    off its pad and a step with no load at all.  Every value is finite, and counted is 1 only at a guard of 1."""
+    env = TyrannosaurusRexAnatomicalEnv(**off_kwargs, **ON)
+    try:
+        env.reset(seed=3042)
+        env._cop_band().reading = lambda *args: reading
+        info = _pose(env, env.data.qpos.copy(), {})
+    finally:
+        env.close()
+    want = _pure_info(reading, True)
+    for key in sorted(BAND_INFO_KEYS):
+        assert type(info[key]) is float and _bytes(info[key]) == _bytes(want[key]), (key, info[key], want[key])
+        assert math.isfinite(info[key]), key
+    guard = (info["r_cop_band_guard"], info["l_cop_band_guard"])
+    if guards is None:  # share 0.30: on the ramp
+        assert 0.0 < guard[0] < 1.0 == guard[1]
+    else:
+        assert guard == guards
+    assert [info[f"{side}_cop_band_counted"] for side in "rl"] == [float(value == 1.0) for value in guard]
+
+
+def test_on_the_env_loads_no_gait_curriculum_or_registry_module_at_run_time():
+    """No species env module imports the gait package, and a band-on env loads none of it at run time either: it
+    builds its morphology from its own class's FOOT_SUPPORT (floor_contact.morphology.entry_from_support), not through
+    support_entry, whose species_registry import loads train_base and with it the curriculum and gait's modules.  In a
+    fresh interpreter on this checkout, so what other tests loaded does not count."""
+    root = str(Path(__file__).resolve().parents[3])
+    code = (
+        "import os, sys\n"
+        f"sys.path.insert(0, {root!r})\n"
+        "import numpy as np\n"
+        "import environments\n"
+        f"assert os.path.realpath(environments.__file__).startswith({root!r} + os.sep), environments.__file__\n"
+        "from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv\n"
+        "env = TyrannosaurusRexAnatomicalEnv(stance_cop_band_weight=0.3)\n"
+        "env.reset(seed=3042)\n"
+        "for _ in range(3):\n"
+        "    info = env.step(np.zeros(15))[4]\n"
+        "assert 'reward_stance_cop_band' in info\n"
+        "layers = ('gait', 'curriculum', 'reporting', 'species_registry', 'train_base')\n"
+        "print(sorted(m for m in sys.modules if m.startswith('environments.shared.') and m.split('.')[2] in layers))\n"
+    )
+    result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=300, cwd=root)
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.strip().splitlines()[-1] == "[]", result.stdout
+
+
 # ---------------------------------------------------------------------------------------------------- on: the golden
 #: The reward runs the shared floor-contact reduction (floor_contact/), which no task fingerprint hashes, so a change
 #: to it would move the reward with no fingerprint move (copband design section 7, risk 5).  This pins it: a 60-step
@@ -417,19 +602,21 @@ def test_on_it_changes_no_dynamics_and_adds_exactly_its_term(off_kwargs):
 #: rounding; negative zero folded to zero).  Stepping crosses the solver, so it compares only under this MuJoCo.
 #: Re-pin from the failure message's digests only with a change that is meant to move the band's readings, and say
 #: which keys moved.  Re-pinned once, for the load guard's ramp (decision 3a): the guard keys are new, and the
-#: counted, quality and reward keys moved on the 16 foot-steps whose share lies in (0.25, 0.35), 14 of them paid; the
-#: foot CoP, pad CoP, load share and digit share kept their digests (and their bytes).
+#: quality and reward keys moved on the 16 foot-steps whose share lies in (0.25, 0.35), 14 of them paid; the counted
+#: keys (1 only at a guard of 1, the prototype's counted rule), foot CoP, pad CoP, load share and digit share kept
+#: the prototype's digests (and their bytes).  The 6-decimal digests do not see a 1-ulp change: the 300-step test
+#: pins the env's values to the pure functions byte for byte.
 GOLDEN_MUJOCO = "3.10.0"
 GOLDEN_STEPS = 60
 GOLDEN = {
-    "l_cop_band_counted": "5b6ffc09e6e6672f63b9ebcc7aa8f75431b43ba52c2a5848aef3ffb24af744cf",
+    "l_cop_band_counted": "2ef683d346aa2ef2c78c774881d1ed74fb4a35b671b08de3e168b895b90e3bb9",
     "l_cop_band_digit_share": "cd6acb09122511149cbf1aaf088cc89f6f03336a967817ce506d075f0b993a1c",
     "l_cop_band_foot_cop": "9c26b615d48fc35e009cddf01e030d3d1467db88dc405834cbd0b37cb42ee921",
     "l_cop_band_guard": "987725e9730fa444ea8ac7505136ce7ab0487b7b60070103c73270697333b7c0",
     "l_cop_band_load_share": "8beaacd30795cdc5bad6bdc39d9bb493e74c8c55547f012fa2e3058b17f9805e",
     "l_cop_band_pad_cop": "3727b9c534e1bccb3f1bba1684a11393bf7a41877599e10ee7d194dc7cccf1bf",
     "l_cop_band_quality": "7042d46e08fe3c24212af47b6c6ed68ad65b856bfa78ae88746e2fff3262cbe4",
-    "r_cop_band_counted": "95bd79cff7c2c8ba619e8896f3cc2cc4e26fa3f75c289e759f141f286260d3a8",
+    "r_cop_band_counted": "3e48d7e29fa41f25ca9e45597f9827d4ade3f242e687605091bc582de0f873a9",
     "r_cop_band_digit_share": "f8ea879b7902755d4d6fd4f99d63c94fb4b14b045fb20a8d9409ac9c7dd7053c",
     "r_cop_band_foot_cop": "0084fee3b6b1ad7853fbe0e7329074446d4b2d982801d69bf001534fafabbc6d",
     "r_cop_band_guard": "b7ce226b3d2a85408a395c120520180207b5faf9fffe7a142159cc92f8b2d8e2",
@@ -535,7 +722,7 @@ def _synthetic_reduction() -> dict[str, np.ndarray]:
     turned = np.array([[0.0, -1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]])
     pose = np.tile(np.concatenate([[0.0, 0.0, 0.0], np.eye(3).ravel(), [0.0, 0.3, 0.0], turned.ravel()]), (4, 1))
     pose = pose.reshape(4, 2, 12)
-    other, on_floor, foot, leg_on_floor = reduction.classify_floor_contacts(morphology, geoms)
+    other, on_floor, foot, leg_on_floor = reduction.classify_floor_contacts(cast(Morphology, morphology), geoms)
     leg = reduction.per_substep_force(substep_of, normal, leg_on_floor, foot, 2, 2, 2)
     support_index = np.where(leg_on_floor, morphology.geom_support[other], -1)
     support = reduction.per_substep_force(substep_of, normal, support_index >= 0, support_index, 4, 2, 2)
@@ -592,7 +779,7 @@ def test_the_shared_reduction_is_pinned_on_contacts_that_straddle_its_thresholds
 #: sole.  Step 2: the right foot carries 4e-10 N (the 1e-9 N load rule: no CoP), the left 5e-4 N on its digit (a CoP,
 #: not loaded).  Step 3: an empty substep, then the right sole alone at 0.1 N.  Each sole moves between substeps; the
 #: left one is turned 90 degrees about z.
-FUSED_STEPS = (
+FUSED_STEPS: tuple[Any, ...] = (
     (  # (geom1, geom2, normal force, world point), per substep
         [
             (0, 1, 0.105, (0.03, 0.01, 0.0)),
@@ -796,7 +983,7 @@ def test_guard_1_a_lightly_loaded_foot_pays_by_the_load_ramp(off_kwargs):
             assert 0.35 < share < 0.44 and 0.45 < info["l_cop_band_load_share"]
             guard = info["r_cop_band_guard"]
             assert low <= guard <= high and guard == pytest.approx(_guard(share, True, ramp), rel=1e-12, abs=1e-15)
-            assert info["r_cop_band_counted"] == float(guard > 0.0) and info["l_cop_band_guard"] == 1.0
+            assert info["r_cop_band_counted"] == float(guard >= 1.0) and info["l_cop_band_guard"] == 1.0
             want, qualities = _expected(info, kwargs=ramp)
             assert [info["r_cop_band_quality"], info["l_cop_band_quality"]] == pytest.approx(qualities, rel=1e-12)
             assert info["reward_stance_cop_band"] == pytest.approx(want, rel=1e-12)
@@ -823,7 +1010,7 @@ def test_guard_2_a_foot_off_its_pad_pays_the_maximum(off_kwargs):
         assert info["r_cop_band_guard"] == info["r_cop_band_counted"] == info["r_cop_band_pad_cop"] == 0.0
         share, left = info["l_cop_band_load_share"], info["l_cop_band_guard"]
         assert 0.25 < share < 0.35 and 0.0 < left < 1.0 and left == pytest.approx(_guard(share, True), rel=1e-12)
-        assert info["l_cop_band_counted"] == 1.0 and info["l_cop_band_quality"] == left
+        assert info["l_cop_band_counted"] == 0.0 and info["l_cop_band_quality"] == left  # a guard below 1
         assert info["reward_stance_cop_band"] == pytest.approx(-0.30 * (2.0 - left) / 2.0, rel=1e-12)
     finally:
         env.close()
@@ -936,12 +1123,17 @@ def test_the_load_guard_ramps_from_the_full_price_share_to_the_min_share(share, 
     assert float(reward) == pytest.approx(-0.15 * (1.0 - guard), rel=1e-12, abs=1e-15)
 
 
-@pytest.mark.parametrize(("foot_loaded", "pad_loaded"), [(False, True), (True, False)], ids=["unloaded", "off its pad"])
-def test_the_load_guard_is_0_on_an_unloaded_foot_and_off_the_pad_whatever_its_share(foot_loaded, pad_loaded):
-    """A foot that is unloaded or stands off its pad keeps the full per-foot price at any share; its readings may be
-    NaN (nothing read), and the term reads none of them."""
+@pytest.mark.parametrize(
+    ("share", "foot_loaded", "pad_loaded"),
+    [(0.6, False, True), (0.6, True, False), (math.nan, True, True), (math.inf, True, True)],
+    ids=["unloaded", "off its pad", "a NaN share", "an infinite share"],
+)
+def test_the_load_guard_is_0_on_an_unloaded_foot_and_off_the_pad_whatever_its_share(share, foot_loaded, pad_loaded):
+    """A foot that is unloaded or stands off its pad keeps the full per-foot price at any share, and so does a share
+    that is not finite (no env reading gives one); its readings may be NaN (nothing read), and the term reads none of
+    them."""
     got = cop_band_load_guard(
-        np.array([0.6, 0.4]), np.array([foot_loaded, True]), np.array([pad_loaded, True]), 0.25, 0.35
+        np.array([share, 0.4]), np.array([foot_loaded, True]), np.array([pad_loaded, True]), 0.25, 0.35
     )
     np.testing.assert_array_equal(got, [0.0, 1.0])
     reward, quality = reward_stance_cop_band(
@@ -949,6 +1141,14 @@ def test_the_load_guard_is_0_on_an_unloaded_foot_and_off_the_pad_whatever_its_sh
     )
     np.testing.assert_array_equal(quality, [0.0, 1.0])
     assert float(reward) == pytest.approx(-0.15, abs=1e-15)
+
+
+def test_the_load_guard_is_exact_at_both_ends_of_a_narrow_ramp():
+    """The ramp's span is not floored (the env validates full_price < min), so even a 1e-10 ramp reads 0 at its foot
+    and 1 at its top."""
+    low, high = 0.3, 0.3 + 1e-10
+    loaded = np.array([True, True])
+    np.testing.assert_array_equal(cop_band_load_guard(np.array([low, high]), loaded, loaded, low, high), [0.0, 1.0])
 
 
 def test_band_excess():

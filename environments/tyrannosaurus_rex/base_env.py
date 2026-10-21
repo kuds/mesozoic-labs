@@ -67,6 +67,7 @@ Reward components:
 
 from __future__ import annotations
 
+import math
 from pathlib import Path
 from typing import Any
 
@@ -76,9 +77,6 @@ import numpy as np
 from environments.shared.base_env import BaseDinoEnv
 from environments.shared.direction_commands import DirectionCommandConfig
 from environments.shared.heading_observation import body_to_world, heading_free_root_segments, world_to_heading
-from environments.shared.reward_functions import (
-    cop_band_load_guard as _cop_band_load_guard_pure,
-)
 from environments.shared.reward_functions import (
     reward_action_saturation as _reward_action_saturation_pure,
 )
@@ -99,9 +97,6 @@ from environments.shared.reward_functions import (
 )
 from environments.shared.reward_functions import (
     reward_sole_flatness as _reward_sole_flatness_pure,
-)
-from environments.shared.reward_functions import (
-    reward_stance_cop_band as _reward_stance_cop_band_pure,
 )
 from environments.shared.reward_functions import (
     reward_stance_stagger as _reward_stance_stagger_pure,
@@ -581,18 +576,23 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         package, which the gait recorder imports too, so this env imports
         nothing from the gait package.  Imported here, only when the band is
         on, so an env with it off never loads the reader.  It needs the
-        model's foot registry entry with an ankle and a support span
-        (FOOT_SUPPORT): the anatomical T. rex declares both.
+        model's foot registry entry with an ankle and a support span: the
+        anatomical T. rex declares both in its FOOT_SUPPORT, which is passed
+        in from this class rather than looked up through species_registry
+        (support_entry), so a band-on env loads neither train_base nor the
+        curriculum nor gait at run time either (a test pins it).
         """
         if self._cop_band_reader is None:
-            from environments.shared.floor_contact.morphology import Morphology
+            from environments.shared.floor_contact.morphology import Morphology, entry_from_support
             from environments.shared.floor_contact.step_cop import StepFootCop
             from environments.shared.model_id import ModelId
 
             embodiment = getattr(type(self), "embodiment", None)
             if not embodiment:
                 raise ValueError("stance_cop_band_weight > 0 needs an embodiment class (its FOOT_SUPPORT entry)")
-            morphology = Morphology.from_env(self, ModelId("tyrannosaurus_rex", str(embodiment)))
+            model_id = ModelId("tyrannosaurus_rex", str(embodiment))
+            entry = entry_from_support(getattr(type(self), "FOOT_SUPPORT", None))
+            morphology = Morphology.from_env(self, model_id, registry={model_id: entry})
             spans = [(foot.label, foot.sole_geom, foot.heel_line_m, foot.toe_line_m) for foot in morphology.feet]
             if [label for label, *_ in spans] != ["r", "l"] or not all(
                 sole >= 0 and np.isfinite(heel) and np.isfinite(toe) for _label, sole, heel, toe in spans
@@ -1313,57 +1313,85 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         # for a foot that is unloaded or stands off its pad, or carries at
         # most stance_cop_band_full_price_load_share of the two limbs' floor
         # load, 1 from stance_cop_band_min_load_share up, linear between.  A
-        # foot whose guard is 0 pays the per-foot maximum, so lifting or
-        # lightening a foot never lowers the price, and the price has no step
-        # at the bar.  Paid only after the settle and only while the command is
-        # zero, like the stagger term.  -w mean_feet (1 - q); every reading is
-        # fore-aft, the guard is per foot and the mean is symmetric, so the
-        # term is exactly mirror-invariant.  Defaults (spans of 70 mm): band
-        # [-0.6, +0.4] (the split diagnosis' tight band, AUC 1.000 on both
-        # failing panels), pad band [-0.65, +0.65] (the band widened by the
-        # digits' observed whole-foot-minus-pad shift, p1..p99 -0.25..+0.04),
-        # tolerance 0.357 (25 mm), the guard's ramp from share 0.25 to 0.35
-        # (the v2 gate's windowed load-share bar; the maintainer's 2026-10-20
-        # decision 3a).  The proposed dose is w 0.30, the stagger term's
-        # maximum (stance4 copband design.md).  Like reward_stance_stagger, it
-        # is not in DiagnosticsCallback.REWARD_KEYS: a listed key that no info
-        # carries is still written to every run's diagnostics.npz as a NaN
-        # series, so listing it would change the band-off runs' records.
+        # foot whose guard is 0 pays the per-foot maximum, so lifting a foot
+        # never lowers the price, and at fixed readings a lighter foot never
+        # pays less; the price has no step at the bar.  The ramp leaves a
+        # bounded door: a lighter foot whose CoP is back in band pays 1 - g of
+        # the per-foot maximum, less than a loaded foot u out of band when
+        # g > exp(-(u / tolerance)^2) (at the defaults from share 0.30 for
+        # u 0.3, never at 0.25 or below).  Paid only after the settle and only
+        # while the command is zero, like the stagger term.  -w mean_feet
+        # (1 - q); every reading is fore-aft, the guard is per foot and the
+        # mean is symmetric, so the term is exactly mirror-invariant.
+        # Defaults (spans of 70 mm): band [-0.6, +0.4] (the split diagnosis'
+        # tight band, AUC 1.000 on both failing panels), pad band
+        # [-0.65, +0.65] (the band widened by the digits' observed
+        # whole-foot-minus-pad shift, p1..p99 -0.25..+0.04), tolerance 0.357
+        # (25 mm), the guard's ramp from share 0.25 to 0.35 (the v2 gate's
+        # windowed load-share bar; the maintainer's 2026-10-20 decision 3a).
+        # The proposed dose is w 0.30, the stagger term's maximum (stance4
+        # copband design.md).  Info per foot: <s>_cop_band_guard is the guard
+        # factor and <s>_cop_band_counted is 1 only at a guard of 1 (the
+        # design's counted rule), so 1 - counted is how often a guard fires
+        # and 1 - guard how much.  The arithmetic is
+        # reward_functions.cop_band_load_guard's and reward_stance_cop_band's,
+        # operation for operation, on the two feet as Python floats (their
+        # 2-element numpy calls cost about 35 us a step), keeping their one
+        # np.exp over both feet (math.exp moves some values by an ulp): the
+        # band's tests pin every value to theirs byte for byte.  Like
+        # reward_stance_stagger, it is not in DiagnosticsCallback.REWARD_KEYS:
+        # a listed key that no info carries is still written to every run's
+        # diagnostics.npz as a NaN series, so listing it would change the
+        # band-off runs' records.
         if self.stance_cop_band_weight > 0.0:
             reading = self._cop_band().reading(self._step_count, self.model, self.data)
-            limb = reading.leg_force_mean
-            limb_total = float(limb.sum())
-            share = limb / limb_total if limb_total > 0.0 else np.zeros_like(limb)
-            guard = _cop_band_load_guard_pure(
-                share,
-                reading.foot_loaded,
-                reading.pad_loaded,
-                self.stance_cop_band_full_price_load_share,
-                self.stance_cop_band_min_load_share,
+            feet = list(
+                zip(
+                    reading.foot_cop.tolist(),
+                    reading.foot_loaded.tolist(),
+                    reading.pad_cop.tolist(),
+                    reading.pad_loaded.tolist(),
+                    reading.leg_force_mean.tolist(),
+                    reading.digit_share.tolist(),
+                )
             )
-            reward_stance_cop_band, band_quality = _reward_stance_cop_band_pure(
-                reading.foot_cop,
-                reading.pad_cop,
-                guard,
-                (self.stance_cop_band_lower, self.stance_cop_band_upper),
-                (self.stance_cop_band_pad_lower, self.stance_cop_band_pad_upper),
-                self.stance_cop_band_tolerance,
-                self.stance_cop_band_weight,
-            )
+            limb_total = float(reading.leg_force_mean.sum())
+            full_price = self.stance_cop_band_full_price_load_share
+            ramp = self.stance_cop_band_min_load_share - full_price  # > 0: the validation's full_price < min
+            lower, upper = self.stance_cop_band_lower, self.stance_cop_band_upper
+            pad_lower, pad_upper = self.stance_cop_band_pad_lower, self.stance_cop_band_pad_upper
+            tolerance = max(self.stance_cop_band_tolerance, 1e-8)
+            shares, guards, exponents = [], [], []
+            for foot_cop, foot_loaded, pad_cop, pad_loaded, limb, _digit_share in feet:
+                share = limb / limb_total if limb_total > 0.0 else 0.0
+                loaded = foot_loaded and pad_loaded and math.isfinite(share)
+                guard = min(max((share - full_price) / ramp, 0.0), 1.0) if loaded else 0.0
+                excess = 0.0  # a foot whose guard is 0 scores 0: its readings (NaN when unloaded) are not read
+                if guard > 0.0:
+                    whole = max(lower - foot_cop, 0.0) + max(foot_cop - upper, 0.0)
+                    pad = max(pad_lower - pad_cop, 0.0) + max(pad_cop - pad_upper, 0.0)
+                    excess = max(whole, pad)
+                scaled = excess / tolerance
+                shares.append(share)
+                guards.append(guard)
+                exponents.append(-(scaled * scaled))
+            gaussian = np.exp(exponents).tolist()
+            band_quality = [guard * value if guard > 0.0 else 0.0 for guard, value in zip(guards, gaussian)]
             band_gate = self._step_count > self.stance_width_settle_steps and not np.any(self._command)
             for index, label in enumerate(("r", "l")):
-                info[f"{label}_cop_band_foot_cop"] = (
-                    float(reading.foot_cop[index]) if reading.foot_loaded[index] else 0.0
-                )
-                info[f"{label}_cop_band_pad_cop"] = float(reading.pad_cop[index]) if reading.pad_loaded[index] else 0.0
-                info[f"{label}_cop_band_load_share"] = float(share[index])
-                digit_share = float(reading.digit_share[index])
-                info[f"{label}_cop_band_digit_share"] = digit_share if np.isfinite(digit_share) else 0.0
-                info[f"{label}_cop_band_guard"] = float(guard[index])
-                info[f"{label}_cop_band_counted"] = 1.0 if guard[index] > 0.0 else 0.0
-                info[f"{label}_cop_band_quality"] = float(band_quality[index])
-            info["stance_cop_band_quality"] = float(np.mean(band_quality))
-            info["reward_stance_cop_band"] = float(reward_stance_cop_band) if band_gate else 0.0
+                foot_cop, foot_loaded, pad_cop, pad_loaded, _limb, digit_share = feet[index]
+                info[f"{label}_cop_band_foot_cop"] = foot_cop if foot_loaded else 0.0
+                info[f"{label}_cop_band_pad_cop"] = pad_cop if pad_loaded else 0.0
+                info[f"{label}_cop_band_load_share"] = shares[index]
+                info[f"{label}_cop_band_digit_share"] = digit_share if math.isfinite(digit_share) else 0.0
+                info[f"{label}_cop_band_guard"] = guards[index]
+                info[f"{label}_cop_band_counted"] = 1.0 if guards[index] >= 1.0 else 0.0
+                info[f"{label}_cop_band_quality"] = band_quality[index]
+            info["stance_cop_band_quality"] = (band_quality[0] + band_quality[1]) / 2.0
+            reward_stance_cop_band = -self.stance_cop_band_weight * (
+                ((1.0 - band_quality[0]) + (1.0 - band_quality[1])) / 2.0
+            )
+            info["reward_stance_cop_band"] = reward_stance_cop_band if band_gate else 0.0
 
         # 9. Gait symmetry (reward alternating foot contacts, shared helper)
         reward_gait, alternation_ratio = self._compute_gait_symmetry(

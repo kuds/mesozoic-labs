@@ -560,15 +560,18 @@ def cop_band_load_guard(
     ``load_share`` is each foot's share of the two limbs' floor load;
     ``foot_loaded`` and ``pad_loaded`` are the caller's loaded rules for the
     limb and for its pad.  The factor is 0 for a foot that is unloaded or
-    stands off its pad, 0 at a share of ``full_price_share`` or less, 1 at
-    ``min_share`` or more, and linear between, so a foot pays more of the
-    per-foot price as it sheds load, with no step at ``min_share``.  Per
-    foot, so swapping the feet swaps the factors.
+    stands off its pad (or whose share is not finite), 0 at a share of
+    ``full_price_share`` or less, 1 at ``min_share`` or more, and linear
+    between, so at fixed readings a foot pays more of the per-foot price as
+    it sheds load, with no step at ``min_share``.  Needs ``full_price_share
+    < min_share`` (the env validates it): the span is not floored, so both
+    ends of the ramp are exact.  Per foot, so swapping the feet swaps the
+    factors.
     """
     xp = _array_mod(load_share)
-    safe_span = xp.maximum(min_share - full_price_share, 1e-8)
-    ramp = xp.clip((load_share - full_price_share) / safe_span, 0.0, 1.0)
-    return xp.where(xp.asarray(foot_loaded, dtype=bool) & xp.asarray(pad_loaded, dtype=bool), ramp, 0.0)
+    loaded = xp.asarray(foot_loaded, dtype=bool) & xp.asarray(pad_loaded, dtype=bool) & xp.isfinite(load_share)
+    ramp = xp.clip((load_share - full_price_share) / (min_share - full_price_share), 0.0, 1.0)
+    return xp.where(loaded, ramp, 0.0)
 
 
 def reward_stance_cop_band(
@@ -589,26 +592,29 @@ def reward_stance_cop_band(
     ``guard_k`` the caller's guard factor in ``[0, 1]``
     (:func:`cop_band_load_guard`).  A foot whose guard is 0 (unloaded, too
     lightly loaded, or standing off its pad) scores 0 whatever its readings,
-    which are then not read.  The penalty is ``-weight * mean_k (1 -
-    quality_k)``: 0 with every foot fully guarded and inside both bands,
-    ``-weight`` at most.  The mean over the feet is symmetric and the
-    readings are fore-aft, so swapping the feet (the left-right mirror)
-    leaves the term unchanged.
+    which are then not read; a foot whose guard is above 0 must carry finite
+    readings (the caller's loaded rules require them).  The penalty is
+    ``-weight * mean_k (1 - quality_k)``: 0 with every foot fully guarded
+    and inside both bands, ``-weight`` at most.  The mean over the feet is
+    symmetric and the readings are fore-aft, so swapping the feet (the
+    left-right mirror) leaves the term unchanged.  The T. rex env runs this
+    function's and :func:`cop_band_load_guard`'s arithmetic on Python floats
+    (its reward section 8i); its tests pin the two byte for byte.
 
     Returns:
         ``(reward, quality)`` with reward in ``[-weight, 0]`` and ``quality`` the per-foot qualities in ``[0, 1]``.
     """
     xp = _array_mod(foot_cop)
     guard = xp.asarray(guard)
-    counted = guard > 0.0
+    read = guard > 0.0
     lower, upper = band
     pad_lower, pad_upper = pad_band
-    # An uncounted foot's readings may be NaN: read it at its band's lower edge (excess 0); it scores 0 below.
-    whole = band_excess(xp.where(counted, foot_cop, lower), lower, upper)
-    pad = band_excess(xp.where(counted, pad_cop, pad_lower), pad_lower, pad_upper)
+    # A foot whose guard is 0 may carry NaN readings: read it at its band's lower edge (excess 0); it scores 0 below.
+    whole = band_excess(xp.where(read, foot_cop, lower), lower, upper)
+    pad = band_excess(xp.where(read, pad_cop, pad_lower), pad_lower, pad_upper)
     excess = xp.maximum(whole, pad)
     safe_tolerance = xp.maximum(tolerance, 1e-8)
-    quality = xp.where(counted, guard * xp.exp(-xp.square(excess / safe_tolerance)), 0.0)
+    quality = xp.where(read, guard * xp.exp(-xp.square(excess / safe_tolerance)), 0.0)
     return -weight * xp.mean(1.0 - quality), quality
 
 

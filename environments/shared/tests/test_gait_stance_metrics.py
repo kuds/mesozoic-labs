@@ -937,7 +937,10 @@ def test_the_neutral_reduction_is_pure(module):
 
 def test_the_floor_contact_package_imports_neither_gait_curriculum_nor_reporting():
     """The T. rex env imports floor_contact, so an import of gait here (in a function body too) would bring the
-    gait package into a species env by the back door; curriculum and reporting build on gait."""
+    gait package into a species env by the back door; curriculum and reporting build on gait.  This reads import
+    statements only: support_entry's species_registry import loads train_base, and through it the curriculum and gait,
+    when called, so the band builds its morphology without it (test_anatomical_stance_cop_band's
+    test_on_the_env_loads_no_gait_curriculum_or_registry_module_at_run_time pins that at run time)."""
     paths = sorted(FLOOR_CONTACT.glob("*.py"))
     assert {path.name for path in paths} >= {"__init__.py", "reduction.py", "morphology.py", "step_cop.py"}
     offenders = [
