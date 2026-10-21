@@ -1,0 +1,101 @@
+Walking pilot 2 parent checkpoint (never merged; this directory exists only on the pilot branch)
+
+What it is
+  The T. rex stance policy "stance3 Run 2 final": the final checkpoint (stage1_final, 12,001,280 steps) of the
+  stance3 screen run stance3_armLT_s60 (seed 60, physics r9, policy interface r15), with its VecNormalize sidecar.
+  Arm L+T: arm L as #624 ships it (mirror_kl symmetry, kappa 0.3, sigma floor 0.01, mirrored critic; the lateral
+  lean term, weight 0.25, tolerance 0.015 m; the settled leg target) plus two leg reward keys, leg_home_pose_weight
+  1.0 (was 0.5) and leg_home_pose_tolerance 0.05 rad (was 0.10). Trained from scratch (no parent) for 12,000,000
+  steps on Colab (L4 GPU, n_envs 4) from the screen branch claude/screen-trex-r9-armlt at
+  1af2d4d767aebc89fa2cf73fc59a11004048f797 (never merged, no pull request); the run ended 2026-10-19 04:58 UTC.
+  Its stance task digest is sha256:d4a3b8f83586b38852f80295387b0cc19f97b17188b3e4991da9e3e81e42faef (the screen
+  branch's stance task; this branch's own stance task, bde44225..., differs from it by the arm L+T env keys only).
+  Not certified: a screen run on a never-merged branch, and its recipe did not hold (below).
+
+Why this one: the maintainer's decision of 2026-10-20 (decision 7a, option i)
+  Stance3's criteria, fixed before its training (foot/stance3/criteria.txt, sha256 1ce910dc...), offer "the best
+  final checkpoint of the three runs ... as the stance parent for the parked walking pilot 2: most clean panel
+  episodes, with ties going to fewer joint-space plus own-sigma falls". That is this checkpoint: 40/40 clean, 0 + 0
+  noise falls (Run 3's final 39/40, 0; Run 1's 38/40, 11). Stance4's final scoring (2026-10-20 14:09 UTC) kept it:
+  its best final was 39/40, so "stance3 Run 2 final (40/40, 0) stays the walking pilot 2 parent". The maintainer
+  then decided (7a, option i): rebuild walking pilot 2 for this checkpoint as its parent, with pilot 2's criteria
+  amended before any pilot-2 training step, the new parent committed on this branch and the start-up checks
+  re-run; the maintainer starts the pilot when a fourth Colab slot is free. Pilot 2's one change against pilot 1's
+  recipe stays the one change (the noise reset at the warm start, warm_start_log_std = -1.5), but pilot 1 started
+  from r9 arm L s60 6M (pilot_checkpoints/r9_arm_l_s60_6291456/, which stays pilot 1's parent), so pilot 2 now
+  differs from pilot 1 in the parent as well. Pilot 2 stays a deliberate exception to GQ-3 (a) and GQ-17 under
+  D-D36 and certifies nothing; the records doc's section 20.4 ("D-D36 amended: walking pilot 2's parent (7a, option
+  i)", TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md in the stance4 records, #633) records the decision. Pilot 2's
+  criteria and Colab steps are scratch files outside the repository (foot/pilot2/: criteria.txt, amended
+  2026-10-21; colab_steps.txt), and it is judged with pilot 1's tools (foot/meanwhile/pilot/tools/), unchanged.
+
+Where it came from
+  The run's Drive stage directory: MyDrive/mesozoic-labs/logs/tyrannosaurus_rex/anatomical/ppo/stance3_armLT_s60/
+  01_stance/ (models/stage1_final.zip and models/stage1_final_vecnorm.pkl; the directory is the one the zip's own
+  tensorboard_log and stance3's Colab steps name). Fetched on 2026-10-19 by workflow wf_0d4b7fa9-609 (foot/stance3
+  run log): the sidecar was transcribed twice, independently (A and B), and both decode to byte-identical files; the
+  zip has one decoded copy, whose zip CRCs check (testzip, re-run 2026-10-21) and whose sha256 the stance3 judge
+  bound (no hard failure). So the two agreeing transcriptions hold for the sidecar only. The Drive file ids of the
+  two files are not recorded on disk; only the workflow id is. The run's small records (plant_identity.json,
+  stage_config.json, task_fingerprint.json) came from the 4.2M fetch wf_cfa26ed5-ec8, transcribed twice and
+  byte-identical. The two files here were copied byte for byte on 2026-10-21 from the placed copies
+  (foot/stance3/runs/stance3_armLT_s60/01_stance/models/) and their sha256 re-checked after the copy.
+
+Plant identity (equal in the zip, the sidecar, the run's plant_identity.json and stage_config.json, and this
+branch's current plant)
+  physics r9            sha256:3d68aec73fbc4642681ed601bedaf3524459d693d6a7afce036bb14bac872d67
+  policy interface r15  sha256:ffbf6631e4de0469cfcaa6771e80f47973b127342bc362f74190451e8555cbd8
+  visual r4             sha256:7042dcd597fbd0ce25489164a7f132d51e1c2adbc050729c9866d7bde42e35a4
+  source closure        sha256:28faa1b138edf961662e8b9a50a49933aa4eb851a8f7210f01bf951f3a756317
+  observation 63, action 15, nq 28, nv 27, nu 15 (the same as pilot 1's parent). Policy: ActorCriticPolicy,
+  net_arch [512, 256], log_std_init -1.5, 332,319 parameters, the same tensors and shapes as pilot 1's parent.
+
+How it was judged (stance3: foot/stance3/scores/score_final.txt and judged/stance3_armLT_s60/judge_final.json;
+judge_stance3.py sha256 5dd3cf4d..., on the screen clone at 1af2d4d7, every binding on)
+  This checkpoint: stance_quality/v2 PASS, 40/40 clean on seeds 3042-3081 (LCB 0.928), 40 full horizon, 0
+  hop-or-fall, reward 0.979 of the zero-action statue's; K2a 0, K2b 0 (the fore-aft CoP rails), x_c -10.2 mm from
+  the statue, roll rail 0. Noise on spawns 3042-3061: joint-space 0/20 falls, own-sigma 0/20 falls (report only:
+  all 20 joint-space noise episodes were over the K2a pad rail). Report-only extras: the fresh panel 7042-7081
+  PASS 40/40, the forward-start tail panel 0 of 32 falls, the six-heading certificate 40/40 at every heading.
+  The run did NOT hold: K1 FAIL (below 37/40 at 4.2M, 5.2M and 6.3M; below 33/40 at 4.2M and 5.2M), K2 FAIL (K2a
+  at 4.2M and 5.2M, K2b at 4.2M-6.3M), K3 PASS, K4 PASS, "does not hold". Its trajectory: 4.2M 0/40 (actuator
+  saturation in all 40), 5.2M 0/40, 6.3M 36/40, 8.4M 39/40, 10.5M 39/40, final 40/40; report only, 3,145,728
+  6/40, 9,961,472 12/40 (a saturation relapse) and 11,534,336 34/40. Only this final checkpoint is clean.
+  Pilot 1's parent, for comparison: 40/40 clean, but 6/20 joint-space noise falls (K3 fails), K2c fails, tail
+  panel 3 of 32 falls.
+
+Provenance caveats
+  - Trained on a screen branch with arm L+T's training options: the mirror_kl symmetry and its record, and the
+    lean term, the settled leg target and the two leg keys in the stance [env]. The locomotion stage does not use
+    them: it is stock PPO on the production locomotion [env]; the stock-PPO child drops the parent's symmetry
+    record at the load, and records the parent's task digest d4a3b8f8... without requiring it to match (as it
+    recorded pilot 1's parent's a2af3c5c...).
+  - Not a certified stance: the recipe failed K1 and K2; stance3's rule offers the checkpoint, not the recipe. Fails
+    stay fails.
+  - Its exploration noise is narrower than pilot 1's parent's: exp(log_std) over the 15 actuators mean 0.0645, min
+    0.0089 (knees), max 0.1255 (tail_1_pitch), against 0.0954 / 0.0182 / 0.1636. Pilot 2's reset to 0.2231 is
+    therefore a larger relative jump here (mean x3.46, knees x25.1; pilot 1's parent x2.34 and x12.3).
+  - Trained under Python 3.13.15, SB3 2.9.0 and torch 2.11.0+cu130 (Colab); the branch loads it (3.13 to 3.13).
+
+Files (sha256, as the stance3 judge bound them)
+  stage1_final.zip            cc21604a981810566c647f2956bed0b71de697f3fbfb8888b8117b6a89d81903  4033155 bytes
+  stage1_final_vecnorm.pkl    894e86f41c939a886d3218675c0fb28082a1bce2197df418f3cf5ef26f417f28     5290 bytes
+  The names are the run's own (the notebook's final save). The sidecar is 373 bytes larger than pilot 1's parent's
+  4,917: its pickled action space holds a seeded numpy Generator (seed 60) where pilot 1's holds None (+407 bytes),
+  and ret_rms's dtype is pickled as a memo reference (-34 bytes); read statically, never executed. Its obs_rms is
+  63-dimensional, like pilot 1's. The warm start carries only obs_rms and resets ret_rms, so the difference does not
+  reach training.
+
+How it is loaded
+  The notebook's manual single-node cell (section 7): MANUAL_NODE = "locomotion",
+  MANUAL_LOAD_MODE = "initialize_next_stage", MANUAL_LOAD_PATH = this directory's stage1_final (the stem; on Colab
+  "/content/mesozoic-labs/pilot_checkpoints/stance3_armLT_s60_final/stage1_final"),
+  MANUAL_VECNORM_PATH = this directory's stage1_final_vecnorm.pkl (MANUAL_LOAD_PATH + "_vecnorm.pkl"; pilot 1's
+  replace("stage1_", "stage1_vecnormalize_") expression would name a file that does not exist, which the notebook
+  refuses before anything is written). The loader checks the plant (physics r9 and policy interface r15 match this
+  branch) and that the checkpoint's recorded stage is stance, the locomotion node's declared parent. The child
+  records parent_checkpoint_sha256 sha256:cc21604a981810566c647f2956bed0b71de697f3fbfb8888b8117b6a89d81903 (the
+  zip's; the sidecar's sha256 is not recorded) and parent_task_sha256 sha256:d4a3b8f8...; the warm start then
+  prints "Warm start: policy log_std set to -1.5 (std 0.223) on all 15 actuators (the parent's std: mean 0.064,
+  min 0.009, max 0.125; Adam moments kept)" (measured 2026-10-21 through this branch's own load path, without
+  training).
