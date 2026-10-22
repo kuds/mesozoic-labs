@@ -53,6 +53,15 @@ CoP-band continuation test, both overnight scratch experiments of
 per-foot CoP band prototype, the basis of decision D-D40 (the note's §20).
 As a screen and as scratch experiments they certify nothing.
 
+*Added 2026-10-22:* `stance5/` holds the pre-registration of the stance5 screen
+of decision D-D40 (the note's §20): its criteria, fixed before training, their
+notes, the Colab steps, and frozen copies of the judge and scorer.
+`stance5/results/` holds the screen's judgement by those criteria (Run 1, seed
+52, holds; Runs 2 and 3 do not; the decision table's line is 3, final; the
+note's §21), with report-only readouts and an index of its own,
+[stance5/results/README.md](stance5/results/README.md). As a screen it certifies
+nothing.
+
 ## What changed in the copies
 
 [SOURCES.txt](SOURCES.txt) lists every file with the scratch file it came from,
@@ -146,10 +155,35 @@ applies to. No copy holds a model identifier, an email address or a commit
 trailer. `stance4/copband/design.md` is kept as written: what later decisions
 supersede in it is in its entry under Contents, not in the file.
 
+*Added 2026-10-22 (`stance5/`, `stance5/results/`):* the copies carry the
+**prefix**, **whitespace** (here a final newline added to nine JSON files),
+**trim** (the notebook's gate verdicts cut as stance4's, the certificates'
+summaries as stance3's), **redact** and **checkout** changes, and one more kind,
+nothing else: **lines**, a line range of the source, the rest left out:
+`stance5/results/run_log.txt` is lines 208 to 395 of the session's run log,
+whose first 207 lines `stance4/results/run_log.txt` copies. The redaction is in
+that log only: 30 workflow run ids (18 distinct), 2 scheduled-task ids and the
+report document's artifact link, each now `[id removed]`; the assistant's name
+in a GitHub check's name, now `[name removed]`; and, an item not redacted
+before, 9 shortened Drive folder ids (seven or eight characters and `...`), each
+now `[id removed]`. The **checkout** change is in that log and in
+`stance5/judge/judge_stance5.py`. `stance5/criteria.txt` is byte-identical to
+the file fixed before training (sha256 `3b28963f…`; it ends with a newline), and
+so are `stance5/criteria_notes.md`, `stance5/colab_steps.txt` and
+`stance5/judge/test_score_stance5.py`. The judge and scorer carry the **prefix**
+change (the judge the **checkout** change too): as in `stance3/judge/`, their
+`SCRATCH` constant now resolves `scratchpad` relative to the working directory,
+and their sha256 is not the one the judge files and the Colab steps record.
+SOURCES.txt defines the changes and
+[stance5/results/README.md](stance5/results/README.md) says which file each
+applies to. No copy holds a model identifier, an email address or a commit
+trailer.
+
 [SHA256SUMS](SHA256SUMS) pins every file here but this README and itself
 (`sha256sum -c SHA256SUMS` in this directory). *Added 2026-10-19:* nor
 `stance3/results/README.md`, which, like this README, has no source.
 *Added 2026-10-20:* nor `stance4/results/README.md`, likewise.
+*Added 2026-10-22:* nor `stance5/results/README.md`, likewise.
 
 ## Contents
 
@@ -655,6 +689,75 @@ span half-lengths. The band's code, criteria, judge and Colab steps are not
 part of this change: they are being built separately and are not committed
 anywhere public.
 
+### Added on 2026-10-22 (decision D-D40's outcome)
+
+**`stance5/`: the stance5 screen of the per-foot CoP band, pre-registered
+(decided 2026-10-20 as D-D40; criteria fixed on 2026-10-21 before any training
+step; launched that day on Colab L4 runtimes).** Three runs of arm LTSB,
+stance4's arm LTS plus the per-foot centre-of-pressure band
+(`stance_cop_band_weight` 0.30), from scratch on physics r9, 12M steps each:
+`stance5_LTSB_s52`, `stance5_LTSB_s60` and `stance5_LTSB_s42`, from the branch
+`claude/screen-trex-r9-armlts-copband` at `cf80ecb1` (stance4's `c1e146a8` plus
+the five band commits `f94452ad`, `3a1d5de3`, `4819eb6c`, `a15494ed` and
+`99e205bb` and the config commit `cf80ecb1`), pushed on 2026-10-21 and never
+merged, with no pull request. The control is the three stance4 runs as already
+judged, not retrained.
+
+- `criteria.txt`: what is trained (the term, and what it costs and moves,
+  measured on the statue), how it is judged (K1–K4 exactly as stance4's and
+  stance3's), the control and its caveats, the credit rule, the drift-or-split
+  rule, the decision table, when the decision is read and the pre-registered
+  readouts, written before any training step (sha256 `3b28963f…`). It was
+  re-fixed after its review on 2026-10-21, before any training step; the first
+  text (`c2809201…`) stays in the session's scratch. Its `SP/` and `T/` paths
+  name the session's scratch.
+- `criteria_notes.md`: where each of the maintainer's decisions of 2026-10-20
+  lives in the criteria, and the review's outcome.
+- `colab_steps.txt`: how the runs are launched and resumed, as sent; it holds
+  the criteria's full text, byte for byte.
+- `judge/judge_stance5.py` (judges one checkpoint against its branch clone,
+  binding plant, task, symmetry record and commit, and records the band
+  readouts), `judge/score_stance5.py` (scores K1–K4 with `score_stance3.py`'s
+  own code, loaded unchanged, then the credit rule, the drift-or-split class and
+  the decision line, and the report-only readouts) and
+  `judge/test_score_stance5.py` (101 test cases).
+
+*Added 2026-10-22:* the band's criteria, judge and Colab steps are now here, and
+its code is on the screen branch above, pushed at `cf80ecb1`, whose history
+holds the prototype `f94452ad`. This supersedes "being built separately and not
+committed anywhere public" and "never pushed" in the entries of 2026-10-20
+(`stance4/night2/` and `stance4/copband/design.md`), which are left as written.
+
+**`stance5/results/`: the stance5 screen judged (2026-10-22, final), with
+report-only readouts.** Outcome: Run 1 `stance5_LTSB_s52` **holds** (K1–K4); Run
+2 `stance5_LTSB_s60` fails K3 only (3 of 20 joint-space noise falls at the
+final, against a bar of 2); Run 3 `stance5_LTSB_s42` fails K1 and K3 (mostly the
+actuator-saturation rail, and 13 of 20 joint-space noise falls at the final).
+Fore-aft holds on s52 and s60. H = 1 and K2p = 3; the band arm passes K3 on 1 of
+3 runs against the control's 2 of 3, so the credit rule's (b) fails too, and the
+decision table's line is **3**, final: not adopted, "replicate on 2 more seeds
+before any commit". Under the parent rule s52's final ties stance3 Run 2's final
+(report only). Measured, all three runs recorded a Colab L4 GPU runtime (the
+`gpu` block of each run's `stage_config.json`). Its
+[README](stance5/results/README.md) indexes the folder:
+
+- `run_log.txt` (the stance5 log, ids removed, from #633's opening to the
+  maintainer's decisions of 2026-10-22 on the replication), `scores/`
+  (`score_final.txt` and `.json`, the verdict of record), `checkpoints.csv` (one
+  row per judge file, 36, with the `checkpoints_csv.py` that recomputes it with
+  the frozen scorer's own counts), `extras.txt` and `extras.py` (the fresh, tail
+  and common-noise panels on each final, report only), `notebook_gates/` (the
+  notebook's own six-heading gate on each run's `robust_best`, trimmed: all
+  three PASS; report only) and `certificates/` (the stage's six-heading
+  certificate rolled offline on the s52 and s60 finals, trimmed: both PASS;
+  report only, not gate evidence).
+- `panels_summary.csv` and `panels_summary.py`: the diagnostic panels
+  (mirrored-leg spawns, the prey straight ahead, both) at every J checkpoint of
+  the three runs, with the band readouts and the ankle asymmetry, report only.
+- `saturation/`: the saturation watch's files for s42, report only: the ledger's
+  alarm at 3,670,016, and the actuator named by rollouts of the 4,194,304,
+  5,242,880 and 6,291,456 checkpoints, `tail_3_pitch_act` at +1 (tail raised).
+
 ## How to re-check each verdict
 
 Commands as run on 2026-10-17 from a copy of this directory (Python 3.13;
@@ -707,6 +810,14 @@ copies.
 | `stance4/results/extras.txt` (2026-10-20; session scratch only) | from a directory holding the session's scratch as `scratchpad/`: `python3 -I -B <this directory>/stance4/results/extras.py` | identical to `stance4/results/extras.txt` |
 | The notebook gates' checkpoints (2026-10-20, `stance4/results/notebook_gates/`) | compare each `gate_verdict.json`'s `checkpoint_sha256` with the `robust_best` row of `stance4/results/checkpoints.csv` | equal for all three |
 | The files themselves (2026-10-20, with `stance4/results/`, `night/`, `night2/` and `copband/`) | `sha256sum -c SHA256SUMS` | all 344 files OK |
+| The stance5 verdicts, decision line and parent comparison (2026-10-22; session scratch only) | from a directory holding the session's scratch as `scratchpad/`: `python3 -I -B scratchpad/foot/stance5/judge/score_stance5.py --runs-ended --json score.json` | identical to `stance5/results/scores/score_final.txt` and `.json` apart from the JSON's path and s60's two selection cells, judged after the record |
+| The stance5 scorer at every bar (2026-10-22; session scratch only) | in `scratchpad/foot/stance5/judge/`: `python3 -m pytest -p no:cacheprovider test_score_stance5.py` | 101 passed |
+| `stance5/results/checkpoints.csv` (2026-10-22; session scratch only) | `python3 -I -B stance5/results/checkpoints_csv.py <judged dir> out.csv --check <score_final.json>` | 25 cells agree with the scorer; `out.csv` identical |
+| `stance5/results/panels_summary.csv` (2026-10-22; session scratch only) | `python3 -I -B stance5/results/panels_summary.py <panels dir> out.csv --judged <stance5 judged dir>` | `out.csv` identical; the model sha256 and the standard K2a and K2b equal the judge files' |
+| `stance5/results/extras.txt` (2026-10-22; session scratch only) | from a directory holding the session's scratch as `scratchpad/`: `python3 -I -B <this directory>/stance5/results/extras.py` | identical to `stance5/results/extras.txt` |
+| The notebook gates' and certificates' checkpoints (2026-10-22, `stance5/results/`) | compare each `notebook_gates/<run id>/gate_verdict.json`'s `checkpoint_sha256` with the `robust_best` row of `stance5/results/checkpoints.csv`, and each `certificates/<run id>/run_summary.json`'s `model_sha256` with the final row | equal for all three gates and both certificates |
+| The stance5 criteria (2026-10-22) | `sha256sum stance5/criteria.txt` | `3b28963f644ffb765e666a8cf6ada5d31ab8a2769dd1a77ff53cbc1e0cf3cf16` |
+| The files themselves (2026-10-22, with `stance5/`) | `sha256sum -c SHA256SUMS` | all 372 files OK |
 
 `test_pilot_score.py` prints sample "Walking pilot score" blocks while it runs;
 they score synthetic panels, not the pilot.
@@ -781,3 +892,12 @@ Of the three scripts added on 2026-10-20 in `stance4/results/`,
 0.16.8); `extras.py` is left as it ran, with 3 findings (several modules on
 one import line, unsorted imports, two statements joined by `;`), and
 `ruff format --check` would reformat it.
+
+*Added 2026-10-22:* of the six scripts added in `stance5/`, the three in
+`stance5/results/`, written for the record (`checkpoints_csv.py` and
+`panels_summary.py` adapted from stance4's), pass `ruff check` and `ruff format
+--check` under the same configuration (ruff 0.16.9). The three in
+`stance5/judge/` are left as they ran: `ruff check` reports 4 findings in
+`score_stance5.py` (an unused `math` and three variables named `l`) and none in
+the other two, and `ruff format --check` would reformat all three. All six parse
+on Python 3.11, 3.12 and 3.13.

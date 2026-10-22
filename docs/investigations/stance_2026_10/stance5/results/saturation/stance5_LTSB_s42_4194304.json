@@ -1,0 +1,227 @@
+{
+ "tool": "scratchpad/foot/stance5/tools/satroll5.py",
+ "tool_sha256": "sha256:fe3bb5d38c33eabf557aeb40587a8a79885a13fabf6c1b1027176aca71856889",
+ "judge": "scratchpad/foot/stance5/judge/judge_stance5.py",
+ "judge_sha256": "sha256:d9286724550b83eccfd11e2ceba634cfca847f1e52e03988f9c486c6db6bda13",
+ "report_only": true,
+ "arm": "LTSB",
+ "seed": 42,
+ "run_dir": "scratchpad/foot/stance5/runs/stance5_LTSB_s42",
+ "clone": "scratchpad/fix/scratch_copband",
+ "git": {
+  "head": "cf80ecb14d1630ce3b4dcdea28a05835d143470b",
+  "status": "",
+  "branch": "claude/screen-trex-r9-armlts-copband"
+ },
+ "modules_environments": "scratchpad/fix/scratch_copband/environments/__init__.py",
+ "task_sha256_rolled": "sha256:8c6998d260b850ae054c9c2d49a8e5bef2bf59d4770ad77d3674b911721918cf",
+ "seeds": [
+  3042,
+  3061
+ ],
+ "frac_bar": 0.9,
+ "window": [
+  200,
+  1000
+ ],
+ "actuators": [
+  "neck_pitch_act",
+  "neck_yaw_act",
+  "head_pitch_act",
+  "r_hip_pitch_act",
+  "r_hip_roll_act",
+  "r_knee_act",
+  "r_ankle_act",
+  "l_hip_pitch_act",
+  "l_hip_roll_act",
+  "l_knee_act",
+  "l_ankle_act",
+  "tail_1_pitch_act",
+  "tail_1_yaw_act",
+  "tail_2_pitch_act",
+  "tail_3_pitch_act"
+ ],
+ "checkpoints": {
+  "4194304": {
+   "episodes": 20,
+   "episodes_in_window": 20,
+   "lengths": [
+    1000,
+    1000,
+    1000,
+    1000,
+    1000,
+    1000,
+    1000,
+    1000,
+    1000,
+    1000,
+    1000,
+    1000,
+    1000,
+    1000,
+    1000,
+    1000,
+    1000,
+    1000,
+    1000,
+    1000
+   ],
+   "falls": [],
+   "gate_max_actuator_saturation_fraction": [
+    0.09125,
+    0.49875,
+    0.0,
+    0.0,
+    0.39625,
+    0.0,
+    0.965,
+    0.31375,
+    0.0,
+    0.0,
+    0.0,
+    0.0,
+    0.71375,
+    1.0,
+    0.77,
+    1.0,
+    0.90625,
+    0.0,
+    0.11,
+    0.0
+   ],
+   "flagged_over_bar": 10,
+   "bar": 0.1,
+   "named": {
+    "actuator": "tail_3_pitch_act",
+    "sign": 1,
+    "frac90": 0.7736875,
+    "frac99": 0.33825,
+    "mean_command": 0.9245387801378964,
+    "note": "tail raised (stance4 s42 and stance3 Run 2 held it here)"
+   },
+   "runner_up": {
+    "actuator": "neck_pitch_act",
+    "frac90": 0.0,
+    "frac99": 0.0,
+    "mean_command": -0.017889678918872963,
+    "episodes_frac90_ge_0.5": 0
+   },
+   "per_actuator": [
+    {
+     "actuator": "tail_3_pitch_act",
+     "frac90": 0.7736875,
+     "frac99": 0.33825,
+     "mean_command": 0.9245387801378964,
+     "episodes_frac90_ge_0.5": 15
+    },
+    {
+     "actuator": "neck_pitch_act",
+     "frac90": 0.0,
+     "frac99": 0.0,
+     "mean_command": -0.017889678918872963,
+     "episodes_frac90_ge_0.5": 0
+    },
+    {
+     "actuator": "neck_yaw_act",
+     "frac90": 0.0,
+     "frac99": 0.0,
+     "mean_command": -0.0009446783227849665,
+     "episodes_frac90_ge_0.5": 0
+    },
+    {
+     "actuator": "head_pitch_act",
+     "frac90": 0.0,
+     "frac99": 0.0,
+     "mean_command": 0.1951421164991334,
+     "episodes_frac90_ge_0.5": 0
+    },
+    {
+     "actuator": "r_hip_pitch_act",
+     "frac90": 0.0,
+     "frac99": 0.0,
+     "mean_command": 0.007357630664890166,
+     "episodes_frac90_ge_0.5": 0
+    },
+    {
+     "actuator": "r_hip_roll_act",
+     "frac90": 0.0,
+     "frac99": 0.0,
+     "mean_command": 0.029208083980774974,
+     "episodes_frac90_ge_0.5": 0
+    },
+    {
+     "actuator": "r_knee_act",
+     "frac90": 0.0,
+     "frac99": 0.0,
+     "mean_command": 0.003975791209595627,
+     "episodes_frac90_ge_0.5": 0
+    },
+    {
+     "actuator": "r_ankle_act",
+     "frac90": 0.0,
+     "frac99": 0.0,
+     "mean_command": -0.014159477828332457,
+     "episodes_frac90_ge_0.5": 0
+    },
+    {
+     "actuator": "l_hip_pitch_act",
+     "frac90": 0.0,
+     "frac99": 0.0,
+     "mean_command": 0.005285655969812069,
+     "episodes_frac90_ge_0.5": 0
+    },
+    {
+     "actuator": "l_hip_roll_act",
+     "frac90": 0.0,
+     "frac99": 0.0,
+     "mean_command": -0.02588203661848092,
+     "episodes_frac90_ge_0.5": 0
+    },
+    {
+     "actuator": "l_knee_act",
+     "frac90": 0.0,
+     "frac99": 0.0,
+     "mean_command": 0.0040961852712789555,
+     "episodes_frac90_ge_0.5": 0
+    },
+    {
+     "actuator": "l_ankle_act",
+     "frac90": 0.0,
+     "frac99": 0.0,
+     "mean_command": -0.008544695167889586,
+     "episodes_frac90_ge_0.5": 0
+    },
+    {
+     "actuator": "tail_1_pitch_act",
+     "frac90": 0.0,
+     "frac99": 0.0,
+     "mean_command": 0.11183670814492508,
+     "episodes_frac90_ge_0.5": 0
+    },
+    {
+     "actuator": "tail_1_yaw_act",
+     "frac90": 0.0,
+     "frac99": 0.0,
+     "mean_command": -0.006382609939868418,
+     "episodes_frac90_ge_0.5": 0
+    },
+    {
+     "actuator": "tail_2_pitch_act",
+     "frac90": 0.0,
+     "frac99": 0.0,
+     "mean_command": 0.06977497035468697,
+     "episodes_frac90_ge_0.5": 0
+    }
+   ],
+   "checkpoint": "stage1_4194304_steps",
+   "model": "scratchpad/foot/stance5/runs/stance5_LTSB_s42/01_stance/models/stage1_4194304_steps.zip",
+   "model_sha256": "sha256:d3c90db8c107ce1fef6b63efa3e8cdd2271e6e437a3abdb5b30f57b3f46b8df2",
+   "vecnorm_sha256": "sha256:3903cbcfe43559c8f5dccc0b2d6ed01f3c3989f039f966b12ed6aaa7ecbca118",
+   "policy_note": "VecNormalize stats applied (clip 10)",
+   "checkpoint_num_timesteps": 4194304,
+   "seconds": 69.4
+  }
+ },
+ "modules_all_under_clone": 98
+}

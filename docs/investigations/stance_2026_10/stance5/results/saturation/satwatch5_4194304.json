@@ -1,0 +1,98 @@
+{
+ "stance5_LTSB_s52": {
+  "ledger": "scratchpad/foot/stance5/runs/stance5_LTSB_s52/01_stance/eval_episodes.csv",
+  "progress": null,
+  "progress_evaluation_timesteps": null,
+  "progress_timesteps": null,
+  "problems": [
+   "no progress.json placed: the ledger's freshness is unchecked (fetch it with the ledgers)"
+  ],
+  "rows": 340,
+  "last_evaluation": 4456448,
+  "alarm": {
+   "computed": true,
+   "evaluations": 34,
+   "flagged": [],
+   "alarm": false,
+   "runs": [],
+   "first_alarm_at": null
+  }
+ },
+ "stance5_LTSB_s60": {
+  "ledger": "scratchpad/foot/stance5/runs/stance5_LTSB_s60/01_stance/eval_episodes.csv",
+  "progress": null,
+  "progress_evaluation_timesteps": null,
+  "progress_timesteps": null,
+  "problems": [
+   "no progress.json placed: the ledger's freshness is unchecked (fetch it with the ledgers)"
+  ],
+  "rows": 370,
+  "last_evaluation": 4849664,
+  "alarm": {
+   "computed": true,
+   "evaluations": 37,
+   "flagged": [],
+   "alarm": false,
+   "runs": [],
+   "first_alarm_at": null
+  }
+ },
+ "stance5_LTSB_s42": {
+  "ledger": "scratchpad/foot/stance5/runs/stance5_LTSB_s42/01_stance/eval_episodes.csv",
+  "progress": null,
+  "progress_evaluation_timesteps": null,
+  "progress_timesteps": null,
+  "problems": [
+   "no progress.json placed: the ledger's freshness is unchecked (fetch it with the ledgers)"
+  ],
+  "rows": 390,
+  "last_evaluation": 5111808,
+  "alarm": {
+   "computed": true,
+   "evaluations": 39,
+   "flagged": [
+    3538944,
+    3670016,
+    3801088,
+    3932160,
+    4063232,
+    4194304,
+    4325376,
+    4456448,
+    4587520,
+    4718592,
+    5111808
+   ],
+   "alarm": true,
+   "runs": [
+    {
+     "from": 3538944,
+     "to": 4718592,
+     "evaluations": 10,
+     "alarm_at": 3670016
+    }
+   ],
+   "first_alarm_at": 3670016
+  },
+  "tag": "NEW ALARM",
+  "new": true,
+  "roll_rc": 0,
+  "rolled_checkpoint": 4194304,
+  "fetch_for_naming": null,
+  "satroll5_command": "cd scratchpad/foot/stance5/tools && env ISO_WT=scratchpad/fix/scratch_copband OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 PYTHONPYCACHEPREFIX=scratchpad/caches/pyc MPLCONFIGDIR=scratchpad/caches/mpl nice -n 19 python3 scratchpad/foot/stance3/tools/iso.py satroll5.py scratchpad/foot/stance5/runs/stance5_LTSB_s42 --arm LTSB --seed 42 --steps 4194304 --out scratchpad/foot/stance5/tools/satroll/stance5_LTSB_s42_4194304.json",
+  "satroll5_output": "scratchpad/foot/stance5/tools/satroll/stance5_LTSB_s42_4194304.json",
+  "named": {
+   "actuator": "tail_3_pitch_act",
+   "sign": 1,
+   "frac90": 0.7736875,
+   "frac99": 0.33825,
+   "mean_command": 0.9245387801378964,
+   "note": "tail raised (stance4 s42 and stance3 Run 2 held it here)"
+  }
+ },
+ "ledger_problems": [
+  "stance5_LTSB_s52: no progress.json placed: the ledger's freshness is unchecked (fetch it with the ledgers)",
+  "stance5_LTSB_s60: no progress.json placed: the ledger's freshness is unchecked (fetch it with the ledgers)",
+  "stance5_LTSB_s42: no progress.json placed: the ledger's freshness is unchecked (fetch it with the ledgers)"
+ ]
+}
