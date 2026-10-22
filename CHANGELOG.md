@@ -8,6 +8,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **The stance5 screen of D-D40 judged: one of the three per-foot
+  centre-of-pressure band runs holds (line 3), and the band is not adopted; the
+  band's build, the stance4 seed-42 saturation diagnosis and walking pilot 2's
+  rebuild recorded** (D-D40's amendment of 2026-10-22;
+  `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2, `docs/CONSOLIDATION_PLAN_2026_09.md` §6,
+  a dated note in §17 of `docs/GAIT_QUALITY_PLAN_2026_09.md`,
+  `docs/NEXT_STEPS.md` §3; the appended §21 of
+  `docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md`, and
+  `stance5/`, `stance4/satdiag/` and three files in `pilot2/` of
+  `docs/investigations/stance_2026_10/`). Records only: no library code,
+  configuration, test, notebook, digest or generated file changes with it. The
+  three 12M runs of arm LTSB (D-D39's arm LTS plus a per-foot centre-of-pressure
+  band at weight 0.30; `stance5_LTSB_s52`, `stance5_LTSB_s60`,
+  `stance5_LTSB_s42`) trained from scratch to 12,001,280 steps on Colab L4 GPU
+  runtimes from the screen branch `claude/screen-trex-r9-armlts-copband`
+  (`cf80ecb1`, pushed, never merged) and were judged on 2026-10-22 by the
+  criteria fixed before training (sha256 `3b28963f…`), final. s52 holds: 40 of
+  40 clean at every judged checkpoint, K2a and K2b 0 throughout, no noise falls.
+  s60 fails K3 only: 3 of 20 joint-space noise falls at the final (2 allowed).
+  s42 fails K1 and K3: 15 to 38 of 40 clean, the actuator-saturation rail
+  failing in most of its failing episodes (the alarm at 3,670,016;
+  `tail_3_pitch_act` pinned at +1, as in D-D39's seed-42 run and D-D37 Run 2),
+  and 13 of 20 joint-space noise falls at the final. H = 1 and K2p = 3; the band
+  arm passes K1, K2 and K4 at least as often as the control (the three D-D39
+  runs, not retrained) but K3 less often (1 of 3 against 2 of 3), so the credit
+  rule fails, and the decision table's line is 3, final: not adopted, "replicate
+  on 2 more seeds before any commit". s52's final ties D-D37 Run 2's final under
+  the parent rule (40 of 40, no noise falls), report only. Screens certify
+  nothing. Report only: the fresh, tail and common-noise panels on the finals
+  (s52 FAIL 38 of 40 on the fresh panel, with two hop-or-fall episodes), the
+  notebook's own six-heading gate on each run's `robust_best` (all three PASS),
+  the stage's six-heading certificate rolled offline on the s52 and s60 finals
+  (40 of 40 and 39 of 40 seeds, both PASS; not gate evidence), the diagnostic
+  panels at every judged checkpoint, and the band readouts: one full-horizon
+  episode of a band run had a foot's window-mean centre of pressure out of the
+  band (s60 at 8,388,608), against 10 to 28 of 40 per judged checkpoint in the
+  control's seeds 52 and 60. Also recorded: the band's build, D-D40's three
+  fixes and the review's fixes on a scratch branch (band off byte-identical to
+  D-D39's commit; the band's readings equal to the recorder's on 16,000
+  foot-steps; a band-on overhead of +0.245 to +0.378 ms per env step, so the
+  build's own 0.15 ms goal, which no decision set, was not met), and the screen
+  branch's push, which supersedes the D-D40 entry's "not committed anywhere
+  public" and the prototype's "never pushed"; the offline, report-only diagnosis
+  of D-D39's seed-42 saturation (the tail-tip actuator `tail_3_pitch_act`
+  commanded at +1 from between 1,048,576 and 2,097,152 steps, the command pinned
+  but not the joint or the motor; holding it at 0 gains +85.9 and +73.1 per
+  800-step window; candidate fixes listed, none acted on); and walking pilot 2
+  rebuilt on 2026-10-21 for D-D37 Run 2's final as its parent (its criteria
+  amended before any pilot-2 training step, the parent committed on
+  `claude/pilot-walk-r9-b`, its start-up checks re-run, and the branch pushed at
+  `8c5478a6` with the maintainer's OK and held until its seeds are judged; not
+  yet trained). `stance5/` holds the criteria, their notes, the Colab steps and
+  frozen copies of the judge and scorer; `stance5/results/` (22 files and its
+  README, about 0.56 MB) the run log (tool ids removed), the verdict of record,
+  a per-checkpoint summary (`checkpoints.csv`, 36 rows, with its script), the
+  extras, the notebook's gates and the certificates (trimmed), the panels'
+  summary with its script, and the saturation watch's files; `stance4/satdiag/`
+  the diagnosis' report and five tables; and `pilot2/` gains the amended
+  criteria and Colab steps and the rebuild's summary beside the copies of
+  2026-10-18. `SOURCES.txt` and `SHA256SUMS` (now 381 files) are extended.
+  `docs/README.md` adds a note to the record's and the gait plan's rows, and
+  `docs/KNOWN_ISSUES.md` gains Update 14 of the T-Rex stance entry.
 - **Decision D-D40 recorded: a from-scratch T. rex stance screen of a per-foot
   centre-of-pressure band; D-D39 and D-D36 amended** (#633; the maintainer's
   decisions of 2026-10-20; `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2,

@@ -513,6 +513,18 @@ and stays parked until then. As screens and pilots they certify nothing, so
 the next T-Rex session above is still unchanged; the decisions' full text is
 in [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2 and their
 record in §20 of the same record.*
+*2026-10-22: the three D-D40 runs (the D-D39 arm plus a per-foot
+centre-of-pressure band) were judged by their fixed criteria, final:
+`stance5_LTSB_s52` holds, `stance5_LTSB_s60` fails only the noise test and
+`stance5_LTSB_s42` fails the gate (its tail-tip actuator pinned at +1) and
+the noise test; their decision table's line is 3: not adopted, replicate on
+two more seeds before any commit. All three recorded a Colab L4 GPU runtime.
+The band's code is on the pushed screen branch
+`claude/screen-trex-r9-armlts-copband` (`cf80ecb1`), so the note above's
+"not yet committed anywhere public" no longer holds. The second pilot was
+rebuilt for `stance3_armLT_s60`'s final and its branch pushed; it is not yet
+trained. As screens and pilots they certify nothing, so the next T-Rex
+session above is still unchanged (§21 of the same record).*
 
 *Note 2026-10-18 (decision D-D38): where §2, this section and §8 record
 `BEHAVIOR = "stand"` or a `stand` session, they give the setting as it was

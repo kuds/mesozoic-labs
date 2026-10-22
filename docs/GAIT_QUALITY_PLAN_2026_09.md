@@ -42,6 +42,9 @@ pilot stays parked, and the parent they offer it is still `stance3_armLT_s60`'s 
 *Updated 2026-10-20, later: the maintainer took D-D40, another T. rex stance screen, of a per-foot centre-of-pressure
 band, and amended D-D36: the second pilot is to be rebuilt for `stance3_armLT_s60`'s final as its parent, and stays
 parked until then (§17, its second note of 2026-10-20).*
+*Updated 2026-10-22: the D-D40 stance screen of the per-foot centre-of-pressure band holds on one of its three runs (its
+decision table's line 3: not adopted, to be replicated on two more seeds); the second pilot was rebuilt for
+`stance3_armLT_s60`'s final as its parent and its branch pushed, and is not yet trained (§17, its note of 2026-10-22).*
 
 ## How to use this document
 
@@ -985,4 +988,17 @@ centre-of-pressure band term on the foot-stagger arm, three runs judged by crite
 are stance runs, not walker sessions: they are no exception to GQ-3 (a) or GQ-17, answer none of GQ-1..GQ-18 and certify
 nothing, and the trex `gait-r1` walk (§5.4, §14) still waits for a certified stance. The decisions' full text is in
 [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2 and their record in §20 of
+[investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).
+
+*Appended 2026-10-22 (D-D40's outcome, and the second pilot rebuilt); the text above is unchanged.* **The band screen
+holds on one run; the second pilot is rebuilt.** Judged on 2026-10-22 by their fixed criteria, final, one of the three
+D-D40 runs holds (seed 52); seed 60 fails only the noise test and seed 42 the gate and the noise test. Their decision
+table's line is 3: the band is not adopted and is to be replicated on two more seeds before any commit. Under the parent
+rule, seed 52's final ties `stance3_armLT_s60`'s final (40 of 40 clean, no noise falls; report only). The second pilot
+was rebuilt on 2026-10-21 for `stance3_armLT_s60`'s final as its parent: its criteria amended before any of its training
+steps, the parent committed on its branch, its start-up checks re-run, and the branch pushed at `8c5478a6` with the
+maintainer's OK; nothing more is pushed to it until all three of its seeds are judged. It is not yet trained, is still
+the same deliberate exception to GQ-3 (a) and GQ-17, both still open, and certifies nothing. The screen's runs are
+stance runs, not walker sessions: they are no exception to GQ-3 (a) or GQ-17, answer none of GQ-1..GQ-18 and certify
+nothing, and the trex `gait-r1` walk (§5.4, §14) still waits for a certified stance. Their record is §21 of
 [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).
