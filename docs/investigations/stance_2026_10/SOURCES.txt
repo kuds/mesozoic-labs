@@ -39,6 +39,40 @@
 # that of the file when copied, its first 207 lines.  Five sources were written in the scratch for this record
 # (foot/stance4/records/): checkpoints.csv, checkpoints_csv.py, panels_summary.csv, panels_summary.py and
 # extras.txt (the printout of extras.py).  stance4/results/README.md has no source.
+# Added 2026-10-22 (stance5/, stance5/results/): one more change, nothing else:
+#   lines       a line range of the source, the rest left out: stance5/results/run_log.txt is lines 208 to 395 of the
+#               session's run log, whose first 207 lines are stance4/results/run_log.txt; the sha256 given is that of
+#               the source's first 395 lines (lines 208 to 395 alone:
+#               27408eec722e8d2dc1d97aba68311668b175f7505a4dd9f9828415d515687ae6).  The source had 395 lines when
+#               first copied.  The session then appended to it and, in its entry timed 17:47 UTC on 2026-10-22,
+#               corrected in place the times of ten entries of 2026-10-22 written after 05:00 to the times they were
+#               written; nine are in lines 208 to 395 (05:20, 05:25, 05:40, 06:35, 06:45, 07:05, 07:08, 08:20 and
+#               08:50 became 05:09, 05:11, 05:15, 15:08, 15:11, 15:52, 15:55, 16:24 and 16:32), and the copy carries
+#               the corrected times.  The scratch keeps the text before the correction as
+#               foot/stance4/live/run_log.before_time_fix_1022.txt (its first 395 lines:
+#               c954d76c0942f26eff4c4feba451af7e62b8d6e3495492893948f89ae405e048; lines 208 to 395:
+#               ff83ab9f4aba0c057ebea07bda0925285bb44df8eb1e41cfba7a8b04fea16453)
+# and, in stance5/results/run_log.txt, redact as above: 30 workflow run ids (18 distinct; a bare one becomes
+# 'workflow [id removed]'), 2 scheduled-task ids and the report document's artifact link (now 'claude.ai artifact
+# [id removed]'), each by '[id removed]', the assistant's name in a GitHub check's name by '[name removed]', and,
+# new, 9 shortened Drive folder ids (seven or eight characters and '...') each by '[id removed]'.  checkout as
+# above, once in stance5/results/run_log.txt and once in stance5/judge/judge_stance5.py.  trim:
+# stance5/results/notebook_gates/<run id>/gate_verdict.json keep stance4's keys and
+# stance5/results/certificates/<run id>/run_summary.json stance3's (stance5/results/README.md names them).
+# whitespace adds a final newline to nine JSON copies.  stance5/criteria.txt is byte-identical to the file fixed
+# before training (its first text, sha256 c2809201..., is not copied).  Six sources were written in the scratch for
+# this record (foot/stance5/records_pr/build/): checkpoints.csv, checkpoints_csv.py, panels_summary.csv,
+# panels_summary.py, extras.py and extras.txt (its printout).  stance5/results/README.md has no source.
+# Added 2026-10-22, later (stance4/satdiag/): no new kind of change.  report.md carries the prefix change (one line)
+# and rollout/tables/onset_within_episode.txt the whitespace change (a blank last line removed); the other four are
+# byte-identical.  report.md's Sources section names files that are not copied.
+# Added 2026-10-22, later (pilot2/): no new kind of change.  The amended pilot-2 files of 2026-10-21 are added beside
+# the copies of 2026-10-18 (pilot2/criteria.txt and pilot2/colab_steps.txt), which are unchanged.
+# pilot2/criteria_2026-10-21.txt and pilot2/rebuild_1021_summary.md carry redact (one workflow run id each, now
+# '[id removed]'), so their sha256 is not their source's; pilot2/colab_steps_2026-10-21.txt is byte-identical.
+# Their sources foot/pilot2/criteria.txt and foot/pilot2/colab_steps.txt were amended in place on 2026-10-21, so the
+# rows of pilot2/criteria.txt and pilot2/colab_steps.txt give the 2026-10-18 texts by sha256 only; the scratch keeps
+# those texts as foot/pilot2/criteria_2026-10-18.txt and foot/pilot2/colab_steps_2026-10-18.txt (the same sha256).
 
 audit/foot_ankle_audit.md foot/audit_2026_10_17/foot_ankle_audit.md e9da4ef84be17a87b70096d1e2aede87609ad22f446b10786f9e14d5064725c8 prefix
 audit/geometry/geometry_audit.json foot/audit_2026_10_17/geometry/geometry_audit.json 934110bec337b9693f894800efb309bf1a9529ae87f91f129bfefc8fef5b650a prefix,whitespace
@@ -280,7 +314,10 @@ pilot1_judging/tools/globals.py pilot_runs/reconcile_tools/globals.py 6da7ec70c5
 pilot1_judging/tools/loadcheck.py pilot_runs/reconcile_tools/loadcheck.py aa70ca38c682851b95bf878b3347fecf993c1697de9f0373040bc66d0f5230ba none
 pilot1_judging/tools/stdcheck.py pilot_runs/std_check/stdcheck.py b76f0a0b912ae7b796f77e45743971c45f770a91e856ebc38cdceb4926a468e3 none
 pilot2/colab_steps.txt foot/pilot2/colab_steps.txt bc94bda30ec72032c500848900648b70f0623aa2369ad9ea517b0236c234f2e3 none
+pilot2/colab_steps_2026-10-21.txt foot/pilot2/colab_steps.txt 60845fdc2d38bc26f5f9478190c34c02c740ed909c5046d424cc8ed7cd64d854 none
 pilot2/criteria.txt foot/pilot2/criteria.txt a240ff5de2f212e5cd089a60f4a5fe62e44f3a5220cdd5484b2dd6560d56672a none
+pilot2/criteria_2026-10-21.txt foot/pilot2/criteria.txt bdcdae4bea468be4ebb9d542f7ba609671ace15b007ced641c18c7dc3c5b0533 redact
+pilot2/rebuild_1021_summary.md foot/pilot2/rebuild_1021/summary.md 4a333d2800d12bf9c5a67e426a8af6aeab768e476e36a9cbc2db5f4ad71a6871 redact
 r10_screen/colab_steps.txt foot/r10screen/colab_steps.txt 3ce1685330d43b1b255de131f57aa4547e6beecdd59e13c830516fcf0e58debb none
 r10_screen/criteria.txt foot/r10screen/criteria.txt fc4305b75e558f178b51d5cb4051d419498d2fa19b5561b911f0477aaff050f8 none
 r10_screen/fetch_record.json foot/r10screen/judged/fetch_record.json 540a3563dc0f053fe8a578b493ef5d08aa6ea47c36365de37b01b8e196732c8e prefix,whitespace
@@ -367,6 +404,40 @@ stance4/results/run_log.txt foot/stance4/live/run_log.txt e7d997a6efb99843ed5949
 stance4/results/scores/score_final.json foot/stance4/scores/score_final.json 7c98d8ae592357150c4d379745eab7fafa6ad2ac83e327b4291d2c23974df532 prefix,whitespace
 stance4/results/scores/score_final.txt foot/stance4/scores/score_final.txt 6d772a8dc4f3313d4c7ea13ea0d684fe8b5f0bdd53bcaeb8edca025ce92d48a9 prefix
 stance4/results/split_form.md foot/stance4/analysis/split_form.md b179061596af1065221c28af9395416c3d7acf60c4fec5436326cd9ca1eb4c7e prefix,whitespace
+stance4/satdiag/ledger/timeline.csv foot/stance4/satdiag/ledger/timeline.csv 11858b399e8deb7e0dd7054e1fcae7f0eb0fcb0abfd494c9afe3381a7706e4de none
+stance4/satdiag/report.md foot/stance4/satdiag/report.md a349e0c371c94374abd041742fcae77d63df793ce6565b3e5f8cd6107726a210 prefix
+stance4/satdiag/rollout/tables/actuator_matrix.md foot/stance4/satdiag/rollout/tables/actuator_matrix.md 0cb01bb35d65f31965e3e915b3df518f2cd205d702fb7f0d6dad35087c170897 none
+stance4/satdiag/rollout/tables/checkpoint_table.txt foot/stance4/satdiag/rollout/tables/checkpoint_table.txt 3925c44f2d0906a581ef3585df432fa1eb9e486416994955fd6bf89a2bdb0669 none
+stance4/satdiag/rollout/tables/onset_within_episode.txt foot/stance4/satdiag/rollout/tables/onset_within_episode.txt 147188ff5484c943f2fe49721b6a575fd7bdbfb3ee74d1326054c465049c99bc whitespace
+stance4/satdiag/rollout/tables/summary_tables.md foot/stance4/satdiag/rollout/tables/summary_tables.md e604adc1e9d04963e69474427977aa86abe33a15d4f1dc6f29972ee9bb0d52f9 none
+stance5/colab_steps.txt foot/stance5/stance5_colab_steps.txt e9f33cfcdbbda4afff21eaec6a1ba74859197e949b2483ad22ea1b9eb6ae69a3 none
+stance5/criteria.txt foot/stance5/criteria.txt 3b28963f644ffb765e666a8cf6ada5d31ab8a2769dd1a77ff53cbc1e0cf3cf16 none
+stance5/criteria_notes.md foot/stance5/criteria_notes.md 2b95b4fd91149d4552dc144a827889670b871a55ae137f54d8e55630c64a2031 none
+stance5/judge/judge_stance5.py foot/stance5/judge/judge_stance5.py d9286724550b83eccfd11e2ceba634cfca847f1e52e03988f9c486c6db6bda13 prefix,checkout
+stance5/judge/score_stance5.py foot/stance5/judge/score_stance5.py d5515041f73a299a96963f953bac7117e3ffb7c73570572ad9fc6bc189888a77 prefix
+stance5/judge/test_score_stance5.py foot/stance5/judge/test_score_stance5.py 11d5063222709ab327562b78764ceaa811142782951006df34dfe96ddac7d5e3 none
+stance5/results/certificates/stance5_LTSB_s52/run_summary.json foot/stance5/cert/stance5_LTSB_s52/run_summary.json 6a01e9071e827e3ec3daf31bfd02fdcbeb0c1257d59f25c46b42d1feed50a9c9 trim,prefix,whitespace
+stance5/results/certificates/stance5_LTSB_s52/stance_heading_report.txt foot/stance5/cert/stance5_LTSB_s52/stance_heading_report.txt 6bc377e44e1c6b612f89d2429c4f111df5bdbe350e4e615d68582b11bb009acd none
+stance5/results/certificates/stance5_LTSB_s60/run_summary.json foot/stance5/cert/stance5_LTSB_s60/run_summary.json 1350d3b7c47ca5229206fad0dc4a170d0f6f5554bb876a350c760cfb207b910b trim,prefix,whitespace
+stance5/results/certificates/stance5_LTSB_s60/stance_heading_report.txt foot/stance5/cert/stance5_LTSB_s60/stance_heading_report.txt fb2deca5f46d692342d798aafd8b228198a8fc642f318547a0a559bebbda281e none
+stance5/results/checkpoints.csv foot/stance5/records_pr/build/out/checkpoints.csv 6b4c8d3ad51aee5232654c64d4b302cc0492e0679c2d0160961730339e367d3e none
+stance5/results/checkpoints_csv.py foot/stance5/records_pr/build/tools/checkpoints_csv.py fc5ead800d36eb1a10112eca81994571d805711856cd083e620b62a8016cea73 none
+stance5/results/extras.py foot/stance5/records_pr/build/tools/extras.py b0974cc0873606c7106dfa3732a751a32fab8b4e51686aa85741e38cbf11681f none
+stance5/results/extras.txt foot/stance5/records_pr/build/out/extras.txt f275648380595135c67d9a278fd044a9587bb66e00e6ad081958c7caa0b38914 none
+stance5/results/notebook_gates/stance5_LTSB_s42/gate_verdict.json foot/stance5/fetch/final_extras/stance5_LTSB_s42/extra/gate_verdict.json fabea7ca29bdd9a74f5facb180dec8b36451b3ef52a02c1bde1d4f1b4246e894 trim
+stance5/results/notebook_gates/stance5_LTSB_s52/gate_verdict.json foot/stance5/fetch/final_extras/stance5_LTSB_s52/extra/gate_verdict.json 10ce556e5a997dc851a35ce9e91d9d2b4b410f5701eb791a1e7963b2ea59dcb7 trim
+stance5/results/notebook_gates/stance5_LTSB_s60/gate_verdict.json foot/stance5/fetch/final_extras/stance5_LTSB_s60/extra/gate_verdict.json d0334b3ecd2249d4da55bc8100a789b5c7e6e9f1985286457d7c4ac7729812f1 trim
+stance5/results/panels_summary.csv foot/stance5/records_pr/build/out/panels_summary.csv e00fb0f718f67928e2e14d69744f235bf3d1fa8ce3e39f133d547f85091fff88 none
+stance5/results/panels_summary.py foot/stance5/records_pr/build/tools/panels_summary.py 593a551d769d835219dff792d22b2d8d3f0b2bd585710d1b39f3ab629c1886f3 none
+stance5/results/run_log.txt foot/stance4/live/run_log.txt b66416647f02193d453c838049ca0386ad8a20594f16d99d10a94f50d7448f35 lines,redact,checkout
+stance5/results/saturation/satwatch5_4194304.json foot/stance5/tools/satroll/satwatch5_4194304.json c11179f0f9a74c20131b75f7c6cd74abe3854e878a4c9f497c9a226ac6e9f138 prefix,whitespace
+stance5/results/saturation/satwatch5_5242880.json foot/stance5/tools/satroll/satwatch5_5242880.json ddcdf51ba72f1219b59d45307c366d54d61e981a953f7c7187326a4ea8329487 prefix,whitespace
+stance5/results/saturation/satwatch5_6291456.json foot/stance5/tools/satroll/satwatch5_6291456.json 4d7b1f9a55bc71c8ba49757b4dd5321817f052dc9b9f762d84e6b8949fcac180 prefix,whitespace
+stance5/results/saturation/stance5_LTSB_s42_4194304.json foot/stance5/tools/satroll/stance5_LTSB_s42_4194304.json 715ef8e27805df9de76e62012124a24c603533d04277181767f651c675cbf686 prefix,whitespace
+stance5/results/saturation/stance5_LTSB_s42_5242880.json foot/stance5/tools/satroll/stance5_LTSB_s42_5242880.json adb6c9fa1d739433df38e47569b572693f5a8dab09c68da00030429535bf74fd prefix,whitespace
+stance5/results/saturation/stance5_LTSB_s42_6291456.json foot/stance5/tools/satroll/stance5_LTSB_s42_6291456.json e4f1c3c7d6845448ba0ae3dee510895614e9fdb8c2a41d6c4bc7816d46de0fe7 prefix,whitespace
+stance5/results/scores/score_final.json foot/stance5/scores/score_final.json c690165043dbc32fc8bf5bcce7a57c8bc38692c67e21464e706017d0dd45e307 prefix,whitespace
+stance5/results/scores/score_final.txt foot/stance5/scores/score_final.txt 1629943ccf08a948e91e6cfc252d64225cd910bf075d7d5566ce0f7c21db47d7 prefix
 symmetry/J1_recount.log foot/symmetry/screen/analysis/J1_recount.log ad7297a2009227b47fa20eba17c5e5e730aa2b761a15be0615489188ff247a31 none
 symmetry/J2_recount.log foot/symmetry/screen/analysis/J2_recount.log a2eb01c9f5df0c0bb695cfca5524972260208134419ce8a348bc21d4e2560378 none
 symmetry/ema_credit.json foot/symmetry/review2/ema_credit.json 90ec310e68f8c0c6380c090a83b6b06fa1c8cafb6c397a171f051ee224e4cfe1 whitespace

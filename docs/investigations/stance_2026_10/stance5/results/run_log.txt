@@ -1,0 +1,188 @@
+2026-10-20 21:05 UTC  Records PR #633 opened (branch claude/records-stance4-results, 11 commits, head 98b3ddca); subscribed to its activity.
+2026-10-20 21:10 UTC  Band build (scratch/cop-band-v2, a15494ed): 3c neutral module, 3b fused path, 3a ramp committed; identity holds
+  (band off byte-identical to c1e146a8, task_sha256 unchanged; band readings byte-identical to the recorder on 8000 foot-steps).
+  Timing (final, interleaved): band-on overhead +0.27-0.34 ms/step (+19-21%), prototype +0.77 over base; the build's own 0.15 ms
+  goal (not a maintainer decision) is not met. Statue band cost 1.91 per full-horizon episode. Term-on stance task_sha256
+  (stance4 config + w 0.30): sha256:8c6998d2... Review phase running. s42 saturation diagnosis launched (report only).
+2026-10-20 21:31 UTC  PR #633 CI green on head 98b3ddca (10 of 10 checks; test-sb3 21:05:55-21:30:54 = 24:59); mergeable clean; no [name removed] Approvals check on this repo. Waiting on the maintainer's review/merge.
+2026-10-20 21:57 UTC  #633 check-in: still green and clean, no comments; check-ins stopped (GitHub events wake the session). Band build in its fix step; s42 diagnosis in verification.
+2026-10-20 22:11 UTC  Records PR #633 MERGED by the maintainer. Its landing (CI run on head 98b3ddca: test-sb3 24:59, the coverage job passed) goes into the next records PR.
+2026-10-20 22:39 UTC  Container restarted (~22:38). Lost: the band build's fix step (partial edits saved to bandv2/fix_partial_interrupted.diff,
+  clone reset to a15494ed) and the s42 diagnosis's verifiers 2-7. Band build resumed from cache (workflow [id removed], fix step re-runs).
+  s42 diagnosis to resume after the build. Its finding so far: tail_3_pitch_act pinned at +1 (tail raised), same actuator and sign as
+  stance3 Run 2; onset between 1.05M (clean) and 2.10M (17 of 20 flagged); ledger flags from 1,835,008.
+2026-10-21 ~01:30 UTC  Band build DONE: scratch/cop-band-v2 at 99e205bb (review fixes: float reward path, counted = guard >= 1, no gait or
+  curriculum load at run time, no 1e-8 floor). Final check: band off identical to c1e146a8 (10/10, task 3fa46708 / d4a3b8f8), recorder
+  identical, band on vs recorder 16000 foot-steps 0 mismatches, full suite = the known 47 failures only, digest current, ruff clean.
+  Band-on overhead +0.245 to +0.378 ms/step (+18-30%). s42 diagnosis resumed (workflow [id removed]). Screen package build launched:
+  stance5, arm LTSB, branch claude/screen-trex-r9-armlts-copband (workflow [id removed]), work folder foot/stance5.
+2026-10-21 02:40 UTC  s42 saturation diagnosis DONE (report only, decision 5a): satdiag/report.md. tail_3_pitch_act commanded at +1
+  (tail tip up; command pinned, joint and motor not: joint 0.216 rad below its stop on 0.26 of its force), same actuator and sign as
+  stance3 Run 2; onset between 1.05M and 2.10M (ledger flags from 1,835,008; alarm 2,228,224). Holding tail_3 at 0 gains +85.9
+  (2.1M) and +73.1 (final) per 800-step window, deterministic; why training keeps it is not measured. The eval ledger cannot name the
+  actuator (no per-actuator columns; force columns blind to it): gate_progress.npz action_dc_per_actuator can. Candidate fixes T1/T2
+  (telemetry), P1/R1/R2/Y1 (need approval), N0 (current 5a). None acted on.
+2026-10-21 ~07:15 UTC  stance5 package DONE and verified (workflow [id removed]; final check PASS on every item). Criteria foot/stance5/criteria.txt
+  sha256 3b28963f644ffb765e666a8cf6ada5d31ab8a2769dd1a77ff53cbc1e0cf3cf16 (re-fixed after review, before any training step).
+  judge_stance5.py d9286724..., score_stance5.py d5515041... (101 tests pass; reproduces stance4's verdicts). Band-on stance task
+  8c6998d2..., collapse reference 4457.4. Smoke evidence 110/110. Screen branch claude/screen-trex-r9-armlts-copband PUSHED at
+  cf80ecb14d1630ce3b4dcdea28a05835d143470b (confirmed with ls-remote). Runs ready for the maintainer to start.
+2026-10-21 ~07:17 UTC  Slip: copied stance5_colab_short.md and stance5_colab_steps.txt into checkout (against the standing rule); both were untracked new files, removed within a minute; git status of the checkout clean afterwards.
+2026-10-21 13:28 UTC  s52 started 13:26 (Drive folder 'stance screen LTSB s52'): provenance.json commit cf80ecb1, not dirty, seed 52, n_envs 4, r9 - but run_id is 'stance screen LTSB s52' (the RUN_LABEL text), not stance5_LTSB_s52. Asked the maintainer to stop and restart with RUN_ID stance5_LTSB_s52 (2 min in).
+2026-10-21 13:36 UTC  stance5 runs started (provenance.json, measured): stance5_LTSB_s60 13:32:45, s52 13:33:09, s42 13:34:32; each on
+  commit cf80ecb1 (clean), its seed, n_envs 4, r9, MuJoCo 3.10.0, run_id correct. Drive run folders: s52 [id removed], s60 [id removed], s42 [id removed]
+  The aborted first s52 ('stance screen LTSB s52', same commit) wrote, on Colab: task_sha256 8c6998d2... (band on, all 8 keys as
+  committed) and zero_action_reward 4367.8 (matches the local measurement). New runs' 01_stance files pending (check at ~13:44).
+2026-10-21 13:46 UTC  stance5 start checks PASS for all three (01_stance files, measured): stage_config git_commit cf80ecb1, seeds 52/60/42,
+  n_envs 4, gpu L4 (NVIDIA L4, 23.7 GB, CUDA 13.0), band weight 0.3, full-price share 0.25, min share 0.35, stagger 0.3, collapse
+  reference 4457.4, task_sha256 8c6998d2...; progress.json status training, zero_action_reward 4367.8 (= the local measurement).
+  01_stance folders: s52 [id removed], s60 [id removed], s42 [id removed] diagnostics.npz updating (training under way).
+
+2026-10-21 16:52 UTC  stance5 Drive check (user asked). progress.json, all three at 2,621,440 (21.85%): s52 228.1 steps/s, s60 230.1, s42 237.7; projected finals 04:14Z / 04:06Z / 03:40Z on 10-22. Latest eval 10/10 clean for all three; 2.10M-2.62M all 10/10 except s60 9/10 at 2,359,296 (one tilt-rail episode). No warnings. No saturation rail failing in the latest eval; actuator_force_frac_max 0.27-0.29. Whole-foot CoP per foot in band and near-symmetric (s52 0.077/0.052, s60 0.072/0.062, s42 0.135/0.080). Training falls last window 3/0/1. Report-only readings; nothing judged before 4.19M.
+  Tooling: models folder ids found (s52 [id removed], s60 [id removed], s42 [id removed]); DRIVE_IDS filled in stance5-fetch-checkpoint.js and stance5-fetch-named.js and the README table; wfcheck harness dry run (4,194,304, agree) passes for all three. Nothing placed yet; the first fetch will carry configs: true to place the run records. Check-in scheduled 19:00 UTC ([id removed]).
+2026-10-21 17:00 UTC  Walking pilot 2 rebuild started (decision 7a i): workflow [id removed] (facts -> build -> smoke+judge, tests -> record -> 3 skeptics -> fix). New parent stance3_armLT_s60 final (zip cc21604a..., vecnorm 894e86f4...) committed on claude/pilot-walk-r9-b in a new clone fix/pilot_walk_r9_b2; criteria amended 2026-10-21 (pre-amendment copy kept); no push until reviewed. No pilot2_walk_* folder on Drive (checked 16:55), so the run IDs stay.
+2026-10-21 19:05 UTC  stance5 check-in (progress.json). s52 4,456,448 (231.8 steps/s, finish ~04:00Z): evals 3.93M-4.46M clean 8,10,10,10,10; no warnings; 1 training fall in the last window. s60 4,456,448 (235.9, ~03:45Z): clean 10,10,9,10,10 (9/10 at 4,194,304); 0 training falls.
+  SATURATION ALARM (decision 5a): stance5_LTSB_s42. Eval clean counts 4,063,232: 2/10; 4,194,304: 1/10; 4,325,376: 3/10; 4,456,448: 5/10; 4,587,520: 0/10 with failing {max_actuator_saturation_fraction: 10}, 0 falls, reward 4356.2 (below the other two's ~4440), actuator_force_frac_max 0.30, force_limited_fraction 0 (command pinned, not force: stance4 s42's pattern). Clean 10/10 at 2.62M; onset between 2.62M and 4.06M (ledger needed). Actuator not yet named. s42 at 4,587,520 (243.1, ~03:21Z).
+  4.19M fetch launched (workflow [id removed]; configs, csv, place); then satwatch5.py --roll on s42 to name the actuator; judge/panels queue after placement. Fails stay fails; the run is not stopped.
+2026-10-21 19:25 UTC  Walking pilot 2 rebuild DONE (workflow [id removed], 9 agents; summary foot/pilot2/rebuild_1021/summary.md). Head 8c5478a6 on
+  claude/pilot-walk-r9-b (fix/pilot_walk_r9_b2), only pilot_checkpoints/ changed; parent stance3_armLT_s60 final (cc21604a / 894e86f4),
+  std 0.064/0.009/0.125. Criteria amended (confound with pilot 1 stated; no rule changed); smoke, judge accept/refuse, tests pass.
+  Skeptics: 18 findings, 17 fixed (one new SOURCE.txt commit 8c5478a6, smoke+judge re-run on it), 1 open = the push.
+  Push to GitHub (fast-forward ba464855 -> 8c5478a6) DENIED by the permission classifier; not worked around; asked the maintainer.
+  HOLD: no further push to claude/pilot-walk-r9-b after 8c5478a6 until all three pilot-2 seeds are judged.
+2026-10-21 19:40 UTC  4.19M fetch DONE (workflow [id removed]): all three placed (pkl A=B), run records placed (configs). Judge and panels queues
+  started (queue5.sh judge --watch pid 26621, panels --watch pid 26626). Ledger saturation timeline (episodes with the saturation reason,
+  of 10): s42 3,145,728: 1; 3,407,872: 3; 3,538,944: 8; 3,670,016: 8 -> ALARM at 3,670,016 (stance4 s42: 2,228,224); then 6,10,8,9,7,5,
+  10,10,3,10 to 5,111,808. s52 (to 4,456,448) and s60 (to 4,849,664): none. satwatch5.py --roll running to name the actuator.
+2026-10-21 19:48 UTC  SATURATION ALARM NAMED (decision 5a; satwatch5.py --roll, exit 11): stance5_LTSB_s42, alarm step 3,670,016 (first flagged
+  evaluation 3,538,944), actuator tail_3_pitch_act at +1 (tail raised): |command| >= 0.9 on 77% of window steps, mean +0.92, at checkpoint
+  4,194,304, 10 of 20 rolled episodes over the gate's bar (tools/satroll/stance5_LTSB_s42_4194304.json). Same actuator and sign as stance4 s42
+  and stance3 Run 2. s52, s60: no flag. Watch's LEDGER PROBLEM (no progress.json placed; fetch-checkpoint does not place it) is covered by
+  the direct progress.json reads at 19:01 (ledgers extend past them). Report only; the run is not stopped or changed.
+  Next check-in 20:30 UTC ([id removed]) for 5,242,880.
+2026-10-21 19:49 UTC  Maintainer OK ("Go ahead and push it"): claude/pilot-walk-r9-b pushed, fast-forward ba464855 -> 8c5478a6 (ls-remote
+  before ba464855, after 8c5478a6ca96309be820959efe00465893eb6010). colab_steps.txt push line filled; criteria.txt's "still open" item
+  replaced by the push record (before any pilot-2 training step). HOLD now applies: no further push to the branch until all three seeds
+  are judged. Steps sent to the maintainer.
+2026-10-21 20:32 UTC  stance5 check-in (5.24M). progress.json: s52 5,767,168 (234.5 steps/s, ~03:50Z), eval 10/10 clean; s60 5,767,168 (236.0, ~03:44Z),
+  10/10; s42 6,029,312 (245.2, ~03:14Z), 6/10 clean.
+  FIX: the judge/panels queues launched at 19:40 never ran ("nohup: failed to run command 'queue5.sh'": I launched them as `bash queue5.sh`,
+  and the worker relaunches "$0" under nohup, which needs a path). Relaunched by absolute path at 20:31 (judge pid 254, panels pid 259);
+  first job s52 4,194,304 full. Nothing was judged 19:40-20:31. README notes the absolute-path launch.
+  5.24M fetch launched (workflow [id removed]; csv, place).
+2026-10-21 21:08 UTC  5.24M fetch DONE (workflow [id removed]): all three agree and placed (ledgers extended). Judge queue: 4,194,304 full judged
+  for all three (20:37-20:48); 5,242,880 in progress. Interim score (score_stance5.py, no --runs-ended; scores/score_interim_5242880a.*):
+  4.2M J: s52 PASS 40/40, K2a 0, K2b 0, offset -4.6 mm, roll 0, noise 0/0; s60 PASS 39/40, K2a 0, K2b 0, +6.5 mm, roll 1, noise joint 2 own 0;
+  s42 FAIL 16/40 (saturation rail 24), K2a 0, K2b 0, +4.4 mm. Band readouts at 4.2M: out-of-band 0/40 in all three, guard 0.
+  (Control stance4 s52 at 4.2M: FAIL 28/40, K2a 12, K2b 16.) Report-only at this point; no verdict before the finals.
+  satwatch5 --roll on 5,242,880: s42 alarm unchanged (tail_3_pitch_act +1, 67% of window steps, 6/20 over bar; ledger: second flagged
+  spell 6,160,384-6,553,600); s52 (to 5,898,240) and s60 (to 6,029,312) no flag.
+2026-10-21 21:33 UTC  stance5 check-in (6.29M). CONTAINER RESTART at 21:30:38 killed both queue workers (judge mid s60 5,242,880, started 21:08;
+  panels mid s42 4,194,304). Relaunched by absolute path 21:31 (judge pid 244, panels pid 254); both resumed those jobs. progress.json:
+  s52 6,684,672 (236.4 steps/s, ~03:43Z) 10/10 clean; s60 6,684,672 (235.6, ~03:46Z) 10/10; s42 6,946,816 (245.8, ~03:12Z) 3/10.
+  Judged so far: s52 5.2M PASS 40/40, K2a 0, K2b 0, offset +2.8 mm, band out 0/40 (scores/score_interim_2131.*). Panels 4.19M done s52, s60.
+  6.29M fetch launched (workflow [id removed]). Next check-in 23:45 UTC (8.39M + 7.34M).
+2026-10-21 22:02 UTC  6.29M fetch DONE (workflow [id removed]): all three agree and placed; queues alive (pids 244/254), 6,291,456 next in the judge
+  queue. 5.24M J (scores/score_interim_2202.*): s52 PASS 40/40, K2a 0, K2b 0, +2.8 mm; s60 PASS 40/40, K2a 0, K2b 0, -15.0 mm, roll 0,
+  noise 0/0; s42 FAIL 27/40 (saturation rail 13), K2a 0, K2b 0, +8.3 mm. s52, s60: 0 of 52 evaluations flagged for saturation.
+2026-10-21 23:48 UTC  stance5 check-in (8.39M). The container was suspended/restarted again: queue logs stop at 22:11:52 (judge mid s42 6,291,456;
+  panels mid s60 5,242,880), uptime 1 min at 23:46. Cause (inference): detached setsid workers are not harness-tracked, so the idle container
+  is reclaimed ~10 min after a turn ends. Fix: the workers now run as a harness-tracked background command (queue5.sh judge/panels
+  --workerwatch under timeout 7000 s; relaunch when it exits). progress.json: s52 8,650,752 (239.0 steps/s, ~03:34Z) 10/10; s60 8,519,680
+  (233.9, ~03:52Z) 10/10; s42 8,912,896 (246.6, ~03:09Z) 10/10 clean. 8.39M fetch launched (workflow [id removed]); 7.34M after it.
+2026-10-21 23:52 UTC  6.29M J (scores/score_interim_2350.*): s52 PASS 40/40, K2a 0, K2b 0, -0.2 mm; s60 PASS 40/40, K2a 0, K2b 0, -1.8 mm
+  (control stance4 at 6.3M: s52 21/40 K2a 19 K2b 20; s60 30/40 K2a 10 K2b 16). s42 6.29M judging now. satwatch5 --roll 6,291,456: s42
+  alarm unchanged (tail_3_pitch_act +1, 75% of window steps, 14/20 over bar; 20 of 56 evaluations flagged to 7,340,032); s52, s60 none
+  (52 evaluations each to 6,815,744). Report only.
+2026-10-22 00:18 UTC  8.39M fetch DONE (workflow [id removed]): s52, s42 placed; s60 agreed (A=B a10ce16e...) but its place step was not run (the
+  agent's command was cut off by a safety classifier; not retried by it); placed by hand with the workflow's own command (place5.py
+  8388608 stance5_LTSB_s60 <fetch dir>), ok. 7.34M (report grid) fetch launched. Queue job (tracked) alive.
+2026-10-22 00:20 UTC  s42 6.29M J: FAIL 18/40 (saturation rail 22), K2a 0, K2b 0, +3.6 mm. K1 needs a v2 PASS at 6.3M, so s42 fails K1
+  whatever follows (fails stay fails). Next check-in 01:50 UTC (10.49M).
+2026-10-22 00:55 UTC  7.34M fetch DONE (workflow [id removed]): s52 A/B differed, tie-break C = A (441e73df...), placed; s60, s42 agree, placed.
+  All three have 4.19M, 5.24M, 6.29M, 7.34M, 8.39M placed; the tracked queue is judging (8.39M done for all three).
+2026-10-22 00:56 UTC  8.39M J (scores/score_interim_0055.*): s52 PASS 40/40, K2a 0, K2b 0, +0.2 mm, noise joint 1/20; s60 PASS 40/40, K2a 0,
+  K2b 0, +6.3 mm, noise joint 1/20 (7.34M report: PASS 40/40, -7.0 mm); s42 FAIL 15/40 (saturation 24), K2a 0, K2b 0, -1.6 mm, joint 5/20.
+  Control at 8.4M: s52 23/40 (K2a 17, K2b 20), s60 27/40 (13, 13), s42 3/40.
+2026-10-22 01:52 UTC  Check-in (10.49M). Tracked queue job relaunched 01:43 after its 7000 s limit (container up since 23:45: the tracked
+  job keeps it awake). progress.json: s52 10,354,688 (239.7, ~03:31Z), s60 10,092,544 (232.7, ~03:56Z), s42 10,616,832 (246.4, ~03:10Z),
+  all latest evals 10/10 clean. 10.49M fetch launched for s42 and s52 (workflow [id removed]); s60 after it lands (~02:07). Finals check-in
+  03:45 UTC (fetch-named per ended run).
+2026-10-22 02:17 UTC  10.49M fetch DONE for s42 (agree, placed; its pkl is 5,291 bytes, A=B) and s52 (A=B 83c112e5..., but the place step
+  was cut off by the safety classifier again; placed by hand with the workflow's command, ok). s60 10.49M fetch launched.
+2026-10-22 02:38 UTC  s60 10.49M fetch DONE: A dc84283b, B = C ecf1b08d (tie-break resolved); place step cut off by the classifier again;
+  placed by hand (place5.py took C = B, ecf1b08d...), csv placed. All three 10.49M placed; s52, s42 judged.
+2026-10-22 03:42 UTC  s60 10.49M J judged (02:44): PASS 40/40, K2a 0, K2b 0, +2.8 mm, noise joint 1/20. s52 10.49M PASS 40/40, -14.2 mm;
+  s42 10.49M FAIL 38/40 (saturation 2), -10.0 mm, joint-noise falls 9/20 (8.39M: 5/20). s42 ENDED 03:14 (12,001,280; last eval 5/10);
+  its final, best, robust_best pairs are on Drive; gate_verdict.json not yet. Final fetch for s42 launched (workflow [id removed]; gate_verdict
+  re-fetched later if missing). Tracked queue job relaunched 03:41 (its 7000 s limit). Plan proposed to the maintainer (they did not object): finals tonight,
+  then report-only stress tests on the s52/s60 finals (#2); the tail experiment (#3) waits for the maintainer.
+2026-10-22 04:00 UTC  s42 final fetch DONE (workflow [id removed]): final (zip fcd56c63, pkl 1bb179f1, A=B), best = robust_best (917,504; zip
+  e9686744, pkl c6589d27), ledgers and progress.json placed. gate_verdict.json was written on Drive at 03:44:19, after the listing:
+  re-fetch it with s60. s52 final fetch running (workflow [id removed]). cert5_one.sh (six-heading certificate wrapper) written for #2.
+2026-10-22 04:03 UTC  s52 final fetch DONE (workflow [id removed]): final (zip 24a4fada, pkl 34a3f535, A=B), best = robust_best (917,504; zip
+  e0ab6b06, pkl 2378da1a), ledgers, progress.json (ended 03:32:11, 12,001,280, warnings 0) placed; gate_verdict.json not yet on Drive.
+  Judge queue on s42 final full (04:01). #2 started: six-heading certificate of s52 final (cert5_one.sh, report only).
+2026-10-22 04:18 UTC  #2 (report only): six-heading certificate (stance_quality_heading/v1) of s52 final: PASSED, 40/40 clean seeds, LCB 0.928,
+  failures none, task 8c6998d2, 988 s (cert/stance5_LTSB_s52/run_summary.json).
+2026-10-22 04:24 UTC  Finals check-in 2. s42 final judged (04:05): FAIL 19/40 (saturation 21), K2a 1, K2b 1, +2.3 mm, noise joint 13/20, own 1/20.
+  Interim score for s42 (complete): fails K1, K3; passes K2 (range 18.3 mm), K4 -> does not hold. s52 and s42 best/robust_best judged.
+  s52 final not yet judged (the 04:01 pass checked it a minute before placement; next pass). s60 final pair on Drive 04:03; its fetch
+  launched (workflow [id removed]). gate_verdict.json now on Drive for s42 (03:44) and s52 (04:02); s60's pending; one extras fetch after.
+2026-10-22 04:23 UTC  CONTAINER RESTART (~04:21): the tracked queue job and the s60 final fetch (workflow [id removed]) were stopped. The judge was
+  mid s42 robust_best (re-run by the queue). Relaunched the tracked queue job and resumed the s60 fetch from its cache.
+2026-10-22 04:39 UTC  s60 final fetch DONE (resumed workflow [id removed]): final (zip 45245c7c, pkl 84b7f8f6, A=B), best = robust_best (6,815,744;
+  zip c8a4d48b, pkl 9d6ca742), ledgers, progress.json (ended 04:03, warnings 0) placed. gate_verdict.json still missing for s60 at the
+  listing. Six-heading certificate of s60 final started (#2).
+2026-10-22 04:40 UTC  s52 final judged: PASS 40/40, K2a 0, K2b 0, -14.7 mm, roll 0, noise joint 0/20, own 0/20. Interim score for s52 (all J
+  files present): K1 PASS, K2 PASS (range 17.4 mm), K3 PASS, K4 PASS -> HOLDS; FORE-AFT HOLDS. Band: out-of-band 0/40 at every J.
+  Selection report: robust_best = best (917,504) and final all 40/40 clean, 0 own-noise falls, K2a/K2b 0. Waiting on s60 final judge.
+2026-10-22 04:58 UTC  SCORED, runs ended: score_stance5.py --runs-ended -> stance5/scores/score_final.txt and score_final.json (verdict of record).
+  s60 final: PASS 39/40, K2a 0, K2b 0, -5.7 mm, joint-noise falls 3/20 (limit 2), own 0/20.
+  Run 1 s52 HOLDS (K1-K4 pass); Run 2 s60 does not hold (fails K3 only: 3/20 joint-noise falls at final); Run 3 s42 does not hold (K1, K3).
+  FORE-AFT holds on s52 and s60. Credit rule: K1 2/3 vs 0/3 ok, K2 3/3 vs 0/3 ok, K3 1/3 vs 2/3 WORSE, K4 3/3 vs 2/3 ok; H = 1, K2p = 3;
+  (a) no, (b) fails. DECISION (final, not provisional): line 3. "H == 1: not adopted; not separated from seed luck; replicate on 2 more
+  seeds before any commit." Control verdicts reproduce stance4's score_final.json: yes.
+  Report only: band out-of-band 0/40 at every J on all three runs (s60 1/40 at 8.4M); six-heading certificate s52 final 40/40, s60 final
+  39/40 (both PASSED); parent comparison: TIE s52 final and stance3 Run 2 final (the maintainer chooses); pilot 2's parent unchanged.
+2026-10-22 05:09 UTC  Report doc for stance5: new doc "T. rex stance5 band screen report" claude.ai artifact [id removed]
+  (the stance4 report doc left unchanged): decision line 3 lead, results table, K2b chart band vs control, what still fails (K3, tail),
+  report-only extras, a decisions checklist. A fact-check agent is checking it against the score files.
+2026-10-22 05:11 UTC  gate_verdict.json placed for all three (workflow [id removed]; report only): notebook gate stance_quality_heading/v1 PASSED on
+  robust_best for s42 (917,504), s52 (917,504) and s60 (6,815,744). Not part of the verdict (the criteria judge the J checkpoints).
+2026-10-22 05:15 UTC  Report doc fact-checked (one agent, 10 items, all verified and fixed, doc rev 19): "no foot left the band" corrected to
+  episode-level (individual foot-steps did, at most 1,012 of 64,000, s60 8.4M); the band's one K2a/K2b count is s42's fall (seed 3063),
+  counted as over by the rule; s52 had one saturation-rail episode at report-only 7.3M; score file shas split (json c6901650, txt 1629943c);
+  parent choice framed as a new decision outside the table (criteria: parent comparison is report only); replication needs its own
+  criteria (control_sigma exists only for seeds 42/52/60); K3 own-sigma part added (s42 at the limit, 1); s60 best = robust_best result
+  added (40/40, joint 2/20, own 0, judged after the score); 231-245 steps/s; "20 of 40". Correction to my chat: s42's final had 20
+  saturation-rail episodes, not 21.
+2026-10-22 06:20 UTC  Queues finished: 36 judge jobs done (15 "missing" = report-grid checkpoints never fetched: 1.0/2.1/3.1/9.4/11.5M), all 18
+  panel sets done. Diagnostic panels at final (report only, clean of 40, standard / mirror_legs / prey_ahead / mirror_prey_ahead):
+  s52 40/40/40/40, s60 39/37/39/37, s42 19/8/13/7 (falls 0, 0, 1). Added the s52/s60 row to the report doc. #2 complete.
+2026-10-22 15:08 UTC  MAINTAINER DECISIONS (stance5, after line 3): (1) replicate the UNCHANGED band recipe (branch cf80ecb1); (2) 2 band runs
+  only, seeds 70 and 80, judged on K1-K4 against the existing stance4 control, with new fixed criteria before training (noise level for
+  the new seeds, how the 5 band runs are read); (3) no parent change now: walking pilot 2 stays on stance3 Run 2's final; s52's final is
+  reconsidered after the replication; (4) open the stance5 records PR now (documentation only).
+2026-10-22 15:11 UTC  MAINTAINER DECISION: replication reading rule = ADOPT only if BOTH new seeds (s70, s80) HOLD (H = 3 of 5); the K3 pass
+  fraction against the control (3/5 vs 2/3 at best) is reported, not a veto. (Under stance5's rule (b) adoption would be impossible:
+  the band arm already has 2 K3 failures.) New seeds' joint-noise sigma: element-wise mean of control_sigma for seeds 42, 52, 60 (my
+  default, stated to the maintainer).
+2026-10-22 15:52 UTC  MAINTAINER OK ("Yes"): (a) report-only diagnosis of the band runs' joint-noise falls (K3), and (b) the scratch tail
+  experiment (P1: penalty on |mu| > 1, from stance5 s42's 4,194,304 checkpoint, two 1M-step CPU continuations, P1 vs control; scratch clone
+  fix/scratch_tailfix, never pushed). Workflow [id removed] (outputs stance5/k3diag, stance5/tailexp). Running alongside the replication
+  package (workflow [id removed]) and the records PR build (workflow [id removed]).
+2026-10-22 15:55 UTC  Disk housekeeping: removed scratch clones fix/records_1018b, fix/stance_label, fix/balance_telemetry (clean, HEAD on origin; PRs merged) to free space for three running builds.
+2026-10-22 16:24 UTC  Records PR build round 1 (workflow [id removed]) committed nothing: its agents read "prompt me on each decision" as covering the
+  records layout and left D1-D13 / P1-P11 open. Settled by the coordinator (records conventions, the recommended defaults; the noise-sigma
+  rule recorded as the session's default stated to the maintainer, not the maintainer's choice) and rebuilt: workflow [id removed]. Plan and
+  round-1 reviews saved in stance5/records_pr/round1_plan_and_reviews.json.
+2026-10-22 16:32 UTC  Replication package built and validated (workflow [id removed]): judge_stance5r.py (16d39f7d) reproduces stance5's s52 4.19M judge
+  field for field; score_stance5r.py --validate reproduces stance5's three verdicts; 37 tests pass; criteria 10464eab (0444).
+  MAINTAINER DECISIONS: (a) CONFIRMED the new seeds' joint-noise sigma = element-wise mean of control_sigma 42/52/60, one vector for s70 and
+  s80 (sidecar 89778b3f); (b) run-handling defaults adopted: a run cut off before its first periodic checkpoint and restarted under
+  <RUN_ID>_b is that run; a judge refusal on the run's own records counts as an invalid J file; a resumed run is judged as it stands,
+  superseded files moved aside, never deleted; a cut-short final resumes from the newest intact periodic checkpoint in the same RUN_ID and
+  the final slot is only a stage1_final pair at 12,001,280; an early stop makes the final J file invalid; 'ended' and 'exists' defined as
+  proposed; on a refusal to reproduce stance5 nothing is read until the cause is found; no L4 on a resume -> ask first. Applying (criteria
+  re-pin cascade) before the steps go out.

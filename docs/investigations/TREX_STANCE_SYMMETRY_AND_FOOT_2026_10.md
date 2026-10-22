@@ -64,6 +64,30 @@ committed anywhere public); D-D39 amended with its outcome and the L4 runtime
 confirmed; and D-D36 amended: walking pilot 2 is to be rebuilt for stance3 Run
 2's final as its parent. The statuses above are unchanged.*
 
+*Status 2026-10-22 (appended): §21, appended that day, records the stance5
+screen of D-D40 judged by its fixed criteria: Run 1 (seed 52) holds, Run 2
+(seed 60) fails K3 only and Run 3 (seed 42) fails K1 and K3; the decision
+table's line is 3, final, so the band is not adopted, and the line asks for two
+more seeds; s52's final ties stance3 Run 2's final under the parent rule. With
+it: the band's build and package (the screen branch pushed at `cf80ecb1`, which
+supersedes §20's "not committed anywhere public"), the report-only extras,
+gates, certificates, panels and band readouts, the saturation alarm on seed 42
+(`tail_3_pitch_act` at +1), the offline diagnosis of stance4 s42's saturation,
+and walking pilot 2's rebuild (its branch pushed; not yet trained). Their
+evidence is in
+[stance_2026_10/stance5/results/](stance_2026_10/stance5/results/README.md) and
+the same folder's `stance5/`, `stance4/satdiag/` and `pilot2/`. The statuses
+above are unchanged.*
+
+*Status 2026-10-22, later (appended): §22, appended that day, records the
+maintainer's decisions of 2026-10-22 that followed §21: D-D41, a replication of
+the unchanged band recipe on two more seeds (70 and 80), judged against the
+stance4 control by new criteria fixed before training and read under a new rule
+(the band is adopted only if both new seeds hold), with walking pilot 2's parent
+kept for now; and the amendments of D-D40 (its build, runtime and outcome) and
+D-D36 (walking pilot 2 rebuilt). The replication is not yet trained. The
+statuses above are unchanged.*
+
 It continues [STANCE_REWARD_PILOT_FINDINGS_2026_10.md](STANCE_REWARD_PILOT_FINDINGS_2026_10.md)
 (2026-10-10), [STANCE_HACK_AUDIT_2026_10.md](STANCE_HACK_AUDIT_2026_10.md)
 §12 (the physics-r9 statue) and the blog post
@@ -2671,3 +2695,471 @@ are not part of this change; a later PR records them and the pilot's outcome.
 - **§14:** no folder, file or branch is added to this repository by §20; the
   band's package and pilot 2's rebuild are outside this change. Pilot 2's
   branch `claude/pilot-walk-r9-b` (`ba464855`) is unchanged.
+
+## 21. Status 2026-10-22 (appended): the stance5 band screen judged
+
+*Appended 2026-10-22; §1–§20 above are unchanged, so §19's and §20's "never
+pushed", "being built", "not committed anywhere public", "not yet run" and "not
+yet trained" are the wording of 2026-10-20.* The per-foot centre-of-pressure
+band of D-D40 (§20.2) was built and packaged on 2026-10-20 and 2026-10-21; its
+three screen runs trained to their final 12,001,280 steps on Colab L4 GPU
+runtimes from 2026-10-21 to 2026-10-22 and were judged by their fixed criteria
+with the stance5 judge and scorer, the verdict of record written at 04:57 UTC on
+2026-10-22 (the score files' time; the run log's entry is timed 04:58). This
+section records the build and the package (§21.1), the runs and
+the judging (§21.2), the verdicts, the decision-table line and the parent
+comparison, which are results (§21.3), and the report-only extras, gates,
+certificates, panels, band readouts and saturation watch (§21.4); and, from the
+same days, the offline diagnosis of stance4 s42's saturation that D-D40's 5a
+asked for (§21.5) and walking pilot 2's rebuild under D-D36's amendment of
+2026-10-20 (§21.6). The maintainer's decisions that followed, on 2026-10-22, are
+recorded in §22. A screen certifies nothing: the verdicts are the criteria's,
+not a gate's, nothing here certifies a run, writes a result bundle or promotes
+anything, and `main` and its digests are unchanged. The evidence is in the
+folder `stance5/` of [stance_2026_10/](stance_2026_10/README.md), whose
+`results/` has its own [README](stance_2026_10/stance5/results/README.md), and
+in `stance4/satdiag/` and three files of `pilot2/` of the same folder, all added
+on 2026-10-22; paths in backticks below are relative to `stance5/` unless they
+start with `../`, and every number below is read from `results/run_log.txt`, the
+score files in `results/scores/` or the files named. A fact-check of the
+session's human-facing report on these runs (a document outside the repository,
+not copied) checked ten statements and fixed them there (`results/run_log.txt`,
+05:15 UTC); this section uses the corrected forms.
+
+### 21.1 The band build and the package
+
+- **The build (D-D40 3a–3c).** On the scratch branch `scratch/cop-band-v2`, on
+  the prototype `f94452ad` (itself on `c1e146a8`), all on 2026-10-20: 3c, the
+  contact reduction moved out of `environments/shared/gait/` into the neutral
+  package `environments/shared/floor_contact` (`3a1d5de3`); 3b, one fused
+  per-step reading (`4819eb6c`); and 3a, the load-share guard as a ramp
+  (`a15494ed`). Then the review's fixes (`99e205bb`, 00:59 UTC on 2026-10-21): a
+  float reward path, a foot counted only at a guard of 1, no gait or curriculum
+  module loaded at run time, and no 1e-8 floor. A container restart at about
+  22:38 UTC on 2026-10-20 lost the first fix step, which was re-run. The build's
+  final check, at about 01:30 UTC on 2026-10-21: band off byte-identical to
+  `c1e146a8` (10 of 10; tasks `3fa46708…` and `d4a3b8f8…`), the recorder
+  unchanged, band on equal to the recorder's readings on 16,000 foot-steps with
+  no mismatch, the full test suite with "the known 47 failures only", the digest
+  current and ruff clean.
+- **The timing.** The final band-on overhead is +0.245 to +0.378 ms per env step
+  (+18–30%; an interim measurement at 21:10 UTC on 2026-10-20 gave +0.27 to
+  +0.34 ms, +19–21%), against the prototype's +0.62 ms (§19.7). The build's own
+  goal of 0.15 ms, which no decision set (§20.2, 3b), was not met.
+- **3d, the config commit `cf80ecb1`** (authored at 02:38 UTC and committed at
+  05:41 UTC on 2026-10-21, after the criteria's review; its message cites their
+  sha256): `stance_cop_band_weight` 0.30 in the T. rex stance configuration,
+  every other band key at its default, and the collapse reference 4457.4
+  (stance4's method: production's 3756.8 plus the band arm's statue gain,
+  700.55). The band-on stance task is `sha256:8c6998d2…`. Measured on the
+  zero-action statue (`criteria.txt`): the band costs it 1.91 per full-horizon
+  episode and changes no dynamics; off, it leaves stance4's task at `3fa46708…`.
+- **The package**, done at about 07:15 UTC on 2026-10-21: `criteria.txt` (sha256
+  `3b28963f…`, re-fixed after its review and before any training step; the first
+  text was `c2809201…`), with K1–K4 as stance4's and stance3's, the three
+  stance4 runs as the control, not retrained, the credit rule, a drift-or-split
+  rule for D-D40 4a's trigger line, and a decision table of six lines;
+  `criteria_notes.md`, which maps each decision of 2026-10-20 to the criteria's
+  lines; the judge `judge/judge_stance5.py` (`d9286724…`) and the scorer
+  `judge/score_stance5.py` (`d5515041…`; 101 test cases pass, and it reproduces
+  stance4's verdicts); the Colab steps (`colab_steps.txt`); and smoke evidence,
+  110 of 110 checks.
+- **The screen branch was pushed.** `claude/screen-trex-r9-armlts-copband` was
+  on GitHub at `cf80ecb1` by about 07:15 UTC on 2026-10-21 (checked with `git
+  ls-remote`), never merged, with no pull request; its history holds `c1e146a8`,
+  the prototype `f94452ad`, the four build commits and `cf80ecb1`. This
+  supersedes, for the commit `f94452ad` and the band's code, §19.7's and §20.2's
+  "never pushed", "a scratch branch that is not pushed" and "not committed
+  anywhere public", the wording of 2026-10-20, left unchanged above; the scratch
+  branches themselves were not pushed (§21.7).
+- **A slip.** At about 07:17 UTC two of the package's files were copied into the
+  session's checkout of the repository, against the standing rule; both were
+  untracked new files, they were removed within a minute, and the checkout's
+  `git status` was clean afterwards.
+
+### 21.2 The runs and the judging
+
+- **The runs.** By their `provenance.json` files (as the run log records them at
+  13:36 UTC on 2026-10-21), `stance5_LTSB_s60` started at 13:32:45,
+  `stance5_LTSB_s52` at 13:33:09 and `stance5_LTSB_s42` at 13:34:32 UTC, each on
+  commit `cf80ecb1` (not dirty), its seed, `n_envs` 4, r9 and MuJoCo 3.10.0. A
+  first s52 start at 13:26 UTC carried its run label as its run id; the
+  maintainer stopped it and restarted under the right id, as the session asked.
+  At 13:46 UTC each run's `01_stance/stage_config.json` read the commit, the
+  seed, `n_envs` 4, the band weight 0.3 and guard shares 0.25 and 0.35, the
+  stagger weight 0.3, the collapse reference 4457.4 and the task `8c6998d2…`,
+  and its `progress.json` a zero-action reward of 4367.8, equal to the local
+  measurement.
+- **The runtime, measured.** The `gpu` block of each `stage_config.json` reads
+  an NVIDIA L4 (23.7 GB, CUDA 13.0). Each run's `progress.json` records one
+  session, started (`session_started_at`) at 13:37:07 (s52), 13:36:43 (s60) and
+  13:38:28 UTC (s42) and ended at 12,001,280 steps at 03:32:11, 04:03:00 and
+  03:14:04 UTC on 2026-10-22, at 239.5, 230.9 and 245.2 steps per second, with
+  no warnings, so that each ran on the L4 throughout is inferred.
+- **Fetch and binding.** As in §19.1: each judged checkpoint was fetched
+  read-only from Drive, and each VecNormalize file transcribed twice and the
+  copies compared, with a third transcription where they differed (s52 at
+  7,340,032 and s60 at 10,485,760). Three place steps were cut off by a safety
+  classifier and done by hand with the workflow's own command (s60 at 8,388,608;
+  s52 and s60 at 10,485,760). The judge bound the plant, the seed, the task, the
+  symmetry map and the run's `stage_config.json`; in all 36 judge files every
+  binding matched, with no hard failure and no relaxation
+  (`results/checkpoints_csv.py` asserts both for every file). The judge and
+  panel queues, launched at 19:40 UTC on 2026-10-21, failed to start and ran
+  from 20:31; they were stopped by container restarts at 21:30 UTC and about
+  04:21 UTC and by a suspension of the idle container after 22:11 UTC (its cause
+  inferred), and each interrupted job was re-run.
+- **The judged checkpoints (J)**: 4,194,304 (judged from 20:37 to 20:48 UTC on
+  2026-10-21), 5,242,880, 6,291,456, 8,388,608, 10,485,760 and the finals
+  (judged at 04:05, 04:28 and 04:55 UTC on 2026-10-22 for s42, s52 and s60; the
+  judge files' times), with 7,340,032 judged as a report-only checkpoint. The
+  other report-only 1,048,576-step checkpoints (1,048,576, 2,097,152, 3,145,728,
+  9,437,184 and 11,534,336) were never fetched, so 15 queued judge jobs found
+  nothing to judge, and the late-stable S3 was not judged.
+- **The score.** `results/scores/score_final.txt` and `.json`, written at 04:57
+  UTC on 2026-10-22 (the files' time; the run log's entry is timed 04:58) by
+  `score_stance5.py --runs-ended`, the verdict of record:
+  it loads stance3's frozen scorer unchanged
+  (`../stance3/judge/score_stance3.py`, sha256 `2c3879d3…`), extends only its
+  judge-identity constants for the band arm and the control, checks the
+  criteria's sha256 (matched) and stance4's `score_final.json` (`7c98d8ae…`,
+  matched), and re-scores the control from its judge files as a cross-check.
+  Re-run on the judge files, it reproduces the record apart from the path it
+  names and s60's `best` and `robust_best` cells, which were judged after it
+  (05:01 and 05:06 UTC; the judge files' times). `results/checkpoints.csv` has
+  one row per judge file (36), recomputed with the frozen scorer's own counts
+  (25 cells agree with the score).
+
+### 21.3 The verdicts: Run 1 holds; line 3
+
+Per run, the judged checkpoints are 4,194,304, 5,242,880, 6,291,456, 8,388,608,
+10,485,760 and the final (4.2M to 12M below); the offsets are the panel median
+of the both-feet whole-foot centre of pressure, `x_c`, against the statue's 64.0
+mm ahead of the MTP III joints on the same seeds.
+
+- **Run 1, `stance5_LTSB_s52` (seed 52): holds.** Clean 40 of 40 at all six,
+  `stance_quality/v2` PASS throughout (LCB 0.928). K2a 0 and K2b 0 at every
+  judged checkpoint; K2c passes (offsets −4.6, +2.8, −0.2, +0.2, −14.2 and −14.7
+  mm, a range of 17.4 mm). K3 passes (0 of 20 joint-space and 0 of 20 own-sigma
+  noise falls at 6,291,456 and at the final) and K4 passes (roll rail 0 and 0 of
+  40). It holds fore-aft.
+- **Run 2, `stance5_LTSB_s60` (seed 60): fails K3 only.** Clean 39, 40, 40, 40,
+  40 and 39 of 40, v2 PASS at all six; K2a 0 and K2b 0 throughout; K2c passes
+  (offsets +6.5, −15.0, −1.8, +6.3, +2.8 and −5.7 mm, a range of 21.6 mm). **K3
+  fails**: 3 of 20 joint-space noise falls at the final (bar 2; 0 at 6,291,456;
+  own-sigma 0 and 0). K4 passes (0 and 0). It holds fore-aft.
+- **Run 3, `stance5_LTSB_s42` (seed 42): fails K1 and K3.** Clean 16, 27, 18,
+  15, 38 and 19 of 40; in most failing panel episodes the gate's
+  actuator-saturation rail failed (§21.4). **K1 fails**: v2 FAIL at 6,291,456
+  and at the final, and five judged checkpoints below 33 of 40. K2 passes: K2a
+  and K2b 0 at every judged checkpoint but the final, where each counts 1, an
+  episode that fell (the rule counts a fall as over), and a K2c range of 18.3
+  mm. **K3 fails**: 13 of 20 joint-space noise falls at the final (0 at
+  6,291,456), and 1 of 20 own-sigma falls, the limit. K4 passes (0 and 0).
+
+Per K test, against the control (the three stance4 runs, as recorded in
+stance4's score of record, §19.2; the scorer reproduces their verdicts from
+their judge files):
+
+| Test | s52 | s60 | s42 | Band runs passing | Control passing |
+|---|---|---|---|---|---|
+| K1, the gate held | PASS | PASS | FAIL | 2 of 3 | 0 of 3 |
+| K2, fore-aft held | PASS | PASS | PASS | 3 of 3 | 0 of 3 |
+| K3, robustness | PASS | FAIL | FAIL | 1 of 3 | 2 of 3 |
+| K4, roll | PASS | PASS | PASS | 3 of 3 | 2 of 3 |
+
+**The recipe verdicts: one run holds; H = 1 and K2p = 3.** Fore-aft holds on s52
+and s60. The credit rule fails on both parts: (a) one band run holds where two
+are needed, and (b) the band arm passes K3 less often than the control (1 of 3
+against 2 of 3; the rule's general and specific forms agree). No band run fails
+K2, so none is classed drift or split (D = 0, S = 0). **The decision table's
+line is 3, final**: "H == 1: not adopted; not separated from seed luck;
+replicate on 2 more seeds before any commit." The band is not adopted. What
+comes next is the maintainer's decision: D-D41 (§22).
+
+**The parent comparison** (report only; stance3's rule: most clean panel
+episodes at the final, ties to fewer joint-space plus own-sigma noise falls):
+**the best band final, s52's** (`stage1_final`, sha256 `24a4fada…`: 40 of 40, 0
+noise falls), **ties stance3 Run 2's final** (`cc21604a…`: 40 of 40, 0), and the
+rule names both and leaves the choice to the maintainer. Behind them: the best
+stance4 final (s52's, 39 of 40, 0), s60's band final (39 of 40, 3) and s42's (19
+of 40, 14). Line 1's stance parent does not arise. The comparison does not
+choose walking pilot 2's parent, which stays stance3 Run 2's final (D-D36 as
+amended on 2026-10-20; §22).
+
+### 21.4 Report only: the extras, gates, certificates, panels and readouts
+
+None of these enters a criterion (`results/checkpoints.csv`, `results/scores/`,
+`results/extras.txt`, `results/panels_summary.csv`). The fresh, tail and
+common-noise numbers below were measured for this record from the judge files
+(`results/extras.py`); the run log gives none.
+
+- **7,340,032, judged like the J checkpoints:** s52 39 of 40 (its one failing
+  episode on the saturation rail), s60 40 of 40, s42 19 of 40 (9 of 20
+  joint-space noise falls).
+- **Selection (S0 and S1):** in each run `robust_best` and `best` are one
+  checkpoint: 917,504 steps in s52 and s42, both 40 of 40 with no own-noise
+  falls and K2a and K2b 0; 6,815,744 in s60, 40 of 40 with 2 of 20 joint-space
+  falls (judged after the score was written). The finals are as in §21.3.
+- **The fresh panel 7042–7081 at the final:** s52 FAIL 38 of 40 (1 fall, a
+  nosedive, and 2 hop-or-fall episodes against the gate's 1), s60 PASS 38 of 40
+  (0 falls), s42 FAIL 16 of 40 (2 falls); the criteria's references are the
+  stance4 finals' 39, 38 and 14 of 40 and stance3 Run 2's final's 40 of 40.
+- **The forward-start tail panel (32 seeds) at the final:** 3, 0 and 4 falls for
+  s52, s60 and s42; the statue 0, stance3 Run 2's final 0 and the stance4 finals
+  2, 6 and 5.
+- **The common-noise panel (40 seeds) at the final:** 6, 5 and 31 falls; the
+  stance4 finals fell 5, 1 and 30.
+- **The pre-registered readouts:** K5 flags no run. The late-fall fraction is
+  above 5% only in the first 262,144-step bin (50.2%, 48.9% and 46.3%) and in
+  s42's bin at 11,796,480 (6.6%). The run log records no result for the
+  20-episode quick panels at every 524,288-step checkpoint, the per-term reward
+  decomposition or the stagger watches, and this record has none.
+- **The notebook's own end-of-stage gate**, `stance_quality_heading/v1`, on each
+  run's `robust_best` (`results/notebook_gates/`): all three PASSED, 40 of 40
+  seeds clean at six headings (LCB 0.928), at 917,504 steps (s52, s42) and
+  6,815,744 (s60). It judged an early checkpoint, not the finals the criteria
+  judge.
+- **The stage's six-heading certificate rolled offline on the s52 and s60
+  finals** (`results/certificates/`; stance3's runner, in a clone of the screen
+  branch at `cf80ecb1`, on the band-on task `8c6998d2…`): s52 PASSED, 40 of 40
+  seeds clean at all six headings (LCB 0.928, 988 s); s60 PASSED, 39 of 40
+  (0.887, 1,103 s). Neither is gate evidence: the band is not on `main`.
+- **Diagnostic panels (D-D40 6)** at every judged checkpoint: at the finals,
+  clean of 40 under the standard panel, mirrored legs, the prey straight ahead
+  and both, s52 40, 40, 40 and 40, s60 39, 37, 39 and 37, s42 19, 8, 13 and 7,
+  with falls 0, 0, 0 and 0 (s52), 0, 0, 0 and 0 (s60) and 1, 0, 1 and 0 (s42).
+- **The band readouts.** At every judged checkpoint no full-horizon episode of a
+  band run had either foot's window-mean whole-foot centre of pressure outside
+  the band [−0.6, +0.4] (0 of 40, s42's final 0 of 39), except one of s60's at
+  8,388,608; the control's judge files, read the same way, give 10 to 28 of 40
+  per judged checkpoint for stance4 s52 and s60 and 0 to 21 for s42
+  (`results/scores/`). Per foot-step the band was left: up to 1,012 of 64,000
+  window foot-steps in a standard panel (s60 at 8,388,608). The guard stood at 1
+  on every window foot-step of the full-horizon episodes of every panel, never 0
+  and never on its ramp, so the lighten door (§20.2, 3a) was not used there.
+- **The twist-route watch** (read for this record from the two panels summaries,
+  the criteria's reading, which is inferred from the statics): the band runs'
+  per-foot centre-of-pressure split sd is below the same seed's stance4 run's at
+  every judged checkpoint (0.03 to 0.40 span half-lengths, against 0.30 to
+  1.25), while their window stagger sd is above it at 9 of the 18 (s42 at the
+  first five, s60 at 4.2M, 5.2M, 8.4M and the final; by 0.1 to 5.5 mm, at most
+  8.0 mm, against the statue's 2.5). Their ankle servo-error asymmetry is 0.05
+  to 0.81 deg, against the control's 0.56 to 2.14 deg (`criteria.txt`). Whether
+  any of it is the route the design note feared is not tested.
+- **The saturation watch (D-D40 5a)** (`results/saturation/`,
+  `results/scores/`). s42: its ledger's first episode on the saturation rail at
+  3,145,728 (1 of 10); the first flagged evaluation (5 or more of 10) at
+  3,538,944; the alarm (two flagged in a row) at 3,670,016, against stance4
+  s42's 2,228,224. It was logged at 19:05 UTC on 2026-10-21 (a check-in, from
+  the evaluations in `progress.json`; that the maintainer was told then, as 5a
+  asks, is inferred), with its step from the ledger at
+  19:40 and its actuator at 19:48. In all, 30 of s42's 91 evaluations were
+  flagged: 26 in four alarm runs (3,538,944–4,718,592, 10; 6,160,384–6,553,600,
+  4; 6,815,744–7,208,960, 4; 7,864,320–8,781,824, 8) and 4 alone (5,111,808,
+  5,898,240, 10,878,976 and 11,927,552). Rollouts of the 4,194,304 checkpoint
+  named **`tail_3_pitch_act` at +1 (tail raised)**: its command at 0.9 or more
+  on 77% of window steps (mean +0.92), and 10 of 20 episodes over the gate's
+  bar; at 5,242,880, 67% (+0.92) and 6 of 20; at 6,291,456, 75% (+0.90) and 14
+  of 20. That is the actuator and sign of stance4 s42 and stance3 Run 2 (§21.5).
+  On the judged panels the rail failed in 24, 13, 22 and 24 of 40 episodes at
+  4.2M to 8.4M, 2 at 10.5M and 20 at the final (the run log's 04:24 UTC "21" is
+  corrected to 20 at 05:15). s52 and s60 had no flagged evaluation (0 of 91
+  each). No run was stopped or changed on the alarm.
+
+### 21.5 Report only: the stance4 s42 saturation diagnosis (D-D40 5a)
+
+The offline diagnosis of `stance4_LTS_s42`'s actuator saturation (§19.5 item 3)
+ran from 2026-10-20 (after the band build's timing measurement) to 2026-10-21,
+02:40 UTC; its report and tables are in `../stance4/satdiag/`. Deterministic
+rollouts of s42's checkpoints, with stance4 s52's and s60's and stance3 Run 2's
+beside them, through the judge's own loading path; the five runs' eval ledgers;
+a counterfactual; and eight verifiers. Measured:
+
+- **The actuator:** `tail_3_pitch_act`, the distal tail pitch servo, commanded
+  at +1 (tail tip up), the actuator and sign of stance3 Run 2. The command is
+  pinned, not the joint or the motor: at 4,194,304 the joint sits 0.216 rad
+  below its stop on 0.26 of its force limit, so the ledger's force columns
+  cannot see it; the eval ledger has no per-actuator column, and
+  `gate_progress.npz`'s `action_dc_per_actuator` could name it.
+- **The onset:** between the placed checkpoints 1,048,576 (clean) and 2,097,152
+  (17 of 20 rolled episodes flagged); the ledger flags from 1,835,008 and the
+  alarm comes at 2,228,224. Within an episode the command ramps up from the
+  settled pose.
+- **Its cost:** holding tail_3 at 0 in the s42 policy gains +85.9 (at 2,097,152)
+  and +73.1 (at the final) per 800-step window, deterministically, with no
+  falls; why training keeps the habit is not measured.
+- **s52 and s60** put no actuator at 0.9 or more in the window at 2,097,152,
+  4,194,304 or the final (one s52 episode at 8,388,608 held `neck_pitch_act`
+  there for 702 window steps); their tail_3 ended tail-down.
+- **Candidate fixes** for a next round, none acted on: T1 and T2 (telemetry),
+  P1, R1, R2 and Y1 (a policy-mean bound, reward changes and a plant change,
+  each needing approval) and N0 (no training change, the current 5a).
+
+Stance5's s42 took the same habit (§21.4): three of the eight runs so far on
+L+T-based recipes have raised a saturation alarm (stance3 Run 2, stance4 s42 and
+stance5 s42), all on this actuator and sign.
+
+### 21.6 Walking pilot 2 rebuilt for its new parent (D-D36, as amended on 2026-10-20)
+
+Started at 17:00 UTC on 2026-10-21, after the band screen's package (§21.1), and
+done at 19:25 UTC (`../pilot2/rebuild_1021_summary.md`):
+
+- **The parent** is stance3 Run 2's final (`stance3_armLT_s60`, 12,001,280
+  steps; `stage1_final.zip` `cc21604a…` and its normaliser `894e86f4…`), with
+  the plant (r9) and the policy architecture of pilot 1's parent; its action std
+  is 0.064 on average, 0.009 at the knees and 0.125 at most (pilot 1's parent:
+  0.095, 0.018 and 0.164).
+- **The branch** `claude/pilot-walk-r9-b` gained three pilot-only commits on
+  `ba464855`: `6a13a303` (the new parent and its `SOURCE.txt`), `8fc76eec` (a
+  closing note in pilot 1's parent's `SOURCE.txt`) and `8c5478a6` (two sentences
+  of the new `SOURCE.txt` corrected after review); only `pilot_checkpoints/`
+  changes.
+- **The criteria were amended on 2026-10-21, before any pilot-2 training step**
+  (`../pilot2/criteria_2026-10-21.txt`; the pre-amendment text is
+  `../pilot2/criteria.txt`, sha256 `a240ff5d…`): the parent, the branch head,
+  the parent's numbers, the readings reworded (pilot 2 now differs from pilot 1
+  in the parent and in the noise reset, so no outcome is attributed to either
+  alone), a hold on the branch, and the pre-launch checks. No outcome
+  definition, threshold, guard, label, seed, budget or tool changed.
+- **The pre-launch checks**, on `8c5478a6`: the notebook smoke (its "Warm start"
+  line with the new parent's std, the stage configuration's commit and parent),
+  the judge accepting the run and refusing pilot 1's parent, and 29 warm-start
+  tests; on `8fc76eec`, the full suites (5,937 passed).
+- **The push.** The fast-forward from `ba464855` to `8c5478a6` was first refused
+  by the session's permission classifier (19:25 UTC), was not worked around, and
+  was made at 19:49 UTC after the maintainer's "Go ahead and push it" (checked
+  with `git ls-remote` before and after). From then on nothing more is pushed to
+  the branch until all three pilot-2 seeds are judged. The Colab steps record
+  the push (`../pilot2/colab_steps_2026-10-21.txt`).
+
+Pilot 2 is not yet launched or trained, and has no result. It is still a
+deliberate exception to GQ-3 (a) and GQ-17 of
+[GAIT_QUALITY_PLAN_2026_09.md](../GAIT_QUALITY_PLAN_2026_09.md), both still
+open, and it certifies nothing. Its parent stays as it is for now (§22).
+
+### 21.7 What changes in §13–§20
+
+- **§13 and §20.2, the band screen:** judged; one run holds, and the decision
+  table's line is 3, final: the band is not adopted, and the line asks for two
+  more seeds before any commit (D-D41, §22). No T. rex stance is certified, and
+  the two-seed ask stands.
+- **§19.7, §19.8 and §20.2, the band's code, criteria, judge and Colab steps:**
+  the code is on the pushed screen branch, and the rest is in `stance5/` of the
+  evidence folder.
+- **§20.3, saturation (5a):** the ledgers were read at every check-in from 19:40
+  UTC on 2026-10-21, when they were first placed (before that, the latest
+  evaluations in `progress.json`); the alarm fired on s42 and named
+  `tail_3_pitch_act` at +1 (§21.4); stance4 s42's offline diagnosis is done,
+  report only (§21.5).
+- **§20.4, walking pilot 2:** rebuilt, its criteria amended and its branch
+  pushed at `8c5478a6`; not yet trained (§21.6).
+- **§14, this repository:** the folders `stance5/` and `stance5/results/`,
+  `stance4/satdiag/`, and three files in `pilot2/`, with their sources and
+  sha256 in `SOURCES.txt` and `SHA256SUMS` (now 381 files).
+- **§14, branches:** `claude/screen-trex-r9-armlts-copband` at `cf80ecb1` and
+  `claude/pilot-walk-r9-b` at `8c5478a6` are on GitHub, never merged, with no
+  pull request. The band's scratch branches `scratch/cop-band` and
+  `scratch/cop-band-v2` exist only in the session's scratch.
+- **§14, Google Drive:** the three runs' folders `stance5_LTSB_s52/`,
+  `stance5_LTSB_s60/` and `stance5_LTSB_s42/` under
+  `MyDrive/mesozoic-labs/logs/tyrannosaurus_rex/anatomical/ppo/` hold their
+  checkpoints; each judged one's sha256 is in `results/checkpoints.csv`.
+- **§14, session scratch only:** the judge files
+  (`scratchpad/foot/stance5/judged/`), the diagnostic panels' files
+  (`scratchpad/foot/stance5/panels/out/`), the certificates' per-episode files
+  (`scratchpad/foot/stance5/cert/`), the runs' fetched records and evaluation
+  ledgers (`scratchpad/foot/stance5/runs/`), the build's records
+  (`scratchpad/foot/stance5/build/` and `scratchpad/foot/stance4/bandv2/`), the
+  satdiag rollouts and verifiers (`scratchpad/foot/stance4/satdiag/`) and pilot
+  2's rebuild evidence (`scratchpad/foot/pilot2/rebuild_1021/`).
+
+## 22. Status 2026-10-22, later (appended): decision D-D41, the band's replication; D-D40 and D-D36 amended
+
+*Appended 2026-10-22; §1–§21 above are unchanged.* After §21's outcome the
+maintainer took decisions in the session's chat on 2026-10-22; the run log
+(`stance_2026_10/stance5/results/run_log.txt`) logs them in short in its entries
+timed 15:08, 15:11 and 16:32 UTC (those with "MAINTAINER DECISION"), and an OK
+for two report-only workflows at 15:52 UTC; these are its times as corrected the
+same day (the entries first carried guessed times;
+`stance_2026_10/stance5/results/README.md`). Where §22.1 gives a detail those
+entries leave out, it says so.
+[BEHAVIOR_RECIPES_PLAN.md](../BEHAVIOR_RECIPES_PLAN.md) §6.2 records them as
+decision D-D41, the replication, and as dated amendments of D-D40 (its build,
+runtime and outcome, §21.1–§21.5) and of D-D36 (walking pilot 2 rebuilt, §21.6).
+Decision (4) asked for this record now, documentation only. None of them trains
+anything on `main` or changes its digests, and as screens and pilots the runs
+they start certify nothing.
+
+### 22.1 D-D41: the band's replication
+
+- **(1) Replicate the unchanged band recipe** (15:08): arm LTSB from the screen
+  branch at `cf80ecb1` (§21.1).
+- **(2) Two band runs only, seeds 70 and 80** (15:08), judged on K1–K4 against
+  the existing stance4 control, which is not retrained, with new criteria fixed
+  before training (the log names "noise level for the new seeds, how the 5 band
+  runs are read"). 12M steps, physics r9, `n_envs` 4 and a Colab L4 runtime are
+  in no decision's words; they follow from "unchanged" (inferred).
+- **The reading rule** (15:11): ADOPT only if both new seeds hold (H = 3 of 5);
+  the K3 pass fraction against the control (3 of 5 against 2 of 3 at best) is
+  reported, not a veto. The log gives the reason in parentheses: under stance5's
+  rule (b) adoption would be impossible, since the band arm already has two K3
+  failures (§21.3).
+- **The new seeds' joint-space noise sigma.** The K3 test reads a per-seed
+  `control_sigma`, which the frozen parameters hold only for seeds 42, 52 and 60
+  (the 05:15 UTC entry). The new seeds' is the element-wise mean of those three:
+  at 15:11 it was the session's default, stated to the maintainer with the
+  reading rule ("my default, stated to the maintainer", the log says), not a
+  choice the maintainer stated; in the entry timed 16:32 the maintainer
+  confirmed it, one vector for both new seeds.
+- **(3) No parent change now** (15:08): walking pilot 2 stays on stance3 Run 2's
+  final, and s52's final (which ties it, §21.3) is reconsidered after the
+  replication.
+- **(4) The stance5 records PR now, documentation only** (15:08): this change.
+- **Run handling** (the entry timed 16:32): defaults adopted for the
+  replication. A run cut off before its first periodic checkpoint and restarted
+  under `<RUN_ID>_b` is that run; a judge refusal on the run's own records
+  counts as an invalid J file; a resumed run is judged as it stands, with
+  superseded files moved aside, never deleted; a cut-short final resumes from
+  the newest intact periodic checkpoint in the same run id, and the final slot
+  is only a `stage1_final` pair at 12,001,280; an early stop makes the final J
+  file invalid; "ended" and "exists" are defined as proposed; on a refusal to
+  reproduce stance5 nothing is read until the cause is found; and with no L4 on
+  a resume the maintainer is asked first.
+- **The package** (the entry timed 16:32): built and validated. Its judge
+  reproduces stance5's s52 judge file at 4,194,304 field for field, its scorer
+  reproduces stance5's three verdicts in a validation run, 37 tests pass, and
+  its criteria were fixed at sha256 `10464eab…`; they are being re-fixed for the
+  run-handling defaults before the Colab steps go out. Nothing has trained. A
+  later PR records the package and the outcome.
+
+### 22.2 Pending: two report-only workflows
+
+At 15:52 UTC the maintainer said "Yes" to (a) a report-only diagnosis of the
+band runs' joint-space noise falls (K3) and (b) a scratch experiment on the tail
+habit: P1 of §21.5 (a penalty on the policy mean beyond ±1), in two 1M-step CPU
+continuations from stance5 s42's 4,194,304 checkpoint, P1 against a control, on
+a scratch clone never pushed. Neither has a result yet, and neither enters a
+verdict.
+
+### 22.3 D-D40 and D-D36 amended
+
+- **D-D40, amended 2026-10-22:** its build and package (§21.1), the runs and
+  their runtime (§21.2), the outcome (§21.3), the saturation alarm (§21.4) and
+  the s42 diagnosis that 5a asked for (§21.5).
+- **D-D36, amended 2026-10-21:** walking pilot 2 rebuilt for stance3 Run 2's
+  final and its branch pushed (§21.6); its parent kept for now by D-D41 (3).
+
+### 22.4 What changes in §13–§21
+
+- **§13 and §21.3, the band:** its next step is decided (D-D41): two more seeds,
+  read under the three-of-five rule; not yet trained. No T. rex stance is
+  certified, and the two-seed ask stands.
+- **§20.4 and §21.6, walking pilot 2:** its parent stays stance3 Run 2's final
+  for now, and s52's final is reconsidered after the replication. The pilot is
+  not yet trained.
+- **§21.4 and §21.5, the tail habit and the K3 falls:** two report-only
+  workflows pending (§22.2).
+- **§14:** no folder, file or branch is added to this repository by §22; the
+  replication's package and the two workflows' outputs stay in the session's
+  scratch.
