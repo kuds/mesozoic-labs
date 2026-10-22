@@ -2704,8 +2704,9 @@ yet trained" are the wording of 2026-10-20.* The per-foot centre-of-pressure
 band of D-D40 (§20.2) was built and packaged on 2026-10-20 and 2026-10-21; its
 three screen runs trained to their final 12,001,280 steps on Colab L4 GPU
 runtimes from 2026-10-21 to 2026-10-22 and were judged by their fixed criteria
-with the stance5 judge and scorer, the verdict of record at 04:57 UTC on
-2026-10-22. This section records the build and the package (§21.1), the runs and
+with the stance5 judge and scorer, the verdict of record written at 04:57 UTC on
+2026-10-22 (the score files' time; the run log's entry is timed 04:58). This
+section records the build and the package (§21.1), the runs and
 the judging (§21.2), the verdicts, the decision-table line and the parent
 comparison, which are results (§21.3), and the report-only extras, gates,
 certificates, panels, band readouts and saturation watch (§21.4); and, from the
@@ -2767,9 +2768,10 @@ not copied) checked ten statements and fixed them there (`results/run_log.txt`,
   on GitHub at `cf80ecb1` by about 07:15 UTC on 2026-10-21 (checked with `git
   ls-remote`), never merged, with no pull request; its history holds `c1e146a8`,
   the prototype `f94452ad`, the four build commits and `cf80ecb1`. This
-  supersedes §19.7's and §20.2's "never pushed", "a scratch branch that is not
-  pushed" and "not committed anywhere public", and §19.8's "exists only in the
-  session's scratch", the wording of 2026-10-20, left unchanged above.
+  supersedes, for the commit `f94452ad` and the band's code, §19.7's and §20.2's
+  "never pushed", "a scratch branch that is not pushed" and "not committed
+  anywhere public", the wording of 2026-10-20, left unchanged above; the scratch
+  branches themselves were not pushed (§21.7).
 - **A slip.** At about 07:17 UTC two of the package's files were copied into the
   session's checkout of the repository, against the standing rule; both were
   untracked new files, they were removed within a minute, and the checkout's
@@ -2815,17 +2817,18 @@ not copied) checked ten statements and fixed them there (`results/run_log.txt`,
   9,437,184 and 11,534,336) were never fetched, so 15 queued judge jobs found
   nothing to judge, and the late-stable S3 was not judged.
 - **The score.** `results/scores/score_final.txt` and `.json`, written at 04:57
-  UTC on 2026-10-22 by `score_stance5.py --runs-ended`, the verdict of record:
+  UTC on 2026-10-22 (the files' time; the run log's entry is timed 04:58) by
+  `score_stance5.py --runs-ended`, the verdict of record:
   it loads stance3's frozen scorer unchanged
   (`../stance3/judge/score_stance3.py`, sha256 `2c3879d3…`), extends only its
   judge-identity constants for the band arm and the control, checks the
   criteria's sha256 (matched) and stance4's `score_final.json` (`7c98d8ae…`,
   matched), and re-scores the control from its judge files as a cross-check.
   Re-run on the judge files, it reproduces the record apart from the path it
-  names and s60's `robust_best` and `best` cells, which were judged after it
-  (05:01 and 05:06 UTC). `results/checkpoints.csv` has one row per judge file
-  (36), recomputed with the frozen scorer's own counts (25 cells agree with the
-  score).
+  names and s60's `best` and `robust_best` cells, which were judged after it
+  (05:01 and 05:06 UTC; the judge files' times). `results/checkpoints.csv` has
+  one row per judge file (36), recomputed with the frozen scorer's own counts
+  (25 cells agree with the score).
 
 ### 21.3 The verdicts: Run 1 holds; line 3
 
@@ -2887,7 +2890,9 @@ amended on 2026-10-20; §22).
 ### 21.4 Report only: the extras, gates, certificates, panels and readouts
 
 None of these enters a criterion (`results/checkpoints.csv`, `results/scores/`,
-`results/extras.txt`, `results/panels_summary.csv`).
+`results/extras.txt`, `results/panels_summary.csv`). The fresh, tail and
+common-noise numbers below were measured for this record from the judge files
+(`results/extras.py`); the run log gives none.
 
 - **7,340,032, judged like the J checkpoints:** s52 39 of 40 (its one failing
   episode on the saturation rail), s60 40 of 40, s42 19 of 40 (9 of 20
@@ -2946,8 +2951,9 @@ None of these enters a criterion (`results/checkpoints.csv`, `results/scores/`,
   `results/scores/`). s42: its ledger's first episode on the saturation rail at
   3,145,728 (1 of 10); the first flagged evaluation (5 or more of 10) at
   3,538,944; the alarm (two flagged in a row) at 3,670,016, against stance4
-  s42's 2,228,224. It was reported to the maintainer at 19:05 UTC on 2026-10-21
-  from the evaluations in `progress.json`, with its step from the ledger at
+  s42's 2,228,224. It was logged at 19:05 UTC on 2026-10-21 (a check-in, from
+  the evaluations in `progress.json`; that the maintainer was told then, as 5a
+  asks, is inferred), with its step from the ledger at
   19:40 and its actuator at 19:48. In all, 30 of s42's 91 evaluations were
   flagged: 26 in four alarm runs (3,538,944–4,718,592, 10; 6,160,384–6,553,600,
   4; 6,815,744–7,208,960, 4; 7,864,320–8,781,824, 8) and 4 alone (5,111,808,
@@ -2983,8 +2989,9 @@ a counterfactual; and eight verifiers. Measured:
 - **Its cost:** holding tail_3 at 0 in the s42 policy gains +85.9 (at 2,097,152)
   and +73.1 (at the final) per 800-step window, deterministically, with no
   falls; why training keeps the habit is not measured.
-- **s52 and s60** never put an actuator at 0.9 or more in the window; their
-  tail_3 ended tail-down.
+- **s52 and s60** put no actuator at 0.9 or more in the window at 2,097,152,
+  4,194,304 or the final (one s52 episode at 8,388,608 held `neck_pitch_act`
+  there for 702 window steps); their tail_3 ended tail-down.
 - **Candidate fixes** for a next round, none acted on: T1 and T2 (telemetry),
   P1, R1, R2 and Y1 (a policy-mean bound, reward changes and a plant change,
   each needing approval) and N0 (no training change, the current 5a).
@@ -3040,9 +3047,11 @@ open, and it certifies nothing. Its parent stays as it is for now (§22).
 - **§19.7, §19.8 and §20.2, the band's code, criteria, judge and Colab steps:**
   the code is on the pushed screen branch, and the rest is in `stance5/` of the
   evidence folder.
-- **§20.3, saturation (5a):** the ledgers were read at every check-in; the alarm
-  fired on s42 and named `tail_3_pitch_act` at +1 (§21.4); stance4 s42's offline
-  diagnosis is done, report only (§21.5).
+- **§20.3, saturation (5a):** the ledgers were read at every check-in from 19:40
+  UTC on 2026-10-21, when they were first placed (before that, the latest
+  evaluations in `progress.json`); the alarm fired on s42 and named
+  `tail_3_pitch_act` at +1 (§21.4); stance4 s42's offline diagnosis is done,
+  report only (§21.5).
 - **§20.4, walking pilot 2:** rebuilt, its criteria amended and its branch
   pushed at `8c5478a6`; not yet trained (§21.6).
 - **§14, this repository:** the folders `stance5/` and `stance5/results/`,

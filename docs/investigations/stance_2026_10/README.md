@@ -750,8 +750,8 @@ judged, not retrained.
 
 *Added 2026-10-22:* the band's criteria, judge and Colab steps are now here, and
 its code is on the screen branch above, pushed at `cf80ecb1`, whose history
-holds the prototype `f94452ad`. This supersedes "being built separately and not
-committed anywhere public" and "never pushed" in the entries of 2026-10-20
+holds the prototype `f94452ad`. This supersedes "being built separately and are
+not committed anywhere public" and "never pushed" in the entries of 2026-10-20
 (`stance4/night2/` and `stance4/copband/design.md`), which are left as written.
 
 **`stance5/results/`: the stance5 screen judged (2026-10-22, final), with
@@ -772,17 +772,18 @@ before any commit". Under the parent rule s52's final ties stance3 Run 2's final
   (`score_final.txt` and `.json`, the verdict of record), `checkpoints.csv` (one
   row per judge file, 36, with the `checkpoints_csv.py` that recomputes it with
   the frozen scorer's own counts), `extras.txt` and `extras.py` (the fresh, tail
-  and common-noise panels on each final, report only), `notebook_gates/` (the
-  notebook's own six-heading gate on each run's `robust_best`, trimmed: all
-  three PASS; report only) and `certificates/` (the stage's six-heading
-  certificate rolled offline on the s52 and s60 finals, trimmed: both PASS;
-  report only, not gate evidence).
+  and common-noise panels on each final, report only, measured for this record),
+  `notebook_gates/` (the notebook's own six-heading gate on each run's
+  `robust_best`, trimmed: all three PASS; report only) and `certificates/` (the
+  stage's six-heading certificate rolled offline on the s52 and s60 finals,
+  trimmed: both PASS; report only, not gate evidence).
 - `panels_summary.csv` and `panels_summary.py`: the diagnostic panels
   (mirrored-leg spawns, the prey straight ahead, both) at every J checkpoint of
   the three runs, with the band readouts and the ankle asymmetry, report only.
 - `saturation/`: the saturation watch's files for s42, report only: the ledger's
-  alarm at 3,670,016, and the actuator named by rollouts of the 4,194,304,
-  5,242,880 and 6,291,456 checkpoints, `tail_3_pitch_act` at +1 (tail raised).
+  alarm at 3,670,016, and the actuator named by rollouts of the 4,194,304
+  checkpoint, `tail_3_pitch_act` at +1 (tail raised), unchanged at 5,242,880 and
+  6,291,456.
 
 ### Added on 2026-10-22, later (decision D-D40's 5a)
 
@@ -839,8 +840,9 @@ pushed to the branch until all three seeds are judged.
   here (sha256 `a240ff5d…`), as its pre-amendment copy.
 - `colab_steps_2026-10-21.txt`: the launch steps for the rebuilt pilot, with the
   push recorded.
-- `rebuild_1021_summary.md`: the rebuild's summary, written at 19:16 UTC, before
-  the push (so it lists the push as open): the commits, the parent's action std
+- `rebuild_1021_summary.md`: the rebuild's summary, written at 19:16 UTC (its
+  file time), before the push (so it lists the push as open): the commits, the
+  parent's action std
   (mean 0.064, knees 0.009, max 0.125; pilot 1's parent 0.095, 0.018 and 0.164),
   the criteria amendment, and the pre-launch checks (the notebook smoke; the
   judge accepting the run and refusing pilot 1's parent; 29 warm-start tests;
@@ -898,7 +900,7 @@ copies.
 | `stance4/results/extras.txt` (2026-10-20; session scratch only) | from a directory holding the session's scratch as `scratchpad/`: `python3 -I -B <this directory>/stance4/results/extras.py` | identical to `stance4/results/extras.txt` |
 | The notebook gates' checkpoints (2026-10-20, `stance4/results/notebook_gates/`) | compare each `gate_verdict.json`'s `checkpoint_sha256` with the `robust_best` row of `stance4/results/checkpoints.csv` | equal for all three |
 | The files themselves (2026-10-20, with `stance4/results/`, `night/`, `night2/` and `copband/`) | `sha256sum -c SHA256SUMS` | all 344 files OK |
-| The stance5 verdicts, decision line and parent comparison (2026-10-22; session scratch only) | from a directory holding the session's scratch as `scratchpad/`: `python3 -I -B scratchpad/foot/stance5/judge/score_stance5.py --runs-ended --json score.json` | identical to `stance5/results/scores/score_final.txt` and `.json` apart from the JSON's path and s60's two selection cells, judged after the record |
+| The stance5 verdicts, decision line and parent comparison (2026-10-22; session scratch only) | from a directory holding the session's scratch as `scratchpad/`: `python3 -I -B scratchpad/foot/stance5/judge/score_stance5.py --runs-ended --json score.json` | identical to the scratch's `scores/score_final.txt` and `.json` (the copies in `stance5/results/scores/` differ from those only by the prefix change) apart from the JSON's path and s60's two selection cells, judged after the record; the committed copy of the scorer differs as `stance5/results/README.md` says |
 | The stance5 scorer at every bar (2026-10-22; session scratch only) | in `scratchpad/foot/stance5/judge/`: `python3 -m pytest -p no:cacheprovider test_score_stance5.py` | 101 passed |
 | `stance5/results/checkpoints.csv` (2026-10-22; session scratch only) | `python3 -I -B stance5/results/checkpoints_csv.py <judged dir> out.csv --check <score_final.json>` | 25 cells agree with the scorer; `out.csv` identical |
 | `stance5/results/panels_summary.csv` (2026-10-22; session scratch only) | `python3 -I -B stance5/results/panels_summary.py <panels dir> out.csv --judged <stance5 judged dir>` | `out.csv` identical; the model sha256 and the standard K2a and K2b equal the judge files' |

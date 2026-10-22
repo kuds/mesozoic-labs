@@ -133,7 +133,8 @@ per foot-step (the standard panels in `panels_summary.csv`: up to 1,012 of
 16:23 UTC); their times are kept as written.
 
 **`scores/`: the scorer's printout and JSON, the verdict of record**
-(`score_stance5.py --runs-ended`, written at 04:57 UTC on 2026-10-22; the JSON
+(`score_stance5.py --runs-ended`, written at 04:57 UTC on 2026-10-22, the files'
+time, the run log's entry being timed 04:58; the JSON
 is 414,719 bytes as written): K1–K4 per run with every cell, H, K2p, the credit
 rule in both forms, the drift-or-split classes, the decision line (`status`
 decided, final), the parent comparison, the control's cross-check against
@@ -141,8 +142,9 @@ stance4's `score_final.json` (sha256 pinned), and, report only, the
 7,340,032-step checkpoint, the S0–S3 selection comparison, K5 (no flag on any
 run), the late-fall fraction (above 5% only in the first 262,144-step bin,
 46.3–50.2%, and s42's 11,796,480 bin, 6.6%), the band readouts and the
-saturation alarm. s60's `robust_best` and `best` (the same checkpoint, at
-6,815,744) were judged after it was written (05:01 and 05:06 UTC), so it lists
+saturation alarm. s60's `best` and `robust_best` (the same checkpoint, at
+6,815,744) were judged after it was written (`best` at 05:01, `robust_best` at
+05:06 UTC; the judge files' times), so it lists
 them as not judged; both are 40/40 clean in `checkpoints.csv`, with 2 of 20
 joint-space noise falls. The other report-only 1,048,576-step checkpoints (1.0M,
 2.1M, 3.1M, 9.4M, 11.5M) were never fetched, so 15 judge jobs found nothing to
@@ -162,8 +164,10 @@ unchanged) on the per-episode rows, and with `--check` stops on any difference
 from the scorer's JSON (25 cells agree: every J, 7,340,032 and selection cell
 but s60's `robust_best` and `best`, which the JSON does not have).
 
-**`extras.txt` and `extras.py`: the report-only extras on each final.** The
-fresh panel: s52 FAIL 38/40 (1 fall, 2 hop-or-fall episodes against a bar of 1),
+**`extras.txt` and `extras.py`: the report-only extras on each final**, measured
+for this record on 2026-10-22 from the judge files (the run log gives no numbers
+for them). The fresh panel: s52 FAIL 38/40 (1 fall, 2 hop-or-fall episodes
+against a bar of 1),
 s60 PASS 38/40 (0 falls), s42 FAIL 16/40 (2 falls); the forward-start tail
 panel: 3, 0 and 4 falls of 32 (the statue 0); the common-noise panel: 6, 5 and
 31 falls of 40. The criteria's references: the stance4 finals 39/40, 38/40 and
@@ -237,7 +241,8 @@ only where the session's scratch is.
 
 | Check | Command | Result |
 |---|---|---|
-| The verdicts, H, K2p, the credit rule, the decision line and the parent comparison from the judge files (session scratch only) | from the directory holding the session's scratch as `scratchpad/`: `python3 -I -B scratchpad/foot/stance5/judge/score_stance5.py --runs-ended --json score.json` (its default paths are the scratch's) | identical to `scores/score_final.txt` and `.json` apart from the path of the JSON it names and s60's two selection cells, judged after the record |
+| The verdicts, H, K2p, the credit rule, the decision line and the parent comparison from the judge files (session scratch only) | from the directory holding the session's scratch as `scratchpad/`: `python3 -I -B scratchpad/foot/stance5/judge/score_stance5.py --runs-ended --json score.json` (its default paths are the scratch's) | identical to the scratch's `scores/score_final.txt` and `.json` (the copies here differ from those only by the prefix change) apart from the path of the JSON it names and s60's two selection cells, judged after the record |
+| The committed copy of the scorer (session scratch only) | from the directory holding the session's scratch as `scratchpad/`: `python3 -I -B <this folder>/../judge/score_stance5.py --runs-ended --json score.json` | as the row above, and also: it prints absolute paths, and the parent comparison's reference line reads "(as stance4 recorded it: no)" with a note, because the recomputed cell's `path` is `scratchpad/…` where stance4's record holds the absolute scratch path; no verdict, H, K2p, credit-rule result or decision line differs |
 | The scorer at every bar (session scratch only) | in `scratchpad/foot/stance5/judge/`: `python3 -m pytest -p no:cacheprovider test_score_stance5.py` | 101 passed |
 | `checkpoints.csv` from the judge files (session scratch only) | `python3 -I -B checkpoints_csv.py <judged dir> out.csv --check <score_final.json>` | `25 cells agree with score_final.json`; `out.csv` identical to `checkpoints.csv` |
 | `panels_summary.csv` from the panel files (session scratch only) | `python3 -I -B panels_summary.py <panels dir> out.csv --judged <judged dir>` | model sha256 equal to the judge file's in every file, standard K2a and K2b equal in 18; `out.csv` identical |

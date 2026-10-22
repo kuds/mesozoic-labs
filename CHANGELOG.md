@@ -8,8 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
-- **Decision D-D41 recorded: the per-foot centre-of-pressure band screen
-  replicated on two more seeds, read three of five; D-D40 and D-D36 amended**
+- **Decision D-D41 recorded: a replication of the per-foot centre-of-pressure
+  band screen on two more seeds, read three of five; D-D40 and D-D36 amended**
   (the maintainer's decisions of 2026-10-22; `docs/BEHAVIOR_RECIPES_PLAN.md`
   §6.2, `docs/CONSOLIDATION_PLAN_2026_09.md` §6, a dated note in §17 of
   `docs/GAIT_QUALITY_PLAN_2026_09.md`, `docs/NEXT_STEPS.md` §3; the appended §22
@@ -21,9 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   control, not retrained, by new criteria fixed before training (12M steps,
   physics r9, `n_envs` 4 and a Colab L4 runtime follow from "unchanged";
   inferred). The band is adopted only if both new seeds hold (3 of the 5 band
-  runs); the K3 pass fraction against the control is reported, not a veto (under
-  D-D40's rule (b) adoption would be impossible, the band arm already having two
-  K3 failures). The new seeds' joint-space noise sigma is the element-wise mean
+  runs); the K3 pass fraction against the control is reported, not a veto (the
+  log's reason: under stance5's rule (b), the credit rule of D-D40's screen
+  criteria, adoption would be impossible, the band arm already having two K3
+  failures). The new seeds' joint-space noise sigma is the element-wise mean
   of the three control seeds' `control_sigma`: the session's default, stated to
   the maintainer with the reading rule, then confirmed by the maintainer.
   Walking pilot 2 keeps D-D37 Run 2's final as its parent for now, and D-D40's
@@ -32,8 +33,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   same day. Its package is built and is being re-fixed before training; nothing
   has trained. Two report-only workflows the maintainer agreed to the same day
   (a diagnosis of the band runs' joint-space noise falls, and a scratch
-  experiment on the tail habit) have no result yet. The same day two rows were
-  amended. D-D40's records its build (band off byte-identical to the D-D39
+  experiment on the tail habit) have no result yet. Two rows gained dated
+  amendments. D-D40's records its build (band off byte-identical to the D-D39
   commit; a band-on overhead of +0.245 to +0.378 ms per env step, so the build's
   own 0.15 ms goal was not met), its package and the screen branch's push at
   `cf80ecb1`, which supersedes "not committed anywhere public", its Colab L4
@@ -62,8 +63,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   runtimes from the screen branch `claude/screen-trex-r9-armlts-copband`
   (`cf80ecb1`, pushed, never merged) and were judged on 2026-10-22 by the
   criteria fixed before training (sha256 `3b28963f…`), final. s52 holds: 40 of
-  40 clean at every judged checkpoint, K2a and K2b 0 throughout, no noise falls.
-  s60 fails K3 only: 3 of 20 joint-space noise falls at the final (2 allowed).
+  40 clean at every judged checkpoint, K2a and K2b 0 throughout, no noise falls
+  at 6,291,456 or the final (1 of 20 joint-space at 8,388,608 and at 10,485,760,
+  which K3 does not read). s60 fails K3 only: 3 of 20 joint-space noise falls at
+  the final (2 allowed).
   s42 fails K1 and K3: 15 to 38 of 40 clean, the actuator-saturation rail
   failing in most of its failing episodes (the alarm at 3,670,016;
   `tail_3_pitch_act` pinned at +1, as in D-D39's seed-42 run and D-D37 Run 2),
