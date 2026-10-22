@@ -67,6 +67,12 @@ diagnosis of stance4 s42's actuator saturation that decision D-D40 5a asked for
 (the note's §21.5): the report and the five tables it cites. It changes no
 verdict.
 
+*Added 2026-10-22, later:* `pilot2/` gains walking pilot 2's criteria and Colab
+steps as amended on 2026-10-21, beside the copies of 2026-10-18, which are left
+as they were, and the summary of the rebuild for its new parent (decision D-D36
+as amended on 2026-10-20; the note's §21.6). Pilot 2 is not yet trained, and
+nothing here is a result.
+
 ## What changed in the copies
 
 [SOURCES.txt](SOURCES.txt) lists every file with the scratch file it came from,
@@ -189,6 +195,15 @@ trailer.
 **whitespace** change (a blank last line removed); the other four are
 byte-identical. Nothing else differs, and no copy holds a model identifier, an
 email address or a commit trailer.
+
+*Added 2026-10-22, later (`pilot2/`):* `pilot2/criteria_2026-10-21.txt` and
+`pilot2/rebuild_1021_summary.md` carry the **redact** change, one workflow run
+id each, now `[id removed]`, so the criteria copy's sha256 is not its source's
+`bdcdae4b…` (SOURCES.txt gives it); `pilot2/colab_steps_2026-10-21.txt` is
+byte-identical to its source (`60845fdc…`). `pilot2/criteria.txt` and
+`pilot2/colab_steps.txt` stay the texts of 2026-10-18 (`a240ff5d…` and
+`bc94bda3…`); the amended criteria cite the first as their pre-amendment copy.
+No copy holds a model identifier, an email address or a commit trailer.
 
 [SHA256SUMS](SHA256SUMS) pins every file here but this README and itself
 (`sha256sum -c SHA256SUMS` in this directory). *Added 2026-10-19:* nor
@@ -801,6 +816,36 @@ on. None of it enters a verdict.
   episodes, returns, the centre of mass and the joints, and the training-episode
   columns).
 
+### Added on 2026-10-22, later (decision D-D36's rebuilt pilot 2)
+
+**`pilot2/` (three files added): walking pilot 2 rebuilt for its new parent
+(2026-10-21; not yet trained, no result).** Decision D-D36 as amended on
+2026-10-20 (7a, option i): pilot 2 warm-starts from stance3 Run 2's final
+(`stance3_armLT_s60` at 12,001,280 steps; `stage1_final.zip` `cc21604a…`, its
+normaliser `894e86f4…`) instead of r9 arm L seed 60 at 6M, which stays pilot 1's
+parent. The new parent is committed on `claude/pilot-walk-r9-b` in three
+pilot-only commits on `ba464855` (`6a13a303`, `8fc76eec` and `8c5478a6`; only
+`pilot_checkpoints/` changes), pushed on 2026-10-21 at 19:49 UTC with the
+maintainer's OK, a fast-forward from `ba464855` to `8c5478a6`; nothing more is
+pushed to the branch until all three seeds are judged.
+
+- `criteria_2026-10-21.txt`: the criteria as amended on 2026-10-21, before any
+  pilot-2 training step (pilot 2 was never launched): the parent, the branch
+  head, the parent's numbers, the readings reworded (pilot 2 now differs from
+  pilot 1 in the parent and the noise reset, so no outcome is attributed to
+  either alone), the hold on the branch, and the pre-launch checks re-run on
+  `8fc76eec` and on `8c5478a6`. No outcome definition, threshold, guard, label,
+  seed, budget or tool changes. It cites the 2026-10-18 text, `criteria.txt`
+  here (sha256 `a240ff5d…`), as its pre-amendment copy.
+- `colab_steps_2026-10-21.txt`: the launch steps for the rebuilt pilot, with the
+  push recorded.
+- `rebuild_1021_summary.md`: the rebuild's summary, written at 19:16 UTC, before
+  the push (so it lists the push as open): the commits, the parent's action std
+  (mean 0.064, knees 0.009, max 0.125; pilot 1's parent 0.095, 0.018 and 0.164),
+  the criteria amendment, and the pre-launch checks (the notebook smoke; the
+  judge accepting the run and refusing pilot 1's parent; 29 warm-start tests;
+  the full suites on `8fc76eec`, 5,937 passed).
+
 ## How to re-check each verdict
 
 Commands as run on 2026-10-17 from a copy of this directory (Python 3.13;
@@ -862,6 +907,8 @@ copies.
 | The stance5 criteria (2026-10-22) | `sha256sum stance5/criteria.txt` | `3b28963f644ffb765e666a8cf6ada5d31ab8a2769dd1a77ff53cbc1e0cf3cf16` |
 | The files themselves (2026-10-22, with `stance5/`) | `sha256sum -c SHA256SUMS` | all 372 files OK |
 | The files themselves (2026-10-22, later, with `stance4/satdiag/`) | `sha256sum -c SHA256SUMS` | all 378 files OK |
+| The amended pilot-2 criteria against their source (2026-10-22; session scratch only) | `diff scratchpad/foot/pilot2/criteria.txt pilot2/criteria_2026-10-21.txt` | line 149 only (the redaction) |
+| The files themselves (2026-10-22, later, with the `pilot2/` files) | `sha256sum -c SHA256SUMS` | all 381 files OK |
 
 `test_pilot_score.py` prints sample "Walking pilot score" blocks while it runs;
 they score synthetic panels, not the pilot.
