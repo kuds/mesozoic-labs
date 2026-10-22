@@ -2724,7 +2724,7 @@ start with `../`, and every number below is read from `results/run_log.txt`, the
 score files in `results/scores/` or the files named. A fact-check of the
 session's human-facing report on these runs (a document outside the repository,
 not copied) checked ten statements and fixed them there (`results/run_log.txt`,
-05:40 UTC); this section uses the corrected forms.
+05:15 UTC); this section uses the corrected forms.
 
 ### 21.1 The band build and the package
 
@@ -2964,7 +2964,7 @@ common-noise numbers below were measured for this record from the judge files
   of 20. That is the actuator and sign of stance4 s42 and stance3 Run 2 (§21.5).
   On the judged panels the rail failed in 24, 13, 22 and 24 of 40 episodes at
   4.2M to 8.4M, 2 at 10.5M and 20 at the final (the run log's 04:24 UTC "21" is
-  corrected to 20 at 05:40). s52 and s60 had no flagged evaluation (0 of 91
+  corrected to 20 at 05:15). s52 and s60 had no flagged evaluation (0 of 91
   each). No run was stopped or changed on the alarm.
 
 ### 21.5 Report only: the stance4 s42 saturation diagnosis (D-D40 5a)
@@ -3079,8 +3079,10 @@ open, and it certifies nothing. Its parent stays as it is for now (§22).
 *Appended 2026-10-22; §1–§21 above are unchanged.* After §21's outcome the
 maintainer took decisions in the session's chat on 2026-10-22; the run log
 (`stance_2026_10/stance5/results/run_log.txt`) logs them in short in its entries
-timed 06:35, 06:45 and 08:50 UTC (those with "MAINTAINER DECISION"), and an OK
-for two report-only workflows at 07:05 UTC. Where §22.1 gives a detail those
+timed 15:08, 15:11 and 16:32 UTC (those with "MAINTAINER DECISION"), and an OK
+for two report-only workflows at 15:52 UTC; these are its times as corrected the
+same day (the entries first carried guessed times;
+`stance_2026_10/stance5/results/README.md`). Where §22.1 gives a detail those
 entries leave out, it says so.
 [BEHAVIOR_RECIPES_PLAN.md](../BEHAVIOR_RECIPES_PLAN.md) §6.2 records them as
 decision D-D41, the replication, and as dated amendments of D-D40 (its build,
@@ -3091,30 +3093,30 @@ they start certify nothing.
 
 ### 22.1 D-D41: the band's replication
 
-- **(1) Replicate the unchanged band recipe** (06:35): arm LTSB from the screen
+- **(1) Replicate the unchanged band recipe** (15:08): arm LTSB from the screen
   branch at `cf80ecb1` (§21.1).
-- **(2) Two band runs only, seeds 70 and 80** (06:35), judged on K1–K4 against
+- **(2) Two band runs only, seeds 70 and 80** (15:08), judged on K1–K4 against
   the existing stance4 control, which is not retrained, with new criteria fixed
   before training (the log names "noise level for the new seeds, how the 5 band
   runs are read"). 12M steps, physics r9, `n_envs` 4 and a Colab L4 runtime are
   in no decision's words; they follow from "unchanged" (inferred).
-- **The reading rule** (06:45): ADOPT only if both new seeds hold (H = 3 of 5);
+- **The reading rule** (15:11): ADOPT only if both new seeds hold (H = 3 of 5);
   the K3 pass fraction against the control (3 of 5 against 2 of 3 at best) is
   reported, not a veto. The log gives the reason in parentheses: under stance5's
   rule (b) adoption would be impossible, since the band arm already has two K3
   failures (§21.3).
 - **The new seeds' joint-space noise sigma.** The K3 test reads a per-seed
   `control_sigma`, which the frozen parameters hold only for seeds 42, 52 and 60
-  (the 05:40 UTC entry). The new seeds' is the element-wise mean of those three:
-  at 06:45 it was the session's default, stated to the maintainer with the
+  (the 05:15 UTC entry). The new seeds' is the element-wise mean of those three:
+  at 15:11 it was the session's default, stated to the maintainer with the
   reading rule ("my default, stated to the maintainer", the log says), not a
-  choice the maintainer stated; in the entry timed 08:50 the maintainer
+  choice the maintainer stated; in the entry timed 16:32 the maintainer
   confirmed it, one vector for both new seeds.
-- **(3) No parent change now** (06:35): walking pilot 2 stays on stance3 Run 2's
+- **(3) No parent change now** (15:08): walking pilot 2 stays on stance3 Run 2's
   final, and s52's final (which ties it, §21.3) is reconsidered after the
   replication.
-- **(4) The stance5 records PR now, documentation only** (06:35): this change.
-- **Run handling** (the entry timed 08:50): defaults adopted for the
+- **(4) The stance5 records PR now, documentation only** (15:08): this change.
+- **Run handling** (the entry timed 16:32): defaults adopted for the
   replication. A run cut off before its first periodic checkpoint and restarted
   under `<RUN_ID>_b` is that run; a judge refusal on the run's own records
   counts as an invalid J file; a resumed run is judged as it stands, with
@@ -3124,7 +3126,7 @@ they start certify nothing.
   file invalid; "ended" and "exists" are defined as proposed; on a refusal to
   reproduce stance5 nothing is read until the cause is found; and with no L4 on
   a resume the maintainer is asked first.
-- **The package** (the entry timed 08:50): built and validated. Its judge
+- **The package** (the entry timed 16:32): built and validated. Its judge
   reproduces stance5's s52 judge file at 4,194,304 field for field, its scorer
   reproduces stance5's three verdicts in a validation run, 37 tests pass, and
   its criteria were fixed at sha256 `10464eab…`; they are being re-fixed for the
@@ -3133,7 +3135,7 @@ they start certify nothing.
 
 ### 22.2 Pending: two report-only workflows
 
-At 07:05 UTC the maintainer said "Yes" to (a) a report-only diagnosis of the
+At 15:52 UTC the maintainer said "Yes" to (a) a report-only diagnosis of the
 band runs' joint-space noise falls (K3) and (b) a scratch experiment on the tail
 habit: P1 of §21.5 (a penalty on the policy mean beyond ±1), in two 1M-step CPU
 continuations from stance5 s42's 4,194,304 checkpoint, P1 against a control, on

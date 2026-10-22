@@ -48,7 +48,7 @@ judge files. The parent comparison (report only, stance3's rule): s52's final
 (40/40, no noise falls) ties stance3 Run 2's final (40/40, 0); the rule names
 both and does not choose. Walking pilot 2's parent stays stance3 Run 2's final
 (D-D36 as amended on 2026-10-20); the maintainer's decisions of 2026-10-22 that
-follow from the outcome are in `run_log.txt` from its 06:35 UTC entry on, and
+follow from the outcome are in `run_log.txt` from its 15:08 UTC entry on, and
 the stance record's §22 records them.
 
 The runtime, measured: the `gpu` block of each run's
@@ -86,9 +86,12 @@ SOURCES.txt defines them, nothing else:
   LCB and full-horizon fraction).
 - **lines:** `run_log.txt` is lines 208 to 395 of its source, the session's run
   log, which holds the stance4 log (its first 207 lines, copied by #633 as
-  `../../stance4/results/run_log.txt`) and then this one; the source was frozen
-  at 395 lines when copied (sha256 of those lines `c954d76c…`; of lines 208 to
-  395, `ff83ab9f…`).
+  `../../stance4/results/run_log.txt`) and then this one; the source had 395
+  lines when first copied. The session later corrected in place the times of
+  nine entries in those lines (see `run_log.txt` below), and the copy carries
+  the corrected times: sha256 of the source's first 395 lines `b6641664…`, of
+  lines 208 to 395 `27408eec…` (before the correction, `c954d76c…` and
+  `ff83ab9f…`).
 - **redact:** in `run_log.txt`, each of the session's tool identifiers is
   replaced by `[id removed]`: 30 workflow run ids (18 distinct; a bare one
   becomes `workflow [id removed]`), 2 scheduled-task ids and the report
@@ -110,7 +113,7 @@ trailer.
 ## Contents
 
 **`run_log.txt`: the stance5 log, as written** from 2026-10-20 21:05 UTC (#633
-opened) to the entry timed 08:50 UTC on 2026-10-22. The band build's identity
+opened) to the entry timed 16:32 UTC on 2026-10-22. The band build's identity
 and timing checks; the s42 saturation diagnosis of stance4
 (`../../stance4/satdiag/`); the package (criteria, judge, scorer, the screen
 branch pushed at `cf80ecb1`); walking pilot 2's rebuild and its push
@@ -122,15 +125,16 @@ session's human-facing report (a document outside the repository, not copied);
 and the maintainer's decisions of 2026-10-22. Before the verdict of record its
 decision lines are readings as the files then stood. Three readings it gives in
 short: the 04:24 UTC "saturation 21" for s42's final is 20 (`scores/`, the K1
-failure modes; the log's own 05:40 entry corrects it); the 06:20 UTC "(falls 0,
+failure modes; the log's own 05:15 entry corrects it); the 06:20 UTC "(falls 0,
 0, 1)" of the final's diagnostic panels is, per variant (standard, mirrored
 legs, prey ahead, both), s52 0/0/0/0, s60 0/0/0/0 and s42 1/0/1/0
 (`panels_summary.csv`); and its "no foot left the band" holds per episode, not
 per foot-step (the standard panels in `panels_summary.csv`: up to 1,012 of
-64,000 window foot-steps, s60 at 8,388,608; the 05:40 entry). The entries timed
-08:20 and 08:50 UTC on 2026-10-22 were added when the scratch's clock read about
-16:24 and 16:33 UTC (the file times; the 08:20 entry names a file written at
-16:23 UTC); their times are kept as written.
+64,000 window foot-steps, s60 at 8,388,608; the 05:15 entry). Ten entries of
+2026-10-22 written after 05:00 first carried guessed times; the session
+corrected them in place to the times they were written, from its transcript (its
+entry timed 17:47 UTC on 2026-10-22, after the copied lines), and the copy gives
+the corrected times (`../../SOURCES.txt` lists the nine it holds).
 
 **`scores/`: the scorer's printout and JSON, the verdict of record**
 (`score_stance5.py --runs-ended`, written at 04:57 UTC on 2026-10-22, the files'

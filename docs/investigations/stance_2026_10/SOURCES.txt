@@ -40,9 +40,17 @@
 # (foot/stance4/records/): checkpoints.csv, checkpoints_csv.py, panels_summary.csv, panels_summary.py and
 # extras.txt (the printout of extras.py).  stance4/results/README.md has no source.
 # Added 2026-10-22 (stance5/, stance5/results/): one more change, nothing else:
-#   lines       a line range of the source, the rest left out: stance5/results/run_log.txt is lines 208 to 395 of
-#               the session's run log, whose first 207 lines are stance4/results/run_log.txt; the sha256 given is
-#               that of the source's first 395 lines, the whole file when copied (lines 208 to 395 alone:
+#   lines       a line range of the source, the rest left out: stance5/results/run_log.txt is lines 208 to 395 of the
+#               session's run log, whose first 207 lines are stance4/results/run_log.txt; the sha256 given is that of
+#               the source's first 395 lines (lines 208 to 395 alone:
+#               27408eec722e8d2dc1d97aba68311668b175f7505a4dd9f9828415d515687ae6).  The source had 395 lines when
+#               first copied.  The session then appended to it and, in its entry timed 17:47 UTC on 2026-10-22,
+#               corrected in place the times of ten entries of 2026-10-22 written after 05:00 to the times they were
+#               written; nine are in lines 208 to 395 (05:20, 05:25, 05:40, 06:35, 06:45, 07:05, 07:08, 08:20 and
+#               08:50 became 05:09, 05:11, 05:15, 15:08, 15:11, 15:52, 15:55, 16:24 and 16:32), and the copy carries
+#               the corrected times.  The scratch keeps the text before the correction as
+#               foot/stance4/live/run_log.before_time_fix_1022.txt (its first 395 lines:
+#               c954d76c0942f26eff4c4feba451af7e62b8d6e3495492893948f89ae405e048; lines 208 to 395:
 #               ff83ab9f4aba0c057ebea07bda0925285bb44df8eb1e41cfba7a8b04fea16453)
 # and, in stance5/results/run_log.txt, redact as above: 30 workflow run ids (18 distinct; a bare one becomes
 # 'workflow [id removed]'), 2 scheduled-task ids and the report document's artifact link (now 'claude.ai artifact
@@ -421,7 +429,7 @@ stance5/results/notebook_gates/stance5_LTSB_s52/gate_verdict.json foot/stance5/f
 stance5/results/notebook_gates/stance5_LTSB_s60/gate_verdict.json foot/stance5/fetch/final_extras/stance5_LTSB_s60/extra/gate_verdict.json d0334b3ecd2249d4da55bc8100a789b5c7e6e9f1985286457d7c4ac7729812f1 trim
 stance5/results/panels_summary.csv foot/stance5/records_pr/build/out/panels_summary.csv e00fb0f718f67928e2e14d69744f235bf3d1fa8ce3e39f133d547f85091fff88 none
 stance5/results/panels_summary.py foot/stance5/records_pr/build/tools/panels_summary.py 593a551d769d835219dff792d22b2d8d3f0b2bd585710d1b39f3ab629c1886f3 none
-stance5/results/run_log.txt foot/stance4/live/run_log.txt c954d76c0942f26eff4c4feba451af7e62b8d6e3495492893948f89ae405e048 lines,redact,checkout
+stance5/results/run_log.txt foot/stance4/live/run_log.txt b66416647f02193d453c838049ca0386ad8a20594f16d99d10a94f50d7448f35 lines,redact,checkout
 stance5/results/saturation/satwatch5_4194304.json foot/stance5/tools/satroll/satwatch5_4194304.json c11179f0f9a74c20131b75f7c6cd74abe3854e878a4c9f497c9a226ac6e9f138 prefix,whitespace
 stance5/results/saturation/satwatch5_5242880.json foot/stance5/tools/satroll/satwatch5_5242880.json ddcdf51ba72f1219b59d45307c366d54d61e981a953f7c7187326a4ea8329487 prefix,whitespace
 stance5/results/saturation/satwatch5_6291456.json foot/stance5/tools/satroll/satwatch5_6291456.json 4d7b1f9a55bc71c8ba49757b4dd5321817f052dc9b9f762d84e6b8949fcac180 prefix,whitespace
