@@ -62,6 +62,11 @@ note's §21), with report-only readouts and an index of its own,
 [stance5/results/README.md](stance5/results/README.md). As a screen it certifies
 nothing.
 
+*Added 2026-10-22, later:* `stance4/satdiag/` holds the offline, report-only
+diagnosis of stance4 s42's actuator saturation that decision D-D40 5a asked for
+(the note's §21.5): the report and the five tables it cites. It changes no
+verdict.
+
 ## What changed in the copies
 
 [SOURCES.txt](SOURCES.txt) lists every file with the scratch file it came from,
@@ -178,6 +183,12 @@ SOURCES.txt defines the changes and
 [stance5/results/README.md](stance5/results/README.md) says which file each
 applies to. No copy holds a model identifier, an email address or a commit
 trailer.
+
+*Added 2026-10-22, later (`stance4/satdiag/`):* `report.md` carries the
+**prefix** change (one line) and `rollout/tables/onset_within_episode.txt` the
+**whitespace** change (a blank last line removed); the other four are
+byte-identical. Nothing else differs, and no copy holds a model identifier, an
+email address or a commit trailer.
 
 [SHA256SUMS](SHA256SUMS) pins every file here but this README and itself
 (`sha256sum -c SHA256SUMS` in this directory). *Added 2026-10-19:* nor
@@ -758,6 +769,38 @@ before any commit". Under the parent rule s52's final ties stance3 Run 2's final
   alarm at 3,670,016, and the actuator named by rollouts of the 4,194,304,
   5,242,880 and 6,291,456 checkpoints, `tail_3_pitch_act` at +1 (tail raised).
 
+### Added on 2026-10-22, later (decision D-D40's 5a)
+
+**`stance4/satdiag/`: the offline diagnosis of stance4 s42's actuator saturation
+(2026-10-20 to 2026-10-21, report only).** Deterministic rollouts of stance4
+s42's checkpoints, with stance4 s52's and s60's and stance3 Run 2's beside them,
+through the judge's own loading path; the five runs' eval ledgers; a
+counterfactual; and eight verifiers. Measured: the saturating actuator is
+`tail_3_pitch_act`, commanded at +1 (tail tip up), the actuator and sign of
+stance3 Run 2; the command is pinned, not the joint (0.216 rad below its stop)
+or the motor (0.26 of its force limit), so the ledger's force columns cannot see
+it; the onset lies between the 1,048,576 checkpoint (clean) and 2,097,152 (17 of
+20 rolled episodes flagged), the ledger flags from 1,835,008 and the alarm comes
+at 2,228,224; holding tail_3 at 0 gains +85.9 (at 2,097,152) and +73.1 (at the
+final) per 800-step window, deterministically; why training keeps the habit is
+not measured. It lists candidate fixes (T1, T2, P1, R1, R2, Y1, N0), none acted
+on. None of it enters a verdict.
+
+- `report.md`: the diagnosis as written on 2026-10-21, each line labelled
+  measured or inferred, with its verification. Its `O` is
+  `scratchpad/foot/stance4/satdiag`, and its Sources section names files that
+  stay there (the rollouts, the counterfactual and the verifiers' folders and
+  scripts; about 14 MB in all).
+- `rollout/tables/summary_tables.md`, `checkpoint_table.txt`,
+  `actuator_matrix.md` and `onset_within_episode.txt`: the rollout tables the
+  report cites (per checkpoint, the flagged episodes and each actuator's share
+  of window steps at 0.9 and 0.99; the window-mean command per actuator; the
+  ramp within an episode).
+- `ledger/timeline.csv`: the eval-ledger timeline, one row per evaluation of
+  s42, s52 and s60 and stance3 Runs 2 and 3 (saturated, clean and full-horizon
+  episodes, returns, the centre of mass and the joints, and the training-episode
+  columns).
+
 ## How to re-check each verdict
 
 Commands as run on 2026-10-17 from a copy of this directory (Python 3.13;
@@ -818,6 +861,7 @@ copies.
 | The notebook gates' and certificates' checkpoints (2026-10-22, `stance5/results/`) | compare each `notebook_gates/<run id>/gate_verdict.json`'s `checkpoint_sha256` with the `robust_best` row of `stance5/results/checkpoints.csv`, and each `certificates/<run id>/run_summary.json`'s `model_sha256` with the final row | equal for all three gates and both certificates |
 | The stance5 criteria (2026-10-22) | `sha256sum stance5/criteria.txt` | `3b28963f644ffb765e666a8cf6ada5d31ab8a2769dd1a77ff53cbc1e0cf3cf16` |
 | The files themselves (2026-10-22, with `stance5/`) | `sha256sum -c SHA256SUMS` | all 372 files OK |
+| The files themselves (2026-10-22, later, with `stance4/satdiag/`) | `sha256sum -c SHA256SUMS` | all 378 files OK |
 
 `test_pilot_score.py` prints sample "Walking pilot score" blocks while it runs;
 they score synthetic panels, not the pilot.
