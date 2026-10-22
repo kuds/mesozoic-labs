@@ -206,8 +206,9 @@ files. `panels_summary.py` checks each file's model sha256 against the judge
 file of the same checkpoint and the standard variant's K2a and K2b against the
 judge's (all equal; 18 standard rows). At the finals, clean of 40 per variant:
 s52 40/40/40/40, s60 39/37/39/37, s42 19/8/13/7, with falls 0/0/0/0, 0/0/0/0 and
-1/0/1/0. The guard was never at 0 or on its ramp in any row. The control's
-panels are in `../../stance4/results/panels_summary.csv`.
+1/0/1/0. The guard was never at 0 or on its ramp in any row (the full-horizon
+episodes' window foot-steps). The control's panels are in
+`../../stance4/results/panels_summary.csv`.
 
 **`saturation/`: the saturation watch's files for s42, report only.**
 `satwatch5_<step>.json` is the watch's reading of the three runs' evaluation

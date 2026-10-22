@@ -262,19 +262,19 @@ robustness, **LOW** = cosmetic / QoL.
   judged by their fixed criteria, final: seed 52 holds on all four criteria;
   seed 60 fails only the noise test (3 of 20 joint-space noise falls at 12M,
   against 2 allowed); seed 42 fails the gate (the actuator-saturation rail: the
-  tail-tip actuator `tail_3_pitch_act` pinned at +1, as on Update 12's seed 42)
-  and the noise test (13 of 20). All three pass the fore-aft test, but the arm
-  passes the noise test less often than its control. Their decision table's line
-  is 3: the band is not adopted, and is to be replicated on two more seeds
-  before any commit. The band's code is on a pushed screen branch, which
-  supersedes Update 13's "not yet committed anywhere public". As screens they
-  certify nothing. The two-seed ask stands: no T-Rex stance is certified.
-  Record, numbers and evidence: §21 of
+  tail-tip actuator `tail_3_pitch_act` pinned at +1, as on Update 12's seed 42,
+  whose actuator an offline diagnosis has since named) and the noise test (13 of
+  20). All three pass the fore-aft test, but the arm passes the noise test less
+  often than its control. Their decision table's line is 3: the band is not
+  adopted, and is to be replicated on two more seeds before any commit. The
+  band's code is on a pushed screen branch, which supersedes Update 13's "not
+  yet committed anywhere public". As screens they certify nothing. The two-seed
+  ask stands: no T-Rex stance is certified. Record, numbers and evidence: §21 of
   [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).
   **Update 15 (2026-10-22):** the maintainer chose the next step (decision
   D-D41, [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2): the band
   recipe of Update 14, unchanged, on two more seeds (70 and 80), judged against
-  the runs of Update 12 by the same four criteria, in new criteria fixed before
+  the runs of Update 12 on the same four criteria, written anew and fixed before
   training; the band is adopted only if both new seeds hold (3 of the 5 band
   runs). Not yet trained. As screens they certify nothing. The two-seed ask
   stands. Record: §22 of

@@ -2931,8 +2931,8 @@ None of these enters a criterion (`results/checkpoints.csv`, `results/scores/`,
   per judged checkpoint for stance4 s52 and s60 and 0 to 21 for s42
   (`results/scores/`). Per foot-step the band was left: up to 1,012 of 64,000
   window foot-steps in a standard panel (s60 at 8,388,608). The guard stood at 1
-  on every window foot-step of every panel, never 0 and never on its ramp, so
-  the lighten door (§20.2, 3a) was not used on these panels.
+  on every window foot-step of the full-horizon episodes of every panel, never 0
+  and never on its ramp, so the lighten door (§20.2, 3a) was not used there.
 - **The twist-route watch** (read for this record from the two panels summaries,
   the criteria's reading, which is inferred from the statics): the band runs'
   per-foot centre-of-pressure split sd is below the same seed's stance4 run's at
