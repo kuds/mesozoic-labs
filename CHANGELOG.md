@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Decision D-D40 recorded: a from-scratch T. rex stance screen of a per-foot
-  centre-of-pressure band; D-D39 and D-D36 amended** (the maintainer's decisions
-  of 2026-10-20; `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2,
+  centre-of-pressure band; D-D39 and D-D36 amended** (#633; the maintainer's
+  decisions of 2026-10-20; `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2,
   `docs/CONSOLIDATION_PLAN_2026_09.md` §6, a dated note in §17 of
   `docs/GAIT_QUALITY_PLAN_2026_09.md`, `docs/NEXT_STEPS.md` §3; the appended §20
   of `docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md` and
@@ -67,7 +67,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   of the T-Rex stance entry. The band screen's outcome is not yet known.
 - **The stance4 screen of D-D39 judged: all three runs fail their fixed criteria
   (line 5); the stagger penalty is not adopted; two overnight scratch
-  experiments recorded, report only** (D-D39's amendment of 2026-10-20;
+  experiments recorded, report only** (#633; D-D39's amendment of 2026-10-20;
   `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2, `docs/CONSOLIDATION_PLAN_2026_09.md` §6,
   a dated note in §17 of `docs/GAIT_QUALITY_PLAN_2026_09.md`,
   `docs/NEXT_STEPS.md` §3; the appended §19 of
