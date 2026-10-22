@@ -271,6 +271,14 @@ robustness, **LOW** = cosmetic / QoL.
   certify nothing. The two-seed ask stands: no T-Rex stance is certified.
   Record, numbers and evidence: §21 of
   [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).
+  **Update 15 (2026-10-22):** the maintainer chose the next step (decision
+  D-D41, [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2): the band
+  recipe of Update 14, unchanged, on two more seeds (70 and 80), judged against
+  the runs of Update 12 by the same four criteria, in new criteria fixed before
+  training; the band is adopted only if both new seeds hold (3 of the 5 band
+  runs). Not yet trained. As screens they certify nothing. The two-seed ask
+  stands. Record: §22 of
+  [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).
 - **LOW** — **stage 1a (stance) contains no in-episode disturbance, so a
   stance-gate PASS certifies stance quality, not active balance control.** The
   only perturbation is joint-angle noise at reset (`reset_noise_scale 0.05`).

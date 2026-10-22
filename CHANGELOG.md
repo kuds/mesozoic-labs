@@ -8,6 +8,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **Decision D-D41 recorded: the per-foot centre-of-pressure band screen
+  replicated on two more seeds, read three of five; D-D40 and D-D36 amended**
+  (the maintainer's decisions of 2026-10-22; `docs/BEHAVIOR_RECIPES_PLAN.md`
+  §6.2, `docs/CONSOLIDATION_PLAN_2026_09.md` §6, a dated note in §17 of
+  `docs/GAIT_QUALITY_PLAN_2026_09.md`, `docs/NEXT_STEPS.md` §3; the appended §22
+  of `docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md`). Records
+  only: no library code, configuration, test, notebook, digest or generated file
+  changes with it. After D-D40's screen read its line 3 (the entry below), D-D41
+  replicates the unchanged band recipe (the screen branch at `cf80ecb1`) on two
+  band runs only, seeds 70 and 80, judged on K1–K4 against the existing D-D39
+  control, not retrained, by new criteria fixed before training (12M steps,
+  physics r9, `n_envs` 4 and a Colab L4 runtime follow from "unchanged";
+  inferred). The band is adopted only if both new seeds hold (3 of the 5 band
+  runs); the K3 pass fraction against the control is reported, not a veto (under
+  D-D40's rule (b) adoption would be impossible, the band arm already having two
+  K3 failures). The new seeds' joint-space noise sigma is the element-wise mean
+  of the three control seeds' `control_sigma`: the session's default, stated to
+  the maintainer with the reading rule, then confirmed by the maintainer.
+  Walking pilot 2 keeps D-D37 Run 2's final as its parent for now, and D-D40's
+  s52 final, which ties it, is reconsidered after the replication. Run-handling
+  rules for the replication's restarts, resumes and refusals were adopted the
+  same day. Its package is built and is being re-fixed before training; nothing
+  has trained. Two report-only workflows the maintainer agreed to the same day
+  (a diagnosis of the band runs' joint-space noise falls, and a scratch
+  experiment on the tail habit) have no result yet. The same day two rows were
+  amended. D-D40's records its build (band off byte-identical to the D-D39
+  commit; a band-on overhead of +0.245 to +0.378 ms per env step, so the build's
+  own 0.15 ms goal was not met), its package and the screen branch's push at
+  `cf80ecb1`, which supersedes "not committed anywhere public", its Colab L4
+  runtime and its outcome (line 3). D-D36's, dated 2026-10-21, records walking
+  pilot 2's rebuild for D-D37 Run 2's final: its criteria amended before any
+  pilot-2 training step, the parent committed on its branch, its start-up checks
+  re-run, and the branch pushed at `8c5478a6` with the maintainer's OK and held;
+  not yet trained, and its parent kept by D-D41. Screens and pilots certify
+  nothing. `docs/README.md` adds a note to the record's and the gait plan's
+  rows, and `docs/KNOWN_ISSUES.md` gains Update 15 of the T-Rex stance entry.
+  The replication's outcome is not yet known.
 - **The stance5 screen of D-D40 judged: one of the three per-foot
   centre-of-pressure band runs holds (line 3), and the band is not adopted; the
   band's build, the stance4 seed-42 saturation diagnosis and walking pilot 2's

@@ -45,6 +45,8 @@ parked until then (§17, its second note of 2026-10-20).*
 *Updated 2026-10-22: the D-D40 stance screen of the per-foot centre-of-pressure band holds on one of its three runs (its
 decision table's line 3: not adopted, to be replicated on two more seeds); the second pilot was rebuilt for
 `stance3_armLT_s60`'s final as its parent and its branch pushed, and is not yet trained (§17, its note of 2026-10-22).*
+*Updated 2026-10-22, later: the maintainer took D-D41, a replication of the band screen on two more seeds; the second
+pilot keeps `stance3_armLT_s60`'s final as its parent for now (§17, its second note of 2026-10-22).*
 
 ## How to use this document
 
@@ -1001,4 +1003,14 @@ maintainer's OK; nothing more is pushed to it until all three of its seeds are j
 the same deliberate exception to GQ-3 (a) and GQ-17, both still open, and certifies nothing. The screen's runs are
 stance runs, not walker sessions: they are no exception to GQ-3 (a) or GQ-17, answer none of GQ-1..GQ-18 and certify
 nothing, and the trex `gait-r1` walk (§5.4, §14) still waits for a certified stance. Their record is §21 of
+[investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).
+
+*Appended 2026-10-22, later (D-D41); the text above is unchanged.* **A replication of the band screen; the second
+pilot's parent kept.** On 2026-10-22 the maintainer took D-D41: the unchanged band recipe is replicated on two more
+seeds (70 and 80), judged against the same control by new criteria fixed before training, and adopted only if both new
+seeds hold. The second pilot keeps `stance3_armLT_s60`'s final as its parent for now; seed 52's band final, which ties
+it under the screens' parent rule, is reconsidered after the replication. The replication's runs are stance runs, not
+walker sessions: they are no exception to GQ-3 (a) or GQ-17, answer none of GQ-1..GQ-18 and certify nothing, and the
+second pilot is still the same deliberate exception to GQ-3 (a) and GQ-17, both still open. The decisions' full text is
+in [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2 and their record in §22 of
 [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).

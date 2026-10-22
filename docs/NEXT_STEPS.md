@@ -525,6 +525,15 @@ The band's code is on the pushed screen branch
 rebuilt for `stance3_armLT_s60`'s final and its branch pushed; it is not yet
 trained. As screens and pilots they certify nothing, so the next T-Rex
 session above is still unchanged (§21 of the same record).*
+*2026-10-22, later: decision D-D41, and D-D40 and D-D36 amended. The
+maintainer chose to replicate the unchanged band recipe on two more T-Rex
+stance screen runs, seeds 70 and 80, judged against the D-D39 runs by new
+criteria fixed before training: the band is adopted only if both new seeds
+hold. The second pilot keeps `stance3_armLT_s60`'s final as its parent for
+now. Neither is trained yet. As screens and pilots they certify nothing, so
+the next T-Rex session above is still unchanged; the decisions' full text is
+in [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2 and their
+record in §22 of the same record.*
 
 *Note 2026-10-18 (decision D-D38): where §2, this section and §8 record
 `BEHAVIOR = "stand"` or a `stand` session, they give the setting as it was

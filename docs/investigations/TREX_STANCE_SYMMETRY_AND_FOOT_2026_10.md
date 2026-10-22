@@ -79,6 +79,15 @@ evidence is in
 the same folder's `stance5/`, `stance4/satdiag/` and `pilot2/`. The statuses
 above are unchanged.*
 
+*Status 2026-10-22, later (appended): §22, appended that day, records the
+maintainer's decisions of 2026-10-22 that followed §21: D-D41, a replication of
+the unchanged band recipe on two more seeds (70 and 80), judged against the
+stance4 control by new criteria fixed before training and read under a new rule
+(the band is adopted only if both new seeds hold), with walking pilot 2's parent
+kept for now; and the amendments of D-D40 (its build, runtime and outcome) and
+D-D36 (walking pilot 2 rebuilt). The replication is not yet trained. The
+statuses above are unchanged.*
+
 It continues [STANCE_REWARD_PILOT_FINDINGS_2026_10.md](STANCE_REWARD_PILOT_FINDINGS_2026_10.md)
 (2026-10-10), [STANCE_HACK_AUDIT_2026_10.md](STANCE_HACK_AUDIT_2026_10.md)
 §12 (the physics-r9 statue) and the blog post
@@ -3055,3 +3064,91 @@ open, and it certifies nothing. Its parent stays as it is for now (§22).
   (`scratchpad/foot/stance5/build/` and `scratchpad/foot/stance4/bandv2/`), the
   satdiag rollouts and verifiers (`scratchpad/foot/stance4/satdiag/`) and pilot
   2's rebuild evidence (`scratchpad/foot/pilot2/rebuild_1021/`).
+
+## 22. Status 2026-10-22, later (appended): decision D-D41, the band's replication; D-D40 and D-D36 amended
+
+*Appended 2026-10-22; §1–§21 above are unchanged.* After §21's outcome the
+maintainer took decisions in the session's chat on 2026-10-22; the run log
+(`stance_2026_10/stance5/results/run_log.txt`) logs them in short in its entries
+timed 06:35, 06:45 and 08:50 UTC (those with "MAINTAINER DECISION"), and an OK
+for two report-only workflows at 07:05 UTC. Where §22.1 gives a detail those
+entries leave out, it says so.
+[BEHAVIOR_RECIPES_PLAN.md](../BEHAVIOR_RECIPES_PLAN.md) §6.2 records them as
+decision D-D41, the replication, and as dated amendments of D-D40 (its build,
+runtime and outcome, §21.1–§21.5) and of D-D36 (walking pilot 2 rebuilt, §21.6).
+Decision (4) asked for this record now, documentation only. None of them trains
+anything on `main` or changes its digests, and as screens and pilots the runs
+they start certify nothing.
+
+### 22.1 D-D41: the band's replication
+
+- **(1) Replicate the unchanged band recipe** (06:35): arm LTSB from the screen
+  branch at `cf80ecb1` (§21.1).
+- **(2) Two band runs only, seeds 70 and 80** (06:35), judged on K1–K4 against
+  the existing stance4 control, which is not retrained, with new criteria fixed
+  before training (the log names "noise level for the new seeds, how the 5 band
+  runs are read"). 12M steps, physics r9, `n_envs` 4 and a Colab L4 runtime are
+  in no decision's words; they follow from "unchanged" (inferred).
+- **The reading rule** (06:45): ADOPT only if both new seeds hold (H = 3 of 5);
+  the K3 pass fraction against the control (3 of 5 against 2 of 3 at best) is
+  reported, not a veto. The log gives the reason in parentheses: under stance5's
+  rule (b) adoption would be impossible, since the band arm already has two K3
+  failures (§21.3).
+- **The new seeds' joint-space noise sigma.** The K3 test reads a per-seed
+  `control_sigma`, which the frozen parameters hold only for seeds 42, 52 and 60
+  (the 05:40 UTC entry). The new seeds' is the element-wise mean of those three:
+  at 06:45 it was the session's default, stated to the maintainer with the
+  reading rule ("my default, stated to the maintainer", the log says), not a
+  choice the maintainer stated; in the entry timed 08:50 the maintainer
+  confirmed it, one vector for both new seeds.
+- **(3) No parent change now** (06:35): walking pilot 2 stays on stance3 Run 2's
+  final, and s52's final (which ties it, §21.3) is reconsidered after the
+  replication.
+- **(4) The stance5 records PR now, documentation only** (06:35): this change.
+- **Run handling** (the entry timed 08:50): defaults adopted for the
+  replication. A run cut off before its first periodic checkpoint and restarted
+  under `<RUN_ID>_b` is that run; a judge refusal on the run's own records
+  counts as an invalid J file; a resumed run is judged as it stands, with
+  superseded files moved aside, never deleted; a cut-short final resumes from
+  the newest intact periodic checkpoint in the same run id, and the final slot
+  is only a `stage1_final` pair at 12,001,280; an early stop makes the final J
+  file invalid; "ended" and "exists" are defined as proposed; on a refusal to
+  reproduce stance5 nothing is read until the cause is found; and with no L4 on
+  a resume the maintainer is asked first.
+- **The package** (the entry timed 08:50): built and validated. Its judge
+  reproduces stance5's s52 judge file at 4,194,304 field for field, its scorer
+  reproduces stance5's three verdicts in a validation run, 37 tests pass, and
+  its criteria were fixed at sha256 `10464eab…`; they are being re-fixed for the
+  run-handling defaults before the Colab steps go out. Nothing has trained. A
+  later PR records the package and the outcome.
+
+### 22.2 Pending: two report-only workflows
+
+At 07:05 UTC the maintainer said "Yes" to (a) a report-only diagnosis of the
+band runs' joint-space noise falls (K3) and (b) a scratch experiment on the tail
+habit: P1 of §21.5 (a penalty on the policy mean beyond ±1), in two 1M-step CPU
+continuations from stance5 s42's 4,194,304 checkpoint, P1 against a control, on
+a scratch clone never pushed. Neither has a result yet, and neither enters a
+verdict.
+
+### 22.3 D-D40 and D-D36 amended
+
+- **D-D40, amended 2026-10-22:** its build and package (§21.1), the runs and
+  their runtime (§21.2), the outcome (§21.3), the saturation alarm (§21.4) and
+  the s42 diagnosis that 5a asked for (§21.5).
+- **D-D36, amended 2026-10-21:** walking pilot 2 rebuilt for stance3 Run 2's
+  final and its branch pushed (§21.6); its parent kept for now by D-D41 (3).
+
+### 22.4 What changes in §13–§21
+
+- **§13 and §21.3, the band:** its next step is decided (D-D41): two more seeds,
+  read under the three-of-five rule; not yet trained. No T. rex stance is
+  certified, and the two-seed ask stands.
+- **§20.4 and §21.6, walking pilot 2:** its parent stays stance3 Run 2's final
+  for now, and s52's final is reconsidered after the replication. The pilot is
+  not yet trained.
+- **§21.4 and §21.5, the tail habit and the K3 falls:** two report-only
+  workflows pending (§22.2).
+- **§14:** no folder, file or branch is added to this repository by §22; the
+  replication's package and the two workflows' outputs stay in the session's
+  scratch.
