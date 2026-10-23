@@ -1,14 +1,17 @@
 """Draw one or more stages' training history from their ledgers: PNG pages, an HTML page and a JSON summary.
 
 Reads each stage directory's ``eval_episodes.csv``, ``train_episodes.csv``,
-``stage_config.json``, ``progress.json`` and checkpoint zips
-(:mod:`environments.shared.reporting.training_history`) and writes, into
-``--out``: one PNG per page, ``training_history.html`` (self-contained: the
-pages embedded as base64) and ``training_history.json``
+``stage_config.json``, ``progress.json``, ``plant_identity.json`` and
+checkpoint zips (:mod:`environments.shared.reporting.training_history`) and
+writes, into ``--out``: one PNG per page, ``training_history.html``
+(self-contained: the pages embedded as base64) and ``training_history.json``
 (``mesozoic.training-history/v1``).  One stage directory gives that run's page
-set; several give the comparison set, one colour per run and one line style
-per ``--groups`` value.  A run that is still training can be drawn from a copy
-of its stage directory at any point.
+set; several give the comparison set, one colour per seed (else per run) and
+one line style per ``--groups`` value.  Labels must be distinct.  On a
+comparison, a run that records no CoP band is counted against the edges the
+band-paying runs share; ``--reference-band`` gives the edges explicitly (for a
+single control run, say).  A run that is still training can be drawn from a
+copy of its stage directory at any point.
 
 Report only.  Nothing is written into a run: an ``--out`` inside any run
 directory is refused, as ``plot_gate_progress.py`` refuses it (a result
@@ -81,14 +84,34 @@ def main(argv: Sequence[str] | None = None) -> int:
         "--mark-steps", nargs="+", type=_mark, default=[], help="steps to mark (J checkpoints); 'final' for the final"
     )
     parser.add_argument("--title", default=None, help="the pages' title")
-    parser.add_argument("--smooth", type=int, default=5, help="comparison pages: rolling mean over N evaluations")
-    parser.add_argument("--dpi", type=int, default=80, help="PNG resolution (default 80)")
+    parser.add_argument(
+        "--smooth",
+        type=int,
+        default=5,
+        help="comparison pages: centred rolling mean over N evaluations of the continuous series (counts never)",
+    )
+    parser.add_argument(
+        "--reference-band",
+        nargs=4,
+        type=float,
+        default=None,
+        metavar=("LOWER", "UPPER", "PAD_LOWER", "PAD_UPPER"),
+        help="band edges to count a run that records no band against (default on a comparison: the band runs' own)",
+    )
+    parser.add_argument(
+        "--dpi",
+        type=int,
+        default=None,
+        help="PNG resolution (default training_history.DEFAULT_DPI, 96: point sizes as a browser draws them)",
+    )
     parser.add_argument("--no-std", action="store_true", help="skip the per-actuator std (no torch import)")
     args = parser.parse_args(argv)
     stage_dirs = [path.resolve() for path in args.stage_dirs]
     for name, values in (("--labels", args.labels), ("--groups", args.groups)):
         if values is not None and len(values) != len(stage_dirs):
             parser.error(f"{name} needs one value per STAGE_DIR ({len(stage_dirs)}), got {len(values)}")
+    if args.labels is not None and len(set(args.labels)) != len(args.labels):
+        parser.error(f"--labels must be distinct, got {args.labels}")
     reason = refusal(args.out, stage_dirs)
     if reason is not None:
         print(reason, file=sys.stderr)
@@ -112,13 +135,27 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
         for i, stage in enumerate(stage_dirs)
     ]
+    labels = [run.label for run in runs]
+    if len(set(labels)) != len(labels):
+        print(f"two stage directories share a label ({labels}); pass distinct --labels", file=sys.stderr)
+        return 1
+    if args.reference_band is not None:
+        edges = dict(zip(("lower", "upper", "pad_lower", "pad_upper"), args.reference_band))
+        training_history.apply_reference_band(runs, edges)
+    elif len(runs) > 1:
+        training_history.apply_reference_band(runs)
     title = args.title
     if title is None:
         first = runs[0]
         model = first.model_display or "training history"
         title = f"{model}: {first.label}" if len(runs) == 1 else f"{model}: {', '.join(run.label for run in runs)}"
     written = training_history.write_report(
-        runs, args.out, title=title, marks=args.mark_steps, smooth=args.smooth, dpi=args.dpi
+        runs,
+        args.out,
+        title=title,
+        marks=args.mark_steps,
+        smooth=args.smooth,
+        dpi=args.dpi or training_history.DEFAULT_DPI,
     )
     for error in written["errors"]:
         print(f"warning: {error}", file=sys.stderr)

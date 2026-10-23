@@ -1,9 +1,12 @@
 """The training-history report (``reporting/training_history.py``, ``scripts/plot_training_history.py``).
 
-Small synthetic ledgers only: the reductions, the saturation flag and alarm
-rule, tolerance of missing files and columns, the refusal to write inside a run
-directory, the per-actuator std reader on a tiny checkpoint zip, and that every
-page renders on the Agg canvas.
+Small synthetic ledgers only: the reductions (counts, the rails' over-bar
+counts, the band counts, per-foot means, left-minus-right offsets, training
+windows), the saturation flag and alarm rule, tolerance of missing files and
+columns, the refusal to write inside a run directory, the per-actuator std
+reader on a tiny checkpoint zip and the plant check behind its names, the
+checkpoint table, and that every page renders on the Agg canvas with its bars,
+band edges, marks and count strips.
 """
 
 from __future__ import annotations
@@ -177,10 +180,39 @@ class TestReductions:
         header = ["timesteps", "cause"]
         rows = [{"timesteps": str(s), "cause": c} for s, c in [(10, "nosedive"), (10, "truncated"), (25, "fallen")]]
         windows = th.reduce_training(header, rows, window=10)
-        assert windows["window_end"].tolist() == [10, 20, 30]
+        # The last window ends at its last episode (25), not at its nominal edge (30).
+        assert windows["window_end"].tolist() == [10, 20, 25] and windows["last_episode_step"] == 25
         assert windows["episodes"].tolist() == [2, 0, 1]
         assert windows["falls"].tolist() == [1, 0, 1]
         assert windows["fall_fraction"][0] == 0.5 and math.isnan(windows["fall_fraction"][1])
+
+    def test_the_last_training_window_does_not_stretch_the_run(self, tmp_path):
+        run = th.load_run_history(_stage(tmp_path), read_std=False)
+        # train_episodes.csv ends at step 9,000, inside the first 262,144-step window.
+        assert run.training["window_end"].tolist() == [9000] and run.last_step == 9000
+
+    def test_full_horizon_falls_back_to_cause(self, tmp_path):
+        stage = tmp_path / "cause_only" / "01_stance"
+        rows = [
+            {"timesteps": STEP, "cause": cause, "r_foot_cop_fore_aft": value, "l_foot_cop_fore_aft": 0.0}
+            for cause, value in [("truncated", 0.2), ("truncated", 0.4), ("nosedive", 0.9)]
+        ]
+        _write_csv(stage / th.EVAL_EPISODES_FILENAME, rows)
+        run = th.load_run_history(stage, read_std=False)
+        assert run.series("falls").tolist() == [1] and run.series("full_horizon").tolist() == [2]
+        assert run.column("r_foot_cop_fore_aft").tolist() == pytest.approx([0.3])  # the fall left out
+
+    def test_clean_and_saturated_count_the_judged_episodes_only(self, tmp_path):
+        stage = tmp_path / "judged" / "01_stance"
+        rows = [
+            _episode(0, 0),
+            _episode(0, 1, saturated=True),
+            {**_episode(0, 2, saturated=True), "screen_v2_clean": math.nan},  # not judged: neither clean nor flagged
+        ]
+        _write_csv(stage / th.EVAL_EPISODES_FILENAME, rows, COLUMNS)
+        run = th.load_run_history(stage, read_std=False)
+        assert run.series("episodes").tolist() == [3]
+        assert run.series("clean").tolist() == [1] and run.series("saturated").tolist() == [1]
 
     def test_reason_keys_take_the_name_before_a_colon(self):
         assert th.reason_keys("horizon; max_actuator_saturation_fraction: 0.3 > 0.1;") == {
@@ -197,6 +229,69 @@ class TestReductions:
         assert run.model_id is not None and run.seed == 42 and run.label == "run_a"
 
 
+class TestRailsAndBand:
+    def _ledger(self, tmp_path: Path, name: str = "rail", band: bool = True) -> Path:
+        """One evaluation of 10: every signed pad mean near 0, three episodes over the 0.8 pad rail (one fell)."""
+        stage = _stage(tmp_path, saturated=[0], name=name)
+        rows = []
+        for episode in range(10):
+            sign = 1.0 if episode % 2 else -1.0
+            rail = {0: 0.95, 1: 0.9, 2: 0.85, 3: 0.81}.get(episode, 0.3)
+            rows.append(
+                _episode(
+                    0,
+                    episode,
+                    fell=episode == 3,
+                    r_sole_cop_fore_aft=sign * 0.5,
+                    l_sole_cop_fore_aft=-sign * 0.5,
+                    max_sole_cop_fore_aft=rail,
+                    r_foot_cop_fore_aft=0.6 if episode == 4 else (-0.7 if episode == 5 else 0.0),
+                    l_foot_cop_fore_aft=math.nan if episode == 6 else 0.1,
+                    max_sole_tilt_deg=2.5 if episode == 7 else 1.0,
+                    max_sole_corner_lift_m=0.005 if episode in (7, 8) else 0.001,
+                )
+            )
+        _write_csv(stage / th.EVAL_EPISODES_FILENAME, rows, COLUMNS)
+        if not band:
+            config = json.loads((stage / th.STAGE_CONFIG_FILENAME).read_text())
+            del config["reward_weights"]
+            (stage / th.STAGE_CONFIG_FILENAME).write_text(json.dumps(config), encoding="utf-8")
+        return stage
+
+    def test_over_bar_counts_read_each_episode_not_the_signed_mean(self, tmp_path):
+        run = th.load_run_history(self._ledger(tmp_path), read_std=False)
+        # The signed per-foot means cancel to about 0 ...
+        assert abs(run.column("r_sole_cop_fore_aft")[0]) < 0.12 and abs(run.column("l_sole_cop_fore_aft")[0]) < 0.12
+        # ... while three full-horizon episodes fail the 0.8 rail (episode 3 also does, but fell).
+        assert run.series("max_sole_cop_fore_aft_over_bar").tolist() == [3]
+        assert run.series("max_sole_cop_fore_aft_over_bar_fraction")[0] == pytest.approx(3 / 9)
+        assert run.column("max_sole_cop_fore_aft", "max")[0] == pytest.approx(0.95)
+        assert run.series("max_sole_tilt_deg_over_bar").tolist() == [1]
+        assert run.series("max_sole_corner_lift_m_over_bar").tolist() == [2]
+        # No stage declares max_foot_cop_fore_aft's bar, so it has no count.
+        assert run.series("max_foot_cop_fore_aft_over_bar") is None and run.bars["max_foot_cop_fore_aft"] is None
+        row = th.checkpoint_rows(run, [STEP])[0]
+        assert row["max_sole_cop_fore_aft_over_bar"] == 3 and row["max_sole_cop_fore_aft_worst"] == pytest.approx(0.95)
+
+    def test_band_counts_use_the_run_s_own_edges(self, tmp_path):
+        run = th.load_run_history(self._ledger(tmp_path), read_std=False)
+        # Episode 4 (+0.6 > +0.4) and 5 (-0.7 < -0.6) leave [-0.6, +0.4]; episode 6's unloaded left foot is not outside.
+        assert run.series("foot_cop_outside_band").tolist() == [2]
+        assert run.series("sole_cop_outside_pad_band").tolist() == [0]
+        assert run.band_edges == {"lower": -0.6, "upper": 0.4, "pad_lower": -0.65, "pad_upper": 0.65}
+        assert "own band" in run.band_edges_source
+
+    def test_a_run_without_a_band_is_counted_against_the_reference(self, tmp_path):
+        banded = th.load_run_history(self._ledger(tmp_path, "a"), read_std=False)
+        control = th.load_run_history(self._ledger(tmp_path, "b", band=False), read_std=False)
+        assert control.series("foot_cop_outside_band") is None and not control.band_edges
+        assert th.reference_band([banded, control]) == banded.band_edges
+        th.apply_reference_band([banded, control])
+        assert control.series("foot_cop_outside_band").tolist() == [2]
+        assert "reference" in control.band_edges_source and "own band" in banded.band_edges_source
+        assert not control.band_active
+
+
 class TestSaturationAlarm:
     def test_flags_and_alarms(self):
         steps = list(range(1, 10))
@@ -211,6 +306,11 @@ class TestSaturationAlarm:
     def test_no_alarm_without_two_in_a_row(self):
         result = th.saturation_alarms([1, 2, 3, 4], [5, 0, 9, 4])
         assert result["flagged"] == [1, 3] and not result["alarm"] and result["first_alarm_at"] is None
+
+    def test_an_evaluation_size_other_than_ten_is_said(self):
+        assert "note" not in th.saturation_alarms([1, 2], [5, 5], episodes=[10, 10])
+        result = th.saturation_alarms([1, 2], [5, 5], episodes=[40, 40])
+        assert result["episodes_per_evaluation"] == [40] and "40" in result["note"] and result["alarm"]
 
     def test_the_rule_reads_the_ledger(self, tmp_path):
         run = th.load_run_history(_stage(tmp_path, saturated=[0, 3, 5, 6, 0, 5]), read_std=False)
@@ -313,8 +413,47 @@ class TestPolicyStd:
 
         names, source = th.actuator_names(ModelId("tyrannosaurus_rex", "anatomical"), 15)
         assert names is not None and "r_hip_roll_act" in names and names[-1] == "tail_3_pitch_act", source
+        assert "unchecked" in source
         assert th.actuator_names(ModelId("tyrannosaurus_rex", "anatomical"), 3)[0] is None
         assert th.actuator_names(None, 15) == (None, "no model recorded")
+
+    def test_the_names_need_the_run_s_physics(self, tmp_path):
+        from environments.shared.file_io import read_json_object
+        from environments.shared.model_id import ModelId
+        from environments.shared.paths import REPOSITORY_ROOT
+
+        model = ModelId("tyrannosaurus_rex", "anatomical")
+        manifest = read_json_object(REPOSITORY_ROOT / "configs" / "plant_manifest.generated.json")
+        physics = manifest["plants"]["tyrannosaurus_rex"]["anatomical"]["physics"]
+        stage = tmp_path / "plant" / "01_stance"
+        stage.mkdir(parents=True)
+        assert th.plant_check(stage, model)["status"] == "unchecked"
+        identity = {"physics_sha256": physics["sha256"], "physics_revision": physics["revision"]}
+        (stage / th.PLANT_IDENTITY_FILENAME).write_text(json.dumps(identity), encoding="utf-8")
+        assert th.plant_check(stage, model)["status"] == "match"
+        identity["physics_sha256"] = "sha256:" + "0" * 64
+        (stage / th.PLANT_IDENTITY_FILENAME).write_text(json.dumps(identity), encoding="utf-8")
+        plant = th.plant_check(stage, model)
+        assert plant["status"] == "differs"
+        names, source = th.actuator_names(model, 15, plant=plant)
+        assert names is None and "labelled by index" in source
+
+    def test_left_equals_right_and_the_joins(self):
+        pairs = th._pairs(["r_hip_act", "l_hip_act", "tail_act"])
+        assert pairs == {"hip": (0, 1), "tail": (2, None)}
+        assert th._left_equals_right(np.asarray([[0.1, 0.1, 0.3], [0.2, 0.2, 0.3]]), pairs) is True
+        assert th._left_equals_right(np.asarray([[0.1, 0.11, 0.3]]), pairs) is False
+        points = [
+            {"kind": "robust_best", "timesteps": 900},
+            {"kind": "periodic", "timesteps": 4000},
+            {"kind": "periodic", "timesteps": 5000},
+            {"kind": "periodic", "timesteps": 6000},
+            {"kind": "periodic", "timesteps": 8000},
+            {"kind": "final", "timesteps": 8500},
+        ]
+        solid, dotted = th._std_segments(points)
+        # Solid only between periodic checkpoints at most 1.5 spacings (1,000) apart.
+        assert solid == [(1, 2), (2, 3)] and dotted == [(0, 1), (3, 4), (4, 5)]
 
 
 class TestRefusal:
@@ -331,6 +470,15 @@ class TestRefusal:
         (run_dir / "provenance.json").write_text("{}", encoding="utf-8")
         assert script.refusal(run_dir / "elsewhere", [stage]) is not None
         assert script.refusal(tmp_path / "drive" / "reports", [stage]) is None
+
+    def test_duplicate_labels_are_refused(self, tmp_path, capsys):
+        first = _stage(tmp_path / "x", name="same")
+        second = _stage(tmp_path / "y", name="same")
+        out = tmp_path / "reports" / "dup"
+        assert script.main([str(first), str(second), "--out", str(out), "--no-std"]) == 1
+        assert "share a label" in capsys.readouterr().err and not out.exists()
+        with pytest.raises(SystemExit):
+            script.main([str(first), str(second), "--out", str(out), "--no-std", "--labels", "a", "a"])
 
     def test_main_writes_nothing_when_refused(self, tmp_path, capsys):
         stage = _stage(tmp_path)
@@ -373,6 +521,50 @@ class TestRender:
         pages, errors = th.render_pages(runs, title="a against b", marks=[STEP], dpi=30)
         assert errors == [] and len(pages) == len(th.PAGES) + 1
         assert all(page.png[:4] == b"\x89PNG" for page in pages)
+        assert "colour per seed" in pages[0].caption and "10 episodes per evaluation" in pages[0].caption
+
+    @staticmethod
+    def _texts(axis) -> list[str]:
+        return [text.get_text() for text in axis.texts]
+
+    def test_one_run_panels_draw_their_bars_band_and_marks(self, tmp_path):
+        run = th.load_run_history(_stage(tmp_path), read_std=False)
+        context = th._make_context([run], marks=[2 * STEP], smooth=5)
+        spec = {page.name: page for page in th.PAGES}
+        figure = th._page_figure(spec["04_pad_cop"], context, title="t", dpi=30, width=12.0)
+        signed, rail, over, pad_band = figure.axes[:4]
+        # The pad band's edges on the signed panel, the rail's bar on the rail's own panel only.
+        assert any("pad band edge +0.65" in text for text in self._texts(signed))
+        assert not any("bar" in text for text in self._texts(signed))
+        assert any("max_sole_cop_fore_aft bar 0.8" in text for text in self._texts(rail))
+        assert 0.8 in [line.get_ydata()[0] for line in rail.lines if line.get_linestyle() == "--"]
+        for axis in (signed, rail, over, pad_band):
+            assert not any("not recorded" in text for text in self._texts(axis))
+        assert "J 4k" in self._texts(signed)
+        # The alarm (third evaluation) is a dotted vertical line; J a solid one.
+        xs = {round(float(line.get_xdata()[0]) * 1e6) for line in signed.lines if len(line.get_xdata()) == 2}
+        assert {2 * STEP, 3 * STEP} <= xs
+        roll = th._page_figure(spec["07_sole_roll"], context, title="t", dpi=30, width=12.0)
+        assert any("bar 4 mm (0.004 m)" in text for text in self._texts(roll.axes[1]))
+        falls = th._page_figure(spec["01_outcomes"], context, title="t", dpi=30, width=12.0).axes[1]
+        assert "1" in self._texts(falls) and falls.get_ylim()[1] >= 3
+
+    def test_comparison_counts_are_unsmoothed_strips(self, tmp_path):
+        runs = [
+            th.load_run_history(_stage(tmp_path, name="a"), label="a", group="band", read_std=False),
+            th.load_run_history(
+                _stage(tmp_path, saturated=[0, 0, 0, 0], name="b"), label="b", group="control", read_std=False
+            ),
+        ]
+        context = th._make_context(runs, marks=[STEP], smooth=5)
+        figure = th._page_figure(th.PAGES[1], context, title="t", dpi=30, width=12.0)
+        strip = figure.axes[0]
+        # One cell per evaluation per run, coloured by the raw count; the flagged evaluations outlined.
+        cells = [patch for patch in strip.patches if patch.get_fill()]
+        assert len(cells) == 8
+        outlined = [patch for patch in strip.patches if not patch.get_fill()]
+        assert len(outlined) == 2  # run a's evaluations 2 and 3 (6 and 7 flagged episodes)
+        assert "a" in self._texts(strip) and "b" in self._texts(strip)
 
     def test_at_most_eight_runs(self, tmp_path):
         run = th.load_run_history(_stage(tmp_path), read_std=False)
@@ -391,4 +583,35 @@ def test_the_comparison_smoothing_keeps_the_length_and_skips_nan():
     smoothed = th._smooth(values, 5)
     assert smoothed.shape == values.shape
     assert smoothed.tolist() == pytest.approx([2.0, 3.0, 3.0, 4.0])
-    assert th._smooth(values, 1) is not None and math.isnan(th._smooth(np.asarray([math.nan]), 3)[0])
+    unsmoothed = th._smooth(values, 1)
+    assert unsmoothed[0] == 1.0 and math.isnan(unsmoothed[1]) and unsmoothed[2:].tolist() == [3.0, 5.0]
+    assert math.isnan(th._smooth(np.asarray([math.nan]), 3)[0])
+
+
+def test_colours_follow_the_seed_and_line_styles_the_group(tmp_path):
+    runs = [
+        th.load_run_history(_stage(tmp_path, name=name), label=name, group=group, read_std=False)
+        for name, group in (("band_a", "band"), ("control_a", "control"))
+    ]
+    runs[1].seed = 42  # both seed 42 (the synthetic stage_config's)
+    context = th._make_context(runs, marks=[], smooth=5)
+    assert context.colours[0] == context.colours[1] and context.styles[0] != context.styles[1]
+    runs[1].group = "band"  # the same (seed, group) twice: colour per run instead
+    assert len(set(th._make_context(runs, marks=[], smooth=5).colours)) == 2
+
+
+def test_the_final_mark_row_reads_the_last_evaluation_and_the_final_std(tmp_path):
+    run = th.load_run_history(_stage(tmp_path), read_std=False)
+    run.checkpoint_steps["final"] = 9000
+    run.actuators = ["r_hip_pitch_act", "l_hip_pitch_act", "tail_3_pitch_act"]
+    run.policy_std["checkpoints"] = [
+        {"name": "stage1_8192_steps.zip", "kind": "periodic", "timesteps": 8192, "std": np.asarray([0.5, 0.5, 0.2])},
+        {"name": "stage1_final.zip", "kind": "final", "timesteps": 9000, "std": np.asarray([0.4, 0.4, 0.1])},
+    ]
+    rows = th.checkpoint_rows(run, th.resolve_marks([4 * STEP, "final"], [run]))
+    final = next(row for row in rows if row["at"] == "J 9,000 (final)")
+    assert final["evaluation_timesteps"] == 4 * STEP and final["note"] == "evaluation at 8,192 (none at this step)"
+    assert final["std_checkpoint"] == "stage1_final.zip" and final["std_tail_3_pitch"] == pytest.approx(0.1)
+    at_last = next(row for row in rows if row["at"] == "J 8,192")
+    assert at_last["std_checkpoint"] == "stage1_8192_steps.zip" and "note" not in at_last
+    assert [row["at"] for row in rows][-1] == "last evaluation"
