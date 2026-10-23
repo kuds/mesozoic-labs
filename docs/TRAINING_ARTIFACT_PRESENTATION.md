@@ -825,6 +825,55 @@ every key and type the file had before is kept.
 | `checkpoints` | `latest_periodic_timesteps` (the newest periodic checkpoint in `models/`, by its name), `periodic_timesteps` (every periodic checkpoint kept, sorted: the newest few and, under the archive rule below, one per interval), `best_model_timesteps` and `best_mean_reward` (SB3's mean-reward best), `robust_best_model_timesteps` and `robust_best_score` (mean minus one standard deviation). A best checkpoint whose evaluation a resume dropped from the history reads `null`, while its score (`best_mean_reward`, `robust_best_score`) keeps the value the resumed tracker carried over |
 | `warnings_total`, `warnings` | How many advisories this session has raised, and the newest 10 in step order, each `{"timesteps", "source", "message"}`: `posture_drift` and `posture_trend` (each with `rails`), `evaluation_plateau`, `zero_action_baseline` and `hop_watch`. Each also appears as a warning line in the training output. A resumed session counts its own |
 
+## Training history pages: `plot_training_history.py`
+
+`gate_progress.npz` and `progress.json` hold per-evaluation means and the
+latest row. To see how one run's feet, balance, asymmetry and saturation
+moved over its training, or to overlay several runs, draw them from the
+ledgers above:
+
+    python environments/shared/scripts/plot_training_history.py STAGE_DIR [STAGE_DIR ...] --out DIR \
+        [--labels ...] [--groups ...] [--mark-steps 4194304 ... final] [--title ...]
+
+One stage directory gives that run's pages; several give a comparison, one
+colour per run (at most eight) and one line style per `--groups` value, each
+series a rolling mean over 5 evaluations (`--smooth`), except the saturation
+counts. `--out` receives one PNG per page, `training_history.html`, which
+embeds them (base64) beside tables of the values at the marked, best and
+last checkpoints, and `training_history.json`
+(`mesozoic.training-history/v1`: every reduced series, the declared bars,
+the band settings, the alarms and what was absent). An `--out` inside a run
+directory is refused, as `plot_gate_progress.py` refuses it; for a copy
+without `provenance.json` the run directory is the stage directory's parent.
+It reads the files and writes nothing else (`reporting/training_history.py`).
+
+| Page | What it draws, against the training step |
+|---|---|
+| Outcomes | Clean episodes (`screen_v2_clean`), falls (shorter than the horizon), the mean return per evaluation, and the training falls per 262,144-step window of `train_episodes.csv` (`cause` not `truncated`) |
+| Saturation | The episodes per evaluation listing `max_actuator_saturation_fraction` in `screen_v2_reasons`, and `actuator_force_frac_max` |
+| Whole-foot and pad CoP | Per foot, `<label>_foot_cop_fore_aft` and `<label>_sole_cop_fore_aft`, with `max_sole_cop_fore_aft` at plus and minus and, where the run pays it, the reward band's edges (`stance_cop_band_*`) |
+| Digits and margins | Per foot, `<label>_digit_share` and `<label>_toe_margin_nm` |
+| Balance | `xcom_toe_margin_min_m`, `xcom_heel_margin_min_m`, `com_fore_aft_mean_m`, `root_pitch_mean_deg` |
+| Sole roll | `max_sole_tilt_deg` and `max_sole_corner_lift_m` against their bars |
+| Floor forces | Per foot, `<label>_shear_over_normal` and `<label>_cone_use_mean` |
+| Asymmetry | `leg_q_<left>_minus_<right>_<joint>_deg` for hip pitch, knee and ankle. `eval_episodes.csv` records no hip roll difference, so there is none to draw |
+| Policy std | `exp(log_std)` per actuator at each checkpoint zip in `models/` (`robust_best`, `best`, final, and at most 12 periodic ones evenly spaced), named in the env's actuator order from the checkout's MJCF |
+
+Each per-episode value is reduced over the evaluation's full-horizon
+episodes, as `gate_progress.npz` reduces it: one run's pages draw the mean
+with one standard deviation shaded, or with the worst episode dashed for a
+maximum or minimum. The counts are over all of the evaluation's episodes.
+An evaluation is flagged when at least 5 of its episodes list
+`max_actuator_saturation_fraction`, and two flagged evaluations in a row
+are an alarm, at the second (the stance4 and stance5 scorers' report-only
+rule); every page marks the alarms and the `--mark-steps` checkpoints, and
+one run's pages also mark `robust_best` and `best`. From a checkpoint zip
+the report reads only `policy.pth`'s `log_std` (`torch.load(...,
+weights_only=True)`) and, for a named checkpoint, `num_timesteps` from the
+JSON `data` member; it unpickles nothing else, and the reads stop after
+10 s. A missing file or column is an absent series, listed in the JSON and
+on the page, never an error.
+
 ## The handoff's in-training score: `handoff_in_training.json`
 
 A stance certificate scores the handoff checkpoint (`robust_best_model`

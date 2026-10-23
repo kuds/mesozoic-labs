@@ -8,6 +8,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **A training-history report: one run's feet, balance, asymmetry and
+  saturation over its training, or several runs overlaid**
+  (`environments/shared/reporting/training_history.py`,
+  `environments/shared/scripts/plot_training_history.py`; documented in
+  `docs/TRAINING_ARTIFACT_PRESENTATION.md`, "Training history pages"). Report
+  only: new files, one test-table line each in `test_policy_loading.py` (the
+  new call-time read of `_PERIODIC_CHECKPOINT_RE`) and
+  `test_repository_root.py` (the script's `sys.path` bootstrap), and a
+  docstring line in `reporting/__init__.py`; no training, evaluation, gate,
+  configuration, digest or notebook changes. From a stage directory's
+  `eval_episodes.csv`, `train_episodes.csv`, `stage_config.json`,
+  `progress.json` and checkpoint zips it reduces each evaluation (clean,
+  falls, saturation-flagged episodes and the mean return; per foot the
+  whole-foot and pad centres of pressure, digit share, toe margin, shear and
+  cone use; sole tilt and corner lift; the centre of mass, root pitch and
+  XcoM margins; the left-minus-right hip pitch, knee and ankle offsets;
+  `actuator_force_frac_max`), the training falls per 262,144-step window, and
+  the per-actuator policy std `exp(log_std)` at each checkpoint (only
+  `policy.pth`'s `log_std` is read, with `weights_only=True`). It finds the
+  saturation alarms from the ledger itself (an evaluation with at least 5 of
+  its episodes listing `max_actuator_saturation_fraction`; two in a row are an
+  alarm) and marks them, with the checkpoints given by `--mark-steps`, on ten
+  pages of graphs written as PNGs and a self-contained HTML page, beside a
+  JSON summary (`mesozoic.training-history/v1`) of every series, the declared
+  bars and band settings and what was absent. A missing file or column is an
+  absent series, never an error; an output inside a run directory is refused,
+  as `plot_gate_progress.py` refuses it. It is the first piece of the stage
+  report card's posture-over-training page and per-actuator std. On the
+  stance5 band run s42 it finds the first flagged evaluation at 3,538,944
+  steps and the alarm at 3,670,016, and on the stance4 control run s42 the
+  first saturated episodes at 1,835,008 and the alarm at 2,228,224, the steps
+  the scorers recorded.
 - **Decision D-D41 recorded: a replication of the per-foot centre-of-pressure
   band screen on two more seeds, read three of five; D-D40 and D-D36 amended**
   (the maintainer's decisions of 2026-10-22; `docs/BEHAVIOR_RECIPES_PLAN.md`
