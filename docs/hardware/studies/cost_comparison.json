@@ -1,0 +1,186 @@
+{
+  "status": "cost_planning_only_no_validated_walker_at_any_size",
+  "checked_on": "2026-10-24",
+  "exclusions": [
+    "labor",
+    "tax",
+    "shipping",
+    "import_duties",
+    "new_workshop_machines",
+    "new_host_computer",
+    "outsourced_engineering",
+    "event_operations"
+  ],
+  "miniature_assumptions": {
+    "actuators": {
+      "XC330_M288_T": {
+        "count": 6,
+        "unit_price_usd": 103.39,
+        "source": "https://robotis.us/products/dynamixel-xc330-m288-t"
+      },
+      "XL330_M288_T": {
+        "count": 9,
+        "unit_price_usd": 27.49,
+        "source": "https://robotis.us/products/dynamixel-xl330-m288-t"
+      }
+    },
+    "core_allowances_usd": {
+      "structure_bearings_feet": [
+        120,
+        250
+      ],
+      "shells": [
+        50,
+        100
+      ],
+      "compute_camera": [
+        75,
+        150
+      ],
+      "interfaces_imu": [
+        80,
+        150
+      ],
+      "power_battery_charger": [
+        120,
+        220
+      ],
+      "wiring_hardware": [
+        60,
+        100
+      ]
+    },
+    "development_allowances_usd": {
+      "bench_tools": [
+        150,
+        300
+      ],
+      "spares_rework": [
+        100,
+        200
+      ],
+      "cloud": [
+        50,
+        150
+      ]
+    }
+  },
+  "tiers": {
+    "trex_50cm/brushless_candidate": {
+      "height_m": 0.5,
+      "mass_budget_including_reserve_kg": 5.91,
+      "actuator_cost_usd": 2601.54,
+      "core_parts_and_fabrication_usd": [
+        3861.54,
+        5101.54
+      ],
+      "development_extras_usd": [
+        600,
+        1300
+      ],
+      "contingency_fraction": 0.25,
+      "first_project_usd": [
+        5576.93,
+        8001.93
+      ]
+    },
+    "trex_50cm/dynamixel_comparison": {
+      "height_m": 0.5,
+      "mass_budget_including_reserve_kg": 4.58,
+      "actuator_cost_usd": 6180.42,
+      "core_parts_and_fabrication_usd": [
+        7440.42,
+        8680.42
+      ],
+      "development_extras_usd": [
+        600,
+        1300
+      ],
+      "contingency_fraction": 0.25,
+      "first_project_usd": [
+        10050.53,
+        12475.53
+      ]
+    },
+    "trex_50cm/stronger_brushless_comparison": {
+      "height_m": 0.5,
+      "mass_budget_including_reserve_kg": 6.725999999999999,
+      "actuator_cost_usd": 5518.74,
+      "core_parts_and_fabrication_usd": [
+        6778.74,
+        8018.74
+      ],
+      "development_extras_usd": [
+        600,
+        1300
+      ],
+      "contingency_fraction": 0.25,
+      "first_project_usd": [
+        9223.43,
+        11648.43
+      ]
+    },
+    "trex_80cm/low_ratio_48v_comparison": {
+      "height_m": 0.8,
+      "mass_budget_including_reserve_kg": 11.408,
+      "actuator_cost_usd": 8372.64,
+      "core_parts_and_fabrication_usd": [
+        10772.64,
+        13272.64
+      ],
+      "development_extras_usd": [
+        1200,
+        2600
+      ],
+      "contingency_fraction": 0.3,
+      "first_project_usd": [
+        15564.43,
+        20634.43
+      ]
+    },
+    "trex_80cm/higher_ratio_24v_comparison": {
+      "height_m": 0.8,
+      "mass_budget_including_reserve_kg": 9.847999999999999,
+      "actuator_cost_usd": 6801.84,
+      "core_parts_and_fabrication_usd": [
+        9201.84,
+        11701.84
+      ],
+      "development_extras_usd": [
+        1200,
+        2600
+      ],
+      "contingency_fraction": 0.3,
+      "first_project_usd": [
+        13522.39,
+        18592.39
+      ]
+    },
+    "miniature/provisional_upgrade_allowance": {
+      "height_m": 0.258,
+      "mass_budget_including_reserve_kg": null,
+      "mass_note": "Existing tail model is 0.825 kg; upgraded hardware and camera mass are not reconciled.",
+      "actuator_cost_usd": 867.75,
+      "core_parts_and_fabrication_usd": [
+        1372.75,
+        1837.75
+      ],
+      "development_extras_usd": [
+        300,
+        650
+      ],
+      "contingency_fraction": 0.25,
+      "first_project_usd": [
+        2090.94,
+        3109.69
+      ]
+    }
+  },
+  "source_sha256": {
+    "docs/hardware/studies/compare_costs.py": "3c765fbd5e5886c5dccbdeb608fdc9410876d4f2537e44d0d327591aa30f57fc",
+    "docs/hardware/studies/trex_50cm/inputs.json": "c2e91b0452f1e9881f0aa6ddece523272e2a15d6177e91c79bdb4de6e08a66b0",
+    "docs/hardware/studies/trex_50cm/results.json": "7f8618542870629abe3ac95376aeed157724be95376909bd17932409251d944f",
+    "docs/hardware/studies/trex_80cm/inputs.json": "9b6b08b89049a84ad1a18ccbbb6a3a8db2f59ae8957f66ef0789a74d178e1aac",
+    "docs/hardware/studies/trex_80cm/results.json": "f43adef5cfbe6d5e47fbf3a747e6028818a60dca81b3cb84433044f0f5a614cf"
+  }
+}

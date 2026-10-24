@@ -35,6 +35,12 @@ arms, service-panel views, component ledger and preliminary $2,000 allocation. I
 smoke-checked without registering a new plant. It has not demonstrated walking
 or continuous hardware motor duty.
 
+The [T-Rex size trade study](TREX_SIZE_TRADE_STUDY.md) compares the miniature,
+50 cm and 80 cm concepts, with sourced actuator options, reproducible load/mass
+screens, first-project budgets and demonstration/marketing tradeoffs. It
+recommends a 50 cm packaging and actuator bench study before buying a complete
+motor set. The larger concepts have not undergone CAD or gait validation.
+
 1. **[SIM_TO_REAL_PLAN.md](SIM_TO_REAL_PLAN.md)** — start here. The six
    sim↔hardware gaps (privileged observations, actuation, control loop, domain
    randomization, deployment stack, project maturity) and the phased plan to
