@@ -98,6 +98,13 @@
 # that are not copied (the rollouts, tables, verifiers' folders and scripts, and the tail experiment's runs and
 # measurements).  The scratch clone scratch_tailfix that tailexp/report.md describes was never pushed and is not
 # copied.
+# Added 2026-10-24, later (stance5/replication/readouts_addendum_k3.txt, stance5/replication/k3readouts/): no new
+# kind of change.  readouts_addendum_k3.txt and k3readouts/VALIDATION.md are byte-identical; the tool, its runner,
+# validate_k3r.py, README.md and the nine outputs carry the prefix change only, so the tool's and the runner's sha256
+# are not the d0aed5a1... and 5e3c66cd... the outputs record (that is the source sha256 given here).  Of the session's
+# outputs, the four replication readouts and the five stance5 reference outputs of the current tool are copied; the
+# six earlier outputs of the superseded tool (b69ff098..., identical in every readout by VALIDATION.md) and the
+# tool's logs, self-tests and review material are not.
 
 audit/foot_ankle_audit.md foot/audit_2026_10_17/foot_ankle_audit.md e9da4ef84be17a87b70096d1e2aede87609ad22f446b10786f9e14d5064725c8 prefix
 audit/geometry/geometry_audit.json foot/audit_2026_10_17/geometry/geometry_audit.json 934110bec337b9693f894800efb309bf1a9529ae87f91f129bfefc8fef5b650a prefix,whitespace
@@ -448,6 +455,21 @@ stance5/replication/judge/judge_diff.txt foot/stance5/replication/judge/judge_di
 stance5/replication/judge/judge_stance5r.py foot/stance5/replication/judge/judge_stance5r.py 16d39f7dcb14a8b6f94061331933df8f1dcee76aa988479e293b132bf8ac05ae prefix,checkout
 stance5/replication/judge/score_stance5r.py foot/stance5/replication/judge/score_stance5r.py 55c37ba7f30a3812dbb035a509afaebd851088e5dc251199e1a519b161f46f60 prefix
 stance5/replication/judge/test_score_stance5r.py foot/stance5/replication/judge/test_score_stance5r.py 2506fa9df6a53a9cde9f533b41ef926f2379c45e112c0faad619bdefd055e61d none
+stance5/replication/k3readouts/README.md foot/stance5/replication/k3readouts/README.md 42278b9398d5bc028e84e7ffd42fc42f04539039148fa6c6699f5b4017ed6a47 prefix
+stance5/replication/k3readouts/VALIDATION.md foot/stance5/replication/k3readouts/VALIDATION.md d185ddb85de69bed4508c616cda0e8942c57a84ef7c50c186e0a7d00627da7e5 none
+stance5/replication/k3readouts/k3readout5r.py foot/stance5/replication/k3readouts/k3readout5r.py d0aed5a17bb0ea82b5496b12421e3010e25a6afcb77ea7abecc4cd99e44517ac prefix
+stance5/replication/k3readouts/k3readout_one5r.sh foot/stance5/replication/k3readouts/k3readout_one5r.sh 5e3c66cddaabcfabd231ed503b5b5d4fbed5654cf13adc7e1a8b28d97188f727 prefix
+stance5/replication/k3readouts/out/stance5_LTSB_s42/k3r_6291456.2.json foot/stance5/replication/k3readouts/out/stance5_LTSB_s42/k3r_6291456.2.json ee862e187dfc46a64dc2b08b5980cf13c2bd99966c295b7a3779e93c31a6ba59 prefix
+stance5/replication/k3readouts/out/stance5_LTSB_s42/k3r_7340032.1.json foot/stance5/replication/k3readouts/out/stance5_LTSB_s42/k3r_7340032.1.json dc091b33a9a873d9ed29fc645e939c3528729c75d664efdc1480ef3527b4b52a prefix
+stance5/replication/k3readouts/out/stance5_LTSB_s42/k3r_final.1.json foot/stance5/replication/k3readouts/out/stance5_LTSB_s42/k3r_final.1.json cc273181109911395cd52c47d95f8efd075091f84134c57ca8a73812f1a060fb prefix
+stance5/replication/k3readouts/out/stance5_LTSB_s52/k3r_final.1.json foot/stance5/replication/k3readouts/out/stance5_LTSB_s52/k3r_final.1.json 6c61a12df7defe9327efae8aa090ed9f6d72802c084846b165905436c11288a2 prefix
+stance5/replication/k3readouts/out/stance5_LTSB_s60/k3r_final.1.json foot/stance5/replication/k3readouts/out/stance5_LTSB_s60/k3r_final.1.json 8e9d3e29540feb15ab88fb3f3a41cc33a11ee91132de13d61eadecc573e6ea72 prefix
+stance5/replication/k3readouts/out/stance5_LTSB_s70/k3r_6291456.json foot/stance5/replication/k3readouts/out/stance5_LTSB_s70/k3r_6291456.json f1c329ea28abe0f784d4bb4732cd00e507ad71676fcdefa360243ceb4f0b6e3b prefix
+stance5/replication/k3readouts/out/stance5_LTSB_s70/k3r_final.json foot/stance5/replication/k3readouts/out/stance5_LTSB_s70/k3r_final.json a935f48763b375b4f3f7ee9add20dd997a9bac69a1f58b6f68be0068f2059652 prefix
+stance5/replication/k3readouts/out/stance5_LTSB_s80/k3r_6291456.json foot/stance5/replication/k3readouts/out/stance5_LTSB_s80/k3r_6291456.json d84859bae7b94365c60d4339b31ed023aca44afe26e93cf8852fe7133445af8b prefix
+stance5/replication/k3readouts/out/stance5_LTSB_s80/k3r_final.json foot/stance5/replication/k3readouts/out/stance5_LTSB_s80/k3r_final.json 8302093754c0b86c5b92768c185dd9bcb8bc0a6d759dc138837d75f797b2daa3 prefix
+stance5/replication/k3readouts/validate_k3r.py foot/stance5/replication/k3readouts/validate_k3r.py 282f6a3d0099f64eacc145c2b02bb97346989b1f98a25ee9689acdaf2a7373c3 prefix
+stance5/replication/readouts_addendum_k3.txt foot/stance5/replication/readouts_addendum_k3.txt 7a79e9f66091e8fcdcc53eba2248df3cc2f5b6a7ad3db6bc66d88bb4e58d2eaa none
 stance5/replication/results/certificates/stance5_LTSB_s70/run_summary.json foot/stance5/replication/cert/stance5_LTSB_s70/run_summary.json 1157212c0ca37214a56a97e6b3cb5b4f0e76a4ed9d8a44d3913818b45674cef2 trim,prefix,whitespace
 stance5/replication/results/certificates/stance5_LTSB_s70/stance_heading_report.txt foot/stance5/replication/cert/stance5_LTSB_s70/stance_heading_report.txt f16788824b013fc06489d2a936aba85f1a29e79575ee517d6b8f983c54ec4703 none
 stance5/replication/results/certificates/stance5_LTSB_s80/run_summary.json foot/stance5/replication/cert/stance5_LTSB_s80/run_summary.json 641af6ff70b0bdffdf507451b39ed33a4330eab96531146eff9fe90c021d9a5a trim,prefix,whitespace

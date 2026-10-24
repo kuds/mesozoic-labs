@@ -89,6 +89,13 @@ reports of two report-only workflows the maintainer agreed to on 2026-10-22
 noise falls (K3), and a scratch experiment on the tail habit (P1, a bound on the
 policy mean). Each puts its skeptic checks first. They change no verdict.
 
+*Added 2026-10-24, later:* `stance5/replication/` gains the report-only K3
+mechanism readouts that the maintainer agreed to on 2026-10-22, after the K3
+diagnosis and before any J checkpoint of the replication existed: their
+addendum (`readouts_addendum_k3.txt`), the tool, its runner and validation, and
+its outputs (`k3readouts/`; the note's §23). They are post hoc, enter no
+verdict, decision line or tie-break, and are not a veto.
+
 ## What changed in the copies
 
 [SOURCES.txt](SOURCES.txt) lists every file with the scratch file it came from,
@@ -247,6 +254,14 @@ email address or a commit trailer.
 `report.md` carries the **redact** change (one workflow run id, now `workflow
 [id removed]`) and the **prefix** change, and `stance5/tailexp/report.md` the
 **checkout** change too (once). Nothing else differs, and no copy holds a model
+identifier, an email address or a commit trailer.
+
+*Added 2026-10-24, later (`stance5/replication/readouts_addendum_k3.txt`,
+`stance5/replication/k3readouts/`):* the addendum (sha256 `7a79e9f6…`) and
+`k3readouts/VALIDATION.md` are byte-identical to their sources; the tool, its
+runner, `validate_k3r.py`, `README.md` and the nine outputs carry the
+**prefix** change only, so the tool's and the runner's sha256 are not the
+`d0aed5a1…` and `5e3c66cd…` the outputs record. No copy holds a model
 identifier, an email address or a commit trailer.
 
 [SHA256SUMS](SHA256SUMS) pins every file here but this README and itself
@@ -1004,6 +1019,48 @@ the PPO training loss.
   stay in the session's scratch (`scratchpad/foot/stance5/tailexp/`: the runs,
   the measurements, the telemetry and the verifiers' folders).
 
+### Added on 2026-10-24, later (the K3 readouts addendum and its results)
+
+**`stance5/replication/readouts_addendum_k3.txt` and
+`stance5/replication/k3readouts/`: report-only K3 mechanism readouts on the
+replication (2026-10-22 to 2026-10-24).** The addendum was written at 22:55 UTC
+on 2026-10-22 on the maintainer's OK ("Yes please add those reports"), when only
+the replication's 1,048,576-step checkpoint had been judged and no J checkpoint
+existed; it changes neither the criteria (`a38536de…`) nor the judge, scorer or
+sidecar, and says it is post hoc. It fixes, for s70 and s80 at 6,291,456 and the
+final, on the judge's own joint-space noise loop: the falls of 20 under the full
+noise (which must reproduce the judge file), hip-pitch noise only, the full
+noise without hip pitch, and the differential and common parts of the actual
+hip-pitch noise; the ±0.2 and ±0.3 left-right hip-pitch kick (0.2 s); the
+policy's direct response to a left-right hip-pitch difference; its own action
+noise per actuator; and the heading-frame stagger sd. n = 20 per condition, so
+differences of 2 or 3 falls are within binomial noise.
+
+- `readouts_addendum_k3.txt`: the addendum, pinned by the tool and unedited.
+- `k3readouts/k3readout5r.py` and `k3readouts/k3readout_one5r.sh`: the tool
+  (one checkpoint per call; it refuses a judge, addendum, judge file, checkpoint,
+  sigma or clone that is not the pinned one) and its runner; `README.md`: their
+  record, definitions and the lines they copy from the K3 diagnosis' scripts.
+- `k3readouts/validate_k3r.py` and `k3readouts/VALIDATION.md`: the validation
+  against stance5's skeptic-checked values (s42 at 6,291,456, 7,340,032 and the
+  final, s52's and s60's finals): 223 checked rows, 0 mismatches, written at
+  02:16 UTC on 2026-10-23; and the two reviews' 13 minor findings (none
+  blocking), what was done about each, and their tests.
+- `k3readouts/out/<run id>/k3r_<slot>.json`: the four replication readouts
+  (s70 and s80 at 6,291,456 and the final; `addendum_slot` `readout`) and the
+  five stance5 references rolled by the same tool (`reference`); all nine are
+  valid (the full noise reproduces the judge file per episode, rewards
+  included).
+
+Measured (the outputs): falls of 20 under the full noise 0 and 1 (s70 at
+6,291,456 and the final) and 1 and 2 (s80); hip-pitch noise only 0, 0, 1 and 1;
+without hip pitch 0 throughout; the differential part 0, 0, 0 and 1; the common
+part 0 throughout; the ±0.3 kick 18, 20, 20 and 20 of 20, the ±0.2 kick 0, 0, 0
+and 1; the direct response −1.023, −0.428, −0.484 and −0.012 per rad; the own
+hip-pitch sigma 0.0220, 0.0146, 0.0212 and 0.0149. The references: stance5 s42's
+final fell 13 of 20 (hip pitch only 15, the differential part 15), and every
+stance5 band final fell 20 of 20 to the ±0.3 kick. None of it enters a verdict.
+
 ## How to re-check each verdict
 
 Commands as run on 2026-10-17 from a copy of this directory (Python 3.13;
@@ -1073,6 +1130,8 @@ copies.
 | The replication criteria (2026-10-24) | `sha256sum stance5/replication/criteria.txt` | `a38536de152e735947fd5322960f9e75b6520b59a5526a414afc0d0c4a0f3ef2` |
 | The files themselves (2026-10-24, with `stance5/replication/`) | `sha256sum -c SHA256SUMS` | all 401 files OK |
 | The files themselves (2026-10-24, later, with `stance5/k3diag/` and `stance5/tailexp/`) | `sha256sum -c SHA256SUMS` | all 403 files OK |
+| The K3 readouts' tool and runner (2026-10-24; session scratch only) | `sha256sum scratchpad/foot/stance5/replication/k3readouts/k3readout5r.py scratchpad/foot/stance5/replication/k3readouts/k3readout_one5r.sh`, and each output's `identity` | `d0aed5a1…` and `5e3c66cd…`, the values all nine copied outputs record |
+| The files themselves (2026-10-24, later, with the K3 readouts) | `sha256sum -c SHA256SUMS` | all 418 files OK |
 
 `test_pilot_score.py` prints sample "Walking pilot score" blocks while it runs;
 they score synthetic panels, not the pilot.
@@ -1162,3 +1221,8 @@ left as they ran: `ruff check` (ruff 0.16.9, the same configuration) reports 1
 finding in `test_score_stance5r.py` (an f-string without placeholders) and none
 in the other two, and `ruff format --check` would reformat all three. All three
 parse on Python 3.11, 3.12 and 3.13.
+
+*Added 2026-10-24, later:* the two scripts added in
+`stance5/replication/k3readouts/` are left as they ran: `ruff check` reports no
+finding in either, `ruff format --check` would reformat both, and both parse on
+Python 3.11, 3.12 and 3.13.
