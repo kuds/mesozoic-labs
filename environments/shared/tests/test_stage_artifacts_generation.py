@@ -354,7 +354,7 @@ def _write_ledgers(stage_dir, *, train: bool = True) -> None:
                 writer.writerow([timesteps, 0, 1000, 1.0, cause])
 
 
-def _judge_velociraptor_stage(stage_dir, *, patches=(), generate_graphs: bool = True) -> dict:
+def _judge_velociraptor_mongoliensis_stage(stage_dir, *, patches=(), generate_graphs: bool = True) -> dict:
     """``generate_stage_artifacts`` on a Velociraptor stage-1 directory (fake checkpoints, stubbed replays)."""
     import numpy as np
 
@@ -444,7 +444,7 @@ def test_the_training_history_is_drawn_at_stage_end_and_its_failure_costs_it_onl
         _write_ledgers(stage_dir)
         with caplog.at_level(logging.WARNING, logger=stage_artifacts.logger.name):
             caplog.clear()
-            returned = _judge_velociraptor_stage(stage_dir, patches=patches)
+            returned = _judge_velociraptor_mongoliensis_stage(stage_dir, patches=patches)
             warnings = [record.getMessage() for record in caplog.records if record.levelno >= logging.WARNING]
         # Each variant judges its own directory, so its path is the one difference allowed.
         results[name] = json.dumps(returned, sort_keys=True, default=str).replace(str(stage_dir), "<stage>")
@@ -508,7 +508,7 @@ def test_old_runs_and_missing_ledgers_are_fine(tmp_path, caplog):
     stage_dir.mkdir(parents=True)
     _write_ledgers(stage_dir)
     with patch.object(stage_artifacts, "_write_training_history") as drawn:
-        _judge_velociraptor_stage(stage_dir, generate_graphs=False)
+        _judge_velociraptor_mongoliensis_stage(stage_dir, generate_graphs=False)
     drawn.assert_not_called()
     assert not stage_layout.figures_dir(stage_dir).exists()
 
