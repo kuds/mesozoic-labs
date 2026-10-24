@@ -8,6 +8,8 @@ from __future__ import annotations
 import json as _json
 import logging
 import math
+import shutil
+import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Mapping
 
@@ -2064,6 +2066,13 @@ def generate_stage_artifacts(
                 logger.warning("Skipping the gate progress figure (matplotlib not installed).")
             except Exception:
                 logger.warning("The gate progress figure failed; the other figures are unaffected.", exc_info=True)
+            # In its own guard, after the gate progress figure: a failure costs the training history only.
+            try:
+                _write_training_history(stage_dir, staging)
+            except ImportError:
+                logger.warning("Skipping the training history (matplotlib not installed).")
+            except Exception:
+                logger.warning("The training history failed; the other figures are unaffected.", exc_info=True)
 
         if record_videos:
             stage_results = _record_stage_replays(
@@ -2097,6 +2106,44 @@ def generate_stage_artifacts(
     )
 
     return stage_results
+
+
+def _write_training_history(stage_dir: Path, staging: Path) -> Path | None:
+    """Draw the stage's training history from its ledgers into *staging*'s ``figures/training_history/``.
+
+    The pages ``scripts/plot_training_history.py STAGE_DIR`` draws with its
+    defaults (:mod:`.training_history`), written by the library itself: that
+    script refuses an ``--out`` inside a run directory to keep manual writes
+    out of a run, while this is the stage's own artifact step, published with
+    the other figures before the bundle is saved, so the save declares them.
+    The report is written to a private temporary directory and moved into the
+    staging tree in one rename only once every file of it is complete, so a
+    failure or an interrupt part-way publishes none of it.  A stage directory
+    holding neither ledger (a run from before them) gets none: every page
+    would be empty.  Returns the staged directory, or ``None`` when skipped.
+    Report only: nothing reads the files back.
+    """
+    from . import training_history
+
+    ledgers = (training_history.EVAL_EPISODES_FILENAME, training_history.TRAIN_EPISODES_FILENAME)
+    if not any((stage_dir / name).is_file() for name in ledgers):
+        logger.info("No training history drawn: %s holds neither %s nor %s.", stage_dir, *ledgers)
+        return None
+    private = Path(tempfile.mkdtemp(prefix="mesozoic-training-history-"))
+    try:
+        run = training_history.load_run_history(stage_dir)
+        title = f"{run.model_display or 'training history'}: {run.label}"
+        report = private / stage_layout.TRAINING_HISTORY_DIRNAME
+        # A page that fails alone is logged by the module and listed in the JSON's errors; the rest are kept.
+        training_history.write_report([run], report, title=title)
+        destination = stage_layout.training_history_dir(staging)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.rmtree(destination, ignore_errors=True)
+        shutil.move(str(report), str(destination))
+    finally:
+        shutil.rmtree(private, ignore_errors=True)
+    logger.info("Training history drawn: %s", stage_layout.training_history_dir(stage_dir))
+    return destination
 
 
 def _record_stage_replays(
