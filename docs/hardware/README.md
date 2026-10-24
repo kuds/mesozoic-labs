@@ -41,6 +41,11 @@ screens, first-project budgets and demonstration/marketing tradeoffs. It
 recommends a 50 cm packaging and actuator bench study before buying a complete
 motor set. The larger concepts have not undergone CAD or gait validation.
 
+The [robot variants and build plan](ROBOT_VARIANTS_AND_BUILD_PLAN.md) proposes
+how concurrent mini, medium and large robots of one species should be identified,
+tested and documented, with a staged mini-to-50 cm timeline at 15–20 hours/week.
+It is an architecture proposal; the runtime has not implemented variant selection.
+
 1. **[SIM_TO_REAL_PLAN.md](SIM_TO_REAL_PLAN.md)** — start here. The six
    sim↔hardware gaps (privileged observations, actuation, control loop, domain
    randomization, deployment stack, project maturity) and the phased plan to

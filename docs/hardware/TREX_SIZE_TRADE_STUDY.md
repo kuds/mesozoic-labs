@@ -7,6 +7,10 @@ miniature as the inexpensive learning platform. Treat 80 cm as a later flagship
 when a venue, collaborator or audience need justifies its greater development
 cost and logistics.
 
+The companion [robot variants and build plan](ROBOT_VARIANTS_AND_BUILD_PLAN.md)
+proposes repository structure and a phased mini-to-50 cm schedule, with separate
+identities, calibrations and evidence for each robot design.
+
 This is a preliminary engineering and project-cost study dated **2026-10-24**.
 It includes current manufacturer actuator specifications, explicit mass/cost
 allowances and reproducible arithmetic. **Neither larger robot has CAD fit,
