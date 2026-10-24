@@ -1,0 +1,174 @@
+{
+ "schema": "tailscreen-run/1",
+ "name": "s80_control_r303",
+ "status": "done",
+ "utc_start": "2026-10-24T23:01:44Z",
+ "state": "s80",
+ "arm": "control",
+ "rep_seed": 303,
+ "coef": 0.0,
+ "b": 0.9,
+ "bound_record": {
+  "coef": 0.0,
+  "bound": 0.9,
+  "index": 14,
+  "side": "upper",
+  "loss": "coef * mean_rows relu(mu[:, index] - bound)^2"
+ },
+ "steps": 1048576,
+ "target_num_timesteps": 5242880,
+ "save_every": 131072,
+ "argv": [
+  "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/tailround/screen/tools/run_tailscreen.py",
+  "--state",
+  "s80",
+  "--arm",
+  "control",
+  "--rep-seed",
+  "303",
+  "--steps",
+  "1048576"
+ ],
+ "clone": {
+  "path": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/tailround/screen/scratch_tail3bound",
+  "head": "4c0c8da76d14f4b482f1fc63e0cf57af79b0184f",
+  "status": "",
+  "branch": "scratch/tail3-upper-bound",
+  "push_url": [
+   "DISABLED-never-push"
+  ],
+  "parent": "2cc1921ded20b8eec077eb0cf2c1d3c9e80b990c",
+  "commits": [
+   "2cc1921ded20b8eec077eb0cf2c1d3c9e80b990c",
+   "4c0c8da76d14f4b482f1fc63e0cf57af79b0184f"
+  ],
+  "chain_ok": true,
+  "changed_files": [
+   "environments/shared/mirror_kl_ppo.py",
+   "environments/shared/tests/test_mirror_kl_ppo.py"
+  ],
+  "status_flags": "--porcelain --ignored"
+ },
+ "screen_common_sha256": "c9925334108f6d5f1ab4300bb9c3e00bdb775c5fc237fc1d08f07b97d550607e",
+ "modules_root": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/tailround/screen/scratch_tail3bound/environments/__init__.py",
+ "stack": {
+  "python": "3.13.17",
+  "torch": "2.13.0+cpu",
+  "numpy": "2.5.4",
+  "gymnasium": "1.4.0",
+  "stable_baselines3": "2.9.0",
+  "mujoco": "3.10.0"
+ },
+ "torch_threads": 1,
+ "device": "cpu",
+ "criteria_sha256": "9930ee722bf07f21256c0998656568d544ef7413c18d4dfa823338370bcb1b6a",
+ "coef_json_sha256": "f6d90f99fc09c09577af9dc2bf4e00fde6537cc8c4fc631af055eaf26880c18d",
+ "approved_sha256": "42627d1f7f3135ad3ff73526bb042e900c9c2e9108ae07c7916507f23c575957",
+ "start": {
+  "zip": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/tailround/fetch/stance5_LTSB_s80/A/stage1_4194304_steps.zip",
+  "zip_sha256": "649db94c026db3925a43643dfcd58299877fbe7783bca25e7b7b6ca504a5a3cc",
+  "pkl": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/tailround/fetch/stance5_LTSB_s80/A/stage1_vecnormalize_4194304_steps.pkl",
+  "pkl_sha256": "98fe304328256720f59658da9a0c2b7ccae89dd0cb5ad5798a1768383adc06d9",
+  "num_timesteps": 4194304,
+  "total_timesteps_recorded": 12000000,
+  "n_updates": 4193,
+  "current_progress_remaining": 0.6511573333333334,
+  "ent_coef_after_load": 0.005,
+  "digest": {
+   "params": "sha256:7ae226c095c044196d52a5678a14ebe750c7e23adbaa2b0fca9a8a54ee03ae6a",
+   "adam": "sha256:ced691a02881026970852bbda24887ab2b55605418fe3c85bf540940e4f211bb",
+   "vecnormalize": "sha256:ed9728a2d0cd807f92d31e99cd039093a684db2f1987ab4de08aa8805b29b6eb",
+   "all": "sha256:d70edea5f98ad285e3c219499ed233b09a42dc8316377f22c4a510c7fe2ee685",
+   "n_updates": 4193,
+   "num_timesteps": 4194304
+  }
+ },
+ "recipe_checks": {
+  "stage": 1,
+  "stage_config": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance5/replication/runs/stance5_LTSB_s80/01_stance/stage_config.json",
+  "hyperparameters_sha256": "sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c",
+  "task_sha256": "sha256:8c6998d260b850ae054c9c2d49a8e5bef2bf59d4770ad77d3674b911721918cf",
+  "run_timesteps": 12000000,
+  "run_seed": 80,
+  "run_git_commit": "cf80ecb14d1630ce3b4dcdea28a05835d143470b",
+  "env_keys_checked": 63,
+  "ppo_equal": true,
+  "curriculum_equal": true
+ },
+ "class": "MirrorKLPPO",
+ "symmetry": {
+  "schema": "mesozoic.mirror-kl/v1",
+  "method": "mirror_kl",
+  "species": "tyrannosaurus_rex",
+  "embodiment": "anatomical",
+  "mirror_map_sha256": "sha256:75aa96373606080772e1f3c82a6f04b5f19b783f7bb19a8f9e971d2763375975",
+  "kappa": 0.3,
+  "sigma_floor": 0.01,
+  "mirror_critic": true
+ },
+ "ent_coef_decay": {
+  "end": 0.0,
+  "decay_timesteps": 7000000
+ },
+ "learn": {
+  "total_timesteps_arg": 7805696,
+  "reset_num_timesteps": false
+ },
+ "numpy": "2.5.4",
+ "utc_end": "2026-10-24T23:45:25Z",
+ "final_num_timesteps_env": 5242884,
+ "final_checkpoint_num_timesteps": 5242880,
+ "final_update_train": {
+  "train/tail3_bound_penalty": 0.00015164811285143644,
+  "train/tail3_bound_loss": 0.0,
+  "train/tail3_bound_beyond_fraction": 0.08185218590831919,
+  "train/tail3_bound_mu_max": 1.061368465423584,
+  "train/tail3_bound_coef": 0.0,
+  "train/tail3_bound_b": 0.9,
+  "train/approx_kl": 0.024550868198275566,
+  "train/clip_fraction": 0.2677339770797963,
+  "train/policy_gradient_loss": -0.013029471680155127,
+  "train/value_loss": 0.0006256508835135202,
+  "train/entropy_loss": 19.88670664529849,
+  "train/std": 0.09586862474679947,
+  "train/mirror_kl_loss": 0.05710119426136612,
+  "train/mirror_asymmetry": 0.008462480040099503,
+  "train/learning_rate": 2.1261866666666667e-05,
+  "train/n_updates": 4877.0,
+  "train/explained_variance": 0.9508616328239441
+ },
+ "final_digest": {
+  "params": "sha256:b933e47a3b27b72243b65568ec38199a94e0eb14ef04a4828c80a1070cb79827",
+  "adam": "sha256:ca1e123a7c22c7d85021bb784504107bd51b6018f6e9f8334078a778fa6373c4",
+  "vecnormalize": "sha256:02c8a748c6788d9f32635f94191b368b224acf3874579e62a96d4ae965aed509",
+  "all": "sha256:7c60ee22ecb4f433f8ced0e187145281c747e3f53571ca919b23af65d8a3a458",
+  "n_updates": 4877,
+  "num_timesteps": 5242880
+ },
+ "checkpoints": [
+  "stage1_4325376_steps.zip",
+  "stage1_4456448_steps.zip",
+  "stage1_4587520_steps.zip",
+  "stage1_4718592_steps.zip",
+  "stage1_4849664_steps.zip",
+  "stage1_4980736_steps.zip",
+  "stage1_5111808_steps.zip",
+  "stage1_5242880_steps.zip",
+  "stage1_final.zip",
+  "stage1_final_vecnorm.pkl",
+  "stage1_vecnormalize_4325376_steps.pkl",
+  "stage1_vecnormalize_4456448_steps.pkl",
+  "stage1_vecnormalize_4587520_steps.pkl",
+  "stage1_vecnormalize_4718592_steps.pkl",
+  "stage1_vecnormalize_4849664_steps.pkl",
+  "stage1_vecnormalize_4980736_steps.pkl",
+  "stage1_vecnormalize_5111808_steps.pkl",
+  "stage1_vecnormalize_5242880_steps.pkl"
+ ],
+ "final_sha256": {
+  "stage1_final.zip": "755d47f8bf94aad4cd0d263d239342f5b93e1dfd6a626987312587dd7382814d",
+  "stage1_final_vecnorm.pkl": "668a6f11676cf98fc2fcbe3df4496ea6b65d0e3dc0dd582f7d951241cec4eab9"
+ },
+ "modules_all_under_clone": 84,
+ "wall_seconds": 2627.8
+}
