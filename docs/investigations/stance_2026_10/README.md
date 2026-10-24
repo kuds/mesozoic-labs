@@ -73,6 +73,29 @@ as they were, and the summary of the rebuild for its new parent (decision D-D36
 as amended on 2026-10-20; the note's §21.6). Pilot 2 is not yet trained, and
 nothing here is a result.
 
+*Added 2026-10-24:* `stance5/replication/` holds the pre-registration of the
+stance5 replication of decision D-D41 (the note's §22): its criteria, fixed
+before training, the Colab steps, the joint-noise sigma sidecar for the new
+seeds, and frozen copies of the judge and scorer.
+`stance5/replication/results/` holds the replication's judgement by those
+criteria (Run 4, seed 70, holds; Run 5, seed 80, does not; the decision table's
+line is 2, final; the note's §23), with report-only readouts and an index of its
+own, [stance5/replication/results/README.md](stance5/replication/results/README.md).
+As a screen it certifies nothing.
+
+*Added 2026-10-24, later:* `stance5/k3diag/` and `stance5/tailexp/` hold the
+reports of two report-only workflows the maintainer agreed to on 2026-10-22
+(the note's §22.2 and §23): a diagnosis of the stance5 band runs' joint-space
+noise falls (K3), and a scratch experiment on the tail habit (P1, a bound on the
+policy mean). Each puts its skeptic checks first. They change no verdict.
+
+*Added 2026-10-24, later:* `stance5/replication/` gains the report-only K3
+mechanism readouts that the maintainer agreed to on 2026-10-22, after the K3
+diagnosis and before any J checkpoint of the replication existed: their
+addendum (`readouts_addendum_k3.txt`), the tool, its runner and validation, and
+its outputs (`k3readouts/`; the note's §23). They are post hoc, enter no
+verdict, decision line or tie-break, and are not a veto.
+
 ## What changed in the copies
 
 [SOURCES.txt](SOURCES.txt) lists every file with the scratch file it came from,
@@ -205,11 +228,49 @@ byte-identical to its source (`60845fdc…`). `pilot2/criteria.txt` and
 `bc94bda3…`); the amended criteria cite the first as their pre-amendment copy.
 No copy holds a model identifier, an email address or a commit trailer.
 
+*Added 2026-10-24 (`stance5/replication/`, `stance5/replication/results/`):* the
+copies carry the **prefix**, **whitespace**, **gzip**, **trim**, **redact**,
+**checkout** and **lines** changes, nothing else and no new kind:
+`stance5/replication/results/run_log.txt` is lines 396 to 504 of the session's
+run log, whose lines 1 to 207 and 208 to 395 are the stance4 and stance5 copies.
+The redaction is in that log only: 49 workflow run ids (28 distinct) and 6
+shortened Drive folder ids, as before, and, items not redacted before, 15
+background-job ids of the session's queue workers (13 distinct) and 1 task id
+of the session's task list, each now `[id removed]`.
+`stance5/replication/results/scores/score_final.json.gz` is gzipped, as the
+JSON is above the repository's 500 KB limit for an added file.
+`stance5/replication/criteria.txt` is byte-identical to the file fixed before
+training (sha256 `a38536de…`; it ends with a newline), and so are
+`stance5/replication/colab_steps.txt` (`d646fc3c…`, the steps sent at 18:00 UTC
+on 2026-10-22) and `stance5/replication/judge/test_score_stance5r.py`. The
+judge, the scorer and the sidecar `sigma_s70_s80.json` carry the **prefix**
+change (the judge the **checkout** change too), so their sha256 is not the
+`16d39f7d…`, `55c37ba7…` and `89778b3f…` the criteria, the Colab steps and the
+judge files record; SOURCES.txt gives those as the sources' sha256.
+[stance5/replication/results/README.md](stance5/replication/results/README.md)
+says which file each change applies to. No copy holds a model identifier, an
+email address or a commit trailer.
+
+*Added 2026-10-24, later (`stance5/k3diag/`, `stance5/tailexp/`):* each
+`report.md` carries the **redact** change (one workflow run id, now `workflow
+[id removed]`) and the **prefix** change, and `stance5/tailexp/report.md` the
+**checkout** change too (once). Nothing else differs, and no copy holds a model
+identifier, an email address or a commit trailer.
+
+*Added 2026-10-24, later (`stance5/replication/readouts_addendum_k3.txt`,
+`stance5/replication/k3readouts/`):* the addendum (sha256 `7a79e9f6…`) and
+`k3readouts/VALIDATION.md` are byte-identical to their sources; the tool, its
+runner, `validate_k3r.py`, `README.md` and the nine outputs carry the
+**prefix** change only, so the tool's and the runner's sha256 are not the
+`d0aed5a1…` and `5e3c66cd…` the outputs record. No copy holds a model
+identifier, an email address or a commit trailer.
+
 [SHA256SUMS](SHA256SUMS) pins every file here but this README and itself
 (`sha256sum -c SHA256SUMS` in this directory). *Added 2026-10-19:* nor
 `stance3/results/README.md`, which, like this README, has no source.
 *Added 2026-10-20:* nor `stance4/results/README.md`, likewise.
 *Added 2026-10-22:* nor `stance5/results/README.md`, likewise.
+*Added 2026-10-24:* nor `stance5/replication/results/README.md`, likewise.
 
 ## Contents
 
@@ -848,6 +909,164 @@ pushed to the branch until all three seeds are judged.
   judge accepting the run and refusing pilot 1's parent; 29 warm-start tests;
   the full suites on `8fc76eec`, 5,937 passed).
 
+### Added on 2026-10-24 (decision D-D41's outcome)
+
+**`stance5/replication/`: the stance5 replication of the per-foot CoP band,
+pre-registered (decided 2026-10-22 as D-D41; criteria fixed that day before any
+training step; launched that day on Colab L4 runtimes).** Two runs of arm LTSB,
+unchanged, from scratch on physics r9, 12M steps each: `stance5_LTSB_s70` (Run
+4) and `stance5_LTSB_s80` (Run 5), from the branch
+`claude/screen-trex-r9-armlts-copband` at `cf80ecb1`, the commit the three
+stance5 runs trained, never merged and with no pull request. The three stance5
+runs count as recorded and are not re-judged; the stance4 control enters no
+decision.
+
+- `criteria.txt`: why it is run, what is trained (as stance5's), the stance5
+  runs and the control (not retrained), how it is judged (the judge, the new
+  seeds' joint-noise sigma and the scorer), the run handling of 2026-10-22, K1–K4
+  as stance5's, the decision table of three lines (adopt only if both new runs
+  hold), when the decision is read, the pre-registered readouts, what is
+  measured and inferred, and the known limits, written before any training step
+  (sha256 `a38536de…`). It was made final at 17:46 UTC on 2026-10-22 (sha256
+  `cbf98ba7…`) and re-fixed at 18:00 UTC for the run log's time correction,
+  before any training step; the earlier texts are not copied. Its `SP/` paths
+  name the session's scratch.
+- `colab_steps.txt`: how the runs are launched and resumed, as sent at 18:00
+  UTC; it holds the criteria's full text.
+- `sigma_s70_s80.json`: the joint-space noise sigma for seeds 70 and 80, one
+  vector, the element-wise mean of the frozen `control_sigma` of seeds 42, 52
+  and 60 (mean 0.160713), with its computation.
+- `judge/judge_stance5r.py` (stance5's judge with `--seed` also taking 70 and
+  80, whose sigma it reads from the sidecar, the sigma file recorded, and the
+  schema `stance5r-judge/v1`; `judge/judge_diff.txt` is the whole diff),
+  `judge/score_stance5r.py` (loads `score_stance5.py` and through it
+  `score_stance3.py` unchanged, checks the stance5 runs' recorded verdicts and
+  the control's, and reads the replication's decision line) and
+  `judge/test_score_stance5r.py`.
+
+**`stance5/replication/results/`: the replication judged (2026-10-24, final),
+with report-only readouts.** Outcome: Run 4 `stance5_LTSB_s70` **holds**
+(K1–K4); Run 5 `stance5_LTSB_s80` fails K1 only (40, 4, 14, 26, 39 and 38 of 40
+clean, the three below 33 on the actuator-saturation rail). H = 2 of 5 (s52 and
+s70), so the decision table's line is **2**, final: "Exactly one of s70 and s80
+HOLDS (H = 2 of 5): not adopted." The maintainer chooses the next round from
+stance5 line 4's menu (the tail saturation habit, the dose, the leg
+exploration-noise floor). Under the parent rule s52's final still ties stance3
+Run 2's final (report only). Measured, both runs recorded a Colab L4 GPU
+runtime (the `gpu` block of each run's `stage_config.json`). Its
+[README](stance5/replication/results/README.md) indexes the folder:
+
+- `run_log.txt` (the replication's log, ids removed, from the package made
+  final at 17:46 UTC on 2026-10-22 to the entry timed 15:27 UTC on 2026-10-24),
+  `scores/` (`score_final.txt` and `score_final.json.gz`, the verdict of
+  record), `notebook_gates/` (the notebook's own six-heading gate on each run's
+  `robust_best`, trimmed: both PASS; report only) and `certificates/` (the
+  stage's six-heading certificate rolled offline on the s70 and s80 finals,
+  trimmed: 40/40 and 38/40, both PASS; report only, not gate evidence).
+- `saturation/`: the saturation watch's files for s80, report only: the alarm
+  at 4,456,448 (first flagged evaluation 4,325,376), and the actuator named by
+  rollouts of the 4,718,592, 5,242,880 and 6,291,456 checkpoints,
+  `tail_3_pitch_act` at +1 (tail raised).
+
+### Added on 2026-10-24, later (the two report-only workflows of 2026-10-22)
+
+**`stance5/k3diag/`: the K3 diagnosis of the stance5 band runs (2026-10-22,
+report only).** A file pass over the judge files and ledgers and a rollout pass
+that re-runs the judge's joint-space noise test with ablations (it reproduces
+all 12 judged conditions exactly), then four skeptic checks, each by an
+independent re-roll or re-reduction; where a check differs from the synthesis,
+the check governs, and three of the four corrected it. Measured and checked:
+stance5 s42's joint-noise falls are not the tail habit (holding `tail_3` at 0
+leaves 0, 9 and 12 falls against 0, 9 and 13 at 6,291,456, 10,485,760 and the
+final; tail-only noise gives 0 falls at every checkpoint); hip-pitch noise is
+the main cause (alone 8, 3, 9 and 15 of 20 at 7.3M, 8.4M, 10.5M and the final;
+the full noise without hip pitch 0, 0, 0 and 2), mostly its left-right
+differential part at the judge's real amplitude (5, 2, 7 and 15) against the
+common part (0, 0, 0 and 1); control s42's final needs knee and hip-pitch noise
+together; the falls are slow topples of about 1 s after a heading-frame stagger
+of at least 81 mm, which comes mostly from the pelvis yawing over planted feet,
+associated, not a threshold. The policy's direct response to a left-right
+hip-pitch difference halves between 6,291,456 and 7,340,032 (−1.04 to −0.51 per
+rad), but restoring it from outside leaves the falls: a correlate, and the
+mechanism is open. The band-against-control readings (43 against 11 paired
+falls, the ±0.3 kick probe) were not independently checked.
+
+- `report.md`: the report as written on 2026-10-22, the skeptic checks first,
+  then the synthesis as written before them. Its Files section names files that
+  are not copied (`scratchpad/foot/stance5/k3diag/`: the file pass, the rollout
+  scripts, tables and npz files, and the verifiers' folders); all but the npz
+  files are in the session's scratch and on the never-merged handoff branch
+  `claude/handoff-stance5r`, which took text files only.
+
+**`stance5/tailexp/`: the scratch tail experiment, P1 (2026-10-22, report
+only).** A quadratic penalty on the policy's Gaussian mean beyond ±1 (P1 of the
+stance4 s42 diagnosis, `stance4/satdiag/`), λ 41, in a 1M-step CPU
+continuation from stance5 s42's 4,194,304 checkpoint, against a paired no-change
+control from the same checkpoint; one seed, one pair of runs, then three skeptic
+checks (one corrected the headline). Measured and checked: P1's tail_3 share at
+|cmd| ≥ 0.99 was lower than the control's at 8 of 8 periodic checkpoints (means
+0.26 against 0.86) and at the final, but not monotone, and it relapsed to 0.470
+and 0.488 at 5,242,880 and the final; P1 did not keep the deterministic mean
+under +1 (beyond +1 on 21–46% of window steps at 7 of 9 checkpoints), only the
+training batches' (2.5% of rows against 27.5%); the original no-penalty GPU run
+read 0.171 at 5,242,880, below P1, so the effect against training alone is not
+established; no cost was measured, but the window ends before any K3 fall slot.
+The code was a scratch clone, `scratch_tailfix` (branch
+`scratch/tail-mean-bound` at `1d2d22b4`, push URL disabled), never pushed and
+not copied; the report describes it. A real round would need a config key,
+criteria fixed before training and the maintainer's approval, since it changes
+the PPO training loss.
+
+- `report.md`: the report as written on 2026-10-22, the skeptic checks first,
+  then the findings and caveats as returned. Its Files section names files that
+  are not copied (`scratchpad/foot/stance5/tailexp/`: the runs, the
+  measurements, the telemetry and the verifiers' folders); the scripts,
+  `results.csv`, `lambda.json` and `train_telemetry.csv` are in the session's
+  scratch and on the never-merged handoff branch `claude/handoff-stance5r`, and
+  the runs, the measurement files and the verifiers' folders were not carried.
+
+### Added on 2026-10-24, later (the K3 readouts addendum and its results)
+
+**`stance5/replication/readouts_addendum_k3.txt` and
+`stance5/replication/k3readouts/`: report-only K3 mechanism readouts on the
+replication (2026-10-22 to 2026-10-24).** The addendum was written at 22:55 UTC
+on 2026-10-22 on the maintainer's OK ("Yes please add those reports"), when only
+the replication's 1,048,576-step checkpoint had been judged and no J checkpoint
+existed; it changes neither the criteria (`a38536de…`) nor the judge, scorer or
+sidecar, and says it is post hoc. It fixes, for s70 and s80 at 6,291,456 and the
+final, on the judge's own joint-space noise loop: the falls of 20 under the full
+noise (which must reproduce the judge file), hip-pitch noise only, the full
+noise without hip pitch, and the differential and common parts of the actual
+hip-pitch noise; the ±0.2 and ±0.3 left-right hip-pitch kick (0.2 s); the
+policy's direct response to a left-right hip-pitch difference; its own action
+noise per actuator; and the heading-frame stagger sd. n = 20 per condition, so
+differences of 2 or 3 falls are within binomial noise.
+
+- `readouts_addendum_k3.txt`: the addendum, pinned by the tool and unedited.
+- `k3readouts/k3readout5r.py` and `k3readouts/k3readout_one5r.sh`: the tool
+  (one checkpoint per call; it refuses a judge, addendum, judge file, checkpoint,
+  sigma or clone that is not the pinned one) and its runner; `README.md`: their
+  record, definitions and the lines they copy from the K3 diagnosis' scripts.
+- `k3readouts/validate_k3r.py` and `k3readouts/VALIDATION.md`: the validation
+  against stance5's skeptic-checked values (s42 at 6,291,456, 7,340,032 and the
+  final, s52's and s60's finals): 223 checked rows, 0 mismatches, written at
+  02:16 UTC on 2026-10-23; and the two reviews' 13 minor findings (none
+  blocking), what was done about each, and their tests.
+- `k3readouts/out/<run id>/k3r_<slot>.json`: the four replication readouts
+  (s70 and s80 at 6,291,456 and the final; `addendum_slot` `readout`) and the
+  five stance5 references rolled by the same tool (`reference`); all nine are
+  valid (the full noise reproduces the judge file per episode, rewards
+  included).
+
+Measured (the outputs): falls of 20 under the full noise 0 and 1 (s70 at
+6,291,456 and the final) and 1 and 2 (s80); hip-pitch noise only 0, 0, 1 and 1;
+without hip pitch 0 throughout; the differential part 0, 0, 0 and 1; the common
+part 0 throughout; the ±0.3 kick 18, 20, 20 and 20 of 20, the ±0.2 kick 0, 0, 0
+and 1; the direct response −1.023, −0.428, −0.484 and −0.012 per rad; the own
+hip-pitch sigma 0.0220, 0.0146, 0.0212 and 0.0149. The references: stance5 s42's
+final fell 13 of 20 (hip pitch only 15, the differential part 15), and every
+stance5 band final fell 20 of 20 to the ±0.3 kick. None of it enters a verdict.
+
 ## How to re-check each verdict
 
 Commands as run on 2026-10-17 from a copy of this directory (Python 3.13;
@@ -911,6 +1130,14 @@ copies.
 | The files themselves (2026-10-22, later, with `stance4/satdiag/`) | `sha256sum -c SHA256SUMS` | all 378 files OK |
 | The amended pilot-2 criteria against their source (2026-10-22; session scratch only) | `diff scratchpad/foot/pilot2/criteria.txt pilot2/criteria_2026-10-21.txt` | line 149 only (the redaction) |
 | The files themselves (2026-10-22, later, with the `pilot2/` files) | `sha256sum -c SHA256SUMS` | all 381 files OK |
+| The replication's verdicts, decision line and parent comparison (2026-10-24; session scratch only, restored from the handoff branch) | in the session's scratch: `python3 -I scratchpad/foot/stance5/replication/judge/score_stance5r.py --runs-ended --json score.json` | the same verdicts, cells, H and decision line (2) as `stance5/replication/results/scores/`; the differences the handoff's missing files cause are in `stance5/replication/results/README.md` |
+| The replication scorer's tests (2026-10-24; session scratch only, restored) | in `scratchpad/foot/stance5/replication/judge/`: `python3 -m pytest -p no:cacheprovider test_score_stance5r.py` | 42 passed, 2 skipped, 1 failed, as `stance5/replication/results/README.md` explains |
+| The replication certificates' checkpoints (2026-10-24; session scratch only) | compare each `stance5/replication/results/certificates/<run id>/run_summary.json`'s `model_sha256` with the scratch's `judged/<run id>/judge_final.json` | equal for both |
+| The replication criteria (2026-10-24) | `sha256sum stance5/replication/criteria.txt` | `a38536de152e735947fd5322960f9e75b6520b59a5526a414afc0d0c4a0f3ef2` |
+| The files themselves (2026-10-24, with `stance5/replication/`) | `sha256sum -c SHA256SUMS` | all 401 files OK |
+| The files themselves (2026-10-24, later, with `stance5/k3diag/` and `stance5/tailexp/`) | `sha256sum -c SHA256SUMS` | all 403 files OK |
+| The K3 readouts' tool and runner (2026-10-24; session scratch only) | `sha256sum scratchpad/foot/stance5/replication/k3readouts/k3readout5r.py scratchpad/foot/stance5/replication/k3readouts/k3readout_one5r.sh`, and each output's `identity` | `d0aed5a1…` and `5e3c66cd…`, the values all nine copied outputs record |
+| The files themselves (2026-10-24, later, with the K3 readouts) | `sha256sum -c SHA256SUMS` | all 418 files OK |
 
 `test_pilot_score.py` prints sample "Walking pilot score" blocks while it runs;
 they score synthetic panels, not the pilot.
@@ -994,3 +1221,14 @@ one import line, unsorted imports, two statements joined by `;`), and
 `score_stance5.py` (an unused `math` and three variables named `l`) and none in
 the other two, and `ruff format --check` would reformat all three. All six parse
 on Python 3.11, 3.12 and 3.13.
+
+*Added 2026-10-24:* the three scripts added in `stance5/replication/judge/` are
+left as they ran: `ruff check` (ruff 0.16.9, the same configuration) reports 1
+finding in `test_score_stance5r.py` (an f-string without placeholders) and none
+in the other two, and `ruff format --check` would reformat all three. All three
+parse on Python 3.11, 3.12 and 3.13.
+
+*Added 2026-10-24, later:* the two scripts added in
+`stance5/replication/k3readouts/` are left as they ran: `ruff check` reports no
+finding in either, `ruff format --check` would reformat both, and both parse on
+Python 3.11, 3.12 and 3.13.

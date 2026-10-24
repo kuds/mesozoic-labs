@@ -534,6 +534,23 @@ now. Neither is trained yet. As screens and pilots they certify nothing, so
 the next T-Rex session above is still unchanged; the decisions' full text is
 in [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2 and their
 record in §22 of the same record.*
+*2026-10-24: the two D-D41 runs (the D-D40 band recipe, unchanged, on seeds
+70 and 80) were judged by their fixed criteria, final: `stance5_LTSB_s70`
+holds and `stance5_LTSB_s80` fails only the gate (its tail-tip actuator
+pinned at +1); with the three D-D40 runs, two of five hold, and the decision
+table's line is 2: the band is not adopted. Both recorded a Colab L4 GPU
+runtime. The second pilot keeps `stance3_armLT_s60`'s final as its parent
+and is not yet trained. As screens and pilots they certify nothing, so the
+next T-Rex session above is still unchanged (§23 of the same record).*
+*2026-10-24, later: decision D-D42. The maintainer chose a next T-Rex stance
+round on the tail saturation habit, its design and criteria to be fixed and
+approved before any training, with a report-only training-history report and
+a report-only actuator saturation report in their own pull requests. When
+the copied run log ends (15:27 UTC), the round is not yet designed and
+nothing has trained. As screens they certify nothing, so the next T-Rex
+session above is still unchanged; the decisions' full text is in
+[BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2 and their record
+in §23.7 of the same record.*
 
 *Note 2026-10-18 (decision D-D38): where §2, this section and §8 record
 `BEHAVIOR = "stand"` or a `stand` session, they give the setting as it was

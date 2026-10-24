@@ -1,0 +1,32 @@
+STANCE5 REPLICATION: ADDENDUM, REPORT-ONLY K3 MECHANISM READOUTS (NOT PRE-REGISTERED IN THE CRITERIA)
+
+Written 2026-10-22 22:55 UTC, on the maintainer's OK of 2026-10-22 (asked about 21:05 UTC, answered "Yes please add those reports" shortly before 2026-10-22 22:55 UTC).
+Both replication runs were then at about 2.8M steps (estimated from their rate); only 1,048,576 had been judged. No J checkpoint had been fetched or judged.
+
+WHAT THIS DOES NOT CHANGE
+- criteria.txt (sha256 a38536de152e735947fd5322960f9e75b6520b59a5526a414afc0d0c4a0f3ef2) is unchanged and governs. K1-K4, the decision table, RUN HANDLING and the pre-registered readouts are unchanged.
+- judge_stance5r.py (16d39f7d...), score_stance5r.py (55c37ba7...), sigma_s70_s80.json (89778b3f...) and the queue tools are not edited.
+- These readouts enter no verdict, no decision line and no tie-break. They are not a veto. A readout that cannot be computed changes nothing.
+- They were added after stance5's K3 diagnosis was seen (S5/k3diag/report.md, 2026-10-22), so they are post hoc. Their purpose is fixed here, before any replication checkpoint they read exists.
+
+WHY
+stance5's K3 diagnosis (report only, skeptic-checked) found s42's joint-noise falls driven by hip-pitch noise, mostly its left-right
+differential part, with the tail habit not involved. It left two readings open: a seed-42 effect shared by both arms, or a band trade-off
+(band runs less robust to left-right hip-pitch perturbation). These readouts are the ones that separate the two.
+
+WHERE AND WHEN
+- Runs: stance5_LTSB_s70 and stance5_LTSB_s80.
+- Slots: 6,291,456 and final (12,001,280), each once its judge file exists and its "full" condition reproduces that judge file exactly.
+- Reference values: the same readouts on stance5's band runs (s42 at 6,291,456, 7,340,032 and final; s52 and s60 finals) and, where k3diag measured them, the stance4 control finals.
+
+WHAT IS READ (all on the judge's own joint-space noise loop, seeds 3042-3061, the run's judge sigma: the sidecar vector for seeds 70 and 80)
+1. Falls of 20 under: the full noise (must reproduce the judge file); hip-pitch noise only; the full noise without hip pitch;
+   the differential part of the actual hip-pitch noise only (d = (n_R - n_L)/2 as (d, -d)); its common part only (c = (n_R + n_L)/2 as (c, c)).
+2. The deterministic left-right hip-pitch kick probe: +/-0.2 and +/-0.3 (right +, left -) for 0.2 s, falls of 20 (k3diag's definition).
+3. The policy's direct response to a left-right hip-pitch angle difference (per rad), measured by nudging that difference in its input on the noisy states (k3diag verify_2's definition).
+4. The policy's own action noise per actuator, exp(log_std), and the ratio of the judge sigma to it.
+5. The heading-frame foot stagger sd under the full noise.
+n = 20 per condition: differences of 2-3 falls are within binomial noise.
+
+TOOL
+R/k3readouts/ (the tool, its runner and outputs). The tool and its validation against stance5's checked values are recorded below when built.

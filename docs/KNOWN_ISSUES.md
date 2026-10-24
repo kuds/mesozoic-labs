@@ -279,6 +279,22 @@ robustness, **LOW** = cosmetic / QoL.
   runs). Not yet trained. As screens they certify nothing. The two-seed ask
   stands. Record: §22 of
   [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).
+  **Update 16 (2026-10-24):** the two replication runs of Update 15 were
+  judged by their fixed criteria, final: seed 70 holds on all four criteria;
+  seed 80 fails only the gate (the actuator-saturation rail, first flagged at
+  4,325,376 steps, its alarm at 4,456,448, recovered by 10.5M; rollouts of its
+  4,718,592 checkpoint named the tail-tip actuator `tail_3_pitch_act` at +1, as
+  on Update 14's seed 42) and passes the noise test (2 of 20 joint-space falls
+  at 12M). Two of the five band runs hold, so the decision table's line is 2:
+  the band is not adopted. As screens they certify nothing. The two-seed ask
+  stands: no T-Rex stance is certified. Record, numbers and evidence: §23 of
+  [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).
+  **Update 17 (2026-10-24):** the maintainer chose the next step (decision
+  D-D42, [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2): a round on
+  the tail saturation habit, designed with criteria fixed and approved before
+  any training; not yet designed when the copied run log ends (15:27 UTC). As
+  screens they certify nothing. The two-seed ask stands. Record: §23.7 of
+  [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).
 - **LOW** — **stage 1a (stance) contains no in-episode disturbance, so a
   stance-gate PASS certifies stance quality, not active balance control.** The
   only perturbation is joint-angle noise at reset (`reset_noise_scale 0.05`).

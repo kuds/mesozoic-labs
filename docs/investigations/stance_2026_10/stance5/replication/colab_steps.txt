@@ -1,0 +1,377 @@
+T. rex stance5 REPLICATION: two more band runs (arm LTSB, seeds 70 and 80), the unchanged stance5 recipe.
+=========================================================================================================
+
+Two runs, one Colab runtime each, both started at the same time.
+
+THE TWO THINGS TO GET RIGHT: SEED AND RUN_ID
+   SEED = 70 (Run 4) / 80 (Run 5). A fresh copy starts at SEED = 42, and the notebook never prints the seed, so no
+   output line checks it.
+   RUN_ID is the run's Drive folder name. Type it exactly as below. It is NOT the label:
+       Run 4:  RUN_ID = "stance5_LTSB_s70"      RUN_LABEL = "stance screen LTSB s70"
+       Run 5:  RUN_ID = "stance5_LTSB_s80"      RUN_LABEL = "stance screen LTSB s80"
+   On stance5 the label once went into RUN_ID. That run had to be stopped 2 minutes in and restarted. After Run all,
+   step 6 asks you to read the "Run directory:" line. It must end in /ppo/stance5_LTSB_s70 (or _s80). If it ends in
+   "stance screen LTSB s70", stop the run at once and tell me.
+   The one exception: a run cut off before its first checkpoint is restarted under "stance5_LTSB_s70_b" (Run 5:
+   "stance5_LTSB_s80_b"), as step 9 says, and a _b run cut off the same way restarts under "..._c". That restart IS
+   the same run, and only then does the line end in _b (or _c).
+
+Runtime type: L4 GPU, the same for both, as the stance5 runs and the control trained (measured: the "gpu" block of
+  their 01_stance/stage_config.json reads L4). If no L4 is offered, tell me before you start. Another runtime is
+  allowed, but it is recorded and reported beside the verdicts; the runtime never changes a verdict.
+
+The runs, both on ONE branch, claude/screen-trex-r9-armlts-copband, commit cf80ecb14d1630ce3b4dcdea28a05835d143470b.
+This is the branch and commit the three stance5 runs trained. Nothing is changed or added. Only the seed differs:
+- Run 4, "LTSB s70": SEED 70, RUN_ID stance5_LTSB_s70, RUN_LABEL "stance screen LTSB s70".
+- Run 5, "LTSB s80": SEED 80, RUN_ID stance5_LTSB_s80, RUN_LABEL "stance screen LTSB s80".
+The branch was pushed at cf80ecb14d1630ce3b4dcdea28a05835d143470b on 2026-10-21 (confirmed then with ls-remote). Nothing
+has been pushed to it since (this session's records; not re-checked on GitHub today). The commit line in step 6 is
+the check that it still is that commit.
+
+Why these two runs. stance5 scored decision line 3: s52 held, s60 failed K3 only, and s42 failed K1 and K3 ("not
+separated from seed luck; replicate on 2 more seeds before any commit"). You decided on 2026-10-22 to replicate the
+unchanged recipe on seeds 70 and 80 with no new control runs, and to ADOPT the band only if BOTH new runs hold. The
+three stance5 runs keep their verdicts.
+
+Leave every other folder on Drive as it is: the stance5 runs (stance5_LTSB_s52 / s60 / s42), stance4 and stance3. Start
+only the two runs above.
+
+The criteria were fixed before training: SP/foot/stance5/replication/criteria.txt, sha256
+a38536de152e735947fd5322960f9e75b6520b59a5526a414afc0d0c4a0f3ef2. Its full text is at the end of these steps, so you can check that hash (see
+"CHECKING THE CRITERIA HASH"). K1-K4, the judge settings and the six judged checkpoints are stance5's (stance5
+criteria sha256 3b28963f644ffb765e666a8cf6ada5d31ab8a2769dd1a77ff53cbc1e0cf3cf16).
+The judge, the scorer and the new seeds' noise sigma were fixed before training too (measured):
+  judge_stance5r.py   sha256 16d39f7dcb14a8b6f94061331933df8f1dcee76aa988479e293b132bf8ac05ae
+  score_stance5r.py   sha256 55c37ba7f30a3812dbb035a509afaebd851088e5dc251199e1a519b161f46f60
+  sigma_s70_s80.json  sha256 89778b3f81f83f05d4c15423b3658593dfaa767388213044c50a72e2d96b8522
+
+FOR EACH RUN
+
+1. Open https://colab.research.google.com/github/kuds/mesozoic-labs/blob/claude/screen-trex-r9-armlts-copband/notebooks/sb3_training.ipynb
+   (the same link for both runs, and the same one the stance5 runs used).
+   If that link fails, stop and tell me. Do not open the notebook from main: REPO_REF picks the installed code, but the
+   notebook's own cells (the training helper and the storage, resume and chain-loop cells) come from the link you open,
+   and main's were last compared with this branch's on 2026-10-19.
+   Use File > Save a copy in Drive, named for the run ("stance5r LTSB s70", "stance5r LTSB s80"), and work in that
+   copy. Make a fresh copy from this link for each run. Do not reuse a stance5 copy: it holds seed 52, 60 or 42 and
+   that run's RUN_ID, and one field left unchanged would train the wrong seed or re-enter a stance5 run's folder.
+
+2. Runtime > Change runtime type: L4 GPU (the same for both). If L4 is not offered, stop and tell me before you start.
+
+3. In section 1, set
+     REPO_REF = "claude/screen-trex-r9-armlts-copband"     (both runs)
+
+4. In the section 2 configuration cell ("# ===== SPECIES SELECTION ====="), set:
+     SPECIES          = "tyrannosaurus_rex"
+     EMBODIMENT       = "anatomical"
+     ALGORITHM        = "ppo"
+     N_ENVS           = 4
+     SEED             = 70                         (Run 4: 70 / Run 5: 80)
+     QUICK_TEST       = False
+     USE_GOOGLE_DRIVE = True
+     AUTO_DISCONNECT  = True
+     BEHAVIOR         = "stance"                   (type it)
+     TRUNK_FROM       = ""                         (empty, not "auto")
+     RETRAIN_FROM     = ""
+     RUN_LABEL        = "stance screen LTSB s70"   (Run 5: "stance screen LTSB s80")
+     RUN_ID           = "stance5_LTSB_s70"         (Run 5: "stance5_LTSB_s80")   <- the folder name, NOT the label
+   Before you run, read SEED, RUN_ID and RUN_LABEL once more, side by side: all three end in 70 (Run 5: 80), and the
+   two copies differ. RUN_ID has underscores and no spaces.
+   Leave everything else as it is. RESUME_STAGE (section 5) stays None.
+
+5. Runtime > Run all, and allow Drive access.
+
+6. Check the output for:
+   - "Repository ref: claude/screen-trex-r9-armlts-copband; commit: cf80ecb14d1630ce3b4dcdea28a05835d143470b".
+     This is the decisive check: it pins the code and the config. A different commit: stop and tell me
+     (99e205bbc10d80c9d4b6dd01ef0921bfbd4b2eb1 is the band code with the band off;
+     c1e146a82658112a9a1c0838250020b214ef303a is the stance4 branch);
+   - "Run directory: .../ppo/stance5_LTSB_s70 (new run: RUN_ID names no existing run)" (Run 5: .../ppo/stance5_LTSB_s80).
+     It must end in the RUN_ID exactly. If it shows the label ("stance screen LTSB s70") or another name, stop the run
+     at once and tell me. If it reads "re-entering run" instead of "new run", stop and tell me too: do not change
+     RUN_ID on your own; only a resume, below, re-enters a run. The only other right endings are
+     .../ppo/stance5_LTSB_s70_b, then _c (Run 5: .../ppo/stance5_LTSB_s80_b, then _c), "new run", and only on a restart
+     under step 9's "_b" / "_c" case;
+   - "Behavior 'stance' -> deliverable 'stance'; chain: stance";
+   - the zero-action baseline row: "standing" 4456.3, "reward" about 4367.8 (it also averages in the one spawn
+     that falls), "mean-std" about 3814.2, full-hz 98%, gate 2250, "OK — the statue passes the stance gate". The row
+     does not depend on the seed. Read "standing" against this band:
+       4456.3 +/- 0.3: right.
+       4458.2 +/- 0.3: the band is off (the stance4 config). Stop and tell me.
+       4459.4 +/- 0.3: the band and the stagger keys are off (the L+T config of stance3). Stop and tell me.
+       about 3980: only the arm L keys are on. Stop and tell me.
+       about 3756: the screen config is off (the production stance config). Stop and tell me.
+       Anything else: stop and tell me.
+     The band costs the statue only 1.9 per episode, so the right row and the stance4 row differ by 1.9: read the
+     decimal. The values are measured on the local CPU. On Colab, the stance5 runs recorded zero_action_reward 4367.8,
+     the local value (measured, their progress.json).
+   - "Timesteps: 12,000,000";
+   - an "Eval num_timesteps=..." line every 131,072 steps, the first within about 15-20 minutes.
+   Any other check line that differs: stop and tell me.
+
+7. Leave it running: about 14 h of training, then about 30 min of end-of-stage evaluation, certificate and videos. The
+   stance5 runs took 13.7-14.5 h at 231-245 steps/s on the L4 (measured); these runs are expected to take the same
+   (inferred: the same code and runtime). A PASS or a FAIL at the end is fine: it is report-only. Ignore "never beaten
+   the zero-action baseline". Tell me if you see "collapse" or an early stop. Do not stop or change a run because of
+   anything it prints during training. I read each run's evaluation ledger at every check-in and tell you at once if
+   the saturation alarm fires (run, step, actuator; if no checkpoint at or after the alarm is on Drive yet, the
+   actuator follows as soon as one is fetched and rolled). That is report only too, and the run is not stopped or
+   restarted.
+   Every run disconnects by itself at the end (AUTO_DISCONNECT True). On a FAIL, section 6 prints
+   "stance failed its curriculum gate: ..." and then "Disconnecting runtime in 5 seconds..." (a RuntimeError after
+   it, if it shows at all, is expected). On a PASS it prints "stance: gate PASSED ...", then section 8's report and
+   section 9's "Training finished — behavior 'stance' (stance) chain complete." before disconnecting. Either way the
+   run is FINISHED: do not resume it, do not start it again under any RUN_ID, just tell me.
+
+8. Only on a PASS whose section 9 did not run (the runtime is still connected after "stance: gate PASSED"): run
+   section 9, Auto-Disconnect, by hand, and if a section 8 cell stopped Run all with an error, tell me its message.
+   After a FAIL there is nothing to run: the runtime is already released, and Run all stops at section 6 by design.
+
+IF COLAB DISCONNECTS
+
+   First check that the run really disconnected and did not finish. If
+   MyDrive/mesozoic-labs/logs/tyrannosaurus_rex/anatomical/ppo/<RUN_ID>/01_stance/gate_verdict.json exists, the run
+   FINISHED (step 7): do nothing, just tell me. Only without that file is it a disconnect.
+
+9. Open the same copy on a fresh runtime of the same type (L4), with the same settings and the same RUN_ID. If no L4
+   is offered, tell me before you resume on another runtime. Set RESUME_STAGE = "stance" in section 5 and Run all. It
+   continues from the newest 524,288-step checkpoint, so up to about 40 min is redone.
+   If MyDrive/mesozoic-labs/logs/tyrannosaurus_rex/anatomical/ppo/<RUN_ID>/01_stance/models/ has no stage1_*_steps.zip
+   yet, restart instead under RUN_ID "<RUN_ID>_b" (e.g. "stance5_LTSB_s70_b") with RESUME_STAGE None, the same SEED
+   and the same other settings, and leave the first folder alone. That restart IS the same run (Run 4 or Run 5), judged
+   under its RUN_ID. If the _b run is cut off before its first checkpoint too, restart it the same way under
+   "<RUN_ID>_c".
+   Before either, find your case in "Resuming after a disconnect" below. It has the details, and the two cases (a
+   finished run, a cut-short final save) where you must not resume.
+
+WHEN TO TELL ME
+
+10. Tell me when both have started, with each run's commit line, its "Run directory:" line, its SEED as set in the
+    config cell, its baseline row and its runtime type. I check each run's provenance.json (seed, commit, RUN_ID) within
+    about 10 minutes of your message. Tell me also when each passes 6.3M steps (about 7.1-7.6 h after its start;
+    computed from the stance5 runs' measured rates). Tell me when each finishes, stops, resumes or restarts under
+    _b / _c (on a resume, also that session's runtime type; on a restart, the new folder name). There is nothing to
+    send: I read the checkpoints and telemetry from Drive
+    (MyDrive/mesozoic-labs/logs/tyrannosaurus_rex/anatomical/ppo/stance5_LTSB_s70/ and .../stance5_LTSB_s80/).
+    The decision is read once both runs have ended. Readings along the way are report-only: runs are never stopped or
+    changed on them, nor on a saturation alarm, and fails stay fails.
+
+RESUMING AFTER A DISCONNECT (what the notebook does on this branch; unchanged from stance5)
+
+- What is on Drive. Every 524,288 steps (about every 36-38 min on the L4; computed from the stance5 runs'
+  measured rates) the run writes
+  01_stance/models/stage1_<steps>_steps.zip and stage1_vecnormalize_<steps>_steps.pkl, and keeps every one (this
+  branch's [curriculum] checkpoint_freq = 524288, max_checkpoints = 0). The first pair lands at 524,288 steps; the
+  last periodic pair is 11,534,336. The end of training writes stage1_final.zip and stage1_final_vecnorm.pkl at
+  12,001,280.
+- Which case you are in. Look in MyDrive/mesozoic-labs/logs/tyrannosaurus_rex/anatomical/ppo/<RUN_ID>/01_stance/
+  and its models/ folder, in this order:
+  0) 01_stance/gate_verdict.json is there: the run FINISHED (PASS or FAIL; step 7), whatever else is or is not there
+     (its summary, graphs or videos may be missing if the end was cut off). Do nothing, do not resume, do not start a
+     new RUN_ID: just tell me.
+  a) no gate_verdict.json; models/ holds stage1_final.zip AND stage1_final_vecnorm.pkl: the training finished and
+     the disconnect hit the end-of-stage evaluation. Resume as in step 9 anyway. Section 5 prints "Nothing to
+     resume: 'stance' already holds its final pair stage1_final.zip ..." and trains nothing; section 6 then runs the
+     end-of-stage evaluation, certificate and videos again. (If section 5 raises an error instead, the final pair
+     was cut short: follow the stop rule below.)
+  b) no gate_verdict.json; models/ holds stage1_final.zip but no stage1_final_vecnorm.pkl: the disconnect hit the
+     few seconds of the final save. Do not resume on your own: stop and tell me. It is finished by resuming from the
+     newest intact periodic checkpoint in the same RUN_ID folder (after a _b / _c restart, that folder), never under a
+     new RUN_ID. How: I first check from the run's ledgers that its training reached the end. Then I ask you to rename,
+     in that models/ folder, stage1_final.zip to stage1_final.zip.cut (and stage1_final_vecnorm.pkl, if it is there, to
+     stage1_final_vecnorm.pkl.cut), deleting nothing, and to resume as in step 9. With no stage1_final.zip there,
+     section 5 resumes from the newest intact periodic checkpoint (11,534,336 when it is intact), and the final save
+     writes a new stage1_final pair at 12,001,280. The final checkpoint that counts is only a stage1_final pair at
+     12,001,280 in that folder.
+  c) no gate_verdict.json, no stage1_final.zip, at least one stage1_<steps>_steps.zip: resume (step 9).
+  d) no stage1_*_steps.zip at all (cut off in the first ~40 min): restart under "<RUN_ID>_b" (step 9). It is the
+     same run.
+- Resume in the same Drive copy, on a fresh runtime of the same type (no L4 offered: tell me before resuming on
+  another runtime). The section 1-2 settings are kept; check them:
+  the same REPO_REF, SEED, N_ENVS 4, BEHAVIOR "stance", TRUNK_FROM "", RETRAIN_FROM "", RUN_LABEL and the SAME RUN_ID.
+  Set RESUME_STAGE = "stance" in section 5, then Runtime > Run all. Expect:
+  - "Repository ref: claude/screen-trex-r9-armlts-copband; commit: cf80ecb14d1630ce3b4dcdea28a05835d143470b" (the
+    same as before);
+  - "Run directory: .../ppo/<RUN_ID> (re-entering run '<RUN_ID>': holds ...)" (NOT "new run");
+  - the zero-action baseline row again ("standing" 4456.3);
+  - in section 5: "Resuming 'stance' (stage 1) from .../01_stance/models", "Newest intact periodic checkpoint:
+    .../stage1_<N>_steps.zip", "Matched VecNormalize: .../stage1_vecnormalize_<N>_steps.pkl" and
+    "Checkpoint steps: <N> of 12,000,000 — remaining budget: <12,000,000 - N>". <N> is a multiple of 524,288.
+    A "WARNING: skipping ..." line means the newest pair was cut off mid-write and it fell back to the one before.
+    That is fine; up to about 80 min is then redone.
+  - then "Timesteps: <the remaining budget>" (not 12,000,000: that is correct for a resume), and "Eval
+    num_timesteps=..." lines continuing from N + 131,072 on the same 131,072-step grid. The resumed run keeps the
+    same checkpoint grid (N + 524,288, ...), ends at the same 12,001,280 steps, and keeps the evaluation history,
+    eval_episodes.csv, train_episodes.csv and policy_probe.npz rows up to step N, appending after them.
+  - When the rest of the budget is trained, section 6 judges the node from disk (end-of-stage evaluation,
+    certificate, videos), as at the end of an uninterrupted run. The run then ends and disconnects by itself as in
+    step 7: a FAIL ends with "stance failed its curriculum gate: ...", and step 8 applies only to a PASS whose section
+    9 did not run. The run is then FINISHED: do not resume it again.
+- Tell me the RUN_ID, the <N> it resumed from, roughly how long it was down, and the new session's runtime type.
+- In some cases, stop and tell me: do not restart, do not delete anything, and never start a new RUN_ID on the advice
+  of an error message. That applies if section 5 or section 6 raises an error instead, in particular:
+  - "... an early stop whose final save was cut short, not an interruption ..." (section 5). On this branch that
+    message can also mean a disconnect during the few seconds of the final save: the cell measures the shortfall
+    against the notebook's default 100,000-step checkpoint cadence, not this branch's 524,288. Every periodic
+    checkpoint up to 11,534,336 is kept on Drive either way, and I will tell you how to finish it: from the newest
+    intact periodic checkpoint, in the same RUN_ID folder (the renaming in case b above, once I have checked the
+    ledgers).
+  - "'stance' already holds a FAILED gate verdict ... start a new run (a fresh RUN_ID ...)" (section 6). It means the
+    run had already finished (case 0): it must not be trained again under any RUN_ID.
+- Do not set RESUME_STAGE on a run that has not disconnected (a run with gate_verdict.json has finished, not
+  disconnected), and never point RUN_ID at another run's folder. In particular, never point it at a stance5 run's
+  folder (stance5_LTSB_s52 / s60 / s42). Leave RESUME_STAGE = "stance" set only for that copy's resume. A later Run all
+  with it still set trains nothing once the node holds its final pair.
+
+WHERE THE NUMBERS COME FROM (SP = the session scratchpad)
+
+- Baseline rows: as stance5_colab_steps.txt (SP/foot/stance5/stance5_colab_steps.txt, "WHERE THE NUMBERS COME
+  FROM"), measured on the local CPU (stage 1, 40 episodes, seed 3042, physics r9; reward / mean-std / standing):
+  this branch at cf80ecb1 4367.8 / 3814.2 / 4456.3 (SP/foot/stance5/smoke/logs/smoke_LTSB.log). The row is the env
+  alone at zero action, so the training seed does not move it. On Colab L4, the three stance5 runs recorded
+  zero_action_reward 4367.8 (measured, their progress.json; SP/foot/stance4/live/run_log.txt 2026-10-21 13:46 UTC).
+- Speed (measured on the stance5 runs, Colab L4, their final progress.json): 239.5 (s52), 230.9 (s60) and 245.2
+  (s42) steps/s. They started 13:32-13:35 UTC on 2026-10-21 and ended 03:14-04:03 UTC on 2026-10-22 (run_log), that is,
+  13.7-14.5 h. Inferred for these runs: the same, since nothing but the seed changes.
+- "Repository ref" is printed only on Colab. The stance5 runs trained cf80ecb1 (their stage_config.json git_commit and
+  provenance.json, measured).
+
+CHECKING THE CRITERIA HASH
+
+The criteria text is below, byte for byte, between the "=== BEGIN" and "=== END" lines (neither line is part of it).
+To check it, save these steps as colab_steps.txt and run:
+  awk '/^=== END criteria.txt/{f=0} f; /^=== BEGIN criteria.txt/{f=1}' colab_steps.txt > criteria.txt
+  sha256sum criteria.txt          (on a Mac: shasum -a 256 criteria.txt)
+It must print a38536de152e735947fd5322960f9e75b6520b59a5526a414afc0d0c4a0f3ef2. A copy pasted through a phone or a
+document editor may change spaces or line ends and so the hash; the file on my side is
+SP/foot/stance5/replication/criteria.txt.
+
+=== BEGIN criteria.txt (sha256 a38536de152e735947fd5322960f9e75b6520b59a5526a414afc0d0c4a0f3ef2) ===
+T. REX STANCE5 REPLICATION, TWO MORE COP-BAND RUNS (SEEDS 70 AND 80): FIXED CRITERIA
+
+Write this to SP/foot/stance5/replication/criteria.txt before either run's first training step. Record its path and sha256 in SP/foot/stance5/replication/colab_steps.txt (which carries its full text). Do not edit it after the first training step. "stance5 criteria" below means SP/foot/stance5/criteria.txt, sha256 3b28963f644ffb765e666a8cf6ada5d31ab8a2769dd1a77ff53cbc1e0cf3cf16; where this file says "as stance5 criteria, section X", that text applies word for word to the two new runs.
+
+WHY THIS IS RUN
+- stance5 was scored with the runs ended on 2026-10-22 at 04:58 UTC. The score of record is SP/foot/stance5/scores/score_final.txt (sha256 1629943ccf08a948e91e6cfc252d64225cd910bf075d7d5566ce0f7c21db47d7) and score_final.json (sha256 c690165043dbc32fc8bf5bcce7a57c8bc38692c67e21464e706017d0dd45e307). Measured, as recorded there: Run 1 (stance5_LTSB_s52) HOLDS; Run 2 (stance5_LTSB_s60) does not hold, failing K3 only (3 of 20 joint-space noise falls at final, limit 2); Run 3 (stance5_LTSB_s42) does not hold, failing K1 and K3. FORE-AFT holds on s52 and s60. H = 1.
+- That reads stance5 criteria decision line 3: "3. H == 1: not adopted; not separated from seed luck; replicate on 2 more seeds before any commit."
+- The maintainer's decisions of 2026-10-22 (SP/foot/stance4/live/run_log.txt, 15:08, 15:11 and 16:32 UTC) fix this replication. Replicate the UNCHANGED band recipe. Train two band runs only, on seeds 70 and 80, judged on K1-K4 against the existing control, with no new control runs. Read them by the rule below. Fix the new seeds' noise level in these criteria (15:08 item (2); the level below was stated as the package default on 2026-10-22 at 15:11 UTC and confirmed by the maintainer at 16:32 UTC (run_log); see HOW IT IS JUDGED). Handle cut-off, resumed and refused runs by the maintainer's rules of 16:32 UTC (RUN HANDLING). Change nothing else.
+
+WHAT IS TRAINED
+- As stance5 criteria, section WHAT IS TRAINED, unchanged. That is: physics r9; the stance stage; the SB3 notebook; n_envs 4; a Colab L4 GPU runtime; trained from scratch; 12,000,000 steps (final 12,001,280); an evaluation of 10 episodes every 131,072 steps; a checkpoint every 524,288 steps, all kept; the committed PPO schedules. The non-L4 fallback and the runtime reading carry over: each run's runtime is read from the "gpu" block of its 01_stance/stage_config.json, reported beside the verdicts, and never changes a verdict.
+- The recipe is arm LTSB, unchanged: branch claude/screen-trex-r9-armlts-copband at cf80ecb14d1630ce3b4dcdea28a05835d143470b, the commit the three stance5 runs trained (measured: git_commit in each stance5 run's stage_config.json). Nothing is committed to the branch, and it stays an unmerged screen branch with no PR. Its settings, as stance5 criteria state them and measured on that commit: stance_stagger_weight 0.30 and stance_stagger_tolerance_m 0.045; stance_cop_band_weight 0.30 with the other seven band keys at their defaults; collapse_peak_floor_reference 4457.4; the band-on stance task_sha256 sha256:8c6998d260b850ae054c9c2d49a8e5bef2bf59d4770ad77d3674b911721918cf; the stance hyperparameters_sha256 sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c (measured in all three stance5 stage_config.json files).
+- The runs (only the seed differs from the stance5 runs):
+  - Run 4 (stance5_LTSB_s70, RUN_LABEL "stance screen LTSB s70"): seed 70.
+  - Run 5 (stance5_LTSB_s80, RUN_LABEL "stance screen LTSB s80"): seed 80.
+  The RUN_ID is the run's Drive folder name and must be exactly as given. On stance5 the label was once typed into RUN_ID; that run was stopped 2 minutes in and restarted under the right RUN_ID (run_log 2026-10-21 13:28 UTC). A folder named after a label is not one of these runs, and nothing in it is judged. The only other folder that can hold one of these runs is a restart under "<RUN_ID>_b" (or "_c") before the first periodic checkpoint (RUN HANDLING).
+
+THE STANCE5 RUNS (NOT RETRAINED, NOT RE-JUDGED, NOT RE-SCORED)
+- The three stance5 runs keep their scored verdicts exactly as score_final.json records them: s52 HOLDS; s60 does not (K3); s42 does not (K1, K3). They are not re-judged and not re-scored under these criteria.
+- The replication scorer recomputes their K1-K4 from SP/foot/stance5/judged as a check. It uses score_stance5.py's own band instance (stance5-judge/v1, arm LTSB, HEAD cf80ecb1, frozen_params.json for the noise sigma). It REFUSES to score (no decision, no line) in four cases. This refusal is an integrity check of this package, not a maintainer decision, and it never changes the stance5 verdicts of record (what follows a refusal is in RUN HANDLING):
+  - score_final.json is not its pinned sha256, or does not record decision line 3 as decided with the runs ended;
+  - a recomputed criteria block, J cell or K1 failure-mode block differs from the record;
+  - a stance5 J judge file's task_sha256 is not the band-on one above;
+  - a stance5 J judge file's judge_sha256 is not judge_stance5.py's recorded d9286724550b83eccfd11e2ceba634cfca847f1e52e03988f9c486c6db6bda13.
+
+THE CONTROL (NOT RETRAINED)
+- The control is the three stance4 runs (stance4_LTS_s52, stance4_LTS_s60, stance4_LTS_s42), as stance5 scored them: as stance5 criteria, section THE CONTROL ARM. Their passes are K1 0/3, K2 0/3, K3 2/3 and K4 2/3, as recorded in SP/foot/stance4/scores/score_final.json (sha256 7c98d8ae592357150c4d379745eab7fafa6ad2ac83e327b4291d2c23974df532). No new control runs are trained.
+- In this replication the control enters no decision. It is read only for the report-only K3 fraction and the parent comparison (READOUTS). The scorer re-runs stance5's control cross-check. A problem it finds is printed as a note beside those readouts; it does not make the decision provisional.
+
+HOW IT IS JUDGED
+- The judge is judge_stance5r.py, a copy of SP/foot/stance5/judge/judge_stance5.py (sha256 d9286724...). It differs in three ways (plus its docstring and usage line), and SP/foot/stance5/replication/judge/judge_diff.txt shows the whole diff:
+  - --seed also takes 70 and 80. Their joint-space control sigma is read from the sidecar below, whose sha256 is pinned in the judge. Seeds 42, 52 and 60 read frozen_params.json exactly as before.
+  - The JSON records the sigma file and its sha256 (control_sigma_file, control_sigma_file_sha256).
+  - The schema is stance5r-judge/v1, and the log prefix is [judge_stance5r].
+  Everything else is stance5's, as stance5 criteria, section HOW IT IS JUDGED: the 40-episode panel on seeds 3042-3081, the statue, the noise tests on spawns 3042-3061 (a fall is an episode shorter than 1000 steps), every binding check, the band readouts and the judged checkpoints J (4,194,304; 5,242,880; 6,291,456; 8,388,608; 10,485,760; final, stage1_final, 12,001,280).
+- The joint-space noise sigma for seeds 70 and 80 (stated as the package default on 2026-10-22 at 15:11 UTC and confirmed by the maintainer at 16:32 UTC (run_log)). SP/foot/stance5/replication/sigma_s70_s80.json, sha256 89778b3f81f83f05d4c15423b3658593dfaa767388213044c50a72e2d96b8522, holds one vector for both seeds: the element-wise mean of frozen_params.json criteria.H4.control_sigma 42, 52 and 60 (frozen_params sha256 58b2c8fbb135ecddf1bf2212d5e243514d90ff1069f5f3e2cb1c3ece9c3e7af8). It was computed once by SP/foot/stance5/replication/build/make_sigma.py as mean[i] = math.fsum((v42[i], v52[i], v60[i])) / 3.0 in IEEE double, over 15 elements, and the file records that computation. The sidecar's own computation.decision string carries the pre-correction time of the run-log entry it cites; the times given in these criteria are the correct ones (the run log's time correction of 2026-10-22 17:47 UTC), and the sidecar is left byte-unchanged because its sha256 is pinned in the judge. The vector's mean is 0.160713; the three sources' means are 0.160906, 0.160606 and 0.160626 (measured). The own-sigma test is unchanged: the checkpoint's own exp(log_std).
+- The scorer is score_stance5r.py. It loads score_stance5.py (sha256 d5515041f73a299a96963f953bac7117e3ffb7c73570572ad9fc6bc189888a77) unchanged, and through it score_stance3.py (sha256 2c3879d3...) unchanged. It applies K1-K4 per run with score_stance3.py's code. For the new runs it uses one more module instance of that code, differing only in the judge identity: JUDGE_SCHEMA stance5r-judge/v1, arm LTSB's [env], HEAD cf80ecb1. Its noise check of a new run's J file reads the sidecar's vector and source for seeds 70 and 80, and frozen_params.json's entries for 42, 52 and 60. The scorer also recomputes the sidecar's vector from frozen_params.json and refuses to score if they differ.
+- A missing or invalid judge file fails every criterion that needs it. A recorded judge refusal (RUN HANDLING) is an invalid judge file.
+- The tools are fixed before training. Before the first training step, judge_stance5r.py's sha256, the sidecar's sha256 and this file's sha256 are pinned in the scorer. The sha256s of judge_stance5r.py and score_stance5r.py are recorded in colab_steps.txt. None of them is edited after the first training step.
+
+RUN HANDLING (the maintainer's rules of 2026-10-22 16:32 UTC, run_log)
+- Restart before the first checkpoint. A run cut off before its first periodic checkpoint (524,288) and restarted, as the Colab steps say, under "<RUN_ID>_b" (the same seed, branch and settings; the first folder is left alone and never judged) IS that run (Run 4 or Run 5). It is judged and scored under its RUN_ID. A further restart under "<RUN_ID>_c" likewise.
+- Judge refusals. A judge that refuses on the run's own records (seed, commit, n_envs, hyperparameters, task, env kwargs, gate bars, plant, a missing stage_config.json) counts as an INVALID J file: the run does not hold. The refusal text is kept as a record, SP/foot/stance5/replication/judged/<RUN_ID>/refused_<steps>.json, and the scorer counts it as invalid. A refusal on the operator's side (a wrong path, a wrong clone, a missing local file) is fixed, and the checkpoint is judged again.
+- Resumes. A resumed run (the same RUN_ID) is the same run, and its J checkpoints are judged as they stand. A file fetched before the resume and superseded by the resumed session's file of the same name is moved aside, never deleted. The judge file of a superseded checkpoint is moved aside too, and that slot is judged again.
+- A cut-short final save. The run resumes from the newest intact periodic checkpoint in its own folder (the same RUN_ID). The final slot is only a stage1_final pair at 12,001,280 in that folder; without one, the final J file is missing.
+- Ended. A run has ended when it finished at 12,001,280; or stopped early (gate_verdict.json written before 12,001,280: its stage1_final is not the final slot, so the final J file is invalid); or was lost past recovery or never started, and the maintainer declared it abandoned (recorded in the run log).
+- Exists. The J checkpoints of a run are those in its Drive folder's 01_stance/models. --runs-ended is used once every one of them has been fetched, placed and judged, or its fetch has failed for good (A and B disagree and no tie-break copy matches; recorded in the run log).
+- A scorer refusal (THE STANCE5 RUNS). The maintainer is told at once, and no line is read or acted on. Once the cause is found, the scorer is run again with every pinned file unchanged.
+- No L4 for a resume. If no L4 is offered when a run is resumed, the maintainer tells the session that runs this package (the coordinator) before resuming on another runtime. The runtime is read and reported as in WHAT IS TRAINED, and never changes a verdict.
+
+CRITERIA, PER RUN
+As stance5 criteria, section CRITERIA, PER RUN (unchanged from stance4 and stance3), word for word, with their numbers. In short (the stance5 text governs):
+- K1, gate held: a v2 PASS at 6,291,456 and at final; across J, at most one checkpoint below 37/40 clean and none below 33/40.
+- K2, fore-aft held at every J checkpoint: K2a and K2b each at most 3 of 40 episodes; K2c the panel median within [-60, +30] mm of the statue's and its range over J at most 30 mm.
+- K3, robustness at 6,291,456 and at final: joint-space noise falls at most 2 of 20, and own-sigma falls at most 1 of 20.
+- K4, roll at 6,291,456 and at final: at most 3 of 40 full-horizon episodes over the tilt or corner-lift rail.
+- HOLDS: K1-K4 all hold. FORE-AFT HOLDS: K1 and K2 hold.
+
+DECISION TABLE (exclusive and exhaustive; read once both new runs have ended)
+The three stance5 runs count as recorded: s52 holds, s60 and s42 do not. H is the number of the five band runs that HOLD (s52, s60, s42, s70, s80).
+1. s70 and s80 both HOLD (with s52, H = 3 of 5): ADOPT. Propose committing the band option (off by default) plus its config keys, with the stance stagger term, to the maintainer as the T. rex stance recipe; the best holding band final among the five, under stance3's parent rule, is offered as the stance parent (tied finals are named, and the maintainer chooses).
+2. Exactly one of s70 and s80 HOLDS (H = 2 of 5): not adopted. The scorer names the other new run's failing tests and K1 failure modes. The maintainer chooses the next round; stance5 decision line 4's options are the menu (the tail saturation habit, the dose, the leg exploration-noise floor).
+3. Neither s70 nor s80 HOLDS (H = 1 of 5): not adopted. The scorer names each new run's failing tests and K1 failure modes. The maintainer chooses the next round from the same menu.
+A new run that is missing does not hold (stance5's --runs-ended rule). That covers a run never started or lost past recovery and declared abandoned by the maintainer, and a run with a J judge file missing or invalid (a recorded judge refusal included) once the runs have ended and every J checkpoint that exists has been judged (RUN HANDLING). Its missing or invalid files fail every criterion that needs them, the table reads line 2 or 3, and the scorer lists the files counted as fails.
+Nothing else enters the table. The K3 pass fraction against the control is reported, not a veto. stance5's rule (b) is not applied: under it adoption would be impossible, since the band arm already has two K3 failures, so its K3 fraction is at best 3/5, below the control's 2/3. stance5's (a) ("at least 2 of the 3 band runs HOLD") is replaced by line 1. Drift or split (D and S) is not read.
+The menu is stance5 criteria decision line 4's three sub-items. In short (that text governs, with its evidence):
+- for K1 on the actuator-saturation rail, the tail saturation habit;
+- for K1 through other new failure modes (hop, nosedive, head contact), stance3 line 4's reading: the dose may be too strong;
+- for K3 or K4, the leg exploration-noise floor of stance3 line 2 (log_std >= ln 0.08 on the hip-pitch, knee and ankle actuators).
+The scorer prints the new runs' failing tests and K1 failure modes beside it, and the maintainer decides.
+
+Fails stay fails. Runs are never stopped or changed on their readouts, nor on a saturation alarm (D-D40 5a). A failed J checkpoint stays failed whatever later checkpoints read. Early reads at 1M and 2M are report-only.
+
+WHEN THE DECISION IS READ
+- The decision is read once both new runs have ended (RUN HANDLING, Ended). Until then, while a new run's J judge file is missing, the decision is "incomplete" and the scorer gives no line.
+- Once the runs have ended and every J checkpoint that exists has been judged (RUN HANDLING, Exists), a J judge file still missing or invalid fails every criterion that needs it (score_stance5r.py --runs-ended), and the scorer lists those files.
+- The decision is PROVISIONAL, and is not acted on, while any of these stands (the scorer prints each one):
+  - a scorer pin is not filled: this file's sha256, judge_stance5r.py's sha256 or the HEAD;
+  - this file's sha256 is not the pinned one;
+  - the scorer runs with --validation, or with a HEAD other than cf80ecb14d1630ce3b4dcdea28a05835d143470b;
+  - a new run's J judge file has a task_sha256 other than the band-on one, or a judge_sha256 other than judge_stance5r.py's pinned one;
+  - before the runs have ended, a new run's J judge file is invalid;
+  - with --runs-ended, a J checkpoint of a new run is placed under SP/foot/stance5/replication/runs (its 01_stance/models pair) without a judge file or a refusal record (an early stop's stage1_final is not a J checkpoint).
+- The scorer REFUSES to score (no decision) when the stance5 runs' recorded verdicts do not reproduce (THE STANCE5 RUNS; then RUN HANDLING). It also refuses when frozen_params.json, the sidecar, score_stance5.py or score_stance3.py is not its pinned sha256, or when the sidecar's vector is not the recomputed mean.
+- A decision that is neither incomplete, provisional nor refused is final.
+
+PRE-REGISTERED READOUTS (report only, never in a verdict)
+- The K3 pass fraction against the control: band runs passing K3, out of the five, beside the control's recorded 2/3. At best it is 3/5. The per-test fractions for K1, K2 and K4 are printed beside it. None is a veto.
+- FORE-AFT HOLDS for each of the five band runs.
+- For the two new runs, every readout of stance5 criteria section PRE-REGISTERED READOUTS, with its definitions, rules and references unchanged:
+  - K5 trajectory and the late-fall fraction;
+  - the 20-episode quick panel and the report-only 1,048,576-step grid judged like J;
+  - common noise and the forward-start tail panel;
+  - at final, the fresh panel and the six-heading certificate;
+  - the per-term reward decomposition;
+  - the diagnostic panels at every J checkpoint (standard, mirror_legs, prey_ahead, mirror_prey_ahead);
+  - the saturation watch;
+  - the band readouts, the twist-route watch, the bounded lighten door and the digit share;
+  - the drift-or-split class (printed, not read);
+  - the stagger watches, throughput and the selection comparison (S0-S3).
+  The stance5 runs' values are added to the references (SP/foot/stance5/scores/score_final.txt), beside stance4's.
+- The saturation watch (D-D40 5a), as stance5 criteria: an evaluation with at least 5 of its 10 episodes listing max_actuator_saturation_fraction in screen_v2_reasons is flagged, and two flagged evaluations in a row are an alarm. Each new run's ledger is read at every check-in. An alarm is reported to the maintainer at once with the run, the step and the actuator (named by the 20-episode rollout of the latest placed checkpoint at or after the first flagged evaluation, never an earlier one), or "actuator not yet named", with the actuator following once it is named. No training change, no stop, no restart. References added (measured): stance5 s42's alarm fired at 3,670,016 (first flagged evaluation 3,538,944), tail_3_pitch_act at +1 (tail raised), named at 4,194,304; stance5 s52 and s60 had none.
+- The parent comparison, under stance3's rule (the most clean panel episodes at final; ties to fewer joint-space plus own-sigma noise falls):
+  - over the five band finals, the best band final and the best holding band final;
+  - beside stance3 Run 2's final and the best stance4 final.
+  Ties are named, not settled. Measured in stance5's score: s52's final ties stance3 Run 2's final (40/40 clean, 0 and 0 noise falls). This comparison does not change walking pilot 2's parent: it stays stance3 Run 2's final (maintainer decision (3) of 2026-10-22 15:08 UTC, run_log), and s52's final is reconsidered after the replication. On line 1, the best holding band final among the five is the one offered (line 1).
+
+WHAT IS MEASURED AND WHAT IS INFERRED
+- Measured:
+  - the stance5 verdicts (the score of record, reproduced by the replication scorer);
+  - the sidecar vector (computed from the pinned frozen_params.json; numpy's mean agrees on 13 of 15 elements and differs by at most 5.6e-17 on the other two);
+  - the stance5 runs' runtime: L4 (stage_config.json "gpu" block, all three), with commit cf80ecb1 and the band-on task 8c6998d2 read from their run records;
+  - their throughput at the end: 239.5, 230.9 and 245.2 steps/s (s52, s60, s42; progress.json). They ended about 13.7 to 14.5 h after their start (run_log: started 13:32-13:35 UTC on 2026-10-21; ended 03:14, 03:32 and 04:03 UTC);
+  - the Colab baseline row: the stance5 runs' zero-action reward 4367.8 equals the local measurement;
+  - judge_stance5r.py on stance5_LTSB_s52's 4,194,304 checkpoint with --seed 52 reproduces judge_stance5.py's file of record field for field. The only differences are the judge identity (schema, path, sha256), argv, the sigma file record and timings. The same checkpoint judged as seed 70 (validation only, --allow-seed-mismatch) records the sidecar's vector and source in its joint-noise test, and differs from the record only there and in the seed relaxations. The validation record is SP/foot/stance5/replication/judge/validation/.
+- Inferred:
+  - that the new runs take about as long as the stance5 runs (the same code and runtime type);
+  - that the mean sigma is a noise level comparable to the per-seed ones (the vector means differ by at most 0.0003 from the three sources'; the per-element spread is not a measured equivalence);
+  - that seeds 70 and 80 behave as draws from the same spread of outcomes as 52, 60 and 42.
+
+KNOWN LIMITS
+- n = 2 new seeds. Even if both hold, H = 3 of 5. The run-to-run variance is large: stance5 had 1 of 3 runs holding, and stance4's three control runs read 21, 30 and 0 of 40 clean at 6,291,456. Two more holds separate the recipe from seed luck only to that extent; this is inferred, and no significance level was set.
+- GPU non-determinism. Colab GPU training is not bit-reproducible (inferred, as stance5 criteria state). A seed fixes the start, not the run, and a resume after a disconnect changes the trajectory. Matched seeds pair nothing across arms; per-seed comparisons are report only.
+- The sigma rule is not a per-seed control. Seeds 42, 52 and 60 have their joint-noise sigma read from a control run of that seed (frozen_params.json "source": SP/foot/screen/runs/control_s<seed>/models/stage1_final.zip). Seeds 70 and 80 have no such run and use the mean of the three. Their K3 joint-space test is therefore not run under exactly the stance5 runs' conditions. The parent comparison's tie-break on noise falls mixes the two sigma sources.
+- The reading rule was fixed after stance5's results were seen (2026-10-22 15:11 UTC), and before any training step of the new runs. So were the run-handling rules (16:32 UTC). Replicating on two more seeds was pre-registered in stance5's line 3; the "both must hold" rule was not.
+- The new runs train a day after the stance5 runs and two days after the control, not side by side. The runtime type is the same. Colab's installed library versions are read from each run's records (MuJoCo 3.10.0 on the stance5 runs, from provenance.json), and a difference is reported, not a verdict change.
+- The control is the stance4 runs as scored. The control's K3 fraction (2/3) rests on frozen per-seed sigmas, and the new runs' on the mean (above).
+=== END criteria.txt ===
