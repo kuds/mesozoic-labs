@@ -24,7 +24,10 @@ copy carries the prefix and checkout changes, the scorer's and the sidecar's the
 prefix change, so their sha256 is not the `16d39f7d…`, `55c37ba7…` and
 `89778b3f…` the judge files, the criteria and the Colab steps record). The
 per-episode judge files, the certificates' per-episode files, the runs' ledgers
-and records, and the start-up checks' copies stay in the session's scratch; the checkpoints are on Drive under
+and records, and the start-up checks' copies are in the session's scratch and on
+the pushed, never-merged handoff branch `claude/handoff-stance5r` (the
+maintainer's decisions in the run log's entries timed 23:22 UTC on 2026-10-22
+and 12:55 UTC on 2026-10-24); the checkpoints are on Drive alone, under
 `MyDrive/mesozoic-labs/logs/tyrannosaurus_rex/anatomical/ppo/stance5_LTSB_s70/`
 and `.../stance5_LTSB_s80/`.
 
@@ -43,15 +46,16 @@ and no run was stopped or changed on its readouts or on the saturation alarm.
 The three stance5 runs count as recorded (s52 holds, s60 and s42 do not): the
 scorer reproduces their recorded verdicts, J cells, K1 failure modes, task and
 judge from their judge files, against stance5's score of record
-(`../../results/scores/`; the scorer pins its scratch original's sha256), and the control's verdicts reproduce stance4's score of record.
-Report only (never in the decision): the K3 pass fraction, the five band runs
-against the control, is 3 of 5 against 2 of 3, and per test K1 3/5 against 0/3,
-K2 5/5 against 0/3, K3 3/5 against 2/3 and K4 5/5 against 2/3. Fore-aft holds on
-s52, s60 and s70. The parent comparison (report only, stance3's rule; the new
-runs' noise falls use the sidecar's mean sigma): s52's final and stance3 Run
-2's final tie (40/40, 0 noise falls); s70's final is next (40/40, 1); the rule
-names both tied finals and does not choose. Walking pilot 2's parent stays
-stance3 Run 2's final (the maintainer's decision (3) of 2026-10-22, 15:08 UTC).
+(`../../results/scores/`; the scorer pins its scratch original's sha256), and
+the control's verdicts reproduce stance4's score of record. Report only (never
+in the decision): the K3 pass fraction, the five band runs against the control,
+is 3 of 5 against 2 of 3, and per test K1 3/5 against 0/3, K2 5/5 against 0/3,
+K3 3/5 against 2/3 and K4 5/5 against 2/3. Fore-aft holds on s52, s60 and s70.
+The parent comparison (report only, stance3's rule; the new runs' noise falls
+use the sidecar's mean sigma): s52's final and stance3 Run 2's final tie (40/40,
+0 noise falls); s70's final is next (40/40, 1); the rule names both tied finals
+and does not choose. Walking pilot 2's parent stays stance3 Run 2's final (the
+maintainer's decision (3) of 2026-10-22, 15:08 UTC).
 
 The runtime, measured: the `gpu` block of each run's
 `01_stance/stage_config.json` reads an NVIDIA L4 (23.7 GB, CUDA 13.0), with
@@ -88,9 +92,10 @@ changed; [`../../../SHA256SUMS`](../../../SHA256SUMS) pins them. The folder's
 - **redact:** in `run_log.txt`, each of the session's tool identifiers is
   replaced by `[id removed]`: 49 workflow run ids (28 distinct; a bare one
   becomes `workflow [id removed]`), 15 background-job ids of the session's
-  queue workers (13 distinct), and 6 shortened Drive folder ids (eight
-  characters and `...`). Nothing else in the log changes; GitHub's run and job
-  ids are kept, as in the earlier copies.
+  queue workers (13 distinct), 6 shortened Drive folder ids (eight characters
+  and `...`) and 1 task id of the session's task list (`task [id removed]`).
+  Nothing else in the log changes; GitHub's run and job ids are kept, as in the
+  earlier copies.
 - **checkout:** the session's checkout directory is replaced by `checkout` in
   `../judge/judge_stance5r.py` (its `MAIN_CHECKOUT` constant) and in
   `../judge/judge_diff.txt`.
@@ -191,7 +196,7 @@ files run only where the session's scratch is.
 | Check | Command | Result |
 |---|---|---|
 | The verdicts, H, the decision line and the parent comparison from the judge files (session scratch only) | `python3 -I scratchpad/foot/stance5/replication/judge/score_stance5r.py --runs-ended --json score.json` (its default paths are the scratch's) | the same verdicts, cells, H and decision line (2) as `scores/score_final.txt`; it differs where the handoff carried no file: the stance5 runs' and the control's late-fall lines ("no train_episodes.csv rows") and the parent comparison's stance3 Run 2 reference cell (not recomputed, so the top is s52 alone, with a note) |
-| The scorer's tests (session scratch only) | in `scratchpad/foot/stance5/replication/judge/`: `python3 -m pytest -p no:cacheprovider test_score_stance5r.py` | 42 passed, 2 skipped (the validation judge files are not in the restored scratch), 1 failed (`test_parent_comparison_five_finals`: stance3 Run 2's final is not in the tie, as in the row above); the run log records 66 tests passing at 18:00 UTC on 2026-10-22, before the handoff |
+| The scorer's tests (session scratch only) | in `scratchpad/foot/stance5/replication/judge/`: `python3 -m pytest -p no:cacheprovider test_score_stance5r.py` | 42 passed, 2 skipped (the validation judge files are not in the restored scratch), 1 failed (`test_parent_comparison_five_finals`: stance3 Run 2's final is not in the tie, as in the row above; inferred: the handoff carried no stance3 Run 2 judge file); this file collects 45 tests, and the run log's 66 tests passing at 18:00 UTC on 2026-10-22, before the handoff, are this file's and those of `test_tools_run_handling.py` (21, not copied) |
 | The certificates' checkpoints (session scratch only) | compare each `certificates/<run id>/run_summary.json`'s `model_sha256` with the scratch's `judged/<run id>/judge_final.json` | equal for both (`9f115034…`, `e7936691…`) |
 | The criteria | `sha256sum ../criteria.txt` | `a38536de152e735947fd5322960f9e75b6520b59a5526a414afc0d0c4a0f3ef2` |
 | The files themselves | `sha256sum -c SHA256SUMS` in `../../../` | all files OK (the count is in the folder README) |

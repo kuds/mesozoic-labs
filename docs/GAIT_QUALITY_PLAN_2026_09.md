@@ -48,9 +48,10 @@ decision table's line 3: not adopted, to be replicated on two more seeds); the s
 *Updated 2026-10-22, later: the maintainer took D-D41, a replication of the band screen on two more seeds; the second
 pilot keeps `stance3_armLT_s60`'s final as its parent for now (§17, its second note of 2026-10-22).*
 *Updated 2026-10-24: the D-D41 replication holds on one of its two runs (its decision table's line 2: the band is not
-adopted); the maintainer took D-D42, a next T-Rex stance round on the tail saturation habit, to be designed and approved
-before any training; the second pilot keeps `stance3_armLT_s60`'s final as its parent and is not yet trained (§17, its
-note of 2026-10-24).*
+adopted); the second pilot keeps `stance3_armLT_s60`'s final as its parent and is not yet trained (§17, its note of
+2026-10-24).*
+*Updated 2026-10-24, later: the maintainer took D-D42, a next T-Rex stance round on the tail saturation habit, to be
+designed and approved before any training (§17, its second note of 2026-10-24).*
 
 ## How to use this document
 
@@ -1019,16 +1020,22 @@ second pilot is still the same deliberate exception to GQ-3 (a) and GQ-17, both 
 in [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2 and their record in §22 of
 [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).
 
-*Appended 2026-10-24 (D-D41's outcome, and D-D42); the text above is unchanged.* **The replication holds on one run;
-the next round targets the tail habit.** Judged on 2026-10-24 by their fixed criteria, final, one of the two D-D41 runs
-holds (seed 70); seed 80 fails only the gate, on the actuator-saturation rail (its tail-tip actuator pinned at +1). With
-the three D-D40 runs as recorded, two of the five band runs hold, and the decision table's line is 2: the band is not
-adopted. Under the parent rule, seed 52's band final still ties `stance3_armLT_s60`'s final (report only), and the second
-pilot keeps that final as its parent; it is not yet trained, is still the same deliberate exception to GQ-3 (a) and
-GQ-17, both still open, and certifies nothing. On 2026-10-24 the maintainer took D-D42: the next T-Rex stance round
-targets the tail saturation habit, its design and criteria to be fixed and brought back for approval before any
-training; a report-only training-history report and a report-only actuator saturation readout are to follow. These are
-stance runs and telemetry, not walker sessions: they are no exception to GQ-3 (a) or GQ-17, answer none of
-GQ-1..GQ-18 and certify nothing, and the trex `gait-r1` walk (§5.4, §14) still waits for a certified stance. The
-decisions' full text is in [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2 and their record in §23 of
+*Appended 2026-10-24 (D-D41's outcome); the text above is unchanged.* **The replication holds on one run.** Judged on
+2026-10-24 by their fixed criteria, final, one of the two D-D41 runs holds (seed 70); seed 80 fails only the gate, on
+the actuator-saturation rail (its tail-tip actuator pinned at +1). With the three D-D40 runs as recorded, two of the
+five band runs hold, and the decision table's line is 2: the band is not adopted. Under the parent rule, seed 52's band
+final still ties `stance3_armLT_s60`'s final (report only), and the second pilot keeps that final as its parent; it is
+not yet trained, is still the same deliberate exception to GQ-3 (a) and GQ-17, both still open, and certifies nothing.
+The replication's runs are stance runs, not walker sessions: they are no exception to GQ-3 (a) or GQ-17, answer none of
+GQ-1..GQ-18 and certify nothing, and the trex `gait-r1` walk (§5.4, §14) still waits for a certified stance. Their
+record is §23 of
+[investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).
+
+*Appended 2026-10-24, later (D-D42); the text above is unchanged.* **The next round targets the tail habit.** On
+2026-10-24 the maintainer took D-D42: the next T-Rex stance round targets the tail saturation habit, its design and
+criteria to be fixed and brought back for approval before any training; a report-only training-history report and a
+report-only actuator saturation report are to come in their own pull requests. When the copied run log ends (15:27 UTC),
+the round is not yet designed and nothing has trained. These are stance runs and telemetry, not walker sessions: they
+are no exception to GQ-3 (a) or GQ-17, answer none of GQ-1..GQ-18 and certify nothing. The decisions' full text is in
+[BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2 and their record in §23.7 of
 [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).

@@ -25,10 +25,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (report-only pages from the run ledgers). An actuator saturation report,
   during training and for finished models, comes from report-only
   telemetry naming the saturating actuator and its sign on each
-  evaluation-episode row. Nothing is designed, built or trained by the
-  decision, and walking pilot 2 is not launched. D-D41's row gains a dated
-  amendment with its package, runtime and outcome (line 2, not adopted). Screens
-  certify nothing.
+  evaluation-episode row. No training follows from it, and when the copied run
+  log ends (15:27 UTC) the round is not designed: an options study for it has
+  started, with no training and no Drive fetch, its brief to come to the
+  maintainer before any design is fixed; the two reports are to come in their
+  own pull requests, not in this change. Walking pilot 2 is not launched.
+  D-D41's row gains a dated amendment with its package, runtime and outcome
+  (line 2, not adopted). Screens certify nothing. `docs/README.md` adds a note
+  to the gait plan's row, and `docs/KNOWN_ISSUES.md` gains Update 17 of the
+  T-Rex stance entry.
 - **The stance5 replication of D-D41 judged: one of the two new per-foot
   centre-of-pressure band runs holds (line 2), and the band is not adopted; the
   K3 diagnosis, the scratch tail experiment and the K3 readouts recorded, report

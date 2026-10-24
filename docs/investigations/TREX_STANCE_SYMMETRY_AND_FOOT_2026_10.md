@@ -94,9 +94,9 @@ Run 5 (seed 80) fails K1 only, on the actuator-saturation rail (its alarm at
 4,456,448, `tail_3_pitch_act` at +1); H = 2 of 5 and the decision table's line
 is 2, final, so the band is not adopted; s52's final still ties stance3 Run 2's
 final under the parent rule. With it: the report-only notebook gates,
-certificates and extras, the two report-only workflows of §22.2 (the K3
-diagnosis and the scratch tail experiment), the report-only K3 readouts added
-on 2026-10-22, and the maintainer's decisions of 2026-10-24 (D-D42: the next
+certificates and saturation alarm, the two report-only workflows of §22.2 (the
+K3 diagnosis and the scratch tail experiment), the report-only K3 readouts
+added on 2026-10-22, and the maintainer's decisions of 2026-10-24 (D-D42: the next
 round targets the tail saturation habit, its design and criteria to be fixed
 and approved before any training). Their evidence is in
 [stance_2026_10/stance5/replication/results/](stance_2026_10/stance5/replication/results/README.md)
@@ -3182,25 +3182,25 @@ verdict.
 ## 23. Status 2026-10-24 (appended): the stance5 replication judged; the K3 diagnosis, the tail experiment and the K3 readouts; decision D-D42
 
 *Appended 2026-10-24; §1–§22 above are unchanged, so §22's "not yet trained",
-"neither has a result yet" and "the replication's package and the two
-workflows' outputs stay in the session's scratch" are the wording of
-2026-10-22.* The replication of D-D41 (§22.1) was made final and launched on
-2026-10-22; its two runs trained to their final 12,001,280 steps on Colab L4 GPU
-runtimes from 2026-10-22 to 2026-10-23 and were judged by their fixed criteria
-with the replication's judge and scorer, the verdict of record written in the
-run log's entry timed 13:04 UTC on 2026-10-24. This section records the package
-and the runs (§23.1), the judging and the score (§23.2), the verdicts and the
-decision-table line, which are results (§23.3), and the report-only gate,
-certificates, extras and the saturation alarm on s80 (§23.4); the two
-report-only workflows that §22.2 left pending (§23.5); the report-only K3
-readouts the maintainer added on 2026-10-22 (§23.6); and the maintainer's
-decisions of 2026-10-24 that followed, recorded as decision D-D42 with their
-design pending (§23.7). A screen certifies nothing: the verdicts are the
-criteria's, not a gate's, nothing here certifies a run, writes a result bundle
-or promotes anything, and `main` and its digests are unchanged. The evidence is
-in the folders `stance5/replication/`, `stance5/k3diag/` and `stance5/tailexp/`
-of [stance_2026_10/](stance_2026_10/README.md), all added on 2026-10-24; the
-replication's `results/` has its own
+"neither has a result yet" and "the replication's package and the two workflows'
+outputs stay in the session's scratch" are the wording of 2026-10-22.* The
+replication of D-D41 (§22.1) was made final and launched on 2026-10-22; its two
+runs trained to their final 12,001,280 steps on Colab L4 GPU runtimes from
+2026-10-22 to 2026-10-23 and were judged by their fixed criteria with the
+replication's judge and scorer, the verdict of record written in the run log's
+entry timed 13:04 UTC on 2026-10-24. This section records the package and the
+runs (§23.1), the judging and the score (§23.2), the verdicts and the
+decision-table line, which are results (§23.3), and the report-only
+1,048,576-step checkpoints, readouts, gate, certificates and saturation alarm on
+s80 (§23.4); the two report-only workflows that §22.2 left pending (§23.5); the
+report-only K3 readouts the maintainer added on 2026-10-22 (§23.6); and the
+maintainer's decisions of 2026-10-24 that followed, recorded as decision D-D42
+with their design pending (§23.7). A screen certifies nothing: the verdicts are
+the criteria's, not a gate's, nothing here certifies a run, writes a result
+bundle or promotes anything, and `main` and its digests are unchanged. The
+evidence is in the folders `stance5/replication/`, `stance5/k3diag/` and
+`stance5/tailexp/` of [stance_2026_10/](stance_2026_10/README.md), all added on
+2026-10-24; the replication's `results/` has its own
 [README](stance_2026_10/stance5/replication/results/README.md). Paths in
 backticks below are relative to `stance5/replication/` unless they start with
 `../`, and every number below is read from `results/run_log.txt` (the session's
@@ -3259,9 +3259,9 @@ run log from the entry timed 17:46 UTC on 2026-10-22 on), the score files in
 - **The session.** The container restarted at about 01:05 and 01:51 UTC on
   2026-10-23, stopping the queue workers and, the second time, the running
   agents of two build workflows, which were relaunched or resumed; the scratch
-  survived. At about 05:30 UTC on 2026-10-23
-  every fetch agent hit the account's spend limit, and the session was idle
-  until 12:06 UTC on 2026-10-24 (the container having rebooted again). To save
+  survived. At about 05:30 UTC on 2026-10-23 every fetch agent hit the
+  account's spend limit, and the session was idle until 12:06 UTC on 2026-10-24
+  (the container having rebooted again). To save
   usage after that, one combined fetch placed the J pairs at 8,388,608,
   10,485,760 and the final with the ledgers, `progress.json` and
   `gate_verdict.json`; the 1,048,576-step checkpoints 7,340,032, 9,437,184 and
@@ -3347,7 +3347,7 @@ final (40 of 40, 1), the best stance4 final (s52's, 39 of 40, 0), s60's (39 of
 40, 3), s80's (38 of 40, 2) and s42's (19 of 40, 14). Walking pilot 2's parent
 stays stance3 Run 2's final (D-D41 (3)); the comparison does not choose it.
 
-### 23.4 Report only: the gate, certificates, extras and the saturation alarm on s80
+### 23.4 Report only: the 1,048,576-step checkpoints, readouts, gate, certificates and the saturation alarm on s80
 
 None of these enters a criterion (`results/scores/`, `results/notebook_gates/`,
 `results/certificates/`, `results/saturation/`).
@@ -3469,10 +3469,11 @@ valid readouts, `k3readouts/out/`; n = 20 per condition):
 The references, rolled by the same tool: stance5 s42's final fell 13 of 20
 (hip-pitch only 15, the differential part 15), s52's 0 and s60's 3; every
 stance5 band final fell 20 of 20 to the ±0.3 kick, and the stance4 control
-finals 0, 1 and 11 of 20 (the K3 diagnosis). Inferred, at this n: neither new
-run showed s42's K3 collapse, which supports a seed-42 effect for those falls;
-all five band finals fall to the sharp kick against 0 to 11 of 20 for the
-control finals, a consistent band-arm property that no criterion reads; and the
+finals 0, 1 and 11 of 20 (the K3 diagnosis' figures, not independently
+checked). Inferred, at this n: neither new run showed s42's K3 collapse, which
+supports a seed-42 effect for those falls; all five band finals fall 20 of 20
+to the ±0.3 kick, against 0, 1 and 11 of 20 for the three control finals, so a
+band effect is possible, not shown, and no criterion reads the kick; and the
 direct response does not predict the falls (s80's final is near 0 and falls 2
 of 20), in line with the diagnosis' finding that it is a correlate.
 
@@ -3481,23 +3482,25 @@ of 20), in line with the diagnosis' finding that it is a correlate.
 The round was closed on 2026-10-24 in the session that ran it, and its files
 were carried to a new session on a handoff branch that is never merged (the
 maintainer's decisions in the run log's entries timed 23:22 UTC on 2026-10-22
-and 12:55 UTC on 2026-10-24); checkpoints stay on Drive. In the new session, at 15:20 UTC on
-2026-10-24, the maintainer decided, as the run log has them in short:
+and 12:55 UTC on 2026-10-24); checkpoints stay on Drive. In the new session, at
+15:20 UTC on 2026-10-24, the maintainer decided, as the run log has them in
+short:
 
 - **(1) The next round targets the tail saturation habit**, stance5 line 4's
   first item. The round is designed with fixed criteria and brought back to the
   maintainer for approval before any training. At 15:27 UTC an options study
   started, with no training and no Drive fetch; its brief comes to the
-  maintainer before any design is fixed. Nothing is designed or fixed yet.
+  maintainer before any design is fixed. Nothing is designed or fixed when the
+  copied log ends.
 - **(2) The training-history report goes to a pull request at scope (a)**, the
-  standalone report as built: report-only pages drawn from the run ledgers
-  (no rollouts), built on 2026-10-22 and 2026-10-23 as the first piece of the stage
+  standalone report as built: report-only pages drawn from the run ledgers (no
+  rollouts), built on 2026-10-22 and 2026-10-23 as the first piece of the stage
   report's design (the maintainer's decisions of 2026-10-18), on a local branch
   `claude/run-training-report` (commits `4a783bae` and `50fd8f60`, not pushed
   then; 158 tests passing and ruff clean on `environments/` by the log's 02:54
   UTC entry), carried as patches and applied in the new session (`1e0da30`,
-  `356bf3f` on `1b71f00`), its tests pending when the copied log ends (15:27
-  UTC on 2026-10-24). It is not part of this change.
+  `356bf3f` on `1b71f00`), its tests pending when the copied log ends (15:27 UTC
+  on 2026-10-24). It is not part of this change.
 - **(3) An actuator saturation report**, both during training and for finished
   models, from the ledger: report-only telemetry naming the saturating actuator
   and its sign on each evaluation-episode row, drawn over training by the
@@ -3514,9 +3517,9 @@ no launch), and its parent stays stance3 Run 2's final.
 
 ### 23.8 What changes in §13–§22
 
-- **§13, §21.3 and §22.1, the band:** replicated; one of the two new runs holds,
-  H = 2 of 5, and the decision table's line is 2, final: the band is not
-  adopted. No T. rex stance is certified, and the two-seed ask stands.
+- **§13, §21.3 and §22.1, the band:** the replication judged; one of the two
+  new runs holds, H = 2 of 5, and the decision table's line is 2, final: the
+  band is not adopted. No T. rex stance is certified, and the two-seed ask stands.
 - **§21.4 and §21.5, the tail habit:** it appeared again, on s80 (§23.4); the
   next round targets it, its design and criteria to be fixed and approved
   before any training (§23.7).
@@ -3539,12 +3542,18 @@ no launch), and its parent stays stance3 Run 2's final.
   `MyDrive/mesozoic-labs/logs/tyrannosaurus_rex/anatomical/ppo/` hold their
   checkpoints; each judged one's sha256 is in its judge file, in the session's
   scratch.
-- **§14, session scratch only:** the judge files
+- **§14, session scratch and the handoff branch:** the judge files
   (`scratchpad/foot/stance5/replication/judged/`), the certificates'
   per-episode files (`scratchpad/foot/stance5/replication/cert/`), the runs'
   fetched records and ledgers (`scratchpad/foot/stance5/replication/runs/`), the
   start-up checks (`scratchpad/foot/stance5/replication/startup/`), the tools
   and their logs (`scratchpad/foot/stance5/replication/tools/` and
-  `k3readouts/logs/`), and the K3 diagnosis' and tail experiment's rollouts,
-  tables, runs and verifiers (`scratchpad/foot/stance5/k3diag/` and
-  `scratchpad/foot/stance5/tailexp/`).
+  `k3readouts/logs/`), and the K3 diagnosis' file pass, rollout scripts, tables
+  and verifiers' folders and the tail experiment's scripts, results table and
+  telemetry (`scratchpad/foot/stance5/k3diag/` and
+  `scratchpad/foot/stance5/tailexp/`) are in the session's scratch and on the
+  pushed, never-merged handoff branch `claude/handoff-stance5r` (the
+  maintainer's decisions of 23:22 UTC on 2026-10-22 and 12:55 UTC on
+  2026-10-24). The K3 diagnosis' npz rollouts and the tail experiment's runs,
+  measurement files and verifiers' folders are not in the handoff's file list,
+  so they were not carried; the checkpoints are on Drive alone.

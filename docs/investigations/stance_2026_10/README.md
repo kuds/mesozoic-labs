@@ -233,9 +233,10 @@ copies carry the **prefix**, **whitespace**, **gzip**, **trim**, **redact**,
 **checkout** and **lines** changes, nothing else and no new kind:
 `stance5/replication/results/run_log.txt` is lines 396 to 504 of the session's
 run log, whose lines 1 to 207 and 208 to 395 are the stance4 and stance5 copies.
-The redaction is in that log only: 49 workflow run ids (28 distinct), and, items
-not redacted before, 15 background-job ids of the session's queue workers (13
-distinct) and 6 shortened Drive folder ids, each now `[id removed]`.
+The redaction is in that log only: 49 workflow run ids (28 distinct) and 6
+shortened Drive folder ids, as before, and, items not redacted before, 15
+background-job ids of the session's queue workers (13 distinct) and 1 task id
+of the session's task list, each now `[id removed]`.
 `stance5/replication/results/scores/score_final.json.gz` is gzipped, as the
 JSON is above the repository's 500 KB limit for an added file.
 `stance5/replication/criteria.txt` is byte-identical to the file fixed before
@@ -992,8 +993,10 @@ falls, the ±0.3 kick probe) were not independently checked.
 
 - `report.md`: the report as written on 2026-10-22, the skeptic checks first,
   then the synthesis as written before them. Its Files section names files that
-  stay in the session's scratch (`scratchpad/foot/stance5/k3diag/`: the file
-  pass, the rollout scripts, tables and npz files, and the verifiers' folders).
+  are not copied (`scratchpad/foot/stance5/k3diag/`: the file pass, the rollout
+  scripts, tables and npz files, and the verifiers' folders); all but the npz
+  files are in the session's scratch and on the never-merged handoff branch
+  `claude/handoff-stance5r`, which took text files only.
 
 **`stance5/tailexp/`: the scratch tail experiment, P1 (2026-10-22, report
 only).** A quadratic penalty on the policy's Gaussian mean beyond ±1 (P1 of the
@@ -1016,8 +1019,11 @@ the PPO training loss.
 
 - `report.md`: the report as written on 2026-10-22, the skeptic checks first,
   then the findings and caveats as returned. Its Files section names files that
-  stay in the session's scratch (`scratchpad/foot/stance5/tailexp/`: the runs,
-  the measurements, the telemetry and the verifiers' folders).
+  are not copied (`scratchpad/foot/stance5/tailexp/`: the runs, the
+  measurements, the telemetry and the verifiers' folders); the scripts,
+  `results.csv`, `lambda.json` and `train_telemetry.csv` are in the session's
+  scratch and on the never-merged handoff branch `claude/handoff-stance5r`, and
+  the runs, the measurement files and the verifiers' folders were not carried.
 
 ### Added on 2026-10-24, later (the K3 readouts addendum and its results)
 

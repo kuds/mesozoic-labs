@@ -79,9 +79,10 @@
 #   source's first 504 lines, the whole file when copied (lines 396 to 504 alone:
 #   64825dd9f51e554f6e2eb124df52f80fc48e6dcd4c40d832742b452ac8541cb2).  The session appends to the source; its first
 #   395 lines are unchanged (b66416647f02193d453c838049ca0386ad8a20594f16d99d10a94f50d7448f35, as given above).
-# redact, in that copy only: 49 workflow run ids (28 distinct; a bare one becomes 'workflow [id removed]'), and, new,
-# 15 background-job ids of the session's queue workers (13 distinct; nine characters) and 6 shortened Drive folder
-# ids (eight characters and '...'), each by '[id removed]'.  checkout as above, in
+# redact, in that copy only: 49 workflow run ids (28 distinct; a bare one becomes 'workflow [id removed]') and 6
+# shortened Drive folder ids (eight characters and '...'), as before, and, new, 15 background-job ids of the
+# session's queue workers (13 distinct; nine characters) and 1 task id of the session's task list (a '#' and a number,
+# which would read as a GitHub number here), each by '[id removed]'.  checkout as above, in
 # stance5/replication/judge/judge_stance5r.py and stance5/replication/judge/judge_diff.txt.  trim:
 # stance5/replication/results/notebook_gates/<run id>/gate_verdict.json keep stance4's keys and
 # stance5/replication/results/certificates/<run id>/run_summary.json stance3's (as stance5/results/ does).  gzip:
@@ -99,12 +100,12 @@
 # measurements).  The scratch clone scratch_tailfix that tailexp/report.md describes was never pushed and is not
 # copied.
 # Added 2026-10-24, later (stance5/replication/readouts_addendum_k3.txt, stance5/replication/k3readouts/): no new
-# kind of change.  readouts_addendum_k3.txt and k3readouts/VALIDATION.md are byte-identical; the tool, its runner,
-# validate_k3r.py, README.md and the nine outputs carry the prefix change only, so the tool's and the runner's sha256
-# are not the d0aed5a1... and 5e3c66cd... the outputs record (that is the source sha256 given here).  Of the session's
-# outputs, the four replication readouts and the five stance5 reference outputs of the current tool are copied; the
-# six earlier outputs of the superseded tool (b69ff098..., identical in every readout by VALIDATION.md) and the
-# tool's logs, self-tests and review material are not.
+# kind of change.  readouts_addendum_k3.txt and k3readouts/VALIDATION.md are byte-identical to their sources; the
+# tool, its runner, validate_k3r.py, README.md and the nine outputs carry the prefix change only, so the tool's and the
+# runner's sha256 are not the d0aed5a1... and 5e3c66cd... the outputs record (that is the source sha256 given here).
+# Of the session's outputs, the four replication readouts and the five stance5 reference outputs of the current tool
+# are copied; the six earlier outputs of the superseded tool (b69ff098..., identical in every readout by
+# VALIDATION.md) and the tool's logs, self-tests and review material are not.
 
 audit/foot_ankle_audit.md foot/audit_2026_10_17/foot_ankle_audit.md e9da4ef84be17a87b70096d1e2aede87609ad22f446b10786f9e14d5064725c8 prefix
 audit/geometry/geometry_audit.json foot/audit_2026_10_17/geometry/geometry_audit.json 934110bec337b9693f894800efb309bf1a9529ae87f91f129bfefc8fef5b650a prefix,whitespace
