@@ -28,6 +28,36 @@ be a physics revision of that embodiment, not a new one.
 
 ## Reading order
 
+The [Mini Tyrannosaurus Rex prototype](MINI_TYRANNOSAURUS_REX.md) adds a 25.8 cm,
+800 g assigned-mass forward-knee MJCF study with a lighter head, linked moving
+arms, service-panel views, component ledger and preliminary $2,000 allocation. Its
+[standalone example](../../examples/mini_tyrannosaurus_rex/README.md) can be viewed and
+smoke-checked without registering a new plant. It has not demonstrated walking
+or continuous hardware motor duty.
+
+The [T-Rex size trade study](TREX_SIZE_TRADE_STUDY.md) compares the miniature,
+50 cm and 80 cm concepts, with sourced actuator options, reproducible load/mass
+screens, first-project budgets and demonstration/marketing tradeoffs. It
+recommends a 50 cm packaging and actuator bench study before buying a complete
+motor set. The larger concepts have not undergone CAD or gait validation.
+
+The [detailed 50 cm parts and compute plan](studies/trex_50cm/PARTS_AND_COMPUTE.md)
+updates that size study with a Jetson/MCU architecture, stronger leg motors,
+camera/power choices, a sourced line-item BOM and a cartoon character brief.
+Its fuller 7.62 kg mass budget and approximately $14,000 first-project funding
+plan supersede the earlier 50 cm shared allowances; hardware remains unqualified.
+
+The [50 cm MuJoCo concept](../../examples/tyrannosaurus_rex_50cm/README.md)
+implements that cartoon direction as a separate 18-axis, 51.5 cm model with the
+full 7.617 kg assigned budget, snout cameras, moving arms/jaw/tail, compiled-model
+renders and CI regressions. Short free-base stance and gesture checks pass;
+walking, real part fit and hardware operation remain unvalidated.
+
+The [robot variants and build plan](ROBOT_VARIANTS_AND_BUILD_PLAN.md) proposes
+how concurrent mini, medium and large robots of one species should be identified,
+tested and documented, with a staged mini-to-50 cm timeline at 15–20 hours/week.
+It is an architecture proposal; the runtime has not implemented variant selection.
+
 1. **[SIM_TO_REAL_PLAN.md](SIM_TO_REAL_PLAN.md)** — start here. The six
    sim↔hardware gaps (privileged observations, actuation, control loop, domain
    randomization, deployment stack, project maturity) and the phased plan to

@@ -1,0 +1,175 @@
+{
+  "status": "preliminary_sizing_not_validated_robot",
+  "checked_on": "2026-10-24",
+  "baseline_commit": "ddb691387583f7975e86890f1b0ce74b35f48ac5",
+  "baseline_height_m": 0.258,
+  "target_height_m": 0.5,
+  "actuators": {
+    "AK45_10_V3": {
+      "mass_g": 262,
+      "price_usd": 155.9,
+      "rated_torque_nm": 2.5,
+      "peak_torque_nm": 7,
+      "rated_speed_rpm": 120,
+      "no_load_speed_rpm": 180,
+      "nominal_v": 24,
+      "source": "https://www.cubemars.com/product/ak45-10-v3-0-kv75-robotic-actuator.html"
+    },
+    "XM540_W150_T": {
+      "mass_g": 165,
+      "price_usd": 482.89,
+      "estimated_continuous_torque_nm": 1.46,
+      "stall_torque_nm": 7.3,
+      "no_load_speed_rpm": 53,
+      "nominal_v": 12,
+      "source": "https://robotis.us/products/dynamixel-xm540-w150-t"
+    },
+    "XM540_W270_T": {
+      "mass_g": 165,
+      "price_usd": 482.89,
+      "estimated_continuous_torque_nm": 2.12,
+      "stall_torque_nm": 10.6,
+      "no_load_speed_rpm": 30,
+      "nominal_v": 12,
+      "source": "https://robotis.us/products/dynamixel-xm540-w270-t"
+    },
+    "XM430_W210_T": {
+      "mass_g": 82,
+      "price_usd": 310.39,
+      "estimated_continuous_torque_nm": 0.6,
+      "stall_torque_nm": 3,
+      "no_load_speed_rpm": 77,
+      "nominal_v": 12,
+      "source": "https://robotis.us/products/dynamixel-xm430-w210-t"
+    },
+    "XL330_M288_T": {
+      "mass_g": 18,
+      "price_usd": 27.49,
+      "estimated_continuous_torque_nm": 0.1,
+      "stall_torque_nm": 0.52,
+      "no_load_speed_rpm": 103,
+      "nominal_v": 5,
+      "source": "https://robotis.us/products/dynamixel-xl330-m288-t"
+    },
+    "RMD_X4_10": {
+      "mass_g": 330,
+      "price_usd": 399,
+      "rated_torque_nm": 4,
+      "peak_torque_nm": 10,
+      "rated_speed_rpm": 238,
+      "nominal_v": 24,
+      "source": "https://myactuator.us/products/rmd-x-series/rmd-x4-p12-5-10"
+    }
+  },
+  "architectures": {
+    "brushless_candidate": {
+      "AK45_10_V3": 12,
+      "XM430_W210_T": 2,
+      "XL330_M288_T": 4
+    },
+    "dynamixel_comparison": {
+      "XM540_W150_T": 10,
+      "XM430_W210_T": 4,
+      "XL330_M288_T": 4
+    },
+    "stronger_brushless_comparison": {
+      "RMD_X4_10": 12,
+      "XM430_W210_T": 2,
+      "XL330_M288_T": 4
+    }
+  },
+  "shared_mass_allowances_g": {
+    "load_bearing_structure": 550,
+    "head_body_shells_and_guards": 250,
+    "moving_tail": 80,
+    "two_moving_arms": 50,
+    "battery_and_restraint": 450,
+    "compute_camera_imu_bridge_audio": 180,
+    "power_distribution_and_wiring": 220,
+    "bearings_fasteners_foot_pads": 250,
+    "integration_reserve": 500
+  },
+  "non_actuator_cost_allowances_usd": {
+    "structural_parts_bearings_fasteners_feet": [
+      450,
+      900
+    ],
+    "cosmetic_shells_and_reprints": [
+      150,
+      300
+    ],
+    "computer_camera_storage_cooling_audio": [
+      200,
+      400
+    ],
+    "motor_interfaces_mcu_imu_contact_sensing": [
+      120,
+      250
+    ],
+    "regulators_distribution_wiring_cutoff": [
+      200,
+      400
+    ],
+    "battery_and_charger": [
+      140,
+      250
+    ],
+    "spares_and_rework": [
+      250,
+      500
+    ],
+    "bench_supply_fixture_and_basic_tools": [
+      250,
+      500
+    ],
+    "cloud_training_and_experiments": [
+      100,
+      300
+    ]
+  },
+  "cost_contingency_fraction": 0.25,
+  "cost_exclusions": [
+    "labor",
+    "sales_tax",
+    "shipping",
+    "import_duties",
+    "new_3d_printer",
+    "new_computer",
+    "outsourced_professional_engineering"
+  ],
+  "battery_scenario": {
+    "nominal_v": 22.2,
+    "capacity_ah": 3,
+    "usable_energy_fraction": 0.8,
+    "average_battery_power_w": [
+      80,
+      120,
+      160
+    ],
+    "status": "energy_scenario_only_pack_and_direct_bus_voltage_compatibility_not_approved"
+  },
+  "tail_scenario": {
+    "mass_kg": 0.08,
+    "length_m": 0.24,
+    "amplitude_deg": 15,
+    "frequency_hz": 0.5,
+    "body_lean_deg": 20,
+    "friction_allowance_nm": 0.01
+  },
+  "arm_scenario": {
+    "mass_kg_each": 0.025,
+    "com_radius_m": 0.06
+  },
+  "head_scenario": {
+    "moving_mass_kg": 0.3,
+    "com_offset_m": 0.04
+  },
+  "can_scenario": {
+    "bitrate": 1000000,
+    "bits_per_frame_budget": 160,
+    "frames_per_motor_update": 2,
+    "motors_per_bus": 6,
+    "rate_hz": 250,
+    "note": "Conservative frame budget; actual firmware feedback packet count and bus errors must be measured."
+  }
+}

@@ -14,6 +14,10 @@ on:
       - "CONTRIBUTING.md"
       - "results/README.md"
       - "environments/**"
+      # The Mini T-Rex tests live in the species suite but load this standalone
+      # example. Model, asset or driver-only changes must run its balance gates.
+      - "examples/mini_tyrannosaurus_rex/**"
+      - "examples/tyrannosaurus_rex_50cm/**"
       - "configs/**"
       # docs/** rather than docs/*.md: the investigations/reviews/hardware
       # subdirectories were silently outside CI (gap review CI7).
@@ -89,13 +93,13 @@ jobs:
         run: pip install "ruff==0.16.9" "mypy==2.3.1" gymnasium numpy
 
       - name: Ruff lint
-        run: ruff check environments/
+        run: ruff check environments/ examples/mini_tyrannosaurus_rex/ examples/tyrannosaurus_rex_50cm/
 
       - name: Ruff format check
-        run: ruff format --check environments/
+        run: ruff format --check environments/ examples/mini_tyrannosaurus_rex/ examples/tyrannosaurus_rex_50cm/
 
       - name: mypy
-        run: mypy environments/ --ignore-missing-imports
+        run: mypy environments/ examples/mini_tyrannosaurus_rex/ examples/tyrannosaurus_rex_50cm/ --ignore-missing-imports
 
       - name: Validate notebooks (parse every code cell)
         # notebooks/** triggers this workflow but nothing parsed them: a
@@ -308,7 +312,7 @@ jobs:
       - name: mypy with SB3 and torch types
         run: |
           python -m pip install "mypy==2.3.1"
-          mypy environments/ --ignore-missing-imports
+          mypy environments/ examples/mini_tyrannosaurus_rex/ examples/tyrannosaurus_rex_50cm/ --ignore-missing-imports
 
       # Consolidation PR-3: this job ran 52 minutes on the #544 merge (notebook
       # smoke 6, behaviors 14, integration 31; 69 at #541) because #540/#541
@@ -452,3 +456,4 @@ jobs:
         run: |
           coverage combine
           coverage report
+
