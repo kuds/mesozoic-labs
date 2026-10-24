@@ -1,5 +1,13 @@
 # T-Rex size decision: miniature, 50 cm and 80 cm
 
+> **Later detailed 50 cm plan:** the [parts/compute proposal](studies/trex_50cm/PARTS_AND_COMPUTE.md)
+> supersedes this study's provisional 50 cm recommendation and shared mass/cost
+> allowances. It favors RMD legs plus Jetson/MCU, budgets 7.62 kg with reserve,
+> and approximately $14,000 for the first project including contingency and a
+> delivery/tax reserve. The original scenarios below remain comparative evidence.
+> A separate finished 80 cm build is optional; final-scale component prototypes
+> can bridge from 50 cm T-Rex to the later full-size raptor.
+
 **Recommendation: make 50 cm the next design target, beginning with a loaded
 motor bench and packaging study.** It offers enough physical presence for an
 expressive character while remaining a manageable solo prototype. Preserve the

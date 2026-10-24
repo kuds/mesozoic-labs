@@ -1,5 +1,13 @@
 # 50 cm T-Rex: feasibility and first-prototype budget
 
+> **Updated recommendation:** use the [detailed parts and compute plan](PARTS_AND_COMPUTE.md)
+> for the current architecture/budget. Its fuller integration ledger favors
+> stronger RMD legs, Jetson plus a separate MCU, and 7.62 kg including reserve.
+> It budgets about $8,577 installed parts and $14,000 for the first project,
+> including contingency and a delivery/tax reserve. The original scenarios
+> below preserve lighter preliminary allowances; their AK45 recommendation and
+> cost totals are superseded for this configuration.
+
 **Decision: proceed to detailed layout and a loaded actuator bench test.** A
 50 cm expressive biped is credible, but the present miniature cannot simply be
 enlarged. The leading costed architecture is approximately **5.9 kg including

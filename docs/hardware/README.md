@@ -41,6 +41,12 @@ screens, first-project budgets and demonstration/marketing tradeoffs. It
 recommends a 50 cm packaging and actuator bench study before buying a complete
 motor set. The larger concepts have not undergone CAD or gait validation.
 
+The [detailed 50 cm parts and compute plan](studies/trex_50cm/PARTS_AND_COMPUTE.md)
+updates that size study with a Jetson/MCU architecture, stronger leg motors,
+camera/power choices, a sourced line-item BOM and a cartoon character brief.
+Its fuller 7.62 kg mass budget and approximately $14,000 first-project funding
+plan supersede the earlier 50 cm shared allowances; hardware remains unqualified.
+
 The [robot variants and build plan](ROBOT_VARIANTS_AND_BUILD_PLAN.md) proposes
 how concurrent mini, medium and large robots of one species should be identified,
 tested and documented, with a staged mini-to-50 cm timeline at 15–20 hours/week.
