@@ -3,20 +3,18 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 import mujoco
 import numpy as np
 import pytest
 
-from examples.tyrannosaurus_rex_50cm import build_model, demo, validate
+from examples.tyrannosaurus_rex_50cm import PARTS_BUDGET_PATH, build_model, demo, proportions, validate
 
 
 def test_components_reconcile_with_detailed_parts_mass_budget():
     model, _ = demo.load_model()
     ledger = json.loads(demo.MODEL_PATH.with_name("components.json").read_text())
-    budget_path = Path(__file__).resolve().parents[3] / "docs/hardware/studies/trex_50cm/parts_budget.json"
-    budget = json.loads(budget_path.read_text())
+    budget = json.loads(PARTS_BUDGET_PATH.read_text())
     assert ledger["categories_kg"] == pytest.approx({k: v / 1000 for k, v in budget["mass_allowances_g"].items()})
     assert sum(c["mass_kg"] for c in ledger["components"]) == pytest.approx(7.617)
     assert model.body_mass.sum() == pytest.approx(7.617)
@@ -132,6 +130,45 @@ def test_generator_canonicalizes_cross_version_float_sum_residue():
     # This difference was observed between Python 3.11 and 3.12 in Linux CI.
     assert build_model.values(3.095999999999999) == build_model.values(3.096) == "3.096"
     assert build_model.values((0.0, -3.5e-20, 1.2)) == "0 0 1.2"
+
+
+@pytest.mark.parametrize(
+    "variant,height,mass", [("compact", 0.515, 7.857), ("balanced", 0.550, 8.067), ("tall", 0.600, 8.347)]
+)
+def test_fuller_body_studies_retain_real_legs_reserve_and_free_standing(variant, height, mass, tmp_path):
+    path = proportions.build_variant(variant, tmp_path / variant)
+    model, data = demo.load_model(path=path)
+    original, home = demo.load_model()
+    ledger = json.loads(path.with_name("components.json").read_text())
+    assert ledger["categories_kg"]["unallocated_integration_reserve"] == pytest.approx(0.600)
+    assert model.body_mass.sum() == pytest.approx(mass)
+    low, high = validate.visual_bounds(model, data)
+    assert high[2] - low[2] == pytest.approx(height)
+    assert not data.eq_active.any() and not model.body_gravcomp.any()
+    for side in ("left", "right"):
+        for name in ("hip_yaw", "hip_roll", "hip_pitch", "knee", "ankle_pitch", "ankle_roll"):
+            joint = side + "_" + name
+            assert data.xanchor[model.joint(joint).id] == pytest.approx(home.xanchor[original.joint(joint).id])
+    assert model.actuator_forcerange == pytest.approx(original.actuator_forcerange)
+    assert not validate.internal_contacts(model, data)
+    result = validate.run_trial(model, duration=10, gesture=True)
+    assert result["passed"], result
+    assert max(result["rms_torque_nm"][:12]) < 2.4
+
+
+def test_proportion_budget_preserves_base_and_applies_contingency_after_additions():
+    scenarios = proportions.budget_scenarios()["scenarios"]
+    assert scenarios["baseline"]["installed_usd"] == ["8576.52", "8576.52"]
+    assert scenarios["baseline"]["first_build_funding_usd"] == ["13891.99", "13891.99"]
+    assert scenarios["balanced"]["installed_usd"] == ["8926.52", "9276.52"]
+    assert scenarios["balanced"]["first_build_funding_usd"] == ["14554.49", "15166.99"]
+
+
+def test_proportion_payload_adds_mass_above_existing_reserve(tmp_path):
+    nominal, _ = demo.load_model(path=proportions.build_variant("balanced", tmp_path / "nominal"))
+    model, _ = demo.load_model(path=proportions.build_variant("balanced", tmp_path / "head", extra_mass_body="head"))
+    assert model.body_mass.sum() - nominal.body_mass.sum() == pytest.approx(0.5)
+    assert model.body_subtreemass[model.body("head_yaw_body").id] == pytest.approx(0.85)
 
 
 @pytest.mark.parametrize("duration", [0, -1, float("nan"), float("inf")])

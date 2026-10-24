@@ -1,0 +1,1266 @@
+{
+  "status": "unweighed_concept_inertia_and_component_surrogates",
+  "mass_kg": 8.347,
+  "categories_kg": {
+    "leg_motors_12_x_330g": 3.96,
+    "load_bearing_structure": 1.03,
+    "bearings_feet_fasteners": 0.3,
+    "power_boards_distribution_wiring": 0.45,
+    "mcu_interfaces_imu_contacts_audio": 0.19999999999999998,
+    "shells_and_guards": 0.53,
+    "battery_506g_plus_restraint_44g": 0.55,
+    "jetson_storage_cooling_mount": 0.3,
+    "unallocated_integration_reserve": 0.6,
+    "character_motors_4_x_18g": 0.072,
+    "moving_arms": 0.05,
+    "moving_tail": 0.08,
+    "head_motors_2_x_82g": 0.164,
+    "camera": 0.061
+  },
+  "components": [
+    {
+      "name": "left_hip_yaw_motor",
+      "body": "torso",
+      "category": "leg_motors_12_x_330g",
+      "mass_kg": 0.33,
+      "pos_m": [
+        0,
+        0.045,
+        0.075
+      ],
+      "inertia_box_halfsize_m": [
+        0.03,
+        0.03,
+        0.0275
+      ]
+    },
+    {
+      "name": "left_hip_roll_motor",
+      "body": "left_hip_yaw_body",
+      "category": "leg_motors_12_x_330g",
+      "mass_kg": 0.33,
+      "pos_m": [
+        -0.032,
+        0.035,
+        -0.075
+      ],
+      "inertia_box_halfsize_m": [
+        0.0275,
+        0.03,
+        0.03
+      ]
+    },
+    {
+      "name": "left_hip_pitch_motor",
+      "body": "left_hip_roll_body",
+      "category": "leg_motors_12_x_330g",
+      "mass_kg": 0.33,
+      "pos_m": [
+        0.03,
+        0.018,
+        0
+      ],
+      "inertia_box_halfsize_m": [
+        0.03,
+        0.0275,
+        0.03
+      ]
+    },
+    {
+      "name": "left_knee_motor",
+      "body": "left_thigh",
+      "category": "leg_motors_12_x_330g",
+      "mass_kg": 0.33,
+      "pos_m": [
+        0.027,
+        0.026,
+        -0.097
+      ],
+      "inertia_box_halfsize_m": [
+        0.03,
+        0.0275,
+        0.03
+      ]
+    },
+    {
+      "name": "left_ankle_pitch_motor",
+      "body": "left_shin",
+      "category": "leg_motors_12_x_330g",
+      "mass_kg": 0.33,
+      "pos_m": [
+        -0.027,
+        0.026,
+        -0.096
+      ],
+      "inertia_box_halfsize_m": [
+        0.03,
+        0.0275,
+        0.03
+      ]
+    },
+    {
+      "name": "left_ankle_roll_motor",
+      "body": "left_ankle_pitch_body",
+      "category": "leg_motors_12_x_330g",
+      "mass_kg": 0.33,
+      "pos_m": [
+        -0.06,
+        0,
+        -0.015
+      ],
+      "inertia_box_halfsize_m": [
+        0.0275,
+        0.03,
+        0.03
+      ]
+    },
+    {
+      "name": "left_hip_yaw_body_structure",
+      "body": "left_hip_yaw_body",
+      "category": "load_bearing_structure",
+      "mass_kg": 0.035,
+      "pos_m": [
+        0,
+        0.018,
+        -0.04
+      ],
+      "inertia_box_halfsize_m": [
+        0.012,
+        0.025,
+        0.04
+      ]
+    },
+    {
+      "name": "left_hip_roll_body_structure",
+      "body": "left_hip_roll_body",
+      "category": "load_bearing_structure",
+      "mass_kg": 0.04,
+      "pos_m": [
+        0.018,
+        0.016,
+        0
+      ],
+      "inertia_box_halfsize_m": [
+        0.025,
+        0.02,
+        0.025
+      ]
+    },
+    {
+      "name": "left_thigh_structure",
+      "body": "left_thigh",
+      "category": "load_bearing_structure",
+      "mass_kg": 0.045,
+      "pos_m": [
+        0.014,
+        0,
+        -0.049
+      ],
+      "inertia_box_halfsize_m": [
+        0.018,
+        0.014,
+        0.05
+      ]
+    },
+    {
+      "name": "left_shin_structure",
+      "body": "left_shin",
+      "category": "load_bearing_structure",
+      "mass_kg": 0.04,
+      "pos_m": [
+        -0.014,
+        0,
+        -0.048
+      ],
+      "inertia_box_halfsize_m": [
+        0.015,
+        0.014,
+        0.05
+      ]
+    },
+    {
+      "name": "left_ankle_pitch_body_structure",
+      "body": "left_ankle_pitch_body",
+      "category": "load_bearing_structure",
+      "mass_kg": 0.015,
+      "pos_m": [
+        -0.03,
+        0,
+        -0.012
+      ],
+      "inertia_box_halfsize_m": [
+        0.035,
+        0.02,
+        0.012
+      ]
+    },
+    {
+      "name": "left_hip_yaw_body_hardware",
+      "body": "left_hip_yaw_body",
+      "category": "bearings_feet_fasteners",
+      "mass_kg": 0.015,
+      "pos_m": [
+        0,
+        0,
+        -0.015
+      ],
+      "inertia_box_halfsize_m": [
+        0.02,
+        0.02,
+        0.015
+      ]
+    },
+    {
+      "name": "left_hip_roll_body_hardware",
+      "body": "left_hip_roll_body",
+      "category": "bearings_feet_fasteners",
+      "mass_kg": 0.015,
+      "pos_m": [
+        0,
+        0,
+        -0.015
+      ],
+      "inertia_box_halfsize_m": [
+        0.02,
+        0.02,
+        0.015
+      ]
+    },
+    {
+      "name": "left_thigh_hardware",
+      "body": "left_thigh",
+      "category": "bearings_feet_fasteners",
+      "mass_kg": 0.01,
+      "pos_m": [
+        0,
+        0,
+        -0.015
+      ],
+      "inertia_box_halfsize_m": [
+        0.02,
+        0.02,
+        0.015
+      ]
+    },
+    {
+      "name": "left_shin_hardware",
+      "body": "left_shin",
+      "category": "bearings_feet_fasteners",
+      "mass_kg": 0.01,
+      "pos_m": [
+        0,
+        0,
+        -0.015
+      ],
+      "inertia_box_halfsize_m": [
+        0.02,
+        0.02,
+        0.015
+      ]
+    },
+    {
+      "name": "left_ankle_pitch_body_hardware",
+      "body": "left_ankle_pitch_body",
+      "category": "bearings_feet_fasteners",
+      "mass_kg": 0.01,
+      "pos_m": [
+        0,
+        0,
+        -0.015
+      ],
+      "inertia_box_halfsize_m": [
+        0.02,
+        0.02,
+        0.015
+      ]
+    },
+    {
+      "name": "left_foot_hardware",
+      "body": "left_foot",
+      "category": "bearings_feet_fasteners",
+      "mass_kg": 0.0755,
+      "pos_m": [
+        0,
+        0,
+        -0.015
+      ],
+      "inertia_box_halfsize_m": [
+        0.02,
+        0.02,
+        0.015
+      ]
+    },
+    {
+      "name": "left_leg_wiring",
+      "body": "left_shin",
+      "category": "power_boards_distribution_wiring",
+      "mass_kg": 0.025,
+      "pos_m": [
+        -0.01,
+        0,
+        -0.045
+      ],
+      "inertia_box_halfsize_m": [
+        0.006,
+        0.006,
+        0.04
+      ]
+    },
+    {
+      "name": "left_foot_sensors",
+      "body": "left_foot",
+      "category": "mcu_interfaces_imu_contacts_audio",
+      "mass_kg": 0.01,
+      "pos_m": [
+        0.015,
+        0,
+        -0.037
+      ],
+      "inertia_box_halfsize_m": [
+        0.05,
+        0.03,
+        0.003
+      ]
+    },
+    {
+      "name": "left_leg_cover",
+      "body": "left_thigh",
+      "category": "shells_and_guards",
+      "mass_kg": 0.045,
+      "pos_m": [
+        0.014,
+        -0.015,
+        -0.048
+      ],
+      "inertia_box_halfsize_m": [
+        0.042,
+        0.03,
+        0.051
+      ]
+    },
+    {
+      "name": "left_foot_cover",
+      "body": "left_foot",
+      "category": "shells_and_guards",
+      "mass_kg": 0.005,
+      "pos_m": [
+        0.025,
+        0,
+        -0.024
+      ],
+      "inertia_box_halfsize_m": [
+        0.05,
+        0.035,
+        0.018
+      ]
+    },
+    {
+      "name": "right_hip_yaw_motor",
+      "body": "torso",
+      "category": "leg_motors_12_x_330g",
+      "mass_kg": 0.33,
+      "pos_m": [
+        0,
+        -0.045,
+        0.075
+      ],
+      "inertia_box_halfsize_m": [
+        0.03,
+        0.03,
+        0.0275
+      ]
+    },
+    {
+      "name": "right_hip_roll_motor",
+      "body": "right_hip_yaw_body",
+      "category": "leg_motors_12_x_330g",
+      "mass_kg": 0.33,
+      "pos_m": [
+        -0.032,
+        -0.035,
+        -0.075
+      ],
+      "inertia_box_halfsize_m": [
+        0.0275,
+        0.03,
+        0.03
+      ]
+    },
+    {
+      "name": "right_hip_pitch_motor",
+      "body": "right_hip_roll_body",
+      "category": "leg_motors_12_x_330g",
+      "mass_kg": 0.33,
+      "pos_m": [
+        0.03,
+        -0.018,
+        0
+      ],
+      "inertia_box_halfsize_m": [
+        0.03,
+        0.0275,
+        0.03
+      ]
+    },
+    {
+      "name": "right_knee_motor",
+      "body": "right_thigh",
+      "category": "leg_motors_12_x_330g",
+      "mass_kg": 0.33,
+      "pos_m": [
+        0.027,
+        -0.026,
+        -0.097
+      ],
+      "inertia_box_halfsize_m": [
+        0.03,
+        0.0275,
+        0.03
+      ]
+    },
+    {
+      "name": "right_ankle_pitch_motor",
+      "body": "right_shin",
+      "category": "leg_motors_12_x_330g",
+      "mass_kg": 0.33,
+      "pos_m": [
+        -0.027,
+        -0.026,
+        -0.096
+      ],
+      "inertia_box_halfsize_m": [
+        0.03,
+        0.0275,
+        0.03
+      ]
+    },
+    {
+      "name": "right_ankle_roll_motor",
+      "body": "right_ankle_pitch_body",
+      "category": "leg_motors_12_x_330g",
+      "mass_kg": 0.33,
+      "pos_m": [
+        -0.06,
+        0,
+        -0.015
+      ],
+      "inertia_box_halfsize_m": [
+        0.0275,
+        0.03,
+        0.03
+      ]
+    },
+    {
+      "name": "right_hip_yaw_body_structure",
+      "body": "right_hip_yaw_body",
+      "category": "load_bearing_structure",
+      "mass_kg": 0.035,
+      "pos_m": [
+        0,
+        -0.018,
+        -0.04
+      ],
+      "inertia_box_halfsize_m": [
+        0.012,
+        0.025,
+        0.04
+      ]
+    },
+    {
+      "name": "right_hip_roll_body_structure",
+      "body": "right_hip_roll_body",
+      "category": "load_bearing_structure",
+      "mass_kg": 0.04,
+      "pos_m": [
+        0.018,
+        -0.016,
+        0
+      ],
+      "inertia_box_halfsize_m": [
+        0.025,
+        0.02,
+        0.025
+      ]
+    },
+    {
+      "name": "right_thigh_structure",
+      "body": "right_thigh",
+      "category": "load_bearing_structure",
+      "mass_kg": 0.045,
+      "pos_m": [
+        0.014,
+        0,
+        -0.049
+      ],
+      "inertia_box_halfsize_m": [
+        0.018,
+        0.014,
+        0.05
+      ]
+    },
+    {
+      "name": "right_shin_structure",
+      "body": "right_shin",
+      "category": "load_bearing_structure",
+      "mass_kg": 0.04,
+      "pos_m": [
+        -0.014,
+        0,
+        -0.048
+      ],
+      "inertia_box_halfsize_m": [
+        0.015,
+        0.014,
+        0.05
+      ]
+    },
+    {
+      "name": "right_ankle_pitch_body_structure",
+      "body": "right_ankle_pitch_body",
+      "category": "load_bearing_structure",
+      "mass_kg": 0.015,
+      "pos_m": [
+        -0.03,
+        0,
+        -0.012
+      ],
+      "inertia_box_halfsize_m": [
+        0.035,
+        0.02,
+        0.012
+      ]
+    },
+    {
+      "name": "right_hip_yaw_body_hardware",
+      "body": "right_hip_yaw_body",
+      "category": "bearings_feet_fasteners",
+      "mass_kg": 0.015,
+      "pos_m": [
+        0,
+        0,
+        -0.015
+      ],
+      "inertia_box_halfsize_m": [
+        0.02,
+        0.02,
+        0.015
+      ]
+    },
+    {
+      "name": "right_hip_roll_body_hardware",
+      "body": "right_hip_roll_body",
+      "category": "bearings_feet_fasteners",
+      "mass_kg": 0.015,
+      "pos_m": [
+        0,
+        0,
+        -0.015
+      ],
+      "inertia_box_halfsize_m": [
+        0.02,
+        0.02,
+        0.015
+      ]
+    },
+    {
+      "name": "right_thigh_hardware",
+      "body": "right_thigh",
+      "category": "bearings_feet_fasteners",
+      "mass_kg": 0.01,
+      "pos_m": [
+        0,
+        0,
+        -0.015
+      ],
+      "inertia_box_halfsize_m": [
+        0.02,
+        0.02,
+        0.015
+      ]
+    },
+    {
+      "name": "right_shin_hardware",
+      "body": "right_shin",
+      "category": "bearings_feet_fasteners",
+      "mass_kg": 0.01,
+      "pos_m": [
+        0,
+        0,
+        -0.015
+      ],
+      "inertia_box_halfsize_m": [
+        0.02,
+        0.02,
+        0.015
+      ]
+    },
+    {
+      "name": "right_ankle_pitch_body_hardware",
+      "body": "right_ankle_pitch_body",
+      "category": "bearings_feet_fasteners",
+      "mass_kg": 0.01,
+      "pos_m": [
+        0,
+        0,
+        -0.015
+      ],
+      "inertia_box_halfsize_m": [
+        0.02,
+        0.02,
+        0.015
+      ]
+    },
+    {
+      "name": "right_foot_hardware",
+      "body": "right_foot",
+      "category": "bearings_feet_fasteners",
+      "mass_kg": 0.0755,
+      "pos_m": [
+        0,
+        0,
+        -0.015
+      ],
+      "inertia_box_halfsize_m": [
+        0.02,
+        0.02,
+        0.015
+      ]
+    },
+    {
+      "name": "right_leg_wiring",
+      "body": "right_shin",
+      "category": "power_boards_distribution_wiring",
+      "mass_kg": 0.025,
+      "pos_m": [
+        -0.01,
+        0,
+        -0.045
+      ],
+      "inertia_box_halfsize_m": [
+        0.006,
+        0.006,
+        0.04
+      ]
+    },
+    {
+      "name": "right_foot_sensors",
+      "body": "right_foot",
+      "category": "mcu_interfaces_imu_contacts_audio",
+      "mass_kg": 0.01,
+      "pos_m": [
+        0.015,
+        0,
+        -0.037
+      ],
+      "inertia_box_halfsize_m": [
+        0.05,
+        0.03,
+        0.003
+      ]
+    },
+    {
+      "name": "right_leg_cover",
+      "body": "right_thigh",
+      "category": "shells_and_guards",
+      "mass_kg": 0.045,
+      "pos_m": [
+        0.014,
+        0.015,
+        -0.048
+      ],
+      "inertia_box_halfsize_m": [
+        0.042,
+        0.03,
+        0.051
+      ]
+    },
+    {
+      "name": "right_foot_cover",
+      "body": "right_foot",
+      "category": "shells_and_guards",
+      "mass_kg": 0.005,
+      "pos_m": [
+        0.025,
+        0,
+        -0.024
+      ],
+      "inertia_box_halfsize_m": [
+        0.05,
+        0.035,
+        0.018
+      ]
+    },
+    {
+      "name": "battery",
+      "body": "torso",
+      "category": "battery_506g_plus_restraint_44g",
+      "mass_kg": 0.55,
+      "pos_m": [
+        -0.026,
+        0,
+        0.018
+      ],
+      "inertia_box_halfsize_m": [
+        0.069,
+        0.021,
+        0.0215
+      ]
+    },
+    {
+      "name": "compute_tray",
+      "body": "torso",
+      "category": "jetson_storage_cooling_mount",
+      "mass_kg": 0.3,
+      "pos_m": [
+        -0.04,
+        0,
+        0.09
+      ],
+      "inertia_box_halfsize_m": [
+        0.03,
+        0.05,
+        0.021
+      ]
+    },
+    {
+      "name": "control_board",
+      "body": "torso",
+      "category": "mcu_interfaces_imu_contacts_audio",
+      "mass_kg": 0.18,
+      "pos_m": [
+        0.018,
+        0,
+        0.065
+      ],
+      "inertia_box_halfsize_m": [
+        0.02,
+        0.04,
+        0.012
+      ]
+    },
+    {
+      "name": "power_board",
+      "body": "torso",
+      "category": "power_boards_distribution_wiring",
+      "mass_kg": 0.4,
+      "pos_m": [
+        -0.026,
+        0,
+        0.049
+      ],
+      "inertia_box_halfsize_m": [
+        0.03,
+        0.04,
+        0.009
+      ]
+    },
+    {
+      "name": "pelvis_structure",
+      "body": "torso",
+      "category": "load_bearing_structure",
+      "mass_kg": 0.45,
+      "pos_m": [
+        -0.01,
+        0,
+        0.02
+      ],
+      "inertia_box_halfsize_m": [
+        0.06,
+        0.065,
+        0.025
+      ]
+    },
+    {
+      "name": "integration_reserve",
+      "body": "torso",
+      "category": "unallocated_integration_reserve",
+      "mass_kg": 0.6,
+      "pos_m": [
+        -0.018,
+        0,
+        0.045
+      ],
+      "inertia_box_halfsize_m": [
+        0.06,
+        0.06,
+        0.045
+      ]
+    },
+    {
+      "name": "torso_shell_mass",
+      "body": "torso",
+      "category": "shells_and_guards",
+      "mass_kg": 0.3,
+      "pos_m": [
+        -0.012,
+        0,
+        0.08
+      ],
+      "inertia_box_halfsize_m": [
+        0.145,
+        0.1225,
+        0.155
+      ]
+    },
+    {
+      "name": "left_shoulder_motor",
+      "body": "torso",
+      "category": "character_motors_4_x_18g",
+      "mass_kg": 0.018,
+      "pos_m": [
+        0.035,
+        0.1185,
+        0.14
+      ],
+      "inertia_box_halfsize_m": [
+        0.01,
+        0.013,
+        0.017
+      ]
+    },
+    {
+      "name": "left_shoulder_mount",
+      "body": "torso",
+      "category": "load_bearing_structure",
+      "mass_kg": 0.01,
+      "pos_m": [
+        0.035,
+        0.1185,
+        0.14
+      ],
+      "inertia_box_halfsize_m": [
+        0.015,
+        0.015,
+        0.015
+      ]
+    },
+    {
+      "name": "left_arm_shell",
+      "body": "left_arm",
+      "category": "moving_arms",
+      "mass_kg": 0.025,
+      "pos_m": [
+        0.027,
+        0,
+        -0.02
+      ],
+      "inertia_box_halfsize_m": [
+        0.035,
+        0.009,
+        0.02
+      ]
+    },
+    {
+      "name": "right_shoulder_motor",
+      "body": "torso",
+      "category": "character_motors_4_x_18g",
+      "mass_kg": 0.018,
+      "pos_m": [
+        0.035,
+        -0.1185,
+        0.14
+      ],
+      "inertia_box_halfsize_m": [
+        0.01,
+        0.013,
+        0.017
+      ]
+    },
+    {
+      "name": "right_shoulder_mount",
+      "body": "torso",
+      "category": "load_bearing_structure",
+      "mass_kg": 0.01,
+      "pos_m": [
+        0.035,
+        -0.1185,
+        0.14
+      ],
+      "inertia_box_halfsize_m": [
+        0.015,
+        0.015,
+        0.015
+      ]
+    },
+    {
+      "name": "right_arm_shell",
+      "body": "right_arm",
+      "category": "moving_arms",
+      "mass_kg": 0.025,
+      "pos_m": [
+        0.027,
+        0,
+        -0.02
+      ],
+      "inertia_box_halfsize_m": [
+        0.035,
+        0.009,
+        0.02
+      ]
+    },
+    {
+      "name": "tail_motor",
+      "body": "torso",
+      "category": "character_motors_4_x_18g",
+      "mass_kg": 0.018,
+      "pos_m": [
+        -0.142,
+        0,
+        0.016
+      ],
+      "inertia_box_halfsize_m": [
+        0.013,
+        0.01,
+        0.017
+      ]
+    },
+    {
+      "name": "tail_shell_mass",
+      "body": "tail",
+      "category": "moving_tail",
+      "mass_kg": 0.08,
+      "pos_m": [
+        -0.095,
+        0,
+        0.015
+      ],
+      "inertia_box_halfsize_m": [
+        0.1,
+        0.025,
+        0.025
+      ]
+    },
+    {
+      "name": "head_yaw_motor",
+      "body": "torso",
+      "category": "head_motors_2_x_82g",
+      "mass_kg": 0.082,
+      "pos_m": [
+        -0.015,
+        0,
+        0.235
+      ],
+      "inertia_box_halfsize_m": [
+        0.01425,
+        0.017,
+        0.02325
+      ]
+    },
+    {
+      "name": "head_nod_motor",
+      "body": "head_yaw_body",
+      "category": "head_motors_2_x_82g",
+      "mass_kg": 0.082,
+      "pos_m": [
+        0.04,
+        0,
+        0.03
+      ],
+      "inertia_box_halfsize_m": [
+        0.01425,
+        0.02325,
+        0.017
+      ]
+    },
+    {
+      "name": "head_upper_shell",
+      "body": "head",
+      "category": "shells_and_guards",
+      "mass_kg": 0.1,
+      "pos_m": [
+        0.025,
+        0,
+        0.01
+      ],
+      "inertia_box_halfsize_m": [
+        0.11,
+        0.095,
+        0.057
+      ]
+    },
+    {
+      "name": "head_structure",
+      "body": "head",
+      "category": "load_bearing_structure",
+      "mass_kg": 0.03,
+      "pos_m": [
+        0.01,
+        0,
+        0
+      ],
+      "inertia_box_halfsize_m": [
+        0.03,
+        0.035,
+        0.02
+      ]
+    },
+    {
+      "name": "head_bearings",
+      "body": "head",
+      "category": "bearings_feet_fasteners",
+      "mass_kg": 0.029,
+      "pos_m": [
+        0,
+        0,
+        0
+      ],
+      "inertia_box_halfsize_m": [
+        0.02,
+        0.03,
+        0.02
+      ]
+    },
+    {
+      "name": "snout_camera",
+      "body": "head",
+      "category": "camera",
+      "mass_kg": 0.061,
+      "pos_m": [
+        0.105,
+        0,
+        0.005
+      ],
+      "inertia_box_halfsize_m": [
+        0.00875,
+        0.0455,
+        0.014
+      ]
+    },
+    {
+      "name": "jaw_motor",
+      "body": "head",
+      "category": "character_motors_4_x_18g",
+      "mass_kg": 0.018,
+      "pos_m": [
+        0.015,
+        0,
+        -0.02
+      ],
+      "inertia_box_halfsize_m": [
+        0.013,
+        0.01,
+        0.017
+      ]
+    },
+    {
+      "name": "jaw_shell_mass",
+      "body": "jaw",
+      "category": "shells_and_guards",
+      "mass_kg": 0.03,
+      "pos_m": [
+        0.052,
+        0,
+        0
+      ],
+      "inertia_box_halfsize_m": [
+        0.08,
+        0.077,
+        0.022
+      ]
+    },
+    {
+      "name": "extended_body_brace",
+      "body": "torso",
+      "category": "load_bearing_structure",
+      "mass_kg": 0.18,
+      "pos_m": [
+        -0.02,
+        0,
+        0.1175
+      ],
+      "inertia_box_halfsize_m": [
+        0.04,
+        0.045,
+        0.1175
+      ]
+    }
+  ],
+  "joints": [
+    {
+      "name": "left_hip_yaw",
+      "range": [
+        -0.35,
+        0.35
+      ],
+      "torque_limit_nm": 4,
+      "kp": 80,
+      "kv": 3
+    },
+    {
+      "name": "left_hip_roll",
+      "range": [
+        -0.3,
+        0.3
+      ],
+      "torque_limit_nm": 4,
+      "kp": 100,
+      "kv": 4
+    },
+    {
+      "name": "left_hip_pitch",
+      "range": [
+        -0.65,
+        0.65
+      ],
+      "torque_limit_nm": 4,
+      "kp": 110,
+      "kv": 4
+    },
+    {
+      "name": "left_knee",
+      "range": [
+        -0.3,
+        1.1
+      ],
+      "torque_limit_nm": 4,
+      "kp": 110,
+      "kv": 4
+    },
+    {
+      "name": "left_ankle_pitch",
+      "range": [
+        -0.6,
+        0.6
+      ],
+      "torque_limit_nm": 4,
+      "kp": 100,
+      "kv": 3
+    },
+    {
+      "name": "left_ankle_roll",
+      "range": [
+        -0.3,
+        0.3
+      ],
+      "torque_limit_nm": 4,
+      "kp": 100,
+      "kv": 3
+    },
+    {
+      "name": "right_hip_yaw",
+      "range": [
+        -0.35,
+        0.35
+      ],
+      "torque_limit_nm": 4,
+      "kp": 80,
+      "kv": 3
+    },
+    {
+      "name": "right_hip_roll",
+      "range": [
+        -0.3,
+        0.3
+      ],
+      "torque_limit_nm": 4,
+      "kp": 100,
+      "kv": 4
+    },
+    {
+      "name": "right_hip_pitch",
+      "range": [
+        -0.65,
+        0.65
+      ],
+      "torque_limit_nm": 4,
+      "kp": 110,
+      "kv": 4
+    },
+    {
+      "name": "right_knee",
+      "range": [
+        -0.3,
+        1.1
+      ],
+      "torque_limit_nm": 4,
+      "kp": 110,
+      "kv": 4
+    },
+    {
+      "name": "right_ankle_pitch",
+      "range": [
+        -0.6,
+        0.6
+      ],
+      "torque_limit_nm": 4,
+      "kp": 100,
+      "kv": 3
+    },
+    {
+      "name": "right_ankle_roll",
+      "range": [
+        -0.3,
+        0.3
+      ],
+      "torque_limit_nm": 4,
+      "kp": 100,
+      "kv": 3
+    },
+    {
+      "name": "left_shoulder_pitch",
+      "range": [
+        -1.1,
+        0.35
+      ],
+      "torque_limit_nm": 0.1,
+      "kp": 1.2,
+      "kv": 0.035
+    },
+    {
+      "name": "right_shoulder_pitch",
+      "range": [
+        -1.1,
+        0.35
+      ],
+      "torque_limit_nm": 0.1,
+      "kp": 1.2,
+      "kv": 0.035
+    },
+    {
+      "name": "tail_yaw",
+      "range": [
+        -0.35,
+        0.35
+      ],
+      "torque_limit_nm": 0.1,
+      "kp": 1.2,
+      "kv": 0.04
+    },
+    {
+      "name": "head_yaw",
+      "range": [
+        -0.65,
+        0.65
+      ],
+      "torque_limit_nm": 0.6,
+      "kp": 6,
+      "kv": 0.25
+    },
+    {
+      "name": "head_nod",
+      "range": [
+        -0.25,
+        0.2
+      ],
+      "torque_limit_nm": 0.6,
+      "kp": 6,
+      "kv": 0.25
+    },
+    {
+      "name": "jaw_pitch",
+      "range": [
+        0,
+        0.28
+      ],
+      "torque_limit_nm": 0.1,
+      "kp": 1.5,
+      "kv": 0.04
+    }
+  ],
+  "limitations": [
+    "Motor envelopes, brackets and mass locations are provisional, not supplier CAD.",
+    "Inertias use component box surrogates and the parallel-axis theorem.",
+    "Ideal position drives are torque-limited; electrical, thermal, gearbox and bus dynamics are not modeled.",
+    "600 g integration reserve is assigned near the pelvis; no mass is removed to make the model balance."
+  ]
+}

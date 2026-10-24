@@ -8,6 +8,12 @@ plants/checkpoints are unchanged.
 
 ![Actual compiled model, four views](design_views.png)
 
+The [body-proportion study](proportion_study/README.md) compares this model with
+fuller 51.5, 55 and 60 cm bodies using the same legs and hardware. It recommends
+developing the 55 cm direction, records standing/gesture and mass-sensitivity
+trials, and gives separate first-build budgets. These are exploratory models;
+the default below remains unchanged.
+
 | Property | Current model |
 | --- | --- |
 | Home height | **515 mm** including brow shells |
@@ -134,7 +140,7 @@ not substitutes for the earlier walking similarity calculation. Home has eight
 sole/ground contacts and no active internal contacts. The full result records
 actuator effort, sensor loads, joint excursions, model version and source hashes.
 
-The 14 model tests cover mass/inertia reconciliation, dimensions and motor
+The 19 model tests cover mass/inertia reconciliation, dimensions and motor
 envelopes, forward knees, legal joint ranges, camera/foot-sensor attachment,
 gravity/free-base/no-hidden-support conditions, unsupported stance/gestures,
 bounded effort, canonical numeric serialization and deterministic regeneration. A deliberately underpowered
