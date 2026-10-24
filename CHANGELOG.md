@@ -38,9 +38,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     whole episode's, the reset transient included), the first step at the
     rail (anywhere and in the window), and the episode's return and
     length. Its `step` is the action's 0-based index; the replay's stance
-    CSV counts from 1, so its row k is the trace's row k - 1. `--actuators` narrows it; `--stochastic SEED` samples from the
-    policy's own Gaussian (`numpy.random.default_rng(SEED + i)`, the stance
-    screens' `noise_matched_own` draw when `SEED` is the first reset seed);
+    CSV counts from 1, so its row k is the trace's row k - 1. `--actuators`
+    narrows it; `--stochastic SEED` samples from the policy's own Gaussian
+    (`numpy.random.default_rng(SEED + i)`, the stance screens'
+    `noise_matched_own` draw when `SEED` is the first reset seed);
     `--hold NAME=VALUE` replaces one actuator's command, for counterfactuals
     such as holding `tail_3_pitch_act` at 0. Both are recorded as probes.
     A missing `--vecnorm` is refused unless `--allow-unnormalized`, and an
@@ -64,7 +65,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     replay's columns in `test_evaluation.py`, and the columns' names and
     reads on every model in `test_stance_diagnostics.py`.
     `test_episode_trace.py` needs SB3, so the SB3 job's integration step runs
-    it. Documented in `docs/TRAINING_ARTIFACT_PRESENTATION.md`.
+    it, and `test_repository_root.py` lists the script's `sys.path`
+    bootstrap. Documented in `docs/TRAINING_ARTIFACT_PRESENTATION.md`.
 - **Decision D-D42 recorded: the next T. rex stance round targets the tail
   saturation habit, with a training-history report and an actuator saturation
   report, both report only; D-D41 amended with its outcome** (the maintainer's
