@@ -1,0 +1,1318 @@
+{
+ "schema": "stance3-judge/v1",
+ "judge": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance3/judge/judge_stance3.py",
+ "judge_sha256": "sha256:ae281fe43d02c8898e7f504054107808a5078fd6c9dc163e582ff586e3db2034",
+ "argv": [
+  "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance3/judge/validation/runs/scratch_armL_s60",
+  "--arm",
+  "L",
+  "--seed",
+  "60",
+  "--steps",
+  "6291456",
+  "--out",
+  "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance3/judge/scratch/dev/smoke2_s60_6M.json",
+  "--smoke-episodes",
+  "2",
+  "--no-symmetry-check",
+  "--task-binding",
+  "report"
+ ],
+ "arm": "L",
+ "branch_expected": "claude/screen-trex-r9-arml-12m",
+ "clone": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/fix/screen_s3_L",
+ "git": {
+  "head": "7e6b557db999900bbc95df63ca651b1f2f4e2df1",
+  "status": "",
+  "branch": "claude/screen-trex-r9-arml-12m"
+ },
+ "expect_head": "7e6b557db999900bbc95df63ca651b1f2f4e2df1",
+ "modules": {
+  "environments": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/fix/screen_s3_L/environments/__init__.py",
+  "environments.shared.reporting.stance_report": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/fix/screen_s3_L/environments/shared/reporting/stance_report.py",
+  "environments.shared.curriculum.stance_gate_v2": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/fix/screen_s3_L/environments/shared/curriculum/stance_gate_v2.py",
+  "environments.shared.policy_loading": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/fix/screen_s3_L/environments/shared/policy_loading.py",
+  "environments.shared.gait.recorder": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/fix/screen_s3_L/environments/shared/gait/recorder.py",
+  "environments.shared.gait.pad_telemetry": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/fix/screen_s3_L/environments/shared/gait/pad_telemetry.py",
+  "environments.shared.gait.balance_telemetry": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/fix/screen_s3_L/environments/shared/gait/balance_telemetry.py",
+  "environments.tyrannosaurus_rex.base_env": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/fix/screen_s3_L/environments/tyrannosaurus_rex/base_env.py"
+ },
+ "python": "3.13.16",
+ "torch_threads": 1,
+ "mode": "full",
+ "run_dir": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance3/judge/validation/runs/scratch_armL_s60",
+ "stage_dir": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance3/judge/validation/runs/scratch_armL_s60/01_stance",
+ "seed": 60,
+ "steps": 6291456,
+ "slot_kind": "J",
+ "checkpoint": "stage1_6291456_steps",
+ "model": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance3/judge/validation/runs/scratch_armL_s60/01_stance/models/stage1_6291456_steps.zip",
+ "model_sha256": "sha256:70f3a4447794a01036c27bca5e0377a17db96d0e3d7bfb2d179e9ce94e6f353e",
+ "vecnorm": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance3/judge/validation/runs/scratch_armL_s60/01_stance/models/stage1_vecnormalize_6291456_steps.pkl",
+ "vecnorm_sha256": "sha256:0567d6104a0795c0201ff8db4b1045e907bf3100ca9ae60fa4028c4f907c0fc1",
+ "smoke": true,
+ "noise_run": true,
+ "stage": 1,
+ "stage_gate_kind": "stance_quality_heading/v1",
+ "feet": [
+  "r",
+  "l"
+ ],
+ "settle_steps": 200,
+ "horizon": 1000,
+ "thresholds_declared": {
+  "min_eval_episodes": 40,
+  "min_clean_stance_lcb": 0.8,
+  "settle_steps": 200,
+  "min_all_feet_support": 0.98,
+  "max_touchdown_rate": 0.25,
+  "max_window_displacement_m": 0.1,
+  "min_foot_load_share": 0.4,
+  "max_actuator_saturation_fraction": 0.1,
+  "max_settle_airborne_substeps": 0.0,
+  "max_settle_peak_floor_force_bw": 1.5,
+  "min_full_horizon_fraction": 0.95,
+  "min_avg_reward": 2250.0,
+  "min_avg_reward_statue_ratio": 0.6,
+  "min_foot_load_share_windowed": 0.35,
+  "max_foot_contact_fraction": 0.02,
+  "max_phantom_support_fraction": 0.05,
+  "max_nonfoot_load_fraction": 0.02,
+  "max_settle_stance_width_change_m": 0.08,
+  "max_sole_tilt_deg": 2.0,
+  "max_sole_corner_lift_m": 0.004,
+  "min_sole_contacts": 1.5,
+  "max_episode_yaw_change_deg": 25.0,
+  "max_settle_touchdowns": 2.0,
+  "max_sole_cop_fore_aft": 0.8,
+  "max_hop_or_fall_episodes": 1
+ },
+ "arm_check": {
+  "arm": "L",
+  "env": {
+   "lateral_lean_weight": 0.25,
+   "lateral_lean_tolerance_m": 0.015,
+   "leg_home_pose_reference": "settled",
+   "leg_home_pose_broad_fraction": 0.25,
+   "leg_home_pose_broad_scale": 6.0,
+   "reset_noise_scale": 0.05,
+   "leg_home_pose_weight": 0.5,
+   "leg_home_pose_tolerance": 0.1
+  },
+  "ppo_symmetry": {
+   "symmetry": "mirror_kl",
+   "symmetry_kappa": 0.3,
+   "symmetry_sigma_floor": 0.01,
+   "symmetry_mirror_critic": true
+  },
+  "collapse_peak_floor_reference": 3981.4,
+  "physics_revision": 9,
+  "physics_sha256": "sha256:3d68aec73fbc4642681ed601bedaf3524459d693d6a7afce036bb14bac872d67"
+ },
+ "arm_env_kwargs": {
+  "lateral_lean_weight": 0.25,
+  "lateral_lean_tolerance_m": 0.015,
+  "leg_home_pose_reference": "settled",
+  "leg_home_pose_broad_fraction": 0.25,
+  "leg_home_pose_broad_scale": 6.0,
+  "reset_noise_scale": 0.05,
+  "leg_home_pose_weight": 0.5,
+  "leg_home_pose_tolerance": 0.1
+ },
+ "ppo_symmetry_keys": {
+  "symmetry": "mirror_kl",
+  "symmetry_kappa": 0.3,
+  "symmetry_sigma_floor": 0.01,
+  "symmetry_mirror_critic": true
+ },
+ "rails": {
+  "k2a_pad_cop_bar": 0.8,
+  "k2b_signed_foot_cop": [
+   -0.929,
+   0.571
+  ],
+  "foot_cop_bar_report": 0.8,
+  "roll_tilt_deg": 2.0,
+  "roll_lift_m": 0.004
+ },
+ "panel_seeds": [
+  3042,
+  3043
+ ],
+ "noise_seeds": [
+  3042,
+  3043
+ ],
+ "plant_identity": {
+  "schema": "mesozoic.plant-identity/v2",
+  "species": "tyrannosaurus_rex",
+  "embodiment": "anatomical",
+  "model_path": "environments/tyrannosaurus_rex/anatomical/assets/tyrannosaurus_rex_anatomical.xml",
+  "physics_revision": 9,
+  "policy_interface_revision": 15,
+  "visual_revision": 4,
+  "source_closure_sha256": "sha256:28faa1b138edf961662e8b9a50a49933aa4eb851a8f7210f01bf951f3a756317",
+  "policy_interface_sha256": "sha256:ffbf6631e4de0469cfcaa6771e80f47973b127342bc362f74190451e8555cbd8",
+  "physics_sha256": "sha256:3d68aec73fbc4642681ed601bedaf3524459d693d6a7afce036bb14bac872d67",
+  "visual_sha256": "sha256:7042dcd597fbd0ce25489164a7f132d51e1c2adbc050729c9866d7bde42e35a4",
+  "nq": 28,
+  "nv": 27,
+  "nu": 15,
+  "observation_dim": 63,
+  "action_dim": 15
+ },
+ "frozen_params": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/symmetry/design/frozen_params.json",
+ "frozen_params_sha256": "58b2c8fbb135ecddf1bf2212d5e243514d90ff1069f5f3e2cb1c3ece9c3e7af8",
+ "task_sha256_rolled": "sha256:cd963518c4900ed8f6d155575516997b650423b1988ba198f891c1713576c526",
+ "checks": {
+  "relaxed": {
+   "no_symmetry_check": true,
+   "task_binding": "report",
+   "allow_missing_records": false,
+   "allow_seed_mismatch": false,
+   "allow_commit_mismatch": false
+  },
+  "run_plant_identity": {
+   "action_dim": 15,
+   "embodiment": "anatomical",
+   "model_path": "environments/tyrannosaurus_rex/anatomical/assets/tyrannosaurus_rex_anatomical.xml",
+   "nq": 28,
+   "nu": 15,
+   "nv": 27,
+   "observation_dim": 63,
+   "physics_revision": 9,
+   "physics_sha256": "sha256:3d68aec73fbc4642681ed601bedaf3524459d693d6a7afce036bb14bac872d67",
+   "policy_interface_revision": 15,
+   "policy_interface_sha256": "sha256:ffbf6631e4de0469cfcaa6771e80f47973b127342bc362f74190451e8555cbd8",
+   "schema": "mesozoic.plant-identity/v2",
+   "source_closure_sha256": "sha256:28faa1b138edf961662e8b9a50a49933aa4eb851a8f7210f01bf951f3a756317",
+   "species": "tyrannosaurus_rex",
+   "visual_revision": 4,
+   "visual_sha256": "sha256:7042dcd597fbd0ce25489164a7f132d51e1c2adbc050729c9866d7bde42e35a4"
+  },
+  "plant_physics_sha256": {
+   "run": "sha256:3d68aec73fbc4642681ed601bedaf3524459d693d6a7afce036bb14bac872d67",
+   "clone": "sha256:3d68aec73fbc4642681ed601bedaf3524459d693d6a7afce036bb14bac872d67",
+   "match": true
+  },
+  "plant_identity_differences": [],
+  "checkpoint_plant_physics_sha256": {
+   "checkpoint": "sha256:3d68aec73fbc4642681ed601bedaf3524459d693d6a7afce036bb14bac872d67",
+   "match": true
+  },
+  "seed": {
+   "label": 60,
+   "checkpoint": 60,
+   "match": true
+  },
+  "checkpoint_num_timesteps": 6291456,
+  "symmetry": {
+   "recorded": {
+    "schema": "mesozoic.mirror-kl/v1",
+    "method": "mirror_kl",
+    "map": "tyrannosaurus_rex/anatomical:mirror/v1",
+    "mirror_map_sha256": "18e3c1a7fa984535a51d93d379c8453e56fc230ebf92fc5572ad9adc2eda9c04",
+    "kappa": 0.3,
+    "sigma_floor": 0.01,
+    "mirror_critic": true,
+    "obs_rms": "symmetric",
+    "tie_log_std": true
+   },
+   "clone_mirror_map_sha256": "sha256:75aa96373606080772e1f3c82a6f04b5f19b783f7bb19a8f9e971d2763375975",
+   "clone_mirror_map_path": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/fix/screen_s3_L/configs/tyrannosaurus_rex/anatomical/mirror_map.json",
+   "wanted": {
+    "schema": "mesozoic.mirror-kl/v1",
+    "method": "mirror_kl",
+    "species": "tyrannosaurus_rex",
+    "embodiment": "anatomical",
+    "mirror_map_sha256": "sha256:75aa96373606080772e1f3c82a6f04b5f19b783f7bb19a8f9e971d2763375975",
+    "kappa": 0.3,
+    "sigma_floor": 0.01,
+    "mirror_critic": true
+   },
+   "mirror_map_sha256_match": false,
+   "mismatch": "the checkpoint records {'schema': 'mesozoic.mirror-kl/v1', 'method': 'mirror_kl', 'map': 'tyrannosaurus_rex/anatomical:mirror/v1', 'mirror_map_sha256': '18e3c1a7fa984535a51d93d379c8453e56fc230ebf92fc5572ad9adc2eda9c04', 'kappa': 0.3, 'sigma_floor': 0.01, 'mirror_critic': True, 'obs_rms': 'symmetric', 'tie_log_std': True}, the stage {'schema': 'mesozoic.mirror-kl/v1', 'method': 'mirror_kl', 'species': 'tyrannosaurus_rex', 'embodiment': 'anatomical', 'mirror_map_sha256': 'sha256:75aa96373606080772e1f3c82a6f04b5f19b783f7bb19a8f9e971d2763375975', 'kappa': 0.3, 'sigma_floor': 0.01, 'mirror_critic': True}"
+  },
+  "task": {
+   "panel": "sha256:cd963518c4900ed8f6d155575516997b650423b1988ba198f891c1713576c526",
+   "checkpoint": "sha256:a2af3c5c828497c7600a7d4e62ffba1d1492ef64537da32a8fa007f64e94f5a4",
+   "run": "sha256:a2af3c5c828497c7600a7d4e62ffba1d1492ef64537da32a8fa007f64e94f5a4",
+   "checkpoint_match": false,
+   "run_match": false
+  },
+  "stage_config": {
+   "env_kwargs_match": false,
+   "gate_bars_match": true,
+   "symmetry_keys": {
+    "symmetry": "mirror_kl",
+    "symmetry_kappa": 0.3,
+    "symmetry_sigma_floor": 0.01,
+    "symmetry_mirror_critic": true
+   },
+   "symmetry_keys_match": true,
+   "git_commit": "964b70750f0f1afcda186a515fd56df93fb1cffc",
+   "clone_head": "7e6b557db999900bbc95df63ca651b1f2f4e2df1",
+   "git_commit_match": false,
+   "env_kwargs_differences": [
+    "lateral_lean_tolerance_m",
+    "lateral_lean_weight",
+    "leg_home_pose_reference",
+    "experiment_com_lateral_settle_steps (not a default)",
+    "experiment_com_lateral_sigma_m (not a default)",
+    "experiment_com_lateral_weight (not a default)",
+    "experiment_leg_home_reference (not a default)"
+   ],
+   "env_default_keys_recorded": [
+    "bite_head_proximity_weight",
+    "command_config",
+    "command_mode",
+    "forward_vel_max",
+    "frame_skip",
+    "healthy_z_range",
+    "idle_penalty_weight",
+    "idle_velocity_threshold",
+    "lateral_penalty_weight",
+    "natural_pitch",
+    "perturbation_capture_velocity_multiple",
+    "perturbation_direction",
+    "perturbation_duration",
+    "perturbation_interval",
+    "perturbation_jitter",
+    "prey_lateral_range"
+   ],
+   "run_seed": 60
+  },
+  "hard_failures": []
+ },
+ "panel": {
+  "policy": "stage1_6291456_steps.zip \u2014 VecNormalize stats applied (clip 10)",
+  "seeds": [
+   3042,
+   3043
+  ],
+  "episodes": 2,
+  "panel_seconds": 9.310509230000207,
+  "verdict": "FAIL",
+  "passed": false,
+  "n_clean": 2,
+  "clean_lcb": 0.22360679774997852,
+  "clean_fraction": 1.0,
+  "n_full_horizon": 2,
+  "full_horizon_fraction": 1.0,
+  "mean_reward": 3913.8604597959115,
+  "statue_mean_reward": 3982.874456306631,
+  "reward_ratio_to_statue": 0.9826723143629496,
+  "hop_or_fall_episodes": 0,
+  "gate_failures": [
+   "n_episodes 2 < min_eval_episodes 40 (the bound's power is specified at this panel size)",
+   "clean_stance_lcb 0.2236 < 0.8000 (2/2 episodes clean)"
+  ],
+  "failing_rails": {},
+  "criterion_failures": {
+   "horizon": 0,
+   "min_all_feet_support": 0,
+   "max_touchdown_rate": 0,
+   "max_window_displacement_m": 0,
+   "min_foot_load_share": 0,
+   "max_actuator_saturation_fraction": 0,
+   "max_settle_airborne_substeps": 0,
+   "max_settle_peak_floor_force_bw": 0,
+   "min_foot_load_share_windowed": 0,
+   "max_foot_contact_fraction": 0,
+   "max_phantom_support_fraction": 0,
+   "max_nonfoot_load_fraction": 0,
+   "max_settle_stance_width_change_m": 0,
+   "max_sole_tilt_deg": 0,
+   "max_sole_corner_lift_m": 0,
+   "min_sole_contacts": 0,
+   "max_episode_yaw_change_deg": 0,
+   "max_settle_touchdowns": 0,
+   "max_sole_cop_fore_aft": 0
+  },
+  "terminations": {
+   "truncated": 2
+  },
+  "summary": {
+   "n": 2,
+   "n_full_horizon": 2,
+   "falls": 0,
+   "fall_seeds": [],
+   "fall_lengths": [],
+   "k2a_count": 0,
+   "k2a_seeds": [],
+   "k2b_count": 0,
+   "k2b_seeds": [],
+   "xc_median_full_horizon_m": 0.06595155152581478,
+   "xc_mean_full_horizon_m": 0.06595155152581478,
+   "com_mtp3_head_median_full_horizon_m": 0.06603883652436235,
+   "com_mtp3_head_mean_full_horizon_m": 0.06603883652436235,
+   "xc_minus_com_max_abs_full_horizon_m": 0.00016931235018559365,
+   "com_fore_aft_footsite_mean_full_horizon_m": -0.013932031086831727,
+   "com_fore_aft_footsite_median_full_horizon_m": -0.013932031086831727,
+   "x_vs_w_max_abs_m": 2.0816681711721685e-17,
+   "cop_gt_bar_gate": 0,
+   "cop_gt_bar_gate_full_horizon": 0,
+   "cop_unmeasured": 0,
+   "gate_cop_median": 0.3357258533503865,
+   "foot_cop_gt_bar": 0,
+   "foot_cop_gt_bar_full_horizon": 0,
+   "roll_rail_full_horizon": 0,
+   "reward_mean_full": 3913.8604597959115,
+   "per_foot": {
+    "r": {
+     "signed_cop_median": 0.2400024369675393,
+     "gate_cop_median": 0.2400024369675393,
+     "digit_share_median": 0.1907316057185694,
+     "foot_signed_cop_mean": 0.062161732633384294,
+     "foot_signed_cop_median": 0.062161732633384294,
+     "foot_signed_cop_min": 0.019650599636988803,
+     "foot_signed_cop_max": 0.10467286562977979,
+     "foot_cop_mm_ahead_mtp3_median": 64.3513212843369,
+     "foot_gate_cop_median": 0.0956192756941746
+    },
+    "l": {
+     "signed_cop_median": 0.28549511824148677,
+     "gate_cop_median": 0.28549511824148677,
+     "digit_share_median": 0.18844161807299414,
+     "foot_signed_cop_mean": 0.10820626602859232,
+     "foot_signed_cop_median": 0.10820626602859232,
+     "foot_signed_cop_min": -0.0179191468255274,
+     "foot_signed_cop_max": 0.23433167888271203,
+     "foot_cop_mm_ahead_mtp3_median": 67.57443862200148,
+     "foot_gate_cop_median": 0.12865245955417673
+    }
+   }
+  },
+  "statue_on_same_seeds": {
+   "n": 2,
+   "n_full_horizon": 2,
+   "falls": 0,
+   "fall_seeds": [],
+   "fall_lengths": [],
+   "k2a_count": 0,
+   "k2a_seeds": [],
+   "k2b_count": 0,
+   "k2b_seeds": [],
+   "xc_median_full_horizon_m": 0.06456821081041939,
+   "xc_mean_full_horizon_m": 0.06456821081041939,
+   "com_mtp3_head_median_full_horizon_m": 0.06414101846551548,
+   "com_mtp3_head_mean_full_horizon_m": 0.06414101846551548,
+   "xc_minus_com_max_abs_full_horizon_m": 0.0007708749627941269,
+   "com_fore_aft_footsite_mean_full_horizon_m": -0.015833557213669528,
+   "com_fore_aft_footsite_median_full_horizon_m": -0.015833557213669528,
+   "x_vs_w_max_abs_m": 2.0816681711721685e-17,
+   "cop_gt_bar_gate": 0,
+   "cop_gt_bar_gate_full_horizon": 0,
+   "cop_unmeasured": 0,
+   "gate_cop_median": 0.31131399307312146,
+   "foot_cop_gt_bar": 0,
+   "foot_cop_gt_bar_full_horizon": 0,
+   "roll_rail_full_horizon": 0,
+   "reward_mean_full": 3982.874456306631,
+   "per_foot": {
+    "r": {
+     "signed_cop_median": 0.22219987890392373,
+     "gate_cop_median": 0.2481958797488832,
+     "digit_share_median": 0.18325031073413947,
+     "foot_signed_cop_mean": 0.053416932026554294,
+     "foot_signed_cop_median": 0.053416932026554294,
+     "foot_signed_cop_min": -0.023538253108336224,
+     "foot_signed_cop_max": 0.1303721171614448,
+     "foot_cop_mm_ahead_mtp3_median": 63.739185241858806,
+     "foot_gate_cop_median": 0.1179081132413771
+    },
+    "l": {
+     "signed_cop_median": 0.23946942019686973,
+     "gate_cop_median": 0.24129960344050638,
+     "digit_share_median": 0.1787077534083223,
+     "foot_signed_cop_mean": 0.07707150346889463,
+     "foot_signed_cop_median": 0.07707150346889463,
+     "foot_signed_cop_min": -0.017066733538927802,
+     "foot_signed_cop_max": 0.17120974047671705,
+     "foot_cop_mm_ahead_mtp3_median": 65.39500524282263,
+     "foot_gate_cop_median": 0.11587023200290139
+    }
+   },
+   "reference": {
+    "n_episodes": 2,
+    "n_full_horizon": 2,
+    "mean_reward": 3982.874456306631,
+    "foot_load_share": [
+     0.5005215261924256,
+     0.4994784738075734
+    ]
+   },
+   "terminations": {
+    "truncated": 2
+   }
+  },
+  "statue_episodes_detail": [
+   {
+    "seed": 3042,
+    "length": 1000,
+    "reached_horizon": true,
+    "clean": null,
+    "reasons": null,
+    "reward": 3991.032090372838,
+    "termination_reason": "truncated",
+    "max_foot_cop_fore_aft": 0.1303721171614448,
+    "max_sole_cop_fore_aft": 0.29695645409196564,
+    "max_sole_tilt_deg": 0.5125168633503497,
+    "max_sole_corner_lift_m": 0.0010049818666369684,
+    "roll_rail": false,
+    "pad": {
+     "r_sole_cop_fore_aft": 0.29695645409196564,
+     "r_sole_cop_fore_aft_gate": 0.29695645409196564,
+     "r_digit_share": 0.1701553368745776,
+     "r_foot_cop_fore_aft": 0.1303721171614448,
+     "r_foot_cop_fore_aft_gate": 0.1303721171614448,
+     "r_foot_cop_std_m": 0.004631257852086788,
+     "r_foot_cop_dominant_hz": 0.125,
+     "r_toe_margin_nm": 25.63569735916238,
+     "r_heel_margin_nm": 33.354944117938786,
+     "r_toe_d2_load_share": 0.10886213884133578,
+     "r_toe_d2_load_pos": 0.05274914135617935,
+     "r_toe_d3_load_share": 0.046533919483632814,
+     "r_toe_d3_load_pos": 0.07750560488152872,
+     "r_toe_d4_load_share": 0.014759278549609013,
+     "r_toe_d4_load_pos": 0.14001057555046245,
+     "l_sole_cop_fore_aft": 0.15326730833946223,
+     "l_sole_cop_fore_aft_gate": 0.15692767482673553,
+     "l_digit_share": 0.19388480803137276,
+     "l_foot_cop_fore_aft": -0.017066733538927802,
+     "l_foot_cop_fore_aft_gate": 0.045805790085380584,
+     "l_foot_cop_std_m": 0.004727341523706042,
+     "l_foot_cop_dominant_hz": 0.125,
+     "l_toe_margin_nm": 29.87979362181456,
+     "l_heel_margin_nm": 28.86089853368337,
+     "l_toe_d2_load_share": 0.12302540817991765,
+     "l_toe_d2_load_pos": 0.03920367859690798,
+     "l_toe_d3_load_share": 0.052198991717661104,
+     "l_toe_d3_load_pos": 0.06195462679418299,
+     "l_toe_d4_load_share": 0.01866040813379402,
+     "l_toe_d4_load_pos": 0.0986841388913422
+    },
+    "foot_cop_fore_aft": {
+     "r": 0.1303721171614448,
+     "l": -0.017066733538927802
+    },
+    "foot_cop_mm_ahead_mtp3": {
+     "r": 69.12604820130115,
+     "l": 58.80532865227507
+    },
+    "xc_both_feet_m": 0.06398322603011568,
+    "com_mtp3_head_m": 0.06389971630310201,
+    "com_fore_aft_footsite_m": -0.016076626959540326,
+    "k2a_over": false,
+    "k2b_outside": false
+   },
+   {
+    "seed": 3043,
+    "length": 1000,
+    "reached_horizon": true,
+    "clean": null,
+    "reasons": null,
+    "reward": 3974.7168222404243,
+    "termination_reason": "truncated",
+    "max_foot_cop_fore_aft": 0.1859346739204222,
+    "max_sole_cop_fore_aft": 0.32567153205427724,
+    "max_sole_tilt_deg": 0.5311317097492687,
+    "max_sole_corner_lift_m": 0.001108489131024835,
+    "roll_rail": false,
+    "pad": {
+     "r_sole_cop_fore_aft": 0.14744330371588182,
+     "r_sole_cop_fore_aft_gate": 0.1994353054058008,
+     "r_digit_share": 0.19634528459370135,
+     "r_foot_cop_fore_aft": -0.023538253108336224,
+     "r_foot_cop_fore_aft_gate": 0.10544410932130939,
+     "r_foot_cop_std_m": 0.009988513435610226,
+     "r_foot_cop_dominant_hz": 0.5,
+     "r_toe_margin_nm": 30.084916139833414,
+     "r_heel_margin_nm": 28.78585064775971,
+     "r_toe_d2_load_share": 0.12463542202774065,
+     "r_toe_d2_load_pos": 0.03785351137740863,
+     "r_toe_d3_load_share": 0.05355867509526203,
+     "r_toe_d3_load_pos": 0.06091717289026104,
+     "r_toe_d4_load_share": 0.018151187470698698,
+     "r_toe_d4_load_pos": 0.10842480865679903,
+     "l_sole_cop_fore_aft": 0.32567153205427724,
+     "l_sole_cop_fore_aft_gate": 0.32567153205427724,
+     "l_digit_share": 0.16353069878527185,
+     "l_foot_cop_fore_aft": 0.17120974047671705,
+     "l_foot_cop_fore_aft_gate": 0.1859346739204222,
+     "l_foot_cop_std_m": 0.014674750033676224,
+     "l_foot_cop_dominant_hz": 0.5,
+     "l_toe_margin_nm": 24.444918494173507,
+     "l_heel_margin_nm": 34.43019825591462,
+     "l_toe_d2_load_share": 0.1045070118856925,
+     "l_toe_d2_load_pos": 0.05860575298237274,
+     "l_toe_d3_load_share": 0.04422496699185288,
+     "l_toe_d3_load_pos": 0.08488252129337631,
+     "l_toe_d4_load_share": 0.014798719907726446,
+     "l_toe_d4_load_pos": 0.1371204812367658
+    },
+    "foot_cop_fore_aft": {
+     "r": -0.023538253108336224,
+     "l": 0.17120974047671705
+    },
+    "foot_cop_mm_ahead_mtp3": {
+     "r": 58.35232228241647,
+     "l": 71.9846818333702
+    },
+    "xc_both_feet_m": 0.06515319559072308,
+    "com_mtp3_head_m": 0.06438232062792895,
+    "com_fore_aft_footsite_m": -0.015590487467798732,
+    "k2a_over": false,
+    "k2b_outside": false
+   }
+  ],
+  "scored_gate_kind": "stance_quality/v2",
+  "stage_gate_kind": "stance_quality_heading/v1",
+  "schema": "mesozoic.stance-gate-report/v5",
+  "task_sha256": "sha256:cd963518c4900ed8f6d155575516997b650423b1988ba198f891c1713576c526",
+  "handoff": {
+   "checkpoint": "stage1_6291456_steps.zip",
+   "checkpoint_sha256": "sha256:70f3a4447794a01036c27bca5e0377a17db96d0e3d7bfb2d179e9ce94e6f353e",
+   "normalization_sha256": "sha256:0567d6104a0795c0201ff8db4b1045e907bf3100ca9ae60fa4028c4f907c0fc1"
+  },
+  "thresholds": {
+   "max_actuator_saturation_fraction": 0.1,
+   "max_episode_yaw_change_deg": 25.0,
+   "max_foot_contact_fraction": 0.02,
+   "max_hop_or_fall_episodes": 1,
+   "max_nonfoot_load_fraction": 0.02,
+   "max_phantom_support_fraction": 0.05,
+   "max_settle_airborne_substeps": 0,
+   "max_settle_peak_floor_force_bw": 1.5,
+   "max_settle_stance_width_change_m": 0.08,
+   "max_settle_touchdowns": 2,
+   "max_sole_cop_fore_aft": 0.8,
+   "max_sole_corner_lift_m": 0.004,
+   "max_sole_tilt_deg": 2.0,
+   "max_touchdown_rate": 0.25,
+   "max_window_displacement_m": 0.1,
+   "min_all_feet_support": 0.98,
+   "min_avg_reward": 2250.0,
+   "min_avg_reward_statue_ratio": 0.6,
+   "min_clean_stance_lcb": 0.8,
+   "min_eval_episodes": 40,
+   "min_foot_load_share": 0.4,
+   "min_foot_load_share_windowed": 0.35,
+   "min_full_horizon_fraction": 0.95,
+   "min_sole_contacts": 1.5,
+   "required_consecutive": 3,
+   "settle_steps": 200
+  },
+  "measurement_sha256": "sha256:16ecfdedccc43917c95e3a55b619285f3ffccc76ca66f078b998d58334806567",
+  "result": {
+   "passed": false,
+   "failures": [
+    "n_episodes 2 < min_eval_episodes 40 (the bound's power is specified at this panel size)",
+    "clean_stance_lcb 0.2236 < 0.8000 (2/2 episodes clean)"
+   ],
+   "n_episodes": 2,
+   "n_clean": 2,
+   "clean_fraction": 1.0,
+   "clean_lcb": 0.22360679774997852,
+   "n_full_horizon": 2,
+   "full_horizon_fraction": 1.0,
+   "mean_reward": 3913.8604597959115,
+   "statue_mean_reward": 3982.874456306631,
+   "criterion_failures": {
+    "horizon": 0,
+    "min_all_feet_support": 0,
+    "max_touchdown_rate": 0,
+    "max_window_displacement_m": 0,
+    "min_foot_load_share": 0,
+    "max_actuator_saturation_fraction": 0,
+    "max_settle_airborne_substeps": 0,
+    "max_settle_peak_floor_force_bw": 0,
+    "min_foot_load_share_windowed": 0,
+    "max_foot_contact_fraction": 0,
+    "max_phantom_support_fraction": 0,
+    "max_nonfoot_load_fraction": 0,
+    "max_settle_stance_width_change_m": 0,
+    "max_sole_tilt_deg": 0,
+    "max_sole_corner_lift_m": 0,
+    "min_sole_contacts": 0,
+    "max_episode_yaw_change_deg": 0,
+    "max_settle_touchdowns": 0,
+    "max_sole_cop_fore_aft": 0
+   },
+   "skipped_criteria": [],
+   "hop_or_fall_episodes": 0
+  },
+  "episodes_detail": [
+   {
+    "seed": 3042,
+    "length": 1000,
+    "reached_horizon": true,
+    "full_horizon": true,
+    "clean": true,
+    "reasons": [],
+    "failing_rails": [],
+    "hop_or_fall": false,
+    "reward": 3912.1531953613194,
+    "termination_reason": "truncated",
+    "max_sole_cop_fore_aft": 0.2810225973355388,
+    "max_foot_cop_fore_aft": 0.10467286562977979,
+    "max_sole_tilt_deg": 0.46170616335040615,
+    "max_sole_corner_lift_m": 0.000939275295041469,
+    "roll_rail": false,
+    "pad": {
+     "r_sole_cop_fore_aft": 0.2810225973355388,
+     "r_sole_cop_fore_aft_gate": 0.2810225973355388,
+     "r_digit_share": 0.18290522207013685,
+     "r_foot_cop_fore_aft": 0.10467286562977979,
+     "r_foot_cop_fore_aft_gate": 0.10467286562977979,
+     "r_foot_cop_std_m": 0.0073218464620861175,
+     "r_foot_cop_dominant_hz": 0.125,
+     "r_toe_margin_nm": 26.682189415081567,
+     "r_heel_margin_nm": 32.877890761992276,
+     "r_toe_d2_load_share": 0.11082056397044483,
+     "r_toe_d2_load_pos": 0.04844173627993199,
+     "r_toe_d3_load_share": 0.051082049125181106,
+     "r_toe_d3_load_pos": 0.07021582615240603,
+     "r_toe_d4_load_share": 0.02100260897451094,
+     "r_toe_d4_load_pos": 0.111050373856889,
+     "l_sole_cop_fore_aft": 0.1805611271177392,
+     "l_sole_cop_fore_aft_gate": 0.1805611271177392,
+     "l_digit_share": 0.21703906190300126,
+     "l_foot_cop_fore_aft": -0.0179191468255274,
+     "l_foot_cop_fore_aft_gate": 0.022973240225641442,
+     "l_foot_cop_std_m": 0.0011007250323914859,
+     "l_foot_cop_dominant_hz": 0.125,
+     "l_toe_margin_nm": 29.600047827291355,
+     "l_heel_margin_nm": 28.563150481594583,
+     "l_toe_d2_load_share": 0.1219442742849611,
+     "l_toe_d2_load_pos": 0.03966475432693249,
+     "l_toe_d3_load_share": 0.06286146397912343,
+     "l_toe_d3_load_pos": 0.053533330345385925,
+     "l_toe_d4_load_share": 0.03223332363891675,
+     "l_toe_d4_load_pos": 0.07045849746831967
+    },
+    "foot_cop_fore_aft": {
+     "r": 0.10467286562977979,
+     "l": -0.0179191468255274
+    },
+    "foot_cop_mm_ahead_mtp3": {
+     "r": 67.3271005940846,
+     "l": 58.7456597222131
+    },
+    "xc_both_feet_m": 0.06306774767940046,
+    "com_mtp3_head_m": 0.06307300532631001,
+    "com_fore_aft_footsite_m": -0.01690346970234336,
+    "cop_frame": {
+     "window": [
+      200,
+      1000
+     ],
+     "mtp3_ahead_ankle_m": {
+      "r": 0.08,
+      "l": 0.08
+     },
+     "foot_frame": {
+      "r": {
+       "span_mid_ahead_ankle_m": 0.14,
+       "span_half_length_m": 0.06999999999999999,
+       "x_at_w0_m": 0.06000000000000001
+      },
+      "l": {
+       "span_mid_ahead_ankle_m": 0.14,
+       "span_half_length_m": 0.06999999999999999,
+       "x_at_w0_m": 0.06000000000000001
+      }
+     },
+     "x_vs_w_max_abs_m": 2.0816681711721685e-17
+    },
+    "k2a_over": false,
+    "k2b_outside": false
+   },
+   {
+    "seed": 3043,
+    "length": 1000,
+    "reached_horizon": true,
+    "full_horizon": true,
+    "clean": true,
+    "reasons": [],
+    "failing_rails": [],
+    "hop_or_fall": false,
+    "reward": 3915.5677242305037,
+    "termination_reason": "truncated",
+    "max_sole_cop_fore_aft": 0.3904291093652343,
+    "max_foot_cop_fore_aft": 0.23433167888271203,
+    "max_sole_tilt_deg": 0.4885749801855872,
+    "max_sole_corner_lift_m": 0.0010836429940746218,
+    "roll_rail": false,
+    "pad": {
+     "r_sole_cop_fore_aft": 0.1989822765995398,
+     "r_sole_cop_fore_aft_gate": 0.1989822765995398,
+     "r_digit_share": 0.19855798936700195,
+     "r_foot_cop_fore_aft": 0.019650599636988803,
+     "r_foot_cop_fore_aft_gate": 0.0865656857585694,
+     "r_foot_cop_std_m": 0.007885978952674193,
+     "r_foot_cop_dominant_hz": 0.125,
+     "r_toe_margin_nm": 28.81740161728875,
+     "r_heel_margin_nm": 30.041647182101364,
+     "r_toe_d2_load_share": 0.1186526256555603,
+     "r_toe_d2_load_pos": 0.043311643486129994,
+     "r_toe_d3_load_share": 0.055635669033754824,
+     "r_toe_d3_load_pos": 0.06145740401723498,
+     "r_toe_d4_load_share": 0.024269694677686842,
+     "r_toe_d4_load_pos": 0.08625989432993053,
+     "l_sole_cop_fore_aft": 0.3904291093652343,
+     "l_sole_cop_fore_aft_gate": 0.3904291093652343,
+     "l_digit_share": 0.15984417424298702,
+     "l_foot_cop_fore_aft": 0.23433167888271203,
+     "l_foot_cop_fore_aft_gate": 0.23433167888271203,
+     "l_foot_cop_std_m": 0.018102357669896,
+     "l_foot_cop_dominant_hz": 0.125,
+     "l_toe_margin_nm": 22.614023757920346,
+     "l_heel_margin_nm": 36.24818016008348,
+     "l_toe_d2_load_share": 0.09737126528406762,
+     "l_toe_d2_load_pos": 0.05690442514602663,
+     "l_toe_d3_load_share": 0.04381990288749602,
+     "l_toe_d3_load_pos": 0.08566457129758875,
+     "l_toe_d4_load_share": 0.018653006071423374,
+     "l_toe_d4_load_pos": 0.13471695940324033
+    },
+    "foot_cop_fore_aft": {
+     "r": 0.019650599636988803,
+     "l": 0.23433167888271203
+    },
+    "foot_cop_mm_ahead_mtp3": {
+     "r": 61.37554197458922,
+     "l": 76.40321752178986
+    },
+    "xc_both_feet_m": 0.06883535537222908,
+    "com_mtp3_head_m": 0.06900466772241468,
+    "com_fore_aft_footsite_m": -0.01096059247132009,
+    "cop_frame": {
+     "window": [
+      200,
+      1000
+     ],
+     "mtp3_ahead_ankle_m": {
+      "r": 0.08,
+      "l": 0.08
+     },
+     "foot_frame": {
+      "r": {
+       "span_mid_ahead_ankle_m": 0.14,
+       "span_half_length_m": 0.06999999999999999,
+       "x_at_w0_m": 0.06000000000000001
+      },
+      "l": {
+       "span_mid_ahead_ankle_m": 0.14,
+       "span_half_length_m": 0.06999999999999999,
+       "x_at_w0_m": 0.06000000000000001
+      }
+     },
+     "x_vs_w_max_abs_m": 1.3877787807814457e-17
+    },
+    "k2a_over": false,
+    "k2b_outside": false
+   }
+  ]
+ },
+ "noise_matched_own": {
+  "n": 2,
+  "n_full_horizon": 2,
+  "falls": 0,
+  "fall_seeds": [],
+  "fall_lengths": [],
+  "k2a_count": 0,
+  "k2a_seeds": [],
+  "k2b_count": 0,
+  "k2b_seeds": [],
+  "xc_median_full_horizon_m": 0.07114435957778426,
+  "xc_mean_full_horizon_m": 0.07114435957778426,
+  "com_mtp3_head_median_full_horizon_m": 0.0697872809855651,
+  "com_mtp3_head_mean_full_horizon_m": 0.0697872809855651,
+  "xc_minus_com_max_abs_full_horizon_m": 0.001456052699250615,
+  "com_fore_aft_footsite_mean_full_horizon_m": -0.010169894095261488,
+  "com_fore_aft_footsite_median_full_horizon_m": -0.010169894095261488,
+  "x_vs_w_max_abs_m": 6.938893903907228e-17,
+  "cop_gt_bar_gate": 0,
+  "cop_gt_bar_gate_full_horizon": 0,
+  "cop_unmeasured": 0,
+  "gate_cop_median": 0.5657860774686139,
+  "foot_cop_gt_bar": 0,
+  "foot_cop_gt_bar_full_horizon": 0,
+  "roll_rail_full_horizon": 0,
+  "reward_mean_full": 3840.955100422912,
+  "per_foot": {
+   "r": {
+    "signed_cop_median": 0.2881456411423311,
+    "gate_cop_median": 0.5394031321145147,
+    "digit_share_median": 0.2120008629937449,
+    "foot_signed_cop_mean": 0.14882274444497545,
+    "foot_signed_cop_median": 0.14882274444497545,
+    "foot_signed_cop_min": 0.10240380563973556,
+    "foot_signed_cop_max": 0.19524168325021532,
+    "foot_cop_mm_ahead_mtp3_median": 70.41759211114831,
+    "foot_gate_cop_median": 0.5026460973703456
+   },
+   "l": {
+    "signed_cop_median": 0.3550716268015067,
+    "gate_cop_median": 0.5601699100558861,
+    "digit_share_median": 0.20274575676245307,
+    "foot_signed_cop_mean": 0.213646403798519,
+    "foot_signed_cop_median": 0.213646403798519,
+    "foot_signed_cop_min": 0.09245971485554437,
+    "foot_signed_cop_max": 0.33483309274149364,
+    "foot_cop_mm_ahead_mtp3_median": 74.95524826589636,
+    "foot_gate_cop_median": 0.5187526016593134
+   }
+  },
+  "sigma": "own",
+  "sigma_source": "own",
+  "sigma_vector": [
+   0.13289161891734322,
+   0.14474351740214247,
+   0.15053338033715108,
+   0.045172925014744084,
+   0.09904473932598261,
+   0.01821292417437349,
+   0.018154137671403465,
+   0.045172925014744084,
+   0.09904473932598261,
+   0.01821292417437349,
+   0.018154137671403465,
+   0.1605784266060583,
+   0.15734546594424653,
+   0.1636375837839842,
+   0.1605958471714758
+  ],
+  "sigma_mean": 0.09543301950236062,
+  "space": "policy",
+  "noise_added": "to the raw mean (policy space)",
+  "policy_std_mean": 0.09543301950236062,
+  "action_scale": null,
+  "seeds": [
+   3042,
+   3043
+  ],
+  "rng": "numpy default_rng(episode seed)",
+  "cop_gt_0p8_noise_py": 0,
+  "panel_seconds": 4.433443102999263,
+  "episodes_detail": [
+   {
+    "seed": 3042,
+    "length": 1000,
+    "reached_horizon": true,
+    "reward": 3833.5114461364105,
+    "termination_reason": "",
+    "max_sole_cop_fore_aft": 0.5325264205516451,
+    "max_foot_cop_fore_aft": 0.4927162411007365,
+    "max_sole_tilt_deg": 0.3324130183012772,
+    "max_sole_corner_lift_m": 0.0008120417684849651,
+    "pad": {
+     "r_sole_cop_fore_aft": 0.3372927548388974,
+     "r_sole_cop_fore_aft_gate": 0.5325264205516451,
+     "r_digit_share": 0.20126888383253771,
+     "r_foot_cop_fore_aft": 0.19524168325021532,
+     "r_foot_cop_fore_aft_gate": 0.4927162411007365,
+     "r_foot_cop_std_m": 0.038727847058903364,
+     "r_foot_cop_dominant_hz": 2.25,
+     "r_toe_margin_nm": 25.378524825914756,
+     "r_heel_margin_nm": 34.354630287976306,
+     "r_toe_d2_load_share": 0.09596029881815464,
+     "r_toe_d2_load_pos": 0.05121092590045963,
+     "r_toe_d3_load_share": 0.06084166999531179,
+     "r_toe_d3_load_pos": 0.06274590416772051,
+     "r_toe_d4_load_share": 0.04446691501907131,
+     "r_toe_d4_load_pos": 0.06913814391602076,
+     "l_sole_cop_fore_aft": 0.23957068354184202,
+     "l_sole_cop_fore_aft_gate": 0.5212940857261897,
+     "l_digit_share": 0.2276953711246453,
+     "l_foot_cop_fore_aft": 0.09245971485554437,
+     "l_foot_cop_fore_aft_gate": 0.4871669182174556,
+     "l_foot_cop_std_m": 0.04027624281261771,
+     "l_foot_cop_dominant_hz": 6.0,
+     "l_toe_margin_nm": 27.6129240465598,
+     "l_heel_margin_nm": 30.39409280490547,
+     "l_toe_d2_load_share": 0.10194140430451262,
+     "l_toe_d2_load_pos": 0.04607688934301292,
+     "l_toe_d3_load_share": 0.06987565735946116,
+     "l_toe_d3_load_pos": 0.05526675142354847,
+     "l_toe_d4_load_share": 0.05587830946067154,
+     "l_toe_d4_load_pos": 0.05873847426308752
+    },
+    "roll_rail": false,
+    "foot_cop_fore_aft": {
+     "r": 0.19524168325021532,
+     "l": 0.09245971485554437
+    },
+    "foot_cop_mm_ahead_mtp3": {
+     "r": 73.66691782751512,
+     "l": 66.47218003988817
+    },
+    "xc_both_feet_m": 0.06841042917928124,
+    "com_mtp3_head_m": 0.06695437648003062,
+    "com_fore_aft_footsite_m": -0.013009312041802596,
+    "cop_frame": {
+     "window": [
+      200,
+      1000
+     ],
+     "mtp3_ahead_ankle_m": {
+      "r": 0.07999999999999995,
+      "l": 0.07999999999999995
+     },
+     "foot_frame": {
+      "r": {
+       "span_mid_ahead_ankle_m": 0.14,
+       "span_half_length_m": 0.06999999999999999,
+       "x_at_w0_m": 0.06000000000000007
+      },
+      "l": {
+       "span_mid_ahead_ankle_m": 0.14,
+       "span_half_length_m": 0.06999999999999999,
+       "x_at_w0_m": 0.06000000000000007
+      }
+     },
+     "x_vs_w_max_abs_m": 6.938893903907228e-17
+    },
+    "k2a_over": false,
+    "k2b_outside": false
+   },
+   {
+    "seed": 3043,
+    "length": 1000,
+    "reached_horizon": true,
+    "reward": 3848.3987547094134,
+    "termination_reason": "",
+    "max_sole_cop_fore_aft": 0.5990457343855826,
+    "max_foot_cop_fore_aft": 0.550338285101171,
+    "max_sole_tilt_deg": 0.3424417075938277,
+    "max_sole_corner_lift_m": 0.0009160966078815918,
+    "pad": {
+     "r_sole_cop_fore_aft": 0.23899852744576475,
+     "r_sole_cop_fore_aft_gate": 0.5462798436773845,
+     "r_digit_share": 0.2227328421549521,
+     "r_foot_cop_fore_aft": 0.10240380563973556,
+     "r_foot_cop_fore_aft_gate": 0.5125759536399547,
+     "r_foot_cop_std_m": 0.0417217778631129,
+     "r_foot_cop_dominant_hz": 6.5,
+     "r_toe_margin_nm": 27.618185917804684,
+     "r_heel_margin_nm": 31.26578906841355,
+     "r_toe_d2_load_share": 0.10164450260988366,
+     "r_toe_d2_load_pos": 0.0464373185199742,
+     "r_toe_d3_load_share": 0.06857761490281633,
+     "r_toe_d3_load_pos": 0.055963875669867734,
+     "r_toe_d4_load_share": 0.05251072464225213,
+     "r_toe_d4_load_pos": 0.06117890100773055,
+     "l_sole_cop_fore_aft": 0.4705725700611715,
+     "l_sole_cop_fore_aft_gate": 0.5990457343855826,
+     "l_digit_share": 0.17779614240026084,
+     "l_foot_cop_fore_aft": 0.33483309274149364,
+     "l_foot_cop_fore_aft_gate": 0.550338285101171,
+     "l_foot_cop_std_m": 0.038732025398102624,
+     "l_foot_cop_dominant_hz": 0.125,
+     "l_toe_margin_nm": 20.73775109557066,
+     "l_heel_margin_nm": 38.11665098494545,
+     "l_toe_d2_load_share": 0.08189106337798385,
+     "l_toe_d2_load_pos": 0.0647363995146094,
+     "l_toe_d3_load_share": 0.05496545673637118,
+     "l_toe_d3_load_pos": 0.07544470512265106,
+     "l_toe_d4_load_share": 0.04093962228590581,
+     "l_toe_d4_load_pos": 0.0835438586990919
+    },
+    "roll_rail": false,
+    "foot_cop_fore_aft": {
+     "r": 0.10240380563973556,
+     "l": 0.33483309274149364
+    },
+    "foot_cop_mm_ahead_mtp3": {
+     "r": 67.1682663947815,
+     "l": 83.43831649190456
+    },
+    "xc_both_feet_m": 0.07387828997628727,
+    "com_mtp3_head_m": 0.07262018549109957,
+    "com_fore_aft_footsite_m": -0.007330476148720379,
+    "cop_frame": {
+     "window": [
+      200,
+      1000
+     ],
+     "mtp3_ahead_ankle_m": {
+      "r": 0.08,
+      "l": 0.08
+     },
+     "foot_frame": {
+      "r": {
+       "span_mid_ahead_ankle_m": 0.14,
+       "span_half_length_m": 0.06999999999999999,
+       "x_at_w0_m": 0.06000000000000001
+      },
+      "l": {
+       "span_mid_ahead_ankle_m": 0.14,
+       "span_half_length_m": 0.06999999999999999,
+       "x_at_w0_m": 0.06000000000000001
+      }
+     },
+     "x_vs_w_max_abs_m": 1.3877787807814457e-17
+    },
+    "k2a_over": false,
+    "k2b_outside": false
+   }
+  ]
+ },
+ "noise_matched_control_joint": {
+  "n": 2,
+  "n_full_horizon": 1,
+  "falls": 1,
+  "fall_seeds": [
+   3042
+  ],
+  "fall_lengths": [
+   921
+  ],
+  "k2a_count": 2,
+  "k2a_seeds": [
+   3042,
+   3043
+  ],
+  "k2b_count": 2,
+  "k2b_seeds": [
+   3042,
+   3043
+  ],
+  "xc_median_full_horizon_m": 0.11619418456401423,
+  "xc_mean_full_horizon_m": 0.11619418456401423,
+  "com_mtp3_head_median_full_horizon_m": 0.11456272082122258,
+  "com_mtp3_head_mean_full_horizon_m": 0.11456272082122258,
+  "xc_minus_com_max_abs_full_horizon_m": 0.0016314637427916473,
+  "com_fore_aft_footsite_mean_full_horizon_m": 0.035034449945221466,
+  "com_fore_aft_footsite_median_full_horizon_m": 0.035034449945221466,
+  "x_vs_w_max_abs_m": 2.7755575615628914e-17,
+  "cop_gt_bar_gate": 2,
+  "cop_gt_bar_gate_full_horizon": 1,
+  "cop_unmeasured": 0,
+  "gate_cop_median": 0.9584346085433264,
+  "foot_cop_gt_bar": 2,
+  "foot_cop_gt_bar_full_horizon": 1,
+  "roll_rail_full_horizon": 0,
+  "reward_mean_full": 3529.5195800049355,
+  "per_foot": {
+   "r": {
+    "signed_cop_median": 0.7865613581562028,
+    "gate_cop_median": 0.9391552588456306,
+    "digit_share_median": 0.077217247008105,
+    "foot_signed_cop_mean": 0.7786907102162541,
+    "foot_signed_cop_median": 0.7786907102162541,
+    "foot_signed_cop_min": 0.7786907102162541,
+    "foot_signed_cop_max": 0.7786907102162541,
+    "foot_cop_mm_ahead_mtp3_median": 114.50834971513783,
+    "foot_gate_cop_median": 0.9391221982113032
+   },
+   "l": {
+    "signed_cop_median": 0.8527524536530344,
+    "gate_cop_median": 0.9442072495946452,
+    "digit_share_median": 0.0684156401190978,
+    "foot_signed_cop_mean": 0.8437964101227681,
+    "foot_signed_cop_median": 0.8437964101227681,
+    "foot_signed_cop_min": 0.8437964101227681,
+    "foot_signed_cop_max": 0.8437964101227681,
+    "foot_cop_mm_ahead_mtp3_median": 119.06574870859377,
+    "foot_gate_cop_median": 0.9500623380547492
+   }
+  },
+  "sigma": "control",
+  "sigma_source": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/screen/runs/control_s60/models/stage1_final.zip",
+  "sigma_vector": [
+   0.19839539961438388,
+   0.20454227906297318,
+   0.20470354085846235,
+   0.14262054581381123,
+   0.18807095099753157,
+   0.07828738775563462,
+   0.06732367106417673,
+   0.1507255320734424,
+   0.19085124673861734,
+   0.08231613896794421,
+   0.06604708132776022,
+   0.20581640797876813,
+   0.2053580367892429,
+   0.21131495725827426,
+   0.21301439354281795
+  ],
+  "sigma_mean": 0.16062583798958943,
+  "space": "joint",
+  "noise_added": "after the command clip (joint space)",
+  "policy_std_mean": 0.09543301950236062,
+  "action_scale": null,
+  "seeds": [
+   3042,
+   3043
+  ],
+  "rng": "numpy default_rng(episode seed)",
+  "cop_gt_0p8_noise_py": 2,
+  "panel_seconds": 3.8449984419994507,
+  "episodes_detail": [
+   {
+    "seed": 3042,
+    "length": 921,
+    "reached_horizon": false,
+    "reward": 2988.816417016725,
+    "termination_reason": "head_contact",
+    "max_sole_cop_fore_aft": 0.9726619674920077,
+    "max_foot_cop_fore_aft": 1.0342700732571741,
+    "max_sole_tilt_deg": 5.108916788109654,
+    "max_sole_corner_lift_m": 0.012244691906511417,
+    "pad": {
+     "r_sole_cop_fore_aft": 0.9274555706946396,
+     "r_sole_cop_fore_aft_gate": 0.9726619674920077,
+     "r_digit_share": 0.09721335969328453,
+     "r_foot_cop_fore_aft": 0.9825010761236804,
+     "r_foot_cop_fore_aft_gate": 1.0342700732571741,
+     "r_foot_cop_std_m": 0.027195323512142197,
+     "r_foot_cop_dominant_hz": 0.13869625520110956,
+     "r_toe_margin_nm": 1.604426646712185,
+     "r_heel_margin_nm": 56.2562829165589,
+     "r_toe_d2_load_share": 0.018440411385061806,
+     "r_toe_d2_load_pos": 0.556435814071679,
+     "r_toe_d3_load_share": 0.04819637466267679,
+     "r_toe_d3_load_pos": 0.7623449947768558,
+     "r_toe_d4_load_share": 0.03057657364554593,
+     "r_toe_d4_load_pos": 0.6114196143773317,
+     "l_sole_cop_fore_aft": 0.7282886390368268,
+     "l_sole_cop_fore_aft_gate": 0.9442388390019232,
+     "l_digit_share": 0.13238938480054113,
+     "l_foot_cop_fore_aft": 0.7585796337520971,
+     "l_foot_cop_fore_aft_gate": 0.9742851448585169,
+     "l_foot_cop_std_m": 0.046217504878250444,
+     "l_foot_cop_dominant_hz": 2.3578363384188625,
+     "l_toe_margin_nm": 8.916632612864385,
+     "l_heel_margin_nm": 49.44044040040486,
+     "l_toe_d2_load_share": 0.032142930618695165,
+     "l_toe_d2_load_pos": 0.20263197184557402,
+     "l_toe_d3_load_share": 0.05507173694963404,
+     "l_toe_d3_load_pos": 0.5411876550139275,
+     "l_toe_d4_load_share": 0.0451747172322119,
+     "l_toe_d4_load_pos": 0.39536416707545646
+    },
+    "roll_rail": false,
+    "foot_cop_fore_aft": {
+     "r": 0.9825010761236804,
+     "l": 0.7585796337520971
+    },
+    "foot_cop_mm_ahead_mtp3": {
+     "r": 128.77507532865764,
+     "l": 113.10057436264681
+    },
+    "xc_both_feet_m": 0.11971405023015097,
+    "com_mtp3_head_m": 0.13978497223459285,
+    "com_fore_aft_footsite_m": 0.062338465114870276,
+    "cop_frame": {
+     "window": [
+      200,
+      921
+     ],
+     "mtp3_ahead_ankle_m": {
+      "r": 0.08,
+      "l": 0.07999999999999999
+     },
+     "foot_frame": {
+      "r": {
+       "span_mid_ahead_ankle_m": 0.14,
+       "span_half_length_m": 0.06999999999999999,
+       "x_at_w0_m": 0.06000000000000001
+      },
+      "l": {
+       "span_mid_ahead_ankle_m": 0.14,
+       "span_half_length_m": 0.06999999999999999,
+       "x_at_w0_m": 0.060000000000000026
+      }
+     },
+     "x_vs_w_max_abs_m": 2.7755575615628914e-17
+    },
+    "k2a_over": true,
+    "k2b_outside": true
+   },
+   {
+    "seed": 3043,
+    "length": 1000,
+    "reached_horizon": true,
+    "reward": 3529.5195800049355,
+    "termination_reason": "",
+    "max_sole_cop_fore_aft": 0.9442072495946452,
+    "max_foot_cop_fore_aft": 0.9500623380547492,
+    "max_sole_tilt_deg": 1.5250834191969127,
+    "max_sole_corner_lift_m": 0.003923749739490584,
+    "pad": {
+     "r_sole_cop_fore_aft": 0.7865613581562028,
+     "r_sole_cop_fore_aft_gate": 0.9391552588456306,
+     "r_digit_share": 0.077217247008105,
+     "r_foot_cop_fore_aft": 0.7786907102162541,
+     "r_foot_cop_fore_aft_gate": 0.9391221982113032,
+     "r_foot_cop_std_m": 0.03960329536679065,
+     "r_foot_cop_dominant_hz": 1.375,
+     "r_toe_margin_nm": 7.515418565983464,
+     "r_heel_margin_nm": 51.600741426844706,
+     "r_toe_d2_load_share": 0.02404165939466449,
+     "r_toe_d2_load_pos": 0.18649334737041318,
+     "r_toe_d3_load_share": 0.02629725518639473,
+     "r_toe_d3_load_pos": 0.3134717193250675,
+     "r_toe_d4_load_share": 0.02687833242704577,
+     "r_toe_d4_load_pos": 0.24083088707939962,
+     "l_sole_cop_fore_aft": 0.8527524536530344,
+     "l_sole_cop_fore_aft_gate": 0.9442072495946452,
+     "l_digit_share": 0.0684156401190978,
+     "l_foot_cop_fore_aft": 0.8437964101227681,
+     "l_foot_cop_fore_aft_gate": 0.9500623380547492,
+     "l_foot_cop_std_m": 0.0333823367199538,
+     "l_foot_cop_dominant_hz": 1.0,
+     "l_toe_margin_nm": 5.354827948868349,
+     "l_heel_margin_nm": 53.35257027870304,
+     "l_toe_d2_load_share": 0.01896222533000019,
+     "l_toe_d2_load_pos": 0.2738591195852376,
+     "l_toe_d3_load_share": 0.02391203011575259,
+     "l_toe_d3_load_pos": 0.3689763150740781,
+     "l_toe_d4_load_share": 0.02554138467334503,
+     "l_toe_d4_load_pos": 0.2566439013627005
+    },
+    "roll_rail": false,
+    "foot_cop_fore_aft": {
+     "r": 0.7786907102162541,
+     "l": 0.8437964101227681
+    },
+    "foot_cop_mm_ahead_mtp3": {
+     "r": 114.50834971513783,
+     "l": 119.06574870859377
+    },
+    "xc_both_feet_m": 0.11619418456401423,
+    "com_mtp3_head_m": 0.11456272082122258,
+    "com_fore_aft_footsite_m": 0.035034449945221466,
+    "cop_frame": {
+     "window": [
+      200,
+      1000
+     ],
+     "mtp3_ahead_ankle_m": {
+      "r": 0.08,
+      "l": 0.08
+     },
+     "foot_frame": {
+      "r": {
+       "span_mid_ahead_ankle_m": 0.14,
+       "span_half_length_m": 0.06999999999999999,
+       "x_at_w0_m": 0.06000000000000001
+      },
+      "l": {
+       "span_mid_ahead_ankle_m": 0.14,
+       "span_half_length_m": 0.06999999999999999,
+       "x_at_w0_m": 0.06000000000000001
+      }
+     },
+     "x_vs_w_max_abs_m": 2.7755575615628914e-17
+    },
+    "k2a_over": true,
+    "k2b_outside": true
+   }
+  ]
+ },
+ "modules_all_under_clone": 94,
+ "judge_seconds": 20.556077045000166
+}

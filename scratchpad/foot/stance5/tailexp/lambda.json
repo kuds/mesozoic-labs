@@ -1,0 +1,168 @@
+{
+ "experiment": "TRACK TAIL (scratch, maintainer decision 2026-10-22)",
+ "lambda": 41.0,
+ "rule": "lambda = RMS over mini-batches of G_pg / (2 * (1.11 - 1) / 15), two significant figures: on a mini-batch whose tail_3 means all sit at +1.11 the penalty's pull on tail_3's output bias, lambda * 2 * 0.11 / 15, equals the RMS policy-gradient pull on it at the 4,194,304 checkpoint",
+ "numbers": {
+  "minibatches": 256,
+  "batch_size": 128,
+  "rollouts": 4,
+  "clip_range": 0.2,
+  "G_pg_rms": 0.6020682546110203,
+  "G_pg_mean": -0.12217510642949492,
+  "G_pg_sem": 0.03691853387457638,
+  "G_pg_abs_median": 0.4533992409706116,
+  "G_pg_mean_over_rms": -0.20292567411385753,
+  "G_kl_rms": 0.022147357731397217,
+  "penalty_pull_per_lambda_at_1p11": 0.01466666666666668,
+  "lambda_unrounded": 41.050108268933165,
+  "penalty_pull_at_1p11_with_lambda": 0.6013333333333339,
+  "theory_G_pg_rms_1_over_sigma_sqrtB": 0.5470132536552571,
+  "tail3_sigma": 0.1615835577249527,
+  "per_row_dL_dmu14_abs_mean": 0.02566092799679609,
+  "per_row_penalty_at_1p11_with_lambda_over_B": 0.004697916666666671,
+  "frac_rows_mu14_gt1_mean": 0.037078857421875,
+  "G_pg_pinned_rows_rms": 0.08085190252641886,
+  "G_pen_pinned_rows_with_lambda_mean": 0.005557875469799356,
+  "G_pen_actual_with_lambda_mean": 0.005557875495435738,
+  "grad_norm_median": 53.338930572491506,
+  "grad_norm_q10_q90": [
+   42.17416094065027,
+   72.20184490893097
+  ],
+  "clip_factor_median": 0.009374056396963312,
+  "learning_rate_at_start": 2.3023146666666665e-05
+ },
+ "per_rollout": [
+  {
+   "rollout": 0,
+   "num_timesteps": 4202496,
+   "minibatches": 64,
+   "mu14_mean": 0.8086970448493958,
+   "mu14_frac_gt1": 0.0357666015625,
+   "mu14_mean_on_gt1": 1.025112271308899,
+   "mu14_q": [
+    0.3345946937799454,
+    0.796016737818718,
+    0.8686463236808777,
+    0.9209602475166321,
+    0.9893634498119355
+   ],
+   "sampled_tail3_ge_1": 0.2161865234375,
+   "G_pg_rms": 0.5309753471605203,
+   "G_pg_mean": -0.02800432767253369
+  },
+  {
+   "rollout": 1,
+   "num_timesteps": 4210688,
+   "minibatches": 64,
+   "mu14_mean": 0.7958860397338867,
+   "mu14_frac_gt1": 0.0418701171875,
+   "mu14_mean_on_gt1": 1.0280638933181763,
+   "mu14_q": [
+    0.36586450040340424,
+    0.7613182812929153,
+    0.84639573097229,
+    0.9127634763717651,
+    0.9941730260848999
+   ],
+   "sampled_tail3_ge_1": 0.1934814453125,
+   "G_pg_rms": 0.6626031719224772,
+   "G_pg_mean": -0.12198887101840228
+  },
+  {
+   "rollout": 2,
+   "num_timesteps": 4218880,
+   "minibatches": 64,
+   "mu14_mean": 0.7998286485671997,
+   "mu14_frac_gt1": 0.024658203125,
+   "mu14_mean_on_gt1": 1.0292705297470093,
+   "mu14_q": [
+    0.48660669922828675,
+    0.7548277229070663,
+    0.8297145366668701,
+    0.9003618359565735,
+    0.977941244840622
+   ],
+   "sampled_tail3_ge_1": 0.1766357421875,
+   "G_pg_rms": 0.5720581348216384,
+   "G_pg_mean": -0.20712257619015872
+  },
+  {
+   "rollout": 3,
+   "num_timesteps": 4227072,
+   "minibatches": 64,
+   "mu14_mean": 0.8256420493125916,
+   "mu14_frac_gt1": 0.0460205078125,
+   "mu14_mean_on_gt1": 1.027634620666504,
+   "mu14_q": [
+    0.40727082788944247,
+    0.8049226701259613,
+    0.8709924817085266,
+    0.9269728064537048,
+    0.9977485805749893
+   ],
+   "sampled_tail3_ge_1": 0.2305908203125,
+   "G_pg_rms": 0.6338110447853263,
+   "G_pg_mean": -0.13158465083688498
+  }
+ ],
+ "notes": [
+  "G_pg is d/d bias[tail_3] of the clipped surrogate at ratio 1 (the first epoch); later epochs move the ratio within the clip and early-stop at approx_kl > 0.045 (target_kl 0.03).",
+  "Parameters stay the checkpoint's through all rollouts (no update); the VecNormalize statistics update as in training, and the envs continue their episodes across rollouts (resets only at episode ends).",
+  "The penalty touches every actuator, but only means beyond +-1 pay; tail_3 is the only one the 4,194,304 rollouts put there in numbers (see mu beyond fractions in the arms' telemetry)."
+ ],
+ "clone": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/fix/scratch_tailfix",
+ "git": {
+  "head": "1d2d22b496290b55761af1cc961a28e89a08497c",
+  "status": "",
+  "branch": "scratch/tail-mean-bound",
+  "parent_is_ancestor": true
+ },
+ "modules_environments": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/fix/scratch_tailfix/environments/__init__.py",
+ "start_model": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance5/runs/stance5_LTSB_s42/01_stance/models/stage1_4194304_steps.zip",
+ "start_model_sha256": "sha256:d3c90db8c107ce1fef6b63efa3e8cdd2271e6e437a3abdb5b30f57b3f46b8df2",
+ "seconds": 76.0,
+ "justification": "lambda = 41. The policy-gradient pull on tail_3's mean as a parameter (d clipped-surrogate / d action_net.bias[tail_3], advantages normalised per mini-batch, ratio 1) at the 4,194,304 checkpoint, over 256 mini-batches of 128 from 4 training rollouts: RMS 0.602 (theory 1/(sigma sqrt(B)) = 0.547 at tail_3 sigma 0.162), mean -0.122 +- 0.037 (SEM). The penalty's pull on that bias for a mini-batch whose tail_3 means all sit at +1.11 is lambda * 2 * 0.11 / 15 = lambda * 0.01467; equal to the RMS at lambda = 41.05, rounded to 41 (pull 0.601). Only the ratio matters: the gradient clip (total norm median 53.3 against max_grad_norm 0.5, factor 0.0094) scales both terms alike, and Adam normalises each parameter by its gradient RMS, so a consistent pull of one RMS moves tail_3's bias at roughly 0.7 of the step size per mini-batch.",
+ "alternative_not_chosen": "Per row instead of per mini-batch (mean |dL/dmu_tail3| per row 0.0257 against lambda * 2 * 0.11 / (15 * 128)) would give lambda about 224, sqrt(B) = 11 times larger; rejected because per-row policy-gradient terms are random in sign and cancel in the parameter gradient while the penalty's add coherently, so it would dominate rather than be comparable.",
+ "measured_at_start": {
+  "deterministic_window_tail3": {
+   "frac90": 0.7736875,
+   "frac99": 0.33825,
+   "mean_command": 0.9245387801378966,
+   "raw_mean_window": 0.9299364932775498,
+   "raw_mean_on_pinned_steps": 1.0152594915646935,
+   "raw_max": 1.0280919075012207,
+   "raw_beyond1": 0.2933125,
+   "policy_std": 0.16158355116598297
+  },
+  "training_rollouts_tail3": {
+   "frac_rows_mu_gt1": 0.037078857421875,
+   "mu_mean_on_rows_gt1": [
+    1.025112271308899,
+    1.0280638933181763,
+    1.0292705297470093,
+    1.027634620666504
+   ],
+   "mu_median": [
+    0.8686463236808777,
+    0.84639573097229,
+    0.8297145366668701,
+    0.8709924817085266
+   ],
+   "sampled_action_ge_1": [
+    0.2161865234375,
+    0.1934814453125,
+    0.1766357421875,
+    0.2305908203125
+   ]
+  },
+  "realized_penalty_pull_with_lambda": 0.005557875495435738,
+  "realized_over_G_pg_rms": 0.009231304678281912
+ },
+ "caveats": [
+  "[measured] stance5 s42 at 4,194,304 is not parked at +1.11: the deterministic raw mean on pinned window steps is 1.0153 (max 1.0281; beyond +1 on 0.293 of window steps); +1.01..+1.12 was stance4 s42's.",
+  "[measured] on the training rollouts tail_3's mean exceeds +1 on 0.037 of rows (by about 0.025-0.03), so the penalty's realized pull at the start is 0.0056, 0.9% of the policy-gradient RMS; the policy-gradient mean (-0.122, descent raises the mean) is about 20 times larger and points the other way.",
+  "[inferred] P1 bounds |mu| at 1.0, but the gate counts |cmd| >= 0.99, so a mean held just under 1 is still saturated by the gate's statistic; below 1 the reward is no longer flat (action_saturation ramps from 0.9).",
+  "[measured] the deterministic tail numbers swing from one update to the next (control smoke: frac99 0.338 -> 0.557 after 2 updates; P1 smoke 0.267 after 1, 0.575 after 2; the original run 0.338 / 0.171 / 0.565 at 4.19 / 5.24 / 6.29M), so one seed per arm separates P1 from CONTROL only if the difference is large against that spread."
+ ]
+}

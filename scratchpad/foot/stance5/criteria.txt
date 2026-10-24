@@ -1,0 +1,190 @@
+T. REX STANCE5 SCREEN, THREE COP-BAND RUNS: FIXED CRITERIA
+
+Write this to SP/foot/stance5/criteria.txt before any training step. Record its path and sha256 in the config commit message, in the stance.toml header (beside the stance4 citation) and in stance5_colab_steps.txt. Do not edit it after the first training step.
+
+WHAT IS TRAINED
+All three runs share these settings:
+- physics r9; the stance stage; the SB3 notebook; n_envs 4; a Colab L4 GPU runtime, as the control ran (the maintainer confirmed the L4 on 2026-10-20: decision 7c, recorded as a dated amendment of D-D39, which also names the L4 as this screen's runtime; measured: the "gpu" block of each stance4 run's 01_stance/stage_config.json reads L4; see THE CONTROL ARM);
+- trained from scratch;
+- 12,000,000 steps (final 12,001,280);
+- an evaluation of 10 episodes every 131,072 steps;
+- a checkpoint every 524,288 steps, all kept;
+- the committed PPO schedules.
+If no L4 is available, the maintainer may pick another runtime (stance4's rule, carried over; 7c names the L4 for this screen); each run's runtime is read from the "gpu" block of its 01_stance/stage_config.json (no block: a CPU runtime) and reported beside the verdicts, and the runtime never changes a verdict.
+
+The recipe, arm LTSB ("L+T + stagger + band"), branch claude/screen-trex-r9-armlts-copband:
+- the stance4 recipe, arm LTS: branch claude/screen-trex-r9-armlt-stagger at c1e146a82658112a9a1c0838250020b214ef303a (the stance3 L+T recipe plus the stance stagger penalty, stance_stagger_weight 0.30 and stance_stagger_tolerance_m 0.045);
+- plus five commits adding the per-foot centre-of-pressure (CoP) band as an opt-in [env] option of the T. rex env, off by default: f94452ad880933ca91c9aab422873ba72d1dec4c (the prototype), 3a1d5de3adc8fd46416356e49ac739bbf8ffe67a (the contact reduction moved out of gait/ into the neutral package environments/shared/floor_contact; D-D40 3c), 4819eb6c4f7e86e772b0ab2c4a16b5c86cf33637 (one fused per-step reading, pinned byte-identical to the recorder; 3b), a15494ed615caa07fce293e55c2b73e45a3770f2 (the load-share guard as a ramp; 3a) and 99e205bbc10d80c9d4b6dd01ef0921bfbd4b2eb1 (review fixes);
+- plus a config commit turning it on in configs/tyrannosaurus_rex/anatomical/stance.toml: stance_cop_band_weight 0.30 (3d), every other band key at its default, and collapse_peak_floor_reference 4457.4. That commit's message cites this file's sha256.
+- It is a screen branch: never merged, no PR.
+
+The term (reward_stance_cop_band: environments/tyrannosaurus_rex/base_env.py reward section 8i, which runs the arithmetic of reward_functions.cop_band_load_guard and reward_functions.reward_stance_cop_band):
+- Per control step and per foot k (r, l), over the step's 5 physics substeps:
+  - c_k, the whole-foot CoP: every floor contact of the limb, force-weighted, in the sole frame of its own substep, along the foot's fore-aft axis, in span half-lengths (-1 heel line, +1 toe line; on r9, x = 60 + 70 c mm ahead of that foot's MTP III). It is the per-step reading whose mean over the window's loaded steps is the judge's K2b statistic <label>_foot_cop_fore_aft. Measured: it equals the recorder's trace byte for byte on 16,000 foot-steps.
+  - p_k, the pad's own signed CoP along its forward axis, in pad half-lengths (EpisodeTrace.sole_cop[t, k, 0]). K2a's max_sole_cop_fore_aft is the larger over the feet of the window mean of |p_k| (1 on an unloaded step).
+  - u_k = max(e(c_k; -0.6, +0.4), e(p_k; -0.65, +0.65)), where e(v; lo, hi) is how far v lies outside [lo, hi] (0 inside). The whole-foot band is +18 to +88 mm ahead of MTP III, inside K2b's -5 to +100 mm. The pad band keeps load moved onto the digits from paying the band: the digits move the whole-foot CoP but not the pad's.
+  - s_k, the load share: the limb's mean floor force over the substeps divided by the two limbs' sum (0 when the sum is 0).
+  - g_k, the guard (a ramp): 0 when the foot is unloaded (no finite c_k, or no substep with more than 0.1 N on the limb), stands off its pad (no finite p_k, or no sole contact above 0.1 N on any substep) or s_k is not finite; otherwise min(max((s_k - 0.25) / 0.10, 0), 1). So the guard is 0 at a share of 0.25 or less, 1 at 0.35 or more, and linear between.
+  - q_k = g_k x exp(-(u_k / 0.357)^2). The tolerance, 0.357 span half-lengths, is 25 mm. A foot whose guard is 0 scores 0, and its readings are not read.
+- Each step pays -0.30 x ((1 - q_r) + (1 - q_l)) / 2 after the settle (step > 200) while the command is zero, and 0 otherwise.
+- So each foot pays 0 to 0.15 per step, and the term at most 0.30 per step (240 per 800-step window). A foot pays the full 0.15, whatever its readings, when it is unloaded, stands on its digits alone, or carries 25% or less of the two limbs' floor load.
+- Every reading is fore-aft, the guard is per foot and the mean over the feet is symmetric, so the term is exactly mirror-invariant (measured: mirrored rollouts agree in reward and info to 1e-9).
+- The doors (SP/foot/stance4/copband/design.md sections 4 and 5). Lifting a foot or standing on the digits pays the full per-foot price. Load moved onto the digits is priced by the pad band; a small free zone between the two bands remains (design.md section 4.2; inferred).
+- The lighten-a-foot door is BOUNDED by the ramp, not closed. design.md section 5's "closed" row described the prototype's step at 35%, not this ramp. At fixed readings a lighter foot never pays less. A foot that sheds load to a share s between 0.25 and 0.35, and so brings its CoP back into the band, pays 0.15 x (1 - g(s)). That is less than the 0.15 x (1 - exp(-(u / 0.357)^2)) it pays fully loaded with its CoP u out of band only when g(s) > exp(-(u / 0.357)^2), that is when s > 0.25 + 0.10 x exp(-(u / 0.357)^2): s above 0.334 for u 0.15, above 0.299 for u 0.3, above 0.264 for u 0.5, and never at a share of 0.25 or below. The judge sees the door too, through two rails of the v2 gate ([curriculum] in stance.toml): min_foot_load_share_windowed (0.35: the lowest foot share over the window's 1 s blocks) fails an episode in which a foot carries less than 35% of the load over a 1 s block, and min_foot_load_share (0.40: the lighter foot's share of the whole window's floor load) fails one in which a foot carries less than 40% of it over the window. So an episode that keeps a foot in the door for a whole block is not clean (inferred from the rails' definitions).
+- The twist route (design.md section 5, last row, "the main risk"): each foot's CoP held in band by asymmetric ankle torques while the feet stay staggered. The band alone does not close it. In this arm the stagger term prices the stagger the route needs (the reason for D-D40 2A; inferred, not tested), and nothing prices the ankle asymmetry as such. It is watched (READOUTS).
+- Like the stagger term, the band is not in DiagnosticsCallback.REWARD_KEYS, so the training logs do not carry it.
+
+What the band costs and moves (measured on the config change: the band key added to the stance4 config at 99e205bb, then the collapse reference; SP/foot/stance5/build/step1_measurements.json and statue_LTSB.json):
+- Statue returns (zero action, seeds 3042-3081, mean over the 39 full-horizon spawns): production 3755.72, L+T 4459.40, LTS 4458.18, LTSB 4456.27. L+T and LTS reproduce their recorded values exactly. The statue stands 39/40 in all four (seed 3081 falls at step 292).
+- The band costs the statue 1.91 per full-horizon episode (median 0.31, worst 13.11; 6 of 39 pay more than 5). Over all 40 episodes it costs 2.54 (the falling seed 3081 pays 26.95). 1,976 of the statue's 31,200 window steps pay anything.
+- The band changes no dynamics: the statue's per-episode qpos hashes are equal under LTSB and LTS on all 40 seeds, and the two returns differ by the band term alone (to 1.35e-12).
+- The guard never fires on the statue in the paid window: guard 1 on all 62,400 window foot-steps of the full-horizon spawns (smallest load share 0.439). Before the gate opens it reads below 1 on 238 foot-steps of the 40 spawns, all in the spawn drop (steps 1-15), and those are not paid.
+- Off (stance_cop_band_weight 0.0, the default), the band leaves the stance4 (LTS) task_sha256 unchanged at sha256:3fa467083e34fa280ccb6d1bd04eebccdd3aac2b820fd89901b8d418ef32f2db (measured on 99e205bb's clean tree and with the band key removed). That is the task_fingerprint.json of all three stance4 runs.
+- Off, the five band commits change no behaviour. Measured on four noisy stance episodes (seeds 3042, 3050 and 3052 of 1000 steps; 3081 falls at step 226) under the stance4 [env] and the same four under the L+T [env]: every step's reward, reward_total, info keys and values, and qpos hash identically on c1e146a8 and on 99e205bb. The recorder's readings are unchanged too.
+- On, the stance task_sha256 is sha256:8c6998d260b850ae054c9c2d49a8e5bef2bf59d4770ad77d3674b911721918cf. It hashes all eight band keys (weight 0.3, band -0.6 and +0.4, pad band -0.65 and +0.65, tolerance 0.357, full-price share 0.25, minimum share 0.35). The collapse reference does not move it.
+- On, collapse_peak_floor_reference is 4457.4 (LTS: 4459.3). It is measured by the stance4 method: production reference 3756.8 plus the LTSB statue gain 700.5512 = 4457.3512, rounded. The rounding is narrow: 4457.3512 is 0.0012 above the half-way point 4457.35. The gain is leg_home_pose +505.42, lean +198.27, stagger -1.22 and band -1.91. The collapse floor is 0.45 x 4457.4 = 2005.83 (LTS: 2006.685).
+- recovery.toml inherits the stance [env], so its task moves too (measured: sha256:5e044a30...). Only stance is trained. The locomotion and bite tasks and the stance PPO hyperparameters_sha256 (054ab483...) do not move.
+- The config commit's own tree must give the same band-on task_sha256 and collapse floor before the first training step. They are checked when the judge's and scorer's placeholders are filled.
+
+The runs:
+- Run 1 (stance5_LTSB_s52, RUN_LABEL "stance screen LTSB s52"): seed 52.
+- Run 2 (stance5_LTSB_s60, RUN_LABEL "stance screen LTSB s60"): seed 60.
+- Run 3 (stance5_LTSB_s42, RUN_LABEL "stance screen LTSB s42"): seed 42.
+
+HOW IT IS JUDGED
+The judge is judge_stance5.py: judge_stance4.py plus arm LTSB (this branch's clone, its stance [env] with the two stagger keys and the band key, its HEAD and its collapse reference) and the schema stance5-judge/v1. All binding checks are on (plant, task, symmetry record, commit). Arms L, LT and LTS, the bars, the slots and the K statistics are unchanged. For arm LTSB the judge also records each panel and statue episode's band readouts from the env's band info keys (PRE-REGISTERED READOUTS); they are report only and enter no criterion.
+- Deterministic, heading 0. The 40-episode panel on seeds 3042-3081 runs under the branch's own stance [env] and r9 bars, scored by stance_quality/v2.
+- The zero-action statue runs on the same seeds under the same env.
+- Noise tests: spawns 3042-3061. Joint-space noise uses frozen_params.json control_sigma[seed] (sha256 58b2c8fb...); the own-sigma test uses the checkpoint's own exp(log_std). A fall is an episode shorter than 1000 steps.
+- frozen_params.json holds control_sigma for seeds 42, 52 and 60.
+- Judged checkpoints J: 4,194,304; 5,242,880; 6,291,456; 8,388,608; 10,485,760; and final (stage1_final, 12,001,280).
+- A missing or invalid judge file fails every criterion that needs it.
+- The scorer is score_stance5.py. It applies K1-K4 per run with score_stance3.py's own code, loaded unchanged (sha256 2c3879d3...). For the band arm only the judge-identity constants are extended: the schema stance5-judge/v1, arm LTSB's [env] and its HEAD. It also computes the drift-or-split class (DRIFT OR SPLIT, below) from the band runs' J judge files.
+- The reward rails in the repository verdict (min_avg_reward 2250 and min_avg_reward_statue_ratio 0.60) apply to each arm's own reward and own statue. The band arm's reward includes the stagger term and the band, so its mean reward and reward ratio are not compared across arms. The control's panel rewards were 0.954-0.997 of its statue across J (measured, the stance4 J judge files). Inferred: the band costs a policy at most 240 per episode (0.30 per step after step 200), so no verdict effect is expected.
+- The tools are fixed before training. Before the first training step, the judge's and the scorer's placeholders are filled: the config commit's HEAD, the collapse reference, this file's sha256, the band-on task_sha256 and the judge's sha256. The sha256s of judge_stance5.py and score_stance5.py are recorded in stance5_colab_steps.txt. They are not edited after.
+
+CRITERIA, PER RUN (unchanged from stance4 and stance3)
+
+K1 gate held:
+- v2 PASS at 6,291,456 and at final. PASS means clean >= 37/40 with exact Clopper-Pearson LCB >= 0.80, full horizon >= 38/40, hop-or-fall <= 1, and the repository verdict PASS.
+- Across J, at most one checkpoint below 37/40 clean and none below 33/40.
+
+K2 fore-aft held, at every checkpoint in J:
+- K2a, pad rail: at most 3 of 40 episodes with max_sole_cop_fore_aft > 0.80. A non-full-horizon episode counts as over.
+- K2b, signed per-foot whole-foot CoP: at most 3 of 40 episodes in which either foot's <label>_foot_cop_fore_aft lies outside [-0.929, +0.571] span half-lengths. The statistic is the mean over loaded steps in the window, steps 200-999. On r9 the range is [-5, +100] mm ahead of that foot's MTP III, with x = 60 + 70 w mm. A non-full-horizon episode counts as outside.
+- K2c, no drift: the panel median of the both-feet whole-foot CoP (which equals the COM projection to within 0.5 mm) lies within [-60, +30] mm of the statue's median on the same seeds, and its range over the six checkpoints is at most 30 mm.
+
+K3 robustness, at 6,291,456 and at final: joint-space noise falls <= 2 of 20, and own-sigma falls <= 1 of 20.
+
+K4 roll, at 6,291,456 and at final: at most 3 of 40 full-horizon episodes with max_sole_tilt_deg > 2.0 or max_sole_corner_lift_m > 0.004.
+
+Run verdicts:
+- HOLDS: K1-K4 all hold.
+- FORE-AFT HOLDS: K1 and K2 hold.
+
+THE CONTROL ARM (NOT RETRAINED)
+The control is the three stance4 runs, arm LTS: stance4_LTS_s52, stance4_LTS_s60 and stance4_LTS_s42, as already judged and scored under the stance4 criteria: SP/foot/stance4/criteria.txt, sha256 978a93da8da469c1acde7b9f7261d9236e4799eb2111b3af0f0cbeaa153f0f38. Their verdicts are in SP/foot/stance4/scores/score_final.txt and score_final.json (sha256 7c98d8ae592357150c4d379745eab7fafa6ad2ac83e327b4291d2c23974df532), the verdict of record (scored with --runs-ended; final, not provisional). They are not re-judged.
+- stance4 Run 1 (s52): fails K1 and K2; passes K3 and K4.
+- stance4 Run 2 (s60): fails K1 and K2; passes K3 and K4.
+- stance4 Run 3 (s42): fails K1, K2, K3 and K4.
+- Control runs passing each test: K1 0/3, K2 0/3, K3 2/3, K4 2/3. No run HOLDS (H 0, K2p 0; stance4 decision line 5).
+- The control's passes are those recorded in score_final.json. The scorer recomputes them from SP/foot/stance4/judged only as a cross-check, with score_stance4.py's stagger instance of the stance3 code (schema stance4-judge/v1, arm LTS, HEAD c1e146a8).
+Why they are valid controls:
+- One difference. The band branch is c1e146a8, the commit all three stance4 runs trained (measured: git_commit in each run's stage_config.json), plus the five band commits and the config commit. D-D40 2A names the stance4 runs as this arm's control, one difference apart.
+- Off, the band commits change no behaviour and leave the stance task_sha256 at 3fa46708 (above, measured). On, the band changes no dynamics and adds only its own term to the reward (above, measured). So the band is the only task difference between the arms (sha256:8c6998d2... against sha256:3fa46708...).
+- The arms also differ in collapse_peak_floor_reference, 4457.4 against 4459.3 (floor 2005.83 against 2006.685), because the band moves the statue's reward. It acts only if a run collapses.
+- The same K1-K4 and judge settings: the stance5 judge is the stance4 judge plus arm LTSB, and the scorer runs the stance3 code.
+- The same physics, notebook, n_envs, budget, cadences and PPO schedules (stance hyperparameters_sha256 054ab483..., unchanged by the config change, measured).
+- The same runtime type. Measured: all three control runs trained on Colab NVIDIA L4 GPU runtimes (gpu_model L4 in the "gpu" block of SP/foot/stance4/runs/<run>/01_stance/stage_config.json). The stance5 runs use the same runtime type.
+- The same seeds: 52, 60 and 42.
+Caveats:
+- The control was not trained side by side with the band runs. It trained on Colab from 2026-10-19 23:55 UTC to about 12:30 UTC on 2026-10-20 (measured, SP/foot/stance4/live/run_log.txt).
+- Measured: run-to-run training variance is large. The control's three runs, one recipe, read 21, 30 and 0 of 40 clean at 6,291,456, and only s42 took the tail saturation habit. In stance3, two no-change runs from one checkpoint differed by as much as the stagger continuation and no change did (SP/foot/stance3/night/cont/nochange_compare.md section 0). Inferred: three runs per arm separate only large effects.
+- Matched seeds do not pair the runs. The band changes the reward from the first settled step, and the Colab GPU training is not bit-reproducible (inferred). The credit rule compares pass fractions, not seeds; per-seed comparisons are report only.
+- The band adds +0.25 to +0.38 ms per env step (+18% to +30%, about +20% typically, single-threaded; measured, SP/foot/stance4/bandv2/final/logs/timing_C.txt and bandv2/timing_final.txt). So the band runs take longer than the control did (inferred). The number of training steps and the cadences are the same.
+- Not retraining the control is the maintainer's decision of 2026-10-20 (D-D40 2A).
+
+CREDIT RULE (FIXED NOW)
+The band is ADOPTED (proposed to the maintainer for committing) only if both hold:
+(a) at least 2 of the 3 band runs HOLD (K1-K4 all hold);
+(b) the band arm does no worse than the control on every K test: for each of K1, K2, K3 and K4, the fraction of band runs passing it is at least the fraction of control runs passing it.
+With the control's actual results (K1 0/3, K2 0/3, K3 2/3, K4 2/3), (b) is implied by (a). Under (a) at least 2 of 3 band runs pass every K test, so every band fraction is at least 2/3. That is at least each control fraction: 0/3, 0/3, 2/3 and 2/3.
+(b)'s specific form, with these control results: at least 2 of the 3 band runs pass K3, and at least 2 pass K4 (K1 and K2 need nothing). (a) implies it.
+Both forms are stated here. The scorer computes the general form from the control's recorded passes in stance4's score_final.json and prints the specific form beside it.
+
+DRIFT OR SPLIT (FIXED NOW; read only to choose between decision lines 5 and 6)
+For each band run that fails K2, the scorer classes the K2 failure from that run's six J judge files:
+- The reference m0, per J judge file: the median, over the statue's full-horizon episodes with finite readings in that file (statue_episodes_detail; 39 episodes, seed 3081 falls), of (r + l) / 2, where r and l are the statue's <label>_foot_cop_fore_aft. Measured on all stance4 J files: +0.0577 span half-lengths (64.0 mm ahead of MTP III), the same in every file.
+- The checkpoints counted: the J checkpoints at which K2a or K2b fails (more than 3 of 40 episodes over or outside; the scorer's own K2a and K2b results, score_stance3.py's code). The episodes at a J checkpoint where K2a and K2b both pass caused no K2 failure and are not classed.
+- The episodes classed: at each counted checkpoint, every full-horizon episode that fails K2a or K2b and has finite r and l readings (the per-foot values K2b reads). An episode that fell, or lacks a reading, is not classed; it already counts against K2a, K2b and K1.
+- An episode is classed only when both feet lie clearly off the reference: min(|r - m0|, |l - m0|) >= 15/70 span half-lengths (0.2143; 15 mm on r9). It is then COMMON when both feet lie on the same side of m0, (r - m0) x (l - m0) > 0, and SPLIT when they lie on opposite sides. Equivalently, with the common offset |(r + l) / 2 - m0| and the half split |r - l| / 2: the two differ by at least 15/70, and the larger names the class. An episode with a foot within 15 mm of m0 is NEAR-REFERENCE (a one-foot excursion, or both feet near the reference) and is not classed: the sign of a foot that close to m0 carries no information. The margin lies above the statue's own scatter around m0: in the stance4 and stance3 J files every statue foot lies within 13.5 mm of m0, and each statue episode's nearer foot within 12.7 mm (measured; the band changes no dynamics, so the LTSB statue reads the same). On the known runs the nearer-foot distances of the K2-failing episodes at the counted checkpoints leave a gap from 11.9 to 20.3 mm, and 15 mm lies inside it (measured).
+- n_c, n_s and n_u: the run's COMMON, SPLIT and NEAR-REFERENCE episodes, summed over the counted checkpoints.
+- The run's K2 failure is:
+  - OTHER when any of its six J judge files is missing or invalid (with --runs-ended);
+  - otherwise DRIFT when K2a and K2b pass at all six J checkpoints: the run fails K2 through K2c, the drift test, alone (no checkpoint is counted);
+  - otherwise DRIFT when n_c > n_s, or when n_c == n_s and K2c fails;
+  - otherwise SPLIT when n_s > n_c, or when n_s == n_c > 0 and K2c passes;
+  - otherwise OTHER (n_c == n_s == 0 and K2c passes: K2a or K2b failed only through falls, missing readings or near-reference episodes).
+- A band run that passes K2 is not classed (the scorer prints "not classed (K2 passes)").
+- D = the number of band runs whose K2 failure is DRIFT; S = the number of band runs whose K2 failure is SPLIT.
+The scorer prints each failing run's class with n_c, n_s, n_u, the checkpoints counted and the K2c result; its JSON lists every classed and near-reference episode with r, l and the nearer foot's distance from m0.
+
+DECISION TABLE (exclusive and exhaustive; H = number of band runs that HOLD; K2p = number of band runs passing K2; D and S as above)
+1. H >= 2 and (b) holds: ADOPT. Propose committing the band option (off by default) plus its config keys, with the stance stagger term, to the maintainer as the T. rex stance recipe; the best holding band final is offered as the stance parent.
+2. H >= 2 but (b) fails: not adopted. The band holds fore-aft but may cost robustness; replicate on 2 more seeds before any commit. With the control's stated passes this line cannot be reached (CREDIT RULE). If it is reached, the control check has failed and the decision is PROVISIONAL.
+3. H == 1: not adopted; not separated from seed luck; replicate on 2 more seeds before any commit.
+4. H == 0 and K2p >= 2: not adopted; the band holds fore-aft from scratch but the runs fail elsewhere (K1, K3 or K4). The next round targets those failures. The scorer names each failing run's tests and K1 failure modes, and the maintainer chooses among:
+   - for K1 on the actuator-saturation rail, the tail saturation habit. Evidence (measured, report only; SP/foot/stance4/satdiag, 20-episode rollouts): stance4 s42 held tail_3_pitch_act at +1 (tail raised). Its mean command was +0.89 to +1.00 at every rolled checkpoint from 2,097,152 to final, with |command| >= 0.9 on 74% to 100% of window steps, against +0.07 and 0% at 1,048,576. No other actuator reached 0.9 on any window step. stance3 Run 2 held the same actuator at the same sign at 3,145,728 to 5,242,880 (90% to 100% of window steps);
+   - for K1 through other new failure modes (hop, nosedive, head contact), stance3 line 4's reading: the dose may be too strong;
+   - for K3 or K4, the leg exploration-noise floor of stance3 line 2 (log_std >= ln 0.08 on the hip-pitch, knee and ankle actuators).
+5. H == 0, K2p <= 1, D >= 2 and S == 0 (the TRIGGER LINE, D-D40 4a): not adopted. At least two band runs fail K2 on drift, and none fails it mainly on split: each K2-failing band run is DRIFT (it failed K2 through K2c alone, or its COMMON episodes outnumber its SPLIT ones at the checkpoints counted, or tie with K2c failing) or OTHER. The criteria read this as D-D40 4a's "the band fixes the split but runs fail K2 on drift (a common fore-aft shift)". How far the split is fixed is not tested beyond this; the scorer prints each run's n_c and n_s beside the control's. The next round tests the v6b ankle spring held in reserve: ankle stiffness 40 -> 250 N.m/rad, damping 45 -> 90, the spring reference at the statue's settled 78.6 deg (a plant revision).
+6. H == 0, K2p <= 1, and D <= 1 or S >= 1: not adopted; the band does not hold fore-aft from scratch, and fewer than two band runs fail K2 on drift or at least one fails it mainly on split. The next round chooses between a stronger band (w 0.50, design.md section 3.4's named alternative) and another candidate the maintainer names (with D >= 2, the v6b spring of line 5 among them); the maintainer decides.
+Note: in lines 2 and 4, "holds fore-aft" means passes K2. FORE-AFT HOLDS is reported, not used in the table. D and S are read only at H == 0 and K2p <= 1 (lines 5 and 6): at H >= 1 or K2p >= 2 lines 1-4 decide, and D, S and every band run's class are still printed, report only.
+
+Line 1's stance parent: the best holding band final under stance3's rule (most clean panel episodes at final, ties to fewer joint-space plus own-sigma falls). If holding band finals tie under the rule, every tied final is named and the maintainer chooses.
+Parent comparison (report only, in every case): the best band final under the same rule is reported beside stance3 Run 2's final (40/40 clean, 0/0 noise falls) and beside the best stance4 final (s52: 39/40 clean, 0/0 noise falls). This comparison does not choose walking pilot 2's parent. That parent is stance3 Run 2's final (D-D36 as amended on 2026-10-20: 7a, option i), and pilot 2 is rebuilt separately, after this package. stance3 Run 2's final is at the top of the rule (measured), so a band final can at best tie it. Ties are named, not settled.
+
+Fails stay fails. Runs are never stopped or changed on their readouts, nor on a saturation alarm (D-D40 5a). Early reads at 1M and 2M are report-only.
+
+WHEN THE DECISION IS READ
+- The decision is read once all three band runs have ended: finished at 12,001,280, or lost past recovery and declared ended by the maintainer.
+- Until then, while a band J judge file is missing, the decision is "incomplete" and the scorer gives no line.
+- Once the runs have ended and every J checkpoint that exists has been judged, a J judge file still missing or invalid fails every criterion that needs it. The table is read with those fails (score_stance5.py --runs-ended), and the scorer lists the files counted as fails. Such a run's K2 failure is OTHER.
+- The decision is PROVISIONAL, and is not acted on, while any of these stands (the scorer prints each one):
+  - a judge or scorer placeholder is not filled (HEAD, this file's sha256, the band-on task_sha256, the judge's sha256), or this file's sha256 is not the pinned one;
+  - the scorer runs with --validation, or with a HEAD other than the pinned one;
+  - a band J judge file has a task_sha256 other than the band-on one above, or a judge_sha256 other than the recorded judge's;
+  - before the runs have ended, a band J judge file is invalid;
+  - with --runs-ended, a band J checkpoint placed under SP/foot/stance5/runs (its 01_stance/models pair) has no judge file: not every J checkpoint that exists has been judged;
+  - the control check fails: stance4's score_final.json missing or not its pinned sha256, its passes not the ones stated above, or the control's verdicts not reproduced from SP/foot/stance4/judged (task_sha256 3fa46708 included).
+- A decision that is neither incomplete nor provisional is final.
+
+PRE-REGISTERED READOUTS (report only, never in a verdict)
+- K5 trajectory, from eval_episodes.csv: after 3,145,728 steps, any 4 consecutive evaluations whose full-horizon mean com_fore_aft_mean_m lies outside [statue - 0.060, statue + 0.030] m. The statue reads about -0.016 m in that foot-site frame.
+- The late-fall fraction (200 < length < 1000) per 262,144-step bin, from train_episodes.csv. Flag anything above 5%. The stance4 runs peaked at 50.2%, 48.7% and 49.1% (s52, s60, s42), all in the first bin (SP/foot/stance4/scores/score_final.txt).
+- A 20-episode quick panel (3042-3061) at every 524,288-step checkpoint.
+- Every 1,048,576-step checkpoint not in J, judged like J: 1,048,576; 2,097,152; 3,145,728; 7,340,032; 9,437,184; 11,534,336. For the band runs. The control's are already judged at all six (SP/foot/stance4/scores/score_final.txt).
+- Common noise: sigma = exp(log_std) of scratch arm L s60 robust_best (legs about 0.152), 40 seeds, falls only. References: the stance4 finals fell 5, 1 and 30 of 40 (s52, s60, s42).
+- Forward-start tail panel: the 32 seeds of T/noise_robustness/work/tail_seeds.txt. References: statue 0, stance3 Run 2 final 0, stance4 finals 2, 6 and 5.
+- The judge's JSON keeps stance3's scratch reference strings for the common-noise and tail panels; the references above replace them.
+- At final: the fresh panel 7042-7081 and the six-heading certificate. Fresh-panel references: stance4 finals 39/40, 38/40 and 14/40 clean; stance3 Run 2 final 40/40.
+- Per-term reward decomposition, the band and the stagger term included; ankle, knee and hip DC; neck and tail posture; per-actuator saturation; leg log_std. The band is read from the env's info key reward_stance_cop_band in a rollout of the checkpoint (the training logs do not carry it).
+- Diagnostic panels (D-D40 decision 6), at every J checkpoint of the band runs: the standard panel, mirrored legs (mirror_legs), prey straight ahead (prey_ahead) and both (mirror_prey_ahead), each with its statue, with panels4.py's method extended to arm LTSB. Per variant: clean, K2a, K2b, falls, window stagger sd, CoP split sd and common CoP mean. They stay diagnostic panels, in neither training nor the criteria. The control's are already rolled (SP/foot/stance4/panels/out).
+- Saturation watch (D-D40 decision 5a): an evaluation of eval_episodes.csv with at least 5 of its 10 episodes listing max_actuator_saturation_fraction in screen_v2_reasons is flagged; two flagged evaluations in a row is an alarm. Each band run's ledger is read at every check-in. An alarm is reported to the maintainer at once, naming the run, the step (the evaluation that completes the first flagged pair, as score_stance4.py's saturation_alarm reports it) and the actuator. The actuator is named by a 20-episode rollout (seeds 3042-3061, deterministic, window steps 200-999) of the latest placed checkpoint at or after the first flagged evaluation, with SP/foot/stance4/satdiag/rollout/roll.py's method on arm LTSB: the actuator with the largest fraction of window steps at |command| >= 0.9, and the sign of its mean command. A checkpoint before the first flagged evaluation is never used to name it. If no such checkpoint is placed yet, the alarm is reported at once with the run, the step and "actuator not yet named"; the first periodic checkpoint at or after that evaluation is then fetched for that run alone and rolled, and the actuator is reported as soon as it is named. References (measured): stance4 s42's alarm first fired at 2,228,224, its first flagged evaluation being 2,097,152 (tail_3_pitch_act at +1, tail raised); applied afterwards, stance3 Run 2's fired at 2,359,296 (the same actuator and sign); stance4 s52 and s60 and stance3 Run 3 had none. Fails stay fails; no run is stopped or restarted on an alarm.
+- Band readouts at each J checkpoint, from a rollout of the standard panel with the band's info keys, over the judge's window (steps 200-999 in the recorder's index; the band's gate opens on its first step) and the full-horizon episodes. Statue references, measured on the config change:
+  - guard firing: the share of window foot-steps with guard 0, on the ramp (0 < guard < 1) and at 1 (<s>_cop_band_counted). Statue: 0, 0 and all 62,400.
+  - per-foot band quality: the mean of <s>_cop_band_quality per foot; window foot-steps with the whole-foot CoP outside [-0.6, +0.4], with the pad CoP outside [-0.65, +0.65], and with the pad excess binding. Statue: 2,150, 1,042 and 3 of 62,400. From the judge files, for both arms: the full-horizon episodes with either foot's window mean outside [-0.6, +0.4]. The stance4 runs had 20, 22 and 11 of 40 at 4,194,304 (measured on their J files; the investigation's section 19.5 item 1).
+  - the band paid per full-horizon episode: mean, median and worst. Statue: 1.91, 0.31 and 13.11.
+  - the twist-route watch: the window stagger sd (mm) and the ankle asymmetry, the panel sd of the right-minus-left window-mean ankle servo error (ctrl - q, deg) and of the ankle actuator torque (N.m) (analyze_split.py's per-episode columns). Each band run's values are read beside the control's at the same J checkpoint, per seed and against the control's range over its three runs. References (measured): the statue's window stagger sd 2.5 mm; the stance4 runs' 4.8, 2.3 and 1.2 mm at 4,194,304 and up to 19.5 mm later (s42 final). The control's ankle asymmetry, rolled before the first training step by panels5.py's standard panel on the clean stance4 clone at c1e146a8 at all 18 control J checkpoints (SP/foot/stance5/panels/control/control_ankle_asymmetry.json, sha256 4e5f26621e6241f1cb8ba01a3b1ae73813757f98fc89fde457cf9483ee2cc782): servo error sd 0.79-1.87 deg and torque sd 12.4-29.4 N.m at 4,194,304 (s42 to s52), 0.56-2.14 deg and 8.8-33.6 N.m over all 18. The statue's: 0.16 deg and 2.58 N.m, the same under LTS and LTSB because the band changes no dynamics, so it is a floor and attributes nothing to the band. In the control the two ankle columns are one signal (per-episode correlation +1.000) and track the CoP split (+0.97 to +0.999), so they are read beside the CoP split sd: the twist route would show as a window stagger sd above the control's at the same J checkpoint with a CoP split sd not above the control's, not as a rise in ankle asymmetry alone (inferred from the statics).
+  - the bounded lighten door: window foot-steps with a load share in [0.25, 0.35), and below 0.25; and, from the judge files, the full-horizon episodes failing min_foot_load_share_windowed, failing min_foot_load_share, and failing either. Statue: 0 and 0 window foot-steps (smallest share 0.439).
+  - the digit share per foot (<s>_cop_band_digit_share), the readout the pad band leans on.
+- Drift or split, report only beside the table: each band run's class is printed whether or not the table reads it. The same rule applied to the control's J files gives (measured): stance4 s52 n_c 0, n_s 101, n_u 0; s60 0, 67 and 2 (one-foot excursions, seeds 3052 and 3081 at 8,388,608); s42 0, 27 and 1 (seed 3080 at final; 3 falls not classed; 2 split episodes at 4,194,304, where K2a and K2b pass, not counted): all three SPLIT, so D = 0 and S = 3. stance3 Run 2 (0, 30, 0) and Run 3 (0, 6, 4) are SPLIT too; Run 3's K2c failed on its range. Arm L s60 (stance3 Run 1) is DRIFT: K2a and K2b pass at every J checkpoint, so it failed K2 through K2c's range alone (33.9 mm). The rule as first written (every J checkpoint counted, no near-reference margin) gave the same classes. Source: SP/foot/stance5/criteria_calib/drift_split_calib.txt.
+- Stagger watches:
+  - the episode yaw change, and the stagger at step 200 against the window: the standard panel at each J checkpoint;
+  - training-fall causes, tail and head contact among them: the cause column of train_episodes.csv. stance4 references (measured): tail_contact 185, 158 and 151; head_contact 13, 0 and 21 (s52, s60, s42).
+- Throughput: each run's steps/s (progress.json) beside the stance4 runs' (s52 262.8 at 2,228,224, measured). No speed target was decided (D-D40 3b).
+- Selection comparison, each candidate on the 40-seed panel and own-noise falls:
+  - S0: robust_best.
+  - S1: best.
+  - S2: final.
+  - S3, late-stable: the latest periodic checkpoint at or after 3,145,728 steps whose preceding 8 evaluations were all 10/10 full horizon, with pad and whole-foot over-bar fractions of 0.

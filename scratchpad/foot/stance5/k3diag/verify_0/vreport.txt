@@ -1,0 +1,103 @@
+per slot: falls | ttf medians D1 D2(tilt5) D3(z-5cm) D4(5deg/4cm) | noise0 p95 / max | survivors: n, n>=81mm, pooled p95, p99
+stance4_LTS_s42__10485760         1 | 1.27 1.02 0.24 0.99 | nan / nan mm (n0 falls None) | 19 0 26.9 48.2 ref=MISSING
+stance4_LTS_s42__11534336         2 | 0.95 0.82 0.08 0.63 | nan / nan mm (n0 falls None) | 18 0 42.7 51.6 ref=MISSING
+stance4_LTS_s42__final            8 | 1.08 0.72 0.22 0.76 | 10.9 / 40.8 mm (n0 falls 0) | 12 1 65.3 77.1 ref=noise0
+stance4_LTS_s52__final            0 | None None None None | 15.6 / 21.0 mm (n0 falls 0) | 20 1 35.6 47.1 ref=noise0
+stance4_LTS_s60__11534336         2 | 1.09 0.72 0.13 0.74 | nan / nan mm (n0 falls None) | 18 0 17.6 28.4 ref=MISSING
+stance4_LTS_s60__final            1 | 1.53 1.0 0.25 1.17 | 6.1 / 14.4 mm (n0 falls 0) | 19 0 19.0 28.9 ref=noise0
+stance5_LTSB_s42__10485760        9 | 0.92 0.55 0.16 0.65 | 8.9 / 13.6 mm (n0 falls 0) | 11 2 60.2 84.4 ref=noise0
+stance5_LTSB_s42__6291456         0 | None None None None | 5.6 / 6.9 mm (n0 falls 0) | 20 0 20.7 30.2 ref=noise0
+stance5_LTSB_s42__7340032         9 | 1.38 0.97 0.19 0.77 | 9.8 / 14.8 mm (n0 falls 0) | 11 3 74.5 114.6 ref=noise0
+stance5_LTSB_s42__8388608         5 | 1.02 0.96 0.23 0.81 | 5.1 / 33.2 mm (n0 falls 0) | 15 0 47.7 63.2 ref=noise0
+stance5_LTSB_s42__final          13 | 1.17 1.0 0.25 0.91 | 5.5 / 27.7 mm (n0 falls 0) | 7 2 74.9 158.5 ref=noise0
+stance5_LTSB_s52__10485760        1 | 1.43 1.11 0.22 1.0 | nan / nan mm (n0 falls None) | 19 0 27.3 34.7 ref=MISSING
+stance5_LTSB_s52__8388608         1 | 1.38 0.6 0.31 0.69 | nan / nan mm (n0 falls None) | 19 0 23.7 32.2 ref=MISSING
+stance5_LTSB_s52__final           0 | None None None None | 2.9 / 10.1 mm (n0 falls 0) | 20 0 30.1 42.3 ref=noise0
+stance5_LTSB_s60__10485760        1 | 1.46 1.07 0.02 1.0 | nan / nan mm (n0 falls None) | 19 0 31.6 50.1 ref=MISSING
+stance5_LTSB_s60__4194304         2 | 1.93 1.53 0.22 1.52 | 13.3 / 17.8 mm (n0 falls 0) | 18 0 35.3 51.1 ref=noise0
+stance5_LTSB_s60__8388608         1 | 1.93 1.85 0.0 1.62 | nan / nan mm (n0 falls None) | 19 1 37.0 62.7 ref=MISSING
+stance5_LTSB_s60__final           3 | 1.34 0.84 0.27 0.85 | 15.6 / 18.8 mm (n0 falls 0) | 17 0 35.2 50.6 ref=noise0
+
+=== K3 band (s42 final + s60 final): 16 falls
+ stag_absmax_2s_pre: min 0.081  n<0.081 0  min-row [('stance5_LTSB_s60__final', 3059)]
+ peak of the 2 s pre-onset stagger inside steps 0-29 (spawn drop): [('stance5_LTSB_s42__final', 3061, 332, 6), ('stance5_LTSB_s60__final', 3061, 143, 7)]
+ onset before step 200: [('stance5_LTSB_s42__final', 3061, 332, 186), ('stance5_LTSB_s60__final', 3061, 143, 9)]
+ ttf pooled median/min/max: {'D1': (np.float64(1.18), 0.82, 1.78), 'D2': (np.float64(0.96), 0.61, 1.27), 'D3': (np.float64(0.25), 0.15, 0.29), 'D4': (np.float64(0.88), 0.63, 1.2)}
+ decomposition (t0 = step 200, or 15 for peaks before 200; t1 = the 2 s pre-onset |stagger| peak; 14 falls with t1 >= 30):
+   yaw term > feet term: 12/14;  |fixed-frame feet change| < 30 mm: 12/14;  both feet moved < 30 mm on the ground: 8/14
+   |dyaw| deg median 23.1  range 0.9..48.4;  |feet term| mm median 12;  |yaw term| mm median 116
+   fore-aft separation of the feet in the step-200 heading frame at the peak: median 32 mm, n>=81 mm 1/14
+   falls where the feet term >= yaw term: [('stance5_LTSB_s42__final', 3054, 80, 76), ('stance5_LTSB_s60__final', 3046, -77, 2)]
+ terminations: {'fallen': 15, 'nosedive': 1}
+ pelvis min < 0.70 m: 15/16;  non-'fallen' with pelvis min >= 0.70: 1
+   pelvis min of non-fallen terminations: [0.759]
+ any foot < 0.02 BW after onset: 16/16; in last 1 s: 16; final unload run > 0: 15; any foot < 0.05 BW after onset: 16
+ loaded-foot (load > 0.1 BW) max ground speed after onset: median 0.93 m/s; n > 0.2 m/s 16; n > 0.5 15; min 0.46
+ loaded-foot max ground speed in the 1 s before onset: median 0.13; n > 0.2 5
+ a foot reaches < 0.02 BW after onset: 16/16; of those, the unloaded foot's path while unloaded median 312 mm; its loaded path after the unload median 39 mm (n >= 20 mm: 15); the other foot's loaded path median 42 mm (n >= 20 mm: 16)
+ max over feet of the loaded (> 0.1 BW) ground path after onset: median 55 mm; n >= 20 mm 16/16; n >= 50 mm 12
+ no foot below 0.02 BW after onset: []
+ floor contact in the last 1 s by category: {'tail': 0, 'head': 0, 'tibia': 0, 'thigh': 0, 'torso': 0, 'metatarsus': 16}
+
+=== K3 band+control finals: 25 falls
+ stag_absmax_2s_pre: min 0.081  n<0.081 0  min-row [('stance5_LTSB_s60__final', 3059)]
+ peak of the 2 s pre-onset stagger inside steps 0-29 (spawn drop): [('stance5_LTSB_s42__final', 3061, 332, 6), ('stance5_LTSB_s60__final', 3061, 143, 7), ('stance4_LTS_s60__final', 3061, 225, 6)]
+ onset before step 200: [('stance5_LTSB_s42__final', 3061, 332, 186), ('stance5_LTSB_s60__final', 3061, 143, 9), ('stance4_LTS_s60__final', 3061, 225, 72)]
+ ttf pooled median/min/max: {'D1': (np.float64(1.18), 0.82, 1.78), 'D2': (np.float64(0.9), 0.22, 1.27), 'D3': (np.float64(0.25), 0.07, 0.35), 'D4': (np.float64(0.81), 0.37, 1.2)}
+ decomposition (t0 = step 200, or 15 for peaks before 200; t1 = the 2 s pre-onset |stagger| peak; 22 falls with t1 >= 30):
+   yaw term > feet term: 19/22;  |fixed-frame feet change| < 30 mm: 19/22;  both feet moved < 30 mm on the ground: 15/22
+   |dyaw| deg median 19.0  range 0.6..48.4;  |feet term| mm median 7;  |yaw term| mm median 92
+   fore-aft separation of the feet in the step-200 heading frame at the peak: median 44 mm, n>=81 mm 2/22
+   falls where the feet term >= yaw term: [('stance5_LTSB_s42__final', 3054, 80, 76), ('stance5_LTSB_s60__final', 3046, -77, 2), ('stance4_LTS_s42__final', 3054, 32, 27)]
+ terminations: {'fallen': 19, 'nosedive': 2, 'tail_contact': 2, 'head_contact': 2}
+ pelvis min < 0.70 m: 19/25;  non-'fallen' with pelvis min >= 0.70: 6
+   pelvis min of non-fallen terminations: [0.705, 0.759, 0.82, 0.835, 0.842, 0.843]
+ any foot < 0.02 BW after onset: 24/25; in last 1 s: 24; final unload run > 0: 20; any foot < 0.05 BW after onset: 25
+ loaded-foot (load > 0.1 BW) max ground speed after onset: median 0.83 m/s; n > 0.2 m/s 21; n > 0.5 19; min 0.14
+ loaded-foot max ground speed in the 1 s before onset: median 0.12; n > 0.2 7
+ a foot reaches < 0.02 BW after onset: 24/25; of those, the unloaded foot's path while unloaded median 297 mm; its loaded path after the unload median 32 mm (n >= 20 mm: 19); the other foot's loaded path median 36 mm (n >= 20 mm: 22)
+ max over feet of the loaded (> 0.1 BW) ground path after onset: median 52 mm; n >= 20 mm 25/25; n >= 50 mm 15
+ no foot below 0.02 BW after onset: [('stance4_LTS_s42__final', 3059, 'tail_contact', 377)]
+ floor contact in the last 1 s by category: {'tail': 2, 'head': 0, 'tibia': 0, 'thigh': 0, 'torso': 0, 'metatarsus': 25}
+
+=== report's 48 (band s42 7.3M/8.4M/10.5M/final, s60 final, control s42/s60 final): 48 falls
+ stag_absmax_2s_pre: min 0.081  n<0.081 0  min-row [('stance5_LTSB_s60__final', 3059)]
+ peak of the 2 s pre-onset stagger inside steps 0-29 (spawn drop): [('stance5_LTSB_s42__final', 3061, 332, 6), ('stance5_LTSB_s60__final', 3061, 143, 7), ('stance4_LTS_s60__final', 3061, 225, 6)]
+ onset before step 200: [('stance5_LTSB_s42__final', 3061, 332, 186), ('stance5_LTSB_s42__10485760', 3054, 282, 189), ('stance5_LTSB_s60__final', 3061, 143, 9), ('stance4_LTS_s60__final', 3061, 225, 72)]
+ ttf pooled median/min/max: {'D1': (np.float64(1.17), 0.66, 1.84), 'D2': (np.float64(0.89), 0.22, 1.43), 'D3': (np.float64(0.23), 0.03, 0.35), 'D4': (np.float64(0.78), 0.37, 1.27)}
+ decomposition (t0 = step 200, or 15 for peaks before 200; t1 = the 2 s pre-onset |stagger| peak; 45 falls with t1 >= 30):
+   yaw term > feet term: 40/45;  |fixed-frame feet change| < 30 mm: 32/45;  both feet moved < 30 mm on the ground: 22/45
+   |dyaw| deg median 23.6  range 0.6..55.7;  |feet term| mm median 17;  |yaw term| mm median 115
+   fore-aft separation of the feet in the step-200 heading frame at the peak: median 42 mm, n>=81 mm 8/45
+   falls where the feet term >= yaw term: [('stance5_LTSB_s42__final', 3054, 80, 76), ('stance5_LTSB_s42__8388608', 3051, 195, 29), ('stance5_LTSB_s42__8388608', 3059, -101, -42), ('stance5_LTSB_s60__final', 3046, -77, 2), ('stance4_LTS_s42__final', 3054, 32, 27)]
+ terminations: {'fallen': 31, 'nosedive': 7, 'tail_contact': 8, 'head_contact': 2}
+ pelvis min < 0.70 m: 31/48;  non-'fallen' with pelvis min >= 0.70: 17
+   pelvis min of non-fallen terminations: [0.705, 0.728, 0.728, 0.759, 0.805, 0.819, 0.82, 0.835, 0.835, 0.839, 0.839, 0.84, 0.842, 0.843, 0.85, 0.862, 0.87]
+ any foot < 0.02 BW after onset: 45/48; in last 1 s: 45; final unload run > 0: 36; any foot < 0.05 BW after onset: 48
+ loaded-foot (load > 0.1 BW) max ground speed after onset: median 0.82 m/s; n > 0.2 m/s 43; n > 0.5 39; min 0.14
+ loaded-foot max ground speed in the 1 s before onset: median 0.13; n > 0.2 15
+ a foot reaches < 0.02 BW after onset: 45/48; of those, the unloaded foot's path while unloaded median 278 mm; its loaded path after the unload median 34 mm (n >= 20 mm: 35); the other foot's loaded path median 36 mm (n >= 20 mm: 39)
+ max over feet of the loaded (> 0.1 BW) ground path after onset: median 55 mm; n >= 20 mm 48/48; n >= 50 mm 34
+ no foot below 0.02 BW after onset: [('stance5_LTSB_s42__10485760', 3058, 'tail_contact', 512), ('stance5_LTSB_s42__7340032', 3053, 'nosedive', 954), ('stance4_LTS_s42__final', 3059, 'tail_contact', 377)]
+ floor contact in the last 1 s by category: {'tail': 8, 'head': 0, 'tibia': 0, 'thigh': 0, 'torso': 0, 'metatarsus': 48}
+
+=== all rolled: 59 falls
+ stag_absmax_2s_pre: min 0.066  n<0.081 3  min-row [('stance4_LTS_s60__11534336', 3059)]
+ peak of the 2 s pre-onset stagger inside steps 0-29 (spawn drop): [('stance4_LTS_s60__11534336', 3061, 201, 6), ('stance4_LTS_s60__final', 3061, 225, 6), ('stance5_LTSB_s42__final', 3061, 332, 6), ('stance5_LTSB_s52__8388608', 3061, 287, 6), ('stance5_LTSB_s60__final', 3061, 143, 7)]
+ onset before step 200: [('stance4_LTS_s60__11534336', 3061, 201, 55), ('stance4_LTS_s60__final', 3061, 225, 72), ('stance5_LTSB_s42__10485760', 3054, 282, 189), ('stance5_LTSB_s42__final', 3061, 332, 186), ('stance5_LTSB_s52__10485760', 3051, 323, 180), ('stance5_LTSB_s52__8388608', 3061, 287, 149), ('stance5_LTSB_s60__10485760', 3057, 332, 186), ('stance5_LTSB_s60__final', 3061, 143, 9)]
+ ttf pooled median/min/max: {'D1': (np.float64(1.19), 0.66, 1.98), 'D2': (np.float64(0.91), 0.22, 1.85), 'D3': (np.float64(0.23), 0.0, 0.35), 'D4': (np.float64(0.81), 0.37, 1.62)}
+ decomposition (t0 = step 200, or 15 for peaks before 200; t1 = the 2 s pre-onset |stagger| peak; 54 falls with t1 >= 30):
+   yaw term > feet term: 49/54;  |fixed-frame feet change| < 30 mm: 41/54;  both feet moved < 30 mm on the ground: 28/54
+   |dyaw| deg median 22.2  range 0.6..55.7;  |feet term| mm median 13;  |yaw term| mm median 110
+   fore-aft separation of the feet in the step-200 heading frame at the peak: median 42 mm, n>=81 mm 9/54
+   falls where the feet term >= yaw term: [('stance4_LTS_s42__final', 3054, 32, 27), ('stance5_LTSB_s42__8388608', 3051, 195, 29), ('stance5_LTSB_s42__8388608', 3059, -101, -42), ('stance5_LTSB_s42__final', 3054, 80, 76), ('stance5_LTSB_s60__final', 3046, -77, 2)]
+ terminations: {'fallen': 37, 'head_contact': 3, 'nosedive': 10, 'tail_contact': 9}
+ pelvis min < 0.70 m: 37/59;  non-'fallen' with pelvis min >= 0.70: 22
+   pelvis min of non-fallen terminations: [0.705, 0.728, 0.728, 0.759, 0.791, 0.805, 0.819, 0.82, 0.835, 0.835, 0.839, 0.839, 0.84, 0.842, 0.843, 0.85, 0.857, 0.862, 0.869, 0.87, 0.887, 0.901]
+ any foot < 0.02 BW after onset: 55/59; in last 1 s: 55; final unload run > 0: 46; any foot < 0.05 BW after onset: 58
+ loaded-foot (load > 0.1 BW) max ground speed after onset: median 0.78 m/s; n > 0.2 m/s 52; n > 0.5 47; min 0.11
+ loaded-foot max ground speed in the 1 s before onset: median 0.12; n > 0.2 17
+ a foot reaches < 0.02 BW after onset: 55/59; of those, the unloaded foot's path while unloaded median 278 mm; its loaded path after the unload median 32 mm (n >= 20 mm: 43); the other foot's loaded path median 36 mm (n >= 20 mm: 47)
+ max over feet of the loaded (> 0.1 BW) ground path after onset: median 55 mm; n >= 20 mm 59/59; n >= 50 mm 39
+ no foot below 0.02 BW after onset: [('stance4_LTS_s42__final', 3059, 'tail_contact', 377), ('stance5_LTSB_s42__10485760', 3058, 'tail_contact', 512), ('stance5_LTSB_s42__7340032', 3053, 'nosedive', 954), ('stance5_LTSB_s60__10485760', 3057, 'nosedive', 332)]
+ floor contact in the last 1 s by category: {'tail': 9, 'head': 0, 'tibia': 0, 'thigh': 0, 'torso': 0, 'metatarsus': 59}

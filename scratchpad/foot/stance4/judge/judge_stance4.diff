@@ -1,0 +1,165 @@
+--- /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance3/judge/judge_stance3.py	2026-10-18 12:29:41.090975119 +0000
++++ judge_stance4.py	2026-10-19 17:53:32.149672960 +0000
+@@ -1,22 +1,31 @@
+-"""Judge ONE checkpoint of a T. rex stance3 screen run (arm L or L+T, physics r9) against its branch clone (scratch only).
++"""Judge ONE checkpoint of a T. rex stance screen run (arms L, LT, LTS; physics r9) against its branch clone (scratch only).
+ 
+     S=/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad
+-    cd $S/foot/stance3 && env ISO_WT=<clone> OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
++    cd $S/foot/stance4 && env ISO_WT=<clone> OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
+         PYTHONPYCACHEPREFIX=$S/caches/pyc MPLCONFIGDIR=$S/caches/mpl \
+-        python3 tools/iso.py judge/judge_stance3.py RUN_DIR --arm {L,LT} --seed {52,60} --steps STEPS --out OUT.json [MODE]
++        python3 $S/foot/stance3/tools/iso.py judge/judge_stance4.py RUN_DIR --arm {L,LT,LTS} --seed {42,52,60} \
++        --steps STEPS --out OUT.json [MODE]
++
++judge_stance3.py plus arm LTS (stance4: L+T + the stance stagger penalty, clone fix/screen_s4_LTS, branch
++claude/screen-trex-r9-armlt-stagger), seed 42 and the schema stance4-judge/v1; the report-only slots are the
++1,048,576-step checkpoints not in J.  Arms L and LT are unchanged.  Arm LTS's collapse reference is 4459.3 (criteria;
++measured on the config tree).  Its HEAD is the config commit c1e146a82658112a9a1c0838250020b214ef303a, filled in ARMS
++after that commit; while it was None the judge refused arm LTS unless --expect-head was given.
+ 
+ RUN_DIR is a notebook run directory with the notebook's layout (RUN_DIR/01_stance/models/stage1_{N}_steps.zip and
+ stage1_vecnormalize_{N}_steps.pkl, stage1_final.zip and stage1_final_vecnorm.pkl, best_model / robust_best_model and their
+ _vecnorm.pkl; RUN_DIR/01_stance/{plant_identity.json, stage_config.json, task_fingerprint.json}).  --arm picks the
+ branch clone and its pinned HEAD (L: fix/screen_s3_L, claude/screen-trex-r9-arml-12m; LT: fix/screen_s3_LT,
+-claude/screen-trex-r9-armlt); --clone / --expect-head override them.  The clone's stance stage must carry the arm's
++claude/screen-trex-r9-armlt; LTS: fix/screen_s4_LTS, claude/screen-trex-r9-armlt-stagger); --clone / --expect-head
++override them.  The clone's stance stage must carry the arm's
+ [env] options, [ppo] symmetry keys and collapse reference, on the r9 plant, or the judge refuses before rolling.
+ 
+ --steps: the criteria's judged checkpoints J are 4194304, 5242880, 6291456, 8388608, 10485760 and final
+-(stage1_final.zip, 12,001,280 steps); 3145728 is judged like J, report only.  For the report-only selection comparison
++(stage1_final.zip, 12,001,280 steps); 1048576, 2097152, 3145728, 7340032, 9437184 and 11534336 are judged like J,
++report only.  For the report-only selection comparison
+ (S0-S3) the judge also takes robust_best, best and any other periodic checkpoint (a multiple of 524,288); with
+---smoke-episodes any multiple of 131,072 (the CPU smoke runs' checkpoints).  score_stance3.py reads full-mode files as
+-JUDGED/<RUN_ID>/judge_<steps>.json (RUN_ID stance3_armL_s60, stance3_armLT_s60, stance3_armLT_s52; <steps> as given to
++--smoke-episodes any multiple of 131,072 (the CPU smoke runs' checkpoints).  score_stance4.py reads full-mode files as
++JUDGED/<RUN_ID>/judge_<steps>.json (RUN_ID stance4_LTS_s52, stance4_LTS_s60, stance4_LTS_s42; <steps> as given to
+ --steps); write the report-only modes under other names (e.g. judge_quick_<steps>.json, judge_tail_final.json).
+ 
+ Ported from the r10 screen's judge (docs/investigations/stance_2026_10/r10_screen/judge_r10.py); what is the same:
+@@ -38,9 +47,9 @@
+     v2 bars, [ppo] symmetry keys and git_commit against the clone, and its run block's n_envs (criteria: 4),
+     hyperparameters_sha256 (the digest the clone's stance stage regenerates, which must be the committed
+     sha256:054ab483...) and seed (against --seed).  Validation-only relaxations (--no-symmetry-check, --task-binding
+-    report, --allow-missing-records, --allow-seed-mismatch, --allow-commit-mismatch) are recorded; score_stance3.py
++    report, --allow-missing-records, --allow-seed-mismatch, --allow-commit-mismatch) are recorded; score_stance4.py
+     refuses them.  The checkpoint's num_timesteps is recorded beside the slot's (12,001,280 for final, the step for a
+-    periodic slot) and a mismatch is printed; score_stance3.py refuses such a file.
++    periodic slot) and a mismatch is printed; score_stance4.py refuses such a file.
+ What changed against the r10 judge:
+   * r9 rails (criteria K2a): the pad's max_sole_cop_fore_aft > 0.80 counted over all 40 episodes, a non-full-horizon
+     episode counting as over (the r10 whole-foot rail max_foot_cop_fore_aft is kept per episode, report only);
+@@ -79,7 +88,7 @@
+ import subprocess  # noqa: E402
+ import time  # noqa: E402
+ 
+-SCHEMA = "stance3-judge/v1"
++SCHEMA = "stance4-judge/v1"
+ MAIN_CHECKOUT = "/home/user/mesozoic-labs"
+ SCRATCH = "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad"
+ FROZEN_PARAMS = SCRATCH + "/foot/symmetry/design/frozen_params.json"
+@@ -91,7 +100,7 @@
+ TAIL_SEEDS_SHA256 = "8406594b2cebe802b31ee6fe18285366b943c72526ffc926e295675c281e5de4"
+ R9_PHYSICS_SHA256 = "sha256:3d68aec73fbc4642681ed601bedaf3524459d693d6a7afce036bb14bac872d67"
+ STAGE_SUBDIR = "01_stance"
+-SEEDS = (52, 60)
++SEEDS = (42, 52, 60)
+ #: The arms: clone, pinned HEAD (the build's commits) and the stance stage values the clone must carry.
+ ARM_ENV_COMMON = {"lateral_lean_weight": 0.25, "lateral_lean_tolerance_m": 0.015, "leg_home_pose_reference": "settled",
+                   "leg_home_pose_broad_fraction": 0.25, "leg_home_pose_broad_scale": 6.0, "reset_noise_scale": 0.05}
+@@ -104,6 +113,15 @@
+            "branch": "claude/screen-trex-r9-armlt",
+            "env": {**ARM_ENV_COMMON, "leg_home_pose_weight": 1.0, "leg_home_pose_tolerance": 0.05},
+            "collapse_peak_floor_reference": 4460.5},
++    # stance4 (criteria SP/foot/stance4/criteria.txt): L+T plus the stance stagger penalty, w 0.30, tolerance 0.045 m.
++    # "head" is the config commit (filled after that commit).  "collapse_peak_floor_reference" is the
++    # term-on value that commit writes, 4459.3 (criteria; 3756.8 + the LTS statue gain 702.46, measured in
++    # S4/build/A1.json).  While either is None the judge refuses arm LTS (see main).
++    "LTS": {"clone": SCRATCH + "/fix/screen_s4_LTS", "head": "c1e146a82658112a9a1c0838250020b214ef303a",  # config commit
++            "branch": "claude/screen-trex-r9-armlt-stagger",
++            "env": {**ARM_ENV_COMMON, "leg_home_pose_weight": 1.0, "leg_home_pose_tolerance": 0.05,
++                    "stance_stagger_weight": 0.30, "stance_stagger_tolerance_m": 0.045},
++            "collapse_peak_floor_reference": 4459.3},
+ }
+ PPO_SYMMETRY = {"symmetry": "mirror_kl", "symmetry_kappa": 0.3, "symmetry_sigma_floor": 0.01, "symmetry_mirror_critic": True}
+ #: criteria.txt: n_envs 4; 12,000,000 steps (final 12,001,280); the committed PPO schedules, i.e. the stance
+@@ -112,7 +130,7 @@
+ FINAL_TIMESTEPS = 12001280
+ HP_SHA256 = "sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c"
+ J_STEPS = (4194304, 5242880, 6291456, 8388608, 10485760, "final")
+-REPORT_STEPS = (3145728,)
++REPORT_STEPS = (1048576, 2097152, 3145728, 7340032, 9437184, 11534336)  # k x 1,048,576 not in J
+ NAMED_CHECKPOINTS = ("final", "best", "robust_best")
+ CHECKPOINT_CADENCE = 524288
+ SMOKE_CADENCE = 131072
+@@ -865,13 +883,13 @@
+         hard.append(f"the checkpoint records seed {ck_seed}, the judge was told {a.seed}")
+     checks["checkpoint_num_timesteps"] = read_checkpoint_attribute(model_path, "num_timesteps")
+     # criteria.txt: final is stage1_final at 12,001,280 steps; a periodic slot's checkpoint holds its step.  Recorded,
+-    # not refused here (an early stop's final may still be judged for a report); score_stance3.py refuses a mismatch.
++    # not refused here (an early stop's final may still be judged for a report); score_stance4.py refuses a mismatch.
+     want_ts = FINAL_TIMESTEPS if a.steps == "final" else a.steps if isinstance(a.steps, int) else None
+     checks["checkpoint_num_timesteps_expected"] = want_ts
+     checks["checkpoint_num_timesteps_match"] = None if want_ts is None else checks["checkpoint_num_timesteps"] == want_ts
+     if checks["checkpoint_num_timesteps_match"] is False:
+         print(f"WARNING: {model_path} holds num_timesteps {checks['checkpoint_num_timesteps']}, slot {a.steps} needs "
+-              f"{want_ts:,}: score_stance3.py will refuse this file", flush=True)
++              f"{want_ts:,}: score_stance4.py will refuse this file", flush=True)
+     recorded = read_checkpoint_attribute(model_path, "mesozoic_symmetry")
+     sym = {"recorded": recorded}
+     try:
+@@ -967,11 +985,11 @@
+ def main() -> int:
+     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+     ap.add_argument("run_dir", help="notebook run directory (holds 01_stance/)")
+-    ap.add_argument("--arm", required=True, choices=sorted(ARMS), help="L (Run 1) or LT (Runs 2-3): picks the clone and HEAD")
++    ap.add_argument("--arm", required=True, choices=sorted(ARMS), help="L, LT (stance3) or LTS (stance4): picks the clone and HEAD")
+     ap.add_argument("--seed", type=int, required=True, choices=SEEDS, help="the run's training seed (selects the frozen control sigma)")
+     ap.add_argument("--steps", type=parse_steps, required=True,
+-                    help="4194304 5242880 6291456 8388608 10485760 final (J), 3145728 (report), best / robust_best / "
+-                         "another multiple of 524288 (selection comparison)")
++                    help="4194304 5242880 6291456 8388608 10485760 final (J), 1048576 2097152 3145728 7340032 9437184 "
++                         "11534336 (report), best / robust_best / another multiple of 524288 (selection comparison)")
+     ap.add_argument("--out", required=True, help="the judge JSON to write (never overwritten)")
+     ap.add_argument("--clone", default=None, help="default: the arm's clone")
+     ap.add_argument("--expect-head", default=None, help="the clone HEAD the judge must run (clean tree); default: the arm's")
+@@ -984,16 +1002,19 @@
+     mode.add_argument("--fresh", action="store_true", help="report only: the v2 panel on fresh seeds 7042-7081")
+     ap.add_argument("--no-noise", action="store_true", help="development only: skip the H4 noise tests of a full judge")
+     ap.add_argument("--smoke-episodes", type=int, default=None, help="development only: N episodes per panel (JSON marked smoke)")
+-    # validation-only relaxations (recorded in the JSON; score_stance3.py refuses them)
++    # validation-only relaxations (recorded in the JSON; score_stance4.py refuses them)
+     ap.add_argument("--no-symmetry-check", action="store_true", help="validation only: do not require the mesozoic_symmetry match")
+     ap.add_argument("--task-binding", choices=("require", "report"), default="require",
+                     help="validation only ('report'): record but do not require the task / stage_config binding")
+     ap.add_argument("--allow-missing-records", action="store_true", help="validation only: stage_config / task_fingerprint / plant_identity may be absent")
+     ap.add_argument("--allow-seed-mismatch", action="store_true", help="validation only: the checkpoint's recorded seed may differ from --seed")
+     ap.add_argument("--allow-commit-mismatch", action="store_true",
+-                    help="validation only: stage_config.json git_commit may differ from the clone HEAD (score_stance3.py refuses it)")
++                    help="validation only: stage_config.json git_commit may differ from the clone HEAD (score_stance4.py refuses it)")
+     a = ap.parse_args()
+     spec = ARMS[a.arm]
++    if spec["collapse_peak_floor_reference"] is None or (spec["head"] is None and not a.expect_head):
++        raise SystemExit(f"arm {a.arm}: PLACEHOLDER constants not filled in ARMS (head {spec['head']}, collapse reference "
++                         f"{spec['collapse_peak_floor_reference']}); fill them after the config commit")
+     clone = a.clone or spec["clone"]
+     expect_head = a.expect_head or spec["head"]
+     mode_name = "quick" if a.quick else "common_noise" if a.common_noise else "tail" if a.tail else "fresh" if a.fresh else "full"
+@@ -1043,7 +1064,7 @@
+     git = git_state(clone)
+     if git["status"] or git["head"] != expect_head:
+         raise SystemExit(f"the judge runs the clean clone at {expect_head} (got {git['head']}, dirty={bool(git['status'])})")
+-    print(f"[judge_stance3] arm {a.arm} clone {clone} HEAD {git['head']} ({git['branch']}); mode {mode_name}; "
++    print(f"[judge_stance4] arm {a.arm} clone {clone} HEAD {git['head']} ({git['branch']}); mode {mode_name}; "
+           f"environments = {modules['environments']}", flush=True)
+     import torch
+ 
+@@ -1143,5 +1164,5 @@
+         sys.exit(main())
+     except SystemExit as exc:  # a refusal's reason reaches the log even when a wrapper (tools/iso.py) swallows the exit
+         if isinstance(exc.code, str):
+-            print(f"[judge_stance3] {exc.code}", file=sys.stderr, flush=True)
++            print(f"[judge_stance4] {exc.code}", file=sys.stderr, flush=True)
+         raise

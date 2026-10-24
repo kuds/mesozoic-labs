@@ -1,0 +1,319 @@
+{
+  "schema": "mesozoic.training-progress/v1",
+  "status": "ended",
+  "written_at": "2026-10-23T09:15:41Z",
+  "species": "tyrannosaurus_rex",
+  "embodiment": "anatomical",
+  "model": "Tyrannosaurus Rex (Anatomical)",
+  "stage": "stance",
+  "run_id": "stance5_LTSB_s70",
+  "run_dir": "stance5_LTSB_s70",
+  "stage_dir": "01_stance",
+  "seed": 70,
+  "timesteps": 12001280,
+  "budget_timesteps": 12000000,
+  "fraction_done": 1.0,
+  "session_started_at": "2026-10-22T19:33:38Z",
+  "wall_clock_s": 49323.17,
+  "steps_per_s": 243.3,
+  "projected_finish": "2026-10-23T09:15:41Z",
+  "zero_action_reward": 4367.8,
+  "evaluation": {
+    "timesteps": 11927552,
+    "episodes": 10,
+    "mean_reward": 4328.07,
+    "std_reward": 28.8909,
+    "mean_episode_length": 1000.0,
+    "falls": 0,
+    "full_horizon_fraction": 1.0,
+    "termination_causes": {
+      "truncated": 10
+    },
+    "screen_v2": {
+      "clean": 10,
+      "episodes": 10,
+      "clean_lcb": 0.7411,
+      "bar": 0.8,
+      "yaw0_bars_met": false,
+      "hop_or_fall": 0,
+      "hop_or_fall_bar": 1.0,
+      "failing": {},
+      "skipped": [
+        "min_avg_reward_statue_ratio"
+      ]
+    }
+  },
+  "posture": {
+    "max_sole_cop_fore_aft": {
+      "bar": 0.8,
+      "mean": 0.08775,
+      "over_bar_fraction": 0.0,
+      "per_foot": {
+        "r": {
+          "gate": 0.05952,
+          "sole_cop_fore_aft": -0.04622,
+          "digit_share": 0.2663
+        },
+        "l": {
+          "gate": 0.07518,
+          "sole_cop_fore_aft": -0.05873,
+          "digit_share": 0.2676
+        }
+      }
+    },
+    "max_foot_cop_fore_aft": {
+      "bar": null,
+      "mean": 0.2743,
+      "per_foot": {
+        "r": {
+          "gate": 0.2385,
+          "foot_cop_fore_aft": -0.2385,
+          "toe_margin_nm": 36.55,
+          "heel_margin_nm": 22.45
+        },
+        "l": {
+          "gate": 0.2504,
+          "foot_cop_fore_aft": -0.2504,
+          "toe_margin_nm": 36.72,
+          "heel_margin_nm": 22.01
+        }
+      }
+    },
+    "max_sole_tilt_deg": {
+      "bar": 2.0,
+      "mean": 0.3278,
+      "over_bar_fraction": 0.0,
+      "per_foot": {
+        "r": 0.3071,
+        "l": 0.3115
+      }
+    },
+    "max_sole_corner_lift_m": {
+      "bar": 0.004,
+      "mean": 0.0005712,
+      "over_bar_fraction": 0.0,
+      "per_foot": {
+        "r": 0.0005223,
+        "l": 0.0005433
+      }
+    },
+    "leg_dc_deg": {
+      "l_minus_r_hip_pitch": 0.0002382,
+      "l_r_mean_hip_pitch": 0.09432,
+      "l_minus_r_knee": -0.01675,
+      "l_r_mean_knee": 0.428,
+      "l_minus_r_ankle": -0.06262,
+      "l_r_mean_ankle": 0.4141
+    },
+    "leg_q_deg": {
+      "l_minus_r_hip_pitch": 0.02718,
+      "l_r_mean_hip_pitch": -2.501,
+      "l_minus_r_knee": -0.00487,
+      "l_r_mean_knee": 0.2598,
+      "l_minus_r_ankle": -0.02732,
+      "l_r_mean_ankle": 2.594
+    }
+  },
+  "balance": {
+    "com_fore_aft_mean_m": -0.03703,
+    "root_pitch_mean_deg": 0.3684,
+    "xcom_fore_aft_max_m": -0.03553,
+    "hof_cop_term_mean_mps2": 0.0001184,
+    "hof_counter_rotation_mean_mps2": 0.000379,
+    "hof_counter_rotation_rms_mps2": 0.001346,
+    "xcom_toe_margin_min_m": 0.08553,
+    "xcom_toe_margin_mean_m": 0.08707,
+    "xcom_heel_margin_min_m": 0.05187,
+    "xcom_past_toe_fraction": 0.0,
+    "time_to_toe_min_s": 991.9,
+    "fall_xcom_toe_lead_s": null,
+    "xcom_tip_margin_min_m": 0.1735
+  },
+  "forces": {
+    "actuator_force_frac_max": 0.3548,
+    "actuator_force_limited_fraction": 0.0,
+    "shear_over_normal": 5.07e-05,
+    "per_foot": {
+      "r": {
+        "ankle_moment_arm_m": 0.1201,
+        "shear_over_normal": -0.0001758,
+        "cone_use_mean": 0.06183,
+        "cone_use_max": 0.1168
+      },
+      "l": {
+        "ankle_moment_arm_m": 0.1194,
+        "shear_over_normal": 0.0002438,
+        "cone_use_mean": 0.06235,
+        "cone_use_max": 0.1167
+      }
+    }
+  },
+  "policy": {
+    "update_timesteps": 12001280,
+    "std_min": 0.008906,
+    "std_max": 0.1344,
+    "std_max_over_min": 15.09,
+    "ent_coef": 0.0,
+    "obs_var_min": 4.166e-12,
+    "obs_var_max": 6176.0,
+    "value_statue": 4.188,
+    "value_ankle_plus_minus_statue": -1.612,
+    "value_ankle_minus_minus_statue": -0.5422,
+    "value_ankle_minus_0.05_minus_statue": -4.404,
+    "value_normalization_shift_statue": 7.513,
+    "statue_ankle_action_mean": 0.05256,
+    "ankle_gain_per_m": 0.1669
+  },
+  "training_rollouts": {
+    "window_timesteps": 262144,
+    "episodes": 262,
+    "falls": 0,
+    "fall_fraction": 0.0,
+    "com_fore_aft_mean_m": -0.0364,
+    "com_fore_aft_last_falls_m": null,
+    "force_limited_fraction_falls": null,
+    "touch_shares": {
+      "r": {
+        "pad": 0.7366,
+        "toe_d2": 0.07277,
+        "toe_d3": 0.07811,
+        "toe_d4": 0.1126,
+        "digits": 0.2634
+      },
+      "l": {
+        "pad": 0.7383,
+        "toe_d2": 0.07199,
+        "toe_d3": 0.07753,
+        "toe_d4": 0.1122,
+        "digits": 0.2617
+      }
+    },
+    "episodes_total": 12377,
+    "falls_total": 538
+  },
+  "history": [
+    {
+      "timesteps": 11403264,
+      "episodes": 10,
+      "mean_reward": 4304.15,
+      "std_reward": 51.8779,
+      "mean_episode_length": 1000.0,
+      "falls": 0,
+      "full_horizon_fraction": 1.0,
+      "max_sole_cop_fore_aft_mean": 0.1396,
+      "max_sole_cop_fore_aft_over_bar_fraction": 0.0,
+      "max_foot_cop_fore_aft_mean": 0.2889,
+      "max_sole_tilt_deg_mean": 0.4815,
+      "max_sole_tilt_deg_over_bar_fraction": 0.0,
+      "max_sole_corner_lift_m_mean": 0.0008773,
+      "max_sole_corner_lift_m_over_bar_fraction": 0.0,
+      "screen_v2_clean_count": 10.0,
+      "screen_v2_clean_lcb": 0.7411
+    },
+    {
+      "timesteps": 11534336,
+      "episodes": 10,
+      "mean_reward": 4316.8,
+      "std_reward": 34.8375,
+      "mean_episode_length": 1000.0,
+      "falls": 0,
+      "full_horizon_fraction": 1.0,
+      "max_sole_cop_fore_aft_mean": 0.1206,
+      "max_sole_cop_fore_aft_over_bar_fraction": 0.0,
+      "max_foot_cop_fore_aft_mean": 0.279,
+      "max_sole_tilt_deg_mean": 0.4269,
+      "max_sole_tilt_deg_over_bar_fraction": 0.0,
+      "max_sole_corner_lift_m_mean": 0.0007659,
+      "max_sole_corner_lift_m_over_bar_fraction": 0.0,
+      "screen_v2_clean_count": 10.0,
+      "screen_v2_clean_lcb": 0.7411
+    },
+    {
+      "timesteps": 11665408,
+      "episodes": 10,
+      "mean_reward": 4320.71,
+      "std_reward": 23.8768,
+      "mean_episode_length": 1000.0,
+      "falls": 0,
+      "full_horizon_fraction": 1.0,
+      "max_sole_cop_fore_aft_mean": 0.1334,
+      "max_sole_cop_fore_aft_over_bar_fraction": 0.0,
+      "max_foot_cop_fore_aft_mean": 0.2855,
+      "max_sole_tilt_deg_mean": 0.4194,
+      "max_sole_tilt_deg_over_bar_fraction": 0.0,
+      "max_sole_corner_lift_m_mean": 0.0007576,
+      "max_sole_corner_lift_m_over_bar_fraction": 0.0,
+      "screen_v2_clean_count": 10.0,
+      "screen_v2_clean_lcb": 0.7411
+    },
+    {
+      "timesteps": 11796480,
+      "episodes": 10,
+      "mean_reward": 4296.66,
+      "std_reward": 44.672,
+      "mean_episode_length": 1000.0,
+      "falls": 0,
+      "full_horizon_fraction": 1.0,
+      "max_sole_cop_fore_aft_mean": 0.1436,
+      "max_sole_cop_fore_aft_over_bar_fraction": 0.0,
+      "max_foot_cop_fore_aft_mean": 0.2997,
+      "max_sole_tilt_deg_mean": 0.5366,
+      "max_sole_tilt_deg_over_bar_fraction": 0.0,
+      "max_sole_corner_lift_m_mean": 0.0009689,
+      "max_sole_corner_lift_m_over_bar_fraction": 0.0,
+      "screen_v2_clean_count": 10.0,
+      "screen_v2_clean_lcb": 0.7411
+    },
+    {
+      "timesteps": 11927552,
+      "episodes": 10,
+      "mean_reward": 4328.07,
+      "std_reward": 28.8909,
+      "mean_episode_length": 1000.0,
+      "falls": 0,
+      "full_horizon_fraction": 1.0,
+      "max_sole_cop_fore_aft_mean": 0.08775,
+      "max_sole_cop_fore_aft_over_bar_fraction": 0.0,
+      "max_foot_cop_fore_aft_mean": 0.2743,
+      "max_sole_tilt_deg_mean": 0.3278,
+      "max_sole_tilt_deg_over_bar_fraction": 0.0,
+      "max_sole_corner_lift_m_mean": 0.0005712,
+      "max_sole_corner_lift_m_over_bar_fraction": 0.0,
+      "screen_v2_clean_count": 10.0,
+      "screen_v2_clean_lcb": 0.7411
+    }
+  ],
+  "checkpoints": {
+    "latest_periodic_timesteps": 11534336,
+    "periodic_timesteps": [
+      524288,
+      1048576,
+      1572864,
+      2097152,
+      2621440,
+      3145728,
+      3670016,
+      4194304,
+      4718592,
+      5242880,
+      5767168,
+      6291456,
+      6815744,
+      7340032,
+      7864320,
+      8388608,
+      8912896,
+      9437184,
+      9961472,
+      10485760,
+      11010048,
+      11534336
+    ],
+    "best_model_timesteps": 3407872,
+    "best_mean_reward": 4488.2,
+    "robust_best_model_timesteps": 3407872,
+    "robust_best_score": 4477.93
+  },
+  "warnings_total": 0,
+  "warnings": []
+}

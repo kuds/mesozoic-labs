@@ -1,0 +1,140 @@
+T. rex stance4 screen: score against foot/stance4/criteria.txt (sha256 978a93da8da469c1acde7b9f7261d9236e4799eb2111b3af0f0cbeaa153f0f38; matches the fixed text)
+K1-K4 per run: score_stance3.py (sha256 2c3879d3a83d4531...) loaded unchanged; the stagger instance differs only in JUDGE_SCHEMA, ARM_ENV, HEADS (schema stance4-judge/v1, arm LTS, HEAD c1e146a82658112a9a1c0838250020b214ef303a).
+stagger judge files: /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance4/judged   control judge files: /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance3/judged
+
+STAGGER ARM (LTS: L+T + stagger, w 0.30, tolerance 0.045 m)
+== Run 1 stance4_LTS_s52 (arm LTS, seed 52, clone HEAD c1e146a8)
+   ckpt    verdict clean  LCB   full hop | K2a K2b  x_c med  statue  offset mm | roll | noise joint/own
+   4.2M       FAIL 28/40 0.560   40   0 |  12  16     65.2    64.0      1.1  |    0 | 0/0
+   5.2M       FAIL 28/40 0.560   40   0 |  12  20     58.6    64.0     -5.4  |    0 | 0/0
+   6.3M       FAIL 21/40 0.385   40   0 |  19  20     62.5    64.0     -1.5  |    1 | 0/0
+   8.4M       FAIL 23/40 0.433   40   0 |  17  20     62.7    64.0     -1.4  |    0 | 0/0
+   10.5M      FAIL 23/40 0.433   40   0 |  17  21     62.5    64.0     -1.5  |    1 | 1/0
+   final      PASS 39/40 0.887   40   0 |   1   4     61.9    64.0     -2.2  |    0 | 0/0
+   1.0M       PASS 40/40 0.928   40   0 |   0   0     63.7    64.0     -0.3  |    0 | 0/0  (report only)
+   2.1M       FAIL 33/40 0.696   40   0 |   7  16     61.8    64.0     -2.2  |    0 | 1/0  (report only)
+   3.1M       FAIL 35/40 0.755   40   0 |   5  11     58.8    64.0     -5.3  |    0 | 0/0  (report only)
+   7.3M       FAIL 27/40 0.534   40   0 |  13  19     60.9    64.0     -3.1  |    1 | 0/0  (report only)
+   9.4M       FAIL 24/40 0.458   40   0 |  16  20     64.5    64.0      0.5  |    1 | 0/0  (report only)
+   11.5M      FAIL 28/40 0.560   40   0 |  12  18     62.2    64.0     -1.9  |    0 | 0/0  (report only)
+   K1 FAIL: v2 PASS at 6.3M no, at final yes; below 37/40 ['4.2M', '5.2M', '6.3M', '8.4M', '10.5M'] (<= 1 allowed), below 33/40 ['4.2M', '5.2M', '6.3M', '8.4M', '10.5M']
+   K2 FAIL: K2a FAIL ['4.2M', '5.2M', '6.3M', '8.4M', '10.5M']; K2b FAIL ['4.2M', '5.2M', '6.3M', '8.4M', '10.5M', 'final']; K2c window pass [-60, +30] mm, range 6.6 mm pass (<= 30)
+   K3 PASS: joint {'6.3M': 0, 'final': 0} (<= 2/20), own {'6.3M': 0, 'final': 0} (<= 1/20)
+   K4 PASS: roll rail {'6.3M': 1, 'final': 0} (<= 3/40)
+   -> does not hold (failed K1, K2); FORE-AFT does not hold
+   report only:
+     K5 trajectory: statue -0.0161 m, window [-0.0761, +0.0139] m, 68 evaluations from 3,145,728: no flag
+     late falls (200 < length < 1000) per 262,144 steps: peak 50.2% at 262,144; above 5%: 262,144 50.2%
+     saturation alarm: none (0 of 91 evaluations with >= 5 saturation episodes)
+     selection: S0 robust_best: not judged/invalid | S1 best: not judged/invalid | S2 final: clean 39/40, own-noise falls 0, K2a 1, K2b 4 | S3 -: not judged/invalid  (S3: no periodic checkpoint met the rule)
+== Run 2 stance4_LTS_s60 (arm LTS, seed 60, clone HEAD c1e146a8)
+   ckpt    verdict clean  LCB   full hop | K2a K2b  x_c med  statue  offset mm | roll | noise joint/own
+   4.2M       FAIL 29/40 0.586   40   0 |  11  16     58.2    64.0     -5.8  |    0 | 0/0
+   5.2M       FAIL 29/40 0.586   40   0 |  11  13     51.4    64.0    -12.6  |    1 | 1/0
+   6.3M       FAIL 30/40 0.613   40   0 |  10  16     57.1    64.0     -6.9  |    0 | 0/0
+   8.4M       FAIL 27/40 0.534   40   0 |  13  13     53.6    64.0    -10.4  |    3 | 0/0
+   10.5M      FAIL 30/40 0.613   40   0 |  10   5     46.6    64.0    -17.4  |    0 | 0/0
+   final      PASS 39/40 0.887   40   0 |   0   0     43.2    64.0    -20.9  |    1 | 1/0
+   1.0M       PASS 39/40 0.887   40   0 |   0   0     60.6    64.0     -3.5  |    1 | 0/0  (report only)
+   2.1M       FAIL 37/40 0.817   37   3 |   3   3     59.7    64.0     -4.4  |    0 | 0/0  (report only)
+   3.1M       FAIL 35/40 0.755   40   0 |   5  10     59.9    64.0     -4.2  |    0 | 0/0  (report only)
+   7.3M       FAIL 31/40 0.640   40   0 |   9  14     54.7    64.0     -9.4  |    0 | 0/0  (report only)
+   9.4M       PASS 39/40 0.887   40   0 |   1   1     47.9    64.0    -16.1  |    0 | 1/0  (report only)
+   11.5M      PASS 40/40 0.928   40   0 |   0   0     45.6    64.0    -18.4  |    0 | 2/0  (report only)
+   K1 FAIL: v2 PASS at 6.3M no, at final yes; below 37/40 ['4.2M', '5.2M', '6.3M', '8.4M', '10.5M'] (<= 1 allowed), below 33/40 ['4.2M', '5.2M', '6.3M', '8.4M', '10.5M']
+   K2 FAIL: K2a FAIL ['4.2M', '5.2M', '6.3M', '8.4M', '10.5M']; K2b FAIL ['4.2M', '5.2M', '6.3M', '8.4M', '10.5M']; K2c window pass [-60, +30] mm, range 15.0 mm pass (<= 30)
+   K3 PASS: joint {'6.3M': 0, 'final': 1} (<= 2/20), own {'6.3M': 0, 'final': 0} (<= 1/20)
+   K4 PASS: roll rail {'6.3M': 0, 'final': 1} (<= 3/40)
+   -> does not hold (failed K1, K2); FORE-AFT does not hold
+   report only:
+     K5 trajectory: statue -0.0161 m, window [-0.0761, +0.0139] m, 68 evaluations from 3,145,728: no flag
+     late falls (200 < length < 1000) per 262,144 steps: peak 48.7% at 262,144; above 5%: 262,144 48.7%
+     saturation alarm: none (0 of 91 evaluations with >= 5 saturation episodes)
+     selection: S0 robust_best: clean 33/40, own-noise falls 0, K2a 5, K2b 9 | S1 best: clean 33/40, own-noise falls 0, K2a 5, K2b 9 | S2 final: clean 39/40, own-noise falls 0, K2a 0, K2b 0 | S3 -: not judged/invalid  (S3: no periodic checkpoint met the rule)
+== Run 3 stance4_LTS_s42 (arm LTS, seed 42, clone HEAD c1e146a8)
+   ckpt    verdict clean  LCB   full hop | K2a K2b  x_c med  statue  offset mm | roll | noise joint/own
+   4.2M       FAIL  0/40 0.000   40  40 |   0   2     67.9    64.0      3.8  |    0 | 0/0
+   5.2M       FAIL  3/40 0.021   40  37 |   1   6     66.8    64.0      2.8  |    0 | 1/0
+   6.3M       FAIL  0/40 0.000   40  39 |   4  10     68.2    64.0      4.2  |    0 | 0/0
+   8.4M       FAIL  3/40 0.021   40  37 |   0   0     66.6    64.0      2.5  |    0 | 0/0
+   10.5M      FAIL 17/40 0.292   39  23 |   1  10     68.9    64.0      4.9  |    0 | 1/0
+   final      FAIL 14/40 0.226   38  23 |   5   5     61.5    64.0     -2.6  |    4 | 8/0
+   1.0M       PASS 39/40 0.887   40   0 |   0   0     63.5    64.0     -0.5  |    0 | 0/0  (report only)
+   2.1M       FAIL  5/40 0.051   40  35 |   0   3     69.8    64.0      5.8  |    0 | 0/0  (report only)
+   3.1M       FAIL  1/40 0.001   40  39 |   0   3     69.5    64.0      5.4  |    0 | 0/0  (report only)
+   7.3M       FAIL  0/40 0.000   40  39 |   1   3     68.4    64.0      4.3  |    0 | 0/0  (report only)
+   9.4M       FAIL  5/40 0.051   40  35 |   0   0     66.0    64.0      2.0  |    0 | 0/0  (report only)
+   11.5M      FAIL 16/40 0.269   40  24 |   1   6     65.0    64.0      0.9  |    0 | 2/0  (report only)
+   K1 FAIL: v2 PASS at 6.3M no, at final no; below 37/40 ['4.2M', '5.2M', '6.3M', '8.4M', '10.5M', 'final'] (<= 1 allowed), below 33/40 ['4.2M', '5.2M', '6.3M', '8.4M', '10.5M', 'final']
+   K2 FAIL: K2a FAIL ['6.3M', 'final']; K2b FAIL ['5.2M', '6.3M', '10.5M', 'final']; K2c window pass [-60, +30] mm, range 7.4 mm pass (<= 30)
+   K3 FAIL: joint {'6.3M': 0, 'final': 8} (<= 2/20), own {'6.3M': 0, 'final': 0} (<= 1/20)
+   K4 FAIL: roll rail {'6.3M': 0, 'final': 4} (<= 3/40)
+   -> does not hold (failed K1, K2, K3, K4); FORE-AFT does not hold
+   report only:
+     K5 trajectory: statue -0.0161 m, window [-0.0761, +0.0139] m, 68 evaluations from 3,145,728: no flag
+     late falls (200 < length < 1000) per 262,144 steps: peak 49.1% at 262,144; above 5%: 262,144 49.1%
+     saturation alarm: ALARM (70 of 91 evaluations with >= 5 saturation episodes; first alarm at 2,228,224; runs 2,097,152-5,373,952 (26), 5,636,096-10,616,832 (39), 11,272,192-11,796,480 (5))
+     selection: S0 robust_best: clean 38/40, own-noise falls 0, K2a 0, K2b 0 | S1 best: clean 39/40, own-noise falls 0, K2a 0, K2b 0 | S2 final: clean 14/40, own-noise falls 0, K2a 5, K2b 5 | S3 8,388,608: clean 3/40, own-noise falls 0, K2a 0, K2b 0
+
+CONTROL ARM (stance3 L+T, not retrained; judged and scored under the stance3 criteria)
+== stance3 Run 2 stance3_armLT_s60 (arm LT, seed 60, clone HEAD 1af2d4d7)
+   ckpt    verdict clean  LCB   full hop | K2a K2b  x_c med  statue  offset mm | roll | noise joint/own
+   4.2M       FAIL  0/40 0.000   40  40 |  10  14     63.8    64.0     -0.3  |    0 | 0/0
+   5.2M       FAIL  0/40 0.000   40  39 |   6  10     59.5    64.0     -4.5  |    0 | 1/0
+   6.3M       FAIL 36/40 0.786   40   2 |   2   6     55.5    64.0     -8.5  |    0 | 0/0
+   8.4M       PASS 39/40 0.887   40   0 |   1   0     52.5    64.0    -11.6  |    0 | 2/0
+   10.5M      PASS 39/40 0.887   40   0 |   0   0     57.1    64.0     -6.9  |    1 | 1/0
+   final      PASS 40/40 0.928   40   0 |   0   0     53.8    64.0    -10.2  |    0 | 0/0
+   3.1M       FAIL  6/40 0.067   40  31 |   7  14     62.1    64.0     -1.9  |    0 | 0/0  (report only)
+   11.5M      FAIL 34/40 0.725   40   6 |   0   0     56.4    64.0     -7.6  |    0 | 1/0  (report only)
+   report-only 1,048,576-step checkpoints not judged (or invalid): 1.0M, 2.1M, 7.3M, 9.4M
+   K1 FAIL: v2 PASS at 6.3M no, at final yes; below 37/40 ['4.2M', '5.2M', '6.3M'] (<= 1 allowed), below 33/40 ['4.2M', '5.2M']
+   K2 FAIL: K2a FAIL ['4.2M', '5.2M']; K2b FAIL ['4.2M', '5.2M', '6.3M']; K2c window pass [-60, +30] mm, range 11.3 mm pass (<= 30)
+   K3 PASS: joint {'6.3M': 0, 'final': 0} (<= 2/20), own {'6.3M': 0, 'final': 0} (<= 1/20)
+   K4 PASS: roll rail {'6.3M': 0, 'final': 0} (<= 3/40)
+   -> does not hold (failed K1, K2); FORE-AFT does not hold
+   report only:
+     K5 trajectory: statue -0.0161 m, window [-0.0761, +0.0139] m, 68 evaluations from 3,145,728: no flag
+     late falls (200 < length < 1000) per 262,144 steps: peak 49.2% at 262,144; above 5%: 262,144 49.2%
+     saturation alarm: ALARM (44 of 91 evaluations with >= 5 saturation episodes; first alarm at 2,359,296; runs 2,228,224-6,029,312 (30), 7,208,960-7,340,032 (2), 9,306,112-10,223,616 (8), 10,878,976-11,272,192 (4))
+     selection: S0 robust_best: clean 40/40, own-noise falls 0, K2a 0, K2b 0 | S1 best: clean 40/40, own-noise falls 0, K2a 0, K2b 0 | S2 final: clean 40/40, own-noise falls 0, K2a 0, K2b 0 | S3 11,534,336: clean 34/40, own-noise falls 0, K2a 0, K2b 0
+== stance3 Run 3 stance3_armLT_s52 (arm LT, seed 52, clone HEAD 1af2d4d7)
+   ckpt    verdict clean  LCB   full hop | K2a K2b  x_c med  statue  offset mm | roll | noise joint/own
+   4.2M       FAIL 38/40 0.851   38   2 |   2   2     48.4    64.0    -15.7  |    0 | 1/1
+   5.2M       PASS 40/40 0.928   40   0 |   0   0     54.8    64.0     -9.3  |    0 | 1/0
+   6.3M       PASS 40/40 0.928   40   0 |   0   0     52.4    64.0    -11.6  |    0 | 0/0
+   8.4M       FAIL 34/40 0.725   40   0 |   6   3     42.8    64.0    -21.2  |    3 | 0/0
+   10.5M      PASS 40/40 0.928   40   0 |   0   0     58.0    64.0     -6.0  |    0 | 0/0
+   final      PASS 39/40 0.887   40   0 |   1   4     73.4    64.0      9.3  |    0 | 0/0
+   3.1M       PASS 40/40 0.928   40   0 |   0   0     50.5    64.0    -13.5  |    0 | 1/0  (report only)
+   report-only 1,048,576-step checkpoints not judged (or invalid): 1.0M, 2.1M, 7.3M, 9.4M, 11.5M
+   K1 PASS: v2 PASS at 6.3M yes, at final yes; below 37/40 ['8.4M'] (<= 1 allowed), below 33/40 none
+   K2 FAIL: K2a FAIL ['8.4M']; K2b FAIL ['final']; K2c window pass [-60, +30] mm, range 30.6 mm FAIL (<= 30)
+   K3 PASS: joint {'6.3M': 0, 'final': 0} (<= 2/20), own {'6.3M': 0, 'final': 0} (<= 1/20)
+   K4 PASS: roll rail {'6.3M': 0, 'final': 0} (<= 3/40)
+   -> does not hold (failed K2); FORE-AFT does not hold
+   report only:
+     K5 trajectory: statue -0.0161 m, window [-0.0761, +0.0139] m, 68 evaluations from 3,145,728: no flag
+     late falls (200 < length < 1000) per 262,144 steps: peak 49.1% at 262,144; above 5%: 262,144 49.1%
+     saturation alarm: none (1 of 91 evaluations with >= 5 saturation episodes)
+     selection: S0 robust_best: clean 40/40, own-noise falls 0, K2a 0, K2b 0 | S1 best: clean 40/40, own-noise falls 0, K2a 0, K2b 0 | S2 final: clean 39/40, own-noise falls 0, K2a 1, K2b 4 | S3 4,194,304: clean 38/40, own-noise falls 1, K2a 2, K2b 2
+   control verdicts reproduce stance3 score_final.json: yes (file sha256 pinned); as the criteria state them (Run 2 fails K1 K2, Run 3 fails K2): yes
+
+CREDIT RULE (control passes: recorded in stance3's score_final.json)
+   per test, runs passing (stagger vs control): K1 0/3 vs 1/2 WORSE; K2 0/3 vs 0/2 ok; K3 2/3 vs 2/2 WORSE; K4 2/3 vs 2/2 WORSE
+   H = 0 (stagger runs that HOLD); K2p = 0 (stagger runs passing K2)
+   (a) at least 2 of 3 stagger runs HOLD: no
+   (b) general form, from the control's recorded passes: fails
+   (b) specific form, no stagger run fails K3 or K4: fails (equivalent under (a) while the control stands at K1 1/2, K2 0/2, K3 2/2, K4 2/2: it does)
+DECISION: 5. H == 0 and K2p <= 1: not adopted; the stagger penalty does not hold fore-aft from scratch; the next round tests the per-foot CoP band term (new contact-reward code) or the v6b ankle spring (stance3 line 3b).
+
+PARENT COMPARISON INPUTS (stance3's rule: most clean panel episodes at final; ties to fewer joint + own falls; a tie under the rule names every tied final and the maintainer chooses)
+   best stagger final: Run 1 stance4_LTS_s52
+   best holding stagger final (the stance parent of line 1): none
+   incumbent stance3 Run 2 stance3_armLT_s60 final: clean 40/40, noise falls joint 0 / own 0
+     stance3 Run 2 stance3_armLT_s60  clean 40/40  joint + own noise falls 0
+     Run 1 stance4_LTS_s52            clean 39/40  joint + own noise falls 0
+     Run 2 stance4_LTS_s60            clean 39/40  joint + own noise falls 1
+     Run 3 stance4_LTS_s42            clean 14/40  joint + own noise falls 8
+   walking pilot 2 parent offered: stance3 Run 2 stance3_armLT_s60  (the incumbent stays)
+   walking pilot 2 stays parked until the maintainer says otherwise.

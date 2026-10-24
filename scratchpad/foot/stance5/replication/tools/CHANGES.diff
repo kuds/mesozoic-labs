@@ -1,0 +1,1106 @@
+# Every change of SP/foot/stance5/replication/tools against SP/foot/stance5/tools (written by
+# SP/foot/stance5/replication/build/make_tools.py; README.md is new and not listed).
+
+--- stance5/tools/stance5-find-folders.js
++++ replication/tools/stance5r-find-folders.js
+@@ -1,4 +1,4 @@
+ export const meta = {
+-  name: 'stance5-find-folders',
+-  description: 'Find the Drive folder ids (run folder, 01_stance, models) of the three stance5 LTSB runs by RUN_ID, read-only, to fill DRIVE_IDS in the stance5 fetch workflows',
++  name: 'stance5r-find-folders',
++  description: 'Find the Drive folder ids (run folder, 01_stance, models) of the two stance5 replication LTSB runs (s70, s80) by RUN_ID, read-only, to fill DRIVE_IDS in the stance5r fetch workflows',
+   whenToUse: 'args {runs?: [RUN_ID...]}; run once after the runs have started (their folders exist on Drive)',
+@@ -10,6 +10,7 @@
+ const S = '/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad'
+-const TOOLS = S + '/foot/stance5/tools'
+-const SEEDS = { stance5_LTSB_s52: 52, stance5_LTSB_s60: 60, stance5_LTSB_s42: 42 }
++const TOOLS = S + '/foot/stance5/replication/tools'
++const SEEDS = { stance5_LTSB_s70: 70, stance5_LTSB_s80: 80 }
++const LABELS = { stance5_LTSB_s70: 'stance screen LTSB s70', stance5_LTSB_s80: 'stance screen LTSB s80' }
+ const WANT = (args && Array.isArray(args.runs) && args.runs.length) ? args.runs : Object.keys(SEEDS)
+-for (const r of WANT) if (!(r in SEEDS)) throw new Error(`args.runs names no stance5 run: ${r}`)
++for (const r of WANT) if (!(r in SEEDS)) throw new Error(`args.runs names no stance5 replication run: ${r}`)
+ 
+@@ -33,3 +34,3 @@
+ function prompt(run) {
+-  return `Find the Google Drive folder ids of the Colab training run ${run} (a T. rex stance5 screen run, seed ${SEEDS[run]}), read-only.
++  return `Find the Google Drive folder ids of the Colab training run ${run} (a T. rex stance5 replication run, seed ${SEEDS[run]}), read-only.
+ 
+@@ -38,3 +39,3 @@
+ The run's folder is MyDrive/mesozoic-labs/logs/tyrannosaurus_rex/anatomical/ppo/${run}/ and holds 01_stance/, which holds models/.
+-1. search_files with query "title = '${run}' and mimeType = 'application/vnd.google-apps.folder'" (excludeContentSnippets true). If more than one folder matches, use get_file_metadata on each and keep the one whose parent folder is titled "ppo" (check that parent's parent is "anatomical"); report the number of candidates. A folder titled "${run}_b" is a different (restarted) run: do not use it, but mention it in notes.
++1. search_files with query "title = '${run}' and mimeType = 'application/vnd.google-apps.folder'" (excludeContentSnippets true). If more than one folder matches, use get_file_metadata on each and keep the one whose parent folder is titled "ppo" (check that parent's parent is "anatomical"); report the number of candidates. A folder titled "${run}_b" (or "${run}_c") is this run's restart: under the criteria (RUN HANDLING) it IS this run when the earlier folder was cut off before its first periodic checkpoint (524,288). Do not put its ids in folder, stance or models; report in notes its id, its 01_stance and models ids, and whether the earlier folder's models folder lists any stage1_*_steps.zip (search_files query "parentId = '<models id>' and title contains '_steps.zip'"). The fetch workflows take its ids as args.drive with args.source. Also search once for a folder titled '${LABELS[run]}' (the RUN_LABEL typed into RUN_ID by mistake, as happened once on stance5): if one exists, do not use it; report its id and modifiedTime in notes.
+ 2. search_files with query "parentId = '<that folder id>' and title = '01_stance'" -> the stance folder id.
+@@ -50,3 +51,3 @@
+ for (const r of results) if (r && r.found) table[r.run_id] = { folder: r.folder, stance: r.stance, models: r.models }
+-log(`DRIVE_IDS for ${TOOLS}/stance5-fetch-*.js (or args.drive): ${JSON.stringify(table)}`)
++log(`DRIVE_IDS for ${TOOLS}/stance5r-fetch-*.js (or args.drive): ${JSON.stringify(table)}`)
+ return { results, drive: table }
+
+--- stance5/tools/stance5-fetch-checkpoint.js
++++ replication/tools/stance5r-fetch-checkpoint.js
+@@ -1,5 +1,5 @@
+ export const meta = {
+-  name: 'stance5-fetch-checkpoint',
+-  description: 'Fetch one stance5 checkpoint step for the three LTSB runs from Drive (read-only), double-transcribing the vecnorm pkl, then place it for judging',
+-  whenToUse: 'args {steps: <multiple of 524288>, runs?: [RUN_ID...], configs?: bool, csv?: bool, place?: bool}',
++  name: 'stance5r-fetch-checkpoint',
++  description: 'Fetch one checkpoint step for the two stance5 replication LTSB runs (s70, s80) from Drive (read-only), double-transcribing the vecnorm pkl, then place it for judging',
++  whenToUse: 'args {steps: <multiple of 524288>, runs?: [RUN_ID...], configs?: bool, csv?: bool, place?: bool, drive?: {RUN_ID: {folder, stance, models}}, source?: {RUN_ID: "<RUN_ID>_b"}}',
+   phases: [
+@@ -7,3 +7,3 @@
+     { title: 'Tiebreak', detail: 'third transcription when A and B differ' },
+-    { title: 'Place', detail: 'place5.py copies the agreed pkl and the zip into S5/runs/<RUN>/01_stance/models' },
++    { title: 'Place', detail: 'place5r.py copies the agreed pkl and the zip into R/runs/<RUN>/01_stance/models (R = S5/replication)' },
+   ],
+@@ -12,8 +12,8 @@
+ const S = '/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad'
+-const S5 = S + '/foot/stance5'
+-const F = S5 + '/fetch'
+-const TOOLS = S5 + '/tools'
++const R = S + '/foot/stance5/replication'
++const F = R + '/fetch'
++const TOOLS = R + '/tools'
+ const B64 = S + '/foot/stance3/tools/b64_to_file.py'
+ const DV = S + '/pilot_runs/tools_dl/decode_verify.py'
+-const PLACE = TOOLS + '/place5.py'
++const PLACE = TOOLS + '/place5r.py'
+ const STEPS = Number(args && args.steps)
+@@ -24,17 +24,28 @@
+ const CSV = !(args && args.csv === false)         // transcriber A also fetches the two ledgers (report only)
+-const PLACE_IT = !(args && args.place === false)  // run place5.py when the pkl transcriptions agree
++const PLACE_IT = !(args && args.place === false)  // run place5r.py when the pkl transcriptions agree
+ const RECORDS = ['plant_identity.json', 'stage_config.json', 'task_fingerprint.json']
+ 
+-// Drive folder ids (read-only): PLACEHOLDERS (null) until the three runs exist on Drive.  Fill them here once (from
+-// stance5-find-folders.js, or search_files title = RUN_ID), or pass them per call as
++// Drive folder ids (read-only): PLACEHOLDERS (null) until the two replication runs exist on Drive.  Fill them here once
++// (from stance5r-find-folders.js, or search_files title = RUN_ID), or pass them per call as
+ // args.drive = {RUN_ID: {folder, stance, models}}.  A run without its stance and models ids is refused.
+ const DRIVE_IDS = {
+-  stance5_LTSB_s52: { folder: '1Va3QrqNOpQfXS0z7mCVdF50KqUpn1lkv', stance: '1fLQ_sTkaP8AVvjFrISb5Fsf8Lgg4L2Ve', models: '1yLd5AZ5nw9W_M06886B1xaWRHLKyHtx4' },
+-  stance5_LTSB_s60: { folder: '1ep6i1eLa4S7yjG3vHwEnjg2a5S4ATsDC', stance: '1PmPXkiZSbCQW4JP2mFpYYtqPCcXGnMVl', models: '154V5GHWnryuO4RQbt7POLIzg6YH2iA-F' },
+-  stance5_LTSB_s42: { folder: '14zl7lwcSnpB7dxr5gfuhDDVzo937uXq3', stance: '1neBe5o8wvIgdQnidnZepYjQWia0f_AcI', models: '1KFu_ONME7_lzH2k-iL57TvoBdwYy3fCc' },
++  stance5_LTSB_s70: { folder: null, stance: null, models: null },
++  stance5_LTSB_s80: { folder: null, stance: null, models: null },
+ }
+-const SEEDS = { stance5_LTSB_s52: 52, stance5_LTSB_s60: 60, stance5_LTSB_s42: 42 }
++const SEEDS = { stance5_LTSB_s70: 70, stance5_LTSB_s80: 80 }
+ const OVERRIDE = (args && args.drive && typeof args.drive === 'object') ? args.drive : {}
+-for (const k of Object.keys(OVERRIDE)) if (!(k in SEEDS)) throw new Error(`args.drive names no stance5 run: ${k}`)
+-const ALL_RUNS = Object.keys(SEEDS).map(id => ({ id, seed: SEEDS[id], ...DRIVE_IDS[id], ...(OVERRIDE[id] || {}) }))
++for (const k of Object.keys(OVERRIDE)) if (!(k in SEEDS)) throw new Error(`args.drive names no stance5 replication run: ${k}`)
++// criteria RUN HANDLING: a run cut off before its first periodic checkpoint (524,288) and restarted under <RUN_ID>_b
++// (then _c) IS that run.  args.source = {RUN_ID: '<RUN_ID>_b'} fetches it from that Drive folder, whose ids come in
++// args.drive in the same call, and places it under the RUN_ID (place5r.py --source-folder).
++const SOURCE = (args && args.source && typeof args.source === 'object') ? args.source : {}
++for (const [k, v] of Object.entries(SOURCE)) {
++  if (!(k in SEEDS)) throw new Error(`args.source names no stance5 replication run: ${k}`)
++  if (v !== `${k}_b` && v !== `${k}_c`) throw new Error(`args.source.${k} must be ${k}_b or ${k}_c (got ${v})`)
++  const o = OVERRIDE[k] || {}
++  if (!o.folder || !o.stance || !o.models) throw new Error(`args.source.${k} = ${v} needs that folder's ids in args.drive.${k} (folder, stance, models) in the same call`)
++}
++const ALL_RUNS = Object.keys(SEEDS).map(id => ({ id, seed: SEEDS[id], ...DRIVE_IDS[id], ...(OVERRIDE[id] || {}), src: SOURCE[id] || id }))
++const SRC_FLAG = (run) => (run.src !== run.id ? ` --source-folder ${run.src}` : '')
++const SRC_CHECK = (run) => (run.src === run.id ? '' : `This run was restarted under the Drive folder ${run.src} before its first checkpoint; under the criteria (RUN HANDLING) it IS ${run.id}, and the earlier folder is left alone. First run get_file_metadata on ${run.folder}: its title must be exactly ${run.src}. If it is not, fetch nothing, return every expected file with method "missing" and ok false, and put the title you found in notes.\n`)
+ const RUNS = (args && Array.isArray(args.runs) && args.runs.length) ? ALL_RUNS.filter(r => args.runs.includes(r.id)) : ALL_RUNS
+@@ -98,6 +109,6 @@
+   If either comes back INLINE instead of saved to a file, do NOT transcribe it. Record method "skipped_inline".` : ''}` : ''
+-  return `You are transcriber ${role} for the Drive run ${run.id}: a T. rex stance training run (stance5, arm LTSB, seed ${run.seed}) on Colab. This is a read-only fetch for local judging of its ${STEPS}-step checkpoint. Another transcriber fetches the same pkl independently. Do not read any directory under ${F}/r${STEPS}/${run.id}/ except your own outputs, and do not compare with anyone.
++  return `You are transcriber ${role} for the Drive run ${run.src}: a T. rex stance training run (stance5 replication, arm LTSB, seed ${run.seed}) on Colab. This is a read-only fetch for local judging of its ${STEPS}-step checkpoint. Another transcriber fetches the same pkl independently. Do not read any directory under ${F}/r${STEPS}/${run.id}/ except your own outputs, and do not compare with anyone.
+ 
+ ${RULES}
+-
++${SRC_CHECK(run)}
+ List the models folder with search_files query "parentId = '${run.models}' and title contains '${STEPS}'", with excludeContentSnippets true and pageSize 50. Use only ids whose parentId is exactly ${run.models}. You should find ${ZIP} and ${PKL}.
+@@ -121,3 +132,3 @@
+   const ids = titles.map(t => { const f = a.files.find(x => x.title === t) || b.files.find(x => x.title === t); return `${t} (id ${f && f.id}, Drive fileSize ${f && f.drive_size})` })
+-  return `You are transcriber C (tie-break) for the Drive run ${run.id}. Two earlier transcriptions disagree on: ${ids.join('; ')}. Fetch each independently into ${out}/ (mkdir -p). Do not read the A or B directories.
++  return `You are transcriber C (tie-break) for the Drive run ${run.src}. Two earlier transcriptions disagree on: ${ids.join('; ')}. Fetch each independently into ${out}/ (mkdir -p). Do not read the A or B directories.
+ 
+@@ -133,3 +144,3 @@
+ 
+-cd ${TOOLS} && python3 -I ${PLACE} ${STEPS} ${run.id} ${F}/r${STEPS}/${run.id}
++cd ${TOOLS} && python3 -I ${PLACE} ${STEPS} ${run.id} ${F}/r${STEPS}/${run.id}${SRC_FLAG(run)}
+ 
+@@ -160,3 +171,3 @@
+     const p = await agent(placePrompt(run), { label: `place${STEPS}:${run.id}`, phase: 'Place', schema: PLACED, effort: 'low' })
+-    if (p && !p.ok) log(`${run.id}: place5.py refused: ${(p.output || '').slice(0, 300)}`)
++    if (p && !p.ok) log(`${run.id}: place5r.py refused: ${(p.output || '').slice(0, 300)}`)
+     return { ...r, placed: p }
+
+--- stance5/tools/stance5-fetch-named.js
++++ replication/tools/stance5r-fetch-named.js
+@@ -1,5 +1,5 @@
+ export const meta = {
+-  name: 'stance5-fetch-named',
+-  description: 'Fetch named stance5 files (final / best / robust_best pairs, the ledgers, progress.json) for the three LTSB runs from Drive (read-only), double-transcribing each vecnorm pkl, then place the pairs',
+-  whenToUse: 'args {tag, items: [[zipTitle, pklTitle], ...], csv?: bool, extras?: [title, ...], runs?: [RUN_ID...], place?: bool}',
++  name: 'stance5r-fetch-named',
++  description: 'Fetch named stance5 files (final / best / robust_best pairs, the ledgers, progress.json) for the two stance5 replication LTSB runs (s70, s80) from Drive (read-only), double-transcribing each vecnorm pkl, then place the pairs',
++  whenToUse: 'args {tag, items: [[zipTitle, pklTitle], ...], csv?: bool, extras?: [title, ...], runs?: [RUN_ID...], place?: bool, drive?: {RUN_ID: {folder, stance, models}}, source?: {RUN_ID: "<RUN_ID>_b"}}',
+   phases: [
+@@ -7,3 +7,3 @@
+     { title: 'Tiebreak', detail: 'third transcription for any pkl where A and B differ' },
+-    { title: 'Place', detail: 'place5.py copies each agreed pair (and the ledgers) into S5/runs/<RUN>/01_stance' },
++    { title: 'Place', detail: 'place5r.py copies each agreed pair (and the ledgers) into R/runs/<RUN>/01_stance (R = S5/replication)' },
+   ],
+@@ -12,8 +12,8 @@
+ const S = '/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad'
+-const S5 = S + '/foot/stance5'
+-const F = S5 + '/fetch'
+-const TOOLS = S5 + '/tools'
++const R = S + '/foot/stance5/replication'
++const F = R + '/fetch'
++const TOOLS = R + '/tools'
+ const B64 = S + '/foot/stance3/tools/b64_to_file.py'
+ const DV = S + '/pilot_runs/tools_dl/decode_verify.py'
+-const PLACE = TOOLS + '/place5.py'
++const PLACE = TOOLS + '/place5r.py'
+ const TAG = String((args && args.tag) || '')
+@@ -25,3 +25,3 @@
+ if (!ITEMS.length && !CSV && !EXTRAS.length) throw new Error('nothing to fetch: give items, csv: true or extras')
+-// The checkpoint names place5.py understands, keyed by the zip title.
++// The checkpoint names place5r.py understands, keyed by the zip title.
+ const SLOT_OF = { 'stage1_final.zip': 'final', 'best_model.zip': 'best', 'robust_best_model.zip': 'robust_best' }
+@@ -35,14 +35,25 @@
+ 
+-// Drive folder ids (read-only): PLACEHOLDERS (null) until the three runs exist on Drive.  Fill them here once (from
+-// stance5-find-folders.js, or search_files title = RUN_ID), or pass them per call as
++// Drive folder ids (read-only): PLACEHOLDERS (null) until the two replication runs exist on Drive.  Fill them here once
++// (from stance5r-find-folders.js, or search_files title = RUN_ID), or pass them per call as
+ // args.drive = {RUN_ID: {folder, stance, models}}.  A run without its stance and models ids is refused.
+ const DRIVE_IDS = {
+-  stance5_LTSB_s52: { folder: '1Va3QrqNOpQfXS0z7mCVdF50KqUpn1lkv', stance: '1fLQ_sTkaP8AVvjFrISb5Fsf8Lgg4L2Ve', models: '1yLd5AZ5nw9W_M06886B1xaWRHLKyHtx4' },
+-  stance5_LTSB_s60: { folder: '1ep6i1eLa4S7yjG3vHwEnjg2a5S4ATsDC', stance: '1PmPXkiZSbCQW4JP2mFpYYtqPCcXGnMVl', models: '154V5GHWnryuO4RQbt7POLIzg6YH2iA-F' },
+-  stance5_LTSB_s42: { folder: '14zl7lwcSnpB7dxr5gfuhDDVzo937uXq3', stance: '1neBe5o8wvIgdQnidnZepYjQWia0f_AcI', models: '1KFu_ONME7_lzH2k-iL57TvoBdwYy3fCc' },
++  stance5_LTSB_s70: { folder: null, stance: null, models: null },
++  stance5_LTSB_s80: { folder: null, stance: null, models: null },
+ }
+-const SEEDS = { stance5_LTSB_s52: 52, stance5_LTSB_s60: 60, stance5_LTSB_s42: 42 }
++const SEEDS = { stance5_LTSB_s70: 70, stance5_LTSB_s80: 80 }
+ const OVERRIDE = (args && args.drive && typeof args.drive === 'object') ? args.drive : {}
+-for (const k of Object.keys(OVERRIDE)) if (!(k in SEEDS)) throw new Error(`args.drive names no stance5 run: ${k}`)
+-const ALL_RUNS = Object.keys(SEEDS).map(id => ({ id, seed: SEEDS[id], ...DRIVE_IDS[id], ...(OVERRIDE[id] || {}) }))
++for (const k of Object.keys(OVERRIDE)) if (!(k in SEEDS)) throw new Error(`args.drive names no stance5 replication run: ${k}`)
++// criteria RUN HANDLING: a run cut off before its first periodic checkpoint (524,288) and restarted under <RUN_ID>_b
++// (then _c) IS that run.  args.source = {RUN_ID: '<RUN_ID>_b'} fetches it from that Drive folder, whose ids come in
++// args.drive in the same call, and places it under the RUN_ID (place5r.py --source-folder).
++const SOURCE = (args && args.source && typeof args.source === 'object') ? args.source : {}
++for (const [k, v] of Object.entries(SOURCE)) {
++  if (!(k in SEEDS)) throw new Error(`args.source names no stance5 replication run: ${k}`)
++  if (v !== `${k}_b` && v !== `${k}_c`) throw new Error(`args.source.${k} must be ${k}_b or ${k}_c (got ${v})`)
++  const o = OVERRIDE[k] || {}
++  if (!o.folder || !o.stance || !o.models) throw new Error(`args.source.${k} = ${v} needs that folder's ids in args.drive.${k} (folder, stance, models) in the same call`)
++}
++const ALL_RUNS = Object.keys(SEEDS).map(id => ({ id, seed: SEEDS[id], ...DRIVE_IDS[id], ...(OVERRIDE[id] || {}), src: SOURCE[id] || id }))
++const SRC_FLAG = (run) => (run.src !== run.id ? ` --source-folder ${run.src}` : '')
++const SRC_CHECK = (run) => (run.src === run.id ? '' : `This run was restarted under the Drive folder ${run.src} before its first checkpoint; under the criteria (RUN HANDLING) it IS ${run.id}, and the earlier folder is left alone. First run get_file_metadata on ${run.folder}: its title must be exactly ${run.src}. If it is not, fetch nothing, return every expected file with method "missing" and ok false, and put the title you found in notes.\n`)
+ const RUNS = (args && Array.isArray(args.runs) && args.runs.length) ? ALL_RUNS.filter(r => args.runs.includes(r.id)) : ALL_RUNS
+@@ -92,6 +103,6 @@
+ ${parts.join('\n')}` : ''
+-  return `You are transcriber ${role} for the Drive run ${run.id}: a T. rex stance training run (stance5, arm LTSB, seed ${run.seed}) on Colab. This is a read-only fetch for local judging. Another transcriber fetches the same pkls independently. Do not read any directory under ${F}/${TAG}/${run.id}/ except your own outputs.
++  return `You are transcriber ${role} for the Drive run ${run.src}: a T. rex stance training run (stance5 replication, arm LTSB, seed ${run.seed}) on Colab. This is a read-only fetch for local judging. Another transcriber fetches the same pkls independently. Do not read any directory under ${F}/${TAG}/${run.id}/ except your own outputs.
+ 
+ ${RULES}
+-
++${SRC_CHECK(run)}
+ ${listing}
+@@ -104,5 +115,5 @@
+   const cmds = slots.length
+-    ? slots.map((s, i) => `cd ${TOOLS} && python3 -I ${PLACE} ${s} ${run.id} ${F}/${TAG}/${run.id}${(CSV && i === 0) ? '' : ' --no-csv'}`)
+-    : [`cd ${TOOLS} && python3 -I ${PLACE} csv ${run.id} ${F}/${TAG}/${run.id}`]
+-  if (EXTRAS.some(e => e === 'progress.json' || e === 'gate_verdict.json')) cmds.push(`cd ${TOOLS} && python3 -I ${PLACE} extra ${run.id} ${F}/${TAG}/${run.id}`)
++    ? slots.map((s, i) => `cd ${TOOLS} && python3 -I ${PLACE} ${s} ${run.id} ${F}/${TAG}/${run.id}${(CSV && i === 0) ? '' : ' --no-csv'}${SRC_FLAG(run)}`)
++    : [`cd ${TOOLS} && python3 -I ${PLACE} csv ${run.id} ${F}/${TAG}/${run.id}${SRC_FLAG(run)}`]
++  if (EXTRAS.some(e => e === 'progress.json' || e === 'gate_verdict.json')) cmds.push(`cd ${TOOLS} && python3 -I ${PLACE} extra ${run.id} ${F}/${TAG}/${run.id}${SRC_FLAG(run)}`)
+   return `Run these commands with Bash, one at a time, in this order, and report each result. Do not change any file yourself.
+@@ -129,3 +140,3 @@
+     const ids = differ.map(t => { const f = a.files.find(x => x.title === t) || b.files.find(x => x.title === t); return `${t} (id ${f && f.id}, Drive fileSize ${f && f.drive_size})` })
+-    const c = await agent(`You are transcriber C (tie-break) for the Drive run ${run.id}. Two earlier transcriptions disagree on: ${ids.join('; ')}. Fetch each of them independently into ${F}/${TAG}/${run.id}/C/ (mkdir -p). Do not read the A or B directories.\n\n${RULES}\n\n${TRANSCRIBE(F + '/' + TAG + '/' + run.id + '/C')}\n\nReturn run_id "${run.id}", role "C", and one files[] entry per file.`, { label: `${TAG}:tiebreak:${run.id}`, phase: 'Tiebreak', schema: RESULT })
++    const c = await agent(`You are transcriber C (tie-break) for the Drive run ${run.src}. Two earlier transcriptions disagree on: ${ids.join('; ')}. Fetch each of them independently into ${F}/${TAG}/${run.id}/C/ (mkdir -p). Do not read the A or B directories.\n\n${RULES}\n\n${TRANSCRIBE(F + '/' + TAG + '/' + run.id + '/C')}\n\nReturn run_id "${run.id}", role "C", and one files[] entry per file.`, { label: `${TAG}:tiebreak:${run.id}`, phase: 'Tiebreak', schema: RESULT })
+     const resolved = differ.filter(t => c && sha(c, t) && (sha(c, t) === sha(a, t) || sha(c, t) === sha(b, t)))
+@@ -139,3 +150,3 @@
+     const p = await agent(placePrompt(run, slots), { label: `${TAG}:place:${run.id}`, phase: 'Place', schema: PLACED, effort: 'low' })
+-    if (p && !p.ok) log(`${run.id}: place5.py did not place everything; see results`)
++    if (p && !p.ok) log(`${run.id}: place5r.py did not place everything; see results`)
+     return { ...r, placed_slots: slots, placed: p }
+
+--- stance5/tools/place5.py
++++ replication/tools/place5r.py
+@@ -1,2 +1,27 @@
+-"""place5.py: place fetched stance5 files into S5/runs/<RUN_ID>/01_stance/ (the notebook layout judge_stance5.py reads).
++"""place5r.py: place fetched stance5 REPLICATION files into R/runs/<RUN_ID>/01_stance/ (R = SP/foot/stance5/replication;
++the notebook layout judge_stance5r.py reads).  SP/foot/stance5/tools/place5.py with the replication runs
++(stance5_LTSB_s70, stance5_LTSB_s80) and root; every check is place5.py's (the same commit, task, band keys and
++collapse reference), plus one report-only note: "config" notes a stage_config.json run.label that is not the run's
++RUN_LABEL (it never refuses on it).  Three additions carry out the run-handling rules (criteria RUN HANDLING):
++  --source-folder <RUN_ID>_b (or _c), with config, STEPS, csv or extra: the files come from that Drive folder, the
++    restart of a run cut off before its first periodic checkpoint, and are placed under the RUN_ID.  The first such
++    call switches the run (R/runs/<RUN_ID>/source_folder.json).  The switch is refused once a periodic checkpoint is
++    placed from the earlier folder; what the earlier folder placed is moved aside.  After it, every call names the
++    folder (an earlier one is refused), and progress.json must carry the folder as its run_id.
++  --supersede, with STEPS and --resumed-from N (STEPS after N, or final, best, robust_best): a placed pair that the
++    resumed session saved again is moved aside with its judge files and refusal record (every mode), its panels
++    output, its saturation roll and, at final, its certificate folder.  The new pair is placed, and the queue
++    judges the slot again.  A ledger replaced under --resumed-from or --replace-csv is moved aside too.  With
++    --resumed-from N, STEPS and csv also print "placed_after_N", the periodic pairs placed after N: one placed
++    before the resume is the old session's; once the resumed session has saved it again, fetch it again and place it
++    with --resumed-from N --supersede.
++  --run-records-fail, with config RUN_ID DIR DIR2: the run's own records fail the checks below, or are absent on
++    Drive, and DIR and DIR2 agree (byte-equal copies, or neither holds the file).  They are placed as they are (never
++    over a different placed copy) beside R/runs/<RUN_ID>/01_stance/records_check_failed.json (the problems, the
++    files absent on Drive, the sha256s).  While it stands, checkpoint pairs are placed without the absent records,
++    the judge refuses on the records, and judge_one5r.sh writes refused_<steps>.json: an invalid J file.
++  Moved aside means R/superseded/<RUN_ID>/<UTC time>/<the path under R>, listed in SUPERSEDED.json there; nothing
++  is deleted.
++place5.py's text follows (with these additions), with place5.py read as place5r.py, S5 as R and satwatch5.py as
++satwatch5r.py:
+ SP/foot/stance4/tools/place4.py with the stance5 identity (arm LTSB: the config commit, the band-on task, the band key
+@@ -4,12 +29,12 @@
+ 
+-    python3 -I place5.py config RUN_ID DIR [DIR2]       the three run records, once
+-    python3 -I place5.py STEPS RUN_ID FETCH_DIR [--no-csv] [--resumed-from N | --replace-csv]
+-    python3 -I place5.py csv RUN_ID FETCH_DIR [--resumed-from N | --replace-csv]   the two ledgers only (FETCH_DIR/csv/)
+-    python3 -I place5.py extra RUN_ID FETCH_DIR          report-only extras (FETCH_DIR/extra/): progress.json (replaced
++    python3 -I place5r.py config RUN_ID DIR [DIR2]       the three run records, once (DIR DIR2 --run-records-fail: above)
++    python3 -I place5r.py STEPS RUN_ID FETCH_DIR [--no-csv] [--resumed-from N [--supersede] | --replace-csv]
++    python3 -I place5r.py csv RUN_ID FETCH_DIR [--resumed-from N | --replace-csv]   the two ledgers only (FETCH_DIR/csv/)
++    python3 -I place5r.py extra RUN_ID FETCH_DIR          report-only extras (FETCH_DIR/extra/): progress.json (replaced
+                                                          by each newer copy), gate_verdict.json (once; a different
+                                                          copy is refused)
+-    python3 -I place5.py status [RUN_ID ...]            what is placed, with sha256 (writes nothing)
+-
+-RUN_ID: stance5_LTSB_s52, stance5_LTSB_s60 or stance5_LTSB_s42 (the seed is read from the name; a restarted run's
+-"<RUN_ID>_b" is not known here: stop and ask, as the Colab steps say).
++    python3 -I place5r.py status [RUN_ID ...]            what is placed, with sha256 (writes nothing)
++
++RUN_ID: stance5_LTSB_s70 or stance5_LTSB_s80 (the seed is read from the name; a restart under
++"<RUN_ID>_b" or "_c" is placed under its RUN_ID with --source-folder, above).
+ STEPS: a multiple of 524,288, or final, best, robust_best.  The local names equal the Drive titles:
+@@ -36,3 +61,3 @@
+     placed copies when they extend them (the old file is a byte prefix of the new one).  A shorter or non-prefix copy
+-    is refused, and the refusal is left beside the ledger as <name>.refused.json (satwatch5.py reports it as a ledger
++    is refused, and the refusal is left beside the ledger as <name>.refused.json (satwatch5r.py reports it as a ledger
+     problem until a later placement succeeds and removes it); the checkpoint pair itself is still placed, and the
+@@ -43,3 +68,4 @@
+     any fetched copy (last resort; it prints a warning).
+-  A placed checkpoint file is never overwritten: an identical copy is a no-op, a different one is refused.
++  A placed checkpoint file is never overwritten: an identical copy is a no-op, a different one is refused (with
++  --supersede it is moved aside first).
+ Prints one JSON object (what was placed, sha256 of every file).  Never imports, unpickles or runs the payload.
+@@ -54,7 +80,13 @@
+ import sys
++import time
+ import zipfile
+ 
+-S5 = "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance5"
+-S5 = os.environ.get("PLACE5_TEST_ROOT") or S5  # tests only: place under a scratch root instead of S5
+-RUNS = {"stance5_LTSB_s52": 52, "stance5_LTSB_s60": 60, "stance5_LTSB_s42": 42}
++S5 = "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance5/replication"  # R
++S5 = os.environ.get("PLACE5R_TEST_ROOT") or S5  # tests only: place under a scratch root instead of R
++RUNS = {"stance5_LTSB_s70": 70, "stance5_LTSB_s80": 80}
++RUN_LABELS = {"stance5_LTSB_s70": "stance screen LTSB s70", "stance5_LTSB_s80": "stance screen LTSB s80"}  # notes only
++RESTARTS = ("_b", "_c")  # criteria RUN HANDLING: a restart before the first periodic checkpoint is that run
++JUDGED = ("judge_{s}.json", "judge_quick_{s}.json", "judge_fresh_{s}.json", "judge_tail_{s}.json",
++          "judge_common_noise_{s}.json", "refused_{s}.json", "refused_{s}.review.json")  # judge_one5r.sh's, per checkpoint
++RECORDS_FAILED = "records_check_failed.json"  # criteria RUN HANDLING: config --run-records-fail (the run's records)
+ CONFIG_COMMIT = "cf80ecb14d1630ce3b4dcdea28a05835d143470b"  # claude/screen-trex-r9-armlts-copband's config commit (judge_stance5.py ARMS["LTSB"])
+@@ -82,2 +114,178 @@
+     sys.exit(1)
++
++
++def utc_stamp():
++    return time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
++
++
++def move_aside(run, paths, why):
++    """criteria RUN HANDLING: move each existing path (under the root) to <root>/superseded/<RUN_ID>/<UTC time>/<its
++    path under the root>, never deleting anything, and list the moves in SUPERSEDED.json there."""
++    base = os.path.join(S5, "superseded", run, utc_stamp())
++    moves = []
++    for p in paths:
++        if not os.path.lexists(p):
++            continue
++        rel = os.path.relpath(p, S5)
++        if rel == os.curdir or rel.split(os.sep)[0] == os.pardir:
++            die(f"{p} is not under {S5}")
++        dst = os.path.join(base, rel)
++        if os.path.lexists(dst):
++            die(f"{dst} exists; refusing to overwrite it")
++        os.makedirs(os.path.dirname(dst), exist_ok=True)
++        os.replace(p, dst)
++        moves.append({"from": p, "to": dst})
++    if moves:
++        rec = os.path.join(base, "SUPERSEDED.json")
++        old = []
++        if os.path.exists(rec):
++            with open(rec) as fh:
++                old = json.load(fh)
++        with open(rec, "w") as fh:
++            json.dump(old + [{"why": why, "moved": moves}], fh, indent=1)
++    return moves
++
++
++def source_marker(run):
++    return os.path.join(S5, "runs", run, "source_folder.json")
++
++
++def current_source(run):
++    """The Drive folder this run's files come from: its RUN_ID, or its restart folder once switched."""
++    m = source_marker(run)
++    if not os.path.exists(m):
++        return run
++    with open(m) as fh:
++        return json.load(fh)["source_folder"]
++
++
++def use_source(run, folder):
++    """criteria RUN HANDLING: a run cut off before its first periodic checkpoint (524,288) and restarted under
++    <RUN_ID>_b (then _c) IS that run, placed under its RUN_ID.  The first call naming a later folder switches the run to
++    it: refused once a periodic checkpoint is placed from the earlier folder; what the earlier folder placed (records,
++    ledgers, extras) is moved aside.  After the switch every call names that folder; an earlier one is refused."""
++    stage = stage_dir(run)
++    order = [run] + [run + s for s in RESTARTS]
++    folder = folder or run
++    if folder not in order:
++        die(f"--source-folder {folder} is not {run}'s restart folder ({' or '.join(order[1:])})")
++    cur = current_source(run)
++    if folder == cur:
++        return cur
++    if order.index(folder) < order.index(cur):
++        die(f"{run}'s files come from the Drive folder {cur} (source_folder.json); {folder} is an earlier folder, left "
++            f"alone and never judged: pass --source-folder {cur}")
++    models = os.path.join(stage, "models")
++    placed = sorted(f for f in (os.listdir(models) if os.path.isdir(models) else []) if f.endswith(".zip"))
++    if placed:
++        die(f"{run} holds checkpoints placed from {cur} ({', '.join(placed[:3])}): a restart under {folder} is that run "
++            "only when the earlier folder was cut off before its first periodic checkpoint (524,288). Stop and ask.")
++    moved = move_aside(run, [os.path.join(stage, n) for n in sorted(os.listdir(stage))] if os.path.isdir(stage) else [],
++                       f"the run's source folder {cur} -> {folder} (a restart before the first checkpoint)")
++    os.makedirs(os.path.dirname(source_marker(run)), exist_ok=True)
++    with open(source_marker(run) + ".part", "w") as fh:
++        json.dump({"run_id": run, "source_folder": folder, "previous": cur, "set_at": utc_stamp(),
++                   "moved_aside": moved}, fh, indent=1)
++    os.replace(source_marker(run) + ".part", source_marker(run))
++    return folder
++
++
++def superseded_paths(run, steps, zname, pname):
++    """What a superseded checkpoint takes with it: the placed pair, its judge files and refusal record (every mode), its
++    panels output, its saturation roll and, at final, the certificate folder."""
++    out = [os.path.join(stage_dir(run), "models", n) for n in (zname, pname)]
++    out += [os.path.join(S5, "judged", run, n.format(s=steps)) for n in JUDGED]
++    out += [os.path.join(S5, "panels", "out", run, f"panels_{steps}.json"),
++            os.path.join(S5, "tools", "satroll", f"{run}_{steps}.json")]
++    if steps == "final":
++        out.append(os.path.join(S5, "cert", run))
++    return out
++
++
++def after_resume(run, n, exclude=None):
++    """criteria RUN HANDLING (resumes): the periodic pairs placed after N (less *exclude*, a pair this call placed).  One
++    placed before the resume is the old session's: the session resumed from N saves it again, and it is fetched again
++    then and placed with --resumed-from N --supersede.  Nothing is moved here."""
++    models = os.path.join(stage_dir(run), "models")
++    after = []
++    for f in (os.listdir(models) if os.path.isdir(models) else []):
++        g = re.fullmatch(r"stage1_(\d+)_steps\.zip", f)
++        if g and int(g.group(1)) > n and f != exclude:
++            after.append((int(g.group(1)), f))
++    out = {"placed_after_N": [f for _s, f in sorted(after)]}
++    if after:
++        out["placed_after_N_note"] = (
++            f"periodic pairs placed after {n:,}: each one placed before the resume is the old session's; once the resumed "
++            f"session has saved it again, fetch it again and place it with --resumed-from {n} --supersede (criteria RUN "
++            "HANDLING)")
++    return out
++
++
++def failed_marker(run):
++    return os.path.join(stage_dir(run), RECORDS_FAILED)
++
++
++def read_failed_marker(run):
++    """criteria RUN HANDLING (judge refusals): the --run-records-fail marker of the run, or None."""
++    m = failed_marker(run)
++    if not os.path.exists(m):
++        return None
++    with open(m) as fh:
++        return json.load(fh)
++
++
++def place_failed_records(run, src, src2):
++    """criteria RUN HANDLING (judge refusals): config --run-records-fail.  The run's own records fail check_record, or
++    are absent on Drive, and A and B agree (src and src2 byte-equal, or neither holds the file).  They are placed as
++    they are, never over a different placed copy, beside records_check_failed.json, so that the run's checkpoints can be
++    placed and judged: the judge then refuses on the records, and judge_one5r.sh records refused_<steps>.json (an
++    invalid J file).  A marker already placed must be this one (the same problems, absent files and sha256s)."""
++    if CONFIG_COMMIT is None:
++        die("CONFIG_COMMIT is a PLACEHOLDER: fill it with the config commit before placing anything")
++    dst, seed = stage_dir(run), RUNS[run]
++    raws, absent, problems = {}, [], []
++    for name in RECORDS:  # check all three before writing anything
++        s, s2 = os.path.join(src, name), os.path.join(src2, name)
++        if not os.path.exists(s) and not os.path.exists(s2):
++            absent.append(name)
++            problems.append(f"{name}: absent on Drive (neither transcription holds it)")
++            continue
++        if not (os.path.exists(s) and os.path.exists(s2)) or open(s, "rb").read() != open(s2, "rb").read():
++            die(f"{name}: {src} and {src2} differ or one is missing (tie-break before placing)")
++        raws[name] = open(s, "rb").read()
++        problems += check_record(name, raws[name], seed)
++    for name in RECORDS:
++        d = os.path.join(dst, name)
++        if name in raws and os.path.exists(d) and open(d, "rb").read() != raws[name]:
++            die(f"{name}: the placed copy differs from {os.path.join(src, name)}")
++        if name in absent and os.path.exists(d):
++            die(f"{name} is placed, but neither {src} nor {src2} holds it: stop and ask")
++    key = {"problems": problems, "absent_on_drive": absent,
++           "sha256": {n: hashlib.sha256(raw).hexdigest() for n, raw in raws.items()}}
++    old = read_failed_marker(run)
++    if old is not None:
++        if {k: old.get(k) for k in key} != key:
++            die(f"{failed_marker(run)} records other problems, absent files or copies than {src} and {src2} hold: "
++                "stop and ask")
++        return ({n: sha(os.path.join(dst, n)) for n in raws},
++                [f"the run's records failed the checks ({RECORDS_FAILED} unchanged): {'; '.join(problems)}"])
++    if not problems:
++        die("the run's records pass every check and none is absent on Drive: place them with config, without "
++            "--run-records-fail")
++    os.makedirs(dst, exist_ok=True)
++    for name, raw in raws.items():
++        d = os.path.join(dst, name)
++        if not os.path.exists(d):
++            with open(d + ".part", "wb") as fh:
++                fh.write(raw)
++            os.replace(d + ".part", d)
++    rec = {"schema": "stance5r-records-check-failed/v1", "run_id": run, "source_folder": current_source(run), **key,
++           "from": [os.path.abspath(src), os.path.abspath(src2)], "set_at": utc_stamp(),
++           "rule": "criteria RUN HANDLING: a judge that refuses on the run's own records counts as an INVALID J file; "
++                   "the records are placed as they are so that the judge refuses on them"}
++    with open(failed_marker(run) + ".part", "w") as fh:
++        json.dump(rec, fh, indent=1)
++    os.replace(failed_marker(run) + ".part", failed_marker(run))
++    return ({n: sha(os.path.join(dst, n)) for n in raws},
++            [f"placed with --run-records-fail ({RECORDS_FAILED}): {'; '.join(problems)}"])
+ 
+@@ -162,2 +370,5 @@
+     out, notes = {}, []
++    label = (json.loads(raws["stage_config.json"].decode("utf-8")).get("run") or {}).get("label")
++    if label != RUN_LABELS[run]:  # report only: the RUN_ID (this folder), the seed and the commit are what bind
++        notes.append(f"stage_config.json run.label {label!r} is not {RUN_LABELS[run]!r} (report only)")
+     for name in RECORDS:
+@@ -198,3 +409,4 @@
+         if sha(dst) != sha(src):
+-            die(f"{dst} exists and differs from {src}; refusing to overwrite")
++            die(f"{dst} exists and differs from {src}; refusing to overwrite (a checkpoint the resumed session saved again: "
++            "--resumed-from N --supersede)")
+         return "kept (identical)"
+@@ -275,2 +487,7 @@
+                     continue
++        moved = None
++        if note is not None and os.path.exists(d):  # criteria RUN HANDLING: the superseded copy is moved aside
++            moved = move_aside(os.path.basename(os.path.dirname(dst)), [d],
++                               f"{name}: superseded by {os.path.abspath(s)} ("
++                               + (f"--resumed-from {resumed_from}" if resumed_from is not None else "--replace-csv") + ")")
+         tmp = d + ".part"
+@@ -284,2 +501,4 @@
+             out[name]["note"] = note
++        if moved:
++            out[name]["moved_aside"] = moved
+     return out
+@@ -305,3 +524,3 @@
+ 
+-def place_checkpoint(steps, run, fetch, no_csv, replace_csv, resumed_from=None):
++def place_checkpoint(steps, run, fetch, no_csv, replace_csv, resumed_from=None, supersede=False):
+     dst = stage_dir(run)
+@@ -312,10 +531,18 @@
+     # records: from this fetch when both A and B carry them, else they must be placed already
++    failed = read_failed_marker(run)  # criteria RUN HANDLING: the run's records placed with --run-records-fail
+     if all(os.path.exists(os.path.join(fetch, r, n)) for r in ("A", "B") for n in RECORDS):
+-        rec, notes = place_records(run, os.path.join(fetch, "A"), os.path.join(fetch, "B"))
++        rec, notes = (place_failed_records if failed is not None else place_records)(
++            run, os.path.join(fetch, "A"), os.path.join(fetch, "B"))
+         res["records"], res["notes"] = rec, res["notes"] + notes
+     else:
+-        missing = [n for n in RECORDS if not os.path.exists(os.path.join(dst, n))]
++        absent = (failed or {}).get("absent_on_drive") or []
++        missing = [n for n in RECORDS if not os.path.exists(os.path.join(dst, n)) and n not in absent]
+         if missing:
+-            die(f"records not placed yet ({missing}); run 'place5.py config {run} DIR' or fetch with configs: true")
+-        res["records"] = {n: sha(os.path.join(dst, n)) for n in RECORDS}
++            die(f"records not placed yet ({missing}); run 'place5r.py config {run} DIR' or fetch with configs: true "
++                f"(records that fail the checks or are absent on Drive, A and B agreeing: 'place5r.py config {run} "
++                "DIR DIR2 --run-records-fail')")
++        res["records"] = {n: sha(os.path.join(dst, n)) for n in RECORDS if os.path.exists(os.path.join(dst, n))}
++    if failed is not None:
++        res["notes"].append(f"the run's records failed the checks ({RECORDS_FAILED}): the judge refuses on them, and "
++                            "judge_one5r.sh records refused_<steps>.json, an invalid J file (criteria RUN HANDLING)")
+     pkl_src, shas = agreed_pkl(fetch, pname)
+@@ -328,2 +555,9 @@
+         die(f"{zsrc}: testzip failed at {badm}")
++    if supersede:  # criteria RUN HANDLING: the resumed session saved this checkpoint again
++        placed = ((os.path.join(models, zname), zsrc), (os.path.join(models, pname), pkl_src))
++        if any(os.path.exists(d) and sha(d) != sha(s) for d, s in placed):
++            res["superseded"] = move_aside(run, superseded_paths(run, steps, zname, pname),
++                                           f"{steps}: saved again by the session resumed from {resumed_from:,}")
++        else:
++            res["notes"].append("--supersede: no different pair is placed; nothing was moved aside")
+     res["pkl"] = {"title": pname, "transcriptions": shas, "from": pkl_src,
+@@ -336,3 +570,5 @@
+         res["notes"].append(f"the checkpoint pair is placed; the ledgers {res['ledger_refused']} were refused (left as "
+-                            "<name>.refused.json; satwatch5.py reports them until a placement succeeds)")
++                            "<name>.refused.json; satwatch5r.py reports them until a placement succeeds)")
++    if resumed_from is not None:  # criteria RUN HANDLING (resumes): the old session's pairs after N, if any
++        res.update(after_resume(run, resumed_from, zname if res["zip"]["action"] == "placed" else None))
+     return res
+@@ -359,4 +595,4 @@
+         if name == "progress.json":
+-            if new.get("run_id") != run:
+-                out[name] = f"REFUSED: run_id {new.get('run_id')} is not {run}"
++            if new.get("run_id") != current_source(run):  # a restart's progress.json names its own folder
++                out[name] = f"REFUSED: run_id {new.get('run_id')} is not {current_source(run)}"
+                 continue
+@@ -404,2 +640,5 @@
+         ent["checkpoints"] = pairs
++        ent["source_folder"] = current_source(run)
++        if read_failed_marker(run) is not None:  # criteria RUN HANDLING: config --run-records-fail
++            ent["records_check_failed"] = read_failed_marker(run)
+         out[run] = ent
+@@ -412,5 +651,24 @@
+         return 0
++    source = None  # criteria RUN HANDLING: --source-folder <RUN_ID>_b (or _c), a restart placed under its RUN_ID
++    if "--source-folder" in argv:
++        i = argv.index("--source-folder")
++        if argv.count("--source-folder") > 1 or i + 1 >= len(argv) or argv[i + 1].startswith("--"):
++            die("--source-folder takes one Drive folder name (<RUN_ID>_b or <RUN_ID>_c)")
++        source, argv = argv[i + 1], argv[:i] + argv[i + 2:]
++        if not argv or argv[0] in ("status", "-h", "--help"):
++            die("--source-folder goes with config, STEPS, csv or extra")
++    fail = "--run-records-fail" in argv  # criteria RUN HANDLING: the run's own records fail the checks
++    if fail:
++        argv = [a for a in argv if a != "--run-records-fail"]
++        if not argv or argv[0] != "config" or len(argv) != 4:
++            die("--run-records-fail goes with config RUN_ID DIR DIR2 (A and B must agree)")
+     if argv[0] == "config":
+         if len(argv) not in (3, 4):
+-            die("usage: place5.py config RUN_ID DIR [DIR2]")
++            die("usage: place5r.py config RUN_ID DIR [DIR2] [--source-folder F] [--run-records-fail]")
++        use_source(argv[1], source)
++        if fail:
++            rec, notes = place_failed_records(argv[1], argv[2], argv[3])
++            print(json.dumps({"ok": True, "run": argv[1], "records": rec, "notes": notes,
++                              "records_check_failed": read_failed_marker(argv[1])}, indent=1))
++            return 0
+         rec, notes = place_records(argv[1], argv[2], argv[3] if len(argv) == 4 else None)
+@@ -425,3 +683,4 @@
+         if len(pos) != 2 or unknown or ("--replace-csv" in flags and resumed_arg(flags) is not None):
+-            die("usage: place5.py csv RUN_ID FETCH_DIR [--resumed-from N | --replace-csv]")
++            die("usage: place5r.py csv RUN_ID FETCH_DIR [--resumed-from N | --replace-csv] [--source-folder F]")
++        use_source(pos[0], source)
+         dst = stage_dir(pos[0])
+@@ -430,3 +689,6 @@
+         ok = not refused(res)
+-        print(json.dumps({"ok": ok, "run": pos[0], "csv": res}, indent=1))
++        out = {"ok": ok, "run": pos[0], "csv": res}
++        if resumed_arg(flags) is not None:  # criteria RUN HANDLING (resumes): the old session's pairs after N, if any
++            out.update(after_resume(pos[0], resumed_arg(flags)))
++        print(json.dumps(out, indent=1))
+         return 0 if ok else 1
+@@ -434,3 +696,4 @@
+         if len(argv) != 3:
+-            die("usage: place5.py extra RUN_ID FETCH_DIR")
++            die("usage: place5r.py extra RUN_ID FETCH_DIR [--source-folder F]")
++        use_source(argv[1], source)
+         res = place_extra(argv[1], argv[2])
+@@ -444,8 +707,15 @@
+     pos = [a for a in argv if not a.startswith("--")]
+-    unknown = [f for f in flags if f not in ("--no-csv", "--replace-csv") and not f.startswith("--resumed-from=")]
++    unknown = [f for f in flags if f not in ("--no-csv", "--replace-csv", "--supersede")
++               and not f.startswith("--resumed-from=")]
+     if len(pos) != 3 or unknown or ("--replace-csv" in flags and resumed_arg(flags) is not None):
+-        die("usage: place5.py STEPS RUN_ID FETCH_DIR [--no-csv] [--resumed-from N | --replace-csv]")
++        die("usage: place5r.py STEPS RUN_ID FETCH_DIR [--no-csv] [--resumed-from N [--supersede] | --replace-csv] "
++            "[--source-folder F]")
+     steps = pos[0] if pos[0] in NAMED else str(int(pos[0]))
++    supersede = "--supersede" in flags
++    if supersede and (resumed_arg(flags) is None or (steps not in NAMED and int(steps) <= resumed_arg(flags))):
++        die("--supersede needs --resumed-from N and a checkpoint the resumed session saved again: STEPS after N, "
++            "or final, best, robust_best")
++    use_source(pos[1], source)
+     print(json.dumps(place_checkpoint(steps, pos[1], pos[2], "--no-csv" in flags, "--replace-csv" in flags,
+-                                      resumed_arg(flags)), indent=1))
++                                      resumed_arg(flags), supersede), indent=1))
+     return 0
+
+--- stance5/tools/judge_one5.sh
++++ replication/tools/judge_one5r.sh
+@@ -1,10 +1,11 @@
+ #!/bin/bash
+-# judge_one5.sh [--dry-run] STEPS RUN_ID SEED [MODE] : judge one stance5 checkpoint placed under S5/runs/RUN_ID/01_stance.
++# judge_one5r.sh [--dry-run] STEPS RUN_ID SEED [MODE] : judge one stance5 replication checkpoint placed under
++# R/runs/RUN_ID/01_stance (R = SP/foot/stance5/replication; the variable S5 below names R).
+ #   STEPS  a multiple of 524288, or final, best, robust_best
+-#   RUN_ID stance5_LTSB_s52 | stance5_LTSB_s60 | stance5_LTSB_s42      SEED 52 | 60 | 42 (must match RUN_ID)
++#   RUN_ID stance5_LTSB_s70 | stance5_LTSB_s80      SEED 70 | 80 (must match RUN_ID)
+ #   MODE   full (default; the verdict input) | quick | common-noise | tail | fresh (report only)
+-# Runs judge_stance5.py --arm LTSB --seed SEED --steps STEPS on the clone fix/scratch_copband (HEAD = the config commit, clean),
++# Runs judge_stance5r.py --arm LTSB --seed SEED --steps STEPS on the clone fix/scratch_copband (HEAD = the config commit, clean),
+ # through stance3/tools/iso.py with ISO_WT=<clone>, one CPU (OMP/MKL/OPENBLAS 1; iso.py sets torch threads 1).
+-# Output: S5/judged/RUN_ID/judge_STEPS.json (full; what score_stance5.py reads) or judge_<mode>_STEPS.json.
+-# Logs: S5/judged/logs/queue.log (start/end lines) and S5/judged/logs/RUN_ID_<name>.log (older ones kept as *.prev.<time>).
++# Output: R/judged/RUN_ID/judge_STEPS.json (full; what score_stance5r.py reads) or judge_<mode>_STEPS.json.
++# Logs: R/judged/logs/queue.log (start/end lines) and R/judged/logs/RUN_ID_<name>.log (older ones kept as *.prev.<time>).
+ # Resumable: a complete output is skipped (exit 0); an unreadable or incomplete one (a restart during the write) is
+@@ -12,3 +13,21 @@
+ # --dry-run prints the checks and the command, and runs nothing.  It writes nothing.
+-# --check exits 0 when the output is complete, 1 when it is not, 3 when the checkpoint is not placed.  Writes nothing.
++# --check exits 0 when the output is complete, 1 when it is not, 3 when the checkpoint is not placed, 5 (full mode)
++# when the slot holds a refusal record, and 6 (full mode) when it holds a refusal held for review.  Writes nothing.
++# REFUSALS (criteria RUN HANDLING, the maintainer's rule of 2026-10-22 16:32 UTC): a full-mode judge that refuses on
++# the run's own records (seed, commit, n_envs, hyperparameters, task, env kwargs, gate bars, plant, a record absent on
++# Drive: the judge's "refusing (nothing written): ..." line naming stage_config.json, plant_identity.json or
++# task_fingerprint.json) leaves R/judged/RUN_ID/refused_STEPS.json with the refusal text and exits 5.
++# score_stance5r.py counts that record as an INVALID J file.  While it stands, a later call exits 5 and judges
++# nothing.  A record is absent on Drive only when place5r.py config --run-records-fail listed it so
++# (01_stance/records_check_failed.json); any other missing record is a local file not placed.  An operator-side
++# refusal (a wrong path or clone, a missing local file: no such line, a record not placed, or a symmetry check the
++# judge could not run) writes no record: fix it and judge again.  A refusal that names only the checkpoint's own
++# attributes (its seed, plant, task or symmetry record) while the run's records pass is most likely a zip fetched
++# from another run's folder (the operator's side): it is held for review as refused_STEPS.review.json (exit 6; the
++# scorer does not read it), and nothing is judged while it stands.  Confirmed as the run's (the fetched zip's parent
++# is the run's models folder): rename it to refused_STEPS.json.  Otherwise move it and the placed pair aside by hand
++# and fetch the slot again.  A record found to be the operator's side is moved aside by hand (never deleted), and
++# the slot is judged again.
++# JUDGE5R_TEST_ROOT (tests only): runs/ and judged/ under a scratch root; the judge stays R's.
++# SP/foot/stance5/tools/judge_one5.sh with the replication identity (runs s70/s80, judge_stance5r.py, R); before it,
+ # SP/foot/stance4/tools/judge_one4.sh with the stance5 identity.  HEAD_EXPECT is the config commit (a PLACEHOLDER until
+@@ -16,6 +35,7 @@
+ S=/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad
+-S3=$S/foot/stance3; S5=$S/foot/stance5
++S3=$S/foot/stance3; S5=$S/foot/stance5/replication   # R
+ CL=$S/fix/scratch_copband
+ HEAD_EXPECT=cf80ecb14d1630ce3b4dcdea28a05835d143470b
+-JUDGE=$S5/judge/judge_stance5.py
++JUDGE=$S5/judge/judge_stance5r.py
++S5=${JUDGE5R_TEST_ROOT:-$S5}   # tests only: runs/ and judged/ under a scratch root (the judge above stays R's)
+ usage() { awk 'NR>1 && !/^#/{exit} NR>1{sub(/^# ?/,""); print}' "$0"; }
+@@ -26,3 +46,3 @@
+ STEPS=$1; RUN=$2; SEED=$3; MODE=${4:-full}
+-case "$RUN:$SEED" in stance5_LTSB_s52:52|stance5_LTSB_s60:60|stance5_LTSB_s42:42) ;; *) echo "RUN_ID $RUN and SEED $SEED do not match"; exit 2;; esac
++case "$RUN:$SEED" in stance5_LTSB_s70:70|stance5_LTSB_s80:80) ;; *) echo "RUN_ID $RUN and SEED $SEED do not match"; exit 2;; esac
+ case "$STEPS" in final|best|robust_best) ;; *[!0-9]*|"") echo "bad STEPS $STEPS"; exit 2;;
+@@ -32,2 +52,4 @@
+ RD=$S5/runs/$RUN; OUTD=$S5/judged/$RUN; OUT=$OUTD/$NAME.json; LOGD=$S5/judged/logs; JL=$LOGD/${RUN}_$NAME.log
++REFUSED=$OUTD/refused_$STEPS.json   # criteria RUN HANDLING (full mode)
++REVIEW=$OUTD/refused_$STEPS.review.json; MARKER=$RD/01_stance/records_check_failed.json   # (full mode)
+ M=$RD/01_stance/models
+@@ -48,3 +70,3 @@
+     print(f"unreadable: {exc}"); sys.exit(1)
+-bad = [k for k, ok in (("schema", d.get("schema") == "stance5-judge/v1"), ("arm", d.get("arm") == "LTSB"),
++bad = [k for k, ok in (("schema", d.get("schema") == "stance5r-judge/v1"), ("arm", d.get("arm") == "LTSB"),
+                        ("mode", d.get("mode") == mode), ("steps", str(d.get("steps")) == steps),
+@@ -58,2 +80,67 @@
+ 
++# refusal RC : 0 after writing REFUSED from the judge log when the judge refused on the run's own records; 2 after
++# writing REVIEW when it refused on the checkpoint's own attributes only (held for review); else 1 (nothing written).
++refusal() {
++  python3 -I - "$JL" "$REFUSED" "$RUN" "$SEED" "$STEPS" "$JUDGE" "$Z" "$P" "$HEAD_EXPECT" "$1" "$REVIEW" "$MARKER" <<'EOF'
++import datetime, hashlib, json, os, re, sys
++log, out, run, seed, steps, judge, z, p, head, rc, review, marker = sys.argv[1:13]
++PREFIX = "[judge_stance5r] refusing (nothing written): "
++RECS = r"(plant_identity|stage_config|task_fingerprint)\.json"
++hits = []
++if os.path.exists(log):
++    with open(log, errors="replace") as fh:
++        hits = [x.rstrip("\n")[len(PREFIX):] for x in fh if x.startswith(PREFIX)]
++if not hits:
++    print("no refusal on the run's own records in the log (the operator's side, or a crash): nothing recorded")
++    sys.exit(1)
++items = [x.strip() for x in hits[-1].split(" | ") if x.strip()]
++# A record the judge found missing is the run's own only when place5r.py config --run-records-fail listed it as absent
++# on Drive (records_check_failed.json); otherwise it is a local file not placed: the operator's side.
++absent = []
++if os.path.exists(marker):
++    with open(marker) as fh:
++        absent = json.load(fh).get("absent_on_drive") or []
++
++
++def missing(x):
++    m = re.search(r"/" + RECS + r" missing \(required\)$", x)
++    return m.group(1) + ".json" if m else None
++
++
++operator = [x for x in items if (missing(x) and missing(x) not in absent) or "(not checked; clone mirror map" in x]
++if operator:
++    print("the operator's side (fix it and judge again; nothing recorded): " + " | ".join(operator))
++    sys.exit(1)
++run_records = [x for x in items if re.search(r"(^|/)" + RECS, x)]
++
++
++def sha(path):
++    with open(path, "rb") as fh:
++        return "sha256:" + hashlib.sha256(fh.read()).hexdigest()
++
++
++rec = {"schema": "stance5r-refusal/v1", "run": run, "seed": int(seed), "steps": int(steps) if steps.isdigit() else steps,
++       "mode": "full", "refusal": hits[-1], "items": items, "judge": judge, "judge_sha256": sha(judge),
++       "clone_head": head, "model": z, "model_sha256": sha(z), "vecnorm": p, "vecnorm_sha256": sha(p), "log": log,
++       "judge_rc": int(rc), "written_at": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"),
++       "rule": "criteria RUN HANDLING: a judge refused on the run's own records counts as an INVALID J file"}
++if not run_records:
++    # Only the checkpoint's own attributes (its seed, plant, task or symmetry record) while the run's placed records
++    # pass: most likely a zip fetched from another run's models folder, the operator's side.  Held for review; the
++    # scorer does not read this file.
++    rec["held_for_review"] = (
++        "the refusal names only the checkpoint's own attributes while the run's placed records pass: confirm with "
++        "get_file_metadata that the fetched zip's parent is this run's models folder.  If it is, rename this file to "
++        f"{os.path.basename(out)} (an invalid J file); if not, move it and the placed pair aside by hand and fetch the "
++        "slot again (tools/README.md, Run handling rule 2)")
++    with open(review, "x") as fh:
++        json.dump(rec, fh, indent=1)
++    print("held for review " + review + " (the checkpoint's own attributes only: " + " | ".join(items) + ")")
++    sys.exit(2)
++with open(out, "x") as fh:
++    json.dump(rec, fh, indent=1)
++print("recorded " + out)
++EOF
++}
++
+ if [ "$HEAD_EXPECT" = PLACEHOLDER_HEAD_LTSB ] && [ $DRY -eq 0 ] && [ $CHECK -eq 0 ]; then
+@@ -63,2 +150,4 @@
+   [ -e $OUT ] && valid $OUT >/dev/null 2>&1 && exit 0
++  [ "$MODE" = full ] && [ -e $REFUSED ] && exit 5
++  [ "$MODE" = full ] && [ -e $REVIEW ] && exit 6
+   for f in $Z $P; do [ -f $f ] || exit 3; done
+@@ -73,6 +162,8 @@
+   for f in plant_identity.json stage_config.json task_fingerprint.json; do
+-    [ -f $RD/01_stance/$f ] && echo "record $f: placed" || echo "MISSING record $RD/01_stance/$f (place5.py config)"; done
+-  for f in $Z $P; do [ -f $f ] && echo "checkpoint $(basename $f): placed" || echo "MISSING checkpoint $f (fetch, then place5.py)"; done
++    [ -f $RD/01_stance/$f ] && echo "record $f: placed" || echo "MISSING record $RD/01_stance/$f (place5r.py config)"; done
++  for f in $Z $P; do [ -f $f ] && echo "checkpoint $(basename $f): placed" || echo "MISSING checkpoint $f (fetch, then place5r.py)"; done
+   if [ -e $OUT ]; then n=$(valid $OUT 2>&1) && echo "output exists and is complete: would skip" || echo "output exists but $n: would move it aside and rerun"
+   else echo "output $OUT: not yet written"; fi
++  [ "$MODE" = full ] && [ -e $REFUSED ] && echo "REFUSAL RECORD $REFUSED: the judge refused on the run's own records (an invalid J file); nothing is judged while it stands"
++  [ "$MODE" = full ] && [ -e $REVIEW ] && echo "REFUSAL HELD FOR REVIEW $REVIEW: the checkpoint's own attributes only (confirm the zip's Drive parent; tools/README.md rule 2); nothing is judged while it stands"
+   echo "free KB on scratch: $(df -Pk $S | awk 'NR==2{print $4}')"
+@@ -90,2 +181,4 @@
+ fi
++if [ "$MODE" = full ] && [ -e $REFUSED ]; then echo "refused-recorded $(date -Is) $RUN $NAME ($REFUSED)" >> $LOGD/queue.log; exit 5; fi
++if [ "$MODE" = full ] && [ -e $REVIEW ]; then echo "held-for-review $(date -Is) $RUN $NAME ($REVIEW)" >> $LOGD/queue.log; exit 6; fi
+ for f in $Z $P; do [ -f $f ] || { echo "missing $(date -Is) $RUN $NAME ($f)" >> $LOGD/queue.log; exit 3; }; done
+@@ -96,2 +189,6 @@
+ if [ $rc -eq 0 ] && ! valid $OUT >/dev/null 2>&1; then rc=4; fi
++if [ $rc -ne 0 ] && [ "$MODE" = full ] && [ ! -e $OUT ]; then  # criteria RUN HANDLING: a refusal on the run's records
++  msg=$(refusal $rc); case $? in 0) rc=5;; 2) rc=6;; esac
++  echo "$msg"; echo "refusal $(date -Is) $RUN $NAME: $msg" >> $LOGD/queue.log
++fi
+ echo "end $(date -Is) $RUN $NAME rc=$rc" >> $LOGD/queue.log
+
+--- stance5/tools/panels5_one.sh
++++ replication/tools/panels5r_one.sh
+@@ -1,6 +1,8 @@
+ #!/bin/bash
+-# panels5_one.sh [--dry-run] [--wait] [--any-slot] STEPS RUN_ID : report-only diagnostic panels for one stance5 checkpoint.
++# panels5r_one.sh [--dry-run] [--wait] [--any-slot] STEPS RUN_ID : report-only diagnostic panels for one stance5
++# replication checkpoint (SP/foot/stance5/tools/panels5_one.sh with the runs s70/s80 and R = SP/foot/stance5/replication:
++# RUN_DIR=R/runs/RUN_ID, PANELS_OUT=R/panels/out; panels_one5.sh and panels5.py are stance5's, unchanged, read-only).
+ #   STEPS  a J checkpoint: 4194304 5242880 6291456 8388608 10485760 final (--any-slot also allows other placed slots)
+-#   RUN_ID stance5_LTSB_s52 | stance5_LTSB_s60 | stance5_LTSB_s42
+-# Wraps S5/panels/panels_one5.sh STEPS RUN_ID scratch_copband --expect-head <the config commit> with RUN_DIR=S5/runs/RUN_ID, nice -n 19,
++#   RUN_ID stance5_LTSB_s70 | stance5_LTSB_s80
++# Wraps S5/panels/panels_one5.sh STEPS RUN_ID scratch_copband --expect-head <the config commit> with RUN_DIR=R/runs/RUN_ID, nice -n 19,
+ # the statue, and the four variants the criteria name for the band runs (PRE-REGISTERED READOUTS: "--variants standard
+@@ -8,4 +10,4 @@
+ # Never part of a verdict.
+-# Output: S5/panels/out/RUN_ID/panels_STEPS.json; logs in S5/panels/out/logs/ (queue.log, RUN_ID_STEPS.log) and one line
+-# per job in S5/panels/out/logs/panels5_stance5.log.
++# Output: R/panels/out/RUN_ID/panels_STEPS.json; logs in R/panels/out/logs/ (queue.log, RUN_ID_STEPS.log) and one line
++# per job in R/panels/out/logs/panels5_replication.log.
+ # One panels process at a time (the budget is one): if another panels5.py or panels4.py is running (for example
+@@ -17,3 +19,3 @@
+ S=/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad
+-S5=$S/foot/stance5; P=$S5/panels
++S5=$S/foot/stance5; P=$S5/panels; R=$S5/replication
+ CL=$S/fix/scratch_copband
+@@ -28,3 +30,3 @@
+ STEPS=$1; RUN=$2
+-case "$RUN" in stance5_LTSB_s52|stance5_LTSB_s60|stance5_LTSB_s42) ;; *) echo "bad RUN_ID $RUN"; exit 2;; esac
++case "$RUN" in stance5_LTSB_s70|stance5_LTSB_s80) ;; *) echo "bad RUN_ID $RUN"; exit 2;; esac
+ if ! echo " $J " | grep -q " $STEPS "; then
+@@ -32,3 +34,3 @@
+ fi
+-RD=$S5/runs/$RUN; M=$RD/01_stance/models; OUT=$P/out/$RUN/panels_$STEPS.json; LOGD=$P/out/logs; LOG=$LOGD/panels5_stance5.log
++RD=$R/runs/$RUN; M=$RD/01_stance/models; OUT=$R/panels/out/$RUN/panels_$STEPS.json; LOGD=$R/panels/out/logs; LOG=$LOGD/panels5_replication.log
+ case "$STEPS" in final) Z=$M/stage1_final.zip; PK=$M/stage1_final_vecnorm.pkl;;
+@@ -76,3 +78,3 @@
+ VARIANTS="standard mirror_legs prey_ahead mirror_prey_ahead"
+-CMD="RUN_DIR=$RD nice -n 19 $P/panels_one5.sh $STEPS $RUN $CL --expect-head $HEAD_EXPECT --variants $VARIANTS"
++CMD="RUN_DIR=$RD PANELS_OUT=$R/panels/out nice -n 19 $P/panels_one5.sh $STEPS $RUN $CL --expect-head $HEAD_EXPECT --variants $VARIANTS"
+ if [ $DRY -eq 1 ]; then
+@@ -103,3 +105,3 @@
+ t0=$(date +%s)
+-RUN_DIR=$RD nice -n 19 $P/panels_one5.sh $STEPS $RUN $CL --expect-head $HEAD_EXPECT --variants $VARIANTS
++RUN_DIR=$RD PANELS_OUT=$R/panels/out nice -n 19 $P/panels_one5.sh $STEPS $RUN $CL --expect-head $HEAD_EXPECT --variants $VARIANTS
+ rc=$?
+
+--- stance5/tools/queue5.sh
++++ replication/tools/queue5r.sh
+@@ -1,11 +1,25 @@
+ #!/bin/bash
+-# queue5.sh judge|panels [--dry-run | --once | --watch | --stop] : the stance5 judging and panels queues.
+-#   queue5.sh judge --watch    detach a worker (setsid nohup) that judges every placed, unjudged checkpoint of the three
+-#                              stance5 runs, one job at a time, then re-scans every 5 minutes for newly placed ones.
+-#   queue5.sh judge --once     the same, one pass, then exit.
+-#   queue5.sh judge --dry-run  list what a pass would run now.  Writes nothing.
+-#   queue5.sh judge --stop     ask the worker to stop after its current job (creates the STOP file).
+-#   queue5.sh panels ...       the same for the report-only diagnostic panels at the J checkpoints (after that slot's judge).
++# queue5r.sh judge|panels [--dry-run | --once | --watch | --stop] : the stance5 replication judging and panels queues.
++# HOW TO RUN IT IN THIS CONTAINER (the stance5 lesson, run_log 2026-10-21 23:48 UTC): a detached setsid worker is not
++# tracked by the harness, and the idle container is reclaimed about 10 minutes after a turn ends, killing it.  Run each
++# worker as a harness-tracked background command, by its ABSOLUTE path, under a time limit, and relaunch it when it exits:
++#     timeout 7000 /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance5/replication/tools/queue5r.sh judge --workerwatch
++#     timeout 7000 /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance5/replication/tools/queue5r.sh panels --workerwatch
++# (Bash run_in_background, one command each).  A job cut by the limit leaves no output and is rerun by the next worker.
++# --watch below (setsid nohup) is stance5's detached form, kept unchanged; do not rely on it here.  Never launch it as
++# "bash queue5r.sh": the worker relaunches "$0" under nohup and needs a path (stance5, 2026-10-21 20:32 UTC).
++# Everything below is SP/foot/stance5/tools/queue5.sh with the replication runs (s70, s80), judge_one5r.sh, panels5r_one.sh
++# and the replication root (S5 below names SP/foot/stance5/replication), plus one status: "refused", a full-mode slot
++# whose judge refused on the run's own records (judge_one5r.sh wrote refused_<steps>.json: an invalid J file, criteria
++# RUN HANDLING).  It is not rerun, its panels and final extras are skipped, and it counts as settled.  And "review": a
++# refusal on the checkpoint's own attributes only (refused_<steps>.review.json), held until the coordinator confirms it
++# (renamed to refused_<steps>.json) or moves it aside; it is not rerun and not settled.
++#   queue5r.sh judge --watch    detach a worker (setsid nohup) that judges every placed, unjudged checkpoint of the two
++#                              replication runs, one job at a time, then re-scans every 5 minutes for newly placed ones.
++#   queue5r.sh judge --once     the same, one pass, then exit.
++#   queue5r.sh judge --dry-run  list what a pass would run now.  Writes nothing.
++#   queue5r.sh judge --stop     ask the worker to stop after its current job (creates the STOP file).
++#   queue5r.sh panels ...       the same for the report-only diagnostic panels at the J checkpoints (after that slot's judge).
+ # Re-run the launcher after a container restart: finished jobs are skipped, an incomplete output is moved aside and
+-# rerun (judge_one5.sh / panels5_one.sh do that), and a job that failed MAX_FAILS times is skipped until its
++# rerun (judge_one5r.sh / panels5r_one.sh do that), and a job that failed MAX_FAILS times is skipped until its
+ # state/<job>.fails file is deleted.  One worker per kind (flock).  The worker exits when every job is done, on the
+@@ -14,8 +28,8 @@
+ # (1048576 2097152 3145728 7340032 9437184 11534336), then best and robust_best, then quick mode at the other placed
+-# 524,288 checkpoints, then at final: fresh, tail and common-noise.  Panels: J only, four variants, panels5_one.sh --wait.
++# 524,288 checkpoints, then at final: fresh, tail and common-noise.  Panels: J only, four variants, panels5r_one.sh --wait.
+ # Budget: one judge process and one panels process at a time (nice -n 19 for panels; the panels worker also waits for
+ # any other panels4.py or panels5.py).
+-# Logs: S5/judged/logs/queue5_judge.log, S5/panels/out/logs/queue5_panels.log; per job: see judge_one5.sh, panels5_one.sh.
++# Logs: R/judged/logs/queue5_judge.log, R/panels/out/logs/queue5_panels.log; per job: see judge_one5r.sh, panels5r_one.sh.
+ S=/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad
+-S5=$S/foot/stance5; T=$S5/tools
++S5=$S/foot/stance5/replication; T=$S5/tools   # R
+ KIND=$1; MODE=$2
+@@ -25,3 +39,3 @@
+   -h|--help|"") awk 'NR>1 && !/^#/{exit} NR>1{sub(/^# ?/,""); print}' "$0"; exit 0;;
+-  *) echo "usage: queue5.sh judge|panels [--dry-run|--once|--watch|--stop]"; exit 2;;
++  *) echo "usage: queue5r.sh judge|panels [--dry-run|--once|--watch|--stop]"; exit 2;;
+ esac
+@@ -29,3 +43,3 @@
+ MAX_FAILS=2; MIN_FREE_KB=1048576; MAX_HOURS=30; SLEEP=300
+-RUNS="stance5_LTSB_s52:52 stance5_LTSB_s60:60 stance5_LTSB_s42:42"
++RUNS="stance5_LTSB_s70:70 stance5_LTSB_s80:80"
+ J="4194304 5242880 6291456 8388608 10485760 final"
+@@ -54,14 +68,14 @@
+ 
+-status_of() {  # status_of RUN SEED STEPS MODE -> done | ready | missing | waiting-judge | failed
++status_of() {  # status_of RUN SEED STEPS MODE -> done | ready | missing | waiting-judge | refused | review | failed
+   local run=$1 seed=$2 steps=$3 mode=$4 key=$1_$3_$4 rc
+   if [ "$KIND" = judge ]; then
+-    $T/judge_one5.sh --check $steps $run $seed $mode; rc=$?
++    $T/judge_one5r.sh --check $steps $run $seed $mode; rc=$?
+     if [ $mode != full ] && [ $mode != quick ] && [ $rc -eq 1 ]; then  # final extras wait for the full final judge
+-      $T/judge_one5.sh --check final $run $seed full || { echo waiting-judge; return; }
++      $T/judge_one5r.sh --check final $run $seed full; case $? in 0) ;; 5) echo refused; return;; 6) echo review; return;; *) echo waiting-judge; return;; esac
+     fi
+   else
+-    $T/panels5_one.sh --check $steps $run; rc=$?
+-    if [ $rc -eq 1 ]; then $T/judge_one5.sh --check $steps $run $seed full || { echo waiting-judge; return; }; fi
++    $T/panels5r_one.sh --check $steps $run; rc=$?
++    if [ $rc -eq 1 ]; then $T/judge_one5r.sh --check $steps $run $seed full; case $? in 0) ;; 5) echo refused; return;; 6) echo review; return;; *) echo waiting-judge; return;; esac; fi
+   fi
+-  case $rc in 0) echo done;; 3) echo missing;;
++  case $rc in 0) echo done;; 3) echo missing;; 5) echo refused;; 6) echo review;;
+     *) if [ -f $STATE/$key.fails ] && [ "$(wc -l < $STATE/$key.fails)" -ge $MAX_FAILS ]; then echo failed; else echo ready; fi;; esac
+@@ -72,5 +86,7 @@
+   say "run $run $steps $mode"; t0=$(date +%s)
+-  if [ "$KIND" = judge ]; then $T/judge_one5.sh $steps $run $seed $mode; rc=$?
+-  else $T/panels5_one.sh --wait $steps $run; rc=$?; fi
++  if [ "$KIND" = judge ]; then $T/judge_one5r.sh $steps $run $seed $mode; rc=$?
++  else $T/panels5r_one.sh --wait $steps $run; rc=$?; fi
+   if [ $rc -eq 0 ]; then say "ok $run $steps $mode $(( $(date +%s) - t0 ))s"
++  elif [ $rc -eq 5 ]; then say "refused $run $steps $mode: the judge refused on the run's own records (refused_$steps.json, an invalid J file; criteria RUN HANDLING)"
++  elif [ $rc -eq 6 ]; then say "review $run $steps $mode: the judge refused on the checkpoint's own attributes only (refused_$steps.review.json, held for review; tools/README.md rule 2)"
+   else echo "$(date -Is) rc=$rc" >> $STATE/$key.fails; say "FAIL $run $steps $mode rc=$rc $(( $(date +%s) - t0 ))s"; fi
+@@ -92,3 +108,3 @@
+ 
+-all_done() { local line; while read -r line; do set -- $line; [ "$(status_of $1 $2 $3 $4)" = done ] || return 1; done < <(joblist); return 0; }
++all_done() { local line; while read -r line; do set -- $line; case "$(status_of $1 $2 $3 $4)" in done|refused) ;; *) return 1;; esac; done < <(joblist); return 0; }
+ 
+@@ -125,3 +141,3 @@
+   exit 0 ;;
+-*) echo "usage: queue5.sh judge|panels [--dry-run|--once|--watch|--stop]"; exit 2 ;;
++*) echo "usage: queue5r.sh judge|panels [--dry-run|--once|--watch|--stop]"; exit 2 ;;
+ esac
+
+--- stance5/tools/satwatch5.py
++++ replication/tools/satwatch5r.py
+@@ -1,7 +1,9 @@
+-"""Saturation watch for the stance5 band runs (report only; criteria PRE-REGISTERED READOUTS "Saturation watch",
++"""Saturation watch for the stance5 replication band runs, s70 and s80 (SP/foot/stance5/tools/satwatch5.py with the
++replication runs, root R = SP/foot/stance5/replication, satroll5r.py, place5r.py and its own state file; the alarm rule
++and every report line unchanged) (report only; criteria PRE-REGISTERED READOUTS "Saturation watch",
+ D-D40 5a): read each run's evaluation ledger and report the alarm with run, step and actuator.
+ 
+-    python3 -I satwatch5.py [--runs RUN_ID ...] [--runs-root S5/runs] [--ledgers RUN_ID=DIR ...] [--roll]
++    python3 -I satwatch5r.py [--runs RUN_ID ...] [--runs-root R/runs] [--ledgers RUN_ID=DIR ...] [--roll]
+                             [--roll-dir DIR] [--state FILE | --no-state] [--json OUT.json]
+-    python3 -I satwatch5.py --validate-on-stance4 --no-state [--runs-root ROOT] [--roll] [--roll-dir DIR]
++    python3 -I satwatch5r.py --validate-on-stance4 --no-state [--runs-root ROOT] [--roll] [--roll-dir DIR]
+ 
+@@ -12,3 +14,3 @@
+ 
+-The actuator (criteria): satroll5.py's 20-episode rollout of the latest placed periodic checkpoint AT OR AFTER THE FIRST
++The actuator (criteria): satroll5r.py's 20-episode rollout of the latest placed periodic checkpoint AT OR AFTER THE FIRST
+ FLAGGED EVALUATION F (the actuator with the largest fraction of window steps at |command| >= 0.9 and the sign of its
+@@ -27,3 +29,3 @@
+ Ledger problems (the run's alarm state is unknown, so it is NOT "no alarm"): no eval_episodes.csv placed (after the run
+-has evaluated), an empty one, a ledger that place5.py refused at the last fetch (<stage>/eval_episodes.csv.refused.json:
++has evaluated), an empty one, a ledger that place5r.py refused at the last fetch (<stage>/eval_episodes.csv.refused.json:
+ after a Colab resume the fetched ledger does not extend the placed copy), no progress.json placed, or a ledger whose last
+@@ -52,5 +54,6 @@
+ S4 = SCRATCH + "/foot/stance4"
+-TOOLS = S5 + "/tools"
++R = S5 + "/replication"
++TOOLS = R + "/tools"
+ SCORER = S5 + "/judge/score_stance5.py"
+-RUNS = {"stance5_LTSB_s52": 52, "stance5_LTSB_s60": 60, "stance5_LTSB_s42": 42}
++RUNS = {"stance5_LTSB_s70": 70, "stance5_LTSB_s80": 80}
+ RUNS_S4 = {"stance4_LTS_s52": 52, "stance4_LTS_s60": 60, "stance4_LTS_s42": 42}
+@@ -93,9 +96,9 @@
+     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+-    ap.add_argument("--runs", nargs="+", default=None, help="default: the three band runs")
+-    ap.add_argument("--runs-root", default=None, help="default: S5/runs (S4/runs with --validate-on-stance4)")
++    ap.add_argument("--runs", nargs="+", default=None, help="default: the two replication runs")
++    ap.add_argument("--runs-root", default=None, help="default: R/runs (S4/runs with --validate-on-stance4)")
+     ap.add_argument("--ledgers", action="append", default=[], metavar="RUN_ID=DIR")
+     ap.add_argument("--roll", action="store_true",
+-                    help="run satroll5.py on the latest placed checkpoint at or after the first flagged evaluation")
++                    help="run satroll5r.py on the latest placed checkpoint at or after the first flagged evaluation")
+     ap.add_argument("--roll-dir", default=TOOLS + "/satroll", help="where satroll5 outputs are kept (default tools/satroll)")
+-    ap.add_argument("--state", default=TOOLS + "/state/satwatch5_state.json")
++    ap.add_argument("--state", default=TOOLS + "/state/satwatch5r_state.json")
+     ap.add_argument("--no-state", action="store_true")
+@@ -119,3 +122,3 @@
+         runs = {r: runs[r] for r in a.runs}
+-    root = a.runs_root or (S4 + "/runs" if a.validate_on_stance4 else S5 + "/runs")
++    root = a.runs_root or (S4 + "/runs" if a.validate_on_stance4 else R + "/runs")
+     ledgers = {}
+@@ -144,5 +147,5 @@
+                 rf = json.load(fh)
+-            mine.append(f"place5.py REFUSED the ledger fetched at the last check-in ({rf.get('fetch')}): it does not extend "
++            mine.append(f"place5r.py REFUSED the ledger fetched at the last check-in ({rf.get('fetch')}): it does not extend "
+                         "the placed copy, so the watch reads an old ledger. After a Colab resume the maintainer reported "
+-                        f"(RUN_ID and N): cd {TOOLS} && python3 -I place5.py csv {run} {rf.get('fetch')} --resumed-from N; "
++                        f"(RUN_ID and N): cd {TOOLS} && python3 -I place5r.py csv {run} {rf.get('fetch')} --resumed-from N; "
+                         "otherwise fetch the ledgers again")
+@@ -201,3 +204,3 @@
+                 f"PYTHONPYCACHEPREFIX={SCRATCH}/caches/pyc MPLCONFIGDIR={SCRATCH}/caches/mpl nice -n 19 python3 "
+-                f"{SCRATCH}/foot/stance3/tools/iso.py satroll5.py {run_dir} --arm {arm} --seed {seed} --steps {latest} "
++                f"{SCRATCH}/foot/stance3/tools/iso.py satroll5r.py {run_dir} --arm {arm} --seed {seed} --steps {latest} "
+                 f"--out {roll_out}")
+@@ -213,6 +216,6 @@
+                 why = (f"no checkpoint at or after the first flagged evaluation {F:,} is placed for {run}: fetch "
+-                       f"{fetch_at:,} for this run alone now (stance5-fetch-checkpoint.js "
++                       f"{fetch_at:,} for this run alone now (stance5r-fetch-checkpoint.js "
+                        f"{{\"steps\": {fetch_at}, \"runs\": [\"{run}\"]}}), then re-run with --roll")
+             elif roll_rc not in (None, 0):
+-                why = f"satroll5 FAILED (rc {roll_rc}) on checkpoint {latest:,}: {cmd}"
++                why = f"satroll5r FAILED (rc {roll_rc}) on checkpoint {latest:,}: {cmd}"
+             elif rolled is not None:
+
+--- stance5/tools/satroll5.py
++++ replication/tools/satroll5r.py
+@@ -1,2 +1,3 @@
+-"""Name the saturating actuator of a placed stance checkpoint (report only; criteria SP/foot/stance5/criteria.txt,
++"""Name the saturating actuator of a placed stance checkpoint (stance5 replication copy of SP/foot/stance5/tools/
++satroll5.py: judge_stance5r.py in place of judge_stance5.py, and --seed also takes 70 and 80) (report only; criteria SP/foot/stance5/criteria.txt,
+ PRE-REGISTERED READOUTS, "Saturation watch", D-D40 5a).
+@@ -4,3 +5,3 @@
+     S=/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad
+-    env ISO_WT=<the arm's clone> python3 $S/foot/stance3/tools/iso.py satroll5.py RUN_DIR --arm {LTSB,LTS} --seed N \
++    env ISO_WT=<the arm's clone> python3 $S/foot/stance3/tools/iso.py satroll5r.py RUN_DIR --arm {LTSB,LTS} --seed N \
+         --steps STEPS [STEPS ...] --out OUT.json [--episodes 20]
+@@ -40,3 +41,3 @@
+ SCRATCH = "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad"
+-JUDGE = SCRATCH + "/foot/stance5/judge/judge_stance5.py"
++JUDGE = SCRATCH + "/foot/stance5/replication/judge/judge_stance5r.py"
+ SEED0, EPISODES = 3042, 20
+@@ -48,5 +49,5 @@
+ def load_judge():
+-    spec = importlib.util.spec_from_file_location("judge_stance5", JUDGE)
++    spec = importlib.util.spec_from_file_location("judge_stance5r", JUDGE)
+     J = importlib.util.module_from_spec(spec)
+-    sys.modules["judge_stance5"] = J
++    sys.modules["judge_stance5r"] = J
+     spec.loader.exec_module(J)
+@@ -112,3 +113,3 @@
+     ap.add_argument("--arm", required=True, choices=("LTSB", "LTS"), help="LTSB (stance5) or LTS (stance4, validation)")
+-    ap.add_argument("--seed", type=int, required=True, choices=(42, 52, 60))
++    ap.add_argument("--seed", type=int, required=True, choices=(42, 52, 60, 70, 80))
+     ap.add_argument("--steps", nargs="+", required=True, help="checkpoint slots: a multiple of 524288, final, best, robust_best")
+@@ -116,3 +117,3 @@
+     ap.add_argument("--episodes", type=int, default=EPISODES)
+-    ap.add_argument("--expect-head", default=None, help="default: the arm's pinned HEAD in judge_stance5.py ARMS")
++    ap.add_argument("--expect-head", default=None, help="default: the arm's pinned HEAD in judge_stance5r.py ARMS")
+     ap.add_argument("--allow-commit-mismatch", action="store_true",
+@@ -128,3 +129,3 @@
+     if expect is None:
+-        raise SystemExit(f"arm {a.arm}: HEAD is a PLACEHOLDER in judge_stance5.py; pass --expect-head")
++        raise SystemExit(f"arm {a.arm}: HEAD is a PLACEHOLDER in judge_stance5r.py; pass --expect-head")
+     if os.path.realpath(os.environ.get("ISO_WT", clone)) != os.path.realpath(clone):
+@@ -194,3 +195,3 @@
+         if isinstance(exc.code, str):
+-            print(f"[satroll5] {exc.code}", file=sys.stderr, flush=True)
++            print(f"[satroll5r] {exc.code}", file=sys.stderr, flush=True)
+         raise
+
+--- stance5/tools/cert5_one.sh
++++ replication/tools/cert5r_one.sh
+@@ -1,3 +1,5 @@
+ #!/bin/bash
+-# cert5_one.sh RUN_ID: six-heading certificate (stance_quality_heading/v1) of a stance5 run's final checkpoint, report only.
++# cert5r_one.sh RUN_ID: six-heading certificate (stance_quality_heading/v1) of a stance5 replication run's final checkpoint,
++# report only (SP/foot/stance5/tools/cert5_one.sh with the runs s70/s80 and R = SP/foot/stance5/replication; S5 below
++# names R).
+ # stance3's cert_one.sh with the stance5 paths and the band clone (claude/screen-trex-r9-armlts-copband at cf80ecb1); the
+@@ -5,3 +7,4 @@
+ S=/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad
+-S5=$S/foot/stance5; RUN=$1; CL=$S/fix/scratch_copband
++S5=$S/foot/stance5/replication; RUN=$1; CL=$S/fix/scratch_copband   # R
++case "$RUN" in stance5_LTSB_s70|stance5_LTSB_s80) ;; *) echo "RUN_ID $RUN is not a replication run"; exit 2;; esac
+ [ "$(git -C $CL rev-parse HEAD)" = cf80ecb14d1630ce3b4dcdea28a05835d143470b ] || { echo "clone HEAD is not cf80ecb1"; exit 2; }
+@@ -9,4 +12,5 @@
+ export OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 PYTHONPYCACHEPREFIX=$S/caches/pyc MPLCONFIGDIR=$S/caches/mpl
+-M=$S5/runs/$RUN/01_stance/models; O=$S5/cert/$RUN; mkdir -p $O
++M=$S5/runs/$RUN/01_stance/models; O=$S5/cert/$RUN
+ [ -f $M/stage1_final.zip ] && [ -f $M/stage1_final_vecnorm.pkl ] || { echo "final pair not placed for $RUN"; exit 3; }
++mkdir -p $O
+ [ -f $O/run_summary.json ] && { echo "done already: $O/run_summary.json"; exit 0; }
+
+--- stance5/tools/wfcheck/harness.mjs
++++ replication/tools/wfcheck/harness.mjs
+@@ -9,3 +9,3 @@
+   prompts.push({ label: opts.label, phase: opts.phase, len: prompt.length, prompt })
+-  const run = (/stance5_LTSB_s\d\d/.exec(opts.label) || [''])[0]
++  const run = (/stance5_LTSB_s\d\d/.exec(opts.label) || [''])[0]  // replication: s70, s80
+   if (opts.phase === 'Find') return { run_id: run, found: scen !== 'notyet', folder: 'F' + run, stance: 'S' + run, models: 'M' + run, notes: '' }
+@@ -15,4 +15,4 @@
+   const uniq = [...new Set(titles)]
+-  const notyet = scen === 'notyet' && run === 'stance5_LTSB_s42'
+-  const shaFor = (t) => (scen === 'differ' && role === 'A' && t.endsWith('.pkl') && run === 'stance5_LTSB_s60') ? 'bad' : 'good_' + t
++  const notyet = scen === 'notyet' && run === 'stance5_LTSB_s80'
++  const shaFor = (t) => (scen === 'differ' && role === 'A' && t.endsWith('.pkl') && run === 'stance5_LTSB_s70') ? 'bad' : 'good_' + t
+   return { run_id: run, role, checkpoint_present: !notyet, notes: '',

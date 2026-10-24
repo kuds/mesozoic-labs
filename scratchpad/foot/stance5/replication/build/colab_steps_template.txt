@@ -1,0 +1,250 @@
+T. rex stance5 REPLICATION: two more band runs (arm LTSB, seeds 70 and 80), the unchanged stance5 recipe.
+=========================================================================================================
+
+Two runs, one Colab runtime each, both started at the same time.
+
+THE TWO THINGS TO GET RIGHT: SEED AND RUN_ID
+   SEED = 70 (Run 4) / 80 (Run 5). A fresh copy starts at SEED = 42, and the notebook never prints the seed, so no
+   output line checks it.
+   RUN_ID is the run's Drive folder name. Type it exactly as below. It is NOT the label:
+       Run 4:  RUN_ID = "stance5_LTSB_s70"      RUN_LABEL = "stance screen LTSB s70"
+       Run 5:  RUN_ID = "stance5_LTSB_s80"      RUN_LABEL = "stance screen LTSB s80"
+   On stance5 the label once went into RUN_ID. That run had to be stopped 2 minutes in and restarted. After Run all,
+   step 6 asks you to read the "Run directory:" line. It must end in /ppo/stance5_LTSB_s70 (or _s80). If it ends in
+   "stance screen LTSB s70", stop the run at once and tell me.
+   The one exception: a run cut off before its first checkpoint is restarted under "stance5_LTSB_s70_b" (Run 5:
+   "stance5_LTSB_s80_b"), as step 9 says, and a _b run cut off the same way restarts under "..._c". That restart IS
+   the same run, and only then does the line end in _b (or _c).
+
+Runtime type: L4 GPU, the same for both, as the stance5 runs and the control trained (measured: the "gpu" block of
+  their 01_stance/stage_config.json reads L4). If no L4 is offered, tell me before you start. Another runtime is
+  allowed, but it is recorded and reported beside the verdicts; the runtime never changes a verdict.
+
+The runs, both on ONE branch, claude/screen-trex-r9-armlts-copband, commit cf80ecb14d1630ce3b4dcdea28a05835d143470b.
+This is the branch and commit the three stance5 runs trained. Nothing is changed or added. Only the seed differs:
+- Run 4, "LTSB s70": SEED 70, RUN_ID stance5_LTSB_s70, RUN_LABEL "stance screen LTSB s70".
+- Run 5, "LTSB s80": SEED 80, RUN_ID stance5_LTSB_s80, RUN_LABEL "stance screen LTSB s80".
+The branch was pushed at cf80ecb14d1630ce3b4dcdea28a05835d143470b on 2026-10-21 (confirmed then with ls-remote). Nothing
+has been pushed to it since (this session's records; not re-checked on GitHub today). The commit line in step 6 is
+the check that it still is that commit.
+
+Why these two runs. stance5 scored decision line 3: s52 held, s60 failed K3 only, and s42 failed K1 and K3 ("not
+separated from seed luck; replicate on 2 more seeds before any commit"). You decided on 2026-10-22 to replicate the
+unchanged recipe on seeds 70 and 80 with no new control runs, and to ADOPT the band only if BOTH new runs hold. The
+three stance5 runs keep their verdicts.
+
+Leave every other folder on Drive as it is: the stance5 runs (stance5_LTSB_s52 / s60 / s42), stance4 and stance3. Start
+only the two runs above.
+
+The criteria were fixed before training: SP/foot/stance5/replication/criteria.txt, sha256
+{CRITERIA_SHA}. Its full text is at the end of these steps, so you can check that hash (see
+"CHECKING THE CRITERIA HASH"). K1-K4, the judge settings and the six judged checkpoints are stance5's (stance5
+criteria sha256 3b28963f644ffb765e666a8cf6ada5d31ab8a2769dd1a77ff53cbc1e0cf3cf16).
+The judge, the scorer and the new seeds' noise sigma were fixed before training too (measured):
+  judge_stance5r.py   sha256 {JUDGE_SHA}
+  score_stance5r.py   sha256 {SCORER_SHA}
+  sigma_s70_s80.json  sha256 {SIDECAR_SHA}
+
+FOR EACH RUN
+
+1. Open https://colab.research.google.com/github/kuds/mesozoic-labs/blob/claude/screen-trex-r9-armlts-copband/notebooks/sb3_training.ipynb
+   (the same link for both runs, and the same one the stance5 runs used).
+   If that link fails, stop and tell me. Do not open the notebook from main: REPO_REF picks the installed code, but the
+   notebook's own cells (the training helper and the storage, resume and chain-loop cells) come from the link you open,
+   and main's were last compared with this branch's on 2026-10-19.
+   Use File > Save a copy in Drive, named for the run ("stance5r LTSB s70", "stance5r LTSB s80"), and work in that
+   copy. Make a fresh copy from this link for each run. Do not reuse a stance5 copy: it holds seed 52, 60 or 42 and
+   that run's RUN_ID, and one field left unchanged would train the wrong seed or re-enter a stance5 run's folder.
+
+2. Runtime > Change runtime type: L4 GPU (the same for both). If L4 is not offered, stop and tell me before you start.
+
+3. In section 1, set
+     REPO_REF = "claude/screen-trex-r9-armlts-copband"     (both runs)
+
+4. In the section 2 configuration cell ("# ===== SPECIES SELECTION ====="), set:
+     SPECIES          = "tyrannosaurus_rex"
+     EMBODIMENT       = "anatomical"
+     ALGORITHM        = "ppo"
+     N_ENVS           = 4
+     SEED             = 70                         (Run 4: 70 / Run 5: 80)
+     QUICK_TEST       = False
+     USE_GOOGLE_DRIVE = True
+     AUTO_DISCONNECT  = True
+     BEHAVIOR         = "stance"                   (type it)
+     TRUNK_FROM       = ""                         (empty, not "auto")
+     RETRAIN_FROM     = ""
+     RUN_LABEL        = "stance screen LTSB s70"   (Run 5: "stance screen LTSB s80")
+     RUN_ID           = "stance5_LTSB_s70"         (Run 5: "stance5_LTSB_s80")   <- the folder name, NOT the label
+   Before you run, read SEED, RUN_ID and RUN_LABEL once more, side by side: all three end in 70 (Run 5: 80), and the
+   two copies differ. RUN_ID has underscores and no spaces.
+   Leave everything else as it is. RESUME_STAGE (section 5) stays None.
+
+5. Runtime > Run all, and allow Drive access.
+
+6. Check the output for:
+   - "Repository ref: claude/screen-trex-r9-armlts-copband; commit: cf80ecb14d1630ce3b4dcdea28a05835d143470b".
+     This is the decisive check: it pins the code and the config. A different commit: stop and tell me
+     (99e205bbc10d80c9d4b6dd01ef0921bfbd4b2eb1 is the band code with the band off;
+     c1e146a82658112a9a1c0838250020b214ef303a is the stance4 branch);
+   - "Run directory: .../ppo/stance5_LTSB_s70 (new run: RUN_ID names no existing run)" (Run 5: .../ppo/stance5_LTSB_s80).
+     It must end in the RUN_ID exactly. If it shows the label ("stance screen LTSB s70") or another name, stop the run
+     at once and tell me. If it reads "re-entering run" instead of "new run", stop and tell me too: do not change
+     RUN_ID on your own; only a resume, below, re-enters a run. The only other right endings are
+     .../ppo/stance5_LTSB_s70_b, then _c (Run 5: .../ppo/stance5_LTSB_s80_b, then _c), "new run", and only on a restart
+     under step 9's "_b" / "_c" case;
+   - "Behavior 'stance' -> deliverable 'stance'; chain: stance";
+   - the zero-action baseline row: "standing" 4456.3, "reward" about 4367.8 (it also averages in the one spawn
+     that falls), "mean-std" about 3814.2, full-hz 98%, gate 2250, "OK — the statue passes the stance gate". The row
+     does not depend on the seed. Read "standing" against this band:
+       4456.3 +/- 0.3: right.
+       4458.2 +/- 0.3: the band is off (the stance4 config). Stop and tell me.
+       4459.4 +/- 0.3: the band and the stagger keys are off (the L+T config of stance3). Stop and tell me.
+       about 3980: only the arm L keys are on. Stop and tell me.
+       about 3756: the screen config is off (the production stance config). Stop and tell me.
+       Anything else: stop and tell me.
+     The band costs the statue only 1.9 per episode, so the right row and the stance4 row differ by 1.9: read the
+     decimal. The values are measured on the local CPU. On Colab, the stance5 runs recorded zero_action_reward 4367.8,
+     the local value (measured, their progress.json).
+   - "Timesteps: 12,000,000";
+   - an "Eval num_timesteps=..." line every 131,072 steps, the first within about 15-20 minutes.
+   Any other check line that differs: stop and tell me.
+
+7. Leave it running: about 14 h of training, then about 30 min of end-of-stage evaluation, certificate and videos. The
+   stance5 runs took 13.7-14.5 h at 231-245 steps/s on the L4 (measured); these runs are expected to take the same
+   (inferred: the same code and runtime). A PASS or a FAIL at the end is fine: it is report-only. Ignore "never beaten
+   the zero-action baseline". Tell me if you see "collapse" or an early stop. Do not stop or change a run because of
+   anything it prints during training. I read each run's evaluation ledger at every check-in and tell you at once if
+   the saturation alarm fires (run, step, actuator; if no checkpoint at or after the alarm is on Drive yet, the
+   actuator follows as soon as one is fetched and rolled). That is report only too, and the run is not stopped or
+   restarted.
+   Every run disconnects by itself at the end (AUTO_DISCONNECT True). On a FAIL, section 6 prints
+   "stance failed its curriculum gate: ..." and then "Disconnecting runtime in 5 seconds..." (a RuntimeError after
+   it, if it shows at all, is expected). On a PASS it prints "stance: gate PASSED ...", then section 8's report and
+   section 9's "Training finished — behavior 'stance' (stance) chain complete." before disconnecting. Either way the
+   run is FINISHED: do not resume it, do not start it again under any RUN_ID, just tell me.
+
+8. Only on a PASS whose section 9 did not run (the runtime is still connected after "stance: gate PASSED"): run
+   section 9, Auto-Disconnect, by hand, and if a section 8 cell stopped Run all with an error, tell me its message.
+   After a FAIL there is nothing to run: the runtime is already released, and Run all stops at section 6 by design.
+
+IF COLAB DISCONNECTS
+
+   First check that the run really disconnected and did not finish. If
+   MyDrive/mesozoic-labs/logs/tyrannosaurus_rex/anatomical/ppo/<RUN_ID>/01_stance/gate_verdict.json exists, the run
+   FINISHED (step 7): do nothing, just tell me. Only without that file is it a disconnect.
+
+9. Open the same copy on a fresh runtime of the same type (L4), with the same settings and the same RUN_ID. If no L4
+   is offered, tell me before you resume on another runtime. Set RESUME_STAGE = "stance" in section 5 and Run all. It
+   continues from the newest 524,288-step checkpoint, so up to about 40 min is redone.
+   If MyDrive/mesozoic-labs/logs/tyrannosaurus_rex/anatomical/ppo/<RUN_ID>/01_stance/models/ has no stage1_*_steps.zip
+   yet, restart instead under RUN_ID "<RUN_ID>_b" (e.g. "stance5_LTSB_s70_b") with RESUME_STAGE None, the same SEED
+   and the same other settings, and leave the first folder alone. That restart IS the same run (Run 4 or Run 5), judged
+   under its RUN_ID. If the _b run is cut off before its first checkpoint too, restart it the same way under
+   "<RUN_ID>_c".
+   Before either, find your case in "Resuming after a disconnect" below. It has the details, and the two cases (a
+   finished run, a cut-short final save) where you must not resume.
+
+WHEN TO TELL ME
+
+10. Tell me when both have started, with each run's commit line, its "Run directory:" line, its SEED as set in the
+    config cell, its baseline row and its runtime type. I check each run's provenance.json (seed, commit, RUN_ID) within
+    about 10 minutes of your message. Tell me also when each passes 6.3M steps (about 7.1-7.6 h after its start;
+    computed from the stance5 runs' measured rates). Tell me when each finishes, stops, resumes or restarts under
+    _b / _c (on a resume, also that session's runtime type; on a restart, the new folder name). There is nothing to
+    send: I read the checkpoints and telemetry from Drive
+    (MyDrive/mesozoic-labs/logs/tyrannosaurus_rex/anatomical/ppo/stance5_LTSB_s70/ and .../stance5_LTSB_s80/).
+    The decision is read once both runs have ended. Readings along the way are report-only: runs are never stopped or
+    changed on them, nor on a saturation alarm, and fails stay fails.
+
+RESUMING AFTER A DISCONNECT (what the notebook does on this branch; unchanged from stance5)
+
+- What is on Drive. Every 524,288 steps (about every 36-38 min on the L4; computed from the stance5 runs'
+  measured rates) the run writes
+  01_stance/models/stage1_<steps>_steps.zip and stage1_vecnormalize_<steps>_steps.pkl, and keeps every one (this
+  branch's [curriculum] checkpoint_freq = 524288, max_checkpoints = 0). The first pair lands at 524,288 steps; the
+  last periodic pair is 11,534,336. The end of training writes stage1_final.zip and stage1_final_vecnorm.pkl at
+  12,001,280.
+- Which case you are in. Look in MyDrive/mesozoic-labs/logs/tyrannosaurus_rex/anatomical/ppo/<RUN_ID>/01_stance/
+  and its models/ folder, in this order:
+  0) 01_stance/gate_verdict.json is there: the run FINISHED (PASS or FAIL; step 7), whatever else is or is not there
+     (its summary, graphs or videos may be missing if the end was cut off). Do nothing, do not resume, do not start a
+     new RUN_ID: just tell me.
+  a) no gate_verdict.json; models/ holds stage1_final.zip AND stage1_final_vecnorm.pkl: the training finished and
+     the disconnect hit the end-of-stage evaluation. Resume as in step 9 anyway. Section 5 prints "Nothing to
+     resume: 'stance' already holds its final pair stage1_final.zip ..." and trains nothing; section 6 then runs the
+     end-of-stage evaluation, certificate and videos again. (If section 5 raises an error instead, the final pair
+     was cut short: follow the stop rule below.)
+  b) no gate_verdict.json; models/ holds stage1_final.zip but no stage1_final_vecnorm.pkl: the disconnect hit the
+     few seconds of the final save. Do not resume on your own: stop and tell me. It is finished by resuming from the
+     newest intact periodic checkpoint in the same RUN_ID folder (after a _b / _c restart, that folder), never under a
+     new RUN_ID. How: I first check from the run's ledgers that its training reached the end. Then I ask you to rename,
+     in that models/ folder, stage1_final.zip to stage1_final.zip.cut (and stage1_final_vecnorm.pkl, if it is there, to
+     stage1_final_vecnorm.pkl.cut), deleting nothing, and to resume as in step 9. With no stage1_final.zip there,
+     section 5 resumes from the newest intact periodic checkpoint (11,534,336 when it is intact), and the final save
+     writes a new stage1_final pair at 12,001,280. The final checkpoint that counts is only a stage1_final pair at
+     12,001,280 in that folder.
+  c) no gate_verdict.json, no stage1_final.zip, at least one stage1_<steps>_steps.zip: resume (step 9).
+  d) no stage1_*_steps.zip at all (cut off in the first ~40 min): restart under "<RUN_ID>_b" (step 9). It is the
+     same run.
+- Resume in the same Drive copy, on a fresh runtime of the same type (no L4 offered: tell me before resuming on
+  another runtime). The section 1-2 settings are kept; check them:
+  the same REPO_REF, SEED, N_ENVS 4, BEHAVIOR "stance", TRUNK_FROM "", RETRAIN_FROM "", RUN_LABEL and the SAME RUN_ID.
+  Set RESUME_STAGE = "stance" in section 5, then Runtime > Run all. Expect:
+  - "Repository ref: claude/screen-trex-r9-armlts-copband; commit: cf80ecb14d1630ce3b4dcdea28a05835d143470b" (the
+    same as before);
+  - "Run directory: .../ppo/<RUN_ID> (re-entering run '<RUN_ID>': holds ...)" (NOT "new run");
+  - the zero-action baseline row again ("standing" 4456.3);
+  - in section 5: "Resuming 'stance' (stage 1) from .../01_stance/models", "Newest intact periodic checkpoint:
+    .../stage1_<N>_steps.zip", "Matched VecNormalize: .../stage1_vecnormalize_<N>_steps.pkl" and
+    "Checkpoint steps: <N> of 12,000,000 — remaining budget: <12,000,000 - N>". <N> is a multiple of 524,288.
+    A "WARNING: skipping ..." line means the newest pair was cut off mid-write and it fell back to the one before.
+    That is fine; up to about 80 min is then redone.
+  - then "Timesteps: <the remaining budget>" (not 12,000,000: that is correct for a resume), and "Eval
+    num_timesteps=..." lines continuing from N + 131,072 on the same 131,072-step grid. The resumed run keeps the
+    same checkpoint grid (N + 524,288, ...), ends at the same 12,001,280 steps, and keeps the evaluation history,
+    eval_episodes.csv, train_episodes.csv and policy_probe.npz rows up to step N, appending after them.
+  - When the rest of the budget is trained, section 6 judges the node from disk (end-of-stage evaluation,
+    certificate, videos), as at the end of an uninterrupted run. The run then ends and disconnects by itself as in
+    step 7: a FAIL ends with "stance failed its curriculum gate: ...", and step 8 applies only to a PASS whose section
+    9 did not run. The run is then FINISHED: do not resume it again.
+- Tell me the RUN_ID, the <N> it resumed from, roughly how long it was down, and the new session's runtime type.
+- In some cases, stop and tell me: do not restart, do not delete anything, and never start a new RUN_ID on the advice
+  of an error message. That applies if section 5 or section 6 raises an error instead, in particular:
+  - "... an early stop whose final save was cut short, not an interruption ..." (section 5). On this branch that
+    message can also mean a disconnect during the few seconds of the final save: the cell measures the shortfall
+    against the notebook's default 100,000-step checkpoint cadence, not this branch's 524,288. Every periodic
+    checkpoint up to 11,534,336 is kept on Drive either way, and I will tell you how to finish it: from the newest
+    intact periodic checkpoint, in the same RUN_ID folder (the renaming in case b above, once I have checked the
+    ledgers).
+  - "'stance' already holds a FAILED gate verdict ... start a new run (a fresh RUN_ID ...)" (section 6). It means the
+    run had already finished (case 0): it must not be trained again under any RUN_ID.
+- Do not set RESUME_STAGE on a run that has not disconnected (a run with gate_verdict.json has finished, not
+  disconnected), and never point RUN_ID at another run's folder. In particular, never point it at a stance5 run's
+  folder (stance5_LTSB_s52 / s60 / s42). Leave RESUME_STAGE = "stance" set only for that copy's resume. A later Run all
+  with it still set trains nothing once the node holds its final pair.
+
+WHERE THE NUMBERS COME FROM (SP = the session scratchpad)
+
+- Baseline rows: as stance5_colab_steps.txt (SP/foot/stance5/stance5_colab_steps.txt, "WHERE THE NUMBERS COME
+  FROM"), measured on the local CPU (stage 1, 40 episodes, seed 3042, physics r9; reward / mean-std / standing):
+  this branch at cf80ecb1 4367.8 / 3814.2 / 4456.3 (SP/foot/stance5/smoke/logs/smoke_LTSB.log). The row is the env
+  alone at zero action, so the training seed does not move it. On Colab L4, the three stance5 runs recorded
+  zero_action_reward 4367.8 (measured, their progress.json; SP/foot/stance4/live/run_log.txt 2026-10-21 13:46 UTC).
+- Speed (measured on the stance5 runs, Colab L4, their final progress.json): 239.5 (s52), 230.9 (s60) and 245.2
+  (s42) steps/s. They started 13:32-13:35 UTC on 2026-10-21 and ended 03:14-04:03 UTC on 2026-10-22 (run_log), that is,
+  13.7-14.5 h. Inferred for these runs: the same, since nothing but the seed changes.
+- "Repository ref" is printed only on Colab. The stance5 runs trained cf80ecb1 (their stage_config.json git_commit and
+  provenance.json, measured).
+
+CHECKING THE CRITERIA HASH
+
+The criteria text is below, byte for byte, between the "=== BEGIN" and "=== END" lines (neither line is part of it).
+To check it, save these steps as colab_steps.txt and run:
+  awk '/^=== END criteria.txt/{f=0} f; /^=== BEGIN criteria.txt/{f=1}' colab_steps.txt > criteria.txt
+  sha256sum criteria.txt          (on a Mac: shasum -a 256 criteria.txt)
+It must print {CRITERIA_SHA}. A copy pasted through a phone or a
+document editor may change spaces or line ends and so the hash; the file on my side is
+SP/foot/stance5/replication/criteria.txt.
+
+=== BEGIN criteria.txt (sha256 {CRITERIA_SHA}) ===
+{CRITERIA_TEXT}=== END criteria.txt ===

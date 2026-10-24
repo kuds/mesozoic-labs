@@ -1,0 +1,887 @@
+{
+ "schema": "stance5r-judge/v1",
+ "judge": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance5/replication/judge/judge_stance5r.py",
+ "judge_sha256": "sha256:16d39f7dcb14a8b6f94061331933df8f1dcee76aa988479e293b132bf8ac05ae",
+ "argv": [
+  "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance5/replication/runs/stance5_LTSB_s80",
+  "--arm",
+  "LTSB",
+  "--seed",
+  "80",
+  "--steps",
+  "final",
+  "--out",
+  "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance5/replication/judged/stance5_LTSB_s80/judge_tail_final.json",
+  "--tail"
+ ],
+ "arm": "LTSB",
+ "branch_expected": "claude/screen-trex-r9-armlts-copband",
+ "clone": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/fix/scratch_copband",
+ "git": {
+  "head": "cf80ecb14d1630ce3b4dcdea28a05835d143470b",
+  "status": "",
+  "branch": "claude/screen-trex-r9-armlts-copband"
+ },
+ "expect_head": "cf80ecb14d1630ce3b4dcdea28a05835d143470b",
+ "modules": {
+  "environments": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/fix/scratch_copband/environments/__init__.py",
+  "environments.shared.reporting.stance_report": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/fix/scratch_copband/environments/shared/reporting/stance_report.py",
+  "environments.shared.curriculum.stance_gate_v2": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/fix/scratch_copband/environments/shared/curriculum/stance_gate_v2.py",
+  "environments.shared.policy_loading": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/fix/scratch_copband/environments/shared/policy_loading.py",
+  "environments.shared.gait.recorder": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/fix/scratch_copband/environments/shared/gait/recorder.py",
+  "environments.shared.gait.pad_telemetry": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/fix/scratch_copband/environments/shared/gait/pad_telemetry.py",
+  "environments.shared.gait.balance_telemetry": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/fix/scratch_copband/environments/shared/gait/balance_telemetry.py",
+  "environments.tyrannosaurus_rex.base_env": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/fix/scratch_copband/environments/tyrannosaurus_rex/base_env.py"
+ },
+ "python": "3.13.16",
+ "torch_threads": 1,
+ "mode": "tail",
+ "run_dir": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance5/replication/runs/stance5_LTSB_s80",
+ "stage_dir": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance5/replication/runs/stance5_LTSB_s80/01_stance",
+ "seed": 80,
+ "steps": "final",
+ "slot_kind": "J",
+ "checkpoint": "stage1_final",
+ "model": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance5/replication/runs/stance5_LTSB_s80/01_stance/models/stage1_final.zip",
+ "model_sha256": "sha256:e7936691b5fc62eee1241494683fccdffd473124e762e48aac5b3085a323b8e4",
+ "vecnorm": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance5/replication/runs/stance5_LTSB_s80/01_stance/models/stage1_final_vecnorm.pkl",
+ "vecnorm_sha256": "sha256:a1814289c1c58466fffaa5fe826449b364e0e093f62bab14589502ee91adea83",
+ "smoke": false,
+ "noise_run": false,
+ "stage": 1,
+ "stage_gate_kind": "stance_quality_heading/v1",
+ "feet": [
+  "r",
+  "l"
+ ],
+ "settle_steps": 200,
+ "horizon": 1000,
+ "thresholds_declared": {
+  "min_eval_episodes": 40,
+  "min_clean_stance_lcb": 0.8,
+  "settle_steps": 200,
+  "min_all_feet_support": 0.98,
+  "max_touchdown_rate": 0.25,
+  "max_window_displacement_m": 0.1,
+  "min_foot_load_share": 0.4,
+  "max_actuator_saturation_fraction": 0.1,
+  "max_settle_airborne_substeps": 0.0,
+  "max_settle_peak_floor_force_bw": 1.5,
+  "min_full_horizon_fraction": 0.95,
+  "min_avg_reward": 2250.0,
+  "min_avg_reward_statue_ratio": 0.6,
+  "min_foot_load_share_windowed": 0.35,
+  "max_foot_contact_fraction": 0.02,
+  "max_phantom_support_fraction": 0.05,
+  "max_nonfoot_load_fraction": 0.02,
+  "max_settle_stance_width_change_m": 0.08,
+  "max_sole_tilt_deg": 2.0,
+  "max_sole_corner_lift_m": 0.004,
+  "min_sole_contacts": 1.5,
+  "max_episode_yaw_change_deg": 25.0,
+  "max_settle_touchdowns": 2.0,
+  "max_sole_cop_fore_aft": 0.8,
+  "max_hop_or_fall_episodes": 1
+ },
+ "arm_check": {
+  "arm": "LTSB",
+  "env": {
+   "lateral_lean_weight": 0.25,
+   "lateral_lean_tolerance_m": 0.015,
+   "leg_home_pose_reference": "settled",
+   "leg_home_pose_broad_fraction": 0.25,
+   "leg_home_pose_broad_scale": 6.0,
+   "reset_noise_scale": 0.05,
+   "leg_home_pose_weight": 1.0,
+   "leg_home_pose_tolerance": 0.05,
+   "stance_stagger_weight": 0.3,
+   "stance_stagger_tolerance_m": 0.045,
+   "stance_cop_band_weight": 0.3
+  },
+  "ppo_symmetry": {
+   "symmetry": "mirror_kl",
+   "symmetry_kappa": 0.3,
+   "symmetry_sigma_floor": 0.01,
+   "symmetry_mirror_critic": true
+  },
+  "collapse_peak_floor_reference": 4457.4,
+  "physics_revision": 9,
+  "physics_sha256": "sha256:3d68aec73fbc4642681ed601bedaf3524459d693d6a7afce036bb14bac872d67"
+ },
+ "arm_env_kwargs": {
+  "lateral_lean_weight": 0.25,
+  "lateral_lean_tolerance_m": 0.015,
+  "leg_home_pose_reference": "settled",
+  "leg_home_pose_broad_fraction": 0.25,
+  "leg_home_pose_broad_scale": 6.0,
+  "reset_noise_scale": 0.05,
+  "leg_home_pose_weight": 1.0,
+  "leg_home_pose_tolerance": 0.05,
+  "stance_stagger_weight": 0.3,
+  "stance_stagger_tolerance_m": 0.045,
+  "stance_cop_band_weight": 0.3
+ },
+ "ppo_symmetry_keys": {
+  "symmetry": "mirror_kl",
+  "symmetry_kappa": 0.3,
+  "symmetry_sigma_floor": 0.01,
+  "symmetry_mirror_critic": true
+ },
+ "rails": {
+  "k2a_pad_cop_bar": 0.8,
+  "k2b_signed_foot_cop": [
+   -0.929,
+   0.571
+  ],
+  "foot_cop_bar_report": 0.8,
+  "roll_tilt_deg": 2.0,
+  "roll_lift_m": 0.004
+ },
+ "panel_seeds": null,
+ "noise_seeds": [
+  3042,
+  3061
+ ],
+ "plant_identity": {
+  "schema": "mesozoic.plant-identity/v2",
+  "species": "tyrannosaurus_rex",
+  "embodiment": "anatomical",
+  "model_path": "environments/tyrannosaurus_rex/anatomical/assets/tyrannosaurus_rex_anatomical.xml",
+  "physics_revision": 9,
+  "policy_interface_revision": 15,
+  "visual_revision": 4,
+  "source_closure_sha256": "sha256:28faa1b138edf961662e8b9a50a49933aa4eb851a8f7210f01bf951f3a756317",
+  "policy_interface_sha256": "sha256:ffbf6631e4de0469cfcaa6771e80f47973b127342bc362f74190451e8555cbd8",
+  "physics_sha256": "sha256:3d68aec73fbc4642681ed601bedaf3524459d693d6a7afce036bb14bac872d67",
+  "visual_sha256": "sha256:7042dcd597fbd0ce25489164a7f132d51e1c2adbc050729c9866d7bde42e35a4",
+  "nq": 28,
+  "nv": 27,
+  "nu": 15,
+  "observation_dim": 63,
+  "action_dim": 15
+ },
+ "frozen_params": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/symmetry/design/frozen_params.json",
+ "frozen_params_sha256": "58b2c8fbb135ecddf1bf2212d5e243514d90ff1069f5f3e2cb1c3ece9c3e7af8",
+ "control_sigma_file": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance5/replication/sigma_s70_s80.json",
+ "control_sigma_file_sha256": "89778b3f81f83f05d4c15423b3658593dfaa767388213044c50a72e2d96b8522",
+ "band_readouts": {
+  "captured": true,
+  "settings": {
+   "stance_cop_band_lower": -0.6,
+   "stance_cop_band_upper": 0.4,
+   "stance_cop_band_pad_lower": -0.65,
+   "stance_cop_band_pad_upper": 0.65,
+   "stance_cop_band_tolerance": 0.357,
+   "stance_cop_band_full_price_load_share": 0.25,
+   "stance_cop_band_min_load_share": 0.35
+  },
+  "whole_band": [
+   -0.6,
+   0.4
+  ],
+  "pad_band": [
+   -0.65,
+   0.65
+  ],
+  "share_ramp": [
+   0.25,
+   0.35
+  ],
+  "report_only": true
+ },
+ "task_sha256_rolled": "sha256:8c6998d260b850ae054c9c2d49a8e5bef2bf59d4770ad77d3674b911721918cf",
+ "checks": {
+  "relaxed": {
+   "no_symmetry_check": false,
+   "task_binding": "require",
+   "allow_missing_records": false,
+   "allow_seed_mismatch": false,
+   "allow_commit_mismatch": false
+  },
+  "run_plant_identity": {
+   "action_dim": 15,
+   "embodiment": "anatomical",
+   "model_path": "environments/tyrannosaurus_rex/anatomical/assets/tyrannosaurus_rex_anatomical.xml",
+   "nq": 28,
+   "nu": 15,
+   "nv": 27,
+   "observation_dim": 63,
+   "physics_revision": 9,
+   "physics_sha256": "sha256:3d68aec73fbc4642681ed601bedaf3524459d693d6a7afce036bb14bac872d67",
+   "policy_interface_revision": 15,
+   "policy_interface_sha256": "sha256:ffbf6631e4de0469cfcaa6771e80f47973b127342bc362f74190451e8555cbd8",
+   "schema": "mesozoic.plant-identity/v2",
+   "source_closure_sha256": "sha256:28faa1b138edf961662e8b9a50a49933aa4eb851a8f7210f01bf951f3a756317",
+   "species": "tyrannosaurus_rex",
+   "visual_revision": 4,
+   "visual_sha256": "sha256:7042dcd597fbd0ce25489164a7f132d51e1c2adbc050729c9866d7bde42e35a4"
+  },
+  "plant_physics_sha256": {
+   "run": "sha256:3d68aec73fbc4642681ed601bedaf3524459d693d6a7afce036bb14bac872d67",
+   "clone": "sha256:3d68aec73fbc4642681ed601bedaf3524459d693d6a7afce036bb14bac872d67",
+   "match": true
+  },
+  "plant_identity_differences": [],
+  "checkpoint_plant_physics_sha256": {
+   "checkpoint": "sha256:3d68aec73fbc4642681ed601bedaf3524459d693d6a7afce036bb14bac872d67",
+   "match": true
+  },
+  "seed": {
+   "label": 80,
+   "checkpoint": 80,
+   "match": true
+  },
+  "checkpoint_num_timesteps": 12001280,
+  "checkpoint_num_timesteps_expected": 12001280,
+  "checkpoint_num_timesteps_match": true,
+  "symmetry": {
+   "recorded": {
+    "schema": "mesozoic.mirror-kl/v1",
+    "method": "mirror_kl",
+    "species": "tyrannosaurus_rex",
+    "embodiment": "anatomical",
+    "mirror_map_sha256": "sha256:75aa96373606080772e1f3c82a6f04b5f19b783f7bb19a8f9e971d2763375975",
+    "kappa": 0.3,
+    "sigma_floor": 0.01,
+    "mirror_critic": true
+   },
+   "clone_mirror_map_sha256": "sha256:75aa96373606080772e1f3c82a6f04b5f19b783f7bb19a8f9e971d2763375975",
+   "clone_mirror_map_path": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/fix/scratch_copband/configs/tyrannosaurus_rex/anatomical/mirror_map.json",
+   "wanted": {
+    "schema": "mesozoic.mirror-kl/v1",
+    "method": "mirror_kl",
+    "species": "tyrannosaurus_rex",
+    "embodiment": "anatomical",
+    "mirror_map_sha256": "sha256:75aa96373606080772e1f3c82a6f04b5f19b783f7bb19a8f9e971d2763375975",
+    "kappa": 0.3,
+    "sigma_floor": 0.01,
+    "mirror_critic": true
+   },
+   "mirror_map_sha256_match": true,
+   "mismatch": null
+  },
+  "task": {
+   "panel": "sha256:8c6998d260b850ae054c9c2d49a8e5bef2bf59d4770ad77d3674b911721918cf",
+   "checkpoint": "sha256:8c6998d260b850ae054c9c2d49a8e5bef2bf59d4770ad77d3674b911721918cf",
+   "run": "sha256:8c6998d260b850ae054c9c2d49a8e5bef2bf59d4770ad77d3674b911721918cf",
+   "checkpoint_match": true,
+   "run_match": true
+  },
+  "stage_config": {
+   "env_kwargs_match": true,
+   "gate_bars_match": true,
+   "symmetry_keys": {
+    "symmetry": "mirror_kl",
+    "symmetry_kappa": 0.3,
+    "symmetry_sigma_floor": 0.01,
+    "symmetry_mirror_critic": true
+   },
+   "symmetry_keys_match": true,
+   "git_commit": "cf80ecb14d1630ce3b4dcdea28a05835d143470b",
+   "clone_head": "cf80ecb14d1630ce3b4dcdea28a05835d143470b",
+   "git_commit_match": true,
+   "env_kwargs_differences": [],
+   "env_default_keys_recorded": [
+    "bite_head_proximity_weight",
+    "command_config",
+    "command_mode",
+    "forward_vel_max",
+    "frame_skip",
+    "healthy_z_range",
+    "idle_penalty_weight",
+    "idle_velocity_threshold",
+    "lateral_penalty_weight",
+    "natural_pitch",
+    "perturbation_capture_velocity_multiple",
+    "perturbation_direction",
+    "perturbation_duration",
+    "perturbation_interval",
+    "perturbation_jitter",
+    "prey_lateral_range",
+    "stance_cop_band_full_price_load_share",
+    "stance_cop_band_lower",
+    "stance_cop_band_min_load_share",
+    "stance_cop_band_pad_lower",
+    "stance_cop_band_pad_upper",
+    "stance_cop_band_tolerance",
+    "stance_cop_band_upper"
+   ],
+   "run_seed": 80,
+   "run_seed_match": true,
+   "run_n_envs": 4,
+   "n_envs_expected": 4,
+   "n_envs_match": true,
+   "run_hyperparameters_sha256": "sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c",
+   "hyperparameters_sha256_clone": "sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c",
+   "hyperparameters_sha256_committed": "sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c",
+   "hyperparameters_sha256_match": true
+  },
+  "hard_failures": []
+ },
+ "tail": {
+  "seeds_file": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/tonight/noise_robustness/work/tail_seeds.txt",
+  "seeds_sha256": "sha256:8406594b2cebe802b31ee6fe18285366b943c72526ffc926e295675c281e5de4",
+  "seeds": [
+   101311,
+   100469,
+   101651,
+   101883,
+   101679,
+   101348,
+   103281,
+   101637,
+   100713,
+   100347,
+   100499,
+   102974,
+   101722,
+   100623,
+   103680,
+   100208,
+   100248,
+   101378,
+   100456,
+   102777,
+   100520,
+   101420,
+   103670,
+   101053,
+   100220,
+   101397,
+   102939,
+   101131,
+   102741,
+   103526,
+   103268,
+   101611
+  ],
+  "policy_note": "VecNormalize stats applied (clip 10)",
+  "n": 32,
+  "falls": 1,
+  "fall_seeds": [
+   101883
+  ],
+  "statue_falls": 0,
+  "statue_fall_seeds": [],
+  "reference": "statue 0, scratch arm L s60 6M 3, s52 6M 7, s42 6M 26 of 32 (noise_robustness summary.txt)",
+  "seconds": 200.3488277790002,
+  "episodes_detail": [
+   {
+    "seed": 101311,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4270.59809807942,
+    "max_sole_cop_fore_aft": 0.16463436305673948
+   },
+   {
+    "seed": 100469,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4418.035026347223,
+    "max_sole_cop_fore_aft": 0.20369548532073836
+   },
+   {
+    "seed": 101651,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4399.605147916816,
+    "max_sole_cop_fore_aft": 0.12889619904468538
+   },
+   {
+    "seed": 101883,
+    "length": 192,
+    "reached_horizon": false,
+    "termination_reason": "nosedive",
+    "reward": 511.298237795237,
+    "max_sole_cop_fore_aft": null
+   },
+   {
+    "seed": 101679,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4371.411525086544,
+    "max_sole_cop_fore_aft": 0.057922484609137195
+   },
+   {
+    "seed": 101348,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4350.058495772082,
+    "max_sole_cop_fore_aft": 0.20263046030032414
+   },
+   {
+    "seed": 103281,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4366.970348307362,
+    "max_sole_cop_fore_aft": 0.0774447213410096
+   },
+   {
+    "seed": 101637,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4205.501567509534,
+    "max_sole_cop_fore_aft": 0.14321476097181965
+   },
+   {
+    "seed": 100713,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4355.859351096541,
+    "max_sole_cop_fore_aft": 0.1551198556130807
+   },
+   {
+    "seed": 100347,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4421.105502146185,
+    "max_sole_cop_fore_aft": 0.2421683434453236
+   },
+   {
+    "seed": 100499,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4401.188857018331,
+    "max_sole_cop_fore_aft": 0.38006943923159187
+   },
+   {
+    "seed": 102974,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4372.428408410506,
+    "max_sole_cop_fore_aft": 0.08871222434630532
+   },
+   {
+    "seed": 101722,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4342.113246951036,
+    "max_sole_cop_fore_aft": 0.17929756374374045
+   },
+   {
+    "seed": 100623,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4415.465819943165,
+    "max_sole_cop_fore_aft": 0.18526514158532284
+   },
+   {
+    "seed": 103680,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4392.47147105233,
+    "max_sole_cop_fore_aft": 0.02646985159805856
+   },
+   {
+    "seed": 100208,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4396.849408103164,
+    "max_sole_cop_fore_aft": 0.3008720976014634
+   },
+   {
+    "seed": 100248,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4385.852949120458,
+    "max_sole_cop_fore_aft": 0.19718056811480347
+   },
+   {
+    "seed": 101378,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4407.429610638823,
+    "max_sole_cop_fore_aft": 0.21895683566235621
+   },
+   {
+    "seed": 100456,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4314.912305216353,
+    "max_sole_cop_fore_aft": 0.3476236006437827
+   },
+   {
+    "seed": 102777,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4407.831414366126,
+    "max_sole_cop_fore_aft": 0.1899412244507289
+   },
+   {
+    "seed": 100520,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4368.366847130005,
+    "max_sole_cop_fore_aft": 0.16857302104431693
+   },
+   {
+    "seed": 101420,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4397.869245349361,
+    "max_sole_cop_fore_aft": 0.11344519473650683
+   },
+   {
+    "seed": 103670,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4408.610206349975,
+    "max_sole_cop_fore_aft": 0.199343281447288
+   },
+   {
+    "seed": 101053,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4360.8321309558505,
+    "max_sole_cop_fore_aft": 0.07472782117467587
+   },
+   {
+    "seed": 100220,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4418.192697033466,
+    "max_sole_cop_fore_aft": 0.2675263605682526
+   },
+   {
+    "seed": 101397,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4397.7243591401075,
+    "max_sole_cop_fore_aft": 0.33494885537332464
+   },
+   {
+    "seed": 102939,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4407.989129333617,
+    "max_sole_cop_fore_aft": 0.2702150827868303
+   },
+   {
+    "seed": 101131,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4290.192948770041,
+    "max_sole_cop_fore_aft": 0.09051398941482618
+   },
+   {
+    "seed": 102741,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4397.873849907107,
+    "max_sole_cop_fore_aft": 0.3023785554220405
+   },
+   {
+    "seed": 103526,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4332.626446359339,
+    "max_sole_cop_fore_aft": 0.26647946482322454
+   },
+   {
+    "seed": 103268,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4375.062602701717,
+    "max_sole_cop_fore_aft": 0.14848566352999337
+   },
+   {
+    "seed": 101611,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4390.775257746579,
+    "max_sole_cop_fore_aft": 0.06275554510430618
+   }
+  ],
+  "statue_episodes_detail": [
+   {
+    "seed": 101311,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4357.1720649417775,
+    "max_sole_cop_fore_aft": 0.2113089288545556
+   },
+   {
+    "seed": 100469,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4461.1153087491675,
+    "max_sole_cop_fore_aft": 0.3387900557643336
+   },
+   {
+    "seed": 101651,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4438.437085621107,
+    "max_sole_cop_fore_aft": 0.28933756929020454
+   },
+   {
+    "seed": 101883,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4409.346568941998,
+    "max_sole_cop_fore_aft": 0.43443458759978953
+   },
+   {
+    "seed": 101679,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4395.549094885774,
+    "max_sole_cop_fore_aft": 0.2164747449456773
+   },
+   {
+    "seed": 101348,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4407.483376425008,
+    "max_sole_cop_fore_aft": 0.23909848189274677
+   },
+   {
+    "seed": 103281,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4407.876666305525,
+    "max_sole_cop_fore_aft": 0.20796041881934266
+   },
+   {
+    "seed": 101637,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4293.406579341025,
+    "max_sole_cop_fore_aft": 0.19708758924962594
+   },
+   {
+    "seed": 100713,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4404.394944133307,
+    "max_sole_cop_fore_aft": 0.22554581248603892
+   },
+   {
+    "seed": 100347,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4461.569155459639,
+    "max_sole_cop_fore_aft": 0.3592041483976861
+   },
+   {
+    "seed": 100499,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4453.543071352011,
+    "max_sole_cop_fore_aft": 0.3652747916708216
+   },
+   {
+    "seed": 102974,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4377.032509416807,
+    "max_sole_cop_fore_aft": 0.17627868279204628
+   },
+   {
+    "seed": 101722,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4414.161585183179,
+    "max_sole_cop_fore_aft": 0.24886027352833773
+   },
+   {
+    "seed": 100623,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4464.176453569376,
+    "max_sole_cop_fore_aft": 0.34383091770580326
+   },
+   {
+    "seed": 103680,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4449.170343535083,
+    "max_sole_cop_fore_aft": 0.2966865215684701
+   },
+   {
+    "seed": 100208,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4463.187416037936,
+    "max_sole_cop_fore_aft": 0.3794381268989052
+   },
+   {
+    "seed": 100248,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4449.620332715011,
+    "max_sole_cop_fore_aft": 0.3792467048467443
+   },
+   {
+    "seed": 101378,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4453.328024902504,
+    "max_sole_cop_fore_aft": 0.4082199329472955
+   },
+   {
+    "seed": 100456,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4387.3839163243965,
+    "max_sole_cop_fore_aft": 0.34878645181218326
+   },
+   {
+    "seed": 102777,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4456.250657589173,
+    "max_sole_cop_fore_aft": 0.3509074190704568
+   },
+   {
+    "seed": 100520,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4416.473820794709,
+    "max_sole_cop_fore_aft": 0.24768238362939737
+   },
+   {
+    "seed": 101420,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4444.259388174965,
+    "max_sole_cop_fore_aft": 0.2797799106835405
+   },
+   {
+    "seed": 103670,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4463.480871952091,
+    "max_sole_cop_fore_aft": 0.3541704730400774
+   },
+   {
+    "seed": 101053,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4395.04054605815,
+    "max_sole_cop_fore_aft": 0.18143150261373875
+   },
+   {
+    "seed": 100220,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4466.356893639872,
+    "max_sole_cop_fore_aft": 0.39743078670216503
+   },
+   {
+    "seed": 101397,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4445.758347235123,
+    "max_sole_cop_fore_aft": 0.3702062155247943
+   },
+   {
+    "seed": 102939,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4452.401099570231,
+    "max_sole_cop_fore_aft": 0.42706611700150715
+   },
+   {
+    "seed": 101131,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4322.758092931006,
+    "max_sole_cop_fore_aft": 0.16291928986105475
+   },
+   {
+    "seed": 102741,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4440.288998184332,
+    "max_sole_cop_fore_aft": 0.354320100371912
+   },
+   {
+    "seed": 103526,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4392.459336955483,
+    "max_sole_cop_fore_aft": 0.20213963483296812
+   },
+   {
+    "seed": 103268,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4424.519257096201,
+    "max_sole_cop_fore_aft": 0.30483472047394256
+   },
+   {
+    "seed": 101611,
+    "length": 1000,
+    "reached_horizon": true,
+    "termination_reason": "truncated",
+    "reward": 4443.921569075267,
+    "max_sole_cop_fore_aft": 0.2879535578255703
+   }
+  ]
+ },
+ "modules_all_under_clone": 98,
+ "judge_seconds": 203.10145120699963
+}

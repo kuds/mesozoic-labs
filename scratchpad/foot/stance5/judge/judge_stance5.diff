@@ -1,0 +1,392 @@
+--- /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance4/judge/judge_stance4.py	2026-10-19 17:53:32.149672960 +0000
++++ judge_stance5.py	2026-10-21 05:42:20.097082434 +0000
+@@ -1,31 +1,45 @@
+-"""Judge ONE checkpoint of a T. rex stance screen run (arms L, LT, LTS; physics r9) against its branch clone (scratch only).
++"""Judge ONE checkpoint of a T. rex stance screen run (arms L, LT, LTS, LTSB; physics r9) against its branch clone (scratch only).
+ 
+     S=/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad
+-    cd $S/foot/stance4 && env ISO_WT=<clone> OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
++    cd $S/foot/stance5 && env ISO_WT=<clone> OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
+         PYTHONPYCACHEPREFIX=$S/caches/pyc MPLCONFIGDIR=$S/caches/mpl \
+-        python3 $S/foot/stance3/tools/iso.py judge/judge_stance4.py RUN_DIR --arm {L,LT,LTS} --seed {42,52,60} \
++        python3 $S/foot/stance3/tools/iso.py judge/judge_stance5.py RUN_DIR --arm {L,LT,LTS,LTSB} --seed {42,52,60} \
+         --steps STEPS --out OUT.json [MODE]
+ 
+-judge_stance3.py plus arm LTS (stance4: L+T + the stance stagger penalty, clone fix/screen_s4_LTS, branch
+-claude/screen-trex-r9-armlt-stagger), seed 42 and the schema stance4-judge/v1; the report-only slots are the
+-1,048,576-step checkpoints not in J.  Arms L and LT are unchanged.  Arm LTS's collapse reference is 4459.3 (criteria;
+-measured on the config tree).  Its HEAD is the config commit c1e146a82658112a9a1c0838250020b214ef303a, filled in ARMS
+-after that commit; while it was None the judge refused arm LTS unless --expect-head was given.
++judge_stance4.py plus arm LTSB (stance5: the stance4 recipe, L+T + the stance stagger penalty, plus the per-foot CoP
++band, stance_cop_band_weight 0.30; clone fix/scratch_copband, branch claude/screen-trex-r9-armlts-copband) and the
++schema stance5-judge/v1 (criteria SP/foot/stance5/criteria.txt).  Arms L, LT and LTS, the bars, the slots, the K
++statistics and every binding check are unchanged.  Arm LTSB's collapse reference is 4457.4 (criteria; 3756.8 + the LTSB
++statue gain 700.5512, measured on the config change, SP/foot/stance5/build/statue_LTSB.json).  Its HEAD is the config
++commit cf80ecb14d1630ce3b4dcdea28a05835d143470b, filled in ARMS after that commit;
++while it is None the judge refuses arm LTSB unless --expect-head is given.
++
++Band readouts (arm LTSB only; report only, never in a criterion): for an arm whose stance [env] turns the band on, a
++read-only wrapper on each recorded env instance's step (installed when the recorder attaches, after run_panel's plant
++validation, as SP/foot/stance3/night/diag_split/roll_split.py installs its info capture) keeps the band's info keys of
++every step.  Each panel and statue episode then carries "band": its window (recorder index steps 200 .. L-1; the band's
++gate opens on the window's first step) guard firing (guard 0, on the ramp 0 < guard < 1, at 1 = <s>_cop_band_counted),
++per-foot mean band quality and digit share, the foot-steps whose whole-foot CoP lies outside [-0.6, +0.4], whose pad
++CoP lies outside [-0.65, +0.65] and whose pad excess binds (exceeds the whole-foot excess), the load share in
++[0.25, 0.35) and below 0.25, and the band paid over the episode (the sum of reward_stance_cop_band).  The panel and the
++statue each get "band_summary" over their full-horizon episodes.  The definitions are
++SP/foot/stance5/build/scripts/statue_ref_s5.py's, so the statue's summary reproduces statue_LTSB.json's guard and band
++counts.  For arms whose [env] leaves the band off nothing is wrapped: their code path is judge_stance4.py's.
+ 
+ RUN_DIR is a notebook run directory with the notebook's layout (RUN_DIR/01_stance/models/stage1_{N}_steps.zip and
+ stage1_vecnormalize_{N}_steps.pkl, stage1_final.zip and stage1_final_vecnorm.pkl, best_model / robust_best_model and their
+ _vecnorm.pkl; RUN_DIR/01_stance/{plant_identity.json, stage_config.json, task_fingerprint.json}).  --arm picks the
+ branch clone and its pinned HEAD (L: fix/screen_s3_L, claude/screen-trex-r9-arml-12m; LT: fix/screen_s3_LT,
+-claude/screen-trex-r9-armlt; LTS: fix/screen_s4_LTS, claude/screen-trex-r9-armlt-stagger); --clone / --expect-head
+-override them.  The clone's stance stage must carry the arm's
++claude/screen-trex-r9-armlt; LTS: fix/screen_s4_LTS, claude/screen-trex-r9-armlt-stagger; LTSB: fix/scratch_copband,
++claude/screen-trex-r9-armlts-copband); --clone / --expect-head override them.  The clone's stance stage must carry the arm's
+ [env] options, [ppo] symmetry keys and collapse reference, on the r9 plant, or the judge refuses before rolling.
+ 
+ --steps: the criteria's judged checkpoints J are 4194304, 5242880, 6291456, 8388608, 10485760 and final
+ (stage1_final.zip, 12,001,280 steps); 1048576, 2097152, 3145728, 7340032, 9437184 and 11534336 are judged like J,
+ report only.  For the report-only selection comparison
+ (S0-S3) the judge also takes robust_best, best and any other periodic checkpoint (a multiple of 524,288); with
+---smoke-episodes any multiple of 131,072 (the CPU smoke runs' checkpoints).  score_stance4.py reads full-mode files as
+-JUDGED/<RUN_ID>/judge_<steps>.json (RUN_ID stance4_LTS_s52, stance4_LTS_s60, stance4_LTS_s42; <steps> as given to
++--smoke-episodes any multiple of 131,072 (the CPU smoke runs' checkpoints).  score_stance5.py reads full-mode files as
++JUDGED/<RUN_ID>/judge_<steps>.json (RUN_ID stance5_LTSB_s52, stance5_LTSB_s60, stance5_LTSB_s42; <steps> as given to
+ --steps); write the report-only modes under other names (e.g. judge_quick_<steps>.json, judge_tail_final.json).
+ 
+ Ported from the r10 screen's judge (docs/investigations/stance_2026_10/r10_screen/judge_r10.py); what is the same:
+@@ -47,9 +61,9 @@
+     v2 bars, [ppo] symmetry keys and git_commit against the clone, and its run block's n_envs (criteria: 4),
+     hyperparameters_sha256 (the digest the clone's stance stage regenerates, which must be the committed
+     sha256:054ab483...) and seed (against --seed).  Validation-only relaxations (--no-symmetry-check, --task-binding
+-    report, --allow-missing-records, --allow-seed-mismatch, --allow-commit-mismatch) are recorded; score_stance4.py
++    report, --allow-missing-records, --allow-seed-mismatch, --allow-commit-mismatch) are recorded; score_stance5.py
+     refuses them.  The checkpoint's num_timesteps is recorded beside the slot's (12,001,280 for final, the step for a
+-    periodic slot) and a mismatch is printed; score_stance4.py refuses such a file.
++    periodic slot) and a mismatch is printed; score_stance5.py refuses such a file.
+ What changed against the r10 judge:
+   * r9 rails (criteria K2a): the pad's max_sole_cop_fore_aft > 0.80 counted over all 40 episodes, a non-full-horizon
+     episode counting as over (the r10 whole-foot rail max_foot_cop_fore_aft is kept per episode, report only);
+@@ -88,7 +102,7 @@
+ import subprocess  # noqa: E402
+ import time  # noqa: E402
+ 
+-SCHEMA = "stance4-judge/v1"
++SCHEMA = "stance5-judge/v1"
+ MAIN_CHECKOUT = "/home/user/mesozoic-labs"
+ SCRATCH = "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad"
+ FROZEN_PARAMS = SCRATCH + "/foot/symmetry/design/frozen_params.json"
+@@ -122,6 +136,17 @@
+             "env": {**ARM_ENV_COMMON, "leg_home_pose_weight": 1.0, "leg_home_pose_tolerance": 0.05,
+                     "stance_stagger_weight": 0.30, "stance_stagger_tolerance_m": 0.045},
+             "collapse_peak_floor_reference": 4459.3},
++    # stance5 (criteria SP/foot/stance5/criteria.txt): arm LTS plus the per-foot CoP band, stance_cop_band_weight 0.30
++    # (the other seven band keys at their code defaults, not set in [env]).  "head" is the config commit (filled after
++    # that commit).  "collapse_peak_floor_reference" is the band-on value that commit writes, 4457.4 (criteria; 3756.8 +
++    # the LTSB statue gain 700.5512, measured in S5/build/statue_LTSB.json).  While either is None the judge refuses arm
++    # LTSB (see main).
++    "LTSB": {"clone": SCRATCH + "/fix/scratch_copband", "head": "cf80ecb14d1630ce3b4dcdea28a05835d143470b",  # config commit
++             "branch": "claude/screen-trex-r9-armlts-copband",
++             "env": {**ARM_ENV_COMMON, "leg_home_pose_weight": 1.0, "leg_home_pose_tolerance": 0.05,
++                     "stance_stagger_weight": 0.30, "stance_stagger_tolerance_m": 0.045,
++                     "stance_cop_band_weight": 0.30},
++             "collapse_peak_floor_reference": 4457.4},
+ }
+ PPO_SYMMETRY = {"symmetry": "mirror_kl", "symmetry_kappa": 0.3, "symmetry_sigma_floor": 0.01, "symmetry_mirror_critic": True}
+ #: criteria.txt: n_envs 4; 12,000,000 steps (final 12,001,280); the committed PPO schedules, i.e. the stance
+@@ -146,10 +171,26 @@
+ R9_X_AT_W0_M, R9_X_PER_W_M = 0.060, 0.070   # criteria: on r9, x = 60 + 70 w mm ahead of that foot's MTP III
+ ROLL_TILT_DEG = 2.0          # K4: max_sole_tilt_deg > 2.0
+ ROLL_LIFT_M = 0.004          #     or max_sole_corner_lift_m > 0.004
++#: The band readouts (criteria PRE-REGISTERED READOUTS; report only): the band's own edges and ramp at their code defaults
++#: (base_env 8i), checked against the env class's defaults for a band-on arm.
++BAND_WHOLE = (-0.6, 0.4)     # stance_cop_band_lower / _upper: the whole-foot band, span half-lengths
++BAND_PAD = (-0.65, 0.65)     # stance_cop_band_pad_lower / _upper: the pad band, pad half-lengths
++BAND_SHARE_FULL_PRICE, BAND_SHARE_MIN = 0.25, 0.35   # the guard's ramp (stance_cop_band_full_price_load_share / _min_)
++BAND_DEFAULTS = {"stance_cop_band_lower": -0.6, "stance_cop_band_upper": 0.4, "stance_cop_band_pad_lower": -0.65,
++                 "stance_cop_band_pad_upper": 0.65, "stance_cop_band_tolerance": 0.357,
++                 "stance_cop_band_full_price_load_share": 0.25, "stance_cop_band_min_load_share": 0.35}
++BAND_FEET = ("r", "l")
++BAND_PER_FOOT = ("foot_cop", "pad_cop", "load_share", "digit_share", "guard", "counted", "quality")
++BAND_KEYS = tuple(f"{s}_cop_band_{k}" for s in BAND_FEET for k in BAND_PER_FOOT) + ("stance_cop_band_quality",
++                                                                                   "reward_stance_cop_band")
+ #: (trace, per-step readings) of every recorded episode, in the order the recorder closed them.
+ TRACES: list = []
+ _STEP_READINGS: dict = {}
+ _STEP_GEOMETRY: dict = {}
++#: Band readouts (band-on arms only): per env instance the band info of each step, and per closed trace its steps.
++_BAND_STEPS: dict = {}
++BAND_BY_TRACE: dict = {}
++BAND_CAPTURE = {"on": False}
+ 
+ 
+ # ------------------------------------------------------------------------------------------------ isolation
+@@ -422,6 +463,122 @@
+     SubstepContactRecorder.end_episode = end_episode
+ 
+ 
++def install_band_capture() -> None:
++    """Band-on arms only (report only).  Instance-level, read-only wrappers, installed when a recorder attaches (after
++    run_panel's plant validation, which hashes the env class's methods; roll_split.py's method): the attached env's step
++    keeps its band info keys, and the recorder's end_episode files them under the closed trace (BAND_BY_TRACE)."""
++    from environments.shared.gait.recorder import SubstepContactRecorder
++
++    original_attach = SubstepContactRecorder.attach
++    original_episode = SubstepContactRecorder.end_episode
++
++    def attach(self, *args, **kwargs):
++        rec = original_attach(self, *args, **kwargs)
++        env = self._env
++        if not getattr(env, "_judge5_band_wrapped", False):
++            original_step = env.step
++
++            def step(action):
++                out = original_step(action)
++                info = out[4]
++                _BAND_STEPS.setdefault(id(env), []).append({k: float(info[k]) for k in BAND_KEYS if k in info})
++                return out
++
++            env.step = step
++            env._judge5_band_wrapped = True
++        _BAND_STEPS.pop(id(env), None)
++        return rec
++
++    def end_episode(self, *args, **kwargs):
++        trace = original_episode(self, *args, **kwargs)
++        rows = _BAND_STEPS.pop(id(self._env), [])
++        assert len(rows) == int(trace.length), (len(rows), trace.length)
++        BAND_BY_TRACE[id(trace)] = rows
++        return trace
++
++    SubstepContactRecorder.attach = attach
++    SubstepContactRecorder.end_episode = end_episode
++    BAND_CAPTURE["on"] = True
++
++
++def _band_excess(v: float, lo: float, hi: float) -> float:
++    return max(lo - v, 0.0) + max(v - hi, 0.0)
++
++
++def band_episode(ctx: Ctx, trace) -> dict | None:
++    """One episode's band readouts over the window [settle, L) (report only; statue_ref_s5.py's definitions: the info
++    keys as the env writes them, a reading on an unloaded foot written 0.0).  None when the band is not captured."""
++    rows = BAND_BY_TRACE.get(id(trace))
++    if rows is None:
++        return None
++    L = int(trace.length)
++    assert len(rows) == L, (len(rows), L)
++    paid = [r.get("reward_stance_cop_band", 0.0) for r in rows]
++    w = rows[ctx.settle:L]
++    out = {"length": L, "window": [ctx.settle, L], "window_steps": len(w), "window_foot_steps": 2 * len(w),
++           "paid_episode": float(sum(paid)), "paid_window": float(sum(paid[ctx.settle:L])),
++           "paid_before_window": float(sum(paid[:ctx.settle])),
++           "window_steps_paying": sum(1 for v in paid[ctx.settle:L] if v < 0.0),
++           "guard_0": 0, "guard_ramp": 0, "guard_1": 0, "counted": 0, "counted_equals_guard_ge_1": True,
++           "whole_out": 0, "pad_out": 0, "pad_binds": 0, "share_ramp_025_035": 0, "share_below_025": 0,
++           "share_min": None, "guard_below_1_before_window": 0,
++           "quality_mean": {}, "digit_share_mean": {}, "stance_cop_band_quality_mean": None}
++    for r in rows[:ctx.settle]:
++        out["guard_below_1_before_window"] += sum(1 for s in BAND_FEET if r[f"{s}_cop_band_guard"] < 1.0)
++    shares = []
++    for r in w:
++        for s in BAND_FEET:
++            g, c = r[f"{s}_cop_band_guard"], r[f"{s}_cop_band_counted"]
++            out["guard_0"] += int(g == 0.0)
++            out["guard_ramp"] += int(0.0 < g < 1.0)
++            out["guard_1"] += int(g >= 1.0)
++            out["counted"] += int(c == 1.0)
++            if (c == 1.0) != (g >= 1.0):
++                out["counted_equals_guard_ge_1"] = False
++            wh = _band_excess(r[f"{s}_cop_band_foot_cop"], *BAND_WHOLE)
++            pd = _band_excess(r[f"{s}_cop_band_pad_cop"], *BAND_PAD)
++            out["whole_out"] += int(wh > 0.0)
++            out["pad_out"] += int(pd > 0.0)
++            out["pad_binds"] += int(pd > wh)
++            share = r[f"{s}_cop_band_load_share"]
++            shares.append(share)
++            out["share_ramp_025_035"] += int(BAND_SHARE_FULL_PRICE <= share < BAND_SHARE_MIN)
++            out["share_below_025"] += int(share < BAND_SHARE_FULL_PRICE)
++    out["share_min"] = min(shares) if shares else None
++    for s in BAND_FEET:
++        out["quality_mean"][s] = mean(r[f"{s}_cop_band_quality"] for r in w)
++        out["digit_share_mean"][s] = mean(r[f"{s}_cop_band_digit_share"] for r in w)
++    out["stance_cop_band_quality_mean"] = mean(r["stance_cop_band_quality"] for r in w)
++    return out
++
++
++def band_summary(rows: list[dict]) -> dict | None:
++    """The panel's (or statue's) band readouts over its full-horizon episodes (report only)."""
++    import numpy as np
++
++    have = [r for r in rows if r.get("band") is not None]
++    if not have:
++        return None
++    full = [r for r in have if r["reached_horizon"]]
++    counts = ("window_foot_steps", "guard_0", "guard_ramp", "guard_1", "counted", "whole_out", "pad_out", "pad_binds",
++              "share_ramp_025_035", "share_below_025", "window_steps_paying", "guard_below_1_before_window")
++    out = {"episodes": len(have), "full_horizon_episodes": len(full),
++           "full_horizon": {k: sum(r["band"][k] for r in full) for k in counts}}
++    out["full_horizon"]["counted_equals_guard_ge_1"] = all(r["band"]["counted_equals_guard_ge_1"] for r in full)
++    out["full_horizon"]["share_min"] = min((r["band"]["share_min"] for r in full if r["band"]["share_min"] is not None),
++                                           default=None)
++    paid = np.asarray([r["band"]["paid_episode"] for r in full], dtype=np.float64)
++    out["paid_per_full_horizon_episode"] = None if not paid.size else {
++        "mean": float(paid.mean()), "median": float(np.median(paid)), "worst": float(paid.min()),
++        "least": float(paid.max()), "episodes_paying_over_5": int(np.sum(paid < -5.0))}
++    out["paid_per_episode_all_mean"] = float(np.mean([r["band"]["paid_episode"] for r in have]))
++    out["paid_by_seed"] = {str(r["seed"]): r["band"]["paid_episode"] for r in have}
++    for s in BAND_FEET:
++        out.setdefault("quality_mean_full_horizon", {})[s] = mean(r["band"]["quality_mean"][s] for r in full)
++        out.setdefault("digit_share_mean_full_horizon", {})[s] = mean(r["band"]["digit_share_mean"][s] for r in full)
++    return out
++
++
+ def episode_cop(ctx: Ctx, trace, readings: list) -> dict:
+     """K2b and K2c inputs of one episode over the window [settle, T): per foot the signed whole-foot CoP (span units, as
+     the pad telemetry's <label>_foot_cop_fore_aft; and m ahead of MTP III), the both-feet whole-foot CoP x_c, the COM
+@@ -542,6 +699,8 @@
+             "pad": pad,
+         }
+         add_k2_fields(ctx, row, tr, readings)
++        if BAND_CAPTURE["on"]:
++            row["band"] = band_episode(ctx, tr)
+         rows.append(row)
+     return rows
+ 
+@@ -620,6 +779,7 @@
+                                     plant_identity=ctx.plant_identity, allow_legacy_plant=False)
+     description = f"{os.path.basename(model_path)} — {note}"
+     TRACES.clear()
++    BAND_BY_TRACE.clear()
+     t0 = time.monotonic()
+     report = SR._stance_v2_report(
+         ctx.mid, ctx.stage, curriculum=ctx.curriculum, env_class=ctx.env_class, env_kwargs=ctx.env_kwargs,
+@@ -635,6 +795,9 @@
+     st_rows = episode_rows(ctx, report["statue"]["episode_evidence"], st_traces)
+     statue_summary = summarize_episodes(ctx, st_rows)
+     statue_summary["reference"] = report["statue"]["reference"]
++    if BAND_CAPTURE["on"]:
++        statue_summary["band_summary"] = band_summary(st_rows)
++    st_keys = STATUE_ROW_KEYS + (("band",) if BAND_CAPTURE["on"] else ())
+     statue_summary["terminations"] = {}
+     for r in st_rows:
+         statue_summary["terminations"][str(r["termination_reason"])] = statue_summary["terminations"].get(str(r["termination_reason"]), 0) + 1
+@@ -656,12 +819,13 @@
+         "terminations": report["terminations"],
+         "summary": summarize_episodes(ctx, rows),
+         "statue_on_same_seeds": statue_summary,
+-        "statue_episodes_detail": [{k: r.get(k) for k in STATUE_ROW_KEYS} for r in st_rows],
++        "statue_episodes_detail": [{k: r.get(k) for k in st_keys} for r in st_rows],
+         "scored_gate_kind": report["scored_gate_kind"], "stage_gate_kind": report["gate_kind"],
+         "schema": report["schema"], "task_sha256": report["task_sha256"], "handoff": report["handoff"],
+         "thresholds": report["thresholds"], "measurement_sha256": report["measurement_sha256"],
+         "result": result,
+         "episodes_detail": rows,
++        **({"band_summary": band_summary(rows)} if BAND_CAPTURE["on"] else {}),
+     }
+ 
+ 
+@@ -883,13 +1047,13 @@
+         hard.append(f"the checkpoint records seed {ck_seed}, the judge was told {a.seed}")
+     checks["checkpoint_num_timesteps"] = read_checkpoint_attribute(model_path, "num_timesteps")
+     # criteria.txt: final is stage1_final at 12,001,280 steps; a periodic slot's checkpoint holds its step.  Recorded,
+-    # not refused here (an early stop's final may still be judged for a report); score_stance4.py refuses a mismatch.
++    # not refused here (an early stop's final may still be judged for a report); score_stance5.py refuses a mismatch.
+     want_ts = FINAL_TIMESTEPS if a.steps == "final" else a.steps if isinstance(a.steps, int) else None
+     checks["checkpoint_num_timesteps_expected"] = want_ts
+     checks["checkpoint_num_timesteps_match"] = None if want_ts is None else checks["checkpoint_num_timesteps"] == want_ts
+     if checks["checkpoint_num_timesteps_match"] is False:
+         print(f"WARNING: {model_path} holds num_timesteps {checks['checkpoint_num_timesteps']}, slot {a.steps} needs "
+-              f"{want_ts:,}: score_stance4.py will refuse this file", flush=True)
++              f"{want_ts:,}: score_stance5.py will refuse this file", flush=True)
+     recorded = read_checkpoint_attribute(model_path, "mesozoic_symmetry")
+     sym = {"recorded": recorded}
+     try:
+@@ -985,7 +1149,7 @@
+ def main() -> int:
+     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+     ap.add_argument("run_dir", help="notebook run directory (holds 01_stance/)")
+-    ap.add_argument("--arm", required=True, choices=sorted(ARMS), help="L, LT (stance3) or LTS (stance4): picks the clone and HEAD")
++    ap.add_argument("--arm", required=True, choices=sorted(ARMS), help="L, LT (stance3), LTS (stance4) or LTSB (stance5): picks the clone and HEAD")
+     ap.add_argument("--seed", type=int, required=True, choices=SEEDS, help="the run's training seed (selects the frozen control sigma)")
+     ap.add_argument("--steps", type=parse_steps, required=True,
+                     help="4194304 5242880 6291456 8388608 10485760 final (J), 1048576 2097152 3145728 7340032 9437184 "
+@@ -1002,14 +1166,14 @@
+     mode.add_argument("--fresh", action="store_true", help="report only: the v2 panel on fresh seeds 7042-7081")
+     ap.add_argument("--no-noise", action="store_true", help="development only: skip the H4 noise tests of a full judge")
+     ap.add_argument("--smoke-episodes", type=int, default=None, help="development only: N episodes per panel (JSON marked smoke)")
+-    # validation-only relaxations (recorded in the JSON; score_stance4.py refuses them)
++    # validation-only relaxations (recorded in the JSON; score_stance5.py refuses them)
+     ap.add_argument("--no-symmetry-check", action="store_true", help="validation only: do not require the mesozoic_symmetry match")
+     ap.add_argument("--task-binding", choices=("require", "report"), default="require",
+                     help="validation only ('report'): record but do not require the task / stage_config binding")
+     ap.add_argument("--allow-missing-records", action="store_true", help="validation only: stage_config / task_fingerprint / plant_identity may be absent")
+     ap.add_argument("--allow-seed-mismatch", action="store_true", help="validation only: the checkpoint's recorded seed may differ from --seed")
+     ap.add_argument("--allow-commit-mismatch", action="store_true",
+-                    help="validation only: stage_config.json git_commit may differ from the clone HEAD (score_stance4.py refuses it)")
++                    help="validation only: stage_config.json git_commit may differ from the clone HEAD (score_stance5.py refuses it)")
+     a = ap.parse_args()
+     spec = ARMS[a.arm]
+     if spec["collapse_peak_floor_reference"] is None or (spec["head"] is None and not a.expect_head):
+@@ -1064,13 +1228,23 @@
+     git = git_state(clone)
+     if git["status"] or git["head"] != expect_head:
+         raise SystemExit(f"the judge runs the clean clone at {expect_head} (got {git['head']}, dirty={bool(git['status'])})")
+-    print(f"[judge_stance4] arm {a.arm} clone {clone} HEAD {git['head']} ({git['branch']}); mode {mode_name}; "
++    print(f"[judge_stance5] arm {a.arm} clone {clone} HEAD {git['head']} ({git['branch']}); mode {mode_name}; "
+           f"environments = {modules['environments']}", flush=True)
+     import torch
+ 
+     torch.set_num_threads(1)
+     install_trace_capture()
+     ctx = Ctx(a.arm)
++    band_on = float(ctx.env_kwargs.get("stance_cop_band_weight", 0.0) or 0.0) > 0.0
++    band_defaults = None
++    if band_on:  # report-only band readouts; the band's own edges must be the readouts' (code defaults, not set in [env])
++        import inspect
++
++        sig = inspect.signature(ctx.env_class).parameters
++        band_defaults = {k: ctx.env_kwargs.get(k, sig[k].default) for k in BAND_DEFAULTS}
++        if band_defaults != BAND_DEFAULTS:
++            raise SystemExit(f"the band's settings {band_defaults} are not the readouts' {BAND_DEFAULTS}")
++        install_band_capture()
+     record = {
+         "schema": SCHEMA, "judge": os.path.realpath(__file__), "judge_sha256": sha256_file(os.path.realpath(__file__)),
+         "argv": sys.argv[1:], "arm": a.arm, "branch_expected": spec["branch"], "clone": os.path.realpath(clone), "git": git,
+@@ -1089,6 +1263,9 @@
+         "noise_seeds": [NOISE_SEED, NOISE_SEED + NOISE_EPISODES - 1],
+         "plant_identity": ctx.plant_identity.to_dict(),
+         "frozen_params": os.path.realpath(a.frozen_params), "frozen_params_sha256": fp_sha,
++        "band_readouts": {"captured": band_on, "settings": band_defaults, "whole_band": list(BAND_WHOLE),
++                          "pad_band": list(BAND_PAD), "share_ramp": [BAND_SHARE_FULL_PRICE, BAND_SHARE_MIN],
++                          "report_only": True},
+     }
+     from environments.shared.task_fingerprint import stage_task_fingerprint
+ 
+@@ -1121,6 +1298,16 @@
+                           "roll_rail": s["roll_rail_full_horizon"], "reward": round(p["mean_reward"], 1),
+                           "statue": round(p["statue_mean_reward"] or float("nan"), 1), "statue_falls": st["fall_seeds"],
+                           "seconds": round(p["panel_seconds"], 1)}), flush=True)
++        if band_on:
++            for who, bs in (("panel", p.get("band_summary")), ("statue", st.get("band_summary"))):
++                fh = (bs or {}).get("full_horizon") or {}
++                pp = (bs or {}).get("paid_per_full_horizon_episode") or {}
++                print(json.dumps({f"band_{who}": {k: fh.get(k) for k in ("window_foot_steps", "guard_0", "guard_ramp",
++                                                                         "counted", "whole_out", "pad_out", "pad_binds",
++                                                                         "share_min")}
++                                  | {"paid_mean": None if not pp else round(pp["mean"], 4),
++                                     "paid_median": None if not pp else round(pp["median"], 4),
++                                     "paid_worst": None if not pp else round(pp["worst"], 4)}}), flush=True)
+     if mode_name == "full" and not a.no_noise:
+         model, normalizer = load_checkpoint(ctx, zp, vp)
+         record["noise_matched_own"] = noise_matched(ctx, model, normalizer, sigma_arg="own", sigma=None, sigma_source="own", space="policy")
+@@ -1164,5 +1351,5 @@
+         sys.exit(main())
+     except SystemExit as exc:  # a refusal's reason reaches the log even when a wrapper (tools/iso.py) swallows the exit
+         if isinstance(exc.code, str):
+-            print(f"[judge_stance4] {exc.code}", file=sys.stderr, flush=True)
++            print(f"[judge_stance5] {exc.code}", file=sys.stderr, flush=True)
+         raise

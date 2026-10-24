@@ -1,0 +1,2545 @@
+From 4a783bae78b44e2b29e3312b16a2e9a032ee312e Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 23 Oct 2026 01:35:59 +0000
+Subject: [PATCH 1/2] Draw a stage's training history from its ledgers, for one
+ run or several
+
+A report-only reader of a stage directory's eval_episodes.csv,
+train_episodes.csv, stage_config.json, progress.json and checkpoint
+zips (reporting/training_history.py), behind
+scripts/plot_training_history.py STAGE_DIR [STAGE_DIR ...] --out DIR.
+
+- Per evaluation: episodes, falls, clean and saturation-flagged
+  episodes and the mean return; per foot the whole-foot and pad CoP,
+  digit share, toe margin, shear and cone use; sole tilt and corner
+  lift; CoM, root pitch and the XcoM margins; the left-minus-right hip
+  pitch, knee and ankle offsets; actuator_force_frac_max. Each
+  per-episode value over the evaluation's full-horizon episodes.
+- Training falls per 262,144-step window of train_episodes.csv.
+- The per-actuator policy std, exp(log_std), at each checkpoint zip:
+  only policy.pth's log_std is read (weights_only=True); a named
+  checkpoint's step is the JSON data member's num_timesteps.
+- Saturation flags and alarms found from the ledger (>= 5 episodes
+  listing max_actuator_saturation_fraction flag an evaluation; two in
+  a row are an alarm), marked with the given checkpoints on ten pages
+  of graphs: PNGs, a self-contained HTML page and a JSON summary
+  (mesozoic.training-history/v1) with the bars, the band settings and
+  what was absent. A missing file or column is an absent series.
+- An --out inside a run directory is refused, as plot_gate_progress.py
+  refuses it.
+
+No training, evaluation, gate, configuration, digest or notebook
+change. test_policy_loading.py lists the new call-time read of
+_PERIODIC_CHECKPOINT_RE, and test_repository_root.py the script's
+sys.path bootstrap.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01SaBkeMs656WoyRyzgRDbH8
+---
+ CHANGELOG.md                                  |   32 +
+ docs/TRAINING_ARTIFACT_PRESENTATION.md        |   49 +
+ environments/shared/reporting/__init__.py     |    4 +
+ .../shared/reporting/training_history.py      | 1806 +++++++++++++++++
+ .../shared/scripts/plot_training_history.py   |  130 ++
+ .../shared/tests/test_policy_loading.py       |    2 +
+ .../shared/tests/test_repository_root.py      |    1 +
+ .../shared/tests/test_training_history.py     |  394 ++++
+ 8 files changed, 2418 insertions(+)
+ create mode 100644 environments/shared/reporting/training_history.py
+ create mode 100644 environments/shared/scripts/plot_training_history.py
+ create mode 100644 environments/shared/tests/test_training_history.py
+
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 03b86642..819879b9 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -8,6 +8,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
+ ## [Unreleased] — Into the Wild (v0.4.0)
+ 
+ ### Added
++- **A training-history report: one run's feet, balance, asymmetry and
++  saturation over its training, or several runs overlaid**
++  (`environments/shared/reporting/training_history.py`,
++  `environments/shared/scripts/plot_training_history.py`; documented in
++  `docs/TRAINING_ARTIFACT_PRESENTATION.md`, "Training history pages"). Report
++  only: new files, one test-table line each in `test_policy_loading.py` (the
++  new call-time read of `_PERIODIC_CHECKPOINT_RE`) and
++  `test_repository_root.py` (the script's `sys.path` bootstrap), and a
++  docstring line in `reporting/__init__.py`; no training, evaluation, gate,
++  configuration, digest or notebook changes. From a stage directory's
++  `eval_episodes.csv`, `train_episodes.csv`, `stage_config.json`,
++  `progress.json` and checkpoint zips it reduces each evaluation (clean,
++  falls, saturation-flagged episodes and the mean return; per foot the
++  whole-foot and pad centres of pressure, digit share, toe margin, shear and
++  cone use; sole tilt and corner lift; the centre of mass, root pitch and
++  XcoM margins; the left-minus-right hip pitch, knee and ankle offsets;
++  `actuator_force_frac_max`), the training falls per 262,144-step window, and
++  the per-actuator policy std `exp(log_std)` at each checkpoint (only
++  `policy.pth`'s `log_std` is read, with `weights_only=True`). It finds the
++  saturation alarms from the ledger itself (an evaluation with at least 5 of
++  its episodes listing `max_actuator_saturation_fraction`; two in a row are an
++  alarm) and marks them, with the checkpoints given by `--mark-steps`, on ten
++  pages of graphs written as PNGs and a self-contained HTML page, beside a
++  JSON summary (`mesozoic.training-history/v1`) of every series, the declared
++  bars and band settings and what was absent. A missing file or column is an
++  absent series, never an error; an output inside a run directory is refused,
++  as `plot_gate_progress.py` refuses it. It is the first piece of the stage
++  report card's posture-over-training page and per-actuator std. On the
++  stance5 band run s42 it finds the first flagged evaluation at 3,538,944
++  steps and the alarm at 3,670,016, and on the stance4 control run s42 the
++  first saturated episodes at 1,835,008 and the alarm at 2,228,224, the steps
++  the scorers recorded.
+ - **Decision D-D41 recorded: a replication of the per-foot centre-of-pressure
+   band screen on two more seeds, read three of five; D-D40 and D-D36 amended**
+   (the maintainer's decisions of 2026-10-22; `docs/BEHAVIOR_RECIPES_PLAN.md`
+diff --git a/docs/TRAINING_ARTIFACT_PRESENTATION.md b/docs/TRAINING_ARTIFACT_PRESENTATION.md
+index 37467f43..31d0b70d 100644
+--- a/docs/TRAINING_ARTIFACT_PRESENTATION.md
++++ b/docs/TRAINING_ARTIFACT_PRESENTATION.md
+@@ -825,6 +825,55 @@ every key and type the file had before is kept.
+ | `checkpoints` | `latest_periodic_timesteps` (the newest periodic checkpoint in `models/`, by its name), `periodic_timesteps` (every periodic checkpoint kept, sorted: the newest few and, under the archive rule below, one per interval), `best_model_timesteps` and `best_mean_reward` (SB3's mean-reward best), `robust_best_model_timesteps` and `robust_best_score` (mean minus one standard deviation). A best checkpoint whose evaluation a resume dropped from the history reads `null`, while its score (`best_mean_reward`, `robust_best_score`) keeps the value the resumed tracker carried over |
+ | `warnings_total`, `warnings` | How many advisories this session has raised, and the newest 10 in step order, each `{"timesteps", "source", "message"}`: `posture_drift` and `posture_trend` (each with `rails`), `evaluation_plateau`, `zero_action_baseline` and `hop_watch`. Each also appears as a warning line in the training output. A resumed session counts its own |
+ 
++## Training history pages: `plot_training_history.py`
++
++`gate_progress.npz` and `progress.json` hold per-evaluation means and the
++latest row. To see how one run's feet, balance, asymmetry and saturation
++moved over its training, or to overlay several runs, draw them from the
++ledgers above:
++
++    python environments/shared/scripts/plot_training_history.py STAGE_DIR [STAGE_DIR ...] --out DIR \
++        [--labels ...] [--groups ...] [--mark-steps 4194304 ... final] [--title ...]
++
++One stage directory gives that run's pages; several give a comparison, one
++colour per run (at most eight) and one line style per `--groups` value, each
++series a rolling mean over 5 evaluations (`--smooth`), except the saturation
++counts. `--out` receives one PNG per page, `training_history.html`, which
++embeds them (base64) beside tables of the values at the marked, best and
++last checkpoints, and `training_history.json`
++(`mesozoic.training-history/v1`: every reduced series, the declared bars,
++the band settings, the alarms and what was absent). An `--out` inside a run
++directory is refused, as `plot_gate_progress.py` refuses it; for a copy
++without `provenance.json` the run directory is the stage directory's parent.
++It reads the files and writes nothing else (`reporting/training_history.py`).
++
++| Page | What it draws, against the training step |
++|---|---|
++| Outcomes | Clean episodes (`screen_v2_clean`), falls (shorter than the horizon), the mean return per evaluation, and the training falls per 262,144-step window of `train_episodes.csv` (`cause` not `truncated`) |
++| Saturation | The episodes per evaluation listing `max_actuator_saturation_fraction` in `screen_v2_reasons`, and `actuator_force_frac_max` |
++| Whole-foot and pad CoP | Per foot, `<label>_foot_cop_fore_aft` and `<label>_sole_cop_fore_aft`, with `max_sole_cop_fore_aft` at plus and minus and, where the run pays it, the reward band's edges (`stance_cop_band_*`) |
++| Digits and margins | Per foot, `<label>_digit_share` and `<label>_toe_margin_nm` |
++| Balance | `xcom_toe_margin_min_m`, `xcom_heel_margin_min_m`, `com_fore_aft_mean_m`, `root_pitch_mean_deg` |
++| Sole roll | `max_sole_tilt_deg` and `max_sole_corner_lift_m` against their bars |
++| Floor forces | Per foot, `<label>_shear_over_normal` and `<label>_cone_use_mean` |
++| Asymmetry | `leg_q_<left>_minus_<right>_<joint>_deg` for hip pitch, knee and ankle. `eval_episodes.csv` records no hip roll difference, so there is none to draw |
++| Policy std | `exp(log_std)` per actuator at each checkpoint zip in `models/` (`robust_best`, `best`, final, and at most 12 periodic ones evenly spaced), named in the env's actuator order from the checkout's MJCF |
++
++Each per-episode value is reduced over the evaluation's full-horizon
++episodes, as `gate_progress.npz` reduces it: one run's pages draw the mean
++with one standard deviation shaded, or with the worst episode dashed for a
++maximum or minimum. The counts are over all of the evaluation's episodes.
++An evaluation is flagged when at least 5 of its episodes list
++`max_actuator_saturation_fraction`, and two flagged evaluations in a row
++are an alarm, at the second (the stance4 and stance5 scorers' report-only
++rule); every page marks the alarms and the `--mark-steps` checkpoints, and
++one run's pages also mark `robust_best` and `best`. From a checkpoint zip
++the report reads only `policy.pth`'s `log_std` (`torch.load(...,
++weights_only=True)`) and, for a named checkpoint, `num_timesteps` from the
++JSON `data` member; it unpickles nothing else, and the reads stop after
++10 s. A missing file or column is an absent series, listed in the JSON and
++on the page, never an error.
++
+ ## The handoff's in-training score: `handoff_in_training.json`
+ 
+ A stance certificate scores the handoff checkpoint (`robust_best_model`
+diff --git a/environments/shared/reporting/__init__.py b/environments/shared/reporting/__init__.py
+index 3aafdf8c..7a034cea 100644
+--- a/environments/shared/reporting/__init__.py
++++ b/environments/shared/reporting/__init__.py
+@@ -34,6 +34,10 @@ from that layout:
+   ``stance_quality/v1`` checkpoint report and its probes, behind
+   ``scripts/stance_gate_report.py``; deliberately not re-exported here
+   (it imports the species registry at module level), so import it by path
++* :mod:`~environments.shared.reporting.training_history` — a stage's training
++  history read back from its ledgers and drawn as pages of graphs, behind
++  ``scripts/plot_training_history.py``; report only, and not re-exported
++  here either (it draws with matplotlib), so import it by path
+ """
+ 
+ from __future__ import annotations
+diff --git a/environments/shared/reporting/training_history.py b/environments/shared/reporting/training_history.py
+new file mode 100644
+index 00000000..e5c96168
+--- /dev/null
++++ b/environments/shared/reporting/training_history.py
+@@ -0,0 +1,1806 @@
++"""A stage's training history read back from its ledgers, drawn as pages of graphs (report only).
++
++A stage directory holds one row per evaluation episode (``eval_episodes.csv``)
++and one per training episode (``train_episodes.csv``), beside
++``stage_config.json``, ``progress.json`` and the checkpoints in ``models/``
++(``docs/TRAINING_ARTIFACT_PRESENTATION.md`` defines every column).  This module
++reduces them per evaluation and draws them against the training step, for one
++run or overlaid for several:
++
++- the outcome counts: episodes, falls, clean episodes (``screen_v2_clean``),
++  saturation-flagged episodes (``screen_v2_reasons`` naming
++  ``max_actuator_saturation_fraction``) and the mean return;
++- per foot, the whole-foot and pad (sole) centres of pressure fore-aft, the
++  digit share, the toe moment margin, the shear and the friction-cone use;
++- the sole's tilt and corner lift (the per-episode maxima over the feet the
++  gate's roll rails read), the whole-body balance (``com_fore_aft_mean_m``,
++  ``root_pitch_mean_deg``, the XcoM's toe and heel margin minima) and
++  ``actuator_force_frac_max``;
++- the achieved left-minus-right hip pitch, knee and ankle offsets
++  (``leg_q_<left>_minus_<right>_<joint>_deg``; ``eval_episodes.csv`` records no
++  hip roll difference);
++- the training falls per window of ``train_episodes.csv``;
++- the per-actuator policy standard deviation ``exp(log_std)`` at each
++  checkpoint zip in ``models/``.
++
++Every per-episode value is reduced over the evaluation's full-horizon episodes,
++the set ``gate_progress.npz`` averages over; the counts are over all its
++episodes.  A missing file or column is an absent series, listed in the JSON
++summary (``mesozoic.training-history/v1``), never an error.
++
++An evaluation is *flagged* when at least :data:`SATURATION_FLAG_EPISODES` of
++its episodes list ``max_actuator_saturation_fraction`` among their failed
++screen bars, and :data:`SATURATION_ALARM_IN_A_ROW` flagged evaluations in a
++row are an *alarm* (the stance4 and stance5 scorers' report-only rule).
++
++Report only: it reads the stage directories and writes only the files its
++caller names (``scripts/plot_training_history.py`` refuses an output inside a
++run directory).  Nothing reads its output back.  From a checkpoint zip it reads
++only the ``log_std`` tensor of ``policy.pth`` (``torch.load(...,
++weights_only=True)``) and, for a named checkpoint, ``num_timesteps`` from the
++JSON ``data`` member (:func:`~environments.shared.task_fingerprint.read_checkpoint_attribute`);
++it unpickles nothing.  Figures are drawn on matplotlib ``Figure`` objects
++without pyplot, so no figure registry or interactive backend is touched.
++"""
++
++from __future__ import annotations
++
++import base64
++import csv
++import html
++import io
++import logging
++import math
++import re
++import textwrap
++import time
++import zipfile
++from dataclasses import dataclass, field
++from datetime import datetime, timezone
++from pathlib import Path
++from typing import Any, Iterable, Mapping, Sequence
++
++import numpy as np
++
++from ..file_io import atomic_write_json, atomic_write_text, read_json_object
++from ..model_id import ModelId
++
++logger = logging.getLogger(__name__)
++
++#: The JSON summary's schema string.
++SCHEMA = "mesozoic.training-history/v1"
++EVAL_EPISODES_FILENAME = "eval_episodes.csv"
++TRAIN_EPISODES_FILENAME = "train_episodes.csv"
++PROGRESS_FILENAME = "progress.json"
++STAGE_CONFIG_FILENAME = "stage_config.json"
++MODELS_DIRNAME = "models"
++#: The files a report writes into its output directory.
++HTML_FILENAME = "training_history.html"
++JSON_FILENAME = "training_history.json"
++
++#: The screen bar whose failures are counted as saturation flags.
++SATURATION_REASON = "max_actuator_saturation_fraction"
++#: An evaluation is flagged when at least this many of its episodes fail :data:`SATURATION_REASON`.
++SATURATION_FLAG_EPISODES = 5
++#: This many flagged evaluations in a row are an alarm, at the last of them.
++SATURATION_ALARM_IN_A_ROW = 2
++#: The training-fall window: ``progress.json``'s ``training_rollouts.window_timesteps``.
++TRAINING_WINDOW_TIMESTEPS = 262_144
++#: The per-actuator std reads: at most this many periodic checkpoints (evenly spaced by step), within this budget.
++POLICY_STD_MAX_PERIODIC = 12
++POLICY_STD_BUDGET_S = 10.0
++
++#: Per-foot columns of ``eval_episodes.csv`` (``<foot>_<suffix>``) reduced per evaluation.
++FOOT_SUFFIXES: tuple[str, ...] = (
++    "foot_cop_fore_aft",
++    "sole_cop_fore_aft",
++    "digit_share",
++    "toe_margin_nm",
++    "sole_tilt_deg",
++    "sole_corner_lift_m",
++    "shear_over_normal",
++    "cone_use_mean",
++    "cone_use_max",
++)
++#: Whole-body columns reduced per evaluation.
++BODY_COLUMNS: tuple[str, ...] = (
++    "max_sole_tilt_deg",
++    "max_sole_corner_lift_m",
++    "com_fore_aft_mean_m",
++    "root_pitch_mean_deg",
++    "xcom_toe_margin_min_m",
++    "xcom_heel_margin_min_m",
++    "actuator_force_frac_max",
++)
++#: The sagittal joints whose left-minus-right achieved offset ``eval_episodes.csv`` records.
++LR_JOINTS: tuple[str, ...] = ("hip_pitch", "knee", "ankle")
++_LR_COLUMN = re.compile(
++    r"^leg_q_(?P<left>[A-Za-z0-9]+)_minus_(?P<right>[A-Za-z0-9]+)_(?P<joint>hip_pitch|knee|ankle)_deg$"
++)
++_FOOT_COLUMN = re.compile(r"^(?P<foot>[A-Za-z0-9]+)_(?:foot|sole)_cop_fore_aft$")
++#: The declared bars recorded and drawn, from ``stage_config.json``'s ``curriculum``.
++BAR_KEYS: tuple[str, ...] = (
++    "max_sole_cop_fore_aft",
++    "max_foot_cop_fore_aft",
++    "max_sole_tilt_deg",
++    "max_sole_corner_lift_m",
++    "max_actuator_saturation_fraction",
++    "min_clean_stance_lcb",
++)
++#: The fore-aft CoP band's reward settings (``reward_weights``), recorded when present.
++BAND_PREFIX = "stance_cop_band_"
++#: Actuators drawn on the std pages' first panel: each name stem containing one of these.
++KEY_ACTUATORS: tuple[str, ...] = ("hip_pitch", "hip_roll", "knee", "ankle", "tail_3")
++#: What the ledgers do not hold, said on every page set.
++NOT_RECORDED: tuple[str, ...] = (
++    "Hip roll: eval_episodes.csv records the left-minus-right achieved offset of hip pitch, knee and ankle only "
++    "(leg_q_<left>_minus_<right>_<joint>_deg); there is no hip roll difference to draw.",
++    "The commanded leg offsets (leg_dc_*) and the per-foot heel moment margin (<foot>_heel_margin_nm) are kept in "
++    "gate_progress.npz only, not in eval_episodes.csv.",
++    "The actuator saturation fraction itself is not recorded per episode: an episode only lists "
++    "max_actuator_saturation_fraction in screen_v2_reasons when it exceeded the stage's bar.",
++    "Per-actuator std is read at the checkpoints kept in models/ only; between them nothing is recorded here "
++    "(policy_probe.npz holds it per update where the run kept that file).",
++)
++
++# The categorical palette (fixed order, never cycled), chart ink and status red.
++_SERIES = ("#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948")
++_INK = "#0b0b0b"
++_INK_2 = "#52514e"
++_MUTED = "#898781"
++_GRID = "#e1e0d9"
++_SURFACE = "#fcfcfb"
++_CRITICAL = "#d03b3b"
++_HANDOFF = "#008300"
++_GROUP_STYLES = ("-", "--", ":", "-.")
++#: The std page's colour per key actuator (blue, orange, aqua, yellow, violet).
++_KEY_COLOURS = dict(zip(KEY_ACTUATORS, (_SERIES[0], _SERIES[1], _SERIES[2], _SERIES[3], _SERIES[6])))
++#: At most this many runs on one comparison page (one categorical hue each).
++MAX_RUNS = len(_SERIES)
++
++
++def _number(text: Any) -> float:
++    """A finite float from a CSV cell or JSON value, else NaN."""
++    if isinstance(text, bool):
++        return math.nan
++    try:
++        value = float(text)
++    except (TypeError, ValueError):
++        return math.nan
++    return value if math.isfinite(value) else math.nan
++
++
++def _read_csv(path: Path) -> tuple[list[str], list[dict[str, str]]] | None:
++    """``(header, rows)`` of a CSV file, or ``None`` when it is absent or unreadable."""
++    try:
++        with path.open(newline="", encoding="utf-8") as handle:
++            reader = csv.DictReader(handle)
++            rows = [row for row in reader]
++            return list(reader.fieldnames or []), rows
++    except (OSError, UnicodeDecodeError, csv.Error):
++        return None
++
++
++def reason_keys(reasons: str | None) -> set[str]:
++    """The bar names a ``screen_v2_reasons`` cell lists (``;``-joined, each optionally ``name: detail``)."""
++    return {part.split(":", 1)[0].strip() for part in (reasons or "").split(";") if part.strip()}
++
++
++def _stats(values: Sequence[float]) -> dict[str, float]:
++    """Mean, standard deviation (ddof 0), minimum, maximum and count of the finite *values*."""
++    array = np.asarray([value for value in values if math.isfinite(value)], dtype=float)
++    if not array.size:
++        return {"mean": math.nan, "std": math.nan, "min": math.nan, "max": math.nan, "n": 0.0}
++    return {
++        "mean": float(array.mean()),
++        "std": float(array.std()),
++        "min": float(array.min()),
++        "max": float(array.max()),
++        "n": float(array.size),
++    }
++
++
++def foot_labels(header: Sequence[str]) -> list[str]:
++    """The foot labels the header measures a centre of pressure for, in header order (``["r", "l"]`` on the T. rex)."""
++    feet: list[str] = []
++    for column in header:
++        match = _FOOT_COLUMN.match(column)
++        if match is not None and match.group("foot") != "max" and match.group("foot") not in feet:
++            feet.append(match.group("foot"))
++    return feet
++
++
++def lr_columns(header: Sequence[str]) -> dict[str, str]:
++    """``{joint: column}`` of the left-minus-right achieved offsets the header holds."""
++    found: dict[str, str] = {}
++    for column in header:
++        match = _LR_COLUMN.match(column)
++        if match is not None and match.group("joint") not in found:
++            found[match.group("joint")] = column
++    return {joint: found[joint] for joint in LR_JOINTS if joint in found}
++
++
++def reduced_columns(header: Sequence[str]) -> list[str]:
++    """The per-episode columns of the header that are reduced per evaluation, in a fixed order."""
++    present = set(header)
++    columns = [f"{foot}_{suffix}" for foot in foot_labels(header) for suffix in FOOT_SUFFIXES]
++    columns += list(BODY_COLUMNS) + list(lr_columns(header).values())
++    return [column for column in columns if column in present]
++
++
++def expected_columns(feet: Sequence[str]) -> list[str]:
++    """The columns this report reads from ``eval_episodes.csv`` (per foot for *feet*)."""
++    columns = ["timesteps", "return", "full_horizon", "cause", "screen_v2_clean", "screen_v2_reasons"]
++    columns += [f"{foot}_{suffix}" for foot in feet for suffix in FOOT_SUFFIXES]
++    columns += list(BODY_COLUMNS)
++    return columns
++
++
++def reduce_evaluations(header: Sequence[str], rows: Sequence[Mapping[str, str]]) -> dict[str, Any]:
++    """Per evaluation (one ``timesteps`` value) of ``eval_episodes.csv``'s rows.
++
++    Returns ``timesteps`` (int), the counts ``episodes``, ``falls`` (episodes
++    shorter than the horizon), ``clean`` (``screen_v2_clean`` 1 over the
++    episodes the screen judged), ``saturated`` (judged episodes listing
++    :data:`SATURATION_REASON`) and ``mean_return`` as arrays, NaN where the
++    evaluation could not supply them, and ``columns``: per reduced column its
++    ``mean``, ``std``, ``min``, ``max`` and ``n`` over the evaluation's
++    full-horizon episodes.  A count whose column is absent is left out.
++    """
++    present = set(header)
++    by_step: dict[int, list[Mapping[str, str]]] = {}
++    for row in rows:
++        step = _number(row.get("timesteps"))
++        if math.isfinite(step):
++            by_step.setdefault(int(step), []).append(row)
++    steps = sorted(by_step)
++    out: dict[str, Any] = {"timesteps": np.asarray(steps, dtype=np.int64), "columns": {}}
++    if not steps:
++        return out
++    fh_known = "full_horizon" in present or "cause" in present
++
++    def full_horizon(row: Mapping[str, str]) -> bool | None:
++        if "full_horizon" in present:
++            value = _number(row.get("full_horizon"))
++            if math.isfinite(value):
++                return value == 1.0
++        if "cause" in present and (row.get("cause") or "").strip():
++            return (row.get("cause") or "").strip() == "truncated"
++        return None
++
++    episodes, falls, clean, saturated, mean_return = [], [], [], [], []
++    fh_rows: list[list[Mapping[str, str]]] = []
++    for step in steps:
++        group = by_step[step]
++        episodes.append(float(len(group)))
++        flags = [full_horizon(row) for row in group]
++        known = [flag for flag in flags if flag is not None]
++        falls.append(float(sum(1 for flag in known if not flag)) if known else math.nan)
++        fh_rows.append([row for row, flag in zip(group, flags) if flag] if known else list(group))
++        judged = group
++        if "screen_v2_clean" in present:
++            values = [_number(row.get("screen_v2_clean")) for row in group]
++            judged = [row for row, value in zip(group, values) if math.isfinite(value)]
++            clean.append(float(sum(1 for value in values if value == 1.0)) if judged else math.nan)
++        if "screen_v2_reasons" in present:
++            saturated.append(
++                float(sum(1 for row in judged if SATURATION_REASON in reason_keys(row.get("screen_v2_reasons"))))
++                if judged
++                else math.nan
++            )
++        if "return" in present:
++            mean_return.append(_stats([_number(row.get("return")) for row in group])["mean"])
++    out["episodes"] = np.asarray(episodes, dtype=float)
++    if fh_known:
++        out["falls"] = np.asarray(falls, dtype=float)
++    if "screen_v2_clean" in present:
++        out["clean"] = np.asarray(clean, dtype=float)
++    if "screen_v2_reasons" in present:
++        out["saturated"] = np.asarray(saturated, dtype=float)
++    if "return" in present:
++        out["mean_return"] = np.asarray(mean_return, dtype=float)
++    for column in reduced_columns(header):
++        stats = [_stats([_number(row.get(column)) for row in group]) for group in fh_rows]
++        out["columns"][column] = {key: np.asarray([s[key] for s in stats], dtype=float) for key in stats[0]}
++    return out
++
++
++def reduce_training(
++    header: Sequence[str], rows: Sequence[Mapping[str, str]], *, window: int = TRAINING_WINDOW_TIMESTEPS
++) -> dict[str, Any] | None:
++    """Training episodes and falls per window of ``train_episodes.csv``, or ``None`` without its columns.
++
++    Window *k* holds the episodes that ended at a step in ``(k * window, (k + 1) * window]``;
++    ``window_end`` is its upper edge.  A fall is an episode that did not reach the time limit
++    (``cause`` not ``truncated``), as the ledger's own summaries count it.
++    """
++    if "timesteps" not in header or "cause" not in header:
++        return None
++    counts: dict[int, list[int]] = {}
++    for row in rows:
++        step = _number(row.get("timesteps"))
++        cause = (row.get("cause") or "").strip()
++        if not math.isfinite(step) or not cause:
++            continue
++        index = max(0, int(math.ceil(step / window)) - 1)
++        entry = counts.setdefault(index, [0, 0])
++        entry[0] += 1
++        entry[1] += int(cause != "truncated")
++    if not counts:
++        return None
++    indices = range(min(counts), max(counts) + 1)
++    episodes = np.asarray([counts.get(k, [0, 0])[0] for k in indices], dtype=float)
++    falls = np.asarray([counts.get(k, [0, 0])[1] for k in indices], dtype=float)
++    with np.errstate(invalid="ignore", divide="ignore"):
++        fraction = np.where(episodes > 0, falls / np.where(episodes > 0, episodes, 1.0), np.nan)
++    return {
++        "window_timesteps": int(window),
++        "window_end": np.asarray([(k + 1) * window for k in indices], dtype=np.int64),
++        "episodes": episodes,
++        "falls": falls,
++        "fall_fraction": fraction,
++    }
++
++
++def saturation_alarms(
++    timesteps: Sequence[int],
++    saturated: Sequence[float],
++    *,
++    flag_episodes: int = SATURATION_FLAG_EPISODES,
++    in_a_row: int = SATURATION_ALARM_IN_A_ROW,
++) -> dict[str, Any]:
++    """The saturation flags and alarms of one run's evaluations (report only).
++
++    An evaluation is flagged when at least *flag_episodes* of its episodes list
++    :data:`SATURATION_REASON`; a run of at least *in_a_row* flagged evaluations
++    in a row (adjacent evaluations of the ledger) is an alarm, raised at its
++    *in_a_row*-th evaluation.  An evaluation with an unknown count (NaN) is not
++    flagged and ends a run.  The same rule as the stance4 and stance5
++    scorers' ``saturation_alarm``.
++    """
++    evaluations = [(int(step), float(count)) for step, count in zip(timesteps, saturated)]
++    flagged = [step for step, count in evaluations if math.isfinite(count) and count >= flag_episodes]
++    runs: list[dict[str, int]] = []
++    current: list[int] = []
++    for step, count in [*evaluations, (None, math.nan)]:
++        if step is not None and math.isfinite(count) and count >= flag_episodes:
++            current.append(step)
++            continue
++        if len(current) >= in_a_row:
++            runs.append(
++                {"from": current[0], "to": current[-1], "evaluations": len(current), "alarm_at": current[in_a_row - 1]}
++            )
++        current = []
++    first_any = next((step for step, count in evaluations if math.isfinite(count) and count > 0), None)
++    return {
++        "rule": (
++            f"an evaluation is flagged when >= {flag_episodes} of its episodes list {SATURATION_REASON} in "
++            f"screen_v2_reasons; {in_a_row} flagged evaluations in a row (adjacent evaluations) are an alarm, raised at "
++            f"evaluation {in_a_row} of the run"
++        ),
++        "flag_episodes": int(flag_episodes),
++        "in_a_row": int(in_a_row),
++        "evaluations": len(evaluations),
++        "first_saturated_episode_at": first_any,
++        "first_flagged_at": flagged[0] if flagged else None,
++        "flagged": flagged,
++        "alarm": bool(runs),
++        "runs": runs,
++        "first_alarm_at": runs[0]["alarm_at"] if runs else None,
++    }
++
++
++def checkpoint_kind(path: Path) -> tuple[str, int | None] | None:
++    """``(kind, step from the name)`` of a checkpoint zip, or ``None`` for any other file.
++
++    ``robust_best_model.zip`` and ``best_model.zip`` are ``robust_best`` and
++    ``best``; ``<label>_final.zip`` is ``final``; a periodic checkpoint
++    ``<label>_<steps>_steps.zip`` is ``periodic`` with its step.
++    """
++    from ..policy_loading import _PERIODIC_CHECKPOINT_RE
++
++    if path.suffix != ".zip":
++        return None
++    stem = path.stem
++    if stem == "robust_best_model":
++        return "robust_best", None
++    if stem == "best_model":
++        return "best", None
++    if stem.endswith("_final"):
++        return "final", None
++    match = _PERIODIC_CHECKPOINT_RE.fullmatch(stem)
++    if match is not None:
++        return "periodic", int(match.group(2))
++    return None
++
++
++def read_log_std(path: Path) -> np.ndarray | None:
++    """``exp(log_std)`` of a checkpoint zip's ``policy.pth``, or ``None`` when its state dict has no ``log_std``.
++
++    Only ``policy.pth`` is read, with ``torch.load(..., weights_only=True)``,
++    which refuses any pickled object but tensors and plain containers.
++    """
++    import torch
++
++    with zipfile.ZipFile(path) as archive:
++        payload = archive.read("policy.pth")
++    state = torch.load(io.BytesIO(payload), map_location="cpu", weights_only=True)
++    log_std = state.get("log_std") if isinstance(state, Mapping) else None
++    if log_std is None:
++        return None
++    return np.exp(np.asarray(log_std.detach().cpu().numpy(), dtype=float).reshape(-1))
++
++
++def _spaced(items: Sequence[Any], count: int) -> list[Any]:
++    """At most *count* of *items*, evenly spaced, the first and last included."""
++    if len(items) <= count:
++        return list(items)
++    picks = sorted({int(round(i)) for i in np.linspace(0, len(items) - 1, count)})
++    return [items[i] for i in picks]
++
++
++def read_policy_std(
++    models_dir: Path,
++    *,
++    progress: Mapping[str, Any] | None = None,
++    max_periodic: int = POLICY_STD_MAX_PERIODIC,
++    budget_s: float = POLICY_STD_BUDGET_S,
++) -> dict[str, Any]:
++    """The per-actuator policy std at the checkpoints in *models_dir* (design section 3.6).
++
++    The named checkpoints are read first (``robust_best``, ``best``, ``final``),
++    then at most *max_periodic* periodic ones evenly spaced by step.  The reads
++    stop after *budget_s* seconds of wall clock.  A periodic checkpoint's step is
++    its name's; a named one's is ``num_timesteps`` from the zip's JSON ``data``
++    member, else ``progress.json``'s ``checkpoints`` record.  ``available``
++    counts the checkpoints chosen, ``read`` those read.
++    """
++    from ..task_fingerprint import read_checkpoint_attribute
++
++    result: dict[str, Any] = {"available": 0, "read": 0, "checkpoints": [], "skipped": None, "errors": []}
++    if not models_dir.is_dir():
++        result["skipped"] = f"no {MODELS_DIRNAME}/ directory"
++        return result
++    named: list[tuple[str, Path]] = []
++    periodic: list[tuple[int, Path]] = []
++    for path in sorted(models_dir.iterdir()):
++        found = checkpoint_kind(path) if path.is_file() else None
++        if found is None:
++            continue
++        if found[0] == "periodic" and found[1] is not None:
++            periodic.append((found[1], path))
++        else:
++            named.append((found[0], path))
++    order = {"robust_best": 0, "best": 1, "final": 2}
++    named.sort(key=lambda item: (order[item[0]], item[1].name))
++    periodic.sort()
++    chosen: list[tuple[str, int | None, str, Path]] = []
++    recorded = (progress or {}).get("checkpoints") if isinstance(progress, Mapping) else None
++    recorded = recorded if isinstance(recorded, Mapping) else {}
++    for kind, path in named:
++        step = read_checkpoint_attribute(path, "num_timesteps")
++        source = "zip data (JSON num_timesteps)"
++        if isinstance(step, bool) or not isinstance(step, int):
++            fallback = recorded.get(f"{kind}_model_timesteps") if kind != "final" else None
++            step = fallback if isinstance(fallback, int) and not isinstance(fallback, bool) else None
++            source = "progress.json checkpoints" if step is not None else "unknown"
++        chosen.append((kind, step, source, path))
++    chosen += [("periodic", step, "file name", path) for step, path in _spaced(periodic, max_periodic)]
++    result["available"] = len(chosen)
++    if not chosen:
++        result["skipped"] = f"no checkpoint zip in {MODELS_DIRNAME}/"
++        return result
++    try:
++        import torch  # noqa: F401
++    except ImportError:
++        result["skipped"] = "torch is not importable"
++        return result
++    started = time.monotonic()
++    for kind, step, source, path in chosen:
++        if time.monotonic() - started > budget_s:
++            result["skipped"] = f"stopped after {budget_s:g} s of reads"
++            break
++        try:
++            std = read_log_std(path)
++        except Exception as exc:  # noqa: BLE001 - a bad zip costs its own point only
++            result["errors"].append(f"{path.name}: {type(exc).__name__}: {exc}")
++            continue
++        if std is None:
++            result["errors"].append(f"{path.name}: policy.pth has no log_std (not a Gaussian PPO policy)")
++            continue
++        result["checkpoints"].append(
++            {"name": path.name, "kind": kind, "timesteps": step, "step_source": source, "std": std}
++        )
++        result["read"] += 1
++    result["checkpoints"].sort(key=lambda c: (c["timesteps"] is None, c["timesteps"] or 0, c["name"]))
++    return result
++
++
++def actuator_names(model_id: ModelId | None, count: int) -> tuple[list[str] | None, str]:
++    """The env's actuator names in action order, from the checkout's MJCF of *model_id*, and where they came from.
++
++    ``(None, why)`` when the model is unknown, MuJoCo is not importable, the
++    MJCF does not compile, or its actuator count is not *count*.
++    """
++    if model_id is None:
++        return None, "no model recorded"
++    try:
++        import mujoco
++
++        from ..paths import ENVIRONMENTS_ROOT
++
++        path = model_id.asset_path(ENVIRONMENTS_ROOT)
++        model = mujoco.MjModel.from_xml_path(str(path))
++    except Exception as exc:  # noqa: BLE001 - names are a label only
++        return None, f"no actuator names ({type(exc).__name__}: {exc})"
++    names = [mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_ACTUATOR, i) or f"actuator[{i}]" for i in range(model.nu)]
++    if len(names) != count:
++        return None, f"the checkout's MJCF has {len(names)} actuators, the policy {count}"
++    return names, f"the checkout's MJCF ({path.relative_to(ENVIRONMENTS_ROOT.parent).as_posix()}), in actuator order"
++
++
++def _bars(record: Mapping[str, Any]) -> dict[str, float | None]:
++    curriculum = record.get("curriculum")
++    curriculum = curriculum if isinstance(curriculum, Mapping) else {}
++    return {key: (_number(curriculum.get(key)) if key in curriculum else None) for key in BAR_KEYS}
++
++
++def _band(record: Mapping[str, Any]) -> dict[str, float] | None:
++    for block in (record.get("reward_weights"), (record.get("task_fingerprint") or {}).get("env")):
++        if isinstance(block, Mapping):
++            band = {key: _number(value) for key, value in block.items() if str(key).startswith(BAND_PREFIX)}
++            if band:
++                return dict(sorted(band.items()))
++    return None
++
++
++@dataclass
++class RunHistory:
++    """One stage directory's reduced training history."""
++
++    stage_dir: Path
++    label: str
++    group: str | None = None
++    files: dict[str, bool] = field(default_factory=dict)
++    model_id: ModelId | None = None
++    model_display: str | None = None
++    seed: int | None = None
++    run_id: str | None = None
++    status: str | None = None
++    progress_timesteps: int | None = None
++    progress_written_at: str | None = None
++    feet: list[str] = field(default_factory=list)
++    lr: dict[str, str] = field(default_factory=dict)
++    evaluations: dict[str, Any] = field(
++        default_factory=lambda: {"timesteps": np.zeros(0, dtype=np.int64), "columns": {}}
++    )
++    training: dict[str, Any] | None = None
++    saturation: dict[str, Any] = field(default_factory=dict)
++    bars: dict[str, float | None] = field(default_factory=dict)
++    band: dict[str, float] | None = None
++    checkpoint_steps: dict[str, int | None] = field(default_factory=dict)
++    policy_std: dict[str, Any] = field(default_factory=dict)
++    actuators: list[str] | None = None
++    actuator_source: str = ""
++    absent: list[str] = field(default_factory=list)
++    errors: list[str] = field(default_factory=list)
++
++    @property
++    def band_active(self) -> bool:
++        """True when the run's reward pays the fore-aft CoP band (``stance_cop_band_weight`` above 0)."""
++        weight = (self.band or {}).get(f"{BAND_PREFIX}weight", math.nan)
++        return math.isfinite(weight) and weight > 0.0
++
++    @property
++    def steps(self) -> np.ndarray:
++        """The evaluation steps."""
++        return np.asarray(self.evaluations.get("timesteps", np.zeros(0, dtype=np.int64)))
++
++    @property
++    def last_step(self) -> int:
++        """The latest step this run's files show: an evaluation, a training window, a checkpoint or progress.json."""
++        candidates = [int(self.steps[-1])] if self.steps.size else []
++        if self.training is not None:
++            candidates.append(int(self.training["window_end"][-1]))
++        candidates += [step for step in self.checkpoint_steps.values() if isinstance(step, int)]
++        if self.progress_timesteps is not None:
++            candidates.append(self.progress_timesteps)
++        return max(candidates) if candidates else 0
++
++    @property
++    def final_step(self) -> int | None:
++        """The final checkpoint's step, else the step ``progress.json`` recorded once the stage ended."""
++        if self.checkpoint_steps.get("final") is not None:
++            return self.checkpoint_steps["final"]
++        if self.status == "ended":
++            return self.progress_timesteps
++        return None
++
++    def column(self, column: str, stat: str = "mean") -> np.ndarray | None:
++        """One reduced statistic of a column, or ``None`` when the column is absent."""
++        entry = self.evaluations.get("columns", {}).get(column)
++        return None if entry is None else entry[stat]
++
++    def series(self, name: str) -> np.ndarray | None:
++        """A per-evaluation count (``clean``, ``falls``, ...), or ``None`` when absent."""
++        value = self.evaluations.get(name)
++        return None if value is None else np.asarray(value, dtype=float)
++
++
++def load_run_history(
++    stage_dir: "str | Path",
++    *,
++    label: str | None = None,
++    group: str | None = None,
++    read_std: bool = True,
++    training_window: int = TRAINING_WINDOW_TIMESTEPS,
++) -> RunHistory:
++    """Read and reduce one stage directory's files; a missing file or column is recorded as absent, never raised."""
++    stage = Path(stage_dir)
++    run = RunHistory(stage_dir=stage, label=label or stage.resolve().parent.name or stage.name, group=group)
++    names = (EVAL_EPISODES_FILENAME, TRAIN_EPISODES_FILENAME, STAGE_CONFIG_FILENAME, PROGRESS_FILENAME)
++    run.files = {name: (stage / name).is_file() for name in names}
++    run.files[f"{MODELS_DIRNAME}/"] = (stage / MODELS_DIRNAME).is_dir()
++    run.absent += [name for name, present in run.files.items() if not present]
++
++    record = read_json_object(stage / STAGE_CONFIG_FILENAME) or {}
++    progress = read_json_object(stage / PROGRESS_FILENAME) or {}
++    species, embodiment = record.get("species", progress.get("species")), record.get("embodiment")
++    embodiment = embodiment if embodiment is not None else progress.get("embodiment")
++    if isinstance(species, str) and isinstance(embodiment, str):
++        run.model_id = ModelId(species, embodiment)
++        try:
++            from ..species_names import model_display_name
++
++            run.model_display = model_display_name(run.model_id)
++        except Exception:  # noqa: BLE001 - a display name only
++            run.model_display = f"{species} ({embodiment})"
++    run_block: Mapping[str, Any] = record["run"] if isinstance(record.get("run"), Mapping) else {}
++    seed = run_block.get("seed", progress.get("seed"))
++    run.seed = seed if isinstance(seed, int) and not isinstance(seed, bool) else None
++    run_id = progress.get("run_id") or run_block.get("label")
++    run.run_id = run_id if isinstance(run_id, str) else None
++    run.status = progress.get("status") if isinstance(progress.get("status"), str) else None
++    timesteps = progress.get("timesteps")
++    run.progress_timesteps = timesteps if isinstance(timesteps, int) and not isinstance(timesteps, bool) else None
++    written = progress.get("written_at")
++    run.progress_written_at = written if isinstance(written, str) else None
++    run.bars = _bars(record)
++    run.band = _band(record)
++    if not record:
++        run.absent.append("stage_config.json: no bars or band recorded")
++
++    table = _read_csv(stage / EVAL_EPISODES_FILENAME)
++    if table is not None:
++        header, rows = table
++        run.feet = foot_labels(header)
++        run.lr = lr_columns(header)
++        run.evaluations = reduce_evaluations(header, rows)
++        run.absent += [
++            f"{EVAL_EPISODES_FILENAME}: column {column}"
++            for column in expected_columns(run.feet or ["r", "l"])
++            if column not in header
++        ]
++        if len(run.lr) < len(LR_JOINTS):
++            run.absent += [
++                f"{EVAL_EPISODES_FILENAME}: left-minus-right {joint} (leg_q_*_minus_*_{joint}_deg)"
++                for joint in LR_JOINTS
++                if joint not in run.lr
++            ]
++        if not run.steps.size:
++            run.absent.append(f"{EVAL_EPISODES_FILENAME}: no row with a timesteps value")
++    elif run.files[EVAL_EPISODES_FILENAME]:
++        run.errors.append(f"{EVAL_EPISODES_FILENAME} could not be read")
++    saturated = run.series("saturated")
++    if saturated is not None:
++        run.saturation = saturation_alarms(run.steps.tolist(), saturated.tolist())
++    else:
++        run.saturation = {"computed": False, "why": "no screen_v2_reasons column"}
++
++    table = _read_csv(stage / TRAIN_EPISODES_FILENAME)
++    if table is not None:
++        run.training = reduce_training(*table, window=training_window)
++        if run.training is None:
++            run.absent.append(f"{TRAIN_EPISODES_FILENAME}: no timesteps/cause rows")
++
++    if read_std:
++        run.policy_std = read_policy_std(stage / MODELS_DIRNAME, progress=progress)
++        for entry in run.policy_std["checkpoints"]:
++            if entry["kind"] != "periodic":
++                run.checkpoint_steps.setdefault(entry["kind"], entry["timesteps"])
++        if run.policy_std.get("skipped"):
++            run.absent.append(f"policy std: {run.policy_std['skipped']}")
++        run.errors += run.policy_std.get("errors", [])
++        widths = {len(entry["std"]) for entry in run.policy_std["checkpoints"]}
++        if len(widths) == 1:
++            run.actuators, run.actuator_source = actuator_names(run.model_id, widths.pop())
++        elif widths:
++            run.actuator_source = f"checkpoints of different widths {sorted(widths)}"
++    else:
++        run.policy_std = {"available": 0, "read": 0, "checkpoints": [], "skipped": "not requested", "errors": []}
++    checkpoints: Mapping[str, Any] = progress["checkpoints"] if isinstance(progress.get("checkpoints"), Mapping) else {}
++    for kind in ("robust_best", "best"):
++        step = checkpoints.get(f"{kind}_model_timesteps")
++        if kind not in run.checkpoint_steps and isinstance(step, int) and not isinstance(step, bool):
++            run.checkpoint_steps[kind] = step
++    return run
++
++
++# ---------------------------------------------------------------------------------------------- marks
++
++
++def resolve_marks(marks: Iterable["int | str"], runs: Sequence[RunHistory]) -> list[int]:
++    """The marked steps, sorted: integers as given, and ``final`` as each run's final step (when it has one)."""
++    steps: set[int] = set()
++    for mark in marks:
++        if isinstance(mark, str) and mark.strip().lower() == "final":
++            steps.update(step for run in runs if (step := run.final_step) is not None)
++        else:
++            steps.add(int(mark))
++    return sorted(steps)
++
++
++# ---------------------------------------------------------------------------------------------- JSON
++
++
++def _sig(value: Any) -> Any:
++    """A JSON value: six significant digits, NaN and infinities as ``null``, arrays as lists."""
++    if isinstance(value, np.ndarray):
++        return [_sig(item) for item in value.tolist()]
++    if isinstance(value, (list, tuple)):
++        return [_sig(item) for item in value]
++    if isinstance(value, Mapping):
++        return {str(key): _sig(item) for key, item in value.items()}
++    if isinstance(value, (bool, np.bool_)):
++        return bool(value)
++    if isinstance(value, (int, np.integer)):
++        return int(value)
++    if isinstance(value, (float, np.floating)):
++        number = float(value)
++        return float(f"{number:.6g}") if math.isfinite(number) else None
++    return value
++
++
++def _at(run: RunHistory, step: int) -> int | None:
++    """The index of the evaluation at *step*, or ``None``."""
++    hits = np.flatnonzero(run.steps == step)
++    return int(hits[0]) if hits.size else None
++
++
++def checkpoint_rows(run: RunHistory, marks: Sequence[int]) -> list[dict[str, Any]]:
++    """The values at the marked steps, ``robust_best``, ``best`` and the last evaluation, one row each.
++
++    A row reads the evaluation at exactly that step; a mark with no evaluation
++    there (the final checkpoint, after the last evaluation) reads the last
++    evaluation at or before it and says so.  The std columns read the
++    checkpoint saved at that step when one was read.
++    """
++    if not run.steps.size:
++        return []
++    final = run.final_step
++    wanted: list[tuple[str, int, str]] = [
++        (f"J {step:,}" + (" (final)" if step == final else ""), step, "final" if step == final else "periodic")
++        for step in marks
++        if step <= run.last_step
++    ]
++    for kind in ("robust_best", "best"):
++        step = run.checkpoint_steps.get(kind)
++        if isinstance(step, int):
++            wanted.append((kind, step, kind))
++    wanted.append(("last evaluation", int(run.steps[-1]), "periodic"))
++    points = run.policy_std.get("checkpoints", [])
++    rows = []
++    for name, step, prefer in wanted:
++        index = _at(run, step)
++        note = ""
++        if index is None:
++            earlier = np.flatnonzero(run.steps <= step)
++            if not earlier.size:
++                continue
++            index = int(earlier[-1])
++            note = f"evaluation at {int(run.steps[index]):,} (none at this step)"
++        row: dict[str, Any] = {"at": name, "timesteps": step, "evaluation_timesteps": int(run.steps[index])}
++        if note:
++            row["note"] = note
++        for count in ("episodes", "clean", "falls", "saturated"):
++            series = run.series(count)
++            if series is not None:
++                row[count] = series[index]
++        for column in [
++            f"{foot}_{suffix}" for foot in run.feet for suffix in ("foot_cop_fore_aft", "sole_cop_fore_aft")
++        ]:
++            values = run.column(column)
++            if values is not None:
++                row[column] = values[index]
++        for column in ("max_sole_tilt_deg", "max_sole_corner_lift_m", "actuator_force_frac_max", "com_fore_aft_mean_m"):
++            values = run.column(column)
++            if values is not None:
++                row[column] = values[index]
++        for joint, column in run.lr.items():
++            values = run.column(column)
++            if values is not None:
++                row[f"l_minus_r_{joint}_deg"] = values[index]
++        at_step = [point for point in points if point["timesteps"] == step]
++        entry = next((point for point in at_step if point["kind"] == prefer), at_step[0] if at_step else None)
++        if entry is not None and run.actuators:
++            row["std_checkpoint"] = entry["name"]
++            for i, name_ in enumerate(run.actuators):
++                if any(key in name_ for key in KEY_ACTUATORS):
++                    row[f"std_{_stem(name_)}"] = entry["std"][i]
++        rows.append(row)
++    return rows
++
++
++def run_record(run: RunHistory, marks: Sequence[int]) -> dict[str, Any]:
++    """One run's block of the JSON summary."""
++    evaluations: dict[str, Any] = {key: value for key, value in run.evaluations.items() if key != "columns"}
++    evaluations["columns"] = run.evaluations.get("columns", {})
++    std = dict(run.policy_std)
++    std["actuators"] = run.actuators
++    std["actuator_names_source"] = run.actuator_source
++    record: dict[str, Any] = _sig(
++        {
++            "label": run.label,
++            "group": run.group,
++            "stage_dir": str(run.stage_dir),
++            "files": run.files,
++            "model": ({**run.model_id.record(), "display": run.model_display} if run.model_id is not None else None),
++            "seed": run.seed,
++            "run_id": run.run_id,
++            "status": run.status,
++            "progress_timesteps": run.progress_timesteps,
++            "progress_written_at": run.progress_written_at,
++            "last_step": run.last_step,
++            "final_step": run.final_step,
++            "bars": run.bars,
++            "band": run.band,
++            "band_active": run.band_active,
++            "feet": run.feet,
++            "left_minus_right_columns": run.lr,
++            "evaluations": evaluations,
++            "training": run.training,
++            "saturation": run.saturation,
++            "checkpoint_steps": run.checkpoint_steps,
++            "policy_std": std,
++            "checkpoint_table": checkpoint_rows(run, marks),
++            "absent": run.absent,
++            "errors": run.errors,
++        }
++    )
++    return record
++
++
++def summary(runs: Sequence[RunHistory], *, title: str, marks: Sequence["int | str"], smooth: int) -> dict[str, Any]:
++    """The JSON summary (``mesozoic.training-history/v1``) of *runs*."""
++    resolved = resolve_marks(marks, runs)
++    return {
++        "schema": SCHEMA,
++        "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
++        "title": title,
++        "report_only": "reads the stage directories only; nothing reads this file back",
++        "marks": {"requested": [str(mark) for mark in marks], "resolved": resolved},
++        "rules": {
++            "counts": "episodes, falls (shorter than the horizon), clean and saturated over all the evaluation's "
++            "episodes; clean and saturated over the episodes the screen judged",
++            "columns": "each per-episode column's mean, std (ddof 0), min, max and n over the evaluation's "
++            "full-horizon episodes",
++            "saturation": saturation_alarms([], [])["rule"],
++            "training_falls": f"train_episodes.csv episodes whose cause is not truncated, per window of "
++            f"{TRAINING_WINDOW_TIMESTEPS:,} steps (k w, (k + 1) w]",
++            "comparison_smoothing_evaluations": smooth,
++            "numbers": "six significant digits; null where not measured",
++        },
++        "not_recorded": list(NOT_RECORDED),
++        "runs": [run_record(run, resolved) for run in runs],
++    }
++
++
++# ---------------------------------------------------------------------------------------------- figures
++
++
++@dataclass(frozen=True)
++class Quantity:
++    """One quantity drawn against the step: a reduced column (``{foot}`` for each foot) or a count."""
++
++    key: str
++    title: str
++    unit: str
++    kind: str = "column"  # "column" (a reduced column), "count" (an evaluation series), "training"
++    spread: str | None = "std"  # one run: "std" band, "max" or "min" worst-episode line, or None
++    scale: float = 1.0
++    per_foot: bool = False
++    smooth: bool = True  # smoothed on comparison pages
++
++
++@dataclass(frozen=True)
++class PageSpec:
++    """One page: its file stem, title and quantities, drawn one per panel (per foot per panel when compared)."""
++
++    name: str
++    title: str
++    caption: str
++    quantities: tuple[Quantity, ...]
++
++
++_FH = "mean over the evaluation's full-horizon episodes"
++#: What a one-run panel draws besides the mean, said in its title.
++_SPREAD_NOTES = {
++    "std": " (shaded: +/- 1 std over those episodes)",
++    "max": " (dashed: the worst episode)",
++    "min": " (dashed: the lowest episode)",
++}
++PAGES: tuple[PageSpec, ...] = (
++    PageSpec(
++        "01_outcomes",
++        "Outcomes: clean episodes, falls and return",
++        "Counts are over each evaluation's episodes (10 on these stages). Clean is the in-training "
++        "stance_quality/v2 screen at yaw 0 without the statue-relative criteria (never a verdict). Training falls "
++        "come from train_episodes.csv.",
++        (
++            Quantity("clean", "Clean episodes per evaluation (screen_v2_clean = 1)", "episodes", "count", None),
++            Quantity("falls", "Falls per evaluation (episodes shorter than the horizon)", "episodes", "count", None),
++            Quantity(
++                "fall_fraction",
++                f"Training falls: fraction of the training episodes ending in each {TRAINING_WINDOW_TIMESTEPS:,}-step "
++                "window that did not reach the time limit",
++                "fraction",
++                "training",
++                None,
++            ),
++            Quantity("mean_return", "Mean evaluation return (all episodes)", "return", "count", None),
++        ),
++    ),
++    PageSpec(
++        "02_saturation",
++        "Actuator saturation and force",
++        "A saturation flag is an episode whose screen_v2_reasons lists max_actuator_saturation_fraction: more than "
++        "the stage's bar of post-settle steps with some |action| >= 0.99. An evaluation with >= 5 such episodes is "
++        "flagged; two flagged evaluations in a row are an alarm (red dotted line).",
++        (
++            Quantity(
++                "saturated",
++                "Saturation-flagged episodes per evaluation (>= 5 flags the evaluation; never smoothed)",
++                "episodes",
++                "count",
++                None,
++                smooth=False,
++            ),
++            Quantity(
++                "actuator_force_frac_max",
++                f"actuator_force_frac_max: the highest window mean of |F| / limit over the force-limited actuators; "
++                f"{_FH}",
++                "fraction of limit",
++                spread="max",
++            ),
++        ),
++    ),
++    PageSpec(
++        "03_foot_cop",
++        "Whole-foot centre of pressure, per foot",
++        "The whole-foot CoP fore-aft: every floor contact of the limb, from the ankle axis, in half-lengths of the "
++        "declared support span, + toward the toe. Dotted lines: the reward band's edges where the run pays the band.",
++        (
++            Quantity(
++                "{foot}_foot_cop_fore_aft",
++                f"Whole-foot CoP fore-aft; {_FH}",
++                "half-lengths (+ toe)",
++                per_foot=True,
++            ),
++        ),
++    ),
++    PageSpec(
++        "04_pad_cop",
++        "Pad (sole) centre of pressure, per foot",
++        "The signed fore-aft pad CoP in pad half-lengths, + toward the toe. Dashed: the stage's max_sole_cop_fore_aft "
++        "bar at +/-; dotted: the pad band's edges where the run pays the band.",
++        (
++            Quantity(
++                "{foot}_sole_cop_fore_aft",
++                f"Pad CoP fore-aft; {_FH}",
++                "pad half-lengths (+ toe)",
++                per_foot=True,
++            ),
++        ),
++    ),
++    PageSpec(
++        "05_digits_margins",
++        "Digit share and toe moment margin, per foot",
++        "Digit share: the post-settle floor force on the digits over the whole limb's. Toe margin: the floor-load "
++        "moment left before the whole-foot CoP reaches the toe line (N m).",
++        (
++            Quantity("{foot}_digit_share", f"Digit share; {_FH}", "fraction of limb force", per_foot=True),
++            Quantity("{foot}_toe_margin_nm", f"Toe moment margin; {_FH}", "N m", per_foot=True),
++        ),
++    ),
++    PageSpec(
++        "06_balance",
++        "Whole-body balance",
++        "XcoM margins: how far the extrapolated centre of mass is inside the declared toe and heel lines (m, + "
++        "inside), each episode's window minimum. CoM: the centre of mass ahead of the feet's reference point. "
++        "Pitch: the root's forward axis above horizontal.",
++        (
++            Quantity(
++                "xcom_toe_margin_min_m",
++                f"XcoM toe margin, window minimum; {_FH}",
++                "m (+ inside)",
++                spread="min",
++            ),
++            Quantity(
++                "xcom_heel_margin_min_m",
++                f"XcoM heel margin, window minimum; {_FH}",
++                "m (+ inside)",
++                spread="min",
++            ),
++            Quantity("com_fore_aft_mean_m", f"CoM ahead of the feet, window mean; {_FH}", "m (+ forward)"),
++            Quantity("root_pitch_mean_deg", f"Root pitch, window mean; {_FH}", "degrees (+ nose up)"),
++        ),
++    ),
++    PageSpec(
++        "07_sole_roll",
++        "Sole tilt and corner lift (the gate's roll rails)",
++        "Each episode's maximum over the feet of the sole's post-settle mean tilt and corner lift, the numbers the "
++        "gate's roll rails read; dashed horizontal: the stage's bar.",
++        (
++            Quantity(
++                "max_sole_tilt_deg",
++                f"Sole tilt, max over the feet; {_FH}",
++                "degrees",
++                spread="max",
++            ),
++            Quantity(
++                "max_sole_corner_lift_m",
++                f"Sole corner lift, max over the feet; {_FH}",
++                "mm",
++                spread="max",
++                scale=1000.0,
++            ),
++        ),
++    ),
++    PageSpec(
++        "08_floor_forces",
++        "Floor shear and friction-cone use, per foot",
++        "Shear over normal: the floor's forward force over its normal force on the limb, summed over the loaded "
++        "window steps (+ the floor pushes forward). Cone use: the horizontal floor force over mu F_z, the window mean.",
++        (
++            Quantity("{foot}_shear_over_normal", f"Shear over normal; {_FH}", "ratio (+ forward)", per_foot=True),
++            Quantity(
++                "{foot}_cone_use_mean", f"Friction-cone use, window mean; {_FH}", "fraction of cone", per_foot=True
++            ),
++        ),
++    ),
++    PageSpec(
++        "09_asymmetry",
++        "Left-right asymmetry of the legs",
++        "The achieved joint angle offset from the home pose, left minus right, each side signed about the animal's "
++        "leftward axis (leg_q_<left>_minus_<right>_<joint>_deg); a mirror-symmetric posture reads 0. Hip roll is "
++        "not recorded in eval_episodes.csv, so it has no panel.",
++        tuple(
++            Quantity(
++                f"lr:{joint}",
++                f"{joint.replace('_', ' ').capitalize()}: left minus right; {_FH}",
++                "degrees",
++            )
++            for joint in LR_JOINTS
++        ),
++    ),
++)
++
++
++def _stem(name: str) -> str:
++    return name[: -len("_act")] if name.endswith("_act") else name
++
++
++def _smooth(values: np.ndarray, window: int) -> np.ndarray:
++    """A centred rolling mean over *window* evaluations of the finite values, the window cut at the ends.
++
++    NaN where the window holds no finite value; the output is as long as the input.
++    """
++    values = np.asarray(values, dtype=float)
++    if window <= 1 or values.size == 0:
++        return values
++    finite = np.isfinite(values)
++    total = np.concatenate(([0.0], np.cumsum(np.where(finite, values, 0.0))))
++    count = np.concatenate(([0.0], np.cumsum(finite.astype(float))))
++    index = np.arange(values.size)
++    low = np.clip(index - (window - 1) // 2, 0, values.size)
++    high = np.clip(index + window // 2 + 1, 0, values.size)
++    sums, counts = total[high] - total[low], count[high] - count[low]
++    with np.errstate(invalid="ignore", divide="ignore"):
++        return np.where(counts > 0, sums / np.where(counts > 0, counts, 1.0), np.nan)
++
++
++def _values(
++    run: RunHistory, quantity: Quantity, foot: str | None, stat: str = "mean"
++) -> tuple[np.ndarray, np.ndarray] | None:
++    """``(x in millions of steps, y)`` of one quantity for one run, or ``None`` when absent."""
++    if quantity.kind == "training":
++        if run.training is None:
++            return None
++        return run.training["window_end"] / 1e6, np.asarray(run.training[quantity.key], dtype=float)
++    if quantity.kind == "count":
++        series = run.series(quantity.key)
++        return None if series is None else (run.steps / 1e6, series)
++    key = quantity.key
++    if key.startswith("lr:"):
++        column = run.lr.get(key[3:])
++        if column is None:
++            return None
++        key = column
++    elif foot is not None:
++        key = key.format(foot=foot)
++    values = run.column(key, stat)
++    return None if values is None else (run.steps / 1e6, values * quantity.scale)
++
++
++def _reference_lines(runs: Sequence[RunHistory], quantity: Quantity) -> list[tuple[float, str, str]]:
++    """``(y, label, linestyle)`` of the bars, band edges and zero lines a panel draws."""
++
++    def common(values: Iterable[float | None]) -> list[float]:
++        return sorted({float(v) for v in values if v is not None and math.isfinite(v)})
++
++    lines: list[tuple[float, str, str]] = []
++    key = quantity.key
++    banded = [run for run in runs if run.band_active]
++    if key == "{foot}_foot_cop_fore_aft":
++        for name in ("lower", "upper"):
++            for value in common((run.band or {}).get(f"{BAND_PREFIX}{name}") for run in banded):
++                lines.append((value, f"band {name} edge {value:+g} (reward)", ":"))
++        for value in common(run.bars.get("max_foot_cop_fore_aft") for run in runs):
++            lines += [(value, f"max_foot_cop_fore_aft bar +/-{value:g}", "--"), (-value, "", "--")]
++    elif key == "{foot}_sole_cop_fore_aft":
++        for value in common(run.bars.get("max_sole_cop_fore_aft") for run in runs):
++            lines += [(value, f"max_sole_cop_fore_aft bar +/-{value:g}", "--"), (-value, "", "--")]
++        for name in ("lower", "upper"):
++            for value in common((run.band or {}).get(f"{BAND_PREFIX}pad_{name}") for run in banded):
++                lines.append((value, f"pad band {name} edge {value:+g} (reward)", ":"))
++    elif key in ("max_sole_tilt_deg", "max_sole_corner_lift_m"):
++        for value in common(run.bars.get(key) for run in runs):
++            lines.append((value * quantity.scale, f"{key} bar {value:g}", "--"))
++    elif key == "saturated":
++        lines.append((float(SATURATION_FLAG_EPISODES), f"flag: >= {SATURATION_FLAG_EPISODES} episodes", "--"))
++    if key.endswith(("cop_fore_aft", "margin_min_m", "com_fore_aft_mean_m", "shear_over_normal")) or key.startswith(
++        "lr:"
++    ):
++        lines.append((0.0, "", "-"))
++    return lines
++
++
++def _new_figure(panels: int, *, width: float, panel_height: float, dpi: int, columns: int = 1) -> tuple[Any, Any]:
++    from matplotlib.backends.backend_agg import FigureCanvasAgg
++    from matplotlib.figure import Figure
++
++    rows = int(math.ceil(panels / columns))
++    figure = Figure(figsize=(width, 1.3 + panel_height * rows), dpi=dpi, layout="constrained")
++    FigureCanvasAgg(figure)
++    axes = figure.subplots(rows, columns, sharex=True, squeeze=False)
++    return figure, axes
++
++
++def _style_axis(axis: Any, title: str, unit: str, *, width: float) -> None:
++    axis.set_title(textwrap.fill(title, width=int(width * 11)), loc="left", fontsize=10, color=_INK)
++    axis.set_ylabel(unit, fontsize=9.5, color=_INK_2)
++    axis.grid(True, color=_GRID, linewidth=0.7)
++    axis.set_facecolor(_SURFACE)
++    for side in ("top", "right"):
++        axis.spines[side].set_visible(False)
++    for side in ("left", "bottom"):
++        axis.spines[side].set_color("#c3c2b7")
++    axis.tick_params(colors=_INK_2, labelsize=9)
++
++
++def _absent(axis: Any, text: str) -> None:
++    axis.text(0.5, 0.5, text, transform=axis.transAxes, ha="center", va="center", fontsize=9.5, color=_MUTED, wrap=True)
++
++
++@dataclass
++class _Context:
++    runs: Sequence[RunHistory]
++    marks: Sequence[int]
++    comparison: bool
++    smooth: int
++    xmax: float
++    colours: dict[str, str]
++    styles: dict[str, Any]
++
++
++def _draw_marks(axis: Any, context: _Context, *, top: bool) -> None:
++    """The J checkpoints (grey), the handoff and best checkpoints (one run, green) and the saturation alarms.
++
++    One run's pages mark every alarm (each run of flagged evaluations); a comparison marks each run's first.
++    """
++    from matplotlib.transforms import blended_transform_factory
++
++    transform = blended_transform_factory(axis.transData, axis.transAxes)
++    for step in context.marks:
++        x = step / 1e6
++        if x <= context.xmax:
++            axis.axvline(x, color=_MUTED, linewidth=0.9, alpha=0.6, zorder=0)
++            if top:
++                axis.text(x, 1.0, "J", transform=transform, ha="center", va="bottom", fontsize=8, color=_INK_2)
++    if not context.comparison:
++        run = context.runs[0]
++        for kind, style in (("robust_best", "--"), ("best", ":")):
++            saved = run.checkpoint_steps.get(kind)
++            if isinstance(saved, int) and (kind == "robust_best" or saved != run.checkpoint_steps.get("robust_best")):
++                axis.axvline(saved / 1e6, color=_HANDOFF, linestyle=style, linewidth=1.2, zorder=1)
++    for run in context.runs:
++        alarms = run.saturation.get("runs", []) if run.saturation.get("alarm") else []
++        for entry in alarms[:1] if context.comparison else alarms:
++            colour = _CRITICAL if not context.comparison else context.colours[run.label]
++            axis.axvline(entry["alarm_at"] / 1e6, color=colour, linestyle=(0, (1.5, 1.5)), linewidth=1.8, zorder=3)
++
++
++def _draw_quantity(axis: Any, context: _Context, quantity: Quantity, foot: str | None) -> bool:
++    """Draw one panel; ``False`` when no run has the quantity."""
++    drawn = False
++    for index, run in enumerate(context.runs):
++        feet = [foot] if foot is not None else (run.feet if quantity.per_foot else [None])
++        for foot_index, which in enumerate(feet):
++            values = _values(run, quantity, which)
++            if values is None:
++                continue
++            x, y = values
++            drawn = True
++            if context.comparison:
++                y = _smooth(y, context.smooth) if quantity.smooth else y
++                axis.plot(
++                    x,
++                    y,
++                    color=context.colours[run.label],
++                    linestyle=context.styles[run.label],
++                    linewidth=1.6,
++                    label="_nolegend_",
++                )
++                continue
++            colour = _SERIES[foot_index % len(_SERIES)] if quantity.per_foot else _SERIES[0]
++            label = f"foot {which}" if which is not None else None
++            axis.plot(x, y, color=colour, linewidth=1.6, label=label, marker="o" if x.size < 40 else None, markersize=3)
++            if quantity.spread == "std":
++                spread = _values(run, quantity, which, "std")
++                if spread is not None:
++                    axis.fill_between(x, y - spread[1], y + spread[1], color=colour, alpha=0.15, linewidth=0)
++            elif quantity.spread in ("max", "min"):
++                worst = _values(run, quantity, which, quantity.spread)
++                if worst is not None:
++                    axis.plot(
++                        x,
++                        worst[1],
++                        color=colour,
++                        linewidth=1.0,
++                        linestyle="--",
++                        alpha=0.8,
++                        label=f"worst episode{f' ({which})' if which else ''}",
++                    )
++            if quantity.key == "saturated":
++                hits = [i for step in run.saturation.get("flagged", []) if (i := _at(run, step)) is not None]
++                axis.plot(
++                    x[hits],
++                    y[hits],
++                    linestyle="none",
++                    marker="o",
++                    markersize=4.5,
++                    color=_CRITICAL,
++                    label="flagged evaluation",
++                )
++    if not drawn:
++        return False
++    for level, label, style in _reference_lines(context.runs, quantity):
++        colour = "#c3c2b7" if style == "-" else _INK_2
++        axis.axhline(
++            level, color=colour, linestyle=style, linewidth=1.1 if style != "-" else 0.9, label=label or None, zorder=1
++        )
++    if quantity.kind == "count" and quantity.key in ("clean", "falls", "saturated"):
++        episodes = [run.series("episodes") for run in context.runs]
++        top = max((float(np.nanmax(e)) for e in episodes if e is not None and e.size), default=1.0)
++        axis.set_ylim(-0.3, top + 0.3)
++    if quantity.key == "fall_fraction":
++        axis.set_ylim(bottom=0.0)
++    return True
++
++
++def _legend(axis: Any) -> None:
++    """The panel's own legend, outside its right edge so that it hides no data."""
++    handles, labels = axis.get_legend_handles_labels()
++    if labels:
++        axis.legend(fontsize=8.5, loc="upper left", bbox_to_anchor=(1.005, 1.0), frameon=False, borderaxespad=0.0)
++
++
++def _run_handles(context: _Context) -> tuple[list[Any], list[str]]:
++    from matplotlib.lines import Line2D
++
++    handles: list[Any] = []
++    labels: list[str] = []
++    for run in context.runs:
++        handles.append(
++            Line2D([], [], color=context.colours[run.label], linestyle=context.styles[run.label], linewidth=2)
++        )
++        labels.append(f"{run.label}" + (f" ({run.group})" if run.group else ""))
++    handles.append(Line2D([], [], color=_MUTED, linewidth=1.0))
++    labels.append("J checkpoint")
++    if any(run.saturation.get("alarm") for run in context.runs):
++        handles.append(Line2D([], [], color=_INK_2, linestyle=(0, (1.5, 1.5)), linewidth=1.8))
++        labels.append("first saturation alarm (run colour)")
++    return handles, labels
++
++
++def _single_handles(context: _Context) -> tuple[list[Any], list[str]]:
++    from matplotlib.lines import Line2D
++
++    run = context.runs[0]
++    handles: list[Any] = [Line2D([], [], color=_MUTED, linewidth=1.0)]
++    labels = ["J checkpoint"]
++    if isinstance(run.checkpoint_steps.get("robust_best"), int):
++        handles.append(Line2D([], [], color=_HANDOFF, linestyle="--", linewidth=1.2))
++        labels.append(f"robust_best (handoff) {run.checkpoint_steps['robust_best']:,}")
++    best = run.checkpoint_steps.get("best")
++    if isinstance(best, int) and best != run.checkpoint_steps.get("robust_best"):
++        handles.append(Line2D([], [], color=_HANDOFF, linestyle=":", linewidth=1.2))
++        labels.append(f"best {best:,}")
++    if run.saturation.get("alarm"):
++        handles.append(Line2D([], [], color=_CRITICAL, linestyle=(0, (1.5, 1.5)), linewidth=1.8))
++        count = len(run.saturation["runs"])
++        labels.append(
++            f"saturation alarm (first {run.saturation['first_alarm_at']:,}"
++            + (f"; {count} runs of flagged evaluations)" if count > 1 else ")")
++        )
++    return handles, labels
++
++
++def _png(figure: Any, dpi: int) -> bytes:
++    """The figure as PNG bytes, quantised to a 256-colour palette when Pillow is importable (line art keeps)."""
++    buffer = io.BytesIO()
++    figure.savefig(buffer, format="png", dpi=dpi, facecolor="white")
++    data = buffer.getvalue()
++    try:
++        from PIL import Image
++    except ImportError:
++        return data
++    image = Image.open(io.BytesIO(data)).convert("RGB")
++    quantised = image.quantize(colors=256, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE)
++    out = io.BytesIO()
++    quantised.save(out, format="PNG", optimize=True)
++    return out.getvalue() if len(out.getvalue()) < len(data) else data
++
++
++@dataclass
++class Page:
++    """One rendered page."""
++
++    name: str
++    title: str
++    caption: str
++    png: bytes
++
++
++def _page_figure(spec: PageSpec, context: _Context, *, title: str, dpi: int, width: float) -> Any:
++    panels: list[tuple[Quantity, str | None]] = []
++    for quantity in spec.quantities:
++        if quantity.per_foot and context.comparison:
++            feet: list[str] = []
++            for run in context.runs:
++                feet += [foot for foot in run.feet if foot not in feet]
++            panels += [(quantity, foot) for foot in (feet or ["r", "l"])]
++        else:
++            panels.append((quantity, None))
++    figure, axes = _new_figure(len(panels), width=width, panel_height=2.55 if len(panels) > 1 else 3.4, dpi=dpi)
++    figure.patch.set_facecolor("white")
++    figure.suptitle(f"{title}\n{spec.title}", fontsize=12, color=_INK, x=0.01, ha="left")
++    for index, (axis, (quantity, foot)) in enumerate(zip(axes[:, 0], panels)):
++        heading = quantity.title if foot is None else f"Foot {foot}: {quantity.title}"
++        if context.comparison and quantity.smooth and context.smooth > 1:
++            heading += f" [rolling mean over {context.smooth} evaluations]"
++        elif not context.comparison and quantity.spread in _SPREAD_NOTES:
++            heading += _SPREAD_NOTES[quantity.spread]
++        _style_axis(axis, heading, quantity.unit, width=width)
++        if not _draw_quantity(axis, context, quantity, foot):
++            column = quantity.key.replace("{foot}", foot or "<foot>")
++            _absent(axis, f"not recorded in these files ({column})")
++        _draw_marks(axis, context, top=index == 0)
++        _legend(axis)
++        axis.set_xlim(0.0, context.xmax * 1.01 if context.xmax > 0 else 1.0)
++    axes[-1, 0].set_xlabel("training steps (millions)", fontsize=9.5, color=_INK_2)
++    handles, labels = _run_handles(context) if context.comparison else _single_handles(context)
++    figure.legend(handles, labels, loc="outside lower center", ncol=min(5, len(labels)), fontsize=9, frameon=False)
++    return figure
++
++
++def _std_figure(context: _Context, *, title: str, dpi: int, width: float) -> Any:
++    """Per-actuator std at the checkpoints: one run's actuators, or one panel per key actuator across runs."""
++    names = next((run.actuators for run in context.runs if run.actuators), None)
++    markers = {"periodic": "o", "robust_best": "D", "best": "^", "final": "s"}
++    if not context.comparison or names is None:
++        run = context.runs[0]
++        points = run.policy_std.get("checkpoints", [])
++        figure, axes = _new_figure(2, width=width, panel_height=3.2, dpi=dpi)
++        figure.patch.set_facecolor("white")
++        figure.suptitle(
++            f"{title}\nPer-actuator policy std, exp(log_std), at the checkpoints",
++            fontsize=12,
++            color=_INK,
++            x=0.01,
++            ha="left",
++        )
++        steps = np.asarray([p["timesteps"] if p["timesteps"] is not None else np.nan for p in points], dtype=float)
++        stds = np.asarray([p["std"] for p in points], dtype=float) if points else np.zeros((0, 0))
++        labels = (
++            [_stem(n) for n in run.actuators]
++            if run.actuators
++            else [f"actuator {i}" for i in range(stds.shape[1] if stds.size else 0)]
++        )
++        key = [i for i, n in enumerate(labels) if any(k in n for k in KEY_ACTUATORS)] if run.actuators else []
++        rest = [i for i in range(len(labels)) if i not in key]
++        groups = ((key, "Legs and tail_3 (right solid, left dashed; colour per joint)"), (rest, "The other actuators"))
++        for axis, (indices, heading) in zip(axes[:, 0], groups):
++            _style_axis(axis, f"{heading}; {run.label}", "std (action units, log)", width=width)
++            if not points or not indices:
++                _absent(axis, "no per-actuator std: " + (run.policy_std.get("skipped") or "no actuator names"))
++                continue
++            joints: list[str] = []
++            for i in indices:
++                stem = labels[i]
++                joint = re.sub(r"^(r|l|right|left)_", "", stem)
++                if joint not in joints:
++                    joints.append(joint)
++                fixed = next((k for k in KEY_ACTUATORS if k in joint), None) if axis is axes[0, 0] else None
++                colour = _KEY_COLOURS[fixed] if fixed else _SERIES[joints.index(joint) % len(_SERIES)]
++                style = "--" if re.match(r"^(l|left)_", stem) else "-"
++                axis.plot(steps / 1e6, stds[:, i], color=colour, linestyle=style, linewidth=1.4, label=stem)
++                for kind, marker in markers.items():
++                    picks = [j for j, p in enumerate(points) if p["kind"] == kind]
++                    axis.plot(
++                        steps[picks] / 1e6, stds[picks, i], linestyle="none", marker=marker, markersize=5, color=colour
++                    )
++            axis.set_yscale("log")
++            _draw_marks(axis, context, top=axis is axes[0, 0])
++            _legend(axis)
++            axis.set_xlim(0.0, context.xmax * 1.01 if context.xmax > 0 else 1.0)
++        axes[-1, 0].set_xlabel("training steps (millions)", fontsize=9.5, color=_INK_2)
++        handles, legend_labels = _single_handles(context)
++        from matplotlib.lines import Line2D
++
++        for kind, marker in markers.items():
++            handles.append(Line2D([], [], linestyle="none", marker=marker, color=_INK_2))
++            legend_labels.append(f"{kind} checkpoint" if kind != "periodic" else "periodic checkpoint")
++        figure.legend(handles, legend_labels, loc="outside lower center", ncol=4, fontsize=9, frameon=False)
++        return figure
++
++    def order(index: int) -> tuple[int, int, int]:
++        stem = _stem(names[index])
++        joint = next(i for i, k in enumerate(KEY_ACTUATORS) if k in stem)
++        return joint, 1 if re.match(r"^(l|left)_", stem) else 0, index
++
++    # Right beside left, one joint per row, in KEY_ACTUATORS' order.
++    chosen = sorted((i for i, n in enumerate(names) if any(k in n for k in KEY_ACTUATORS)), key=order)
++    figure, axes = _new_figure(len(chosen), width=width, panel_height=2.3, dpi=dpi, columns=2)
++    figure.patch.set_facecolor("white")
++    figure.suptitle(
++        f"{title}\nPer-actuator policy std, exp(log_std), at each run's checkpoints",
++        fontsize=12,
++        color=_INK,
++        x=0.01,
++        ha="left",
++    )
++    flat = axes.reshape(-1)
++    for axis, index in zip(flat, chosen):
++        _style_axis(axis, _stem(names[index]), "std (log)", width=width / 2)
++        for run in context.runs:
++            points = [p for p in run.policy_std.get("checkpoints", []) if p["timesteps"] is not None]
++            if not points or run.actuators != names:
++                continue
++            x = np.asarray([p["timesteps"] for p in points], dtype=float) / 1e6
++            y = np.asarray([p["std"][index] for p in points], dtype=float)
++            axis.plot(x, y, color=context.colours[run.label], linestyle=context.styles[run.label], linewidth=1.4)
++            for kind, marker in markers.items():
++                picks = [j for j, p in enumerate(points) if p["kind"] == kind]
++                axis.plot(
++                    x[picks],
++                    y[picks],
++                    linestyle="none",
++                    marker=marker,
++                    markersize=4.5,
++                    color=context.colours[run.label],
++                )
++        axis.set_yscale("log")
++        _draw_marks(axis, context, top=False)
++        axis.set_xlim(0.0, context.xmax * 1.01)
++    for axis in flat[len(chosen) :]:
++        axis.set_visible(False)
++    if len(chosen) % 2 and axes.shape[0] > 1:
++        axes[-2, 1].xaxis.set_tick_params(labelbottom=True)
++        axes[-2, 1].set_xlabel("training steps (millions)", fontsize=9.5, color=_INK_2)
++    axes[-1, 0].set_xlabel("training steps (millions)", fontsize=9.5, color=_INK_2)
++    from matplotlib.lines import Line2D
++
++    handles, labels = _run_handles(context)
++    for kind, marker in markers.items():
++        handles.append(Line2D([], [], linestyle="none", marker=marker, color=_INK_2))
++        labels.append(f"{kind} checkpoint")
++    figure.legend(handles, labels, loc="outside lower center", ncol=4, fontsize=9, frameon=False)
++    return figure
++
++
++def render_pages(
++    runs: Sequence[RunHistory],
++    *,
++    title: str,
++    marks: Sequence[int],
++    smooth: int = 5,
++    dpi: int = 80,
++    width: float = 12.0,
++) -> tuple[list[Page], list[str]]:
++    """Every page of *runs*: one run's page set, or the comparison set when there are several.
++
++    Returns the pages and the errors (one per page that failed; a failure costs that page only).
++    """
++    import matplotlib
++
++    if len(runs) > MAX_RUNS:
++        raise ValueError(f"at most {MAX_RUNS} runs per comparison (one categorical colour each), not {len(runs)}")
++    comparison = len(runs) > 1
++    groups: list[str] = []
++    for run in runs:
++        if run.group not in groups:
++            groups.append(run.group or "")
++    context = _Context(
++        runs=runs,
++        marks=marks,
++        comparison=comparison,
++        smooth=max(1, int(smooth)) if comparison else 1,
++        xmax=max((run.last_step for run in runs), default=0) / 1e6,
++        colours={run.label: _SERIES[i] for i, run in enumerate(runs)},
++        styles={run.label: _GROUP_STYLES[groups.index(run.group or "") % len(_GROUP_STYLES)] for run in runs},
++    )
++    pages: list[Page] = []
++    errors: list[str] = []
++    with matplotlib.rc_context({"font.family": "DejaVu Sans", "axes.titlepad": 10, "figure.facecolor": "white"}):
++        for spec in PAGES:
++            try:
++                figure = _page_figure(spec, context, title=title, dpi=dpi, width=width)
++                pages.append(Page(spec.name, spec.title, spec.caption, _png(figure, dpi)))
++            except Exception as exc:  # noqa: BLE001 - a failure costs this page only
++                logger.warning("training history page %s failed: %s", spec.name, exc)
++                errors.append(f"{spec.name}: {type(exc).__name__}: {exc}")
++        try:
++            figure = _std_figure(context, title=title, dpi=dpi, width=width)
++            caption = (
++                "exp(log_std) of each checkpoint's policy.pth (robust_best, best, final and up to "
++                f"{POLICY_STD_MAX_PERIODIC} periodic checkpoints kept in models/), in action units, log scale. "
++                "Actuator names come from the checkout's MJCF in actuator (action) order."
++            )
++            pages.append(Page("10_policy_std", "Per-actuator policy std", caption, _png(figure, dpi)))
++        except Exception as exc:  # noqa: BLE001
++            logger.warning("training history page 10_policy_std failed: %s", exc)
++            errors.append(f"10_policy_std: {type(exc).__name__}: {exc}")
++    return pages, errors
++
++
++# ---------------------------------------------------------------------------------------------- HTML
++
++_CSS = """
++:root { --bg:#f9f9f7; --card:#fcfcfb; --ink:#0b0b0b; --ink2:#52514e; --muted:#898781; --line:#e1e0d9;
++  --accent:#2a78d6; --bad:#d03b3b; color-scheme: light; }
++@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg:#0d0d0d; --card:#1a1a19;
++  --ink:#f0efec; --ink2:#c3c2b7; --muted:#898781; --line:#2c2c2a; --accent:#3987e5; --bad:#e66767;
++  color-scheme: dark; } }
++:root[data-theme="dark"] { --bg:#0d0d0d; --card:#1a1a19; --ink:#f0efec; --ink2:#c3c2b7; --muted:#898781;
++  --line:#2c2c2a; --accent:#3987e5; --bad:#e66767; color-scheme: dark; }
++* { box-sizing: border-box; }
++body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif; }
++main { max-width:1180px; margin:0 auto; padding:24px 16px 48px; }
++h1 { font-size:24px; margin:0 0 4px; } h2 { font-size:18px; margin:32px 0 8px; } h3 { font-size:15px; margin:20px 0 6px; }
++p, li { color:var(--ink2); max-width:80ch; }
++.sub { color:var(--ink2); margin:0 0 16px; }
++.card { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:12px 14px; margin:12px 0; }
++.scroll { overflow-x:auto; }
++table { border-collapse:collapse; font-size:13px; font-variant-numeric:tabular-nums; }
++th, td { text-align:right; padding:4px 8px; border-bottom:1px solid var(--line); white-space:nowrap; }
++th:first-child, td:first-child { text-align:left; }
++th { color:var(--ink2); font-weight:600; }
++.alarm { color:var(--bad); font-weight:600; }
++figure { margin:20px 0; background:#ffffff; border:1px solid var(--line); border-radius:8px; padding:8px; }
++figure img { width:100%; height:auto; display:block; }
++figcaption { color:#52514e; font-size:13.5px; padding:6px 4px 2px; }
++code { font-size:12.5px; }
++nav a { color:var(--accent); margin-right:12px; font-size:13.5px; }
++"""
++
++
++def _std_order(key: str) -> tuple[int, int, str]:
++    """A std column's place: by joint in :data:`KEY_ACTUATORS`' order, right before left."""
++    stem = key[len("std_") :]
++    joint = next((i for i, k in enumerate(KEY_ACTUATORS) if k in stem), len(KEY_ACTUATORS))
++    return joint, 1 if re.match(r"^(l|left)_", stem) else 0, stem
++
++
++def _fmt(value: Any, digits: int = 3) -> str:
++    if value is None:
++        return "–"
++    if isinstance(value, float):
++        if not math.isfinite(value):
++            return "–"
++        if abs(value) >= 1000 or (value == int(value) and abs(value) >= 1):
++            return f"{value:,.0f}" if abs(value) >= 1000 else f"{value:g}"
++        return f"{value:.{digits}g}"
++    if isinstance(value, int):
++        return f"{value:,}"
++    return html.escape(str(value))
++
++
++def _table(headers: Sequence[str], rows: Sequence[Sequence[Any]]) -> str:
++    head = "".join(f"<th>{html.escape(h)}</th>" for h in headers)
++    body = "".join("<tr>" + "".join(f"<td>{cell}</td>" for cell in row) + "</tr>" for row in rows)
++    return f'<div class="scroll"><table><thead><tr>{head}</tr></thead><tbody>{body}</tbody></table></div>'
++
++
++def render_html(document: Mapping[str, Any], pages: Sequence[Page], *, json_name: str = JSON_FILENAME) -> str:
++    """A self-contained HTML page: the runs, their checkpoint tables, the notes and every page as a base64 PNG."""
++    runs = document["runs"]
++    title = str(document["title"])
++    parts = [
++        "<!doctype html>",
++        '<html lang="en"><head><meta charset="utf-8">',
++        '<meta name="viewport" content="width=device-width, initial-scale=1">',
++        "<title>Training history</title>",
++        f"<style>{_CSS}</style></head><body><main>",
++        f"<h1>{html.escape(title)}</h1>",
++        '<p class="sub">Training history read back from each stage directory\'s ledgers '
++        "(eval_episodes.csv, train_episodes.csv, stage_config.json, progress.json, models/). Report only: "
++        f"nothing reads this page back. Generated {html.escape(document['generated_at'])}; the numbers are in "
++        f"<code>{html.escape(json_name)}</code> ({html.escape(SCHEMA)}).</p>",
++        "<nav>" + "".join(f'<a href="#{p.name}">{html.escape(p.title)}</a>' for p in pages) + "</nav>",
++        "<h2>Runs</h2>",
++    ]
++    rows = []
++    for run in runs:
++        sat = run.get("saturation") or {}
++        alarm = sat.get("first_alarm_at")
++        rows.append(
++            [
++                html.escape(str(run["label"])),
++                html.escape(str(run.get("group") or "")),
++                html.escape(str((run.get("model") or {}).get("display") or "–")),
++                _fmt(run.get("seed")),
++                html.escape(str(run.get("status") or "unknown")),
++                _fmt((run["evaluations"].get("timesteps") or [None])[-1]),
++                _fmt(run.get("final_step")),
++                _fmt(sat.get("first_saturated_episode_at")),
++                _fmt(sat.get("first_flagged_at")),
++                f'<span class="alarm">{_fmt(alarm)}</span>' if alarm is not None else "none",
++                "yes" if run.get("band_active") else "no",
++            ]
++        )
++    parts.append(
++        _table(
++            [
++                "run",
++                "group",
++                "model",
++                "seed",
++                "status",
++                "last evaluation",
++                "final",
++                "first saturated episode",
++                "first flagged evaluation",
++                "saturation alarm",
++                "CoP band paid",
++            ],
++            rows,
++        )
++    )
++    parts.append(
++        "<p>Stage directories: "
++        + "; ".join(
++            f"<code>{html.escape(str(run['label']))}</code> = <code>{html.escape(run['stage_dir'])}</code>"
++            for run in runs
++        )
++        + f". Marked checkpoints (J): {', '.join(f'{s:,}' for s in document['marks']['resolved']) or 'none'}.</p>"
++    )
++    parts.append("<h2>At the marked, best and last checkpoints</h2>")
++    parts.append(
++        "<p>Each row reads the evaluation at exactly that step (the final checkpoint, saved after the last "
++        "evaluation, reads the last one). CoP in half-lengths (+ toe), tilt in degrees, lift in mm, left minus "
++        "right in degrees, std in action units at the checkpoint saved at that step.</p>"
++    )
++    for run in runs:
++        table = run.get("checkpoint_table") or []
++        if not table:
++            continue
++        feet = run.get("feet") or []
++        cols: list[tuple[str, str, float]] = [
++            ("episodes", "episodes", 1.0),
++            ("clean", "clean", 1.0),
++            ("falls", "falls", 1.0),
++            ("saturated", "sat. flags", 1.0),
++        ]
++        cols += [(f"{f}_foot_cop_fore_aft", f"foot CoP {f}", 1.0) for f in feet]
++        cols += [(f"{f}_sole_cop_fore_aft", f"pad CoP {f}", 1.0) for f in feet]
++        cols += [("max_sole_tilt_deg", "tilt", 1.0), ("max_sole_corner_lift_m", "lift mm", 1000.0)]
++        cols += [(f"l_minus_r_{j}_deg", f"L-R {j.replace('_', ' ')}", 1.0) for j in LR_JOINTS]
++        cols += [("actuator_force_frac_max", "force frac", 1.0)]
++        std_cols = sorted(
++            {k for row in table for k in row if k.startswith("std_") and k != "std_checkpoint"}, key=_std_order
++        )
++        headers = ["at", "evaluation"] + [c[1] for c in cols] + [k[4:] + " std" for k in std_cols]
++        body = []
++        for row in table:
++            cells = [html.escape(row["at"]), _fmt(row["evaluation_timesteps"])]
++            for key, _, scale in cols:
++                value = row.get(key)
++                cells.append(_fmt(value * scale if isinstance(value, (int, float)) else value))
++            cells += [_fmt(row.get(k)) for k in std_cols]
++            body.append(cells)
++        parts.append(f"<h3>{html.escape(str(run['label']))}</h3>")
++        parts.append(_table(headers, body))
++    parts.append("<h2>What these pages do not show</h2><ul>")
++    parts += [f"<li>{html.escape(note)}</li>" for note in document["not_recorded"]]
++    parts.append("</ul><h2>How the numbers are reduced</h2><ul>")
++    parts += [
++        f"<li><b>{html.escape(key)}</b>: {html.escape(str(value))}</li>" for key, value in document["rules"].items()
++    ]
++    parts.append("</ul>")
++    bars_rows = []
++    for run in runs:
++        bars = run.get("bars") or {}
++        band = run.get("band") or {}
++        bars_rows.append(
++            [html.escape(str(run["label"]))]
++            + [_fmt(bars.get(k)) for k in BAR_KEYS]
++            + [_fmt(band.get(f"{BAND_PREFIX}{k}")) for k in ("weight", "lower", "upper", "pad_lower", "pad_upper")]
++        )
++    parts.append("<h3>Declared bars (stage_config.json curriculum) and the CoP band (reward_weights)</h3>")
++    parts.append(
++        _table(
++            ["run", *BAR_KEYS, "band weight", "band lower", "band upper", "pad band lower", "pad band upper"], bars_rows
++        )
++    )
++    absent_rows = [
++        f"<li><code>{html.escape(str(run['label']))}</code>: {html.escape('; '.join(run.get('absent') or []) or 'nothing')}"
++        + (f' <span class="alarm">errors: {html.escape("; ".join(run["errors"]))}</span>' if run.get("errors") else "")
++        + "</li>"
++        for run in runs
++    ]
++    parts.append("<h3>Absent from these files</h3><ul>" + "".join(absent_rows) + "</ul>")
++    parts.append("<h2>Pages</h2>")
++    for page in pages:
++        encoded = base64.b64encode(page.png).decode("ascii")
++        parts.append(
++            f'<figure id="{page.name}"><img alt="{html.escape(page.title)}" src="data:image/png;base64,{encoded}">'
++            f"<figcaption><b>{html.escape(page.title)}.</b> {html.escape(page.caption)}</figcaption></figure>"
++        )
++    parts.append("</main></body></html>")
++    return "\n".join(parts)
++
++
++def write_report(
++    runs: Sequence[RunHistory],
++    out_dir: "str | Path",
++    *,
++    title: str,
++    marks: Sequence["int | str"] = (),
++    smooth: int = 5,
++    dpi: int = 80,
++) -> dict[str, Any]:
++    """Write *out_dir*'s PNG pages, the HTML page embedding them and the JSON summary; returns what was written.
++
++    The caller has checked that *out_dir* is outside every run directory.
++    """
++    out = Path(out_dir)
++    out.mkdir(parents=True, exist_ok=True)
++    document = summary(runs, title=title, marks=marks, smooth=smooth)
++    pages, errors = render_pages(runs, title=title, marks=document["marks"]["resolved"], smooth=smooth, dpi=dpi)
++    document["errors"] = errors
++    document["pages"] = [f"{page.name}.png" for page in pages]
++    written = []
++    for page in pages:
++        path = out / f"{page.name}.png"
++        path.write_bytes(page.png)
++        written.append(path)
++    atomic_write_json(out / JSON_FILENAME, document, indent=None, allow_nan=False)
++    atomic_write_text(out / HTML_FILENAME, render_html(document, pages))
++    return {
++        "html": out / HTML_FILENAME,
++        "json": out / JSON_FILENAME,
++        "pngs": written,
++        "errors": errors,
++        "document": document,
++    }
+diff --git a/environments/shared/scripts/plot_training_history.py b/environments/shared/scripts/plot_training_history.py
+new file mode 100644
+index 00000000..964511e1
+--- /dev/null
++++ b/environments/shared/scripts/plot_training_history.py
+@@ -0,0 +1,130 @@
++"""Draw one or more stages' training history from their ledgers: PNG pages, an HTML page and a JSON summary.
++
++Reads each stage directory's ``eval_episodes.csv``, ``train_episodes.csv``,
++``stage_config.json``, ``progress.json`` and checkpoint zips
++(:mod:`environments.shared.reporting.training_history`) and writes, into
++``--out``: one PNG per page, ``training_history.html`` (self-contained: the
++pages embedded as base64) and ``training_history.json``
++(``mesozoic.training-history/v1``).  One stage directory gives that run's page
++set; several give the comparison set, one colour per run and one line style
++per ``--groups`` value.  A run that is still training can be drawn from a copy
++of its stage directory at any point.
++
++Report only.  Nothing is written into a run: an ``--out`` inside any run
++directory is refused, as ``plot_gate_progress.py`` refuses it (a result
++bundle's manifest hashes every file there, and verification rejects a file it
++did not list).  The run directory is the nearest ancestor of STAGE_DIR holding
++``provenance.json``; for a copy without one, the stage directory's parent
++(the ``<run>/<NN_stage>`` layout).
++
++Usage::
++
++    python environments/shared/scripts/plot_training_history.py RUN/01_stance --out /tmp/history_s42 \\
++        --mark-steps 4194304 5242880 6291456 8388608 10485760 final
++    python environments/shared/scripts/plot_training_history.py A/01_stance B/01_stance --out /tmp/compare \\
++        --labels a b --groups band control --title "Band against control"
++"""
++
++from __future__ import annotations
++
++import argparse
++import sys
++from pathlib import Path
++from typing import Sequence
++
++_repo_root = str(Path(__file__).resolve().parents[3])
++if _repo_root not in sys.path:
++    sys.path.insert(0, _repo_root)
++
++from environments.shared.scripts.plot_gate_progress import run_directory  # noqa: E402
++
++
++def protected_directories(stage_dir: Path) -> list[Path]:
++    """The directories an output must stay out of: the run directory (by ``provenance.json``, else the layout)."""
++    stage = stage_dir.resolve()
++    run = run_directory(stage)
++    found = [run.resolve()] if run is not None else []
++    found.append(stage.parent)
++    return found
++
++
++def refusal(out: Path, stage_dirs: Sequence[Path]) -> str | None:
++    """Why *out* may not be written, or ``None``: it lies inside one of the stage directories' run directories."""
++    target = out.resolve()
++    for stage in stage_dirs:
++        for protected in protected_directories(stage):
++            if target == protected or target.is_relative_to(protected):
++                return (
++                    f"refusing to write {target} inside the run directory {protected}: the result bundle's manifest "
++                    "(result_bundle/manifest.py) hashes every file there, and verification rejects a file it did not "
++                    "list. Pass an --out outside the run."
++                )
++    return None
++
++
++def _mark(text: str) -> int | str:
++    if text.strip().lower() == "final":
++        return "final"
++    try:
++        return int(text.replace(",", "").replace("_", ""))
++    except ValueError:
++        raise argparse.ArgumentTypeError(f"a mark is a step count or 'final', not {text!r}") from None
++
++
++def main(argv: Sequence[str] | None = None) -> int:
++    parser = argparse.ArgumentParser(description=__doc__.split("\n\n", 1)[0])
++    parser.add_argument("stage_dirs", nargs="+", type=Path, metavar="STAGE_DIR", help="a stage directory (read only)")
++    parser.add_argument("--out", type=Path, required=True, help="the directory to write (outside every run)")
++    parser.add_argument("--labels", nargs="+", default=None, help="one label per STAGE_DIR (default: the run name)")
++    parser.add_argument("--groups", nargs="+", default=None, help="one group per STAGE_DIR (one line style each)")
++    parser.add_argument(
++        "--mark-steps", nargs="+", type=_mark, default=[], help="steps to mark (J checkpoints); 'final' for the final"
++    )
++    parser.add_argument("--title", default=None, help="the pages' title")
++    parser.add_argument("--smooth", type=int, default=5, help="comparison pages: rolling mean over N evaluations")
++    parser.add_argument("--dpi", type=int, default=80, help="PNG resolution (default 80)")
++    parser.add_argument("--no-std", action="store_true", help="skip the per-actuator std (no torch import)")
++    args = parser.parse_args(argv)
++    stage_dirs = [path.resolve() for path in args.stage_dirs]
++    for name, values in (("--labels", args.labels), ("--groups", args.groups)):
++        if values is not None and len(values) != len(stage_dirs):
++            parser.error(f"{name} needs one value per STAGE_DIR ({len(stage_dirs)}), got {len(values)}")
++    reason = refusal(args.out, stage_dirs)
++    if reason is not None:
++        print(reason, file=sys.stderr)
++        return 2
++    missing = [str(path) for path in stage_dirs if not path.is_dir()]
++    if missing:
++        print(f"no such stage directory: {', '.join(missing)}", file=sys.stderr)
++        return 1
++
++    from environments.shared.reporting import training_history
++
++    if len(stage_dirs) > training_history.MAX_RUNS:
++        print(f"at most {training_history.MAX_RUNS} stage directories per comparison", file=sys.stderr)
++        return 1
++    runs = [
++        training_history.load_run_history(
++            stage,
++            label=args.labels[i] if args.labels else None,
++            group=args.groups[i] if args.groups else None,
++            read_std=not args.no_std,
++        )
++        for i, stage in enumerate(stage_dirs)
++    ]
++    title = args.title
++    if title is None:
++        first = runs[0]
++        model = first.model_display or "training history"
++        title = f"{model}: {first.label}" if len(runs) == 1 else f"{model}: {', '.join(run.label for run in runs)}"
++    written = training_history.write_report(
++        runs, args.out, title=title, marks=args.mark_steps, smooth=args.smooth, dpi=args.dpi
++    )
++    for error in written["errors"]:
++        print(f"warning: {error}", file=sys.stderr)
++    print(written["html"])
++    return 0
++
++
++if __name__ == "__main__":
++    raise SystemExit(main())
+diff --git a/environments/shared/tests/test_policy_loading.py b/environments/shared/tests/test_policy_loading.py
+index 47bec90f..1169b0bc 100644
+--- a/environments/shared/tests/test_policy_loading.py
++++ b/environments/shared/tests/test_policy_loading.py
+@@ -679,6 +679,8 @@ CALL_TIME_READS = {
+     "environments/shared/curriculum/checkpoints.py": {"_PERIODIC_CHECKPOINT_RE": 1},
+     # progress.json's newest periodic checkpoint, read from the names alone (no pair check on every evaluation).
+     "environments/shared/curriculum/progress_report.py": {"_PERIODIC_CHECKPOINT_RE": 1},
++    # The training-history report's checkpoint kinds, read from the names alone (report only).
++    "environments/shared/reporting/training_history.py": {"_PERIODIC_CHECKPOINT_RE": 1},
+ }
+ #: The only bindings of a moved name made outside a function body (at import
+ #: or class-definition time) outside this module: ``train_base``'s
+diff --git a/environments/shared/tests/test_repository_root.py b/environments/shared/tests/test_repository_root.py
+index b88cb883..85cf90ea 100644
+--- a/environments/shared/tests/test_repository_root.py
++++ b/environments/shared/tests/test_repository_root.py
+@@ -288,6 +288,7 @@ SYS_PATH_BOOTSTRAPS = {
+     "environments/shared/scripts/joint_excursion_report.py",
+     "environments/shared/scripts/observation_ablation_report.py",
+     "environments/shared/scripts/plot_gate_progress.py",
++    "environments/shared/scripts/plot_training_history.py",
+     "environments/shared/scripts/stance_duty_validation.py",
+     "environments/shared/scripts/stance_gate_report.py",
+     "environments/shared/scripts/zero_action_baseline.py",
+diff --git a/environments/shared/tests/test_training_history.py b/environments/shared/tests/test_training_history.py
+new file mode 100644
+index 00000000..7e980e29
+--- /dev/null
++++ b/environments/shared/tests/test_training_history.py
+@@ -0,0 +1,394 @@
++"""The training-history report (``reporting/training_history.py``, ``scripts/plot_training_history.py``).
++
++Small synthetic ledgers only: the reductions, the saturation flag and alarm
++rule, tolerance of missing files and columns, the refusal to write inside a run
++directory, the per-actuator std reader on a tiny checkpoint zip, and that every
++page renders on the Agg canvas.
++"""
++
++from __future__ import annotations
++
++import csv
++import io
++import json
++import math
++import zipfile
++from pathlib import Path
++from typing import Any
++
++import numpy as np
++import pytest
++
++from environments.shared.reporting import training_history as th
++from environments.shared.scripts import plot_training_history as script
++
++pytest.importorskip("matplotlib")
++
++FEET = ("r", "l")
++STEP = 2048
++#: The columns a T. rex row carries that the report reads (a subset of the real 63).
++COLUMNS = [
++    "evaluation",
++    "timesteps",
++    "episode",
++    "env",
++    "return",
++    "length",
++    "full_horizon",
++    "cause",
++    "screen_v2_clean",
++    "screen_v2_reasons",
++    *[f"{foot}_{suffix}" for foot in FEET for suffix in th.FOOT_SUFFIXES],
++    *th.BODY_COLUMNS,
++    "leg_q_l_minus_r_hip_pitch_deg",
++    "leg_q_l_r_mean_hip_pitch_deg",
++    "leg_q_l_minus_r_knee_deg",
++    "leg_q_l_minus_r_ankle_deg",
++]
++
++
++def _episode(evaluation: int, episode: int, *, fell: bool = False, saturated: bool = False, **values: Any) -> dict:
++    row: dict[str, Any] = {column: 0.0 for column in COLUMNS}
++    reasons = (["horizon"] if fell else []) + (["max_actuator_saturation_fraction: 0.31 > 0.1"] if saturated else [])
++    row.update(
++        evaluation=evaluation,
++        timesteps=(evaluation + 1) * STEP,
++        episode=episode,
++        env=0,
++        length=400 if fell else 1000,
++        full_horizon=0 if fell else 1,
++        cause="nosedive" if fell else "truncated",
++        screen_v2_clean=0 if (fell or saturated) else 1,
++        screen_v2_reasons=";".join(reasons),
++    )
++    row["return"] = 100.0 + episode
++    row.update(values)
++    return row
++
++
++def _write_csv(path: Path, rows: list[dict], columns: list[str] | None = None) -> None:
++    columns = columns or list(rows[0])
++    path.parent.mkdir(parents=True, exist_ok=True)
++    with path.open("w", newline="", encoding="utf-8") as handle:
++        writer = csv.DictWriter(handle, fieldnames=columns, extrasaction="ignore")
++        writer.writeheader()
++        for row in rows:
++            writer.writerow({key: ("nan" if isinstance(v, float) and math.isnan(v) else v) for key, v in row.items()})
++
++
++def _stage(tmp_path: Path, *, saturated: list[int] | None = None, name: str = "run_a") -> Path:
++    """A stage directory of 10-episode evaluations; evaluation k has ``saturated[k]`` saturation-flagged episodes."""
++    saturated = saturated if saturated is not None else [0, 6, 7, 0]
++    stage = tmp_path / "runs" / name / "01_stance"
++    rows = []
++    for evaluation, count in enumerate(saturated):
++        for episode in range(10):
++            rows.append(
++                _episode(
++                    evaluation,
++                    episode,
++                    fell=episode == 9 and evaluation == 0,
++                    saturated=episode < count,
++                    r_foot_cop_fore_aft=0.1 * evaluation + (0.02 if episode % 2 else -0.02),
++                    l_foot_cop_fore_aft=-0.05,
++                    r_sole_cop_fore_aft=0.3,
++                    l_sole_cop_fore_aft=0.25,
++                    leg_q_l_minus_r_ankle_deg=float(episode),
++                    max_sole_tilt_deg=0.5 + 0.1 * episode,
++                )
++            )
++    _write_csv(stage / th.EVAL_EPISODES_FILENAME, rows, COLUMNS)
++    train = [
++        {"timesteps": step, "env": 0, "length": 1000, "return": 1.0, "cause": cause}
++        for step, cause in [
++            (100, "nosedive"),
++            (2048, "truncated"),
++            (3000, "truncated"),
++            (4096, "fallen"),
++            (9000, "truncated"),
++        ]
++    ]
++    _write_csv(stage / th.TRAIN_EPISODES_FILENAME, train)
++    config = {
++        "species": "tyrannosaurus_rex",
++        "embodiment": "anatomical",
++        "run": {"seed": 42},
++        "curriculum": {
++            "max_sole_cop_fore_aft": 0.8,
++            "max_sole_tilt_deg": 2.0,
++            "max_sole_corner_lift_m": 0.004,
++            "max_actuator_saturation_fraction": 0.1,
++        },
++        "reward_weights": {
++            "stance_cop_band_weight": 0.3,
++            "stance_cop_band_lower": -0.6,
++            "stance_cop_band_upper": 0.4,
++            "stance_cop_band_pad_lower": -0.65,
++            "stance_cop_band_pad_upper": 0.65,
++        },
++    }
++    (stage / th.STAGE_CONFIG_FILENAME).write_text(json.dumps(config), encoding="utf-8")
++    return stage
++
++
++class TestReductions:
++    def test_counts_per_evaluation(self, tmp_path):
++        run = th.load_run_history(_stage(tmp_path), read_std=False)
++        assert run.steps.tolist() == [STEP, 2 * STEP, 3 * STEP, 4 * STEP]
++        assert run.series("episodes").tolist() == [10, 10, 10, 10]
++        assert run.series("falls").tolist() == [1, 0, 0, 0]
++        # Clean: not fallen and not saturated.
++        assert run.series("clean").tolist() == [9, 4, 3, 10]
++        assert run.series("saturated").tolist() == [0, 6, 7, 0]
++        assert run.series("mean_return").tolist() == pytest.approx([104.5] * 4)
++
++    def test_per_foot_means_and_spread_over_full_horizon_episodes(self, tmp_path):
++        run = th.load_run_history(_stage(tmp_path), read_std=False)
++        assert run.feet == ["r", "l"]
++        # Evaluation 0 drops its fallen episode 9 (odd: +0.02), leaving five -0.02 and four +0.02.
++        mean0 = (5 * -0.02 + 4 * 0.02) / 9
++        assert run.column("r_foot_cop_fore_aft")[0] == pytest.approx(mean0)
++        assert run.column("r_foot_cop_fore_aft")[1:].tolist() == pytest.approx([0.1, 0.2, 0.3])
++        assert run.column("r_foot_cop_fore_aft", "std")[1] == pytest.approx(0.02)
++        assert run.column("l_foot_cop_fore_aft").tolist() == pytest.approx([-0.05] * 4)
++        assert run.column("r_sole_cop_fore_aft", "n")[0] == 9
++        assert run.column("max_sole_tilt_deg", "max")[0] == pytest.approx(0.5 + 0.1 * 8)
++        assert run.column("max_sole_tilt_deg", "max")[1] == pytest.approx(0.5 + 0.1 * 9)
++
++    def test_left_minus_right_differences(self, tmp_path):
++        run = th.load_run_history(_stage(tmp_path), read_std=False)
++        assert run.lr == {
++            "hip_pitch": "leg_q_l_minus_r_hip_pitch_deg",
++            "knee": "leg_q_l_minus_r_knee_deg",
++            "ankle": "leg_q_l_minus_r_ankle_deg",
++        }
++        assert run.column("leg_q_l_minus_r_ankle_deg")[1] == pytest.approx(4.5)
++        assert run.column("leg_q_l_minus_r_ankle_deg", "std")[1] == pytest.approx(np.std(np.arange(10.0)))
++        assert run.column("leg_q_l_minus_r_ankle_deg")[0] == pytest.approx(4.0)  # episode 9 fell
++        # The mirror-even mean is not a left-minus-right column, and hip roll is not recorded at all.
++        assert "leg_q_l_r_mean_hip_pitch_deg" not in run.evaluations["columns"]
++        assert not any("hip_roll" in column for column in run.evaluations["columns"])
++        assert any("Hip roll" in note for note in th.NOT_RECORDED)
++
++    def test_training_falls_per_window(self, tmp_path):
++        run = th.load_run_history(_stage(tmp_path), read_std=False)
++        training = run.training
++        assert training is not None and training["window_timesteps"] == th.TRAINING_WINDOW_TIMESTEPS
++        header = ["timesteps", "cause"]
++        rows = [{"timesteps": str(s), "cause": c} for s, c in [(10, "nosedive"), (10, "truncated"), (25, "fallen")]]
++        windows = th.reduce_training(header, rows, window=10)
++        assert windows["window_end"].tolist() == [10, 20, 30]
++        assert windows["episodes"].tolist() == [2, 0, 1]
++        assert windows["falls"].tolist() == [1, 0, 1]
++        assert windows["fall_fraction"][0] == 0.5 and math.isnan(windows["fall_fraction"][1])
++
++    def test_reason_keys_take_the_name_before_a_colon(self):
++        assert th.reason_keys("horizon; max_actuator_saturation_fraction: 0.3 > 0.1;") == {
++            "horizon",
++            "max_actuator_saturation_fraction",
++        }
++        assert th.reason_keys("") == set() and th.reason_keys(None) == set()
++
++    def test_bars_and_band_from_stage_config(self, tmp_path):
++        run = th.load_run_history(_stage(tmp_path), read_std=False)
++        assert run.bars["max_sole_cop_fore_aft"] == 0.8 and run.bars["max_actuator_saturation_fraction"] == 0.1
++        assert run.bars["max_foot_cop_fore_aft"] is None
++        assert run.band_active and run.band["stance_cop_band_upper"] == 0.4
++        assert run.model_id is not None and run.seed == 42 and run.label == "run_a"
++
++
++class TestSaturationAlarm:
++    def test_flags_and_alarms(self):
++        steps = list(range(1, 10))
++        result = th.saturation_alarms(steps, [0, 3, 5, 4, 5, 6, math.nan, 5, 5])
++        assert result["first_saturated_episode_at"] == 2
++        assert result["flagged"] == [3, 5, 6, 8, 9]
++        assert result["first_flagged_at"] == 3
++        # 3 stands alone; 5-6 and 8-9 are runs (the NaN at 7 ends the first); each alarms at its second evaluation.
++        assert [r["alarm_at"] for r in result["runs"]] == [6, 9]
++        assert result["first_alarm_at"] == 6 and result["alarm"]
++
++    def test_no_alarm_without_two_in_a_row(self):
++        result = th.saturation_alarms([1, 2, 3, 4], [5, 0, 9, 4])
++        assert result["flagged"] == [1, 3] and not result["alarm"] and result["first_alarm_at"] is None
++
++    def test_the_rule_reads_the_ledger(self, tmp_path):
++        run = th.load_run_history(_stage(tmp_path, saturated=[0, 3, 5, 6, 0, 5]), read_std=False)
++        assert run.saturation["first_saturated_episode_at"] == 2 * STEP
++        assert run.saturation["flagged"] == [3 * STEP, 4 * STEP, 6 * STEP]
++        assert run.saturation["first_alarm_at"] == 4 * STEP
++
++
++class TestTolerance:
++    def test_missing_columns_are_absent_series(self, tmp_path):
++        stage = tmp_path / "bare" / "01_stance"
++        rows = [
++            {"evaluation": e, "timesteps": (e + 1) * STEP, "episode": i, "return": 1.0}
++            for e in range(2)
++            for i in range(3)
++        ]
++        _write_csv(stage / th.EVAL_EPISODES_FILENAME, rows)
++        run = th.load_run_history(stage, read_std=False)
++        assert run.steps.tolist() == [STEP, 2 * STEP]
++        assert run.series("mean_return").tolist() == [1.0, 1.0]
++        assert run.series("clean") is None and run.series("falls") is None and run.series("saturated") is None
++        assert run.evaluations["columns"] == {} and run.feet == [] and run.lr == {}
++        assert run.saturation == {"computed": False, "why": "no screen_v2_reasons column"}
++        assert f"{th.EVAL_EPISODES_FILENAME}: column screen_v2_reasons" in run.absent
++        assert th.STAGE_CONFIG_FILENAME in run.absent and th.TRAIN_EPISODES_FILENAME in run.absent
++
++    def test_missing_files_render(self, tmp_path):
++        stage = tmp_path / "empty" / "01_stance"
++        stage.mkdir(parents=True)
++        run = th.load_run_history(stage, read_std=False)
++        assert not run.steps.size and run.training is None and run.errors == []
++        written = th.write_report([run], tmp_path / "out", title="empty", marks=["final"], dpi=30)
++        assert written["errors"] == []
++        assert len(written["pngs"]) == len(th.PAGES) + 1
++        document = json.loads((tmp_path / "out" / th.JSON_FILENAME).read_text(), parse_constant=_no_constant)
++        assert document["runs"][0]["evaluations"]["timesteps"] == []
++
++    def test_an_unreadable_stage_config_is_no_record(self, tmp_path):
++        stage = _stage(tmp_path)
++        (stage / th.STAGE_CONFIG_FILENAME).write_text("{not json", encoding="utf-8")
++        run = th.load_run_history(stage, read_std=False)
++        assert run.model_id is None and run.band is None and run.bars["max_sole_tilt_deg"] is None
++
++
++def _no_constant(name: str) -> None:
++    raise AssertionError(f"the JSON holds {name}")
++
++
++class TestPolicyStd:
++    def _zip(self, path: Path, *, log_std: Any = None, steps: int | None = None) -> None:
++        torch = pytest.importorskip("torch")
++        state = {"action_net.bias": torch.zeros(3)}
++        if log_std is not None:
++            state["log_std"] = torch.tensor(log_std, dtype=torch.float32)
++        buffer = io.BytesIO()
++        torch.save(state, buffer)
++        with zipfile.ZipFile(path, "w") as archive:
++            archive.writestr("policy.pth", buffer.getvalue())
++            archive.writestr("data", json.dumps({"num_timesteps": steps} if steps is not None else {}))
++            archive.writestr("policy.optimizer.pth", b"not read")
++
++    def test_reads_exp_log_std_at_each_checkpoint(self, tmp_path):
++        models = tmp_path / "models"
++        models.mkdir()
++        self._zip(models / "stage1_4096_steps.zip", log_std=[0.0, -1.0, -2.0])
++        self._zip(models / "best_model.zip", log_std=[-0.5, -0.5, -0.5], steps=1024)
++        self._zip(models / "stage1_final.zip", log_std=[-3.0, -3.0, -3.0], steps=8192)
++        self._zip(models / "robust_best_model.zip", steps=2048)  # no log_std (as SAC)
++        (models / "stage1_vecnormalize_4096_steps.pkl").write_bytes(b"never opened")
++        result = th.read_policy_std(models)
++        assert result["available"] == 4 and result["read"] == 3
++        points = [(p["kind"], p["timesteps"], p["step_source"]) for p in result["checkpoints"]]
++        assert points == [
++            ("best", 1024, "zip data (JSON num_timesteps)"),
++            ("periodic", 4096, "file name"),
++            ("final", 8192, "zip data (JSON num_timesteps)"),
++        ]
++        assert result["checkpoints"][1]["std"] == pytest.approx(np.exp([0.0, -1.0, -2.0]), rel=1e-6)
++        assert any("robust_best_model.zip" in error and "log_std" in error for error in result["errors"])
++
++    def test_spacing_and_budget(self, tmp_path):
++        models = tmp_path / "models"
++        models.mkdir()
++        for k in range(1, 6):
++            self._zip(models / f"stage1_{k * 1000}_steps.zip", log_std=[0.0])
++        assert [p["timesteps"] for p in th.read_policy_std(models, max_periodic=3)["checkpoints"]] == [1000, 3000, 5000]
++        stopped = th.read_policy_std(models, budget_s=-1.0)
++        assert stopped["read"] == 0 and "stopped" in stopped["skipped"]
++
++    def test_names_and_kinds(self, tmp_path):
++        assert th.checkpoint_kind(Path("stage1_123_steps.zip")) == ("periodic", 123)
++        assert th.checkpoint_kind(Path("robust_best_model.zip")) == ("robust_best", None)
++        assert th.checkpoint_kind(Path("stage1_final.zip")) == ("final", None)
++        assert th.checkpoint_kind(Path("stage1_vecnormalize_123_steps.pkl")) is None
++        assert th.read_policy_std(tmp_path / "absent")["skipped"] == "no models/ directory"
++
++    def test_actuator_names_follow_the_model(self):
++        pytest.importorskip("mujoco")
++        from environments.shared.model_id import ModelId
++
++        names, source = th.actuator_names(ModelId("tyrannosaurus_rex", "anatomical"), 15)
++        assert names is not None and "r_hip_roll_act" in names and names[-1] == "tail_3_pitch_act", source
++        assert th.actuator_names(ModelId("tyrannosaurus_rex", "anatomical"), 3)[0] is None
++        assert th.actuator_names(None, 15) == (None, "no model recorded")
++
++
++class TestRefusal:
++    def test_an_out_inside_the_run_is_refused(self, tmp_path):
++        stage = _stage(tmp_path)
++        assert script.refusal(stage / "figures", [stage]) is not None
++        assert script.refusal(stage.parent / "report", [stage]) is not None
++        assert script.refusal(tmp_path / "reports" / "a", [stage]) is None
++
++    def test_the_provenance_ancestor_is_the_run(self, tmp_path):
++        run_dir = tmp_path / "drive" / "run_x"
++        stage = run_dir / "nested" / "01_stance"
++        stage.mkdir(parents=True)
++        (run_dir / "provenance.json").write_text("{}", encoding="utf-8")
++        assert script.refusal(run_dir / "elsewhere", [stage]) is not None
++        assert script.refusal(tmp_path / "drive" / "reports", [stage]) is None
++
++    def test_main_writes_nothing_when_refused(self, tmp_path, capsys):
++        stage = _stage(tmp_path)
++        out = stage.parent / "history"
++        assert script.main([str(stage), "--out", str(out), "--no-std"]) == 2
++        assert not out.exists()
++        assert "refusing" in capsys.readouterr().err
++
++
++class TestRender:
++    def test_one_run_end_to_end(self, tmp_path, capsys):
++        stage = _stage(tmp_path)
++        out = tmp_path / "reports" / "one"
++        status = script.main(
++            [str(stage), "--out", str(out), "--no-std", "--dpi", "30", "--mark-steps", "4096", "final"]
++        )
++        assert status == 0, capsys.readouterr().err
++        pngs = sorted(out.glob("*.png"))
++        assert [p.stem for p in pngs] == [spec.name for spec in th.PAGES] + ["10_policy_std"]
++        assert all(p.read_bytes()[:8] == b"\x89PNG\r\n\x1a\n" for p in pngs)
++        document = json.loads((out / th.JSON_FILENAME).read_text(), parse_constant=_no_constant)
++        assert document["schema"] == th.SCHEMA and document["errors"] == []
++        record = document["runs"][0]
++        assert record["saturation"]["first_alarm_at"] == 3 * STEP
++        assert record["evaluations"]["clean"] == [9, 4, 3, 10]
++        assert record["bars"]["max_sole_tilt_deg"] == 2.0 and record["band_active"] is True
++        assert document["marks"]["resolved"] == [4096]
++        assert record["checkpoint_table"][0]["at"] == "J 4,096" and record["checkpoint_table"][0]["saturated"] == 6
++        text = (out / th.HTML_FILENAME).read_text(encoding="utf-8")
++        assert text.count("data:image/png;base64,") == len(pngs) and "Hip roll" in text
++        assert not list(stage.parent.rglob("*.png")) and not list(stage.parent.rglob("*.html"))
++
++    def test_comparison_pages(self, tmp_path):
++        runs = [
++            th.load_run_history(_stage(tmp_path, name="a"), label="a", group="band", read_std=False),
++            th.load_run_history(
++                _stage(tmp_path, saturated=[0, 0, 0, 0], name="b"), label="b", group="control", read_std=False
++            ),
++        ]
++        pages, errors = th.render_pages(runs, title="a against b", marks=[STEP], dpi=30)
++        assert errors == [] and len(pages) == len(th.PAGES) + 1
++        assert all(page.png[:4] == b"\x89PNG" for page in pages)
++
++    def test_at_most_eight_runs(self, tmp_path):
++        run = th.load_run_history(_stage(tmp_path), read_std=False)
++        with pytest.raises(ValueError, match="at most 8"):
++            th.render_pages([run] * 9, title="t", marks=[])
++
++    def test_final_mark_resolves_per_run(self, tmp_path):
++        run = th.load_run_history(_stage(tmp_path), read_std=False)
++        assert th.resolve_marks([4096, "final"], [run]) == [4096]
++        run.checkpoint_steps["final"] = 9000
++        assert th.resolve_marks(["final", 4096], [run]) == [4096, 9000]
++
++
++def test_the_comparison_smoothing_keeps_the_length_and_skips_nan():
++    values = np.asarray([1.0, math.nan, 3.0, 5.0])
++    smoothed = th._smooth(values, 5)
++    assert smoothed.shape == values.shape
++    assert smoothed.tolist() == pytest.approx([2.0, 3.0, 3.0, 4.0])
++    assert th._smooth(values, 1) is not None and math.isnan(th._smooth(np.asarray([math.nan]), 3)[0])
+-- 
+2.43.0
+

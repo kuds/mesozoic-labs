@@ -1,0 +1,5341 @@
+{
+ "schema": "stance5-k3diag-files-summary/v1",
+ "date": "2026-10-22",
+ "report_only": true,
+ "scope": "K3 (joint-noise falls), from the judge files and ledgers of stance5_LTSB_s52/s60/s42 (band) and stance4_LTS_s52/s60/s42 (control); no rollouts",
+ "answers": {
+  "headline": [
+   "[measured] Joint-noise falls in band s42 start at the report-only 7,340,032 slot, not at 8.4M: 0, 0, 0, 9, 5, 9, 13 of 20 at 4.2, 5.2, 6.3, 7.3, 8.4, 10.5M and the final. Over the slots 6.3M, 7.3M, 8.4M, 10.5M and final, band runs fall 43 times and control runs 11 (300 episodes each). Without s42 that is 7 against 2.",
+   "[measured] Most falls are forward: the whole-foot CoP runs to the toe line and the foot pitches about it. Band s42 has 26 of 36 forward, 6 backward and 4 unclassified. The 6 backward falls are all tail_contact, all at 10.5M, which is the one checkpoint where the tail was not pinned.",
+   "[measured] The tail habit does not track how many falls there are. Falls go 0 -> 9 from 6.3M to 7.3M while panel saturation flags hold at 22 -> 21 of 40. At 10.5M there are 2/40 flags (none on spawns 3042-3061) and still 9 falls. Within a checkpoint, flagged and unflagged spawns fall at similar rates. [inference] The tail sets the direction of a fall, not whether it happens.",
+   "[measured] Policy std, deterministic COM offset, leg posture and static CoP margins do not change in step with the falls either. [inference] What changed between 6.3M and 7.3M is the closed-loop response to perturbation, which the files cannot see. Rollouts are needed: per-group ablation on the recurrent spawns 3050, 3054 and 3059."
+  ],
+  "q1_what_the_falls_look_like": {
+   "counts": "[measured] Joint-noise falls of 20 at 6.3M / 7.3M / 8.4M / 10.5M / final: band s42 0/9/5/9/13; control s42 0/0/0/1/8; band s52 0/0/1/1/0; band s60 0/0/1/1/3; control s52 0/0/0/1/0; control s60 0/0/0/0/1. The own-sigma test (policy space) gives 0 falls in every run at every one of these slots, except band s42 final: 1 (spawn 3046, 'fallen' at 726).",
+   "direction": "[measured + rule] Band s42: 7.3M has 9/9 forward, 8.4M 5/5 forward, 10.5M 6 backward (tail_contact) + 1 forward (nosedive) + 2 unclassified, and the final 11 forward + 2 unclassified. That is 26/36 forward in all. Control s42: 6 forward (head_contact 2, nosedive 1, fallen 3), 2 backward (tail_contact), 1 unclassified. Band s60 final: 2 'fallen' with a centred CoP (unclassified: a collapse or a sideways fall, which the files cannot tell apart) and 1 at step 143, before the window. In the files 'fallen' means the pelvis went below 0.70 m. Most forward falls end as 'fallen', not 'nosedive': the body drops before it pitches 0.493 past its natural forward_z [inference].",
+   "readouts_by_cause_all_runs": "[measured, window means over steps 200..L-1, 64 joint falls over all slots] 'fallen' (41): whole-foot CoP r +0.52 / l +0.60, pad CoP +0.49 / +0.55; toe margin of the smaller foot 9.0 N m against heel 37.5; COM 0.127 m ahead of MTP III; max sole tilt 15.6 deg; corner lift 37 mm. nosedive (10): CoP +0.72 / +0.63, toe 8.5, heel 41.2, COM 0.149 m. head_contact (3): CoP +0.97 / +0.71, toe margin -1.9 N m (past the toe line), COM 0.168 m. tail_contact (10): CoP -0.44 / -0.16, toe 25.4, heel 10.4, COM 0.008 m.",
+   "fallers_vs_survivors_s42_band_final": "[measured] Fallers (13) against survivors (7) against the deterministic panel: CoP mean +0.50 / +0.25 / +0.09. Toe margin (smaller foot) 11.6 / 22.9 / 25.9 N m; heel margin 35.2 / 32.8 / 31.2 N m. COM ahead of MTP III 0.112 / 0.071 / 0.066 m. Max sole tilt 10.6 / 1.0 / 0.39 deg; corner lift 25 / 3 / 1 mm. Right digit share 0.07 / 0.18 / 0.20.",
+   "time_to_fall": "[measured] control_dt is 0.01 s. Band s42: median 576 steps, range 282-999, and only 5 of 36 fall before step 400. Two finals end at step 999. Control s42: median 464, range 352-854. Spawn 3061 is the early exception: in control s60 it falls at 201-248 at four checkpoints, and in band s60 final at 143. So the s42 falls come 1-8 s after the settle window opens, not at spawn.",
+   "contacts_lift_slip": "[measured] The terminations seen in the noise tests are fallen, nosedive, tail_contact and head_contact. There is no knee, torso or body_contact termination in any of the six runs. Every band s42 faller reaches a max sole tilt of 3.7 deg or more and a corner lift of 10 mm or more, while no survivor exceeds 3.0 deg or 7.8 mm. Spawn 3061 in control s60 has its right foot never loaded in the window: it stands on one leg, the clearest lateral candidate. 4 of 36 band s42 falls have |CoP_l - CoP_r| >= 0.6 (lateral suspect). Foot slip is not in the judge files.",
+   "cop_at_the_edge": "[not in files] The judge keeps window means and window maxima, not a per-step trace, so the CoP just before the fall cannot be read. In forward fallers the window-mean CoP already sits at +0.5 to +0.6, with half the survivors' toe margin.",
+   "noise_effect_on_survivors": "[measured] In all six runs the joint noise makes survivors rock: whole-foot CoP std per foot is 0.055-0.061 m on a 0.07 m pad half-span, against 0.002-0.009 m deterministic. The window-mean CoP moves forward by +0.08 to +0.29 against the deterministic panel at the same slot, and the COM by -2 to +13 mm. Survivors' pad gate reaches about 0.8, so the K2a/K2b rails are over for most noise episodes in every run."
+  },
+  "q2_which_actuator_groups": {
+   "status": "[not answerable from files] The judge rolls one sigma vector per test, with no per-group ablation. The rollout part must ablate. What the files constrain:",
+   "excess_over_training_noise": "[measured] sigma_ctrl / sigma_own at band s42 final: hip pitch 9.5x, knee 9.1x, ankle 4.7x, hip roll 3.0x, neck/head 1.9x, tail 1.6x. The pattern is the same in every run and grows through training, e.g. hip pitch from 6.9x at 6.3M. The own-sigma test gives 0-1 falls everywhere. [inference] Leg noise, hip pitch and knee first, is the main candidate. Tail and neck noise in the joint test is within about 2x of what each policy trains under.",
+   "band_vs_control_sigma": "[measured] The band arm's own hip-pitch sigma is about 30% below control's at the same step: 6.3M 0.020-0.022 vs 0.030, final 0.014 vs 0.019. Knee is about 10% lower; ankle and hip roll are equal. So the joint test's hip-pitch noise is 6.9-10.2x own for band against 4.7-7.9x for control. This holds for all three band seeds, while s52 and s60 band hold. [inference] Hip pitch is the first group to ablate for the band-vs-control gap; it does not by itself explain s42.",
+   "tail_in_joint_space": "[arithmetic] Joint space clips the command first, so a tail_3 command pinned at +1 only receives downward kicks. The mean shift is -sigma/sqrt(2 pi) = -0.082, about -0.007 rad of joint by satdiag's map q = -0.093 + 0.086 a. [inference] That is too small to matter as a bias.",
+   "common_noise_final": "[measured] Policy-space common noise (sigma mean 0.183; hip pitch 0.167, knee 0.125, ankle 0.110, all above sigma_ctrl's 0.141, 0.079 and 0.067): band s42 31/40, control s42 30/40, the other four runs 1-6/40. [inference] At the final, s42 is fragile to leg-heavy noise in both arms. The band adds fragility only in the joint test (13 vs 8). The common noise uses a different RNG stream, so its spawns are not paired with the joint test's.",
+   "foot_rotation": "[measured] Every forward fall ends with the foot pitched about its toe line: tilt 3.7 deg or more, corner lift 10 mm or more, toe margin around 9 N m. [inference] The ankle and leg cannot pull the CoP back inside the support once the COM is about 0.11-0.15 m ahead of MTP III.",
+   "ablation_targets": "[measured] Spawns 3050, 3054 and 3059 fall at all four band s42 checkpoints from 7.3M to the final. Spawns 3047, 3051, 3055 and 3061 fall at three. Spawn 3061 falls in all six runs at some checkpoint. The z sequence of a spawn is identical in every run and checkpoint."
+  },
+  "q3_band_vs_control_same_noise": {
+   "falls": "[measured, paired draw for draw] Band 43 against control 11 over 300 episodes each (6.3M, 7.3M, 8.4M, 10.5M, final). Band has as many falls as control or more at every seed and slot (at s52 10.5M both have 1, on different spawns). s42: 8.4M 5 vs 0, 10.5M 9 vs 1 (1 shared), final 13 vs 8, with all 8 control falls among band's 13 (p = 0.010 if the two were independent).",
+   "static_margins_do_not_explain": "[measured] Band policies stand centred and symmetric. Their deterministic per-foot CoP split (max minus min) is 0.04-0.34, against 0.26-0.98 for control at 8.4M and the final. Band toe margins are equal or larger: s42 final deterministic toe/heel 25.9 / 31.2 N m for band against 22.2 / 24.5 for control. Under noise, survivors' medians are toe 23.4 / heel 32.1 N m for band s42 final against 21.4 / 25.7 for control s42. CoP rocking std is 0.058 vs 0.061 m. [inference] The band did not shrink the static or mean-noise margins. Its runs reach the falling state more often.",
+   "recovery": "[measured] Neither arm recovers from a large foot rotation. Survivors' max sole tilt is 3.0 deg or less in band runs and 3.7 deg or less in control; fallers are at 3.7 deg or more and 7.1 deg or more. Survivors with a roll-rail excursion (tilt > 2 deg or lift > 4 mm): band s42 4 against 36 falls, control s42 6 against 9, band s60 6 against 5, control s60 1 against 1. [inference] Recovery stops at about 3-4 deg of foot tilt in both arms. The difference is how often noise drives a foot there.",
+   "ankle_torque_headroom": "[not in files] The noise rows hold no actuator forces. The eval ledger's actuator_force_frac_max is deterministic, a maximum over 15 actuators, and held by head_pitch or tail_1 per satdiag. It reads 0.27-0.36 in all runs, so it says nothing about the ankle under noise.",
+   "band_readouts": "[measured, deterministic panels only; the noise test does not capture the band] The band is nearly idle in deterministic play: band s42 whole-foot out-of-band steps are 0-491 of 64,000 foot-steps, and the most paid is -0.70 per episode (8.4M), against the statue's -1.91. [inference] Under noise, survivors' whole-foot |CoP| averages about 0.8, so the band would pay on many noisy steps. This is not measured."
+  },
+  "q4_s42_rise_tail_habit_or_else": {
+   "tail_habit_count": "[measured] Band s42 tail_3 window share at |cmd| >= 0.9 (satroll): 0.774 at 4.2M, 0.670 at 5.2M, 0.751 at 6.3M; there is no satroll after 6.3M. Panel saturation flags (any actuator, |a| >= 0.99 on more than 10% of window steps): 24, 13, 22, 21, 24, 2, 20 of 40 at 4.2, 5.2, 6.3, 7.3, 8.4, 10.5M and the final. Joint falls: 0, 0, 0, 9, 5, 9, 13. Falls jump at 6.3 -> 7.3M with no change in flags. At 10.5M (2 flags, none on spawns 3042-3061) there are still 9 falls.",
+   "same_spawn": "[measured] Falls among tail-flagged against unflagged spawns (deterministic panel flag, same spawn seed): 7.3M 5/12 vs 4/8; 8.4M 2/10 vs 3/10; final 5/11 vs 8/9.",
+   "control_s42": "[measured] Control s42 had 35-40 of 40 flagged from 2.1M to 9.4M, with satdiag tail_3 share at 0.9 of 0.84-1.00, and 0-1 joint falls. Its falls rose to 8 at the final as the share fell to 0.74.",
+   "direction_tracks_tail": "[measured] With the tail pinned (7.3M, 8.4M, final), 25 of 27 band s42 falls are forward. With it not pinned (10.5M), 6 of 9 are tail_contact. At 10.5M the deterministic COM was 0.054 m ahead of MTP III, against 0.061-0.068 at the other slots, and the CoP -0.09 against +0.01 to +0.10. [inference] This fits satdiag's finding that a raised tail moves the COM forward by about 10 mm.",
+   "policy_std": "[measured] Own sigma mean: 0.0887, 0.0838, 0.0800, 0.0742, 0.0699 at 6.3M, 7.3M, 8.4M, 10.5M and the final. Band s52 and s60 match within 0.003 and stay at 0-3 falls. Leg sigma (hip pitch, knee, ankle mean) is 0.0174 -> 0.0126 for s42 against 0.0173 -> 0.0121 and 0.0179 -> 0.0125. Not s42-specific.",
+   "com_offset": "[measured] Deterministic COM ahead of MTP III: 0.068, 0.061, 0.062, 0.054, 0.066 m at 6.3M, 7.3M, 8.4M, 10.5M and the final. It moved back when the falls began. Control s42 was at 0.067-0.069 at its 0-fall checkpoints. Not tracking.",
+   "leg_posture": "[measured, eval ledger, 524,288-step bin means] For the bins ending at 6.3, 7.3, 8.4, 10.5 and 12.06M: hip q -2.12, -3.05, -2.51, -3.12, -2.01 deg; knee 0.38, -0.09, 0.07, -0.40, -0.25 deg; ankle 0.85, 1.55, 1.36, 2.63, 1.11 deg. These are moves of 1.8 deg or less, back near the 6.3M values at the final, where falls are highest. Not tracking.",
+   "training_and_eval_ledgers": "[measured] Band s42 training episodes (own noise) fall at 0-0.4% per bin through 9.96M. Then 2.1% (10.49M), 3.5%, 2.3% and 5.4% (last bin). tail_contact leads first (7 of 11 and 11 of 19); 'fallen' is 25 of 26 in the last bin. Control s42: 0.2-1.1%, then 2.8% in the last bin. The other four runs stay at 1.7% or less. Deterministic eval falls in band s42 are 0 until the 9.96M bin, then 2, 1, 1, 0, 2. [inference] The joint test exposes the fragility about 3M steps before training noise and deterministic evaluation do.",
+   "answer": "[inference] s42's rise is not the tail habit, policy std, COM offset or leg posture as far as the files show: none of them moves with the falls between 6.3M and 7.3M or later. The tail habit changes which way the robot falls. The extra falls come from a change in how the policy reacts to joint perturbation (mostly legs, by sigma ratio), plus a seed-specific fragility that control s42 shares at the final under the common noise (30-31/40 in both arms). Testing this needs rollouts: per-group ablation, and a 6.3M vs 7.3M comparison on spawns 3050, 3054 and 3059."
+  }
+ },
+ "caveats": [
+  "Every readout is a window mean (steps 200..L-1) or a window maximum. The judge files hold no per-step trace, so the CoP just before a fall, the onset time within an episode, foot slip and ankle torque cannot be read.",
+  "The files hold no lateral readout. Sideways falls are only suspected, from L/R CoP asymmetry or an unloaded foot.",
+  "The direction rule (forward: nosedive/head_contact, or 'fallen' with mean CoP >= +0.3; backward: tail_contact, or <= -0.3) is this analysis's own.",
+  "The tail_3 share by checkpoint exists for band s42 only at 4.2, 5.2 and 6.3M (satroll). After that, only the panel's any-actuator saturation flags are available. That tail_3 is the flagged actuator after 6.3M is inferred from the earlier rolls.",
+  "n = 20 per noise test, so per-slot counts carry wide intervals: 0 vs 9 of 20 is clear, 5 vs 9 is not. 7,340,032 is a report-only slot.",
+  "That the deterministic panel and the noise test start from the same state for a given spawn seed is inferred: both reset with that seed.",
+  "The common-noise test uses a different RNG stream (SeedSequence spawn_key (1,)), so its spawns are not paired with the joint test's."
+ ],
+ "outputs": {
+  "summary": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance5/k3diag/files/summary.json",
+  "episodes": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance5/k3diag/files/noise_episodes.csv.gz",
+  "ledger_bins": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance5/k3diag/files/ledger_bins.csv",
+  "extract": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance5/k3diag/files/extract.json.gz",
+  "scripts": [
+   "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance5/k3diag/files/scripts/extract.py",
+   "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance5/k3diag/files/scripts/analyze.py",
+   "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance5/k3diag/files/scripts/build_summary.py"
+  ],
+  "rerun": "gunzip -k extract.json.gz noise_episodes.csv.gz, then python3 -I scripts/analyze.py <dir> and scripts/build_summary.py <dir> (extract.py regenerates both from the judge files)"
+ },
+ "data": {
+  "schema": "stance5-k3diag-files/v1",
+  "date": "2026-10-22",
+  "report_only": true,
+  "sources": {
+   "judged": [
+    "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance5/judged/<RUN>/judge_<slot>.json",
+    "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance4/judged/<RUN>/judge_<slot>.json"
+   ],
+   "ledgers": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance{4,5}/runs/<RUN>/01_stance/{eval,train}_episodes.csv",
+   "satroll": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance5/tools/satroll/stance5_LTSB_s42_<slot>.json",
+   "satdiag": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance4/satdiag/rollout/tables/checkpoint_table.txt",
+   "derived": [
+    "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance5/k3diag/files/extract.json.gz",
+    "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance5/k3diag/files/noise_episodes.csv.gz",
+    "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance5/k3diag/files/ledger_bins.csv"
+   ],
+   "scripts": [
+    "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance5/k3diag/files/scripts/extract.py",
+    "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance5/k3diag/files/scripts/analyze.py"
+   ]
+  },
+  "conventions": {
+   "joint_test": "noise_matched_control_joint: a = clip(clip(mu) + sigma_ctrl z), sigma_ctrl = frozen_params H4.control_sigma[seed] (mean 0.161), z ~ default_rng(spawn seed); spawns 3042-3061",
+   "own_test": "noise_matched_own: a = clip(mu + sigma_own z) in policy space",
+   "same_draws": "the z sequence of a spawn seed is the same in every run and checkpoint; band and control of one seed use the same sigma_ctrl vector, so their joint tests are paired draw for draw",
+   "window": "per-episode readouts are window means / maxima over steps 200..L-1 (a fall's window ends at the fall); none is an instantaneous value just before the fall",
+   "cop_units": "whole-foot CoP foot_cop_fore_aft: span half-lengths, -1 heel line, +1 toe line (pad edges 0.070-0.210 m ahead of the ankle); pad CoP sole_cop_fore_aft: pad units",
+   "margins": "toe_margin_nm / heel_margin_nm: window mean of F*(toe_line - x) / F*(x - heel_line), N m (floor-load moment left before the CoP reaches the toe / heel line); *_min = the smaller foot",
+   "control_dt_s": 0.01,
+   "fall": "episode shorter than 1000 steps",
+   "direction_rule": "forward: nosedive/head_contact/skull_low, or 'fallen' with both-feet mean whole-foot CoP >= +0.3; backward: tail_contact, or 'fallen' with mean CoP <= -0.3; lateral_suspect: one foot never loaded in the window or |CoP_l - CoP_r| >= 0.6 (an inference: the files hold no lateral readout)",
+   "termination_reasons": "fallen = pelvis below 0.70 m; nosedive = forward_z more than 0.493 below its natural value; tail/head_contact = that geom on the floor (clone base_env.py)"
+  },
+  "k3_table": {
+   "stance5_LTSB_s52": {
+    "4194304": {
+     "joint_falls": 0,
+     "own_falls": 0,
+     "joint_causes": {},
+     "policy_std_mean": 0.1028,
+     "panel_det_falls": 0,
+     "panel_sat_flagged_of_40": 0
+    },
+    "5242880": {
+     "joint_falls": 0,
+     "own_falls": 0,
+     "joint_causes": {},
+     "policy_std_mean": 0.0958,
+     "panel_det_falls": 0,
+     "panel_sat_flagged_of_40": 0
+    },
+    "6291456": {
+     "joint_falls": 0,
+     "own_falls": 0,
+     "joint_causes": {},
+     "policy_std_mean": 0.0903,
+     "panel_det_falls": 0,
+     "panel_sat_flagged_of_40": 0
+    },
+    "7340032": {
+     "joint_falls": 0,
+     "own_falls": 0,
+     "joint_causes": {},
+     "policy_std_mean": 0.0849,
+     "panel_det_falls": 0,
+     "panel_sat_flagged_of_40": 1
+    },
+    "8388608": {
+     "joint_falls": 1,
+     "own_falls": 0,
+     "joint_causes": {
+      "fallen": 1
+     },
+     "policy_std_mean": 0.0807,
+     "panel_det_falls": 0,
+     "panel_sat_flagged_of_40": 0
+    },
+    "10485760": {
+     "joint_falls": 1,
+     "own_falls": 0,
+     "joint_causes": {
+      "fallen": 1
+     },
+     "policy_std_mean": 0.074,
+     "panel_det_falls": 0,
+     "panel_sat_flagged_of_40": 0
+    },
+    "final": {
+     "joint_falls": 0,
+     "own_falls": 0,
+     "joint_causes": {},
+     "policy_std_mean": 0.0693,
+     "panel_det_falls": 0,
+     "panel_sat_flagged_of_40": 0
+    }
+   },
+   "stance5_LTSB_s60": {
+    "4194304": {
+     "joint_falls": 2,
+     "own_falls": 0,
+     "joint_causes": {
+      "fallen": 2
+     },
+     "policy_std_mean": 0.1025,
+     "panel_det_falls": 0,
+     "panel_sat_flagged_of_40": 0
+    },
+    "5242880": {
+     "joint_falls": 0,
+     "own_falls": 0,
+     "joint_causes": {},
+     "policy_std_mean": 0.0965,
+     "panel_det_falls": 0,
+     "panel_sat_flagged_of_40": 0
+    },
+    "6291456": {
+     "joint_falls": 0,
+     "own_falls": 0,
+     "joint_causes": {},
+     "policy_std_mean": 0.0917,
+     "panel_det_falls": 0,
+     "panel_sat_flagged_of_40": 0
+    },
+    "7340032": {
+     "joint_falls": 0,
+     "own_falls": 0,
+     "joint_causes": {},
+     "policy_std_mean": 0.0868,
+     "panel_det_falls": 0,
+     "panel_sat_flagged_of_40": 0
+    },
+    "8388608": {
+     "joint_falls": 1,
+     "own_falls": 0,
+     "joint_causes": {
+      "nosedive": 1
+     },
+     "policy_std_mean": 0.0825,
+     "panel_det_falls": 0,
+     "panel_sat_flagged_of_40": 0
+    },
+    "10485760": {
+     "joint_falls": 1,
+     "own_falls": 0,
+     "joint_causes": {
+      "nosedive": 1
+     },
+     "policy_std_mean": 0.0749,
+     "panel_det_falls": 0,
+     "panel_sat_flagged_of_40": 0
+    },
+    "final": {
+     "joint_falls": 3,
+     "own_falls": 0,
+     "joint_causes": {
+      "fallen": 3
+     },
+     "policy_std_mean": 0.0701,
+     "panel_det_falls": 0,
+     "panel_sat_flagged_of_40": 0
+    }
+   },
+   "stance5_LTSB_s42": {
+    "4194304": {
+     "joint_falls": 0,
+     "own_falls": 0,
+     "joint_causes": {},
+     "policy_std_mean": 0.0981,
+     "panel_det_falls": 0,
+     "panel_sat_flagged_of_40": 24
+    },
+    "5242880": {
+     "joint_falls": 0,
+     "own_falls": 0,
+     "joint_causes": {},
+     "policy_std_mean": 0.0933,
+     "panel_det_falls": 0,
+     "panel_sat_flagged_of_40": 13
+    },
+    "6291456": {
+     "joint_falls": 0,
+     "own_falls": 0,
+     "joint_causes": {},
+     "policy_std_mean": 0.0887,
+     "panel_det_falls": 0,
+     "panel_sat_flagged_of_40": 22
+    },
+    "7340032": {
+     "joint_falls": 9,
+     "own_falls": 0,
+     "joint_causes": {
+      "fallen": 6,
+      "nosedive": 3
+     },
+     "policy_std_mean": 0.0838,
+     "panel_det_falls": 0,
+     "panel_sat_flagged_of_40": 21
+    },
+    "8388608": {
+     "joint_falls": 5,
+     "own_falls": 0,
+     "joint_causes": {
+      "fallen": 4,
+      "nosedive": 1
+     },
+     "policy_std_mean": 0.08,
+     "panel_det_falls": 0,
+     "panel_sat_flagged_of_40": 24
+    },
+    "10485760": {
+     "joint_falls": 9,
+     "own_falls": 0,
+     "joint_causes": {
+      "tail_contact": 6,
+      "fallen": 2,
+      "nosedive": 1
+     },
+     "policy_std_mean": 0.0742,
+     "panel_det_falls": 0,
+     "panel_sat_flagged_of_40": 2
+    },
+    "final": {
+     "joint_falls": 13,
+     "own_falls": 1,
+     "joint_causes": {
+      "fallen": 12,
+      "nosedive": 1
+     },
+     "policy_std_mean": 0.0699,
+     "panel_det_falls": 1,
+     "panel_sat_flagged_of_40": 20
+    }
+   },
+   "stance4_LTS_s52": {
+    "4194304": {
+     "joint_falls": 0,
+     "own_falls": 0,
+     "joint_causes": {},
+     "policy_std_mean": 0.1042,
+     "panel_det_falls": 0,
+     "panel_sat_flagged_of_40": 0
+    },
+    "5242880": {
+     "joint_falls": 0,
+     "own_falls": 0,
+     "joint_causes": {},
+     "policy_std_mean": 0.0971,
+     "panel_det_falls": 0,
+     "panel_sat_flagged_of_40": 0
+    },
+    "6291456": {
+     "joint_falls": 0,
+     "own_falls": 0,
+     "joint_causes": {},
+     "policy_std_mean": 0.0917,
+     "panel_det_falls": 0,
+     "panel_sat_flagged_of_40": 0
+    },
+    "7340032": {
+     "joint_falls": 0,
+     "own_falls": 0,
+     "joint_causes": {},
+     "policy_std_mean": 0.0856,
+     "panel_det_falls": 0,
+     "panel_sat_flagged_of_40": 0
+    },
+    "8388608": {
+     "joint_falls": 0,
+     "own_falls": 0,
+     "joint_causes": {},
+     "policy_std_mean": 0.0806,
+     "panel_det_falls": 0,
+     "panel_sat_flagged_of_40": 0
+    },
+    "10485760": {
+     "joint_falls": 1,
+     "own_falls": 0,
+     "joint_causes": {
+      "fallen": 1
+     },
+     "policy_std_mean": 0.074,
+     "panel_det_falls": 0,
+     "panel_sat_flagged_of_40": 0
+    },
+    "final": {
+     "joint_falls": 0,
+     "own_falls": 0,
+     "joint_causes": {},
+     "policy_std_mean": 0.0692,
+     "panel_det_falls": 0,
+     "panel_sat_flagged_of_40": 0
+    },
+    "9437184": {
+     "joint_falls": 0,
+     "own_falls": 0,
+     "joint_causes": {},
+     "policy_std_mean": 0.0775,
+     "panel_det_falls": 0,
+     "panel_sat_flagged_of_40": 0
+    },
+    "11534336": {
+     "joint_falls": 0,
+     "own_falls": 0,
+     "joint_causes": {},
+     "policy_std_mean": 0.0707,
+     "panel_det_falls": 0,
+     "panel_sat_flagged_of_40": 0
+    },
+    "1048576": {
+     "joint_falls": 0,
+     "own_falls": 0,
+     "joint_causes": {},
+     "policy_std_mean": 0.1524,
+     "panel_det_falls": 0,
+     "panel_sat_flagged_of_40": 0
+    },
+    "2097152": {
+     "joint_falls": 1,
+     "own_falls": 0,
+     "joint_causes": {
+      "tail_contact": 1
+     },
+     "policy_std_mean": 0.1267,
+     "panel_det_falls": 0,
+     "panel_sat_flagged_of_40": 0
+    },
+    "3145728": {
+     "joint_falls": 0,
+     "own_falls": 0,
+     "joint_causes": {},
+     "policy_std_mean": 0.1137,
+     "panel_det_falls": 0,
+     "panel_sat_flagged_of_40": 0
+    }
+   },
+   "stance4_LTS_s60": {
+    "4194304": {
+     "joint_falls": 0,
+     "own_falls": 0,
+     "joint_causes": {},
+     "policy_std_mean": 0.1053,
+     "panel_det_falls": 0,
+     "panel_sat_flagged_of_40": 0
+    },
+    "5242880": {
+     "joint_falls": 1,
+     "own_falls": 0,
+     "joint_causes": {
+      "fallen": 1
+     },
+     "policy_std_mean": 0.0972,
+     "panel_det_falls": 0,
+     "panel_sat_flagged_of_40": 0
+    },
+    "6291456": {
+     "joint_falls": 0,
+     "own_falls": 0,
+     "joint_causes": {},
+     "policy_std_mean": 0.0907,
+     "panel_det_falls": 0,
+     "panel_sat_flagged_of_40": 0
+    },
+    "7340032": {
+     "joint_falls": 0,
+     "own_falls": 0,
+     "joint_causes": {},
+     "policy_std_mean": 0.086,
+     "panel_det_falls": 0,
+     "panel_sat_flagged_of_40": 0
+    },
+    "8388608": {
+     "joint_falls": 0,
+     "own_falls": 0,
+     "joint_causes": {},
+     "policy_std_mean": 0.0807,
+     "panel_det_falls": 0,
+     "panel_sat_flagged_of_40": 0
+    },
+    "10485760": {
+     "joint_falls": 0,
+     "own_falls": 0,
+     "joint_causes": {},
+     "policy_std_mean": 0.0725,
+     "panel_det_falls": 0,
+     "panel_sat_flagged_of_40": 0
+    },
+    "final": {
+     "joint_falls": 1,
+     "own_falls": 0,
+     "joint_causes": {
+      "fallen": 1
+     },
+     "policy_std_mean": 0.0677,
+     "panel_det_falls": 0,
+     "panel_sat_flagged_of_40": 0
+    },
+    "9437184": {
+     "joint_falls": 1,
+     "own_falls": 0,
+     "joint_causes": {
+      "fallen": 1
+     },
+     "policy_std_mean": 0.0761,
+     "panel_det_falls": 0,
+     "panel_sat_flagged_of_40": 0
+    },
+    "11534336": {
+     "joint_falls": 2,
+     "own_falls": 0,
+     "joint_causes": {
+      "tail_contact": 1,
+      "fallen": 1
+     },
+     "policy_std_mean": 0.0691,
+     "panel_det_falls": 0,
+     "panel_sat_flagged_of_40": 0
+    },
+    "1048576": {
+     "joint_falls": 0,
+     "own_falls": 0,
+     "joint_causes": {},
+     "policy_std_mean": 0.1528,
+     "panel_det_falls": 0,
+     "panel_sat_flagged_of_40": 0
+    },
+    "2097152": {
+     "joint_falls": 0,
+     "own_falls": 0,
+     "joint_causes": {},
+     "policy_std_mean": 0.1276,
+     "panel_det_falls": 3,
+     "panel_sat_flagged_of_40": 0
+    },
+    "3145728": {
+     "joint_falls": 0,
+     "own_falls": 0,
+     "joint_causes": {},
+     "policy_std_mean": 0.1159,
+     "panel_det_falls": 0,
+     "panel_sat_flagged_of_40": 0
+    }
+   },
+   "stance4_LTS_s42": {
+    "4194304": {
+     "joint_falls": 0,
+     "own_falls": 0,
+     "joint_causes": {},
+     "policy_std_mean": 0.0982,
+     "panel_det_falls": 0,
+     "panel_sat_flagged_of_40": 40
+    },
+    "5242880": {
+     "joint_falls": 1,
+     "own_falls": 0,
+     "joint_causes": {
+      "fallen": 1
+     },
+     "policy_std_mean": 0.0925,
+     "panel_det_falls": 0,
+     "panel_sat_flagged_of_40": 37
+    },
+    "6291456": {
+     "joint_falls": 0,
+     "own_falls": 0,
+     "joint_causes": {},
+     "policy_std_mean": 0.0872,
+     "panel_det_falls": 0,
+     "panel_sat_flagged_of_40": 39
+    },
+    "7340032": {
+     "joint_falls": 0,
+     "own_falls": 0,
+     "joint_causes": {},
+     "policy_std_mean": 0.082,
+     "panel_det_falls": 0,
+     "panel_sat_flagged_of_40": 39
+    },
+    "8388608": {
+     "joint_falls": 0,
+     "own_falls": 0,
+     "joint_causes": {},
+     "policy_std_mean": 0.0781,
+     "panel_det_falls": 0,
+     "panel_sat_flagged_of_40": 37
+    },
+    "10485760": {
+     "joint_falls": 1,
+     "own_falls": 0,
+     "joint_causes": {
+      "fallen": 1
+     },
+     "policy_std_mean": 0.0712,
+     "panel_det_falls": 1,
+     "panel_sat_flagged_of_40": 23
+    },
+    "final": {
+     "joint_falls": 8,
+     "own_falls": 0,
+     "joint_causes": {
+      "nosedive": 1,
+      "tail_contact": 2,
+      "head_contact": 2,
+      "fallen": 3
+     },
+     "policy_std_mean": 0.0675,
+     "panel_det_falls": 2,
+     "panel_sat_flagged_of_40": 23
+    },
+    "9437184": {
+     "joint_falls": 0,
+     "own_falls": 0,
+     "joint_causes": {},
+     "policy_std_mean": 0.0745,
+     "panel_det_falls": 0,
+     "panel_sat_flagged_of_40": 35
+    },
+    "11534336": {
+     "joint_falls": 2,
+     "own_falls": 0,
+     "joint_causes": {
+      "head_contact": 1,
+      "nosedive": 1
+     },
+     "policy_std_mean": 0.0684,
+     "panel_det_falls": 0,
+     "panel_sat_flagged_of_40": 24
+    },
+    "1048576": {
+     "joint_falls": 0,
+     "own_falls": 0,
+     "joint_causes": {},
+     "policy_std_mean": 0.1509,
+     "panel_det_falls": 0,
+     "panel_sat_flagged_of_40": 0
+    },
+    "2097152": {
+     "joint_falls": 0,
+     "own_falls": 0,
+     "joint_causes": {},
+     "policy_std_mean": 0.1211,
+     "panel_det_falls": 0,
+     "panel_sat_flagged_of_40": 35
+    },
+    "3145728": {
+     "joint_falls": 0,
+     "own_falls": 0,
+     "joint_causes": {},
+     "policy_std_mean": 0.1067,
+     "panel_det_falls": 0,
+     "panel_sat_flagged_of_40": 39
+    }
+   }
+  },
+  "q1_what_falls_look_like": {
+   "per_run": {
+    "stance5_LTSB_s52": {
+     "slots": [
+      "6291456",
+      "7340032",
+      "8388608",
+      "10485760",
+      "final"
+     ],
+     "joint_falls": 2,
+     "causes": {
+      "fallen": 2
+     },
+     "direction": {
+      "forward": 2
+     },
+     "lateral_suspect": 1,
+     "time_to_fall_steps": {
+      "median": 305.0,
+      "min": 287,
+      "max": 323,
+      "before_400": 2
+     },
+     "per_slot": {
+      "6291456": {
+       "falls": 0,
+       "causes": {},
+       "direction": {},
+       "lengths": []
+      },
+      "7340032": {
+       "falls": 0,
+       "causes": {},
+       "direction": {},
+       "lengths": []
+      },
+      "8388608": {
+       "falls": 1,
+       "causes": {
+        "fallen": 1
+       },
+       "direction": {
+        "forward": 1
+       },
+       "lengths": [
+        287
+       ]
+      },
+      "10485760": {
+       "falls": 1,
+       "causes": {
+        "fallen": 1
+       },
+       "direction": {
+        "forward": 1
+       },
+       "lengths": [
+        323
+       ]
+      },
+      "final": {
+       "falls": 0,
+       "causes": {},
+       "direction": {},
+       "lengths": []
+      }
+     }
+    },
+    "stance5_LTSB_s60": {
+     "slots": [
+      "6291456",
+      "7340032",
+      "8388608",
+      "10485760",
+      "final"
+     ],
+     "joint_falls": 5,
+     "causes": {
+      "nosedive": 2,
+      "fallen": 3
+     },
+     "direction": {
+      "forward": 2,
+      "unclassified": 2,
+      "no_window": 1
+     },
+     "lateral_suspect": 0,
+     "time_to_fall_steps": {
+      "median": 626,
+      "min": 143,
+      "max": 719,
+      "before_400": 2
+     },
+     "per_slot": {
+      "6291456": {
+       "falls": 0,
+       "causes": {},
+       "direction": {},
+       "lengths": []
+      },
+      "7340032": {
+       "falls": 0,
+       "causes": {},
+       "direction": {},
+       "lengths": []
+      },
+      "8388608": {
+       "falls": 1,
+       "causes": {
+        "nosedive": 1
+       },
+       "direction": {
+        "forward": 1
+       },
+       "lengths": [
+        719
+       ]
+      },
+      "10485760": {
+       "falls": 1,
+       "causes": {
+        "nosedive": 1
+       },
+       "direction": {
+        "forward": 1
+       },
+       "lengths": [
+        332
+       ]
+      },
+      "final": {
+       "falls": 3,
+       "causes": {
+        "fallen": 3
+       },
+       "direction": {
+        "unclassified": 2,
+        "no_window": 1
+       },
+       "lengths": [
+        143,
+        626,
+        637
+       ]
+      }
+     }
+    },
+    "stance5_LTSB_s42": {
+     "slots": [
+      "6291456",
+      "7340032",
+      "8388608",
+      "10485760",
+      "final"
+     ],
+     "joint_falls": 36,
+     "causes": {
+      "fallen": 24,
+      "nosedive": 6,
+      "tail_contact": 6
+     },
+     "direction": {
+      "forward": 26,
+      "backward": 6,
+      "unclassified": 4
+     },
+     "lateral_suspect": 4,
+     "time_to_fall_steps": {
+      "median": 576.0,
+      "min": 282,
+      "max": 999,
+      "before_400": 5
+     },
+     "per_slot": {
+      "6291456": {
+       "falls": 0,
+       "causes": {},
+       "direction": {},
+       "lengths": []
+      },
+      "7340032": {
+       "falls": 9,
+       "causes": {
+        "fallen": 6,
+        "nosedive": 3
+       },
+       "direction": {
+        "forward": 9
+       },
+       "lengths": [
+        385,
+        481,
+        657,
+        671,
+        734,
+        819,
+        842,
+        910,
+        954
+       ]
+      },
+      "8388608": {
+       "falls": 5,
+       "causes": {
+        "fallen": 4,
+        "nosedive": 1
+       },
+       "direction": {
+        "forward": 5
+       },
+       "lengths": [
+        521,
+        561,
+        576,
+        663,
+        898
+       ]
+      },
+      "10485760": {
+       "falls": 9,
+       "causes": {
+        "tail_contact": 6,
+        "fallen": 2,
+        "nosedive": 1
+       },
+       "direction": {
+        "backward": 6,
+        "unclassified": 2,
+        "forward": 1
+       },
+       "lengths": [
+        282,
+        321,
+        461,
+        464,
+        502,
+        512,
+        576,
+        817,
+        921
+       ]
+      },
+      "final": {
+       "falls": 13,
+       "causes": {
+        "fallen": 12,
+        "nosedive": 1
+       },
+       "direction": {
+        "forward": 11,
+        "unclassified": 2
+       },
+       "lengths": [
+        332,
+        349,
+        412,
+        412,
+        455,
+        550,
+        575,
+        586,
+        605,
+        692,
+        734,
+        999,
+        999
+       ]
+      }
+     }
+    },
+    "stance4_LTS_s52": {
+     "slots": [
+      "6291456",
+      "7340032",
+      "8388608",
+      "10485760",
+      "final"
+     ],
+     "joint_falls": 1,
+     "causes": {
+      "fallen": 1
+     },
+     "direction": {
+      "forward": 1
+     },
+     "lateral_suspect": 1,
+     "time_to_fall_steps": {
+      "median": 277,
+      "min": 277,
+      "max": 277,
+      "before_400": 1
+     },
+     "per_slot": {
+      "6291456": {
+       "falls": 0,
+       "causes": {},
+       "direction": {},
+       "lengths": []
+      },
+      "7340032": {
+       "falls": 0,
+       "causes": {},
+       "direction": {},
+       "lengths": []
+      },
+      "8388608": {
+       "falls": 0,
+       "causes": {},
+       "direction": {},
+       "lengths": []
+      },
+      "10485760": {
+       "falls": 1,
+       "causes": {
+        "fallen": 1
+       },
+       "direction": {
+        "forward": 1
+       },
+       "lengths": [
+        277
+       ]
+      },
+      "final": {
+       "falls": 0,
+       "causes": {},
+       "direction": {},
+       "lengths": []
+      }
+     }
+    },
+    "stance4_LTS_s60": {
+     "slots": [
+      "6291456",
+      "7340032",
+      "8388608",
+      "10485760",
+      "final"
+     ],
+     "joint_falls": 1,
+     "causes": {
+      "fallen": 1
+     },
+     "direction": {
+      "forward": 1
+     },
+     "lateral_suspect": 1,
+     "time_to_fall_steps": {
+      "median": 225,
+      "min": 225,
+      "max": 225,
+      "before_400": 1
+     },
+     "per_slot": {
+      "6291456": {
+       "falls": 0,
+       "causes": {},
+       "direction": {},
+       "lengths": []
+      },
+      "7340032": {
+       "falls": 0,
+       "causes": {},
+       "direction": {},
+       "lengths": []
+      },
+      "8388608": {
+       "falls": 0,
+       "causes": {},
+       "direction": {},
+       "lengths": []
+      },
+      "10485760": {
+       "falls": 0,
+       "causes": {},
+       "direction": {},
+       "lengths": []
+      },
+      "final": {
+       "falls": 1,
+       "causes": {
+        "fallen": 1
+       },
+       "direction": {
+        "forward": 1
+       },
+       "lengths": [
+        225
+       ]
+      }
+     }
+    },
+    "stance4_LTS_s42": {
+     "slots": [
+      "6291456",
+      "7340032",
+      "8388608",
+      "10485760",
+      "final"
+     ],
+     "joint_falls": 9,
+     "causes": {
+      "fallen": 4,
+      "nosedive": 1,
+      "tail_contact": 2,
+      "head_contact": 2
+     },
+     "direction": {
+      "forward": 6,
+      "backward": 2,
+      "unclassified": 1
+     },
+     "lateral_suspect": 3,
+     "time_to_fall_steps": {
+      "median": 464,
+      "min": 352,
+      "max": 854,
+      "before_400": 2
+     },
+     "per_slot": {
+      "6291456": {
+       "falls": 0,
+       "causes": {},
+       "direction": {},
+       "lengths": []
+      },
+      "7340032": {
+       "falls": 0,
+       "causes": {},
+       "direction": {},
+       "lengths": []
+      },
+      "8388608": {
+       "falls": 0,
+       "causes": {},
+       "direction": {},
+       "lengths": []
+      },
+      "10485760": {
+       "falls": 1,
+       "causes": {
+        "fallen": 1
+       },
+       "direction": {
+        "forward": 1
+       },
+       "lengths": [
+        456
+       ]
+      },
+      "final": {
+       "falls": 8,
+       "causes": {
+        "nosedive": 1,
+        "tail_contact": 2,
+        "head_contact": 2,
+        "fallen": 3
+       },
+       "direction": {
+        "forward": 5,
+        "backward": 2,
+        "unclassified": 1
+       },
+       "lengths": [
+        352,
+        377,
+        460,
+        464,
+        487,
+        528,
+        664,
+        854
+       ]
+      }
+     }
+    }
+   },
+   "by_cause_all_runs": {
+    "fallen": {
+     "n": 41,
+     "length": 518.7317,
+     "foot_cop_mean": 0.5912,
+     "r_foot_cop_fore_aft": 0.5222,
+     "l_foot_cop_fore_aft": 0.6011,
+     "r_sole_cop_fore_aft": 0.4852,
+     "l_sole_cop_fore_aft": 0.5509,
+     "toe_margin_min_nm": 8.9669,
+     "heel_margin_min_nm": 37.4673,
+     "max_tilt_deg": 15.5529,
+     "max_lift_m": 0.0369,
+     "com_mtp3_m": 0.1269,
+     "xc_m": 0.1001,
+     "gate_excess_max": 0.4184,
+     "cop_std_max_m": 0.0497,
+     "r_digit_share": 0.0759,
+     "l_digit_share": 0.0964
+    },
+    "nosedive": {
+     "n": 10,
+     "length": 666.5,
+     "foot_cop_mean": 0.6751,
+     "r_foot_cop_fore_aft": 0.7239,
+     "l_foot_cop_fore_aft": 0.6263,
+     "r_sole_cop_fore_aft": 0.6288,
+     "l_sole_cop_fore_aft": 0.5533,
+     "toe_margin_min_nm": 8.5065,
+     "heel_margin_min_nm": 41.1802,
+     "max_tilt_deg": 9.8152,
+     "max_lift_m": 0.0252,
+     "com_mtp3_m": 0.1491,
+     "xc_m": 0.1048,
+     "gate_excess_max": 0.3957,
+     "cop_std_max_m": 0.0532,
+     "r_digit_share": 0.1185,
+     "l_digit_share": 0.1396
+    },
+    "tail_contact": {
+     "n": 10,
+     "length": 489.3,
+     "foot_cop_mean": -0.3019,
+     "r_foot_cop_fore_aft": -0.4407,
+     "l_foot_cop_fore_aft": -0.1631,
+     "r_sole_cop_fore_aft": -0.4376,
+     "l_sole_cop_fore_aft": -0.1607,
+     "toe_margin_min_nm": 25.4488,
+     "heel_margin_min_nm": 10.437,
+     "max_tilt_deg": 9.4691,
+     "max_lift_m": 0.0256,
+     "com_mtp3_m": 0.0077,
+     "xc_m": 0.0305,
+     "gate_excess_max": 0.6486,
+     "cop_std_max_m": 0.0557,
+     "r_digit_share": 0.0633,
+     "l_digit_share": 0.0553
+    },
+    "head_contact": {
+     "n": 3,
+     "length": 529.3333,
+     "foot_cop_mean": 0.8375,
+     "r_foot_cop_fore_aft": 0.9695,
+     "l_foot_cop_fore_aft": 0.7054,
+     "r_sole_cop_fore_aft": 0.822,
+     "l_sole_cop_fore_aft": 0.6291,
+     "toe_margin_min_nm": -1.8767,
+     "heel_margin_min_nm": 46.511,
+     "max_tilt_deg": 14.6299,
+     "max_lift_m": 0.0383,
+     "com_mtp3_m": 0.1681,
+     "xc_m": 0.1166,
+     "gate_excess_max": 0.4644,
+     "cop_std_max_m": 0.0582,
+     "r_digit_share": 0.1158,
+     "l_digit_share": 0.1071
+    }
+   },
+   "fallers_vs_survivors": {
+    "stance5_LTSB_s52@8388608": {
+     "fallers": {
+      "n": 1,
+      "length": 287.0,
+      "foot_cop_mean": 0.5828,
+      "r_foot_cop_fore_aft": 1.0014,
+      "l_foot_cop_fore_aft": 0.1643,
+      "r_sole_cop_fore_aft": 0.9997,
+      "l_sole_cop_fore_aft": 0.1211,
+      "toe_margin_min_nm": -0.0077,
+      "heel_margin_min_nm": 12.6062,
+      "max_tilt_deg": 26.1691,
+      "max_lift_m": 0.0403,
+      "com_mtp3_m": 0.0938,
+      "xc_m": 0.0719,
+      "gate_excess_max": 0.4623,
+      "cop_std_max_m": 0.0466,
+      "r_digit_share": 0.0931,
+      "l_digit_share": 0.0202
+     },
+     "survivors": {
+      "n": 19,
+      "length": 1000.0,
+      "foot_cop_mean": 0.2336,
+      "r_foot_cop_fore_aft": 0.2675,
+      "l_foot_cop_fore_aft": 0.1996,
+      "r_sole_cop_fore_aft": 0.3042,
+      "l_sole_cop_fore_aft": 0.2375,
+      "toe_margin_min_nm": 21.8046,
+      "heel_margin_min_nm": 29.5585,
+      "max_tilt_deg": 0.801,
+      "max_lift_m": 0.002,
+      "com_mtp3_m": 0.0687,
+      "xc_m": 0.0724,
+      "gate_excess_max": 0.6272,
+      "cop_std_max_m": 0.0566,
+      "r_digit_share": 0.1643,
+      "l_digit_share": 0.1821
+     },
+     "deterministic_panel_full_horizon": {
+      "n": 40,
+      "length": 1000.0,
+      "foot_cop_mean": 0.0623,
+      "r_foot_cop_fore_aft": 0.0598,
+      "l_foot_cop_fore_aft": 0.0649,
+      "r_sole_cop_fore_aft": 0.2425,
+      "l_sole_cop_fore_aft": 0.2559,
+      "toe_margin_min_nm": 23.8613,
+      "heel_margin_min_nm": 27.865,
+      "max_tilt_deg": 0.4826,
+      "max_lift_m": 0.001,
+      "com_mtp3_m": 0.0644,
+      "xc_m": 0.0643,
+      "gate_excess_max": 0.0133,
+      "cop_std_max_m": 0.0038,
+      "r_digit_share": 0.192,
+      "l_digit_share": 0.1987
+     }
+    },
+    "stance5_LTSB_s52@10485760": {
+     "fallers": {
+      "n": 1,
+      "length": 323.0,
+      "foot_cop_mean": 1.0086,
+      "r_foot_cop_fore_aft": 1.0334,
+      "l_foot_cop_fore_aft": 0.9839,
+      "r_sole_cop_fore_aft": 0.9988,
+      "l_sole_cop_fore_aft": 0.9647,
+      "toe_margin_min_nm": -0.4962,
+      "heel_margin_min_nm": 30.5121,
+      "max_tilt_deg": 23.5415,
+      "max_lift_m": 0.0572,
+      "com_mtp3_m": 0.1682,
+      "xc_m": 0.1295,
+      "gate_excess_max": 0.0,
+      "cop_std_max_m": 0.0098,
+      "r_digit_share": 0.0784,
+      "l_digit_share": 0.0434
+     },
+     "survivors": {
+      "n": 19,
+      "length": 1000.0,
+      "foot_cop_mean": 0.1134,
+      "r_foot_cop_fore_aft": 0.1259,
+      "l_foot_cop_fore_aft": 0.1009,
+      "r_sole_cop_fore_aft": 0.1619,
+      "l_sole_cop_fore_aft": 0.1342,
+      "toe_margin_min_nm": 26.0136,
+      "heel_margin_min_nm": 26.1649,
+      "max_tilt_deg": 0.8085,
+      "max_lift_m": 0.002,
+      "com_mtp3_m": 0.0597,
+      "xc_m": 0.0637,
+      "gate_excess_max": 0.6846,
+      "cop_std_max_m": 0.0568,
+      "r_digit_share": 0.1857,
+      "l_digit_share": 0.1924
+     },
+     "deterministic_panel_full_horizon": {
+      "n": 40,
+      "length": 1000.0,
+      "foot_cop_mean": -0.1568,
+      "r_foot_cop_fore_aft": -0.165,
+      "l_foot_cop_fore_aft": -0.1486,
+      "r_sole_cop_fore_aft": 0.0117,
+      "l_sole_cop_fore_aft": 0.0271,
+      "toe_margin_min_nm": 29.9045,
+      "heel_margin_min_nm": 21.0831,
+      "max_tilt_deg": 0.4992,
+      "max_lift_m": 0.0009,
+      "com_mtp3_m": 0.0491,
+      "xc_m": 0.0489,
+      "gate_excess_max": 0.002,
+      "cop_std_max_m": 0.0028,
+      "r_digit_share": 0.2323,
+      "l_digit_share": 0.2272
+     }
+    },
+    "stance5_LTSB_s60@8388608": {
+     "fallers": {
+      "n": 1,
+      "length": 719.0,
+      "foot_cop_mean": 0.6375,
+      "r_foot_cop_fore_aft": 0.6513,
+      "l_foot_cop_fore_aft": 0.6238,
+      "r_sole_cop_fore_aft": 0.5413,
+      "l_sole_cop_fore_aft": 0.611,
+      "toe_margin_min_nm": 11.6744,
+      "heel_margin_min_nm": 36.1306,
+      "max_tilt_deg": 7.8921,
+      "max_lift_m": 0.021,
+      "com_mtp3_m": 0.1223,
+      "xc_m": 0.1023,
+      "gate_excess_max": 0.3507,
+      "cop_std_max_m": 0.0584,
+      "r_digit_share": 0.0768,
+      "l_digit_share": 0.0729
+     },
+     "survivors": {
+      "n": 19,
+      "length": 1000.0,
+      "foot_cop_mean": 0.2408,
+      "r_foot_cop_fore_aft": 0.2499,
+      "l_foot_cop_fore_aft": 0.2316,
+      "r_sole_cop_fore_aft": 0.2814,
+      "l_sole_cop_fore_aft": 0.2613,
+      "toe_margin_min_nm": 23.2583,
+      "heel_margin_min_nm": 30.7736,
+      "max_tilt_deg": 1.0163,
+      "max_lift_m": 0.0025,
+      "com_mtp3_m": 0.0694,
+      "xc_m": 0.0733,
+      "gate_excess_max": 0.6229,
+      "cop_std_max_m": 0.0579,
+      "r_digit_share": 0.1605,
+      "l_digit_share": 0.1644
+     },
+     "deterministic_panel_full_horizon": {
+      "n": 40,
+      "length": 1000.0,
+      "foot_cop_mean": 0.1402,
+      "r_foot_cop_fore_aft": 0.0993,
+      "l_foot_cop_fore_aft": 0.1812,
+      "r_sole_cop_fore_aft": 0.2588,
+      "l_sole_cop_fore_aft": 0.3387,
+      "toe_margin_min_nm": 22.5129,
+      "heel_margin_min_nm": 30.4838,
+      "max_tilt_deg": 0.6383,
+      "max_lift_m": 0.0012,
+      "com_mtp3_m": 0.0699,
+      "xc_m": 0.0699,
+      "gate_excess_max": 0.0195,
+      "cop_std_max_m": 0.0037,
+      "r_digit_share": 0.1647,
+      "l_digit_share": 0.1539
+     }
+    },
+    "stance5_LTSB_s60@10485760": {
+     "fallers": {
+      "n": 1,
+      "length": 332.0,
+      "foot_cop_mean": 1.1393,
+      "r_foot_cop_fore_aft": 1.1385,
+      "l_foot_cop_fore_aft": 1.1401,
+      "r_sole_cop_fore_aft": 0.998,
+      "l_sole_cop_fore_aft": 0.9985,
+      "toe_margin_min_nm": -3.2916,
+      "heel_margin_min_nm": 49.8058,
+      "max_tilt_deg": 15.1587,
+      "max_lift_m": 0.0395,
+      "com_mtp3_m": 0.2374,
+      "xc_m": 0.1388,
+      "gate_excess_max": 0.0,
+      "cop_std_max_m": 0.0163,
+      "r_digit_share": 0.139,
+      "l_digit_share": 0.1685
+     },
+     "survivors": {
+      "n": 19,
+      "length": 1000.0,
+      "foot_cop_mean": 0.1676,
+      "r_foot_cop_fore_aft": 0.1917,
+      "l_foot_cop_fore_aft": 0.1435,
+      "r_sole_cop_fore_aft": 0.2192,
+      "l_sole_cop_fore_aft": 0.1672,
+      "toe_margin_min_nm": 24.9833,
+      "heel_margin_min_nm": 29.4445,
+      "max_tilt_deg": 0.949,
+      "max_lift_m": 0.0024,
+      "com_mtp3_m": 0.065,
+      "xc_m": 0.0689,
+      "gate_excess_max": 0.714,
+      "cop_std_max_m": 0.06,
+      "r_digit_share": 0.1769,
+      "l_digit_share": 0.1831
+     },
+     "deterministic_panel_full_horizon": {
+      "n": 40,
+      "length": 1000.0,
+      "foot_cop_mean": 0.0867,
+      "r_foot_cop_fore_aft": 0.0846,
+      "l_foot_cop_fore_aft": 0.0888,
+      "r_sole_cop_fore_aft": 0.249,
+      "l_sole_cop_fore_aft": 0.2525,
+      "toe_margin_min_nm": 25.5772,
+      "heel_margin_min_nm": 31.3607,
+      "max_tilt_deg": 0.6555,
+      "max_lift_m": 0.0012,
+      "com_mtp3_m": 0.0661,
+      "xc_m": 0.066,
+      "gate_excess_max": 0.0066,
+      "cop_std_max_m": 0.003,
+      "r_digit_share": 0.1695,
+      "l_digit_share": 0.1663
+     }
+    },
+    "stance5_LTSB_s60@final": {
+     "fallers": {
+      "n": 3,
+      "length": 468.6667,
+      "foot_cop_mean": 0.0499,
+      "r_foot_cop_fore_aft": 0.0584,
+      "l_foot_cop_fore_aft": 0.0413,
+      "r_sole_cop_fore_aft": 0.0455,
+      "l_sole_cop_fore_aft": 0.0331,
+      "toe_margin_min_nm": 32.1196,
+      "heel_margin_min_nm": 22.5192,
+      "max_tilt_deg": 9.0583,
+      "max_lift_m": 0.0173,
+      "com_mtp3_m": 0.0576,
+      "xc_m": 0.0566,
+      "gate_excess_max": 0.8132,
+      "cop_std_max_m": 0.066,
+      "r_digit_share": 0.0588,
+      "l_digit_share": 0.0363
+     },
+     "survivors": {
+      "n": 17,
+      "length": 1000.0,
+      "foot_cop_mean": 0.1395,
+      "r_foot_cop_fore_aft": 0.1324,
+      "l_foot_cop_fore_aft": 0.1466,
+      "r_sole_cop_fore_aft": 0.1559,
+      "l_sole_cop_fore_aft": 0.1705,
+      "toe_margin_min_nm": 25.5934,
+      "heel_margin_min_nm": 27.4553,
+      "max_tilt_deg": 1.0169,
+      "max_lift_m": 0.0026,
+      "com_mtp3_m": 0.0623,
+      "xc_m": 0.0663,
+      "gate_excess_max": 0.735,
+      "cop_std_max_m": 0.06,
+      "r_digit_share": 0.1749,
+      "l_digit_share": 0.1751
+     },
+     "deterministic_panel_full_horizon": {
+      "n": 40,
+      "length": 1000.0,
+      "foot_cop_mean": -0.0321,
+      "r_foot_cop_fore_aft": -0.0848,
+      "l_foot_cop_fore_aft": 0.0206,
+      "r_sole_cop_fore_aft": 0.0695,
+      "l_sole_cop_fore_aft": 0.1843,
+      "toe_margin_min_nm": 25.5425,
+      "heel_margin_min_nm": 23.1724,
+      "max_tilt_deg": 0.6826,
+      "max_lift_m": 0.0012,
+      "com_mtp3_m": 0.0581,
+      "xc_m": 0.058,
+      "gate_excess_max": 0.0033,
+      "cop_std_max_m": 0.003,
+      "r_digit_share": 0.1914,
+      "l_digit_share": 0.1787
+     }
+    },
+    "stance5_LTSB_s42@7340032": {
+     "fallers": {
+      "n": 9,
+      "length": 717.0,
+      "foot_cop_mean": 0.5125,
+      "r_foot_cop_fore_aft": 0.5301,
+      "l_foot_cop_fore_aft": 0.4948,
+      "r_sole_cop_fore_aft": 0.499,
+      "l_sole_cop_fore_aft": 0.4236,
+      "toe_margin_min_nm": 12.4289,
+      "heel_margin_min_nm": 37.3045,
+      "max_tilt_deg": 8.7098,
+      "max_lift_m": 0.0211,
+      "com_mtp3_m": 0.1209,
+      "xc_m": 0.0963,
+      "gate_excess_max": 0.4829,
+      "cop_std_max_m": 0.0606,
+      "r_digit_share": 0.1003,
+      "l_digit_share": 0.101
+     },
+     "survivors": {
+      "n": 11,
+      "length": 1000.0,
+      "foot_cop_mean": 0.2214,
+      "r_foot_cop_fore_aft": 0.241,
+      "l_foot_cop_fore_aft": 0.2018,
+      "r_sole_cop_fore_aft": 0.2766,
+      "l_sole_cop_fore_aft": 0.2384,
+      "toe_margin_min_nm": 23.1651,
+      "heel_margin_min_nm": 31.3547,
+      "max_tilt_deg": 0.9273,
+      "max_lift_m": 0.0024,
+      "com_mtp3_m": 0.0691,
+      "xc_m": 0.0731,
+      "gate_excess_max": 0.6255,
+      "cop_std_max_m": 0.0576,
+      "r_digit_share": 0.1625,
+      "l_digit_share": 0.1737
+     },
+     "deterministic_panel_full_horizon": {
+      "n": 40,
+      "length": 1000.0,
+      "foot_cop_mean": 0.0056,
+      "r_foot_cop_fore_aft": 0.0079,
+      "l_foot_cop_fore_aft": 0.0032,
+      "r_sole_cop_fore_aft": 0.2137,
+      "l_sole_cop_fore_aft": 0.2068,
+      "toe_margin_min_nm": 27.8535,
+      "heel_margin_min_nm": 27.9823,
+      "max_tilt_deg": 0.3964,
+      "max_lift_m": 0.0008,
+      "com_mtp3_m": 0.0604,
+      "xc_m": 0.0604,
+      "gate_excess_max": 0.002,
+      "cop_std_max_m": 0.0027,
+      "r_digit_share": 0.2174,
+      "l_digit_share": 0.2169
+     }
+    },
+    "stance5_LTSB_s42@8388608": {
+     "fallers": {
+      "n": 5,
+      "length": 643.8,
+      "foot_cop_mean": 0.5447,
+      "r_foot_cop_fore_aft": 0.5365,
+      "l_foot_cop_fore_aft": 0.5528,
+      "r_sole_cop_fore_aft": 0.4749,
+      "l_sole_cop_fore_aft": 0.5362,
+      "toe_margin_min_nm": 11.6549,
+      "heel_margin_min_nm": 39.6715,
+      "max_tilt_deg": 8.5556,
+      "max_lift_m": 0.0197,
+      "com_mtp3_m": 0.1124,
+      "xc_m": 0.0987,
+      "gate_excess_max": 0.4702,
+      "cop_std_max_m": 0.0602,
+      "r_digit_share": 0.0689,
+      "l_digit_share": 0.0573
+     },
+     "survivors": {
+      "n": 15,
+      "length": 1000.0,
+      "foot_cop_mean": 0.2507,
+      "r_foot_cop_fore_aft": 0.29,
+      "l_foot_cop_fore_aft": 0.2113,
+      "r_sole_cop_fore_aft": 0.3264,
+      "l_sole_cop_fore_aft": 0.2496,
+      "toe_margin_min_nm": 22.5145,
+      "heel_margin_min_nm": 31.412,
+      "max_tilt_deg": 0.8569,
+      "max_lift_m": 0.0021,
+      "com_mtp3_m": 0.0699,
+      "xc_m": 0.0737,
+      "gate_excess_max": 0.6036,
+      "cop_std_max_m": 0.0569,
+      "r_digit_share": 0.1624,
+      "l_digit_share": 0.1733
+     },
+     "deterministic_panel_full_horizon": {
+      "n": 40,
+      "length": 1000.0,
+      "foot_cop_mean": 0.0227,
+      "r_foot_cop_fore_aft": 0.0252,
+      "l_foot_cop_fore_aft": 0.0203,
+      "r_sole_cop_fore_aft": 0.2333,
+      "l_sole_cop_fore_aft": 0.2329,
+      "toe_margin_min_nm": 28.1776,
+      "heel_margin_min_nm": 29.3859,
+      "max_tilt_deg": 0.3496,
+      "max_lift_m": 0.0007,
+      "com_mtp3_m": 0.0616,
+      "xc_m": 0.0616,
+      "gate_excess_max": 0.0106,
+      "cop_std_max_m": 0.003,
+      "r_digit_share": 0.2154,
+      "l_digit_share": 0.2204
+     }
+    },
+    "stance5_LTSB_s42@10485760": {
+     "fallers": {
+      "n": 9,
+      "length": 539.5556,
+      "foot_cop_mean": 0.0289,
+      "r_foot_cop_fore_aft": -0.0077,
+      "l_foot_cop_fore_aft": 0.0655,
+      "r_sole_cop_fore_aft": -0.031,
+      "l_sole_cop_fore_aft": 0.0196,
+      "toe_margin_min_nm": 20.1083,
+      "heel_margin_min_nm": 22.3127,
+      "max_tilt_deg": 10.3261,
+      "max_lift_m": 0.0277,
+      "com_mtp3_m": 0.0669,
+      "xc_m": 0.0577,
+      "gate_excess_max": 0.7176,
+      "cop_std_max_m": 0.06,
+      "r_digit_share": 0.0829,
+      "l_digit_share": 0.0941
+     },
+     "survivors": {
+      "n": 11,
+      "length": 1000.0,
+      "foot_cop_mean": 0.1242,
+      "r_foot_cop_fore_aft": 0.1313,
+      "l_foot_cop_fore_aft": 0.117,
+      "r_sole_cop_fore_aft": 0.1639,
+      "l_sole_cop_fore_aft": 0.1498,
+      "toe_margin_min_nm": 25.5426,
+      "heel_margin_min_nm": 28.5374,
+      "max_tilt_deg": 0.862,
+      "max_lift_m": 0.0023,
+      "com_mtp3_m": 0.0625,
+      "xc_m": 0.0671,
+      "gate_excess_max": 0.7336,
+      "cop_std_max_m": 0.0598,
+      "r_digit_share": 0.191,
+      "l_digit_share": 0.1982
+     },
+     "deterministic_panel_full_horizon": {
+      "n": 40,
+      "length": 1000.0,
+      "foot_cop_mean": -0.0912,
+      "r_foot_cop_fore_aft": -0.1043,
+      "l_foot_cop_fore_aft": -0.0781,
+      "r_sole_cop_fore_aft": 0.087,
+      "l_sole_cop_fore_aft": 0.1085,
+      "toe_margin_min_nm": 29.9991,
+      "heel_margin_min_nm": 24.6566,
+      "max_tilt_deg": 0.4531,
+      "max_lift_m": 0.0008,
+      "com_mtp3_m": 0.0536,
+      "xc_m": 0.0536,
+      "gate_excess_max": 0.0017,
+      "cop_std_max_m": 0.004,
+      "r_digit_share": 0.2271,
+      "l_digit_share": 0.2179
+     }
+    },
+    "stance5_LTSB_s42@final": {
+     "fallers": {
+      "n": 13,
+      "length": 592.3077,
+      "foot_cop_mean": 0.5015,
+      "r_foot_cop_fore_aft": 0.4861,
+      "l_foot_cop_fore_aft": 0.5168,
+      "r_sole_cop_fore_aft": 0.4611,
+      "l_sole_cop_fore_aft": 0.4829,
+      "toe_margin_min_nm": 11.6095,
+      "heel_margin_min_nm": 35.17,
+      "max_tilt_deg": 10.6198,
+      "max_lift_m": 0.0249,
+      "com_mtp3_m": 0.112,
+      "xc_m": 0.0961,
+      "gate_excess_max": 0.512,
+      "cop_std_max_m": 0.0571,
+      "r_digit_share": 0.0717,
+      "l_digit_share": 0.089
+     },
+     "survivors": {
+      "n": 7,
+      "length": 1000.0,
+      "foot_cop_mean": 0.2461,
+      "r_foot_cop_fore_aft": 0.2631,
+      "l_foot_cop_fore_aft": 0.2291,
+      "r_sole_cop_fore_aft": 0.2989,
+      "l_sole_cop_fore_aft": 0.2691,
+      "toe_margin_min_nm": 22.8666,
+      "heel_margin_min_nm": 32.7512,
+      "max_tilt_deg": 1.0008,
+      "max_lift_m": 0.0026,
+      "com_mtp3_m": 0.0713,
+      "xc_m": 0.0744,
+      "gate_excess_max": 0.6077,
+      "cop_std_max_m": 0.0579,
+      "r_digit_share": 0.1755,
+      "l_digit_share": 0.1786
+     },
+     "deterministic_panel_full_horizon": {
+      "n": 39,
+      "length": 1000.0,
+      "foot_cop_mean": 0.091,
+      "r_foot_cop_fore_aft": 0.1003,
+      "l_foot_cop_fore_aft": 0.0817,
+      "r_sole_cop_fore_aft": 0.3026,
+      "l_sole_cop_fore_aft": 0.2836,
+      "toe_margin_min_nm": 25.8613,
+      "heel_margin_min_nm": 31.2307,
+      "max_tilt_deg": 0.3882,
+      "max_lift_m": 0.0008,
+      "com_mtp3_m": 0.0664,
+      "xc_m": 0.0664,
+      "gate_excess_max": 0.0105,
+      "cop_std_max_m": 0.0031,
+      "r_digit_share": 0.1983,
+      "l_digit_share": 0.2006
+     }
+    },
+    "stance4_LTS_s52@10485760": {
+     "fallers": {
+      "n": 1,
+      "length": 277.0,
+      "foot_cop_mean": 0.8027,
+      "r_foot_cop_fore_aft": 1.1209,
+      "l_foot_cop_fore_aft": 0.4845,
+      "r_sole_cop_fore_aft": 0.9995,
+      "l_sole_cop_fore_aft": 0.4452,
+      "toe_margin_min_nm": -0.6945,
+      "heel_margin_min_nm": 18.5233,
+      "max_tilt_deg": 25.1467,
+      "max_lift_m": 0.064,
+      "com_mtp3_m": 0.1435,
+      "xc_m": 0.1002,
+      "gate_excess_max": 0.135,
+      "cop_std_max_m": 0.0377,
+      "r_digit_share": 0.2539,
+      "l_digit_share": 0.0555
+     },
+     "survivors": {
+      "n": 19,
+      "length": 1000.0,
+      "foot_cop_mean": 0.2272,
+      "r_foot_cop_fore_aft": 0.2159,
+      "l_foot_cop_fore_aft": 0.2386,
+      "r_sole_cop_fore_aft": 0.2594,
+      "l_sole_cop_fore_aft": 0.2807,
+      "toe_margin_min_nm": 20.1405,
+      "heel_margin_min_nm": 26.7904,
+      "max_tilt_deg": 0.6424,
+      "max_lift_m": 0.0017,
+      "com_mtp3_m": 0.0671,
+      "xc_m": 0.0719,
+      "gate_excess_max": 0.6399,
+      "cop_std_max_m": 0.0575,
+      "r_digit_share": 0.2045,
+      "l_digit_share": 0.1998
+     },
+     "deterministic_panel_full_horizon": {
+      "n": 40,
+      "length": 1000.0,
+      "foot_cop_mean": 0.0474,
+      "r_foot_cop_fore_aft": 0.0791,
+      "l_foot_cop_fore_aft": 0.0158,
+      "r_sole_cop_fore_aft": 0.1947,
+      "l_sole_cop_fore_aft": 0.1196,
+      "toe_margin_min_nm": 12.1347,
+      "heel_margin_min_nm": 15.3917,
+      "max_tilt_deg": 0.5597,
+      "max_lift_m": 0.0013,
+      "com_mtp3_m": 0.0623,
+      "xc_m": 0.0621,
+      "gate_excess_max": 0.0025,
+      "cop_std_max_m": 0.0044,
+      "r_digit_share": 0.2078,
+      "l_digit_share": 0.2039
+     }
+    },
+    "stance4_LTS_s60@final": {
+     "fallers": {
+      "n": 1,
+      "length": 225.0,
+      "foot_cop_mean": 1.0552,
+      "r_foot_cop_fore_aft": null,
+      "l_foot_cop_fore_aft": 1.0552,
+      "r_sole_cop_fore_aft": null,
+      "l_sole_cop_fore_aft": 0.9976,
+      "toe_margin_min_nm": -1.7873,
+      "heel_margin_min_nm": 77.744,
+      "max_tilt_deg": 41.801,
+      "max_lift_m": 0.1008,
+      "com_mtp3_m": 0.1861,
+      "xc_m": 0.1339,
+      "gate_excess_max": 0.0,
+      "cop_std_max_m": 0.0037,
+      "r_digit_share": null,
+      "l_digit_share": 0.1712
+     },
+     "survivors": {
+      "n": 19,
+      "length": 1000.0,
+      "foot_cop_mean": 0.0531,
+      "r_foot_cop_fore_aft": 0.0615,
+      "l_foot_cop_fore_aft": 0.0446,
+      "r_sole_cop_fore_aft": 0.0934,
+      "l_sole_cop_fore_aft": 0.0742,
+      "toe_margin_min_nm": 27.8273,
+      "heel_margin_min_nm": 24.6391,
+      "max_tilt_deg": 0.799,
+      "max_lift_m": 0.002,
+      "com_mtp3_m": 0.0558,
+      "xc_m": 0.0599,
+      "gate_excess_max": 0.7222,
+      "cop_std_max_m": 0.0591,
+      "r_digit_share": 0.2077,
+      "l_digit_share": 0.2102
+     },
+     "deterministic_panel_full_horizon": {
+      "n": 40,
+      "length": 1000.0,
+      "foot_cop_mean": -0.2362,
+      "r_foot_cop_fore_aft": -0.2518,
+      "l_foot_cop_fore_aft": -0.2206,
+      "r_sole_cop_fore_aft": -0.1175,
+      "l_sole_cop_fore_aft": -0.0856,
+      "toe_margin_min_nm": 27.4415,
+      "heel_margin_min_nm": 14.1016,
+      "max_tilt_deg": 0.5968,
+      "max_lift_m": 0.0012,
+      "com_mtp3_m": 0.0432,
+      "xc_m": 0.0429,
+      "gate_excess_max": 0.0046,
+      "cop_std_max_m": 0.0036,
+      "r_digit_share": 0.241,
+      "l_digit_share": 0.228
+     }
+    },
+    "stance4_LTS_s42@10485760": {
+     "fallers": {
+      "n": 1,
+      "length": 456.0,
+      "foot_cop_mean": 0.9259,
+      "r_foot_cop_fore_aft": 0.6857,
+      "l_foot_cop_fore_aft": 1.1661,
+      "r_sole_cop_fore_aft": 0.6492,
+      "l_sole_cop_fore_aft": 0.9988,
+      "toe_margin_min_nm": -1.2215,
+      "heel_margin_min_nm": 46.5692,
+      "max_tilt_deg": 18.0188,
+      "max_lift_m": 0.0495,
+      "com_mtp3_m": 0.1692,
+      "xc_m": 0.1197,
+      "gate_excess_max": 0.2187,
+      "cop_std_max_m": 0.0457,
+      "r_digit_share": 0.0561,
+      "l_digit_share": 0.0737
+     },
+     "survivors": {
+      "n": 19,
+      "length": 1000.0,
+      "foot_cop_mean": 0.2555,
+      "r_foot_cop_fore_aft": 0.3093,
+      "l_foot_cop_fore_aft": 0.2017,
+      "r_sole_cop_fore_aft": 0.34,
+      "l_sole_cop_fore_aft": 0.2336,
+      "toe_margin_min_nm": 19.2902,
+      "heel_margin_min_nm": 27.7932,
+      "max_tilt_deg": 0.8926,
+      "max_lift_m": 0.0024,
+      "com_mtp3_m": 0.0695,
+      "xc_m": 0.0742,
+      "gate_excess_max": 0.6891,
+      "cop_std_max_m": 0.0592,
+      "r_digit_share": 0.1798,
+      "l_digit_share": 0.2001
+     },
+     "deterministic_panel_full_horizon": {
+      "n": 39,
+      "length": 1000.0,
+      "foot_cop_mean": 0.1337,
+      "r_foot_cop_fore_aft": 0.1122,
+      "l_foot_cop_fore_aft": 0.1552,
+      "r_sole_cop_fore_aft": 0.2927,
+      "l_sole_cop_fore_aft": 0.3337,
+      "toe_margin_min_nm": 17.6839,
+      "heel_margin_min_nm": 25.8466,
+      "max_tilt_deg": 0.4067,
+      "max_lift_m": 0.001,
+      "com_mtp3_m": 0.0692,
+      "xc_m": 0.0692,
+      "gate_excess_max": 0.0256,
+      "cop_std_max_m": 0.0069,
+      "r_digit_share": 0.1984,
+      "l_digit_share": 0.1921
+     }
+    },
+    "stance4_LTS_s42@final": {
+     "fallers": {
+      "n": 8,
+      "length": 523.25,
+      "foot_cop_mean": 0.3621,
+      "r_foot_cop_fore_aft": 0.2814,
+      "l_foot_cop_fore_aft": 0.4428,
+      "r_sole_cop_fore_aft": 0.1981,
+      "l_sole_cop_fore_aft": 0.4226,
+      "toe_margin_min_nm": 7.8906,
+      "heel_margin_min_nm": 28.8986,
+      "max_tilt_deg": 12.9805,
+      "max_lift_m": 0.0335,
+      "com_mtp3_m": 0.0945,
+      "xc_m": 0.0789,
+      "gate_excess_max": 0.3923,
+      "cop_std_max_m": 0.0488,
+      "r_digit_share": 0.0725,
+      "l_digit_share": 0.0735
+     },
+     "survivors": {
+      "n": 12,
+      "length": 1000.0,
+      "foot_cop_mean": 0.166,
+      "r_foot_cop_fore_aft": 0.1736,
+      "l_foot_cop_fore_aft": 0.1583,
+      "r_sole_cop_fore_aft": 0.1952,
+      "l_sole_cop_fore_aft": 0.1798,
+      "toe_margin_min_nm": 21.2491,
+      "heel_margin_min_nm": 25.8416,
+      "max_tilt_deg": 1.2365,
+      "max_lift_m": 0.0033,
+      "com_mtp3_m": 0.0654,
+      "xc_m": 0.0694,
+      "gate_excess_max": 0.7038,
+      "cop_std_max_m": 0.0607,
+      "r_digit_share": 0.1882,
+      "l_digit_share": 0.1922
+     },
+     "deterministic_panel_full_horizon": {
+      "n": 38,
+      "length": 1000.0,
+      "foot_cop_mean": 0.04,
+      "r_foot_cop_fore_aft": 0.0482,
+      "l_foot_cop_fore_aft": 0.0318,
+      "r_sole_cop_fore_aft": 0.2185,
+      "l_sole_cop_fore_aft": 0.1902,
+      "toe_margin_min_nm": 22.1771,
+      "heel_margin_min_nm": 24.4504,
+      "max_tilt_deg": 0.7576,
+      "max_lift_m": 0.0017,
+      "com_mtp3_m": 0.0628,
+      "xc_m": 0.063,
+      "gate_excess_max": 0.0315,
+      "cop_std_max_m": 0.0085,
+      "r_digit_share": 0.2016,
+      "l_digit_share": 0.1938
+     }
+    }
+   },
+   "tilt_lift_separation_key_slots": {
+    "stance5_LTSB_s52": {
+     "survivors_max_tilt_deg": 1.209,
+     "survivors_max_lift_m": 0.003,
+     "survivors_median_tilt_deg": 0.7407,
+     "fallers_min_tilt_deg": 23.541,
+     "fallers_min_lift_m": 0.0403,
+     "survivors_over_roll_rail": 0,
+     "survivors_tilt_over_3p5": 0,
+     "falls": 2
+    },
+    "stance5_LTSB_s60": {
+     "survivors_max_tilt_deg": 2.834,
+     "survivors_max_lift_m": 0.0075,
+     "survivors_median_tilt_deg": 0.8424,
+     "fallers_min_tilt_deg": 7.892,
+     "fallers_min_lift_m": 0.0165,
+     "survivors_over_roll_rail": 6,
+     "survivors_tilt_over_3p5": 0,
+     "falls": 5
+    },
+    "stance5_LTSB_s42": {
+     "survivors_max_tilt_deg": 2.976,
+     "survivors_max_lift_m": 0.0078,
+     "survivors_median_tilt_deg": 0.6728,
+     "fallers_min_tilt_deg": 3.722,
+     "fallers_min_lift_m": 0.0101,
+     "survivors_over_roll_rail": 4,
+     "survivors_tilt_over_3p5": 0,
+     "falls": 36
+    },
+    "stance4_LTS_s52": {
+     "survivors_max_tilt_deg": 1.279,
+     "survivors_max_lift_m": 0.0034,
+     "survivors_median_tilt_deg": 0.6327,
+     "fallers_min_tilt_deg": 25.147,
+     "fallers_min_lift_m": 0.064,
+     "survivors_over_roll_rail": 0,
+     "survivors_tilt_over_3p5": 0,
+     "falls": 1
+    },
+    "stance4_LTS_s60": {
+     "survivors_max_tilt_deg": 1.649,
+     "survivors_max_lift_m": 0.0042,
+     "survivors_median_tilt_deg": 0.7662,
+     "fallers_min_tilt_deg": 41.801,
+     "fallers_min_lift_m": 0.1008,
+     "survivors_over_roll_rail": 1,
+     "survivors_tilt_over_3p5": 0,
+     "falls": 1
+    },
+    "stance4_LTS_s42": {
+     "survivors_max_tilt_deg": 3.657,
+     "survivors_max_lift_m": 0.0098,
+     "survivors_median_tilt_deg": 0.7194,
+     "fallers_min_tilt_deg": 7.078,
+     "fallers_min_lift_m": 0.0186,
+     "survivors_over_roll_rail": 6,
+     "survivors_tilt_over_3p5": 1,
+     "falls": 9
+    }
+   },
+   "det_to_noise_shift": {
+    "stance5_LTSB_s52@6291456": {
+     "det_cop_mean": 0.0501,
+     "noise_survivor_cop_mean": 0.2135,
+     "det_com_mtp3_m": 0.0635,
+     "noise_survivor_com_mtp3_m": 0.0681,
+     "noise_survivor_cop_std_m": 0.0566,
+     "noise_survivor_gate_excess": 0.6242
+    },
+    "stance5_LTSB_s52@7340032": {
+     "det_cop_mean": 0.0775,
+     "noise_survivor_cop_mean": 0.2119,
+     "det_com_mtp3_m": 0.0654,
+     "noise_survivor_com_mtp3_m": 0.0674,
+     "noise_survivor_cop_std_m": 0.0567,
+     "noise_survivor_gate_excess": 0.6227
+    },
+    "stance5_LTSB_s52@8388608": {
+     "det_cop_mean": 0.0623,
+     "noise_survivor_cop_mean": 0.2336,
+     "det_com_mtp3_m": 0.0644,
+     "noise_survivor_com_mtp3_m": 0.0687,
+     "noise_survivor_cop_std_m": 0.0566,
+     "noise_survivor_gate_excess": 0.6272
+    },
+    "stance5_LTSB_s52@10485760": {
+     "det_cop_mean": -0.1568,
+     "noise_survivor_cop_mean": 0.1134,
+     "det_com_mtp3_m": 0.0491,
+     "noise_survivor_com_mtp3_m": 0.0597,
+     "noise_survivor_cop_std_m": 0.0568,
+     "noise_survivor_gate_excess": 0.6846
+    },
+    "stance5_LTSB_s52@final": {
+     "det_cop_mean": -0.1645,
+     "noise_survivor_cop_mean": 0.0196,
+     "det_com_mtp3_m": 0.0486,
+     "noise_survivor_com_mtp3_m": 0.0545,
+     "noise_survivor_cop_std_m": 0.0588,
+     "noise_survivor_gate_excess": 0.7143
+    },
+    "stance5_LTSB_s60@6291456": {
+     "det_cop_mean": 0.0178,
+     "noise_survivor_cop_mean": 0.208,
+     "det_com_mtp3_m": 0.0613,
+     "noise_survivor_com_mtp3_m": 0.0677,
+     "noise_survivor_cop_std_m": 0.0587,
+     "noise_survivor_gate_excess": 0.6434
+    },
+    "stance5_LTSB_s60@7340032": {
+     "det_cop_mean": -0.0449,
+     "noise_survivor_cop_mean": 0.14,
+     "det_com_mtp3_m": 0.0571,
+     "noise_survivor_com_mtp3_m": 0.0624,
+     "noise_survivor_cop_std_m": 0.0582,
+     "noise_survivor_gate_excess": 0.7039
+    },
+    "stance5_LTSB_s60@8388608": {
+     "det_cop_mean": 0.1402,
+     "noise_survivor_cop_mean": 0.2408,
+     "det_com_mtp3_m": 0.0699,
+     "noise_survivor_com_mtp3_m": 0.0694,
+     "noise_survivor_cop_std_m": 0.0579,
+     "noise_survivor_gate_excess": 0.6229
+    },
+    "stance5_LTSB_s60@10485760": {
+     "det_cop_mean": 0.0867,
+     "noise_survivor_cop_mean": 0.1676,
+     "det_com_mtp3_m": 0.0661,
+     "noise_survivor_com_mtp3_m": 0.065,
+     "noise_survivor_cop_std_m": 0.06,
+     "noise_survivor_gate_excess": 0.714
+    },
+    "stance5_LTSB_s60@final": {
+     "det_cop_mean": -0.0321,
+     "noise_survivor_cop_mean": 0.1395,
+     "det_com_mtp3_m": 0.0581,
+     "noise_survivor_com_mtp3_m": 0.0623,
+     "noise_survivor_cop_std_m": 0.06,
+     "noise_survivor_gate_excess": 0.735
+    },
+    "stance5_LTSB_s42@6291456": {
+     "det_cop_mean": 0.097,
+     "noise_survivor_cop_mean": 0.2728,
+     "det_com_mtp3_m": 0.0668,
+     "noise_survivor_com_mtp3_m": 0.0711,
+     "noise_survivor_cop_std_m": 0.0559,
+     "noise_survivor_gate_excess": 0.5577
+    },
+    "stance5_LTSB_s42@7340032": {
+     "det_cop_mean": 0.0056,
+     "noise_survivor_cop_mean": 0.2214,
+     "det_com_mtp3_m": 0.0604,
+     "noise_survivor_com_mtp3_m": 0.0691,
+     "noise_survivor_cop_std_m": 0.0576,
+     "noise_survivor_gate_excess": 0.6255
+    },
+    "stance5_LTSB_s42@8388608": {
+     "det_cop_mean": 0.0227,
+     "noise_survivor_cop_mean": 0.2507,
+     "det_com_mtp3_m": 0.0616,
+     "noise_survivor_com_mtp3_m": 0.0699,
+     "noise_survivor_cop_std_m": 0.0569,
+     "noise_survivor_gate_excess": 0.6036
+    },
+    "stance5_LTSB_s42@10485760": {
+     "det_cop_mean": -0.0912,
+     "noise_survivor_cop_mean": 0.1242,
+     "det_com_mtp3_m": 0.0536,
+     "noise_survivor_com_mtp3_m": 0.0625,
+     "noise_survivor_cop_std_m": 0.0598,
+     "noise_survivor_gate_excess": 0.7336
+    },
+    "stance5_LTSB_s42@final": {
+     "det_cop_mean": 0.091,
+     "noise_survivor_cop_mean": 0.2461,
+     "det_com_mtp3_m": 0.0664,
+     "noise_survivor_com_mtp3_m": 0.0713,
+     "noise_survivor_cop_std_m": 0.0579,
+     "noise_survivor_gate_excess": 0.6077
+    },
+    "stance4_LTS_s52@6291456": {
+     "det_cop_mean": 0.0439,
+     "noise_survivor_cop_mean": 0.181,
+     "det_com_mtp3_m": 0.0621,
+     "noise_survivor_com_mtp3_m": 0.0642,
+     "noise_survivor_cop_std_m": 0.0552,
+     "noise_survivor_gate_excess": 0.5513
+    },
+    "stance4_LTS_s52@7340032": {
+     "det_cop_mean": 0.0179,
+     "noise_survivor_cop_mean": 0.205,
+     "det_com_mtp3_m": 0.0605,
+     "noise_survivor_com_mtp3_m": 0.0654,
+     "noise_survivor_cop_std_m": 0.056,
+     "noise_survivor_gate_excess": 0.5777
+    },
+    "stance4_LTS_s52@8388608": {
+     "det_cop_mean": 0.0455,
+     "noise_survivor_cop_mean": 0.2149,
+     "det_com_mtp3_m": 0.0623,
+     "noise_survivor_com_mtp3_m": 0.0667,
+     "noise_survivor_cop_std_m": 0.0571,
+     "noise_survivor_gate_excess": 0.5979
+    },
+    "stance4_LTS_s52@10485760": {
+     "det_cop_mean": 0.0474,
+     "noise_survivor_cop_mean": 0.2272,
+     "det_com_mtp3_m": 0.0623,
+     "noise_survivor_com_mtp3_m": 0.0671,
+     "noise_survivor_cop_std_m": 0.0575,
+     "noise_survivor_gate_excess": 0.6399
+    },
+    "stance4_LTS_s52@final": {
+     "det_cop_mean": 0.0256,
+     "noise_survivor_cop_mean": 0.2257,
+     "det_com_mtp3_m": 0.0616,
+     "noise_survivor_com_mtp3_m": 0.0675,
+     "noise_survivor_cop_std_m": 0.0579,
+     "noise_survivor_gate_excess": 0.6568
+    },
+    "stance4_LTS_s60@6291456": {
+     "det_cop_mean": -0.0262,
+     "noise_survivor_cop_mean": 0.1807,
+     "det_com_mtp3_m": 0.057,
+     "noise_survivor_com_mtp3_m": 0.0647,
+     "noise_survivor_cop_std_m": 0.0588,
+     "noise_survivor_gate_excess": 0.6499
+    },
+    "stance4_LTS_s60@7340032": {
+     "det_cop_mean": -0.07,
+     "noise_survivor_cop_mean": 0.1749,
+     "det_com_mtp3_m": 0.0545,
+     "noise_survivor_com_mtp3_m": 0.0629,
+     "noise_survivor_cop_std_m": 0.0577,
+     "noise_survivor_gate_excess": 0.6411
+    },
+    "stance4_LTS_s60@8388608": {
+     "det_cop_mean": -0.1105,
+     "noise_survivor_cop_mean": 0.1537,
+     "det_com_mtp3_m": 0.0522,
+     "noise_survivor_com_mtp3_m": 0.0618,
+     "noise_survivor_cop_std_m": 0.0571,
+     "noise_survivor_gate_excess": 0.6223
+    },
+    "stance4_LTS_s60@10485760": {
+     "det_cop_mean": -0.181,
+     "noise_survivor_cop_mean": 0.1003,
+     "det_com_mtp3_m": 0.0467,
+     "noise_survivor_com_mtp3_m": 0.0579,
+     "noise_survivor_cop_std_m": 0.0576,
+     "noise_survivor_gate_excess": 0.6845
+    },
+    "stance4_LTS_s60@final": {
+     "det_cop_mean": -0.2362,
+     "noise_survivor_cop_mean": 0.0531,
+     "det_com_mtp3_m": 0.0432,
+     "noise_survivor_com_mtp3_m": 0.0558,
+     "noise_survivor_cop_std_m": 0.0591,
+     "noise_survivor_gate_excess": 0.7222
+    },
+    "stance4_LTS_s42@6291456": {
+     "det_cop_mean": 0.1273,
+     "noise_survivor_cop_mean": 0.2336,
+     "det_com_mtp3_m": 0.0685,
+     "noise_survivor_com_mtp3_m": 0.0672,
+     "noise_survivor_cop_std_m": 0.0585,
+     "noise_survivor_gate_excess": 0.6853
+    },
+    "stance4_LTS_s42@7340032": {
+     "det_cop_mean": 0.1254,
+     "noise_survivor_cop_mean": 0.2295,
+     "det_com_mtp3_m": 0.0685,
+     "noise_survivor_com_mtp3_m": 0.0667,
+     "noise_survivor_cop_std_m": 0.0588,
+     "noise_survivor_gate_excess": 0.6804
+    },
+    "stance4_LTS_s42@8388608": {
+     "det_cop_mean": 0.0921,
+     "noise_survivor_cop_mean": 0.2309,
+     "det_com_mtp3_m": 0.0664,
+     "noise_survivor_com_mtp3_m": 0.0673,
+     "noise_survivor_cop_std_m": 0.0582,
+     "noise_survivor_gate_excess": 0.6459
+    },
+    "stance4_LTS_s42@10485760": {
+     "det_cop_mean": 0.1337,
+     "noise_survivor_cop_mean": 0.2555,
+     "det_com_mtp3_m": 0.0692,
+     "noise_survivor_com_mtp3_m": 0.0695,
+     "noise_survivor_cop_std_m": 0.0592,
+     "noise_survivor_gate_excess": 0.6891
+    },
+    "stance4_LTS_s42@final": {
+     "det_cop_mean": 0.04,
+     "noise_survivor_cop_mean": 0.166,
+     "det_com_mtp3_m": 0.0628,
+     "noise_survivor_com_mtp3_m": 0.0654,
+     "noise_survivor_cop_std_m": 0.0607,
+     "noise_survivor_gate_excess": 0.7038
+    }
+   }
+  },
+  "q2_actuator_groups": {
+   "own_sigma_groups": {
+    "stance5_LTSB_s52@6291456": {
+     "neck_head": 0.1435,
+     "hip_pitch": 0.0205,
+     "hip_roll": 0.0894,
+     "knee": 0.0121,
+     "ankle": 0.0193,
+     "tail": 0.1605
+    },
+    "stance5_LTSB_s52@7340032": {
+     "neck_head": 0.1362,
+     "hip_pitch": 0.0186,
+     "hip_roll": 0.0815,
+     "knee": 0.011,
+     "ankle": 0.0176,
+     "tail": 0.152
+    },
+    "stance5_LTSB_s52@8388608": {
+     "neck_head": 0.1297,
+     "hip_pitch": 0.0171,
+     "hip_roll": 0.0759,
+     "knee": 0.0103,
+     "ankle": 0.0165,
+     "tail": 0.1456
+    },
+    "stance5_LTSB_s52@10485760": {
+     "neck_head": 0.1178,
+     "hip_pitch": 0.015,
+     "hip_roll": 0.068,
+     "knee": 0.0092,
+     "ankle": 0.0149,
+     "tail": 0.1356
+    },
+    "stance5_LTSB_s52@final": {
+     "neck_head": 0.1101,
+     "hip_pitch": 0.0139,
+     "hip_roll": 0.0635,
+     "knee": 0.0086,
+     "ankle": 0.014,
+     "tail": 0.1273
+    },
+    "stance5_LTSB_s60@6291456": {
+     "neck_head": 0.1471,
+     "hip_pitch": 0.0215,
+     "hip_roll": 0.0928,
+     "knee": 0.0126,
+     "ankle": 0.0195,
+     "tail": 0.1603
+    },
+    "stance5_LTSB_s60@7340032": {
+     "neck_head": 0.1381,
+     "hip_pitch": 0.0198,
+     "hip_roll": 0.0877,
+     "knee": 0.0117,
+     "ankle": 0.0182,
+     "tail": 0.1532
+    },
+    "stance5_LTSB_s60@8388608": {
+     "neck_head": 0.1316,
+     "hip_pitch": 0.0179,
+     "hip_roll": 0.0823,
+     "knee": 0.0111,
+     "ankle": 0.0169,
+     "tail": 0.1467
+    },
+    "stance5_LTSB_s60@10485760": {
+     "neck_head": 0.1202,
+     "hip_pitch": 0.0158,
+     "hip_roll": 0.0714,
+     "knee": 0.0098,
+     "ankle": 0.0153,
+     "tail": 0.1344
+    },
+    "stance5_LTSB_s60@final": {
+     "neck_head": 0.1127,
+     "hip_pitch": 0.0143,
+     "hip_roll": 0.0662,
+     "knee": 0.009,
+     "ankle": 0.0142,
+     "tail": 0.1265
+    },
+    "stance5_LTSB_s42@6291456": {
+     "neck_head": 0.1394,
+     "hip_pitch": 0.0204,
+     "hip_roll": 0.0845,
+     "knee": 0.0122,
+     "ankle": 0.0195,
+     "tail": 0.1596
+    },
+    "stance5_LTSB_s42@7340032": {
+     "neck_head": 0.1318,
+     "hip_pitch": 0.0187,
+     "hip_roll": 0.0794,
+     "knee": 0.0112,
+     "ankle": 0.0182,
+     "tail": 0.1517
+    },
+    "stance5_LTSB_s42@8388608": {
+     "neck_head": 0.1247,
+     "hip_pitch": 0.0175,
+     "hip_roll": 0.0755,
+     "knee": 0.0105,
+     "ankle": 0.0169,
+     "tail": 0.1462
+    },
+    "stance5_LTSB_s42@10485760": {
+     "neck_head": 0.1147,
+     "hip_pitch": 0.0159,
+     "hip_roll": 0.0676,
+     "knee": 0.0095,
+     "ankle": 0.0152,
+     "tail": 0.138
+    },
+    "stance5_LTSB_s42@final": {
+     "neck_head": 0.1078,
+     "hip_pitch": 0.0148,
+     "hip_roll": 0.063,
+     "knee": 0.0088,
+     "ankle": 0.0142,
+     "tail": 0.1308
+    },
+    "stance4_LTS_s52@6291456": {
+     "neck_head": 0.14,
+     "hip_pitch": 0.0298,
+     "hip_roll": 0.0922,
+     "knee": 0.0137,
+     "ankle": 0.0199,
+     "tail": 0.1612
+    },
+    "stance4_LTS_s52@7340032": {
+     "neck_head": 0.1302,
+     "hip_pitch": 0.0262,
+     "hip_roll": 0.0845,
+     "knee": 0.0123,
+     "ankle": 0.018,
+     "tail": 0.1527
+    },
+    "stance4_LTS_s52@8388608": {
+     "neck_head": 0.1217,
+     "hip_pitch": 0.0242,
+     "hip_roll": 0.0798,
+     "knee": 0.0116,
+     "ankle": 0.017,
+     "tail": 0.1449
+    },
+    "stance4_LTS_s52@10485760": {
+     "neck_head": 0.1114,
+     "hip_pitch": 0.0214,
+     "hip_roll": 0.0727,
+     "knee": 0.0103,
+     "ankle": 0.0156,
+     "tail": 0.134
+    },
+    "stance4_LTS_s52@final": {
+     "neck_head": 0.1042,
+     "hip_pitch": 0.0194,
+     "hip_roll": 0.0668,
+     "knee": 0.0093,
+     "ankle": 0.0146,
+     "tail": 0.1264
+    },
+    "stance4_LTS_s60@6291456": {
+     "neck_head": 0.1382,
+     "hip_pitch": 0.0301,
+     "hip_roll": 0.0896,
+     "knee": 0.0138,
+     "ankle": 0.0198,
+     "tail": 0.1598
+    },
+    "stance4_LTS_s60@7340032": {
+     "neck_head": 0.1326,
+     "hip_pitch": 0.0274,
+     "hip_roll": 0.0826,
+     "knee": 0.0127,
+     "ankle": 0.0183,
+     "tail": 0.1526
+    },
+    "stance4_LTS_s60@8388608": {
+     "neck_head": 0.1256,
+     "hip_pitch": 0.0248,
+     "hip_roll": 0.0771,
+     "knee": 0.0115,
+     "ankle": 0.017,
+     "tail": 0.1433
+    },
+    "stance4_LTS_s60@10485760": {
+     "neck_head": 0.1132,
+     "hip_pitch": 0.0206,
+     "hip_roll": 0.0673,
+     "knee": 0.0098,
+     "ankle": 0.015,
+     "tail": 0.1306
+    },
+    "stance4_LTS_s60@final": {
+     "neck_head": 0.1059,
+     "hip_pitch": 0.0185,
+     "hip_roll": 0.0621,
+     "knee": 0.0089,
+     "ankle": 0.0141,
+     "tail": 0.1227
+    },
+    "stance4_LTS_s42@6291456": {
+     "neck_head": 0.1353,
+     "hip_pitch": 0.0297,
+     "hip_roll": 0.0886,
+     "knee": 0.0137,
+     "ankle": 0.019,
+     "tail": 0.1499
+    },
+    "stance4_LTS_s42@7340032": {
+     "neck_head": 0.1277,
+     "hip_pitch": 0.0265,
+     "hip_roll": 0.0819,
+     "knee": 0.0124,
+     "ankle": 0.0179,
+     "tail": 0.1426
+    },
+    "stance4_LTS_s42@8388608": {
+     "neck_head": 0.1212,
+     "hip_pitch": 0.0241,
+     "hip_roll": 0.0772,
+     "knee": 0.0115,
+     "ankle": 0.017,
+     "tail": 0.137
+    },
+    "stance4_LTS_s42@10485760": {
+     "neck_head": 0.1104,
+     "hip_pitch": 0.0209,
+     "hip_roll": 0.0683,
+     "knee": 0.0099,
+     "ankle": 0.0155,
+     "tail": 0.127
+    },
+    "stance4_LTS_s42@final": {
+     "neck_head": 0.1036,
+     "hip_pitch": 0.0194,
+     "hip_roll": 0.0648,
+     "knee": 0.0094,
+     "ankle": 0.0146,
+     "tail": 0.1214
+    }
+   },
+   "control_over_own": {
+    "stance5_LTSB_s52@6291456": {
+     "neck_head": 1.44,
+     "hip_pitch": 6.89,
+     "hip_roll": 2.13,
+     "knee": 6.49,
+     "ankle": 3.43,
+     "tail": 1.31
+    },
+    "stance5_LTSB_s52@7340032": {
+     "neck_head": 1.52,
+     "hip_pitch": 7.59,
+     "hip_roll": 2.33,
+     "knee": 7.15,
+     "ankle": 3.76,
+     "tail": 1.38
+    },
+    "stance5_LTSB_s52@8388608": {
+     "neck_head": 1.59,
+     "hip_pitch": 8.25,
+     "hip_roll": 2.5,
+     "knee": 7.62,
+     "ankle": 4.02,
+     "tail": 1.44
+    },
+    "stance5_LTSB_s52@10485760": {
+     "neck_head": 1.75,
+     "hip_pitch": 9.41,
+     "hip_roll": 2.79,
+     "knee": 8.57,
+     "ankle": 4.45,
+     "tail": 1.55
+    },
+    "stance5_LTSB_s52@final": {
+     "neck_head": 1.88,
+     "hip_pitch": 10.17,
+     "hip_roll": 3.0,
+     "knee": 9.18,
+     "ankle": 4.75,
+     "tail": 1.65
+    },
+    "stance5_LTSB_s60@6291456": {
+     "neck_head": 1.38,
+     "hip_pitch": 6.81,
+     "hip_roll": 2.04,
+     "knee": 6.36,
+     "ankle": 3.43,
+     "tail": 1.3
+    },
+    "stance5_LTSB_s60@7340032": {
+     "neck_head": 1.47,
+     "hip_pitch": 7.42,
+     "hip_roll": 2.16,
+     "knee": 6.85,
+     "ankle": 3.67,
+     "tail": 1.36
+    },
+    "stance5_LTSB_s60@8388608": {
+     "neck_head": 1.55,
+     "hip_pitch": 8.18,
+     "hip_roll": 2.3,
+     "knee": 7.23,
+     "ankle": 3.94,
+     "tail": 1.43
+    },
+    "stance5_LTSB_s60@10485760": {
+     "neck_head": 1.7,
+     "hip_pitch": 9.26,
+     "hip_roll": 2.65,
+     "knee": 8.16,
+     "ankle": 4.35,
+     "tail": 1.56
+    },
+    "stance5_LTSB_s60@final": {
+     "neck_head": 1.81,
+     "hip_pitch": 10.22,
+     "hip_roll": 2.86,
+     "knee": 8.93,
+     "ankle": 4.7,
+     "tail": 1.65
+    },
+    "stance5_LTSB_s42@6291456": {
+     "neck_head": 1.47,
+     "hip_pitch": 6.91,
+     "hip_roll": 2.22,
+     "knee": 6.51,
+     "ankle": 3.43,
+     "tail": 1.34
+    },
+    "stance5_LTSB_s42@7340032": {
+     "neck_head": 1.55,
+     "hip_pitch": 7.56,
+     "hip_roll": 2.37,
+     "knee": 7.05,
+     "ankle": 3.68,
+     "tail": 1.41
+    },
+    "stance5_LTSB_s42@8388608": {
+     "neck_head": 1.64,
+     "hip_pitch": 8.09,
+     "hip_roll": 2.49,
+     "knee": 7.55,
+     "ankle": 3.97,
+     "tail": 1.46
+    },
+    "stance5_LTSB_s42@10485760": {
+     "neck_head": 1.78,
+     "hip_pitch": 8.88,
+     "hip_roll": 2.78,
+     "knee": 8.36,
+     "ankle": 4.39,
+     "tail": 1.55
+    },
+    "stance5_LTSB_s42@final": {
+     "neck_head": 1.9,
+     "hip_pitch": 9.54,
+     "hip_roll": 2.98,
+     "knee": 9.06,
+     "ankle": 4.71,
+     "tail": 1.64
+    },
+    "stance4_LTS_s52@6291456": {
+     "neck_head": 1.47,
+     "hip_pitch": 4.74,
+     "hip_roll": 2.06,
+     "knee": 5.74,
+     "ankle": 3.32,
+     "tail": 1.3
+    },
+    "stance4_LTS_s52@7340032": {
+     "neck_head": 1.58,
+     "hip_pitch": 5.38,
+     "hip_roll": 2.25,
+     "knee": 6.38,
+     "ankle": 3.68,
+     "tail": 1.38
+    },
+    "stance4_LTS_s52@8388608": {
+     "neck_head": 1.69,
+     "hip_pitch": 5.84,
+     "hip_roll": 2.38,
+     "knee": 6.79,
+     "ankle": 3.9,
+     "tail": 1.45
+    },
+    "stance4_LTS_s52@10485760": {
+     "neck_head": 1.85,
+     "hip_pitch": 6.6,
+     "hip_roll": 2.61,
+     "knee": 7.65,
+     "ankle": 4.24,
+     "tail": 1.57
+    },
+    "stance4_LTS_s52@final": {
+     "neck_head": 1.98,
+     "hip_pitch": 7.29,
+     "hip_roll": 2.85,
+     "knee": 8.47,
+     "ankle": 4.53,
+     "tail": 1.66
+    },
+    "stance4_LTS_s60@6291456": {
+     "neck_head": 1.47,
+     "hip_pitch": 4.87,
+     "hip_roll": 2.11,
+     "knee": 5.8,
+     "ankle": 3.36,
+     "tail": 1.31
+    },
+    "stance4_LTS_s60@7340032": {
+     "neck_head": 1.53,
+     "hip_pitch": 5.35,
+     "hip_roll": 2.29,
+     "knee": 6.3,
+     "ankle": 3.65,
+     "tail": 1.37
+    },
+    "stance4_LTS_s60@8388608": {
+     "neck_head": 1.62,
+     "hip_pitch": 5.91,
+     "hip_roll": 2.46,
+     "knee": 7.0,
+     "ankle": 3.93,
+     "tail": 1.46
+    },
+    "stance4_LTS_s60@10485760": {
+     "neck_head": 1.79,
+     "hip_pitch": 7.11,
+     "hip_roll": 2.82,
+     "knee": 8.22,
+     "ankle": 4.44,
+     "tail": 1.6
+    },
+    "stance4_LTS_s60@final": {
+     "neck_head": 1.92,
+     "hip_pitch": 7.92,
+     "hip_roll": 3.05,
+     "knee": 8.97,
+     "ankle": 4.73,
+     "tail": 1.7
+    },
+    "stance4_LTS_s42@6291456": {
+     "neck_head": 1.51,
+     "hip_pitch": 4.76,
+     "hip_roll": 2.12,
+     "knee": 5.8,
+     "ankle": 3.53,
+     "tail": 1.43
+    },
+    "stance4_LTS_s42@7340032": {
+     "neck_head": 1.6,
+     "hip_pitch": 5.34,
+     "hip_roll": 2.3,
+     "knee": 6.39,
+     "ankle": 3.74,
+     "tail": 1.5
+    },
+    "stance4_LTS_s42@8388608": {
+     "neck_head": 1.69,
+     "hip_pitch": 5.86,
+     "hip_roll": 2.44,
+     "knee": 6.92,
+     "ankle": 3.94,
+     "tail": 1.56
+    },
+    "stance4_LTS_s42@10485760": {
+     "neck_head": 1.85,
+     "hip_pitch": 6.74,
+     "hip_roll": 2.75,
+     "knee": 7.98,
+     "ankle": 4.31,
+     "tail": 1.69
+    },
+    "stance4_LTS_s42@final": {
+     "neck_head": 1.98,
+     "hip_pitch": 7.28,
+     "hip_roll": 2.9,
+     "knee": 8.44,
+     "ankle": 4.59,
+     "tail": 1.77
+    }
+   },
+   "control_sigma_groups": {
+    "42": {
+     "neck_head": 0.2035,
+     "hip_pitch": 0.1412,
+     "hip_roll": 0.188,
+     "knee": 0.0792,
+     "ankle": 0.0669,
+     "tail": 0.2131
+    },
+    "52": {
+     "neck_head": 0.2059,
+     "hip_pitch": 0.1411,
+     "hip_roll": 0.1902,
+     "knee": 0.0788,
+     "ankle": 0.0663,
+     "tail": 0.2097
+    },
+    "60": {
+     "neck_head": 0.2025,
+     "hip_pitch": 0.1467,
+     "hip_roll": 0.1895,
+     "knee": 0.0803,
+     "ankle": 0.0667,
+     "tail": 0.2089
+    }
+   },
+   "common_noise_sigma_groups": {
+    "neck_head": 0.2152,
+    "hip_pitch": 0.1672,
+    "hip_roll": 0.2061,
+    "knee": 0.1246,
+    "ankle": 0.1095,
+    "tail": 0.2199
+   },
+   "extras_final": {
+    "stance5_LTSB_s52": {
+     "common_noise_falls_of_40": 6,
+     "common_noise_causes": {
+      "tail_contact": 5,
+      "nosedive": 1
+     },
+     "tail_seed_falls_of_32": 3,
+     "tail_seed_causes": {
+      "nosedive": 2,
+      "fallen": 1
+     },
+     "tail_seed_statue_falls": 0,
+     "fresh_panel_falls_of_40": 1,
+     "fresh_panel_terminations": {
+      "truncated": 39,
+      "nosedive": 1
+     }
+    },
+    "stance5_LTSB_s60": {
+     "common_noise_falls_of_40": 5,
+     "common_noise_causes": {
+      "fallen": 4,
+      "nosedive": 1
+     },
+     "tail_seed_falls_of_32": 0,
+     "tail_seed_causes": {},
+     "tail_seed_statue_falls": 0,
+     "fresh_panel_falls_of_40": 0,
+     "fresh_panel_terminations": {
+      "truncated": 40
+     }
+    },
+    "stance5_LTSB_s42": {
+     "common_noise_falls_of_40": 31,
+     "common_noise_causes": {
+      "fallen": 17,
+      "nosedive": 13,
+      "tail_contact": 1
+     },
+     "tail_seed_falls_of_32": 4,
+     "tail_seed_causes": {
+      "fallen": 4
+     },
+     "tail_seed_statue_falls": 0,
+     "fresh_panel_falls_of_40": 2,
+     "fresh_panel_terminations": {
+      "truncated": 38,
+      "nosedive": 1,
+      "fallen": 1
+     }
+    },
+    "stance4_LTS_s52": {
+     "common_noise_falls_of_40": 5,
+     "common_noise_causes": {
+      "fallen": 5
+     },
+     "tail_seed_falls_of_32": 2,
+     "tail_seed_causes": {
+      "nosedive": 2
+     },
+     "tail_seed_statue_falls": 0,
+     "fresh_panel_falls_of_40": 0,
+     "fresh_panel_terminations": {
+      "truncated": 40
+     }
+    },
+    "stance4_LTS_s60": {
+     "common_noise_falls_of_40": 1,
+     "common_noise_causes": {
+      "fallen": 1
+     },
+     "tail_seed_falls_of_32": 6,
+     "tail_seed_causes": {
+      "nosedive": 3,
+      "fallen": 3
+     },
+     "tail_seed_statue_falls": 0,
+     "fresh_panel_falls_of_40": 1,
+     "fresh_panel_terminations": {
+      "truncated": 39,
+      "nosedive": 1
+     }
+    },
+    "stance4_LTS_s42": {
+     "common_noise_falls_of_40": 30,
+     "common_noise_causes": {
+      "head_contact": 11,
+      "fallen": 11,
+      "tail_contact": 7,
+      "nosedive": 1
+     },
+     "tail_seed_falls_of_32": 5,
+     "tail_seed_causes": {
+      "head_contact": 3,
+      "nosedive": 2
+     },
+     "tail_seed_statue_falls": 0,
+     "fresh_panel_falls_of_40": 1,
+     "fresh_panel_terminations": {
+      "truncated": 39,
+      "head_contact": 1
+     }
+    }
+   },
+   "pinned_tail3_joint_noise": {
+    "sigma": 0.2062,
+    "mean_shift_when_pinned": -0.0823,
+    "joint_shift_rad_via_satdiag_map": -0.0071,
+    "note": "joint space clips the command first, so a tail_3 command pinned at +1 only receives downward kicks (half of them): mean shift -sigma/sqrt(2 pi); satdiag's map q = -0.093 + 0.086 a makes that about -0.007 rad"
+   }
+  },
+  "q3_band_vs_control": {
+   "falls": {
+    "s52": {
+     "6291456": {
+      "band": 0,
+      "control": 0
+     },
+     "7340032": {
+      "band": 0,
+      "control": 0
+     },
+     "8388608": {
+      "band": 1,
+      "control": 0
+     },
+     "10485760": {
+      "band": 1,
+      "control": 1
+     },
+     "final": {
+      "band": 0,
+      "control": 0
+     }
+    },
+    "s60": {
+     "6291456": {
+      "band": 0,
+      "control": 0
+     },
+     "7340032": {
+      "band": 0,
+      "control": 0
+     },
+     "8388608": {
+      "band": 1,
+      "control": 0
+     },
+     "10485760": {
+      "band": 1,
+      "control": 0
+     },
+     "final": {
+      "band": 3,
+      "control": 1
+     }
+    },
+    "s42": {
+     "6291456": {
+      "band": 0,
+      "control": 0
+     },
+     "7340032": {
+      "band": 9,
+      "control": 0
+     },
+     "8388608": {
+      "band": 5,
+      "control": 0
+     },
+     "10485760": {
+      "band": 9,
+      "control": 1
+     },
+     "final": {
+      "band": 13,
+      "control": 8
+     }
+    }
+   },
+   "paired": {
+    "s42_6291456": {
+     "band_only": [],
+     "control_only": [],
+     "both": []
+    },
+    "s42_8388608": {
+     "band_only": [
+      3046,
+      3050,
+      3051,
+      3054,
+      3059
+     ],
+     "control_only": [],
+     "both": []
+    },
+    "s42_10485760": {
+     "band_only": [
+      3047,
+      3048,
+      3053,
+      3054,
+      3055,
+      3058,
+      3059,
+      3061
+     ],
+     "control_only": [],
+     "both": [
+      3050
+     ]
+    },
+    "s42_final": {
+     "band_only": [
+      3042,
+      3044,
+      3046,
+      3048,
+      3055
+     ],
+     "control_only": [],
+     "both": [
+      3047,
+      3050,
+      3051,
+      3052,
+      3054,
+      3058,
+      3059,
+      3061
+     ]
+    },
+    "s52_6291456": {
+     "band_only": [],
+     "control_only": [],
+     "both": []
+    },
+    "s52_8388608": {
+     "band_only": [
+      3061
+     ],
+     "control_only": [],
+     "both": []
+    },
+    "s52_10485760": {
+     "band_only": [
+      3051
+     ],
+     "control_only": [
+      3061
+     ],
+     "both": []
+    },
+    "s52_final": {
+     "band_only": [],
+     "control_only": [],
+     "both": []
+    },
+    "s60_6291456": {
+     "band_only": [],
+     "control_only": [],
+     "both": []
+    },
+    "s60_8388608": {
+     "band_only": [
+      3059
+     ],
+     "control_only": [],
+     "both": []
+    },
+    "s60_10485760": {
+     "band_only": [
+      3057
+     ],
+     "control_only": [],
+     "both": []
+    },
+    "s60_final": {
+     "band_only": [
+      3046,
+      3059
+     ],
+     "control_only": [],
+     "both": [
+      3061
+     ]
+    }
+   },
+   "survivor_margins": {
+    "stance5_LTSB_s52@6291456": {
+     "noise_toe_margin_min_nm_median": 23.8616,
+     "noise_heel_margin_min_nm_median": 30.3245,
+     "noise_cop_mean": 0.2135,
+     "noise_cop_std_m": 0.0566,
+     "det_toe_margin_min_nm_mean": 25.5821,
+     "det_heel_margin_min_nm_mean": 29.0497
+    },
+    "stance5_LTSB_s52@7340032": {
+     "noise_toe_margin_min_nm_median": 24.2727,
+     "noise_heel_margin_min_nm_median": 30.3259,
+     "noise_cop_mean": 0.2119,
+     "noise_cop_std_m": 0.0567,
+     "det_toe_margin_min_nm_mean": 26.1708,
+     "det_heel_margin_min_nm_mean": 30.9493
+    },
+    "stance5_LTSB_s52@8388608": {
+     "noise_toe_margin_min_nm_median": 21.5158,
+     "noise_heel_margin_min_nm_median": 29.8159,
+     "noise_cop_mean": 0.2336,
+     "noise_cop_std_m": 0.0566,
+     "det_toe_margin_min_nm_mean": 23.8613,
+     "det_heel_margin_min_nm_mean": 27.865
+    },
+    "stance5_LTSB_s52@10485760": {
+     "noise_toe_margin_min_nm_median": 26.807,
+     "noise_heel_margin_min_nm_median": 26.0902,
+     "noise_cop_mean": 0.1134,
+     "noise_cop_std_m": 0.0568,
+     "det_toe_margin_min_nm_mean": 29.9045,
+     "det_heel_margin_min_nm_mean": 21.0831
+    },
+    "stance5_LTSB_s52@final": {
+     "noise_toe_margin_min_nm_median": 28.7286,
+     "noise_heel_margin_min_nm_median": 24.8982,
+     "noise_cop_mean": 0.0196,
+     "noise_cop_std_m": 0.0588,
+     "det_toe_margin_min_nm_mean": 33.6494,
+     "det_heel_margin_min_nm_mean": 24.0469
+    },
+    "stance5_LTSB_s60@6291456": {
+     "noise_toe_margin_min_nm_median": 24.4792,
+     "noise_heel_margin_min_nm_median": 31.3503,
+     "noise_cop_mean": 0.208,
+     "noise_cop_std_m": 0.0587,
+     "det_toe_margin_min_nm_mean": 27.3138,
+     "det_heel_margin_min_nm_mean": 28.8727
+    },
+    "stance5_LTSB_s60@7340032": {
+     "noise_toe_margin_min_nm_median": 26.5637,
+     "noise_heel_margin_min_nm_median": 27.9729,
+     "noise_cop_mean": 0.14,
+     "noise_cop_std_m": 0.0582,
+     "det_toe_margin_min_nm_mean": 28.9716,
+     "det_heel_margin_min_nm_mean": 25.727
+    },
+    "stance5_LTSB_s60@8388608": {
+     "noise_toe_margin_min_nm_median": 23.0707,
+     "noise_heel_margin_min_nm_median": 30.9943,
+     "noise_cop_mean": 0.2408,
+     "noise_cop_std_m": 0.0579,
+     "det_toe_margin_min_nm_mean": 22.5129,
+     "det_heel_margin_min_nm_mean": 30.4838
+    },
+    "stance5_LTSB_s60@10485760": {
+     "noise_toe_margin_min_nm_median": 25.204,
+     "noise_heel_margin_min_nm_median": 29.2778,
+     "noise_cop_mean": 0.1676,
+     "noise_cop_std_m": 0.06,
+     "det_toe_margin_min_nm_mean": 25.5772,
+     "det_heel_margin_min_nm_mean": 31.3607
+    },
+    "stance5_LTSB_s60@final": {
+     "noise_toe_margin_min_nm_median": 26.5778,
+     "noise_heel_margin_min_nm_median": 27.8179,
+     "noise_cop_mean": 0.1395,
+     "noise_cop_std_m": 0.06,
+     "det_toe_margin_min_nm_mean": 25.5425,
+     "det_heel_margin_min_nm_mean": 23.1724
+    },
+    "stance5_LTSB_s42@6291456": {
+     "noise_toe_margin_min_nm_median": 22.7586,
+     "noise_heel_margin_min_nm_median": 32.5818,
+     "noise_cop_mean": 0.2728,
+     "noise_cop_std_m": 0.0559,
+     "det_toe_margin_min_nm_mean": 25.6882,
+     "det_heel_margin_min_nm_mean": 31.5149
+    },
+    "stance5_LTSB_s42@7340032": {
+     "noise_toe_margin_min_nm_median": 23.5955,
+     "noise_heel_margin_min_nm_median": 30.5645,
+     "noise_cop_mean": 0.2214,
+     "noise_cop_std_m": 0.0576,
+     "det_toe_margin_min_nm_mean": 27.8535,
+     "det_heel_margin_min_nm_mean": 27.9823
+    },
+    "stance5_LTSB_s42@8388608": {
+     "noise_toe_margin_min_nm_median": 23.3024,
+     "noise_heel_margin_min_nm_median": 31.4439,
+     "noise_cop_mean": 0.2507,
+     "noise_cop_std_m": 0.0569,
+     "det_toe_margin_min_nm_mean": 28.1776,
+     "det_heel_margin_min_nm_mean": 29.3859
+    },
+    "stance5_LTSB_s42@10485760": {
+     "noise_toe_margin_min_nm_median": 26.6794,
+     "noise_heel_margin_min_nm_median": 28.3476,
+     "noise_cop_mean": 0.1242,
+     "noise_cop_std_m": 0.0598,
+     "det_toe_margin_min_nm_mean": 29.9991,
+     "det_heel_margin_min_nm_mean": 24.6566
+    },
+    "stance5_LTSB_s42@final": {
+     "noise_toe_margin_min_nm_median": 23.4259,
+     "noise_heel_margin_min_nm_median": 32.0807,
+     "noise_cop_mean": 0.2461,
+     "noise_cop_std_m": 0.0579,
+     "det_toe_margin_min_nm_mean": 25.8613,
+     "det_heel_margin_min_nm_mean": 31.2307
+    },
+    "stance4_LTS_s52@6291456": {
+     "noise_toe_margin_min_nm_median": 21.8804,
+     "noise_heel_margin_min_nm_median": 25.6689,
+     "noise_cop_mean": 0.181,
+     "noise_cop_std_m": 0.0552,
+     "det_toe_margin_min_nm_mean": 12.5285,
+     "det_heel_margin_min_nm_mean": 15.4856
+    },
+    "stance4_LTS_s52@7340032": {
+     "noise_toe_margin_min_nm_median": 20.3776,
+     "noise_heel_margin_min_nm_median": 24.5596,
+     "noise_cop_mean": 0.205,
+     "noise_cop_std_m": 0.056,
+     "det_toe_margin_min_nm_mean": 14.5026,
+     "det_heel_margin_min_nm_mean": 15.9318
+    },
+    "stance4_LTS_s52@8388608": {
+     "noise_toe_margin_min_nm_median": 19.1667,
+     "noise_heel_margin_min_nm_median": 25.2274,
+     "noise_cop_mean": 0.2149,
+     "noise_cop_std_m": 0.0571,
+     "det_toe_margin_min_nm_mean": 13.5151,
+     "det_heel_margin_min_nm_mean": 16.6328
+    },
+    "stance4_LTS_s52@10485760": {
+     "noise_toe_margin_min_nm_median": 20.4733,
+     "noise_heel_margin_min_nm_median": 26.7889,
+     "noise_cop_mean": 0.2272,
+     "noise_cop_std_m": 0.0575,
+     "det_toe_margin_min_nm_mean": 12.1347,
+     "det_heel_margin_min_nm_mean": 15.3917
+    },
+    "stance4_LTS_s52@final": {
+     "noise_toe_margin_min_nm_median": 21.8672,
+     "noise_heel_margin_min_nm_median": 28.1754,
+     "noise_cop_mean": 0.2257,
+     "noise_cop_std_m": 0.0579,
+     "det_toe_margin_min_nm_mean": 20.322,
+     "det_heel_margin_min_nm_mean": 22.1582
+    },
+    "stance4_LTS_s60@6291456": {
+     "noise_toe_margin_min_nm_median": 22.7987,
+     "noise_heel_margin_min_nm_median": 26.5482,
+     "noise_cop_mean": 0.1807,
+     "noise_cop_std_m": 0.0588,
+     "det_toe_margin_min_nm_mean": 16.3112,
+     "det_heel_margin_min_nm_mean": 15.2553
+    },
+    "stance4_LTS_s60@7340032": {
+     "noise_toe_margin_min_nm_median": 24.9539,
+     "noise_heel_margin_min_nm_median": 26.8279,
+     "noise_cop_mean": 0.1749,
+     "noise_cop_std_m": 0.0577,
+     "det_toe_margin_min_nm_mean": 17.6212,
+     "det_heel_margin_min_nm_mean": 13.831
+    },
+    "stance4_LTS_s60@8388608": {
+     "noise_toe_margin_min_nm_median": 23.7964,
+     "noise_heel_margin_min_nm_median": 26.3169,
+     "noise_cop_mean": 0.1537,
+     "noise_cop_std_m": 0.0571,
+     "det_toe_margin_min_nm_mean": 19.4768,
+     "det_heel_margin_min_nm_mean": 13.1313
+    },
+    "stance4_LTS_s60@10485760": {
+     "noise_toe_margin_min_nm_median": 27.4987,
+     "noise_heel_margin_min_nm_median": 24.9911,
+     "noise_cop_mean": 0.1003,
+     "noise_cop_std_m": 0.0576,
+     "det_toe_margin_min_nm_mean": 20.8983,
+     "det_heel_margin_min_nm_mean": 10.7546
+    },
+    "stance4_LTS_s60@final": {
+     "noise_toe_margin_min_nm_median": 29.1576,
+     "noise_heel_margin_min_nm_median": 24.689,
+     "noise_cop_mean": 0.0531,
+     "noise_cop_std_m": 0.0591,
+     "det_toe_margin_min_nm_mean": 27.4415,
+     "det_heel_margin_min_nm_mean": 14.1016
+    },
+    "stance4_LTS_s42@6291456": {
+     "noise_toe_margin_min_nm_median": 20.7814,
+     "noise_heel_margin_min_nm_median": 27.1622,
+     "noise_cop_mean": 0.2336,
+     "noise_cop_std_m": 0.0585,
+     "det_toe_margin_min_nm_mean": 16.9005,
+     "det_heel_margin_min_nm_mean": 24.7636
+    },
+    "stance4_LTS_s42@7340032": {
+     "noise_toe_margin_min_nm_median": 23.1659,
+     "noise_heel_margin_min_nm_median": 28.5769,
+     "noise_cop_mean": 0.2295,
+     "noise_cop_std_m": 0.0588,
+     "det_toe_margin_min_nm_mean": 19.3098,
+     "det_heel_margin_min_nm_mean": 27.0934
+    },
+    "stance4_LTS_s42@8388608": {
+     "noise_toe_margin_min_nm_median": 23.3152,
+     "noise_heel_margin_min_nm_median": 29.96,
+     "noise_cop_mean": 0.2309,
+     "noise_cop_std_m": 0.0582,
+     "det_toe_margin_min_nm_mean": 22.9357,
+     "det_heel_margin_min_nm_mean": 28.4211
+    },
+    "stance4_LTS_s42@10485760": {
+     "noise_toe_margin_min_nm_median": 19.2627,
+     "noise_heel_margin_min_nm_median": 28.3152,
+     "noise_cop_mean": 0.2555,
+     "noise_cop_std_m": 0.0592,
+     "det_toe_margin_min_nm_mean": 17.6839,
+     "det_heel_margin_min_nm_mean": 25.8466
+    },
+    "stance4_LTS_s42@final": {
+     "noise_toe_margin_min_nm_median": 21.3942,
+     "noise_heel_margin_min_nm_median": 25.6644,
+     "noise_cop_mean": 0.166,
+     "noise_cop_std_m": 0.0607,
+     "det_toe_margin_min_nm_mean": 22.1771,
+     "det_heel_margin_min_nm_mean": 24.4504
+    }
+   },
+   "det_split": {
+    "stance5_LTSB_s52@6291456": {
+     "per_foot_cop_max": 0.1223,
+     "per_foot_cop_min": -0.02201,
+     "split": 0.1443,
+     "xc_median_m": 0.06382,
+     "com_mtp3_median_m": 0.0638
+    },
+    "stance5_LTSB_s52@7340032": {
+     "per_foot_cop_max": 0.1049,
+     "per_foot_cop_min": 0.05018,
+     "split": 0.0547,
+     "xc_median_m": 0.06533,
+     "com_mtp3_median_m": 0.06538
+    },
+    "stance5_LTSB_s52@8388608": {
+     "per_foot_cop_max": 0.18353,
+     "per_foot_cop_min": -0.05891,
+     "split": 0.2424,
+     "xc_median_m": 0.06422,
+     "com_mtp3_median_m": 0.06433
+    },
+    "stance5_LTSB_s52@10485760": {
+     "per_foot_cop_max": -0.02437,
+     "per_foot_cop_min": -0.28927,
+     "split": 0.2649,
+     "xc_median_m": 0.0498,
+     "com_mtp3_median_m": 0.04995
+    },
+    "stance5_LTSB_s52@final": {
+     "per_foot_cop_max": -0.14589,
+     "per_foot_cop_min": -0.18304,
+     "split": 0.0372,
+     "xc_median_m": 0.04939,
+     "com_mtp3_median_m": 0.04958
+    },
+    "stance5_LTSB_s60@6291456": {
+     "per_foot_cop_max": 0.06221,
+     "per_foot_cop_min": -0.02652,
+     "split": 0.0887,
+     "xc_median_m": 0.0622,
+     "com_mtp3_median_m": 0.06221
+    },
+    "stance5_LTSB_s60@7340032": {
+     "per_foot_cop_max": 0.02624,
+     "per_foot_cop_min": -0.11598,
+     "split": 0.1422,
+     "xc_median_m": 0.05704,
+     "com_mtp3_median_m": 0.05717
+    },
+    "stance5_LTSB_s60@8388608": {
+     "per_foot_cop_max": 0.23863,
+     "per_foot_cop_min": 0.04184,
+     "split": 0.1968,
+     "xc_median_m": 0.0703,
+     "com_mtp3_median_m": 0.07043
+    },
+    "stance5_LTSB_s60@10485760": {
+     "per_foot_cop_max": 0.11935,
+     "per_foot_cop_min": 0.05409,
+     "split": 0.0653,
+     "xc_median_m": 0.06687,
+     "com_mtp3_median_m": 0.06704
+    },
+    "stance5_LTSB_s60@final": {
+     "per_foot_cop_max": 0.14016,
+     "per_foot_cop_min": -0.20439,
+     "split": 0.3446,
+     "xc_median_m": 0.05839,
+     "com_mtp3_median_m": 0.05839
+    },
+    "stance5_LTSB_s42@6291456": {
+     "per_foot_cop_max": 0.12441,
+     "per_foot_cop_min": 0.06959,
+     "split": 0.0548,
+     "xc_median_m": 0.06765,
+     "com_mtp3_median_m": 0.06763
+    },
+    "stance5_LTSB_s42@7340032": {
+     "per_foot_cop_max": 0.05682,
+     "per_foot_cop_min": -0.04569,
+     "split": 0.1025,
+     "xc_median_m": 0.06094,
+     "com_mtp3_median_m": 0.0609
+    },
+    "stance5_LTSB_s42@8388608": {
+     "per_foot_cop_max": 0.04284,
+     "per_foot_cop_min": 0.00264,
+     "split": 0.0402,
+     "xc_median_m": 0.06243,
+     "com_mtp3_median_m": 0.06233
+    },
+    "stance5_LTSB_s42@10485760": {
+     "per_foot_cop_max": -0.01991,
+     "per_foot_cop_min": -0.1625,
+     "split": 0.1426,
+     "xc_median_m": 0.05403,
+     "com_mtp3_median_m": 0.0541
+    },
+    "stance5_LTSB_s42@final": {
+     "per_foot_cop_max": 0.12097,
+     "per_foot_cop_min": 0.06101,
+     "split": 0.06,
+     "xc_median_m": 0.06634,
+     "com_mtp3_median_m": 0.06634
+    },
+    "stance4_LTS_s52@6291456": {
+     "per_foot_cop_max": 0.56907,
+     "per_foot_cop_min": -0.48121,
+     "split": 1.0503,
+     "xc_median_m": 0.0625,
+     "com_mtp3_median_m": 0.06263
+    },
+    "stance4_LTS_s52@7340032": {
+     "per_foot_cop_max": 0.50129,
+     "per_foot_cop_min": -0.46545,
+     "split": 0.9667,
+     "xc_median_m": 0.06093,
+     "com_mtp3_median_m": 0.061
+    },
+    "stance4_LTS_s52@8388608": {
+     "per_foot_cop_max": 0.53416,
+     "per_foot_cop_min": -0.4431,
+     "split": 0.9773,
+     "xc_median_m": 0.06268,
+     "com_mtp3_median_m": 0.06269
+    },
+    "stance4_LTS_s52@10485760": {
+     "per_foot_cop_max": 0.58114,
+     "per_foot_cop_min": -0.48627,
+     "split": 1.0674,
+     "xc_median_m": 0.06252,
+     "com_mtp3_median_m": 0.06258
+    },
+    "stance4_LTS_s52@final": {
+     "per_foot_cop_max": 0.3042,
+     "per_foot_cop_min": -0.25302,
+     "split": 0.5572,
+     "xc_median_m": 0.06186,
+     "com_mtp3_median_m": 0.06186
+    },
+    "stance4_LTS_s60@6291456": {
+     "per_foot_cop_max": 0.43728,
+     "per_foot_cop_min": -0.48965,
+     "split": 0.9269,
+     "xc_median_m": 0.05712,
+     "com_mtp3_median_m": 0.05715
+    },
+    "stance4_LTS_s60@7340032": {
+     "per_foot_cop_max": 0.39463,
+     "per_foot_cop_min": -0.5347,
+     "split": 0.9293,
+     "xc_median_m": 0.05465,
+     "com_mtp3_median_m": 0.05475
+    },
+    "stance4_LTS_s60@8388608": {
+     "per_foot_cop_max": 0.33545,
+     "per_foot_cop_min": -0.55635,
+     "split": 0.8918,
+     "xc_median_m": 0.05362,
+     "com_mtp3_median_m": 0.05378
+    },
+    "stance4_LTS_s60@10485760": {
+     "per_foot_cop_max": 0.27773,
+     "per_foot_cop_min": -0.63975,
+     "split": 0.9175,
+     "xc_median_m": 0.04661,
+     "com_mtp3_median_m": 0.0467
+    },
+    "stance4_LTS_s60@final": {
+     "per_foot_cop_max": 0.05455,
+     "per_foot_cop_min": -0.52687,
+     "split": 0.5814,
+     "xc_median_m": 0.0432,
+     "com_mtp3_median_m": 0.04338
+    },
+    "stance4_LTS_s42@6291456": {
+     "per_foot_cop_max": 0.42103,
+     "per_foot_cop_min": -0.1665,
+     "split": 0.5875,
+     "xc_median_m": 0.0682,
+     "com_mtp3_median_m": 0.06816
+    },
+    "stance4_LTS_s42@7340032": {
+     "per_foot_cop_max": 0.33865,
+     "per_foot_cop_min": -0.08791,
+     "split": 0.4266,
+     "xc_median_m": 0.06839,
+     "com_mtp3_median_m": 0.06833
+    },
+    "stance4_LTS_s42@8388608": {
+     "per_foot_cop_max": 0.2197,
+     "per_foot_cop_min": -0.03559,
+     "split": 0.2553,
+     "xc_median_m": 0.06659,
+     "com_mtp3_median_m": 0.06657
+    },
+    "stance4_LTS_s42@10485760": {
+     "per_foot_cop_max": 0.39517,
+     "per_foot_cop_min": -0.12776,
+     "split": 0.5229,
+     "xc_median_m": 0.0689,
+     "com_mtp3_median_m": 0.06886
+    },
+    "stance4_LTS_s42@final": {
+     "per_foot_cop_max": 0.24515,
+     "per_foot_cop_min": -0.16515,
+     "split": 0.4103,
+     "xc_median_m": 0.06146,
+     "com_mtp3_median_m": 0.06158
+    }
+   },
+   "recovery": {
+    "stance5_LTSB_s52": {
+     "falls": 2,
+     "survived_roll_rail_excursions": 0,
+     "survived_tilt_over_3p5deg": 0
+    },
+    "stance5_LTSB_s60": {
+     "falls": 5,
+     "survived_roll_rail_excursions": 6,
+     "survived_tilt_over_3p5deg": 0
+    },
+    "stance5_LTSB_s42": {
+     "falls": 36,
+     "survived_roll_rail_excursions": 4,
+     "survived_tilt_over_3p5deg": 0
+    },
+    "stance4_LTS_s52": {
+     "falls": 1,
+     "survived_roll_rail_excursions": 0,
+     "survived_tilt_over_3p5deg": 0
+    },
+    "stance4_LTS_s60": {
+     "falls": 1,
+     "survived_roll_rail_excursions": 1,
+     "survived_tilt_over_3p5deg": 0
+    },
+    "stance4_LTS_s42": {
+     "falls": 9,
+     "survived_roll_rail_excursions": 6,
+     "survived_tilt_over_3p5deg": 1
+    }
+   },
+   "falls_total_key_slots": {
+    "band": 43,
+    "control": 11,
+    "episodes_each": 300,
+    "band_excl_s42": 7,
+    "control_excl_s42": 2
+   },
+   "ankle_torque_headroom": "not in the judge files: the noise rows hold no actuator forces; the eval ledger's actuator_force_frac_max (deterministic, max over 15 actuators, held by head_pitch or tail_1 per satdiag) reads 0.27-0.36 in all runs",
+   "band_det_readouts": {
+    "stance5_LTSB_s52@4194304": {
+     "whole_out": 50,
+     "pad_out": 0,
+     "window_foot_steps": 64000,
+     "window_steps_paying": 50,
+     "paid_mean": -0.0132,
+     "share_min": 0.45692
+    },
+    "stance5_LTSB_s52@5242880": {
+     "whole_out": 0,
+     "pad_out": 0,
+     "window_foot_steps": 64000,
+     "window_steps_paying": 0,
+     "paid_mean": 0.0,
+     "share_min": 0.46453
+    },
+    "stance5_LTSB_s52@6291456": {
+     "whole_out": 87,
+     "pad_out": 13,
+     "window_foot_steps": 64000,
+     "window_steps_paying": 87,
+     "paid_mean": -0.03539,
+     "share_min": 0.44556
+    },
+    "stance5_LTSB_s52@7340032": {
+     "whole_out": 0,
+     "pad_out": 0,
+     "window_foot_steps": 64000,
+     "window_steps_paying": 0,
+     "paid_mean": 0.0,
+     "share_min": 0.4565
+    },
+    "stance5_LTSB_s52@8388608": {
+     "whole_out": 265,
+     "pad_out": 66,
+     "window_foot_steps": 64000,
+     "window_steps_paying": 252,
+     "paid_mean": -0.07863,
+     "share_min": 0.45517
+    },
+    "stance5_LTSB_s52@10485760": {
+     "whole_out": 0,
+     "pad_out": 0,
+     "window_foot_steps": 64000,
+     "window_steps_paying": 0,
+     "paid_mean": 0.0,
+     "share_min": 0.4693
+    },
+    "stance5_LTSB_s52@final": {
+     "whole_out": 0,
+     "pad_out": 0,
+     "window_foot_steps": 64000,
+     "window_steps_paying": 0,
+     "paid_mean": 0.0,
+     "share_min": 0.47191
+    },
+    "stance5_LTSB_s60@4194304": {
+     "whole_out": 93,
+     "pad_out": 0,
+     "window_foot_steps": 64000,
+     "window_steps_paying": 93,
+     "paid_mean": -0.00391,
+     "share_min": 0.45792
+    },
+    "stance5_LTSB_s60@5242880": {
+     "whole_out": 35,
+     "pad_out": 12,
+     "window_foot_steps": 64000,
+     "window_steps_paying": 35,
+     "paid_mean": -0.00881,
+     "share_min": 0.4771
+    },
+    "stance5_LTSB_s60@6291456": {
+     "whole_out": 9,
+     "pad_out": 0,
+     "window_foot_steps": 64000,
+     "window_steps_paying": 9,
+     "paid_mean": -0.00037,
+     "share_min": 0.47153
+    },
+    "stance5_LTSB_s60@7340032": {
+     "whole_out": 0,
+     "pad_out": 0,
+     "window_foot_steps": 64000,
+     "window_steps_paying": 0,
+     "paid_mean": 0.0,
+     "share_min": 0.47498
+    },
+    "stance5_LTSB_s60@8388608": {
+     "whole_out": 1012,
+     "pad_out": 98,
+     "window_foot_steps": 64000,
+     "window_steps_paying": 971,
+     "paid_mean": -0.38897,
+     "share_min": 0.46687
+    },
+    "stance5_LTSB_s60@10485760": {
+     "whole_out": 0,
+     "pad_out": 0,
+     "window_foot_steps": 64000,
+     "window_steps_paying": 0,
+     "paid_mean": 0.0,
+     "share_min": 0.45206
+    },
+    "stance5_LTSB_s60@final": {
+     "whole_out": 809,
+     "pad_out": 258,
+     "window_foot_steps": 64000,
+     "window_steps_paying": 726,
+     "paid_mean": -0.30844,
+     "share_min": 0.42086
+    },
+    "stance5_LTSB_s42@4194304": {
+     "whole_out": 0,
+     "pad_out": 0,
+     "window_foot_steps": 64000,
+     "window_steps_paying": 0,
+     "paid_mean": 0.0,
+     "share_min": 0.46773
+    },
+    "stance5_LTSB_s42@5242880": {
+     "whole_out": 0,
+     "pad_out": 0,
+     "window_foot_steps": 64000,
+     "window_steps_paying": 0,
+     "paid_mean": 0.0,
+     "share_min": 0.46155
+    },
+    "stance5_LTSB_s42@6291456": {
+     "whole_out": 0,
+     "pad_out": 0,
+     "window_foot_steps": 64000,
+     "window_steps_paying": 0,
+     "paid_mean": 0.0,
+     "share_min": 0.44754
+    },
+    "stance5_LTSB_s42@7340032": {
+     "whole_out": 28,
+     "pad_out": 0,
+     "window_foot_steps": 64000,
+     "window_steps_paying": 28,
+     "paid_mean": -0.00358,
+     "share_min": 0.46019
+    },
+    "stance5_LTSB_s42@8388608": {
+     "whole_out": 491,
+     "pad_out": 370,
+     "window_foot_steps": 64000,
+     "window_steps_paying": 326,
+     "paid_mean": -0.70062,
+     "share_min": 0.43623
+    },
+    "stance5_LTSB_s42@10485760": {
+     "whole_out": 387,
+     "pad_out": 112,
+     "window_foot_steps": 64000,
+     "window_steps_paying": 208,
+     "paid_mean": -0.05308,
+     "share_min": 0.46319
+    },
+    "stance5_LTSB_s42@final": {
+     "whole_out": 175,
+     "pad_out": 86,
+     "window_foot_steps": 62400,
+     "window_steps_paying": 149,
+     "paid_mean": -0.09582,
+     "share_min": 0.44992
+    }
+   },
+   "band_det_readouts_statue": {
+    "whole_out": 2150,
+    "pad_out": 1042,
+    "window_foot_steps": 62400,
+    "paid_mean": -1.91027
+   }
+  },
+  "q4_s42_rise": {
+   "trend": {
+    "stance5_LTSB_s42": {
+     "4194304": {
+      "joint_falls": 0,
+      "joint_direction": {},
+      "own_falls": 0,
+      "panel_sat_flagged_of_40": 24,
+      "panel_sat_fraction_flagged_mean": 0.77172,
+      "sat_vs_fall_same_spawn": {
+       "flagged_spawns": 10,
+       "falls_in_flagged": 0,
+       "unflagged_spawns": 10,
+       "falls_in_unflagged": 0,
+       "panel_det_fall_seeds_in_3042_3061": []
+      },
+      "policy_std_mean": 0.0981,
+      "own_sigma_legs_mean": 0.0208,
+      "own_sigma_tail3": 0.1616,
+      "det_com_mtp3_median_m": 0.06848,
+      "det_xc_median_m": 0.06843,
+      "det_cop_mean": 0.11895,
+      "det_toe_margin_min_nm": 25.28369,
+      "ledger_bin_end": 4194304,
+      "eval_com_mm": -11.7,
+      "eval_pitch_deg": -1.65941,
+      "eval_hip_q_deg": -2.31683,
+      "eval_knee_q_deg": -0.25196,
+      "eval_ankle_q_deg": 1.00033,
+      "eval_sat_flagged_of_40": 33,
+      "train_fall_rate": 0.0019,
+      "train_causes": {
+       "nosedive": 1
+      },
+      "satroll_tail3": {
+       "frac90": 0.7737,
+       "frac99": 0.3382,
+       "mean_command": 0.9245,
+       "rolled_flagged_of_20": 10
+      }
+     },
+     "5242880": {
+      "joint_falls": 0,
+      "joint_direction": {},
+      "own_falls": 0,
+      "panel_sat_flagged_of_40": 13,
+      "panel_sat_fraction_flagged_mean": 0.64048,
+      "sat_vs_fall_same_spawn": {
+       "flagged_spawns": 6,
+       "falls_in_flagged": 0,
+       "unflagged_spawns": 14,
+       "falls_in_unflagged": 0,
+       "panel_det_fall_seeds_in_3042_3061": []
+      },
+      "policy_std_mean": 0.0933,
+      "own_sigma_legs_mean": 0.0189,
+      "own_sigma_tail3": 0.1517,
+      "det_com_mtp3_median_m": 0.07224,
+      "det_xc_median_m": 0.07231,
+      "det_cop_mean": 0.16254,
+      "det_toe_margin_min_nm": 23.72384,
+      "ledger_bin_end": 5242880,
+      "eval_com_mm": -9.1,
+      "eval_pitch_deg": -1.55452,
+      "eval_hip_q_deg": -2.05379,
+      "eval_knee_q_deg": -0.19419,
+      "eval_ankle_q_deg": 0.79635,
+      "eval_sat_flagged_of_40": 13,
+      "train_fall_rate": 0.0019,
+      "train_causes": {
+       "nosedive": 1
+      },
+      "satroll_tail3": {
+       "frac90": 0.6697,
+       "frac99": 0.1712,
+       "mean_command": 0.9168,
+       "rolled_flagged_of_20": 6
+      }
+     },
+     "6291456": {
+      "joint_falls": 0,
+      "joint_direction": {},
+      "own_falls": 0,
+      "panel_sat_flagged_of_40": 22,
+      "panel_sat_fraction_flagged_mean": 0.72364,
+      "sat_vs_fall_same_spawn": {
+       "flagged_spawns": 14,
+       "falls_in_flagged": 0,
+       "unflagged_spawns": 6,
+       "falls_in_unflagged": 0,
+       "panel_det_fall_seeds_in_3042_3061": []
+      },
+      "policy_std_mean": 0.0887,
+      "own_sigma_legs_mean": 0.0174,
+      "own_sigma_tail3": 0.1425,
+      "det_com_mtp3_median_m": 0.06763,
+      "det_xc_median_m": 0.06765,
+      "det_cop_mean": 0.097,
+      "det_toe_margin_min_nm": 25.68818,
+      "ledger_bin_end": 6291456,
+      "eval_com_mm": -12.4,
+      "eval_pitch_deg": -0.97994,
+      "eval_hip_q_deg": -2.1219,
+      "eval_knee_q_deg": 0.37836,
+      "eval_ankle_q_deg": 0.85078,
+      "eval_sat_flagged_of_40": 19,
+      "train_fall_rate": 0.0019,
+      "train_causes": {
+       "nosedive": 1
+      },
+      "satroll_tail3": {
+       "frac90": 0.7509,
+       "frac99": 0.5648,
+       "mean_command": 0.898,
+       "rolled_flagged_of_20": 14
+      }
+     },
+     "7340032": {
+      "joint_falls": 9,
+      "joint_direction": {
+       "forward": 9
+      },
+      "own_falls": 0,
+      "panel_sat_flagged_of_40": 21,
+      "panel_sat_fraction_flagged_mean": 0.70458,
+      "sat_vs_fall_same_spawn": {
+       "flagged_spawns": 12,
+       "falls_in_flagged": 5,
+       "unflagged_spawns": 8,
+       "falls_in_unflagged": 4,
+       "panel_det_fall_seeds_in_3042_3061": []
+      },
+      "policy_std_mean": 0.0838,
+      "own_sigma_legs_mean": 0.016,
+      "own_sigma_tail3": 0.1346,
+      "det_com_mtp3_median_m": 0.0609,
+      "det_xc_median_m": 0.06094,
+      "det_cop_mean": 0.00556,
+      "det_toe_margin_min_nm": 27.85349,
+      "ledger_bin_end": 7340032,
+      "eval_com_mm": -18.4,
+      "eval_pitch_deg": -1.65511,
+      "eval_hip_q_deg": -3.05118,
+      "eval_knee_q_deg": -0.08818,
+      "eval_ankle_q_deg": 1.54758,
+      "eval_sat_flagged_of_40": 27,
+      "train_fall_rate": 0.0,
+      "train_causes": {}
+     },
+     "8388608": {
+      "joint_falls": 5,
+      "joint_direction": {
+       "forward": 5
+      },
+      "own_falls": 0,
+      "panel_sat_flagged_of_40": 24,
+      "panel_sat_fraction_flagged_mean": 0.83646,
+      "sat_vs_fall_same_spawn": {
+       "flagged_spawns": 10,
+       "falls_in_flagged": 2,
+       "unflagged_spawns": 10,
+       "falls_in_unflagged": 3,
+       "panel_det_fall_seeds_in_3042_3061": []
+      },
+      "policy_std_mean": 0.08,
+      "own_sigma_legs_mean": 0.0149,
+      "own_sigma_tail3": 0.1277,
+      "det_com_mtp3_median_m": 0.06233,
+      "det_xc_median_m": 0.06243,
+      "det_cop_mean": 0.02274,
+      "det_toe_margin_min_nm": 28.17764,
+      "ledger_bin_end": 8388608,
+      "eval_com_mm": -17.6,
+      "eval_pitch_deg": -1.14777,
+      "eval_hip_q_deg": -2.51448,
+      "eval_knee_q_deg": 0.06744,
+      "eval_ankle_q_deg": 1.36469,
+      "eval_sat_flagged_of_40": 30,
+      "train_fall_rate": 0.0,
+      "train_causes": {}
+     },
+     "10485760": {
+      "joint_falls": 9,
+      "joint_direction": {
+       "backward": 6,
+       "unclassified": 2,
+       "forward": 1
+      },
+      "own_falls": 0,
+      "panel_sat_flagged_of_40": 2,
+      "panel_sat_fraction_flagged_mean": 0.42188,
+      "sat_vs_fall_same_spawn": {
+       "flagged_spawns": 0,
+       "falls_in_flagged": 0,
+       "unflagged_spawns": 20,
+       "falls_in_unflagged": 9,
+       "panel_det_fall_seeds_in_3042_3061": []
+      },
+      "policy_std_mean": 0.0742,
+      "own_sigma_legs_mean": 0.0135,
+      "own_sigma_tail3": 0.1201,
+      "det_com_mtp3_median_m": 0.0541,
+      "det_xc_median_m": 0.05403,
+      "det_cop_mean": -0.09121,
+      "det_toe_margin_min_nm": 29.99913,
+      "ledger_bin_end": 10485760,
+      "eval_com_mm": -23.3,
+      "eval_pitch_deg": -1.28015,
+      "eval_hip_q_deg": -3.11978,
+      "eval_knee_q_deg": -0.40359,
+      "eval_ankle_q_deg": 2.62848,
+      "eval_sat_flagged_of_40": 0,
+      "train_fall_rate": 0.0207,
+      "train_causes": {
+       "tail_contact": 7,
+       "nosedive": 2,
+       "fallen": 2
+      }
+     },
+     "final": {
+      "joint_falls": 13,
+      "joint_direction": {
+       "forward": 11,
+       "unclassified": 2
+      },
+      "own_falls": 1,
+      "panel_sat_flagged_of_40": 20,
+      "panel_sat_fraction_flagged_mean": 0.72313,
+      "sat_vs_fall_same_spawn": {
+       "flagged_spawns": 11,
+       "falls_in_flagged": 5,
+       "unflagged_spawns": 9,
+       "falls_in_unflagged": 8,
+       "panel_det_fall_seeds_in_3042_3061": []
+      },
+      "policy_std_mean": 0.0699,
+      "own_sigma_legs_mean": 0.0126,
+      "own_sigma_tail3": 0.1126,
+      "det_com_mtp3_median_m": 0.06634,
+      "det_xc_median_m": 0.06634,
+      "det_cop_mean": 0.09099,
+      "det_toe_margin_min_nm": 25.86125,
+      "ledger_bin_end": 12058624,
+      "eval_com_mm": -14.8,
+      "eval_pitch_deg": -1.08706,
+      "eval_hip_q_deg": -2.01121,
+      "eval_knee_q_deg": -0.24908,
+      "eval_ankle_q_deg": 1.11322,
+      "eval_sat_flagged_of_40": 12,
+      "train_fall_rate": 0.0541,
+      "train_causes": {
+       "fallen": 25,
+       "tail_contact": 1
+      }
+     }
+    },
+    "stance4_LTS_s42": {
+     "4194304": {
+      "joint_falls": 0,
+      "joint_direction": {},
+      "own_falls": 0,
+      "panel_sat_flagged_of_40": 40,
+      "panel_sat_fraction_flagged_mean": 0.98328,
+      "sat_vs_fall_same_spawn": {
+       "flagged_spawns": 20,
+       "falls_in_flagged": 0,
+       "unflagged_spawns": 0,
+       "falls_in_unflagged": 0,
+       "panel_det_fall_seeds_in_3042_3061": []
+      },
+      "policy_std_mean": 0.0982,
+      "own_sigma_legs_mean": 0.0261,
+      "own_sigma_tail3": 0.1442,
+      "det_com_mtp3_median_m": 0.06787,
+      "det_xc_median_m": 0.06786,
+      "det_cop_mean": 0.1131,
+      "det_toe_margin_min_nm": 20.02889,
+      "ledger_bin_end": 4194304,
+      "eval_com_mm": -11.9,
+      "eval_pitch_deg": -1.63916,
+      "eval_hip_q_deg": -2.46054,
+      "eval_knee_q_deg": -0.26611,
+      "eval_ankle_q_deg": 1.18075,
+      "eval_sat_flagged_of_40": 40,
+      "train_fall_rate": 0.0113,
+      "train_causes": {
+       "head_contact": 5,
+       "fallen": 1
+      },
+      "satdiag_tail3": {
+       "flagged_of_20": 20,
+       "top": "tail_3_pitch",
+       "frac90": 0.996,
+       "frac99": 0.972,
+       "tail3_mean_command": 0.998
+      }
+     },
+     "5242880": {
+      "joint_falls": 1,
+      "joint_direction": {
+       "forward": 1
+      },
+      "own_falls": 0,
+      "panel_sat_flagged_of_40": 37,
+      "panel_sat_fraction_flagged_mean": 0.82159,
+      "sat_vs_fall_same_spawn": {
+       "flagged_spawns": 19,
+       "falls_in_flagged": 1,
+       "unflagged_spawns": 1,
+       "falls_in_unflagged": 0,
+       "panel_det_fall_seeds_in_3042_3061": []
+      },
+      "policy_std_mean": 0.0925,
+      "own_sigma_legs_mean": 0.0232,
+      "own_sigma_tail3": 0.1383,
+      "det_com_mtp3_median_m": 0.06689,
+      "det_xc_median_m": 0.06681,
+      "det_cop_mean": 0.09691,
+      "det_toe_margin_min_nm": 19.12249,
+      "ledger_bin_end": 5242880,
+      "eval_com_mm": -13.7,
+      "eval_pitch_deg": -1.63324,
+      "eval_hip_q_deg": -2.61951,
+      "eval_knee_q_deg": -0.27858,
+      "eval_ankle_q_deg": 1.34963,
+      "eval_sat_flagged_of_40": 39,
+      "train_fall_rate": 0.0057,
+      "train_causes": {
+       "head_contact": 2,
+       "fallen": 1
+      },
+      "satdiag_tail3": {
+       "flagged_of_20": 19,
+       "top": "tail_3_pitch",
+       "frac90": 0.839,
+       "frac99": 0.805,
+       "tail3_mean_command": 0.933
+      }
+     },
+     "6291456": {
+      "joint_falls": 0,
+      "joint_direction": {},
+      "own_falls": 0,
+      "panel_sat_flagged_of_40": 39,
+      "panel_sat_fraction_flagged_mean": 0.90228,
+      "sat_vs_fall_same_spawn": {
+       "flagged_spawns": 19,
+       "falls_in_flagged": 0,
+       "unflagged_spawns": 1,
+       "falls_in_unflagged": 0,
+       "panel_det_fall_seeds_in_3042_3061": []
+      },
+      "policy_std_mean": 0.0872,
+      "own_sigma_legs_mean": 0.0208,
+      "own_sigma_tail3": 0.1318,
+      "det_com_mtp3_median_m": 0.06816,
+      "det_xc_median_m": 0.0682,
+      "det_cop_mean": 0.12727,
+      "det_toe_margin_min_nm": 16.90052,
+      "ledger_bin_end": 6291456,
+      "eval_com_mm": -12.4,
+      "eval_pitch_deg": -1.67219,
+      "eval_hip_q_deg": -2.52424,
+      "eval_knee_q_deg": -0.22871,
+      "eval_ankle_q_deg": 1.17262,
+      "eval_sat_flagged_of_40": 38,
+      "train_fall_rate": 0.0057,
+      "train_causes": {
+       "fallen": 2,
+       "head_contact": 1
+      },
+      "satdiag_tail3": {
+       "flagged_of_20": 19,
+       "top": "tail_3_pitch",
+       "frac90": 0.923,
+       "frac99": 0.892,
+       "tail3_mean_command": 0.976
+      }
+     },
+     "7340032": {
+      "joint_falls": 0,
+      "joint_direction": {},
+      "own_falls": 0,
+      "panel_sat_flagged_of_40": 39,
+      "panel_sat_fraction_flagged_mean": 0.89929,
+      "sat_vs_fall_same_spawn": {
+       "flagged_spawns": 19,
+       "falls_in_flagged": 0,
+       "unflagged_spawns": 1,
+       "falls_in_unflagged": 0,
+       "panel_det_fall_seeds_in_3042_3061": []
+      },
+      "policy_std_mean": 0.082,
+      "own_sigma_legs_mean": 0.0189,
+      "own_sigma_tail3": 0.1266,
+      "det_com_mtp3_median_m": 0.06833,
+      "det_xc_median_m": 0.06839,
+      "det_cop_mean": 0.12537,
+      "det_toe_margin_min_nm": 19.30981,
+      "ledger_bin_end": 7340032,
+      "eval_com_mm": -8.9,
+      "eval_pitch_deg": -1.80016,
+      "eval_hip_q_deg": -2.30312,
+      "eval_knee_q_deg": -0.39037,
+      "eval_ankle_q_deg": 1.29478,
+      "eval_sat_flagged_of_40": 38,
+      "train_fall_rate": 0.0114,
+      "train_causes": {
+       "fallen": 6
+      },
+      "satdiag_tail3": {
+       "flagged_of_20": 19,
+       "top": "tail_3_pitch",
+       "frac90": 0.935,
+       "frac99": 0.882,
+       "tail3_mean_command": 0.989
+      }
+     },
+     "8388608": {
+      "joint_falls": 0,
+      "joint_direction": {},
+      "own_falls": 0,
+      "panel_sat_flagged_of_40": 37,
+      "panel_sat_fraction_flagged_mean": 0.77449,
+      "sat_vs_fall_same_spawn": {
+       "flagged_spawns": 18,
+       "falls_in_flagged": 0,
+       "unflagged_spawns": 2,
+       "falls_in_unflagged": 0,
+       "panel_det_fall_seeds_in_3042_3061": []
+      },
+      "policy_std_mean": 0.0781,
+      "own_sigma_legs_mean": 0.0175,
+      "own_sigma_tail3": 0.1205,
+      "det_com_mtp3_median_m": 0.06657,
+      "det_xc_median_m": 0.06659,
+      "det_cop_mean": 0.09205,
+      "det_toe_margin_min_nm": 22.93568,
+      "ledger_bin_end": 8388608,
+      "eval_com_mm": -11.7,
+      "eval_pitch_deg": -1.69479,
+      "eval_hip_q_deg": -2.4293,
+      "eval_knee_q_deg": -0.26,
+      "eval_ankle_q_deg": 1.08866,
+      "eval_sat_flagged_of_40": 38,
+      "train_fall_rate": 0.0019,
+      "train_causes": {
+       "fallen": 1
+      },
+      "satdiag_tail3": {
+       "flagged_of_20": 18,
+       "top": "tail_3_pitch",
+       "frac90": 0.846,
+       "frac99": 0.795,
+       "tail3_mean_command": 0.962
+      }
+     },
+     "9437184": {
+      "joint_falls": 0,
+      "joint_direction": {},
+      "own_falls": 0,
+      "panel_sat_flagged_of_40": 35,
+      "panel_sat_fraction_flagged_mean": 0.92657,
+      "sat_vs_fall_same_spawn": {
+       "flagged_spawns": 18,
+       "falls_in_flagged": 0,
+       "unflagged_spawns": 2,
+       "falls_in_unflagged": 0,
+       "panel_det_fall_seeds_in_3042_3061": []
+      },
+      "policy_std_mean": 0.0745,
+      "own_sigma_legs_mean": 0.0164,
+      "own_sigma_tail3": 0.1152,
+      "det_com_mtp3_median_m": 0.066,
+      "det_xc_median_m": 0.06603,
+      "det_cop_mean": 0.08732,
+      "det_toe_margin_min_nm": 21.50822,
+      "ledger_bin_end": 9437184,
+      "eval_com_mm": -14.1,
+      "eval_pitch_deg": -1.68523,
+      "eval_hip_q_deg": -2.65772,
+      "eval_knee_q_deg": -0.2564,
+      "eval_ankle_q_deg": 1.31198,
+      "eval_sat_flagged_of_40": 39,
+      "train_fall_rate": 0.0019,
+      "train_causes": {
+       "fallen": 1
+      },
+      "satdiag_tail3": {
+       "flagged_of_20": 18,
+       "top": "tail_3_pitch",
+       "frac90": 0.921,
+       "frac99": 0.846,
+       "tail3_mean_command": 0.979
+      }
+     },
+     "10485760": {
+      "joint_falls": 1,
+      "joint_direction": {
+       "forward": 1
+      },
+      "own_falls": 0,
+      "panel_sat_flagged_of_40": 23,
+      "panel_sat_fraction_flagged_mean": 0.82065,
+      "sat_vs_fall_same_spawn": {
+       "flagged_spawns": 13,
+       "falls_in_flagged": 0,
+       "unflagged_spawns": 7,
+       "falls_in_unflagged": 1,
+       "panel_det_fall_seeds_in_3042_3061": []
+      },
+      "policy_std_mean": 0.0712,
+      "own_sigma_legs_mean": 0.0155,
+      "own_sigma_tail3": 0.1089,
+      "det_com_mtp3_median_m": 0.06886,
+      "det_xc_median_m": 0.0689,
+      "det_cop_mean": 0.1337,
+      "det_toe_margin_min_nm": 17.68387,
+      "ledger_bin_end": 10485760,
+      "eval_com_mm": -7.5,
+      "eval_pitch_deg": -1.55952,
+      "eval_hip_q_deg": -2.11933,
+      "eval_knee_q_deg": -0.0319,
+      "eval_ankle_q_deg": 1.08168,
+      "eval_sat_flagged_of_40": 27,
+      "train_fall_rate": 0.0095,
+      "train_causes": {
+       "fallen": 5
+      },
+      "satdiag_tail3": {
+       "flagged_of_20": 13,
+       "top": "tail_3_pitch",
+       "frac90": 0.834,
+       "frac99": 0.52,
+       "tail3_mean_command": 0.934
+      }
+     },
+     "11534336": {
+      "joint_falls": 2,
+      "joint_direction": {
+       "forward": 2
+      },
+      "own_falls": 0,
+      "panel_sat_flagged_of_40": 24,
+      "panel_sat_fraction_flagged_mean": 0.83385,
+      "sat_vs_fall_same_spawn": {
+       "flagged_spawns": 13,
+       "falls_in_flagged": 0,
+       "unflagged_spawns": 7,
+       "falls_in_unflagged": 2,
+       "panel_det_fall_seeds_in_3042_3061": []
+      },
+      "policy_std_mean": 0.0684,
+      "own_sigma_legs_mean": 0.0147,
+      "own_sigma_tail3": 0.1032,
+      "det_com_mtp3_median_m": 0.065,
+      "det_xc_median_m": 0.06498,
+      "det_cop_mean": 0.07694,
+      "det_toe_margin_min_nm": 19.02634,
+      "ledger_bin_end": 11534336,
+      "eval_com_mm": -13.5,
+      "eval_pitch_deg": -0.89985,
+      "eval_hip_q_deg": -2.13061,
+      "eval_knee_q_deg": 0.24562,
+      "eval_ankle_q_deg": 1.07739,
+      "eval_sat_flagged_of_40": 22,
+      "train_fall_rate": 0.0019,
+      "train_causes": {
+       "nosedive": 1
+      },
+      "satdiag_tail3": {
+       "flagged_of_20": 13,
+       "top": "tail_3_pitch",
+       "frac90": 0.825,
+       "frac99": 0.602,
+       "tail3_mean_command": 0.934
+      }
+     },
+     "final": {
+      "joint_falls": 8,
+      "joint_direction": {
+       "forward": 5,
+       "backward": 2,
+       "unclassified": 1
+      },
+      "own_falls": 0,
+      "panel_sat_flagged_of_40": 23,
+      "panel_sat_fraction_flagged_mean": 0.8357,
+      "sat_vs_fall_same_spawn": {
+       "flagged_spawns": 13,
+       "falls_in_flagged": 4,
+       "unflagged_spawns": 7,
+       "falls_in_unflagged": 4,
+       "panel_det_fall_seeds_in_3042_3061": []
+      },
+      "policy_std_mean": 0.0675,
+      "own_sigma_legs_mean": 0.0144,
+      "own_sigma_tail3": 0.1023,
+      "det_com_mtp3_median_m": 0.06158,
+      "det_xc_median_m": 0.06146,
+      "det_cop_mean": 0.04,
+      "det_toe_margin_min_nm": 22.1771,
+      "ledger_bin_end": 12058624,
+      "eval_com_mm": -16.0,
+      "eval_pitch_deg": -0.98296,
+      "eval_hip_q_deg": -2.41998,
+      "eval_knee_q_deg": 0.12487,
+      "eval_ankle_q_deg": 1.47536,
+      "eval_sat_flagged_of_40": 17,
+      "train_fall_rate": 0.0275,
+      "train_causes": {
+       "fallen": 5,
+       "nosedive": 6,
+       "head_contact": 2
+      },
+      "satdiag_tail3": {
+       "flagged_of_20": 13,
+       "top": "tail_3_pitch",
+       "frac90": 0.737,
+       "frac99": 0.567,
+       "tail3_mean_command": 0.888
+      }
+     }
+    },
+    "stance5_LTSB_s52": {
+     "4194304": {
+      "joint_falls": 0,
+      "joint_direction": {},
+      "own_falls": 0,
+      "panel_sat_flagged_of_40": 0,
+      "panel_sat_fraction_flagged_mean": null,
+      "sat_vs_fall_same_spawn": {
+       "flagged_spawns": 0,
+       "falls_in_flagged": 0,
+       "unflagged_spawns": 20,
+       "falls_in_unflagged": 0,
+       "panel_det_fall_seeds_in_3042_3061": []
+      },
+      "policy_std_mean": 0.1028,
+      "own_sigma_legs_mean": 0.022,
+      "own_sigma_tail3": 0.1807,
+      "det_com_mtp3_median_m": 0.05951,
+      "det_xc_median_m": 0.05949,
+      "det_cop_mean": -0.00844,
+      "det_toe_margin_min_nm": 27.85649,
+      "ledger_bin_end": 4194304,
+      "eval_com_mm": -25.0,
+      "eval_pitch_deg": -0.14393,
+      "eval_hip_q_deg": -2.18176,
+      "eval_knee_q_deg": -0.03542,
+      "eval_ankle_q_deg": 2.1019,
+      "eval_sat_flagged_of_40": 0,
+      "train_fall_rate": 0.0038,
+      "train_causes": {
+       "nosedive": 2
+      }
+     },
+     "5242880": {
+      "joint_falls": 0,
+      "joint_direction": {},
+      "own_falls": 0,
+      "panel_sat_flagged_of_40": 0,
+      "panel_sat_fraction_flagged_mean": null,
+      "sat_vs_fall_same_spawn": {
+       "flagged_spawns": 0,
+       "falls_in_flagged": 0,
+       "unflagged_spawns": 20,
+       "falls_in_unflagged": 0,
+       "panel_det_fall_seeds_in_3042_3061": []
+      },
+      "policy_std_mean": 0.0958,
+      "own_sigma_legs_mean": 0.0192,
+      "own_sigma_tail3": 0.1676,
+      "det_com_mtp3_median_m": 0.06679,
+      "det_xc_median_m": 0.06682,
+      "det_cop_mean": 0.09556,
+      "det_toe_margin_min_nm": 25.68347,
+      "ledger_bin_end": 5242880,
+      "eval_com_mm": -14.0,
+      "eval_pitch_deg": -1.10452,
+      "eval_hip_q_deg": -2.35509,
+      "eval_knee_q_deg": 0.0015,
+      "eval_ankle_q_deg": 1.32987,
+      "eval_sat_flagged_of_40": 0,
+      "train_fall_rate": 0.0,
+      "train_causes": {}
+     },
+     "6291456": {
+      "joint_falls": 0,
+      "joint_direction": {},
+      "own_falls": 0,
+      "panel_sat_flagged_of_40": 0,
+      "panel_sat_fraction_flagged_mean": null,
+      "sat_vs_fall_same_spawn": {
+       "flagged_spawns": 0,
+       "falls_in_flagged": 0,
+       "unflagged_spawns": 20,
+       "falls_in_unflagged": 0,
+       "panel_det_fall_seeds_in_3042_3061": []
+      },
+      "policy_std_mean": 0.0903,
+      "own_sigma_legs_mean": 0.0173,
+      "own_sigma_tail3": 0.1571,
+      "det_com_mtp3_median_m": 0.0638,
+      "det_xc_median_m": 0.06382,
+      "det_cop_mean": 0.05015,
+      "det_toe_margin_min_nm": 25.58206,
+      "ledger_bin_end": 6291456,
+      "eval_com_mm": -16.7,
+      "eval_pitch_deg": -0.99285,
+      "eval_hip_q_deg": -2.44652,
+      "eval_knee_q_deg": -0.0839,
+      "eval_ankle_q_deg": 1.60579,
+      "eval_sat_flagged_of_40": 0,
+      "train_fall_rate": 0.0019,
+      "train_causes": {
+       "nosedive": 1
+      }
+     },
+     "7340032": {
+      "joint_falls": 0,
+      "joint_direction": {},
+      "own_falls": 0,
+      "panel_sat_flagged_of_40": 1,
+      "panel_sat_fraction_flagged_mean": 0.2325,
+      "sat_vs_fall_same_spawn": {
+       "flagged_spawns": 1,
+       "falls_in_flagged": 0,
+       "unflagged_spawns": 19,
+       "falls_in_unflagged": 0,
+       "panel_det_fall_seeds_in_3042_3061": []
+      },
+      "policy_std_mean": 0.0849,
+      "own_sigma_legs_mean": 0.0157,
+      "own_sigma_tail3": 0.146,
+      "det_com_mtp3_median_m": 0.06538,
+      "det_xc_median_m": 0.06533,
+      "det_cop_mean": 0.07754,
+      "det_toe_margin_min_nm": 26.17076,
+      "ledger_bin_end": 7340032,
+      "eval_com_mm": -15.2,
+      "eval_pitch_deg": -1.11151,
+      "eval_hip_q_deg": -2.25658,
+      "eval_knee_q_deg": -0.30412,
+      "eval_ankle_q_deg": 1.52197,
+      "eval_sat_flagged_of_40": 1,
+      "train_fall_rate": 0.0019,
+      "train_causes": {
+       "nosedive": 1
+      }
+     },
+     "8388608": {
+      "joint_falls": 1,
+      "joint_direction": {
+       "forward": 1
+      },
+      "own_falls": 0,
+      "panel_sat_flagged_of_40": 0,
+      "panel_sat_fraction_flagged_mean": null,
+      "sat_vs_fall_same_spawn": {
+       "flagged_spawns": 0,
+       "falls_in_flagged": 0,
+       "unflagged_spawns": 20,
+       "falls_in_unflagged": 1,
+       "panel_det_fall_seeds_in_3042_3061": []
+      },
+      "policy_std_mean": 0.0807,
+      "own_sigma_legs_mean": 0.0146,
+      "own_sigma_tail3": 0.1389,
+      "det_com_mtp3_median_m": 0.06433,
+      "det_xc_median_m": 0.06422,
+      "det_cop_mean": 0.06231,
+      "det_toe_margin_min_nm": 23.86128,
+      "ledger_bin_end": 8388608,
+      "eval_com_mm": -14.0,
+      "eval_pitch_deg": -1.35163,
+      "eval_hip_q_deg": -2.32317,
+      "eval_knee_q_deg": -0.3745,
+      "eval_ankle_q_deg": 1.42648,
+      "eval_sat_flagged_of_40": 0,
+      "train_fall_rate": 0.0019,
+      "train_causes": {
+       "nosedive": 1
+      }
+     },
+     "10485760": {
+      "joint_falls": 1,
+      "joint_direction": {
+       "forward": 1
+      },
+      "own_falls": 0,
+      "panel_sat_flagged_of_40": 0,
+      "panel_sat_fraction_flagged_mean": null,
+      "sat_vs_fall_same_spawn": {
+       "flagged_spawns": 0,
+       "falls_in_flagged": 0,
+       "unflagged_spawns": 20,
+       "falls_in_unflagged": 1,
+       "panel_det_fall_seeds_in_3042_3061": []
+      },
+      "policy_std_mean": 0.074,
+      "own_sigma_legs_mean": 0.013,
+      "own_sigma_tail3": 0.1301,
+      "det_com_mtp3_median_m": 0.04995,
+      "det_xc_median_m": 0.0498,
+      "det_cop_mean": -0.15682,
+      "det_toe_margin_min_nm": 29.90445,
+      "ledger_bin_end": 10485760,
+      "eval_com_mm": -30.9,
+      "eval_pitch_deg": -0.2538,
+      "eval_hip_q_deg": -2.25461,
+      "eval_knee_q_deg": -0.48267,
+      "eval_ankle_q_deg": 2.49113,
+      "eval_sat_flagged_of_40": 0,
+      "train_fall_rate": 0.0019,
+      "train_causes": {
+       "tail_contact": 1
+      }
+     },
+     "final": {
+      "joint_falls": 0,
+      "joint_direction": {},
+      "own_falls": 0,
+      "panel_sat_flagged_of_40": 0,
+      "panel_sat_fraction_flagged_mean": null,
+      "sat_vs_fall_same_spawn": {
+       "flagged_spawns": 0,
+       "falls_in_flagged": 0,
+       "unflagged_spawns": 20,
+       "falls_in_unflagged": 0,
+       "panel_det_fall_seeds_in_3042_3061": []
+      },
+      "policy_std_mean": 0.0693,
+      "own_sigma_legs_mean": 0.0121,
+      "own_sigma_tail3": 0.1212,
+      "det_com_mtp3_median_m": 0.04958,
+      "det_xc_median_m": 0.04939,
+      "det_cop_mean": -0.16447,
+      "det_toe_margin_min_nm": 33.64942,
+      "ledger_bin_end": 12058624,
+      "eval_com_mm": -33.7,
+      "eval_pitch_deg": 0.06898,
+      "eval_hip_q_deg": -2.44081,
+      "eval_knee_q_deg": -0.28142,
+      "eval_ankle_q_deg": 2.78273,
+      "eval_sat_flagged_of_40": 0,
+      "train_fall_rate": 0.0021,
+      "train_causes": {
+       "nosedive": 1
+      }
+     }
+    },
+    "stance5_LTSB_s60": {
+     "4194304": {
+      "joint_falls": 2,
+      "joint_direction": {
+       "forward": 2
+      },
+      "own_falls": 0,
+      "panel_sat_flagged_of_40": 0,
+      "panel_sat_fraction_flagged_mean": null,
+      "sat_vs_fall_same_spawn": {
+       "flagged_spawns": 0,
+       "falls_in_flagged": 0,
+       "unflagged_spawns": 20,
+       "falls_in_unflagged": 2,
+       "panel_det_fall_seeds_in_3042_3061": []
+      },
+      "policy_std_mean": 0.1025,
+      "own_sigma_legs_mean": 0.022,
+      "own_sigma_tail3": 0.1756,
+      "det_com_mtp3_median_m": 0.07061,
+      "det_xc_median_m": 0.07057,
+      "det_cop_mean": 0.13968,
+      "det_toe_margin_min_nm": 23.84496,
+      "ledger_bin_end": 4194304,
+      "eval_com_mm": -12.1,
+      "eval_pitch_deg": -1.7435,
+      "eval_hip_q_deg": -2.53625,
+      "eval_knee_q_deg": -0.39122,
+      "eval_ankle_q_deg": 1.27203,
+      "eval_sat_flagged_of_40": 0,
+      "train_fall_rate": 0.0019,
+      "train_causes": {
+       "nosedive": 1
+      }
+     },
+     "5242880": {
+      "joint_falls": 0,
+      "joint_direction": {},
+      "own_falls": 0,
+      "panel_sat_flagged_of_40": 0,
+      "panel_sat_fraction_flagged_mean": null,
+      "sat_vs_fall_same_spawn": {
+       "flagged_spawns": 0,
+       "falls_in_flagged": 0,
+       "unflagged_spawns": 20,
+       "falls_in_unflagged": 0,
+       "panel_det_fall_seeds_in_3042_3061": []
+      },
+      "policy_std_mean": 0.0965,
+      "own_sigma_legs_mean": 0.0194,
+      "own_sigma_tail3": 0.1627,
+      "det_com_mtp3_median_m": 0.04916,
+      "det_xc_median_m": 0.04901,
+      "det_cop_mean": -0.17714,
+      "det_toe_margin_min_nm": 33.91178,
+      "ledger_bin_end": 5242880,
+      "eval_com_mm": -26.6,
+      "eval_pitch_deg": -1.40436,
+      "eval_hip_q_deg": -3.59076,
+      "eval_knee_q_deg": -0.36822,
+      "eval_ankle_q_deg": 2.5727,
+      "eval_sat_flagged_of_40": 0,
+      "train_fall_rate": 0.0,
+      "train_causes": {}
+     },
+     "6291456": {
+      "joint_falls": 0,
+      "joint_direction": {},
+      "own_falls": 0,
+      "panel_sat_flagged_of_40": 0,
+      "panel_sat_fraction_flagged_mean": null,
+      "sat_vs_fall_same_spawn": {
+       "flagged_spawns": 0,
+       "falls_in_flagged": 0,
+       "unflagged_spawns": 20,
+       "falls_in_unflagged": 0,
+       "panel_det_fall_seeds_in_3042_3061": []
+      },
+      "policy_std_mean": 0.0917,
+      "own_sigma_legs_mean": 0.0179,
+      "own_sigma_tail3": 0.1557,
+      "det_com_mtp3_median_m": 0.06221,
+      "det_xc_median_m": 0.0622,
+      "det_cop_mean": 0.01785,
+      "det_toe_margin_min_nm": 27.31384,
+      "ledger_bin_end": 6291456,
+      "eval_com_mm": -20.7,
+      "eval_pitch_deg": -0.78295,
+      "eval_hip_q_deg": -2.55397,
+      "eval_knee_q_deg": 0.13855,
+      "eval_ankle_q_deg": 1.67708,
+      "eval_sat_flagged_of_40": 0,
+      "train_fall_rate": 0.0,
+      "train_causes": {}
+     },
+     "7340032": {
+      "joint_falls": 0,
+      "joint_direction": {},
+      "own_falls": 0,
+      "panel_sat_flagged_of_40": 0,
+      "panel_sat_fraction_flagged_mean": null,
+      "sat_vs_fall_same_spawn": {
+       "flagged_spawns": 0,
+       "falls_in_flagged": 0,
+       "unflagged_spawns": 20,
+       "falls_in_unflagged": 0,
+       "panel_det_fall_seeds_in_3042_3061": []
+      },
+      "policy_std_mean": 0.0868,
+      "own_sigma_legs_mean": 0.0166,
+      "own_sigma_tail3": 0.1488,
+      "det_com_mtp3_median_m": 0.05717,
+      "det_xc_median_m": 0.05704,
+      "det_cop_mean": -0.04487,
+      "det_toe_margin_min_nm": 28.97162,
+      "ledger_bin_end": 7340032,
+      "eval_com_mm": -21.7,
+      "eval_pitch_deg": -1.23748,
+      "eval_hip_q_deg": -2.98194,
+      "eval_knee_q_deg": -0.30031,
+      "eval_ankle_q_deg": 2.08481,
+      "eval_sat_flagged_of_40": 0,
+      "train_fall_rate": 0.0038,
+      "train_causes": {
+       "nosedive": 2
+      }
+     },
+     "8388608": {
+      "joint_falls": 1,
+      "joint_direction": {
+       "forward": 1
+      },
+      "own_falls": 0,
+      "panel_sat_flagged_of_40": 0,
+      "panel_sat_fraction_flagged_mean": null,
+      "sat_vs_fall_same_spawn": {
+       "flagged_spawns": 0,
+       "falls_in_flagged": 0,
+       "unflagged_spawns": 20,
+       "falls_in_unflagged": 1,
+       "panel_det_fall_seeds_in_3042_3061": []
+      },
+      "policy_std_mean": 0.0825,
+      "own_sigma_legs_mean": 0.0153,
+      "own_sigma_tail3": 0.1401,
+      "det_com_mtp3_median_m": 0.07043,
+      "det_xc_median_m": 0.0703,
+      "det_cop_mean": 0.14023,
+      "det_toe_margin_min_nm": 22.5129,
+      "ledger_bin_end": 8388608,
+      "eval_com_mm": -9.5,
+      "eval_pitch_deg": -0.64715,
+      "eval_hip_q_deg": -1.4963,
+      "eval_knee_q_deg": 0.18378,
+      "eval_ankle_q_deg": 0.76383,
+      "eval_sat_flagged_of_40": 0,
+      "train_fall_rate": 0.0,
+      "train_causes": {}
+     },
+     "10485760": {
+      "joint_falls": 1,
+      "joint_direction": {
+       "forward": 1
+      },
+      "own_falls": 0,
+      "panel_sat_flagged_of_40": 0,
+      "panel_sat_fraction_flagged_mean": null,
+      "sat_vs_fall_same_spawn": {
+       "flagged_spawns": 0,
+       "falls_in_flagged": 0,
+       "unflagged_spawns": 20,
+       "falls_in_unflagged": 1,
+       "panel_det_fall_seeds_in_3042_3061": []
+      },
+      "policy_std_mean": 0.0749,
+      "own_sigma_legs_mean": 0.0137,
+      "own_sigma_tail3": 0.1302,
+      "det_com_mtp3_median_m": 0.06704,
+      "det_xc_median_m": 0.06687,
+      "det_cop_mean": 0.08672,
+      "det_toe_margin_min_nm": 25.57724,
+      "ledger_bin_end": 10485760,
+      "eval_com_mm": -16.1,
+      "eval_pitch_deg": -0.97283,
+      "eval_hip_q_deg": -2.32545,
+      "eval_knee_q_deg": -0.16541,
+      "eval_ankle_q_deg": 1.58493,
+      "eval_sat_flagged_of_40": 0,
+      "train_fall_rate": 0.0019,
+      "train_causes": {
+       "nosedive": 1
+      }
+     },
+     "final": {
+      "joint_falls": 3,
+      "joint_direction": {
+       "unclassified": 2,
+       "no_window": 1
+      },
+      "own_falls": 0,
+      "panel_sat_flagged_of_40": 0,
+      "panel_sat_fraction_flagged_mean": null,
+      "sat_vs_fall_same_spawn": {
+       "flagged_spawns": 0,
+       "falls_in_flagged": 0,
+       "unflagged_spawns": 20,
+       "falls_in_unflagged": 3,
+       "panel_det_fall_seeds_in_3042_3061": []
+      },
+      "policy_std_mean": 0.0701,
+      "own_sigma_legs_mean": 0.0125,
+      "own_sigma_tail3": 0.1189,
+      "det_com_mtp3_median_m": 0.05839,
+      "det_xc_median_m": 0.05839,
+      "det_cop_mean": -0.03211,
+      "det_toe_margin_min_nm": 25.54253,
+      "ledger_bin_end": 12058624,
+      "eval_com_mm": -20.4,
+      "eval_pitch_deg": 0.29444,
+      "eval_hip_q_deg": -1.65939,
+      "eval_knee_q_deg": 0.30442,
+      "eval_ankle_q_deg": 1.69326,
+      "eval_sat_flagged_of_40": 0,
+      "train_fall_rate": 0.0,
+      "train_causes": {}
+     }
+    }
+   },
+   "s42_band_fall_spawn_recurrence_7p3M_to_final": {
+    "3042": 2,
+    "3044": 1,
+    "3046": 2,
+    "3047": 3,
+    "3048": 2,
+    "3050": 4,
+    "3051": 3,
+    "3052": 1,
+    "3053": 2,
+    "3054": 4,
+    "3055": 3,
+    "3058": 2,
+    "3059": 4,
+    "3061": 3
+   },
+   "train_ledger_falls_per_524288_bin": {
+    "stance5_LTSB_s52": [
+     {
+      "bin_end": 6291456,
+      "rate": 0.0019,
+      "causes": {
+       "nosedive": 1
+      }
+     },
+     {
+      "bin_end": 6815744,
+      "rate": 0.0038,
+      "causes": {
+       "nosedive": 2
+      }
+     },
+     {
+      "bin_end": 7340032,
+      "rate": 0.0019,
+      "causes": {
+       "nosedive": 1
+      }
+     },
+     {
+      "bin_end": 7864320,
+      "rate": 0.0,
+      "causes": {}
+     },
+     {
+      "bin_end": 8388608,
+      "rate": 0.0019,
+      "causes": {
+       "nosedive": 1
+      }
+     },
+     {
+      "bin_end": 8912896,
+      "rate": 0.0019,
+      "causes": {
+       "fallen": 1
+      }
+     },
+     {
+      "bin_end": 9437184,
+      "rate": 0.0038,
+      "causes": {
+       "nosedive": 2
+      }
+     },
+     {
+      "bin_end": 9961472,
+      "rate": 0.0019,
+      "causes": {
+       "tail_contact": 1
+      }
+     },
+     {
+      "bin_end": 10485760,
+      "rate": 0.0019,
+      "causes": {
+       "tail_contact": 1
+      }
+     },
+     {
+      "bin_end": 11010048,
+      "rate": 0.0019,
+      "causes": {
+       "nosedive": 1
+      }
+     },
+     {
+      "bin_end": 11534336,
+      "rate": 0.0019,
+      "causes": {
+       "fallen": 1
+      }
+     },
+     {
+      "bin_end": 12058624,
+      "rate": 0.0021,
+      "causes": {
+       "nosedive": 1
+      }
+     }
+    ],
+    "stance5_LTSB_s60": [
+     {
+      "bin_end": 6291456,
+      "rate": 0.0,
+      "causes": {}
+     },
+     {
+      "bin_end": 6815744,
+      "rate": 0.0038,
+      "causes": {
+       "nosedive": 2
+      }
+     },
+     {
+      "bin_end": 7340032,
+      "rate": 0.0038,
+      "causes": {
+       "nosedive": 2
+      }
+     },
+     {
+      "bin_end": 7864320,
+      "rate": 0.0019,
+      "causes": {
+       "nosedive": 1
+      }
+     },
+     {
+      "bin_end": 8388608,
+      "rate": 0.0,
+      "causes": {}
+     },
+     {
+      "bin_end": 8912896,
+      "rate": 0.0019,
+      "causes": {
+       "nosedive": 1
+      }
+     },
+     {
+      "bin_end": 9437184,
+      "rate": 0.0,
+      "causes": {}
+     },
+     {
+      "bin_end": 9961472,
+      "rate": 0.0019,
+      "causes": {
+       "fallen": 1
+      }
+     },
+     {
+      "bin_end": 10485760,
+      "rate": 0.0019,
+      "causes": {
+       "nosedive": 1
+      }
+     },
+     {
+      "bin_end": 11010048,
+      "rate": 0.0,
+      "causes": {}
+     },
+     {
+      "bin_end": 11534336,
+      "rate": 0.0019,
+      "causes": {
+       "fallen": 1
+      }
+     },
+     {
+      "bin_end": 12058624,
+      "rate": 0.0,
+      "causes": {}
+     }
+    ],
+    "stance5_LTSB_s42": [
+     {
+      "bin_end": 6291456,
+      "rate": 0.0019,
+      "causes": {
+       "nosedive": 1
+      }
+     },
+     {
+      "bin_end": 6815744,
+      "rate": 0.0,
+      "causes": {}
+     },
+     {
+      "bin_end": 7340032,
+      "rate": 0.0,
+      "causes": {}
+     },
+     {
+      "bin_end": 7864320,
+      "rate": 0.0,
+      "causes": {}
+     },
+     {
+      "bin_end": 8388608,
+      "rate": 0.0,
+      "causes": {}
+     },
+     {
+      "bin_end": 8912896,
+      "rate": 0.0,
+      "causes": {}
+     },
+     {
+      "bin_end": 9437184,
+      "rate": 0.0019,
+      "causes": {
+       "nosedive": 1
+      }
+     },
+     {
+      "bin_end": 9961472,
+      "rate": 0.0038,
+      "causes": {
+       "nosedive": 2
+      }
+     },
+     {
+      "bin_end": 10485760,
+      "rate": 0.0207,
+      "causes": {
+       "tail_contact": 7,
+       "nosedive": 2,
+       "fallen": 2
+      }
+     },
+     {
+      "bin_end": 11010048,
+      "rate": 0.0353,
+      "causes": {
+       "tail_contact": 11,
+       "nosedive": 4,
+       "fallen": 4
+      }
+     },
+     {
+      "bin_end": 11534336,
+      "rate": 0.0226,
+      "causes": {
+       "tail_contact": 1,
+       "fallen": 10,
+       "nosedive": 1
+      }
+     },
+     {
+      "bin_end": 12058624,
+      "rate": 0.0541,
+      "causes": {
+       "fallen": 25,
+       "tail_contact": 1
+      }
+     }
+    ],
+    "stance4_LTS_s52": [
+     {
+      "bin_end": 6291456,
+      "rate": 0.0057,
+      "causes": {
+       "nosedive": 3
+      }
+     },
+     {
+      "bin_end": 6815744,
+      "rate": 0.0076,
+      "causes": {
+       "nosedive": 4
+      }
+     },
+     {
+      "bin_end": 7340032,
+      "rate": 0.0038,
+      "causes": {
+       "nosedive": 2
+      }
+     },
+     {
+      "bin_end": 7864320,
+      "rate": 0.0038,
+      "causes": {
+       "nosedive": 2
+      }
+     },
+     {
+      "bin_end": 8388608,
+      "rate": 0.0019,
+      "causes": {
+       "nosedive": 1
+      }
+     },
+     {
+      "bin_end": 8912896,
+      "rate": 0.0,
+      "causes": {}
+     },
+     {
+      "bin_end": 9437184,
+      "rate": 0.0038,
+      "causes": {
+       "nosedive": 2
+      }
+     },
+     {
+      "bin_end": 9961472,
+      "rate": 0.0038,
+      "causes": {
+       "nosedive": 2
+      }
+     },
+     {
+      "bin_end": 10485760,
+      "rate": 0.0019,
+      "causes": {
+       "nosedive": 1
+      }
+     },
+     {
+      "bin_end": 11010048,
+      "rate": 0.0019,
+      "causes": {
+       "nosedive": 1
+      }
+     },
+     {
+      "bin_end": 11534336,
+      "rate": 0.0,
+      "causes": {}
+     },
+     {
+      "bin_end": 12058624,
+      "rate": 0.0021,
+      "causes": {
+       "nosedive": 1
+      }
+     }
+    ],
+    "stance4_LTS_s60": [
+     {
+      "bin_end": 6291456,
+      "rate": 0.0038,
+      "causes": {
+       "nosedive": 1,
+       "fallen": 1
+      }
+     },
+     {
+      "bin_end": 6815744,
+      "rate": 0.0132,
+      "causes": {
+       "nosedive": 7
+      }
+     },
+     {
+      "bin_end": 7340032,
+      "rate": 0.0,
+      "causes": {}
+     },
+     {
+      "bin_end": 7864320,
+      "rate": 0.0019,
+      "causes": {
+       "nosedive": 1
+      }
+     },
+     {
+      "bin_end": 8388608,
+      "rate": 0.0076,
+      "causes": {
+       "nosedive": 2,
+       "fallen": 2
+      }
+     },
+     {
+      "bin_end": 8912896,
+      "rate": 0.0095,
+      "causes": {
+       "fallen": 2,
+       "nosedive": 3
+      }
+     },
+     {
+      "bin_end": 9437184,
+      "rate": 0.0076,
+      "causes": {
+       "nosedive": 3,
+       "fallen": 1
+      }
+     },
+     {
+      "bin_end": 9961472,
+      "rate": 0.0038,
+      "causes": {
+       "fallen": 2
+      }
+     },
+     {
+      "bin_end": 10485760,
+      "rate": 0.0076,
+      "causes": {
+       "fallen": 2,
+       "nosedive": 2
+      }
+     },
+     {
+      "bin_end": 11010048,
+      "rate": 0.0019,
+      "causes": {
+       "nosedive": 1
+      }
+     },
+     {
+      "bin_end": 11534336,
+      "rate": 0.0114,
+      "causes": {
+       "nosedive": 1,
+       "fallen": 4,
+       "tail_contact": 1
+      }
+     },
+     {
+      "bin_end": 12058624,
+      "rate": 0.0106,
+      "causes": {
+       "tail_contact": 2,
+       "fallen": 3
+      }
+     }
+    ],
+    "stance4_LTS_s42": [
+     {
+      "bin_end": 6291456,
+      "rate": 0.0057,
+      "causes": {
+       "fallen": 2,
+       "head_contact": 1
+      }
+     },
+     {
+      "bin_end": 6815744,
+      "rate": 0.0057,
+      "causes": {
+       "fallen": 3
+      }
+     },
+     {
+      "bin_end": 7340032,
+      "rate": 0.0114,
+      "causes": {
+       "fallen": 6
+      }
+     },
+     {
+      "bin_end": 7864320,
+      "rate": 0.0,
+      "causes": {}
+     },
+     {
+      "bin_end": 8388608,
+      "rate": 0.0019,
+      "causes": {
+       "fallen": 1
+      }
+     },
+     {
+      "bin_end": 8912896,
+      "rate": 0.0019,
+      "causes": {
+       "fallen": 1
+      }
+     },
+     {
+      "bin_end": 9437184,
+      "rate": 0.0019,
+      "causes": {
+       "fallen": 1
+      }
+     },
+     {
+      "bin_end": 9961472,
+      "rate": 0.0095,
+      "causes": {
+       "fallen": 4,
+       "head_contact": 1
+      }
+     },
+     {
+      "bin_end": 10485760,
+      "rate": 0.0095,
+      "causes": {
+       "fallen": 5
+      }
+     },
+     {
+      "bin_end": 11010048,
+      "rate": 0.0095,
+      "causes": {
+       "fallen": 5
+      }
+     },
+     {
+      "bin_end": 11534336,
+      "rate": 0.0019,
+      "causes": {
+       "nosedive": 1
+      }
+     },
+     {
+      "bin_end": 12058624,
+      "rate": 0.0275,
+      "causes": {
+       "fallen": 5,
+       "nosedive": 6,
+       "head_contact": 2
+      }
+     }
+    ]
+   }
+  }
+ }
+}

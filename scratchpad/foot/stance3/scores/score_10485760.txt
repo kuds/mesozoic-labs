@@ -1,0 +1,73 @@
+T. rex stance3 screen: score against foot/stance3/criteria.txt (sha256 1ce910dcd6e2ff7b41a4f592b9f34b9a6c9cb398c523e88f0ebd19af754f18fa; matches the fixed text)
+judge files: /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance3/judged   ledgers: /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance3/runs
+K2c medians are over full-horizon episodes only, the policy's and the statue's on the same seeds (the statue stands 39 of 40; seed 3081 falls).
+
+== Run 1 stance3_armL_s60 (arm L, seed 60, clone HEAD 7e6b557d)   INCOMPLETE (a J judge file is missing or invalid)
+   ckpt    verdict clean  LCB   full hop | K2a K2b  x_c med  statue  offset mm | roll | noise joint/own
+   4.2M       FAIL 38/40 0.851   38   2 |   2   2     42.1    64.0    -22.0  |    0 | 3/2
+   5.2M       FAIL 38/40 0.851   38   2 |   2   2     31.4    64.0    -32.6  |    0 | 2/1
+   6.3M       PASS 39/40 0.887   39   1 |   1   1     43.9    64.0    -20.1  |    0 | 7/1
+   8.4M       PASS 38/40 0.851   40   0 |   0   0     36.0    64.0    -28.0  |    2 | 7/0
+   10.5M      PASS 39/40 0.887   40   0 |   0   0     57.3    64.0     -6.7  |    1 | 7/0
+   final   missing/invalid
+   3.1M    missing/invalid  (report only)
+   K1 FAIL: v2 PASS at 6.3M yes, at final -; below 37/40 none (<= 1 allowed), below 33/40 none; missing ['final']
+   K2 FAIL: K2a FAIL ['final']; K2b FAIL ['final']; K2c window FAIL [-60, +30] mm, range - mm FAIL (<= 30)
+   K3 FAIL: joint {'6.3M': 7, 'final': None} (<= 2/20), own {'6.3M': 1, 'final': None} (<= 1/20)
+   K4 FAIL: roll rail {'6.3M': 0, 'final': None} (<= 3/40)
+   -> does not hold (failed K1, K2, K3, K4); FORE-AFT does not hold
+   missing J judge files (fail every criterion that needs them): /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance3/judged/stance3_armL_s60/judge_final.json
+   report only:
+     K5 trajectory: statue -0.0161 m, window [-0.0761, +0.0139] m, 63 evaluations from 3,145,728: no flag
+     late falls (200 < length < 1000) per 262,144 steps: peak 52.6% at 262,144
+       above 5%: 262,144 52.6%, 7,340,032 5.1%
+     selection: S0 robust_best: not judged/invalid | S1 best: not judged/invalid | S2 final: not judged/invalid | S3 10,485,760: clean 39/40, own-noise falls 0, K2a 0, K2b 0
+
+== Run 2 stance3_armLT_s60 (arm LT, seed 60, clone HEAD 1af2d4d7)   INCOMPLETE (a J judge file is missing or invalid)
+   ckpt    verdict clean  LCB   full hop | K2a K2b  x_c med  statue  offset mm | roll | noise joint/own
+   4.2M       FAIL  0/40 0.000   40  40 |  10  14     63.8    64.0     -0.3  |    0 | 0/0
+   5.2M       FAIL  0/40 0.000   40  39 |   6  10     59.5    64.0     -4.5  |    0 | 1/0
+   6.3M       FAIL 36/40 0.786   40   2 |   2   6     55.5    64.0     -8.5  |    0 | 0/0
+   8.4M       PASS 39/40 0.887   40   0 |   1   0     52.5    64.0    -11.6  |    0 | 2/0
+   10.5M      PASS 39/40 0.887   40   0 |   0   0     57.1    64.0     -6.9  |    1 | 1/0
+   final   missing/invalid
+   3.1M    missing/invalid  (report only)
+   K1 FAIL: v2 PASS at 6.3M no, at final -; below 37/40 ['4.2M', '5.2M', '6.3M'] (<= 1 allowed), below 33/40 ['4.2M', '5.2M']; missing ['final']
+   K2 FAIL: K2a FAIL ['4.2M', '5.2M', 'final']; K2b FAIL ['4.2M', '5.2M', '6.3M', 'final']; K2c window FAIL [-60, +30] mm, range - mm FAIL (<= 30)
+   K3 FAIL: joint {'6.3M': 0, 'final': None} (<= 2/20), own {'6.3M': 0, 'final': None} (<= 1/20)
+   K4 FAIL: roll rail {'6.3M': 0, 'final': None} (<= 3/40)
+   -> does not hold (failed K1, K2, K3, K4); FORE-AFT does not hold
+   missing J judge files (fail every criterion that needs them): /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance3/judged/stance3_armLT_s60/judge_final.json
+   report only:
+     K5 trajectory: statue -0.0161 m, window [-0.0761, +0.0139] m, 60 evaluations from 3,145,728: no flag
+     late falls (200 < length < 1000) per 262,144 steps: peak 49.2% at 262,144
+       above 5%: 262,144 49.2%
+     selection: S0 robust_best: not judged/invalid | S1 best: not judged/invalid | S2 final: not judged/invalid | S3 10,485,760: clean 39/40, own-noise falls 0, K2a 0, K2b 0
+
+== Run 3 stance3_armLT_s52 (arm LT, seed 52, clone HEAD 1af2d4d7)   INCOMPLETE (a J judge file is missing or invalid)
+   ckpt    verdict clean  LCB   full hop | K2a K2b  x_c med  statue  offset mm | roll | noise joint/own
+   4.2M       FAIL 38/40 0.851   38   2 |   2   2     48.4    64.0    -15.7  |    0 | 1/1
+   5.2M       PASS 40/40 0.928   40   0 |   0   0     54.8    64.0     -9.3  |    0 | 1/0
+   6.3M       PASS 40/40 0.928   40   0 |   0   0     52.4    64.0    -11.6  |    0 | 0/0
+   8.4M       FAIL 34/40 0.725   40   0 |   6   3     42.8    64.0    -21.2  |    3 | 0/0
+   10.5M      PASS 40/40 0.928   40   0 |   0   0     58.0    64.0     -6.0  |    0 | 0/0
+   final   missing/invalid
+   3.1M    missing/invalid  (report only)
+   K1 FAIL: v2 PASS at 6.3M yes, at final -; below 37/40 ['8.4M'] (<= 1 allowed), below 33/40 none; missing ['final']
+   K2 FAIL: K2a FAIL ['8.4M', 'final']; K2b FAIL ['final']; K2c window FAIL [-60, +30] mm, range - mm FAIL (<= 30)
+   K3 FAIL: joint {'6.3M': 0, 'final': None} (<= 2/20), own {'6.3M': 0, 'final': None} (<= 1/20)
+   K4 FAIL: roll rail {'6.3M': 0, 'final': None} (<= 3/40)
+   -> does not hold (failed K1, K2, K3, K4); FORE-AFT does not hold
+   missing J judge files (fail every criterion that needs them): /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance3/judged/stance3_armLT_s52/judge_final.json
+   report only:
+     K5 trajectory: statue -0.0161 m, window [-0.0761, +0.0139] m, 62 evaluations from 3,145,728: no flag
+     late falls (200 < length < 1000) per 262,144 steps: peak 49.1% at 262,144
+       above 5%: 262,144 49.1%
+     selection: S0 robust_best: not judged/invalid | S1 best: not judged/invalid | S2 final: not judged/invalid | S3 4,194,304: clean 38/40, own-noise falls 1, K2a 2, K2b 2
+
+RECIPE VERDICTS: Run 1 fails, Run 2 fails, Run 3 fails
+DECISION TABLE (PROVISIONAL: judge files missing or invalid):
+   3b. L+T fails K2 on a seed and Run 1 also fails K2: a joint-space price does not hold the stance; the next round tests a fore-aft term that needs code or the v6b ankle spring.
+Best final checkpoint (stance parent for walking pilot 2): none available
+
+wrote /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance3/scores/score_10485760.json

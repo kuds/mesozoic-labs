@@ -1,0 +1,132 @@
+{
+ "schema": "stance5-replication/control-sigma/v1",
+ "rule": "element-wise mean of frozen_params criteria.H4.control_sigma 42, 52, 60",
+ "source": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/symmetry/design/frozen_params.json",
+ "source_sha256": "58b2c8fbb135ecddf1bf2212d5e243514d90ff1069f5f3e2cb1c3ece9c3e7af8",
+ "source_path_in_file": "criteria.H4.control_sigma[<seed>].vector",
+ "source_vectors": {
+  "42": {
+   "source": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/screen/runs/control_s42/models/stage1_final.zip",
+   "vector": [
+    0.20186392782030615,
+    0.20333393720998824,
+    0.2053598238797726,
+    0.1443473904927571,
+    0.19039211106793075,
+    0.08101838567599319,
+    0.06609290480696646,
+    0.13806865860889478,
+    0.1856579171077884,
+    0.07738903837681835,
+    0.06764202678068382,
+    0.21903493294701956,
+    0.2119845773118292,
+    0.2151566837069071,
+    0.20624944349269564
+   ]
+  },
+  "52": {
+   "source": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/screen/runs/control_s52/models/stage1_final.zip",
+   "vector": [
+    0.19955514739138744,
+    0.20907469155887745,
+    0.20913591299379514,
+    0.1410844273295132,
+    0.19187830680611906,
+    0.0772450518501284,
+    0.06645114827210256,
+    0.14113721388836864,
+    0.18844400490969168,
+    0.08029778942129226,
+    0.06611455953852458,
+    0.20873662668521797,
+    0.20694748716480424,
+    0.20615082463696904,
+    0.2168313315017048
+   ]
+  },
+  "60": {
+   "source": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/screen/runs/control_s60/models/stage1_final.zip",
+   "vector": [
+    0.19839539961438388,
+    0.20454227906297318,
+    0.20470354085846235,
+    0.14262054581381123,
+    0.18807095099753157,
+    0.07828738775563462,
+    0.06732367106417673,
+    0.1507255320734424,
+    0.19085124673861734,
+    0.08231613896794421,
+    0.06604708132776022,
+    0.20581640797876813,
+    0.2053580367892429,
+    0.21131495725827426,
+    0.21301439354281795
+   ]
+  }
+ },
+ "control_sigma": {
+  "70": {
+   "source": "stance5 replication sidecar (SP/foot/stance5/replication/sigma_s70_s80.json): element-wise mean of frozen_params.json criteria.H4.control_sigma 42, 52, 60 (frozen_params sha256 58b2c8fbb135ecddf1bf2212d5e243514d90ff1069f5f3e2cb1c3ece9c3e7af8)",
+   "vector": [
+    0.19993815827535913,
+    0.20565030261061298,
+    0.20639975924401002,
+    0.1426841212120272,
+    0.19011378962386047,
+    0.07885027509391873,
+    0.06662257471441525,
+    0.14331046819023527,
+    0.1883177229186991,
+    0.08000098892201828,
+    0.06660122254898954,
+    0.21119598920366855,
+    0.2080967004219588,
+    0.2108741552007168,
+    0.21203172284573946
+   ]
+  },
+  "80": {
+   "source": "stance5 replication sidecar (SP/foot/stance5/replication/sigma_s70_s80.json): element-wise mean of frozen_params.json criteria.H4.control_sigma 42, 52, 60 (frozen_params sha256 58b2c8fbb135ecddf1bf2212d5e243514d90ff1069f5f3e2cb1c3ece9c3e7af8)",
+   "vector": [
+    0.19993815827535913,
+    0.20565030261061298,
+    0.20639975924401002,
+    0.1426841212120272,
+    0.19011378962386047,
+    0.07885027509391873,
+    0.06662257471441525,
+    0.14331046819023527,
+    0.1883177229186991,
+    0.08000098892201828,
+    0.06660122254898954,
+    0.21119598920366855,
+    0.2080967004219588,
+    0.2108741552007168,
+    0.21203172284573946
+   ]
+  }
+ },
+ "computation": {
+  "script": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance5/replication/build/make_sigma.py",
+  "expression": "mean[i] = math.fsum((v42[i], v52[i], v60[i])) / 3.0, IEEE double, i = 0..14",
+  "dimension": 15,
+  "space": "joint",
+  "episodes_per_seed": 20,
+  "spawn_range": [
+   3042,
+   3061
+  ],
+  "mean_of_vector": 0.1607125300684153,
+  "each_element_within_the_three_sources": true,
+  "numpy_cross_check": {
+   "numpy_version": "2.5.3",
+   "max_abs_difference": 5.551115123125783e-17,
+   "elements_bit_identical": 13,
+   "of": 15
+  },
+  "decision": "maintainer decision 4 of 2026-10-22 (run_log 06:45 UTC): the new seeds' joint-noise sigma is the element-wise mean of control_sigma for seeds 42, 52, 60",
+  "note": "inferred, not measured: a mean of three per-seed sigmas is not a per-seed control sigma (those were each read from a control run of that seed); see replication/criteria.txt KNOWN LIMITS"
+ }
+}

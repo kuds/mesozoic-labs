@@ -1,0 +1,65 @@
+ok   baseline: every run holds: {'stance3_armL_s60': {'K1': True, 'K2': True, 'K3': True, 'K4': True, 'HOLDS': True}, 'stance3_armLT_s60': {'K1': True, 'K2': True, 'K3': True, 'K4': True, 'HOLDS': True}, 'stance3_armLT_s52': {'K1': True, 'K2': True, 'K3': True, 'K4': True, 'HOLDS': True}}
+ok   K2a inside: 3/40 over the pad rail (R2 8.4M): {'stance3_armLT_s60': {'K2a': True, 'K2': True}}
+ok   K2a outside: 4/40 over the pad rail (R2 8.4M): {'stance3_armLT_s60': {'K2a': False, 'K2': False, 'FORE_AFT_HOLDS': False}}
+ok   K2a outside: 3 over + 1 fallen (a non-full-horizon episode counts as over): {'stance3_armLT_s60': {'K2a': False}}
+ok   K2a inside: 10 episodes at exactly 0.80 (strict >): {'stance3_armLT_s60': {'K2a': True}}
+ok   K2a outside: 3 over + 1 unmeasured: {'stance3_armLT_s60': {'K2a': False}}
+ok   K2b inside: 20 episodes at exactly -0.929 / +0.571: {'stance3_armL_s60': {'K2b': True, 'HOLDS': True}}
+ok   K2b inside: 3 episodes at +0.5711: {'stance3_armL_s60': {'K2b': True}}
+ok   K2b outside: 4 episodes at +0.5711: {'stance3_armL_s60': {'K2b': False, 'K2': False}}
+ok   K2b outside: 4 episodes at -0.9291 (the heel side): {'stance3_armL_s60': {'K2b': False}}
+ok   K2b outside: 3 outside + 1 unmeasured foot: {'stance3_armL_s60': {'K2b': False}}
+ok   K2b outside: 3 outside + 1 fallen: {'stance3_armL_s60': {'K2b': False}}
+ok   K2c inside: offset exactly -60 mm (range 61 -> fails range only): {'stance3_armLT_s52': {'K2c': False}}
+ok   K2c inside: offsets -60 mm x5 and -30 mm, range exactly 30 mm: {'stance3_armLT_s52': {'K2c': True, 'K2': True}}
+ok   K2c outside: range 30.001 mm: {'stance3_armLT_s52': {'K2c': False}}
+ok   K2c outside: offset -60.001 mm: {'stance3_armLT_s52': {'K2c': False}}
+ok   K2c inside: offset exactly +30 mm at all six: {'stance3_armLT_s52': {'K2c': True}}
+ok   K2c outside: offset +30.001 mm: {'stance3_armLT_s52': {'K2c': False}}
+ok   K2c: the median is over full-horizon episodes (a fall is left out of it): {'stance3_armLT_s52': {'K2c': False}}
+ok   K1 inside: 37/40 at 6.3M, one fall at final (full 39/40, hop-or-fall 1): {'stance3_armL_s60': {'K1': True}}
+ok   K1 outside: full 38/40 at final (two falls are hop-or-fall 2): {'stance3_armL_s60': {'K1': False}}
+ok   K1 outside: 36/40 at 6.3M: {'stance3_armL_s60': {'K1': False, 'HOLDS': False}}
+ok   K1 outside: hop-or-fall 2 at final: {'stance3_armL_s60': {'K1': False}}
+ok   K1 outside: repository verdict FAIL with passing components: {'stance3_armL_s60': {'K1': False}}
+ok   K1 durability inside: one checkpoint at 33/40: {'stance3_armLT_s60': {'K1': True}}
+ok   K1 durability outside: one checkpoint at 32/40: {'stance3_armLT_s60': {'K1': False}}
+ok   K1 durability inside: 37, 37 and one 36: {'stance3_armLT_s60': {'K1': True}}
+ok   K1 durability outside: two checkpoints at 36/40: {'stance3_armLT_s60': {'K1': False}}
+ok   K3 inside: joint 2/20, own 1/20 at final: {'stance3_armLT_s52': {'K3': True}}
+ok   K3 outside: joint 3/20 at final: {'stance3_armLT_s52': {'K3': False, 'FORE_AFT_HOLDS': True}}
+ok   K3 outside: own 2/20 at final: {'stance3_armLT_s52': {'K3': False}}
+ok   K4 inside: 3 at 6.3M; 2 + a fallen roll at final: {'stance3_armL_s60': {'K4': True}}
+ok   K4 outside: 4 at final: {'stance3_armL_s60': {'K4': False}}
+ok   K4 inside: tilt exactly 2.0 / lift exactly 0.004 are not over: {'stance3_armL_s60': {'K4': True}}
+ok   missing R2 8.4M: K1 and K2 fail, K3 K4 hold, INCOMPLETE, decision provisional: {'stance3_armLT_s60': {'K1': False, 'K2': False, 'K3': True, 'K4': True}}
+ok   missing R3 final: K1 K2 K3 K4 all fail: {'stance3_armLT_s52': {'K1': False, 'K2': False, 'K3': False, 'K4': False}}
+ok   invalid R3 6.3M (smoke): K1 K2 K3 K4 fail, listed: {'stance3_armLT_s52': {'K1': False, 'K2': False, 'K3': False, 'K4': False}}
+ok   invalid R3 6.3M (quick mode): K1 K2 K3 K4 fail, listed: {'stance3_armLT_s52': {'K1': False, 'K2': False, 'K3': False, 'K4': False}}
+ok   invalid R3 6.3M (another clone HEAD): K1 K2 K3 K4 fail, listed: {'stance3_armLT_s52': {'K1': False, 'K2': False, 'K3': False, 'K4': False}}
+ok   invalid R3 6.3M (dirty clone): K1 K2 K3 K4 fail, listed: {'stance3_armLT_s52': {'K1': False, 'K2': False, 'K3': False, 'K4': False}}
+ok   invalid R3 6.3M (judged as arm L): K1 K2 K3 K4 fail, listed: {'stance3_armLT_s52': {'K1': False, 'K2': False, 'K3': False, 'K4': False}}
+ok   invalid R3 6.3M (arm L's leg weights): K1 K2 K3 K4 fail, listed: {'stance3_armLT_s52': {'K1': False, 'K2': False, 'K3': False, 'K4': False}}
+ok   invalid R3 6.3M (task binding relaxed): K1 K2 K3 K4 fail, listed: {'stance3_armLT_s52': {'K1': False, 'K2': False, 'K3': False, 'K4': False}}
+ok   invalid R3 6.3M (symmetry check off): K1 K2 K3 K4 fail, listed: {'stance3_armLT_s52': {'K1': False, 'K2': False, 'K3': False, 'K4': False}}
+ok   invalid R3 6.3M (hard binding failure): K1 K2 K3 K4 fail, listed: {'stance3_armLT_s52': {'K1': False, 'K2': False, 'K3': False, 'K4': False}}
+ok   invalid R3 6.3M (slot relabelled (seed 60 file in s52)): K1 K2 K3 K4 fail, listed: {'stance3_armLT_s52': {'K1': False, 'K2': False, 'K3': False, 'K4': False}}
+ok   invalid R3 6.3M (wrong control sigma): K1 K2 K3 K4 fail, listed: {'stance3_armLT_s52': {'K1': False, 'K2': False, 'K3': False, 'K4': False}}
+ok   invalid R3 6.3M (no own-noise panel): K1 K2 K3 K4 fail, listed: {'stance3_armLT_s52': {'K1': False, 'K2': False, 'K3': False, 'K4': False}}
+ok   invalid R3 6.3M (rows without K2 fields): K1 K2 K3 K4 fail, listed: {'stance3_armLT_s52': {'K1': False, 'K2': False, 'K3': False, 'K4': False}}
+ok   invalid R3 6.3M (statue on 39 seeds): K1 K2 K3 K4 fail, listed: {'stance3_armLT_s52': {'K1': False, 'K2': False, 'K3': False, 'K4': False}}
+ok   invalid R3 6.3M (whole-foot rail in the bars): K1 K2 K3 K4 fail, listed: {'stance3_armLT_s52': {'K1': False, 'K2': False, 'K3': False, 'K4': False}}
+ok   invalid R3 6.3M (not the r9 plant): K1 K2 K3 K4 fail, listed: {'stance3_armLT_s52': {'K1': False, 'K2': False, 'K3': False, 'K4': False}}
+ok   --validation accepts a relaxed-binding file, noted: {'stance3_armL_s60': {'K1': True, 'K2': True, 'K3': True, 'K4': True, 'HOLDS': True}}
+ok   line 2: both L+T FORE-AFT HOLD, R3 fails K3: {'stance3_armLT_s60': {'HOLDS': True}, 'stance3_armLT_s52': {'HOLDS': False, 'FORE_AFT_HOLDS': True}}
+ok   lines 3a and 5: R3 fails K2, Run 1 HOLDS, R2 HOLDS: {'stance3_armL_s60': {'HOLDS': True}, 'stance3_armLT_s52': {'K2': False}}
+ok   line 3b: both L+T and Run 1 fail K2: {'stance3_armL_s60': {'K2': False}, 'stance3_armLT_s60': {'K2': False}, 'stance3_armLT_s52': {'K2': False}}
+ok   line 4: R2 fails K1 (hop rails, head contact) while K2 holds: {'stance3_armLT_s60': {'K1': False, 'K2': True}}
+ok   line 4?: R3 fails K1 without the named modes; line 5 too: {'stance3_armLT_s52': {'K1': False, 'K2': True}}
+ok   best final: tie at 40/40 and 1 fall -> tied: {'stance3_armL_s60': {'HOLDS': True}}
+ok   best final: Run 2 (40/40, 0 falls): {'stance3_armLT_s60': {'HOLDS': True}}
+ok   report only: K5 flags 4 consecutive (not 3, not the edge), S3 = 5,242,880, late falls flag one bin: {'stance3_armL_s60': {'HOLDS': True}}
+ok   report only: S3 falls back to 3,670,016 when the 5,242,880 window has a whole-foot over: {'stance3_armL_s60': {'HOLDS': True}}
+ok   report only: the selection comparison reads the S0 and S3 judge files: {'stance3_armL_s60': {'HOLDS': True}}
+
+63/63 cases as expected
