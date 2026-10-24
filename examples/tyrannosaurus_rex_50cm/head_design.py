@@ -56,7 +56,7 @@ SPECS: dict[str, dict[str, Any]] = {
 }
 
 
-def unified_head(b: base.Builder, shape: str) -> None:
+def unified_head(b: base.Builder, shape: str, assets: Path) -> None:
     """One upper skull, side eyes and a separate deep jaw in three shapes.
 
     Hardware sizes and the 530 g moving-head target are retained. Component
@@ -134,7 +134,7 @@ def unified_head(b: base.Builder, shape: str) -> None:
         mesh = find(b, "mesh", "head_shell_mesh")
         vertices: list[float] = []
         faces: list[int] = []
-        for line in (base.HERE / "assets/rounded.obj").read_text().splitlines():
+        for line in (assets / "rounded.obj").read_text().splitlines():
             parts = line.split()
             if parts and parts[0] == "v":
                 x, y, z = map(float, parts[1:])
@@ -148,8 +148,9 @@ def unified_head(b: base.Builder, shape: str) -> None:
         component(b, "head_upper_shell", pos_m=[0.025, 0, 0.035], inertia_box_halfsize_m=[0.160, 0.1325, 0.085])
 
 
-def build(name: str, directory: Path) -> Path:
+def build(name: str, directory: Path, *, assets_directory: Path | None = None) -> Path:
     spec = SPECS[name]
+    assets = assets_directory or base.HERE / "assets"
     scale = np.array(spec["scale"])
     b = base.Builder()
     b.leg("left", 1)
@@ -259,10 +260,10 @@ def build(name: str, directory: Path) -> Path:
             "dark_sage",
         )
     if name in ("rounded_box", "long_oval", "soft_wedge"):
-        unified_head(b, name)
+        unified_head(b, name, assets)
     compiler = b.xml.find("compiler")
     assert compiler is not None
-    compiler.set("meshdir", os.path.relpath(base.HERE / "assets", directory))
+    compiler.set("meshdir", os.path.relpath(assets, directory))
     directory.mkdir(parents=True, exist_ok=True)
     b.finish(directory)
     return directory / "model.xml"

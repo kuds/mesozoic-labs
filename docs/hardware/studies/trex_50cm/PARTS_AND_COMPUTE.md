@@ -9,9 +9,11 @@ fit, electrical compatibility, thermal duty or walking.
 [head-focused study](../../../../examples/tyrannosaurus_rex_50cm/head_study/README.md)
 supersedes the fuller-torso preference. It explores a large skull and jaw over
 a compact equipment body, now comparing rounded-box, long-oval and soft-wedge
-skulls at roughly 58–59 cm. Earlier round-head alternatives remain available.
-No motor or
-computer change is selected; its unweighed head/structure allocations and
+skulls at roughly 58–59 cm. **Silhouette C is selected** and is now the main
+MuJoCo model, at 583.6 mm and 7.957 kg. Compared with this baseline BOM it adds
+120 g structure, 10 g bearings/fasteners and 210 g shells/guards while retaining
+the 600 g reserve. Earlier alternatives remain available. No motor or computer
+change is selected; its unweighed head/structure allocations and
 short simulation trials do not yet constitute an updated fabrication quote.
 
 **Earlier proportion follow-up, 2026-10-24:** the

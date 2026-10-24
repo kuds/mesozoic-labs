@@ -128,6 +128,8 @@ def check_model(*, duration: float = 10) -> dict[str, Any]:
         Path(__file__),
         MODEL_PATH.with_name("demo.py"),
         MODEL_PATH.with_name("build_model.py"),
+        MODEL_PATH.with_name("head_design.py"),
+        MODEL_PATH.with_name("proportions.py"),
     ]
     sources += sorted(MODEL_PATH.parent.glob("assets/*.obj"))
     trials = {
@@ -167,7 +169,7 @@ def check_model(*, duration: float = 10) -> dict[str, Any]:
         ],
     }
     report["passed"] = bool(
-        abs(report["mass_kg"] - 7.617) < 1e-9
+        abs(report["mass_kg"] - 7.957) < 1e-9
         and model.nu == 18
         and np.allclose(model.opt.gravity, [0, 0, -9.81])
         and model.joint("root").type[0] == mujoco.mjtJoint.mjJNT_FREE
@@ -175,7 +177,7 @@ def check_model(*, duration: float = 10) -> dict[str, Any]:
         and not model.eq_active0.any()
         and not model.body_gravcomp.any()
         and not internal_contacts(model, data)
-        and 0.48 <= high[2] - low[2] <= 0.52
+        and 0.58 <= high[2] - low[2] <= 0.59
         and not report["home"]["display_support_active"]
         and all(t["passed"] for t in trials.values())
     )

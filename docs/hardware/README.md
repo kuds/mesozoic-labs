@@ -47,11 +47,13 @@ camera/power choices, a sourced line-item BOM and a cartoon character brief.
 Its fuller 7.62 kg mass budget and approximately $14,000 first-project funding
 plan supersede the earlier 50 cm shared allowances; hardware remains unqualified.
 
-The [50 cm MuJoCo concept](../../examples/tyrannosaurus_rex_50cm/README.md)
-implements that cartoon direction as a separate 18-axis, 51.5 cm model with the
-full 7.617 kg assigned budget, snout cameras, moving arms/jaw/tail, compiled-model
+The [medium MuJoCo concept](../../examples/tyrannosaurus_rex_50cm/README.md)
+now defaults to the selected soft-wedge silhouette C: an 18-axis, 58.4 cm model
+with 7.957 kg assigned mass, snout cameras, moving arms/jaw/tail, compiled-model
 renders and CI regressions. Short free-base stance and gesture checks pass;
 walking, real part fit and hardware operation remain unvalidated.
+The original 51.5 cm, 7.617 kg reference remains separate; the selected model
+adds 340 g of explicit mechanical allowances without consuming its reserve.
 
 The [robot variants and build plan](ROBOT_VARIANTS_AND_BUILD_PLAN.md) proposes
 how concurrent mini, medium and large robots of one species should be identified,

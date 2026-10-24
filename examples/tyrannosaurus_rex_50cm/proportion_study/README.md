@@ -196,7 +196,8 @@ references `../../assets` within this example. Open the XML in MuJoCo and
 reset to `home`. [results.json](results.json) records effort, dimensions,
 payload cases, cost additions and source hashes. The model test module now
 had 19 cases at this study's original revision, including the three alternate
-bodies, budget and payload checks; later head alternatives extend it to 24.
+bodies, budget and payload checks; later head alternatives and the selected-C
+default extend it to 25. The original baseline remains available separately.
 
 The hardware-study path is owned by the standalone example package, avoiding
 a retired species identifier in environment tests. Baseline geometry/control

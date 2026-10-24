@@ -1,4 +1,4 @@
-"""Generate the 50 cm concept's MJCF, visual meshes and assigned-mass ledger.
+"""Generate the selected medium T-Rex or the original 51.5 cm baseline.
 
 Motor cases are provisional 60 mm diameter x 55 mm packaging envelopes, not
 manufacturer CAD. Inertias come from explicit component surrogates, never the
@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any
@@ -645,16 +646,35 @@ class Builder:
         (directory / "components.json").write_text(json.dumps(report, indent=2) + "\n")
 
 
-def build(directory: Path = HERE) -> None:
-    make_meshes(directory / "assets")
+def build_baseline(directory: Path = HERE / "baseline_51cm", *, assets_directory: Path | None = None) -> None:
+    """Retain the original budget-reference assembly with shared visual assets."""
+    assets = assets_directory or HERE / "assets"
+    make_meshes(assets)
     b = Builder()
     b.leg("left", 1)
     b.leg("right", -1)
     b.upper_body()
+    compiler = b.xml.find("compiler")
+    assert compiler is not None
+    compiler.set("meshdir", os.path.relpath(assets, directory))
+    directory.mkdir(parents=True, exist_ok=True)
     b.finish(directory)
+
+
+def build(directory: Path = HERE) -> None:
+    """The main model is the selected soft-wedge silhouette C."""
+    from .head_design import build as build_head
+
+    make_meshes(directory / "assets")
+    build_head("soft_wedge", directory, assets_directory=directory / "assets")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--output", type=Path, default=HERE)
-    build(parser.parse_args().output)
+    parser.add_argument("--output", type=Path)
+    parser.add_argument("--baseline", action="store_true", help="Regenerate the original 51.5 cm reference.")
+    args = parser.parse_args()
+    if args.baseline:
+        build_baseline(args.output or HERE / "baseline_51cm")
+    else:
+        build(args.output or HERE)

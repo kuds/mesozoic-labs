@@ -1,6 +1,8 @@
-# 50 cm Tyrannosaurus Rex — MuJoCo concept
+# Medium Tyrannosaurus Rex — silhouette C
 
-An articulated interpretation of the sage-green cartoon concept, with cosmetic
+The selected **soft-wedge silhouette C** is now the default `model.xml`, viewer,
+generator, validation target and animation. It is an articulated interpretation
+of the sage-green cartoon concept, with cosmetic
 amber eyes, three snout-camera apertures, a cream jaw/belly, tiny independent
 arms, exposed joint housings, broad three-toed feet and a tapered wagging tail.
 This is a **separate standalone example**; the mini and registered training
@@ -8,20 +10,18 @@ plants/checkpoints are unchanged.
 
 ![Actual compiled model, four views](design_views.png)
 
-The [latest character study](head_study/README.md) makes a broad skull and jaw
-the main feature, with a compact torso underneath. It compares rounded-box,
-long-oval and soft-wedge skulls at roughly 58–59 cm, retaining the earlier round
-heads for context. It records head mass, proportions and gesture effort.
-This supersedes the aesthetic recommendation in the earlier
-[torso-size study](proportion_study/README.md), whose geometry, simulations and
-budget calculations remain available for context. These are exploratory models;
-the default below remains unchanged.
+The gently tapered skull and deep jaw carry the character above a compact
+torso. Side eyes sit below the forehead; the jaw has an open rear around the
+neck. The [head study](head_study/README.md) retains the other shapes for
+comparison. The [original 51.5 cm model](baseline_51cm/README.md) is preserved
+as the parts-budget reference. The package keeps its original `50cm` directory
+name; the selected design's measured height is **58.4 cm**.
 
 | Property | Current model |
 | --- | --- |
-| Home height | **515 mm** including brow shells |
-| Home width / nose-to-tail length | **341.4 / 511.5 mm** |
-| Assigned mass | **7.617 kg**, including the 600 g integration reserve |
+| Home height | **583.6 mm** |
+| Home width / nose-to-tail length | **341.4 / 574.5 mm** |
+| Assigned mass | **7.957 kg**, including the 600 g integration reserve |
 | Base | Free joint, gravity and ground contact; no default external support |
 | Leg joints | 12: hip yaw/roll/pitch, knee, ankle pitch/roll on each side |
 | Character joints | 6: independent arms, head yaw/nod, jaw and tail yaw |
@@ -30,9 +30,7 @@ the default below remains unchanged.
 | Sensors | Joint position/velocity, pelvis IMU, ideal orientation/CoM, four touch regions per foot |
 | Cameras | `snout_left`, `snout_rgb`, `snout_right`; illustrative poses/FOV, not hardware calibration |
 
-Dimensions are measured from the compiled home geometry. The resulting length
-is shorter than the earlier 550–650 mm sketch reservation; this is a first
-layout, not a requirement to enlarge the robot. Legs and visible actuator cases
+Dimensions are measured from the compiled home geometry. Legs and visible actuator cases
 are intentionally more exposed than in the concept art so the proposed joint
 layout can be inspected.
 
@@ -84,12 +82,15 @@ The first and last frames are not an identical state, so the GIF loop resets.
 
 ## Mass, geometry and hardware assumptions
 
-The [65-component ledger](components.json) reconciles every mass category with
-the [detailed parts budget](../../docs/hardware/studies/trex_50cm/parts_budget.json).
+The [66-component ledger](components.json) reconciles with the
+[original parts budget](../../docs/hardware/studies/trex_50cm/parts_budget.json)
+plus explicit design additions: **120 g structure, 10 g bearings/fasteners and
+210 g shells/guards**, for a net 340 g increase. The 600 g reserve is retained.
+This is an updated mass allocation, not a revised supplier or fabrication quote.
 It includes the camera, electronics, battery, wiring and reserve. Component
 positions and box-surrogate inertias are assigned estimates; the generator
 combines them with the parallel-axis theorem. Decorative shell volumes do not
-silently add solid-plastic mass. The head-yaw subtree is 350 g, including the
+silently add solid-plastic mass. The head-yaw subtree is 530 g, including the
 nod motor, camera, jaw drive and head structure/shells.
 
 The twelve **60 mm diameter × 55 mm** leg motor cases are provisional packaging
@@ -133,17 +134,19 @@ The recorded MuJoCo 3.10.0 result has:
 
 | Trial | Duration | Minimum root-height ratio | Maximum torso tilt | Maximum internal penetration |
 | --- | ---: | ---: | ---: | ---: |
-| Free stance | 10 s | 0.9913 | 2.55° | 0 |
-| Free standing gestures | 10 s | 0.9913 | 2.55° | 0 |
-| Explicitly supported gestures | 10 s | 0.9992 | 0.10° | 0 |
+| Free stance | 10 s | 0.9911 | 2.61° | 0 |
+| Free standing gestures | 10 s | 0.9911 | 2.61° | 0 |
+| Explicitly supported gestures | 10 s | 0.9991 | 0.09° | 0 |
 
 No numerical warnings occurred. In free stance, the largest leg RMS/peak effort
-was approximately **1.74 / 2.28 Nm**. These are double-support standing results,
+was approximately **1.79 / 2.30 Nm**. Standing gestures reach approximately
+**0.259 Nm neck peak and 0.081 Nm jaw peak**; the jaw already uses about 81% of
+its provisional 0.1 Nm cap. These are double-support standing results,
 not substitutes for the earlier walking similarity calculation. Home has eight
 sole/ground contacts and no active internal contacts. The full result records
 actuator effort, sensor loads, joint excursions, model version and source hashes.
 
-The 24 model tests cover mass/inertia reconciliation, dimensions and motor
+The 25 model tests cover both the selected and baseline mass ledgers, dimensions and motor
 envelopes, forward knees, legal joint ranges, camera/foot-sensor attachment,
 gravity/free-base/no-hidden-support conditions, unsupported stance/gestures,
 bounded effort, canonical numeric serialization and deterministic regeneration. A deliberately underpowered
@@ -163,8 +166,18 @@ friction, delay and disturbance tests.
 python -m examples.tyrannosaurus_rex_50cm.build_model
 ```
 
-This deterministically writes `model.xml`, `components.json` and the three OBJ
-visual assets. Edit the generator rather than those outputs, then rerun tests,
+This deterministically writes silhouette C to `model.xml`, `components.json`
+and the three shared OBJ visual assets. Its tapered skull mesh is embedded
+in the XML. The selected model and the retained C alternative have identical
+compiled physical properties. Edit the generators rather than those outputs, then rerun tests,
 validation and rendering. The model remains outside the species/plant registry
 until the [variant architecture](../../docs/hardware/ROBOT_VARIANTS_AND_BUILD_PLAN.md)
 and its policy/artifact compatibility rules are implemented.
+
+To regenerate or view the original reference separately:
+
+```bash
+python -m examples.tyrannosaurus_rex_50cm.build_model --baseline
+python -m examples.tyrannosaurus_rex_50cm.demo --view \
+  --model examples/tyrannosaurus_rex_50cm/baseline_51cm/model.xml
+```

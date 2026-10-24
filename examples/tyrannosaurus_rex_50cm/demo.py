@@ -1,4 +1,4 @@
-"""Load, inspect and animate the standalone 50 cm T-Rex MJCF."""
+"""Load, inspect and animate the selected silhouette-C T-Rex MJCF."""
 
 from __future__ import annotations
 
@@ -11,6 +11,7 @@ import mujoco
 import numpy as np
 
 MODEL_PATH = Path(__file__).with_name("model.xml")
+BASELINE_PATH = Path(__file__).with_name("baseline_51cm") / "model.xml"
 
 
 def set_support(model: mujoco.MjModel, data: mujoco.MjData, enabled: bool) -> None:
@@ -51,6 +52,7 @@ def gesture_controls(model: mujoco.MjModel, elapsed: float) -> np.ndarray:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--view", action="store_true", help="Interactive MuJoCo viewer; use mjpython on macOS.")
+    parser.add_argument("--model", type=Path, default=MODEL_PATH, help="Defaults to selected silhouette C.")
     parser.add_argument("--support", action="store_true", help="Explicitly weld torso for a display demonstration.")
     parser.add_argument("--gesture", action="store_true", help="Animate arms, head, jaw and tail while standing.")
     parser.add_argument("--render", type=Path, help="CPU render of the compiled geometry; requires the viz extra.")
@@ -62,7 +64,7 @@ def main() -> int:
     if not (args.view or args.render):
         parser.print_help()
         return 0
-    model, data = load_model(supported=args.support)
+    model, data = load_model(supported=args.support, path=args.model)
     if args.render:
         from .render_design import render
 

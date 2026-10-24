@@ -6,7 +6,8 @@ one upper-skull volume, side eyes below its top outline, a deep cream jaw,
 small teeth and a snout camera. This removes the separate round cranium,
 raised brows and broad shallow muzzle that made the earlier design read as
 frog-like. These are alternatives for one medium build, not three robots to
-manufacture. No final character shape has been selected by the user.
+manufacture. **The user selected C, the soft wedge.** It is now the
+[main model and default viewer](../README.md); A and B remain alternatives.
 
 ![Three actual MuJoCo head-shape alternatives](shape_options.png)
 
@@ -18,8 +19,8 @@ manufacture. No final character shape has been selected by the user.
 | B: long oval | Softest, friendliest expression; continuous curved skull | Keep it elongated front-to-back and retain a deep jaw to avoid the amphibian look |
 | C: soft wedge | Deeper rear skull and a gently tapering blunt snout | Best starting point for a more recognizable dinosaur; keep the taper gentle |
 
-The current design recommendation is to compare **C's mild taper with A's
-rounded rectangular structure**. B remains a useful softer alternative.
+The selected direction combines **C's mild taper with rounded corners**.
+A and B remain useful references for a boxier or softer expression.
 Expression, eye recesses and jaw seams still need surface design. The MJCF
 uses simple overlapping visual surfaces rather than fabricated panel CAD;
 an artistic concept rendering must not be mistaken for those exact surfaces.
@@ -112,7 +113,7 @@ python -m examples.tyrannosaurus_rex_50cm.head_design --render
 python -m pytest environments/tyrannosaurus_rex/tests/test_tyrannosaurus_rex_50cm.py
 ```
 
-The test module has 24 cases. Head-study cases retain checks for head prominence,
+The test module has 25 cases. Head-study cases retain checks for head prominence,
 reserve, leg anchors, camera dimensions, motor caps, lack of hidden support,
-home contacts and actual standing character motion. The default baseline,
-registered training plants and their interfaces remain unchanged.
+home contacts and actual standing character motion. The original baseline is
+preserved separately; registered training plants and their interfaces remain unchanged.

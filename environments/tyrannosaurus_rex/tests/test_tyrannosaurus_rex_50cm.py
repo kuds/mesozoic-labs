@@ -11,13 +11,24 @@ import pytest
 from examples.tyrannosaurus_rex_50cm import PARTS_BUDGET_PATH, build_model, demo, head_design, proportions, validate
 
 
-def test_components_reconcile_with_detailed_parts_mass_budget():
-    model, _ = demo.load_model()
-    ledger = json.loads(demo.MODEL_PATH.with_name("components.json").read_text())
+@pytest.mark.parametrize("selected", [False, True])
+def test_components_reconcile_with_budget_and_explicit_design_additions(selected):
+    path = demo.MODEL_PATH if selected else demo.BASELINE_PATH
+    mass = 7.957 if selected else 7.617
+    model, _ = demo.load_model(path=path)
+    ledger = json.loads(path.with_name("components.json").read_text())
     budget = json.loads(PARTS_BUDGET_PATH.read_text())
-    assert ledger["categories_kg"] == pytest.approx({k: v / 1000 for k, v in budget["mass_allowances_g"].items()})
-    assert sum(c["mass_kg"] for c in ledger["components"]) == pytest.approx(7.617)
-    assert model.body_mass.sum() == pytest.approx(7.617)
+    expected_categories = {k: v / 1000 for k, v in budget["mass_allowances_g"].items()}
+    if selected:
+        for category, addition in (
+            ("load_bearing_structure", 0.120),
+            ("bearings_feet_fasteners", 0.010),
+            ("shells_and_guards", 0.210),
+        ):
+            expected_categories[category] += addition
+    assert ledger["categories_kg"] == pytest.approx(expected_categories)
+    assert sum(c["mass_kg"] for c in ledger["components"]) == pytest.approx(mass)
+    assert model.body_mass.sum() == pytest.approx(mass)
     for b in range(1, model.nbody):
         expected = sum(c["mass_kg"] for c in ledger["components"] if c["body"] == model.body(b).name)
         assert model.body_mass[b] == pytest.approx(expected)
@@ -53,7 +64,7 @@ def test_interface_and_physics_have_no_hidden_support():
 def test_size_knee_direction_and_twelve_provisional_motor_envelopes():
     model, data = demo.load_model()
     low, high = validate.visual_bounds(model, data)
-    assert 0.48 <= high[2] - low[2] <= 0.52
+    assert 0.58 <= high[2] - low[2] <= 0.59
     assert high[1] - low[1] < 0.35
     cases = [model.geom(i) for i in range(model.ngeom) if model.geom(i).name.endswith("_case_collision")]
     assert len(cases) == 12
@@ -124,6 +135,15 @@ def test_source_generator_reproduces_committed_model_and_assets(tmp_path):
     build_model.build(tmp_path)
     for name in ("model.xml", "components.json", "assets/rounded.obj", "assets/soft.obj", "assets/tail.obj"):
         assert (tmp_path / name).read_bytes() == (demo.MODEL_PATH.parent / name).read_bytes(), name
+    build_model.build_baseline(tmp_path / "baseline_51cm", assets_directory=tmp_path / "assets")
+    for name in ("model.xml", "components.json"):
+        assert (tmp_path / "baseline_51cm" / name).read_bytes() == (demo.BASELINE_PATH.parent / name).read_bytes()
+    # The selected default and the retained C alternative must have identical
+    # compiled physics; only their relative mesh paths differ.
+    selected_model, _ = demo.load_model()
+    option_model, _ = demo.load_model(path=head_design.OUTPUT / "soft_wedge/model.xml")
+    for field in ("body_mass", "body_inertia", "body_pos", "jnt_pos", "actuator_forcerange"):
+        assert getattr(selected_model, field) == pytest.approx(getattr(option_model, field))
 
 
 def test_generator_canonicalizes_cross_version_float_sum_residue():
@@ -138,7 +158,7 @@ def test_generator_canonicalizes_cross_version_float_sum_residue():
 def test_fuller_body_studies_retain_real_legs_reserve_and_free_standing(variant, height, mass, tmp_path):
     path = proportions.build_variant(variant, tmp_path / variant)
     model, data = demo.load_model(path=path)
-    original, home = demo.load_model()
+    original, home = demo.load_model(path=demo.BASELINE_PATH)
     ledger = json.loads(path.with_name("components.json").read_text())
     assert ledger["categories_kg"]["unallocated_integration_reserve"] == pytest.approx(0.600)
     assert model.body_mass.sum() == pytest.approx(mass)
@@ -184,7 +204,7 @@ def test_proportion_payload_adds_mass_above_existing_reserve(tmp_path):
 def test_head_led_design_retains_hardware_and_moves_without_support(variant, head_mass, tmp_path):
     path = head_design.build(variant, tmp_path / variant)
     model, data = demo.load_model(path=path)
-    original, home = demo.load_model()
+    original, home = demo.load_model(path=demo.BASELINE_PATH)
     low, high = head_design.head_bounds(model, data)
     robot_low, robot_high = validate.visual_bounds(model, data)
     assert (high[2] - low[2]) / (robot_high[2] - robot_low[2]) > 0.36

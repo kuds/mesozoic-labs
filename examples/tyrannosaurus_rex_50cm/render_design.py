@@ -13,6 +13,7 @@ from examples.mini_tyrannosaurus_rex.render_design import _camera_basis, _font, 
 from examples.mini_tyrannosaurus_rex.render_design import render as render_geometry
 
 from .demo import MODEL_PATH, gesture_controls, load_model
+from .validate import visual_bounds
 
 
 def render(
@@ -41,12 +42,13 @@ def render(
 
 def design_sheet(path: Path) -> None:
     model, data = load_model()
+    low, high = visual_bounds(model, data)
     sheet = Image.new("RGB", (1600, 1580), (245, 247, 244))
     draw = ImageDraw.Draw(sheet)
-    draw.text((55, 34), "TYRANNOSAURUS REX / 50 CM", font=_font(35), fill=(38, 55, 43))
+    draw.text((55, 34), "T-REX / SILHOUETTE C", font=_font(35), fill=(38, 55, 43))
     draw.text(
         (55, 88),
-        "Compiled MuJoCo geometry  |  18 actuators  |  7.617 kg assigned mass",
+        f"Compiled MuJoCo geometry  |  {(high[2] - low[2]) * 100:.1f} cm  |  {model.body_mass.sum():.3f} kg assigned mass",
         font=_font(20),
         fill=(83, 97, 88),
     )
