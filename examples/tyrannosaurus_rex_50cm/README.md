@@ -45,9 +45,7 @@ directory alongside it:
 ```python
 import mujoco
 
-model = mujoco.MjModel.from_xml_path(
-    "examples/tyrannosaurus_rex_50cm/model.xml"
-)
+model = mujoco.MjModel.from_xml_path("examples/tyrannosaurus_rex_50cm/model.xml")
 data = mujoco.MjData(model)
 mujoco.mj_resetDataKeyframe(model, data, model.key("home").id)
 mujoco.mj_forward(model, data)
