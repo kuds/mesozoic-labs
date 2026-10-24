@@ -10,8 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **Decision D-D41 recorded: a replication of the per-foot centre-of-pressure
   band screen on two more seeds, read three of five; D-D40 and D-D36 amended**
-  (the maintainer's decisions of 2026-10-22; `docs/BEHAVIOR_RECIPES_PLAN.md`
-  §6.2, `docs/CONSOLIDATION_PLAN_2026_09.md` §6, a dated note in §17 of
+  (#634; the maintainer's decisions of 2026-10-22;
+  `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2, `docs/CONSOLIDATION_PLAN_2026_09.md`
+  §6, a dated note in §17 of
   `docs/GAIT_QUALITY_PLAN_2026_09.md`, `docs/NEXT_STEPS.md` §3; the appended §22
   of `docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md`). Records
   only: no library code, configuration, test, notebook, digest or generated file
@@ -49,7 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The stance5 screen of D-D40 judged: one of the three per-foot
   centre-of-pressure band runs holds (line 3), and the band is not adopted; the
   band's build, the stance4 seed-42 saturation diagnosis and walking pilot 2's
-  rebuild recorded** (D-D40's amendment of 2026-10-22;
+  rebuild recorded** (#634; D-D40's amendment of 2026-10-22;
   `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2, `docs/CONSOLIDATION_PLAN_2026_09.md` §6,
   a dated note in §17 of `docs/GAIT_QUALITY_PLAN_2026_09.md`,
   `docs/NEXT_STEPS.md` §3; the appended §21 of
