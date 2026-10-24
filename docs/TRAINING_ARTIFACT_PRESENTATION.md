@@ -902,7 +902,7 @@ reads the files and writes nothing else (`reporting/training_history.py`).
 | Page | What it draws, against the training step |
 |---|---|
 | Outcomes | Clean episodes (`screen_v2_clean`), falls (shorter than the horizon) and the mean return per evaluation, and the training falls per 262,144-step window of `train_episodes.csv` (`cause` not `truncated`; the stochastic policy's) |
-| Saturation | The episodes per evaluation listing `max_actuator_saturation_fraction` in `screen_v2_reasons`; those episodes by the actuator each names (`saturated_actuator`) and its sign; `saturated_actuator_fraction` (mean and worst episode) against the stage's `max_actuator_saturation_fraction` bar; and `actuator_force_frac_max` against its limit of 1 |
+| Saturation | The episodes per evaluation listing `max_actuator_saturation_fraction` in `screen_v2_reasons`; those episodes by the actuator each names (`saturated_actuator`) and its sign; `saturated_actuator_fraction` (mean and worst episode) against the stage's `max_actuator_saturation_fraction` bar; `actuator_force_frac_max` against its limit of 1; and, per training rollout from `policy_probe.npz`, each actuator's share of sampled actions clipped at a bound and of the policy's means beyond one |
 | Whole-foot CoP | Per foot, the signed `<label>_foot_cop_fore_aft` with the reward band's edges; the full-horizon episodes with either foot's window mean outside the band; the report-only `max_foot_cop_fore_aft` |
 | Pad CoP and the pad rail | Per foot, the signed `<label>_sole_cop_fore_aft` with the pad band's edges; the rail's own `max_sole_cop_fore_aft` (mean and worst episode) against its bar; the full-horizon episodes over that bar; those outside the pad band |
 | Digits and margins | Per foot, `<label>_digit_share` and `<label>_toe_margin_nm` |
@@ -978,6 +978,29 @@ actuators are labelled by index. A missing file or column is an absent
 series, listed in the JSON and on the page, never an error. The evaluation
 episodes are the deterministic policy's at yaw 0, so the judge's perturbation
 panels and verdicts are not in these files.
+
+The saturation page's last two panels are the training rollouts', from
+`policy_probe.npz`'s `rollout_*` arrays (above): per rollout, each
+actuator's share of sampled actions clipped at the high bound (`+`, solid)
+and the low one (`-`, dashed), and of the policy's mean actions beyond
+them. An actuator at a bound is drawn by name once its share reaches 0.01
+at some rollout (at most six such series, the highest peak first, in the
+colour its flagged evaluation episodes are drawn in above where they name
+it, else in one that no flagged actuator on the page holds, so a colour
+names one actuator across the page while the palette lasts); one grey line
+is the largest share of every other actuator and bound. A comparison draws
+each run's largest actuator share per rollout, its two bounds summed, with
+the actuator that line traces at its peak beside the run's name (once it
+reaches 0.01). Nothing is smoothed. The JSON's `rollout_shares` keeps, per
+actuator, each share's peak, every array's value at the last measured
+rollout and the first rollout at which either bound's share reaches 0.01,
+with the series the pages name; the per-rollout series stay in the file. A
+run without the file, or with a file written before the arrays, is an
+absent series, said in the page's caption and the JSON's `absent`. A run
+resumed from such a file has no value at the rollouts before the resume
+(nor at a rollout whose buffer pass failed): the panel says from which
+step its rollouts were measured, the caption says the run has gaps, and
+the JSON's `rollouts_measured` and `first_timesteps` record them.
 
 ## The handoff's in-training score: `handoff_in_training.json`
 

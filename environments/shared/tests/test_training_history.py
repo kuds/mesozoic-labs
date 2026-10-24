@@ -493,6 +493,209 @@ class TestNamedActuators:
         )
 
 
+def _probe(stage: Path, *, rollouts: int = 8, older: bool = False) -> Path:
+    """A ``policy_probe.npz`` of *rollouts* rows of 2,048 buffer rows, the first two from before the rollout arrays.
+
+    tail_3_pitch_act (14): samples clipped at + rising to 0.3 and its mean beyond + to 0.5; r_knee_act (5): 2% of
+    samples clipped at - from the fourth rollout; l_knee_act (9): 0.4% at + (under the naming level).
+    """
+    nu = 15
+    steps = np.arange(1, rollouts + 1, dtype=np.int64) * STEP
+    arrays: dict[str, Any] = {
+        "update_timesteps": steps,
+        "std_per_actuator": np.full((rollouts, nu), 0.2, dtype=np.float32),
+    }
+    if not older:
+        zeros = np.zeros((rollouts, nu), dtype=np.float32)
+        clip_high, clip_low, mu_high, mu_low = zeros.copy(), zeros.copy(), zeros.copy(), zeros.copy()
+        clip_high[:, 14] = np.linspace(0.0, 0.3, rollouts)
+        mu_high[:, 14] = np.linspace(0.0, 0.5, rollouts)
+        clip_low[3:, 5] = 0.02
+        clip_high[:, 9] = 0.004
+        mean = np.full((rollouts, nu), 0.1, dtype=np.float32)
+        rows = np.full(rollouts, STEP, dtype=np.int64)
+        arrays.update(
+            rollout_rows=rows,
+            rollout_action_clip_high_share=clip_high,
+            rollout_action_clip_low_share=clip_low,
+            rollout_action_saturated_share=clip_high + clip_low,
+            rollout_mu_beyond_high_share=mu_high,
+            rollout_mu_beyond_low_share=mu_low,
+            rollout_mu_mean=mean,
+            rollout_mu_q50=mean,
+            rollout_mu_q95=mean + 0.5,
+        )
+        rows[:2] = 0  # a resumed session's rows from before the arrays: NaN
+        for key in th.ROLLOUT_ARRAYS:
+            arrays[key][:2] = np.nan
+    path = stage / th.POLICY_PROBE_FILENAME
+    np.savez(path, **arrays)
+    return path
+
+
+class TestRolloutShares:
+    def test_the_shares_are_read_and_summarised_per_actuator(self, tmp_path):
+        stage = _stage(tmp_path)
+        _probe(stage)
+        run = th.load_run_history(stage, read_std=False)
+        assert run.rollout_shares is not None and run.rollout_actuators[14] == "tail_3_pitch_act"
+        assert run.last_step == 8 * STEP  # the probe's last rollout is past the last evaluation
+        summary = th.rollout_summary(run)
+        assert summary["rollouts"] == 8 and summary["rollouts_measured"] == 6
+        assert (summary["first_timesteps"], summary["last_timesteps"], summary["rows_per_rollout"]) == (
+            3 * STEP,
+            8 * STEP,
+            [STEP],
+        )
+        assert summary["named"] == {
+            "action_clip": ["tail_3_pitch_act +", "r_knee_act -"],
+            "mu_beyond": ["tail_3_pitch_act +"],
+        }
+        tail = summary["per_actuator"]["tail_3_pitch_act"]
+        assert tail["max"]["action_clip_high_share"] == pytest.approx(0.3)
+        assert tail["last"]["mu_beyond_high_share"] == pytest.approx(0.5)
+        assert tail["last"]["mu_q95"] == pytest.approx(0.6) and "mu_q95" not in tail["max"]
+        # The first rollout at the level: 0.3 * 2 / 7 = 0.086 at the third (the first two are NaN).
+        assert tail["first_at_level"] == {"action_clip": 3 * STEP, "mu_beyond": 3 * STEP}
+        assert summary["per_actuator"]["r_knee_act"]["first_at_level"] == {"action_clip": 4 * STEP, "mu_beyond": None}
+        assert summary["per_actuator"]["l_knee_act"]["max"]["action_clip_high_share"] == pytest.approx(0.004)
+
+    def test_the_named_series_and_the_rest(self):
+        shares = {
+            "rollout_action_clip_high_share": np.array([[0.0, 0.2, 0.001], [np.nan, np.nan, np.nan]]),
+            "rollout_action_clip_low_share": np.array([[0.05, 0.0, 0.003], [np.nan, np.nan, np.nan]]),
+        }
+        named, others, count = th.rollout_series(shares, ["a", "b", "c"], "rollout_action_clip")
+        assert [label for label, _ in named] == ["b +", "a -"]
+        assert others is not None and others[0] == pytest.approx(0.003) and math.isnan(others[1]) and count == 3
+        with pytest.MonkeyPatch.context() as patch:
+            patch.setattr(th, "ROLLOUT_NAMED_SERIES", 1)
+            named, others, count = th.rollout_series(shares, ["a", "b", "c"], "rollout_action_clip")
+        assert [label for label, _ in named] == ["b +"] and others[0] == pytest.approx(0.05) and count == 3
+
+    def test_the_saturation_page_draws_them_unsmoothed_and_names_the_actuators(self, tmp_path):
+        stage = _stage(tmp_path)
+        _probe(stage)
+        run = th.load_run_history(stage, read_std=False)
+        context = th._make_context([run], marks=[], smooth=5)
+        figure = th._page_figure(th.PAGES[1], context, title="t", dpi=30, width=12.0)
+        clipped, beyond = figure.axes[4:6]
+        legend = [text.get_text() for text in clipped.get_legend().get_texts()]
+        assert legend == ["tail_3_pitch_act +", "r_knee_act -", "the rest, largest"]
+        tail = clipped.lines[0]
+        assert tail.get_linestyle() == "-" and clipped.lines[1].get_linestyle() == "--"
+        # The tail keeps the colour its flagged evaluation episodes are drawn in above; the knee takes a free one.
+        assert tail.get_color() == context.named_colours["tail_3_pitch_act +"]
+        assert clipped.lines[1].get_color() not in (tail.get_color(), th._MUTED)
+        assert any("named from 0.01" in text.get_text() for text in clipped.texts)
+        # The first two rollouts were not measured (a resume's rows from an older file): said on the panel.
+        assert "not measured before 6k" in [text.get_text() for text in clipped.texts]
+        # Every rollout's raw value, never smoothed.
+        assert np.allclose(tail.get_ydata()[2:], np.linspace(0.0, 0.3, 8)[2:]) and np.isnan(tail.get_ydata()[0])
+        assert np.allclose(clipped.lines[2].get_ydata()[2:], 0.004)
+        assert [text.get_text() for text in beyond.get_legend().get_texts()][0] == "tail_3_pitch_act +"
+        caption = th.render_pages([run], title="t", marks=[], dpi=30)[0][1].caption
+        assert "policy_probe.npz" in caption and "panels are absent" not in caption
+        assert "(this run: some rollouts not measured, said on the panel" in caption
+
+    def test_an_actuator_only_the_rollouts_name_takes_no_flagged_actuators_colour(self, tmp_path):
+        stage = _stage(tmp_path)
+        # Evaluation 2's seven flagged episodes name l_hip_pitch_act at -, so it ranks first and the tail second.
+        hip = {"saturated_actuator": "l_hip_pitch_act", "saturated_actuator_positive_share": 0.0}
+        rows = [
+            _episode(
+                evaluation, episode, saturated=episode < count, **(hip if evaluation == 2 and episode < count else {})
+            )
+            for evaluation, count in enumerate([0, 6, 7, 0])
+            for episode in range(10)
+        ]
+        _write_csv(stage / th.EVAL_EPISODES_FILENAME, rows, COLUMNS)
+        _probe(stage)
+        run = th.load_run_history(stage, read_std=False)
+        context = th._make_context([run], marks=[], smooth=5)
+        assert list(context.named_colours) == ["l_hip_pitch_act -", "tail_3_pitch_act +"]
+        clipped = th._page_figure(th.PAGES[1], context, title="t", dpi=30, width=12.0).axes[4]
+        tail, knee = clipped.lines[:2]
+        assert (tail.get_label(), knee.get_label()) == ("tail_3_pitch_act +", "r_knee_act -")
+        assert tail.get_color() == context.named_colours["tail_3_pitch_act +"]
+        # The knee is flagged nowhere: neither the hip's colour above nor the tail's, nor grey.
+        assert knee.get_color() not in (*context.named_colours.values(), th._MUTED)
+
+    def test_with_every_named_colour_flagged_the_rollouts_still_draw_distinct_colours(self, tmp_path):
+        stage = _stage(tmp_path)
+        context = th._make_context([th.load_run_history(stage, read_std=False)], marks=[], smooth=5)
+        context.named_colours = {f"flagged_{i} +": colour for i, colour in enumerate(th._NAMED_SERIES)}
+        colours = th._rollout_colours(context, ["flagged_2 -", "knee +", "knee -", "ankle +"])
+        assert colours["flagged_2"] == th._NAMED_SERIES[2]
+        assert len(set(colours.values())) == 3 and th._MUTED not in colours.values()
+
+    def test_a_comparison_draws_each_runs_largest_share(self, tmp_path):
+        first = _stage(tmp_path, name="a")
+        _probe(first)
+        second = _stage(tmp_path, name="b")
+        runs = [th.load_run_history(stage, label=stage.parent.name, read_std=False) for stage in (first, second)]
+        context = th._make_context(runs, marks=[], smooth=5)
+        figure = th._page_figure(th.PAGES[1], context, title="t", dpi=30, width=12.0)
+        clipped = figure.axes[4]
+        drawn = [line for line in clipped.lines if line.get_label() == "_nolegend_" and len(line.get_xdata()) == 8]
+        assert len(drawn) == 1
+        assert np.allclose(
+            drawn[0].get_ydata()[2:], np.maximum(np.linspace(0.0, 0.3, 8), [0, 0, 0, 0.02, 0.02, 0.02, 0.02, 0.02])[2:]
+        )
+        texts = [text.get_text() for text in clipped.texts]
+        assert "a (tail_3_pitch_act)" in texts and "not recorded: b" in texts and "a: not measured before 6k" in texts
+        caption = th.render_pages(runs, title="t", marks=[], dpi=30)[0][1].caption
+        assert "(b: no policy_probe.npz rollout_* arrays" in caption
+
+    def test_a_comparisons_label_names_the_actuator_its_line_traces(self, tmp_path):
+        runs = []
+        for name in ("a", "b"):
+            stage = _stage(tmp_path, name=name)
+            _probe(stage)
+            runs.append(th.load_run_history(stage, label=name, read_std=False))
+        shares = runs[0].rollout_shares
+        assert shares is not None
+        high, low = (np.zeros_like(shares[key]) for key in th.ROLLOUT_SHARES["rollout_action_clip"])
+        high[:, 0], high[:, 1], low[:, 0] = 0.04, 0.06, 0.04  # neck_pitch_act: 0.08 summed; neck_yaw_act's + peaks
+        shares["rollout_action_clip_high_share"], shares["rollout_action_clip_low_share"] = high, low
+        assert th.rollout_series(shares, runs[0].rollout_actuators, "rollout_action_clip")[0][0][0] == "neck_yaw_act +"
+        context = th._make_context(runs, marks=[], smooth=5)
+        clipped = th._page_figure(th.PAGES[1], context, title="t", dpi=30, width=12.0).axes[4]
+        assert np.allclose(clipped.lines[0].get_ydata(), 0.08)
+        texts = [text.get_text() for text in clipped.texts]
+        assert "a (neck_pitch_act)" in texts and "b (tail_3_pitch_act)" in texts
+
+    def test_an_older_probe_file_or_none_is_an_absent_series(self, tmp_path):
+        stage = _stage(tmp_path)
+        run = th.load_run_history(stage, read_std=False)
+        assert run.rollout_shares is None and "rollout clip shares: no policy_probe.npz" in run.absent
+        _probe(stage, older=True)
+        run = th.load_run_history(stage, read_std=False)
+        assert run.rollout_shares is None and run.errors == []
+        assert th.rollout_summary(run) == {
+            "recorded": False,
+            "why": "policy_probe.npz has no rollout_* arrays (written before them)",
+        }
+        figure = th._page_figure(
+            th.PAGES[1], th._make_context([run], marks=[], smooth=5), title="t", dpi=30, width=12.0
+        )
+        assert any("policy_probe.npz rollout_action_clip_*" in text.get_text() for text in figure.axes[4].texts)
+        (stage / th.POLICY_PROBE_FILENAME).write_bytes(b"not a zip")
+        run = th.load_run_history(stage, read_std=False)
+        assert run.rollout_shares is None and run.errors[0].startswith("policy_probe.npz: ")
+
+    def test_the_json_carries_the_summary_and_the_rule(self, tmp_path):
+        stage = _stage(tmp_path)
+        _probe(stage)
+        out = tmp_path / "reports" / "rollout"
+        assert script.main([str(stage), "--out", str(out), "--no-std", "--dpi", "30"]) == 0
+        document = json.loads((out / th.JSON_FILENAME).read_text(), parse_constant=_no_constant)
+        record = document["runs"][0]["rollout_shares"]
+        assert record["recorded"] is True and record["named"]["mu_beyond"] == ["tail_3_pitch_act +"]
+        assert record["per_actuator"]["neck_pitch_act"]["last"]["action_clip_low_share"] == 0.0
+        assert "rollout_shares" in document["rules"] and document["errors"] == []
+
+
 class TestTolerance:
     def test_missing_columns_are_absent_series(self, tmp_path):
         stage = tmp_path / "bare" / "01_stance"

@@ -29,7 +29,11 @@ the training step, for one run or overlaid for several:
   hip roll difference);
 - the training falls per window of ``train_episodes.csv``;
 - the per-actuator policy standard deviation ``exp(log_std)`` at the
-  checkpoint zips in ``models/``.
+  checkpoint zips in ``models/``;
+- per training rollout, from ``policy_probe.npz``'s ``rollout_*`` arrays,
+  each actuator's share of sampled actions clipped at a bound and of the
+  policy's mean actions beyond one: the training-side twin of the
+  deterministic evaluation's saturation.
 
 Every per-episode value is reduced over the evaluation's full-horizon episodes,
 the set ``gate_progress.npz`` averages over; the outcome counts are over all its
@@ -45,9 +49,10 @@ records ``saturated_actuator``, each flagged episode names its actuator, and an
 alarm is labelled with the actuator its flagged episodes name most (counted
 over its signs, with the sign most of them carry).
 
-Counts are never smoothed.  A comparison draws them as one strip per run (a
-cell per evaluation, coloured by the count) and smooths only the continuous
-series, with each evaluation's value drawn faintly behind.
+Counts are never smoothed, nor are the per-rollout shares.  A comparison
+draws the counts as one strip per run (a cell per evaluation, coloured by the
+count) and smooths only the continuous evaluation series, with each
+evaluation's value drawn faintly behind.
 
 Report only: it reads the stage directories and writes only the files its
 caller names (``scripts/plot_training_history.py`` refuses an output inside a
@@ -95,6 +100,8 @@ PROGRESS_FILENAME = "progress.json"
 STAGE_CONFIG_FILENAME = "stage_config.json"
 PLANT_IDENTITY_FILENAME = "plant_identity.json"
 MODELS_DIRNAME = "models"
+#: The policy probe's file (``policy_probe.py``); only its per-rollout ``rollout_*`` arrays are read.
+POLICY_PROBE_FILENAME = "policy_probe.npz"
 #: The files a report writes into its output directory.
 HTML_FILENAME = "training_history.html"
 JSON_FILENAME = "training_history.json"
@@ -122,6 +129,28 @@ POLICY_STD_MAX_PERIODIC = 12
 POLICY_STD_BUDGET_S = 10.0
 #: Two periodic checkpoints are joined by a solid line when their gap is at most this many times the run's spacing.
 POLICY_STD_JOIN_GAP = 1.5
+
+#: The probe's per-rollout, per-actuator arrays read (``policy_probe.rollout_action_shares``), each (rollouts,
+#: actuators); ``rollout_rows`` (the buffer rows each was read over, 0 for none) beside them.
+ROLLOUT_ARRAYS: tuple[str, ...] = (
+    "rollout_action_clip_high_share",
+    "rollout_action_clip_low_share",
+    "rollout_action_saturated_share",
+    "rollout_mu_beyond_high_share",
+    "rollout_mu_beyond_low_share",
+    "rollout_mu_mean",
+    "rollout_mu_q50",
+    "rollout_mu_q95",
+)
+#: The two shares drawn, each at the high bound (``+``) and the low one (``-``).
+ROLLOUT_SHARES: dict[str, tuple[str, str]] = {
+    "rollout_action_clip": ("rollout_action_clip_high_share", "rollout_action_clip_low_share"),
+    "rollout_mu_beyond": ("rollout_mu_beyond_high_share", "rollout_mu_beyond_low_share"),
+}
+#: An actuator's share at one bound is drawn by name once it reaches this at any rollout; the rest are summarised.
+ROLLOUT_SHARE_LEVEL = 0.01
+#: At most this many (actuator, bound) series are named per panel, the highest peak first.
+ROLLOUT_NAMED_SERIES = 6
 
 #: Per-foot columns of ``eval_episodes.csv`` (``<foot>_<suffix>``) reduced per evaluation.
 FOOT_SUFFIXES: tuple[str, ...] = (
@@ -196,6 +225,9 @@ NOT_RECORDED: tuple[str, ...] = (
     "gate_progress.npz only, not in eval_episodes.csv.",
     "Per-actuator std is read at the checkpoints kept in models/ only; between them nothing is recorded here "
     "(policy_probe.npz holds it per update where the run kept that file).",
+    "The per-rollout clip shares are the training rollouts' (sampled actions, and the policy's means at the same "
+    "observations), from policy_probe.npz only where the run kept it and wrote its rollout_* arrays; an older run's "
+    "are absent series. The JSON keeps each actuator's peak and last values; the per-rollout series are in the file.",
 )
 
 # The categorical palette (fixed order, never cycled), chart ink and status red.
@@ -758,6 +790,101 @@ def read_policy_std(
     return result
 
 
+def read_rollout_shares(path: Path) -> dict[str, np.ndarray] | None:
+    """``policy_probe.npz``'s per-rollout arrays (``timesteps``, ``rollout_rows`` and :data:`ROLLOUT_ARRAYS`).
+
+    ``None`` when the file holds no ``rollout_*`` arrays (written before
+    them).  A rollout read over no buffer row (a resumed session's rows from
+    before the arrays) is NaN.  Only those keys are read; nothing is
+    unpickled.
+    """
+    with np.load(path, allow_pickle=False) as data:
+        if not all(key in data.files for key in ("update_timesteps", "rollout_rows", *ROLLOUT_ARRAYS)):
+            return None
+        shares = {key: np.asarray(data[key], dtype=float) for key in ROLLOUT_ARRAYS}
+        shares["timesteps"] = np.asarray(data["update_timesteps"], dtype=np.int64)
+        shares["rollout_rows"] = np.asarray(data["rollout_rows"], dtype=np.int64)
+    return shares
+
+
+def _row_max(values: np.ndarray) -> np.ndarray:
+    """(U, k) -> (U,): each row's largest finite value, NaN where none is finite."""
+    finite = np.isfinite(values)
+    largest: np.ndarray = np.where(finite.any(axis=1), np.where(finite, values, -np.inf).max(axis=1), np.nan)
+    return largest
+
+
+def rollout_series(
+    shares: Mapping[str, np.ndarray], names: Sequence[str], key: str, *, level: float = ROLLOUT_SHARE_LEVEL
+) -> tuple[list[tuple[str, np.ndarray]], np.ndarray | None, int]:
+    """One drawn share (:data:`ROLLOUT_SHARES` *key*) split into named series and a summary of the rest.
+
+    Each actuator at each bound (``<name> +`` the high bound, ``<name> -``
+    the low one) whose share reaches *level* at some rollout is named, the
+    highest peak first (then by actuator and bound), at most
+    :data:`ROLLOUT_NAMED_SERIES`.  Returns the named ``(label, series)``,
+    the per-rollout maximum over every other series (``None`` when none is
+    left) and how many actuators those others cover.
+    """
+    high, low = (np.asarray(shares[k], dtype=float) for k in ROLLOUT_SHARES[key])
+    candidates: list[tuple[float, int, int, str, np.ndarray]] = []
+    for index, name in enumerate(names):
+        for side, (sign, values) in enumerate((("+", high[:, index]), ("-", low[:, index]))):
+            finite = values[np.isfinite(values)]
+            peak = float(finite.max()) if finite.size else math.nan
+            candidates.append((peak, index, side, f"{name} {sign}", values))
+    over = sorted((c for c in candidates if math.isfinite(c[0]) and c[0] >= level), key=lambda c: (-c[0], c[1], c[2]))
+    named = over[:ROLLOUT_NAMED_SERIES]
+    rest = [c for c in candidates if not any(c is n for n in named)]
+    if not rest:
+        return [(c[3], c[4]) for c in named], None, 0
+    others = _row_max(np.column_stack([c[4] for c in rest]))
+    return [(c[3], c[4]) for c in named], others, len({c[1] for c in rest})
+
+
+def rollout_summary(run: "RunHistory", *, level: float = ROLLOUT_SHARE_LEVEL) -> dict[str, Any]:
+    """The JSON's ``rollout_shares``: per actuator, each array's peak and last measured value, and the named series."""
+    shares = run.rollout_shares
+    if shares is None:
+        return {"recorded": False, "why": run.rollout_why}
+    rows = shares["rollout_rows"]
+    measured = np.flatnonzero(rows > 0)
+    steps = shares["timesteps"]
+    names = run.rollout_actuators
+    last = int(measured[-1]) if measured.size else None
+    per_actuator: dict[str, Any] = {}
+    for index, name in enumerate(names):
+        entry: dict[str, Any] = {"max": {}, "last": {}, "first_at_level": {}}
+        for key in ROLLOUT_ARRAYS:
+            short = key[len("rollout_") :]
+            values = shares[key][:, index]
+            finite = values[np.isfinite(values)]
+            if key.endswith("_share"):
+                entry["max"][short] = float(finite.max()) if finite.size else None
+            entry["last"][short] = float(values[last]) if last is not None else None
+        for drawn, (high, low) in ROLLOUT_SHARES.items():
+            either = np.maximum(shares[high][:, index], shares[low][:, index])
+            hits = np.flatnonzero(np.isfinite(either) & (either >= level))
+            entry["first_at_level"][drawn[len("rollout_") :]] = int(steps[hits[0]]) if hits.size else None
+        per_actuator[name] = entry
+    return {
+        "recorded": True,
+        "source": POLICY_PROBE_FILENAME,
+        "rollouts": int(len(steps)),
+        "rollouts_measured": int(measured.size),
+        "rows_per_rollout": sorted({int(r) for r in rows[measured]}),
+        "first_timesteps": int(steps[measured[0]]) if measured.size else None,
+        "last_timesteps": int(steps[last]) if last is not None else None,
+        "level": level,
+        "actuator_names_source": run.rollout_actuator_source,
+        "named": {
+            key[len("rollout_") :]: [label for label, _ in rollout_series(shares, names, key, level=level)[0]]
+            for key in ROLLOUT_SHARES
+        },
+        "per_actuator": per_actuator,
+    }
+
+
 def plant_check(stage: Path, model_id: ModelId | None, record: Mapping[str, Any] | None = None) -> dict[str, Any]:
     """Whether the checkout's physics is the run's: the stage's ``plant_identity.json`` against the manifest.
 
@@ -884,6 +1011,12 @@ class RunHistory:
     plant: dict[str, Any] = field(default_factory=dict)
     actuators: list[str] | None = None
     actuator_source: str = ""
+    #: ``policy_probe.npz``'s per-rollout arrays (:func:`read_rollout_shares`; never serialised whole), why they are
+    #: absent, and the actuators they are labelled with (names, else ``actuator[<index>]``) and where those came from.
+    rollout_shares: dict[str, np.ndarray] | None = field(default=None, repr=False)
+    rollout_why: str | None = None
+    rollout_actuators: list[str] = field(default_factory=list)
+    rollout_actuator_source: str = ""
     absent: list[str] = field(default_factory=list)
     errors: list[str] = field(default_factory=list)
     #: Per evaluation, its full-horizon rows of eval_episodes.csv (kept for the band counts; never serialised).
@@ -910,6 +1043,8 @@ class RunHistory:
         candidates += [c["timesteps"] for c in self.saved_checkpoints if isinstance(c.get("timesteps"), int)]
         if self.progress_timesteps is not None:
             candidates.append(self.progress_timesteps)
+        if self.rollout_shares is not None and self.rollout_shares["timesteps"].size:
+            candidates.append(int(self.rollout_shares["timesteps"].max()))
         return max(candidates) if candidates else 0
 
     @property
@@ -1070,6 +1205,28 @@ def load_run_history(
             run.actuator_source = f"checkpoints of different widths {sorted(widths)}"
     else:
         run.policy_std = {"available": 0, "read": 0, "checkpoints": [], "skipped": "not requested", "errors": []}
+    probe = stage / POLICY_PROBE_FILENAME
+    if not probe.is_file():
+        run.rollout_why = f"no {POLICY_PROBE_FILENAME}"
+    else:
+        try:
+            run.rollout_shares = read_rollout_shares(probe)
+        except Exception as exc:  # noqa: BLE001 - an unreadable file is an absent series
+            run.errors.append(f"{POLICY_PROBE_FILENAME}: {type(exc).__name__}: {exc}")
+            run.rollout_why = f"{POLICY_PROBE_FILENAME} could not be read"
+        else:
+            if run.rollout_shares is None:
+                run.rollout_why = f"{POLICY_PROBE_FILENAME} has no rollout_* arrays (written before them)"
+    if run.rollout_shares is not None:
+        width = int(run.rollout_shares[ROLLOUT_ARRAYS[0]].shape[1])
+        if run.actuators is not None and len(run.actuators) == width:
+            labels, run.rollout_actuator_source = list(run.actuators), run.actuator_source
+        else:
+            found, run.rollout_actuator_source = actuator_names(run.model_id, width, plant=run.plant)
+            labels = found or []
+        run.rollout_actuators = labels if labels else [f"actuator[{i}]" for i in range(width)]
+    else:
+        run.absent.append(f"rollout clip shares: {run.rollout_why}")
     checkpoints: Mapping[str, Any] = progress["checkpoints"] if isinstance(progress.get("checkpoints"), Mapping) else {}
     for kind in ("robust_best", "best"):
         step = checkpoints.get(f"{kind}_model_timesteps")
@@ -1267,6 +1424,7 @@ def run_record(run: RunHistory, marks: Sequence[int]) -> dict[str, Any]:
             "saved_checkpoints": run.saved_checkpoints,
             "plant": run.plant,
             "policy_std": std,
+            "rollout_shares": rollout_summary(run),
             "checkpoint_table": checkpoint_rows(run, marks),
             "absent": run.absent,
             "errors": run.errors,
@@ -1308,6 +1466,15 @@ def summary(runs: Sequence[RunHistory], *, title: str, marks: Sequence["int | st
             "tie), with the sign most of its episodes carry (+/- on a tie)",
             "training_falls": f"train_episodes.csv episodes whose cause is not truncated, per window of "
             f"{TRAINING_WINDOW_TIMESTEPS:,} steps (k w, (k + 1) w]; the last window ends at its last episode",
+            "rollout_shares": f"from {POLICY_PROBE_FILENAME}, per training rollout (the buffer the next PPO update "
+            "trains on, read before it) and per actuator: action_clip_high_share and action_clip_low_share, the "
+            "sampled actions above the action space's high bound and below its low one (env.step clips them; the "
+            "buffer keeps them unclipped); action_saturated_share, the clipped sample at |action| >= "
+            f"{SATURATION_ABS:g}; mu_beyond_high_share and mu_beyond_low_share, the policy's mean action at the same "
+            "observations beyond each bound; mu_mean, mu_q50 and mu_q95, that mean's average, median and 95th "
+            "percentile. Each actuator's peak share and its values at the last measured rollout; first_at_level, the "
+            "first rollout whose share at either bound reaches level; named, the (actuator, bound) series the "
+            f"pages draw by name (at most {ROLLOUT_NAMED_SERIES}, the highest peak first). Never smoothed",
             "comparison_smoothing_evaluations": smooth,
             "comparison_smoothing": "comparisons draw the continuous series as a centred rolling mean over that many "
             "evaluations, each evaluation's value faint behind it; counts are never smoothed",
@@ -1328,10 +1495,13 @@ class Quantity:
     ``kind``: ``column`` (a reduced column, ``{foot}`` for each foot),
     ``series`` (a continuous evaluation series), ``count`` (a per-evaluation
     count: a line on one run's page, a strip per run on a comparison, never
-    smoothed), ``training`` (the training-fall fraction per window, likewise)
-    or ``actuators`` (``flagged_actuators``: stacked counts per actuator on one
+    smoothed), ``training`` (the training-fall fraction per window, likewise),
+    ``actuators`` (``flagged_actuators``: stacked counts per actuator on one
     run's page, a strip per run coloured by the actuator most named on a
-    comparison, never smoothed).
+    comparison, never smoothed) or ``rollout`` (a :data:`ROLLOUT_SHARES`
+    share per training rollout: the named actuators' lines and the rest's
+    maximum on one run's page, each run's largest actuator on a comparison,
+    never smoothed).
     """
 
     key: str
@@ -1410,7 +1580,16 @@ PAGES: tuple[PageSpec, ...] = (
         "saturated step commanded +1; -: every one -1; +/-: both){named_note}; an alarm is labelled with the actuator "
         "its flagged episodes name most (counted over its signs, with the sign most of them carry; a comparison's cell "
         "likewise per evaluation). saturated_actuator_fraction is that largest fraction, the metric the bar reads. "
-        "actuator_force_frac_max is about force, not the action command.",
+        "actuator_force_frac_max is about force, not the action command. The last two panels are the training "
+        "rollouts' (policy_probe.npz): the stochastic policy's samples, which env.step clips to the action bounds "
+        "(the rollout buffer keeps them unclipped), and the policy's mean action at the same observations, each "
+        "actuator's share per rollout at the high bound (+, solid) and the low one (-, dashed); the deterministic "
+        "evaluation acts on that mean, clipped. An actuator at a bound is named once its share reaches "
+        f"{ROLLOUT_SHARE_LEVEL:g} at some rollout (at most {ROLLOUT_NAMED_SERIES}, the highest peak first, in its "
+        "flagged episodes' colour above, else one no flagged actuator holds); grey: the largest share of every other "
+        "actuator and bound. A comparison draws each run's largest actuator share per rollout, its two bounds summed "
+        "(as policy_probe/rollout_*_share_max in TensorBoard), with the actuator it traces at its peak beside the "
+        "run's name. Never smoothed{rollout_note}.",
         (
             Quantity(
                 "saturated",
@@ -1438,6 +1617,22 @@ PAGES: tuple[PageSpec, ...] = (
                 f"(limit 1.0; the saturation flags are about the action command, not force); {_FH}",
                 "fraction of limit",
                 spread="max",
+            ),
+            Quantity(
+                "rollout_action_clip",
+                "Training rollouts: share of each actuator's sampled actions clipped at a bound (+ the high bound, "
+                "- the low one), per rollout",
+                "share of rollout steps",
+                "rollout",
+                None,
+            ),
+            Quantity(
+                "rollout_mu_beyond",
+                "Training rollouts: share of each actuator's policy mean actions beyond a bound (+ above the high "
+                "bound, - below the low one), per rollout",
+                "share of rollout steps",
+                "rollout",
+                None,
             ),
         ),
     ),
@@ -1740,6 +1935,8 @@ def _reference_lines(runs: Sequence[RunHistory], quantity: Quantity) -> list[tup
             lines.append((value, f"{SATURATION_REASON} bar {value:g}", "--"))
     elif key == "actuator_force_frac_max":
         lines.append((1.0, "limit 1.0", "--"))
+    elif key in ROLLOUT_SHARES:
+        lines.append((ROLLOUT_SHARE_LEVEL, f"named from {ROLLOUT_SHARE_LEVEL:g}", ":"))
     if key.endswith(("_fore_aft", "margin_min_m", "com_fore_aft_mean_m", "shear_over_normal")) and not key.startswith(
         "max_"
     ):
@@ -2182,6 +2379,119 @@ def _draw_actuator_strips(axis: Any, context: _Context, quantity: Quantity) -> b
     return drawn
 
 
+def _rollout_gap(run: RunHistory) -> str:
+    """The rollouts of *run* its ``rollout_*`` arrays did not measure (0 buffer rows), in words; ``""`` for none.
+
+    The leading ones are a resumed session's rows from a file written before the arrays; a later one is a rollout
+    whose buffer pass failed.
+    """
+    shares = run.rollout_shares
+    if shares is None:
+        return ""
+    measured = np.flatnonzero(shares["rollout_rows"] > 0)
+    if not measured.size:
+        return "no rollout measured"
+    leading = int(measured[0])
+    later = len(shares["rollout_rows"]) - leading - measured.size
+    gaps = [f"not measured before {_fmt_steps(int(shares['timesteps'][leading]))}"] if leading else []
+    if later:
+        gaps.append(f"{later} later rollout{'s' if later > 1 else ''} not measured")
+    return "; ".join(gaps)
+
+
+def _rollout_axis(axis: Any, peak: float) -> None:
+    """A share axis from 0 to a little above *peak*: at least 0.05, at most 1."""
+    axis.set_ylim(0.0, min(1.0, max(0.05, 1.15 * peak)) if math.isfinite(peak) else 0.05)
+
+
+def _rollout_colours(context: _Context, labels: Sequence[str]) -> dict[str, str]:
+    """A colour per actuator the named *labels* draw: its flagged-episode colour where it has one, else a free one.
+
+    A free colour is one no flagged label on the page holds, so a colour names one actuator across the page; when
+    the flagged labels hold them all, one this panel does not use (which some flagged label above also holds),
+    then the mid grey.
+    """
+    colours: dict[str, str] = {}
+    for label in labels:
+        name = label.rsplit(" ", 1)[0]
+        flagged = [context.named_colours.get(f"{name} {sign}") for sign in ("+", "-", "+/-")]
+        colours.setdefault(name, next((c for c in flagged if c is not None and c != _MUTED), ""))
+    taken = set(context.named_colours.values())
+    free = [colour for colour in _NAMED_SERIES if colour not in taken]
+    free += [colour for colour in _NAMED_SERIES if colour in taken and colour not in colours.values()]
+    spare = iter(free)
+    return {name: colour or next(spare, _MUTED) for name, colour in colours.items()}
+
+
+def _draw_rollout_single(axis: Any, context: _Context, quantity: Quantity) -> bool:
+    """One run's named (actuator, bound) shares per rollout (+ solid, - dashed) and the rest's maximum in grey."""
+    run = context.runs[0]
+    shares = run.rollout_shares
+    if shares is None:
+        return False
+    x = shares["timesteps"] / 1e6
+    named, others, count = rollout_series(shares, run.rollout_actuators, quantity.key)
+    colours = _rollout_colours(context, [label for label, _ in named])
+    peak = 0.0
+    for label, values in named:
+        name, sign = label.rsplit(" ", 1)
+        axis.plot(x, values, color=colours[name], linestyle="-" if sign == "+" else "--", linewidth=1.4, label=label)
+        peak = max(peak, float(np.nanmax(values)))
+    if others is not None:
+        what = "the rest, largest" if named else f"all {count} actuators, largest"
+        axis.plot(x, others, color=_MUTED, linewidth=1.0, label=what)
+        finite = others[np.isfinite(others)]
+        peak = max(peak, float(finite.max()) if finite.size else 0.0)
+    _rollout_axis(axis, peak)
+    gap = _rollout_gap(run)
+    if gap:
+        axis.text(0.006, 0.94, gap, transform=axis.transAxes, fontsize=8.5, va="top", color=_MUTED)
+    if not named:
+        axis.text(
+            0.5,
+            0.6,
+            f"no actuator reaches {ROLLOUT_SHARE_LEVEL:g} at either bound in any rollout",
+            transform=axis.transAxes,
+            ha="center",
+            va="center",
+            fontsize=9.5,
+            color=_MUTED,
+        )
+    return True
+
+
+def _draw_rollout_compare(axis: Any, context: _Context, quantity: Quantity) -> list[tuple]:
+    """Each run's largest actuator share per rollout, its two bounds summed (never smoothed), with its peak's actuator."""
+    ends: list[tuple] = []
+    peak = 0.0
+    unrecorded = [run.label for run in context.runs if run.rollout_shares is None]
+    notes = [f"not recorded: {', '.join(unrecorded)}"] if unrecorded else []
+    notes += [f"{run.label}: {gap}" for run in context.runs if (gap := _rollout_gap(run))]
+    for row, note in enumerate(notes):
+        axis.text(0.006, 0.94 - 0.09 * row, note, transform=axis.transAxes, fontsize=8.5, va="top", color=_MUTED)
+    for index, run in enumerate(context.runs):
+        shares = run.rollout_shares
+        if shares is None:
+            continue
+        high, low = (np.asarray(shares[key], dtype=float) for key in ROLLOUT_SHARES[quantity.key])
+        values = _row_max(high + low)
+        x = shares["timesteps"] / 1e6
+        colour, style = context.colours[index], context.styles[index]
+        axis.plot(x, values, color=colour, linestyle=style, linewidth=1.3, label="_nolegend_")
+        finite = np.flatnonzero(np.isfinite(values))
+        if not finite.size:
+            continue
+        top = int(finite[np.argmax(values[finite])])
+        peak = max(peak, float(values[top]))
+        # The actuator the line traces at its peak rollout (the lowest index on a tie), once it reaches the level.
+        actuator = run.rollout_actuators[int(np.nanargmax(high[top] + low[top]))]
+        named = f" ({actuator})" if values[top] >= ROLLOUT_SHARE_LEVEL else ""
+        ends.append((float(x[finite[-1]]), float(values[finite[-1]]), f"{run.label}{named}", colour, style))
+    if ends:
+        _rollout_axis(axis, peak)
+    return ends
+
+
 def _named_handles(context: _Context) -> tuple[list[Any], list[str]]:
     """The key of the actuator colours a comparison's strips draw, for the figure legend (the strip has no room)."""
     from matplotlib.patches import Patch
@@ -2462,7 +2772,9 @@ def _panels(spec: PageSpec, context: _Context) -> list[_Panel]:
             height = _COUNT_IN
         else:
             height = _LINE_IN
-        if context.comparison and quantity.kind in ("column", "series"):
+        if context.comparison and quantity.kind == "rollout":
+            title += " [each run's largest actuator share per rollout, its two bounds summed, never smoothed]"
+        elif context.comparison and quantity.kind in ("column", "series"):
             spacing = _spacing(np.concatenate([run.steps for run in context.runs]), 0.0) if context.runs else 0.0
             title += (
                 f" [centred rolling mean over {context.smooth} evaluations"
@@ -2512,6 +2824,11 @@ def _page_figure(spec: PageSpec, context: _Context, *, title: str, dpi: int, wid
             drawn = _draw_actuator_strips(axis, context, quantity)
         elif panel.strip:
             drawn = _draw_strips(axis, context, quantity)
+        elif quantity.kind == "rollout" and context.comparison:
+            ends = _draw_rollout_compare(axis, context, quantity)
+            drawn = bool(ends)
+        elif quantity.kind == "rollout":
+            drawn = _draw_rollout_single(axis, context, quantity)
         elif context.comparison:
             ends = _draw_line_compare(axis, context, quantity, panel.foot)
             drawn = bool(ends)
@@ -2527,6 +2844,8 @@ def _page_figure(spec: PageSpec, context: _Context, *, title: str, dpi: int, wid
             column = (
                 ACTUATOR_COLUMN
                 if quantity.kind == "actuators"
+                else f"{POLICY_PROBE_FILENAME} {quantity.key}_*"
+                if quantity.kind == "rollout"
                 else quantity.key.replace("{foot}", panel.foot or "<foot>")
             )
             _absent(axis, f"not recorded in these files ({column})")
@@ -2853,8 +3172,22 @@ def render_pages(
         else f" ({'this ledger' if len(runs) == 1 else ', '.join(unnamed)} records no {ACTUATOR_COLUMN} beside "
         "screen_v2_reasons: an older ledger, or no screen, so no actuator is named)"
     )
+    unrecorded = [run.label for run in runs if run.rollout_shares is None]
+    rollout_note = (
+        ""
+        if not unrecorded
+        else f" ({'this run' if len(runs) == 1 else ', '.join(unrecorded)}: no {POLICY_PROBE_FILENAME} rollout_* "
+        "arrays, an older run or no probe, so those panels are absent)"
+    )
+    gaps = [run.label for run in runs if _rollout_gap(run)]
+    if gaps:
+        rollout_note += (
+            f" ({'this run' if len(runs) == 1 else ', '.join(gaps)}: some rollouts not measured, said on the panel: "
+            f"a resume kept rows from a {POLICY_PROBE_FILENAME} written before the arrays, or a buffer pass failed)"
+        )
     fields = {
         "episodes": episodes,
+        "rollout_note": rollout_note,
         "band": _band_text(runs, "lower", "upper"),
         "pad_band": _band_text(runs, "pad_lower", "pad_upper"),
         "saturation_note": saturation_note,

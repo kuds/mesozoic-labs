@@ -78,6 +78,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   panel column, `gate_progress.npz` key, env info key or MJCF sensor, and no
   random draw; the digest snapshot is unchanged. An older ledger without the
   columns loads everywhere and reads as an absent series.
+- **The training rollouts' clip shares, per actuator, in the policy probe and
+  on the saturation page** (the maintainer's decision of 2026-10-24;
+  `environments/shared/policy_probe.py`,
+  `environments/shared/reporting/training_history.py`; documented in
+  `docs/TRAINING_ARTIFACT_PRESENTATION.md`, "The policy probe" and "Training
+  history pages"). Report only. SB3 clips a sampled action only at
+  `env.step` and trains on the unclipped sample and its log-probability, while
+  deterministic play acts on the mean, clipped; in a scratch T. rex experiment
+  `tail_3_pitch_act`'s mean was beyond +1 on 2.5% and 27.5% of two arms'
+  training rows against 21 to 46% of deterministic window steps, and nothing
+  in the repo recorded the training side. `PolicyProbeCallback` now reads, at
+  every rollout's end and before `train()`, the rollout buffer that update
+  trains on: per actuator, the share of sampled actions above the high bound
+  and below the low one, the share at `|clip(a)| >= 0.99` (the gate's
+  threshold), and, from one `torch.no_grad()` pass of the buffer's
+  observations through the policy's distribution (the bank's pass; float32,
+  in chunks of 16,384 rows), the share of means beyond each bound and the
+  means' average, median and 95th percentile. Nine `rollout_*` arrays join
+  `policy_probe.npz` (about 0.5 KB per update on the T. rex, 0.7 MB over a
+  12M run), three `policy_probe/rollout_*_share_max` scalars join
+  TensorBoard and `progress.json`'s `policy`, and a same-stage resume from a
+  file written before them keeps its rows as NaN; a buffer pass that fails
+  costs a row its `rollout_*` arrays only. It added 41 to 46 ms per rollout
+  on the T. rex stance config (4 envs, `n_steps` 2048, one CPU thread),
+  about 0.25% of the rollout's collection and update.
+  The training-history report draws both shares per rollout on the saturation
+  page (the actuators that ever reach 0.01 at a bound named, at most six, in
+  their flagged episodes' colour or one no flagged actuator holds, the rest
+  one grey line; a comparison draws each run's largest, labelled with the
+  actuator it traces; rollouts a resume did not measure are said on the
+  panel; never smoothed) and adds `rollout_shares` (each actuator's peak,
+  last value and first rollout at 0.01) to the JSON; a run without the
+  arrays is an absent series.
+  No sampling, gradient, parameter, optimizer, buffer, generator, training
+  flag, gate, reward, observation, action, task, checkpoint selection, plant,
+  hyperparameter or digest change: the in-suite inertness proof, which trains
+  a short T. rex stance with the probe and without it, now also pins the
+  arrays in its full run and still sees the same rollout data, updates,
+  generators, evaluations and checkpoints, and the digest snapshot is
+  unchanged.
 - **Decision D-D41 recorded: a replication of the per-foot centre-of-pressure
   band screen on two more seeds, read three of five; D-D40 and D-D36 amended**
   (the maintainer's decisions of 2026-10-22; `docs/BEHAVIOR_RECIPES_PLAN.md`
