@@ -1,0 +1,703 @@
+# build tier (fixer round), 2026-10-24T18:55:04Z, clone HEAD 4c0c8da76d14f4b482f1fc63e0cf57af79b0184f
+## clone tests
+........sss                                                              [100%]
+==================================== PASSES ====================================
+=========================== short test summary info ============================
+PASSED scratch_tail3bound/environments/shared/tests/test_mirror_kl_ppo.py::test_train_is_stock_ppo_train_plus_four_marked_lines
+PASSED scratch_tail3bound/environments/shared/tests/test_mirror_kl_ppo.py::test_tail3_config_and_enable_refuse_what_they_cannot_bound
+PASSED scratch_tail3bound/environments/shared/tests/test_mirror_kl_ppo.py::test_tail3_t1a_coef_zero_is_gradient_identical_and_takes_no_step[0.9]
+PASSED scratch_tail3bound/environments/shared/tests/test_mirror_kl_ppo.py::test_tail3_t1a_coef_zero_is_gradient_identical_and_takes_no_step[0.6]
+PASSED scratch_tail3bound/environments/shared/tests/test_mirror_kl_ppo.py::test_tail3_t3_scope_upper_side_of_index_14_only
+PASSED scratch_tail3bound/environments/shared/tests/test_mirror_kl_ppo.py::test_tail3_t4_the_penalty_is_mirror_invariant
+PASSED scratch_tail3bound/environments/shared/tests/test_mirror_kl_ppo.py::test_tail3_t5_no_shipped_file_sets_the_bound
+PASSED scratch_tail3bound/environments/shared/tests/test_mirror_kl_ppo.py::test_tail3_t7a_a_bound_zip_loads_with_stock_ppo
+SKIPPED [1] scratch_tail3bound/environments/shared/tests/test_mirror_kl_ppo.py:620: takes optimizer steps: gate only
+SKIPPED [1] scratch_tail3bound/environments/shared/tests/test_mirror_kl_ppo.py:641: takes optimizer steps: gate only
+SKIPPED [1] scratch_tail3bound/environments/shared/tests/test_mirror_kl_ppo.py:656: takes optimizer steps: gate only
+exit 0
+## tools tests
+........................................................................ [ 39%]
+........................................................................ [ 78%]
+.......................................                                  [100%]
+==================================== PASSES ====================================
+__________________ test_append_row_lock_header_and_duplicate ___________________
+----------------------------- Captured stderr call -----------------------------
+refused: /tmp/pytest-of-root/pytest-139/test_append_row_lock_header_an0/panels.csv already has a row for s42_b60_r101 final
+________________ test_retire_crashed_moves_run_panels_and_rows _________________
+----------------------------- Captured stdout call -----------------------------
+{"retired": "s80_control_r202", "attempt": "s80_control_r202_crashed1", "run_dir": "/tmp/pytest-of-root/pytest-139/test_retire_crashed_moves_run_0/runs/s80_control_r202_crashed1", "panel_dir": "/tmp/pytest-of-root/pytest-139/test_retire_crashed_moves_run_0/panels/s80_control_r202_crashed1", "rows_moved": ["4325376", "5111808"], "ledger": "/tmp/pytest-of-root/pytest-139/test_retire_crashed_moves_run_0/panels_crashed.csv", "utc": "2026-10-24T18:55:15Z"}
+{"retired": "s80_control_r202", "attempt": "s80_control_r202_crashed2", "run_dir": "/tmp/pytest-of-root/pytest-139/test_retire_crashed_moves_run_0/runs/s80_control_r202_crashed2", "panel_dir": null, "rows_moved": [], "ledger": "/tmp/pytest-of-root/pytest-139/test_retire_crashed_moves_run_0/panels_crashed.csv", "utc": "2026-10-24T18:55:15Z"}
+----------------------------- Captured stderr call -----------------------------
+refused: /tmp/pytest-of-root/pytest-139/test_retire_crashed_moves_run_0/runs/s80_control_r202 does not exist: nothing to retire
+__________________________ test_parse_name_and_labels __________________________
+----------------------------- Captured stderr call -----------------------------
+refused: 's80_b90_r304' is not one of the 18 screen names
+refused: 's81_b90_r101' is not one of the 18 screen names
+refused: 's42_bound_r101' is not one of the 18 screen names
+refused: bad run name 'start_s42'
+_____________________________ test_cli_exit_codes ______________________________
+----------------------------- Captured stdout call -----------------------------
+TAIL_3 BOUND SCREEN SCORE (2026-10-24T18:55:17Z)
+STATUS: INCOMPLETE
+Incomplete: no line read. Missing R1/R2 panels (not LOST):
+  s42_b60_r101: INCOMPLETE: no 5111808 and final row
+  s42_b60_r202: INCOMPLETE: no 5111808 and final row
+  s42_b60_r303: INCOMPLETE: no 5111808 and final row
+  s42_b90_r101: INCOMPLETE: no 5111808 and final row
+  s42_b90_r202: INCOMPLETE: no 5111808 and final row
+  s42_b90_r303: INCOMPLETE: no 5111808 and final row
+  s42_control_r101: INCOMPLETE: no 5111808 and final row
+  s42_control_r202: INCOMPLETE: no 5111808 and final row
+  s42_control_r303: INCOMPLETE: no 5111808 and final row
+  s80_b60_r101: INCOMPLETE: no 5111808 and final row
+  s80_b60_r202: INCOMPLETE: no 5111808 and final row
+  s80_b60_r303: INCOMPLETE: no 5111808 and final row
+  s80_b90_r101: INCOMPLETE: no 5111808 and final row
+  s80_b90_r202: INCOMPLETE: no 5111808 and final row
+  s80_b90_r303: INCOMPLETE: no 5111808 and final row
+  s80_control_r101: INCOMPLETE: no 5111808 and final row
+  s80_control_r202: INCOMPLETE: no 5111808 and final row
+  s80_control_r303: INCOMPLETE: no 5111808 and final row
+PROVISIONAL items that also stand:
+  - SCREEN/APPROVED missing or unreadable
+  - SCREEN/criteria.txt missing
+  - tests_out/build_tier.json missing (T1, T7 build tier not shown passed)
+  - tests_out/gate_pass.json missing (T1, T2, T7 gate tier not shown passed)
+  - calib/coef.json missing
+  - measuring copy: overlay environments/shared/reporting/episode_trace.py sha256 differs from the pin
+  - measuring copy: overlay environments/shared/scripts/episode_trace_report.py sha256 differs from the pin
+  - measuring copy: overlay environments/shared/stance_diagnostics.py sha256 differs from the pin
+  - onset note read on 0 of 9 labels for s80_control_r101 (missing 4325376, 4456448, 4587520, 4718592, 4849664, 4980736, 5111808, 5242880, final)
+  - onset note read on 0 of 9 labels for s80_control_r202 (missing 4325376, 4456448, 4587520, 4718592, 4849664, 4980736, 5111808, 5242880, final)
+  - onset note read on 0 of 9 labels for s80_control_r303 (missing 4325376, 4456448, 4587520, 4718592, 4849664, 4980736, 5111808, 5242880, final)
+  - V1 did not reproduce its values exactly (validate/v1.json missing or not passed)
+
+Replicates (R1 = 5111808, R2 = final):
+  s42_control_r101 None             tailup None other 0 onset 0  INCOMPLETE: no 5111808 and final row
+  s42_control_r202 None             tailup None other 0 onset 0  INCOMPLETE: no 5111808 and final row
+  s42_control_r303 None             tailup None other 0 onset 0  INCOMPLETE: no 5111808 and final row
+  s42_b90_r101     None             tailup None other 0 onset 0  INCOMPLETE: no 5111808 and final row
+  s42_b90_r202     None             tailup None other 0 onset 0  INCOMPLETE: no 5111808 and final row
+  s42_b90_r303     None             tailup None other 0 onset 0  INCOMPLETE: no 5111808 and final row
+  s42_b60_r101     None             tailup None other 0 onset 0  INCOMPLETE: no 5111808 and final row
+  s42_b60_r202     None             tailup None other 0 onset 0  INCOMPLETE: no 5111808 and final row
+  s42_b60_r303     None             tailup None other 0 onset 0  INCOMPLETE: no 5111808 and final row
+  s80_control_r101 None             tailup None other 0 onset 0  INCOMPLETE: no 5111808 and final row
+  s80_control_r202 None             tailup None other 0 onset 0  INCOMPLETE: no 5111808 and final row
+  s80_control_r303 None             tailup None other 0 onset 0  INCOMPLETE: no 5111808 and final row
+  s80_b90_r101     None             tailup None other 0 onset 0  INCOMPLETE: no 5111808 and final row
+  s80_b90_r202     None             tailup None other 0 onset 0  INCOMPLETE: no 5111808 and final row
+  s80_b90_r303     None             tailup None other 0 onset 0  INCOMPLETE: no 5111808 and final row
+  s80_b60_r101     None             tailup None other 0 onset 0  INCOMPLETE: no 5111808 and final row
+  s80_b60_r202     None             tailup None other 0 onset 0  INCOMPLETE: no 5111808 and final row
+  s80_b60_r303     None             tailup None other 0 onset 0  INCOMPLETE: no 5111808 and final row
+
+Report only (never in a verdict):
+  dose ordering s42: BOUND60 <= BOUND90 <= CONTROL: None (control n/a [None, None, None], b90 n/a [None, None, None], b60 n/a [None, None, None])
+  dose ordering s80: BOUND60 <= BOUND90 <= CONTROL: None (control n/a [None, None, None], b90 n/a [None, None, None], b60 n/a [None, None, None])
+  0.5M readings (4587520 / 4718592): see score.json report_only.half_point
+TAIL_3 BOUND SCREEN SCORE (2026-10-24T18:55:17Z)
+STATUS: PROVISIONAL
+PROVISIONAL (not acted on) while these stand:
+  - SCREEN/APPROVED missing or unreadable
+  - SCREEN/criteria.txt missing
+  - s42_control_r101: panels exist but run_meta.json is missing
+  - s42_control_r202: panels exist but run_meta.json is missing
+  - s42_control_r303: panels exist but run_meta.json is missing
+  - s42_b90_r101: panels exist but run_meta.json is missing
+  - s42_b90_r202: panels exist but run_meta.json is missing
+  - s42_b90_r303: panels exist but run_meta.json is missing
+  - s42_b60_r101: panels exist but run_meta.json is missing
+  - s42_b60_r202: panels exist but run_meta.json is missing
+  - s42_b60_r303: panels exist but run_meta.json is missing
+  - s80_control_r101: panels exist but run_meta.json is missing
+  - s80_control_r202: panels exist but run_meta.json is missing
+  - s80_control_r303: panels exist but run_meta.json is missing
+  - s80_b90_r101: panels exist but run_meta.json is missing
+  - s80_b90_r202: panels exist but run_meta.json is missing
+  - s80_b90_r303: panels exist but run_meta.json is missing
+  - s80_b60_r101: panels exist but run_meta.json is missing
+  - s80_b60_r202: panels exist but run_meta.json is missing
+  - s80_b60_r303: panels exist but run_meta.json is missing
+  - tests_out/build_tier.json missing (T1, T7 build tier not shown passed)
+  - tests_out/gate_pass.json missing (T1, T2, T7 gate tier not shown passed)
+  - calib/coef.json missing
+  - measuring copy: overlay environments/shared/reporting/episode_trace.py sha256 differs from the pin
+  - measuring copy: overlay environments/shared/scripts/episode_trace_report.py sha256 differs from the pin
+  - measuring copy: overlay environments/shared/stance_diagnostics.py sha256 differs from the pin
+  - panel s42_control_r101 4325376: measuring-copy tree digest differs from the sealed one
+  - panel s42_control_r101 4456448: measuring-copy tree digest differs from the sealed one
+  - panel s42_control_r101 4587520: measuring-copy tree digest differs from the sealed one
+  - panel s42_control_r101 4718592: measuring-copy tree digest differs from the sealed one
+  - panel s42_control_r101 4849664: measuring-copy tree digest differs from the sealed one
+  - panel s42_control_r101 4980736: measuring-copy tree digest differs from the sealed one
+  - panel s42_control_r101 5111808: measuring-copy tree digest differs from the sealed one
+  - panel s42_control_r101 5242880: measuring-copy tree digest differs from the sealed one
+  - panel s42_control_r101 final: measuring-copy tree digest differs from the sealed one
+  - panel s42_control_r202 4325376: measuring-copy tree digest differs from the sealed one
+  - panel s42_control_r202 4456448: measuring-copy tree digest differs from the sealed one
+  - panel s42_control_r202 4587520: measuring-copy tree digest differs from the sealed one
+  - panel s42_control_r202 4718592: measuring-copy tree digest differs from the sealed one
+  - panel s42_control_r202 4849664: measuring-copy tree digest differs from the sealed one
+  - panel s42_control_r202 4980736: measuring-copy tree digest differs from the sealed one
+  - panel s42_control_r202 5111808: measuring-copy tree digest differs from the sealed one
+  - panel s42_control_r202 5242880: measuring-copy tree digest differs from the sealed one
+  - panel s42_control_r202 final: measuring-copy tree digest differs from the sealed one
+  - panel s42_control_r303 4325376: measuring-copy tree digest differs from the sealed one
+  - panel s42_control_r303 4456448: measuring-copy tree digest differs from the sealed one
+  - panel s42_control_r303 4587520: measuring-copy tree digest differs from the sealed one
+  - panel s42_control_r303 4718592: measuring-copy tree digest differs from the sealed one
+  - panel s42_control_r303 4849664: measuring-copy tree digest differs from the sealed one
+  - panel s42_control_r303 4980736: measuring-copy tree digest differs from the sealed one
+  - panel s42_control_r303 5111808: measuring-copy tree digest differs from the sealed one
+  - panel s42_control_r303 5242880: measuring-copy tree digest differs from the sealed one
+  - panel s42_control_r303 final: measuring-copy tree digest differs from the sealed one
+  - panel s42_b90_r101 4325376: measuring-copy tree digest differs from the sealed one
+  - panel s42_b90_r101 4456448: measuring-copy tree digest differs from the sealed one
+  - panel s42_b90_r101 4587520: measuring-copy tree digest differs from the sealed one
+  - panel s42_b90_r101 4718592: measuring-copy tree digest differs from the sealed one
+  - panel s42_b90_r101 4849664: measuring-copy tree digest differs from the sealed one
+  - panel s42_b90_r101 4980736: measuring-copy tree digest differs from the sealed one
+  - panel s42_b90_r101 5111808: measuring-copy tree digest differs from the sealed one
+  - panel s42_b90_r101 5242880: measuring-copy tree digest differs from the sealed one
+  - panel s42_b90_r101 final: measuring-copy tree digest differs from the sealed one
+  - panel s42_b90_r202 4325376: measuring-copy tree digest differs from the sealed one
+  - panel s42_b90_r202 4456448: measuring-copy tree digest differs from the sealed one
+  - panel s42_b90_r202 4587520: measuring-copy tree digest differs from the sealed one
+  - panel s42_b90_r202 4718592: measuring-copy tree digest differs from the sealed one
+  - panel s42_b90_r202 4849664: measuring-copy tree digest differs from the sealed one
+  - panel s42_b90_r202 4980736: measuring-copy tree digest differs from the sealed one
+  - panel s42_b90_r202 5111808: measuring-copy tree digest differs from the sealed one
+  - panel s42_b90_r202 5242880: measuring-copy tree digest differs from the sealed one
+  - panel s42_b90_r202 final: measuring-copy tree digest differs from the sealed one
+  - panel s42_b90_r303 4325376: measuring-copy tree digest differs from the sealed one
+  - panel s42_b90_r303 4456448: measuring-copy tree digest differs from the sealed one
+  - panel s42_b90_r303 4587520: measuring-copy tree digest differs from the sealed one
+  - panel s42_b90_r303 4718592: measuring-copy tree digest differs from the sealed one
+  - panel s42_b90_r303 4849664: measuring-copy tree digest differs from the sealed one
+  - panel s42_b90_r303 4980736: measuring-copy tree digest differs from the sealed one
+  - panel s42_b90_r303 5111808: measuring-copy tree digest differs from the sealed one
+  - panel s42_b90_r303 5242880: measuring-copy tree digest differs from the sealed one
+  - panel s42_b90_r303 final: measuring-copy tree digest differs from the sealed one
+  - panel s42_b60_r101 4325376: measuring-copy tree digest differs from the sealed one
+  - panel s42_b60_r101 4456448: measuring-copy tree digest differs from the sealed one
+  - panel s42_b60_r101 4587520: measuring-copy tree digest differs from the sealed one
+  - panel s42_b60_r101 4718592: measuring-copy tree digest differs from the sealed one
+  - panel s42_b60_r101 4849664: measuring-copy tree digest differs from the sealed one
+  - panel s42_b60_r101 4980736: measuring-copy tree digest differs from the sealed one
+  - panel s42_b60_r101 5111808: measuring-copy tree digest differs from the sealed one
+  - panel s42_b60_r101 5242880: measuring-copy tree digest differs from the sealed one
+  - panel s42_b60_r101 final: measuring-copy tree digest differs from the sealed one
+  - panel s42_b60_r202 4325376: measuring-copy tree digest differs from the sealed one
+  - panel s42_b60_r202 4456448: measuring-copy tree digest differs from the sealed one
+  - panel s42_b60_r202 4587520: measuring-copy tree digest differs from the sealed one
+  - panel s42_b60_r202 4718592: measuring-copy tree digest differs from the sealed one
+  - panel s42_b60_r202 4849664: measuring-copy tree digest differs from the sealed one
+  - panel s42_b60_r202 4980736: measuring-copy tree digest differs from the sealed one
+  - panel s42_b60_r202 5111808: measuring-copy tree digest differs from the sealed one
+  - panel s42_b60_r202 5242880: measuring-copy tree digest differs from the sealed one
+  - panel s42_b60_r202 final: measuring-copy tree digest differs from the sealed one
+  - panel s42_b60_r303 4325376: measuring-copy tree digest differs from the sealed one
+  - panel s42_b60_r303 4456448: measuring-copy tree digest differs from the sealed one
+  - panel s42_b60_r303 4587520: measuring-copy tree digest differs from the sealed one
+  - panel s42_b60_r303 4718592: measuring-copy tree digest differs from the sealed one
+  - panel s42_b60_r303 4849664: measuring-copy tree digest differs from the sealed one
+  - panel s42_b60_r303 4980736: measuring-copy tree digest differs from the sealed one
+  - panel s42_b60_r303 5111808: measuring-copy tree digest differs from the sealed one
+  - panel s42_b60_r303 5242880: measuring-copy tree digest differs from the sealed one
+  - panel s42_b60_r303 final: measuring-copy tree digest differs from the sealed one
+  - panel s80_control_r101 4325376: measuring-copy tree digest differs from the sealed one
+  - panel s80_control_r101 4456448: measuring-copy tree digest differs from the sealed one
+  - panel s80_control_r101 4587520: measuring-copy tree digest differs from the sealed one
+  - panel s80_control_r101 4718592: measuring-copy tree digest differs from the sealed one
+  - panel s80_control_r101 4849664: measuring-copy tree digest differs from the sealed one
+  - panel s80_control_r101 4980736: measuring-copy tree digest differs from the sealed one
+  - panel s80_control_r101 5111808: measuring-copy tree digest differs from the sealed one
+  - panel s80_control_r101 5242880: measuring-copy tree digest differs from the sealed one
+  - panel s80_control_r101 final: measuring-copy tree digest differs from the sealed one
+  - panel s80_control_r202 4325376: measuring-copy tree digest differs from the sealed one
+  - panel s80_control_r202 4456448: measuring-copy tree digest differs from the sealed one
+  - panel s80_control_r202 4587520: measuring-copy tree digest differs from the sealed one
+  - panel s80_control_r202 4718592: measuring-copy tree digest differs from the sealed one
+  - panel s80_control_r202 4849664: measuring-copy tree digest differs from the sealed one
+  - panel s80_control_r202 4980736: measuring-copy tree digest differs from the sealed one
+  - panel s80_control_r202 5111808: measuring-copy tree digest differs from the sealed one
+  - panel s80_control_r202 5242880: measuring-copy tree digest differs from the sealed one
+  - panel s80_control_r202 final: measuring-copy tree digest differs from the sealed one
+  - panel s80_control_r303 4325376: measuring-copy tree digest differs from the sealed one
+  - panel s80_control_r303 4456448: measuring-copy tree digest differs from the sealed one
+  - panel s80_control_r303 4587520: measuring-copy tree digest differs from the sealed one
+  - panel s80_control_r303 4718592: measuring-copy tree digest differs from the sealed one
+  - panel s80_control_r303 4849664: measuring-copy tree digest differs from the sealed one
+  - panel s80_control_r303 4980736: measuring-copy tree digest differs from the sealed one
+  - panel s80_control_r303 5111808: measuring-copy tree digest differs from the sealed one
+  - panel s80_control_r303 5242880: measuring-copy tree digest differs from the sealed one
+  - panel s80_control_r303 final: measuring-copy tree digest differs from the sealed one
+  - panel s80_b90_r101 4325376: measuring-copy tree digest differs from the sealed one
+  - panel s80_b90_r101 4456448: measuring-copy tree digest differs from the sealed one
+  - panel s80_b90_r101 4587520: measuring-copy tree digest differs from the sealed one
+  - panel s80_b90_r101 4718592: measuring-copy tree digest differs from the sealed one
+  - panel s80_b90_r101 4849664: measuring-copy tree digest differs from the sealed one
+  - panel s80_b90_r101 4980736: measuring-copy tree digest differs from the sealed one
+  - panel s80_b90_r101 5111808: measuring-copy tree digest differs from the sealed one
+  - panel s80_b90_r101 5242880: measuring-copy tree digest differs from the sealed one
+  - panel s80_b90_r101 final: measuring-copy tree digest differs from the sealed one
+  - panel s80_b90_r202 4325376: measuring-copy tree digest differs from the sealed one
+  - panel s80_b90_r202 4456448: measuring-copy tree digest differs from the sealed one
+  - panel s80_b90_r202 4587520: measuring-copy tree digest differs from the sealed one
+  - panel s80_b90_r202 4718592: measuring-copy tree digest differs from the sealed one
+  - panel s80_b90_r202 4849664: measuring-copy tree digest differs from the sealed one
+  - panel s80_b90_r202 4980736: measuring-copy tree digest differs from the sealed one
+  - panel s80_b90_r202 5111808: measuring-copy tree digest differs from the sealed one
+  - panel s80_b90_r202 5242880: measuring-copy tree digest differs from the sealed one
+  - panel s80_b90_r202 final: measuring-copy tree digest differs from the sealed one
+  - panel s80_b90_r303 4325376: measuring-copy tree digest differs from the sealed one
+  - panel s80_b90_r303 4456448: measuring-copy tree digest differs from the sealed one
+  - panel s80_b90_r303 4587520: measuring-copy tree digest differs from the sealed one
+  - panel s80_b90_r303 4718592: measuring-copy tree digest differs from the sealed one
+  - panel s80_b90_r303 4849664: measuring-copy tree digest differs from the sealed one
+  - panel s80_b90_r303 4980736: measuring-copy tree digest differs from the sealed one
+  - panel s80_b90_r303 5111808: measuring-copy tree digest differs from the sealed one
+  - panel s80_b90_r303 5242880: measuring-copy tree digest differs from the sealed one
+  - panel s80_b90_r303 final: measuring-copy tree digest differs from the sealed one
+  - panel s80_b60_r101 4325376: measuring-copy tree digest differs from the sealed one
+  - panel s80_b60_r101 4456448: measuring-copy tree digest differs from the sealed one
+  - panel s80_b60_r101 4587520: measuring-copy tree digest differs from the sealed one
+  - panel s80_b60_r101 4718592: measuring-copy tree digest differs from the sealed one
+  - panel s80_b60_r101 4849664: measuring-copy tree digest differs from the sealed one
+  - panel s80_b60_r101 4980736: measuring-copy tree digest differs from the sealed one
+  - panel s80_b60_r101 5111808: measuring-copy tree digest differs from the sealed one
+  - panel s80_b60_r101 5242880: measuring-copy tree digest differs from the sealed one
+  - panel s80_b60_r101 final: measuring-copy tree digest differs from the sealed one
+  - panel s80_b60_r202 4325376: measuring-copy tree digest differs from the sealed one
+  - panel s80_b60_r202 4456448: measuring-copy tree digest differs from the sealed one
+  - panel s80_b60_r202 4587520: measuring-copy tree digest differs from the sealed one
+  - panel s80_b60_r202 4718592: measuring-copy tree digest differs from the sealed one
+  - panel s80_b60_r202 4849664: measuring-copy tree digest differs from the sealed one
+  - panel s80_b60_r202 4980736: measuring-copy tree digest differs from the sealed one
+  - panel s80_b60_r202 5111808: measuring-copy tree digest differs from the sealed one
+  - panel s80_b60_r202 5242880: measuring-copy tree digest differs from the sealed one
+  - panel s80_b60_r202 final: measuring-copy tree digest differs from the sealed one
+  - panel s80_b60_r303 4325376: measuring-copy tree digest differs from the sealed one
+  - panel s80_b60_r303 4456448: measuring-copy tree digest differs from the sealed one
+  - panel s80_b60_r303 4587520: measuring-copy tree digest differs from the sealed one
+  - panel s80_b60_r303 4718592: measuring-copy tree digest differs from the sealed one
+  - panel s80_b60_r303 4849664: measuring-copy tree digest differs from the sealed one
+  - panel s80_b60_r303 4980736: measuring-copy tree digest differs from the sealed one
+  - panel s80_b60_r303 5111808: measuring-copy tree digest differs from the sealed one
+  - panel s80_b60_r303 5242880: measuring-copy tree digest differs from the sealed one
+  - panel s80_b60_r303 final: measuring-copy tree digest differs from the sealed one
+  - panel s42_control_r101 4325376: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_control_r101 (None)
+  - panel s42_control_r101 4456448: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_control_r101 (None)
+  - panel s42_control_r101 4587520: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_control_r101 (None)
+  - panel s42_control_r101 4718592: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_control_r101 (None)
+  - panel s42_control_r101 4849664: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_control_r101 (None)
+  - panel s42_control_r101 4980736: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_control_r101 (None)
+  - panel s42_control_r101 5111808: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_control_r101 (None)
+  - panel s42_control_r101 5242880: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_control_r101 (None)
+  - panel s42_control_r101 final: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_control_r101 (None)
+  - panel s42_control_r101 final: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 != run_meta final_sha256 None
+  - panel s42_control_r202 4325376: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_control_r202 (None)
+  - panel s42_control_r202 4456448: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_control_r202 (None)
+  - panel s42_control_r202 4587520: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_control_r202 (None)
+  - panel s42_control_r202 4718592: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_control_r202 (None)
+  - panel s42_control_r202 4849664: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_control_r202 (None)
+  - panel s42_control_r202 4980736: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_control_r202 (None)
+  - panel s42_control_r202 5111808: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_control_r202 (None)
+  - panel s42_control_r202 5242880: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_control_r202 (None)
+  - panel s42_control_r202 final: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_control_r202 (None)
+  - panel s42_control_r202 final: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 != run_meta final_sha256 None
+  - panel s42_control_r303 4325376: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_control_r303 (None)
+  - panel s42_control_r303 4456448: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_control_r303 (None)
+  - panel s42_control_r303 4587520: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_control_r303 (None)
+  - panel s42_control_r303 4718592: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_control_r303 (None)
+  - panel s42_control_r303 4849664: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_control_r303 (None)
+  - panel s42_control_r303 4980736: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_control_r303 (None)
+  - panel s42_control_r303 5111808: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_control_r303 (None)
+  - panel s42_control_r303 5242880: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_control_r303 (None)
+  - panel s42_control_r303 final: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_control_r303 (None)
+  - panel s42_control_r303 final: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 != run_meta final_sha256 None
+  - panel s42_b90_r101 4325376: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_b90_r101 (None)
+  - panel s42_b90_r101 4456448: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_b90_r101 (None)
+  - panel s42_b90_r101 4587520: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_b90_r101 (None)
+  - panel s42_b90_r101 4718592: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_b90_r101 (None)
+  - panel s42_b90_r101 4849664: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_b90_r101 (None)
+  - panel s42_b90_r101 4980736: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_b90_r101 (None)
+  - panel s42_b90_r101 5111808: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_b90_r101 (None)
+  - panel s42_b90_r101 5242880: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_b90_r101 (None)
+  - panel s42_b90_r101 final: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_b90_r101 (None)
+  - panel s42_b90_r101 final: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 != run_meta final_sha256 None
+  - panel s42_b90_r202 4325376: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_b90_r202 (None)
+  - panel s42_b90_r202 4456448: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_b90_r202 (None)
+  - panel s42_b90_r202 4587520: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_b90_r202 (None)
+  - panel s42_b90_r202 4718592: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_b90_r202 (None)
+  - panel s42_b90_r202 4849664: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_b90_r202 (None)
+  - panel s42_b90_r202 4980736: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_b90_r202 (None)
+  - panel s42_b90_r202 5111808: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_b90_r202 (None)
+  - panel s42_b90_r202 5242880: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_b90_r202 (None)
+  - panel s42_b90_r202 final: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_b90_r202 (None)
+  - panel s42_b90_r202 final: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 != run_meta final_sha256 None
+  - panel s42_b90_r303 4325376: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_b90_r303 (None)
+  - panel s42_b90_r303 4456448: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_b90_r303 (None)
+  - panel s42_b90_r303 4587520: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_b90_r303 (None)
+  - panel s42_b90_r303 4718592: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_b90_r303 (None)
+  - panel s42_b90_r303 4849664: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_b90_r303 (None)
+  - panel s42_b90_r303 4980736: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_b90_r303 (None)
+  - panel s42_b90_r303 5111808: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_b90_r303 (None)
+  - panel s42_b90_r303 5242880: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_b90_r303 (None)
+  - panel s42_b90_r303 final: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_b90_r303 (None)
+  - panel s42_b90_r303 final: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 != run_meta final_sha256 None
+  - panel s42_b60_r101 4325376: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_b60_r101 (None)
+  - panel s42_b60_r101 4456448: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_b60_r101 (None)
+  - panel s42_b60_r101 4587520: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_b60_r101 (None)
+  - panel s42_b60_r101 4718592: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_b60_r101 (None)
+  - panel s42_b60_r101 4849664: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_b60_r101 (None)
+  - panel s42_b60_r101 4980736: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_b60_r101 (None)
+  - panel s42_b60_r101 5111808: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_b60_r101 (None)
+  - panel s42_b60_r101 5242880: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_b60_r101 (None)
+  - panel s42_b60_r101 final: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_b60_r101 (None)
+  - panel s42_b60_r101 final: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 != run_meta final_sha256 None
+  - panel s42_b60_r202 4325376: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_b60_r202 (None)
+  - panel s42_b60_r202 4456448: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_b60_r202 (None)
+  - panel s42_b60_r202 4587520: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_b60_r202 (None)
+  - panel s42_b60_r202 4718592: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_b60_r202 (None)
+  - panel s42_b60_r202 4849664: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_b60_r202 (None)
+  - panel s42_b60_r202 4980736: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_b60_r202 (None)
+  - panel s42_b60_r202 5111808: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_b60_r202 (None)
+  - panel s42_b60_r202 5242880: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_b60_r202 (None)
+  - panel s42_b60_r202 final: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_b60_r202 (None)
+  - panel s42_b60_r202 final: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 != run_meta final_sha256 None
+  - panel s42_b60_r303 4325376: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_b60_r303 (None)
+  - panel s42_b60_r303 4456448: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_b60_r303 (None)
+  - panel s42_b60_r303 4587520: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_b60_r303 (None)
+  - panel s42_b60_r303 4718592: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_b60_r303 (None)
+  - panel s42_b60_r303 4849664: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_b60_r303 (None)
+  - panel s42_b60_r303 4980736: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_b60_r303 (None)
+  - panel s42_b60_r303 5111808: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_b60_r303 (None)
+  - panel s42_b60_r303 5242880: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_b60_r303 (None)
+  - panel s42_b60_r303 final: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s42_b60_r303 (None)
+  - panel s42_b60_r303 final: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 != run_meta final_sha256 None
+  - panel s80_control_r101 4325376: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_control_r101 (None)
+  - panel s80_control_r101 4456448: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_control_r101 (None)
+  - panel s80_control_r101 4587520: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_control_r101 (None)
+  - panel s80_control_r101 4718592: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_control_r101 (None)
+  - panel s80_control_r101 4849664: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_control_r101 (None)
+  - panel s80_control_r101 4980736: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_control_r101 (None)
+  - panel s80_control_r101 5111808: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_control_r101 (None)
+  - panel s80_control_r101 5242880: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_control_r101 (None)
+  - panel s80_control_r101 final: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_control_r101 (None)
+  - panel s80_control_r101 final: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 != run_meta final_sha256 None
+  - panel s80_control_r202 4325376: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_control_r202 (None)
+  - panel s80_control_r202 4456448: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_control_r202 (None)
+  - panel s80_control_r202 4587520: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_control_r202 (None)
+  - panel s80_control_r202 4718592: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_control_r202 (None)
+  - panel s80_control_r202 4849664: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_control_r202 (None)
+  - panel s80_control_r202 4980736: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_control_r202 (None)
+  - panel s80_control_r202 5111808: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_control_r202 (None)
+  - panel s80_control_r202 5242880: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_control_r202 (None)
+  - panel s80_control_r202 final: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_control_r202 (None)
+  - panel s80_control_r202 final: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 != run_meta final_sha256 None
+  - panel s80_control_r303 4325376: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_control_r303 (None)
+  - panel s80_control_r303 4456448: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_control_r303 (None)
+  - panel s80_control_r303 4587520: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_control_r303 (None)
+  - panel s80_control_r303 4718592: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_control_r303 (None)
+  - panel s80_control_r303 4849664: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_control_r303 (None)
+  - panel s80_control_r303 4980736: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_control_r303 (None)
+  - panel s80_control_r303 5111808: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_control_r303 (None)
+  - panel s80_control_r303 5242880: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_control_r303 (None)
+  - panel s80_control_r303 final: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_control_r303 (None)
+  - panel s80_control_r303 final: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 != run_meta final_sha256 None
+  - panel s80_b90_r101 4325376: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_b90_r101 (None)
+  - panel s80_b90_r101 4456448: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_b90_r101 (None)
+  - panel s80_b90_r101 4587520: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_b90_r101 (None)
+  - panel s80_b90_r101 4718592: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_b90_r101 (None)
+  - panel s80_b90_r101 4849664: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_b90_r101 (None)
+  - panel s80_b90_r101 4980736: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_b90_r101 (None)
+  - panel s80_b90_r101 5111808: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_b90_r101 (None)
+  - panel s80_b90_r101 5242880: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_b90_r101 (None)
+  - panel s80_b90_r101 final: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_b90_r101 (None)
+  - panel s80_b90_r101 final: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 != run_meta final_sha256 None
+  - panel s80_b90_r202 4325376: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_b90_r202 (None)
+  - panel s80_b90_r202 4456448: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_b90_r202 (None)
+  - panel s80_b90_r202 4587520: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_b90_r202 (None)
+  - panel s80_b90_r202 4718592: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_b90_r202 (None)
+  - panel s80_b90_r202 4849664: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_b90_r202 (None)
+  - panel s80_b90_r202 4980736: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_b90_r202 (None)
+  - panel s80_b90_r202 5111808: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_b90_r202 (None)
+  - panel s80_b90_r202 5242880: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_b90_r202 (None)
+  - panel s80_b90_r202 final: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_b90_r202 (None)
+  - panel s80_b90_r202 final: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 != run_meta final_sha256 None
+  - panel s80_b90_r303 4325376: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_b90_r303 (None)
+  - panel s80_b90_r303 4456448: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_b90_r303 (None)
+  - panel s80_b90_r303 4587520: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_b90_r303 (None)
+  - panel s80_b90_r303 4718592: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_b90_r303 (None)
+  - panel s80_b90_r303 4849664: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_b90_r303 (None)
+  - panel s80_b90_r303 4980736: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_b90_r303 (None)
+  - panel s80_b90_r303 5111808: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_b90_r303 (None)
+  - panel s80_b90_r303 5242880: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_b90_r303 (None)
+  - panel s80_b90_r303 final: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_b90_r303 (None)
+  - panel s80_b90_r303 final: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 != run_meta final_sha256 None
+  - panel s80_b60_r101 4325376: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_b60_r101 (None)
+  - panel s80_b60_r101 4456448: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_b60_r101 (None)
+  - panel s80_b60_r101 4587520: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_b60_r101 (None)
+  - panel s80_b60_r101 4718592: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_b60_r101 (None)
+  - panel s80_b60_r101 4849664: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_b60_r101 (None)
+  - panel s80_b60_r101 4980736: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_b60_r101 (None)
+  - panel s80_b60_r101 5111808: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_b60_r101 (None)
+  - panel s80_b60_r101 5242880: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_b60_r101 (None)
+  - panel s80_b60_r101 final: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_b60_r101 (None)
+  - panel s80_b60_r101 final: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 != run_meta final_sha256 None
+  - panel s80_b60_r202 4325376: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_b60_r202 (None)
+  - panel s80_b60_r202 4456448: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_b60_r202 (None)
+  - panel s80_b60_r202 4587520: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_b60_r202 (None)
+  - panel s80_b60_r202 4718592: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_b60_r202 (None)
+  - panel s80_b60_r202 4849664: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_b60_r202 (None)
+  - panel s80_b60_r202 4980736: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_b60_r202 (None)
+  - panel s80_b60_r202 5111808: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_b60_r202 (None)
+  - panel s80_b60_r202 5242880: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_b60_r202 (None)
+  - panel s80_b60_r202 final: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_b60_r202 (None)
+  - panel s80_b60_r202 final: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 != run_meta final_sha256 None
+  - panel s80_b60_r303 4325376: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_b60_r303 (None)
+  - panel s80_b60_r303 4456448: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_b60_r303 (None)
+  - panel s80_b60_r303 4587520: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_b60_r303 (None)
+  - panel s80_b60_r303 4718592: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_b60_r303 (None)
+  - panel s80_b60_r303 4849664: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_b60_r303 (None)
+  - panel s80_b60_r303 4980736: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_b60_r303 (None)
+  - panel s80_b60_r303 5111808: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_b60_r303 (None)
+  - panel s80_b60_r303 5242880: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_b60_r303 (None)
+  - panel s80_b60_r303 final: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 is not the sha256 of the checkpoint now in runs/s80_b60_r303 (None)
+  - panel s80_b60_r303 final: zip_sha256 9999999999999999999999999999999999999999999999999999999999999999 != run_meta final_sha256 None
+  - V1 did not reproduce its values exactly (validate/v1.json missing or not passed)
+
+Replicates (R1 = 5111808, R2 = final):
+  s42_control_r101 RAIL             tailup 1 other 0 onset 1 CMD R1 +0.9500 R2 +0.9500 mean +0.9500
+  s42_control_r202 PARKED           tailup 0 other 0 onset 0 CMD R1 +0.7500 R2 +0.7500 mean +0.7500
+  s42_control_r303 CURED            tailup 0 other 0 onset 0 CMD R1 +0.3000 R2 +0.3000 mean +0.3000
+  s42_b90_r101     CURED            tailup 0 other 0 onset 0 CMD R1 +0.3000 R2 +0.3000 mean +0.3000
+  s42_b90_r202     CURED            tailup 0 other 0 onset 0 CMD R1 +0.3000 R2 +0.3000 mean +0.3000
+  s42_b90_r303     CURED            tailup 0 other 0 onset 0 CMD R1 +0.3000 R2 +0.3000 mean +0.3000
+  s42_b60_r101     CURED            tailup 0 other 0 onset 0 CMD R1 +0.3000 R2 +0.3000 mean +0.3000
+  s42_b60_r202     CURED            tailup 0 other 0 onset 0 CMD R1 +0.3000 R2 +0.3000 mean +0.3000
+  s42_b60_r303     CURED            tailup 0 other 0 onset 0 CMD R1 +0.3000 R2 +0.3000 mean +0.3000
+  s80_control_r101 RAIL             tailup 1 other 0 onset 1 CMD R1 +0.9500 R2 +0.9500 mean +0.9500
+  s80_control_r202 RAIL             tailup 1 other 0 onset 1 CMD R1 +0.9500 R2 +0.9500 mean +0.9500
+  s80_control_r303 CURED            tailup 0 other 0 onset 0 CMD R1 +0.3000 R2 +0.3000 mean +0.3000
+  s80_b90_r101     CURED            tailup 0 other 0 onset 0 CMD R1 +0.3000 R2 +0.3000 mean +0.3000
+  s80_b90_r202     CURED            tailup 0 other 0 onset 0 CMD R1 +0.3000 R2 +0.3000 mean +0.3000
+  s80_b90_r303     CURED            tailup 0 other 0 onset 0 CMD R1 +0.3000 R2 +0.3000 mean +0.3000
+  s80_b60_r101     CURED            tailup 0 other 0 onset 0 CMD R1 +0.3000 R2 +0.3000 mean +0.3000
+  s80_b60_r202     CURED            tailup 0 other 0 onset 0 CMD R1 +0.3000 R2 +0.3000 mean +0.3000
+  s80_b60_r303     CURED            tailup 0 other 0 onset 0 CMD R1 +0.3000 R2 +0.3000 mean +0.3000
+
+OUTCOME: A. BOTH PASSED.
+  BOUND90: PASSED (onset note: INFORMATIVE (2 of 3 s80 CONTROL replicates had >= 1 tail-up flag at any measured checkpoint; labels measured of 9: r101 9, r202 9, r303 9))
+  BOUND60: PASSED (onset note: INFORMATIVE (2 of 3 s80 CONTROL replicates had >= 1 tail-up flag at any measured checkpoint; labels measured of 9: r101 9, r202 9, r303 9))
+  s42 BOUND90: PASS (lines applying: PASS; OTHER 0 vs CONTROL 0)
+  s42 BOUND60: PASS (lines applying: PASS; OTHER 0 vs CONTROL 0)
+  s80 BOUND90: PASS (lines applying: PASS; OTHER 0 vs CONTROL 0)
+  s80 BOUND60: PASS (lines applying: PASS; OTHER 0 vs CONTROL 0)
+  Onset note: INFORMATIVE (2 of 3 s80 CONTROL replicates had >= 1 tail-up flag at any measured checkpoint; labels measured of 9: r101 9, r202 9, r303 9)
+To the maintainer:
+  - Both bounds as candidates for a from-scratch GPU round proposal (BRIEF section 4), each needing its own fixed criteria. The screen does not rank them (K = 3, one shared CONTROL); report-only comparisons (CMD, q3, returns, OTHER counts per arm) go beside.
+  - BOUND60's PASS is also posture evidence for the posture decision.
+  - Nothing trains on the outcome without the maintainer's approval; the outcome changes no screen, verdict, parent, criterion or stage config.
+
+Report only (never in a verdict):
+  dose ordering s42: BOUND60 <= BOUND90 <= CONTROL: True (control +0.6667 ['RAIL', 'PARKED', 'CURED'], b90 +0.3000 ['CURED', 'CURED', 'CURED'], b60 +0.3000 ['CURED', 'CURED', 'CURED'])
+  dose ordering s80: BOUND60 <= BOUND90 <= CONTROL: True (control +0.7333 ['RAIL', 'RAIL', 'CURED'], b90 +0.3000 ['CURED', 'CURED', 'CURED'], b60 +0.3000 ['CURED', 'CURED', 'CURED'])
+  0.5M readings (4587520 / 4718592): see score.json report_only.half_point
+----------------------------- Captured stderr call -----------------------------
+input error: duplicate panels.csv row for ('s42_control_r101', '4325376')
+input error: panels.csv s42_control_r101 5242880: bad cmd='n/a'
+input error: LOST.txt names 's42_b60_r404', not one of the 18 replicates
+input error: LOST.txt line for s42_b60_r101 carries no RUNLOG line
+input error: /tmp/pytest-of-root/pytest-139/test_cli_exit_codes0/screen/panels.csv: missing columns ['other_flags']
+________________ test_t7a_screen_zip_runs_in_the_measuring_copy ________________
+----------------------------- Captured stdout call -----------------------------
+{"report_only": true, "t7_tail3_window_cmd_seed3042": 0.950971, "start_panel_tail3_window_cmd_seed3042": 0.950971, "equal_6dp": true, "t7_pkl_sha256": "6043773fd960821defc02a1d92ad75d1e87291e3489cf9e7732cb9bcbfc8ceda", "start_pkl_sha256": "3903cbcfe43559c8f5dccc0b2d6ed01f3c3989f039f966b12ed6aaa7ecbca118", "note": "a difference can come only through the VecNormalize statistics that were saved"}
+=========================== short test summary info ============================
+PASSED tools/tests/test_measure.py::test_flags_and_aggregates
+PASSED tools/tests/test_measure.py::test_other_flag_never_reads_the_tail_up_flag
+PASSED tools/tests/test_measure.py::test_class_single
+PASSED tools/tests/test_measure.py::test_reduce_refuses_wrong_seeds_or_probe
+PASSED tools/tests/test_measure.py::test_append_row_lock_header_and_duplicate
+PASSED tools/tests/test_measure.py::test_append_row_verify_runs_under_the_lock_and_refuses
+PASSED tools/tests/test_measure.py::test_retire_crashed_moves_run_panels_and_rows
+PASSED tools/tests/test_measure.py::test_gzip_records_sha_first
+PASSED tools/tests/test_measure.py::test_tree_digest_sees_any_change
+PASSED tools/tests/test_measure.py::test_parse_name_and_labels
+PASSED tools/tests/test_measure.py::test_measure_imports_no_torch_or_environments
+PASSED tools/tests/test_score.py::test_baseline_is_final_and_both_pass
+PASSED tools/tests/test_score.py::test_replicate_class_rule
+PASSED tools/tests/test_score.py::test_every_state_reading_line[RAIL-s42-BOUND90-b90]
+PASSED tools/tests/test_score.py::test_every_state_reading_line[RAIL-s42-BOUND60-b60]
+PASSED tools/tests/test_score.py::test_every_state_reading_line[RAIL-s80-BOUND90-b90]
+PASSED tools/tests/test_score.py::test_every_state_reading_line[RAIL-s80-BOUND60-b60]
+PASSED tools/tests/test_score.py::test_every_state_reading_line[PARKED-s42-BOUND90-b90]
+PASSED tools/tests/test_score.py::test_every_state_reading_line[PARKED-s42-BOUND60-b60]
+PASSED tools/tests/test_score.py::test_every_state_reading_line[PARKED-s80-BOUND90-b90]
+PASSED tools/tests/test_score.py::test_every_state_reading_line[PARKED-s80-BOUND60-b60]
+PASSED tools/tests/test_score.py::test_every_state_reading_line[OTHER-s42-BOUND90-b90]
+PASSED tools/tests/test_score.py::test_every_state_reading_line[OTHER-s42-BOUND60-b60]
+PASSED tools/tests/test_score.py::test_every_state_reading_line[OTHER-s80-BOUND90-b90]
+PASSED tools/tests/test_score.py::test_every_state_reading_line[OTHER-s80-BOUND60-b60]
+PASSED tools/tests/test_score.py::test_every_state_reading_line[NOT SEPARATED-s42-BOUND90-b90]
+PASSED tools/tests/test_score.py::test_every_state_reading_line[NOT SEPARATED-s42-BOUND60-b60]
+PASSED tools/tests/test_score.py::test_every_state_reading_line[NOT SEPARATED-s80-BOUND90-b90]
+PASSED tools/tests/test_score.py::test_every_state_reading_line[NOT SEPARATED-s80-BOUND60-b60]
+PASSED tools/tests/test_score.py::test_every_state_reading_line[PASS-s42-BOUND90-b90]
+PASSED tools/tests/test_score.py::test_every_state_reading_line[PASS-s42-BOUND60-b60]
+PASSED tools/tests/test_score.py::test_every_state_reading_line[PASS-s80-BOUND90-b90]
+PASSED tools/tests/test_score.py::test_every_state_reading_line[PASS-s80-BOUND60-b60]
+PASSED tools/tests/test_score.py::test_one_parked_is_not_parked_and_all_applying_lines_reported
+PASSED tools/tests/test_score.py::test_other_equal_counts_is_not_other
+PASSED tools/tests/test_score.py::test_every_verdict_line[BOUND90-b90-RAIL]
+PASSED tools/tests/test_score.py::test_every_verdict_line[BOUND90-b90-PARKED]
+PASSED tools/tests/test_score.py::test_every_verdict_line[BOUND90-b90-OTHER]
+PASSED tools/tests/test_score.py::test_every_verdict_line[BOUND90-b90-NOT SEPARATED]
+PASSED tools/tests/test_score.py::test_every_verdict_line[BOUND60-b60-RAIL]
+PASSED tools/tests/test_score.py::test_every_verdict_line[BOUND60-b60-PARKED]
+PASSED tools/tests/test_score.py::test_every_verdict_line[BOUND60-b60-OTHER]
+PASSED tools/tests/test_score.py::test_every_verdict_line[BOUND60-b60-NOT SEPARATED]
+PASSED tools/tests/test_score.py::test_verdict_order_across_states
+PASSED tools/tests/test_score.py::test_outcome_a
+PASSED tools/tests/test_score.py::test_outcome_b_both_directions[RAIL-b90]
+PASSED tools/tests/test_score.py::test_outcome_b_both_directions[RAIL-b60]
+PASSED tools/tests/test_score.py::test_outcome_b_both_directions[PARKED-b90]
+PASSED tools/tests/test_score.py::test_outcome_b_both_directions[PARKED-b60]
+PASSED tools/tests/test_score.py::test_outcome_b_both_directions[OTHER-b90]
+PASSED tools/tests/test_score.py::test_outcome_b_both_directions[OTHER-b60]
+PASSED tools/tests/test_score.py::test_outcome_b_cannot_be_not_separated
+PASSED tools/tests/test_score.py::test_outcome_c_routing[RAIL-RAIL]
+PASSED tools/tests/test_score.py::test_outcome_c_routing[RAIL-PARKED]
+PASSED tools/tests/test_score.py::test_outcome_c_routing[RAIL-OTHER]
+PASSED tools/tests/test_score.py::test_outcome_c_routing[PARKED-RAIL]
+PASSED tools/tests/test_score.py::test_outcome_c_routing[PARKED-PARKED]
+PASSED tools/tests/test_score.py::test_outcome_c_routing[PARKED-OTHER]
+PASSED tools/tests/test_score.py::test_outcome_c_routing[OTHER-RAIL]
+PASSED tools/tests/test_score.py::test_outcome_c_routing[OTHER-PARKED]
+PASSED tools/tests/test_score.py::test_outcome_c_routing[OTHER-OTHER]
+PASSED tools/tests/test_score.py::test_named_combinations_text
+PASSED tools/tests/test_score.py::test_lost_bound_replicate_is_rail_for_own_bound_only[b60-BOUND60-BOUND90]
+PASSED tools/tests/test_score.py::test_lost_bound_replicate_is_rail_for_own_bound_only[b90-BOUND90-BOUND60]
+PASSED tools/tests/test_score.py::test_missing_bound_replicate_never_changes_other_bound_under_any_classes[b60-BOUND90]
+PASSED tools/tests/test_score.py::test_missing_bound_replicate_never_changes_other_bound_under_any_classes[b90-BOUND60]
+PASSED tools/tests/test_score.py::test_lost_control_s42_counts_cured_and_s80_no_rail
+PASSED tools/tests/test_score.py::test_missing_not_lost_is_incomplete_and_reads_nothing
+PASSED tools/tests/test_score.py::test_bound_verdict_not_read_early_when_its_own_six_are_complete
+PASSED tools/tests/test_score.py::test_monotonicity_pure_grid
+PASSED tools/tests/test_score.py::test_monotonicity_end_to_end_verdicts
+PASSED tools/tests/test_score.py::test_onset_note_states_label_counts_and_flags_missing_labels
+PASSED tools/tests/test_score.py::test_onset_note_counts_any_label_and_needs_two
+PASSED tools/tests/test_score.py::test_bound_independence[b60-BOUND90]
+PASSED tools/tests/test_score.py::test_bound_independence[b90-BOUND60]
+PASSED tools/tests/test_score.py::test_each_provisional_trigger[APPROVED COEF pin unfilled]
+PASSED tools/tests/test_score.py::test_each_provisional_trigger[APPROVED missing]
+PASSED tools/tests/test_score.py::test_each_provisional_trigger[APPROVED screen_common pin unfilled]
+PASSED tools/tests/test_score.py::test_each_provisional_trigger[V1 missing]
+PASSED tools/tests/test_score.py::test_each_provisional_trigger[V1 not passed]
+PASSED tools/tests/test_score.py::test_each_provisional_trigger[build tier failed]
+PASSED tools/tests/test_score.py::test_each_provisional_trigger[build tier missing]
+PASSED tools/tests/test_score.py::test_each_provisional_trigger[build tier other head]
+PASSED tools/tests/test_score.py::test_each_provisional_trigger[coef != APPROVED]
+PASSED tools/tests/test_score.py::test_each_provisional_trigger[coef breaks rule]
+PASSED tools/tests/test_score.py::test_each_provisional_trigger[coef missing]
+PASSED tools/tests/test_score.py::test_each_provisional_trigger[coef other stack]
+PASSED tools/tests/test_score.py::test_each_provisional_trigger[coef sha != APPROVED]
+PASSED tools/tests/test_score.py::test_each_provisional_trigger[coef written after start (mtime)]
+PASSED tools/tests/test_score.py::test_each_provisional_trigger[coef written after start (utc)]
+PASSED tools/tests/test_score.py::test_each_provisional_trigger[criteria sha != APPROVED]
+PASSED tools/tests/test_score.py::test_each_provisional_trigger[criteria sha not in RUNLOG]
+PASSED tools/tests/test_score.py::test_each_provisional_trigger[criteria.txt missing]
+PASSED tools/tests/test_score.py::test_each_provisional_trigger[diff file set]
+PASSED tools/tests/test_score.py::test_each_provisional_trigger[diff unreadable]
+PASSED tools/tests/test_score.py::test_each_provisional_trigger[final row != run_meta final_sha256]
+PASSED tools/tests/test_score.py::test_each_provisional_trigger[gate T1b skipped]
+PASSED tools/tests/test_score.py::test_each_provisional_trigger[gate T2 absent]
+PASSED tools/tests/test_score.py::test_each_provisional_trigger[gate T7b deselected]
+PASSED tools/tests/test_score.py::test_each_provisional_trigger[gate another test failed]
+PASSED tools/tests/test_score.py::test_each_provisional_trigger[gate failed]
+PASSED tools/tests/test_score.py::test_each_provisional_trigger[gate missing]
+PASSED tools/tests/test_score.py::test_each_provisional_trigger[gate no per-test statuses]
+PASSED tools/tests/test_score.py::test_each_provisional_trigger[gate other head]
+PASSED tools/tests/test_score.py::test_each_provisional_trigger[onset label missing (s80 control)]
+PASSED tools/tests/test_score.py::test_each_provisional_trigger[overlay sha]
+PASSED tools/tests/test_score.py::test_each_provisional_trigger[panel checkpoint gone from runs]
+PASSED tools/tests/test_score.py::test_each_provisional_trigger[panel row of another attempt (zip sha)]
+PASSED tools/tests/test_score.py::test_each_provisional_trigger[panel seeds]
+PASSED tools/tests/test_score.py::test_each_provisional_trigger[panel stack]
+PASSED tools/tests/test_score.py::test_each_provisional_trigger[panel tree digest]
+PASSED tools/tests/test_score.py::test_each_provisional_trigger[pin DURABLE_BRANCH unfilled]
+PASSED tools/tests/test_score.py::test_each_provisional_trigger[pin SCRATCH_COMMIT unfilled]
+PASSED tools/tests/test_score.py::test_each_provisional_trigger[run_meta HEAD other]
+PASSED tools/tests/test_score.py::test_each_provisional_trigger[run_meta arm]
+PASSED tools/tests/test_score.py::test_each_provisional_trigger[run_meta b]
+PASSED tools/tests/test_score.py::test_each_provisional_trigger[run_meta coef]
+PASSED tools/tests/test_score.py::test_each_provisional_trigger[run_meta control coef]
+PASSED tools/tests/test_score.py::test_each_provisional_trigger[run_meta dirty clone]
+PASSED tools/tests/test_score.py::test_each_provisional_trigger[run_meta missing with panels]
+PASSED tools/tests/test_score.py::test_each_provisional_trigger[run_meta seed]
+PASSED tools/tests/test_score.py::test_each_provisional_trigger[run_meta stack]
+PASSED tools/tests/test_score.py::test_each_provisional_trigger[run_meta start sha]
+PASSED tools/tests/test_score.py::test_each_provisional_trigger[run_meta status]
+PASSED tools/tests/test_score.py::test_each_provisional_trigger[screen_common sha != APPROVED]
+PASSED tools/tests/test_score.py::test_each_provisional_trigger[tool pin unfilled]
+PASSED tools/tests/test_score.py::test_each_provisional_trigger[tool sha differs]
+PASSED tools/tests/test_score.py::test_provisional_skips_lost_runs_meta
+PASSED tools/tests/test_score.py::test_cli_exit_codes
+PASSED tools/tests/test_score.py::test_report_only_dose_ordering_and_half_point
+PASSED tools/tests/test_score.py::test_scorer_imports_no_torch_or_environments
+PASSED tools/tests/test_t7_screen.py::test_t7a_screen_zip_carries_the_record_and_the_start_parameters
+PASSED tools/tests/test_t7_screen.py::test_t7a_screen_zip_runs_in_the_measuring_copy
+PASSED tools/tests/test_tools.py::test_arm_config_maps_the_three_arms
+PASSED tools/tests/test_tools.py::test_coef_rule
+PASSED tools/tests/test_tools.py::test_preflight_passes_on_the_synthetic_root
+PASSED tools/tests/test_tools.py::test_preflight_refuses[approved_criteria_mismatch]
+PASSED tools/tests/test_tools.py::test_preflight_refuses[approved_missing]
+PASSED tools/tests/test_tools.py::test_preflight_refuses[approved_other_commit]
+PASSED tools/tests/test_tools.py::test_preflight_refuses[approved_unparsable]
+PASSED tools/tests/test_tools.py::test_preflight_refuses[clone_branch]
+PASSED tools/tests/test_tools.py::test_preflight_refuses[clone_dirty]
+PASSED tools/tests/test_tools.py::test_preflight_refuses[clone_files]
+PASSED tools/tests/test_tools.py::test_preflight_refuses[clone_ignored]
+PASSED tools/tests/test_tools.py::test_preflight_refuses[clone_parent]
+PASSED tools/tests/test_tools.py::test_preflight_refuses[clone_push]
+PASSED tools/tests/test_tools.py::test_preflight_refuses[coef_breaks_rule]
+PASSED tools/tests/test_tools.py::test_preflight_refuses[coef_missing]
+PASSED tools/tests/test_tools.py::test_preflight_refuses[coef_not_the_pin]
+PASSED tools/tests/test_tools.py::test_preflight_refuses[coef_sha_not_the_pin]
+PASSED tools/tests/test_tools.py::test_preflight_refuses[coef_unrounded]
+PASSED tools/tests/test_tools.py::test_preflight_refuses[criteria_missing]
+PASSED tools/tests/test_tools.py::test_preflight_refuses[gate_counts_only]
+PASSED tools/tests/test_tools.py::test_preflight_refuses[gate_failed]
+PASSED tools/tests/test_tools.py::test_preflight_refuses[gate_missing]
+PASSED tools/tests/test_tools.py::test_preflight_refuses[gate_other_head]
+PASSED tools/tests/test_tools.py::test_preflight_refuses[gate_t1b_skipped]
+PASSED tools/tests/test_tools.py::test_preflight_refuses[gate_t2_absent]
+PASSED tools/tests/test_tools.py::test_preflight_refuses[gate_t7b_deselected]
+PASSED tools/tests/test_tools.py::test_preflight_refuses[low_disk]
+PASSED tools/tests/test_tools.py::test_preflight_refuses[pin_unfilled]
+PASSED tools/tests/test_tools.py::test_preflight_refuses[run_exists]
+PASSED tools/tests/test_tools.py::test_preflight_refuses[screen_common_not_the_pin]
+PASSED tools/tests/test_tools.py::test_preflight_refuses[screen_common_pin_missing]
+PASSED tools/tests/test_tools.py::test_preflight_refuses[stack]
+PASSED tools/tests/test_tools.py::test_preflight_refuses[start_sha]
+PASSED tools/tests/test_tools.py::test_preflight_refuses[tool_pin]
+PASSED tools/tests/test_tools.py::test_preflight_refuses[tool_pin_other]
+PASSED tools/tests/test_tools.py::test_preflight_refuses_arguments[override0-args: arm]
+PASSED tools/tests/test_tools.py::test_preflight_refuses_arguments[override1-args: arm]
+PASSED tools/tests/test_tools.py::test_preflight_refuses_arguments[override2-args: state]
+PASSED tools/tests/test_tools.py::test_preflight_refuses_arguments[override3-args: rep seed]
+PASSED tools/tests/test_tools.py::test_preflight_refuses_arguments[override4-args: rep seed]
+PASSED tools/tests/test_tools.py::test_preflight_refuses_arguments[override5-args: steps]
+PASSED tools/tests/test_tools.py::test_preflight_refuses_arguments[override6-args: steps]
+PASSED tools/tests/test_tools.py::test_preflight_creates_nothing
+PASSED tools/tests/test_tools.py::test_cli_refuses_against_the_real_screen_now[extra0]
+PASSED tools/tests/test_tools.py::test_cli_refuses_against_the_real_screen_now[extra1]
+PASSED tools/tests/test_tools.py::test_gate_and_waves_refuse_without_approved_and_create_nothing[gate.sh]
+PASSED tools/tests/test_tools.py::test_gate_and_waves_refuse_without_approved_and_create_nothing[run_waves.sh]
+PASSED tools/tests/test_tools.py::test_run_waves_plan_is_the_pinned_waves
+PASSED tools/tests/test_tools.py::test_importing_the_tools_imports_neither_torch_nor_environments
+PASSED tools/tests/test_tools.py::test_calib_refuses_to_overwrite_or_write_inside_calib
+183 passed in 27.21s
+exit 0

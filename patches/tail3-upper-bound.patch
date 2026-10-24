@@ -1,0 +1,640 @@
+From 2cc1921ded20b8eec077eb0cf2c1d3c9e80b990c Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 24 Oct 2026 18:11:51 +0000
+Subject: [PATCH 1/2] scratch: tail_3 upper mean bound (screen, never pushed)
+
+Tail3UpperBoundConfig(coef, bound, index=14), tail3_upper_bound_penalty
+(mean over rows of relu(mu[:, 14] - b)^2) and enable_tail3_upper_bound in
+mirror_kl_ppo.py, off by default. The term is added in _mirror_loss after
+kappa * L_K (a separate forward pass with gradient when coef > 0; at coef 0
+the hook's no-grad mean is only logged, nothing is added), so train() and
+train_source_diff are unchanged. train/tail3_bound_* telemetry per update.
+The bound's state is excluded from the checkpoint; only the JSON record
+mesozoic_tail3_bound is saved, and a bound zip loads with stock PPO.
+
+Tests: T1a (coef-0 gradient identity, no optimizer step), T3 (scope), T4
+(mirror), T5 (no shipped file sets it; train_base.py as at cf80ecb1), T7a
+(stock load); gate-tier T1b, T2 and T7b take optimizer steps and run only
+with MESOZOIC_TAILSCREEN_GATE=1.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01X1VjQXgfkABgkidWb1QS9A
+---
+ environments/shared/mirror_kl_ppo.py          | 116 ++++++-
+ .../shared/tests/test_mirror_kl_ppo.py        | 318 ++++++++++++++++++
+ 2 files changed, 431 insertions(+), 3 deletions(-)
+
+diff --git a/environments/shared/mirror_kl_ppo.py b/environments/shared/mirror_kl_ppo.py
+index 7c74f5fb..be28e218 100644
+--- a/environments/shared/mirror_kl_ppo.py
++++ b/environments/shared/mirror_kl_ppo.py
+@@ -54,6 +54,17 @@ writes all four ``[ppo]`` symmetry keys (:data:`~environments.shared.symmetry.SY
+ ``hyperparameters_sha256`` pins every setting.  :func:`enable_mirror_kl` turns a constructed or loaded
+ stock ``PPO`` into a :class:`MirrorKLPPO` in place (``train_base`` does, when a stage's ``[ppo]`` table carries the
+ symmetry keys), and records the settings in the checkpoint attribute ``mesozoic_symmetry``.
++
++SCRATCH (tail_3 bound screen, never pushed, no stage key): :func:`enable_tail3_upper_bound` adds, off by default, an
++upper bound on tail_3_pitch_act's policy mean (action index 14) to the loss of :meth:`MirrorKLPPO._mirror_loss`::
++
++    L_B  = mean over the mini-batch's rows of relu(mu[:, 14] - b)^2      (mu: the pre-clip Gaussian mean)
++    loss = stock PPO loss + kappa * L_K + coef * L_B
++
++``train()`` is unchanged.  With ``coef == 0`` L_B is computed from the hook's own no-grad mean and only logged (no
++extra forward pass, nothing added to the loss), so training is bit for bit as without the bound.  The bound's
++state is excluded from the checkpoint; only the JSON record ``mesozoic_tail3_bound`` is saved, and loading never
++re-enables it.
+ """
+ 
+ from __future__ import annotations
+@@ -61,6 +72,7 @@ from __future__ import annotations
+ import difflib
+ import hashlib
+ import inspect
++import math
+ from dataclasses import dataclass, field
+ from typing import Any, cast
+ 
+@@ -82,6 +94,50 @@ SB3_PPO_TRAIN_SHA256 = "7c8d09940123242f0ac401c5ec2cc858b8bf3339f571c222382f048f
+ #: Every line :meth:`MirrorKLPPO.train` adds to the stock source carries this marker.
+ MIRROR_MARKER = "# [mirror]"
+ 
++#: The checkpoint attribute (JSON only) a model trained with the tail_3 upper bound carries.
++TAIL3_BOUND_ATTRIBUTE = "mesozoic_tail3_bound"
++#: tail_3_pitch_act, the only action index the bound may act on.
++TAIL3_INDEX = 14
++
++
++@dataclass(frozen=True)
++class Tail3UpperBoundConfig:
++    """The scoped upper bound on tail_3_pitch_act's policy mean: ``coef * mean_rows relu(mu[:, 14] - bound)^2``."""
++
++    coef: float
++    bound: float
++    index: int = TAIL3_INDEX
++
++    def __post_init__(self) -> None:
++        if isinstance(self.coef, bool) or not isinstance(self.coef, (int, float)):
++            raise ValueError(f"coef must be a number, got {self.coef!r}")
++        if not math.isfinite(self.coef) or self.coef < 0.0:
++            raise ValueError(f"coef must be finite and >= 0, got {self.coef!r}")
++        if isinstance(self.bound, bool) or not isinstance(self.bound, (int, float)):
++            raise ValueError(f"bound must be a number, got {self.bound!r}")
++        if not math.isfinite(self.bound) or not 0.0 < self.bound <= 1.0:
++            raise ValueError(f"bound must be finite with 0 < bound <= 1.0, got {self.bound!r}")
++        if isinstance(self.index, bool) or self.index != TAIL3_INDEX:
++            raise ValueError(f"the bound acts on tail_3_pitch_act (index {TAIL3_INDEX}) only, got index {self.index!r}")
++        object.__setattr__(self, "coef", float(self.coef))
++        object.__setattr__(self, "bound", float(self.bound))
++        object.__setattr__(self, "index", int(self.index))
++
++    def checkpoint_record(self) -> dict[str, Any]:
++        """The JSON-only ``mesozoic_tail3_bound`` record."""
++        return {
++            "coef": self.coef,
++            "bound": self.bound,
++            "index": self.index,
++            "side": "upper",
++            "loss": "coef * mean_rows relu(mu[:, index] - bound)^2",
++        }
++
++
++def tail3_upper_bound_penalty(mu: th.Tensor, bound: float, index: int = TAIL3_INDEX) -> th.Tensor:
++    """``mean over rows of relu(mu[:, index] - bound)^2``: only the upper side of one action's mean pays."""
++    return th.mean(F.relu(mu[:, index] - bound) ** 2)
++
+ 
+ def stock_ppo_train_sha256() -> str:
+     return hashlib.sha256(inspect.getsource(PPO.train).encode("utf-8")).hexdigest()
+@@ -223,9 +279,10 @@ class MirrorKLPPO(PPO):
+     """
+ 
+     _mirror: _MirrorState | None = None
++    _tail3_bound: Tail3UpperBoundConfig | None = None  # scratch: enable_tail3_upper_bound; never saved
+ 
+     def _excluded_save_params(self) -> list[str]:
+-        return [*super()._excluded_save_params(), "_mirror"]
++        return [*super()._excluded_save_params(), "_mirror", "_tail3_bound"]
+ 
+     def _mirror_state(self) -> _MirrorState:
+         if self._mirror is None:
+@@ -259,7 +316,10 @@ class MirrorKLPPO(PPO):
+                 "act_perm": th.as_tensor(state.mirror_map.action.perm, device=self.device),
+                 "act_sign": th.as_tensor(state.mirror_map.action.sign, dtype=th.float32, device=self.device),
+             }
+-        return {"kl": [], "asymmetry": [], "value": [], "observations": None}
++        update: dict[str, Any] = {"kl": [], "asymmetry": [], "value": [], "observations": None}
++        if self._tail3_bound is not None:
++            update["tail3"] = {"penalty": [], "beyond": [], "mu_max": []}
++        return update
+ 
+     def _mirror_value_loss(self, update: dict[str, Any], rollout_data: Any, value_loss: th.Tensor) -> th.Tensor:
+         state = self._mirror_state()
+@@ -291,7 +351,23 @@ class MirrorKLPPO(PPO):
+             )
+         update["kl"].append(kl.item())
+         update["asymmetry"].append(asymmetry.item())
+-        return loss + state.config.kappa * kl if weighted else loss
++        loss = loss + state.config.kappa * kl if weighted else loss
++        bound = self._tail3_bound
++        if bound is not None:
++            # Scratch tail_3 upper bound.  coef > 0: a separate forward pass with gradient (the hook's mu above is
++            # no-grad).  coef == 0: the penalty of the no-grad mu, logged only; nothing is added to the loss.
++            if bound.coef > 0.0:
++                distribution = cast(Any, self.policy.get_distribution(rollout_data.observations).distribution)
++                mu_grad = cast(th.Tensor, distribution.mean)
++                penalty = tail3_upper_bound_penalty(mu_grad, bound.bound, bound.index)
++                loss = loss + bound.coef * penalty
++            else:
++                penalty = tail3_upper_bound_penalty(mu, bound.bound, bound.index)
++            mu_tail3 = mu[:, bound.index]
++            update["tail3"]["penalty"].append(penalty.item())
++            update["tail3"]["beyond"].append((mu_tail3 > bound.bound).float().mean().item())
++            update["tail3"]["mu_max"].append(mu_tail3.max().item())
++        return loss
+ 
+     def _mirror_end_update(self, update: dict[str, Any]) -> None:
+         self.logger.record("train/mirror_kl_loss", float(np.mean(update["kl"])) if update["kl"] else float("nan"))
+@@ -300,6 +376,21 @@ class MirrorKLPPO(PPO):
+         )
+         if update["value"]:
+             self.logger.record("train/mirror_value_loss", float(np.mean(update["value"])))
++        bound = self._tail3_bound
++        if bound is not None and "tail3" in update:
++            tail3 = update["tail3"]
++            penalty = float(np.mean(tail3["penalty"])) if tail3["penalty"] else float("nan")
++            self.logger.record("train/tail3_bound_penalty", penalty)
++            self.logger.record("train/tail3_bound_loss", bound.coef * penalty)
++            self.logger.record(
++                "train/tail3_bound_beyond_fraction",
++                float(np.mean(tail3["beyond"])) if tail3["beyond"] else float("nan"),
++            )
++            self.logger.record(
++                "train/tail3_bound_mu_max", float(np.max(tail3["mu_max"])) if tail3["mu_max"] else float("nan")
++            )
++            self.logger.record("train/tail3_bound_coef", bound.coef)
++            self.logger.record("train/tail3_bound_b", bound.bound)
+ 
+     # ------------------------------------------------------------------ SB3 2.9.0 PPO.train, four lines added
+     def train(self) -> None:
+@@ -476,3 +567,22 @@ def enable_mirror_kl(model: Any, config: SymmetryConfig, mirror_map: MirrorMap)
+     mirrored._mirror_install()
+     setattr(mirrored, CHECKPOINT_ATTRIBUTE, config.checkpoint_record(mirror_map))
+     return mirrored
++
++
++def enable_tail3_upper_bound(model: MirrorKLPPO, config: Tail3UpperBoundConfig | None) -> None:
++    """Scratch: turn the tail_3 upper bound on (``config``) or off (``None``) on a :class:`MirrorKLPPO`.
++
++    Off by default.  Refused (``TypeError``) unless ``type(model) is MirrorKLPPO``.  ``None`` removes the bound and
++    the JSON attribute ``mesozoic_tail3_bound``; a config sets ``model._tail3_bound`` (never saved) and the attribute
++    ``mesozoic_tail3_bound`` (:meth:`Tail3UpperBoundConfig.checkpoint_record`, saved as JSON).
++    """
++    if type(model) is not MirrorKLPPO:
++        raise TypeError(f"the tail_3 upper bound needs a MirrorKLPPO model, got {type(model).__name__}")
++    if config is None:
++        model.__dict__.pop("_tail3_bound", None)
++        model.__dict__.pop(TAIL3_BOUND_ATTRIBUTE, None)
++        return
++    if not isinstance(config, Tail3UpperBoundConfig):
++        raise TypeError(f"expected a Tail3UpperBoundConfig or None, got {type(config).__name__}")
++    model._tail3_bound = config
++    setattr(model, TAIL3_BOUND_ATTRIBUTE, config.checkpoint_record())
+diff --git a/environments/shared/tests/test_mirror_kl_ppo.py b/environments/shared/tests/test_mirror_kl_ppo.py
+index 0fcff570..24d105c7 100644
+--- a/environments/shared/tests/test_mirror_kl_ppo.py
++++ b/environments/shared/tests/test_mirror_kl_ppo.py
+@@ -6,8 +6,11 @@ from __future__ import annotations
+ 
+ import copy
+ import json
++import os
+ import pickle
++import subprocess
+ import zipfile
++from pathlib import Path
+ from typing import Any
+ 
+ import gymnasium as gym
+@@ -325,3 +328,318 @@ def test_no_stage_config_enables_symmetry():
+             ppo = dict(load_stage_config(model_id, entry.reference).get("ppo_kwargs", {}))
+             assert not set(SY.SYMMETRY_KEYS) & set(ppo), (model_id, entry.id)
+             assert SY.pop_symmetry_config(ppo) is None
++
++
++# ---------------------------------------------------------------------------------------------------- tail_3 bound
++# SCRATCH (tail_3 bound screen, never pushed).  Build tier: no optimizer step on any policy.  Gate tier (learn()):
++# run only with MESOZOIC_TAILSCREEN_GATE=1, after the screen's approval.
++_GATE_ONLY = pytest.mark.skipif(
++    os.environ.get("MESOZOIC_TAILSCREEN_GATE") != "1", reason="takes optimizer steps: gate only"
++)
++_TAIL3_KEYS = (
++    "train/tail3_bound_penalty",
++    "train/tail3_bound_loss",
++    "train/tail3_bound_beyond_fraction",
++    "train/tail3_bound_mu_max",
++    "train/tail3_bound_coef",
++    "train/tail3_bound_b",
++)
++_BOUNDS = (0.90, 0.60)
++
++
++def _tail3_model(mirror_map, *, seed: int = 13, bound: float | None = None, coef: float = 0.0, bias14=None):
++    """A toy MirrorKLPPO (``_make(seed)``, default SymmetryConfig), optionally with ``action_net.bias[14]`` set by
++    hand (no_grad) and the bound enabled.  Built right before use: SB3 reseeds the global RNGs at construction."""
++    model = MK.enable_mirror_kl(_make(seed=seed), SY.SymmetryConfig(), mirror_map)
++    if bias14 is not None:
++        policy: Any = model.policy
++        with torch.no_grad():
++            policy.action_net.bias[MK.TAIL3_INDEX] = float(bias14)
++    if bound is not None:
++        MK.enable_tail3_upper_bound(model, MK.Tail3UpperBoundConfig(coef, bound))
++    return model
++
++
++def _train_without_steps(model, monkeypatch=None) -> dict:
++    """Fill the buffer (``_setup_learn`` + one ``collect_rollouts``, no update), then run ``train()`` with
++    ``optimizer.step`` replaced by a recorder that copies every gradient and does not step.  With *monkeypatch*,
++    the gradients are also recorded before the clip, with each mini-batch's observations."""
++    _, callback = model._setup_learn(model.n_steps * model.n_envs, None, True, "tail3", False)
++    assert model.collect_rollouts(model.env, callback, model.rollout_buffer, n_rollout_steps=model.n_steps)
++    names = [name for name, _ in model.policy.named_parameters()]
++    params = [p for _, p in model.policy.named_parameters()]
++    record: dict[str, Any] = {"names": names, "post": [], "pre": [], "obs": []}
++
++    def recorder(*_args, **_kwargs):
++        record["post"].append([None if p.grad is None else p.grad.detach().clone() for p in params])
++
++    model.policy.optimizer.step = recorder
++    if monkeypatch is not None:
++        clip = torch.nn.utils.clip_grad_norm_
++
++        def clip_recording(parameters, *args, **kwargs):
++            parameters = list(parameters)
++            record["pre"].append([None if p.grad is None else p.grad.detach().clone() for p in params])
++            return clip(parameters, *args, **kwargs)
++
++        monkeypatch.setattr(torch.nn.utils, "clip_grad_norm_", clip_recording)
++        mirror_loss = model._mirror_loss
++
++        def mirror_loss_recording(update, rollout_data, loss):
++            record["obs"].append(rollout_data.observations.detach().clone())
++            return mirror_loss(update, rollout_data, loss)
++
++        model._mirror_loss = mirror_loss_recording
++    before = _parameters(model)
++    model.train()
++    if monkeypatch is not None:
++        monkeypatch.undo()
++        del model._mirror_loss
++    record["unchanged"] = all(np.array_equal(before[k], v) for k, v in _parameters(model).items())
++    record["adam_empty"] = model.policy.optimizer.state_dict()["state"] == {}
++    record["logged"] = dict(model.logger.name_to_value)
++    return record
++
++
++def _grads_bytes(sequence) -> list[list[bytes | None]]:
++    return [[None if g is None else g.numpy().tobytes() for g in step] for step in sequence]
++
++
++def test_tail3_config_and_enable_refuse_what_they_cannot_bound(mirror_map):
++    for bad in (
++        {"coef": -0.1, "bound": 0.9},
++        {"coef": float("nan"), "bound": 0.9},
++        {"coef": float("inf"), "bound": 0.9},
++        {"coef": 1.0, "bound": 0.0},
++        {"coef": 1.0, "bound": 1.01},
++        {"coef": 1.0, "bound": float("nan")},
++        {"coef": 1.0, "bound": 0.9, "index": 13},
++        {"coef": 1.0, "bound": 0.9, "index": 0},
++    ):
++        with pytest.raises(ValueError):
++            MK.Tail3UpperBoundConfig(**bad)
++    config = MK.Tail3UpperBoundConfig(2.7, 0.6)
++    assert config.checkpoint_record() == {
++        "coef": 2.7,
++        "bound": 0.6,
++        "index": 14,
++        "side": "upper",
++        "loss": "coef * mean_rows relu(mu[:, index] - bound)^2",
++    }
++    json.dumps(config.checkpoint_record())
++    with pytest.raises(TypeError, match="MirrorKLPPO"):
++        MK.enable_tail3_upper_bound(_make(), config)
++    model = _tail3_model(mirror_map)
++    assert model._tail3_bound is None and MK.TAIL3_BOUND_ATTRIBUTE not in vars(model)
++    MK.enable_tail3_upper_bound(model, config)
++    assert model._tail3_bound is config
++    assert getattr(model, MK.TAIL3_BOUND_ATTRIBUTE) == config.checkpoint_record()
++    MK.enable_tail3_upper_bound(model, None)
++    assert model._tail3_bound is None and MK.TAIL3_BOUND_ATTRIBUTE not in vars(model)
++    assert "_tail3_bound" in model._excluded_save_params() and "_mirror" in model._excluded_save_params()
++
++
++@pytest.mark.parametrize("bound", _BOUNDS)
++def test_tail3_t1a_coef_zero_is_gradient_identical_and_takes_no_step(mirror_map, monkeypatch, bound):
++    """T1a: at coef 0 the recorded (post-clip) gradient sequence equals the no-bound model's byte for byte; no
++    parameter moves; only the bound model logs the six train/tail3_bound_* keys.  At coef 2.7 with
++    action_net.bias[14] = 1.0 (and = b, so rows straddle the bound) the gradients differ, and the pre-clip
++    difference is exactly coef x the gradient of L_B on the rows with mu14 > b."""
++    none = _train_without_steps(_tail3_model(mirror_map))
++    zero = _train_without_steps(_tail3_model(mirror_map, bound=bound, coef=0.0))
++    assert len(none["post"]) == len(zero["post"]) == 2 * (128 // 32)  # n_epochs x mini-batches, all recorded
++    assert _grads_bytes(none["post"]) == _grads_bytes(zero["post"])
++    assert none["unchanged"] and zero["unchanged"] and none["adam_empty"] and zero["adam_empty"]
++    assert not any(key.startswith("train/tail3_bound") for key in none["logged"])
++    assert set(_TAIL3_KEYS) <= set(zero["logged"])
++    assert zero["logged"]["train/tail3_bound_coef"] == 0.0 and zero["logged"]["train/tail3_bound_loss"] == 0.0
++    assert zero["logged"]["train/tail3_bound_b"] == bound
++    assert np.isfinite(zero["logged"]["train/tail3_bound_penalty"]) and zero["logged"]["train/tail3_bound_penalty"] >= 0
++    for bias14 in (1.0, bound):
++        plain = _train_without_steps(_tail3_model(mirror_map, bias14=bias14), monkeypatch)
++        bounded_model = _tail3_model(mirror_map, bound=bound, coef=2.7, bias14=bias14)
++        bounded = _train_without_steps(bounded_model, monkeypatch)
++        assert plain["unchanged"] and bounded["unchanged"]
++        assert _grads_bytes(plain["post"]) != _grads_bytes(bounded["post"])
++        assert bounded["logged"]["train/tail3_bound_coef"] == 2.7
++        assert bounded["logged"]["train/tail3_bound_penalty"] > 0.0
++        names = plain["names"]
++        params = [p for _, p in bounded_model.policy.named_parameters()]
++        n_beyond, n_rows = 0, 0
++        for pre_plain, pre_bounded, obs in zip(plain["pre"], bounded["pre"], bounded["obs"], strict=True):
++            mu = bounded_model.policy.get_distribution(obs).distribution.mean
++            beyond = mu.detach()[:, 14] > bound
++            n_beyond, n_rows = n_beyond + int(beyond.sum()), n_rows + len(beyond)
++            # The bound's gradient from the rows with mu14 > b alone (row mean over the whole mini-batch).
++            rows_term = (torch.nn.functional.relu(mu[beyond][:, 14] - bound) ** 2).sum() / len(mu)
++            expected = torch.autograd.grad(2.7 * rows_term, params, allow_unused=True)
++            for name, a, b, e in zip(names, pre_plain, pre_bounded, expected, strict=True):
++                difference = (b - a).numpy()
++                e = np.zeros_like(difference) if e is None else e.numpy()
++                np.testing.assert_allclose(difference, e, rtol=1e-4, atol=1e-6, err_msg=name)
++                if name.startswith(("value_net", "mlp_extractor.value_net", "log_std")):
++                    assert np.array_equal(a.numpy(), b.numpy()), name  # untouched by the bound, bit for bit
++                if name in ("action_net.weight", "action_net.bias"):
++                    others = np.arange(15) != 14
++                    assert np.array_equal(a.numpy()[others], b.numpy()[others]), name
++        assert 0 < n_beyond <= n_rows
++        if bias14 == bound:
++            assert n_beyond < n_rows  # rows on both sides of b: those at or below it contributed nothing
++
++
++def test_tail3_t3_scope_upper_side_of_index_14_only():
++    rng = np.random.default_rng(7)
++    for bound in _BOUNDS:
++        mu = torch.tensor(rng.uniform(-1.5, 1.5, size=(512, 15)), dtype=torch.float64, requires_grad=True)
++        (grad,) = torch.autograd.grad(MK.tail3_upper_bound_penalty(mu, bound), mu)
++        grad = grad.numpy()
++        m14 = mu.detach().numpy()[:, 14]
++        assert np.all(grad[:, :14] == 0.0)
++        assert np.all(grad[m14 <= bound, 14] == 0.0)
++        assert np.any(m14 < -bound) and np.all(grad[m14 < -bound, 14] == 0.0)  # the lower side included
++        above = m14 > bound
++        assert above.any()
++        np.testing.assert_allclose(grad[above, 14], 2 * (m14[above] - bound) / len(m14), rtol=1e-12, atol=0)
++        # Through a toy policy's action_net: every mu14 = b + 0.11 pulls bias[14] by 0.22 per unit coef.
++        policy = _policy()
++        with torch.no_grad():
++            policy.action_net.weight[14].zero_()
++            policy.action_net.bias[14] = bound + 0.11
++        obs = torch.tensor(rng.normal(size=(128, 63)), dtype=torch.float32)
++        mu_policy = policy.get_distribution(obs).distribution.mean
++        (bias_grad,) = torch.autograd.grad(MK.tail3_upper_bound_penalty(mu_policy, bound), policy.action_net.bias)
++        assert abs(bias_grad[14].item() - 0.22) <= 1e-6
++        assert torch.all(bias_grad[:14] == 0.0)
++
++
++def test_tail3_t4_the_penalty_is_mirror_invariant(mirror_map):
++    perm, sign = mirror_map.action.perm, mirror_map.action.sign
++    assert int(perm[14]) == 14 and float(sign[14]) == 1.0
++    rng = np.random.default_rng(11)
++    mu = torch.tensor(rng.uniform(-1.5, 1.5, size=(256, 15)), dtype=torch.float64)
++    mirrored = mu[:, torch.as_tensor(perm)] * torch.as_tensor(sign, dtype=torch.float64)
++    for bound in _BOUNDS:
++        assert MK.tail3_upper_bound_penalty(mu, bound).item() == MK.tail3_upper_bound_penalty(mirrored, bound).item()
++        assert MK.tail3_upper_bound_penalty(mu, bound).item() > 0.0
++
++
++def test_tail3_t5_no_shipped_file_sets_the_bound():
++    root = Path(MK.__file__).resolve().parents[2]
++    allowed = {
++        root / "environments" / "shared" / "mirror_kl_ppo.py",
++        root / "environments" / "shared" / "tests" / "test_mirror_kl_ppo.py",
++    }
++    needles = ("tail3_bound", "tail3_upper_bound", "Tail3UpperBound")
++    checked, hits = 0, []
++    for top in ("configs", "environments"):
++        for path in sorted((root / top).rglob("*")):
++            if path.suffix not in (".toml", ".json", ".py") or not path.is_file() or path in allowed:
++                continue
++            checked += 1
++            text = path.read_text(encoding="utf-8", errors="replace")
++            hits.extend(f"{path.relative_to(root)}: {n}" for n in needles if n in text)
++    assert checked > 100 and hits == []
++    git = subprocess.run(
++        [
++            "git",
++            "--no-optional-locks",
++            "-C",
++            str(root),
++            "show",
++            "cf80ecb14d1630ce3b4dcdea28a05835d143470b:environments/shared/train_base.py",
++        ],
++        capture_output=True,
++    )
++    if git.returncode != 0:
++        pytest.skip("not a git checkout holding cf80ecb1")
++    assert (root / "environments" / "shared" / "train_base.py").read_bytes() == git.stdout
++
++
++def _save_and_check_bound_zip(model, mirror_map, tmp_path, config) -> None:
++    """T7: the zip's data keys are stock + the two records; stock PPO loads it; reloading never re-enables."""
++    model.save(tmp_path / "bound.zip")
++    _make().save(tmp_path / "stock.zip")
++    data = json.loads(zipfile.ZipFile(tmp_path / "bound.zip").read("data"))
++    stock_keys = set(json.loads(zipfile.ZipFile(tmp_path / "stock.zip").read("data")))
++    assert set(data) == stock_keys | {SY.CHECKPOINT_ATTRIBUTE, MK.TAIL3_BOUND_ATTRIBUTE}
++    assert data[MK.TAIL3_BOUND_ATTRIBUTE] == config.checkpoint_record()
++    assert "_tail3_bound" not in data and "_mirror" not in data
++    loaded = PPO.load(tmp_path / "bound.zip", device="cpu")
++    assert type(loaded) is PPO
++    obs = np.random.default_rng(5).normal(size=(8, 63)).astype(np.float32)
++    np.testing.assert_array_equal(loaded.predict(obs, deterministic=True)[0], model.predict(obs, deterministic=True)[0])
++    again = MK.enable_mirror_kl(PPO.load(tmp_path / "bound.zip", device="cpu"), SY.SymmetryConfig(), mirror_map)
++    assert again._tail3_bound is None
++    update = again._mirror_begin_update()
++    assert "tail3" not in update
++    rows = torch.tensor(np.random.default_rng(6).normal(size=(16, 63)), dtype=torch.float32)
++    tensors = again._mirror_state().tensors
++    update["observations"] = rows[:, tensors["obs_perm"]] * tensors["obs_sign"]
++
++    class Rows:
++        observations = rows
++
++    base = torch.tensor(1.25)
++    out = again._mirror_loss(update, Rows, base)
++    assert "tail3" not in update and len(update["kl"]) == 1
++    assert abs(out.item() - (1.25 + SY.SymmetryConfig().kappa * update["kl"][0])) <= 1e-6
++
++
++def test_tail3_t7a_a_bound_zip_loads_with_stock_ppo(mirror_map, tmp_path):
++    config = MK.Tail3UpperBoundConfig(2.7, 0.6)
++    model = _tail3_model(mirror_map, seed=3)
++    MK.enable_tail3_upper_bound(model, config)
++    _save_and_check_bound_zip(model, mirror_map, tmp_path, config)
++
++
++# ---------------------------------------------------------------------------------------------------- gate tier
++def _digest(model) -> dict[str, bytes]:
++    venv = model.get_vec_normalize_env()
++    out = {f"param.{k}": v.tobytes() for k, v in _parameters(model).items()}
++    out.update({f"adam.{k}.{n}": v.tobytes() for k, s in _adam(model).items() for n, v in s.items()})
++    out.update(
++        {
++            "obs.mean": np.asarray(venv.obs_rms.mean).tobytes(),
++            "obs.var": np.asarray(venv.obs_rms.var).tobytes(),
++            "obs.count": np.float64(venv.obs_rms.count).tobytes(),
++            "ret.mean": np.asarray(venv.ret_rms.mean).tobytes(),
++            "ret.var": np.asarray(venv.ret_rms.var).tobytes(),
++        }
++    )
++    return out
++
++
++@_GATE_ONLY
++def test_tail3_t1b_coef_zero_trains_bit_for_bit_as_no_bound(mirror_map):
++    reference = _tail3_model(mirror_map)
++    reference.learn(total_timesteps=256)
++    for bound in _BOUNDS:
++        model = _tail3_model(mirror_map, bound=bound, coef=0.0)
++        model.learn(total_timesteps=256)
++        assert _digest(model) == _digest(reference)
++        assert set(_TAIL3_KEYS) <= set(model.logger.name_to_value)
++
++
++@_GATE_ONLY
++def test_tail3_t2_same_seed_reproducibility(mirror_map):
++    for bound in _BOUNDS:
++        digests = {}
++        for coef in (0.0, 2.7):
++            runs = []
++            for _ in range(2):
++                model = _tail3_model(mirror_map, bound=bound, coef=coef, bias14=1.0)
++                model.learn(total_timesteps=256)
++                runs.append(_digest(model))
++            assert runs[0] == runs[1], (bound, coef)
++            digests[coef] = runs[0]
++        assert digests[0.0] != digests[2.7], bound
++
++
++@_GATE_ONLY
++def test_tail3_t7b_a_bound_zip_loads_after_one_update(mirror_map, tmp_path):
++    config = MK.Tail3UpperBoundConfig(2.7, 0.6)
++    model = _tail3_model(mirror_map, seed=3, bias14=1.0)
++    MK.enable_tail3_upper_bound(model, config)
++    model.learn(total_timesteps=model.n_steps * model.n_envs)
++    assert model._n_updates > 0 and model.logger.name_to_value["train/tail3_bound_coef"] == 2.7
++    _save_and_check_bound_zip(model, mirror_map, tmp_path, config)
+-- 
+2.43.0
+
+
+From 4c0c8da76d14f4b482f1fc63e0cf57af79b0184f Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 24 Oct 2026 18:44:11 +0000
+Subject: [PATCH 2/2] scratch: make the tail_3 bound's coef-0 identity tests
+ non-vacuous
+
+T1a and T1b compared no bound with coef 0 only on the toy's default
+action_net.bias[14], where mu14 sits far below both b and L_B is 0 on every
+row, so a coef-0 branch that added any multiple of the penalty passed.
+Both now also run the comparison with bias[14] = 1.0 and = b in BOTH
+models (rows above b) and assert the coef-0 model's logged penalty and
+beyond fraction are positive there while the gradient sequence (T1a) and
+the digests (T1b) stay byte-equal. A mutation that makes the coef-0 branch
+add 2.7 or 0.37 x the penalty now fails T1a at both b.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01X1VjQXgfkABgkidWb1QS9A
+---
+ .../shared/tests/test_mirror_kl_ppo.py        | 58 ++++++++++++-------
+ 1 file changed, 38 insertions(+), 20 deletions(-)
+
+diff --git a/environments/shared/tests/test_mirror_kl_ppo.py b/environments/shared/tests/test_mirror_kl_ppo.py
+index 24d105c7..42b2dce1 100644
+--- a/environments/shared/tests/test_mirror_kl_ppo.py
++++ b/environments/shared/tests/test_mirror_kl_ppo.py
+@@ -442,19 +442,27 @@ def test_tail3_config_and_enable_refuse_what_they_cannot_bound(mirror_map):
+ @pytest.mark.parametrize("bound", _BOUNDS)
+ def test_tail3_t1a_coef_zero_is_gradient_identical_and_takes_no_step(mirror_map, monkeypatch, bound):
+     """T1a: at coef 0 the recorded (post-clip) gradient sequence equals the no-bound model's byte for byte; no
+-    parameter moves; only the bound model logs the six train/tail3_bound_* keys.  At coef 2.7 with
+-    action_net.bias[14] = 1.0 (and = b, so rows straddle the bound) the gradients differ, and the pre-clip
+-    difference is exactly coef x the gradient of L_B on the rows with mu14 > b."""
+-    none = _train_without_steps(_tail3_model(mirror_map))
+-    zero = _train_without_steps(_tail3_model(mirror_map, bound=bound, coef=0.0))
+-    assert len(none["post"]) == len(zero["post"]) == 2 * (128 // 32)  # n_epochs x mini-batches, all recorded
+-    assert _grads_bytes(none["post"]) == _grads_bytes(zero["post"])
+-    assert none["unchanged"] and zero["unchanged"] and none["adam_empty"] and zero["adam_empty"]
+-    assert not any(key.startswith("train/tail3_bound") for key in none["logged"])
+-    assert set(_TAIL3_KEYS) <= set(zero["logged"])
+-    assert zero["logged"]["train/tail3_bound_coef"] == 0.0 and zero["logged"]["train/tail3_bound_loss"] == 0.0
+-    assert zero["logged"]["train/tail3_bound_b"] == bound
+-    assert np.isfinite(zero["logged"]["train/tail3_bound_penalty"]) and zero["logged"]["train/tail3_bound_penalty"] >= 0
++    parameter moves; only the bound model logs the six train/tail3_bound_* keys.  The coef-0 identity is checked
++    with the toy's default action_net.bias[14] (mu14 far below b, L_B = 0 on every row) AND with bias[14] set to
++    1.0 and to b in both models, so rows sit above b and L_B > 0: a coef-0 branch that added ANY multiple of the
++    penalty to the loss fails here.  At coef 2.7 with bias[14] = 1.0 (and = b, so rows straddle the bound) the
++    gradients differ, and the pre-clip difference is exactly coef x the gradient of L_B on the rows with mu14 > b."""
++    for bias14 in (None, 1.0, bound):
++        none = _train_without_steps(_tail3_model(mirror_map, bias14=bias14))
++        zero = _train_without_steps(_tail3_model(mirror_map, bound=bound, coef=0.0, bias14=bias14))
++        assert len(none["post"]) == len(zero["post"]) == 2 * (128 // 32)  # n_epochs x mini-batches, all recorded
++        assert _grads_bytes(none["post"]) == _grads_bytes(zero["post"]), bias14
++        assert none["unchanged"] and zero["unchanged"] and none["adam_empty"] and zero["adam_empty"]
++        assert not any(key.startswith("train/tail3_bound") for key in none["logged"])
++        assert set(_TAIL3_KEYS) <= set(zero["logged"])
++        assert zero["logged"]["train/tail3_bound_coef"] == 0.0 and zero["logged"]["train/tail3_bound_loss"] == 0.0
++        assert zero["logged"]["train/tail3_bound_b"] == bound
++        penalty = zero["logged"]["train/tail3_bound_penalty"]
++        beyond = zero["logged"]["train/tail3_bound_beyond_fraction"]
++        assert np.isfinite(penalty) and penalty >= 0
++        if bias14 is not None:
++            # The identity above is not vacuous: the coef-0 model's rows sit above b and its L_B is positive.
++            assert penalty > 0.0 and beyond > 0.0, (bias14, penalty, beyond)
+     for bias14 in (1.0, bound):
+         plain = _train_without_steps(_tail3_model(mirror_map, bias14=bias14), monkeypatch)
+         bounded_model = _tail3_model(mirror_map, bound=bound, coef=2.7, bias14=bias14)
+@@ -611,13 +619,23 @@ def _digest(model) -> dict[str, bytes]:
+ 
+ @_GATE_ONLY
+ def test_tail3_t1b_coef_zero_trains_bit_for_bit_as_no_bound(mirror_map):
+-    reference = _tail3_model(mirror_map)
+-    reference.learn(total_timesteps=256)
+-    for bound in _BOUNDS:
+-        model = _tail3_model(mirror_map, bound=bound, coef=0.0)
+-        model.learn(total_timesteps=256)
+-        assert _digest(model) == _digest(reference)
+-        assert set(_TAIL3_KEYS) <= set(model.logger.name_to_value)
++    """T1b: learn(256) at coef 0 gives the no-bound digests bit for bit, with the default bias[14] and with
++    bias[14] = 1.0 and = b in BOTH models (rows above b, L_B > 0), so a coef-0 branch that trained with the
++    penalty fails."""
++    for bias14 in (None, 1.0) + _BOUNDS:
++        reference = _tail3_model(mirror_map, bias14=bias14)
++        reference.learn(total_timesteps=256)
++        for bound in _BOUNDS:
++            if bias14 is not None and bias14 not in (1.0, bound):
++                continue  # bias[14] = 1.0 for both b, and = b for its own b
++            model = _tail3_model(mirror_map, bound=bound, coef=0.0, bias14=bias14)
++            model.learn(total_timesteps=256)
++            assert _digest(model) == _digest(reference), (bias14, bound)
++            logged = model.logger.name_to_value
++            assert set(_TAIL3_KEYS) <= set(logged)
++            if bias14 is not None:
++                assert logged["train/tail3_bound_penalty"] > 0.0, (bias14, bound)
++                assert logged["train/tail3_bound_beyond_fraction"] > 0.0, (bias14, bound)
+ 
+ 
+ @_GATE_ONLY
+-- 
+2.43.0
+
