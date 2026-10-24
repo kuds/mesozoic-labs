@@ -181,7 +181,9 @@ def design_sheet(model: mujoco.MjModel, data: mujoco.MjData) -> Image.Image:
     sheet = Image.new("RGB", (1600, 1800), (245, 247, 244))
     draw = ImageDraw.Draw(sheet)
     tail = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_ACTUATOR, "tail_yaw_servo") >= 0
-    title = "MINI TYRANNOSAURUS REX" + (" / TAIL OPTION" if tail else "")
+    selected_c = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_MESH, "mini_c_skull") >= 0
+    title = "MINI T-REX / SILHOUETTE C" if selected_c else "MINI TYRANNOSAURUS REX"
+    title += " / TAIL OPTION" if tail else ""
     draw.text((62, 42), title, font=_font(38), fill=(35, 46, 42))
     draw.text(
         (62, 98),
@@ -203,6 +205,46 @@ def design_sheet(model: mujoco.MjModel, data: mujoco.MjData) -> Image.Image:
         (62, 1745),
         "Hidden panels expose schematic components; mounting, wiring and thermal clearances require CAD verification.",
         font=_font(17),
+        fill=(83, 97, 88),
+    )
+    return sheet
+
+
+def family_sheet(model: mujoco.MjModel, data: mujoco.MjData) -> Image.Image:
+    """Show both current defaults at the same orthographic scale and orientation."""
+    medium_path = MODEL_PATH.parent.parent / "tyrannosaurus_rex_50cm" / "model.xml"
+    medium = mujoco.MjModel.from_xml_path(str(medium_path))
+    medium_data = mujoco.MjData(medium)
+    mujoco.mj_resetDataKeyframe(medium, medium_data, 0)
+    mujoco.mj_forward(medium, medium_data)
+    models = [(model, data), (medium, medium_data)]
+    basis = _camera_basis("isometric")
+    clouds = [geometry(m, d)[0] for m, d in models]
+    projected = np.concatenate(clouds) @ basis.T
+    bounds = (projected[:, :, :2].min(axis=(0, 1)), projected[:, :, :2].max(axis=(0, 1)))
+    sheet = Image.new("RGB", (1600, 1180), (245, 247, 244))
+    draw = ImageDraw.Draw(sheet)
+    draw.text((60, 32), "ONE SPECIES / TWO SILHOUETTE-C ROBOTS", font=_font(35), fill=(35, 46, 42))
+    draw.text(
+        (60, 87),
+        "Actual compiled models at the same scale • unweighed design concepts",
+        font=_font(22),
+        fill=(83, 97, 88),
+    )
+    for index, ((m, d), points) in enumerate(zip(models, clouds, strict=True)):
+        sheet.paste(render(m, d, width=800, height=900, projection_bounds=bounds), (index * 800, 200))
+        height = float(np.ptp(points[:, :, 2]))
+        label = "MINI" if index == 0 else "MEDIUM"
+        draw.text(
+            (60 + index * 800, 145),
+            f"{label}  /  {height * 100:.1f} cm  /  {m.body_mass.sum():.3f} kg",
+            font=_font(24),
+            fill=(60, 76, 66),
+        )
+    draw.text(
+        (60, 1120),
+        "Shared character; independently sized hardware. Standing/gesture checks do not establish walking.",
+        font=_font(20),
         fill=(83, 97, 88),
     )
     return sheet
@@ -259,6 +301,7 @@ def main() -> int:
     parser.add_argument("--model", type=Path, default=MODEL_PATH)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--sheet", action="store_true", help="Also render a labelled four-view design sheet.")
+    parser.add_argument("--family", action="store_true", help="Also compare the mini and medium defaults at one scale.")
     parser.add_argument(
         "--tail", action="store_true", help="Render the optional tail-yaw study with _tail output suffixes."
     )
@@ -281,6 +324,8 @@ def main() -> int:
         design_sheet(model, data).save(args.output_dir / f"design_views{suffix}.png")
     if args.gesture:
         gesture_gif(model, args.output_dir / f"supported_gesture{suffix}.gif")
+    if args.family:
+        family_sheet(model, data).save(args.output_dir / f"family_comparison{suffix}.png")
     print(f"Rendered model geometry to {args.output_dir}")
     return 0
 

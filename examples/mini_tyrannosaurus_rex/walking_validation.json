@@ -1,54 +1,50 @@
 {
-  "schema_version": 1,
-  "status": "Exploratory dynamic stepping evidence; walking is not validated.",
+  "schema_version": 2,
+  "design": "silhouette_c_mini",
+  "status": "All twelve 30-second trials fall; walking is not validated.",
   "interpretation": [
-    "The base completes its 20-second 0.20-Nm trial but falls in the longer trial; every 30-second case terminates on a nonfoot floor contact.",
-    "The final optional tail can extend this narrowly tuned controller run when wagging, but the run still ends in a fall and includes hip-roll soft-limit overshoot and simplified-link self-contact.",
-    "All lower-cap 0.10/0.15-Nm cases fail before producing a qualifying support alternation. The controller is not robust to actuator-cap or mass-distribution changes.",
-    "RMS torque, peak speed, saturation and actual joint-limit violations must be assessed together. None establishes continuous physical motor duty, current draw or hardware feasibility.",
-    "This manual diagnostic is not a passing walking gate in CI. Static balance/build checks are separate."
+    "The fixed-tail 0.20 Nm case lasts 26.922 s; the same tail-centered case lasts 23.202 s and wagging lasts 3.680 s. All terminate on nonfoot ground contact.",
+    "All 0.10/0.15 Nm cases fall before any qualifying support alternation. Higher limits do not establish reliable walking.",
+    "A same-runtime revision-10 tail-wag replay lasts 21.688 s. The published historical 29.616 s result is from an earlier runtime. This exposes both mass/inertia sensitivity and runtime sensitivity of this contact-rich diagnostic.",
+    "Passing stance and expression gates does not accept the walking pilot. Use the tail as a stationary character gesture until a controller passes a separate gait acceptance gate."
   ],
-  "protocol": {
-    "mujoco_version": "3.10.0",
-    "numpy_version": "2.5.1",
-    "python_version": "3.12.14",
-    "machine": "arm64",
-    "scope": "Manual ideal-actuator stepping diagnostic, not walking certification or physical motor/thermal validation. Flat floor and nominal mass. Starts home; no external support/forces or root resets during a run. Torque-speed curves, transmission compliance, power supply limits and disturbances are not modeled.",
-    "feedback_scope": "Exact MuJoCo torso orientation and noiseless body gyro are privileged feedback. Hardware would need a matching IMU orientation estimate and independently validated noise, latency and control behavior. This is not a deployable hardware controller. Contact and clearance measurements only score results.",
-    "controller_parameters": {
-      "period_s": 0.3611035514154559,
-      "hip_roll_rad": 0.14115136271266485,
-      "hip_stride_rad": 0.03911254725273986,
-      "knee_flex_rad": 0.4058584529699947,
-      "roll_phase_rad": 2.656837692232398,
-      "knee_bias_rad": 0.0
-    },
-    "feedback_gains": {
-      "roll": 0.5,
-      "pitch": 0.25,
-      "gyro": 0.03
-    },
-    "selection_search_seed": 635,
-    "replay_randomness": "None: fixed parameters and home state, no random sampling.",
-    "control_rate_Hz": 50,
-    "physics_timestep_s": 0.002,
-    "support_event_definition": "After 2s: stance normal force>half bodyweight, swing normal force<.05N, minimum swing sole height>2mm, torso tilt<.52rad, no nonfoot floor contact, sustained>=40ms. Counts side changes between qualifying segments. Positive forward displacement does not by itself constitute stepping.",
-    "stop_conditions": "Nonfoot floor force>.1N, torso tilt>1.05rad, root height<.065m, numerical warning/nonfinite state, or requested duration. Internal contacts are reported but do not stop the run.",
-    "measurement_scope": "Torques, speeds and clearance peaks cover the full run, including a fall. Contact and geometry data are from the last physics solve; integrated joint positions can be one timestep later. Actuator force and speed arrays follow actuator_names. Saturation means >=95% of the run's torque cap. Self-contact geometry is simplified and cannot validate detailed CAD interference."
-  },
-  "replay_controller_sha256": "48159f4ab7b08c21068c263ee93f2e5ad0dc96626399aa363a3de1e83dd11074",
-  "baseline_provenance_note": "The 20-second baseline was rerun after the final torque-limit and world-weld guards; every measured result exactly matches the original 20-second trial. Longer baseline and optional-tail trials retain their original execution-time controller hashes on each trial. The final replay script adds loading/provenance and safety guards without changing selected targets, feedback or scoring thresholds. Longer trials were not rerun after those non-policy edits.",
+  "controller_changed": false,
   "models": [
     {
-      "name": "fixed_tail_base",
-      "mass_kg": 0.8000000000000002,
+      "schema_version": 1,
+      "mujoco_version": "3.10.0",
+      "numpy_version": "2.5.4",
+      "python_version": "3.12.14",
+      "machine": "x86_64",
+      "controller_sha256": "48159f4ab7b08c21068c263ee93f2e5ad0dc96626399aa363a3de1e83dd11074",
       "source_model_file": "model.xml",
       "source_sha256": {
-        "model.xml": "d94995dbb663c67228b684700b70ebb9024458c54cfdeba31863060d2f82a114",
+        "model.xml": "305aa44843741ed3498b620be1010427fc93a4b0d978f19f802d2fdb6df335a3",
         "assets/character_meshes.xml": "a397faa9a406b101f059fc7e401ac7a979165a9e3199cf29ade6d5f617a3b189",
         "assets/leg_cover_meshes.xml": "dd6a9c39f3536da3fe7f82774c4e2802e181afbe75fa0f40e9c7276100a178d9"
       },
+      "generator_source_sha256": {},
       "source_path_base": "Input model directory; hashes include its XML assets.",
+      "scope": "Manual ideal-actuator stepping diagnostic, not walking certification or physical motor/thermal validation. Flat floor and nominal mass. Starts home; no external support/forces or root resets during a run. Torque-speed curves, transmission compliance, power supply limits and disturbances are not modeled.",
+      "feedback_scope": "Exact MuJoCo torso orientation and noiseless body gyro are privileged feedback. Hardware would need a matching IMU orientation estimate and independently validated noise, latency and control behavior. This is not a deployable hardware controller. Contact and clearance measurements only score results.",
+      "controller_parameters": {
+        "period_s": 0.3611035514154559,
+        "hip_roll_rad": 0.14115136271266485,
+        "hip_stride_rad": 0.03911254725273986,
+        "knee_flex_rad": 0.4058584529699947,
+        "roll_phase_rad": 2.656837692232398,
+        "knee_bias_rad": 0.0
+      },
+      "feedback_gains": {
+        "roll": 0.5,
+        "pitch": 0.25,
+        "gyro": 0.03
+      },
+      "selection_search_seed": 635,
+      "replay_randomness": "None: fixed parameters and home state, no random sampling.",
+      "control_rate_Hz": 50,
+      "physics_timestep_s": 0.002,
+      "mass_kg": 0.8000000000000002,
       "actuator_names": [
         "left_hip_yaw_servo",
         "left_hip_roll_servo",
@@ -243,124 +239,10 @@
           0.025
         ]
       },
-      "generator_source_sha256": {},
-      "trials": [
-        {
-          "params": [
-            0.3611035514154559,
-            0.14115136271266485,
-            0.03911254725273986,
-            0.4058584529699947,
-            2.656837692232398,
-            0.0
-          ],
-          "requested_duration_s": 20.0,
-          "duration": 19.999999999999794,
-          "dx": 0.25475025374114424,
-          "dy": -0.02195005440374163,
-          "max_tilt_deg": 14.52235178897076,
-          "minimum_height": 0.10635685665473021,
-          "nonfoot_floor": false,
-          "max_clearance_m": [
-            0.01855918580274498,
-            0.013828783485645915
-          ],
-          "minimum_normal_weight_ratio": [
-            0.0,
-            0.0
-          ],
-          "unloaded_clear_time_s": [
-            5.095999999999661,
-            5.305999999999638
-          ],
-          "alternations": 91,
-          "peak_torque_Nm": [
-            0.15174350736754516,
-            0.2,
-            0.2,
-            0.2,
-            0.2,
-            0.15114511721179416,
-            0.2,
-            0.2,
-            0.2,
-            0.2,
-            0.1,
-            0.07122949818062435,
-            0.014556063840692246,
-            0.006245111215339302
-          ],
-          "rms_torque_Nm": [
-            0.03474459476392228,
-            0.12716267269002388,
-            0.09286221988973847,
-            0.14064469337334404,
-            0.1339875387515845,
-            0.03597954690271752,
-            0.12650275675900371,
-            0.09367723644404238,
-            0.1409774246425117,
-            0.13587437756460752,
-            0.017733868245044537,
-            0.012537200322819884,
-            0.0032614941702506367,
-            0.0017406101608544561
-          ],
-          "saturation_fraction": [
-            0.0,
-            0.3264,
-            0.1128,
-            0.4063,
-            0.3288,
-            0.0,
-            0.318,
-            0.1142,
-            0.4147,
-            0.3498,
-            0.0017,
-            0.0,
-            0.0,
-            0.0
-          ],
-          "warning_count": 0,
-          "cap": 0.2,
-          "stop_reason": "duration_reached",
-          "self_contacts": {},
-          "feedback": [
-            0.5,
-            0.25,
-            0.03
-          ],
-          "tail_mode": "none",
-          "target_clipped_control_updates": 0,
-          "joint_limit_violations_rad": {},
-          "terminated_early": false,
-          "display_support_active": false,
-          "external_force_max": 0.0,
-          "peak_joint_speed_rad_s": [
-            0.5419065259546609,
-            3.6328557064871654,
-            5.233708997877599,
-            7.7313571825241985,
-            6.859909245337843,
-            0.5833984814158875,
-            3.952906361861233,
-            5.083928627249309,
-            8.154228446522145,
-            6.935364664783218,
-            1.374753037371667,
-            0.5597536908418117,
-            0.15960264332914953,
-            0.17077970433457126
-          ],
-          "support_segment_summary": {
-            "qualifying_segments": 105,
-            "shortest_s": 0.04000000000000002,
-            "longest_s": 0.1560000000000001,
-            "full_segments": "Regenerate with the walking_pilot CLI commands below."
-          },
-          "controller_execution_sha256": "48159f4ab7b08c21068c263ee93f2e5ad0dc96626399aa363a3de1e83dd11074"
-        },
+      "support_event_definition": "After 2s: stance normal force>half bodyweight, swing normal force<.05N, minimum swing sole height>2mm, torso tilt<.52rad, no nonfoot floor contact, sustained>=40ms. Counts side changes between qualifying segments. Positive forward displacement does not by itself constitute stepping.",
+      "stop_conditions": "Nonfoot floor force>.1N, torso tilt>1.05rad, root height<.065m, numerical warning/nonfinite state, or requested duration. Internal contacts are reported but do not stop the run.",
+      "measurement_scope": "Torques, speeds and clearance peaks cover the full run, including a fall. Contact and geometry data are from the last physics solve; integrated joint positions can be one timestep later. Actuator force and speed arrays follow actuator_names. Saturation means >=95% of the run's torque cap. Self-contact geometry is simplified and cannot validate detailed CAD interference.",
+      "results": [
         {
           "params": [
             0.3611035514154559,
@@ -371,15 +253,15 @@
             0.0
           ],
           "requested_duration_s": 30.0,
-          "duration": 2.5499999999999408,
-          "dx": -0.03286213769129316,
-          "dy": 0.0042880525454607726,
-          "max_tilt_deg": 43.99287118888264,
-          "minimum_height": 0.09596868466196778,
+          "duration": 2.5899999999999364,
+          "dx": -0.022681339018000138,
+          "dy": 0.0006693343973455435,
+          "max_tilt_deg": 42.999836363266,
+          "minimum_height": 0.09328232952479698,
           "nonfoot_floor": true,
           "max_clearance_m": [
-            5.485157494217359e-05,
-            6.679727723752499e-05
+            7.047747127902296e-05,
+            8.543759474250942e-05
           ],
           "minimum_normal_weight_ratio": [
             0.0,
@@ -389,50 +271,51 @@
             0.0,
             0.0
           ],
+          "support_segments": [],
           "alternations": 0,
           "peak_torque_Nm": [
-            0.07638126620877725,
+            0.09175249609708733,
             0.1,
             0.1,
             0.1,
             0.1,
-            0.08324479594178653,
+            0.07513126408497217,
             0.1,
             0.1,
             0.1,
             0.1,
-            0.044786158298234645,
-            0.039502469560259906,
-            0.00736978243863476,
-            0.003269670639203508
+            0.045064948867236436,
+            0.025857059311559568,
+            0.01076166480869642,
+            0.0033355165000056716
           ],
           "rms_torque_Nm": [
-            0.019925708575672246,
-            0.05548398471559989,
-            0.05277408158167544,
-            0.07702461906284644,
-            0.06667071994778932,
-            0.02091027664300809,
-            0.05378086555864496,
-            0.05043087004220075,
-            0.07500482470887739,
-            0.06597389262564989,
-            0.015249747456011117,
-            0.004814886960796916,
-            0.00297211893592357,
-            0.0016902182150208126
+            0.017479518675003823,
+            0.059826279804410874,
+            0.05440668287128702,
+            0.07778453624341355,
+            0.06854516979499942,
+            0.016982888845758937,
+            0.058959139468541866,
+            0.05387204219862662,
+            0.07724961678118979,
+            0.07094381358085236,
+            0.01616391121892297,
+            0.0052935563356043686,
+            0.00483629855813406,
+            0.0016892776076496592
           ],
           "saturation_fraction": [
             0.0,
-            0.2188235294117647,
-            0.19294117647058823,
-            0.41490196078431374,
-            0.31450980392156863,
+            0.27876447876447874,
+            0.2030888030888031,
+            0.4386100386100386,
+            0.3359073359073359,
             0.0,
-            0.2023529411764706,
-            0.16862745098039217,
-            0.3898039215686275,
-            0.2917647058823529,
+            0.2749034749034749,
+            0.19073359073359072,
+            0.42084942084942084,
+            0.36602316602316604,
             0.0,
             0.0,
             0.0,
@@ -449,33 +332,29 @@
           ],
           "tail_mode": "none",
           "target_clipped_control_updates": 0,
-          "joint_limit_violations_rad": {},
+          "joint_limit_violations_rad": {
+            "left_knee": 0.009694722830877467,
+            "right_knee": 0.03628455118732932
+          },
           "terminated_early": true,
           "display_support_active": false,
           "external_force_max": 0.0,
           "peak_joint_speed_rad_s": [
-            0.19933778960120246,
-            2.4702606673290033,
-            2.6557493750341217,
-            4.761786708423471,
-            3.362742641461166,
-            0.32148487310565116,
-            2.475287886643536,
-            2.6592028872659093,
-            5.748208483219679,
-            3.054147412287151,
-            0.4242676922436411,
-            0.31120049432478375,
-            0.06057265247469441,
-            0.06832103021714966
-          ],
-          "support_segment_summary": {
-            "qualifying_segments": 0,
-            "shortest_s": null,
-            "longest_s": null,
-            "full_segments": "Regenerate with the walking_pilot CLI commands below."
-          },
-          "controller_execution_sha256": "dc1bf5fd31d3743bdbe3a51bf825a77a02833592f5c7908da87dff273dc226fa"
+            0.29365465377291367,
+            2.561457519825267,
+            3.171202600278251,
+            5.2638278188417775,
+            3.7902600076359385,
+            0.22011871429153154,
+            2.5164999594008375,
+            3.053585987090407,
+            4.777739664334534,
+            3.091816015239157,
+            0.3483049682366042,
+            0.20665673197418685,
+            0.07571656556699635,
+            0.06894291950988786
+          ]
         },
         {
           "params": [
@@ -487,68 +366,75 @@
             0.0
           ],
           "requested_duration_s": 30.0,
-          "duration": 2.755999999999918,
-          "dx": -0.053283978378028916,
-          "dy": -0.0034951677360648163,
-          "max_tilt_deg": 45.16514545462344,
-          "minimum_height": 0.09890536033759346,
+          "duration": 3.045999999999886,
+          "dx": -0.07032603155679731,
+          "dy": -0.007735295286967863,
+          "max_tilt_deg": 44.52376257391362,
+          "minimum_height": 0.096871531922096,
           "nonfoot_floor": true,
           "max_clearance_m": [
-            0.0016355840294030588,
-            0.0022905933353018285
+            0.0024129376218611203,
+            0.0027169483617250894
           ],
           "minimum_normal_weight_ratio": [
             0.0,
             0.0
           ],
           "unloaded_clear_time_s": [
-            0.0,
-            0.002
+            0.020000000000000004,
+            0.06800000000000005
+          ],
+          "support_segments": [
+            {
+              "stance": 0,
+              "duration": 0.04200000000000002,
+              "end": 2.6539999999999293
+            }
           ],
           "alternations": 0,
           "peak_torque_Nm": [
-            0.07900988639085152,
+            0.13455935833099333,
             0.15,
             0.15,
             0.15,
             0.15,
-            0.12674156546281015,
+            0.13241024686882255,
             0.15,
             0.15,
             0.15,
             0.15,
-            0.06370729702646395,
-            0.03876948439633672,
-            0.009333253369306063,
-            0.0038625941343595634
+            0.06155569147160411,
+            0.03623994849582663,
+            0.014837711740678317,
+            0.003924715232272797
           ],
           "rms_torque_Nm": [
-            0.02232446576125124,
-            0.07476752622317559,
-            0.06841061196477027,
-            0.1023818413309438,
-            0.08349002133616977,
-            0.02434259752205666,
-            0.0771523149284911,
-            0.07365239313200216,
-            0.10267377997235638,
-            0.0885604431371665,
-            0.01651853799042996,
-            0.007323210759760702,
-            0.0031251126303976882,
-            0.0016928522425396233
+            0.024316451806746384,
+            0.08902748342889741,
+            0.06692118953688192,
+            0.10633402807960167,
+            0.0874689288961434,
+            0.025172809272321694,
+            0.08575156420248102,
+            0.06514099377477363,
+            0.10268516674998847,
+            0.0918278906432271,
+            0.017284706549348532,
+            0.007853226182778825,
+            0.005159178927120158,
+            0.0016791397459189519
           ],
           "saturation_fraction": [
             0.0,
-            0.16981132075471697,
-            0.12191582002902758,
-            0.35268505079825835,
-            0.15602322206095792,
+            0.28233749179251477,
+            0.1103086014445174,
+            0.38476690741956665,
+            0.211424819435325,
             0.0,
-            0.19230769230769232,
-            0.14150943396226415,
-            0.3454281567489115,
-            0.21988388969521044,
+            0.2639527248850952,
+            0.10177281680892974,
+            0.35456336178594877,
+            0.2442547603414314,
             0.0,
             0.0,
             0.0,
@@ -557,7 +443,16 @@
           "warning_count": 0,
           "cap": 0.15,
           "stop_reason": "nonfoot_floor_contact",
-          "self_contacts": {},
+          "self_contacts": {
+            "left_hip_pitch_link_collision / left_hip_roll_servo_case_collision": {
+              "peak_penetration_m": 5.081354246314496e-05,
+              "peak_normal_force_N": 3.5876549380054996
+            },
+            "right_hip_pitch_link_collision / right_hip_roll_servo_case_collision": {
+              "peak_penetration_m": 7.743397637010284e-06,
+              "peak_normal_force_N": 1.4041434464726772
+            }
+          },
           "feedback": [
             0.5,
             0.25,
@@ -565,33 +460,29 @@
           ],
           "tail_mode": "none",
           "target_clipped_control_updates": 0,
-          "joint_limit_violations_rad": {},
+          "joint_limit_violations_rad": {
+            "left_hip_roll": 0.006792198452071435,
+            "right_hip_roll": 0.0013177058694513466
+          },
           "terminated_early": true,
           "display_support_active": false,
           "external_force_max": 0.0,
           "peak_joint_speed_rad_s": [
-            0.33706199940592046,
-            3.687837708099289,
-            4.175337833891098,
-            6.234860891111625,
-            5.236869149577581,
-            0.35530795244807034,
-            3.0177730818221353,
-            4.106205593754001,
-            5.941881314907471,
-            4.881899144164291,
-            0.8428488940675903,
-            0.3165390196734996,
-            0.0886033849247025,
-            0.08556944576709005
-          ],
-          "support_segment_summary": {
-            "qualifying_segments": 0,
-            "shortest_s": null,
-            "longest_s": null,
-            "full_segments": "Regenerate with the walking_pilot CLI commands below."
-          },
-          "controller_execution_sha256": "dc1bf5fd31d3743bdbe3a51bf825a77a02833592f5c7908da87dff273dc226fa"
+            0.34510206668098736,
+            3.084796169303079,
+            4.6789396750261485,
+            6.0034115881995085,
+            4.958892181345778,
+            0.44176049105410703,
+            3.5550329353770205,
+            4.513479537756216,
+            5.6463134151015115,
+            5.001925844806676,
+            0.8639950433318546,
+            0.2930324017430725,
+            0.13633184118448938,
+            0.08553886113256885
+          ]
         },
         {
           "params": [
@@ -603,69 +494,826 @@
             0.0
           ],
           "requested_duration_s": 30.0,
-          "duration": 21.30399999999907,
-          "dx": 0.2209296113349802,
-          "dy": -0.009603523095518629,
-          "max_tilt_deg": 44.564748550145964,
-          "minimum_height": 0.09693467063761048,
+          "duration": 26.921999999995958,
+          "dx": 0.22515955964512943,
+          "dy": -0.0903286348675068,
+          "max_tilt_deg": 44.73577692697987,
+          "minimum_height": 0.09832828185909862,
           "nonfoot_floor": true,
           "max_clearance_m": [
-            0.01855918580274498,
-            0.013828783485645915
+            0.01409042221590312,
+            0.014262683184834264
           ],
           "minimum_normal_weight_ratio": [
             0.0,
             0.0
           ],
           "unloaded_clear_time_s": [
-            5.421999999999625,
-            5.569999999999609
+            6.793999999999474,
+            7.061999999999444
           ],
-          "alternations": 96,
+          "support_segments": [
+            {
+              "stance": 0,
+              "duration": 0.06400000000000004,
+              "end": 2.28399999999997
+            },
+            {
+              "stance": 1,
+              "duration": 0.06000000000000004,
+              "end": 2.447999999999952
+            },
+            {
+              "stance": 1,
+              "duration": 0.05000000000000003,
+              "end": 2.5079999999999454
+            },
+            {
+              "stance": 0,
+              "duration": 0.08000000000000006,
+              "end": 2.6999999999999242
+            },
+            {
+              "stance": 1,
+              "duration": 0.06400000000000004,
+              "end": 2.873999999999905
+            },
+            {
+              "stance": 0,
+              "duration": 0.09400000000000007,
+              "end": 3.065999999999884
+            },
+            {
+              "stance": 1,
+              "duration": 0.05200000000000003,
+              "end": 3.219999999999867
+            },
+            {
+              "stance": 0,
+              "duration": 0.056000000000000036,
+              "end": 3.4399999999998427
+            },
+            {
+              "stance": 1,
+              "duration": 0.05800000000000004,
+              "end": 3.5579999999998297
+            },
+            {
+              "stance": 1,
+              "duration": 0.04200000000000002,
+              "end": 3.601999999999825
+            },
+            {
+              "stance": 0,
+              "duration": 0.06000000000000004,
+              "end": 3.7579999999998077
+            },
+            {
+              "stance": 1,
+              "duration": 0.05200000000000003,
+              "end": 3.91999999999979
+            },
+            {
+              "stance": 1,
+              "duration": 0.05200000000000003,
+              "end": 3.9779999999997835
+            },
+            {
+              "stance": 0,
+              "duration": 0.10800000000000008,
+              "end": 4.1639999999997634
+            },
+            {
+              "stance": 1,
+              "duration": 0.05000000000000003,
+              "end": 4.28999999999975
+            },
+            {
+              "stance": 1,
+              "duration": 0.06000000000000004,
+              "end": 4.65199999999971
+            },
+            {
+              "stance": 0,
+              "duration": 0.044000000000000025,
+              "end": 4.803999999999693
+            },
+            {
+              "stance": 0,
+              "duration": 0.07400000000000005,
+              "end": 4.893999999999683
+            },
+            {
+              "stance": 1,
+              "duration": 0.04800000000000003,
+              "end": 5.059999999999665
+            },
+            {
+              "stance": 0,
+              "duration": 0.056000000000000036,
+              "end": 5.199999999999649
+            },
+            {
+              "stance": 1,
+              "duration": 0.08800000000000006,
+              "end": 5.407999999999626
+            },
+            {
+              "stance": 0,
+              "duration": 0.08000000000000006,
+              "end": 5.563999999999609
+            },
+            {
+              "stance": 1,
+              "duration": 0.07400000000000005,
+              "end": 5.763999999999587
+            },
+            {
+              "stance": 0,
+              "duration": 0.056000000000000036,
+              "end": 5.91999999999957
+            },
+            {
+              "stance": 1,
+              "duration": 0.04200000000000002,
+              "end": 6.095999999999551
+            },
+            {
+              "stance": 1,
+              "duration": 0.04800000000000003,
+              "end": 6.147999999999545
+            },
+            {
+              "stance": 0,
+              "duration": 0.09200000000000007,
+              "end": 6.317999999999526
+            },
+            {
+              "stance": 1,
+              "duration": 0.05200000000000003,
+              "end": 6.459999999999511
+            },
+            {
+              "stance": 0,
+              "duration": 0.08800000000000006,
+              "end": 6.627999999999492
+            },
+            {
+              "stance": 1,
+              "duration": 0.1320000000000001,
+              "end": 6.869999999999465
+            },
+            {
+              "stance": 0,
+              "duration": 0.06400000000000004,
+              "end": 6.973999999999454
+            },
+            {
+              "stance": 0,
+              "duration": 0.06200000000000004,
+              "end": 7.039999999999447
+            },
+            {
+              "stance": 1,
+              "duration": 0.04600000000000003,
+              "end": 7.175999999999432
+            },
+            {
+              "stance": 1,
+              "duration": 0.04200000000000002,
+              "end": 7.491999999999397
+            },
+            {
+              "stance": 0,
+              "duration": 0.04600000000000003,
+              "end": 7.681999999999376
+            },
+            {
+              "stance": 1,
+              "duration": 0.07400000000000005,
+              "end": 7.933999999999348
+            },
+            {
+              "stance": 0,
+              "duration": 0.06400000000000004,
+              "end": 8.061999999999362
+            },
+            {
+              "stance": 0,
+              "duration": 0.04200000000000002,
+              "end": 8.139999999999388
+            },
+            {
+              "stance": 1,
+              "duration": 0.06200000000000004,
+              "end": 8.301999999999442
+            },
+            {
+              "stance": 0,
+              "duration": 0.04000000000000002,
+              "end": 8.395999999999473
+            },
+            {
+              "stance": 0,
+              "duration": 0.07800000000000006,
+              "end": 8.4779999999995
+            },
+            {
+              "stance": 1,
+              "duration": 0.08400000000000006,
+              "end": 8.635999999999553
+            },
+            {
+              "stance": 0,
+              "duration": 0.044000000000000025,
+              "end": 8.783999999999603
+            },
+            {
+              "stance": 1,
+              "duration": 0.06200000000000004,
+              "end": 8.999999999999675
+            },
+            {
+              "stance": 0,
+              "duration": 0.08000000000000006,
+              "end": 9.199999999999742
+            },
+            {
+              "stance": 1,
+              "duration": 0.06800000000000005,
+              "end": 9.31399999999978
+            },
+            {
+              "stance": 1,
+              "duration": 0.06800000000000005,
+              "end": 9.387999999999805
+            },
+            {
+              "stance": 0,
+              "duration": 0.07600000000000005,
+              "end": 9.531999999999853
+            },
+            {
+              "stance": 1,
+              "duration": 0.056000000000000036,
+              "end": 9.755999999999927
+            },
+            {
+              "stance": 0,
+              "duration": 0.04200000000000002,
+              "end": 9.893999999999973
+            },
+            {
+              "stance": 1,
+              "duration": 0.08000000000000006,
+              "end": 10.09200000000004
+            },
+            {
+              "stance": 0,
+              "duration": 0.08800000000000006,
+              "end": 10.248000000000092
+            },
+            {
+              "stance": 1,
+              "duration": 0.06400000000000004,
+              "end": 10.42400000000015
+            },
+            {
+              "stance": 0,
+              "duration": 0.05000000000000003,
+              "end": 10.586000000000205
+            },
+            {
+              "stance": 0,
+              "duration": 0.054000000000000034,
+              "end": 10.652000000000227
+            },
+            {
+              "stance": 1,
+              "duration": 0.05800000000000004,
+              "end": 10.766000000000265
+            },
+            {
+              "stance": 0,
+              "duration": 0.05000000000000003,
+              "end": 10.980000000000336
+            },
+            {
+              "stance": 1,
+              "duration": 0.054000000000000034,
+              "end": 11.126000000000385
+            },
+            {
+              "stance": 0,
+              "duration": 0.08600000000000006,
+              "end": 11.332000000000454
+            },
+            {
+              "stance": 1,
+              "duration": 0.06800000000000005,
+              "end": 11.526000000000518
+            },
+            {
+              "stance": 0,
+              "duration": 0.05000000000000003,
+              "end": 11.720000000000583
+            },
+            {
+              "stance": 0,
+              "duration": 0.11200000000000009,
+              "end": 12.0720000000007
+            },
+            {
+              "stance": 1,
+              "duration": 0.07000000000000005,
+              "end": 12.24800000000076
+            },
+            {
+              "stance": 0,
+              "duration": 0.056000000000000036,
+              "end": 12.386000000000806
+            },
+            {
+              "stance": 0,
+              "duration": 0.04600000000000003,
+              "end": 12.440000000000824
+            },
+            {
+              "stance": 1,
+              "duration": 0.08400000000000006,
+              "end": 12.64000000000089
+            },
+            {
+              "stance": 0,
+              "duration": 0.10800000000000008,
+              "end": 12.794000000000942
+            },
+            {
+              "stance": 1,
+              "duration": 0.05800000000000004,
+              "end": 12.932000000000988
+            },
+            {
+              "stance": 1,
+              "duration": 0.04200000000000002,
+              "end": 12.982000000001005
+            },
+            {
+              "stance": 0,
+              "duration": 0.05800000000000004,
+              "end": 13.154000000001062
+            },
+            {
+              "stance": 1,
+              "duration": 0.07400000000000005,
+              "end": 13.308000000001114
+            },
+            {
+              "stance": 1,
+              "duration": 0.08000000000000006,
+              "end": 13.676000000001237
+            },
+            {
+              "stance": 1,
+              "duration": 0.05200000000000003,
+              "end": 13.732000000001255
+            },
+            {
+              "stance": 0,
+              "duration": 0.05800000000000004,
+              "end": 13.882000000001305
+            },
+            {
+              "stance": 1,
+              "duration": 0.06800000000000005,
+              "end": 14.072000000001369
+            },
+            {
+              "stance": 0,
+              "duration": 0.04800000000000003,
+              "end": 14.188000000001407
+            },
+            {
+              "stance": 0,
+              "duration": 0.08600000000000006,
+              "end": 14.280000000001438
+            },
+            {
+              "stance": 1,
+              "duration": 0.04200000000000002,
+              "end": 14.412000000001482
+            },
+            {
+              "stance": 0,
+              "duration": 0.08400000000000006,
+              "end": 14.61600000000155
+            },
+            {
+              "stance": 1,
+              "duration": 0.1340000000000001,
+              "end": 14.800000000001612
+            },
+            {
+              "stance": 0,
+              "duration": 0.044000000000000025,
+              "end": 14.97600000000167
+            },
+            {
+              "stance": 1,
+              "duration": 0.06800000000000005,
+              "end": 15.160000000001732
+            },
+            {
+              "stance": 0,
+              "duration": 0.06000000000000004,
+              "end": 15.340000000001792
+            },
+            {
+              "stance": 1,
+              "duration": 0.08000000000000006,
+              "end": 15.520000000001852
+            },
+            {
+              "stance": 0,
+              "duration": 0.12600000000000008,
+              "end": 15.706000000001914
+            },
+            {
+              "stance": 1,
+              "duration": 0.09200000000000007,
+              "end": 15.87000000000197
+            },
+            {
+              "stance": 0,
+              "duration": 0.08200000000000006,
+              "end": 16.060000000001978
+            },
+            {
+              "stance": 1,
+              "duration": 0.09600000000000007,
+              "end": 16.25600000000187
+            },
+            {
+              "stance": 0,
+              "duration": 0.10200000000000008,
+              "end": 16.410000000001784
+            },
+            {
+              "stance": 1,
+              "duration": 0.08400000000000006,
+              "end": 16.5640000000017
+            },
+            {
+              "stance": 0,
+              "duration": 0.10400000000000008,
+              "end": 16.77800000000158
+            },
+            {
+              "stance": 1,
+              "duration": 0.06600000000000004,
+              "end": 16.950000000001484
+            },
+            {
+              "stance": 0,
+              "duration": 0.09200000000000007,
+              "end": 17.112000000001395
+            },
+            {
+              "stance": 1,
+              "duration": 0.056000000000000036,
+              "end": 17.310000000001285
+            },
+            {
+              "stance": 0,
+              "duration": 0.07800000000000006,
+              "end": 17.452000000001206
+            },
+            {
+              "stance": 0,
+              "duration": 0.04200000000000002,
+              "end": 17.508000000001175
+            },
+            {
+              "stance": 1,
+              "duration": 0.04800000000000003,
+              "end": 17.648000000001097
+            },
+            {
+              "stance": 0,
+              "duration": 0.07000000000000005,
+              "end": 17.850000000000986
+            },
+            {
+              "stance": 0,
+              "duration": 0.06200000000000004,
+              "end": 18.16800000000081
+            },
+            {
+              "stance": 1,
+              "duration": 0.10000000000000007,
+              "end": 18.430000000000664
+            },
+            {
+              "stance": 0,
+              "duration": 0.10800000000000008,
+              "end": 18.60200000000057
+            },
+            {
+              "stance": 1,
+              "duration": 0.04200000000000002,
+              "end": 18.686000000000522
+            },
+            {
+              "stance": 1,
+              "duration": 0.05800000000000004,
+              "end": 18.756000000000483
+            },
+            {
+              "stance": 0,
+              "duration": 0.08200000000000006,
+              "end": 18.956000000000373
+            },
+            {
+              "stance": 1,
+              "duration": 0.05200000000000003,
+              "end": 19.110000000000287
+            },
+            {
+              "stance": 0,
+              "duration": 0.06800000000000005,
+              "end": 19.24800000000021
+            },
+            {
+              "stance": 0,
+              "duration": 0.06200000000000004,
+              "end": 19.314000000000174
+            },
+            {
+              "stance": 1,
+              "duration": 0.06400000000000004,
+              "end": 19.46400000000009
+            },
+            {
+              "stance": 0,
+              "duration": 0.07200000000000005,
+              "end": 19.651999999999987
+            },
+            {
+              "stance": 1,
+              "duration": 0.08200000000000006,
+              "end": 19.84199999999988
+            },
+            {
+              "stance": 0,
+              "duration": 0.1380000000000001,
+              "end": 20.05999999999976
+            },
+            {
+              "stance": 1,
+              "duration": 0.08400000000000006,
+              "end": 20.199999999999683
+            },
+            {
+              "stance": 0,
+              "duration": 0.07800000000000006,
+              "end": 20.36599999999959
+            },
+            {
+              "stance": 1,
+              "duration": 0.06200000000000004,
+              "end": 20.541999999999494
+            },
+            {
+              "stance": 0,
+              "duration": 0.08000000000000006,
+              "end": 20.73199999999939
+            },
+            {
+              "stance": 1,
+              "duration": 0.07800000000000006,
+              "end": 20.94399999999927
+            },
+            {
+              "stance": 0,
+              "duration": 0.09200000000000007,
+              "end": 21.09199999999919
+            },
+            {
+              "stance": 0,
+              "duration": 0.04000000000000002,
+              "end": 21.137999999999163
+            },
+            {
+              "stance": 1,
+              "duration": 0.04000000000000002,
+              "end": 21.27199999999909
+            },
+            {
+              "stance": 0,
+              "duration": 0.11400000000000009,
+              "end": 21.46599999999898
+            },
+            {
+              "stance": 1,
+              "duration": 0.056000000000000036,
+              "end": 21.585999999998915
+            },
+            {
+              "stance": 1,
+              "duration": 0.07000000000000005,
+              "end": 21.679999999998863
+            },
+            {
+              "stance": 1,
+              "duration": 0.054000000000000034,
+              "end": 21.961999999998707
+            },
+            {
+              "stance": 1,
+              "duration": 0.06200000000000004,
+              "end": 22.02599999999867
+            },
+            {
+              "stance": 0,
+              "duration": 0.06600000000000004,
+              "end": 22.20599999999857
+            },
+            {
+              "stance": 1,
+              "duration": 0.06000000000000004,
+              "end": 22.343999999998495
+            },
+            {
+              "stance": 0,
+              "duration": 0.09600000000000007,
+              "end": 22.555999999998377
+            },
+            {
+              "stance": 1,
+              "duration": 0.09000000000000007,
+              "end": 22.72999999999828
+            },
+            {
+              "stance": 0,
+              "duration": 0.05000000000000003,
+              "end": 22.849999999998214
+            },
+            {
+              "stance": 0,
+              "duration": 0.05000000000000003,
+              "end": 22.903999999998184
+            },
+            {
+              "stance": 1,
+              "duration": 0.05800000000000004,
+              "end": 23.067999999998094
+            },
+            {
+              "stance": 0,
+              "duration": 0.05200000000000003,
+              "end": 23.259999999997987
+            },
+            {
+              "stance": 0,
+              "duration": 0.04200000000000002,
+              "end": 23.303999999997963
+            },
+            {
+              "stance": 1,
+              "duration": 0.06600000000000004,
+              "end": 23.463999999997874
+            },
+            {
+              "stance": 0,
+              "duration": 0.06600000000000004,
+              "end": 23.629999999997782
+            },
+            {
+              "stance": 1,
+              "duration": 0.05200000000000003,
+              "end": 23.801999999997687
+            },
+            {
+              "stance": 0,
+              "duration": 0.06400000000000004,
+              "end": 23.951999999997604
+            },
+            {
+              "stance": 1,
+              "duration": 0.06800000000000005,
+              "end": 24.131999999997504
+            },
+            {
+              "stance": 1,
+              "duration": 0.05200000000000003,
+              "end": 24.187999999997473
+            },
+            {
+              "stance": 0,
+              "duration": 0.04800000000000003,
+              "end": 24.367999999997373
+            },
+            {
+              "stance": 1,
+              "duration": 0.04800000000000003,
+              "end": 24.855999999997103
+            },
+            {
+              "stance": 0,
+              "duration": 0.044000000000000025,
+              "end": 25.00399999999702
+            },
+            {
+              "stance": 0,
+              "duration": 0.06400000000000004,
+              "end": 25.083999999996976
+            },
+            {
+              "stance": 1,
+              "duration": 0.06600000000000004,
+              "end": 25.225999999996898
+            },
+            {
+              "stance": 1,
+              "duration": 0.04200000000000002,
+              "end": 25.281999999996867
+            },
+            {
+              "stance": 0,
+              "duration": 0.05000000000000003,
+              "end": 25.4039999999968
+            },
+            {
+              "stance": 1,
+              "duration": 0.04800000000000003,
+              "end": 25.555999999996715
+            },
+            {
+              "stance": 0,
+              "duration": 0.07000000000000005,
+              "end": 25.787999999996586
+            },
+            {
+              "stance": 1,
+              "duration": 0.06800000000000005,
+              "end": 25.951999999996495
+            },
+            {
+              "stance": 0,
+              "duration": 0.044000000000000025,
+              "end": 26.4839999999962
+            },
+            {
+              "stance": 1,
+              "duration": 0.06000000000000004,
+              "end": 26.691999999996085
+            }
+          ],
+          "alternations": 119,
           "peak_torque_Nm": [
-            0.15174350736754516,
+            0.1688411084165337,
             0.2,
             0.2,
             0.2,
             0.2,
-            0.15114511721179416,
+            0.16564652540733346,
             0.2,
             0.2,
             0.2,
             0.2,
             0.1,
-            0.07122949818062435,
-            0.014556063840692246,
-            0.006245111215339302
+            0.0575010743843951,
+            0.023099736771569557,
+            0.007104492643586431
           ],
           "rms_torque_Nm": [
-            0.03456139063254866,
-            0.12660388113776536,
-            0.0937201733474325,
-            0.14106484089562937,
-            0.13459556198976796,
-            0.03588679054660573,
-            0.12673605974957222,
-            0.09437728559727104,
-            0.1419977435029184,
-            0.1356592560115552,
-            0.0177343419208138,
-            0.01260021480208907,
-            0.003260069578655214,
-            0.0017456555722901513
+            0.03645551701768827,
+            0.12894351694431735,
+            0.09433703319295192,
+            0.14093574866379838,
+            0.13705716506799265,
+            0.036396626759913835,
+            0.12981971971041067,
+            0.09588174949075023,
+            0.14270673971652034,
+            0.13699766143962105,
+            0.018863084289192533,
+            0.013431206040949424,
+            0.005413188862714217,
+            0.0017377902160209315
           ],
           "saturation_fraction": [
             0.0,
-            0.3222868944799099,
-            0.11556515208411566,
-            0.410533233195644,
-            0.3345850544498686,
+            0.3373449223683233,
+            0.11759898967387267,
+            0.4064334001931506,
+            0.35220265953495283,
             0.0,
-            0.3181562147953436,
-            0.11772437101013894,
-            0.42161096507698087,
-            0.3450995118287645,
-            0.0015959444235824258,
+            0.34477379095163807,
+            0.12183344476636208,
+            0.42411410742143973,
+            0.36141445657826315,
+            0.00029715474333259046,
             0.0,
             0.0,
             0.0
@@ -686,28 +1334,21 @@
           "display_support_active": false,
           "external_force_max": 0.0,
           "peak_joint_speed_rad_s": [
-            0.5419065259546609,
-            4.028082070891159,
-            5.233708997877599,
-            7.809392296760247,
-            6.859909245337843,
-            0.5833984814158875,
-            3.952906361861233,
-            5.083928627249309,
-            8.154228446522145,
-            6.935364664783218,
-            1.374753037371667,
-            0.5597536908418117,
-            0.15960264332914953,
-            0.17077970433457126
-          ],
-          "support_segment_summary": {
-            "qualifying_segments": 111,
-            "shortest_s": 0.04000000000000002,
-            "longest_s": 0.1560000000000001,
-            "full_segments": "Regenerate with the walking_pilot CLI commands below."
-          },
-          "controller_execution_sha256": "dc1bf5fd31d3743bdbe3a51bf825a77a02833592f5c7908da87dff273dc226fa"
+            0.5254573406901949,
+            4.087277252542914,
+            5.553692344182696,
+            8.683376849837533,
+            7.12708730711674,
+            0.5596626692306341,
+            3.6917261269102353,
+            5.38336869740208,
+            7.4741377267480775,
+            6.802676303216959,
+            1.0277527841081913,
+            0.4401817415356716,
+            0.2329840828810986,
+            0.20579697027735977
+          ]
         },
         {
           "params": [
@@ -719,71 +1360,72 @@
             0.0
           ],
           "requested_duration_s": 30.0,
-          "duration": 5.077999999999663,
-          "dx": 0.005970170196870008,
-          "dy": -0.02837465091122486,
-          "max_tilt_deg": 44.246531786064224,
-          "minimum_height": 0.09712386342364757,
+          "duration": 2.339999999999964,
+          "dx": -0.05309013579058056,
+          "dy": 0.00835072745235366,
+          "max_tilt_deg": 45.98290339789639,
+          "minimum_height": 0.09960533263631151,
           "nonfoot_floor": true,
           "max_clearance_m": [
-            0.014534555662395776,
-            0.016014442350898633
+            0.005127907400167244,
+            0.01353933114933022
           ],
           "minimum_normal_weight_ratio": [
             0.0,
             0.0
           ],
           "unloaded_clear_time_s": [
-            0.9540000000000007,
-            0.8840000000000007
+            0.02800000000000001,
+            0.03600000000000002
           ],
-          "alternations": 14,
+          "support_segments": [],
+          "alternations": 0,
           "peak_torque_Nm": [
-            0.13147245827002302,
+            0.13714205662175613,
             0.3,
             0.3,
             0.3,
             0.3,
-            0.20288324364994587,
+            0.13230701912575757,
             0.3,
             0.3,
             0.3,
             0.3,
             0.1,
             0.08,
-            0.018302003232982204,
-            0.00780432218734106
+            0.02496292532732584,
+            0.006956568999475898
           ],
           "rms_torque_Nm": [
-            0.034232382629141724,
-            0.12008846807262791,
-            0.11868821484583113,
-            0.15787927065498766,
-            0.17615222300874897,
-            0.03402711557005802,
-            0.11976004862883201,
-            0.11476694851232794,
-            0.15683818340017416,
-            0.16700068390744613,
-            0.02258212263660476,
-            0.014647585188606302,
-            0.0035426946878457976,
-            0.001796705126472406
+            0.02588099540619479,
+            0.09117828588986228,
+            0.09725030950887509,
+            0.13603336192341217,
+            0.13415087285447436,
+            0.02851173466796715,
+            0.08842295038085964,
+            0.1063504929017948,
+            0.1380046859346971,
+            0.12624335272297543,
+            0.021295523973159387,
+            0.011268628972324921,
+            0.005547165051944373,
+            0.0017836310604143776
           ],
           "saturation_fraction": [
             0.0,
-            0.0771957463568334,
-            0.08231587239070501,
-            0.18077983458054353,
-            0.260338716029933,
+            0.03247863247863248,
+            0.05982905982905983,
+            0.12991452991452992,
+            0.14444444444444443,
             0.0,
-            0.07050019692792438,
-            0.08034659314690823,
-            0.17487199684915322,
-            0.21543914927136668,
-            0.014178810555336747,
-            0.006301693580149665,
-            0.0,
+            0.041025641025641026,
+            0.07948717948717948,
+            0.15213675213675212,
+            0.11025641025641025,
+            0.005128205128205128,
+            0.0017094017094017094,
+            0.0008547008547008547,
             0.0
           ],
           "warning_count": 0,
@@ -802,41 +1444,62 @@
           "display_support_active": false,
           "external_force_max": 0.0,
           "peak_joint_speed_rad_s": [
-            0.6216357628772101,
-            3.953616533000549,
-            6.295079657225744,
-            9.360805064106273,
-            8.744487280444947,
-            0.7762490952279248,
-            3.652652169806396,
-            5.484143665554853,
-            9.351944484030346,
-            8.936709773666719,
-            1.7718636965386974,
-            1.4929814343715586,
-            0.19873575613752603,
-            0.23488268933668335
-          ],
-          "support_segment_summary": {
-            "qualifying_segments": 21,
-            "shortest_s": 0.04000000000000002,
-            "longest_s": 0.10800000000000008,
-            "full_segments": "Regenerate with the walking_pilot CLI commands below."
-          },
-          "controller_execution_sha256": "dc1bf5fd31d3743bdbe3a51bf825a77a02833592f5c7908da87dff273dc226fa"
+            0.5854937837448257,
+            4.8256274608626795,
+            5.754255680617959,
+            9.695179887366425,
+            8.378043366980902,
+            0.6907286208150154,
+            3.355062696648412,
+            5.144446311848438,
+            9.4754974287379,
+            8.151395946002365,
+            1.3000227175347245,
+            0.5890511654906441,
+            0.273090721846146,
+            0.21269400783635906
+          ]
         }
-      ]
+      ],
+      "name": "fixed_tail_base"
     },
     {
-      "name": "optional_tail",
-      "mass_kg": 0.8250000000000001,
+      "schema_version": 1,
+      "mujoco_version": "3.10.0",
+      "numpy_version": "2.5.4",
+      "python_version": "3.12.14",
+      "machine": "x86_64",
+      "controller_sha256": "48159f4ab7b08c21068c263ee93f2e5ad0dc96626399aa363a3de1e83dd11074",
       "source_model_file": "model.xml",
       "source_sha256": {
-        "model.xml": "d94995dbb663c67228b684700b70ebb9024458c54cfdeba31863060d2f82a114",
+        "model.xml": "305aa44843741ed3498b620be1010427fc93a4b0d978f19f802d2fdb6df335a3",
         "assets/character_meshes.xml": "a397faa9a406b101f059fc7e401ac7a979165a9e3199cf29ade6d5f617a3b189",
         "assets/leg_cover_meshes.xml": "dd6a9c39f3536da3fe7f82774c4e2802e181afbe75fa0f40e9c7276100a178d9"
       },
+      "generator_source_sha256": {
+        "tail_option.py": "8b1b05703c5655edd14a75fd26b2c0b888adfe759c330aeaee4fc94455c1b873"
+      },
       "source_path_base": "Input model directory; hashes include its XML assets.",
+      "scope": "Manual ideal-actuator stepping diagnostic, not walking certification or physical motor/thermal validation. Flat floor and nominal mass. Starts home; no external support/forces or root resets during a run. Torque-speed curves, transmission compliance, power supply limits and disturbances are not modeled.",
+      "feedback_scope": "Exact MuJoCo torso orientation and noiseless body gyro are privileged feedback. Hardware would need a matching IMU orientation estimate and independently validated noise, latency and control behavior. This is not a deployable hardware controller. Contact and clearance measurements only score results.",
+      "controller_parameters": {
+        "period_s": 0.3611035514154559,
+        "hip_roll_rad": 0.14115136271266485,
+        "hip_stride_rad": 0.03911254725273986,
+        "knee_flex_rad": 0.4058584529699947,
+        "roll_phase_rad": 2.656837692232398,
+        "knee_bias_rad": 0.0
+      },
+      "feedback_gains": {
+        "roll": 0.5,
+        "pitch": 0.25,
+        "gyro": 0.03
+      },
+      "selection_search_seed": 635,
+      "replay_randomness": "None: fixed parameters and home state, no random sampling.",
+      "control_rate_Hz": 50,
+      "physics_timestep_s": 0.002,
+      "mass_kg": 0.8250000000000001,
       "actuator_names": [
         "left_hip_yaw_servo",
         "left_hip_roll_servo",
@@ -1044,10 +1707,1298 @@
           0.02
         ]
       },
+      "support_event_definition": "After 2s: stance normal force>half bodyweight, swing normal force<.05N, minimum swing sole height>2mm, torso tilt<.52rad, no nonfoot floor contact, sustained>=40ms. Counts side changes between qualifying segments. Positive forward displacement does not by itself constitute stepping.",
+      "stop_conditions": "Nonfoot floor force>.1N, torso tilt>1.05rad, root height<.065m, numerical warning/nonfinite state, or requested duration. Internal contacts are reported but do not stop the run.",
+      "measurement_scope": "Torques, speeds and clearance peaks cover the full run, including a fall. Contact and geometry data are from the last physics solve; integrated joint positions can be one timestep later. Actuator force and speed arrays follow actuator_names. Saturation means >=95% of the run's torque cap. Self-contact geometry is simplified and cannot validate detailed CAD interference.",
+      "results": [
+        {
+          "params": [
+            0.3611035514154559,
+            0.14115136271266485,
+            0.03911254725273986,
+            0.4058584529699947,
+            2.656837692232398,
+            0.0
+          ],
+          "requested_duration_s": 30.0,
+          "duration": 2.457999999999951,
+          "dx": -0.010835834437232801,
+          "dy": 0.0021059395730846126,
+          "max_tilt_deg": 37.93738969779525,
+          "minimum_height": 0.09782615996779888,
+          "nonfoot_floor": true,
+          "max_clearance_m": [
+            5.8494595933921215e-05,
+            0.0
+          ],
+          "minimum_normal_weight_ratio": [
+            0.0,
+            0.08159963546623734
+          ],
+          "unloaded_clear_time_s": [
+            0.0,
+            0.0
+          ],
+          "support_segments": [],
+          "alternations": 0,
+          "peak_torque_Nm": [
+            0.0967577141826086,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.08933211923003398,
+            0.1,
+            0.1,
+            0.1,
+            0.1,
+            0.05620493663487571,
+            0.029089322360932375,
+            0.011464212851488943,
+            0.003423096333343708,
+            0.006505935475507503
+          ],
+          "rms_torque_Nm": [
+            0.024028958457400978,
+            0.06257448929211881,
+            0.05390088320461566,
+            0.07981376580089068,
+            0.06784001381545623,
+            0.022903079051456405,
+            0.06235011986576327,
+            0.054997993313266526,
+            0.07882759161336576,
+            0.06787946694363824,
+            0.01613033610202157,
+            0.00517975118278409,
+            0.004945284279658396,
+            0.00166843911551342,
+            0.001494826395916526
+          ],
+          "saturation_fraction": [
+            0.0032546786004882017,
+            0.3205858421480879,
+            0.1855166802278275,
+            0.4808787632221318,
+            0.2969894222945484,
+            0.0,
+            0.31082180634662326,
+            0.19609438567941415,
+            0.46216436126932464,
+            0.30349877949552484,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "warning_count": 0,
+          "cap": 0.1,
+          "stop_reason": "nonfoot_floor_contact",
+          "self_contacts": {},
+          "feedback": [
+            0.5,
+            0.25,
+            0.03
+          ],
+          "tail_mode": "center",
+          "target_clipped_control_updates": 0,
+          "joint_limit_violations_rad": {
+            "left_knee": 0.014846262096214535
+          },
+          "terminated_early": true,
+          "display_support_active": false,
+          "external_force_max": 0.0,
+          "peak_joint_speed_rad_s": [
+            0.22395317345887278,
+            2.2408050893525706,
+            2.6653365907995252,
+            4.809942678215652,
+            3.685457725243955,
+            0.2674994770342495,
+            2.3204154433001114,
+            2.710157361691049,
+            5.552018504174797,
+            3.1941594400107527,
+            0.3048436676108684,
+            0.24292235322324773,
+            0.09738512010727807,
+            0.07158789451094821,
+            0.7458295227600339
+          ]
+        },
+        {
+          "params": [
+            0.3611035514154559,
+            0.14115136271266485,
+            0.03911254725273986,
+            0.4058584529699947,
+            2.656837692232398,
+            0.0
+          ],
+          "requested_duration_s": 30.0,
+          "duration": 3.1799999999998714,
+          "dx": -0.0468925602592324,
+          "dy": -0.008060735629932857,
+          "max_tilt_deg": 39.54204855715245,
+          "minimum_height": 0.102800945740839,
+          "nonfoot_floor": true,
+          "max_clearance_m": [
+            0.0013515899202262878,
+            0.000937171956366013
+          ],
+          "minimum_normal_weight_ratio": [
+            0.0,
+            0.0
+          ],
+          "unloaded_clear_time_s": [
+            0.0,
+            0.0
+          ],
+          "support_segments": [],
+          "alternations": 0,
+          "peak_torque_Nm": [
+            0.13113414154971803,
+            0.15,
+            0.15,
+            0.15,
+            0.15,
+            0.10464646154171878,
+            0.15,
+            0.15,
+            0.15,
+            0.15,
+            0.0687888254458845,
+            0.04260876285315583,
+            0.01616688415484363,
+            0.003843390520015216,
+            0.009103245054465437
+          ],
+          "rms_torque_Nm": [
+            0.028172684939185566,
+            0.08416501721523709,
+            0.07185972718059389,
+            0.10827584240411346,
+            0.09331626616483588,
+            0.023229748003256574,
+            0.0820549328150697,
+            0.06879023269879536,
+            0.10835330773243461,
+            0.08888458861480392,
+            0.017166590789331266,
+            0.008127603243536329,
+            0.005136318364235045,
+            0.0017076003869946094,
+            0.0022292000119972528
+          ],
+          "saturation_fraction": [
+            0.0,
+            0.2238993710691824,
+            0.1339622641509434,
+            0.3955974842767296,
+            0.25345911949685535,
+            0.0,
+            0.22452830188679246,
+            0.10943396226415095,
+            0.40440251572327046,
+            0.20817610062893083,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "warning_count": 0,
+          "cap": 0.15,
+          "stop_reason": "nonfoot_floor_contact",
+          "self_contacts": {},
+          "feedback": [
+            0.5,
+            0.25,
+            0.03
+          ],
+          "tail_mode": "center",
+          "target_clipped_control_updates": 0,
+          "joint_limit_violations_rad": {},
+          "terminated_early": true,
+          "display_support_active": false,
+          "external_force_max": 0.0,
+          "peak_joint_speed_rad_s": [
+            0.3429586054513579,
+            3.3736240798780632,
+            4.187219888337371,
+            6.59103848634162,
+            4.906832939687947,
+            0.3689120147123105,
+            3.4371265244713447,
+            4.103919052366077,
+            6.589395715392569,
+            4.869528568215049,
+            0.6532988996800067,
+            0.3562176888094814,
+            0.15352982416416833,
+            0.09004955667452291,
+            1.0221279362025617
+          ]
+        },
+        {
+          "params": [
+            0.3611035514154559,
+            0.14115136271266485,
+            0.03911254725273986,
+            0.4058584529699947,
+            2.656837692232398,
+            0.0
+          ],
+          "requested_duration_s": 30.0,
+          "duration": 23.20199999999802,
+          "dx": 0.11549953674860856,
+          "dy": 0.007813559103530031,
+          "max_tilt_deg": 39.269916782436276,
+          "minimum_height": 0.10284498081187307,
+          "nonfoot_floor": true,
+          "max_clearance_m": [
+            0.013927067750238182,
+            0.01403926711007889
+          ],
+          "minimum_normal_weight_ratio": [
+            0.0,
+            0.0
+          ],
+          "unloaded_clear_time_s": [
+            5.141999999999656,
+            5.075999999999663
+          ],
+          "support_segments": [
+            {
+              "stance": 1,
+              "duration": 0.04200000000000002,
+              "end": 2.793999999999914
+            },
+            {
+              "stance": 0,
+              "duration": 0.1480000000000001,
+              "end": 3.0799999999998824
+            },
+            {
+              "stance": 1,
+              "duration": 0.05800000000000004,
+              "end": 3.229999999999866
+            },
+            {
+              "stance": 0,
+              "duration": 0.04000000000000002,
+              "end": 3.3899999999998482
+            },
+            {
+              "stance": 0,
+              "duration": 0.07800000000000006,
+              "end": 3.7339999999998104
+            },
+            {
+              "stance": 1,
+              "duration": 0.06800000000000005,
+              "end": 3.907999999999791
+            },
+            {
+              "stance": 0,
+              "duration": 0.054000000000000034,
+              "end": 4.087999999999772
+            },
+            {
+              "stance": 0,
+              "duration": 0.04800000000000003,
+              "end": 4.147999999999765
+            },
+            {
+              "stance": 1,
+              "duration": 0.08600000000000006,
+              "end": 4.305999999999748
+            },
+            {
+              "stance": 0,
+              "duration": 0.05200000000000003,
+              "end": 4.445999999999732
+            },
+            {
+              "stance": 1,
+              "duration": 0.04800000000000003,
+              "end": 4.663999999999708
+            },
+            {
+              "stance": 0,
+              "duration": 0.04200000000000002,
+              "end": 4.7899999999996945
+            },
+            {
+              "stance": 0,
+              "duration": 0.06600000000000004,
+              "end": 4.885999999999684
+            },
+            {
+              "stance": 1,
+              "duration": 0.04000000000000002,
+              "end": 5.059999999999665
+            },
+            {
+              "stance": 0,
+              "duration": 0.08400000000000006,
+              "end": 5.221999999999647
+            },
+            {
+              "stance": 1,
+              "duration": 0.04000000000000002,
+              "end": 5.37399999999963
+            },
+            {
+              "stance": 0,
+              "duration": 0.044000000000000025,
+              "end": 5.5619999999996095
+            },
+            {
+              "stance": 1,
+              "duration": 0.044000000000000025,
+              "end": 5.763999999999587
+            },
+            {
+              "stance": 0,
+              "duration": 0.07800000000000006,
+              "end": 5.925999999999569
+            },
+            {
+              "stance": 1,
+              "duration": 0.04800000000000003,
+              "end": 6.407999999999516
+            },
+            {
+              "stance": 0,
+              "duration": 0.044000000000000025,
+              "end": 6.601999999999495
+            },
+            {
+              "stance": 1,
+              "duration": 0.05800000000000004,
+              "end": 6.803999999999473
+            },
+            {
+              "stance": 0,
+              "duration": 0.06000000000000004,
+              "end": 6.965999999999455
+            },
+            {
+              "stance": 1,
+              "duration": 0.08600000000000006,
+              "end": 7.183999999999431
+            },
+            {
+              "stance": 0,
+              "duration": 0.06800000000000005,
+              "end": 7.3959999999994075
+            },
+            {
+              "stance": 1,
+              "duration": 0.07600000000000005,
+              "end": 7.543999999999391
+            },
+            {
+              "stance": 1,
+              "duration": 0.05800000000000004,
+              "end": 7.905999999999351
+            },
+            {
+              "stance": 0,
+              "duration": 0.08000000000000006,
+              "end": 8.11799999999938
+            },
+            {
+              "stance": 0,
+              "duration": 0.04800000000000003,
+              "end": 8.397999999999474
+            },
+            {
+              "stance": 0,
+              "duration": 0.056000000000000036,
+              "end": 8.459999999999495
+            },
+            {
+              "stance": 1,
+              "duration": 0.12000000000000009,
+              "end": 8.669999999999565
+            },
+            {
+              "stance": 0,
+              "duration": 0.06000000000000004,
+              "end": 8.817999999999614
+            },
+            {
+              "stance": 1,
+              "duration": 0.06000000000000004,
+              "end": 8.977999999999668
+            },
+            {
+              "stance": 0,
+              "duration": 0.05800000000000004,
+              "end": 9.125999999999717
+            },
+            {
+              "stance": 0,
+              "duration": 0.04200000000000002,
+              "end": 9.177999999999734
+            },
+            {
+              "stance": 1,
+              "duration": 0.06200000000000004,
+              "end": 9.309999999999778
+            },
+            {
+              "stance": 1,
+              "duration": 0.05800000000000004,
+              "end": 9.377999999999801
+            },
+            {
+              "stance": 0,
+              "duration": 0.06400000000000004,
+              "end": 9.527999999999851
+            },
+            {
+              "stance": 0,
+              "duration": 0.05000000000000003,
+              "end": 9.579999999999869
+            },
+            {
+              "stance": 0,
+              "duration": 0.06600000000000004,
+              "end": 9.899999999999975
+            },
+            {
+              "stance": 0,
+              "duration": 0.10600000000000008,
+              "end": 10.280000000000102
+            },
+            {
+              "stance": 1,
+              "duration": 0.08600000000000006,
+              "end": 10.462000000000163
+            },
+            {
+              "stance": 1,
+              "duration": 0.10600000000000008,
+              "end": 10.822000000000283
+            },
+            {
+              "stance": 0,
+              "duration": 0.06800000000000005,
+              "end": 10.968000000000332
+            },
+            {
+              "stance": 1,
+              "duration": 0.04800000000000003,
+              "end": 11.124000000000384
+            },
+            {
+              "stance": 0,
+              "duration": 0.04200000000000002,
+              "end": 11.298000000000442
+            },
+            {
+              "stance": 1,
+              "duration": 0.1240000000000001,
+              "end": 11.544000000000525
+            },
+            {
+              "stance": 0,
+              "duration": 0.07200000000000005,
+              "end": 11.684000000000571
+            },
+            {
+              "stance": 0,
+              "duration": 0.04200000000000002,
+              "end": 11.746000000000592
+            },
+            {
+              "stance": 1,
+              "duration": 0.04800000000000003,
+              "end": 11.886000000000639
+            },
+            {
+              "stance": 0,
+              "duration": 0.11200000000000009,
+              "end": 12.092000000000708
+            },
+            {
+              "stance": 1,
+              "duration": 0.04600000000000003,
+              "end": 12.206000000000746
+            },
+            {
+              "stance": 1,
+              "duration": 0.054000000000000034,
+              "end": 12.926000000000986
+            },
+            {
+              "stance": 0,
+              "duration": 0.08600000000000006,
+              "end": 13.11600000000105
+            },
+            {
+              "stance": 1,
+              "duration": 0.1420000000000001,
+              "end": 13.362000000001132
+            },
+            {
+              "stance": 0,
+              "duration": 0.06600000000000004,
+              "end": 13.492000000001175
+            },
+            {
+              "stance": 1,
+              "duration": 0.06400000000000004,
+              "end": 13.702000000001245
+            },
+            {
+              "stance": 0,
+              "duration": 0.054000000000000034,
+              "end": 13.888000000001307
+            },
+            {
+              "stance": 1,
+              "duration": 0.07200000000000005,
+              "end": 14.068000000001367
+            },
+            {
+              "stance": 0,
+              "duration": 0.07000000000000005,
+              "end": 14.250000000001428
+            },
+            {
+              "stance": 1,
+              "duration": 0.044000000000000025,
+              "end": 14.416000000001484
+            },
+            {
+              "stance": 0,
+              "duration": 0.07600000000000005,
+              "end": 14.574000000001536
+            },
+            {
+              "stance": 1,
+              "duration": 0.06400000000000004,
+              "end": 14.744000000001593
+            },
+            {
+              "stance": 0,
+              "duration": 0.07200000000000005,
+              "end": 14.962000000001666
+            },
+            {
+              "stance": 1,
+              "duration": 0.04000000000000002,
+              "end": 15.120000000001719
+            },
+            {
+              "stance": 0,
+              "duration": 0.06000000000000004,
+              "end": 15.678000000001905
+            },
+            {
+              "stance": 1,
+              "duration": 0.05800000000000004,
+              "end": 15.81400000000195
+            },
+            {
+              "stance": 1,
+              "duration": 0.08000000000000006,
+              "end": 15.90000000000198
+            },
+            {
+              "stance": 0,
+              "duration": 0.06600000000000004,
+              "end": 16.066000000001974
+            },
+            {
+              "stance": 1,
+              "duration": 0.07200000000000005,
+              "end": 16.194000000001903
+            },
+            {
+              "stance": 0,
+              "duration": 0.10400000000000008,
+              "end": 16.41800000000178
+            },
+            {
+              "stance": 1,
+              "duration": 0.09800000000000007,
+              "end": 16.588000000001685
+            },
+            {
+              "stance": 0,
+              "duration": 0.05000000000000003,
+              "end": 16.766000000001586
+            },
+            {
+              "stance": 1,
+              "duration": 0.06600000000000004,
+              "end": 16.9200000000015
+            },
+            {
+              "stance": 0,
+              "duration": 0.09000000000000007,
+              "end": 17.134000000001382
+            },
+            {
+              "stance": 1,
+              "duration": 0.06800000000000005,
+              "end": 17.290000000001296
+            },
+            {
+              "stance": 1,
+              "duration": 0.09200000000000007,
+              "end": 17.66000000000109
+            },
+            {
+              "stance": 0,
+              "duration": 0.09600000000000007,
+              "end": 17.87600000000097
+            },
+            {
+              "stance": 1,
+              "duration": 0.04200000000000002,
+              "end": 18.0060000000009
+            },
+            {
+              "stance": 0,
+              "duration": 0.07400000000000005,
+              "end": 18.190000000000797
+            },
+            {
+              "stance": 1,
+              "duration": 0.05800000000000004,
+              "end": 18.372000000000696
+            },
+            {
+              "stance": 0,
+              "duration": 0.07400000000000005,
+              "end": 18.574000000000584
+            },
+            {
+              "stance": 1,
+              "duration": 0.06800000000000005,
+              "end": 18.76200000000048
+            },
+            {
+              "stance": 0,
+              "duration": 0.09200000000000007,
+              "end": 18.970000000000365
+            },
+            {
+              "stance": 1,
+              "duration": 0.04800000000000003,
+              "end": 19.0880000000003
+            },
+            {
+              "stance": 1,
+              "duration": 0.05000000000000003,
+              "end": 19.150000000000265
+            },
+            {
+              "stance": 0,
+              "duration": 0.06200000000000004,
+              "end": 19.300000000000182
+            },
+            {
+              "stance": 1,
+              "duration": 0.05000000000000003,
+              "end": 19.4500000000001
+            },
+            {
+              "stance": 0,
+              "duration": 0.08200000000000006,
+              "end": 19.624000000000002
+            },
+            {
+              "stance": 1,
+              "duration": 0.07400000000000005,
+              "end": 19.817999999999895
+            },
+            {
+              "stance": 1,
+              "duration": 0.04200000000000002,
+              "end": 19.86199999999987
+            },
+            {
+              "stance": 0,
+              "duration": 0.07000000000000005,
+              "end": 20.035999999999774
+            },
+            {
+              "stance": 1,
+              "duration": 0.06000000000000004,
+              "end": 20.22599999999967
+            },
+            {
+              "stance": 0,
+              "duration": 0.04600000000000003,
+              "end": 20.375999999999586
+            },
+            {
+              "stance": 1,
+              "duration": 0.06600000000000004,
+              "end": 20.877999999999307
+            },
+            {
+              "stance": 1,
+              "duration": 0.06800000000000005,
+              "end": 21.26799999999909
+            },
+            {
+              "stance": 1,
+              "duration": 0.044000000000000025,
+              "end": 21.617999999998897
+            },
+            {
+              "stance": 0,
+              "duration": 0.054000000000000034,
+              "end": 21.781999999998806
+            },
+            {
+              "stance": 1,
+              "duration": 0.11400000000000009,
+              "end": 22.033999999998667
+            },
+            {
+              "stance": 0,
+              "duration": 0.05800000000000004,
+              "end": 22.193999999998578
+            },
+            {
+              "stance": 1,
+              "duration": 0.054000000000000034,
+              "end": 22.3339999999985
+            },
+            {
+              "stance": 0,
+              "duration": 0.05200000000000003,
+              "end": 22.501999999998407
+            },
+            {
+              "stance": 0,
+              "duration": 0.06800000000000005,
+              "end": 22.91399999999818
+            },
+            {
+              "stance": 1,
+              "duration": 0.07000000000000005,
+              "end": 23.077999999998088
+            }
+          ],
+          "alternations": 82,
+          "peak_torque_Nm": [
+            0.17385614075009953,
+            0.2,
+            0.2,
+            0.2,
+            0.2,
+            0.16335346296032868,
+            0.2,
+            0.2,
+            0.2,
+            0.2,
+            0.08820169918173437,
+            0.06655554616386296,
+            0.02081678345106612,
+            0.006424720355486689,
+            0.0154784243039868
+          ],
+          "rms_torque_Nm": [
+            0.03884947975436998,
+            0.13464096551890806,
+            0.0991664371145085,
+            0.14908921304125244,
+            0.13781772491928718,
+            0.03801601550736746,
+            0.13372449905932451,
+            0.10006597795719317,
+            0.14819731313117498,
+            0.13989218391689046,
+            0.018288777633094024,
+            0.01329341906530265,
+            0.0053776318893231576,
+            0.001743275043720468,
+            0.004581954304002192
+          ],
+          "saturation_fraction": [
+            0.0,
+            0.3825532281699853,
+            0.13102318765623652,
+            0.48461339539694853,
+            0.3580725799500043,
+            0.0,
+            0.38186363244547883,
+            0.13369537108869925,
+            0.47556245151280063,
+            0.37169209550900784,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "warning_count": 0,
+          "cap": 0.2,
+          "stop_reason": "nonfoot_floor_contact",
+          "self_contacts": {
+            "right_hip_pitch_link_collision / right_hip_roll_servo_case_collision": {
+              "peak_penetration_m": 7.199810543525491e-05,
+              "peak_normal_force_N": 3.9354109829361783
+            }
+          },
+          "feedback": [
+            0.5,
+            0.25,
+            0.03
+          ],
+          "tail_mode": "center",
+          "target_clipped_control_updates": 1,
+          "joint_limit_violations_rad": {
+            "right_hip_roll": 0.009500872315882286
+          },
+          "terminated_early": true,
+          "display_support_active": false,
+          "external_force_max": 0.0,
+          "peak_joint_speed_rad_s": [
+            0.6094097543013495,
+            3.9554043722352374,
+            5.5318523969352285,
+            7.5883226064625955,
+            7.152161778807753,
+            0.5570043286661731,
+            3.7661655868215442,
+            5.418038006424187,
+            7.5970864222375845,
+            6.9131558265440916,
+            0.47179948777489455,
+            0.5023516885486874,
+            0.20511430281582885,
+            0.1786792517969355,
+            1.8547159986480757
+          ]
+        },
+        {
+          "params": [
+            0.3611035514154559,
+            0.14115136271266485,
+            0.03911254725273986,
+            0.4058584529699947,
+            2.656837692232398,
+            0.0
+          ],
+          "requested_duration_s": 30.0,
+          "duration": 4.349999999999743,
+          "dx": 0.02128321540745961,
+          "dy": -0.000685667608955502,
+          "max_tilt_deg": 39.136924857400594,
+          "minimum_height": 0.10199156901522637,
+          "nonfoot_floor": true,
+          "max_clearance_m": [
+            0.013351609038594147,
+            0.012244397469726397
+          ],
+          "minimum_normal_weight_ratio": [
+            0.0,
+            0.0
+          ],
+          "unloaded_clear_time_s": [
+            0.5260000000000004,
+            0.47600000000000037
+          ],
+          "support_segments": [
+            {
+              "stance": 0,
+              "duration": 0.10400000000000008,
+              "end": 2.663999999999928
+            },
+            {
+              "stance": 1,
+              "duration": 0.09200000000000007,
+              "end": 2.847999999999908
+            },
+            {
+              "stance": 1,
+              "duration": 0.04200000000000002,
+              "end": 2.899999999999902
+            },
+            {
+              "stance": 0,
+              "duration": 0.04600000000000003,
+              "end": 2.9799999999998934
+            },
+            {
+              "stance": 0,
+              "duration": 0.06600000000000004,
+              "end": 3.0799999999998824
+            },
+            {
+              "stance": 1,
+              "duration": 0.11600000000000009,
+              "end": 3.2599999999998626
+            },
+            {
+              "stance": 1,
+              "duration": 0.05000000000000003,
+              "end": 3.517999999999834
+            },
+            {
+              "stance": 0,
+              "duration": 0.056000000000000036,
+              "end": 3.7699999999998064
+            },
+            {
+              "stance": 1,
+              "duration": 0.04000000000000002,
+              "end": 3.881999999999794
+            },
+            {
+              "stance": 0,
+              "duration": 0.04600000000000003,
+              "end": 4.119999999999768
+            }
+          ],
+          "alternations": 6,
+          "peak_torque_Nm": [
+            0.1644380950666805,
+            0.3,
+            0.3,
+            0.3,
+            0.3,
+            0.13006330776396435,
+            0.3,
+            0.3,
+            0.3,
+            0.3,
+            0.1,
+            0.08,
+            0.025,
+            0.007848118291428334,
+            0.014243626023757928
+          ],
+          "rms_torque_Nm": [
+            0.03776829445718374,
+            0.12363212345195247,
+            0.11264990711904704,
+            0.16283532618130422,
+            0.15706699227367457,
+            0.03353575376325294,
+            0.12125712317808239,
+            0.11561712476744664,
+            0.15434843477374635,
+            0.16678379392591083,
+            0.02091804658711529,
+            0.013278659428259669,
+            0.005607114022455012,
+            0.001802445257297999,
+            0.003571203042526764
+          ],
+          "saturation_fraction": [
+            0.0,
+            0.09195402298850575,
+            0.06436781609195402,
+            0.18620689655172415,
+            0.1811494252873563,
+            0.0,
+            0.08735632183908046,
+            0.0735632183908046,
+            0.15862068965517243,
+            0.21057471264367816,
+            0.002758620689655172,
+            0.0009195402298850574,
+            0.0004597701149425287,
+            0.0,
+            0.0
+          ],
+          "warning_count": 0,
+          "cap": 0.3,
+          "stop_reason": "nonfoot_floor_contact",
+          "self_contacts": {},
+          "feedback": [
+            0.5,
+            0.25,
+            0.03
+          ],
+          "tail_mode": "center",
+          "target_clipped_control_updates": 0,
+          "joint_limit_violations_rad": {},
+          "terminated_early": true,
+          "display_support_active": false,
+          "external_force_max": 0.0,
+          "peak_joint_speed_rad_s": [
+            0.5990298661981799,
+            4.125829430881018,
+            6.229237623703462,
+            10.278094816416015,
+            8.936704529677586,
+            0.5941902819841371,
+            4.501276149394861,
+            6.2369206460488105,
+            10.065550529346266,
+            9.673688065716684,
+            0.8759088010161912,
+            0.6490741513214491,
+            0.28708995699826106,
+            0.24089748336414163,
+            1.5325847335704184
+          ]
+        }
+      ],
+      "name": "optional_tail_centered"
+    },
+    {
+      "schema_version": 1,
+      "mujoco_version": "3.10.0",
+      "numpy_version": "2.5.4",
+      "python_version": "3.12.14",
+      "machine": "x86_64",
+      "controller_sha256": "48159f4ab7b08c21068c263ee93f2e5ad0dc96626399aa363a3de1e83dd11074",
+      "source_model_file": "model.xml",
+      "source_sha256": {
+        "model.xml": "305aa44843741ed3498b620be1010427fc93a4b0d978f19f802d2fdb6df335a3",
+        "assets/character_meshes.xml": "a397faa9a406b101f059fc7e401ac7a979165a9e3199cf29ade6d5f617a3b189",
+        "assets/leg_cover_meshes.xml": "dd6a9c39f3536da3fe7f82774c4e2802e181afbe75fa0f40e9c7276100a178d9"
+      },
       "generator_source_sha256": {
         "tail_option.py": "8b1b05703c5655edd14a75fd26b2c0b888adfe759c330aeaee4fc94455c1b873"
       },
-      "trials": [
+      "source_path_base": "Input model directory; hashes include its XML assets.",
+      "scope": "Manual ideal-actuator stepping diagnostic, not walking certification or physical motor/thermal validation. Flat floor and nominal mass. Starts home; no external support/forces or root resets during a run. Torque-speed curves, transmission compliance, power supply limits and disturbances are not modeled.",
+      "feedback_scope": "Exact MuJoCo torso orientation and noiseless body gyro are privileged feedback. Hardware would need a matching IMU orientation estimate and independently validated noise, latency and control behavior. This is not a deployable hardware controller. Contact and clearance measurements only score results.",
+      "controller_parameters": {
+        "period_s": 0.3611035514154559,
+        "hip_roll_rad": 0.14115136271266485,
+        "hip_stride_rad": 0.03911254725273986,
+        "knee_flex_rad": 0.4058584529699947,
+        "roll_phase_rad": 2.656837692232398,
+        "knee_bias_rad": 0.0
+      },
+      "feedback_gains": {
+        "roll": 0.5,
+        "pitch": 0.25,
+        "gyro": 0.03
+      },
+      "selection_search_seed": 635,
+      "replay_randomness": "None: fixed parameters and home state, no random sampling.",
+      "control_rate_Hz": 50,
+      "physics_timestep_s": 0.002,
+      "mass_kg": 0.8250000000000001,
+      "actuator_names": [
+        "left_hip_yaw_servo",
+        "left_hip_roll_servo",
+        "left_hip_pitch_servo",
+        "left_knee_servo",
+        "left_ankle_servo",
+        "right_hip_yaw_servo",
+        "right_hip_roll_servo",
+        "right_hip_pitch_servo",
+        "right_knee_servo",
+        "right_ankle_servo",
+        "head_pitch_servo",
+        "head_yaw_servo",
+        "jaw_servo",
+        "left_shoulder_pitch_servo",
+        "tail_yaw_servo"
+      ],
+      "target_ranges_rad": {
+        "left_hip_yaw_servo": [
+          -0.2,
+          0.2
+        ],
+        "left_hip_roll_servo": [
+          -0.2,
+          0.2
+        ],
+        "left_hip_pitch_servo": [
+          -0.45,
+          0.45
+        ],
+        "left_knee_servo": [
+          -0.35,
+          0.7
+        ],
+        "left_ankle_servo": [
+          -0.45,
+          0.45
+        ],
+        "right_hip_yaw_servo": [
+          -0.2,
+          0.2
+        ],
+        "right_hip_roll_servo": [
+          -0.2,
+          0.2
+        ],
+        "right_hip_pitch_servo": [
+          -0.45,
+          0.45
+        ],
+        "right_knee_servo": [
+          -0.35,
+          0.7
+        ],
+        "right_ankle_servo": [
+          -0.45,
+          0.45
+        ],
+        "head_pitch_servo": [
+          -0.25,
+          0.1
+        ],
+        "head_yaw_servo": [
+          -0.65,
+          0.65
+        ],
+        "jaw_servo": [
+          0.0,
+          0.32
+        ],
+        "left_shoulder_pitch_servo": [
+          -0.65,
+          0.2
+        ],
+        "tail_yaw_servo": [
+          -0.436332312999,
+          0.436332312999
+        ]
+      },
+      "joint_ranges_rad": {
+        "tail_yaw": [
+          -0.436332312999,
+          0.436332312999
+        ],
+        "left_shoulder_pitch": [
+          -0.65,
+          0.2
+        ],
+        "right_shoulder_pitch": [
+          -0.65,
+          0.2
+        ],
+        "left_hip_yaw": [
+          -0.2,
+          0.2
+        ],
+        "left_hip_roll": [
+          -0.2,
+          0.2
+        ],
+        "left_hip_pitch": [
+          -0.45,
+          0.45
+        ],
+        "left_knee": [
+          -0.35,
+          0.7
+        ],
+        "left_ankle": [
+          -0.45,
+          0.45
+        ],
+        "right_hip_yaw": [
+          -0.2,
+          0.2
+        ],
+        "right_hip_roll": [
+          -0.2,
+          0.2
+        ],
+        "right_hip_pitch": [
+          -0.45,
+          0.45
+        ],
+        "right_knee": [
+          -0.35,
+          0.7
+        ],
+        "right_ankle": [
+          -0.45,
+          0.45
+        ],
+        "head_yaw": [
+          -0.65,
+          0.65
+        ],
+        "head_pitch": [
+          -0.25,
+          0.1
+        ],
+        "jaw": [
+          0.0,
+          0.32
+        ]
+      },
+      "nominal_torque_ranges_Nm": {
+        "left_hip_yaw_servo": [
+          -0.3,
+          0.3
+        ],
+        "left_hip_roll_servo": [
+          -0.3,
+          0.3
+        ],
+        "left_hip_pitch_servo": [
+          -0.3,
+          0.3
+        ],
+        "left_knee_servo": [
+          -0.3,
+          0.3
+        ],
+        "left_ankle_servo": [
+          -0.3,
+          0.3
+        ],
+        "right_hip_yaw_servo": [
+          -0.3,
+          0.3
+        ],
+        "right_hip_roll_servo": [
+          -0.3,
+          0.3
+        ],
+        "right_hip_pitch_servo": [
+          -0.3,
+          0.3
+        ],
+        "right_knee_servo": [
+          -0.3,
+          0.3
+        ],
+        "right_ankle_servo": [
+          -0.3,
+          0.3
+        ],
+        "head_pitch_servo": [
+          -0.1,
+          0.1
+        ],
+        "head_yaw_servo": [
+          -0.08,
+          0.08
+        ],
+        "jaw_servo": [
+          -0.025,
+          0.025
+        ],
+        "left_shoulder_pitch_servo": [
+          -0.025,
+          0.025
+        ],
+        "tail_yaw_servo": [
+          -0.02,
+          0.02
+        ]
+      },
+      "support_event_definition": "After 2s: stance normal force>half bodyweight, swing normal force<.05N, minimum swing sole height>2mm, torso tilt<.52rad, no nonfoot floor contact, sustained>=40ms. Counts side changes between qualifying segments. Positive forward displacement does not by itself constitute stepping.",
+      "stop_conditions": "Nonfoot floor force>.1N, torso tilt>1.05rad, root height<.065m, numerical warning/nonfinite state, or requested duration. Internal contacts are reported but do not stop the run.",
+      "measurement_scope": "Torques, speeds and clearance peaks cover the full run, including a fall. Contact and geometry data are from the last physics solve; integrated joint positions can be one timestep later. Actuator force and speed arrays follow actuator_names. Saturation means >=95% of the run's torque cap. Self-contact geometry is simplified and cannot validate detailed CAD interference.",
+      "results": [
         {
           "params": [
             0.3611035514154559,
@@ -1058,70 +3009,71 @@
             0.0
           ],
           "requested_duration_s": 30.0,
-          "duration": 2.409999999999956,
-          "dx": -0.023643250788974886,
-          "dy": 0.004056659019938416,
-          "max_tilt_deg": 37.93593391279243,
-          "minimum_height": 0.09841312669202945,
+          "duration": 2.4159999999999555,
+          "dx": -0.011922657659702192,
+          "dy": -0.0009958288511472998,
+          "max_tilt_deg": 36.87382248389288,
+          "minimum_height": 0.09463072918419276,
           "nonfoot_floor": true,
           "max_clearance_m": [
-            0.0,
+            0.00027108338219472214,
             0.0
           ],
           "minimum_normal_weight_ratio": [
             0.0,
-            0.16591321655297464
+            0.28889088725092715
           ],
           "unloaded_clear_time_s": [
             0.0,
             0.0
           ],
+          "support_segments": [],
           "alternations": 0,
           "peak_torque_Nm": [
+            0.06850418943094133,
             0.1,
             0.1,
             0.1,
             0.1,
-            0.1,
-            0.08399942915295372,
-            0.1,
+            0.05835974465981007,
             0.1,
             0.1,
             0.1,
-            0.0503881813447537,
-            0.03146606961953284,
-            0.006730948211102074,
-            0.003239385420572456,
-            0.007535206801551887
+            0.1,
+            0.04931408406199399,
+            0.02910521333471208,
+            0.011362210966998328,
+            0.0034241264656809482,
+            0.006136193511684039
           ],
           "rms_torque_Nm": [
-            0.021434084547536675,
-            0.05939780041476433,
-            0.052417748620508624,
-            0.0791026628673372,
-            0.06583784805501794,
-            0.018588341809304614,
-            0.05793894760599522,
-            0.054420292750539896,
-            0.07904980174755023,
-            0.0688572419949915,
-            0.015503626598921166,
-            0.005022909295239055,
-            0.003010790312140768,
-            0.0016738623644234696,
-            0.001470463844117928
+            0.019811488843461286,
+            0.05758837775612154,
+            0.05173753033471458,
+            0.0796632513858763,
+            0.06928355499106498,
+            0.017447465869483668,
+            0.058174654152208544,
+            0.05482009028535121,
+            0.07820895111289196,
+            0.06988795298298671,
+            0.01631712970593082,
+            0.005170955134658204,
+            0.004933415998054442,
+            0.0016652044581787055,
+            0.0014397937872116591
           ],
           "saturation_fraction": [
-            0.004149377593360996,
-            0.27385892116182575,
-            0.16680497925311202,
-            0.45062240663900416,
-            0.27385892116182575,
             0.0,
-            0.24896265560165975,
-            0.1966804979253112,
-            0.445643153526971,
-            0.3510373443983402,
+            0.2458609271523179,
+            0.14486754966887416,
+            0.47516556291390727,
+            0.304635761589404,
+            0.0,
+            0.26158940397350994,
+            0.18956953642384106,
+            0.4503311258278146,
+            0.3485099337748344,
             0.0,
             0.0,
             0.0,
@@ -1137,283 +3089,31 @@
             0.25,
             0.03
           ],
-          "tail_mode": "center",
-          "target_clipped_control_updates": 0,
-          "joint_limit_violations_rad": {},
-          "terminated_early": true,
-          "display_support_active": false,
-          "external_force_max": 0.0,
-          "peak_joint_speed_rad_s": [
-            0.3977870411171601,
-            2.819727651127624,
-            2.737747885703834,
-            5.239817493857347,
-            3.3395670692469155,
-            0.2541454921719339,
-            2.55405354260258,
-            2.553977825563337,
-            5.019745967693613,
-            3.1925277582037395,
-            0.27278949192391444,
-            0.25744187713227706,
-            0.04943186726570691,
-            0.06560813323969814,
-            0.9283021877378901
-          ],
-          "support_segment_summary": {
-            "qualifying_segments": 0,
-            "shortest_s": null,
-            "longest_s": null,
-            "full_segments": "Regenerate with the walking_pilot CLI commands below."
-          },
-          "controller_execution_sha256": "c0d3010d2d45740f3c4d16b563c22f35d9df11a9b2495091101b8117f3130256"
-        },
-        {
-          "params": [
-            0.3611035514154559,
-            0.14115136271266485,
-            0.03911254725273986,
-            0.4058584529699947,
-            2.656837692232398,
-            0.0
-          ],
-          "requested_duration_s": 30.0,
-          "duration": 2.673999999999927,
-          "dx": -0.055584241376834105,
-          "dy": -0.004536006229507919,
-          "max_tilt_deg": 39.605745375663695,
-          "minimum_height": 0.10267960517461681,
-          "nonfoot_floor": true,
-          "max_clearance_m": [
-            0.0010043340861311534,
-            0.0023394251756675647
-          ],
-          "minimum_normal_weight_ratio": [
-            0.0,
-            0.0
-          ],
-          "unloaded_clear_time_s": [
-            0.0,
-            0.02800000000000001
-          ],
-          "alternations": 0,
-          "peak_torque_Nm": [
-            0.09830316622923227,
-            0.15,
-            0.15,
-            0.15,
-            0.15,
-            0.09287274415361621,
-            0.15,
-            0.15,
-            0.15,
-            0.15,
-            0.05803131015517895,
-            0.03774816233661841,
-            0.008550029120580895,
-            0.003939275723041886,
-            0.015227858233498454
-          ],
-          "rms_torque_Nm": [
-            0.02095053390144808,
-            0.07968891250575626,
-            0.06491189762829222,
-            0.10585582246745479,
-            0.09061819698141371,
-            0.02356996940369902,
-            0.08304918306333035,
-            0.07081997272475493,
-            0.10559339834698514,
-            0.08722330477030539,
-            0.01638129541982788,
-            0.00726210698248831,
-            0.003110834971637293,
-            0.0016692812732994505,
-            0.002494556593042352
-          ],
-          "saturation_fraction": [
-            0.0,
-            0.2131637995512341,
-            0.07928197456993269,
-            0.3881824981301421,
-            0.1974569932685116,
-            0.0,
-            0.24831712789827973,
-            0.10545998504113688,
-            0.3537771129394166,
-            0.193717277486911,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0
-          ],
-          "warning_count": 0,
-          "cap": 0.15,
-          "stop_reason": "nonfoot_floor_contact",
-          "self_contacts": {},
-          "feedback": [
-            0.5,
-            0.25,
-            0.03
-          ],
-          "tail_mode": "center",
-          "target_clipped_control_updates": 0,
-          "joint_limit_violations_rad": {},
-          "terminated_early": true,
-          "display_support_active": false,
-          "external_force_max": 0.0,
-          "peak_joint_speed_rad_s": [
-            0.33406039945607113,
-            3.527258123229068,
-            3.53084249961437,
-            6.5787253290549295,
-            4.430815776715548,
-            0.31165988720499505,
-            2.9326265277585324,
-            4.566683735107303,
-            6.474399136793321,
-            5.048434396602777,
-            0.6017680682100106,
-            0.2974519724607706,
-            0.07748944204042248,
-            0.09528805911439356,
-            1.8130935147874658
-          ],
-          "support_segment_summary": {
-            "qualifying_segments": 0,
-            "shortest_s": null,
-            "longest_s": null,
-            "full_segments": "Regenerate with the walking_pilot CLI commands below."
-          },
-          "controller_execution_sha256": "c0d3010d2d45740f3c4d16b563c22f35d9df11a9b2495091101b8117f3130256"
-        },
-        {
-          "params": [
-            0.3611035514154559,
-            0.14115136271266485,
-            0.03911254725273986,
-            0.4058584529699947,
-            2.656837692232398,
-            0.0
-          ],
-          "requested_duration_s": 30.0,
-          "duration": 8.513999999999513,
-          "dx": 0.015024889302906845,
-          "dy": -0.004978126362030349,
-          "max_tilt_deg": 40.05949295940386,
-          "minimum_height": 0.10439539163477425,
-          "nonfoot_floor": true,
-          "max_clearance_m": [
-            0.011812077846552627,
-            0.014204169921486966
-          ],
-          "minimum_normal_weight_ratio": [
-            0.0,
-            0.0
-          ],
-          "unloaded_clear_time_s": [
-            1.462000000000001,
-            1.6520000000000012
-          ],
-          "alternations": 23,
-          "peak_torque_Nm": [
-            0.16885503646128644,
-            0.2,
-            0.2,
-            0.2,
-            0.2,
-            0.15329628569751463,
-            0.2,
-            0.2,
-            0.2,
-            0.2,
-            0.0646498356085444,
-            0.0608116457207679,
-            0.010289704050146604,
-            0.0055294858154368845,
-            0.014235005317122436
-          ],
-          "rms_torque_Nm": [
-            0.035715510725819265,
-            0.1237632956013359,
-            0.09314687579322492,
-            0.1428527625265436,
-            0.1306520098873073,
-            0.036270624093493596,
-            0.12228579442811793,
-            0.09278953207263722,
-            0.14207673447961555,
-            0.13335556886837166,
-            0.01699054332544346,
-            0.011628791106978316,
-            0.0031673711543491003,
-            0.0017347090296433317,
-            0.004005348274142626
-          ],
-          "saturation_fraction": [
-            0.0,
-            0.3152454780361757,
-            0.11392999765092789,
-            0.43387361992013157,
-            0.30162085976039466,
-            0.0,
-            0.29950669485553205,
-            0.10688278130138595,
-            0.41320178529480855,
-            0.3293399107352596,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0
-          ],
-          "warning_count": 0,
-          "cap": 0.2,
-          "stop_reason": "nonfoot_floor_contact",
-          "self_contacts": {
-            "left_hip_pitch_link_collision / left_hip_roll_servo_case_collision": {
-              "peak_penetration_m": 5.34294532292018e-05,
-              "peak_normal_force_N": 4.384940594104466
-            }
-          },
-          "feedback": [
-            0.5,
-            0.25,
-            0.03
-          ],
-          "tail_mode": "center",
+          "tail_mode": "wag",
           "target_clipped_control_updates": 0,
           "joint_limit_violations_rad": {
-            "left_hip_roll": 0.007126094932862148
+            "left_knee": 0.026929485529746056
           },
           "terminated_early": true,
           "display_support_active": false,
           "external_force_max": 0.0,
           "peak_joint_speed_rad_s": [
-            0.5465836334219798,
-            4.029375049760253,
-            5.8747451890293645,
-            7.574463016451918,
-            6.746085208597983,
-            0.5098718076134887,
-            3.6634707544328493,
-            5.204502779000983,
-            7.373076157320355,
-            7.123149993864983,
-            0.63069835683705,
-            0.4042778187139081,
-            0.09495974818785582,
-            0.14572724950304616,
-            1.928129422205536
-          ],
-          "support_segment_summary": {
-            "qualifying_segments": 29,
-            "shortest_s": 0.04000000000000002,
-            "longest_s": 0.1540000000000001,
-            "full_segments": "Regenerate with the walking_pilot CLI commands below."
-          },
-          "controller_execution_sha256": "c0d3010d2d45740f3c4d16b563c22f35d9df11a9b2495091101b8117f3130256"
+            0.27993127135754275,
+            2.7185705514164398,
+            2.6936368767760954,
+            4.743549594115448,
+            3.2691097215747567,
+            0.22402230595956937,
+            2.541817286137049,
+            2.648954060870835,
+            5.058819248619027,
+            3.275818125941885,
+            0.18641407000331903,
+            0.24304771407082829,
+            0.08583730053689519,
+            0.07163176070274717,
+            0.9482179623495521
+          ]
         },
         {
           "params": [
@@ -1425,310 +3125,71 @@
             0.0
           ],
           "requested_duration_s": 30.0,
-          "duration": 6.519999999999504,
-          "dx": 0.018974430907571102,
-          "dy": 0.022466980730867288,
-          "max_tilt_deg": 39.83945150903134,
-          "minimum_height": 0.10373568832902844,
+          "duration": 2.701999999999924,
+          "dx": -0.04679256027605369,
+          "dy": -0.0002286448909036209,
+          "max_tilt_deg": 39.70074306822924,
+          "minimum_height": 0.10325271102046511,
           "nonfoot_floor": true,
           "max_clearance_m": [
-            0.017512790420479367,
-            0.014945782128618083
+            0.00031672391900721027,
+            0.001272266938074508
           ],
           "minimum_normal_weight_ratio": [
             0.0,
             0.0
           ],
           "unloaded_clear_time_s": [
-            1.1620000000000008,
-            1.2020000000000008
-          ],
-          "alternations": 18,
-          "peak_torque_Nm": [
-            0.16899495202919254,
-            0.3,
-            0.3,
-            0.3,
-            0.3,
-            0.16167415396985008,
-            0.3,
-            0.3,
-            0.3,
-            0.3,
-            0.09492231453865192,
-            0.08,
-            0.015772369305121763,
-            0.007482187432108743,
-            0.018675231153446065
-          ],
-          "rms_torque_Nm": [
-            0.039458075071673135,
-            0.13313983321136058,
-            0.12220569500361647,
-            0.1706710363726662,
-            0.18330542304479672,
-            0.03981777287662254,
-            0.13383148245602555,
-            0.12806510347123556,
-            0.17593046267255766,
-            0.17896183072495958,
-            0.019434023359075236,
-            0.013987421403694132,
-            0.003398003126390368,
-            0.0018320200904288718,
-            0.004460052274411357
-          ],
-          "saturation_fraction": [
-            0.0,
-            0.11503067484662577,
-            0.08466257668711656,
-            0.22576687116564417,
-            0.27975460122699386,
-            0.0,
-            0.1116564417177914,
-            0.09938650306748466,
-            0.2343558282208589,
-            0.24662576687116564,
-            0.0,
-            0.0006134969325153375,
-            0.0,
             0.0,
             0.0
           ],
-          "warning_count": 0,
-          "cap": 0.3,
-          "stop_reason": "nonfoot_floor_contact",
-          "self_contacts": {},
-          "feedback": [
-            0.5,
-            0.25,
-            0.03
-          ],
-          "tail_mode": "center",
-          "target_clipped_control_updates": 0,
-          "joint_limit_violations_rad": {},
-          "terminated_early": true,
-          "display_support_active": false,
-          "external_force_max": 0.0,
-          "peak_joint_speed_rad_s": [
-            0.7206221181370592,
-            4.064189108606925,
-            6.256381640315375,
-            9.874415072911644,
-            9.394004519834272,
-            0.7005429854832208,
-            5.157792611184941,
-            6.444835889251887,
-            10.47101499867272,
-            9.009642351745576,
-            0.6412963308197306,
-            0.7871834110530712,
-            0.15300067639779744,
-            0.21178935669740595,
-            2.093105410352431
-          ],
-          "support_segment_summary": {
-            "qualifying_segments": 23,
-            "shortest_s": 0.04200000000000002,
-            "longest_s": 0.11600000000000009,
-            "full_segments": "Regenerate with the walking_pilot CLI commands below."
-          },
-          "controller_execution_sha256": "c0d3010d2d45740f3c4d16b563c22f35d9df11a9b2495091101b8117f3130256"
-        },
-        {
-          "params": [
-            0.3611035514154559,
-            0.14115136271266485,
-            0.03911254725273986,
-            0.4058584529699947,
-            2.656837692232398,
-            0.0
-          ],
-          "requested_duration_s": 30.0,
-          "duration": 2.4319999999999538,
-          "dx": -0.019324523526328994,
-          "dy": 0.0014805340186629938,
-          "max_tilt_deg": 37.439896140804976,
-          "minimum_height": 0.09584057632692049,
-          "nonfoot_floor": true,
-          "max_clearance_m": [
-            1.928340447806924e-05,
-            0.0
-          ],
-          "minimum_normal_weight_ratio": [
-            0.0,
-            0.28499409905707285
-          ],
-          "unloaded_clear_time_s": [
-            0.0,
-            0.0
-          ],
+          "support_segments": [],
           "alternations": 0,
           "peak_torque_Nm": [
-            0.06189873778637169,
-            0.1,
-            0.1,
-            0.1,
-            0.1,
-            0.07681519116409785,
-            0.1,
-            0.1,
-            0.1,
-            0.1,
-            0.04066757420825178,
-            0.03146749499812723,
-            0.006754336898197574,
-            0.0032396696646428583,
-            0.007372713401678319
+            0.09990678127886002,
+            0.15,
+            0.15,
+            0.15,
+            0.15,
+            0.12717253513608573,
+            0.15,
+            0.15,
+            0.15,
+            0.15,
+            0.06862597840339013,
+            0.042665243440916364,
+            0.01616625797897503,
+            0.003835368724104251,
+            0.01041853731989439
           ],
           "rms_torque_Nm": [
-            0.019885222309406533,
-            0.05689853152387848,
-            0.05387882516709966,
-            0.07980593671444805,
-            0.06785315346672974,
-            0.019677323770990515,
-            0.05538428622528004,
-            0.053429341757462216,
-            0.07911506127375431,
-            0.06989726025875562,
-            0.015243279096381974,
-            0.005024185726358609,
-            0.002961965180585341,
-            0.0016841287017087348,
-            0.0015948432738621782
+            0.0242075367338188,
+            0.07743480582074722,
+            0.06482858732385546,
+            0.09925259533214426,
+            0.08254841010686205,
+            0.02297675639249018,
+            0.07676091619982382,
+            0.06972707184227692,
+            0.10220076874368553,
+            0.08842232379479452,
+            0.017316386823460414,
+            0.0073106335674509885,
+            0.005122206587929227,
+            0.0016789407660274987,
+            0.0020092781870342797
           ],
           "saturation_fraction": [
             0.0,
-            0.23273026315789475,
-            0.18421052631578946,
-            0.45394736842105265,
-            0.2993421052631579,
+            0.17838638045891933,
+            0.08734270910436713,
+            0.2938564026646928,
+            0.15988156920799407,
             0.0,
-            0.22286184210526316,
-            0.18338815789473684,
-            0.4440789473684211,
-            0.36348684210526316,
-            0.0,
-            0.0,
-            0.0,
-            0.0,
-            0.0
-          ],
-          "warning_count": 0,
-          "cap": 0.1,
-          "stop_reason": "nonfoot_floor_contact",
-          "self_contacts": {},
-          "feedback": [
-            0.5,
-            0.25,
-            0.03
-          ],
-          "tail_mode": "wag",
-          "target_clipped_control_updates": 0,
-          "joint_limit_violations_rad": {},
-          "terminated_early": true,
-          "display_support_active": false,
-          "external_force_max": 0.0,
-          "peak_joint_speed_rad_s": [
-            0.23578372293875285,
-            2.460579891599064,
-            2.533089690169898,
-            4.508070347779605,
-            3.835372320951978,
-            0.2988052831075614,
-            2.5008217589681956,
-            2.6214232737438867,
-            5.533365123388573,
-            3.5029671800181523,
-            0.262044688216558,
-            0.2574567985490979,
-            0.046570054140852295,
-            0.06561961312002847,
-            1.4105405526709853
-          ],
-          "support_segment_summary": {
-            "qualifying_segments": 0,
-            "shortest_s": null,
-            "longest_s": null,
-            "full_segments": "Regenerate with the walking_pilot CLI commands below."
-          },
-          "controller_execution_sha256": "c0d3010d2d45740f3c4d16b563c22f35d9df11a9b2495091101b8117f3130256"
-        },
-        {
-          "params": [
-            0.3611035514154559,
-            0.14115136271266485,
-            0.03911254725273986,
-            0.4058584529699947,
-            2.656837692232398,
-            0.0
-          ],
-          "requested_duration_s": 30.0,
-          "duration": 3.037999999999887,
-          "dx": -0.04323956314557972,
-          "dy": 0.0007049927962738841,
-          "max_tilt_deg": 39.628664764413344,
-          "minimum_height": 0.10273433286374282,
-          "nonfoot_floor": true,
-          "max_clearance_m": [
-            0.001723794426221577,
-            0.001815034218518345
-          ],
-          "minimum_normal_weight_ratio": [
-            0.0,
-            0.0
-          ],
-          "unloaded_clear_time_s": [
-            0.0,
-            0.0
-          ],
-          "alternations": 0,
-          "peak_torque_Nm": [
-            0.11564047059773222,
-            0.15,
-            0.15,
-            0.15,
-            0.15,
-            0.09782624186427191,
-            0.15,
-            0.15,
-            0.15,
-            0.15,
-            0.058059259147774406,
-            0.03761871572925048,
-            0.008546447694246489,
-            0.0039387085711455536,
-            0.009838429941481364
-          ],
-          "rms_torque_Nm": [
-            0.024151520452403284,
-            0.08990588701180395,
-            0.07245346808102492,
-            0.10940658692684137,
-            0.09065849205933751,
-            0.02192588552845691,
-            0.08775431152847003,
-            0.072246491025078,
-            0.11091239641545046,
-            0.09386368453001316,
-            0.016080819638100836,
-            0.007216337906860885,
-            0.0031325771548070787,
-            0.001695595497333261,
-            0.0025719167258002537
-          ],
-          "saturation_fraction": [
-            0.0,
-            0.2857142857142857,
-            0.12310730743910467,
-            0.4298880842659645,
-            0.2073732718894009,
-            0.0,
-            0.2666227781435155,
-            0.10994075049374588,
-            0.41540487162606976,
-            0.22778143515470706,
+            0.19319022945965952,
+            0.1228719467061436,
+            0.3360473723168024,
+            0.20873427091043673,
             0.0,
             0.0,
             0.0,
@@ -1751,29 +3212,22 @@
           "display_support_active": false,
           "external_force_max": 0.0,
           "peak_joint_speed_rad_s": [
-            0.4311608403394928,
-            3.610844030294064,
-            4.030671373757948,
-            5.458099120303492,
-            4.974216210970023,
-            0.2948150588841078,
-            3.3920576682683414,
-            4.099732695655152,
-            6.283911086351478,
-            5.002620748711376,
-            0.6621116587409226,
-            0.3160329285826162,
-            0.07746170506747976,
-            0.0952939105076348,
-            1.659873967307773
-          ],
-          "support_segment_summary": {
-            "qualifying_segments": 0,
-            "shortest_s": null,
-            "longest_s": null,
-            "full_segments": "Regenerate with the walking_pilot CLI commands below."
-          },
-          "controller_execution_sha256": "c0d3010d2d45740f3c4d16b563c22f35d9df11a9b2495091101b8117f3130256"
+            0.3150504564468297,
+            2.89563610217531,
+            3.6262200857440505,
+            6.107960968082573,
+            5.028895552529518,
+            0.3381269751647561,
+            3.3984418630699325,
+            3.629327298961268,
+            6.338876859195192,
+            4.9239724205415465,
+            0.4616034974887724,
+            0.3566215934219217,
+            0.15351605928823273,
+            0.08975889552283939,
+            1.2249774004937202
+          ]
         },
         {
           "params": [
@@ -1785,87 +3239,120 @@
             0.0
           ],
           "requested_duration_s": 30.0,
-          "duration": 29.615999999994465,
-          "dx": 0.14640582164977,
-          "dy": -0.08815147414700913,
-          "max_tilt_deg": 39.70390238376893,
-          "minimum_height": 0.10290850625774182,
+          "duration": 3.6799999999998163,
+          "dx": -0.039252117012026425,
+          "dy": 0.006963846172340264,
+          "max_tilt_deg": 40.34920313738695,
+          "minimum_height": 0.10575168572489253,
           "nonfoot_floor": true,
           "max_clearance_m": [
-            0.01219415311937203,
-            0.01599732490246039
+            0.009535150560707055,
+            0.011570164409527347
           ],
           "minimum_normal_weight_ratio": [
             0.0,
             0.0
           ],
           "unloaded_clear_time_s": [
-            6.753999999999478,
-            6.727999999999481
+            0.35200000000000026,
+            0.35200000000000026
           ],
-          "alternations": 108,
-          "peak_torque_Nm": [
-            0.16012726758167012,
-            0.2,
-            0.2,
-            0.2,
-            0.2,
-            0.15871084348241069,
-            0.2,
-            0.2,
-            0.2,
-            0.2,
-            0.1,
-            0.0691636285833142,
-            0.0147300917206029,
-            0.006642534218167942,
-            0.016623607679150422
-          ],
-          "rms_torque_Nm": [
-            0.039849311171994806,
-            0.13333447127758224,
-            0.10141846090183894,
-            0.15084899908243196,
-            0.14147156636275848,
-            0.03780829911240998,
-            0.13475236420123074,
-            0.10063561079419449,
-            0.15245311641084622,
-            0.14227056560147833,
-            0.01712025454683498,
-            0.012505199007525253,
-            0.0031815822826364096,
-            0.001756419810999009,
-            0.004622376727625638
-          ],
-          "saturation_fraction": [
-            0.0,
-            0.36534305780659104,
-            0.13675040518638573,
-            0.4929767693138844,
-            0.3841166936790924,
-            0.0,
-            0.38384656942193407,
-            0.1315505132360886,
-            0.5128309022150189,
-            0.3843868179362507,
-            0.0004051863857374392,
-            0.0,
-            0.0,
-            0.0,
-            0.0
-          ],
-          "warning_count": 0,
-          "cap": 0.2,
-          "stop_reason": "nonfoot_floor_contact",
-          "self_contacts": {
-            "left_hip_pitch_link_collision / left_hip_roll_servo_case_collision": {
-              "peak_penetration_m": 7.013424746826064e-05,
-              "peak_normal_force_N": 4.4651247548940995
+          "support_segments": [
+            {
+              "stance": 1,
+              "duration": 0.06200000000000004,
+              "end": 2.4599999999999507
             },
-            "right_hip_pitch_link_collision / right_hip_roll_servo_case_collision": {
-              "peak_penetration_m": 3.8147975742071e-05,
-              "peak_normal_force_N": 7.101554197924421
+            {
+              "stance": 0,
+              "duration": 0.12800000000000009,
+              "end": 2.6959999999999247
+            },
+            {
+              "stance": 1,
+              "duration": 0.06200000000000004,
+              "end": 2.899999999999902
+            },
+            {
+              "stance": 0,
+              "duration": 0.06200000000000004,
+              "end": 3.0519999999998855
+            },
+            {
+              "stance": 1,
+              "duration": 0.07800000000000006,
+              "end": 3.1879999999998705
+            },
+            {
+              "stance": 0,
+              "duration": 0.10400000000000008,
+              "end": 3.409999999999846
+            },
+            {
+              "stance": 1,
+              "duration": 0.056000000000000036,
+              "end": 3.5699999999998284
+            }
+          ],
+          "alternations": 6,
+          "peak_torque_Nm": [
+            0.13764389820672163,
+            0.2,
+            0.2,
+            0.2,
+            0.2,
+            0.141664835709741,
+            0.2,
+            0.2,
+            0.2,
+            0.2,
+            0.07578521949413021,
+            0.062013028861552646,
+            0.01763406227099041,
+            0.004743674756573732,
+            0.015026657058483554
+          ],
+          "rms_torque_Nm": [
+            0.030824372899039842,
+            0.11194576744987568,
+            0.08651917665382952,
+            0.1285497675305009,
+            0.11713397342121747,
+            0.03257582389953595,
+            0.11192705521065534,
+            0.08147707174202354,
+            0.12514253273149697,
+            0.12086870181776299,
+            0.018146803172308143,
+            0.010984857340355174,
+            0.005297393760420475,
+            0.0017055340463471378,
+            0.0032537588307436057
+          ],
+          "saturation_fraction": [
+            0.0,
+            0.2532608695652174,
+            0.10489130434782609,
+            0.32608695652173914,
+            0.22717391304347825,
+            0.0,
+            0.2543478260869565,
+            0.08260869565217391,
+            0.2956521739130435,
+            0.2673913043478261,
+            0.0,
+            0.0,
+            0.0,
+            0.0,
+            0.0
+          ],
+          "warning_count": 0,
+          "cap": 0.2,
+          "stop_reason": "nonfoot_floor_contact",
+          "self_contacts": {
+            "left_hip_pitch_link_collision / left_hip_roll_servo_case_collision": {
+              "peak_penetration_m": 2.8430370807778875e-06,
+              "peak_normal_force_N": 5.985747429285661
             }
           },
           "feedback": [
@@ -1876,36 +3363,28 @@
           "tail_mode": "wag",
           "target_clipped_control_updates": 0,
           "joint_limit_violations_rad": {
-            "left_hip_roll": 0.009262129644043882,
-            "right_hip_roll": 0.00517783536976657
+            "left_hip_roll": 0.0006975577411597045
           },
           "terminated_early": true,
           "display_support_active": false,
           "external_force_max": 0.0,
           "peak_joint_speed_rad_s": [
-            0.5330124659150222,
-            4.177179273044585,
-            6.239656901007296,
-            7.994212610908675,
-            7.0450217723245645,
-            0.5570945727830452,
-            4.15482210395928,
-            5.612728289239034,
-            7.8879804060166885,
-            7.071009011228615,
-            1.3613261244466746,
-            0.5254731305793283,
-            0.16123606515402797,
-            0.1880811523254725,
-            2.414668485540368
-          ],
-          "support_segment_summary": {
-            "qualifying_segments": 133,
-            "shortest_s": 0.04000000000000002,
-            "longest_s": 0.1500000000000001,
-            "full_segments": "Regenerate with the walking_pilot CLI commands below."
-          },
-          "controller_execution_sha256": "c0d3010d2d45740f3c4d16b563c22f35d9df11a9b2495091101b8117f3130256"
+            0.6097626210413982,
+            3.551124205404049,
+            5.195260999465896,
+            7.451031972782179,
+            6.374114147722282,
+            0.5748338691042522,
+            3.3475951797036134,
+            4.972497647101059,
+            7.2490123986213035,
+            6.338231397205129,
+            0.4835419274901397,
+            0.6003264332056124,
+            0.17328268771147634,
+            0.12576287348398082,
+            2.087333488923016
+          ]
         },
         {
           "params": [
@@ -1917,73 +3396,110 @@
             0.0
           ],
           "requested_duration_s": 30.0,
-          "duration": 2.6419999999999306,
-          "dx": -0.03577042102467549,
-          "dy": 0.013581171940539111,
-          "max_tilt_deg": 41.28659132807992,
-          "minimum_height": 0.1031305870668627,
+          "duration": 4.359999999999742,
+          "dx": 0.017223397623025473,
+          "dy": 0.007469744738113161,
+          "max_tilt_deg": 39.8736498177205,
+          "minimum_height": 0.10407440549560701,
           "nonfoot_floor": true,
           "max_clearance_m": [
-            0.003750214456170662,
-            0.008429353878839543
+            0.01276813981887526,
+            0.01912827031133734
           ],
           "minimum_normal_weight_ratio": [
             0.0,
             0.0
           ],
           "unloaded_clear_time_s": [
-            0.08000000000000006,
-            0.06600000000000004
+            0.4280000000000003,
+            0.3820000000000003
           ],
-          "alternations": 1,
+          "support_segments": [
+            {
+              "stance": 1,
+              "duration": 0.10600000000000008,
+              "end": 3.2259999999998663
+            },
+            {
+              "stance": 0,
+              "duration": 0.11600000000000009,
+              "end": 3.3959999999998476
+            },
+            {
+              "stance": 0,
+              "duration": 0.06200000000000004,
+              "end": 3.4599999999998405
+            },
+            {
+              "stance": 1,
+              "duration": 0.1380000000000001,
+              "end": 3.9779999999997835
+            },
+            {
+              "stance": 0,
+              "duration": 0.044000000000000025,
+              "end": 4.079999999999773
+            },
+            {
+              "stance": 0,
+              "duration": 0.06000000000000004,
+              "end": 4.177999999999762
+            },
+            {
+              "stance": 1,
+              "duration": 0.04800000000000003,
+              "end": 4.2719999999997516
+            }
+          ],
+          "alternations": 4,
           "peak_torque_Nm": [
-            0.1498241628123851,
+            0.13397313669372504,
             0.3,
             0.3,
             0.3,
             0.3,
-            0.14514418606066493,
+            0.12868939197556256,
             0.3,
             0.3,
             0.3,
             0.3,
-            0.0847887946254786,
-            0.059792444428173594,
-            0.012104972333791094,
-            0.005034687350196633,
-            0.013551877309480995
+            0.1,
+            0.08,
+            0.025,
+            0.00711384964559749,
+            0.012085832397941424
           ],
           "rms_torque_Nm": [
-            0.027215656927082707,
-            0.09614074840686636,
-            0.10597767102489156,
-            0.15029923052607738,
-            0.13483705934290188,
-            0.03021973794231973,
-            0.10493220440313879,
-            0.10363244902078,
-            0.14853061025746372,
-            0.1472547653510175,
-            0.01829684970026234,
-            0.010588520238024387,
-            0.0033192179161675205,
-            0.0017840709726181288,
-            0.0029407334046986345
+            0.03577158204093012,
+            0.12542056626636708,
+            0.11888589907532525,
+            0.16419835740486577,
+            0.17593223423253943,
+            0.033566758427445054,
+            0.1275357851599457,
+            0.11529359413664234,
+            0.1569688130282655,
+            0.15717895989920982,
+            0.02231890102071945,
+            0.013174119240429383,
+            0.005730712312614105,
+            0.0018257729521074333,
+            0.003442771603320353
           ],
           "saturation_fraction": [
             0.0,
-            0.04314912944738834,
-            0.06510219530658592,
-            0.17865253595760788,
-            0.1286903860711582,
+            0.10366972477064221,
+            0.0834862385321101,
+            0.1963302752293578,
+            0.2536697247706422,
             0.0,
-            0.07494322482967448,
-            0.05980317940953823,
-            0.17259651778955337,
-            0.17032551097653292,
-            0.0,
-            0.0,
-            0.0,
+            0.1018348623853211,
+            0.07706422018348624,
+            0.17706422018348625,
+            0.18807339449541285,
+            0.004128440366972477,
+            0.0013761467889908258,
+            0.00045871559633027525,
             0.0,
             0.0
           ],
@@ -1997,44 +3513,900 @@
             0.03
           ],
           "tail_mode": "wag",
-          "target_clipped_control_updates": 2,
+          "target_clipped_control_updates": 0,
           "joint_limit_violations_rad": {},
           "terminated_early": true,
           "display_support_active": false,
           "external_force_max": 0.0,
           "peak_joint_speed_rad_s": [
-            0.5778380814900438,
-            3.7001099504352197,
-            5.7817474520088465,
-            9.320037658544607,
-            8.730173645557597,
-            0.48579724687949705,
-            3.545414837288824,
-            5.693067818914121,
-            9.649934011362127,
-            8.233259669995805,
-            0.43983744524731466,
-            0.442421778254309,
-            0.11125888407699527,
-            0.12791611246107118,
-            1.9923527060096495
-          ],
-          "support_segment_summary": {
-            "qualifying_segments": 2,
-            "shortest_s": 0.04800000000000003,
-            "longest_s": 0.06000000000000004,
-            "full_segments": "Regenerate with the walking_pilot CLI commands below."
-          },
-          "controller_execution_sha256": "c0d3010d2d45740f3c4d16b563c22f35d9df11a9b2495091101b8117f3130256"
+            0.6573764103366599,
+            4.603317518696333,
+            6.572993251769313,
+            11.045712560885969,
+            8.297371708027798,
+            0.635611855944743,
+            5.109261344562266,
+            6.103674532331784,
+            9.655420187340933,
+            8.20808983580847,
+            1.1124367834436646,
+            0.6486371583278893,
+            0.29141457065929244,
+            0.20715619320969927,
+            2.030860885851745
+          ]
         }
-      ]
+      ],
+      "name": "optional_tail_wagging"
     }
   ],
-  "reproduction_working_directory": "Repository root",
+  "baseline_tail_wag_replay": {
+    "schema_version": 1,
+    "mujoco_version": "3.10.0",
+    "numpy_version": "2.5.4",
+    "python_version": "3.12.14",
+    "machine": "x86_64",
+    "controller_sha256": "48159f4ab7b08c21068c263ee93f2e5ad0dc96626399aa363a3de1e83dd11074",
+    "source_model_file": "model.xml",
+    "source_sha256": {
+      "model.xml": "6284f03fa2ed1d335a5ac2d509d3ea60678d6ed4352f34f29b074ef2370169d5"
+    },
+    "generator_source_sha256": {
+      "tail_option.py": "8b1b05703c5655edd14a75fd26b2c0b888adfe759c330aeaee4fc94455c1b873"
+    },
+    "source_path_base": "Input model directory; hashes include its XML assets.",
+    "scope": "Manual ideal-actuator stepping diagnostic, not walking certification or physical motor/thermal validation. Flat floor and nominal mass. Starts home; no external support/forces or root resets during a run. Torque-speed curves, transmission compliance, power supply limits and disturbances are not modeled.",
+    "feedback_scope": "Exact MuJoCo torso orientation and noiseless body gyro are privileged feedback. Hardware would need a matching IMU orientation estimate and independently validated noise, latency and control behavior. This is not a deployable hardware controller. Contact and clearance measurements only score results.",
+    "controller_parameters": {
+      "period_s": 0.3611035514154559,
+      "hip_roll_rad": 0.14115136271266485,
+      "hip_stride_rad": 0.03911254725273986,
+      "knee_flex_rad": 0.4058584529699947,
+      "roll_phase_rad": 2.656837692232398,
+      "knee_bias_rad": 0.0
+    },
+    "feedback_gains": {
+      "roll": 0.5,
+      "pitch": 0.25,
+      "gyro": 0.03
+    },
+    "selection_search_seed": 635,
+    "replay_randomness": "None: fixed parameters and home state, no random sampling.",
+    "control_rate_Hz": 50,
+    "physics_timestep_s": 0.002,
+    "mass_kg": 0.8250000000000001,
+    "actuator_names": [
+      "left_hip_yaw_servo",
+      "left_hip_roll_servo",
+      "left_hip_pitch_servo",
+      "left_knee_servo",
+      "left_ankle_servo",
+      "right_hip_yaw_servo",
+      "right_hip_roll_servo",
+      "right_hip_pitch_servo",
+      "right_knee_servo",
+      "right_ankle_servo",
+      "head_pitch_servo",
+      "head_yaw_servo",
+      "jaw_servo",
+      "left_shoulder_pitch_servo",
+      "tail_yaw_servo"
+    ],
+    "target_ranges_rad": {
+      "left_hip_yaw_servo": [
+        -0.2,
+        0.2
+      ],
+      "left_hip_roll_servo": [
+        -0.2,
+        0.2
+      ],
+      "left_hip_pitch_servo": [
+        -0.45,
+        0.45
+      ],
+      "left_knee_servo": [
+        -0.35,
+        0.7
+      ],
+      "left_ankle_servo": [
+        -0.45,
+        0.45
+      ],
+      "right_hip_yaw_servo": [
+        -0.2,
+        0.2
+      ],
+      "right_hip_roll_servo": [
+        -0.2,
+        0.2
+      ],
+      "right_hip_pitch_servo": [
+        -0.45,
+        0.45
+      ],
+      "right_knee_servo": [
+        -0.35,
+        0.7
+      ],
+      "right_ankle_servo": [
+        -0.45,
+        0.45
+      ],
+      "head_pitch_servo": [
+        -0.25,
+        0.1
+      ],
+      "head_yaw_servo": [
+        -0.65,
+        0.65
+      ],
+      "jaw_servo": [
+        0.0,
+        0.32
+      ],
+      "left_shoulder_pitch_servo": [
+        -0.65,
+        0.2
+      ],
+      "tail_yaw_servo": [
+        -0.436332312999,
+        0.436332312999
+      ]
+    },
+    "joint_ranges_rad": {
+      "tail_yaw": [
+        -0.436332312999,
+        0.436332312999
+      ],
+      "left_shoulder_pitch": [
+        -0.65,
+        0.2
+      ],
+      "right_shoulder_pitch": [
+        -0.65,
+        0.2
+      ],
+      "left_hip_yaw": [
+        -0.2,
+        0.2
+      ],
+      "left_hip_roll": [
+        -0.2,
+        0.2
+      ],
+      "left_hip_pitch": [
+        -0.45,
+        0.45
+      ],
+      "left_knee": [
+        -0.35,
+        0.7
+      ],
+      "left_ankle": [
+        -0.45,
+        0.45
+      ],
+      "right_hip_yaw": [
+        -0.2,
+        0.2
+      ],
+      "right_hip_roll": [
+        -0.2,
+        0.2
+      ],
+      "right_hip_pitch": [
+        -0.45,
+        0.45
+      ],
+      "right_knee": [
+        -0.35,
+        0.7
+      ],
+      "right_ankle": [
+        -0.45,
+        0.45
+      ],
+      "head_yaw": [
+        -0.65,
+        0.65
+      ],
+      "head_pitch": [
+        -0.25,
+        0.1
+      ],
+      "jaw": [
+        0.0,
+        0.32
+      ]
+    },
+    "nominal_torque_ranges_Nm": {
+      "left_hip_yaw_servo": [
+        -0.3,
+        0.3
+      ],
+      "left_hip_roll_servo": [
+        -0.3,
+        0.3
+      ],
+      "left_hip_pitch_servo": [
+        -0.3,
+        0.3
+      ],
+      "left_knee_servo": [
+        -0.3,
+        0.3
+      ],
+      "left_ankle_servo": [
+        -0.3,
+        0.3
+      ],
+      "right_hip_yaw_servo": [
+        -0.3,
+        0.3
+      ],
+      "right_hip_roll_servo": [
+        -0.3,
+        0.3
+      ],
+      "right_hip_pitch_servo": [
+        -0.3,
+        0.3
+      ],
+      "right_knee_servo": [
+        -0.3,
+        0.3
+      ],
+      "right_ankle_servo": [
+        -0.3,
+        0.3
+      ],
+      "head_pitch_servo": [
+        -0.1,
+        0.1
+      ],
+      "head_yaw_servo": [
+        -0.08,
+        0.08
+      ],
+      "jaw_servo": [
+        -0.025,
+        0.025
+      ],
+      "left_shoulder_pitch_servo": [
+        -0.025,
+        0.025
+      ],
+      "tail_yaw_servo": [
+        -0.02,
+        0.02
+      ]
+    },
+    "support_event_definition": "After 2s: stance normal force>half bodyweight, swing normal force<.05N, minimum swing sole height>2mm, torso tilt<.52rad, no nonfoot floor contact, sustained>=40ms. Counts side changes between qualifying segments. Positive forward displacement does not by itself constitute stepping.",
+    "stop_conditions": "Nonfoot floor force>.1N, torso tilt>1.05rad, root height<.065m, numerical warning/nonfinite state, or requested duration. Internal contacts are reported but do not stop the run.",
+    "measurement_scope": "Torques, speeds and clearance peaks cover the full run, including a fall. Contact and geometry data are from the last physics solve; integrated joint positions can be one timestep later. Actuator force and speed arrays follow actuator_names. Saturation means >=95% of the run's torque cap. Self-contact geometry is simplified and cannot validate detailed CAD interference.",
+    "results": [
+      {
+        "params": [
+          0.3611035514154559,
+          0.14115136271266485,
+          0.03911254725273986,
+          0.4058584529699947,
+          2.656837692232398,
+          0.0
+        ],
+        "requested_duration_s": 30.0,
+        "duration": 21.68799999999886,
+        "dx": 0.04883516290954804,
+        "dy": -0.150740846739726,
+        "max_tilt_deg": 39.99329985516647,
+        "minimum_height": 0.10389522847307073,
+        "nonfoot_floor": true,
+        "max_clearance_m": [
+          0.016739318984462976,
+          0.015302688410839831
+        ],
+        "minimum_normal_weight_ratio": [
+          0.0,
+          0.0
+        ],
+        "unloaded_clear_time_s": [
+          4.849999999999688,
+          4.835999999999689
+        ],
+        "support_segments": [
+          {
+            "stance": 0,
+            "duration": 0.07200000000000005,
+            "end": 2.3059999999999676
+          },
+          {
+            "stance": 1,
+            "duration": 0.08000000000000006,
+            "end": 2.4959999999999467
+          },
+          {
+            "stance": 1,
+            "duration": 0.056000000000000036,
+            "end": 2.847999999999908
+          },
+          {
+            "stance": 0,
+            "duration": 0.05000000000000003,
+            "end": 2.9879999999998925
+          },
+          {
+            "stance": 0,
+            "duration": 0.04200000000000002,
+            "end": 3.0359999999998872
+          },
+          {
+            "stance": 0,
+            "duration": 0.04200000000000002,
+            "end": 3.353999999999852
+          },
+          {
+            "stance": 0,
+            "duration": 0.05200000000000003,
+            "end": 3.4519999999998414
+          },
+          {
+            "stance": 1,
+            "duration": 0.04600000000000003,
+            "end": 3.9239999999997894
+          },
+          {
+            "stance": 0,
+            "duration": 0.08000000000000006,
+            "end": 4.159999999999764
+          },
+          {
+            "stance": 1,
+            "duration": 0.04000000000000002,
+            "end": 4.269999999999752
+          },
+          {
+            "stance": 0,
+            "duration": 0.04600000000000003,
+            "end": 4.46599999999973
+          },
+          {
+            "stance": 1,
+            "duration": 0.06600000000000004,
+            "end": 4.623999999999713
+          },
+          {
+            "stance": 1,
+            "duration": 0.054000000000000034,
+            "end": 4.983999999999673
+          },
+          {
+            "stance": 1,
+            "duration": 0.06400000000000004,
+            "end": 5.055999999999665
+          },
+          {
+            "stance": 0,
+            "duration": 0.05000000000000003,
+            "end": 5.209999999999648
+          },
+          {
+            "stance": 0,
+            "duration": 0.07400000000000005,
+            "end": 5.55399999999961
+          },
+          {
+            "stance": 1,
+            "duration": 0.06400000000000004,
+            "end": 5.723999999999592
+          },
+          {
+            "stance": 1,
+            "duration": 0.12800000000000009,
+            "end": 6.141999999999546
+          },
+          {
+            "stance": 0,
+            "duration": 0.06000000000000004,
+            "end": 6.27999999999953
+          },
+          {
+            "stance": 1,
+            "duration": 0.07800000000000006,
+            "end": 6.497999999999506
+          },
+          {
+            "stance": 1,
+            "duration": 0.07400000000000005,
+            "end": 6.8419999999994685
+          },
+          {
+            "stance": 0,
+            "duration": 0.07800000000000006,
+            "end": 6.989999999999452
+          },
+          {
+            "stance": 0,
+            "duration": 0.04000000000000002,
+            "end": 7.037999999999447
+          },
+          {
+            "stance": 1,
+            "duration": 0.08800000000000006,
+            "end": 7.19199999999943
+          },
+          {
+            "stance": 1,
+            "duration": 0.04600000000000003,
+            "end": 7.239999999999425
+          },
+          {
+            "stance": 0,
+            "duration": 0.10200000000000008,
+            "end": 7.401999999999407
+          },
+          {
+            "stance": 1,
+            "duration": 0.05800000000000004,
+            "end": 7.55199999999939
+          },
+          {
+            "stance": 0,
+            "duration": 0.06200000000000004,
+            "end": 7.709999999999373
+          },
+          {
+            "stance": 1,
+            "duration": 0.06000000000000004,
+            "end": 7.871999999999355
+          },
+          {
+            "stance": 1,
+            "duration": 0.044000000000000025,
+            "end": 7.9499999999993465
+          },
+          {
+            "stance": 0,
+            "duration": 0.04600000000000003,
+            "end": 8.045999999999356
+          },
+          {
+            "stance": 0,
+            "duration": 0.07000000000000005,
+            "end": 8.127999999999384
+          },
+          {
+            "stance": 0,
+            "duration": 0.06200000000000004,
+            "end": 8.469999999999498
+          },
+          {
+            "stance": 1,
+            "duration": 0.04600000000000003,
+            "end": 8.665999999999563
+          },
+          {
+            "stance": 0,
+            "duration": 0.06400000000000004,
+            "end": 8.799999999999608
+          },
+          {
+            "stance": 1,
+            "duration": 0.1480000000000001,
+            "end": 9.031999999999686
+          },
+          {
+            "stance": 0,
+            "duration": 0.12600000000000008,
+            "end": 9.219999999999748
+          },
+          {
+            "stance": 1,
+            "duration": 0.044000000000000025,
+            "end": 9.353999999999793
+          },
+          {
+            "stance": 0,
+            "duration": 0.05800000000000004,
+            "end": 9.505999999999844
+          },
+          {
+            "stance": 1,
+            "duration": 0.07400000000000005,
+            "end": 9.73399999999992
+          },
+          {
+            "stance": 1,
+            "duration": 0.1440000000000001,
+            "end": 10.48000000000017
+          },
+          {
+            "stance": 0,
+            "duration": 0.06400000000000004,
+            "end": 10.640000000000223
+          },
+          {
+            "stance": 1,
+            "duration": 0.06800000000000005,
+            "end": 10.820000000000283
+          },
+          {
+            "stance": 0,
+            "duration": 0.09400000000000007,
+            "end": 10.99400000000034
+          },
+          {
+            "stance": 1,
+            "duration": 0.04600000000000003,
+            "end": 11.130000000000386
+          },
+          {
+            "stance": 0,
+            "duration": 0.06000000000000004,
+            "end": 11.29200000000044
+          },
+          {
+            "stance": 0,
+            "duration": 0.06600000000000004,
+            "end": 11.366000000000465
+          },
+          {
+            "stance": 1,
+            "duration": 0.06600000000000004,
+            "end": 11.566000000000532
+          },
+          {
+            "stance": 0,
+            "duration": 0.10200000000000008,
+            "end": 11.732000000000587
+          },
+          {
+            "stance": 0,
+            "duration": 0.06000000000000004,
+            "end": 12.018000000000683
+          },
+          {
+            "stance": 1,
+            "duration": 0.044000000000000025,
+            "end": 12.210000000000747
+          },
+          {
+            "stance": 0,
+            "duration": 0.06600000000000004,
+            "end": 12.372000000000801
+          },
+          {
+            "stance": 0,
+            "duration": 0.06800000000000005,
+            "end": 12.468000000000833
+          },
+          {
+            "stance": 1,
+            "duration": 0.04200000000000002,
+            "end": 12.584000000000872
+          },
+          {
+            "stance": 0,
+            "duration": 0.05200000000000003,
+            "end": 12.808000000000947
+          },
+          {
+            "stance": 1,
+            "duration": 0.056000000000000036,
+            "end": 12.926000000000986
+          },
+          {
+            "stance": 1,
+            "duration": 0.04000000000000002,
+            "end": 13.294000000001109
+          },
+          {
+            "stance": 1,
+            "duration": 0.06000000000000004,
+            "end": 13.692000000001242
+          },
+          {
+            "stance": 0,
+            "duration": 0.05800000000000004,
+            "end": 13.848000000001294
+          },
+          {
+            "stance": 0,
+            "duration": 0.056000000000000036,
+            "end": 13.906000000001313
+          },
+          {
+            "stance": 1,
+            "duration": 0.07800000000000006,
+            "end": 14.032000000001355
+          },
+          {
+            "stance": 1,
+            "duration": 0.04200000000000002,
+            "end": 14.082000000001372
+          },
+          {
+            "stance": 0,
+            "duration": 0.09800000000000007,
+            "end": 14.246000000001427
+          },
+          {
+            "stance": 1,
+            "duration": 0.054000000000000034,
+            "end": 14.398000000001478
+          },
+          {
+            "stance": 1,
+            "duration": 0.054000000000000034,
+            "end": 14.772000000001603
+          },
+          {
+            "stance": 0,
+            "duration": 0.07600000000000005,
+            "end": 14.97600000000167
+          },
+          {
+            "stance": 1,
+            "duration": 0.10400000000000008,
+            "end": 15.148000000001728
+          },
+          {
+            "stance": 0,
+            "duration": 0.09000000000000007,
+            "end": 15.330000000001789
+          },
+          {
+            "stance": 1,
+            "duration": 0.06600000000000004,
+            "end": 15.506000000001848
+          },
+          {
+            "stance": 0,
+            "duration": 0.1240000000000001,
+            "end": 15.688000000001908
+          },
+          {
+            "stance": 1,
+            "duration": 0.1440000000000001,
+            "end": 15.90000000000198
+          },
+          {
+            "stance": 0,
+            "duration": 0.09800000000000007,
+            "end": 16.070000000001972
+          },
+          {
+            "stance": 1,
+            "duration": 0.05000000000000003,
+            "end": 16.2020000000019
+          },
+          {
+            "stance": 0,
+            "duration": 0.08000000000000006,
+            "end": 16.3780000000018
+          },
+          {
+            "stance": 1,
+            "duration": 0.08200000000000006,
+            "end": 16.5620000000017
+          },
+          {
+            "stance": 0,
+            "duration": 0.04600000000000003,
+            "end": 16.746000000001597
+          },
+          {
+            "stance": 0,
+            "duration": 0.04000000000000002,
+            "end": 16.800000000001567
+          },
+          {
+            "stance": 0,
+            "duration": 0.06200000000000004,
+            "end": 17.1020000000014
+          },
+          {
+            "stance": 1,
+            "duration": 0.10000000000000007,
+            "end": 17.296000000001293
+          },
+          {
+            "stance": 0,
+            "duration": 0.08400000000000006,
+            "end": 17.488000000001186
+          },
+          {
+            "stance": 1,
+            "duration": 0.05800000000000004,
+            "end": 17.656000000001093
+          },
+          {
+            "stance": 0,
+            "duration": 0.056000000000000036,
+            "end": 17.816000000001004
+          },
+          {
+            "stance": 0,
+            "duration": 0.04200000000000002,
+            "end": 17.86200000000098
+          },
+          {
+            "stance": 1,
+            "duration": 0.07200000000000005,
+            "end": 18.012000000000896
+          },
+          {
+            "stance": 1,
+            "duration": 0.05000000000000003,
+            "end": 18.070000000000864
+          },
+          {
+            "stance": 0,
+            "duration": 0.08200000000000006,
+            "end": 18.5440000000006
+          },
+          {
+            "stance": 1,
+            "duration": 0.04600000000000003,
+            "end": 18.74600000000049
+          },
+          {
+            "stance": 0,
+            "duration": 0.09600000000000007,
+            "end": 18.928000000000388
+          },
+          {
+            "stance": 1,
+            "duration": 0.11000000000000008,
+            "end": 19.12000000000028
+          },
+          {
+            "stance": 0,
+            "duration": 0.07800000000000006,
+            "end": 19.296000000000184
+          },
+          {
+            "stance": 0,
+            "duration": 0.07200000000000005,
+            "end": 19.618000000000006
+          },
+          {
+            "stance": 1,
+            "duration": 0.06200000000000004,
+            "end": 19.78999999999991
+          },
+          {
+            "stance": 0,
+            "duration": 0.10400000000000008,
+            "end": 20.019999999999783
+          },
+          {
+            "stance": 1,
+            "duration": 0.1380000000000001,
+            "end": 20.23999999999966
+          },
+          {
+            "stance": 1,
+            "duration": 0.06000000000000004,
+            "end": 20.5299999999995
+          },
+          {
+            "stance": 0,
+            "duration": 0.07600000000000005,
+            "end": 20.701999999999405
+          },
+          {
+            "stance": 1,
+            "duration": 0.08200000000000006,
+            "end": 20.897999999999296
+          },
+          {
+            "stance": 0,
+            "duration": 0.07200000000000005,
+            "end": 21.075999999999198
+          }
+        ],
+        "alternations": 68,
+        "peak_torque_Nm": [
+          0.18072829451689498,
+          0.2,
+          0.2,
+          0.2,
+          0.2,
+          0.17017555969089504,
+          0.2,
+          0.2,
+          0.2,
+          0.2,
+          0.1,
+          0.07536714761450126,
+          0.01624789552061288,
+          0.008106432319762701,
+          0.018485307172948637
+        ],
+        "rms_torque_Nm": [
+          0.038495555215460824,
+          0.13335987369911317,
+          0.09821241928889106,
+          0.14827361466085434,
+          0.1413002430670692,
+          0.03803453722663724,
+          0.133513599836925,
+          0.0977899044460522,
+          0.1493995354635185,
+          0.1383511845217712,
+          0.0170546600373991,
+          0.012483260513793382,
+          0.0031944207229843216,
+          0.0017550094432662042,
+          0.004522724820818256
+        ],
+        "saturation_fraction": [
+          0.0,
+          0.3765215787532276,
+          0.12698266322390261,
+          0.4720582810770933,
+          0.38223902618959793,
+          0.0,
+          0.37965695315381776,
+          0.1267060125414976,
+          0.48063445223164886,
+          0.35909258576171155,
+          0.00036886757654002215,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "warning_count": 0,
+        "cap": 0.2,
+        "stop_reason": "nonfoot_floor_contact",
+        "self_contacts": {
+          "right_hip_pitch_link_collision / right_hip_roll_servo_case_collision": {
+            "peak_penetration_m": 5.3786399496420865e-05,
+            "peak_normal_force_N": 3.8073218704341985
+          }
+        },
+        "feedback": [
+          0.5,
+          0.25,
+          0.03
+        ],
+        "tail_mode": "wag",
+        "target_clipped_control_updates": 0,
+        "joint_limit_violations_rad": {
+          "right_hip_roll": 0.007171668306756557
+        },
+        "terminated_early": true,
+        "display_support_active": false,
+        "external_force_max": 0.0,
+        "peak_joint_speed_rad_s": [
+          0.6772860853514101,
+          3.8200689419331693,
+          5.484766454578674,
+          7.994212679457734,
+          6.835022275536995,
+          0.5736235045214677,
+          4.529624456713967,
+          5.6351256220278785,
+          8.273990900159948,
+          7.128661698251172,
+          0.7010118327361914,
+          0.48583811993175696,
+          0.1737763640570057,
+          0.24397956323894834,
+          2.3507330797009485
+        ]
+      }
+    ]
+  },
+  "historical_report": "baseline_rev10/walking_validation.json",
+  "reproduction_working_directory": "repository root",
   "reproduction_commands": [
-    "python -m examples.mini_tyrannosaurus_rex.walking_pilot --duration 20 --caps 0.20 --output artifacts/walking/mini-trex-base20.json",
-    "python -m examples.mini_tyrannosaurus_rex.walking_pilot --duration 30 --caps 0.10 0.15 0.20 0.30 --output artifacts/walking/mini-trex-base30.json",
-    "python -m examples.mini_tyrannosaurus_rex.walking_pilot --tail --tail-mode center --duration 30 --caps 0.10 0.15 0.20 0.30 --output artifacts/walking/mini-trex-tail-center30.json",
-    "python -m examples.mini_tyrannosaurus_rex.walking_pilot --tail --tail-mode wag --duration 30 --caps 0.10 0.15 0.20 0.30 --output artifacts/walking/mini-trex-tail-wag30.json"
-  ]
+    "python -m examples.mini_tyrannosaurus_rex.walking_pilot --duration 30 --caps 0.10 0.15 0.20 0.30 --output artifacts/walking/mini-c-base.json",
+    "python -m examples.mini_tyrannosaurus_rex.walking_pilot --tail --tail-mode center --duration 30 --caps 0.10 0.15 0.20 0.30 --output artifacts/walking/mini-c-center.json",
+    "python -m examples.mini_tyrannosaurus_rex.walking_pilot --tail --tail-mode wag --duration 30 --caps 0.10 0.15 0.20 0.30 --output artifacts/walking/mini-c-wag.json",
+    "python -m examples.mini_tyrannosaurus_rex.walking_pilot --model examples/mini_tyrannosaurus_rex/baseline_rev10/model.xml --tail --tail-mode wag --duration 30 --caps 0.20 --output artifacts/walking/mini-rev10-wag.json"
+  ],
+  "assembly_note": "models preserves the three CLI output objects, adding only descriptive names; baseline_tail_wag_replay preserves its CLI output."
 }

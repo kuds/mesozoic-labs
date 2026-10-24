@@ -1,7 +1,7 @@
-# Mini Tyrannosaurus Rex: serviceable character prototype
+# Mini Tyrannosaurus Rex: silhouette-C character prototype
 
 The [standalone example](../../examples/mini_tyrannosaurus_rex/README.md) targets a
-roughly 25 cm robot with forward knees, a light T-Rex head, visible mechanisms and
+roughly 27 cm robot with forward knees, a light T-Rex head, visible mechanisms and
 moving arms. The revised architecture has **14 active XL330-M288-T servos**:
 ten leg motors, head yaw and nod, jaw, and one shared arm drive. The two-axis head
 replaces the previous four-axis neck/head stack. Both arms share one command;
@@ -17,14 +17,20 @@ is outside the registered training inventory. It is not fabrication CAD, a
 demonstrated walker or a hardware-validated power design. A rendering or short
 numerical hold does not establish those capabilities.
 
-Revision 10's home exterior is approximately **258 mm high x 160.6 mm wide x
-269 mm long**. The model moves each hip-roll shaft 15 mm outward while retaining
+The current silhouette-C home exterior is approximately **267.9 mm high x
+160.6 mm wide x 267.0 mm long**. It uses a rounded tapered skull, larger side
+eyes and a cream jaw, with full-size motor cases and revision-10 joint pivots.
+The moving head-yaw subtree retains its 91 g allocation; updated surface/hardware
+moments are recorded in [the head allocation](../../examples/mini_tyrannosaurus_rex/head_allocation.json).
+These targets do not establish manufactured shell mass or cost.
+
+The retained mechanism moves each hip-roll shaft 15 mm outward while retaining
 full motor cases, and reduces the forward-knee offset from 14.5 to 10 mm. Home
 static loads under the documented support assumption fall from approximately
-0.0879 to **0.0369 Nm at hip roll** and 0.0618 to **0.0495 Nm at the knee**.
+0.0879 to **0.0369 Nm at hip roll** and 0.0618 to **0.0491 Nm at the knee**.
 The narrower bend reduces extension/crouch travel, and settling transfers some
 load to the ankles. In a ten-second ideal hold with 0.10 Nm hard leg caps,
-final-second means reach approximately 0.0647 Nm at the knee and 0.0728 Nm at the
+final-second means reach approximately 0.0617 Nm at the knee and 0.0729 Nm at the
 ankle. These are simulation results, not measured motor duty.
 
 The [reproducible report](../../examples/mini_tyrannosaurus_rex/validation.json)
@@ -100,14 +106,14 @@ records:
 
 | Check | Result | Scope |
 | --- | --- | --- |
-| Full-size motor cases | 1,001 sampled poses; no overlap; minimum separating-axis gap 2.5 mm | Box proxies, not full horns/connectors or tolerance analysis |
-| Combined collision proxies | 1,000 sampled poses and 243 upper-body grid poses; no penetration | Retained model collision rules/exclusions |
+| Full-size motor cases | 2,001 sampled poses; no overlap; minimum separating-axis gap 2.5 mm | Box proxies, not full horns/connectors or tolerance analysis |
+| Combined collision proxies | 2,000 sampled poses and 243 upper-body grid poses; no penetration | Retained model collision rules/exclusions |
 | Tail against selected service envelopes | 101 tail angles; minimum separation 4.85 mm, at the computer envelope | Tail mesh/motor against those boxes only; not simultaneous whole-robot packing |
-| Unsupported standing wag | 10 s at +/-15 degrees and 0.5 Hz; peak tail torque 0.00389 Nm, RMS 0.000821 Nm; maximum torso tilt 2.30 degrees | Ideal position servos, no electrical/thermal validation |
-| Home equilibrium | Hip roll about 0.03879 Nm, knee about 0.05476 Nm | One stated static contact-load distribution |
+| Unsupported standing wag | 10 s at +/-15 degrees and 0.5 Hz; peak tail torque 0.00373 Nm, RMS 0.000852 Nm; maximum torso tilt 2.16 degrees | Ideal position servos, no electrical/thermal validation |
+| Home equilibrium | Hip roll about 0.03879 Nm, knee about 0.05438 Nm | One stated static contact-load distribution |
 
 For comparison, the base's corresponding home estimates are about
-0.03695/0.04946 Nm at hip roll/knee. The tail option therefore **exceeds the
+0.03695/0.04908 Nm at hip roll/knee. The tail option therefore **exceeds the
 preliminary 0.05 Nm knee static-load goal**, even though the short stance checks
 pass. The added character feature consumes some leg reserve. Motor capacity,
 regulator margin and cable/shaft/bearing clearances remain to be qualified.
@@ -255,18 +261,24 @@ contact. The controller is sensitive to both effort caps and mass distribution.
 
 | Configuration and leg cap | Observed result | Interpretation |
 | --- | --- | --- |
-| Base, 0.20 Nm, 20 s requested | Completes 20 s; 0.255 m forward; 91 qualifying support alternations | Short dynamic-stepping evidence under the stated ideal assumptions |
-| Base, 0.20 Nm, 30 s requested | Falls at 21.304 s | The earlier 20 s result does not establish sustained walking |
-| Tail centered, 0.20 Nm, 30 s requested | Falls at 8.514 s | Added mass/distribution require controller changes |
-| Tail wagging, 0.20 Nm, 30 s requested | Falls at 29.616 s; small hip-roll limit overshoot and simplified-link self-contact | A longer single run is not reliable gait or active-tail balance evidence |
-| Base/tail cases at 0.10 or 0.15 Nm | Fall before any qualifying support alternation | The tested controller does not work at those lower caps |
+| Silhouette-C base, 0.20 Nm, 30 s requested | Falls at 26.922 s; 225 mm forward; 119 support alternations | Does not establish sustained walking |
+| Silhouette-C tail centered, 0.20 Nm | Falls at 23.202 s | Added mass/distribution still require controller work |
+| Silhouette-C tail wagging, 0.20 Nm | Falls at 3.680 s | Keep character wagging stationary until gait qualification |
+| Previous mini, tail wagging, same runtime / 0.20 Nm | Falls at 21.688 s | Updated head inertia regresses this fragile controller; neither is accepted |
+| Base/tail cases at 0.10 or 0.15 Nm | Fall before any qualifying support alternation | Controller does not work at those lower caps |
 
-The tail-wagging 0.20 Nm run has knee RMS torque up to approximately **0.152 Nm**
-and about **51% of samples at or above 95% of the cap**, over the full run
-including its fall. These demands exceed the manufacturer's roughly 0.10 Nm
-continuous estimate; neither that estimate nor the simulator establishes a
-physical thermal duty limit. This is a reason to improve controller/mechanics
-and measure the actuators, not to assume a 0.20 Nm command cap is sustainable.
+The [previous report](../../examples/mini_tyrannosaurus_rex/baseline_rev10/walking_validation.json)
+retains the original 20-second stepping result and the later failures, including
+its historical 29.616-second tail-wag run. Replays differ with runtime and mass
+moments. No claim of improved walking follows from a longer individual run.
+The refreshed report contains all twelve failed current 30-second cases and
+the previous-model replay, without changing the controller or force caps.
+
+The 0.20 Nm cap is not a continuous hardware rating. Measure motor torque-speed,
+power and thermal performance under load before selecting operating limits.
+The updated ten-second standing character tests pass for both models, with
+head-nod peak below 0.036 Nm and jaw peak below 0.012 Nm under their unchanged
+0.10 / 0.025 Nm caps. Those results do not qualify walking with gestures.
 
 CI now includes a separate, fast **unsupported stance regression** with 0.10 Nm
 leg caps and small prescribed angular-velocity kicks. It checks finite state,
