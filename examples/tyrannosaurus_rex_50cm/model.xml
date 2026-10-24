@@ -57,11 +57,11 @@
     <light pos="1 -1 2" dir="-1 1 -2" diffuse="0.8 0.8 0.75" />
     <light pos="-1 1 1.2" dir="1 -1 -1.2" diffuse="0.4 0.4 0.4" castshadow="false" />
     <geom name="floor" type="plane" size="3 3 0.02" rgba="0.88 0.89 0.84 1" group="0" contype="1" conaffinity="1" friction="0.9 0.005 0.0001" condim="4" />
-    <camera name="isometric" pos="1 -1.25 0.8" xyaxes="0.7702377499 0.6377568569 -0 -0.2047025064 0.2472252492 0.9470884647" fovy="34" />
+    <camera name="isometric" pos="1 -1.25 0.8" xyaxes="0.7702377499 0.6377568569 0 -0.2047025064 0.2472252492 0.9470884647" fovy="34" />
     <camera name="front" pos="1.5 0 0.43" xyaxes="0 1 0 -0.1164658279 0 0.9931946994" fovy="34" />
-    <camera name="side" pos="0 -1.6 0.38" xyaxes="0.999760828 0.02186976811 -0 -0.001770661504 0.0809445259 0.9967170353" fovy="34" />
+    <camera name="side" pos="0 -1.6 0.38" xyaxes="0.999760828 0.02186976811 0 -0.001770661504 0.0809445259 0.9967170353" fovy="34" />
     <body name="torso" pos="0 0 0.253">
-      <inertial pos="-0.01509625323 -3.501945002e-20 0.05415116279" mass="3.096" fullinertia="0.007462788797 0.007059605156 0.007194937692 4.44177836e-23 -0.0003482490465 -2.511904429e-22" />
+      <inertial pos="-0.01509625323 0 0.05415116279" mass="3.096" fullinertia="0.007462788797 0.007059605156 0.007194937692 0 -0.0003482490465 0" />
       <freejoint name="root" />
       <geom name="left_hip_yaw_case" type="cylinder" size="0.03 0.0275" pos="0 0.045 0.075" material="graphite" euler="0 0 0" group="2" />
       <geom name="left_hip_yaw_case_collision" class="collision" type="cylinder" size="0.03 0.0275" pos="0 0.045 0.075" euler="0 0 0" />
@@ -99,7 +99,7 @@
           <geom name="left_hip_pitch_bolt_0" type="cylinder" size="0.0015 0.0007" pos="0.05 0.05 0" material="graphite" euler="1.570796327 0 0" group="2" />
           <geom name="left_hip_pitch_bolt_1" type="cylinder" size="0.0015 0.0007" pos="0.04 0.05 0.01732050808" material="graphite" euler="1.570796327 0 0" group="2" />
           <geom name="left_hip_pitch_bolt_2" type="cylinder" size="0.0015 0.0007" pos="0.02 0.05 0.01732050808" material="graphite" euler="1.570796327 0 0" group="2" />
-          <geom name="left_hip_pitch_bolt_3" type="cylinder" size="0.0015 0.0007" pos="0.01 0.05 2.449293598e-18" material="graphite" euler="1.570796327 0 0" group="2" />
+          <geom name="left_hip_pitch_bolt_3" type="cylinder" size="0.0015 0.0007" pos="0.01 0.05 0" material="graphite" euler="1.570796327 0 0" group="2" />
           <geom name="left_hip_pitch_bolt_4" type="cylinder" size="0.0015 0.0007" pos="0.02 0.05 -0.01732050808" material="graphite" euler="1.570796327 0 0" group="2" />
           <geom name="left_hip_pitch_bolt_5" type="cylinder" size="0.0015 0.0007" pos="0.04 0.05 -0.01732050808" material="graphite" euler="1.570796327 0 0" group="2" />
           <body name="left_thigh" pos="0.03 0.032 0">
@@ -131,7 +131,7 @@
               <geom name="left_ankle_pitch_bolt_4" type="cylinder" size="0.0015 0.0007" pos="-0.037 0.058 -0.1133205081" material="graphite" euler="1.570796327 0 0" group="2" />
               <geom name="left_ankle_pitch_bolt_5" type="cylinder" size="0.0015 0.0007" pos="-0.017 0.058 -0.1133205081" material="graphite" euler="1.570796327 0 0" group="2" />
               <body name="left_ankle_pitch_body" pos="-0.027 0 -0.096">
-                <inertial pos="-0.05704225352 0 -0.01487323944" mass="0.35500000000000004" fullinertia="0.0002029326291 0.0002376394953 0.0002393735329 0 -1.216901408e-06 0" />
+                <inertial pos="-0.05704225352 0 -0.01487323944" mass="0.355" fullinertia="0.0002029326291 0.0002376394953 0.0002393735329 0 -1.216901408e-06 0" />
                 <joint name="left_ankle_pitch" axis="0 1 0" range="-0.6 0.6" damping="0.08" frictionloss="0.01" armature="0.0003" />
                 <geom name="left_ankle_roll_case" type="cylinder" size="0.03 0.0275" pos="-0.06 0 -0.015" material="graphite" euler="0 1.570796327 0" group="2" />
                 <geom name="left_ankle_roll_case_collision" class="collision" type="cylinder" size="0.03 0.0275" pos="-0.06 0 -0.015" euler="0 1.570796327 0" />
@@ -210,7 +210,7 @@
           <geom name="right_hip_pitch_bolt_0" type="cylinder" size="0.0015 0.0007" pos="0.05 -0.05 0" material="graphite" euler="1.570796327 0 0" group="2" />
           <geom name="right_hip_pitch_bolt_1" type="cylinder" size="0.0015 0.0007" pos="0.04 -0.05 0.01732050808" material="graphite" euler="1.570796327 0 0" group="2" />
           <geom name="right_hip_pitch_bolt_2" type="cylinder" size="0.0015 0.0007" pos="0.02 -0.05 0.01732050808" material="graphite" euler="1.570796327 0 0" group="2" />
-          <geom name="right_hip_pitch_bolt_3" type="cylinder" size="0.0015 0.0007" pos="0.01 -0.05 2.449293598e-18" material="graphite" euler="1.570796327 0 0" group="2" />
+          <geom name="right_hip_pitch_bolt_3" type="cylinder" size="0.0015 0.0007" pos="0.01 -0.05 0" material="graphite" euler="1.570796327 0 0" group="2" />
           <geom name="right_hip_pitch_bolt_4" type="cylinder" size="0.0015 0.0007" pos="0.02 -0.05 -0.01732050808" material="graphite" euler="1.570796327 0 0" group="2" />
           <geom name="right_hip_pitch_bolt_5" type="cylinder" size="0.0015 0.0007" pos="0.04 -0.05 -0.01732050808" material="graphite" euler="1.570796327 0 0" group="2" />
           <body name="right_thigh" pos="0.03 -0.032 0">
@@ -242,7 +242,7 @@
               <geom name="right_ankle_pitch_bolt_4" type="cylinder" size="0.0015 0.0007" pos="-0.037 -0.058 -0.1133205081" material="graphite" euler="1.570796327 0 0" group="2" />
               <geom name="right_ankle_pitch_bolt_5" type="cylinder" size="0.0015 0.0007" pos="-0.017 -0.058 -0.1133205081" material="graphite" euler="1.570796327 0 0" group="2" />
               <body name="right_ankle_pitch_body" pos="-0.027 0 -0.096">
-                <inertial pos="-0.05704225352 0 -0.01487323944" mass="0.35500000000000004" fullinertia="0.0002029326291 0.0002376394953 0.0002393735329 0 -1.216901408e-06 0" />
+                <inertial pos="-0.05704225352 0 -0.01487323944" mass="0.355" fullinertia="0.0002029326291 0.0002376394953 0.0002393735329 0 -1.216901408e-06 0" />
                 <joint name="right_ankle_pitch" axis="0 1 0" range="-0.6 0.6" damping="0.08" frictionloss="0.01" armature="0.0003" />
                 <geom name="right_ankle_roll_case" type="cylinder" size="0.03 0.0275" pos="-0.06 0 -0.015" material="graphite" euler="0 1.570796327 0" group="2" />
                 <geom name="right_ankle_roll_case_collision" class="collision" type="cylinder" size="0.03 0.0275" pos="-0.06 0 -0.015" euler="0 1.570796327 0" />

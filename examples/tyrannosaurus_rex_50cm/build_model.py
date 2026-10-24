@@ -11,7 +11,6 @@ import argparse
 import json
 import math
 import xml.etree.ElementTree as ET
-from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
@@ -30,9 +29,13 @@ RANGES = {
 
 
 def values(items: Any) -> str:
-    if isinstance(items, (str, int, float)):
+    """Canonical numeric text, including scalars and numerical zero residue."""
+    if isinstance(items, (str, int)):
         return str(items)
-    return " ".join(f"{float(x):.10g}" for x in items)
+    if isinstance(items, (float, np.floating)):
+        number = float(items)
+        return "0" if abs(number) < 1e-14 else f"{number:.10g}"
+    return " ".join(values(float(x)) for x in items)
 
 
 def element(parent: ET.Element, tag: str, **attributes: Any) -> ET.Element:
@@ -568,8 +571,10 @@ class Builder:
     def finish(self, directory: Path) -> None:
         for name, body in self.bodies.items():
             components = [c for c in self.components if c["body"] == name]
-            mass = sum(c["mass_kg"] for c in components)
-            com = sum((c["mass_kg"] * np.array(c["pos_m"]) for c in components), np.zeros(3)) / mass
+            # Python 3.12 changed float sum accumulation; fsum is stable across
+            # the supported versions and cancels symmetric contributions cleanly.
+            mass = math.fsum(c["mass_kg"] for c in components)
+            com = np.array([math.fsum(c["mass_kg"] * c["pos_m"][i] for c in components) / mass for i in range(3)])
             inertia = np.zeros((3, 3))
             for c in components:
                 half = np.array(c["inertia_box_halfsize_m"])
@@ -620,12 +625,13 @@ class Builder:
         )
         ET.indent(self.xml, space="  ")
         (directory / "model.xml").write_text(ET.tostring(self.xml, encoding="unicode") + "\n")
-        totals: defaultdict[str, float] = defaultdict(float)
-        for c in self.components:
-            totals[c["category"]] += c["mass_kg"]
+        totals = {
+            category: math.fsum(c["mass_kg"] for c in self.components if c["category"] == category)
+            for category in dict.fromkeys(c["category"] for c in self.components)
+        }
         report = {
             "status": "unweighed_concept_inertia_and_component_surrogates",
-            "mass_kg": sum(totals.values()),
+            "mass_kg": math.fsum(totals.values()),
             "categories_kg": dict(totals),
             "components": self.components,
             "joints": self.joints,

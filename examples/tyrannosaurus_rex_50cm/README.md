@@ -134,10 +134,10 @@ not substitutes for the earlier walking similarity calculation. Home has eight
 sole/ground contacts and no active internal contacts. The full result records
 actuator effort, sensor loads, joint excursions, model version and source hashes.
 
-The 13 model tests cover mass/inertia reconciliation, dimensions and motor
+The 14 model tests cover mass/inertia reconciliation, dimensions and motor
 envelopes, forward knees, legal joint ranges, camera/foot-sensor attachment,
 gravity/free-base/no-hidden-support conditions, unsupported stance/gestures,
-bounded effort and deterministic regeneration. A deliberately underpowered
+bounded effort, canonical numeric serialization and deterministic regeneration. A deliberately underpowered
 0.1 Nm leg configuration must fail the stance check. CI path filters and both
 typing jobs include this example; the two workflow-contract tests protect the
 mini and medium examples from becoming untested when only assets change.

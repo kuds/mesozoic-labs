@@ -128,6 +128,12 @@ def test_source_generator_reproduces_committed_model_and_assets(tmp_path):
         assert (tmp_path / name).read_bytes() == (demo.MODEL_PATH.parent / name).read_bytes(), name
 
 
+def test_generator_canonicalizes_cross_version_float_sum_residue():
+    # This difference was observed between Python 3.11 and 3.12 in Linux CI.
+    assert build_model.values(3.095999999999999) == build_model.values(3.096) == "3.096"
+    assert build_model.values((0.0, -3.5e-20, 1.2)) == "0 0 1.2"
+
+
 @pytest.mark.parametrize("duration", [0, -1, float("nan"), float("inf")])
 def test_invalid_trial_duration_is_rejected(duration):
     model, _ = demo.load_model()
