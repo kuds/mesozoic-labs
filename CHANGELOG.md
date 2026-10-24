@@ -8,6 +8,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **The stance5 replication of D-D41 judged: one of the two new per-foot
+  centre-of-pressure band runs holds (line 2), and the band is not adopted; the
+  K3 diagnosis, the scratch tail experiment and the K3 readouts recorded, report
+  only** (D-D41's amendment of 2026-10-24; `docs/BEHAVIOR_RECIPES_PLAN.md`
+  §6.2, `docs/CONSOLIDATION_PLAN_2026_09.md` §6, a dated note in §17 of
+  `docs/GAIT_QUALITY_PLAN_2026_09.md`, `docs/NEXT_STEPS.md` §3; the appended §23
+  of `docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md`, and
+  `stance5/replication/`, `stance5/k3diag/` and `stance5/tailexp/` of
+  `docs/investigations/stance_2026_10/`). Records only: no library code,
+  configuration, test, notebook, digest or generated file changes with it. The
+  two 12M runs of arm LTSB, unchanged (`stance5_LTSB_s70`, `stance5_LTSB_s80`),
+  trained from scratch to 12,001,280 steps on Colab L4 GPU runtimes from the
+  screen branch `claude/screen-trex-r9-armlts-copband` (`cf80ecb1`, never
+  merged) and were judged on 2026-10-24 by the criteria fixed before training
+  (sha256 `a38536de…`), final, with the three D-D40 runs counted as recorded.
+  s70 holds: 40, 40, 40, 39, 40 and 40 of 40 clean, a K2c range of 13.7 mm, 0
+  and 1 of 20 joint-space noise falls at 6,291,456 and the final. s80 fails K1
+  only: 40, 4, 14, 26, 39 and 38 of 40 clean, the three checkpoints below 33 of
+  40 on the actuator-saturation rail (36, 25 and 14 episodes; the alarm at
+  4,456,448, `tail_3_pitch_act` pinned at +1, as in D-D40's seed-42 run), and 1
+  and 2 of 20 joint-space noise falls. H = 2 of 5, and the decision table's line
+  is 2, final: not adopted; the maintainer chooses the next round from the
+  stance5 criteria's menu. Report only: the K3 pass fraction (3 of 5 against
+  the control's 2 of 3), not a veto; s52's final still ties D-D37 Run 2's final
+  under the parent rule; the notebook's own six-heading gate on each run's
+  `robust_best` (both PASS) and the stage's six-heading certificate rolled
+  offline on the finals (40 of 40 and 38 of 40 seeds, both PASS; not gate
+  evidence). Also recorded, report only: a diagnosis of the D-D40 band runs'
+  joint-space noise falls (seed 42's are not the tail habit; hip-pitch noise,
+  mostly its left-right differential part, is the main cause; the mechanism of
+  the break between 6,291,456 and 7,340,032 is open); a scratch experiment on
+  the tail habit (a quadratic bound on the policy mean, one 1M-step CPU
+  continuation against a paired control: lower tail saturation, relapsing, its
+  effect against training alone not established; the scratch clone never
+  pushed); and report-only K3 readouts on the new runs, fixed by an addendum
+  before any of their J checkpoints existed (full-noise falls 0, 1, 1 and 2 of
+  20; every band final falls 20 of 20 to a ±0.3 differential hip kick).
+  `stance5/replication/` holds the criteria, the Colab steps, the sigma sidecar,
+  frozen copies of the judge and scorer, `results/` (13 files and its README,
+  about 0.16 MB: the run log, tool ids removed, the verdict of record, the
+  notebook's gates and the certificates, trimmed, and the saturation watch's
+  files) and the K3 readouts' addendum, tool, validation and outputs;
+  `stance5/k3diag/` and `stance5/tailexp/` the two reports. `SOURCES.txt` and
+  `SHA256SUMS` (now 418 files) are extended. `docs/README.md` adds a note to the
+  record's and the gait plan's rows, and `docs/KNOWN_ISSUES.md` gains Update 16
+  of the T-Rex stance entry.
 - **Decision D-D41 recorded: a replication of the per-foot centre-of-pressure
   band screen on two more seeds, read three of five; D-D40 and D-D36 amended**
   (#634; the maintainer's decisions of 2026-10-22;
