@@ -1111,6 +1111,64 @@ resumed from such a file has no value at the rollouts before the resume
 step its rollouts were measured, the caption says the run has gaps, and
 the JSON's `rollouts_measured` and `first_timesteps` record them.
 
+### At stage end: `figures/training_history/`
+
+When a stage ends, `generate_stage_artifacts` draws the same report for
+that stage into `figures/training_history/`
+(`stage_layout.training_history_dir`): the ten pages as PNGs,
+`training_history.html` and `training_history.json`, as
+`plot_training_history.py STAGE_DIR` draws them with its defaults (one run,
+no `--mark-steps`; the alarms, `robust_best`, `best` and the kept
+checkpoints are marked as on any one-run page). The SB3 training notebook
+therefore holds it for every node it trains or judges, and the bundle saved
+after the node declares and hashes it like the other figures.
+
+- **When.** After the verdict is recorded (`gate_verdict.json`) and
+  `stage_summary.txt` is written, after `figures/gate_progress.png`, and
+  before the replays and the stance probes. It follows `generate_graphs`:
+  a caller that asks for no figures gets no report.
+- **A failure costs this report only.** It is drawn in its own guard, as
+  the gate progress figure is: a failure logs one warning ("The training
+  history failed; the other figures are unaffected.") and the stage goes on.
+  It is written into a private temporary directory and moved into the
+  staging tree in one rename once every file is complete, then published
+  with the other figures, so a failure or an interrupt part-way publishes
+  none of it. A page that fails alone is listed in the JSON's `errors`, as
+  the script lists it.
+- **A stage judged again keeps an older copy when the new one is not
+  drawn.** Publishing only creates or replaces files, never deletes them,
+  as for every other figure. So when a stage is judged again in the same
+  directory and its report fails, or the stage has no ledger, the previous
+  judging's `figures/training_history/` stays in place, and the bundle
+  declares it. When a single page fails, the new HTML and JSON leave it
+  out, but the previous judging's PNG of that page stays beside them. The
+  JSON says which copy is which: its `generated_at`, and each run's
+  `last_step`, `final_step` and `progress_written_at`, show when and from
+  which ledger it was drawn.
+- **Report only.** Nothing reads it back: the verdict, the stage summary,
+  the evidence CSVs, the handoff and the results `generate_stage_artifacts`
+  returns are the same with it, without it and when it fails, and the
+  per-actuator std reads draw from no random number stream, so the replays
+  and probes after it see the same state.
+- **Old runs.** A stage directory holding neither `eval_episodes.csv` nor
+  `train_episodes.csv` (a run from before the ledgers) gets none, with one
+  log line: every page would be empty. One ledger is enough; whatever else
+  is missing is an absent series, as in the script.
+- **Size.** On the stance5 band run s42's ledger (91 evaluations to
+  11,927,552 steps, read without its checkpoints) it takes about 5.5 s and
+  writes 1.7 MB, about half of it the HTML page, which embeds the pages
+  again.
+
+The library writes it, not the script. `plot_training_history.py` refuses
+an `--out` inside a run directory to keep manual writes out of runs: a
+file added to a saved run is one its manifest does not list. The stage-end
+report is the library's own artifact step: `generate_stage_artifacts`
+calls `training_history.load_run_history` and `write_report` directly,
+before the notebook saves the bundle, as it draws every other figure. Use
+the script for any other view: a run still training, a comparison, marked
+checkpoints, or a run from before this step. The notebook does not display
+the pages inline; open `training_history.html` from the stage directory.
+
 ## The handoff's in-training score: `handoff_in_training.json`
 
 A stance certificate scores the handoff checkpoint (`robust_best_model`
