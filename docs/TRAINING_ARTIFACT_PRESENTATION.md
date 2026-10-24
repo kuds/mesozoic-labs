@@ -1044,6 +1044,16 @@ after the node declares and hashes it like the other figures.
   with the other figures, so a failure or an interrupt part-way publishes
   none of it. A page that fails alone is listed in the JSON's `errors`, as
   the script lists it.
+- **A stage judged again keeps an older copy when the new one is not
+  drawn.** Publishing only creates or replaces files, never deletes them,
+  as for every other figure. So when a stage is judged again in the same
+  directory and its report fails, or the stage has no ledger, the previous
+  judging's `figures/training_history/` stays in place, and the bundle
+  declares it. When a single page fails, the new HTML and JSON leave it
+  out, but the previous judging's PNG of that page stays beside them. The
+  JSON says which copy is which: its `generated_at`, and each run's
+  `last_step`, `final_step` and `progress_written_at`, show when and from
+  which ledger it was drawn.
 - **Report only.** Nothing reads it back: the verdict, the stage summary,
   the evidence CSVs, the handoff and the results `generate_stage_artifacts`
   returns are the same with it, without it and when it fails, and the

@@ -9,13 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **The training-history report drawn at the end of every stage, report-only**
-  (the maintainer's decision of 2026-10-24;
-  `environments/shared/reporting/stage_artifacts.py`,
+  (the maintainer's decision of 2026-10-24, which widens D-D42's (2) to scope
+  (b); `environments/shared/reporting/stage_artifacts.py`,
   `environments/shared/reporting/stage_layout.py`; documented in
   `docs/TRAINING_ARTIFACT_PRESENTATION.md`, "At stage end:
   `figures/training_history/`", and one sentence in tip 4 of
-  `website/docs/training/hyperparameters.md`). `generate_stage_artifacts` now draws the
-  stage's training history from its ledgers into `figures/training_history/`
+  `website/docs/training/hyperparameters.md`; a dated amendment of D-D42's rows
+  in `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2 and
+  `docs/CONSOLIDATION_PLAN_2026_09.md` §6). D-D42 (its entry below) sent the
+  report to its own pull request at scope (a), the standalone report as built,
+  which landed in #636; a further decision of the maintainer's that day widens
+  it to scope (b), as the stage report's design of 2026-10-18 specifies, and
+  D-D42's rows now say so. `generate_stage_artifacts` now draws the stage's
+  training history from its ledgers into `figures/training_history/`
   (the ten pages, `training_history.html` and `training_history.json`, as
   `plot_training_history.py STAGE_DIR` draws them by default), so every node
   the SB3 training notebook trains or judges has it without a manual step, and
@@ -24,9 +30,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `figures/gate_progress.png` and in its own guard, before the replays and the
   stance probes: a failure logs one warning and costs this report only. It is
   rendered into a private directory and moved into the staging tree whole, so a
-  failure part-way publishes none of it. It follows `generate_graphs`, and a
-  stage directory with neither `eval_episodes.csv` nor `train_episodes.csv` (a
-  run from before the ledgers) gets none. The library writes it, not the
+  failure part-way publishes none of it; a stage judged again whose report is
+  not drawn keeps the previous copy, as the other figures do. It follows
+  `generate_graphs`, and a stage directory with neither `eval_episodes.csv` nor
+  `train_episodes.csv` (a run from before the ledgers) gets none. The library writes it, not the
   script, whose refusal of an `--out` inside a run directory still keeps manual
   writes out of runs. Report only: no training, evaluation, gate, reward,
   observation, action, task, checkpoint selection, plant, configuration, digest
