@@ -1,6 +1,6 @@
-# Experimental Mini T-Rex
+# Mini Tyrannosaurus Rex (experimental robot)
 
-The [Mini T-Rex example](../../examples/mini_tyrannosaurus_rex/README.md) is a compact,
+The [Mini Tyrannosaurus Rex example](../../examples/mini_tyrannosaurus_rex/README.md) is a compact,
 cartoon robot model with forward knees and partially covered mechanisms. It is
 approximately 25 cm tall and has an **assigned**, unweighed mass of 850 g.
 It is an experimental MJCF example, not a registered training plant or a

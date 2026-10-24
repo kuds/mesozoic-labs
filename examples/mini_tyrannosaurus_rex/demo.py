@@ -1,4 +1,4 @@
-"""View, render or smoke-check the standalone experimental Mini T-Rex model."""
+"""View, render or smoke-check the experimental Mini Tyrannosaurus Rex robot."""
 
 from __future__ import annotations
 

@@ -1,8 +1,8 @@
-# Experimental Mini T-Rex
+# Mini Tyrannosaurus Rex (experimental robot)
 
 ![Forward-knee Mini T-Rex rendered from the MJCF](preview.png)
 
-A standalone, cartoon robot study with custom **forward-bending knees**, partial
+A standalone **Mini Tyrannosaurus Rex** robot study with custom **forward-bending knees**, partial
 removable-looking leg covers and exposed servo/bracket mechanisms. The MJCF is
 self-contained: all geometry is primitive or original mesh data in the two
 included XML assets. No mesh downloads or external STL files are needed.
@@ -12,6 +12,11 @@ or training embodiment**. It has no trained walking policy. Its five-axis leg
 architecture was informed by MicroDuck, but these custom joint locations, case
 placements, zero positions and limits do not preserve MicroDuck kinematics or
 policy compatibility.
+
+Its prototype identifier is `mini_tyrannosaurus_rex`, and its MJCF model name is
+`mini_tyrannosaurus_rex_robot`. The existing species ID `tyrannosaurus_rex` and
+its anatomical model keep their current names. The `mini_` prefix identifies
+this miniature robot prototype, rather than a new biological species.
 
 ## Run
 

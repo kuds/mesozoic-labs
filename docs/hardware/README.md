@@ -28,7 +28,7 @@ be a physics revision of that embodiment, not a new one.
 
 ## Reading order
 
-The [experimental Mini T-Rex](MINI_TYRANNOSAURUS_REX.md) adds a 25 cm forward-knee MJCF study,
+The [Mini Tyrannosaurus Rex prototype](MINI_TYRANNOSAURUS_REX.md) adds a 25 cm forward-knee MJCF study,
 proposed computer/sensors and a preliminary $2,000 allocation. Its
 [standalone example](../../examples/mini_tyrannosaurus_rex/README.md) can be viewed and
 smoke-checked without registering a new plant. It has not demonstrated walking
