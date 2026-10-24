@@ -8,6 +8,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **The training-history report drawn at the end of every stage, report-only**
+  (the maintainer's decision of 2026-10-24;
+  `environments/shared/reporting/stage_artifacts.py`,
+  `environments/shared/reporting/stage_layout.py`; documented in
+  `docs/TRAINING_ARTIFACT_PRESENTATION.md`, "At stage end:
+  `figures/training_history/`", and one sentence in tip 4 of
+  `website/docs/training/hyperparameters.md`). `generate_stage_artifacts` now draws the
+  stage's training history from its ledgers into `figures/training_history/`
+  (the ten pages, `training_history.html` and `training_history.json`, as
+  `plot_training_history.py STAGE_DIR` draws them by default), so every node
+  the SB3 training notebook trains or judges has it without a manual step, and
+  the bundle saved after the node declares and hashes it. It is drawn after the
+  verdict is recorded and the stage summary written, after
+  `figures/gate_progress.png` and in its own guard, before the replays and the
+  stance probes: a failure logs one warning and costs this report only. It is
+  rendered into a private directory and moved into the staging tree whole, so a
+  failure part-way publishes none of it. It follows `generate_graphs`, and a
+  stage directory with neither `eval_episodes.csv` nor `train_episodes.csv` (a
+  run from before the ledgers) gets none. The library writes it, not the
+  script, whose refusal of an `--out` inside a run directory still keeps manual
+  writes out of runs. Report only: no training, evaluation, gate, reward,
+  observation, action, task, checkpoint selection, plant, configuration, digest
+  or notebook change, and `training_history.py` is unchanged; the results
+  `generate_stage_artifacts` returns, the verdict and the stage summary are the
+  same with the report, without it and when it fails, and the std reads leave
+  the random number streams the replays and probes see as they were. The
+  ordering pins in `test_reporting_stage_artifacts.py` and
+  `test_stance_gate_report.py` gain the new step. On the stance5 band run s42's
+  ledger (91 evaluations) it takes about 5.5 s and writes 1.7 MB.
 - **A per-step trace of single episodes of a checkpoint, and the policy's
   command and raw mean in the replay's stance CSV, report-only** (the
   maintainer's decision of 2026-10-24, after the T. rex tail habit,
@@ -141,7 +170,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   of the T-Rex stance entry.
 - **A training-history report: one run's feet, balance, asymmetry and
   saturation over its training, or several runs overlaid**
-  (`environments/shared/reporting/training_history.py`,
+  (#636; `environments/shared/reporting/training_history.py`,
   `environments/shared/scripts/plot_training_history.py`; documented in
   `docs/TRAINING_ARTIFACT_PRESENTATION.md`, "Training history pages"). Report
   only: new files, one test-table line each in `test_policy_loading.py` (the
