@@ -743,6 +743,33 @@ at or before the resumed step when its bank equals this session's (the
 labels, seeds, steps, offsets and raw observations); otherwise it drops
 them with one warning.
 
+The probe also reads the rollout itself. SB3 clips a sampled action to the
+action bounds only at `env.step`; the rollout buffer keeps the unclipped
+sample and its log-probability, and PPO trains on those. Deterministic play
+acts on the policy's mean, clipped. The two can sit on opposite sides of a
+bound: in a scratch T. rex experiment `tail_3_pitch_act`'s mean was beyond
++1 on 2.5% and 27.5% of the training rows of two arms, while deterministic
+rollouts held it beyond +1 on 21 to 46% of their window steps, and nothing
+recorded the training side. So at each rollout's end the probe also counts,
+per actuator, over every row of the buffer that update trains on
+(`n_steps × n_envs`, 8,192 on the T. rex stance): the samples above the high
+bound and below the low one (the ones `env.step` clipped), the samples at
+`|clip(a)| >= 0.99` (the gate's saturation threshold), and, from one
+`torch.no_grad()` forward pass of the buffer's observations through the
+policy's distribution (`get_distribution(obs).mode()`, the bank's pass;
+float32, at most 16,384 rows at a time), the means beyond each bound and the
+means' average, median and 95th percentile. The buffer's observations are
+the normalized ones the policy acted on, so these means are the ones the
+samples were drawn around, to float32 rounding (on a T. rex stance run the
+batched pass differed from the per-step ones by about 1e-7, and every
+share was equal). It reads the buffer and draws nothing; on the T. rex
+stance config (4 envs, `n_steps` 2048, `[512, 256]`, one CPU thread) it
+added 41 to 46 ms per rollout, about 0.25% of the 13 to 15 s collection
+and 3.5 to 3.7 s update of that rollout (the bank's passes took 1.2 to
+1.4 ms of the row). A buffer of dict observations or a non-`Box` action
+space reads NaN, with one warning, and a pass that fails costs the row's
+`rollout_*` arrays only (NaN, with one warning), never the rest of it.
+
 | Key | Shape | Meaning |
 |---|---|---|
 | `update_timesteps` | (U,) | The step count at each rollout's end |
@@ -752,17 +779,24 @@ them with one warning.
 | `bank_value_now`, `bank_value_frozen` | (U, B) | The critic's value at each bank state, under the current observation normalization and under the one frozen at the session's start, so that a change of value can be told apart from a change of the normalizer |
 | `bank_action_now`, `bank_action_frozen` | (U, B, actuators) | The deterministic mean action at each bank state, under both normalizations, before clipping |
 | `frozen_reference_timesteps` | (U,) | The step the frozen statistics were taken at (the session's start) |
+| `rollout_rows` | (U,) | The buffer rows the `rollout_*` arrays were read over (`n_steps × n_envs`; 0 for a row kept on a resume from a file written before them) |
+| `rollout_action_clip_high_share`, `rollout_action_clip_low_share` | (U, actuators) | The share of the rollout's sampled actions above the action space's high bound and below its low one: the samples `env.step` clipped |
+| `rollout_action_saturated_share` | (U, actuators) | The share of the clipped samples at `\|a\| >= 0.99` (`SATURATION_ABS`, the gate's threshold) |
+| `rollout_mu_beyond_high_share`, `rollout_mu_beyond_low_share` | (U, actuators) | The share of the policy's mean actions at the buffer's observations above the high bound and below the low one |
+| `rollout_mu_mean`, `rollout_mu_q50`, `rollout_mu_q95` | (U, actuators) | Those means' average, median and 95th percentile, before clipping |
 | `frozen_obs_mean`, `frozen_obs_var` | (observations,) | The frozen statistics |
 | `bank_raw_obs` | (B, observations) | The bank's observations, before normalization |
 | `bank_labels`, `bank_seeds`, `bank_steps`, `bank_ankle_offset`, `bank_com_fore_aft_m` | (B,) | The bank: each state's label, reset seed, step, lean, and its CoM ahead of the feet (m) |
 | `bank_horizon`, `bank_build_seconds` | () | The bank env's horizon and the build's wall time |
 | `ankle_actuators`, `ankle_signs` | (P, 2) | Each ankle pair's left and right actuators and leftward-axis signs: one pair on a biped, two on the Dibothrosuchus and the Brachiosaurus |
 
-The per-update arrays are float32, but the step counts (int64) and
-`obs_rms_count` (float64): about 1.9 KB per update on the T. rex
-(15 actuators, 63 observations, 10 states), about 2.8 MB over the 1,465
-updates of a 12M run. TensorBoard gets, at every update and never on the
-console:
+The per-update arrays are float32, but the step counts and `rollout_rows`
+(int64) and `obs_rms_count` (float64): about 2.4 KB per update on the
+T. rex (15 actuators, 63 observations, 10 states; 0.5 KB of it the
+`rollout_*` arrays), about 3.5 MB over the 1,465 updates of a 12M run. A
+same-stage resume from a file written before the `rollout_*` arrays keeps
+its rows, with 0 rows and NaN there. TensorBoard gets, at every update and
+never on the console:
 
 | Tag | Meaning |
 |---|---|
@@ -774,6 +808,8 @@ console:
 | `policy_probe/value_normalization_shift_statue` | The statue's value under the current normalization less its value under the frozen one (on a fresh normalizer, against the initial statistics: see below) |
 | `policy_probe/statue_ankle_action_mean` | The mirror-even ankle action at the statue states, averaged over the ankle pairs |
 | `policy_probe/ankle_gain_per_m` | The difference of the mirror-even ankle action between the +0.03 and -0.03 leans over the difference of their CoM positions, averaged over the seeds: the deterministic policy's ankle feedback gain to a CoM lean, in action units per metre |
+| `policy_probe/rollout_action_clip_share_max`, `rollout_mu_beyond_share_max` | The rollout's largest per-actuator share of clipped samples, and of means beyond a bound, each actuator's two bounds summed |
+| `policy_probe/rollout_action_saturated_share_max` | The rollout's largest per-actuator share of clipped samples at `\|a\| >= 0.99` |
 
 The frozen statistics are VecNormalize's at the session's start. On a
 stage that loads a normalizer (a later stage, or a resume) they are that

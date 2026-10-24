@@ -15,7 +15,17 @@ records, at the end of every rollout (the policy that collected it, before
   start (so a value change can be split into the policy's and the
   normalizer's share).  On a stage that starts with a fresh VecNormalize the
   frozen statistics are the initial reset observations' alone, a
-  near-degenerate reference (the docs say how to read it).
+  near-degenerate reference (the docs say how to read it);
+* per actuator, over the rollout buffer that update trains on: the share
+  of the sampled actions above the action space's high bound and below its
+  low one (the ones ``env.step`` clipped; the buffer keeps them, and their
+  log-probabilities, unclipped), the share at ``|clip(a)| >=
+  SATURATION_ABS`` (the gate's threshold), and, from the policy's mean
+  action at every buffer observation, the share of means beyond each bound
+  and the means' average, median and 95th percentile
+  (:func:`rollout_action_shares`).  Deterministic play acts on the mean
+  clipped, training on samples around it; the two can sit on opposite
+  sides of a bound.
 
 The bank (:data:`BANK_SPEC`) is ten states of the stage's own env, on two
 reset seeds: the settled statue (step 199) and the statue at step 599,
@@ -27,12 +37,13 @@ pushes off (:func:`bank_env_kwargs`), under
 :class:`GlobalRngGuard`, which snapshots and restores the global generators
 (the build draws none; the guard is a backstop and warns if one moved).
 
-Per update the probe only reads parameters and runs ``torch.no_grad()``
-forward passes of the constant bank: no sampling, no gradient, no
-parameter, optimizer, buffer or ``training`` flag touched, and it never
-calls ``predict()`` (which sets the training mode).  The normalization is
-VecNormalize's own formula in numpy.  Without a rollout buffer (SAC) there
-is no bank and no row.
+Per update the probe only reads parameters and the rollout buffer and runs
+``torch.no_grad()`` forward passes of the constant bank and of the buffer's
+observations (float32, in chunks of :data:`ROLLOUT_CHUNK_ROWS`): no
+sampling, no gradient, no parameter, optimizer, buffer or ``training`` flag
+touched, and it never calls ``predict()`` (which sets the training mode).
+The normalization is VecNormalize's own formula in numpy.  Without a
+rollout buffer (SAC) there is no bank and no row.
 
 ``<stage_dir>/policy_probe.npz`` is rewritten atomically on the checkpoint
 cadence and at training end; a same-stage resume keeps the prior session's
@@ -103,6 +114,21 @@ _UPDATE_KEYS: tuple[str, ...] = (
     "bank_action_frozen",
     "frozen_reference_timesteps",
 )
+#: The per-update arrays read from the rollout buffer (:func:`rollout_action_shares`), aligned with
+#: ``update_timesteps``; a prior session's file written before them reads NaN (and 0 rows) on its rows.
+_ROLLOUT_KEYS: tuple[str, ...] = (
+    "rollout_rows",
+    "rollout_action_clip_high_share",
+    "rollout_action_clip_low_share",
+    "rollout_action_saturated_share",
+    "rollout_mu_beyond_high_share",
+    "rollout_mu_beyond_low_share",
+    "rollout_mu_mean",
+    "rollout_mu_q50",
+    "rollout_mu_q95",
+)
+#: The buffer's observations go through the policy this many rows at a time (the T. rex stance's 8,192 in one).
+ROLLOUT_CHUNK_ROWS = 16_384
 #: The bank's description in the file: a prior session's rows are kept only when it is equal.
 _BANK_KEYS: tuple[str, ...] = ("bank_labels", "bank_seeds", "bank_steps", "bank_ankle_offset", "bank_raw_obs")
 
@@ -331,6 +357,51 @@ def _nanmean(values: Sequence[float] | np.ndarray) -> float:
     return float(finite.mean()) if finite.size else NAN
 
 
+def rollout_action_shares(actions: np.ndarray, means: np.ndarray, low: np.ndarray, high: np.ndarray) -> dict[str, Any]:
+    """The ``rollout_*`` arrays of one row from (N, nu) sampled actions and the policy's means at the same steps.
+
+    Per actuator: the share of the samples above *high* and below *low*
+    (``env.step`` clips them, as SB3 does, with ``np.clip``), the share at
+    ``|clip(a)| >= SATURATION_ABS``, the share of the means above *high* and
+    below *low*, and the means' average, median and 95th percentile; NaN
+    with no row.  ``rollout_rows`` is N.
+    """
+    from .gait.constants import SATURATION_ABS
+
+    actions = np.asarray(actions)
+    means = np.asarray(means, dtype=np.float64)
+    rows, nu = actions.shape
+    if not rows:
+        empty = np.full(nu, np.nan, dtype=np.float32)
+        return {"rollout_rows": np.int64(0), **{key: empty.copy() for key in _ROLLOUT_KEYS[1:]}}
+    clipped = np.clip(actions, low, high)
+
+    def share(mask: np.ndarray) -> np.ndarray:
+        return np.asarray(mask.mean(axis=0), dtype=np.float32)
+
+    q50, q95 = np.quantile(means, (0.5, 0.95), axis=0)
+    return {
+        "rollout_rows": np.int64(rows),
+        "rollout_action_clip_high_share": share(actions > high),
+        "rollout_action_clip_low_share": share(actions < low),
+        "rollout_action_saturated_share": share(np.abs(clipped) >= SATURATION_ABS),
+        "rollout_mu_beyond_high_share": share(means > high),
+        "rollout_mu_beyond_low_share": share(means < low),
+        "rollout_mu_mean": np.asarray(means.mean(axis=0), dtype=np.float32),
+        "rollout_mu_q50": np.asarray(q50, dtype=np.float32),
+        "rollout_mu_q95": np.asarray(q95, dtype=np.float32),
+    }
+
+
+def _max_share(row: Mapping[str, Any], *keys: str) -> float:
+    """The largest per-actuator sum of *keys*' shares in *row*; NaN when a key is absent or nothing is finite."""
+    if any(key not in row for key in keys):
+        return NAN
+    total = sum(np.asarray(row[key], dtype=np.float64) for key in keys)
+    finite = np.asarray(total)[np.isfinite(total)]
+    return float(finite.max()) if finite.size else NAN
+
+
 def probe_scalars(bank: StateBank, row: Mapping[str, Any]) -> dict[str, float]:
     """The TensorBoard ``policy_probe/*`` scalars of one row (NaN where the bank lacks a row they compare)."""
     std = np.asarray(row["std_per_actuator"], dtype=np.float64)
@@ -372,6 +443,12 @@ def probe_scalars(bank: StateBank, row: Mapping[str, Any]) -> dict[str, float]:
             if math.isfinite(lever) and lever != 0.0:
                 gains.append((ankle[plus] - ankle[minus]) / lever)
     out["ankle_gain_per_m"] = _nanmean(gains)
+    # The rollout's worst actuator, both bounds together.
+    out["rollout_action_clip_share_max"] = _max_share(
+        row, "rollout_action_clip_high_share", "rollout_action_clip_low_share"
+    )
+    out["rollout_action_saturated_share_max"] = _max_share(row, "rollout_action_saturated_share")
+    out["rollout_mu_beyond_share_max"] = _max_share(row, "rollout_mu_beyond_high_share", "rollout_mu_beyond_low_share")
     return out
 
 
@@ -518,6 +595,35 @@ class PolicyProbeCallback(BaseCallback):  # type: ignore[misc]
         normalized: np.ndarray = np.clip((raw - mean) / np.sqrt(var + epsilon), -clip, clip)
         return normalized
 
+    def _rollout_means(self, policy: Any, nu: int) -> tuple[np.ndarray, np.ndarray] | None:
+        """The rollout buffer's (N, nu) sampled actions and the policy's means at its observations, or ``None``.
+
+        Called inside :meth:`_row`'s ``no_grad`` and its restore of
+        ``action_dist``.  ``None`` (the row reads NaN) for a buffer of dict
+        observations or an action space that is not a ``Box``.
+        """
+        import torch
+        from gymnasium import spaces
+
+        model: Any = self.model  # PPO's rollout buffer is not on the base class's type
+        buffer = model.rollout_buffer
+        observations = buffer.observations
+        if isinstance(observations, dict) or not isinstance(model.action_space, spaces.Box):
+            self._warn_once(
+                "rollout",
+                "Policy probe: the rollout buffer holds dict observations or the action space is not a Box; the "
+                "rollout_* arrays read NaN.",
+            )
+            return None
+        steps = buffer.buffer_size if buffer.full else buffer.pos
+        obs = observations[:steps].reshape((-1, *buffer.obs_shape))
+        actions = buffer.actions[:steps].reshape(-1, nu)
+        means = np.empty(actions.shape, dtype=np.float32)
+        for start in range(0, len(obs), ROLLOUT_CHUNK_ROWS):
+            tensor = torch.as_tensor(obs[start : start + ROLLOUT_CHUNK_ROWS], dtype=torch.float32, device=policy.device)
+            means[start : start + len(tensor)] = policy.get_distribution(tensor).mode().cpu().numpy().reshape(-1, nu)
+        return actions, means
+
     def _learning_rate(self) -> float:
         """The rate the coming ``train()`` applies: SB3's own formula (``_update_learning_rate``)."""
         model = self.model
@@ -552,6 +658,7 @@ class PolicyProbeCallback(BaseCallback):  # type: ignore[misc]
             )
         values: dict[str, np.ndarray] = {}
         actions: dict[str, np.ndarray] = {}
+        rollout: tuple[np.ndarray, np.ndarray] | None = None
         # get_distribution() stores the distribution it builds on the policy's action_dist; the one the
         # rollout left there is put back, so the probe leaves the policy object as it found it.
         stored = dict(vars(policy.action_dist))
@@ -566,12 +673,25 @@ class PolicyProbeCallback(BaseCallback):  # type: ignore[misc]
                     tensor = torch.as_tensor(observations, dtype=torch.float32, device=policy.device)
                     values[name] = policy.predict_values(tensor).flatten().cpu().numpy()
                     actions[name] = policy.get_distribution(tensor).mode().cpu().numpy().reshape(len(bank.labels), -1)
+                try:
+                    rollout = self._rollout_means(policy, nu)
+                except Exception:  # noqa: BLE001 - the buffer's pass costs the rollout_* arrays only, not the row
+                    self._warn_once(
+                        "rollout_pass",
+                        "Policy probe: could not read the rollout buffer at this update; its rollout_* arrays read NaN.",
+                        exc_info=True,
+                    )
         finally:
             vars(policy.action_dist).clear()
             vars(policy.action_dist).update(stored)
         ret_rms = getattr(vec_normalize, "ret_rms", None) if vec_normalize is not None else None
         count = float(getattr(getattr(vec_normalize, "obs_rms", None), "count", NAN)) if stats is not None else NAN
         ent_coef = getattr(model, "ent_coef", NAN)
+        if rollout is not None:
+            space: Any = model.action_space  # a Box: _rollout_means returns None otherwise
+            shares = rollout_action_shares(*rollout, space.low, space.high)
+        else:  # no buffer row to read: NaN
+            shares = rollout_action_shares(np.zeros((0, nu)), np.zeros((0, nu)), -np.ones(nu), np.ones(nu))
         return {
             "update_timesteps": np.int64(self.num_timesteps),
             "std_per_actuator": np.asarray(std, dtype=np.float32).reshape(nu),
@@ -586,6 +706,7 @@ class PolicyProbeCallback(BaseCallback):  # type: ignore[misc]
             "bank_action_now": np.asarray(actions["now"], dtype=np.float32),
             "bank_action_frozen": np.asarray(actions["frozen"], dtype=np.float32),
             "frozen_reference_timesteps": np.int64(self._frozen[2] if self._frozen is not None else -1),
+            **shares,
         }
 
     def _on_rollout_end(self) -> None:
@@ -619,7 +740,9 @@ class PolicyProbeCallback(BaseCallback):  # type: ignore[misc]
         assert self.bank is not None
         bank = self.bank
         rows = self.rows
-        out: dict[str, np.ndarray] = {key: np.stack([np.asarray(row[key]) for row in rows]) for key in _UPDATE_KEYS}
+        out: dict[str, np.ndarray] = {
+            key: np.stack([np.asarray(row[key]) for row in rows]) for key in (*_UPDATE_KEYS, *_ROLLOUT_KEYS)
+        }
         frozen_mean = self._frozen[0] if self._frozen is not None else np.full(bank.raw_obs.shape[1], np.nan)
         frozen_var = self._frozen[1] if self._frozen is not None else np.full(bank.raw_obs.shape[1], np.nan)
         described: dict[str, np.ndarray] = {
@@ -669,11 +792,19 @@ class PolicyProbeCallback(BaseCallback):  # type: ignore[misc]
                 steps = np.asarray(data["update_timesteps"], dtype=np.int64)
                 keep = np.ones(steps.shape, dtype=bool) if max_timesteps is None else steps <= int(max_timesteps)
                 updates = {key: np.asarray(data[key])[keep] for key in _UPDATE_KEYS}
+                count, nu = int(keep.sum()), int(np.asarray(data["std_per_actuator"]).shape[-1])
+                for key in _ROLLOUT_KEYS:  # absent from a file written before them: NaN, and 0 rows
+                    if key in data.files:
+                        updates[key] = np.asarray(data[key])[keep]
+                    elif key == "rollout_rows":
+                        updates[key] = np.zeros(count, dtype=np.int64)
+                    else:
+                        updates[key] = np.full((count, nu), np.nan, dtype=np.float32)
                 bank = {key: np.asarray(data[key]) for key in _BANK_KEYS}
         except Exception:  # noqa: BLE001 - a report must not sink a run
             logger.warning("Resume: could not read %s; it starts with this session's updates.", path, exc_info=True)
             return 0
-        self._prior_rows = [{key: updates[key][index] for key in _UPDATE_KEYS} for index in range(int(keep.sum()))]
+        self._prior_rows = [{key: values[index] for key, values in updates.items()} for index in range(int(keep.sum()))]
         self._prior_bank = bank
         return len(self._prior_rows)
 

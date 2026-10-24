@@ -4,8 +4,11 @@ The bank is built on the T. rex stance (ten states, two seeds), and the
 probe is attached to a small PPO on a real T. rex env: it draws no random
 number and changes no parameter, optimizer state, normalizer or training
 flag; its values and actions are the policy's own forward passes; its
-learning rate is the one the coming ``train()`` applies; and its file is
-written on the checkpoint cadence and seeded on a resume.
+rollout clip shares are the rollout buffer's own samples and the policy's
+means at the buffer's observations, read with a full buffer without moving
+anything; its learning rate is the one the coming ``train()`` applies; and
+its file is written on the checkpoint cadence and seeded on a resume (a
+file written before the rollout arrays included).
 """
 
 from __future__ import annotations
@@ -15,6 +18,7 @@ import logging
 import math
 import random
 import types
+from typing import Any
 
 import numpy as np
 import pytest
@@ -415,6 +419,149 @@ class TestTheRows:
         assert all(kwargs == {"exclude": ("stdout", "log")} for _args, kwargs in records)
 
 
+class TestTheRolloutShares:
+    def test_the_shares_of_a_hand_made_rollout(self):
+        from environments.shared.policy_probe import rollout_action_shares
+
+        actions = np.array([[1.5, -0.2], [0.995, -1.3], [-2.0, 0.5], [0.2, -0.99]], dtype=np.float32)
+        means = np.array([[1.2, 0.0], [0.8, -1.1], [0.4, 0.0], [0.0, -0.5]], dtype=np.float32)
+        shares = rollout_action_shares(actions, means, np.full(2, -1.0, np.float32), np.full(2, 1.0, np.float32))
+        assert int(shares["rollout_rows"]) == 4
+        assert shares["rollout_action_clip_high_share"].tolist() == [0.25, 0.0]
+        assert shares["rollout_action_clip_low_share"].tolist() == [0.25, 0.25]
+        # |clip(a)| >= 0.99: 1.5 -> 1, 0.995 and -2.0 -> -1 on the first; -1.3 -> -1 and -0.99 on the second.
+        assert shares["rollout_action_saturated_share"].tolist() == [0.75, 0.5]
+        assert shares["rollout_mu_beyond_high_share"].tolist() == [0.25, 0.0]
+        assert shares["rollout_mu_beyond_low_share"].tolist() == [0.0, 0.25]
+        assert shares["rollout_mu_mean"] == pytest.approx([0.6, -0.4])
+        assert shares["rollout_mu_q50"] == pytest.approx([0.6, -0.25])
+        assert shares["rollout_mu_q95"] == pytest.approx(np.quantile(means.astype(np.float64), 0.95, axis=0))
+        assert all(value.dtype == np.float32 for key, value in shares.items() if key != "rollout_rows")
+        empty = rollout_action_shares(np.zeros((0, 2)), np.zeros((0, 2)), -np.ones(2), np.ones(2))
+        assert int(empty["rollout_rows"]) == 0 and np.isnan(empty["rollout_mu_q95"]).all()
+
+    def test_a_real_rollout_reads_the_buffer_and_the_policys_means_and_moves_nothing(self, bank, monkeypatch):
+        """Between the rollout's end and train(): the buffer, the generators, the parameters and the distribution
+        are the same after the probe as before it, and its shares are the buffer's own."""
+        import torch
+        from stable_baselines3.common.callbacks import BaseCallback, CallbackList
+
+        model = _ppo(n_steps=128, policy_kwargs={"log_std_init": 0.5})
+        with torch.no_grad():  # two actuators' means past a bound everywhere: +1.5 and -1.2 before the first update
+            model.policy.action_net.bias[0] = 1.5
+            model.policy.action_net.bias[1] = -1.2
+        probe = _probe(model, bank=bank[0], monkeypatch=monkeypatch)
+        seen: list[dict] = []
+
+        def snapshot(model) -> dict:
+            buffer = model.rollout_buffer
+            return {
+                "states": _global_states(),
+                "parameters": copy.deepcopy(model.policy.state_dict()),
+                "buffer": [np.copy(getattr(buffer, key)) for key in ("observations", "actions", "log_probs", "values")],
+                "distribution": dict(vars(model.policy.action_dist)),
+                "training": model.policy.training,
+            }
+
+        class Before(BaseCallback):
+            def _on_rollout_end(self) -> None:
+                seen.append(snapshot(self.model))
+
+            def _on_step(self) -> bool:
+                return True
+
+        class After(Before):
+            def _on_rollout_end(self) -> None:
+                before, after = seen[-1], snapshot(self.model)
+                assert _same_states(before["states"], after["states"])
+                for key, tensor in after["parameters"].items():
+                    assert torch.equal(tensor, before["parameters"][key]), key
+                assert all(np.array_equal(a, b) for a, b in zip(after["buffer"], before["buffer"]))
+                assert after["training"] == before["training"]
+                assert all(after["distribution"][key] is value for key, value in before["distribution"].items())
+                model: Any = self.model
+                policy, buffer = model.policy, model.rollout_buffer
+                with torch.no_grad():
+                    observations = torch.as_tensor(buffer.observations.reshape(-1, buffer.observations.shape[-1]))
+                    means = policy.get_distribution(observations).distribution.mean.numpy()
+                vars(policy.action_dist).update(before["distribution"])
+                seen[-1]["means"], seen[-1]["actions"] = means, buffer.actions.reshape(means.shape).copy()
+
+        model.learn(2 * 128, callback=CallbackList([Before(), probe, After()]))
+        assert len(probe.rows) == 2
+        for row, captured in zip(probe.rows, seen):
+            actions, means = captured["actions"], captured["means"]
+            assert int(row["rollout_rows"]) == 128
+            assert np.array_equal(
+                row["rollout_action_clip_high_share"], (actions > 1.0).mean(axis=0).astype(np.float32)
+            )
+            assert np.array_equal(
+                row["rollout_action_clip_low_share"], (actions < -1.0).mean(axis=0).astype(np.float32)
+            )
+            assert np.array_equal(
+                row["rollout_action_saturated_share"],
+                (np.abs(np.clip(actions, -1.0, 1.0)) >= 0.99).mean(axis=0).astype(np.float32),
+            )
+            assert np.array_equal(row["rollout_mu_beyond_high_share"], (means > 1.0).mean(axis=0).astype(np.float32))
+            assert np.array_equal(row["rollout_mu_beyond_low_share"], (means < -1.0).mean(axis=0).astype(np.float32))
+            assert row["rollout_mu_q95"] == pytest.approx(np.quantile(means.astype(np.float64), 0.95, axis=0), abs=1e-6)
+        first = probe.rows[0]
+        # The first rollout's policy: the biased means beyond their bounds at every step, std 1.65 clipping often.
+        assert first["rollout_mu_beyond_high_share"][0] == 1.0 and first["rollout_mu_beyond_low_share"][1] == 1.0
+        assert 0.1 < float(first["rollout_action_clip_high_share"][2]) < 0.5
+        latest = probe.latest()
+        assert latest["rollout_mu_beyond_share_max"] == pytest.approx(
+            max(probe.rows[-1]["rollout_mu_beyond_high_share"] + probe.rows[-1]["rollout_mu_beyond_low_share"])
+        )
+        assert math.isfinite(latest["rollout_action_clip_share_max"])
+        assert math.isfinite(latest["rollout_action_saturated_share_max"])
+
+    def test_a_resume_from_a_file_written_before_the_rollout_arrays_keeps_its_rows_as_nan(
+        self, bank, monkeypatch, tmp_path
+    ):
+        from environments.shared.policy_probe import _ROLLOUT_KEYS, POLICY_PROBE_FILENAME
+
+        TestTheFileAndTheResume()._first_session(bank[0], monkeypatch, tmp_path)
+        path = tmp_path / POLICY_PROBE_FILENAME
+        with np.load(path, allow_pickle=False) as data:
+            older = {key: data[key] for key in data.files if key not in _ROLLOUT_KEYS}
+        np.savez(path, **older)
+        model = _ppo()
+        model.num_timesteps = 128
+        resumed = _probe(model, bank=bank[0], monkeypatch=monkeypatch, probe_dir=tmp_path)
+        assert resumed.seed_prior_record(tmp_path, max_timesteps=128) == 2
+        resumed.on_training_start({}, {})
+        _update(model, resumed)
+        assert math.isnan(resumed.latest()["rollout_mu_beyond_share_max"])  # this row's buffer is empty here
+        resumed.on_training_end()
+        with np.load(path, allow_pickle=False) as data:
+            assert data["update_timesteps"].tolist() == [64, 128, 192]
+            assert data["rollout_rows"].tolist() == [0, 0, 0]
+            assert data["rollout_mu_q95"].shape == (3, 15) and np.isnan(data["rollout_mu_q95"]).all()
+
+    def test_a_failing_buffer_pass_costs_the_rollout_arrays_only(self, bank, monkeypatch, caplog):
+        from environments.shared.policy_probe import PolicyProbeCallback
+
+        def failing(self, policy, nu):
+            raise RuntimeError("out of memory")
+
+        model = _ppo()
+        probe = _probe(model, bank=bank[0], monkeypatch=monkeypatch)
+        probe.on_training_start({}, {})
+        stored = dict(vars(model.policy.action_dist))
+        monkeypatch.setattr(PolicyProbeCallback, "_rollout_means", failing)
+        with caplog.at_level(logging.WARNING, logger="environments.shared.policy_probe"):
+            _update(model, probe)
+            _update(model, probe)
+        assert len(probe.rows) == 2  # the row stands: its std, normalizer and bank values and actions
+        row = probe.rows[-1]
+        assert np.isfinite(row["std_per_actuator"]).all() and np.isfinite(row["bank_value_now"]).all()
+        assert int(row["rollout_rows"]) == 0 and np.isnan(row["rollout_action_clip_high_share"]).all()
+        assert all(vars(model.policy.action_dist)[key] is value for key, value in stored.items())
+        warned = [r.getMessage() for r in caplog.records if "could not read the rollout buffer" in r.getMessage()]
+        assert len(warned) == 1
+
+
 def test_the_scalars_read_the_rows_they_name():
     from environments.shared.policy_probe import StateBank, probe_scalars
 
@@ -452,6 +599,18 @@ def test_the_scalars_read_the_rows_they_name():
     # The mirror-even ankle action: (1 * a_0 + (-1) * a_1) / 2 = a_0 on these rows.
     assert out["statue_ankle_action_mean"] == pytest.approx((0.1 + 0.3) / 2)
     assert out["ankle_gain_per_m"] == pytest.approx(((0.2 - 0.0) / (-0.05) + (0.4 - 0.1) / (-0.07)) / 2)
+    assert math.isnan(out["rollout_action_clip_share_max"])  # a row without the rollout arrays
+    row.update(
+        rollout_action_clip_high_share=np.array([0.1, 0.0]),
+        rollout_action_clip_low_share=np.array([0.05, 0.12]),
+        rollout_action_saturated_share=np.array([0.2, np.nan]),
+        rollout_mu_beyond_high_share=np.array([np.nan, np.nan]),
+        rollout_mu_beyond_low_share=np.array([np.nan, np.nan]),
+    )
+    out = probe_scalars(bank, row)
+    assert out["rollout_action_clip_share_max"] == pytest.approx(0.15)  # both bounds of one actuator
+    assert out["rollout_action_saturated_share_max"] == pytest.approx(0.2)
+    assert math.isnan(out["rollout_mu_beyond_share_max"])
 
 
 class TestTheFileAndTheResume:
@@ -480,6 +639,9 @@ class TestTheFileAndTheResume:
             assert data["bank_labels"].tolist() == list(bank[0].labels)
             assert data["bank_action_now"].shape == (3, 10, 15) and data["bank_value_now"].dtype == np.float32
             assert int(data["bank_horizon"]) == 601
+            # The rollout arrays beside them; these rows were taken with an empty buffer, so read none.
+            assert data["rollout_rows"].tolist() == [0, 0, 0] and data["rollout_mu_mean"].shape == (3, 15)
+            assert data["rollout_action_clip_high_share"].dtype == np.float32
 
     def _first_session(self, bank, monkeypatch, directory):
         model = _ppo()
