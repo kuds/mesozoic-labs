@@ -1,0 +1,101 @@
+--- scratchpad/foot/stance5/judge/judge_stance5.py	2026-10-21 05:42:20.097082434 +0000
++++ scratchpad/foot/stance5/replication/judge/judge_stance5r.py	2026-10-22 15:19:42.571381926 +0000
+@@ -1,10 +1,18 @@
+ """Judge ONE checkpoint of a T. rex stance screen run (arms L, LT, LTS, LTSB; physics r9) against its branch clone (scratch only).
+
+     S=scratchpad
+-    cd $S/foot/stance5 && env ISO_WT=<clone> OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
++    cd $S/foot/stance5/replication && env ISO_WT=<clone> OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 \
+         PYTHONPYCACHEPREFIX=$S/caches/pyc MPLCONFIGDIR=$S/caches/mpl \
+-        python3 $S/foot/stance3/tools/iso.py judge/judge_stance5.py RUN_DIR --arm {L,LT,LTS,LTSB} --seed {42,52,60} \
+-        --steps STEPS --out OUT.json [MODE]
++        python3 $S/foot/stance3/tools/iso.py judge/judge_stance5r.py RUN_DIR --arm {L,LT,LTS,LTSB} \
++        --seed {42,52,60,70,80} --steps STEPS --out OUT.json [MODE]
++
++judge_stance5r.py (the stance5 replication, criteria SP/foot/stance5/replication/criteria.txt) is a copy of
++judge_stance5.py (sha256 d9286724...) changed only so that (1) --seed also takes 70 and 80, the replication seeds, whose
++joint-space control sigma is read from the sidecar SP/foot/stance5/replication/sigma_s70_s80.json (sha256 pinned,
++CONTROL_SIGMA_SIDECAR_SHA256; the element-wise mean of frozen_params.json control_sigma 42, 52, 60) while seeds 42, 52
++and 60 read frozen_params.json exactly as before, and the JSON records which file the sigma came from; (2) its schema is
++stance5r-judge/v1 and its log prefix [judge_stance5r].  Everything else, below included, is judge_stance5.py's text and
++code unchanged (where it names score_stance5.py, the replication's scorer is score_stance5r.py).
+
+ judge_stance4.py plus arm LTSB (stance5: the stance4 recipe, L+T + the stance stagger penalty, plus the per-foot CoP
+ band, stance_cop_band_weight 0.30; clone fix/scratch_copband, branch claude/screen-trex-r9-armlts-copband) and the
+@@ -102,7 +110,7 @@
+ import subprocess  # noqa: E402
+ import time  # noqa: E402
+
+-SCHEMA = "stance5-judge/v1"
++SCHEMA = "stance5r-judge/v1"
+ MAIN_CHECKOUT = "checkout"
+ SCRATCH = "scratchpad"
+ FROZEN_PARAMS = SCRATCH + "/foot/symmetry/design/frozen_params.json"
+@@ -114,7 +122,11 @@
+ TAIL_SEEDS_SHA256 = "8406594b2cebe802b31ee6fe18285366b943c72526ffc926e295675c281e5de4"
+ R9_PHYSICS_SHA256 = "sha256:3d68aec73fbc4642681ed601bedaf3524459d693d6a7afce036bb14bac872d67"
+ STAGE_SUBDIR = "01_stance"
+-SEEDS = (42, 52, 60)
++SEEDS = (42, 52, 60, 70, 80)
++#: stance5r: the replication seeds' joint-space control sigma (replication criteria; maintainer decision 4 of 2026-10-22).
++CONTROL_SIGMA_SIDECAR = SCRATCH + "/foot/stance5/replication/sigma_s70_s80.json"
++CONTROL_SIGMA_SIDECAR_SHA256 = "89778b3f81f83f05d4c15423b3658593dfaa767388213044c50a72e2d96b8522"
++SIDECAR_SEEDS = (70, 80)
+ #: The arms: clone, pinned HEAD (the build's commits) and the stance stage values the clone must carry.
+ ARM_ENV_COMMON = {"lateral_lean_weight": 0.25, "lateral_lean_tolerance_m": 0.015, "leg_home_pose_reference": "settled",
+                   "leg_home_pose_broad_fraction": 0.25, "leg_home_pose_broad_scale": 6.0, "reset_noise_scale": 0.05}
+@@ -1150,7 +1162,8 @@
+     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+     ap.add_argument("run_dir", help="notebook run directory (holds 01_stance/)")
+     ap.add_argument("--arm", required=True, choices=sorted(ARMS), help="L, LT (stance3), LTS (stance4) or LTSB (stance5): picks the clone and HEAD")
+-    ap.add_argument("--seed", type=int, required=True, choices=SEEDS, help="the run's training seed (selects the frozen control sigma)")
++    ap.add_argument("--seed", type=int, required=True, choices=SEEDS,
++                    help="the run's training seed (selects the control sigma: frozen_params for 42/52/60, the sidecar for 70/80)")
+     ap.add_argument("--steps", type=parse_steps, required=True,
+                     help="4194304 5242880 6291456 8388608 10485760 final (J), 1048576 2097152 3145728 7340032 9437184 "
+                          "11534336 (report), best / robust_best / another multiple of 524288 (selection comparison)")
+@@ -1211,7 +1224,19 @@
+         raise SystemExit(f"{a.frozen_params} sha256 {fp_sha} != the r9 verdict's params_sha256 {FROZEN_PARAMS_SHA256}")
+     frozen = read_json(a.frozen_params)
+     h4 = frozen["criteria"]["H4"]
+-    ctrl = h4["control_sigma"][str(a.seed)]
++    if a.seed in SIDECAR_SEEDS:  # stance5r: 70 and 80 read the pinned sidecar; 42, 52 and 60 read frozen_params as before
++        with open(CONTROL_SIGMA_SIDECAR, "rb") as fh:
++            sc_raw = fh.read()
++        sigma_file, sigma_sha = CONTROL_SIGMA_SIDECAR, hashlib.sha256(sc_raw).hexdigest()
++        if sigma_sha != CONTROL_SIGMA_SIDECAR_SHA256:
++            raise SystemExit(f"{CONTROL_SIGMA_SIDECAR} sha256 {sigma_sha} != the pinned {CONTROL_SIGMA_SIDECAR_SHA256}")
++        sidecar = json.loads(sc_raw.decode("utf-8"))
++        if sidecar.get("source_sha256") != FROZEN_PARAMS_SHA256:
++            raise SystemExit(f"{CONTROL_SIGMA_SIDECAR} was not computed from the pinned frozen_params ({sidecar.get('source_sha256')})")
++        ctrl = sidecar["control_sigma"][str(a.seed)]
++    else:
++        sigma_file, sigma_sha = os.path.realpath(a.frozen_params), fp_sha
++        ctrl = h4["control_sigma"][str(a.seed)]
+     assert h4["episodes_per_seed"] == 20 and h4["spawn_range"] == [3042, 3061] and h4["space"] == "joint", h4
+     tail_seeds = None
+     if a.tail:
+@@ -1228,7 +1253,7 @@
+     git = git_state(clone)
+     if git["status"] or git["head"] != expect_head:
+         raise SystemExit(f"the judge runs the clean clone at {expect_head} (got {git['head']}, dirty={bool(git['status'])})")
+-    print(f"[judge_stance5] arm {a.arm} clone {clone} HEAD {git['head']} ({git['branch']}); mode {mode_name}; "
++    print(f"[judge_stance5r] arm {a.arm} clone {clone} HEAD {git['head']} ({git['branch']}); mode {mode_name}; "
+           f"environments = {modules['environments']}", flush=True)
+     import torch
+
+@@ -1263,6 +1288,7 @@
+         "noise_seeds": [NOISE_SEED, NOISE_SEED + NOISE_EPISODES - 1],
+         "plant_identity": ctx.plant_identity.to_dict(),
+         "frozen_params": os.path.realpath(a.frozen_params), "frozen_params_sha256": fp_sha,
++        "control_sigma_file": sigma_file, "control_sigma_file_sha256": sigma_sha,
+         "band_readouts": {"captured": band_on, "settings": band_defaults, "whole_band": list(BAND_WHOLE),
+                           "pad_band": list(BAND_PAD), "share_ramp": [BAND_SHARE_FULL_PRICE, BAND_SHARE_MIN],
+                           "report_only": True},
+@@ -1351,5 +1377,5 @@
+         sys.exit(main())
+     except SystemExit as exc:  # a refusal's reason reaches the log even when a wrapper (tools/iso.py) swallows the exit
+         if isinstance(exc.code, str):
+-            print(f"[judge_stance5] {exc.code}", file=sys.stderr, flush=True)
++            print(f"[judge_stance5r] {exc.code}", file=sys.stderr, flush=True)
+         raise

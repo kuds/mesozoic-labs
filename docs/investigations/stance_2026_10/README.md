@@ -73,6 +73,16 @@ as they were, and the summary of the rebuild for its new parent (decision D-D36
 as amended on 2026-10-20; the note's §21.6). Pilot 2 is not yet trained, and
 nothing here is a result.
 
+*Added 2026-10-24:* `stance5/replication/` holds the pre-registration of the
+stance5 replication of decision D-D41 (the note's §22): its criteria, fixed
+before training, the Colab steps, the joint-noise sigma sidecar for the new
+seeds, and frozen copies of the judge and scorer.
+`stance5/replication/results/` holds the replication's judgement by those
+criteria (Run 4, seed 70, holds; Run 5, seed 80, does not; the decision table's
+line is 2, final; the note's §23), with report-only readouts and an index of its
+own, [stance5/replication/results/README.md](stance5/replication/results/README.md).
+As a screen it certifies nothing.
+
 ## What changed in the copies
 
 [SOURCES.txt](SOURCES.txt) lists every file with the scratch file it came from,
@@ -205,11 +215,34 @@ byte-identical to its source (`60845fdc…`). `pilot2/criteria.txt` and
 `bc94bda3…`); the amended criteria cite the first as their pre-amendment copy.
 No copy holds a model identifier, an email address or a commit trailer.
 
+*Added 2026-10-24 (`stance5/replication/`, `stance5/replication/results/`):* the
+copies carry the **prefix**, **whitespace**, **gzip**, **trim**, **redact**,
+**checkout** and **lines** changes, nothing else and no new kind:
+`stance5/replication/results/run_log.txt` is lines 396 to 504 of the session's
+run log, whose lines 1 to 207 and 208 to 395 are the stance4 and stance5 copies.
+The redaction is in that log only: 49 workflow run ids (28 distinct), and, items
+not redacted before, 15 background-job ids of the session's queue workers (13
+distinct) and 6 shortened Drive folder ids, each now `[id removed]`.
+`stance5/replication/results/scores/score_final.json.gz` is gzipped, as the
+JSON is above the repository's 500 KB limit for an added file.
+`stance5/replication/criteria.txt` is byte-identical to the file fixed before
+training (sha256 `a38536de…`; it ends with a newline), and so are
+`stance5/replication/colab_steps.txt` (`d646fc3c…`, the steps sent at 18:00 UTC
+on 2026-10-22) and `stance5/replication/judge/test_score_stance5r.py`. The
+judge, the scorer and the sidecar `sigma_s70_s80.json` carry the **prefix**
+change (the judge the **checkout** change too), so their sha256 is not the
+`16d39f7d…`, `55c37ba7…` and `89778b3f…` the criteria, the Colab steps and the
+judge files record; SOURCES.txt gives those as the sources' sha256.
+[stance5/replication/results/README.md](stance5/replication/results/README.md)
+says which file each change applies to. No copy holds a model identifier, an
+email address or a commit trailer.
+
 [SHA256SUMS](SHA256SUMS) pins every file here but this README and itself
 (`sha256sum -c SHA256SUMS` in this directory). *Added 2026-10-19:* nor
 `stance3/results/README.md`, which, like this README, has no source.
 *Added 2026-10-20:* nor `stance4/results/README.md`, likewise.
 *Added 2026-10-22:* nor `stance5/results/README.md`, likewise.
+*Added 2026-10-24:* nor `stance5/replication/results/README.md`, likewise.
 
 ## Contents
 
@@ -848,6 +881,65 @@ pushed to the branch until all three seeds are judged.
   judge accepting the run and refusing pilot 1's parent; 29 warm-start tests;
   the full suites on `8fc76eec`, 5,937 passed).
 
+### Added on 2026-10-24 (decision D-D41's outcome)
+
+**`stance5/replication/`: the stance5 replication of the per-foot CoP band,
+pre-registered (decided 2026-10-22 as D-D41; criteria fixed that day before any
+training step; launched that day on Colab L4 runtimes).** Two runs of arm LTSB,
+unchanged, from scratch on physics r9, 12M steps each: `stance5_LTSB_s70` (Run
+4) and `stance5_LTSB_s80` (Run 5), from the branch
+`claude/screen-trex-r9-armlts-copband` at `cf80ecb1`, the commit the three
+stance5 runs trained, never merged and with no pull request. The three stance5
+runs count as recorded and are not re-judged; the stance4 control enters no
+decision.
+
+- `criteria.txt`: why it is run, what is trained (as stance5's), the stance5
+  runs and the control (not retrained), how it is judged (the judge, the new
+  seeds' joint-noise sigma and the scorer), the run handling of 2026-10-22, K1–K4
+  as stance5's, the decision table of three lines (adopt only if both new runs
+  hold), when the decision is read, the pre-registered readouts, what is
+  measured and inferred, and the known limits, written before any training step
+  (sha256 `a38536de…`). It was made final at 17:46 UTC on 2026-10-22 (sha256
+  `cbf98ba7…`) and re-fixed at 18:00 UTC for the run log's time correction,
+  before any training step; the earlier texts are not copied. Its `SP/` paths
+  name the session's scratch.
+- `colab_steps.txt`: how the runs are launched and resumed, as sent at 18:00
+  UTC; it holds the criteria's full text.
+- `sigma_s70_s80.json`: the joint-space noise sigma for seeds 70 and 80, one
+  vector, the element-wise mean of the frozen `control_sigma` of seeds 42, 52
+  and 60 (mean 0.160713), with its computation.
+- `judge/judge_stance5r.py` (stance5's judge with `--seed` also taking 70 and
+  80, whose sigma it reads from the sidecar, the sigma file recorded, and the
+  schema `stance5r-judge/v1`; `judge/judge_diff.txt` is the whole diff),
+  `judge/score_stance5r.py` (loads `score_stance5.py` and through it
+  `score_stance3.py` unchanged, checks the stance5 runs' recorded verdicts and
+  the control's, and reads the replication's decision line) and
+  `judge/test_score_stance5r.py`.
+
+**`stance5/replication/results/`: the replication judged (2026-10-24, final),
+with report-only readouts.** Outcome: Run 4 `stance5_LTSB_s70` **holds**
+(K1–K4); Run 5 `stance5_LTSB_s80` fails K1 only (40, 4, 14, 26, 39 and 38 of 40
+clean, the three below 33 on the actuator-saturation rail). H = 2 of 5 (s52 and
+s70), so the decision table's line is **2**, final: "Exactly one of s70 and s80
+HOLDS (H = 2 of 5): not adopted." The maintainer chooses the next round from
+stance5 line 4's menu (the tail saturation habit, the dose, the leg
+exploration-noise floor). Under the parent rule s52's final still ties stance3
+Run 2's final (report only). Measured, both runs recorded a Colab L4 GPU
+runtime (the `gpu` block of each run's `stage_config.json`). Its
+[README](stance5/replication/results/README.md) indexes the folder:
+
+- `run_log.txt` (the replication's log, ids removed, from the package made
+  final at 17:46 UTC on 2026-10-22 to the entry timed 15:27 UTC on 2026-10-24),
+  `scores/` (`score_final.txt` and `score_final.json.gz`, the verdict of
+  record), `notebook_gates/` (the notebook's own six-heading gate on each run's
+  `robust_best`, trimmed: both PASS; report only) and `certificates/` (the
+  stage's six-heading certificate rolled offline on the s70 and s80 finals,
+  trimmed: 40/40 and 38/40, both PASS; report only, not gate evidence).
+- `saturation/`: the saturation watch's files for s80, report only: the alarm
+  at 4,456,448 (first flagged evaluation 4,325,376), and the actuator named by
+  rollouts of the 4,718,592, 5,242,880 and 6,291,456 checkpoints,
+  `tail_3_pitch_act` at +1 (tail raised).
+
 ## How to re-check each verdict
 
 Commands as run on 2026-10-17 from a copy of this directory (Python 3.13;
@@ -911,6 +1003,11 @@ copies.
 | The files themselves (2026-10-22, later, with `stance4/satdiag/`) | `sha256sum -c SHA256SUMS` | all 378 files OK |
 | The amended pilot-2 criteria against their source (2026-10-22; session scratch only) | `diff scratchpad/foot/pilot2/criteria.txt pilot2/criteria_2026-10-21.txt` | line 149 only (the redaction) |
 | The files themselves (2026-10-22, later, with the `pilot2/` files) | `sha256sum -c SHA256SUMS` | all 381 files OK |
+| The replication's verdicts, decision line and parent comparison (2026-10-24; session scratch only, restored from the handoff branch) | in the session's scratch: `python3 -I scratchpad/foot/stance5/replication/judge/score_stance5r.py --runs-ended --json score.json` | the same verdicts, cells, H and decision line (2) as `stance5/replication/results/scores/`; the differences the handoff's missing files cause are in `stance5/replication/results/README.md` |
+| The replication scorer's tests (2026-10-24; session scratch only, restored) | in `scratchpad/foot/stance5/replication/judge/`: `python3 -m pytest -p no:cacheprovider test_score_stance5r.py` | 42 passed, 2 skipped, 1 failed, as `stance5/replication/results/README.md` explains |
+| The replication certificates' checkpoints (2026-10-24; session scratch only) | compare each `stance5/replication/results/certificates/<run id>/run_summary.json`'s `model_sha256` with the scratch's `judged/<run id>/judge_final.json` | equal for both |
+| The replication criteria (2026-10-24) | `sha256sum stance5/replication/criteria.txt` | `a38536de152e735947fd5322960f9e75b6520b59a5526a414afc0d0c4a0f3ef2` |
+| The files themselves (2026-10-24, with `stance5/replication/`) | `sha256sum -c SHA256SUMS` | all 401 files OK |
 
 `test_pilot_score.py` prints sample "Walking pilot score" blocks while it runs;
 they score synthetic panels, not the pilot.
@@ -994,3 +1091,9 @@ one import line, unsorted imports, two statements joined by `;`), and
 `score_stance5.py` (an unused `math` and three variables named `l`) and none in
 the other two, and `ruff format --check` would reformat all three. All six parse
 on Python 3.11, 3.12 and 3.13.
+
+*Added 2026-10-24:* the three scripts added in `stance5/replication/judge/` are
+left as they ran: `ruff check` (ruff 0.16.9, the same configuration) reports 1
+finding in `test_score_stance5r.py` (an f-string without placeholders) and none
+in the other two, and `ruff format --check` would reformat all three. All three
+parse on Python 3.11, 3.12 and 3.13.

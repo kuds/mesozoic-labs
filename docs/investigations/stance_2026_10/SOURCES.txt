@@ -73,6 +73,25 @@
 # Their sources foot/pilot2/criteria.txt and foot/pilot2/colab_steps.txt were amended in place on 2026-10-21, so the
 # rows of pilot2/criteria.txt and pilot2/colab_steps.txt give the 2026-10-18 texts by sha256 only; the scratch keeps
 # those texts as foot/pilot2/criteria_2026-10-18.txt and foot/pilot2/colab_steps_2026-10-18.txt (the same sha256).
+# Added 2026-10-24 (stance5/replication/, stance5/replication/results/): no new kind of change.  lines:
+#   stance5/replication/results/run_log.txt is lines 396 to 504 of the session's run log, whose lines 1 to 207 are
+#   stance4/results/run_log.txt and lines 208 to 395 stance5/results/run_log.txt; the sha256 given is that of the
+#   source's first 504 lines, the whole file when copied (lines 396 to 504 alone:
+#   64825dd9f51e554f6e2eb124df52f80fc48e6dcd4c40d832742b452ac8541cb2).  The session appends to the source; its first
+#   395 lines are unchanged (b66416647f02193d453c838049ca0386ad8a20594f16d99d10a94f50d7448f35, as given above).
+# redact, in that copy only: 49 workflow run ids (28 distinct; a bare one becomes 'workflow [id removed]'), and, new,
+# 15 background-job ids of the session's queue workers (13 distinct; nine characters) and 6 shortened Drive folder
+# ids (eight characters and '...'), each by '[id removed]'.  checkout as above, in
+# stance5/replication/judge/judge_stance5r.py and stance5/replication/judge/judge_diff.txt.  trim:
+# stance5/replication/results/notebook_gates/<run id>/gate_verdict.json keep stance4's keys and
+# stance5/replication/results/certificates/<run id>/run_summary.json stance3's (as stance5/results/ does).  gzip:
+# stance5/replication/results/scores/score_final.json.gz (the JSON is above the repository's 500 KB limit for an
+# added file).  whitespace adds a final newline to the JSON copies and removes trailing spaces from four lines of
+# judge_diff.txt.  stance5/replication/criteria.txt is byte-identical to the file fixed before training, and so is
+# stance5/replication/colab_steps.txt to the steps sent at 18:00 UTC on 2026-10-22.  The judge, the scorer and the
+# sidecar sigma_s70_s80.json carry the prefix change, so their sha256 is not the one the criteria, the Colab steps
+# and the judge files record (that is the source sha256 given here).  stance5/replication/results/README.md has no
+# source.
 
 audit/foot_ankle_audit.md foot/audit_2026_10_17/foot_ankle_audit.md e9da4ef84be17a87b70096d1e2aede87609ad22f446b10786f9e14d5064725c8 prefix
 audit/geometry/geometry_audit.json foot/audit_2026_10_17/geometry/geometry_audit.json 934110bec337b9693f894800efb309bf1a9529ae87f91f129bfefc8fef5b650a prefix,whitespace
@@ -416,6 +435,26 @@ stance5/criteria_notes.md foot/stance5/criteria_notes.md 2b95b4fd91149d4552dc144
 stance5/judge/judge_stance5.py foot/stance5/judge/judge_stance5.py d9286724550b83eccfd11e2ceba634cfca847f1e52e03988f9c486c6db6bda13 prefix,checkout
 stance5/judge/score_stance5.py foot/stance5/judge/score_stance5.py d5515041f73a299a96963f953bac7117e3ffb7c73570572ad9fc6bc189888a77 prefix
 stance5/judge/test_score_stance5.py foot/stance5/judge/test_score_stance5.py 11d5063222709ab327562b78764ceaa811142782951006df34dfe96ddac7d5e3 none
+stance5/replication/colab_steps.txt foot/stance5/replication/colab_steps.txt d646fc3cc6985589d202548c08dd8832e4cabbd9194ce27413e682b69aaa609d none
+stance5/replication/criteria.txt foot/stance5/replication/criteria.txt a38536de152e735947fd5322960f9e75b6520b59a5526a414afc0d0c4a0f3ef2 none
+stance5/replication/judge/judge_diff.txt foot/stance5/replication/judge/judge_diff.txt 3c51ed297d321281f8492e26131deb36d21ea1914fccab945a8c23318f165111 prefix,checkout,whitespace
+stance5/replication/judge/judge_stance5r.py foot/stance5/replication/judge/judge_stance5r.py 16d39f7dcb14a8b6f94061331933df8f1dcee76aa988479e293b132bf8ac05ae prefix,checkout
+stance5/replication/judge/score_stance5r.py foot/stance5/replication/judge/score_stance5r.py 55c37ba7f30a3812dbb035a509afaebd851088e5dc251199e1a519b161f46f60 prefix
+stance5/replication/judge/test_score_stance5r.py foot/stance5/replication/judge/test_score_stance5r.py 2506fa9df6a53a9cde9f533b41ef926f2379c45e112c0faad619bdefd055e61d none
+stance5/replication/results/certificates/stance5_LTSB_s70/run_summary.json foot/stance5/replication/cert/stance5_LTSB_s70/run_summary.json 1157212c0ca37214a56a97e6b3cb5b4f0e76a4ed9d8a44d3913818b45674cef2 trim,prefix,whitespace
+stance5/replication/results/certificates/stance5_LTSB_s70/stance_heading_report.txt foot/stance5/replication/cert/stance5_LTSB_s70/stance_heading_report.txt f16788824b013fc06489d2a936aba85f1a29e79575ee517d6b8f983c54ec4703 none
+stance5/replication/results/certificates/stance5_LTSB_s80/run_summary.json foot/stance5/replication/cert/stance5_LTSB_s80/run_summary.json 641af6ff70b0bdffdf507451b39ed33a4330eab96531146eff9fe90c021d9a5a trim,prefix,whitespace
+stance5/replication/results/certificates/stance5_LTSB_s80/stance_heading_report.txt foot/stance5/replication/cert/stance5_LTSB_s80/stance_heading_report.txt c95ca48fd8a03ab0dc4848fb6acc021d6306283ffc5c61a3ef5286cbeb29206e none
+stance5/replication/results/notebook_gates/stance5_LTSB_s70/gate_verdict.json foot/stance5/replication/runs/stance5_LTSB_s70/01_stance/gate_verdict.json 936b0538bf28f54e0f9867681535b9315ee39f4b23a8503d6d4c68aa0a38b979 trim
+stance5/replication/results/notebook_gates/stance5_LTSB_s80/gate_verdict.json foot/stance5/replication/runs/stance5_LTSB_s80/01_stance/gate_verdict.json 037990f2e06b11c6d89ad24dbcedd5c79ac6c4ab785bf46e6d6af122efded0cc trim
+stance5/replication/results/run_log.txt foot/stance4/live/run_log.txt d23bcc2ca30833696be4f0721845ca934840896a8cfa89a50947db5222075888 lines,redact
+stance5/replication/results/saturation/satwatch5r_state.json foot/stance5/replication/tools/state/satwatch5r_state.json f11862a7fdcc4723c67c469941e4e2efb135ab802106616c21a5213190b55bd5 whitespace
+stance5/replication/results/saturation/stance5_LTSB_s80_4718592.json foot/stance5/replication/tools/satroll/stance5_LTSB_s80_4718592.json a3d356cd93ae13e1289a7054bc5962a4b9f099c1e4816c30694c320087045970 prefix,whitespace
+stance5/replication/results/saturation/stance5_LTSB_s80_5242880.json foot/stance5/replication/tools/satroll/stance5_LTSB_s80_5242880.json 5630bb009bd35254874fb45f07742e27a4159e5786633fc4c62de129dd206159 prefix,whitespace
+stance5/replication/results/saturation/stance5_LTSB_s80_6291456.json foot/stance5/replication/tools/satroll/stance5_LTSB_s80_6291456.json 853930fc4ac0e256e52d0e55a1d5b85adcf4684f72777ee7dc852a7045d6727d prefix,whitespace
+stance5/replication/results/scores/score_final.json.gz foot/stance5/replication/scores/score_final.json 938da8434edbbf976f5911f3834fedadd4e208f3eead6df912e74cee57a5b24f prefix,whitespace,gzip
+stance5/replication/results/scores/score_final.txt foot/stance5/replication/scores/score_final.txt 9be2a2313747b341978975eca29dfe98f554ed2a5794edce0d4f072e5a4ef1f0 prefix
+stance5/replication/sigma_s70_s80.json foot/stance5/replication/sigma_s70_s80.json 89778b3f81f83f05d4c15423b3658593dfaa767388213044c50a72e2d96b8522 prefix
 stance5/results/certificates/stance5_LTSB_s52/run_summary.json foot/stance5/cert/stance5_LTSB_s52/run_summary.json 6a01e9071e827e3ec3daf31bfd02fdcbeb0c1257d59f25c46b42d1feed50a9c9 trim,prefix,whitespace
 stance5/results/certificates/stance5_LTSB_s52/stance_heading_report.txt foot/stance5/cert/stance5_LTSB_s52/stance_heading_report.txt 6bc377e44e1c6b612f89d2429c4f111df5bdbe350e4e615d68582b11bb009acd none
 stance5/results/certificates/stance5_LTSB_s60/run_summary.json foot/stance5/cert/stance5_LTSB_s60/run_summary.json 1350d3b7c47ca5229206fad0dc4a170d0f6f5554bb876a350c760cfb207b910b trim,prefix,whitespace
