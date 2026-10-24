@@ -3162,13 +3162,19 @@ class TestAllProbesAreWiredIntoTrainingArtifacts:
         import inspect
 
         source = inspect.getsource(self._artifacts().generate_stage_artifacts)
-        for call in ("_write_stance_gate_report(", "_apply_stage_gate(", "_run_stance_probes("):
+        for call in (
+            "_write_stance_gate_report(",
+            "_apply_stage_gate(",
+            "_write_training_history(",
+            "_run_stance_probes(",
+        ):
             assert call in source, f"generate_stage_artifacts no longer calls {call.rstrip('(')}"
         assert (
             source.index("_apply_stage_gate(")
             < source.index("write_stage_summary(")
+            < source.index("_write_training_history(")
             < source.index("_run_stance_probes(")
-        ), "probes must run after the verdict is recorded and the summary written"
+        ), "probes must run after the verdict is recorded, the summary written and the training history drawn"
 
     def test_every_probe_config_key_is_reachable_from_a_toml(self):
         """Unregistered keys are rejected fail-closed, making them unsettable."""

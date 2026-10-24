@@ -18,7 +18,10 @@ directory is refused, as ``plot_gate_progress.py`` refuses it (a result
 bundle's manifest hashes every file there, and verification rejects a file it
 did not list).  The run directory is the nearest ancestor of STAGE_DIR holding
 ``provenance.json``; for a copy without one, the stage directory's parent
-(the ``<run>/<NN_stage>`` layout).
+(the ``<run>/<NN_stage>`` layout).  The refusal is for manual writes: the
+copy in each stage's ``figures/training_history/`` is the library's own
+artifact step (``generate_stage_artifacts`` calls the module directly, before
+the bundle is saved), not this script.
 
 Usage::
 
