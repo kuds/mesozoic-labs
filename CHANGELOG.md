@@ -80,6 +80,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `SHA256SUMS` (now 418 files) are extended. `docs/README.md` adds a note to the
   record's and the gait plan's rows, and `docs/KNOWN_ISSUES.md` gains Update 16
   of the T-Rex stance entry.
+- **A training-history report: one run's feet, balance, asymmetry and
+  saturation over its training, or several runs overlaid**
+  (`environments/shared/reporting/training_history.py`,
+  `environments/shared/scripts/plot_training_history.py`; documented in
+  `docs/TRAINING_ARTIFACT_PRESENTATION.md`, "Training history pages"). Report
+  only: new files, one test-table line each in `test_policy_loading.py` (the
+  new call-time read of `_PERIODIC_CHECKPOINT_RE`) and
+  `test_repository_root.py` (the script's `sys.path` bootstrap), and a
+  docstring line in `reporting/__init__.py`; no training, evaluation, gate,
+  configuration, digest or notebook changes. From a stage directory's
+  `eval_episodes.csv`, `train_episodes.csv`, `stage_config.json`,
+  `progress.json`, `plant_identity.json` and checkpoint zips it reduces each
+  evaluation (clean, falls, saturation-flagged episodes and the mean return;
+  the rails' own per-episode numbers and the full-horizon episodes over each
+  declared bar; per foot the whole-foot and pad centres of pressure, the
+  episodes outside the CoP band's edges, digit share, toe margin, shear and
+  cone use; the centre of mass, root pitch and XcoM margins; the
+  left-minus-right hip pitch, knee and ankle offsets;
+  `actuator_force_frac_max`), the training falls per 262,144-step window, and
+  the per-actuator policy std `exp(log_std)` at the checkpoints (only
+  `policy.pth`'s `log_std` is read, with `weights_only=True`; the actuator
+  names only when the run's physics digest is the checkout's). It finds the
+  saturation alarms from the ledger itself (an evaluation with at least 5 of
+  its episodes listing `max_actuator_saturation_fraction`; two in a row are an
+  alarm) and marks them, with the checkpoints given by `--mark-steps`, on ten
+  pages of graphs written as PNGs and a self-contained HTML page, beside a
+  JSON summary (`mesozoic.training-history/v1`) of every series, the declared
+  bars and band settings and what was absent. Counts are never smoothed: a
+  comparison draws them as one strip per run. A missing file or column is an
+  absent series, never an error; an output inside a run directory is refused,
+  as `plot_gate_progress.py` refuses it. It is the first piece of the stage
+  report card's posture-over-training page and per-actuator std. On the
+  stance5 band run s42 it finds the first flagged evaluation at 3,538,944
+  steps and the alarm at 3,670,016, and on the stance4 control run s42 the
+  first saturated episodes at 1,835,008 and the alarm at 2,228,224, the steps
+  the scorers recorded. On the stance4 control run s52 it counts 204
+  full-horizon episodes over the 0.80 pad rail in 69 of 91 evaluations (7 of
+  10 at 6,553,600 steps, where the signed per-foot means read +0.14 and
+  +0.11); the five band runs have none.
 - **Decision D-D41 recorded: a replication of the per-foot centre-of-pressure
   band screen on two more seeds, read three of five; D-D40 and D-D36 amended**
   (#634; the maintainer's decisions of 2026-10-22;

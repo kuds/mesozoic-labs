@@ -825,6 +825,92 @@ every key and type the file had before is kept.
 | `checkpoints` | `latest_periodic_timesteps` (the newest periodic checkpoint in `models/`, by its name), `periodic_timesteps` (every periodic checkpoint kept, sorted: the newest few and, under the archive rule below, one per interval), `best_model_timesteps` and `best_mean_reward` (SB3's mean-reward best), `robust_best_model_timesteps` and `robust_best_score` (mean minus one standard deviation). A best checkpoint whose evaluation a resume dropped from the history reads `null`, while its score (`best_mean_reward`, `robust_best_score`) keeps the value the resumed tracker carried over |
 | `warnings_total`, `warnings` | How many advisories this session has raised, and the newest 10 in step order, each `{"timesteps", "source", "message"}`: `posture_drift` and `posture_trend` (each with `rails`), `evaluation_plateau`, `zero_action_baseline` and `hop_watch`. Each also appears as a warning line in the training output. A resumed session counts its own |
 
+## Training history pages: `plot_training_history.py`
+
+`gate_progress.npz` and `progress.json` hold per-evaluation means and the
+latest row. To see how one run's feet, balance, asymmetry and saturation
+moved over its training, or to overlay several runs, draw them from the
+ledgers above:
+
+    python environments/shared/scripts/plot_training_history.py STAGE_DIR [STAGE_DIR ...] --out DIR \
+        [--labels ...] [--groups ...] [--mark-steps 4194304 ... final] [--title ...] \
+        [--reference-band LOWER UPPER PAD_LOWER PAD_UPPER]
+
+One stage directory gives that run's pages; several give a comparison (at
+most eight runs, with distinct labels), one colour per seed (else per run)
+and one line style per `--groups` value, each run's name at the end of its
+line. `--out` receives one PNG per page, `training_history.html`, which
+embeds them (base64) beside tables of the values at the marked, best and
+last checkpoints, and `training_history.json`
+(`mesozoic.training-history/v1`: every reduced series, the declared bars,
+the band settings and the edges counted, the alarms, the checkpoints kept,
+the plant check and what was absent). An `--out` inside a run directory is
+refused, as `plot_gate_progress.py` refuses it; for a copy without
+`provenance.json` the run directory is the stage directory's parent. It
+reads the files and writes nothing else (`reporting/training_history.py`).
+
+| Page | What it draws, against the training step |
+|---|---|
+| Outcomes | Clean episodes (`screen_v2_clean`), falls (shorter than the horizon) and the mean return per evaluation, and the training falls per 262,144-step window of `train_episodes.csv` (`cause` not `truncated`; the stochastic policy's) |
+| Saturation | The episodes per evaluation listing `max_actuator_saturation_fraction` in `screen_v2_reasons`, and `actuator_force_frac_max` against its limit of 1 |
+| Whole-foot CoP | Per foot, the signed `<label>_foot_cop_fore_aft` with the reward band's edges; the full-horizon episodes with either foot's window mean outside the band; the report-only `max_foot_cop_fore_aft` |
+| Pad CoP and the pad rail | Per foot, the signed `<label>_sole_cop_fore_aft` with the pad band's edges; the rail's own `max_sole_cop_fore_aft` (mean and worst episode) against its bar; the full-horizon episodes over that bar; those outside the pad band |
+| Digits and margins | Per foot, `<label>_digit_share` and `<label>_toe_margin_nm` |
+| Balance | `xcom_toe_margin_min_m`, `xcom_heel_margin_min_m`, `com_fore_aft_mean_m`, `root_pitch_mean_deg` |
+| Sole roll | `max_sole_tilt_deg` and `max_sole_corner_lift_m` against their bars, and the full-horizon episodes over each |
+| Floor forces | Per foot, `<label>_shear_over_normal` and `<label>_cone_use_mean` |
+| Asymmetry | `leg_q_<left>_minus_<right>_<joint>_deg` for hip pitch, knee and ankle. `eval_episodes.csv` records no hip roll difference, so there is none to draw |
+| Policy std | `exp(log_std)` per actuator at the checkpoint zips in `models/` (`robust_best`, `best`, final, and at most 12 periodic ones evenly spaced), with the number read of those chosen |
+
+Each per-episode value is reduced over the evaluation's full-horizon
+episodes, as `gate_progress.npz` reduces it: one run's pages draw the mean
+with one standard deviation shaded, or with the worst episode dashed for a
+maximum or minimum. A signed per-foot mean is not a rail's statistic: toe
+and heel episodes, and the two feet, cancel in it, so every per-foot mean
+can sit inside the band or under the pad bar while many episodes leave it.
+The pages therefore count, per evaluation, the full-horizon episodes whose
+own rail value (`max_sole_cop_fore_aft`, `max_sole_tilt_deg`,
+`max_sole_corner_lift_m`) exceeds the stage's bar
+(`<rail>_over_bar`, with `<rail>_over_bar_fraction` in the JSON), and
+those with either foot's window-mean CoP outside the band's edges
+(`foot_cop_outside_band`, `sole_cop_outside_pad_band`; an unloaded foot is
+not counted). The band is paid per window step, so the window mean is a
+proxy. A run that records no band is counted against the edges the
+band-paying runs of a comparison share, or against `--reference-band`, and
+the JSON names the edges' source. The whole-foot CoP is in half-lengths of
+the declared span: 0 its middle, -1 the heel line, +1 the toe line.
+
+Counts (clean, falls, saturation flags, the over-bar and outside-band
+counts, the training falls) are never smoothed. One run's pages draw them as
+lines with a point per evaluation, each fall's count written beside it, and
+the training-fall axis scaled to the windows after the first (the start-up
+window's value is written instead). A comparison draws each count as one
+strip per run, a cell per evaluation (per window for the training falls)
+coloured by the count, with the flagged evaluations outlined and every alarm
+a triangle in its run's row; only the continuous series are smoothed, as a
+centred rolling mean over 5 evaluations (`--smooth`) with each evaluation's
+value faint behind it.
+
+An evaluation is flagged when at least 5 of its episodes list
+`max_actuator_saturation_fraction` (some actuator commanded at
+`|action| >= 0.99` on more than the bar's fraction of its window steps), and
+two flagged evaluations in a row are an alarm, at the second (the stance4 and
+stance5 scorers' report-only rule, set on 10-episode evaluations; the JSON
+records the evaluation sizes and notes any other). One run's pages mark
+every alarm, `robust_best`, `best` and each checkpoint kept in `models/`; a
+comparison's line panels mark each run's first alarm in its colour. Every
+page marks the `--mark-steps` checkpoints. From a checkpoint zip the report
+reads only `policy.pth`'s `log_std` (`torch.load(..., weights_only=True)`)
+and, for a named checkpoint, `num_timesteps` from the JSON `data` member; it
+unpickles nothing else, and the reads stop after 10 s. The std lines join
+adjacent periodic checkpoints only; a longer gap, where nothing was read, is
+a dotted connector. The actuator names come from the checkout's MJCF, used
+only when the stage's `plant_identity.json` records the checkout's physics
+digest; otherwise the actuators are labelled by index. A missing file or
+column is an absent series, listed in the JSON and on the page, never an
+error. The evaluation episodes are the deterministic policy's at yaw 0, so
+the judge's perturbation panels and verdicts are not in these files.
+
 ## The handoff's in-training score: `handoff_in_training.json`
 
 A stance certificate scores the handoff checkpoint (`robust_best_model`
