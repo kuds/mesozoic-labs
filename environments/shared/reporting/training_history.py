@@ -1660,7 +1660,13 @@ def _new_figure(
             axes.append(axis)
         y -= _TICKS_IN
     # Read by _colourbar and _figure_legend.
-    figure._history_layout = {"width": width, "height": total, "left": left, "right": right, "bottom": bottom_in}
+    figure._history_layout = {  # type: ignore[attr-defined]
+        "width": width,
+        "height": total,
+        "left": left,
+        "right": right,
+        "bottom": bottom_in,
+    }
     return figure, axes
 
 
