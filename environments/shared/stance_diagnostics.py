@@ -3,19 +3,25 @@
 The helpers in this module derive support and pose measurements without
 changing actions, observations, rewards, reset behavior, or termination.
 Training callbacks store rollout means; evaluation replays can additionally
-write detailed per-frame geometry to CSV.
+write detailed per-frame geometry to CSV, with each actuator's command, the
+policy's raw mean before the action clip and the driven joint's position
+(:func:`policy_command_columns`).
 """
 
 from __future__ import annotations
 
 import csv
+import logging
 import math
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 import numpy as np
 
 from environments.shared.model_id import ModelId
+
+logger = logging.getLogger(__name__)
 
 # Raw environment measurements and reporting-only values derived from them.
 # Reward-shaped qualities deliberately live outside this module.
@@ -378,3 +384,111 @@ def write_stance_diagnostics_csv(path: str | Path, rows: Sequence[Mapping[str, A
         writer.writeheader()
         writer.writerows(rows)
     return output_path
+
+
+#: The per-actuator columns :func:`policy_command_columns` adds to a replay's stance CSV, named
+#: ``<actuator>_<suffix>``.  ``command`` is the action the replay sent (``predict``'s, already clipped to the
+#: action bound), ``raw_mean`` the policy's Gaussian mean before that clip (absent where the policy has none)
+#: and ``joint_pos`` the position of the joint the actuator drives (absent for another transmission).
+POLICY_COMMAND_SUFFIXES: tuple[str, ...] = ("command", "raw_mean", "joint_pos")
+
+
+@dataclass(frozen=True)
+class ActuatorLayout:
+    """Each actuator's name and the qpos and dof addresses of the joint it drives (``-1``: not a joint)."""
+
+    names: tuple[str, ...]
+    qpos_index: tuple[int, ...]
+    dof_index: tuple[int, ...]
+
+    @classmethod
+    def from_model(cls, model: Any) -> "ActuatorLayout":
+        """The layout of a compiled MuJoCo model; an unnamed actuator is ``actuator_<index>``."""
+        import mujoco
+
+        names: list[str] = []
+        qpos: list[int] = []
+        dof: list[int] = []
+        for index in range(int(model.nu)):
+            names.append(mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_ACTUATOR, index) or f"actuator_{index}")
+            joint = int(model.actuator_trnid[index, 0])
+            is_joint = int(model.actuator_trntype[index]) == int(mujoco.mjtTrn.mjTRN_JOINT) and joint >= 0
+            # A hinge or slide joint has one qpos and one dof; a ball or free joint has no single position.
+            single = is_joint and int(model.jnt_type[joint]) in (
+                int(mujoco.mjtJoint.mjJNT_HINGE),
+                int(mujoco.mjtJoint.mjJNT_SLIDE),
+            )
+            qpos.append(int(model.jnt_qposadr[joint]) if single else -1)
+            dof.append(int(model.jnt_dofadr[joint]) if single else -1)
+        return cls(tuple(names), tuple(qpos), tuple(dof))
+
+
+def actuator_layout(env: Any) -> ActuatorLayout | None:
+    """*env*'s :class:`ActuatorLayout`, or ``None`` (with a warning) when its model cannot be read."""
+    try:
+        return ActuatorLayout.from_model(env.unwrapped.model)
+    except Exception:  # noqa: BLE001 - the command columns are a convenience, not the replay
+        logger.warning("Stance CSV command columns skipped: the replay env's actuators cannot be read.", exc_info=True)
+        return None
+
+
+def policy_raw_mean(model: Any, observation: Any) -> np.ndarray | None:
+    """The policy's Gaussian mean for one observation, before the action clip; ``None`` where there is none.
+
+    *observation* is what ``model.predict`` is given (normalized already
+    where the run normalizes).  The forward pass is ``predict``'s own:
+    ``policy.obs_to_tensor`` and ``policy.get_distribution(...).mode()``
+    under ``torch.no_grad()``, the pass the policy probe uses
+    (:mod:`environments.shared.policy_probe`).  It draws no random number and
+    changes no parameter; the distribution it leaves on the policy's
+    ``action_dist`` is put back.  A deterministic ``predict`` returns this
+    mean clipped to the action bound.  ``None`` for a policy without a
+    diagonal Gaussian (SAC's squashed one included), without SB3 or torch,
+    or when the pass fails.
+    """
+    try:
+        import torch
+        from stable_baselines3.common.distributions import DiagGaussianDistribution
+    except ImportError:
+        return None
+    policy = getattr(model, "policy", None)
+    action_dist = getattr(policy, "action_dist", None)
+    if policy is None or not isinstance(action_dist, DiagGaussianDistribution):
+        return None
+    stored = dict(vars(action_dist))
+    try:
+        with torch.no_grad():
+            tensor, _vectorized = policy.obs_to_tensor(observation)
+            mean = policy.get_distribution(tensor).mode()
+        values = np.asarray(mean.cpu().numpy(), dtype=np.float64).reshape(-1)
+    except Exception:  # noqa: BLE001 - a diagnostic must not sink a replay
+        logger.warning("Stance CSV raw-mean columns skipped: the policy's forward pass failed.", exc_info=True)
+        return None
+    finally:
+        vars(action_dist).clear()
+        vars(action_dist).update(stored)
+    return values
+
+
+def policy_command_columns(layout: ActuatorLayout, data: Any, action: Any, raw_mean: Any = None) -> dict[str, float]:
+    """One step's ``<actuator>_command``, ``_raw_mean`` and ``_joint_pos`` (:data:`POLICY_COMMAND_SUFFIXES`).
+
+    Read after the step: the command is *action* as sent, the raw mean the
+    one computed for that action's observation (left out when ``None`` or of
+    another width), and the joint position *data*'s after the step.  Reads
+    only; nothing here writes the simulation.
+    """
+    command = np.asarray(action, dtype=np.float64).reshape(-1)
+    raw = None if raw_mean is None else np.asarray(raw_mean, dtype=np.float64).reshape(-1)
+    nu = len(layout.names)
+    row: dict[str, float] = {}
+    if command.shape != (nu,):
+        return row
+    qpos = np.asarray(data.qpos, dtype=np.float64)
+    for index, name in enumerate(layout.names):
+        row[f"{name}_command"] = float(command[index])
+        if raw is not None and raw.shape == (nu,):
+            row[f"{name}_raw_mean"] = float(raw[index])
+        if layout.qpos_index[index] >= 0:
+            row[f"{name}_joint_pos"] = float(qpos[layout.qpos_index[index]])
+    return row

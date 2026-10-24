@@ -80,6 +80,33 @@ are kept because the diagnostics callback, episode metrics and plots read
 them. Quadruped CSVs have no support, foot-position, or leg-home columns;
 the Dibothrosuchus CSV has the pad columns below.
 
+### Command columns
+
+Every model's stance CSV also has, per actuator (named as in the MJCF, such
+as `tail_3_pitch_act`), what the policy asked for at that frame:
+
+| Column | Meaning |
+|---|---|
+| `<actuator>_command` | The action the replay sent: `predict(deterministic=True)`'s, already clipped to the action bound, in action units |
+| `<actuator>_raw_mean` | The policy's Gaussian mean for the same observation, before that clip; a command at `+1` with a raw mean of `+1.1` is pushing past the rail |
+| `<actuator>_joint_pos` | The position of the joint the actuator drives, after the step (rad on a hinge) |
+
+The raw mean is a second forward pass of the observation `predict` was
+given (`stance_diagnostics.policy_raw_mean`: `obs_to_tensor` and
+`get_distribution(...).mode()` under `torch.no_grad()`, the policy probe's
+pass). It draws no random number and changes no parameter, so the video,
+the trajectory and every other column are those of a replay without it; it
+costs about 0.15 ms per frame on a [512, 256] policy, against about 1.2 ms
+for the T. rex's physics step. It is absent where the policy has no
+diagonal Gaussian (SAC). The joint position is absent for an actuator that
+does not drive a hinge or slide joint. No column the snapshot writes ends in
+these names on any model (`test_stance_diagnostics.py`), and nothing in the
+repository parses the stance CSV's columns: `stage_layout.iter_replay_files`
+lists it, and the gate reports, audits and result bundles read their own
+files. The CSV's `step` counts from 1 (the frame after the first step); the
+gate's window starts at its 0-based step index `settle_steps`, the CSV's row
+`settle_steps + 1`.
+
 ### Pad columns
 
 Every model whose `FOOT_SUPPORT` sole is a box adds two columns per such
@@ -773,6 +800,83 @@ read 0.63 at the settled statue against 0.16 for `bank_value_now`. There
 `bank_*_frozen` and `value_normalization_shift_statue` measure against the
 initial statistics, not a meaningful earlier normalizer; compare rows of
 `bank_value_now` with `obs_rms_*` instead.
+
+## Single-episode trace: `episode_trace_report.py`
+
+The stance gate flags actuator saturation, the share of window steps at
+`|a| >= 0.99`, and the stance report reduces each actuator's action to a
+window mean and spread. Neither says, step by step, what the policy asks
+for and what the joint and motor do with it. The tail habit of stance3
+Run 2 and stance4 s42 (`tail_3_pitch_act` commanded at +1, tail up) took
+scratch tools to read: a raw mean of +1.01 to +1.12 before the clip, the
+joint 0.216 rad below its stop on 0.26 of its force limit, and a first
+step at 0.99 with a median of 216
+(`investigations/stance_2026_10/stance4/satdiag/report.md`).
+`environments/shared/scripts/episode_trace_report.py` (library:
+`environments/shared/reporting/episode_trace.py`) measures them for any
+checkpoint, offline and report-only:
+
+```bash
+python environments/shared/scripts/episode_trace_report.py \
+    --species tyrannosaurus_rex --embodiment anatomical \
+    --model RUN/01_stance/models/stage1_2097152_steps.zip \
+    --vecnorm RUN/01_stance/models/stage1_vecnormalize_2097152_steps.pkl \
+    --seed 3042 --episodes 3 --actuators tail --out-dir scratch/trace
+```
+
+The rollout is the stance judge's: the stage's own env from its config,
+checked against the model's current plant; the checkpoint and its named
+VecNormalize statistics loaded frozen, with no sidecar guessing, as the
+stance report loads them (a missing `--vecnorm` is refused unless
+`--allow-unnormalized`); the same normalization, `predict(deterministic=True)`
+and clip; and `env.reset(seed=s)` per episode. The trace of seed `3042 + i`
+is episode `i` of the stance panel, command for command, on the v1 and v2
+panels and the heading certificate's 0 degree cell (`test_episode_trace.py`
+checks it against `run_panel`). `--seeds 3042,3059` picks episodes;
+`--actuators SUBSTRING` (repeatable) narrows the columns and the summary.
+
+Each episode writes `episode_trace_seed<seed>.csv`, one row per step, with
+`step` (0-based, the gate's index), `time_s`, `in_window` and `reward`, and
+per traced actuator:
+
+| Column | Meaning |
+|---|---|
+| `<actuator>_raw_mean` | The Gaussian mean before the clip (`get_distribution(obs).mode()`) |
+| `<actuator>_sample` | With `--stochastic` only: the mean plus the policy's own noise, before the clip |
+| `<actuator>_command` | The action sent to `env.step` |
+| `<actuator>_ctrl` | `data.ctrl`, the servo target the env applied |
+| `<actuator>_joint_pos`, `<actuator>_joint_vel` | The driven joint's position and velocity after the step (empty for another transmission) |
+| `<actuator>_force`, `<actuator>_force_frac` | `data.actuator_force` after the step (the last substep's) and its fraction of the force limit on that side, as the balance telemetry computes it (empty without a limit) |
+
+`episode_trace.json` (`mesozoic.episode-trace/v1`) records the inputs and,
+per episode, the length, return, termination and the gate's two saturation
+fractions over every actuator, and per traced actuator over the gate's
+window (steps `settle_steps` to the end, at `SATURATION_ABS` 0.99): the
+window means of the command, the raw mean, `ctrl`, the joint position and
+the force fraction (and the force fraction's maximum); the shares of window
+steps at `|command| >= 0.99` and `>= 0.9` and with `|raw mean| > 1`; the raw
+mean's maximum and minimum; and the first step at `|command| >= 0.99`,
+anywhere and in the window (the reset transient can touch the rail before
+the window opens). The script prints the same summary.
+
+Two flags make the rollout a probe, and the summary records them:
+
+* `--stochastic SEED` sends `clip(mean + exp(log_std) z)`, with `z` from
+  `numpy.random.default_rng(SEED + i)` in episode `i`: the policy under its
+  own exploration noise. With the first reset seed as `SEED` this is the
+  stance screens' `noise_matched_own` draw.
+* `--hold NAME=VALUE` (repeatable) sends `VALUE` for that actuator on every
+  step, while the raw mean still says what the policy would have sent: the
+  satdiag's counterfactual of holding `tail_3_pitch_act` at 0.
+
+The trace writes to `--out-dir` (default `episode_trace_<checkpoint stem>`
+in the current directory) and refuses one inside the run directory of the
+checkpoint or its statistics (the nearest ancestor holding
+`provenance.json`), as `plot_gate_progress.py` does: a result bundle's
+manifest hashes every file under the run. It changes no gate, reward,
+observation, action, task, checkpoint selection or plant, and the digest
+snapshot does not move. It traces the training heading only, not the
+certificate's turned headings.
 
 ## Training progress: `progress.json`
 
