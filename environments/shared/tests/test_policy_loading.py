@@ -679,6 +679,8 @@ CALL_TIME_READS = {
     "environments/shared/curriculum/checkpoints.py": {"_PERIODIC_CHECKPOINT_RE": 1},
     # progress.json's newest periodic checkpoint, read from the names alone (no pair check on every evaluation).
     "environments/shared/curriculum/progress_report.py": {"_PERIODIC_CHECKPOINT_RE": 1},
+    # The training-history report's checkpoint kinds, read from the names alone (report only).
+    "environments/shared/reporting/training_history.py": {"_PERIODIC_CHECKPOINT_RE": 1},
 }
 #: The only bindings of a moved name made outside a function body (at import
 #: or class-definition time) outside this module: ``train_base``'s
