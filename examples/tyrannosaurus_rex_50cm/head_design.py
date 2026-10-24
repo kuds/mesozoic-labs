@@ -29,7 +29,123 @@ SPECS: dict[str, dict[str, Any]] = {
         jaw_g=75,
         structure_g=60,
     ),
+    "rounded_box": dict(
+        label="Rounded-box skull / compact torso",
+        scale=(1.40, 1.45, 1.55),
+        neck=0.185,
+        upper_g=220,
+        jaw_g=60,
+        structure_g=50,
+    ),
+    "long_oval": dict(
+        label="Long oval skull / compact torso",
+        scale=(1.40, 1.45, 1.55),
+        neck=0.185,
+        upper_g=220,
+        jaw_g=60,
+        structure_g=50,
+    ),
+    "soft_wedge": dict(
+        label="Soft wedge skull / compact torso",
+        scale=(1.40, 1.45, 1.55),
+        neck=0.185,
+        upper_g=220,
+        jaw_g=60,
+        structure_g=50,
+    ),
 }
+
+
+def unified_head(b: base.Builder, shape: str) -> None:
+    """One upper skull, side eyes and a separate deep jaw in three shapes.
+
+    Hardware sizes and the 530 g moving-head target are retained. Component
+    centers and inertia boxes follow the revised skull and rear jaw hinge.
+    """
+    head = b.bodies["head"]
+    # Leave room for the deeper jaw during the standing arm gesture.
+    for side, sign in (("left", 1), ("right", -1)):
+        shoulder = (0.025, sign * 0.080, 0.072)
+        attrs(b, "geom", side + "_shoulder_case", pos=shoulder)
+        attrs(b, "body", side + "_arm", pos=(0.025, sign * 0.097, 0.072))
+        component(b, side + "_shoulder_motor", pos_m=list(shoulder))
+        component(b, side + "_shoulder_mount", pos_m=list(shoulder))
+    for name in ("upper_snout_shell", "upper_snout_collision", "left_brow", "right_brow"):
+        head.remove(find(b, "geom", name))
+    attrs(b, "mesh", "head_shell_mesh", file="rounded.obj", scale=(0.160, 0.125, 0.078))
+    attrs(b, "geom", "head_shell", pos=(0.030, 0, 0.044))
+    attrs(b, "geom", "head_collision", type="box", size=(0.140, 0.105, 0.065), pos=(0.030, 0, 0.044))
+    component(b, "head_upper_shell", pos_m=[0.030, 0, 0.044], inertia_box_halfsize_m=[0.160, 0.125, 0.078])
+    component(b, "head_structure", pos_m=[0, 0, 0.010], inertia_box_halfsize_m=[0.050, 0.035, 0.030])
+    # The jaw pivots near the rear of the skull rather than under the snout.
+    attrs(b, "body", "jaw", pos=(-0.050, 0, -0.045))
+    # A U-shaped jaw leaves a real opening around the neck. Side rails and
+    # the front chin are represented in both visual and collision geometry.
+    attrs(b, "mesh", "jaw_shell_mesh", scale=(0.080, 0.114, 0.034))
+    attrs(b, "geom", "jaw_shell", pos=(0.160, 0, -0.018))
+    attrs(b, "geom", "jaw_collision", type="box", size=(0.070, 0.100, 0.030), pos=(0.160, 0, -0.018))
+    component(b, "jaw_shell_mass", pos_m=[0.105, 0, -0.018], inertia_box_halfsize_m=[0.150, 0.114, 0.034])
+    component(b, "jaw_motor", pos_m=[-0.050, 0, -0.045])
+    for side, sign in (("left", 1), ("right", -1)):
+        b.mesh(
+            b.bodies["jaw"],
+            side + "_jaw_rail",
+            (0.071, 0.016, 0.034),
+            (0.035, sign * 0.099, -0.018),
+            "cream",
+            source="rounded",
+        )
+        b.collision(b.bodies["jaw"], side + "_jaw_rail", "box", (0.065, 0.012, 0.030), (0.035, sign * 0.103, -0.018))
+        rotation = (0, 0, -sign * 0.25)
+        for suffix, size, pos in (
+            ("eye_socket", (0.047, 0.008, 0.048), (-0.035, sign * 0.122, 0.060)),
+            ("eye_white", (0.041, 0.006, 0.042), (-0.033, sign * 0.128, 0.060)),
+            ("iris", (0.035, 0.005, 0.037), (-0.030, sign * 0.133, 0.060)),
+            ("pupil", (0.026, 0.004, 0.030), (-0.027, sign * 0.137, 0.060)),
+            ("eye_glint", (0.007, 0.002, 0.008), (-0.019, sign * 0.143, 0.077)),
+        ):
+            attrs(b, "geom", side + "_" + suffix, size=size, pos=pos, euler=rotation)
+        attrs(b, "geom", side + "_side_tooth", size=(0.006, 0.004, 0.010), pos=(0.065, sign * 0.106, -0.035))
+        attrs(b, "geom", side + "_nostril", size=(0.010, 0.003, 0.006), pos=(0.135, sign * 0.119, 0.035))
+    for i, sign in enumerate((-1, 1)):
+        attrs(b, "geom", f"tooth_{i}", size=(0.006, 0.005, 0.011), pos=(0.152, sign * 0.086, -0.035))
+    # Move the whole optical package together; retain all aperture dimensions.
+    camera_delta = np.array([0.009, 0, 0.0067])
+    for item in head:
+        name = item.get("name", "")
+        if name.startswith("snout_") or name == "camera_package_envelope":
+            if item.get("pos"):
+                item.set("pos", base.values(np.fromstring(item.get("pos", ""), sep=" ") + camera_delta))
+    camera = next(c for c in b.components if c["name"] == "snout_camera")
+    camera["pos_m"] = (np.array(camera["pos_m"]) + camera_delta).tolist()
+    if shape == "long_oval":
+        attrs(b, "mesh", "head_shell_mesh", file="soft.obj", scale=(0.170, 0.125, 0.078))
+        attrs(b, "geom", "head_collision", type="ellipsoid", size=(0.160, 0.115, 0.072))
+        component(b, "head_upper_shell", inertia_box_halfsize_m=[0.170, 0.125, 0.078])
+        for side, sign in (("left", 1), ("right", -1)):
+            for suffix in ("eye_socket", "eye_white", "iris", "pupil", "eye_glint"):
+                eye = find(b, "geom", side + "_" + suffix)
+                eye_pos = np.fromstring(eye.get("pos", ""), sep=" ")
+                eye_pos[1] -= sign * 0.008
+                eye.set("pos", base.values(eye_pos))
+            attrs(b, "geom", side + "_nostril", pos=(0.115, sign * 0.105, 0.035))
+    elif shape == "soft_wedge":
+        # Embed the tapered visual mesh; no shared asset is overwritten.
+        mesh = find(b, "mesh", "head_shell_mesh")
+        vertices: list[float] = []
+        faces: list[int] = []
+        for line in (base.HERE / "assets/rounded.obj").read_text().splitlines():
+            parts = line.split()
+            if parts and parts[0] == "v":
+                x, y, z = map(float, parts[1:])
+                vertices.extend((x, y * (0.96 - 0.10 * x), z - 0.12 * (x + 1)))
+            elif parts and parts[0] == "f":
+                faces.extend(int(i) - 1 for i in parts[1:])
+        mesh.attrib.pop("file")
+        mesh.set("vertex", base.values(vertices))
+        mesh.set("face", " ".join(map(str, faces)))
+        attrs(b, "geom", "head_collision", size=(0.140, 0.100, 0.060), pos=(0.030, 0, 0.035))
+        component(b, "head_upper_shell", pos_m=[0.025, 0, 0.035], inertia_box_halfsize_m=[0.160, 0.1325, 0.085])
 
 
 def build(name: str, directory: Path) -> Path:
@@ -142,6 +258,8 @@ def build(name: str, directory: Path) -> Path:
             scale * [0.113, sign * 0.035, 0.030],
             "dark_sage",
         )
+    if name in ("rounded_box", "long_oval", "soft_wedge"):
+        unified_head(b, name)
     compiler = b.xml.find("compiler")
     assert compiler is not None
     compiler.set("meshdir", os.path.relpath(base.HERE / "assets", directory))
@@ -230,6 +348,84 @@ def render_sheet(directory: Path, report: dict[str, Any]) -> None:
     sheet.save(directory / "comparison.png")
 
 
+def render_box_comparison(directory: Path) -> None:
+    from PIL import Image, ImageDraw
+
+    from examples.mini_tyrannosaurus_rex.render_design import _camera_basis, _font, geometry
+
+    from .render_design import render
+
+    models = [demo.load_model(path=directory / name / "model.xml") for name in ("large_head", "rounded_box")]
+    sheet = Image.new("RGB", (1600, 1460), (245, 247, 244))
+    draw = ImageDraw.Draw(sheet)
+    draw.text((40, 28), "T-REX / A ROUNDED-BOX SKULL", font=_font(34), fill=(38, 55, 43))
+    draw.text(
+        (40, 83), "Same body, legs and head-weight target / actual MuJoCo geometry", font=_font(22), fill=(83, 97, 88)
+    )
+    for row, view in enumerate(("isometric", "side")):
+        points = [geometry(m, d)[0] @ _camera_basis(view).T for m, d in models]
+        bounds = (
+            np.min([p[:, :, :2].min(axis=(0, 1)) for p in points], axis=0),
+            np.max([p[:, :, :2].max(axis=(0, 1)) for p in points], axis=0),
+        )
+        for i, (model, data) in enumerate(models):
+            x, y = i * 800, 150 + row * 610
+            sheet.paste(render(model, data, view=view, width=800, height=555, projection_bounds=bounds), (x, y + 35))
+            draw.text(
+                (x + 40, y),
+                ("Previous / round cranium + muzzle", "Revised / one rounded rectangular skull")[i],
+                font=_font(22),
+                fill=(38, 55, 43),
+            )
+    draw.text(
+        (40, 1395),
+        "Shape study. Hollow-shell mass targets and simplified simulation do not establish hardware viability.",
+        font=_font(19),
+        fill=(83, 97, 88),
+    )
+    sheet.save(directory / "rounded_box_comparison.png")
+
+
+def render_shape_options(directory: Path) -> None:
+    from PIL import Image, ImageDraw
+
+    from examples.mini_tyrannosaurus_rex.render_design import _camera_basis, _font, geometry
+
+    from .render_design import render
+
+    names = ("rounded_box", "long_oval", "soft_wedge")
+    labels = ("A / ROUNDED BOX", "B / LONG OVAL", "C / SOFT WEDGE")
+    models = [demo.load_model(path=directory / name / "model.xml") for name in names]
+    sheet = Image.new("RGB", (1800, 1410), (245, 247, 244))
+    draw = ImageDraw.Draw(sheet)
+    draw.text((40, 28), "T-REX / FINDING THE FACE", font=_font(34), fill=(38, 55, 43))
+    draw.text(
+        (40, 83), "Three skull shapes / same body and 530 g moving-head target", font=_font(22), fill=(83, 97, 88)
+    )
+    for row, view in enumerate(("isometric", "side", "front")):
+        for model, _ in models:
+            if row == 1:
+                model.geom_group[~np.isin(model.geom_bodyid, (model.body("head").id, model.body("jaw").id))] = 5
+        points = [geometry(m, d)[0] @ _camera_basis(view).T for m, d in models]
+        bounds = (
+            np.min([p[:, :, :2].min(axis=(0, 1)) for p in points], axis=0),
+            np.max([p[:, :, :2].max(axis=(0, 1)) for p in points], axis=0),
+        )
+        for i, (model, data) in enumerate(models):
+            x = 600 * i
+            y, height = ((180, 560), (790, 260), (1080, 260))[row]
+            sheet.paste(render(model, data, view=view, width=600, height=height, projection_bounds=bounds), (x, y))
+            if row == 0:
+                draw.text((x + 30, 145), labels[i], font=_font(24), fill=(38, 55, 43))
+    draw.text(
+        (40, 1360),
+        "Actual MuJoCo geometry. These are proportion studies, not fabrication-ready designs.",
+        font=_font(20),
+        fill=(83, 97, 88),
+    )
+    sheet.save(directory / "shape_options.png")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, default=OUTPUT)
@@ -280,6 +476,8 @@ def main() -> None:
     )
     if args.render:
         render_sheet(args.output, reports)
+        render_box_comparison(args.output)
+        render_shape_options(args.output)
 
 
 if __name__ == "__main__":

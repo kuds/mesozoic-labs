@@ -9,8 +9,9 @@ plants/checkpoints are unchanged.
 ![Actual compiled model, four views](design_views.png)
 
 The [latest character study](head_study/README.md) makes a broad skull and jaw
-the main feature, with a compact torso underneath. It compares 57.2 and 60.3 cm
-alternatives and records their head mass, proportions and gesture effort.
+the main feature, with a compact torso underneath. It compares rounded-box,
+long-oval and soft-wedge skulls at roughly 58–59 cm, retaining the earlier round
+heads for context. It records head mass, proportions and gesture effort.
 This supersedes the aesthetic recommendation in the earlier
 [torso-size study](proportion_study/README.md), whose geometry, simulations and
 budget calculations remain available for context. These are exploratory models;
@@ -142,7 +143,7 @@ not substitutes for the earlier walking similarity calculation. Home has eight
 sole/ground contacts and no active internal contacts. The full result records
 actuator effort, sensor loads, joint excursions, model version and source hashes.
 
-The 21 model tests cover mass/inertia reconciliation, dimensions and motor
+The 24 model tests cover mass/inertia reconciliation, dimensions and motor
 envelopes, forward knees, legal joint ranges, camera/foot-sensor attachment,
 gravity/free-base/no-hidden-support conditions, unsupported stance/gestures,
 bounded effort, canonical numeric serialization and deterministic regeneration. A deliberately underpowered

@@ -1,121 +1,118 @@
-# T-Rex character study: the head is the main feature
+# T-Rex character study: finding the face
 
-**Current design direction, 2026-10-24:** an oversized T-Rex skull and jaw
-above a compact torso. Enlarging the torso made the previous design's head
-less prominent. This study changes that relationship directly, instead of
-continuing to grow the chest. The **57.2 cm option** is the preferred next
-direction; the **60.3 cm option** explores a more exaggerated head.
+The head carries the character above a compact equipment torso. The current
+exploration compares **a rounded box, a long oval and a soft wedge**. Each uses
+one upper-skull volume, side eyes below its top outline, a deep cream jaw,
+small teeth and a snout camera. This removes the separate round cranium,
+raised brows and broad shallow muzzle that made the earlier design read as
+frog-like. These are alternatives for one medium build, not three robots to
+manufacture. No final character shape has been selected by the user.
 
-![Actual compiled MuJoCo geometry](comparison.png)
+![Three actual MuJoCo head-shape alternatives](shape_options.png)
 
-Both alternatives retain the existing leg mechanism, feet, actuators, tail
-and camera hardware. They use a 200 × 180 × 160 mm torso shell, a recessed
-neck support, fuller upper-thigh covers and tiny arms. The broad skull,
-deep cream jaw, inset amber eyes, small teeth and nostrils carry the character.
-The head should read as a friendly T-Rex from its silhouette; the torso is
-a small equipment pod underneath. This takes the idea of a recognizable
-head as the main feature without copying Microduck's duck-shaped face.
+## Design choices
 
-## Measured proportions
+| Option | Character | Consideration |
+| --- | --- | --- |
+| A: rounded box | Strong toy-like silhouette; flat forehead and soft corners | Avoid a featureless rectangular block; keep generous corner radii |
+| B: long oval | Softest, friendliest expression; continuous curved skull | Keep it elongated front-to-back and retain a deep jaw to avoid the amphibian look |
+| C: soft wedge | Deeper rear skull and a gently tapering blunt snout | Best starting point for a more recognizable dinosaur; keep the taper gentle |
 
-These dimensions come from the compiled visual geometry at the home pose.
-Head measurements include skull, snout, jaw, eyes and teeth, excluding the
-neck motors. Vertical regions overlap, so their heights are not additive.
+The current design recommendation is to compare **C's mild taper with A's
+rounded rectangular structure**. B remains a useful softer alternative.
+Expression, eye recesses and jaw seams still need surface design. The MJCF
+uses simple overlapping visual surfaces rather than fabricated panel CAD;
+an artistic concept rendering must not be mistaken for those exact surfaces.
 
-| Property | Previous fuller torso | Large head | Oversized head |
+All three share a 200 × 180 × 160 mm torso shell, existing leg dimensions,
+feet, actuators and caps. The battery remains low and compute remains in the
+torso. The eyes are cosmetic; the camera package remains in the snout, with
+unchanged aperture sizes, package dimensions and nominal 70 mm stereo baseline.
+Its physical fit and optical calibration remain unqualified.
+
+## Dimensions and assigned masses
+
+Measurements use the compiled visual geometry at the home pose. Head bounds
+include skull, eyes, teeth and jaw, excluding neck motors. Vertical regions
+overlap; their heights are not additive.
+
+| Property | A: rounded box | B: long oval | C: soft wedge |
 | --- | ---: | ---: | ---: |
-| Overall height | 550 mm | 572.1 mm | 603.5 mm |
-| Head length × width × height | 242.5 × 220.3 × 138.0 mm | 338.8 × 296.0 × 213.9 mm | 375.1 × 326.6 × 241.5 mm |
-| Head height / total height | 25.1% | 37.4% | 40.0% |
-| Head width / torso-shell width | 0.96× | 1.64× | 1.81× |
-| Assigned total mass | 8.067 kg | 7.957 kg | 8.062 kg |
-| Moving head-yaw subtree | 350 g | 530 g | 635 g |
-| Home center-of-mass height | 236.9 mm | 236.5 mm | 240.6 mm |
+| Overall height | 590.0 mm | 590.0 mm | 583.6 mm |
+| Head length × width × height | 337.5 × 291.2 × 219.0 mm | 347.5 × 275.2 × 219.0 mm | 337.5 × 291.2 × 212.6 mm |
+| Head height / total height | 37.1% | 37.1% | 36.4% |
+| Assigned total mass | 7.957 kg | 7.957 kg | 7.957 kg |
+| Moving head-yaw subtree | 530 g | 530 g | 530 g |
+| Retained integration reserve | 600 g | 600 g | 600 g |
 
-The middle option has the more restrained proportions and lower neck/jaw
-demand. The 60 cm option now gains height in the head, which contributes to
-its character, instead of a tall barrel-shaped torso. Neither choice requires
-making the legs longer. These remain alternatives for one medium build.
+The 530 g target includes a 220 g upper shell, 60 g jaw, 50 g head structure,
+39 g bearings, 61 g camera, 18 g jaw motor and 82 g nod motor. The fixed yaw
+motor and a 50 g neck-support allowance are outside that sum. These are
+**unweighed allocations**, not measured assemblies. Component positions and
+box-surrogate inertias follow each shape; the oval and wedge do not silently
+inherit identical upper-shell inertias. Enlarged shells are not solid plastic.
 
-## Mass and mechanism assumptions
-
-The larger head is a hollow lightweight assembly. The 57 cm case assigns
-220 g to the upper shell, 60 g to the jaw, 50 g to head structure and 39 g
-to head bearings. The camera, jaw motor and head-nod motor keep their actual
-baseline allocations. Together these form the 530 g moving yaw subtree;
-the fixed yaw motor and a 50 g neck support allowance are outside that sum.
-The 60 cm case increases upper shell/jaw/structure to 300/75/60 g, producing
-a 635 g moving yaw subtree. These are **unweighed design allocations**.
-
-The torso shell is 130 g, pelvic structure 300 g and each thigh cover 35 g.
-The 600 g integration reserve remains intact. Battery placement stays low;
-the existing compute tray moves down 20 mm. Box-surrogate inertias are
-recomputed from the component ledger. Enlarged visual surfaces do not silently
-add solid-plastic mass, nor are head motors or the camera scaled with the shell.
-
-The camera package translates forward inside the deeper snout; its dimensions,
-three aperture sizes and nominal 70 mm stereo-camera separation stay fixed.
-The eyes remain cosmetic. Optical calibration and the actual package's fit
-are not established by the virtual camera placement.
-
-The neck support is represented by a visible and collidable strut connecting
-the body to the head mounting region. Its fasteners, output bearings and
-bracket strength still need design. The head should remain close to the neck
-pivot and lightweight; a large display, battery or computer in the head would
-require a new mass and inertia study.
+Compared with the earlier 57.2 cm head, the yaw mount is 23 mm higher and the
+shoulders are 6 mm lower. The deeper jaw is **U-shaped around the neck**, with
+front and side portions represented in both visual and collision geometry.
+Its pivot is near the rear of the skull and its motor allocation follows the
+new pivot. These adjustments remove interference in the short gesture trial;
+they do not establish full-range clearance. Motor dimensions and torque caps
+are not increased to accommodate the shape change.
 
 ## Short simulation checks
 
-[Recorded results](results.json) cover ten seconds of free stance and ten
-seconds of standing gestures per model. They use the same ideal drives,
-gravity, floor friction and actuator caps as the baseline. There is **no
-external torso support** and no increased torque cap to accommodate the head.
-All six trials pass without numerical warnings or internal proxy contacts.
+[Recorded results](results.json) contain ten seconds of free stance and ten
+seconds of standing gestures for each of the six compared configurations.
+All twelve trials pass, with no numerical warnings or internal proxy contact
+penetration. There is no external torso support or gravity compensation.
 
-| Gesture measurement | Previous fuller torso | Large head | Oversized head |
+| Gesture measurement | A: rounded box | B: long oval | C: soft wedge |
 | --- | ---: | ---: | ---: |
-| Largest neck-axis peak torque | 0.134 Nm | 0.315 Nm | 0.425 Nm |
-| Head-nod RMS torque | 0.111 Nm | 0.241 Nm | 0.314 Nm |
-| Jaw peak torque | 0.017 Nm | 0.054 Nm | 0.079 Nm |
-| Largest leg-joint RMS effort | 1.929 Nm | 1.763 Nm | 1.749 Nm |
+| Largest neck-axis peak torque | 0.276 Nm | 0.277 Nm | 0.259 Nm |
+| Jaw peak torque | about 0.081 Nm | about 0.081 Nm | about 0.081 Nm |
+| Largest leg-joint RMS effort | 1.791 Nm | 1.791 Nm | 1.797 Nm |
 
-The provisional neck limit is ±0.6 Nm and jaw limit ±0.1 Nm. Both heads yaw,
-nod and open their jaws through the programmed gesture; tests assert actual
-motion rather than checking only whether clipped outputs stay within caps.
-The oversized jaw already reaches about 79% of its simulated cap in this
-gentle sequence. The head-nod drive also has gravity deflection: maximum
-stance excursions from its zero target are about 2.5° and 3.4° for the two
-new heads. Feed-forward compensation and measured motor behavior remain work
-for a real controller.
+The provisional caps remain ±0.6 Nm at the neck and ±0.1 Nm at the jaw. The
+jaw reaches roughly 81% of its cap in this gentle sequence, leaving limited
+margin for heavier shells or faster gestures. Tests assert actual head yaw,
+nod and jaw opening, not only that clipped torque remains within its cap.
+The ideal PD drives still show gravity deflection; physical control and
+thermal performance need separate qualification.
 
-Lower leg RMS is not proof of better walking or recovery: the new torso has
-less assigned mass, the fore/aft load distribution changes and head rotational
-inertia rises. **No walking, single-support, push-recovery, torque-speed,
-power, temperature or durability qualification is claimed.** Collision proxies
-are simplified and MuJoCo's default parent/child filtering remains active.
-The small gesture does not establish clearance across every joint's range.
+**No walking, single-support, push recovery, torque-speed, electrical power,
+temperature, durability or fabrication qualification is claimed.** Collision
+proxies remain simplified and MuJoCo's default parent/child filtering remains
+active. No guarantee is made across every joint's range or against complete
+visual-shell surfaces. Hollow jaw construction, bearings, brackets, wiring and
+eye recesses still require actual CAD and measured masses.
 
-No new motor or computer is selected in this study. The prior parts budget
-provides context, but this is not a fresh fabrication quote or evidence of
-cost savings. Confirm the character proportions before refining supplier CAD,
-shell construction, packing, bearings and the head weight budget.
+No motor, computer or procurement change is selected here. The prior parts
+budget is context, not a new shell fabrication quote or evidence of savings.
 
-## Files and reproduction
+## Models and reproduction
 
-- [57.2 cm model](large_head/model.xml) and [component ledger](large_head/components.json).
-- [60.3 cm model](oversized_head/model.xml) and [component ledger](oversized_head/components.json).
+- A: [rounded-box model](rounded_box/model.xml) and [ledger](rounded_box/components.json).
+- B: [long-oval model](long_oval/model.xml) and [ledger](long_oval/components.json).
+- C: [soft-wedge model](soft_wedge/model.xml) and [ledger](soft_wedge/components.json).
+- [Old/new rounded-box comparison](rounded_box_comparison.png).
 - [Recorded trials and source hashes](results.json).
-- [Earlier torso-size comparison](../proportion_study/README.md), retained for context.
 
-Keep the repository directory structure: the XMLs share `../../assets`.
-Open an XML in MuJoCo and reset to the `home` keyframe. Regenerate with:
+The earlier [57.2 cm round head](large_head/model.xml), [60.3 cm round head](oversized_head/model.xml)
+and [their comparison with the fuller torso](comparison.png) remain for context.
+The [earlier torso-size study](../proportion_study/README.md) retains its geometry
+and budget scenarios, whose aesthetic recommendation is superseded here.
+
+Keep the repository directory structure: all XMLs share `../../assets`.
+The wedge's transformed skull mesh is embedded in its XML; shared assets are
+not overwritten. Reset to the `home` keyframe when opening a model.
 
 ```bash
 python -m examples.tyrannosaurus_rex_50cm.head_design --render
 python -m pytest environments/tyrannosaurus_rex/tests/test_tyrannosaurus_rex_50cm.py
 ```
 
-The model test module now has 21 cases. The two new cases check the dominant
-head proportions, retained reserve, unchanged leg anchors/motor caps/camera
-dimensions and actual free-standing head/jaw motion. The original default
-model, registered training plants and their interfaces are unchanged.
+The test module has 24 cases. Head-study cases retain checks for head prominence,
+reserve, leg anchors, camera dimensions, motor caps, lack of hidden support,
+home contacts and actual standing character motion. The default baseline,
+registered training plants and their interfaces remain unchanged.

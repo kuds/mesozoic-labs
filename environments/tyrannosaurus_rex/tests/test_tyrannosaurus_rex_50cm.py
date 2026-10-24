@@ -171,7 +171,16 @@ def test_proportion_payload_adds_mass_above_existing_reserve(tmp_path):
     assert model.body_subtreemass[model.body("head_yaw_body").id] == pytest.approx(0.85)
 
 
-@pytest.mark.parametrize("variant,head_mass", [("large_head", 0.530), ("oversized_head", 0.635)])
+@pytest.mark.parametrize(
+    "variant,head_mass",
+    [
+        ("large_head", 0.530),
+        ("oversized_head", 0.635),
+        ("rounded_box", 0.530),
+        ("long_oval", 0.530),
+        ("soft_wedge", 0.530),
+    ],
+)
 def test_head_led_design_retains_hardware_and_moves_without_support(variant, head_mass, tmp_path):
     path = head_design.build(variant, tmp_path / variant)
     model, data = demo.load_model(path=path)
@@ -179,7 +188,7 @@ def test_head_led_design_retains_hardware_and_moves_without_support(variant, hea
     low, high = head_design.head_bounds(model, data)
     robot_low, robot_high = validate.visual_bounds(model, data)
     assert (high[2] - low[2]) / (robot_high[2] - robot_low[2]) > 0.36
-    assert high[1] - low[1] > 0.29
+    assert high[1] - low[1] > 0.27
     assert model.body_subtreemass[model.body("head_yaw_body").id] == pytest.approx(head_mass)
     ledger = json.loads(path.with_name("components.json").read_text())
     assert ledger["categories_kg"]["unallocated_integration_reserve"] == pytest.approx(0.6)

@@ -8,7 +8,9 @@ fit, electrical compatibility, thermal duty or walking.
 **Latest character direction, 2026-10-24:** the
 [head-focused study](../../../../examples/tyrannosaurus_rex_50cm/head_study/README.md)
 supersedes the fuller-torso preference. It explores a large skull and jaw over
-a compact equipment body, with 57.2 and 60.3 cm alternatives. No motor or
+a compact equipment body, now comparing rounded-box, long-oval and soft-wedge
+skulls at roughly 58–59 cm. Earlier round-head alternatives remain available.
+No motor or
 computer change is selected; its unweighed head/structure allocations and
 short simulation trials do not yet constitute an updated fabrication quote.
 
