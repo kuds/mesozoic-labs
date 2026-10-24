@@ -41,11 +41,10 @@ def gesture_controls(model: mujoco.MjModel, elapsed: float) -> np.ndarray:
     ramp = 0.5 - 0.5 * math.cos(math.pi * min(max(elapsed, 0.0), 1.0))
     phase = 2 * math.pi * elapsed / 5
     motions = {
-        "neck_pitch_servo": -0.03 * math.sin(phase),
-        "head_pitch_servo": 0.04 * math.sin(phase),
-        "head_yaw_servo": 0.14 * math.sin(0.7 * phase),
-        "head_roll_servo": 0.04 * math.sin(0.9 * phase),
-        "jaw_servo": 0.05 * (1 - math.cos(phase)),
+        "head_pitch_servo": -0.05 + 0.07 * math.sin(phase),
+        "head_yaw_servo": 0.30 * math.sin(0.7 * phase),
+        "jaw_servo": 0.10 * (1 - math.cos(phase)),
+        "left_shoulder_pitch_servo": -0.25 * (1 - math.cos(1.2 * phase)),
     }
     for name, angle in motions.items():
         actuator = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_ACTUATOR, name)
@@ -99,8 +98,8 @@ def check_model(*, duration: float = 5.0) -> dict[str, Any]:
     }
     runs = [report["free_hold"], report["supported_gesture"]]
     report["passed"] = (
-        abs(report["model"]["mass_kg"] - 0.85) < 1e-9
-        and model.nu == 15
+        abs(report["model"]["mass_kg"] - 0.80) < 1e-9
+        and model.nu == 14
         and model.nsensor == 39
         and penetration < 0.002
         and all(
@@ -138,7 +137,9 @@ def main() -> int:
     parser.add_argument("--camera", choices=["isometric", "side", "front"], default="isometric")
     parser.add_argument("--view", action="store_true", help="Open an interactive passive viewer.")
     parser.add_argument("--support", action="store_true", help="Weld the torso to the world for viewing/rendering.")
-    parser.add_argument("--gesture", action="store_true", help="Gentle head/jaw motion; requires --view --support.")
+    parser.add_argument(
+        "--gesture", action="store_true", help="Gentle head/jaw/linked-arm motion; requires --view --support."
+    )
     args = parser.parse_args()
     if args.gesture and not (args.view and args.support):
         parser.error("--gesture requires --view --support; the torso is externally held")

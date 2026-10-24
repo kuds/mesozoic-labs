@@ -1,74 +1,211 @@
-# Mini Tyrannosaurus Rex (experimental robot)
+# Mini Tyrannosaurus Rex: serviceable character prototype
 
-The [Mini Tyrannosaurus Rex example](../../examples/mini_tyrannosaurus_rex/README.md) is a compact,
-cartoon robot model with forward knees and partially covered mechanisms. It is
-approximately 25 cm tall and has an **assigned**, unweighed mass of 850 g.
-It is an experimental MJCF example, not a registered training plant or a
-demonstrated walking robot. The existing anatomical T-Rex plant is unchanged.
+The [standalone example](../../examples/mini_tyrannosaurus_rex/README.md) targets a
+roughly 25 cm robot with forward knees, a light T-Rex head, visible mechanisms and
+moving arms. The revised architecture has **14 active XL330-M288-T servos**:
+ten leg motors, head yaw and nod, jaw, and one shared arm drive. The two-axis head
+replaces the previous four-axis neck/head stack. Both arms share one command;
+independent left/right gestures are outside this revision.
 
-## Proposed computer and sensors
+The **800 g design target is an unweighed allocation**. This experimental MJCF
+is outside the registered training inventory. It is not fabrication CAD, a
+demonstrated walker or a hardware-validated power design. A rendering or short
+numerical hold does not establish those capabilities.
 
-| Component | Proposed starting choice | Purpose |
-| --- | --- | --- |
-| Computer | Radxa ZERO 3W, 4 GB RAM, 32 GB microSD | State estimation, exported policy, behavior and logging |
-| Body IMU | Adafruit ISM330DHCX, product 4502, over SPI | Three-axis angular velocity and acceleration, rigidly mounted in the torso |
-| Servo interface | ROBOTIS U2D2, USB to three-pin Dynamixel TTL | Communication with the smart servos; it does not supply motor power |
-| Joint sensing | XL330 position, velocity, input current, voltage and temperature | Existing motor telemetry; current is not a calibrated joint-torque measurement |
-| Optional head IMU | A second ISM330DHCX | Head-motion feedback and gaze experiments |
-| Optional sensor bridge | Raspberry Pi Pico 2 | IMU timing, foot-contact ADC inputs and a watchdog protocol |
+Revision 10's home exterior is approximately **258 mm high x 160.6 mm wide x
+269 mm long**. The model moves each hip-roll shaft 15 mm outward while retaining
+full motor cases, and reduces the forward-knee offset from 14.5 to 10 mm. Home
+static loads under the documented support assumption fall from approximately
+0.0879 to **0.0369 Nm at hip roll** and 0.0618 to **0.0495 Nm at the knee**.
+The narrower bend reduces extension/crouch travel, and settling transfers some
+load to the ankles. In a ten-second ideal hold with 0.10 Nm hard leg caps,
+final-second means reach approximately 0.0647 Nm at the knee and 0.0728 Nm at the
+ankle. These are simulation results, not measured motor duty.
 
-The Radxa is a 65 × 30 mm board with an RK3566 processor, four Cortex-A55 cores
-up to 1.6 GHz and 3.3 V GPIO. Use headless ARM64 Linux and benchmark the actual
-sensor driver, estimator, inference and bus latency before choosing a control
-rate. A proposed initial target is 200–400 Hz body-IMU sampling and a 50 Hz
-policy loop; these rates have not been demonstrated by this example. Train on
-an external GPU, then run an exported policy on the robot's CPU. There is no
-trained policy or hardware driver in this contribution.
+The [reproducible report](../../examples/mini_tyrannosaurus_rex/validation.json)
+includes 2,000 sampled full-body poses, 625 combined head/arm poses, motor-box
+clearance and lateral-transfer diagnostics. No sampled non-floor collision-proxy
+penetrations were found at the retained limits. The simple static lateral-transfer
+strategy still fails its sole-bound test; walking remains an open controller and
+mechanism question rather than a demonstrated capability.
 
-Use 3.3 V host logic. The Adafruit breakout supports SPI and I2C; its STEMMA QT
-connectors carry I2C, while SPI requires the appropriate pads, including DO and
-CS. Verify the board's pinmux and Linux device configuration rather than assuming
-Raspberry Pi GPIO compatibility. A second head sensor can initially use an
-enabled I2C bus. A Pico bridge would require new firmware; it does not directly
-replace the direction-controlled half-duplex motor interface.
+## Mechanical architecture and access
 
-Supply the Radxa from a clean 5 V logic rail with at least the manufacturer's
-recommended 2 A supply capability, allowing additional peripheral headroom.
-Provide a separately regulated 5 V motor rail, deliberate distribution and a
-common ground. Size regulators and wiring from measured transient demand.
-Mount the computer and battery in the torso to keep the head light.
+Keep the blunt snout, tiny two-finger hands, rounded chest and light tail as the
+character's identifying features. An internal pelvis/spine should carry the leg
+and neck loads. Keep hip and shoulder mechanisms visible. The cream belly and
+rear panel are intended as removable service covers for the battery connector,
+computer, power distribution and wiring. Shown seams and fasteners remain
+concepts until CAD defines openings, wall thickness, bosses, tool access and the
+removal sequence. The decorative shell must not be the only structural load path.
 
-The six-axis IMU supports an orientation estimator for local balance; it does
-not give drift-free absolute yaw. Exact simulator quaternions, whole-body COM
-and world-frame foot coordinates are privileged diagnostics. Thin foot FSRs
-could later add loaded/unloaded observations through an ADC, but one per foot
-cannot measure center of pressure. A camera is optional and adds head payload.
+Mount the shared arm motor in the torso and connect it to two supported shoulder
+pivots through a shaft or bellcranks. Avoid putting a full motor inside each tiny
+arm. The simulated coupling is not a manufactured linkage or a model of its
+losses and backlash. Verify the complete sweep against chest, jaw, cables and
+covers before increasing travel.
 
-Primary references, checked 2026-10-24:
+The arm motor and jaw motor are offset from their driven hinges; neither is a
+coaxial direct drive. Their offset transmission geometry still requires CAD.
+The two head axes have separate full-size case locations and shaft alignments.
+Current command limits are yaw +/-0.65 rad, nod -0.25 to +0.10, jaw 0 to +0.32,
+and linked shoulder pitch -0.65 to +0.20. The unactuated shoulder's simulator
+encoder channels are not independent hardware measurements.
 
-- [Radxa ZERO 3 specifications](https://docs.radxa.com/en/zero/zero3),
-  [interfaces](https://docs.radxa.com/en/zero/zero3/hardware-design/hardware-interface)
-  and [power](https://docs.radxa.com/en/zero/zero3/getting-started/preparation).
-- [Adafruit ISM330DHCX](https://www.adafruit.com/product/4502) and
-  [breakout pinouts](https://learn.adafruit.com/lsm6dsox-and-ism330dhc-6-dof-imu/pinouts).
-- [ROBOTIS U2D2](https://robotis.us/products/u2d2),
-  [XL330-M288-T](https://robotis.us/products/dynamixel-xl330-m288-t) and
-  [XL330 manual](https://docs.robotis.com/docs/dxl/model_reference/x_series/xl_series/xl330-m288/).
-- [Raspberry Pi Pico 2](https://www.raspberrypi.com/products/raspberry-pi-pico-2/).
+For two 10 g arms with a conservative 25 mm center-of-mass lever, horizontal
+gravity torque is approximately **0.00245 Nm per arm**, **0.0049 Nm combined** at
+a 1:1 transmission, before friction and acceleration. A slow gesture is a small
+motor load; packaging and whole-body mass are the meaningful constraints. Set a
+low arm effort limit after measuring linkage losses, rather than inheriting the
+leg's transient allowance. The tail is fixed, not an active balancing actuator.
+Keep battery/computer mass in the torso and heavy electronics out of the snout.
+
+## Component and mass ledger
+
+[components.json](../../examples/mini_tyrannosaurus_rex/components.json) separates
+manufacturer specifications from allowances. Part dimensions exclude plugs,
+horn travel and service space. **Reserved envelopes are layout requirements,
+not verified empty volumes or a packing solution.** Place them together in CAD.
+
+Group 4 in the MJCF displays raw/provisional part proxies, which are smaller than
+these reserved envelopes. The battery's shown 55 x 32 x 18 mm block is a drawing
+assumption, not a selected pack. `components.json` records both representations.
+
+| Item | Qty | Mass allocation | Part dimensions / reserved envelope | Evidence |
+| --- | ---: | ---: | --- | --- |
+| XL330-M288-T | 14 | 252 g | 20 x 34 x 26 mm each, before horns/idlers/cables | Manufacturer mass and case size |
+| Radxa ZERO 3W, microSD and cooling | 1 | 35 g | PCB 65 x 30 mm; reserve 75 x 40 x 18 mm | PCB footprint sourced; assembly mass/reserve allowances |
+| U2D2 | 1 | 9 g | 48 x 18 x 14.9 mm; reserve 60 x 25 x 20 mm | Manufacturer manual; confirm purchased connector revision |
+| Body and optional head ISM330DHCX breakouts | 2 | 6 g | Reserve 30 x 25 x 8 mm each | 3 g and envelope per board are allowances |
+| Motor regulator: Pololu D24V90F5 candidate | 1 | 4.8 g | Bare board 40.6 x 20.3 x 7.6 mm; reserve 50 x 30 x 15 mm | Manufacturer bare-board mass/size |
+| Logic regulator: Pololu D24V22F5 candidate | 1 | 2.3 g | Bare board 17.8 x 17.8 x 7.9 mm; reserve 25 x 25 x 12 mm | Manufacturer bare-board mass/size |
+| Battery, **SKU unspecified** | 1 | 70 g | Constraint: at most 70 x 35 x 22 mm before cable exit | Allowance; source against fit and electrical requirements |
+| Power distribution, cutoff and fuse | set | 28 g | Reserve 35 x 25 x 15 mm | Allowance; circuit/ratings unspecified |
+| Wiring and connectors | set | 35 g | Routing and bend radii required | Allowance |
+| Load-bearing frames, carriers and linkages | set | 160 g | CAD required | Allowance, including arm transmission |
+| Torso/head shells and leg guards | set | 85 g | Separate removable panels | Allowance, excluding tail/arm shells below |
+| Fixed hollow tail | 1 | 15 g | Lightweight shell | Allowance |
+| Arm/hand shells | 2 | 20 g | 10 g per arm | Allowance |
+| Bearings, fasteners and foot material | set | 40 g | CAD and actual part list required | Allowance |
+| LEDs, speaker and buttons | set | 10 g | Reserve after core electronics | Allowance |
+| Unallocated integration reserve | — | 27.9 g | Not an installed component | Remaining target |
+| **Total target** | | **800 g** | | **Unweighed** |
+
+Only motor, U2D2 and bare-regulator masses above are manufacturer specifications.
+Replace other allocations with measurements and print estimates. This procurement
+ledger is separate from MJCF mass placement: assign every installed part to its
+parent body, then recompute assembled COM/inertia before hardware transfer.
+A camera, Pico bridge or independent second arm drive consumes the reserve or
+requires a new total target; it is not free payload.
+
+## Power and wiring
+
+Use separate regulated 5 V motor and logic branches with a common reference
+ground. U2D2 carries communications, not motor power. Provide power branches to
+each leg and the character actuators; do not feed the whole robot through one
+small servo pigtail. Rate all conductors and connectors for their branch loads.
+Keep the body IMU rigidly mounted, away from regulator heat/high-current wiring.
+
+The D24V90F5 is advertised around 9 A, but its description also lists typical
+continuous capability of 4–8 A and makes output dependent on voltage, airflow
+and heat dissipation. Dropout is load dependent. **Its name is not a validated
+9 A enclosed-robot rating.** Qualify it with the actual enclosure/harness at the
+lowest intended battery voltage. The D24V22F5's 2.5 A figure is also input/thermal
+dependent; verify that it meets the Radxa minimum 5 V/2 A supply requirement with
+the selected peripherals. These regulators are candidates, not qualified parts.
+
+Battery selection remains open. The starting architecture is a **2S pack with a
+matched charger**, regulated to both 5 V branches. A fully charged 2S lithium
+pack can reach 8.4 V and must not connect directly to an XL330's 6 V maximum
+input. The battery row is a sourcing constraint, not a verified pack. Require
+documented discharge capability, rated connectors and appropriate low-voltage
+cutoff. Account for converter dropout under load when choosing that cutoff.
+
+Fourteen published 1.47 A stall currents sum to **20.58 A / 102.9 W at 5 V**.
+This is a simultaneous-stall arithmetic envelope, not expected walking draw or
+a request to operate stalled motors. Firmware current/motion limits, a hardware
+motor cutoff and measured concurrent loads must define the operating envelope.
+Converter protection is not a configurable whole-robot current budget. MJCF
+effort limits are neither firmware settings nor calibrated current-to-torque
+conversions.
+
+Start on a current-limited bench supply with the robot supported. Log branch
+currents, input/rail voltages and servo temperatures during stand, weight transfer
+and combined head/arm/jaw gestures. Keep permitted demand below the smallest
+tested capability of regulator, harness, connectors and battery, with a documented
+transient margin. A current limit that causes loss of balance fails the operating
+test. Runtime remains unknown until a pack is selected and average input power
+measured; calculate usable battery Wh / average input W and verify a discharge
+cycle to the chosen cutoff.
+
+## Compute and sensing
+
+Use headless ARM64 Linux on the Radxa. Its RK3566 has four Cortex-A55 cores up to
+1.6 GHz. Train externally and benchmark exported inference, estimator, drivers
+and motor bus together. Initial targets are 200–400 Hz body-IMU sampling and a
+50 Hz policy loop; hardware rates have not been demonstrated here.
+
+Use 3.3 V host logic. The Adafruit breakout supports SPI/I2C; STEMMA QT carries
+I2C while SPI requires appropriate pads including DO and CS. Verify Radxa pinmux
+and Linux device configuration. The optional head IMU can initially use I2C.
+A Pico bridge would require firmware and does not by itself replace the
+direction-controlled half-duplex motor interface.
+
+Encoders and body gyro/accelerometer readings can be hardware observations.
+Servo input current is useful telemetry, not a calibrated external torque sensor.
+Simulator quaternions, whole-body COM and world-frame foot coordinates remain
+privileged diagnostics. A six-axis IMU does not provide drift-free absolute yaw;
+one FSR per foot cannot measure center of pressure. Deployment needs a state
+estimator and calibrated actuator delay, backlash, speed/load limits and supply
+variation. This example has no walking policy or hardware deployment driver.
+
+## Verification gates
+
+These are proposed acceptance gates, not reported hardware test results.
+
+1. **CAD/mass:** include exact horns/idlers, bearings, connectors and cable bends.
+   Sweep combined legal motions with tolerance/deflection allowances. Demonstrate
+   belly/rear panel removal without dismantling a leg. Reconcile measured parts
+   to the ledger; exceeding 800 g requires renewed dynamics checks.
+2. **Loaded leg/neck duty:** run the intended duty for at least 20 minutes and
+   until temperature is approximately stable. Initial project screening gate:
+   no protection events, less than 1 degree C rise over the final five minutes,
+   and at least 10 degrees C below configured shutdown. This does not qualify
+   motor life or continuous torque; repeat at intended warmer ambient conditions.
+3. **Effort reserve:** seek home holding demand below 0.05 Nm per leg joint as an
+   initial goal, checking external loads/levers as well as simulated torque.
+   ROBOTIS's approximately 0.10 Nm continuous estimate is not a certified duty
+   envelope. Test one-foot support/transitions separately from two-foot standing.
+4. **Power:** at the lowest intended battery voltage and simultaneous motion,
+   require rails within device limits at their connectors, no reboot, converter
+   shutdown or motor communications fault. Record current/temperature margins.
+   Verify motor cutoff with the robot mechanically supported.
+5. **Motion/calibration:** measure loaded output-angle error through reversals
+   using an external reference; encoder increments are not mechanical accuracy.
+   Verify real arm-linkage ratio/losses/travel. Include simultaneous character
+   motion in balance testing and later training.
+6. **Control:** establish stance and repeatable weight transfers with realistic
+   actuators/observations before walking. Evaluate across seeds/disturbances;
+   record falls, slip, speed, saturation and power. Similar DOF counts do not
+   make a MicroDuck policy compatible with this forward-knee morphology.
+
+If reserve remains inadequate after reducing unnecessary mass and lever arms,
+bench-test stronger motors at the loaded joints. The same-envelope XC330-M288-T
+is a candidate, not an approved substitution: added mass/current and changed
+motor dynamics require a new ledger, thermal checks and actuator identification.
 
 ## Preliminary $2,000 allocation
 
-These are planning allowances, not a verified shopping list. They exclude labor
-and assume fifteen active XL330-M288-T motors plus three spares. Component mass,
-availability and supplier totals still need reconciliation with mechanical CAD.
+Planning only, excluding labor; **14 active motors plus three spares**. Reconcile
+actual prices, stock and supporting parts before purchase.
 
 | Allocation | USD |
 | --- | ---: |
-| Motors, including spares | 495 |
+| Seventeen XL330 motors | 470 |
 | Computer, storage, cooling and USB adapters | 100 |
 | U2D2 | 40 |
 | Body and optional head IMUs, wiring | 50 |
-| Optional Pico 2 bridge and connection materials | 20 |
+| Optional sensor bridge reserve | 20 |
 | Motor/logic regulation, distribution and cutoff | 120 |
 | Battery and matched charger | 100 |
 | Printed structure and shell revisions | 120 |
@@ -78,29 +215,22 @@ availability and supplier totals still need reconciliation with mechanical CAD.
 | Suspension/test fixtures | 50 |
 | Training compute | 80 |
 | Tax and shipping allowance | 150 |
-| Engineering reserve | 365 |
+| Engineering reserve | 390 |
 | **Total** | **2,000** |
 
-## What remains to verify
+## Primary references
 
-The model's 0.30 N m leg cap is a provisional transient command limit. ROBOTIS
-lists 0.52 N m **stall** torque at 5 V and approximately 0.10 N m **estimated**
-rated torque, with the latter calculated as 20% of stall. It is not a qualified
-thermal duty envelope. Preliminary contact-equilibrium calculations give about
-0.0879 N m hip-roll and 0.0618 N m knee demand at home; a sustained 1 N backward
-load raises the knee example to approximately 0.1031 N m. These leave limited
-reserve and are design estimates, not measured motor loads.
+Checked 2026-10-24; these support component specifications, not assembly approval.
 
-The neck/head/jaw allocation is 174 g. A separate kinematic gravity sweep gives
-a sampled neck load near 0.0522 N m; additional front-mounted mass increases
-it. The coincident head axes are an abstraction, and some combined nod poses
-intersect collision proxies. Physical motor, bearing, horn, connector and cable
-placement must precede approval of that motion range.
-
-Before selecting the complete actuator set, build a loaded neck and one leg,
-measure holding/gesture current and temperature over the intended duty, and
-measure external-angle error through small reversals. Encoder increments of
-0.0879 degrees do not guarantee that mechanical accuracy. Then reconcile mass,
-power and travel in CAD, identify the real actuators, and design a hardware-
-observable stance/walking task. Short ideal-actuator holds in MuJoCo do not
-establish walking, push recovery, full-range fit or continuous-duty capability.
+- [XL330-M288-T](https://robotis.us/products/dynamixel-xl330-m288-t) and
+  [manual](https://docs.robotis.com/docs/dxl/model_reference/x_series/xl_series/xl330-m288/).
+- [U2D2 manual](https://docs.robotis.com/docs/parts/interface/u2d2/).
+- [Radxa specifications](https://docs.radxa.com/en/zero/zero3),
+  [interfaces](https://docs.radxa.com/en/zero/zero3/hardware-design/hardware-interface)
+  and [power](https://docs.radxa.com/en/zero/zero3/getting-started/preparation).
+- [Adafruit ISM330DHCX](https://www.adafruit.com/product/4502) and
+  [pinouts](https://learn.adafruit.com/lsm6dsox-and-ism330dhc-6-dof-imu/pinouts).
+- [D24V90F5 description](https://www.pololu.com/product/2866) and
+  [specifications](https://www.pololu.com/product/2866/specs).
+- [D24V22F5 specifications](https://www.pololu.com/product/2858/specs).
+- [XC330-M288-T](https://robotis.us/products/dynamixel-xc330-m288-t).

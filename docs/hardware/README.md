@@ -28,8 +28,9 @@ be a physics revision of that embodiment, not a new one.
 
 ## Reading order
 
-The [Mini Tyrannosaurus Rex prototype](MINI_TYRANNOSAURUS_REX.md) adds a 25 cm forward-knee MJCF study,
-proposed computer/sensors and a preliminary $2,000 allocation. Its
+The [Mini Tyrannosaurus Rex prototype](MINI_TYRANNOSAURUS_REX.md) adds a 25.8 cm,
+800 g assigned-mass forward-knee MJCF study with a lighter head, linked moving
+arms, service-panel views, component ledger and preliminary $2,000 allocation. Its
 [standalone example](../../examples/mini_tyrannosaurus_rex/README.md) can be viewed and
 smoke-checked without registering a new plant. It has not demonstrated walking
 or continuous hardware motor duty.

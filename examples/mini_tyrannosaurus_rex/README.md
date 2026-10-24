@@ -1,99 +1,133 @@
-# Mini Tyrannosaurus Rex (experimental robot)
+# Mini Tyrannosaurus Rex: serviceable character revision
 
-![Forward-knee Mini T-Rex rendered from the MJCF](preview.png)
+![Mini Tyrannosaurus Rex revised model](preview.png)
 
-A standalone **Mini Tyrannosaurus Rex** robot study with custom **forward-bending knees**, partial
-removable-looking leg covers and exposed servo/bracket mechanisms. The MJCF is
-self-contained: all geometry is primitive or original mesh data in the two
-included XML assets. No mesh downloads or external STL files are needed.
+A standalone, original MJCF concept with forward knees, a lighter two-axis head,
+an articulated jaw, two linked moving arms, and exposed hip/shoulder mechanisms.
+The blunt snout, tiny two-finger hands, cream belly and curved tail remain. The
+body has open hip areas, a separate rear-panel mesh and a battery-sled concept.
 
-This example is **not registered as a Mesozoic Labs plant, Gymnasium environment
-or training embodiment**. It has no trained walking policy. Its five-axis leg
-architecture was informed by MicroDuck, but these custom joint locations, case
-placements, zero positions and limits do not preserve MicroDuck kinematics or
-policy compatibility.
+**The 800 g mass is an unweighed allocation, not a fabricated assembly.** This
+example is outside the registered plant/training inventory and has no walking
+policy. Its custom geometry is not compatible with a Microduck policy. Existing
+anatomical species and generated catalogs are unchanged.
 
-Its prototype identifier is `mini_tyrannosaurus_rex`, and its MJCF model name is
-`mini_tyrannosaurus_rex_robot`. The existing species ID `tyrannosaurus_rex` and
-its anatomical model keep their current names. The `mini_` prefix identifies
-this miniature robot prototype, rather than a new biological species.
+## Changes from the original concept
 
-## Run
+| Feature | Original | Revision 10 |
+| --- | --- | --- |
+| Assigned mass | 850 g | 800 g, including arm drive |
+| Active motors | 15 | 14: ten legs, yaw/nod/jaw, shared arms |
+| Head mechanism | Four schematic/coincident neck/head axes plus jaw | Spatially separated yaw/nod motor boxes plus jaw linkage concept |
+| Arms | Fixed 10 g bodies | Two shoulder-pitch hinges linked 1:1; one actuator |
+| Hip roll-to-pitch lateral offset | 30 mm | 15 mm, full motor cases retained |
+| Forward knee offset | 14.5 mm | 10 mm, ankles and home height retained |
+| Joint-center link lengths | 44.91 mm | 43.66 mm |
+| Nominal forward knee bend | 37.7 degrees | 26.5 degrees, with less extension/crouch travel |
+| Service access | Decorative back-panel primitive | Split rear mesh, open hip areas, panel-hidden component study |
 
-From the repository root, using Python 3.11+ and the repository's pinned MuJoCo:
+The hip carrier flip and straighter knee reduce modeled home loads; they do not
+increase motor ratings. The head exterior is 90% of its previous scale, while
+all **14 motor boxes retain full 20 x 34 x 26 mm dimensions**. Assigned component
+inertias were updated with the changed carriers and upper-body mass placement.
+
+## Views and motion
+
+[Four-view design sheet](design_views.png) shows the character, side, front and
+torso-panel-hidden study. Group 4 contains raw/provisional part proxies, not the
+larger service envelopes in `components.json`. Their placement is not a verified
+packing solution. Battery dimensions are a drawing assumption; no pack is
+selected. USB plugs, wire bends, mounts and cooling space still require CAD.
+
+![Supported head, jaw and linked-arm demonstration](supported_gesture.gif)
+
+The animation uses an actual simulated rollout with the torso externally held.
+It demonstrates expression motion, not balancing or walking. The default model
+has no external support. The jaw and shared arm drives require offset linkages;
+their ideal transmissions do not establish real geometry, backlash or losses.
+
+## Reproduce
+
+From the repository root:
 
 ```bash
-pip install -e .
+pip install -e '.[viz,test]'
 python examples/mini_tyrannosaurus_rex/demo.py --check
 python examples/mini_tyrannosaurus_rex/demo.py --view
 python examples/mini_tyrannosaurus_rex/demo.py --view --support --gesture
-python examples/mini_tyrannosaurus_rex/demo.py --render /tmp/mini-trex.png
+python -m examples.mini_tyrannosaurus_rex.engineering --samples 2000 --points 5 --duration 10 --json examples/mini_tyrannosaurus_rex/validation.json
+python examples/mini_tyrannosaurus_rex/render_design.py --output-dir examples/mini_tyrannosaurus_rex --sheet --gesture
+pytest environments/tyrannosaurus_rex/tests/test_mini_tyrannosaurus_rex_example.py environments/tyrannosaurus_rex/tests/test_mini_tyrannosaurus_rex_engineering.py
 ```
 
-On a headless Linux machine with EGL support, prefix the render command with
-`MUJOCO_GL=egl`. On macOS, use MuJoCo's `mjpython` launcher for `--view`.
-Rendering needs a working OpenGL backend; numerical checks do not open a viewer.
-The PNG writer uses the standard library and adds no imaging dependency.
+Use MuJoCo's `mjpython` launcher for interactive viewing on macOS. The original
+OpenGL `demo.py --render PNG` remains available. The new CPU renderer uses exact
+compiled meshes/transforms and tessellated primitives, with Pillow from the
+visualization extra; it requires no OpenGL connection. All MJCF geometry is
+inline, with no external STL downloads.
 
-The native MuJoCo viewer can also open the XML directly. Keep its adjacent
-`assets/` directory in place:
+## Interface and limits
 
-```bash
-python -m mujoco.viewer --mjcf=examples/mini_tyrannosaurus_rex/model.xml
-```
-
-The default torso is free. `--support` enables an external torso weld, and
-`--gesture` requires that support. The gesture demonstrates small head/jaw
-motions while the torso is held; it is not balancing or walking.
-
-## Model
-
-| Property | Current concept |
+| Property | Revision 10 |
 | --- | --- |
-| Approximate home envelope | 250 mm high × 160.6 mm wide × 284 mm long |
-| Assigned total mass | 850 g |
-| Actuators | 15: five per leg, four neck/head axes, one jaw |
-| Leg home | 44.91 mm links; knee 14.5 mm forward of the hip–ankle line |
-| Feet | 75 × 40 mm visual pads; inset 70 × 34 mm contact boxes |
-| Servo proxies | Ten leg cases, full 20 × 34 × 26 mm XL330 body dimensions |
-| Sensors | 39 sensor definitions / 59 scalar values, including 30 encoder channels |
+| Home visual envelope | Approximately 258 mm high x 160.6 mm wide x 269 mm long |
+| Generalized coordinates / velocities | 22 / 21, including free root |
+| Hinge joints / active motors | 15 / 14; shoulders share one motor |
+| Sensors | 39 definitions / 59 scalar values |
+| Head yaw | -0.65 to +0.65 rad |
+| Head nod | -0.25 to +0.10 rad |
+| Jaw | 0 to +0.32 rad |
+| Both shoulder pitches | -0.65 to +0.20 rad, linked 1:1 |
+| Hip roll | +/-0.20 rad; wider trials caused collisions |
+| Feet | 75 x 40 mm visual pads; 70 x 34 mm contact rectangles |
 
-All joint targets are zero at the home pose. Motor cases attach to their parent
-carriers: yaw to torso, roll to yaw carrier, hip pitch to roll carrier, knee to
-thigh and ankle to shin. Explicit masses and inertias follow these assigned
-placements. Covers remain visual placeholders: their proposed 20–30 g allowance
-must fit within the existing structural budget and has not been weighed.
+Home joint targets are zero. The unactuated linked shoulder's position/velocity
+channels are simulator diagnostics: one physical motor supplies one encoder
+unless another sensor is installed. Gyro/accelerometer channels represent IMUs;
+exact quaternions, COM and world foot positions remain privileged diagnostics.
 
-Joint positions/velocities and body/head gyroscope/accelerometer readings model
-hardware-observable telemetry. Absolute frame quaternions, subtree COM and world
-foot positions are privileged simulator diagnostics, not direct hardware
-measurements. Geom group 1 contains the character shell/covers, group 2 the
-mechanical platform and group 3 the collision proxies.
+## Numerical evidence and limits
 
-## Limits and next work
+[validation.json](validation.json) records MuJoCo version, model/asset SHA-256
+hashes, sampling seeds, support assumptions and per-actuator torque data.
 
-`--check` compiles the model and checks home penetration plus short free-standing
-and supported-gesture rollouts for finite state, warning-free integration,
-upright posture and bounded actuator force. These are numerical smoke checks.
-There is no contact-aware locomotion controller or tested disturbance recovery.
+| Check | Revision 10 result |
+| --- | --- |
+| Home static hip-roll load | Approximately 0.0369 Nm versus 0.0879 Nm originally |
+| Home static knee load | Approximately 0.0495 Nm versus 0.0618 Nm originally |
+| Motor boxes: home plus 2,000 seeded poses | No intersections; minimum separating-axis gap 2.5 mm |
+| Head/jaw/arm grid: 625 poses | No non-floor collision-proxy penetration |
+| Combined leg/expression sample: 2,000 poses | No non-floor collision-proxy penetration |
+| Unsupported 10-second hold, transient caps | Upright, finite, no warnings; approximately 2.02 degrees maximum tilt |
+| Same hold with 0.10 Nm hard leg caps | Upright; approximately 2.19 degrees maximum tilt |
 
-The 5 V XL330-M288-T reference provides 0.52 Nm **stall** torque. The manufacturer's
-0.10 Nm continuous figure is explicitly an estimate from 20% of stall, rather
-than a qualified continuous-duty rating. Home static hip-roll/knee loads are
-approximately 0.0879/0.0618 Nm, so both exceed a desired 0.05 Nm static target for
-2× reserve against that estimate. The 0.30 Nm model cap is a transient command
-limit, not a sustained operating rating.
+Static equilibrium uses vertical forces at the sole lateral centers and sagittal
+centers of pressure under the COM. It is one possible load distribution, not a
+unique prediction of real servo loads. The hard-cap run is not a thermal model.
+Its final-second means reach approximately **0.0337 Nm hip roll, 0.0647 Nm knee
+and 0.0728 Nm ankle** (larger side). Load shifts toward the ankles during settling;
+the home calculation is not a guaranteed continuous-duty margin. Neither 0.52 Nm
+stall torque nor the manufacturer's approximately 0.10 Nm continuous estimate
+replaces a loaded bench duty test.
 
-The four-axis neck/head motor stack is not physically packaged: several model
-axes coincide and no complete servo/bracket/connector fit is demonstrated.
-Sampled head gravity loads reach about 0.0522 Nm at the neck; payload and forward
-COM movement worsen this. Encoder resolution is 4096 counts/revolution
-(0.0879°/count), which does not establish loaded mechanical accuracy. Gearbox
-backlash, compliance, wiring, thermal duty and actuator calibration remain
-unvalidated. Some combined head poses already intersect coarse collision proxies;
-the small supported demonstration does not establish an unrestricted head range.
+Sampling does not prove every pose clear. Proxies omit horns, cables, panel
+thickness and intended mounting interfaces. Motor-box checks are independent of
+contact exclusions but still check boxes only. The cosmetic meshes do not
+establish hollow-shell manufacturing or structural strength.
 
-See the [hardware proposal and budget](../../docs/hardware/MINI_TYRANNOSAURUS_REX.md) for
-component choices, provisional power/compute integration and the staged build
-plan. Physical CAD, complete motion clearance, bench measurements and subsequent
-plant/training integration are future work.
+**Walking remains unresolved.** The restricted flat-foot lateral probe needs a
+center of pressure about 42 mm inward from the support-foot center even at its
+best sampled lean, outside the sole's 17 mm half-width. This rejects that static
+transfer strategy, not every coordinated/dynamic gait. Wider hip-roll travel
+alone caused link/foot collisions. A dynamic weight-transfer controller or a
+further lateral-mechanism redesign must precede a walking claim.
+
+## Hardware next steps
+
+The [hardware note](../../docs/hardware/MINI_TYRANNOSAURUS_REX.md) and
+[component ledger](components.json) distinguish specifications from allowances,
+identify candidate regulators and define power/bench gates. First package real
+horns/idlers, linkages, electronics, battery, wiring and service clearances in CAD.
+Then measure a loaded leg and head, identify actuator dynamics and add a
+hardware-observable task with delay, backlash and voltage variation. No hardware
+driver, trained controller or deployment stack is included in this example.

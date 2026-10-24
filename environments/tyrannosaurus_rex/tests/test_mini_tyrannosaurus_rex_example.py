@@ -32,9 +32,9 @@ def _assert_bounded_actuator_forces(model, data):
 def test_compiled_mini_tyrannosaurus_rex_has_documented_interface_and_mass():
     model, data = demo.load_model()
 
-    assert (model.nq, model.nv, model.nu, model.nsensor) == (22, 21, 15, 39)
+    assert (model.nq, model.nv, model.nu, model.nsensor) == (22, 21, 14, 39)
     dynamic_mass = float(model.body_mass[model.body_mocapid == -1].sum())
-    assert dynamic_mass == pytest.approx(0.850)
+    assert dynamic_mass == pytest.approx(0.800)
     assert np.all(model.body_inertia[1:] > 0)
     assert np.isfinite(model.body_inertia).all()
     assert np.all(2 * model.body_inertia[1:].max(axis=1) <= model.body_inertia[1:].sum(axis=1) + 1e-12)
