@@ -38,6 +38,10 @@ from that layout:
   per-actuator trace of single episodes of a checkpoint, behind
   ``scripts/episode_trace_report.py``; report-only, and not re-exported
   here for the same reason
+* :mod:`~environments.shared.reporting.training_history` — a stage's training
+  history read back from its ledgers and drawn as pages of graphs, behind
+  ``scripts/plot_training_history.py``; report only, and not re-exported
+  here either (it draws with matplotlib), so import it by path
 """
 
 from __future__ import annotations

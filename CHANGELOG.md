@@ -65,10 +65,122 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     reads on every model in `test_stance_diagnostics.py`.
     `test_episode_trace.py` needs SB3, so the SB3 job's integration step runs
     it. Documented in `docs/TRAINING_ARTIFACT_PRESENTATION.md`.
+- **Decision D-D42 recorded: the next T. rex stance round targets the tail
+  saturation habit, with a training-history report and an actuator saturation
+  report, both report only; D-D41 amended with its outcome** (the maintainer's
+  decisions of 2026-10-24; `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2,
+  `docs/CONSOLIDATION_PLAN_2026_09.md` §6, a dated note in §17 of
+  `docs/GAIT_QUALITY_PLAN_2026_09.md`, `docs/NEXT_STEPS.md` §3; §23.7 of
+  `docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md`). Records only:
+  no library code, configuration, test, notebook, digest or generated file
+  changes with it. After D-D41's replication read its line 2 (the entry below),
+  D-D42 takes the first of the three options that line offers: the next round
+  targets the tail saturation habit (`tail_3_pitch_act` pinned at +1 on the
+  saturation rail), and is designed with fixed criteria and brought back to the
+  maintainer for approval before any training. The training-history report
+  goes to its own pull request at scope (a), the standalone report as built
+  (report-only pages from the run ledgers). An actuator saturation report,
+  during training and for finished models, comes from report-only
+  telemetry naming the saturating actuator and its sign on each
+  evaluation-episode row. No training follows from it, and when the copied run
+  log ends (15:27 UTC) the round is not designed: an options study for it has
+  started, with no training and no Drive fetch, its brief to come to the
+  maintainer before any design is fixed; the two reports are to come in their
+  own pull requests, not in this change. Walking pilot 2 is not launched.
+  D-D41's row gains a dated amendment with its package, runtime and outcome
+  (line 2, not adopted). Screens certify nothing. `docs/README.md` adds a note
+  to the gait plan's row, and `docs/KNOWN_ISSUES.md` gains Update 17 of the
+  T-Rex stance entry.
+- **The stance5 replication of D-D41 judged: one of the two new per-foot
+  centre-of-pressure band runs holds (line 2), and the band is not adopted; the
+  K3 diagnosis, the scratch tail experiment and the K3 readouts recorded, report
+  only** (D-D41's amendment of 2026-10-24; `docs/BEHAVIOR_RECIPES_PLAN.md`
+  §6.2, `docs/CONSOLIDATION_PLAN_2026_09.md` §6, a dated note in §17 of
+  `docs/GAIT_QUALITY_PLAN_2026_09.md`, `docs/NEXT_STEPS.md` §3; the appended §23
+  of `docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md`, and
+  `stance5/replication/`, `stance5/k3diag/` and `stance5/tailexp/` of
+  `docs/investigations/stance_2026_10/`). Records only: no library code,
+  configuration, test, notebook, digest or generated file changes with it. The
+  two 12M runs of arm LTSB, unchanged (`stance5_LTSB_s70`, `stance5_LTSB_s80`),
+  trained from scratch to 12,001,280 steps on Colab L4 GPU runtimes from the
+  screen branch `claude/screen-trex-r9-armlts-copband` (`cf80ecb1`, never
+  merged) and were judged on 2026-10-24 by the criteria fixed before training
+  (sha256 `a38536de…`), final, with the three D-D40 runs counted as recorded.
+  s70 holds: 40, 40, 40, 39, 40 and 40 of 40 clean, a K2c range of 13.7 mm, 0
+  and 1 of 20 joint-space noise falls at 6,291,456 and the final. s80 fails K1
+  only: 40, 4, 14, 26, 39 and 38 of 40 clean, the three checkpoints below 33 of
+  40 on the actuator-saturation rail (36, 25 and 14 episodes; the alarm at
+  4,456,448, `tail_3_pitch_act` pinned at +1, as in D-D40's seed-42 run), and 1
+  and 2 of 20 joint-space noise falls. H = 2 of 5, and the decision table's line
+  is 2, final: not adopted; the maintainer chooses the next round from the
+  stance5 criteria's menu. Report only: the K3 pass fraction (3 of 5 against
+  the control's 2 of 3), not a veto; s52's final still ties D-D37 Run 2's final
+  under the parent rule; the notebook's own six-heading gate on each run's
+  `robust_best` (both PASS) and the stage's six-heading certificate rolled
+  offline on the finals (40 of 40 and 38 of 40 seeds, both PASS; not gate
+  evidence). Also recorded, report only: a diagnosis of the D-D40 band runs'
+  joint-space noise falls (seed 42's are not the tail habit; hip-pitch noise,
+  mostly its left-right differential part, is the main cause; the mechanism of
+  the break between 6,291,456 and 7,340,032 is open); a scratch experiment on
+  the tail habit (a quadratic bound on the policy mean, one 1M-step CPU
+  continuation against a paired control: lower tail saturation, relapsing, its
+  effect against training alone not established; the scratch clone never
+  pushed); and report-only K3 readouts on the new runs, fixed by an addendum
+  before any of their J checkpoints existed (full-noise falls 0, 1, 1 and 2 of
+  20; every band final falls 20 of 20 to a ±0.3 differential hip kick).
+  `stance5/replication/` holds the criteria, the Colab steps, the sigma sidecar,
+  frozen copies of the judge and scorer, `results/` (13 files and its README,
+  about 0.16 MB: the run log, tool ids removed, the verdict of record, the
+  notebook's gates and the certificates, trimmed, and the saturation watch's
+  files) and the K3 readouts' addendum, tool, validation and outputs;
+  `stance5/k3diag/` and `stance5/tailexp/` the two reports. `SOURCES.txt` and
+  `SHA256SUMS` (now 418 files) are extended. `docs/README.md` adds a note to the
+  record's and the gait plan's rows, and `docs/KNOWN_ISSUES.md` gains Update 16
+  of the T-Rex stance entry.
+- **A training-history report: one run's feet, balance, asymmetry and
+  saturation over its training, or several runs overlaid**
+  (`environments/shared/reporting/training_history.py`,
+  `environments/shared/scripts/plot_training_history.py`; documented in
+  `docs/TRAINING_ARTIFACT_PRESENTATION.md`, "Training history pages"). Report
+  only: new files, one test-table line each in `test_policy_loading.py` (the
+  new call-time read of `_PERIODIC_CHECKPOINT_RE`) and
+  `test_repository_root.py` (the script's `sys.path` bootstrap), and a
+  docstring line in `reporting/__init__.py`; no training, evaluation, gate,
+  configuration, digest or notebook changes. From a stage directory's
+  `eval_episodes.csv`, `train_episodes.csv`, `stage_config.json`,
+  `progress.json`, `plant_identity.json` and checkpoint zips it reduces each
+  evaluation (clean, falls, saturation-flagged episodes and the mean return;
+  the rails' own per-episode numbers and the full-horizon episodes over each
+  declared bar; per foot the whole-foot and pad centres of pressure, the
+  episodes outside the CoP band's edges, digit share, toe margin, shear and
+  cone use; the centre of mass, root pitch and XcoM margins; the
+  left-minus-right hip pitch, knee and ankle offsets;
+  `actuator_force_frac_max`), the training falls per 262,144-step window, and
+  the per-actuator policy std `exp(log_std)` at the checkpoints (only
+  `policy.pth`'s `log_std` is read, with `weights_only=True`; the actuator
+  names only when the run's physics digest is the checkout's). It finds the
+  saturation alarms from the ledger itself (an evaluation with at least 5 of
+  its episodes listing `max_actuator_saturation_fraction`; two in a row are an
+  alarm) and marks them, with the checkpoints given by `--mark-steps`, on ten
+  pages of graphs written as PNGs and a self-contained HTML page, beside a
+  JSON summary (`mesozoic.training-history/v1`) of every series, the declared
+  bars and band settings and what was absent. Counts are never smoothed: a
+  comparison draws them as one strip per run. A missing file or column is an
+  absent series, never an error; an output inside a run directory is refused,
+  as `plot_gate_progress.py` refuses it. It is the first piece of the stage
+  report card's posture-over-training page and per-actuator std. On the
+  stance5 band run s42 it finds the first flagged evaluation at 3,538,944
+  steps and the alarm at 3,670,016, and on the stance4 control run s42 the
+  first saturated episodes at 1,835,008 and the alarm at 2,228,224, the steps
+  the scorers recorded. On the stance4 control run s52 it counts 204
+  full-horizon episodes over the 0.80 pad rail in 69 of 91 evaluations (7 of
+  10 at 6,553,600 steps, where the signed per-foot means read +0.14 and
+  +0.11); the five band runs have none.
 - **Decision D-D41 recorded: a replication of the per-foot centre-of-pressure
   band screen on two more seeds, read three of five; D-D40 and D-D36 amended**
-  (the maintainer's decisions of 2026-10-22; `docs/BEHAVIOR_RECIPES_PLAN.md`
-  §6.2, `docs/CONSOLIDATION_PLAN_2026_09.md` §6, a dated note in §17 of
+  (#634; the maintainer's decisions of 2026-10-22;
+  `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2, `docs/CONSOLIDATION_PLAN_2026_09.md`
+  §6, a dated note in §17 of
   `docs/GAIT_QUALITY_PLAN_2026_09.md`, `docs/NEXT_STEPS.md` §3; the appended §22
   of `docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md`). Records
   only: no library code, configuration, test, notebook, digest or generated file
@@ -106,7 +218,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The stance5 screen of D-D40 judged: one of the three per-foot
   centre-of-pressure band runs holds (line 3), and the band is not adopted; the
   band's build, the stance4 seed-42 saturation diagnosis and walking pilot 2's
-  rebuild recorded** (D-D40's amendment of 2026-10-22;
+  rebuild recorded** (#634; D-D40's amendment of 2026-10-22;
   `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2, `docs/CONSOLIDATION_PLAN_2026_09.md` §6,
   a dated note in §17 of `docs/GAIT_QUALITY_PLAN_2026_09.md`,
   `docs/NEXT_STEPS.md` §3; the appended §21 of

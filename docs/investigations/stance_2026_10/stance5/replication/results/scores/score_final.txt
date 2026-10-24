@@ -1,0 +1,165 @@
+T. rex stance5 replication (s70, s80): score against foot/stance5/replication/criteria.txt (sha256 a38536de152e735947fd5322960f9e75b6520b59a5526a414afc0d0c4a0f3ef2; matches the fixed text)
+K1-K4 per run: score_stance3.py (sha256 2c3879d3a83d4531...) loaded unchanged through score_stance5.py (sha256 d5515041f73a299a...); the new runs' instance differs only in JUDGE_SCHEMA, ARM_ENV, HEADS (schema stance5r-judge/v1, arm LTSB, HEAD cf80ecb14d1630ce3b4dcdea28a05835d143470b); the stance5 runs read through score_stance5.py's band instance (stance5-judge/v1).
+new runs' joint-noise sigma: scratchpad/foot/stance5/replication/sigma_s70_s80.json (sha256 89778b3f81f83f05...; element-wise mean of frozen_params criteria.H4.control_sigma 42, 52, 60; mean 0.160713)
+new-run judge files: scratchpad/foot/stance5/replication/judged   stance5 judge files: scratchpad/foot/stance5/judged
+
+STANCE5 BAND RUNS (recorded verdicts; not re-judged, not re-scored)
+== Run 1 stance5_LTSB_s52 (arm LTSB, seed 52, clone HEAD cf80ecb1)
+   ckpt    verdict clean  LCB   full hop | K2a K2b  x_c med  statue  offset mm | roll | noise joint/own
+   4.2M       PASS 40/40 0.928   40   0 |   0   0     59.5    64.0     -4.6  |    0 | 0/0
+   5.2M       PASS 40/40 0.928   40   0 |   0   0     66.8    64.0      2.8  |    0 | 0/0
+   6.3M       PASS 40/40 0.928   40   0 |   0   0     63.8    64.0     -0.2  |    0 | 0/0
+   8.4M       PASS 40/40 0.928   40   0 |   0   0     64.2    64.0      0.2  |    0 | 1/0
+   10.5M      PASS 40/40 0.928   40   0 |   0   0     49.8    64.0    -14.2  |    0 | 1/0
+   final      PASS 40/40 0.928   40   0 |   0   0     49.4    64.0    -14.7  |    0 | 0/0
+   7.3M       PASS 39/40 0.887   40   1 |   0   0     65.3    64.0      1.3  |    0 | 0/0  (report only)
+   report-only 1,048,576-step checkpoints not judged (or invalid): 1.0M, 2.1M, 3.1M, 9.4M, 11.5M
+   K1 PASS: v2 PASS at 6.3M yes, at final yes; below 37/40 none (<= 1 allowed), below 33/40 none
+   K2 PASS: K2a pass; K2b pass; K2c window pass [-60, +30] mm, range 17.4 mm pass (<= 30)
+   K3 PASS: joint {'6.3M': 0, 'final': 0} (<= 2/20), own {'6.3M': 0, 'final': 0} (<= 1/20)
+   K4 PASS: roll rail {'6.3M': 0, 'final': 0} (<= 3/40)
+   -> HOLDS; FORE-AFT HOLDS
+   drift or split: not classed (K2 passes) (checkpoints counted none; n_c 0, n_s 0, n_u 0 near-reference, falls or unread 0; K2c pass; K2 passes)
+   report only:
+     K5 trajectory: statue -0.0161 m, window [-0.0761, +0.0139] m, 68 evaluations from 3,145,728: no flag
+     late falls (200 < length < 1000) per 262,144 steps: peak 50.2% at 262,144; above 5%: 262,144 50.2%
+     saturation alarm: none (0 of 91 evaluations with >= 5 saturation episodes)
+     band readouts (full-horizon): 4.2M out-of-band 0/40, load-share rails windowed / window / either 0/0/0, guard 0/ramp 0/0 of 64000, whole/pad out 50/0, pad binds 0, share [0.25,0.35)/<0.25 0/0, paid mean -0.01; 5.2M out-of-band 0/40, load-share rails windowed / window / either 0/0/0, guard 0/ramp 0/0 of 64000, whole/pad out 0/0, pad binds 0, share [0.25,0.35)/<0.25 0/0, paid mean 0.00; 6.3M out-of-band 0/40, load-share rails windowed / window / either 0/0/0, guard 0/ramp 0/0 of 64000, whole/pad out 87/13, pad binds 0, share [0.25,0.35)/<0.25 0/0, paid mean -0.04; 8.4M out-of-band 0/40, load-share rails windowed / window / either 0/0/0, guard 0/ramp 0/0 of 64000, whole/pad out 265/66, pad binds 0, share [0.25,0.35)/<0.25 0/0, paid mean -0.08; 10.5M out-of-band 0/40, load-share rails windowed / window / either 0/0/0, guard 0/ramp 0/0 of 64000, whole/pad out 0/0, pad binds 0, share [0.25,0.35)/<0.25 0/0, paid mean 0.00; final out-of-band 0/40, load-share rails windowed / window / either 0/0/0, guard 0/ramp 0/0 of 64000, whole/pad out 0/0, pad binds 0, share [0.25,0.35)/<0.25 0/0, paid mean 0.00; 7.3M out-of-band 0/40, load-share rails windowed / window / either 0/0/0, guard 0/ramp 0/0 of 64000, whole/pad out 0/0, pad binds 0, share [0.25,0.35)/<0.25 0/0, paid mean 0.00
+     throughput: 239.5 steps/s at 12001280 (ended, 2026-10-22T03:32:11Z)
+     selection: S0 robust_best: clean 40/40, own-noise falls 0, K2a 0, K2b 0 | S1 best: clean 40/40, own-noise falls 0, K2a 0, K2b 0 | S2 final: clean 40/40, own-noise falls 0, K2a 0, K2b 0 | S3 11,534,336: not judged/invalid
+== Run 2 stance5_LTSB_s60 (arm LTSB, seed 60, clone HEAD cf80ecb1)
+   ckpt    verdict clean  LCB   full hop | K2a K2b  x_c med  statue  offset mm | roll | noise joint/own
+   4.2M       PASS 39/40 0.887   40   0 |   0   0     70.6    64.0      6.5  |    1 | 2/0
+   5.2M       PASS 40/40 0.928   40   0 |   0   0     49.0    64.0    -15.0  |    0 | 0/0
+   6.3M       PASS 40/40 0.928   40   0 |   0   0     62.2    64.0     -1.8  |    0 | 0/0
+   8.4M       PASS 40/40 0.928   40   0 |   0   0     70.3    64.0      6.3  |    0 | 1/0
+   10.5M      PASS 40/40 0.928   40   0 |   0   0     66.9    64.0      2.8  |    0 | 1/0
+   final      PASS 39/40 0.887   40   0 |   0   0     58.4    64.0     -5.7  |    0 | 3/0
+   7.3M       PASS 40/40 0.928   40   0 |   0   0     57.0    64.0     -7.0  |    0 | 0/0  (report only)
+   report-only 1,048,576-step checkpoints not judged (or invalid): 1.0M, 2.1M, 3.1M, 9.4M, 11.5M
+   K1 PASS: v2 PASS at 6.3M yes, at final yes; below 37/40 none (<= 1 allowed), below 33/40 none
+   K2 PASS: K2a pass; K2b pass; K2c window pass [-60, +30] mm, range 21.6 mm pass (<= 30)
+   K3 FAIL: joint {'6.3M': 0, 'final': 3} (<= 2/20), own {'6.3M': 0, 'final': 0} (<= 1/20)
+   K4 PASS: roll rail {'6.3M': 0, 'final': 0} (<= 3/40)
+   -> does not hold (failed K3); FORE-AFT HOLDS
+   drift or split: not classed (K2 passes) (checkpoints counted none; n_c 0, n_s 0, n_u 0 near-reference, falls or unread 0; K2c pass; K2 passes)
+   report only:
+     K5 trajectory: statue -0.0161 m, window [-0.0761, +0.0139] m, 68 evaluations from 3,145,728: no flag
+     late falls (200 < length < 1000) per 262,144 steps: peak 48.9% at 262,144; above 5%: 262,144 48.9%
+     saturation alarm: none (0 of 91 evaluations with >= 5 saturation episodes)
+     band readouts (full-horizon): 4.2M out-of-band 0/40, load-share rails windowed / window / either 0/0/0, guard 0/ramp 0/0 of 64000, whole/pad out 93/0, pad binds 0, share [0.25,0.35)/<0.25 0/0, paid mean -0.00; 5.2M out-of-band 0/40, load-share rails windowed / window / either 0/0/0, guard 0/ramp 0/0 of 64000, whole/pad out 35/12, pad binds 0, share [0.25,0.35)/<0.25 0/0, paid mean -0.01; 6.3M out-of-band 0/40, load-share rails windowed / window / either 0/0/0, guard 0/ramp 0/0 of 64000, whole/pad out 9/0, pad binds 0, share [0.25,0.35)/<0.25 0/0, paid mean -0.00; 8.4M out-of-band 1/40, load-share rails windowed / window / either 0/0/0, guard 0/ramp 0/0 of 64000, whole/pad out 1012/98, pad binds 0, share [0.25,0.35)/<0.25 0/0, paid mean -0.39; 10.5M out-of-band 0/40, load-share rails windowed / window / either 0/0/0, guard 0/ramp 0/0 of 64000, whole/pad out 0/0, pad binds 0, share [0.25,0.35)/<0.25 0/0, paid mean 0.00; final out-of-band 0/40, load-share rails windowed / window / either 0/0/0, guard 0/ramp 0/0 of 64000, whole/pad out 809/258, pad binds 10, share [0.25,0.35)/<0.25 0/0, paid mean -0.31; 7.3M out-of-band 0/40, load-share rails windowed / window / either 0/0/0, guard 0/ramp 0/0 of 64000, whole/pad out 0/0, pad binds 0, share [0.25,0.35)/<0.25 0/0, paid mean 0.00
+     throughput: 230.9 steps/s at 12001280 (ended, 2026-10-22T04:03:00Z)
+     selection: S0 robust_best: clean 40/40, own-noise falls 0, K2a 0, K2b 0 | S1 best: clean 40/40, own-noise falls 0, K2a 0, K2b 0 | S2 final: clean 39/40, own-noise falls 0, K2a 0, K2b 0 | S3 11,534,336: not judged/invalid
+== Run 3 stance5_LTSB_s42 (arm LTSB, seed 42, clone HEAD cf80ecb1)
+   ckpt    verdict clean  LCB   full hop | K2a K2b  x_c med  statue  offset mm | roll | noise joint/own
+   4.2M       FAIL 16/40 0.269   40  24 |   0   0     68.4    64.0      4.4  |    0 | 0/0
+   5.2M       FAIL 27/40 0.534   40  13 |   0   0     72.3    64.0      8.3  |    0 | 0/0
+   6.3M       FAIL 18/40 0.315   40  22 |   0   0     67.6    64.0      3.6  |    0 | 0/0
+   8.4M       FAIL 15/40 0.247   40  24 |   0   0     62.4    64.0     -1.6  |    0 | 5/0
+   10.5M      FAIL 38/40 0.851   40   2 |   0   0     54.0    64.0    -10.0  |    0 | 9/0
+   final      FAIL 19/40 0.338   39  21 |   1   1     66.3    64.0      2.3  |    0 | 13/1
+   7.3M       FAIL 19/40 0.338   40  21 |   0   0     60.9    64.0     -3.1  |    0 | 9/0  (report only)
+   report-only 1,048,576-step checkpoints not judged (or invalid): 1.0M, 2.1M, 3.1M, 9.4M, 11.5M
+   K1 FAIL: v2 PASS at 6.3M no, at final no; below 37/40 ['4.2M', '5.2M', '6.3M', '8.4M', 'final'] (<= 1 allowed), below 33/40 ['4.2M', '5.2M', '6.3M', '8.4M', 'final']
+   K2 PASS: K2a pass; K2b pass; K2c window pass [-60, +30] mm, range 18.3 mm pass (<= 30)
+   K3 FAIL: joint {'6.3M': 0, 'final': 13} (<= 2/20), own {'6.3M': 0, 'final': 1} (<= 1/20)
+   K4 PASS: roll rail {'6.3M': 0, 'final': 0} (<= 3/40)
+   -> does not hold (failed K1, K3); FORE-AFT does not hold
+   drift or split: not classed (K2 passes) (checkpoints counted none; n_c 0, n_s 0, n_u 0 near-reference, falls or unread 0; K2c pass; K2 passes)
+   K1 failure modes: {"4.2M": {"rails": {"max_actuator_saturation_fraction": 24}, "terminations": {}}, "5.2M": {"rails": {"max_actuator_saturation_fraction": 13}, "terminations": {}}, "6.3M": {"rails": {"max_actuator_saturation_fraction": 22}, "terminations": {}}, "8.4M": {"rails": {"max_actuator_saturation_fraction": 24, "max_settle_stance_width_change_m": 1}, "terminations": {}}, "final": {"rails": {"horizon": 1, "max_actuator_saturation_fraction": 20, "max_foot_contact_fraction": 1, "max_phantom_support_fraction": 1, "max_sole_cop_fore_aft": 1, "max_sole_corner_lift_m": 1, "max_sole_tilt_deg": 1, "max_window_displacement_m": 1, "min_all_feet_support": 1, "min_sole_contacts": 1}, "terminations": {"fallen": 1}}} (new modes: yes)
+   report only:
+     K5 trajectory: statue -0.0161 m, window [-0.0761, +0.0139] m, 68 evaluations from 3,145,728: no flag
+     late falls (200 < length < 1000) per 262,144 steps: peak 46.3% at 262,144; above 5%: 262,144 46.3%, 11,796,480 6.6%
+     saturation alarm: ALARM (30 of 91 evaluations with >= 5 saturation episodes; first alarm at 3,670,016; runs 3,538,944-4,718,592 (10), 6,160,384-6,553,600 (4), 6,815,744-7,208,960 (4), 7,864,320-8,781,824 (8); name the actuator with tools/satroll5.py)
+     band readouts (full-horizon): 4.2M out-of-band 0/40, load-share rails windowed / window / either 0/0/0, guard 0/ramp 0/0 of 64000, whole/pad out 0/0, pad binds 0, share [0.25,0.35)/<0.25 0/0, paid mean 0.00; 5.2M out-of-band 0/40, load-share rails windowed / window / either 0/0/0, guard 0/ramp 0/0 of 64000, whole/pad out 0/0, pad binds 0, share [0.25,0.35)/<0.25 0/0, paid mean 0.00; 6.3M out-of-band 0/40, load-share rails windowed / window / either 0/0/0, guard 0/ramp 0/0 of 64000, whole/pad out 0/0, pad binds 0, share [0.25,0.35)/<0.25 0/0, paid mean 0.00; 8.4M out-of-band 0/40, load-share rails windowed / window / either 0/0/0, guard 0/ramp 0/0 of 64000, whole/pad out 491/370, pad binds 6, share [0.25,0.35)/<0.25 0/0, paid mean -0.70; 10.5M out-of-band 0/40, load-share rails windowed / window / either 0/0/0, guard 0/ramp 0/0 of 64000, whole/pad out 387/112, pad binds 0, share [0.25,0.35)/<0.25 0/0, paid mean -0.05; final out-of-band 0/39, load-share rails windowed / window / either 0/0/0, guard 0/ramp 0/0 of 62400, whole/pad out 175/86, pad binds 6, share [0.25,0.35)/<0.25 0/0, paid mean -0.10; 7.3M out-of-band 0/40, load-share rails windowed / window / either 0/0/0, guard 0/ramp 0/0 of 64000, whole/pad out 28/0, pad binds 0, share [0.25,0.35)/<0.25 0/0, paid mean -0.00
+     throughput: 245.2 steps/s at 12001280 (ended, 2026-10-22T03:14:04Z)
+     selection: S0 robust_best: clean 40/40, own-noise falls 0, K2a 0, K2b 0 | S1 best: clean 40/40, own-noise falls 0, K2a 0, K2b 0 | S2 final: clean 19/40, own-noise falls 1, K2a 1, K2b 1 | S3 9,437,184: not judged/invalid
+   stance5 verdicts as score_final.json records them (sha256 pinned; decision recorded {'status': 'decided', 'line': 3, 'runs_ended': True}): reproduced yes
+     stance5_LTSB_s52: recorded HOLDS; criteria yes, J cells yes, K1 modes yes, task yes, judge yes
+     stance5_LTSB_s60: recorded does not hold (failed K3); criteria yes, J cells yes, K1 modes yes, task yes, judge yes
+     stance5_LTSB_s42: recorded does not hold (failed K1, K3); criteria yes, J cells yes, K1 modes yes, task yes, judge yes
+
+NEW BAND RUNS (LTSB, branch claude/screen-trex-r9-armlts-copband at cf80ecb1; seeds 70 and 80)
+== Run 4 stance5_LTSB_s70 (arm LTSB, seed 70, clone HEAD cf80ecb1)
+   ckpt    verdict clean  LCB   full hop | K2a K2b  x_c med  statue  offset mm | roll | noise joint/own
+   4.2M       PASS 40/40 0.928   40   0 |   0   0     57.2    64.0     -6.8  |    0 | 0/0
+   5.2M       PASS 40/40 0.928   40   0 |   0   0     55.1    64.0     -9.0  |    0 | 0/0
+   6.3M       PASS 40/40 0.928   40   0 |   0   0     49.9    64.0    -14.1  |    0 | 0/0
+   8.4M       PASS 39/40 0.887   39   1 |   1   1     48.7    64.0    -15.4  |    0 | 1/0
+   10.5M      PASS 40/40 0.928   40   0 |   0   0     49.5    64.0    -14.5  |    0 | 1/0
+   final      PASS 40/40 0.928   40   0 |   0   0     43.5    64.0    -20.6  |    0 | 1/0
+   1.0M       PASS 39/40 0.887   40   0 |   0   0     59.3    64.0     -4.7  |    1 | 0/0  (report only)
+   2.1M       PASS 39/40 0.887   40   0 |   0   0     61.2    64.0     -2.9  |    1 | 0/0  (report only)
+   3.1M       PASS 39/40 0.887   40   0 |   0   0     60.4    64.0     -3.6  |    1 | 0/0  (report only)
+   report-only 1,048,576-step checkpoints not judged (or invalid): 7.3M, 9.4M, 11.5M
+   K1 PASS: v2 PASS at 6.3M yes, at final yes; below 37/40 none (<= 1 allowed), below 33/40 none
+   K2 PASS: K2a pass; K2b pass; K2c window pass [-60, +30] mm, range 13.7 mm pass (<= 30)
+   K3 PASS: joint {'6.3M': 0, 'final': 1} (<= 2/20), own {'6.3M': 0, 'final': 0} (<= 1/20)
+   K4 PASS: roll rail {'6.3M': 0, 'final': 0} (<= 3/40)
+   -> HOLDS; FORE-AFT HOLDS
+   drift or split: not classed (K2 passes) (checkpoints counted none; n_c 0, n_s 0, n_u 0 near-reference, falls or unread 0; K2c pass; K2 passes)
+   report only:
+     K5 trajectory: statue -0.0161 m, window [-0.0761, +0.0139] m, 68 evaluations from 3,145,728: no flag
+     late falls (200 < length < 1000) per 262,144 steps: peak 55.9% at 262,144; above 5%: 262,144 55.9%
+     saturation alarm: none (0 of 91 evaluations with >= 5 saturation episodes)
+     band readouts (full-horizon): 4.2M out-of-band 0/40, load-share rails windowed / window / either 0/0/0, guard 0/ramp 0/0 of 64000, whole/pad out 0/0, pad binds 0, share [0.25,0.35)/<0.25 0/0, paid mean 0.00; 5.2M out-of-band 0/40, load-share rails windowed / window / either 0/0/0, guard 0/ramp 0/0 of 64000, whole/pad out 0/0, pad binds 0, share [0.25,0.35)/<0.25 0/0, paid mean 0.00; 6.3M out-of-band 0/40, load-share rails windowed / window / either 0/0/0, guard 0/ramp 0/0 of 64000, whole/pad out 287/203, pad binds 0, share [0.25,0.35)/<0.25 0/0, paid mean -0.45; 8.4M out-of-band 0/39, load-share rails windowed / window / either 0/0/0, guard 0/ramp 0/0 of 62400, whole/pad out 237/150, pad binds 0, share [0.25,0.35)/<0.25 0/0, paid mean -0.09; 10.5M out-of-band 0/40, load-share rails windowed / window / either 0/0/0, guard 0/ramp 0/0 of 64000, whole/pad out 15/2, pad binds 0, share [0.25,0.35)/<0.25 0/0, paid mean -0.00; final out-of-band 0/40, load-share rails windowed / window / either 0/0/0, guard 0/ramp 0/0 of 64000, whole/pad out 0/0, pad binds 0, share [0.25,0.35)/<0.25 0/0, paid mean 0.00; 1.0M out-of-band 1/40, load-share rails windowed / window / either 0/0/0, guard 0/ramp 0/0 of 64000, whole/pad out 1174/0, pad binds 0, share [0.25,0.35)/<0.25 0/0, paid mean -0.34; 2.1M out-of-band 0/40, load-share rails windowed / window / either 0/0/0, guard 0/ramp 0/0 of 64000, whole/pad out 0/0, pad binds 0, share [0.25,0.35)/<0.25 0/0, paid mean 0.00; 3.1M out-of-band 0/40, load-share rails windowed / window / either 0/0/0, guard 0/ramp 0/0 of 64000, whole/pad out 138/0, pad binds 0, share [0.25,0.35)/<0.25 0/0, paid mean -0.03
+     throughput: 243.3 steps/s at 12001280 (ended, 2026-10-23T09:15:41Z)
+     selection: S0 robust_best: not judged/invalid | S1 best: not judged/invalid | S2 final: clean 40/40, own-noise falls 0, K2a 0, K2b 0 | S3 11,534,336: not judged/invalid
+== Run 5 stance5_LTSB_s80 (arm LTSB, seed 80, clone HEAD cf80ecb1)
+   ckpt    verdict clean  LCB   full hop | K2a K2b  x_c med  statue  offset mm | roll | noise joint/own
+   4.2M       PASS 40/40 0.928   40   0 |   0   0     58.3    64.0     -5.7  |    0 | 2/0
+   5.2M       FAIL  4/40 0.035   40  36 |   0   0     62.8    64.0     -1.3  |    0 | 2/0
+   6.3M       FAIL 14/40 0.226   40  25 |   0   0     55.6    64.0     -8.5  |    1 | 1/0
+   8.4M       FAIL 26/40 0.508   40  14 |   0   0     57.2    64.0     -6.9  |    0 | 3/0
+   10.5M      PASS 39/40 0.887   40   0 |   0   0     52.4    64.0    -11.6  |    1 | 1/0
+   final      PASS 38/40 0.851   39   1 |   1   1     53.6    64.0    -10.5  |    1 | 2/0
+   1.0M       PASS 40/40 0.928   40   0 |   0   0     60.9    64.0     -3.2  |    0 | 0/0  (report only)
+   2.1M       PASS 40/40 0.928   40   0 |   0   0     62.7    64.0     -1.4  |    0 | 0/0  (report only)
+   3.1M       PASS 40/40 0.928   40   0 |   0   0     62.6    64.0     -1.4  |    0 | 0/0  (report only)
+   report-only 1,048,576-step checkpoints not judged (or invalid): 7.3M, 9.4M, 11.5M
+   K1 FAIL: v2 PASS at 6.3M no, at final yes; below 37/40 ['5.2M', '6.3M', '8.4M'] (<= 1 allowed), below 33/40 ['5.2M', '6.3M', '8.4M']
+   K2 PASS: K2a pass; K2b pass; K2c window pass [-60, +30] mm, range 10.4 mm pass (<= 30)
+   K3 PASS: joint {'6.3M': 1, 'final': 2} (<= 2/20), own {'6.3M': 0, 'final': 0} (<= 1/20)
+   K4 PASS: roll rail {'6.3M': 1, 'final': 1} (<= 3/40)
+   -> does not hold (failed K1); FORE-AFT does not hold
+   drift or split: not classed (K2 passes) (checkpoints counted none; n_c 0, n_s 0, n_u 0 near-reference, falls or unread 0; K2c pass; K2 passes)
+   K1 failure modes: {"5.2M": {"rails": {"max_actuator_saturation_fraction": 36}, "terminations": {}}, "6.3M": {"rails": {"max_actuator_saturation_fraction": 25, "max_sole_tilt_deg": 1}, "terminations": {}}, "8.4M": {"rails": {"max_actuator_saturation_fraction": 14}, "terminations": {}}} (new modes: yes)
+   report only:
+     K5 trajectory: statue -0.0161 m, window [-0.0761, +0.0139] m, 68 evaluations from 3,145,728: no flag
+     late falls (200 < length < 1000) per 262,144 steps: peak 48.5% at 262,144; above 5%: 262,144 48.5%
+     saturation alarm: ALARM (37 of 91 evaluations with >= 5 saturation episodes; first alarm at 4,456,448; runs 4,325,376-6,815,744 (20), 7,340,032-7,471,104 (2), 7,733,248-7,864,320 (2), 8,388,608-9,306,112 (8), 9,699,328-9,961,472 (3); name the actuator with tools/satroll5.py)
+     band readouts (full-horizon): 4.2M out-of-band 0/40, load-share rails windowed / window / either 0/0/0, guard 0/ramp 0/0 of 64000, whole/pad out 0/0, pad binds 0, share [0.25,0.35)/<0.25 0/0, paid mean 0.00; 5.2M out-of-band 0/40, load-share rails windowed / window / either 0/0/0, guard 0/ramp 0/0 of 64000, whole/pad out 19/0, pad binds 0, share [0.25,0.35)/<0.25 0/0, paid mean -0.00; 6.3M out-of-band 0/40, load-share rails windowed / window / either 0/0/0, guard 0/ramp 0/0 of 64000, whole/pad out 10/0, pad binds 0, share [0.25,0.35)/<0.25 0/0, paid mean -0.00; 8.4M out-of-band 0/40, load-share rails windowed / window / either 0/0/0, guard 0/ramp 0/0 of 64000, whole/pad out 1462/961, pad binds 31, share [0.25,0.35)/<0.25 0/0, paid mean -1.86; 10.5M out-of-band 0/40, load-share rails windowed / window / either 0/0/0, guard 0/ramp 0/0 of 64000, whole/pad out 147/54, pad binds 0, share [0.25,0.35)/<0.25 0/0, paid mean -0.05; final out-of-band 0/39, load-share rails windowed / window / either 0/0/0, guard 0/ramp 0/0 of 62400, whole/pad out 8/1, pad binds 0, share [0.25,0.35)/<0.25 0/0, paid mean -0.00; 1.0M out-of-band 0/40, load-share rails windowed / window / either 0/0/0, guard 0/ramp 0/0 of 64000, whole/pad out 0/0, pad binds 0, share [0.25,0.35)/<0.25 0/0, paid mean 0.00; 2.1M out-of-band 0/40, load-share rails windowed / window / either 0/0/0, guard 0/ramp 0/0 of 64000, whole/pad out 0/0, pad binds 0, share [0.25,0.35)/<0.25 0/0, paid mean 0.00; 3.1M out-of-band 0/40, load-share rails windowed / window / either 0/0/0, guard 0/ramp 0/0 of 64000, whole/pad out 0/0, pad binds 0, share [0.25,0.35)/<0.25 0/0, paid mean 0.00
+     throughput: 241.9 steps/s at 12001280 (ended, 2026-10-23T09:20:53Z)
+     selection: S0 robust_best: not judged/invalid | S1 best: not judged/invalid | S2 final: clean 38/40, own-noise falls 0, K2a 1, K2b 1 | S3 11,534,336: not judged/invalid
+
+REPLICATION RULE (criteria DECISION TABLE: ADOPT only if s70 and s80 both HOLD)
+   stance5_LTSB_s70: HOLDS
+   stance5_LTSB_s80: does not hold (failed K1)
+   H = 2 of 5 band runs HOLD (stance5 as recorded: stance5_LTSB_s52 holds, stance5_LTSB_s60 does not, stance5_LTSB_s42 does not)
+DECISION: 2. Exactly one of s70 and s80 HOLDS (H = 2 of 5): not adopted. The scorer names the other new run's failing tests and K1 failure modes. The maintainer chooses the next round; stance5 decision line 4's options are the menu (the tail saturation habit, the dose, the leg exploration-noise floor).
+   next-round inputs, stance5_LTSB_s80: failed ['K1']; K1 failure modes {"5.2M": {"rails": {"max_actuator_saturation_fraction": 36}, "terminations": {}}, "6.3M": {"rails": {"max_actuator_saturation_fraction": 25, "max_sole_tilt_deg": 1}, "terminations": {}}, "8.4M": {"rails": {"max_actuator_saturation_fraction": 14}, "terminations": {}}} (new modes: yes); saturation alarm at 4,456,448
+   the maintainer chooses the next round (menu: stance5 criteria decision line 4's sub-items)
+
+REPORT ONLY (never in the decision; control passes: recorded in stance4's score_final.json)
+   K3 pass fraction, five band runs vs the control: 3/5 vs 2/3 (below the control's; reported, not a veto; stance5's rule (b) is not applied)
+   per test, band (of 5) vs control (of 3): K1 3/5 vs 0/3; K2 5/5 vs 0/3; K3 3/5 vs 2/3; K4 5/5 vs 2/3
+   FORE-AFT HOLDS: stance5_LTSB_s52 yes; stance5_LTSB_s60 yes; stance5_LTSB_s42 no; stance5_LTSB_s70 yes; stance5_LTSB_s80 no
+   drift or split (printed, not read): stance5_LTSB_s52 not classed (K2 passes); stance5_LTSB_s60 not classed (K2 passes); stance5_LTSB_s42 not classed (K2 passes); stance5_LTSB_s70 not classed (K2 passes); stance5_LTSB_s80 not classed (K2 passes)
+   control verdicts reproduce stance4 score_final.json: yes
+
+PARENT COMPARISON (report only; stance3's rule: most clean panel episodes at final; ties to fewer joint + own falls; a tie names every tied final; the new runs' joint-noise falls use the sidecar's mean sigma)
+   best band final of the five: Run 1 stance5_LTSB_s52
+   best holding band final of the five (line 1's stance parent): Run 1 stance5_LTSB_s52
+   best stance4 final: stance4 Run 1 stance4_LTS_s52
+   reference stance3 Run 2 stance3_armLT_s60 final: clean 40/40, noise falls joint 0 / own 0
+     Run 1 stance5_LTSB_s52             clean 40/40  joint + own noise falls 0
+     stance3 Run 2 stance3_armLT_s60    clean 40/40  joint + own noise falls 0
+     Run 4 stance5_LTSB_s70             clean 40/40  joint + own noise falls 1
+     stance4 Run 1 stance4_LTS_s52      clean 39/40  joint + own noise falls 0
+     Run 2 stance5_LTSB_s60             clean 39/40  joint + own noise falls 3
+     Run 5 stance5_LTSB_s80             clean 38/40  joint + own noise falls 2
+     Run 3 stance5_LTSB_s42             clean 19/40  joint + own noise falls 14
+   top under the rule (band finals, stance3 Run 2's final, the best stance4 final): TIE: Run 1 stance5_LTSB_s52, stance3 Run 2 stance3_armLT_s60 (the maintainer chooses)
+   walking pilot 2's parent: stance3 Run 2's final (maintainer decision (3) of 2026-10-22 15:08 UTC, run_log); not chosen here
+
+wrote scratchpad/foot/stance5/replication/scores/score_final.json
