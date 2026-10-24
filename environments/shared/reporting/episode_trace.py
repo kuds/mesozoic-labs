@@ -349,7 +349,9 @@ def summarize_episode(
     (empty when the episode ends first: every window statistic is then
     ``None``).  ``max_actuator_saturation_fraction`` and
     ``mean_actuator_saturation_fraction`` are the gate's two
-    (``stance_metrics._saturation_metrics``), over every actuator.
+    (``stance_metrics._saturation_metrics``), over every actuator.  Only
+    ``first_saturated_step`` and ``raw_mean_episode_max``/``_min`` read the
+    whole episode, the reset transient included.
     """
     settle = int(settle_steps)
     window = slice(settle, trace.length)
@@ -362,6 +364,7 @@ def summarize_episode(
         column_command = command[:, index]
         column_raw = raw[:, index]
         window_raw = column_raw[window]
+        finite_window_raw = window_raw[np.isfinite(window_raw)]
         finite_raw = column_raw[np.isfinite(column_raw)]
         steps = window_command.shape[0]
         actuators[names[index]] = {
@@ -375,8 +378,10 @@ def summarize_episode(
             "raw_mean_beyond_bound_fraction": (
                 _finite(np.mean(np.abs(window_raw) > 1.0)) if steps and np.isfinite(window_raw).all() else None
             ),
-            "raw_mean_max": _finite(finite_raw.max()) if finite_raw.size else None,
-            "raw_mean_min": _finite(finite_raw.min()) if finite_raw.size else None,
+            "raw_mean_max": _finite(finite_window_raw.max()) if finite_window_raw.size else None,
+            "raw_mean_min": _finite(finite_window_raw.min()) if finite_window_raw.size else None,
+            "raw_mean_episode_max": _finite(finite_raw.max()) if finite_raw.size else None,
+            "raw_mean_episode_min": _finite(finite_raw.min()) if finite_raw.size else None,
             "first_saturated_step": _first_step(np.abs(column_command) >= SATURATION_ABS),
             "first_saturated_window_step": _first_step(np.abs(column_command) >= SATURATION_ABS, settle),
             "ctrl_window_mean": _window_mean(trace.values["ctrl"][window, index]),
@@ -531,7 +536,7 @@ def trace_rows(
     """``(fieldnames, rows)`` of one episode's CSV: one row per step, ``<actuator>_<field>`` per selected actuator.
 
     ``step`` is 0-based, the step index of the action (the replay CSV's
-    ``step`` counts from 1); ``time_s`` is the time after the step and
+    ``step`` counts from 1: its row k is this row k - 1); ``time_s`` is the time after the step and
     ``in_window`` whether the gate's window counts it.  A value that is not
     finite is an empty cell; the ``sample`` columns appear only in a
     stochastic trace.
@@ -660,7 +665,7 @@ def render_episode_trace(report: dict[str, Any]) -> str:
     lines.append("")
     lines.append(
         "cmd/raw: window means of the command and of the raw Gaussian mean; sat/>=0.9/raw>1: shares of window steps; "
-        "first/win1st: the first step at |command| >= saturation, anywhere and in the window; force: the window mean "
-        "of |force| / its limit."
+        "rawmax: the window maximum of the raw Gaussian mean; first/win1st: the first step at |command| >= "
+        "saturation, anywhere and in the window; force: the window mean of |force| / its limit."
     )
     return "\n".join(lines) + "\n"

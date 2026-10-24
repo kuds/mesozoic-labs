@@ -151,9 +151,30 @@ def test_the_summary_reads_the_gates_window_and_saturation(deterministic):
         assert tail["saturated_fraction"] == tail["near_saturated_fraction"] == 1.0
         assert tail["raw_mean_beyond_bound_fraction"] == 1.0
         assert tail["command_window_mean"] == 1.0 and tail["raw_mean_window_mean"] > 1.0
-        assert tail["raw_mean_max"] == pytest.approx(trace.values["raw_mean"][:, tail["index"]].max())
+        column = trace.values["raw_mean"][:, tail["index"]]
+        assert tail["raw_mean_max"] == pytest.approx(column[SETTLE_STEPS:].max())
+        assert tail["raw_mean_min"] == pytest.approx(column[SETTLE_STEPS:].min())
+        assert tail["raw_mean_episode_max"] == pytest.approx(column.max())
+        assert tail["raw_mean_episode_min"] == pytest.approx(column.min())
         assert tail["first_saturated_step"] == 0 and tail["first_saturated_window_step"] == SETTLE_STEPS
         assert 0.0 < tail["force_frac_window_mean"] <= tail["force_frac_window_max"] < 1.0
+
+
+def test_the_raw_means_extremes_are_the_windows_and_the_reset_transient_is_kept_apart():
+    """A raw mean that peaks before the window opens moves the episode's extremes, not the window's."""
+    settle, length = 4, 10
+    raw = np.full((length, 1), 1.02)
+    raw[1, 0], raw[2, 0], raw[7, 0] = 1.30, -0.40, 1.05
+    values = {name: np.zeros((length, 1)) for name in episode_trace.TRACE_FIELDS}
+    values["raw_mean"], values["command"] = raw, np.clip(raw, -1.0, 1.0)
+    trace = episode_trace.EpisodeTrace(seed=0, reward=np.zeros(length), values=values)
+    entry = episode_trace.summarize_episode(trace, names=["a"], settle_steps=settle, horizon=length, selected=[0])
+    actuator = entry["actuators"]["a"]
+    assert actuator["raw_mean_max"] == 1.05 and actuator["raw_mean_min"] == 1.02
+    assert actuator["raw_mean_episode_max"] == 1.30 and actuator["raw_mean_episode_min"] == -0.40
+    short = episode_trace.summarize_episode(trace, names=["a"], settle_steps=length, horizon=length, selected=[0])
+    assert short["actuators"]["a"]["raw_mean_max"] is None and short["actuators"]["a"]["raw_mean_min"] is None
+    assert short["actuators"]["a"]["raw_mean_episode_max"] == 1.30
 
 
 def test_a_hold_replaces_the_command_and_keeps_the_policys_raw_mean(checkpoint, deterministic):

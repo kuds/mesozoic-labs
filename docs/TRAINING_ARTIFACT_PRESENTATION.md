@@ -105,7 +105,8 @@ repository parses the stance CSV's columns: `stage_layout.iter_replay_files`
 lists it, and the gate reports, audits and result bundles read their own
 files. The CSV's `step` counts from 1 (the frame after the first step); the
 gate's window starts at its 0-based step index `settle_steps`, the CSV's row
-`settle_steps + 1`.
+`settle_steps + 1`. To join it to an episode trace of the same seed, read
+the stance CSV's `step` k against the trace CSV's `step` k - 1.
 
 ### Pad columns
 
@@ -837,7 +838,8 @@ checks it against `run_panel`). `--seeds 3042,3059` picks episodes;
 
 Each episode writes `episode_trace_seed<seed>.csv`, one row per step, with
 `step` (0-based, the gate's index), `time_s`, `in_window` and `reward`, and
-per traced actuator:
+per traced actuator (the replay's stance CSV counts `step` from 1: its row k
+is the trace's row k - 1):
 
 | Column | Meaning |
 |---|---|
@@ -855,9 +857,12 @@ window (steps `settle_steps` to the end, at `SATURATION_ABS` 0.99): the
 window means of the command, the raw mean, `ctrl`, the joint position and
 the force fraction (and the force fraction's maximum); the shares of window
 steps at `|command| >= 0.99` and `>= 0.9` and with `|raw mean| > 1`; the raw
-mean's maximum and minimum; and the first step at `|command| >= 0.99`,
-anywhere and in the window (the reset transient can touch the rail before
-the window opens). The script prints the same summary.
+mean's maximum and minimum (`raw_mean_max`, `raw_mean_min`); and the first
+step at `|command| >= 0.99`, anywhere and in the window. The reset transient
+can touch the rail, and push the raw mean past its window maximum, before
+the window opens: `first_saturated_step` and `raw_mean_episode_max` and
+`raw_mean_episode_min` read the whole episode, and nothing else does. The
+script prints the same summary (`rawmax` is the window maximum).
 
 Two flags make the rollout a probe, and the summary records them:
 

@@ -34,9 +34,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     (`mesozoic.episode-trace/v1`) summarizes each episode and traced
     actuator over the gate's post-settle window at its `SATURATION_ABS`:
     window means, the shares of steps at `|command| >= 0.99` and `>= 0.9`
-    and with `|raw mean| > 1`, the raw mean's extremes, the first step at
-    the rail (anywhere and in the window), and the episode's return and
-    length. `--actuators` narrows it; `--stochastic SEED` samples from the
+    and with `|raw mean| > 1`, the raw mean's extremes (and, apart, the
+    whole episode's, the reset transient included), the first step at the
+    rail (anywhere and in the window), and the episode's return and
+    length. Its `step` is the action's 0-based index; the replay's stance
+    CSV counts from 1, so its row k is the trace's row k - 1. `--actuators` narrows it; `--stochastic SEED` samples from the
     policy's own Gaussian (`numpy.random.default_rng(SEED + i)`, the stance
     screens' `noise_matched_own` draw when `SEED` is the first reset seed);
     `--hold NAME=VALUE` replaces one actuator's command, for counterfactuals
