@@ -8,9 +8,14 @@ The blunt snout, tiny two-finger hands, cream belly and curved tail remain. The
 body has open hip areas, a separate rear-panel mesh and a battery-sled concept.
 
 **The 800 g mass is an unweighed allocation, not a fabricated assembly.** This
-example is outside the registered plant/training inventory and has no walking
-policy. Its custom geometry is not compatible with a Microduck policy. Existing
+example is outside the registered plant/training inventory and has no validated
+walking policy. Its custom geometry is not compatible with a Microduck policy. Existing
 anatomical species and generated catalogs are unchanged.
+
+An **optional 825 g / 15-motor tail-wag configuration**, a reproducible unsupported
+stepping pilot, and build-time balance regressions are described in
+[Walking, tail and CI study](WALKING_AND_TAIL.md). The base model stays unchanged.
+The eyes are cosmetic; the virtual snout camera has no selected physical module.
 
 ## Changes from the original concept
 
@@ -57,7 +62,7 @@ python examples/mini_tyrannosaurus_rex/demo.py --view
 python examples/mini_tyrannosaurus_rex/demo.py --view --support --gesture
 python -m examples.mini_tyrannosaurus_rex.engineering --samples 2000 --points 5 --duration 10 --json examples/mini_tyrannosaurus_rex/validation.json
 python examples/mini_tyrannosaurus_rex/render_design.py --output-dir examples/mini_tyrannosaurus_rex --sheet --gesture
-pytest environments/tyrannosaurus_rex/tests/test_mini_tyrannosaurus_rex_example.py environments/tyrannosaurus_rex/tests/test_mini_tyrannosaurus_rex_engineering.py
+pytest environments/tyrannosaurus_rex/tests/test_mini_tyrannosaurus_rex_*.py
 ```
 
 Use MuJoCo's `mjpython` launcher for interactive viewing on macOS. The original
@@ -115,7 +120,10 @@ thickness and intended mounting interfaces. Motor-box checks are independent of
 contact exclusions but still check boxes only. The cosmetic meshes do not
 establish hollow-shell manufacturing or structural strength.
 
-**Walking remains unresolved.** The restricted flat-foot lateral probe needs a
+**Walking remains unresolved.** The new dynamic pilot alternates real foot lifts,
+but its base run falls at 21.304 seconds and its lower-torque cases fail before
+qualifying alternations. [Read the results and limits](WALKING_AND_TAIL.md).
+The restricted flat-foot lateral probe needs a
 center of pressure about 42 mm inward from the support-foot center even at its
 best sampled lean, outside the sole's 17 mm half-width. This rejects that static
 transfer strategy, not every coordinated/dynamic gait. Wider hip-roll travel

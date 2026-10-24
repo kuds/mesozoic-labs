@@ -180,7 +180,9 @@ def _font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
 def design_sheet(model: mujoco.MjModel, data: mujoco.MjData) -> Image.Image:
     sheet = Image.new("RGB", (1600, 1800), (245, 247, 244))
     draw = ImageDraw.Draw(sheet)
-    draw.text((62, 42), "MINI TYRANNOSAURUS REX", font=_font(38), fill=(35, 46, 42))
+    tail = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_ACTUATOR, "tail_yaw_servo") >= 0
+    title = "MINI TYRANNOSAURUS REX" + (" / TAIL OPTION" if tail else "")
+    draw.text((62, 42), title, font=_font(38), fill=(35, 46, 42))
     draw.text(
         (62, 98),
         "MJCF design study  /  exact model geometry  /  not fabrication CAD",
@@ -258,19 +260,27 @@ def main() -> int:
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--sheet", action="store_true", help="Also render a labelled four-view design sheet.")
     parser.add_argument(
+        "--tail", action="store_true", help="Render the optional tail-yaw study with _tail output suffixes."
+    )
+    parser.add_argument(
         "--gesture", action="store_true", help="Also render a supported 4.8-second gesture GIF; not walking."
     )
     args = parser.parse_args()
-    model = mujoco.MjModel.from_xml_path(str(args.model.resolve()))
+    if args.tail:
+        tail_option = import_module(f"{__package__}.tail_option" if __package__ else "tail_option")
+        model = tail_option.load_model(args.model.resolve())
+    else:
+        model = mujoco.MjModel.from_xml_path(str(args.model.resolve()))
     data = mujoco.MjData(model)
     mujoco.mj_resetDataKeyframe(model, data, 0)
     mujoco.mj_forward(model, data)
     args.output_dir.mkdir(parents=True, exist_ok=True)
-    render(model, data).save(args.output_dir / "preview.png")
+    suffix = "_tail" if args.tail else ""
+    render(model, data).save(args.output_dir / f"preview{suffix}.png")
     if args.sheet:
-        design_sheet(model, data).save(args.output_dir / "design_views.png")
+        design_sheet(model, data).save(args.output_dir / f"design_views{suffix}.png")
     if args.gesture:
-        gesture_gif(model, args.output_dir / "supported_gesture.gif")
+        gesture_gif(model, args.output_dir / f"supported_gesture{suffix}.gif")
     print(f"Rendered model geometry to {args.output_dir}")
     return 0
 

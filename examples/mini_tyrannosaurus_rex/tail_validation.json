@@ -1,0 +1,455 @@
+{
+  "configuration": "optional_tail_yaw",
+  "mujoco_version": "3.10.0",
+  "source_sha256": {
+    "model.xml": "d94995dbb663c67228b684700b70ebb9024458c54cfdeba31863060d2f82a114",
+    "components.json": "181ad879bdf1b83b400d170b474a0a56b2107bb8d7271033645f7082966177b0",
+    "tail_option.py": "8b1b05703c5655edd14a75fd26b2c0b888adfe759c330aeaee4fc94455c1b873",
+    "tail_study.py": "8c63e1f9e7ff3a2fd157e88685948f8217a972d4991d5d40b85143d198b5ee09",
+    "balance_checks.py": "422d557d92d4558a28604aa7ee7975503e9184314acfacb01460fa98db005de8",
+    "demo.py": "c6af0ce534bd096e6b437d1945b0d5b52d1d137744b5693eca0beef98f8d84a8",
+    "engineering.py": "456fbaddd6bc1cd1902997c9da3c2a2a001705f5b5d138e9056e5902f588b1b9",
+    "assets/character_meshes.xml": "a397faa9a406b101f059fc7e401ac7a979165a9e3199cf29ade6d5f617a3b189",
+    "assets/leg_cover_meshes.xml": "dd6a9c39f3536da3fe7f82774c4e2802e181afbe75fa0f40e9c7276100a178d9"
+  },
+  "mass_kg": 0.8250000000000001,
+  "actuators": 15,
+  "motor_clearance": {
+    "motor_cases": 15,
+    "poses": 1001,
+    "seed": 635,
+    "overlap_poses": 0,
+    "minimum_separating_axis_gap_m": 0.0024999999999999953,
+    "witness": {
+      "pose_rad": {
+        "left_hip_yaw": -0.09977756255660752,
+        "left_hip_roll": 0.14571199226003007,
+        "left_hip_pitch": -0.23341189179145103,
+        "left_knee": 0.6444979625032856,
+        "left_ankle": 0.06298947223907553,
+        "right_hip_yaw": -0.060435755483328316,
+        "right_hip_roll": 0.13492382250258103,
+        "right_hip_pitch": -0.37140848240134827,
+        "right_knee": -0.1464161302928011,
+        "right_ankle": 0.09293234011897199,
+        "head_pitch": -0.18126303370335056,
+        "head_yaw": -0.27377487662827804,
+        "jaw": 0.16169569312636944,
+        "left_shoulder_pitch": 0.17065782481452854,
+        "tail_yaw": 0.22259882652932758
+      },
+      "pair": [
+        "head_pitch_servo_case",
+        "jaw_servo_case"
+      ]
+    }
+  },
+  "combined_collision_proxies": {
+    "poses": 1000,
+    "seed": 636,
+    "overlap_poses": 0,
+    "maximum_penetration_m": 0.0,
+    "witness": {}
+  },
+  "upper_body_collision_proxies": {
+    "poses": 243,
+    "points_per_joint": 3,
+    "joint_ranges_rad": {
+      "head_pitch": [
+        -0.25,
+        0.1
+      ],
+      "head_yaw": [
+        -0.65,
+        0.65
+      ],
+      "jaw": [
+        0.0,
+        0.32
+      ],
+      "left_shoulder_pitch": [
+        -0.65,
+        0.2
+      ],
+      "tail_yaw": [
+        -0.436332312999,
+        0.436332312999
+      ]
+    },
+    "overlap_poses": 0,
+    "maximum_penetration_m": 0.0,
+    "worst_poses": [],
+    "scope": "Collision proxies and existing contact exclusions; not hollow-shell CAD or cable clearance."
+  },
+  "tail_component_clearance": {
+    "poses": 101,
+    "tail_limits_rad": [
+      -0.436332312999,
+      0.436332312999
+    ],
+    "reserved_dimensions_xyz_m": {
+      "computer_part_proxy": [
+        0.018,
+        0.075,
+        0.04
+      ],
+      "u2d2_part_proxy": [
+        0.02,
+        0.06,
+        0.025
+      ],
+      "motor_regulator_part_proxy": [
+        0.05,
+        0.03,
+        0.015
+      ],
+      "logic_regulator_part_proxy": [
+        0.025,
+        0.025,
+        0.012
+      ],
+      "schematic_battery_proxy": [
+        0.07,
+        0.035,
+        0.022
+      ]
+    },
+    "minimum_axis_gaps": {
+      "computer_part_proxy": {
+        "moving_tail_mesh_gap_m": 0.0048541532876178115,
+        "motor_box_gap_m": 0.026500000000000013
+      },
+      "u2d2_part_proxy": {
+        "moving_tail_mesh_gap_m": 0.01985415328761781,
+        "motor_box_gap_m": 0.054000000000000006
+      },
+      "motor_regulator_part_proxy": {
+        "moving_tail_mesh_gap_m": 0.014354153287617813,
+        "motor_box_gap_m": 0.018999999999999996
+      },
+      "logic_regulator_part_proxy": {
+        "moving_tail_mesh_gap_m": 0.02685415328761781,
+        "motor_box_gap_m": 0.025999999999999992
+      },
+      "schematic_battery_proxy": {
+        "moving_tail_mesh_gap_m": 0.03235415328761781,
+        "motor_box_gap_m": 0.031499999999999986
+      }
+    },
+    "scope": "Tail mesh and motor versus selected service boxes only; not simultaneous CAD packaging, joint/collar, cable or mounting qualification."
+  },
+  "home_static_equilibrium": {
+    "mass_kg": 0.8250000000000001,
+    "assumption": "Vertical reactions at sole lateral centers, sagittal CoP at COM x; one static load distribution.",
+    "com_m": [
+      -0.004683272734188096,
+      1.0909091030303267e-05,
+      0.120970909084385
+    ],
+    "sole_centers_m": {
+      "left": [
+        0.007,
+        0.048,
+        0.0
+      ],
+      "right": [
+        0.007,
+        -0.048,
+        0.0
+      ]
+    },
+    "normal_force_fractions": {
+      "left": 0.500113636364899,
+      "right": 0.49988636363510097
+    },
+    "nonnegative_normal_forces": true,
+    "joint_loads_Nm": {
+      "tail_yaw": 0.0,
+      "left_shoulder_pitch": -0.0007848,
+      "right_shoulder_pitch": -0.0007848,
+      "left_hip_yaw": 0.0,
+      "left_hip_roll": -0.03878782031266418,
+      "left_hip_pitch": -0.02179084567542753,
+      "left_knee": -0.054761642550530606,
+      "left_ankle": -0.02012314567542449,
+      "right_hip_yaw": 0.0,
+      "right_hip_roll": 0.0387602296873576,
+      "right_hip_pitch": -0.021782231380546364,
+      "right_knee": -0.054734634505445065,
+      "right_ankle": -0.020114531380543324,
+      "head_yaw": 0.0,
+      "head_pitch": -0.015289866024525001,
+      "jaw": -0.002966544
+    },
+    "base_wrench_residual": [
+      0.0,
+      0.0,
+      0.0,
+      -2.7755575615628914e-17,
+      2.0816681711721685e-17,
+      0.0
+    ]
+  },
+  "unsupported_wag": {
+    "duration_s": 10.000000000000009,
+    "externally_supported": false,
+    "command_amplitude_deg": 15,
+    "command_frequency_hz": 0.5,
+    "actual_tail_range_rad": [
+      -0.25264880545679114,
+      0.2540962975657954
+    ],
+    "tail_peak_torque_Nm": 0.003888243017860026,
+    "tail_rms_torque_Nm": 0.0008211523257849856,
+    "tracking_rms_error_rad": 0.04937474448719009,
+    "maximum_torso_tilt_deg": 2.3015382350444176,
+    "minimum_height_ratio": 0.9865816977708516,
+    "scope": "Ideal position-servo character motion; no electrical, thermal or walking validation."
+  },
+  "supported_wag": {
+    "duration_s": 10.000000000000009,
+    "externally_supported": true,
+    "command_amplitude_deg": 15,
+    "command_frequency_hz": 0.5,
+    "actual_tail_range_rad": [
+      -0.2515281501346595,
+      0.25152394228103564
+    ],
+    "tail_peak_torque_Nm": 0.0010151357107060029,
+    "tail_rms_torque_Nm": 0.0007387482041846861,
+    "tracking_rms_error_rad": 0.049423191785344815,
+    "maximum_torso_tilt_deg": 0.17605381695451336,
+    "minimum_height_ratio": 0.998390505371177,
+    "scope": "Ideal position-servo character motion; no electrical, thermal or walking validation."
+  },
+  "stance_regressions": [
+    {
+      "scope": "Unsupported stance and explicit small disturbance only; not walking or thermal qualification.",
+      "duration_s": 5.999999999999561,
+      "leg_cap_Nm": 0.1,
+      "angular_velocity_kick_rad_s": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "kick_time_s": 1.0,
+      "finite": true,
+      "warnings": 0,
+      "no_applied_external_forces": true,
+      "unexpected_ground_contact": false,
+      "minimum_height_ratio": 0.9919957921700506,
+      "maximum_tilt_deg": 2.5031547456254635,
+      "maximum_root_drift_m": 0.015578931978683206,
+      "settled_leg_effort": {
+        "left_hip_yaw_servo": {
+          "rms_Nm": 0.015759448641261668,
+          "cap_fraction": 0.0,
+          "applied_cap_Nm": 0.1
+        },
+        "left_hip_roll_servo": {
+          "rms_Nm": 0.03293992681328584,
+          "cap_fraction": 0.0,
+          "applied_cap_Nm": 0.1
+        },
+        "left_hip_pitch_servo": {
+          "rms_Nm": 0.038122964025577195,
+          "cap_fraction": 0.0,
+          "applied_cap_Nm": 0.1
+        },
+        "left_knee_servo": {
+          "rms_Nm": 0.07425099319541889,
+          "cap_fraction": 0.454,
+          "applied_cap_Nm": 0.1
+        },
+        "left_ankle_servo": {
+          "rms_Nm": 0.07443685722373783,
+          "cap_fraction": 0.114,
+          "applied_cap_Nm": 0.1
+        },
+        "right_hip_yaw_servo": {
+          "rms_Nm": 0.015865040545917707,
+          "cap_fraction": 0.0,
+          "applied_cap_Nm": 0.1
+        },
+        "right_hip_roll_servo": {
+          "rms_Nm": 0.03246862657688638,
+          "cap_fraction": 0.0,
+          "applied_cap_Nm": 0.1
+        },
+        "right_hip_pitch_servo": {
+          "rms_Nm": 0.03851800812033895,
+          "cap_fraction": 0.0,
+          "applied_cap_Nm": 0.1
+        },
+        "right_knee_servo": {
+          "rms_Nm": 0.07419133069479164,
+          "cap_fraction": 0.45,
+          "applied_cap_Nm": 0.1
+        },
+        "right_ankle_servo": {
+          "rms_Nm": 0.07322070660389225,
+          "cap_fraction": 0.088,
+          "applied_cap_Nm": 0.1
+        }
+      },
+      "settled_foot_normal_mean_N": [
+        4.04152838755862,
+        4.056655625732373
+      ],
+      "regression_failures": []
+    },
+    {
+      "scope": "Unsupported stance and explicit small disturbance only; not walking or thermal qualification.",
+      "duration_s": 5.999999999999561,
+      "leg_cap_Nm": 0.1,
+      "angular_velocity_kick_rad_s": [
+        0.15,
+        0.0,
+        0.0
+      ],
+      "kick_time_s": 1.0,
+      "finite": true,
+      "warnings": 0,
+      "no_applied_external_forces": true,
+      "unexpected_ground_contact": false,
+      "minimum_height_ratio": 0.991809041657046,
+      "maximum_tilt_deg": 2.5031547456254635,
+      "maximum_root_drift_m": 0.016214801924287026,
+      "settled_leg_effort": {
+        "left_hip_yaw_servo": {
+          "rms_Nm": 0.016354230289425318,
+          "cap_fraction": 0.0,
+          "applied_cap_Nm": 0.1
+        },
+        "left_hip_roll_servo": {
+          "rms_Nm": 0.034267052938364996,
+          "cap_fraction": 0.0,
+          "applied_cap_Nm": 0.1
+        },
+        "left_hip_pitch_servo": {
+          "rms_Nm": 0.0383248824679023,
+          "cap_fraction": 0.0,
+          "applied_cap_Nm": 0.1
+        },
+        "left_knee_servo": {
+          "rms_Nm": 0.07387758537153462,
+          "cap_fraction": 0.458,
+          "applied_cap_Nm": 0.1
+        },
+        "left_ankle_servo": {
+          "rms_Nm": 0.07475320040205255,
+          "cap_fraction": 0.114,
+          "applied_cap_Nm": 0.1
+        },
+        "right_hip_yaw_servo": {
+          "rms_Nm": 0.016030734903739702,
+          "cap_fraction": 0.0,
+          "applied_cap_Nm": 0.1
+        },
+        "right_hip_roll_servo": {
+          "rms_Nm": 0.03363577967022092,
+          "cap_fraction": 0.0,
+          "applied_cap_Nm": 0.1
+        },
+        "right_hip_pitch_servo": {
+          "rms_Nm": 0.03800621906578919,
+          "cap_fraction": 0.0,
+          "applied_cap_Nm": 0.1
+        },
+        "right_knee_servo": {
+          "rms_Nm": 0.07366959600295545,
+          "cap_fraction": 0.44,
+          "applied_cap_Nm": 0.1
+        },
+        "right_ankle_servo": {
+          "rms_Nm": 0.07283481122998121,
+          "cap_fraction": 0.09,
+          "applied_cap_Nm": 0.1
+        }
+      },
+      "settled_foot_normal_mean_N": [
+        4.036120238313761,
+        4.060423186071681
+      ],
+      "regression_failures": []
+    },
+    {
+      "scope": "Unsupported stance and explicit small disturbance only; not walking or thermal qualification.",
+      "duration_s": 5.999999999999561,
+      "leg_cap_Nm": 0.1,
+      "angular_velocity_kick_rad_s": [
+        0.0,
+        -0.15,
+        0.0
+      ],
+      "kick_time_s": 1.0,
+      "finite": true,
+      "warnings": 0,
+      "no_applied_external_forces": true,
+      "unexpected_ground_contact": false,
+      "minimum_height_ratio": 0.992016643750508,
+      "maximum_tilt_deg": 2.5031547456254635,
+      "maximum_root_drift_m": 0.015666546066225393,
+      "settled_leg_effort": {
+        "left_hip_yaw_servo": {
+          "rms_Nm": 0.01612834421644283,
+          "cap_fraction": 0.0,
+          "applied_cap_Nm": 0.1
+        },
+        "left_hip_roll_servo": {
+          "rms_Nm": 0.03366227701230298,
+          "cap_fraction": 0.0,
+          "applied_cap_Nm": 0.1
+        },
+        "left_hip_pitch_servo": {
+          "rms_Nm": 0.03834033054815386,
+          "cap_fraction": 0.0,
+          "applied_cap_Nm": 0.1
+        },
+        "left_knee_servo": {
+          "rms_Nm": 0.07443750090140741,
+          "cap_fraction": 0.456,
+          "applied_cap_Nm": 0.1
+        },
+        "left_ankle_servo": {
+          "rms_Nm": 0.07321438787679707,
+          "cap_fraction": 0.12,
+          "applied_cap_Nm": 0.1
+        },
+        "right_hip_yaw_servo": {
+          "rms_Nm": 0.016120567912960033,
+          "cap_fraction": 0.0,
+          "applied_cap_Nm": 0.1
+        },
+        "right_hip_roll_servo": {
+          "rms_Nm": 0.033261398423449495,
+          "cap_fraction": 0.0,
+          "applied_cap_Nm": 0.1
+        },
+        "right_hip_pitch_servo": {
+          "rms_Nm": 0.0385370251696415,
+          "cap_fraction": 0.0,
+          "applied_cap_Nm": 0.1
+        },
+        "right_knee_servo": {
+          "rms_Nm": 0.07470043511023246,
+          "cap_fraction": 0.46,
+          "applied_cap_Nm": 0.1
+        },
+        "right_ankle_servo": {
+          "rms_Nm": 0.07343437213266865,
+          "cap_fraction": 0.104,
+          "applied_cap_Nm": 0.1
+        }
+      },
+      "settled_foot_normal_mean_N": [
+        4.065448380381372,
+        4.061183018901948
+      ],
+      "regression_failures": []
+    }
+  ],
+  "walking_validated": false,
+  "fabrication_fit_validated": false,
+  "hardware_power_and_thermal_validated": false
+}

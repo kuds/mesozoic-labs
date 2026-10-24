@@ -33,6 +33,7 @@ from __future__ import annotations
 import ast
 import json
 import re
+import shlex
 import tomllib
 from pathlib import Path
 
@@ -200,6 +201,44 @@ def test_both_triggers_share_one_path_filter() -> None:
     push, pull_request = path_filters()
     assert push, "python-ci.yml's push trigger filters on no path"
     assert push is pull_request, "the pull_request trigger must reuse the push trigger's paths (paths: *name)"
+
+
+def test_mini_robot_only_changes_trigger_balance_tests_and_source_checks() -> None:
+    """The standalone model is outside environments/, but its species tests must run."""
+    example = "examples/mini_tyrannosaurus_rex/"
+    filters = path_filters()
+    assert len(filters) == 2
+    # Cover the model, component ledger, drivers and nested assets. Prospective
+    # filenames keep this gate useful when another model variant or mesh is added.
+    for relative in (
+        "model.xml",
+        "components.json",
+        "demo.py",
+        "engineering.py",
+        "future_variant.xml",
+        "assets/character_meshes.xml",
+        "assets/future_mesh.stl",
+    ):
+        path = example + relative
+        for patterns in filters:
+            assert any(glob_matches(pattern, path) for pattern in patterns), (
+                f"{path} must trigger Python CI even when it is the only changed file"
+            )
+    assert "environments/tyrannosaurus_rex/tests/" in job_block("test"), (
+        "the species suite must execute the Mini T-Rex balance and engineering tests"
+    )
+    for job, command in (
+        ("lint", "ruff check"),
+        ("lint", "ruff format --check"),
+        ("lint", "mypy"),
+        ("test-sb3", "mypy"),
+    ):
+        runs = re.findall(rf"^\s*(?:run:\s*)?{re.escape(command)}\s+(.+)$", job_block(job), re.MULTILINE)
+        assert len(runs) == 1, f"expected one {command} invocation in {job}, found {runs}"
+        paths = {argument.rstrip("/") for argument in shlex.split(runs[0]) if not argument.startswith("-")}
+        assert {"environments", example.rstrip("/")} <= paths, (
+            f"{job}'s {command} must check both environments/ and {example}: {runs[0]}"
+        )
 
 
 def test_the_test_matrix_runs_every_test_directory_once() -> None:

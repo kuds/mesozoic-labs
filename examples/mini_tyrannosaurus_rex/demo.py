@@ -8,6 +8,7 @@ import math
 import struct
 import time
 import zlib
+from importlib import import_module
 from pathlib import Path
 from typing import Any
 
@@ -26,9 +27,13 @@ def set_support(model: mujoco.MjModel, data: mujoco.MjData, enabled: bool) -> No
     mujoco.mj_forward(model, data)
 
 
-def load_model(*, supported: bool = False) -> tuple[mujoco.MjModel, mujoco.MjData]:
-    """Load the adjacent XML at its zero-joint home pose."""
-    model = mujoco.MjModel.from_xml_path(str(MODEL_PATH))
+def load_model(*, supported: bool = False, tail: bool = False) -> tuple[mujoco.MjModel, mujoco.MjData]:
+    """Load the base model or optional tail study at its zero-joint home pose."""
+    if tail:
+        tail_option = import_module(f"{__package__}.tail_option" if __package__ else "tail_option")
+        model = tail_option.load_model(MODEL_PATH)
+    else:
+        model = mujoco.MjModel.from_xml_path(str(MODEL_PATH))
     data = mujoco.MjData(model)
     mujoco.mj_resetDataKeyframe(model, data, 0)
     set_support(model, data, supported)
@@ -36,7 +41,7 @@ def load_model(*, supported: bool = False) -> tuple[mujoco.MjModel, mujoco.MjDat
 
 
 def gesture_controls(model: mujoco.MjModel, elapsed: float) -> np.ndarray:
-    """Small, smooth head/jaw targets for an externally supported demonstration."""
+    """Smooth head, jaw, linked-arm and optional tail targets for a supported demo."""
     targets: np.ndarray = np.array(model.key_ctrl[0], copy=True)
     ramp = 0.5 - 0.5 * math.cos(math.pi * min(max(elapsed, 0.0), 1.0))
     phase = 2 * math.pi * elapsed / 5
@@ -48,13 +53,18 @@ def gesture_controls(model: mujoco.MjModel, elapsed: float) -> np.ndarray:
     }
     for name, angle in motions.items():
         actuator = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_ACTUATOR, name)
+        if actuator < 0:
+            raise ValueError(f"Gesture needs the actuator {name}.")
         targets[actuator] = ramp * angle
+    tail_actuator = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_ACTUATOR, "tail_yaw_servo")
+    if tail_actuator >= 0:
+        targets[tail_actuator] = ramp * math.radians(15) * math.sin(2 * math.pi * 0.5 * elapsed)
     np.clip(targets, model.actuator_ctrlrange[:, 0], model.actuator_ctrlrange[:, 1], out=targets)
     return targets
 
 
-def _rollout(duration: float, *, supported: bool) -> dict[str, Any]:
-    model, data = load_model(supported=supported)
+def _rollout(duration: float, *, supported: bool, tail: bool = False) -> dict[str, Any]:
+    model, data = load_model(supported=supported, tail=tail)
     initial_height = float(data.qpos[2])
     maximum_tilt = maximum_torque = maximum_cap_fraction = 0.0
     finite = True
@@ -83,24 +93,29 @@ def _rollout(duration: float, *, supported: bool) -> dict[str, Any]:
     }
 
 
-def check_model(*, duration: float = 5.0) -> dict[str, Any]:
+def check_model(*, duration: float = 5.0, tail: bool = False) -> dict[str, Any]:
     """Run numerical smoke checks, not hardware, walking or duty qualification."""
     if not math.isfinite(duration) or duration <= 0:
         raise ValueError("duration must be positive and finite")
-    model, data = load_model()
+    model, data = load_model(tail=tail)
     penetration = max((max(0.0, -float(c.dist)) for c in data.contact[: data.ncon]), default=0.0)
     report: dict[str, Any] = {
-        "model": {"mass_kg": float(np.sum(model.body_mass)), "actuators": model.nu, "sensors": model.nsensor},
+        "model": {
+            "mass_kg": float(np.sum(model.body_mass)),
+            "actuators": model.nu,
+            "sensors": model.nsensor,
+            "tail_yaw_option": tail,
+        },
         "home": {"contact_count": data.ncon, "max_penetration_m": penetration},
-        "free_hold": _rollout(duration, supported=False),
-        "supported_gesture": _rollout(duration, supported=True),
+        "free_hold": _rollout(duration, supported=False, tail=tail),
+        "supported_gesture": _rollout(duration, supported=True, tail=tail),
         "scope": "Untrained concept; short ideal simulation smoke checks do not qualify walking, physical packaging, precision or continuous motor duty.",
     }
     runs = [report["free_hold"], report["supported_gesture"]]
     report["passed"] = (
-        abs(report["model"]["mass_kg"] - 0.80) < 1e-9
-        and model.nu == 14
-        and model.nsensor == 39
+        abs(report["model"]["mass_kg"] - (0.825 if tail else 0.80)) < 1e-9
+        and model.nu == (15 if tail else 14)
+        and model.nsensor == (41 if tail else 39)
         and penetration < 0.002
         and all(
             run["finite"]
@@ -137,6 +152,7 @@ def main() -> int:
     parser.add_argument("--camera", choices=["isometric", "side", "front"], default="isometric")
     parser.add_argument("--view", action="store_true", help="Open an interactive passive viewer.")
     parser.add_argument("--support", action="store_true", help="Weld the torso to the world for viewing/rendering.")
+    parser.add_argument("--tail", action="store_true", help="Use the optional 825 g tail-yaw study.")
     parser.add_argument(
         "--gesture", action="store_true", help="Gentle head/jaw/linked-arm motion; requires --view --support."
     )
@@ -148,14 +164,14 @@ def main() -> int:
         return 0
     if args.check:
         try:
-            report = check_model(duration=args.duration)
+            report = check_model(duration=args.duration, tail=args.tail)
         except ValueError as error:
             parser.error(str(error))
         print(json.dumps(report, indent=2))
         if not report["passed"]:
             return 1
     if args.render or args.view:
-        model, data = load_model(supported=args.support)
+        model, data = load_model(supported=args.support, tail=args.tail)
         if args.render:
             with mujoco.Renderer(model, height=650, width=800) as renderer:
                 renderer.update_scene(data, camera=args.camera)

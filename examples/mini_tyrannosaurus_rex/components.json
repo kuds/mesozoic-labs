@@ -398,5 +398,65 @@
       ],
       "basis": "drawing assumption, no selected pack"
     }
+  },
+  "optional_tail_yaw": {
+    "status": "experimental_optional_variant_not_fabrication_approved",
+    "builder": "tail_option.py",
+    "added_mass_g": 25,
+    "target_total_mass_g": 825,
+    "active_servo_count": 15,
+    "integration_reserve_retained_g": 27.9,
+    "added_components": [
+      {
+        "id": "tail_servo",
+        "part": "ROBOTIS XL330-M288-T",
+        "quantity": 1,
+        "mass_budget_g": 18,
+        "mass_basis": "manufacturer_bare_servo"
+      },
+      {
+        "id": "tail_mount_bearing_wiring",
+        "part": null,
+        "quantity": 1,
+        "mass_budget_g": 7,
+        "mass_basis": "unmeasured_allowance"
+      }
+    ],
+    "geometry": {
+      "tail_scale_relative_to_base": 0.9,
+      "moving_tail_mass_g": 15,
+      "tail_pivot_torso_mm": [
+        -83,
+        0,
+        15
+      ],
+      "motor_center_torso_mm": [
+        -75.5,
+        0,
+        -29.5
+      ],
+      "battery_shift_forward_mm": 23,
+      "battery_mass_relocated_g": 70
+    },
+    "motion": {
+      "mechanical_yaw_limit_deg": 25,
+      "initial_character_amplitude_deg": 15,
+      "initial_character_frequency_hz": 0.5,
+      "simulated_torque_cap_Nm": 0.02
+    },
+    "power": {
+      "additional_motor_stall_current_a": 1.47,
+      "all_motor_stall_current_sum_a": 22.05,
+      "all_motor_stall_power_sum_w": 110.25,
+      "expected_operating_current_a": null,
+      "hardware_rail_margin_verified": false
+    },
+    "limitations": [
+      "The base ledger remains 800 g; this option adds mass rather than consuming the integration reserve.",
+      "Raw and reserved component boxes do not qualify complete CAD fit, shaft/bearing strength, collar clearance, cable routing or cooling.",
+      "Battery remains unspecified; its relocated assigned mass is a geometry assumption.",
+      "Camera is excluded; allow approximately 8\u201312 g more pending a selected assembly.",
+      "Tail motion is not a validated balance actuator or walking controller."
+    ]
   }
 }
