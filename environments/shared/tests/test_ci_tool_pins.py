@@ -203,9 +203,8 @@ def test_both_triggers_share_one_path_filter() -> None:
     assert push is pull_request, "the pull_request trigger must reuse the push trigger's paths (paths: *name)"
 
 
-def test_mini_robot_only_changes_trigger_balance_tests_and_source_checks() -> None:
+def _assert_robot_example_triggers_checks(example: str) -> None:
     """The standalone model is outside environments/, but its species tests must run."""
-    example = "examples/mini_tyrannosaurus_rex/"
     filters = path_filters()
     assert len(filters) == 2
     # Cover the model, component ledger, drivers and nested assets. Prospective
@@ -215,9 +214,12 @@ def test_mini_robot_only_changes_trigger_balance_tests_and_source_checks() -> No
         "components.json",
         "demo.py",
         "engineering.py",
+        "build_model.py",
+        "validate.py",
         "future_variant.xml",
         "assets/character_meshes.xml",
         "assets/future_mesh.stl",
+        "assets/tail.obj",
     ):
         path = example + relative
         for patterns in filters:
@@ -239,6 +241,14 @@ def test_mini_robot_only_changes_trigger_balance_tests_and_source_checks() -> No
         assert {"environments", example.rstrip("/")} <= paths, (
             f"{job}'s {command} must check both environments/ and {example}: {runs[0]}"
         )
+
+
+def test_mini_robot_only_changes_trigger_balance_tests_and_source_checks() -> None:
+    _assert_robot_example_triggers_checks("examples/mini_tyrannosaurus_rex/")
+
+
+def test_medium_robot_only_changes_trigger_balance_tests_and_source_checks() -> None:
+    _assert_robot_example_triggers_checks("examples/tyrannosaurus_rex_50cm/")
 
 
 def test_the_test_matrix_runs_every_test_directory_once() -> None:

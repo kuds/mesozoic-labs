@@ -1,5 +1,10 @@
 # 50 cm T-Rex: compute, parts and character design
 
+An initial [MuJoCo implementation](../../../../examples/tyrannosaurus_rex_50cm/README.md)
+now represents the visual concept, 18-axis architecture and complete assigned
+mass ledger. Its short standing/gesture checks do not establish physical part
+fit, electrical compatibility, thermal duty or walking.
+
 **Working recommendation, 2026-10-24:** Jetson Orin Nano Super 8GB, a separate
 Teensy 4.1 motor bridge, twelve 4 Nm-rated RMD leg actuators and six smaller
 head/character motors. Target **48–52 cm standing height**, **7.0 kg allocated
