@@ -5,14 +5,21 @@ now represents the visual concept, 18-axis architecture and complete assigned
 mass ledger. Its short standing/gesture checks do not establish physical part
 fit, electrical compatibility, thermal duty or walking.
 
-**Proportion follow-up, 2026-10-24:** the
+**Latest character direction, 2026-10-24:** the
+[head-focused study](../../../../examples/tyrannosaurus_rex_50cm/head_study/README.md)
+supersedes the fuller-torso preference. It explores a large skull and jaw over
+a compact equipment body, with 57.2 and 60.3 cm alternatives. No motor or
+computer change is selected; its unweighed head/structure allocations and
+short simulation trials do not yet constitute an updated fabrication quote.
+
+**Earlier proportion follow-up, 2026-10-24:** the
 [body-proportion comparison](../../../../examples/tyrannosaurus_rex_50cm/proportion_study/README.md)
 recommends developing a fuller **approximately 55 cm** body with unchanged leg
 lengths and low-mounted compute/battery. Its assigned mass is 8.067 kg and its
 first-build planning range is **$14,554–15,167**, before any motor-ratio change.
 The 51.5 and 60 cm alternatives, additive costs and standing-only evidence are
-recorded there. Use that study for the latest proportion recommendation; the
-line-item BOM below remains the baseline from which those additions are calculated.
+recorded there. Those costs apply to the torso-size scenarios; the line-item
+BOM below remains their baseline, not a finalized head-focused build budget.
 
 **Baseline parts configuration, 2026-10-24:** Jetson Orin Nano Super 8GB, a separate
 Teensy 4.1 motor bridge, twelve 4 Nm-rated RMD leg actuators and six smaller

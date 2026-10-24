@@ -1,5 +1,10 @@
 # T-Rex body proportions: 51.5, 55 and 60 cm
 
+**Later design direction:** the [head-focused character study](../head_study/README.md)
+supersedes the fuller-torso recommendation below. It makes the skull and jaw
+dominant over a compact body. This earlier controlled comparison and its
+budget calculations remain recorded; they are not a final design selection.
+
 Study dated **2026-10-24**. Recommendation: develop the **55 cm fuller-body
 direction**, with roughly 53–57 cm available during packaging refinement. A
 fuller 51.5 cm body is also credible. These are alternatives for the same
@@ -190,7 +195,8 @@ Generated XML and component ledgers are provided for the [baseline](baseline/mod
 references `../../assets` within this example. Open the XML in MuJoCo and
 reset to `home`. [results.json](results.json) records effort, dimensions,
 payload cases, cost additions and source hashes. The model test module now
-has 19 cases, including the three alternate bodies, budget and payload checks.
+had 19 cases at this study's original revision, including the three alternate
+bodies, budget and payload checks; later head alternatives extend it to 21.
 
 The hardware-study path is owned by the standalone example package, avoiding
 a retired species identifier in environment tests. Baseline geometry/control

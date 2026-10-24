@@ -8,7 +8,7 @@ import mujoco
 import numpy as np
 import pytest
 
-from examples.tyrannosaurus_rex_50cm import PARTS_BUDGET_PATH, build_model, demo, proportions, validate
+from examples.tyrannosaurus_rex_50cm import PARTS_BUDGET_PATH, build_model, demo, head_design, proportions, validate
 
 
 def test_components_reconcile_with_detailed_parts_mass_budget():
@@ -169,6 +169,38 @@ def test_proportion_payload_adds_mass_above_existing_reserve(tmp_path):
     model, _ = demo.load_model(path=proportions.build_variant("balanced", tmp_path / "head", extra_mass_body="head"))
     assert model.body_mass.sum() - nominal.body_mass.sum() == pytest.approx(0.5)
     assert model.body_subtreemass[model.body("head_yaw_body").id] == pytest.approx(0.85)
+
+
+@pytest.mark.parametrize("variant,head_mass", [("large_head", 0.530), ("oversized_head", 0.635)])
+def test_head_led_design_retains_hardware_and_moves_without_support(variant, head_mass, tmp_path):
+    path = head_design.build(variant, tmp_path / variant)
+    model, data = demo.load_model(path=path)
+    original, home = demo.load_model()
+    low, high = head_design.head_bounds(model, data)
+    robot_low, robot_high = validate.visual_bounds(model, data)
+    assert (high[2] - low[2]) / (robot_high[2] - robot_low[2]) > 0.36
+    assert high[1] - low[1] > 0.29
+    assert model.body_subtreemass[model.body("head_yaw_body").id] == pytest.approx(head_mass)
+    ledger = json.loads(path.with_name("components.json").read_text())
+    assert ledger["categories_kg"]["unallocated_integration_reserve"] == pytest.approx(0.6)
+    for side in ("left", "right"):
+        for joint in ("hip_yaw", "hip_roll", "hip_pitch", "knee", "ankle_pitch", "ankle_roll"):
+            name = side + "_" + joint
+            assert data.xanchor[model.joint(name).id] == pytest.approx(home.xanchor[original.joint(name).id])
+    assert model.geom("camera_package_envelope").size == pytest.approx(original.geom("camera_package_envelope").size)
+    assert model.cam_pos[model.camera("snout_left").id, 1] - model.cam_pos[
+        model.camera("snout_right").id, 1
+    ] == pytest.approx(0.07)
+    assert model.actuator_forcerange == pytest.approx(original.actuator_forcerange)
+    assert not model.eq_active0.any() and not model.body_gravcomp.any()
+    assert not validate.internal_contacts(model, data)
+    trial = validate.run_trial(model, duration=10, gesture=True)
+    assert trial["passed"], trial
+    assert trial["joint_excursion_rad"][15] > 0.4
+    assert trial["joint_excursion_rad"][16] > 0.07
+    assert trial["joint_excursion_rad"][17] > 0.1
+    assert max(trial["peak_torque_nm"][15:17]) < 0.5
+    assert trial["peak_torque_nm"][17] < 0.09
 
 
 @pytest.mark.parametrize("duration", [0, -1, float("nan"), float("inf")])
