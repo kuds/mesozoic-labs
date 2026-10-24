@@ -83,6 +83,12 @@ line is 2, final; the note's §23), with report-only readouts and an index of it
 own, [stance5/replication/results/README.md](stance5/replication/results/README.md).
 As a screen it certifies nothing.
 
+*Added 2026-10-24, later:* `stance5/k3diag/` and `stance5/tailexp/` hold the
+reports of two report-only workflows the maintainer agreed to on 2026-10-22
+(the note's §22.2 and §23): a diagnosis of the stance5 band runs' joint-space
+noise falls (K3), and a scratch experiment on the tail habit (P1, a bound on the
+policy mean). Each puts its skeptic checks first. They change no verdict.
+
 ## What changed in the copies
 
 [SOURCES.txt](SOURCES.txt) lists every file with the scratch file it came from,
@@ -236,6 +242,12 @@ judge files record; SOURCES.txt gives those as the sources' sha256.
 [stance5/replication/results/README.md](stance5/replication/results/README.md)
 says which file each change applies to. No copy holds a model identifier, an
 email address or a commit trailer.
+
+*Added 2026-10-24, later (`stance5/k3diag/`, `stance5/tailexp/`):* each
+`report.md` carries the **redact** change (one workflow run id, now `workflow
+[id removed]`) and the **prefix** change, and `stance5/tailexp/report.md` the
+**checkout** change too (once). Nothing else differs, and no copy holds a model
+identifier, an email address or a commit trailer.
 
 [SHA256SUMS](SHA256SUMS) pins every file here but this README and itself
 (`sha256sum -c SHA256SUMS` in this directory). *Added 2026-10-19:* nor
@@ -940,6 +952,58 @@ runtime (the `gpu` block of each run's `stage_config.json`). Its
   rollouts of the 4,718,592, 5,242,880 and 6,291,456 checkpoints,
   `tail_3_pitch_act` at +1 (tail raised).
 
+### Added on 2026-10-24, later (the two report-only workflows of 2026-10-22)
+
+**`stance5/k3diag/`: the K3 diagnosis of the stance5 band runs (2026-10-22,
+report only).** A file pass over the judge files and ledgers and a rollout pass
+that re-runs the judge's joint-space noise test with ablations (it reproduces
+all 12 judged conditions exactly), then four skeptic checks, each by an
+independent re-roll or re-reduction; where a check differs from the synthesis,
+the check governs, and three of the four corrected it. Measured and checked:
+stance5 s42's joint-noise falls are not the tail habit (holding `tail_3` at 0
+leaves 0, 9 and 12 falls against 0, 9 and 13 at 6,291,456, 10,485,760 and the
+final; tail-only noise gives 0 falls at every checkpoint); hip-pitch noise is
+the main cause (alone 8, 3, 9 and 15 of 20 at 7.3M, 8.4M, 10.5M and the final;
+the full noise without hip pitch 0, 0, 0 and 2), mostly its left-right
+differential part at the judge's real amplitude (5, 2, 7 and 15) against the
+common part (0, 0, 0 and 1); control s42's final needs knee and hip-pitch noise
+together; the falls are slow topples of about 1 s after a heading-frame stagger
+of at least 81 mm, which comes mostly from the pelvis yawing over planted feet,
+associated, not a threshold. The policy's direct response to a left-right
+hip-pitch difference halves between 6,291,456 and 7,340,032 (−1.04 to −0.51 per
+rad), but restoring it from outside leaves the falls: a correlate, and the
+mechanism is open. The band-against-control readings (43 against 11 paired
+falls, the ±0.3 kick probe) were not independently checked.
+
+- `report.md`: the report as written on 2026-10-22, the skeptic checks first,
+  then the synthesis as written before them. Its Files section names files that
+  stay in the session's scratch (`scratchpad/foot/stance5/k3diag/`: the file
+  pass, the rollout scripts, tables and npz files, and the verifiers' folders).
+
+**`stance5/tailexp/`: the scratch tail experiment, P1 (2026-10-22, report
+only).** A quadratic penalty on the policy's Gaussian mean beyond ±1 (P1 of the
+stance4 s42 diagnosis, `stance4/satdiag/`), λ 41, in a 1M-step CPU
+continuation from stance5 s42's 4,194,304 checkpoint, against a paired no-change
+control from the same checkpoint; one seed, one pair of runs, then three skeptic
+checks (one corrected the headline). Measured and checked: P1's tail_3 share at
+|cmd| ≥ 0.99 was lower than the control's at 8 of 8 periodic checkpoints (means
+0.26 against 0.86) and at the final, but not monotone, and it relapsed to 0.470
+and 0.488 at 5,242,880 and the final; P1 did not keep the deterministic mean
+under +1 (beyond +1 on 21–46% of window steps at 7 of 9 checkpoints), only the
+training batches' (2.5% of rows against 27.5%); the original no-penalty GPU run
+read 0.171 at 5,242,880, below P1, so the effect against training alone is not
+established; no cost was measured, but the window ends before any K3 fall slot.
+The code was a scratch clone, `scratch_tailfix` (branch
+`scratch/tail-mean-bound` at `1d2d22b4`, push URL disabled), never pushed and
+not copied; the report describes it. A real round would need a config key,
+criteria fixed before training and the maintainer's approval, since it changes
+the PPO training loss.
+
+- `report.md`: the report as written on 2026-10-22, the skeptic checks first,
+  then the findings and caveats as returned. Its Files section names files that
+  stay in the session's scratch (`scratchpad/foot/stance5/tailexp/`: the runs,
+  the measurements, the telemetry and the verifiers' folders).
+
 ## How to re-check each verdict
 
 Commands as run on 2026-10-17 from a copy of this directory (Python 3.13;
@@ -1008,6 +1072,7 @@ copies.
 | The replication certificates' checkpoints (2026-10-24; session scratch only) | compare each `stance5/replication/results/certificates/<run id>/run_summary.json`'s `model_sha256` with the scratch's `judged/<run id>/judge_final.json` | equal for both |
 | The replication criteria (2026-10-24) | `sha256sum stance5/replication/criteria.txt` | `a38536de152e735947fd5322960f9e75b6520b59a5526a414afc0d0c4a0f3ef2` |
 | The files themselves (2026-10-24, with `stance5/replication/`) | `sha256sum -c SHA256SUMS` | all 401 files OK |
+| The files themselves (2026-10-24, later, with `stance5/k3diag/` and `stance5/tailexp/`) | `sha256sum -c SHA256SUMS` | all 403 files OK |
 
 `test_pilot_score.py` prints sample "Walking pilot score" blocks while it runs;
 they score synthetic panels, not the pilot.

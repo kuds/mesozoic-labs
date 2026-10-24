@@ -92,6 +92,12 @@
 # sidecar sigma_s70_s80.json carry the prefix change, so their sha256 is not the one the criteria, the Colab steps
 # and the judge files record (that is the source sha256 given here).  stance5/replication/results/README.md has no
 # source.
+# Added 2026-10-24, later (stance5/k3diag/, stance5/tailexp/): no new kind of change.  Each report.md carries redact
+# (one workflow run id, now 'workflow [id removed]') and the prefix change (3 lines in k3diag/report.md, 5 in
+# tailexp/report.md); tailexp/report.md also carries checkout (once).  Their Files and Sources sections name files
+# that are not copied (the rollouts, tables, verifiers' folders and scripts, and the tail experiment's runs and
+# measurements).  The scratch clone scratch_tailfix that tailexp/report.md describes was never pushed and is not
+# copied.
 
 audit/foot_ankle_audit.md foot/audit_2026_10_17/foot_ankle_audit.md e9da4ef84be17a87b70096d1e2aede87609ad22f446b10786f9e14d5064725c8 prefix
 audit/geometry/geometry_audit.json foot/audit_2026_10_17/geometry/geometry_audit.json 934110bec337b9693f894800efb309bf1a9529ae87f91f129bfefc8fef5b650a prefix,whitespace
@@ -435,6 +441,7 @@ stance5/criteria_notes.md foot/stance5/criteria_notes.md 2b95b4fd91149d4552dc144
 stance5/judge/judge_stance5.py foot/stance5/judge/judge_stance5.py d9286724550b83eccfd11e2ceba634cfca847f1e52e03988f9c486c6db6bda13 prefix,checkout
 stance5/judge/score_stance5.py foot/stance5/judge/score_stance5.py d5515041f73a299a96963f953bac7117e3ffb7c73570572ad9fc6bc189888a77 prefix
 stance5/judge/test_score_stance5.py foot/stance5/judge/test_score_stance5.py 11d5063222709ab327562b78764ceaa811142782951006df34dfe96ddac7d5e3 none
+stance5/k3diag/report.md foot/stance5/k3diag/report.md 8f053a926cb1d8fdffbf6106eb600de81048454e19065eae1f4cdfcd8f9825cf prefix,redact
 stance5/replication/colab_steps.txt foot/stance5/replication/colab_steps.txt d646fc3cc6985589d202548c08dd8832e4cabbd9194ce27413e682b69aaa609d none
 stance5/replication/criteria.txt foot/stance5/replication/criteria.txt a38536de152e735947fd5322960f9e75b6520b59a5526a414afc0d0c4a0f3ef2 none
 stance5/replication/judge/judge_diff.txt foot/stance5/replication/judge/judge_diff.txt 3c51ed297d321281f8492e26131deb36d21ea1914fccab945a8c23318f165111 prefix,checkout,whitespace
@@ -477,6 +484,7 @@ stance5/results/saturation/stance5_LTSB_s42_5242880.json foot/stance5/tools/satr
 stance5/results/saturation/stance5_LTSB_s42_6291456.json foot/stance5/tools/satroll/stance5_LTSB_s42_6291456.json e4f1c3c7d6845448ba0ae3dee510895614e9fdb8c2a41d6c4bc7816d46de0fe7 prefix,whitespace
 stance5/results/scores/score_final.json foot/stance5/scores/score_final.json c690165043dbc32fc8bf5bcce7a57c8bc38692c67e21464e706017d0dd45e307 prefix,whitespace
 stance5/results/scores/score_final.txt foot/stance5/scores/score_final.txt 1629943ccf08a948e91e6cfc252d64225cd910bf075d7d5566ce0f7c21db47d7 prefix
+stance5/tailexp/report.md foot/stance5/tailexp/report.md de1710e6374533ca0c37e52dbbad7e871da38b4fe4578d3f20c9cea442ec8a4d prefix,checkout,redact
 symmetry/J1_recount.log foot/symmetry/screen/analysis/J1_recount.log ad7297a2009227b47fa20eba17c5e5e730aa2b761a15be0615489188ff247a31 none
 symmetry/J2_recount.log foot/symmetry/screen/analysis/J2_recount.log a2eb01c9f5df0c0bb695cfca5524972260208134419ce8a348bc21d4e2560378 none
 symmetry/ema_credit.json foot/symmetry/review2/ema_credit.json 90ec310e68f8c0c6380c090a83b6b06fa1c8cafb6c397a171f051ee224e4cfe1 whitespace
