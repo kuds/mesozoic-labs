@@ -866,7 +866,7 @@ reads the files and writes nothing else (`reporting/training_history.py`).
 | Page | What it draws, against the training step |
 |---|---|
 | Outcomes | Clean episodes (`screen_v2_clean`), falls (shorter than the horizon) and the mean return per evaluation, and the training falls per 262,144-step window of `train_episodes.csv` (`cause` not `truncated`; the stochastic policy's) |
-| Saturation | The episodes per evaluation listing `max_actuator_saturation_fraction` in `screen_v2_reasons`, and `actuator_force_frac_max` against its limit of 1 |
+| Saturation | The episodes per evaluation listing `max_actuator_saturation_fraction` in `screen_v2_reasons`; those episodes by the actuator each names (`saturated_actuator`) and its sign; `saturated_actuator_fraction` (mean and worst episode) against the stage's `max_actuator_saturation_fraction` bar; and `actuator_force_frac_max` against its limit of 1 |
 | Whole-foot CoP | Per foot, the signed `<label>_foot_cop_fore_aft` with the reward band's edges; the full-horizon episodes with either foot's window mean outside the band; the report-only `max_foot_cop_fore_aft` |
 | Pad CoP and the pad rail | Per foot, the signed `<label>_sole_cop_fore_aft` with the pad band's edges; the rail's own `max_sole_cop_fore_aft` (mean and worst episode) against its bar; the full-horizon episodes over that bar; those outside the pad band |
 | Digits and margins | Per foot, `<label>_digit_share` and `<label>_toe_margin_nm` |
@@ -910,20 +910,38 @@ An evaluation is flagged when at least 5 of its episodes list
 `|action| >= 0.99` on more than the bar's fraction of its window steps), and
 two flagged evaluations in a row are an alarm, at the second (the stance4 and
 stance5 scorers' report-only rule, set on 10-episode evaluations; the JSON
-records the evaluation sizes and notes any other). One run's pages mark
-every alarm, `robust_best`, `best` and each checkpoint kept in `models/`; a
-comparison's line panels mark each run's first alarm in its colour. Every
-page marks the `--mark-steps` checkpoints. From a checkpoint zip the report
-reads only `policy.pth`'s `log_std` (`torch.load(..., weights_only=True)`)
-and, for a named checkpoint, `num_timesteps` from the JSON `data` member; it
-unpickles nothing else, and the reads stop after 10 s. The std lines join
-adjacent periodic checkpoints only; a longer gap, where nothing was read, is
-a dotted connector. The actuator names come from the checkout's MJCF, used
-only when the stage's `plant_identity.json` records the checkout's physics
-digest; otherwise the actuators are labelled by index. A missing file or
-column is an absent series, listed in the JSON and on the page, never an
-error. The evaluation episodes are the deterministic policy's at yaw 0, so
-the judge's perturbation panels and verdicts are not in these files.
+records the evaluation sizes and notes any other). Where the ledger records
+`saturated_actuator`, each flagged episode names its actuator and sign (`+`
+when every saturated step was commanded at +1, `-` at -1, `+/-` both;
+`(unmeasured)` an unmeasured window, which fails the bar; `(not recorded)` a
+row written before the column), counted per evaluation and never smoothed:
+one run's page stacks them per evaluation, a comparison colours each run's
+cell by the actuator most of its flagged episodes name, with the key (the
+labels a cell is drawn in) in the legend. Each alarm is labelled with the
+actuator its flagged evaluations' episodes name most, on the page, in the
+legend and in the runs table. An actuator is counted over its signs, so a
+tail whose episodes split between `+` and `+/-` is not outnumbered by a rival
+of one sign; a tie goes to a named actuator before `(unmeasured)` and
+`(not recorded)`, then to the first by name, and the label carries the sign
+most of its episodes carry (`+/-` on a tie). The JSON carries the counts per
+evaluation (`evaluations.flagged_actuators`), per alarm
+(`saturation.runs[].actuators`, `named`) and in the checkpoint table, so the
+final, `best` and `robust_best` checkpoints are read from their own
+evaluation's rows. An older ledger without the columns is an absent series,
+said in the page's caption. One run's pages mark every alarm, `robust_best`,
+`best` and each checkpoint kept in `models/`; a comparison's line panels mark
+each run's first alarm in its colour. Every page marks the `--mark-steps`
+checkpoints. From a checkpoint zip the report reads only `policy.pth`'s
+`log_std` (`torch.load(..., weights_only=True)`) and, for a named checkpoint,
+`num_timesteps` from the JSON `data` member; it unpickles nothing else, and
+the reads stop after 10 s. The std lines join adjacent periodic checkpoints
+only; a longer gap, where nothing was read, is a dotted connector. The
+actuator names come from the checkout's MJCF, used only when the stage's
+`plant_identity.json` records the checkout's physics digest; otherwise the
+actuators are labelled by index. A missing file or column is an absent
+series, listed in the JSON and on the page, never an error. The evaluation
+episodes are the deterministic policy's at yaw 0, so the judge's perturbation
+panels and verdicts are not in these files.
 
 ## The handoff's in-training score: `handoff_in_training.json`
 

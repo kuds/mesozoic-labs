@@ -47,6 +47,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   full-horizon episodes over the 0.80 pad rail in 69 of 91 evaluations (7 of
   10 at 6,553,600 steps, where the signed per-foot means read +0.14 and
   +0.11); the five band runs have none.
+- **The saturating actuator, named per evaluation episode and drawn over
+  training** (the maintainer's decision of 2026-10-24, "both, from the ledger";
+  `environments/shared/gait/stance_metrics.py`,
+  `environments/shared/eval_diagnostics.py`,
+  `environments/shared/reporting/training_history.py`; documented in
+  `docs/TRAINING_ARTIFACT_PRESENTATION.md`, "Evaluation episodes" and
+  "Training history pages"). Report only. `max_actuator_saturation_fraction`
+  flags an episode without saying which actuator; naming the tail held at +1
+  (`tail_3_pitch_act`) that failed four runs took checkpoint downloads and
+  offline rollouts. `eval_episodes.csv` now carries, per episode,
+  `saturated_actuator` (the actuator with the largest fraction of post-settle
+  window steps at `|action| >= 0.99`, the lowest index on a tie; empty when
+  none saturates), `saturated_actuator_fraction` (the screen's metric bit for
+  bit: one shared reduction, the same window, threshold and NaN rule),
+  `saturated_actuator_positive_share` (its sign), `saturated_actuator_ties`
+  and `actuators_saturated`, read from the trace the recorder already closed.
+  The training-history report counts each evaluation's flagged episodes by the
+  actuator and sign they name (never smoothed: stacked per evaluation on one
+  run's page, a cell coloured by the most-named actuator per run on a
+  comparison), draws `saturated_actuator_fraction` against the stage's bar,
+  labels each alarm with its actuator (the one its flagged episodes name most,
+  counted over its signs), and carries the counts per evaluation, per alarm
+  and in the checkpoint table, so `final`, `best` and `robust_best` are read
+  from their own evaluation's rows. What moves: five ledger columns
+  (a T. rex row from 63 to 68 columns, about 13 to 50 bytes) and the report's
+  saturation page, JSON and HTML. What does not: no gate verdict, reward,
+  observation, action, termination, task, checkpoint selection, plant,
+  hyperparameter or stage-config digest, no `StanceEpisodeMetrics` field,
+  panel column, `gate_progress.npz` key, env info key or MJCF sensor, and no
+  random draw; the digest snapshot is unchanged. An older ledger without the
+  columns loads everywhere and reads as an absent series.
 - **Decision D-D41 recorded: a replication of the per-foot centre-of-pressure
   band screen on two more seeds, read three of five; D-D40 and D-D36 amended**
   (the maintainer's decisions of 2026-10-22; `docs/BEHAVIOR_RECIPES_PLAN.md`

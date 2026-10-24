@@ -10,6 +10,9 @@ the training step, for one run or overlaid for several:
 - the outcome counts: episodes, falls, clean episodes (``screen_v2_clean``),
   saturation-flagged episodes (``screen_v2_reasons`` naming
   ``max_actuator_saturation_fraction``) and the mean return;
+- the saturation-flagged episodes by the actuator each names
+  (``saturated_actuator``) and its sign (``saturated_actuator_positive_share``),
+  and the saturation fraction itself (``saturated_actuator_fraction``);
 - the rails' own per-episode numbers (``max_sole_cop_fore_aft``,
   ``max_foot_cop_fore_aft``, ``max_sole_tilt_deg``,
   ``max_sole_corner_lift_m``) and, per rail the stage declares a bar for, the
@@ -37,7 +40,10 @@ An evaluation is *flagged* when at least :data:`SATURATION_FLAG_EPISODES` of
 its episodes list ``max_actuator_saturation_fraction`` among their failed
 screen bars, and :data:`SATURATION_ALARM_IN_A_ROW` flagged evaluations in a
 row are an *alarm* (the stance4 and stance5 scorers' report-only rule, set on
-evaluations of :data:`SATURATION_RULE_EPISODES` episodes).
+evaluations of :data:`SATURATION_RULE_EPISODES` episodes).  Where the ledger
+records ``saturated_actuator``, each flagged episode names its actuator, and an
+alarm is labelled with the actuator its flagged episodes name most (counted
+over its signs, with the sign most of them carry).
 
 Counts are never smoothed.  A comparison draws them as one strip per run (a
 cell per evaluation, coloured by the count) and smooths only the continuous
@@ -75,6 +81,8 @@ from typing import Any, Iterable, Mapping, Sequence
 import numpy as np
 
 from ..file_io import atomic_write_json, atomic_write_text, read_json_object
+from ..gait.constants import SATURATION_ABS
+from ..gait.stance_metrics import SATURATED_ACTUATOR_COLUMNS
 from ..model_id import ModelId
 
 logger = logging.getLogger(__name__)
@@ -99,6 +107,14 @@ SATURATION_FLAG_EPISODES = 5
 SATURATION_ALARM_IN_A_ROW = 2
 #: The evaluation size the flag rule was set on (the stance4 and stance5 ledgers' 10 episodes).
 SATURATION_RULE_EPISODES = 10
+#: The ledger's saturating-actuator columns read here (``gait.stance_metrics.SATURATED_ACTUATOR_COLUMNS``): the
+#: actuator behind each episode's max_actuator_saturation_fraction, that fraction, and the share of its saturated
+#: window steps commanded positive.
+ACTUATOR_COLUMN, ACTUATOR_FRACTION_COLUMN, ACTUATOR_SHARE_COLUMN = SATURATED_ACTUATOR_COLUMNS[:3]
+#: A flagged episode whose row records no actuator: its window was unmeasured (a NaN fraction fails the bar), or the
+#: row was written before the column existed (an empty fraction cell: a resumed run's earlier rows).
+UNMEASURED_ACTUATOR = "(unmeasured)"
+NOT_RECORDED_ACTUATOR = "(not recorded)"
 #: The training-fall window: ``progress.json``'s ``training_rollouts.window_timesteps``.
 TRAINING_WINDOW_TIMESTEPS = 262_144
 #: The per-actuator std reads: at most this many periodic checkpoints (evenly spaced by step), within this budget.
@@ -135,6 +151,9 @@ BODY_COLUMNS: tuple[str, ...] = (
     "xcom_heel_margin_min_m",
     "actuator_force_frac_max",
 )
+#: The saturating-actuator columns reduced per evaluation like the body columns (the fraction is the screen's
+#: ``max_actuator_saturation_fraction``; ``actuators_saturated`` counts the actuators with any saturated step).
+SATURATION_COLUMNS: tuple[str, ...] = (ACTUATOR_FRACTION_COLUMN, SATURATED_ACTUATOR_COLUMNS[4])
 #: The sagittal joints whose left-minus-right achieved offset ``eval_episodes.csv`` records.
 LR_JOINTS: tuple[str, ...] = ("hip_pitch", "knee", "ankle")
 _LR_COLUMN = re.compile(
@@ -166,8 +185,11 @@ NOT_RECORDED: tuple[str, ...] = (
     "The evaluation episodes are the deterministic policy's, at yaw 0 on the evaluation env's own resets. The "
     "judge's perturbation panels (its joint-noise falls, K3) and its verdicts are not in these files. The training "
     "falls are the stochastic training policy's.",
-    "The actuator saturation fraction itself is not recorded per episode, and screen_v2_reasons does not name the "
-    "saturating actuator: an episode only lists max_actuator_saturation_fraction when it exceeded the stage's bar.",
+    "The saturating actuator and the saturation fraction itself are recorded per episode (saturated_actuator, "
+    "saturated_actuator_fraction) only in ledgers written since those columns were added; an older run's are absent "
+    "series, and its screen_v2_reasons lists max_actuator_saturation_fraction without naming the actuator. An episode "
+    "names one actuator, the lowest index on a tie (saturated_actuator_ties counts the others); the other actuators "
+    "that saturated are counted (actuators_saturated), not named.",
     "The CoP band is paid per window step on each loaded foot's CoP; these files keep each episode's window mean per "
     "foot only, so the outside-band count reads that mean against the band's edges.",
     "The commanded leg offsets (leg_dc_*) and the per-foot heel moment margin (<foot>_heel_margin_nm) are kept in "
@@ -271,7 +293,7 @@ def reduced_columns(header: Sequence[str]) -> list[str]:
     """The per-episode columns of the header that are reduced per evaluation, in a fixed order."""
     present = set(header)
     columns = [f"{foot}_{suffix}" for foot in foot_labels(header) for suffix in FOOT_SUFFIXES]
-    columns += list(BODY_COLUMNS) + list(lr_columns(header).values())
+    columns += list(BODY_COLUMNS) + list(SATURATION_COLUMNS) + list(lr_columns(header).values())
     return [column for column in columns if column in present]
 
 
@@ -279,8 +301,71 @@ def expected_columns(feet: Sequence[str]) -> list[str]:
     """The columns this report reads from ``eval_episodes.csv`` (per foot for *feet*)."""
     columns = ["timesteps", "return", "full_horizon", "cause", "screen_v2_clean", "screen_v2_reasons"]
     columns += [f"{foot}_{suffix}" for foot in feet for suffix in FOOT_SUFFIXES]
-    columns += list(BODY_COLUMNS)
+    columns += list(BODY_COLUMNS) + [ACTUATOR_COLUMN, ACTUATOR_FRACTION_COLUMN, ACTUATOR_SHARE_COLUMN]
     return columns
+
+
+def saturation_sign(share: float) -> str:
+    """``+`` when every saturated window step of the named actuator was commanded positive, ``-`` when none was, else
+    ``+/-`` (both; also an unreadable share)."""
+    return "+" if share == 1.0 else "-" if share == 0.0 else "+/-"
+
+
+def named_actuator(row: Mapping[str, str]) -> str:
+    """The actuator a saturation-flagged row names, with its sign (``tail_3_pitch_act +``), or why it names none.
+
+    :data:`NOT_RECORDED_ACTUATOR` when the row's fraction cell is empty (the
+    row predates the column), :data:`UNMEASURED_ACTUATOR` when it names no
+    actuator (an unmeasured window reads NaN, which fails the bar).
+    """
+    if not (row.get(ACTUATOR_FRACTION_COLUMN) or "").strip():
+        return NOT_RECORDED_ACTUATOR
+    name = (row.get(ACTUATOR_COLUMN) or "").strip()
+    if not name:
+        return UNMEASURED_ACTUATOR
+    return f"{name} {saturation_sign(_number(row.get(ACTUATOR_SHARE_COLUMN)))}"
+
+
+def tally(counts: Iterable[Mapping[str, int] | None]) -> dict[str, int]:
+    """The per-label sums of *counts*, most first (then by label); ``None`` entries are skipped."""
+    total: dict[str, int] = {}
+    for entry in counts:
+        for label, count in (entry or {}).items():
+            total[label] = total.get(label, 0) + int(count)
+    return dict(sorted(total.items(), key=lambda item: (-item[1], item[0])))
+
+
+def _label_parts(label: str) -> tuple[str, str]:
+    """A :func:`named_actuator` label's actuator and sign (``("tail_3_pitch_act", "+")``); no sign when it names none."""
+    if label in (UNMEASURED_ACTUATOR, NOT_RECORDED_ACTUATOR):
+        return label, ""
+    name, _, sign = label.rpartition(" ")
+    return name, sign
+
+
+def most_named(counts: Mapping[str, int] | None) -> str | None:
+    """The actuator most of *counts*' episodes name, with the sign most of those carry, or ``None`` when there is none.
+
+    Counted by actuator over its signs, so an actuator whose episodes split
+    between ``+`` and ``+/-`` is not outnumbered by a rival of one sign.  A tie
+    goes to a named actuator before :data:`UNMEASURED_ACTUATOR` and
+    :data:`NOT_RECORDED_ACTUATOR`, then to the first by name; the sign is the
+    class most of its episodes carry, ``+/-`` on a tie.
+    """
+    by_name: dict[str, dict[str, int]] = {}
+    for label, count in (counts or {}).items():
+        if int(count) > 0:
+            name, sign = _label_parts(label)
+            by_name.setdefault(name, {})[sign] = by_name.get(name, {}).get(sign, 0) + int(count)
+    if not by_name:
+        return None
+    unnamed = (UNMEASURED_ACTUATOR, NOT_RECORDED_ACTUATOR)
+    name = min(by_name, key=lambda key: (-sum(by_name[key].values()), key in unnamed, key))
+    if name in unnamed:
+        return name
+    signs = by_name[name]
+    leaders = [sign for sign, count in signs.items() if count == max(signs.values())]
+    return f"{name} {leaders[0] if len(leaders) == 1 else '+/-'}"
 
 
 def _full_horizon_rows(
@@ -346,7 +431,10 @@ def reduce_evaluations(
     ``falls`` (episodes shorter than the horizon), ``clean``
     (``screen_v2_clean`` 1 over the episodes the screen judged), ``saturated``
     (judged episodes listing :data:`SATURATION_REASON`) and ``mean_return`` as
-    arrays, NaN where the evaluation could not supply them; per rail of
+    arrays, NaN where the evaluation could not supply them; with the ledger's
+    ``saturated_actuator`` beside ``screen_v2_reasons``, ``flagged_actuators``:
+    per evaluation those flagged episodes counted by :func:`named_actuator`
+    (``None`` where the screen judged none); per rail of
     :data:`RAIL_COLUMNS` whose bar *bars* declares, ``<rail>_over_bar`` (the
     full-horizon episodes whose own value exceeds the bar) and
     ``<rail>_over_bar_fraction`` (over those that measured it); and
@@ -360,6 +448,7 @@ def reduce_evaluations(
     if not steps:
         return out
     episodes, clean, saturated, mean_return = [], [], [], []
+    named: list[dict[str, int] | None] = []
     for group in groups:
         episodes.append(float(len(group)))
         judged = group
@@ -373,6 +462,9 @@ def reduce_evaluations(
                 if judged
                 else math.nan
             )
+            if ACTUATOR_COLUMN in present:
+                flagged = [row for row in judged if SATURATION_REASON in reason_keys(row.get("screen_v2_reasons"))]
+                named.append(tally([{named_actuator(row): 1} for row in flagged]) if judged else None)
         if "return" in present:
             mean_return.append(_stats([_number(row.get("return")) for row in group])["mean"])
     out["episodes"] = np.asarray(episodes, dtype=float)
@@ -383,6 +475,8 @@ def reduce_evaluations(
         out["clean"] = np.asarray(clean, dtype=float)
     if "screen_v2_reasons" in present:
         out["saturated"] = np.asarray(saturated, dtype=float)
+        if ACTUATOR_COLUMN in present:
+            out["flagged_actuators"] = named
     if "return" in present:
         out["mean_return"] = np.asarray(mean_return, dtype=float)
     for rail in RAIL_COLUMNS:
@@ -946,6 +1040,7 @@ def load_run_history(
         run.saturation = saturation_alarms(
             run.steps.tolist(), saturated.tolist(), episodes=None if episodes is None else episodes.tolist()
         )
+        name_alarms(run)
     else:
         run.saturation = {"computed": False, "why": "no screen_v2_reasons column"}
 
@@ -981,6 +1076,23 @@ def load_run_history(
         if run.checkpoint_steps.get(kind) is None and isinstance(step, int) and not isinstance(step, bool):
             run.checkpoint_steps[kind] = step
     return run
+
+
+def name_alarms(run: RunHistory) -> None:
+    """Label each of *run*'s alarms with the actuators its flagged evaluations' flagged episodes name.
+
+    Each ``run.saturation["runs"]`` entry gets ``actuators`` (the
+    :func:`named_actuator` counts over its evaluations, most first) and
+    ``named`` (:func:`most_named`: the actuator, over its signs); nothing when
+    the ledger records no ``saturated_actuator``.
+    """
+    named = run.evaluations.get("flagged_actuators")
+    if named is None:
+        return
+    for entry in run.saturation.get("runs", []):
+        inside = [counts for step, counts in zip(run.steps.tolist(), named) if entry["from"] <= step <= entry["to"]]
+        entry["actuators"] = tally(inside)
+        entry["named"] = most_named(entry["actuators"])
 
 
 # ---------------------------------------------------------------------------------------------- marks
@@ -1045,7 +1157,10 @@ def checkpoint_rows(run: RunHistory, marks: Sequence[int]) -> list[dict[str, Any
     A row reads the evaluation at exactly that step; a mark with no evaluation
     there (the final checkpoint, after the last evaluation) reads the last
     evaluation at or before it and says so.  The std columns read the
-    checkpoint saved at that step when one was read.
+    checkpoint saved at that step when one was read.  ``flagged_actuators`` is
+    the evaluation's flagged episodes by the actuator they name (where the
+    ledger records it), so the finished models (``final``, ``best``,
+    ``robust_best``) are read from their own evaluation's rows.
     """
     if not run.steps.size:
         return []
@@ -1078,13 +1193,21 @@ def checkpoint_rows(run: RunHistory, marks: Sequence[int]) -> list[dict[str, Any
             series = run.series(count)
             if series is not None:
                 row[count] = series[index]
+        named = run.evaluations.get("flagged_actuators")
+        if named is not None:
+            row["flagged_actuators"] = named[index]
         for column in [
             f"{foot}_{suffix}" for foot in run.feet for suffix in ("foot_cop_fore_aft", "sole_cop_fore_aft")
         ]:
             values = run.column(column)
             if values is not None:
                 row[column] = values[index]
-        for column in ("max_sole_cop_fore_aft", "max_sole_tilt_deg", "max_sole_corner_lift_m"):
+        for column in (
+            "max_sole_cop_fore_aft",
+            "max_sole_tilt_deg",
+            "max_sole_corner_lift_m",
+            ACTUATOR_FRACTION_COLUMN,
+        ):
             for stat, suffix in (("mean", ""), ("max", "_worst")):
                 values = run.column(column, stat)
                 if values is not None:
@@ -1175,6 +1298,14 @@ def summary(runs: Sequence[RunHistory], *, title: str, marks: Sequence["int | st
             "not counted; the edges are the run's own or, where it records none, the reference edges "
             "band_edges_source names",
             "saturation": saturation_alarms([], [])["rule"],
+            "flagged_actuators": "per evaluation, the saturation-flagged episodes (as counted for saturated) by the "
+            "actuator each names: eval_episodes.csv's saturated_actuator, the actuator with the largest fraction of "
+            f"post-settle window steps at |action| >= {SATURATION_ABS:g} (the lowest index on a tie), with its sign: + "
+            "when every one of its saturated steps was commanded positive, - when none was, +/- when both; "
+            f"{UNMEASURED_ACTUATOR} an unmeasured window, {NOT_RECORDED_ACTUATOR} a row written before the column. "
+            "Each alarm lists the counts over its flagged evaluations and names the actuator most of them name, counted "
+            "over its signs (a named actuator before (unmeasured) and (not recorded), then the first by name, on a "
+            "tie), with the sign most of its episodes carry (+/- on a tie)",
             "training_falls": f"train_episodes.csv episodes whose cause is not truncated, per window of "
             f"{TRAINING_WINDOW_TIMESTEPS:,} steps (k w, (k + 1) w]; the last window ends at its last episode",
             "comparison_smoothing_evaluations": smooth,
@@ -1197,7 +1328,10 @@ class Quantity:
     ``kind``: ``column`` (a reduced column, ``{foot}`` for each foot),
     ``series`` (a continuous evaluation series), ``count`` (a per-evaluation
     count: a line on one run's page, a strip per run on a comparison, never
-    smoothed) or ``training`` (the training-fall fraction per window, likewise).
+    smoothed), ``training`` (the training-fall fraction per window, likewise)
+    or ``actuators`` (``flagged_actuators``: stacked counts per actuator on one
+    run's page, a strip per run coloured by the actuator most named on a
+    comparison, never smoothed).
     """
 
     key: str
@@ -1216,7 +1350,8 @@ class PageSpec:
     """One page: its file stem, title, caption and quantities, one per panel (per foot per panel when compared).
 
     The caption may name ``{episodes}`` (the evaluation sizes), ``{band}``
-    (the band edges counted) and ``{saturation_note}``.
+    (the band edges counted), ``{saturation_note}`` and ``{named_note}`` (the
+    runs whose ledger names no actuator).
     """
 
     name: str
@@ -1270,13 +1405,32 @@ PAGES: tuple[PageSpec, ...] = (
         "was commanded at |action| >= 0.99 on more than the stage's bar fraction of its post-settle window steps (the "
         "metric is the largest per-actuator fraction). An evaluation with >= 5 such episodes is flagged (the scorers' "
         "rule, set on 10-episode evaluations{saturation_note}); two flagged evaluations in a row are an alarm (dotted "
-        "line; on a comparison's strip, a triangle). actuator_force_frac_max is about force, not the action command.",
+        "line; on a comparison's strip, a triangle). Each flagged episode names its actuator, eval_episodes.csv's "
+        "saturated_actuator: the one with the largest fraction (the lowest index on a tie), with its sign (+: every "
+        "saturated step commanded +1; -: every one -1; +/-: both){named_note}; an alarm is labelled with the actuator "
+        "its flagged episodes name most (counted over its signs, with the sign most of them carry; a comparison's cell "
+        "likewise per evaluation). saturated_actuator_fraction is that largest fraction, the metric the bar reads. "
+        "actuator_force_frac_max is about force, not the action command.",
         (
             Quantity(
                 "saturated",
                 "Saturation-flagged episodes per evaluation (>= 5 flags the evaluation)",
                 "episodes",
                 "count",
+            ),
+            Quantity(
+                "flagged_actuators",
+                "Saturation-flagged episodes per evaluation by the actuator each names, with its sign "
+                "(saturated_actuator)",
+                "episodes",
+                "actuators",
+            ),
+            Quantity(
+                ACTUATOR_FRACTION_COLUMN,
+                "saturated_actuator_fraction: each episode's largest per-actuator fraction of window steps at "
+                f"|action| >= {SATURATION_ABS:g} (max_actuator_saturation_fraction); {_FH}",
+                "fraction of window steps",
+                spread="max",
             ),
             Quantity(
                 "actuator_force_frac_max",
@@ -1579,8 +1733,11 @@ def _reference_lines(runs: Sequence[RunHistory], quantity: Quantity) -> list[tup
             else:
                 text = f"{key} bar {value:g}"
             lines.append((value * quantity.scale, text, "--"))
-    elif key == "saturated":
+    elif key in ("saturated", "flagged_actuators"):
         lines.append((float(SATURATION_FLAG_EPISODES), f"flag: >= {SATURATION_FLAG_EPISODES} episodes", "--"))
+    elif key == ACTUATOR_FRACTION_COLUMN:
+        for value in _common(run.bars.get(SATURATION_REASON) for run in runs):
+            lines.append((value, f"{SATURATION_REASON} bar {value:g}", "--"))
     elif key == "actuator_force_frac_max":
         lines.append((1.0, "limit 1.0", "--"))
     if key.endswith(("_fore_aft", "margin_min_m", "com_fore_aft_mean_m", "shear_over_normal")) and not key.startswith(
@@ -1704,6 +1861,8 @@ class _Context:
     colours: list[str]
     styles: list[Any]
     colour_note: str = ""
+    #: The colour of each label ``flagged_actuators`` names, over every run (:func:`_named_colours`).
+    named_colours: dict[str, str] = field(default_factory=dict)
 
 
 def _strip_cmap(ramp: str, top: int) -> tuple[Any, Any]:
@@ -1916,6 +2075,125 @@ def _draw_count_single(axis: Any, context: _Context, quantity: Quantity) -> bool
     return True
 
 
+def _named_label(context: _Context, label: str) -> str:
+    """The legend label a named actuator is drawn under: its own, or :data:`_OTHER_ACTUATORS` past the coloured ones."""
+    return _OTHER_ACTUATORS if context.named_colours.get(label) == _MUTED else label
+
+
+def _draw_actuators_single(axis: Any, context: _Context, quantity: Quantity) -> bool:
+    """Per evaluation, its flagged episodes stacked by the actuator each names (raw counts, a bar per evaluation)."""
+    run = context.runs[0]
+    named = run.evaluations.get("flagged_actuators")
+    if named is None:
+        return False
+    x = run.steps / 1e6
+    width = 0.8 * _spacing(x, 0.1)
+    bottom = np.zeros(len(named))
+    totals = tally(named)
+    drawn: set[str] = set()
+    for label in context.named_colours:
+        heights = np.asarray([float((counts or {}).get(label, 0)) for counts in named])
+        some = heights > 0
+        if not some.any():
+            continue
+        shown = _named_label(context, label)
+        legend = f"{shown} ({totals[label]})" if shown == label else shown
+        axis.bar(
+            x[some],
+            heights[some],
+            width=width,
+            bottom=bottom[some],
+            color=context.named_colours[label],
+            linewidth=0,
+            label=legend if shown not in drawn else "_nolegend_",
+        )
+        drawn.add(shown)
+        bottom += heights
+    episodes = max(run.episodes_per_evaluation or [10])
+    axis.set_ylim(-0.4, episodes + 0.4)
+    if not drawn:
+        axis.text(
+            0.5,
+            0.5,
+            "no saturation-flagged episode in these evaluations",
+            transform=axis.transAxes,
+            ha="center",
+            va="center",
+            fontsize=9.5,
+            color=_MUTED,
+        )
+    return True
+
+
+def _draw_actuator_strips(axis: Any, context: _Context, quantity: Quantity) -> bool:
+    """One row per run, a cell per evaluation with flagged episodes, coloured by the actuator most of them name."""
+    from matplotlib.transforms import blended_transform_factory
+
+    drawn = False
+    for row, run in enumerate(context.runs):
+        named = run.evaluations.get("flagged_actuators")
+        if named is None:
+            axis.text(
+                0.005,
+                row,
+                "not recorded",
+                transform=blended_transform_factory(axis.transAxes, axis.transData),
+                va="center",
+                fontsize=8.5,
+                color=_MUTED,
+            )
+            continue
+        drawn = True
+        x = run.steps / 1e6
+        width = _spacing(x, 0.1)
+        for xi, counts in zip(x, named):
+            label = most_named(counts)
+            if label is None:
+                continue
+            axis.bar(xi, 0.8, width=width, bottom=row - 0.4, color=context.named_colours[label], linewidth=0)
+        for entry in run.saturation.get("runs", []):
+            axis.plot(
+                entry["alarm_at"] / 1e6,
+                row,
+                marker="v",
+                markersize=7,
+                markerfacecolor="white",
+                markeredgecolor=_INK,
+                markeredgewidth=1.0,
+                linestyle="none",
+                zorder=4,
+            )
+    axis.set_ylim(len(context.runs) - 0.5, -0.75)
+    axis.set_yticks(range(len(context.runs)))
+    axis.set_yticklabels([])
+    axis.tick_params(axis="y", length=0)
+    transform = blended_transform_factory(axis.transAxes, axis.transData)
+    for row, run in enumerate(context.runs):
+        axis.plot(
+            [1.008, 1.04],
+            [row, row],
+            transform=transform,
+            color=context.colours[row],
+            linestyle=context.styles[row],
+            linewidth=2.0,
+            clip_on=False,
+        )
+        axis.text(1.048, row, run.label, transform=transform, va="center", ha="left", fontsize=8.5, color=_INK)
+    return drawn
+
+
+def _named_handles(context: _Context) -> tuple[list[Any], list[str]]:
+    """The key of the actuator colours a comparison's strips draw, for the figure legend (the strip has no room)."""
+    from matplotlib.patches import Patch
+
+    drawn = {most_named(counts) for run in context.runs for counts in run.evaluations.get("flagged_actuators") or []}
+    shown: dict[str, str] = {}
+    for label, colour in context.named_colours.items():
+        if label in drawn:
+            shown.setdefault(_named_label(context, label), colour)
+    return [Patch(color=colour) for colour in shown.values()], [f"flagged: {label}" for label in shown]
+
+
 def _draw_training_single(axis: Any, context: _Context, quantity: Quantity) -> bool:
     run = context.runs[0]
     values = _values(run, quantity, None)
@@ -2064,10 +2342,11 @@ def _draw_marks(axis: Any, context: _Context, *, top: bool, strip: bool = False)
             axis.axvline(x, color=colour, linestyle=(0, (1.5, 1.5)), linewidth=1.9, zorder=2)
             if top:
                 text = f"{run.label} alarm" if context.comparison else ("first alarm" if number == 0 else "alarm")
+                named = f"\n({entry['named']})" if entry.get("named") else ""
                 axis.text(
                     x,
                     0.97,
-                    f"{text} {_fmt_steps(entry['alarm_at'])} ",
+                    f"{text} {_fmt_steps(entry['alarm_at'])}{named} ",
                     transform=transform,
                     rotation=90,
                     ha="right",
@@ -2093,7 +2372,10 @@ def _run_handles(context: _Context) -> tuple[list[Any], list[str]]:
     labels: list[str] = []
     for index, run in enumerate(context.runs):
         handles.append(Line2D([], [], color=context.colours[index], linestyle=context.styles[index], linewidth=2))
-        labels.append(f"{run.label}" + (f" ({run.group})" if run.group else ""))
+        named = (run.saturation.get("runs") or [{}])[0].get("named") if run.saturation.get("alarm") else None
+        labels.append(
+            f"{run.label}" + (f" ({run.group})" if run.group else "") + (f"; first alarm: {named}" if named else "")
+        )
     handles.append(Line2D([], [], color=_INK_2, linewidth=1.0))
     labels.append("J checkpoint")
     if any(run.saturation.get("alarm") for run in context.runs):
@@ -2118,8 +2400,10 @@ def _single_handles(context: _Context) -> tuple[list[Any], list[str]]:
     if run.saturation.get("alarm"):
         handles.append(Line2D([], [], color=_CRITICAL, linestyle=(0, (1.5, 1.5)), linewidth=1.9))
         count = len(run.saturation["runs"])
+        named = run.saturation["runs"][0].get("named")
         labels.append(
             f"saturation alarm (first {run.saturation['first_alarm_at']:,}"
+            + (f", {named}" if named else "")
             + (f"; {count} runs of flagged evaluations)" if count > 1 else ")")
         )
     if run.saved_checkpoints:
@@ -2171,10 +2455,10 @@ def _panels(spec: PageSpec, context: _Context) -> list[_Panel]:
     panels: list[_Panel] = []
     for quantity in spec.quantities:
         title = _quantity_title(quantity, context.runs)
-        strip = context.comparison and quantity.kind in ("count", "training")
+        strip = context.comparison and quantity.kind in ("count", "training", "actuators")
         if strip:
             height = _STRIP_ROW_IN * len(context.runs) + 0.3
-        elif quantity.kind in ("count", "training"):
+        elif quantity.kind in ("count", "training", "actuators"):
             height = _COUNT_IN
         else:
             height = _LINE_IN
@@ -2191,6 +2475,8 @@ def _panels(spec: PageSpec, context: _Context) -> list[_Panel]:
             title += _SPREAD_NOTES[quantity.spread]
         if strip and quantity.kind == "training":
             title += f" [one cell per window; colour capped at {TRAINING_FALL_CAP:g}]"
+        elif strip and quantity.kind == "actuators":
+            title += " [one cell per evaluation with a flagged episode, coloured by the actuator most of them name]"
         elif strip:
             title += " [one cell per evaluation, never smoothed]"
         if quantity.per_foot and context.comparison:
@@ -2209,6 +2495,10 @@ def _page_figure(spec: PageSpec, context: _Context, *, title: str, dpi: int, wid
     panels = _panels(spec, context)
     handles, labels = _run_handles(context) if context.comparison else _single_handles(context)
     ncol = min(4, len(labels))
+    if context.comparison and any(quantity.kind == "actuators" for quantity in spec.quantities):
+        named_handles, named_labels = _named_handles(context)
+        handles, labels = handles + named_handles, labels + named_labels
+        ncol = min(3, len(labels))  # the actuator names are long: three columns fit the page's width
     figure, axes = _new_figure(
         panels, width=width, dpi=dpi, title=f"{title}\n{spec.title}", legend_rows=math.ceil(len(labels) / ncol)
     )
@@ -2218,19 +2508,27 @@ def _page_figure(spec: PageSpec, context: _Context, *, title: str, dpi: int, wid
         _style_axis(axis, panel, top=index == 0)
         axis.set_xlim(0.0, context.xmax * 1.01 if context.xmax > 0 else 1.0)
         ends: list[tuple] = []
-        if panel.strip:
+        if panel.strip and quantity.kind == "actuators":
+            drawn = _draw_actuator_strips(axis, context, quantity)
+        elif panel.strip:
             drawn = _draw_strips(axis, context, quantity)
         elif context.comparison:
             ends = _draw_line_compare(axis, context, quantity, panel.foot)
             drawn = bool(ends)
         elif quantity.kind == "count":
             drawn = _draw_count_single(axis, context, quantity)
+        elif quantity.kind == "actuators":
+            drawn = _draw_actuators_single(axis, context, quantity)
         elif quantity.kind == "training":
             drawn = _draw_training_single(axis, context, quantity)
         else:
             drawn = _draw_line_single(axis, context, quantity)
         if not drawn:
-            column = quantity.key.replace("{foot}", panel.foot or "<foot>")
+            column = (
+                ACTUATOR_COLUMN
+                if quantity.kind == "actuators"
+                else quantity.key.replace("{foot}", panel.foot or "<foot>")
+            )
             _absent(axis, f"not recorded in these files ({column})")
         elif not panel.strip:
             _draw_references(axis, context, quantity)
@@ -2471,6 +2769,33 @@ def _colours(runs: Sequence[RunHistory]) -> tuple[list[str], str]:
     return [_SERIES[i % len(_SERIES)] for i in range(len(runs))], "colour per run, line style per group"
 
 
+#: The actuators drawn in their own colour (the most-named first); the rest share :data:`_OTHER_ACTUATORS`' grey.
+NAMED_COLOURS = 6
+_OTHER_ACTUATORS = "other actuators"
+#: The named actuators' colours: the palette less the handoff green and the alarm red, from its far end, so the
+#: most-named actuator is not the first runs' blue or orange.
+_NAMED_SERIES = tuple(reversed(_OTHER_SERIES[:-1]))
+
+
+def _named_colours(runs: Sequence[RunHistory]) -> dict[str, str]:
+    """A fixed colour per label the runs' flagged episodes name, by how many name it over every run (then by label).
+
+    The first :data:`NAMED_COLOURS` take :data:`_NAMED_SERIES` in order (never
+    cycled) and the rest share a mid grey; :data:`UNMEASURED_ACTUATOR` is a
+    dark grey and :data:`NOT_RECORDED_ACTUATOR` a light one.  A label only
+    :func:`most_named` gives (``+/-`` for an actuator's ``+`` and ``-``
+    episodes tied in one evaluation) comes after the counted ones.
+    """
+    named = [entry for run in runs for entry in run.evaluations.get("flagged_actuators") or []]
+    counts = tally(named)
+    unnamed = {UNMEASURED_ACTUATOR: _INK_2, NOT_RECORDED_ACTUATOR: _AXIS}
+    ranked = [label for label in counts if label not in unnamed]
+    ranked += sorted({label for entry in named if (label := most_named(entry)) is not None} - set(counts))
+    colours = {label: _NAMED_SERIES[i] if i < NAMED_COLOURS else _MUTED for i, label in enumerate(ranked)}
+    colours.update({label: colour for label, colour in unnamed.items() if label in counts})
+    return colours
+
+
 def _make_context(runs: Sequence[RunHistory], *, marks: Sequence[int], smooth: int) -> _Context:
     """The drawing context of *runs*: one run's pages, or a comparison (colours, line styles, smoothing)."""
     if len(runs) > MAX_RUNS:
@@ -2490,6 +2815,7 @@ def _make_context(runs: Sequence[RunHistory], *, marks: Sequence[int], smooth: i
         colours=colours,
         styles=[_GROUP_STYLES[groups.index(run.group or "") % len(_GROUP_STYLES)] for run in runs],
         colour_note=colour_note,
+        named_colours=_named_colours(runs),
     )
 
 
@@ -2520,11 +2846,19 @@ def render_pages(
     )
     odd = [size for size in sizes if size != SATURATION_RULE_EPISODES]
     saturation_note = f"; these evaluations hold {', '.join(map(str, sizes))}" if odd else ""
+    unnamed = [run.label for run in runs if run.evaluations.get("flagged_actuators") is None]
+    named_note = (
+        ""
+        if not unnamed
+        else f" ({'this ledger' if len(runs) == 1 else ', '.join(unnamed)} records no {ACTUATOR_COLUMN} beside "
+        "screen_v2_reasons: an older ledger, or no screen, so no actuator is named)"
+    )
     fields = {
         "episodes": episodes,
         "band": _band_text(runs, "lower", "upper"),
         "pad_band": _band_text(runs, "pad_lower", "pad_upper"),
         "saturation_note": saturation_note,
+        "named_note": named_note,
     }
     pages: list[Page] = []
     errors: list[str] = []
@@ -2614,6 +2948,8 @@ def _table(headers: Sequence[str], rows: Sequence[Sequence[Any]]) -> str:
 
 #: The checkpoint table's columns after the counts: ``(row key, header, scale)``; the per-foot ones are added per run.
 _TABLE_VALUES: tuple[tuple[str, str, float], ...] = (
+    (ACTUATOR_FRACTION_COLUMN, "sat. fraction", 1.0),
+    (f"{ACTUATOR_FRACTION_COLUMN}_worst", "sat. fraction worst", 1.0),
     ("max_sole_cop_fore_aft", "pad rail mean", 1.0),
     ("max_sole_cop_fore_aft_worst", "pad rail worst", 1.0),
     ("max_sole_tilt_deg", "tilt", 1.0),
@@ -2633,6 +2969,15 @@ _COUNT_HEADERS = {
     "max_sole_tilt_deg_over_bar": "over tilt bar",
     "max_sole_corner_lift_m_over_bar": "over lift bar",
 }
+
+
+def _fmt_named(counts: Any) -> str:
+    """A ``flagged_actuators`` entry as table text: ``tail_3_pitch_act + 5; r_ankle_act - 1``, ``none`` or ``–``."""
+    if not isinstance(counts, Mapping):
+        return "–"
+    if not counts:
+        return "none"
+    return html.escape("; ".join(f"{label} {count}" for label, count in counts.items()))
 
 
 def render_html(document: Mapping[str, Any], pages: Sequence[Page], *, json_name: str = JSON_FILENAME) -> str:
@@ -2657,6 +3002,7 @@ def render_html(document: Mapping[str, Any], pages: Sequence[Page], *, json_name
     for run in runs:
         sat = run.get("saturation") or {}
         alarm = sat.get("first_alarm_at")
+        named = ((sat.get("runs") or [{}])[0] or {}).get("named")
         rows.append(
             [
                 html.escape(str(run["label"])),
@@ -2669,7 +3015,11 @@ def render_html(document: Mapping[str, Any], pages: Sequence[Page], *, json_name
                 html.escape(", ".join(str(n) for n in run.get("episodes_per_evaluation") or []) or "–"),
                 _fmt(sat.get("first_saturated_episode_at")),
                 _fmt(sat.get("first_flagged_at")),
-                f'<span class="alarm">{_fmt(alarm)}</span>' if alarm is not None else "none",
+                (
+                    f'<span class="alarm">{_fmt(alarm)}{f" ({html.escape(named)})" if named else ""}</span>'
+                    if alarm is not None
+                    else "none"
+                ),
                 "yes" if run.get("band_active") else "no",
             ]
         )
@@ -2706,7 +3056,10 @@ def render_html(document: Mapping[str, Any], pages: Sequence[Page], *, json_name
         "evaluation, reads the last one). The counts are episodes of that evaluation: <i>over pad bar</i>, "
         "<i>over tilt bar</i> and <i>over lift bar</i> count full-horizon episodes whose own rail value exceeds the "
         "stage's bar; <i>outside band</i> and <i>outside pad band</i> count full-horizon episodes with either foot's "
-        "window-mean CoP outside the band's edges. The rail columns are the mean and the worst full-horizon episode. "
+        "window-mean CoP outside the band's edges; <i>flagged by actuator</i> counts the saturation-flagged episodes by "
+        "the actuator each names and its sign (+ every saturated step at +1, - at -1, +/- both), so the final, best "
+        "and robust_best checkpoints are read from their own evaluation's rows. The rail and saturation-fraction "
+        "columns are the mean and the worst full-horizon episode. "
         "CoP in half-lengths (+ toe), tilt in degrees, lift in mm, left minus right in degrees, std in action units "
         "at the checkpoint saved at that step.</p>"
     )
@@ -2719,6 +3072,7 @@ def render_html(document: Mapping[str, Any], pages: Sequence[Page], *, json_name
         cols: list[tuple[str, str, float]] = [
             (key, header, 1.0) for key, header in _COUNT_HEADERS.items() if key in present
         ]
+        cols += [("flagged_actuators", "flagged by actuator", 1.0)] if "flagged_actuators" in present else []
         cols += [(key, header, scale) for key, header, scale in _TABLE_VALUES if key in present]
         cols += [(f"{f}_foot_cop_fore_aft", f"foot CoP {f}", 1.0) for f in feet]
         cols += [(f"{f}_sole_cop_fore_aft", f"pad CoP {f}", 1.0) for f in feet]
@@ -2733,6 +3087,9 @@ def render_html(document: Mapping[str, Any], pages: Sequence[Page], *, json_name
             cells = [html.escape(row["at"]), _fmt(row["evaluation_timesteps"])]
             for key, _, scale in cols:
                 value = row.get(key)
+                if key == "flagged_actuators":
+                    cells.append(_fmt_named(value))
+                    continue
                 cells.append(_fmt(value * scale if isinstance(value, (int, float)) else value))
             cells += [_fmt(row.get(k)) for k in std_cols]
             body.append(cells)

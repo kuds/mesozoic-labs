@@ -2,7 +2,8 @@
 
 Small synthetic ledgers only: the reductions (counts, the rails' over-bar
 counts, the band counts, per-foot means, left-minus-right offsets, training
-windows), the saturation flag and alarm rule, tolerance of missing files and
+windows), the saturation flag and alarm rule, the flagged episodes by the
+actuator they name and the alarms labelled with it, tolerance of missing files and
 columns, the refusal to write inside a run directory, the per-actuator std
 reader on a tiny checkpoint zip and the plant check behind its names, the
 checkpoint table, and that every page renders on the Agg canvas with its bars,
@@ -29,7 +30,7 @@ pytest.importorskip("matplotlib")
 
 FEET = ("r", "l")
 STEP = 2048
-#: The columns a T. rex row carries that the report reads (a subset of the real 63).
+#: The columns a T. rex row carries that the report reads (a subset of the real 68).
 COLUMNS = [
     "evaluation",
     "timesteps",
@@ -41,6 +42,11 @@ COLUMNS = [
     "cause",
     "screen_v2_clean",
     "screen_v2_reasons",
+    "saturated_actuator",
+    "saturated_actuator_fraction",
+    "saturated_actuator_positive_share",
+    "saturated_actuator_ties",
+    "actuators_saturated",
     *[f"{foot}_{suffix}" for foot in FEET for suffix in th.FOOT_SUFFIXES],
     *th.BODY_COLUMNS,
     "leg_q_l_minus_r_hip_pitch_deg",
@@ -63,6 +69,10 @@ def _episode(evaluation: int, episode: int, *, fell: bool = False, saturated: bo
         cause="nosedive" if fell else "truncated",
         screen_v2_clean=0 if (fell or saturated) else 1,
         screen_v2_reasons=";".join(reasons),
+        saturated_actuator="tail_3_pitch_act" if saturated else "",
+        saturated_actuator_fraction=0.31 if saturated else 0.0,
+        saturated_actuator_positive_share=1.0 if saturated else math.nan,
+        actuators_saturated=1 if saturated else 0,
     )
     row["return"] = 100.0 + episode
     row.update(values)
@@ -317,6 +327,170 @@ class TestSaturationAlarm:
         assert run.saturation["first_saturated_episode_at"] == 2 * STEP
         assert run.saturation["flagged"] == [3 * STEP, 4 * STEP, 6 * STEP]
         assert run.saturation["first_alarm_at"] == 4 * STEP
+
+
+class TestNamedActuators:
+    """The flagged episodes by the actuator each names (``saturated_actuator``) and its sign, per evaluation."""
+
+    def _ledger(self, tmp_path: Path, name: str = "named") -> Path:
+        stage = _stage(tmp_path, saturated=[0, 6, 7, 0], name=name)
+        rows = list(csv.DictReader((stage / th.EVAL_EPISODES_FILENAME).open(newline="", encoding="utf-8")))
+        for row in rows:
+            evaluation, episode = int(row["evaluation"]), int(row["episode"])
+            if evaluation == 2 and episode in (0, 1):
+                row.update(saturated_actuator="r_ankle_act", saturated_actuator_positive_share="0.0")
+            if evaluation == 2 and episode == 2:
+                row.update(saturated_actuator_positive_share="0.25")  # bang-bang: both signs
+            if evaluation == 2 and episode == 3:
+                row.update(saturated_actuator="", saturated_actuator_fraction="nan")  # an unmeasured window
+            if evaluation == 2 and episode == 4:
+                row.update(saturated_actuator="", saturated_actuator_fraction="")  # a row from before the column
+            if evaluation == 3 and episode == 0:
+                row.update(saturated_actuator="l_knee_act", saturated_actuator_fraction="0.05")  # under the bar
+        _write_csv(stage / th.EVAL_EPISODES_FILENAME, rows, COLUMNS)
+        return stage
+
+    def test_flagged_episodes_by_actuator_and_sign_per_evaluation(self, tmp_path):
+        run = th.load_run_history(self._ledger(tmp_path), read_std=False)
+        assert run.evaluations["flagged_actuators"] == [
+            {},
+            {"tail_3_pitch_act +": 6},
+            {
+                "r_ankle_act -": 2,
+                "tail_3_pitch_act +": 2,
+                "(not recorded)": 1,
+                "(unmeasured)": 1,
+                "tail_3_pitch_act +/-": 1,
+            },
+            {},  # an episode naming an actuator under the bar is not flagged
+        ]
+        assert sum(run.evaluations["flagged_actuators"][2].values()) == run.series("saturated")[2] == 7
+        assert th.saturation_sign(1.0) == "+" and th.saturation_sign(0.0) == "-" and th.saturation_sign(0.5) == "+/-"
+        assert th.most_named({"b +": 2, "a -": 2, "c +": 1}) == "a -" and th.most_named({}) is None
+        # The two numeric columns are reduced; the name and its share are read per flagged episode, as text.
+        named = list(th.SATURATED_ACTUATOR_COLUMNS)
+        assert th.reduced_columns(named) == ["saturated_actuator_fraction", "actuators_saturated"]
+        # The fraction is reduced like a rail: over the full-horizon episodes, mean and worst.
+        assert run.column("saturated_actuator_fraction")[1] == pytest.approx(0.6 * 0.31)
+        assert run.column("saturated_actuator_fraction", "max")[1] == pytest.approx(0.31)
+
+    def test_the_most_named_actuator_is_counted_over_its_signs(self):
+        # The tail split over + and +/- (10) outnumbers the ankle of one sign (6): named, with the sign most carry.
+        split = {"r_ankle_act -": 6, "tail_3_pitch_act +": 4, "tail_3_pitch_act +/-": 4}
+        assert th.most_named(split) == "tail_3_pitch_act +/-"
+        assert th.most_named({"tail_3_pitch_act +": 15, "tail_3_pitch_act +/-": 14, "r_ankle_act -": 16}) == (
+            "tail_3_pitch_act +"
+        )
+        assert th.most_named({"a +": 2, "a -": 2}) == "a +/-"  # the signs tied
+        # A named actuator before one naming none on a tie, whichever sorts first.
+        assert th.most_named({"tail_3_pitch_act +": 1, th.NOT_RECORDED_ACTUATOR: 1}) == "tail_3_pitch_act +"
+        assert th.most_named({th.UNMEASURED_ACTUATOR: 2, "z_act -": 2}) == "z_act -"
+        assert th.most_named({th.UNMEASURED_ACTUATOR: 2, th.NOT_RECORDED_ACTUATOR: 1}) == th.UNMEASURED_ACTUATOR
+        assert th.most_named({"a +": 0}) is None
+        # A label only the tie of signs gives still has a colour for the cell it is drawn in, after the counted ones.
+        tied = th.RunHistory(stage_dir=Path("t"), label="t")
+        tied.evaluations["flagged_actuators"] = [{"a +": 1, "a -": 1}, None]
+        assert list(th._named_colours([tied])) == ["a +", "a -", "a +/-"]
+
+    def test_the_alarm_names_the_actuator_its_flagged_episodes_name_most(self, tmp_path):
+        run = th.load_run_history(self._ledger(tmp_path), read_std=False)
+        (alarm,) = run.saturation["runs"]
+        assert alarm["alarm_at"] == 3 * STEP and alarm["named"] == "tail_3_pitch_act +"
+        assert alarm["actuators"] == {
+            "tail_3_pitch_act +": 8,
+            "r_ankle_act -": 2,
+            "(not recorded)": 1,
+            "(unmeasured)": 1,
+            "tail_3_pitch_act +/-": 1,
+        }
+
+    def test_the_finished_models_read_their_own_evaluation(self, tmp_path):
+        run = th.load_run_history(self._ledger(tmp_path), read_std=False)
+        run.checkpoint_steps.update(robust_best=2 * STEP, best=3 * STEP, final=9000)
+        rows = {row["at"]: row for row in th.checkpoint_rows(run, th.resolve_marks(["final"], [run]))}
+        assert rows["robust_best"]["flagged_actuators"] == {"tail_3_pitch_act +": 6}
+        assert rows["best"]["flagged_actuators"]["r_ankle_act -"] == 2
+        assert (
+            rows["J 9,000 (final)"]["flagged_actuators"] == {}
+            and rows["J 9,000 (final)"]["evaluation_timesteps"] == 4 * STEP
+        )
+        assert rows["robust_best"]["saturated_actuator_fraction_worst"] == pytest.approx(0.31)
+
+    def test_the_json_html_and_saturation_page_carry_it(self, tmp_path):
+        stage = self._ledger(tmp_path)
+        out = tmp_path / "reports" / "named"
+        assert script.main([str(stage), "--out", str(out), "--no-std", "--dpi", "30", "--mark-steps", "final"]) == 0
+        document = json.loads((out / th.JSON_FILENAME).read_text(), parse_constant=_no_constant)
+        record = document["runs"][0]
+        assert record["evaluations"]["flagged_actuators"][1] == {"tail_3_pitch_act +": 6}
+        assert record["saturation"]["runs"][0]["named"] == "tail_3_pitch_act +"
+        assert record["checkpoint_table"][-1]["flagged_actuators"] == {}
+        assert "flagged_actuators" in document["rules"]
+        assert record["evaluations"]["columns"]["saturated_actuator_fraction"]["max"][1] == pytest.approx(0.31)
+        text = (out / th.HTML_FILENAME).read_text(encoding="utf-8")
+        assert "flagged by actuator" in text and "(tail_3_pitch_act +)" in text
+        run = th.load_run_history(stage, read_std=False)
+        context = th._make_context([run], marks=[], smooth=5)
+        spec = {page.name: page for page in th.PAGES}["02_saturation"]
+        figure = th._page_figure(spec, context, title="t", dpi=30, width=12.0)
+        saturated, named, fraction = figure.axes[:3]
+        # Stacked raw counts per evaluation: the bars of one evaluation sum to its flagged episodes.
+        heights = {}
+        for patch in named.patches:
+            key = round(patch.get_x() + patch.get_width() / 2, 6)
+            heights[key] = heights.get(key, 0.0) + patch.get_height()
+        assert sorted(heights.values()) == [6.0, 7.0]
+        legend = [text.get_text() for text in named.get_legend().get_texts()]
+        assert legend[0] == "tail_3_pitch_act + (8)" and "r_ankle_act - (2)" in legend
+        assert any("(tail_3_pitch_act +)" in text.get_text() for text in saturated.texts)  # the alarm, labelled
+        assert any("max_actuator_saturation_fraction bar 0.1" in text.get_text() for text in fraction.texts)
+        caption = th.render_pages([run], title="t", marks=[], dpi=30)[0][1].caption
+        assert "saturated_actuator" in caption and "records no" not in caption
+
+    def test_a_comparison_colours_each_cell_by_the_actuator_most_named(self, tmp_path):
+        from matplotlib.colors import to_rgba
+
+        other = _stage(tmp_path, saturated=[0, 0, 5, 0], name="b")
+        rows = list(csv.DictReader((other / th.EVAL_EPISODES_FILENAME).open(newline="", encoding="utf-8")))
+        for row in rows:
+            if row["saturated_actuator"]:
+                row.update(saturated_actuator="r_ankle_act", saturated_actuator_positive_share="0.0")
+        _write_csv(other / th.EVAL_EPISODES_FILENAME, rows, COLUMNS)
+        runs = [
+            th.load_run_history(self._ledger(tmp_path, "a"), label="a", read_std=False),
+            th.load_run_history(other, label="b", read_std=False),
+        ]
+        context = th._make_context(runs, marks=[], smooth=5)
+        assert list(context.named_colours)[:2] == ["tail_3_pitch_act +", "r_ankle_act -"]
+        figure = th._page_figure(th.PAGES[1], context, title="t", dpi=30, width=12.0)
+        strip = figure.axes[1]
+        colours = [tuple(patch.get_facecolor()) for patch in strip.patches]
+        tail, ankle = (to_rgba(context.named_colours[label]) for label in ("tail_3_pitch_act +", "r_ankle_act -"))
+        # a: evaluation 1, then evaluation 2 (the tail in three episodes, + and +/-, before the ankle in two); b: 2.
+        assert colours == [tail, tail, ankle]
+        labels = [text.get_text() for text in figure.legends[0].get_texts()]
+        assert "flagged: tail_3_pitch_act +" in labels and "flagged: r_ankle_act -" in labels
+        # The key lists only the colours a cell is drawn in: a's one +/- episode never colours one.
+        assert not any("+/-" in label or "(unmeasured)" in label for label in labels)
+
+    def test_an_older_ledger_is_an_absent_series(self, tmp_path):
+        stage = _stage(tmp_path, name="old")
+        older = [column for column in COLUMNS if column not in th.SATURATED_ACTUATOR_COLUMNS]
+        rows = list(csv.DictReader((stage / th.EVAL_EPISODES_FILENAME).open(newline="", encoding="utf-8")))
+        _write_csv(stage / th.EVAL_EPISODES_FILENAME, rows, older)
+        run = th.load_run_history(stage, read_std=False)
+        assert "flagged_actuators" not in run.evaluations and run.series("saturated").tolist() == [0, 6, 7, 0]
+        assert "named" not in run.saturation["runs"][0] and run.column("saturated_actuator_fraction") is None
+        assert f"{th.EVAL_EPISODES_FILENAME}: column saturated_actuator" in run.absent
+        assert "flagged_actuators" not in th.checkpoint_rows(run, [STEP])[0]
+        pages, errors = th.render_pages([run], title="t", marks=[], dpi=30)
+        assert errors == [] and "this ledger records no saturated_actuator" in pages[1].caption
+        figure = th._page_figure(
+            th.PAGES[1], th._make_context([run], marks=[], smooth=5), title="t", dpi=30, width=12.0
+        )
+        assert any(
+            "not recorded in these files (saturated_actuator)" in text.get_text() for text in figure.axes[1].texts
+        )
 
 
 class TestTolerance:
