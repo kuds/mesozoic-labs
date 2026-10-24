@@ -588,7 +588,8 @@ def _saturated_steps(actions: np.ndarray) -> np.ndarray | None:
     actions = np.asarray(actions, dtype=np.float64)
     if not actions.size or not np.all(np.isfinite(actions)):
         return None
-    return np.abs(actions) >= SATURATION_ABS
+    saturated: np.ndarray = np.abs(actions) >= SATURATION_ABS
+    return saturated
 
 
 def _saturation_metrics(actions: np.ndarray) -> dict[str, float]:
