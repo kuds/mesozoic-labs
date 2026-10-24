@@ -21,6 +21,7 @@ import numpy as np
 from .curriculum.manager import DEFAULT_MIN_EVAL_EPISODES
 from .curriculum.stance_gate import required_duty_episodes
 from .curriculum.task_success_gate import TASK_SUCCESS_GATE_KIND
+from .gait.stance_metrics import SATURATED_ACTUATOR_COLUMNS
 from .model_id import ModelId
 from .stance_diagnostics import derive_stance_info
 
@@ -37,8 +38,9 @@ SAGITTAL_LEG_JOINTS: tuple[str, ...] = ("hip_pitch", "knee", "ankle")
 TERMINATION_KEY_PREFIX = "termination_"
 
 #: The eval-episode ledger (:mod:`~environments.shared.episode_ledger`): its file, in the stage directory
-#: beside ``gate_progress.npz``, and its fixed columns; the foot, balance and force columns follow
-#: (:meth:`StageAwareEvalCallback._ledger_rows`).
+#: beside ``gate_progress.npz``, and its fixed columns; the screen, saturating-actuator
+#: (:data:`~environments.shared.gait.stance_metrics.SATURATED_ACTUATOR_COLUMNS`), spawn, foot, balance and force
+#: columns follow (:meth:`StageAwareEvalCallback._ledger_rows`).
 EVAL_LEDGER_FILENAME = "eval_episodes.csv"
 EVAL_LEDGER_FIXED_COLUMNS: tuple[str, ...] = (
     "evaluation",
@@ -389,7 +391,8 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
     * the **eval-episode ledger**, ``eval_episodes.csv`` beside
       ``gate_progress.npz`` (:mod:`~environments.shared.episode_ledger`):
       one row per evaluation episode, its outcome beside its foot, balance
-      and force values, rewritten after every evaluation;
+      and force values and the actuator behind its
+      ``max_actuator_saturation_fraction``, rewritten after every evaluation;
     * the **in-training v2 screen** (:attr:`evaluations_screen_v2`): on a
       stage that declares ``stance_quality/v2``'s keys and runs the
       recorder, ``evaluate_stance_v2_gate(..., in_training=True)`` on the
@@ -984,16 +987,49 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
             self._warn_ledger("an episode's stance metrics could not be computed for the in-training screen")
             return None
 
+    def _episode_saturation(self, trace: Any, env_index: int) -> dict[str, Any]:
+        """The episode's saturating actuator (:data:`SATURATED_ACTUATOR_COLUMNS`), named from its sub-env's model.
+
+        ``gait.stance_metrics.saturated_actuator`` on the recorded trace: the
+        screen's window, threshold and NaN rule, so the fraction is the
+        episode's ``max_actuator_saturation_fraction`` bit for bit.  The name
+        is empty when no actuator saturates or the episode is unmeasured, and
+        ``actuator[<index>]`` when the model gives none (or cannot be read).
+        """
+        out: dict[str, Any] = {"saturated_actuator": "", **dict.fromkeys(SATURATED_ACTUATOR_COLUMNS[1:], float("nan"))}
+        if trace is None:
+            return out
+        try:
+            from .gait.stance_metrics import saturated_actuator
+
+            found = saturated_actuator(trace, settle_steps=self.settle_steps)
+            counts = [int(value) if math.isfinite(value) else value for value in (found.ties, found.saturating)]
+            out.update(
+                saturated_actuator_fraction=found.fraction,
+                saturated_actuator_positive_share=found.positive_share,
+                saturated_actuator_ties=counts[0],
+                actuators_saturated=counts[1],
+            )
+            if found.actuator is not None:
+                setup = self.__dict__.get("_foot_setup") or []
+                model = setup[env_index][1] if env_index < len(setup) else None
+                out["saturated_actuator"] = _actuator_name(model, found.actuator)
+        except Exception:  # noqa: BLE001 - a diagnostic must not sink a run
+            self._warn_ledger("an episode's saturating actuator could not be read")
+        return out
+
     def _capture_ledger_only(self, trace: Any, env_index: int) -> None:
-        """Keep one episode's ledger-only values: its screen metrics and its spawn (NaN when unmeasured).
+        """Keep one episode's ledger-only values: its screen metrics, its saturating actuator and its spawn.
 
         Ledger-only: nothing publishes them to the plateau callback, so the
-        spawn columns can never reach ``gate_progress.npz``.
+        saturating-actuator and spawn columns can never reach
+        ``gate_progress.npz``.  An unmeasured value reads NaN (empty text).
         """
         self.__dict__.setdefault("_current_eval_screen", []).append(self._episode_screen(trace))
         try:
             store = self.__dict__.setdefault("_current_eval_ledger_only", {})
-            for key, value in self._episode_spawn(trace, env_index).items():
+            values = {**self._episode_saturation(trace, env_index), **self._episode_spawn(trace, env_index)}
+            for key, value in values.items():
                 store.setdefault(key, []).append(value)
         except Exception:  # noqa: BLE001 - a diagnostic must not sink a run
             self._warn_ledger("an episode's ledger-only values could not be kept")
@@ -1383,14 +1419,14 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
             )
 
     def _ledger_rows(self) -> list[dict[str, Any]]:
-        """This evaluation's ledger rows: its outcomes, then its screen, spawn, foot, balance and force columns.
+        """This evaluation's ledger rows: outcomes, then the screen, saturation, spawn, foot, balance and force columns.
 
         Positionally aligned, as every per-episode series is: the outcome
         columns from ``evaluations_results[-1]``, ``evaluations_length[-1]``
         and the causes; the foot, balance and force columns from this
-        evaluation's ``evaluations_foot_pad`` record; the screen and spawn
-        columns from the ledger-only store.  A column whose values are not
-        one per episode reads ``""``.
+        evaluation's ``evaluations_foot_pad`` record; the screen,
+        saturating-actuator and spawn columns from the ledger-only store.  A
+        column whose values are not one per episode reads ``""``.
         """
         results = self.__dict__.get("evaluations_results") or []
         lengths = self.__dict__.get("evaluations_length") or []
@@ -1418,7 +1454,7 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
             "full_horizon": [int(value >= self.horizon) for value in episode_lengths],
             "cause": causes,
         }
-        for key in ("screen_v2_clean", "screen_v2_reasons"):
+        for key in ("screen_v2_clean", "screen_v2_reasons", *SATURATED_ACTUATOR_COLUMNS):
             if key in store:
                 columns[key] = aligned(store[key])
         for key in self._spawn_columns():
@@ -1454,6 +1490,17 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
             self._current_eval_ledger_only = {}
         if ledger is not None:
             ledger.write()
+
+
+def _actuator_name(model: Any, index: int) -> str:
+    """Actuator *index*'s name in *model* (the action's order), or ``actuator[<index>]`` when it has none."""
+    try:
+        import mujoco
+
+        name = mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_ACTUATOR, int(index))
+    except Exception:  # noqa: BLE001 - a name is a label only
+        name = None
+    return str(name) if name else f"actuator[{int(index)}]"
 
 
 def _episode_max_over_feet(series: "list[Any]") -> list[float] | None:
