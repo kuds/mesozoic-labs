@@ -2413,13 +2413,22 @@ class TestTheEvalEpisodeLedger:
         assert rows[1]["screen_v2_reasons"] == "max_sole_cop_fore_aft" and rows[0]["screen_v2_reasons"] == ""
         assert rows[3]["screen_v2_reasons"].split(";")[0] == "horizon"
         # The ledger-only columns, then the pad, roll-rail and maxima columns of each foot.
-        assert header[8:13] == [
+        assert header[8:18] == [
             "screen_v2_clean",
             "screen_v2_reasons",
+            "saturated_actuator",
+            "saturated_actuator_fraction",
+            "saturated_actuator_positive_share",
+            "saturated_actuator_ties",
+            "actuators_saturated",
             "spawn_stance_width_change_m",
             "r_spawn_tilt_deg",
             "l_spawn_tilt_deg",
         ]
+        # The statues command nothing: no actuator is named, and the fraction is the metric's 0.
+        assert [row["saturated_actuator"] for row in rows] == [""] * 4
+        assert [row["saturated_actuator_fraction"] for row in rows] == ["0.0"] * 4
+        assert rows[0]["saturated_actuator_positive_share"] == "nan" and rows[0]["actuators_saturated"] == "0"
         assert float(rows[1]["max_sole_cop_fore_aft"]) == pytest.approx(0.95 * 300 / 300)
         assert rows[0]["spawn_stance_width_change_m"] == "nan"  # no balance layout: unmeasured, written as nan
         assert rows[0]["r_spawn_tilt_deg"] == "0.0"
@@ -2427,6 +2436,56 @@ class TestTheEvalEpisodeLedger:
         ledger = callback._ledger
         assert len(ledger) == 4 and ledger.column("episode") == [0, 1, 2, 3]
         assert all(type(values) is list and len(values) == 4 for values in ledger._columns.values())
+
+    def test_each_episode_names_the_actuator_behind_its_saturation_metric(self, tmp_path):
+        import csv
+
+        from environments.shared.gait.stance_metrics import episode_stance_metrics
+
+        traces = _screen_traces()
+        held = traces[0].action.copy()
+        held[100:, 3] = 1.0  # the last actuator held at +1 over the whole window: over the screen's 0.5 bar
+        held[100:200, 1] = -1.0  # a third of the window at -1: saturating, not the metric's actuator
+        traces[0] = replace(traces[0], action=held)
+        tied = traces[2].action.copy()
+        tied[100:250, 2] = -1.0
+        tied[250:, 0] = -1.0
+        tied[250:, 2] = 1.0  # actuator 2 on the whole window, both signs; actuator 0 on half of it
+        traces[2] = replace(traces[2], action=tied)
+        unmeasured = traces[1].action.copy()
+        unmeasured[300] = np.nan  # a window step with no action
+        traces[1] = replace(traces[1], action=unmeasured)
+        _screened_evaluation(traces, ledger_dir=tmp_path)
+        with open(tmp_path / "eval_episodes.csv", newline="") as handle:
+            rows = list(csv.DictReader(handle))
+        gates = [episode_stance_metrics(trace, settle_steps=100).max_actuator_saturation_fraction for trace in traces]
+        # The synthetic sub-env has no model, so the actuator is named by its index.
+        assert [row["saturated_actuator"] for row in rows] == ["actuator[3]", "", "actuator[2]", ""]
+        for row, gate in zip(rows, gates):
+            assert row["saturated_actuator_fraction"] == ("nan" if math.isnan(gate) else repr(gate))
+        assert [row["saturated_actuator_positive_share"] for row in rows] == ["1.0", "nan", "0.5", "nan"]
+        assert [row["saturated_actuator_ties"] for row in rows] == ["0", "nan", "0", "0"]
+        assert [row["actuators_saturated"] for row in rows] == ["2", "nan", "2", "0"]
+        assert "max_actuator_saturation_fraction" in rows[0]["screen_v2_reasons"].split(";")
+        assert "max_actuator_saturation_fraction" in rows[1]["screen_v2_reasons"].split(";")  # NaN fails the bar
+
+    def test_the_saturating_actuator_columns_read_as_no_rail_foot_gate_key_or_number(self):
+        from environments.shared.curriculum.progress_report import _feet_of
+        from environments.shared.curriculum.stance_gate_v2 import EPISODE_CRITERIA, STANCE_V2_PANEL_FIELDNAMES
+        from environments.shared.gait.stance_metrics import SATURATED_ACTUATOR_COLUMNS
+        from environments.shared.reporting import training_history
+        from environments.shared.visualization import _gate_progress_groups
+
+        columns = list(SATURATED_ACTUATOR_COLUMNS)
+        gate_keys = {key for criterion in EPISODE_CRITERIA for key in criterion[:2]} | set(STANCE_V2_PANEL_FIELDNAMES)
+        for column in columns:
+            assert not column.endswith(RAIL_SUFFIXES) and column not in gate_keys, column
+            assert not column.startswith(("max_", "min_", "term_", "termination_", "screen_v2_", "fall_")), column
+            assert not column.startswith(("leg_dc_", "leg_q_", "reward_", "eval_", "plant_", "std_")), column
+        row = {column: 0.0 for column in columns}
+        assert not any(_feet_of(row, suffix.lstrip("_")) for suffix in RAIL_SUFFIXES)
+        assert not any(_gate_progress_groups(columns).values())
+        assert training_history.foot_labels(columns) == [] and training_history.lr_columns(columns) == {}
 
     def test_every_evaluation_rewrites_the_whole_file(self, tmp_path):
         import csv
@@ -2521,6 +2580,7 @@ class TestTheExtensionsOnARealEvaluation:
         # The ledger-only columns never reach gate_progress.npz.
         assert not any("spawn" in key for key in data.files)
         assert "screen_v2_clean" not in data.files and "screen_v2_reasons" not in data.files
+        assert not any("saturated_actuator" in key or key == "actuators_saturated" for key in data.files)
         assert all(math.isfinite(data[key][0]) for key in callback.balance_keys if key != "xcom_toe_lead_s")
         assert "xcom_toe_lead_s" not in data.files and math.isnan(data["fall_xcom_toe_lead_s"][0])  # no fall
         assert data["actuator_force_frac_per_actuator"].shape == (1, 15)
@@ -2528,6 +2588,33 @@ class TestTheExtensionsOnARealEvaluation:
         for key in data.files:  # no new key reads as a foot to the posture readers, as a term or as a cause
             if key in callback.balance_keys or key.startswith(("screen_v2_", "fall_", "full_horizon_term_")):
                 assert not key.endswith(RAIL_SUFFIXES) and not key.startswith(("term_", "termination_")), key
+
+    def test_the_ledger_names_the_held_tail_and_its_fraction_is_the_screens_metric(self, tmp_path, monkeypatch):
+        import csv
+
+        import mujoco
+
+        from environments.shared.gait.stance_metrics import episode_stance_metrics
+        from environments.shared.paths import ENVIRONMENTS_ROOT
+
+        model = mujoco.MjModel.from_xml_path(str(TYRANNOSAURUS_REX.asset_path(ENVIRONMENTS_ROOT)))
+        names = [mujoco.mj_id2name(model, mujoco.mjtObj.mjOBJ_ACTUATOR, i) for i in range(model.nu)]
+        action = np.zeros(len(names))
+        action[names.index("tail_3_pitch_act")] = 1.0  # the tail held up, as the four failed runs held it
+        callback, data, traces, settle, _hook = _real_evaluation(
+            TYRANNOSAURUS_REX, tmp_path, monkeypatch, action=action
+        )
+        with open(tmp_path / "eval_episodes.csv", newline="") as handle:
+            rows = list(csv.DictReader(handle))
+        assert len(rows) == len(traces) == 2
+        for row, trace in zip(rows, traces):
+            gate = episode_stance_metrics(trace, settle_steps=settle).max_actuator_saturation_fraction
+            assert row["saturated_actuator"] == "tail_3_pitch_act"
+            assert row["saturated_actuator_fraction"] == repr(gate) == "1.0"
+            assert row["saturated_actuator_positive_share"] == "1.0" and row["actuators_saturated"] == "1"
+            assert row["saturated_actuator_ties"] == "0"
+            assert "max_actuator_saturation_fraction" in row["screen_v2_reasons"].split(";")
+        assert not any("saturated_actuator" in key for key in data.files)
 
     @pytest.mark.parametrize("failure", ["hook", "reducer", "constructor"])
     def test_a_failing_balance_capture_costs_only_the_balance_keys(self, tmp_path, monkeypatch, failure):

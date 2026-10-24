@@ -606,16 +606,30 @@ evaluation could not align with its episodes reads empty.
 | `evaluation`, `timesteps`, `episode`, `env` | The evaluation's index and training step, the episode's index in it, and the evaluation env it ran on |
 | `return`, `length`, `full_horizon`, `cause` | The episode's return and length (in `evaluations.npz`'s order), 1 when it reached the horizon, and how it ended: `truncated`, the env's `termination_reason`, or `terminated` |
 | `screen_v2_clean`, `screen_v2_reasons` | Where the screen runs: 1 when the episode met every bar the screen applies, and the bars it failed, `;`-joined |
+| `saturated_actuator`, `saturated_actuator_fraction`, `saturated_actuator_positive_share`, `saturated_actuator_ties`, `actuators_saturated` | Where the recorder runs: the actuator behind the episode's `max_actuator_saturation_fraction` and its sign. The name (text; empty when no actuator saturates or the window is unmeasured) of the actuator with the largest fraction of post-settle window steps at `\|action\| >= 0.99`, the lowest index on a tie; that fraction, the screen's metric bit for bit (the same window, threshold and NaN rule: 0 when nothing saturates, `nan` unmeasured); the share of its saturated steps commanded positive (1: all at +1, 0: all at -1; `nan` when none is named); the other actuators tied at that fraction; and the actuators with at least one saturated window step. Report only, in this file only |
 | `spawn_stance_width_change_m`, `<label>_spawn_tilt_deg` | Where the recorder runs: at the episode's first substep, the largest change of a foot pair's horizontal distance from the home pose (m), and each box sole's tilt (degrees). In this file only |
 | `<label>_sole_cop_fore_aft`, `<label>_sole_cop_fore_aft_gate`, `<label>_digit_share`, `<label>_foot_cop_fore_aft`, `<label>_foot_cop_fore_aft_gate`, `<label>_toe_margin_nm`, `<label>_sole_tilt_deg`, `<label>_sole_corner_lift_m` | Per foot, where it has them: the episode values whose full-horizon means `gate_progress.npz` holds |
 | `max_sole_cop_fore_aft`, `max_foot_cop_fore_aft`, `max_sole_tilt_deg`, `max_sole_corner_lift_m` | The episode's maxima over the feet, the per-episode numbers the gate's rails read |
 | The balance and force keys | The episode's own values of the keys in the balance table above, with `xcom_toe_lead_s` in place of its fall mean (NaN on an episode that did not fall) |
 
 The per-digit load fields and the whole-foot CoP spread and frequency stay
-in `gate_progress.npz` only. On the T. rex a row has 63 columns and about
-1.06 KB (measured), so the file of a 12M stance (40 episodes every 50,000
-steps, 9,600 rows) ends at about 10 MB, and rewriting it at every
-evaluation writes about 1.2 GB to Drive over the run.
+in `gate_progress.npz` only. On the T. rex a row has 68 columns and about
+1.09 KB (measured; the five saturating-actuator columns add 13 bytes to a
+row that names no actuator and up to about 50 to one that does), so the
+file of a 12M stance (40 episodes every 50,000 steps, 9,600 rows) ends at
+about 10.5 MB, and rewriting it at every evaluation writes about 1.25 GB to
+Drive over the run.
+
+The saturating-actuator columns name what `max_actuator_saturation_fraction`
+only flags: `gait.stance_metrics.saturated_actuator` reads the trace the
+recorder already closed, through the reduction the metric itself uses, and
+names the actuator from the evaluation env's model (`actuator[<index>]` when
+it has no name). They are not `StanceEpisodeMetrics` fields, panel columns
+or gate keys, and they never reach `gate_progress.npz`: no gate verdict,
+reward, observation, action, termination, checkpoint selection or digest
+reads them, and no name begins with `max_` or `min_` or ends in a per-foot
+suffix, so no rail, foot or gate reader takes one up. A ledger written
+before them lacks the columns (a resumed run's earlier rows read empty).
 
 ## Training episodes: `train_episodes.csv` and the rollout counts
 

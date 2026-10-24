@@ -41,7 +41,7 @@ from __future__ import annotations
 import math
 from dataclasses import asdict, dataclass, fields
 from itertools import combinations
-from typing import TYPE_CHECKING, Any, Mapping
+from typing import TYPE_CHECKING, Any, Mapping, NamedTuple
 
 import numpy as np
 
@@ -174,7 +174,8 @@ class StanceEpisodeMetrics:
     #: Max over every step and pair of |pair distance - at spawn| (m).
     max_stance_width_change_m: float
     # --- actions, post-settle window ---
-    #: Max / mean over actuators of the fraction of window steps with |action| >= SATURATION_ABS.
+    #: Max / mean over actuators of the fraction of window steps with |action| >= SATURATION_ABS
+    #: (:func:`saturated_actuator` names the actuator behind the max, for the eval-episode ledger only).
     max_actuator_saturation_fraction: float
     mean_actuator_saturation_fraction: float
     # --- per-foot and per-geom detail (report, and the statue-relative ratios) ---
@@ -577,16 +578,88 @@ def _foot_cop_metric(trace: "EpisodeTrace", window: slice) -> float:
     return float(per_foot.max())
 
 
-def _saturation_metrics(actions: np.ndarray) -> dict[str, float]:
-    """Per-actuator saturated-step fractions over the window: NaN when any window step has no action."""
+def _saturated_steps(actions: np.ndarray) -> np.ndarray | None:
+    """(W, nu) ``|action| >= SATURATION_ABS`` over the window; ``None`` (unmeasured): empty, or a step has no action.
+
+    The one reduction :func:`_saturation_metrics` and :func:`saturated_actuator`
+    share, so the actuator the ledger names and the gate's
+    ``max_actuator_saturation_fraction`` agree bit for bit.
+    """
     actions = np.asarray(actions, dtype=np.float64)
     if not actions.size or not np.all(np.isfinite(actions)):
+        return None
+    return np.abs(actions) >= SATURATION_ABS
+
+
+def _saturation_metrics(actions: np.ndarray) -> dict[str, float]:
+    """Per-actuator saturated-step fractions over the window: NaN when any window step has no action."""
+    saturated = _saturated_steps(actions)
+    if saturated is None:
         return {"max_actuator_saturation_fraction": NAN, "mean_actuator_saturation_fraction": NAN}
-    saturated = (np.abs(actions) >= SATURATION_ABS).mean(axis=0)
+    fractions = saturated.mean(axis=0)
     return {
-        "max_actuator_saturation_fraction": float(saturated.max()),
-        "mean_actuator_saturation_fraction": float(saturated.mean()),
+        "max_actuator_saturation_fraction": float(fractions.max()),
+        "mean_actuator_saturation_fraction": float(fractions.mean()),
     }
+
+
+#: The eval-episode ledger's columns for :func:`saturated_actuator`, in order: the actuator's name (text, empty
+#: when none is named), its fraction, its positive share, its ties and the actuators saturated.  Report-only: not
+#: a :class:`StanceEpisodeMetrics` field, a panel column or a gate key, and no name begins ``max_`` / ``min_`` or
+#: ends in a per-foot suffix, so no rail, foot or gate reader takes one up.
+SATURATED_ACTUATOR_COLUMNS: tuple[str, ...] = (
+    "saturated_actuator",
+    "saturated_actuator_fraction",
+    "saturated_actuator_positive_share",
+    "saturated_actuator_ties",
+    "actuators_saturated",
+)
+
+
+class SaturatedActuator(NamedTuple):
+    """The actuator behind an episode's ``max_actuator_saturation_fraction`` (:func:`saturated_actuator`).
+
+    ``actuator``: the actuator (action) index with the largest saturated-step
+    fraction over the window, the lowest index on a tie; ``None`` when no
+    actuator saturates or the window is unmeasured.  ``fraction``: that
+    largest fraction, ``max_actuator_saturation_fraction`` bit for bit (0
+    when nothing saturates, NaN unmeasured).  ``positive_share``: the share
+    of the named actuator's saturated window steps commanded positive (1:
+    every one at +1, 0: every one at -1), NaN when none is named.  ``ties``:
+    the other actuators at the same fraction (0 when none is named);
+    ``saturating``: the actuators with at least one saturated window step.
+    Both are NaN unmeasured.
+    """
+
+    actuator: int | None
+    fraction: float
+    positive_share: float
+    ties: float
+    saturating: float
+
+
+def saturated_actuator(trace: "EpisodeTrace", *, settle_steps: int) -> SaturatedActuator:
+    """The actuator behind the episode's ``max_actuator_saturation_fraction``: report-only.
+
+    The same window ``[settle_steps, T)``, threshold (``|action| >=
+    SATURATION_ABS``) and NaN rule as :func:`episode_stance_metrics`, through
+    the same reduction (:func:`_saturated_steps`).  It reads the trace only.
+    """
+    if isinstance(settle_steps, bool) or int(settle_steps) != settle_steps or settle_steps < 0:
+        raise ValueError(f"settle_steps must be a non-negative whole number of steps, got {settle_steps!r}")
+    actions = np.asarray(trace.action, dtype=np.float64)[int(settle_steps) :]
+    saturated = _saturated_steps(actions)
+    if saturated is None:
+        return SaturatedActuator(None, NAN, NAN, NAN, NAN)
+    fractions = saturated.mean(axis=0)
+    top = float(fractions.max())
+    saturating = float(np.count_nonzero(fractions > 0.0))
+    if top <= 0.0:
+        return SaturatedActuator(None, top, NAN, 0.0, saturating)
+    index = int(np.argmax(fractions))  # the first maximum: the lowest index on a tie
+    positive = actions[saturated[:, index], index] > 0.0
+    ties = float(np.count_nonzero(fractions == top) - 1)
+    return SaturatedActuator(index, top, float(positive.mean()), ties, saturating)
 
 
 #: The scalar fields computed over the post-settle window (all NaN when it is empty).

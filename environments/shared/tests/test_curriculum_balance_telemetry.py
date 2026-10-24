@@ -355,6 +355,8 @@ def test_the_full_run_writes_the_ledger_and_the_progress_blocks(trained):
     assert len(rows) == evaluations["results"].size == 3 * EPISODES
     assert [int(row["timesteps"]) for row in rows] == [int(step) for step in evaluations["timesteps"] for _ in range(2)]
     assert [float(row["return"]) for row in rows] == pytest.approx(evaluations["results"].ravel().tolist())
+    # The saturating-actuator columns are among the additions the plain run trains and evaluates exactly like.
+    assert {"saturated_actuator", "saturated_actuator_fraction", "actuators_saturated"} <= set(rows[0])
     record = json.loads((full / "progress.json").read_text(encoding="utf-8"))
     assert {"balance", "forces"} <= set(record) and "leg_q_deg" in record["posture"]
     assert "screen_v2" in record["evaluation"]

@@ -32,11 +32,14 @@ from environments.shared.gait import constants, events
 from environments.shared.gait.recorder import EpisodeTrace
 from environments.shared.gait.stance_metrics import (
     _WINDOW_FIELDS,
+    SATURATED_ACTUATOR_COLUMNS,
     STANCE_METRIC_FIELDS,
     STANCE_METRIC_FOOT_FIELDS,
     STANCE_METRIC_LATER_FIELDS,
+    SaturatedActuator,
     StanceEpisodeMetrics,
     episode_stance_metrics,
+    saturated_actuator,
     spawn_grace_steps,
     whole_foot_cop,
 )
@@ -638,6 +641,75 @@ def test_saturation_is_unmeasured_when_a_window_step_has_no_action():
     action = trace.action.copy()
     action[50] = np.nan
     assert metrics(edited(trace, action=action)).max_actuator_saturation_fraction == 0.0
+
+
+def _named(action: np.ndarray, steps: int = 400, settle_steps: int = 100) -> tuple[SaturatedActuator, float]:
+    """``saturated_actuator`` and the gate's ``max_actuator_saturation_fraction`` on a statue with *action*."""
+    trace = edited(statue_trace(steps), action=action)
+    return saturated_actuator(trace, settle_steps=settle_steps), metrics(
+        trace, settle_steps
+    ).max_actuator_saturation_fraction
+
+
+def test_no_saturated_step_names_no_actuator():
+    found, gate = _named(np.full((400, NU), 0.98))
+    assert found == SaturatedActuator(None, 0.0, found.positive_share, 0.0, 0.0) and math.isnan(found.positive_share)
+    assert found.fraction == gate == 0.0
+
+
+def test_the_actuator_behind_the_metric_is_named_with_its_sign():
+    action = np.zeros((400, NU))
+    action[100:400:3, 1] = -1.0  # a third of the window at -1
+    action[100:, 3] = 1.0  # the tail held up on every window step: the metric's actuator
+    action[:100, 2] = 1.0  # the settle window does not count
+    found, gate = _named(action)
+    assert found.actuator == 3 and found.fraction == gate == 1.0
+    assert found.positive_share == 1.0 and found.ties == 0.0 and found.saturating == 2.0
+    action[100:, 3] = np.where(np.arange(300) % 4 == 0, 1.0, -0.995)  # bang-bang, three steps in four at -1
+    found, gate = _named(action)
+    assert found.actuator == 3 and found.fraction == gate == 1.0 and found.positive_share == 0.25
+    action[100:, 3] = -1.0
+    assert _named(action)[0].positive_share == 0.0
+
+
+def test_a_tie_names_the_lowest_index_and_counts_the_others():
+    action = np.zeros((400, NU))
+    action[100:250, 1] = 1.0
+    action[250:, 2] = -1.0
+    action[100:250, 3] = -1.0
+    found, gate = _named(action)
+    assert (found.actuator, found.fraction, found.ties, found.saturating) == (1, 0.5, 2.0, 3.0)
+    assert found.fraction == gate and found.positive_share == 1.0
+
+
+def test_an_unmeasured_window_names_nothing_and_reads_nan():
+    action = np.zeros((400, NU))
+    action[100:, 0] = 1.0
+    action[250] = np.nan  # a window step with no action
+    found, gate = _named(action)
+    assert found.actuator is None and math.isnan(gate)
+    assert all(math.isnan(value) for value in found[1:])
+    found, gate = _named(np.ones((80, NU)), steps=80)  # the episode ended before the window
+    assert found.actuator is None and math.isnan(found.fraction) and math.isnan(gate)
+    with pytest.raises(ValueError, match="settle_steps"):
+        saturated_actuator(statue_trace(), settle_steps=-1)
+
+
+def test_the_named_fraction_is_the_gate_metric_bit_for_bit():
+    rng = np.random.default_rng(7)
+    for _ in range(20):
+        action = np.clip(rng.normal(0.0, 0.8, size=(400, NU)), -1.0, 1.0)
+        found, gate = _named(action)
+        assert found.fraction == gate and (found.actuator is None) == (gate == 0.0)
+
+
+def test_the_ledger_columns_are_no_metric_field_rail_or_gate_key():
+    from environments.shared.curriculum.stance_gate_v2 import EPISODE_CRITERIA, STANCE_V2_PANEL_FIELDNAMES
+
+    taken = set(STANCE_METRIC_FIELDS) | set(STANCE_METRIC_FOOT_FIELDS) | set(STANCE_V2_PANEL_FIELDNAMES)
+    taken |= {key for criterion in EPISODE_CRITERIA for key in criterion[:2]}
+    for column in SATURATED_ACTUATOR_COLUMNS:
+        assert column not in taken and not column.startswith(("max_", "min_")), column
 
 
 # ── motion: displacement, slides, yaw, stance width ──────────────────────────
