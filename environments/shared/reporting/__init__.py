@@ -34,6 +34,10 @@ from that layout:
   ``stance_quality/v1`` checkpoint report and its probes, behind
   ``scripts/stance_gate_report.py``; deliberately not re-exported here
   (it imports the species registry at module level), so import it by path
+* :mod:`~environments.shared.reporting.episode_trace` — the per-step,
+  per-actuator trace of single episodes of a checkpoint, behind
+  ``scripts/episode_trace_report.py``; report-only, and not re-exported
+  here for the same reason
 * :mod:`~environments.shared.reporting.training_history` — a stage's training
   history read back from its ledgers and drawn as pages of graphs, behind
   ``scripts/plot_training_history.py``; report only, and not re-exported

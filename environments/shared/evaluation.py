@@ -265,8 +265,11 @@ def record_stage_video(
 
     When *camera_views* is supplied, one additional synchronized video is
     written per named camera preset. When *collect_stance_diagnostics* is
-    true, a per-frame ``*_stance.csv`` is written beside the replay; with a
-    *model_id* whose feet have a box sole it also carries, per such foot,
+    true, a per-frame ``*_stance.csv`` is written beside the replay, with each
+    actuator's command, the policy's raw Gaussian mean before the action clip
+    and the driven joint's position (``<actuator>_command``, ``_raw_mean``,
+    ``_joint_pos``, :func:`~environments.shared.stance_diagnostics.policy_command_columns`);
+    with a *model_id* whose feet have a box sole it also carries, per such foot,
     the step's signed fore-aft pad centre of pressure and the digits' share
     of the foot's load (``<label>_sole_cop_fore_aft``, ``<label>_digit_share``,
     :func:`~environments.shared.gait.pad_telemetry.pad_step_columns`); on a
@@ -365,6 +368,13 @@ def record_stage_video(
         _attach_pad_recorder(render_env, model_id) if collect_stance_diagnostics and model_id is not None else None
     )
     terminated = truncated = False
+    # The command columns of the stance CSV: read-only, and the raw mean is a second forward pass of the
+    # observation predict was given, which draws nothing, so the replay and its video are unchanged.
+    command_layout = None
+    if collect_stance_diagnostics:
+        from .stance_diagnostics import actuator_layout
+
+        command_layout = actuator_layout(render_env)
 
     for step_index in range(max_steps):
         if vec_normalize is not None:
@@ -372,6 +382,11 @@ def record_stage_video(
         else:
             obs_input = obs
         action, _ = model.predict(obs_input, deterministic=True)
+        raw_mean = None
+        if command_layout is not None:
+            from .stance_diagnostics import policy_raw_mean
+
+            raw_mean = policy_raw_mean(model, obs_input)
         obs, reward, terminated, truncated, info = render_env.step(action)
         if pad_capture is not None:
             pad_capture = _close_pad_step(pad_capture, action, reward)
@@ -386,6 +401,10 @@ def record_stage_video(
                 terminated=float(terminated),
                 truncated=float(truncated),
             )
+            if command_layout is not None:
+                from .stance_diagnostics import policy_command_columns
+
+                row.update(policy_command_columns(command_layout, render_env.unwrapped.data, action, raw_mean))
             stance_rows.append(row)
         if camera_views:
             camera = getattr(render_env, "_camera", None)

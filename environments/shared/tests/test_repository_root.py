@@ -283,6 +283,7 @@ SYS_PATH_BOOTSTRAPS = {
     "environments/shared/scripts/action_bound_report.py",
     "environments/shared/scripts/actuator_saturation_report.py",
     "environments/shared/scripts/compare_run_diagnostics.py",
+    "environments/shared/scripts/episode_trace_report.py",
     "environments/shared/scripts/foot_sensor_report.py",
     "environments/shared/scripts/hw_chassis_study.py",
     "environments/shared/scripts/joint_excursion_report.py",
