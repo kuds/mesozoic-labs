@@ -8,6 +8,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **Decision D-D42 recorded: the next T. rex stance round targets the tail
+  saturation habit, with a training-history report and an actuator saturation
+  report, both report only; D-D41 amended with its outcome** (the maintainer's
+  decisions of 2026-10-24; `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2,
+  `docs/CONSOLIDATION_PLAN_2026_09.md` §6, a dated note in §17 of
+  `docs/GAIT_QUALITY_PLAN_2026_09.md`, `docs/NEXT_STEPS.md` §3; §23.7 of
+  `docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md`). Records only:
+  no library code, configuration, test, notebook, digest or generated file
+  changes with it. After D-D41's replication read its line 2 (the entry below),
+  D-D42 takes the first of the three options that line offers: the next round
+  targets the tail saturation habit (`tail_3_pitch_act` pinned at +1 on the
+  saturation rail), and is designed with fixed criteria and brought back to the
+  maintainer for approval before any training. The training-history report
+  goes to a pull request at scope (a), the standalone report as built
+  (report-only pages from the run ledgers; not pushed). An actuator saturation
+  report, during training and for finished models, comes from report-only
+  telemetry naming the saturating actuator and its sign on each
+  evaluation-episode row. Nothing is designed, built or trained by the
+  decision, and walking pilot 2 is not launched. D-D41's row gains a dated
+  amendment with its package, runtime and outcome (line 2, not adopted). Screens
+  certify nothing.
 - **The stance5 replication of D-D41 judged: one of the two new per-foot
   centre-of-pressure band runs holds (line 2), and the band is not adopted; the
   K3 diagnosis, the scratch tail experiment and the K3 readouts recorded, report
