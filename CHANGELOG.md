@@ -8,6 +8,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **A per-step trace of single episodes of a checkpoint, and the policy's
+  command and raw mean in the replay's stance CSV, report-only** (the
+  maintainer's decision of 2026-10-24, after the T. rex tail habit,
+  `tail_3_pitch_act` commanded at +1, took scratch tools to measure in
+  `docs/investigations/stance_2026_10/stance4/satdiag/`). The stance gate
+  flags actuator saturation, but nothing in the repository showed per step
+  what the policy asks for. Nothing reads either output but a person: no
+  gate, reward, observation, action, task, checkpoint selection or plant
+  changes, and the 649-line digest snapshot (plant identities, policy
+  interfaces, task and gate digests, reward captures) is byte-identical.
+  - `environments/shared/scripts/episode_trace_report.py` (library:
+    `environments/shared/reporting/episode_trace.py`) rolls a checkpoint and
+    its named VecNormalize statistics, loaded frozen as the stance report
+    loads them and checked against the current plant, on the stage's own
+    env, one episode per seed. Its default rollout is the stance judge's:
+    the trace of seed `3042 + i` sends the command episode `i` of the
+    stance panel sends, at every step, on the v1 and v2 panels and the
+    heading certificate's 0 degree cell, with the same rewards and lengths
+    (checked against `run_panel`). Per step and per actuator it writes the
+    raw Gaussian mean before the clip (`get_distribution(obs).mode()` under
+    `torch.no_grad()`, the policy probe's pass), the command, `data.ctrl`,
+    the driven joint's position and velocity, and the actuator force and
+    its fraction of the force limit, one CSV per episode. `episode_trace.json`
+    (`mesozoic.episode-trace/v1`) summarizes each episode and traced
+    actuator over the gate's post-settle window at its `SATURATION_ABS`:
+    window means, the shares of steps at `|command| >= 0.99` and `>= 0.9`
+    and with `|raw mean| > 1`, the raw mean's extremes (and, apart, the
+    whole episode's, the reset transient included), the first step at the
+    rail (anywhere and in the window), and the episode's return and
+    length. Its `step` is the action's 0-based index; the replay's stance
+    CSV counts from 1, so its row k is the trace's row k - 1. `--actuators`
+    narrows it; `--stochastic SEED` samples from the policy's own Gaussian
+    (`numpy.random.default_rng(SEED + i)`, the stance screens'
+    `noise_matched_own` draw when `SEED` is the first reset seed);
+    `--hold NAME=VALUE` replaces one actuator's command, for counterfactuals
+    such as holding `tail_3_pitch_act` at 0. Both are recorded as probes.
+    A missing `--vecnorm` is refused unless `--allow-unnormalized`, and an
+    output directory inside the run directory of the checkpoint or its
+    statistics is refused, as `plot_gate_progress.py` refuses one.
+  - The replay's per-frame `*_stance.csv` (`record_stage_video`) gains, per
+    actuator, `<actuator>_command` (the action sent), `<actuator>_raw_mean`
+    (the Gaussian mean before the clip; absent for SAC) and
+    `<actuator>_joint_pos` (`stance_diagnostics.policy_command_columns`).
+    The raw mean is a second forward pass of the observation `predict` was
+    given, which draws no random number and leaves the policy's
+    distribution as it found it: the replay's observations and actions,
+    and so its video and every other column, are those of a replay without
+    it (tested on a real T. rex checkpoint). It costs about 0.15 ms per
+    frame on a [512, 256] policy, against about 1.2 ms per T. rex physics
+    step. No column the snapshot writes on any of the six models ends in
+    these names, and nothing in the repository parses the CSV's columns.
+  - Tests: `test_episode_trace.py` (the judge's rollout step for step, the
+    columns and the summary against the plant and the gate's own saturation
+    function, both probes, the writer, the refusals and the script), the
+    replay's columns in `test_evaluation.py`, and the columns' names and
+    reads on every model in `test_stance_diagnostics.py`.
+    `test_episode_trace.py` needs SB3, so the SB3 job's integration step runs
+    it, and `test_repository_root.py` lists the script's `sys.path`
+    bootstrap. Documented in `docs/TRAINING_ARTIFACT_PRESENTATION.md`.
 - **Decision D-D42 recorded: the next T. rex stance round targets the tail
   saturation habit, with a training-history report and an actuator saturation
   report, both report only; D-D41 amended with its outcome** (the maintainer's
