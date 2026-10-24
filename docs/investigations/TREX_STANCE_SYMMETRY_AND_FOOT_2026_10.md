@@ -3493,10 +3493,11 @@ and 12:55 UTC on 2026-10-24); checkpoints stay on Drive. In the new session, at 
   standalone report as built: report-only pages drawn from the run ledgers
   (no rollouts), built on 2026-10-22 and 2026-10-23 as the first piece of the stage
   report's design (the maintainer's decisions of 2026-10-18), on a local branch
-  `claude/run-training-report` (commits `4a783bae` and `50fd8f60`, not pushed;
-  158 tests passing and ruff clean on `environments/` by the log's 02:54 UTC
-  entry), carried as patches and applied in the new session (`1e0da30`,
-  `356bf3f` on `1b71f00`), its tests pending. It is not part of this change.
+  `claude/run-training-report` (commits `4a783bae` and `50fd8f60`, not pushed
+  then; 158 tests passing and ruff clean on `environments/` by the log's 02:54
+  UTC entry), carried as patches and applied in the new session (`1e0da30`,
+  `356bf3f` on `1b71f00`), its tests pending when the copied log ends (15:27
+  UTC on 2026-10-24). It is not part of this change.
 - **(3) An actuator saturation report**, both during training and for finished
   models, from the ledger: report-only telemetry naming the saturating actuator
   and its sign on each evaluation-episode row, drawn over training by the
@@ -3530,8 +3531,9 @@ no launch), and its parent stays stance3 Run 2's final.
 - **§14, branches:** `claude/screen-trex-r9-armlts-copband` at `cf80ecb1` and
   `claude/pilot-walk-r9-b` at `8c5478a6` stay on GitHub, never merged; the
   handoff branch `claude/handoff-stance5r` is on GitHub, never to be merged. The
-  scratch clone `scratch_tailfix` and the local branch
-  `claude/run-training-report` are not pushed.
+  scratch clone `scratch_tailfix` is not pushed, and the training-history
+  report's branch `claude/run-training-report` was local when the copied log
+  ends (15:27 UTC on 2026-10-24).
 - **§14, Google Drive:** the two runs' folders `stance5_LTSB_s70/` and
   `stance5_LTSB_s80/` under
   `MyDrive/mesozoic-labs/logs/tyrannosaurus_rex/anatomical/ppo/` hold their

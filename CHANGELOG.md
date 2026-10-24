@@ -21,9 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   targets the tail saturation habit (`tail_3_pitch_act` pinned at +1 on the
   saturation rail), and is designed with fixed criteria and brought back to the
   maintainer for approval before any training. The training-history report
-  goes to a pull request at scope (a), the standalone report as built
-  (report-only pages from the run ledgers; not pushed). An actuator saturation
-  report, during training and for finished models, comes from report-only
+  goes to its own pull request at scope (a), the standalone report as built
+  (report-only pages from the run ledgers). An actuator saturation report,
+  during training and for finished models, comes from report-only
   telemetry naming the saturating actuator and its sign on each
   evaluation-episode row. Nothing is designed, built or trained by the
   decision, and walking pilot 2 is not launched. D-D41's row gains a dated
