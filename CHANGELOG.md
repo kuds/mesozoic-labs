@@ -9,8 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **The stance5 replication judge's K3 criterion, read out over training in
-  the training-history report** (the maintainer's decision of 2026-10-25,
-  item (4): task #47's remaining judge-K3 overlay;
+  the training-history report** (the maintainer's decisions of 2026-10-25
+  14:13 UTC in the stance run log, item (4): task #47's remaining judge-K3
+  overlay;
   `environments/shared/reporting/training_history.py`,
   `environments/shared/scripts/plot_training_history.py`; documented in
   `docs/TRAINING_ARTIFACT_PRESENTATION.md`, "Training history pages").
@@ -33,12 +34,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with its reason. Measured: on the judge files of `stance5_LTSB_s70` and
   `stance5_LTSB_s80` the readout gives 0/0 and 1/0 (s70) and 1/0 and 2/0
   (s80) at 6,291,456 and the final, the replication score of record's K3
-  values; a test rebuilds the judge files of all five band runs from that
-  score (`results/scores/score_final.json.gz`) and checks the readout
-  against its K3 values and pass, and against `k3readouts/out`'s judge
-  falls. Without `--judged` (the stage-end report) nothing is drawn.
+  values, and on the stance4 and stance5 rounds' judge files it equals
+  those scores' K3 falls and pass too (8 of 8 runs: stance4 s52, s60, s42;
+  stance5 s52, s60, s42; the replication's s70, s80); a test rebuilds the
+  judge files of all five band runs from the replication's score
+  (`docs/investigations/stance_2026_10/stance5/replication/results/scores/score_final.json.gz`)
+  and checks the readout against its K3 values and pass, and against
+  `k3readouts/out`'s judge falls. Without `--judged` (the stage-end report)
+  nothing is drawn.
 - **Head posture and hip roll drawn over training** (the maintainer's
-  decisions of 2026-10-25, items (2) and (4);
+  decisions of 2026-10-25 14:13 UTC in the stance run log, items (2) and
+  (4);
   `environments/shared/reporting/training_history.py`; documented in
   `docs/TRAINING_ARTIFACT_PRESENTATION.md`, "Training history pages").
   Report only. Two pages after the policy std page, so every earlier page
@@ -52,7 +58,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   absent series (the captions and the JSON's `absent` say so). The stage-end
   report now holds twelve pages.
 - **Each evaluation episode's head posture and hip roll, in the eval-episode
-  ledger** (the maintainer's decisions of 2026-10-25, items (2) and (4):
+  ledger** (the maintainer's decisions of 2026-10-25 14:13 UTC in the
+  stance run log, items (2) and (4):
   head posture as report-only telemetry, no gate change; task #47's
   remaining hip-roll telemetry; `environments/shared/gait/posture_telemetry.py`,
   `environments/shared/gait/recorder.py`,
@@ -74,16 +81,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `report_extensions`); `PostureLayout.from_env` fixes each hinge's sign at
   the home keyframe on a scratch `MjData`; what a model lacks reads `nan`
   for a stated reason (no head-tip site, no neck hinge, no `head_pitch`; the
-  velociraptor and brachiosaurus run no evaluation recorder, so their
-  ledgers carry none of these columns). Validated (measured) on the r9 tree
+  Velociraptor Mongoliensis (Anatomical) and the Brachiosaurus Altithorax
+  (Anatomical) run no evaluation recorder, so their ledgers carry none of
+  these columns). Validated (measured) on the r9 tree
   (`3ffc18e9` with this change) with stance3 Run 2's final, the walking
   parent: over the stance panel's 40 episodes the neck and head pitch
   reproduce the zero-shot check's -2.158 and +0.142 degrees to 9e-16 per
   episode, and the head tip reads 1.24084 m against the check's 1.24086
   (its forward kinematics at the control boundary; this column is the
   boundary substep's, one physics step earlier: at most 3.8e-5 m per
-  episode); on the r10 statue the window means read 0.959 m, 12.27 and
-  12.64 degrees. What moves: eight ledger columns on the T. rex (a row from
+  episode in the window mean and 2.9e-4 m in the window minimum); on the
+  r10 statue the window means read 0.959 m, 12.27 and 12.64 degrees; and
+  on physics r10 the same parent reads the dropped head the gate missed
+  (measured in review over the same 40 episodes): head tip 0.6126 m, neck
+  +32.86 and head +33.00 degrees, the zero-shot check's values (its
+  forward-kinematics head tip 0.61255 m; the pitches equal to every
+  printed digit). What moves: eight ledger columns on the T. rex (a row from
   68 to 76 columns, about 155 bytes more), appended after every other
   column. What does not: no gate verdict, reward, observation, action,
   termination, task, checkpoint selection, plant, hyperparameter or
