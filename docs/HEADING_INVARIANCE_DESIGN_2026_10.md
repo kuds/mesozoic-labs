@@ -607,6 +607,35 @@ carried out the same day (the certificate section above;
 `test_stance_heading_gate.py`, `test_stance_heading_judge.py`,
 `test_stance_heading_report.py` and `test_stance_heading_end_to_end.py`).
 
+*Tolerances amended 2026-10-25 (tests only, approved by the maintainer):* the
+documented contact-solver tolerance is per comparison. The 250-step comparison
+in the shared legs keeps actions to 10⁻⁶, joint state and reward to 10⁻⁹ and the
+observation to the 2 × 10⁻⁶ float32 budget. The full-horizon trace comparison, a
+closed loop behind the frozen PPO policy, bounds actions to 10⁻⁶, joint state
+and reward to 10⁻⁶ (the reward's is the floor-truth metrics' bound), and each
+observation element to four float32 ulps of its 0° value or 10⁻⁵, whichever is
+larger (`CLOSED_LOOP_*` and `float32_ulp_bound` in
+`environments/shared/tests/heading_free_helpers.py`). Behind a network policy a
+turn's float64 rounding noise, about 10⁻¹³, now and then puts an observation
+element on the other side of a float32 rounding boundary than at 0°; the float32
+actions then differ in their last bits (usually several elements at once, one to
+twelve, by up to 1.9 × 10⁻⁹), and the stable loop carries the difference to the
+end without growing it. Over seeds 3042–3061 with one torch thread (T. rex
+physics r9) the worst differences were 1.6 × 10⁻⁸ in action, 6.9 × 10⁻⁸ in joint
+state, 2.1 × 10⁻⁸ in reward and one float32 ulp of a foot force (3.05 × 10⁻⁵ N,
+from a float64 difference of at most 0.95 ulp) on T. rex, and 2.7 × 10⁻⁸,
+3.2 × 10⁻⁷, 5.4 × 10⁻¹¹ and one ulp of an accelerometer reading (9.5 × 10⁻⁷) on
+Compsognathus. Under the earlier closed-loop bounds (reward 10⁻⁹, every
+observation element 10⁻⁵) 7 of T. rex's 20 seeds failed with one torch thread
+and 5 with four, only two of them the same, and the test's seeds 3042–3043
+passed only by chance. A leak still fails: it moves the observation by O(1) from
+the first step, against a per-element bound of 10⁻⁵ or at most 4.8 × 10⁻⁷ of the
+element's value, and in a scratch copy ε·sin(world yaw) added to T. rex's
+projected gravity along z failed the test at each ε tried from 10⁻¹ to 10⁻⁷
+(10⁻¹, then 10⁻³ to 10⁻⁷ by decades), and added to a foot force at 10⁻¹, 10⁻³
+and 10⁻⁴ N (10⁻⁵ only barely), where from 10⁻³ down only the observation bound
+sees it behind this policy.
+
 The heading certificate multiplies final panel simulation work by six: 240
 policy plus 240 statue episodes per seed block. That is an explicit cost at
 certification time, not a sixfold training cost. At the step rates recorded in
