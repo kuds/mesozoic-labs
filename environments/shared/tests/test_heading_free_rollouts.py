@@ -22,15 +22,23 @@ the rounding of a rotated state amplified by the policy, not a heading leak
 the loop is stable: one-ulp action differences, when the arithmetic produces
 any, are carried to the end without growing.  Two comparisons per species,
 seeds 3042 and 3043 over the full 1000-step horizon: the float64 traces of
-``heading_free_helpers.paired_traces``, to its closed-loop bounds, and the
+``heading_free_helpers.paired_traces``, to its closed-loop bounds (joint state
+and reward to 1e-6, each observation element to four float32 ulps of
+0 degrees' value or 1e-5, whichever is larger; its module docstring), and the
 ``stance_quality/v2`` floor-truth panel (``run_panel(..., floor_truth=True)``
 with the heading probe's whole-scene ``SpawnYaw``), whose every
 ``StanceEpisodeMetrics`` field must agree across headings to ``METRIC_ATOL``.
-Measured with torch's default threads, the actions agree exactly, joint
-state to 4.5e-13 and every metric to 2e-10; with one thread, as earlier
-tests leave torch in the SB3 job and the full suite, the compsognathus's
-actions differ by one float32 ulp at some step, its joint state by 7.3e-8,
-its observation by 9.5e-7 and a metric by 5.4e-9 (the T-Rex's are unchanged).
+Measured with torch's default threads, the actions agree exactly, joint state
+to 4.5e-13 and every metric to 2e-10; with one thread, as earlier tests leave
+torch in the SB3 job and the full suite, the compsognathus's actions differ by
+one float32 ulp at some step, its joint state by 7.3e-8, its observation by
+9.5e-7 and a metric by 5.4e-9 (the T-Rex's are unchanged).  Over seeds
+3042-3061 with one thread the T-Rex's actions differ too, on 7 of the 20 seeds
+(5 with four threads, three of them others), and the difference they carry
+moves its reward by up to 2.1e-8 and a foot force by one float32 ulp
+(3.05e-5 N): beyond the open loop's reward bound (1e-9) and a flat 1e-5 on
+every observation element, which this test applied until 2026-10-25 and passed
+only because its seeds are not among them.
 
 About two minutes per run, so it runs in the SB3 job's full depth only (the
 nightly schedule, a manual dispatch or the ``full-ci`` label; python-ci.yml,
@@ -58,6 +66,8 @@ from environments.shared.reporting.stance_report import SpawnYaw, run_panel  # n
 
 from .heading_free_helpers import (  # noqa: E402
     CLOSED_LOOP_OBSERVATION_ATOL,
+    CLOSED_LOOP_OBSERVATION_ULPS,
+    CLOSED_LOOP_REWARD_ATOL,
     CLOSED_LOOP_STATE_ATOL,
     HEADINGS_DEG,
     assert_paired,
@@ -102,7 +112,13 @@ def test_full_horizon_traces_repeat_at_every_heading(frozen_policy):
     for seed in SEEDS:
         traces = paired_traces(model_id, seed, lambda env, observation_dim: predict, horizon)
         assert len(traces[0.0]["actions"]) == horizon, f"{model_id} seed {seed} must stand the whole horizon"
-        assert_paired(traces, state_atol=CLOSED_LOOP_STATE_ATOL, observation_atol=CLOSED_LOOP_OBSERVATION_ATOL)
+        assert_paired(
+            traces,
+            state_atol=CLOSED_LOOP_STATE_ATOL,
+            reward_atol=CLOSED_LOOP_REWARD_ATOL,
+            observation_atol=CLOSED_LOOP_OBSERVATION_ATOL,
+            observation_ulps=CLOSED_LOOP_OBSERVATION_ULPS,
+        )
 
 
 def _metric_rows(result: dict[str, Any]) -> list[dict[str, Any]]:

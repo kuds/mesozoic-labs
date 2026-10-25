@@ -3935,6 +3935,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sampler writes no `terrain_sampling` record).
 
 ### Fixed
+- **The full-horizon heading trace test bounds the closed loop it runs**
+  (tests only; approved by the maintainer on 2026-10-25;
+  `environments/shared/tests/heading_free_helpers.py`,
+  `environments/shared/tests/test_heading_free_rollouts.py`; documented in
+  `docs/HEADING_INVARIANCE_DESIGN_2026_10.md`, "Migration and acceptance").
+  `test_full_horizon_traces_repeat_at_every_heading` passed by chance: on
+  T. rex physics r9 its own check, run with one torch thread over seeds
+  3042–3061, failed 7 of 20 seeds (3047, 3048, 3051, 3056, 3057, 3060 and
+  3061; with four threads 5 fail instead, 3044, 3053, 3054, 3057 and 3060),
+  and its seeds 3042–3043 are among neither. A turn leaves float64
+  rounding noise of about 1e-13, which now and then puts an observation
+  element on the other side of a float32 rounding boundary than at 0°; one
+  action element then differs by an ulp, and the stable closed loop carries a
+  bounded difference to the end (joint state up to 6.9e-8, reward up to
+  2.1e-8, an observation element by one float32 ulp: 3.05e-5 on a 256–512 N
+  foot force, 6.1e-5 above 512 N). That tripped the 1e-9 reward bound the test
+  shared with the 250-step open-loop comparison, and its flat 1e-5 observation
+  bound. No dependence on world yaw was found (a state audit and a reading of
+  the observation and reward code). The test now gives `assert_paired` a
+  closed-loop reward bound, `CLOSED_LOOP_REWARD_ATOL = 1e-6` (the precedent of
+  the floor-truth metrics' `METRIC_ATOL`), and a float32-aware observation
+  bound: each element may differ by `CLOSED_LOOP_OBSERVATION_ULPS = 4` float32
+  ulps of its 0° value or by 1e-5, whichever is larger (`float32_ulp_bound`).
+  That widens the bound only on elements of magnitude 32 or more, the T. rex
+  foot forces (to 1.2e-4 N below 512 N and 2.4e-4 N above); the float64 forces
+  behind them differed by at most 0.95 ulp, and a float32 difference beyond
+  four ulps needs a float64 one of at least 3.5. A leak moves the observation
+  by O(1) from the first step and still fails: in a scratch copy ε·sin(world
+  yaw) added to the T. rex projected gravity along z failed the test for every
+  ε from 0.1 down to 1e-7 (below that the float32 observation does not
+  change), and added to a foot force, which behind this policy only the
+  observation bound sees, from 0.1 down to 1e-4 N. Measured on this change
+  over seeds 3042–3061 with one thread: T. rex worst actions 1.63e-8, joint
+  state 6.93e-8, reward 2.09e-8 and observation 3.05e-5 (13 of 20 seeds pass
+  the old bounds, 20 the new; with four threads 15 and 20); Compsognathus
+  2.70e-8, 3.20e-7, 5.4e-11 and 9.5e-7 (20 of 20 under both).
+  `assert_paired`'s defaults are unchanged, so the 250-step comparison of
+  `test_heading_free_observation.py` keeps actions to 1e-6, joint state and
+  reward to 1e-9 and the observation to 2e-6. No environment, physics, reward,
+  gate, policy interface, seed, thread setting or digest changes.
 - **A same-stage resume continues `gate_progress.npz` instead of truncating
   it** (#621; found by the 6M screen). On a resume `seed_resume_eval_state` seeds
   SB3's evaluation history from `evaluations.npz`, and
