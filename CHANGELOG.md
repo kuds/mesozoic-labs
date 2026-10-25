@@ -8,6 +8,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **Each evaluation episode's head posture and hip roll, in the eval-episode
+  ledger** (the maintainer's decisions of 2026-10-25, items (2) and (4):
+  head posture as report-only telemetry, no gate change; task #47's
+  remaining hip-roll telemetry; `environments/shared/gait/posture_telemetry.py`,
+  `environments/shared/gait/recorder.py`,
+  `environments/shared/eval_diagnostics.py`; documented in
+  `docs/TRAINING_ARTIFACT_PRESENTATION.md`, "Evaluation episodes"). Report
+  only. The stance gate does not read where the head is: on T. rex physics
+  r10 the walking parent of stance3 passed 37 of 40 clean zero-shot with its
+  head tip down from 1.24 to 0.61 m and its neck pitched about +33 degrees
+  (the CPU checks of 2026-10-25), and the ledger's left-right offsets stop at
+  hip pitch, knee and ankle. `eval_episodes.csv` now ends with, per episode
+  and over the gate's window `[settle_steps, T)`:
+  `head_tip_height_mean_m` and `head_tip_height_min_m` (the `head_tip` site,
+  else `snout_tip`; bit for bit the env's own `info["head_tip_z"]` on flat
+  ground), `neck_pitch_mean_deg` (the sum over the neck's pitch hinges) and
+  `head_pitch_mean_deg` (each from its home angle, + nose down), and per foot
+  `<label>_hip_roll_mean_deg` (from home, + abduction on either side: the
+  mirror convention) and `<label>_hip_roll_max_abs_deg`. The recorder gains
+  an opt-in `record_sites` (one `site_xpos` read per control step, behind
+  `report_extensions`); `PostureLayout.from_env` fixes each hinge's sign at
+  the home keyframe on a scratch `MjData`; what a model lacks reads `nan`
+  for a stated reason (no head-tip site, no neck hinge, no `head_pitch`; the
+  velociraptor and brachiosaurus run no evaluation recorder, so their
+  ledgers carry none of these columns). Validated (measured) on the r9 tree
+  (`3ffc18e9` with this change) with stance3 Run 2's final, the walking
+  parent: over the stance panel's 40 episodes the neck and head pitch
+  reproduce the zero-shot check's -2.158 and +0.142 degrees to 9e-16 per
+  episode, and the head tip reads 1.24084 m against the check's 1.24086
+  (its forward kinematics at the control boundary; this column is the
+  boundary substep's, one physics step earlier: at most 3.8e-5 m per
+  episode); on the r10 statue the window means read 0.959 m, 12.27 and
+  12.64 degrees. What moves: eight ledger columns on the T. rex (a row from
+  68 to 76 columns, about 155 bytes more), appended after every other
+  column. What does not: no gate verdict, reward, observation, action,
+  termination, task, checkpoint selection, plant, hyperparameter or
+  stage-config digest, no `StanceEpisodeMetrics` field, panel column,
+  balance key, `gate_progress.npz` key, `progress.json` block, env info key
+  or MJCF sensor, and no random draw; the in-suite inertness proof's full run
+  carries the columns and still trains and evaluates exactly like the plain
+  run, and the digest snapshot is unchanged.
 - **The T. rex tail_3 bound screen of D-D43 run, scored and verified: neither
   bound is adopted (outcome C); the options study and the no-training probes
   recorded, report only** (#641; D-D43's amendment of 2026-10-25;

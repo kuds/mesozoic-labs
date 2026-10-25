@@ -4,9 +4,10 @@ A short real T. rex stance run on CPU (768 steps, one env, an evaluation of
 two episodes every 256 steps, the horizon 40 steps past the settle window,
 seed 11) is trained twice: with every addition of this change, and with
 each switched off -- the capture callback's ``report_extensions`` (the
-eval-episode ledger, the in-training v2 screen, the balance and force
-fields, the mirror-even leg DC, the reward-term split and the force
-matrix), the action-jerk reward key, the PostureTrend watch, the
+eval-episode ledger with its head posture and hip roll columns and the
+recorder's head-tip capture behind them, the in-training v2 screen, the
+balance and force fields, the mirror-even leg DC, the reward-term split and
+the force matrix), the action-jerk reward key, the PostureTrend watch, the
 per-rollout episode and fall counts, the training-episode ledger, the
 policy probe (its forward pass of every rollout buffer's observations for
 the rollout clip shares included) and the checkpoint archive rule.  The
@@ -359,6 +360,21 @@ def test_the_full_run_writes_the_ledger_and_the_progress_blocks(trained):
     assert [float(row["return"]) for row in rows] == pytest.approx(evaluations["results"].ravel().tolist())
     # The saturating-actuator columns are among the additions the plain run trains and evaluates exactly like.
     assert {"saturated_actuator", "saturated_actuator_fraction", "actuators_saturated"} <= set(rows[0])
+    # So are the head posture and hip roll columns, last, and the recorder's head-tip capture they read; they are
+    # ledger-only (the gate_progress.npz key set above is unchanged) and reach no progress.json block.
+    posture = [
+        "head_tip_height_mean_m",
+        "head_tip_height_min_m",
+        "neck_pitch_mean_deg",
+        "head_pitch_mean_deg",
+        "r_hip_roll_mean_deg",
+        "r_hip_roll_max_abs_deg",
+        "l_hip_roll_mean_deg",
+        "l_hip_roll_max_abs_deg",
+    ]
+    assert list(rows[0])[-len(posture) :] == posture
+    assert all(float(row["head_tip_height_mean_m"]) > 0.0 for row in rows if row["full_horizon"] == "1")
+    assert not any(column in (full / "progress.json").read_text(encoding="utf-8") for column in posture)
     record = json.loads((full / "progress.json").read_text(encoding="utf-8"))
     assert {"balance", "forces"} <= set(record) and "leg_q_deg" in record["posture"]
     assert "screen_v2" in record["evaluation"]

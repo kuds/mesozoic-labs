@@ -40,7 +40,9 @@ TERMINATION_KEY_PREFIX = "termination_"
 #: The eval-episode ledger (:mod:`~environments.shared.episode_ledger`): its file, in the stage directory
 #: beside ``gate_progress.npz``, and its fixed columns; the screen, saturating-actuator
 #: (:data:`~environments.shared.gait.stance_metrics.SATURATED_ACTUATOR_COLUMNS`), spawn, foot, balance and force
-#: columns follow (:meth:`StageAwareEvalCallback._ledger_rows`).
+#: columns follow, then the head posture and hip roll columns
+#: (:meth:`~environments.shared.gait.posture_telemetry.PostureLayout.columns`), last
+#: (:meth:`StageAwareEvalCallback._ledger_rows`).
 EVAL_LEDGER_FILENAME = "eval_episodes.csv"
 EVAL_LEDGER_FIXED_COLUMNS: tuple[str, ...] = (
     "evaluation",
@@ -391,8 +393,11 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
     * the **eval-episode ledger**, ``eval_episodes.csv`` beside
       ``gate_progress.npz`` (:mod:`~environments.shared.episode_ledger`):
       one row per evaluation episode, its outcome beside its foot, balance
-      and force values and the actuator behind its
-      ``max_actuator_saturation_fraction``, rewritten after every evaluation;
+      and force values, the actuator behind its
+      ``max_actuator_saturation_fraction`` and its head posture and hip roll
+      (:mod:`~environments.shared.gait.posture_telemetry`; the recorder
+      also captures the head-tip site for them), rewritten after every
+      evaluation;
     * the **in-training v2 screen** (:attr:`evaluations_screen_v2`): on a
       stage that declares ``stance_quality/v2``'s keys and runs the
       recorder, ``evaluate_stance_v2_gate(..., in_training=True)`` on the
@@ -443,6 +448,10 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
     #: The balance and force keys of the model's episodes (:meth:`~environments.shared.gait.balance_telemetry.
     #: BalanceLayout.episode_keys`), resolved with the pad keys; empty for a model with no box sole.
     balance_keys: tuple[str, ...] = ()
+    #: The head posture and hip roll columns of the model's episodes
+    #: (:meth:`~environments.shared.gait.posture_telemetry.PostureLayout.columns`), resolved with the pad keys under
+    #: :attr:`report_extensions`; ledger-only, and empty when the model cannot be described.
+    posture_columns: tuple[str, ...] = ()
     _ledger: Any = None
     _balance_disabled = False
 
@@ -479,6 +488,8 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
         self.evaluations_actuator_force_frac: list[list[float]] = []
         self.evaluations_reward_terms_split: list[dict[str, dict[str, float]]] = []
         self._balance_layouts: list[Any] = []
+        # Per sub-env, its PostureLayout (None: not described), beside `_foot_setup`.
+        self._posture_layouts: list[Any] = []
         self._ledger = None
         if self.report_extensions:
             from .episode_ledger import EpisodeLedger
@@ -703,6 +714,7 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
         # before any row is published.
         if self.report_extensions:
             self._resolve_balance(setup, pairs)
+            self._resolve_posture(setup)
 
     def _warn_balance(self, message: str) -> None:
         """Warn once per callback that the balance and force fields read NaN, with the reason."""
@@ -741,6 +753,57 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
         except Exception:  # noqa: BLE001 - a diagnostic must not sink a run
             layouts[index] = None
             self._warn_balance("cannot describe a swapped evaluation model's balance")
+
+    def _warn_posture(self, message: str) -> None:
+        """Warn once per callback that the head posture or hip roll columns read NaN, with the reason."""
+        if not self.__dict__.get("_warned_posture", False):
+            self._warned_posture = True
+            logger.warning(
+                "Posture telemetry: %s; the head posture and hip roll columns read NaN, or are left out when the "
+                "model cannot be described (every other field is unaffected).",
+                message,
+                exc_info=True,
+            )
+
+    def _resolve_posture(self, setup: "list[tuple[Any, Any, Any, Any]]") -> None:
+        """Each sub-env's ``PostureLayout`` and the run's :attr:`posture_columns` (empty when it cannot be described)."""
+        try:
+            from .gait.posture_telemetry import PostureLayout
+
+            layouts = [PostureLayout.from_env(env, morphology) for env, _model, morphology, _pad in setup]
+        except Exception:  # noqa: BLE001 - a diagnostic must not sink a run
+            self._posture_layouts = []
+            self.posture_columns = ()
+            self._warn_posture("cannot describe the evaluation env's head and hip roll")
+            return
+        self._posture_layouts = list(layouts)
+        self.posture_columns = layouts[0].columns() if layouts else ()
+
+    def _refresh_posture_layout(self, index: int, env: Any, morphology: Any) -> None:
+        """A fresh ``PostureLayout`` for a sub-env that swapped its model; ``None`` (NaN columns) when it fails."""
+        layouts = self.__dict__.get("_posture_layouts") or []
+        if not self.report_extensions or index >= len(layouts):
+            return
+        try:
+            from .gait.posture_telemetry import PostureLayout
+
+            layouts[index] = PostureLayout.from_env(env, morphology)
+        except Exception:  # noqa: BLE001 - a diagnostic must not sink a run
+            layouts[index] = None
+            self._warn_posture("cannot describe a swapped evaluation model's head and hip roll")
+
+    def _record_posture_sites(self, recorder: Any, index: int) -> None:
+        """Ask *recorder* for the head-tip site, before it attaches; a failure costs the head-tip columns only."""
+        if not (self.report_extensions and self.posture_columns):
+            return
+        layouts = self.__dict__.get("_posture_layouts") or []
+        layout = layouts[index] if index < len(layouts) else None
+        if layout is None or not layout.sites():
+            return
+        try:
+            recorder.record_sites(layout.sites())
+        except Exception:  # noqa: BLE001 - a diagnostic must not sink a run
+            self._warn_posture("the recorder cannot capture the head-tip site")
 
     def _balance_recorder(self, env: Any, morphology: Any) -> Any:
         """A recorder with the balance capture, or ``None``: the caller then builds the plain one, as without it.
@@ -793,6 +856,7 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
                     if index < len(rails):
                         rails[index] = RailLayout.from_morphology(morphology)
                     self._refresh_balance_layout(index, env, morphology)  # never raises
+                    self._refresh_posture_layout(index, env, morphology)  # never raises
                 # SB3's evaluate_policy splits the panel this way and stops calling back for a
                 # sub-env that has finished its share, so its recorder is detached right then.
                 self._pad_quota[index] = (int(self.n_eval_episodes) + index) // len(setup)
@@ -802,6 +866,7 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
                     recorder = self._balance_recorder(env, setup[index][2])
                     if recorder is None:
                         recorder = SubstepContactRecorder(env, setup[index][2])
+                    self._record_posture_sites(recorder, index)  # never raises
                     self._pad_recorders[index] = recorder.attach()
         except Exception:  # noqa: BLE001 - a diagnostic must not sink a run
             self._fail_pad_capture()
@@ -1018,17 +1083,44 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
             self._warn_ledger("an episode's saturating actuator could not be read")
         return out
 
+    def _episode_posture(self, trace: Any, env_index: int) -> dict[str, float]:
+        """The episode's head posture and hip roll (:attr:`posture_columns`), NaN where unmeasured.
+
+        ``gait.posture_telemetry.episode_posture_telemetry`` on the recorded
+        trace, over the gate's window ``[settle_steps, T)``; its own guard, so
+        a failure costs these columns only (logged once).
+        """
+        out = dict.fromkeys(tuple(self.posture_columns or ()), float("nan"))
+        layouts = self.__dict__.get("_posture_layouts") or []
+        layout = layouts[env_index] if env_index < len(layouts) else None
+        if not out or trace is None or layout is None:
+            return out
+        try:
+            from .gait.posture_telemetry import episode_posture_telemetry
+
+            values = episode_posture_telemetry(trace, layout, settle_steps=self.settle_steps)
+        except Exception:  # noqa: BLE001 - a diagnostic must not sink a run
+            self._warn_posture("an episode's head posture and hip roll could not be reduced")
+            return out
+        out.update({key: value for key, value in values.items() if key in out})
+        return out
+
     def _capture_ledger_only(self, trace: Any, env_index: int) -> None:
-        """Keep one episode's ledger-only values: its screen metrics, its saturating actuator and its spawn.
+        """Keep one episode's ledger-only values: its screen metrics, saturating actuator, spawn and posture.
 
         Ledger-only: nothing publishes them to the plateau callback, so the
-        saturating-actuator and spawn columns can never reach
-        ``gate_progress.npz``.  An unmeasured value reads NaN (empty text).
+        saturating-actuator, spawn, head posture and hip roll columns can
+        never reach ``gate_progress.npz``.  An unmeasured value reads NaN
+        (empty text).
         """
         self.__dict__.setdefault("_current_eval_screen", []).append(self._episode_screen(trace))
         try:
             store = self.__dict__.setdefault("_current_eval_ledger_only", {})
-            values = {**self._episode_saturation(trace, env_index), **self._episode_spawn(trace, env_index)}
+            values = {
+                **self._episode_saturation(trace, env_index),
+                **self._episode_spawn(trace, env_index),
+                **self._episode_posture(trace, env_index),
+            }
             for key, value in values.items():
                 store.setdefault(key, []).append(value)
         except Exception:  # noqa: BLE001 - a diagnostic must not sink a run
@@ -1419,14 +1511,16 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
             )
 
     def _ledger_rows(self) -> list[dict[str, Any]]:
-        """This evaluation's ledger rows: outcomes, then the screen, saturation, spawn, foot, balance and force columns.
+        """This evaluation's ledger rows: outcomes, then the screen, saturation, spawn, foot, balance, force and posture.
 
         Positionally aligned, as every per-episode series is: the outcome
         columns from ``evaluations_results[-1]``, ``evaluations_length[-1]``
         and the causes; the foot, balance and force columns from this
         evaluation's ``evaluations_foot_pad`` record; the screen,
-        saturating-actuator and spawn columns from the ledger-only store.  A
-        column whose values are not one per episode reads ``""``.
+        saturating-actuator, spawn and posture columns from the ledger-only
+        store.  The head posture and hip roll columns come last, so a ledger
+        written before them keeps every column where it was.  A column whose
+        values are not one per episode reads ``""``.
         """
         results = self.__dict__.get("evaluations_results") or []
         lengths = self.__dict__.get("evaluations_length") or []
@@ -1476,6 +1570,9 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
                 columns[column] = aligned(_episode_max_over_feet([pads[key] for key in keys]))
         for key in tuple(self.balance_keys or ()):
             columns[key] = aligned(pads.get(key))
+        for key in tuple(self.posture_columns or ()):
+            if key in store:
+                columns[key] = aligned(store[key])
         return [{name: values[row] for name, values in columns.items()} for row in range(count)]
 
     def _publish_ledger(self) -> None:

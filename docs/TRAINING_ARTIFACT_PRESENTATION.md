@@ -639,14 +639,18 @@ evaluation could not align with its episodes reads empty.
 | `<label>_sole_cop_fore_aft`, `<label>_sole_cop_fore_aft_gate`, `<label>_digit_share`, `<label>_foot_cop_fore_aft`, `<label>_foot_cop_fore_aft_gate`, `<label>_toe_margin_nm`, `<label>_sole_tilt_deg`, `<label>_sole_corner_lift_m` | Per foot, where it has them: the episode values whose full-horizon means `gate_progress.npz` holds |
 | `max_sole_cop_fore_aft`, `max_foot_cop_fore_aft`, `max_sole_tilt_deg`, `max_sole_corner_lift_m` | The episode's maxima over the feet, the per-episode numbers the gate's rails read |
 | The balance and force keys | The episode's own values of the keys in the balance table above, with `xcom_toe_lead_s` in place of its fall mean (NaN on an episode that did not fall) |
+| `head_tip_height_mean_m`, `head_tip_height_min_m` | Where the recorder runs, last: the head tip's height over the post-settle window, its mean and minimum (m above the floor plane `z = 0`; a heightfield's local height is not subtracted). The model's `head_tip` site, else `snout_tip`, read at each control step's boundary substep, as the recorder reads the feet and the root: bit for bit the env's own `info["head_tip_z"]` on flat ground. In this file only |
+| `neck_pitch_mean_deg`, `head_pitch_mean_deg` | Where the recorder runs: the window mean of the neck's pitch (the sum over its pitch hinges, `neck_pitch` or `neck_<n>_pitch`) and of the `head_pitch` hinge, each from its home keyframe angle and signed about the animal's leftward axis, so + pitches the head down (nose down), in degrees, at the control boundary. Every model's hinges have home 0 and point left today, so these are the joints' own angles. In this file only |
+| `<label>_hip_roll_mean_deg`, `<label>_hip_roll_max_abs_deg` | Where the recorder runs, per foot: the window mean of its leg's hip roll hinge (`<prefix>_hip_roll`, the prefix of the foot's reference site) from its home angle, signed so + is abduction (the foot away from the midline) on either side, so a mirror-symmetric posture reads the same on both legs; and the window maximum of its absolute angle from home, unsigned. Degrees. In this file only |
 
 The per-digit load fields and the whole-foot CoP spread and frequency stay
-in `gate_progress.npz` only. On the T. rex a row has 68 columns and about
-1.09 KB (measured; the five saturating-actuator columns add 13 bytes to a
-row that names no actuator and up to about 50 to one that does), so the
-file of a 12M stance (40 episodes every 50,000 steps, 9,600 rows) ends at
-about 10.5 MB, and rewriting it at every evaluation writes about 1.25 GB to
-Drive over the run.
+in `gate_progress.npz` only. On the T. rex a row has 76 columns and about
+1.24 KB (measured; the five saturating-actuator columns add 13 bytes to a
+row that names no actuator and up to about 50 to one that does, and the
+eight head posture and hip roll columns 152 to 156 bytes, measured on the
+physics r10 statue), so the file of a 12M stance (40 episodes every 50,000
+steps, 9,600 rows) ends at about 12 MB, and rewriting it at every
+evaluation writes about 1.4 GB to Drive over the run.
 
 The saturating-actuator columns name what `max_actuator_saturation_fraction`
 only flags: `gait.stance_metrics.saturated_actuator` reads the trace the
@@ -658,6 +662,39 @@ reward, observation, action, termination, checkpoint selection or digest
 reads them, and no name begins with `max_` or `min_` or ends in a per-foot
 suffix, so no rail, foot or gate reader takes one up. A ledger written
 before them lacks the columns (a resumed run's earlier rows read empty).
+
+The head posture and hip roll columns read what the stance gate does not:
+on T. rex physics r10 the walking parent of stance3 passed 37 of 40 clean
+zero-shot with its head tip down from 1.24 to 0.61 m and its neck pitched
+about +33 degrees (the CPU checks of 2026-10-25), and the left-right
+offsets above stop at hip pitch, knee and ankle.
+`gait.posture_telemetry.episode_posture_telemetry` reduces the trace the
+recorder closed over the gate's window `[settle_steps, T)`; the recorder
+captures the head-tip site for it (`record_sites`, one `site_xpos` read per
+control step, behind `report_extensions`, so the in-suite inertness proof
+covers it), and `PostureLayout.from_env` fixes each hinge's sign once at
+the home keyframe on a scratch `MjData`. The columns are the same on every
+model with the same feet, and what a model lacks reads `nan` for a fixed
+reason: no head-tip site, no neck pitch hinge, no `head_pitch` hinge, or a
+leg without a hip roll hinge. Where the recorder runs:
+
+| Model | Head tip | Neck pitch | Head pitch | Hip roll |
+|---|---|---|---|---|
+| Tyrannosaurus Rex | `head_tip` | `neck_pitch` | `head_pitch` | `r`, `l` |
+| Compsognathus Longipes (Anatomical) | `head_tip` | `neck_pitch` | `nan` (the head turns on the neck alone) | `r`, `l` |
+| Compsognathus Longipes (Robot) | `head_tip` | `nan` (no neck hinge) | `nan` | `r`, `l` (`right_hip_roll`, `left_hip_roll`) |
+| Dibothrosuchus Elaphros | `snout_tip` | `neck_pitch` | `head_pitch` | `fr`, `fl`, `rr`, `rl` |
+
+The velociraptor (no head-tip site, no neck hinge; hip rolls on both legs)
+and the brachiosaurus (`head_tip`, `neck_1_pitch` to `neck_4_pitch`,
+`head_pitch`, four hip rolls) have no box pad, so their evaluations run no
+recorder and their ledgers hold none of the recorder's columns, these
+included. Like the saturating-actuator columns, these are not
+`StanceEpisodeMetrics` fields, panel columns, balance keys or gate keys,
+never reach `gate_progress.npz` or `progress.json`, and no name begins with
+`max_`, `min_` or `leg_q_` or ends in a per-foot rail suffix. They are
+appended after every other column, so a ledger written before them keeps
+each column where it was, and a resumed run's earlier rows read empty.
 
 ## Training episodes: `train_episodes.csv` and the rollout counts
 
