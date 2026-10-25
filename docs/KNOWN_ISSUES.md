@@ -317,20 +317,23 @@ robustness, **LOW** = cosmetic / QoL.
   certifies nothing. The two-seed ask stands: no T-Rex stance is certified. Record, numbers and evidence: §24 of
   [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).
   **Update 20 (2026-10-25):** the maintainer took decision D-D44
-  ([BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2): T-Rex physics
-  r10, the three tail pitch springs preloaded (`springref` 52.5, 25.9 and
-  10.4°), so the zero-action statue rests its tail level on its springs
-  instead of on `tail_1`'s ventral stop, with `tail_home_pose` re-centred on
-  that tail and every constant pinned to r9 re-measured; nothing trained. The
-  plant contract refuses every physics-r9 T-Rex checkpoint once r10 is on
-  `main`, so every stance screen run above and walking pilot 2's parent stop
-  loading there (none was certified; walking pilot 2 can run only on its r9
+  ([BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2): T-Rex physics r10
+  (the plant counter's next integer, not the foot that the parked draft pull
+  request #623 screened), the three tail pitch springs preloaded (`springref`
+  52.5, 25.9 and 10.4°), so the zero-action statue rests its tail level on its
+  springs instead of on `tail_1`'s ventral stop, with `tail_home_pose`
+  re-centred on that tail and every constant pinned to r9 re-measured; nothing
+  trained. The plant contract refuses every physics-r9 T-Rex checkpoint once r10
+  is on `main`, so every stance screen run above and walking pilot 2's parent
+  stop loading there (none was certified; walking pilot 2 can run only on its r9
   branch). Whether a policy trained on r10 pins the tail-tip actuator again is
-  untested: r9 policies rolled zero-shot on r10 gave no sign either way (two of
-  eight newly pinned a tail actuator at +1, one lost its rail). The first r10
-  round needs its own criteria, approved before any training. The two-seed ask
-  stands, on physics r10, where no T-Rex stance has trained. Record, numbers
-  and evidence: §25 of
+  untested: r9 policies rolled zero-shot on r10 gave no sign that r10 cures it
+  (their actuator-saturation failures rose from 27 to 80 of 320 deterministic
+  episodes; two of eight newly pinned a tail actuator at +1, one lost its rail),
+  and zero-shot cannot predict a policy trained on r10. The first r10 round
+  needs its own criteria, approved before any training. The two-seed ask stands,
+  on physics r10, where no T-Rex stance has trained. Record, numbers and
+  evidence: §25 of
   [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).
 - **LOW** — **stage 1a (stance) contains no in-episode disturbance, so a
   stance-gate PASS certifies stance quality, not active balance control.** The
@@ -1937,22 +1940,22 @@ Still open:
   (nosedive 26, `tail_contact` 14). Every stance bar was kept (the stance
   config's comments carry the r9 extremes); the first r9 stances are where
   the rail and the sole-contact margin need watching.
-  *Update (2026-10-25):* physics r10 (the preloaded tail pitch springs,
-  D-D44, `configs/plant_versions.toml` note 20) moves the statue's centre of
-  mass 10.7 mm further back and its settled pitch from 1.54° to about 0.95°
-  nose-down, and turns the failure direction: on the 280 stance-panel seeds
-  the r10 statue falls once, seed 9047 backward (`fallen` at step 273, about
-  38° nose-up) where r9's four falls were nosedives (Fisher exact p 0.37, not
-  significant; inferred), the pushed recovery statue's 40 ends become nosedive
-  20, fallen 19 and `tail_contact` 1 (r9 26, 0 and 14), and under open-loop
-  command noise of SD 0.10 its falls are mostly backward (16/40 reach the
-  horizon against r9's 21/40, within chance). Seed 3121's pad tilts 2.087°
-  against the 2.0° bar (r9 2.061°). The ±0.03 ankle probe above was not
+  *Update (2026-10-25):* physics r10 (the preloaded tail pitch springs, D-D44,
+  `configs/plant_versions.toml` note 20) moves the statue's centre of mass 10.7
+  mm further back (the probe) and its settled pitch from about 1.55° to about
+  0.95° nose-down, and turns the failure direction: on the 280 stance-panel
+  seeds the r10 statue falls once, seed 9047 backward (`fallen` at step 273,
+  about 38° nose-up) where r9's four falls were nosedives (Fisher exact p 0.37,
+  measured; not significant, inferred), the pushed recovery statue's 40 ends
+  become nosedive 20, fallen 19 and `tail_contact` 1 (r9 26, 0 and 14), and
+  under open-loop command noise of SD 0.10 its falls are mostly backward (16/40
+  reach the horizon against r9's 21/40, within chance). Seed 3121's pad tilts
+  2.087° against the 2.0° bar (r9 2.061°). The ±0.03 ankle probe above was not
   re-run on r10; re-running it is the first check of the backward margin, and
   the first r10 stances are where the backward falls, the hop-or-fall rail and
-  the pad tilt need watching. Backward-fall risk under perturbation is
-  untested at useful power (the CPU checks' skeptic: 0 falls in 40 episodes is
-  compatible with a 2% rate).
+  the pad tilt need watching. Backward-fall risk under perturbation is untested
+  at useful power (the CPU checks' skeptic: 0 falls in 40 episodes is compatible
+  with a 2% rate).
 - **LOW** — the raptor's toe-clipping margin now sits at the toes: at
   sprint-like excitation (3–4 Hz, full amplitude) the 0.8×kp toe caps clip
   10–16 % and the 1.5×kp hip pitch ~11–16 % (its physical envelope); the

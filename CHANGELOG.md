@@ -1663,13 +1663,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ancestor reuse refuses every recorded T. rex node (its `task_sha256` moved),
   so `TRUNK_FROM = "auto"` and `--trunk-from` find no T. rex trunk. No
   certified trunk is lost: no T. rex stance has certified on physics r9. What
-  stops loading on `main`: every T. rex stance screen run of D-D37, D-D39,
-  D-D40, D-D41 and D-D43, all uncertified, and walking pilot 2's parent,
-  `stance3_armLT_s60`'s final; walking pilot 2 can still run on its own r9
-  branch, but its result would not carry to r10 (inferred). The policy
-  interface (r15) and visual layer (r4) do not move, and no other species
-  changes. Nothing is to train on r10 until the maintainer approves the first
-  r10 round's own criteria.
+  stops loading on `main`: every physics-r9 T. rex checkpoint, among them the
+  symmetry screen's r9 runs and walking pilot 1 with its parent (r9 arm L
+  seed 60 at 6,291,456 steps; D-D36), every T. rex stance screen run of
+  D-D37, D-D39, D-D40, D-D41 and D-D43, all uncertified, and walking pilot
+  2's parent, `stance3_armLT_s60`'s final; walking pilot 2 can still run on
+  its own r9 branch, but its result would not carry to r10 (inferred). The
+  policy interface (r15) and visual layer (r4) do not move, and no other
+  species changes. Nothing is to train on r10 until the maintainer approves
+  the first r10 round's own criteria.
 - **`BEHAVIOR = "stand"` is refused; use `"stance"`** (D-D38). `"stance"`
   trains exactly what `"stand"` did since D-D35: the stance stage alone, on
   every model. A run started with `BEHAVIOR = "stand"` re-enters with
@@ -1968,8 +1970,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     (`7042dcd5…`).
   - Why: through r9 the springs rested at zero, so the passive tail could not
     hold the keyframe's level pose against gravity. The zero-action statue
-    settled `tail_1` and `tail_2` on their −12° ventral stops, its tail 23.4°
-    below horizontal from base to tip, and a level tail needed commands of
+    settled `tail_1` on its −12° ventral stop (30.3 N·m on the limit; `tail_2`
+    just above its own, at −11.6°), its tail 23.4° below horizontal from base
+    to tip, and a level tail needed commands of
     +3.50, +2.16 and +1.15, beyond the ±1 range (measured, the probe), so every
     stance trained around a drooped tail stuck on its stop, the setting of the
     `tail_3` habit of D-D42 and D-D43. The posture study found that no posture
@@ -1991,7 +1994,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     sign that r10 cures the rail (saturation-failure episodes 27 → 80
     deterministic); the backward-fall risk under perturbation is untested at
     useful power; the zero-shot rewards used r9's tail target and are not r10
-    values; the zero-shot verdicts are each one episode from flipping (the
+    values; two zero-shot verdicts are each one episode from flipping (the
     walking-pilot parent passes at 37/40, the band's seed-42 checkpoint at
     4,194,304 steps fails at 36/40); and the walking-pilot parent drops its
     head tip from 1.24 to 0.61 m on r10 and still passes the stance gate, a
@@ -2003,15 +2006,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     0.00018) rad (the settled-pose test's helper: noise 0, seed 0, mean of steps
     200–999); its 0.05 rad tolerance stays.
   - Every constant pinned to r9 re-measured on the r10 tree with the procedure
-    that set it, each procedure first reproducing the r9 value on a
-    `git archive` of `3ffc18e9` (measured): `_NECK_SETTLED_QPOS` (0.21432, 0,
+    that set it, each procedure first run on a `git archive` of `3ffc18e9`,
+    where it gave r9's own figures (measured; the tail and neck targets, the
+    704.4 m·g·h literal and the 1329.1 recovery reference are pins from before
+    r9 that r9 carried, and r9 re-measures them within 1.6e-4 rad, 0.02% and
+    0.5 standard errors): `_NECK_SETTLED_QPOS` (0.21432, 0,
     0.21963) → (0.21401, 0, 0.22054); `_LEG_SETTLED_QPOS` re-measured over steps
     200–999 (the ankle moves most, 4.9 mrad; its largest deviation from the
     keyframe 2.74 → 2.60°); `natural_pitch` 0.027 → 0.017 (the noise-free
     statue's `forward_z` −0.01666), so the stance's
     `nosedive_termination_threshold` 0.493 → 0.503 keeps the absolute −0.520
-    cut; `target_z` 0.9260 carries; the settled statue's lateral m·g·h 704.4 →
-    729.1 N·m/rad, so the hip-roll servos' 1280 is 1.76× (1.82×). The statue
+    cut; `target_z` 0.9260 carries; the settled statue's lateral m·g·h 704.6 →
+    729.1 N·m/rad (the test's literal 704.4 → 729.1; 704.4 at 0.8377 m was
+    r8's), so the hip-roll servos' 1280 is 1.76× (1.82×). The statue
     references, each over 40 episodes on 3042–3081: stance 3756.8 → 3766.6
     (3766.56 ± 16.21, 3.8 standard errors), so `min_avg_reward` 2250 → 2260;
     recovery's pushed statue 1329.1 → 1429.1 (1.35 standard errors; its 40 ends
@@ -2040,10 +2047,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     no-training guard stops and one: the full-horizon heading trace test's
     T. rex case (rewards 5.08e-9 against its 1e-9 bound), whose own check
     already fails 7 of 20 r9 seeds through float32 rounding; it is fixed by a
-    test-only pull request of its own (D-D44 (3), the branch
-    `claude/heading-test-float32-bounds`), with which merged the heading tests
-    pass on r10. That test runs only at CI's full depth, so the fix lands
-    first or with this revision (inferred).
+    test-only pull request of its own (D-D44 (3): #642, the branch
+    `claude/heading-test-float32-bounds`, head `153b297a`), and with that
+    branch brought into a scratch copy of r10, not this branch, the heading
+    tests pass (24, at `d5dfc167` and at `153b297a`). That test runs only at
+    CI's full depth, so the fix should land first or with this revision
+    (inferred).
   - Digest golden (649 lines): 39 lines move, all T. rex — the plant's
     `physics_revision`, `physics_sha256` and `source_closure_sha256`; the four
     stages' `task_sha256`, `stage_config_view_sha256.PPO` and `.SAC`; the stance
@@ -2063,10 +2072,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     the T-Rex stance entry, the fore-aft entry's r10 update and the stance
     gate's head-posture blind spot); `docs/NEXT_STEPS.md`; a dated note in §17
     of `docs/GAIT_QUALITY_PLAN_2026_09.md`; `docs/README.md`; the T. rex README
-    and website pages; the stance record's §25 and `stance5/tail_sr3/` (105
-    files: the posture study, the probe, the CPU checks, the re-measurement and
-    the run log's lines 578 to 598, ids removed; `SOURCES.txt` and
-    `SHA256SUMS`, now 633 files, extended).
+    and website pages; the stance record's §25 and `stance5/tail_sr3/` (106
+    files: the posture study, the probe, the CPU checks, the re-measurement,
+    the six-heading certificate re-rolled under the final gate block and the
+    run log's lines 578 to 600, ids removed; `SOURCES.txt` and `SHA256SUMS`,
+    now 634 files, extended).
 - **The standing behavior has one name: the stance stage's recipe label is
   `stance`, and `stand` is refused with a pointer** (#631; decision D-D38,
   the maintainer's decision of 2026-10-18, "make the standing behavior's name

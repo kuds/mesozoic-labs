@@ -31,8 +31,8 @@ training, every r9-pinned constant and golden re-measured, and no pull request
 until asked, the first r10 training round to get its own criteria; (2) the
 reward change that re-centres `tail_home_pose`'s target on SR3's measured
 settled pose, its tolerance kept at 0.05 rad; and (3) the heading-invariance
-test's fix as its own test-only pull request. The re-measured constants are in
-`remeasure/`; the branch carries them.
+test's fix as its own test-only pull request (#642, opened at 07:35 UTC). The
+re-measured constants are in `remeasure/`; the branch carries them.
 
 ## The files
 
@@ -40,9 +40,10 @@ Measured and inferred are labelled as in their sources. Where a later check
 corrected a file, the correction is given here and in §25; the file is kept as
 it was written.
 
-- **`results/run_log.txt`**: lines 578 to 598 of the session's run log (the
-  entries timed 01:01 to 04:59 UTC on 2026-10-25), workflow and
-  scheduled-task ids removed; lines 505 to 577 are
+- **`results/run_log.txt`**: lines 578 to 600 of the session's run log (the
+  entries timed 01:01 to 08:21 UTC on 2026-10-25; first copied to line 598 and
+  extended in the branch's review by the heading-test fix's two entries, timed
+  07:35 and 08:21 UTC), workflow and scheduled-task ids removed; lines 505 to 577 are
   [`../tailscreen/results/run_log.txt`](../tailscreen/results/run_log.txt).
   The decisions are its entries timed 01:33, 02:18 and 04:55 UTC.
 - **`posture/`**: the posture options study (01:02–01:31 UTC; no training).
@@ -52,8 +53,10 @@ it was written.
   exists so that a bound that only masks the outward drive is not credited, not
   as an anatomy rule; anatomy does not rank the r9 postures (they differ by 1.5
   to 3 degrees inside a band 22 to 28 degrees below the level tail that
-  reconstructions softly favour); a level tail on servos alone holds only at a
-  command of +1, the rail, so passive support (`springref`) is the route off it;
+  reconstructions softly favour); a servo redesign sized just to hold a level
+  tail (the break-even kp and control range) holds it only at a command of +1,
+  the rail, and r9's own servos cannot reach it at all, so passive support
+  (`springref`) is the route off it;
   and two CPU options were missing. Measured there: under the 0.60 bound the
   tail_3 joint sits at −2.28 degrees, 1.2 degrees lower than the walking-pilot
   parent's; in every arm the distal tail points 22 to 28 degrees below
@@ -113,10 +116,19 @@ it was written.
   (`digest_moved_lines.txt`), the compiled-model comparison
   (`env_model_diff.json`) and the noise-free pad tilt
   (`sole_tilt_noise_free.txt`). Each `*_main_r9.*` file is the same procedure on
-  a `git archive` of `3ffc18e9` (physics r9), which reproduced the committed r9
-  value first. `panels/` holds the r10 statue panels' summary (the 280 seeds at
-  0 degrees and the six-heading certificate on 3042–3081) and the certificate's
-  text report. `scripts/` holds the build's measuring scripts, the Python ones
+  a `git archive` of `3ffc18e9` (physics r9), run first. It gives r9's own
+  figures: they equal the committed values where r9 set them (`forward_z`, the
+  settled leg pose, the CoP golden) and differ slightly where the committed pin
+  is older than r9 and r9 carried it (the tail and neck targets, within 1.6e-4
+  rad; the m·g·h literal 704.4, r8's, against 704.57; the recovery reference
+  1329.1 against 1369.4, 0.5 standard errors). No r9 log of the three
+  zero-action references is here; their r9 figures are the gate worker's on
+  `9f2355a3`, the same code (`cpucheck/gate/statue_reference.json`). `panels/`
+  holds the r10 statue panels' summary (the 280 seeds at 0 degrees and the
+  six-heading certificate on 3042–3081), the certificate's text report, and
+  `stance_heading_report_final_gate.txt`, the certificate re-rolled in the
+  branch's review under the final stance gate block (gate `d26c34e6…`, the
+  rail 2260): 40/40 at every heading, as before. `scripts/` holds the build's measuring scripts, the Python ones
   gzipped (gunzip restores them; they import the repository's test helpers and
   take the tree as their first argument).
 
@@ -144,7 +156,7 @@ finding, 14 minor):
   −122 to −171, the statue 4456.3 → 4285.3) come from an SR3 env that kept r9's
   tail target, so they are not r10 values; gate classification does not read
   the reward.
-- The zero-shot panel verdicts on SR3 are one episode from flipping: c1 passes
+- Two zero-shot panel verdicts on SR3 are one episode from flipping: c1 passes
   at 37/40 (bound 0.817) and c4 fails at 36/40 (0.786).
 - The walking-pilot parent (c1) and c2 drop their heads on SR3 (head tip 1.24
   → 0.61 m and 1.08 → 0.67 m) and c1 still passes the stance gate: a blind spot
@@ -166,9 +178,12 @@ finding, 14 minor):
 From the build: the six-heading certificate and the 280-seed panels in
 `remeasure/panels/` were rolled under the final stance task (digest
 `533fff20…`) and the stance gate block as it stood before its rail moved from
-2250 to 2260 (gate digest `06375c21…`, r9's); the rail is a panel rail that
-no episode's classification reads, and the statue's 3766.6 clears it, so the
-verdicts hold under the final block (inferred). `settle_r10.json`, an earlier
+2250 to 2260 (gate digest `06375c21…`, r9's). The branch's review re-rolled
+the certificate under the final block (gate `d26c34e6…`;
+`remeasure/panels/stance_heading_report_final_gate.txt`): 40/40 at every
+heading, as before (measured). The 280-seed panels were not re-rolled; the
+rail is a panel rail that no episode's classification reads, and the statue's
+3766.6 clears it, so their verdicts hold under the final block (inferred). `settle_r10.json`, an earlier
 settle taken before the env defaults were edited, is superseded by
 `settle_r10_final.json` and not copied; every dynamics-only figure in the two is
 identical.
