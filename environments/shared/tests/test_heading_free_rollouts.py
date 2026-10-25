@@ -30,15 +30,16 @@ with the heading probe's whole-scene ``SpawnYaw``), whose every
 ``StanceEpisodeMetrics`` field must agree across headings to ``METRIC_ATOL``.
 Measured with torch's default threads, the actions agree exactly, joint state
 to 4.5e-13 and every metric to 2e-10; with one thread, as earlier tests leave
-torch in the SB3 job and the full suite, the compsognathus's actions differ by
-one float32 ulp at some step, its joint state by 7.3e-8, its observation by
+torch in a full local run (CI's step runs this file in a process of its own,
+at torch's default thread count), the compsognathus's actions differ by one
+float32 ulp at some step, its joint state by 7.3e-8, its observation by
 9.5e-7 and a metric by 5.4e-9 (the T-Rex's are unchanged).  Over seeds
 3042-3061 with one thread the T-Rex's actions differ too, on 7 of the 20 seeds
 (5 with four threads, three of them others), and the difference they carry
-moves its reward by up to 2.1e-8 and a foot force by one float32 ulp
-(3.05e-5 N): beyond the open loop's reward bound (1e-9) and a flat 1e-5 on
-every observation element, which this test applied until 2026-10-25 and passed
-only because its seeds are not among them.
+moves its reward by up to 2.1e-8 (2.45e-8 with four threads) and a foot force
+by one float32 ulp (3.05e-5 N): beyond the 250-step comparison's reward bound
+(1e-9) and a flat 1e-5 on every observation element, which this test applied
+until 2026-10-25 and passed only because its seeds are not among them.
 
 About two minutes per run, so it runs in the SB3 job's full depth only (the
 nightly schedule, a manual dispatch or the ``full-ci`` label; python-ci.yml,
