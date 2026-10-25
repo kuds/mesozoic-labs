@@ -1024,9 +1024,9 @@ every key and type the file had before is kept.
 ## Training history pages: `plot_training_history.py`
 
 `gate_progress.npz` and `progress.json` hold per-evaluation means and the
-latest row. To see how one run's feet, balance, asymmetry and saturation
-moved over its training, or to overlay several runs, draw them from the
-ledgers above:
+latest row. To see how one run's feet, balance, asymmetry, saturation, head
+posture and hip roll moved over its training, or to overlay several runs,
+draw them from the ledgers above:
 
     python environments/shared/scripts/plot_training_history.py STAGE_DIR [STAGE_DIR ...] --out DIR \
         [--labels ...] [--groups ...] [--mark-steps 4194304 ... final] [--title ...] \
@@ -1055,8 +1055,10 @@ reads the files and writes nothing else (`reporting/training_history.py`).
 | Balance | `xcom_toe_margin_min_m`, `xcom_heel_margin_min_m`, `com_fore_aft_mean_m`, `root_pitch_mean_deg` |
 | Sole roll | `max_sole_tilt_deg` and `max_sole_corner_lift_m` against their bars, and the full-horizon episodes over each |
 | Floor forces | Per foot, `<label>_shear_over_normal` and `<label>_cone_use_mean` |
-| Asymmetry | `leg_q_<left>_minus_<right>_<joint>_deg` for hip pitch, knee and ankle. `eval_episodes.csv` records no hip roll difference, so there is none to draw |
+| Asymmetry | `leg_q_<left>_minus_<right>_<joint>_deg` for hip pitch, knee and ankle, and the hip roll's left minus right: per episode, the left leg's `<left>_hip_roll_mean_deg` minus the right leg's (both + abduction, so a mirror-symmetric posture reads 0; the first foot pair on a quadruped) |
 | Policy std | `exp(log_std)` per actuator at the checkpoint zips in `models/` (`robust_best`, `best`, final, and at most 12 periodic ones evenly spaced), with the number read of those chosen |
+| Head posture | `head_tip_height_mean_m` (mean), `head_tip_height_min_m` (mean and the lowest episode), `neck_pitch_mean_deg` and `head_pitch_mean_deg` (+ nose down), with the `head_clearance` reward's target height where the stage records one (`reward_weights.head_clearance_target`), dotted. Report only: no gate reads them |
+| Hip roll | Per foot, `<label>_hip_roll_mean_deg` (+ abduction) and `<label>_hip_roll_max_abs_deg` (mean and the worst episode). Report only |
 
 Each per-episode value is reduced over the evaluation's full-horizon
 episodes, as `gate_progress.npz` reduces it: one run's pages draw the mean
@@ -1148,11 +1150,22 @@ resumed from such a file has no value at the rollouts before the resume
 step its rollouts were measured, the caption says the run has gaps, and
 the JSON's `rollouts_measured` and `first_timesteps` record them.
 
+The head posture and hip roll pages (`11_head_posture`, `12_hip_roll`) are
+drawn after the policy std page, so every earlier page keeps its name. They
+reduce the ledger's report-only posture columns ("Evaluation episodes",
+above) like any other column, over the evaluation's full-horizon episodes,
+with the head's values and the left-minus-right hip roll in the checkpoint
+table (`head tip m`, `head tip lowest m`, `neck pitch`,
+`head pitch`, `L-R hip roll`). A ledger written before the columns, or a
+model whose evaluation runs no recorder, draws them as labelled absent
+series, says so in the captions and lists the columns in the JSON's
+`absent`; a comparison draws the runs that have them.
+
 ### At stage end: `figures/training_history/`
 
 When a stage ends, `generate_stage_artifacts` draws the same report for
 that stage into `figures/training_history/`
-(`stage_layout.training_history_dir`): the ten pages as PNGs,
+(`stage_layout.training_history_dir`): the twelve pages as PNGs,
 `training_history.html` and `training_history.json`, as
 `plot_training_history.py STAGE_DIR` draws them with its defaults (one run,
 no `--mark-steps`; the alarms, `robust_best`, `best` and the kept

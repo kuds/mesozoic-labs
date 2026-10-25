@@ -25,8 +25,13 @@ the training step, for one run or overlaid for several:
 - the whole-body balance (``com_fore_aft_mean_m``, ``root_pitch_mean_deg``,
   the XcoM's toe and heel margin minima) and ``actuator_force_frac_max``;
 - the achieved left-minus-right hip pitch, knee and ankle offsets
-  (``leg_q_<left>_minus_<right>_<joint>_deg``; ``eval_episodes.csv`` records no
-  hip roll difference);
+  (``leg_q_<left>_minus_<right>_<joint>_deg``) and the hip roll's, each
+  episode's left leg's ``<left>_hip_roll_mean_deg`` minus its right's
+  (both + abduction, so a mirror-symmetric posture reads 0);
+- the head posture (``head_tip_height_mean_m``, ``head_tip_height_min_m``,
+  ``neck_pitch_mean_deg``, ``head_pitch_mean_deg``) and, per foot, the hip
+  roll (``<foot>_hip_roll_mean_deg``, ``<foot>_hip_roll_max_abs_deg``):
+  report-only columns no gate reads (``gait.posture_telemetry``);
 - the training falls per window of ``train_episodes.csv``;
 - the per-actuator policy standard deviation ``exp(log_std)`` at the
   checkpoint zips in ``models/``;
@@ -87,6 +92,7 @@ import numpy as np
 
 from ..file_io import atomic_write_json, atomic_write_text, read_json_object
 from ..gait.constants import SATURATION_ABS
+from ..gait.posture_telemetry import HEAD_POSTURE_COLUMNS, HIP_ROLL_FIELDS
 from ..gait.stance_metrics import SATURATED_ACTUATOR_COLUMNS
 from ..model_id import ModelId
 
@@ -189,6 +195,14 @@ _LR_COLUMN = re.compile(
     r"^leg_q_(?P<left>[A-Za-z0-9]+)_minus_(?P<right>[A-Za-z0-9]+)_(?P<joint>hip_pitch|knee|ankle)_deg$"
 )
 _FOOT_COLUMN = re.compile(r"^(?P<foot>[A-Za-z0-9]+)_(?:foot|sole)_cop_fore_aft$")
+#: The head posture columns reduced per evaluation (``gait.posture_telemetry``: ledger-only, written last).
+POSTURE_COLUMNS: tuple[str, ...] = HEAD_POSTURE_COLUMNS
+#: A foot's hip roll columns: ``<foot>_<field>`` for each of these.
+HIP_ROLL_SUFFIXES: tuple[str, ...] = HIP_ROLL_FIELDS
+_HIP_ROLL_COLUMN = re.compile(r"^(?P<foot>[A-Za-z0-9]+)_hip_roll_mean_deg$")
+#: The asymmetry page's joints: the ledger's left-minus-right offsets, then the hip roll's, derived per episode
+#: from its two legs' window means (:func:`hip_roll_pairs`).
+LR_PAGE_JOINTS: tuple[str, ...] = (*LR_JOINTS, "hip_roll")
 #: The declared bars recorded and drawn, from ``stage_config.json``'s ``curriculum``.
 BAR_KEYS: tuple[str, ...] = (
     "max_sole_cop_fore_aft",
@@ -209,8 +223,12 @@ BAND_COUNTS: tuple[tuple[str, str, str, str], ...] = (
 KEY_ACTUATORS: tuple[str, ...] = ("hip_pitch", "hip_roll", "knee", "ankle", "tail_3")
 #: What the ledgers do not hold, said on every page set.
 NOT_RECORDED: tuple[str, ...] = (
-    "Hip roll: eval_episodes.csv records the left-minus-right achieved offset of hip pitch, knee and ankle only "
-    "(leg_q_<left>_minus_<right>_<joint>_deg); there is no hip roll difference to draw.",
+    "Hip roll and head posture: recorded per episode (<foot>_hip_roll_mean_deg, <foot>_hip_roll_max_abs_deg, "
+    "head_tip_height_mean_m, head_tip_height_min_m, neck_pitch_mean_deg, head_pitch_mean_deg) only in ledgers "
+    "written since those columns were added; an older run's are absent series. The left-minus-right hip roll is "
+    "each episode's left leg's mean minus its right leg's, both + abduction. A model without a head-tip site or a "
+    "neck or head pitch hinge reads nan there, and a model without a box-soled foot records none (its evaluation "
+    "runs no recorder). No gate reads them.",
     "The evaluation episodes are the deterministic policy's, at yaw 0 on the evaluation env's own resets. The "
     "judge's perturbation panels (its joint-noise falls, K3) and its verdicts are not in these files. The training "
     "falls are the stochastic training policy's.",
@@ -311,21 +329,53 @@ def foot_labels(header: Sequence[str]) -> list[str]:
     return feet
 
 
+def hip_roll_labels(header: Sequence[str]) -> list[str]:
+    """The foot labels the header records a hip roll for (``<foot>_hip_roll_mean_deg``), in header order."""
+    feet: list[str] = []
+    for column in header:
+        match = _HIP_ROLL_COLUMN.match(column)
+        if match is not None and match.group("foot") not in feet:
+            feet.append(match.group("foot"))
+    return feet
+
+
+def hip_roll_pairs(labels: Sequence[str]) -> list[tuple[str, str]]:
+    """``(left, right)`` foot pairs among *labels*: labels that differ only in a last ``l`` / ``r`` (``l``/``r``,
+    ``fl``/``fr``, ``rl``/``rr``), in the left labels' order, as ``eval_diagnostics.sagittal_leg_dc_pairs`` pairs
+    the feet."""
+    return [(left, left[:-1] + "r") for left in labels if left.endswith("l") and left[:-1] + "r" in labels]
+
+
+def hip_roll_lr_column(left: str, right: str) -> str:
+    """The derived per-episode column of a pair's left-minus-right hip roll (never a ledger column)."""
+    return f"hip_roll_{left}_minus_{right}_deg"
+
+
 def lr_columns(header: Sequence[str]) -> dict[str, str]:
-    """``{joint: column}`` of the left-minus-right achieved offsets the header holds."""
+    """``{joint: column}`` of the left-minus-right offsets the header holds, hip roll's derived (the first pair)."""
     found: dict[str, str] = {}
     for column in header:
         match = _LR_COLUMN.match(column)
         if match is not None and match.group("joint") not in found:
             found[match.group("joint")] = column
-    return {joint: found[joint] for joint in LR_JOINTS if joint in found}
+    pairs = hip_roll_pairs(hip_roll_labels(header))
+    if pairs:
+        found["hip_roll"] = hip_roll_lr_column(*pairs[0])
+    return {joint: found[joint] for joint in LR_PAGE_JOINTS if joint in found}
 
 
 def reduced_columns(header: Sequence[str]) -> list[str]:
-    """The per-episode columns of the header that are reduced per evaluation, in a fixed order."""
+    """The per-episode columns of the header that are reduced per evaluation, in a fixed order.
+
+    The derived left-minus-right hip roll columns (:func:`hip_roll_lr_column`) are not header columns; they are
+    reduced beside these (:func:`reduce_evaluations`).
+    """
     present = set(header)
     columns = [f"{foot}_{suffix}" for foot in foot_labels(header) for suffix in FOOT_SUFFIXES]
-    columns += list(BODY_COLUMNS) + list(SATURATION_COLUMNS) + list(lr_columns(header).values())
+    columns += list(BODY_COLUMNS) + list(SATURATION_COLUMNS)
+    columns += [column for joint, column in lr_columns(header).items() if joint != "hip_roll"]
+    columns += list(POSTURE_COLUMNS)
+    columns += [f"{foot}_{suffix}" for foot in hip_roll_labels(header) for suffix in HIP_ROLL_SUFFIXES]
     return [column for column in columns if column in present]
 
 
@@ -334,6 +384,7 @@ def expected_columns(feet: Sequence[str]) -> list[str]:
     columns = ["timesteps", "return", "full_horizon", "cause", "screen_v2_clean", "screen_v2_reasons"]
     columns += [f"{foot}_{suffix}" for foot in feet for suffix in FOOT_SUFFIXES]
     columns += list(BODY_COLUMNS) + [ACTUATOR_COLUMN, ACTUATOR_FRACTION_COLUMN, ACTUATOR_SHARE_COLUMN]
+    columns += list(POSTURE_COLUMNS) + [f"{foot}_{suffix}" for foot in feet for suffix in HIP_ROLL_SUFFIXES]
     return columns
 
 
@@ -471,7 +522,10 @@ def reduce_evaluations(
     full-horizon episodes whose own value exceeds the bar) and
     ``<rail>_over_bar_fraction`` (over those that measured it); and
     ``columns``: per reduced column its ``mean``, ``std``, ``min``, ``max``
-    and ``n`` over the evaluation's full-horizon episodes.  A count whose
+    and ``n`` over the evaluation's full-horizon episodes, with, per foot
+    pair recording a hip roll, the left-minus-right hip roll
+    (:func:`hip_roll_lr_column`: each episode's left leg's
+    ``<foot>_hip_roll_mean_deg`` minus its right leg's).  A count whose
     column is absent is left out.
     """
     present = set(header)
@@ -520,6 +574,18 @@ def reduce_evaluations(
     for column in reduced_columns(header):
         stats = [_stats([_number(row.get(column)) for row in group]) for group in fh_rows]
         out["columns"][column] = {key: np.asarray([s[key] for s in stats], dtype=float) for key in stats[0]}
+    for left, right in hip_roll_pairs(hip_roll_labels(header)):
+        stats = [
+            _stats(
+                [
+                    _number(row.get(f"{left}_hip_roll_mean_deg")) - _number(row.get(f"{right}_hip_roll_mean_deg"))
+                    for row in group
+                ]
+            )
+            for group in fh_rows
+        ]
+        derived = hip_roll_lr_column(left, right)
+        out["columns"][derived] = {key: np.asarray([s[key] for s in stats], dtype=float) for key in stats[0]}
     return out
 
 
@@ -969,6 +1035,13 @@ def _band(record: Mapping[str, Any]) -> dict[str, float] | None:
     return None
 
 
+def _head_target(record: Mapping[str, Any]) -> float | None:
+    """The head_clearance reward's target height (m) the stage records (``reward_weights``), else ``None``."""
+    weights = record.get("reward_weights")
+    value = _number(weights.get("head_clearance_target")) if isinstance(weights, Mapping) else math.nan
+    return value if math.isfinite(value) else None
+
+
 def _edges(band: Mapping[str, float] | None) -> dict[str, float]:
     """The band's four edges (``lower``, ``upper``, ``pad_lower``, ``pad_upper``) that are finite."""
     edges = {
@@ -994,6 +1067,8 @@ class RunHistory:
     progress_timesteps: int | None = None
     progress_written_at: str | None = None
     feet: list[str] = field(default_factory=list)
+    #: The feet the ledger records a hip roll for (``<foot>_hip_roll_mean_deg``).
+    hip_roll_feet: list[str] = field(default_factory=list)
     lr: dict[str, str] = field(default_factory=dict)
     evaluations: dict[str, Any] = field(
         default_factory=lambda: {"timesteps": np.zeros(0, dtype=np.int64), "columns": {}}
@@ -1002,6 +1077,8 @@ class RunHistory:
     saturation: dict[str, Any] = field(default_factory=dict)
     bars: dict[str, float | None] = field(default_factory=dict)
     band: dict[str, float] | None = None
+    #: The head_clearance reward's target height (``reward_weights.head_clearance_target``), when recorded.
+    head_target: float | None = None
     #: The edges the outside-band counts read: the run's own band, else a reference (``band_edges_source`` says).
     band_edges: dict[str, float] = field(default_factory=dict)
     band_edges_source: str | None = None
@@ -1141,6 +1218,7 @@ def load_run_history(
     run.progress_written_at = written if isinstance(written, str) else None
     run.bars = _bars(record)
     run.band = _band(record)
+    run.head_target = _head_target(record)
     if not record:
         run.absent.append("stage_config.json: no bars or band recorded")
 
@@ -1148,20 +1226,24 @@ def load_run_history(
     if table is not None:
         header, rows = table
         run.feet = foot_labels(header)
+        run.hip_roll_feet = hip_roll_labels(header)
         run.lr = lr_columns(header)
         run.evaluations = reduce_evaluations(header, rows, bars=run.bars)
         run.fh_rows = _full_horizon_rows(header, rows)[2]
         run.absent += [
             f"{EVAL_EPISODES_FILENAME}: column {column}"
-            for column in expected_columns(run.feet or ["r", "l"])
+            for column in expected_columns(run.feet or run.hip_roll_feet or ["r", "l"])
             if column not in header
         ]
-        if len(run.lr) < len(LR_JOINTS):
-            run.absent += [
-                f"{EVAL_EPISODES_FILENAME}: left-minus-right {joint} (leg_q_*_minus_*_{joint}_deg)"
-                for joint in LR_JOINTS
-                if joint not in run.lr
-            ]
+        run.absent += [
+            f"{EVAL_EPISODES_FILENAME}: left-minus-right {joint} (leg_q_*_minus_*_{joint}_deg)"
+            for joint in LR_JOINTS
+            if joint not in run.lr
+        ]
+        if "hip_roll" not in run.lr:
+            run.absent.append(
+                f"{EVAL_EPISODES_FILENAME}: left-minus-right hip roll (no <left>/<right>_hip_roll_mean_deg)"
+            )
         if not run.steps.size:
             run.absent.append(f"{EVAL_EPISODES_FILENAME}: no row with a timesteps value")
     elif run.files[EVAL_EPISODES_FILENAME]:
@@ -1369,10 +1451,13 @@ def checkpoint_rows(run: RunHistory, marks: Sequence[int]) -> list[dict[str, Any
                 values = run.column(column, stat)
                 if values is not None:
                     row[f"{column}{suffix}"] = values[index]
-        for column in ("actuator_force_frac_max", "com_fore_aft_mean_m"):
+        for column in ("actuator_force_frac_max", "com_fore_aft_mean_m", *POSTURE_COLUMNS):
             values = run.column(column)
             if values is not None:
                 row[column] = values[index]
+        lowest = run.column("head_tip_height_min_m", "min")
+        if lowest is not None:
+            row["head_tip_height_min_m_worst"] = lowest[index]
         for joint, column in run.lr.items():
             values = run.column(column)
             if values is not None:
@@ -1416,6 +1501,8 @@ def run_record(run: RunHistory, marks: Sequence[int]) -> dict[str, Any]:
             "band_edges_counted": run.band_edges,
             "band_edges_source": run.band_edges_source,
             "feet": run.feet,
+            "hip_roll_feet": run.hip_roll_feet,
+            "head_clearance_target": run.head_target,
             "left_minus_right_columns": run.lr,
             "evaluations": evaluations,
             "training": run.training,
@@ -1475,6 +1562,12 @@ def summary(runs: Sequence[RunHistory], *, title: str, marks: Sequence["int | st
             "percentile. Each actuator's peak share and its values at the last measured rollout; first_at_level, the "
             "first rollout whose share at either bound reaches level; named, the (actuator, bound) series the "
             f"pages draw by name (at most {ROLLOUT_NAMED_SERIES}, the highest peak first). Never smoothed",
+            "posture": "head_tip_height_mean_m and head_tip_height_min_m: each episode's post-settle window mean and "
+            "minimum of the head tip's height (m above z = 0); neck_pitch_mean_deg and head_pitch_mean_deg: the window "
+            "means of the neck's pitch (its pitch hinges summed) and the head's, from home, + nose down; "
+            "<foot>_hip_roll_mean_deg: the window mean of the leg's hip roll from home, + abduction on either side, and "
+            "<foot>_hip_roll_max_abs_deg its window maximum of |angle from home|; left-minus-right hip roll: per "
+            "episode, the left leg's mean minus the right's. Reduced like every other column; no gate reads them",
             "comparison_smoothing_evaluations": smooth,
             "comparison_smoothing": "comparisons draw the continuous series as a centred rolling mean over that many "
             "evaluations, each evaluation's value faint behind it; counts are never smoothed",
@@ -1492,7 +1585,8 @@ def summary(runs: Sequence[RunHistory], *, title: str, marks: Sequence["int | st
 class Quantity:
     """One quantity drawn against the step.
 
-    ``kind``: ``column`` (a reduced column, ``{foot}`` for each foot),
+    ``kind``: ``column`` (a reduced column, ``{foot}`` for each foot: the
+    feet with a centre of pressure, or with a hip roll for a hip roll key),
     ``series`` (a continuous evaluation series), ``count`` (a per-evaluation
     count: a line on one run's page, a strip per run on a comparison, never
     smoothed), ``training`` (the training-fall fraction per window, likewise),
@@ -1784,20 +1878,79 @@ PAGES: tuple[PageSpec, ...] = (
     ),
     PageSpec(
         "09_asymmetry",
-        "Left-right asymmetry of the legs: hip pitch, knee and ankle (hip roll is not recorded)",
+        "Left-right asymmetry of the legs: hip pitch, knee, ankle and hip roll",
         "The achieved joint angle offset from the home pose, left minus right, each side signed about the animal's "
-        "leftward axis (leg_q_<left>_minus_<right>_<joint>_deg); a mirror-symmetric posture reads 0. Hip roll is "
-        "not recorded in eval_episodes.csv, so it has no panel.",
+        "leftward axis (leg_q_<left>_minus_<right>_<joint>_deg); a mirror-symmetric posture reads 0. Hip roll: each "
+        "episode's left leg's <left>_hip_roll_mean_deg minus its right leg's, both signed + abduction (the foot away "
+        "from the midline), so a mirror-symmetric posture reads 0 too and + means the left leg is the more abducted "
+        "(a lean to the right, say); the first foot pair on a quadruped. Hip roll is recorded only in ledgers "
+        "written since its columns were added{posture_note}.",
         tuple(
             Quantity(
                 f"lr:{joint}",
-                f"{joint.replace('_', ' ').capitalize()}: left minus right; {_FH}",
+                f"{joint.replace('_', ' ').capitalize()}: left minus right"
+                + (" (each leg + abduction)" if joint == "hip_roll" else "")
+                + f"; {_FH}",
                 "degrees",
             )
-            for joint in LR_JOINTS
+            for joint in LR_PAGE_JOINTS
         ),
     ),
 )
+#: The pages drawn after the policy std page (``10_policy_std``), so the earlier pages keep their names: the head
+#: posture and the hip roll per leg (``gait.posture_telemetry``), report-only columns no gate reads.
+POSTURE_PAGES: tuple[PageSpec, ...] = (
+    PageSpec(
+        "11_head_posture",
+        "Head posture: head-tip height, neck and head pitch",
+        "Report only: no gate criterion reads where the head is (gait.posture_telemetry). Over each episode's "
+        "post-settle window: the head tip's height (the model's head_tip site, else snout_tip, in m above the floor "
+        "plane, the env's own head_tip_z), its mean and its minimum; the neck's pitch (its pitch hinges summed) and "
+        "the head's on the neck, each from its home angle, + nose down. Dotted: the head_clearance reward's target "
+        "height, where the stage records one ({head_target}). Recorded only in ledgers written since these columns "
+        "were added{posture_note}.",
+        (
+            Quantity("head_tip_height_mean_m", f"Head-tip height, window mean; {_FH}", "m"),
+            Quantity(
+                "head_tip_height_min_m",
+                f"Head-tip height, window minimum; {_FH}",
+                "m",
+                spread="min",
+            ),
+            Quantity("neck_pitch_mean_deg", f"Neck pitch (its hinges summed), window mean; {_FH}", "deg (+ nose down)"),
+            Quantity("head_pitch_mean_deg", f"Head pitch on the neck, window mean; {_FH}", "deg (+ nose down)"),
+        ),
+    ),
+    PageSpec(
+        "12_hip_roll",
+        "Hip roll, per leg",
+        "Report only: no gate criterion reads the hip roll (gait.posture_telemetry). Each leg's hip roll hinge "
+        "from its home angle over the post-settle window, signed + abduction (the foot away from the midline) on "
+        "either side, so a mirror-symmetric posture reads the same on both legs: the window mean, and the window "
+        "maximum of the absolute angle from home (unsigned). The left-minus-right difference is on the asymmetry "
+        "page. Recorded only in ledgers written since these columns were added{posture_note}.",
+        (
+            Quantity(
+                "{foot}_hip_roll_mean_deg",
+                f"Hip roll, window mean; {_FH}",
+                "degrees (+ abduction)",
+                per_foot=True,
+            ),
+            Quantity(
+                "{foot}_hip_roll_max_abs_deg",
+                f"Hip roll, window maximum of |angle from home|; {_FH}",
+                "degrees",
+                spread="max",
+                per_foot=True,
+            ),
+        ),
+    ),
+)
+
+
+def page_names() -> list[str]:
+    """Every page's name in the order a report draws them: :data:`PAGES`, ``10_policy_std``, :data:`POSTURE_PAGES`."""
+    return [spec.name for spec in PAGES] + ["10_policy_std"] + [spec.name for spec in POSTURE_PAGES]
 
 
 def _stem(name: str) -> str:
@@ -1821,6 +1974,11 @@ def _smooth(values: np.ndarray, window: int) -> np.ndarray:
     sums, counts = total[high] - total[low], count[high] - count[low]
     with np.errstate(invalid="ignore", divide="ignore"):
         return np.where(counts > 0, sums / np.where(counts > 0, counts, 1.0), np.nan)
+
+
+def _quantity_feet(run: RunHistory, quantity: Quantity) -> list[str]:
+    """The feet a per-foot quantity is drawn for: those with a hip roll for a hip roll key, else a CoP."""
+    return run.hip_roll_feet if "hip_roll" in quantity.key else run.feet
 
 
 def _values(
@@ -1937,6 +2095,11 @@ def _reference_lines(runs: Sequence[RunHistory], quantity: Quantity) -> list[tup
         lines.append((1.0, "limit 1.0", "--"))
     elif key in ROLLOUT_SHARES:
         lines.append((ROLLOUT_SHARE_LEVEL, f"named from {ROLLOUT_SHARE_LEVEL:g}", ":"))
+    elif key in ("head_tip_height_mean_m", "head_tip_height_min_m"):
+        for value in _common(run.head_target for run in runs):
+            lines.append((value, f"head_clearance reward target {value:g} m", ":"))
+    if key in ("neck_pitch_mean_deg", "head_pitch_mean_deg", "{foot}_hip_roll_mean_deg"):
+        lines.append((0.0, "", "-"))
     if key.endswith(("_fore_aft", "margin_min_m", "com_fore_aft_mean_m", "shear_over_normal")) and not key.startswith(
         "max_"
     ):
@@ -2207,7 +2370,7 @@ def _colourbar(axis: Any, cmap: Any, norm: Any, *, training: bool, top: int) -> 
 
 def _draw_line_single(axis: Any, context: _Context, quantity: Quantity) -> bool:
     run = context.runs[0]
-    feet = run.feet if quantity.per_foot else [None]
+    feet: list[str | None] = list(_quantity_feet(run, quantity)) if quantity.per_foot else [None]
     drawn = False
     for foot_index, which in enumerate(feet):
         values = _values(run, quantity, which)
@@ -2794,7 +2957,7 @@ def _panels(spec: PageSpec, context: _Context) -> list[_Panel]:
         if quantity.per_foot and context.comparison:
             feet: list[str] = []
             for run in context.runs:
-                feet += [foot for foot in run.feet if foot not in feet]
+                feet += [foot for foot in _quantity_feet(run, quantity) if foot not in feet]
             panels += [
                 _Panel(quantity, foot, f"Foot {foot}: {title}", quantity.unit, height) for foot in (feet or ["r", "l"])
             ]
@@ -2846,6 +3009,8 @@ def _page_figure(spec: PageSpec, context: _Context, *, title: str, dpi: int, wid
                 if quantity.kind == "actuators"
                 else f"{POLICY_PROBE_FILENAME} {quantity.key}_*"
                 if quantity.kind == "rollout"
+                else "the left and right <foot>_hip_roll_mean_deg"
+                if quantity.key == "lr:hip_roll"
                 else quantity.key.replace("{foot}", panel.foot or "<foot>")
             )
             _absent(axis, f"not recorded in these files ({column})")
@@ -3185,6 +3350,14 @@ def render_pages(
             f" ({'this run' if len(runs) == 1 else ', '.join(gaps)}: some rollouts not measured, said on the panel: "
             f"a resume kept rows from a {POLICY_PROBE_FILENAME} written before the arrays, or a buffer pass failed)"
         )
+    unposed = [run.label for run in runs if "head_tip_height_mean_m" not in run.evaluations.get("columns", {})]
+    posture_note = (
+        ""
+        if not unposed
+        else f" ({'this ledger' if len(runs) == 1 else ', '.join(unposed)} records none: an older ledger, or a model "
+        "whose evaluation runs no recorder, so those panels are absent)"
+    )
+    targets = _common(run.head_target for run in runs)
     fields = {
         "episodes": episodes,
         "rollout_note": rollout_note,
@@ -3192,20 +3365,30 @@ def render_pages(
         "pad_band": _band_text(runs, "pad_lower", "pad_upper"),
         "saturation_note": saturation_note,
         "named_note": named_note,
+        "posture_note": posture_note,
+        "head_target": (
+            "none recorded"
+            if not targets
+            else ", ".join(f"{value:g} m" for value in targets) + " (reward_weights.head_clearance_target)"
+        ),
     }
     pages: list[Page] = []
     errors: list[str] = []
+
+    def draw(spec: PageSpec) -> None:
+        try:
+            figure = _page_figure(spec, context, title=title, dpi=dpi, width=width)
+            caption = spec.caption.format(**fields)
+            if comparison:
+                caption += f" Runs: {colour_note}; each run's name sits at its line's end."
+            pages.append(Page(spec.name, spec.title, caption, _png(figure, dpi)))
+        except Exception as exc:  # noqa: BLE001 - a failure costs this page only
+            logger.warning("training history page %s failed: %s", spec.name, exc)
+            errors.append(f"{spec.name}: {type(exc).__name__}: {exc}")
+
     with matplotlib.rc_context({"font.family": "DejaVu Sans", "figure.facecolor": "white"}):
         for spec in PAGES:
-            try:
-                figure = _page_figure(spec, context, title=title, dpi=dpi, width=width)
-                caption = spec.caption.format(**fields)
-                if comparison:
-                    caption += f" Runs: {colour_note}; each run's name sits at its line's end."
-                pages.append(Page(spec.name, spec.title, caption, _png(figure, dpi)))
-            except Exception as exc:  # noqa: BLE001 - a failure costs this page only
-                logger.warning("training history page %s failed: %s", spec.name, exc)
-                errors.append(f"{spec.name}: {type(exc).__name__}: {exc}")
+            draw(spec)
         try:
             figure = _std_figure(context, title=title, dpi=dpi, width=width)
             sources = sorted({run.actuator_source for run in runs if run.actuator_source})
@@ -3219,6 +3402,8 @@ def render_pages(
         except Exception as exc:  # noqa: BLE001
             logger.warning("training history page 10_policy_std failed: %s", exc)
             errors.append(f"10_policy_std: {type(exc).__name__}: {exc}")
+        for spec in POSTURE_PAGES:
+            draw(spec)
     return pages, errors
 
 
@@ -3302,6 +3487,15 @@ _COUNT_HEADERS = {
     "max_sole_tilt_deg_over_bar": "over tilt bar",
     "max_sole_corner_lift_m_over_bar": "over lift bar",
 }
+
+
+#: The checkpoint table's head posture columns: ``(row key, header)``, shown where a row has them.
+_POSTURE_HEADERS: tuple[tuple[str, str], ...] = (
+    ("head_tip_height_mean_m", "head tip m"),
+    ("head_tip_height_min_m_worst", "head tip lowest m"),
+    ("neck_pitch_mean_deg", "neck pitch"),
+    ("head_pitch_mean_deg", "head pitch"),
+)
 
 
 def _fmt_named(counts: Any) -> str:
@@ -3393,8 +3587,9 @@ def render_html(document: Mapping[str, Any], pages: Sequence[Page], *, json_name
         "the actuator each names and its sign (+ every saturated step at +1, - at -1, +/- both), so the final, best "
         "and robust_best checkpoints are read from their own evaluation's rows. The rail and saturation-fraction "
         "columns are the mean and the worst full-horizon episode. "
-        "CoP in half-lengths (+ toe), tilt in degrees, lift in mm, left minus right in degrees, std in action units "
-        "at the checkpoint saved at that step.</p>"
+        "CoP in half-lengths (+ toe), tilt in degrees, lift in mm, left minus right in degrees (hip roll: each leg "
+        "+ abduction), the head tip in m (its window mean, and the lowest episode's window minimum), the neck and "
+        "head pitch in degrees (+ nose down), std in action units at the checkpoint saved at that step.</p>"
     )
     for run in runs:
         table = run.get("checkpoint_table") or []
@@ -3409,8 +3604,10 @@ def render_html(document: Mapping[str, Any], pages: Sequence[Page], *, json_name
         cols += [(key, header, scale) for key, header, scale in _TABLE_VALUES if key in present]
         cols += [(f"{f}_foot_cop_fore_aft", f"foot CoP {f}", 1.0) for f in feet]
         cols += [(f"{f}_sole_cop_fore_aft", f"pad CoP {f}", 1.0) for f in feet]
-        cols += [(f"l_minus_r_{j}_deg", f"L-R {j.replace('_', ' ')}", 1.0) for j in LR_JOINTS]
+        cols += [(f"l_minus_r_{j}_deg", f"L-R {j.replace('_', ' ')}", 1.0) for j in LR_PAGE_JOINTS if j != "hip_roll"]
+        cols += [("l_minus_r_hip_roll_deg", "L-R hip roll", 1.0)] if "l_minus_r_hip_roll_deg" in present else []
         cols += [("actuator_force_frac_max", "force frac", 1.0)]
+        cols += [(key, header, 1.0) for key, header in _POSTURE_HEADERS if key in present]
         std_cols = sorted(
             {k for row in table for k in row if k.startswith("std_") and k != "std_checkpoint"}, key=_std_order
         )

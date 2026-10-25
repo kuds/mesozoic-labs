@@ -8,6 +8,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **Head posture and hip roll drawn over training** (the maintainer's
+  decisions of 2026-10-25, items (2) and (4);
+  `environments/shared/reporting/training_history.py`; documented in
+  `docs/TRAINING_ARTIFACT_PRESENTATION.md`, "Training history pages").
+  Report only. Two pages after the policy std page, so every earlier page
+  keeps its name: `11_head_posture` (the head tip's window mean and minimum,
+  with the `head_clearance` reward's target height where the stage records
+  it, and the neck and head pitch) and `12_hip_roll` (per foot, the window
+  mean, + abduction, and the maximum |angle from home|); the asymmetry page
+  gains the left-minus-right hip roll (per episode, the left leg's mean minus
+  the right's), and the checkpoint table the head's values and the
+  left-minus-right hip roll. A ledger written before the columns renders them as labelled
+  absent series (the captions and the JSON's `absent` say so). The stage-end
+  report now holds twelve pages.
 - **Each evaluation episode's head posture and hip roll, in the eval-episode
   ledger** (the maintainer's decisions of 2026-10-25, items (2) and (4):
   head posture as report-only telemetry, no gate change; task #47's

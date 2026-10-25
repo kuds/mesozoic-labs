@@ -721,7 +721,7 @@ class TestTolerance:
         assert not run.steps.size and run.training is None and run.errors == []
         written = th.write_report([run], tmp_path / "out", title="empty", marks=["final"], dpi=30)
         assert written["errors"] == []
-        assert len(written["pngs"]) == len(th.PAGES) + 1
+        assert len(written["pngs"]) == len(th.page_names())
         document = json.loads((tmp_path / "out" / th.JSON_FILENAME).read_text(), parse_constant=_no_constant)
         assert document["runs"][0]["evaluations"]["timesteps"] == []
 
@@ -833,6 +833,112 @@ class TestPolicyStd:
         assert solid == [(1, 2), (2, 3)] and dotted == [(0, 1), (3, 4), (4, 5)]
 
 
+POSTURE = [*th.POSTURE_COLUMNS, *(f"{foot}_{suffix}" for foot in FEET for suffix in th.HIP_ROLL_SUFFIXES)]
+
+
+def _posture_stage(tmp_path: Path, *, name: str = "posed", head_target: float | None = 0.9) -> Path:
+    """:func:`_stage` with the head posture and hip roll columns appended, as the ledger writes them (last).
+
+    Evaluation k: the head tip at 1.2 - 0.2 k m (episode i 0.01 i higher), its window minimum 0.05 m lower, the neck
+    at 10 k degrees and the head at -2 degrees; the left hip roll 1 + k degrees, the right 0.5 degrees, each
+    episode's max |roll| 2 degrees.
+    """
+    stage = _stage(tmp_path, name=name)
+    rows = list(csv.DictReader((stage / th.EVAL_EPISODES_FILENAME).open(newline="", encoding="utf-8")))
+    for row in rows:
+        evaluation, episode = int(row["evaluation"]), int(row["episode"])
+        head = 1.2 - 0.2 * evaluation + 0.01 * episode
+        row.update(
+            head_tip_height_mean_m=head,
+            head_tip_height_min_m=head - 0.05,
+            neck_pitch_mean_deg=10.0 * evaluation,
+            head_pitch_mean_deg=-2.0,
+            r_hip_roll_mean_deg=0.5,
+            r_hip_roll_max_abs_deg=2.0,
+            l_hip_roll_mean_deg=1.0 + evaluation,
+            l_hip_roll_max_abs_deg=2.0,
+        )
+    _write_csv(stage / th.EVAL_EPISODES_FILENAME, rows, COLUMNS + POSTURE)
+    config = json.loads((stage / th.STAGE_CONFIG_FILENAME).read_text(encoding="utf-8"))
+    if head_target is not None:
+        config["reward_weights"]["head_clearance_target"] = head_target
+    (stage / th.STAGE_CONFIG_FILENAME).write_text(json.dumps(config), encoding="utf-8")
+    return stage
+
+
+class TestHeadPostureAndHipRoll:
+    def test_the_columns_reduce_over_the_full_horizon_episodes(self, tmp_path):
+        run = th.load_run_history(_posture_stage(tmp_path), read_std=False)
+        assert run.hip_roll_feet == ["r", "l"] and run.head_target == 0.9
+        # Evaluation 0 drops its fallen episode 9: the mean of episodes 0..8, and the lowest minimum is episode 0's.
+        assert run.column("head_tip_height_mean_m")[0] == pytest.approx(1.2 + 0.01 * 4)
+        assert run.column("head_tip_height_mean_m")[1] == pytest.approx(1.0 + 0.01 * 4.5)
+        assert run.column("head_tip_height_min_m", "min")[1] == pytest.approx(1.0 - 0.05)
+        assert run.column("neck_pitch_mean_deg").tolist() == pytest.approx([0.0, 10.0, 20.0, 30.0])
+        assert run.column("r_hip_roll_max_abs_deg", "max").tolist() == pytest.approx([2.0] * 4)
+        # The left-minus-right hip roll: per episode, the left leg's mean minus the right's (both + abduction).
+        assert run.lr["hip_roll"] == "hip_roll_l_minus_r_deg"
+        assert run.column("hip_roll_l_minus_r_deg").tolist() == pytest.approx([0.5, 1.5, 2.5, 3.5])
+        assert not any("hip roll" in entry or "head_tip" in entry for entry in run.absent)
+        row = th.checkpoint_rows(run, [2 * STEP])[0]
+        assert row["head_tip_height_mean_m"] == pytest.approx(1.045) and row["l_minus_r_hip_roll_deg"] == 1.5
+        assert row["head_tip_height_min_m_worst"] == pytest.approx(0.95) and row["neck_pitch_mean_deg"] == 10.0
+
+    def test_the_pairs_follow_the_side_letter(self):
+        assert th.hip_roll_pairs(["fr", "fl", "rr", "rl"]) == [("fl", "fr"), ("rl", "rr")]
+        assert th.hip_roll_pairs(["r", "l"]) == [("l", "r")] and th.hip_roll_pairs(["l"]) == []
+        header = [f"{foot}_hip_roll_mean_deg" for foot in ("fr", "fl", "rr", "rl")]
+        assert th.hip_roll_labels(header) == ["fr", "fl", "rr", "rl"]
+        assert th.lr_columns(header) == {"hip_roll": "hip_roll_fl_minus_fr_deg"}
+        # No posture column reads as a foot's centre of pressure or a left-right offset of the ledger.
+        assert th.foot_labels(POSTURE) == [] and set(th.lr_columns(POSTURE)) == {"hip_roll"}
+
+    def test_the_pages_draw_them_with_the_reward_target_and_zero_lines(self, tmp_path):
+        run = th.load_run_history(_posture_stage(tmp_path), read_std=False)
+        context = th._make_context([run], marks=[], smooth=5)
+        spec = {page.name: page for page in th.POSTURE_PAGES}
+        head = th._page_figure(spec["11_head_posture"], context, title="t", dpi=30, width=12.0)
+        mean, lowest, neck, _head_pitch = head.axes[:4]
+        assert any("head_clearance reward target 0.9 m" in text.get_text() for text in mean.texts)
+        assert lowest.get_legend() is not None  # the worst episode's minimum, dashed
+        assert 0.0 in [line.get_ydata()[0] for line in neck.lines if len(line.get_ydata()) == 2]
+        hips = th._page_figure(spec["12_hip_roll"], context, title="t", dpi=30, width=12.0).axes[0]
+        assert [text.get_text() for text in hips.get_legend().get_texts()][:2] == ["foot r", "foot l"]
+        asymmetry = {page.name: page for page in th.PAGES}["09_asymmetry"]
+        roll = th._page_figure(asymmetry, context, title="t", dpi=30, width=12.0).axes[3]
+        assert roll.get_title(loc="left").startswith("Hip roll: left minus right (each leg + abduction)")
+        assert not any("not recorded" in text.get_text() for text in roll.texts)
+
+    def test_an_older_ledger_renders_them_as_labelled_absent_series(self, tmp_path):
+        run = th.load_run_history(_stage(tmp_path), read_std=False)
+        assert run.hip_roll_feet == [] and "hip_roll" not in run.lr and run.head_target is None
+        assert f"{th.EVAL_EPISODES_FILENAME}: column head_tip_height_mean_m" in run.absent
+        assert f"{th.EVAL_EPISODES_FILENAME}: column l_hip_roll_mean_deg" in run.absent
+        assert any("left-minus-right hip roll" in entry for entry in run.absent)
+        pages, errors = th.render_pages([run], title="t", marks=[], dpi=30)
+        assert errors == [] and [page.name for page in pages] == th.page_names()
+        captions = {page.name: page.caption for page in pages}
+        assert (
+            "this ledger records none" in captions["11_head_posture"] and "none recorded" in captions["11_head_posture"]
+        )
+        context = th._make_context([run], marks=[], smooth=5)
+        for spec in th.POSTURE_PAGES:
+            figure = th._page_figure(spec, context, title="t", dpi=30, width=12.0)
+            assert all(
+                any("not recorded" in t.get_text() for t in axis.texts) for axis in figure.axes[: len(spec.quantities)]
+            )
+        asymmetry = th._page_figure(th.PAGES[8], context, title="t", dpi=30, width=12.0).axes[3]
+        assert any("hip_roll_mean_deg" in text.get_text() for text in asymmetry.texts)
+
+    def test_a_comparison_of_an_older_and_a_newer_ledger(self, tmp_path):
+        runs = [
+            th.load_run_history(_stage(tmp_path, name="old"), label="old", read_std=False),
+            th.load_run_history(_posture_stage(tmp_path, name="new"), label="new", read_std=False),
+        ]
+        pages, errors = th.render_pages(runs, title="t", marks=[], dpi=30)
+        assert errors == [] and "(old records none" in {page.name: page for page in pages}["12_hip_roll"].caption
+
+
 class TestRefusal:
     def test_an_out_inside_the_run_is_refused(self, tmp_path):
         stage = _stage(tmp_path)
@@ -874,7 +980,7 @@ class TestRender:
         )
         assert status == 0, capsys.readouterr().err
         pngs = sorted(out.glob("*.png"))
-        assert [p.stem for p in pngs] == [spec.name for spec in th.PAGES] + ["10_policy_std"]
+        assert [p.stem for p in pngs] == th.page_names()
         assert all(p.read_bytes()[:8] == b"\x89PNG\r\n\x1a\n" for p in pngs)
         document = json.loads((out / th.JSON_FILENAME).read_text(), parse_constant=_no_constant)
         assert document["schema"] == th.SCHEMA and document["errors"] == []
@@ -896,7 +1002,7 @@ class TestRender:
             ),
         ]
         pages, errors = th.render_pages(runs, title="a against b", marks=[STEP], dpi=30)
-        assert errors == [] and len(pages) == len(th.PAGES) + 1
+        assert errors == [] and [page.name for page in pages] == th.page_names()
         assert all(page.png[:4] == b"\x89PNG" for page in pages)
         assert "colour per seed" in pages[0].caption and "10 episodes per evaluation" in pages[0].caption
 

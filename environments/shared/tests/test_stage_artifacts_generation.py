@@ -458,7 +458,7 @@ def test_the_training_history_is_drawn_at_stage_end_and_its_failure_costs_it_onl
         assert len(failed) == (name == "raises"), warnings
 
     history = stage_layout.training_history_dir(tmp_path / "drawn" / "01_stance")
-    pages = [f"{spec.name}.png" for spec in training_history.PAGES] + ["10_policy_std.png"]
+    pages = [f"{name}.png" for name in training_history.page_names()]
     assert sorted(path.name for path in history.iterdir()) == sorted(
         pages + [training_history.HTML_FILENAME, training_history.JSON_FILENAME]
     )
