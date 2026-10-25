@@ -88,7 +88,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   for a stated reason (no head-tip site, no neck hinge, no `head_pitch`; the
   Velociraptor Mongoliensis (Anatomical) and the Brachiosaurus Altithorax
   (Anatomical) run no evaluation recorder, so their ledgers carry none of
-  these columns). Validated (measured) on the r9 tree
+  these columns and the callback names none: its `posture_columns` is empty
+  there, the gap the maintainer's decision of 2026-10-25 17:42 UTC keeps). Validated
+  (measured) on the r9 tree
   (`3ffc18e9` with this change) with stance3 Run 2's final, the walking
   parent: over the stance panel's 40 episodes the neck and head pitch
   reproduce the zero-shot check's -2.158 and +0.142 degrees to 9e-16 per

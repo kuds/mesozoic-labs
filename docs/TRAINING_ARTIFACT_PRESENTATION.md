@@ -691,7 +691,11 @@ hinge; hip rolls on both legs) and the Brachiosaurus Altithorax
 (Anatomical) (`head_tip`, `neck_1_pitch` to `neck_4_pitch`,
 `head_pitch`, four hip rolls) have no box pad, so their evaluations run no
 recorder and their ledgers hold none of the recorder's columns, these
-included. Like the saturating-actuator columns, these are not
+included. The maintainer's decision of 2026-10-25 17:42 UTC keeps that gap rather
+than attach a recorder for the posture columns alone, and the callback
+names none of them there either: `StageAwareEvalCallback.posture_columns`
+is empty on a model whose evaluation runs no recorder, as on one it cannot
+describe. Like the saturating-actuator columns, these are not
 `StanceEpisodeMetrics` fields, panel columns, balance keys or gate keys,
 never reach `gate_progress.npz` or `progress.json`, and no name begins with
 `max_`, `min_` or `leg_q_` or ends in a per-foot rail suffix. They are

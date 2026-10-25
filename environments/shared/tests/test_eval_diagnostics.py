@@ -2857,10 +2857,52 @@ class TestTheExtensionsOnARealEvaluation:
         assert callback.balance_keys == () and callback.evaluations_actuator_force_frac == [[]]
         assert "actuator_force_frac_per_actuator" not in data.files
         assert not any(key.startswith("screen_v2_") for key in data.files)  # no recorder, no screen
-        # No recorder, so no trace to read a posture from: the ledger holds the outcome columns only.
-        assert callback.posture_columns and not (tmp_path / "eval_episodes.csv").read_text().splitlines()[0].count(
-            "hip"
+        # No recorder, so no trace to read a posture from: the ledger holds the outcome columns only, and the
+        # callback names no posture column (the next test).
+        assert callback.posture_columns == () and not (
+            (tmp_path / "eval_episodes.csv").read_text().splitlines()[0].count("hip")
         )
+
+    @pytest.mark.parametrize("model_id", [VELOCIRAPTOR_MONGOLIENSIS, BRACHIOSAURUS_ALTITHORAX], ids=str)
+    def test_a_model_whose_evaluation_runs_no_recorder_names_no_posture_column(
+        self, tmp_path, monkeypatch, caplog, model_id
+    ):
+        import csv
+
+        from environments.shared.eval_diagnostics import EVAL_LEDGER_FIXED_COLUMNS
+        from environments.shared.gait.morphology import Morphology
+        from environments.shared.gait.posture_telemetry import PostureLayout
+        from environments.shared.gait.recorder import SubstepContactRecorder
+        from environments.shared.species_registry import env_class
+
+        # The body has a head or hip roll to describe: on its own, its layout names columns (8 and 12) ...
+        env = env_class(model_id)()
+        try:
+            described = PostureLayout.from_env(env, Morphology.from_env(env.unwrapped, model_id)).columns()
+        finally:
+            env.close()
+        assert any(column.endswith("_hip_roll_mean_deg") for column in described)
+        attached = []
+        attach = SubstepContactRecorder.attach
+        monkeypatch.setattr(SubstepContactRecorder, "attach", lambda self: attached.append(self) or attach(self))
+        with caplog.at_level(logging.WARNING, logger="environments.shared.eval_diagnostics"):
+            callback, data, traces, _settle, hook_left = _real_evaluation(
+                model_id, tmp_path, monkeypatch, evaluations=2
+            )
+        with open(tmp_path / "eval_episodes.csv", newline="") as handle:
+            reader = csv.DictReader(handle)
+            header, rows = list(reader.fieldnames or []), list(reader)
+        # ... but no box-soled foot means no foot key, no recorder and no trace (the maintainer's decision of
+        # 2026-10-25 17:42 UTC: the documented gap), so the callback names, keeps, writes and publishes none of
+        # them, over both evaluations, and warns of nothing (the gap is not a failure).
+        assert callback._foot_keys() == () and attached == [] and traces == [] and not hook_left
+        assert callback.posture_columns == () and callback.__dict__.get("_posture_layouts") == []
+        assert callback._episode_posture(None, 0) == {}
+        assert header == list(EVAL_LEDGER_FIXED_COLUMNS) and len(rows) == 4
+        assert not set(described) & (set(header) | set(data.files))
+        parts = ("head_tip", "neck_pitch", "head_pitch", "hip_roll")
+        assert not any(part in key for key in (*header, *data.files) for part in parts)
+        assert "Posture telemetry" not in caplog.text
 
 
 class TestTheBalanceKeysReachGateProgress:

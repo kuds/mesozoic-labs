@@ -450,7 +450,8 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
     balance_keys: tuple[str, ...] = ()
     #: The head posture and hip roll columns of the model's episodes
     #: (:meth:`~environments.shared.gait.posture_telemetry.PostureLayout.columns`), resolved with the pad keys under
-    #: :attr:`report_extensions`; ledger-only, and empty when the model cannot be described.
+    #: :attr:`report_extensions`; ledger-only, and empty when the model cannot be described or its evaluation runs no
+    #: recorder (no box sole).
     posture_columns: tuple[str, ...] = ()
     _ledger: Any = None
     _balance_disabled = False
@@ -766,7 +767,16 @@ class StageAwareEvalCallback(_EvalCallback):  # type: ignore[misc]
             )
 
     def _resolve_posture(self, setup: "list[tuple[Any, Any, Any, Any]]") -> None:
-        """Each sub-env's ``PostureLayout`` and the run's :attr:`posture_columns` (empty when it cannot be described)."""
+        """Each sub-env's ``PostureLayout`` and the run's :attr:`posture_columns` (empty when it cannot be described).
+
+        Also empty, with no layout, on a model whose evaluation runs no recorder (no box-soled foot, so no foot key:
+        the Velociraptor and the Brachiosaurus): no trace is closed there to reduce (:meth:`_capture_pad`), so the
+        callback names no column its ledger would never write (the maintainer's decision of 2026-10-25 17:42 UTC).
+        """
+        if not self._foot_keys():
+            self._posture_layouts = []
+            self.posture_columns = ()
+            return
         try:
             from .gait.posture_telemetry import PostureLayout
 
