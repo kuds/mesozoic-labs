@@ -195,7 +195,9 @@ def check_model(*, duration: float = 10) -> dict[str, Any]:
         MODEL_PATH.parent.parent / "tyrannosaurus_rex_50cm" / "build_model.py",
     ]
     sources += sorted(MODEL_PATH.parent.glob("assets/*.obj"))
-    source_sha256 = {str(p.relative_to(MODEL_PATH.parent.parent.parent)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sources}
+    source_sha256 = {
+        str(p.relative_to(MODEL_PATH.parent.parent.parent)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sources
+    }
     source_sha256["../../environments/shared/robot_validation.py"] = hashlib.sha256(
         Path(robot_validation.__file__).read_bytes()
     ).hexdigest()

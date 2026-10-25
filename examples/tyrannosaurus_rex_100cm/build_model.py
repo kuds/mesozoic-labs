@@ -21,7 +21,7 @@ from examples.tyrannosaurus_rex_50cm.build_model import element, make_meshes, me
 HERE = Path(__file__).resolve().parent
 ROOT_HEIGHT = 0.460
 LEG_TORQUE_NM = 20.0
-MOTOR_MASS_G = 880.0
+MOTOR_MASS_G = 900.0
 MOTOR_RADIUS_M = 0.053
 MOTOR_HALF_DEPTH_M = 0.028
 
@@ -58,12 +58,12 @@ class Builder(BaseBuilder):
         self.motor_specs: dict[str, Any] = {
             "candidate": "RobStride 03",
             "count": 12,
-            "mass_kg_each": 0.880,
+            "mass_kg_each": 0.900,
             "body_envelope_m": [0.106, 0.106, 0.056],
-            "vendor_rated_torque_nm": 20,
+            "vendor_rated_torque_nm": 21,
             "vendor_peak_torque_nm": 60,
             "simulation_cap_nm": LEG_TORQUE_NM,
-            "source": "https://robstride.com/products/robStride03",
+            "source": "https://github.com/RobStride/Product_Information",
             "caveat": "Cylindrical packaging surrogate, not supplier mounting CAD; torque rating is conditional on cooling.",
         }
 
@@ -89,10 +89,11 @@ class Builder(BaseBuilder):
         self.geom(parent, name + "_hub", "cylinder", (0.032, 0.003), face, "metal", euler=rotation, group=2)
 
     def expression_motor(self, parent: ET.Element, name: str, pos: Any, heavy: bool = False) -> None:
-        grams = 165 if heavy else 82
-        size = (0.020, 0.023, 0.032) if heavy else (0.015, 0.018, 0.024)
+        grams = 310 if heavy else 191
+        size = (0.0285, 0.0285, 0.0255) if heavy else (0.023, 0.023, 0.022)
         self.component(parent, name + "_motor", "expression_actuators", grams, pos, size)
         self.geom(parent, name + "_case", "box", size, pos, "graphite", group=2)
+        self.collision(parent, name + "_case", "box", size, pos)
 
     def link(self, body: ET.Element, name: str, end: Any, radius: float) -> None:
         for collision in (False, True):
@@ -275,6 +276,13 @@ class Builder(BaseBuilder):
         report = json.loads(path.read_text())
         report["nominal_height_m"] = 1.0
         report["leg_motor_specification"] = self.motor_specs
+        report["expression_motor_specification"] = {
+            "head": {"candidate": "RobStride 00", "count": 2, "mass_kg_each": 0.310,
+                     "body_envelope_m": [0.057, 0.057, 0.051], "simulation_cap_nm": 2.0},
+            "arms_jaw_tail": {"candidate": "RobStride 05", "count": 4, "mass_kg_each": 0.191,
+                             "body_envelope_m": [0.046, 0.046, 0.044], "simulation_cap_nm": 0.8},
+            "source": "https://github.com/RobStride/Product_Information",
+        }
         report["limitations"] = [
             "All component masses, locations and box inertias are design allocations, not weighed CAD properties.",
             "Motor body envelopes omit mounting bolts, shafts and cable bends; fabrication requires supplier CAD.",
