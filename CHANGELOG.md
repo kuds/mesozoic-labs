@@ -54,6 +54,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   loaded host]: about 67 ms per 1000-step statue episode attributed in
   place (4.4%), median A/B +2.3% (statue) and +6.0% (r9 policy), within the
   specification's +10%; a T. rex row grows by 1.59 to 1.88 KB.
+- **The in-run K3 noise panel** (the maintainer's decisions of 2026-10-25
+  15:44 UTC in the stance run log, item (6), and 16:15 UTC: the judge's full
+  K3 every 1,048,576 steps and at the end, synchronous, off by default and
+  enabled at launch, the offline judge's K3 staying the K3 of record, the
+  specification's other defaults accepted;
+  `environments/shared/k3_panel.py`, wired in `train_base.train(...,
+  k3_panel=...)`, the command line's `train --k3-panel` and the SB3
+  notebook's `K3_PANEL` cell; documented in
+  `docs/TRAINING_ARTIFACT_PRESENTATION.md`, "The in-run K3 noise panel").
+  Report only, never a stage key (no digest moves). On the stance stage, at
+  every 1,048,576 steps and at training end, it rolls the stance5
+  replication judge's two K3 noise tests with the judge's arithmetic (20
+  spawns each, own sigma and the joint-space sigma read at launch from a
+  JSON file and recorded by sha256) on a CPU copy of the live policy and a
+  copy of the normalizer's statistics, in an env of its own, inside a guard
+  of the global generators, into `k3_panel.csv` and `k3_panel.json`
+  (`mesozoic.k3-panel/v1`) beside the ledgers; never `gate_progress.npz`,
+  `progress.json`, TensorBoard or any gate input. A resume keeps the prior
+  panels, copies the prior files aside and rolls a missing grid panel on the
+  restored pair's statistics. Measured: the extended in-suite inertness
+  proof trains bit for bit alike with the panel on and off, and its panels
+  equal an offline run on the checkpoint pairs saved at their steps; on the
+  judges' own tree (cf80ecb1) the panel reproduces the judge files of
+  `stance5_LTSB_s80` at 4,194,304 (joint-space falls 2 of 20, at seeds 3051
+  and 3061) and `stance5_LTSB_s42` at 4,194,304 (0 and 0) episode for
+  episode, lengths, termination reasons and returns bit for bit; a
+  40-episode panel takes about 85 s on the local 4-vCPU host, about 17 min
+  per 12M-step run (12 panels); on a Colab L4 about 17 to 26 min, 1.8 to
+  2.8% of the run [inferred].
+- **Training-history pages 13 to 19** (the maintainer's decisions of
+  2026-10-25 15:44 UTC, item (4), and 16:15 UTC: the observation
+  normalization read through a whitelisting stub unpickler;
+  `environments/shared/reporting/training_history.py`; documented in
+  `docs/TRAINING_ARTIFACT_PRESENTATION.md`, "Training history pages"). Report
+  only, after the hip roll page so every earlier page keeps its name:
+  `13_commands` (each actuator's window-mean command with the parked and
+  rail lines, and the episodes at rail and parked by actuator and sign),
+  `14_tail_body` (the tail's chord and hinges, the pelvis's height, pitch
+  and roll), `15_energy` (work, peak power, torque and command jitter per
+  actuator group, and per leg), `16_drift_slip` (the displacement, path,
+  signed yaw, and each foot's slip beside its site travel),
+  `17_exploration_k3` (the leg actuators' exploration std from
+  `policy_probe.npz` beside K3's falls from the in-run panel and the judge
+  files), `18_obs_normalization` (the normalization's drift per checkpoint
+  from the VecNormalize pickles in `models/`, read through a stub
+  unpickler that names only numpy's array helpers and inert stand-ins, with
+  the probe's per-update statistics) and `19_body_dynamics` (the four
+  MjData extras: joint stops, base wrenches, the CoM's and capture point's
+  margins, the centroidal angular momentum and the head's rate, on one page
+  of their own so pages 13 to 18 are the specification's); the JSON gains
+  `k3_panel`, `exploration` (each leg actuator's std at every K3 point) and
+  `obs_normalization`. A ledger without the body columns, a run without the
+  probe, the pickles or the panel renders labelled absent panels. Measured:
+  the probe's rows equal the pickles cast to float32 at their shared steps
+  (the stance5 replication run s80 at 4,194,304, and in the suite).
 - **The stance5 replication judge's K3 criterion, read out over training in
   the training-history report** (the maintainer's decisions of 2026-10-25
   14:13 UTC in the stance run log, item (4): task #47's remaining judge-K3

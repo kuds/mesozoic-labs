@@ -1002,6 +1002,130 @@ read 0.63 at the settled statue against 0.16 for `bank_value_now`. There
 initial statistics, not a meaningful earlier normalizer; compare rows of
 `bank_value_now` with `obs_rms_*` instead.
 
+## The in-run K3 noise panel: `k3_panel.csv` and `k3_panel.json`
+
+K3, the stance judges' robustness criterion
+(`docs/investigations/stance_2026_10/stance5/replication/criteria.txt`:
+"joint-space noise falls at most 2 of 20, and own-sigma falls at most 1 of
+20" at 6,291,456 and the final), was measured only offline, by the judge,
+on checkpoints fetched after a run. The in-run panel
+(`environments/shared/k3_panel.py`) rolls the same two tests during
+training, so a run's K3 history is in its own stage directory. It is report
+only: the offline judge's K3 stays the K3 of record, and nothing (no gate,
+verdict, plateau, collapse stop, checkpoint selection or handoff) reads the
+panel.
+
+**Enabling.** Off unless the launch turns it on, and only on the stance
+stage: the notebook's configuration cell (`K3_PANEL = True`, with
+`K3_PANEL_SIGMA_FILE` and `K3_PANEL_SIGMA_KEY`), the command line's
+`train --k3-panel [--k3-panel-sigma-file JSON --k3-panel-sigma-key KEY]`,
+or `train_base.train(..., k3_panel=K3PanelConfig(...))`. It is never a stage
+TOML key, so no stage-config, task or hyperparameter digest records it. The
+joint-space sigma is read once, at launch, from the JSON file: a dotted key
+(`control_sigma.80`) or a bare seed, looked up as `source_vectors.<seed>`,
+then `control_sigma.<seed>` (the stance5 replication sidecar
+`sigma_s70_s80.json`: `42` and `60` are those seeds' own frozen control
+sigma, `80` the mean of the three). Its vector, mean and sha256 (of its
+little-endian float64 bytes), and the file's path and sha256 are recorded.
+Without a usable sigma (no file, a missing key, a vector of another width,
+a non-positive entry) the joint-space test does not run and the reason is
+recorded; the own-sigma test still runs.
+
+**What a panel is.** At the first step on or past every multiple of
+1,048,576 (with 4 environments, exactly the multiple: 11 panels to
+11,534,336) and once when training ends (the final weights, the last
+`train()` done): 20 spawns (3042-3061) of each test, own-sigma then
+joint-space, 40 episodes, with the stance5 replication judge's arithmetic
+(`noise_matched`, unchanged): per episode seed s, `rng =
+numpy.random.default_rng(s)` and `env.reset(seed=s)`; each step the
+observation normalized in numpy (`clip((obs - mean) / sqrt(var + eps),
+-clip_obs, clip_obs)` as float32) and the policy's mean action `mu` read
+under `torch.no_grad` (float64); own-sigma `a = clip(mu + exp(log_std) z)`,
+joint-space `a = clip(clip(mu) + sigma z)`, `z = rng.standard_normal(15)`;
+a fall is an episode shorter than the stage's horizon. The env is the
+judge's: the stage's own `env_kwargs`, a fresh bare env per test, no
+recorder (the recorder is inert), never a training or evaluation env.
+
+**Inertness.** Training is bit for bit the same with the panel on: the
+in-suite proof (`test_curriculum_balance_telemetry.py`) enables it in its
+full run at test scale (every 256 steps, two spawns per test) and switches
+it off by its builder in the plain run, and every rollout-buffer add, every
+PPO update's state digest (parameters, optimizer, numpy, `random` and torch
+generators), `evaluations.npz`, the checkpoints' tensors and the
+VecNormalize statistics are the same. The panel draws no global random
+number (each episode's own `Generator` and the env's own reset seed; the
+whole panel inside `GlobalRngGuard`, which restores numpy's legacy
+generator, `random`, torch's CPU and CUDA generators on exit, an exception
+included, and records whether any moved); it copies the live policy's
+parameters to the CPU into a twin built once per session (whose weight
+initialisation draws, under the guard) and never calls `predict()` or
+`deepcopy` on the live policy; it copies the training VecNormalize's
+`obs_rms` arrays and never calls its `normalize_obs`, `step` or `reset`;
+torch runs one thread during a panel and the count is restored. It records
+no TensorBoard key and no `progress.json` entry, and writes none of
+`gate_progress.npz`, `evaluations.npz`, `eval_episodes.csv`,
+`gate_verdict.json` or `policy_probe.npz`. A failure is logged once and
+recorded for that panel; training goes on. The panel is synchronous:
+training waits while it runs.
+
+**Files** (stage directory, rewritten atomically after each panel).
+`k3_panel.csv`: one row per episode: `panel`, `timesteps`, `kind` (`grid`,
+`final`, or `resume`, below), `test` (`own`, `joint`), `episode`, `seed`,
+`length`, `fall` (0/1), `termination_reason` (the env's; empty at the time
+limit), `return`, `sigma_sha256`. `k3_panel.json`
+(`mesozoic.k3-panel/v1`): the definition (`spec`: the arithmetic, the
+seeds, the horizon, the grid, the joint sigma record), `session_problem`
+(why a session ran no panel: a policy without `log_std`, say), and per
+panel its step, grid point and kind, per test `n`, `falls`, `fall_seeds` and
+`fall_lengths` (or why the joint test was skipped), the own sigma vector
+(`exp(log_std)`), its mean and sha256, the joint sigma's sha256, the sha256
+of the CPU state dict and of the copied observation mean and variance (so
+an offline reader can match the checkpoint pair saved at the same step),
+seconds, the library versions, whether a global generator moved, and a
+failure reason. No within-bar flags are written there; the training-history
+report sets them at K3's checkpoints only (`17_exploration_k3`).
+
+**Resume.** A same-stage resume keeps the prior session's panels and rows at
+or before the resumed step (`seed_prior_record`, as the other ledgers do)
+and, before its first rewrite, copies the prior files aside as
+`k3_panel.prior_<UTC>.csv` and `.json` (a superseded panel is moved aside,
+never deleted). A resume exactly on a grid step whose panel is missing (a
+session cut off during the panel, which runs right after the checkpoint pair
+of that step is saved) rolls it when training starts (`kind` `resume`) on
+the restored checkpoint pair's statistics, copied before `learn()` resets
+the training env (whose VecNormalize then updates its statistics with the
+reset observations). The next panel is the next grid multiple. A session
+reads the sigma file again; a different vector than before is recorded per
+row (`sigma_sha256`), and the report never joins two sigma hashes into one
+series.
+
+**Validation against the judge** [measured, 2026-10-25]. On a scratch tree of
+the judge's own clone (cf80ecb1, the LTSB arm on r9 physics) with this
+module overlaid, the panel's callback path (training-start catch-up at the
+checkpoint's step: the CPU twin, the copied statistics, the guard, the
+files) and an offline `run_k3_panel` on the loaded policy itself, against
+the judge files of two checkpoints: the stance5 replication's
+`stance5_LTSB_s80` at 4,194,304 (`judge_4194304.json`, `stance5r-judge/v1`,
+the sidecar's mean sigma `control_sigma.80`: joint-space falls 2 of 20, at
+seeds 3051 and 3061, lengths 335 and 265; own-sigma 0) and stance5's
+`stance5_LTSB_s42` at 4,194,304 (`stance5-judge/v1`, `source_vectors.42`:
+0 and 0). Both sigma vectors equal the judge's bit for bit; every one of the
+80 episodes' seed, length, termination reason and return equals the judge
+file's bit for bit (return difference 0.0); the twin's panel equals the
+live policy's offline run bit for bit; no global generator moved, and the
+policy's training flag and the VecNormalize arrays were unchanged.
+
+**Cost.** [measured] A 40-episode panel of a full-horizon policy (the s80
+checkpoint, 38,600 env steps) took 84.8 and 85.0 s alone on the 4-vCPU
+Xeon @ 2.10 GHz host (2.2 ms per step, 2.12 s per episode; load average 0.6
+to 1.2), and 84.6 and 90.5 s with two panels at once; falls end episodes
+early, so a falling policy's panel is cheaper. Per 12M-step run, 12 panels:
+about 17 min locally [inferred]. On a Colab L4 runtime [inferred, not
+measured: its vCPUs are of the same class and the panel is one CPU thread;
+a factor of 1.0 to 1.5]: about 17 to 26 min per run, 1.8 to 2.8% of a 15.5
+h run, added to its wall time because training waits. Memory: one env and
+one CPU copy of the policy (about 3 MB).
+
 ## Single-episode trace: `episode_trace_report.py`
 
 The stance gate flags actuator saturation, the share of window steps at
@@ -1172,6 +1296,13 @@ reads the files and writes nothing else (`reporting/training_history.py`).
 | Policy std | `exp(log_std)` per actuator at the checkpoint zips in `models/` (`robust_best`, `best`, final, and at most 12 periodic ones evenly spaced), with the number read of those chosen |
 | Head posture | `head_tip_height_mean_m` (mean), `head_tip_height_min_m` (mean and the lowest episode), `neck_pitch_mean_deg` and `head_pitch_mean_deg` (+ nose down), with the `head_clearance` reward's target height where the stage records one (`reward_weights.head_clearance_target`), dotted. Report only: no gate reads them |
 | Hip roll | Per foot, `<label>_hip_roll_mean_deg` (+ abduction) and `<label>_hip_roll_max_abs_deg` (mean and the worst episode). Report only |
+| Commands (`13_commands`) | Each actuator's `<actuator>_command_mean` (legs, tail, and neck/head/other on three panels; a left-right pair in one colour, right solid, left dashed), with the parked line at +/-0.60 (dotted) and the rails at +/-1 (dashed); per evaluation, the full-horizon episodes with an actuator at rail and parked, by actuator and sign (`rail_actuators`, `parked_actuators`), stacked |
+| Tail and body (`14_tail_body`) | `tail_tip_chord_mean_deg` shaded from the lowest episode's window minimum to the highest's window maximum; the `tail_<n>_<pitch\|yaw>_mean_deg` hinges; `root_height_mean_m` and `root_height_min_m`; `root_pitch_mean_deg` and `root_roll_mean_deg`, each shaded over its episodes' window range |
+| Energy (`15_energy`) | Per actuator group (legs, tail, neck_head, other where present): absolute work (log), net work, peak power (log), torque RMS as a fraction of the force limit, command jitter; each leg's absolute work (log) |
+| Drift and slip (`16_drift_slip`) | `window_displacement_fore_aft_m` and `_lateral_m`; `window_path_length_m` beside `window_displacement_m`; `window_yaw_change_signed_deg`; per foot, `<label>_slip_m` and `<label>_site_travel_m` (log) |
+| Exploration and K3 (`17_exploration_k3`) | The leg actuators' exploration std over training (below) beside K3's noise falls from the in-run K3 panel and the judge files |
+| Normalization (`18_obs_normalization`) | The observation normalization's drift per checkpoint, from the VecNormalize pickles in `models/` (below) |
+| Body dynamics (`19_body_dynamics`) | The four MjData-derived extras: each limited joint's stop share and mean stop torque (only joints ever on a stop), the tail-base and neck-base pitch moment and load, the CoM's and capture point's toe and heel margins, the centroidal angular momentum RMS, the head's angular-rate RMS |
 
 Each per-episode value is reduced over the evaluation's full-horizon
 episodes, as `gate_progress.npz` reduces it: one run's pages draw the mean
@@ -1230,8 +1361,9 @@ said in the page's caption. One run's pages mark every alarm, `robust_best`,
 each run's first alarm in its colour. Every page marks the `--mark-steps`
 checkpoints. From a checkpoint zip the report reads only `policy.pth`'s
 `log_std` (`torch.load(..., weights_only=True)`) and, for a named checkpoint,
-`num_timesteps` from the JSON `data` member; it unpickles nothing else, and
-the reads stop after 10 s. The std lines join adjacent periodic checkpoints
+`num_timesteps` from the JSON `data` member, and the reads stop after 10 s;
+the only pickles it opens are the VecNormalize pickles of the normalization
+page (below), through a stub unpickler. The std lines join adjacent periodic checkpoints
 only; a longer gap, where nothing was read, is a dotted connector. The
 actuator names come from the checkout's MJCF, used only when the stage's
 `plant_identity.json` records the checkout's physics digest; otherwise the
@@ -1318,11 +1450,73 @@ criteria's missing-file, refusal and run-handling rules, none of which is
 applied here). Without `--judged` (the stage-end report) the panel is not
 drawn.
 
+Pages 13 to 19 come after the hip roll page, so every earlier page keeps its
+name; they draw the body columns ("The body columns", above) and the in-run
+K3 panel ("The in-run K3 noise panel", below), report only. A ledger written
+before the body columns, or a model whose evaluation runs no recorder, draws
+them as labelled absent panels and says so in the captions and the JSON's
+`absent`; a column the model has no part for (no tail, no neck) reads nan on
+every episode and its panel says "the model has no such part". The rail and
+parked counts are never smoothed and are drawn like the saturation page's
+flagged actuators (stacked per evaluation on one run's page; on a
+comparison, one strip per run, each cell coloured by the actuator most of
+its episodes name). A comparison draws a multi-column panel as one panel per
+column, a line per run.
+
+- **Exploration and K3** (`17_exploration_k3`). Above: each leg actuator's
+  `exp(log_std)` (the actuators named with a side, `r_`, `l_`, `fr_` and so
+  on, that drive no arm, claw or shoulder) on a log axis, from
+  `policy_probe.npz`'s `std_per_actuator` at every PPO update (float32),
+  else from the checkpoint zips; a left-right pair in one colour, drawn once
+  and marked tied when the two are bitwise equal throughout (as the
+  mirror-symmetric PPO keeps them); dashed, 0.08, the stance3 design's
+  line-2 floor on hip pitch, knee and ankle, a reference no stage applies.
+  The names need the run's physics, as the std page's do. Below: K3's two
+  noise tests at each K3 point, the in-run panel's (`k3_panel.json`; lines
+  with markers, one series per joint-space sigma, never joined across two)
+  and the judge files' where `--judged` names them (large markers on top):
+  joint-space and own-sigma falls; K3's bars where a point has 20 episodes,
+  and `joint/own` written at K3's checkpoints (6,291,456 and the final),
+  with `joint_within_bar` and `own_within_bar` in the JSON, withheld where a
+  panel is not 20 episodes on spawns 3042-3061. A comparison draws each
+  run's mean leg std and its falls in its colour. The JSON's `exploration`
+  gives each leg actuator's std at the last update at or before every K3
+  point (`leg_std_at_k3`); `k3_panel` keeps the panel's points, and the
+  checkpoint table adds `K3 panel joint` and `K3 panel own` at a step with a
+  panel. Without either source the lower panel says so.
+- **Normalization** (`18_obs_normalization`). From each periodic
+  (`<prefix>_vecnormalize_<steps>_steps.pkl`) and the final
+  (`<prefix>_final_vecnorm.pkl`) VecNormalize pickle in `models/`, the pairs
+  the judges load, read through a stub unpickler: it resolves numpy's array,
+  dtype and scalar reconstruction and inert stand-ins for the classes such a
+  pickle names (SB3's `VecNormalize` and `RunningMeanStd`, gymnasium's
+  `Box`, numpy's random generator parts), and refuses every other global, so
+  no SB3 or gymnasium code runs and a hostile pickle cannot name
+  `os.system`. Per checkpoint k and observation dimension, against the
+  checkpoint before and against the final pickle (else the last one kept):
+  the shift `(mean_k - mean_ref) / sqrt(var_ref + eps)`, a fixed raw
+  input's change in normalized units, and the scale change `0.5 ln((var_k +
+  eps) / (var_ref + eps))`; their maximum and median over the dimensions
+  (log axes); the probe bank's settled-statue observation as each
+  checkpoint's normalization sees it (clipped), its change from the
+  checkpoint before; and, dense and faint, the same distance from the end
+  computed from `policy_probe.npz`'s per-update `obs_rms_mean` and
+  `obs_rms_var` (float32 casts). The three most drifting dimensions are
+  named in the first panel's title by the checkout's
+  `configs/<species>/<embodiment>/mirror_map.json` observation names (the
+  index elsewhere); dimensions with variance under 1e-6 (the stance's
+  constant command inputs) are listed per checkpoint. At each pickle's step
+  that is a probe row, the JSON says whether the pickle cast to float32
+  equals that row (measured equal on the stance5 replication run s80's
+  4,194,304 pair and, in the suite, at 512 and the final step of the
+  inertness proof's run). A pickle retention pruned is absent; without
+  pickles the probe's rows alone are drawn; with neither the page says so.
+
 ### At stage end: `figures/training_history/`
 
 When a stage ends, `generate_stage_artifacts` draws the same report for
 that stage into `figures/training_history/`
-(`stage_layout.training_history_dir`): the twelve pages as PNGs,
+(`stage_layout.training_history_dir`): the nineteen pages as PNGs,
 `training_history.html` and `training_history.json`, as
 `plot_training_history.py STAGE_DIR` draws them with its defaults (one run,
 no `--mark-steps`; the alarms, `robust_best`, `best` and the kept
@@ -1362,9 +1556,13 @@ after the node declares and hashes it like the other figures.
   log line: every page would be empty. One ledger is enough; whatever else
   is missing is an absent series, as in the script.
 - **Size.** On the stance5 band run s42's ledger (91 evaluations to
-  11,927,552 steps, read without its checkpoints) it takes about 5.5 s and
-  writes 1.7 MB, about half of it the HTML page, which embeds the pages
-  again.
+  11,927,552 steps, read without its checkpoints) it took about 5.5 s and
+  wrote 1.7 MB before pages 13 to 19, about half of it the HTML page, which
+  embeds the pages again. On a ledger of the body columns' width (a
+  synthetic 910-row, 194-column copy of the inertness proof's rows, 2.9
+  MB; no checkpoints or probe) it takes 11.5 s and writes 4.1 MB: the HTML
+  2.0 MB, the JSON 0.68 MB (every reduced column's statistics per
+  evaluation) [measured, 4-vCPU host].
 
 The library writes it, not the script. `plot_training_history.py` refuses
 an `--out` inside a run directory to keep manual writes out of runs: a
@@ -1455,6 +1653,11 @@ terms split by outcome, the mirror-even leg DC, and, on PPO,
 | Dibothrosuchus Elaphros | yes | no | no (`reward_and_length/v1`) | no | 2 |
 | Velociraptor Mongoliensis | no (no box pad) | no | no (no recorder) | no | 1 |
 | Brachiosaurus Altithorax | no (no box pad) | no | no | no | 2 |
+
+The in-run K3 noise panel (`k3_panel.csv`, `k3_panel.json`) is written only
+where the launch enabled it, and only on the stance stage; its arithmetic
+is general to an SB3 Gaussian policy on a box action space, but the option
+is documented for the T. rex stance, the judge's test.
 
 Behaviour stages trained by `train_behaviors.py` build their own callbacks
 and get none of these, nor `progress.json`.
