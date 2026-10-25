@@ -47,6 +47,7 @@ jobs:
       - name: Reproduce stance evidence and compiled-geometry views
         run: |
           python -m examples.tyrannosaurus_rex_100cm.validate --output /tmp/metre-trex-review/validation.json
+          python -m examples.tyrannosaurus_rex_100cm.verify_parts --output /tmp/metre-trex-review/parts_verification.json
           python -m examples.tyrannosaurus_rex_100cm.render_design --sheet /tmp/metre-trex-review/design_views.png
       - name: Upload model and review bundle
         uses: actions/upload-artifact@v4

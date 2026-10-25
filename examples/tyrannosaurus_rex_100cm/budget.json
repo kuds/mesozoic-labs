@@ -4,33 +4,47 @@
   "rows": [
     {
       "category": "Leg drives",
-      "part": "RobStride 03 integrated CAN actuator",
-      "quantity": 12,
+      "part": "RobStride 03 integrated CAN2.0 actuator",
+      "quantity": 8,
       "unit_usd": 225,
-      "total_usd": 2700,
+      "total_usd": 1800,
       "price_basis": "manufacturer list",
       "source": "https://robstride.com/products/robStride03",
-      "notes": "20 Nm planning cap; vendor July table 21 Nm rated and 900 g; storefront 20 Nm and 880 g; quote exact revision and cooling"
+      "notes": "Hip yaw/roll and ankle pitch/roll; 950 g allocation from October 2026 spec with tolerance; 20 Nm planning cap",
+      "motor_model": "RS03"
     },
     {
-      "category": "Head drives",
-      "part": "RobStride 00 integrated CAN actuator",
-      "quantity": 2,
-      "unit_usd": 120,
-      "total_usd": 240,
-      "price_basis": "planning allowance",
-      "source": "https://github.com/RobStride/Product_Information",
-      "notes": "310 g; 57 x 57 x 51 mm body; 48 V nominal; 2.0 Nm simulation cap"
-    },
-    {
-      "category": "Arms jaw tail",
-      "part": "RobStride 05 integrated CAN actuator",
+      "category": "Hip pitch and knees",
+      "part": "RobStride 04 integrated CAN2.0 actuator",
       "quantity": 4,
-      "unit_usd": 100,
-      "total_usd": 400,
-      "price_basis": "planning allowance",
-      "source": "https://github.com/RobStride/Product_Information",
-      "notes": "191 g; 46 x 46 x 44 mm body; 48 V nominal; 0.8 Nm simulation cap"
+      "unit_usd": 255,
+      "total_usd": 1020,
+      "price_basis": "manufacturer list; exact October revision quote pending",
+      "source": "https://www.robstride.com/products/robStride04",
+      "motor_model": "RS04",
+      "notes": "1530 g allocated; 30 Nm simulation cap; 35 Nm vendor rating requires 220 x 200 mm heat sink"
+    },
+    {
+      "category": "Head and tail drives",
+      "part": "RobStride 00 integrated CAN actuator",
+      "quantity": 3,
+      "unit_usd": 125,
+      "total_usd": 375,
+      "price_basis": "manufacturer list; exact October revision quote pending",
+      "source": "https://robstride.com/",
+      "notes": "320 g each; head yaw/pitch and tail yaw; caps 3/4/2 Nm; external tail bearing required",
+      "motor_model": "RS00"
+    },
+    {
+      "category": "Arms and jaw drives",
+      "part": "RobStride 05 integrated CAN actuator",
+      "quantity": 3,
+      "unit_usd": 110,
+      "total_usd": 330,
+      "price_basis": "manufacturer list; exact October revision quote pending",
+      "source": "https://www.robstride.com/products/robStride05",
+      "notes": "250 g each from October spec with rounding; arm caps 0.8 Nm and jaw cap 1.2 Nm",
+      "motor_model": "RS05"
     },
     {
       "category": "Compute",
@@ -80,7 +94,7 @@
       "total_usd": 269,
       "price_basis": "manufacturer list",
       "source": "https://shop.luxonis.com/products/oak-d-lite-1",
-      "notes": "Chest mounted; confirm current SKU and optical calibration"
+      "notes": "Snout mounted to clear the long jaw; 120 g installed allocation; encoder-based camera transform required"
     },
     {
       "category": "Pelvis IMU",
@@ -156,8 +170,8 @@
       "category": "Power protection",
       "part": "DC-rated main fuse contactor precharge emergency stop and current monitor",
       "quantity": 1,
-      "unit_usd": 300,
-      "total_usd": 300,
+      "unit_usd": 350,
+      "total_usd": 350,
       "price_basis": "planning allowance",
       "source": "",
       "notes": "Interlock independent of Jetson; component ratings and fault behavior need design"
@@ -166,8 +180,8 @@
       "category": "Regeneration control",
       "part": "Bus overvoltage brake chopper and resistor",
       "quantity": 1,
-      "unit_usd": 200,
-      "total_usd": 200,
+      "unit_usd": 250,
+      "total_usd": 250,
       "price_basis": "planning allowance",
       "source": "",
       "notes": "Required design study; battery charge acceptance alone is not a protective clamp"
@@ -176,63 +190,78 @@
       "category": "Harness",
       "part": "Connectors shielded signal wiring power wiring strain relief and service loops",
       "quantity": 1,
-      "unit_usd": 300,
-      "total_usd": 300,
+      "unit_usd": 400,
+      "total_usd": 400,
       "price_basis": "planning allowance",
       "source": "",
-      "notes": "Includes custom harness labor materials only"
+      "notes": "Longer harness; head service loop; shielded CAN; strain relief; assembly labor excluded"
     },
     {
       "category": "Structure",
       "part": "Machined or cut aluminum frame hip brackets and leg links",
       "quantity": 1,
-      "unit_usd": 1500,
-      "total_usd": 1500,
+      "unit_usd": 2200,
+      "total_usd": 2200,
       "price_basis": "fabrication allowance",
       "source": "",
-      "notes": "Final CAD machining quotes and structural checks not yet available"
+      "notes": "Long spine and torso frame; hip/knee output support and leg links; machining quote pending"
     },
     {
       "category": "Mechanical hardware",
       "part": "Output support bearings shafts fasteners feet rubber soles and overload stops",
       "quantity": 1,
-      "unit_usd": 700,
-      "total_usd": 700,
+      "unit_usd": 1100,
+      "total_usd": 1100,
       "price_basis": "planning allowance",
       "source": "",
-      "notes": "External bearing support must carry moments; not cosmetic printed-only load paths"
+      "notes": "Raised ankle/metatarsal structure; external bearings; toe soles; load-cell stops; tail-root bearing"
     },
     {
       "category": "Character shells",
       "part": "Light printed or formed shells jaw tail spar guards and finish",
       "quantity": 1,
-      "unit_usd": 450,
-      "total_usd": 450,
+      "unit_usd": 850,
+      "total_usd": 850,
       "price_basis": "fabrication allowance",
       "source": "",
-      "notes": "Hollow head; detachable tail; no heavy ballast"
+      "notes": "Continuous hollow skull torso and 0.86 m tail; removable panels; no heavy ballast"
+    },
+    {
+      "category": "Joint cooling",
+      "part": "Aluminum spreaders thermal interfaces fan ducts and temperature wiring",
+      "quantity": 1,
+      "unit_usd": 300,
+      "total_usd": 300,
+      "price_basis": "engineering allowance",
+      "source": "",
+      "notes": "1.2 kg mass allocation; does not establish vendor reference heat-sink performance"
     }
   ],
-  "robot_hardware_subtotal_usd": 9336.15,
+  "robot_hardware_subtotal_usd": 11521.15,
   "development_extras": [
     {
-      "item": "Two spare RobStride 03 drives",
-      "usd": 450
+      "item": "One spare RS03 and one RS04",
+      "usd": 480
     },
     {
-      "item": "Spare RobStride 00 and 05 plus cables",
-      "usd": 250
+      "item": "Spare RS00 and RS05 plus cables",
+      "usd": 285
     },
     {
-      "item": "Tether/support stand and test fixtures",
-      "usd": 700
+      "item": "Support stand tether and leg test fixtures",
+      "usd": 900
     },
     {
       "item": "Bench instrumentation and consumables",
-      "usd": 500
+      "usd": 600
     }
   ],
-  "development_extras_usd": 1900,
-  "contingency_usd": 2900,
-  "total_before_tax_shipping_labor_usd": 14136.15
+  "development_extras_usd": 2265,
+  "contingency_usd": 3500,
+  "total_before_tax_shipping_labor_usd": 17286.15,
+  "design_revision": "long_body_revision_2",
+  "pricing_limitations": [
+    "List pages still show older lighter motor masses; exact stocked revision and landed cost require supplier confirmation.",
+    "Frame pack cooling and harness are allowances; engineering labor tax freight duty and additional failed iterations excluded."
+  ]
 }

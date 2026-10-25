@@ -31,7 +31,7 @@ def render(
     try:
         if service:
             for g in range(model.ngeom):
-                if model.geom(g).name.startswith(("back_vent_", "back_screw_")):
+                if "_flank_" in model.geom(g).name:
                     model.geom_group[g] = 5
         return render_geometry(
             model, data, view=view, service=service, width=width, height=height, projection_bounds=projection_bounds
@@ -45,10 +45,10 @@ def design_sheet(path: Path) -> None:
     low, high = visual_bounds(model, data)
     sheet = Image.new("RGB", (1600, 1580), (245, 247, 244))
     draw = ImageDraw.Draw(sheet)
-    draw.text((55, 34), "ONE-METRE T-REX / SILHOUETTE C", font=_font(35), fill=(38, 55, 43))
+    draw.text((55, 34), "ONE-METRE T-REX / LONG BODY", font=_font(35), fill=(38, 55, 43))
     draw.text(
         (55, 88),
-        f"Compiled MuJoCo geometry  |  {(high[2] - low[2]) * 100:.1f} cm  |  {model.body_mass.sum():.3f} kg assigned mass",
+        f"Compiled MuJoCo geometry  |  {(high[2] - low[2]) * 100:.1f} cm tall / {high[0] - low[0]:.2f} m long  |  {model.body_mass.sum():.2f} kg allocated",
         font=_font(20),
         fill=(83, 97, 88),
     )
@@ -56,7 +56,7 @@ def design_sheet(path: Path) -> None:
         (
             ("isometric", False, "CHARACTER"),
             ("side", False, "SIDE / MECHANICAL LAYOUT"),
-            ("front", False, "FRONT / CAMERA IN CHEST"),
+            ("front", False, "FRONT / CAMERA IN SNOUT"),
             ("isometric", True, "SERVICE VIEW / PROVISIONAL ENVELOPES"),
         )
     ):
@@ -77,7 +77,7 @@ def design_sheet(path: Path) -> None:
     )
     path.parent.mkdir(parents=True, exist_ok=True)
     sheet.quantize(colors=192, dither=Image.Dither.NONE).save(path)
-    render(model, data, width=800, height=900).save(path.with_name("preview.png"))
+    render(model, data, width=1200, height=850).save(path.with_name("preview.png"))
 
 
 def gesture_gif(path: Path, *, frames: int = 24, duration: float = 4.8) -> None:

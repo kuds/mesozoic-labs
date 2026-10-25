@@ -1,4 +1,4 @@
-"""Load, inspect and animate the selected silhouette-C T-Rex MJCF."""
+"""Load, inspect and animate the long-bodied T-Rex MJCF."""
 
 from __future__ import annotations
 
@@ -51,7 +51,7 @@ def gesture_controls(model: mujoco.MjModel, elapsed: float) -> np.ndarray:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--view", action="store_true", help="Interactive MuJoCo viewer; use mjpython on macOS.")
-    parser.add_argument("--model", type=Path, default=MODEL_PATH, help="Defaults to selected silhouette C.")
+    parser.add_argument("--model", type=Path, default=MODEL_PATH, help="Defaults to the long-bodied metre concept.")
     parser.add_argument("--support", action="store_true", help="Explicitly weld torso for a display demonstration.")
     parser.add_argument("--gesture", action="store_true", help="Animate arms, head, jaw and tail while standing.")
     parser.add_argument("--render", type=Path, help="CPU render of the compiled geometry; requires the viz extra.")
@@ -76,16 +76,14 @@ def main() -> int:
         print("DISPLAY SUPPORT ACTIVE — torso welded" if args.support else "FREE BASE — no external support")
         with mujoco.viewer.launch_passive(model, data) as viewer:
             viewer.opt.geomgroup[3:] = 0
-            viewer.cam.lookat[:] = [-0.05, 0, 0.5]
-            viewer.cam.distance = 2.2
+            viewer.cam.lookat[:] = [-0.15, 0, 0.5]
+            viewer.cam.distance = 3.4
             viewer.cam.azimuth, viewer.cam.elevation = 135, -15
             if args.service:
                 viewer.opt.geomgroup[4] = 1
                 for g in range(model.ngeom):
                     name = model.geom(g).name
-                    if name in ("torso_shell", "belly_panel", "back_access_panel") or name.startswith(
-                        ("back_vent_", "back_screw_")
-                    ):
+                    if name == "torso_shell" or "_flank_" in name:
                         model.geom_group[g] = 5
             while viewer.is_running():
                 start = time.monotonic()

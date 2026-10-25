@@ -1,0 +1,127 @@
+{
+  "status": "basic_concept_parts_screen_not_fabrication_or_walking_qualification",
+  "electronics_to_cases_and_each_other": {
+    "distance_m": 0.011500000008252053,
+    "pair": [
+      "power_tray_envelope",
+      "tail_yaw_case_collision"
+    ],
+    "envelopes": 4
+  },
+  "home_double_support_margin_m": 0.1469768142125143,
+  "camera_visibility_home": {
+    "rays": 70,
+    "self_occlusions": [],
+    "passed": true
+  },
+  "expression_gravity_sweep": {
+    "poses": 729,
+    "rows": [
+      {
+        "joint": "head_yaw",
+        "max_static_gravity_torque_nm": 0.0,
+        "simulation_cap_nm": 3.0,
+        "fraction_of_cap": 0.0,
+        "max_transverse_gravity_moment_nm": 4.971769191227837
+      },
+      {
+        "joint": "head_pitch",
+        "max_static_gravity_torque_nm": 2.0992577332613096,
+        "simulation_cap_nm": 4.0,
+        "fraction_of_cap": 0.5248144333153274,
+        "max_transverse_gravity_moment_nm": 0.1348875000392405
+      },
+      {
+        "joint": "jaw_pitch",
+        "max_static_gravity_torque_nm": 0.5781663569353983,
+        "simulation_cap_nm": 1.2,
+        "fraction_of_cap": 0.4818052974461653,
+        "max_transverse_gravity_moment_nm": 1.3877787807814457e-16
+      },
+      {
+        "joint": "left_shoulder_pitch",
+        "max_static_gravity_torque_nm": 0.1165855004383093,
+        "simulation_cap_nm": 0.8,
+        "fraction_of_cap": 0.1457318755478866,
+        "max_transverse_gravity_moment_nm": 0.0
+      },
+      {
+        "joint": "right_shoulder_pitch",
+        "max_static_gravity_torque_nm": 0.1165855004383093,
+        "simulation_cap_nm": 0.8,
+        "fraction_of_cap": 0.1457318755478866,
+        "max_transverse_gravity_moment_nm": 0.0
+      },
+      {
+        "joint": "tail_yaw",
+        "max_static_gravity_torque_nm": 0.0,
+        "simulation_cap_nm": 2.0,
+        "fraction_of_cap": 0.0,
+        "max_transverse_gravity_moment_nm": 2.03557500034335
+      }
+    ],
+    "passed": true
+  },
+  "battery": {
+    "chemistry": "12S2P P45B",
+    "nominal_voltage_v": 43.2,
+    "full_voltage_v": 50.400000000000006,
+    "nominal_energy_wh": 388.8,
+    "bare_cell_array_m": [
+      0.1293,
+      0.0862,
+      0.07015
+    ],
+    "allocated_pack_m": [
+      0.18,
+      0.12,
+      0.09
+    ],
+    "cell_geometry_fits": true,
+    "complete_pack_fit_verified": false
+  },
+  "budget": {
+    "hardware_usd": 11521.15,
+    "development_extras_usd": 2265,
+    "contingency_usd": 3500,
+    "total_usd": 17286.15,
+    "csv_matches": true,
+    "motor_counts": {
+      "RS03": 8,
+      "RS04": 4,
+      "RS05": 3,
+      "RS00": 3
+    },
+    "budget_motor_counts": {
+      "RS03": 8,
+      "RS04": 4,
+      "RS00": 3,
+      "RS05": 3
+    },
+    "passed": true
+  },
+  "source_sha256": {
+    "verify_parts.py": "9b927e8b4d147f6e49d9d38953e8cad95c67c3926912e5d8747bb323cc731471",
+    "demo.py": "98156fa6475744b760e279e6a0e62912f56dd582577234e1f053a1b1b8567719",
+    "model.xml": "504e0b95be99f107ce61689279d6b28ed07eba3b5bf23020405b398fba3e1261",
+    "build_model.py": "40ff54f68c3d9e74fc6cfc84e8526a336e85f53f6b7e3e61c466570f57dcec44",
+    "components.json": "a889379cc0e487c9336c0e6f8c425a5463dd299657bef8ddaff2c8c4801db802",
+    "budget.json": "a0e5011ffaec8383ec62e32f7cef8fc493088540f810d9f7724090ebb6ff9c5a",
+    "bom.csv": "9932abfa62e7cd471ee9dc1b46a7ba24503a034b883c5fe1428581f835205bf9",
+    "assets/body.obj": "9bdbf32d7311ce881b64975a63cea56140b21f65bad82ea423abc2bee40e2757",
+    "assets/jaw.obj": "5e53e47a35d48f1c1d82c5a33496f82dd1174cef84221832f66f24c572da3515",
+    "assets/neck.obj": "cb64e1cd55b14f549c39d205886b4cc2ff44b74489ce30a8cc742f3f6a9522f8",
+    "assets/rounded.obj": "92eba26caacd648c549217a682a3c11aed561e4506fa6cab35167754619092f8",
+    "assets/skull.obj": "d60ee1b691d421245ef2759d8c8c53fbdc483ad3e2e29cab8e5df88ec935ced9",
+    "assets/soft.obj": "d38a96a068699f3bb62231062c259d58f30ff50342b6ca822d92df71f42eab29",
+    "assets/tail.obj": "52a270dda746f48407b31b1780ecef5709c76b1f15d0126e2b90798d9f2a5ec6",
+    "assets/tooth.obj": "989feb3c139fae6037cfcad726400cd92d63dca76450adcb2240892dfdc119a7"
+  },
+  "limitations": [
+    "Static gravity is not acceleration or impact load; transverse moments require separately designed output bearings.",
+    "The optical sample does not qualify the full calibrated field of view or every head pose.",
+    "Packaging boxes omit mounting hardware, connectors, cooling paths and removal clearances.",
+    "No test establishes continuous thermal torque, structural factors of safety, gait feasibility or measured runtime."
+  ],
+  "passed": true
+}

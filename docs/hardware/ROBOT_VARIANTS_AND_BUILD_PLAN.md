@@ -351,17 +351,27 @@ migration tests and larger robot hardware/gait tests remain future work.
 
 ## 2026-10-25 amendment: one-metre T-Rex as the large concept
 
-The selected next character is now a stocky, dinosaur-like **one-metre T-Rex**,
+The selected next character is now a long-bodied, dinosaur-like **one-metre T-Rex**,
 rather than a mandatory 80 cm stepping stone or a biologically exact raptor.
 The earlier size references above record the prior proposal.
 
 The [one-metre example](../../examples/tyrannosaurus_rex_100cm/README.md) has its
 own generator, MJCF, component ledger, parts budget, sensor placement and basic
-stance checks. It shares the species and silhouette-C character with the mini
-and medium concepts, but uses independently sized hardware. It remains a
+stance checks. Revision 2 follows the user's WowWee reference with a longer
+skull, horizontal body, 860 mm tail and raised ankles: 1.000 m tall, 2.104 m
+long and 33.210 kg of allocated mass. It shares the T-Rex species with the mini
+and medium concepts, while using its own surfaces and independently sized
+hardware. The mini and medium retain silhouette C. It remains a
 checkout-only example; `large` is a proposed future variant identity, not a
 registered runtime selector. This does not implement the variant migration or
 the generic walking-feasibility solver.
+
+The revised large budget is about $11,500 hardware / $17,300 first prototype
+before tax, freight and engineering labor. Stronger pitch/knee drives and
+explicit cooling allocations support the basic standing result, but thermal
+duty, supplier-CAD fit and single-support/stepping are unqualified. A snout
+camera clears the longer jaw; the eyes stay cosmetic. An instrumented large
+leg and the power/control bench should precede the complete large chassis.
 
 The development sequence remains mini → medium → large. The medium can answer
 questions about calibration, wiring, state estimation and serviceability before

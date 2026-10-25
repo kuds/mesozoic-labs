@@ -105,8 +105,9 @@ def run_trial(
     sum_squares = np.zeros(model.nu)
     minimum_q, maximum_q = data.qpos[7:].copy(), data.qpos[7:].copy()
     finite = True
+    minimum_case_gap = motor_case_clearance(model, data)["distance_m"]
     steps = math.ceil(duration / model.opt.timestep)
-    for _ in range(steps):
+    for step in range(steps):
         if not kicked and data.time >= 1.0 - model.opt.timestep / 2:
             data.qvel[3:6] += kick
             kicked = True
@@ -120,6 +121,8 @@ def run_trial(
             break
         external_forces = external_forces or bool(np.any(data.xfrc_applied) or np.any(data.qfrc_applied))
         loads, unexpected = support.sample(data)
+        if step % 100 == 0:
+            minimum_case_gap = min(minimum_case_gap, motor_case_clearance(model, data)["distance_m"])
         max_unexpected = max(max_unexpected, unexpected)
         max_drift = max(max_drift, float(np.linalg.norm(data.qpos[:2] - start_xy)))
         if data.time >= duration - 1.0:
@@ -156,6 +159,9 @@ def run_trial(
         "maximum_unexpected_support_N": max_unexpected,
         "no_applied_external_forces": not external_forces,
         "settled_foot_normal_mean_N": settled_load.tolist(),
+        "minimum_sampled_motor_case_clearance_m": minimum_case_gap,
+        "settled_expression_rms_torque_Nm": settled_rms[12:].tolist(),
+        "settled_expression_cap_fraction": settled_cap[12:].tolist(),
         "settled_leg_rms_torque_Nm": settled_rms[:12].tolist(),
         "settled_leg_cap_fraction": settled_cap[:12].tolist(),
         "settled_samples": len(late_efforts),
@@ -179,6 +185,8 @@ def run_trial(
         and max_drift < 0.03
         and max_unexpected < 0.05
         and max_internal < 0.001
+        and minimum_case_gap > 0.002
+        and np.all(settled_rms[12:] < 0.8 * cap[12:])
         and max_limit_error < 0.03
         and report["max_torque_cap_fraction"] <= 1.000001
         and report["external_support_active"] == supported
@@ -265,6 +273,7 @@ def check_model(*, duration: float = 10) -> dict[str, Any]:
         and motor_case_clearance(model, data)["distance_m"] > 0.002
         and not internal_contacts(model, data)
         and 0.999 <= high[2] - low[2] <= 1.001
+        and 1.8 <= high[0] - low[0] <= 2.3
         and not report["home"]["display_support_active"]
         and all(t["passed"] for t in trials.values())
     )
