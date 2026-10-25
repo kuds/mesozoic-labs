@@ -8,6 +8,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **Commands, tail and body posture, energy, drift and slip, and four
+  `MjData` extras per evaluation episode in `eval_episodes.csv`** (the
+  maintainer's decisions of 2026-10-25 15:44 UTC in the stance run log,
+  items (1) to (3), and 16:15 UTC: no MuJoCo sensor, all four MjData-derived
+  extras, the specification's other defaults accepted;
+  `environments/shared/gait/body_telemetry.py`,
+  `environments/shared/gait/recorder.py`,
+  `environments/shared/eval_diagnostics.py`; documented in
+  `docs/TRAINING_ARTIFACT_PRESENTATION.md`, "The body columns"). Report
+  only. Where the recorder runs (the T. rex, both Compsognathus models and
+  the Dibothrosuchus; the Velociraptor and the Brachiosaurus keep the
+  documented gap), 118 columns on the T. rex, appended after the posture
+  columns, over the gate's window: (1a) each actuator's window-mean command
+  and the at-rail and parked actuators named with their signs; (1b) each
+  tail hinge's angle (+ tip up, + tip left), the tail-tip chord angle,
+  the pelvis height, pitch range and roll; (2) per group (legs, tail,
+  neck and head) the absolute and net mechanical work, peak power, torque
+  RMS (and as a fraction of the force limit) and command jitter from the
+  actuator force and velocity at every substep, the episode's
+  `action_delta` term and each leg's work; (3) the screen's drift copied,
+  its fore-aft and lateral parts, the path length, the signed yaw change,
+  each foot's slip (the force-weighted sliding speed of its floor contacts
+  from `efc_vel`) and net site travel; and the extras: (g) each limited tail
+  hinge's and leg joint's share of substeps on its stop and mean stop
+  torque, (h) the CoM's and capture point's margins to the toe and heel
+  lines and the centroidal angular momentum, (c, d) the tail-base and
+  neck-base wrench from `cfrc_int`, (a) the head's angular-rate RMS. The
+  recorder's new opt-in captures (`record_actuators`, `record_slip`,
+  `record_joint_limits`, `record_momentum`, `record_wrenches`,
+  `record_body_velocity`; the tail tip joins the head tip in the one
+  `record_sites` call) copy `MjData` and never write it, behind
+  `report_extensions`; no new MJCF sensor, no `gate_progress.npz` key, gate
+  input, `StanceEpisodeMetrics` field or `progress.json` entry, no digest
+  moves, and `train_episodes.csv` is unchanged. Measured: the extended
+  in-suite inertness proof trains and evaluates bit for bit alike with them
+  on and off; on the r10 statue and the r9 checkpoint `stance5_LTSB_s42`
+  4,194,304 (deterministic, K3 joint-space and own-sigma noise; seeds 3042
+  and 3043) all 116 numeric columns equal an independent per-substep
+  recomputation with MuJoCo's own functions to 2.3e-14, the copied drift is
+  the screen's bit for bit, and a Newton-Euler free-body check agrees with
+  the base wrenches to 4e-4 N standing (0.42 N of 154 under joint noise);
+  per window-step weighted evaluation the command means and jitter are its
+  `action_dc_per_actuator` and `action_delta` to 1e-12. Cost [measured,
+  loaded host]: about 67 ms per 1000-step statue episode attributed in
+  place (4.4%), median A/B +2.3% (statue) and +6.0% (r9 policy), within the
+  specification's +10%; a T. rex row grows by 1.59 to 1.88 KB.
 - **The stance5 replication judge's K3 criterion, read out over training in
   the training-history report** (the maintainer's decisions of 2026-10-25
   14:13 UTC in the stance run log, item (4): task #47's remaining judge-K3
