@@ -374,6 +374,13 @@ pass is never hardware certification. Missing bearing moment capacities stay
 incomplete. Keep deliberate interference and overload controls in shared tests,
 and robot-specific regression checks beside the existing species tests.
 
+`robot_clearance.py` supplies conservative convex support-plane evidence when
+the native distance query contradicts a provable gap. A positive bound is not
+an exact distance; below-margin bounds remain incomplete unless another pose
+establishes a failure. Retain the native result, proof and failure witness in
+reports. New layout candidates should be generated separately from the current
+reference and compared with the same thresholds and actuator capacities.
+
 ## Pull Request Process
 
 1. Create a feature branch from `main`

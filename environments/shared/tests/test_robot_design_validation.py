@@ -104,6 +104,61 @@ def test_adjacent_body_interference_is_found_without_generated_contacts():
     assert result["status"] == "failed"
 
 
+def test_clearance_report_retains_support_plane_proof_for_native_false_zero(monkeypatch):
+    model, spec = _scene()
+    monkeypatch.setattr(mujoco, "mj_geomDistance", lambda *args: 0.0)
+    report = screen_design(model, spec)
+    row = report["clearance_checks"][0]
+    assert row["status"] == "passed"
+    assert row["min_distance_m"] == pytest.approx(0.4)
+    assert row["distance_is_lower_bound"]
+    assert row["distance_method"] == "support_plane_lower_bound"
+    assert row["native_distance_m"] == 0
+    assert row["separation_plane"]["distance_lower_bound_m"] == row["min_distance_m"]
+    assert report["coverage"]["support_plane_fallback_queries"] == report["coverage"]["sampled_poses"]
+
+
+def test_separation_bound_below_margin_is_incomplete_not_a_known_failure(monkeypatch):
+    model, spec = _scene(bearing_limit=2)
+    # Sphere centers0.101m apart with radii0.05m certify only1mm clearance.
+    model.geom_pos[model.geom("arm_case").id, 0] = -0.149
+    monkeypatch.setattr(mujoco, "mj_geomDistance", lambda *args: 0.0)
+    report = screen_design(model, spec)
+    row = report["clearance_checks"][0]
+    assert row["distance_is_lower_bound"]
+    assert row["min_distance_m"] == pytest.approx(0.001)
+    assert row["status"] == "incomplete"
+    assert report["known_limits_passed"]
+    assert report["status"] == "incomplete"
+
+
+def test_inconclusive_small_bound_cannot_hide_known_failure_at_another_pose(monkeypatch):
+    model, spec = _scene()
+    results = iter(
+        [
+            dict(
+                min_distance_m=0.001, native_distance_m=0.001, distance_is_lower_bound=False, distance_method="mujoco"
+            ),
+            dict(
+                min_distance_m=0.0001,
+                native_distance_m=0.0,
+                distance_is_lower_bound=True,
+                distance_method="support_plane_lower_bound",
+            ),
+        ]
+    )
+    monkeypatch.setattr(
+        "environments.shared.robot_design_validation.clearance_distance", lambda *args, **kwargs: next(results)
+    )
+    report = screen_design(model, spec)
+    row = report["clearance_checks"][0]
+    assert row["distance_is_lower_bound"]
+    assert row["status"] == "failed"
+    assert row["known_failure"]["min_distance_m"] == 0.001
+    assert not report["known_limits_passed"]
+    assert report["status"] == "failed"
+
+
 def test_asymmetric_motor_capacity_uses_the_required_holding_torque_direction():
     model, spec = _scene(limits=(-5, 1), samples=(0.0, math.pi))
     result = screen_design(model, spec)

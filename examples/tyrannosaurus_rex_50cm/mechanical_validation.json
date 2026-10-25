@@ -9,6 +9,7 @@
     "unverified": [
       "Continuous paths and poses outside the declared Cartesian samples and selected geometry pairs.",
       "Physical geometry and tolerances; mesh distances use convex hulls, not concave CAD surfaces.",
+      "A support-plane bound below the required clearance is incomplete unless another sample proves failure.",
       "Ground reactions, balance, leg loads and locomotion; samples need not be stable or reachable.",
       "Acceleration, impact, friction, springs, actuator thermal limits and fatigue.",
       "Controller reachability: configured actuator force caps do not prove available drive torque.",
@@ -81,6 +82,8 @@
     "continuous_path_checked": false,
     "ground_support_solved": false,
     "distance_search_limit_m": 1.0,
+    "support_plane_fallback_queries": 216,
+    "distance_fallback": "Positive convex support-plane gaps certify lower bounds when native distances conflict.",
     "sampling": "Deterministic Cartesian groups; unsampled joints reset to home for each group."
   },
   "specification": {
@@ -1580,6 +1583,9 @@
       "second": "left_hip_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.017796782745992713,
+      "native_distance_m": 0.017796782745992713,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -1601,7 +1607,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_hip_yaw_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -1609,6 +1614,9 @@
       "second": "left_hip_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.01878714561372938,
+      "native_distance_m": 0.01878714561372938,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -1630,7 +1638,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_hip_yaw_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -1638,6 +1645,9 @@
       "second": "left_knee_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.11670141542961875,
+      "native_distance_m": 0.11670141542961875,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -1659,7 +1669,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_hip_pitch_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -1667,6 +1676,9 @@
       "second": "left_ankle_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.14162258490928814,
+      "native_distance_m": 0.14162258490928814,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -1688,7 +1700,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_knee_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -1696,6 +1707,9 @@
       "second": "left_ankle_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.09937922765264862,
+      "native_distance_m": 0.09937922765264862,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -1717,7 +1731,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_knee_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -1725,6 +1738,9 @@
       "second": "right_hip_yaw_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.03,
+      "native_distance_m": 0.03,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -1746,7 +1762,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "home",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -1754,6 +1769,9 @@
       "second": "right_hip_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.07136220350872219,
+      "native_distance_m": 0.07136220350872219,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -1775,7 +1793,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_hip_yaw_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -1783,6 +1800,9 @@
       "second": "right_hip_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.08193569952343373,
+      "native_distance_m": 0.08193569952343373,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -1804,7 +1824,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_hip_yaw_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -1812,6 +1831,9 @@
       "second": "right_knee_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.1655948573101748,
+      "native_distance_m": 0.1655948573101748,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -1833,7 +1855,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_hip_roll_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -1841,6 +1862,9 @@
       "second": "right_ankle_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.18666734489145523,
+      "native_distance_m": 0.18666734489145523,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -1862,7 +1886,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_knee_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -1870,6 +1893,9 @@
       "second": "right_ankle_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.1501370667768603,
+      "native_distance_m": 0.1501370667768603,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -1891,7 +1917,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_knee_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -1899,6 +1924,9 @@
       "second": "left_hip_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.004499999999430778,
+      "native_distance_m": 0.004499999999430778,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -1920,7 +1948,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_hip_roll_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -1928,6 +1955,9 @@
       "second": "left_knee_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.04049924906573142,
+      "native_distance_m": 0.04049924906573142,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -1949,7 +1979,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_hip_pitch_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -1957,6 +1986,9 @@
       "second": "left_ankle_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.06170329933247661,
+      "native_distance_m": 0.06170329933247661,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -1978,7 +2010,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_knee_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -1986,6 +2017,9 @@
       "second": "left_ankle_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.012950703709765556,
+      "native_distance_m": 0.012950703709765556,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -2007,7 +2041,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_knee_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -2015,6 +2048,9 @@
       "second": "right_hip_yaw_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.07136220350872219,
+      "native_distance_m": 0.07136220350872219,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -2036,7 +2072,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_hip_yaw_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -2044,6 +2079,9 @@
       "second": "right_hip_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.07929444402063754,
+      "native_distance_m": 0.07929444402063754,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -2065,7 +2103,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_hip_yaw_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -2073,6 +2110,9 @@
       "second": "right_hip_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.11349754833387227,
+      "native_distance_m": 0.11349754833387227,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -2094,7 +2134,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_hip_yaw_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -2102,6 +2141,9 @@
       "second": "right_knee_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.16051671057806208,
+      "native_distance_m": 0.16051671057806208,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -2123,7 +2165,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_hip_roll_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -2131,6 +2172,9 @@
       "second": "right_ankle_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.1792116036663592,
+      "native_distance_m": 0.1792116036663592,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -2152,7 +2196,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_knee_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -2160,6 +2203,9 @@
       "second": "right_ankle_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.14097800470411959,
+      "native_distance_m": 0.14097800470411959,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -2181,7 +2227,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_knee_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -2189,6 +2234,9 @@
       "second": "left_knee_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.04068763579156714,
+      "native_distance_m": 0.04068763579156714,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -2210,7 +2258,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_hip_pitch_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -2218,6 +2265,9 @@
       "second": "left_ankle_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.07631312451755325,
+      "native_distance_m": 0.07631312451755325,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -2239,7 +2289,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_knee_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -2247,6 +2296,9 @@
       "second": "left_ankle_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.07093622505770872,
+      "native_distance_m": 0.07093622505770872,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -2268,7 +2320,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_knee_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -2276,6 +2327,9 @@
       "second": "right_hip_yaw_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.08193569951382307,
+      "native_distance_m": 0.08193569951382307,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -2297,7 +2351,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_hip_yaw_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -2305,6 +2358,9 @@
       "second": "right_hip_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.11349754833387227,
+      "native_distance_m": 0.11349754833387227,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -2326,7 +2382,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_hip_yaw_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -2334,6 +2389,9 @@
       "second": "right_hip_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.11898974968618146,
+      "native_distance_m": 0.11898974968618146,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -2355,7 +2413,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_hip_yaw_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -2363,6 +2420,9 @@
       "second": "right_knee_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.16469867430173651,
+      "native_distance_m": 0.16469867430173651,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -2384,7 +2444,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_hip_yaw_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -2392,6 +2451,9 @@
       "second": "right_ankle_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.1882468217481334,
+      "native_distance_m": 0.1882468217481334,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -2413,7 +2475,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_hip_roll_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -2421,6 +2482,9 @@
       "second": "right_ankle_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.17855304248309628,
+      "native_distance_m": 0.17855304248309628,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -2442,7 +2506,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_knee_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -2450,6 +2513,9 @@
       "second": "left_ankle_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.039724620831567956,
+      "native_distance_m": 0.039724620831567956,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -2471,7 +2537,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "home",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -2479,6 +2544,9 @@
       "second": "left_ankle_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.04947967033587249,
+      "native_distance_m": 0.04947967033587249,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -2500,7 +2568,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_ankle_pitch_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -2508,6 +2575,9 @@
       "second": "right_hip_yaw_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.1655948573066537,
+      "native_distance_m": 0.1655948573066537,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -2529,7 +2599,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_hip_roll_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -2537,6 +2606,9 @@
       "second": "right_hip_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.16051671057303915,
+      "native_distance_m": 0.16051671057303915,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -2558,7 +2630,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_hip_roll_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -2566,6 +2637,9 @@
       "second": "right_hip_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.1646986742881413,
+      "native_distance_m": 0.1646986742881413,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -2587,7 +2661,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_hip_yaw_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -2595,6 +2668,9 @@
       "second": "right_knee_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.18213734357435146,
+      "native_distance_m": 0.18213734357435146,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -2616,7 +2692,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_hip_roll_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -2624,6 +2699,9 @@
       "second": "right_ankle_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.1749628217176679,
+      "native_distance_m": 0.1749628217176679,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -2645,7 +2723,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_hip_roll_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -2653,6 +2730,9 @@
       "second": "right_ankle_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.15732977719155616,
+      "native_distance_m": 0.15732977719155616,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -2674,7 +2754,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_hip_roll_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -2682,6 +2761,9 @@
       "second": "left_ankle_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.002499999994277862,
+      "native_distance_m": 0.002499999994277862,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -2703,7 +2785,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_ankle_pitch_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -2711,6 +2792,9 @@
       "second": "right_hip_yaw_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.18666734489144893,
+      "native_distance_m": 0.18666734489144893,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -2732,7 +2816,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_knee_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -2740,6 +2823,9 @@
       "second": "right_hip_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.1792116036633916,
+      "native_distance_m": 0.1792116036633916,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -2761,7 +2847,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_knee_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -2769,6 +2854,9 @@
       "second": "right_hip_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.1882468217421845,
+      "native_distance_m": 0.1882468217421845,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -2790,7 +2878,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_hip_roll_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -2798,6 +2885,9 @@
       "second": "right_knee_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.17496282170314534,
+      "native_distance_m": 0.17496282170314534,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -2819,7 +2909,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_hip_roll_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -2827,6 +2916,9 @@
       "second": "right_ankle_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.15373675683110477,
+      "native_distance_m": 0.15373675683110477,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -2848,7 +2940,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_hip_roll_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -2856,6 +2947,9 @@
       "second": "right_ankle_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.12795961534875877,
+      "native_distance_m": 0.12795961534875877,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -2877,7 +2971,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_hip_roll_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -2885,6 +2978,9 @@
       "second": "right_hip_yaw_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.1501370667768603,
+      "native_distance_m": 0.1501370667768603,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -2906,7 +3002,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_knee_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -2914,6 +3009,9 @@
       "second": "right_hip_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.14097800470411959,
+      "native_distance_m": 0.14097800470411959,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -2935,7 +3033,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_knee_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -2943,6 +3040,9 @@
       "second": "right_hip_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.178553042480688,
+      "native_distance_m": 0.178553042480688,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -2964,7 +3064,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_knee_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -2972,6 +3071,9 @@
       "second": "right_knee_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.1573297771877983,
+      "native_distance_m": 0.1573297771877983,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -2993,7 +3095,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_hip_roll_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -3001,6 +3102,9 @@
       "second": "right_ankle_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.12795961534113648,
+      "native_distance_m": 0.12795961534113648,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -3022,7 +3126,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_hip_roll_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -3030,6 +3133,9 @@
       "second": "right_ankle_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.10110265084488089,
+      "native_distance_m": 0.10110265084488089,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -3051,7 +3157,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_hip_roll_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -3059,6 +3164,9 @@
       "second": "right_hip_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.017796782745992713,
+      "native_distance_m": 0.017796782745992713,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -3080,7 +3188,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_hip_yaw_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -3088,6 +3195,9 @@
       "second": "right_hip_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.018787145605288925,
+      "native_distance_m": 0.018787145605288925,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -3109,7 +3219,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_hip_yaw_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -3117,6 +3226,9 @@
       "second": "right_knee_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.11670141542393156,
+      "native_distance_m": 0.11670141542393156,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -3138,7 +3250,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_hip_pitch_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -3146,6 +3257,9 @@
       "second": "right_ankle_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.14162258490490934,
+      "native_distance_m": 0.14162258490490934,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -3167,7 +3281,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_knee_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -3175,6 +3288,9 @@
       "second": "right_ankle_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.09937922765264862,
+      "native_distance_m": 0.09937922765264862,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -3196,7 +3312,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_knee_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -3204,6 +3319,9 @@
       "second": "right_hip_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.004499999999430768,
+      "native_distance_m": 0.004499999999430768,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -3225,7 +3343,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_hip_roll_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -3233,6 +3350,9 @@
       "second": "right_knee_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.04049924906187334,
+      "native_distance_m": 0.04049924906187334,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -3254,7 +3374,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_hip_pitch_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -3262,6 +3381,9 @@
       "second": "right_ankle_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.06170329932950761,
+      "native_distance_m": 0.06170329932950761,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -3283,7 +3405,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_knee_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -3291,6 +3412,9 @@
       "second": "right_ankle_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.012950703709765556,
+      "native_distance_m": 0.012950703709765556,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -3312,7 +3436,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_knee_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -3320,6 +3443,9 @@
       "second": "right_knee_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.04068763577708697,
+      "native_distance_m": 0.04068763577708697,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -3341,7 +3467,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_hip_pitch_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -3349,6 +3474,9 @@
       "second": "right_ankle_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.0763131245035649,
+      "native_distance_m": 0.0763131245035649,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -3370,7 +3498,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_knee_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -3378,6 +3505,9 @@
       "second": "right_ankle_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.07093622505510376,
+      "native_distance_m": 0.07093622505510376,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -3399,7 +3529,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_knee_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -3407,6 +3536,9 @@
       "second": "right_ankle_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.03972462083156795,
+      "native_distance_m": 0.03972462083156795,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -3428,7 +3560,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_hip_yaw_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -3436,6 +3567,9 @@
       "second": "right_ankle_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.04947967034463096,
+      "native_distance_m": 0.04947967034463096,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -3457,7 +3591,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_ankle_pitch_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -3465,6 +3598,9 @@
       "second": "right_ankle_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.0024999999942778546,
+      "native_distance_m": 0.0024999999942778546,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -3486,7 +3622,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_ankle_pitch_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -3494,6 +3629,9 @@
       "second": "head_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.08891450626763904,
+      "native_distance_m": 0.08891450626763904,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.25,
         "head_yaw": 0.0,
@@ -3515,7 +3653,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -3523,6 +3660,9 @@
       "second": "jaw_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.017003585732936893,
+      "native_distance_m": 0.017003585732936893,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.2,
         "head_yaw": 0.0,
@@ -3544,7 +3684,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -3552,6 +3691,9 @@
       "second": "left_jaw_rail_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.051104229785332064,
+      "native_distance_m": 0.051104229785332064,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.2,
         "head_yaw": -0.65,
@@ -3573,7 +3715,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -3581,6 +3722,9 @@
       "second": "right_jaw_rail_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.051104229785332064,
+      "native_distance_m": 0.051104229785332064,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.2,
         "head_yaw": 0.65,
@@ -3602,7 +3746,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -3610,6 +3753,9 @@
       "second": "left_arm_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.03794223045276141,
+      "native_distance_m": 0.03794223045276141,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.25,
         "head_yaw": -0.65,
@@ -3631,7 +3777,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -3639,6 +3784,9 @@
       "second": "right_arm_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.03794223045276141,
+      "native_distance_m": 0.03794223045276141,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.25,
         "head_yaw": -0.65,
@@ -3660,7 +3808,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -3668,6 +3815,9 @@
       "second": "tail_segment_1_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.06771383254902044,
+      "native_distance_m": 0.06771383254902044,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.25,
         "head_yaw": -0.65,
@@ -3689,7 +3839,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -3697,6 +3846,9 @@
       "second": "tail_segment_2_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.16406939929138553,
+      "native_distance_m": 0.16406939929138553,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.25,
         "head_yaw": -0.65,
@@ -3718,7 +3870,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -3726,6 +3877,9 @@
       "second": "head_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.000549462715351277,
+      "native_distance_m": 0.000549462715351277,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.25,
         "head_yaw": -0.65,
@@ -3747,7 +3901,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "failed"
     },
     {
@@ -3755,6 +3908,9 @@
       "second": "jaw_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.026720693846304565,
+      "native_distance_m": 0.026720693846304565,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.2,
         "head_yaw": 0.0,
@@ -3776,7 +3932,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -3784,6 +3939,9 @@
       "second": "left_jaw_rail_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.07799999999999989,
+      "native_distance_m": 0.07799999999999989,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.25,
         "head_yaw": 0.0,
@@ -3805,7 +3963,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -3813,6 +3970,9 @@
       "second": "right_jaw_rail_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.07799999999999989,
+      "native_distance_m": 0.07799999999999989,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.25,
         "head_yaw": 0.0,
@@ -3834,7 +3994,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -3842,6 +4001,9 @@
       "second": "left_arm_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.08572606112023658,
+      "native_distance_m": 0.08572606112023658,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -3863,7 +4025,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "home",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -3871,6 +4032,9 @@
       "second": "right_arm_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.08572606112023658,
+      "native_distance_m": 0.08572606112023658,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -3892,7 +4056,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "home",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -3900,6 +4063,9 @@
       "second": "tail_segment_0_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.06980892495603443,
+      "native_distance_m": 0.06980892495603443,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -3921,7 +4087,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "home",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -3929,6 +4094,9 @@
       "second": "tail_segment_1_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.14080343644862153,
+      "native_distance_m": 0.14080343644862153,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.25,
         "head_yaw": -0.65,
@@ -3950,7 +4118,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -3958,6 +4125,9 @@
       "second": "tail_segment_2_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.22798610553160883,
+      "native_distance_m": 0.22798610553160883,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.25,
         "head_yaw": -0.65,
@@ -3979,18 +4149,20 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
       "first": "head_collision",
       "second": "jaw_collision",
       "required_clearance_m": 0.002,
-      "min_distance_m": 0.0,
+      "min_distance_m": 0.007999999999999962,
+      "native_distance_m": 0.007999999999999962,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.2,
         "head_yaw": -0.65,
-        "jaw_pitch": 0.28,
+        "jaw_pitch": 0.0,
         "left_ankle_pitch": 0.0,
         "left_ankle_roll": 0.0,
         "left_hip_pitch": 0.0,
@@ -4008,43 +4180,16 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
-      "status": "failed"
+      "status": "passed"
     },
     {
       "first": "head_collision",
       "second": "left_jaw_rail_collision",
       "required_clearance_m": 0.002,
-      "min_distance_m": 0.0,
-      "worst_pose": {
-        "head_nod": -0.25,
-        "head_yaw": -0.65,
-        "jaw_pitch": 0.14,
-        "left_ankle_pitch": 0.0,
-        "left_ankle_roll": 0.0,
-        "left_hip_pitch": 0.0,
-        "left_hip_roll": 0.0,
-        "left_hip_yaw": 0.0,
-        "left_knee": 0.0,
-        "left_shoulder_pitch": -1.1,
-        "right_ankle_pitch": 0.0,
-        "right_ankle_roll": 0.0,
-        "right_hip_pitch": 0.0,
-        "right_hip_roll": 0.0,
-        "right_hip_yaw": 0.0,
-        "right_knee": 0.0,
-        "right_shoulder_pitch": -1.1,
-        "tail_yaw": -0.35
-      },
-      "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
-      "status": "failed"
-    },
-    {
-      "first": "head_collision",
-      "second": "right_jaw_rail_collision",
-      "required_clearance_m": 0.002,
-      "min_distance_m": 0.0,
+      "min_distance_m": 0.0001766652833330995,
+      "native_distance_m": 0.0,
+      "distance_is_lower_bound": true,
+      "distance_method": "support_plane_lower_bound",
       "worst_pose": {
         "head_nod": 0.2,
         "head_yaw": 0.0,
@@ -4066,14 +4211,135 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
-      "status": "failed"
+      "separation_plane": {
+        "distance_lower_bound_m": 0.0001766652833330995,
+        "axis_world": [
+          0.19866933079506124,
+          0.0,
+          0.9800665778412417
+        ],
+        "first_interval_m": [
+          0.4386378916995776,
+          0.5586378916995777
+        ],
+        "second_interval_m": [
+          0.3448716658042492,
+          0.4384612264162303
+        ],
+        "roundoff_allowance_m": 1.4210854715202004e-14
+      },
+      "status": "failed",
+      "known_failure": {
+        "min_distance_m": 0.00017666528334730805,
+        "native_distance_m": 0.00017666528334730805,
+        "distance_is_lower_bound": false,
+        "distance_method": "mujoco",
+        "worst_pose": {
+          "head_nod": 0.2,
+          "head_yaw": -0.65,
+          "jaw_pitch": 0.28,
+          "left_ankle_pitch": 0.0,
+          "left_ankle_roll": 0.0,
+          "left_hip_pitch": 0.0,
+          "left_hip_roll": 0.0,
+          "left_hip_yaw": 0.0,
+          "left_knee": 0.0,
+          "left_shoulder_pitch": -1.1,
+          "right_ankle_pitch": 0.0,
+          "right_ankle_roll": 0.0,
+          "right_hip_pitch": 0.0,
+          "right_hip_roll": 0.0,
+          "right_hip_yaw": 0.0,
+          "right_knee": 0.0,
+          "right_shoulder_pitch": -1.1,
+          "tail_yaw": -0.35
+        },
+        "worst_sweep": "expression_grid"
+      }
+    },
+    {
+      "first": "head_collision",
+      "second": "right_jaw_rail_collision",
+      "required_clearance_m": 0.002,
+      "min_distance_m": 0.0001766652833330995,
+      "native_distance_m": 0.0,
+      "distance_is_lower_bound": true,
+      "distance_method": "support_plane_lower_bound",
+      "worst_pose": {
+        "head_nod": 0.2,
+        "head_yaw": 0.0,
+        "jaw_pitch": 0.28,
+        "left_ankle_pitch": 0.0,
+        "left_ankle_roll": 0.0,
+        "left_hip_pitch": 0.0,
+        "left_hip_roll": 0.0,
+        "left_hip_yaw": 0.0,
+        "left_knee": 0.0,
+        "left_shoulder_pitch": -1.1,
+        "right_ankle_pitch": 0.0,
+        "right_ankle_roll": 0.0,
+        "right_hip_pitch": 0.0,
+        "right_hip_roll": 0.0,
+        "right_hip_yaw": 0.0,
+        "right_knee": 0.0,
+        "right_shoulder_pitch": -1.1,
+        "tail_yaw": -0.35
+      },
+      "worst_sweep": "expression_grid",
+      "separation_plane": {
+        "distance_lower_bound_m": 0.0001766652833330995,
+        "axis_world": [
+          0.19866933079506124,
+          0.0,
+          0.9800665778412417
+        ],
+        "first_interval_m": [
+          0.4386378916995776,
+          0.5586378916995777
+        ],
+        "second_interval_m": [
+          0.3448716658042492,
+          0.4384612264162303
+        ],
+        "roundoff_allowance_m": 1.4210854715202004e-14
+      },
+      "status": "failed",
+      "known_failure": {
+        "min_distance_m": 0.00017666528334730805,
+        "native_distance_m": 0.00017666528334730805,
+        "distance_is_lower_bound": false,
+        "distance_method": "mujoco",
+        "worst_pose": {
+          "head_nod": 0.2,
+          "head_yaw": 0.65,
+          "jaw_pitch": 0.28,
+          "left_ankle_pitch": 0.0,
+          "left_ankle_roll": 0.0,
+          "left_hip_pitch": 0.0,
+          "left_hip_roll": 0.0,
+          "left_hip_yaw": 0.0,
+          "left_knee": 0.0,
+          "left_shoulder_pitch": -1.1,
+          "right_ankle_pitch": 0.0,
+          "right_ankle_roll": 0.0,
+          "right_hip_pitch": 0.0,
+          "right_hip_roll": 0.0,
+          "right_hip_yaw": 0.0,
+          "right_knee": 0.0,
+          "right_shoulder_pitch": -1.1,
+          "tail_yaw": -0.35
+        },
+        "worst_sweep": "expression_grid"
+      }
     },
     {
       "first": "head_collision",
       "second": "left_arm_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.04887806868118489,
+      "native_distance_m": 0.04887806868118489,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.2,
         "head_yaw": 0.65,
@@ -4095,7 +4361,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -4103,6 +4368,9 @@
       "second": "right_arm_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.04887806868118489,
+      "native_distance_m": 0.04887806868118489,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.2,
         "head_yaw": -0.65,
@@ -4124,7 +4392,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -4132,6 +4399,9 @@
       "second": "tail_segment_0_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.11829120948181204,
+      "native_distance_m": 0.11829120948181204,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.25,
         "head_yaw": -0.65,
@@ -4153,7 +4423,6 @@
         "tail_yaw": 0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -4161,6 +4430,9 @@
       "second": "tail_segment_1_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.13187993219143135,
+      "native_distance_m": 0.13187993219143135,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.25,
         "head_yaw": -0.65,
@@ -4182,7 +4454,6 @@
         "tail_yaw": 0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -4190,6 +4461,9 @@
       "second": "tail_segment_2_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.17006433583111777,
+      "native_distance_m": 0.17006433583111777,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.25,
         "head_yaw": -0.65,
@@ -4211,7 +4485,6 @@
         "tail_yaw": 0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -4219,6 +4492,9 @@
       "second": "left_arm_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": -0.03684764601943913,
+      "native_distance_m": -0.03684764601943913,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.024999999999999994,
         "head_yaw": 0.65,
@@ -4240,7 +4516,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "failed"
     },
     {
@@ -4248,6 +4523,9 @@
       "second": "right_arm_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": -0.03684764601943913,
+      "native_distance_m": -0.03684764601943913,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.024999999999999994,
         "head_yaw": -0.65,
@@ -4269,7 +4547,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "failed"
     },
     {
@@ -4277,6 +4554,9 @@
       "second": "tail_segment_0_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.1074227481972195,
+      "native_distance_m": 0.1074227481972195,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.2,
         "head_yaw": -0.65,
@@ -4298,7 +4578,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -4306,6 +4585,9 @@
       "second": "tail_segment_1_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.1499849511085808,
+      "native_distance_m": 0.1499849511085808,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.2,
         "head_yaw": -0.65,
@@ -4327,7 +4609,6 @@
         "tail_yaw": 0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -4335,6 +4616,9 @@
       "second": "tail_segment_2_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.21442664780174897,
+      "native_distance_m": 0.21442664780174897,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.2,
         "head_yaw": -0.65,
@@ -4356,7 +4640,6 @@
         "tail_yaw": 0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -4364,6 +4647,9 @@
       "second": "left_arm_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": -0.013052333151453988,
+      "native_distance_m": -0.013052333151453988,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.25,
         "head_yaw": 0.0,
@@ -4385,7 +4671,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "failed"
     },
     {
@@ -4393,6 +4678,9 @@
       "second": "right_arm_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.11500134852125271,
+      "native_distance_m": 0.11500134852125271,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.25,
         "head_yaw": -0.65,
@@ -4414,7 +4702,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -4422,6 +4709,9 @@
       "second": "tail_segment_0_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.0808011906052641,
+      "native_distance_m": 0.0808011906052641,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.25,
         "head_yaw": 0.65,
@@ -4443,7 +4733,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -4451,6 +4740,9 @@
       "second": "tail_segment_1_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.1025985985485378,
+      "native_distance_m": 0.1025985985485378,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.25,
         "head_yaw": 0.65,
@@ -4472,7 +4764,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -4480,6 +4771,9 @@
       "second": "tail_segment_2_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.14819490537966554,
+      "native_distance_m": 0.14819490537966554,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.024999999999999994,
         "head_yaw": 0.65,
@@ -4501,7 +4795,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -4509,6 +4802,9 @@
       "second": "left_arm_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.11500134852125271,
+      "native_distance_m": 0.11500134852125271,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.25,
         "head_yaw": 0.65,
@@ -4530,7 +4826,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -4538,6 +4833,9 @@
       "second": "right_arm_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": -0.013052333151453988,
+      "native_distance_m": -0.013052333151453988,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.25,
         "head_yaw": 0.0,
@@ -4559,7 +4857,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "failed"
     },
     {
@@ -4567,6 +4864,9 @@
       "second": "tail_segment_0_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.0808011906052641,
+      "native_distance_m": 0.0808011906052641,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.25,
         "head_yaw": -0.65,
@@ -4588,7 +4888,6 @@
         "tail_yaw": 0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -4596,6 +4895,9 @@
       "second": "tail_segment_1_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.1025985985485378,
+      "native_distance_m": 0.1025985985485378,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.25,
         "head_yaw": -0.65,
@@ -4617,7 +4919,6 @@
         "tail_yaw": 0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -4625,6 +4926,9 @@
       "second": "tail_segment_2_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.14819490537966554,
+      "native_distance_m": 0.14819490537966554,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.024999999999999994,
         "head_yaw": -0.65,
@@ -4646,7 +4950,6 @@
         "tail_yaw": 0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -4654,6 +4957,9 @@
       "second": "right_arm_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.18,
+      "native_distance_m": 0.18,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -4675,7 +4981,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "home",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -4683,6 +4988,9 @@
       "second": "tail_segment_0_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.13468313490091413,
+      "native_distance_m": 0.13468313490091413,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -4704,7 +5012,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "home",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -4712,6 +5019,9 @@
       "second": "tail_segment_1_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.19134364880642696,
+      "native_distance_m": 0.19134364880642696,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.25,
         "head_yaw": -0.65,
@@ -4733,7 +5043,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -4741,6 +5050,9 @@
       "second": "tail_segment_2_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.2688768509592448,
+      "native_distance_m": 0.2688768509592448,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.25,
         "head_yaw": -0.65,
@@ -4762,7 +5074,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -4770,6 +5081,9 @@
       "second": "tail_segment_0_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.13468313490091413,
+      "native_distance_m": 0.13468313490091413,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -4791,7 +5105,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "home",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -4799,6 +5112,9 @@
       "second": "tail_segment_1_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.19134364880642696,
+      "native_distance_m": 0.19134364880642696,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.25,
         "head_yaw": -0.65,
@@ -4820,7 +5136,6 @@
         "tail_yaw": 0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -4828,6 +5143,9 @@
       "second": "tail_segment_2_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.2688768509592448,
+      "native_distance_m": 0.2688768509592448,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.25,
         "head_yaw": -0.65,
@@ -4849,7 +5167,6 @@
         "tail_yaw": 0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -4857,6 +5174,9 @@
       "second": "left_hip_yaw_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": -0.034377337351392215,
+      "native_distance_m": -0.034377337351392215,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -4878,7 +5198,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "home",
-      "distance_is_lower_bound": false,
       "status": "failed"
     },
     {
@@ -4886,6 +5205,9 @@
       "second": "left_hip_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": -0.026266876220711513,
+      "native_distance_m": -0.026266876220711513,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -4907,7 +5229,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_hip_yaw_range",
-      "distance_is_lower_bound": false,
       "status": "failed"
     },
     {
@@ -4915,6 +5236,9 @@
       "second": "left_hip_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": -0.0045643393066186625,
+      "native_distance_m": -0.0045643393066186625,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -4936,7 +5260,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_hip_roll_range",
-      "distance_is_lower_bound": false,
       "status": "failed"
     },
     {
@@ -4944,6 +5267,9 @@
       "second": "left_knee_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.06922211825336218,
+      "native_distance_m": 0.06922211825336218,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -4965,7 +5291,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_hip_pitch_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -4973,6 +5298,9 @@
       "second": "left_ankle_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.08681884135376881,
+      "native_distance_m": 0.08681884135376881,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -4994,7 +5322,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_knee_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -5002,6 +5329,9 @@
       "second": "left_ankle_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.05170720574241898,
+      "native_distance_m": 0.05170720574241898,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -5023,7 +5353,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_knee_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -5031,6 +5360,9 @@
       "second": "right_hip_yaw_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": -0.034377337351392215,
+      "native_distance_m": -0.034377337351392215,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -5052,7 +5384,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "home",
-      "distance_is_lower_bound": false,
       "status": "failed"
     },
     {
@@ -5060,6 +5391,9 @@
       "second": "right_hip_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": -0.026266876220711513,
+      "native_distance_m": -0.026266876220711513,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -5081,7 +5415,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_hip_yaw_range",
-      "distance_is_lower_bound": false,
       "status": "failed"
     },
     {
@@ -5089,6 +5422,9 @@
       "second": "right_hip_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": -0.004564339301113966,
+      "native_distance_m": -0.004564339301113966,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -5110,7 +5446,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_hip_roll_range",
-      "distance_is_lower_bound": false,
       "status": "failed"
     },
     {
@@ -5118,6 +5453,9 @@
       "second": "right_knee_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.06922211825505789,
+      "native_distance_m": 0.06922211825505789,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -5139,7 +5477,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_hip_pitch_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -5147,6 +5484,9 @@
       "second": "right_ankle_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.0868188413538324,
+      "native_distance_m": 0.0868188413538324,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -5168,7 +5508,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_knee_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -5176,6 +5515,9 @@
       "second": "right_ankle_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.05170720574241898,
+      "native_distance_m": 0.05170720574241898,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -5197,7 +5539,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_knee_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -5205,6 +5546,9 @@
       "second": "left_hip_yaw_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.004434164902525696,
+      "native_distance_m": 0.004434164902525696,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -5226,7 +5570,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "home",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -5234,6 +5577,9 @@
       "second": "left_hip_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.0684786633290908,
+      "native_distance_m": 0.0684786633290908,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -5255,7 +5601,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_hip_yaw_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -5263,6 +5608,9 @@
       "second": "left_hip_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.08091348635097279,
+      "native_distance_m": 0.08091348635097279,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -5284,7 +5632,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_hip_roll_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -5292,6 +5639,9 @@
       "second": "left_knee_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.1722859418563453,
+      "native_distance_m": 0.1722859418563453,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -5313,7 +5663,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_hip_pitch_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -5321,6 +5670,9 @@
       "second": "left_ankle_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.19238647901954206,
+      "native_distance_m": 0.19238647901954206,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -5342,7 +5694,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_knee_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -5350,6 +5701,9 @@
       "second": "left_ankle_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.14940355536538402,
+      "native_distance_m": 0.14940355536538402,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -5371,7 +5725,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_knee_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -5379,6 +5732,9 @@
       "second": "right_hip_yaw_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.004434164902525689,
+      "native_distance_m": 0.004434164902525689,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -5400,7 +5756,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "home",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -5408,6 +5763,9 @@
       "second": "right_hip_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.06847866332909079,
+      "native_distance_m": 0.06847866332909079,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -5429,7 +5787,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_hip_yaw_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -5437,6 +5794,9 @@
       "second": "right_hip_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.08091348634672471,
+      "native_distance_m": 0.08091348634672471,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -5458,7 +5818,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_hip_roll_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -5466,6 +5825,9 @@
       "second": "right_knee_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.17228594185502585,
+      "native_distance_m": 0.17228594185502585,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -5487,7 +5849,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_hip_pitch_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -5495,6 +5856,9 @@
       "second": "right_ankle_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.19238647901791572,
+      "native_distance_m": 0.19238647901791572,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -5516,7 +5880,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_knee_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -5524,6 +5887,9 @@
       "second": "right_ankle_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.14940355536538402,
+      "native_distance_m": 0.14940355536538402,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -5545,7 +5911,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_knee_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -5553,6 +5918,9 @@
       "second": "left_hip_yaw_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.06290281901085241,
+      "native_distance_m": 0.06290281901085241,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.25,
         "head_yaw": -0.65,
@@ -5574,7 +5942,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -5582,6 +5949,9 @@
       "second": "left_hip_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.13356275393963657,
+      "native_distance_m": 0.13356275393963657,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.25,
         "head_yaw": -0.65,
@@ -5603,7 +5973,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -5611,6 +5980,9 @@
       "second": "left_hip_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.13677228987071455,
+      "native_distance_m": 0.13677228987071455,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.25,
         "head_yaw": -0.65,
@@ -5632,7 +6004,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -5640,6 +6011,9 @@
       "second": "left_knee_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.22112952446906128,
+      "native_distance_m": 0.22112952446906128,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -5661,7 +6035,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_hip_pitch_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -5669,6 +6042,9 @@
       "second": "left_ankle_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.2766819367148385,
+      "native_distance_m": 0.2766819367148385,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -5690,7 +6066,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_knee_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -5698,6 +6073,9 @@
       "second": "left_ankle_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.22194817279000384,
+      "native_distance_m": 0.22194817279000384,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -5719,7 +6097,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_knee_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -5727,6 +6104,9 @@
       "second": "right_hip_yaw_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.06290281901085241,
+      "native_distance_m": 0.06290281901085241,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.25,
         "head_yaw": 0.65,
@@ -5748,7 +6128,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -5756,6 +6135,9 @@
       "second": "right_hip_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.13356275393963657,
+      "native_distance_m": 0.13356275393963657,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.25,
         "head_yaw": 0.65,
@@ -5777,7 +6159,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -5785,6 +6166,9 @@
       "second": "right_hip_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.1367722898780201,
+      "native_distance_m": 0.1367722898780201,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.25,
         "head_yaw": 0.65,
@@ -5806,7 +6190,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -5814,6 +6197,9 @@
       "second": "right_knee_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.22112952446055623,
+      "native_distance_m": 0.22112952446055623,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -5835,7 +6221,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_hip_pitch_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -5843,6 +6228,9 @@
       "second": "right_ankle_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.27668193670993724,
+      "native_distance_m": 0.27668193670993724,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -5864,7 +6252,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_knee_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -5872,6 +6259,9 @@
       "second": "right_ankle_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.22194817279000384,
+      "native_distance_m": 0.22194817279000384,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -5893,7 +6283,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_knee_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -5901,6 +6290,9 @@
       "second": "left_hip_yaw_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": -0.018750315268027715,
+      "native_distance_m": -0.018750315268027715,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.2,
         "head_yaw": 0.65,
@@ -5922,7 +6314,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "failed"
     },
     {
@@ -5930,6 +6321,9 @@
       "second": "left_hip_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.04999350018455339,
+      "native_distance_m": 0.04999350018455339,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.2,
         "head_yaw": 0.65,
@@ -5951,7 +6345,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -5959,6 +6352,9 @@
       "second": "left_hip_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.023689887274371907,
+      "native_distance_m": 0.023689887274371907,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.2,
         "head_yaw": 0.65,
@@ -5980,7 +6376,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -5988,6 +6383,9 @@
       "second": "left_knee_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.09922012288777782,
+      "native_distance_m": 0.09922012288777782,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.2,
         "head_yaw": 0.65,
@@ -6009,7 +6407,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -6017,6 +6414,9 @@
       "second": "left_ankle_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.19687503512811785,
+      "native_distance_m": 0.19687503512811785,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.2,
         "head_yaw": 0.65,
@@ -6038,7 +6438,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -6046,6 +6445,9 @@
       "second": "left_ankle_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.20298801873167274,
+      "native_distance_m": 0.20298801873167274,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -6067,7 +6469,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_knee_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -6075,6 +6476,9 @@
       "second": "right_hip_yaw_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": -0.018750315268027715,
+      "native_distance_m": -0.018750315268027715,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.2,
         "head_yaw": -0.65,
@@ -6096,7 +6500,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "failed"
     },
     {
@@ -6104,6 +6507,9 @@
       "second": "right_hip_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.04999350018455339,
+      "native_distance_m": 0.04999350018455339,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.2,
         "head_yaw": -0.65,
@@ -6125,7 +6531,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -6133,6 +6538,9 @@
       "second": "right_hip_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.023689887281200743,
+      "native_distance_m": 0.023689887281200743,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.2,
         "head_yaw": -0.65,
@@ -6154,7 +6562,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -6162,6 +6569,9 @@
       "second": "right_knee_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.09922012289863766,
+      "native_distance_m": 0.09922012289863766,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.2,
         "head_yaw": -0.65,
@@ -6183,7 +6593,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -6191,6 +6600,9 @@
       "second": "right_ankle_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.196875035138478,
+      "native_distance_m": 0.196875035138478,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.2,
         "head_yaw": -0.65,
@@ -6212,7 +6624,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -6220,6 +6631,9 @@
       "second": "right_ankle_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.20298801873167274,
+      "native_distance_m": 0.20298801873167274,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -6241,7 +6655,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_knee_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -6249,6 +6662,9 @@
       "second": "left_hip_yaw_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.01631349640291853,
+      "native_distance_m": 0.01631349640291853,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.25,
         "head_yaw": -0.65,
@@ -6270,7 +6686,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -6278,6 +6693,9 @@
       "second": "left_hip_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.06463382039970347,
+      "native_distance_m": 0.06463382039970347,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.2,
         "head_yaw": 0.65,
@@ -6299,7 +6717,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -6307,6 +6724,9 @@
       "second": "left_hip_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.0621467807718922,
+      "native_distance_m": 0.0621467807718922,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.2,
         "head_yaw": 0.0,
@@ -6328,7 +6748,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -6336,6 +6755,9 @@
       "second": "left_knee_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.156236361520717,
+      "native_distance_m": 0.156236361520717,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -6357,7 +6779,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_hip_pitch_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -6365,6 +6786,9 @@
       "second": "left_ankle_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.2084826289373712,
+      "native_distance_m": 0.2084826289373712,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -6386,7 +6810,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_knee_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -6394,6 +6817,9 @@
       "second": "left_ankle_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.15417552730226158,
+      "native_distance_m": 0.15417552730226158,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -6415,7 +6841,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_knee_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -6423,6 +6848,9 @@
       "second": "right_hip_yaw_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.08774597484867266,
+      "native_distance_m": 0.08774597484867266,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.2,
         "head_yaw": -0.65,
@@ -6444,7 +6872,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -6452,6 +6879,9 @@
       "second": "right_hip_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.14886197215451982,
+      "native_distance_m": 0.14886197215451982,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.25,
         "head_yaw": 0.65,
@@ -6473,7 +6903,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -6481,6 +6910,9 @@
       "second": "right_hip_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.13233119473029598,
+      "native_distance_m": 0.13233119473029598,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.024999999999999994,
         "head_yaw": -0.65,
@@ -6502,7 +6934,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -6510,6 +6941,9 @@
       "second": "right_knee_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.21751238094812717,
+      "native_distance_m": 0.21751238094812717,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.024999999999999994,
         "head_yaw": -0.65,
@@ -6531,7 +6965,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -6539,6 +6972,9 @@
       "second": "right_ankle_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.2899435403105103,
+      "native_distance_m": 0.2899435403105103,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -6560,7 +6996,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_knee_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -6568,6 +7003,9 @@
       "second": "right_ankle_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.2402961286182664,
+      "native_distance_m": 0.2402961286182664,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -6589,7 +7027,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_knee_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -6597,6 +7034,9 @@
       "second": "left_hip_yaw_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.08774597484867266,
+      "native_distance_m": 0.08774597484867266,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.2,
         "head_yaw": 0.65,
@@ -6618,7 +7058,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -6626,6 +7065,9 @@
       "second": "left_hip_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.14886197215451982,
+      "native_distance_m": 0.14886197215451982,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.25,
         "head_yaw": -0.65,
@@ -6647,7 +7089,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -6655,6 +7096,9 @@
       "second": "left_hip_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.13233119472919475,
+      "native_distance_m": 0.13233119472919475,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.024999999999999994,
         "head_yaw": 0.65,
@@ -6676,7 +7120,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -6684,6 +7127,9 @@
       "second": "left_knee_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.21751238094910683,
+      "native_distance_m": 0.21751238094910683,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.024999999999999994,
         "head_yaw": 0.65,
@@ -6705,7 +7151,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -6713,6 +7158,9 @@
       "second": "left_ankle_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.28994354031031017,
+      "native_distance_m": 0.28994354031031017,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -6734,7 +7182,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_knee_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -6742,6 +7189,9 @@
       "second": "left_ankle_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.2402961286182664,
+      "native_distance_m": 0.2402961286182664,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -6763,7 +7213,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_knee_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -6771,6 +7220,9 @@
       "second": "right_hip_yaw_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.01631349640291853,
+      "native_distance_m": 0.01631349640291853,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.25,
         "head_yaw": 0.65,
@@ -6792,7 +7244,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -6800,6 +7251,9 @@
       "second": "right_hip_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.06463382039970347,
+      "native_distance_m": 0.06463382039970347,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.2,
         "head_yaw": -0.65,
@@ -6821,7 +7275,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -6829,6 +7282,9 @@
       "second": "right_hip_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.06214678076912308,
+      "native_distance_m": 0.06214678076912308,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.2,
         "head_yaw": 0.0,
@@ -6850,7 +7306,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -6858,6 +7313,9 @@
       "second": "right_knee_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.15623636151125248,
+      "native_distance_m": 0.15623636151125248,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -6879,7 +7337,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_hip_pitch_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -6887,6 +7344,9 @@
       "second": "right_ankle_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.20848262893267655,
+      "native_distance_m": 0.20848262893267655,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -6908,7 +7368,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_knee_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -6916,6 +7375,9 @@
       "second": "right_ankle_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.15417552730226158,
+      "native_distance_m": 0.15417552730226158,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -6937,7 +7399,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_knee_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -6945,6 +7406,9 @@
       "second": "left_hip_yaw_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.020697486950630017,
+      "native_distance_m": 0.020697486950630017,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.25,
         "head_yaw": -0.65,
@@ -6966,7 +7430,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -6974,6 +7437,9 @@
       "second": "left_hip_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.039530969277260256,
+      "native_distance_m": 0.039530969277260256,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -6995,7 +7461,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_hip_yaw_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -7003,6 +7468,9 @@
       "second": "left_hip_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.01573991323735427,
+      "native_distance_m": 0.01573991323735427,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.25,
         "head_yaw": -0.65,
@@ -7024,7 +7492,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -7032,6 +7499,9 @@
       "second": "left_knee_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.07963279384628169,
+      "native_distance_m": 0.07963279384628169,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -7053,7 +7523,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_hip_pitch_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -7061,6 +7530,9 @@
       "second": "left_ankle_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.16317515515520012,
+      "native_distance_m": 0.16317515515520012,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -7082,7 +7554,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_knee_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -7090,6 +7561,9 @@
       "second": "left_ankle_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.13236604791086243,
+      "native_distance_m": 0.13236604791086243,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -7111,7 +7585,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_knee_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -7119,6 +7592,9 @@
       "second": "right_hip_yaw_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.10718391033681698,
+      "native_distance_m": 0.10718391033681698,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.25,
         "head_yaw": -0.65,
@@ -7140,7 +7616,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -7148,6 +7623,9 @@
       "second": "right_hip_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.15404982195092418,
+      "native_distance_m": 0.15404982195092418,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -7169,7 +7647,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_hip_yaw_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -7177,6 +7654,9 @@
       "second": "right_hip_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.14857112105454573,
+      "native_distance_m": 0.14857112105454573,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -7198,7 +7678,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_hip_yaw_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -7206,6 +7685,9 @@
       "second": "right_knee_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.21341764416269648,
+      "native_distance_m": 0.21341764416269648,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -7227,7 +7709,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_hip_yaw_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -7235,6 +7716,9 @@
       "second": "right_ankle_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.26101799480598703,
+      "native_distance_m": 0.26101799480598703,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -7256,7 +7740,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_knee_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -7264,6 +7747,9 @@
       "second": "right_ankle_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.23113470696714838,
+      "native_distance_m": 0.23113470696714838,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -7285,7 +7771,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_knee_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -7293,6 +7778,9 @@
       "second": "left_hip_yaw_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.10718391033681698,
+      "native_distance_m": 0.10718391033681698,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.25,
         "head_yaw": -0.65,
@@ -7314,7 +7802,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -7322,6 +7809,9 @@
       "second": "left_hip_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.15404982195092418,
+      "native_distance_m": 0.15404982195092418,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -7343,7 +7833,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_hip_yaw_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -7351,6 +7840,9 @@
       "second": "left_hip_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.14857112105091713,
+      "native_distance_m": 0.14857112105091713,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -7372,7 +7864,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_hip_yaw_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -7380,6 +7871,9 @@
       "second": "left_knee_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.21341764416015754,
+      "native_distance_m": 0.21341764416015754,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -7401,7 +7895,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_hip_yaw_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -7409,6 +7902,9 @@
       "second": "left_ankle_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.26101799480426324,
+      "native_distance_m": 0.26101799480426324,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -7430,7 +7926,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_knee_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -7438,6 +7933,9 @@
       "second": "left_ankle_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.23113470696714838,
+      "native_distance_m": 0.23113470696714838,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -7459,7 +7957,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_knee_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -7467,6 +7964,9 @@
       "second": "right_hip_yaw_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.020697486950630017,
+      "native_distance_m": 0.020697486950630017,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.25,
         "head_yaw": -0.65,
@@ -7488,7 +7988,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -7496,6 +7995,9 @@
       "second": "right_hip_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.039530969277260256,
+      "native_distance_m": 0.039530969277260256,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -7517,7 +8019,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_hip_yaw_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -7525,6 +8026,9 @@
       "second": "right_hip_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.01573991323805874,
+      "native_distance_m": 0.01573991323805874,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.25,
         "head_yaw": -0.65,
@@ -7546,7 +8050,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -7554,6 +8057,9 @@
       "second": "right_knee_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.07963279383725001,
+      "native_distance_m": 0.07963279383725001,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -7575,7 +8081,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_hip_pitch_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -7583,6 +8088,9 @@
       "second": "right_ankle_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.16317515514777545,
+      "native_distance_m": 0.16317515514777545,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -7604,7 +8112,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_knee_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -7612,6 +8119,9 @@
       "second": "right_ankle_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.13236604791086243,
+      "native_distance_m": 0.13236604791086243,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -7633,7 +8143,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_knee_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -7641,6 +8150,9 @@
       "second": "left_hip_yaw_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.05966097447364144,
+      "native_distance_m": 0.05966097447364144,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.25,
         "head_yaw": -0.65,
@@ -7662,7 +8174,6 @@
         "tail_yaw": 0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -7670,6 +8181,9 @@
       "second": "left_hip_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.027153835889435925,
+      "native_distance_m": 0.027153835889435925,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -7691,7 +8205,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_hip_yaw_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -7699,6 +8212,9 @@
       "second": "left_hip_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.09007611723629987,
+      "native_distance_m": 0.09007611723629987,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -7720,7 +8236,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_hip_yaw_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -7728,6 +8243,9 @@
       "second": "left_knee_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.13349199850051008,
+      "native_distance_m": 0.13349199850051008,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -7749,7 +8267,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_hip_pitch_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -7757,6 +8274,9 @@
       "second": "left_ankle_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.13447997017019875,
+      "native_distance_m": 0.13447997017019875,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -7778,7 +8298,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_knee_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -7786,6 +8305,9 @@
       "second": "left_ankle_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.07632291473051311,
+      "native_distance_m": 0.07632291473051311,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -7807,7 +8329,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_knee_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -7815,6 +8336,9 @@
       "second": "right_hip_yaw_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.05966097447364144,
+      "native_distance_m": 0.05966097447364144,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.25,
         "head_yaw": -0.65,
@@ -7836,7 +8360,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -7844,6 +8367,9 @@
       "second": "right_hip_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.027153835889435925,
+      "native_distance_m": 0.027153835889435925,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -7865,7 +8391,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_hip_yaw_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -7873,6 +8398,9 @@
       "second": "right_hip_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.09007611723536672,
+      "native_distance_m": 0.09007611723536672,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -7894,7 +8422,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_hip_yaw_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -7902,6 +8429,9 @@
       "second": "right_knee_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.13349199850057275,
+      "native_distance_m": 0.13349199850057275,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -7923,7 +8453,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_hip_pitch_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -7931,6 +8460,9 @@
       "second": "right_ankle_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.13447997017020727,
+      "native_distance_m": 0.13447997017020727,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -7952,7 +8484,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_knee_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -7960,6 +8491,9 @@
       "second": "right_ankle_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.07632291473051311,
+      "native_distance_m": 0.07632291473051311,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -7981,7 +8515,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_knee_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -7989,6 +8522,9 @@
       "second": "left_hip_yaw_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.12843876315002228,
+      "native_distance_m": 0.12843876315002228,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.25,
         "head_yaw": -0.65,
@@ -8010,7 +8546,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -8018,6 +8553,9 @@
       "second": "left_hip_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.09970425769127052,
+      "native_distance_m": 0.09970425769127052,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.25,
         "head_yaw": -0.65,
@@ -8039,7 +8577,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -8047,6 +8584,9 @@
       "second": "left_hip_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.16254512750697891,
+      "native_distance_m": 0.16254512750697891,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.25,
         "head_yaw": -0.65,
@@ -8068,7 +8608,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -8076,6 +8615,9 @@
       "second": "left_knee_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.1912513931014319,
+      "native_distance_m": 0.1912513931014319,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -8097,7 +8639,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_hip_pitch_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -8105,6 +8646,9 @@
       "second": "left_ankle_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.1821364125675501,
+      "native_distance_m": 0.1821364125675501,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -8126,7 +8670,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_knee_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -8134,6 +8677,9 @@
       "second": "left_ankle_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.11704676440892788,
+      "native_distance_m": 0.11704676440892788,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -8155,7 +8701,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_knee_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -8163,6 +8708,9 @@
       "second": "right_hip_yaw_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.12843876315002228,
+      "native_distance_m": 0.12843876315002228,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.25,
         "head_yaw": -0.65,
@@ -8184,7 +8732,6 @@
         "tail_yaw": 0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -8192,6 +8739,9 @@
       "second": "right_hip_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.09970425769127052,
+      "native_distance_m": 0.09970425769127052,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.25,
         "head_yaw": -0.65,
@@ -8213,7 +8763,6 @@
         "tail_yaw": 0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -8221,6 +8770,9 @@
       "second": "right_hip_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.16254512750605427,
+      "native_distance_m": 0.16254512750605427,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.25,
         "head_yaw": -0.65,
@@ -8242,7 +8794,6 @@
         "tail_yaw": 0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -8250,6 +8801,9 @@
       "second": "right_knee_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.19125139310156652,
+      "native_distance_m": 0.19125139310156652,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -8271,7 +8825,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_hip_pitch_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -8279,6 +8832,9 @@
       "second": "right_ankle_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.18213641256830326,
+      "native_distance_m": 0.18213641256830326,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -8300,7 +8856,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_knee_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -8308,6 +8863,9 @@
       "second": "right_ankle_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.11704676440892788,
+      "native_distance_m": 0.11704676440892788,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -8329,7 +8887,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_knee_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -8337,6 +8894,9 @@
       "second": "left_hip_yaw_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.21651989735438518,
+      "native_distance_m": 0.21651989735438518,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.25,
         "head_yaw": -0.65,
@@ -8358,7 +8918,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -8366,6 +8925,9 @@
       "second": "left_hip_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.18790488845797734,
+      "native_distance_m": 0.18790488845797734,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.25,
         "head_yaw": -0.65,
@@ -8387,7 +8949,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -8395,6 +8956,9 @@
       "second": "left_hip_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.250185668084982,
+      "native_distance_m": 0.250185668084982,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.25,
         "head_yaw": -0.65,
@@ -8416,7 +8980,6 @@
         "tail_yaw": -0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -8424,6 +8987,9 @@
       "second": "left_knee_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.27609638804383757,
+      "native_distance_m": 0.27609638804383757,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -8445,7 +9011,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_hip_pitch_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -8453,6 +9018,9 @@
       "second": "left_ankle_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.2528844000759451,
+      "native_distance_m": 0.2528844000759451,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -8474,7 +9042,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_hip_pitch_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -8482,6 +9049,9 @@
       "second": "left_ankle_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.1926786054760032,
+      "native_distance_m": 0.1926786054760032,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -8503,7 +9073,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "left_hip_pitch_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -8511,6 +9080,9 @@
       "second": "right_hip_yaw_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.21651989735438518,
+      "native_distance_m": 0.21651989735438518,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.25,
         "head_yaw": -0.65,
@@ -8532,7 +9104,6 @@
         "tail_yaw": 0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -8540,6 +9111,9 @@
       "second": "right_hip_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.18790488845797734,
+      "native_distance_m": 0.18790488845797734,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.25,
         "head_yaw": -0.65,
@@ -8561,7 +9135,6 @@
         "tail_yaw": 0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -8569,6 +9142,9 @@
       "second": "right_hip_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.2501856680833637,
+      "native_distance_m": 0.2501856680833637,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": -0.25,
         "head_yaw": -0.65,
@@ -8590,7 +9166,6 @@
         "tail_yaw": 0.35
       },
       "worst_sweep": "expression_grid",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -8598,6 +9173,9 @@
       "second": "right_knee_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.27609638804469544,
+      "native_distance_m": 0.27609638804469544,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -8619,7 +9197,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_hip_pitch_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -8627,6 +9204,9 @@
       "second": "right_ankle_pitch_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.25288440007498364,
+      "native_distance_m": 0.25288440007498364,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -8648,7 +9228,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_hip_pitch_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     },
     {
@@ -8656,6 +9235,9 @@
       "second": "right_ankle_roll_case_collision",
       "required_clearance_m": 0.002,
       "min_distance_m": 0.1926786054760032,
+      "native_distance_m": 0.1926786054760032,
+      "distance_is_lower_bound": false,
+      "distance_method": "mujoco",
       "worst_pose": {
         "head_nod": 0.0,
         "head_yaw": 0.0,
@@ -8677,7 +9259,6 @@
         "tail_yaw": 0.0
       },
       "worst_sweep": "right_hip_pitch_range",
-      "distance_is_lower_bound": false,
       "status": "passed"
     }
   ],
@@ -9166,8 +9747,9 @@
   "source_sha256": {
     "docs/hardware/studies/trex_50cm/parts_budget.json": "a1c11f6af0e7059ffa50e4dfb1d0c84af2b068260124f1817b15960f60b6b43a",
     "environments/shared/robot_building.py": "ad68f4f6bba8a37deff67bd42a3e6b1a095cdad63b897deaa11e0f9f81ba6a98",
+    "environments/shared/robot_clearance.py": "ff01464a7848fa3c1180fd00c9806117774fdbf952784f20900520420f71eef5",
     "environments/shared/robot_design_spec.py": "196bee8e5ed9e74bd71ad6203d0135356b3d3ff29928edb8d1a67d4b5fc2f316",
-    "environments/shared/robot_design_validation.py": "4fdcaf8f2244ea532c886d3a50b2c36c30d0b3497fb93de0df9dc5e994d7a6bb",
+    "environments/shared/robot_design_validation.py": "745685e9c443b9b29f77364c27d3f162047f8eb20d45aa26778de1c6b53b6fee",
     "environments/shared/robot_geometry.py": "62106479d324f374ff8d4e675a1564c053d02b003b7583d8d1b9972c6b965cd8",
     "environments/shared/robot_rendering.py": "29d440e57dab2c6b2d3592ce99febde53c747a9b88ee393f599ed3561c5c1fff",
     "environments/shared/robot_validation.py": "ed7cc8b9fde22b8a18bd41ad61b614767495d6c397d1c5c3ed2f141309c37e36",

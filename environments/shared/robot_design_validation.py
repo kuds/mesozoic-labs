@@ -21,6 +21,7 @@ from typing import Any
 import mujoco
 import numpy as np
 
+from .robot_clearance import clearance_distance
 from .robot_design_spec import RobotDesignSpec, pose_count, validate_spec
 
 
@@ -71,6 +72,7 @@ def screen_design(model: mujoco.MjModel, spec: RobotDesignSpec) -> dict[str, Any
         }
         for load, (_, actuator) in zip(spec.loads, axes, strict=True)
     ]
+    fallback_queries = 0
     for sweep, samples in _poses(spec):
         data.qpos[:] = home
         for name, angle in samples.items():
@@ -79,11 +81,22 @@ def screen_design(model: mujoco.MjModel, spec: RobotDesignSpec) -> dict[str, Any
         mujoco.mj_forward(model, data)
         witness = {name: float(data.qpos[address]) for name, address in addresses.items()}
         for row, (first, second) in zip(clearances, pairs, strict=True):
-            distance = float(mujoco.mj_geomDistance(model, data, first, second, search_distance, None))
-            if not math.isfinite(distance):
-                raise ValueError(f"Nonfinite geometry distance for {row['first']} / {row['second']}.")
-            if distance < row["min_distance_m"]:
-                row.update(min_distance_m=distance, worst_pose=witness, worst_sweep=sweep)
+            evidence = clearance_distance(
+                model,
+                data,
+                first,
+                second,
+                required_clearance_m=row["required_clearance_m"],
+                search_distance_m=search_distance,
+            )
+            fallback_queries += evidence["distance_method"] == "support_plane_lower_bound"
+            if not evidence["distance_is_lower_bound"] and evidence["min_distance_m"] < row["required_clearance_m"]:
+                known_failure = row.get("_known_failure")
+                if known_failure is None or evidence["min_distance_m"] < known_failure["min_distance_m"]:
+                    row["_known_failure"] = dict(evidence, worst_pose=witness, worst_sweep=sweep)
+            if evidence["min_distance_m"] < row["min_distance_m"]:
+                row.pop("separation_plane", None)
+                row.update(evidence, worst_pose=witness, worst_sweep=sweep)
         for row, (joint, actuator) in zip(loads, axes, strict=True):
             body = int(model.jnt_bodyid[joint])
             arm = data.subtree_com[body] - data.xanchor[joint]
@@ -112,8 +125,18 @@ def screen_design(model: mujoco.MjModel, spec: RobotDesignSpec) -> dict[str, Any
                     bearing_worst_sweep=sweep,
                 )
     for row in clearances:
-        row["distance_is_lower_bound"] = row["min_distance_m"] >= search_distance
-        row["status"] = "passed" if row["min_distance_m"] >= row["required_clearance_m"] else "failed"
+        known_failure = row.pop("_known_failure", None)
+        row["status"] = (
+            "failed"
+            if known_failure is not None
+            else "passed"
+            if row["min_distance_m"] >= row["required_clearance_m"]
+            else "incomplete"
+        )
+        if known_failure is not None and row["distance_is_lower_bound"]:
+            # The smallest bound may be inconclusive while a different pose
+            # has an established failure. Retain that independent witness.
+            row["known_failure"] = known_failure
     for row in loads:
         row["torque_status"] = (
             "passed" if row["maximum_torque_fraction"] <= row["allowed_torque_fraction"] else "failed"
@@ -137,6 +160,7 @@ def screen_design(model: mujoco.MjModel, spec: RobotDesignSpec) -> dict[str, Any
             "unverified": [
                 "Continuous paths and poses outside the declared Cartesian samples and selected geometry pairs.",
                 "Physical geometry and tolerances; mesh distances use convex hulls, not concave CAD surfaces.",
+                "A support-plane bound below the required clearance is incomplete unless another sample proves failure.",
                 "Ground reactions, balance, leg loads and locomotion; samples need not be stable or reachable.",
                 "Acceleration, impact, friction, springs, actuator thermal limits and fatigue.",
                 "Controller reachability: configured actuator force caps do not prove available drive torque.",
@@ -156,6 +180,8 @@ def screen_design(model: mujoco.MjModel, spec: RobotDesignSpec) -> dict[str, Any
             "continuous_path_checked": False,
             "ground_support_solved": False,
             "distance_search_limit_m": search_distance,
+            "support_plane_fallback_queries": fallback_queries,
+            "distance_fallback": "Positive convex support-plane gaps certify lower bounds when native distances conflict.",
             "sampling": "Deterministic Cartesian groups; unsampled joints reset to home for each group.",
         },
         "specification": spec.as_dict(),
@@ -176,7 +202,12 @@ def write_report(
     if not source_paths or not command:
         raise ValueError("Reports require explicit input sources and an invocation command.")
     root = source_root.resolve()
-    sources = {*source_paths, Path(__file__), Path(__file__).with_name("robot_design_spec.py")}
+    sources = {
+        *source_paths,
+        Path(__file__),
+        Path(__file__).with_name("robot_design_spec.py"),
+        Path(__file__).with_name("robot_clearance.py"),
+    }
     hashes = {
         path.resolve().relative_to(root).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest() for path in sources
     }
@@ -219,7 +250,8 @@ def render_witnesses(
         targets.append(
             (
                 "clearance",
-                f"{row['first']} / {row['second']}: {row['min_distance_m'] * 1000:.2f} mm "
+                f"{row['first']} / {row['second']}: "
+                f"{'at least ' if row['distance_is_lower_bound'] else ''}{row['min_distance_m'] * 1000:.2f} mm "
                 f"(required {row['required_clearance_m'] * 1000:.2f} mm)",
                 row["worst_pose"],
                 {model.geom(row[key]).id for key in ("first", "second")},

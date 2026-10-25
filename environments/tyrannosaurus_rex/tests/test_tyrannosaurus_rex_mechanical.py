@@ -55,7 +55,6 @@ def test_baseline_reports_proxy_conflicts_without_changing_geometry_or_capacity(
         frozenset(pair)
         for pair in (
             ("neck_support_collision", "head_collision"),
-            ("head_collision", "jaw_collision"),
             ("head_collision", "left_jaw_rail_collision"),
             ("head_collision", "right_jaw_rail_collision"),
             ("jaw_collision", "left_arm_collision"),

@@ -17,6 +17,10 @@ comparison. The [original 51.5 cm model](baseline_51cm/README.md) is preserved
 as the parts-budget reference. The package keeps its original `50cm` directory
 name; the selected design's measured height is **58.4 cm**.
 
+The [longer, lower candidate](long_body/README.md) develops the medium redesign
+alongside this reference. It includes a geometry comparison, sampled clearance
+and load evidence, crouch-to-stand trials and a leg-motor placement comparison.
+
 | Property | Current model |
 | --- | --- |
 | Home height | **583.6 mm** |
@@ -190,18 +194,24 @@ The [baseline report](mechanical_validation.json) records:
 | --- | --- |
 | Sampling | 790 poses: home, a 729-pose expression grid and 12 independent five-angle leg sweeps |
 | Selected clearance coverage | 245 pairs, including adjacent-body and same-body pairs suppressed by contact filtering |
-| Clearance criterion | 2 mm planning margin; 16 proxy pairs fail |
+| Clearance criterion | 2 mm planning margin; 15 proxy pairs fail |
 | Motor cases | All 66 pairs pass; minimum 2.5 mm |
 | Largest proxy conflict | Jaw/arm overlap of 36.85 mm at a sampled expression extreme |
 | Expression gravity torque | All six axes pass the 80% planning budget; head nod uses 32.0% of its cap, jaw 62.6% |
 | Bearing moment | All six capacities unknown; head yaw carries up to 0.400 Nm transverse gravity moment |
 
-Other flagged pairs include head/jaw and jaw rails, neck/head, jaw/hip-yaw cases,
+Other flagged pairs include head/jaw rails, neck/head, jaw/hip-yaw cases,
 and torso/hip cases. The solid torso proxy has no motor mounting cutouts. These
 are failures of the approximate occupied-envelope criterion that need CAD review;
 they do not establish actual hardware interference. Their existence also
 explains why zero internal contacts in a standing trial is insufficient evidence
 of mechanical clearance.
+
+The shared distance check also records independent convex support-plane bounds
+when MuJoCo's distance query contradicts a proven gap. This removes one false
+head/jaw failure from the original 16-pair report without changing geometry.
+A bound below the required margin is incomplete evidence; a failure established
+at another sampled pose is retained with its own witness.
 
 The specification lists every selected pair and attachment exclusion. Foot and
 leg-link clearance pairs, decorative surfaces, electronics packing, wiring and
