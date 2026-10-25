@@ -25,9 +25,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   most 1 of 20", `docs/investigations/stance_2026_10/stance5/replication/criteria.txt`),
   K3's checkpoints filled and annotated; a comparison draws a strip per run.
   The JSON (`judge_k3`), the HTML and the checkpoint table carry the points,
-  with within-bar flags at K3's checkpoints only; a file that is not a full
-  noise run, records another seed or lacks a panel is skipped with its
-  reason. Measured: on the judge files of `stance5_LTSB_s70` and
+  with within-bar flags at K3's checkpoints only, withheld where a panel is
+  not K3's 20 episodes on spawns 3042-3061; only the stance3, stance4,
+  stance5 and stance5 replication judges' files are read (the same K3),
+  each named by its own judge, and a file of another schema, one that is
+  not a full noise run, records another seed or lacks a panel is skipped
+  with its reason. Measured: on the judge files of `stance5_LTSB_s70` and
   `stance5_LTSB_s80` the readout gives 0/0 and 1/0 (s70) and 1/0 and 2/0
   (s80) at 6,291,456 and the final, the replication score of record's K3
   values; a test rebuilds the judge files of all five band runs from that

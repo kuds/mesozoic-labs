@@ -1166,7 +1166,12 @@ series, says so in the captions and lists the columns in the JSON's
 run's judge files: `judge_<steps>.json` and `judge_final.json`, one per
 judged checkpoint, as the stance judges write them (their other panels,
 `judge_best.json`, `judge_quick_<steps>.json` and the like, are listed as
-not read). The outcomes page then gains a last panel: a readout of the
+not read). Only the stance3, stance4, stance5 and stance5 replication
+judges' files are read (`stance3-judge/v1`, `stance4-judge/v1`,
+`stance5-judge/v1`, `stance5r-judge/v1`: their criteria fix the same K3),
+each named by its own judge; a file of any other schema is skipped with
+its reason, since its K3 need not be this one. The outcomes page then
+gains a last panel: a readout of the
 stance5 replication judge's K3 criterion
 (`docs/investigations/stance_2026_10/stance5/replication/criteria.txt`,
 "CRITERIA, PER RUN", unchanged from stance3 and stance4: "K3, robustness at
@@ -1184,7 +1189,10 @@ written in it, coloured by the joint-space falls and outlined at K3's
 checkpoints. A file that is not a full noise run, records another seed than
 the run's or lacks either panel is skipped with its reason. The JSON's
 `judge_k3` keeps every point, with `joint_within_bar` and `own_within_bar`
-at K3's checkpoints; the HTML lists them per run and the checkpoint table
+at K3's checkpoints, withheld (null, with `within_bar_withheld`) where
+either panel is not K3's 20 episodes on spawns 3042-3061 or its `falls`
+disagrees with its listed episodes, as the scorers check them; the HTML
+lists them per run and the checkpoint table
 adds `judge joint` and `judge own` at a checkpoint judged at exactly that
 step. Whether a run holds stays the scorer's (`score_stance5r.py`, with the
 criteria's missing-file, refusal and run-handling rules, none of which is

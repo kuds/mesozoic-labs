@@ -233,8 +233,9 @@ NOT_RECORDED: tuple[str, ...] = (
     "runs no recorder). No gate reads them.",
     "The evaluation episodes are the deterministic policy's, at yaw 0 on the evaluation env's own resets. The "
     "judge's perturbation panels (its joint-noise falls, K3) and its verdicts are not in these files: the outcomes "
-    "page draws the stance5 replication judge's K3 inputs only from the judge files a caller names (--judged), as a "
-    "readout of that criterion, never a verdict. The training falls are the stochastic training policy's.",
+    "page draws K3's inputs only from the judge files a caller names (--judged; the stance3, stance4, stance5 and "
+    "stance5 replication judges' files, whose K3 is the same), as a readout of the stance5 replication judge's K3 "
+    "criterion, never a verdict. The training falls are the stochastic training policy's.",
     "The saturating actuator and the saturation fraction itself are recorded per episode (saturated_actuator, "
     "saturated_actuator_fraction) only in ledgers written since those columns were added; an older run's are absent "
     "series, and its screen_v2_reasons lists max_actuator_saturation_fraction without naming the actuator. An episode "
@@ -295,6 +296,17 @@ K3_JOINT_MAX_FALLS = 2
 K3_OWN_MAX_FALLS = 1
 K3_EPISODES = 20
 K3_SLOT_STEPS = 6_291_456
+#: The spawns K3's noise panels run on, as a judge records a panel's ``seeds`` range (the scorers' NOISE_SEEDS).
+K3_SPAWNS: tuple[int, int] = (3042, 3061)
+#: The judges whose files the readout reads, by the files' ``schema``: each round's criteria fix the same K3
+#: (``docs/investigations/stance_2026_10/stance3/criteria.txt``, ``stance4/criteria.txt``, ``stance5/criteria.txt``
+#: and :data:`K3_CRITERIA_FILE`).  A file of any other schema is skipped with the reason: its K3 need not be this one.
+K3_JUDGE_SCHEMAS: dict[str, str] = {
+    "stance3-judge/v1": "the stance3 judge",
+    "stance4-judge/v1": "the stance4 judge",
+    "stance5-judge/v1": "the stance5 judge",
+    "stance5r-judge/v1": "the stance5 replication judge",
+}
 #: The judge files read: one per judged checkpoint, ``judge_<steps>.json`` or ``judge_final.json``.
 _JUDGE_FILE = re.compile(r"^judge_(?P<slot>\d+|final)\.json$")
 
@@ -1236,8 +1248,9 @@ def load_run_history(
 ) -> RunHistory:
     """Read and reduce one stage directory's files; a missing file or column is recorded as absent, never raised.
 
-    *judged*: a directory of the run's judge files (``judge_<steps>.json``, ``judge_final.json``), read for the
-    stance5 replication judge's K3 inputs (:func:`read_judge_k3`), drawn as a readout on the outcomes page.
+    *judged*: a directory of the run's judge files (``judge_<steps>.json``, ``judge_final.json``), read for K3's
+    inputs (:func:`read_judge_k3`), drawn as a readout of the stance5 replication judge's K3 criterion on the outcomes
+    page.
     """
     stage = Path(stage_dir)
     run = RunHistory(stage_dir=stage, label=label or stage.resolve().parent.name or stage.name, group=group)
@@ -1411,19 +1424,26 @@ def _judge_point(path: Path, *, seed: int | None, final_step: int | None) -> tup
     record = read_json_object(path)
     if record is None:
         return None, "unreadable (not a JSON object)"
+    schema = record.get("schema")
+    if schema not in K3_JUDGE_SCHEMAS:
+        return None, f"judge schema {schema!r}: its K3 is not the one drawn here (read: {', '.join(K3_JUDGE_SCHEMAS)})"
     if record.get("mode", "full") != "full" or record.get("smoke") is True or record.get("noise_run") is False:
         return None, f"not a full noise run (mode {record.get('mode')!r}, smoke {record.get('smoke')!r})"
     judged_seed = _whole(record.get("seed"))
     if seed is not None and judged_seed is not None and judged_seed != seed:
         return None, f"judged seed {judged_seed}, not the run's {seed}"
     blocks = {}
+    issues: list[str] = []
     for name, key in (("joint", "noise_matched_control_joint"), ("own", "noise_matched_own")):
         block = record.get(key)
         falls = _whole(block.get("falls")) if isinstance(block, Mapping) else None
         episodes = _whole(block.get("n")) if isinstance(block, Mapping) else None
-        if falls is None or episodes is None:
+        if falls is None or episodes is None or not isinstance(block, Mapping):
             return None, f"no {key} falls and n"
         blocks[name] = (falls, episodes)
+        issue = _k3_panel_issue(block, falls)
+        if issue:
+            issues.append(f"{key}: {issue}")
     slot = match.group("slot")
     steps: int | None
     if slot == "final":
@@ -1436,7 +1456,8 @@ def _judge_point(path: Path, *, seed: int | None, final_step: int | None) -> tup
     (joint, joint_n), (own, own_n) = blocks["joint"], blocks["own"]
     point: dict[str, Any] = {
         "file": path.name,
-        "schema": record.get("schema"),
+        "schema": schema,
+        "judge": K3_JUDGE_SCHEMAS[schema],
         "slot": slot,
         "timesteps": steps,
         "k3_slot": k3_slot,
@@ -1445,14 +1466,43 @@ def _judge_point(path: Path, *, seed: int | None, final_step: int | None) -> tup
         "own_falls": own,
         "own_episodes": own_n,
     }
-    if k3_slot:
+    if issues:
+        point["panel_issues"] = issues
+    if k3_slot and issues:  # K3's bars are set on its 20 episodes on spawns 3042-3061, as the scorers require
+        point["joint_within_bar"] = point["own_within_bar"] = None
+        point["within_bar_withheld"] = "; ".join(issues)
+    elif k3_slot:
         point["joint_within_bar"] = joint <= K3_JOINT_MAX_FALLS
         point["own_within_bar"] = own <= K3_OWN_MAX_FALLS
     return point, ""
 
 
+def _k3_panel_issue(block: Mapping[str, Any], falls: int) -> str:
+    """Why a judge's noise panel is not the one K3's bars are set on, as the scorers check it, else ``""``.
+
+    :data:`K3_EPISODES` episodes (``n``) on :data:`K3_SPAWNS` (the panel's ``seeds`` range, where recorded), and,
+    where the panel lists its episodes (``episodes_detail``), those spawns in order with ``falls`` the count of
+    episodes short of the horizon (``reached_horizon`` false: the scorers' own count).
+    """
+    episodes = _whole(block.get("n"))
+    if episodes != K3_EPISODES:
+        return f"n {episodes}, not K3's {K3_EPISODES}"
+    seeds = block.get("seeds")
+    if seeds is not None and (not isinstance(seeds, list) or tuple(seeds) != K3_SPAWNS):
+        return f"spawns {seeds!r}, not K3's {K3_SPAWNS[0]}-{K3_SPAWNS[1]}"
+    detail = block.get("episodes_detail")
+    if isinstance(detail, list):
+        rows = [row for row in detail if isinstance(row, Mapping)]
+        if len(rows) != len(detail) or [row.get("seed") for row in rows] != list(range(K3_SPAWNS[0], K3_SPAWNS[1] + 1)):
+            return f"its episodes are not spawns {K3_SPAWNS[0]}-{K3_SPAWNS[1]} in order"
+        short = sum(1 for row in rows if not row.get("reached_horizon"))
+        if short != falls:
+            return f"falls {falls}, but {short} of its episodes stop short of the horizon"
+    return ""
+
+
 def read_judge_k3(directory: Path, *, seed: int | None = None, final_step: int | None = None) -> dict[str, Any]:
-    """The stance5 replication judge's K3 inputs from *directory*'s judge files: a readout, never a verdict.
+    """K3's inputs from *directory*'s judge files, read against the stance5 replication judge's K3: a readout.
 
     One point per ``judge_<steps>.json`` and ``judge_final.json`` (the judge's
     files per judged checkpoint; its other panels, ``judge_best.json``,
@@ -1460,13 +1510,16 @@ def read_judge_k3(directory: Path, *, seed: int | None = None, final_step: int |
     joint-space noise falls (``noise_matched_control_joint``: ``falls`` of
     ``n``) and the own-sigma falls (``noise_matched_own``).  The final slot
     sits at the judge's recorded ``checks.checkpoint_num_timesteps``, else at
-    *final_step*.  A file that is not a full noise run, records another seed
-    than *seed*, or lacks the two blocks is skipped with the reason.  At
-    K3's checkpoints (:data:`K3_SLOT_STEPS` and the final) each test says
-    whether it is within its bar (:data:`K3_JOINT_MAX_FALLS`,
-    :data:`K3_OWN_MAX_FALLS`): a readout of the criterion on the judge's own
-    numbers; whether a run holds is the scorer's to say (its missing-file,
-    refusal and run-handling rules are not applied here).
+    *final_step*.  A file of a judge whose K3 is not this one (a schema not
+    in :data:`K3_JUDGE_SCHEMAS`), that is not a full noise run, records
+    another seed than *seed*, or lacks the two blocks is skipped with the
+    reason.  At K3's checkpoints (:data:`K3_SLOT_STEPS` and the final) each
+    test says whether it is within its bar (:data:`K3_JOINT_MAX_FALLS`,
+    :data:`K3_OWN_MAX_FALLS`), withheld (``None``, with
+    ``within_bar_withheld``) when either panel is not K3's 20 episodes on
+    spawns 3042-3061 (:func:`_k3_panel_issue`): a readout of the criterion
+    on the judge's own numbers; whether a run holds is the scorer's to say
+    (its missing-file, refusal and run-handling rules are not applied here).
     """
     out: dict[str, Any] = {
         "source": str(directory),
@@ -1476,6 +1529,8 @@ def read_judge_k3(directory: Path, *, seed: int | None = None, final_step: int |
         "episodes": K3_EPISODES,
         "k3_checkpoints": [K3_SLOT_STEPS, "final"],
         "readout": "the judge's recorded falls against K3's bars, never a verdict",
+        "judge_schemas_accepted": dict(K3_JUDGE_SCHEMAS),
+        "schemas": [],
         "checkpoints": [],
         "skipped": [],
         "not_read": [],
@@ -1498,6 +1553,7 @@ def read_judge_k3(directory: Path, *, seed: int | None = None, final_step: int |
             points.append(point)
     points.sort(key=lambda p: (p["timesteps"] is None, p["timesteps"] or 0, p["file"]))
     out["checkpoints"] = points
+    out["schemas"] = sorted({p["schema"] for p in points})
     sizes = sorted({p[key] for p in points for key in ("joint_episodes", "own_episodes")})
     if any(size != K3_EPISODES for size in sizes):
         out["note"] = f"K3's bars are set on {K3_EPISODES} episodes; these files hold {sizes}, read unchanged"
@@ -1753,8 +1809,10 @@ def summary(runs: Sequence[RunHistory], *, title: str, marks: Sequence["int | st
             "judge_k3": f"from the judge files named per run (--judged): per judged checkpoint, the joint-space noise "
             f"falls (noise_matched_control_joint) and the own-sigma falls (noise_matched_own) of the judge's "
             f"{K3_EPISODES} episodes, against the stance5 replication judge's K3 ({K3_CRITERIA_FILE}: "
-            f"{K3_CRITERION}); within_bar at K3's checkpoints only. A readout of the judge's records, never a "
-            "verdict: the scorer decides whether a run holds",
+            f"{K3_CRITERION}; the same K3 as stance3's, stance4's and stance5's). Files of those judges only "
+            f"({', '.join(K3_JUDGE_SCHEMAS)}); within_bar at K3's checkpoints only, withheld (null) where a panel is "
+            f"not {K3_EPISODES} episodes on spawns {K3_SPAWNS[0]}-{K3_SPAWNS[1]}. A readout of the judge's records, "
+            "never a verdict: the scorer decides whether a run holds",
             "comparison_smoothing_evaluations": smooth,
             "comparison_smoothing": "comparisons draw the continuous series as a centred rolling mean over that many "
             "evaluations, each evaluation's value faint behind it; counts are never smoothed",
@@ -1855,9 +1913,9 @@ PAGES: tuple[PageSpec, ...] = (
             Quantity("mean_return", "Mean evaluation return (all episodes)", "return", "series", None),
             Quantity(
                 "k3",
-                "Judge K3 readout, never a verdict: the stance5 replication judge's joint-space noise falls and "
-                f"own-sigma falls of its {K3_EPISODES} episodes at each judged checkpoint, against K3's bars "
-                f"({K3_CRITERION})",
+                f"Judge K3 readout, never a verdict: joint-space noise falls and own-sigma falls of {K3_EPISODES} "
+                "episodes at each judged checkpoint ({judges}), against the stance5 replication judge's K3 criterion, "
+                f"the same K3 as stance3's to stance5's ({K3_CRITERION})",
                 f"falls of {K3_EPISODES}",
                 "k3",
                 None,
@@ -2270,7 +2328,17 @@ def _quantity_title(quantity: Quantity, runs: Sequence[RunHistory]) -> str:
         band=_band_text(runs, "lower", "upper"),
         pad_band=_band_text(runs, "pad_lower", "pad_upper"),
         foot="{foot}",
+        judges=_judges_text(runs),
     )
+
+
+def _judges_text(runs: Sequence[RunHistory]) -> str:
+    """Whose judge files the K3 readout read (``files of the stance5 judge``), or ``no judge files``."""
+    read = {schema for run in runs for schema in (run.k3 or {}).get("schemas", [])}
+    names = [name for schema, name in K3_JUDGE_SCHEMAS.items() if schema in read]
+    if not names:
+        return "no judge files"
+    return "files of " + (names[0] if len(names) == 1 else ", ".join(names[:-1]) + " and " + names[-1])
 
 
 def _reference_lines(runs: Sequence[RunHistory], quantity: Quantity) -> list[tuple[float, str, str]]:
@@ -3753,9 +3821,10 @@ def render_pages(
         ""
         if not judged
         else " The last panel is a readout of the stance5 replication judge's K3 criterion from the judge files named "
-        f"for {'this run' if len(runs) == 1 else ', '.join(run.label for run in judged)} ({K3_CRITERIA_FILE}: "
-        f"{K3_CRITERION}): the judge's own perturbation panels on spawns 3042-3061 at each judged checkpoint, not "
-        "these deterministic evaluations, and never a verdict (the scorer decides whether a run holds)."
+        f"for {'this run' if len(runs) == 1 else ', '.join(run.label for run in judged)} ({_judges_text(judged)}; "
+        f"{K3_CRITERIA_FILE}: {K3_CRITERION}, the same K3 as stance3's to stance5's): the judge's own perturbation "
+        "panels on spawns 3042-3061 at each judged checkpoint, not these deterministic evaluations, and never a "
+        "verdict (the scorer decides whether a run holds)."
     )
     targets = _common(run.head_target for run in runs)
     fields = {
@@ -3904,7 +3973,9 @@ def _k3_table(run: Mapping[str, Any]) -> str:
     rows = []
     for point in k3.get("checkpoints") or []:
         within = ""
-        if point.get("k3_slot"):
+        if point.get("k3_slot") and point.get("within_bar_withheld"):
+            within = f"withheld: {point['within_bar_withheld']}"
+        elif point.get("k3_slot"):
             within = "; ".join(
                 f"{name} {'within' if point.get(key) else 'over'}"
                 for name, key in (("joint", "joint_within_bar"), ("own", "own_within_bar"))
@@ -3912,6 +3983,7 @@ def _k3_table(run: Mapping[str, Any]) -> str:
         rows.append(
             [
                 html.escape(str(point.get("file"))),
+                html.escape(str(point.get("judge") or point.get("schema"))),
                 _fmt(point.get("timesteps")),
                 "K3" if point.get("k3_slot") else "report only",
                 f"{point.get('joint_falls')} / {point.get('joint_episodes')}",
@@ -3922,7 +3994,8 @@ def _k3_table(run: Mapping[str, Any]) -> str:
     skipped = "; ".join(f"{entry['file']}: {entry['why']}" for entry in k3.get("skipped") or [])
     parts = [
         f"<h3>{html.escape(str(run['label']))}: judge K3 readout</h3>",
-        f"<p>From <code>{html.escape(str(k3.get('source')))}</code>. K3 ({html.escape(str(k3.get('criteria_file')))}): "
+        f"<p>From <code>{html.escape(str(k3.get('source')))}</code>. K3, the stance5 replication judge's criterion "
+        f"({html.escape(str(k3.get('criteria_file')))}; the same K3 as stance3's to stance5's): "
         f"{html.escape(str(k3.get('criterion')))}. A readout of the judge's records against K3's bars, never a "
         "verdict: the scorer decides whether a run holds, under the criteria's missing-file and run-handling rules, "
         "which are not applied here."
@@ -3932,7 +4005,10 @@ def _k3_table(run: Mapping[str, Any]) -> str:
     ]
     if rows:
         parts.append(
-            _table(["judge file", "checkpoint", "read by", "joint-space falls", "own-sigma falls", "K3 bars"], rows)
+            _table(
+                ["judge file", "judge", "checkpoint", "read by", "joint-space falls", "own-sigma falls", "K3 bars"],
+                rows,
+            )
         )
     return "".join(parts)
 

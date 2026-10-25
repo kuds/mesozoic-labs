@@ -1043,6 +1043,65 @@ class TestJudgeK3:
         assert k3["criterion"] == th.K3_CRITERION and "never a verdict" in k3["readout"]
         assert "why" not in k3 and "note" not in k3
 
+    def test_only_the_stance_judges_files_are_read_and_each_is_named_by_its_judge(self, tmp_path):
+        """stance3 to stance5 and the replication fix the same K3: their files are read and named by their own judge;
+        a file of any other schema is skipped, since its K3 need not be the one drawn."""
+        judged = tmp_path / "judged"
+        _judge_file(judged, "judge_6291456.json", joint=0, own=0, schema="stance5-judge/v1")
+        _judge_file(judged, "judge_final.json", joint=1, own=0, schema="stance4-judge/v1")
+        _judge_file(judged, "judge_8388608.json", joint=0, own=0, schema="r10-judge/v1")
+        k3 = th.read_judge_k3(judged, seed=42, final_step=12_001_280)
+        assert [(p["file"], p["judge"]) for p in k3["checkpoints"]] == [
+            ("judge_6291456.json", "the stance5 judge"),
+            ("judge_final.json", "the stance4 judge"),
+        ]
+        assert k3["schemas"] == ["stance4-judge/v1", "stance5-judge/v1"]
+        assert [entry["file"] for entry in k3["skipped"]] == ["judge_8388608.json"]
+        assert "judge schema 'r10-judge/v1': its K3 is not the one drawn here" in k3["skipped"][0]["why"]
+        run = th.load_run_history(_stage(tmp_path), read_std=False, judged=judged)
+        panel = th._page_figure(
+            th.PAGES[0], th._make_context([run], marks=[], smooth=5), title="t", dpi=30, width=12.0
+        ).axes[4]
+        title = panel.get_title(loc="left").replace("\n", " ")
+        assert "(files of the stance4 judge and the stance5 judge)" in title
+        assert "against the stance5 replication judge's K3 criterion" in title
+
+    def test_within_bar_flags_are_withheld_where_a_panel_is_not_k3s(self, tmp_path):
+        """K3's bars are set on 20 episodes on spawns 3042-3061, as the scorers require: a panel of another size or
+        spawns, or whose falls disagree with its episodes, keeps its counts but gives no within-bar flag."""
+        judged = tmp_path / "judged"
+        detail = [{"seed": seed, "reached_horizon": seed != 3042} for seed in range(3042, 3062)]
+        _judge_file(
+            judged, "judge_6291456.json", joint=0, own=0, noise_matched_own={"n": 10, "falls": 0, "space": "policy"}
+        )
+        _judge_file(
+            judged,
+            "judge_final.json",
+            joint=0,
+            own=0,
+            noise_matched_control_joint={"n": 20, "falls": 0, "seeds": [3042, 3061], "episodes_detail": detail},
+        )
+        _judge_file(
+            judged,
+            "judge_4194304.json",
+            joint=1,
+            own=0,
+            noise_matched_control_joint={"n": 20, "falls": 1, "seeds": [3042, 3061], "episodes_detail": detail},
+        )
+        six, final = (p for p in th.read_judge_k3(judged, final_step=12_001_280)["checkpoints"] if p["k3_slot"])
+        assert six["joint_within_bar"] is None and six["own_within_bar"] is None
+        assert "noise_matched_own: n 10, not K3's 20" in six["within_bar_withheld"]
+        assert final["joint_within_bar"] is None and "falls 0, but 1 of its episodes" in final["within_bar_withheld"]
+        early = th.read_judge_k3(judged, final_step=12_001_280)["checkpoints"][0]
+        assert early["timesteps"] == 4194304 and "panel_issues" not in early  # recorded falls agree with its episodes
+        _judge_file(
+            judged, "judge_final.json", joint=0, own=0, noise_matched_own={"n": 20, "falls": 0, "seeds": [3062, 3081]}
+        )
+        final = th.read_judge_k3(judged, final_step=12_001_280)["checkpoints"][-1]
+        assert "spawns [3062, 3081], not K3's 3042-3061" in final["within_bar_withheld"]
+        record = th.run_record(th.load_run_history(_stage(tmp_path), read_std=False, judged=judged), [])
+        assert "withheld: noise_matched_own" in th._k3_table(record)
+
     def test_the_final_slot_without_a_recorded_step_sits_at_the_runs_final(self, tmp_path):
         judged = tmp_path / "judged"
         _judge_file(judged, "judge_final.json", joint=0, own=0)
