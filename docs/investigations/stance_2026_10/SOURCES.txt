@@ -168,27 +168,28 @@
 # source's first 600 lines still 8122de87f90415156ab0e990ff2fc0b574ff059222116a0b3865ddc31ce68ccd; lines 601 to 603 are
 # the entries timed 09:21, 12:06 and 12:08 UTC).  redact, in that copy: 15 workflow run ids (7 distinct; a bare one
 # becomes 'workflow [id removed]') and 1 scheduled-task id, each by '[id removed]'; in
-# posture/brief_corrected_summary.md, 1 workflow run id.  Lines 601 and 603 of the run log's copy name the branch's
-# commits by their ids before the reword of 12:08 UTC, which line 603 maps to the new ones; the copy keeps them as the
-# source has them.  prefix2 wherever a copy names a path in the second scratch root, and in posture/brief_draft.md
-# prefix and checkout too.  whitespace removes trailing spaces and blank last lines and adds a final newline; in
-# cpucheck/gate/sr3.patch it removes the single space of the blank context lines, and patch -p1 of the copy on a git
-# archive of 9f2355a3 still gives the CPU checks' SR3 tree (scratchpad2/tailround/r10cpu/gate/tree_sr3) exactly.  gzip:
-# the eight Python scripts of remeasure/scripts/ are copied as <name>.py.gz, since test_policy_loading.py parses every
-# Python file under docs/; gunzip restores each byte for byte.  cpucheck/coord/ holds five of the six fields of each
-# worker's record in the CPU checks' result file (scratchpad2/tailround/r10cpu/coord/wf_result.json, not copied), as the
-# coordinator wrote them out on 2026-10-25 at 04:26 UTC (the sixth, each worker's file list, is not copied).  Not
-# copied: the probes' MJCF copies and per-episode panel JSONs (about 0.1 MB each), results_v1.json and
-# results_tsweep.json; the CPU checks' trees, code archives and clones, the zero-shot and gate per-episode CSVs and
-# series, the heading study's per-step CSV and npz traces, the skeptic's trees and per-run JSONs; the eight zero-shot
-# checkpoint pairs (three fetched read-only from Drive at 02:31 UTC on 2026-10-25, two at 16:08 UTC on 2026-10-24 and
-# three the tail_3 screen's finals; their sha256 are in cpucheck/zeroshot/checkpoints.csv); and the r10 build's trees,
-# test logs and JUnit files.
+# posture/brief_corrected_summary.md, 1 workflow run id.  Source lines 601 and 603 (the copy's lines 24 and 26) name the
+# branch's commits by their ids before the reword of 12:08 UTC, which line 603 maps to the new ones; the copy keeps them
+# as the source has them.  prefix2 wherever a copy names a path in the second scratch root, and in
+# posture/brief_draft.md prefix and checkout too.  whitespace removes trailing spaces and blank last lines and adds a
+# final newline; in cpucheck/gate/sr3.patch it removes the single space of the blank context lines, and patch -p1 of the
+# copy on a git archive of 9f2355a3 still gives the CPU checks' SR3 tree (scratchpad2/tailround/r10cpu/gate/tree_sr3)
+# exactly.  gzip: the eight Python scripts of remeasure/scripts/ are copied as <name>.py.gz, since
+# test_policy_loading.py parses every Python file under docs/; gunzip restores each byte for byte.  cpucheck/coord/
+# holds five of the six fields of each worker's record in the CPU checks' result file
+# (scratchpad2/tailround/r10cpu/coord/wf_result.json, not copied), as the coordinator wrote them out on 2026-10-25 at
+# 04:26 UTC (the sixth, each worker's file list, is not copied).  Not copied: the probes' MJCF copies and per-episode
+# panel JSONs (about 0.1 MB each), results_v1.json and results_tsweep.json; the CPU checks' trees, code archives and
+# clones, the zero-shot and gate per-episode CSVs and series, the heading study's per-step CSV and npz traces, the
+# skeptic's trees and per-run JSONs; the eight zero-shot checkpoint pairs (three fetched read-only from Drive at 02:31
+# UTC on 2026-10-25, two at 16:08 UTC on 2026-10-24 and three the tail_3 screen's finals; their sha256 are in
+# cpucheck/zeroshot/checkpoints.csv); and the r10 build's trees, test logs and JUnit files.
 # remeasure/panels/stance_heading_report_final_gate.txt (added in the branch's review, byte-identical) is the
 # six-heading certificate re-rolled at 08:29-08:35 UTC with stance_gate_report.py --zero-action on a git archive of the
-# branch at dac20f1b (that commit's id since the reword of its message at 12:08 UTC; its tree is the one archived),
-# under the final stance gate block (gate sha256:d26c34e6..., the rail 2260); its source is in the second scratch root
-# (scratchpad2/prs/r10_work/fixer/), and the branch's later commits move no stance task or gate digest.
+# branch at dac20f1b (that commit's id since the replay of 12:08 UTC, which reworded other commits' messages and left
+# this one's message and tree unchanged; its tree is the one archived), under the final stance gate block (gate
+# sha256:d26c34e6..., the rail 2260); its source is in the second scratch root (scratchpad2/prs/r10_work/fixer/), and
+# the branch's later commits move no stance task or gate digest.
 
 audit/foot_ankle_audit.md foot/audit_2026_10_17/foot_ankle_audit.md e9da4ef84be17a87b70096d1e2aede87609ad22f446b10786f9e14d5064725c8 prefix
 audit/geometry/geometry_audit.json foot/audit_2026_10_17/geometry/geometry_audit.json 934110bec337b9693f894800efb309bf1a9529ae87f91f129bfefc8fef5b650a prefix,whitespace

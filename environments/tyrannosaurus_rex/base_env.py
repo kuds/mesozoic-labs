@@ -291,10 +291,11 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         #     termination geoms and the tail reaches the floor at a pelvis
         #     height of ~0.55-0.57 in a level squat, so the plant is already
         #     lying down below that.  The tail's pose is fixed relative to the
-        #     pelvis and does not move with the legs, so that figure is
-        #     unchanged and 0.70 still clears it by ~0.13.  A kinematic scan
-        #     of 2026-10-25 (level pelvis, home-keyframe legs, the settled
-        #     tail pitches) re-measures it: on physics r9, whose settled tail
+        #     pelvis and does not move with the legs, so the stance change
+        #     left that figure unchanged (0.70 cleared it by ~0.13).  A
+        #     kinematic scan of 2026-10-25 (level pelvis, home-keyframe legs,
+        #     the settled tail pitches) re-measures it on the settled tail and
+        #     supersedes both figures: on physics r9, whose settled tail
         #     drooped, the lowest points of tail_3/4/5 sit 0.46 / 0.55 /
         #     0.60 m below the pelvis, so r9's tail first reaches the floor
         #     at a pelvis height of about 0.60, which 0.70 clears by about

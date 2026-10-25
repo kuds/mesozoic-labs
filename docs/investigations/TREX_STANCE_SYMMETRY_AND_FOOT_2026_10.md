@@ -4165,7 +4165,8 @@ branch review's corrections: `150bb1ce` (comments only, in the MJCF, note 20,
 the ids after the maintainer had three of the commit messages reworded
 before the first push (12:08 UTC; every tree unchanged; §25.6). A follow-up
 commit then carries out the maintainer's decisions of 12:06 UTC in the tree
-and records them (§25.6). The env-built compiled
+and records them (§25.6), and one more makes its review's corrections
+(comments and records only). The env-built compiled
 model differs from r9's only in `qpos_spring` (0.91630, 0.45204 and 0.18151
 rad, 595 fields compared; `remeasure/env_model_diff.json`); the physics sha256
 moves from `3d68aec7…` to `6a47a0eb…`, the policy interface stays r15
@@ -4281,16 +4282,20 @@ records for each (measured): in a level squat the floor, not the tail, is
 r10's backstop, `tail_3`, `tail_4` and `tail_5` sitting 0.13, 0.11 and
 0.075 m below a level pelvis against r9's 0.46, 0.55 and 0.60 m; the
 statue's spawn pop reaches 1.571, 1.588 and 1.797 BW and is charged 2.49,
-3.67 and 10.02 over 40 episodes on 3042, 7042 and 3162, nothing after step
-10; 25° is 1.69× the r10 statue's largest yaw change (14.8°, seed 5061); and
-seed 3121's pad tilts 2.087° against the 2.0° bar, as r9's 2.061° did.
+3.67 and 10.02 over the 40 episodes from each of seeds 3042, 7042 and 3162,
+nothing after step 10; 25° is 1.69× the r10 statue's largest yaw change
+(14.8°, seed 5061); and seed 3121's pad tilts 2.087° against the 2.0° bar, as
+r9's 2.061° did.
 (2) The MJCF's sensor-block comment, which still named the `mjx_config.py`
 registration deleted at note 18 and which note 18 deferred to "the next T-Rex
 physics revision", is fixed in this one. (3) The three commit messages that
 later commits corrected are reworded before the first push; at 12:08 UTC the
 seven commits were replayed on `3ffc18e9` with corrected messages, every tree
-byte-identical, and §25.5 gives the new ids. (4) The pull request is to be
-opened now, with the heading-test fix's branch
+byte-identical, and §25.5 gives the new ids. Four messages changed
+(measured, each pair's `git log --format=%B`): those of `df321d50`,
+`24d9f917` and `7d48b0af`, and that of `150bb1ce`, whose note on the first
+commit's message the reword made stale (the run log's entry of 12:08 UTC).
+(4) The pull request is to be opened now, with the heading-test fix's branch
 (`claude/heading-test-float32-bounds`, #642, head `153b297a`) merged in, a
 no-op once #642 is on `main` (inferred), and the `full-ci` label, and driven
 to green.

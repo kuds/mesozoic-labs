@@ -589,10 +589,11 @@ else), so the zero-action statue rests its tail level on its springs, with
 re-measured; the policy interface stays r15. It is built on the branch
 `claude/physics-r10-sr3`. On 2026-10-25 the maintainer asked for its pull
 request, to be opened with the branch of the heading-invariance test's fix
-(its own test-only pull request, #642) brought in, since the test it fixes
-runs only at CI's full depth, and with the `full-ci` label, and kept
-`healthy_z_range`, the floor-impact threshold and the stance's yaw and
-sole-tilt bars. Once it is on `main`, every physics-r9 T-Rex checkpoint is refused,
+(its own test-only pull request, #642) brought in and with the `full-ci`
+label (inferred as the reason: the test it fixes runs only at CI's full
+depth), and kept `healthy_z_range`, the floor-impact threshold and the
+stance's yaw and sole-tilt bars. Once it is on `main`, every physics-r9 T-Rex
+checkpoint is refused,
 so the next T-Rex session above becomes a fresh stance on physics r10 and
 policy interface r15 with fresh weights and normalizer statistics, and the
 second pilot can run only on its r9 branch, its result not carrying to r10.
