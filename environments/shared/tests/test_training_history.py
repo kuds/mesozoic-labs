@@ -1498,9 +1498,19 @@ def _k3_panel_file(stage: Path, points: list[tuple[int, str, int, int, int]], *,
     (stage / th.K3_PANEL_JSON_FILENAME).write_text(json.dumps(record), encoding="utf-8")
 
 
-def _fake_vecnorm(path: Path, monkeypatch, mean, var, *, epsilon: float = 1e-8, clip: float = 10.0) -> None:
+def _fake_vecnorm(
+    path: Path,
+    monkeypatch,
+    mean,
+    var,
+    *,
+    epsilon: Any = 1e-8,
+    clip: float = 10.0,
+    count: Any = 100.0,
+    protocol: int | None = None,
+) -> None:
     """A VecNormalize pickle as SB3 writes one (the class names it carries), from stand-in classes registered under
-    SB3's module names for the dump only: the reader never imports them."""
+    SB3's module names for the dump only: the reader never imports them.  ``protocol`` ``None``: pickle's default."""
     import pickle
     import sys
     import types
@@ -1519,11 +1529,12 @@ def _fake_vecnorm(path: Path, monkeypatch, mean, var, *, epsilon: float = 1e-8, 
             setattr(sys.modules[module], name, cls)
             classes[name] = cls
         rms = classes["RunningMeanStd"]()
-        rms.mean, rms.var, rms.count = np.asarray(mean, dtype=float), np.asarray(var, dtype=float), 100.0
+        rms.mean = np.asarray(mean, dtype=float) if isinstance(mean, list) else mean
+        rms.var, rms.count = np.asarray(var, dtype=float), count
         wrapper = classes["VecNormalize"]()
         wrapper.obs_rms, wrapper.epsilon, wrapper.clip_obs, wrapper.norm_obs = rms, epsilon, clip, True
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_bytes(pickle.dumps(wrapper))
+        path.write_bytes(pickle.dumps(wrapper, protocol=protocol))
 
 
 class TestBodyPages:
@@ -1676,6 +1687,72 @@ class TestObsNormalization:
         path.write_bytes(pickle.dumps(Evil()))
         with pytest.raises(pickle.UnpicklingError, match="refused"):
             th.read_vecnormalize_stats(path)
+
+    def test_protocol_5_and_fortran_and_byte_swapped_pickles_read_as_numbers(self, tmp_path, monkeypatch):
+        """Python 3.14 pickles at protocol 5 by default (numpy's ``_frombuffer``); every layout decodes exactly."""
+        for protocol in (4, 5):
+            for mean in (
+                np.array([0.25, -1.5, 3.0]),
+                np.asfortranarray(np.arange(6.0).reshape(2, 3)),
+                np.arange(24.0).reshape(2, 3, 4).transpose(2, 0, 1),
+                np.array([1.0, 2.0], dtype=">f8"),
+            ):
+                path = tmp_path / f"p{protocol}.pkl"
+                _fake_vecnorm(path, monkeypatch, mean, np.ones(3), count=np.float64(7.5), protocol=protocol)
+                stats = th.read_vecnormalize_stats(path)
+                assert np.array_equal(stats["mean"], mean) and stats["mean"].dtype == np.float64
+                assert stats["count"] == 7.5
+
+    def test_the_stub_unpickler_runs_no_numpy_constructor_and_reads_only_plain_numbers(self, tmp_path, monkeypatch):
+        """A pickle calling ``numpy.ndarray(shape, object, bytes)``, or naming a dtype whose state denies the object
+        field it declares (numpy's own unpickling then forges object pointers from the bytes, and reading them
+        crashes the process), is refused before any array is built; so is a structured or object dtype anywhere
+        the report reads a number, and data shorter or longer than its shape."""
+        import importlib
+        import importlib.util
+        import pickle
+        import struct
+
+        core = "numpy._core" if importlib.util.find_spec("numpy._core") else "numpy.core"  # numpy 2, numpy 1
+        multiarray, numeric = (importlib.import_module(f"{core}.{name}") for name in ("multiarray", "numeric"))
+        pointer = struct.pack("<Q", 0x41414141)
+
+        class Call:
+            def __init__(self, function, args, state=None):
+                self.function, self.args, self.state = function, args, state
+
+            def __reduce__(self):
+                return (self.function, self.args) if self.state is None else (self.function, self.args, self.state)
+
+        class LyingDtype:
+            def __reduce__(self):
+                return (np.dtype, ("V8", False, True), (3, "|", None, ("a",), {"a": (np.dtype("O"), 0)}, 8, 1, 0))
+
+        crafted = {
+            "ndarray": Call(np.ndarray, ((1,), np.dtype("O"), pointer)),
+            "lying": Call(multiarray._reconstruct, (np.ndarray, (0,), b"b"), (1, (1,), LyingDtype(), False, pointer)),
+            "lying5": Call(numeric._frombuffer, (pointer, LyingDtype(), (1,), "C")),
+            "object5": Call(numeric._frombuffer, (pointer, np.dtype("O"), (1,), "C")),
+            "structured": np.zeros(3, dtype=[("a", "f8")]),
+            "short": Call(multiarray._reconstruct, (np.ndarray, (0,), b"b"), (1, (4,), np.dtype("f8"), False, b"")),
+        }
+        for name, mean in crafted.items():
+            path = tmp_path / f"{name}.pkl"
+            _fake_vecnorm(path, monkeypatch, mean, np.ones(3))
+            with pytest.raises(pickle.UnpicklingError, match="refused"):
+                th.read_vecnormalize_stats(path)
+        for field, value in (("count", Call(multiarray.scalar, (LyingDtype(), pointer))), ("epsilon", pointer)):
+            path = tmp_path / f"{field}.pkl"
+            _fake_vecnorm(path, monkeypatch, np.ones(3), np.ones(3), **{field: value})
+            with pytest.raises(pickle.UnpicklingError, match="refused"):
+                th.read_vecnormalize_stats(path)
+        # Loading builds records only: numpy's helpers resolve to them, never to numpy's functions.
+        path = tmp_path / "plain.pkl"
+        _fake_vecnorm(path, monkeypatch, np.ones(3), np.ones(3))
+        with path.open("rb") as handle:
+            wrapper = th._StubUnpickler(handle).load()
+        assert isinstance(wrapper.obs_rms.mean, th._ArrayData)
+        assert all(not callable(found) or isinstance(found, type) for found in th._PICKLE_ALLOWED.values())
 
     def test_the_drift_per_checkpoint_and_the_probe_check(self, tmp_path, monkeypatch):
         models = tmp_path / "stage" / "models"

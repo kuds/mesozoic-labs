@@ -80,9 +80,11 @@ only the ``log_std`` tensor of ``policy.pth`` (``torch.load(...,
 weights_only=True)``) and, for a named checkpoint, ``num_timesteps`` from the
 JSON ``data`` member (:func:`~environments.shared.task_fingerprint.read_checkpoint_attribute`).
 The only pickles it opens are the VecNormalize pickles in ``models/``,
-through :class:`_StubUnpickler`, which resolves numpy's array helpers and
-inert stand-ins for the classes such a pickle names and refuses every other
-global: no SB3 or gymnasium code runs.  Figures are drawn on matplotlib
+through :class:`_StubUnpickler`, which resolves numpy's array helpers to
+records of their arguments and the classes such a pickle names to inert
+stand-ins, and refuses every other global: no numpy, SB3 or gymnasium code
+runs while one loads, and the statistics it reads are decoded from their raw
+bytes as plain numbers (:func:`_decoded`).  Figures are drawn on matplotlib
 ``Figure`` objects without pyplot, so no figure registry or interactive
 backend is touched.
 """
@@ -92,7 +94,6 @@ from __future__ import annotations
 import base64
 import csv
 import html
-import importlib
 import io
 import logging
 import math
@@ -106,7 +107,7 @@ import zipfile
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterable, Mapping, Sequence
+from typing import Any, Iterable, Literal, Mapping, Sequence
 
 import numpy as np
 
@@ -1164,7 +1165,8 @@ def read_k3_panel(stage: Path) -> dict[str, Any]:
 
 class _Inert:
     """A stand-in for a class a VecNormalize pickle names (SB3's ``VecNormalize`` and ``RunningMeanStd``,
-    gymnasium's ``Box``, numpy's random generator parts): it keeps the state it is given and runs no code."""
+    gymnasium's ``Box``, numpy's random generator parts): it keeps the arguments and state it is given and runs no
+    code."""
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         self._args = args
@@ -1178,35 +1180,136 @@ class _Inert:
             self._state = state
 
 
-def _inert(*args: Any, **kwargs: Any) -> _Inert:
-    return _Inert(*args)
-
-
 def _stub(name: str) -> type:
     return type(name, (_Inert,), {})
 
 
-def _multiarray(name: str) -> Any:
-    """``numpy``'s array (re)construction helper *name* (``_reconstruct``, ``scalar``), from numpy 2's ``_core``."""
-    try:
-        module = importlib.import_module("numpy._core.multiarray")
-    except ImportError:  # numpy 1
-        module = importlib.import_module("numpy.core.multiarray")
-    return getattr(module, name)
+class _NumpyData(_Inert):
+    """numpy data a pickle describes, kept as data: none of it reaches numpy's own unpickling.
+
+    numpy's ``ndarray.__setstate__``, ``_frombuffer`` and dtype ``__setstate__``
+    trust the pickle: called as a pickle names them, a dtype state whose flags
+    deny the object field it declares, or ``numpy.ndarray(shape, object,
+    buffer)``, builds an array of object pointers forged from the pickle's
+    bytes, and reading it crashes the process (measured, 2026-10-25).  So the
+    stub unpickler resolves numpy's helpers to these records, and the report
+    decodes only the values it reads (:func:`_decoded`), from their raw bytes,
+    through :data:`_DECODABLE_DTYPES`.
+    """
 
 
-#: What a VecNormalize pickle may name, and what it gets: numpy's own array, dtype and scalar reconstruction; an
-#: inert stand-in for everything else (measured on SB3 2.9's pickles: VecNormalize, RunningMeanStd, the Box of its
-#: observation space and that Box's numpy Generator, PCG64 and SeedSequence).  Anything else is refused.
+class _DtypeData(_NumpyData):
+    """``numpy.dtype(code, align, copy)`` and its state ``(version, byte order, sub-array, names, fields, ...)``."""
+
+
+class _ArrayData(_NumpyData):
+    """numpy's ``_reconstruct(ndarray, shape, typecode)`` and its state ``(version, shape, dtype, Fortran, bytes)``."""
+
+
+class _BufferData(_NumpyData):
+    """numpy's ``_frombuffer(buffer, dtype, shape, order[, axis_order])`` (a protocol-5 pickle's array)."""
+
+
+class _ScalarData(_NumpyData):
+    """numpy's ``scalar(dtype, bytes)``."""
+
+
+#: The dtypes a decoded value may have: plain booleans, integers and floats; never an object, a structure or a
+#: sub-array.
+_DECODABLE_DTYPES = frozenset({"b1", "i1", "i2", "i4", "i8", "u1", "u2", "u4", "u8", "f2", "f4", "f8"})
+
+
+def _refused(what: str) -> pickle.UnpicklingError:
+    return pickle.UnpicklingError(f"refused: {what}")
+
+
+def _decoded_dtype(data: Any) -> np.dtype:
+    """The plain numeric dtype *data* (a :class:`_DtypeData`) describes; refused otherwise."""
+    if not isinstance(data, _DtypeData):
+        raise _refused(f"a {type(data).__name__} where a numpy dtype belongs")
+    code = data._args[0] if data._args else None
+    if not isinstance(code, str) or code not in _DECODABLE_DTYPES:
+        raise _refused(f"dtype {code!r} is not a plain number")
+    state = getattr(data, "_state", None)
+    order = "|"
+    if state is not None:
+        if not isinstance(state, tuple) or len(state) < 5 or any(part is not None for part in state[2:5]):
+            raise _refused(f"dtype {code!r} with a sub-array or fields")
+        order = state[1]
+    if order not in ("<", ">", "|", "="):
+        raise _refused(f"dtype byte order {order!r}")
+    return np.dtype(f"{order}{code}" if order in ("<", ">") else code)
+
+
+def _decoded_shape(shape: Any) -> tuple[int, ...]:
+    if isinstance(shape, int) and not isinstance(shape, bool):
+        shape = (shape,)
+    if not isinstance(shape, tuple) or not all(
+        isinstance(size, int) and not isinstance(size, bool) and size >= 0 for size in shape
+    ):
+        raise _refused(f"array shape {shape!r}")
+    return shape
+
+
+def _from_bytes(raw: Any, dtype: np.dtype, shape: tuple[int, ...], order: Literal["C", "F"]) -> np.ndarray:
+    """A copy of the array *raw* holds; refused unless it is exactly ``prod(shape)`` items of *dtype*."""
+    if not isinstance(raw, (bytes, bytearray)):
+        raise _refused(f"array data of type {type(raw).__name__}")
+    count = math.prod(shape)
+    if len(raw) != count * dtype.itemsize:
+        raise _refused(f"{len(raw)} bytes for {count} items of {dtype.str}")
+    if count == 0:
+        return np.zeros(shape, dtype=dtype)
+    array: np.ndarray = np.frombuffer(bytes(raw), dtype=dtype).reshape(shape, order=order).copy()
+    return array
+
+
+def _decoded(value: Any) -> Any:
+    """A value the report reads from a VecNormalize pickle: a numpy array or scalar decoded from its raw bytes
+    (:data:`_DECODABLE_DTYPES` only), a Python number or ``None`` as it is; anything else is refused."""
+    if isinstance(value, _ArrayData):
+        state = getattr(value, "_state", None)
+        if not isinstance(state, tuple) or len(state) != 5:
+            raise _refused("an array state that is not (version, shape, dtype, Fortran, bytes)")
+        _version, shape, dtype, fortran, raw = state
+        return _from_bytes(raw, _decoded_dtype(dtype), _decoded_shape(shape), "F" if fortran else "C")
+    if isinstance(value, _BufferData):
+        if len(value._args) not in (4, 5):
+            raise _refused("a protocol-5 array that is not (buffer, dtype, shape, order[, axis order])")
+        raw, dtype, shape, order, *axes = value._args
+        decoded_shape = _decoded_shape(shape)
+        if order == "K" and axes and axes[0] is not None:
+            axis_order = _decoded_shape(axes[0])
+            if sorted(axis_order) != list(range(len(decoded_shape))):
+                raise _refused(f"axis order {axis_order!r}")
+            return _from_bytes(raw, _decoded_dtype(dtype), decoded_shape, "C").transpose(axis_order)
+        if order not in ("C", "F"):
+            raise _refused(f"array order {order!r}")
+        return _from_bytes(raw, _decoded_dtype(dtype), decoded_shape, order)
+    if isinstance(value, _ScalarData):
+        if len(value._args) != 2:
+            raise _refused("a numpy scalar that is not (dtype, bytes)")
+        return _from_bytes(value._args[1], _decoded_dtype(value._args[0]), (1,), "C")[0]
+    if value is None or (isinstance(value, (int, float)) and not isinstance(value, bool)):
+        return value
+    raise _refused(f"a {type(value).__name__} where a number or a numeric array belongs")
+
+
+#: What a VecNormalize pickle may name, and what it gets: records of numpy's dtype, array, protocol-5 buffer and
+#: scalar reconstruction (:class:`_NumpyData`, decoded only where the report reads them), and an inert stand-in for
+#: everything else (measured on SB3 2.9's pickles: VecNormalize, RunningMeanStd, the Box of its observation space
+#: and that Box's numpy Generator, PCG64 and SeedSequence).  No numpy, SB3 or gymnasium code runs while a pickle
+#: loads; anything else is refused.
 _PICKLE_ALLOWED: dict[tuple[str, str], Any] = {
-    ("numpy", "dtype"): np.dtype,
-    ("numpy", "ndarray"): np.ndarray,
-    **{(module, "_reconstruct"): "_reconstruct" for module in ("numpy._core.multiarray", "numpy.core.multiarray")},
-    **{(module, "scalar"): "scalar" for module in ("numpy._core.multiarray", "numpy.core.multiarray")},
-    ("numpy.random._pickle", "__generator_ctor"): _inert,
-    ("numpy.random._pickle", "__bit_generator_ctor"): _inert,
-    ("numpy.random._pickle", "__randomstate_ctor"): _inert,
-    ("numpy.random.bit_generator", "__pyx_unpickle_SeedSequence"): _inert,
+    ("numpy", "dtype"): _DtypeData,
+    ("numpy", "ndarray"): _stub("ndarray"),
+    **{(module, "_reconstruct"): _ArrayData for module in ("numpy._core.multiarray", "numpy.core.multiarray")},
+    **{(module, "scalar"): _ScalarData for module in ("numpy._core.multiarray", "numpy.core.multiarray")},
+    **{(module, "_frombuffer"): _BufferData for module in ("numpy._core.numeric", "numpy.core.numeric")},
+    ("numpy.random._pickle", "__generator_ctor"): _stub("Generator"),
+    ("numpy.random._pickle", "__bit_generator_ctor"): _stub("BitGenerator"),
+    ("numpy.random._pickle", "__randomstate_ctor"): _stub("RandomState"),
+    ("numpy.random.bit_generator", "__pyx_unpickle_SeedSequence"): _stub("SeedSequence"),
     ("numpy.random.bit_generator", "SeedSequence"): _stub("SeedSequence"),
     ("numpy.random._pcg64", "PCG64"): _stub("PCG64"),
     ("numpy.random._mt19937", "MT19937"): _stub("MT19937"),
@@ -1219,32 +1322,34 @@ _PICKLE_ALLOWED: dict[tuple[str, str], Any] = {
 
 
 class _StubUnpickler(pickle.Unpickler):
-    """An unpickler that resolves only :data:`_PICKLE_ALLOWED`: numpy's reconstruction helpers, and inert stand-ins
-    for the classes a VecNormalize pickle names.  Nothing is imported from SB3 or gymnasium, and no other global
-    (``os.system``, ``builtins.eval``, ...) can be named: it raises ``pickle.UnpicklingError``."""
+    """An unpickler that resolves only :data:`_PICKLE_ALLOWED`: records of numpy's reconstruction helpers, and
+    inert stand-ins for the classes a VecNormalize pickle names.  Nothing is imported or run from numpy, SB3 or
+    gymnasium while it loads, and no other global (``os.system``, ``builtins.eval``, ...) can be named: it raises
+    ``pickle.UnpicklingError``."""
 
     def find_class(self, module: str, name: str) -> Any:
         found = _PICKLE_ALLOWED.get((module, name))
         if found is None:
             raise pickle.UnpicklingError(f"refused: {module}.{name} is not a VecNormalize pickle's class")
-        return _multiarray(found) if isinstance(found, str) else found
+        return found
 
 
 def read_vecnormalize_stats(path: Path) -> dict[str, Any]:
     """A VecNormalize pickle's observation statistics through :class:`_StubUnpickler`: float64 ``mean`` and ``var``,
-    ``count``, ``epsilon`` and ``clip_obs``.  Raises on a refused class or a pickle that holds none of them."""
+    ``count``, ``epsilon`` and ``clip_obs``, each decoded from its raw bytes as a plain number (:func:`_decoded`).
+    Raises on a refused class or value, or a pickle that holds none of them."""
     with path.open("rb") as handle:
         wrapper = _StubUnpickler(handle).load()
     rms = getattr(wrapper, "obs_rms", None)
-    mean, var = getattr(rms, "mean", None), getattr(rms, "var", None)
+    mean, var = _decoded(getattr(rms, "mean", None)), _decoded(getattr(rms, "var", None))
     if mean is None or var is None:
         raise ValueError(f"{path.name}: no obs_rms mean and var (a dict observation, or not a VecNormalize)")
     return {
         "mean": np.asarray(mean, dtype=np.float64),
         "var": np.asarray(var, dtype=np.float64),
-        "count": float(np.asarray(getattr(rms, "count", math.nan), dtype=np.float64)),
-        "epsilon": float(getattr(wrapper, "epsilon", 1e-8)),
-        "clip_obs": float(getattr(wrapper, "clip_obs", 10.0)),
+        "count": float(np.asarray(_decoded(getattr(rms, "count", math.nan)), dtype=np.float64)),
+        "epsilon": float(_decoded(getattr(wrapper, "epsilon", 1e-8))),
+        "clip_obs": float(_decoded(getattr(wrapper, "clip_obs", 10.0))),
     }
 
 
