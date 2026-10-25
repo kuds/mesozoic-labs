@@ -551,6 +551,24 @@ nothing has trained. As screens they certify nothing, so the next T-Rex
 session above is still unchanged; the decisions' full text is in
 [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2 and their record
 in §23.7 of the same record.*
+*2026-10-24, later still: decision D-D43. The maintainer chose the round's
+first step: a scratch CPU continuation screen of a training-loss bound on the
+tail-tip actuator's mean, upper side only (no bound, a bound at 0.90 and one at
+0.60; 18 one-million-step continuations from two band checkpoints), judged by
+criteria fixed and approved before any training step, a tail parked below the
+rail counting as not adopted. It ran on the session's CPUs from a scratch
+clone, never on `main`. The report-only tools D-D42 asked for, and three more,
+are in their own pull requests. As a screen it certifies nothing, so the next
+T-Rex session above is still unchanged; the decisions' full text is in
+[BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2 and their record in
+§24 of the same record.*
+*2026-10-25: the D-D43 screen was scored, final, and independently verified:
+neither bound is adopted (the bound at 0.90 still saturated, the bound at 0.60
+cleared the rail but parked the tail at a command of 0.60 to 0.63). The
+maintainer takes up the posture options, with evidence, before any decision;
+no further training is decided. The second pilot keeps `stance3_armLT_s60`'s final as
+its parent and is not yet trained. As screens and pilots they certify nothing,
+so the next T-Rex session above is still unchanged (§24 of the same record).*
 
 *Note 2026-10-18 (decision D-D38): where §2, this section and §8 record
 `BEHAVIOR = "stand"` or a `stand` session, they give the setting as it was

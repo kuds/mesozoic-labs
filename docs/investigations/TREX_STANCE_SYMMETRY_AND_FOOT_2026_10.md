@@ -103,6 +103,21 @@ and approved before any training). Their evidence is in
 and the same folder's `stance5/replication/`, `stance5/k3diag/` and
 `stance5/tailexp/`. The statuses above are unchanged.*
 
+*Status 2026-10-25 (appended): §24, appended that day, records the tail-habit
+round that D-D42 (1) asked for: the report-only tools of D-D42 (2) and (3) and
+three more, built in their own pull requests (D-D42 amended); the options study
+and no-training CPU probes on two band checkpoints, report only; decision
+D-D43, a scratch CPU continuation screen of a training-loss bound on
+`tail_3_pitch_act`'s mean, upper side, in three arms (no bound, b = 0.90, b =
+0.60) and 18 replicates, its criteria approved before any training step; and
+its outcome, scored on 2026-10-24 and verified on 2026-10-25, final: outcome
+C, neither bound adopted (b = 0.90 kept the rail, RAIL; b = 0.60 cleared it but
+left the tail parked at a command of 0.60 to 0.63, PARKED); then the
+maintainer's decision to record the round first and weigh the posture options
+next. The screen certifies nothing, and nothing it ran is on `main`. Its
+evidence is in [stance_2026_10/stance5/tailscreen/](stance_2026_10/stance5/tailscreen/README.md).
+The statuses above are unchanged.*
+
 It continues [STANCE_REWARD_PILOT_FINDINGS_2026_10.md](STANCE_REWARD_PILOT_FINDINGS_2026_10.md)
 (2026-10-10), [STANCE_HACK_AUDIT_2026_10.md](STANCE_HACK_AUDIT_2026_10.md)
 §12 (the physics-r9 statue) and the blog post
@@ -3557,3 +3572,346 @@ no launch), and its parent stays stance3 Run 2's final.
   2026-10-24). The K3 diagnosis' npz rollouts and the tail experiment's runs,
   measurement files and verifiers' folders are not in the handoff's file list,
   so they were not carried; the checkpoints are on Drive alone.
+
+## 24. Status 2026-10-25 (appended): the tail-habit round; D-D42 amended; decision D-D43, the tail_3 bound screen, and its outcome
+
+*Appended 2026-10-25; §1–§23 above are unchanged, so §23.7's "design pending",
+"not part of this change" and "Nothing is designed or fixed when the copied log
+ends" are the wording of the log's entry timed 15:27 UTC on 2026-10-24.* After
+§23.7 the work went on in the same session: the report-only tools of D-D42 (2)
+and (3) and three more the maintainer added were built in their own pull
+requests (§24.1); the options study for D-D42 (1) reported, and no-training CPU
+probes ran on two band checkpoints (§24.2); the maintainer decided a scratch CPU
+continuation screen of a training-loss bound on the tail actuator's mean,
+recorded as decision D-D43 (§24.3), whose criteria were approved before any
+training step and re-pinned once for a gate test (§24.4); the screen ran and was
+scored, final (§24.5), and independently verified, with report-only readings
+beside it (§24.6); and the maintainer decided what follows (§24.7). A screen
+certifies nothing: the verdicts are the fixed criteria's, not a gate's, nothing
+here certifies a run, writes a result bundle or promotes anything, and nothing
+the screen ran is on `main`; `main` and its digests are unchanged by it. The
+evidence is in `stance5/tailscreen/` of
+[stance_2026_10/](stance_2026_10/README.md), added on 2026-10-25, with its own
+[README](stance_2026_10/stance5/tailscreen/README.md). Paths in backticks below
+are relative to `stance5/tailscreen/`, and every number below is read from
+`run_log.txt` there (lines 505 to 577 of the session's run log, from the entry
+timed 15:39 UTC on 2026-10-24 on), the files named, or the pull requests read on
+GitHub.
+
+### 24.1 After §23.7: the report-only tools and their pull requests
+
+At 15:56 UTC on 2026-10-24, after the session answered the maintainer's
+questions (the report is not in the notebook; what the replays and the policy
+probe record), the maintainer decided four more report-only items: (1) read the
+band runs' `policy_probe.npz` from Drive, in one batched fetch; (2) a per-step
+trace tool for deterministic episodes at a checkpoint (per actuator: the raw
+mean, the command, the servo target, the joint angle and the force), with those
+columns in the replay's `_stance.csv`; (3) the training rollouts' clip shares
+per actuator in the training telemetry (sampled actions clipped, means beyond
+±1); and (4), once #636 had landed, the training-history report drawn at the end
+of every stage (scope (b)).
+[BEHAVIOR_RECIPES_PLAN.md](../BEHAVIOR_RECIPES_PLAN.md) §6.2 records them as a
+dated amendment of D-D42, beside the widening of (2) to scope (b) that #639
+recorded.
+
+All of it is report only, and each code item went to its own pull request, which
+the maintainer merged on 2026-10-24 (merge times as GitHub records them): #636,
+D-D42 (2) at scope (a), at 16:03:27 UTC; #637, the records of §23, at 16:43:18;
+#638, the per-step trace (item (2)), at 17:18:36; #639, the stage-end report
+(item (4)), at 18:22:30; and #640, D-D42 (3) (the saturating actuator named on
+each evaluation-episode row and drawn over training) with item (3), at 18:58:37.
+Their landings are recorded where the repository records landings (the
+consolidation plan's status table and the CHANGELOG). Measured before #638
+opened (the run log's entry timed 16:43 UTC): on stance5 s42's 4,194,304
+checkpoint, 20 deterministic episodes, the trace gave `tail_3`'s share of window
+steps at |command| ≥ 0.99 0.338250, the share with a raw mean above 1 0.293312,
+the window raw maximum 1.028092, a mean return of 4379.39 and 10 flagged
+episodes, the values §23.5's scratch experiment measured at that checkpoint.
+Measured for #640 (17:35 UTC): the clip shares cost about 41–46 ms per rollout
+on one thread, about 0.25%. None of these tools changes a gate, reward,
+observation, action, task, checkpoint selection, plant or digest, and none
+entered the screen's verdicts, though the screen measured its panels with
+#638's trace tool (§24.4).
+
+Item (1) was done in the session's scratch, report only (§24.2).
+
+### 24.2 The options study and the no-training probes (report only)
+
+- **The options study** (15:27–15:58 UTC; mechanism and intervention research, a
+  synthesis brief and two skeptics, with CPU probes on a copy of the r9 MJCF and
+  no checkpoint). The draft brief (`options/brief_draft.md`) recommended a
+  five-seed from-scratch round of a 0.90 mean bound; both skeptics rejected that
+  design as blocking: the 0.90 rationale is unsupported (§23.5's P1 never pulled
+  the deterministic mean under its bound), the alarm count is near a
+  manipulation check (posture must be co-primary, and "rail cleared but tail
+  parked" is not a success), and five seeds cannot separate from chance (0 of 8
+  against 2 of 5 still gives p 0.13). Measured and checked in the study: the
+  plant does not force the pin (on the statue, q3 = −0.0924 + 0.0863a, so a
+  distal tail joint at 0 would need a = +1.073, outside the range; `tail_2` can
+  raise the tip without saturating); SB3 2.9.0 clips only at `env.step` and
+  stores the unclipped samples; no reward term was found that pays for tail-up
+  (open loop, deterministic and at σ 0.16). The corrected brief
+  (`options/brief_v2.md`, 16:10 UTC, 302 lines) holds all 17 skeptic findings in
+  substance, re-ranks the mechanism (first, the deterministic fixed point
+  through the joint-angle loop, off the training distribution; the clipped
+  Gaussian's dead zone at most a contributor beyond a mean of about 1.2;
+  measured, the reward slope past +1 is cut only 1.34–1.94× at means of
+  1.05–1.11, open loop with noise on `tail_3` only), recommends option A, a
+  training-loss bound on `tail_3`'s mean, for a CPU screen only, and proposes a
+  replicated CPU continuation screen as the first step.
+- **The batched Drive fetch** (16:01–16:08 UTC, read-only): the five band runs'
+  `policy_probe.npz` and the 4,194,304 checkpoint pairs of stance5 s42 and
+  stance5r s80, whose zip and pkl sha256 equal those in their judge files
+  (`probes/probecheck/fetched_sha.txt`). Drive was only read.
+- **The probe read** (`probes/policy_probe_read/`, 16:09 UTC) and its check
+  (`probes/probecheck/`), measured: the probe's bank is not an early detector.
+  s42's bank values above 1.0 are all on ankle-minus lean rows and do not lead
+  its ledger (first saturation episode at 3,145,728, first flagged evaluation
+  3,538,944); s80's bank never passed 0.82 while its ledger flagged 37
+  evaluations from 4,325,376 to 10,223,616 (correcting the coordinator's
+  "8.4M"); s52's bank passed 1.0 with no flag. Inferred: an in-episode
+  deterministic readout (s80's 4,194,304 checkpoint, its last clean evaluation,
+  already held `tail_3`'s window raw mean at 0.44–0.84) is the better candidate.
+- **The no-training probes** (16:09–16:52 UTC; one skeptic, no blocking finding,
+  five minor corrections applied), measured on the two checkpoints only. Under
+  the policy's own noise (`probes/noisevalue/`; 40 paired stochastic episodes,
+  all 15 actuators, the arm's reward, seeds 3042–3081), holding `tail_3` at 0
+  gains reward in 40 of 40 pairs on both: +54.6 per 200–999 window on s42 (95%
+  CI +51.5 to +57.5) and +36.2 on s80 (+31.8 to +40.5), +56.5 and +39.3
+  deterministically; holding it at 0.9 gains +7.6 on s42 (mostly the
+  `action_saturation` term) and loses 13.4 on s80 (mostly `tail_home_pose`); no
+  falls in any cell. A reward incentive for tail-up at these two checkpoints is
+  not supported (untested: s42 at its onset, 3.1M–3.5M, and the discounted,
+  normalised objective). Unclipped (`probes/unclip/`; a scratch MJCF copy with
+  `tail_3`'s control range ±0.40, the wrapper reproducing the clipped baseline
+  exactly), the deterministic mean settles at a stable fixed point of a positive
+  loop (in-episode dμ/da about 0.5–0.6, an amplification of about 2–2.5×),
+  spread 0.45–1.07 over s42's episodes, the highest within about 1 mrad of a
+  straight distal tail; above 1.073 the mean is below the hold in 20 of 20
+  episodes; s80's never passes 1 (window mean 0.629, maximum 0.902). The tail
+  aims neither for a straight distal joint nor as high as possible.
+
+### 24.3 Decision D-D43: a scratch CPU continuation screen of a tail_3 bound
+
+At 16:00 UTC on 2026-10-24, on the corrected brief, the maintainer decided, as
+the run log has it in short: (1) probes, then a CPU continuation screen: the
+batched fetch, CPU probes without training, then a scratch continuation screen
+(bound against no bound, 3 replicates per arm from both states) whose criteria
+come to the maintainer before it runs, since it changes the training loss; (2)
+the bound's scope: `tail_3`, upper side only; (3) "rail cleared but tail parked"
+(a command of about 0.6–0.9) counts as NOT ADOPTED and goes to the posture
+decision. The criteria were drafted from 16:53 UTC (a drafter calibrating the
+thresholds on measured references, design and feasibility reviewers, a reviser;
+nothing built or trained) and came to the maintainer at 17:37 UTC with a
+decisions list (`options/decisions_v1.md`, D1–D9). Measured then: s80's start
+holds `tail_3`'s window-mean command at +0.6285 (SE 0.048) with no flagged
+episode; clean holding states, stance3 Run 2's final (+0.841, 0 of 40 judged
+failures) among them, read PARKED under the literal ruling, and no command line
+separates them from P1's parked checkpoints; one replicate's rollout takes 21.8
+s alone and 22.9–23.9 s three at once. Inferred then: at b 0.90 the most likely
+reading is NOT ADOPTED.
+
+At 17:46 UTC the maintainer decided the screen: (1) three arms, CONTROL, BOUND90
+(b = 0.90, a rail guard) and BOUND60 (b = 0.60, a posture bound), `tail_3` upper
+side only, 3 replicates × 2 states (18 runs, about 6 h of CPU); (2) the parked
+rule stays literal (a command of 0.60 or more with the rail clear is PARKED,
+which is NOT ADOPTED; clean holding states such as stance3 Run 2's final read
+PARKED as postures, with no verdict or parent changes); (3) a durable copy on an
+orphan, never-merged handoff-style branch carrying the screen's data and the
+bound's patch as a file (the maintainer's explicit OK for the scratch patch on
+origin as a file); (4) one continuous 1M-step run per replicate (4,194,304 to
+5,242,880), read at 5,111,808 and the end; with the technical defaults of the
+decisions list (the coef by P1's rule per bound, the reading order, the mean of
+the two read checkpoints, RAIL counted on `tail_3` tail-up flags with OTHER as a
+harm review, seeds 101, 202 and 303), the final criteria to come back for
+approval before any training step.
+[BEHAVIOR_RECIPES_PLAN.md](../BEHAVIOR_RECIPES_PLAN.md) §6.2 records the
+decisions of 16:00 and 17:46 UTC, with the approval and the re-pin of §24.4, as
+decision D-D43: a new decision, as D-D39 to D-D41 were for each screen the
+maintainer decided, while D-D42 (1) only set the target and asked for the
+design.
+
+### 24.4 The package, the approval and the gate re-pin
+
+- **The build** (17:47–19:05 UTC; no optimizer step on any policy): the final
+  criteria; a scratch clone of the band branch at `cf80ecb1` with two commits,
+  `2cc1921d` (the bound, `Tail3UpperBoundConfig`, a term coef × mean over rows
+  of relu(μ₁₄ − b)² added in `MirrorKLPPO._mirror_loss`, off by default and in
+  no stage config, and its tests) and `4c0c8da7` (the coef-0 identity tests made
+  non-vacuous), changing `mirror_kl_ppo.py` and its test file only, push URL
+  disabled (`patches/tail3-upper-bound.patch`); the run, calibration,
+  measurement and scoring tools (`tools/`); the calibration (`calib/coef.json`,
+  18:16 UTC: the policy-gradient pull on `tail_3`'s output bias, RMS 0.513 at
+  s42 and 0.540 at s80, pooled 0.5267 over 512 mini-batches, so COEF_90 =
+  COEF_60 = 2.4 by the rule; the realised pull at the start, BOUND90 0.083 at
+  s42 and 0.0015 at s80, BOUND60 1.154 and 0.283; the parameter and Adam digests
+  equal before and after); the build-tier tests (191 passed, 3 gate-only
+  skipped); the two start panels reproduced exactly with the trace tool on a
+  measuring copy (s42: `tail_3` share at |command| ≥ 0.99 0.33825, command
+  0.924539, 10 flagged; s80: 0, 0.628516, 0 flagged); and two reviews, code and
+  criteria, applied (the criteria's APPENDIX F).
+- **What the criteria fix** (`criteria.txt`): per replicate, from the 40
+  deterministic episodes of R1 = 5,111,808 and R2 = the final (seeds 3042–3061,
+  window steps 200–999), RAIL (at least one tail-up flag: an episode with more
+  than 0.10 of its window steps at a `tail_3` command of +0.99 or more), PARKED
+  (no flag, and the R1/R2 mean window-mean command at least 0.60) or CURED
+  (neither); per bound and state, the first line that applies of RAIL (any bound
+  replicate RAIL), PARKED (at least 2 PARKED), OTHER (more other-actuator or
+  short-episode flags than CONTROL), NOT SEPARATED (s42 only: at least 2 CONTROL
+  replicates CURED) and PASS; per bound, NOT ADOPTED (RAIL), (PARKED), (OTHER)
+  or (NOT SEPARATED), or PASSED with an onset note; and the screen outcome A
+  (both passed), B (one) or C (neither), each bound read against CONTROL only,
+  never against the other bound. The text predicted, before anything ran:
+  BOUND90 most likely NOT ADOPTED; BOUND60 open (PASS or PARKED most plausible,
+  OTHER a real risk). Its known limits: K = 3 detects only a large effect;
+  BOUND60's b equals the PARKED line, so a replicate within about 0.03 of 0.60
+  classifies by chance; a continuation tests a state, not a recipe from scratch,
+  on CPU and this container's stack, not the L4; 1M steps cannot show a K3 cost.
+- **The approval** (19:06 UTC, the run log's line 548): the screen, criteria
+  sha256 `efd8e297…`, coef 2.4 for both bounds as pinned (`coef.json`
+  `f6d90f99…`), scratch commit `4c0c8da7`, durable branch
+  `claude/handoff-tailscreen`. The request (`APPROVAL_REQUEST.md`) had put two
+  choices: the coef (2.4 by the rule, or 2.7 at P1's per-row stiffness) and the
+  reading of "per bound" (an alternative giving 1.3 and 0.52).
+- **The gate and the re-pin.** `APPROVED` was written at 19:07:01 UTC and the
+  gate failed at 19:08 UTC, before anything trained: 200 tests passed and one
+  failed, `test_no_stage_config_enables_symmetry`, `main`'s rule that no shipped
+  stage sets `[ppo] symmetry*`; measured, it fails identically on an untouched
+  `cf80ecb1` copy, whose T. rex `stance.toml` sets `symmetry = "mirror_kl"` for
+  the band arm by design (`gate/first_gate_failed/`). At 19:09 UTC the
+  maintainer decided (line 551): deselect that one test in the gate and re-pin
+  `gate.sh`, `screen_common.py`, the criteria text and `APPROVED`, with no other
+  change and no new calibration. Re-pinned at 19:10 UTC: `gate.sh` `4ef908ae…`,
+  `screen_common.py` `c9925334…`, the criteria `9930ee72…` (its APPENDIX G
+  records the change; `criteria.txt` is this text, byte-identical), and
+  `APPROVED` rewritten (`42627d1f…`, its `runlog_line` 551). The gate passed at
+  19:11 UTC (200 passed, 2 skipped, 1 deselected; `gate/`).
+  [BEHAVIOR_RECIPES_PLAN.md](../BEHAVIOR_RECIPES_PLAN.md) §6.2 records the
+  re-pin within D-D43.
+
+### 24.5 The runs and the score
+
+The screen started at 19:11:22 UTC on 2026-10-24 (`results/run_waves.out`), in
+six waves of three, each wave the three arms of one state and seed: (s42, 101)
+ended at 19:57:51, (s80, 101) at 20:44:56, (s42, 202) at 21:30:22, (s80, 202) at
+22:16:35, (s42, 303) at 23:01:31 and (s80, 303) at 23:46:42 UTC; each replicate
+took 43 to 47 minutes (the start and end times in `run_meta.json`, as the
+verification's provenance check prints them), all 18 exited 0, with no crashed
+attempt and none LOST, and all 162 panels (9 per replicate) were measured. The
+durable branch `claude/handoff-tailscreen`, an orphan never merged, was first
+pushed at 19:11:38 UTC and after each replicate; its head after the score is
+`1106cd3f`. The panels used the trace tool of §24.1 on a measuring copy of
+`cf80ecb1`.
+
+Scored at 23:53:43 UTC (`results/score.txt`, `results/score.json`), status
+FINAL, **outcome C: no bound adopted. BOUND90 NOT ADOPTED (RAIL); BOUND60 NOT
+ADOPTED (PARKED)**, "the lower bound cleared the rail but not the posture":
+
+| State | Arm | Classes (r101, r202, r303) | R1/R2 mean command | Tail-up flags of 40 | Reading |
+|---|---|---|---|---|---|
+| s42 | CONTROL | RAIL, CURED, RAIL | 0.986, 0.265, 0.902 | 36, 0, 38 | (shared) |
+| s42 | BOUND90 | RAIL, RAIL, RAIL | 0.886, 0.924, 0.951 | 1, 14, 34 | RAIL |
+| s42 | BOUND60 | PARKED ×3 | 0.6070, 0.6002, 0.6128 | 0, 0, 0 | PARKED |
+| s80 | CONTROL | RAIL, RAIL, RAIL | 0.937, 0.911, 0.844 | 23, 24, 13 | (shared) |
+| s80 | BOUND90 | RAIL, RAIL, RAIL | 0.900, 0.921, 0.971 | 4, 18, 32 | RAIL |
+| s80 | BOUND60 | PARKED ×3 | 0.6318, 0.6280, 0.6152 | 0, 0, 0 | PARKED |
+
+OTHER flags are 0 against 0 at every state, so no bound reads OTHER; NOT
+SEPARATED does not apply (one s42 CONTROL replicate CURED, `s42_control_r202`,
+where the line needs two); the onset note is INFORMATIVE (all three s80 CONTROL
+replicates had tail-up flags, each with 9 of 9 checkpoints measured). By the
+criteria, BOUND90 goes to the maintainer's choice of a next candidate (the
+deterministic-state variant, a stronger dose, or the posture decision) and
+BOUND60 to the posture decision; nothing trains on the outcome without the
+maintainer's approval, and the outcome changes no screen, verdict, parent,
+criterion or stage config. Fails stay fails: no replicate was stopped, changed,
+extended or rerun on a readout, and a harness watcher only read the log.
+
+### 24.6 The verification, and what is report only
+
+The verification (00:13 UTC on 2026-10-25; `verify/`) found no blocking error,
+measured: a re-score from `criteria.txt` alone, on the per-step traces of all
+720 R1/R2 episodes, matches every class, state reading, the onset note, both
+verdicts and outcome C; the provenance holds (18 of 18 replicates with the
+pinned arm, coef, b, seed and state; every panel row's checkpoint sha256 equal
+to its file; the pins; the scratch clone clean at `4c0c8da7`; the judge clones
+clean; the durable branch's `score.json` byte-equal); and four final panels
+re-measured come out equal field for field. Its minor notes: all six BOUND60
+means lie within 0.032 of 0.60, `s42_b60_r202` clearing it by 0.00017 and `r101`
+by 0.0070, which the criteria's known limits name, but BOUND60's verdict also
+holds on s80 alone (3 of 3 PARKED, +0.015 to +0.032 over the line);
+`s42_b90_r101`'s RAIL rests on one R2 episode at a tail-up share of 0.111 (the
+state's reading does not depend on it); `PINS.txt` is a stale pre-approval
+snapshot whose sha256 all match the current files; and `APPROVED`'s
+`runlog_line` 551 is the re-pin decision, the criteria's sha256 first appearing
+on line 552.
+
+Report only, never in a verdict:
+
+- **The manipulation check** (`verify/provenance/`): CONTROL's applied bound
+  loss is exactly 0 in all 128 updates of its six runs (its logged unweighted
+  penalty is not 0, by design); both bound arms log coef 2.4 and a non-zero loss
+  in 128 of 128 updates; and in every seed-paired comparison the share of
+  training rows with `tail_3`'s mean above b is lower under the bound (at b
+  0.90: s42 0.611, 0.444 and 0.503 against 0.249, 0.330 and 0.237; s80 0.391,
+  0.316 and 0.332 against 0.194, 0.242 and 0.243; at b 0.60: s42 0.931, 0.673
+  and 0.861 against 0.589, 0.567 and 0.549; s80 0.839, 0.796 and 0.754 against
+  0.559, 0.575 and 0.523). The bound acted on the training rows.
+- **The dose ordering** BOUND60 ≤ BOUND90 ≤ CONTROL of the arms' mean commands
+  is false at both states (s42 0.607, 0.920 and 0.718; s80 0.625, 0.931 and
+  0.897): BOUND90 sits above CONTROL.
+- **From `results/panels.csv`:** one panel of the 162 has a fall, `s80_b60_r303`
+  at 4,980,736 (the episode of seed 3050 ended at step 504), not a read
+  checkpoint; BOUND60's largest window raw mean over every checkpoint is 0.858;
+  at R1 and R2 the arms' mean returns are 4393.3, 4378.3 and 4414.5 at s42
+  (CONTROL, BOUND90, BOUND60) and 4385.3, 4384.0 and 4405.1 at s80, which are
+  not independent evidence (the reward contains `action_saturation` and
+  `tail_home_pose`). The 0.5M readings are in `score.json`, shown, not read.
+
+Inferred, as the verification reads it: BOUND90 at coef 2.4 cut the training
+rows above 0.90 but did not keep the rail away in deterministic play, as the
+criteria predicted and as §23.5's P1 showed for a bound at 1.0; BOUND60 cleared
+the rail, but its command settled just above the line it bounds, which is
+PARKED; the screen does not rank the two bounds, BOUND60's closeness to the line
+does not make PARKED a near-PASS, and a NOT ADOPTED at coef 2.4 does not reject
+a stronger dose.
+
+### 24.7 The maintainer's decision after the screen
+
+At 00:15 UTC on 2026-10-25 the maintainer decided: a records pull request for
+this round, documentation only, first (this change); then the posture options,
+with evidence, before any decision. It chooses no round and changes no
+criterion, so it is recorded with D-D43's outcome as D-D43's dated amendment in
+[BEHAVIOR_RECIPES_PLAN.md](../BEHAVIOR_RECIPES_PLAN.md) §6.2, not as a new
+decision. Nothing trains, and no posture option is designed or decided, when the
+copied log ends (00:16 UTC). Walking pilot 2 is not launched (the run log
+records no launch), and its parent stays stance3 Run 2's final.
+
+### 24.8 What changes in §13–§23
+
+- **§13 and §23.8, certification:** no T. rex stance is certified, and the
+  two-seed ask stands; the screen certifies nothing.
+- **§21.5, §23.4 and §23.5, the tail habit:** a training-loss bound on
+  `tail_3`'s mean, upper side, at coef 2.4 did not remove the habit in
+  deterministic play at b 0.90 (RAIL), and at b 0.60 it cleared the rail but
+  left the tail parked (PARKED); both are not adopted (§24.5). The next step is
+  the posture options (§24.7).
+- **§23.7, D-D42:** (2) and (3) were built and are in `main` through their own
+  pull requests, with three more report-only tools (§24.1); (1)'s round was
+  designed as D-D43 and run (§24.3–§24.5).
+- **§14, this repository:** the folder `stance5/tailscreen/` (with `options/`
+  and `probes/`), with its sources and sha256 in `SOURCES.txt` and `SHA256SUMS`
+  (now 528 files).
+- **§14, branches:** `claude/handoff-tailscreen` is on GitHub, an orphan never
+  to be merged (head `1106cd3f`); it carries the run folders' R1 and final
+  checkpoint pairs and records, every panel's summary files, the start pairs,
+  the patch and the tools. The scratch clone `scratch_tail3bound` (branch
+  `scratch/tail3-upper-bound` at `4c0c8da7`, push URL disabled) is not pushed;
+  its commits are on GitHub only as the patch file. The other branches of §23.8
+  are unchanged.
+- **§14, Google Drive:** only read (§24.2); nothing new is on Drive.
+- **§14, session scratch:** the 18 run folders with all nine checkpoint pairs
+  each, the 162 panels' per-step CSVs (gzipped), the measuring copy, the build's
+  validation and review folders, the options study's research folders, the
+  probes' code trees and large outputs, and the fetched files are in the second
+  session's scratch (`scratchpad2/tailround/`) only.

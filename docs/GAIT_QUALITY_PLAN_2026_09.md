@@ -52,6 +52,10 @@ adopted); the second pilot keeps `stance3_armLT_s60`'s final as its parent and i
 2026-10-24).*
 *Updated 2026-10-24, later: the maintainer took D-D42, a next T-Rex stance round on the tail saturation habit, to be
 designed and approved before any training (§17, its second note of 2026-10-24).*
+*Updated 2026-10-24, later still: the maintainer took D-D43, a scratch CPU continuation screen of a bound on the T-Rex
+tail-tip actuator's mean, its criteria approved before any training (§17, its third note of 2026-10-24).*
+*Updated 2026-10-25: that screen adopts neither bound; the second pilot keeps `stance3_armLT_s60`'s final as its parent
+and is not yet trained (§17, its note of 2026-10-25).*
 
 ## How to use this document
 
@@ -1038,4 +1042,23 @@ report-only actuator saturation report are to come in their own pull requests. W
 the round is not yet designed and nothing has trained. These are stance runs and telemetry, not walker sessions: they
 are no exception to GQ-3 (a) or GQ-17, answer none of GQ-1..GQ-18 and certify nothing. The decisions' full text is in
 [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2 and their record in §23.7 of
+[investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).
+
+*Appended 2026-10-24, later still (D-D43); the text above is unchanged.* **The round's first step is a scratch screen of
+a tail bound.** On 2026-10-24 the maintainer took D-D43: a scratch CPU continuation screen of a training-loss bound on
+the T-Rex tail-tip actuator's mean, upper side only, in three arms (no bound, a bound at 0.90 and one at 0.60) and 18
+one-million-step continuations from two band checkpoints, judged by criteria fixed and approved before any training
+step, with a tail parked below the rail counting as not adopted; no-training probes came first, report only. The
+report-only tools D-D42 asked for, and three more, are in their own pull requests. These are stance continuations and
+telemetry, not walker sessions: they are no exception to GQ-3 (a) or GQ-17, answer none of GQ-1..GQ-18 and certify
+nothing. The decisions' full text is in [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2 and their record in
+§24 of [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).
+
+*Appended 2026-10-25 (D-D43's outcome); the text above is unchanged.* **Neither tail bound is adopted.** Scored on
+2026-10-24 by its fixed criteria, final, and independently verified on 2026-10-25, the screen reads its outcome C: under
+the bound at 0.90 every replicate still had tail-up saturation episodes, and the bound at 0.60 cleared them but held
+the tail-tip command at 0.60 to 0.63, which the criteria count as parked, not cured. The maintainer takes up the posture
+options, with evidence, before any decision. The second pilot keeps `stance3_armLT_s60`'s final as its parent; it is not
+yet trained, is still the same deliberate exception to GQ-3 (a) and GQ-17, both still open, and certifies nothing, and
+the trex `gait-r1` walk (§5.4, §14) still waits for a certified stance. The screen's record is §24 of
 [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).

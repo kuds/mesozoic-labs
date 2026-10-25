@@ -8,6 +8,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **The T. rex tail_3 bound screen of D-D43 run, scored and verified: neither
+  bound is adopted (outcome C); the options study and the no-training probes
+  recorded, report only** (D-D43's amendment of 2026-10-25;
+  `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2, `docs/CONSOLIDATION_PLAN_2026_09.md`
+  §6, a dated note in §17 of `docs/GAIT_QUALITY_PLAN_2026_09.md`,
+  `docs/NEXT_STEPS.md` §3; the appended §24 of
+  `docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md`, and
+  `stance5/tailscreen/` of `docs/investigations/stance_2026_10/`). Records
+  only: no library code, configuration, test, notebook, digest or generated
+  file changes with it. A scratch CPU continuation screen of a training-loss
+  bound on `tail_3_pitch_act`'s Gaussian mean, upper side only, coef 2.4, in
+  three arms (no bound, b = 0.90, b = 0.60) and 18 continuations of 1,048,576
+  steps from the 4,194,304 checkpoints of `stance5_LTSB_s42` and
+  `stance5_LTSB_s80` on seeds 101, 202 and 303, from two scratch commits on
+  `cf80ecb1` (never pushed; kept here as a patch file), judged by criteria
+  approved before any training step (sha256 `9930ee72…`, re-pinned once for one
+  gate test). Run on 2026-10-24 on the session's CPUs, scored that day, final,
+  and verified on 2026-10-25: BOUND90 NOT ADOPTED (RAIL: every replicate kept
+  tail-up saturation episodes), BOUND60 NOT ADOPTED (PARKED: the rail cleared,
+  the command held at 0.600 to 0.632, at or above the 0.60 line), CONTROL RAIL,
+  CURED and RAIL from s42 and RAIL three times from s80; OTHER 0 everywhere.
+  Report only: the bound acted on the training rows (the share of rows above b
+  lower under the bound in every seed-paired comparison), and the dose
+  ordering of the arms' mean commands is false at both states. Before it, also
+  report only: the options study's draft and corrected briefs (two skeptics,
+  17 findings) and no-training probes on the two checkpoints (holding the tail
+  at 0 gains reward under the policy's own noise in 40 of 40 pairs; the
+  unclipped tail settles at a fixed point of a positive loop; the policy
+  probe's bank is not an early detector). The maintainer's decision after the
+  screen: this records PR first, then the posture options with evidence,
+  before any decision. `stance5/tailscreen/` holds the criteria
+  (byte-identical), the approval and its request, the stale pin list, the
+  calibration, the patch, the gate records, the tools, the score, `panels.csv`,
+  the verification and the run log's lines 505 to 577 (ids removed), and
+  `options/` and `probes/` the study and the probes. `SOURCES.txt` and
+  `SHA256SUMS` (now 528 files) are extended. `docs/README.md` adds a note to
+  the record's and the gait plan's rows, and `docs/KNOWN_ISSUES.md` gains
+  Update 19 of the T-Rex stance entry.
 - **The saturating actuator, named per evaluation episode and drawn over
   training** (#640; the maintainer's decision of 2026-10-24, "both, from the
   ledger"; `environments/shared/gait/stance_metrics.py`,
