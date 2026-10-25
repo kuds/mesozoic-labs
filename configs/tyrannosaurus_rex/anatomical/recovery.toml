@@ -163,13 +163,13 @@ timesteps = 3_000_000                   # Measured, no longer provisional: both 
 # before it can gate.
 #
 # Stale since physics r8 (2026-10-06, decision D-D24; the plant is r9 since
-# D-D29): the safe set and its 0.9267 m reference were measured on the r7
-# certified stance, which r8 retires, and every gate_resolution.json frozen
-# on r7 records an r7 task_sha256 that require_gate_resolution refuses. The
-# thresholds below stay; at the first r9 stance certified under
-# stance_quality/v2, re-measure the safe set on it (the first-runs record's
-# §4 protocol) and re-freeze with freeze_recovery_gate.py before a recovery
-# node trains.
+# D-D29 and r10 since D-D44): the safe set and its 0.9267 m reference were
+# measured on the r7 certified stance, which r8 retires, and every
+# gate_resolution.json frozen on r7 records an r7 task_sha256 that
+# require_gate_resolution refuses. The thresholds below stay; at the first r10
+# stance certified under stance_quality/v2, re-measure the safe set on it (the
+# first-runs record's §4 protocol) and re-freeze with freeze_recovery_gate.py
+# before a recovery node trains.
 #
 # Every value below must AGREE with the stage's frozen gate_resolution.json:
 # reporting/gates.py::_recovery_spec_disagreements refuses on any mismatch, so
@@ -224,7 +224,7 @@ required_consecutive = 3                # Scheduler hysteresis ONLY, and inert f
 # no rail has been derived for the pushed task and inventing one would gate on
 # an unmeasured number. The failure mode a rail catches — a policy that threw
 # away most of the available return — is already covered here by the collapse
-# backstop below, which is anchored to the pushed statue (1329.1). The frozen
+# backstop below, which is anchored to the pushed statue (1429.1). The frozen
 # capability spec records no rail either, so a declared one could only ever be
 # an extra refusal conjunct (reporting/gates.py::_recovery_reward_rail).
 
@@ -278,14 +278,26 @@ required_consecutive = 3                # Scheduler hysteresis ONLY, and inert f
 # tail_contact 14, 44 of 69 shoves recovered; the same command reproduces
 # 1329.1 ± 507.3, 431.4, 27 / 13 and 43 of 68 exactly on r8. The +40.3 is
 # half of its 82 standard error, so the reference and its floor carry.
-collapse_peak_floor_reference = 1329.1  # Pushed-task statue reward, noise 0.05, 40 episodes, seeds
-                                        # 3042-3081, physics r8 with the D-D27 stance terms (above);
-                                        # re-measured on r9 (1369.4) and kept.
+#
+# Re-measured on physics r10 (plant_versions note 20, D-D44: the tail pitch
+# springs preloaded; the stance [env] this file inherits re-measured with
+# it: natural_pitch 0.017, nosedive_termination_threshold 0.503, the settled
+# neck and tail targets) by the same judge and command, 2026-10-25, 40
+# episodes, seeds 3042-3081: 1429.1 ± 470.1, mean length 465.4, 0/40 full
+# horizon, ends nosedive 20 / fallen 19 / tail_contact 1, 51 of 70 shoves
+# recovered; the same command reproduces r9's 1369.4 ± 519.6, 442.1, 26 / 14
+# and 44 of 69 exactly on 3ffc18e (physics r9). The +100.0 over 1329.1 is
+# 1.35 of its 74.3 standard error, so the reference moves to 1429.1. Floor =
+# 0.45 x 1429.1 = 643.1.
+collapse_peak_floor_reference = 1429.1  # Pushed-task statue reward, noise 0.05, 40 episodes, seeds
+                                        # 3042-3081, physics r10 (above). 1329.1 through r9: physics r8
+                                        # with the D-D27 stance terms, re-measured on r9 (1369.4) and kept.
                                         # 1337.5 under the r8 task; 974.7 on r7 (first-runs record
                                         # §3/§6.5; reproduced exactly 2026-08-23, review §5.1).
 collapse_peak_floor_fraction = 0.45     # Same fraction as stance; the ratio, not the product, is what carries.
-statue_constants_physics_revision = 9   # The trex PHYSICS revision the 1329.1 reference was measured on
-                                        # (r8 above, re-measured on r9). The 974.7 it replaced was r7's: the 2026-08-23
+statue_constants_physics_revision = 10  # The trex PHYSICS revision the 1429.1 reference was measured on
+                                        # (r10 above; 1329.1 on r8, re-measured on r9). The 974.7 the r8
+                                        # value replaced was r7's: the 2026-08-23
                                         # panel, review §5.1 — the same r7 plant as the frozen first-runs
                                         # panels; the perturbation engine, plant_versions note 11, bumped only
                                         # the POLICY interface. The freshness test holds this pin against

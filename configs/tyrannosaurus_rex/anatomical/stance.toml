@@ -2,7 +2,7 @@
 name = "stance"
 description = "Learn to stand and balance without falling"
 
-[env]                                          # recovery.toml inherits this table (`extends`), all but the keys it writes out (the foot_contact_* keys, and stance_width_settle_steps since D-D27): an edit here moves recovery's task too, and a reward-weight edit means re-measuring recovery.toml's pushed-statue collapse_peak_floor_reference (1329.1 since D-D27), as its note there says
+[env]                                          # recovery.toml inherits this table (`extends`), all but the keys it writes out (the foot_contact_* keys, and stance_width_settle_steps since D-D27): an edit here moves recovery's task too, and a reward-weight edit means re-measuring recovery.toml's pushed-statue collapse_peak_floor_reference (1429.1 since physics r10, D-D44; 1329.1 from D-D27), as its note there says
 forward_vel_weight = 0.0
 backward_vel_penalty_weight = 0.0              # Redundant with drift_penalty — drift covers all horizontal directions equally
 drift_penalty_weight = 0.3                     # Penalize horizontal displacement from spawn; prevents hop-to-balance exploit
@@ -261,11 +261,15 @@ tail_home_pose_weight = 0.25                   # Prices tail JOINT positions. ta
                                                # tail-tip gyro, so a tail parked motionless against a hard stop is
                                                # optimal for it -- the 20260809 run parked tail_1_yaw, tail_2_pitch
                                                # and tail_3_pitch exactly that way (all three at stops by 10M).
-tail_home_pose_tolerance = 0.05                # rad; around the SETTLED droop, not the keyframe: the passive tail
-                                               # rests on its ventral stops (tail_1/2 pitch -0.2107/-0.2029, tail_3
-                                               # -0.0926; sub-milliradian spread over 40 seeds at noise 0.05), so
-                                               # the keyframe zeros are unreachable and would cap the statue at
-                                               # ~0.25 quality. Targets live plant-side (TyrannosaurusRexEnv._TAIL_SETTLED_QPOS
+tail_home_pose_tolerance = 0.05                # rad; around the statue's SETTLED tail, not the keyframe. Through
+                                               # physics r9 the passive tail rested on its ventral stops (tail_1/2
+                                               # pitch -0.2107/-0.2029, tail_3 -0.0926; sub-milliradian spread over
+                                               # 40 seeds at noise 0.05), so the keyframe zeros were unreachable and
+                                               # would have capped the statue at ~0.25 quality. Physics r10 (D-D44,
+                                               # plant_versions note 20) preloads the tail pitch springs, and the
+                                               # statue settles at the keyframe zeros (0.00002 / 0.0 / 0.00006 /
+                                               # 0.00018 rad; 40-seed sd <= 0.0003), the target since; D-D44 kept
+                                               # this tolerance. Targets live plant-side (TyrannosaurusRexEnv._TAIL_SETTLED_QPOS
                                                # in tyrannosaurus_rex/base_env.py). At 0.05 the statue scores
                                                # ~1.0 and every parked-tail pose from the 20260809 run scores ~0.
 action_saturation_weight = 0.5                 # Prices commands parked past |action| = threshold (linear ramp to
@@ -277,7 +281,8 @@ action_saturation_weight = 0.5                 # Prices commands parked past |ac
                                                # costs 0.5/15 per step. The statue commands zero and pays nothing.
 action_saturation_threshold = 0.9              # Ramp start; below this saturation is free.
 head_clearance_weight = 0.35                   # Prevent the learned head-droop posture
-head_clearance_target = 0.90                   # m; settled home head tip is ~0.94 m
+head_clearance_target = 0.90                   # m; settled home head tip is ~0.96 m (noise-free statue, steps 200-999:
+                                               # 0.958 on physics r10, 0.945 on r9)
 head_clearance_tolerance = 0.15                # Smooth transition from zero credit at 0.75 m
 neck_posture_weight = 0.20                     # Softly retain the statue's settled neck/head pose
 neck_posture_tolerance = 0.35                  # rad. Sized while the target was the XML keyframe, to absorb the
@@ -289,8 +294,9 @@ neck_posture_tolerance = 0.35                  # rad. Sized while the target was
                                                # against the statue relative to the keyframe target. 0.20 would add
                                                # 38-51 to that at a 1.6 statue cost, but the swing at 0.35 already
                                                # prices every audited head lift at 1.9-3.7x its whole gain.
-neck_posture_reference = "settled"             # Centres the term on TyrannosaurusRexEnv._NECK_SETTLED_QPOS (0.21432, 0.0,
-                                               # 0.21963 rad: the r8 statue's post-settle neck) instead of the
+neck_posture_reference = "settled"             # Centres the term on TyrannosaurusRexEnv._NECK_SETTLED_QPOS (0.21401, 0.0,
+                                               # 0.22054 rad: the r10 statue's post-settle neck; 0.21432 / 0.21963
+                                               # on r8, carried on r9) instead of the
                                                # keyframe the kp 200 / kp 80 neck servos cannot hold against
                                                # gravity. On the keyframe target the statue scored 0.787 quality and
                                                # lifting the head back to the keyframe PAID +45.6 per episode (+41.9
@@ -308,14 +314,18 @@ nosedive_weight = 1.5                          # Complements posture_weight agai
                                                # (Provenance note 2026-08-15: the original "Increased from 3.0"
                                                # described a decrease; same unrecoverable pre-repo history as
                                                # posture_weight above.)
-nosedive_termination_threshold = 0.493         # Terminates at forward_z < -0.520 (~31.3° nose-down), unchanged from the
+nosedive_termination_threshold = 0.503         # Terminates at forward_z < -0.520 (~31.3° nose-down), unchanged from the
                                                # 0.35 that preceded the natural_pitch 0.17 -> 0.05 correction. natural_pitch
                                                # describes the measured neutral pose, so the threshold absorbs every shift in
                                                # it and the absolute termination envelope stays put. The theropod stance
                                                # correction moved natural_pitch 0.05 -> 0.027 (the flexed limb settles 1.55°
-                                               # nose-down where the columnar one settled 2.9°), so this re-derives as
+                                               # nose-down where the columnar one settled 2.9°), so this re-derived as
                                                #   0.493 = sin(0.05) + 0.47 - sin(0.027)
-                                               # and the plant still terminates at the same absolute -0.520.
+                                               # Physics r10 (D-D44, plant_versions note 20: the tail holds level on its
+                                               # preloaded springs) moved natural_pitch 0.027 -> 0.017 (the noise-free statue
+                                               # settles at forward_z -0.01666, 0.95° nose-down), so it re-derives as
+                                               #   0.503 = sin(0.05) + 0.47 - sin(0.017)
+                                               # and the plant still terminates at the same absolute -0.520 (-0.519999).
 smoothness_weight = 2.0                        # Second escalation: 0.1 -> 0.7 -> 2.0. The lever works but was
                                                # under-dosed. 0.1 was a rounding error (-0.0259/step, 1.0% of
                                                # return) and left RMS action change per joint flat at 1.018 for a
@@ -627,6 +637,20 @@ timesteps = 12000000
 # separation can be measured, and the heading design keeps the pad, CoP and hop
 # bars where they are; the audit note's appended §12 holds the r9 panels.
 #
+# Physics r10 (plant_versions note 20, D-D44: the tail pitch springs preloaded,
+# so the statue's tail holds level instead of resting on its ventral stops)
+# keeps every bar too; each comment below adds the r10 statue's extremes
+# ("r10") on the same 40 + 240 seeds, rolled with this file's r10 [env]. The
+# r10 statue is clean on 40/40 here (bound 0.928) and at every heading of the
+# certificate, and on 238/240 out of sample: seed 9047 falls backward at step
+# 273 (fallen, not a nosedive) and seed 3121's worse pad tilts 2.087 degrees,
+# again the one bar a full-horizon statue episode fails. 1 fall in 280 against
+# r9's 4. Its pads load a few more contact points (median 2.84 here against
+# r9's 2.67) and sit closer to centre fore and aft (at most 0.322 here). The
+# stance record's appended §25
+# (docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md) holds the r10
+# panels.
+#
 # The six-heading certificate (stance_quality_heading/v1, decision D-D32,
 # adopted 2026-10-11; docs/HEADING_INVARIANCE_DESIGN_2026_10.md). v2 judges
 # the training heading only, and the stance stage always spawns facing +x,
@@ -645,7 +669,8 @@ timesteps = 12000000
 # hop-or-fall rails included). On r9 every heading is physically identical
 # (the elliptic cone), so the statue's turned panels repeat its unturned one:
 # clean on 39/40 seeds at every heading (seed 3081's nosedive), grouped bound
-# 0.887, a PASS. The certificate costs 6 policy and 6 statue panels (about
+# 0.887, a PASS; on r10 clean on 40/40 at every heading, grouped bound 0.928,
+# its rewards equal across headings to 4.2e-11. The certificate costs 6 policy and 6 statue panels (about
 # 13 min on one CPU) where v2 cost 2, and replaces the report-only heading
 # probe (stance_probe_spawn_yaw_deg, removed below).
 # ---------------------------------------------------------------------------
@@ -672,7 +697,8 @@ min_full_horizon_fraction = 0.95         # Statue: 99.17% pooled over three inde
                                          # The 119/120 above is physics r7's; the r8 statue reaches the horizon on
                                          # 40/40 and 80/80 out of sample, and on 39/40 of seeds 3162-3201 (seed
                                          # 3174 nosedives at step 265). The r9 statue on 39/40 (seed 3081 at step
-                                         # 292) and on 237/240 out of sample.
+                                         # 292) and on 237/240 out of sample. The r10 statue on 40/40 and on
+                                         # 239/240 out of sample (seed 9047 falls at step 273).
 min_all_feet_support = 0.98              # Share of window steps with both legs down. Statue 1.000 on every episode;
                                          # 1001 at most 0.724 (fails 40/40), 0920 fails 5, 0930 1. The props stand
                                          # on both feet (best 1.000): the sole bars catch them.
@@ -681,14 +707,15 @@ max_touchdown_rate = 0.25                # Debounced touchdowns per foot per sec
                                          # (catch-up hops); 0914's best is 0.
 max_window_displacement_m = 0.10         # Horizontal root travel over the window. Statue at most 0.023 m, out of
                                          # sample too (0.076, seed 5048, over the r9 figures' 240; r9 0.018 m, and
-                                         # 0.020 out of sample); hop drift reaches 0.49 m (0920, fails 5), 0.62 m
+                                         # 0.020 out of sample; r10 0.019, and 0.057 out of sample, seed 9077);
+                                         # hop drift reaches 0.49 m (0920, fails 5), 0.62 m
                                          # (0930, fails 3) and 0.82 m (1001, fails 37).
 min_foot_load_share = 0.40               # The lighter foot's share of the window's floor load. Statue at least
                                          # 0.498 (out of sample 0.498; 0.500 is symmetric); no hack episode goes
                                          # below 0.436, so this guards against standing on one leg rather than
                                          # separating the hacks. 0.40, not the pre-adoption candidates' 0.30,
                                          # because the r8 statue is symmetric to 0.002 (the r9 statue at least
-                                         # 0.495, and 0.493 out of sample).
+                                         # 0.495, and 0.493 out of sample; r10 0.497, and 0.494).
 max_actuator_saturation_fraction = 0.10  # The most saturated actuator's share of window steps at |a| >= 0.99. Statue
                                          # 0 (it commands zero); 1001 at least 0.81 (fails 40/40), 0920 fails 8 and
                                          # 0930 1 episode.
@@ -699,11 +726,12 @@ max_settle_airborne_substeps = 0         # Substeps with both legs unloaded in s
 max_settle_peak_floor_force_bw = 1.5     # Peak total floor force in steps 10-199, in body weights. Statue at most
                                          # 1.272 (1.276 out of sample); the hacks' push-off and landing at least
                                          # 1.41 (0920, fails 37), 1.55 (0914, fails 40), 1.84 (0930, fails 40) and
-                                         # 2.48 (1001, fails 40). The r9 statue at most 1.280 (1.325 out of sample).
+                                         # 2.48 (1001, fails 40). The r9 statue at most 1.280 (1.325 out of sample);
+                                         # r10 1.207 (1.337 out of sample).
 min_foot_load_share_windowed = 0.35      # The lowest foot share over the window's 1 s blocks. Statue at least 0.477
                                          # (0.474 out of sample); no hack episode goes below 0.372: a guard against
                                          # shifting the weight onto one leg a second at a time. The r9 statue at
-                                         # least 0.462 (0.444 out of sample).
+                                         # least 0.462 (0.444 out of sample); r10 0.469 (0.437 out of sample).
 max_foot_contact_fraction = 0.02         # Substeps with one foot on the other. Statue and hacks 0: a guard (the
                                          # stacked soles of the compsognathus_robot stance the audit found).
 max_phantom_support_fraction = 0.05      # Window steps where touch reads a load the floor does not. Statue and
@@ -714,11 +742,13 @@ max_sole_tilt_deg = 2.0                  # The worse pad's window-mean tilt from
                                          # (0914), 3.98 (0930) and 4.28 (1001): every episode of each fails. The r9
                                          # statue at most 1.54 here, and out of sample 2.061 on 1 of 240 episodes
                                          # (seed 3121; the next 1.90), 0.05 short of the nearest hack episode. Kept
-                                         # at 2.0 rather than loosened toward the props.
+                                         # at 2.0 rather than loosened toward the props. The r10 statue at most
+                                         # 1.60 here, and out of sample 2.087 on the same seed 3121 (the next
+                                         # 1.88), 0.02 short of the nearest hack episode; kept at 2.0.
 max_sole_corner_lift_m = 0.004           # The worse pad's window-mean highest-minus-lowest bottom corner. Statue at
                                          # most 2.3 mm (2.8 out of sample; the r7 statue 5.5); hacks at least 5.1 mm
                                          # (0920), 6.6 (0930), 8.4 (0914) and 11.1 (1001): every episode fails. The
-                                         # r9 statue at most 2.5 mm (3.3 out of sample).
+                                         # r9 statue at most 2.5 mm (3.3 out of sample); r10 2.6 mm (3.4).
 min_sole_contacts = 1.5                  # The worse pad's window-mean loaded contact points (4 flat, 2 on an edge,
                                          # 1 on a corner). Statue at least 2.35, and exactly 2.0 on one out-of-sample
                                          # episode, which is why the bar is 1.5 rather than 2; the props stand on an
@@ -729,6 +759,7 @@ min_sole_contacts = 1.5                  # The worse pad's window-mean loaded co
                                          # The r9 statue at least 1.959 here and 1.956 out of sample, and its
                                          # median 2.67 against r8's 3.79: the elliptic cone loads fewer of a pad's
                                          # corners, so this bar's margin is the one to watch on r9 stances.
+                                         # The r10 statue at least 2.0 here and out of sample, median 2.84.
 max_sole_cop_fore_aft = 0.80             # The worse pad's window mean of its per-step |fore-aft CoP| / half-length
                                          # (D-D28; 0 centred, 1 on the heel or toe edge, a step with no loaded sole
                                          # contact 1). Statue 0.206-0.362 on 3042-3081 and at most 0.362 on 7042-7081
@@ -752,11 +783,12 @@ max_sole_cop_fore_aft = 0.80             # The worse pad's window mean of its pe
                                          # the window); and a pad rolled about 1 deg that also carries seed 44's
                                          # toe-down pitch loads three corners and reads about 0.76
                                          # (docs/KNOWN_ISSUES.md). The r9 statue at most 0.475 on 3042-3081 and 0.476
-                                         # out of sample (seed 3187).
+                                         # out of sample (seed 3187); r10 0.322 (seed 3080) and 0.404 (seed 9077).
 max_settle_stance_width_change_m = 0.08  # The largest change of the foot-pair distance from spawn to the end of the
                                          # settle (D-D27). Statue at most 0.0523 m (3042-3081), 0.0201 (7042-7081),
                                          # 0.0311 (3162-3201), 0.0508 / 0.0396 (5042-5081 / 9042-9081), and on r9
-                                         # 0.0463 (3042-3081) and 0.0455 out of sample; the physics-r8 runs re-seat
+                                         # 0.0463 (3042-3081) and 0.0455 out of sample, and on r10 0.0543 and
+                                         # 0.0550 (seed 5061); the physics-r8 runs re-seat
                                          # by 2.3-2.8 cm at the median and up to 0.0875 / 0.0821 (seed 44, 1/40 each)
                                          # and 0.0938 (seed 42). 1.5x the statue's largest over 200
                                          # episodes: a guard against the re-seat stance_width_reference no longer
@@ -771,7 +803,8 @@ max_settle_touchdowns = 2                # Debounced landings in steps 0-199, su
                                          # see only flight and peaks.
 max_episode_yaw_change_deg = 25.0        # The root's heading change over the episode (D-D27; report-only until then).
                                          # Statue at most 12.4 deg (3042-3081; 8.0, 10.4, 12.0 and 11.5 on the other
-                                         # four seed sets; r9 12.1, and 12.8 out of sample); seed 42 turns 45.3 at
+                                         # four seed sets; r9 12.1, and 12.8 out of sample; r10 14.1, and 14.8
+                                         # out of sample, seed 5061); seed 42 turns 45.3 at
                                          # the median, toward an absolute heading of about -45 deg (refused 40/40),
                                          # seed 44 at most 21.4. 2x the statue's largest. Heading DEPENDENCE -- both
                                          # r8 stances fall when spawned 90 deg off, where the statue stands -- is
@@ -795,8 +828,9 @@ max_hop_or_fall_episodes = 1             # Panel rail (D-D27): episodes that end
                                          # (r8: 2 of 280), so it uses the whole allowance on its certification
                                          # seeds; a statue-quality policy at 4 in 280 passes 0.888 of panels
                                          # (0.967 at r8's 2 in 280). Kept at 1: the difference is not
-                                         # significant, and the rail exists for seed 44's hop mode.
-min_avg_reward = 2250.0                 # Collapse RAIL, not the gate (PLANT_VALIDATION §9/§12): no reward threshold
+                                         # significant, and the rail exists for seed 44's hop mode. The r10
+                                         # statue falls on 0 of 40 here and on 1 of 280 pooled (9047).
+min_avg_reward = 2260.0                 # Collapse RAIL, not the gate (PLANT_VALIDATION §9/§12): no reward threshold
                                         # can separate a competent policy from a statue, because the statue is at
                                         # or near the reward optimum (on r8 under the keyframe width target a
                                         # spawn-correcting policy could beat it by about 15 of 3766;
@@ -866,6 +900,14 @@ min_avg_reward = 2250.0                 # Collapse RAIL, not the gate (PLANT_VAL
                                         # -1.1 against 3756.8 at a 3.2 standard error (-1.9 paired over the 39
                                         # episodes both plants stand). The rail carries: 0.60 x 3755.7 = 2253.4,
                                         # rounded to 2250.
+                                        #
+                                        # Re-measured on physics r10 (plant_versions note 20, D-D44: the tail pitch
+                                        # springs preloaded; natural_pitch 0.017, nosedive_termination_threshold
+                                        # 0.503 and the settled neck and tail targets re-measured with it), same
+                                        # command, 2026-10-25: 3766.56 +/- 16.21 with 40/40 full horizon, +9.8
+                                        # against 3756.8 at a 2.6 standard error (3.8 standard errors), so the
+                                        # reference moves to 3766.6 and the rail re-derives: 0.60 x 3766.6 =
+                                        # 2260.0, 2260. stance_quality_baseline.py 0.05 40 agrees (3766.6 +/- 16.2).
                                         #
                                         # Why 0.60 and not §12's 0.89: the measured collapse (run 20260731_132102,
                                         # full-horizon 93% -> 7%) bottomed at 888 = 0.27 x statue, so 0.60 clears
@@ -982,10 +1024,13 @@ collapse_peak_warmup_timesteps = 1000000 # Evaluations before this step cannot S
                                          # candidacy; past it a statue-level peak arms the floor legitimately, and
                                          # collapse_patience consecutive evaluations under half of it are a collapse
                                          # at either start. Untested on a full run at -1.5.
-collapse_peak_floor_reference = 3756.8   # The zero-action statue's standing reward at noise 0.05, 40 episodes,
-                                         # on the hip-roll revision (physics r8) with the D-D27 stance task
-                                         # (-9.3 against the r8 task's 3766.1, decomposed at min_avg_reward
-                                         # above; floor 0.45 x 3756.8 = 1690.6). 3766.1 was the r8 task:
+collapse_peak_floor_reference = 3766.6   # The zero-action statue's standing reward at noise 0.05, 40 episodes,
+                                         # seeds 3042-3081, on physics r10 (the preloaded tail springs, D-D44)
+                                         # with the D-D27 stance task: 3766.56 +/- 16.21, 40/40 full horizon
+                                         # (min_avg_reward above has the figures; floor 0.45 x 3766.6 = 1695.0).
+                                         # 3756.8 through r9: the hip-roll revision (physics r8) with the D-D27
+                                         # stance task (-9.3 against the r8 task's 3766.1, decomposed at
+                                         # min_avg_reward above; floor 0.45 x 3756.8 = 1690.6). 3766.1 was the r8 task:
                                          # +270.9 over r7's 3495.2.
                                          # 3495.2 was the passive-toes plant (physics r7) with the 20260810
                                          # shaping pack. History: 3271.8 on the r6 plant, 3270.3 on r7 at
@@ -999,8 +1044,10 @@ collapse_peak_floor_reference = 3756.8   # The zero-action statue's standing rew
                                          # only a re-run is evidence. Forgetting either is silent.
                                          # Re-measured on physics r9 (plant_versions note 16): 3755.7 +/- 19.9 over
                                          # the 39 of 40 episodes that stand (seed 3081 nosedives), so the reference
-                                         # carries (min_avg_reward above has the figures).
-statue_constants_physics_revision = 9    # The trex physics revision the statue-derived constants above
+                                         # carried (min_avg_reward above has the figures). Re-measured on physics
+                                         # r10 (plant_versions note 20): 3766.56 +/- 16.21, 40/40, 3.8 standard
+                                         # errors over 3756.8, so it moved to 3766.6 and the rail to 2260.
+statue_constants_physics_revision = 10   # The trex physics revision the statue-derived constants above
                                          # (min_avg_reward, collapse_peak_floor_reference) were measured on.
                                          # test_statue_constant_freshness.py cross-checks this against the
                                          # plant manifest, so a plant revision bump that forgets to re-measure
