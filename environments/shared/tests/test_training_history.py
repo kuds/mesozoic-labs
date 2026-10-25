@@ -836,14 +836,22 @@ class TestPolicyStd:
 POSTURE = [*th.POSTURE_COLUMNS, *(f"{foot}_{suffix}" for foot in FEET for suffix in th.HIP_ROLL_SUFFIXES)]
 
 
-def _posture_stage(tmp_path: Path, *, name: str = "posed", head_target: float | None = 0.9) -> Path:
+def _posture_stage(
+    tmp_path: Path,
+    *,
+    name: str = "posed",
+    head_target: float | None = 0.9,
+    constant: dict[str, float] | None = None,
+    saturated: list[int] | None = None,
+) -> Path:
     """:func:`_stage` with the head posture and hip roll columns appended, as the ledger writes them (last).
 
     Evaluation k: the head tip at 1.2 - 0.2 k m (episode i 0.01 i higher), its window minimum 0.05 m lower, the neck
     at 10 k degrees and the head at -2 degrees; the left hip roll 1 + k degrees, the right 0.5 degrees, each
-    episode's max |roll| 2 degrees.
+    episode's max |roll| 2 degrees.  *constant*: columns given one value on every episode instead (nan: a model
+    without that site or hinge); *saturated*: as :func:`_stage`'s.
     """
-    stage = _stage(tmp_path, name=name)
+    stage = _stage(tmp_path, name=name, saturated=saturated)
     rows = list(csv.DictReader((stage / th.EVAL_EPISODES_FILENAME).open(newline="", encoding="utf-8")))
     for row in rows:
         evaluation, episode = int(row["evaluation"]), int(row["episode"])
@@ -858,6 +866,7 @@ def _posture_stage(tmp_path: Path, *, name: str = "posed", head_target: float | 
             l_hip_roll_mean_deg=1.0 + evaluation,
             l_hip_roll_max_abs_deg=2.0,
         )
+        row.update(constant or {})
     _write_csv(stage / th.EVAL_EPISODES_FILENAME, rows, COLUMNS + POSTURE)
     config = json.loads((stage / th.STAGE_CONFIG_FILENAME).read_text(encoding="utf-8"))
     if head_target is not None:
@@ -1201,6 +1210,28 @@ class TestRender:
         outlined = [patch for patch in strip.patches if not patch.get_fill()]
         assert len(outlined) == 2  # run a's evaluations 2 and 3 (6 and 7 flagged episodes)
         assert "a" in self._texts(strip) and "b" in self._texts(strip)
+
+    def test_a_comparisons_run_labels_sit_at_their_lines_ends(self, tmp_path):
+        """Each run's name sits at its line's last value under the panel's final view limits (the lines only request
+        an autoscale; reading the limits before it is applied put the labels where earlier limits would). No alarm
+        and no mark: their vertical lines happen to apply the autoscale first."""
+        runs = [
+            th.load_run_history(
+                _posture_stage(tmp_path, name=name, constant={"neck_pitch_mean_deg": neck}, saturated=[0, 0, 0, 0]),
+                label=name,
+                read_std=False,
+            )
+            for name, neck in (("low", 12.0), ("high", 33.0))
+        ]
+        figure = th._page_figure(
+            th.POSTURE_PAGES[0], th._make_context(runs, marks=[], smooth=5), title="t", dpi=30, width=12.0
+        )
+        neck = figure.axes[2]
+        figure.canvas.draw()
+        low, high = neck.get_ylim()
+        labels = {text.get_text(): text.get_position()[1] for text in neck.texts}
+        for name, value in (("low", 12.0), ("high", 33.0)):
+            assert abs(labels[name] - (value - low) / (high - low)) < 0.1, (name, labels, (low, high))
 
     def test_at_most_eight_runs(self, tmp_path):
         run = th.load_run_history(_stage(tmp_path), read_std=False)

@@ -2991,6 +2991,9 @@ def _end_labels(axis: Any, ends: Sequence[tuple]) -> None:
     """Each run's name at the right of the axes, at its line's last value, nudged apart."""
     if not ends:
         return
+    # The lines and reference lines only request an autoscale, applied lazily: settle the view limits before the
+    # transform reads them, or a label sits where the line would be under the limits before them.
+    axis.autoscale_view()
     to_axes = axis.transScale + axis.transLimits
     height_in = axis.get_position().height * axis.figure.get_figheight()
     gap = 0.16 / height_in
