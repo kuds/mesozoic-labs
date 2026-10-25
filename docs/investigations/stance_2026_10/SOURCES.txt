@@ -106,6 +106,55 @@
 # Of the session's outputs, the four replication readouts and the five stance5 reference outputs of the current tool
 # are copied; the six earlier outputs of the superseded tool (b69ff098..., identical in every readout by
 # VALIDATION.md) and the tool's logs, self-tests and review material are not.
+# Added 2026-10-25 (stance5/tailscreen/options/, stance5/tailscreen/probes/): the sources are in a second scratch
+# root, the scratch tree of the session that took the work over at 15:14 UTC on 2026-10-24 (the run log); a source
+# there is written below 'scratchpad2' (the first root's sources stay written below it, as foot/...).  One more
+# change, nothing else:
+#   prefix2     the second scratch root's absolute prefix replaced by 'scratchpad2' (the first root's is replaced by
+#               'scratchpad' and the session directory above both by 'session', as prefix does; the two changes
+#               are listed apart only where both apply)
+# options/brief_draft.md and options/brief_v2.md carry prefix2, prefix and checkout; options/decisions_v1.md is
+# byte-identical.  whitespace removes the trailing spaces of 80 lines of probes/unclip/out/analyze_h040.out and adds a
+# final newline to four JSON copies.  The briefs' MECH, LAND, SKF, SKD and V2 folders (scratchpad2/tailround/mech/,
+# landscape/, skeptic-facts/, skeptic-design/, v2check/), the probes' code trees (git archives of cf80ecb1 with a
+# scratch MJCF copy), their copies of stance5's judge (each byte-identical to the source of stance5/judge/
+# judge_stance5.py, d9286724...), the probes' tree listings, value_s42.json and value_s80.json (about 0.34 MB each),
+# the unclip probe's npz rollouts, JSON outputs and scratch MJCF files, and the fetched files (scratchpad2/tailround/
+# fetch/: the five policy_probe.npz, 2,768,026 bytes each, and the two start checkpoint pairs) are not copied.
+# Added 2026-10-25, later (stance5/tailscreen/): the screen's sources are in the second scratch root too.  No new
+# kind of change.  lines: stance5/tailscreen/results/run_log.txt is lines 505 to 577 of the session's run log,
+# whose lines 396 to 504 are stance5/replication/results/run_log.txt; the sha256 given is that of the source's first
+# 577 lines, the whole file when copied (lines 505 to 577 alone:
+# 1e6a46ba7edc0446b0d1d520c7533310d7a5dc0e8543b8b0c1a10955a77c6464); its first 504 lines are unchanged
+# (d23bcc2ca30833696be4f0721845ca934840896a8cfa89a50947db5222075888, as given above).  redact, in that copy: 22
+# workflow run ids (12 distinct; a bare one becomes 'workflow [id removed]') and 1 background-job id, each by
+# '[id removed]'; in stance5/tailscreen/patches/tail3-upper-bound.patch, the two commits' 'From:' lines (an author name
+# and an email address) by 'From: [name removed]'.  trailer: the patch's two pairs of commit-trailer lines and the pair
+# tools/copy_durable.sh writes into its commits, each by '[commit-trailer lines removed]'.  The patch's source is the
+# output of 'git format-patch --stdout cf80ecb1..4c0c8da7' in the scratch clone (its sha256, ef0fe36b..., is the one the
+# criteria pin); whitespace removes the single space of its blank context lines and signature separator, and git
+# apply of the copy on cf80ecb1 still gives 4c0c8da7's two files exactly.  whitespace also removes one trailing space
+# from PINS.txt and adds a final newline to the four JUnit files and to five JSON copies of the verification;
+# calib/coef.json and gate/gate_pass.json keep their missing final newline, so that their sha256 is the one APPROVED
+# and the run log pin.  criteria.txt, APPROVED, gate/first_gate_failed/APPROVED.first, results/score.txt,
+# results/score.json and results/panels.csv are byte-identical (the run log pins the first two's and the scores'
+# sha256).  The tools carrying a
+# change (measure_tailscreen.py, screen_common.py, gate.sh, run_waves.sh, copy_durable.sh) do not have the sha256 that
+# screen_common.py and the criteria pin; the source sha256 given here is the pinned one.  Not copied: the 18 run
+# folders (checkpoints, run_meta.json, progress.csv, telemetry.npz), the 162 panels' per-step CSVs and trace files,
+# the measuring copy, the build's validation folders, the code review's folder, the durable repository, the
+# verification's durable clone and re-measured per-step CSVs, criteria v1 and v2 and BUILD_SPEC.md (their sha256 are in
+# criteria.txt), and the scratch clone itself.
+# gzip: tools/run_tailscreen.py is copied as tools/run_tailscreen.py.gz.  As a .py file it would join
+# test_policy_loading.py's table of the repository's callers of policy_loading's moved names (it calls _ensure_sb3),
+# since that test parses every Python file under docs/; gunzip restores it byte for byte, with the pinned sha256.
+# criteria.txt keeps the two absolute session-scratch paths that define its SP and S2 (its lines 18 and 19), the
+# only copy in this folder that does: it is byte-identical because its sha256 is the approved pin, so neither prefix
+# nor prefix2 is applied to it.  Eight small per-episode files are copied, an exception to the folder's rule on
+# per-episode files: the four stance5/tailscreen/verify/remeasure/out/<panel>/final_flags.csv (20 episodes each) and
+# stance5/tailscreen/probes/probecheck/probe_s42.json, probe_s80.json, probes/skeptic/noise_shift_s80.json and
+# unclip_alt_s42.json (6, 6, 90 and 40 episodes; at most 14 KB each), the evidence of the re-measurement's
+# field-for-field result and of the probes' counts.
 
 audit/foot_ankle_audit.md foot/audit_2026_10_17/foot_ankle_audit.md e9da4ef84be17a87b70096d1e2aede87609ad22f446b10786f9e14d5064725c8 prefix
 audit/geometry/geometry_audit.json foot/audit_2026_10_17/geometry/geometry_audit.json 934110bec337b9693f894800efb309bf1a9529ae87f91f129bfefc8fef5b650a prefix,whitespace
@@ -508,6 +557,116 @@ stance5/results/saturation/stance5_LTSB_s42_6291456.json foot/stance5/tools/satr
 stance5/results/scores/score_final.json foot/stance5/scores/score_final.json c690165043dbc32fc8bf5bcce7a57c8bc38692c67e21464e706017d0dd45e307 prefix,whitespace
 stance5/results/scores/score_final.txt foot/stance5/scores/score_final.txt 1629943ccf08a948e91e6cfc252d64225cd910bf075d7d5566ce0f7c21db47d7 prefix
 stance5/tailexp/report.md foot/stance5/tailexp/report.md de1710e6374533ca0c37e52dbbad7e871da38b4fe4578d3f20c9cea442ec8a4d prefix,checkout,redact
+stance5/tailscreen/APPROVAL_REQUEST.md scratchpad2/tailround/screen/APPROVAL_REQUEST.md afcf09732ee88b6396d45b530f71d478e4e1f4ed4e833c29bdcd9e040a0d96ec prefix2
+stance5/tailscreen/APPROVED scratchpad2/tailround/screen/APPROVED 42627d1f7f3135ad3ff73526bb042e900c9c2e9108ae07c7916507f23c575957 none
+stance5/tailscreen/PINS.txt scratchpad2/tailround/screen/PINS.txt a404ca6f3e2078859a0d5c08b33dda3ab1689f87729047b890153d6e6b875c3f prefix2,whitespace
+stance5/tailscreen/calib/calib.log scratchpad2/tailround/screen/calib/calib.log aa276cded31d1894da94b7567775d05927e391d5c6d62f820affec800c201574 prefix2
+stance5/tailscreen/calib/coef.json scratchpad2/tailround/screen/calib/coef.json f6d90f99fc09c09577af9dc2bf4e00fde6537cc8c4fc631af055eaf26880c18d none
+stance5/tailscreen/criteria.txt scratchpad2/tailround/screen/criteria.txt 9930ee722bf07f21256c0998656568d544ef7413c18d4dfa823338370bcb1b6a none
+stance5/tailscreen/gate/first_gate_failed/APPROVED.first scratchpad2/tailround/screen/tests_out/first_gate_failed/APPROVED.first ff154f4fe8d81fc327714fbf903e011d3c1f7de953b917ee7f124769613c6216 none
+stance5/tailscreen/gate/first_gate_failed/gate_junit_clone.xml scratchpad2/tailround/screen/tests_out/first_gate_failed/gate_junit_clone.xml 98c2481ceb01ac8b2519a0795fddf5f7816a41d65960082197cdda884a881df4 whitespace
+stance5/tailscreen/gate/first_gate_failed/gate_junit_tools.xml scratchpad2/tailround/screen/tests_out/first_gate_failed/gate_junit_tools.xml 3c208d0b46ed7b9eab14da5fa91fdacb9148a47e5ea269255a539d638dad6972 prefix2,whitespace
+stance5/tailscreen/gate/first_gate_failed/gate_tier.txt scratchpad2/tailround/screen/tests_out/first_gate_failed/gate_tier.txt cc65f40663c3b6d44ae4fb0a93a7d69e5a10eb736f81f596d05cd75e5c3e7c08 none
+stance5/tailscreen/gate/gate_junit_clone.xml scratchpad2/tailround/screen/tests_out/gate_junit_clone.xml 499a843195d7f7fe75f910feb9f28dbc5dc2c2ad5dd58bf07bbb6499a70af1d2 whitespace
+stance5/tailscreen/gate/gate_junit_tools.xml scratchpad2/tailround/screen/tests_out/gate_junit_tools.xml 33c7ac68a8ffc8520df95d9d57c6db607641d8b9427264bc5cb0aa7129d455b5 prefix2,whitespace
+stance5/tailscreen/gate/gate_pass.json scratchpad2/tailround/screen/tests_out/gate_pass.json d7118520bee4c557f0ee0d0b6e4986d5e1610e7025ef35a3bea441cf9ae1ccef none
+stance5/tailscreen/gate/gate_run.log scratchpad2/tailround/screen/logs/gate_run.log ae524987af768532aa279831cb4d4e4426bb94dd6089c6d45e2b5bd69f3a2df0 none
+stance5/tailscreen/gate/gate_run2.log scratchpad2/tailround/screen/logs/gate_run2.log 0651cacef500184b4b780683b59869f907cb9a734e2272f13d8c9d9e31b97692 none
+stance5/tailscreen/gate/gate_tier.txt scratchpad2/tailround/screen/tests_out/gate_tier.txt efc3c6428d239a1e5c492e112de5644e9edf5f6e6b8841783fe072e29cc42d82 none
+stance5/tailscreen/options/brief_draft.md scratchpad2/tailround/brief_draft.md 363fb6bda8d5662b0cb622c7f8919d133771d2780f88b5b0a2d9e90a45562dd3 prefix2,prefix,checkout
+stance5/tailscreen/options/brief_v2.md scratchpad2/tailround/brief_v2.md 903d7218bec0d445a6da858142af935640a5ff44c0ca0b06c1834d0335c8ec08 prefix2,prefix,checkout
+stance5/tailscreen/options/decisions_v1.md scratchpad2/tailround/criteria/decisions_v1.md 3a78622e78e3b1205082b8cba5ddfa26f260ac0e826e3dbb8e831aebd2c2f113 none
+stance5/tailscreen/patches/tail3-upper-bound.patch "scratchpad2/tailround/screen/scratch_tail3bound (git format-patch --stdout cf80ecb1..4c0c8da7)" ef0fe36b3c22f233f97e727429357163e7c38202699c804d12aa2ff20d00a55e trailer,redact,whitespace
+stance5/tailscreen/probes/noisevalue/analyze.out scratchpad2/tailround/probes/noisevalue/analyze.out 4c5adbc6282cdbdd031d06b3f74a2473045fd82cea25120bb9ca7e303917c682 none
+stance5/tailscreen/probes/noisevalue/analyze.py scratchpad2/tailround/probes/noisevalue/analyze.py 8a2b1b97eb76c455ee39a3ec97b3abbfdf039bf3277c32ae0fb1652d0f222c3c prefix2,prefix
+stance5/tailscreen/probes/noisevalue/log_s42.txt scratchpad2/tailround/probes/noisevalue/log_s42.txt 9b882b83549cf1e431460304857f49a29fad99444858c43d2c56513c6780af25 none
+stance5/tailscreen/probes/noisevalue/log_s80.txt scratchpad2/tailround/probes/noisevalue/log_s80.txt bdd289076581696d019f161fe5792612bf838060c01999879c31796da7fd49b3 none
+stance5/tailscreen/probes/noisevalue/roll_value.py scratchpad2/tailround/probes/noisevalue/roll_value.py 36247ac0e4296ebcdf3036c127af7e37f2c3b75770da5c84193e1727750ec7c3 none
+stance5/tailscreen/probes/policy_probe_read/read_probe.out scratchpad2/tailround/probe_read/read_probe.out 45e249077294c0513224127f828ab3fbbd0b881edfe75f0c91e2f97bc2748e56 none
+stance5/tailscreen/probes/policy_probe_read/read_probe.py scratchpad2/tailround/probe_read/read_probe.py 3bd6f58d907f4d06a84ee0b02e9c8ed3a264e337f4a450b10b68316e6c6b3c79 none
+stance5/tailscreen/probes/probecheck/act_order.py scratchpad2/tailround/probes/probecheck/act_order.py 3425fba0951253ba046c69d15eb6d1d27fb06981169b119b8f1ea4ce96fb5802 none
+stance5/tailscreen/probes/probecheck/fetched_sha.txt scratchpad2/tailround/probes/probecheck/fetched_sha.txt 6d5651feadc32504ff3347ea23d91ecad65ed8795d1ebcb20feec344cc9c35ab prefix2
+stance5/tailscreen/probes/probecheck/ledger.out scratchpad2/tailround/probes/probecheck/ledger.out 445c92bcd919df37b7c0af11576d6457c6b2f584a9827bfd0e09915d2240b82c none
+stance5/tailscreen/probes/probecheck/ledger.py scratchpad2/tailround/probes/probecheck/ledger.py 941184426015afea4d094c9551074c3eb31528ad7bacd1a8f45aa32b49fe22f3 none
+stance5/tailscreen/probes/probecheck/npz_read.out scratchpad2/tailround/probes/probecheck/npz_read.out 5c86bd3ec209dde728076d3e70cba03875e59f079064b2c679a304062fa279ca none
+stance5/tailscreen/probes/probecheck/npz_read.py scratchpad2/tailround/probes/probecheck/npz_read.py 5801e9d651340e3bcbc3b70e4944fffc352413d4093289ec9947671b59e78693 none
+stance5/tailscreen/probes/probecheck/probe_ckpt.py scratchpad2/tailround/probes/probecheck/probe_ckpt.py 089fd59d494c2585fcb4430bb263c192e15c26097b3e80df1e3a5e3b376135d4 none
+stance5/tailscreen/probes/probecheck/probe_s42.json scratchpad2/tailround/probes/probecheck/probe_s42.json e59983aee596616a5debbb50e66e6d4402bb911434d35e02d19e44cba79605a8 whitespace
+stance5/tailscreen/probes/probecheck/probe_s42.out scratchpad2/tailround/probes/probecheck/probe_s42.out 4bcf6dd529fcef7931b4b133349be393ad17859481ecb8bcbd3bb1433bf855a1 prefix2
+stance5/tailscreen/probes/probecheck/probe_s80.json scratchpad2/tailround/probes/probecheck/probe_s80.json 41bb76319a2ddc22e9934ede80b9be9b1b04436c90e61f040f1d8364be90f320 whitespace
+stance5/tailscreen/probes/probecheck/probe_s80.out scratchpad2/tailround/probes/probecheck/probe_s80.out 30f9cc4e70165c95d85578822fba12403e88a75ca6596874ce3c2b2d059d9b20 prefix2
+stance5/tailscreen/probes/probecheck/rowclass.out scratchpad2/tailround/probes/probecheck/rowclass.out 884cc208f6c6bb7a64b9e1ae085124e66497e3088d36831ed730c8b143c251c7 none
+stance5/tailscreen/probes/probecheck/rowclass.py scratchpad2/tailround/probes/probecheck/rowclass.py e8b8403befa7aa3f71aae6ef990c72c7ae79c0b34235373725ea95d981adf1d5 none
+stance5/tailscreen/probes/skeptic/boot.out scratchpad2/tailround/probes/skeptic/boot.out 51c4ffb39d899550584f036f85e1ffff8516d12a0e83b251795cc5a43a835bfb none
+stance5/tailscreen/probes/skeptic/boot.py scratchpad2/tailround/probes/skeptic/boot.py 99f3dd2f76693a1636ffb3a4b5840eae73fac0100f9802d64f47903c2a805bd8 none
+stance5/tailscreen/probes/skeptic/common.py scratchpad2/tailround/probes/skeptic/common.py 533a802be03a6e07b25ed001e9969a6d3f8c9da3ee3e7f83665ee8ec69ef325c none
+stance5/tailscreen/probes/skeptic/noise_shift.py scratchpad2/tailround/probes/skeptic/noise_shift.py aa6d68a1a4f16bfb20435d3acd827929d6e399b2777268130548b675743f3fc7 none
+stance5/tailscreen/probes/skeptic/noise_shift_s80.json scratchpad2/tailround/probes/skeptic/noise_shift_s80.json 498d3f302b19094d2d16a64108c3031e240c09d4c95a45e14ccc1c4daea06d7e whitespace
+stance5/tailscreen/probes/skeptic/noise_shift_s80.log scratchpad2/tailround/probes/skeptic/noise_shift_s80.log d0c01d188d846cced1c602fc0492c0337b137c9079f2721480bac71bcd724c3b none
+stance5/tailscreen/probes/skeptic/npz_spot.out scratchpad2/tailround/probes/skeptic/npz_spot.out 4a17ce7008aca238fcc160ab94a04e798409b1ec27d4eb28f376bf1345857da3 none
+stance5/tailscreen/probes/skeptic/npz_spot.py scratchpad2/tailround/probes/skeptic/npz_spot.py 1c177e148dd3980f5f9d2caec9ca6c6f41cbca23c148b9a3b2460ea8dcec68a0 none
+stance5/tailscreen/probes/skeptic/shift_an.out scratchpad2/tailround/probes/skeptic/shift_an.out ff75c3a4549fe3c0124b9183e3069f09fadc3e4000cf5f1a874e344915549cf7 none
+stance5/tailscreen/probes/skeptic/shift_an.py scratchpad2/tailround/probes/skeptic/shift_an.py fa7dec6919c40410e2efb54c70f83ee880fccc4f67ab13344daf7079b38532c9 none
+stance5/tailscreen/probes/skeptic/unclip_alt.py scratchpad2/tailround/probes/skeptic/unclip_alt.py e12f5d0e9d026212e8c0006102c61e716982e3f7b72c9dd122e7028b927ad89d none
+stance5/tailscreen/probes/skeptic/unclip_alt_s42.json scratchpad2/tailround/probes/skeptic/unclip_alt_s42.json 2ecbe3ca5880ba5a877080814b85368c506a2e51cc9cec06399b988da4e46d5a whitespace
+stance5/tailscreen/probes/skeptic/unclip_alt_s42.log scratchpad2/tailround/probes/skeptic/unclip_alt_s42.log 2161f0ff40abc239b8ac074e3103f324b9ff62cba530c457bfbbca10fb1630b8 none
+stance5/tailscreen/probes/skeptic/unclip_alt_s42.table scratchpad2/tailround/probes/skeptic/unclip_alt_s42.table 9dfb9013966c64b215172b7165c9bc0a40858c5489281c2f65c305abe92d91af none
+stance5/tailscreen/probes/unclip/analyze.py scratchpad2/tailround/probes/unclip/analyze.py 21c5ae1d196828c40b8138d284f91128f3d927eeccfb487bf0e7d5b68ca8a59e none
+stance5/tailscreen/probes/unclip/analyze_hold.py scratchpad2/tailround/probes/unclip/analyze_hold.py 76fc329e82e07c630b593544c8356a73a7195473dbfd4533cb29277f2575ec9e none
+stance5/tailscreen/probes/unclip/converge.py scratchpad2/tailround/probes/unclip/converge.py 64fbede9589db8e0fe679a26cf6ce81069838a54127d140554c57c3a61498477 none
+stance5/tailscreen/probes/unclip/hold_last.py scratchpad2/tailround/probes/unclip/hold_last.py da22bb51fc06f0ea5f634cb33af21abcb28b67759e90559e9aa42d701723d76d none
+stance5/tailscreen/probes/unclip/hold_quarters.py scratchpad2/tailround/probes/unclip/hold_quarters.py a36f9945b0a22a1a1b49a6914f4297025f448729a706b7aa2d61522a521efa9f none
+stance5/tailscreen/probes/unclip/out/analyze_h040.out scratchpad2/tailround/probes/unclip/out/analyze_h040.out 051525fd69da628a7e41f0f67c18c350ed2463f8be8e975c0c4ed73fbb1ce8be whitespace
+stance5/tailscreen/probes/unclip/out/analyze_hold.out scratchpad2/tailround/probes/unclip/out/analyze_hold.out dd1591ec495e86d160f4cbc35db53d4c19dcd8999402cc6c6e0a3fa04ff2e8c8 none
+stance5/tailscreen/probes/unclip/out/converge_s42.out scratchpad2/tailround/probes/unclip/out/converge_s42.out 20d692dbb1cc9ec7baef2b17f9b707feb0bed20e9247085a3a4f114b67f23268 none
+stance5/tailscreen/probes/unclip/out/hold_last.out scratchpad2/tailround/probes/unclip/out/hold_last.out 887e32c9058bd91a4b9687b9fe82c001b64afb8d8e0db7b9332422a0423dbc66 none
+stance5/tailscreen/probes/unclip/out/hold_quarters.out scratchpad2/tailround/probes/unclip/out/hold_quarters.out 7d8c11252f70a4b95be3d4d9186b56954dadd2d3adecbf3f90853ade080993d8 none
+stance5/tailscreen/probes/unclip/out/log_s42_h040.txt scratchpad2/tailround/probes/unclip/out/log_s42_h040.txt 21e356fcb7afd1ad1fa3cd6af27989636961a919b445a3963a57cf7a509c2047 prefix2
+stance5/tailscreen/probes/unclip/out/log_s42_hold.txt scratchpad2/tailround/probes/unclip/out/log_s42_hold.txt 64b4bcb19264233532f16f8ef3b7f0ce4384de4956477a48b4f0b22a912e040e prefix2
+stance5/tailscreen/probes/unclip/out/log_s80_h040.txt scratchpad2/tailround/probes/unclip/out/log_s80_h040.txt 669aa9b730fbe6e76381193ab53136adf0f3e5790a8e866d6450d59b7441d1c1 prefix2
+stance5/tailscreen/probes/unclip/out/log_s80_hold.txt scratchpad2/tailround/probes/unclip/out/log_s80_hold.txt 34ff0919af50b01240f83a420fab1dbec9586fb69cc38d8f7fe95fe1756a01d5 prefix2
+stance5/tailscreen/probes/unclip/roll_hold.py scratchpad2/tailround/probes/unclip/roll_hold.py 394d169b5e67c6da4b63aa6ffab2243ebb4d95e3b0646e9ca3e6c67dc50f7d73 none
+stance5/tailscreen/probes/unclip/roll_unclip.py scratchpad2/tailround/probes/unclip/roll_unclip.py 76c1ddc32d800aa5b77eff09527b09e4d2e2eaad4a9b83f0d3fa06e83147fd0b none
+stance5/tailscreen/results/panels.csv scratchpad2/tailround/screen/panels.csv a98a4bf4fa44fad9f3234609ae310c01490ad2bb66993a392adf745b70da7dab none
+stance5/tailscreen/results/run_log.txt foot/stance4/live/run_log.txt e9367d9035f73e271e9bd58a0b30d800728133532946e26566c4ed62731379ee lines,redact
+stance5/tailscreen/results/run_waves.out scratchpad2/tailround/screen/logs/run_waves.out 543769c23bb052bcf4e75f09d3faddb951ad6122c90cda90467e4b9f1612acce none
+stance5/tailscreen/results/score.json scratchpad2/tailround/screen/scores/score.json 471ad8e45117487d3d2dd80bdb694073d55094bdffe9c8d7831b27ffde823c49 none
+stance5/tailscreen/results/score.txt scratchpad2/tailround/screen/scores/score.txt 66c4a92d1a2d5a340da01d5a8c32495bee36ff895105de4545a2bc38a8c4cb63 none
+stance5/tailscreen/tools/calib_tailscreen.py scratchpad2/tailround/screen/tools/calib_tailscreen.py c751931639ca41adf3539309854545f96c02fb0b7d6ab50e905690eb91abf6f2 none
+stance5/tailscreen/tools/copy_durable.sh scratchpad2/tailround/screen/tools/copy_durable.sh 9a3932e121e97027d6057cd9307fbc98f63ad301c121d35a8ba6b693064376a6 trailer,prefix2,checkout
+stance5/tailscreen/tools/gate.sh scratchpad2/tailround/screen/tools/gate.sh 4ef908ae8ac116e7a809e655caf56c1aaa3cd4a9e87ffd34c9a4bc1ad0b398b6 prefix2
+stance5/tailscreen/tools/measure_tailscreen.py scratchpad2/tailround/screen/tools/measure_tailscreen.py 613212ce240e425d4c36b7dcfa76ad64d141bebb0a8f510852cb4f3410e153b1 checkout
+stance5/tailscreen/tools/run_tailscreen.py.gz scratchpad2/tailround/screen/tools/run_tailscreen.py 9527231283e4db295a603d79f2fb8d58524fbd2d4c5618307b1a03790e77b3f3 gzip
+stance5/tailscreen/tools/run_waves.sh scratchpad2/tailround/screen/tools/run_waves.sh ffcbfe2749714abc308aab17c8f6ab0c373b04816b2e4bd3243fd0d25881e1ed prefix2
+stance5/tailscreen/tools/score_tailscreen.py scratchpad2/tailround/screen/tools/score_tailscreen.py 3cd4724761fcdbde68d95b28d6e2afa5980f0acbdde5b8e27c8115816d932d19 none
+stance5/tailscreen/tools/screen_common.py scratchpad2/tailround/screen/tools/screen_common.py c9925334108f6d5f1ab4300bb9c3e00bdb775c5fc237fc1d08f07b97d550607e prefix2,prefix
+stance5/tailscreen/tools/tests/test_measure.py scratchpad2/tailround/screen/tools/tests/test_measure.py 8bcd7258ead48998cd5f3425cf79b1de3faa198d33d427aad8fdbea38dfa21b5 none
+stance5/tailscreen/tools/tests/test_score.py scratchpad2/tailround/screen/tools/tests/test_score.py 85ee6a2bd307d016fcd9d34f28b613282a09f981e01a8e558a7a708ea4e78d8e none
+stance5/tailscreen/tools/tests/test_t7_screen.py scratchpad2/tailround/screen/tools/tests/test_t7_screen.py 46fe33401ac22521bf719ac2a43b0aa0ccaecfbb01e5ae450dcebc4d36a93388 none
+stance5/tailscreen/tools/tests/test_tools.py scratchpad2/tailround/screen/tools/tests/test_tools.py fa0136bc4ff6a698ae4ad129d441e0d0102e47d766fb7baec82db041c811cc36 none
+stance5/tailscreen/verify/REPORT.md scratchpad2/tailround/screen/verify/REPORT.md 00175a35f7e4d0de832e8b849ba2bfbcddc2bbebdf7ca30685ef3668b4cfbe12 none
+stance5/tailscreen/verify/provenance/check_manip.out scratchpad2/tailround/screen/verify/provenance/check_manip.out bfea01b756f85c3bbd671c4605ed335c5b099a56107052aecb6d17ab07a77ec5 none
+stance5/tailscreen/verify/provenance/check_manip.py scratchpad2/tailround/screen/verify/provenance/check_manip.py 194e86fe366bd8916681e24590291f351366143ef3bf6d7ab53116496c29aa7e none
+stance5/tailscreen/verify/provenance/check_prov.out scratchpad2/tailround/screen/verify/provenance/check_prov.out d93f6e415be6b2bc2efff9b951666c46fe0701858c63ce771f61ff783309c6c9 none
+stance5/tailscreen/verify/provenance/check_prov.py scratchpad2/tailround/screen/verify/provenance/check_prov.py 7cf86eae464ca0144ee6ccfa25b2b836a5aed932edd5840db53e3b2532a5df05 none
+stance5/tailscreen/verify/remeasure/compare.json scratchpad2/tailround/screen/verify/remeasure/compare.json eb00f66bde91f05de767a6c2b0cecc27f5d75d5d596e937f8523c34eff490f94 none
+stance5/tailscreen/verify/remeasure/out/s42_b60_r101/final_flags.csv scratchpad2/tailround/screen/verify/remeasure/out/s42_b60_r101/final_flags.csv 00050bb235fd490b5020af2c83e31a871851670eb7eb90f8be5e8e1d1071a0ce none
+stance5/tailscreen/verify/remeasure/out/s42_b60_r101/final_row.json scratchpad2/tailround/screen/verify/remeasure/out/s42_b60_r101/final_row.json eb1ac3be7dec47f5c15203ad5da4c61ff2d88856b56a25eec43d278456cca655 whitespace
+stance5/tailscreen/verify/remeasure/out/s42_control_r202/final_flags.csv scratchpad2/tailround/screen/verify/remeasure/out/s42_control_r202/final_flags.csv 23cffa753302bd3517be97bb895d15d28b1ea9a766558cfbeab790bbfebfc88d none
+stance5/tailscreen/verify/remeasure/out/s42_control_r202/final_row.json scratchpad2/tailround/screen/verify/remeasure/out/s42_control_r202/final_row.json e70ff5cb6bbf2b2d0ae039ce8d22c60694d65fe5e055e2cbc2ec7f40bd69221b whitespace
+stance5/tailscreen/verify/remeasure/out/s80_b90_r202/final_flags.csv scratchpad2/tailround/screen/verify/remeasure/out/s80_b90_r202/final_flags.csv a3fe67110596ed0c8bc84c3c47c6eb2d44a6daa053e712deab4c833dc2c00801 none
+stance5/tailscreen/verify/remeasure/out/s80_b90_r202/final_row.json scratchpad2/tailround/screen/verify/remeasure/out/s80_b90_r202/final_row.json bdbccf6d31e1cb26837afe3e7cf47e9b6d951cc1e1391630ecf6ac50526f085f whitespace
+stance5/tailscreen/verify/remeasure/out/s80_control_r303/final_flags.csv scratchpad2/tailround/screen/verify/remeasure/out/s80_control_r303/final_flags.csv 0ec5555b52687d0249876a3e4f4ac146bc671277baaf142f7baeb46fc80ff66a none
+stance5/tailscreen/verify/remeasure/out/s80_control_r303/final_row.json scratchpad2/tailround/screen/verify/remeasure/out/s80_control_r303/final_row.json 21a949513f3d1410d39e45f97d61277c90586065539da339af1a48a4dfee3551 whitespace
+stance5/tailscreen/verify/remeasure/scripts/compare.py scratchpad2/tailround/screen/verify/remeasure/scripts/compare.py 91edc1b169df1af5ce9f1d313639ef5fc425178197d055f4d206506e4e971ea3 prefix2
+stance5/tailscreen/verify/remeasure/scripts/remeasure.py scratchpad2/tailround/screen/verify/remeasure/scripts/remeasure.py 22e4d172e7ee676624ab6dce37b558095b0807c7e3415123697173d72e4e63ac prefix2
+stance5/tailscreen/verify/rescore/compare.out scratchpad2/tailround/screen/verify/rescore/compare.out 87bb47593bf89cbc391f1962d5a3ad7c05ad630879c3efb880eef873d3a4b2dd none
+stance5/tailscreen/verify/rescore/compare.py scratchpad2/tailround/screen/verify/rescore/compare.py 483fb6f81d12af52fe47d0b5083186ca33a440ce24d888744d1e2e39ae0cba8b none
+stance5/tailscreen/verify/rescore/rescore.json scratchpad2/tailround/screen/verify/rescore/rescore.json 44b23a0c49cc8cff5a5607bfecde6009522bf945baacc9552924cc8e6b04ae0e whitespace
+stance5/tailscreen/verify/rescore/rescore.out scratchpad2/tailround/screen/verify/rescore/rescore.out 992b9bbb562500ac21a068ec8b3a45c34e297bf4233c70cde2cab46bdc807eae none
+stance5/tailscreen/verify/rescore/rescore.py scratchpad2/tailround/screen/verify/rescore/rescore.py 35a1d927f99f44f0dec1e24b890ac27194c8ebc85bc0bfeb90631fdaaa239381 none
+stance5/tailscreen/verify/rescore/sens.out scratchpad2/tailround/screen/verify/rescore/sens.out 4d81d1f3c627d126ee07b7810781e2cc929729af0a6d857a144909d9290a617d none
+stance5/tailscreen/verify/rescore/sens.py scratchpad2/tailround/screen/verify/rescore/sens.py 46d1485b3eb0c40ac6c87e5b81c46fc9a9381d167aebdefcbaf3c03fcd8beba0 none
 symmetry/J1_recount.log foot/symmetry/screen/analysis/J1_recount.log ad7297a2009227b47fa20eba17c5e5e730aa2b761a15be0615489188ff247a31 none
 symmetry/J2_recount.log foot/symmetry/screen/analysis/J2_recount.log a2eb01c9f5df0c0bb695cfca5524972260208134419ce8a348bc21d4e2560378 none
 symmetry/ema_credit.json foot/symmetry/review2/ema_credit.json 90ec310e68f8c0c6380c090a83b6b06fa1c8cafb6c397a171f051ee224e4cfe1 whitespace

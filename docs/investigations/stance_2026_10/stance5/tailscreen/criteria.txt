@@ -1,0 +1,566 @@
+T. REX TAIL_3 UPPER MEAN BOUND, TWO BOUNDS AGAINST CONTROL, REPLICATED CPU CONTINUATION SCREEN (SCRATCH): FIXED CRITERIA
+-- FINAL (every pin filled) FOR THE MAINTAINER'S APPROVAL
+
+STATUS: FINAL, written 2026-10-24 from v2 (SCREEN/criteria/criteria_tailscreen_v2.txt, sha256
+75f4c4c2851d447635b3facbdc02afd7622272f77ec31ce2b2fa0b476b70df91; v1 criteria_tailscreen_v1.txt sha256
+6a7f9e0390854079ad80fb5636c7bddfce4186f091cb701ebd72542584bb1453) after two reviews of the built package (code and criteria);
+their fixes are listed in APPENDIX F, and APPENDIX V2 and v1's APPENDIX R stand. The maintainer's decisions of 2026-10-24 17:46
+UTC (RUNLOG line 538) and the technical defaults of decisions_v1.md (sha256
+3a78622e78e3b1205082b8cba5ddfa26f260ac0e826e3dbb8e831aebd2c2f113) are applied. Not approved. Nothing trained: the package was
+built and checked against this text (SCREEN/criteria/BUILD_SPEC.md, sha256
+e495a5f7d4af8efd8af8c363ee40773b2d576243a0499d5d0f3c9e648046e198; where it differs, this text governs, APPENDIX F) WITHOUT any
+optimizer step on any policy. Every pin below is filled from sha256 computed on 2026-10-24 [measured]. Two choices are put to
+the maintainer in SCREEN/APPROVAL_REQUEST.md (the COEF level, and the reading of "per bound"); this text runs P1's rule as
+written (COEF_90 = COEF_60 = 2.4), and any other choice needs a revised text and re-pinned tools before approval. Once
+approved, this text goes byte for byte to SCREEN/criteria.txt (chmod 0444), its sha256 (SCREEN/criteria/
+criteria_tailscreen_final.sha256) is recorded in RUNLOG and in SCREEN/APPROVED, and it is not edited after that.
+
+Short names (as v1). SP = /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad (project
+record). S2 = /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad (this session). SCREEN =
+S2/tailround/screen. DRAFT = S2/tailround/criteria/draft (trace_s42/, trace_s80/, *.agg.json, stoch_*, dose.json, arith.out,
+start_sha256.txt, trace_overlay_sha256.txt). FEAS = S2/tailround/criteria/review-feasibility (throughput and determinism runs,
+nothing saved). DEC1 = S2/tailround/criteria/decisions_v1.md. BRIEF = S2/tailround/brief_v2.md (sha256 903d7218...). TAILEXP =
+SP/foot/stance5/tailexp/report.md (its skeptic checks govern), with TCSV (results.csv), TTEL (train_telemetry.csv), LAMBDA
+(lambda.json), lambda_calib.py, run_continuation.py in that folder. SAT =
+/home/user/mesozoic-labs/docs/investigations/stance_2026_10/stance4/satdiag/report.md and rollout/tables/checkpoint_table.txt.
+K3DIAG = SP/foot/stance5/k3diag/report.md and files/summary.json. SATROLL5 / SATROLL5R = the stance5 / stance5r satroll JSONs.
+SCORE5R = SP/foot/stance5/replication/scores/score_final.txt. RUNLOG = SP/foot/stance4/live/run_log.txt. PROBES =
+S2/tailround/probes. Labels: [measured] = read or computed from the named file; [inferred] = reasoned from measured numbers.
+
+WHY THIS IS RUN
+- Maintainer decisions [measured, RUNLOG]:
+  - 2026-10-24 16:00 UTC (line 509): (1) a scratch CPU continuation screen whose criteria are approved before it runs (a
+    training-loss change); (2) scope: tail_3 (tail_3_pitch_act, index 14), UPPER side only; (3) "rail cleared but tail parked
+    (command about 0.6-0.9)" counts as NOT ADOPTED and goes to the posture decision.
+  - 2026-10-24 17:46 UTC (line 538): (1) three arms: CONTROL, BOUND90 (b = 0.90, rail guard) and BOUND60 (b = 0.60, posture
+    bound), tail_3 upper side only, 3 replicates x 2 states (18 runs, about 6 h CPU); (2) the parked rule stays literal (CMD
+    >= 0.60 with the rail clear is PARKED = NOT ADOPTED; clean holding states such as stance3 Run 2's final read PARKED as
+    postures, with no verdict or parent changes); (3) durable copy: an orphan never-merged handoff-style branch carrying the
+    screen data and the bound patch as a file (explicit OK for the scratch patch on origin as a file); (4) horizon: one
+    continuous 1M run per replicate (4.19M -> 5.24M), read at 5,111,808 and the end; technical defaults from DEC1 (coef by
+    P1's rule per bound, reading order, R1/R2 mean, RAIL = tail_3 tail-up flags with OTHER as harm review, seeds 101/202/303).
+- Question [inferred, BRIEF 2A and 3]: does a training-loss bound on tail_3's Gaussian mean, upper side, remove the tail
+  habit in DETERMINISTIC play, (a) once pinned (stance5 s42) and (b) at onset (stance5r s80), across replicates, before any
+  from-scratch GPU round; and does it matter whether the bound sits at the saturation ramp (0.90) or at the posture line
+  (0.60)?
+- Why replicates [measured, TAILEXP checks 1-2]: P1 (bound 1.0, all 15 actuators, coef 41, one seed) kept tail_3's mean
+  beyond +1 on only 2.5% of training rows against CONTROL's 27.5%, yet its deterministic raw mean was beyond +1 on 21-46% of
+  window steps at 7 of 9 checkpoints, and it relapsed (frac99 0.470 at 5,242,880, 0.488 at final). Two no-penalty draws from
+  one state differed by 0.75 in frac99 at 5,242,880 (CPU CONTROL 0.925, GPU original 0.171).
+- Scratch only: a clone never pushed, no PR, no stage config key, no screen or judged run changed. The only thing that
+  reaches origin is the durable copy (D8; a never-merged orphan branch, after approval, once training starts).
+
+PREDICTED OUTCOME (stated before anything runs) [inferred unless marked]
+- BOUND90: most likely NOT ADOPTED, with s42 reading RAIL or PARKED and s80 reading PARKED (DEC1 headline). A wall at 0.90 on
+  training rows does not ask the deterministic posture to come down.
+- BOUND60: open. Most plausible readings are PASS or PARKED; OTHER is a real risk.
+  - For PASS: the bound pulls on the same quantity the loop holds up. CMD is set by a positive loop: holding tail_3's command
+    at 0 / 0.9 gives a policy mean of 0.321 / 0.916 at s42 and 0.205 / 0.798 at s80 [measured, PROBES noisevalue analyze.out,
+    det cells], so the loop gain g is about 0.66 and CMD is about c / (1 - g): 0.95 at s42 (measured 0.92), 0.60 at s80
+    (measured 0.63). CMD < 0.60 needs the open-loop part c below about 0.20 at both states (from 0.32 at s42, 0.205 at s80).
+    A bound at 0.60 penalises exactly the rows whose mean sits above the line.
+  - For PARKED: the bound acts on training rows, the readout is deterministic. In P1 a training-row tail_3 mean of 0.566 still
+    gave CMD 0.837 with 12 of 20 flagged (5,242,880), and 0.594 gave CMD 0.703 (4,980,736) [measured, TCSV]. A replicate whose
+    training rows sit at about 0.60 can read PARKED; s80's start sits on the line (CMD 0.6285, SE 0.048).
+  - For OTHER: the start pull is large. At COEF 2.4, BOUND60's realised pull on bias[14] at the start is 1.154 at s42 (2.2x
+    s42's G_pg RMS 0.513, 10.0x its mean outward pull |mean G_pg| 0.116) and 0.283 at s80 [measured, calib/coef.json]. DEC1
+    D2(c) calls this close to a reward change. The plant lets tail_2 raise the tip without saturating [measured, RUNLOG line
+    508], so substitution or falls are possible; OTHER catches them.
+- Why the bounds are worth comparing: BOUND90 reading RAIL or PARKED while BOUND60 reads PASS would say the posture, not the
+  rail, is what a bound must target; both PARKED would say neither bound moves deterministic play enough.
+
+WHAT IS TRAINED
+- Code: a scratch clone of claude/screen-trex-r9-armlts-copband at cf80ecb14d1630ce3b4dcdea28a05835d143470b (the commit both
+  start runs trained on: git_commit in each run's 01_stance/stage_config.json [measured]) at SCREEN/scratch_tail3bound, branch
+  scratch/tail3-upper-bound, push URL DISABLED-never-push, plus the linear commits cf80ecb1..4c0c8da7 (SCRATCH COMMIT
+  4c0c8da76d14f4b482f1fc63e0cf57af79b0184f, tree cf99a99eaeba42a342cf90b4f535df0429a730a5): 2cc1921d (the bound and its tests)
+  and 4c0c8da7 (T1a/T1b's coef-0 identity made non-vacuous; tests only). Their changed files together are exactly
+  environments/shared/mirror_kl_ppo.py and environments/shared/tests/test_mirror_kl_ppo.py; mirror_kl_ppo.py is byte-identical
+  at 2cc1921d and 4c0c8da7 [measured, git diff --stat]. The judge clones under SP/fix stay untouched and clean (git status
+  --porcelain --ignored empty before and after every build step [measured 2026-10-24 17:50, 18:41 and 19:01 UTC: scratch_copband
+  cf80ecb1, screen_s3_L 7e6b557d, screen_s3_LT 1af2d4d7, screen_s4_LTS c1e146a8, all empty; the main checkout's status digest
+  unchanged]).
+- Training setup: P1's same-stage resume, as run_continuation.py [measured, TAILEXP "Exact change"; docstring]: MirrorKLPPO
+  (kappa 0.3), n_envs 4 DummyVecEnv, device cpu, torch threads 1, VecNormalize statistics updating, LinearSchedule 3e-5 ->
+  1e-5 and clip schedules at the run's position (_total_timesteps 12,000,000, reset_num_timesteps False),
+  EntCoefDecayCallback (anchor 7,000,000), n_steps 2048 x 4 = 8,192 per rollout, batch 128, n_epochs 10, target_kl 0.03
+  [measured, band stance.toml; FEAS throughput_*.out]. Nothing else changes.
+- Software stack, pinned [measured, this session, 17:50 UTC]: Python 3.13.17, torch 2.13.0+cpu, numpy 2.5.4, gymnasium 1.4.0,
+  stable-baselines3 2.9.0, MuJoCo 3.10.0; venv S2/venv; python -I -B (under -I Python ignores PYTHONDONTWRITEBYTECODE;
+  run_tailscreen.py also sets sys.dont_write_bytecode, and every clone check counts ignored files). This differs from the runs'
+  recorded stack (gymnasium 1.3.0, numpy 2.1.3, Python 3.13.15 [measured, RUNLOG line 421]); the trace tool still reproduces
+  both start panels on it (V1). Same-seed CPU training on it is deterministic: two seed-101 runs from s42 gave the same
+  parameter+VecNormalize digest 1aeb0fd039680b23 [measured, FEAS determinism_a/b.out].
+- Arms (identical except coef and b):
+  - CONTROL: coef 0. The bound is configured with b = 0.90 for logging only: L_B is computed under no_grad from the hook's own
+    mean and only logged; training is bit-identical to no bound (test T1).
+  - BOUND90: coef = COEF_90, b = 0.90.
+  - BOUND60: coef = COEF_60, b = 0.60.
+- The penalty (one formula, two values of b): on each mini-batch of each epoch, with mu = the pre-clip Gaussian mean with
+  gradient (policy.get_distribution(obs).distribution.mean):
+      L_B = mean over the mini-batch's rows of relu(mu[:, 14] - b)^2
+  added as coef * L_B in MirrorKLPPO._mirror_loss after kappa * L_K, so train() and train_source_diff are unchanged. L_B is
+  computed before the approx_kl early-stop check and does not enter it [measured: band mirror_kl_ppo.py lines 276-294, 380,
+  391, 399]. The hook's own mu is under no_grad (line 280), so a separate forward pass with gradient is used when coef > 0
+  [measured]. Only the upper side of index 14 is penalised: rows with mu[:, 14] <= b, every other actuator and the lower side
+  carry no gradient (T3). Logged per update: train/tail3_bound_penalty, _loss, _beyond_fraction (rows with mu[:,14] > b),
+  _mu_max, _coef, _b. tail_3 maps to itself with sign +1, so the penalty is mirror-invariant (T4).
+- Checkpoints: the bound's state lives in an attribute listed in MirrorKLPPO._excluded_save_params (as _mirror is
+  [measured, band lines 227-228]); only a JSON record mesozoic_tail3_bound (coef, bound, index 14, side "upper") is saved. A
+  BOUND zip loads with stock PPO in the measuring copy (T7); loading never re-enables the bound.
+- b values (maintainer decision 17:46): 0.90 is where the saturation ramp starts, below the gate's 0.99 [measured:
+  stance.toml action_saturation threshold 0.9; gate bar 0.99]; 0.60 is the PARKED line itself (the ruling's lower end and
+  SAT's T2 watch threshold [measured, RUNLOG 16:00; SAT section 7]). No data predict where the deterministic mean settles
+  under either [inferred, BRIEF 2A].
+
+COEF, PER BOUND (the rule is fixed now; the numbers are pins written before any training step)
+- What the calibration measures (calib_tailscreen.py, a copy of P1's lambda_calib.py procedure; NO optimizer step, NO
+  parameter change, nothing saved but coef.json):
+  - For each start state (s42, s80): the run's training setup is built exactly as run_tailscreen.py builds it (rep seed 101).
+    4 rollouts of 8,192 steps are collected with SB3's own collect_rollouts (stochastic policy, VecNormalize statistics
+    updating in memory, GAE computed), with no update in between: the policy parameters and Adam state stay the checkpoint's
+    (their digest is checked equal before and after).
+  - For each rollout, one pass of 64 mini-batches of 128 (rollout_buffer.get(128), as train() draws them), at ratio 1 (the
+    first epoch's situation), advantages normalised per mini-batch as SB3 2.9.0 train() does. Per mini-batch:
+      G_pg = d(clipped surrogate) / d(action_net.bias[14]), the policy-gradient pull on tail_3's mean as a parameter;
+      G_pen(b) = d(L_B at b, coef 1, on the mini-batch's actual rows) / d(action_net.bias[14]), for b = 0.90 and b = 0.60;
+      share of rows with mu[:, 14] > b, for b = 0.90 and 0.60.
+    Gradients come from torch.autograd.grad and are discarded; nothing is applied.
+  - 256 mini-batches per state, 512 pooled.
+- The fixed formula (P1's rule, scoped to one actuator and to the bound b):
+      COEF_b = RMS(G_pg) / (2 x 0.11), RMS over the 512 pooled mini-batches (sqrt of the mean of G_pg^2, mean included),
+      rounded to two significant figures by Python's format(x, ".2g").
+  2 x 0.11 is L_B's pull on bias[14] per unit coef on a mini-batch whose tail_3 means all sit 0.11 above b (P1's reference
+  excess, 1.11 - 1.0 [measured, LAMBDA]); for a one-actuator mean-over-rows penalty it does not depend on b or on the batch
+  size.
+- STATED PLAINLY: neither term of the formula depends on b (G_pg is the surrogate's gradient; the reference excess is 0.11
+  above whichever b), so the rule gives COEF_90 = COEF_60 by construction [inferred from the formula]. Both are written to
+  coef.json separately and pinned separately; the scorer checks each against the rule. What differs between the bounds is the
+  realised pull at the start, which coef.json records per state and per bound:
+      realised_pull(state, b) = COEF_b x mean over that state's 256 mini-batches of G_pen(b),
+  beside RMS(G_pg) and mean(G_pg) for that state. MEASURED [calib/coef.json, written 2026-10-24 18:16:15 UTC, seed 101,
+  before any training step; parameter and Adam digests equal before and after]: RMS(G_pg) 0.513 at s42 (mean -0.116), 0.540
+  at s80 (mean -0.105), pooled 0.52668 over 512 mini-batches -> 0.52668 / 0.22 = 2.394 -> COEF_90 = COEF_60 = 2.4. Realised
+  start pull at 2.4 (share of the state's rows above b): BOUND90 0.0832 at s42 (0.72x |mean G_pg|; 34.1%), 0.0015 at s80
+  (0.7%); BOUND60 1.154 at s42 (2.2x RMS, 10.0x |mean G_pg|; 91.1%), 0.283 at s80 (51.5%). v2 expected 2.7 from P1's
+  seed-42 s42 RMS 0.602; the difference is the calibration draw (below).
+- COEF_90 = 2.4; COEF_60 = 2.4 (calib/coef.json); coef.json sha256
+  f6d90f99fc09c09577af9dc2bf4e00fde6537cc8c4fc631af055eaf26880c18d. coef.json is written once (refused if it exists) and before
+  any training step. It was written by calib_tailscreen.py sha256
+  c751931639ca41adf3539309854545f96c02fb0b7d6ab50e905690eb91abf6f2 (the pinned file, unchanged since) with the clone at
+  2cc1921d, whose mirror_kl_ppo.py is the pinned commit's.
+- Against P1 [inferred from measured inputs]: per unit of tail_3 excess, P1 pulled 41 x 2/15 = 5.47; the rule's 2.4 pulls
+  2.4 x 2 = 4.8, about 12% softer per row than P1 (v2's "keeps P1's stiffness" held only at 2.7). The rule's value moves with
+  the calibration draw by about +-10%: per-rollout RMS 0.46-0.60 in this calibration, P1's seed-42 s42 draw 0.602 (-> 2.7), the
+  theory 1/(sigma sqrt(128)) 0.547 / 0.531 (-> 2.5) [measured: coef.json, LAMBDA; spread inferred]. The bound level decides how
+  many rows it acts on (s42 rows above b at the start: 34.1% at 0.90, 91.1% at 0.60 [measured, coef.json]).
+- MAINTAINER'S CHOICE (APPROVAL_REQUEST.md), not settled by this text: (i) run at the rule's measured value 2.4 (this text);
+  (ii) run at P1's per-row stiffness, 2.7; (iii) read "per bound" with P1's ABSOLUTE reference mean 1.11 (excess 1.11 - b):
+  COEF_90 = 0.52668 / (2 x 0.21) = 1.3, COEF_60 = 0.52668 / (2 x 0.51) = 0.52, start pulls BOUND90 0.045 / 0.0008 and BOUND60
+  0.250 / 0.061 at s42 / s80 [inferred from coef.json's per-unit pulls]. (ii) or (iii) needs a revised text and rule constant
+  (run_tailscreen.py, score_tailscreen.py, re-pinned); no new calibration (the pooled RMS is measured).
+- A NOT ADOPTED at COEF_b does not reject a stronger dose (DEC1 D3(c)).
+
+RUNS
+- Start states (periodic pre-update checkpoint pairs; sha256 equal to the judged ones [measured, DRAFT start_sha256.txt;
+  RUNLOG 16:08]):
+  - PERSISTENCE: stance5_LTSB_s42 at 4,194,304 (S2/tailround/fetch/stance5_LTSB_s42/A/): zip
+    d3c90db8c107ce1fef6b63efa3e8cdd2271e6e437a3abdb5b30f57b3f46b8df2, pkl
+    3903cbcfe43559c8f5dccc0b2d6ed01f3c3989f039f966b12ed6aaa7ecbca118. Recipe check against
+    SP/foot/stance5/runs/stance5_LTSB_s42/01_stance/stage_config.json (seed 42). On the rail: 10 of 20 flagged.
+  - ONSET: stance5_LTSB_s80 at 4,194,304 (S2/tailround/fetch/stance5_LTSB_s80/A/): zip
+    649db94c026db3925a43643dfcd58299877fbe7783bca25e7b7b6ca504a5a3cc, pkl
+    98fe304328256720f59658da9a0c2b7ccae89dd0cb5ad5798a1768383adc06d9. Recipe check against
+    SP/foot/stance5/replication/runs/stance5_LTSB_s80/01_stance/stage_config.json (seed 80). Clean: 40/40 judged, 0 of 20
+    flagged; its original run flagged at 4,325,376, alarmed at 4,456,448 [measured, SCORE5R lines 110, 130].
+  The continuation skips the update of the rollout ending at 4,194,304 and resets the envs (as P1) [measured, TAILEXP].
+- Replicates: K = 3 per arm per state, 3 arms x 2 states x 3 = 18 continuations; seeds 101, 202, 303 shared across arms and
+  states. The seed sets the training envs (seed..seed+3), the eval-env construction seed and the algorithm seed; the recipe
+  check still compares the run's own seed (42 / 80) with its stage_config.json. Names <state>_<arm>_r<seed> with arm in
+  {control, b90, b60}, e.g. s42_b60_r202. The three arms of one (state, seed) start from the same state with the same seed,
+  so they differ only by coef and b.
+- Length: ONE continuous run of 1,048,576 steps (128 rollouts) per replicate, 4,194,304 -> 5,242,880 (P1's endpoint). No
+  pause, no resume, no phase.
+- Order: 6 waves of 3, each wave the three arms of one (state, seed): (s42,101), (s80,101), (s42,202), (s80,202), (s42,303),
+  (s80,303). So each comparison of arms shares one wave's load, and an interruption leaves whole triplets.
+- Checkpoints: a periodic pair every 131,072 steps (stage1_<N>_steps.zip + stage1_vecnormalize_<N>_steps.pkl, cumulative N,
+  before that rollout's update) at 4,325,376 ... 5,242,880 (8), plus stage1_final.zip / stage1_final_vecnorm.pkl after the
+  last update. All kept; all 9 measured.
+- Telemetry per rollout (buffer before its update, as P1): tail_3 mu mean and quantiles (5/25/50/75/95), shares of rows
+  with mu > 0.60, > 0.90 and > 1 (all arms), sampled actions at the clip, log_std, the previous update's train/* values.
+
+HOW IT IS MEASURED
+- The panel: the per-step trace tool (environments/shared/reporting/episode_trace.py, scripts/episode_trace_report.py),
+  merged on main by PR #638 (merge 5f5dbf6b, 2026-10-24 17:18:36 UTC). Deterministic (frozen VecNormalize,
+  predict(deterministic=True) and its clip, env.reset(seed)), seeds 3042-3061, every actuator traced, window steps 200..L-1.
+- Measuring copy: git archive of cf80ecb1 (the env, task and plant the runs trained on) with these three files overlaid, at
+  SCREEN/measure_copy [measured sha256, DRAFT trace_overlay_sha256.txt; equal to origin/main 5f5dbf6b, re-measured 17:50 UTC]:
+  reporting/episode_trace.py 96ced68e124ddf4fa225ce32d93831a3e3261a2ba5b3ef502a0b900ce7b16c0b; scripts/episode_trace_report.py
+  b5923e5cfbcafd9f6e108df207a268500313de9bff44572121c8e3b48aad0af2; stance_diagnostics.py
+  c5a684cd5b64e8eb41246c9bbc0dc07760e110895ab4022d42546414888c565e. python -I -B, threads 1, nice 19. Panels are written to
+  SCREEN/panels/<name>/<label>/, outside the run folders (the tool refuses an out-dir inside a run directory).
+- Fit [measured]: on s42 4,194,304 it gives P1's start row exactly (DRAFT trace_s42.agg.json = TCSV start = LAMBDA); on s80
+  4,194,304 it gives PROBES noisevalue's deterministic free cell (DRAFT trace_s80.agg.json).
+- Per-episode flags (computed by measure_tailscreen.py from the per-step CSV and the trace JSON):
+  - TAIL-UP FLAG: the share of window steps with tail_3 command >= +0.99 exceeds 0.10.
+  - OTHER FLAG (the harm count; defined independently of the TAIL-UP FLAG): the harm statistic exceeds 0.10, or the episode is
+    shorter than 1000 steps. The harm statistic is the max, over every actuator except tail_3's UPPER side, of the share of
+    window steps at saturation: |command| >= 0.99 for the 14 other actuators, command <= -0.99 for tail_3. So a tail-up
+    episode is also an OTHER episode when another actuator saturates or it ends short, and adding tail-up saturation to an
+    episode never changes its OTHER FLAG. Actuator, sign and length are recorded (flags.csv other_stat, other_actuator,
+    other_sign, other_reason).
+  (The gate statistic, max over all actuators of the share at |command| >= 0.99, is recorded beside; a TAIL-UP FLAG always
+  trips it.)
+- Readouts per checkpoint (tail_3 unless named): frac99, frac90; CMD = mean over 20 episodes of each episode's window-mean
+  command; window-mean raw mean; shares of window steps with raw mean > 0.60, > 0.90 and > 1; window raw max; window-mean q3;
+  TAIL-UP and OTHER flag counts; falls; returns; other 14 actuators' max frac90, frac99, |raw mean|.
+- Read checkpoints: R1 = 5,111,808 (periodic) and R2 = final (5,242,880). They are 16 updates apart on one autocorrelated
+  trajectory, not independent. The periodic 5,242,880 checkpoint is one update from R2: measured and reported, not read.
+
+CRITERIA, PER REPLICATE (every arm; exclusive and exhaustive; read at R1 and R2)
+- RAIL: at least 1 TAIL-UP FLAG among the 40 episodes of R1 and R2.
+- PARKED: not RAIL, and the mean of CMD(R1) and CMD(R2) is >= 0.60. No upper end (the literal ruling, maintainer 17:46).
+- CURED: not RAIL, and that mean is < 0.60.
+- Missing or LOST replicates never help a bound: a missing BOUND90 replicate counts as RAIL for BOUND90 and a missing
+  BOUND60 replicate as RAIL for BOUND60 (neither touches the other bound); a missing CONTROL replicate counts as CURED at s42
+  (which can only move both bounds toward NOT SEPARATED) and as "did not take the rail" at s80 (which only changes the onset
+  note).
+- PARKED is a posture class for this screen only; it changes no K1 verdict, parent or criterion.
+
+CALIBRATION OF THE THRESHOLDS (references in REFERENCE TABLE; single-checkpoint classes RAIL / PARKED / LOW)
+- 0.60 is the ruling's lower end and SAT's T2 watch threshold [measured, RUNLOG 16:00; SAT section 7]. It is also BOUND60's b:
+  the bound acts on training-row means, the line on the deterministic window-mean command, so the two are not the same
+  quantity (P1: training-row 0.566 vs CMD 0.837 [measured, TCSV]).
+- LOW: the statue (0.000) and every unaffected L+T checkpoint rolled, -0.518 to +0.224 [measured, SAT].
+- RAIL: every pinned checkpoint, CMD +0.808 to +0.999, 1-20 of 20 flagged [measured, SAT, SATROLL5, SATROLL5R, TCSV].
+- PARKED: P1 at 4,980,736 (+0.703) and 5,111,808 (+0.794), the ruling's case; AND three clean states without a bound:
+  stance3 Run 2 at 10.49M (+0.866) and final (+0.841; 0/40 judged), and s80's start (+0.6285; 40/40 judged).
+- STATED PLAINLY: the ruling as worded classes clean holding states as PARKED, and the maintainer kept it literal (17:46). No
+  CMD line separates them from P1's parked checkpoints [measured values; inferred conclusion].
+- s80's start sits on the line: CMD 0.6285, episode sd 0.215, SE 0.048, 0.59 SE above 0.60 [measured, DRAFT arith.out]. So
+  at s80 a bound passes only by lowering the command; holding the start's posture reads PARKED [inferred].
+- Averaging R1 and R2 treats PARKED and CURED symmetrically. Its 40 episodes are paired, not independent (same reset seeds
+  3042-3061, checkpoints 16 updates apart on one trajectory), so the SE of the R1/R2 mean CMD lies between the 40-episode
+  value (0.019 at s42's episode sd 0.120, 0.034 at s80's 0.215) and the 20-episode value (0.027 / 0.048), nearer the latter
+  the more the two checkpoints agree [inferred].
+- Stray flags: in non-habit judged panels (39 panels, 1,560 episodes) there is 1 saturation flag [measured, K3DIAG
+  summary.json k3_table]. At that rate an arm's 120 episodes per state carry at least one stray flag with probability 0.074
+  [inferred]. Hence RAIL counts tail_3 tail-up flags only, and OTHER flags are compared between each bound and CONTROL.
+
+DECISION
+Each bound is read against CONTROL on its own; BOUND90 and BOUND60 are never compared with each other for a verdict.
+
+State readings, for each bound B in {BOUND90, BOUND60} and each state (the first line that applies gives the reading; every
+line that applies is reported):
+- PERSISTENCE (s42):
+  1. RAIL: at least 1 B replicate is RAIL.
+  2. PARKED: at least 2 B replicates are PARKED.
+  3. OTHER: B's OTHER FLAG episodes at R1+R2 (out of 120; every episode counts, tail-up or not) exceed CONTROL's.
+  4. NOT SEPARATED: at least 2 CONTROL replicates are CURED. (CONTROL is shared, so this line is the same for both bounds.)
+  5. PASS: otherwise (then at least 2 B replicates are CURED).
+- ONSET (s80):
+  1. RAIL, 2. PARKED, 3. OTHER: as at s42.
+  4. PASS: otherwise.
+  Onset note (one per screen, from the shared CONTROL): INFORMATIVE if at least 2 of 3 CONTROL replicates had at least 1
+  TAIL-UP FLAG at any of their 9 measured checkpoints; otherwise "onset not tested" (a PASS stands, with the note). The note
+  states how many of the 9 checkpoints each s80 CONTROL replicate has measured; while any is missing for a replicate that is
+  not LOST, the score is PROVISIONAL.
+  The readings are monotone in CONTROL: a CONTROL replicate moving CURED -> PARKED -> RAIL, more CONTROL onset, or more CONTROL
+  OTHER FLAG episodes never moves a bound's reading to an earlier line. Because the OTHER FLAG does not read the TAIL-UP FLAG,
+  more CONTROL rail never lowers CONTROL's OTHER count (episode-level test, tools/tests/test_measure.py).
+
+Bound verdict, for each B separately (the first line that applies):
+1. Either state RAIL: B NOT ADOPTED (RAIL): it did not keep the rail away in deterministic play.
+2. Either state PARKED: B NOT ADOPTED (PARKED): rail cleared but tail parked (ruling (3)); routed to the posture decision.
+   No gate guard, no exemption.
+3. Either state OTHER: B NOT ADOPTED (OTHER): more other-actuator flags or short episodes under B; the flagged episodes go to
+   the maintainer as a harm / substitution review.
+4. PERSISTENCE NOT SEPARATED: B NOT ADOPTED (NOT SEPARATED): the controls cured themselves; B is not credited.
+5. Otherwise: B PASSED (with the onset note).
+
+Screen outcome (the first line that applies; the scorer prints this line, both bound verdicts and every state reading):
+A. BOTH PASSED. To the maintainer: both bounds as candidates for a from-scratch GPU round proposal (BRIEF section 4), each
+   needing its own fixed criteria. The screen does not rank them (K = 3, one shared CONTROL); report-only comparisons (CMD,
+   q3, returns, OTHER counts per arm) go beside. BOUND60's PASS is also posture evidence for the posture decision.
+B. ONE PASSED (BOUND90 PASSED, BOUND60 NOT ADOPTED (<reason>); or the reverse). To the maintainer: the passed bound as the
+   candidate for a from-scratch GPU round proposal with its own fixed criteria; the other bound's reason, routed as in C. If
+   the passed bound is BOUND60, the result is also input to the posture decision (B with a tail-chain revision, C), since a
+   0.60 bound is a posture intervention.
+C. NO BOUND ADOPTED. To the maintainer, per bound, by reason:
+   - RAIL: next candidate chosen by the maintainer: the deterministic-state variant (BRIEF 2A), a stronger dose (DEC1 D3(c)),
+     or the posture decision (B / C).
+   - PARKED: the posture decision (ruling (3)).
+   - OTHER: the harm / substitution review of the flagged episodes.
+   - NOT SEPARATED (then both bounds read it, unless an earlier line applied): more s42 replicates, or stop.
+   A named combination is reported as such: BOUND90 RAIL with BOUND60 PARKED reads "the lower bound cleared the rail but not
+   the posture"; both PARKED reads "neither bound moved deterministic play below the line".
+In every case nothing trains on the outcome without the maintainer's approval, and the outcome changes no screen, verdict,
+parent, criterion or stage config.
+
+Report-only beside the outcome (never in a verdict): per state, whether the arm means of CMD at R1/R2 are ordered BOUND60 <=
+BOUND90 <= CONTROL (dose ordering), with each arm's replicate classes.
+
+Fails stay fails. No replicate is stopped, changed, extended or rerun because of a readout. Nothing in this screen is stopped
+or changed on a readout: interim panels, telemetry and the 0.5M readings are recorded and shown, never acted on.
+
+RUN HANDLING
+- Before the first training step (the pre-training gate, SCREEN/tools/gate.sh, after SCREEN/APPROVED exists): the scratch clone
+  is clean (git status --porcelain --ignored empty) at 4c0c8da76d14f4b482f1fc63e0cf57af79b0184f, a linear descendant of cf80ecb1
+  with no merge, push URL disabled, and `git diff --name-only cf80ecb1..4c0c8da7` is exactly the two files named above; T1-T7
+  pass on it: gate.sh runs the whole clone test file (one test deselected, APPENDIX G) with MESOZOIC_TAILSCREEN_GATE=1 and
+  the tools tests, and writes
+  tests_out/gate_pass.json only if both pytest runs exit 0, no test failed, every test in screen_common.GATE_REQUIRED (gate tier
+  T1b, T2, T7b; build tier T1a at both b, T3, T4, T5, T7a unit and screen, the stock-train check, the config test, the preflight
+  pass test) is recorded "passed" per test (skipped, deselected or absent is NOT a pass), and the clone is still clean
+  afterwards; coef.json exists, follows the rule and was written before this gate; V1 and V2 are done; the stack equals the
+  pinned versions; criteria.txt's sha256 equals the one in SCREEN/APPROVED and RUNLOG; tools/screen_common.py's sha256 equals
+  c9925334108f6d5f1ab4300bb9c3e00bdb775c5fc237fc1d08f07b97d550607e (pinned here and in APPROVED as screen_common_sha256); every
+  tool equals its pin. run_tailscreen.py refuses to train otherwise (no --allow-dirty, no override), and checks the per-test
+  gate record itself.
+- Each replicate writes only into its own new folder SCREEN/runs/<name> (refused if it exists), with run_meta.json (args,
+  arm, seed, coef, b, start sha256, recipe checks, clone HEAD, commit chain and status with ignored files, stack versions,
+  criteria, coef.json and screen_common.py sha256, start and final digests, wall time). The waves are run by
+  SCREEN/tools/run_waves.sh (refuses without APPROVED and gate_pass.json; each replicate passes run_tailscreen.py's preflight).
+- Panels run on the fourth core, one at a time, as checkpoints appear (nice 19); a panel never touches a run folder.
+- Disk: before each wave and each panel, check free space; below 5 GB free, pause (nothing discarded) and tell the
+  maintainer. After a panel's row is in panels.csv, its per-step CSVs are gzipped with their sha256 recorded first.
+- Durable copy (D8, maintainer 17:46): an orphan, never-merged branch claude/handoff-tailscreen on origin (absent there on
+  2026-10-24 [measured, git ls-remote]), handoff-style (FILELIST.txt, SHA256SUMS, each file <= 5 MB), pushed by
+  tools/copy_durable.sh from a separate repository SCREEN/durable_repo (never from the scratch clone, whose push URL stays
+  disabled, a judge clone or the main checkout). It is first created once training starts (after approval; run_waves.sh runs
+  `copy_durable.sh init` once the first run_meta.json exists), not before: the first push carries criteria.txt, APPROVED,
+  APPROVAL_REQUEST.md, PINS.txt, coef.json, the scratch commits as a patch file (git format-patch cf80ecb1..4c0c8da7, sha256
+  ef0fe36b3c22f233f97e727429357163e7c38202699c804d12aa2ff20d00a55e), the tool scripts and their sha256, and the inputs needed to
+  rebuild the screen if the container is lost: both start checkpoint pairs (zip 4.03 MB, pkl 5 KB each), both recipe-check
+  stage_config.json files and RUNLOG. After each replicate finishes: its run_meta.json, progress.csv, telemetry.npz, the R1 and
+  R2 checkpoint pairs, every panel's episode_trace.json, flags.csv, csv_sha256.txt and trace_run.json, panels.csv and
+  panels_crashed.csv as they stand, its rerun comparison if any, and RUNLOG again. Never merged, never a PR.
+- A replicate crash (its own process killed, out of memory, exception before 5,242,880): `measure_tailscreen.py
+  --retire-crashed <name>` (called by run_waves.sh), under the panels.csv lock, moves its folder to
+  SCREEN/runs/<name>_crashed<k>, its panels to SCREEN/panels/<name>_crashed<k> and its panels.csv rows to panels_crashed.csv
+  (never deleted, never read for a verdict); a panel of the crashed attempt that finishes later writes no row (its checkpoint
+  is gone). The replicate reruns from the start checkpoint with the same seed and arguments; the rerun IS the replicate, and
+  its checkpoints are measured afresh. The scorer reads a panel row only if its zip_sha256 is the sha256 of the checkpoint
+  now in runs/<name> (for the final, also run_meta.final_sha256); otherwise PROVISIONAL. The checkpoints both attempts wrote
+  are compared (policy, optimizer and VecNormalize bytes; logs/<name>_rerun_compare.json) and any difference reported (the
+  rerun governs). Three own crashes, or a replicate that cannot run: LOST, declared by the maintainer in RUNLOG (and
+  SCREEN/LOST.txt with that RUNLOG line).
+- SCREEN INTERRUPTED (container or session lost, a whole wave killed, the venv gone): not a crash and never LOST; run_waves.sh
+  refuses (exit 3) when it finds a replicate left half-way. The decision stays incomplete. Inputs are restored from the
+  durable copy (start pairs, stage configs, RUNLOG, coef.json, patch, tools) and checked against the sha256 pinned here, on a
+  stack equal to the pinned versions; replicates whose R1 and R2 panels are in the durable copy keep them; the others rerun
+  from the start checkpoint. If the pinned stack cannot be rebuilt, the maintainer decides before anything reruns.
+- A panel crash is not a replicate failure: the panel is rerun on the same checkpoint (deterministic).
+- A refusal on the replicate's own records (start sha256, recipe check, clone state, stack, coef.json, APPROVED) stops it
+  before training; the cause is fixed and it starts again under the same name.
+- Reruns for any other reason (a readout, a better draw) are not allowed.
+
+WHEN THE DECISION IS READ
+- Once every one of the 18 replicates has R1 and R2 panels measured, or is LOST. Until then: "incomplete", no line read. A
+  bound's verdict is not read early even if its 6 replicates are complete: CONTROL is shared and the order of waves is fixed.
+- PROVISIONAL, and not acted on, while any of these stands (the scorer prints each):
+  - a pin is unfilled, criteria.txt's sha256 differs from the one in RUNLOG and APPROVED, screen_common.py's sha256 differs
+    from the one pinned here and in APPROVED, or a tool's sha256 differs from its pin;
+  - a run_meta.json shows a clone HEAD other than the pin, a dirty clone, a start sha256 other than its state's, an (arm, coef,
+    b) other than (control, 0, 0.90), (b90, COEF_90, 0.90) or (b60, COEF_60, 0.60), a seed other than its name's, or a stack
+    other than the pinned versions;
+  - the scratch commit's changed-file set differs from the two named files;
+  - T1, T2 or T7 has not passed on the pinned commit (both tiers; per test: every GATE_REQUIRED test recorded "passed");
+  - coef.json was written after a replicate's first training step, does not follow the rule for either bound, or records
+    another stack;
+  - a panel used a measuring copy with other overlay sha256, other seeds than 3042-3061, or another stack;
+  - V1 did not reproduce its values exactly;
+  - a read panel row's zip_sha256 is not the sha256 of the checkpoint now in runs/<name> (for the final, also
+    run_meta.final_sha256): a row of a crashed attempt;
+  - an s80 CONTROL replicate that is not LOST lacks any of its 9 panels (the onset note).
+- A decision neither incomplete nor provisional is final and goes to the maintainer at once.
+
+PRE-REGISTERED READOUTS (report only, never in a verdict)
+- Every readout of HOW IT IS MEASURED at all 9 checkpoints per replicate, with each checkpoint's single-checkpoint class;
+  per-arm means; the 4,587,520 and 4,718,592 readings (the 0.5M point) shown beside the verdict, not read.
+- Reach: window raw max, shares of window steps with raw mean > 0.60, > 0.90 and > 1, pinned-step raw mean, beside the
+  training-row shares above the same levels.
+- Posture: CMD and q3 against the start (s42 +0.925 / -0.0133; s80 +0.629 / -0.0385) and the statue (0 / -0.093)
+  [measured, DRAFT *.agg.json; SAT].
+- Telemetry per rollout: tail_3 mu mean and quantiles, shares above 0.60 / 0.90 / 1, penalty and loss, sigma, approx_kl, clip
+  fraction, ep_rew_mean; the other 14 actuators' share above 0.60 (expected 0 [measured, DRAFT trace json; TAILEXP check 3]).
+- Cost: falls, returns (each bound minus CONTROL; not independent evidence, the reward contains action_saturation and
+  tail_home_pose [inferred, TAILEXP; PROBES noisevalue]), other actuators' saturation, tail_1/tail_2 commands and joint angles
+  (substitution). No K3 noise falls: the window ends before any recorded K3 fall slot (s42's first at 7,340,032) [measured,
+  TAILEXP check 3; K3DIAG].
+- Validations, before the first screen training step:
+  - V1 (in the build; no training): the panel on both start checkpoints with the measuring copy gives exactly (frac values in
+    full, others to 6 decimals) [measured, DRAFT *.agg.json]:
+    s42: frac99 0.33825, frac90 0.7736875, CMD 0.924539, raw max 1.028092, 10 flagged, mean return 4379.390198;
+    s80: frac99 0, frac90 0.0011875, CMD 0.628516, raw max 0.902040, 0 flagged, mean return 4418.555849.
+  - V2 (in the build; no optimizer step): coef.json: per state the G_pg RMS and mean, the pooled RMS, COEF_90 and COEF_60 by
+    the rule, the realised pull and the share of rows above b per state and bound, the parameter digest before and after
+    (equal), the stack.
+  - V3 DEFERRED (it trains): not run in the build. After approval it may run once, report only, never blocking and never a
+    replicate: CONTROL, seed 42, from s42, 131,072 steps, panel at 4,325,376 against TCSV's control row (frac99 0.4793, CMD
+    0.9222, raw max 1.0438, 11 flagged). P1's stack was not kept, so bit-identity is not expected.
+
+WHAT IS MEASURED AND WHAT IS INFERRED
+- Measured: start sha256; both start panels (V1, re-run 2026-10-24 18:57 UTC with the fixed measure tool: equal); the
+  reference values; LAMBDA's G_pg RMS 0.602; the calibration (coef.json: G_pg RMS 0.513 at s42, 0.540 at s80, pooled 0.5267,
+  COEF 2.4 by the rule, the realised start pulls at 2.4 and the shares of rows above b); s80 sigma 0.1664; the PROBES hold
+  cells; the stray-flag count; throughput, determinism and stack (FEAS, this session); overlay sha256, the measuring copy's
+  tree digest and judge-clone state; every pin's sha256; one per-step CSV gzips 2.53x.
+- Inferred: COEF_90 = COEF_60 (from the formula; also measured); the +-10% seed spread of the rule's value; the alternative
+  coefs (2.7; 1.3 / 0.52) and their pulls; the loop-gain reading and predicted outcomes; that a CPU continuation behaves like
+  further training of the runs; the false-pass, power and stray-flag arithmetic; the paired-episode SE; compute and disk.
+
+KNOWN LIMITS
+- K = 3 detects only a large effect [inferred, DRAFT arith.out]: if both arms of a comparison cure with the same p, the s42
+  PASS line (B >= 2 CURED, CONTROL <= 1 CURED) is met by chance with probability 0.027 at p 0.1, 0.093 at 0.2, at most 0.25 at
+  0.5; with B 0.8 against CONTROL 0.1 it passes with 0.87, 0.7 vs 0.2 with 0.70.
+- Two bounds against one CONTROL: the chance that AT LEAST ONE bound meets the s42 PASS line by chance (all three arms with
+  the same p) is 0.054 at p 0.1, 0.18 at 0.2, 0.38 at 0.5 [inferred, binomial, same arithmetic]. The other lines (RAIL,
+  PARKED, OTHER, s80) only lower these. The two bound verdicts are not independent (shared CONTROL).
+- The bound acts on training rows; the readout is deterministic. P1 showed the gap (0.566 vs 0.837 above).
+- BOUND60's b equals the PARKED line; replicates whose R1/R2 mean CMD lands within about 0.03 of 0.60 classify by chance.
+- A continuation tests a state, not a recipe from scratch; s80 is one late onset of one trajectory. CPU and this stack, not
+  the L4 GPU and the runs' stack.
+- 1M steps cannot show a K3 cost.
+- No deterministic tail_3 command was ever recorded for band s52, s60 or s70 (bank rows only: 1.12 / 0.72 / 0.79
+  [measured, PROBES rowclass.out]); measuring them needs a Drive fetch.
+
+COMPUTE (4 CPUs, 15 GB RAM, 25 GB free disk [measured: nproc, free, df, 17:50 UTC])
+- Measured [FEAS throughput_*.out]: one replicate alone 87.1 s for 4 rollouts (21.8 s per rollout: 17.9-18.7 s to collect,
+  1.5-5.6 s to update); three at once 91.5 / 91.8 / 95.5 s for 4 rollouts (22.9-23.9 s per rollout). A 20-episode panel
+  about 1 min (2.9 ms per traced step [measured, DRAFT]). LAMBDA's calibration took 76 s per state.
+- Estimate [inferred]: 128 rollouts x 22.9-23.9 s = 48.9-51.0 min per replicate when three run at once; 6 waves of 3 =
+  4.9-5.1 h of training (4.65 h at the alone rate, not reachable at three at once). 162 panels of about 1 min on the fourth
+  core, overlapped (about 2.7 h of panel time inside the 5 h); the last wave's final panels add about 10 min. Pre-training
+  gate (gate-tier tests, about 10-20 min) before wave 1. About 5.5 h wall in all; range 5-8 h, since the three-at-once rate
+  was measured without a fourth process tracing beside it. The maintainer's "about 6 h" stands as the planning figure.
+- Build (done, no training) [measured]: calibration 158 s; V1 2 panels 124 s (64.6 + 59.3 s traced); build-tier tests 36 s
+  (191 passed, 3 gate-only skipped).
+- Disk [inferred from measured 44.2 MB per panel (DRAFT trace_s42), 2.53x gzip on one per-step CSV, 4.03 MB per zip]:
+  checkpoints 18 x 9 pairs about 0.65 GB; panels about 17.5 MB each once gzipped, 164 panels about 2.9 GB; peak about 3.7 GB
+  with one ungzipped panel in flight. Durable copy about 0.2 GB. Memory under 1 GB per process.
+
+BUILD LIST (BUILD_SPEC.md gives the exact interfaces; nothing trains in the build)
+1. Scratch clone of the band branch at cf80ecb1 into SCREEN/scratch_tail3bound (cloned from the judge clone scratch_copband
+   with --no-hardlinks; judge clones stay clean), branch scratch/tail3-upper-bound, push URL DISABLED-never-push.
+2. The bound commit (mirror_kl_ppo.py and tests/test_mirror_kl_ppo.py only): Tail3UpperBoundConfig(coef, bound, index=14);
+   tail3_upper_bound_penalty; enable_tail3_upper_bound(model, cfg | None); the term in _mirror_loss (gradient pass when coef >
+   0, no_grad and logged at coef 0); train/tail3_bound_* keys; state in an attribute listed in _excluded_save_params; JSON
+   record mesozoic_tail3_bound; off by default; no stage config key. Written fresh (P1's module is gone [measured, BRIEF 2A]).
+3. Tests T1-T7, adapted to two bounds, in two tiers: build tier (no optimizer step on any policy; run in the build) and gate
+   tier (optimizer steps on a small test model; run only by gate.sh after APPROVED). BUILD_SPEC lists them.
+4. SCREEN/tools/run_tailscreen.py (from run_continuation.py): --state {s42,s80}, --arm {control,b90,b60}, --rep-seed
+   {101,202,303}, --steps 1048576; coef and b from coef.json by arm; refuses without APPROVED; --preflight-only for tests.
+5. SCREEN/tools/calib_tailscreen.py: writes SCREEN/calib/coef.json (both bounds; refused if it exists).
+6. SCREEN/tools/measure_tailscreen.py: panels, flags, panels.csv, gzip.
+7. SCREEN/tools/score_tailscreen.py: classes, state readings per bound, bound verdicts, screen outcome, onset note,
+   PROVISIONAL checks and pins (the PINS block below); synthetic-row tests covering every line, monotonicity in CONTROL
+   outcomes, and bound independence (changing one bound's rows never changes the other's verdict).
+8. SCREEN/tools/copy_durable.sh (D8; dry run only in the build), SCREEN/tools/gate.sh, SCREEN/tools/run_waves.sh (built;
+   in the build only their refusals without APPROVED and run_waves.sh --plan were run).
+9. In the build: build-tier tests pass, V1, V2; then this text with the pins filled goes to the maintainer. After approval:
+   APPROVED (coordinator), gate.sh (gate-tier tests), sha256 of criteria.txt, scripts and coef.json recorded in RUNLOG, then
+   run_waves.sh (wave 1 first).
+
+PINS (filled 2026-10-24 [measured, sha256sum / git]; APPROVED repeats scratch_commit, COEF_90, COEF_60, coef_json_sha256,
+durable_branch and screen_common_sha256)
+- scratch commit 4c0c8da76d14f4b482f1fc63e0cf57af79b0184f (branch scratch/tail3-upper-bound; parent chain cf80ecb1 -> 2cc1921d
+  -> 4c0c8da7)
+- scratch tree cf99a99eaeba42a342cf90b4f535df0429a730a5
+- patch (git format-patch --stdout cf80ecb1..4c0c8da7) sha256 ef0fe36b3c22f233f97e727429357163e7c38202699c804d12aa2ff20d00a55e
+- tools/screen_common.py   c9925334108f6d5f1ab4300bb9c3e00bdb775c5fc237fc1d08f07b97d550607e
+- tools/run_tailscreen.py  9527231283e4db295a603d79f2fb8d58524fbd2d4c5618307b1a03790e77b3f3
+- tools/calib_tailscreen.py c751931639ca41adf3539309854545f96c02fb0b7d6ab50e905690eb91abf6f2
+- tools/measure_tailscreen.py 613212ce240e425d4c36b7dcfa76ad64d141bebb0a8f510852cb4f3410e153b1
+- tools/score_tailscreen.py 3cd4724761fcdbde68d95b28d6e2afa5980f0acbdde5b8e27c8115816d932d19
+- tools/copy_durable.sh    9a3932e121e97027d6057cd9307fbc98f63ad301c121d35a8ba6b693064376a6
+- tools/gate.sh            4ef908ae8ac116e7a809e655caf56c1aaa3cd4a9e87ffd34c9a4bc1ad0b398b6
+- tools/run_waves.sh       ffcbfe2749714abc308aab17c8f6ab0c373b04816b2e4bd3243fd0d25881e1ed
+- COEF_90 = 2.4, COEF_60 = 2.4; calib/coef.json f6d90f99fc09c09577af9dc2bf4e00fde6537cc8c4fc631af055eaf26880c18d
+- durable branch claude/handoff-tailscreen
+- measuring copy tree digest cf12a36b865a9172361c42372b31425d5c3545591447c67bb27e10ce8d5e3bc2 (overlays as in HOW IT IS
+  MEASURED)
+- validate/v1.json 8b479946b0da51ee6090846dca545edd64a0848e3391c0d6996c06ea3395e847 (passed)
+
+REFERENCE TABLE (deterministic, 20 episodes, seeds 3042-3061, window 200..999; CMD = window-mean tail_3 command; class by one
+checkpoint: RAIL if >= 1 of 20 flagged, else PARKED if CMD >= 0.60, else LOW. All values [measured] from the named source;
+unchanged from v1.)
+ #  state                                  CMD      frac99   frac90   flagged/20  class    source
+ 1  statue (zero action)                   +0.000   0.000    0.000    0           LOW      SAT checkpoint_table
+ 2  stance4 s42 1,048,576                  +0.065   0.000    0.000    0           LOW      SAT
+ 3  stance4 s42 2.10M..final (11 ckpts)    +0.888..+0.998  0.520..0.972  0.737..0.996  13..20  RAIL  SAT
+ 4  stance4 s52 2.1M / 4.2M / final        +0.065 / -0.252 / -0.486  0  0  0          LOW      SAT
+ 5  stance4 s60 2.1M / 4.2M / final        +0.141 / +0.224 / -0.518  0  0  0          LOW      SAT
+ 6  stance3 Run 2 3.15M / 4.19M / 5.24M    +0.975 / +0.999 / +0.990  0.802/0.975/0.948  0.899/0.998/0.950  17/20/19  RAIL  SAT
+ 7  stance3 Run 2 6.29M                    +0.873   0.019    0.278    2           RAIL     SAT
+ 8  stance3 Run 2 8.39M                    +0.191   0.000    0.000    0           LOW      SAT
+ 9  stance3 Run 2 9.96M                    +0.906   n/r      n/r      12          RAIL     SAT section 5
+10  stance3 Run 2 10.49M                   +0.866   0.000    0.061    0           PARKED   SAT (clean) 11  stance3 Run 2 11.53M
++0.896   n/r      n/r      1           RAIL     SAT section 5 (6/40 judged) 12  stance3 Run 2 final                    +0.841
+0.000    0.035    0           PARKED   SAT (clean; 0/40 judged) 13  stance5 s42 4,194,304 (start)          +0.9245  0.3383
+0.7737   10          RAIL     DRAFT trace_s42 = TCSV = SATROLL5 14  stance5 s42 5,242,880 (GPU original)   +0.9168  0.1712
+0.6697   6           RAIL     SATROLL5 = TCSV orig 15  stance5 s42 6,291,456                  +0.898   0.5648   0.7509   14
+RAIL     SATROLL5 = TCSV orig 16  stance5 s42 7.34M / 8.39M / final      n/r      n/r      0.900 / 0.588 / 0.746  judged
+21/24/20 of 40  RAIL  K3DIAG 17  stance5 s42 10,485,760                 n/r      n/r      0.0865   0 (2/40 judged)  undetermined
+K3DIAG 18  P1 CONTROL 4.33M..final (9 ckpts)      +0.922..+0.988  0.479..0.948  0.721..0.950  11..19  RAIL  TCSV 19  P1
+4.33/4.46/4.59/4.72/4.85M, 5.24M, final  +0.825..+0.926  0.217..0.488  0.389..0.731  5..14  RAIL  TCSV 20  P1 4,980,736
++0.703   0.000    0.113    0           PARKED   TCSV (the ruling's case) 21  P1 5,111,808                           +0.794
+0.000    0.293    0           PARKED   TCSV (relapsed next checkpoint) 22  stance5r s80 4,194,304 (start)         +0.6285  0.000
+0.0012   0           PARKED   DRAFT trace_s80 = PROBES (40/40 judged; SE 0.048) 23  stance5r s80 4,718,592
++0.9145  0.6499   0.7351   14          RAIL     SATROLL5R 24  stance5r s80 5,242,880                 +0.9692  0.8304   0.9184
+19          RAIL     SATROLL5R 25  stance5r s80 6,291,456                 +0.808   0.586    0.6338   12          RAIL
+SATROLL5R 26  band s52 / s60 / s70                   not recorded (bank-state probe rows only: max 1.12 / 0.72 / 0.79)  unknown
+PROBES rowclass.out (n/r = not recorded.)
+
+APPENDIX V2. WHAT CHANGED FROM v1 (each from the maintainer's 17:46 decisions or DEC1's defaults; v1's APPENDIX R stands)
+- Arms: CONTROL and one BOUND -> CONTROL, BOUND90 (b 0.90), BOUND60 (b 0.60); 12 -> 18 replicates; names gain the arm tags
+  b90 / b60; waves are (state, seed) triplets.
+- COEF: one pooled COEF -> COEF_90 and COEF_60, each by P1's rule with its fixed formula; the text states that the formula
+  makes them equal and records the per-bound realised pull instead.
+- DECISION: each bound read against CONTROL separately; per-bound verdicts; a screen outcome line A / B / C saying what goes
+  to the maintainer; missing replicates scoped to their own bound; report-only dose ordering.
+- PREDICTED OUTCOME: BOUND60 added (open: PASS or PARKED, OTHER a risk).
+- D1 (literal PARKED), D4 (one continuous 1M run), D5 (reading order), D6 (R1/R2 mean), D7 (RAIL = tail-up flags, OTHER as
+  harm review), D9 (seeds 101/202/303): unchanged from v1, now confirmed by the maintainer (17:46).
+- D8: the durable copy is an orphan never-merged branch with the patch as a file (maintainer OK), created once training
+  starts, not in the build.
+- V3: DEFERRED (it trains); optional after approval, report only.
+- Tests: T1-T7 in a build tier (no optimizer step) and a gate tier (run after approval); T6 is now the arm mapping test
+  (v1's T6 resume test is not needed under D4(c)).
+- KNOWN LIMITS: the two-bounds-one-control false-pass figure; BOUND60's b on the PARKED line.
+- COMPUTE: re-derived for 18 runs in 6 waves (4.9-5.1 h training, about 5.5 h wall, range 5-8 h); disk with gzip measured.
+
+APPENDIX F. WHAT CHANGED FROM v2 (the fixer round, 2026-10-24, after the code review and the criteria review; nothing trained)
+- T1a / T1b (clone commit 4c0c8da7): the coef-0 identity was vacuous (the toy's mu14 sat below both b, so L_B was 0 on every
+  row). Both now also compare no bound with coef 0 at action_net.bias[14] = 1.0 and = b in both models and assert the coef-0
+  penalty and beyond fraction are positive there. A mutation making the coef-0 branch add 2.7 or 0.37 x the penalty now fails
+  T1a at both b [measured, SCREEN/logs/t1a_mutation_fixer.txt]; T1b's version runs only at the gate (it trains a toy model).
+- OTHER FLAG: no longer masked by the TAIL-UP FLAG; the harm statistic excludes only tail_3's upper side (HOW IT IS MEASURED).
+  v2's form biased OTHER against bounds that cure the tail and broke the monotonicity claim. V1 re-run: equal values.
+- COEF: measured values replace v2's expected 2.7; the 12% softer per-row stiffness and the seed spread are stated; the 2.4 /
+  2.7 / per-bound reading choices go to the maintainer (APPROVAL_REQUEST.md).
+- Pins: screen_common.py (which holds STATES, ARMS, LABELS, R1, STACK, GATE_REQUIRED and the tool pins) is pinned by sha256
+  here and in APPROVED; preflight, gate.sh and the scorer check it; preflight now checks every tool's pin.
+- gate.sh and run_waves.sh are built (pinned above). gate_pass.json carries per-test statuses; preflight and the scorer
+  require every GATE_REQUIRED test "passed" (a skipped gate-tier test is no longer a pass).
+- Crash rule: --retire-crashed moves the panels and panels.csv rows with the run folder; the scorer checks each read row's
+  zip_sha256 against the checkpoint now in runs/<name> and run_meta.final_sha256.
+- Onset note: states the label count per s80 CONTROL replicate; a missing label of a non-LOST one is PROVISIONAL.
+- Bytecode: commands are python -I -B; run_tailscreen.py sets sys.dont_write_bytecode; clone status counts ignored files.
+  calib_tailscreen.py is left byte-identical to the file that wrote coef.json (it never runs again: coef.json exists).
+- Durable copy: the first push also carries both start pairs, both stage_config.json files and RUNLOG.
+- SE of the R1/R2 mean: stated as paired, not independent.
+- The scratch is two commits on cf80ecb1, not one: preflight checks a linear chain and the two-file diff instead of HEAD^.
+- Differences from BUILD_SPEC.md (this text governs): gate_pass.json schema (per-test statuses), APPROVED gains
+  screen_common_sha256, the crash rule's retirement lives in measure_tailscreen.py, flags.csv gains other_stat /
+  other_actuator / other_sign, the clone may hold a linear chain of commits.
+
+APPENDIX G. WHAT CHANGED AFTER THE FIRST APPROVAL (the maintainer's decision of 2026-10-24, RUNLOG line 551; nothing trained)
+- The first gate (after the approval of RUNLOG line 548, text sha256 efd8e297...) failed on one test of the clone's file:
+  test_no_stage_config_enables_symmetry, which asserts main's rule that no shipped stage sets [ppo] symmetry*. It fails
+  identically on an untouched cf80ecb1 copy, whose T. rex stance.toml sets symmetry = "mirror_kl" and symmetry_kappa = 0.3
+  for the band arm [measured]; the bound commit does not touch it. 200 tests passed, including every GATE_REQUIRED test.
+- gate.sh now deselects exactly that test (pytest --deselect of its node id); every other test of the file still runs and
+  still must pass, and the GATE_REQUIRED rule is unchanged. gate.sh's pin in screen_common.TOOL_SHA256 and so
+  screen_common.py's own pin change; nothing else changes: no criterion, arm, coef, calibration, seed, horizon or reading.
+- APPROVED is rewritten with this text's sha256 and the new screen_common_sha256.

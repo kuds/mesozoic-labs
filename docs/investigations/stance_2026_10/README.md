@@ -96,6 +96,25 @@ addendum (`readouts_addendum_k3.txt`), the tool, its runner and validation, and
 its outputs (`k3readouts/`; the note's §23). They are post hoc, enter no
 verdict, decision line or tie-break, and are not a veto.
 
+*Added 2026-10-25:* `stance5/tailscreen/options/` and `stance5/tailscreen/probes/`
+hold the first steps of the tail-habit round of decision D-D42 (the note's
+§24): the options study's draft brief and its corrected version (v2, with the
+two skeptics' findings and their verdicts), the screen design's decisions list
+(the technical defaults the maintainer took with decision D-D43), and the
+no-training CPU probes of 2026-10-24 with the read of the band runs'
+`policy_probe.npz`. All of it is report only: nothing in it trained a policy,
+and it enters no verdict.
+
+*Added 2026-10-25, later:* `stance5/tailscreen/` holds the tail_3 bound screen
+of decision D-D43 (the note's §24): a scratch CPU continuation screen of a
+training-loss bound on `tail_3_pitch_act`'s mean, upper side, in three arms and
+18 replicates, its criteria fixed and approved before any training step, its
+approval and gate records, the bound's scratch commits as a patch file, the
+tools, the score (outcome C: neither bound adopted, final) and the independent
+verification, with an index of its own,
+[stance5/tailscreen/README.md](stance5/tailscreen/README.md). As a screen it
+certifies nothing, and nothing it ran is on `main`.
+
 ## What changed in the copies
 
 [SOURCES.txt](SOURCES.txt) lists every file with the scratch file it came from,
@@ -265,12 +284,55 @@ runner, `validate_k3r.py`, `README.md` and the nine outputs carry the
 `d0aed5a1…` and `5e3c66cd…` the outputs record. No copy holds a model
 identifier, an email address or a commit trailer.
 
+*Added 2026-10-25 (`stance5/tailscreen/options/`, `stance5/tailscreen/probes/`):*
+their sources are in a second scratch tree, that of the session that took the
+work over at 15:14 UTC on 2026-10-24, which SOURCES.txt writes below
+`scratchpad2`. One more kind of change, nothing else: **prefix2**, that tree's
+absolute path replaced by `scratchpad2`, as **prefix** replaces the first
+tree's by `scratchpad`. The two briefs carry **prefix2**, **prefix** and
+**checkout**; `options/decisions_v1.md` is byte-identical; seven probe files
+carry **prefix2** (paths in logs and printouts) and
+`probes/noisevalue/analyze.py` **prefix2** and **prefix**; **whitespace** removes the trailing spaces of 80 lines of
+`probes/unclip/out/analyze_h040.out` and adds a final newline to four JSON
+copies. The rest are byte-identical. No copy holds a model identifier, an email
+address or a commit trailer.
+
+*Added 2026-10-25, later (`stance5/tailscreen/`):* no new kind of change.
+`results/run_log.txt` carries **lines** (lines 505 to 577 of the session's run
+log) and **redact** (22 workflow run ids, 12 distinct, and one background-job
+id); the patch file carries **trailer** (each commit's two trailer lines),
+**redact** (the commits' `From:` lines, an author name and an email address) and
+**whitespace** (the single space of its blank context lines; `git apply` of the
+copy still gives the scratch commit's two files exactly);
+`tools/copy_durable.sh` carries **trailer** too (the trailer it writes into its
+commits). The criteria (`9930ee72…`), `APPROVED`, `calib/coef.json`,
+`gate/gate_pass.json` and the score files are byte-identical, so their sha256
+are the ones the approval and the run log pin (`coef.json` and `gate_pass.json`
+have no final newline, which is kept; leave them out of a manual pre-commit
+run). Five of the eight tools carry **prefix2**, **prefix** or **checkout**, so
+their sha256 is not the one `screen_common.py` pins (SOURCES.txt gives the
+pinned one as the source's).
+[stance5/tailscreen/README.md](stance5/tailscreen/README.md) says which file
+each change applies to. `criteria.txt` keeps the two absolute session-scratch
+paths that define its `SP` and `S2` (its lines 18 and 19), the only copy here
+that does, because its sha256 is the approved pin. Eight small per-episode files
+are kept, an exception to this folder's rule on per-episode files: the
+verification's four re-measured `final_flags.csv` (`verify/remeasure/out/`, 20
+episodes each) and four probe outputs (`probes/probecheck/probe_s42.json` and
+`probe_s80.json`, 6 episodes each, `probes/skeptic/noise_shift_s80.json`, 90,
+and `probes/skeptic/unclip_alt_s42.json`, 40; at most 14 KB each), because they
+are the evidence of the re-measurement's field-for-field result and of the
+probes' counts; the panels' own `flags.csv` and per-step CSVs are not here.
+After these changes no copy holds a model identifier, an email address or a
+commit trailer.
+
 [SHA256SUMS](SHA256SUMS) pins every file here but this README and itself
 (`sha256sum -c SHA256SUMS` in this directory). *Added 2026-10-19:* nor
 `stance3/results/README.md`, which, like this README, has no source.
 *Added 2026-10-20:* nor `stance4/results/README.md`, likewise.
 *Added 2026-10-22:* nor `stance5/results/README.md`, likewise.
 *Added 2026-10-24:* nor `stance5/replication/results/README.md`, likewise.
+*Added 2026-10-25:* nor `stance5/tailscreen/README.md`, likewise.
 
 ## Contents
 
@@ -1067,6 +1129,99 @@ hip-pitch sigma 0.0220, 0.0146, 0.0212 and 0.0149. The references: stance5 s42's
 final fell 13 of 20 (hip pitch only 15, the differential part 15), and every
 stance5 band final fell 20 of 20 to the ±0.3 kick. None of it enters a verdict.
 
+### Added on 2026-10-25 (decision D-D42's options study and probes)
+
+**`stance5/tailscreen/options/`: the options study for the tail habit
+(2026-10-24, report only).** D-D42 (1) asked for the next round to be designed
+with fixed criteria and brought to the maintainer before any training; at 15:27
+UTC an options study started (mechanism and intervention research, a synthesis
+brief and two skeptics, with CPU probes on a copy of the r9 MJCF and no
+checkpoint). Nothing in it trained or was fetched from Drive.
+
+- `brief_draft.md`: the draft brief (sha256 of the source `363fb6bd…`), which
+  recommended a five-seed from-scratch round of a 0.90 mean bound. Both skeptics
+  rejected that design as blocking (the 0.90 rationale unsupported, the alarm
+  count near a manipulation check, five seeds unable to separate from chance).
+- `brief_v2.md`: the corrected brief written at 16:10 UTC (`903d7218…`, 302
+  lines), the version the maintainer decided on: the mechanism re-ranked (the
+  deterministic fixed point through the joint-angle loop off the training
+  distribution first; the clipped Gaussian's dead zone at most a contributor
+  beyond a mean of about 1.2), the options (A, a training-loss bound on tail_3's
+  mean, recommended for a CPU screen only; B, tail_3 reach, held; C, a broad
+  tail-pose reward term; D, a clipped-action policy gradient, not a round on its
+  own), and a replicated CPU continuation screen as the first step. Its Appendix
+  A gives each of the skeptics' 17 findings with its check and verdict (all hold
+  in substance), and Appendix B what did not hold as stated. Its MECH, LAND,
+  SKF, SKD and V2 folders are in the second scratch tree, not copied.
+- `decisions_v1.md`: the screen design's decisions list (D1–D9) of 17:37 UTC
+  (`3a78622e…`), from which the maintainer took the technical defaults with
+  D-D43 at 17:46 UTC.
+
+**`stance5/tailscreen/probes/`: the read of the band runs' `policy_probe.npz`
+and the no-training CPU probes (2026-10-24, report only).** The maintainer's
+decisions of 15:56 and 16:00 UTC asked for one batched, read-only Drive fetch
+(the five band runs' `policy_probe.npz` and the 4,194,304 checkpoint pairs of
+stance5 s42 and stance5r s80, whose sha256 equal those in their judge files)
+and CPU probes without training before any screen. Measured, on those checkpoints
+only:
+
+- `policy_probe_read/`: the coordinator's read of `tail_3_pitch_act`'s raw
+  deterministic mean at the probe's ten bank states over training, per run
+  (`read_probe.out`).
+- `probecheck/`: its independent check. The probe is not an early detector:
+  s42's bank values above 1.0 are all on ankle-minus lean rows and do not lead
+  the ledger (first saturation episode at 3,145,728, first flagged evaluation
+  3,538,944); s80's bank never passed 0.82 while its ledger flagged 37
+  evaluations (at least 5 saturation episodes each) from 4,325,376 to
+  10,223,616; s52's bank passed 1.0 with no flag.
+  `probe_ckpt.py` rebuilds the bank from each checkpoint and matches the npz
+  rows.
+- `noisevalue/`: what tail-up is worth under the policy's own noise (40 paired
+  stochastic episodes, all 15 actuators, the arm's reward, seeds 3042–3081, and
+  20 deterministic ones): holding tail_3 at 0 gains reward in 40 of 40 pairs at
+  both checkpoints, +54.6 per 200–999 window on s42 (95% CI +51.5 to +57.5) and
+  +36.2 on s80 (+31.8 to +40.5), +56.5 and +39.3 deterministically; holding it
+  at 0.9 gains +7.6 on s42 (mostly the `action_saturation` term) and loses 13.4
+  on s80 (mostly `tail_home_pose`); no falls in any cell.
+- `unclip/`: tail_3 unclipped on a scratch MJCF copy (ctrlrange ±0.40 for
+  tail_3 only; the wrapper reproduces the clipped baseline exactly): the
+  deterministic mean settles at a stable fixed point of a positive loop
+  (in-episode dmu/da about 0.5–0.6), spread 0.45–1.07 over s42's episodes, and
+  above 1.073 the mean is below the hold in 20 of 20 episodes; s80 never passes
+  1 (window mean 0.629, maximum 0.902). Neither "a straight tail" nor "as high
+  as possible".
+- `skeptic/`: the skeptic's re-runs (bootstrap intervals, a ±0.15 shift of
+  s80's tail_3 mean under noise, the npz spot checks and an alternative unclip
+  run); no blocking finding and five minor corrections, applied in the run
+  log's entry timed 16:52 UTC.
+
+Not supported, at these two checkpoints: a reward incentive for tail-up
+(untested: s42 at its onset, 3.1M to 3.5M, and the discounted, normalised
+objective). Inferred: an in-episode deterministic readout is a better early
+signal than the probe's bank.
+
+### Added on 2026-10-25, later (decision D-D43 and its outcome)
+
+**`stance5/tailscreen/`: the tail_3 bound screen (decided 2026-10-24 as D-D43;
+criteria approved at 19:06 UTC and re-pinned at 19:10 UTC that day, before any
+training step; run from 19:11 to 23:46 UTC on this container's CPUs; scored at
+23:53 UTC, final; verified at 00:13 UTC on 2026-10-25).** Three arms, CONTROL
+(coef 0), BOUND90 (b = 0.90) and BOUND60 (b = 0.60), coef 2.4 for both bounds,
+each continuing stance5 s42's and stance5r s80's 4,194,304 checkpoints for one
+1,048,576-step run on seeds 101, 202 and 303 (18 replicates), from two scratch
+commits on `cf80ecb1` (`4c0c8da7`, never pushed). Outcome C: BOUND90 NOT ADOPTED
+(RAIL: 6 of 6 replicates had tail-up flags at R1 and R2, s42's from a railed
+start and s80's from a clean one, R1/R2 mean commands 0.886 to 0.971) and
+BOUND60 NOT ADOPTED (PARKED: 6 of 6 cleared the rail with 0 tail-up flags, but
+had R1/R2 mean commands of 0.600 to 0.632, at or above the 0.60 line; s42's
+three clear it by as little as 0.00017, and the verdict also holds on s80
+alone); CONTROL read RAIL, CURED and RAIL at s42 and RAIL three times at s80
+(the onset note INFORMATIVE); OTHER 0 everywhere. Its
+[README](stance5/tailscreen/README.md) indexes the folder: the criteria
+byte-identical, the approval, request and pins, the calibration, the patch, the
+gate records (the first gate's failure on one test of `main`'s rule and the
+passing gate after the re-pin), the tools, the results and the verification.
+
 ## How to re-check each verdict
 
 Commands as run on 2026-10-17 from a copy of this directory (Python 3.13;
@@ -1138,6 +1293,12 @@ copies.
 | The files themselves (2026-10-24, later, with `stance5/k3diag/` and `stance5/tailexp/`) | `sha256sum -c SHA256SUMS` | all 403 files OK |
 | The K3 readouts' tool and runner (2026-10-24; session scratch only) | `sha256sum scratchpad/foot/stance5/replication/k3readouts/k3readout5r.py scratchpad/foot/stance5/replication/k3readouts/k3readout_one5r.sh`, and each output's `identity` | `d0aed5a1…` and `5e3c66cd…`, the values all nine copied outputs record |
 | The files themselves (2026-10-24, later, with the K3 readouts) | `sha256sum -c SHA256SUMS` | all 418 files OK |
+| The briefs (2026-10-25) | `sha256sum` of the sources `scratchpad2/tailround/brief_draft.md` and `brief_v2.md` (session scratch only) | `363fb6bd…` and `903d7218…`, the values SOURCES.txt gives |
+| The probes' start checkpoints (2026-10-25; session scratch only) | `probes/probecheck/fetched_sha.txt` against the `judge_4194304.json` of stance5 s42 and stance5r s80 | equal (the zips `d3c90db8…` and `649db94c…`, the pkls `3903cbcf…` and `98fe3043…`) |
+| The files themselves (2026-10-25, with `stance5/tailscreen/options/` and `probes/`) | `sha256sum -c SHA256SUMS` | all 471 files OK |
+| The tail_3 bound screen's criteria, approval, calibration, gate and score (2026-10-25) | `sha256sum stance5/tailscreen/criteria.txt stance5/tailscreen/APPROVED stance5/tailscreen/calib/coef.json stance5/tailscreen/gate/gate_pass.json stance5/tailscreen/results/score.txt stance5/tailscreen/results/score.json` | `9930ee72…`, `42627d1f…`, `f6d90f99…`, `d7118520…`, `66c4a92d…` and `471ad8e4…`, the values in the run log's entries timed 19:10, 19:11 and 23:53 UTC |
+| The screen's outcome from the criteria alone (2026-10-25; session scratch only) | as `stance5/tailscreen/README.md` gives it | `DIFFS []` |
+| The files themselves (2026-10-25, later, with `stance5/tailscreen/`) | `sha256sum -c SHA256SUMS` | all 528 files OK |
 
 `test_pilot_score.py` prints sample "Walking pilot score" blocks while it runs;
 they score synthetic panels, not the pilot.
@@ -1232,3 +1393,18 @@ parse on Python 3.11, 3.12 and 3.13.
 `stance5/replication/k3readouts/` are left as they ran: `ruff check` reports no
 finding in either, `ruff format --check` would reformat both, and both parse on
 Python 3.11, 3.12 and 3.13.
+
+*Added 2026-10-25:* the 21 scripts added in `stance5/tailscreen/probes/` are
+left as they ran: `ruff check` (ruff 0.16.9, the same configuration) passes on
+`noisevalue/roll_value.py` and `unclip/analyze.py` and reports 125 findings in
+the other 19, quick-script style (most in `probecheck/probe_ckpt.py`, 22, and
+`skeptic/unclip_alt.py`, 19); `ruff format --check` would reformat all 21, and
+all 21 parse on Python 3.11, 3.12 and 3.13.
+
+*Added 2026-10-25, later:* the 16 Python scripts added in `stance5/tailscreen/`
+(one, `tools/run_tailscreen.py`, kept gzipped) are left as they ran: `ruff check` (ruff 0.16.9, the same configuration) passes
+on the four tools other than `run_tailscreen.py` and on the four tools' tests,
+and reports 107 findings in the other eight (15 in `tools/run_tailscreen.py`,
+the rest in the verifiers' quick scripts, most in `verify/rescore/rescore.py`,
+32); `ruff format --check` would reformat all 16, and all 16 parse on Python
+3.11, 3.12 and 3.13. The three shell scripts in `tools/` are left as they ran.

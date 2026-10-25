@@ -8,9 +8,72 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **The T. rex tail_3 bound screen of D-D43 run, scored and verified: neither
+  bound is adopted (outcome C); the options study and the no-training probes
+  recorded, report only** (D-D43's amendment of 2026-10-25;
+  `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2, `docs/CONSOLIDATION_PLAN_2026_09.md`
+  §6, a dated note in §17 of `docs/GAIT_QUALITY_PLAN_2026_09.md`,
+  `docs/NEXT_STEPS.md` §3; the appended §24 of
+  `docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md`, and
+  `stance5/tailscreen/` of `docs/investigations/stance_2026_10/`). Records
+  only: no library code, configuration, test, notebook, digest or generated
+  file changes with it. A scratch CPU continuation screen of a training-loss
+  bound on `tail_3_pitch_act`'s Gaussian mean, upper side only, coef 2.4, in
+  three arms (no bound, b = 0.90, b = 0.60) and 18 continuations of 1,048,576
+  steps from the 4,194,304 checkpoints of `stance5_LTSB_s42` and
+  `stance5_LTSB_s80` on seeds 101, 202 and 303, from two scratch commits on
+  `cf80ecb1` (never pushed; kept here as a patch file), judged by criteria
+  approved before any training step (sha256 `9930ee72…`, re-pinned once for one
+  gate test). Run on 2026-10-24 on the session's CPUs, scored that day, final,
+  and verified on 2026-10-25: BOUND90 NOT ADOPTED (RAIL: every replicate had
+  tail-up saturation episodes at R1 and R2, s42's from a railed start and s80's
+  from a clean one), BOUND60 NOT ADOPTED (PARKED: the rail cleared, with R1/R2
+  mean commands of 0.600 to 0.632, at or above the 0.60 line; s42's three clear
+  it by as little as 0.00017, and the verdict also holds on s80 alone), CONTROL
+  RAIL, CURED and RAIL from s42 and RAIL three times from s80; OTHER 0
+  everywhere. Report only: the bound acted on the training rows (the share of
+  rows above b lower under the bound in every seed-paired comparison), and the
+  dose ordering of the arms' mean commands is false at both states. Before it,
+  also report only: the options study's draft and corrected briefs (two
+  skeptics, 17 findings) and no-training probes on the two checkpoints (holding
+  the tail at 0 gains reward under the policy's own noise in 40 of 40 pairs;
+  the unclipped tail settles at a fixed point of a positive loop; the policy
+  probe's bank is not an early detector). The maintainer's decision after the
+  screen: this records PR first, then the posture options with evidence, before
+  any decision. `stance5/tailscreen/` holds the criteria (byte-identical), the
+  approval and its request, the stale pin list, the calibration, the patch, the
+  gate records, the tools, the score, `panels.csv`, the verification and the
+  run log's lines 505 to 577 (ids removed), and `options/` and `probes/` the
+  study and the probes. `SOURCES.txt` and `SHA256SUMS` (now 528 files) are
+  extended. `docs/README.md` adds a note to the record's and the gait plan's
+  rows, and `docs/KNOWN_ISSUES.md` gains Update 19 of the T-Rex stance entry.
+- **Decision D-D43 recorded: a scratch CPU continuation screen of a bound on
+  the T. rex tail actuator's mean, the first step of D-D42's round; D-D42
+  amended with three more report-only tools** (the maintainer's decisions of
+  2026-10-24; `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2,
+  `docs/CONSOLIDATION_PLAN_2026_09.md` §6, a dated note in §17 of
+  `docs/GAIT_QUALITY_PLAN_2026_09.md`, `docs/NEXT_STEPS.md` §3; §24.1–§24.4 of
+  `docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md`). Records
+  only. At 16:00 and 17:46 UTC, on the options study's corrected brief, the
+  maintainer decided no-training probes first and then a scratch CPU
+  continuation screen of a training-loss bound on `tail_3_pitch_act`'s
+  Gaussian mean, upper side only: three arms (no bound, b = 0.90 as a rail
+  guard, b = 0.60 as a posture bound), three replicates on each of two band
+  checkpoints, one continuous 1M-step run each, a durable copy on an orphan
+  branch never merged, and a tail parked below the rail (a command of 0.60 or
+  more with the rail clear) counting as not adopted and going to the posture
+  decision. The criteria were approved at 19:06 UTC with coef 2.4 for both
+  bounds, before any training step, and re-pinned at 19:10 UTC after the
+  maintainer had one gate test deselected (`main`'s rule against stage configs
+  that set `[ppo] symmetry*`, which fails on the band commit itself); D-D43 is
+  amended for that re-pin. D-D42 is amended with the maintainer's report-only
+  items of 15:56 UTC: the band runs' `policy_probe.npz` read from Drive, the
+  per-step trace tool, the training rollouts' clip shares and the stage-end
+  training-history report, in their own pull requests. Nothing trains on
+  `main`. `docs/KNOWN_ISSUES.md` gains Update 18 of the T-Rex stance entry.
 - **The saturating actuator, named per evaluation episode and drawn over
-  training** (the maintainer's decision of 2026-10-24, "both, from the ledger";
-  `environments/shared/gait/stance_metrics.py`,
+  training** (#640; the maintainer's decision of 2026-10-24, "both, from the
+  ledger"; `environments/shared/gait/stance_metrics.py`,
   `environments/shared/eval_diagnostics.py`,
   `environments/shared/reporting/training_history.py`; documented in
   `docs/TRAINING_ARTIFACT_PRESENTATION.md`, "Evaluation episodes" and
@@ -40,7 +103,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   random draw; the digest snapshot is unchanged. An older ledger without the
   columns loads everywhere and reads as an absent series.
 - **The training rollouts' clip shares, per actuator, in the policy probe and
-  on the saturation page** (the maintainer's decision of 2026-10-24;
+  on the saturation page** (#640; the maintainer's decision of 2026-10-24;
   `environments/shared/policy_probe.py`,
   `environments/shared/reporting/training_history.py`; documented in
   `docs/TRAINING_ARTIFACT_PRESENTATION.md`, "The policy probe" and "Training
@@ -80,8 +143,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   generators, evaluations and checkpoints, and the digest snapshot is
   unchanged.
 - **The training-history report drawn at the end of every stage, report-only**
-  (the maintainer's decision of 2026-10-24, which widens D-D42's (2) to scope
-  (b); `environments/shared/reporting/stage_artifacts.py`,
+  (#639; the maintainer's decision of 2026-10-24, which widens D-D42's (2) to
+  scope (b); `environments/shared/reporting/stage_artifacts.py`,
   `environments/shared/reporting/stage_layout.py`; documented in
   `docs/TRAINING_ARTIFACT_PRESENTATION.md`, "At stage end:
   `figures/training_history/`", and one sentence in tip 4 of
@@ -116,7 +179,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `test_stance_gate_report.py` gain the new step. On the stance5 band run s42's
   ledger (91 evaluations) it takes about 5.5 s and writes 1.7 MB.
 - **A per-step trace of single episodes of a checkpoint, and the policy's
-  command and raw mean in the replay's stance CSV, report-only** (the
+  command and raw mean in the replay's stance CSV, report-only** (#638; the
   maintainer's decision of 2026-10-24, after the T. rex tail habit,
   `tail_3_pitch_act` commanded at +1, took scratch tools to measure in
   `docs/investigations/stance_2026_10/stance4/satdiag/`). The stance gate
@@ -176,8 +239,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     bootstrap. Documented in `docs/TRAINING_ARTIFACT_PRESENTATION.md`.
 - **Decision D-D42 recorded: the next T. rex stance round targets the tail
   saturation habit, with a training-history report and an actuator saturation
-  report, both report only; D-D41 amended with its outcome** (the maintainer's
-  decisions of 2026-10-24; `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2,
+  report, both report only; D-D41 amended with its outcome** (#637; the
+  maintainer's decisions of 2026-10-24; `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2,
   `docs/CONSOLIDATION_PLAN_2026_09.md` §6, a dated note in §17 of
   `docs/GAIT_QUALITY_PLAN_2026_09.md`, `docs/NEXT_STEPS.md` §3; §23.7 of
   `docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md`). Records only:
@@ -203,9 +266,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The stance5 replication of D-D41 judged: one of the two new per-foot
   centre-of-pressure band runs holds (line 2), and the band is not adopted; the
   K3 diagnosis, the scratch tail experiment and the K3 readouts recorded, report
-  only** (D-D41's amendment of 2026-10-24; `docs/BEHAVIOR_RECIPES_PLAN.md`
-  §6.2, `docs/CONSOLIDATION_PLAN_2026_09.md` §6, a dated note in §17 of
-  `docs/GAIT_QUALITY_PLAN_2026_09.md`, `docs/NEXT_STEPS.md` §3; the appended §23
+  only** (#637; D-D41's amendment of 2026-10-24;
+  `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2, `docs/CONSOLIDATION_PLAN_2026_09.md`
+  §6, a dated note in §17 of `docs/GAIT_QUALITY_PLAN_2026_09.md`,
+  `docs/NEXT_STEPS.md` §3; the appended §23
   of `docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md`, and
   `stance5/replication/`, `stance5/k3diag/` and `stance5/tailexp/` of
   `docs/investigations/stance_2026_10/`). Records only: no library code,

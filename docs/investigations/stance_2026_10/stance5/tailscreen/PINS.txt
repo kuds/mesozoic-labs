@@ -1,0 +1,73 @@
+TAIL_3 BOUND SCREEN: PINS (fixer round; nothing trained; NOT APPROVED)
+Written 2026-10-24T19:04:12Z. Every value [measured] by sha256sum / git in this session unless marked.
+SCREEN = scratchpad2/tailround/screen
+
+CRITERIA (to be approved; criteria.txt and APPROVED do not exist)
+criteria/criteria_tailscreen_final.txt  9930ee722bf07f21256c0998656568d544ef7413c18d4dfa823338370bcb1b6a  (= criteria/criteria_tailscreen_final.sha256)
+criteria/criteria_tailscreen_v2.txt     75f4c4c2851d447635b3facbdc02afd7622272f77ec31ce2b2fa0b476b70df91
+criteria/BUILD_SPEC.md                  e495a5f7d4af8efd8af8c363ee40773b2d576243a0499d5d0f3c9e648046e198
+APPROVAL_REQUEST.md                     afcf09732ee88b6396d45b530f71d478e4e1f4ed4e833c29bdcd9e040a0d96ec
+
+SCRATCH CLONE (scratch_tail3bound)
+scratch_commit   4c0c8da76d14f4b482f1fc63e0cf57af79b0184f   (SCRATCH_COMMIT pin)
+chain            2cc1921ded20b8eec077eb0cf2c1d3c9e80b990c cf80ecb14d1630ce3b4dcdea28a05835d143470b;4c0c8da76d14f4b482f1fc63e0cf57af79b0184f 2cc1921ded20b8eec077eb0cf2c1d3c9e80b990c;
+tree             cf99a99eaeba42a342cf90b4f535df0429a730a5
+branch           scratch/tail3-upper-bound
+push url         DISABLED-never-push
+status           porcelain --ignored: 0 lines
+diff files       environments/shared/mirror_kl_ppo.py environments/shared/tests/test_mirror_kl_ppo.py
+environments/shared/mirror_kl_ppo.py              ef4c57207e0ff0a0dc90064030452f760ad6222be01cdb911fe59e4d576a67a2  (unchanged from 2cc1921d)
+environments/shared/tests/test_mirror_kl_ppo.py   c9cc6f18c08e8f42091fdb8059083325f3cc563e1a15c20dcc57b9b1d01f2339
+patch (git format-patch --stdout cf80ecb1..HEAD)  ef0fe36b3c22f233f97e727429357163e7c38202699c804d12aa2ff20d00a55e
+
+PINNED TOOLS (screen_common.TOOL_FILES; TOOL_SHA256 in screen_common.py equals these)
+tools/run_tailscreen.py      9527231283e4db295a603d79f2fb8d58524fbd2d4c5618307b1a03790e77b3f3
+tools/calib_tailscreen.py    c751931639ca41adf3539309854545f96c02fb0b7d6ab50e905690eb91abf6f2
+tools/measure_tailscreen.py  613212ce240e425d4c36b7dcfa76ad64d141bebb0a8f510852cb4f3410e153b1
+tools/score_tailscreen.py    3cd4724761fcdbde68d95b28d6e2afa5980f0acbdde5b8e27c8115816d932d19
+tools/copy_durable.sh        9a3932e121e97027d6057cd9307fbc98f63ad301c121d35a8ba6b693064376a6
+tools/gate.sh                4ef908ae8ac116e7a809e655caf56c1aaa3cd4a9e87ffd34c9a4bc1ad0b398b6
+tools/run_waves.sh           ffcbfe2749714abc308aab17c8f6ab0c373b04816b2e4bd3243fd0d25881e1ed
+tools/screen_common.py       c9925334108f6d5f1ab4300bb9c3e00bdb775c5fc237fc1d08f07b97d550607e  (pinned in the criteria and as APPROVED.screen_common_sha256)
+screen_common pins: SCRATCH_COMMIT 4c0c8da7..., DURABLE_BRANCH claude/handoff-tailscreen (absent on origin, git ls-remote 2026-10-24 ~19:00Z), TOOL_SHA256 = the 7 lines above
+calib_tailscreen.py is byte-identical to the file that wrote coef.json (not edited in the fixer round)
+
+TOOL TESTS (information; not pinned)
+tools/tests/test_measure.py  8bcd7258ead48998cd5f3425cf79b1de3faa198d33d427aad8fdbea38dfa21b5
+tools/tests/test_score.py    85ee6a2bd307d016fcd9d34f28b613282a09f981e01a8e558a7a708ea4e78d8e
+tools/tests/test_t7_screen.py 46fe33401ac22521bf719ac2a43b0aa0ccaecfbb01e5ae450dcebc4d36a93388
+tools/tests/test_tools.py    fa0136bc4ff6a698ae4ad129d441e0d0102e47d766fb7baec82db041c811cc36
+
+COEF (V2; unchanged; written 2026-10-24T18:16:15Z before any training step; runs/ does not exist)
+calib/coef.json   f6d90f99fc09c09577af9dc2bf4e00fde6537cc8c4fc631af055eaf26880c18d
+COEF_90 2.4, COEF_60 2.4; pooled G_pg_rms 0.5266782900849757 (512 mini-batches) -> 2.394 -> 2.4
+calib/calib.log   aa276cded31d1894da94b7567775d05927e391d5c6d62f820affec800c201574
+earlier re-run check: validate_build2/v2_rerun/coef_rerun.json f5aa18a5fd2b2535b73203e950df0829911e673c5c8ec32f5107e80fe6828ed4 (moved with validate/ -> validate_build2/)
+
+MEASURING COPY (unchanged)
+TREE_DIGEST       cf12a36b865a9172361c42372b31425d5c3545591447c67bb27e10ce8d5e3bc2  (recomputed by every V1 panel: equal)
+96ced68e124ddf4fa225ce32d93831a3e3261a2ba5b3ef502a0b900ce7b16c0b  environments/shared/reporting/episode_trace.py
+b5923e5cfbcafd9f6e108df207a268500313de9bff44572121c8e3b48aad0af2  environments/shared/scripts/episode_trace_report.py
+c5a684cd5b64e8eb41246c9bbc0dc07760e110895ab4022d42546414888c565e  environments/shared/stance_diagnostics.py
+
+START CHECKPOINTS (FETCH, read only; equal to screen_common.STATES)
+s42 d3c90db8c107ce1fef6b63efa3e8cdd2271e6e437a3abdb5b30f57b3f46b8df2  stance5_LTSB_s42/A/stage1_4194304_steps.zip
+s42 3903cbcfe43559c8f5dccc0b2d6ed01f3c3989f039f966b12ed6aaa7ecbca118  stance5_LTSB_s42/A/stage1_vecnormalize_4194304_steps.pkl
+s80 649db94c026db3925a43643dfcd58299877fbe7783bca25e7b7b6ca504a5a3cc  stance5_LTSB_s80/A/stage1_4194304_steps.zip
+s80 98fe304328256720f59658da9a0c2b7ccae89dd0cb5ad5798a1768383adc06d9  stance5_LTSB_s80/A/stage1_vecnormalize_4194304_steps.pkl
+
+VALIDATION AND TEST RECORDS (fixer round)
+validate/v1.json           8b479946b0da51ee6090846dca545edd64a0848e3391c0d6996c06ea3395e847  (passed true; re-run 18:57Z with the fixed measure tool; values equal to validate_build2/)
+validate/v1_panels.csv     3b5a8db8921c9d0fdf8b1c5e9049b9d9ff0ff70e389fbe90eeba94fbf66270aa  (rows equal to validate_build2/v1_panels.csv except utc)
+tests_out/build_tier.json  433da61a089e8cde3754c667bd6433b7540bcb4f018dc383e6e2c90c4d63df5f  (191 passed, 0 failed, 3 gate-only skipped, head 4c0c8da7)
+tests_out/build_tier.txt   d6910835ba97838956df92903834dbbe62502f32a1491bf29fe7d7fe5497579f
+logs/t1a_mutation_fixer.txt 82b0c1d6ca18823bd85fbafc81a821aab17472aecb686927b337a0e83a59d4c5  (coef-0 branch adding 2.7 / 0.37 x penalty: T1a fails at both b)
+logs/gate_problems_on_build_tier_fixer.txt d06727bd55680508edc418db040326f011dcd725feeced249d5b1fb7c728df07  (a run with T1b/T2/T7b skipped is not a gate pass)
+logs/score_prerun_fixer/score.txt: INCOMPLETE; PROVISIONAL items left: APPROVED, criteria.txt, gate_pass.json, no panels (all need the approval)
+earlier records: tests_out/prefixer/, validate_build2/, validate_build1/
+
+STACK  python 3.13.17, torch 2.13.0+cpu, numpy 2.5.4, gymnasium 1.4.0, stable_baselines3 2.9.0, mujoco 3.10.0
+
+JUDGE CLONES AND MAIN CHECKOUT: logs/judge_clean_before_fixer.txt and logs/judge_clean_after_fixer.txt (all empty; main digest unchanged)
+
+UNFILLED (need the approval): SCREEN/criteria.txt, SCREEN/APPROVED, RUNLOG line, tests_out/gate_pass.json

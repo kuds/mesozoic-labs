@@ -1,0 +1,41 @@
+TAIL_3 BOUND SCREEN SCORE (2026-10-24T23:53:43Z)
+STATUS: FINAL
+
+Replicates (R1 = 5111808, R2 = final):
+  s42_control_r101 RAIL             tailup 36 other 0 onset 1 CMD R1 +0.9794 R2 +0.9917 mean +0.9856
+  s42_control_r202 CURED            tailup 0 other 0 onset 1 CMD R1 +0.4342 R2 +0.0963 mean +0.2652
+  s42_control_r303 RAIL             tailup 38 other 0 onset 1 CMD R1 +0.9087 R2 +0.8959 mean +0.9023
+  s42_b90_r101     RAIL             tailup 1 other 0 onset 1 CMD R1 +0.8937 R2 +0.8790 mean +0.8864
+  s42_b90_r202     RAIL             tailup 14 other 0 onset 1 CMD R1 +0.8950 R2 +0.9523 mean +0.9236
+  s42_b90_r303     RAIL             tailup 34 other 0 onset 1 CMD R1 +0.9362 R2 +0.9653 mean +0.9507
+  s42_b60_r101     PARKED           tailup 0 other 0 onset 0 CMD R1 +0.6240 R2 +0.5901 mean +0.6070
+  s42_b60_r202     PARKED           tailup 0 other 0 onset 0 CMD R1 +0.5848 R2 +0.6155 mean +0.6002
+  s42_b60_r303     PARKED           tailup 0 other 0 onset 0 CMD R1 +0.6221 R2 +0.6036 mean +0.6128
+  s80_control_r101 RAIL             tailup 23 other 0 onset 1 CMD R1 +0.9376 R2 +0.9366 mean +0.9371
+  s80_control_r202 RAIL             tailup 24 other 0 onset 1 CMD R1 +0.9191 R2 +0.9022 mean +0.9106
+  s80_control_r303 RAIL             tailup 13 other 0 onset 1 CMD R1 +0.8982 R2 +0.7906 mean +0.8444
+  s80_b90_r101     RAIL             tailup 4 other 0 onset 1 CMD R1 +0.8972 R2 +0.9033 mean +0.9003
+  s80_b90_r202     RAIL             tailup 18 other 0 onset 1 CMD R1 +0.9633 R2 +0.8777 mean +0.9205
+  s80_b90_r303     RAIL             tailup 32 other 0 onset 1 CMD R1 +0.9570 R2 +0.9846 mean +0.9708
+  s80_b60_r101     PARKED           tailup 0 other 0 onset 0 CMD R1 +0.6215 R2 +0.6422 mean +0.6318
+  s80_b60_r202     PARKED           tailup 0 other 0 onset 0 CMD R1 +0.6253 R2 +0.6307 mean +0.6280
+  s80_b60_r303     PARKED           tailup 0 other 0 onset 0 CMD R1 +0.6170 R2 +0.6133 mean +0.6152
+
+OUTCOME: C. NO BOUND ADOPTED: BOUND90 NOT ADOPTED (RAIL), BOUND60 NOT ADOPTED (PARKED).
+  BOUND90: NOT ADOPTED (RAIL): it did not keep the rail away in deterministic play
+  BOUND60: NOT ADOPTED (PARKED): rail cleared but tail parked (ruling (3)); routed to the posture decision
+  s42 BOUND90: RAIL (lines applying: RAIL; OTHER 0 vs CONTROL 0)
+  s42 BOUND60: PARKED (lines applying: PARKED; OTHER 0 vs CONTROL 0)
+  s80 BOUND90: RAIL (lines applying: RAIL; OTHER 0 vs CONTROL 0)
+  s80 BOUND60: PARKED (lines applying: PARKED; OTHER 0 vs CONTROL 0)
+  Onset note: INFORMATIVE (3 of 3 s80 CONTROL replicates had >= 1 tail-up flag at any measured checkpoint; labels measured of 9: r101 9, r202 9, r303 9)
+To the maintainer:
+  - BOUND90 (RAIL): next candidate chosen by the maintainer: the deterministic-state variant (BRIEF 2A), a stronger dose (DEC1 D3(c)), or the posture decision (B / C).
+  - BOUND60 (PARKED): the posture decision (ruling (3)).
+  - Named combination: the lower bound cleared the rail but not the posture.
+  - Nothing trains on the outcome without the maintainer's approval; the outcome changes no screen, verdict, parent, criterion or stage config.
+
+Report only (never in a verdict):
+  dose ordering s42: BOUND60 <= BOUND90 <= CONTROL: False (control +0.7177 ['RAIL', 'CURED', 'RAIL'], b90 +0.9203 ['RAIL', 'RAIL', 'RAIL'], b60 +0.6067 ['PARKED', 'PARKED', 'PARKED'])
+  dose ordering s80: BOUND60 <= BOUND90 <= CONTROL: False (control +0.8974 ['RAIL', 'RAIL', 'RAIL'], b90 +0.9305 ['RAIL', 'RAIL', 'RAIL'], b60 +0.6250 ['PARKED', 'PARKED', 'PARKED'])
+  0.5M readings (4587520 / 4718592): see score.json report_only.half_point
