@@ -1162,7 +1162,13 @@ table (`head tip m`, `head tip lowest m`, `neck pitch`,
 `head pitch`, `L-R hip roll`). A ledger written before the columns, or a
 model whose evaluation runs no recorder, draws them as labelled absent
 series, says so in the captions and lists the columns in the JSON's
-`absent`; a comparison draws the runs that have them.
+`absent`; a comparison draws the runs that have them. A column the model
+has no site or hinge for reads nan on every episode: its panel says so
+("nan on every episode (column): the model has no such site or hinge"),
+the captions name it and `absent` lists it, rather than an empty panel
+with a legend. The posture panels keep a least y span (0.05 m for the head
+tip, 1 degree for the pitches and hip rolls) with plain tick labels, so a
+near-constant series is not drawn at micrometre scale with an offset.
 
 `--judged` names, per stage directory (`-` for none), a directory of that
 run's judge files: `judge_<steps>.json` and `judge_final.json`, one per

@@ -54,9 +54,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   mean, + abduction, and the maximum |angle from home|); the asymmetry page
   gains the left-minus-right hip roll (per episode, the left leg's mean minus
   the right's), and the checkpoint table the head's values and the
-  left-minus-right hip roll. A ledger written before the columns renders them as labelled
-  absent series (the captions and the JSON's `absent` say so). The stage-end
-  report now holds twelve pages.
+  left-minus-right hip roll. A ledger written before the columns renders
+  them as labelled absent series (the captions and the JSON's `absent` say
+  so), and a column the model has no site or hinge for (nan on every
+  episode, as the Compsognathus robot's neck and head pitch) is drawn as
+  absent with that reason. The posture panels keep a least y span (0.05 m,
+  1 degree) with plain tick labels, so a statue's near-constant head tip is
+  not drawn at micrometre scale. The stage-end report now holds twelve
+  pages.
 - **Each evaluation episode's head posture and hip roll, in the eval-episode
   ledger** (the maintainer's decisions of 2026-10-25 14:13 UTC in the
   stance run log, items (2) and (4):
@@ -4187,6 +4192,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sampler writes no `terrain_sampling` record).
 
 ### Fixed
+- **A comparison's run names sit at their lines' ends in the
+  training-history report** (report only;
+  `environments/shared/reporting/training_history.py`). Each run's name at
+  the right of a line panel was placed by a transform read while the
+  panel's autoscale was still pending, so on a panel with no J mark or
+  alarm line (whose vertical lines happen to apply it first) the name sat
+  where its line would be under earlier view limits. Measured with the
+  r10 walking parent, the r10 statue and `stance5_LTSB_s70` compared: 36
+  of 77 names more than 0.15 of the axes height from their line on
+  `08a4d189`, none after the fix. The view limits are now settled first.
 - **The full-horizon heading trace test bounds the closed loop it runs**
   (tests only; approved by the maintainer on 2026-10-25;
   `environments/shared/tests/heading_free_helpers.py`,
