@@ -114,8 +114,43 @@ Extra sites (opt-in)
 :meth:`~SubstepContactRecorder.attach`, also copies the world position of
 the sites it names at each control step's boundary substep, beside the feet
 and the root (``EpisodeTrace.site_pos`` and ``site_names``): the head tip of
-:mod:`.posture_telemetry`.  One ``site_xpos`` gather per control step, read
-only; without it the hot path and the trace are what they were.
+:mod:`.posture_telemetry` and the tail tip of :mod:`.body_telemetry`.  One
+``site_xpos`` gather per control step, read only; without it the hot path
+and the trace are what they were.
+
+Body dynamics (opt-in)
+----------------------
+Five more captures, each asked for before :meth:`~SubstepContactRecorder.attach`
+(:mod:`.body_telemetry` reduces them), read ``MjData`` as the others do and
+never write it -- no ``mj_*`` function is called on the live data:
+
+* :meth:`~SubstepContactRecorder.record_actuators`: at EVERY substep,
+  ``actuator_force`` and ``actuator_velocity`` (the substep's forward pass,
+  as the contacts), for the mechanical power ``F * v`` of each actuator;
+* :meth:`~SubstepContactRecorder.record_slip`: at every substep with
+  contacts, the contacts' ``efc_address`` and the substep's ``efc_vel``,
+  whose two tangential rows per contact (the elliptic cone's: the contact
+  points' sliding velocity) the reduction gathers as it gathers the balance
+  capture's tangential forces, for the force-weighted sliding speed of each
+  limb's floor contacts; ``None`` under a pyramidal cone, whose rows are
+  pyramid edges;
+* :meth:`~SubstepContactRecorder.record_joint_limits`: at every substep, the
+  joint-limit constraint rows (``efc_type`` ``mjCNSTR_LIMIT_JOINT``, the
+  ``nl`` rows after the equality and friction ones) of the joints it names,
+  signed about each joint's own axis;
+* at the boundary substep only: :meth:`~SubstepContactRecorder.record_momentum`
+  (the animal's centroidal momentum, summed from each body's ``cinert`` and
+  ``cvel`` exactly as ``mj_subtreeVel`` sums it, without calling it),
+  :meth:`~SubstepContactRecorder.record_wrenches` (``cfrc_int``, the
+  spatial force a body's parent exerts on its subtree, moved to a joint's
+  anchor; NaN on a substep whose forward pass did not compute it,
+  ``flg_rnepost`` 0) and :meth:`~SubstepContactRecorder.record_body_velocity`
+  (a body's angular velocity, ``cvel``'s rotation, world axes).
+
+They run after every other copy of the hook, in one guard of their own, and
+are reduced in one guard of their own after the balance fields: a failure
+costs these fields (``None``) and logs once, never the step, the episode or
+another field.  Without them the hot path and the trace are what they were.
 
 Hook ownership and failing closed
 ---------------------------------
@@ -285,6 +320,34 @@ class EpisodeTrace:
     #: (T,K,3) the recorded sites' world positions, boundary substep; (K,) their names.
     site_pos: np.ndarray | None = None
     site_names: tuple[str, ...] = ()
+    # --- the body-dynamics captures (the module docstring), each ``None`` and ``()`` without it, and when the
+    # captures failed ---
+    #: ``record_actuators()``: (T,S,nu) ``actuator_force`` and ``actuator_velocity`` at each of the step's S =
+    #: ``frame_skip`` substeps (the substep's forward pass).
+    actuator_force_substep: np.ndarray | None = None
+    actuator_velocity_substep: np.ndarray | None = None
+    #: ``record_slip()``: (T,S,F) per substep, the floor-force-weighted tangential speed of each limb's floor
+    #: contacts, ``sum F_n |v_t| / sum F_n`` (m/s), NaN where the limb's floor force is at most
+    #: ``CONTACT_THRESHOLD_N``; ``None`` under a pyramidal cone.
+    leg_slip_speed: np.ndarray | None = None
+    #: ``record_joint_limits()``: (T,S,J) per substep, the torque each named joint's limit constraint applies about
+    #: the joint's own axis (+ toward the upper end of its range: the joint rests on its LOWER stop), 0 off the
+    #: stop; (J,) the joints' names.
+    joint_limit_torque: np.ndarray | None = None
+    joint_limit_names: tuple[str, ...] = ()
+    #: ``record_momentum()``: (T,6) the animal's (the root's subtree's) angular momentum about its centre of mass,
+    #: then its linear momentum, world axes, boundary substep (``mj_subtreeVel``'s ``subtree_angmom`` and
+    #: ``subtree_linvel * mass`` of the root).
+    centroidal_momentum: np.ndarray | None = None
+    #: ``record_wrenches()``: (T,K,6) per named joint, the spatial force its body's parent exerts on the body's
+    #: subtree (``cfrc_int``), as the moment about the joint's anchor then the force, world axes, boundary
+    #: substep; NaN on a step whose forward pass did not compute ``cfrc_int``.  (K,) the joints' names.
+    joint_wrench: np.ndarray | None = None
+    wrench_joint_names: tuple[str, ...] = ()
+    #: ``record_body_velocity()``: (T,K,3) per named body, its angular velocity (rad/s, world axes), boundary
+    #: substep; (K,) the bodies' names.
+    body_angvel: np.ndarray | None = None
+    angvel_body_names: tuple[str, ...] = ()
 
     @property
     def length(self) -> int:
@@ -381,6 +444,27 @@ class SubstepContactRecorder:
         # record_sites() only: the sites copied at each boundary substep, and their names.
         self._sites_extra = np.zeros(0, dtype=np.int64)
         self._site_names: tuple[str, ...] = ()
+        # The body-dynamics captures (record_actuators() ... record_body_velocity()): each off until asked for.
+        self._capture_actuators = False
+        self._capture_slip = False
+        self._capture_momentum = False
+        # The root's subtree (the animal; a prey is another tree), a contiguous run of body ids in MuJoCo's
+        # depth-first order (a slice), else the ids.
+        subtree = [body for body in range(model.nbody) if int(model.body_rootid[body]) == self._root]
+        contiguous = subtree == list(range(subtree[0], subtree[-1] + 1)) if subtree else False
+        self._momentum_bodies: Any = (
+            slice(subtree[0], subtree[-1] + 1) if contiguous else np.array(subtree, dtype=np.int64)
+        )
+        self._limit_joints = np.zeros(0, dtype=np.int64)
+        self._limit_names: tuple[str, ...] = ()
+        self._wrench_joints = np.zeros(0, dtype=np.int64)
+        self._wrench_bodies = np.zeros(0, dtype=np.int64)
+        self._wrench_names: tuple[str, ...] = ()
+        self._angvel_bodies = np.zeros(0, dtype=np.int64)
+        self._angvel_names: tuple[str, ...] = ()
+        self._body_on = False
+        self._body_failed = False
+        self._warned_body = False
         self._reset_episode_buffers()
 
     def _setup_balance(self, model: Any, morphology: Morphology) -> None:
@@ -438,6 +522,84 @@ class SubstepContactRecorder:
         self._site_names = tuple(str(model.site(int(site)).name) for site in ids)
         return self
 
+    # The body-dynamics captures (the module docstring): each before attach, each replacing its earlier choice.
+    def _refuse_attached(self, method: str) -> Any:
+        if self._attached:
+            raise RecorderError(f"{method}() must be called before attach()")
+        return self._env.model
+
+    def record_actuators(self, enabled: bool = True) -> "SubstepContactRecorder":
+        """Also copy ``actuator_force`` and ``actuator_velocity`` at every substep (``actuator_*_substep``)."""
+        self._refuse_attached("record_actuators")
+        self._capture_actuators = bool(enabled)
+        return self
+
+    def record_slip(self, enabled: bool = True) -> "SubstepContactRecorder":
+        """Also copy each substep's contact rows of ``efc_vel`` (``EpisodeTrace.leg_slip_speed``); before attach."""
+        self._refuse_attached("record_slip")
+        self._capture_slip = bool(enabled)
+        return self
+
+    def record_momentum(self, enabled: bool = True) -> "SubstepContactRecorder":
+        """Also sum the animal's centroidal momentum at each boundary substep (``EpisodeTrace.centroidal_momentum``)."""
+        self._refuse_attached("record_momentum")
+        self._capture_momentum = bool(enabled)
+        return self
+
+    def record_joint_limits(self, joints: Sequence[int]) -> "SubstepContactRecorder":
+        """Also copy these hinge or slide joints' limit-constraint forces at every substep (``joint_limit_torque``).
+
+        Raises :class:`RecorderError` for a joint id the model does not have
+        or that is not a limited hinge or slide joint.
+        """
+        model = self._refuse_attached("record_joint_limits")
+        ids = _checked_ids(joints, int(model.njnt), "joint")
+        linear = (int(mujoco.mjtJoint.mjJNT_HINGE), int(mujoco.mjtJoint.mjJNT_SLIDE))
+        for joint in ids.tolist():
+            if int(model.jnt_type[joint]) not in linear or not bool(model.jnt_limited[joint]):
+                raise RecorderError(f"joint {model.joint(joint).name!r} is not a limited hinge or slide joint")
+        self._limit_joints = ids
+        self._limit_names = tuple(str(model.joint(joint).name) for joint in ids.tolist())
+        # Per model joint, its column (-1: not recorded); per column, its EpisodeTrace.joint_qpos column and the
+        # middle of its range (the side of the stop a limit row holds: the joint sits beyond one end).
+        self._limit_column = np.full(int(model.njnt), -1, dtype=np.int64)
+        self._limit_column[ids] = np.arange(ids.size)
+        columns = {int(address): column for column, address in enumerate(self._joint_qpos_index.tolist())}
+        self._limit_qpos = np.array([columns[int(model.jnt_qposadr[joint])] for joint in ids], dtype=np.int64)
+        self._limit_middle = np.array([float(np.mean(model.jnt_range[joint])) for joint in ids], dtype=np.float64)
+        return self
+
+    def record_wrenches(self, joints: Sequence[int]) -> "SubstepContactRecorder":
+        """Also copy, at each boundary substep, the ``cfrc_int`` of each joint's body about its anchor (``joint_wrench``)."""
+        model = self._refuse_attached("record_wrenches")
+        ids = _checked_ids(joints, int(model.njnt), "joint")
+        bodies = np.array([int(model.jnt_bodyid[joint]) for joint in ids], dtype=np.int64)
+        if bodies.size and int(bodies.min()) <= 0:
+            raise RecorderError("a wrench needs a joint of a body with a parent")
+        self._wrench_joints = ids
+        self._wrench_bodies = bodies
+        self._wrench_names = tuple(str(model.joint(joint).name) for joint in ids.tolist())
+        return self
+
+    def record_body_velocity(self, bodies: Sequence[int]) -> "SubstepContactRecorder":
+        """Also copy these bodies' angular velocities at each boundary substep (``EpisodeTrace.body_angvel``)."""
+        model = self._refuse_attached("record_body_velocity")
+        ids = _checked_ids(bodies, int(model.nbody), "body")
+        self._angvel_bodies = ids
+        self._angvel_names = tuple(str(model.body(body).name) for body in ids.tolist())
+        return self
+
+    @property
+    def _body_capture_on(self) -> bool:
+        return bool(
+            self._capture_actuators
+            or self._capture_slip
+            or self._capture_momentum
+            or self._limit_joints.size
+            or self._wrench_joints.size
+            or self._angvel_bodies.size
+        )
+
     def attach(self) -> "SubstepContactRecorder":
         """Install the recorder's hook, chaining the one already there; refuses a second attach."""
         if self._attached:
@@ -447,6 +609,7 @@ class SubstepContactRecorder:
         self._previous_hook = getattr(env, _HOOK)
         setattr(env, _HOOK, self._bound_hook)
         self._attached = True
+        self._body_on = self._body_capture_on  # fixed while attached: the record_*() calls come before
         self._reset_episode_buffers()
         return self
 
@@ -501,6 +664,18 @@ class SubstepContactRecorder:
         self._bal_frame: list[np.ndarray] = []  # per boundary substep with contacts, (ncon, 9)
         self._bal_rows: list[tuple[np.ndarray, np.ndarray, np.ndarray]] = []  # efc_address, dim, efc_force
         self._bal_mu: list[np.ndarray] = []  # (ncon,)
+        # The body-dynamics captures: per substep (the actuators, the joint-limit row counts and rows), per
+        # substep with contacts (the tangential efc_vel rows), per boundary substep (the rest).
+        self._act_rows: list[np.ndarray] = []  # (2 nu,): actuator_force then actuator_velocity
+        # Per substep with contacts: efc_address, dim (None with one condim) and the substep's whole efc_vel.
+        self._slip_rows: list[tuple[np.ndarray, np.ndarray | None, np.ndarray]] = []
+        self._limit_counts: list[int] = []
+        self._limit_rows: list[tuple[np.ndarray, np.ndarray, np.ndarray]] = []  # efc_type, efc_id, efc_force
+        self._momentum_rows: list[np.ndarray] = []  # (B, 16): cinert then cvel
+        self._wrench_rows: list[np.ndarray] = []  # (K, 9): cfrc_int then the joint's anchor
+        self._wrench_origin: list[np.ndarray] = []  # (3,): the c-frame origin, subtree_com of the root
+        self._wrench_valid: list[bool] = []  # flg_rnepost: cfrc_int computed in this forward pass
+        self._angvel_rows: list[np.ndarray] = []  # (K, 3)
 
     def _configure_decode(self, model: Any) -> None:
         """Choose the normal-force decode for ``model`` (re-run when an env swaps its model)."""
@@ -508,10 +683,12 @@ class SubstepContactRecorder:
         self._elliptic = int(model.opt.cone) == int(mujoco.mjtCone.mjCONE_ELLIPTIC)
         condims = {int(value) for value in model.geom_condim}
         self._edge_offsets = None
+        self._uniform_condim = 0  # the one condim every contact has (with _edge_offsets), else 0
         if len(condims) == 1 and int(model.npair) == 0:
             condim = condims.pop()
             edges = 1 if (self._elliptic or condim == 1) else 2 * (condim - 1)
             self._edge_offsets = np.arange(edges, dtype=np.int64)[None, :]
+            self._uniform_condim = condim
 
     def _normal_forces(self, contact: Any, efc_force: np.ndarray) -> np.ndarray:
         """Each contact's normal force, exactly as ``mj_contactForce`` returns ``force[0]``."""
@@ -558,6 +735,7 @@ class SubstepContactRecorder:
         if env.model is not self._decoded_model:
             self._configure_decode(env.model)
         ncon = int(data.ncon)
+        contact = None
         if ncon:
             contact = data.contact
             self._contact_normal.append(self._normal_forces(contact, data.efc_force))
@@ -588,6 +766,64 @@ class SubstepContactRecorder:
             except Exception:  # noqa: BLE001 - the hook runs inside mj_step's loop: a failure costs the balance fields
                 self._balance_failed = True
                 self._warn_balance("the balance capture failed in the substep hook")
+        # The body-dynamics captures last, in their own guard: a failure costs their fields alone.
+        if self._body_on and not self._body_failed:
+            try:
+                self._body_capture(data, contact)
+            except Exception:  # noqa: BLE001 - the hook runs inside mj_step's loop: a failure costs these fields
+                self._body_failed = True
+                self._warn_body("the body-dynamics capture failed in the substep hook")
+
+    def _body_capture(self, data: Any, contact: Any) -> None:
+        """Copy the body-dynamics rows of this substep (read-only): per substep, then at the boundary substep.
+
+        *contact* is the substep's ``data.contact`` the hook already read, ``None`` without contacts.
+        """
+        if self._capture_actuators:
+            self._act_rows.append(np.concatenate((data.actuator_force, data.actuator_velocity)))
+        if self._capture_slip and contact is not None:
+            # Raw copies only (about 1.5 us a substep); the tangential rows are gathered in the reduction.
+            dim = contact.dim.copy() if self._edge_offsets is None else None
+            self._slip_rows.append((contact.efc_address.copy(), dim, data.efc_vel.copy()))
+        if self._limit_joints.size:
+            # The limit rows follow the equality and friction rows (mj_makeConstraint's order); their type is
+            # checked in the reduction.
+            rows = int(data.nl)
+            if rows:
+                start = int(data.ne) + int(data.nf)
+                stop = start + rows
+                self._limit_rows.append(
+                    (
+                        data.efc_type[start:stop].copy(),
+                        data.efc_id[start:stop].copy(),
+                        data.efc_force[start:stop].copy(),
+                    )
+                )
+            self._limit_counts.append(rows)
+        if self._n_sub != self._frame_skip:
+            return
+        if self._capture_momentum:
+            bodies = self._momentum_bodies
+            self._momentum_rows.append(np.concatenate([data.cinert[bodies], data.cvel[bodies]], axis=1))
+        if self._wrench_joints.size:
+            self._wrench_rows.append(
+                np.concatenate([data.cfrc_int[self._wrench_bodies], data.xanchor[self._wrench_joints]], axis=1)
+            )
+            self._wrench_origin.append(data.subtree_com[self._root].copy())
+            self._wrench_valid.append(bool(data.flg_rnepost))
+        if self._angvel_bodies.size:
+            self._angvel_rows.append(data.cvel[self._angvel_bodies, :3])
+
+    def _warn_body(self, message: str) -> None:
+        """Warn once per recorder: a failed capture costs its remaining episodes' body-dynamics fields, a failed
+        reduction that episode's (``None``)."""
+        if not self._warned_body:
+            self._warned_body = True
+            logger.warning(
+                "Body telemetry: %s; the body-dynamics fields read None (logged once per recorder).",
+                message,
+                exc_info=True,
+            )
 
     def _warn_balance(self, message: str) -> None:
         """Warn once per recorder: a failed capture costs its remaining episodes' balance fields, a failed
@@ -617,11 +853,14 @@ class SubstepContactRecorder:
             self._bal_rows.append((contact.efc_address.copy(), contact.dim.copy(), data.efc_force.copy()))
             self._bal_mu.append(contact.friction[:, 0].copy())
 
-    def _tangential_forces(self, rows: Sequence[tuple[np.ndarray, np.ndarray, np.ndarray]]) -> np.ndarray:
+    def _tangential_forces(self, rows: Sequence[tuple[np.ndarray, np.ndarray | None, np.ndarray]]) -> np.ndarray:
         """Each contact's two tangential forces (contact frame), as ``mj_contactForce`` returns ``force[1:3]``.
 
         *rows* holds one ``(efc_address, dim, efc_force)`` per boundary
-        substep with contacts, as the capture copied them; the result has
+        substep with contacts, as the capture copied them (``record_slip``
+        passes ``efc_vel`` in ``efc_force``'s place, for the contact points'
+        sliding velocity, at every substep with contacts, and ``None`` for
+        ``dim`` when every contact has the model's one condim); the result has
         one row per contact, in that order.  The elliptic cone's rows after
         the normal one, each contact's address read in its own substep's
         ``efc_force``; 0 for a contact with no rows (``efc_address`` -1) or
@@ -639,7 +878,16 @@ class SubstepContactRecorder:
         sizes = np.array([efc.size for _address, _dim, efc in rows], dtype=np.int64)
         efc_force = np.concatenate([efc for _address, _dim, efc in rows])
         address = np.concatenate([address for address, _dim, _efc in rows]).astype(np.int64)
-        dim = np.concatenate([dim for _address, dim, _efc in rows])
+        dims = [dim for _address, dim, _efc in rows]
+        if all(dim is None for dim in dims):
+            dim = np.full(total, self._uniform_condim, dtype=np.int64)
+        else:
+            dim = np.concatenate(
+                [
+                    np.full(len(address), self._uniform_condim) if d is None else d
+                    for (address, _d, _e), d in zip(rows, dims)
+                ]
+            )
         size = np.repeat(sizes, counts)  # each contact's own substep's row count
         start = np.repeat(np.cumsum(sizes) - sizes, counts)
         offsets = np.array([1, 2], dtype=np.int64)[None, :]
@@ -874,6 +1122,21 @@ class SubstepContactRecorder:
             except Exception:  # noqa: BLE001 - the balance reduction must not cost the episode's other fields
                 balance = {}
                 self._warn_balance("an episode's balance fields could not be reduced")
+        # The body-dynamics fields after them, in their own guard as well.
+        body: dict[str, Any] = {}
+        if self._body_on and not self._body_failed:  # a failed capture has already warned
+            try:
+                body = self._reduce_body(
+                    steps=steps,
+                    substep_of=substep_of,
+                    normal=normal,
+                    leg_on_floor=leg_on_floor,
+                    foot=foot,
+                    leg=leg,
+                )
+            except Exception:  # noqa: BLE001 - the body reduction must not cost the episode's other fields
+                body = {}
+                self._warn_body("an episode's body-dynamics fields could not be reduced")
 
         return EpisodeTrace(
             model_id=morphology.model_id,
@@ -930,6 +1193,7 @@ class SubstepContactRecorder:
             site_pos=sites,
             site_names=self._site_names if sites is not None else (),
             **balance,
+            **body,
         )
 
     def _reduce_balance(
@@ -1042,6 +1306,100 @@ class SubstepContactRecorder:
             "digit_tip_foot": self._digit_tip_foot.copy(),
         }
 
+    def _reduce_body(
+        self,
+        *,
+        steps: int,
+        substep_of: np.ndarray,
+        normal: np.ndarray,
+        leg_on_floor: np.ndarray,
+        foot: np.ndarray,
+        leg: np.ndarray,
+    ) -> dict[str, Any]:
+        """The :class:`EpisodeTrace` body-dynamics fields of the episode just recorded (the captures asked for).
+
+        *leg* is the (T, S, F) per-substep floor force on each limb, the sum
+        over the limb's floor contacts of the decoded normal force: the
+        weights of the slip speed.  Raises :class:`RecorderError` when a
+        capture's rows do not line up with the steps recorded.
+        """
+        substeps = self._frame_skip
+        total = steps * substeps
+        n_feet = self._morphology.n_feet
+        out: dict[str, Any] = {}
+
+        def per_step(rows: list[Any], name: str) -> np.ndarray:
+            if len(rows) != steps:
+                raise RecorderError(f"{len(rows)} {name} samples recorded for {steps} steps")
+            return np.asarray(rows, dtype=np.float64)
+
+        if self._capture_actuators:
+            if len(self._act_rows) != total:
+                raise RecorderError(f"{len(self._act_rows)} actuator samples recorded for {total} substeps")
+            actuators = np.asarray(self._act_rows, dtype=np.float64).reshape(steps, substeps, 2, -1)
+            out["actuator_force_substep"] = actuators[:, :, 0].copy()
+            out["actuator_velocity_substep"] = actuators[:, :, 1].copy()
+        if self._capture_slip and self._elliptic:
+            # efc_vel's two tangential rows of each contact, gathered as the balance capture gathers efc_force's:
+            # the contact points' sliding velocity in the contact frame (0 for a contact without rows).
+            tangent = self._tangential_forces(self._slip_rows) if self._slip_rows else np.zeros((0, 2))
+            if tangent.shape[0] != normal.shape[0]:
+                raise RecorderError(f"{tangent.shape[0]} tangential rows recorded for {normal.shape[0]} contacts")
+            speed = np.hypot(tangent[:, 0], tangent[:, 1])
+            chosen = np.flatnonzero(leg_on_floor)
+            weighted = np.bincount(
+                substep_of[chosen] * n_feet + foot[chosen],
+                weights=normal[chosen] * speed[chosen],
+                minlength=total * n_feet,
+            ).reshape(steps, substeps, n_feet)
+            loaded = leg > CONTACT_THRESHOLD_N
+            out["leg_slip_speed"] = np.where(loaded, weighted / np.where(loaded, leg, 1.0), np.nan)
+        if self._limit_joints.size:
+            counts = np.asarray(self._limit_counts, dtype=np.int64)
+            if counts.size != total or int(counts.sum()) != sum(row[0].size for row in self._limit_rows):
+                raise RecorderError(f"{counts.size} joint-limit samples recorded for {total} substeps")
+            width = self._limit_joints.size
+            torque = np.zeros(total * width)
+            if counts.sum():
+                types = np.concatenate([row[0] for row in self._limit_rows])
+                ids = np.concatenate([row[1] for row in self._limit_rows]).astype(np.int64)
+                force = np.concatenate([row[2] for row in self._limit_rows])
+                at = np.repeat(np.arange(total), counts)
+                joint_rows = np.flatnonzero(types == int(mujoco.mjtConstraint.mjCNSTR_LIMIT_JOINT))
+                column = self._limit_column[ids[joint_rows]]
+                mine = joint_rows[column >= 0]
+                column = column[column >= 0]
+                # The side of the stop: a joint beyond its lower end is pushed up (+), beyond its upper end down.
+                # Read from the step's boundary qpos: no joint crosses half its range within one control step.
+                joints = np.asarray(self._joint_qpos, dtype=np.float64)
+                position = joints[at[mine] // substeps, self._limit_qpos[column]]
+                sign = np.where(position <= self._limit_middle[column], 1.0, -1.0)
+                torque = np.bincount(
+                    at[mine] * width + column, weights=sign * force[mine], minlength=total * width
+                ).astype(np.float64)
+            out["joint_limit_torque"] = torque.reshape(steps, substeps, width)
+            out["joint_limit_names"] = self._limit_names
+        if self._capture_momentum:
+            rows = per_step(self._momentum_rows, "momentum")  # (T, B, 16): cinert, then cvel
+            out["centroidal_momentum"] = _spatial_momentum(rows[..., :10], rows[..., 10:]).sum(axis=1)
+        if self._wrench_joints.size:
+            rows = per_step(self._wrench_rows, "wrench")  # (T, K, 9)
+            origin = per_step(self._wrench_origin, "wrench origin")  # (T, 3)
+            valid = np.asarray(self._wrench_valid, dtype=bool)
+            if valid.shape != (steps,):
+                raise RecorderError(f"{valid.size} wrench flags recorded for {steps} steps")
+            moment, force, anchor = rows[..., :3], rows[..., 3:6], rows[..., 6:9]
+            # cfrc_int is about the c-frame origin (the root's subtree_com); about the anchor p it is
+            # M_p = M_c + (c - p) x F.
+            wrench = np.concatenate([moment + np.cross(origin[:, None, :] - anchor, force), force], axis=-1)
+            wrench[~valid] = np.nan
+            out["joint_wrench"] = wrench
+            out["wrench_joint_names"] = self._wrench_names
+        if self._angvel_bodies.size:
+            out["body_angvel"] = per_step(self._angvel_rows, "body velocity").reshape(steps, -1, 3)
+            out["angvel_body_names"] = self._angvel_names
+        return out
+
     def _unpack(self, rows: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """Split :meth:`_geometry_row` rows into sites (N,F,3), sole xpos (N,F,3), sole xmat (N,F,9), root pos, quat."""
         n_feet = self._morphology.n_feet
@@ -1067,6 +1425,43 @@ def joint_qpos_addresses(model: Any, root_body: int) -> np.ndarray:
     return np.array(
         [address for address in range(model.nq) if not root_address <= address < root_address + 7], dtype=np.int64
     )
+
+
+def _checked_ids(values: Sequence[int], count: int, kind: str) -> np.ndarray:
+    """*values* as an int64 array of distinct ids in ``[0, count)``; :class:`RecorderError` otherwise."""
+    ids = np.array([int(value) for value in values], dtype=np.int64)
+    if ids.size and (int(ids.min()) < 0 or int(ids.max()) >= count or np.unique(ids).size != ids.size):
+        raise RecorderError(f"{kind} ids {ids.tolist()} are not distinct {kind}s of a model with {count}")
+    return ids
+
+
+def _spatial_momentum(inertia: np.ndarray, velocity: np.ndarray) -> np.ndarray:
+    """``mju_mulInertVec`` over (..., 10) com-based inertias and (..., 6) com-based velocities: (..., 6).
+
+    A body's ``cinert`` row is ``(I_xx, I_yy, I_zz, I_xy, I_xz, I_yz, m c_x,
+    m c_y, m c_z, m)`` about the c-frame origin (world axes) and its
+    ``cvel`` row ``(w, v)`` there, so the product is the body's spatial
+    momentum about that origin: ``(I w + m c x v, m v - m c x w)``.  Summed
+    over a tree whose c-frame origin is its centre of mass, it is the
+    tree's angular momentum about its centre of mass and its linear
+    momentum (``mj_subtreeVel``'s ``subtree_angmom`` and ``subtree_linvel``
+    times the mass).
+    """
+    i = inertia
+    w0, w1, w2 = velocity[..., 0], velocity[..., 1], velocity[..., 2]
+    v0, v1, v2 = velocity[..., 3], velocity[..., 4], velocity[..., 5]
+    momentum: np.ndarray = np.stack(
+        [
+            i[..., 0] * w0 + i[..., 3] * w1 + i[..., 4] * w2 - i[..., 8] * v1 + i[..., 7] * v2,
+            i[..., 3] * w0 + i[..., 1] * w1 + i[..., 5] * w2 + i[..., 8] * v0 - i[..., 6] * v2,
+            i[..., 4] * w0 + i[..., 5] * w1 + i[..., 2] * w2 - i[..., 7] * v0 + i[..., 6] * v1,
+            i[..., 8] * w1 - i[..., 7] * w2 + i[..., 9] * v0,
+            i[..., 6] * w2 - i[..., 8] * w0 + i[..., 9] * v1,
+            i[..., 7] * w0 - i[..., 6] * w1 + i[..., 9] * v2,
+        ],
+        axis=-1,
+    )
+    return momentum
 
 
 def _digit_axis_ends(model: Any, geoms: np.ndarray, joints: list[int]) -> tuple[np.ndarray, np.ndarray]:
