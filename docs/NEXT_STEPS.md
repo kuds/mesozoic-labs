@@ -114,7 +114,13 @@ notebook selects `SPECIES` and `EMBODIMENT`, and new runs write
 plants (names only, `configs/plant_versions.toml` note 19) strands every
 checkpoint, and runs recorded under the old IDs stop resolving, so the next
 session of every model is a fresh stance; sections 2 and 3 keep each run's
-Drive directory as recorded.* Section 2 labels each
+Drive directory as recorded.* *2026-10-25: the maintainer took D-D44: T-Rex
+physics r10 (the three tail pitch springs preloaded, so the passive tail holds
+level; the policy interface and visual layer are unchanged), with the stance's
+tail target re-centred on it, which strands every T-Rex physics-r9 checkpoint,
+the stance screens' runs and walking pilot 2's parent included; the next T-Rex
+session is a fresh stance on physics r10, under criteria the maintainer
+approves first (section 3).* Section 2 labels each
 audited node except the in-training dibothrosuchus re-run, which section 3's
 session-4 row describes, and the plan's §10 holds a prompt for continuing the
 gait work in a fresh session.
@@ -237,6 +243,8 @@ not in this table; they are stranded too.*
 *2026-10-11: and since D-D33 every plant's policy interface moved (note 19), so
 the plant contract refuses every run below and none is reused; the first
 column is each run's Drive species directory, named by the ID of its date.*
+*2026-10-25: and since D-D44 the T-Rex is physics r10 (note 20), which would
+strand the T-Rex runs below again; they were stranded already.*
 
 | Drive species directory | Run id | Seed | Interface | Stance | Locomotion | What it needs next |
 |---|---|---|---|---|---|---|
@@ -290,7 +298,9 @@ D-D24): on r8 no T-Rex stance has trained, so the two-seed bar starts again
 from none, under `stance_quality/v2`.* *2026-10-07: the first two r8 seeds,
 42 and 44, both fail v2 (the rows above), so the count is still none; the
 next seeds train on the D-D27 task.* *2026-10-11: and on physics r9 (D-D29),
-where no T-Rex stance has trained.* Nothing relies on a `mesozoic-labs/certified` library
+where no T-Rex stance has trained.* *2026-10-25: and now on physics r10 (D-D44),
+where no T-Rex stance has trained; the stance screens of 2026-10-18 to
+2026-10-24 trained on r9 and certified nothing.* Nothing relies on a `mesozoic-labs/certified` library
 directory.
 
 ---
@@ -570,6 +580,27 @@ posture options, with evidence, before any decision; no further training is
 decided. The second pilot keeps `stance3_armLT_s60`'s final as its parent and
 is not yet trained. As screens and pilots they certify nothing, so the next
 T-Rex session above is still unchanged (§24 of the same record).*
+*2026-10-25, later: decision D-D44. After a posture options study (no
+posture reachable on physics r9 holds a level tail), a CPU probe and CPU
+checks, none of which trained, the maintainer approved T-Rex physics r10: the
+three tail pitch springs preloaded (`springref` 52.5, 25.9 and 10.4°, nothing
+else), so the zero-action statue rests its tail level on its springs, with
+`tail_home_pose` re-centred on that tail and every constant pinned to r9
+re-measured; the policy interface stays r15. It is built on the branch
+`claude/physics-r10-sr3`, and the maintainer opens its pull request when ready;
+the heading-invariance test's fix, its own test-only pull request, lands first
+or with it. Once it is on `main`, every physics-r9 T-Rex checkpoint is refused,
+so the next T-Rex session above becomes a fresh stance on physics r10 and
+policy interface r15 with fresh weights and normalizer statistics, and the
+second pilot can run only on its r9 branch, its result not carrying to r10.
+That first r10 round is not designed: it gets its own criteria, approved by
+the maintainer before any training. On its panels check first what r10
+changes: the r10 statue's one fall in 280 is backward (seed 9047), seed 3121
+tilts a pad 2.087° over the 2.0° bar, and no stance gate reads head posture
+(r9 stances rolled on r10 dropped their heads and still passed;
+KNOWN_ISSUES). The decisions' full text is in
+[BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2 and their record in
+§25 of the same record.*
 
 *Note 2026-10-18 (decision D-D38): where §2, this section and §8 record
 `BEHAVIOR = "stand"` or a `stand` session, they give the setting as it was

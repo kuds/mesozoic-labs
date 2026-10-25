@@ -1654,6 +1654,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   kind, and its `zero_action_baseline.py` entry is deleted.
 
 ### Migration
+- **Every T. rex checkpoint must be retrained; none can be widened** (T. rex
+  physics revision 9 → 10, decision D-D44). Each load path compares the
+  checkpoint's recorded `physics_revision` and `physics_sha256` with the
+  plant's and refuses a mismatch (`PlantCompatibilityError`; measured with a
+  band checkpoint on an r10 tree: "physics_revision: checkpoint=9,
+  current=10"), `widen_checkpoint.py` needs the same physics digest, and
+  ancestor reuse refuses every recorded T. rex node (its `task_sha256` moved),
+  so `TRUNK_FROM = "auto"` and `--trunk-from` find no T. rex trunk. No
+  certified trunk is lost: no T. rex stance has certified on physics r9. What
+  stops loading on `main`: every T. rex stance screen run of D-D37, D-D39,
+  D-D40, D-D41 and D-D43, all uncertified, and walking pilot 2's parent,
+  `stance3_armLT_s60`'s final; walking pilot 2 can still run on its own r9
+  branch, but its result would not carry to r10 (inferred). The policy
+  interface (r15) and visual layer (r4) do not move, and no other species
+  changes. Nothing is to train on r10 until the maintainer approves the first
+  r10 round's own criteria.
 - **`BEHAVIOR = "stand"` is refused; use `"stance"`** (D-D38). `"stance"`
   trains exactly what `"stand"` did since D-D35: the stance stage alone, on
   every model. A run started with `BEHAVIOR = "stand"` re-enters with
@@ -1930,6 +1946,127 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   verdicts with the gate they were earned under.
 
 ### Changed
+- **The T. rex's tail pitch springs are preloaded, so its passive tail holds
+  level, and the stance's tail target follows it** (breaking — plant change,
+  physics revision 9 → 10; every physics-r9 T. rex checkpoint is
+  invalidated; decision D-D44, the maintainer's decisions of 2026-10-25 after
+  a posture study, a CPU probe and CPU checks, none of which trained;
+  `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2, `docs/CONSOLIDATION_PLAN_2026_09.md`
+  §6, `configs/plant_versions.toml` note 20, and the appended §25 of
+  `docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md` with its
+  evidence in `stance5/tail_sr3/` of `docs/investigations/stance_2026_10/`).
+  This "physics r10" is the plant counter's next integer, not the foot that the
+  parked draft #623 screened under that name (D-D34).
+  - What changed: `tyrannosaurus_rex_anatomical.xml` gives `tail_1_pitch`,
+    `tail_2_pitch` and `tail_3_pitch` a spring rest angle (`springref`) of
+    52.5, 25.9 and 10.4° (the probe's candidate "SR3") and nothing else that
+    moves a digest; stiffness, damping, ranges, actuators, masses and geometry
+    are r9's, and the env-built compiled model differs from r9's only in
+    `qpos_spring` (0.91630, 0.45204 and 0.18151 rad; 595 fields compared,
+    measured). The physics digest moves (`3d68aec7…` → `6a47a0eb…`); the policy
+    interface stays revision 15 (`ffbf6631…`) and the visual layer revision 4
+    (`7042dcd5…`).
+  - Why: through r9 the springs rested at zero, so the passive tail could not
+    hold the keyframe's level pose against gravity. The zero-action statue
+    settled `tail_1` and `tail_2` on their −12° ventral stops, its tail 23.4°
+    below horizontal from base to tip, and a level tail needed commands of
+    +3.50, +2.16 and +1.15, beyond the ±1 range (measured, the probe), so every
+    stance trained around a drooped tail stuck on its stop, the setting of the
+    `tail_3` habit of D-D42 and D-D43. The posture study found that no posture
+    reachable on r9 holds a level tail, and that passive support, not more servo
+    reach, is the route off the rail (its skeptics' corrected reading). On r10
+    the statue's tail settles at the keyframe zeros on its springs (chord
+    +0.1°), the servos hold about 0 N·m and no joint touches a limit (measured).
+  - The evidence before the decision (CPU only; measured unless marked): the
+    r10 statue clean on 40/40 on 3042–3081 at each of the six-heading
+    certificate's headings (bound 0.928; r9 39/40) and on 278 of the 280 panel
+    seeds (r9 275), its one fall, seed 9047, backward at step 273, and seed
+    3121's pad tilted 2.087° (r9 2.061°) against the 2.0° bar; its centre of mass
+    10.7 mm further back (the probe). Eight r9 checkpoints rolled zero-shot on r10 all
+    stay up (640 of 640 episodes per plant), but their gate-clean episodes fall
+    from 293 to 229 of 320 deterministic, two of them pinning a tail actuator at
+    +1 and one losing its rail. The checks' skeptic (no blocking finding)
+    corrected their reading: the pooled McNemar p-values overreach (at the
+    checkpoint level 6 go down and 2 up, sign test p 0.29); zero-shot gives no
+    sign that r10 cures the rail (saturation-failure episodes 27 → 80
+    deterministic); the backward-fall risk under perturbation is untested at
+    useful power; the zero-shot rewards used r9's tail target and are not r10
+    values; the zero-shot verdicts are each one episode from flipping (the
+    walking-pilot parent passes at 37/40, the band's seed-42 checkpoint at
+    4,194,304 steps fails at 36/40); and the walking-pilot parent drops its
+    head tip from 1.24 to 0.61 m on r10 and still passes the stance gate, a
+    blind spot of that gate. Nothing tested whether a policy trained on r10
+    avoids the rail.
+  - The reward change D-D44 approved: `tail_home_pose`'s target,
+    `TyrannosaurusRexEnv._TAIL_SETTLED_QPOS`, is re-centred on r10's measured
+    settled tail, (−0.2107, 0, −0.2029, −0.0926) → (0.00002, 0, 0.00006,
+    0.00018) rad (the settled-pose test's helper: noise 0, seed 0, mean of steps
+    200–999); its 0.05 rad tolerance stays.
+  - Every constant pinned to r9 re-measured on the r10 tree with the procedure
+    that set it, each procedure first reproducing the r9 value on a
+    `git archive` of `3ffc18e9` (measured): `_NECK_SETTLED_QPOS` (0.21432, 0,
+    0.21963) → (0.21401, 0, 0.22054); `_LEG_SETTLED_QPOS` re-measured over steps
+    200–999 (the ankle moves most, 4.9 mrad; its largest deviation from the
+    keyframe 2.74 → 2.60°); `natural_pitch` 0.027 → 0.017 (the noise-free
+    statue's `forward_z` −0.01666), so the stance's
+    `nosedive_termination_threshold` 0.493 → 0.503 keeps the absolute −0.520
+    cut; `target_z` 0.9260 carries; the settled statue's lateral m·g·h 704.4 →
+    729.1 N·m/rad, so the hip-roll servos' 1280 is 1.76× (1.82×). The statue
+    references, each over 40 episodes on 3042–3081: stance 3756.8 → 3766.6
+    (3766.56 ± 16.21, 3.8 standard errors), so `min_avg_reward` 2250 → 2260;
+    recovery's pushed statue 1329.1 → 1429.1 (1.35 standard errors; its 40 ends
+    nosedive 20, fallen 19, `tail_contact` 1, against r9's 26, 0 and 14);
+    locomotion 1091.5 → 1092.6 (1.3 standard errors); behavior 602.0 and its
+    361 rail carry (600.93 ± 174.59); `statue_constants_physics_revision` 9 → 10
+    in all four stage files. The MJCF's settle, pitch and m·g·h comments follow
+    (its "CoM 3.7 mm behind the foot-contact centroid at home" is the keyframe's
+    geometry and stays), as do the provenance comments in `base_env.py`,
+    `stages.toml`'s "no r10 seed yet", and the recovery safe set's re-measure,
+    which waits on the first r10 stance (`recovery.toml`,
+    `recovery_evaluation.py`).
+  - Every stance bar is kept, with the r10 statue's extremes in its comment in
+    `configs/tyrannosaurus_rex/anatomical/stance.toml`: on 3042–3081 sole tilt
+    1.60°, corner lift 2.6 mm, pad CoP 0.322, yaw change 14.1°; out of sample
+    2.087° (seed 3121), 3.4 mm, 0.404 and 14.8° (seed 5061). The yaw bar's
+    comment calls 25° twice the statue's largest, which r10 makes 1.69×; the
+    bars are the maintainer's to revisit.
+  - Tests and goldens, each re-measured by its own body or fixture: the Phase C
+    reset golden's two T. rex captures re-taken (`RECAPTURED` 9 → 10); the
+    statue's whole-foot CoP golden (renamed for r10; the left foot now sets the
+    metric); the pad-edge fixture's lean −0.0825 → −0.09 (−0.0875 leaves a row
+    at 0.806 under its 0.82 assertion, −0.095 trips the corner-lift bar); the
+    m·g·h, settled-leg and statue-constant pins. The T. rex suite (161), the
+    other species (359) and the shared suite pass, but for the tests the
+    no-training guard stops and one: the full-horizon heading trace test's
+    T. rex case (rewards 5.08e-9 against its 1e-9 bound), whose own check
+    already fails 7 of 20 r9 seeds through float32 rounding; it is fixed by a
+    test-only pull request of its own (D-D44 (3), the branch
+    `claude/heading-test-float32-bounds`), with which merged the heading tests
+    pass on r10. That test runs only at CI's full depth, so the fix lands
+    first or with this revision (inferred).
+  - Digest golden (649 lines): 39 lines move, all T. rex — the plant's
+    `physics_revision`, `physics_sha256` and `source_closure_sha256`; the four
+    stages' `task_sha256`, `stage_config_view_sha256.PPO` and `.SAC`; the stance
+    `gate_sha256`, which moves with the rail (r9's revision moved none); the
+    four reward stages' `summary`, `shape_sha256` and `rounded_values_sha256`;
+    and the 11 behavior recipes' `task_sha256`. No policy line moves. The plant
+    manifests, the T. rex mirror map and the species catalog are regenerated
+    with their tools.
+  - What it costs: every physics-r9 T. rex checkpoint is refused (Migration);
+    no T. rex stance has certified on r9, so no certified trunk is lost, but the
+    stance screens' runs and walking pilot 2's parent stop loading on `main`,
+    and retraining is estimated at 85–170 GPU-h (inferred, the probe). Nothing
+    trains with this change: the first r10 T. rex training round needs its own
+    criteria, approved by the maintainer, and is not yet designed.
+  - Records: D-D44 in `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2 and the
+    consolidation plan's tables; note 20; `docs/KNOWN_ISSUES.md` (Update 20 of
+    the T-Rex stance entry, the fore-aft entry's r10 update and the stance
+    gate's head-posture blind spot); `docs/NEXT_STEPS.md`; a dated note in §17
+    of `docs/GAIT_QUALITY_PLAN_2026_09.md`; `docs/README.md`; the T. rex README
+    and website pages; the stance record's §25 and `stance5/tail_sr3/` (105
+    files: the posture study, the probe, the CPU checks, the re-measurement and
+    the run log's lines 578 to 598, ids removed; `SOURCES.txt` and
+    `SHA256SUMS`, now 633 files, extended).
 - **The standing behavior has one name: the stance stage's recipe label is
   `stance`, and `stand` is refused with a pointer** (#631; decision D-D38,
   the maintainer's decision of 2026-10-18, "make the standing behavior's name
