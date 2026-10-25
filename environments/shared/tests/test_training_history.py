@@ -945,7 +945,57 @@ class TestHeadPostureAndHipRoll:
             th.load_run_history(_posture_stage(tmp_path, name="new"), label="new", read_std=False),
         ]
         pages, errors = th.render_pages(runs, title="t", marks=[], dpi=30)
-        assert errors == [] and "(old records none" in {page.name: page for page in pages}["12_hip_roll"].caption
+        caption = {page.name: page for page in pages}["12_hip_roll"].caption
+        assert errors == [] and "(old records none" in caption and "so its series are absent" in caption
+
+    def test_a_column_the_model_cannot_measure_is_drawn_as_absent_with_its_reason(self, tmp_path):
+        """A model without a neck or head pitch hinge writes nan there on every episode: the panel says why, the
+        captions name the columns, and the JSON's absent lists them, rather than an empty panel with a legend."""
+        nan = math.nan
+        run = th.load_run_history(
+            _posture_stage(tmp_path, constant={"neck_pitch_mean_deg": nan, "head_pitch_mean_deg": nan}),
+            read_std=False,
+        )
+        assert run.posture_unmeasured == ["neck_pitch_mean_deg", "head_pitch_mean_deg"]
+        assert f"{th.EVAL_EPISODES_FILENAME}: column neck_pitch_mean_deg is nan on every episode" in " ".join(
+            run.absent
+        )
+        context = th._make_context([run], marks=[], smooth=5)
+        head = th._page_figure(th.POSTURE_PAGES[0], context, title="t", dpi=30, width=12.0)
+        mean, _lowest, neck, pitch = head.axes[:4]
+        for axis, column in ((neck, "neck_pitch_mean_deg"), (pitch, "head_pitch_mean_deg")):
+            texts = [text.get_text() for text in axis.texts]
+            assert any(f"nan on every episode ({column}): the model has no such site or hinge" in t for t in texts)
+            assert axis.get_legend() is None and not [line for line in axis.lines if line.get_label() == "mean"]
+        assert not any("nan on every episode" in text.get_text() for text in mean.texts)
+        pages, errors = th.render_pages([run], title="t", marks=[], dpi=30)
+        caption = {page.name: page for page in pages}["11_head_posture"].caption
+        assert (
+            errors == []
+            and "this ledger reads nan on every episode in neck_pitch_mean_deg, head_pitch_mean_deg" in (caption)
+        )
+        # Beside a run that measures it, the column draws that run's line and no end label for the other.
+        other = th.load_run_history(_posture_stage(tmp_path, name="measured"), label="measured", read_std=False)
+        run.label = "unmeasured"
+        neck = th._page_figure(
+            th.POSTURE_PAGES[0], th._make_context([run, other], marks=[], smooth=5), title="t", dpi=30, width=12.0
+        ).axes[2]
+        labels = [text.get_text() for text in neck.texts]
+        assert "measured" in labels and "unmeasured" not in labels
+
+    def test_a_near_constant_series_keeps_a_readable_span_without_an_offset(self, tmp_path):
+        run = th.load_run_history(
+            _posture_stage(tmp_path, constant={"head_tip_height_mean_m": 0.325, "neck_pitch_mean_deg": 12.0}),
+            read_std=False,
+        )
+        figure = th._page_figure(
+            th.POSTURE_PAGES[0], th._make_context([run], marks=[], smooth=5), title="t", dpi=30, width=12.0
+        )
+        mean, _lowest, neck, _pitch = figure.axes[:4]
+        low, high = mean.get_ylim()
+        assert high - low >= 0.05 - 1e-12 and low < 0.325 < high
+        assert neck.get_ylim()[1] - neck.get_ylim()[0] >= 1.0 - 1e-12
+        assert mean.yaxis.get_major_formatter().get_useOffset() is False
 
 
 def _judge_file(directory: Path, name: str, *, joint: int, own: int, seed: int = 42, **extra: Any) -> None:
@@ -1020,8 +1070,14 @@ class TestJudgeK3:
         ]
         texts = [text.get_text() for text in panel.texts]
         assert "3/0" in texts and "1/1" in texts and "2/0" not in texts  # counts written at K3's checkpoints only
-        assert any("K3 bar: joint-space falls <= 2" in text for text in texts)
-        assert any("K3 bar: own-sigma falls <= 1" in text for text in texts)
+        # One label for both bars (two overprint once the falls axis spans more than a few falls), and the counts
+        # boxed over the marks and that label.
+        assert [text for text in texts if text.startswith("K3 bar")] == [
+            "K3 bars: joint <= 2 (dashed), own <= 1 (dotted)"
+        ]
+        label = next(text for text in panel.texts if text.get_text().startswith("K3 bars"))
+        counts = [text for text in panel.texts if text.get_text() in ("3/0", "1/1")]
+        assert all(text.get_bbox_patch() is not None and text.get_zorder() > label.get_zorder() for text in counts)
         caption = th.render_pages([judged], title="t", marks=[], dpi=30)[0][0].caption
         assert "readout of the stance5 replication judge's K3 criterion" in caption and "never a verdict" in caption
 
@@ -1036,6 +1092,9 @@ class TestJudgeK3:
         assert len([patch for patch in strip.patches if not patch.get_fill()]) == 2  # K3's two checkpoints
         texts = [text.get_text() for text in strip.texts]
         assert {"2/0", "3/0", "1/1", "no judge files"} <= set(texts)
+        # The final checkpoint's cell (K3's) is drawn whole, not cut at the axes' right edge.
+        right = max(patch.get_x() + patch.get_width() for patch in strip.patches)
+        assert right <= strip.get_xlim()[1]
 
     def test_the_json_html_and_table_carry_it(self, tmp_path, capsys):
         stage = _stage(tmp_path)

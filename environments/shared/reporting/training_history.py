@@ -200,6 +200,8 @@ POSTURE_COLUMNS: tuple[str, ...] = HEAD_POSTURE_COLUMNS
 #: A foot's hip roll columns: ``<foot>_<field>`` for each of these.
 HIP_ROLL_SUFFIXES: tuple[str, ...] = HIP_ROLL_FIELDS
 _HIP_ROLL_COLUMN = re.compile(r"^(?P<foot>[A-Za-z0-9]+)_hip_roll_mean_deg$")
+#: Why a head posture or hip roll column reads nan on every episode (:func:`unmeasured_posture_columns`).
+POSTURE_UNMEASURED_REASON = "a model without that site or hinge reads nan there: gait.posture_telemetry"
 #: The asymmetry page's joints: the ledger's left-minus-right offsets, then the hip roll's, derived per episode
 #: from its two legs' window means (:func:`hip_roll_pairs`).
 LR_PAGE_JOINTS: tuple[str, ...] = (*LR_JOINTS, "hip_roll")
@@ -396,6 +398,26 @@ def reduced_columns(header: Sequence[str]) -> list[str]:
     columns += list(POSTURE_COLUMNS)
     columns += [f"{foot}_{suffix}" for foot in hip_roll_labels(header) for suffix in HIP_ROLL_SUFFIXES]
     return [column for column in columns if column in present]
+
+
+def unmeasured_posture_columns(header: Sequence[str], rows: Sequence[Mapping[str, str]]) -> list[str]:
+    """The head posture and hip roll columns of *header* that read nan (or empty) on every one of *rows*.
+
+    A model without the head-tip site, a neck or head pitch hinge or a hip roll hinge writes nan in that column on
+    every episode (``gait.posture_telemetry``), so the report draws it as absent with that reason, not as an empty
+    line.  None when there are no rows.
+    """
+    if not rows:
+        return []
+    columns = list(POSTURE_COLUMNS) + [
+        f"{foot}_{suffix}" for foot in hip_roll_labels(header) for suffix in HIP_ROLL_SUFFIXES
+    ]
+    present = set(header)
+    return [
+        column
+        for column in columns
+        if column in present and not any(math.isfinite(_number(row.get(column))) for row in rows)
+    ]
 
 
 def expected_columns(feet: Sequence[str]) -> list[str]:
@@ -1098,6 +1120,9 @@ class RunHistory:
     band: dict[str, float] | None = None
     #: The head_clearance reward's target height (``reward_weights.head_clearance_target``), when recorded.
     head_target: float | None = None
+    #: The head posture and hip roll columns the ledger holds but reads nan on every episode: what the model has no
+    #: site or hinge for (``gait.posture_telemetry``), drawn as absent with that reason.
+    posture_unmeasured: list[str] = field(default_factory=list)
     #: The judge's K3 inputs read from the judge files a caller named (:func:`read_judge_k3`); ``None``: none named.
     k3: dict[str, Any] | None = None
     #: The edges the outside-band counts read: the run's own band, else a reference (``band_edges_source`` says).
@@ -1257,6 +1282,7 @@ def load_run_history(
         run.hip_roll_feet = hip_roll_labels(header)
         run.lr = lr_columns(header)
         run.evaluations = reduce_evaluations(header, rows, bars=run.bars)
+        run.posture_unmeasured = unmeasured_posture_columns(header, rows)
         run.fh_rows = _full_horizon_rows(header, rows)[2]
         run.absent += [
             f"{EVAL_EPISODES_FILENAME}: column {column}"
@@ -1272,6 +1298,10 @@ def load_run_history(
             run.absent.append(
                 f"{EVAL_EPISODES_FILENAME}: left-minus-right hip roll (no <left>/<right>_hip_roll_mean_deg)"
             )
+        run.absent += [
+            f"{EVAL_EPISODES_FILENAME}: column {column} is nan on every episode ({POSTURE_UNMEASURED_REASON})"
+            for column in run.posture_unmeasured
+        ]
         if not run.steps.size:
             run.absent.append(f"{EVAL_EPISODES_FILENAME}: no row with a timesteps value")
     elif run.files[EVAL_EPISODES_FILENAME]:
@@ -1766,6 +1796,9 @@ class Quantity:
     per_foot: bool = False
     ramp: str = "orange"  # a count strip's sequential ramp
     annotate: bool = False  # write each non-zero count (sparse counts only)
+    #: A line panel's least y span (its unit), centred on the data, with plain tick labels: a near-constant series
+    #: (a statue's head tip) is not drawn at micrometre scale with an offset; 0 leaves the panel's autoscale.
+    min_span: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -2076,18 +2109,26 @@ POSTURE_PAGES: tuple[PageSpec, ...] = (
         "post-settle window: the head tip's height (the model's head_tip site, else snout_tip, in m above the floor "
         "plane, the env's own head_tip_z), its mean and its minimum; the neck's pitch (its pitch hinges summed) and "
         "the head's on the neck, each from its home angle, + nose down. Dotted: the head_clearance reward's target "
-        "height, where the stage records one ({head_target}). Recorded only in ledgers written since these columns "
-        "were added{posture_note}.",
+        "height (reward_weights.head_clearance_target), where the stage records one: {head_target}. Recorded only in "
+        "ledgers written since these columns were added{posture_note}.",
         (
-            Quantity("head_tip_height_mean_m", f"Head-tip height, window mean; {_FH}", "m"),
+            Quantity("head_tip_height_mean_m", f"Head-tip height, window mean; {_FH}", "m", min_span=0.05),
             Quantity(
                 "head_tip_height_min_m",
                 f"Head-tip height, window minimum; {_FH}",
                 "m",
                 spread="min",
+                min_span=0.05,
             ),
-            Quantity("neck_pitch_mean_deg", f"Neck pitch (its hinges summed), window mean; {_FH}", "deg (+ nose down)"),
-            Quantity("head_pitch_mean_deg", f"Head pitch on the neck, window mean; {_FH}", "deg (+ nose down)"),
+            Quantity(
+                "neck_pitch_mean_deg",
+                f"Neck pitch (its hinges summed), window mean; {_FH}",
+                "deg (+ nose down)",
+                min_span=1.0,
+            ),
+            Quantity(
+                "head_pitch_mean_deg", f"Head pitch on the neck, window mean; {_FH}", "deg (+ nose down)", min_span=1.0
+            ),
         ),
     ),
     PageSpec(
@@ -2104,6 +2145,7 @@ POSTURE_PAGES: tuple[PageSpec, ...] = (
                 f"Hip roll, window mean; {_FH}",
                 "degrees (+ abduction)",
                 per_foot=True,
+                min_span=1.0,
             ),
             Quantity(
                 "{foot}_hip_roll_max_abs_deg",
@@ -2111,6 +2153,7 @@ POSTURE_PAGES: tuple[PageSpec, ...] = (
                 "degrees",
                 spread="max",
                 per_foot=True,
+                min_span=1.0,
             ),
         ),
     ),
@@ -2268,8 +2311,11 @@ def _reference_lines(runs: Sequence[RunHistory], quantity: Quantity) -> list[tup
         for value in _common(run.head_target for run in runs):
             lines.append((value, f"head_clearance reward target {value:g} m", ":"))
     elif key == "k3":
-        lines.append((float(K3_JOINT_MAX_FALLS), f"K3 bar: joint-space falls <= {K3_JOINT_MAX_FALLS}", "--"))
-        lines.append((float(K3_OWN_MAX_FALLS), f"K3 bar: own-sigma falls <= {K3_OWN_MAX_FALLS}", ":"))
+        # One short label for both bars, above the upper one: the own-sigma bar sits one fall under the joint-space
+        # bar, so two labels overprint once the falls axis spans more than a few falls.
+        bars = f"K3 bars: joint <= {K3_JOINT_MAX_FALLS} (dashed), own <= {K3_OWN_MAX_FALLS} (dotted)"
+        lines.append((float(K3_JOINT_MAX_FALLS), bars, "--"))
+        lines.append((float(K3_OWN_MAX_FALLS), "", ":"))
     if key in ("neck_pitch_mean_deg", "head_pitch_mean_deg", "{foot}_hip_roll_mean_deg"):
         lines.append((0.0, "", "-"))
     if key.endswith(("_fore_aft", "margin_min_m", "com_fore_aft_mean_m", "shear_over_normal")) and not key.startswith(
@@ -2377,6 +2423,42 @@ def _style_axis(axis: Any, panel: _Panel, *, top: bool) -> None:
     for side in ("left", "bottom"):
         axis.spines[side].set_color(_AXIS)
     axis.tick_params(colors=_INK_2, labelsize=_TICK_PT, labelbottom=True)
+
+
+def _no_value_note(context: "_Context", quantity: Quantity, foot: str | None) -> str | None:
+    """Why a column quantity the files hold draws no line (nan at every evaluation), or ``None``: not held.
+
+    A head posture or hip roll column that reads nan on every episode
+    (:attr:`RunHistory.posture_unmeasured`) is what the model has no site or
+    hinge for; any other held column has no full-horizon episode with a
+    finite value.
+    """
+    if quantity.kind != "column" or quantity.key.startswith("lr:"):
+        return None
+    if foot is not None:
+        names = [quantity.key.replace("{foot}", foot)]
+    elif quantity.per_foot:
+        names = [quantity.key.replace("{foot}", f) for run in context.runs for f in _quantity_feet(run, quantity)]
+    else:
+        names = [quantity.key]
+    held = [
+        name for name in dict.fromkeys(names) if any(name in run.evaluations.get("columns", {}) for run in context.runs)
+    ]
+    if not held:
+        return None
+    shown = ", ".join(held) if foot is not None or not quantity.per_foot else quantity.key.replace("{foot}", "<foot>")
+    if all(any(name in run.posture_unmeasured for run in context.runs) for name in held):
+        return f"nan on every episode ({shown}): the model has no such site or hinge (gait.posture_telemetry)"
+    return f"no finite value over the full-horizon episodes in these files ({shown})"
+
+
+def _hold_span(axis: Any, span: float) -> None:
+    """At least *span* of y around what the panel draws, centred, with plain tick labels (no offset)."""
+    low, high = axis.get_ylim()
+    if high - low < span:
+        middle = 0.5 * (low + high)
+        axis.set_ylim(middle - 0.5 * span, middle + 0.5 * span)
+    axis.ticklabel_format(axis="y", useOffset=False)
 
 
 def _absent(axis: Any, text: str) -> None:
@@ -2547,8 +2629,8 @@ def _draw_line_single(axis: Any, context: _Context, quantity: Quantity) -> bool:
     drawn = False
     for foot_index, which in enumerate(feet):
         values = _values(run, quantity, which)
-        if values is None:
-            continue
+        if values is None or not np.isfinite(values[1]).any():
+            continue  # absent, or nan at every evaluation: said on the panel (_no_value_note), not an empty line
         x, y = values
         drawn = True
         colour = _SERIES[foot_index % len(_SERIES)] if quantity.per_foot else _SERIES[0]
@@ -2758,6 +2840,8 @@ def _draw_k3_single(axis: Any, context: _Context, quantity: Quantity) -> bool:
             va="bottom",
             fontsize=8,
             color=_INK,
+            zorder=6,  # over the marks and the bars' label: a J, alarm or checkpoint line through K3's step stays behind
+            bbox={"facecolor": _SURFACE, "alpha": 0.85, "edgecolor": "none", "pad": 0.6},
         )
     axis.set_ylim(-0.6, max(float(K3_JOINT_MAX_FALLS) + 2.0, top + 2.0))
     return True
@@ -2800,6 +2884,8 @@ def _draw_k3_strips(axis: Any, context: _Context, quantity: Quantity) -> bool:
                 fontsize=7.5,
                 color=colour,
             )
+    if every.size:  # the last cell (K3's final, as a rule) whole, not cut at the axes' right edge (x is shared)
+        axis.set_xlim(right=max(axis.get_xlim()[1], float(every.max()) / 1e6 + 0.55 * width))
     axis.set_ylim(len(context.runs) - 0.5, -0.75)
     axis.set_yticks(range(len(context.runs)))
     axis.set_yticklabels([])
@@ -2974,8 +3060,8 @@ def _draw_line_compare(axis: Any, context: _Context, quantity: Quantity, foot: s
     ends: list[tuple] = []
     for index, run in enumerate(context.runs):
         values = _values(run, quantity, foot)
-        if values is None:
-            continue
+        if values is None or not np.isfinite(values[1]).any():
+            continue  # absent, or nan at every evaluation: no line and no end label
         x, y = values
         colour, style = context.colours[index], context.styles[index]
         axis.plot(x, y, color=colour, linewidth=0.8, alpha=0.22, label="_nolegend_")
@@ -3304,11 +3390,13 @@ def _page_figure(spec: PageSpec, context: _Context, *, title: str, dpi: int, wid
                 if quantity.key == "lr:hip_roll"
                 else quantity.key.replace("{foot}", panel.foot or "<foot>")
             )
-            _absent(axis, f"not recorded in these files ({column})")
+            _absent(axis, _no_value_note(context, quantity, panel.foot) or f"not recorded in these files ({column})")
         elif not panel.strip:
             _draw_references(axis, context, quantity)
             if quantity.key == "actuator_force_frac_max":
                 axis.set_ylim(0.0, 1.08)
+            if quantity.min_span > 0:
+                _hold_span(axis, quantity.min_span)
         _draw_marks(axis, context, top=index == 0, strip=panel.strip)
         if context.comparison:
             _end_labels(axis, ends)
@@ -3642,12 +3730,24 @@ def render_pages(
             f"a resume kept rows from a {POLICY_PROBE_FILENAME} written before the arrays, or a buffer pass failed)"
         )
     unposed = [run.label for run in runs if "head_tip_height_mean_m" not in run.evaluations.get("columns", {})]
-    posture_note = (
-        ""
-        if not unposed
-        else f" ({'this ledger' if len(runs) == 1 else ', '.join(unposed)} records none: an older ledger, or a model "
-        "whose evaluation runs no recorder, so those panels are absent)"
-    )
+    posture_parts = []
+    if unposed:
+        posture_parts.append(
+            f"{'this ledger' if len(runs) == 1 else ', '.join(unposed)} records none: an older ledger, or a model "
+            "whose evaluation runs no recorder, so "
+            + (
+                "those panels are absent"
+                if len(runs) == 1
+                else f"{'its' if len(unposed) == 1 else 'their'} series are absent"
+            )
+        )
+    posture_parts += [
+        f"{'this ledger' if len(runs) == 1 else run.label} reads nan on every episode in "
+        f"{', '.join(run.posture_unmeasured)} ({POSTURE_UNMEASURED_REASON}), drawn as absent"
+        for run in runs
+        if run.posture_unmeasured
+    ]
+    posture_note = f" ({'; '.join(posture_parts)})" if posture_parts else ""
     judged = [run for run in runs if _k3_points(run)]
     k3_note = (
         ""
@@ -3667,11 +3767,7 @@ def render_pages(
         "named_note": named_note,
         "posture_note": posture_note,
         "k3_note": k3_note,
-        "head_target": (
-            "none recorded"
-            if not targets
-            else ", ".join(f"{value:g} m" for value in targets) + " (reward_weights.head_clearance_target)"
-        ),
+        "head_target": ("none recorded" if not targets else ", ".join(f"{value:g} m" for value in targets)),
     }
     pages: list[Page] = []
     errors: list[str] = []
