@@ -126,7 +126,7 @@ Camera optics, stereo baseline and touch sensors also require real calibration.
 Run the committed checks:
 
 ```bash
-python -m examples.tyrannosaurus_rex_50cm.validate
+python -m examples.tyrannosaurus_rex_50cm.validate --duration 30
 pytest environments/tyrannosaurus_rex/tests/test_tyrannosaurus_rex_50cm.py
 ```
 
@@ -134,9 +134,10 @@ The recorded MuJoCo 3.10.0 result has:
 
 | Trial | Duration | Minimum root-height ratio | Maximum torso tilt | Maximum internal penetration |
 | --- | ---: | ---: | ---: | ---: |
-| Free stance | 10 s | 0.9911 | 2.61° | 0 |
-| Free standing gestures | 10 s | 0.9911 | 2.61° | 0 |
-| Explicitly supported gestures | 10 s | 0.9991 | 0.09° | 0 |
+| Free stance | 30 s | 0.9911 | 2.61° | 0 |
+| Free standing gestures | 30 s | 0.9911 | 2.61° | 0 |
+| Free roll/pitch kicks, separate trials | 30 s each | 0.9911 | 2.61° | 0 |
+| Explicitly supported gestures | 30 s | 0.9991 | 0.09° | 0 |
 
 No numerical warnings occurred. In free stance, the largest leg RMS/peak effort
 was approximately **1.79 / 2.30 Nm**. Standing gestures reach approximately
@@ -146,13 +147,17 @@ not substitutes for the earlier walking similarity calculation. Home has eight
 sole/ground contacts and no active internal contacts. The full result records
 actuator effort, sensor loads, joint excursions, model version and source hashes.
 
-The 25 model tests cover both the selected and baseline mass ledgers, dimensions and motor
+The model tests cover both the selected and baseline mass ledgers, dimensions and motor
 envelopes, forward knees, legal joint ranges, camera/foot-sensor attachment,
 gravity/free-base/no-hidden-support conditions, unsupported stance/gestures,
 bounded effort, canonical numeric serialization and deterministic regeneration. A deliberately underpowered
 0.1 Nm leg configuration must fail the stance check. CI path filters and both
 typing jobs include this example; the two workflow-contract tests protect the
 mini and medium examples from becoming untested when only assets change.
+CI uses ten-second stance/gesture/kick cases; the report above records longer
+replays. Unsupported root drift stays below 4.86 mm, settled floor loads support
+the body weight and no settled leg torque clipping occurs. The probe rejects
+loaded fixture constraints and gravity compensation instead of disabling them.
 
 **This model has not demonstrated walking, push recovery or hardware viability.**
 The supported trial is display-only. The unsupported trials use broad soles,

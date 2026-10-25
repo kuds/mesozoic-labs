@@ -13,6 +13,9 @@ from typing import Any
 import mujoco
 import numpy as np
 
+from environments.shared import robot_validation
+from environments.shared.robot_validation import GroundSupportProbe, require_unsupported
+
 from . import demo, engineering, tail_option
 
 
@@ -59,20 +62,29 @@ def jaw_separation(model: mujoco.MjModel, points: int = 101) -> dict[str, Any]:
 def gesture_trial(model: mujoco.MjModel, *, duration: float = 10, supported: bool = False) -> dict[str, Any]:
     if not math.isfinite(duration) or duration < 3:
         raise ValueError("Use a finite gesture duration of at least three seconds")
-    data = engineering.home_data(model)
-    demo.set_support(model, data, supported)
+    data = mujoco.MjData(model)
+    mujoco.mj_resetDataKeyframe(model, data, 0)
+    if supported:
+        demo.set_support(model, data, True)
+    else:
+        require_unsupported(model, data)
+        mujoco.mj_forward(model, data)
+    support = GroundSupportProbe(model, feet={side: (f"{side}_flat_pad_collision",) for side in ("left", "right")})
     names = ("head_yaw", "head_pitch", "jaw", "left_shoulder_pitch", "right_shoulder_pitch")
     addresses = [model.joint(name).qposadr[0] for name in names]
     positions, forces = [], []
     minimum_height, maximum_tilt, penetration = 1.0, 0.0, 0.0
     start_height = float(data.qpos[2])
     finite = True
+    unexpected_support, external_forces = 0.0, False
     for _ in range(round(duration / model.opt.timestep)):
         data.ctrl[:] = demo.gesture_controls(model, float(data.time))
         mujoco.mj_step(model, data)
         finite = finite and all(np.isfinite(x).all() for x in (data.qpos, data.qvel, data.actuator_force))
         if not finite or np.any(data.warning.number):
             break
+        unexpected_support = max(unexpected_support, support.sample(data)[1])
+        external_forces = external_forces or bool(np.any(data.xfrc_applied) or np.any(data.qfrc_applied))
         positions.append(data.qpos[addresses].copy())
         forces.append(data.actuator_force.copy())
         minimum_height = min(minimum_height, float(data.qpos[2] / start_height))
@@ -88,6 +100,8 @@ def gesture_trial(model: mujoco.MjModel, *, duration: float = 10, supported: boo
         "externally_supported": supported,
         "finite": finite,
         "warnings": int(data.warning.number.sum()),
+        "maximum_unexpected_support_N": unexpected_support,
+        "no_applied_external_forces": not external_forces,
         "minimum_height_ratio": minimum_height,
         "maximum_tilt_deg": maximum_tilt,
         "maximum_internal_penetration_m": penetration,
@@ -109,11 +123,15 @@ def build_report() -> dict[str, Any]:
     root = Path(__file__).parent
     files = [root / name for name in ("model.xml", "head_allocation.json", "components.json")]
     files += sorted(root.glob("*.py")) + sorted((root / "assets").glob("*.xml"))
+    sources = {str(p.relative_to(root)): hashlib.sha256(p.read_bytes()).hexdigest() for p in files}
+    sources["../../environments/shared/robot_validation.py"] = hashlib.sha256(
+        Path(robot_validation.__file__).read_bytes()
+    ).hexdigest()
     return {
         "design": "silhouette_c_mini",
         "mujoco_version": mujoco.__version__,
         "scope": "Short ideal simulation regressions; not walking, physical fit, electrical or thermal qualification.",
-        "source_sha256": {str(p.relative_to(root)): hashlib.sha256(p.read_bytes()).hexdigest() for p in files},
+        "source_sha256": sources,
         "jaw_separation": jaw_separation(base),
         "gestures": {
             name: gesture_trial(model, supported=supported)

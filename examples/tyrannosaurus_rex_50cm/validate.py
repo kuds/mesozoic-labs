@@ -6,11 +6,15 @@ import argparse
 import hashlib
 import json
 import math
+import platform
 from pathlib import Path
 from typing import Any
 
 import mujoco
 import numpy as np
+
+from environments.shared import robot_validation
+from environments.shared.robot_validation import GroundSupportProbe, require_unsupported
 
 from .demo import MODEL_PATH, gesture_controls, load_model, set_support
 
@@ -55,27 +59,59 @@ def internal_contacts(model: mujoco.MjModel, data: mujoco.MjData) -> list[dict[s
 
 
 def run_trial(
-    model: mujoco.MjModel, *, duration: float = 10, supported: bool = False, gesture: bool = False
+    model: mujoco.MjModel,
+    *,
+    duration: float = 10,
+    supported: bool = False,
+    gesture: bool = False,
+    angular_kick: tuple[float, float, float] = (0.0, 0.0, 0.0),
 ) -> dict[str, Any]:
-    if not math.isfinite(duration) or duration <= 0:
-        raise ValueError("duration must be positive and finite")
+    if not math.isfinite(duration) or duration < 3:
+        raise ValueError("duration must be finite and at least three seconds")
+    kick = np.asarray(angular_kick, dtype=float)
+    if kick.shape != (3,) or not np.isfinite(kick).all():
+        raise ValueError("angular_kick must contain three finite angular velocities")
     data = mujoco.MjData(model)
     mujoco.mj_resetDataKeyframe(model, data, 0)
-    set_support(model, data, supported)
+    if supported:
+        set_support(model, data, True)
+    else:
+        # Do not clear an accidentally active fixture and report an honest
+        # model: reject the loaded defaults, then simulate them unchanged.
+        require_unsupported(model, data)
+        mujoco.mj_forward(model, data)
+    support = GroundSupportProbe(model, feet={side: (f"{side}_sole_collision",) for side in ("left", "right")})
     start_height = float(data.qpos[2])
+    start_xy = data.qpos[:2].copy()
     min_height, max_tilt, max_internal, max_limit_error = start_height, 0.0, 0.0, 0.0
+    max_drift, max_unexpected = 0.0, 0.0
+    external_forces, kicked = False, False
+    late_loads: list[np.ndarray] = []
+    late_efforts: list[np.ndarray] = []
     maximum_torque = np.zeros(model.nu)
     sum_squares = np.zeros(model.nu)
     minimum_q, maximum_q = data.qpos[7:].copy(), data.qpos[7:].copy()
     finite = True
     steps = math.ceil(duration / model.opt.timestep)
     for _ in range(steps):
+        if not kicked and data.time >= 1.0 - model.opt.timestep / 2:
+            data.qvel[3:6] += kick
+            kicked = True
         if gesture:
             data.ctrl[:] = gesture_controls(model, float(data.time))
         mujoco.mj_step(model, data)
         finite = finite and all(
             np.isfinite(v).all() for v in (data.qpos, data.qvel, data.actuator_force, data.sensordata)
         )
+        if not finite or np.any(data.warning.number):
+            break
+        external_forces = external_forces or bool(np.any(data.xfrc_applied) or np.any(data.qfrc_applied))
+        loads, unexpected = support.sample(data)
+        max_unexpected = max(max_unexpected, unexpected)
+        max_drift = max(max_drift, float(np.linalg.norm(data.qpos[:2] - start_xy)))
+        if data.time >= duration - 1.0:
+            late_loads.append(loads)
+            late_efforts.append(data.actuator_force.copy())
         min_height = min(min_height, float(data.qpos[2]))
         up = data.xmat[model.body("torso").id].reshape(3, 3)[:, 2]
         max_tilt = max(max_tilt, math.degrees(math.acos(float(np.clip(up[2], -1, 1)))))
@@ -88,14 +124,28 @@ def run_trial(
         max_limit_error = max(
             max_limit_error, float(np.max(np.maximum(limits[:, 0] - data.qpos[7:], data.qpos[7:] - limits[:, 1])))
         )
-    cap = model.actuator_forcerange[:, 1]
+    cap = np.minimum(-model.actuator_forcerange[:, 0], model.actuator_forcerange[:, 1])
+    settled_load = np.mean(late_loads, axis=0) if late_loads else np.zeros(2)
+    settled_rms = np.sqrt(np.mean(np.asarray(late_efforts) ** 2, axis=0)) if late_efforts else np.zeros(model.nu)
+    settled_cap = np.mean(np.abs(late_efforts) >= 0.99 * cap, axis=0) if late_efforts else np.ones(model.nu)
+    weight = float(model.body_subtreemass[model.body("torso").id] * 9.81)
     report = {
         "duration_s": float(data.time),
+        "completed": bool(finite and data.time >= duration - model.opt.timestep / 2),
+        "angular_velocity_kick_rad_s": kick.tolist(),
+        "kick_time_s": 1.0,
         "supported": supported,
         "gesture": gesture,
         "finite": bool(finite),
         "warning_counts": data.warning.number.tolist(),
         "min_height_ratio": min_height / start_height,
+        "maximum_root_drift_m": max_drift,
+        "maximum_unexpected_support_N": max_unexpected,
+        "no_applied_external_forces": not external_forces,
+        "settled_foot_normal_mean_N": settled_load.tolist(),
+        "settled_leg_rms_torque_Nm": settled_rms[:12].tolist(),
+        "settled_leg_cap_fraction": settled_cap[:12].tolist(),
+        "settled_samples": len(late_efforts),
         "max_torso_tilt_deg": max_tilt,
         "maximum_internal_penetration_m": max_internal,
         "max_joint_limit_overshoot_rad": max_limit_error,
@@ -108,13 +158,27 @@ def run_trial(
     }
     report["passed"] = bool(
         finite
+        and report["completed"]
+        and not external_forces
         and not np.any(data.warning.number)
         and min_height > 0.9 * start_height
         and max_tilt < 10
+        and max_drift < 0.03
+        and max_unexpected < 0.05
         and max_internal < 0.001
         and max_limit_error < 0.03
         and report["max_torque_cap_fraction"] <= 1.000001
         and report["external_support_active"] == supported
+        and (
+            supported
+            or (
+                bool(late_efforts)
+                and min(settled_load) > 0.1 * weight
+                and 0.9 * weight < sum(settled_load) < 1.1 * weight
+                and np.all(settled_rms[:12] < 0.7 * cap[:12])
+                and np.all(settled_cap[:12] < 0.60)
+            )
+        )
     )
     return report
 
@@ -132,14 +196,22 @@ def check_model(*, duration: float = 10) -> dict[str, Any]:
         MODEL_PATH.with_name("proportions.py"),
     ]
     sources += sorted(MODEL_PATH.parent.glob("assets/*.obj"))
+    source_sha256 = {str(p.relative_to(MODEL_PATH.parent)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sources}
+    source_sha256["../../environments/shared/robot_validation.py"] = hashlib.sha256(
+        Path(robot_validation.__file__).read_bytes()
+    ).hexdigest()
     trials = {
         "free_stance": run_trial(model, duration=duration),
         "free_standing_gesture": run_trial(model, duration=duration, gesture=True),
+        "free_roll_kick": run_trial(model, duration=duration, angular_kick=(0.15, 0, 0)),
+        "free_pitch_kick": run_trial(model, duration=duration, angular_kick=(0, -0.15, 0)),
         "supported_gesture": run_trial(model, duration=duration, supported=True, gesture=True),
     }
     report = {
         "status": "concept_assembly_and_short_stance_regression_not_walking_validation",
         "mujoco_version": mujoco.__version__,
+        "numpy_version": np.__version__,
+        "python_version": platform.python_version(),
         "mass_kg": float(model.body_mass.sum()),
         "nq": model.nq,
         "nv": model.nv,
@@ -157,14 +229,12 @@ def check_model(*, duration: float = 10) -> dict[str, Any]:
             "display_support_active": bool(data.eq_active[0]),
         },
         "trials": trials,
-        "source_sha256": {
-            str(p.relative_to(MODEL_PATH.parent)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sources
-        },
+        "source_sha256": source_sha256,
         "limitations": [
             "Assigned masses and component-box inertias are not weighed CAD properties.",
             "Provisional motor envelopes do not establish bearings, connectors or mounting compatibility.",
             "Ideal torque-bounded position drives omit torque-speed, thermal, electrical, latency and backlash behavior.",
-            "Gesture and stance checks do not demonstrate walking, push recovery or full-range collision clearance.",
+            "Small specified angular kicks do not qualify general push recovery, walking or full-range collision clearance.",
             "Foot touch readings and RGB/stereo camera poses are ideal simulation sensors, not calibrated hardware.",
         ],
     }

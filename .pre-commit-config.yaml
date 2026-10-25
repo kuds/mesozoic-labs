@@ -16,17 +16,17 @@ exclude: '^(environments/[^/]+/([^/]+/)?(assets|references|data)/|configs/(plant
 repos:
   # ruff and mypy use the versions the CI lint job pins
   # (.github/workflows/python-ci.yml; test_ci_tool_pins.py checks they agree).
-  # The ruff hooks cover environments/ only, as CI does: this ruff also
-  # formats notebooks and the Python blocks in Markdown files, and outside
-  # environments/ CI checks neither.
+  # Match CI's source directories, including the standalone robot examples.
+  # The pinned ruff also formats notebooks and Markdown code blocks; keep
+  # unrelated docs and notebooks outside this scope.
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.16.9
     hooks:
       - id: ruff-check
         args: [--fix]
-        files: ^environments/
+        files: ^(environments/|examples/(mini_tyrannosaurus_rex|tyrannosaurus_rex_50cm)/|docs/hardware/studies/)
       - id: ruff-format
-        files: ^environments/
+        files: ^(environments/|examples/(mini_tyrannosaurus_rex|tyrannosaurus_rex_50cm)/|docs/hardware/studies/)
 
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v2.3.1
@@ -35,7 +35,7 @@ repos:
         additional_dependencies: [gymnasium, numpy]
         args: [--ignore-missing-imports]
         pass_filenames: false
-        entry: mypy environments/
+        entry: mypy environments/ examples/mini_tyrannosaurus_rex/ examples/tyrannosaurus_rex_50cm/ docs/hardware/studies/
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0

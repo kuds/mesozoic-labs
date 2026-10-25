@@ -26,7 +26,9 @@ def main() -> None:
     parser.add_argument("--output", type=Path, default=here / "results.json")
     args = parser.parse_args()
     inputs_path = args.input.resolve()
-    baseline_path = root / "examples/mini_tyrannosaurus_rex/walking_validation.json"
+    # This dated similarity study uses the retained revision-10 20 s slice,
+    # not the current silhouette-C gait (which has a different report schema).
+    baseline_path = root / "examples/mini_tyrannosaurus_rex/baseline_rev10/walking_validation.json"
     inputs = json.loads(inputs_path.read_text())
     baseline = json.loads(baseline_path.read_text())
     model = next(m for m in baseline["models"] if m["name"] == "fixed_tail_base")
@@ -81,6 +83,7 @@ def main() -> None:
     can = inputs["can_scenario"]
     result = {
         "status": "analytical_screen_only_no_new_CAD_or_dynamic_simulation",
+        "reference": "Historical revision-10 20-second diagnostic slice; not the current silhouette-C plant or a qualified gait.",
         "limitations": [
             "Reference gait eventually falls and has ideal torque-limited motors; it is not a validated gait.",
             "Similarity values assume proportional mass distribution and slower cadence; actual actuator placement changes both.",

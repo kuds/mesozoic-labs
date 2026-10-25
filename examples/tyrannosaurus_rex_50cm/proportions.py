@@ -308,6 +308,7 @@ def main() -> None:
         Path(__file__),
         base.HERE / "build_model.py",
         base.HERE / "validate.py",
+        Path(validate.robot_validation.__file__),
         base.HERE / "demo.py",
         PARTS_BUDGET_PATH,
         *sorted((base.HERE / "assets").glob("*.obj")),

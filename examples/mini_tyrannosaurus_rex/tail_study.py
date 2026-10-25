@@ -13,6 +13,9 @@ from typing import Any
 import mujoco
 import numpy as np
 
+from environments.shared import robot_validation
+from environments.shared.robot_validation import GroundSupportProbe, require_unsupported
+
 balance_checks = import_module(f"{__package__}.balance_checks" if __package__ else "balance_checks")
 demo = import_module(f"{__package__}.demo" if __package__ else "demo")
 engineering = import_module(f"{__package__}.engineering" if __package__ else "engineering")
@@ -76,8 +79,14 @@ def wag_trial(model: mujoco.MjModel, *, duration: float = 10.0, supported: bool 
     """Only the tail moves; root weld is explicitly recorded, never implied walking."""
     if not math.isfinite(duration) or duration < 3:
         raise ValueError("Use a finite duration of at least three seconds.")
-    data = engineering.home_data(model)
-    demo.set_support(model, data, supported)
+    data = mujoco.MjData(model)
+    mujoco.mj_resetDataKeyframe(model, data, 0)
+    if supported:
+        demo.set_support(model, data, True)
+    else:
+        require_unsupported(model, data)
+        mujoco.mj_forward(model, data)
+    support = GroundSupportProbe(model, feet={side: (f"{side}_flat_pad_collision",) for side in ("left", "right")})
     actuator = model.actuator("tail_yaw_servo").id
     address = model.jnt_qposadr[model.joint("tail_yaw").id]
     torso = model.body("torso").id
@@ -85,6 +94,7 @@ def wag_trial(model: mujoco.MjModel, *, duration: float = 10.0, supported: bool 
     low, high = math.inf, -math.inf
     initial_height = float(data.qpos[2])
     minimum_height = 1.0
+    unexpected_support, external_forces = 0.0, False
     steps = math.ceil(duration / model.opt.timestep)
     for _ in range(steps):
         ramp = 0.5 - 0.5 * math.cos(math.pi * min(float(data.time), 1.0))
@@ -93,6 +103,8 @@ def wag_trial(model: mujoco.MjModel, *, duration: float = 10.0, supported: bool 
         mujoco.mj_step(model, data)
         if not np.isfinite(data.qpos).all() or np.any(data.warning.number):
             raise RuntimeError("Tail rollout produced non-finite values or a simulator warning.")
+        unexpected_support = max(unexpected_support, support.sample(data)[1])
+        external_forces = external_forces or bool(np.any(data.xfrc_applied) or np.any(data.qfrc_applied))
         torque = float(data.actuator_force[actuator])
         angle = float(data.qpos[address])
         peak, squared = max(peak, abs(torque)), squared + torque**2
@@ -104,6 +116,8 @@ def wag_trial(model: mujoco.MjModel, *, duration: float = 10.0, supported: bool 
     return {
         "duration_s": float(data.time),
         "externally_supported": supported,
+        "maximum_unexpected_support_N": unexpected_support,
+        "no_applied_external_forces": not external_forces,
         "command_amplitude_deg": 15,
         "command_frequency_hz": 0.5,
         "actual_tail_range_rad": [low, high],
@@ -129,10 +143,14 @@ def build_report(samples: int = 1000) -> dict[str, Any]:
         "engineering.py",
     ]
     files += [str(path.relative_to(root)) for path in sorted((root / "assets").glob("*.xml"))]
+    source_sha256 = {name: hashlib.sha256((root / name).read_bytes()).hexdigest() for name in files}
+    source_sha256["../../environments/shared/robot_validation.py"] = hashlib.sha256(
+        Path(robot_validation.__file__).read_bytes()
+    ).hexdigest()
     report: dict[str, Any] = {
         "configuration": "optional_tail_yaw",
         "mujoco_version": mujoco.__version__,
-        "source_sha256": {name: hashlib.sha256((root / name).read_bytes()).hexdigest() for name in files},
+        "source_sha256": source_sha256,
         "mass_kg": float(model.body_mass.sum()),
         "actuators": model.nu,
         "motor_clearance": engineering.motor_clearance_sweep(model, samples=samples),

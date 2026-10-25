@@ -92,14 +92,21 @@ def test_cameras_are_in_the_head_snout_and_foot_sensors_are_on_feet():
             assert model.sensor(f"{side}_contact_force_{i}").type == mujoco.mjtSensor.mjSENS_TOUCH
 
 
-@pytest.mark.parametrize("gesture", [False, True])
-def test_ten_second_free_stance_and_character_regressions(gesture):
+@pytest.mark.parametrize(
+    "gesture,kick",
+    [(False, (0, 0, 0)), (True, (0, 0, 0)), (False, (0.15, 0, 0)), (False, (0, -0.15, 0))],
+    ids=["hold", "gesture", "roll-kick", "pitch-kick"],
+)
+def test_ten_second_free_stance_and_character_regressions(gesture, kick):
     model, _ = demo.load_model()
-    result = validate.run_trial(model, duration=10, gesture=gesture)
+    result = validate.run_trial(model, duration=10, gesture=gesture, angular_kick=kick)
     assert result["passed"], result
     assert not result["external_support_active"]
+    assert result["completed"] and result["no_applied_external_forces"]
+    assert result["maximum_unexpected_support_N"] == 0
     assert max(result["rms_torque_nm"][:12]) < 2.8
     assert sum(result["final_foot_contact_force_n"]) == pytest.approx(model.body_mass.sum() * 9.81, rel=0.05)
+    assert sum(result["settled_foot_normal_mean_N"]) == pytest.approx(model.body_mass.sum() * 9.81, rel=0.05)
     if gesture:
         for name, minimum in (
             ("head_yaw", 0.3),
@@ -121,6 +128,17 @@ def test_display_weld_is_explicit_and_optional():
     assert not data.eq_active[0]
     result = validate.run_trial(model, duration=3, supported=True, gesture=True)
     assert result["passed"] and result["external_support_active"]
+
+
+def test_free_trial_refuses_to_silently_disable_a_default_support():
+    model, _ = demo.load_model()
+    model.eq_active0[0] = True
+    with pytest.raises(ValueError, match="world weld"):
+        validate.run_trial(model, duration=3)
+    model.eq_active0[0] = False
+    model.body_gravcomp[model.body("torso").id] = 0.5
+    with pytest.raises(ValueError, match="gravity compensation"):
+        validate.run_trial(model, duration=3)
 
 
 def test_stance_check_rejects_insufficient_leg_torque():

@@ -2,6 +2,7 @@
   <!-- Silhouette C: rounded tapered skull, side eyes and an open-backed cream jaw.
     Revision-10 mechanism, full motor cases and 800 g allocation retained.
     Head moments regenerated from explicit unweighed component allowances.
+    Leg position/velocity gains reduced for drift-free unsupported stance.
     Not fabrication CAD or a validated walking robot. -->
   <compiler angle="radian" autolimits="true" inertiafromgeom="false" />
   <option timestep="0.002" integrator="implicitfast" gravity="0 0 -9.81" cone="elliptic" iterations="80" tolerance="1e-9" />
@@ -315,16 +316,16 @@
     <joint name="linked_shoulders" joint1="right_shoulder_pitch" joint2="left_shoulder_pitch" polycoef="0 1 0 0 0" solref=".004 1" />
   </equality>
   <actuator>
-    <position name="left_hip_yaw_servo" joint="left_hip_yaw" ctrlrange="-0.2 0.2" />
-    <position name="left_hip_roll_servo" joint="left_hip_roll" ctrlrange="-0.2 0.2" />
-    <position name="left_hip_pitch_servo" joint="left_hip_pitch" ctrlrange="-0.45 0.45" kp="12" kv="0.25" />
-    <position name="left_knee_servo" joint="left_knee" ctrlrange="-0.35 0.7" kp="12" kv="0.25" />
-    <position name="left_ankle_servo" joint="left_ankle" ctrlrange="-0.45 0.45" kp="12" kv="0.25" />
-    <position name="right_hip_yaw_servo" joint="right_hip_yaw" ctrlrange="-0.2 0.2" />
-    <position name="right_hip_roll_servo" joint="right_hip_roll" ctrlrange="-0.2 0.2" />
-    <position name="right_hip_pitch_servo" joint="right_hip_pitch" ctrlrange="-0.45 0.45" kp="12" kv="0.25" />
-    <position name="right_knee_servo" joint="right_knee" ctrlrange="-0.35 0.7" kp="12" kv="0.25" />
-    <position name="right_ankle_servo" joint="right_ankle" ctrlrange="-0.45 0.45" kp="12" kv="0.25" />
+    <position name="left_hip_yaw_servo" joint="left_hip_yaw" ctrlrange="-0.2 0.2" kp="5" kv="0.05" />
+    <position name="left_hip_roll_servo" joint="left_hip_roll" ctrlrange="-0.2 0.2" kp="5" kv="0.05" />
+    <position name="left_hip_pitch_servo" joint="left_hip_pitch" ctrlrange="-0.45 0.45" kp="6" kv="0.0625" />
+    <position name="left_knee_servo" joint="left_knee" ctrlrange="-0.35 0.7" kp="6" kv="0.0625" />
+    <position name="left_ankle_servo" joint="left_ankle" ctrlrange="-0.45 0.45" kp="6" kv="0.0625" />
+    <position name="right_hip_yaw_servo" joint="right_hip_yaw" ctrlrange="-0.2 0.2" kp="5" kv="0.05" />
+    <position name="right_hip_roll_servo" joint="right_hip_roll" ctrlrange="-0.2 0.2" kp="5" kv="0.05" />
+    <position name="right_hip_pitch_servo" joint="right_hip_pitch" ctrlrange="-0.45 0.45" kp="6" kv="0.0625" />
+    <position name="right_knee_servo" joint="right_knee" ctrlrange="-0.35 0.7" kp="6" kv="0.0625" />
+    <position name="right_ankle_servo" joint="right_ankle" ctrlrange="-0.45 0.45" kp="6" kv="0.0625" />
     <position name="head_pitch_servo" joint="head_pitch" ctrlrange="-.25 .10" kp="6" kv="0.15" forcerange="-.10 .10" />
     <position name="head_yaw_servo" joint="head_yaw" ctrlrange="-.65 .65" kp="5" kv="0.12" forcerange="-.08 .08" />
     <position name="jaw_servo" joint="jaw" ctrlrange="0 .32" kp="3" kv="0.07" forcerange="-.025 .025" />

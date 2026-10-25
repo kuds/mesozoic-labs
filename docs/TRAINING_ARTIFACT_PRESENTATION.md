@@ -80,6 +80,34 @@ are kept because the diagnostics callback, episode metrics and plots read
 them. Quadruped CSVs have no support, foot-position, or leg-home columns;
 the Dibothrosuchus CSV has the pad columns below.
 
+### Command columns
+
+Every model's stance CSV also has, per actuator (named as in the MJCF, such
+as `tail_3_pitch_act`), what the policy asked for at that frame:
+
+| Column | Meaning |
+|---|---|
+| `<actuator>_command` | The action the replay sent: `predict(deterministic=True)`'s, already clipped to the action bound, in action units |
+| `<actuator>_raw_mean` | The policy's Gaussian mean for the same observation, before that clip; a command at `+1` with a raw mean of `+1.1` is pushing past the rail |
+| `<actuator>_joint_pos` | The position of the joint the actuator drives, after the step (rad on a hinge) |
+
+The raw mean is a second forward pass of the observation `predict` was
+given (`stance_diagnostics.policy_raw_mean`: `obs_to_tensor` and
+`get_distribution(...).mode()` under `torch.no_grad()`, the policy probe's
+pass). It draws no random number and changes no parameter, so the video,
+the trajectory and every other column are those of a replay without it; it
+costs about 0.15 ms per frame on a [512, 256] policy, against about 1.2 ms
+for the T. rex's physics step. It is absent where the policy has no
+diagonal Gaussian (SAC). The joint position is absent for an actuator that
+does not drive a hinge or slide joint. No column the snapshot writes ends in
+these names on any model (`test_stance_diagnostics.py`), and nothing in the
+repository parses the stance CSV's columns: `stage_layout.iter_replay_files`
+lists it, and the gate reports, audits and result bundles read their own
+files. The CSV's `step` counts from 1 (the frame after the first step); the
+gate's window starts at its 0-based step index `settle_steps`, the CSV's row
+`settle_steps + 1`. To join it to an episode trace of the same seed, read
+the stance CSV's `step` k against the trace CSV's `step` k - 1.
+
 ### Pad columns
 
 Every model whose `FOOT_SUPPORT` sole is a box adds two columns per such
@@ -606,16 +634,30 @@ evaluation could not align with its episodes reads empty.
 | `evaluation`, `timesteps`, `episode`, `env` | The evaluation's index and training step, the episode's index in it, and the evaluation env it ran on |
 | `return`, `length`, `full_horizon`, `cause` | The episode's return and length (in `evaluations.npz`'s order), 1 when it reached the horizon, and how it ended: `truncated`, the env's `termination_reason`, or `terminated` |
 | `screen_v2_clean`, `screen_v2_reasons` | Where the screen runs: 1 when the episode met every bar the screen applies, and the bars it failed, `;`-joined |
+| `saturated_actuator`, `saturated_actuator_fraction`, `saturated_actuator_positive_share`, `saturated_actuator_ties`, `actuators_saturated` | Where the recorder runs: the actuator behind the episode's `max_actuator_saturation_fraction` and its sign. The name (text; empty when no actuator saturates or the window is unmeasured) of the actuator with the largest fraction of post-settle window steps at `\|action\| >= 0.99`, the lowest index on a tie; that fraction, the screen's metric bit for bit (the same window, threshold and NaN rule: 0 when nothing saturates, `nan` unmeasured); the share of its saturated steps commanded positive (1: all at +1, 0: all at -1; `nan` when none is named); the other actuators tied at that fraction; and the actuators with at least one saturated window step. Report only, in this file only |
 | `spawn_stance_width_change_m`, `<label>_spawn_tilt_deg` | Where the recorder runs: at the episode's first substep, the largest change of a foot pair's horizontal distance from the home pose (m), and each box sole's tilt (degrees). In this file only |
 | `<label>_sole_cop_fore_aft`, `<label>_sole_cop_fore_aft_gate`, `<label>_digit_share`, `<label>_foot_cop_fore_aft`, `<label>_foot_cop_fore_aft_gate`, `<label>_toe_margin_nm`, `<label>_sole_tilt_deg`, `<label>_sole_corner_lift_m` | Per foot, where it has them: the episode values whose full-horizon means `gate_progress.npz` holds |
 | `max_sole_cop_fore_aft`, `max_foot_cop_fore_aft`, `max_sole_tilt_deg`, `max_sole_corner_lift_m` | The episode's maxima over the feet, the per-episode numbers the gate's rails read |
 | The balance and force keys | The episode's own values of the keys in the balance table above, with `xcom_toe_lead_s` in place of its fall mean (NaN on an episode that did not fall) |
 
 The per-digit load fields and the whole-foot CoP spread and frequency stay
-in `gate_progress.npz` only. On the T. rex a row has 63 columns and about
-1.06 KB (measured), so the file of a 12M stance (40 episodes every 50,000
-steps, 9,600 rows) ends at about 10 MB, and rewriting it at every
-evaluation writes about 1.2 GB to Drive over the run.
+in `gate_progress.npz` only. On the T. rex a row has 68 columns and about
+1.09 KB (measured; the five saturating-actuator columns add 13 bytes to a
+row that names no actuator and up to about 50 to one that does), so the
+file of a 12M stance (40 episodes every 50,000 steps, 9,600 rows) ends at
+about 10.5 MB, and rewriting it at every evaluation writes about 1.25 GB to
+Drive over the run.
+
+The saturating-actuator columns name what `max_actuator_saturation_fraction`
+only flags: `gait.stance_metrics.saturated_actuator` reads the trace the
+recorder already closed, through the reduction the metric itself uses, and
+names the actuator from the evaluation env's model (`actuator[<index>]` when
+it has no name). They are not `StanceEpisodeMetrics` fields, panel columns
+or gate keys, and they never reach `gate_progress.npz`: no gate verdict,
+reward, observation, action, termination, checkpoint selection or digest
+reads them, and no name begins with `max_` or `min_` or ends in a per-foot
+suffix, so no rail, foot or gate reader takes one up. A ledger written
+before them lacks the columns (a resumed run's earlier rows read empty).
 
 ## Training episodes: `train_episodes.csv` and the rollout counts
 
@@ -729,6 +771,33 @@ at or before the resumed step when its bank equals this session's (the
 labels, seeds, steps, offsets and raw observations); otherwise it drops
 them with one warning.
 
+The probe also reads the rollout itself. SB3 clips a sampled action to the
+action bounds only at `env.step`; the rollout buffer keeps the unclipped
+sample and its log-probability, and PPO trains on those. Deterministic play
+acts on the policy's mean, clipped. The two can sit on opposite sides of a
+bound: in a scratch T. rex experiment `tail_3_pitch_act`'s mean was beyond
++1 on 2.5% and 27.5% of the training rows of two arms, while deterministic
+rollouts held it beyond +1 on 21 to 46% of their window steps, and nothing
+recorded the training side. So at each rollout's end the probe also counts,
+per actuator, over every row of the buffer that update trains on
+(`n_steps × n_envs`, 8,192 on the T. rex stance): the samples above the high
+bound and below the low one (the ones `env.step` clipped), the samples at
+`|clip(a)| >= 0.99` (the gate's saturation threshold), and, from one
+`torch.no_grad()` forward pass of the buffer's observations through the
+policy's distribution (`get_distribution(obs).mode()`, the bank's pass;
+float32, at most 16,384 rows at a time), the means beyond each bound and the
+means' average, median and 95th percentile. The buffer's observations are
+the normalized ones the policy acted on, so these means are the ones the
+samples were drawn around, to float32 rounding (on a T. rex stance run the
+batched pass differed from the per-step ones by about 1e-7, and every
+share was equal). It reads the buffer and draws nothing; on the T. rex
+stance config (4 envs, `n_steps` 2048, `[512, 256]`, one CPU thread) it
+added 41 to 46 ms per rollout, about 0.25% of the 13 to 15 s collection
+and 3.5 to 3.7 s update of that rollout (the bank's passes took 1.2 to
+1.4 ms of the row). A buffer of dict observations or a non-`Box` action
+space reads NaN, with one warning, and a pass that fails costs the row's
+`rollout_*` arrays only (NaN, with one warning), never the rest of it.
+
 | Key | Shape | Meaning |
 |---|---|---|
 | `update_timesteps` | (U,) | The step count at each rollout's end |
@@ -738,17 +807,24 @@ them with one warning.
 | `bank_value_now`, `bank_value_frozen` | (U, B) | The critic's value at each bank state, under the current observation normalization and under the one frozen at the session's start, so that a change of value can be told apart from a change of the normalizer |
 | `bank_action_now`, `bank_action_frozen` | (U, B, actuators) | The deterministic mean action at each bank state, under both normalizations, before clipping |
 | `frozen_reference_timesteps` | (U,) | The step the frozen statistics were taken at (the session's start) |
+| `rollout_rows` | (U,) | The buffer rows the `rollout_*` arrays were read over (`n_steps × n_envs`; 0 for a row kept on a resume from a file written before them) |
+| `rollout_action_clip_high_share`, `rollout_action_clip_low_share` | (U, actuators) | The share of the rollout's sampled actions above the action space's high bound and below its low one: the samples `env.step` clipped |
+| `rollout_action_saturated_share` | (U, actuators) | The share of the clipped samples at `\|a\| >= 0.99` (`SATURATION_ABS`, the gate's threshold) |
+| `rollout_mu_beyond_high_share`, `rollout_mu_beyond_low_share` | (U, actuators) | The share of the policy's mean actions at the buffer's observations above the high bound and below the low one |
+| `rollout_mu_mean`, `rollout_mu_q50`, `rollout_mu_q95` | (U, actuators) | Those means' average, median and 95th percentile, before clipping |
 | `frozen_obs_mean`, `frozen_obs_var` | (observations,) | The frozen statistics |
 | `bank_raw_obs` | (B, observations) | The bank's observations, before normalization |
 | `bank_labels`, `bank_seeds`, `bank_steps`, `bank_ankle_offset`, `bank_com_fore_aft_m` | (B,) | The bank: each state's label, reset seed, step, lean, and its CoM ahead of the feet (m) |
 | `bank_horizon`, `bank_build_seconds` | () | The bank env's horizon and the build's wall time |
 | `ankle_actuators`, `ankle_signs` | (P, 2) | Each ankle pair's left and right actuators and leftward-axis signs: one pair on a biped, two on the Dibothrosuchus and the Brachiosaurus |
 
-The per-update arrays are float32, but the step counts (int64) and
-`obs_rms_count` (float64): about 1.9 KB per update on the T. rex
-(15 actuators, 63 observations, 10 states), about 2.8 MB over the 1,465
-updates of a 12M run. TensorBoard gets, at every update and never on the
-console:
+The per-update arrays are float32, but the step counts and `rollout_rows`
+(int64) and `obs_rms_count` (float64): about 2.4 KB per update on the
+T. rex (15 actuators, 63 observations, 10 states; 0.5 KB of it the
+`rollout_*` arrays), about 3.5 MB over the 1,465 updates of a 12M run. A
+same-stage resume from a file written before the `rollout_*` arrays keeps
+its rows, with 0 rows and NaN there. TensorBoard gets, at every update and
+never on the console:
 
 | Tag | Meaning |
 |---|---|
@@ -760,6 +836,8 @@ console:
 | `policy_probe/value_normalization_shift_statue` | The statue's value under the current normalization less its value under the frozen one (on a fresh normalizer, against the initial statistics: see below) |
 | `policy_probe/statue_ankle_action_mean` | The mirror-even ankle action at the statue states, averaged over the ankle pairs |
 | `policy_probe/ankle_gain_per_m` | The difference of the mirror-even ankle action between the +0.03 and -0.03 leans over the difference of their CoM positions, averaged over the seeds: the deterministic policy's ankle feedback gain to a CoM lean, in action units per metre |
+| `policy_probe/rollout_action_clip_share_max`, `rollout_mu_beyond_share_max` | The rollout's largest per-actuator share of clipped samples, and of means beyond a bound, each actuator's two bounds summed |
+| `policy_probe/rollout_action_saturated_share_max` | The rollout's largest per-actuator share of clipped samples at `\|a\| >= 0.99` |
 
 The frozen statistics are VecNormalize's at the session's start. On a
 stage that loads a normalizer (a later stage, or a resume) they are that
@@ -773,6 +851,87 @@ read 0.63 at the settled statue against 0.16 for `bank_value_now`. There
 `bank_*_frozen` and `value_normalization_shift_statue` measure against the
 initial statistics, not a meaningful earlier normalizer; compare rows of
 `bank_value_now` with `obs_rms_*` instead.
+
+## Single-episode trace: `episode_trace_report.py`
+
+The stance gate flags actuator saturation, the share of window steps at
+`|a| >= 0.99`, and the stance report reduces each actuator's action to a
+window mean and spread. Neither says, step by step, what the policy asks
+for and what the joint and motor do with it. The tail habit of stance3
+Run 2 and stance4 s42 (`tail_3_pitch_act` commanded at +1, tail up) took
+scratch tools to read: a raw mean of +1.01 to +1.12 before the clip, the
+joint 0.216 rad below its stop on 0.26 of its force limit, and a first
+step at 0.99 with a median of 216
+(`investigations/stance_2026_10/stance4/satdiag/report.md`).
+`environments/shared/scripts/episode_trace_report.py` (library:
+`environments/shared/reporting/episode_trace.py`) measures them for any
+checkpoint, offline and report-only:
+
+```bash
+python environments/shared/scripts/episode_trace_report.py \
+    --species tyrannosaurus_rex --embodiment anatomical \
+    --model RUN/01_stance/models/stage1_2097152_steps.zip \
+    --vecnorm RUN/01_stance/models/stage1_vecnormalize_2097152_steps.pkl \
+    --seed 3042 --episodes 3 --actuators tail --out-dir scratch/trace
+```
+
+The rollout is the stance judge's: the stage's own env from its config,
+checked against the model's current plant; the checkpoint and its named
+VecNormalize statistics loaded frozen, with no sidecar guessing, as the
+stance report loads them (a missing `--vecnorm` is refused unless
+`--allow-unnormalized`); the same normalization, `predict(deterministic=True)`
+and clip; and `env.reset(seed=s)` per episode. The trace of seed `3042 + i`
+is episode `i` of the stance panel, command for command, on the v1 and v2
+panels and the heading certificate's 0 degree cell (`test_episode_trace.py`
+checks it against `run_panel`). `--seeds 3042,3059` picks episodes;
+`--actuators SUBSTRING` (repeatable) narrows the columns and the summary.
+
+Each episode writes `episode_trace_seed<seed>.csv`, one row per step, with
+`step` (0-based, the gate's index), `time_s`, `in_window` and `reward`, and
+per traced actuator (the replay's stance CSV counts `step` from 1: its row k
+is the trace's row k - 1):
+
+| Column | Meaning |
+|---|---|
+| `<actuator>_raw_mean` | The Gaussian mean before the clip (`get_distribution(obs).mode()`) |
+| `<actuator>_sample` | With `--stochastic` only: the mean plus the policy's own noise, before the clip |
+| `<actuator>_command` | The action sent to `env.step` |
+| `<actuator>_ctrl` | `data.ctrl`, the servo target the env applied |
+| `<actuator>_joint_pos`, `<actuator>_joint_vel` | The driven joint's position and velocity after the step (empty for another transmission) |
+| `<actuator>_force`, `<actuator>_force_frac` | `data.actuator_force` after the step (the last substep's) and its fraction of the force limit on that side, as the balance telemetry computes it (empty without a limit) |
+
+`episode_trace.json` (`mesozoic.episode-trace/v1`) records the inputs and,
+per episode, the length, return, termination and the gate's two saturation
+fractions over every actuator, and per traced actuator over the gate's
+window (steps `settle_steps` to the end, at `SATURATION_ABS` 0.99): the
+window means of the command, the raw mean, `ctrl`, the joint position and
+the force fraction (and the force fraction's maximum); the shares of window
+steps at `|command| >= 0.99` and `>= 0.9` and with `|raw mean| > 1`; the raw
+mean's maximum and minimum (`raw_mean_max`, `raw_mean_min`); and the first
+step at `|command| >= 0.99`, anywhere and in the window. The reset transient
+can touch the rail, and push the raw mean past its window maximum, before
+the window opens: `first_saturated_step` and `raw_mean_episode_max` and
+`raw_mean_episode_min` read the whole episode, and nothing else does. The
+script prints the same summary (`rawmax` is the window maximum).
+
+Two flags make the rollout a probe, and the summary records them:
+
+* `--stochastic SEED` sends `clip(mean + exp(log_std) z)`, with `z` from
+  `numpy.random.default_rng(SEED + i)` in episode `i`: the policy under its
+  own exploration noise. With the first reset seed as `SEED` this is the
+  stance screens' `noise_matched_own` draw.
+* `--hold NAME=VALUE` (repeatable) sends `VALUE` for that actuator on every
+  step, while the raw mean still says what the policy would have sent: the
+  satdiag's counterfactual of holding `tail_3_pitch_act` at 0.
+
+The trace writes to `--out-dir` (default `episode_trace_<checkpoint stem>`
+in the current directory) and refuses one inside the run directory of the
+checkpoint or its statistics (the nearest ancestor holding
+`provenance.json`), as `plot_gate_progress.py` does: a result bundle's
+manifest hashes every file under the run. It changes no gate, reward,
+observation, action, task, checkpoint selection or plant, and the digest
+snapshot does not move. It traces the training heading only, not the
+certificate's turned headings.
 
 ## Training progress: `progress.json`
 
@@ -824,6 +983,191 @@ every key and type the file had before is kept.
 | `history` | The last 5 evaluations, oldest first: the `evaluation` fields but the causes and the screen, with each rail's `_mean` and `_over_bar_fraction`, and the screen's `screen_v2_clean_count` and `screen_v2_clean_lcb`, where recorded |
 | `checkpoints` | `latest_periodic_timesteps` (the newest periodic checkpoint in `models/`, by its name), `periodic_timesteps` (every periodic checkpoint kept, sorted: the newest few and, under the archive rule below, one per interval), `best_model_timesteps` and `best_mean_reward` (SB3's mean-reward best), `robust_best_model_timesteps` and `robust_best_score` (mean minus one standard deviation). A best checkpoint whose evaluation a resume dropped from the history reads `null`, while its score (`best_mean_reward`, `robust_best_score`) keeps the value the resumed tracker carried over |
 | `warnings_total`, `warnings` | How many advisories this session has raised, and the newest 10 in step order, each `{"timesteps", "source", "message"}`: `posture_drift` and `posture_trend` (each with `rails`), `evaluation_plateau`, `zero_action_baseline` and `hop_watch`. Each also appears as a warning line in the training output. A resumed session counts its own |
+
+## Training history pages: `plot_training_history.py`
+
+`gate_progress.npz` and `progress.json` hold per-evaluation means and the
+latest row. To see how one run's feet, balance, asymmetry and saturation
+moved over its training, or to overlay several runs, draw them from the
+ledgers above:
+
+    python environments/shared/scripts/plot_training_history.py STAGE_DIR [STAGE_DIR ...] --out DIR \
+        [--labels ...] [--groups ...] [--mark-steps 4194304 ... final] [--title ...] \
+        [--reference-band LOWER UPPER PAD_LOWER PAD_UPPER]
+
+One stage directory gives that run's pages; several give a comparison (at
+most eight runs, with distinct labels), one colour per seed (else per run)
+and one line style per `--groups` value, each run's name at the end of its
+line. `--out` receives one PNG per page, `training_history.html`, which
+embeds them (base64) beside tables of the values at the marked, best and
+last checkpoints, and `training_history.json`
+(`mesozoic.training-history/v1`: every reduced series, the declared bars,
+the band settings and the edges counted, the alarms, the checkpoints kept,
+the plant check and what was absent). An `--out` inside a run directory is
+refused, as `plot_gate_progress.py` refuses it; for a copy without
+`provenance.json` the run directory is the stage directory's parent. It
+reads the files and writes nothing else (`reporting/training_history.py`).
+
+| Page | What it draws, against the training step |
+|---|---|
+| Outcomes | Clean episodes (`screen_v2_clean`), falls (shorter than the horizon) and the mean return per evaluation, and the training falls per 262,144-step window of `train_episodes.csv` (`cause` not `truncated`; the stochastic policy's) |
+| Saturation | The episodes per evaluation listing `max_actuator_saturation_fraction` in `screen_v2_reasons`; those episodes by the actuator each names (`saturated_actuator`) and its sign; `saturated_actuator_fraction` (mean and worst episode) against the stage's `max_actuator_saturation_fraction` bar; `actuator_force_frac_max` against its limit of 1; and, per training rollout from `policy_probe.npz`, each actuator's share of sampled actions clipped at a bound and of the policy's means beyond one |
+| Whole-foot CoP | Per foot, the signed `<label>_foot_cop_fore_aft` with the reward band's edges; the full-horizon episodes with either foot's window mean outside the band; the report-only `max_foot_cop_fore_aft` |
+| Pad CoP and the pad rail | Per foot, the signed `<label>_sole_cop_fore_aft` with the pad band's edges; the rail's own `max_sole_cop_fore_aft` (mean and worst episode) against its bar; the full-horizon episodes over that bar; those outside the pad band |
+| Digits and margins | Per foot, `<label>_digit_share` and `<label>_toe_margin_nm` |
+| Balance | `xcom_toe_margin_min_m`, `xcom_heel_margin_min_m`, `com_fore_aft_mean_m`, `root_pitch_mean_deg` |
+| Sole roll | `max_sole_tilt_deg` and `max_sole_corner_lift_m` against their bars, and the full-horizon episodes over each |
+| Floor forces | Per foot, `<label>_shear_over_normal` and `<label>_cone_use_mean` |
+| Asymmetry | `leg_q_<left>_minus_<right>_<joint>_deg` for hip pitch, knee and ankle. `eval_episodes.csv` records no hip roll difference, so there is none to draw |
+| Policy std | `exp(log_std)` per actuator at the checkpoint zips in `models/` (`robust_best`, `best`, final, and at most 12 periodic ones evenly spaced), with the number read of those chosen |
+
+Each per-episode value is reduced over the evaluation's full-horizon
+episodes, as `gate_progress.npz` reduces it: one run's pages draw the mean
+with one standard deviation shaded, or with the worst episode dashed for a
+maximum or minimum. A signed per-foot mean is not a rail's statistic: toe
+and heel episodes, and the two feet, cancel in it, so every per-foot mean
+can sit inside the band or under the pad bar while many episodes leave it.
+The pages therefore count, per evaluation, the full-horizon episodes whose
+own rail value (`max_sole_cop_fore_aft`, `max_sole_tilt_deg`,
+`max_sole_corner_lift_m`) exceeds the stage's bar
+(`<rail>_over_bar`, with `<rail>_over_bar_fraction` in the JSON), and
+those with either foot's window-mean CoP outside the band's edges
+(`foot_cop_outside_band`, `sole_cop_outside_pad_band`; an unloaded foot is
+not counted). The band is paid per window step, so the window mean is a
+proxy. A run that records no band is counted against the edges the
+band-paying runs of a comparison share, or against `--reference-band`, and
+the JSON names the edges' source. The whole-foot CoP is in half-lengths of
+the declared span: 0 its middle, -1 the heel line, +1 the toe line.
+
+Counts (clean, falls, saturation flags, the over-bar and outside-band
+counts, the training falls) are never smoothed. One run's pages draw them as
+lines with a point per evaluation, each fall's count written beside it, and
+the training-fall axis scaled to the windows after the first (the start-up
+window's value is written instead). A comparison draws each count as one
+strip per run, a cell per evaluation (per window for the training falls)
+coloured by the count, with the flagged evaluations outlined and every alarm
+a triangle in its run's row; only the continuous series are smoothed, as a
+centred rolling mean over 5 evaluations (`--smooth`) with each evaluation's
+value faint behind it.
+
+An evaluation is flagged when at least 5 of its episodes list
+`max_actuator_saturation_fraction` (some actuator commanded at
+`|action| >= 0.99` on more than the bar's fraction of its window steps), and
+two flagged evaluations in a row are an alarm, at the second (the stance4 and
+stance5 scorers' report-only rule, set on 10-episode evaluations; the JSON
+records the evaluation sizes and notes any other). Where the ledger records
+`saturated_actuator`, each flagged episode names its actuator and sign (`+`
+when every saturated step was commanded at +1, `-` at -1, `+/-` both;
+`(unmeasured)` an unmeasured window, which fails the bar; `(not recorded)` a
+row written before the column), counted per evaluation and never smoothed:
+one run's page stacks them per evaluation, a comparison colours each run's
+cell by the actuator most of its flagged episodes name, with the key (the
+labels a cell is drawn in) in the legend. Each alarm is labelled with the
+actuator its flagged evaluations' episodes name most, on the page, in the
+legend and in the runs table. An actuator is counted over its signs, so a
+tail whose episodes split between `+` and `+/-` is not outnumbered by a rival
+of one sign; a tie goes to a named actuator before `(unmeasured)` and
+`(not recorded)`, then to the first by name, and the label carries the sign
+most of its episodes carry (`+/-` on a tie). The JSON carries the counts per
+evaluation (`evaluations.flagged_actuators`), per alarm
+(`saturation.runs[].actuators`, `named`) and in the checkpoint table, so the
+final, `best` and `robust_best` checkpoints are read from their own
+evaluation's rows. An older ledger without the columns is an absent series,
+said in the page's caption. One run's pages mark every alarm, `robust_best`,
+`best` and each checkpoint kept in `models/`; a comparison's line panels mark
+each run's first alarm in its colour. Every page marks the `--mark-steps`
+checkpoints. From a checkpoint zip the report reads only `policy.pth`'s
+`log_std` (`torch.load(..., weights_only=True)`) and, for a named checkpoint,
+`num_timesteps` from the JSON `data` member; it unpickles nothing else, and
+the reads stop after 10 s. The std lines join adjacent periodic checkpoints
+only; a longer gap, where nothing was read, is a dotted connector. The
+actuator names come from the checkout's MJCF, used only when the stage's
+`plant_identity.json` records the checkout's physics digest; otherwise the
+actuators are labelled by index. A missing file or column is an absent
+series, listed in the JSON and on the page, never an error. The evaluation
+episodes are the deterministic policy's at yaw 0, so the judge's perturbation
+panels and verdicts are not in these files.
+
+The saturation page's last two panels are the training rollouts', from
+`policy_probe.npz`'s `rollout_*` arrays (above): per rollout, each
+actuator's share of sampled actions clipped at the high bound (`+`, solid)
+and the low one (`-`, dashed), and of the policy's mean actions beyond
+them. An actuator at a bound is drawn by name once its share reaches 0.01
+at some rollout (at most six such series, the highest peak first, in the
+colour its flagged evaluation episodes are drawn in above where they name
+it, else in one that no flagged actuator on the page holds, so a colour
+names one actuator across the page while the palette lasts); one grey line
+is the largest share of every other actuator and bound. A comparison draws
+each run's largest actuator share per rollout, its two bounds summed, with
+the actuator that line traces at its peak beside the run's name (once it
+reaches 0.01). Nothing is smoothed. The JSON's `rollout_shares` keeps, per
+actuator, each share's peak, every array's value at the last measured
+rollout and the first rollout at which either bound's share reaches 0.01,
+with the series the pages name; the per-rollout series stay in the file. A
+run without the file, or with a file written before the arrays, is an
+absent series, said in the page's caption and the JSON's `absent`. A run
+resumed from such a file has no value at the rollouts before the resume
+(nor at a rollout whose buffer pass failed): the panel says from which
+step its rollouts were measured, the caption says the run has gaps, and
+the JSON's `rollouts_measured` and `first_timesteps` record them.
+
+### At stage end: `figures/training_history/`
+
+When a stage ends, `generate_stage_artifacts` draws the same report for
+that stage into `figures/training_history/`
+(`stage_layout.training_history_dir`): the ten pages as PNGs,
+`training_history.html` and `training_history.json`, as
+`plot_training_history.py STAGE_DIR` draws them with its defaults (one run,
+no `--mark-steps`; the alarms, `robust_best`, `best` and the kept
+checkpoints are marked as on any one-run page). The SB3 training notebook
+therefore holds it for every node it trains or judges, and the bundle saved
+after the node declares and hashes it like the other figures.
+
+- **When.** After the verdict is recorded (`gate_verdict.json`) and
+  `stage_summary.txt` is written, after `figures/gate_progress.png`, and
+  before the replays and the stance probes. It follows `generate_graphs`:
+  a caller that asks for no figures gets no report.
+- **A failure costs this report only.** It is drawn in its own guard, as
+  the gate progress figure is: a failure logs one warning ("The training
+  history failed; the other figures are unaffected.") and the stage goes on.
+  It is written into a private temporary directory and moved into the
+  staging tree in one rename once every file is complete, then published
+  with the other figures, so a failure or an interrupt part-way publishes
+  none of it. A page that fails alone is listed in the JSON's `errors`, as
+  the script lists it.
+- **A stage judged again keeps an older copy when the new one is not
+  drawn.** Publishing only creates or replaces files, never deletes them,
+  as for every other figure. So when a stage is judged again in the same
+  directory and its report fails, or the stage has no ledger, the previous
+  judging's `figures/training_history/` stays in place, and the bundle
+  declares it. When a single page fails, the new HTML and JSON leave it
+  out, but the previous judging's PNG of that page stays beside them. The
+  JSON says which copy is which: its `generated_at`, and each run's
+  `last_step`, `final_step` and `progress_written_at`, show when and from
+  which ledger it was drawn.
+- **Report only.** Nothing reads it back: the verdict, the stage summary,
+  the evidence CSVs, the handoff and the results `generate_stage_artifacts`
+  returns are the same with it, without it and when it fails, and the
+  per-actuator std reads draw from no random number stream, so the replays
+  and probes after it see the same state.
+- **Old runs.** A stage directory holding neither `eval_episodes.csv` nor
+  `train_episodes.csv` (a run from before the ledgers) gets none, with one
+  log line: every page would be empty. One ledger is enough; whatever else
+  is missing is an absent series, as in the script.
+- **Size.** On the stance5 band run s42's ledger (91 evaluations to
+  11,927,552 steps, read without its checkpoints) it takes about 5.5 s and
+  writes 1.7 MB, about half of it the HTML page, which embeds the pages
+  again.
+
+The library writes it, not the script. `plot_training_history.py` refuses
+an `--out` inside a run directory to keep manual writes out of runs: a
+file added to a saved run is one its manifest does not list. The stage-end
+report is the library's own artifact step: `generate_stage_artifacts`
+calls `training_history.load_run_history` and `write_report` directly,
+before the notebook saves the bundle, as it draws every other figure. Use
+the script for any other view: a run still training, a comparison, marked
+checkpoints, or a run from before this step. The notebook does not display
+the pages inline; open `training_history.html` from the stage directory.
 
 ## The handoff's in-training score: `handoff_in_training.json`
 

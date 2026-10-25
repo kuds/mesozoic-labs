@@ -70,6 +70,7 @@ python examples/mini_tyrannosaurus_rex/demo.py --view --support --gesture
 python -m examples.mini_tyrannosaurus_rex.engineering --samples 2000 --points 5 --duration 10 --json examples/mini_tyrannosaurus_rex/validation.json
 python -m examples.mini_tyrannosaurus_rex.tail_study --samples 2000
 python -m examples.mini_tyrannosaurus_rex.character_checks
+python -m examples.mini_tyrannosaurus_rex.balance_checks --duration 30
 python -m examples.mini_tyrannosaurus_rex.render_design --output-dir examples/mini_tyrannosaurus_rex --sheet --gesture --family
 python -m examples.mini_tyrannosaurus_rex.render_design --output-dir examples/mini_tyrannosaurus_rex --tail --sheet --gesture
 pytest environments/tyrannosaurus_rex/tests/test_mini_tyrannosaurus_rex_*.py
@@ -83,8 +84,8 @@ allocation with relative links to retained mesh assets.
 
 ## Numerical evidence and limits
 
-[validation.json](validation.json), [tail_validation.json](tail_validation.json)
-and [character_validation.json](character_validation.json) identify their source
+[validation.json](validation.json), [tail_validation.json](tail_validation.json),
+[balance_validation.json](balance_validation.json) and [character_validation.json](character_validation.json) identify their source
 hashes, seeds and MuJoCo version. The tests run in Python CI on example changes.
 
 | Check | Silhouette-C result |
@@ -94,23 +95,26 @@ hashes, seeds and MuJoCo version. The tests run in Python CI on example changes.
 | Combined leg/expression sample, 2,000 poses per configuration | No internal collision-proxy penetration |
 | Skull/jaw vertex projections, 101 jaw positions | At least 2.91 mm separation; independent of contact filtering |
 | Base home static hip roll / knee | Approximately 0.0369 / 0.0491 Nm |
-| Unsupported ten-second home hold | Finite, no warnings; maximum tilt 1.97 degrees |
-| Same hold with 0.10 Nm hard leg caps | Finite, no warnings; maximum tilt 2.21 degrees |
-| Ten-second free standing gestures, base / tail | Maximum tilt 2.06 / 2.16 degrees; no internal penetration |
-| Free gesture head-nod / jaw peak, larger configuration | 0.0357 / 0.0112 Nm, under unchanged 0.10 / 0.025 Nm caps |
-| Existing and new mini regression cases | 38 passing locally, including deliberately inadequate motors |
+| Unsupported 30-second holds and roll/pitch kicks, base / tail centered | Maximum drift 1.54 / 1.76 mm; maximum tilt 1.72 / 1.99 degrees |
+| Same 0.10 Nm hard-cap holds | No warnings, external support or settled leg torque clipping |
+| Ten-second free standing gestures, base / tail | Maximum tilt 1.71 / 1.98 degrees; no internal penetration |
+| Free gesture head-nod / jaw peak, larger configuration | 0.0202 / 0.00709 Nm, under unchanged 0.10 / 0.025 Nm caps |
 
 Static load distribution is an assumption, not a guaranteed servo load. The
-0.10 Nm hard-cap hold reaches final-second means of about 0.0356 Nm hip roll,
-0.0617 Nm knee and 0.0729 Nm ankle on the larger side. None of these short tests
+0.10 Nm hard-cap hold reaches final-second means of about 0.0209 Nm hip roll,
+0.0529 Nm knee and 0.0204 Nm ankle on the larger side. None of these tests
 qualifies continuous hardware torque, electrical power or thermal duty.
 Sampling does not prove every pose clear; cosmetic meshes do not define hollow
 manufactured shells, and most mounting interfaces are still schematic.
 
-**Walking remains unresolved.** Every refreshed 30-second diagnostic trial
-falls. At 0.20 Nm, the fixed-tail run lasts 26.922 s, the tail-centered run
-23.202 s and the wagging run only 3.680 s. A same-runtime replay of revision 10's
-wagging run lasts 21.688 s: this design changes a fragile controller's behavior.
+The leg position gains are now half the revision-10 gains and velocity gains
+one quarter. This removes the observed 4–8 cm creep in a longer hold without
+increasing torque limits. These are simulated gains, not identified motor settings.
+
+**Walking remains unqualified.** With the revised gains, the 0.20 Nm fixed-tail
+and centered-tail trials reach 30 seconds, but wagging still falls at 3.592 s.
+The completed trials also encounter internal link/case contacts and joint-limit
+overshoot; they are diagnostic progress, not a passing gait certificate.
 Do not combine walking and tail gestures until a separate gait acceptance gate
 passes. [Walking evidence and historical comparison](WALKING_AND_TAIL.md).
 

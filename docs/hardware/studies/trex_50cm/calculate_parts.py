@@ -17,7 +17,7 @@ def money(value: Decimal) -> str:
 def main() -> None:
     here = Path(__file__).resolve().parent
     source = here / "parts_budget.json"
-    baseline_path = here.parents[3] / "examples/mini_tyrannosaurus_rex/walking_validation.json"
+    baseline_path = here.parents[3] / "examples/mini_tyrannosaurus_rex/baseline_rev10/walking_validation.json"
     data = json.loads(source.read_text())
     baseline = json.loads(baseline_path.read_text())
     model = next(m for m in baseline["models"] if m["name"] == "fixed_tail_base")
@@ -50,8 +50,10 @@ def main() -> None:
     head = data["head_subset_scenario"]
     result = {
         "status": "arithmetic_and_similarity_screen_only_not_hardware_validation",
+        "reference": "Historical revision-10 20-second diagnostic slice; not the current silhouette-C plant or a qualified gait.",
         "source_sha256": {
-            p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in (source, Path(__file__), baseline_path)
+            str(p.relative_to(here.parents[3])): hashlib.sha256(p.read_bytes()).hexdigest()
+            for p in (source, Path(__file__), baseline_path)
         },
         "category_totals_usd": {k: money(v) for k, v in categories.items()},
         "scope_totals_usd": {k: money(v) for k, v in scopes.items()},

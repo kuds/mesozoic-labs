@@ -440,6 +440,7 @@ def main() -> None:
         base.HERE / "proportions.py",
         base.HERE / "demo.py",
         base.HERE / "validate.py",
+        Path(validate.robot_validation.__file__),
         base.HERE / "proportion_study/balanced/model.xml",
         *sorted((base.HERE / "assets").glob("*.obj")),
     ]
@@ -447,7 +448,7 @@ def main() -> None:
         status="head_led_character_study_not_hardware_or_walking_validation",
         mujoco_version=mujoco.__version__,
         variants=reports,
-        source_sha256={str(p.relative_to(base.HERE)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sources},
+        source_sha256={os.path.relpath(p, base.HERE): hashlib.sha256(p.read_bytes()).hexdigest() for p in sources},
     )
     (args.output / "results.json").write_text(json.dumps(result, indent=2) + "\n")
     print(

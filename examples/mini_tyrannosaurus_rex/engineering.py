@@ -351,7 +351,7 @@ def main() -> int:
     )
     report["source_sha256"] = {
         str(path.relative_to(MODEL_PATH.parent)): hashlib.sha256(path.read_bytes()).hexdigest()
-        for path in [MODEL_PATH, *sorted((MODEL_PATH.parent / "assets").glob("*.xml"))]
+        for path in [MODEL_PATH, Path(__file__), *sorted((MODEL_PATH.parent / "assets").glob("*.xml"))]
     }
     output = json.dumps(report, indent=2, allow_nan=False) + "\n"
     if args.json:

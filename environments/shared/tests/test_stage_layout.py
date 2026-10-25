@@ -27,6 +27,12 @@ class TestDirectoryAccessors:
         assert stage_layout.figures_dir(tmp_path, create=True).is_dir()
         assert stage_layout.replays_dir(tmp_path, create=True).is_dir()
 
+    def test_the_training_history_lives_in_its_own_directory_under_figures(self, tmp_path):
+        history = stage_layout.training_history_dir(tmp_path)
+        assert history == tmp_path / "figures" / "training_history"
+        assert not history.exists()
+        assert stage_layout.training_history_dir(tmp_path, create=True).is_dir()
+
 
 class TestIterReplayFiles:
     def test_finds_nested_videos_and_stance_csvs(self, tmp_path):
@@ -236,6 +242,28 @@ class TestGenerateStageArtifactsLayout:
         # The unchanged artifacts stay exactly where their readers expect them.
         assert (tmp_path / "stage_summary.txt").is_file()
         assert (tmp_path / "evaluations.npz").is_file()
+
+    def test_the_training_history_is_published_under_figures(self, tmp_path):
+        """With a ledger, the stage-end training history lands in ``figures/training_history/`` and nowhere else."""
+        pytest.importorskip("matplotlib")
+        (tmp_path / "eval_episodes.csv").write_text(
+            "evaluation,timesteps,episode,return,length\n0,50000,0,10.0,1000\n1,100000,0,20.0,1000\n",
+            encoding="utf-8",
+        )
+        self._run(tmp_path)
+
+        history = stage_layout.training_history_dir(tmp_path)
+        assert (history / "training_history.html").is_file()
+        assert (history / "training_history.json").is_file()
+        assert (history / "01_outcomes.png").is_file()
+        # The figures' flat list keeps its own files; the pages are not loose in it or in the stage root.
+        assert not list(stage_layout.figures_dir(tmp_path).glob("0*_*.png"))
+        assert not list(tmp_path.glob("*.png")) and not list(tmp_path.glob("*.html"))
+        assert not list(tmp_path.glob("training_history*"))
+        assert sorted(p.name for p in (tmp_path / "replays").iterdir()) == [
+            "velociraptor_mongoliensis_anatomical_ppo_stage1_final.mp4",
+            "velociraptor_mongoliensis_anatomical_ppo_stage1_selected.mp4",
+        ]
 
     def test_the_selected_replay_survives_a_failure_on_the_final_one(self, tmp_path):
         def blow_up_on_final(label):

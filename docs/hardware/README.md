@@ -28,7 +28,7 @@ be a physics revision of that embodiment, not a new one.
 
 ## Reading order
 
-The [Mini Tyrannosaurus Rex prototype](MINI_TYRANNOSAURUS_REX.md) adds a 25.8 cm,
+The [Mini Tyrannosaurus Rex prototype](MINI_TYRANNOSAURUS_REX.md) adds a 26.8 cm,
 800 g assigned-mass forward-knee MJCF study with a lighter head, linked moving
 arms, service-panel views, component ledger and preliminary $2,000 allocation. Its
 [standalone example](../../examples/mini_tyrannosaurus_rex/README.md) can be viewed and
@@ -59,6 +59,11 @@ The [robot variants and build plan](ROBOT_VARIANTS_AND_BUILD_PLAN.md) proposes
 how concurrent mini, medium and large robots of one species should be identified,
 tested and documented, with a staged mini-to-50 cm timeline at 15–20 hours/week.
 It is an architecture proposal; the runtime has not implemented variant selection.
+
+The [walking-validation proposal](ROBOT_WALKING_VALIDATION.md) specifies how to
+test limb reach, load transfer, actuator-constrained balance and actual gait
+across species. The [design review](../reviews/ROBOT_DESIGN_REVIEW_2026_10.md)
+records the repaired mini stance drift, stronger CI guards and remaining limits.
 
 1. **[SIM_TO_REAL_PLAN.md](SIM_TO_REAL_PLAN.md)** — start here. The six
    sim↔hardware gaps (privileged observations, actuation, control loop, domain

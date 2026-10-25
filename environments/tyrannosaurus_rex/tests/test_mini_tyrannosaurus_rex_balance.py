@@ -21,7 +21,7 @@ def test_unsupported_stance_with_conservative_leg_caps_and_small_disturbances(wi
     model = _model(with_tail)
     saved = model.actuator_forcerange.copy()
     report = balance_checks.stance_trial(model, angular_kick=kick)
-    assert report["duration_s"] == pytest.approx(6.0, abs=model.opt.timestep)
+    assert report["duration_s"] == pytest.approx(30.0, abs=model.opt.timestep)
     assert not balance_checks.stance_failures(report), report
     assert model.actuator_forcerange == pytest.approx(saved)
 
@@ -31,7 +31,7 @@ def test_balance_gate_rejects_insufficient_leg_torque_without_raising_motor_limi
     model = _model(with_tail)
     legs = [i for i in range(model.nu) if any(p in model.actuator(i).name for p in ("hip_", "knee", "ankle"))]
     model.actuator_forcerange[legs] = [-0.025, 0.025]
-    report = balance_checks.stance_trial(model)
+    report = balance_checks.stance_trial(model, duration=6)
     failures = balance_checks.stance_failures(report)
     assert "height loss" in failures or "excessive tilt" in failures, report
     assert all(row["applied_cap_Nm"] <= 0.025 for row in report["settled_leg_effort"].values())
@@ -55,3 +55,18 @@ def test_balance_gate_requires_a_free_root_and_bounded_actuators():
     model.actuator_forcelimited[model.actuator("left_knee_servo").id] = False
     with pytest.raises(ValueError, match="force limit"):
         balance_checks.stance_trial(model)
+
+
+def test_balance_gate_refuses_gravity_compensation():
+    model, _ = demo.load_model()
+    model.body_gravcomp[model.body("torso").id] = 0.5
+    with pytest.raises(ValueError, match="gravity compensation"):
+        balance_checks.stance_trial(model)
+
+
+def test_long_stance_is_not_an_artifact_of_the_default_two_millisecond_step():
+    model = tail_option.load_model()
+    model.opt.timestep = 0.001
+    report = balance_checks.stance_trial(model)
+    assert not balance_checks.stance_failures(report), report
+    assert report["maximum_root_drift_m"] < 0.005

@@ -10,6 +10,7 @@ lands, fold its open items in here and archive the review document.
 
 | Review | Scope | Outcome |
 |---|---|---|
+| [reviews/ROBOT_DESIGN_REVIEW_2026_10.md](reviews/ROBOT_DESIGN_REVIEW_2026_10.md) | Standalone mini/medium T-Rex examples, repository conventions and balance | Repaired long-hold creep, hidden-support checks, source provenance and sizing reproduction; walking and physical hardware remain unqualified |
 | [reviews/CODE_REVIEW.md](reviews/CODE_REVIEW.md) (2026-03) | Duplication + code quality | Consolidation done in v0.3.0; bugs fixed except thread-unsafe CSV writes (below) |
 | [reviews/REPO_REVIEW_2026_06.md](reviews/REPO_REVIEW_2026_06.md) | Full repo: SB3 + JAX RL correctness, sweeps, configs, docs | ~25 verified bugs fixed in PRs #423–#425 |
 | [reviews/REPO_REVIEW_2026_07_RL_GCP.md](reviews/REPO_REVIEW_2026_07_RL_GCP.md) | GCP/Vertex integration, SB3/JAX/sweep delta pass, notebooks | ~30 verified bugs fixed in PR #426 (incl. the JAX eval/CLI follow-up pass) |
@@ -22,6 +23,18 @@ robustness, **LOW** = cosmetic / QoL.
 ---
 
 ## Training / RL
+
+- **HIGH — Standalone mini and medium T-Rex concepts are not qualified walkers.**
+  The revised mini reaches 30 seconds in five of twelve nominal walking trials,
+  but completed cases include internal link/motor-case contact and joint-limit
+  overshoot; lower assumed torque caps fail, and tail wagging at 0.20 Nm still
+  falls. The medium has no demonstrated gait. Thirty-second unsupported stance
+  and character checks do not resolve this. Add constrained limb/load-transfer
+  feasibility, contact-based gait metrics and held-out controller trials before
+  registration or walking claims. Assigned part envelopes/inertias and ideal
+  servos also require hardware fit, torque-speed, thermal, power and timing
+  identification. Evidence: [design review](reviews/ROBOT_DESIGN_REVIEW_2026_10.md);
+  proposed work: [robot walking validation](hardware/ROBOT_WALKING_VALIDATION.md).
 
 - **HIGH** — **Completed short stance reward pilots remain uncertified;
   the base T-Rex stance reward is CoP-indifferent, and the velociraptor
@@ -278,6 +291,22 @@ robustness, **LOW** = cosmetic / QoL.
   training; the band is adopted only if both new seeds hold (3 of the 5 band
   runs). Not yet trained. As screens they certify nothing. The two-seed ask
   stands. Record: §22 of
+  [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).
+  **Update 16 (2026-10-24):** the two replication runs of Update 15 were
+  judged by their fixed criteria, final: seed 70 holds on all four criteria;
+  seed 80 fails only the gate (the actuator-saturation rail, first flagged at
+  4,325,376 steps, its alarm at 4,456,448, recovered by 10.5M; rollouts of its
+  4,718,592 checkpoint named the tail-tip actuator `tail_3_pitch_act` at +1, as
+  on Update 14's seed 42) and passes the noise test (2 of 20 joint-space falls
+  at 12M). Two of the five band runs hold, so the decision table's line is 2:
+  the band is not adopted. As screens they certify nothing. The two-seed ask
+  stands: no T-Rex stance is certified. Record, numbers and evidence: §23 of
+  [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).
+  **Update 17 (2026-10-24):** the maintainer chose the next step (decision
+  D-D42, [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2): a round on
+  the tail saturation habit, designed with criteria fixed and approved before
+  any training; not yet designed when the copied run log ends (15:27 UTC). As
+  screens they certify nothing. The two-seed ask stands. Record: §23.7 of
   [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).
 - **LOW** — **stage 1a (stance) contains no in-episode disturbance, so a
   stance-gate PASS certifies stance quality, not active balance control.** The

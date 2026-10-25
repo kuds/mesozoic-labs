@@ -111,10 +111,12 @@ def gesture_gif(path: Path, *, frames: int = 24, duration: float = 4.8) -> None:
             font=_font(14),
             fill=(60, 76, 66),
         )
-        images.append(frame)
+        # A small nondithered palette keeps the actual-geometry animation below
+        # the repository's 500 KiB file limit without changing its poses/timing.
+        images.append(frame.quantize(colors=48, dither=Image.Dither.NONE))
     path.parent.mkdir(parents=True, exist_ok=True)
     images[0].save(
-        path, save_all=True, append_images=images[1:], loop=0, duration=round(1000 * duration / frames), optimize=False
+        path, save_all=True, append_images=images[1:], loop=0, duration=round(1000 * duration / frames), optimize=True
     )
 
 

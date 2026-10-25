@@ -30,8 +30,11 @@ static loads under the documented support assumption fall from approximately
 0.0879 to **0.0369 Nm at hip roll** and 0.0618 to **0.0491 Nm at the knee**.
 The narrower bend reduces extension/crouch travel, and settling transfers some
 load to the ankles. In a ten-second ideal hold with 0.10 Nm hard leg caps,
-final-second means reach approximately 0.0617 Nm at the knee and 0.0729 Nm at the
-ankle. These are simulation results, not measured motor duty.
+final-second means with the revised stance gains reach approximately 0.0529 Nm
+at the knee and 0.0204 Nm at the ankle. These are simulation results, not measured
+motor duty. Leg position gains are half and velocity gains one quarter of
+revision 10; unchanged torque limits now support a 30-second hold with less than
+1.8 mm root drift for both configurations and no settled clipping.
 
 The [reproducible report](../../examples/mini_tyrannosaurus_rex/validation.json)
 includes 2,000 sampled full-body poses, 625 combined head/arm poses, motor-box
@@ -109,7 +112,7 @@ records:
 | Full-size motor cases | 2,001 sampled poses; no overlap; minimum separating-axis gap 2.5 mm | Box proxies, not full horns/connectors or tolerance analysis |
 | Combined collision proxies | 2,000 sampled poses and 243 upper-body grid poses; no penetration | Retained model collision rules/exclusions |
 | Tail against selected service envelopes | 101 tail angles; minimum separation 4.85 mm, at the computer envelope | Tail mesh/motor against those boxes only; not simultaneous whole-robot packing |
-| Unsupported standing wag | 10 s at +/-15 degrees and 0.5 Hz; peak tail torque 0.00373 Nm, RMS 0.000852 Nm; maximum torso tilt 2.16 degrees | Ideal position servos, no electrical/thermal validation |
+| Unsupported standing wag | 10 s at +/-15 degrees and 0.5 Hz; peak tail torque 0.00101 Nm, RMS 0.000735 Nm; maximum torso tilt 1.99 degrees | Ideal position servos, no electrical/thermal validation |
 | Home equilibrium | Hip roll about 0.03879 Nm, knee about 0.05438 Nm | One stated static contact-load distribution |
 
 For comparison, the base's corresponding home estimates are about
@@ -256,42 +259,45 @@ The [walking report](../../examples/mini_tyrannosaurus_rex/walking_validation.js
 records a manual ideal-actuator stepping diagnostic, **not validated walking**.
 Its fixed targets and feedback use exact simulator orientation/noiseless gyro,
 without a hardware estimator, motor torque-speed curves, supply limits, delay,
-backlash or disturbances. All requested 30-second runs end in a non-foot floor
-contact. The controller is sensitive to both effort caps and mass distribution.
+backlash or disturbances. The revised servo gains repair stationary creep;
+all twelve walking cases were replayed without retuning their target trajectory.
 
 | Configuration and leg cap | Observed result | Interpretation |
 | --- | --- | --- |
-| Silhouette-C base, 0.20 Nm, 30 s requested | Falls at 26.922 s; 225 mm forward; 119 support alternations | Does not establish sustained walking |
-| Silhouette-C tail centered, 0.20 Nm | Falls at 23.202 s | Added mass/distribution still require controller work |
-| Silhouette-C tail wagging, 0.20 Nm | Falls at 3.680 s | Keep character wagging stationary until gait qualification |
-| Previous mini, tail wagging, same runtime / 0.20 Nm | Falls at 21.688 s | Updated head inertia regresses this fragile controller; neither is accepted |
-| Base/tail cases at 0.10 or 0.15 Nm | Fall before any qualifying support alternation | Controller does not work at those lower caps |
+| Silhouette-C base, 0.20 Nm | Reaches 30 s; 564 mm forward; 150 support alternations | Nominal stepping, with internal contacts and joint-limit overshoot |
+| Silhouette-C tail centered, 0.20 Nm | Reaches 30 s; 470 mm forward; 142 alternations | No robust gait acceptance |
+| Silhouette-C tail wagging, 0.20 Nm | Falls at 3.592 s | Keep character wagging stationary until gait qualification |
+| All three configurations at 0.30 Nm | Reach 30 s | Higher assumed cap does not establish hardware or legal-contact feasibility |
+| Base/tail cases at 0.10 or 0.15 Nm | All fall | The controller fails at those lower caps |
 
-The [previous report](../../examples/mini_tyrannosaurus_rex/baseline_rev10/walking_validation.json)
-retains the original 20-second stepping result and the later failures, including
-its historical 29.616-second tail-wag run. Replays differ with runtime and mass
-moments. No claim of improved walking follows from a longer individual run.
-The refreshed report contains all twelve failed current 30-second cases and
-the previous-model replay, without changing the controller or force caps.
+Five of twelve trials complete the horizon, but none is a walking certificate.
+The completed 0.20 Nm base run still hits a hip link against a motor-case proxy
+(about 6.55 N peak) and overshoots a joint limit by about 0.0242 rad. The
+[historical report](../../examples/mini_tyrannosaurus_rex/baseline_rev10/walking_validation.json)
+preserves revision 10; its tail-wag replay in the current runtime lasts 21.688 s,
+compared with its historical 29.616 s. That old plant retains different head
+moments and gains. Single trajectories cannot rank robust gait quality.
 
-The 0.20 Nm cap is not a continuous hardware rating. Measure motor torque-speed,
-power and thermal performance under load before selecting operating limits.
-The updated ten-second standing character tests pass for both models, with
-head-nod peak below 0.036 Nm and jaw peak below 0.012 Nm under their unchanged
+The 0.20/0.30 Nm caps are not continuous hardware ratings. Measure motor
+response, power and thermal performance before choosing operating limits.
+The ten-second standing character tests pass for both configurations, with
+head-nod peak below 0.0203 Nm and jaw peak below 0.0071 Nm under unchanged
 0.10 / 0.025 Nm caps. Those results do not qualify walking with gestures.
 
-CI now includes a separate, fast **unsupported stance regression** with 0.10 Nm
-leg caps and small prescribed angular-velocity kicks. It checks finite state,
-height, tilt, drift, contacts, external-force absence and settled effort. It
-rejects hidden world-weld support and zero gravity. Its effort ceilings are
-0.09 Nm RMS and a 0.60 cap fraction, where stance cap fraction means samples at
-or above 99% of the cap. Those are permissive regression ceilings: baseline
-knees already reach that cap in roughly 44% of settled samples, which is not a
-desirable motor-duty target or a continuous-duty qualification. A passing
-stance test does not certify walking or general push recovery. The Python CI
-path filter now includes this example so changes to its files trigger checks;
-the failing exploratory walking trials are retained as evidence, not relabeled
-as passing CI locomotion tests.
+CI runs **30-second unsupported stance regressions** with at most 0.10 Nm
+leg caps and small prescribed roll/pitch angular-velocity kicks. It checks
+finite state, height, tilt, drift, real foot-to-floor contact, external-force
+absence and settled effort. Hidden world/fixture constraints, gravity
+compensation, disabled gravity/contact physics and unbounded actuators are
+rejected. Deliberately weak legs must fail. A half-timestep case checks numerical
+sensitivity. The settled effort ceilings are 0.09 Nm RMS and 10% cap contact
+(samples at or above 99% of the cap); the revised holds record no such clipping.
+These are simulation regressions, not continuous-duty qualification.
+
+Example-only changes trigger CI, local hooks cover the same sources as CI, and
+source-hash tests reject stale current reports. The cross-species
+[walking-validation proposal](ROBOT_WALKING_VALIDATION.md) describes constrained
+limb/load feasibility and the additional gait measurements needed next.
 
 ## Verification gates
 

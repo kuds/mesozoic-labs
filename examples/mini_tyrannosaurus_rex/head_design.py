@@ -119,11 +119,22 @@ def build(directory: Path = HERE) -> Path:
         " Silhouette C: rounded tapered skull, side eyes and an open-backed cream jaw.\n"
         "    Revision-10 mechanism, full motor cases and 800 g allocation retained.\n"
         "    Head moments regenerated from explicit unweighed component allowances.\n"
+        "    Leg position/velocity gains reduced for drift-free unsupported stance.\n"
         "    Not fabrication CAD or a validated walking robot. "
     )
     for include in root.iter("include"):
         source = (BASELINE.parent / include.get("file", "")).resolve()
         include.set("file", os.path.relpath(source, directory))
+    # The revision-10 gains produced torque clipping and 4--8 cm of creep in a
+    # 30 s hold at the 0.10 Nm sensitivity cap. Lower gains remove that observed
+    # drift without changing torque caps, geometry, mass or adding support.
+    # These are simulation gains, not identified XL330 hardware settings.
+    default_servo = root.find("default/position")
+    assert default_servo is not None
+    for servo in root.findall("actuator/position"):
+        if any(part in servo.get("name", "") for part in ("hip_", "knee", "ankle")):
+            servo.set("kp", values(float(servo.get("kp", default_servo.attrib["kp"])) * 0.5))
+            servo.set("kv", values(float(servo.get("kv", default_servo.attrib["kv"])) * 0.25))
     custom = root.find("custom")
     asset = root.find("asset")
     assert custom is not None and asset is not None

@@ -9,9 +9,14 @@ import pytest
 from environments.shared.model_id import ModelId
 from environments.shared.species_names import model_ids
 from environments.shared.stance_diagnostics import (
+    POLICY_COMMAND_SUFFIXES,
+    ActuatorLayout,
+    actuator_layout,
     capture_stance_snapshot,
     capture_tyrannosaurus_rex_stance_snapshot,
     derive_stance_info,
+    policy_command_columns,
+    policy_raw_mean,
     write_stance_diagnostics_csv,
 )
 
@@ -208,3 +213,55 @@ def test_shared_replay_snapshot_measures_each_biped_at_its_own_feet_and_leg_join
         assert ("leg_home_pose_error" in row) == (model_id.embodiment != "robot")
     finally:
         env.close()
+
+
+@pytest.mark.parametrize("model_id", model_ids(), ids=lambda m: f"{m.species}-{m.embodiment}")
+def test_the_command_columns_name_no_other_stance_column_and_read_only(model_id):
+    """``<actuator>_command`` / ``_raw_mean`` / ``_joint_pos`` collide with no column the snapshot writes, on every model."""
+    from environments.shared.config import load_stage_config
+    from environments.shared.species_registry import get_species_config
+
+    env = get_species_config(model_id).env_class(**load_stage_config(model_id, 1)["env_kwargs"])
+    try:
+        env.reset(seed=2043)
+        action = np.linspace(-1.0, 1.0, env.action_space.shape[0])
+        _, _, _, _, info = env.step(action)
+        before = [value.copy() for value in (env.data.qpos, env.data.qvel, env.data.act, env.data.ctrl)]
+        layout = actuator_layout(env)
+        assert layout is not None and len(layout.names) == env.model.nu
+        snapshot = capture_stance_snapshot(env, info, 1, model_id=model_id)
+        columns = policy_command_columns(layout, env.data, action, raw_mean=action * 1.5)
+        possible = {f"{name}_{suffix}" for name in layout.names for suffix in POLICY_COMMAND_SUFFIXES}
+        assert set(columns) <= possible
+        assert not possible & set(snapshot), sorted(possible & set(snapshot))
+        for index, name in enumerate(layout.names):
+            assert columns[f"{name}_command"] == action[index]
+            assert columns[f"{name}_raw_mean"] == action[index] * 1.5
+            if layout.qpos_index[index] >= 0:
+                assert columns[f"{name}_joint_pos"] == env.data.qpos[layout.qpos_index[index]]
+                joint = env.model.actuator_trnid[index, 0]
+                assert layout.qpos_index[index] == env.model.jnt_qposadr[joint]
+                assert layout.dof_index[index] == env.model.jnt_dofadr[joint]
+            else:
+                assert f"{name}_joint_pos" not in columns
+        for actual, expected in zip((env.data.qpos, env.data.qvel, env.data.act, env.data.ctrl), before):
+            np.testing.assert_array_equal(actual, expected)
+    finally:
+        env.close()
+
+
+def test_the_command_columns_skip_what_they_cannot_read():
+    layout = ActuatorLayout(("a_act", "b_act"), (0, -1), (0, -1))
+    data = type("Data", (), {"qpos": np.array([0.25])})()
+    assert policy_command_columns(layout, data, [0.5]) == {}
+    row = policy_command_columns(layout, data, [0.5, -1.0], raw_mean=[1.0])
+    assert row == {"a_act_command": 0.5, "a_act_joint_pos": 0.25, "b_act_command": -1.0}
+    assert actuator_layout(object()) is None
+
+
+def test_policy_raw_mean_is_none_without_a_diagonal_gaussian():
+    """On a real policy it is predict's mean before the clip (``test_episode_trace.py``, which needs SB3)."""
+    from unittest.mock import MagicMock
+
+    assert policy_raw_mean(MagicMock(), np.zeros(3)) is None
+    assert policy_raw_mean(object(), np.zeros(3)) is None

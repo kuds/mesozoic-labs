@@ -24,6 +24,9 @@ from typing import Any
 import mujoco
 import numpy as np
 
+from environments.shared import robot_validation
+from environments.shared.robot_validation import GroundSupportProbe, require_unsupported
+
 MODEL_PATH = Path(__file__).with_name("model.xml")
 PARAMETERS = [0.3611035514154559, 0.14115136271266485, 0.03911254725273986, 0.4058584529699947, 2.656837692232398, 0.0]
 FEEDBACK = [0.5, 0.25, 0.03]
@@ -86,6 +89,9 @@ class WalkingPilot:
         if not np.all(self.model.actuator_forcelimited):
             raise ValueError("All actuators must have explicit force limits")
         self.contact_force = np.zeros(6)
+        self.support = GroundSupportProbe(
+            self.model, feet={side: (f"{side}_flat_pad_collision",) for side in ("left", "right")}
+        )
 
     def _controls(self, t: float, p: Sequence[float]) -> np.ndarray:
         """Return unbounded targets; the caller clips after orientation feedback."""
@@ -139,14 +145,7 @@ class WalkingPilot:
         if tail_mode != "none" and tail_id < 0:
             raise ValueError("Tail mode requires a tail_yaw_servo actuator")
         mujoco.mj_resetDataKeyframe(self.model, self.data, self.model.key("home").id)
-        for equality in range(self.model.neq):
-            if not self.data.eq_active[equality] or self.model.eq_type[equality] != mujoco.mjtEq.mjEQ_WELD:
-                continue
-            bodies = [int(self.model.eq_obj1id[equality]), int(self.model.eq_obj2id[equality])]
-            if self.model.eq_objtype[equality] == mujoco.mjtObj.mjOBJ_SITE:
-                bodies = [int(self.model.site_bodyid[site]) for site in bodies]
-            if any(body < 0 or self.model.body_weldid[body] == 0 for body in bodies):
-                raise ValueError("Home must have every world weld disabled, including fixed-fixture welds")
+        require_unsupported(self.model, self.data)
         oldcaps = self.model.actuator_forcerange.copy()
         try:
             if cap is not None:
@@ -304,6 +303,9 @@ class WalkingPilot:
                     "nonfoot_floor_contact" if bad_contact else "excessive_tilt" if tilt > 1.05 else "low_root"
                 )
                 break
+            if external_force_max or self.support.sample(self.data)[1] > 0.1:
+                stop_reason = "unexpected_external_support"
+                break
             if self.data.warning.number.sum() or not np.all(np.isfinite(self.data.qpos)):
                 stop_reason = "numerical_warning_or_nonfinite_state"
                 break
@@ -355,6 +357,7 @@ def build_report(pilot: WalkingPilot, results: list[dict[str, Any]]) -> dict[str
         "python_version": platform.python_version(),
         "machine": platform.machine(),
         "controller_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+        "support_validation_sha256": hashlib.sha256(Path(robot_validation.__file__).read_bytes()).hexdigest(),
         "source_model_file": pilot.model_path.name,
         "source_sha256": pilot.source_sha256,
         "generator_source_sha256": pilot.generator_source_sha256,
@@ -432,10 +435,10 @@ def main() -> int:
         results.append(result)
         if args.trajectory:
             args.trajectory.parent.mkdir(parents=True, exist_ok=True)
-            args.trajectory.write_text(json.dumps(record))
+            args.trajectory.write_text(json.dumps(record, allow_nan=False) + "\n")
     report = build_report(pilot, results)
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(report, indent=2))
+    args.output.write_text(json.dumps(report, indent=2, allow_nan=False) + "\n")
     print(
         json.dumps(
             [

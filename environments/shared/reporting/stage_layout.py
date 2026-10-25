@@ -13,13 +13,21 @@ Generated, renderable artifacts are grouped by kind::
 
     stage1/
     ├── figures/    training_curves.png  foot_contacts.png  stance_diagnostics.png
-    │               locomotion_health.png  behavioral_metrics.png
+    │   │           locomotion_health.png  behavioral_metrics.png  gate_progress.png
+    │   └── training_history/  01_outcomes.png ... 09_asymmetry.png  10_policy_std.png
+    │                          training_history.html  training_history.json
     ├── replays/    <species>_<embodiment>_<algo>_stage<N>_<label>.mp4  (+ _front/_side views)
     │               <species>_<embodiment>_<algo>_stage<N>_<label>_stance.csv
     ├── models/     (unchanged)
     ├── tensorboard/ (unchanged)
     └── stage_summary.txt  stage_config.json  plant_identity.json
         evaluations.npz  diagnostics.npz  evaluation_*.csv   (unchanged)
+
+``figures/training_history/`` holds the training-history report
+(:mod:`~environments.shared.reporting.training_history`) that
+``generate_stage_artifacts`` draws from the stage's ledgers at stage end: a
+page set, the HTML page embedding it and its JSON summary, in a directory of
+their own so the per-stage figures above stay one flat list.
 
 Only the *generated* artifacts move.  ``evaluations.npz``, ``diagnostics.npz``
 and ``evaluation_{selected,final}.csv`` deliberately stay in the stage root:
@@ -57,6 +65,9 @@ logger = logging.getLogger(__name__)
 #: Subdirectory holding generated plots.
 FIGURES_DIRNAME = "figures"
 
+#: Subdirectory of :data:`FIGURES_DIRNAME` holding the training-history report's pages, HTML page and JSON summary.
+TRAINING_HISTORY_DIRNAME = "training_history"
+
 #: Subdirectory holding replay videos and their per-frame stance CSVs.
 REPLAYS_DIRNAME = "replays"
 
@@ -69,6 +80,14 @@ _REPLAY_SUFFIXES: tuple[str, ...] = (".mp4", ".csv")
 def figures_dir(stage_dir: "str | Path", *, create: bool = False) -> Path:
     """Return the directory generated plots are written to."""
     path = Path(stage_dir) / FIGURES_DIRNAME
+    if create:
+        path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def training_history_dir(stage_dir: "str | Path", *, create: bool = False) -> Path:
+    """Return the directory the stage-end training-history report is written to (inside :func:`figures_dir`)."""
+    path = figures_dir(stage_dir) / TRAINING_HISTORY_DIRNAME
     if create:
         path.mkdir(parents=True, exist_ok=True)
     return path

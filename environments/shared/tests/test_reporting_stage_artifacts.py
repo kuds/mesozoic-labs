@@ -1313,6 +1313,9 @@ class TestStanceHeadingStageGate:
         source = inspect.getsource(stage_artifacts.generate_stage_artifacts)
         assert source.index("_write_stance_gate_report(") < source.index("_apply_stage_gate(")
         assert source.index("_apply_stage_gate(") < source.index("_run_stance_probes(")
+        # The report-only training history is drawn after the verdict, and the probes still run after it.
+        assert source.index("_apply_stage_gate(") < source.index("_write_training_history(")
+        assert source.index("_write_training_history(") < source.index("_run_stance_probes(")
         dispatch = inspect.getsource(stage_artifacts._write_stance_gate_report)
         # The heading kind is dispatched before the v1/v2 builder is reached, after the shared handoff selection.
         assert dispatch.index("select_handoff_checkpoint(") < dispatch.index("_write_stance_heading_certificate(")

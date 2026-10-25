@@ -36,8 +36,8 @@ root bearing must resist the tail's weight and external bumps.
 | All 15 full motor cases, home + 2,000 seeded poses | No box intersections; minimum separating-axis gap 2.5 mm |
 | Combined legal leg/expression commands, 2,000 poses | No non-floor proxy penetration |
 | Upper-body command grid, 243 poses | No non-floor proxy penetration |
-| Ten-second unsupported standing wag | Maximum torso tilt 2.16 degrees; minimum height ratio 0.987 |
-| Tail torque during that wag | Peak 0.00373 Nm; RMS 0.000852 Nm |
+| Ten-second unsupported standing wag | Maximum torso tilt 1.99 degrees; minimum height ratio 0.9946 |
+| Tail torque during that wag | Peak 0.00101 Nm; RMS 0.000735 Nm |
 | Home static hip roll / knee | 0.0388 / 0.0544 Nm, versus base 0.0369 / 0.0491 Nm |
 
 The mesh/service-box check is independent of parent-child collision exclusions.
@@ -55,27 +55,31 @@ concurrent gait/gesture current, voltage drop and temperatures before approval.
 
 The [current walking report](walking_validation.json) preserves twelve refreshed
 30-second trials for silhouette C, plus a same-runtime replay of the previous
-mini's wagging case. The controller is unchanged. Positive translation alone
+mini's wagging case. The sinusoidal targets and orientation-feedback parameters
+are unchanged, but leg position gains are half and velocity gains one quarter
+of revision 10 to repair standing creep. Positive translation alone
 is not counted as stepping: the swing sole must clear the floor by 2 mm with
 low contact force, while the other foot supports over half the weight,
 sustained for at least 40 ms.
 
-| Silhouette C, same controller and 0.20 Nm leg caps | Duration reached | Support alternations | Forward travel |
+| Silhouette C, revised servo gains and 0.20 Nm leg caps | Duration reached | Support alternations | Forward travel |
 | --- | ---: | ---: | ---: |
-| Fixed tail | 26.922 s, then fall | 119 | 225 mm |
-| Tail centered | 23.202 s, then fall | 82 | 115 mm |
-| Tail wagging | 3.680 s, then fall | 6 | -39 mm |
+| Fixed tail | 30 s | 150 | 564 mm |
+| Tail centered | 30 s | 142 | 470 mm |
+| Tail wagging | 3.592 s, then fall | 7 | -59 mm |
 
-**Every 30-second case fails**, including all 0.30 Nm trials. All 0.10/0.15 Nm
-cases fall before a qualifying support alternation. The newly assigned head
-moments change an already fragile controller's response; the wagging case
-regresses sharply. Recommend tail motion as a stationary character gesture
-until a separately qualified gait can accommodate it.
+Five of twelve cases reach the requested horizon: fixed and centered tails at
+0.20/0.30 Nm, plus wagging at 0.30 Nm. All 0.10/0.15 Nm cases fall. Even the
+completed runs have internal hip-link/motor-case contacts and joint-limit
+overshoot; at 0.20 Nm the fixed-tail run records about 6.55 N peak internal
+contact force and 0.0242 rad maximum joint overshoot. They are not accepted
+walking. Keep tail motion as a stationary character gesture until a separately
+qualified controller can accommodate it with legal contact and effort margins.
 
 The [historical revision-10 report](baseline_rev10/walking_validation.json)
 recorded base/tail-centered/tail-wag falls at 21.304 / 8.514 / 29.616 s. A replay
-of that old wagging model **in the current runtime** falls at 21.688 s, versus
-3.680 s for C. Both fail, and the difference from the historical recording also
+of that old wagging model **in the current runtime** falls at 21.688 s. It retains
+the old head and servo gains. The difference from its historical recording also
 shows runtime sensitivity. These single trajectories are diagnostic evidence,
 not a robust comparison of gait quality or a validated balance tail.
 
@@ -144,18 +148,20 @@ Fast deterministic checks cover both the base and optional-tail configurations:
   inertia allocations and skull/jaw separation independent of collision filtering.
 - Actual unsupported head/jaw/arm gestures for both tail configurations, including
   motion excursion, torso height/tilt, torque caps and internal-contact bounds.
-- Six-second unsupported holds and small roll/pitch angular-velocity kicks,
+- Thirty-second unsupported holds and small roll/pitch angular-velocity kicks,
   with leg force caps at **at most** 0.10 Nm; a weaker model cap is never raised.
 - Height retention, tilt, drift, both-foot support, unexpected ground contact,
   finite state, warnings, settled RMS effort and cap contact.
 - Deliberately weakened 0.025 Nm legs must fail the balance gate. Active world
-  support, missing force limits or zero gravity are rejected.
+  or fixture constraints, gravity compensation, disabled gravity/contact physics
+  and missing force limits are rejected. A half-timestep replay protects against
+  a balance result that depends on the default 2 ms timestep.
 
 The stance bounds are regression thresholds: minimum height 90%, maximum tilt
 10 degrees, maximum root drift 20 mm, final-second leg RMS below 0.09 Nm and cap
-contact below 60%. The revision-10 baseline knees already touched the 0.10 Nm cap approximately
-44% of samples in the last second of its recorded ten-second hold. That is a documented
-control/duty concern; the 60% threshold does not qualify continuous hardware duty.
+contact below 10%. The revised hold has no settled clipping; the previous
+silhouette-C gains clipped and crept 4–8 cm in 30 seconds. The longer check now
+catches that failure. The thresholds do not qualify continuous hardware duty.
 These bounds should change only with reviewed evidence, not to hide a regression.
 
 The longer walking pilot reports success/failure evidence separately. It is not
@@ -170,6 +176,7 @@ equivalent physical balance checks for every other registered species.
 python examples/mini_tyrannosaurus_rex/demo.py --tail --check
 python examples/mini_tyrannosaurus_rex/demo.py --tail --view --support --gesture
 python -m examples.mini_tyrannosaurus_rex.tail_study --samples 2000
+python -m examples.mini_tyrannosaurus_rex.balance_checks --duration 30
 python examples/mini_tyrannosaurus_rex/render_design.py --tail --output-dir examples/mini_tyrannosaurus_rex --sheet --gesture
 pytest environments/tyrannosaurus_rex/tests/test_mini_tyrannosaurus_rex_*.py
 python -m examples.mini_tyrannosaurus_rex.walking_pilot --duration 30 --output /tmp/mini-base-walking.json

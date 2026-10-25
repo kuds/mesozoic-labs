@@ -6,17 +6,25 @@ The optional angular-velocity kick is an explicit initial-condition perturbation
 
 from __future__ import annotations
 
+import argparse
+import hashlib
+import json
 import math
+import platform
+from pathlib import Path
 from typing import Any
 
 import mujoco
 import numpy as np
 
+from environments.shared import robot_validation
+from environments.shared.robot_validation import GroundSupportProbe, require_unsupported
+
 
 def stance_trial(
     model: mujoco.MjModel,
     *,
-    duration: float = 6.0,
+    duration: float = 30.0,
     leg_cap: float = 0.10,
     angular_kick: tuple[float, float, float] = (0.0, 0.0, 0.0),
 ) -> dict[str, Any]:
@@ -34,14 +42,8 @@ def stance_trial(
     mujoco.mj_resetDataKeyframe(model, data, 0)
     mujoco.mj_forward(model, data)
     root = model.joint("root").id
-    if model.jnt_type[root] != mujoco.mjtJoint.mjJNT_FREE:
-        raise ValueError("The stance regression requires a free root joint.")
-    for eq in range(model.neq):
-        if data.eq_active[eq] and model.eq_type[eq] == mujoco.mjtEq.mjEQ_WELD:
-            if 0 in (model.eq_obj1id[eq], model.eq_obj2id[eq]):
-                raise ValueError("An active world weld would invalidate unsupported stance.")
-    if not np.allclose(model.opt.gravity, [0, 0, -9.81], atol=1e-12):
-        raise ValueError("The stance regression requires Earth gravity along -Z.")
+    require_unsupported(model, data)
+    support = GroundSupportProbe(model, feet={side: (f"{side}_flat_pad_collision",) for side in ("left", "right")})
 
     legs = [i for i in range(model.nu) if any(p in model.actuator(i).name for p in ("hip_", "knee", "ankle"))]
     if not legs or not model.actuator_forcelimited[legs].all():
@@ -59,8 +61,8 @@ def stance_trial(
     unsupported, bad_contact, kicked = True, False, False
     finite = True
     late_forces: list[np.ndarray] = []
-    late_contact: list[tuple[float, float]] = []
-    allowed = {f"{side}_flat_pad_collision": i for i, side in enumerate(("left", "right"))}
+    late_contact: list[np.ndarray] = []
+    maximum_unexpected = 0.0
     try:
         # A sensitivity probe may lower the existing limit, never increase it.
         model.actuator_forcerange[legs, 0] = -actual_caps
@@ -78,21 +80,12 @@ def stance_trial(
             low_height = min(low_height, float(data.qpos[root_q + 2] / initial_height))
             drift = max(drift, float(np.linalg.norm(data.qpos[root_q : root_q + 2] - initial_xy)))
             unsupported = unsupported and not np.any(data.xfrc_applied) and not np.any(data.qfrc_applied)
-            normals = [0.0, 0.0]
-            for index, contact in enumerate(data.contact[: data.ncon]):
-                names = [model.geom(int(g)).name for g in contact.geom]
-                if "floor" not in names:
-                    continue
-                force = np.zeros(6)
-                mujoco.mj_contactForce(model, data, index, force)
-                other = names[1] if names[0] == "floor" else names[0]
-                if other in allowed:
-                    normals[allowed[other]] += max(0.0, float(force[0]))
-                elif force[0] > 0.05:
-                    bad_contact = True
+            normals, unexpected = support.sample(data)
+            maximum_unexpected = max(maximum_unexpected, unexpected)
+            bad_contact = bad_contact or unexpected > 0.05
             if data.time >= duration - 1.0:
                 late_forces.append(data.actuator_force.copy())
-                late_contact.append((normals[0], normals[1]))
+                late_contact.append(normals)
     finally:
         model.actuator_forcerange[:] = saved
 
@@ -109,6 +102,7 @@ def stance_trial(
     return {
         "scope": "Unsupported stance and explicit small disturbance only; not walking or thermal qualification.",
         "duration_s": float(data.time),
+        "completed": bool(finite and data.time >= duration - model.opt.timestep / 2),
         "leg_cap_Nm": leg_cap,
         "angular_velocity_kick_rad_s": kick.tolist(),
         "kick_time_s": 1.0,
@@ -116,6 +110,7 @@ def stance_trial(
         "warnings": int(np.sum(data.warning.number)),
         "no_applied_external_forces": unsupported,
         "unexpected_ground_contact": bad_contact,
+        "maximum_unexpected_support_N": maximum_unexpected,
         "minimum_height_ratio": low_height,
         "maximum_tilt_deg": high_tilt,
         "maximum_root_drift_m": drift,
@@ -127,7 +122,7 @@ def stance_trial(
 def stance_failures(report: dict[str, Any]) -> list[str]:
     """Project acceptance bounds with margin over the reviewed stance baseline."""
     failures = []
-    for key in ("finite", "no_applied_external_forces"):
+    for key in ("finite", "completed", "no_applied_external_forces"):
         if not report[key]:
             failures.append(key)
     if report["warnings"]:
@@ -143,10 +138,51 @@ def stance_failures(report: dict[str, Any]) -> list[str]:
     if not report["settled_leg_effort"]:
         failures.append("missing settled effort")
     for name, effort in report["settled_leg_effort"].items():
-        # The baseline already has substantial cap contact (~44% at knees).
-        # This is a regression ceiling, not a desirable physical duty target.
-        if effort["rms_Nm"] > 0.09 or effort["cap_fraction"] > 0.60:
+        # The revised hold has no settled clipping at 0.10 Nm. Keep margin,
+        # but reject a return of the old saturated, creeping stance.
+        if effort["rms_Nm"] > 0.09 or effort["cap_fraction"] > 0.10:
             failures.append(f"settled effort: {name}")
     if len(report["settled_foot_normal_mean_N"]) != 2 or min(report["settled_foot_normal_mean_N"], default=0) < 0.5:
         failures.append("lost two-foot support")
     return failures
+
+
+def main() -> int:
+    """Replay both configurations and small kicks, with source-bound results."""
+    from . import demo, tail_option
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--duration", type=float, default=30)
+    parser.add_argument("--output", type=Path, default=Path(__file__).with_name("balance_validation.json"))
+    args = parser.parse_args()
+    root = Path(__file__).parent
+    files = [root / name for name in ("model.xml", "balance_checks.py", "tail_option.py")]
+    files += sorted((root / "assets").glob("*.xml"))
+    sources = {str(p.relative_to(root)): hashlib.sha256(p.read_bytes()).hexdigest() for p in files}
+    sources["../../environments/shared/robot_validation.py"] = hashlib.sha256(
+        Path(robot_validation.__file__).read_bytes()
+    ).hexdigest()
+    trials = {}
+    for label, model in (("fixed_tail", demo.load_model()[0]), ("wag_tail_centered", tail_option.load_model())):
+        for kick_name, kick in (("hold", (0.0, 0.0, 0.0)), ("roll", (0.15, 0.0, 0.0)), ("pitch", (0.0, -0.15, 0.0))):
+            report = stance_trial(model, duration=args.duration, angular_kick=kick)
+            report["failures"] = stance_failures(report)
+            trials[f"{label}_{kick_name}"] = report
+    report = {
+        "schema_version": 1,
+        "source_path_base": "examples/mini_tyrannosaurus_rex",
+        "scope": "Unsupported powered stance; optional wagging tail is centered. Not a walking or hardware certificate.",
+        "mujoco_version": mujoco.__version__,
+        "numpy_version": np.__version__,
+        "python_version": platform.python_version(),
+        "source_sha256": sources,
+        "trials": trials,
+        "passed": all(not t["failures"] for t in trials.values()),
+    }
+    args.output.write_text(json.dumps(report, indent=2, allow_nan=False) + "\n")
+    print(json.dumps({"passed": report["passed"], "output": str(args.output)}))
+    return 0 if report["passed"] else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

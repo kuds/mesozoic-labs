@@ -10,6 +10,13 @@ import hashlib
 import json
 from decimal import ROUND_HALF_UP, Decimal
 from pathlib import Path
+from typing import TypedDict
+
+
+class MotorPrice(TypedDict):
+    count: int
+    unit_price_usd: float
+    source: str
 
 
 def main() -> None:
@@ -49,7 +56,7 @@ def main() -> None:
 
     # A provisional upgrade allowance, NOT a qualified 15-axis miniature BOM.
     # Six loaded leg axes are costed as XC330; the remaining nine as XL330.
-    mini_motors = {
+    mini_motors: dict[str, MotorPrice] = {
         "XC330_M288_T": {
             "count": 6,
             "unit_price_usd": 103.39,
@@ -75,6 +82,7 @@ def main() -> None:
     development = [sum(v[i] for v in mini_development.values()) for i in (0, 1)]
     tiers["miniature/provisional_upgrade_allowance"] = {
         "height_m": 0.258,
+        "height_basis": "Historical revision-10 sizing allowance; the selected silhouette-C mini is approximately 26.8 cm.",
         "mass_budget_including_reserve_kg": None,
         "mass_note": "Existing tail model is 0.825 kg; upgraded hardware and camera mass are not reconciled.",
         "actuator_cost_usd": round(motors, 2),

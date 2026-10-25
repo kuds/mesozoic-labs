@@ -449,6 +449,102 @@ class TestStanceCsvPadColumns:
         }
 
 
+class TestStanceCsvCommandColumns:
+    """The replay's stance CSV carries each actuator's command, raw mean and joint position, and nothing else moves."""
+
+    @staticmethod
+    def _replay(tmp_path, checkpoint, model, *, collect):
+        """Replay *model*, the tiny real checkpoint (:mod:`.episode_trace_helpers`), unrendered; the rows and steps."""
+        import csv
+
+        from environments.shared.species_registry import env_class
+
+        from .episode_trace_helpers import TYRANNOSAURUS_REX as MODEL
+
+        class Unrendered(env_class(MODEL)):  # type: ignore[misc,valid-type]
+            def render(self):
+                return np.zeros((4, 4, 3), dtype=np.uint8)
+
+        seen: list[tuple[np.ndarray, np.ndarray]] = []
+        predict = model.predict
+
+        def recording(obs, deterministic=True):
+            action, state = predict(obs, deterministic=deterministic)
+            seen.append((np.array(obs, copy=True), np.array(action, copy=True)))
+            return action, state
+
+        model.predict = recording
+        import builtins
+
+        real_import = builtins.__import__
+
+        def mock_import(name, *args, **kwargs):
+            return MagicMock() if name == "mediapy" else real_import(name, *args, **kwargs)
+
+        out = tmp_path / ("collect" if collect else "plain")
+        try:
+            with patch("builtins.__import__", side_effect=mock_import):
+                record_stage_video(
+                    model,
+                    env_class=Unrendered,
+                    env_kwargs=checkpoint.stage_config["env_kwargs"],
+                    stage=1,
+                    stage_dir=str(out),
+                    model_id=MODEL,
+                    vecnorm_path=str(checkpoint.vecnorm),
+                    label="selected",
+                    max_steps=40,
+                    collect_stance_diagnostics=collect,
+                )
+        finally:
+            model.predict = predict
+        rows = []
+        for path in out.glob("*_selected_stance.csv"):
+            with path.open(newline="") as handle:
+                rows = list(csv.DictReader(handle))
+        return rows, seen
+
+    def test_the_columns_are_the_sent_command_and_the_raw_mean_and_the_replay_is_unchanged(self, tmp_path):
+        pytest.importorskip("mujoco")
+        pytest.importorskip("stable_baselines3")
+        import mujoco
+        import torch
+
+        from environments.shared.policy_loading import load_sb3_model
+
+        from .episode_trace_helpers import BIASED_ACTUATOR, tiny_checkpoint
+
+        checkpoint = tiny_checkpoint(tmp_path)
+        model = load_sb3_model(str(checkpoint.model), device="cpu")
+        plain_rows, plain = self._replay(tmp_path, checkpoint, model, collect=False)
+        torch_state, numpy_state = torch.get_rng_state(), np.random.get_state()
+        rows, seen = self._replay(tmp_path, checkpoint, model, collect=True)
+        # The second forward pass draws nothing, and the replay sees and sends exactly what it did without the CSV.
+        assert torch.equal(torch.get_rng_state(), torch_state)
+        assert np.array_equal(np.random.get_state()[1], numpy_state[1])
+        assert plain_rows == [] and len(seen) == len(plain) == len(rows) == 40
+        for (obs, action), (plain_obs, plain_action) in zip(seen, plain):
+            np.testing.assert_array_equal(obs, plain_obs)
+            np.testing.assert_array_equal(action, plain_action)
+        from environments.shared.species_registry import env_class
+
+        from .episode_trace_helpers import TYRANNOSAURUS_REX as MODEL
+
+        env = env_class(MODEL)(**checkpoint.stage_config["env_kwargs"])
+        try:
+            plant = env.unwrapped.model
+            names = [mujoco.mj_id2name(plant, mujoco.mjtObj.mjOBJ_ACTUATOR, i) for i in range(plant.nu)]
+        finally:
+            env.close()
+        for row, (_obs, action) in zip(rows, seen):
+            for index, name in enumerate(names):
+                assert float(row[f"{name}_command"]) == float(action[index])
+                raw = float(row[f"{name}_raw_mean"])
+                assert float(np.clip(np.float32(raw), -1.0, 1.0)) == float(action[index])
+                assert row[f"{name}_joint_pos"] != ""
+            assert float(row[f"{BIASED_ACTUATOR}_raw_mean"]) > 1.0 and float(row[f"{BIASED_ACTUATOR}_command"]) == 1.0
+
+
 class TestEvaluateFunction:
     """Test the evaluate() function with mocked dependencies."""
 

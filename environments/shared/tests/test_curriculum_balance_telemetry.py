@@ -8,10 +8,12 @@ eval-episode ledger, the in-training v2 screen, the balance and force
 fields, the mirror-even leg DC, the reward-term split and the force
 matrix), the action-jerk reward key, the PostureTrend watch, the
 per-rollout episode and fall counts, the training-episode ledger, the
-policy probe and the checkpoint archive rule.  The two runs train and evaluate exactly alike (the same
-``evaluations.npz``, the same tensors in every checkpoint, the same
-VecNormalize statistics), the plain run writes the key sets main writes
-for the same run without this change, pinned below as they were derived on
+policy probe (its forward pass of every rollout buffer's observations for
+the rollout clip shares included) and the checkpoint archive rule.  The
+two runs train and evaluate exactly alike (the same ``evaluations.npz``,
+the same tensors in every checkpoint, the same VecNormalize statistics),
+the plain run writes the key sets main writes for the same run without
+this change, pinned below as they were derived on
 ``2e734e29`` (main's commits since, through ``c6292b1e``, change no
 training, evaluation or configuration code), and the full run adds exactly
 this change's keys, its ledgers and its probe file.
@@ -355,6 +357,8 @@ def test_the_full_run_writes_the_ledger_and_the_progress_blocks(trained):
     assert len(rows) == evaluations["results"].size == 3 * EPISODES
     assert [int(row["timesteps"]) for row in rows] == [int(step) for step in evaluations["timesteps"] for _ in range(2)]
     assert [float(row["return"]) for row in rows] == pytest.approx(evaluations["results"].ravel().tolist())
+    # The saturating-actuator columns are among the additions the plain run trains and evaluates exactly like.
+    assert {"saturated_actuator", "saturated_actuator_fraction", "actuators_saturated"} <= set(rows[0])
     record = json.loads((full / "progress.json").read_text(encoding="utf-8"))
     assert {"balance", "forces"} <= set(record) and "leg_q_deg" in record["posture"]
     assert "screen_v2" in record["evaluation"]
@@ -376,3 +380,10 @@ def test_the_full_run_writes_the_ledger_and_the_progress_blocks(trained):
         assert probe["update_timesteps"].tolist() == [256, 512, 768]
         assert len(probe["bank_labels"]) == 10 and int(probe["bank_horizon"]) == 601
         assert probe["bank_action_now"].shape == (3, 10, 15)
+        # The rollout clip shares: each update's whole buffer (256 steps of one env), per actuator.
+        assert probe["rollout_rows"].tolist() == [256, 256, 256]
+        for key in ("rollout_action_clip_high_share", "rollout_mu_beyond_low_share", "rollout_mu_q95"):
+            assert probe[key].shape == (3, 15) and np.isfinite(probe[key]).all(), key
+        counts = probe["rollout_action_clip_low_share"].astype(np.float64) * 256
+        assert np.array_equal(counts, np.round(counts))
+    assert "rollout_mu_beyond_share_max" in record["policy"]

@@ -8,10 +8,288 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **The saturating actuator, named per evaluation episode and drawn over
+  training** (the maintainer's decision of 2026-10-24, "both, from the ledger";
+  `environments/shared/gait/stance_metrics.py`,
+  `environments/shared/eval_diagnostics.py`,
+  `environments/shared/reporting/training_history.py`; documented in
+  `docs/TRAINING_ARTIFACT_PRESENTATION.md`, "Evaluation episodes" and
+  "Training history pages"). Report only. `max_actuator_saturation_fraction`
+  flags an episode without saying which actuator; naming the tail held at +1
+  (`tail_3_pitch_act`) that failed four runs took checkpoint downloads and
+  offline rollouts. `eval_episodes.csv` now carries, per episode,
+  `saturated_actuator` (the actuator with the largest fraction of post-settle
+  window steps at `|action| >= 0.99`, the lowest index on a tie; empty when
+  none saturates), `saturated_actuator_fraction` (the screen's metric bit for
+  bit: one shared reduction, the same window, threshold and NaN rule),
+  `saturated_actuator_positive_share` (its sign), `saturated_actuator_ties`
+  and `actuators_saturated`, read from the trace the recorder already closed.
+  The training-history report counts each evaluation's flagged episodes by the
+  actuator and sign they name (never smoothed: stacked per evaluation on one
+  run's page, a cell coloured by the most-named actuator per run on a
+  comparison), draws `saturated_actuator_fraction` against the stage's bar,
+  labels each alarm with its actuator (the one its flagged episodes name most,
+  counted over its signs), and carries the counts per evaluation, per alarm
+  and in the checkpoint table, so `final`, `best` and `robust_best` are read
+  from their own evaluation's rows. What moves: five ledger columns
+  (a T. rex row from 63 to 68 columns, about 13 to 50 bytes) and the report's
+  saturation page, JSON and HTML. What does not: no gate verdict, reward,
+  observation, action, termination, task, checkpoint selection, plant,
+  hyperparameter or stage-config digest, no `StanceEpisodeMetrics` field,
+  panel column, `gate_progress.npz` key, env info key or MJCF sensor, and no
+  random draw; the digest snapshot is unchanged. An older ledger without the
+  columns loads everywhere and reads as an absent series.
+- **The training rollouts' clip shares, per actuator, in the policy probe and
+  on the saturation page** (the maintainer's decision of 2026-10-24;
+  `environments/shared/policy_probe.py`,
+  `environments/shared/reporting/training_history.py`; documented in
+  `docs/TRAINING_ARTIFACT_PRESENTATION.md`, "The policy probe" and "Training
+  history pages"). Report only. SB3 clips a sampled action only at
+  `env.step` and trains on the unclipped sample and its log-probability, while
+  deterministic play acts on the mean, clipped; in a scratch T. rex experiment
+  `tail_3_pitch_act`'s mean was beyond +1 on 2.5% and 27.5% of two arms'
+  training rows against 21 to 46% of deterministic window steps, and nothing
+  in the repo recorded the training side. `PolicyProbeCallback` now reads, at
+  every rollout's end and before `train()`, the rollout buffer that update
+  trains on: per actuator, the share of sampled actions above the high bound
+  and below the low one, the share at `|clip(a)| >= 0.99` (the gate's
+  threshold), and, from one `torch.no_grad()` pass of the buffer's
+  observations through the policy's distribution (the bank's pass; float32,
+  in chunks of 16,384 rows), the share of means beyond each bound and the
+  means' average, median and 95th percentile. Nine `rollout_*` arrays join
+  `policy_probe.npz` (about 0.5 KB per update on the T. rex, 0.7 MB over a
+  12M run), three `policy_probe/rollout_*_share_max` scalars join
+  TensorBoard and `progress.json`'s `policy`, and a same-stage resume from a
+  file written before them keeps its rows as NaN; a buffer pass that fails
+  costs a row its `rollout_*` arrays only. It added 41 to 46 ms per rollout
+  on the T. rex stance config (4 envs, `n_steps` 2048, one CPU thread),
+  about 0.25% of the rollout's collection and update.
+  The training-history report draws both shares per rollout on the saturation
+  page (the actuators that ever reach 0.01 at a bound named, at most six, in
+  their flagged episodes' colour or one no flagged actuator holds, the rest
+  one grey line; a comparison draws each run's largest, labelled with the
+  actuator it traces; rollouts a resume did not measure are said on the
+  panel; never smoothed) and adds `rollout_shares` (each actuator's peak,
+  last value and first rollout at 0.01) to the JSON; a run without the
+  arrays is an absent series.
+  No sampling, gradient, parameter, optimizer, buffer, generator, training
+  flag, gate, reward, observation, action, task, checkpoint selection, plant,
+  hyperparameter or digest change: the in-suite inertness proof, which trains
+  a short T. rex stance with the probe and without it, now also pins the
+  arrays in its full run and still sees the same rollout data, updates,
+  generators, evaluations and checkpoints, and the digest snapshot is
+  unchanged.
+- **The training-history report drawn at the end of every stage, report-only**
+  (the maintainer's decision of 2026-10-24, which widens D-D42's (2) to scope
+  (b); `environments/shared/reporting/stage_artifacts.py`,
+  `environments/shared/reporting/stage_layout.py`; documented in
+  `docs/TRAINING_ARTIFACT_PRESENTATION.md`, "At stage end:
+  `figures/training_history/`", and one sentence in tip 4 of
+  `website/docs/training/hyperparameters.md`; a dated amendment of D-D42's rows
+  in `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2 and
+  `docs/CONSOLIDATION_PLAN_2026_09.md` §6). D-D42 (its entry below) sent the
+  report to its own pull request at scope (a), the standalone report as built,
+  which landed in #636; a further decision of the maintainer's that day widens
+  it to scope (b), as the stage report's design of 2026-10-18 specifies, and
+  D-D42's rows now say so. `generate_stage_artifacts` now draws the stage's
+  training history from its ledgers into `figures/training_history/`
+  (the ten pages, `training_history.html` and `training_history.json`, as
+  `plot_training_history.py STAGE_DIR` draws them by default), so every node
+  the SB3 training notebook trains or judges has it without a manual step, and
+  the bundle saved after the node declares and hashes it. It is drawn after the
+  verdict is recorded and the stage summary written, after
+  `figures/gate_progress.png` and in its own guard, before the replays and the
+  stance probes: a failure logs one warning and costs this report only. It is
+  rendered into a private directory and moved into the staging tree whole, so a
+  failure part-way publishes none of it; a stage judged again whose report is
+  not drawn keeps the previous copy, as the other figures do. It follows
+  `generate_graphs`, and a stage directory with neither `eval_episodes.csv` nor
+  `train_episodes.csv` (a run from before the ledgers) gets none. The library writes it, not the
+  script, whose refusal of an `--out` inside a run directory still keeps manual
+  writes out of runs. Report only: no training, evaluation, gate, reward,
+  observation, action, task, checkpoint selection, plant, configuration, digest
+  or notebook change, and `training_history.py` is unchanged; the results
+  `generate_stage_artifacts` returns, the verdict and the stage summary are the
+  same with the report, without it and when it fails, and the std reads leave
+  the random number streams the replays and probes see as they were. The
+  ordering pins in `test_reporting_stage_artifacts.py` and
+  `test_stance_gate_report.py` gain the new step. On the stance5 band run s42's
+  ledger (91 evaluations) it takes about 5.5 s and writes 1.7 MB.
+- **A per-step trace of single episodes of a checkpoint, and the policy's
+  command and raw mean in the replay's stance CSV, report-only** (the
+  maintainer's decision of 2026-10-24, after the T. rex tail habit,
+  `tail_3_pitch_act` commanded at +1, took scratch tools to measure in
+  `docs/investigations/stance_2026_10/stance4/satdiag/`). The stance gate
+  flags actuator saturation, but nothing in the repository showed per step
+  what the policy asks for. Nothing reads either output but a person: no
+  gate, reward, observation, action, task, checkpoint selection or plant
+  changes, and the 649-line digest snapshot (plant identities, policy
+  interfaces, task and gate digests, reward captures) is byte-identical.
+  - `environments/shared/scripts/episode_trace_report.py` (library:
+    `environments/shared/reporting/episode_trace.py`) rolls a checkpoint and
+    its named VecNormalize statistics, loaded frozen as the stance report
+    loads them and checked against the current plant, on the stage's own
+    env, one episode per seed. Its default rollout is the stance judge's:
+    the trace of seed `3042 + i` sends the command episode `i` of the
+    stance panel sends, at every step, on the v1 and v2 panels and the
+    heading certificate's 0 degree cell, with the same rewards and lengths
+    (checked against `run_panel`). Per step and per actuator it writes the
+    raw Gaussian mean before the clip (`get_distribution(obs).mode()` under
+    `torch.no_grad()`, the policy probe's pass), the command, `data.ctrl`,
+    the driven joint's position and velocity, and the actuator force and
+    its fraction of the force limit, one CSV per episode. `episode_trace.json`
+    (`mesozoic.episode-trace/v1`) summarizes each episode and traced
+    actuator over the gate's post-settle window at its `SATURATION_ABS`:
+    window means, the shares of steps at `|command| >= 0.99` and `>= 0.9`
+    and with `|raw mean| > 1`, the raw mean's extremes (and, apart, the
+    whole episode's, the reset transient included), the first step at the
+    rail (anywhere and in the window), and the episode's return and
+    length. Its `step` is the action's 0-based index; the replay's stance
+    CSV counts from 1, so its row k is the trace's row k - 1. `--actuators`
+    narrows it; `--stochastic SEED` samples from the policy's own Gaussian
+    (`numpy.random.default_rng(SEED + i)`, the stance screens'
+    `noise_matched_own` draw when `SEED` is the first reset seed);
+    `--hold NAME=VALUE` replaces one actuator's command, for counterfactuals
+    such as holding `tail_3_pitch_act` at 0. Both are recorded as probes.
+    A missing `--vecnorm` is refused unless `--allow-unnormalized`, and an
+    output directory inside the run directory of the checkpoint or its
+    statistics is refused, as `plot_gate_progress.py` refuses one.
+  - The replay's per-frame `*_stance.csv` (`record_stage_video`) gains, per
+    actuator, `<actuator>_command` (the action sent), `<actuator>_raw_mean`
+    (the Gaussian mean before the clip; absent for SAC) and
+    `<actuator>_joint_pos` (`stance_diagnostics.policy_command_columns`).
+    The raw mean is a second forward pass of the observation `predict` was
+    given, which draws no random number and leaves the policy's
+    distribution as it found it: the replay's observations and actions,
+    and so its video and every other column, are those of a replay without
+    it (tested on a real T. rex checkpoint). It costs about 0.15 ms per
+    frame on a [512, 256] policy, against about 1.2 ms per T. rex physics
+    step. No column the snapshot writes on any of the six models ends in
+    these names, and nothing in the repository parses the CSV's columns.
+  - Tests: `test_episode_trace.py` (the judge's rollout step for step, the
+    columns and the summary against the plant and the gate's own saturation
+    function, both probes, the writer, the refusals and the script), the
+    replay's columns in `test_evaluation.py`, and the columns' names and
+    reads on every model in `test_stance_diagnostics.py`.
+    `test_episode_trace.py` needs SB3, so the SB3 job's integration step runs
+    it, and `test_repository_root.py` lists the script's `sys.path`
+    bootstrap. Documented in `docs/TRAINING_ARTIFACT_PRESENTATION.md`.
+- **Decision D-D42 recorded: the next T. rex stance round targets the tail
+  saturation habit, with a training-history report and an actuator saturation
+  report, both report only; D-D41 amended with its outcome** (the maintainer's
+  decisions of 2026-10-24; `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2,
+  `docs/CONSOLIDATION_PLAN_2026_09.md` §6, a dated note in §17 of
+  `docs/GAIT_QUALITY_PLAN_2026_09.md`, `docs/NEXT_STEPS.md` §3; §23.7 of
+  `docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md`). Records only:
+  no library code, configuration, test, notebook, digest or generated file
+  changes with it. After D-D41's replication read its line 2 (the entry below),
+  D-D42 takes the first of the three options that line offers: the next round
+  targets the tail saturation habit (`tail_3_pitch_act` pinned at +1 on the
+  saturation rail), and is designed with fixed criteria and brought back to the
+  maintainer for approval before any training. The training-history report
+  goes to its own pull request at scope (a), the standalone report as built
+  (report-only pages from the run ledgers). An actuator saturation report,
+  during training and for finished models, comes from report-only
+  telemetry naming the saturating actuator and its sign on each
+  evaluation-episode row. No training follows from it, and when the copied run
+  log ends (15:27 UTC) the round is not designed: an options study for it has
+  started, with no training and no Drive fetch, its brief to come to the
+  maintainer before any design is fixed; the two reports are to come in their
+  own pull requests, not in this change. Walking pilot 2 is not launched.
+  D-D41's row gains a dated amendment with its package, runtime and outcome
+  (line 2, not adopted). Screens certify nothing. `docs/README.md` adds a note
+  to the gait plan's row, and `docs/KNOWN_ISSUES.md` gains Update 17 of the
+  T-Rex stance entry.
+- **The stance5 replication of D-D41 judged: one of the two new per-foot
+  centre-of-pressure band runs holds (line 2), and the band is not adopted; the
+  K3 diagnosis, the scratch tail experiment and the K3 readouts recorded, report
+  only** (D-D41's amendment of 2026-10-24; `docs/BEHAVIOR_RECIPES_PLAN.md`
+  §6.2, `docs/CONSOLIDATION_PLAN_2026_09.md` §6, a dated note in §17 of
+  `docs/GAIT_QUALITY_PLAN_2026_09.md`, `docs/NEXT_STEPS.md` §3; the appended §23
+  of `docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md`, and
+  `stance5/replication/`, `stance5/k3diag/` and `stance5/tailexp/` of
+  `docs/investigations/stance_2026_10/`). Records only: no library code,
+  configuration, test, notebook, digest or generated file changes with it. The
+  two 12M runs of arm LTSB, unchanged (`stance5_LTSB_s70`, `stance5_LTSB_s80`),
+  trained from scratch to 12,001,280 steps on Colab L4 GPU runtimes from the
+  screen branch `claude/screen-trex-r9-armlts-copband` (`cf80ecb1`, never
+  merged) and were judged on 2026-10-24 by the criteria fixed before training
+  (sha256 `a38536de…`), final, with the three D-D40 runs counted as recorded.
+  s70 holds: 40, 40, 40, 39, 40 and 40 of 40 clean, a K2c range of 13.7 mm, 0
+  and 1 of 20 joint-space noise falls at 6,291,456 and the final. s80 fails K1
+  only: 40, 4, 14, 26, 39 and 38 of 40 clean, the three checkpoints below 33 of
+  40 on the actuator-saturation rail (36, 25 and 14 episodes; the alarm at
+  4,456,448, `tail_3_pitch_act` pinned at +1, as in D-D40's seed-42 run), and 1
+  and 2 of 20 joint-space noise falls. H = 2 of 5, and the decision table's line
+  is 2, final: not adopted; the maintainer chooses the next round from the
+  stance5 criteria's menu. Report only: the K3 pass fraction (3 of 5 against
+  the control's 2 of 3), not a veto; s52's final still ties D-D37 Run 2's final
+  under the parent rule; the notebook's own six-heading gate on each run's
+  `robust_best` (both PASS) and the stage's six-heading certificate rolled
+  offline on the finals (40 of 40 and 38 of 40 seeds, both PASS; not gate
+  evidence). Also recorded, report only: a diagnosis of the D-D40 band runs'
+  joint-space noise falls (seed 42's are not the tail habit; hip-pitch noise,
+  mostly its left-right differential part, is the main cause; the mechanism of
+  the break between 6,291,456 and 7,340,032 is open); a scratch experiment on
+  the tail habit (a quadratic bound on the policy mean, one 1M-step CPU
+  continuation against a paired control: lower tail saturation, relapsing, its
+  effect against training alone not established; the scratch clone never
+  pushed); and report-only K3 readouts on the new runs, fixed by an addendum
+  before any of their J checkpoints existed (full-noise falls 0, 1, 1 and 2 of
+  20; every band final falls 20 of 20 to a ±0.3 differential hip kick).
+  `stance5/replication/` holds the criteria, the Colab steps, the sigma sidecar,
+  frozen copies of the judge and scorer, `results/` (13 files and its README,
+  about 0.16 MB: the run log, tool ids removed, the verdict of record, the
+  notebook's gates and the certificates, trimmed, and the saturation watch's
+  files) and the K3 readouts' addendum, tool, validation and outputs;
+  `stance5/k3diag/` and `stance5/tailexp/` the two reports. `SOURCES.txt` and
+  `SHA256SUMS` (now 418 files) are extended. `docs/README.md` adds a note to the
+  record's and the gait plan's rows, and `docs/KNOWN_ISSUES.md` gains Update 16
+  of the T-Rex stance entry.
+- **A training-history report: one run's feet, balance, asymmetry and
+  saturation over its training, or several runs overlaid**
+  (#636; `environments/shared/reporting/training_history.py`,
+  `environments/shared/scripts/plot_training_history.py`; documented in
+  `docs/TRAINING_ARTIFACT_PRESENTATION.md`, "Training history pages"). Report
+  only: new files, one test-table line each in `test_policy_loading.py` (the
+  new call-time read of `_PERIODIC_CHECKPOINT_RE`) and
+  `test_repository_root.py` (the script's `sys.path` bootstrap), and a
+  docstring line in `reporting/__init__.py`; no training, evaluation, gate,
+  configuration, digest or notebook changes. From a stage directory's
+  `eval_episodes.csv`, `train_episodes.csv`, `stage_config.json`,
+  `progress.json`, `plant_identity.json` and checkpoint zips it reduces each
+  evaluation (clean, falls, saturation-flagged episodes and the mean return;
+  the rails' own per-episode numbers and the full-horizon episodes over each
+  declared bar; per foot the whole-foot and pad centres of pressure, the
+  episodes outside the CoP band's edges, digit share, toe margin, shear and
+  cone use; the centre of mass, root pitch and XcoM margins; the
+  left-minus-right hip pitch, knee and ankle offsets;
+  `actuator_force_frac_max`), the training falls per 262,144-step window, and
+  the per-actuator policy std `exp(log_std)` at the checkpoints (only
+  `policy.pth`'s `log_std` is read, with `weights_only=True`; the actuator
+  names only when the run's physics digest is the checkout's). It finds the
+  saturation alarms from the ledger itself (an evaluation with at least 5 of
+  its episodes listing `max_actuator_saturation_fraction`; two in a row are an
+  alarm) and marks them, with the checkpoints given by `--mark-steps`, on ten
+  pages of graphs written as PNGs and a self-contained HTML page, beside a
+  JSON summary (`mesozoic.training-history/v1`) of every series, the declared
+  bars and band settings and what was absent. Counts are never smoothed: a
+  comparison draws them as one strip per run. A missing file or column is an
+  absent series, never an error; an output inside a run directory is refused,
+  as `plot_gate_progress.py` refuses it. It is the first piece of the stage
+  report card's posture-over-training page and per-actuator std. On the
+  stance5 band run s42 it finds the first flagged evaluation at 3,538,944
+  steps and the alarm at 3,670,016, and on the stance4 control run s42 the
+  first saturated episodes at 1,835,008 and the alarm at 2,228,224, the steps
+  the scorers recorded. On the stance4 control run s52 it counts 204
+  full-horizon episodes over the 0.80 pad rail in 69 of 91 evaluations (7 of
+  10 at 6,553,600 steps, where the signed per-foot means read +0.14 and
+  +0.11); the five band runs have none.
 - **Decision D-D41 recorded: a replication of the per-foot centre-of-pressure
   band screen on two more seeds, read three of five; D-D40 and D-D36 amended**
-  (the maintainer's decisions of 2026-10-22; `docs/BEHAVIOR_RECIPES_PLAN.md`
-  §6.2, `docs/CONSOLIDATION_PLAN_2026_09.md` §6, a dated note in §17 of
+  (#634; the maintainer's decisions of 2026-10-22;
+  `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2, `docs/CONSOLIDATION_PLAN_2026_09.md`
+  §6, a dated note in §17 of
   `docs/GAIT_QUALITY_PLAN_2026_09.md`, `docs/NEXT_STEPS.md` §3; the appended §22
   of `docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md`). Records
   only: no library code, configuration, test, notebook, digest or generated file
@@ -49,7 +327,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The stance5 screen of D-D40 judged: one of the three per-foot
   centre-of-pressure band runs holds (line 3), and the band is not adopted; the
   band's build, the stance4 seed-42 saturation diagnosis and walking pilot 2's
-  rebuild recorded** (D-D40's amendment of 2026-10-22;
+  rebuild recorded** (#634; D-D40's amendment of 2026-10-22;
   `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2, `docs/CONSOLIDATION_PLAN_2026_09.md` §6,
   a dated note in §17 of `docs/GAIT_QUALITY_PLAN_2026_09.md`,
   `docs/NEXT_STEPS.md` §3; the appended §21 of

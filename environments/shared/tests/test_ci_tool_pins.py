@@ -107,15 +107,28 @@ def test_pre_commit_hooks_run_the_ci_versions() -> None:
 
 
 def test_pre_commit_ruff_hooks_cover_only_what_ci_checks() -> None:
-    # CI runs `ruff check environments/` and `ruff format --check environments/`.
-    # The pinned ruff also formats notebooks and Markdown code blocks, so an
-    # unscoped hook would rewrite files CI never looks at.
-    assert "ruff check environments/" in ci_text()
-    assert "ruff format --check environments/" in ci_text()
     block = _pre_commit_block("ruff")
     hooks = re.findall(r"^\s*- id:\s*(\S+)", block, flags=re.MULTILINE)
-    scoped = re.findall(r"^\s*files:\s*\^environments/\s*$", block, flags=re.MULTILINE)
-    assert hooks and len(scoped) == len(hooks), f"each ruff hook ({hooks}) needs `files: ^environments/`"
+    scoped = re.findall(r"^\s*files:\s*(\S+)\s*$", block, flags=re.MULTILINE)
+    assert hooks and len(scoped) == len(hooks), f"each ruff hook ({hooks}) needs a source scope"
+    roots = (
+        "environments",
+        "examples/mini_tyrannosaurus_rex",
+        "examples/tyrannosaurus_rex_50cm",
+        "docs/hardware/studies",
+    )
+    for command in ("ruff check", "ruff format --check", "mypy"):
+        run = re.findall(rf"^\s*run:\s*{re.escape(command)}\s+(.+)$", job_block("lint"), re.MULTILINE)
+        assert len(run) == 1
+        assert {p.rstrip("/") for p in shlex.split(run[0]) if not p.startswith("-")} == set(roots)
+    for pattern in scoped:
+        for root in roots:
+            assert re.search(pattern, f"{root}/future/module.py"), root
+        for path in ("docs/example.md", "notebooks/example.ipynb", "examples/unrelated/demo.py"):
+            assert not re.search(pattern, path), path
+    entry = re.findall(r"^\s*entry:\s*mypy\s+(.+)$", _pre_commit_block("mypy"), re.MULTILINE)
+    assert len(entry) == 1
+    assert {p.rstrip("/") for p in shlex.split(entry[0])} == set(roots)
 
 
 def test_dev_extra_pins_the_ci_versions() -> None:

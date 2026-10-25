@@ -53,11 +53,14 @@ def test_character_preserves_baseline_pivots_motor_cases_and_actuator_limits():
         "jnt_range",
         "actuator_ctrlrange",
         "actuator_forcerange",
-        "actuator_gainprm",
-        "actuator_biasprm",
     ):
         assert getattr(new, attribute) == pytest.approx(getattr(old, attribute))
     assert new.nu == old.nu == 14
+    assert new.actuator_gainprm[:10, 0] == pytest.approx(old.actuator_gainprm[:10, 0] * 0.5)
+    assert new.actuator_biasprm[:10, 1] == pytest.approx(old.actuator_biasprm[:10, 1] * 0.5)
+    assert new.actuator_biasprm[:10, 2] == pytest.approx(old.actuator_biasprm[:10, 2] * 0.25)
+    assert new.actuator_gainprm[10:] == pytest.approx(old.actuator_gainprm[10:])
+    assert new.actuator_biasprm[10:] == pytest.approx(old.actuator_biasprm[10:])
     for index in engineering.motor_cases(old):
         name = old.geom(index).name
         previous, current = old.geom(name), new.geom(name)
@@ -90,6 +93,8 @@ def test_free_character_gesture_moves_head_jaw_and_arms_without_internal_contact
     report = character_checks.gesture_trial(model, duration=5)
     assert not report["externally_supported"]
     assert report["finite"] and not report["warnings"]
+    assert report["no_applied_external_forces"]
+    assert report["maximum_unexpected_support_N"] == 0
     assert report["duration_s"] == pytest.approx(5)
     assert report["minimum_height_ratio"] > 0.95
     assert report["maximum_tilt_deg"] < 5
@@ -104,3 +109,10 @@ def test_free_character_gesture_moves_head_jaw_and_arms_without_internal_contact
         assert report["joint_excursions_rad"][name] > minimum
     for row in report["actuators"].values():
         assert row["peak_Nm"] <= max(abs(x) for x in row["cap_Nm"]) + 1e-10
+
+
+def test_free_character_trial_refuses_an_active_display_weld():
+    model, _ = demo.load_model()
+    model.eq_active0[model.equality("display_support").id] = True
+    with pytest.raises(ValueError, match="world weld"):
+        character_checks.gesture_trial(model, duration=3)
