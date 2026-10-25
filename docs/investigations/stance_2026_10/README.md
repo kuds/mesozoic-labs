@@ -298,22 +298,33 @@ copies. The rest are byte-identical. No copy holds a model identifier, an email
 address or a commit trailer.
 
 *Added 2026-10-25, later (`stance5/tailscreen/`):* no new kind of change.
-`run_log.txt` carries **lines** (lines 505 to 577 of the session's run log) and
-**redact** (22 workflow run ids, 12 distinct, and one background-job id); the
-patch file carries **trailer** (each commit's two trailer lines), **redact**
-(the commits' `From:` lines, an author name and an email address) and
+`results/run_log.txt` carries **lines** (lines 505 to 577 of the session's run
+log) and **redact** (22 workflow run ids, 12 distinct, and one background-job
+id); the patch file carries **trailer** (each commit's two trailer lines),
+**redact** (the commits' `From:` lines, an author name and an email address) and
 **whitespace** (the single space of its blank context lines; `git apply` of the
-copy still gives the scratch commit's two files exactly); `tools/copy_durable.sh`
-carries **trailer** too (the trailer it writes into its commits). The criteria
-(`9930ee72…`), `APPROVED`, `calib/coef.json`, `gate/gate_pass.json` and the
-score files are byte-identical, so their sha256 are the ones the approval and
-the run log pin (`coef.json` and `gate_pass.json` have no final newline, which
-is kept; leave them out of a manual pre-commit run). Five of the eight tools
-carry **prefix2**, **prefix** or **checkout**, so their sha256 is not the one
-`screen_common.py` pins (SOURCES.txt gives the pinned one as the source's).
-[stance5/tailscreen/README.md](stance5/tailscreen/README.md) says which file each
-change applies to. After these changes no copy holds a model identifier, an
-email address or a commit trailer.
+copy still gives the scratch commit's two files exactly);
+`tools/copy_durable.sh` carries **trailer** too (the trailer it writes into its
+commits). The criteria (`9930ee72…`), `APPROVED`, `calib/coef.json`,
+`gate/gate_pass.json` and the score files are byte-identical, so their sha256
+are the ones the approval and the run log pin (`coef.json` and `gate_pass.json`
+have no final newline, which is kept; leave them out of a manual pre-commit
+run). Five of the eight tools carry **prefix2**, **prefix** or **checkout**, so
+their sha256 is not the one `screen_common.py` pins (SOURCES.txt gives the
+pinned one as the source's).
+[stance5/tailscreen/README.md](stance5/tailscreen/README.md) says which file
+each change applies to. `criteria.txt` keeps the two absolute session-scratch
+paths that define its `SP` and `S2` (its lines 18 and 19), the only copy here
+that does, because its sha256 is the approved pin. Eight small per-episode files
+are kept, an exception to this folder's rule on per-episode files: the
+verification's four re-measured `final_flags.csv` (`verify/remeasure/out/`, 20
+episodes each) and four probe outputs (`probes/probecheck/probe_s42.json` and
+`probe_s80.json`, 6 episodes each, `probes/skeptic/noise_shift_s80.json`, 90,
+and `probes/skeptic/unclip_alt_s42.json`, 40; at most 14 KB each), because they
+are the evidence of the re-measurement's field-for-field result and of the
+probes' counts; the panels' own `flags.csv` and per-step CSVs are not here.
+After these changes no copy holds a model identifier, an email address or a
+commit trailer.
 
 [SHA256SUMS](SHA256SUMS) pins every file here but this README and itself
 (`sha256sum -c SHA256SUMS` in this directory). *Added 2026-10-19:* nor
@@ -1199,11 +1210,13 @@ training step; run from 19:11 to 23:46 UTC on this container's CPUs; scored at
 each continuing stance5 s42's and stance5r s80's 4,194,304 checkpoints for one
 1,048,576-step run on seeds 101, 202 and 303 (18 replicates), from two scratch
 commits on `cf80ecb1` (`4c0c8da7`, never pushed). Outcome C: BOUND90 NOT ADOPTED
-(RAIL: 6 of 6 replicates kept tail-up flags, R1/R2 mean commands 0.886 to
-0.971) and BOUND60 NOT ADOPTED (PARKED: 6 of 6 cleared the rail with 0 tail-up
-flags, but held commands of 0.600 to 0.632, at or above the 0.60 line); CONTROL
-read RAIL, CURED and RAIL at s42 and RAIL three times at s80 (the onset note
-INFORMATIVE); OTHER 0 everywhere. Its
+(RAIL: 6 of 6 replicates had tail-up flags at R1 and R2, s42's from a railed
+start and s80's from a clean one, R1/R2 mean commands 0.886 to 0.971) and
+BOUND60 NOT ADOPTED (PARKED: 6 of 6 cleared the rail with 0 tail-up flags, but
+had R1/R2 mean commands of 0.600 to 0.632, at or above the 0.60 line; s42's
+three clear it by as little as 0.00017, and the verdict also holds on s80
+alone); CONTROL read RAIL, CURED and RAIL at s42 and RAIL three times at s80
+(the onset note INFORMATIVE); OTHER 0 everywhere. Its
 [README](stance5/tailscreen/README.md) indexes the folder: the criteria
 byte-identical, the approval, request and pins, the calibration, the patch, the
 gate records (the first gate's failure on one test of `main`'s rule and the

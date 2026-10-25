@@ -25,27 +25,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `cf80ecb1` (never pushed; kept here as a patch file), judged by criteria
   approved before any training step (sha256 `9930ee72…`, re-pinned once for one
   gate test). Run on 2026-10-24 on the session's CPUs, scored that day, final,
-  and verified on 2026-10-25: BOUND90 NOT ADOPTED (RAIL: every replicate kept
-  tail-up saturation episodes), BOUND60 NOT ADOPTED (PARKED: the rail cleared,
-  the command held at 0.600 to 0.632, at or above the 0.60 line), CONTROL RAIL,
-  CURED and RAIL from s42 and RAIL three times from s80; OTHER 0 everywhere.
-  Report only: the bound acted on the training rows (the share of rows above b
-  lower under the bound in every seed-paired comparison), and the dose
-  ordering of the arms' mean commands is false at both states. Before it, also
-  report only: the options study's draft and corrected briefs (two skeptics,
-  17 findings) and no-training probes on the two checkpoints (holding the tail
-  at 0 gains reward under the policy's own noise in 40 of 40 pairs; the
-  unclipped tail settles at a fixed point of a positive loop; the policy
+  and verified on 2026-10-25: BOUND90 NOT ADOPTED (RAIL: every replicate had
+  tail-up saturation episodes at R1 and R2, s42's from a railed start and s80's
+  from a clean one), BOUND60 NOT ADOPTED (PARKED: the rail cleared, with R1/R2
+  mean commands of 0.600 to 0.632, at or above the 0.60 line; s42's three clear
+  it by as little as 0.00017, and the verdict also holds on s80 alone), CONTROL
+  RAIL, CURED and RAIL from s42 and RAIL three times from s80; OTHER 0
+  everywhere. Report only: the bound acted on the training rows (the share of
+  rows above b lower under the bound in every seed-paired comparison), and the
+  dose ordering of the arms' mean commands is false at both states. Before it,
+  also report only: the options study's draft and corrected briefs (two
+  skeptics, 17 findings) and no-training probes on the two checkpoints (holding
+  the tail at 0 gains reward under the policy's own noise in 40 of 40 pairs;
+  the unclipped tail settles at a fixed point of a positive loop; the policy
   probe's bank is not an early detector). The maintainer's decision after the
-  screen: this records PR first, then the posture options with evidence,
-  before any decision. `stance5/tailscreen/` holds the criteria
-  (byte-identical), the approval and its request, the stale pin list, the
-  calibration, the patch, the gate records, the tools, the score, `panels.csv`,
-  the verification and the run log's lines 505 to 577 (ids removed), and
-  `options/` and `probes/` the study and the probes. `SOURCES.txt` and
-  `SHA256SUMS` (now 528 files) are extended. `docs/README.md` adds a note to
-  the record's and the gait plan's rows, and `docs/KNOWN_ISSUES.md` gains
-  Update 19 of the T-Rex stance entry.
+  screen: this records PR first, then the posture options with evidence, before
+  any decision. `stance5/tailscreen/` holds the criteria (byte-identical), the
+  approval and its request, the stale pin list, the calibration, the patch, the
+  gate records, the tools, the score, `panels.csv`, the verification and the
+  run log's lines 505 to 577 (ids removed), and `options/` and `probes/` the
+  study and the probes. `SOURCES.txt` and `SHA256SUMS` (now 528 files) are
+  extended. `docs/README.md` adds a note to the record's and the gait plan's
+  rows, and `docs/KNOWN_ISSUES.md` gains Update 19 of the T-Rex stance entry.
 - **Decision D-D43 recorded: a scratch CPU continuation screen of a bound on
   the T. rex tail actuator's mean, the first step of D-D42's round; D-D42
   amended with three more report-only tools** (the maintainer's decisions of

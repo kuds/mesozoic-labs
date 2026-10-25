@@ -65,36 +65,39 @@ the dose ordering BOUND60 ≤ BOUND90 ≤ CONTROL of the arms' mean CMD is false
 both states (s42 0.6067, 0.9203, 0.7177; s80 0.6250, 0.9305, 0.8974), because
 BOUND90 sits above CONTROL.
 
-The verification (00:13 UTC on 2026-10-25, four independent checks, no blocking
-finding) re-scored every class, state reading, the onset note, both verdicts and
-the outcome from `criteria.txt` alone on the 720 R1/R2 episodes' per-step
-traces; checked the provenance (18 of 18 replicates done with the pinned arm,
-coef, b, seed and state; every panel row's checkpoint sha256 equal to its file;
-the pins, the scratch clone at `4c0c8da7`, clean, and the judge clones clean;
-the durable branch's `score.json` byte-equal); re-measured four final panels
-field for field (`flags.csv` byte-identical); and checked that the bound acted
-(the manipulation check, report only): CONTROL's applied bound loss is exactly 0
-in all 128 updates of its six runs, both bound arms log coef 2.4 and a non-zero
-loss in 128 of 128 updates, and in every seed-paired comparison the share of
-training rows with `tail_3`'s mean above b is lower under the bound (at b 0.90,
-s42 0.611, 0.444 and 0.503 against 0.249, 0.330 and 0.237; s80 0.391, 0.316 and
-0.332 against 0.194, 0.242 and 0.243). Its minor notes, none changing the
-outcome: all six BOUND60 means lie within 0.032 of 0.60, s42_b60 r202 clearing
-it by 0.00017 and r101 by 0.0070 (the criteria's KNOWN LIMITS name this), but
-BOUND60's verdict also holds on s80 alone (3 of 3 PARKED, +0.015 to +0.032 over
-the line); s42_b90_r101's RAIL rests on one R2 episode at a tail-up share of
-0.111; `PINS.txt` is a stale pre-approval snapshot, though every sha256 in it
-matches the current files; and `APPROVED`'s `runlog_line` 551 is the
-maintainer's re-pin decision, while the criteria's sha256 first appears on line
-552.
+The verification (00:13 UTC on 2026-10-25, three independent checks and a
+synthesis, no blocking finding) re-scored every class, state reading, the onset
+note, both verdicts and the outcome from `criteria.txt` alone on the 720 R1/R2
+episodes' per-step traces; checked the provenance (18 of 18 replicates done with
+the pinned arm, coef, b, seed and state; every panel row's checkpoint sha256
+equal to its file; the pins, the scratch clone at `4c0c8da7`, clean, and the
+judge clones clean; the durable branch's `score.json` byte-equal); re-measured
+four final panels field for field (`flags.csv` byte-identical); and checked that
+the bound acted (the manipulation check, report only): CONTROL's applied bound
+loss is exactly 0 in all 128 updates of its six runs, both bound arms log coef
+2.4 and a non-zero loss in 128 of 128 updates, and in every seed-paired
+comparison the share of training rows with `tail_3`'s mean above b is lower
+under the bound (at b 0.90, s42 0.611, 0.444 and 0.503 against 0.249, 0.330 and
+0.237; s80 0.391, 0.316 and 0.332 against 0.194, 0.242 and 0.243). Its minor
+notes, none changing the outcome: all six BOUND60 means lie within 0.032 of
+0.60, s42_b60 r202 clearing it by 0.00017 and r101 by 0.0070 (the criteria's
+KNOWN LIMITS name this), but BOUND60's verdict also holds on s80 alone (3 of 3
+PARKED, +0.015 to +0.032 over the line); s42_b90_r101's RAIL rests on one R2
+episode at a tail-up share of 0.111; BOUND60's command moves between 0.575 and
+0.688 over its checkpoints, not pinned at b; `PINS.txt` is a stale pre-approval
+snapshot, though every sha256 in it matches the current files; and `APPROVED`'s
+`runlog_line` 551 is the maintainer's re-pin decision, while the criteria's
+sha256 first appears on line 552.
 
 Report only, from `results/panels.csv` (measured): one panel of the 162 has a
 fall, `s80_b60_r303` at 4,980,736 (the episode of seed 3050 ended at step 504);
-it is not a read checkpoint. BOUND60's largest window raw mean over every
-checkpoint is 0.858. At R1 and R2 the arms' mean returns are 4393.3, 4378.3 and
-4414.5 at s42 (CONTROL, BOUND90, BOUND60) and 4385.3, 4384.0 and 4405.1 at s80,
-not independent evidence (the reward contains `action_saturation` and
-`tail_home_pose`). The 0.5M readings (4,587,520 and 4,718,592) are in
+it is not a read checkpoint. BOUND60's highest window raw maximum (the raw mean
+at any window step) over every checkpoint is 0.858, at `s80_b60_r303`'s
+4,849,664, not a read checkpoint; its largest window raw mean is 0.688, at
+`s80_b60_r202`'s 4,456,448. At R1 and R2 the arms' mean returns are 4393.3,
+4378.3 and 4414.5 at s42 (CONTROL, BOUND90, BOUND60) and 4385.3, 4384.0 and
+4405.1 at s80, not independent evidence (the reward contains `action_saturation`
+and `tail_home_pose`). The 0.5M readings (4,587,520 and 4,718,592) are in
 `results/score.json`'s `report_only.half_point`, shown, never read.
 
 ## The files
@@ -102,7 +105,8 @@ not independent evidence (the reward contains `action_saturation` and
 - `criteria.txt`: the fixed criteria, byte-identical to the text the maintainer
   approved and the gate re-pinned (sha256 `9930ee72…`, 566 lines with its
   appendices; chmod 0444 in the scratch). Why it is run, the predicted outcome
-  (written before anything ran: BOUND90 most likely NOT ADOPTED, BOUND60 open),
+  (written before anything ran: BOUND90 most likely NOT ADOPTED, with s42
+  reading RAIL or PARKED and s80 reading PARKED; BOUND60 open),
   what is trained, the coef rule and its calibration, the runs, how they are
   measured, the classes and the decision, run handling, when the decision is
   read, the pre-registered readouts, measured against inferred, known limits,
@@ -159,8 +163,13 @@ not independent evidence (the reward contains `action_saturation` and
   fail against these copies.
 - `results/`: `score.txt` and `score.json` (written at 23:53:43 UTC, `66c4a92d…`
   and `471ad8e4…`, byte-identical), `panels.csv` (162 rows, one per checkpoint
-  measured, 9 per replicate, byte-identical) and `run_waves.out` (the waves'
-  start and exit times; 18 of 18 replicates exit 0, no crashed attempt).
+  measured, 9 per replicate, byte-identical), `run_waves.out` (the waves'
+  start and exit times; 18 of 18 replicates exit 0, no crashed attempt) and
+  `run_log.txt`, lines 505 to 577 of the session's run log (from the entry
+  timed 15:39 UTC on 2026-10-24 to 00:16 UTC on 2026-10-25), following
+  `../replication/results/run_log.txt` (lines 396 to 504), as each earlier
+  screen's run-log copy sits in its `results/`; 22 workflow run ids (12
+  distinct) and one background-job id removed.
 - `verify/`: the verification. `REPORT.md` is the synthesis (its first
   paragraph's note on a refused write is about the synthesizing step's own
   attempt; the session wrote the file from that text); `rescore/` the
@@ -174,10 +183,6 @@ not independent evidence (the reward contains `action_saturation` and
   panels re-measured (`s42_b60_r101`, `s42_control_r202`, `s80_b90_r202`,
   `s80_control_r303`): the comparison, the scripts, and each panel's flags and
   row, without the per-step CSVs.
-- `run_log.txt`: lines 505 to 577 of the session's run log (from the entry timed
-  15:39 UTC on 2026-10-24 to 00:16 UTC on 2026-10-25), following
-  `../replication/results/run_log.txt` (lines 396 to 504); 22 workflow run ids
-  (12 distinct) and one background-job id removed.
 
 ## What changed in the copies
 
@@ -192,8 +197,20 @@ and **lines**, as SOURCES.txt defines them, nothing else:
   `copy_durable.sh` writes the same two lines into its commits; each pair is
   replaced by `[commit-trailer lines removed]`.
 - **redact:** the patch's two `From:` lines (the commits' author name and email
-  address) read `From: [name removed]`; in `run_log.txt`, the workflow run ids
-  (`workflow [id removed]`) and one background-job id (`[id removed]`).
+  address) read `From: [name removed]`; in `results/run_log.txt`, the workflow
+  run ids (`[id removed]`, or `workflow [id removed]` for a bare one) and one
+  background-job id (`[id removed]`).
+- **lines:** `results/run_log.txt` is lines 505 to 577 of the session's run log.
+- **prefix2:** the second scratch tree's absolute path, replaced by
+  `scratchpad2`, in `APPROVAL_REQUEST.md`, `PINS.txt`, `calib/calib.log`, the
+  two `gate_junit_tools.xml` (in `gate/` and `gate/first_gate_failed/`), the
+  tools `screen_common.py` (which carries **prefix** too), `gate.sh`,
+  `run_waves.sh` and `copy_durable.sh`, and the two scripts in
+  `verify/remeasure/scripts/`. **checkout** is in `measure_tailscreen.py` and
+  `copy_durable.sh`. `criteria.txt` keeps its two absolute session-scratch paths
+  (the lines 18 and 19 that define `SP` and `S2`), the only copy here that does,
+  because its sha256 is the approved pin. The changes in `options/` and
+  `probes/` are in the folder README's note of 2026-10-25.
 - **whitespace:** trailing spaces removed (the single space of the patch's blank
   context lines and of its signature separator, which `git apply` still accepts,
   and one line of `PINS.txt`), a final newline added to the four JUnit files and
@@ -203,10 +220,19 @@ and **lines**, as SOURCES.txt defines them, nothing else:
 
 `criteria.txt`, `APPROVED`, `gate/first_gate_failed/APPROVED.first`,
 `calib/coef.json`, `gate/gate_pass.json`, the gate's test printouts and logs,
-`results/`, `verify/REPORT.md`, the verification's printouts and
-`remeasure/compare.json`, and its scripts but the two in `remeasure/scripts/`
-(**prefix2**) are byte-identical to their sources. No copy holds a model
-identifier, an email address or a commit trailer.
+`results/` but `run_log.txt`, `verify/REPORT.md`, the verification's printouts
+and `remeasure/compare.json`, and its scripts but the two in
+`remeasure/scripts/` (**prefix2**) are byte-identical to their sources. No copy
+holds a model identifier, an email address or a commit trailer.
+
+Eight small per-episode files are kept, an exception to the folder's rule that
+per-episode files are not copied: the four `final_flags.csv` in
+`verify/remeasure/out/` (20 episodes each) and four probe outputs,
+`probes/probecheck/probe_s42.json` and `probe_s80.json` (6 episodes each),
+`probes/skeptic/noise_shift_s80.json` (90) and
+`probes/skeptic/unclip_alt_s42.json` (40), at most 14 KB each, because they are
+the evidence of the re-measurement's field-for-field result and of the probes'
+counts. Every panel's own `flags.csv` stays on the handoff branch, not here.
 
 ## How to re-check
 

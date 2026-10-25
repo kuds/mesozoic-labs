@@ -1056,9 +1056,10 @@ nothing. The decisions' full text is in [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECI
 
 *Appended 2026-10-25 (D-D43's outcome); the text above is unchanged.* **Neither tail bound is adopted.** Scored on
 2026-10-24 by its fixed criteria, final, and independently verified on 2026-10-25, the screen reads its outcome C: under
-the bound at 0.90 every replicate still had tail-up saturation episodes, and the bound at 0.60 cleared them but held
-the tail-tip command at 0.60 to 0.63, which the criteria count as parked, not cured. The maintainer takes up the posture
-options, with evidence, before any decision. The second pilot keeps `stance3_armLT_s60`'s final as its parent; it is not
-yet trained, is still the same deliberate exception to GQ-3 (a) and GQ-17, both still open, and certifies nothing, and
-the trex `gait-r1` walk (§5.4, §14) still waits for a certified stance. The screen's record is §24 of
+the bound at 0.90 every replicate had tail-up saturation episodes (s42's from a railed start, s80's from a clean one),
+and the bound at 0.60 cleared them but left R1/R2 mean tail-tip commands of 0.60 to 0.63 (s42's above 0.60 by as little
+as 0.00017), which the criteria count as parked, not cured. The maintainer takes up the posture options, with evidence,
+before any decision. The second pilot keeps `stance3_armLT_s60`'s final as its parent; it is not yet trained, is still
+the same deliberate exception to GQ-3 (a) and GQ-17, both still open, and certifies nothing, and the trex `gait-r1` walk
+(§5.4, §14) still waits for a certified stance. The screen's record is §24 of
 [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).

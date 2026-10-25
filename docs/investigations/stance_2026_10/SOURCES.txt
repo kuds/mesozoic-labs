@@ -122,9 +122,9 @@
 # the unclip probe's npz rollouts, JSON outputs and scratch MJCF files, and the fetched files (scratchpad2/tailround/
 # fetch/: the five policy_probe.npz, 2,768,026 bytes each, and the two start checkpoint pairs) are not copied.
 # Added 2026-10-25, later (stance5/tailscreen/): the screen's sources are in the second scratch root too.  No new
-# kind of change.  lines: stance5/tailscreen/run_log.txt is lines 505 to 577 of the session's run log, whose lines
-# 396 to 504 are stance5/replication/results/run_log.txt; the sha256 given is that of the source's first 577 lines,
-# the whole file when copied (lines 505 to 577 alone:
+# kind of change.  lines: stance5/tailscreen/results/run_log.txt is lines 505 to 577 of the session's run log,
+# whose lines 396 to 504 are stance5/replication/results/run_log.txt; the sha256 given is that of the source's first
+# 577 lines, the whole file when copied (lines 505 to 577 alone:
 # 1e6a46ba7edc0446b0d1d520c7533310d7a5dc0e8543b8b0c1a10955a77c6464); its first 504 lines are unchanged
 # (d23bcc2ca30833696be4f0721845ca934840896a8cfa89a50947db5222075888, as given above).  redact, in that copy: 22
 # workflow run ids (12 distinct; a bare one becomes 'workflow [id removed]') and 1 background-job id, each by
@@ -145,6 +145,13 @@
 # the measuring copy, the build's validation folders, the code review's folder, the durable repository, the
 # verification's durable clone and re-measured per-step CSVs, criteria v1 and v2 and BUILD_SPEC.md (their sha256 are in
 # criteria.txt), and the scratch clone itself.
+# criteria.txt keeps the two absolute session-scratch paths that define its SP and S2 (its lines 18 and 19), the
+# only copy in this folder that does: it is byte-identical because its sha256 is the approved pin, so neither prefix
+# nor prefix2 is applied to it.  Eight small per-episode files are copied, an exception to the folder's rule on
+# per-episode files: the four stance5/tailscreen/verify/remeasure/out/<panel>/final_flags.csv (20 episodes each) and
+# stance5/tailscreen/probes/probecheck/probe_s42.json, probe_s80.json, probes/skeptic/noise_shift_s80.json and
+# unclip_alt_s42.json (6, 6, 90 and 40 episodes; at most 14 KB each), the evidence of the re-measurement's
+# field-for-field result and of the probes' counts.
 
 audit/foot_ankle_audit.md foot/audit_2026_10_17/foot_ankle_audit.md e9da4ef84be17a87b70096d1e2aede87609ad22f446b10786f9e14d5064725c8 prefix
 audit/geometry/geometry_audit.json foot/audit_2026_10_17/geometry/geometry_audit.json 934110bec337b9693f894800efb309bf1a9529ae87f91f129bfefc8fef5b650a prefix,whitespace
@@ -618,10 +625,10 @@ stance5/tailscreen/probes/unclip/out/log_s80_hold.txt scratchpad2/tailround/prob
 stance5/tailscreen/probes/unclip/roll_hold.py scratchpad2/tailround/probes/unclip/roll_hold.py 394d169b5e67c6da4b63aa6ffab2243ebb4d95e3b0646e9ca3e6c67dc50f7d73 none
 stance5/tailscreen/probes/unclip/roll_unclip.py scratchpad2/tailround/probes/unclip/roll_unclip.py 76c1ddc32d800aa5b77eff09527b09e4d2e2eaad4a9b83f0d3fa06e83147fd0b none
 stance5/tailscreen/results/panels.csv scratchpad2/tailround/screen/panels.csv a98a4bf4fa44fad9f3234609ae310c01490ad2bb66993a392adf745b70da7dab none
+stance5/tailscreen/results/run_log.txt foot/stance4/live/run_log.txt e9367d9035f73e271e9bd58a0b30d800728133532946e26566c4ed62731379ee lines,redact
 stance5/tailscreen/results/run_waves.out scratchpad2/tailround/screen/logs/run_waves.out 543769c23bb052bcf4e75f09d3faddb951ad6122c90cda90467e4b9f1612acce none
 stance5/tailscreen/results/score.json scratchpad2/tailround/screen/scores/score.json 471ad8e45117487d3d2dd80bdb694073d55094bdffe9c8d7831b27ffde823c49 none
 stance5/tailscreen/results/score.txt scratchpad2/tailround/screen/scores/score.txt 66c4a92d1a2d5a340da01d5a8c32495bee36ff895105de4545a2bc38a8c4cb63 none
-stance5/tailscreen/run_log.txt foot/stance4/live/run_log.txt e9367d9035f73e271e9bd58a0b30d800728133532946e26566c4ed62731379ee lines,redact
 stance5/tailscreen/tools/calib_tailscreen.py scratchpad2/tailround/screen/tools/calib_tailscreen.py c751931639ca41adf3539309854545f96c02fb0b7d6ab50e905690eb91abf6f2 none
 stance5/tailscreen/tools/copy_durable.sh scratchpad2/tailround/screen/tools/copy_durable.sh 9a3932e121e97027d6057cd9307fbc98f63ad301c121d35a8ba6b693064376a6 trailer,prefix2,checkout
 stance5/tailscreen/tools/gate.sh scratchpad2/tailround/screen/tools/gate.sh 4ef908ae8ac116e7a809e655caf56c1aaa3cd4a9e87ffd34c9a4bc1ad0b398b6 prefix2

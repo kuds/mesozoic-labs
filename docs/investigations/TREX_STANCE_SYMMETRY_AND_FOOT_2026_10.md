@@ -111,8 +111,8 @@ D-D43, a scratch CPU continuation screen of a training-loss bound on
 `tail_3_pitch_act`'s mean, upper side, in three arms (no bound, b = 0.90, b =
 0.60) and 18 replicates, its criteria approved before any training step; and
 its outcome, scored on 2026-10-24 and verified on 2026-10-25, final: outcome
-C, neither bound adopted (b = 0.90 kept the rail, RAIL; b = 0.60 cleared it but
-left the tail parked at a command of 0.60 to 0.63, PARKED); then the
+C, neither bound adopted (b = 0.90 read RAIL; b = 0.60 cleared the rail but
+left R1/R2 mean tail commands of 0.60 to 0.63, PARKED); then the
 maintainer's decision to record the round first and weigh the posture options
 next. The screen certifies nothing, and nothing it ran is on `main`. Its
 evidence is in [stance_2026_10/stance5/tailscreen/](stance_2026_10/stance5/tailscreen/README.md).
@@ -3594,9 +3594,9 @@ evidence is in `stance5/tailscreen/` of
 [stance_2026_10/](stance_2026_10/README.md), added on 2026-10-25, with its own
 [README](stance_2026_10/stance5/tailscreen/README.md). Paths in backticks below
 are relative to `stance5/tailscreen/`, and every number below is read from
-`run_log.txt` there (lines 505 to 577 of the session's run log, from the entry
-timed 15:39 UTC on 2026-10-24 on), the files named, or the pull requests read on
-GitHub.
+`results/run_log.txt` there (lines 505 to 577 of the session's run log, from the
+entry timed 15:39 UTC on 2026-10-24 on), the files named, or the pull requests
+read on GitHub.
 
 ### 24.1 After §23.7: the report-only tools and their pull requests
 
@@ -3608,19 +3608,17 @@ trace tool for deterministic episodes at a checkpoint (per actuator: the raw
 mean, the command, the servo target, the joint angle and the force), with those
 columns in the replay's `_stance.csv`; (3) the training rollouts' clip shares
 per actuator in the training telemetry (sampled actions clipped, means beyond
-±1); and (4), once #636 had landed, the training-history report drawn at the end
-of every stage (scope (b)).
+±1); and (4), after #636, the training-history report drawn at the end of every
+stage (scope (b)).
 [BEHAVIOR_RECIPES_PLAN.md](../BEHAVIOR_RECIPES_PLAN.md) §6.2 records them as a
 dated amendment of D-D42, beside the widening of (2) to scope (b) that #639
 recorded.
 
-All of it is report only, and each code item went to its own pull request, which
-the maintainer merged on 2026-10-24 (merge times as GitHub records them): #636,
-D-D42 (2) at scope (a), at 16:03:27 UTC; #637, the records of §23, at 16:43:18;
-#638, the per-step trace (item (2)), at 17:18:36; #639, the stage-end report
-(item (4)), at 18:22:30; and #640, D-D42 (3) (the saturating actuator named on
-each evaluation-episode row and drawn over training) with item (3), at 18:58:37.
-Their landings are recorded where the repository records landings (the
+All of it is report only, and each code item went to its own pull request: #636,
+D-D42 (2) at scope (a); #637, the records of §23; #638, the per-step trace (item
+(2)); #639, the stage-end report (item (4)); and #640, D-D42 (3) (the saturating
+actuator named on each evaluation-episode row and drawn over training) with item
+(3). Their landings are recorded where the repository records landings (the
 consolidation plan's status table and the CHANGELOG). Measured before #638
 opened (the run log's entry timed 16:43 UTC): on stance5 s42's 4,194,304
 checkpoint, 20 deterministic episodes, the trace gave `tail_3`'s share of window
@@ -3762,8 +3760,10 @@ design.
   or (NOT SEPARATED), or PASSED with an onset note; and the screen outcome A
   (both passed), B (one) or C (neither), each bound read against CONTROL only,
   never against the other bound. The text predicted, before anything ran:
-  BOUND90 most likely NOT ADOPTED; BOUND60 open (PASS or PARKED most plausible,
-  OTHER a real risk). Its known limits: K = 3 detects only a large effect;
+  BOUND90 most likely NOT ADOPTED, "with s42 reading RAIL or PARKED and s80
+  reading PARKED", since a wall at 0.90 on training rows does not ask the
+  deterministic posture to come down; BOUND60 open (PASS or PARKED most
+  plausible, OTHER a real risk). Its known limits: K = 3 detects only a large effect;
   BOUND60's b equals the PARKED line, so a replicate within about 0.03 of 0.60
   classifies by chance; a continuation tests a state, not a recipe from scratch,
   on CPU and this container's stack, not the L4; 1M steps cannot show a K3 cost.
@@ -3844,7 +3844,8 @@ holds on s80 alone (3 of 3 PARKED, +0.015 to +0.032 over the line);
 state's reading does not depend on it); `PINS.txt` is a stale pre-approval
 snapshot whose sha256 all match the current files; and `APPROVED`'s
 `runlog_line` 551 is the re-pin decision, the criteria's sha256 first appearing
-on line 552.
+on line 552; and BOUND60's command moves between 0.575 and 0.688 over its
+checkpoints, not pinned at b.
 
 Report only, never in a verdict:
 
@@ -3862,19 +3863,24 @@ Report only, never in a verdict:
   0.897): BOUND90 sits above CONTROL.
 - **From `results/panels.csv`:** one panel of the 162 has a fall, `s80_b60_r303`
   at 4,980,736 (the episode of seed 3050 ended at step 504), not a read
-  checkpoint; BOUND60's largest window raw mean over every checkpoint is 0.858;
-  at R1 and R2 the arms' mean returns are 4393.3, 4378.3 and 4414.5 at s42
+  checkpoint; BOUND60's highest window raw maximum (the raw mean at any window
+  step) over every checkpoint is 0.858, at `s80_b60_r303`'s 4,849,664, not a
+  read checkpoint (its largest window raw mean is 0.688, at `s80_b60_r202`'s
+  4,456,448); at R1 and R2 the arms' mean returns are 4393.3, 4378.3 and 4414.5 at s42
   (CONTROL, BOUND90, BOUND60) and 4385.3, 4384.0 and 4405.1 at s80, which are
   not independent evidence (the reward contains `action_saturation` and
   `tail_home_pose`). The 0.5M readings are in `score.json`, shown, not read.
 
-Inferred, as the verification reads it: BOUND90 at coef 2.4 cut the training
-rows above 0.90 but did not keep the rail away in deterministic play, as the
-criteria predicted and as §23.5's P1 showed for a bound at 1.0; BOUND60 cleared
-the rail, but its command settled just above the line it bounds, which is
-PARKED; the screen does not rank the two bounds, BOUND60's closeness to the line
-does not make PARKED a near-PASS, and a NOT ADOPTED at coef 2.4 does not reject
-a stronger dose.
+Measured, as the verification reads it: BOUND90 at coef 2.4 cut the training
+rows above 0.90 but did not keep the rail away in deterministic play (as §23.5's
+P1 measured for a bound at 1.0), so it is NOT ADOPTED, as the criteria
+predicted, though at s80 it read RAIL where they predicted PARKED; BOUND60
+cleared the rail (no tail-up flag), but its R1/R2 mean command landed at 0.600
+to 0.632, with single checkpoints between 0.575 and 0.688 (not pinned at b),
+which is PARKED. Inferred, as the verification reads it: the screen does not
+rank the two bounds, and BOUND60's closeness to the line does not make PARKED a
+near-PASS; and, as the criteria say, a NOT ADOPTED at coef 2.4 does not reject a
+stronger dose.
 
 ### 24.7 The maintainer's decision after the screen
 

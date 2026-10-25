@@ -301,17 +301,20 @@ robustness, **LOW** = cosmetic / QoL.
   tail-tip actuator's mean, upper side only (no bound, a bound at 0.90 and one at
   0.60), 18 one-million-step continuations from two band checkpoints, judged by
   criteria fixed before any training step; a tail parked below the rail (a
-  command of 0.60 or more without saturating) counts as not adopted. No-training probes on the same two checkpoints found no
-  reward incentive there for the tail-up posture (report only). Record:
+  command of 0.60 or more without saturating) counts as not adopted.
+  No-training probes on the same two checkpoints found no reward incentive
+  there for the tail-up posture (report only; untested at s42's onset and for
+  the discounted objective). Record:
   §24.2–§24.4 of
   [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).
   **Update 19 (2026-10-25):** the screen of Update 18 was scored, final, and
   independently verified: neither bound is adopted. Under the bound at 0.90
-  every replicate still had tail-up saturation episodes; the bound at 0.60 cleared the rail but
-  held the tail-tip command at 0.60 to 0.63, which the criteria count as parked,
-  not cured. The habit stays open; the maintainer takes up the posture options
-  next. As a screen it certifies nothing. The two-seed ask stands: no T-Rex
-  stance is certified. Record, numbers and evidence: §24 of
+  every replicate had tail-up saturation episodes (s42's from a railed start,
+  s80's from a clean one); the bound at 0.60 cleared the rail but left R1/R2
+  mean tail-tip commands of 0.60 to 0.63 (s42's above 0.60 by as little as
+  0.00017), which the criteria count as parked, not cured. The habit stays
+  open; the maintainer takes up the posture options next. As a screen it
+  certifies nothing. The two-seed ask stands: no T-Rex stance is certified. Record, numbers and evidence: §24 of
   [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).
 - **LOW** — **stage 1a (stance) contains no in-episode disturbance, so a
   stance-gate PASS certifies stance quality, not active balance control.** The
