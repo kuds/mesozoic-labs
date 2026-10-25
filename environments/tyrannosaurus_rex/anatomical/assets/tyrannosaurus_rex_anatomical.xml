@@ -494,9 +494,12 @@
   <!-- ==================== SENSORS ==================== -->
 
   <sensor>
-    <!-- WARNING: the Python envs index sensordata by POSITION (gyro 0-2,
-         accel 3-5, quat 6-9, touch 10-11, ...).  Do not reorder or insert
-         sensors without updating mjx_config.py / obs_functions.py. -->
+    <!-- WARNING: the Python env indexes sensordata by POSITION (gyro 0-2,
+         accel 3-5, quat 6-9, touch 10-11 and 24-29, ...).  Do not reorder or
+         insert sensors without updating TyrannosaurusRexEnv._cache_ids
+         (base_env.py; the gyro, accel and quat starts are the shared
+         defaults in environments/shared/constants.py), whose foot sensor
+         groups the plant contract fingerprints. -->
     <!-- IMU-like sensors on pelvis -->
     <gyro name="pelvis_gyro" site="imu"/>
     <accelerometer name="pelvis_accel" site="imu"/>

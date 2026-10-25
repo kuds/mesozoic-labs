@@ -122,7 +122,7 @@ three tail pitch springs preloaded, nothing else), the CPU checks of SR3 (eight
 r9 checkpoints zero-shot in closed loop, the statue through the gate's code on
 an SR3 tree, a diagnosis of the heading-invariance test, a skeptic), the
 re-measurement of every constant pinned to r9 on the branch that builds r10,
-and the run log's lines 578 to 600, with an index of its own,
+and the run log's lines 578 to 603, with an index of its own,
 [stance5/tail_sr3/README.md](stance5/tail_sr3/README.md). Nothing in it trained
 a policy. Its "physics r10" is the plant counter's next integer on `main`, not
 the foot of `r10_screen/` (the parked draft #623, D-D34).
@@ -340,8 +340,8 @@ commit trailer.
 
 *Added 2026-10-25, later still (`stance5/tail_sr3/`):* no new kind of change.
 Its sources are in the second scratch tree but for the run log.
-`results/run_log.txt` carries **lines** (lines 578 to 600 of the session's run
-log) and **redact** (14 workflow run ids, 7 distinct, and one scheduled-task
+`results/run_log.txt` carries **lines** (lines 578 to 603 of the session's run
+log) and **redact** (15 workflow run ids, 7 distinct, and one scheduled-task
 id); `posture/brief_corrected_summary.md` carries **redact** (one workflow run
 id); 26 copies carry **prefix2** where they name a scratch path, and
 `posture/brief_draft.md` **prefix** and **checkout** too; **whitespace**
@@ -1274,7 +1274,7 @@ skeptic's statistics (`cpucheck/skeptic/`); the re-measurement on the branch
 `natural_pitch` 0.017, m·g·h 729.1, the stance, recovery and locomotion statue
 references 3766.6, 1429.1 and 1092.6, the stance rail 2260, and the
 six-heading certificate re-rolled under the final gate block); and the run
-log's lines 578 to 600 (`results/run_log.txt`). Its
+log's lines 578 to 603 (`results/run_log.txt`). Its
 [README](stance5/tail_sr3/README.md) indexes the folder and gives the skeptics'
 corrections that apply to its files.
 

@@ -429,11 +429,12 @@ class TestSettledPoseTargetsTrackTheStatue:
     over the post-settle window, measured on physics r8 and carried on r9
     (inside the tolerances below), and re-measured on r10 (plant_versions
     note 20: the preloaded tail springs hold the tail at the keyframe zeros
-    instead of on its ventral stops, decision D-D44).  Nothing derives them from the plant at
-    run time, so a gain, spring or mass edit that moves the
-    neck or tail would silently re-centre the statue off its own targets; this
-    re-measures them instead, as TestHeightTargetTracksStance does for the
-    height target that went stale exactly that way.
+    instead of drooping with tail_1 on its ventral stop, decision D-D44).
+    Nothing derives them from the plant at run time, so a gain, spring or mass
+    edit that moves the neck or tail would silently re-centre the statue off
+    its own targets; this re-measures them instead, as
+    TestHeightTargetTracksStance does for the height target that went stale
+    exactly that way.
     """
 
     SETTLE_STEPS = 200

@@ -32,7 +32,13 @@ until asked, the first r10 training round to get its own criteria; (2) the
 reward change that re-centres `tail_home_pose`'s target on SR3's measured
 settled pose, its tolerance kept at 0.05 rad; and (3) the heading-invariance
 test's fix as its own test-only pull request (#642, opened at 07:35 UTC). The
-re-measured constants are in `remeasure/`; the branch carries them.
+re-measured constants are in `remeasure/`; the branch carries them. At 12:06
+UTC, on the built branch, the maintainer kept `healthy_z_range`'s 0.70 floor,
+`floor_impact_threshold_bw` 1.4, the 25° yaw bar and the 2.0° sole-tilt bar
+unchanged (their comments updated only), had the MJCF sensor comment that
+note 18 deferred fixed on the branch and three commit messages reworded
+before the first push, and decided to open the pull request with the heading
+fix's branch merged in and the `full-ci` label (§25.6).
 
 ## The files
 
@@ -40,12 +46,17 @@ Measured and inferred are labelled as in their sources. Where a later check
 corrected a file, the correction is given here and in §25; the file is kept as
 it was written.
 
-- **`results/run_log.txt`**: lines 578 to 600 of the session's run log (the
-  entries timed 01:01 to 08:21 UTC on 2026-10-25; first copied to line 598 and
+- **`results/run_log.txt`**: lines 578 to 603 of the session's run log (the
+  entries timed 01:01 to 12:08 UTC on 2026-10-25; first copied to line 598,
   extended in the branch's review by the heading-test fix's two entries, timed
-  07:35 and 08:21 UTC), workflow and scheduled-task ids removed; lines 505 to 577 are
+  07:35 and 08:21 UTC, and after the maintainer's decisions on the branch by
+  the entries timed 09:21, 12:06 and 12:08 UTC), workflow and scheduled-task
+  ids removed; lines 505 to 577 are
   [`../tailscreen/results/run_log.txt`](../tailscreen/results/run_log.txt).
-  The decisions are its entries timed 01:33, 02:18 and 04:55 UTC.
+  The decisions are its entries timed 01:33, 02:18 and 04:55 UTC, and those on
+  the built branch its entry timed 12:06 UTC. The entries timed 09:21 and
+  12:08 UTC name the branch's commits by their ids before the reword of
+  12:08 UTC; the 12:08 entry maps each to the id §25.5 gives.
 - **`posture/`**: the posture options study (01:02–01:31 UTC; no training).
   `brief_draft.md` is the synthesis brief before its two skeptics;
   `brief_corrected_summary.md` is the corrected summary that governs it. The

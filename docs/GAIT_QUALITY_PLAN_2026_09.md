@@ -1073,7 +1073,7 @@ note of 2026-10-17 names.) On 2026-10-25, after a posture options study, a CPU p
 trained, the maintainer took D-D44: the three tail pitch springs preloaded (`springref` 52.5, 25.9 and 10.4°, nothing
 else), so the zero-action statue rests its tail level instead of on `tail_1`'s ventral stop, with the stance's
 `tail_home_pose` target re-centred on it and every constant pinned to r9 re-measured; the policy interface stays r15. It
-is built on a branch; its pull request is opened when the maintainer asks. Once it is on `main` it strands every
+is built on a branch; the maintainer asked for its pull request on 2026-10-25. Once it is on `main` it strands every
 physics-r9 T. rex checkpoint, the second pilot's parent `stance3_armLT_s60`'s final among them, so that pilot can run
 only on its r9 branch and its result would not carry to r10; it is not yet trained, is still the same deliberate
 exception to GQ-3 (a) and GQ-17, both still open, and certifies nothing. The first r10 T. rex stance round gets its own

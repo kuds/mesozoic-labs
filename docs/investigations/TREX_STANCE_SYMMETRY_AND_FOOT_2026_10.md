@@ -3951,14 +3951,15 @@ tail chain that holds a level tail off the rail, which proposed a candidate,
 SR3 (§25.2); the maintainer asked for more CPU checks of it before deciding,
 which ran (§25.3); the maintainer approved SR3 as physics r10 with a reward
 change, recorded as decision D-D44 (§25.4); and the revision was built on a
-scratch branch with every constant pinned to r9 re-measured (§25.5). Nothing
-here trained a policy or took an optimizer step. The evidence is in
+scratch branch with every constant pinned to r9 re-measured (§25.5), and
+the maintainer then decided its open items and asked for its pull request
+(§25.6). Nothing here trained a policy or took an optimizer step. The evidence is in
 `stance5/tail_sr3/` of [stance_2026_10/](stance_2026_10/README.md), added on
 2026-10-25, with its own [README](stance_2026_10/stance5/tail_sr3/README.md).
 Paths in backticks below are relative to `stance5/tail_sr3/`, and every number
-below is read from `results/run_log.txt` there (lines 578 to 600 of the
+below is read from `results/run_log.txt` there (lines 578 to 603 of the
 session's run log, from the entry timed 01:01 UTC on 2026-10-25 to the one
-timed 08:21 UTC), the files
+timed 12:08 UTC), the files
 named, or the branch's own files. Labels: measured, as each file records it;
 inferred, where said.
 
@@ -4145,22 +4146,26 @@ off `main` at `3ffc18e9`, both scratch clones with their push URL disabled.
 
 ### 25.5 The revision as built (`claude/physics-r10-sr3`)
 
-Three commits on `3ffc18e9` build it: `6a925be0` (the MJCF's three
+Three commits on `3ffc18e9` build it: `df321d50` (the MJCF's three
 `springref`s and comments, `configs/plant_versions.toml` note 20 and
 `physics_revision` 10, and the files the repository's tools regenerate: both
 plant manifests, the T. rex mirror map, the species catalog and the digest
-snapshot), `a2388e4e` (the constants re-measured on the statue, with their
+snapshot), `24d86f73` (the constants re-measured on the statue, with their
 provenance comments: `base_env.py`, the four stage TOMLs, `stages.toml` and
-`recovery_evaluation.py`) and `ba6a9219` (the tests and goldens re-pinned, the
+`recovery_evaluation.py`) and `d597418a` (the tests and goldens re-pinned, the
 Phase C reset golden's two T. rex captures re-taken). This record's two
-commits follow (`73ac261a`, the evidence; `f601868e`, the records), then the
-branch review's corrections: `80c9d3e6` (comments only, in the MJCF, note 20,
+commits follow (`24d9f917`, the evidence; `dac20f1b`, the records), then the
+branch review's corrections: `150bb1ce` (comments only, in the MJCF, note 20,
 `base_env.py`, the stance TOML and a test docstring: r9's settled tail had
 `tail_1` alone on its stop, r9's m·g·h, the tail backstop under
 `healthy_z_range` and the statue's spawn pop under
 `floor_impact_threshold_bw`; the MJCF's bytes move the T. rex
 `source_closure_sha256` and bundle digest, one golden line, already among the
-39 moved ones) and the correction of these records. The env-built compiled
+39 moved ones) and `7d48b0af` (the correction of these records). These are
+the ids after the maintainer had three of the commit messages reworded
+before the first push (12:08 UTC; every tree unchanged; §25.6). A follow-up
+commit then carries out the maintainer's decisions of 12:06 UTC in the tree
+and records them (§25.6). The env-built compiled
 model differs from r9's only in `qpos_spring` (0.91630, 0.45204 and 0.18151
 rad, 595 fields compared; `remeasure/env_model_diff.json`); the physics sha256
 moves from `3d68aec7…` to `6a47a0eb…`, the policy interface stays r15
@@ -4235,7 +4240,8 @@ episode's classification reads and the statue's 3766.6 clears it, so their
 verdicts hold under the final block (inferred). The yaw bar's comment calls 25°
 twice the statue's largest, which r10's 14.8° makes 1.69×, and seed 3121's
 2.087° tilt is over the 2.0° bar as r9's 2.061° was; both bars are kept, as
-the precedent keeps every bar, and are for the maintainer to revisit.
+the precedent keeps every bar, and the maintainer kept both on 2026-10-25
+(§25.6).
 
 The digest snapshot (649 lines) moves 39 lines, all T. rex
 (`remeasure/digest_moved_lines.txt`): the plant's `physics_revision`,
@@ -4264,7 +4270,52 @@ branch, the heading tests pass (24), at `d5dfc167` and at its later head
 `153b297a`. ruff and mypy are clean in the lint job's environment and in
 the full one.
 
-### 25.6 What changes in §13–§24
+### 25.6 The maintainer's decisions on the branch (12:06 UTC)
+
+At 12:06 UTC on 2026-10-25, on the branch's final check (no blocking problem;
+two wording nits in comments) and the open items it listed, the maintainer
+decided, as the run log has it in short: (1) `healthy_z_range`'s 0.70 floor,
+`floor_impact_threshold_bw` 1.4, the 25° yaw bar and the 2.0° sole-tilt bar
+stay as they are, their comments updated only. The r10 facts the branch
+records for each (measured): in a level squat the floor, not the tail, is
+r10's backstop, `tail_3`, `tail_4` and `tail_5` sitting 0.13, 0.11 and
+0.075 m below a level pelvis against r9's 0.46, 0.55 and 0.60 m; the
+statue's spawn pop reaches 1.571, 1.588 and 1.797 BW and is charged 2.49,
+3.67 and 10.02 over 40 episodes on 3042, 7042 and 3162, nothing after step
+10; 25° is 1.69× the r10 statue's largest yaw change (14.8°, seed 5061); and
+seed 3121's pad tilts 2.087° against the 2.0° bar, as r9's 2.061° did.
+(2) The MJCF's sensor-block comment, which still named the `mjx_config.py`
+registration deleted at note 18 and which note 18 deferred to "the next T-Rex
+physics revision", is fixed in this one. (3) The three commit messages that
+later commits corrected are reworded before the first push; at 12:08 UTC the
+seven commits were replayed on `3ffc18e9` with corrected messages, every tree
+byte-identical, and §25.5 gives the new ids. (4) The pull request is to be
+opened now, with the heading-test fix's branch
+(`claude/heading-test-float32-bounds`, #642, head `153b297a`) merged in, a
+no-op once #642 is on `main` (inferred), and the `full-ci` label, and driven
+to green.
+
+A follow-up commit on the branch carries out (1) and (2) in the tree. The
+MJCF's sensor comment now names `TyrannosaurusRexEnv._cache_ids`
+(`base_env.py`), where the T. rex's foot sensor indices have lived since the
+registration was deleted (`git log -S` on `main`: `69734c07`, 2026-10-11),
+and the shared gyro, accelerometer and quaternion starts in
+`environments/shared/constants.py` that it inherits; it gives the touch
+sensors as 10–11 and 24–29, the compiled model's addresses (measured). Note
+20 says so, and note 18 is left as written. The MJCF's bytes move the T. rex
+`source_closure_sha256` and bundle digest once more (one golden line, already
+among the 39 moved against `main`); the physics (`6a47a0eb…`), policy-interface
+(`ffbf6631…`) and visual (`7042dcd5…`) digests do not move. The comments of
+the four values kept in (1) say that the maintainer kept them; two comments
+that still said r9's tail rested on its ventral "stops" now say `tail_1`
+alone was on its stop; and the `healthy_z_range` comment gives r9's and r10's
+measured tail heights above. The same commit records #641's landing (its row
+in the consolidation plan's status table and its two CHANGELOG entries), puts
+the new commit ids in this record and in `SOURCES.txt`, records these
+decisions in D-D44's row and the plans, and extends `results/run_log.txt` to
+the source's line 603. Nothing trained.
+
+### 25.7 What changes in §13–§24
 
 - **§13 and §24.8, certification:** no T. rex stance is certified, and the
   two-seed ask stands, now on physics r10, where no T. rex stance has trained.
@@ -4286,14 +4337,16 @@ the full one.
 - **§14, this repository:** the folder `stance5/tail_sr3/` (106 files), with
   its sources and sha256 in `SOURCES.txt` and `SHA256SUMS` (now 634 files).
 - **§14, branches:** `claude/physics-r10-sr3` (this record's branch; a scratch
-  clone of `3ffc18e9`, push disabled, no pull request until the maintainer
-  asks) and `claude/heading-test-float32-bounds` (the heading-test fix, its
+  clone of `3ffc18e9`, its push disabled while it was built; the maintainer
+  asked for its pull request on 2026-10-25, §25.6) and
+  `claude/heading-test-float32-bounds` (the heading-test fix, its
   own pull request, #642, opened at 07:35 UTC with `d5dfc167` and `153b297a`;
   its CI ran green at full depth on `153b297a`, on `main`'s r9 plant, the
   full-horizon T. rex case included, in the run log's entry timed 08:21 UTC).
   The full-horizon heading test runs only at CI's full depth, so it fails on
   r10 there until that fix lands; landing the fix first, or with r10, avoids
-  it (inferred).
+  it (inferred); by the maintainer's decision (4) of §25.6 the fix's branch
+  is to be merged into this one for the pull request.
 - **§14, Google Drive:** only read (§25.3); nothing new is on Drive.
 - **§14, session scratch:** the probe's MJCF copies, panels and trees, the CPU
   checks' trees, code archives, per-episode files and per-step traces, the

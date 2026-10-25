@@ -228,7 +228,8 @@ floor_impact_threshold_bw = 1.4                # The statue's per-step peak neve
                                                # (D-D44) the statue's peak after the grace is at most 1.207 / 1.196 /
                                                # 1.322, but the level tail's spawn pop reaches 1.571 / 1.588 / 1.797,
                                                # which this charges 2.49 / 3.67 / 10.02 in total over 40 episodes (on
-                                               # 11 / 12 / 13 of them; nothing after step 10). The threshold is kept.
+                                               # 11 / 12 / 13 of them; nothing after step 10). The threshold is kept
+                                               # (the maintainer's decision of 2026-10-25).
 airborne_substep_weight = 1.0                  # Per fully airborne step: the share of the step's substeps on which every
                                                # foot's touch is at or below 0.1 N (the floor-truth contact threshold),
                                                # so one alive bonus per step in the air. Touch-airborne substeps equal
@@ -751,7 +752,8 @@ max_sole_tilt_deg = 2.0                  # The worse pad's window-mean tilt from
                                          # (seed 3121; the next 1.90), 0.05 short of the nearest hack episode. Kept
                                          # at 2.0 rather than loosened toward the props. The r10 statue at most
                                          # 1.60 here, and out of sample 2.087 on the same seed 3121 (the next
-                                         # 1.88), 0.02 short of the nearest hack episode; kept at 2.0.
+                                         # 1.88), 0.02 short of the nearest hack episode; kept at 2.0 (the
+                                         # maintainer's decision of 2026-10-25).
 max_sole_corner_lift_m = 0.004           # The worse pad's window-mean highest-minus-lowest bottom corner. Statue at
                                          # most 2.3 mm (2.8 out of sample; the r7 statue 5.5); hacks at least 5.1 mm
                                          # (0920), 6.6 (0930), 8.4 (0914) and 11.1 (1001): every episode fails. The
@@ -813,7 +815,8 @@ max_episode_yaw_change_deg = 25.0        # The root's heading change over the ep
                                          # four seed sets; r9 12.1, and 12.8 out of sample; r10 14.1, and 14.8
                                          # out of sample, seed 5061); seed 42 turns 45.3 at
                                          # the median, toward an absolute heading of about -45 deg (refused 40/40),
-                                         # seed 44 at most 21.4. 2x the statue's largest. Heading DEPENDENCE -- both
+                                         # seed 44 at most 21.4. 2x the statue's largest (1.69x r10's 14.8; the
+                                         # maintainer kept 25 on 2026-10-25). Heading DEPENDENCE -- both
                                          # r8 stances fall when spawned 90 deg off, where the statue stands -- is
                                          # what the six-heading certificate (gate_kind above, D-D32) judges; this
                                          # bar reads the drift of the heading within an episode, at each heading.

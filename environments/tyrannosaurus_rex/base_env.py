@@ -292,17 +292,20 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         #     height of ~0.55-0.57 in a level squat, so the plant is already
         #     lying down below that.  The tail's pose is fixed relative to the
         #     pelvis and does not move with the legs, so that figure is
-        #     unchanged and 0.70 still clears it by ~0.13.  That holds through
-        #     physics r9, whose settled tail drooped.  Physics r10
-        #     (plant_versions note 20, D-D44) preloads the tail pitch springs
-        #     and the settled tail is level: a kinematic scan (level pelvis,
-        #     home-keyframe legs, settled tail pitches; 2026-10-25) puts the
-        #     lowest points of tail_3/4/5 0.13 / 0.11 / 0.07 m below the
-        #     pelvis on r10 against 0.46 / 0.55 / 0.60 m on r9's droop, so in
-        #     a level squat the tail no longer reaches the floor above 0.70
-        #     and this floor, not the tail, is the backstop on r10 (the
-        #     pushed recovery statue's 40 ends: tail_contact 14 -> 1, fallen
-        #     0 -> 19).  The bound itself is unchanged.
+        #     unchanged and 0.70 still clears it by ~0.13.  A kinematic scan
+        #     of 2026-10-25 (level pelvis, home-keyframe legs, the settled
+        #     tail pitches) re-measures it: on physics r9, whose settled tail
+        #     drooped, the lowest points of tail_3/4/5 sit 0.46 / 0.55 /
+        #     0.60 m below the pelvis, so r9's tail first reaches the floor
+        #     at a pelvis height of about 0.60, which 0.70 clears by about
+        #     0.10.  Physics r10 (plant_versions note 20, D-D44) preloads the
+        #     tail pitch springs and the settled tail is level: 0.13 / 0.11 /
+        #     0.075 m below the pelvis, so in a level squat tail_3/4/5 reach
+        #     the floor only at a pelvis height of about 0.13, and this floor,
+        #     not the tail, is the backstop on r10 (the pushed recovery
+        #     statue's 40 ends: tail_contact 14 -> 1, fallen 0 -> 19).  The
+        #     bound itself is unchanged (the maintainer kept 0.70 on
+        #     2026-10-25).
         #   * Healthy full-horizon episodes bottomed out 0.134 m above the
         #     floor (0.884 against 0.75).  0.834 against 0.70 is the same
         #     margin under a stance that sits 0.0497 lower.
@@ -468,10 +471,10 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         # to its commanded pose than a columnar one does, so the plant settled
         # 1.55° nose-down where the columnar stance settled 2.9° (0.027 through
         # physics r9).  Physics r10 (plant_versions note 20, D-D44) preloads
-        # the tail pitch springs, so the tail holds level instead of resting on
-        # its ventral stops, and the plant settles 0.95° nose-down: the
-        # noise-free statue's mean forward_z over steps 200-999 is -0.01666
-        # (r9 -0.02714), asin 0.01666 rad, so 0.017.
+        # the tail pitch springs, so the tail holds level instead of drooping
+        # with tail_1 on its ventral stop, and the plant settles 0.95°
+        # nose-down: the noise-free statue's mean forward_z over steps
+        # 200-999 is -0.01666 (r9 -0.02714), asin 0.01666 rad, so 0.017.
         # nosedive_termination_threshold in configs/tyrannosaurus_rex/anatomical/stance.toml is
         # calibrated against this number and moved with it.
         # Unlike the raptor, the T-Rex posture reward stays centred on world

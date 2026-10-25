@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **The T. rex tail_3 bound screen of D-D43 run, scored and verified: neither
   bound is adopted (outcome C); the options study and the no-training probes
-  recorded, report only** (D-D43's amendment of 2026-10-25;
+  recorded, report only** (#641; D-D43's amendment of 2026-10-25;
   `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2, `docs/CONSOLIDATION_PLAN_2026_09.md`
   §6, a dated note in §17 of `docs/GAIT_QUALITY_PLAN_2026_09.md`,
   `docs/NEXT_STEPS.md` §3; the appended §24 of
@@ -49,8 +49,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rows, and `docs/KNOWN_ISSUES.md` gains Update 19 of the T-Rex stance entry.
 - **Decision D-D43 recorded: a scratch CPU continuation screen of a bound on
   the T. rex tail actuator's mean, the first step of D-D42's round; D-D42
-  amended with three more report-only tools** (the maintainer's decisions of
-  2026-10-24; `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2,
+  amended with three more report-only tools** (#641; the maintainer's
+  decisions of 2026-10-24; `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2,
   `docs/CONSOLIDATION_PLAN_2026_09.md` §6, a dated note in §17 of
   `docs/GAIT_QUALITY_PLAN_2026_09.md`, `docs/NEXT_STEPS.md` §3; §24.1–§24.4 of
   `docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md`). Records
@@ -2030,13 +2030,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     geometry and stays), as do the provenance comments in `base_env.py`,
     `stages.toml`'s "no r10 seed yet", and the recovery safe set's re-measure,
     which waits on the first r10 stance (`recovery.toml`,
-    `recovery_evaluation.py`).
+    `recovery_evaluation.py`). The MJCF's sensor-block comment, which still
+    named the `mjx_config.py` deleted at note 18 (deferred there to the next
+    T. rex physics revision), names `TyrannosaurusRexEnv._cache_ids`, where
+    the sensor indices have lived since (the maintainer's decision of
+    2026-10-25; it moves the T. rex source closure only).
   - Every stance bar is kept, with the r10 statue's extremes in its comment in
     `configs/tyrannosaurus_rex/anatomical/stance.toml`: on 3042–3081 sole tilt
     1.60°, corner lift 2.6 mm, pad CoP 0.322, yaw change 14.1°; out of sample
     2.087° (seed 3121), 3.4 mm, 0.404 and 14.8° (seed 5061). The yaw bar's
     comment calls 25° twice the statue's largest, which r10 makes 1.69×; the
-    bars are the maintainer's to revisit.
+    maintainer kept the bars on 2026-10-25, with `healthy_z_range`'s 0.70
+    floor and `floor_impact_threshold_bw` 1.4, their comments updated only.
   - Tests and goldens, each re-measured by its own body or fixture: the Phase C
     reset golden's two T. rex captures re-taken (`RECAPTURED` 9 → 10); the
     statue's whole-foot CoP golden (renamed for r10; the left foot now sets the
@@ -2052,7 +2057,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     branch brought into a scratch copy of r10, not this branch, the heading
     tests pass (24, at `d5dfc167` and at `153b297a`). That test runs only at
     CI's full depth, so the fix should land first or with this revision
-    (inferred).
+    (inferred); on 2026-10-25 the maintainer decided to open this revision's
+    pull request with that branch merged in and the `full-ci` label.
   - Digest golden (649 lines): 39 lines move, all T. rex — the plant's
     `physics_revision`, `physics_sha256` and `source_closure_sha256`; the four
     stages' `task_sha256`, `stage_config_view_sha256.PPO` and `.SAC`; the stance
@@ -2075,8 +2081,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     and website pages; the stance record's §25 and `stance5/tail_sr3/` (106
     files: the posture study, the probe, the CPU checks, the re-measurement,
     the six-heading certificate re-rolled under the final gate block and the
-    run log's lines 578 to 600, ids removed; `SOURCES.txt` and `SHA256SUMS`,
-    now 634 files, extended).
+    run log's lines 578 to 603, ids removed; `SOURCES.txt` and `SHA256SUMS`,
+    now 634 files, extended). This change also records #641's landing in the
+    consolidation plan's status table and puts its number in #641's two
+    entries.
 - **The standing behavior has one name: the stance stage's recipe label is
   `stance`, and `stand` is refused with a pointer** (#631; decision D-D38,
   the maintainer's decision of 2026-10-18, "make the standing behavior's name
