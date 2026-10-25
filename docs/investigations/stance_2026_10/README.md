@@ -105,6 +105,16 @@ no-training CPU probes of 2026-10-24 with the read of the band runs'
 `policy_probe.npz`. All of it is report only: nothing in it trained a policy,
 and it enters no verdict.
 
+*Added 2026-10-25, later:* `stance5/tailscreen/` holds the tail_3 bound screen
+of decision D-D43 (the note's §24): a scratch CPU continuation screen of a
+training-loss bound on `tail_3_pitch_act`'s mean, upper side, in three arms and
+18 replicates, its criteria fixed and approved before any training step, its
+approval and gate records, the bound's scratch commits as a patch file, the
+tools, the score (outcome C: neither bound adopted, final) and the independent
+verification, with an index of its own,
+[stance5/tailscreen/README.md](stance5/tailscreen/README.md). As a screen it
+certifies nothing, and nothing it ran is on `main`.
+
 ## What changed in the copies
 
 [SOURCES.txt](SOURCES.txt) lists every file with the scratch file it came from,
@@ -287,12 +297,31 @@ carry **prefix2** (paths in logs and printouts) and
 copies. The rest are byte-identical. No copy holds a model identifier, an email
 address or a commit trailer.
 
+*Added 2026-10-25, later (`stance5/tailscreen/`):* no new kind of change.
+`run_log.txt` carries **lines** (lines 505 to 577 of the session's run log) and
+**redact** (22 workflow run ids, 12 distinct, and one background-job id); the
+patch file carries **trailer** (each commit's two trailer lines), **redact**
+(the commits' `From:` lines, an author name and an email address) and
+**whitespace** (the single space of its blank context lines; `git apply` of the
+copy still gives the scratch commit's two files exactly); `tools/copy_durable.sh`
+carries **trailer** too (the trailer it writes into its commits). The criteria
+(`9930ee72…`), `APPROVED`, `calib/coef.json`, `gate/gate_pass.json` and the
+score files are byte-identical, so their sha256 are the ones the approval and
+the run log pin (`coef.json` and `gate_pass.json` have no final newline, which
+is kept; leave them out of a manual pre-commit run). Five of the eight tools
+carry **prefix2**, **prefix** or **checkout**, so their sha256 is not the one
+`screen_common.py` pins (SOURCES.txt gives the pinned one as the source's).
+[stance5/tailscreen/README.md](stance5/tailscreen/README.md) says which file each
+change applies to. After these changes no copy holds a model identifier, an
+email address or a commit trailer.
+
 [SHA256SUMS](SHA256SUMS) pins every file here but this README and itself
 (`sha256sum -c SHA256SUMS` in this directory). *Added 2026-10-19:* nor
 `stance3/results/README.md`, which, like this README, has no source.
 *Added 2026-10-20:* nor `stance4/results/README.md`, likewise.
 *Added 2026-10-22:* nor `stance5/results/README.md`, likewise.
 *Added 2026-10-24:* nor `stance5/replication/results/README.md`, likewise.
+*Added 2026-10-25:* nor `stance5/tailscreen/README.md`, likewise.
 
 ## Contents
 
@@ -1160,6 +1189,26 @@ Not supported, at these two checkpoints: a reward incentive for tail-up
 objective). Inferred: an in-episode deterministic readout is a better early
 signal than the probe's bank.
 
+### Added on 2026-10-25, later (decision D-D43 and its outcome)
+
+**`stance5/tailscreen/`: the tail_3 bound screen (decided 2026-10-24 as D-D43;
+criteria approved at 19:06 UTC and re-pinned at 19:10 UTC that day, before any
+training step; run from 19:11 to 23:46 UTC on this container's CPUs; scored at
+23:53 UTC, final; verified at 00:13 UTC on 2026-10-25).** Three arms, CONTROL
+(coef 0), BOUND90 (b = 0.90) and BOUND60 (b = 0.60), coef 2.4 for both bounds,
+each continuing stance5 s42's and stance5r s80's 4,194,304 checkpoints for one
+1,048,576-step run on seeds 101, 202 and 303 (18 replicates), from two scratch
+commits on `cf80ecb1` (`4c0c8da7`, never pushed). Outcome C: BOUND90 NOT ADOPTED
+(RAIL: 6 of 6 replicates kept tail-up flags, R1/R2 mean commands 0.886 to
+0.971) and BOUND60 NOT ADOPTED (PARKED: 6 of 6 cleared the rail with 0 tail-up
+flags, but held commands of 0.600 to 0.632, at or above the 0.60 line); CONTROL
+read RAIL, CURED and RAIL at s42 and RAIL three times at s80 (the onset note
+INFORMATIVE); OTHER 0 everywhere. Its
+[README](stance5/tailscreen/README.md) indexes the folder: the criteria
+byte-identical, the approval, request and pins, the calibration, the patch, the
+gate records (the first gate's failure on one test of `main`'s rule and the
+passing gate after the re-pin), the tools, the results and the verification.
+
 ## How to re-check each verdict
 
 Commands as run on 2026-10-17 from a copy of this directory (Python 3.13;
@@ -1234,6 +1283,9 @@ copies.
 | The briefs (2026-10-25) | `sha256sum` of the sources `scratchpad2/tailround/brief_draft.md` and `brief_v2.md` (session scratch only) | `363fb6bd…` and `903d7218…`, the values SOURCES.txt gives |
 | The probes' start checkpoints (2026-10-25; session scratch only) | `probes/probecheck/fetched_sha.txt` against the `judge_4194304.json` of stance5 s42 and stance5r s80 | equal (the zips `d3c90db8…` and `649db94c…`, the pkls `3903cbcf…` and `98fe3043…`) |
 | The files themselves (2026-10-25, with `stance5/tailscreen/options/` and `probes/`) | `sha256sum -c SHA256SUMS` | all 471 files OK |
+| The tail_3 bound screen's criteria, approval, calibration, gate and score (2026-10-25) | `sha256sum stance5/tailscreen/criteria.txt stance5/tailscreen/APPROVED stance5/tailscreen/calib/coef.json stance5/tailscreen/gate/gate_pass.json stance5/tailscreen/results/score.txt stance5/tailscreen/results/score.json` | `9930ee72…`, `42627d1f…`, `f6d90f99…`, `d7118520…`, `66c4a92d…` and `471ad8e4…`, the values in the run log's entries timed 19:10, 19:11 and 23:53 UTC |
+| The screen's outcome from the criteria alone (2026-10-25; session scratch only) | as `stance5/tailscreen/README.md` gives it | `DIFFS []` |
+| The files themselves (2026-10-25, later, with `stance5/tailscreen/`) | `sha256sum -c SHA256SUMS` | all 528 files OK |
 
 `test_pilot_score.py` prints sample "Walking pilot score" blocks while it runs;
 they score synthetic panels, not the pilot.
@@ -1335,3 +1387,11 @@ left as they ran: `ruff check` (ruff 0.16.9, the same configuration) passes on
 the other 19, quick-script style (most in `probecheck/probe_ckpt.py`, 22, and
 `skeptic/unclip_alt.py`, 19); `ruff format --check` would reformat all 21, and
 all 21 parse on Python 3.11, 3.12 and 3.13.
+
+*Added 2026-10-25, later:* the 16 Python scripts added in `stance5/tailscreen/`
+are left as they ran: `ruff check` (ruff 0.16.9, the same configuration) passes
+on the four tools other than `run_tailscreen.py` and on the four tools' tests,
+and reports 107 findings in the other eight (15 in `tools/run_tailscreen.py`,
+the rest in the verifiers' quick scripts, most in `verify/rescore/rescore.py`,
+32); `ruff format --check` would reformat all 16, and all 16 parse on Python
+3.11, 3.12 and 3.13. The three shell scripts in `tools/` are left as they ran.
