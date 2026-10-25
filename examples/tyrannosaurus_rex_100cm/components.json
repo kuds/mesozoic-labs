@@ -1,0 +1,1090 @@
+{
+  "status": "unweighed_concept_inertia_and_component_surrogates",
+  "mass_kg": 24.178,
+  "categories_kg": {
+    "leg_actuators": 10.56,
+    "structure_bearings_feet": 3.7,
+    "shells_guards": 0.8900000000000001,
+    "wiring_power": 0.8500000000000001,
+    "sensors": 0.37,
+    "battery_restraint": 2.8,
+    "compute_cooling_storage": 0.65,
+    "control": 0.22,
+    "unallocated_reserve": 1.8,
+    "expression_actuators": 0.658,
+    "moving_arms": 0.24,
+    "head_shell_frame": 1.09,
+    "moving_tail": 0.35
+  },
+  "components": [
+    {
+      "name": "left_hip_yaw_motor",
+      "body": "torso",
+      "category": "leg_actuators",
+      "mass_kg": 0.88,
+      "pos_m": [
+        0,
+        0.115,
+        0.09
+      ],
+      "inertia_box_halfsize_m": [
+        0.053,
+        0.053,
+        0.028
+      ]
+    },
+    {
+      "name": "left_hip_roll_motor",
+      "body": "left_hip_yaw_body",
+      "category": "leg_actuators",
+      "mass_kg": 0.88,
+      "pos_m": [
+        -0.045,
+        0,
+        -0.09
+      ],
+      "inertia_box_halfsize_m": [
+        0.028,
+        0.053,
+        0.053
+      ]
+    },
+    {
+      "name": "left_hip_pitch_motor",
+      "body": "left_hip_roll_body",
+      "category": "leg_actuators",
+      "mass_kg": 0.88,
+      "pos_m": [
+        0.055,
+        0.05,
+        -0.015
+      ],
+      "inertia_box_halfsize_m": [
+        0.053,
+        0.028,
+        0.053
+      ]
+    },
+    {
+      "name": "left_knee_motor",
+      "body": "left_thigh",
+      "category": "leg_actuators",
+      "mass_kg": 0.88,
+      "pos_m": [
+        0.03,
+        0.03,
+        -0.18
+      ],
+      "inertia_box_halfsize_m": [
+        0.053,
+        0.028,
+        0.053
+      ]
+    },
+    {
+      "name": "left_ankle_pitch_motor",
+      "body": "left_shin",
+      "category": "leg_actuators",
+      "mass_kg": 0.88,
+      "pos_m": [
+        -0.045,
+        0.03,
+        -0.18
+      ],
+      "inertia_box_halfsize_m": [
+        0.053,
+        0.028,
+        0.053
+      ]
+    },
+    {
+      "name": "left_ankle_roll_motor",
+      "body": "left_ankle_pitch_body",
+      "category": "leg_actuators",
+      "mass_kg": 0.88,
+      "pos_m": [
+        -0.09,
+        0,
+        -0.02
+      ],
+      "inertia_box_halfsize_m": [
+        0.028,
+        0.053,
+        0.053
+      ]
+    },
+    {
+      "name": "left_hip_yaw_body_structure",
+      "body": "left_hip_yaw_body",
+      "category": "structure_bearings_feet",
+      "mass_kg": 0.14,
+      "pos_m": [
+        0,
+        0,
+        -0.04
+      ],
+      "inertia_box_halfsize_m": [
+        0.035,
+        0.03,
+        0.04
+      ]
+    },
+    {
+      "name": "left_hip_roll_body_structure",
+      "body": "left_hip_roll_body",
+      "category": "structure_bearings_feet",
+      "mass_kg": 0.16,
+      "pos_m": [
+        0.025,
+        0.01,
+        -0.008
+      ],
+      "inertia_box_halfsize_m": [
+        0.045,
+        0.035,
+        0.02
+      ]
+    },
+    {
+      "name": "left_thigh_structure",
+      "body": "left_thigh",
+      "category": "structure_bearings_feet",
+      "mass_kg": 0.24,
+      "pos_m": [
+        0.015,
+        0,
+        -0.09
+      ],
+      "inertia_box_halfsize_m": [
+        0.035,
+        0.025,
+        0.095
+      ]
+    },
+    {
+      "name": "left_shin_structure",
+      "body": "left_shin",
+      "category": "structure_bearings_feet",
+      "mass_kg": 0.2,
+      "pos_m": [
+        -0.0225,
+        0,
+        -0.09
+      ],
+      "inertia_box_halfsize_m": [
+        0.028,
+        0.023,
+        0.095
+      ]
+    },
+    {
+      "name": "left_ankle_pitch_body_structure",
+      "body": "left_ankle_pitch_body",
+      "category": "structure_bearings_feet",
+      "mass_kg": 0.1,
+      "pos_m": [
+        -0.045,
+        0,
+        -0.02
+      ],
+      "inertia_box_halfsize_m": [
+        0.06,
+        0.03,
+        0.025
+      ]
+    },
+    {
+      "name": "left_foot_structure",
+      "body": "left_foot",
+      "category": "structure_bearings_feet",
+      "mass_kg": 0.3,
+      "pos_m": [
+        0.06,
+        0,
+        -0.04
+      ],
+      "inertia_box_halfsize_m": [
+        0.14,
+        0.07,
+        0.02
+      ]
+    },
+    {
+      "name": "left_thigh_cover",
+      "body": "left_thigh",
+      "category": "shells_guards",
+      "mass_kg": 0.1,
+      "pos_m": [
+        0.015,
+        -0.015,
+        -0.08
+      ],
+      "inertia_box_halfsize_m": [
+        0.065,
+        0.045,
+        0.085
+      ]
+    },
+    {
+      "name": "left_shin_cover",
+      "body": "left_shin",
+      "category": "shells_guards",
+      "mass_kg": 0.07,
+      "pos_m": [
+        -0.02,
+        -0.015,
+        -0.075
+      ],
+      "inertia_box_halfsize_m": [
+        0.05,
+        0.04,
+        0.07
+      ]
+    },
+    {
+      "name": "left_leg_wiring",
+      "body": "left_shin",
+      "category": "wiring_power",
+      "mass_kg": 0.1,
+      "pos_m": [
+        -0.02,
+        0,
+        -0.08
+      ],
+      "inertia_box_halfsize_m": [
+        0.008,
+        0.008,
+        0.09
+      ]
+    },
+    {
+      "name": "left_foot_sensors",
+      "body": "left_foot",
+      "category": "sensors",
+      "mass_kg": 0.08,
+      "pos_m": [
+        0.06,
+        0,
+        -0.045
+      ],
+      "inertia_box_halfsize_m": [
+        0.12,
+        0.055,
+        0.008
+      ]
+    },
+    {
+      "name": "right_hip_yaw_motor",
+      "body": "torso",
+      "category": "leg_actuators",
+      "mass_kg": 0.88,
+      "pos_m": [
+        0,
+        -0.115,
+        0.09
+      ],
+      "inertia_box_halfsize_m": [
+        0.053,
+        0.053,
+        0.028
+      ]
+    },
+    {
+      "name": "right_hip_roll_motor",
+      "body": "right_hip_yaw_body",
+      "category": "leg_actuators",
+      "mass_kg": 0.88,
+      "pos_m": [
+        -0.045,
+        0,
+        -0.09
+      ],
+      "inertia_box_halfsize_m": [
+        0.028,
+        0.053,
+        0.053
+      ]
+    },
+    {
+      "name": "right_hip_pitch_motor",
+      "body": "right_hip_roll_body",
+      "category": "leg_actuators",
+      "mass_kg": 0.88,
+      "pos_m": [
+        0.055,
+        -0.05,
+        -0.015
+      ],
+      "inertia_box_halfsize_m": [
+        0.053,
+        0.028,
+        0.053
+      ]
+    },
+    {
+      "name": "right_knee_motor",
+      "body": "right_thigh",
+      "category": "leg_actuators",
+      "mass_kg": 0.88,
+      "pos_m": [
+        0.03,
+        -0.03,
+        -0.18
+      ],
+      "inertia_box_halfsize_m": [
+        0.053,
+        0.028,
+        0.053
+      ]
+    },
+    {
+      "name": "right_ankle_pitch_motor",
+      "body": "right_shin",
+      "category": "leg_actuators",
+      "mass_kg": 0.88,
+      "pos_m": [
+        -0.045,
+        -0.03,
+        -0.18
+      ],
+      "inertia_box_halfsize_m": [
+        0.053,
+        0.028,
+        0.053
+      ]
+    },
+    {
+      "name": "right_ankle_roll_motor",
+      "body": "right_ankle_pitch_body",
+      "category": "leg_actuators",
+      "mass_kg": 0.88,
+      "pos_m": [
+        -0.09,
+        0,
+        -0.02
+      ],
+      "inertia_box_halfsize_m": [
+        0.028,
+        0.053,
+        0.053
+      ]
+    },
+    {
+      "name": "right_hip_yaw_body_structure",
+      "body": "right_hip_yaw_body",
+      "category": "structure_bearings_feet",
+      "mass_kg": 0.14,
+      "pos_m": [
+        0,
+        0,
+        -0.04
+      ],
+      "inertia_box_halfsize_m": [
+        0.035,
+        0.03,
+        0.04
+      ]
+    },
+    {
+      "name": "right_hip_roll_body_structure",
+      "body": "right_hip_roll_body",
+      "category": "structure_bearings_feet",
+      "mass_kg": 0.16,
+      "pos_m": [
+        0.025,
+        -0.01,
+        -0.008
+      ],
+      "inertia_box_halfsize_m": [
+        0.045,
+        0.035,
+        0.02
+      ]
+    },
+    {
+      "name": "right_thigh_structure",
+      "body": "right_thigh",
+      "category": "structure_bearings_feet",
+      "mass_kg": 0.24,
+      "pos_m": [
+        0.015,
+        0,
+        -0.09
+      ],
+      "inertia_box_halfsize_m": [
+        0.035,
+        0.025,
+        0.095
+      ]
+    },
+    {
+      "name": "right_shin_structure",
+      "body": "right_shin",
+      "category": "structure_bearings_feet",
+      "mass_kg": 0.2,
+      "pos_m": [
+        -0.0225,
+        0,
+        -0.09
+      ],
+      "inertia_box_halfsize_m": [
+        0.028,
+        0.023,
+        0.095
+      ]
+    },
+    {
+      "name": "right_ankle_pitch_body_structure",
+      "body": "right_ankle_pitch_body",
+      "category": "structure_bearings_feet",
+      "mass_kg": 0.1,
+      "pos_m": [
+        -0.045,
+        0,
+        -0.02
+      ],
+      "inertia_box_halfsize_m": [
+        0.06,
+        0.03,
+        0.025
+      ]
+    },
+    {
+      "name": "right_foot_structure",
+      "body": "right_foot",
+      "category": "structure_bearings_feet",
+      "mass_kg": 0.3,
+      "pos_m": [
+        0.06,
+        0,
+        -0.04
+      ],
+      "inertia_box_halfsize_m": [
+        0.14,
+        0.07,
+        0.02
+      ]
+    },
+    {
+      "name": "right_thigh_cover",
+      "body": "right_thigh",
+      "category": "shells_guards",
+      "mass_kg": 0.1,
+      "pos_m": [
+        0.015,
+        0.015,
+        -0.08
+      ],
+      "inertia_box_halfsize_m": [
+        0.065,
+        0.045,
+        0.085
+      ]
+    },
+    {
+      "name": "right_shin_cover",
+      "body": "right_shin",
+      "category": "shells_guards",
+      "mass_kg": 0.07,
+      "pos_m": [
+        -0.02,
+        0.015,
+        -0.075
+      ],
+      "inertia_box_halfsize_m": [
+        0.05,
+        0.04,
+        0.07
+      ]
+    },
+    {
+      "name": "right_leg_wiring",
+      "body": "right_shin",
+      "category": "wiring_power",
+      "mass_kg": 0.1,
+      "pos_m": [
+        -0.02,
+        0,
+        -0.08
+      ],
+      "inertia_box_halfsize_m": [
+        0.008,
+        0.008,
+        0.09
+      ]
+    },
+    {
+      "name": "right_foot_sensors",
+      "body": "right_foot",
+      "category": "sensors",
+      "mass_kg": 0.08,
+      "pos_m": [
+        0.06,
+        0,
+        -0.045
+      ],
+      "inertia_box_halfsize_m": [
+        0.12,
+        0.055,
+        0.008
+      ]
+    },
+    {
+      "name": "battery",
+      "body": "torso",
+      "category": "battery_restraint",
+      "mass_kg": 2.8,
+      "pos_m": [
+        -0.055,
+        0,
+        0.12
+      ],
+      "inertia_box_halfsize_m": [
+        0.09,
+        0.06,
+        0.045
+      ]
+    },
+    {
+      "name": "compute_tray",
+      "body": "torso",
+      "category": "compute_cooling_storage",
+      "mass_kg": 0.65,
+      "pos_m": [
+        -0.055,
+        0,
+        0.25
+      ],
+      "inertia_box_halfsize_m": [
+        0.065,
+        0.06,
+        0.025
+      ]
+    },
+    {
+      "name": "control_can_imu",
+      "body": "torso",
+      "category": "control",
+      "mass_kg": 0.22,
+      "pos_m": [
+        0.06,
+        0,
+        0.225
+      ],
+      "inertia_box_halfsize_m": [
+        0.035,
+        0.055,
+        0.02
+      ]
+    },
+    {
+      "name": "power_tray",
+      "body": "torso",
+      "category": "wiring_power",
+      "mass_kg": 0.65,
+      "pos_m": [
+        -0.165,
+        0,
+        0.16
+      ],
+      "inertia_box_halfsize_m": [
+        0.025,
+        0.09,
+        0.055
+      ]
+    },
+    {
+      "name": "torso_structure",
+      "body": "torso",
+      "category": "structure_bearings_feet",
+      "mass_kg": 1.2,
+      "pos_m": [
+        -0.035,
+        0,
+        0.135
+      ],
+      "inertia_box_halfsize_m": [
+        0.145,
+        0.145,
+        0.12
+      ]
+    },
+    {
+      "name": "integration_reserve",
+      "body": "torso",
+      "category": "unallocated_reserve",
+      "mass_kg": 1.8,
+      "pos_m": [
+        -0.025,
+        0,
+        0.11
+      ],
+      "inertia_box_halfsize_m": [
+        0.1,
+        0.09,
+        0.06
+      ]
+    },
+    {
+      "name": "torso_shell_mass",
+      "body": "torso",
+      "category": "shells_guards",
+      "mass_kg": 0.55,
+      "pos_m": [
+        -0.035,
+        0,
+        0.14
+      ],
+      "inertia_box_halfsize_m": [
+        0.185,
+        0.2,
+        0.145
+      ]
+    },
+    {
+      "name": "chest_depth_camera",
+      "body": "torso",
+      "category": "sensors",
+      "mass_kg": 0.12,
+      "pos_m": [
+        0.157,
+        0,
+        0.205
+      ],
+      "inertia_box_halfsize_m": [
+        0.016,
+        0.052,
+        0.015
+      ]
+    },
+    {
+      "name": "left_shoulder_motor",
+      "body": "torso",
+      "category": "expression_actuators",
+      "mass_kg": 0.082,
+      "pos_m": [
+        0.04,
+        0.215,
+        0.205
+      ],
+      "inertia_box_halfsize_m": [
+        0.014,
+        0.017,
+        0.024
+      ]
+    },
+    {
+      "name": "left_arm_shell",
+      "body": "left_arm",
+      "category": "moving_arms",
+      "mass_kg": 0.12,
+      "pos_m": [
+        0.055,
+        0,
+        -0.04
+      ],
+      "inertia_box_halfsize_m": [
+        0.065,
+        0.022,
+        0.045
+      ]
+    },
+    {
+      "name": "right_shoulder_motor",
+      "body": "torso",
+      "category": "expression_actuators",
+      "mass_kg": 0.082,
+      "pos_m": [
+        0.04,
+        -0.215,
+        0.205
+      ],
+      "inertia_box_halfsize_m": [
+        0.014,
+        0.017,
+        0.024
+      ]
+    },
+    {
+      "name": "right_arm_shell",
+      "body": "right_arm",
+      "category": "moving_arms",
+      "mass_kg": 0.12,
+      "pos_m": [
+        0.055,
+        0,
+        -0.04
+      ],
+      "inertia_box_halfsize_m": [
+        0.065,
+        0.022,
+        0.045
+      ]
+    },
+    {
+      "name": "head_yaw_motor",
+      "body": "torso",
+      "category": "expression_actuators",
+      "mass_kg": 0.165,
+      "pos_m": [
+        -0.02,
+        0,
+        0.305
+      ],
+      "inertia_box_halfsize_m": [
+        0.02,
+        0.021,
+        0.032
+      ]
+    },
+    {
+      "name": "neck_frame",
+      "body": "head_yaw_body",
+      "category": "structure_bearings_feet",
+      "mass_kg": 0.22,
+      "pos_m": [
+        0,
+        0,
+        0.03
+      ],
+      "inertia_box_halfsize_m": [
+        0.04,
+        0.035,
+        0.035
+      ]
+    },
+    {
+      "name": "head_pitch_motor",
+      "body": "head_yaw_body",
+      "category": "expression_actuators",
+      "mass_kg": 0.165,
+      "pos_m": [
+        0,
+        -0.045,
+        0.065
+      ],
+      "inertia_box_halfsize_m": [
+        0.02,
+        0.021,
+        0.032
+      ]
+    },
+    {
+      "name": "upper_head_shell",
+      "body": "head",
+      "category": "head_shell_frame",
+      "mass_kg": 0.65,
+      "pos_m": [
+        0.055,
+        0,
+        0.07
+      ],
+      "inertia_box_halfsize_m": [
+        0.22,
+        0.175,
+        0.095
+      ]
+    },
+    {
+      "name": "head_frame",
+      "body": "head",
+      "category": "head_shell_frame",
+      "mass_kg": 0.18,
+      "pos_m": [
+        0,
+        0,
+        0.025
+      ],
+      "inertia_box_halfsize_m": [
+        0.06,
+        0.055,
+        0.045
+      ]
+    },
+    {
+      "name": "jaw_motor",
+      "body": "head",
+      "category": "expression_actuators",
+      "mass_kg": 0.082,
+      "pos_m": [
+        -0.09,
+        0,
+        -0.02
+      ],
+      "inertia_box_halfsize_m": [
+        0.014,
+        0.017,
+        0.024
+      ]
+    },
+    {
+      "name": "eyes_audio",
+      "body": "head",
+      "category": "sensors",
+      "mass_kg": 0.09,
+      "pos_m": [
+        0.025,
+        0,
+        0.06
+      ],
+      "inertia_box_halfsize_m": [
+        0.07,
+        0.13,
+        0.04
+      ]
+    },
+    {
+      "name": "jaw_shell",
+      "body": "jaw",
+      "category": "head_shell_frame",
+      "mass_kg": 0.26,
+      "pos_m": [
+        0.175,
+        0,
+        -0.012
+      ],
+      "inertia_box_halfsize_m": [
+        0.21,
+        0.16,
+        0.025
+      ]
+    },
+    {
+      "name": "tail_yaw_motor",
+      "body": "torso",
+      "category": "expression_actuators",
+      "mass_kg": 0.082,
+      "pos_m": [
+        -0.225,
+        0,
+        0.105
+      ],
+      "inertia_box_halfsize_m": [
+        0.014,
+        0.017,
+        0.024
+      ]
+    },
+    {
+      "name": "tail_shell_spar",
+      "body": "tail",
+      "category": "moving_tail",
+      "mass_kg": 0.35,
+      "pos_m": [
+        -0.145,
+        0,
+        0.02
+      ],
+      "inertia_box_halfsize_m": [
+        0.2,
+        0.045,
+        0.06
+      ]
+    }
+  ],
+  "joints": [
+    {
+      "name": "left_hip_yaw",
+      "range": [
+        -0.3,
+        0.3
+      ],
+      "torque_limit_nm": 20.0,
+      "kp": 350,
+      "kv": 15
+    },
+    {
+      "name": "left_hip_roll",
+      "range": [
+        -0.3,
+        0.3
+      ],
+      "torque_limit_nm": 20.0,
+      "kp": 500,
+      "kv": 20
+    },
+    {
+      "name": "left_hip_pitch",
+      "range": [
+        -0.65,
+        0.65
+      ],
+      "torque_limit_nm": 20.0,
+      "kp": 650,
+      "kv": 25
+    },
+    {
+      "name": "left_knee",
+      "range": [
+        -0.15,
+        1.1
+      ],
+      "torque_limit_nm": 20.0,
+      "kp": 650,
+      "kv": 25
+    },
+    {
+      "name": "left_ankle_pitch",
+      "range": [
+        -0.55,
+        0.55
+      ],
+      "torque_limit_nm": 20.0,
+      "kp": 650,
+      "kv": 25
+    },
+    {
+      "name": "left_ankle_roll",
+      "range": [
+        -0.25,
+        0.25
+      ],
+      "torque_limit_nm": 20.0,
+      "kp": 550,
+      "kv": 20
+    },
+    {
+      "name": "right_hip_yaw",
+      "range": [
+        -0.3,
+        0.3
+      ],
+      "torque_limit_nm": 20.0,
+      "kp": 350,
+      "kv": 15
+    },
+    {
+      "name": "right_hip_roll",
+      "range": [
+        -0.3,
+        0.3
+      ],
+      "torque_limit_nm": 20.0,
+      "kp": 500,
+      "kv": 20
+    },
+    {
+      "name": "right_hip_pitch",
+      "range": [
+        -0.65,
+        0.65
+      ],
+      "torque_limit_nm": 20.0,
+      "kp": 650,
+      "kv": 25
+    },
+    {
+      "name": "right_knee",
+      "range": [
+        -0.15,
+        1.1
+      ],
+      "torque_limit_nm": 20.0,
+      "kp": 650,
+      "kv": 25
+    },
+    {
+      "name": "right_ankle_pitch",
+      "range": [
+        -0.55,
+        0.55
+      ],
+      "torque_limit_nm": 20.0,
+      "kp": 650,
+      "kv": 25
+    },
+    {
+      "name": "right_ankle_roll",
+      "range": [
+        -0.25,
+        0.25
+      ],
+      "torque_limit_nm": 20.0,
+      "kp": 550,
+      "kv": 20
+    },
+    {
+      "name": "left_shoulder_pitch",
+      "range": [
+        -0.7,
+        0.35
+      ],
+      "torque_limit_nm": 0.8,
+      "kp": 8,
+      "kv": 0.4
+    },
+    {
+      "name": "right_shoulder_pitch",
+      "range": [
+        -0.7,
+        0.35
+      ],
+      "torque_limit_nm": 0.8,
+      "kp": 8,
+      "kv": 0.4
+    },
+    {
+      "name": "head_yaw",
+      "range": [
+        -0.45,
+        0.45
+      ],
+      "torque_limit_nm": 2.5,
+      "kp": 25,
+      "kv": 1
+    },
+    {
+      "name": "head_pitch",
+      "range": [
+        -0.16,
+        0.16
+      ],
+      "torque_limit_nm": 2.5,
+      "kp": 30,
+      "kv": 1.2
+    },
+    {
+      "name": "jaw_pitch",
+      "range": [
+        0,
+        0.24
+      ],
+      "torque_limit_nm": 0.8,
+      "kp": 8,
+      "kv": 0.35
+    },
+    {
+      "name": "tail_yaw",
+      "range": [
+        -0.26,
+        0.26
+      ],
+      "torque_limit_nm": 0.8,
+      "kp": 8,
+      "kv": 0.4
+    }
+  ],
+  "limitations": [
+    "All component masses, locations and box inertias are design allocations, not weighed CAD properties.",
+    "Motor body envelopes omit mounting bolts, shafts and cable bends; fabrication requires supplier CAD.",
+    "Drives use conservative planning torque caps; no torque-speed, thermal, backlash or bus dynamics.",
+    "The 1.8 kg integration reserve is explicitly carried near the pelvis.",
+    "Camera frusta and contact patches are ideal simulation sensors, not calibrated hardware."
+  ],
+  "nominal_height_m": 1.0,
+  "leg_motor_specification": {
+    "candidate": "RobStride 03",
+    "count": 12,
+    "mass_kg_each": 0.88,
+    "body_envelope_m": [
+      0.106,
+      0.106,
+      0.056
+    ],
+    "vendor_rated_torque_nm": 20,
+    "vendor_peak_torque_nm": 60,
+    "simulation_cap_nm": 20.0,
+    "source": "https://robstride.com/products/robStride03",
+    "caveat": "Cylindrical packaging surrogate, not supplier mounting CAD; torque rating is conditional on cooling."
+  }
+}

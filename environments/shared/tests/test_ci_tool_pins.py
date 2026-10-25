@@ -115,6 +115,7 @@ def test_pre_commit_ruff_hooks_cover_only_what_ci_checks() -> None:
         "environments",
         "examples/mini_tyrannosaurus_rex",
         "examples/tyrannosaurus_rex_50cm",
+        "examples/tyrannosaurus_rex_100cm",
         "docs/hardware/studies",
     )
     for command in ("ruff check", "ruff format --check", "mypy"):
@@ -262,6 +263,10 @@ def test_mini_robot_only_changes_trigger_balance_tests_and_source_checks() -> No
 
 def test_medium_robot_only_changes_trigger_balance_tests_and_source_checks() -> None:
     _assert_robot_example_triggers_checks("examples/tyrannosaurus_rex_50cm/")
+
+
+def test_metre_robot_only_changes_trigger_balance_tests_and_source_checks() -> None:
+    _assert_robot_example_triggers_checks("examples/tyrannosaurus_rex_100cm/")
 
 
 def test_the_test_matrix_runs_every_test_directory_once() -> None:

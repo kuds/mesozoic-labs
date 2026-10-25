@@ -3,6 +3,7 @@
 This is packaging and rigid-body simulation geometry, not fabrication CAD.
 Only the shared mesh/ledger builder is reused; hardware is independently sized.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -24,6 +25,7 @@ MOTOR_MASS_G = 880.0
 MOTOR_RADIUS_M = 0.053
 MOTOR_HALF_DEPTH_M = 0.028
 
+
 def make_head(assets: Path) -> None:
     """Keep silhouette C: a single rounded, tapered skull with side eyes."""
     vertices, faces = [], []
@@ -40,6 +42,7 @@ def make_head(assets: Path) -> None:
     points[:, 2] /= np.abs(points[:, 2]).max()
     mesh_file(assets / "skull_c.obj", points.tolist(), faces)
 
+
 class Builder(BaseBuilder):
     def __init__(self) -> None:
         super().__init__()
@@ -53,16 +56,18 @@ class Builder(BaseBuilder):
             position = np.fromstring(camera.get("pos", ""), sep=" ") * 2
             camera.set("pos", values(position))
         self.motor_specs: dict[str, Any] = {
-            "candidate": "RobStride 03", "count": 12, "mass_kg_each": 0.880,
+            "candidate": "RobStride 03",
+            "count": 12,
+            "mass_kg_each": 0.880,
             "body_envelope_m": [0.106, 0.106, 0.056],
-            "vendor_rated_torque_nm": 20, "vendor_peak_torque_nm": 60,
+            "vendor_rated_torque_nm": 20,
+            "vendor_peak_torque_nm": 60,
             "simulation_cap_nm": LEG_TORQUE_NM,
             "source": "https://robstride.com/products/robStride03",
-            "caveat": "Cylindrical packaging surrogate, not supplier mounting CAD; torque rating is conditional on cooling."
+            "caveat": "Cylindrical packaging surrogate, not supplier mounting CAD; torque rating is conditional on cooling.",
         }
 
-    def joint(self, body: ET.Element, name: str, axis: Any, limits: Any,
-              cap: float, kp: float, kv: float) -> None:
+    def joint(self, body: ET.Element, name: str, axis: Any, limits: Any, cap: float, kp: float, kv: float) -> None:
         super().joint(body, name, axis, limits, cap, kp, kv)
         joint = body.find("joint")
         assert joint is not None
@@ -85,14 +90,15 @@ class Builder(BaseBuilder):
 
     def expression_motor(self, parent: ET.Element, name: str, pos: Any, heavy: bool = False) -> None:
         grams = 165 if heavy else 82
-        size = (0.020, 0.021, 0.032) if heavy else (0.014, 0.017, 0.024)
+        size = (0.020, 0.023, 0.032) if heavy else (0.015, 0.018, 0.024)
         self.component(parent, name + "_motor", "expression_actuators", grams, pos, size)
         self.geom(parent, name + "_case", "box", size, pos, "graphite", group=2)
 
     def link(self, body: ET.Element, name: str, end: Any, radius: float) -> None:
         for collision in (False, True):
-            attrs: dict[str, Any] = dict(name=name + ("_collision" if collision else ""),
-                type="capsule", fromto=(0, 0, 0, *end), size=radius)
+            attrs: dict[str, Any] = dict(
+                name=name + ("_collision" if collision else ""), type="capsule", fromto=(0, 0, 0, *end), size=radius
+            )
             if collision:
                 attrs["class_"] = "collision"
             else:
@@ -121,22 +127,28 @@ class Builder(BaseBuilder):
         self.joint(foot, side + "_ankle_roll", (1, 0, 0), (-0.25, 0.25), LEG_TORQUE_NM, 550, 20)
         for body, grams, pos, half in (
             (yaw, 140, (0, 0, -0.04), (0.035, 0.030, 0.04)),
-            (roll, 160, (0.025, sign*0.010, -0.008), (0.045, 0.035, 0.020)),
+            (roll, 160, (0.025, sign * 0.010, -0.008), (0.045, 0.035, 0.020)),
             (thigh, 240, (0.015, 0, -0.09), (0.035, 0.025, 0.095)),
             (shin, 200, (-0.0225, 0, -0.09), (0.028, 0.023, 0.095)),
             (ankle, 100, (-0.045, 0, -0.020), (0.060, 0.030, 0.025)),
             (foot, 300, (0.060, 0, -0.040), (0.140, 0.070, 0.020)),
         ):
             self.component(body, body.get("name", "") + "_structure", "structure_bearings_feet", grams, pos, half)
-        self.component(thigh, side + "_thigh_cover", "shells_guards", 100, (0.015, -sign*0.015, -0.080), (0.065, 0.045, 0.085))
-        self.component(shin, side + "_shin_cover", "shells_guards", 70, (-0.020, -sign*0.015, -0.075), (0.050, 0.040, 0.07))
+        self.component(
+            thigh, side + "_thigh_cover", "shells_guards", 100, (0.015, -sign * 0.015, -0.080), (0.065, 0.045, 0.085)
+        )
+        self.component(
+            shin, side + "_shin_cover", "shells_guards", 70, (-0.020, -sign * 0.015, -0.075), (0.050, 0.040, 0.07)
+        )
         self.component(shin, side + "_leg_wiring", "wiring_power", 100, (-0.020, 0, -0.08), (0.008, 0.008, 0.09))
         self.component(foot, side + "_foot_sensors", "sensors", 80, (0.060, 0, -0.045), (0.120, 0.055, 0.008))
         self.link(thigh, side + "_thigh_link", knee_pos, 0.025)
         self.link(shin, side + "_shin_link", (-0.045, 0, -0.180), 0.020)
-        self.mesh(thigh, side + "_thigh_fairing", (0.065, 0.045, 0.080), (0.015, -sign*0.012, -0.08))
-        self.mesh(shin, side + "_shin_fairing", (0.047, 0.035, 0.068), (-0.020, -sign*0.012, -0.075))
-        self.mesh(foot, side + "_sole_visual", (0.140, 0.070, 0.006), (0.060, 0, -0.059), "rubber", source="rounded", group=2)
+        self.mesh(thigh, side + "_thigh_fairing", (0.065, 0.045, 0.080), (0.015, -sign * 0.012, -0.08))
+        self.mesh(shin, side + "_shin_fairing", (0.047, 0.035, 0.068), (-0.020, -sign * 0.012, -0.075))
+        self.mesh(
+            foot, side + "_sole_visual", (0.140, 0.070, 0.006), (0.060, 0, -0.059), "rubber", source="rounded", group=2
+        )
         self.collision(foot, side + "_sole", "box", (0.140, 0.070, 0.006), (0.060, 0, -0.059))
         self.geom(foot, side + "_foot_plate", "box", (0.090, 0.063, 0.004), (0.100, 0, -0.051), "metal", group=2)
         self.mesh(foot, side + "_heel_cover", (0.080, 0.064, 0.020), (0.020, 0, -0.025))
@@ -144,9 +156,17 @@ class Builder(BaseBuilder):
             self.mesh(foot, f"{side}_toe_{i}", (0.065, 0.025, 0.028), (0.130, y, -0.030))
             self.geom(foot, f"{side}_claw_{i}", "ellipsoid", (0.020, 0.020, 0.016), (0.182, y, -0.038), "cream")
         for i, (x, y) in enumerate(((-0.090, -0.035), (-0.090, 0.035), (0.090, -0.035), (0.090, 0.035))):
-            element(foot, "site", name=f"{side}_contact_{i}", type="box",
-                pos=(0.060+x, y, -0.059), size=(0.050, 0.035, 0.008), rgba=(0.2, 0.7, 0.2, 0), group=3)
-        element(foot, "site", name=side + "_sole_center", pos=(0.060, 0, -0.065), size=0.002, rgba=(0,0,0,0))
+            element(
+                foot,
+                "site",
+                name=f"{side}_contact_{i}",
+                type="box",
+                pos=(0.060 + x, y, -0.059),
+                size=(0.050, 0.035, 0.008),
+                rgba=(0.2, 0.7, 0.2, 0),
+                group=3,
+            )
+        element(foot, "site", name=side + "_sole_center", pos=(0.060, 0, -0.065), size=0.002, rgba=(0, 0, 0, 0))
 
     def upper_body(self) -> None:
         t = self.torso
@@ -166,96 +186,117 @@ class Builder(BaseBuilder):
             self.component(t, name, category, grams, pos, size)
             if name not in ("torso_structure", "integration_reserve"):
                 self.geom(t, name + "_envelope", "box", size, pos, mat, group=4)
-        self.component(t, "torso_shell_mass", "shells_guards", 550, (-0.035,0,0.140), (0.185,0.200,0.145))
-        element(t, "site", name="pelvis_imu", pos=(-0.025,0,0.040), size=0.005, rgba=(1,0.2,0,0), group=3)
+        self.component(t, "torso_shell_mass", "shells_guards", 550, (-0.035, 0, 0.140), (0.185, 0.200, 0.145))
+        element(t, "site", name="pelvis_imu", pos=(-0.025, 0, 0.040), size=0.005, rgba=(1, 0.2, 0, 0), group=3)
         for i in range(6):
-            self.geom(t, f"back_vent_{i}", "box", (0.002,0.060,0.002), (-0.231,0,0.115+i*0.014), "graphite")
+            self.geom(t, f"back_vent_{i}", "box", (0.002, 0.060, 0.002), (-0.231, 0, 0.115 + i * 0.014), "graphite")
         # Fixed forward camera stays stable as the character turns its head.
-        self.component(t, "chest_depth_camera", "sensors", 120, (0.157,0,0.205), (0.016,0.052,0.015))
-        self.geom(t, "chest_camera_bar", "box", (0.017,0.055,0.017), (0.168,0,0.205), "graphite", group=2)
-        for side, y in (("left",0.0375),("right",-0.0375)):
-            self.geom(t, "chest_"+side+"_lens", "cylinder", (0.007,0.002), (0.187,y,0.205), "glass", euler=(0,math.pi/2,0),group=2)
-            element(t,"camera",name="chest_"+side,pos=(0.190,y,0.205),xyaxes=(0,-1,0,0,0,1),fovy=60)
-        for side, sign in (("left",1),("right",-1)):
-            base=(0.040,sign*0.215,0.205)
-            self.expression_motor(t,side+"_shoulder",base)
-            arm=self.body(t,side+"_arm",(0.040,sign*0.245,0.205))
-            self.joint(arm,side+"_shoulder_pitch",(0,1,0),(-0.70,0.35),0.8,8,0.4)
-            self.component(arm,side+"_arm_shell","moving_arms",120,(0.055,0,-0.040),(0.065,0.022,0.045))
-            self.mesh(arm,side+"_arm_upper",(0.035,0.024,0.055),(0.015,0,-0.045))
-            self.mesh(arm,side+"_hand",(0.045,0.026,0.022),(0.065,0,-0.075),"cream")
-            self.collision(arm,side+"_arm","capsule",(0.022,),fromto=(0,0,0,0.080,0,-0.075))
-        self.expression_motor(t,"head_yaw",(-0.020,0,0.305),heavy=True)
-        yaw=self.body(t,"head_yaw_body",(-0.020,0,0.305))
-        self.joint(yaw,"head_yaw",(0,0,1),(-0.45,0.45),2.5,25,1)
-        self.component(yaw,"neck_frame","structure_bearings_feet",220,(0,0,0.030),(0.040,0.035,0.035))
-        self.expression_motor(yaw,"head_pitch",(0,-0.045,0.065),heavy=True)
-        self.geom(yaw,"neck_column","cylinder",(0.038,0.035),(0,0,0.030),"graphite",group=2)
-        head=self.body(yaw,"head",(0,0,0.065))
-        self.joint(head,"head_pitch",(0,1,0),(-0.16,0.16),2.5,30,1.2)
-        self.mesh(head,"head_shell",(0.220,0.175,0.095),(0.080,0,0.075),source="skull_c")
-        self.collision(head,"head","box",(0.190,0.145,0.070),(0.080,0,0.075))
-        self.component(head,"upper_head_shell","head_shell_frame",650,(0.055,0,0.070),(0.220,0.175,0.095))
-        self.component(head,"head_frame","head_shell_frame",180,(0,0,0.025),(0.060,0.055,0.045))
-        self.expression_motor(head,"jaw",(-0.090,0,-0.020))
-        self.component(head,"eyes_audio","sensors",90,(0.025,0,0.060),(0.070,0.130,0.040))
-        for side,sign in (("left",1),("right",-1)):
-            for suffix,size,pos,mat in (
-                ("socket",(0.059,0.014,0.058),(-0.020,sign*0.163,0.085),"dark_sage"),
-                ("white",(0.052,0.012,0.051),(-0.016,sign*0.173,0.085),"white"),
-                ("pupil",(0.036,0.009,0.038),(-0.005,sign*0.183,0.080),"black"),
-                ("glint",(0.010,0.004,0.011),(0.006,sign*0.191,0.100),"white"),
-                ("nostril",(0.014,0.005,0.008),(0.240,sign*0.145,0.055),"black"),
+        self.component(t, "chest_depth_camera", "sensors", 120, (0.157, 0, 0.205), (0.016, 0.052, 0.015))
+        self.geom(t, "chest_camera_bar", "box", (0.017, 0.055, 0.017), (0.168, 0, 0.205), "graphite", group=2)
+        for side, y in (("left", 0.0375), ("right", -0.0375)):
+            self.geom(
+                t,
+                "chest_" + side + "_lens",
+                "cylinder",
+                (0.007, 0.002),
+                (0.187, y, 0.205),
+                "glass",
+                euler=(0, math.pi / 2, 0),
+                group=2,
+            )
+            element(t, "camera", name="chest_" + side, pos=(0.190, y, 0.205), xyaxes=(0, -1, 0, 0, 0, 1), fovy=60)
+        for side, sign in (("left", 1), ("right", -1)):
+            base = (0.040, sign * 0.215, 0.205)
+            self.expression_motor(t, side + "_shoulder", base)
+            arm = self.body(t, side + "_arm", (0.040, sign * 0.245, 0.205))
+            self.joint(arm, side + "_shoulder_pitch", (0, 1, 0), (-0.70, 0.35), 0.8, 8, 0.4)
+            self.component(arm, side + "_arm_shell", "moving_arms", 120, (0.055, 0, -0.040), (0.065, 0.022, 0.045))
+            self.mesh(arm, side + "_arm_upper", (0.035, 0.024, 0.055), (0.015, 0, -0.045))
+            self.mesh(arm, side + "_hand", (0.045, 0.026, 0.022), (0.065, 0, -0.075), "cream")
+            self.collision(arm, side + "_arm", "capsule", (0.022,), fromto=(0, 0, 0, 0.080, 0, -0.075))
+        self.expression_motor(t, "head_yaw", (-0.020, 0, 0.305), heavy=True)
+        yaw = self.body(t, "head_yaw_body", (-0.020, 0, 0.305))
+        self.joint(yaw, "head_yaw", (0, 0, 1), (-0.45, 0.45), 2.0, 25, 1)
+        self.component(yaw, "neck_frame", "structure_bearings_feet", 220, (0, 0, 0.030), (0.040, 0.035, 0.035))
+        self.expression_motor(yaw, "head_pitch", (0, -0.045, 0.065), heavy=True)
+        self.geom(yaw, "neck_column", "cylinder", (0.038, 0.035), (0, 0, 0.030), "graphite", group=2)
+        head = self.body(yaw, "head", (0, 0, 0.065))
+        self.joint(head, "head_pitch", (0, 1, 0), (-0.16, 0.16), 2.0, 30, 1.2)
+        self.mesh(head, "head_shell", (0.220, 0.175, 0.095), (0.080, 0, 0.075), source="skull_c")
+        self.collision(head, "head", "box", (0.190, 0.145, 0.070), (0.080, 0, 0.075))
+        self.component(head, "upper_head_shell", "head_shell_frame", 650, (0.055, 0, 0.070), (0.220, 0.175, 0.095))
+        self.component(head, "head_frame", "head_shell_frame", 180, (0, 0, 0.025), (0.060, 0.055, 0.045))
+        self.expression_motor(head, "jaw", (-0.090, 0, -0.020))
+        self.component(head, "eyes_audio", "sensors", 90, (0.025, 0, 0.060), (0.070, 0.130, 0.040))
+        for side, sign in (("left", 1), ("right", -1)):
+            for suffix, eye_size, eye_pos, eye_material in (
+                ("socket", (0.059, 0.014, 0.058), (-0.020, sign * 0.163, 0.085), "dark_sage"),
+                ("white", (0.052, 0.012, 0.051), (-0.016, sign * 0.173, 0.085), "white"),
+                ("pupil", (0.036, 0.009, 0.038), (-0.005, sign * 0.183, 0.080), "black"),
+                ("glint", (0.010, 0.004, 0.011), (0.006, sign * 0.191, 0.100), "white"),
+                ("nostril", (0.014, 0.005, 0.008), (0.240, sign * 0.145, 0.055), "black"),
             ):
-                self.geom(head,side+"_eye_"+suffix,"ellipsoid",size,pos,mat)
-            self.geom(head,side+"_tooth","ellipsoid",(0.010,0.008,0.018),(0.185,sign*0.140,-0.010),"cream")
-        jaw=self.body(head,"jaw",(-0.090,0,-0.020))
-        self.joint(jaw,"jaw_pitch",(0,1,0),(0,0.24),0.8,8,0.35)
-        self.component(jaw,"jaw_shell","head_shell_frame",260,(0.175,0,-0.012),(0.210,0.160,0.025))
-        self.mesh(jaw,"jaw_chin",(0.085,0.153,0.025),(0.300,0,-0.012),"cream",source="rounded")
-        self.collision(jaw,"jaw_chin","box",(0.075,0.135,0.020),(0.300,0,-0.012))
-        for side,sign in (("left",1),("right",-1)):
-            self.mesh(jaw,side+"_jaw_rail",(0.125,0.020,0.025),(0.100,sign*0.145,-0.012),"cream",source="rounded")
-            self.collision(jaw,side+"_jaw_rail","box",(0.115,0.016,0.020),(0.100,sign*0.145,-0.012))
-        tail_pos=(-0.225,0,0.105)
-        self.expression_motor(t,"tail_yaw",tail_pos)
-        tail=self.body(t,"tail",tail_pos)
-        self.joint(tail,"tail_yaw",(0,0,1),(-0.26,0.26),0.8,8,0.4)
-        self.component(tail,"tail_shell_spar","moving_tail",350,(-0.145,0,0.020),(0.200,0.045,0.060))
-        self.mesh(tail,"tail_shell",(1.65,1.8,1.8),(0,0,0),"sage",source="tail")
-        element(tail,"geom",name="tail_collision",class_="collision",type="capsule",fromto=(-0.030,0,0,-0.330,0,0.080),size=0.026)
+                self.geom(head, side + "_eye_" + suffix, "ellipsoid", eye_size, eye_pos, eye_material)
+            self.geom(head, side + "_tooth", "ellipsoid", (0.010, 0.008, 0.018), (0.185, sign * 0.140, -0.010), "cream")
+        jaw = self.body(head, "jaw", (-0.090, 0, -0.020))
+        self.joint(jaw, "jaw_pitch", (0, 1, 0), (0, 0.24), 0.8, 8, 0.35)
+        self.component(jaw, "jaw_shell", "head_shell_frame", 260, (0.175, 0, -0.012), (0.210, 0.160, 0.025))
+        self.mesh(jaw, "jaw_chin", (0.085, 0.153, 0.025), (0.300, 0, -0.012), "cream", source="rounded")
+        self.collision(jaw, "jaw_chin", "box", (0.075, 0.135, 0.020), (0.300, 0, -0.012))
+        for side, sign in (("left", 1), ("right", -1)):
+            self.mesh(
+                jaw, side + "_jaw_rail", (0.125, 0.020, 0.025), (0.100, sign * 0.145, -0.012), "cream", source="rounded"
+            )
+            self.collision(jaw, side + "_jaw_rail", "box", (0.115, 0.016, 0.020), (0.100, sign * 0.145, -0.012))
+        tail_pos = (-0.225, 0, 0.105)
+        self.expression_motor(t, "tail_yaw", tail_pos)
+        tail = self.body(t, "tail", tail_pos)
+        self.joint(tail, "tail_yaw", (0, 0, 1), (-0.26, 0.26), 0.8, 8, 0.4)
+        self.component(tail, "tail_shell_spar", "moving_tail", 350, (-0.145, 0, 0.020), (0.200, 0.045, 0.060))
+        self.mesh(tail, "tail_shell", (1.65, 1.8, 1.8), (0, 0, 0), "sage", source="tail")
+        element(
+            tail,
+            "geom",
+            name="tail_collision",
+            class_="collision",
+            type="capsule",
+            fromto=(-0.030, 0, 0, -0.330, 0, 0.080),
+            size=0.026,
+        )
 
     def finish(self, directory: Path) -> None:
         super().finish(directory)
-        key=self.xml.find("keyframe/key")
+        key = self.xml.find("keyframe/key")
         assert key is not None
-        key.set("qpos",values((0,0,ROOT_HEIGHT,1,0,0,0,*([0]*len(self.joints)))))
-        ET.indent(self.xml,space="  ")
-        (directory/"model.xml").write_text(ET.tostring(self.xml,encoding="unicode")+"\n")
-        path=directory/"components.json"
-        report=json.loads(path.read_text())
-        report["nominal_height_m"]=1.0
-        report["leg_motor_specification"]=self.motor_specs
-        report["limitations"]=[
+        key.set("qpos", values((0, 0, ROOT_HEIGHT, 1, 0, 0, 0, *([0] * len(self.joints)))))
+        ET.indent(self.xml, space="  ")
+        (directory / "model.xml").write_text(ET.tostring(self.xml, encoding="unicode") + "\n")
+        path = directory / "components.json"
+        report = json.loads(path.read_text())
+        report["nominal_height_m"] = 1.0
+        report["leg_motor_specification"] = self.motor_specs
+        report["limitations"] = [
             "All component masses, locations and box inertias are design allocations, not weighed CAD properties.",
             "Motor body envelopes omit mounting bolts, shafts and cable bends; fabrication requires supplier CAD.",
             "Drives use conservative planning torque caps; no torque-speed, thermal, backlash or bus dynamics.",
             "The 1.8 kg integration reserve is explicitly carried near the pelvis.",
             "Camera frusta and contact patches are ideal simulation sensors, not calibrated hardware.",
         ]
-        path.write_text(json.dumps(report,indent=2)+"\n")
+        path.write_text(json.dumps(report, indent=2) + "\n")
+
 
 def build(directory: Path = HERE) -> None:
-    directory.mkdir(parents=True,exist_ok=True)
-    make_meshes(directory/"assets")
-    make_head(directory/"assets")
-    b=Builder()
-    b.leg("left",1)
-    b.leg("right",-1)
+    directory.mkdir(parents=True, exist_ok=True)
+    make_meshes(directory / "assets")
+    make_head(directory / "assets")
+    b = Builder()
+    b.leg("left", 1)
+    b.leg("right", -1)
     b.upper_body()
     b.finish(directory)
 
+
 if __name__ == "__main__":
-    parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--output",type=Path,default=HERE)
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--output", type=Path, default=HERE)
     build(parser.parse_args().output)

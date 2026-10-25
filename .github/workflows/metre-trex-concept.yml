@@ -18,43 +18,20 @@ jobs:
         run: pip install -e ".[test]" "ruff==0.16.9" "mypy==2.3.1"
       - name: Format candidate sources
         run: |
-          ruff check --fix examples/tyrannosaurus_rex_100cm/
-          ruff format examples/tyrannosaurus_rex_100cm/
+          ruff check --fix examples/tyrannosaurus_rex_100cm/ environments/tyrannosaurus_rex/tests/test_tyrannosaurus_rex_100cm.py
+          ruff format examples/tyrannosaurus_rex_100cm/ environments/tyrannosaurus_rex/tests/test_tyrannosaurus_rex_100cm.py
       - name: Generate
         run: python -m examples.tyrannosaurus_rex_100cm.build_model
       - name: Validate unsupported assembly and stance
-        run: |
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          import mujoco
-          from examples.tyrannosaurus_rex_50cm.validate import run_trial, internal_contacts, visual_bounds
-          m=mujoco.MjModel.from_xml_path("examples/tyrannosaurus_rex_100cm/model.xml")
-          d=mujoco.MjData(m)
-          mujoco.mj_resetDataKeyframe(m,d,0)
-          mujoco.mj_forward(m,d)
-          print("HOME",json.dumps({"mass":float(m.body_mass.sum()),"bounds":[x.tolist() for x in visual_bounds(m,d)],"com":d.subtree_com[1].tolist(),"contacts":internal_contacts(m,d)}))
-          r=run_trial(m,duration=10)
-          Path("examples/tyrannosaurus_rex_100cm/validation.json").write_text(json.dumps(r,indent=2))
-          print(json.dumps(r,indent=2))
-          PY
+        run: python -m examples.tyrannosaurus_rex_100cm.validate
       - name: Render compiled geometry
         if: always()
-        run: |
-          python - <<'PY'
-          import mujoco
-          from examples.mini_tyrannosaurus_rex.render_design import render
-          m=mujoco.MjModel.from_xml_path("examples/tyrannosaurus_rex_100cm/model.xml")
-          d=mujoco.MjData(m)
-          mujoco.mj_resetDataKeyframe(m,d,0)
-          mujoco.mj_forward(m,d)
-          render(m,d,width=800,height=900).save("examples/tyrannosaurus_rex_100cm/preview.png")
-          PY
+        run: python -m examples.tyrannosaurus_rex_100cm.render_design
       - name: Check types and focused regression
         if: always()
         run: |
           mypy examples/tyrannosaurus_rex_100cm/ --ignore-missing-imports
-          pytest -vv
+          pytest environments/tyrannosaurus_rex/tests/test_tyrannosaurus_rex_100cm.py -vv
       - name: Export candidate files for review
         if: always()
         run: |
@@ -62,6 +39,7 @@ jobs:
           import base64
           from pathlib import Path
           paths = sorted(Path("examples/tyrannosaurus_rex_100cm").rglob("*"))
+          paths += [Path("environments/tyrannosaurus_rex/tests/test_tyrannosaurus_rex_100cm.py")]
           for p in paths:
               if not p.is_file() or "__pycache__" in p.parts or p.suffix not in {".py", ".json", ".xml", ".obj", ".png"}:
                   continue

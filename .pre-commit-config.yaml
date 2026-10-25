@@ -24,9 +24,9 @@ repos:
     hooks:
       - id: ruff-check
         args: [--fix]
-        files: ^(environments/|examples/(mini_tyrannosaurus_rex|tyrannosaurus_rex_50cm)/|docs/hardware/studies/)
+        files: ^(environments/|examples/(mini_tyrannosaurus_rex|tyrannosaurus_rex_50cm|tyrannosaurus_rex_100cm)/|docs/hardware/studies/)
       - id: ruff-format
-        files: ^(environments/|examples/(mini_tyrannosaurus_rex|tyrannosaurus_rex_50cm)/|docs/hardware/studies/)
+        files: ^(environments/|examples/(mini_tyrannosaurus_rex|tyrannosaurus_rex_50cm|tyrannosaurus_rex_100cm)/|docs/hardware/studies/)
 
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v2.3.1
@@ -35,7 +35,7 @@ repos:
         additional_dependencies: [gymnasium, numpy]
         args: [--ignore-missing-imports]
         pass_filenames: false
-        entry: mypy environments/ examples/mini_tyrannosaurus_rex/ examples/tyrannosaurus_rex_50cm/ docs/hardware/studies/
+        entry: mypy environments/ examples/mini_tyrannosaurus_rex/ examples/tyrannosaurus_rex_50cm/ examples/tyrannosaurus_rex_100cm/ docs/hardware/studies/
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
