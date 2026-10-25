@@ -106,6 +106,21 @@
 # Of the session's outputs, the four replication readouts and the five stance5 reference outputs of the current tool
 # are copied; the six earlier outputs of the superseded tool (b69ff098..., identical in every readout by
 # VALIDATION.md) and the tool's logs, self-tests and review material are not.
+# Added 2026-10-25 (stance5/tailscreen/options/, stance5/tailscreen/probes/): the sources are in a second scratch
+# root, the scratch tree of the session that took the work over at 15:14 UTC on 2026-10-24 (the run log); a source
+# there is written below 'scratchpad2' (the first root's sources stay written below it, as foot/...).  One more
+# change, nothing else:
+#   prefix2     the second scratch root's absolute prefix replaced by 'scratchpad2' (the first root's is replaced by
+#               'scratchpad' and the session directory above both by 'session', as prefix does; the two changes
+#               are listed apart only where both apply)
+# options/brief_draft.md and options/brief_v2.md carry prefix2, prefix and checkout; options/decisions_v1.md is
+# byte-identical.  whitespace removes the trailing spaces of 80 lines of probes/unclip/out/analyze_h040.out and adds a
+# final newline to four JSON copies.  The briefs' MECH, LAND, SKF, SKD and V2 folders (scratchpad2/tailround/mech/,
+# landscape/, skeptic-facts/, skeptic-design/, v2check/), the probes' code trees (git archives of cf80ecb1 with a
+# scratch MJCF copy), their copies of stance5's judge (each byte-identical to the source of stance5/judge/
+# judge_stance5.py, d9286724...), the probes' tree listings, value_s42.json and value_s80.json (about 0.34 MB each),
+# the unclip probe's npz rollouts, JSON outputs and scratch MJCF files, and the fetched files (scratchpad2/tailround/
+# fetch/: the five policy_probe.npz, 2,768,026 bytes each, and the two start checkpoint pairs) are not copied.
 
 audit/foot_ankle_audit.md foot/audit_2026_10_17/foot_ankle_audit.md e9da4ef84be17a87b70096d1e2aede87609ad22f446b10786f9e14d5064725c8 prefix
 audit/geometry/geometry_audit.json foot/audit_2026_10_17/geometry/geometry_audit.json 934110bec337b9693f894800efb309bf1a9529ae87f91f129bfefc8fef5b650a prefix,whitespace
@@ -508,6 +523,59 @@ stance5/results/saturation/stance5_LTSB_s42_6291456.json foot/stance5/tools/satr
 stance5/results/scores/score_final.json foot/stance5/scores/score_final.json c690165043dbc32fc8bf5bcce7a57c8bc38692c67e21464e706017d0dd45e307 prefix,whitespace
 stance5/results/scores/score_final.txt foot/stance5/scores/score_final.txt 1629943ccf08a948e91e6cfc252d64225cd910bf075d7d5566ce0f7c21db47d7 prefix
 stance5/tailexp/report.md foot/stance5/tailexp/report.md de1710e6374533ca0c37e52dbbad7e871da38b4fe4578d3f20c9cea442ec8a4d prefix,checkout,redact
+stance5/tailscreen/options/brief_draft.md scratchpad2/tailround/brief_draft.md 363fb6bda8d5662b0cb622c7f8919d133771d2780f88b5b0a2d9e90a45562dd3 prefix2,prefix,checkout
+stance5/tailscreen/options/brief_v2.md scratchpad2/tailround/brief_v2.md 903d7218bec0d445a6da858142af935640a5ff44c0ca0b06c1834d0335c8ec08 prefix2,prefix,checkout
+stance5/tailscreen/options/decisions_v1.md scratchpad2/tailround/criteria/decisions_v1.md 3a78622e78e3b1205082b8cba5ddfa26f260ac0e826e3dbb8e831aebd2c2f113 none
+stance5/tailscreen/probes/noisevalue/analyze.out scratchpad2/tailround/probes/noisevalue/analyze.out 4c5adbc6282cdbdd031d06b3f74a2473045fd82cea25120bb9ca7e303917c682 none
+stance5/tailscreen/probes/noisevalue/analyze.py scratchpad2/tailround/probes/noisevalue/analyze.py 8a2b1b97eb76c455ee39a3ec97b3abbfdf039bf3277c32ae0fb1652d0f222c3c prefix2,prefix
+stance5/tailscreen/probes/noisevalue/log_s42.txt scratchpad2/tailround/probes/noisevalue/log_s42.txt 9b882b83549cf1e431460304857f49a29fad99444858c43d2c56513c6780af25 none
+stance5/tailscreen/probes/noisevalue/log_s80.txt scratchpad2/tailround/probes/noisevalue/log_s80.txt bdd289076581696d019f161fe5792612bf838060c01999879c31796da7fd49b3 none
+stance5/tailscreen/probes/noisevalue/roll_value.py scratchpad2/tailround/probes/noisevalue/roll_value.py 36247ac0e4296ebcdf3036c127af7e37f2c3b75770da5c84193e1727750ec7c3 none
+stance5/tailscreen/probes/policy_probe_read/read_probe.out scratchpad2/tailround/probe_read/read_probe.out 45e249077294c0513224127f828ab3fbbd0b881edfe75f0c91e2f97bc2748e56 none
+stance5/tailscreen/probes/policy_probe_read/read_probe.py scratchpad2/tailround/probe_read/read_probe.py 3bd6f58d907f4d06a84ee0b02e9c8ed3a264e337f4a450b10b68316e6c6b3c79 none
+stance5/tailscreen/probes/probecheck/act_order.py scratchpad2/tailround/probes/probecheck/act_order.py 3425fba0951253ba046c69d15eb6d1d27fb06981169b119b8f1ea4ce96fb5802 none
+stance5/tailscreen/probes/probecheck/fetched_sha.txt scratchpad2/tailround/probes/probecheck/fetched_sha.txt 6d5651feadc32504ff3347ea23d91ecad65ed8795d1ebcb20feec344cc9c35ab prefix2
+stance5/tailscreen/probes/probecheck/ledger.out scratchpad2/tailround/probes/probecheck/ledger.out 445c92bcd919df37b7c0af11576d6457c6b2f584a9827bfd0e09915d2240b82c none
+stance5/tailscreen/probes/probecheck/ledger.py scratchpad2/tailround/probes/probecheck/ledger.py 941184426015afea4d094c9551074c3eb31528ad7bacd1a8f45aa32b49fe22f3 none
+stance5/tailscreen/probes/probecheck/npz_read.out scratchpad2/tailround/probes/probecheck/npz_read.out 5c86bd3ec209dde728076d3e70cba03875e59f079064b2c679a304062fa279ca none
+stance5/tailscreen/probes/probecheck/npz_read.py scratchpad2/tailround/probes/probecheck/npz_read.py 5801e9d651340e3bcbc3b70e4944fffc352413d4093289ec9947671b59e78693 none
+stance5/tailscreen/probes/probecheck/probe_ckpt.py scratchpad2/tailround/probes/probecheck/probe_ckpt.py 089fd59d494c2585fcb4430bb263c192e15c26097b3e80df1e3a5e3b376135d4 none
+stance5/tailscreen/probes/probecheck/probe_s42.json scratchpad2/tailround/probes/probecheck/probe_s42.json e59983aee596616a5debbb50e66e6d4402bb911434d35e02d19e44cba79605a8 whitespace
+stance5/tailscreen/probes/probecheck/probe_s42.out scratchpad2/tailround/probes/probecheck/probe_s42.out 4bcf6dd529fcef7931b4b133349be393ad17859481ecb8bcbd3bb1433bf855a1 prefix2
+stance5/tailscreen/probes/probecheck/probe_s80.json scratchpad2/tailround/probes/probecheck/probe_s80.json 41bb76319a2ddc22e9934ede80b9be9b1b04436c90e61f040f1d8364be90f320 whitespace
+stance5/tailscreen/probes/probecheck/probe_s80.out scratchpad2/tailround/probes/probecheck/probe_s80.out 30f9cc4e70165c95d85578822fba12403e88a75ca6596874ce3c2b2d059d9b20 prefix2
+stance5/tailscreen/probes/probecheck/rowclass.out scratchpad2/tailround/probes/probecheck/rowclass.out 884cc208f6c6bb7a64b9e1ae085124e66497e3088d36831ed730c8b143c251c7 none
+stance5/tailscreen/probes/probecheck/rowclass.py scratchpad2/tailround/probes/probecheck/rowclass.py e8b8403befa7aa3f71aae6ef990c72c7ae79c0b34235373725ea95d981adf1d5 none
+stance5/tailscreen/probes/skeptic/boot.out scratchpad2/tailround/probes/skeptic/boot.out 51c4ffb39d899550584f036f85e1ffff8516d12a0e83b251795cc5a43a835bfb none
+stance5/tailscreen/probes/skeptic/boot.py scratchpad2/tailround/probes/skeptic/boot.py 99f3dd2f76693a1636ffb3a4b5840eae73fac0100f9802d64f47903c2a805bd8 none
+stance5/tailscreen/probes/skeptic/common.py scratchpad2/tailround/probes/skeptic/common.py 533a802be03a6e07b25ed001e9969a6d3f8c9da3ee3e7f83665ee8ec69ef325c none
+stance5/tailscreen/probes/skeptic/noise_shift.py scratchpad2/tailround/probes/skeptic/noise_shift.py aa6d68a1a4f16bfb20435d3acd827929d6e399b2777268130548b675743f3fc7 none
+stance5/tailscreen/probes/skeptic/noise_shift_s80.json scratchpad2/tailround/probes/skeptic/noise_shift_s80.json 498d3f302b19094d2d16a64108c3031e240c09d4c95a45e14ccc1c4daea06d7e whitespace
+stance5/tailscreen/probes/skeptic/noise_shift_s80.log scratchpad2/tailround/probes/skeptic/noise_shift_s80.log d0c01d188d846cced1c602fc0492c0337b137c9079f2721480bac71bcd724c3b none
+stance5/tailscreen/probes/skeptic/npz_spot.out scratchpad2/tailround/probes/skeptic/npz_spot.out 4a17ce7008aca238fcc160ab94a04e798409b1ec27d4eb28f376bf1345857da3 none
+stance5/tailscreen/probes/skeptic/npz_spot.py scratchpad2/tailround/probes/skeptic/npz_spot.py 1c177e148dd3980f5f9d2caec9ca6c6f41cbca23c148b9a3b2460ea8dcec68a0 none
+stance5/tailscreen/probes/skeptic/shift_an.out scratchpad2/tailround/probes/skeptic/shift_an.out ff75c3a4549fe3c0124b9183e3069f09fadc3e4000cf5f1a874e344915549cf7 none
+stance5/tailscreen/probes/skeptic/shift_an.py scratchpad2/tailround/probes/skeptic/shift_an.py fa7dec6919c40410e2efb54c70f83ee880fccc4f67ab13344daf7079b38532c9 none
+stance5/tailscreen/probes/skeptic/unclip_alt.py scratchpad2/tailround/probes/skeptic/unclip_alt.py e12f5d0e9d026212e8c0006102c61e716982e3f7b72c9dd122e7028b927ad89d none
+stance5/tailscreen/probes/skeptic/unclip_alt_s42.json scratchpad2/tailround/probes/skeptic/unclip_alt_s42.json 2ecbe3ca5880ba5a877080814b85368c506a2e51cc9cec06399b988da4e46d5a whitespace
+stance5/tailscreen/probes/skeptic/unclip_alt_s42.log scratchpad2/tailround/probes/skeptic/unclip_alt_s42.log 2161f0ff40abc239b8ac074e3103f324b9ff62cba530c457bfbbca10fb1630b8 none
+stance5/tailscreen/probes/skeptic/unclip_alt_s42.table scratchpad2/tailround/probes/skeptic/unclip_alt_s42.table 9dfb9013966c64b215172b7165c9bc0a40858c5489281c2f65c305abe92d91af none
+stance5/tailscreen/probes/unclip/analyze.py scratchpad2/tailround/probes/unclip/analyze.py 21c5ae1d196828c40b8138d284f91128f3d927eeccfb487bf0e7d5b68ca8a59e none
+stance5/tailscreen/probes/unclip/analyze_hold.py scratchpad2/tailround/probes/unclip/analyze_hold.py 76fc329e82e07c630b593544c8356a73a7195473dbfd4533cb29277f2575ec9e none
+stance5/tailscreen/probes/unclip/converge.py scratchpad2/tailround/probes/unclip/converge.py 64fbede9589db8e0fe679a26cf6ce81069838a54127d140554c57c3a61498477 none
+stance5/tailscreen/probes/unclip/hold_last.py scratchpad2/tailround/probes/unclip/hold_last.py da22bb51fc06f0ea5f634cb33af21abcb28b67759e90559e9aa42d701723d76d none
+stance5/tailscreen/probes/unclip/hold_quarters.py scratchpad2/tailround/probes/unclip/hold_quarters.py a36f9945b0a22a1a1b49a6914f4297025f448729a706b7aa2d61522a521efa9f none
+stance5/tailscreen/probes/unclip/out/analyze_h040.out scratchpad2/tailround/probes/unclip/out/analyze_h040.out 051525fd69da628a7e41f0f67c18c350ed2463f8be8e975c0c4ed73fbb1ce8be whitespace
+stance5/tailscreen/probes/unclip/out/analyze_hold.out scratchpad2/tailround/probes/unclip/out/analyze_hold.out dd1591ec495e86d160f4cbc35db53d4c19dcd8999402cc6c6e0a3fa04ff2e8c8 none
+stance5/tailscreen/probes/unclip/out/converge_s42.out scratchpad2/tailround/probes/unclip/out/converge_s42.out 20d692dbb1cc9ec7baef2b17f9b707feb0bed20e9247085a3a4f114b67f23268 none
+stance5/tailscreen/probes/unclip/out/hold_last.out scratchpad2/tailround/probes/unclip/out/hold_last.out 887e32c9058bd91a4b9687b9fe82c001b64afb8d8e0db7b9332422a0423dbc66 none
+stance5/tailscreen/probes/unclip/out/hold_quarters.out scratchpad2/tailround/probes/unclip/out/hold_quarters.out 7d8c11252f70a4b95be3d4d9186b56954dadd2d3adecbf3f90853ade080993d8 none
+stance5/tailscreen/probes/unclip/out/log_s42_h040.txt scratchpad2/tailround/probes/unclip/out/log_s42_h040.txt 21e356fcb7afd1ad1fa3cd6af27989636961a919b445a3963a57cf7a509c2047 prefix2
+stance5/tailscreen/probes/unclip/out/log_s42_hold.txt scratchpad2/tailround/probes/unclip/out/log_s42_hold.txt 64b4bcb19264233532f16f8ef3b7f0ce4384de4956477a48b4f0b22a912e040e prefix2
+stance5/tailscreen/probes/unclip/out/log_s80_h040.txt scratchpad2/tailround/probes/unclip/out/log_s80_h040.txt 669aa9b730fbe6e76381193ab53136adf0f3e5790a8e866d6450d59b7441d1c1 prefix2
+stance5/tailscreen/probes/unclip/out/log_s80_hold.txt scratchpad2/tailround/probes/unclip/out/log_s80_hold.txt 34ff0919af50b01240f83a420fab1dbec9586fb69cc38d8f7fe95fe1756a01d5 prefix2
+stance5/tailscreen/probes/unclip/roll_hold.py scratchpad2/tailround/probes/unclip/roll_hold.py 394d169b5e67c6da4b63aa6ffab2243ebb4d95e3b0646e9ca3e6c67dc50f7d73 none
+stance5/tailscreen/probes/unclip/roll_unclip.py scratchpad2/tailround/probes/unclip/roll_unclip.py 76c1ddc32d800aa5b77eff09527b09e4d2e2eaad4a9b83f0d3fa06e83147fd0b none
 symmetry/J1_recount.log foot/symmetry/screen/analysis/J1_recount.log ad7297a2009227b47fa20eba17c5e5e730aa2b761a15be0615489188ff247a31 none
 symmetry/J2_recount.log foot/symmetry/screen/analysis/J2_recount.log a2eb01c9f5df0c0bb695cfca5524972260208134419ce8a348bc21d4e2560378 none
 symmetry/ema_credit.json foot/symmetry/review2/ema_credit.json 90ec310e68f8c0c6380c090a83b6b06fa1c8cafb6c397a171f051ee224e4cfe1 whitespace

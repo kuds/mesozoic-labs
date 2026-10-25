@@ -1,0 +1,54 @@
+===== s42 s42_4194304 num_timesteps 4194304 sigma_t3 0.1616 sigma mean 0.0981
+  zip sha256 d3c90db8c107ce1f judged sha256:d3c90db8c107ce1f; vecnorm 3903cbcfe43559c8 judged sha256:3903cbcfe43559c8
+  xcheck det_free return vs judged panel reward (20 seeds): max |diff| 8.185e-12
+  xcheck stoch_free return vs judged noise_matched_own reward (20 seeds): max |diff| 0.000e+00; judged own falls 0
+  --- stoch N=40
+    free    return mean  4302.39 (sd  31.96)  window mean  3508.07 (sd  22.15)  falls 0 []  length mean 1000.0 min 1000  t3 frac99 0.2516 (eps>0.10: 36) frac90 0.4270 cmd +0.8338 mu +0.8590 mu>1 0.0426 q3 -0.0210
+    hold0   return mean  4363.98 (sd  32.70)  window mean  3562.70 (sd  23.60)  falls 0 []  length mean 1000.0 min 1000  t3 frac99 0.0000 (eps>0.10: 0) frac90 0.0000 cmd +0.0000 mu +0.3157 mu>1 0.0000 q3 -0.0921
+    hold09  return mean  4307.56 (sd  32.66)  window mean  3515.71 (sd  22.67)  falls 0 []  length mean 1000.0 min 1000  t3 frac99 0.0000 (eps>0.10: 0) frac90 1.0000 cmd +0.9000 mu +0.9000 mu>1 0.0531 q3 -0.0153
+    hold0 - free return       : mean   +61.59  95% CI [  +58.17,   +64.83]  median   +63.46  wins 40/40
+    hold0 - free window_return: mean   +54.63  95% CI [  +51.51,   +57.53]  median   +55.93  wins 40/40
+    hold09 - free return       : mean    +5.17  95% CI [   +1.83,    +7.90]  median    +7.55  wins 34/40
+    hold09 - free window_return: mean    +7.64  95% CI [   +4.74,    +9.94]  median    +9.54  wins 36/40
+    hold0 - free window terms (both full-horizon, 40 pairs, |diff|>=0.5): {'total': np.float64(54.63), 'tail_home_pose': np.float64(43.27), 'action_saturation': np.float64(8.73), 'leg_home_pose': np.float64(-4.8), 'energy': np.float64(2.87), 'nosedive': np.float64(1.74), 'lateral_lean': np.float64(-1.11), 'action_jerk': np.float64(1.05), 'head_clearance': np.float64(1.02), 'smoothness': np.float64(0.94), 'stance_cop_band': np.float64(0.74), 'neck_posture': np.float64(0.56)}
+    hold09 - free window terms (both full-horizon, 40 pairs, |diff|>=0.5): {'action_saturation': np.float64(8.73), 'total': np.float64(7.64), 'tail_home_pose': np.float64(-2.59), 'action_jerk': np.float64(1.07), 'smoothness': np.float64(0.96)}
+    free: corr(frac99, window) -0.131; corr(frac99, hold0-free window) +0.748
+    hold0-free window: episodes frac99>0.10 (n=36) +55.87; others (n=4) +43.52
+  --- det N=20
+    free    return mean  4379.39 (sd  21.88)  window mean  3569.08 (sd  17.03)  falls 0 []  length mean 1000.0 min 1000  t3 frac99 0.3382 (eps>0.10: 10) frac90 0.7737 cmd +0.9245 mu +0.9299 mu>1 0.2933 q3 -0.0133
+    hold0   return mean  4441.82 (sd  32.86)  window mean  3625.55 (sd  29.05)  falls 0 []  length mean 1000.0 min 1000  t3 frac99 0.0000 (eps>0.10: 0) frac90 0.0000 cmd +0.0000 mu +0.3213 mu>1 0.0000 q3 -0.0921
+    hold09  return mean  4391.02 (sd  29.11)  window mean  3583.74 (sd  23.88)  falls 0 []  length mean 1000.0 min 1000  t3 frac99 0.0000 (eps>0.10: 0) frac90 1.0000 cmd +0.9000 mu +0.9163 mu>1 0.0000 q3 -0.0152
+    hold0 - free return       : mean   +62.43  95% CI [  +54.50,   +70.02]  median   +66.10  wins 20/20
+    hold0 - free window_return: mean   +56.47  95% CI [  +48.90,   +63.57]  median   +60.35  wins 20/20
+    hold09 - free return       : mean   +11.63  95% CI [   +3.64,   +18.25]  median   +14.66  wins 15/20
+    hold09 - free window_return: mean   +14.66  95% CI [   +7.49,   +20.56]  median   +17.77  wins 18/20
+    hold0 - free window terms (both full-horizon, 20 pairs, |diff|>=0.5): {'total': np.float64(56.47), 'tail_home_pose': np.float64(45.14), 'action_saturation': np.float64(14.39), 'leg_home_pose': np.float64(-6.08), 'energy': np.float64(3.51), 'lateral_lean': np.float64(-2.63), 'nosedive': np.float64(1.92), 'head_clearance': np.float64(0.76), 'foot_load_balance': np.float64(-0.62), 'stance_stagger': np.float64(-0.58), 'neck_posture': np.float64(0.55)}
+    hold09 - free window terms (both full-horizon, 20 pairs, |diff|>=0.5): {'total': np.float64(14.66), 'action_saturation': np.float64(14.39)}
+    free: corr(frac99, window) -0.012; corr(frac99, hold0-free window) +0.699
+    hold0-free window: episodes frac99>0.10 (n=10) +65.75; others (n=10) +47.18
+===== s80 s80_4194304 num_timesteps 4194304 sigma_t3 0.1664 sigma mean 0.1013
+  zip sha256 649db94c026db392 judged sha256:649db94c026db392; vecnorm 98fe304328256720 judged sha256:98fe304328256720
+  xcheck det_free return vs judged panel reward (20 seeds): max |diff| 7.276e-12
+  xcheck stoch_free return vs judged noise_matched_own reward (20 seeds): max |diff| 0.000e+00; judged own falls 0
+  --- stoch N=40
+    free    return mean  4333.06 (sd  24.18)  window mean  3536.68 (sd  17.60)  falls 0 []  length mean 1000.0 min 1000  t3 frac99 0.0374 (eps>0.10: 4) frac90 0.0860 cmd +0.5597 mu +0.5624 mu>1 0.0000 q3 -0.0446
+    hold0   return mean  4373.28 (sd  29.95)  window mean  3572.89 (sd  19.83)  falls 0 []  length mean 1000.0 min 1000  t3 frac99 0.0000 (eps>0.10: 0) frac90 0.0000 cmd +0.0000 mu +0.1914 mu>1 0.0000 q3 -0.0925
+    hold09  return mean  4314.45 (sd  29.34)  window mean  3523.23 (sd  19.79)  falls 0 []  length mean 1000.0 min 1000  t3 frac99 0.0000 (eps>0.10: 0) frac90 1.0000 cmd +0.9000 mu +0.7743 mu>1 0.0004 q3 -0.0149
+    hold0 - free return       : mean   +40.23  95% CI [  +35.21,   +45.12]  median   +44.81  wins 40/40
+    hold0 - free window_return: mean   +36.21  95% CI [  +31.78,   +40.53]  median   +40.66  wins 40/40
+    hold09 - free return       : mean   -18.61  95% CI [  -22.83,   -14.59]  median   -14.26  wins 1/40
+    hold09 - free window_return: mean   -13.44  95% CI [  -17.21,    -9.85]  median    -9.42  wins 4/40
+    hold0 - free window terms (both full-horizon, 40 pairs, |diff|>=0.5): {'total': np.float64(36.21), 'tail_home_pose': np.float64(29.42), 'leg_home_pose': np.float64(2.1), 'action_jerk': np.float64(1.54), 'action_saturation': np.float64(1.52), 'energy': np.float64(1.44), 'smoothness': np.float64(1.38), 'stance_cop_band': np.float64(-0.88), 'neck_posture': np.float64(-0.62)}
+    hold09 - free window terms (both full-horizon, 40 pairs, |diff|>=0.5): {'tail_home_pose': np.float64(-15.94), 'total': np.float64(-13.44), 'energy': np.float64(-1.81), 'action_jerk': np.float64(1.67), 'smoothness': np.float64(1.52), 'action_saturation': np.float64(1.52), 'leg_home_pose': np.float64(-0.54)}
+    free: corr(frac99, window) -0.335; corr(frac99, hold0-free window) +0.822
+    hold0-free window: episodes frac99>0.10 (n=4) +54.79; others (n=36) +34.15
+  --- det N=20
+    free    return mean  4418.56 (sd  20.55)  window mean  3605.82 (sd  16.79)  falls 0 []  length mean 1000.0 min 1000  t3 frac99 0.0000 (eps>0.10: 0) frac90 0.0012 cmd +0.6285 mu +0.6285 mu>1 0.0000 q3 -0.0385
+    hold0   return mean  4462.21 (sd  17.89)  window mean  3645.15 (sd  11.88)  falls 0 []  length mean 1000.0 min 1000  t3 frac99 0.0000 (eps>0.10: 0) frac90 0.0000 cmd +0.0000 mu +0.2053 mu>1 0.0000 q3 -0.0924
+    hold09  return mean  4399.65 (sd  17.79)  window mean  3592.04 (sd  13.42)  falls 0 []  length mean 1000.0 min 1000  t3 frac99 0.0000 (eps>0.10: 0) frac90 1.0000 cmd +0.9000 mu +0.7982 mu>1 0.0000 q3 -0.0148
+    hold0 - free return       : mean   +43.66  95% CI [  +36.06,   +50.49]  median   +44.74  wins 20/20
+    hold0 - free window_return: mean   +39.33  95% CI [  +32.65,   +45.29]  median   +42.58  wins 20/20
+    hold09 - free return       : mean   -18.91  95% CI [  -24.07,   -14.33]  median   -15.24  wins 0/20
+    hold09 - free window_return: mean   -13.78  95% CI [  -18.23,    -9.89]  median    -9.27  wins 0/20
+    hold0 - free window terms (both full-horizon, 20 pairs, |diff|>=0.5): {'total': np.float64(39.33), 'tail_home_pose': np.float64(33.87), 'leg_home_pose': np.float64(4.55), 'energy': np.float64(1.76), 'neck_posture': np.float64(-0.55), 'foot_flatness': np.float64(0.5)}
+    hold09 - free window terms (both full-horizon, 20 pairs, |diff|>=0.5): {'total': np.float64(-13.78), 'tail_home_pose': np.float64(-11.44), 'energy': np.float64(-1.48), 'leg_home_pose': np.float64(-0.75)}
