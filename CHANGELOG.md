@@ -53,7 +53,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `action_dc_per_actuator` and `action_delta` to 1e-12. Cost [measured,
   loaded host]: about 67 ms per 1000-step statue episode attributed in
   place (4.4%), median A/B +2.3% (statue) and +6.0% (r9 policy), within the
-  specification's +10%; a T. rex row grows by 1.59 to 1.88 KB.
+  specification's +10%; a T. rex row grows by about 1.6 to 2.0 KB, to
+  about 3.2 KB.
 - **The in-run K3 noise panel** (the maintainer's decisions of 2026-10-25
   15:44 UTC in the stance run log, item (6), and 16:15 UTC: the judge's full
   K3 every 1,048,576 steps and at the end, synchronous, off by default and
@@ -64,7 +65,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   notebook's `K3_PANEL` cell; documented in
   `docs/TRAINING_ARTIFACT_PRESENTATION.md`, "The in-run K3 noise panel").
   Report only, never a stage key (no digest moves). On the stance stage, at
-  every 1,048,576 steps and at training end, it rolls the stance5
+  every 1,048,576 steps and at training end (after the final checkpoint
+  pair is saved, so an interruption during it cannot cost the pair), it
+  rolls the stance5
   replication judge's two K3 noise tests with the judge's arithmetic (20
   spawns each, own sigma and the joint-space sigma read at launch from a
   JSON file and recorded by sha256) on a CPU copy of the live policy and a
@@ -74,15 +77,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `progress.json`, TensorBoard or any gate input. A resume keeps the prior
   panels, copies the prior files aside and rolls a missing grid panel on the
   restored pair's statistics. Measured: the extended in-suite inertness
-  proof trains bit for bit alike with the panel on and off, and its panels
-  equal an offline run on the checkpoint pairs saved at their steps; on the
+  proof trains bit for bit alike with the panel on and off, with stock PPO
+  and with mirror-symmetric PPO (`[ppo] symmetry = "mirror_kl"`), its
+  panels every 128 steps (three inside a rollout), and its panels equal an
+  offline run on the checkpoint pairs saved at their steps; on the
   judges' own tree (cf80ecb1) the panel reproduces the judge files of
   `stance5_LTSB_s80` at 4,194,304 (joint-space falls 2 of 20, at seeds 3051
   and 3061) and `stance5_LTSB_s42` at 4,194,304 (0 and 0) episode for
   episode, lengths, termination reasons and returns bit for bit; a
-  40-episode panel takes about 85 s on the local 4-vCPU host, about 17 min
-  per 12M-step run (12 panels); on a Colab L4 about 17 to 26 min, 1.8 to
-  2.8% of the run [inferred].
+  40-episode panel of that checkpoint (38 of 40 episodes to the horizon)
+  takes about 85 s on the local 4-vCPU host. [inferred] One that holds all
+  40 takes about 88 s, so a 12M-step run's 12 panels about 17.6 min; on a
+  Colab L4 about 18 to 26 min, about 2 to 3% of a 14.4 to 15.4 h run.
 - **Training-history pages 13 to 19** (the maintainer's decisions of
   2026-10-25 15:44 UTC, item (4), and 16:15 UTC: the observation
   normalization read through a whitelisting stub unpickler;
@@ -99,13 +105,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `policy_probe.npz` beside K3's falls from the in-run panel and the judge
   files), `18_obs_normalization` (the normalization's drift per checkpoint
   from the VecNormalize pickles in `models/`, read through a stub
-  unpickler that names only numpy's array helpers and inert stand-ins, with
+  unpickler that runs no numpy, SB3 or gymnasium code and decodes the
+  statistics from their raw bytes as plain numbers, protocol 4 or 5, with
   the probe's per-update statistics) and `19_body_dynamics` (the four
   MjData extras: joint stops, base wrenches, the CoM's and capture point's
   margins, the centroidal angular momentum and the head's rate, on one page
   of their own so pages 13 to 18 are the specification's); the JSON gains
-  `k3_panel`, `exploration` (each leg actuator's std at every K3 point) and
-  `obs_normalization`. A ledger without the body columns, a run without the
+  `k3_panel`, `exploration` (each leg actuator's std at every K3 point, the
+  point's own sigma where recorded) and `obs_normalization`. A ledger without the body columns, a run without the
   probe, the pickles or the panel renders labelled absent panels. Measured:
   the probe's rows equal the pickles cast to float32 at their shared steps
   (the stance5 replication run s80 at 4,194,304, and in the suite).

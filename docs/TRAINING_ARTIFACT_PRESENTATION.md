@@ -711,7 +711,11 @@ are reduced over the gate's window `[settle_steps, T)` from the trace the
 recorder closed; a per-substep quantity is read at each of the
 `frame_skip` substeps of those steps (the T. rex: 5 of 2 ms), a
 boundary-sampled one at each control step's last substep, as the recorder
-reads the root and the sites. No MuJoCo sensor is added: everything is read
+reads the root and the sites (the head rate, the angular momentum and the
+base wrenches: within 3% of their all-substep RMS, and within 1% for the
+wrench means, under K3's joint-space noise [measured on
+`stance5_LTSB_s42` at 4,194,304, two episodes; within 0.5%
+deterministic]). No MuJoCo sensor is added: everything is read
 from `MjData` by the recorder's opt-in captures (`record_actuators`,
 `record_slip`, `record_joint_limits`, `record_momentum`, `record_wrenches`,
 `record_body_velocity`, and the tail tip in the one `record_sites` call
@@ -729,7 +733,7 @@ On the T. rex (names below are the T. rex's; 118 columns):
 
 | Columns | What they hold |
 |---|---|
-| `<actuator>_command_mean` (15, model order) | (1a) The window mean of the deterministic command the policy sent (`EpisodeTrace.action`, clipped to [-1, 1]), + toward the actuator's `ctrlrange` upper end. Window-step weighted over an evaluation they are its `action_dc_per_actuator` (to 1e-12; tested in the suite and on the inertness proof's real run). NaN when a window step has no action |
+| `<actuator>_command_mean` (15, model order) | (1a) The window mean of the deterministic command the policy sent (`EpisodeTrace.action`, clipped to [-1, 1]), + toward the actuator's `ctrlrange` upper end. It is the policy's command before the env's action filter: on the T. rex a 10 Hz first-order low-pass (`action_filter_cutoff_hz`) sits between it and `ctrl`, which leaves the window means within 0.001 [measured] but not the step-to-step change (below). Window-step weighted over an evaluation they are its `action_dc_per_actuator` (to 1e-12; tested in the suite and on the inertness proof's real run). NaN when a window step has no action |
 | `actuators_at_rail`, `rail_actuators` | The actuators whose share of window steps at `|command| >= 0.99` exceeds 0.10 (the tail screen's tail-up flag), and their names, `;`-joined in model order, each suffixed `+` or `-` by the sign of most of its saturated steps (ties `+`) |
 | `actuators_parked`, `parked_actuators` | The actuators not at rail whose `|window mean| >= 0.60` (the tail screen's PARKED line), suffixed by the mean's sign. Descriptive classes, never a verdict (a clean holding state reads PARKED) |
 | `tail_1_pitch_mean_deg`, `tail_1_yaw_mean_deg`, `tail_2_pitch_mean_deg`, `tail_3_pitch_mean_deg` | (1b) Per `tail_<n>_pitch` / `tail_<n>_yaw` hinge, actuated or passive: the window mean of its angle from home, signed once at the keyframe so + raises the tail tip (pitch) or moves it to the animal's left (yaw; the T. rex's `tail_1_yaw` reads with sign -1) |
@@ -737,7 +741,7 @@ On the T. rex (names below are the T. rex's; 118 columns):
 | `root_height_mean_m`, `root_height_min_m` | The root body's height above `z = 0` (the pelvis) |
 | `root_pitch_min_deg`, `root_pitch_max_deg` | `balance_telemetry.heading_frames`' pitch (+ nose up), whose window mean is the balance group's `root_pitch_mean_deg` (a model without the balance group gets `root_pitch_mean_deg` here) |
 | `root_roll_mean_deg`, `_min_deg`, `_max_deg` | `asin(R[2, 1])`: + left side up |
-| `<group>_work_abs_j`, `_work_net_j`, `_power_peak_w`, `_torque_rms_nm`, `_torque_rms_frac`, `_command_delta_rms` for `legs`, `tail`, `neck_head` | (2) From each substep's `actuator_force` F and `actuator_velocity` v (the actuator's mechanical power F v for any transmission): the absolute work `sum |F v| dt` and the net work `sum F v dt` (+ the actuators deliver energy; positive and negative work are (abs ± net) / 2), the largest substep sum of `|F v|`, `sqrt(mean F^2)`, the same of `F / limit` with the side-aware force limit (the limited actuators only), and the RMS step-to-step command change. `legs`: the actuators on the chains from the root to each foot's reference site; `tail`: joints `tail_*`; `neck_head`: `neck*`, `head*`, `jaw*`; an `other` group joins only on a model with an actuator outside them |
+| `<group>_work_abs_j`, `_work_net_j`, `_power_peak_w`, `_torque_rms_nm`, `_torque_rms_frac`, `_command_delta_rms` for `legs`, `tail`, `neck_head` | (2) From each substep's `actuator_force` F and `actuator_velocity` v (the actuator's mechanical power F v for any transmission): the absolute work `sum |F v| dt` and the net work `sum F v dt` (+ the actuators deliver energy; positive and negative work are (abs ± net) / 2), the largest substep sum of `|F v|`, `sqrt(mean F^2)`, the same of `F / limit` with the side-aware force limit (the limited actuators only), and the RMS step-to-step command change (of the policy's command, as `action_delta` reads it: under K3's joint-space noise about 3 times the change `ctrl` sees after the T. rex's low-pass [measured: 0.28 against 0.087 on `stance5_LTSB_s42` at 4,194,304]) `legs`: the actuators on the chains from the root to each foot's reference site; `tail`: joints `tail_*`; `neck_head`: `neck*`, `head*`, `jaw*`; an `other` group joins only on a model with an actuator outside them |
 | `action_delta_mean` | The episode's term of the evaluation's `action_delta`: the mean over window steps of `sum_i (a_t,i - a_t-1,i)^2`, the first against step `settle - 1`; window-step weighted it is `gate_progress.npz`'s `action_delta` (to 1e-12, tested) |
 | `<foot>_leg_work_abs_j` | The absolute work of the actuators on that foot's chain (a mirror pair) |
 | `window_displacement_m`, `window_yaw_change_deg` | (3) Copied from the episode's `StanceEpisodeMetrics` (the screen's), bit for bit |
@@ -745,8 +749,8 @@ On the T. rex (names below are the T. rex's; 118 columns):
 | `window_path_length_m`, `window_yaw_change_signed_deg` | The root's horizontal path over the window (sway the net displacement hides), and the yaw change, + turning left (its absolute value is `window_yaw_change_deg` bit for bit) |
 | `<foot>_slip_m`, `<foot>_slip_speed_max_mps` | The distance the loaded foot's contact points slide on the floor: per substep, the floor-force-weighted tangential speed of the limb's floor contacts from `efc_vel`'s two tangential rows (the material points' relative velocity, exact under the elliptic cone; NaN with the reason under a pyramidal one), integrated over the substeps the limb carries more than `CONTACT_THRESHOLD_N`; and its largest substep value (NaN on a foot never loaded) |
 | `<foot>_site_travel_m` | The reference site's net horizontal travel over the window; the largest over the feet is `max_foot_slide_m` bit for bit |
-| `<joint>_stop_share`, `<joint>_stop_torque_mean_nm` (12 joints: the 4 tail hinges, the 8 leg joints) | (g) For each limited tail hinge and leg joint: the share of window substeps on which its limit constraint pushes, and the window mean of that constraint's torque about the joint's own axis (0 off the stop; + toward the upper end of its range, so + is the joint resting on its LOWER stop, and on the T. rex tail pitch hinges + holds the tail tip up). Commanded to the rail is the commands' column; carrying load on the mechanical stop is this one |
-| `com_toe_margin_min_m`, `_mean_m`, `com_heel_margin_min_m`, `_mean_m`, `capture_toe_margin_min_m`, `_mean_m`, `capture_heel_margin_min_m`, `_mean_m` | (h) On feet that declare a support span: the centre of mass's and the capture point's (`c + v / sqrt(g / h)`, v the centroidal linear momentum over the mass at the boundary substep) margins to the toe and heel lines along the heading, + inside, the lines as the balance group's `xcom_*` margins take them (those difference the boundary CoM samples instead) |
+| `<joint>_stop_share`, `<joint>_stop_torque_mean_nm` (12 joints: the 4 tail hinges, the 8 leg joints) | (g) For each limited tail hinge and leg joint: the share of window substeps on which its limit constraint pushes, and the window mean of that constraint's torque about the joint's own axis (0 off the stop; + toward the upper end of its range, so + is the joint resting on its LOWER stop, and on the T. rex tail pitch hinges + holds the tail tip up). Signed on each joint's own axis, not the posture columns' conventions: on the T. rex +q moves the foot to the animal's left on both hip rolls [measured by perturbation at the keyframe], so a mirror-symmetric pair on its two abduction stops reads opposite signs, and `tail_1_yaw`'s + is the stop pushing the tip to the right (the joint on its tip-left stop), while `tail_1_yaw_mean_deg` reads + tip left. Commanded to the rail is the commands' column; carrying load on the mechanical stop is this one |
+| `com_toe_margin_min_m`, `_mean_m`, `com_heel_margin_min_m`, `_mean_m`, `capture_toe_margin_min_m`, `_mean_m`, `capture_heel_margin_min_m`, `_mean_m` | (h) On feet that declare a support span: the centre of mass's and the capture point's (`c + v / sqrt(g / h)`, v the centroidal linear momentum over the mass at the boundary substep) margins to the toe and heel lines along the heading, + inside, the lines as the balance group's `xcom_*` margins take them (those difference the boundary CoM samples instead). So `capture_toe_margin_min_m`, `capture_toe_margin_mean_m` and `capture_heel_margin_min_m` are the same capture point as `xcom_toe_margin_min_m`, `xcom_toe_margin_mean_m` and `xcom_heel_margin_min_m` up to the CoM velocity's estimate (the momentum here, a 10 ms backward difference there): per episode they differ by at most 0.05 mm standing, about 1 mm under K3's joint-space noise and up to 6 mm in a fall [measured on the r10 statue, its falls and the r9 checkpoint `stance5_LTSB_s42` at 4,194,304]; `capture_heel_margin_mean_m` has no balance-group twin |
 | `angular_momentum_<pitch|roll|yaw>_rms_nms`, `_max_abs_nms` | The angular momentum about the centre of mass (summed from each body's `cinert` and `cvel`, as `mj_subtreeVel` sums it) about the heading frame's leftward, forward and vertical axes, N m s |
 | `tail_base_*`, `neck_base_*`: `force_down_mean_n`, `pitch_moment_mean_nm`, `pitch_moment_std_nm`, `roll_moment_mean_nm`, `yaw_moment_mean_nm` | (c, d) The wrench the tail (the neck with the head) exerts on its parent body, from `cfrc_int` moved to the base joint's anchor (`tail_1_pitch`, `neck_pitch`): the load it hangs on the parent (+ down), and its moments in the heading frame, + pitching the parent nose up, + rolling it left side up, + turning it left |
 | `head_angular_rate_rms_dps`, `head_pitch_rate_rms_dps`, `head_roll_rate_rms_dps`, `head_yaw_rate_rms_dps` | (a) The RMS of the head body's angular velocity (the head-tip site's body, `cvel`'s rotation, world frame) and of its components about the heading frame's axes, deg/s: head stabilisation beside the head posture columns |
@@ -801,13 +805,16 @@ episodes (20 pairs on the statue, 16 with the r9 checkpoint's
 deterministic policy, whose episode costs 2.09 s) differ by a median of
 +2.3% and +6.0%, within a noise of about 20% per episode, and the in-place
 attribution on the policy's episodes is 100 ms (4.8%): inside the
-specification's +10%. The columns add 1.59 to 1.88 KB to a row [measured:
-the r10 statue and K3 joint-noise episodes], so a T. rex row is about 3 KB:
-the file of a 12M stance at main's default cadence (9,600 rows) ends at
-about 28 MB and its rewrites at every evaluation write about 3.4 GB to
-Drive over the run; at the first r10 round's draft cadence (10 episodes
-every 131,072 steps, 910 rows) about 2.7 MB and 125 MB [inferred from the
-measured row].
+specification's +10%. The columns add about 1.6 to 2.0 KB to a row
+[measured: 1.59 to 1.88 KB on the r10 statue and K3 joint-noise episodes,
+whose many exact zeros print short, and 1.95 to 1.97 KB on the inertness
+proof's trained toy policy, whose rows are 3.19 to 3.23 KB], so a T. rex
+row is about 3.2 KB: the file of a 12M stance at main's default cadence
+(9,600 rows) ends at about 31 MB and its rewrites at every evaluation write
+about 3.7 GB to Drive over the run; at the first r10 round's draft cadence
+(10 episodes every 131,072 steps, 910 rows) about 2.9 MB and 135 MB
+[inferred from the measured rows; a synthetic 910-row ledger measures
+2.94 MB].
 
 ## Training episodes: `train_episodes.csv` and the rollout counts
 
@@ -1034,7 +1041,9 @@ recorded; the own-sigma test still runs.
 **What a panel is.** At the first step on or past every multiple of
 1,048,576 (with 4 environments, exactly the multiple: 11 panels to
 11,534,336) and once when training ends (the final weights, the last
-`train()` done): 20 spawns (3042-3061) of each test, own-sigma then
+`train()` done), right after `train_base` saves the final checkpoint pair
+(`K3PanelCallback.roll_final_panel`; not after an interruption), so an
+interruption during that panel cannot cost the final pair: 20 spawns (3042-3061) of each test, own-sigma then
 joint-space, 40 episodes, with the stance5 replication judge's arithmetic
 (`noise_matched`, unchanged): per episode seed s, `rng =
 numpy.random.default_rng(s)` and `env.reset(seed=s)`; each step the
@@ -1048,8 +1057,11 @@ recorder (the recorder is inert), never a training or evaluation env.
 
 **Inertness.** Training is bit for bit the same with the panel on: the
 in-suite proof (`test_curriculum_balance_telemetry.py`) enables it in its
-full run at test scale (every 256 steps, two spawns per test) and switches
-it off by its builder in the plain run, and every rollout-buffer add, every
+full run at test scale (every 128 steps, so three of its panels fall inside
+a rollout of 256 steps, two spawns per test; the final one after the final
+pair is saved) and switches it off by its builder in the plain run, with
+stock PPO and again with mirror-symmetric PPO (`[ppo] symmetry =
+"mirror_kl"`, the stance5 LTSB arm's), and every rollout-buffer add, every
 PPO update's state digest (parameters, optimizer, numpy, `random` and torch
 generators), `evaluations.npz`, the checkpoints' tensors and the
 VecNormalize statistics are the same. The panel draws no global random
@@ -1066,7 +1078,11 @@ no TensorBoard key and no `progress.json` entry, and writes none of
 `gate_progress.npz`, `evaluations.npz`, `eval_episodes.csv`,
 `gate_verdict.json` or `policy_probe.npz`. A failure is logged once and
 recorded for that panel; training goes on. The panel is synchronous:
-training waits while it runs.
+training waits while it runs, so its seconds are in the run's wall-clock
+figures (`progress.json`'s `steps_per_s`, `wall_clock_s` and
+`projected_finish`, `stage_config.json`'s `run.duration_seconds`, SB3's
+`time/fps`); to compare throughput with a run without the panel, subtract
+`k3_panel.json`'s per-panel `seconds`.
 
 **Files** (stage directory, rewritten atomically after each panel).
 `k3_panel.csv`: one row per episode: `panel`, `timesteps`, `kind` (`grid`,
@@ -1115,16 +1131,19 @@ file's bit for bit (return difference 0.0); the twin's panel equals the
 live policy's offline run bit for bit; no global generator moved, and the
 policy's training flag and the VecNormalize arrays were unchanged.
 
-**Cost.** [measured] A 40-episode panel of a full-horizon policy (the s80
-checkpoint, 38,600 env steps) took 84.8 and 85.0 s alone on the 4-vCPU
-Xeon @ 2.10 GHz host (2.2 ms per step, 2.12 s per episode; load average 0.6
-to 1.2), and 84.6 and 90.5 s with two panels at once; falls end episodes
-early, so a falling policy's panel is cheaper. Per 12M-step run, 12 panels:
-about 17 min locally [inferred]. On a Colab L4 runtime [inferred, not
-measured: its vCPUs are of the same class and the panel is one CPU thread;
-a factor of 1.0 to 1.5]: about 17 to 26 min per run, 1.8 to 2.8% of a 15.5
-h run, added to its wall time because training waits. Memory: one env and
-one CPU copy of the policy (about 3 MB).
+**Cost.** [measured] A 40-episode panel of the s80 checkpoint (38 of its
+40 episodes reached the horizon: 38,600 env steps) took 84.8 and 85.0 s
+alone on the 4-vCPU Xeon @ 2.10 GHz host (2.2 ms per step, 2.12 s per
+episode; load average 0.6 to 1.2), and 84.6 and 90.5 s with two panels at
+once; falls end episodes early, so a falling policy's panel is cheaper.
+[inferred] A policy that holds all 40 episodes (40,000 steps) takes about
+88 s here, so a 12M-step run's 12 panels about 17.6 min. On a Colab L4
+runtime [inferred, not measured: its vCPUs are of the same class and the
+panel is one CPU thread; a factor of 1.0 to 1.5]: about 18 to 26 min per
+run, about 2 to 3% of a 14.4 to 15.4 h run (the first r10 round's
+estimate, which includes the panel), added to each run's wall clock
+because training waits. Memory: one env and one CPU copy of the policy
+(about 3 MB).
 
 ## Single-episode trace: `episode_trace_report.py`
 
@@ -1458,9 +1477,11 @@ them as labelled absent panels and says so in the captions and the JSON's
 `absent`; a column the model has no part for (no tail, no neck) reads nan on
 every episode and its panel says "the model has no such part". The rail and
 parked counts are never smoothed and are drawn like the saturation page's
-flagged actuators (stacked per evaluation on one run's page; on a
-comparison, one strip per run, each cell coloured by the actuator most of
-its episodes name). A comparison draws a multi-column panel as one panel per
+flagged actuators (stacked per evaluation on one run's page, an episode
+naming several actuators counted once for each, so a bar can exceed the
+evaluation's episodes; on a comparison, one strip per run, each cell
+coloured by the actuator most of its episodes name); their absent note on
+an older ledger names `rail_actuators` and `parked_actuators`. A comparison draws a multi-column panel as one panel per
 column, a line per run.
 
 - **Exploration and K3** (`17_exploration_k3`). Above: each leg actuator's
@@ -1471,33 +1492,54 @@ column, a line per run.
   and marked tied when the two are bitwise equal throughout (as the
   mirror-symmetric PPO keeps them); dashed, 0.08, the stance3 design's
   line-2 floor on hip pitch, knee and ankle, a reference no stage applies.
-  The names need the run's physics, as the std page's do. Below: K3's two
-  noise tests at each K3 point, the in-run panel's (`k3_panel.json`; lines
-  with markers, one series per joint-space sigma, never joined across two)
-  and the judge files' where `--judged` names them (large markers on top):
-  joint-space and own-sigma falls; K3's bars where a point has 20 episodes,
-  and `joint/own` written at K3's checkpoints (6,291,456 and the final),
-  with `joint_within_bar` and `own_within_bar` in the JSON, withheld where a
+  The names need the run's physics, as the std page's do. A pair is drawn
+  right solid, left dashed, as on every other page (the specification
+  asked for left solid, right dashed; kept for consistency). Below: K3's
+  two noise tests at each K3 point, the in-run panel's (`k3_panel.json`;
+  lines with markers, one series per joint-space sigma, never joined across
+  two, and broken where a panel has no value: a skipped joint test, a
+  failed panel, which is marked `x` at 0) and the judge files' where
+  `--judged` names them (large markers on top): joint-space and own-sigma
+  falls; K3's bars (in the legend) where a point has 20 episodes, and
+  `joint/own` written at K3's checkpoints (6,291,456 and the final; named
+  `panel` and `judge` and stacked where a run has both), with
+  `joint_within_bar` and `own_within_bar` in the JSON, withheld where a
   panel is not 20 episodes on spawns 3042-3061. A comparison draws each
   run's mean leg std and its falls in its colour. The JSON's `exploration`
-  gives each leg actuator's std at the last update at or before every K3
-  point (`leg_std_at_k3`); `k3_panel` keeps the panel's points, and the
-  checkpoint table adds `K3 panel joint` and `K3 panel own` at a step with a
-  panel. Without either source the lower panel says so.
+  gives each leg actuator's std at every K3 point (`leg_std_at_k3`): the
+  point's own sigma where it is recorded (the panel's `own_sigma`, the
+  judge's `noise_matched_own` `sigma_vector`: `exp(log_std)` of the very
+  weights K3 rolled), else the last update at or before it, which at a
+  final point is the update before the last `train()`; `std_source` says
+  which. `k3_panel` keeps the panel's points, and the checkpoint table adds
+  `K3 panel joint` and `K3 panel own` at a step with a panel, and `tail
+  chord deg` and `legs work J`, the row's evaluation's
+  `tail_tip_chord_mean_deg` and `legs_work_abs_j` (their means over its
+  full-horizon episodes), where the ledger has them. Without either source
+  the lower panel says so.
 - **Normalization** (`18_obs_normalization`). From each periodic
   (`<prefix>_vecnormalize_<steps>_steps.pkl`) and the final
   (`<prefix>_final_vecnorm.pkl`) VecNormalize pickle in `models/`, the pairs
-  the judges load, read through a stub unpickler: it resolves numpy's array,
-  dtype and scalar reconstruction and inert stand-ins for the classes such a
-  pickle names (SB3's `VecNormalize` and `RunningMeanStd`, gymnasium's
-  `Box`, numpy's random generator parts), and refuses every other global, so
-  no SB3 or gymnasium code runs and a hostile pickle cannot name
-  `os.system`. Per checkpoint k and observation dimension, against the
+  the judges load, read through a stub unpickler: it resolves numpy's
+  dtype, array, protocol-5 buffer and scalar reconstruction to records of
+  their arguments and the classes such a pickle names (SB3's `VecNormalize`
+  and `RunningMeanStd`, gymnasium's `Box`, numpy's random generator parts)
+  to inert stand-ins, and refuses every other global, so no numpy, SB3 or
+  gymnasium code runs while a pickle loads and a hostile pickle cannot name
+  `os.system`. The statistics it reads (the observation mean and variance,
+  the count, `epsilon`, `clip_obs`) are decoded from their raw bytes as
+  plain booleans, integers or floats, the shape checked against the data;
+  an object, structured or sub-array dtype is refused, so neither
+  `numpy.ndarray(shape, object, buffer)` nor a dtype whose state denies the
+  object field it declares can forge object pointers (numpy's own
+  unpickling builds both, and reading them crashed the process [measured,
+  2026-10-25]). Protocol 4 and 5 pickles (Python 3.14's default) read the
+  same. Per checkpoint k and observation dimension, against the
   checkpoint before and against the final pickle (else the last one kept):
   the shift `(mean_k - mean_ref) / sqrt(var_ref + eps)`, a fixed raw
   input's change in normalized units, and the scale change `0.5 ln((var_k +
   eps) / (var_ref + eps))`; their maximum and median over the dimensions
-  (log axes); the probe bank's settled-statue observation as each
+  (the flat ones, which never move, included; log axes); the probe bank's settled-statue observation as each
   checkpoint's normalization sees it (clipped), its change from the
   checkpoint before; and, dense and faint, the same distance from the end
   computed from `policy_probe.npz`'s per-update `obs_rms_mean` and
