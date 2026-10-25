@@ -1030,7 +1030,7 @@ draw them from the ledgers above:
 
     python environments/shared/scripts/plot_training_history.py STAGE_DIR [STAGE_DIR ...] --out DIR \
         [--labels ...] [--groups ...] [--mark-steps 4194304 ... final] [--title ...] \
-        [--reference-band LOWER UPPER PAD_LOWER PAD_UPPER]
+        [--reference-band LOWER UPPER PAD_LOWER PAD_UPPER] [--judged JUDGED_DIR ...]
 
 One stage directory gives that run's pages; several give a comparison (at
 most eight runs, with distinct labels), one colour per seed (else per run)
@@ -1047,7 +1047,7 @@ reads the files and writes nothing else (`reporting/training_history.py`).
 
 | Page | What it draws, against the training step |
 |---|---|
-| Outcomes | Clean episodes (`screen_v2_clean`), falls (shorter than the horizon) and the mean return per evaluation, and the training falls per 262,144-step window of `train_episodes.csv` (`cause` not `truncated`; the stochastic policy's) |
+| Outcomes | Clean episodes (`screen_v2_clean`), falls (shorter than the horizon) and the mean return per evaluation, and the training falls per 262,144-step window of `train_episodes.csv` (`cause` not `truncated`; the stochastic policy's); with `--judged`, the stance5 replication judge's K3 readout (below) |
 | Saturation | The episodes per evaluation listing `max_actuator_saturation_fraction` in `screen_v2_reasons`; those episodes by the actuator each names (`saturated_actuator`) and its sign; `saturated_actuator_fraction` (mean and worst episode) against the stage's `max_actuator_saturation_fraction` bar; `actuator_force_frac_max` against its limit of 1; and, per training rollout from `policy_probe.npz`, each actuator's share of sampled actions clipped at a bound and of the policy's means beyond one |
 | Whole-foot CoP | Per foot, the signed `<label>_foot_cop_fore_aft` with the reward band's edges; the full-horizon episodes with either foot's window mean outside the band; the report-only `max_foot_cop_fore_aft` |
 | Pad CoP and the pad rail | Per foot, the signed `<label>_sole_cop_fore_aft` with the pad band's edges; the rail's own `max_sole_cop_fore_aft` (mean and worst episode) against its bar; the full-horizon episodes over that bar; those outside the pad band |
@@ -1125,7 +1125,8 @@ actuator names come from the checkout's MJCF, used only when the stage's
 actuators are labelled by index. A missing file or column is an absent
 series, listed in the JSON and on the page, never an error. The evaluation
 episodes are the deterministic policy's at yaw 0, so the judge's perturbation
-panels and verdicts are not in these files.
+panels and verdicts are not in these files; the K3 readout below reads the
+judge's own files.
 
 The saturation page's last two panels are the training rollouts', from
 `policy_probe.npz`'s `rollout_*` arrays (above): per rollout, each
@@ -1160,6 +1161,35 @@ table (`head tip m`, `head tip lowest m`, `neck pitch`,
 model whose evaluation runs no recorder, draws them as labelled absent
 series, says so in the captions and lists the columns in the JSON's
 `absent`; a comparison draws the runs that have them.
+
+`--judged` names, per stage directory (`-` for none), a directory of that
+run's judge files: `judge_<steps>.json` and `judge_final.json`, one per
+judged checkpoint, as the stance judges write them (their other panels,
+`judge_best.json`, `judge_quick_<steps>.json` and the like, are listed as
+not read). The outcomes page then gains a last panel: a readout of the
+stance5 replication judge's K3 criterion
+(`docs/investigations/stance_2026_10/stance5/replication/criteria.txt`,
+"CRITERIA, PER RUN", unchanged from stance3 and stance4: "K3, robustness at
+6,291,456 and at final: joint-space noise falls at most 2 of 20, and
+own-sigma falls at most 1 of 20"), labelled as such and never as a verdict.
+Its inputs are the judge's own perturbation panels on spawns 3042-3061 at
+each judged checkpoint (`noise_matched_control_joint` and
+`noise_matched_own`: `falls` of `n`), not the ledger's deterministic
+evaluations, which hold none of them. One run's panel draws both counts per
+judged checkpoint against K3's two bars (dashed and dotted), the
+checkpoints K3 reads (6,291,456 and the final, at the judge's recorded
+`checkpoint_num_timesteps`) filled and annotated `joint/own`; a comparison
+draws one strip per run, a cell per judged checkpoint with `joint/own`
+written in it, coloured by the joint-space falls and outlined at K3's
+checkpoints. A file that is not a full noise run, records another seed than
+the run's or lacks either panel is skipped with its reason. The JSON's
+`judge_k3` keeps every point, with `joint_within_bar` and `own_within_bar`
+at K3's checkpoints; the HTML lists them per run and the checkpoint table
+adds `judge joint` and `judge own` at a checkpoint judged at exactly that
+step. Whether a run holds stays the scorer's (`score_stance5r.py`, with the
+criteria's missing-file, refusal and run-handling rules, none of which is
+applied here). Without `--judged` (the stage-end report) the panel is not
+drawn.
 
 ### At stage end: `figures/training_history/`
 

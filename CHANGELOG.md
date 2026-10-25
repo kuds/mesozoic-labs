@@ -8,6 +8,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **The stance5 replication judge's K3 criterion, read out over training in
+  the training-history report** (the maintainer's decision of 2026-10-25,
+  item (4): task #47's remaining judge-K3 overlay;
+  `environments/shared/reporting/training_history.py`,
+  `environments/shared/scripts/plot_training_history.py`; documented in
+  `docs/TRAINING_ARTIFACT_PRESENTATION.md`, "Training history pages").
+  Report only, and never a verdict. The ledgers hold none of K3's inputs:
+  they are the judge's own perturbation panels on spawns 3042-3061 at each
+  judged checkpoint. `plot_training_history.py --judged JUDGED_DIR ...` (one
+  per stage directory, `-` for none) reads a run's `judge_<steps>.json` and
+  `judge_final.json` (`noise_matched_control_joint` and `noise_matched_own`:
+  `falls` of `n`) and the outcomes page gains a last panel: both counts per
+  judged checkpoint against K3's bars ("K3, robustness at 6,291,456 and at
+  final: joint-space noise falls at most 2 of 20, and own-sigma falls at
+  most 1 of 20", `docs/investigations/stance_2026_10/stance5/replication/criteria.txt`),
+  K3's checkpoints filled and annotated; a comparison draws a strip per run.
+  The JSON (`judge_k3`), the HTML and the checkpoint table carry the points,
+  with within-bar flags at K3's checkpoints only; a file that is not a full
+  noise run, records another seed or lacks a panel is skipped with its
+  reason. Measured: on the judge files of `stance5_LTSB_s70` and
+  `stance5_LTSB_s80` the readout gives 0/0 and 1/0 (s70) and 1/0 and 2/0
+  (s80) at 6,291,456 and the final, the replication score of record's K3
+  values; a test rebuilds the judge files of all five band runs from that
+  score (`results/scores/score_final.json.gz`) and checks the readout
+  against its K3 values and pass, and against `k3readouts/out`'s judge
+  falls. Without `--judged` (the stage-end report) nothing is drawn.
 - **Head posture and hip roll drawn over training** (the maintainer's
   decisions of 2026-10-25, items (2) and (4);
   `environments/shared/reporting/training_history.py`; documented in

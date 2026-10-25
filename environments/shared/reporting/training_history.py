@@ -230,8 +230,9 @@ NOT_RECORDED: tuple[str, ...] = (
     "neck or head pitch hinge reads nan there, and a model without a box-soled foot records none (its evaluation "
     "runs no recorder). No gate reads them.",
     "The evaluation episodes are the deterministic policy's, at yaw 0 on the evaluation env's own resets. The "
-    "judge's perturbation panels (its joint-noise falls, K3) and its verdicts are not in these files. The training "
-    "falls are the stochastic training policy's.",
+    "judge's perturbation panels (its joint-noise falls, K3) and its verdicts are not in these files: the outcomes "
+    "page draws the stance5 replication judge's K3 inputs only from the judge files a caller names (--judged), as a "
+    "readout of that criterion, never a verdict. The training falls are the stochastic training policy's.",
     "The saturating actuator and the saturation fraction itself are recorded per episode (saturated_actuator, "
     "saturated_actuator_fraction) only in ledgers written since those columns were added; an older run's are absent "
     "series, and its screen_v2_reasons lists max_actuator_saturation_fraction without naming the actuator. An episode "
@@ -276,6 +277,24 @@ MAX_RUNS = len(_SERIES)
 DEFAULT_DPI = 96
 #: A training-fall strip's colour scale tops out here (a window at or above it is the darkest cell).
 TRAINING_FALL_CAP = 0.10
+
+#: The stance5 replication judge's K3 criterion, as its criteria fix it before training (section "CRITERIA, PER
+#: RUN", unchanged from stance3 and stance4), drawn as a readout of the judge's files, never as a verdict (the
+#: replication's scorer, ``score_stance5r.py``, applies it).
+K3_CRITERIA_FILE = "docs/investigations/stance_2026_10/stance5/replication/criteria.txt"
+K3_CRITERION = (
+    "K3, robustness at 6,291,456 and at final: joint-space noise falls at most 2 of 20, and own-sigma falls at most "
+    "1 of 20"
+)
+#: K3's bars: the joint-space noise falls (``noise_matched_control_joint``) and the own-sigma falls
+#: (``noise_matched_own``) allowed of :data:`K3_EPISODES` (spawns 3042-3061; a fall is an episode shorter than the
+#: 1000-step horizon), and the checkpoints K3 reads (6,291,456 and the final).
+K3_JOINT_MAX_FALLS = 2
+K3_OWN_MAX_FALLS = 1
+K3_EPISODES = 20
+K3_SLOT_STEPS = 6_291_456
+#: The judge files read: one per judged checkpoint, ``judge_<steps>.json`` or ``judge_final.json``.
+_JUDGE_FILE = re.compile(r"^judge_(?P<slot>\d+|final)\.json$")
 
 
 def _number(text: Any) -> float:
@@ -1079,6 +1098,8 @@ class RunHistory:
     band: dict[str, float] | None = None
     #: The head_clearance reward's target height (``reward_weights.head_clearance_target``), when recorded.
     head_target: float | None = None
+    #: The judge's K3 inputs read from the judge files a caller named (:func:`read_judge_k3`); ``None``: none named.
+    k3: dict[str, Any] | None = None
     #: The edges the outside-band counts read: the run's own band, else a reference (``band_edges_source`` says).
     band_edges: dict[str, float] = field(default_factory=dict)
     band_edges_source: str | None = None
@@ -1112,7 +1133,8 @@ class RunHistory:
 
     @property
     def last_step(self) -> int:
-        """The latest step this run's files show: an evaluation, a training episode, a checkpoint or progress.json."""
+        """The latest step this run's files show: an evaluation, a training episode, a checkpoint, progress.json or a
+        judged checkpoint."""
         candidates = [int(self.steps[-1])] if self.steps.size else []
         if self.training is not None:
             candidates.append(int(self.training["window_end"][-1]))
@@ -1122,6 +1144,7 @@ class RunHistory:
             candidates.append(self.progress_timesteps)
         if self.rollout_shares is not None and self.rollout_shares["timesteps"].size:
             candidates.append(int(self.rollout_shares["timesteps"].max()))
+        candidates += [p["timesteps"] for p in (self.k3 or {}).get("checkpoints", []) if p.get("timesteps") is not None]
         return max(candidates) if candidates else 0
 
     @property
@@ -1184,8 +1207,13 @@ def load_run_history(
     group: str | None = None,
     read_std: bool = True,
     training_window: int = TRAINING_WINDOW_TIMESTEPS,
+    judged: "str | Path | None" = None,
 ) -> RunHistory:
-    """Read and reduce one stage directory's files; a missing file or column is recorded as absent, never raised."""
+    """Read and reduce one stage directory's files; a missing file or column is recorded as absent, never raised.
+
+    *judged*: a directory of the run's judge files (``judge_<steps>.json``, ``judge_final.json``), read for the
+    stance5 replication judge's K3 inputs (:func:`read_judge_k3`), drawn as a readout on the outcomes page.
+    """
     stage = Path(stage_dir)
     run = RunHistory(stage_dir=stage, label=label or stage.resolve().parent.name or stage.name, group=group)
     names = (EVAL_EPISODES_FILENAME, TRAIN_EPISODES_FILENAME, STAGE_CONFIG_FILENAME, PROGRESS_FILENAME)
@@ -1314,6 +1342,10 @@ def load_run_history(
         step = checkpoints.get(f"{kind}_model_timesteps")
         if run.checkpoint_steps.get(kind) is None and isinstance(step, int) and not isinstance(step, bool):
             run.checkpoint_steps[kind] = step
+    if judged is not None:
+        run.k3 = read_judge_k3(Path(judged), seed=run.seed, final_step=run.final_step)
+        if run.k3.get("why"):
+            run.errors.append(f"judge K3: {run.k3['why']}")
     return run
 
 
@@ -1332,6 +1364,121 @@ def name_alarms(run: RunHistory) -> None:
         inside = [counts for step, counts in zip(run.steps.tolist(), named) if entry["from"] <= step <= entry["to"]]
         entry["actuators"] = tally(inside)
         entry["named"] = most_named(entry["actuators"])
+
+
+# ---------------------------------------------------------------------------------------------- judge K3
+
+
+def _whole(value: Any) -> int | None:
+    """*value* as a whole number (an int, not a bool), else ``None``."""
+    return int(value) if isinstance(value, int) and not isinstance(value, bool) else None
+
+
+def _judge_point(path: Path, *, seed: int | None, final_step: int | None) -> tuple[dict[str, Any] | None, str]:
+    """One judge file's K3 inputs, or ``(None, why it is not read)``."""
+    match = _JUDGE_FILE.match(path.name)
+    assert match is not None
+    record = read_json_object(path)
+    if record is None:
+        return None, "unreadable (not a JSON object)"
+    if record.get("mode", "full") != "full" or record.get("smoke") is True or record.get("noise_run") is False:
+        return None, f"not a full noise run (mode {record.get('mode')!r}, smoke {record.get('smoke')!r})"
+    judged_seed = _whole(record.get("seed"))
+    if seed is not None and judged_seed is not None and judged_seed != seed:
+        return None, f"judged seed {judged_seed}, not the run's {seed}"
+    blocks = {}
+    for name, key in (("joint", "noise_matched_control_joint"), ("own", "noise_matched_own")):
+        block = record.get(key)
+        falls = _whole(block.get("falls")) if isinstance(block, Mapping) else None
+        episodes = _whole(block.get("n")) if isinstance(block, Mapping) else None
+        if falls is None or episodes is None:
+            return None, f"no {key} falls and n"
+        blocks[name] = (falls, episodes)
+    slot = match.group("slot")
+    steps: int | None
+    if slot == "final":
+        checks = record.get("checks")
+        recorded = _whole(checks.get("checkpoint_num_timesteps")) if isinstance(checks, Mapping) else None
+        steps = recorded if recorded is not None else final_step
+    else:
+        steps = int(slot)
+    k3_slot = slot == "final" or steps == K3_SLOT_STEPS
+    (joint, joint_n), (own, own_n) = blocks["joint"], blocks["own"]
+    point: dict[str, Any] = {
+        "file": path.name,
+        "schema": record.get("schema"),
+        "slot": slot,
+        "timesteps": steps,
+        "k3_slot": k3_slot,
+        "joint_falls": joint,
+        "joint_episodes": joint_n,
+        "own_falls": own,
+        "own_episodes": own_n,
+    }
+    if k3_slot:
+        point["joint_within_bar"] = joint <= K3_JOINT_MAX_FALLS
+        point["own_within_bar"] = own <= K3_OWN_MAX_FALLS
+    return point, ""
+
+
+def read_judge_k3(directory: Path, *, seed: int | None = None, final_step: int | None = None) -> dict[str, Any]:
+    """The stance5 replication judge's K3 inputs from *directory*'s judge files: a readout, never a verdict.
+
+    One point per ``judge_<steps>.json`` and ``judge_final.json`` (the judge's
+    files per judged checkpoint; its other panels, ``judge_best.json``,
+    ``judge_quick_<steps>.json`` and the like, are listed as not read): the
+    joint-space noise falls (``noise_matched_control_joint``: ``falls`` of
+    ``n``) and the own-sigma falls (``noise_matched_own``).  The final slot
+    sits at the judge's recorded ``checks.checkpoint_num_timesteps``, else at
+    *final_step*.  A file that is not a full noise run, records another seed
+    than *seed*, or lacks the two blocks is skipped with the reason.  At
+    K3's checkpoints (:data:`K3_SLOT_STEPS` and the final) each test says
+    whether it is within its bar (:data:`K3_JOINT_MAX_FALLS`,
+    :data:`K3_OWN_MAX_FALLS`): a readout of the criterion on the judge's own
+    numbers; whether a run holds is the scorer's to say (its missing-file,
+    refusal and run-handling rules are not applied here).
+    """
+    out: dict[str, Any] = {
+        "source": str(directory),
+        "criterion": K3_CRITERION,
+        "criteria_file": K3_CRITERIA_FILE,
+        "bars": {"joint_space_falls_max": K3_JOINT_MAX_FALLS, "own_sigma_falls_max": K3_OWN_MAX_FALLS},
+        "episodes": K3_EPISODES,
+        "k3_checkpoints": [K3_SLOT_STEPS, "final"],
+        "readout": "the judge's recorded falls against K3's bars, never a verdict",
+        "checkpoints": [],
+        "skipped": [],
+        "not_read": [],
+    }
+    if not directory.is_dir():
+        out["why"] = f"no such directory: {directory}"
+        return out
+    points: list[dict[str, Any]] = []
+    for path in sorted(directory.glob("judge_*.json")):
+        if _JUDGE_FILE.match(path.name) is None:
+            out["not_read"].append(path.name)
+            continue
+        try:
+            point, why = _judge_point(path, seed=seed, final_step=final_step)
+        except Exception as exc:  # noqa: BLE001 - a bad file costs its own point only
+            point, why = None, f"{type(exc).__name__}: {exc}"
+        if point is None:
+            out["skipped"].append({"file": path.name, "why": why})
+        else:
+            points.append(point)
+    points.sort(key=lambda p: (p["timesteps"] is None, p["timesteps"] or 0, p["file"]))
+    out["checkpoints"] = points
+    sizes = sorted({p[key] for p in points for key in ("joint_episodes", "own_episodes")})
+    if any(size != K3_EPISODES for size in sizes):
+        out["note"] = f"K3's bars are set on {K3_EPISODES} episodes; these files hold {sizes}, read unchanged"
+    if not points:
+        out["why"] = f"no judge_<steps>.json or judge_final.json with both noise panels in {directory}"
+    return out
+
+
+def k3_point(run: "RunHistory", step: int) -> dict[str, Any] | None:
+    """The judge's K3 point at exactly *step*, or ``None``."""
+    return next((p for p in (run.k3 or {}).get("checkpoints", []) if p.get("timesteps") == step), None)
 
 
 # ---------------------------------------------------------------------------------------------- marks
@@ -1462,6 +1609,10 @@ def checkpoint_rows(run: RunHistory, marks: Sequence[int]) -> list[dict[str, Any
             values = run.column(column)
             if values is not None:
                 row[f"l_minus_r_{joint}_deg"] = values[index]
+        judged = k3_point(run, step)
+        if judged is not None:
+            row["judge_joint_falls"] = judged["joint_falls"]
+            row["judge_own_falls"] = judged["own_falls"]
         at_step = [point for point in points if point["timesteps"] == step]
         entry = next((point for point in at_step if point["kind"] == prefer), at_step[0] if at_step else None)
         if entry is not None and run.actuators:
@@ -1513,6 +1664,7 @@ def run_record(run: RunHistory, marks: Sequence[int]) -> dict[str, Any]:
             "policy_std": std,
             "rollout_shares": rollout_summary(run),
             "checkpoint_table": checkpoint_rows(run, marks),
+            "judge_k3": run.k3,
             "absent": run.absent,
             "errors": run.errors,
         }
@@ -1568,6 +1720,11 @@ def summary(runs: Sequence[RunHistory], *, title: str, marks: Sequence["int | st
             "<foot>_hip_roll_mean_deg: the window mean of the leg's hip roll from home, + abduction on either side, and "
             "<foot>_hip_roll_max_abs_deg its window maximum of |angle from home|; left-minus-right hip roll: per "
             "episode, the left leg's mean minus the right's. Reduced like every other column; no gate reads them",
+            "judge_k3": f"from the judge files named per run (--judged): per judged checkpoint, the joint-space noise "
+            f"falls (noise_matched_control_joint) and the own-sigma falls (noise_matched_own) of the judge's "
+            f"{K3_EPISODES} episodes, against the stance5 replication judge's K3 ({K3_CRITERIA_FILE}: "
+            f"{K3_CRITERION}); within_bar at K3's checkpoints only. A readout of the judge's records, never a "
+            "verdict: the scorer decides whether a run holds",
             "comparison_smoothing_evaluations": smooth,
             "comparison_smoothing": "comparisons draw the continuous series as a centred rolling mean over that many "
             "evaluations, each evaluation's value faint behind it; counts are never smoothed",
@@ -1595,7 +1752,9 @@ class Quantity:
     comparison, never smoothed) or ``rollout`` (a :data:`ROLLOUT_SHARES`
     share per training rollout: the named actuators' lines and the rest's
     maximum on one run's page, each run's largest actuator on a comparison,
-    never smoothed).
+    never smoothed), or ``k3`` (the judge's K3 inputs at each judged
+    checkpoint, from the files a caller named: drawn only when some run has
+    them).
     """
 
     key: str
@@ -1642,7 +1801,8 @@ PAGES: tuple[PageSpec, ...] = (
         "Counts are over each evaluation's episodes ({episodes}). Clean is the in-training stance_quality/v2 screen "
         "at yaw 0 without the statue-relative criteria (never a verdict). Evaluation episodes are the deterministic "
         "policy's; the training falls come from train_episodes.csv (the stochastic policy). Counts are never "
-        "smoothed: a comparison draws one strip per run, a cell per evaluation (per window for training falls).",
+        "smoothed: a comparison draws one strip per run, a cell per evaluation (per window for training falls)."
+        "{k3_note}",
         (
             Quantity("clean", "Clean episodes per evaluation (screen_v2_clean = 1)", "episodes", "count", ramp="blue"),
             Quantity(
@@ -1660,6 +1820,15 @@ PAGES: tuple[PageSpec, ...] = (
                 "training",
             ),
             Quantity("mean_return", "Mean evaluation return (all episodes)", "return", "series", None),
+            Quantity(
+                "k3",
+                "Judge K3 readout, never a verdict: the stance5 replication judge's joint-space noise falls and "
+                f"own-sigma falls of its {K3_EPISODES} episodes at each judged checkpoint, against K3's bars "
+                f"({K3_CRITERION})",
+                f"falls of {K3_EPISODES}",
+                "k3",
+                None,
+            ),
         ),
     ),
     PageSpec(
@@ -2098,6 +2267,9 @@ def _reference_lines(runs: Sequence[RunHistory], quantity: Quantity) -> list[tup
     elif key in ("head_tip_height_mean_m", "head_tip_height_min_m"):
         for value in _common(run.head_target for run in runs):
             lines.append((value, f"head_clearance reward target {value:g} m", ":"))
+    elif key == "k3":
+        lines.append((float(K3_JOINT_MAX_FALLS), f"K3 bar: joint-space falls <= {K3_JOINT_MAX_FALLS}", "--"))
+        lines.append((float(K3_OWN_MAX_FALLS), f"K3 bar: own-sigma falls <= {K3_OWN_MAX_FALLS}", ":"))
     if key in ("neck_pitch_mean_deg", "head_pitch_mean_deg", "{foot}_hip_roll_mean_deg"):
         lines.append((0.0, "", "-"))
     if key.endswith(("_fore_aft", "margin_min_m", "com_fore_aft_mean_m", "shear_over_normal")) and not key.startswith(
@@ -2347,7 +2519,8 @@ def _draw_strips(axis: Any, context: _Context, quantity: Quantity) -> bool:
     return drawn
 
 
-def _colourbar(axis: Any, cmap: Any, norm: Any, *, training: bool, top: int) -> None:
+def _colourbar(axis: Any, cmap: Any, norm: Any, *, training: bool, top: int, over: bool = False) -> None:
+    """A colour key beside *axis*; *over*: the top count is a cap (labelled ``>= top``)."""
     from matplotlib.cm import ScalarMappable
 
     figure = axis.figure
@@ -2364,7 +2537,7 @@ def _colourbar(axis: Any, cmap: Any, norm: Any, *, training: bool, top: int) -> 
     else:
         ticks = list(range(0, top + 1, 2 if top > 6 else 1))
         bar.set_ticks(ticks)
-        bar.set_ticklabels([str(t) for t in ticks])
+        bar.set_ticklabels([f">= {t}" if over and t == top else str(t) for t in ticks])
     cax.set_title("fraction" if training else "episodes", fontsize=8, color=_INK_2, loc="left")
 
 
@@ -2539,6 +2712,110 @@ def _draw_actuator_strips(axis: Any, context: _Context, quantity: Quantity) -> b
             clip_on=False,
         )
         axis.text(1.048, row, run.label, transform=transform, va="center", ha="left", fontsize=8.5, color=_INK)
+    return drawn
+
+
+def _k3_points(run: RunHistory) -> list[dict[str, Any]]:
+    """The judge's K3 points of *run* that sit at a step (the final one needs the judge's or the run's step)."""
+    return [p for p in (run.k3 or {}).get("checkpoints", []) if p.get("timesteps") is not None]
+
+
+def _draw_k3_single(axis: Any, context: _Context, quantity: Quantity) -> bool:
+    """The judge's joint-space (circles) and own-sigma (squares) falls per judged checkpoint, K3's filled."""
+    points = _k3_points(context.runs[0])
+    if not points:
+        return False
+    x = np.asarray([p["timesteps"] for p in points], dtype=float) / 1e6
+    slot = np.asarray([p["k3_slot"] for p in points], dtype=bool)
+    top = 0.0
+    for key, marker, colour, size, name in (
+        ("joint_falls", "o", _SERIES[0], 7.5, "joint-space noise falls"),
+        ("own_falls", "s", _SERIES[1], 4.5, "own-sigma falls"),
+    ):
+        y = np.asarray([p[key] for p in points], dtype=float)
+        top = max(top, float(y.max()))
+        axis.plot(x, y, color=colour, linewidth=0.8, alpha=0.5, label="_nolegend_")
+        axis.plot(
+            x[slot], y[slot], linestyle="none", marker=marker, markersize=size, color=colour, label=f"{name} (K3)"
+        )
+        axis.plot(
+            x[~slot],
+            y[~slot],
+            linestyle="none",
+            marker=marker,
+            markersize=size,
+            markerfacecolor="white",
+            markeredgecolor=colour,
+            label=f"{name} (report only)",
+        )
+    for xi, point in zip(x[slot], [p for p, k in zip(points, slot) if k]):
+        axis.annotate(
+            f"{point['joint_falls']}/{point['own_falls']}",
+            (xi, max(point["joint_falls"], point["own_falls"])),
+            xytext=(0, 7),
+            textcoords="offset points",
+            ha="center",
+            va="bottom",
+            fontsize=8,
+            color=_INK,
+        )
+    axis.set_ylim(-0.6, max(float(K3_JOINT_MAX_FALLS) + 2.0, top + 2.0))
+    return True
+
+
+def _draw_k3_strips(axis: Any, context: _Context, quantity: Quantity) -> bool:
+    """One row per run, a cell per judged checkpoint (``joint/own`` written in it), K3's checkpoints outlined."""
+    from matplotlib.patches import Rectangle
+    from matplotlib.transforms import blended_transform_factory
+
+    cap = K3_JOINT_MAX_FALLS + 3  # the colour tops out a little over K3's bar; the counts are written in the cells
+    cmap, norm = _strip_cmap("orange", cap)
+    every = np.concatenate([np.asarray([p["timesteps"] for p in _k3_points(run)], dtype=float) for run in context.runs])
+    width = 0.45 * _spacing(every / 1e6, 0.5) if every.size else 0.5
+    drawn = False
+    transform = blended_transform_factory(axis.transAxes, axis.transData)
+    for row, run in enumerate(context.runs):
+        points = _k3_points(run)
+        if not points:
+            axis.text(0.005, row, "no judge files", transform=transform, va="center", fontsize=8.5, color=_MUTED)
+            continue
+        drawn = True
+        for point in points:
+            xi = point["timesteps"] / 1e6
+            shade = cmap(norm(min(point["joint_falls"], cap)))
+            axis.bar(xi, 0.8, width=width, bottom=row - 0.4, color=shade, linewidth=0)
+            if point["k3_slot"]:
+                axis.add_patch(
+                    Rectangle(
+                        (xi - width / 2, row - 0.4), width, 0.8, fill=False, edgecolor=_INK, linewidth=1.0, zorder=3
+                    )
+                )
+            colour = "white" if point["joint_falls"] >= 0.6 * cap else _INK
+            axis.text(
+                xi,
+                row,
+                f"{point['joint_falls']}/{point['own_falls']}",
+                ha="center",
+                va="center",
+                fontsize=7.5,
+                color=colour,
+            )
+    axis.set_ylim(len(context.runs) - 0.5, -0.75)
+    axis.set_yticks(range(len(context.runs)))
+    axis.set_yticklabels([])
+    axis.tick_params(axis="y", length=0)
+    for row, run in enumerate(context.runs):
+        axis.plot(
+            [1.008, 1.04],
+            [row, row],
+            transform=transform,
+            color=context.colours[row],
+            linestyle=context.styles[row],
+            linewidth=2.0,
+            clip_on=False,
+        )
+        axis.text(1.048, row, run.label, transform=transform, va="center", ha="left", fontsize=8.5, color=_INK)
+    _colourbar(axis, cmap, norm, training=False, top=cap, over=True)
     return drawn
 
 
@@ -2927,11 +3204,13 @@ class Page:
 def _panels(spec: PageSpec, context: _Context) -> list[_Panel]:
     panels: list[_Panel] = []
     for quantity in spec.quantities:
+        if quantity.kind == "k3" and not any(_k3_points(run) for run in context.runs):
+            continue  # drawn only from the judge files a caller named
         title = _quantity_title(quantity, context.runs)
-        strip = context.comparison and quantity.kind in ("count", "training", "actuators")
+        strip = context.comparison and quantity.kind in ("count", "training", "actuators", "k3")
         if strip:
             height = _STRIP_ROW_IN * len(context.runs) + 0.3
-        elif quantity.kind in ("count", "training", "actuators"):
+        elif quantity.kind in ("count", "training", "actuators", "k3"):
             height = _COUNT_IN
         else:
             height = _LINE_IN
@@ -2948,7 +3227,12 @@ def _panels(spec: PageSpec, context: _Context) -> list[_Panel]:
             )
         elif not context.comparison and quantity.spread in _SPREAD_NOTES and quantity.kind == "column":
             title += _SPREAD_NOTES[quantity.spread]
-        if strip and quantity.kind == "training":
+        if strip and quantity.kind == "k3":
+            title += (
+                " [one cell per judged checkpoint, joint-space/own-sigma falls written in it and coloured by the "
+                "joint-space falls; outlined: the checkpoints K3 reads]"
+            )
+        elif strip and quantity.kind == "training":
             title += f" [one cell per window; colour capped at {TRAINING_FALL_CAP:g}]"
         elif strip and quantity.kind == "actuators":
             title += " [one cell per evaluation with a flagged episode, coloured by the actuator most of them name]"
@@ -2985,6 +3269,10 @@ def _page_figure(spec: PageSpec, context: _Context, *, title: str, dpi: int, wid
         ends: list[tuple] = []
         if panel.strip and quantity.kind == "actuators":
             drawn = _draw_actuator_strips(axis, context, quantity)
+        elif panel.strip and quantity.kind == "k3":
+            drawn = _draw_k3_strips(axis, context, quantity)
+        elif quantity.kind == "k3":
+            drawn = _draw_k3_single(axis, context, quantity)
         elif panel.strip:
             drawn = _draw_strips(axis, context, quantity)
         elif quantity.kind == "rollout" and context.comparison:
@@ -3357,6 +3645,15 @@ def render_pages(
         else f" ({'this ledger' if len(runs) == 1 else ', '.join(unposed)} records none: an older ledger, or a model "
         "whose evaluation runs no recorder, so those panels are absent)"
     )
+    judged = [run for run in runs if _k3_points(run)]
+    k3_note = (
+        ""
+        if not judged
+        else " The last panel is a readout of the stance5 replication judge's K3 criterion from the judge files named "
+        f"for {'this run' if len(runs) == 1 else ', '.join(run.label for run in judged)} ({K3_CRITERIA_FILE}: "
+        f"{K3_CRITERION}): the judge's own perturbation panels on spawns 3042-3061 at each judged checkpoint, not "
+        "these deterministic evaluations, and never a verdict (the scorer decides whether a run holds)."
+    )
     targets = _common(run.head_target for run in runs)
     fields = {
         "episodes": episodes,
@@ -3366,6 +3663,7 @@ def render_pages(
         "saturation_note": saturation_note,
         "named_note": named_note,
         "posture_note": posture_note,
+        "k3_note": k3_note,
         "head_target": (
             "none recorded"
             if not targets
@@ -3489,13 +3787,55 @@ _COUNT_HEADERS = {
 }
 
 
-#: The checkpoint table's head posture columns: ``(row key, header)``, shown where a row has them.
+#: The checkpoint table's head posture and judge columns: ``(row key, header)``, shown where a row has them.
 _POSTURE_HEADERS: tuple[tuple[str, str], ...] = (
     ("head_tip_height_mean_m", "head tip m"),
     ("head_tip_height_min_m_worst", "head tip lowest m"),
     ("neck_pitch_mean_deg", "neck pitch"),
     ("head_pitch_mean_deg", "head pitch"),
 )
+_JUDGE_HEADERS: tuple[tuple[str, str], ...] = (("judge_joint_falls", "judge joint"), ("judge_own_falls", "judge own"))
+
+
+def _k3_table(run: Mapping[str, Any]) -> str:
+    """The run's judge K3 readout as HTML: the source, each judged checkpoint's falls, K3's checkpoints marked."""
+    k3 = run.get("judge_k3")
+    if not isinstance(k3, Mapping):
+        return ""
+    rows = []
+    for point in k3.get("checkpoints") or []:
+        within = ""
+        if point.get("k3_slot"):
+            within = "; ".join(
+                f"{name} {'within' if point.get(key) else 'over'}"
+                for name, key in (("joint", "joint_within_bar"), ("own", "own_within_bar"))
+            )
+        rows.append(
+            [
+                html.escape(str(point.get("file"))),
+                _fmt(point.get("timesteps")),
+                "K3" if point.get("k3_slot") else "report only",
+                f"{point.get('joint_falls')} / {point.get('joint_episodes')}",
+                f"{point.get('own_falls')} / {point.get('own_episodes')}",
+                html.escape(within or "–"),
+            ]
+        )
+    skipped = "; ".join(f"{entry['file']}: {entry['why']}" for entry in k3.get("skipped") or [])
+    parts = [
+        f"<h3>{html.escape(str(run['label']))}: judge K3 readout</h3>",
+        f"<p>From <code>{html.escape(str(k3.get('source')))}</code>. K3 ({html.escape(str(k3.get('criteria_file')))}): "
+        f"{html.escape(str(k3.get('criterion')))}. A readout of the judge's records against K3's bars, never a "
+        "verdict: the scorer decides whether a run holds, under the criteria's missing-file and run-handling rules, "
+        "which are not applied here."
+        + (f" Skipped: {html.escape(skipped)}." if skipped else "")
+        + (f" {html.escape(str(k3['why']))}." if k3.get("why") else "")
+        + "</p>",
+    ]
+    if rows:
+        parts.append(
+            _table(["judge file", "checkpoint", "read by", "joint-space falls", "own-sigma falls", "K3 bars"], rows)
+        )
+    return "".join(parts)
 
 
 def _fmt_named(counts: Any) -> str:
@@ -3519,7 +3859,9 @@ def render_html(document: Mapping[str, Any], pages: Sequence[Page], *, json_name
         f"<style>{_CSS}</style></head><body><main>",
         f"<h1>{html.escape(title)}</h1>",
         '<p class="sub">Training history read back from each stage directory\'s ledgers '
-        "(eval_episodes.csv, train_episodes.csv, stage_config.json, progress.json, plant_identity.json, models/). "
+        "(eval_episodes.csv, train_episodes.csv, stage_config.json, progress.json, plant_identity.json, models/)"
+        + (", and the judge files named per run (--judged)" if any(run.get("judge_k3") for run in runs) else "")
+        + ". "
         f"Report only: nothing reads this page back. Generated {html.escape(document['generated_at'])}; the numbers "
         f"are in <code>{html.escape(json_name)}</code> ({html.escape(SCHEMA)}).</p>",
         "<nav>" + "".join(f'<a href="#{p.name}">{html.escape(p.title)}</a>' for p in pages) + "</nav>",
@@ -3589,7 +3931,10 @@ def render_html(document: Mapping[str, Any], pages: Sequence[Page], *, json_name
         "columns are the mean and the worst full-horizon episode. "
         "CoP in half-lengths (+ toe), tilt in degrees, lift in mm, left minus right in degrees (hip roll: each leg "
         "+ abduction), the head tip in m (its window mean, and the lowest episode's window minimum), the neck and "
-        "head pitch in degrees (+ nose down), std in action units at the checkpoint saved at that step.</p>"
+        "head pitch in degrees (+ nose down), std in action units at the checkpoint saved at that step. <i>judge "
+        "joint</i> and <i>judge own</i> are the judge's joint-space and own-sigma noise falls (of 20) at a "
+        "checkpoint judged at exactly that step, from the judge files named for the run: a readout, never a "
+        "verdict.</p>"
     )
     for run in runs:
         table = run.get("checkpoint_table") or []
@@ -3608,6 +3953,7 @@ def render_html(document: Mapping[str, Any], pages: Sequence[Page], *, json_name
         cols += [("l_minus_r_hip_roll_deg", "L-R hip roll", 1.0)] if "l_minus_r_hip_roll_deg" in present else []
         cols += [("actuator_force_frac_max", "force frac", 1.0)]
         cols += [(key, header, 1.0) for key, header in _POSTURE_HEADERS if key in present]
+        cols += [(key, header, 1.0) for key, header in _JUDGE_HEADERS if key in present]
         std_cols = sorted(
             {k for row in table for k in row if k.startswith("std_") and k != "std_checkpoint"}, key=_std_order
         )
@@ -3625,6 +3971,7 @@ def render_html(document: Mapping[str, Any], pages: Sequence[Page], *, json_name
             body.append(cells)
         parts.append(f"<h3>{html.escape(str(run['label']))}</h3>")
         parts.append(_table(headers, body))
+    parts += [_k3_table(run) for run in runs if run.get("judge_k3")]
     parts.append("<h2>What these pages do not show</h2><ul>")
     parts += [f"<li>{html.escape(note)}</li>" for note in document["not_recorded"]]
     parts.append("</ul><h2>How the numbers are reduced</h2><ul>")

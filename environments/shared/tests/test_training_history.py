@@ -939,6 +939,159 @@ class TestHeadPostureAndHipRoll:
         assert errors == [] and "(old records none" in {page.name: page for page in pages}["12_hip_roll"].caption
 
 
+def _judge_file(directory: Path, name: str, *, joint: int, own: int, seed: int = 42, **extra: Any) -> None:
+    """A judge file as the stance judges write one (the keys the readout reads), joint/own falls of 20."""
+    record = {
+        "schema": "stance5r-judge/v1",
+        "mode": "full",
+        "smoke": False,
+        "noise_run": True,
+        "seed": seed,
+        "steps": name[len("judge_") : -len(".json")],
+        "noise_matched_control_joint": {"n": 20, "falls": joint, "space": "joint"},
+        "noise_matched_own": {"n": 20, "falls": own, "space": "policy"},
+        **extra,
+    }
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / name).write_text(json.dumps(record), encoding="utf-8")
+
+
+class TestJudgeK3:
+    def _judged(self, tmp_path: Path) -> Path:
+        judged = tmp_path / "judged" / "run_a"
+        _judge_file(judged, "judge_4194304.json", joint=2, own=0)
+        _judge_file(judged, "judge_6291456.json", joint=3, own=0)
+        _judge_file(judged, "judge_final.json", joint=1, own=1, checks={"checkpoint_num_timesteps": 12_001_280})
+        _judge_file(judged, "judge_8388608.json", joint=0, own=0, smoke=True)
+        _judge_file(judged, "judge_2097152.json", joint=0, own=0, seed=70)
+        _judge_file(judged, "judge_best.json", joint=0, own=0)
+        _judge_file(judged, "judge_quick_4718592.json", joint=0, own=0)
+        return judged
+
+    def test_the_readout_reads_each_judged_checkpoint_against_k3s_bars(self, tmp_path):
+        k3 = th.read_judge_k3(self._judged(tmp_path), seed=42, final_step=None)
+        assert [(p["timesteps"], p["joint_falls"], p["own_falls"], p["k3_slot"]) for p in k3["checkpoints"]] == [
+            (4194304, 2, 0, False),
+            (6291456, 3, 0, True),
+            (12_001_280, 1, 1, True),
+        ]
+        six, final = k3["checkpoints"][1:]
+        assert (six["joint_within_bar"], six["own_within_bar"]) == (False, True)
+        assert (final["joint_within_bar"], final["own_within_bar"]) == (True, True)
+        assert "joint_within_bar" not in k3["checkpoints"][0]  # K3 does not read 4,194,304
+        assert {entry["file"] for entry in k3["skipped"]} == {"judge_2097152.json", "judge_8388608.json"}
+        assert set(k3["not_read"]) == {"judge_best.json", "judge_quick_4718592.json"}
+        assert k3["criterion"] == th.K3_CRITERION and "never a verdict" in k3["readout"]
+        assert "why" not in k3 and "note" not in k3
+
+    def test_the_final_slot_without_a_recorded_step_sits_at_the_runs_final(self, tmp_path):
+        judged = tmp_path / "judged"
+        _judge_file(judged, "judge_final.json", joint=0, own=0)
+        assert th.read_judge_k3(judged, final_step=12_001_280)["checkpoints"][0]["timesteps"] == 12_001_280
+        assert th.read_judge_k3(judged)["checkpoints"][0]["timesteps"] is None
+        assert "no such directory" in th.read_judge_k3(tmp_path / "nowhere")["why"]
+
+    def test_the_outcomes_page_draws_it_only_when_judge_files_are_named(self, tmp_path):
+        stage = _stage(tmp_path)
+        plain = th.load_run_history(stage, read_std=False)
+        judged = th.load_run_history(stage, read_std=False, judged=self._judged(tmp_path))
+        outcomes = th.PAGES[0]
+        assert len(th._panels(outcomes, th._make_context([plain], marks=[], smooth=5))) == 4
+        figure = th._page_figure(
+            outcomes, th._make_context([judged], marks=[], smooth=5), title="t", dpi=30, width=12.0
+        )
+        panel = figure.axes[4]
+        assert panel.get_title(loc="left").startswith("Judge K3 readout, never a verdict")
+        legend = [text.get_text() for text in panel.get_legend().get_texts()]
+        assert legend == [
+            "joint-space noise falls (K3)",
+            "joint-space noise falls (report only)",
+            "own-sigma falls (K3)",
+            "own-sigma falls (report only)",
+        ]
+        texts = [text.get_text() for text in panel.texts]
+        assert "3/0" in texts and "1/1" in texts and "2/0" not in texts  # counts written at K3's checkpoints only
+        assert any("K3 bar: joint-space falls <= 2" in text for text in texts)
+        assert any("K3 bar: own-sigma falls <= 1" in text for text in texts)
+        caption = th.render_pages([judged], title="t", marks=[], dpi=30)[0][0].caption
+        assert "readout of the stance5 replication judge's K3 criterion" in caption and "never a verdict" in caption
+
+    def test_a_comparison_draws_one_strip_cell_per_judged_checkpoint(self, tmp_path):
+        runs = [
+            th.load_run_history(_stage(tmp_path, name="a"), label="a", read_std=False, judged=self._judged(tmp_path)),
+            th.load_run_history(_stage(tmp_path, name="b"), label="b", read_std=False),
+        ]
+        figure = th._page_figure(th.PAGES[0], th._make_context(runs, marks=[], smooth=5), title="t", dpi=30, width=12.0)
+        strip = figure.axes[4]
+        assert len([patch for patch in strip.patches if patch.get_fill()]) == 3
+        assert len([patch for patch in strip.patches if not patch.get_fill()]) == 2  # K3's two checkpoints
+        texts = [text.get_text() for text in strip.texts]
+        assert {"2/0", "3/0", "1/1", "no judge files"} <= set(texts)
+
+    def test_the_json_html_and_table_carry_it(self, tmp_path, capsys):
+        stage = _stage(tmp_path)
+        out = tmp_path / "reports" / "k3"
+        judged = self._judged(tmp_path)
+        argv = [str(stage), "--out", str(out), "--no-std", "--dpi", "30", "--mark-steps", str(4194304)]
+        assert script.main([*argv, "--judged", str(judged)]) == 0, capsys.readouterr().err
+        document = json.loads((out / th.JSON_FILENAME).read_text(), parse_constant=_no_constant)
+        record = document["runs"][0]
+        assert [p["joint_falls"] for p in record["judge_k3"]["checkpoints"]] == [2, 3, 1]
+        assert "judge_k3" in document["rules"] and record["judge_k3"]["source"] == str(judged)
+        text = (out / th.HTML_FILENAME).read_text(encoding="utf-8")
+        assert "judge K3 readout" in text and "never a verdict" in text and "judge_6291456.json" in text
+        # The stage-end report (no judge files) and a run given "-" draw none.
+        assert script.main([*argv, "--judged", "-"]) == 0
+        document = json.loads((out / th.JSON_FILENAME).read_text(), parse_constant=_no_constant)
+        assert document["runs"][0]["judge_k3"] is None
+        with pytest.raises(SystemExit):
+            script.main([*argv, "--judged", str(judged), str(judged)])
+
+    @pytest.mark.parametrize("group", ["new", "stance5"])
+    def test_the_readout_of_the_runs_the_repo_records_agrees_with_their_scored_k3(self, tmp_path, group):
+        """The replication's score of record (results/scores/score_final.json.gz) and the K3 mechanism readouts
+        (k3readouts/out) hold each judge file's recorded falls: the readout of files carrying them reproduces the
+        scorer's K3 values at 6,291,456 and the final, and its within-bar flags agree with the scorer's K3 pass."""
+        import gzip
+
+        from environments.shared.paths import REPOSITORY_ROOT
+
+        root = REPOSITORY_ROOT / "docs" / "investigations" / "stance_2026_10" / "stance5" / "replication"
+        with gzip.open(root / "results" / "scores" / "score_final.json.gz", "rt", encoding="utf-8") as handle:
+            score = json.load(handle)
+        for run_id, run in score[group].items():
+            judged = tmp_path / run_id
+            for cell in run["cells"].values():
+                if not cell:
+                    continue
+                name = Path(cell["path"]).name
+                extra = {"checks": {"checkpoint_num_timesteps": 12_001_280}} if name == "judge_final.json" else {}
+                _judge_file(
+                    judged,
+                    name,
+                    joint=cell["noise_joint_falls_recorded"],
+                    own=cell["noise_own_falls_recorded"],
+                    seed=run["seed"],
+                    **extra,
+                )
+            k3 = th.read_judge_k3(judged, seed=run["seed"])
+            slots = {
+                ("6.3M" if p["timesteps"] == th.K3_SLOT_STEPS else "final"): p
+                for p in k3["checkpoints"]
+                if p["k3_slot"]
+            }
+            recorded = run["criteria"]["K3"]
+            assert {slot: p["joint_falls"] for slot, p in slots.items()} == recorded["joint_falls"], run_id
+            assert {slot: p["own_falls"] for slot, p in slots.items()} == recorded["own_falls"], run_id
+            within = all(p["joint_within_bar"] and p["own_within_bar"] for p in slots.values())
+            assert within == recorded["pass"], run_id
+            for slot, steps in (("6.3M", "6291456"), ("final", "final")):
+                readout = root / "k3readouts" / "out" / run_id / f"k3r_{steps}.json"
+                for candidate in sorted(readout.parent.glob(f"k3r_{steps}*.json")) if readout.parent.is_dir() else []:
+                    full = json.loads(candidate.read_text(encoding="utf-8"))["conditions"]["full"]
+                    assert full["judge_falls"] == slots[slot]["joint_falls"], (run_id, candidate.name)
+
+
 class TestRefusal:
     def test_an_out_inside_the_run_is_refused(self, tmp_path):
         stage = _stage(tmp_path)

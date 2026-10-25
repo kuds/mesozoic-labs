@@ -10,8 +10,12 @@ set; several give the comparison set, one colour per seed (else per run) and
 one line style per ``--groups`` value.  Labels must be distinct.  On a
 comparison, a run that records no CoP band is counted against the edges the
 band-paying runs share; ``--reference-band`` gives the edges explicitly (for a
-single control run, say).  A run that is still training can be drawn from a
-copy of its stage directory at any point.
+single control run, say).  ``--judged`` names, per stage directory, a
+directory of that run's judge files (``judge_<steps>.json``,
+``judge_final.json``; ``-`` for none): the outcomes page then draws the
+stance5 replication judge's K3 inputs at each judged checkpoint, as a readout
+of that criterion, never a verdict.  A run that is still training can be
+drawn from a copy of its stage directory at any point.
 
 Report only.  Nothing is written into a run: an ``--out`` inside any run
 directory is refused, as ``plot_gate_progress.py`` refuses it (a result
@@ -29,6 +33,8 @@ Usage::
         --mark-steps 4194304 5242880 6291456 8388608 10485760 final
     python environments/shared/scripts/plot_training_history.py A/01_stance B/01_stance --out /tmp/compare \\
         --labels a b --groups band control --title "Band against control"
+    python environments/shared/scripts/plot_training_history.py RUN/01_stance --out /tmp/history_s70 \\
+        --judged JUDGED/stance5_LTSB_s70 --mark-steps 6291456 final
 """
 
 from __future__ import annotations
@@ -108,9 +114,17 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="PNG resolution (default training_history.DEFAULT_DPI, 96: point sizes as a browser draws them)",
     )
     parser.add_argument("--no-std", action="store_true", help="skip the per-actuator std (no torch import)")
+    parser.add_argument(
+        "--judged",
+        nargs="+",
+        default=None,
+        metavar="JUDGED_DIR",
+        help="one per STAGE_DIR ('-' for none): a directory of that run's judge files (judge_<steps>.json, "
+        "judge_final.json), read for the stance5 replication judge's K3 inputs (a readout, never a verdict)",
+    )
     args = parser.parse_args(argv)
     stage_dirs = [path.resolve() for path in args.stage_dirs]
-    for name, values in (("--labels", args.labels), ("--groups", args.groups)):
+    for name, values in (("--labels", args.labels), ("--groups", args.groups), ("--judged", args.judged)):
         if values is not None and len(values) != len(stage_dirs):
             parser.error(f"{name} needs one value per STAGE_DIR ({len(stage_dirs)}), got {len(values)}")
     if args.labels is not None and len(set(args.labels)) != len(args.labels):
@@ -135,6 +149,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             label=args.labels[i] if args.labels else None,
             group=args.groups[i] if args.groups else None,
             read_std=not args.no_std,
+            judged=None if not args.judged or args.judged[i] == "-" else Path(args.judged[i]),
         )
         for i, stage in enumerate(stage_dirs)
     ]
