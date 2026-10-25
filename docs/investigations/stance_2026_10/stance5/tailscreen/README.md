@@ -150,13 +150,17 @@ and `tail_home_pose`). The 0.5M readings (4,587,520 and 4,718,592) are in
   gate's outputs (200 passed, 0 failed, 2 skipped, 1 deselected; head
   `4c0c8da7`) and the two gate logs are the rest.
 - `tools/`: the screen's tools as pinned in the run log's entry timed 19:11 UTC
-  and in `criteria.txt`'s PINS: `run_tailscreen.py` (one replicate),
+  and in `criteria.txt`'s PINS: `run_tailscreen.py` (one replicate; kept as
+  `run_tailscreen.py.gz`, below),
   `calib_tailscreen.py`, `measure_tailscreen.py` (panels, flags, `panels.csv`),
   `score_tailscreen.py`, `screen_common.py` (states, arms, labels, stack, gate
   requirements and every tool's pin), `gate.sh`, `run_waves.sh` and
   `copy_durable.sh`, with the tools' tests in `tools/tests/`.
-  `calib_tailscreen.py`, `run_tailscreen.py`, `score_tailscreen.py` and the four
-  tests are byte-identical; `measure_tailscreen.py` carries **checkout**,
+  `calib_tailscreen.py`, `score_tailscreen.py` and the four tests are
+  byte-identical, and `run_tailscreen.py` is once gunzipped: it is kept as
+  `run_tailscreen.py.gz` because `test_policy_loading.py`, which parses every
+  Python file under `docs/`, would otherwise count it among the repository's
+  callers of `_ensure_sb3`; `measure_tailscreen.py` carries **checkout**,
   `screen_common.py` **prefix2** and **prefix**, `gate.sh` and `run_waves.sh`
   **prefix2**, and `copy_durable.sh` **trailer**, **prefix2** and **checkout**,
   so those five do not have their pinned sha256, and the scorer's own pin checks

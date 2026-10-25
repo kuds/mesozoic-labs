@@ -1402,7 +1402,7 @@ the other 19, quick-script style (most in `probecheck/probe_ckpt.py`, 22, and
 all 21 parse on Python 3.11, 3.12 and 3.13.
 
 *Added 2026-10-25, later:* the 16 Python scripts added in `stance5/tailscreen/`
-are left as they ran: `ruff check` (ruff 0.16.9, the same configuration) passes
+(one, `tools/run_tailscreen.py`, kept gzipped) are left as they ran: `ruff check` (ruff 0.16.9, the same configuration) passes
 on the four tools other than `run_tailscreen.py` and on the four tools' tests,
 and reports 107 findings in the other eight (15 in `tools/run_tailscreen.py`,
 the rest in the verifiers' quick scripts, most in `verify/rescore/rescore.py`,

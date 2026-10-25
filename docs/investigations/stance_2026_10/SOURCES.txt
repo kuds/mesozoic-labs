@@ -145,6 +145,9 @@
 # the measuring copy, the build's validation folders, the code review's folder, the durable repository, the
 # verification's durable clone and re-measured per-step CSVs, criteria v1 and v2 and BUILD_SPEC.md (their sha256 are in
 # criteria.txt), and the scratch clone itself.
+# gzip: tools/run_tailscreen.py is copied as tools/run_tailscreen.py.gz.  As a .py file it would join
+# test_policy_loading.py's table of the repository's callers of policy_loading's moved names (it calls _ensure_sb3),
+# since that test parses every Python file under docs/; gunzip restores it byte for byte, with the pinned sha256.
 # criteria.txt keeps the two absolute session-scratch paths that define its SP and S2 (its lines 18 and 19), the
 # only copy in this folder that does: it is byte-identical because its sha256 is the approved pin, so neither prefix
 # nor prefix2 is applied to it.  Eight small per-episode files are copied, an exception to the folder's rule on
@@ -633,7 +636,7 @@ stance5/tailscreen/tools/calib_tailscreen.py scratchpad2/tailround/screen/tools/
 stance5/tailscreen/tools/copy_durable.sh scratchpad2/tailround/screen/tools/copy_durable.sh 9a3932e121e97027d6057cd9307fbc98f63ad301c121d35a8ba6b693064376a6 trailer,prefix2,checkout
 stance5/tailscreen/tools/gate.sh scratchpad2/tailround/screen/tools/gate.sh 4ef908ae8ac116e7a809e655caf56c1aaa3cd4a9e87ffd34c9a4bc1ad0b398b6 prefix2
 stance5/tailscreen/tools/measure_tailscreen.py scratchpad2/tailround/screen/tools/measure_tailscreen.py 613212ce240e425d4c36b7dcfa76ad64d141bebb0a8f510852cb4f3410e153b1 checkout
-stance5/tailscreen/tools/run_tailscreen.py scratchpad2/tailround/screen/tools/run_tailscreen.py 9527231283e4db295a603d79f2fb8d58524fbd2d4c5618307b1a03790e77b3f3 none
+stance5/tailscreen/tools/run_tailscreen.py.gz scratchpad2/tailround/screen/tools/run_tailscreen.py 9527231283e4db295a603d79f2fb8d58524fbd2d4c5618307b1a03790e77b3f3 gzip
 stance5/tailscreen/tools/run_waves.sh scratchpad2/tailround/screen/tools/run_waves.sh ffcbfe2749714abc308aab17c8f6ab0c373b04816b2e4bd3243fd0d25881e1ed prefix2
 stance5/tailscreen/tools/score_tailscreen.py scratchpad2/tailround/screen/tools/score_tailscreen.py 3cd4724761fcdbde68d95b28d6e2afa5980f0acbdde5b8e27c8115816d932d19 none
 stance5/tailscreen/tools/screen_common.py scratchpad2/tailround/screen/tools/screen_common.py c9925334108f6d5f1ab4300bb9c3e00bdb775c5fc237fc1d08f07b97d550607e prefix2,prefix
