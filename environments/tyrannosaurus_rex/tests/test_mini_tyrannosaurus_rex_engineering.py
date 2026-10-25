@@ -101,3 +101,96 @@ def test_single_foot_probe_matches_gravity_line_after_a_flat_foot_lean():
         report = engineering.single_foot_cop(model, data, side)
         assert report["cop_from_sole_center_m"] == pytest.approx(expected)
         assert report["normal_force_N"] == pytest.approx(model.body_mass.sum() * 9.81)
+
+
+@pytest.mark.parametrize(
+    "hold", [engineering.free_hold, engineering.leg_cap_sensitivity], ids=["configured", "sensitivity"]
+)
+@pytest.mark.parametrize("assistance", ["fixture", "gravity-compensation", "disabled-gravity", "disabled-contact"])
+def test_engineering_holds_refuse_assisted_or_disabled_physics(hold, assistance):
+    model, _ = demo.load_model()
+    if assistance == "fixture":
+        model.eq_active0[model.equality("display_support").id] = True
+        message = "world weld"
+    elif assistance == "gravity-compensation":
+        model.body_gravcomp[model.body("torso").id] = 0.5
+        message = "gravity compensation"
+    else:
+        model.opt.disableflags |= (
+            mujoco.mjtDisableBit.mjDSBL_GRAVITY
+            if assistance == "disabled-gravity"
+            else mujoco.mjtDisableBit.mjDSBL_CONTACT
+        )
+        message = "physics must be enabled"
+    original_limits = model.actuator_forcerange.copy()
+    with pytest.raises(ValueError, match=message):
+        hold(model, duration=3)
+    assert model.actuator_forcerange == pytest.approx(original_limits)
+
+
+@pytest.mark.parametrize(
+    "hold", [engineering.free_hold, engineering.leg_cap_sensitivity], ids=["configured", "sensitivity"]
+)
+def test_engineering_holds_preserve_weaker_motor_limits(hold):
+    model, _ = demo.load_model()
+    legs = [i for i in range(model.nu) if any(part in model.actuator(i).name for part in ("hip_", "knee", "ankle"))]
+    model.actuator_forcerange[legs] = [-0.025, 0.025]
+    original_limits = model.actuator_forcerange.copy()
+    report = hold(model, duration=3)
+    assert model.actuator_forcerange == pytest.approx(original_limits)
+    for i in legs:
+        assert report["actuators"][model.actuator(i).name]["peak_Nm"] <= 0.025 + 1e-12
+    assert report["minimum_height_ratio"] < 0.9 or report["maximum_tilt_deg"] > 10
+
+
+@pytest.mark.parametrize(
+    "hold", [engineering.free_hold, engineering.leg_cap_sensitivity], ids=["configured", "sensitivity"]
+)
+def test_engineering_holds_report_nonfoot_ground_support(hold):
+    # Put the torso collision proxy on the floor while leaving both declared
+    # soles unchanged. This contact must not be counted as legitimate support.
+    spec = mujoco.MjSpec.from_file(str(demo.MODEL_PATH))
+    spec.geom("torso_collision").pos = [0, 0, -0.105]
+    model = spec.compile()
+    report = hold(model, duration=3)
+    assert report["unexpected_ground_contact"]
+    assert report["maximum_unexpected_support_N"] > 0.05
+
+
+def test_free_hold_simulates_the_configured_asymmetric_limits(monkeypatch):
+    model, _ = demo.load_model()
+    model.actuator_forcerange[model.actuator("left_knee_servo").id] = [-0.025, 0.20]
+    original_limits = model.actuator_forcerange.copy()
+    step = mujoco.mj_step
+    samples = 0
+
+    def observe_limits(current_model, data):
+        nonlocal samples
+        # Check the limits during real dynamics, not only after the helper has
+        # restored them. A symmetric minimum would silently weaken this motor.
+        assert current_model.actuator_forcerange == pytest.approx(original_limits)
+        samples += 1
+        step(current_model, data)
+
+    monkeypatch.setattr(mujoco, "mj_step", observe_limits)
+    report = engineering.free_hold(model, duration=3)
+    assert samples > 0
+    assert report["duration_s"] == pytest.approx(3, abs=model.opt.timestep)
+    assert model.actuator_forcerange == pytest.approx(original_limits)
+
+
+def test_sensitivity_restores_limits_if_simulation_raises(monkeypatch):
+    model, _ = demo.load_model()
+    original_limits = model.actuator_forcerange.copy()
+    knee = model.actuator("left_knee_servo").id
+    step = mujoco.mj_step
+
+    def fail_after_step(current_model, data):
+        assert current_model.actuator_forcerange[knee] == pytest.approx([-0.10, 0.10])
+        step(current_model, data)
+        raise RuntimeError("injected simulation failure")
+
+    monkeypatch.setattr(mujoco, "mj_step", fail_after_step)
+    with pytest.raises(RuntimeError, match="injected simulation failure"):
+        engineering.leg_cap_sensitivity(model, duration=3)
+    assert model.actuator_forcerange == pytest.approx(original_limits)

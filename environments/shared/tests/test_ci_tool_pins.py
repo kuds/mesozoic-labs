@@ -269,6 +269,17 @@ def test_metre_robot_only_changes_trigger_balance_tests_and_source_checks() -> N
     _assert_robot_example_triggers_checks("examples/tyrannosaurus_rex_100cm/")
 
 
+def test_shared_robot_helpers_trigger_the_metre_review_bundle() -> None:
+    workflow = (CI_WORKFLOW.parent / "metre-trex-concept.yml").read_text()
+    filters = path_filters(workflow)
+    assert len(filters) == 2 and filters[0] is filters[1]
+    for helper in ("building", "geometry", "rendering", "validation"):
+        for path in (f"environments/shared/robot_{helper}.py", f"environments/shared/tests/test_robot_{helper}.py"):
+            assert all(any(glob_matches(pattern, path) for pattern in patterns) for patterns in filters), path
+    assert "environments/shared/robot_*.py" in workflow.split("ruff check", 1)[1].splitlines()[0]
+    assert "environments/shared/tests/test_robot_*.py" in workflow.split("pytest ", 1)[1].splitlines()[0]
+
+
 def test_the_test_matrix_runs_every_test_directory_once() -> None:
     # CU-14a: two suites per Python version, which together run each testpaths directory exactly once.
     with PYPROJECT.open("rb") as handle:

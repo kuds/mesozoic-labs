@@ -63,9 +63,10 @@ built into the link offsets. Controls are joint-angle targets in radians, in
 the named actuator order in [validation.json](validation.json). They are not
 direct hardware torque commands or a trained policy interface.
 
-CPU rendering does not need an OpenGL connection. It reuses the mini example's
-renderer, which reads MuJoCo's compiled mesh vertices and geom transforms. The
-repository `viz` extra provides Pillow through matplotlib:
+CPU rendering does not need an OpenGL connection. It uses the shared
+`environments/shared/robot_rendering.py` renderer, which reads MuJoCo's compiled
+mesh vertices and geom transforms. The repository `viz` extra provides Pillow
+through matplotlib:
 
 ```bash
 python -m examples.tyrannosaurus_rex_50cm.demo --render /tmp/trex50.png
@@ -164,6 +165,64 @@ The supported trial is display-only. The unsupported trials use broad soles,
 ideal feedback and a flat floor. Next work is to resolve real component CAD and
 joint travel, measure actuator response, and develop a gait with single-support,
 friction, delay and disturbance tests.
+
+## Sampled mechanical design screen
+
+The shared mechanical pipeline uses an explicit [robot specification](mechanical_checks.py)
+and the unchanged compiled model. Run it separately from standing trials:
+
+```bash
+python -m examples.tyrannosaurus_rex_50cm.mechanical_checks
+# Optional CPU images highlight the worst clearance, torque-budget and bearing poses:
+python -m examples.tyrannosaurus_rex_50cm.mechanical_checks \
+  --output /tmp/trex-mechanical/report.json --render-dir /tmp/trex-mechanical
+pytest environments/shared/tests/test_robot_design_spec.py \
+  environments/shared/tests/test_robot_design_validation.py \
+  environments/tyrannosaurus_rex/tests/test_tyrannosaurus_rex_mechanical.py
+```
+
+**The current model exits 1: it fails the declared proxy-clearance criterion.**
+Exit 0 means only the sampled checks passed; exit 2 means missing limits without
+a known failure. Hardware assessment remains incomplete in every case.
+The [baseline report](mechanical_validation.json) records:
+
+| Check | Result |
+| --- | --- |
+| Sampling | 790 poses: home, a 729-pose expression grid and 12 independent five-angle leg sweeps |
+| Selected clearance coverage | 245 pairs, including adjacent-body and same-body pairs suppressed by contact filtering |
+| Clearance criterion | 2 mm planning margin; 16 proxy pairs fail |
+| Motor cases | All 66 pairs pass; minimum 2.5 mm |
+| Largest proxy conflict | Jaw/arm overlap of 36.85 mm at a sampled expression extreme |
+| Expression gravity torque | All six axes pass the 80% planning budget; head nod uses 32.0% of its cap, jaw 62.6% |
+| Bearing moment | All six capacities unknown; head yaw carries up to 0.400 Nm transverse gravity moment |
+
+Other flagged pairs include head/jaw and jaw rails, neck/head, jaw/hip-yaw cases,
+and torso/hip cases. The solid torso proxy has no motor mounting cutouts. These
+are failures of the approximate occupied-envelope criterion that need CAD review;
+they do not establish actual hardware interference. Their existence also
+explains why zero internal contacts in a standing trial is insufficient evidence
+of mechanical clearance.
+
+The specification lists every selected pair and attachment exclusion. Foot and
+leg-link clearance pairs, decorative surfaces, electronics packing, wiring and
+assembly access remain outside coverage. The expression grid combines lower,
+midpoint and upper limits; leg sweeps hold all other joints at home. Combined
+leg/expression poses and unsampled intermediate angles remain unchecked.
+
+Gravity moments cover unsupported expression subtrees. They exclude leg ground
+reactions, friction, acceleration, impact and heating. A configured actuator cap
+is an estimated simulation limit, not a verified continuous rating or proof that
+the controller can deliver that torque. Transverse bearing moments are recorded
+separately from axial holding torque; radial/axial bearing forces, brackets and
+materials still need qualification. Masses remain unweighed estimates. The
+sampled poses need not be stable, dynamically reachable or safe motion paths.
+
+The JSON includes the full specification, worst-pose joint angles, source hashes,
+runtime versions and invocation. Regenerate it after changing an input or shared
+helper. Existing CI runs the shared analytical/failure controls, medium-model
+regressions and report freshness checks. The baseline regression allows only the
+documented conflicts and requires all six gravity torque checks to pass; it does
+not turn the failed mechanical screen into an approved design.
 
 ## Regenerate
 

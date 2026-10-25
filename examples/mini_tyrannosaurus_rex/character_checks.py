@@ -124,9 +124,10 @@ def build_report() -> dict[str, Any]:
     files = [root / name for name in ("model.xml", "head_allocation.json", "components.json")]
     files += sorted(root.glob("*.py")) + sorted((root / "assets").glob("*.xml"))
     sources = {str(p.relative_to(root)): hashlib.sha256(p.read_bytes()).hexdigest() for p in files}
-    sources["../../environments/shared/robot_validation.py"] = hashlib.sha256(
-        Path(robot_validation.__file__).read_bytes()
-    ).hexdigest()
+    for name in ("robot_validation.py", "robot_rendering.py"):
+        sources[f"../../environments/shared/{name}"] = hashlib.sha256(
+            Path(robot_validation.__file__).with_name(name).read_bytes()
+        ).hexdigest()
     return {
         "design": "silhouette_c_mini",
         "mujoco_version": mujoco.__version__,

@@ -11,6 +11,7 @@ import csv
 import hashlib
 import itertools
 import json
+import os
 from collections import Counter
 from pathlib import Path
 from typing import Any
@@ -18,9 +19,12 @@ from typing import Any
 import mujoco
 import numpy as np
 
+from environments.shared import robot_building
+
 from .demo import MODEL_PATH, load_model
 
 EXPRESSION_JOINTS = ("head_yaw", "head_pitch", "jaw_pitch", "left_shoulder_pitch", "right_shoulder_pitch", "tail_yaw")
+BOM_FIELDS = ("category", "part", "motor_model", "quantity", "unit_usd", "total_usd", "price_basis", "source", "notes")
 
 
 def budget_summary(ledger: dict[str, Any], budget: dict[str, Any], bom_path: Path) -> dict[str, Any]:
@@ -28,10 +32,18 @@ def budget_summary(ledger: dict[str, Any], budget: dict[str, Any], bom_path: Pat
     counts = Counter(c["part"] for c in ledger["motor_assignments"])
     quoted_counts = {row["motor_model"]: row["quantity"] for row in budget["rows"] if row.get("motor_model")}
     with bom_path.open(newline="") as stream:
-        csv_rows = list(csv.DictReader(stream))
-    csv_ok = len(csv_rows) == len(budget["rows"]) and all(
-        row == {key: str(source.get(key, "")) for key in row}
-        for row, source in zip(csv_rows, budget["rows"], strict=False)
+        reader = csv.DictReader(stream)
+        # Require every field exactly once, independently of column order.
+        # DictReader otherwise silently collapses duplicate header names.
+        header_ok = Counter(reader.fieldnames or ()) == Counter(BOM_FIELDS)
+        csv_rows = list(reader)
+    csv_ok = (
+        header_ok
+        and len(csv_rows) == len(budget["rows"])
+        and all(
+            row == {key: str(source.get(key, "")) for key in BOM_FIELDS}
+            for row, source in zip(csv_rows, budget["rows"], strict=False)
+        )
     )
     row_totals_ok = all(abs(row["quantity"] * row["unit_usd"] - row["total_usd"]) < 0.005 for row in budget["rows"])
     hardware = round(sum(row["total_usd"] for row in budget["rows"]), 2)
@@ -168,6 +180,7 @@ def check_parts() -> dict[str, Any]:
     cell_fit = bool(np.all(cell_dimensions < pack_dimensions))
     sources = [
         Path(__file__),
+        Path(robot_building.__file__),
         MODEL_PATH.with_name("demo.py"),
         MODEL_PATH,
         MODEL_PATH.with_name("build_model.py"),
@@ -194,7 +207,7 @@ def check_parts() -> dict[str, Any]:
         ),
         "budget": pricing,
         "source_sha256": {
-            str(p.relative_to(MODEL_PATH.parent)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sources
+            os.path.relpath(p, MODEL_PATH.parent): hashlib.sha256(p.read_bytes()).hexdigest() for p in sources
         },
         "limitations": [
             "Static gravity is not acceleration or impact load; transverse moments require separately designed output bearings.",

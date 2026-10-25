@@ -342,7 +342,37 @@ notebook's `EMBODIMENT` dropdown already offers `robot`):
 
 Code that robots share (servo and IMU models, system identification, and the
 ROS 2 bridge behind an optional extra) belongs in one shared package, never
-per species (decision D-D33). None of it exists yet.
+per species (decision D-D33). Those hardware interfaces are not implemented yet.
+
+The checkout-only concepts in `examples/` use `environments/shared/robot_building.py`
+for MJCF construction, component inertias and mesh primitives,
+`robot_geometry.py` for compiled geometry measurements, and `robot_rendering.py`
+for CPU rendering and presentation helpers. Keep model dimensions, component
+allocations, actuator settings, captions and service-panel rules in each example.
+Shared helpers must not import examples. They are covered by the shared test suite
+and the existing `environments` coverage scope. An extraction must preserve
+generated MJCF, component ledgers and mesh bytes, retain rendered pixels, and
+refresh affected evidence reports with the new shared source dependencies.
+Using these helpers does not register a concept as a training plant.
+
+Mechanical concept checks use `environments/shared/robot_design_spec.py` for
+explicit model references, evidence levels, pose groups and limits, and
+`robot_design_validation.py` for sampled clearance and gravity-moment screens.
+Keep each robot's specification and source manifest in its example adapter;
+the medium concept's `mechanical_checks.py` is the first implementation.
+Cartesian groups reset unsampled joints to home. Declare the pairs and omitted
+regions explicitly: direct geometry distance checks bypass contact filtering,
+but proxy or convex-hull distances do not qualify physical CAD clearances.
+Load axes must be unsupported subtrees with direct unit-gear hinge actuators;
+foot-bearing axes and active equality couplings require a different solver.
+
+Reports preserve all declared limits, worst sampled poses, input hashes relative
+to the repository root, runtime versions and the invocation. Regenerate the
+report when a source changes. CLI exit codes are 0 for a scoped pass, 1 for any
+known failure, and 2 for incomplete limits without a known failure. A scoped
+pass is never hardware certification. Missing bearing moment capacities stay
+incomplete. Keep deliberate interference and overload controls in shared tests,
+and robot-specific regression checks beside the existing species tests.
 
 ## Pull Request Process
 

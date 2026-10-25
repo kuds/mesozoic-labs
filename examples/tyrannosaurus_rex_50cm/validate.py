@@ -13,49 +13,12 @@ from typing import Any
 import mujoco
 import numpy as np
 
-from environments.shared import robot_validation
+from environments.shared import robot_building, robot_geometry, robot_validation
+from environments.shared.robot_geometry import internal_contacts as internal_contacts
+from environments.shared.robot_geometry import visual_bounds as visual_bounds
 from environments.shared.robot_validation import GroundSupportProbe, require_unsupported
 
 from .demo import MODEL_PATH, gesture_controls, load_model, set_support
-
-
-def visual_bounds(model: mujoco.MjModel, data: mujoco.MjData) -> tuple[np.ndarray, np.ndarray]:
-    """World bounds of actual visual surfaces, excluding floor and packaging boxes."""
-    lower, upper = [], []
-    for g in range(model.ngeom):
-        if model.geom_group[g] not in (1, 2):
-            continue
-        rotation = data.geom_xmat[g].reshape(3, 3)
-        pos, size, kind = data.geom_xpos[g], model.geom_size[g], model.geom_type[g]
-        if kind == mujoco.mjtGeom.mjGEOM_MESH:
-            mesh = model.geom_dataid[g]
-            a, n = model.mesh_vertadr[mesh], model.mesh_vertnum[mesh]
-            points = model.mesh_vert[a : a + n] @ rotation.T + pos
-            lower.append(points.min(axis=0))
-            upper.append(points.max(axis=0))
-            continue
-        if kind == mujoco.mjtGeom.mjGEOM_BOX:
-            extent = np.abs(rotation) @ size
-        elif kind == mujoco.mjtGeom.mjGEOM_ELLIPSOID:
-            extent = np.sqrt(np.sum((rotation * size) ** 2, axis=1))
-        elif kind == mujoco.mjtGeom.mjGEOM_CYLINDER:
-            extent = size[0] * np.linalg.norm(rotation[:, :2], axis=1) + size[1] * np.abs(rotation[:, 2])
-        elif kind == mujoco.mjtGeom.mjGEOM_CAPSULE:
-            extent = size[0] + size[1] * np.abs(rotation[:, 2])
-        else:
-            extent = np.full(3, size[0])
-        lower.append(pos - extent)
-        upper.append(pos + extent)
-    return np.min(lower, axis=0), np.max(upper, axis=0)
-
-
-def internal_contacts(model: mujoco.MjModel, data: mujoco.MjData) -> list[dict[str, Any]]:
-    floor = model.geom("floor").id
-    return [
-        dict(pair=[model.geom(c.geom1).name, model.geom(c.geom2).name], penetration_m=max(0.0, -float(c.dist)))
-        for c in data.contact[: data.ncon]
-        if floor not in (c.geom1, c.geom2)
-    ]
 
 
 def run_trial(
@@ -197,9 +160,8 @@ def check_model(*, duration: float = 10) -> dict[str, Any]:
     ]
     sources += sorted(MODEL_PATH.parent.glob("assets/*.obj"))
     source_sha256 = {str(p.relative_to(MODEL_PATH.parent)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sources}
-    source_sha256["../../environments/shared/robot_validation.py"] = hashlib.sha256(
-        Path(robot_validation.__file__).read_bytes()
-    ).hexdigest()
+    for helper in (Path(robot_validation.__file__), Path(robot_building.__file__), Path(robot_geometry.__file__)):
+        source_sha256[f"../../environments/shared/{helper.name}"] = hashlib.sha256(helper.read_bytes()).hexdigest()
     trials = {
         "free_stance": run_trial(model, duration=duration),
         "free_standing_gesture": run_trial(model, duration=duration, gesture=True),

@@ -8,7 +8,6 @@ This is a packaging/simulation concept, not fabrication CAD or a walking policy.
 from __future__ import annotations
 
 import argparse
-import json
 import math
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -16,8 +15,7 @@ from typing import Any
 
 import numpy as np
 
-from examples.tyrannosaurus_rex_50cm.build_model import Builder as BaseBuilder
-from examples.tyrannosaurus_rex_50cm.build_model import element, make_meshes, mesh_file, values
+from environments.shared.robot_building import RobotBuilder, element, loft, mesh_file, superellipsoid_mesh, values
 
 HERE = Path(__file__).resolve().parent
 ROOT_HEIGHT = 0.575
@@ -31,47 +29,10 @@ MOTORS = {
 }
 
 
-def loft(path: Path, profile: list[tuple[float, float, float, float]], *, exponent: float = 1.0) -> None:
-    """Closed elliptical sections: x, centre-z, half-width, half-height.
-
-    Smoothstep between stations gives a continuous first derivative without spline
-    overshoot; the shape stays inside the declared section envelopes.
-    """
-    vertices: list[Any] = []
-    faces: list[Any] = []
-    columns, subdivisions = 32, 6
-    sections: list[tuple[float, ...]] = []
-    for left, right in zip(profile[:-1], profile[1:], strict=True):
-        for t in np.linspace(0, 1, subdivisions, endpoint=False):
-            w = t * t * (3 - 2 * t)
-            sections.append(
-                (
-                    float(left[0] + t * (right[0] - left[0])),
-                    *[float(left[i] + w * (right[i] - left[i])) for i in (1, 2, 3)],
-                )
-            )
-    sections.append(profile[-1])
-    for x, z, width, height in sections:
-        for angle in np.arange(columns) * (2 * math.pi / columns):
-            c, s = math.cos(angle), math.sin(angle)
-            vertices.append(
-                (x, width * math.copysign(abs(c) ** exponent, c), z + height * math.copysign(abs(s) ** exponent, s))
-            )
-    for row in range(len(sections) - 1):
-        for i in range(columns):
-            a, b = row * columns + i, row * columns + (i + 1) % columns
-            faces.extend(((a, b, a + columns), (b, b + columns, a + columns)))
-    vertices.extend(((profile[0][0], 0, profile[0][1]), (profile[-1][0], 0, profile[-1][1])))
-    last = (len(sections) - 1) * columns
-    for i in range(columns):
-        faces.extend(
-            ((len(vertices) - 2, (i + 1) % columns, i), (len(vertices) - 1, last + i, last + (i + 1) % columns))
-        )
-    mesh_file(path, vertices, faces)
-
-
 def make_surfaces(assets: Path) -> None:
-    make_meshes(assets)
+    assets.mkdir(parents=True, exist_ok=True)
+    for name, exponent in (("rounded", 0.55), ("soft", 0.85)):
+        superellipsoid_mesh(assets / f"{name}.obj", exponent=exponent)
     loft(
         assets / "body.obj",
         [
@@ -135,42 +96,50 @@ def make_surfaces(assets: Path) -> None:
     )
 
 
-class Builder(BaseBuilder):
+class Builder(RobotBuilder):
     def __init__(self) -> None:
-        super().__init__()
-        self.xml.set("model", "tyrannosaurus_rex_robot_100cm_long_body_concept")
-        self.torso.set("pos", values((0, 0, ROOT_HEIGHT)))
-        statistic = self.xml.find("statistic")
-        assert statistic is not None
-        statistic.set("center", "-0.15 0 0.50")
-        statistic.set("extent", "2.40")
-        target = np.array([-0.15, 0, 0.50])
-        positions = {"isometric": (3, -3, 1.9), "front": (3.3, 0, 1.0), "side": (0, -3.8, 1.1)}
-        for camera in self.world.findall("camera"):
-            position = positions[camera.get("name", "")]
-            z = np.array(position) - target
-            z /= np.linalg.norm(z)
-            x = np.cross([0, 0, 1], z)
-            x /= np.linalg.norm(x)
-            camera.set("pos", values(position))
-            camera.set("xyaxes", values((*x, *np.cross(z, x))))
-        for material in self.asset.findall("material"):
-            palette = {
+        super().__init__(
+            "tyrannosaurus_rex_robot_100cm_long_body_concept",
+            root_name="torso",
+            root_position=(0, 0, ROOT_HEIGHT),
+            statistic_center="-0.15 0 0.50",
+            statistic_extent="2.40",
+            materials={
                 "sage": (0.40, 0.49, 0.43, 1),
                 "cream": (0.72, 0.77, 0.73, 1),
                 "dark_sage": (0.11, 0.19, 0.16, 1),
-            }
-            if material.get("name") in palette:
-                material.set("rgba", values(palette[material.get("name", "")]))
+                "graphite": (0.065, 0.075, 0.075, 1),
+                "metal": (0.25, 0.29, 0.30, 1),
+                "rubber": (0.035, 0.04, 0.038, 1),
+                "amber": (0.78, 0.32, 0.025, 1),
+                "black": (0.008, 0.012, 0.014, 1),
+                "glass": (0.025, 0.10, 0.15, 1),
+                "white": (0.96, 0.95, 0.87, 1),
+                "pcb": (0.07, 0.23, 0.16, 1),
+                "orange": (0.9, 0.32, 0.04, 1),
+            },
+            cameras={"isometric": (3, -3, 1.9), "front": (3.3, 0, 1.0), "side": (0, -3.8, 1.1)},
+            camera_target=(-0.15, 0, 0.50),
+            joint_defaults=dict(damping=0.08, frictionloss=0.01, armature=0.0003),
+            default_material="sage",
+            default_mesh="soft",
+        )
+        self.torso = self.root
         self.motor_assignments: list[dict[str, Any]] = []
 
     def joint(self, body: ET.Element, name: str, axis: Any, limits: Any, cap: float, kp: float, kv: float) -> None:
-        super().joint(body, name, axis, limits, cap, kp, kv)
-        joint = body.find("joint")
-        assert joint is not None
-        joint.set("damping", "0.15" if cap >= 10 else "0.015")
-        joint.set("frictionloss", "0.025" if cap >= 10 else "0.002")
-        joint.set("armature", "0.002" if cap >= 10 else "0.0001")
+        self.add_joint(
+            body,
+            name,
+            axis,
+            limits,
+            cap,
+            kp,
+            kv,
+            damping=0.15 if cap >= 10 else 0.015,
+            frictionloss=0.025 if cap >= 10 else 0.002,
+            armature=0.002 if cap >= 10 else 0.0001,
+        )
 
     def drive(self, parent: ET.Element, name: str, pos: Any, axis: str, part: str) -> None:
         spec = MOTORS[part]
@@ -483,29 +452,27 @@ class Builder(BaseBuilder):
             )
 
     def finish(self, directory: Path) -> None:
-        super().finish(directory)
-        key = self.xml.find("keyframe/key")
-        assert key is not None
-        key.set("qpos", values((0, 0, ROOT_HEIGHT, 1, 0, 0, 0, *([0] * len(self.joints)))))
-        ET.indent(self.xml, space="  ")
-        (directory / "model.xml").write_text(ET.tostring(self.xml, encoding="unicode") + "\n")
-        path = directory / "components.json"
-        report = json.loads(path.read_text())
-        report.update(
-            nominal_height_m=1.0,
-            design="long_body_revision_2",
-            motor_assignments=self.motor_assignments,
-            motor_specifications=MOTORS,
-            specification_source=SPECIFICATION,
+        self.write(
+            directory,
+            imu_site="pelvis_imu",
+            contact_sites=[
+                (f"{side}_contact_force_{i}", f"{side}_contact_{i}") for side in ("left", "right") for i in range(4)
+            ],
+            limitations=[
+                "All masses, locations and box inertias are unweighed design allocations.",
+                "October 2026 motor dimensions/masses checked; cases omit bolts, shafts, connectors and brackets.",
+                "Planning torque caps are not measured continuous limits in this chassis; thermal and electrical models are absent.",
+                "A 2.2 kg integration reserve and 1.2 kg cooling allocation are included, without claiming the vendor heat-sink condition is met.",
+                "Visual skins are not collision CAD; full-range clearance, load paths and walking remain unqualified.",
+            ],
+            metadata=dict(
+                nominal_height_m=1.0,
+                design="long_body_revision_2",
+                motor_assignments=self.motor_assignments,
+                motor_specifications=MOTORS,
+                specification_source=SPECIFICATION,
+            ),
         )
-        report["limitations"] = [
-            "All masses, locations and box inertias are unweighed design allocations.",
-            "October 2026 motor dimensions/masses checked; cases omit bolts, shafts, connectors and brackets.",
-            "Planning torque caps are not measured continuous limits in this chassis; thermal and electrical models are absent.",
-            "A 2.2 kg integration reserve and 1.2 kg cooling allocation are included, without claiming the vendor heat-sink condition is met.",
-            "Visual skins are not collision CAD; full-range clearance, load paths and walking remain unqualified.",
-        ]
-        path.write_text(json.dumps(report, indent=2) + "\n")
 
 
 def build(directory: Path = HERE) -> None:

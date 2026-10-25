@@ -88,6 +88,13 @@ allocation with relative links to retained mesh assets.
 [balance_validation.json](balance_validation.json) and [character_validation.json](character_validation.json) identify their source
 hashes, seeds and MuJoCo version. The tests run in Python CI on example changes.
 
+Engineering holds and balance regressions use the same unsupported-stance
+probe, with a minimum duration of three seconds. The nominal engineering hold
+retains the model's exact motor limits; the 0.10 Nm sensitivity hold only lowers
+existing limits. Both reject artificial assistance and measure sole-to-floor
+loads, unexpected support, drift and actuator effort. Motor limits are restored
+after each trial, including failed simulations.
+
 | Check | Silhouette-C result |
 | --- | --- |
 | Motor boxes, home plus 2,000 seeded poses per configuration | No intersections; minimum separating-axis gap 2.5 mm |

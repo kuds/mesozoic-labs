@@ -302,9 +302,9 @@ def measure(path: Path) -> dict[str, Any]:
 def render_sheet(directory: Path, report: dict[str, Any]) -> None:
     from PIL import Image, ImageDraw
 
-    from examples.mini_tyrannosaurus_rex.render_design import _camera_basis, _font, geometry
+    from environments.shared.robot_rendering import font
 
-    from .render_design import render
+    from .render_design import camera_basis, geometry, render
 
     paths = [
         base.HERE / "proportion_study/balanced/model.xml",
@@ -315,15 +315,15 @@ def render_sheet(directory: Path, report: dict[str, Any]) -> None:
     labels = ["Previous / fuller torso", "Large head / compact torso", "Oversized head / compact torso"]
     sheet = Image.new("RGB", (1800, 1480), (245, 247, 244))
     draw = ImageDraw.Draw(sheet)
-    draw.text((40, 26), "T-REX / MAKE THE HEAD THE CHARACTER", font=_font(34), fill=(38, 55, 43))
+    draw.text((40, 26), "T-REX / MAKE THE HEAD THE CHARACTER", font=font(34), fill=(38, 55, 43))
     draw.text(
         (40, 80),
         "Actual MuJoCo geometry / same leg mechanism / estimated shell masses",
-        font=_font(22),
+        font=font(22),
         fill=(83, 97, 88),
     )
     for row, view in enumerate(("isometric", "side")):
-        points = [geometry(m, d)[0] @ _camera_basis(view).T for m, d in models]
+        points = [geometry(m, d)[0] @ camera_basis(view).T for m, d in models]
         bounds = (
             np.min([p[:, :, :2].min(axis=(0, 1)) for p in points], axis=0),
             np.max([p[:, :, :2].max(axis=(0, 1)) for p in points], axis=0),
@@ -331,19 +331,19 @@ def render_sheet(directory: Path, report: dict[str, Any]) -> None:
         for i, (model, data) in enumerate(models):
             x, y = 600 * i, 150 + row * 600
             sheet.paste(render(model, data, view=view, width=600, height=550, projection_bounds=bounds), (x, y + 28))
-            draw.text((x + 28, y), labels[i], font=_font(22), fill=(38, 55, 43))
+            draw.text((x + 28, y), labels[i], font=font(22), fill=(38, 55, 43))
     for i, name in enumerate(("previous", "large_head", "oversized_head")):
         r = report[name]
         draw.text(
             (28 + 600 * i, 1360),
             f"{r['dimensions_m'][2] * 100:.1f} cm / head {r['head_height_fraction']:.0%} of height",
-            font=_font(21),
+            font=font(21),
             fill=(60, 76, 66),
         )
     draw.text(
         (40, 1425),
         "Proportion concepts. Collision proxies and assigned masses do not establish walking or hardware fit.",
-        font=_font(20),
+        font=font(20),
         fill=(83, 97, 88),
     )
     sheet.save(directory / "comparison.png")
@@ -352,19 +352,19 @@ def render_sheet(directory: Path, report: dict[str, Any]) -> None:
 def render_box_comparison(directory: Path) -> None:
     from PIL import Image, ImageDraw
 
-    from examples.mini_tyrannosaurus_rex.render_design import _camera_basis, _font, geometry
+    from environments.shared.robot_rendering import font
 
-    from .render_design import render
+    from .render_design import camera_basis, geometry, render
 
     models = [demo.load_model(path=directory / name / "model.xml") for name in ("large_head", "rounded_box")]
     sheet = Image.new("RGB", (1600, 1460), (245, 247, 244))
     draw = ImageDraw.Draw(sheet)
-    draw.text((40, 28), "T-REX / A ROUNDED-BOX SKULL", font=_font(34), fill=(38, 55, 43))
+    draw.text((40, 28), "T-REX / A ROUNDED-BOX SKULL", font=font(34), fill=(38, 55, 43))
     draw.text(
-        (40, 83), "Same body, legs and head-weight target / actual MuJoCo geometry", font=_font(22), fill=(83, 97, 88)
+        (40, 83), "Same body, legs and head-weight target / actual MuJoCo geometry", font=font(22), fill=(83, 97, 88)
     )
     for row, view in enumerate(("isometric", "side")):
-        points = [geometry(m, d)[0] @ _camera_basis(view).T for m, d in models]
+        points = [geometry(m, d)[0] @ camera_basis(view).T for m, d in models]
         bounds = (
             np.min([p[:, :, :2].min(axis=(0, 1)) for p in points], axis=0),
             np.max([p[:, :, :2].max(axis=(0, 1)) for p in points], axis=0),
@@ -375,13 +375,13 @@ def render_box_comparison(directory: Path) -> None:
             draw.text(
                 (x + 40, y),
                 ("Previous / round cranium + muzzle", "Revised / one rounded rectangular skull")[i],
-                font=_font(22),
+                font=font(22),
                 fill=(38, 55, 43),
             )
     draw.text(
         (40, 1395),
         "Shape study. Hollow-shell mass targets and simplified simulation do not establish hardware viability.",
-        font=_font(19),
+        font=font(19),
         fill=(83, 97, 88),
     )
     sheet.save(directory / "rounded_box_comparison.png")
@@ -390,24 +390,22 @@ def render_box_comparison(directory: Path) -> None:
 def render_shape_options(directory: Path) -> None:
     from PIL import Image, ImageDraw
 
-    from examples.mini_tyrannosaurus_rex.render_design import _camera_basis, _font, geometry
+    from environments.shared.robot_rendering import font
 
-    from .render_design import render
+    from .render_design import camera_basis, geometry, render
 
     names = ("rounded_box", "long_oval", "soft_wedge")
     labels = ("A / ROUNDED BOX", "B / LONG OVAL", "C / SOFT WEDGE")
     models = [demo.load_model(path=directory / name / "model.xml") for name in names]
     sheet = Image.new("RGB", (1800, 1410), (245, 247, 244))
     draw = ImageDraw.Draw(sheet)
-    draw.text((40, 28), "T-REX / FINDING THE FACE", font=_font(34), fill=(38, 55, 43))
-    draw.text(
-        (40, 83), "Three skull shapes / same body and 530 g moving-head target", font=_font(22), fill=(83, 97, 88)
-    )
+    draw.text((40, 28), "T-REX / FINDING THE FACE", font=font(34), fill=(38, 55, 43))
+    draw.text((40, 83), "Three skull shapes / same body and 530 g moving-head target", font=font(22), fill=(83, 97, 88))
     for row, view in enumerate(("isometric", "side", "front")):
         for model, _ in models:
             if row == 1:
                 model.geom_group[~np.isin(model.geom_bodyid, (model.body("head").id, model.body("jaw").id))] = 5
-        points = [geometry(m, d)[0] @ _camera_basis(view).T for m, d in models]
+        points = [geometry(m, d)[0] @ camera_basis(view).T for m, d in models]
         bounds = (
             np.min([p[:, :, :2].min(axis=(0, 1)) for p in points], axis=0),
             np.max([p[:, :, :2].max(axis=(0, 1)) for p in points], axis=0),
@@ -417,11 +415,11 @@ def render_shape_options(directory: Path) -> None:
             y, height = ((180, 560), (790, 260), (1080, 260))[row]
             sheet.paste(render(model, data, view=view, width=600, height=height, projection_bounds=bounds), (x, y))
             if row == 0:
-                draw.text((x + 30, 145), labels[i], font=_font(24), fill=(38, 55, 43))
+                draw.text((x + 30, 145), labels[i], font=font(24), fill=(38, 55, 43))
     draw.text(
         (40, 1360),
         "Actual MuJoCo geometry. These are proportion studies, not fabrication-ready designs.",
-        font=_font(20),
+        font=font(20),
         fill=(83, 97, 88),
     )
     sheet.save(directory / "shape_options.png")
@@ -441,6 +439,10 @@ def main() -> None:
         base.HERE / "demo.py",
         base.HERE / "validate.py",
         Path(validate.robot_validation.__file__),
+        Path(validate.robot_building.__file__),
+        Path(validate.robot_geometry.__file__),
+        Path(validate.robot_validation.__file__).with_name("robot_rendering.py"),
+        base.HERE / "render_design.py",
         base.HERE / "proportion_study/balanced/model.xml",
         *sorted((base.HERE / "assets").glob("*.obj")),
     ]

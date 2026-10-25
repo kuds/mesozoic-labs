@@ -8,7 +8,6 @@ decorative solid shells. No component mass or actuator response is measured.
 from __future__ import annotations
 
 import argparse
-import json
 import math
 import os
 import xml.etree.ElementTree as ET
@@ -16,6 +15,9 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+
+from environments.shared.robot_building import RobotBuilder, element, superellipsoid_mesh, tapered_tail_mesh
+from environments.shared.robot_building import values as values
 
 HERE = Path(__file__).resolve().parent
 ROOT_HEIGHT = 0.253
@@ -29,198 +31,63 @@ RANGES = {
 }
 
 
-def values(items: Any) -> str:
-    """Canonical numeric text, including scalars and numerical zero residue."""
-    if isinstance(items, (str, int)):
-        return str(items)
-    if isinstance(items, (float, np.floating)):
-        number = float(items)
-        return "0" if abs(number) < 1e-14 else f"{number:.10g}"
-    return " ".join(values(float(x)) for x in items)
-
-
-def element(parent: ET.Element, tag: str, **attributes: Any) -> ET.Element:
-    return ET.SubElement(parent, tag, {k.rstrip("_"): values(v) for k, v in attributes.items()})
-
-
-def mesh_file(path: Path, vertices: list[Any], faces: list[Any]) -> None:
-    lines = ["# Generated visual surface; not fabrication geometry"]
-    lines += ["v " + values(v) for v in vertices]
-    lines += ["f " + " ".join(str(i + 1) for i in f) for f in faces]
-    path.write_text("\n".join(lines) + "\n")
-
-
 def make_meshes(directory: Path) -> None:
     directory.mkdir(parents=True, exist_ok=True)
-    cols, rings = 32, 18
     for name, exponent in (("rounded", 0.55), ("soft", 0.85)):
-        vertices: list[Any] = [(0, 0, -1)]
-        for j in range(1, rings):
-            latitude = -math.pi / 2 + j * math.pi / rings
-            for i in range(cols):
-                longitude = i * 2 * math.pi / cols
-                raw = (
-                    math.cos(latitude) * math.cos(longitude),
-                    math.cos(latitude) * math.sin(longitude),
-                    math.sin(latitude),
-                )
-                vertices.append(tuple(math.copysign(abs(x) ** exponent, x) for x in raw))
-        vertices.append((0, 0, 1))
-        faces = [(0, 1 + (i + 1) % cols, 1 + i) for i in range(cols)]
-        for row in range(rings - 2):
-            for i in range(cols):
-                a, b = 1 + row * cols + i, 1 + row * cols + (i + 1) % cols
-                faces.extend(((a, b, a + cols), (b, b + cols, a + cols)))
-        last = 1 + (rings - 2) * cols
-        faces += [(last + i, last + (i + 1) % cols, len(vertices) - 1) for i in range(cols)]
-        mesh_file(directory / f"{name}.obj", vertices, faces)
-    vertices = []
-    for j in range(17):
-        t = j / 16
-        radius = 0.034 * (1 - t) ** 0.9 + 0.002
-        for i in range(cols):
-            angle = 2 * math.pi * i / cols
-            vertices.append((-0.24 * t, radius * math.cos(angle), 0.060 * t * t + radius * math.sin(angle)))
-    faces = []
-    for row in range(16):
-        for i in range(cols):
-            a, b = row * cols + i, row * cols + (i + 1) % cols
-            faces.extend(((a, a + cols, b), (b, a + cols, b + cols)))
-    vertices.extend(((0, 0, 0), (-0.24, 0, 0.060)))
-    for i in range(cols):
-        faces.extend(
-            ((len(vertices) - 2, i, (i + 1) % cols), (len(vertices) - 1, 16 * cols + (i + 1) % cols, 16 * cols + i))
-        )
-    mesh_file(directory / "tail.obj", vertices, faces)
+        superellipsoid_mesh(directory / f"{name}.obj", exponent=exponent)
+    tapered_tail_mesh(
+        directory / "tail.obj",
+        length=0.24,
+        rise=0.060,
+        base_radius=0.034,
+        tip_radius=0.002,
+        taper=0.9,
+    )
 
 
-class Builder:
+class Builder(RobotBuilder):
     def __init__(self) -> None:
-        self.xml = ET.Element("mujoco", model="tyrannosaurus_rex_robot_50cm_concept")
-        self.xml.append(
-            ET.Comment(
-                "Generated concept: unweighed component inertias, ideal torque-bounded drives; not hardware CAD."
-            )
+        super().__init__(
+            "tyrannosaurus_rex_robot_50cm_concept",
+            root_name="torso",
+            root_position=(0, 0, ROOT_HEIGHT),
+            statistic_center=(-0.04, 0, 0.25),
+            statistic_extent=0.75,
+            materials={
+                "sage": (0.29, 0.38, 0.22, 1),
+                "cream": (0.78, 0.71, 0.55, 1),
+                "dark_sage": (0.16, 0.22, 0.12, 1),
+                "graphite": (0.065, 0.075, 0.075, 1),
+                "metal": (0.25, 0.29, 0.30, 1),
+                "rubber": (0.035, 0.04, 0.038, 1),
+                "amber": (0.78, 0.32, 0.025, 1),
+                "black": (0.008, 0.012, 0.014, 1),
+                "glass": (0.025, 0.10, 0.15, 1),
+                "white": (0.96, 0.95, 0.87, 1),
+                "pcb": (0.07, 0.23, 0.16, 1),
+                "orange": (0.9, 0.32, 0.04, 1),
+            },
+            cameras={"isometric": (1.0, -1.25, 0.8), "front": (1.5, 0, 0.43), "side": (0, -1.6, 0.38)},
+            camera_target=(-0.035, 0, 0.25),
+            joint_defaults=dict(damping=0.08, frictionloss=0.01, armature=0.0003),
+            default_material="sage",
+            default_mesh="soft",
         )
-        element(self.xml, "compiler", angle="radian", autolimits="true", inertiafromgeom="false", meshdir="assets")
-        element(
-            self.xml,
-            "option",
-            timestep="0.002",
-            integrator="implicitfast",
-            gravity=(0, 0, -9.81),
-            cone="elliptic",
-            iterations=100,
-            tolerance="1e-9",
-        )
-        element(self.xml, "statistic", center=(-0.04, 0, 0.25), extent=0.75)
-        visual = element(self.xml, "visual")
-        element(visual, "global", offwidth=1600, offheight=1200)
-        element(visual, "quality", shadowsize=4096)
-        element(visual, "headlight", ambient=(0.4, 0.4, 0.4), diffuse=(0.6, 0.6, 0.6))
-        defaults = element(self.xml, "default")
-        element(defaults, "geom", contype=0, conaffinity=0, group=1)
-        element(defaults, "joint", limited="true", damping=0.08, frictionloss=0.01, armature=0.0003)
-        collision = element(defaults, "default", class_="collision")
-        element(
-            collision,
-            "geom",
-            contype=1,
-            conaffinity=1,
-            group=3,
-            rgba=(0.9, 0.25, 0.1, 0.2),
-            condim=4,
-            friction=(0.9, 0.005, 0.0001),
-            solref=(0.008, 1),
-        )
-        self.asset = element(self.xml, "asset")
-        for name, rgba in {
-            "sage": (0.29, 0.38, 0.22, 1),
-            "cream": (0.78, 0.71, 0.55, 1),
-            "dark_sage": (0.16, 0.22, 0.12, 1),
-            "graphite": (0.065, 0.075, 0.075, 1),
-            "metal": (0.25, 0.29, 0.30, 1),
-            "rubber": (0.035, 0.04, 0.038, 1),
-            "amber": (0.78, 0.32, 0.025, 1),
-            "black": (0.008, 0.012, 0.014, 1),
-            "glass": (0.025, 0.10, 0.15, 1),
-            "white": (0.96, 0.95, 0.87, 1),
-            "pcb": (0.07, 0.23, 0.16, 1),
-            "orange": (0.9, 0.32, 0.04, 1),
-        }.items():
-            element(self.asset, "material", name=name, rgba=rgba, specular=0.35, shininess=0.45)
-        self.world = element(self.xml, "worldbody")
-        element(self.world, "light", pos=(1, -1, 2), dir=(-1, 1, -2), diffuse=(0.8, 0.8, 0.75))
-        element(self.world, "light", pos=(-1, 1, 1.2), dir=(1, -1, -1.2), diffuse=(0.4, 0.4, 0.4), castshadow="false")
-        element(
-            self.world,
-            "geom",
-            name="floor",
-            type="plane",
-            size=(3, 3, 0.02),
-            rgba=(0.88, 0.89, 0.84, 1),
-            group=0,
-            contype=1,
-            conaffinity=1,
-            friction=(0.9, 0.005, 0.0001),
-            condim=4,
-        )
-        for name, pos in {"isometric": (1.0, -1.25, 0.8), "front": (1.5, 0, 0.43), "side": (0, -1.6, 0.38)}.items():
-            direction = np.array(pos) - [-0.035, 0, 0.25]
-            z = direction / np.linalg.norm(direction)
-            x = np.cross([0, 0, 1], z)
-            x /= np.linalg.norm(x)
-            y = np.cross(z, x)
-            element(self.world, "camera", name=name, pos=pos, xyaxes=(*x, *y), fovy=34)
-        self.bodies: dict[str, ET.Element] = {}
-        self.components: list[dict[str, Any]] = []
-        self.joints: list[dict[str, Any]] = []
-        self.torso = self.body(self.world, "torso", (0, 0, ROOT_HEIGHT))
-        element(self.torso, "freejoint", name="root")
-
-    def body(self, parent: ET.Element, name: str, pos: Any) -> ET.Element:
-        body = element(parent, "body", name=name, pos=pos)
-        self.bodies[name] = body
-        return body
-
-    def geom(
-        self, body: ET.Element, name: str, kind: str, size: Any, pos: Any = (0, 0, 0), material: str = "sage", **kw: Any
-    ) -> ET.Element:
-        return element(body, "geom", name=name, type=kind, size=size, pos=pos, material=material, **kw)
-
-    def mesh(
-        self, body: ET.Element, name: str, scale: Any, pos: Any, material: str = "sage", source: str = "soft", **kw: Any
-    ) -> None:
-        element(self.asset, "mesh", name=name + "_mesh", file=source + ".obj", scale=scale)
-        element(body, "geom", name=name, type="mesh", mesh=name + "_mesh", pos=pos, material=material, **kw)
-
-    def collision(self, body: ET.Element, name: str, kind: str, size: Any, pos: Any = (0, 0, 0), **kw: Any) -> None:
-        element(body, "geom", name=name + "_collision", class_="collision", type=kind, size=size, pos=pos, **kw)
-
-    def component(self, body: ET.Element, name: str, category: str, grams: float, pos: Any, halfsize: Any) -> None:
-        self.components.append(
-            dict(
-                name=name,
-                body=body.get("name"),
-                category=category,
-                mass_kg=grams / 1000,
-                pos_m=list(pos),
-                inertia_box_halfsize_m=list(halfsize),
-            )
-        )
+        self.torso = self.root
 
     def joint(self, body: ET.Element, name: str, axis: Any, limits: Any, cap: float, kp: float, kv: float) -> None:
-        element(
+        self.add_joint(
             body,
-            "joint",
-            name=name,
-            axis=axis,
-            range=limits,
+            name,
+            axis,
+            limits,
+            cap,
+            kp,
+            kv,
             damping=0.08 if cap == 4 else 0.008,
             frictionloss=0.01 if cap == 4 else 0.0005,
             armature=0.0003 if cap == 4 else 0.000005,
         )
-        self.joints.append(dict(name=name, range=list(limits), torque_limit_nm=cap, kp=kp, kv=kv))
 
     def motor(self, parent: ET.Element, name: str, pos: Any, axis: str) -> None:
         rotation = {"x": (0, math.pi / 2, 0), "y": (math.pi / 2, 0, 0), "z": (0, 0, 0)}[axis]
@@ -570,80 +437,19 @@ class Builder:
             self.geom(head, f"tooth_{i}", "ellipsoid", (0.008, 0.006, 0.013), (0.131, y, -0.020), "white")
 
     def finish(self, directory: Path) -> None:
-        for name, body in self.bodies.items():
-            components = [c for c in self.components if c["body"] == name]
-            # Python 3.12 changed float sum accumulation; fsum is stable across
-            # the supported versions and cancels symmetric contributions cleanly.
-            mass = math.fsum(c["mass_kg"] for c in components)
-            com = np.array([math.fsum(c["mass_kg"] * c["pos_m"][i] for c in components) / mass for i in range(3)])
-            inertia = np.zeros((3, 3))
-            for c in components:
-                half = np.array(c["inertia_box_halfsize_m"])
-                local = np.diag(c["mass_kg"] * (np.sum(half**2) - half**2) / 3)
-                r = np.array(c["pos_m"]) - com
-                inertia += local + c["mass_kg"] * ((r @ r) * np.eye(3) - np.outer(r, r))
-            attrs = dict(
-                pos=values(com),
-                mass=values(mass),
-                fullinertia=values(
-                    (inertia[0, 0], inertia[1, 1], inertia[2, 2], inertia[0, 1], inertia[0, 2], inertia[1, 2])
-                ),
-            )
-            body.insert(0, ET.Element("inertial", attrs))
-        equality = element(self.xml, "equality")
-        element(equality, "weld", name="display_support", body1="torso", active="false")
-        actuators = element(self.xml, "actuator")
-        sensors = element(self.xml, "sensor")
-        for joint in self.joints:
-            name = joint["name"]
-            element(
-                actuators,
-                "position",
-                name=name + "_servo",
-                joint=name,
-                kp=joint["kp"],
-                kv=joint["kv"],
-                ctrlrange=joint["range"],
-                forcerange=(-joint["torque_limit_nm"], joint["torque_limit_nm"]),
-                forcelimited="true",
-            )
-            element(sensors, "jointpos", name=name + "_position", joint=name)
-            element(sensors, "jointvel", name=name + "_velocity", joint=name)
-        element(sensors, "gyro", name="pelvis_gyro", site="pelvis_imu")
-        element(sensors, "accelerometer", name="pelvis_accelerometer", site="pelvis_imu")
-        element(sensors, "framequat", name="pelvis_orientation", objtype="site", objname="pelvis_imu")
-        element(sensors, "subtreecom", name="robot_center_of_mass", body="torso")
-        for side in ("left", "right"):
-            for i in range(4):
-                element(sensors, "touch", name=f"{side}_contact_force_{i}", site=f"{side}_contact_{i}")
-        key = element(self.xml, "keyframe")
-        element(
-            key,
-            "key",
-            name="home",
-            qpos=(0, 0, ROOT_HEIGHT, 1, 0, 0, 0, *([0] * len(self.joints))),
-            ctrl=[0] * len(self.joints),
-        )
-        ET.indent(self.xml, space="  ")
-        (directory / "model.xml").write_text(ET.tostring(self.xml, encoding="unicode") + "\n")
-        totals = {
-            category: math.fsum(c["mass_kg"] for c in self.components if c["category"] == category)
-            for category in dict.fromkeys(c["category"] for c in self.components)
-        }
-        report = {
-            "status": "unweighed_concept_inertia_and_component_surrogates",
-            "mass_kg": math.fsum(totals.values()),
-            "categories_kg": dict(totals),
-            "components": self.components,
-            "joints": self.joints,
-            "limitations": [
+        self.write(
+            directory,
+            imu_site="pelvis_imu",
+            contact_sites=[
+                (f"{side}_contact_force_{i}", f"{side}_contact_{i}") for side in ("left", "right") for i in range(4)
+            ],
+            limitations=[
                 "Motor envelopes, brackets and mass locations are provisional, not supplier CAD.",
                 "Inertias use component box surrogates and the parallel-axis theorem.",
                 "Ideal position drives are torque-limited; electrical, thermal, gearbox and bus dynamics are not modeled.",
                 "600 g integration reserve is assigned near the pelvis; no mass is removed to make the model balance.",
             ],
-        }
-        (directory / "components.json").write_text(json.dumps(report, indent=2) + "\n")
+        )
 
 
 def build_baseline(directory: Path = HERE / "baseline_51cm", *, assets_directory: Path | None = None) -> None:

@@ -246,22 +246,22 @@ def budget_scenarios() -> dict[str, Any]:
 def comparison_sheet(directory: Path, reports: dict[str, Any]) -> None:
     from PIL import Image, ImageDraw
 
-    from examples.mini_tyrannosaurus_rex.render_design import _camera_basis, _font, geometry
+    from environments.shared.robot_rendering import font
 
-    from .render_design import render
+    from .render_design import camera_basis, geometry, render
 
     models = [demo.load_model(path=directory / name / "model.xml") for name in SPECS]
     sheet = Image.new("RGB", (2000, 1580), (245, 247, 244))
     draw = ImageDraw.Draw(sheet)
-    draw.text((38, 25), "T-REX / BODY PROPORTIONS", font=_font(34), fill=(38, 55, 43))
+    draw.text((38, 25), "T-REX / BODY PROPORTIONS", font=font(34), fill=(38, 55, 43))
     draw.text(
         (38, 78),
         "Actual MuJoCo geometry / same leg lengths, feet, motors and camera hardware",
-        font=_font(21),
+        font=font(21),
         fill=(83, 97, 88),
     )
     for row, view in enumerate(("side", "isometric")):
-        basis = _camera_basis(view)
+        basis = camera_basis(view)
         projections = [geometry(m, d)[0] @ basis.T for m, d in models]
         low = np.min([p[:, :, :2].min(axis=(0, 1)) for p in projections], axis=0)
         high = np.max([p[:, :, :2].max(axis=(0, 1)) for p in projections], axis=0)
@@ -270,24 +270,24 @@ def comparison_sheet(directory: Path, reports: dict[str, Any]) -> None:
             sheet.paste(
                 render(model, data, view=view, width=500, height=550, projection_bounds=(low, high)), (x, y + 28)
             )
-            draw.text((x + 30, y), spec["label"], font=_font(21), fill=(38, 55, 43))
+            draw.text((x + 30, y), spec["label"], font=font(21), fill=(38, 55, 43))
             if row == 0:
                 draw.text(
                     (x + 30, y + 585),
                     f"{reports[name]['mass_kg']:.2f} kg assigned mass",
-                    font=_font(18),
+                    font=font(18),
                     fill=(83, 97, 88),
                 )
     draw.text(
         (38, 1430),
         "Both rows use a shared scale within each view. All hips remain 25.3 cm above the floor.",
-        font=_font(22),
+        font=font(22),
         fill=(60, 76, 66),
     )
     draw.text(
         (38, 1470),
         "Proportion study: approximate shell proxies and unweighed masses; no walking or fabrication validation.",
-        font=_font(21),
+        font=font(21),
         fill=(83, 97, 88),
     )
     sheet.save(directory / "comparison.png")
@@ -309,6 +309,10 @@ def main() -> None:
         base.HERE / "build_model.py",
         base.HERE / "validate.py",
         Path(validate.robot_validation.__file__),
+        Path(validate.robot_building.__file__),
+        Path(validate.robot_geometry.__file__),
+        Path(validate.robot_validation.__file__).with_name("robot_rendering.py"),
+        base.HERE / "render_design.py",
         base.HERE / "demo.py",
         PARTS_BUDGET_PATH,
         *sorted((base.HERE / "assets").glob("*.obj")),

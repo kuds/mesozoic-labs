@@ -3,12 +3,13 @@
   "source_path_base": "examples/mini_tyrannosaurus_rex",
   "scope": "Unsupported powered stance; optional wagging tail is centered. Not a walking or hardware certificate.",
   "mujoco_version": "3.10.0",
-  "numpy_version": "2.5.4",
+  "numpy_version": "2.3.5",
   "python_version": "3.12.14",
   "source_sha256": {
     "model.xml": "50af049aee204de8d89a0c11dbd365a8175cc1ada98384e9d9bf3dc5316dfe7d",
-    "balance_checks.py": "34501c6edd2a14650d8ecda866a38b9d9f057d15766e7eac97926a15ec792f51",
+    "balance_checks.py": "91a58f50cb7d352c9481c3a45ed6efdae80ffb666f7364b5b81963e7b0c36b1b",
     "tail_option.py": "8b1b05703c5655edd14a75fd26b2c0b888adfe759c330aeaee4fc94455c1b873",
+    "demo.py": "c6af0ce534bd096e6b437d1945b0d5b52d1d137744b5693eca0beef98f8d84a8",
     "assets/character_meshes.xml": "a397faa9a406b101f059fc7e401ac7a979165a9e3199cf29ade6d5f617a3b189",
     "assets/leg_cover_meshes.xml": "dd6a9c39f3536da3fe7f82774c4e2802e181afbe75fa0f40e9c7276100a178d9",
     "../../environments/shared/robot_validation.py": "ed7cc8b9fde22b8a18bd41ad61b614767495d6c397d1c5c3ed2f141309c37e36"
@@ -31,64 +32,177 @@
       "unexpected_ground_contact": false,
       "maximum_unexpected_support_N": 0.0,
       "minimum_height_ratio": 0.994850702244536,
+      "final_height_ratio": 0.9950168198179925,
       "maximum_tilt_deg": 1.7160311448861678,
       "maximum_root_drift_m": 0.001540679027978974,
       "settled_leg_effort": {
         "left_hip_yaw_servo": {
           "rms_Nm": 0.0011353167165814029,
           "cap_fraction": 0.0,
-          "applied_cap_Nm": 0.1
+          "applied_cap_Nm": 0.1,
+          "applied_range_Nm": [
+            -0.1,
+            0.1
+          ]
         },
         "left_hip_roll_servo": {
           "rms_Nm": 0.020861275189601413,
           "cap_fraction": 0.0,
-          "applied_cap_Nm": 0.1
+          "applied_cap_Nm": 0.1,
+          "applied_range_Nm": [
+            -0.1,
+            0.1
+          ]
         },
         "left_hip_pitch_servo": {
           "rms_Nm": 0.019206611381860812,
           "cap_fraction": 0.0,
-          "applied_cap_Nm": 0.1
+          "applied_cap_Nm": 0.1,
+          "applied_range_Nm": [
+            -0.1,
+            0.1
+          ]
         },
         "left_knee_servo": {
           "rms_Nm": 0.05293811838440297,
           "cap_fraction": 0.0,
-          "applied_cap_Nm": 0.1
+          "applied_cap_Nm": 0.1,
+          "applied_range_Nm": [
+            -0.1,
+            0.1
+          ]
         },
         "left_ankle_servo": {
           "rms_Nm": 0.02042181712617353,
           "cap_fraction": 0.0,
-          "applied_cap_Nm": 0.1
+          "applied_cap_Nm": 0.1,
+          "applied_range_Nm": [
+            -0.1,
+            0.1
+          ]
         },
         "right_hip_yaw_servo": {
           "rms_Nm": 0.001134453804108791,
           "cap_fraction": 0.0,
-          "applied_cap_Nm": 0.1
+          "applied_cap_Nm": 0.1,
+          "applied_range_Nm": [
+            -0.1,
+            0.1
+          ]
         },
         "right_hip_roll_servo": {
           "rms_Nm": 0.020841015650220986,
           "cap_fraction": 0.0,
-          "applied_cap_Nm": 0.1
+          "applied_cap_Nm": 0.1,
+          "applied_range_Nm": [
+            -0.1,
+            0.1
+          ]
         },
         "right_hip_pitch_servo": {
           "rms_Nm": 0.01921316350275289,
           "cap_fraction": 0.0,
-          "applied_cap_Nm": 0.1
+          "applied_cap_Nm": 0.1,
+          "applied_range_Nm": [
+            -0.1,
+            0.1
+          ]
         },
         "right_knee_servo": {
           "rms_Nm": 0.052922505105999315,
           "cap_fraction": 0.0,
-          "applied_cap_Nm": 0.1
+          "applied_cap_Nm": 0.1,
+          "applied_range_Nm": [
+            -0.1,
+            0.1
+          ]
         },
         "right_ankle_servo": {
           "rms_Nm": 0.02042660354479276,
           "cap_fraction": 0.0,
-          "applied_cap_Nm": 0.1
+          "applied_cap_Nm": 0.1,
+          "applied_range_Nm": [
+            -0.1,
+            0.1
+          ]
         }
       },
       "settled_foot_normal_mean_N": [
         3.925035586371439,
         3.922964413628529
       ],
+      "actuators": {
+        "left_hip_yaw_servo": {
+          "peak_Nm": 0.003528969657016966,
+          "rms_Nm": 0.0011636645028444308,
+          "final_second_mean_abs_Nm": 0.0011353167165814029
+        },
+        "left_hip_roll_servo": {
+          "peak_Nm": 0.020861275189601566,
+          "rms_Nm": 0.02060025264108767,
+          "final_second_mean_abs_Nm": 0.020861275189601413
+        },
+        "left_hip_pitch_servo": {
+          "peak_Nm": 0.03314143120341093,
+          "rms_Nm": 0.01922509464720167,
+          "final_second_mean_abs_Nm": 0.01920661138186081
+        },
+        "left_knee_servo": {
+          "peak_Nm": 0.08012284272729199,
+          "rms_Nm": 0.05296901937597832,
+          "final_second_mean_abs_Nm": 0.05293811838440297
+        },
+        "left_ankle_servo": {
+          "peak_Nm": 0.06119946413116392,
+          "rms_Nm": 0.020625218629391467,
+          "final_second_mean_abs_Nm": 0.02042181712617353
+        },
+        "right_hip_yaw_servo": {
+          "peak_Nm": 0.003514627657519277,
+          "rms_Nm": 0.001162822091171714,
+          "final_second_mean_abs_Nm": 0.001134453804108791
+        },
+        "right_hip_roll_servo": {
+          "peak_Nm": 0.02084101565022112,
+          "rms_Nm": 0.020580079450592023,
+          "final_second_mean_abs_Nm": 0.020841015650220986
+        },
+        "right_hip_pitch_servo": {
+          "peak_Nm": 0.03313456342263942,
+          "rms_Nm": 0.01923157517950759,
+          "final_second_mean_abs_Nm": 0.019213163502752893
+        },
+        "right_knee_servo": {
+          "peak_Nm": 0.08009779930202118,
+          "rms_Nm": 0.05295340663124311,
+          "final_second_mean_abs_Nm": 0.05292250510599932
+        },
+        "right_ankle_servo": {
+          "peak_Nm": 0.061208486032499905,
+          "rms_Nm": 0.02063008617810073,
+          "final_second_mean_abs_Nm": 0.02042660354479276
+        },
+        "head_pitch_servo": {
+          "peak_Nm": 0.01867803094289096,
+          "rms_Nm": 0.01585619182452589,
+          "final_second_mean_abs_Nm": 0.01585349828978897
+        },
+        "head_yaw_servo": {
+          "peak_Nm": 0.0003103141479437195,
+          "rms_Nm": 6.639995871322761e-06,
+          "final_second_mean_abs_Nm": 1.6272830877861531e-06
+        },
+        "jaw_servo": {
+          "peak_Nm": 0.0050134840730139815,
+          "rms_Nm": 0.004819313697706571,
+          "final_second_mean_abs_Nm": 0.004820956620035816
+        },
+        "left_shoulder_pitch_servo": {
+          "peak_Nm": 0.0016728543793614408,
+          "rms_Nm": 0.001586899365846555,
+          "final_second_mean_abs_Nm": 0.0015872985979788557
+        }
+      },
       "failures": []
     },
     "fixed_tail_roll": {
@@ -108,64 +222,177 @@
       "unexpected_ground_contact": false,
       "maximum_unexpected_support_N": 0.0,
       "minimum_height_ratio": 0.994850702244536,
+      "final_height_ratio": 0.995016819817993,
       "maximum_tilt_deg": 1.7160311448861678,
       "maximum_root_drift_m": 0.001540679027978974,
       "settled_leg_effort": {
         "left_hip_yaw_servo": {
           "rms_Nm": 0.0011353167165814246,
           "cap_fraction": 0.0,
-          "applied_cap_Nm": 0.1
+          "applied_cap_Nm": 0.1,
+          "applied_range_Nm": [
+            -0.1,
+            0.1
+          ]
         },
         "left_hip_roll_servo": {
           "rms_Nm": 0.020861275189602117,
           "cap_fraction": 0.0,
-          "applied_cap_Nm": 0.1
+          "applied_cap_Nm": 0.1,
+          "applied_range_Nm": [
+            -0.1,
+            0.1
+          ]
         },
         "left_hip_pitch_servo": {
           "rms_Nm": 0.01920661138186091,
           "cap_fraction": 0.0,
-          "applied_cap_Nm": 0.1
+          "applied_cap_Nm": 0.1,
+          "applied_range_Nm": [
+            -0.1,
+            0.1
+          ]
         },
         "left_knee_servo": {
           "rms_Nm": 0.05293811838440292,
           "cap_fraction": 0.0,
-          "applied_cap_Nm": 0.1
+          "applied_cap_Nm": 0.1,
+          "applied_range_Nm": [
+            -0.1,
+            0.1
+          ]
         },
         "left_ankle_servo": {
           "rms_Nm": 0.020421817126173566,
           "cap_fraction": 0.0,
-          "applied_cap_Nm": 0.1
+          "applied_cap_Nm": 0.1,
+          "applied_range_Nm": [
+            -0.1,
+            0.1
+          ]
         },
         "right_hip_yaw_servo": {
           "rms_Nm": 0.0011344538041087831,
           "cap_fraction": 0.0,
-          "applied_cap_Nm": 0.1
+          "applied_cap_Nm": 0.1,
+          "applied_range_Nm": [
+            -0.1,
+            0.1
+          ]
         },
         "right_hip_roll_servo": {
           "rms_Nm": 0.020841015650220784,
           "cap_fraction": 0.0,
-          "applied_cap_Nm": 0.1
+          "applied_cap_Nm": 0.1,
+          "applied_range_Nm": [
+            -0.1,
+            0.1
+          ]
         },
         "right_hip_pitch_servo": {
           "rms_Nm": 0.01921316350275282,
           "cap_fraction": 0.0,
-          "applied_cap_Nm": 0.1
+          "applied_cap_Nm": 0.1,
+          "applied_range_Nm": [
+            -0.1,
+            0.1
+          ]
         },
         "right_knee_servo": {
           "rms_Nm": 0.05292250510599942,
           "cap_fraction": 0.0,
-          "applied_cap_Nm": 0.1
+          "applied_cap_Nm": 0.1,
+          "applied_range_Nm": [
+            -0.1,
+            0.1
+          ]
         },
         "right_ankle_servo": {
           "rms_Nm": 0.020426603544792768,
           "cap_fraction": 0.0,
-          "applied_cap_Nm": 0.1
+          "applied_cap_Nm": 0.1,
+          "applied_range_Nm": [
+            -0.1,
+            0.1
+          ]
         }
       },
       "settled_foot_normal_mean_N": [
         3.9250355863714455,
         3.922964413628548
       ],
+      "actuators": {
+        "left_hip_yaw_servo": {
+          "peak_Nm": 0.003528969657016966,
+          "rms_Nm": 0.001163586965253354,
+          "final_second_mean_abs_Nm": 0.0011353167165814246
+        },
+        "left_hip_roll_servo": {
+          "peak_Nm": 0.020861275189602232,
+          "rms_Nm": 0.020602812860792626,
+          "final_second_mean_abs_Nm": 0.020861275189602117
+        },
+        "left_hip_pitch_servo": {
+          "peak_Nm": 0.03314143120341093,
+          "rms_Nm": 0.019225340951493468,
+          "final_second_mean_abs_Nm": 0.01920661138186091
+        },
+        "left_knee_servo": {
+          "peak_Nm": 0.08012284272729199,
+          "rms_Nm": 0.05296739374729922,
+          "final_second_mean_abs_Nm": 0.052938118384402925
+        },
+        "left_ankle_servo": {
+          "peak_Nm": 0.06119946413116392,
+          "rms_Nm": 0.02062559878876879,
+          "final_second_mean_abs_Nm": 0.020421817126173566
+        },
+        "right_hip_yaw_servo": {
+          "peak_Nm": 0.003514627657519277,
+          "rms_Nm": 0.001162940916933064,
+          "final_second_mean_abs_Nm": 0.0011344538041087834
+        },
+        "right_hip_roll_servo": {
+          "peak_Nm": 0.02084101565022094,
+          "rms_Nm": 0.0205779923670289,
+          "final_second_mean_abs_Nm": 0.020841015650220788
+        },
+        "right_hip_pitch_servo": {
+          "peak_Nm": 0.03313456342263942,
+          "rms_Nm": 0.019231339241051772,
+          "final_second_mean_abs_Nm": 0.01921316350275282
+        },
+        "right_knee_servo": {
+          "peak_Nm": 0.08009779930202118,
+          "rms_Nm": 0.052955008666484706,
+          "final_second_mean_abs_Nm": 0.05292250510599942
+        },
+        "right_ankle_servo": {
+          "peak_Nm": 0.061208486032499905,
+          "rms_Nm": 0.020629715523530788,
+          "final_second_mean_abs_Nm": 0.020426603544792768
+        },
+        "head_pitch_servo": {
+          "peak_Nm": 0.01867803094289096,
+          "rms_Nm": 0.015856211521701847,
+          "final_second_mean_abs_Nm": 0.015853498289788975
+        },
+        "head_yaw_servo": {
+          "peak_Nm": 0.0009293382406468946,
+          "rms_Nm": 3.3143895882308535e-05,
+          "final_second_mean_abs_Nm": 1.6272830877931557e-06
+        },
+        "jaw_servo": {
+          "peak_Nm": 0.0050134840730139815,
+          "rms_Nm": 0.004819313427635892,
+          "final_second_mean_abs_Nm": 0.0048209566200358165
+        },
+        "left_shoulder_pitch_servo": {
+          "peak_Nm": 0.0016728543793614408,
+          "rms_Nm": 0.001586899285205355,
+          "final_second_mean_abs_Nm": 0.001587298597978857
+        }
+      },
       "failures": []
     },
     "fixed_tail_pitch": {
@@ -185,64 +412,177 @@
       "unexpected_ground_contact": false,
       "maximum_unexpected_support_N": 0.0,
       "minimum_height_ratio": 0.994850702244536,
+      "final_height_ratio": 0.9950168198179934,
       "maximum_tilt_deg": 1.7160311448861678,
       "maximum_root_drift_m": 0.001540679027978974,
       "settled_leg_effort": {
         "left_hip_yaw_servo": {
           "rms_Nm": 0.0011353167165814185,
           "cap_fraction": 0.0,
-          "applied_cap_Nm": 0.1
+          "applied_cap_Nm": 0.1,
+          "applied_range_Nm": [
+            -0.1,
+            0.1
+          ]
         },
         "left_hip_roll_servo": {
           "rms_Nm": 0.020861275189601576,
           "cap_fraction": 0.0,
-          "applied_cap_Nm": 0.1
+          "applied_cap_Nm": 0.1,
+          "applied_range_Nm": [
+            -0.1,
+            0.1
+          ]
         },
         "left_hip_pitch_servo": {
           "rms_Nm": 0.01920661138186092,
           "cap_fraction": 0.0,
-          "applied_cap_Nm": 0.1
+          "applied_cap_Nm": 0.1,
+          "applied_range_Nm": [
+            -0.1,
+            0.1
+          ]
         },
         "left_knee_servo": {
           "rms_Nm": 0.05293811838440297,
           "cap_fraction": 0.0,
-          "applied_cap_Nm": 0.1
+          "applied_cap_Nm": 0.1,
+          "applied_range_Nm": [
+            -0.1,
+            0.1
+          ]
         },
         "left_ankle_servo": {
           "rms_Nm": 0.020421817126173546,
           "cap_fraction": 0.0,
-          "applied_cap_Nm": 0.1
+          "applied_cap_Nm": 0.1,
+          "applied_range_Nm": [
+            -0.1,
+            0.1
+          ]
         },
         "right_hip_yaw_servo": {
           "rms_Nm": 0.0011344538041087632,
           "cap_fraction": 0.0,
-          "applied_cap_Nm": 0.1
+          "applied_cap_Nm": 0.1,
+          "applied_range_Nm": [
+            -0.1,
+            0.1
+          ]
         },
         "right_hip_roll_servo": {
           "rms_Nm": 0.020841015650220708,
           "cap_fraction": 0.0,
-          "applied_cap_Nm": 0.1
+          "applied_cap_Nm": 0.1,
+          "applied_range_Nm": [
+            -0.1,
+            0.1
+          ]
         },
         "right_hip_pitch_servo": {
           "rms_Nm": 0.01921316350275281,
           "cap_fraction": 0.0,
-          "applied_cap_Nm": 0.1
+          "applied_cap_Nm": 0.1,
+          "applied_range_Nm": [
+            -0.1,
+            0.1
+          ]
         },
         "right_knee_servo": {
           "rms_Nm": 0.05292250510599938,
           "cap_fraction": 0.0,
-          "applied_cap_Nm": 0.1
+          "applied_cap_Nm": 0.1,
+          "applied_range_Nm": [
+            -0.1,
+            0.1
+          ]
         },
         "right_ankle_servo": {
           "rms_Nm": 0.020426603544792764,
           "cap_fraction": 0.0,
-          "applied_cap_Nm": 0.1
+          "applied_cap_Nm": 0.1,
+          "applied_range_Nm": [
+            -0.1,
+            0.1
+          ]
         }
       },
       "settled_foot_normal_mean_N": [
         3.925035586371445,
         3.922964413628537
       ],
+      "actuators": {
+        "left_hip_yaw_servo": {
+          "peak_Nm": 0.003528969657016966,
+          "rms_Nm": 0.001166677908011922,
+          "final_second_mean_abs_Nm": 0.0011353167165814187
+        },
+        "left_hip_roll_servo": {
+          "peak_Nm": 0.02086127518960168,
+          "rms_Nm": 0.02060020016481739,
+          "final_second_mean_abs_Nm": 0.020861275189601576
+        },
+        "left_hip_pitch_servo": {
+          "peak_Nm": 0.03314143120341093,
+          "rms_Nm": 0.019232465879558028,
+          "final_second_mean_abs_Nm": 0.01920661138186092
+        },
+        "left_knee_servo": {
+          "peak_Nm": 0.08012284272729199,
+          "rms_Nm": 0.05297906461849698,
+          "final_second_mean_abs_Nm": 0.05293811838440297
+        },
+        "left_ankle_servo": {
+          "peak_Nm": 0.06119946413116392,
+          "rms_Nm": 0.020642165899526315,
+          "final_second_mean_abs_Nm": 0.020421817126173546
+        },
+        "right_hip_yaw_servo": {
+          "peak_Nm": 0.003514627657519277,
+          "rms_Nm": 0.001165878694228509,
+          "final_second_mean_abs_Nm": 0.0011344538041087628
+        },
+        "right_hip_roll_servo": {
+          "peak_Nm": 0.02084101565022089,
+          "rms_Nm": 0.020580021057174578,
+          "final_second_mean_abs_Nm": 0.020841015650220708
+        },
+        "right_hip_pitch_servo": {
+          "peak_Nm": 0.03313456342263942,
+          "rms_Nm": 0.019238920629708747,
+          "final_second_mean_abs_Nm": 0.01921316350275281
+        },
+        "right_knee_servo": {
+          "peak_Nm": 0.08009779930202118,
+          "rms_Nm": 0.05296344397532168,
+          "final_second_mean_abs_Nm": 0.05292250510599938
+        },
+        "right_ankle_servo": {
+          "peak_Nm": 0.061208486032499905,
+          "rms_Nm": 0.02064705294660286,
+          "final_second_mean_abs_Nm": 0.020426603544792764
+        },
+        "head_pitch_servo": {
+          "peak_Nm": 0.01867803094289096,
+          "rms_Nm": 0.01585482680968732,
+          "final_second_mean_abs_Nm": 0.01585349828978899
+        },
+        "head_yaw_servo": {
+          "peak_Nm": 0.0003103141479437195,
+          "rms_Nm": 6.678349331715973e-06,
+          "final_second_mean_abs_Nm": 1.627283087791995e-06
+        },
+        "jaw_servo": {
+          "peak_Nm": 0.0050134840730139815,
+          "rms_Nm": 0.0048192044117334075,
+          "final_second_mean_abs_Nm": 0.00482095662003582
+        },
+        "left_shoulder_pitch_servo": {
+          "peak_Nm": 0.0016728543793614408,
+          "rms_Nm": 0.0015868947482375155,
+          "final_second_mean_abs_Nm": 0.0015872985979788576
+        }
+      },
       "failures": []
     },
     "wag_tail_centered_hold": {
@@ -262,64 +602,182 @@
       "unexpected_ground_contact": false,
       "maximum_unexpected_support_N": 0.0,
       "minimum_height_ratio": 0.9945719506850301,
+      "final_height_ratio": 0.9948259424069477,
       "maximum_tilt_deg": 1.985784424459409,
       "maximum_root_drift_m": 0.0017611696966018857,
       "settled_leg_effort": {
         "left_hip_yaw_servo": {
           "rms_Nm": 0.0013651618271917946,
           "cap_fraction": 0.0,
-          "applied_cap_Nm": 0.1
+          "applied_cap_Nm": 0.1,
+          "applied_range_Nm": [
+            -0.1,
+            0.1
+          ]
         },
         "left_hip_roll_servo": {
           "rms_Nm": 0.021675197548653897,
           "cap_fraction": 0.0,
-          "applied_cap_Nm": 0.1
+          "applied_cap_Nm": 0.1,
+          "applied_range_Nm": [
+            -0.1,
+            0.1
+          ]
         },
         "left_hip_pitch_servo": {
           "rms_Nm": 0.023509226237928064,
           "cap_fraction": 0.0,
-          "applied_cap_Nm": 0.1
+          "applied_cap_Nm": 0.1,
+          "applied_range_Nm": [
+            -0.1,
+            0.1
+          ]
         },
         "left_knee_servo": {
           "rms_Nm": 0.058829618092794814,
           "cap_fraction": 0.0,
-          "applied_cap_Nm": 0.1
+          "applied_cap_Nm": 0.1,
+          "applied_range_Nm": [
+            -0.1,
+            0.1
+          ]
         },
         "left_ankle_servo": {
           "rms_Nm": 0.025284213966628347,
           "cap_fraction": 0.0,
-          "applied_cap_Nm": 0.1
+          "applied_cap_Nm": 0.1,
+          "applied_range_Nm": [
+            -0.1,
+            0.1
+          ]
         },
         "right_hip_yaw_servo": {
           "rms_Nm": 0.0013641703810080873,
           "cap_fraction": 0.0,
-          "applied_cap_Nm": 0.1
+          "applied_cap_Nm": 0.1,
+          "applied_range_Nm": [
+            -0.1,
+            0.1
+          ]
         },
         "right_hip_roll_servo": {
           "rms_Nm": 0.02165487730378307,
           "cap_fraction": 0.0,
-          "applied_cap_Nm": 0.1
+          "applied_cap_Nm": 0.1,
+          "applied_range_Nm": [
+            -0.1,
+            0.1
+          ]
         },
         "right_hip_pitch_servo": {
           "rms_Nm": 0.023515781752493865,
           "cap_fraction": 0.0,
-          "applied_cap_Nm": 0.1
+          "applied_cap_Nm": 0.1,
+          "applied_range_Nm": [
+            -0.1,
+            0.1
+          ]
         },
         "right_knee_servo": {
           "rms_Nm": 0.05881384197006214,
           "cap_fraction": 0.0,
-          "applied_cap_Nm": 0.1
+          "applied_cap_Nm": 0.1,
+          "applied_range_Nm": [
+            -0.1,
+            0.1
+          ]
         },
         "right_ankle_servo": {
           "rms_Nm": 0.025288735843138545,
           "cap_fraction": 0.0,
-          "applied_cap_Nm": 0.1
+          "applied_cap_Nm": 0.1,
+          "applied_range_Nm": [
+            -0.1,
+            0.1
+          ]
         }
       },
       "settled_foot_normal_mean_N": [
         4.0476596391025685,
         4.045590360897443
       ],
+      "actuators": {
+        "left_hip_yaw_servo": {
+          "peak_Nm": 0.003657170155488213,
+          "rms_Nm": 0.001388997264304619,
+          "final_second_mean_abs_Nm": 0.0013651618271917942
+        },
+        "left_hip_roll_servo": {
+          "peak_Nm": 0.02167519754865398,
+          "rms_Nm": 0.021403240505104896,
+          "final_second_mean_abs_Nm": 0.021675197548653897
+        },
+        "left_hip_pitch_servo": {
+          "peak_Nm": 0.040503047555741106,
+          "rms_Nm": 0.023531094525923085,
+          "final_second_mean_abs_Nm": 0.02350922623792806
+        },
+        "left_knee_servo": {
+          "peak_Nm": 0.09047956104837614,
+          "rms_Nm": 0.05886357559173559,
+          "final_second_mean_abs_Nm": 0.058829618092794814
+        },
+        "left_ankle_servo": {
+          "peak_Nm": 0.07193713238912831,
+          "rms_Nm": 0.02547858565335412,
+          "final_second_mean_abs_Nm": 0.02528421396662835
+        },
+        "right_hip_yaw_servo": {
+          "peak_Nm": 0.0036365575111116624,
+          "rms_Nm": 0.0013880749183503628,
+          "final_second_mean_abs_Nm": 0.0013641703810080871
+        },
+        "right_hip_roll_servo": {
+          "peak_Nm": 0.02165487730378316,
+          "rms_Nm": 0.021383006157910882,
+          "final_second_mean_abs_Nm": 0.021654877303783075
+        },
+        "right_hip_pitch_servo": {
+          "peak_Nm": 0.04049478360193267,
+          "rms_Nm": 0.02353758646388032,
+          "final_second_mean_abs_Nm": 0.023515781752493865
+        },
+        "right_knee_servo": {
+          "peak_Nm": 0.09045284777920723,
+          "rms_Nm": 0.05884779541930153,
+          "final_second_mean_abs_Nm": 0.05881384197006213
+        },
+        "right_ankle_servo": {
+          "peak_Nm": 0.0719462778249441,
+          "rms_Nm": 0.025483184559177075,
+          "final_second_mean_abs_Nm": 0.02528873584313854
+        },
+        "head_pitch_servo": {
+          "peak_Nm": 0.018867102753950777,
+          "rms_Nm": 0.015821108085108795,
+          "final_second_mean_abs_Nm": 0.015818187811124186
+        },
+        "head_yaw_servo": {
+          "peak_Nm": 0.000320400933442734,
+          "rms_Nm": 6.976212672985447e-06,
+          "final_second_mean_abs_Nm": 1.8733951100761868e-06
+        },
+        "jaw_servo": {
+          "peak_Nm": 0.005028527298891394,
+          "rms_Nm": 0.004821251719927962,
+          "final_second_mean_abs_Nm": 0.004822883291653521
+        },
+        "left_shoulder_pitch_servo": {
+          "peak_Nm": 0.001677960756708613,
+          "rms_Nm": 0.001590069836192101,
+          "final_second_mean_abs_Nm": 0.0015904920153140022
+        },
+        "tail_yaw_servo": {
+          "peak_Nm": 1.6395308446580978e-05,
+          "rms_Nm": 4.002773008890952e-07,
+          "final_second_mean_abs_Nm": 1.0230216068943108e-08
+        }
+      },
       "failures": []
     },
     "wag_tail_centered_roll": {
@@ -339,64 +797,182 @@
       "unexpected_ground_contact": false,
       "maximum_unexpected_support_N": 0.0,
       "minimum_height_ratio": 0.9945719506850301,
+      "final_height_ratio": 0.994825942406947,
       "maximum_tilt_deg": 1.985784424459409,
       "maximum_root_drift_m": 0.0017611696966018857,
       "settled_leg_effort": {
         "left_hip_yaw_servo": {
           "rms_Nm": 0.001365161827191757,
           "cap_fraction": 0.0,
-          "applied_cap_Nm": 0.1
+          "applied_cap_Nm": 0.1,
+          "applied_range_Nm": [
+            -0.1,
+            0.1
+          ]
         },
         "left_hip_roll_servo": {
           "rms_Nm": 0.021675197548654067,
           "cap_fraction": 0.0,
-          "applied_cap_Nm": 0.1
+          "applied_cap_Nm": 0.1,
+          "applied_range_Nm": [
+            -0.1,
+            0.1
+          ]
         },
         "left_hip_pitch_servo": {
           "rms_Nm": 0.02350922623792805,
           "cap_fraction": 0.0,
-          "applied_cap_Nm": 0.1
+          "applied_cap_Nm": 0.1,
+          "applied_range_Nm": [
+            -0.1,
+            0.1
+          ]
         },
         "left_knee_servo": {
           "rms_Nm": 0.05882961809279475,
           "cap_fraction": 0.0,
-          "applied_cap_Nm": 0.1
+          "applied_cap_Nm": 0.1,
+          "applied_range_Nm": [
+            -0.1,
+            0.1
+          ]
         },
         "left_ankle_servo": {
           "rms_Nm": 0.02528421396662832,
           "cap_fraction": 0.0,
-          "applied_cap_Nm": 0.1
+          "applied_cap_Nm": 0.1,
+          "applied_range_Nm": [
+            -0.1,
+            0.1
+          ]
         },
         "right_hip_yaw_servo": {
           "rms_Nm": 0.001364170381008049,
           "cap_fraction": 0.0,
-          "applied_cap_Nm": 0.1
+          "applied_cap_Nm": 0.1,
+          "applied_range_Nm": [
+            -0.1,
+            0.1
+          ]
         },
         "right_hip_roll_servo": {
           "rms_Nm": 0.02165487730378288,
           "cap_fraction": 0.0,
-          "applied_cap_Nm": 0.1
+          "applied_cap_Nm": 0.1,
+          "applied_range_Nm": [
+            -0.1,
+            0.1
+          ]
         },
         "right_hip_pitch_servo": {
           "rms_Nm": 0.02351578175249379,
           "cap_fraction": 0.0,
-          "applied_cap_Nm": 0.1
+          "applied_cap_Nm": 0.1,
+          "applied_range_Nm": [
+            -0.1,
+            0.1
+          ]
         },
         "right_knee_servo": {
           "rms_Nm": 0.05881384197006208,
           "cap_fraction": 0.0,
-          "applied_cap_Nm": 0.1
+          "applied_cap_Nm": 0.1,
+          "applied_range_Nm": [
+            -0.1,
+            0.1
+          ]
         },
         "right_ankle_servo": {
           "rms_Nm": 0.025288735843138486,
           "cap_fraction": 0.0,
-          "applied_cap_Nm": 0.1
+          "applied_cap_Nm": 0.1,
+          "applied_range_Nm": [
+            -0.1,
+            0.1
+          ]
         }
       },
       "settled_foot_normal_mean_N": [
         4.04765963910257,
         4.045590360897448
       ],
+      "actuators": {
+        "left_hip_yaw_servo": {
+          "peak_Nm": 0.003657170155488213,
+          "rms_Nm": 0.0013888955590737372,
+          "final_second_mean_abs_Nm": 0.001365161827191757
+        },
+        "left_hip_roll_servo": {
+          "peak_Nm": 0.02167519754865458,
+          "rms_Nm": 0.021405716180098823,
+          "final_second_mean_abs_Nm": 0.02167519754865407
+        },
+        "left_hip_pitch_servo": {
+          "peak_Nm": 0.040503047555741106,
+          "rms_Nm": 0.02353136653379226,
+          "final_second_mean_abs_Nm": 0.023509226237928046
+        },
+        "left_knee_servo": {
+          "peak_Nm": 0.09047956104837614,
+          "rms_Nm": 0.05886192312067274,
+          "final_second_mean_abs_Nm": 0.058829618092794744
+        },
+        "left_ankle_servo": {
+          "peak_Nm": 0.07193713238912831,
+          "rms_Nm": 0.025478941845754208,
+          "final_second_mean_abs_Nm": 0.025284213966628315
+        },
+        "right_hip_yaw_servo": {
+          "peak_Nm": 0.0036365575111116624,
+          "rms_Nm": 0.0013882176414862033,
+          "final_second_mean_abs_Nm": 0.0013641703810080487
+        },
+        "right_hip_roll_servo": {
+          "peak_Nm": 0.021654877303783182,
+          "rms_Nm": 0.02138103668820865,
+          "final_second_mean_abs_Nm": 0.02165487730378288
+        },
+        "right_hip_pitch_servo": {
+          "peak_Nm": 0.04049478360193267,
+          "rms_Nm": 0.02353732083145901,
+          "final_second_mean_abs_Nm": 0.023515781752493786
+        },
+        "right_knee_servo": {
+          "peak_Nm": 0.09045284777920723,
+          "rms_Nm": 0.05884947245219146,
+          "final_second_mean_abs_Nm": 0.058813841970062085
+        },
+        "right_ankle_servo": {
+          "peak_Nm": 0.0719462778249441,
+          "rms_Nm": 0.02548282811194867,
+          "final_second_mean_abs_Nm": 0.02528873584313849
+        },
+        "head_pitch_servo": {
+          "peak_Nm": 0.018867102753950777,
+          "rms_Nm": 0.015821127624872793,
+          "final_second_mean_abs_Nm": 0.01581818781112418
+        },
+        "head_yaw_servo": {
+          "peak_Nm": 0.0009398179851227927,
+          "rms_Nm": 3.329532223713866e-05,
+          "final_second_mean_abs_Nm": 1.8733951100869972e-06
+        },
+        "jaw_servo": {
+          "peak_Nm": 0.005028527298891394,
+          "rms_Nm": 0.00482125145360508,
+          "final_second_mean_abs_Nm": 0.004822883291653518
+        },
+        "left_shoulder_pitch_servo": {
+          "peak_Nm": 0.001677960756708613,
+          "rms_Nm": 0.001590069763160451,
+          "final_second_mean_abs_Nm": 0.0015904920153140007
+        },
+        "tail_yaw_servo": {
+          "peak_Nm": 2.3660526988542926e-05,
+          "rms_Nm": 8.887554877888993e-07,
+          "final_second_mean_abs_Nm": 1.023021607041795e-08
+        }
+      },
       "failures": []
     },
     "wag_tail_centered_pitch": {
@@ -416,64 +992,182 @@
       "unexpected_ground_contact": false,
       "maximum_unexpected_support_N": 0.0,
       "minimum_height_ratio": 0.9945719506850301,
+      "final_height_ratio": 0.994825942406947,
       "maximum_tilt_deg": 1.985784424459409,
       "maximum_root_drift_m": 0.0017611696966018857,
       "settled_leg_effort": {
         "left_hip_yaw_servo": {
           "rms_Nm": 0.0013651618271917848,
           "cap_fraction": 0.0,
-          "applied_cap_Nm": 0.1
+          "applied_cap_Nm": 0.1,
+          "applied_range_Nm": [
+            -0.1,
+            0.1
+          ]
         },
         "left_hip_roll_servo": {
           "rms_Nm": 0.021675197548653692,
           "cap_fraction": 0.0,
-          "applied_cap_Nm": 0.1
+          "applied_cap_Nm": 0.1,
+          "applied_range_Nm": [
+            -0.1,
+            0.1
+          ]
         },
         "left_hip_pitch_servo": {
           "rms_Nm": 0.023509226237928053,
           "cap_fraction": 0.0,
-          "applied_cap_Nm": 0.1
+          "applied_cap_Nm": 0.1,
+          "applied_range_Nm": [
+            -0.1,
+            0.1
+          ]
         },
         "left_knee_servo": {
           "rms_Nm": 0.05882961809279486,
           "cap_fraction": 0.0,
-          "applied_cap_Nm": 0.1
+          "applied_cap_Nm": 0.1,
+          "applied_range_Nm": [
+            -0.1,
+            0.1
+          ]
         },
         "left_ankle_servo": {
           "rms_Nm": 0.025284213966628284,
           "cap_fraction": 0.0,
-          "applied_cap_Nm": 0.1
+          "applied_cap_Nm": 0.1,
+          "applied_range_Nm": [
+            -0.1,
+            0.1
+          ]
         },
         "right_hip_yaw_servo": {
           "rms_Nm": 0.0013641703810080492,
           "cap_fraction": 0.0,
-          "applied_cap_Nm": 0.1
+          "applied_cap_Nm": 0.1,
+          "applied_range_Nm": [
+            -0.1,
+            0.1
+          ]
         },
         "right_hip_roll_servo": {
           "rms_Nm": 0.021654877303783467,
           "cap_fraction": 0.0,
-          "applied_cap_Nm": 0.1
+          "applied_cap_Nm": 0.1,
+          "applied_range_Nm": [
+            -0.1,
+            0.1
+          ]
         },
         "right_hip_pitch_servo": {
           "rms_Nm": 0.02351578175249382,
           "cap_fraction": 0.0,
-          "applied_cap_Nm": 0.1
+          "applied_cap_Nm": 0.1,
+          "applied_range_Nm": [
+            -0.1,
+            0.1
+          ]
         },
         "right_knee_servo": {
           "rms_Nm": 0.058813841970062,
           "cap_fraction": 0.0,
-          "applied_cap_Nm": 0.1
+          "applied_cap_Nm": 0.1,
+          "applied_range_Nm": [
+            -0.1,
+            0.1
+          ]
         },
         "right_ankle_servo": {
           "rms_Nm": 0.02528873584313856,
           "cap_fraction": 0.0,
-          "applied_cap_Nm": 0.1
+          "applied_cap_Nm": 0.1,
+          "applied_range_Nm": [
+            -0.1,
+            0.1
+          ]
         }
       },
       "settled_foot_normal_mean_N": [
         4.047659639102624,
         4.045590360897444
       ],
+      "actuators": {
+        "left_hip_yaw_servo": {
+          "peak_Nm": 0.003657170155488213,
+          "rms_Nm": 0.001391860989168232,
+          "final_second_mean_abs_Nm": 0.0013651618271917848
+        },
+        "left_hip_roll_servo": {
+          "peak_Nm": 0.02167519754865379,
+          "rms_Nm": 0.02140321534997021,
+          "final_second_mean_abs_Nm": 0.021675197548653696
+        },
+        "left_hip_pitch_servo": {
+          "peak_Nm": 0.040503047555741106,
+          "rms_Nm": 0.023539462238960775,
+          "final_second_mean_abs_Nm": 0.023509226237928053
+        },
+        "left_knee_servo": {
+          "peak_Nm": 0.09047956104837614,
+          "rms_Nm": 0.05887448638803473,
+          "final_second_mean_abs_Nm": 0.05882961809279486
+        },
+        "left_ankle_servo": {
+          "peak_Nm": 0.07193713238912831,
+          "rms_Nm": 0.025496184980291256,
+          "final_second_mean_abs_Nm": 0.02528421396662828
+        },
+        "right_hip_yaw_servo": {
+          "peak_Nm": 0.0036365575111116624,
+          "rms_Nm": 0.0013909816574551896,
+          "final_second_mean_abs_Nm": 0.001364170381008049
+        },
+        "right_hip_roll_servo": {
+          "peak_Nm": 0.02165487730378361,
+          "rms_Nm": 0.021382974998350984,
+          "final_second_mean_abs_Nm": 0.021654877303783467
+        },
+        "right_hip_pitch_servo": {
+          "peak_Nm": 0.04049478360193267,
+          "rms_Nm": 0.023545928266968445,
+          "final_second_mean_abs_Nm": 0.023515781752493824
+        },
+        "right_knee_servo": {
+          "peak_Nm": 0.09045284777920723,
+          "rms_Nm": 0.058858698177213634,
+          "final_second_mean_abs_Nm": 0.058813841970062
+        },
+        "right_ankle_servo": {
+          "peak_Nm": 0.0719462778249441,
+          "rms_Nm": 0.02550080456904758,
+          "final_second_mean_abs_Nm": 0.02528873584313856
+        },
+        "head_pitch_servo": {
+          "peak_Nm": 0.018867102753950777,
+          "rms_Nm": 0.01581974171938366,
+          "final_second_mean_abs_Nm": 0.01581818781112418
+        },
+        "head_yaw_servo": {
+          "peak_Nm": 0.000320400933442734,
+          "rms_Nm": 7.017339867553071e-06,
+          "final_second_mean_abs_Nm": 1.8733951100785754e-06
+        },
+        "jaw_servo": {
+          "peak_Nm": 0.005028527298891394,
+          "rms_Nm": 0.0048211425165465005,
+          "final_second_mean_abs_Nm": 0.00482288329165352
+        },
+        "left_shoulder_pitch_servo": {
+          "peak_Nm": 0.001677960756708613,
+          "rms_Nm": 0.001590065599239201,
+          "final_second_mean_abs_Nm": 0.0015904920153140027
+        },
+        "tail_yaw_servo": {
+          "peak_Nm": 1.6395308446580978e-05,
+          "rms_Nm": 4.0044502814711377e-07,
+          "final_second_mean_abs_Nm": 1.0230216068012466e-08
+        }
+      },
       "failures": []
     }
   },

@@ -4,9 +4,8 @@ on:
     branches: [main, codex/tyrannosaurus-rex-one-metre]
     paths: &concept-paths
       - "examples/tyrannosaurus_rex_100cm/**"
-      - "examples/tyrannosaurus_rex_50cm/build_model.py"
-      - "examples/mini_tyrannosaurus_rex/render_design.py"
-      - "environments/shared/robot_validation.py"
+      - "environments/shared/robot_*.py"
+      - "environments/shared/tests/test_robot_*.py"
       - "environments/tyrannosaurus_rex/tests/test_tyrannosaurus_rex_100cm.py"
       - ".github/workflows/metre-trex-concept.yml"
       - "pyproject.toml"
@@ -29,12 +28,12 @@ jobs:
         run: pip install -e ".[test]" "ruff==0.16.9" "mypy==2.3.1"
       - name: Check source style and types
         run: |
-          ruff check examples/tyrannosaurus_rex_100cm/ environments/tyrannosaurus_rex/tests/test_tyrannosaurus_rex_100cm.py
-          ruff format --check examples/tyrannosaurus_rex_100cm/ environments/tyrannosaurus_rex/tests/test_tyrannosaurus_rex_100cm.py
-          mypy examples/tyrannosaurus_rex_100cm/ --ignore-missing-imports
+          ruff check examples/tyrannosaurus_rex_100cm/ environments/shared/robot_*.py environments/shared/tests/test_robot_*.py environments/tyrannosaurus_rex/tests/test_tyrannosaurus_rex_100cm.py
+          ruff format --check examples/tyrannosaurus_rex_100cm/ environments/shared/robot_*.py environments/shared/tests/test_robot_*.py environments/tyrannosaurus_rex/tests/test_tyrannosaurus_rex_100cm.py
+          mypy examples/tyrannosaurus_rex_100cm/ environments/shared/robot_*.py --ignore-missing-imports
       - name: Check committed assembly and evidence
         run: |
-          pytest environments/tyrannosaurus_rex/tests/test_tyrannosaurus_rex_100cm.py environments/shared/tests/test_ci_tool_pins.py -vv
+          pytest environments/tyrannosaurus_rex/tests/test_tyrannosaurus_rex_100cm.py environments/shared/tests/test_robot_*.py environments/shared/tests/test_ci_tool_pins.py -vv
       - name: Prepare review bundle
         run: |
           python - <<'PY'

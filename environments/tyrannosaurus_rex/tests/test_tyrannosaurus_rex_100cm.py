@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import csv
 import hashlib
 import json
 from pathlib import Path
@@ -71,13 +72,18 @@ def test_generated_model_ledger_and_meshes_are_current(tmp_path: Path) -> None:
 def test_recorded_evidence_tracks_source_bytes(filename: str) -> None:
     record = json.loads(MODEL_PATH.with_name(filename).read_text())
     root = MODEL_PATH.parent.parent.parent
+    sources = set()
     for relative, expected in record["source_sha256"].items():
         path = (
             MODEL_PATH.parent / relative
             if filename == "parts_verification.json" or relative.startswith("../")
             else root / relative
         )
+        sources.add(path.resolve())
         assert hashlib.sha256(path.read_bytes()).hexdigest() == expected, relative
+    assert root / "environments/shared/robot_building.py" in sources
+    if filename == "validation.json":
+        assert root / "environments/shared/robot_geometry.py" in sources
 
 
 def test_parent_child_motor_interference_is_not_hidden_by_contact_filtering() -> None:
@@ -123,3 +129,52 @@ def test_budget_rejects_missing_motors_and_stale_csv(tmp_path: Path) -> None:
     stale = tmp_path / "stale.csv"
     stale.write_text(bom.read_text().replace("RS04,4,", "RS04,3,"))
     assert not budget_summary(ledger, budget, stale)["passed"]
+
+
+@pytest.mark.parametrize("column_order", ["original", "reversed"])
+def test_budget_accepts_complete_csv_in_any_column_order(tmp_path: Path, column_order: str) -> None:
+    ledger = json.loads(MODEL_PATH.with_name("components.json").read_text())
+    budget = json.loads(MODEL_PATH.with_name("budget.json").read_text())
+    with MODEL_PATH.with_name("bom.csv").open(newline="") as stream:
+        reader = csv.DictReader(stream)
+        fields = list(reader.fieldnames or ())
+        rows = list(reader)
+    if column_order == "reversed":
+        fields.reverse()
+    path = tmp_path / "bom.csv"
+    with path.open("w", newline="") as stream:
+        writer = csv.DictWriter(stream, fieldnames=fields)
+        writer.writeheader()
+        writer.writerows(rows)
+    result = budget_summary(ledger, budget, path)
+    assert result["csv_matches"]
+    assert result["passed"]
+
+
+@pytest.mark.parametrize(
+    "schema_error",
+    ["missing_quantity", "missing_unit_usd", "missing_total_usd", "part_only", "duplicate_quantity", "extra_typo"],
+)
+def test_budget_rejects_incomplete_or_ambiguous_csv_schema(tmp_path: Path, schema_error: str) -> None:
+    ledger = json.loads(MODEL_PATH.with_name("components.json").read_text())
+    budget = json.loads(MODEL_PATH.with_name("budget.json").read_text())
+    with MODEL_PATH.with_name("bom.csv").open(newline="") as stream:
+        reader = csv.DictReader(stream)
+        fields = list(reader.fieldnames or ())
+        rows = list(reader)
+    if schema_error.startswith("missing_"):
+        fields.remove(schema_error.removeprefix("missing_"))
+    elif schema_error == "part_only":
+        fields = ["part"]
+    elif schema_error == "duplicate_quantity":
+        fields.append("quantity")
+    else:
+        fields.append("quantitiy")
+    path = tmp_path / "invalid.csv"
+    with path.open("w", newline="") as stream:
+        writer = csv.writer(stream)
+        writer.writerow(fields)
+        writer.writerows([row.get(field, "") for field in fields] for row in rows)
+    result = budget_summary(ledger, budget, path)
+    assert not result["csv_matches"]
+    assert not result["passed"]

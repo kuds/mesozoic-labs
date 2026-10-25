@@ -22,14 +22,35 @@ from environments.shared.paths import REPOSITORY_ROOT
         ("tyrannosaurus_rex_50cm", "validation.json", "examples/tyrannosaurus_rex_50cm"),
         ("tyrannosaurus_rex_50cm", "head_study/results.json", "examples/tyrannosaurus_rex_50cm"),
         ("tyrannosaurus_rex_50cm", "proportion_study/results.json", "."),
+        ("tyrannosaurus_rex_50cm", "mechanical_validation.json", "."),
     ],
 )
 def test_current_report_source_hashes(directory, report, source_base):
     payload = json.loads((REPOSITORY_ROOT / "examples" / directory / report).read_text())
     assert payload["source_sha256"]
+    sources = {(REPOSITORY_ROOT / source_base / name).resolve() for name in payload["source_sha256"]}
+    required = set()
+    if directory == "tyrannosaurus_rex_50cm":
+        required.update(("robot_building.py", "robot_geometry.py"))
+        if report != "validation.json":
+            required.add("robot_rendering.py")
+        if report == "mechanical_validation.json":
+            required.update(("robot_design_spec.py", "robot_design_validation.py"))
+    elif report == "character_validation.json":
+        required.add("robot_rendering.py")
+    assert {REPOSITORY_ROOT / "environments/shared" / name for name in required} <= sources
     for name, expected in payload["source_sha256"].items():
         source = REPOSITORY_ROOT / source_base / name
         assert hashlib.sha256(source.read_bytes()).hexdigest() == expected, f"Regenerate {report}: {name} changed"
+
+
+@pytest.mark.parametrize("report", ["validation.json", "balance_validation.json"])
+def test_mini_hold_evidence_includes_shared_stance_sources(report):
+    base = REPOSITORY_ROOT / "examples/mini_tyrannosaurus_rex"
+    sources = json.loads((base / report).read_text())["source_sha256"]
+    assert {"balance_checks.py", "../../environments/shared/robot_validation.py"} <= sources.keys()
+    if report == "balance_validation.json":
+        assert {"demo.py", "tail_option.py"} <= sources.keys()
 
 
 def test_current_walking_replays_are_bound_to_the_loaded_plant_and_measurement():

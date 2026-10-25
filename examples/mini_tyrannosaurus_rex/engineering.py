@@ -18,11 +18,15 @@ from typing import Any
 import mujoco
 import numpy as np
 
+from environments.shared import robot_validation
+
+from . import balance_checks
+
 MODEL_PATH = Path(__file__).with_name("model.xml")
 
 
 def home_data(model: mujoco.MjModel) -> mujoco.MjData:
-    """Reset without external support, retaining internal mechanism constraints."""
+    """Geometry-only reset; dynamic holds use the guarded stance trial instead."""
     data = mujoco.MjData(model)
     mujoco.mj_resetDataKeyframe(model, data, 0)
     support = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_EQUALITY, "display_support")
@@ -178,19 +182,8 @@ def combined_collision_sweep(model: mujoco.MjModel, samples: int = 1000, seed: i
 
 
 def leg_cap_sensitivity(model: mujoco.MjModel, duration: float = 10.0) -> dict[str, Any]:
-    """Repeat the hold with .10 Nm hard leg caps; this is not a thermal model."""
-    saved = model.actuator_forcerange.copy()
-    try:
-        for actuator in range(model.nu):
-            if any(part in model.actuator(actuator).name for part in ("hip_", "knee", "ankle")):
-                model.actuator_forcerange[actuator] = [-0.10, 0.10]
-        return {
-            "leg_cap_Nm": 0.10,
-            "scope": "Ideal hard-cap sensitivity, not measured continuous duty.",
-            **free_hold(model, duration),
-        }
-    finally:
-        model.actuator_forcerange[:] = saved
+    """Hold with at most .10 Nm leg caps, without strengthening weaker motors."""
+    return balance_checks.stance_trial(model, duration=duration, leg_cap=0.10)
 
 
 def static_equilibrium(model: mujoco.MjModel) -> dict[str, Any]:
@@ -288,37 +281,8 @@ def lateral_transfer_probe(model: mujoco.MjModel, points: int = 9) -> dict[str, 
 
 
 def free_hold(model: mujoco.MjModel, duration: float = 10.0) -> dict[str, Any]:
-    """Unsupported zero-target hold; ideal actuator metrics are not thermal duty."""
-    if not math.isfinite(duration) or duration <= 0:
-        raise ValueError("duration must be finite and positive")
-    data = home_data(model)
-    start_height = float(data.qpos[2])
-    forces, maximum_tilt, minimum_height, finite = [], 0.0, start_height, True
-    for _ in range(math.ceil(duration / model.opt.timestep)):
-        mujoco.mj_step(model, data)
-        forces.append(data.actuator_force.copy())
-        finite &= all(np.isfinite(values).all() for values in (data.qpos, data.qvel, data.actuator_force))
-        up = data.xmat[model.body("torso").id].reshape(3, 3)[2, 2]
-        maximum_tilt = max(maximum_tilt, math.degrees(math.acos(float(np.clip(up, -1.0, 1.0)))))
-        minimum_height = min(minimum_height, float(data.qpos[2]))
-    torques = np.asarray(forces)
-    tail = torques[-max(1, round(min(duration, 1.0) / model.opt.timestep)) :]
-    actuators = {}
-    for index in range(model.nu):
-        actuators[model.actuator(index).name] = {
-            "peak_Nm": float(np.max(np.abs(torques[:, index]))),
-            "rms_Nm": float(np.sqrt(np.mean(torques[:, index] ** 2))),
-            "final_second_mean_abs_Nm": float(np.mean(np.abs(tail[:, index]))),
-        }
-    return {
-        "duration_s": float(data.time),
-        "finite": bool(finite),
-        "warnings": int(data.warning.number.sum()),
-        "maximum_tilt_deg": maximum_tilt,
-        "minimum_height_ratio": minimum_height / start_height,
-        "final_height_ratio": float(data.qpos[2] / start_height),
-        "actuators": actuators,
-    }
+    """Unsupported home hold at the model's exact limits; not thermal duty."""
+    return balance_checks.stance_trial(model, duration=duration, leg_cap=None)
 
 
 def build_report(
@@ -351,8 +315,16 @@ def main() -> int:
     )
     report["source_sha256"] = {
         str(path.relative_to(MODEL_PATH.parent)): hashlib.sha256(path.read_bytes()).hexdigest()
-        for path in [MODEL_PATH, Path(__file__), *sorted((MODEL_PATH.parent / "assets").glob("*.xml"))]
+        for path in [
+            MODEL_PATH,
+            Path(__file__),
+            Path(balance_checks.__file__),
+            *sorted((MODEL_PATH.parent / "assets").glob("*.xml")),
+        ]
     }
+    report["source_sha256"]["../../environments/shared/robot_validation.py"] = hashlib.sha256(
+        Path(robot_validation.__file__).read_bytes()
+    ).hexdigest()
     output = json.dumps(report, indent=2, allow_nan=False) + "\n"
     if args.json:
         args.json.parent.mkdir(parents=True, exist_ok=True)
