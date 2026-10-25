@@ -417,7 +417,7 @@ def unmeasured_posture_columns(header: Sequence[str], rows: Sequence[Mapping[str
 
     A model without the head-tip site, a neck or head pitch hinge or a hip roll hinge writes nan in that column on
     every episode (``gait.posture_telemetry``), so the report draws it as absent with that reason, not as an empty
-    line.  None when there are no rows.
+    line.  Empty when there are no rows.
     """
     if not rows:
         return []
