@@ -58,6 +58,19 @@ def internal_contacts(model: mujoco.MjModel, data: mujoco.MjData) -> list[dict[s
     ]
 
 
+def motor_case_clearance(model: mujoco.MjModel, data: mujoco.MjData) -> dict[str, Any]:
+    """Query cases directly, including pairs excluded by parent-child filtering."""
+    cases = [g for g in range(model.ngeom) if model.geom(g).name.endswith("_case_collision")]
+    closest: dict[str, Any] = {"distance_m": 1.0, "pair": [], "cases": len(cases)}
+    segment = np.zeros(6)
+    for index, first in enumerate(cases):
+        for second in cases[index + 1:]:
+            distance = float(mujoco.mj_geomDistance(model, data, first, second, 1.0, segment))
+            if distance < closest["distance_m"]:
+                closest.update(distance_m=distance, pair=[model.geom(first).name, model.geom(second).name])
+    return closest
+
+
 def run_trial(
     model: mujoco.MjModel,
     *,
@@ -195,9 +208,7 @@ def check_model(*, duration: float = 10) -> dict[str, Any]:
         MODEL_PATH.parent.parent / "tyrannosaurus_rex_50cm" / "build_model.py",
     ]
     sources += sorted(MODEL_PATH.parent.glob("assets/*.obj"))
-    source_sha256 = {
-        str(p.relative_to(MODEL_PATH.parent.parent.parent)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sources
-    }
+    source_sha256 = {str(p.relative_to(MODEL_PATH.parent.parent.parent)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sources}
     source_sha256["../../environments/shared/robot_validation.py"] = hashlib.sha256(
         Path(robot_validation.__file__).read_bytes()
     ).hexdigest()
@@ -226,6 +237,7 @@ def check_model(*, duration: float = 10) -> dict[str, Any]:
             "length_width_height_m": (high - low).tolist(),
             "com_m": data.subtree_com[model.body("torso").id].tolist(),
             "contact_count": data.ncon,
+            "motor_case_clearance": motor_case_clearance(model, data),
             "internal_contacts": internal_contacts(model, data),
             "display_support_active": bool(data.eq_active[0]),
         },
@@ -247,6 +259,8 @@ def check_model(*, duration: float = 10) -> dict[str, Any]:
         and model.neq == 1
         and not model.eq_active0.any()
         and not model.body_gravcomp.any()
+        and motor_case_clearance(model, data)["cases"] == 18
+        and motor_case_clearance(model, data)["distance_m"] > 0.002
         and not internal_contacts(model, data)
         and 0.999 <= high[2] - low[2] <= 1.001
         and not report["home"]["display_support_active"]

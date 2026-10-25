@@ -277,10 +277,20 @@ class Builder(BaseBuilder):
         report["nominal_height_m"] = 1.0
         report["leg_motor_specification"] = self.motor_specs
         report["expression_motor_specification"] = {
-            "head": {"candidate": "RobStride 00", "count": 2, "mass_kg_each": 0.310,
-                     "body_envelope_m": [0.057, 0.057, 0.051], "simulation_cap_nm": 2.0},
-            "arms_jaw_tail": {"candidate": "RobStride 05", "count": 4, "mass_kg_each": 0.191,
-                             "body_envelope_m": [0.046, 0.046, 0.044], "simulation_cap_nm": 0.8},
+            "head": {
+                "candidate": "RobStride 00",
+                "count": 2,
+                "mass_kg_each": 0.310,
+                "body_envelope_m": [0.057, 0.057, 0.051],
+                "simulation_cap_nm": 2.0,
+            },
+            "arms_jaw_tail": {
+                "candidate": "RobStride 05",
+                "count": 4,
+                "mass_kg_each": 0.191,
+                "body_envelope_m": [0.046, 0.046, 0.044],
+                "simulation_cap_nm": 0.8,
+            },
             "source": "https://github.com/RobStride/Product_Information",
         }
         report["limitations"] = [

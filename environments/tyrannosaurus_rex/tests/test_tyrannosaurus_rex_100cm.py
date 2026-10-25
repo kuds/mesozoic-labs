@@ -14,7 +14,7 @@ import pytest
 from environments.shared.robot_validation import require_unsupported
 from examples.tyrannosaurus_rex_100cm.build_model import build
 from examples.tyrannosaurus_rex_100cm.demo import MODEL_PATH, load_model
-from examples.tyrannosaurus_rex_100cm.validate import check_model
+from examples.tyrannosaurus_rex_100cm.validate import check_model, motor_case_clearance
 
 
 @pytest.fixture(scope="module")
@@ -67,3 +67,14 @@ def test_recorded_evidence_tracks_source_bytes() -> None:
     for relative, expected in record["source_sha256"].items():
         path = MODEL_PATH.parent / relative if relative.startswith("../") else root / relative
         assert hashlib.sha256(path.read_bytes()).hexdigest() == expected, relative
+
+
+def test_parent_child_motor_interference_is_not_hidden_by_contact_filtering() -> None:
+    model, data = load_model()
+    assert motor_case_clearance(model, data)["cases"] == 18
+    assert motor_case_clearance(model, data)["distance_m"] > 0.002
+    # Place the hip-roll case on the yaw case. Their body relationship normally
+    # suppresses contact generation, but a direct geometry query must catch it.
+    model.geom_pos[model.geom("left_hip_roll_case_collision").id] = [0, 0, 0]
+    mujoco.mj_forward(model, data)
+    assert motor_case_clearance(model, data)["distance_m"] < 0.002
