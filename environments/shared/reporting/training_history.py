@@ -1095,6 +1095,16 @@ def _mapping(value: Any) -> Mapping[str, Any]:
     return value if isinstance(value, Mapping) else {}
 
 
+def _number_list(value: Any) -> list[float] | None:
+    """*value* as a list of finite floats (a sigma vector), else ``None``."""
+    if not isinstance(value, list) or not value:
+        return None
+    if not all(isinstance(item, (int, float)) and not isinstance(item, bool) for item in value):
+        return None
+    numbers = [float(item) for item in value]
+    return numbers if all(math.isfinite(item) for item in numbers) else None
+
+
 def read_k3_panel(stage: Path) -> dict[str, Any]:
     """The in-run K3 panel's record in *stage* (``k3_panel.json``, ``mesozoic.k3-panel/v1``), as points.
 
@@ -1141,6 +1151,7 @@ def read_k3_panel(stage: Path) -> dict[str, Any]:
             "joint_skipped": joint.get("skipped"),
             "joint_sigma_sha256": panel.get("joint_sigma_sha256"),
             "own_sigma_mean": panel.get("own_sigma_mean"),
+            "own_sigma": _number_list(panel.get("own_sigma")),
             "seconds": panel.get("seconds"),
         }
         _k3_flags(point, spec.get("seeds"))
@@ -2111,6 +2122,8 @@ def _judge_point(path: Path, *, seed: int | None, final_step: int | None) -> tup
         "joint_episodes": joint_n,
         "own_falls": own,
         "own_episodes": own_n,
+        # exp(log_std) of the judged checkpoint, the own-sigma test's noise: the leg std at this point, exactly.
+        "own_sigma": _number_list(_mapping(record.get("noise_matched_own")).get("sigma_vector")),
     }
     if issues:
         point["panel_issues"] = issues
@@ -2947,12 +2960,14 @@ BODY_PAGES: tuple[PageSpec, ...] = (
         "Each actuator's command, the deterministic policy's action clipped to [-1, 1] (+ toward the upper end of the "
         "actuator's ctrlrange), averaged over each episode's post-settle window, then over the evaluation's "
         "full-horizon episodes. A left-right pair shares a colour (right solid, left dashed); on the T. rex the "
-        "mirror map signs neck_yaw and both hip rolls -1, so a mirror-symmetric policy draws those pairs as mirror "
-        "images about 0. Dotted: +/-0.60, the tail screen's PARKED line; dashed: the rails at +/-1. Below, per "
-        "evaluation, the full-horizon episodes with an actuator AT RAIL (more than 10% of its window steps at "
-        "|command| >= 0.99, signed by the majority of those steps) and PARKED (not at rail, |window mean| >= 0.60), "
-        "by actuator and sign, stacked: descriptive classes (the tail screen's), never a verdict, never smoothed."
-        + _BODY_NOTE,
+        "mirror map signs both hip rolls -1, so a mirror-symmetric policy draws that pair as mirror images about 0 "
+        "(neck_yaw, its own mirror, at 0). The command is the policy's, before the env's action filter (on the T. "
+        "rex a 10 Hz first-order low-pass sits between it and ctrl). Dotted: +/-0.60, the tail screen's PARKED "
+        "line; dashed: the rails at +/-1. Below, per evaluation, the full-horizon episodes with an actuator AT RAIL "
+        "(more than 10% of its window steps at |command| >= 0.99, signed by the majority of those steps) and PARKED "
+        "(not at rail, |window mean| >= 0.60), by actuator and sign, stacked: an episode naming several actuators "
+        "is counted once for each, so a bar can exceed the evaluation's episodes. Descriptive classes (the tail "
+        "screen's), never a verdict, never smoothed." + _BODY_NOTE,
         (
             Quantity(
                 f"<leg actuator>{_body.COMMAND_SUFFIX}",
@@ -2981,13 +2996,13 @@ BODY_PAGES: tuple[PageSpec, ...] = (
             Quantity(
                 "rail_named",
                 "Full-horizon episodes per evaluation with an actuator at rail, by actuator and sign (rail_actuators)",
-                "episodes",
+                "episodes, once per actuator",
                 "actuators",
             ),
             Quantity(
                 "parked_named",
                 "Full-horizon episodes per evaluation with an actuator parked, by actuator and sign (parked_actuators)",
-                "episodes",
+                "episodes, once per actuator",
                 "actuators",
             ),
         ),
@@ -3059,7 +3074,9 @@ BODY_PAGES: tuple[PageSpec, ...] = (
         "energy to the body, - they absorb it); positive and negative work are (abs + net) / 2 and (net - abs) / 2. "
         "Peak power: the largest substep sum of |p|. Torque RMS as a fraction of each actuator's force limit, "
         "comparable across groups whose limits differ 30-fold. Command jitter: the RMS step-to-step change of the "
-        "group's commands. Last, each leg's absolute work." + _BODY_NOTE,
+        "group's commands, the policy's raw command as the evaluation's action_delta reads it (on the T. rex a 10 Hz "
+        "first-order low-pass sits between it and ctrl, so the actuators see about 3 times less step-to-step change "
+        "under K3's joint-space noise, measured). Last, each leg's absolute work." + _BODY_NOTE,
         tuple(
             Quantity(
                 f"<group>_{suffix}",
@@ -3166,7 +3183,10 @@ DYNAMICS_PAGES: tuple[PageSpec, ...] = (
         "No MuJoCo sensor: each is computed by the evaluation recorder from MjData. Joint stops (each limited tail "
         "hinge and leg joint; a joint never on a stop is not drawn): the share of window substeps its limit "
         "constraint pushes, and that constraint's mean torque about the joint's own axis (+ toward the upper end of "
-        "its range, so a joint resting on its lower stop reads +); commanded to the rail is the commands page's, "
+        "its range, so a joint resting on its lower stop reads +; on the T. rex +q moves the foot to the animal's "
+        "left on both hip rolls, so a mirror-symmetric pair on its two abduction stops reads opposite signs, and "
+        "tail_1_yaw's + is the stop pushing the tip to the right, while the tail page's tail_1_yaw reads + tip "
+        "left); commanded to the rail is the commands page's, "
         "carrying load on the mechanical stop is this. Base wrenches: what the tail (the neck with the head) exerts on "
         "its parent body about its first joint's anchor, from cfrc_int: the pitch moment (+ pitches the parent nose "
         "up) and the load it hangs on it. Balance margins (+ inside the support): the centre of mass's and the "
@@ -3660,7 +3680,19 @@ def _hold_span(axis: Any, span: float) -> None:
 
 
 def _absent(axis: Any, text: str) -> None:
-    axis.text(0.5, 0.5, text, transform=axis.transAxes, ha="center", va="center", fontsize=9.5, color=_MUTED, wrap=True)
+    """*text* centred on *axis*, wrapped to the axis's own width (matplotlib's ``wrap`` wraps to the figure's, so a
+    long note ran over the y-axis label)."""
+    width_in = axis.get_position().width * axis.figure.get_figwidth()
+    axis.text(
+        0.5,
+        0.5,
+        _wrap(text, 0.94 * width_in, 9.5),
+        transform=axis.transAxes,
+        ha="center",
+        va="center",
+        fontsize=9.5,
+        color=_MUTED,
+    )
 
 
 @dataclass
@@ -4666,7 +4698,7 @@ def _page_figure(spec: PageSpec, context: _Context, *, title: str, dpi: int, wid
             drawn = _draw_line_single(axis, context, quantity)
         if not drawn:
             column = (
-                ACTUATOR_COLUMN
+                NAMED_CLASS_COLUMNS.get(quantity.key, ACTUATOR_COLUMN)
                 if quantity.kind == "actuators"
                 else f"{POLICY_PROBE_FILENAME} {quantity.key}_*"
                 if quantity.kind == "rollout"
@@ -4939,8 +4971,9 @@ def exploration_std(run: RunHistory) -> dict[str, Any] | None:
     """The leg actuators' exploration std over training: ``policy_probe.npz``'s per-update ``std_per_actuator``,
     else the checkpoint zips' ``exp(log_std)`` (:func:`read_policy_std`); ``None`` without either or names.
 
-    Returns ``source``, ``timesteps`` (U,), ``std`` (U, legs), ``names`` (the leg actuators) and ``tied`` (each
-    left-right pair bitwise equal at every point, as the mirror-symmetric PPO keeps them).
+    Returns ``source``, ``timesteps`` (U,), ``std`` (U, legs), ``names`` (the leg actuators), ``tied`` (each
+    left-right pair bitwise equal at every point, as the mirror-symmetric PPO keeps them), and ``width`` and
+    ``leg_indices`` (the action's width and the leg actuators' places in it).
     """
     probe = run.probe or {}
     if "std" in probe and "timesteps" in probe and run.probe_actuators:
@@ -4965,7 +4998,15 @@ def exploration_std(run: RunHistory) -> dict[str, Any] | None:
             pairs.append((leg_names.index(name), leg_names.index(partner)))
     values = std[:, legs]
     tied = bool(pairs) and all(np.array_equal(values[:, a], values[:, b]) for a, b in pairs)
-    return {"source": source, "timesteps": steps, "std": values, "names": leg_names, "tied": tied}
+    return {
+        "source": source,
+        "timesteps": steps,
+        "std": values,
+        "names": leg_names,
+        "tied": tied,
+        "width": len(names),
+        "leg_indices": list(legs),
+    }
 
 
 def exploration_why(run: RunHistory) -> str:
@@ -4991,26 +5032,37 @@ def _k3_sources(run: RunHistory) -> list[dict[str, Any]]:
 
 def exploration_summary(run: RunHistory) -> dict[str, Any]:
     """The JSON's ``exploration``: the leg actuators' std source, and at each K3 point (the in-run panel's and the
-    judge's) each leg actuator's std at the last update (or checkpoint) at or before it."""
+    judge's) each leg actuator's std: the point's own sigma (``own_sigma``: the panel's, or the judge's
+    ``noise_matched_own`` ``sigma_vector``, exp(log_std) of the very weights K3 rolled), else the last update (or
+    checkpoint) at or before it, which at a final point is the update before the last ``train()``.  ``std_source``
+    says which."""
     found = exploration_std(run)
     if found is None:
         return {"recorded": False, "why": exploration_why(run)}
     steps, std = found["timesteps"], found["std"]
     at_k3 = []
     for point in _k3_sources(run):
-        earlier = np.flatnonzero(steps <= int(point["timesteps"]))
-        if not earlier.size:
-            continue
-        index = int(earlier[-1])
-        at_k3.append(
-            {
-                "source": point["source"],
-                "timesteps": int(point["timesteps"]),
-                "kind": point.get("kind") or point.get("slot"),
-                "std_timesteps": int(steps[index]),
-                "std": {name: float(std[index, column]) for column, name in enumerate(found["names"])},
-            }
-        )
+        own = point.get("own_sigma")
+        entry: dict[str, Any] = {
+            "source": point["source"],
+            "timesteps": int(point["timesteps"]),
+            "kind": point.get("kind") or point.get("slot"),
+        }
+        if isinstance(own, list) and len(own) == found["width"]:
+            entry["std_source"] = (
+                "the panel's own_sigma" if point["source"] == "panel" else "the judge's noise_matched_own sigma_vector"
+            )
+            entry["std_timesteps"] = int(point["timesteps"])
+            entry["std"] = {name: float(own[column]) for name, column in zip(found["names"], found["leg_indices"])}
+        else:
+            earlier = np.flatnonzero(steps <= int(point["timesteps"]))
+            if not earlier.size:
+                continue
+            index = int(earlier[-1])
+            entry["std_source"] = found["source"]
+            entry["std_timesteps"] = int(steps[index])
+            entry["std"] = {name: float(std[index, column]) for column, name in enumerate(found["names"])}
+        at_k3.append(entry)
     return {
         "recorded": True,
         "source": found["source"],
@@ -5087,34 +5139,50 @@ def _draw_exploration_std(axis: Any, context: _Context) -> str | None:
 
 def _draw_k3_falls(axis: Any, context: _Context) -> str | None:
     """Joint-space (circles) and own-sigma (squares) falls per K3 point: the in-run panel's as lines with markers (one
-    series per joint sigma), the judge's as larger filled markers with a dark edge on top; K3's bars where a point
-    is 20 episodes, the K3 checkpoints annotated ``joint/own``.  Returns why nothing was drawn, or ``None``."""
+    series per joint sigma, broken where a panel has no value: a skipped joint test, a panel of another series, a
+    failed panel, which is marked ``x`` at 0), the judge's as larger filled markers with a dark edge on top; K3's bars
+    (in the legend) where a point is 20 episodes, the K3 checkpoints annotated ``joint/own`` (``panel`` and ``judge``
+    named when a run has both, stacked at one step).  Returns why nothing was drawn, or ``None``."""
     top, drawn, bars = 0.0, False, False
     for index, run in enumerate(context.runs):
         colours = (
             (_SERIES[0], _SERIES[1]) if not context.comparison else (context.colours[index], context.colours[index])
         )
+        who = f"{run.label}: " if context.comparison else ""
         panel = [p for p in (run.k3_panel or {}).get("points", []) if p.get("own_falls") is not None]
+        failed = [f for f in (run.k3_panel or {}).get("failed", []) if f.get("timesteps") is not None]
+        # Every panel step in order (a failed one included), so a series is broken, not bridged, where it has no value.
+        slots: list[tuple[int, bool, Mapping[str, Any] | None]] = sorted(
+            [(int(p["timesteps"]), p.get("kind") == "final", p) for p in panel]
+            + [(int(f["timesteps"]), False, None) for f in failed],
+            key=lambda slot: (slot[0], slot[1]),
+        )
+        x_all = np.asarray([slot[0] for slot in slots], dtype=float) / 1e6
         # One series per joint sigma (a resumed session may read another vector), and one for panels without one.
         keys: list[str | None] = list((run.k3_panel or {}).get("sigma_series") or [])
         if any(not p.get("joint_sigma_sha256") for p in panel):
             keys.append(None)
         for series, sha in enumerate(keys):
-            mine = [p for p in panel if (p.get("joint_sigma_sha256") or None) == sha]
-            if not mine:
+            if not any((p.get("joint_sigma_sha256") or None) == sha for p in panel):
                 continue
-            x = np.asarray([p["timesteps"] for p in mine], dtype=float) / 1e6
-            suffix = "" if series == 0 else (" (no joint sigma)" if sha is None else f" (sigma {sha[:8]})")
-            who = f"{run.label}: " if context.comparison else ""
+            suffix = "" if series == 0 else ("\n(own test only)" if sha is None else f"\n(sigma {sha[:8]})")
             for key, marker, colour, name, style in (
                 ("joint_falls", "o", colours[0], "in-run panel joint-space falls", "-"),
                 ("own_falls", "s", colours[1], "in-run panel own-sigma falls", "--" if context.comparison else "-"),
             ):
-                y = np.asarray([np.nan if p[key] is None else p[key] for p in mine], dtype=float)
+                y = np.asarray(
+                    [
+                        np.nan
+                        if point is None or (point.get("joint_sigma_sha256") or None) != sha or point[key] is None
+                        else point[key]
+                        for _step, _final, point in slots
+                    ],
+                    dtype=float,
+                )
                 if not np.isfinite(y).any():
                     continue
                 axis.plot(
-                    x,
+                    x_all,
                     y,
                     color=colour,
                     linestyle=style,
@@ -5125,9 +5193,21 @@ def _draw_k3_falls(axis: Any, context: _Context) -> str | None:
                 )
                 top = max(top, float(np.nanmax(y)))
                 drawn = True
-            for p in mine:
-                bars = bars or (p.get("joint_episodes") == K3_EPISODES or p.get("own_episodes") == K3_EPISODES)
-        # Panel points with no joint sigma (the own test alone) are drawn above with the own series.
+        for p in panel:
+            bars = bars or (p.get("joint_episodes") == K3_EPISODES or p.get("own_episodes") == K3_EPISODES)
+        if failed:
+            axis.plot(
+                np.asarray([f["timesteps"] for f in failed], dtype=float) / 1e6,
+                np.zeros(len(failed)),
+                linestyle="none",
+                marker="x",
+                markersize=8,
+                markeredgewidth=1.6,
+                color=_INK_2 if not context.comparison else context.colours[index],
+                zorder=5,
+                label=f"{who}in-run panel failed (no falls read)",
+            )
+            drawn = True
         judged = _k3_points(run)
         if judged:
             x = np.asarray([p["timesteps"] for p in judged], dtype=float) / 1e6
@@ -5146,46 +5226,68 @@ def _draw_k3_falls(axis: Any, context: _Context) -> str | None:
                     markeredgecolor=_INK,
                     markeredgewidth=0.9,
                     zorder=5,
-                    label=f"{run.label}: {name}" if context.comparison else name,
+                    label=f"{who}{name}",
                 )
                 top = max(top, float(y.max()))
             drawn = True
             bars = bars or any(p.get("joint_episodes") == K3_EPISODES for p in judged)
         if not context.comparison:
-            for p in [*panel, *judged]:
-                if p.get("k3_slot") and p.get("joint_falls") is not None and p.get("own_falls") is not None:
-                    axis.annotate(
-                        f"{p['joint_falls']}/{p['own_falls']}",
-                        (p["timesteps"] / 1e6, max(p["joint_falls"], p["own_falls"])),
-                        xytext=(0, 8),
-                        textcoords="offset points",
-                        ha="center",
-                        va="bottom",
-                        fontsize=8,
-                        color=_INK,
-                        zorder=6,
-                        bbox={"facecolor": _SURFACE, "alpha": 0.85, "edgecolor": "none", "pad": 0.6},
-                    )
+            # At a K3 checkpoint the panel's and the judge's counts may differ: each is named when the run has both,
+            # and the two are stacked above the higher of their marks.
+            labelled = [
+                (source, p)
+                for source, points in (("panel", panel), ("judge", judged))
+                for p in points
+                if p.get("k3_slot") and p.get("joint_falls") is not None and p.get("own_falls") is not None
+            ]
+            named = len({source for source, _p in labelled}) > 1
+            anchor: dict[int, int] = {}
+            for _source, p in labelled:
+                step = int(p["timesteps"])
+                anchor[step] = max(anchor.get(step, 0), int(p["joint_falls"]), int(p["own_falls"]))
+            level: dict[int, int] = {}
+            for source, p in labelled:
+                step = int(p["timesteps"])
+                # At the right edge the label ends at its step, clear of the legend beside the axis.
+                edge = context.xmax > 0 and step / 1e6 >= 0.96 * context.xmax
+                axis.annotate(
+                    f"{source} {p['joint_falls']}/{p['own_falls']}"
+                    if named
+                    else f"{p['joint_falls']}/{p['own_falls']}",
+                    (step / 1e6, anchor[step]),
+                    xytext=(4 if edge else 0, 8 + 13 * level.get(step, 0)),
+                    textcoords="offset points",
+                    ha="right" if edge else "center",
+                    va="bottom",
+                    fontsize=8,
+                    color=_INK,
+                    zorder=6,
+                    bbox={"facecolor": _SURFACE, "alpha": 0.85, "edgecolor": "none", "pad": 0.6},
+                )
+                level[step] = level.get(step, 0) + 1
+            top = max([top, *(value + 0.6 * (level[step] - 1) for step, value in anchor.items())])
     if not drawn:
         return (
             "no K3 source: no k3_panel.json in the stage directory (the in-run panel is off unless the launch enables "
             "it) and no judge files named (--judged)"
         )
     if bars:
-        axis.axhline(float(K3_JOINT_MAX_FALLS), color=_INK_2, linestyle="--", linewidth=1.1, zorder=1)
-        axis.axhline(float(K3_OWN_MAX_FALLS), color=_INK_2, linestyle=":", linewidth=1.1, zorder=1)
-        from matplotlib.transforms import blended_transform_factory
-
-        axis.text(
-            0.006,
+        # In the legend, not written on the axis, where the markers at 2 falls would cover it.
+        axis.axhline(
             float(K3_JOINT_MAX_FALLS),
-            f"K3 bars (of {K3_EPISODES}): joint <= {K3_JOINT_MAX_FALLS} (dashed), own <= {K3_OWN_MAX_FALLS} (dotted)",
-            transform=blended_transform_factory(axis.transAxes, axis.transData),
-            ha="left",
-            va="bottom",
-            fontsize=8.5,
             color=_INK_2,
-            bbox={"facecolor": _SURFACE, "alpha": 0.8, "edgecolor": "none", "pad": 0.6},
+            linestyle="--",
+            linewidth=1.1,
+            zorder=1,
+            label=f"K3 bar: joint-space <= {K3_JOINT_MAX_FALLS} of {K3_EPISODES}",
+        )
+        axis.axhline(
+            float(K3_OWN_MAX_FALLS),
+            color=_INK_2,
+            linestyle=":",
+            linewidth=1.1,
+            zorder=1,
+            label=f"K3 bar: own-sigma <= {K3_OWN_MAX_FALLS} of {K3_EPISODES}",
         )
     axis.set_ylim(-0.6, max(float(K3_JOINT_MAX_FALLS) + 2.0, top + 2.0))
     return None
@@ -5450,7 +5552,8 @@ def render_pages(
     named_note = (
         ""
         if not unnamed
-        else f" ({'this ledger' if len(runs) == 1 else ', '.join(unnamed)} records no {ACTUATOR_COLUMN} beside "
+        else f" ({'this ledger' if len(runs) == 1 else ', '.join(unnamed)} "
+        f"{'records' if len(runs) == 1 or len(unnamed) == 1 else 'record'} no {ACTUATOR_COLUMN} beside "
         "screen_v2_reasons: an older ledger, or no screen, so no actuator is named)"
     )
     unrecorded = [run.label for run in runs if run.rollout_shares is None]
@@ -5470,7 +5573,8 @@ def render_pages(
     posture_parts = []
     if unposed:
         posture_parts.append(
-            f"{'this ledger' if len(runs) == 1 else ', '.join(unposed)} records none: an older ledger, or a model "
+            f"{'this ledger' if len(runs) == 1 else ', '.join(unposed)} "
+            f"{'records' if len(runs) == 1 or len(unposed) == 1 else 'record'} none: an older ledger, or a model "
             "whose evaluation runs no recorder, so "
             + (
                 "those panels are absent"
@@ -5499,7 +5603,8 @@ def render_pages(
     body_parts = []
     if unbodied:
         body_parts.append(
-            f"{'this ledger' if len(runs) == 1 else ', '.join(unbodied)} records none: an older ledger, or a model whose "
+            f"{'this ledger' if len(runs) == 1 else ', '.join(unbodied)} "
+            f"{'records' if len(runs) == 1 or len(unbodied) == 1 else 'record'} none: an older ledger, or a model whose "
             "evaluation runs no recorder, so "
             + (
                 "those panels are absent"
@@ -5571,22 +5676,28 @@ def render_pages(
                 f"PPO ties them); dashed: {EXPLORATION_REFERENCE_STD:g}, the stance3 design's line-2 floor on hip "
                 "pitch, knee and ankle, a reference only (no stage applies it). Below: K3's two noise tests at each "
                 "K3 point, the in-run panel's (k3_panel.json, rolled during training on the live policy, the judge's "
-                "arithmetic; lines, one series per joint-space sigma) and the judge's own files where named "
-                "(--judged; large markers on top): joint-space falls (circles, diamonds) and own-sigma falls "
-                "(squares, crosses) of 20; K3's bars (joint <= 2, own <= 1) where a point has 20 episodes, and "
-                "joint/own written at K3's checkpoints (6,291,456 and the final). A readout of the stance5 "
-                "replication judge's K3 criterion, never a verdict: the offline judge's K3 stays the K3 of record. "
-                "The JSON's exploration.leg_std_at_k3 gives each leg actuator's std at every K3 point.",
+                "arithmetic; lines, one series per joint-space sigma, broken where a panel has no value, a failed "
+                "panel marked x at 0) and the judge's own files where named (--judged; large markers on top): "
+                "joint-space falls (circles, diamonds) and own-sigma falls (squares, crosses) of 20; K3's bars "
+                "(joint <= 2, own <= 1, in the legend) where a point has 20 episodes, and joint/own written at K3's "
+                "checkpoints (6,291,456 and the final; 'panel' and 'judge' named where a run has both). A readout "
+                "of the stance5 replication judge's K3 criterion, never a verdict: the offline judge's K3 stays the "
+                "K3 of record. The JSON's exploration.leg_std_at_k3 gives each leg actuator's std at every K3 point: "
+                "the point's own sigma (the panel's own_sigma, the judge's noise_matched_own sigma_vector) where it "
+                "is recorded, else the last update at or before it (at a final point, the update before the last "
+                "train()), its std_source saying which.",
             ),
             (
                 NORMALIZATION_PAGE,
                 "Observation normalization drift per checkpoint",
                 _normalization_figure,
                 "From each periodic and the final VecNormalize pickle in models/ (the pairs the judges load), read "
-                "through a stub unpickler that names only numpy's array helpers and inert stand-ins for SB3's and "
-                "gymnasium's classes (nothing else is unpickled): per checkpoint and observation dimension, the change "
+                "through a stub unpickler that resolves numpy's array helpers to records and SB3's and gymnasium's "
+                "classes to inert stand-ins, runs none of their code and decodes the statistics from their raw bytes "
+                "as plain numbers (nothing else is unpickled): per checkpoint and observation dimension, the change "
                 "of a fixed raw input in normalized units against the checkpoint before (shift) and the change of "
-                "scale, their maximum and median over the dimensions, both against the final pickle too, and the "
+                "scale, their maximum and median over the dimensions (the flat ones, which never move, included), "
+                "both against the final pickle too, and the "
                 f"probe bank's {NORMALIZATION_BANK_ROW} observation as each normalization sees it; policy_probe.npz's "
                 "per-update statistics (float32) give the dense distance from the final pickle. A checkpoint "
                 "retention pruned is simply absent; without pickles the probe's rows alone are drawn. The JSON's "
