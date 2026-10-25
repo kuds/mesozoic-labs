@@ -80,9 +80,10 @@
       - Powerful digitigrade hind legs; all three digits bear load
       - Heavy muscular tail as counterbalance to skull (~18% of mass)
       - Vertebral column held roughly horizontal: the PELVIS FRAME IS LEVEL at
-        the home keyframe, and settles ~1.55 deg nose-down under the home
-        controller.  Only the torso capsule slopes (~10 deg).  Reward code
-        reads the pelvis frame, so natural_pitch tracks that 1.55 deg, not the
+        the home keyframe, and settles ~0.95 deg nose-down under the home
+        controller (~1.55 deg through physics r9, while the tail rested on its
+        ventral stops).  Only the torso capsule slopes (~10 deg).  Reward code
+        reads the pelvis frame, so natural_pitch tracks that 0.95 deg, not the
         capsule slope.
       - Body pivots at hips, skull and tail balance each other: the CoM sits
         3.7mm behind the foot-contact centroid at home
@@ -184,20 +185,28 @@
       <!-- ==================== TAIL ==================== -->
       <!-- 5 segments, heavy, muscular - primary counterbalance to skull -->
       <!-- Starts thick at pelvis, tapers to tip -->
+      <!-- The three pitch springs are preloaded since physics r10
+           (plant_versions note 20, decision D-D44): springref 52.5 / 25.9 /
+           10.4 deg, stiffness 80 unchanged, so the passive springs carry the
+           tail's weight and the zero-action statue holds the keyframe zeros
+           (0.00002 / 0.00006 / 0.00018 rad).  Through r9 the springs rested
+           at zero and the statue's tail settled onto its -12 deg ventral
+           stops (tail_1 / tail_2 pitch -0.2107 / -0.2029 rad, tail_3
+           -0.0926).  The compiled model differs from r9 only in qpos_spring. -->
 
       <body name="tail_1" pos="-0.2 0 0">
-        <joint name="tail_1_pitch" class="tail_joint" type="hinge" axis="0 1 0"/>
+        <joint name="tail_1_pitch" class="tail_joint" type="hinge" axis="0 1 0" springref="52.5"/>
         <joint name="tail_1_yaw" class="tail_joint" type="hinge" axis="0 0 1" range="-8 8"/>
         <geom name="tail_1_geom" type="capsule" fromto="0 0 0  -0.3 0 -0.03" size="0.14"
               mass="6.0" material="body_mat"/>
 
         <body name="tail_2" pos="-0.3 0 -0.03">
-          <joint name="tail_2_pitch" class="tail_joint" type="hinge" axis="0 1 0"/>
+          <joint name="tail_2_pitch" class="tail_joint" type="hinge" axis="0 1 0" springref="25.9"/>
           <geom name="tail_2_geom" type="capsule" fromto="0 0 0  -0.3 0 -0.02" size="0.11"
                 mass="4.5" material="body_mat"/>
 
           <body name="tail_3" pos="-0.3 0 -0.02">
-            <joint name="tail_3_pitch" class="tail_joint" type="hinge" axis="0 1 0"/>
+            <joint name="tail_3_pitch" class="tail_joint" type="hinge" axis="0 1 0" springref="10.4"/>
             <geom name="tail_3_geom" type="capsule" fromto="0 0 0  -0.3 0 0" size="0.08"
                   mass="3.0" material="body_mat"/>
 
@@ -441,12 +450,14 @@
          servos and their joint springs hold the whole body against lateral
          sway in parallel, so they are stable only while 2 x (kp + 40)
          exceeds the gravity stiffness m.g.h of the settled statue: 85.72 kg
-         x 9.81 x 0.8377 m (subtree CoM height) = 704.4 N.m/rad.  kp 150
+         x 9.81 x 0.8670 m (subtree CoM height) = 729.1 N.m/rad on physics
+         r10, whose level tail raises the CoM (0.8377 m and 704.4 through
+         r9).  kp 150
          gave 380, so the servos could not pull the reset's hip-roll noise
          back: a wide spawn stayed wide on the pads' inner edges and a
          narrow one on their outer edges, up to 3.4 deg of pad roll with the
          outer digit unloaded on 4/40 statue episodes, the same signature as
-         the trained stances' propped leg.  kp 600 gives 1280 (1.8x); the
+         the trained stances' propped leg.  kp 600 gives 1280 (1.76x); the
          statue's worst pad tilt falls from 3.4 to 1.2 deg (1.5 over 80
          more seeds), its settled foot-site width from 0.218-0.337 m to
          0.244-0.316 m about the home 0.280, and its quasi-static lateral
@@ -577,8 +588,9 @@
        is a consequence of the joint values, not an independent choice, and
        must be re-solved if they change.
 
-       Under the home controller this settles to pelvis 0.9262 m (0.9260 on
-       physics r8) at forward_z -0.027.  Those two numbers are load-bearing
+       Under the home controller this settles to pelvis 0.9261 m (0.9260 on
+       physics r8, 0.9262 on r9) at forward_z -0.017 (-0.027 through r9).
+       Those two numbers are load-bearing
        constants elsewhere and must be re-measured together with any edit here:
          tyrannosaurus_rex/base_env.py
                         target_z, natural_pitch, healthy_z_range, and the

@@ -547,8 +547,60 @@ observation_schema = "bipedal-target/v1"
 #     unchanged, and its fixed-command nulls do not read the observation);
 #     its profile_sha256 moves, so a recovery freeze made before must be
 #     re-frozen.
+# 20. T-Rex tail pitch springs preloaded (decision D-D44; candidate "SR3" of
+#     the 2026-10-25 tail probe).  tail_1_pitch, tail_2_pitch and tail_3_pitch
+#     gain springref 52.5 / 25.9 / 10.4 deg; stiffness 80, damping, ranges,
+#     actuators, masses and geometry are unchanged, and the compiled model
+#     differs from r9 only in qpos_spring (0.91630 / 0.45204 / 0.18151 rad).
+#     Through r9 the springs rested at zero, so the passive tail could not
+#     hold the keyframe zeros against gravity: the zero-action statue
+#     settled tail_1 and tail_2 onto their -12 deg ventral stops (-0.2107 /
+#     -0.2029 rad, tail_3 -0.0926) and the tail_home_pose term targeted that
+#     droop.  On r10 the springs carry the tail and the statue settles at the
+#     keyframe zeros: 0.00002 / 0.0 / 0.00006 / 0.00018 rad (the noise-free
+#     statue, seed 0, mean over steps 200-999; 40-seed sd at reset noise
+#     0.05 under 0.0003), the re-centred _TAIL_SETTLED_QPOS (D-D44 kept the
+#     stance tolerance at 0.05 rad).  The symmetric settle moves (the same
+#     noise-free statue; r9 in brackets): pelvis 0.92614 m (0.92616),
+#     forward_z -0.01666 (-0.02714), neck 0.21401 / 0.22054 rad (0.21431 /
+#     0.21968), stance width 0.27999 m (0.27999), head tip 0.958 m (0.945),
+#     and the settled statue's lateral m.g.h 729.1 N.m/rad at a 0.8670 m
+#     subtree CoM (704.6 at 0.8379), so the hip-roll servos' 1280 is 1.76x
+#     (1.82x).  Re-measured with it, each by the procedure that set it:
+#     natural_pitch 0.027 -> 0.017 (asin 0.01666), so
+#     nosedive_termination_threshold 0.493 -> 0.503 keeps the absolute
+#     -0.520 cut; _NECK_SETTLED_QPOS (0.21432 / 0.21963 -> 0.21401 / 0.22054)
+#     and _LEG_SETTLED_QPOS (stance config, seeds 3042-3051, steps 200-999,
+#     mirror-symmetrised; the ankle moves most, +4.9 mrad); target_z 0.9260
+#     carries (0.9261 after 600 steps).  The noise-free stance-config
+#     statue's 1000-step reward is 3796.42 (3788.93).  On the stance statue
+#     panels (reset noise 0.05) the statue is clean on 40/40 on the
+#     certification seeds 3042-3081 at each of the certificate's six
+#     headings (grouped bound 0.928; r9 39/40, seed 3081 nosedives), its
+#     rewards equal across headings to 4.2e-11, and on 238/240 out of sample
+#     (3082-3201, 5042-5081, 7042-7081, 9042-9081): seed 9047 falls backward
+#     at step 273 and seed 3121's worse pad tilts 2.087 deg (r9 2.061), so 1
+#     fall in 280 against r9's 4.  Its pads sit nearer their centre (worst
+#     fore-aft CoP 0.322 on 3042-3081 and 0.404 out of sample, r9 0.475 /
+#     0.476) and load a few more contact points (median 2.84 against 2.67).
+#     configs/tyrannosaurus_rex/anatomical/stance.toml keeps every bar and
+#     records the r10 extremes in each comment.  The statue-derived constants
+#     of all four stage files were re-measured with the commands that set
+#     them (40 episodes, seeds 3042-3081, reset noise 0.05; a move inside one
+#     standard error carries): stance 3766.56 +/- 16.21, 40/40, 3.8 standard
+#     errors over 3756.8, so the reference moves to 3766.6 and the rail
+#     2250 -> 2260; recovery's pushed statue 1429.1 +/- 470.1 (ends nosedive
+#     20 / fallen 19 / tail_contact 1; r9 1369.4, reproduced on 3ffc18e), 1.35
+#     standard errors over 1329.1, so 1429.1; locomotion 1092.60 +/- 5.35,
+#     1.3 standard errors over 1091.5, so 1092.6; behavior 600.93 +/- 174.59,
+#     so 602.0 and its 361 rail carry.  PHYSICS moves; the POLICY INTERFACE
+#     (ffbf66..) and VISUAL (7042dc..) digests are unchanged, so policy stays
+#     15 and visual 4.  Every T-Rex physics-r9 checkpoint is invalidated (the
+#     plant check compares physics_sha256); no widen applies.  This physics
+#     r10 is the counter's next integer, not the foot the parked draft #623
+#     screened under that name (D-D34), which never became part of main.
 [plants.tyrannosaurus_rex.anatomical]
-physics_revision = 9
+physics_revision = 10
 policy_interface_revision = 15
 visual_revision = 4
 observation_schema = "bipedal-target-heading-free/v1"

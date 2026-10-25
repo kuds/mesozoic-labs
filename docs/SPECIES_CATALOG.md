@@ -57,7 +57,7 @@ Apex Predator. **Specialty:** Head-contact attack task.
 | Action dimension / actuators | 15 |
 | Generalized coordinates / velocities | nq=28, nv=27 |
 | Compiled dynamic model mass | 85.7 kg |
-| Plant contract revisions | policy r15; physics r9; visual r4 ([details](PLANT_CONTRACT.md)) |
+| Plant contract revisions | policy r15; physics r10; visual r4 ([details](PLANT_CONTRACT.md)) |
 | Model | `environments/tyrannosaurus_rex/anatomical/assets/tyrannosaurus_rex_anatomical.xml` |
 
 | Current stage | Recipe | Warm-start from | Objective | SB3 configured budget | SB3 early-advancement gate |
