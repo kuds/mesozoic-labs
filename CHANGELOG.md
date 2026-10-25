@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **The saturating actuator, named per evaluation episode and drawn over
-  training** (the maintainer's decision of 2026-10-24, "both, from the ledger";
-  `environments/shared/gait/stance_metrics.py`,
+  training** (#640; the maintainer's decision of 2026-10-24, "both, from the
+  ledger"; `environments/shared/gait/stance_metrics.py`,
   `environments/shared/eval_diagnostics.py`,
   `environments/shared/reporting/training_history.py`; documented in
   `docs/TRAINING_ARTIFACT_PRESENTATION.md`, "Evaluation episodes" and
@@ -40,7 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   random draw; the digest snapshot is unchanged. An older ledger without the
   columns loads everywhere and reads as an absent series.
 - **The training rollouts' clip shares, per actuator, in the policy probe and
-  on the saturation page** (the maintainer's decision of 2026-10-24;
+  on the saturation page** (#640; the maintainer's decision of 2026-10-24;
   `environments/shared/policy_probe.py`,
   `environments/shared/reporting/training_history.py`; documented in
   `docs/TRAINING_ARTIFACT_PRESENTATION.md`, "The policy probe" and "Training
@@ -80,8 +80,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   generators, evaluations and checkpoints, and the digest snapshot is
   unchanged.
 - **The training-history report drawn at the end of every stage, report-only**
-  (the maintainer's decision of 2026-10-24, which widens D-D42's (2) to scope
-  (b); `environments/shared/reporting/stage_artifacts.py`,
+  (#639; the maintainer's decision of 2026-10-24, which widens D-D42's (2) to
+  scope (b); `environments/shared/reporting/stage_artifacts.py`,
   `environments/shared/reporting/stage_layout.py`; documented in
   `docs/TRAINING_ARTIFACT_PRESENTATION.md`, "At stage end:
   `figures/training_history/`", and one sentence in tip 4 of
@@ -116,7 +116,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `test_stance_gate_report.py` gain the new step. On the stance5 band run s42's
   ledger (91 evaluations) it takes about 5.5 s and writes 1.7 MB.
 - **A per-step trace of single episodes of a checkpoint, and the policy's
-  command and raw mean in the replay's stance CSV, report-only** (the
+  command and raw mean in the replay's stance CSV, report-only** (#638; the
   maintainer's decision of 2026-10-24, after the T. rex tail habit,
   `tail_3_pitch_act` commanded at +1, took scratch tools to measure in
   `docs/investigations/stance_2026_10/stance4/satdiag/`). The stance gate
@@ -176,8 +176,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     bootstrap. Documented in `docs/TRAINING_ARTIFACT_PRESENTATION.md`.
 - **Decision D-D42 recorded: the next T. rex stance round targets the tail
   saturation habit, with a training-history report and an actuator saturation
-  report, both report only; D-D41 amended with its outcome** (the maintainer's
-  decisions of 2026-10-24; `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2,
+  report, both report only; D-D41 amended with its outcome** (#637; the
+  maintainer's decisions of 2026-10-24; `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2,
   `docs/CONSOLIDATION_PLAN_2026_09.md` §6, a dated note in §17 of
   `docs/GAIT_QUALITY_PLAN_2026_09.md`, `docs/NEXT_STEPS.md` §3; §23.7 of
   `docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md`). Records only:
@@ -203,9 +203,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The stance5 replication of D-D41 judged: one of the two new per-foot
   centre-of-pressure band runs holds (line 2), and the band is not adopted; the
   K3 diagnosis, the scratch tail experiment and the K3 readouts recorded, report
-  only** (D-D41's amendment of 2026-10-24; `docs/BEHAVIOR_RECIPES_PLAN.md`
-  §6.2, `docs/CONSOLIDATION_PLAN_2026_09.md` §6, a dated note in §17 of
-  `docs/GAIT_QUALITY_PLAN_2026_09.md`, `docs/NEXT_STEPS.md` §3; the appended §23
+  only** (#637; D-D41's amendment of 2026-10-24;
+  `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2, `docs/CONSOLIDATION_PLAN_2026_09.md`
+  §6, a dated note in §17 of `docs/GAIT_QUALITY_PLAN_2026_09.md`,
+  `docs/NEXT_STEPS.md` §3; the appended §23
   of `docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md`, and
   `stance5/replication/`, `stance5/k3diag/` and `stance5/tailexp/` of
   `docs/investigations/stance_2026_10/`). Records only: no library code,
