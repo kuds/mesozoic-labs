@@ -13,7 +13,11 @@ balance and force fields, the mirror-even leg DC, the reward-term split and
 the force matrix), the action-jerk reward key, the PostureTrend watch, the
 per-rollout episode and fall counts, the training-episode ledger, the
 policy probe (its forward pass of every rollout buffer's observations for
-the rollout clip shares included) and the checkpoint archive rule.  The
+the rollout clip shares included), the checkpoint archive rule and the
+in-run K3 noise panel (``k3_panel``: enabled at test scale in both runs'
+launch, every 256 steps on spawns 3042 and 3043, and switched off in the
+plain run by its builder; its panels equal an offline run on the saved
+checkpoint pairs).  The
 two runs train and evaluate exactly alike (the same ``evaluations.npz``,
 the same tensors in every checkpoint, the same VecNormalize statistics),
 the plain run writes the key sets main writes for the same run without
@@ -29,7 +33,7 @@ update) and at the end of ``learn()`` a hash of the policy's parameters,
 its optimizer state and the global generators (``numpy.random``,
 ``random``, torch).  The two sequences must be identical: the training-side
 telemetry, the probe's state bank included, draws no random number and
-changes no update.
+changes no update.  Nothing records a TensorBoard key for the panel.
 """
 
 from __future__ import annotations
@@ -52,6 +56,13 @@ from environments.shared.model_id import ModelId
 TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
 EPISODES = 2
 STEPS = 768
+#: The K3 panel at test scale: every 256 steps, two spawns per test, the stance5 replication sidecar's mean sigma.
+K3_EVERY = 256
+K3_SEEDS = (3042, 3043)
+K3_SIGMA_FILE = (
+    Path(__file__).resolve().parents[3] / "docs/investigations/stance_2026_10/stance5/replication/sigma_s70_s80.json"
+)
+K3_SIGMA_KEY = "80"
 
 #: The keys main writes for this run without this change (at ``2e734e29``, unchanged through ``c6292b1e``),
 #: termination causes aside (which causes a run meets is the run's; both runs here must meet the same ones).
@@ -154,11 +165,19 @@ def _state_digest(model) -> str:
 
 
 def _instrument(monkeypatch, record: dict) -> None:
-    """Hash every rollout-buffer add, and the state before every rollout and at the end of ``learn()``."""
+    """Hash every rollout-buffer add, and the state before every rollout and at the end of ``learn()``; keep every
+    logger key recorded."""
     from stable_baselines3.common.buffers import RolloutBuffer
+    from stable_baselines3.common.logger import Logger
     from stable_baselines3.common.on_policy_algorithm import OnPolicyAlgorithm
 
     add, collect, learn = RolloutBuffer.add, OnPolicyAlgorithm.collect_rollouts, OnPolicyAlgorithm.learn
+    log = Logger.record
+
+    def recorded(self, key, *args, **kwargs):
+        if key not in record["logger_keys"]:
+            record["logger_keys"].append(key)
+        return log(self, key, *args, **kwargs)
 
     def hashed_add(self, *args, **kwargs):
         record["rollout_add"].append(_digest(*args, *kwargs.values()))
@@ -176,6 +195,7 @@ def _instrument(monkeypatch, record: dict) -> None:
     monkeypatch.setattr(RolloutBuffer, "add", hashed_add)
     monkeypatch.setattr(OnPolicyAlgorithm, "collect_rollouts", hashed_collect)
     monkeypatch.setattr(OnPolicyAlgorithm, "learn", hashed_learn)
+    monkeypatch.setattr(Logger, "record", recorded)
 
 
 def _train(root: Path, monkeypatch, *, additions: bool) -> Path:
@@ -185,7 +205,7 @@ def _train(root: Path, monkeypatch, *, additions: bool) -> Path:
     pytest.importorskip("mujoco")
     import torch
 
-    from environments.shared import curriculum, policy_probe, rollout_ledger, train_base
+    from environments.shared import curriculum, k3_panel, policy_probe, rollout_ledger, train_base
     from environments.shared.config import load_all_stages
     from environments.shared.diagnostics import DiagnosticsCallback
     from environments.shared.eval_diagnostics import StageAwareEvalCallback
@@ -205,7 +225,8 @@ def _train(root: Path, monkeypatch, *, additions: bool) -> Path:
         monkeypatch.setattr(rollout_ledger, "build_training_ledger_callback", lambda *a, **k: None)
         monkeypatch.setattr(policy_probe, "build_policy_probe_callback", lambda *a, **k: None)
         monkeypatch.setattr(curriculum, "checkpoint_archive_every", lambda curriculum_kwargs: 0)
-    record: dict[str, Any] = {"rollout_add": [], "updates": [], "learn_end": None}
+        monkeypatch.setattr(k3_panel, "build_k3_panel_callback", lambda *a, **k: None)
+    record: dict[str, Any] = {"rollout_add": [], "updates": [], "learn_end": None, "logger_keys": []}
     _instrument(monkeypatch, record)
     configs = load_all_stages(TYRANNOSAURUS_REX)
     stance = configs[1]
@@ -229,6 +250,10 @@ def _train(root: Path, monkeypatch, *, additions: bool) -> Path:
             verbose=0,
             use_tensorboard=False,
             output_dir=str(run / "01_stance"),
+            # The same launch option in both runs; the plain run's builder above returns no callback.
+            k3_panel=k3_panel.K3PanelConfig(
+                sigma_file=str(K3_SIGMA_FILE), sigma_key=K3_SIGMA_KEY, every=K3_EVERY, seeds=K3_SEEDS
+            ),
         )
     finally:
         torch.set_num_threads(threads)
@@ -455,3 +480,97 @@ def test_the_full_run_writes_the_body_columns_last_and_ledger_only(trained):
                 <= float(row["root_pitch_mean_deg"])
                 <= float(row["root_pitch_max_deg"])
             )
+
+
+def _k3_stage_factory():
+    """The stance env the proof trained (its horizon 40 steps past the settle window), as the panel builds it."""
+    from environments.shared.config import load_all_stages
+    from environments.shared.species_registry import get_species_config
+
+    stance = load_all_stages(TYRANNOSAURUS_REX)[1]
+    stance["env_kwargs"]["max_episode_steps"] = int(stance["curriculum_kwargs"]["settle_steps"]) + 40
+    env_class, kwargs = get_species_config(TYRANNOSAURUS_REX).env_class, dict(stance["env_kwargs"])
+    return (lambda: env_class(**kwargs)), int(kwargs["max_episode_steps"])
+
+
+def test_the_k3_panel_rolls_the_saved_checkpoint_pairs_and_reaches_no_other_record(trained):
+    """The full run rolls a panel at every 256 steps and at training end; the panel at 512 and the final one are
+    what an offline run of the same arithmetic gives on the checkpoint pair saved at that step (lengths and returns
+    bit for bit, twice); the plain run writes no panel file; no TensorBoard key, progress.json entry or
+    gate_progress.npz key of it exists in either run."""
+    import torch
+
+    from environments.shared import k3_panel as K
+    from environments.shared.plant_contract import current_plant_identity
+    from environments.shared.policy_loading import load_sb3_checkpoint
+
+    full, plain = trained
+    assert not list(plain.glob("k3_panel*"))
+    assert sorted(path.name for path in full.glob("k3_panel*")) == [K.K3_PANEL_CSV_FILENAME, K.K3_PANEL_JSON_FILENAME]
+    document = json.loads((full / K.K3_PANEL_JSON_FILENAME).read_text(encoding="utf-8"))
+    assert document["schema"] == K.K3_PANEL_SCHEMA and document["session_problem"] is None
+    panels = document["panels"]
+    assert [(panel["kind"], panel["timesteps"]) for panel in panels] == [
+        ("grid", 256),
+        ("grid", 512),
+        ("grid", 768),
+        ("final", STEPS),
+    ]
+    sidecar = json.loads(K3_SIGMA_FILE.read_text(encoding="utf-8"))
+    sigma = np.asarray(sidecar["control_sigma"][K3_SIGMA_KEY]["vector"], dtype=np.float64)
+    assert document["spec"]["joint_sigma"]["path_in_file"] == f"control_sigma.{K3_SIGMA_KEY}"
+    assert document["spec"]["joint_sigma"]["sha256"] == hashlib.sha256(sigma.astype("<f8").tobytes()).hexdigest()
+    for panel in panels:
+        assert panel["failure"] is None and panel["global_rng_moved"] is False
+        assert panel["own_episodes"] == panel["joint_episodes"] == len(K3_SEEDS)
+    with open(full / K.K3_PANEL_CSV_FILENAME, newline="", encoding="utf-8") as handle:
+        rows = list(csv.DictReader(handle))
+    assert len(rows) == 2 * len(K3_SEEDS) * len(panels) and list(rows[0]) == list(K.CSV_COLUMNS)
+
+    factory, horizon = _k3_stage_factory()
+    for panel, (policy_zip, sidecar_pkl) in (
+        (panels[1], ("stage1_512_steps.zip", "stage1_vecnormalize_512_steps.pkl")),
+        (panels[3], ("stage1_final.zip", "stage1_final_vecnorm.pkl")),
+    ):
+        model, normalizer, _ = load_sb3_checkpoint(
+            str(full / "models" / policy_zip),
+            str(full / "models" / sidecar_pkl),
+            factory,
+            guess_sidecar=False,
+            plant_identity=current_plant_identity(TYRANNOSAURUS_REX),
+        )
+        # The weights and statistics the panel copied are the pair's.
+        assert K.state_dict_sha256(model.policy.state_dict()) == panel["policy_state_sha256"], policy_zip
+        statistics = K.copy_normalization(normalizer)
+        assert statistics is not None
+        assert hashlib.sha256(statistics.mean.astype("<f8").tobytes()).hexdigest() == panel["obs_mean_sha256"]
+        assert hashlib.sha256(statistics.var.astype("<f8").tobytes()).hexdigest() == panel["obs_var_sha256"]
+        threads = torch.get_num_threads()
+        torch.set_num_threads(1)
+        try:
+            offline = [
+                K.run_k3_panel(model.policy, statistics, factory, joint_sigma=sigma, seeds=K3_SEEDS, horizon=horizon)
+                for _ in range(2)
+            ]
+        finally:
+            torch.set_num_threads(threads)
+        assert offline[0] == offline[1]
+        recorded = [row for row in rows if int(row["panel"]) == panel["panel"]]
+        assert [
+            (row["test"], int(row["seed"]), int(row["length"]), float(row["return"]), row["termination_reason"])
+            for row in recorded
+        ] == [(row["test"], row["seed"], row["length"], row["return"], row["termination_reason"]) for row in offline[0]]
+
+    def keys(value) -> set[str]:
+        if isinstance(value, dict):
+            return set(value) | {key for item in value.values() for key in keys(item)}
+        if isinstance(value, list):
+            return {key for item in value for key in keys(item)}
+        return set()
+
+    for stage in (full, plain):
+        instrumentation = json.loads((stage.parent / "instrumentation.json").read_text(encoding="utf-8"))
+        assert instrumentation["logger_keys"] and not any("k3" in key for key in instrumentation["logger_keys"])
+        assert not any("k3" in key for key in keys(json.loads((stage / "progress.json").read_text(encoding="utf-8"))))
+        assert not any("k3" in key for key in _keys(stage / "gate_progress.npz"))
+

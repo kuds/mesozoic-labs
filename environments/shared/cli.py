@@ -313,6 +313,28 @@ def main(species_cfg):
         "quality panel and 30 for the velocity/success panel; 0 skips both panels — for smoke and CI "
         "runs, where they otherwise take roughly half the wall time)",
     )
+    train_parser.add_argument(
+        "--k3-panel",
+        action="store_true",
+        help="Report only, off by default: roll the stance5 replication judge's two K3 noise tests (20 spawns "
+        "each, own-sigma and joint-space) on the live policy every 1,048,576 steps and at the end of the stance "
+        "stage, into k3_panel.csv and k3_panel.json in the stage directory (training waits about a minute or "
+        "two per panel); no gate or digest reads it",
+    )
+    train_parser.add_argument(
+        "--k3-panel-sigma-file",
+        default=None,
+        metavar="JSON",
+        help="With --k3-panel: the JSON file holding the joint-space noise sigma (e.g. the stance5 replication's "
+        "sigma_s70_s80.json); without it only the own-sigma test runs",
+    )
+    train_parser.add_argument(
+        "--k3-panel-sigma-key",
+        default=None,
+        metavar="KEY",
+        help="With --k3-panel-sigma-file: the vector's key, a dotted path (control_sigma.80) or a bare seed "
+        "(source_vectors.<seed>, then control_sigma.<seed>)",
+    )
 
     # -- curriculum ----------------------------------------------------
     cur_parser = subparsers.add_parser(
@@ -458,12 +480,24 @@ def main(species_cfg):
             args.override = None
             args.output_dir = None
             args.post_eval_episodes = None
+            args.k3_panel = False
+            args.k3_panel_sigma_file = None
+            args.k3_panel_sigma_key = None
 
         if args.algorithm == "sac" and args.n_envs == 4:
             args.n_envs = _SAC_DEFAULT_N_ENVS
             logger.info("SAC: defaulting to %d parallel envs (override with --n-envs)", _SAC_DEFAULT_N_ENVS)
 
         _apply_overrides(stage_configs, args.override, species_cfg.model_id)
+
+        k3_panel = None
+        sigma_file, sigma_key = getattr(args, "k3_panel_sigma_file", None), getattr(args, "k3_panel_sigma_key", None)
+        if getattr(args, "k3_panel", False):
+            from .k3_panel import K3PanelConfig
+
+            k3_panel = K3PanelConfig(sigma_file=sigma_file, sigma_key=sigma_key)
+        elif sigma_file or sigma_key:
+            parser.error("--k3-panel-sigma-file and --k3-panel-sigma-key need --k3-panel")
 
         stage_ref = _resolve_stage_ref(args.stage, stage_configs, species_cfg.model_id)
         if stage_ref is None:
@@ -517,6 +551,7 @@ def main(species_cfg):
             allow_fresh_vecnorm=getattr(args, "allow_fresh_vecnorm", False),
             post_eval_episodes=args.post_eval_episodes,
             label=getattr(args, "label", None),
+            k3_panel=k3_panel,
         )
 
     elif args.command == "curriculum":
