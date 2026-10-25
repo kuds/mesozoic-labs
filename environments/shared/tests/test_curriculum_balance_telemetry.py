@@ -4,8 +4,11 @@ A short real T. rex stance run on CPU (768 steps, one env, an evaluation of
 two episodes every 256 steps, the horizon 40 steps past the settle window,
 seed 11) is trained twice: with every addition of this change, and with
 each switched off -- the capture callback's ``report_extensions`` (the
-eval-episode ledger with its head posture and hip roll columns and the
-recorder's head-tip capture behind them, the in-training v2 screen, the
+eval-episode ledger with its head posture and hip roll columns, its body
+columns (commands, tail and body posture, energy, drift and slip, joint
+stops, centre of mass and centroidal momentum, base wrenches, head rate) and
+the recorder's site and body-dynamics captures behind them, the in-training
+v2 screen, the
 balance and force fields, the mirror-even leg DC, the reward-term split and
 the force matrix), the action-jerk reward key, the PostureTrend watch, the
 per-rollout episode and fall counts, the training-episode ledger, the
@@ -360,8 +363,9 @@ def test_the_full_run_writes_the_ledger_and_the_progress_blocks(trained):
     assert [float(row["return"]) for row in rows] == pytest.approx(evaluations["results"].ravel().tolist())
     # The saturating-actuator columns are among the additions the plain run trains and evaluates exactly like.
     assert {"saturated_actuator", "saturated_actuator_fraction", "actuators_saturated"} <= set(rows[0])
-    # So are the head posture and hip roll columns, last, and the recorder's head-tip capture they read; they are
-    # ledger-only (the gate_progress.npz key set above is unchanged) and reach no progress.json block.
+    # So are the head posture and hip roll columns, before the body columns (last; the next test), and the
+    # recorder's head-tip capture they read; they are ledger-only (the gate_progress.npz key set above is unchanged)
+    # and reach no progress.json block.
     posture = [
         "head_tip_height_mean_m",
         "head_tip_height_min_m",
@@ -372,7 +376,9 @@ def test_the_full_run_writes_the_ledger_and_the_progress_blocks(trained):
         "l_hip_roll_mean_deg",
         "l_hip_roll_max_abs_deg",
     ]
-    assert list(rows[0])[-len(posture) :] == posture
+    start = list(rows[0]).index(posture[0])
+    assert list(rows[0])[start : start + len(posture)] == posture
+    assert list(rows[0])[start + len(posture)] == "neck_pitch_act_command_mean"  # the body columns' first
     assert all(float(row["head_tip_height_mean_m"]) > 0.0 for row in rows if row["full_horizon"] == "1")
     assert not any(column in (full / "progress.json").read_text(encoding="utf-8") for column in posture)
     record = json.loads((full / "progress.json").read_text(encoding="utf-8"))
@@ -403,3 +409,49 @@ def test_the_full_run_writes_the_ledger_and_the_progress_blocks(trained):
         counts = probe["rollout_action_clip_low_share"].astype(np.float64) * 256
         assert np.array_equal(counts, np.round(counts))
     assert "rollout_mu_beyond_share_max" in record["policy"]
+
+
+def test_the_full_run_writes_the_body_columns_last_and_ledger_only(trained):
+    """The body columns follow the posture columns; per evaluation, their command means and command jitter pool to
+    the evaluation's own action_dc_per_actuator and action_delta; nothing of them reaches gate_progress.npz or
+    progress.json, and the plain run (above) writes no ledger at all."""
+    full, _plain = trained
+    with open(full / "eval_episodes.csv", newline="", encoding="utf-8") as handle:
+        reader = csv.DictReader(handle)
+        header, rows = list(reader.fieldnames or []), list(reader)
+    first, last = header.index("neck_pitch_act_command_mean"), header.index("head_yaw_rate_rms_dps")
+    body = header[first : last + 1]
+    assert last == len(header) - 1 and len(body) == 118 and header[first - 1] == "l_hip_roll_max_abs_deg"
+    gate = _keys(full / "gate_progress.npz")
+    assert not set(body) & set(gate)
+
+    def keys(value) -> set[str]:
+        if isinstance(value, dict):
+            return set(value) | {key for item in value.values() for key in keys(item)}
+        if isinstance(value, list):
+            return {key for item in value for key in keys(item)}
+        return set()
+
+    assert not set(body) & keys(json.loads((full / "progress.json").read_text(encoding="utf-8")))
+    settle = 200
+    names = [column[: -len("_command_mean")] for column in body if column.endswith("_command_mean")]
+    assert len(names) == 15
+    for index, timesteps in enumerate(gate["timesteps"].tolist()):
+        episodes = [row for row in rows if int(row["timesteps"]) == int(timesteps)]
+        windows = np.array([max(int(row["length"]) - settle, 0) for row in episodes], dtype=np.float64)
+        means = np.array([[float(row[f"{name}_command_mean"]) for name in names] for row in episodes])
+        means = np.where(windows[:, None] > 0, means, 0.0)
+        pooled = (windows[:, None] * means).sum(axis=0) / windows.sum()
+        np.testing.assert_allclose(pooled, gate["action_dc_per_actuator"][index], rtol=0, atol=1e-12)
+        deltas = np.array([float(row["action_delta_mean"]) if w else 0.0 for row, w in zip(episodes, windows)])
+        assert float((windows * deltas).sum() / windows.sum()) == pytest.approx(
+            float(gate["action_delta"][index]), rel=0, abs=1e-12
+        )
+    for row in rows:
+        if row["full_horizon"] == "1":
+            assert float(row["tail_base_force_down_mean_n"]) > 100.0 and float(row["legs_work_abs_j"]) > 0.0
+            assert (
+                float(row["root_pitch_min_deg"])
+                <= float(row["root_pitch_mean_deg"])
+                <= float(row["root_pitch_max_deg"])
+            )
