@@ -348,3 +348,22 @@ checkpoint handling and identity-contract tests. The pair-only identity probe
 ran against the retrieved module without changing production code. Phase-hour
 totals were reconciled with weekly capacity and prior cost studies. Runtime
 migration tests and larger robot hardware/gait tests remain future work.
+
+## 2026-10-25 amendment: one-metre T-Rex as the large concept
+
+The selected next character is now a stocky, dinosaur-like **one-metre T-Rex**,
+rather than a mandatory 80 cm stepping stone or a biologically exact raptor.
+The earlier size references above record the prior proposal.
+
+The [one-metre example](../../examples/tyrannosaurus_rex_100cm/README.md) has its
+own generator, MJCF, component ledger, parts budget, sensor placement and basic
+stance checks. It shares the species and silhouette-C character with the mini
+and medium concepts, but uses independently sized hardware. It remains a
+checkout-only example; `large` is a proposed future variant identity, not a
+registered runtime selector. This does not implement the variant migration or
+the generic walking-feasibility solver.
+
+The development sequence remains mini → medium → large. The medium can answer
+questions about calibration, wiring, state estimation and serviceability before
+the metre build commits to its heavier actuators and structure. Advancing size
+does not transfer walking qualification.

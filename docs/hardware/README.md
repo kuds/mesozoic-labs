@@ -55,6 +55,17 @@ walking, real part fit and hardware operation remain unvalidated.
 The original 51.5 cm, 7.617 kg reference remains separate; the selected model
 adds 340 g of explicit mechanical allowances without consuming its reserve.
 
+The [one-metre T-Rex concept](../../examples/tyrannosaurus_rex_100cm/README.md)
+adds an independently sized, stocky silhouette-C design: 1.000 m, 25.144 kg
+assigned mass, twelve leg drives and six expression drives. Its
+[hardware and sensor plan](../../examples/tyrannosaurus_rex_100cm/hardware.md)
+and [line-item budget](../../examples/tyrannosaurus_rex_100cm/bom.csv) allocate
+about $9,300 for robot hardware and $14,100 for a first prototype including
+development extras and contingency, before taxes, freight and engineering labor.
+The chest carries the depth camera; the eyes are cosmetic. Basic simulated
+stance and gestures pass; purchased-part fit, hardware duty and walking remain
+unqualified.
+
 The [robot variants and build plan](ROBOT_VARIANTS_AND_BUILD_PLAN.md) proposes
 how concurrent mini, medium and large robots of one species should be identified,
 tested and documented, with a staged mini-to-50 cm timeline at 15–20 hours/week.

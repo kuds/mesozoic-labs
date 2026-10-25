@@ -64,7 +64,7 @@ def motor_case_clearance(model: mujoco.MjModel, data: mujoco.MjData) -> dict[str
     closest: dict[str, Any] = {"distance_m": 1.0, "pair": [], "cases": len(cases)}
     segment = np.zeros(6)
     for index, first in enumerate(cases):
-        for second in cases[index + 1:]:
+        for second in cases[index + 1 :]:
             distance = float(mujoco.mj_geomDistance(model, data, first, second, 1.0, segment))
             if distance < closest["distance_m"]:
                 closest.update(distance_m=distance, pair=[model.geom(first).name, model.geom(second).name])
@@ -208,7 +208,9 @@ def check_model(*, duration: float = 10) -> dict[str, Any]:
         MODEL_PATH.parent.parent / "tyrannosaurus_rex_50cm" / "build_model.py",
     ]
     sources += sorted(MODEL_PATH.parent.glob("assets/*.obj"))
-    source_sha256 = {str(p.relative_to(MODEL_PATH.parent.parent.parent)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sources}
+    source_sha256 = {
+        str(p.relative_to(MODEL_PATH.parent.parent.parent)): hashlib.sha256(p.read_bytes()).hexdigest() for p in sources
+    }
     source_sha256["../../environments/shared/robot_validation.py"] = hashlib.sha256(
         Path(robot_validation.__file__).read_bytes()
     ).hexdigest()

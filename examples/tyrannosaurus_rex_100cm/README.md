@@ -69,4 +69,4 @@ Before fabrication, resolve the exact actuator SKU and supplier drawings, struct
 
 ## Repository placement
 
-This remains a checkout-only example alongside the mini and medium concepts. It does not replace the registered T-Rex robot plant, change its policy interface, or create a second registered embodiment. A future variant-aware catalog can name this the `large` build while retaining the species identity.
+This remains a checkout-only example alongside the mini and medium concepts. It does not replace any registered plant, change a registered policy interface, or create a new registered embodiment. A future variant-aware catalog can name this the `large` build while retaining the species identity.
