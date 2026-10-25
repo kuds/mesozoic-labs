@@ -268,8 +268,12 @@ def test_a_panel_reads_the_live_policy_and_statistics_and_moves_nothing(stance, 
     ] == [(row["test"], row["seed"], row["length"], row["return"], row["fall"]) for row in offline]
     assert all(row["sigma_sha256"] for row in rows)
 
-    callback.on_training_end()
+    callback.on_training_end()  # inside learn(), before the final pair is saved: nothing
+    assert [p["kind"] for p in callback.panels] == ["grid"]
+    model.num_timesteps = 120
+    callback.roll_final_panel()  # what train_base calls once the final pair is saved
     assert [p["kind"] for p in callback.panels] == ["grid", "final"] and _state() == before
+    assert callback.panels[1]["timesteps"] == 120 and callback.panels[1]["grid_point"] is None
     document = json.loads((tmp_path / K.K3_PANEL_JSON_FILENAME).read_text(encoding="utf-8"))
     assert document["schema"] == K.K3_PANEL_SCHEMA and [p["panel"] for p in document["panels"]] == [0, 1]
     assert document["spec"]["joint_sigma"]["path_in_file"] == "control_sigma.80"
@@ -365,5 +369,29 @@ def test_a_policy_without_log_std_gets_no_panel(tmp_path):
     model.num_timesteps = 2_000_000
     assert callback.on_step() is True and not callback.panels
     callback.on_training_end()
+    callback.roll_final_panel()
+    assert not callback.panels
     document = json.loads((tmp_path / K.K3_PANEL_JSON_FILENAME).read_text(encoding="utf-8"))
     assert "not a Gaussian actor-critic" in document["session_problem"] and document["panels"] == []
+
+
+def test_train_base_rolls_the_final_panel_after_the_final_save_and_survives_a_failure(caplog):
+    """``_train_stage_body`` calls this right after ``_save_final_and_sync_tb`` (and not after an interruption):
+    every callback with a ``roll_final_panel`` rolls it, a failing one is logged, and other callbacks are left alone."""
+    from environments.shared import train_base
+
+    calls: list[str] = []
+
+    class Rolls:
+        def roll_final_panel(self) -> None:
+            calls.append("rolled")
+
+    class Fails:
+        def roll_final_panel(self) -> None:
+            raise RuntimeError("no panel today")
+
+    with caplog.at_level("WARNING", logger=train_base.logger.name):
+        train_base._roll_final_k3_panels([object(), Fails(), Rolls()])
+    assert calls == ["rolled"] and "the final panel could not be rolled" in caplog.text
+    source = inspect.getsource(train_base._train_stage_body)
+    assert source.index("_save_final_and_sync_tb(") < source.index("_roll_final_k3_panels(callbacks)")

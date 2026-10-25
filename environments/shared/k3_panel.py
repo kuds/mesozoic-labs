@@ -8,7 +8,10 @@ checkpoints, after a run.  :class:`K3PanelCallback` rolls the same two tests
 during training, so a run's K3 history is in its own stage directory: at the
 first step on or past every multiple of :data:`K3_PANEL_EVERY` and once when
 training ends, on a CPU copy of the live policy and a copy of the live
-normalizer's statistics, in an env of its own.
+normalizer's statistics, in an env of its own.  The final panel is rolled
+after ``learn()`` returns and the final checkpoint pair is saved
+(:meth:`K3PanelCallback.roll_final_panel`, which ``train_base`` calls), so
+an interruption during it cannot cost the final pair.
 
 The arithmetic is the judge's ``noise_matched`` (``judge_stance5r.py``,
 unchanged; :func:`run_k3_panel`).  Per test and per episode ``i``: seed ``s
@@ -93,7 +96,7 @@ K3_PANEL_SCHEMA = "mesozoic.k3-panel/v1"
 #: The files the callback writes into the stage directory.
 K3_PANEL_CSV_FILENAME = "k3_panel.csv"
 K3_PANEL_JSON_FILENAME = "k3_panel.json"
-#: A panel runs at the first step on or past every multiple of this (and once at training end).
+#: A panel runs at the first step on or past every multiple of this (and once at training end, after the final save).
 K3_PANEL_EVERY = 1_048_576
 #: The judge's spawns (``NOISE_SEED``, ``NOISE_EPISODES``): episode ``i`` resets and draws its noise from ``3042 + i``.
 K3_PANEL_SEEDS: tuple[int, ...] = tuple(range(3042, 3062))
@@ -467,7 +470,12 @@ def panel_complete(panel: Mapping[str, Any], episodes: int) -> bool:
 
 
 class K3PanelCallback(BaseCallback):  # type: ignore[misc]
-    """Roll the K3 panel on the grid and at training end; write ``k3_panel.csv`` and ``k3_panel.json``.
+    """Roll the K3 panel on the grid and, after the final save, at training end; write the two files.
+
+    The files are ``k3_panel.csv`` and ``k3_panel.json``.  The grid panels
+    run inside ``learn()`` (``_on_step``); the final one runs when
+    ``train_base`` calls :meth:`roll_final_panel` after saving the final
+    checkpoint pair.
 
     Args:
         config: The launch option (:class:`K3PanelConfig`).
@@ -705,8 +713,24 @@ class K3PanelCallback(BaseCallback):  # type: ignore[misc]
         return True
 
     def _on_training_end(self) -> None:
-        if self._twin is not None:
-            self._panel("final", grid_point=None)
+        # Nothing here: inside learn() the final checkpoint pair is not saved yet, and train_base saves it before
+        # anything evaluates the final weights.  train_base calls roll_final_panel() right after that save.
+        return None
+
+    def roll_final_panel(self) -> None:
+        """Roll the panel at training end, after the final checkpoint pair is saved; never raises an ``Exception``.
+
+        ``train_base`` calls this once ``learn()`` has returned (not after an
+        interruption) and the stage's final pair (``<stage>_final.zip`` and
+        its VecNormalize pickle) is on disk: the weights and statistics read
+        are the pair's, and an interruption during the panel (about 85 s on a
+        real stance policy) cannot cost the pair.  Nothing when this session
+        runs no panel.
+        """
+        if self._twin is None or self.model is None:
+            return
+        self.num_timesteps = int(self.model.num_timesteps)
+        self._panel("final", grid_point=None)
 
     # ------------------------------------------------------------------ one panel
     def _live_normalization(self) -> tuple[ObsNormalization | None, str]:

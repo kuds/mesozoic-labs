@@ -858,7 +858,8 @@ def _build_core_callbacks(
     # no digest moves): the stance5 replication judge's two K3 noise tests (20
     # spawns each, own-sigma and joint-space) on a CPU copy of the live policy
     # and a copy of the normalizer's statistics, in an env of its own, at
-    # every 1,048,576 steps and at training end, into k3_panel.csv/.json.
+    # every 1,048,576 steps and at training end (after the final save, by
+    # _roll_final_k3_panels), into k3_panel.csv/.json.
     # After the checkpoint callbacks, so a checkpoint pair saved at the same
     # step is on disk first; it reads the same weights and statistics.  No
     # global draw, no env of the run touched.  See `k3_panel`.
@@ -1575,6 +1576,19 @@ def _train_stage_body(
         gcs_tb_path,
     )
 
+    # Report only: the in-run K3 panel's final panel reads the final weights
+    # and statistics, so it runs here, with the final pair on disk, not in
+    # learn() (about 85 s on a real stance policy, a window in which an
+    # interruption would leave no final pair).  Not after an interruption.
+    if not interrupted:
+        try:
+            _roll_final_k3_panels(callbacks)
+        except KeyboardInterrupt:
+            if not save_on_interrupt:
+                raise
+            logger.warning("The final K3 panel was interrupted by the user; the final checkpoint pair is saved.")
+            interrupted = True
+
     return _TrainedStage(
         model=model,
         train_env=train_env,
@@ -1586,6 +1600,18 @@ def _train_stage_body(
         learn_seconds=learn_seconds,
         interrupted=interrupted,
     )
+
+
+def _roll_final_k3_panels(callbacks: "list[Any]") -> None:
+    """Roll the in-run K3 panel's final panel on each callback that has one (report only; a failure is logged)."""
+    for callback in callbacks:
+        roll = getattr(callback, "roll_final_panel", None)
+        if not callable(roll):
+            continue
+        try:
+            roll()
+        except Exception:  # noqa: BLE001 - a report must not sink a run
+            logger.warning("K3 panel: the final panel could not be rolled.", exc_info=True)
 
 
 def _warn_on_heading_probe_handoff(parent_stage_dir: "str | Path", *, stage: "int | str") -> None:

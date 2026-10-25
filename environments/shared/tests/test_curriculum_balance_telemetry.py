@@ -15,11 +15,16 @@ per-rollout episode and fall counts, the training-episode ledger, the
 policy probe (its forward pass of every rollout buffer's observations for
 the rollout clip shares included), the checkpoint archive rule and the
 in-run K3 noise panel (``k3_panel``: enabled at test scale in both runs'
-launch, every 256 steps on spawns 3042 and 3043, and switched off in the
-plain run by its builder; its panels equal an offline run on the saved
-checkpoint pairs).  The
+launch, every 128 steps on spawns 3042 and 3043, so three of its panels
+fall inside a rollout, and switched off in the plain run by its builder;
+its panels equal an offline run on the saved checkpoint pairs, and its
+final panel runs after the final pair is saved).  The
 two runs train and evaluate exactly alike (the same ``evaluations.npz``,
 the same tensors in every checkpoint, the same VecNormalize statistics),
+and so do a second pair trained with mirror-symmetric PPO (``[ppo]
+symmetry = "mirror_kl"``, the stance5 LTSB arm's: ``MirrorKLPPO``'s
+``log_std`` tie hook and symmetric observation statistics beside the
+panel's CPU copy of the policy),
 the plain run writes the key sets main writes for the same run without
 this change, pinned below as they were derived on
 ``2e734e29`` (main's commits since, through ``c6292b1e``, change no
@@ -56,8 +61,9 @@ from environments.shared.model_id import ModelId
 TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
 EPISODES = 2
 STEPS = 768
-#: The K3 panel at test scale: every 256 steps, two spawns per test, the stance5 replication sidecar's mean sigma.
-K3_EVERY = 256
+#: The K3 panel at test scale: every 128 steps (128, 384 and 640 inside a rollout of 256 steps; 512 on the checkpoint
+#: pair's step), two spawns per test, the stance5 replication sidecar's mean sigma.
+K3_EVERY = 128
 K3_SEEDS = (3042, 3043)
 K3_SIGMA_FILE = (
     Path(__file__).resolve().parents[3] / "docs/investigations/stance_2026_10/stance5/replication/sigma_s70_s80.json"
@@ -171,8 +177,17 @@ def _instrument(monkeypatch, record: dict) -> None:
     from stable_baselines3.common.logger import Logger
     from stable_baselines3.common.on_policy_algorithm import OnPolicyAlgorithm
 
+    from environments.shared.k3_panel import K3PanelCallback
+
     add, collect, learn = RolloutBuffer.add, OnPolicyAlgorithm.collect_rollouts, OnPolicyAlgorithm.learn
     log = Logger.record
+    panel = K3PanelCallback._panel
+
+    def watched_panel(self, kind, **kwargs):
+        models = Path(self.stage_dir) / "models"
+        saved = (models / "stage1_final.zip").is_file() and (models / "stage1_final_vecnorm.pkl").is_file()
+        record["k3_panels"].append([kind, int(self.num_timesteps), saved, record["learning"]])
+        return panel(self, kind, **kwargs)
 
     def recorded(self, key, *args, **kwargs):
         if key not in record["logger_keys"]:
@@ -188,7 +203,11 @@ def _instrument(monkeypatch, record: dict) -> None:
         return collect(self, *args, **kwargs)
 
     def hashed_learn(self, *args, **kwargs):
-        result = learn(self, *args, **kwargs)
+        record["learning"] = True
+        try:
+            result = learn(self, *args, **kwargs)
+        finally:
+            record["learning"] = False
         record["learn_end"] = _state_digest(self)
         return result
 
@@ -196,11 +215,13 @@ def _instrument(monkeypatch, record: dict) -> None:
     monkeypatch.setattr(OnPolicyAlgorithm, "collect_rollouts", hashed_collect)
     monkeypatch.setattr(OnPolicyAlgorithm, "learn", hashed_learn)
     monkeypatch.setattr(Logger, "record", recorded)
+    monkeypatch.setattr(K3PanelCallback, "_panel", watched_panel)
 
 
-def _train(root: Path, monkeypatch, *, additions: bool) -> Path:
+def _train(root: Path, monkeypatch, *, additions: bool, symmetry: bool = False) -> Path:
     """Train the T. rex stance for 768 steps into ``root/run/01_stance``; ``additions=False`` switches every
-    addition of this change off.  The instrumentation's record goes to ``root/run/instrumentation.json``."""
+    addition of this change off, ``symmetry=True`` trains mirror-symmetric PPO (``[ppo] symmetry = "mirror_kl"``).
+    The instrumentation's record goes to ``root/run/instrumentation.json``."""
     pytest.importorskip("stable_baselines3")
     pytest.importorskip("mujoco")
     import torch
@@ -226,12 +247,21 @@ def _train(root: Path, monkeypatch, *, additions: bool) -> Path:
         monkeypatch.setattr(policy_probe, "build_policy_probe_callback", lambda *a, **k: None)
         monkeypatch.setattr(curriculum, "checkpoint_archive_every", lambda curriculum_kwargs: 0)
         monkeypatch.setattr(k3_panel, "build_k3_panel_callback", lambda *a, **k: None)
-    record: dict[str, Any] = {"rollout_add": [], "updates": [], "learn_end": None, "logger_keys": []}
+    record: dict[str, Any] = {
+        "rollout_add": [],
+        "updates": [],
+        "learn_end": None,
+        "logger_keys": [],
+        "k3_panels": [],
+        "learning": False,
+    }
     _instrument(monkeypatch, record)
     configs = load_all_stages(TYRANNOSAURUS_REX)
     stance = configs[1]
     stance["env_kwargs"]["max_episode_steps"] = int(stance["curriculum_kwargs"]["settle_steps"]) + 40
     stance["ppo_kwargs"].update(n_steps=256, batch_size=64, n_epochs=2)
+    if symmetry:
+        stance["ppo_kwargs"]["symmetry"] = "mirror_kl"
     run = root / "run"
     run.mkdir(parents=True)
     (run / "provenance.json").write_text(json.dumps({"run_id": "balance-telemetry-proof"}), encoding="utf-8")
@@ -261,17 +291,32 @@ def _train(root: Path, monkeypatch, *, additions: bool) -> Path:
     return run / "01_stance"
 
 
-@pytest.fixture(scope="module")
-def trained(tmp_path_factory):
-    """The run with this change's additions and the run without them, trained once for the module."""
+def _train_pair(tmp_path_factory, *, symmetry: bool) -> tuple[Path, Path]:
     runs = []
     for additions, name in ((True, "full"), (False, "plain")):
         monkeypatch = pytest.MonkeyPatch()
         try:
-            runs.append(_train(tmp_path_factory.mktemp(name), monkeypatch, additions=additions))
+            folder = tmp_path_factory.mktemp(f"{name}_symmetric" if symmetry else name)
+            runs.append(_train(folder, monkeypatch, additions=additions, symmetry=symmetry))
         finally:
             monkeypatch.undo()
-    return tuple(runs)
+    return runs[0], runs[1]
+
+
+@pytest.fixture(scope="module")
+def trained(tmp_path_factory):
+    """The run with this change's additions and the run without them, trained once for the module."""
+    return _train_pair(tmp_path_factory, symmetry=False)
+
+
+@pytest.fixture(scope="module")
+def trained_symmetric(tmp_path_factory):
+    """The same pair trained with mirror-symmetric PPO (the stance5 LTSB arm's ``[ppo] symmetry``)."""
+    return _train_pair(tmp_path_factory, symmetry=True)
+
+
+#: Both pairs: the stock PPO and the mirror-symmetric one.
+PAIRS = ("trained", "trained_symmetric")
 
 
 def _keys(path: Path) -> dict[str, np.ndarray]:
@@ -303,8 +348,9 @@ def _tensors(path: Path) -> dict[str, np.ndarray]:
     return out
 
 
-def test_the_additions_change_no_evaluation_no_checkpoint_and_no_normalization(trained):
-    full, plain = trained
+@pytest.mark.parametrize("pair", PAIRS)
+def test_the_additions_change_no_evaluation_no_checkpoint_and_no_normalization(pair, request):
+    full, plain = request.getfixturevalue(pair)
     first, second = _keys(full / "evaluations.npz"), _keys(plain / "evaluations.npz")
     assert sorted(first) == sorted(second)
     for key in first:
@@ -327,13 +373,23 @@ def test_the_additions_change_no_evaluation_no_checkpoint_and_no_normalization(t
         assert (mine.clip_obs, mine.clip_reward, mine.gamma) == (theirs.clip_obs, theirs.clip_reward, theirs.gamma)
 
 
-def test_the_training_side_telemetry_draws_no_random_number_and_changes_no_update(trained):
+@pytest.mark.parametrize("pair", PAIRS)
+def test_the_training_side_telemetry_draws_no_random_number_and_changes_no_update(pair, request):
     """Every rollout step, every PPO update and the generators at the end of ``learn()`` are the same."""
-    full, plain = (json.loads((stage.parent / "instrumentation.json").read_text(encoding="utf-8")) for stage in trained)
+    full, plain = (
+        json.loads((stage.parent / "instrumentation.json").read_text(encoding="utf-8"))
+        for stage in request.getfixturevalue(pair)
+    )
     assert len(full["rollout_add"]) == STEPS and len(full["updates"]) == STEPS // 256 and full["learn_end"]
     assert full["rollout_add"] == plain["rollout_add"]
     assert full["updates"] == plain["updates"]
     assert full["learn_end"] == plain["learn_end"]
+    # The panels the full run rolled: on the grid inside learn() (three of them mid-rollout), and the final one
+    # after learn() returned, with the final checkpoint pair on disk; the plain run rolled none.
+    grid = [[kind, step, saved, inside] for kind, step, saved, inside in full["k3_panels"] if kind == "grid"]
+    assert grid == [["grid", step, False, True] for step in range(K3_EVERY, STEPS + 1, K3_EVERY)]
+    assert full["k3_panels"][-1] == ["final", STEPS, True, False] and len(full["k3_panels"]) == len(grid) + 1
+    assert plain["k3_panels"] == []
 
 
 def test_the_plain_run_writes_the_bases_artifacts(trained):
@@ -494,7 +550,7 @@ def _k3_stage_factory():
 
 
 def test_the_k3_panel_rolls_the_saved_checkpoint_pairs_and_reaches_no_other_record(trained):
-    """The full run rolls a panel at every 256 steps and at training end; the panel at 512 and the final one are
+    """The full run rolls a panel at every 128 steps and at training end; the panel at 512 and the final one are
     what an offline run of the same arithmetic gives on the checkpoint pair saved at that step (lengths and returns
     bit for bit, twice); the plain run writes no panel file; no TensorBoard key, progress.json entry or
     gate_progress.npz key of it exists in either run."""
@@ -511,9 +567,7 @@ def test_the_k3_panel_rolls_the_saved_checkpoint_pairs_and_reaches_no_other_reco
     assert document["schema"] == K.K3_PANEL_SCHEMA and document["session_problem"] is None
     panels = document["panels"]
     assert [(panel["kind"], panel["timesteps"]) for panel in panels] == [
-        ("grid", 256),
-        ("grid", 512),
-        ("grid", 768),
+        *(("grid", step) for step in range(K3_EVERY, STEPS + 1, K3_EVERY)),
         ("final", STEPS),
     ]
     sidecar = json.loads(K3_SIGMA_FILE.read_text(encoding="utf-8"))
@@ -529,8 +583,8 @@ def test_the_k3_panel_rolls_the_saved_checkpoint_pairs_and_reaches_no_other_reco
 
     factory, horizon = _k3_stage_factory()
     for panel, (policy_zip, sidecar_pkl) in (
-        (panels[1], ("stage1_512_steps.zip", "stage1_vecnormalize_512_steps.pkl")),
-        (panels[3], ("stage1_final.zip", "stage1_final_vecnorm.pkl")),
+        (panels[512 // K3_EVERY - 1], ("stage1_512_steps.zip", "stage1_vecnormalize_512_steps.pkl")),
+        (panels[-1], ("stage1_final.zip", "stage1_final_vecnorm.pkl")),
     ):
         model, normalizer, _ = load_sb3_checkpoint(
             str(full / "models" / policy_zip),
@@ -575,13 +629,33 @@ def test_the_k3_panel_rolls_the_saved_checkpoint_pairs_and_reaches_no_other_reco
         assert not any("k3" in key for key in _keys(stage / "gate_progress.npz"))
 
 
-def test_the_reports_stub_unpickler_reads_the_runs_own_pickles_as_sb3_does(trained):
+def test_the_k3_panel_runs_beside_mirror_symmetric_ppo(trained_symmetric):
+    """The symmetric pair trained MirrorKLPPO (recorded in the stage config and in every checkpoint), and the full
+    run's panels ran in full beside its ``log_std`` tie hook and symmetric statistics, moving no global generator."""
+    from environments.shared import k3_panel as K
+    from environments.shared.symmetry import CHECKPOINT_ATTRIBUTE
+    from environments.shared.task_fingerprint import read_checkpoint_attribute
+
+    full, plain = trained_symmetric
+    for stage in (full, plain):
+        assert '"mirror_kl"' in (stage / "stage_config.json").read_text(encoding="utf-8")
+        assert read_checkpoint_attribute(stage / "models" / "stage1_final.zip", CHECKPOINT_ATTRIBUTE)
+    assert not list(plain.glob("k3_panel*"))
+    panels = json.loads((full / K.K3_PANEL_JSON_FILENAME).read_text(encoding="utf-8"))["panels"]
+    assert [panel["kind"] for panel in panels] == ["grid"] * (STEPS // K3_EVERY) + ["final"]
+    for panel in panels:
+        assert panel["failure"] is None and panel["global_rng_moved"] is False
+        assert panel["own_episodes"] == panel["joint_episodes"] == len(K3_SEEDS)
+
+
+@pytest.mark.parametrize("pair", PAIRS)
+def test_the_reports_stub_unpickler_reads_the_runs_own_pickles_as_sb3_does(pair, request):
     """The training-history report's normalization page reads the run's VecNormalize pickles without SB3's classes
     (``training_history.read_vecnormalize_stats``): the statistics equal ``pickle.load``'s, and at 512 (a rollout
     end) the pickle cast to float32 equals the policy probe's row of that update."""
     from environments.shared.reporting import training_history as th
 
-    full, _plain = trained
+    full, _plain = request.getfixturevalue(pair)
     for path in sorted((full / "models").glob("stage1_*vec*.pkl")):
         stats = th.read_vecnormalize_stats(path)
         with open(path, "rb") as handle:
