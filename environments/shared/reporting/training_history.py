@@ -38,7 +38,21 @@ the training step, for one run or overlaid for several:
 - per training rollout, from ``policy_probe.npz``'s ``rollout_*`` arrays,
   each actuator's share of sampled actions clipped at a bound and of the
   policy's mean actions beyond one: the training-side twin of the
-  deterministic evaluation's saturation.
+  deterministic evaluation's saturation;
+- the body columns (``gait.body_telemetry``, report only): each actuator's
+  window-mean command and the actuators at rail and parked
+  (``13_commands``), the tail's chord and hinges and the pelvis's height,
+  pitch and roll (``14_tail_body``), the mechanical work, peak power, torque
+  and command jitter per actuator group (``15_energy``), the drift, path,
+  yaw and slip (``16_drift_slip``), and the MjData-derived joint stops, base
+  wrenches, balance margins, angular momentum and head rate
+  (``19_body_dynamics``);
+- the leg actuators' exploration std (``policy_probe.npz`` per update, else
+  the checkpoint zips) beside K3's noise falls from the in-run K3 panel's
+  ``k3_panel.json`` and the judge files named (``17_exploration_k3``);
+- the observation normalization's drift per checkpoint, from the
+  VecNormalize pickles in ``models/`` and the probe's per-update statistics
+  (``18_obs_normalization``).
 
 Every per-episode value is reduced over the evaluation's full-horizon episodes,
 the set ``gate_progress.npz`` averages over; the outcome counts are over all its
@@ -64,9 +78,13 @@ caller names (``scripts/plot_training_history.py`` refuses an output inside a
 run directory).  Nothing reads its output back.  From a checkpoint zip it reads
 only the ``log_std`` tensor of ``policy.pth`` (``torch.load(...,
 weights_only=True)``) and, for a named checkpoint, ``num_timesteps`` from the
-JSON ``data`` member (:func:`~environments.shared.task_fingerprint.read_checkpoint_attribute`);
-it unpickles nothing.  Figures are drawn on matplotlib ``Figure`` objects
-without pyplot, so no figure registry or interactive backend is touched.
+JSON ``data`` member (:func:`~environments.shared.task_fingerprint.read_checkpoint_attribute`).
+The only pickles it opens are the VecNormalize pickles in ``models/``,
+through :class:`_StubUnpickler`, which resolves numpy's array helpers and
+inert stand-ins for the classes such a pickle names and refuses every other
+global: no SB3 or gymnasium code runs.  Figures are drawn on matplotlib
+``Figure`` objects without pyplot, so no figure registry or interactive
+backend is touched.
 """
 
 from __future__ import annotations
@@ -74,16 +92,18 @@ from __future__ import annotations
 import base64
 import csv
 import html
+import importlib
 import io
 import logging
 import math
 import os
+import pickle
 import re
 import tempfile
 import textwrap
 import time
 import zipfile
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
@@ -91,6 +111,7 @@ from typing import Any, Iterable, Mapping, Sequence
 import numpy as np
 
 from ..file_io import atomic_write_json, atomic_write_text, read_json_object
+from ..gait import body_telemetry as _body
 from ..gait.constants import SATURATION_ABS
 from ..gait.posture_telemetry import HEAD_POSTURE_COLUMNS, HIP_ROLL_FIELDS
 from ..gait.stance_metrics import SATURATED_ACTUATOR_COLUMNS
@@ -246,7 +267,12 @@ NOT_RECORDED: tuple[str, ...] = (
     "The commanded leg offsets (leg_dc_*) and the per-foot heel moment margin (<foot>_heel_margin_nm) are kept in "
     "gate_progress.npz only, not in eval_episodes.csv.",
     "Per-actuator std is read at the checkpoints kept in models/ only; between them nothing is recorded here "
-    "(policy_probe.npz holds it per update where the run kept that file).",
+    "(policy_probe.npz holds it per update where the run kept that file; the exploration page reads it there).",
+    "The body columns (commands, tail and body posture, energy, drift and slip, joint stops, the centre of mass and "
+    "momentum, base wrenches, head rate) are recorded per episode only in ledgers written since they were added; an "
+    "older run's are absent series, and a model without a part (no tail, no neck) reads nan there. The K3 noise "
+    "panel is in the stage directory only where the launch enabled it (k3_panel.json); the judge's own K3 is in its "
+    "files (--judged). The normalization page reads the VecNormalize pickles kept in models/ only.",
     "The per-rollout clip shares are the training rollouts' (sampled actions, and the policy's means at the same "
     "observations), from policy_probe.npz only where the run kept it and wrote its rollout_* arrays; an older run's "
     "are absent series. The JSON keeps each actuator's peak and last values; the per-rollout series are in the file.",
@@ -309,6 +335,64 @@ K3_JUDGE_SCHEMAS: dict[str, str] = {
 }
 #: The judge files read: one per judged checkpoint, ``judge_<steps>.json`` or ``judge_final.json``.
 _JUDGE_FILE = re.compile(r"^judge_(?P<slot>\d+|final)\.json$")
+
+#: The in-run K3 panel's record (``environments/shared/k3_panel.py``, its ``K3_PANEL_JSON_FILENAME`` and
+#: ``K3_PANEL_SCHEMA``), read for the exploration and K3 page; nothing here imports that module (or SB3).
+K3_PANEL_JSON_FILENAME = "k3_panel.json"
+K3_PANEL_SCHEMA = "mesozoic.k3-panel/v1"
+#: The stance3 line-2 exploration reference drawn beside the leg actuators' std (log_std >= ln 0.08 on hip pitch,
+#: knee and ankle in the stance3 design): a reference line, not applied by any stage.
+EXPLORATION_REFERENCE_STD = 0.08
+#: An actuator is a leg's when its name starts with a side (``r_``, ``l_``, ``right_``, ``left_``, ``fr_``, ``fl_``,
+#: ``rr_``, ``rl_``) and it drives no arm, claw or shoulder; a side's partner is the mirror one.
+_SIDE = re.compile(r"^(?P<side>right|left|fr|fl|rr|rl|r|l)_(?P<rest>.+)$")
+_PARTNER_SIDE = {"r": "l", "l": "r", "right": "left", "left": "right", "fr": "fl", "fl": "fr", "rr": "rl", "rl": "rr"}
+_RIGHT_SIDES = ("r", "right", "fr", "rr")
+_NOT_LEG = re.compile(r"(?:shoulder|claw|arm|elbow|wrist)")
+#: The body columns of ``eval_episodes.csv`` (``gait.body_telemetry``) reduced per evaluation: every numeric one.
+_BODY_GROUPS = (*_body.ENERGY_GROUPS, _body.OTHER_GROUP)
+_BODY_COLUMN = re.compile(
+    "|".join(
+        [
+            rf".+{re.escape(_body.COMMAND_SUFFIX)}",
+            "actuators_at_rail",
+            "actuators_parked",
+            r"tail_\d+_(?:pitch|yaw)_mean_deg",
+            *(
+                re.escape(column)
+                for column in (
+                    *_body.TAIL_CHORD_COLUMNS,
+                    *_body.ROOT_HEIGHT_COLUMNS,
+                    *_body.ROOT_PITCH_COLUMNS,
+                    *_body.ROOT_ROLL_COLUMNS,
+                    _body.ACTION_DELTA_COLUMN,
+                    *_body.DRIFT_COLUMNS,
+                    *_body.MARGIN_COLUMNS,
+                    *_body.ANGULAR_MOMENTUM_COLUMNS,
+                    *(f"{base}_{name}" for base in _body.WRENCH_BASES for name in _body.WRENCH_FIELDS),
+                    *_body.HEAD_RATE_COLUMNS,
+                )
+            ),
+            rf"(?:{'|'.join(_BODY_GROUPS)})_(?:{'|'.join(_body.ENERGY_FIELDS)})",
+            rf"[A-Za-z0-9]+_{_body.LEG_WORK_FIELD}",
+            rf"[A-Za-z0-9]+_(?:{'|'.join(_body.SLIP_FIELDS)})",
+            rf".+_(?:{'|'.join(_body.STOP_FIELDS)})",
+        ]
+    )
+)
+#: The text columns naming each episode's at-rail and parked actuators, and the per-evaluation tallies made of them.
+NAMED_CLASS_COLUMNS: dict[str, str] = {"rail_named": "rail_actuators", "parked_named": "parked_actuators"}
+#: Why a body column reads nan on every episode.
+BODY_UNMEASURED_REASON = "a model without that part reads nan there: gait.body_telemetry, BodyLayout.reasons"
+#: The VecNormalize pickles read for the normalization page (``<prefix>_vecnormalize_<steps>_steps.pkl`` and
+#: ``<prefix>_final_vecnorm.pkl``, the pairs the judges load) and the probe's per-update statistics beside them.
+_PERIODIC_VECNORM = re.compile(r"^(?P<prefix>.+)_vecnormalize_(?P<steps>\d+)_steps\.pkl$")
+_FINAL_VECNORM = re.compile(r"^(?P<prefix>.+)_final_vecnorm\.pkl$")
+#: An observation dimension whose variance is below this is flagged on the normalization page (a near-constant input
+#: whose normalized value the epsilon dominates).
+FLAT_VARIANCE = 1e-6
+#: The probe's bank row whose normalized value the normalization page follows (the settled statue, the first seed).
+NORMALIZATION_BANK_ROW = "statue_settled"
 
 
 def _number(text: Any) -> float:
@@ -409,7 +493,35 @@ def reduced_columns(header: Sequence[str]) -> list[str]:
     columns += [column for joint, column in lr_columns(header).items() if joint != "hip_roll"]
     columns += list(POSTURE_COLUMNS)
     columns += [f"{foot}_{suffix}" for foot in hip_roll_labels(header) for suffix in HIP_ROLL_SUFFIXES]
+    columns += [column for column in body_columns(header) if column not in columns]
     return [column for column in columns if column in present]
+
+
+def body_columns(header: Sequence[str]) -> list[str]:
+    """The numeric body columns of *header* (``gait.body_telemetry``: commands, tail and body posture, energy, drift
+    and slip, joint stops, the centre of mass and momentum, base wrenches, head rate), in header order."""
+    return [column for column in header if _BODY_COLUMN.fullmatch(column) and column != "root_pitch_mean_deg"]
+
+
+def named_classes(cell: str | None) -> list[str]:
+    """The actuators a ``rail_actuators`` / ``parked_actuators`` cell names, as ``name sign`` labels
+    (``"tail_3_pitch_act+;r_ankle_act-"`` -> ``["tail_3_pitch_act +", "r_ankle_act -"]``)."""
+    labels = []
+    for part in (cell or "").split(";"):
+        part = part.strip()
+        if part:
+            labels.append(f"{part[:-1]} {part[-1]}" if part[-1] in "+-" else part)
+    return labels
+
+
+def unmeasured_body_columns(header: Sequence[str], rows: Sequence[Mapping[str, str]]) -> list[str]:
+    """The body columns of *header* that read nan (or empty) on every one of *rows*: what the model lacks
+    (``BodyLayout.reasons``), drawn as absent with that reason.  Empty when there are no rows."""
+    if not rows:
+        return []
+    return [
+        column for column in body_columns(header) if not any(math.isfinite(_number(row.get(column))) for row in rows)
+    ]
 
 
 def unmeasured_posture_columns(header: Sequence[str], rows: Sequence[Mapping[str, str]]) -> list[str]:
@@ -639,6 +751,15 @@ def reduce_evaluations(
         ]
         derived = hip_roll_lr_column(left, right)
         out["columns"][derived] = {key: np.asarray([s[key] for s in stats], dtype=float) for key in stats[0]}
+    # The full-horizon episodes per evaluation with an actuator at rail (parked), by actuator and sign.
+    for key, column in NAMED_CLASS_COLUMNS.items():
+        if column in present:
+            out[key] = [
+                tally([{label: 1} for row in group for label in named_classes(row.get(column))]) for group in fh_rows
+            ]
+            out[key.replace("_named", "_episodes")] = np.asarray(
+                [float(sum(1 for row in group if named_classes(row.get(column)))) for group in fh_rows], dtype=float
+            )
     return out
 
 
@@ -926,6 +1047,376 @@ def read_rollout_shares(path: Path) -> dict[str, np.ndarray] | None:
     return shares
 
 
+def read_probe_series(path: Path) -> dict[str, np.ndarray]:
+    """``policy_probe.npz``'s per-update std and normalizer statistics, and its state bank, as far as the file holds
+    them: ``timesteps`` and ``std`` (U, nu), ``obs_mean`` and ``obs_var`` (U, obs; float32 casts), ``bank_raw_obs``,
+    ``bank_labels``, ``bank_seeds``.  Nothing is unpickled; an absent key is left out."""
+    out: dict[str, np.ndarray] = {}
+    with np.load(path, allow_pickle=False) as data:
+        if "update_timesteps" in data.files:
+            out["timesteps"] = np.asarray(data["update_timesteps"], dtype=np.int64)
+        for key, name in (
+            ("std_per_actuator", "std"),
+            ("obs_rms_mean", "obs_mean"),
+            ("obs_rms_var", "obs_var"),
+            ("bank_raw_obs", "bank_raw_obs"),
+        ):
+            if key in data.files:
+                out[name] = np.asarray(data[key], dtype=np.float64)
+        for key in ("bank_labels", "bank_seeds"):
+            if key in data.files:
+                out[key] = np.asarray(data[key])
+    return out
+
+
+def _k3_flags(point: dict[str, Any], seeds: Any) -> None:
+    """Set a K3-checkpoint point's within-bar flags, withheld where its panels are not K3's 20 episodes on spawns
+    3042-3061 (the scorers' own condition)."""
+    if not point["k3_slot"]:
+        return
+    spawns = list(range(K3_SPAWNS[0], K3_SPAWNS[1] + 1))
+    issues = []
+    if list(seeds or []) != spawns:
+        issues.append(f"spawns {seeds!r}, not K3's {K3_SPAWNS[0]}-{K3_SPAWNS[1]}")
+    for name in ("joint", "own"):
+        if point.get(f"{name}_episodes") != K3_EPISODES:
+            issues.append(f"{name} n {point.get(f'{name}_episodes')}, not K3's {K3_EPISODES}")
+    if issues:
+        point["joint_within_bar"] = point["own_within_bar"] = None
+        point["within_bar_withheld"] = "; ".join(issues)
+    else:
+        point["joint_within_bar"] = point["joint_falls"] <= K3_JOINT_MAX_FALLS
+        point["own_within_bar"] = point["own_falls"] <= K3_OWN_MAX_FALLS
+
+
+def _mapping(value: Any) -> Mapping[str, Any]:
+    """*value* when it is a mapping, else an empty one."""
+    return value if isinstance(value, Mapping) else {}
+
+
+def read_k3_panel(stage: Path) -> dict[str, Any]:
+    """The in-run K3 panel's record in *stage* (``k3_panel.json``, ``mesozoic.k3-panel/v1``), as points.
+
+    One point per panel that ran (a failed one is listed in ``failed``): its step, kind (grid, final, resume), the
+    own-sigma and joint-space falls of n, and the joint sigma's sha256 (a series is never joined across two
+    sigmas).  At K3's checkpoints (:data:`K3_SLOT_STEPS` and the final panel) each test says whether it is within
+    its bar, withheld where the panel is not K3's 20 episodes on spawns 3042-3061.  ``recorded`` is ``False``, with
+    ``why``, without a readable file of that schema.
+    """
+    path = stage / K3_PANEL_JSON_FILENAME
+    if not path.is_file():
+        return {
+            "recorded": False,
+            "why": f"no {K3_PANEL_JSON_FILENAME} (the panel is off unless the launch enables it)",
+        }
+    record = read_json_object(path)
+    if record is None:
+        return {"recorded": False, "why": f"{K3_PANEL_JSON_FILENAME} is not a JSON object"}
+    if record.get("schema") != K3_PANEL_SCHEMA:
+        return {"recorded": False, "why": f"{K3_PANEL_JSON_FILENAME} schema {record.get('schema')!r}"}
+    spec = _mapping(record.get("spec"))
+    sigma = _mapping(spec.get("joint_sigma"))
+    points: list[dict[str, Any]] = []
+    failed: list[dict[str, Any]] = []
+    for panel in record.get("panels") or []:
+        if not isinstance(panel, Mapping):
+            continue
+        steps = _whole(panel.get("timesteps"))
+        if panel.get("failure") or steps is None:
+            failed.append({"panel": panel.get("panel"), "timesteps": steps, "failure": panel.get("failure")})
+            continue
+        tests = _mapping(panel.get("tests"))
+        own, joint = _mapping(tests.get("own")), _mapping(tests.get("joint"))
+        kind = str(panel.get("kind") or "")
+        point: dict[str, Any] = {
+            "panel": panel.get("panel"),
+            "timesteps": steps,
+            "kind": kind,
+            "k3_slot": kind == "final" or steps == K3_SLOT_STEPS,
+            "own_falls": _whole(own.get("falls")),
+            "own_episodes": _whole(own.get("n")),
+            "joint_falls": _whole(joint.get("falls")),
+            "joint_episodes": _whole(joint.get("n")),
+            "joint_skipped": joint.get("skipped"),
+            "joint_sigma_sha256": panel.get("joint_sigma_sha256"),
+            "own_sigma_mean": panel.get("own_sigma_mean"),
+            "seconds": panel.get("seconds"),
+        }
+        _k3_flags(point, spec.get("seeds"))
+        points.append(point)
+    points.sort(key=lambda p: (p["timesteps"], p["kind"] == "final"))
+    return {
+        "recorded": True,
+        "source": str(path),
+        "seeds": spec.get("seeds"),
+        "horizon": spec.get("horizon"),
+        "every": spec.get("every"),
+        "joint_sigma": {key: sigma.get(key) for key in ("file", "file_sha256", "path_in_file", "mean", "sha256")},
+        "session_problem": record.get("session_problem"),
+        "points": points,
+        "failed": failed,
+        "sigma_series": sorted({str(p["joint_sigma_sha256"]) for p in points if p["joint_sigma_sha256"]}),
+    }
+
+
+# ---------------------------------------------------------------------------------------------- normalization
+
+
+class _Inert:
+    """A stand-in for a class a VecNormalize pickle names (SB3's ``VecNormalize`` and ``RunningMeanStd``,
+    gymnasium's ``Box``, numpy's random generator parts): it keeps the state it is given and runs no code."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        self._args = args
+
+    def __setstate__(self, state: Any) -> None:
+        if isinstance(state, tuple) and len(state) == 2 and isinstance(state[1], dict):
+            state = {**(state[0] or {}), **state[1]}  # (dict, slots) state
+        if isinstance(state, dict):
+            self.__dict__.update(state)
+        else:
+            self._state = state
+
+
+def _inert(*args: Any, **kwargs: Any) -> _Inert:
+    return _Inert(*args)
+
+
+def _stub(name: str) -> type:
+    return type(name, (_Inert,), {})
+
+
+def _multiarray(name: str) -> Any:
+    """``numpy``'s array (re)construction helper *name* (``_reconstruct``, ``scalar``), from numpy 2's ``_core``."""
+    try:
+        module = importlib.import_module("numpy._core.multiarray")
+    except ImportError:  # numpy 1
+        module = importlib.import_module("numpy.core.multiarray")
+    return getattr(module, name)
+
+
+#: What a VecNormalize pickle may name, and what it gets: numpy's own array, dtype and scalar reconstruction; an
+#: inert stand-in for everything else (measured on SB3 2.9's pickles: VecNormalize, RunningMeanStd, the Box of its
+#: observation space and that Box's numpy Generator, PCG64 and SeedSequence).  Anything else is refused.
+_PICKLE_ALLOWED: dict[tuple[str, str], Any] = {
+    ("numpy", "dtype"): np.dtype,
+    ("numpy", "ndarray"): np.ndarray,
+    **{(module, "_reconstruct"): "_reconstruct" for module in ("numpy._core.multiarray", "numpy.core.multiarray")},
+    **{(module, "scalar"): "scalar" for module in ("numpy._core.multiarray", "numpy.core.multiarray")},
+    ("numpy.random._pickle", "__generator_ctor"): _inert,
+    ("numpy.random._pickle", "__bit_generator_ctor"): _inert,
+    ("numpy.random._pickle", "__randomstate_ctor"): _inert,
+    ("numpy.random.bit_generator", "__pyx_unpickle_SeedSequence"): _inert,
+    ("numpy.random.bit_generator", "SeedSequence"): _stub("SeedSequence"),
+    ("numpy.random._pcg64", "PCG64"): _stub("PCG64"),
+    ("numpy.random._mt19937", "MT19937"): _stub("MT19937"),
+    ("numpy.random._generator", "Generator"): _stub("Generator"),
+    ("stable_baselines3.common.vec_env.vec_normalize", "VecNormalize"): _stub("VecNormalize"),
+    ("stable_baselines3.common.running_mean_std", "RunningMeanStd"): _stub("RunningMeanStd"),
+    ("environments.shared.mirror_kl_ppo", "SymmetricRunningMeanStd"): _stub("SymmetricRunningMeanStd"),
+    ("gymnasium.spaces.box", "Box"): _stub("Box"),
+}
+
+
+class _StubUnpickler(pickle.Unpickler):
+    """An unpickler that resolves only :data:`_PICKLE_ALLOWED`: numpy's reconstruction helpers, and inert stand-ins
+    for the classes a VecNormalize pickle names.  Nothing is imported from SB3 or gymnasium, and no other global
+    (``os.system``, ``builtins.eval``, ...) can be named: it raises ``pickle.UnpicklingError``."""
+
+    def find_class(self, module: str, name: str) -> Any:
+        found = _PICKLE_ALLOWED.get((module, name))
+        if found is None:
+            raise pickle.UnpicklingError(f"refused: {module}.{name} is not a VecNormalize pickle's class")
+        return _multiarray(found) if isinstance(found, str) else found
+
+
+def read_vecnormalize_stats(path: Path) -> dict[str, Any]:
+    """A VecNormalize pickle's observation statistics through :class:`_StubUnpickler`: float64 ``mean`` and ``var``,
+    ``count``, ``epsilon`` and ``clip_obs``.  Raises on a refused class or a pickle that holds none of them."""
+    with path.open("rb") as handle:
+        wrapper = _StubUnpickler(handle).load()
+    rms = getattr(wrapper, "obs_rms", None)
+    mean, var = getattr(rms, "mean", None), getattr(rms, "var", None)
+    if mean is None or var is None:
+        raise ValueError(f"{path.name}: no obs_rms mean and var (a dict observation, or not a VecNormalize)")
+    return {
+        "mean": np.asarray(mean, dtype=np.float64),
+        "var": np.asarray(var, dtype=np.float64),
+        "count": float(np.asarray(getattr(rms, "count", math.nan), dtype=np.float64)),
+        "epsilon": float(getattr(wrapper, "epsilon", 1e-8)),
+        "clip_obs": float(getattr(wrapper, "clip_obs", 10.0)),
+    }
+
+
+def list_vecnormalize_pickles(models_dir: Path, final_step: int | None) -> list[dict[str, Any]]:
+    """The periodic and final VecNormalize pickles in *models_dir*: ``{"name", "kind", "timesteps", "path"}`` by step,
+    the final one (at *final_step*, else after every periodic one) last."""
+    if not models_dir.is_dir():
+        return []
+    found = []
+    for path in sorted(models_dir.iterdir()):
+        periodic, final = _PERIODIC_VECNORM.fullmatch(path.name), _FINAL_VECNORM.fullmatch(path.name)
+        if periodic is not None:
+            found.append(
+                {"name": path.name, "kind": "periodic", "timesteps": int(periodic.group("steps")), "path": path}
+            )
+        elif final is not None:
+            found.append({"name": path.name, "kind": "final", "timesteps": final_step, "path": path})
+    found.sort(key=lambda c: (c["kind"] == "final", c["timesteps"] if c["timesteps"] is not None else 0, c["name"]))
+    return found
+
+
+def _shift(mean: np.ndarray, reference_mean: np.ndarray, reference_var: np.ndarray, epsilon: float) -> np.ndarray:
+    """A fixed raw input's change in normalized units: ``(mean - reference_mean) / sqrt(reference_var + epsilon)``."""
+    shift: np.ndarray = (mean - reference_mean) / np.sqrt(reference_var + epsilon)
+    return shift
+
+
+def _scale(var: np.ndarray, reference_var: np.ndarray, epsilon: float) -> np.ndarray:
+    """The normalization's change of scale, ``0.5 ln((var + epsilon) / (reference_var + epsilon))``."""
+    scale: np.ndarray = 0.5 * np.log((var + epsilon) / (reference_var + epsilon))
+    return scale
+
+
+def observation_labels(model_id: ModelId | None, width: int) -> tuple[list[str], str]:
+    """Each observation dimension's name from the checkout's ``configs/<species>/<embodiment>/mirror_map.json``
+    (``observation[i].name``), else ``obs[<index>]``, and where the names came from."""
+    fallback = [f"obs[{index}]" for index in range(width)]
+    if model_id is None:
+        return fallback, "index (no model recorded)"
+    from ..paths import REPOSITORY_ROOT
+
+    path = REPOSITORY_ROOT / "configs" / model_id.species / model_id.embodiment / "mirror_map.json"
+    record = read_json_object(path)
+    entries = (record or {}).get("observation")
+    if not isinstance(entries, list) or len(entries) != width:
+        return fallback, "index (no mirror_map.json of this width)"
+    names = [str(entry.get("name")) if isinstance(entry, Mapping) else fallback[i] for i, entry in enumerate(entries)]
+    return names, f"{path.relative_to(REPOSITORY_ROOT).as_posix()} observation names"
+
+
+def obs_normalization(
+    models_dir: Path,
+    *,
+    final_step: int | None,
+    probe: Mapping[str, np.ndarray] | None,
+    model_id: ModelId | None,
+) -> dict[str, Any]:
+    """The observation normalization's drift per checkpoint (page ``18_obs_normalization``; report only).
+
+    From each periodic and the final VecNormalize pickle (:func:`read_vecnormalize_stats`, float64), per
+    checkpoint *k* and observation dimension: ``shift_prev`` (:func:`_shift` against checkpoint *k - 1*),
+    ``scale_prev`` (:func:`_scale`), and ``shift_final`` / ``scale_final`` against the final pickle; their maximum
+    and median over the dimensions; the three dimensions whose ``|shift_prev|`` peaks highest over the run, by
+    name; dimensions whose variance is under :data:`FLAT_VARIANCE`; and the probe bank's settled-statue
+    observation as each checkpoint's normalization sees it, ``clip((o - mean) / sqrt(var + epsilon))``, its
+    change from the checkpoint before (max and Euclidean norms).  From ``policy_probe.npz`` (float32, every PPO
+    update): the same ``shift_final`` against the final pickle (else the last row), and at each pickle's step
+    that is a probe row, whether the pickle cast to float32 equals that row (the two read one object with no env
+    step between; reported, never raised).
+    """
+    out: dict[str, Any] = {"checkpoints": [], "probe": None, "errors": []}
+    entries = list_vecnormalize_pickles(models_dir, final_step)
+    stats: list[dict[str, Any]] = []
+    for entry in entries:
+        try:
+            stats.append({**{k: v for k, v in entry.items() if k != "path"}, **read_vecnormalize_stats(entry["path"])})
+        except Exception as exc:  # noqa: BLE001 - a bad pickle costs its own point only
+            out["errors"].append(f"{entry['name']}: {type(exc).__name__}: {exc}")
+    widths = {int(np.asarray(s["mean"]).size) for s in stats}
+    if len(widths) > 1:
+        out["errors"].append(f"pickles of different widths {sorted(widths)}: not compared")
+        stats = []
+    width = (
+        widths.pop() if len(widths) == 1 else int(np.asarray((probe or {}).get("obs_mean", np.zeros((0, 0)))).shape[-1])
+    )
+    labels, label_source = observation_labels(model_id, width) if width else ([], "none")
+    out["labels_source"] = label_source
+    out["source"] = "VecNormalize pickles (float64)" if stats else None
+    bank = None
+    if probe is not None and "bank_raw_obs" in probe and "bank_labels" in probe:
+        rows = [i for i, label in enumerate(probe["bank_labels"].tolist()) if str(label) == NORMALIZATION_BANK_ROW]
+        if rows and probe["bank_raw_obs"].shape[-1] == width:
+            bank = np.asarray(probe["bank_raw_obs"][rows[0]], dtype=np.float64)
+    out["bank_row"] = NORMALIZATION_BANK_ROW if bank is not None else None
+    final = next((s for s in stats if s["kind"] == "final"), None)
+    reference = final or (stats[-1] if stats else None)
+    peak = np.zeros(width) if stats else None
+    previous_bank = None
+    for index, s in enumerate(stats):
+        eps = float(s["epsilon"])
+        point: dict[str, Any] = {
+            "name": s["name"],
+            "kind": s["kind"],
+            "timesteps": s["timesteps"],
+            "count": s["count"],
+            "epsilon": eps,
+            "clip_obs": s["clip_obs"],
+            "flat_dims": [labels[d] for d in np.flatnonzero(np.asarray(s["var"]) < FLAT_VARIANCE).tolist()],
+        }
+        if index > 0:
+            before = stats[index - 1]
+            shift = np.abs(_shift(s["mean"], before["mean"], before["var"], eps))
+            scale = np.abs(_scale(s["var"], before["var"], eps))
+            point.update(
+                shift_prev_max=float(shift.max()),
+                shift_prev_median=float(np.median(shift)),
+                scale_prev_max=float(scale.max()),
+                scale_prev_median=float(np.median(scale)),
+                shift_prev_top=[
+                    {"dim": labels[d], "shift": float(shift[d])} for d in np.argsort(-shift, kind="stable")[:3].tolist()
+                ],
+            )
+            assert peak is not None
+            peak = np.maximum(peak, shift)
+        if reference is not None:
+            shift_final = np.abs(_shift(s["mean"], reference["mean"], reference["var"], eps))
+            scale_final = np.abs(_scale(s["var"], reference["var"], eps))
+            point.update(shift_final_max=float(shift_final.max()), scale_final_max=float(scale_final.max()))
+        if bank is not None:
+            seen = np.clip((bank - s["mean"]) / np.sqrt(s["var"] + eps), -s["clip_obs"], s["clip_obs"])
+            if previous_bank is not None:
+                change = seen - previous_bank
+                point.update(bank_change_inf=float(np.abs(change).max()), bank_change_l2=float(np.linalg.norm(change)))
+            previous_bank = seen
+        out["checkpoints"].append(point)
+    if peak is not None and len(stats) > 1:
+        out["most_drifting_dims"] = [
+            {"dim": labels[d], "shift_prev_peak": float(peak[d])} for d in np.argsort(-peak, kind="stable")[:3].tolist()
+        ]
+    if probe is not None and "obs_mean" in probe and "obs_var" in probe and "timesteps" in probe:
+        means, variances, steps = probe["obs_mean"], probe["obs_var"], probe["timesteps"]
+        eps = float(reference["epsilon"]) if reference is not None else 1e-8
+        if means.ndim == 2 and means.shape[0] == steps.size and means.shape[1] == width and steps.size:
+            ref_mean = reference["mean"] if reference is not None else means[-1]
+            ref_var = reference["var"] if reference is not None else variances[-1]
+            dense = np.abs(_shift(means, ref_mean[None, :], ref_var[None, :], eps)).max(axis=1)
+            checks = []
+            for s in stats:
+                hits = np.flatnonzero(steps == s["timesteps"]) if s["timesteps"] is not None else np.zeros(0, int)
+                if hits.size:
+                    row = int(hits[-1])
+                    equal = bool(
+                        np.array_equal(np.asarray(s["mean"], dtype=np.float32), means[row].astype(np.float32))
+                        and np.array_equal(np.asarray(s["var"], dtype=np.float32), variances[row].astype(np.float32))
+                    )
+                    checks.append({"name": s["name"], "timesteps": s["timesteps"], "equal_float32": equal})
+            out["probe"] = {
+                "source": "policy_probe.npz obs_rms_mean / obs_rms_var (float32 casts, every PPO update)",
+                "reference": "the final pickle"
+                if final is not None
+                else ("the last pickle" if stats else "its last row"),
+                "epsilon": eps,
+                "timesteps": steps,
+                "shift_final_max": dense,
+                "pickle_checks": checks,
+                "pickle_checks_equal": sum(1 for c in checks if c["equal_float32"]),
+            }
+    if not stats and out["probe"] is None:
+        out["why"] = "no VecNormalize pickle in models/ and no policy_probe.npz statistics"
+    return out
+
+
 def _row_max(values: np.ndarray) -> np.ndarray:
     """(U, k) -> (U,): each row's largest finite value, NaN where none is finite."""
     finite = np.isfinite(values)
@@ -1135,8 +1626,20 @@ class RunHistory:
     #: The head posture and hip roll columns the ledger holds but reads nan on every episode: what the model has no
     #: site or hinge for (``gait.posture_telemetry``), drawn as absent with that reason.
     posture_unmeasured: list[str] = field(default_factory=list)
+    #: The body columns the ledger holds but reads nan on every episode: what the model has no part for
+    #: (``gait.body_telemetry``'s ``BodyLayout.reasons``), drawn as absent with that reason.
+    body_unmeasured: list[str] = field(default_factory=list)
     #: The judge's K3 inputs read from the judge files a caller named (:func:`read_judge_k3`); ``None``: none named.
     k3: dict[str, Any] | None = None
+    #: The in-run K3 panel's points from the stage's own ``k3_panel.json`` (:func:`read_k3_panel`).
+    k3_panel: dict[str, Any] = field(default_factory=dict)
+    #: ``policy_probe.npz``'s per-update std and normalizer statistics and its bank (:func:`read_probe_series`).
+    probe: dict[str, np.ndarray] | None = field(default=None, repr=False)
+    #: The probe's actuator names (or ``actuator[<i>]``) and where they came from.
+    probe_actuators: list[str] = field(default_factory=list)
+    probe_actuator_source: str = ""
+    #: The normalization's drift per checkpoint (:func:`obs_normalization`).
+    obs_norm: dict[str, Any] = field(default_factory=dict, repr=False)
     #: The edges the outside-band counts read: the run's own band, else a reference (``band_edges_source`` says).
     band_edges: dict[str, float] = field(default_factory=dict)
     band_edges_source: str | None = None
@@ -1296,7 +1799,19 @@ def load_run_history(
         run.lr = lr_columns(header)
         run.evaluations = reduce_evaluations(header, rows, bars=run.bars)
         run.posture_unmeasured = unmeasured_posture_columns(header, rows)
+        run.body_unmeasured = unmeasured_body_columns(header, rows)
         run.fh_rows = _full_horizon_rows(header, rows)[2]
+        if not body_columns(header):
+            run.absent.append(
+                f"{EVAL_EPISODES_FILENAME}: the body columns (commands, tail and body posture, energy, drift and slip, "
+                "joint stops, centre of mass and momentum, base wrenches, head rate): an older ledger, or a model "
+                "whose evaluation runs no recorder"
+            )
+        elif run.body_unmeasured:
+            run.absent.append(
+                f"{EVAL_EPISODES_FILENAME}: {len(run.body_unmeasured)} body columns are nan on every episode "
+                f"({BODY_UNMEASURED_REASON}): {', '.join(run.body_unmeasured)}"
+            )
         run.absent += [
             f"{EVAL_EPISODES_FILENAME}: column {column}"
             for column in expected_columns(run.feet or run.hip_roll_feet or ["r", "l"])
@@ -1370,6 +1885,23 @@ def load_run_history(
         else:
             if run.rollout_shares is None:
                 run.rollout_why = f"{POLICY_PROBE_FILENAME} has no rollout_* arrays (written before them)"
+    if probe.is_file():
+        try:
+            run.probe = read_probe_series(probe)
+        except Exception as exc:  # noqa: BLE001 - an unreadable file is an absent series
+            run.errors.append(f"{POLICY_PROBE_FILENAME} (std and statistics): {type(exc).__name__}: {exc}")
+    if run.probe is not None and "std" in run.probe and run.probe["std"].ndim == 2:
+        width = int(run.probe["std"].shape[1])
+        if run.actuators is not None and len(run.actuators) == width:
+            run.probe_actuators, run.probe_actuator_source = list(run.actuators), run.actuator_source
+        else:
+            found, run.probe_actuator_source = actuator_names(run.model_id, width, plant=run.plant)
+            run.probe_actuators = found or [f"actuator[{i}]" for i in range(width)]
+    run.k3_panel = read_k3_panel(stage)
+    if not run.k3_panel.get("recorded"):
+        run.absent.append(f"in-run K3 panel: {run.k3_panel.get('why')}")
+    elif run.k3_panel.get("failed"):
+        run.errors += [f"K3 panel at {f['timesteps']}: {f['failure']}" for f in run.k3_panel["failed"]]
     if run.rollout_shares is not None:
         width = int(run.rollout_shares[ROLLOUT_ARRAYS[0]].shape[1])
         if run.actuators is not None and len(run.actuators) == width:
@@ -1389,6 +1921,15 @@ def load_run_history(
         run.k3 = read_judge_k3(Path(judged), seed=run.seed, final_step=run.final_step)
         if run.k3.get("why"):
             run.errors.append(f"judge K3: {run.k3['why']}")
+    try:
+        run.obs_norm = obs_normalization(
+            stage / MODELS_DIRNAME, final_step=run.final_step, probe=run.probe, model_id=run.model_id
+        )
+    except Exception as exc:  # noqa: BLE001 - a report must not fail on one page's input
+        run.obs_norm = {"checkpoints": [], "probe": None, "errors": [f"{type(exc).__name__}: {exc}"]}
+    run.errors += [f"normalization: {error}" for error in run.obs_norm.get("errors", [])]
+    if run.obs_norm.get("why"):
+        run.absent.append(f"normalization drift: {run.obs_norm['why']}")
     return run
 
 
@@ -1699,6 +2240,15 @@ def checkpoint_rows(run: RunHistory, marks: Sequence[int]) -> list[dict[str, Any
         if judged is not None:
             row["judge_joint_falls"] = judged["joint_falls"]
             row["judge_own_falls"] = judged["own_falls"]
+        rolled = [p for p in (run.k3_panel or {}).get("points", []) if p["timesteps"] == step]
+        rolled = sorted(rolled, key=lambda p: (p["kind"] != ("final" if prefer == "final" else "grid"), p["kind"]))
+        if rolled:
+            row["panel_joint_falls"] = rolled[0]["joint_falls"]
+            row["panel_own_falls"] = rolled[0]["own_falls"]
+        for column in ("tail_tip_chord_mean_deg", "legs_work_abs_j"):
+            values = run.column(column)
+            if values is not None:
+                row[column] = values[index]
         at_step = [point for point in points if point["timesteps"] == step]
         entry = next((point for point in at_step if point["kind"] == prefer), at_step[0] if at_step else None)
         if entry is not None and run.actuators:
@@ -1751,10 +2301,32 @@ def run_record(run: RunHistory, marks: Sequence[int]) -> dict[str, Any]:
             "rollout_shares": rollout_summary(run),
             "checkpoint_table": checkpoint_rows(run, marks),
             "judge_k3": run.k3,
+            "k3_panel": run.k3_panel,
+            "exploration": exploration_summary(run),
+            "obs_normalization": _normalization_record(run),
+            "body_unmeasured": run.body_unmeasured,
             "absent": run.absent,
             "errors": run.errors,
         }
     )
+    return record
+
+
+def _normalization_record(run: RunHistory) -> dict[str, Any]:
+    """The JSON's ``obs_normalization``: every checkpoint's summary, the probe's check and the dense series' range
+    (the per-update series stays in policy_probe.npz)."""
+    record = {key: value for key, value in (run.obs_norm or {}).items() if key != "probe"}
+    probe = (run.obs_norm or {}).get("probe")
+    if probe is not None:
+        dense = np.asarray(probe["shift_final_max"], dtype=float)
+        steps = np.asarray(probe["timesteps"])
+        record["probe"] = {
+            **{key: value for key, value in probe.items() if key not in ("timesteps", "shift_final_max")},
+            "updates": int(steps.size),
+            "first_timesteps": int(steps[0]) if steps.size else None,
+            "last_timesteps": int(steps[-1]) if steps.size else None,
+            "shift_final_max_first": float(dense[0]) if dense.size else None,
+        }
     return record
 
 
@@ -1813,6 +2385,27 @@ def summary(runs: Sequence[RunHistory], *, title: str, marks: Sequence["int | st
             f"({', '.join(K3_JUDGE_SCHEMAS)}); within_bar at K3's checkpoints only, withheld (null) where a panel is "
             f"not {K3_EPISODES} episodes on spawns {K3_SPAWNS[0]}-{K3_SPAWNS[1]}. A readout of the judge's records, "
             "never a verdict: the scorer decides whether a run holds",
+            "body": "the body columns of eval_episodes.csv (gait.body_telemetry): each actuator's window-mean command, "
+            "the at-rail and parked actuators (rail_named, parked_named: per evaluation, the full-horizon episodes by "
+            "actuator and sign; rail_episodes, parked_episodes: those with any), the tail's hinges and chord, the root's "
+            "height, pitch and roll, the mechanical work, peak power, torque and command jitter per actuator group, the "
+            "drift, path, yaw and slip, the joint stops, the centre of mass's and capture point's margins, the "
+            "centroidal angular momentum, the tail-base and neck-base wrench and the head's rate; reduced like every "
+            "other column. Report only; no gate reads them",
+            "k3_panel": "from the stage's k3_panel.json (k3_panel.py, enabled at launch): per panel rolled during "
+            "training on the live policy, the own-sigma and joint-space falls of its episodes with the stance5 "
+            "replication judge's arithmetic; within_bar at K3's checkpoints only (6,291,456 and the final panel), "
+            "withheld where a panel is not 20 episodes on spawns 3042-3061; a series never joins two joint sigmas. A "
+            "readout, never a verdict: the offline judge's K3 is the K3 of record",
+            "exploration": f"the leg actuators' exp(log_std) from {POLICY_PROBE_FILENAME} (every PPO update), else "
+            "from the checkpoint zips; leg_std_at_k3: each leg actuator's std at the last update at or before each "
+            f"K3 point; the reference {EXPLORATION_REFERENCE_STD:g} is the stance3 design's line-2 floor, not applied",
+            "obs_normalization": "per periodic and final VecNormalize pickle (read through a stub unpickler: numpy's "
+            "array helpers and inert stand-ins only), per observation dimension: shift = (mean_k - mean_ref) / "
+            "sqrt(var_ref + eps) and scale = 0.5 ln((var_k + eps) / (var_ref + eps)) against the checkpoint before "
+            "(_prev) and the final pickle (_final), their max and median over the dimensions; the probe bank's "
+            f"{NORMALIZATION_BANK_ROW} row's clipped normalized value's change between checkpoints; the probe's "
+            "float32 rows against the pickles at shared steps",
             "comparison_smoothing_evaluations": smooth,
             "comparison_smoothing": "comparisons draw the continuous series as a centred rolling mean over that many "
             "evaluations, each evaluation's value faint behind it; counts are never smoothed",
@@ -1857,6 +2450,22 @@ class Quantity:
     #: A line panel's least y span (its unit), centred on the data, with plain tick labels: a near-constant series
     #: (a statue's head tip) is not drawn at micrometre scale with an offset; 0 leaves the panel's autoscale.
     min_span: float = 0.0
+    #: Several columns on one panel (one run's page; a comparison draws one panel per column): each an exact column
+    #: name or ``re:<pattern>`` matched against the reduced columns, in the ledger's order; ``strip_suffix`` is cut
+    #: from each name for its label.  A left-right pair (``r_``/``l_``, ``right_``/``left_``, ``fr_``/``fl_``,
+    #: ``rr_``/``rl_``, or the feet ``r``/``l``) shares a colour, right solid, left dashed.
+    members: tuple[str, ...] = ()
+    strip_suffix: str = ""
+    #: Only the members that are non-zero at some evaluation of some run are drawn (the rest are said to be 0).
+    nonzero_only: bool = False
+    #: A log y axis (non-positive values are not drawn).
+    log: bool = False
+    #: ``(low column, high column)``: shaded from the evaluation's lowest episode value of the first to its highest of
+    #: the second (one run's page).
+    band: tuple[str, str] | None = None
+    #: Extra reference lines: ``(y, label, linestyle)``; ``zero`` adds the zero line.
+    lines: tuple[tuple[float, str, str], ...] = ()
+    zero: bool = False
 
 
 @dataclass(frozen=True)
@@ -2218,9 +2827,332 @@ POSTURE_PAGES: tuple[PageSpec, ...] = (
 )
 
 
+_SIDED = r"(?:r|l|right|left|fr|fl|rr|rl)_"
+_COMMAND = re.escape(_body.COMMAND_SUFFIX)
+_BODY_NOTE = (
+    " Recorded only in ledgers written since these columns were added (gait.body_telemetry; report only, no gate "
+    "reads them){body_note}."
+)
+#: The pages drawn after the hip roll page, each from the ledger's body columns (``gait.body_telemetry``): the
+#: commands, the tail and body posture, the energy and smoothness, the drift and slip.
+BODY_PAGES: tuple[PageSpec, ...] = (
+    PageSpec(
+        "13_commands",
+        "Commands: each actuator's window-mean command, and the actuators at rail and parked",
+        "Each actuator's command, the deterministic policy's action clipped to [-1, 1] (+ toward the upper end of the "
+        "actuator's ctrlrange), averaged over each episode's post-settle window, then over the evaluation's "
+        "full-horizon episodes. A left-right pair shares a colour (right solid, left dashed); on the T. rex the "
+        "mirror map signs neck_yaw and both hip rolls -1, so a mirror-symmetric policy draws those pairs as mirror "
+        "images about 0. Dotted: +/-0.60, the tail screen's PARKED line; dashed: the rails at +/-1. Below, per "
+        "evaluation, the full-horizon episodes with an actuator AT RAIL (more than 10% of its window steps at "
+        "|command| >= 0.99, signed by the majority of those steps) and PARKED (not at rail, |window mean| >= 0.60), "
+        "by actuator and sign, stacked: descriptive classes (the tail screen's), never a verdict, never smoothed."
+        + _BODY_NOTE,
+        (
+            Quantity(
+                f"<leg actuator>{_body.COMMAND_SUFFIX}",
+                f"Leg actuators: window-mean command; {_FH}",
+                "action units",
+                spread=None,
+                members=(f"re:{_SIDED}.+{_COMMAND}",),
+                strip_suffix=_body.COMMAND_SUFFIX,
+            ),
+            Quantity(
+                f"<tail actuator>{_body.COMMAND_SUFFIX}",
+                f"Tail actuators: window-mean command; {_FH}",
+                "action units",
+                spread=None,
+                members=(f"re:tail_.+{_COMMAND}",),
+                strip_suffix=_body.COMMAND_SUFFIX,
+            ),
+            Quantity(
+                f"<other actuator>{_body.COMMAND_SUFFIX}",
+                f"Neck, head and other actuators: window-mean command; {_FH}",
+                "action units",
+                spread=None,
+                members=(f"re:(?!tail_)(?!{_SIDED}).+{_COMMAND}",),
+                strip_suffix=_body.COMMAND_SUFFIX,
+            ),
+            Quantity(
+                "rail_named",
+                "Full-horizon episodes per evaluation with an actuator at rail, by actuator and sign (rail_actuators)",
+                "episodes",
+                "actuators",
+            ),
+            Quantity(
+                "parked_named",
+                "Full-horizon episodes per evaluation with an actuator parked, by actuator and sign (parked_actuators)",
+                "episodes",
+                "actuators",
+            ),
+        ),
+    ),
+    PageSpec(
+        "14_tail_body",
+        "Tail and body posture: the tail's chord and joints, the pelvis height, pitch and roll",
+        "Over each episode's post-settle window, then the evaluation's full-horizon episodes. The tail-tip chord: the "
+        "angle above horizontal of the line from the tail's base (its first hinge's anchor, carried by the pelvis) "
+        "to the tail_tip site, + tip above the base. Each tail hinge's angle from home, signed so + raises the tail "
+        "tip (pitch) or moves it to the animal's left (yaw). The root body's (the pelvis's) height above z = 0, and "
+        "its pitch (+ nose up) and roll (+ left side up) about the heading: shaded, from the lowest episode's window "
+        "minimum to the highest episode's window maximum." + _BODY_NOTE,
+        (
+            Quantity(
+                "tail_tip_chord_mean_deg",
+                f"Tail-tip chord angle, window mean; {_FH}",
+                "deg (+ tip above base)",
+                spread=None,
+                band=("tail_tip_chord_min_deg", "tail_tip_chord_max_deg"),
+                zero=True,
+                min_span=2.0,
+            ),
+            Quantity(
+                "tail_<n>_<pitch|yaw>_mean_deg",
+                f"Tail hinges from home, window mean; {_FH}",
+                "deg (pitch + tip up, yaw + tip left)",
+                spread=None,
+                members=(r"re:tail_\d+_(?:pitch|yaw)_mean_deg",),
+                strip_suffix="_mean_deg",
+                zero=True,
+                min_span=2.0,
+            ),
+            Quantity(
+                "root_height_<mean|min>_m",
+                f"Root (pelvis) height: window mean and window minimum; {_FH}",
+                "m",
+                spread=None,
+                members=tuple(_body.ROOT_HEIGHT_COLUMNS),
+                min_span=0.02,
+            ),
+            Quantity(
+                "root_pitch_mean_deg",
+                f"Root pitch, window mean; {_FH}",
+                "deg (+ nose up)",
+                spread=None,
+                band=tuple(_body.ROOT_PITCH_COLUMNS),  # type: ignore[arg-type]
+                zero=True,
+                min_span=1.0,
+            ),
+            Quantity(
+                "root_roll_mean_deg",
+                f"Root roll, window mean; {_FH}",
+                "deg (+ left side up)",
+                spread=None,
+                band=("root_roll_min_deg", "root_roll_max_deg"),
+                zero=True,
+                min_span=1.0,
+            ),
+        ),
+    ),
+    PageSpec(
+        "15_energy",
+        "Energy and smoothness per actuator group: mechanical work, peak power, torque and command jitter",
+        "From each actuator's force F and velocity v at every physics substep of each episode's post-settle window "
+        "(p = F v, the mechanical power of any transmission), per group: legs (the actuators on the chains from the "
+        "root to each foot), tail, neck and head (other: any actuator outside them). Absolute work sums |p| dt (the "
+        "energy the servos move either way: holding chatter, tremor); net work sums p dt (+ the actuators deliver "
+        "energy to the body, - they absorb it); positive and negative work are (abs + net) / 2 and (net - abs) / 2. "
+        "Peak power: the largest substep sum of |p|. Torque RMS as a fraction of each actuator's force limit, "
+        "comparable across groups whose limits differ 30-fold. Command jitter: the RMS step-to-step change of the "
+        "group's commands. Last, each leg's absolute work." + _BODY_NOTE,
+        tuple(
+            Quantity(
+                f"<group>_{suffix}",
+                f"{title}; {_FH}",
+                unit,
+                spread=None,
+                members=(rf"re:(?:{'|'.join(_BODY_GROUPS)})_{suffix}",),
+                strip_suffix=f"_{suffix}",
+                log=log,
+                zero=zero,
+            )
+            for suffix, title, unit, log, zero in (
+                ("work_abs_j", "Absolute mechanical work per group, per episode window", "J (log)", True, False),
+                ("work_net_j", "Net mechanical work per group, per episode window", "J (+ delivered)", False, True),
+                ("power_peak_w", "Peak mechanical power per group", "W (log)", True, False),
+                ("torque_rms_frac", "Torque RMS per group, as a fraction of the force limit", "fraction", False, False),
+                (
+                    "command_delta_rms",
+                    "Command jitter per group: RMS step-to-step change",
+                    "action units",
+                    False,
+                    False,
+                ),
+            )
+        )
+        + (
+            Quantity(
+                f"<foot>_{_body.LEG_WORK_FIELD}",
+                f"Absolute mechanical work per leg, per episode window; {_FH}",
+                "J (log)",
+                spread=None,
+                members=(f"re:[A-Za-z0-9]+_{_body.LEG_WORK_FIELD}",),
+                strip_suffix=f"_{_body.LEG_WORK_FIELD}",
+                log=True,
+            ),
+        ),
+    ),
+    PageSpec(
+        "16_drift_slip",
+        "Drift and slip: the pelvis's displacement, path and yaw, and each foot's slip",
+        "Over each episode's post-settle window, then the evaluation's full-horizon episodes. The root's net "
+        "horizontal displacement split along the heading at the window's start (+ forward, + left); its path length "
+        "beside the net displacement (the screen's window_displacement_m), so a sway the net hides shows; the signed "
+        "yaw change (+ turning left; its magnitude is the screen's window_yaw_change_deg). Slip: the distance the "
+        "loaded foot's contact points slide on the floor, from the contacts' tangential velocity (efc_vel), each "
+        "substep weighted by its floor force, while the limb carries load; site travel: the foot's reference site's "
+        "net horizontal travel (its maximum over the feet is the screen's max_foot_slide_m), so a back-and-forth "
+        "slide reads slip well above travel." + _BODY_NOTE,
+        (
+            Quantity(
+                "window_displacement_<fore_aft|lateral>_m",
+                f"Root displacement over the window, fore-aft and lateral; {_FH}",
+                "m (+ forward, + left)",
+                spread=None,
+                members=("window_displacement_fore_aft_m", "window_displacement_lateral_m"),
+                strip_suffix="_m",
+                zero=True,
+                min_span=0.005,
+            ),
+            Quantity(
+                "window_<path_length|displacement>_m",
+                f"Root path length and net displacement over the window; {_FH}",
+                "m",
+                spread=None,
+                members=("window_path_length_m", "window_displacement_m"),
+                strip_suffix="_m",
+                min_span=0.005,
+            ),
+            Quantity(
+                "window_yaw_change_signed_deg",
+                f"Signed yaw change over the window; {_FH}",
+                "deg (+ left)",
+                zero=True,
+                min_span=1.0,
+            ),
+            Quantity(
+                "<foot>_slip_m",
+                f"Slip per foot over the window; {_FH}",
+                "m (log)",
+                spread=None,
+                members=("re:[A-Za-z0-9]+_slip_m",),
+                strip_suffix="_slip_m",
+                log=True,
+            ),
+            Quantity(
+                "<foot>_site_travel_m",
+                f"Foot site net travel over the window; {_FH}",
+                "m (log)",
+                spread=None,
+                members=("re:[A-Za-z0-9]+_site_travel_m",),
+                strip_suffix="_site_travel_m",
+                log=True,
+            ),
+        ),
+    ),
+)
+#: The last page, after the exploration and K3 page and the normalization page: the four MjData-derived extras of
+#: the sensor assessment (joint stops, base wrenches, centre of mass and capture point, centroidal angular momentum,
+#: head rate), on one page of their own so the pages before it are the specification's.
+DYNAMICS_PAGES: tuple[PageSpec, ...] = (
+    PageSpec(
+        "19_body_dynamics",
+        "Body dynamics read from MjData: joint stops, base wrenches, balance margins, angular momentum, head rate",
+        "No MuJoCo sensor: each is computed by the evaluation recorder from MjData. Joint stops (each limited tail "
+        "hinge and leg joint; a joint never on a stop is not drawn): the share of window substeps its limit "
+        "constraint pushes, and that constraint's mean torque about the joint's own axis (+ toward the upper end of "
+        "its range, so a joint resting on its lower stop reads +); commanded to the rail is the commands page's, "
+        "carrying load on the mechanical stop is this. Base wrenches: what the tail (the neck with the head) exerts on "
+        "its parent body about its first joint's anchor, from cfrc_int: the pitch moment (+ pitches the parent nose "
+        "up) and the load it hangs on it. Balance margins (+ inside the support): the centre of mass's and the "
+        "capture point's (c + v / sqrt(g / h), the CoM velocity from the centroidal momentum) window minimum to the "
+        "toe and heel lines. The centroidal angular momentum's RMS about the heading axes. The head's angular-rate "
+        "RMS, whole and about the heading axes." + _BODY_NOTE,
+        (
+            Quantity(
+                "<joint>_stop_share",
+                f"Joint stops: share of window substeps on the stop; {_FH}",
+                "share",
+                spread=None,
+                members=("re:.+_stop_share",),
+                strip_suffix="_stop_share",
+                nonzero_only=True,
+            ),
+            Quantity(
+                "<joint>_stop_torque_mean_nm",
+                f"Joint stops: mean stop torque about the joint's axis; {_FH}",
+                "N m (+ toward the range's upper end)",
+                spread=None,
+                members=("re:.+_stop_torque_mean_nm",),
+                strip_suffix="_stop_torque_mean_nm",
+                nonzero_only=True,
+                zero=True,
+            ),
+            Quantity(
+                "<base>_pitch_moment_mean_nm",
+                f"Tail-base and neck-base pitch moment on the parent, window mean; {_FH}",
+                "N m (+ parent nose up)",
+                spread=None,
+                members=("tail_base_pitch_moment_mean_nm", "neck_base_pitch_moment_mean_nm"),
+                strip_suffix="_pitch_moment_mean_nm",
+                zero=True,
+            ),
+            Quantity(
+                "<base>_force_down_mean_n",
+                f"Tail-base and neck-base load on the parent (downward), window mean; {_FH}",
+                "N",
+                spread=None,
+                members=("tail_base_force_down_mean_n", "neck_base_force_down_mean_n"),
+                strip_suffix="_force_down_mean_n",
+            ),
+            Quantity(
+                "<com|capture>_<toe|heel>_margin_min_m",
+                f"Centre of mass and capture point: window minimum margin to the toe and heel lines; {_FH}",
+                "m (+ inside)",
+                spread=None,
+                members=(
+                    "com_toe_margin_min_m",
+                    "capture_toe_margin_min_m",
+                    "com_heel_margin_min_m",
+                    "capture_heel_margin_min_m",
+                ),
+                strip_suffix="_margin_min_m",
+                zero=True,
+            ),
+            Quantity(
+                "angular_momentum_<axis>_rms_nms",
+                f"Centroidal angular momentum RMS about the heading axes; {_FH}",
+                "N m s",
+                spread=None,
+                members=tuple(f"angular_momentum_{axis}_rms_nms" for axis in ("pitch", "roll", "yaw")),
+                strip_suffix="_rms_nms",
+            ),
+            Quantity(
+                "head_<axis>_rate_rms_dps",
+                f"Head angular rate RMS, whole and about the heading axes; {_FH}",
+                "deg/s",
+                spread=None,
+                members=tuple(_body.HEAD_RATE_COLUMNS),
+                strip_suffix="_rms_dps",
+            ),
+        ),
+    ),
+)
+#: The two pages drawn by their own figures between :data:`BODY_PAGES` and :data:`DYNAMICS_PAGES`.
+EXPLORATION_PAGE = "17_exploration_k3"
+NORMALIZATION_PAGE = "18_obs_normalization"
+
+
 def page_names() -> list[str]:
-    """Every page's name in the order a report draws them: :data:`PAGES`, ``10_policy_std``, :data:`POSTURE_PAGES`."""
-    return [spec.name for spec in PAGES] + ["10_policy_std"] + [spec.name for spec in POSTURE_PAGES]
+    """Every page's name in the order a report draws them: :data:`PAGES`, ``10_policy_std``, :data:`POSTURE_PAGES`,
+    :data:`BODY_PAGES`, ``17_exploration_k3``, ``18_obs_normalization`` and :data:`DYNAMICS_PAGES`."""
+    return (
+        [spec.name for spec in PAGES]
+        + ["10_policy_std"]
+        + [spec.name for spec in (*POSTURE_PAGES, *BODY_PAGES)]
+        + [EXPLORATION_PAGE, NORMALIZATION_PAGE]
+        + [spec.name for spec in DYNAMICS_PAGES]
+    )
 
 
 def _stem(name: str) -> str:
@@ -2251,10 +3183,74 @@ def _quantity_feet(run: RunHistory, quantity: Quantity) -> list[str]:
     return run.hip_roll_feet if "hip_roll" in quantity.key else run.feet
 
 
+def _side(label: str) -> tuple[str | None, str]:
+    """``(side, rest)`` of a label with a side prefix (``r_hip_pitch_act`` -> ``("r", "hip_pitch_act")``; a bare foot
+    label ``r`` -> ``("r", "")``), else ``(None, label)``."""
+    if label in _PARTNER_SIDE:
+        return label, ""
+    match = _SIDE.match(label)
+    return (match.group("side"), match.group("rest")) if match else (None, label)
+
+
+def member_columns(runs: Sequence[RunHistory], quantity: Quantity) -> list[str]:
+    """The columns a multi-column quantity draws for *runs*: its members resolved against each run's reduced
+    columns, in first-seen order; with ``nonzero_only``, those finite and non-zero at some evaluation of some run."""
+    found: list[str] = []
+    for run in runs:
+        held = list(run.evaluations.get("columns", {}))
+        for member in quantity.members:
+            if member.startswith("re:"):
+                pattern = re.compile(member[3:])
+                matches = [column for column in held if pattern.fullmatch(column)]
+            else:
+                matches = [member] if member in held else []
+            found += [column for column in matches if column not in found]
+    if quantity.nonzero_only:
+
+        def nonzero(column: str) -> bool:
+            for run in runs:
+                values = run.column(column)
+                if values is not None and np.any(np.isfinite(values) & (values != 0.0)):
+                    return True
+            return False
+
+        found = [column for column in found if nonzero(column)]
+    return found
+
+
+def member_label(quantity: Quantity, column: str) -> str:
+    """A member column's label: its name without the quantity's ``strip_suffix``."""
+    suffix = quantity.strip_suffix
+    return column[: -len(suffix)] if suffix and column.endswith(suffix) else column
+
+
+def member_styles(labels: Sequence[str]) -> dict[str, tuple[str, Any]]:
+    """``{label: (colour, linestyle)}``: a left-right pair shares a colour (right solid, left dashed), every other
+    label its own colour, in order; past the palette, the colours repeat with a dotted line."""
+    colours: dict[str, str] = {}
+    styles: dict[str, tuple[str, Any]] = {}
+    for label in labels:
+        side, rest = _side(label)
+        key = rest if side is not None else label
+        if key not in colours:
+            index = len(colours)
+            colours[key] = _OTHER_SERIES[index % len(_OTHER_SERIES)]
+            repeat = index // len(_OTHER_SERIES)
+        else:
+            repeat = 0
+        style: Any = "--" if side is not None and side not in _RIGHT_SIDES else ("-" if not repeat else ":")
+        styles[label] = (colours[key], style)
+    return styles
+
+
 def _values(
-    run: RunHistory, quantity: Quantity, foot: str | None, stat: str = "mean"
+    run: RunHistory, quantity: Quantity, foot: str | None, stat: str = "mean", member: str | None = None
 ) -> tuple[np.ndarray, np.ndarray] | None:
-    """``(x in millions of steps, y)`` of one quantity for one run, or ``None`` when absent."""
+    """``(x in millions of steps, y)`` of one quantity for one run (one member column of a multi-column one), or
+    ``None`` when absent."""
+    if member is not None:
+        values = run.column(member, stat)
+        return None if values is None else (run.steps / 1e6, values * quantity.scale)
     if quantity.kind == "training":
         if run.training is None:
             return None
@@ -2384,6 +3380,17 @@ def _reference_lines(runs: Sequence[RunHistory], quantity: Quantity) -> list[tup
         bars = f"K3 bars: joint <= {K3_JOINT_MAX_FALLS} (dashed), own <= {K3_OWN_MAX_FALLS} (dotted)"
         lines.append((float(K3_JOINT_MAX_FALLS), bars, "--"))
         lines.append((float(K3_OWN_MAX_FALLS), "", ":"))
+    if key.endswith(_body.COMMAND_SUFFIX) and quantity.members:
+        lines += [
+            (_body.PARKED_COMMAND_ABS, f"parked +/-{_body.PARKED_COMMAND_ABS:g}", ":"),
+            (-_body.PARKED_COMMAND_ABS, "", ":"),
+            (1.0, "rail +/-1", "--"),
+            (-1.0, "", "--"),
+            (0.0, "", "-"),
+        ]
+    lines += list(quantity.lines)
+    if quantity.zero:
+        lines.append((0.0, "", "-"))
     if key in ("neck_pitch_mean_deg", "head_pitch_mean_deg", "{foot}_hip_roll_mean_deg"):
         lines.append((0.0, "", "-"))
     if key.endswith(("_fore_aft", "margin_min_m", "com_fore_aft_mean_m", "shear_over_normal")) and not key.startswith(
@@ -2403,6 +3410,8 @@ _HEAD_IN = 0.16
 _HEAD_LINE_IN = 0.2
 _MARK_ROW_IN = 0.26
 _LINE_IN = 2.0
+#: A comparison's panel per column of a multi-column quantity (many to a page): lower than a line panel.
+_MEMBER_IN = 1.5
 _COUNT_IN = 1.4
 _STRIP_ROW_IN = 0.25
 _TITLE_PT = 10.5
@@ -2421,6 +3430,8 @@ class _Panel:
     unit: str
     height: float
     strip: bool = False
+    #: One member column of a multi-column quantity (a comparison's panel per column).
+    member: str | None = None
 
 
 def _new_figure(
@@ -2493,16 +3504,28 @@ def _style_axis(axis: Any, panel: _Panel, *, top: bool) -> None:
     axis.tick_params(colors=_INK_2, labelsize=_TICK_PT, labelbottom=True)
 
 
-def _no_value_note(context: "_Context", quantity: Quantity, foot: str | None) -> str | None:
+def _no_value_note(context: "_Context", quantity: Quantity, foot: str | None, member: str | None = None) -> str | None:
     """Why a column quantity the files hold draws no line (nan at every evaluation), or ``None``: not held.
 
     A head posture or hip roll column that reads nan on every episode
     (:attr:`RunHistory.posture_unmeasured`) is what the model has no site or
-    hinge for; any other held column has no full-horizon episode with a
-    finite value.
+    hinge for, and a body column (:attr:`RunHistory.body_unmeasured`) what
+    it has no part for; any other held column has no full-horizon episode
+    with a finite value.
     """
     if quantity.kind != "column" or quantity.key.startswith("lr:"):
         return None
+    if quantity.members:
+        names = [member] if member is not None else member_columns(context.runs, quantity)
+        if not names and quantity.nonzero_only:
+            unfiltered = member_columns(context.runs, replace(quantity, nonzero_only=False))
+            if unfiltered:
+                return f"0 at every evaluation in these files ({quantity.key}: {len(unfiltered)} columns)"
+        if not names:
+            return None
+        if all(any(name in run.body_unmeasured for run in context.runs) for name in names):
+            return f"nan on every episode ({quantity.key}): the model has no such part (gait.body_telemetry)"
+        return f"no finite value over the full-horizon episodes in these files ({quantity.key})"
     if foot is not None:
         names = [quantity.key.replace("{foot}", foot)]
     elif quantity.per_foot:
@@ -2517,6 +3540,8 @@ def _no_value_note(context: "_Context", quantity: Quantity, foot: str | None) ->
     shown = ", ".join(held) if foot is not None or not quantity.per_foot else quantity.key.replace("{foot}", "<foot>")
     if all(any(name in run.posture_unmeasured for run in context.runs) for name in held):
         return f"nan on every episode ({shown}): the model has no such site or hinge (gait.posture_telemetry)"
+    if all(any(name in run.body_unmeasured for run in context.runs) for name in held):
+        return f"nan on every episode ({shown}): the model has no such part (gait.body_telemetry)"
     return f"no finite value over the full-horizon episodes in these files ({shown})"
 
 
@@ -2545,6 +3570,12 @@ class _Context:
     colour_note: str = ""
     #: The colour of each label ``flagged_actuators`` names, over every run (:func:`_named_colours`).
     named_colours: dict[str, str] = field(default_factory=dict)
+    #: The same for the other per-evaluation actuator tallies (``rail_named``, ``parked_named``), by key.
+    label_colours: dict[str, dict[str, str]] = field(default_factory=dict)
+
+    def colours_for(self, key: str) -> dict[str, str]:
+        """The label colours of the actuator tally *key*."""
+        return self.named_colours if key == "flagged_actuators" else self.label_colours.get(key, {})
 
 
 def _strip_cmap(ramp: str, top: int) -> tuple[Any, Any]:
@@ -2691,7 +3722,38 @@ def _colourbar(axis: Any, cmap: Any, norm: Any, *, training: bool, top: int, ove
     cax.set_title("fraction" if training else "episodes", fontsize=8, color=_INK_2, loc="left")
 
 
+def _draw_members_single(axis: Any, context: _Context, quantity: Quantity) -> bool:
+    """One run's member columns of a multi-column quantity, one line each (a left-right pair in one colour)."""
+    run = context.runs[0]
+    columns = member_columns([run], quantity)
+    styles = member_styles([member_label(quantity, column) for column in columns])
+    drawn = False
+    for column in columns:
+        values = _values(run, quantity, None, member=column)
+        if values is None or not np.isfinite(values[1]).any():
+            continue
+        x, y = values
+        if quantity.log and not (np.isfinite(y) & (y > 0)).any():
+            continue
+        label = member_label(quantity, column)
+        colour, style = styles[label]
+        axis.plot(
+            x,
+            y,
+            color=colour,
+            linestyle=style,
+            linewidth=1.6,
+            label=label,
+            marker="o" if x.size < 40 else None,
+            markersize=3,
+        )
+        drawn = True
+    return drawn
+
+
 def _draw_line_single(axis: Any, context: _Context, quantity: Quantity) -> bool:
+    if quantity.members:
+        return _draw_members_single(axis, context, quantity)
     run = context.runs[0]
     feet: list[str | None] = list(_quantity_feet(run, quantity)) if quantity.per_foot else [None]
     drawn = False
@@ -2704,6 +3766,19 @@ def _draw_line_single(axis: Any, context: _Context, quantity: Quantity) -> bool:
         colour = _SERIES[foot_index % len(_SERIES)] if quantity.per_foot else _SERIES[0]
         label = f"foot {which}" if which is not None else ("mean" if quantity.spread else None)
         axis.plot(x, y, color=colour, linewidth=1.7, label=label, marker="o" if x.size < 40 else None, markersize=3)
+        if quantity.band is not None:
+            low = run.column(quantity.band[0], "min")
+            high = run.column(quantity.band[1], "max")
+            if low is not None and high is not None:
+                axis.fill_between(
+                    x,
+                    low * quantity.scale,
+                    high * quantity.scale,
+                    color=colour,
+                    alpha=0.15,
+                    linewidth=0,
+                    label="episodes' window min-max",
+                )
         if quantity.spread == "std":
             spread = _values(run, quantity, which, "std")
             if spread is not None:
@@ -2758,47 +3833,56 @@ def _draw_count_single(axis: Any, context: _Context, quantity: Quantity) -> bool
     return True
 
 
-def _named_label(context: _Context, label: str) -> str:
+def _named_label(context: _Context, label: str, key: str = "flagged_actuators") -> str:
     """The legend label a named actuator is drawn under: its own, or :data:`_OTHER_ACTUATORS` past the coloured ones."""
-    return _OTHER_ACTUATORS if context.named_colours.get(label) == _MUTED else label
+    return _OTHER_ACTUATORS if context.colours_for(key).get(label) == _MUTED else label
+
+
+#: What an actuator tally's empty panel says.
+_NONE_NAMED = {
+    "flagged_actuators": "no saturation-flagged episode in these evaluations",
+    "rail_named": "no full-horizon episode with an actuator at rail in these evaluations",
+    "parked_named": "no full-horizon episode with an actuator parked in these evaluations",
+}
 
 
 def _draw_actuators_single(axis: Any, context: _Context, quantity: Quantity) -> bool:
-    """Per evaluation, its flagged episodes stacked by the actuator each names (raw counts, a bar per evaluation)."""
+    """Per evaluation, its episodes stacked by the actuator each names (raw counts, a bar per evaluation)."""
     run = context.runs[0]
-    named = run.evaluations.get("flagged_actuators")
+    named = run.evaluations.get(quantity.key)
     if named is None:
         return False
+    colours = context.colours_for(quantity.key)
     x = run.steps / 1e6
     width = 0.8 * _spacing(x, 0.1)
     bottom = np.zeros(len(named))
     totals = tally(named)
     drawn: set[str] = set()
-    for label in context.named_colours:
+    for label in colours:
         heights = np.asarray([float((counts or {}).get(label, 0)) for counts in named])
         some = heights > 0
         if not some.any():
             continue
-        shown = _named_label(context, label)
+        shown = _named_label(context, label, quantity.key)
         legend = f"{shown} ({totals[label]})" if shown == label else shown
         axis.bar(
             x[some],
             heights[some],
             width=width,
             bottom=bottom[some],
-            color=context.named_colours[label],
+            color=colours[label],
             linewidth=0,
             label=legend if shown not in drawn else "_nolegend_",
         )
         drawn.add(shown)
         bottom += heights
     episodes = max(run.episodes_per_evaluation or [10])
-    axis.set_ylim(-0.4, episodes + 0.4)
+    axis.set_ylim(-0.4, max(episodes, float(bottom.max()) if bottom.size else 0.0) + 0.4)
     if not drawn:
         axis.text(
             0.5,
             0.5,
-            "no saturation-flagged episode in these evaluations",
+            _NONE_NAMED.get(quantity.key, "none in these evaluations"),
             transform=axis.transAxes,
             ha="center",
             va="center",
@@ -2813,8 +3897,9 @@ def _draw_actuator_strips(axis: Any, context: _Context, quantity: Quantity) -> b
     from matplotlib.transforms import blended_transform_factory
 
     drawn = False
+    colours = context.colours_for(quantity.key)
     for row, run in enumerate(context.runs):
-        named = run.evaluations.get("flagged_actuators")
+        named = run.evaluations.get(quantity.key)
         if named is None:
             axis.text(
                 0.005,
@@ -2833,8 +3918,8 @@ def _draw_actuator_strips(axis: Any, context: _Context, quantity: Quantity) -> b
             label = most_named(counts)
             if label is None:
                 continue
-            axis.bar(xi, 0.8, width=width, bottom=row - 0.4, color=context.named_colours[label], linewidth=0)
-        for entry in run.saturation.get("runs", []):
+            axis.bar(xi, 0.8, width=width, bottom=row - 0.4, color=colours.get(label, _MUTED), linewidth=0)
+        for entry in run.saturation.get("runs", []) if quantity.key == "flagged_actuators" else []:
             axis.plot(
                 entry["alarm_at"] / 1e6,
                 row,
@@ -3086,16 +4171,17 @@ def _draw_rollout_compare(axis: Any, context: _Context, quantity: Quantity) -> l
     return ends
 
 
-def _named_handles(context: _Context) -> tuple[list[Any], list[str]]:
+def _named_handles(context: _Context, key: str = "flagged_actuators") -> tuple[list[Any], list[str]]:
     """The key of the actuator colours a comparison's strips draw, for the figure legend (the strip has no room)."""
     from matplotlib.patches import Patch
 
-    drawn = {most_named(counts) for run in context.runs for counts in run.evaluations.get("flagged_actuators") or []}
+    drawn = {most_named(counts) for run in context.runs for counts in run.evaluations.get(key) or []}
     shown: dict[str, str] = {}
-    for label, colour in context.named_colours.items():
+    for label, colour in context.colours_for(key).items():
         if label in drawn:
-            shown.setdefault(_named_label(context, label), colour)
-    return [Patch(color=colour) for colour in shown.values()], [f"flagged: {label}" for label in shown]
+            shown.setdefault(_named_label(context, label, key), colour)
+    prefix = {"flagged_actuators": "flagged", "rail_named": "at rail", "parked_named": "parked"}.get(key, key)
+    return [Patch(color=colour) for colour in shown.values()], [f"{prefix}: {label}" for label in shown]
 
 
 def _draw_training_single(axis: Any, context: _Context, quantity: Quantity) -> bool:
@@ -3123,14 +4209,18 @@ def _draw_training_single(axis: Any, context: _Context, quantity: Quantity) -> b
     return True
 
 
-def _draw_line_compare(axis: Any, context: _Context, quantity: Quantity, foot: str | None) -> list[tuple]:
+def _draw_line_compare(
+    axis: Any, context: _Context, quantity: Quantity, foot: str | None, member: str | None = None
+) -> list[tuple]:
     """Each run's smoothed line (raw values faint behind); returns the end-label entries."""
     ends: list[tuple] = []
     for index, run in enumerate(context.runs):
-        values = _values(run, quantity, foot)
+        values = _values(run, quantity, foot, member=member)
         if values is None or not np.isfinite(values[1]).any():
             continue  # absent, or nan at every evaluation: no line and no end label
         x, y = values
+        if quantity.log and not (np.isfinite(y) & (y > 0)).any():
+            continue  # nothing a log axis can draw
         colour, style = context.colours[index], context.styles[index]
         axis.plot(x, y, color=colour, linewidth=0.8, alpha=0.22, label="_nolegend_")
         smooth = _smooth(y, context.smooth)
@@ -3392,10 +4482,29 @@ def _panels(spec: PageSpec, context: _Context) -> list[_Panel]:
         elif strip and quantity.kind == "training":
             title += f" [one cell per window; colour capped at {TRAINING_FALL_CAP:g}]"
         elif strip and quantity.kind == "actuators":
-            title += " [one cell per evaluation with a flagged episode, coloured by the actuator most of them name]"
+            which = {"rail_named": "an episode at rail", "parked_named": "an episode parked"}.get(
+                quantity.key, "a flagged episode"
+            )
+            title += f" [one cell per evaluation with {which}, coloured by the actuator most of them name]"
         elif strip:
             title += " [one cell per evaluation, never smoothed]"
-        if quantity.per_foot and context.comparison:
+        if quantity.members and context.comparison:
+            columns: list[str | None] = [*member_columns(context.runs, quantity)] or [None]
+            panels += [
+                _Panel(
+                    quantity,
+                    None,
+                    f"{member_label(quantity, column)}: {title}" if column is not None else title,
+                    quantity.unit,
+                    _MEMBER_IN,
+                    member=column,
+                )
+                for column in columns
+            ]
+        elif quantity.members:
+            count = len(member_columns(context.runs, quantity))
+            panels.append(_Panel(quantity, None, title, quantity.unit, max(height, 0.19 * count + 0.4)))
+        elif quantity.per_foot and context.comparison:
             feet: list[str] = []
             for run in context.runs:
                 feet += [foot for foot in _quantity_feet(run, quantity) if foot not in feet]
@@ -3412,8 +4521,10 @@ def _page_figure(spec: PageSpec, context: _Context, *, title: str, dpi: int, wid
     handles, labels = _run_handles(context) if context.comparison else _single_handles(context)
     ncol = min(4, len(labels))
     if context.comparison and any(quantity.kind == "actuators" for quantity in spec.quantities):
-        named_handles, named_labels = _named_handles(context)
-        handles, labels = handles + named_handles, labels + named_labels
+        for tallied in spec.quantities:
+            if tallied.kind == "actuators":
+                named_handles, named_labels = _named_handles(context, tallied.key)
+                handles, labels = handles + named_handles, labels + named_labels
         ncol = min(3, len(labels))  # the actuator names are long: three columns fit the page's width
     figure, axes = _new_figure(
         panels, width=width, dpi=dpi, title=f"{title}\n{spec.title}", legend_rows=math.ceil(len(labels) / ncol)
@@ -3438,7 +4549,7 @@ def _page_figure(spec: PageSpec, context: _Context, *, title: str, dpi: int, wid
         elif quantity.kind == "rollout":
             drawn = _draw_rollout_single(axis, context, quantity)
         elif context.comparison:
-            ends = _draw_line_compare(axis, context, quantity, panel.foot)
+            ends = _draw_line_compare(axis, context, quantity, panel.foot, panel.member)
             drawn = bool(ends)
         elif quantity.kind == "count":
             drawn = _draw_count_single(axis, context, quantity)
@@ -3456,14 +4567,21 @@ def _page_figure(spec: PageSpec, context: _Context, *, title: str, dpi: int, wid
                 if quantity.kind == "rollout"
                 else "the left and right <foot>_hip_roll_mean_deg"
                 if quantity.key == "lr:hip_roll"
-                else quantity.key.replace("{foot}", panel.foot or "<foot>")
+                else panel.member or quantity.key.replace("{foot}", panel.foot or "<foot>")
             )
-            _absent(axis, _no_value_note(context, quantity, panel.foot) or f"not recorded in these files ({column})")
+            _absent(
+                axis,
+                _no_value_note(context, quantity, panel.foot, panel.member)
+                or f"not recorded in these files ({column})",
+            )
         elif not panel.strip:
             _draw_references(axis, context, quantity)
             if quantity.key == "actuator_force_frac_max":
                 axis.set_ylim(0.0, 1.08)
-            if quantity.min_span > 0:
+            if quantity.log:
+                axis.set_yscale("log")
+                _log_ticks_auto(axis)
+            elif quantity.min_span > 0:
                 _hold_span(axis, quantity.min_span)
         _draw_marks(axis, context, top=index == 0, strip=panel.strip)
         if context.comparison:
@@ -3482,6 +4600,20 @@ def _log_ticks(axis: Any) -> None:
     axis.yaxis.set_major_locator(LogLocator(base=10.0, subs=(1.0, 1.5, 2.0, 3.0, 5.0, 7.0)))
     axis.yaxis.set_major_formatter(FuncFormatter(lambda value, _: f"{value:.3g}"))
     axis.yaxis.set_minor_formatter(NullFormatter())
+
+
+def _log_ticks_auto(axis: Any) -> None:
+    """:func:`_log_ticks`, or one tick per decade when the axis spans more than two decades (no crowding)."""
+    from matplotlib.ticker import FuncFormatter, LogLocator, NullFormatter
+
+    axis.autoscale_view()
+    low, high = axis.get_ylim()
+    if low > 0 and high / low > 100.0:
+        axis.yaxis.set_major_locator(LogLocator(base=10.0, subs=(1.0,)))
+        axis.yaxis.set_major_formatter(FuncFormatter(lambda value, _: f"{value:.3g}"))
+        axis.yaxis.set_minor_formatter(NullFormatter())
+    else:
+        _log_ticks(axis)
 
 
 def _std_segments(points: Sequence[Mapping[str, Any]]) -> tuple[list[tuple[int, int]], list[tuple[int, int]]]:
@@ -3690,6 +4822,437 @@ def _std_figure(context: _Context, *, title: str, dpi: int, width: float) -> Any
     return figure
 
 
+# ---------------------------------------------------------------------------------------------- exploration and K3
+
+
+def leg_actuator_indices(names: Sequence[str]) -> list[int]:
+    """The leg actuators among *names*: a side prefix (:data:`_SIDE`) and no arm, claw or shoulder in the name."""
+    return [index for index, name in enumerate(names) if _SIDE.match(name) and not _NOT_LEG.search(name)]
+
+
+def exploration_std(run: RunHistory) -> dict[str, Any] | None:
+    """The leg actuators' exploration std over training: ``policy_probe.npz``'s per-update ``std_per_actuator``,
+    else the checkpoint zips' ``exp(log_std)`` (:func:`read_policy_std`); ``None`` without either or names.
+
+    Returns ``source``, ``timesteps`` (U,), ``std`` (U, legs), ``names`` (the leg actuators) and ``tied`` (each
+    left-right pair bitwise equal at every point, as the mirror-symmetric PPO keeps them).
+    """
+    probe = run.probe or {}
+    if "std" in probe and "timesteps" in probe and run.probe_actuators:
+        names, std, steps = run.probe_actuators, probe["std"], probe["timesteps"]
+        source = f"{POLICY_PROBE_FILENAME} std_per_actuator (every PPO update; float32)"
+    else:
+        points = [p for p in run.policy_std.get("checkpoints", []) if p.get("timesteps") is not None]
+        if not points or not run.actuators:
+            return None
+        names, std = run.actuators, np.asarray([p["std"] for p in points], dtype=float)
+        steps = np.asarray([p["timesteps"] for p in points], dtype=np.int64)
+        source = f"the checkpoint zips' exp(log_std) ({len(points)} checkpoints; no {POLICY_PROBE_FILENAME})"
+    legs = leg_actuator_indices(names)
+    if not legs or std.ndim != 2 or std.shape[1] != len(names):
+        return None
+    leg_names = [_stem(str(names[i])) for i in legs]
+    pairs = []
+    for name in leg_names:
+        side, rest = _side(name)
+        partner = f"{_PARTNER_SIDE[side]}_{rest}" if side is not None else None
+        if side in _RIGHT_SIDES and partner in leg_names:
+            pairs.append((leg_names.index(name), leg_names.index(partner)))
+    values = std[:, legs]
+    tied = bool(pairs) and all(np.array_equal(values[:, a], values[:, b]) for a, b in pairs)
+    return {"source": source, "timesteps": steps, "std": values, "names": leg_names, "tied": tied}
+
+
+def exploration_why(run: RunHistory) -> str:
+    """Why :func:`exploration_std` has nothing for *run*."""
+    probe = run.probe or {}
+    if "std" in probe and "timesteps" in probe:
+        names, source = run.probe_actuators, run.probe_actuator_source
+    elif run.policy_std.get("checkpoints"):
+        names, source = run.actuators or [], run.actuator_source
+    else:
+        return f"no leg actuator std: no {POLICY_PROBE_FILENAME} std_per_actuator and no checkpoint zip's log_std read"
+    if not leg_actuator_indices(names):
+        return f"no leg actuator named among the actuators ({source or 'no actuator names'})"
+    return "no leg actuator std"
+
+
+def _k3_sources(run: RunHistory) -> list[dict[str, Any]]:
+    """Every K3 point of *run*: the in-run panel's (``source`` ``panel``) and the judge files' (``judge``)."""
+    points = [{**p, "source": "panel"} for p in (run.k3_panel or {}).get("points", [])]
+    points += [{**p, "source": "judge"} for p in _k3_points(run)]
+    return points
+
+
+def exploration_summary(run: RunHistory) -> dict[str, Any]:
+    """The JSON's ``exploration``: the leg actuators' std source, and at each K3 point (the in-run panel's and the
+    judge's) each leg actuator's std at the last update (or checkpoint) at or before it."""
+    found = exploration_std(run)
+    if found is None:
+        return {"recorded": False, "why": exploration_why(run)}
+    steps, std = found["timesteps"], found["std"]
+    at_k3 = []
+    for point in _k3_sources(run):
+        earlier = np.flatnonzero(steps <= int(point["timesteps"]))
+        if not earlier.size:
+            continue
+        index = int(earlier[-1])
+        at_k3.append(
+            {
+                "source": point["source"],
+                "timesteps": int(point["timesteps"]),
+                "kind": point.get("kind") or point.get("slot"),
+                "std_timesteps": int(steps[index]),
+                "std": {name: float(std[index, column]) for column, name in enumerate(found["names"])},
+            }
+        )
+    return {
+        "recorded": True,
+        "source": found["source"],
+        "leg_actuators": found["names"],
+        "pairs_tied": found["tied"],
+        "points": int(steps.size),
+        "reference": EXPLORATION_REFERENCE_STD,
+        "leg_std_at_k3": at_k3,
+    }
+
+
+def _draw_exploration_std(axis: Any, context: _Context) -> str | None:
+    """The leg actuators' std on a log axis (one run: a colour per joint, right solid, left dashed, a tied pair once;
+    a comparison: each run's mean leg std), with the stance3 reference; returns why nothing was drawn, or ``None``."""
+    drawn = False
+    if not context.comparison:
+        found = exploration_std(context.runs[0])
+        if found is None:
+            return exploration_why(context.runs[0])
+        x = found["timesteps"] / 1e6
+        styles = member_styles(found["names"])
+        for column, name in enumerate(found["names"]):
+            side, rest = _side(name)
+            if found["tied"] and side is not None and side not in _RIGHT_SIDES:
+                continue  # tied to its right partner: drawn once
+            colour, style = styles[name]
+            label = f"{rest} (r = l, tied)" if found["tied"] and side is not None else name
+            dense = x.size > 40
+            axis.plot(
+                x,
+                found["std"][:, column],
+                color=colour,
+                linestyle=style,
+                linewidth=1.3 if dense else 1.6,
+                marker=None if dense else "o",
+                markersize=3,
+                label=label,
+            )
+            drawn = True
+    else:
+        for index, run in enumerate(context.runs):
+            found = exploration_std(run)
+            if found is None:
+                continue
+            axis.plot(
+                found["timesteps"] / 1e6,
+                found["std"].mean(axis=1),
+                color=context.colours[index],
+                linestyle=context.styles[index],
+                linewidth=1.5,
+                label=run.label,
+            )
+            drawn = True
+    if not drawn:
+        return "; ".join(sorted({f"{run.label}: {exploration_why(run)}" for run in context.runs}))
+    axis.axhline(EXPLORATION_REFERENCE_STD, color=_INK_2, linestyle="--", linewidth=1.1, zorder=1)
+    from matplotlib.transforms import blended_transform_factory
+
+    axis.text(
+        0.006,
+        EXPLORATION_REFERENCE_STD,
+        f"stance3 line-2 floor {EXPLORATION_REFERENCE_STD:g} (not applied)",
+        transform=blended_transform_factory(axis.transAxes, axis.transData),
+        ha="left",
+        va="bottom",
+        fontsize=8.5,
+        color=_INK_2,
+        bbox={"facecolor": _SURFACE, "alpha": 0.8, "edgecolor": "none", "pad": 0.6},
+    )
+    axis.set_yscale("log")
+    _log_ticks_auto(axis)
+    return None
+
+
+def _draw_k3_falls(axis: Any, context: _Context) -> str | None:
+    """Joint-space (circles) and own-sigma (squares) falls per K3 point: the in-run panel's as lines with markers (one
+    series per joint sigma), the judge's as larger filled markers with a dark edge on top; K3's bars where a point
+    is 20 episodes, the K3 checkpoints annotated ``joint/own``.  Returns why nothing was drawn, or ``None``."""
+    top, drawn, bars = 0.0, False, False
+    for index, run in enumerate(context.runs):
+        colours = (
+            (_SERIES[0], _SERIES[1]) if not context.comparison else (context.colours[index], context.colours[index])
+        )
+        panel = [p for p in (run.k3_panel or {}).get("points", []) if p.get("own_falls") is not None]
+        # One series per joint sigma (a resumed session may read another vector), and one for panels without one.
+        keys: list[str | None] = list((run.k3_panel or {}).get("sigma_series") or [])
+        if any(not p.get("joint_sigma_sha256") for p in panel):
+            keys.append(None)
+        for series, sha in enumerate(keys):
+            mine = [p for p in panel if (p.get("joint_sigma_sha256") or None) == sha]
+            if not mine:
+                continue
+            x = np.asarray([p["timesteps"] for p in mine], dtype=float) / 1e6
+            suffix = "" if series == 0 else (" (no joint sigma)" if sha is None else f" (sigma {sha[:8]})")
+            who = f"{run.label}: " if context.comparison else ""
+            for key, marker, colour, name, style in (
+                ("joint_falls", "o", colours[0], "in-run panel joint-space falls", "-"),
+                ("own_falls", "s", colours[1], "in-run panel own-sigma falls", "--" if context.comparison else "-"),
+            ):
+                y = np.asarray([np.nan if p[key] is None else p[key] for p in mine], dtype=float)
+                if not np.isfinite(y).any():
+                    continue
+                axis.plot(
+                    x,
+                    y,
+                    color=colour,
+                    linestyle=style,
+                    linewidth=1.0,
+                    marker=marker,
+                    markersize=5,
+                    label=f"{who}{name}{suffix}",
+                )
+                top = max(top, float(np.nanmax(y)))
+                drawn = True
+            for p in mine:
+                bars = bars or (p.get("joint_episodes") == K3_EPISODES or p.get("own_episodes") == K3_EPISODES)
+        # Panel points with no joint sigma (the own test alone) are drawn above with the own series.
+        judged = _k3_points(run)
+        if judged:
+            x = np.asarray([p["timesteps"] for p in judged], dtype=float) / 1e6
+            for key, marker, colour, name in (
+                ("joint_falls", "D", colours[0], "judge joint-space falls"),
+                ("own_falls", "P", colours[1], "judge own-sigma falls"),
+            ):
+                y = np.asarray([p[key] for p in judged], dtype=float)
+                axis.plot(
+                    x,
+                    y,
+                    linestyle="none",
+                    marker=marker,
+                    markersize=8,
+                    markerfacecolor=colour,
+                    markeredgecolor=_INK,
+                    markeredgewidth=0.9,
+                    zorder=5,
+                    label=f"{run.label}: {name}" if context.comparison else name,
+                )
+                top = max(top, float(y.max()))
+            drawn = True
+            bars = bars or any(p.get("joint_episodes") == K3_EPISODES for p in judged)
+        if not context.comparison:
+            for p in [*panel, *judged]:
+                if p.get("k3_slot") and p.get("joint_falls") is not None and p.get("own_falls") is not None:
+                    axis.annotate(
+                        f"{p['joint_falls']}/{p['own_falls']}",
+                        (p["timesteps"] / 1e6, max(p["joint_falls"], p["own_falls"])),
+                        xytext=(0, 8),
+                        textcoords="offset points",
+                        ha="center",
+                        va="bottom",
+                        fontsize=8,
+                        color=_INK,
+                        zorder=6,
+                        bbox={"facecolor": _SURFACE, "alpha": 0.85, "edgecolor": "none", "pad": 0.6},
+                    )
+    if not drawn:
+        return (
+            "no K3 source: no k3_panel.json in the stage directory (the in-run panel is off unless the launch enables "
+            "it) and no judge files named (--judged)"
+        )
+    if bars:
+        axis.axhline(float(K3_JOINT_MAX_FALLS), color=_INK_2, linestyle="--", linewidth=1.1, zorder=1)
+        axis.axhline(float(K3_OWN_MAX_FALLS), color=_INK_2, linestyle=":", linewidth=1.1, zorder=1)
+        from matplotlib.transforms import blended_transform_factory
+
+        axis.text(
+            0.006,
+            float(K3_JOINT_MAX_FALLS),
+            f"K3 bars (of {K3_EPISODES}): joint <= {K3_JOINT_MAX_FALLS} (dashed), own <= {K3_OWN_MAX_FALLS} (dotted)",
+            transform=blended_transform_factory(axis.transAxes, axis.transData),
+            ha="left",
+            va="bottom",
+            fontsize=8.5,
+            color=_INK_2,
+            bbox={"facecolor": _SURFACE, "alpha": 0.8, "edgecolor": "none", "pad": 0.6},
+        )
+    axis.set_ylim(-0.6, max(float(K3_JOINT_MAX_FALLS) + 2.0, top + 2.0))
+    return None
+
+
+def _two_panel_figure(
+    context: _Context, *, title: str, subtitle: str, panels: Sequence[_Panel], dpi: int, width: float
+) -> tuple[Any, list[Any]]:
+    handles, labels = _run_handles(context) if context.comparison else _single_handles(context)
+    ncol = min(4, len(labels))
+    figure, axes = _new_figure(
+        panels, width=width, dpi=dpi, title=f"{title}\n{subtitle}", legend_rows=math.ceil(len(labels) / ncol)
+    )
+    for index, (axis, panel) in enumerate(zip(axes, panels)):
+        _style_axis(axis, panel, top=index == 0)
+        axis.set_xlim(0.0, context.xmax * 1.01 if context.xmax > 0 else 1.0)
+    figure._history_legend = (handles, labels, ncol)  # type: ignore[attr-defined]
+    return figure, axes
+
+
+def _exploration_figure(context: _Context, *, title: str, dpi: int, width: float) -> Any:
+    """Page ``17_exploration_k3``: the leg actuators' exploration std over training above K3's noise falls."""
+    panels = [
+        _Panel(
+            None,
+            None,
+            "Leg actuators' exploration std, exp(log_std)"
+            + (": each run's mean over the leg actuators" if context.comparison else "")
+            + " (log); dashed: the stance3 line-2 reference, not applied",
+            "std (action units, log)",
+            3.0,
+        ),
+        _Panel(
+            None,
+            None,
+            "K3's noise falls of 20 at each K3 point: the in-run panel (k3_panel.json; lines) and the judge files "
+            "(--judged; large markers), a readout of the stance5 replication judge's K3 criterion, never a verdict",
+            "falls",
+            2.2,
+        ),
+    ]
+    figure, axes = _two_panel_figure(
+        context,
+        title=title,
+        subtitle="Exploration std beside K3: the policy's own noise and its robustness to K3's two noise tests",
+        panels=panels,
+        dpi=dpi,
+        width=width,
+    )
+    for index, (axis, draw) in enumerate(zip(axes, (_draw_exploration_std, _draw_k3_falls))):
+        why = draw(axis, context)
+        if why:
+            _absent(axis, why)
+        _draw_marks(axis, context, top=index == 0)
+        if context.comparison or index == 1 or why is None:
+            _legend(axis)
+    axes[-1].set_xlabel("training steps (millions)", fontsize=_TICK_PT + 0.5, color=_INK_2)
+    handles, labels, ncol = figure._history_legend
+    _figure_legend(figure, handles, labels, ncol)
+    return figure
+
+
+def _draw_normalization(axis: Any, context: _Context, keys: Sequence[tuple[str, str, Any]], dense: bool) -> bool:
+    """Per checkpoint, each of *keys* ``(field, label, marker)`` of the runs' ``obs_norm`` (log y); with *dense*, the
+    probe's per-update ``shift_final_max`` faint behind."""
+    drawn = False
+    for index, run in enumerate(context.runs):
+        points = [p for p in (run.obs_norm or {}).get("checkpoints", []) if p.get("timesteps") is not None]
+        for name_key, label, marker in keys:
+            have = [p for p in points if p.get(name_key) is not None and p[name_key] > 0]
+            if not have:
+                continue
+            x = np.asarray([p["timesteps"] for p in have], dtype=float) / 1e6
+            y = np.asarray([p[name_key] for p in have], dtype=float)
+            colour = context.colours[index] if context.comparison else _SERIES[keys.index((name_key, label, marker))]
+            name = f"{run.label}: {label}" if context.comparison else label
+            axis.plot(x, y, color=colour, linewidth=1.4, marker=marker, markersize=4, label=name)
+            drawn = True
+        probe = (run.obs_norm or {}).get("probe")
+        if dense and probe is not None and np.asarray(probe["shift_final_max"]).size:
+            y = np.asarray(probe["shift_final_max"], dtype=float)
+            ok = np.isfinite(y) & (y > 0)
+            if ok.any():
+                colour = context.colours[index] if context.comparison else _MUTED
+                axis.plot(
+                    np.asarray(probe["timesteps"], dtype=float)[ok] / 1e6,
+                    y[ok],
+                    color=colour,
+                    linewidth=0.9,
+                    alpha=0.55,
+                    label=("policy_probe.npz per update (float32)" if not context.comparison else "_nolegend_"),
+                )
+                drawn = True
+    if drawn:
+        axis.set_yscale("log")
+        _log_ticks_auto(axis)
+    return drawn
+
+
+def _normalization_figure(context: _Context, *, title: str, dpi: int, width: float) -> Any:
+    """Page ``18_obs_normalization``: the observation normalization's drift per checkpoint."""
+    top = [
+        (f"{run.label}: " if context.comparison else "")
+        + ", ".join(f"{d['dim']} {d['shift_prev_peak']:.3g}" for d in run.obs_norm["most_drifting_dims"])
+        for run in context.runs
+        if (run.obs_norm or {}).get("most_drifting_dims")
+    ]
+    drifting = "; the most drifting dimensions (peak |shift|): " + "; ".join(top) if top else ""
+    panels = [
+        _Panel(
+            None,
+            None,
+            "Change from the checkpoint before, in normalized units: max and median over the observation dimensions "
+            "of |mean_k - mean_k-1| / sqrt(var_k-1 + eps) (log)" + drifting,
+            "normalized units (log)",
+            2.2,
+        ),
+        _Panel(
+            None,
+            None,
+            "Scale change from the checkpoint before: max and median over the dimensions of "
+            "|0.5 ln((var_k + eps) / (var_k-1 + eps))| (log)",
+            "|log scale| (log)",
+            2.2,
+        ),
+        _Panel(
+            None,
+            None,
+            "Distance from the end: max over the dimensions of the shift and the scale change against the final pickle "
+            "(else the last one kept); faint: the same shift from policy_probe.npz at every PPO update (float32)",
+            "normalized units (log)",
+            2.2,
+        ),
+        _Panel(
+            None,
+            None,
+            f"The probe's {NORMALIZATION_BANK_ROW} observation as each checkpoint's normalization sees it: its change "
+            "from the checkpoint before, max and Euclidean norms over the clipped normalized input (log)",
+            "normalized units (log)",
+            2.2,
+        ),
+    ]
+    figure, axes = _two_panel_figure(
+        context,
+        title=title,
+        subtitle="Observation normalization drift per checkpoint, from the VecNormalize pickles in models/ (float64)",
+        panels=panels,
+        dpi=dpi,
+        width=width,
+    )
+    specs: tuple[tuple[tuple[tuple[str, str, Any], ...], bool], ...] = (
+        ((("shift_prev_max", "max over dims", "o"), ("shift_prev_median", "median over dims", "s")), False),
+        ((("scale_prev_max", "max over dims", "o"), ("scale_prev_median", "median over dims", "s")), False),
+        ((("shift_final_max", "shift, max over dims", "o"), ("scale_final_max", "scale, max over dims", "s")), True),
+        ((("bank_change_inf", "max norm", "o"), ("bank_change_l2", "Euclidean norm", "s")), False),
+    )
+    reasons = sorted({str(run.obs_norm.get("why")) for run in context.runs if (run.obs_norm or {}).get("why")})
+    for index, (axis, (keys, dense)) in enumerate(zip(axes, specs)):
+        if not _draw_normalization(axis, context, keys, dense):
+            _absent(
+                axis,
+                "; ".join(reasons)
+                or "fewer than two VecNormalize pickles in models/ (or no probe bank row): nothing to compare",
+            )
+        _draw_marks(axis, context, top=index == 0)
+        _legend(axis)
+    axes[-1].set_xlabel("training steps (millions)", fontsize=_TICK_PT + 0.5, color=_INK_2)
+    handles, labels, ncol = figure._history_legend
+    _figure_legend(figure, handles, labels, ncol)
+    return figure
+
+
 def _colours(runs: Sequence[RunHistory]) -> tuple[list[str], str]:
     """One colour per run: by seed when every run records one and no (seed, group) repeats, else by position."""
     seeds = [run.seed for run in runs]
@@ -3708,7 +5271,7 @@ _OTHER_ACTUATORS = "other actuators"
 _NAMED_SERIES = tuple(reversed(_OTHER_SERIES[:-1]))
 
 
-def _named_colours(runs: Sequence[RunHistory]) -> dict[str, str]:
+def _named_colours(runs: Sequence[RunHistory], key: str = "flagged_actuators") -> dict[str, str]:
     """A fixed colour per label the runs' flagged episodes name, by how many name it over every run (then by label).
 
     The first :data:`NAMED_COLOURS` take :data:`_NAMED_SERIES` in order (never
@@ -3717,7 +5280,7 @@ def _named_colours(runs: Sequence[RunHistory]) -> dict[str, str]:
     :func:`most_named` gives (``+/-`` for an actuator's ``+`` and ``-``
     episodes tied in one evaluation) comes after the counted ones.
     """
-    named = [entry for run in runs for entry in run.evaluations.get("flagged_actuators") or []]
+    named = [entry for run in runs for entry in run.evaluations.get(key) or []]
     counts = tally(named)
     unnamed = {UNMEASURED_ACTUATOR: _INK_2, NOT_RECORDED_ACTUATOR: _AXIS}
     ranked = [label for label in counts if label not in unnamed]
@@ -3747,6 +5310,7 @@ def _make_context(runs: Sequence[RunHistory], *, marks: Sequence[int], smooth: i
         styles=[_GROUP_STYLES[groups.index(run.group or "") % len(_GROUP_STYLES)] for run in runs],
         colour_note=colour_note,
         named_colours=_named_colours(runs),
+        label_colours={key: _named_colours(runs, key) for key in NAMED_CLASS_COLUMNS},
     )
 
 
@@ -3826,6 +5390,25 @@ def render_pages(
         "panels on spawns 3042-3061 at each judged checkpoint, not these deterministic evaluations, and never a "
         "verdict (the scorer decides whether a run holds)."
     )
+    unbodied = [run.label for run in runs if not body_columns(list(run.evaluations.get("columns", {})))]
+    body_parts = []
+    if unbodied:
+        body_parts.append(
+            f"{'this ledger' if len(runs) == 1 else ', '.join(unbodied)} records none: an older ledger, or a model whose "
+            "evaluation runs no recorder, so "
+            + (
+                "those panels are absent"
+                if len(runs) == 1
+                else f"{'its' if len(unbodied) == 1 else 'their'} series are absent"
+            )
+        )
+    body_parts += [
+        f"{'this ledger' if len(runs) == 1 else run.label} reads nan on every episode in {len(run.body_unmeasured)} body "
+        f"columns ({BODY_UNMEASURED_REASON}), drawn as absent and listed in the JSON's absent"
+        for run in runs
+        if run.body_unmeasured
+    ]
+    body_note = f" ({'; '.join(body_parts)})" if body_parts else ""
     targets = _common(run.head_target for run in runs)
     fields = {
         "episodes": episodes,
@@ -3836,6 +5419,7 @@ def render_pages(
         "named_note": named_note,
         "posture_note": posture_note,
         "k3_note": k3_note,
+        "body_note": body_note,
         "head_target": ("none recorded" if not targets else ", ".join(f"{value:g} m" for value in targets)),
     }
     pages: list[Page] = []
@@ -3868,7 +5452,52 @@ def render_pages(
         except Exception as exc:  # noqa: BLE001
             logger.warning("training history page 10_policy_std failed: %s", exc)
             errors.append(f"10_policy_std: {type(exc).__name__}: {exc}")
-        for spec in POSTURE_PAGES:
+        for spec in (*POSTURE_PAGES, *BODY_PAGES):
+            draw(spec)
+        for name, page_title, figure_of, caption in (
+            (
+                EXPLORATION_PAGE,
+                "Exploration std of the leg actuators beside K3",
+                _exploration_figure,
+                "Above: each leg actuator's exploration noise exp(log_std), from policy_probe.npz at every PPO update "
+                "where the run kept it (float32), else from the checkpoint zips kept in models/ (at most "
+                f"{POLICY_STD_MAX_PERIODIC} periodic and the named ones); a left-right pair in one colour (right "
+                "solid, left dashed), drawn once when the two are bitwise equal throughout (the mirror-symmetric "
+                f"PPO ties them); dashed: {EXPLORATION_REFERENCE_STD:g}, the stance3 design's line-2 floor on hip "
+                "pitch, knee and ankle, a reference only (no stage applies it). Below: K3's two noise tests at each "
+                "K3 point, the in-run panel's (k3_panel.json, rolled during training on the live policy, the judge's "
+                "arithmetic; lines, one series per joint-space sigma) and the judge's own files where named "
+                "(--judged; large markers on top): joint-space falls (circles, diamonds) and own-sigma falls "
+                "(squares, crosses) of 20; K3's bars (joint <= 2, own <= 1) where a point has 20 episodes, and "
+                "joint/own written at K3's checkpoints (6,291,456 and the final). A readout of the stance5 "
+                "replication judge's K3 criterion, never a verdict: the offline judge's K3 stays the K3 of record. "
+                "The JSON's exploration.leg_std_at_k3 gives each leg actuator's std at every K3 point.",
+            ),
+            (
+                NORMALIZATION_PAGE,
+                "Observation normalization drift per checkpoint",
+                _normalization_figure,
+                "From each periodic and the final VecNormalize pickle in models/ (the pairs the judges load), read "
+                "through a stub unpickler that names only numpy's array helpers and inert stand-ins for SB3's and "
+                "gymnasium's classes (nothing else is unpickled): per checkpoint and observation dimension, the change "
+                "of a fixed raw input in normalized units against the checkpoint before (shift) and the change of "
+                "scale, their maximum and median over the dimensions, both against the final pickle too, and the "
+                f"probe bank's {NORMALIZATION_BANK_ROW} observation as each normalization sees it; policy_probe.npz's "
+                "per-update statistics (float32) give the dense distance from the final pickle. A checkpoint "
+                "retention pruned is simply absent; without pickles the probe's rows alone are drawn. The JSON's "
+                "obs_normalization names the three most drifting dimensions (by the checkpoint's mirror_map.json "
+                f"observation names), the dimensions with variance under {FLAT_VARIANCE:g}, and whether each pickle "
+                "cast to float32 equals the probe row at its step.",
+            ),
+        ):
+            try:
+                figure = figure_of(context, title=title, dpi=dpi, width=width)
+                text = caption + (f" Runs: {colour_note}." if comparison else "")
+                pages.append(Page(name, page_title, text, _png(figure, dpi)))
+            except Exception as exc:  # noqa: BLE001 - a failure costs this page only
+                logger.warning("training history page %s failed: %s", name, exc)
+                errors.append(f"{name}: {type(exc).__name__}: {exc}")
+        for spec in DYNAMICS_PAGES:
             draw(spec)
     return pages, errors
 
@@ -3962,7 +5591,100 @@ _POSTURE_HEADERS: tuple[tuple[str, str], ...] = (
     ("neck_pitch_mean_deg", "neck pitch"),
     ("head_pitch_mean_deg", "head pitch"),
 )
-_JUDGE_HEADERS: tuple[tuple[str, str], ...] = (("judge_joint_falls", "judge joint"), ("judge_own_falls", "judge own"))
+_JUDGE_HEADERS: tuple[tuple[str, str], ...] = (
+    ("judge_joint_falls", "judge joint"),
+    ("judge_own_falls", "judge own"),
+    ("panel_joint_falls", "K3 panel joint"),
+    ("panel_own_falls", "K3 panel own"),
+    ("tail_tip_chord_mean_deg", "tail chord deg"),
+    ("legs_work_abs_j", "legs work J"),
+)
+
+
+def _k3_panel_table(run: Mapping[str, Any]) -> str:
+    """The run's in-run K3 panel as HTML: each panel's step, kind and falls, its joint sigma, its time."""
+    panel = run.get("k3_panel")
+    if not isinstance(panel, Mapping) or not panel.get("recorded"):
+        return ""
+    rows = []
+    for point in panel.get("points") or []:
+        within = ""
+        if point.get("k3_slot") and point.get("within_bar_withheld"):
+            within = f"withheld: {point['within_bar_withheld']}"
+        elif point.get("k3_slot"):
+            within = "; ".join(
+                f"{name} {'within' if point.get(key) else 'over'}"
+                for name, key in (("joint", "joint_within_bar"), ("own", "own_within_bar"))
+            )
+        rows.append(
+            [
+                _fmt(point.get("timesteps")),
+                html.escape(str(point.get("kind"))),
+                f"{point.get('own_falls')} / {point.get('own_episodes')}",
+                (
+                    f"{point.get('joint_falls')} / {point.get('joint_episodes')}"
+                    if point.get("joint_episodes") is not None
+                    else html.escape(f"not run: {point.get('joint_skipped')}")
+                ),
+                html.escape(str(point.get("joint_sigma_sha256") or "–")[:12]),
+                _fmt(point.get("seconds")),
+                html.escape(within or "–"),
+            ]
+        )
+    failed = "; ".join(f"{f.get('timesteps')}: {f.get('failure')}" for f in panel.get("failed") or [])
+    sigma = panel.get("joint_sigma") or {}
+    parts = [
+        f"<h3>{html.escape(str(run['label']))}: in-run K3 panel</h3>",
+        f"<p>From <code>{html.escape(str(panel.get('source')))}</code>: K3's two noise tests rolled during training "
+        f"on the live policy with the stance5 replication judge's arithmetic, spawns "
+        f"{html.escape(str(panel.get('seeds')))}, horizon {html.escape(str(panel.get('horizon')))}, every "
+        f"{_fmt(panel.get('every'))} steps and at training end. Joint-space sigma "
+        f"{html.escape(str(sigma.get('path_in_file')))} of <code>{html.escape(str(sigma.get('file')))}</code> "
+        f"(mean {_fmt(sigma.get('mean'))}, sha256 {html.escape(str(sigma.get('sha256'))[:12])}). A readout, never a "
+        "verdict: the offline judge's K3 is the K3 of record."
+        + (f" Failed panels: {html.escape(failed)}." if failed else "")
+        + "</p>",
+    ]
+    if rows:
+        parts.append(
+            _table(["step", "kind", "own-sigma falls", "joint-space falls", "joint sigma", "seconds", "K3 bars"], rows)
+        )
+    return "".join(parts)
+
+
+def _normalization_table(run: Mapping[str, Any]) -> str:
+    """The run's normalization drift per checkpoint as HTML (the page's numbers and the three most drifting dims)."""
+    record = run.get("obs_normalization")
+    if not isinstance(record, Mapping) or not record.get("checkpoints"):
+        return ""
+    rows = [
+        [
+            html.escape(str(point.get("name"))),
+            _fmt(point.get("timesteps")),
+            _fmt(point.get("shift_prev_max")),
+            _fmt(point.get("shift_prev_median")),
+            _fmt(point.get("scale_prev_max")),
+            _fmt(point.get("shift_final_max")),
+            _fmt(point.get("bank_change_inf")),
+            html.escape(", ".join(f"{d['dim']} {d['shift']:.3g}" for d in point.get("shift_prev_top") or []) or "–"),
+        ]
+        for point in record["checkpoints"]
+    ]
+    probe = record.get("probe") or {}
+    note = (
+        f" The probe's rows equal the pickles cast to float32 at {probe.get('pickle_checks_equal')} of "
+        f"{len(probe.get('pickle_checks') or [])} shared steps."
+        if probe
+        else ""
+    )
+    return (
+        f"<h3>{html.escape(str(run['label']))}: observation normalization drift</h3><p>Observation names: "
+        f"{html.escape(str(record.get('labels_source')))}.{html.escape(note)}</p>"
+        + _table(
+            ["pickle", "step", "shift max", "shift median", "scale max", "from final", "statue row max", "top dims"],
+            rows,
+        )
+    )
 
 
 def _k3_table(run: Mapping[str, Any]) -> str:
@@ -4147,6 +5869,8 @@ def render_html(document: Mapping[str, Any], pages: Sequence[Page], *, json_name
         parts.append(f"<h3>{html.escape(str(run['label']))}</h3>")
         parts.append(_table(headers, body))
     parts += [_k3_table(run) for run in runs if run.get("judge_k3")]
+    parts += [_k3_panel_table(run) for run in runs]
+    parts += [_normalization_table(run) for run in runs]
     parts.append("<h2>What these pages do not show</h2><ul>")
     parts += [f"<li>{html.escape(note)}</li>" for note in document["not_recorded"]]
     parts.append("</ul><h2>How the numbers are reduced</h2><ul>")

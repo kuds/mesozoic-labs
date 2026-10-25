@@ -574,3 +574,23 @@ def test_the_k3_panel_rolls_the_saved_checkpoint_pairs_and_reaches_no_other_reco
         assert not any("k3" in key for key in keys(json.loads((stage / "progress.json").read_text(encoding="utf-8"))))
         assert not any("k3" in key for key in _keys(stage / "gate_progress.npz"))
 
+
+def test_the_reports_stub_unpickler_reads_the_runs_own_pickles_as_sb3_does(trained):
+    """The training-history report's normalization page reads the run's VecNormalize pickles without SB3's classes
+    (``training_history.read_vecnormalize_stats``): the statistics equal ``pickle.load``'s, and at 512 (a rollout
+    end) the pickle cast to float32 equals the policy probe's row of that update."""
+    from environments.shared.reporting import training_history as th
+
+    full, _plain = trained
+    for path in sorted((full / "models").glob("stage1_*vec*.pkl")):
+        stats = th.read_vecnormalize_stats(path)
+        with open(path, "rb") as handle:
+            reference = pickle.load(handle)
+        assert np.array_equal(stats["mean"], reference.obs_rms.mean) and np.array_equal(
+            stats["var"], reference.obs_rms.var
+        )
+        assert (stats["epsilon"], stats["clip_obs"]) == (reference.epsilon, reference.clip_obs)
+    run = th.load_run_history(full, read_std=False)
+    probe = run.obs_norm["probe"]
+    assert [check["timesteps"] for check in probe["pickle_checks"]] == [512, STEPS]
+    assert probe["pickle_checks_equal"] == 2 and run.obs_norm["errors"] == []

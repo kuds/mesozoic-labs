@@ -1400,3 +1400,333 @@ def test_the_final_mark_row_reads_the_last_evaluation_and_the_final_std(tmp_path
     at_last = next(row for row in rows if row["at"] == "J 8,192")
     assert at_last["std_checkpoint"] == "stage1_8192_steps.zip" and "note" not in at_last
     assert [row["at"] for row in rows][-1] == "last evaluation"
+
+
+# ---------------------------------------------------------------------------------------------- pages 13-19
+#: The T. rex actuators in action order (the checkout's MJCF), whose command columns the body ledger holds.
+TYRANNOSAURUS_REX_ACTUATORS = (
+    "neck_pitch_act neck_yaw_act head_pitch_act r_hip_pitch_act r_hip_roll_act r_knee_act r_ankle_act l_hip_pitch_act "
+    "l_hip_roll_act l_knee_act l_ankle_act tail_1_pitch_act tail_1_yaw_act tail_2_pitch_act tail_3_pitch_act"
+).split()
+
+
+def _body_stage(tmp_path: Path, *, name: str = "bodied", nan_columns: tuple[str, ...] = ()) -> Path:
+    """:func:`_stage` with a few of the body columns (``gait.body_telemetry``) appended, as the ledger writes them.
+
+    Evaluation k: tail_3's command 0.3 k (+ rail from evaluation 3 on, on episodes 0-1), the tail chord -k degrees
+    (window min -k - 1, max -k + 1), the legs' absolute work 10^k J, the right foot's slip 0.01 (k + 1) m, the
+    tail_1_pitch stop share 0.5 from evaluation 2; *nan_columns* nan on every episode (a part the model lacks).
+    """
+    stage = _stage(tmp_path, name=name)
+    rows = list(csv.DictReader((stage / th.EVAL_EPISODES_FILENAME).open(newline="", encoding="utf-8")))
+    body = [f"{actuator}_command_mean" for actuator in TYRANNOSAURUS_REX_ACTUATORS] + [
+        "actuators_at_rail",
+        "rail_actuators",
+        "actuators_parked",
+        "parked_actuators",
+        "tail_1_pitch_mean_deg",
+        "tail_tip_chord_mean_deg",
+        "tail_tip_chord_min_deg",
+        "tail_tip_chord_max_deg",
+        "root_roll_mean_deg",
+        "root_roll_min_deg",
+        "root_roll_max_deg",
+        "legs_work_abs_j",
+        "tail_work_abs_j",
+        "neck_head_work_abs_j",
+        "r_slip_m",
+        "l_slip_m",
+        "r_site_travel_m",
+        "l_site_travel_m",
+        "tail_1_pitch_stop_share",
+        "r_knee_stop_share",
+        "tail_base_pitch_moment_mean_nm",
+        "neck_base_pitch_moment_mean_nm",
+        "head_angular_rate_rms_dps",
+    ]
+    for row in rows:
+        k, episode = int(row["evaluation"]), int(row["episode"])
+        row.update({column: 0.0 for column in body if column not in ("rail_actuators", "parked_actuators")})
+        rail = k >= 3 and episode < 2
+        row.update(
+            tail_3_pitch_act_command_mean=0.3 * k,
+            neck_pitch_act_command_mean=-0.65,
+            actuators_at_rail=1 if rail else 0,
+            rail_actuators="tail_3_pitch_act+" if rail else "",
+            actuators_parked=1,
+            parked_actuators="neck_pitch_act-",
+            tail_tip_chord_mean_deg=-float(k),
+            tail_tip_chord_min_deg=-float(k) - 1.0,
+            tail_tip_chord_max_deg=-float(k) + 1.0,
+            legs_work_abs_j=10.0**k,
+            tail_work_abs_j=0.5,
+            neck_head_work_abs_j=2.0,
+            r_slip_m=0.01 * (k + 1),
+            l_slip_m=0.02,
+            tail_1_pitch_stop_share=0.5 if k >= 2 else 0.0,
+            tail_base_pitch_moment_mean_nm=70.0,
+            neck_base_pitch_moment_mean_nm=-42.0,
+        )
+        row.update({column: math.nan for column in nan_columns})
+    _write_csv(stage / th.EVAL_EPISODES_FILENAME, rows, COLUMNS + body)
+    return stage
+
+
+def _k3_panel_file(stage: Path, points: list[tuple[int, str, int, int, int]], *, sigma: str = "a" * 64) -> None:
+    """A ``k3_panel.json`` (``mesozoic.k3-panel/v1``) of panels ``(steps, kind, own falls, joint falls, n)``."""
+    panels = [
+        {
+            "panel": index,
+            "timesteps": steps,
+            "kind": kind,
+            "failure": None,
+            "joint_sigma_sha256": sigma,
+            "tests": {"own": {"n": n, "falls": own}, "joint": {"n": n, "falls": joint}},
+        }
+        for index, (steps, kind, own, joint, n) in enumerate(points)
+    ]
+    record = {
+        "schema": th.K3_PANEL_SCHEMA,
+        "spec": {
+            "seeds": list(range(3042, 3062)),
+            "horizon": 1000,
+            "every": 1_048_576,
+            "joint_sigma": {"sha256": sigma},
+        },
+        "panels": panels,
+    }
+    (stage / th.K3_PANEL_JSON_FILENAME).write_text(json.dumps(record), encoding="utf-8")
+
+
+def _fake_vecnorm(path: Path, monkeypatch, mean, var, *, epsilon: float = 1e-8, clip: float = 10.0) -> None:
+    """A VecNormalize pickle as SB3 writes one (the class names it carries), from stand-in classes registered under
+    SB3's module names for the dump only: the reader never imports them."""
+    import pickle
+    import sys
+    import types
+
+    names = {
+        "stable_baselines3.common.vec_env.vec_normalize": "VecNormalize",
+        "stable_baselines3.common.running_mean_std": "RunningMeanStd",
+    }
+    with monkeypatch.context() as patch:
+        for module in ("stable_baselines3", "stable_baselines3.common", "stable_baselines3.common.vec_env", *names):
+            patch.setitem(sys.modules, module, types.ModuleType(module))
+        classes = {}
+        for module, name in names.items():
+            cls = type(name, (), {"__module__": module})
+            cls.__qualname__ = name
+            setattr(sys.modules[module], name, cls)
+            classes[name] = cls
+        rms = classes["RunningMeanStd"]()
+        rms.mean, rms.var, rms.count = np.asarray(mean, dtype=float), np.asarray(var, dtype=float), 100.0
+        wrapper = classes["VecNormalize"]()
+        wrapper.obs_rms, wrapper.epsilon, wrapper.clip_obs, wrapper.norm_obs = rms, epsilon, clip, True
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(pickle.dumps(wrapper))
+
+
+class TestBodyPages:
+    def test_the_body_columns_reduce_and_the_rail_and_parked_actuators_are_counted(self, tmp_path):
+        run = th.load_run_history(_body_stage(tmp_path), read_std=False)
+        chord = run.column("tail_tip_chord_mean_deg")
+        assert chord is not None and chord.tolist() == [0.0, -1.0, -2.0, -3.0]
+        assert run.column("tail_tip_chord_min_deg", "min").tolist() == [-1.0, -2.0, -3.0, -4.0]
+        assert "rail_actuators" not in run.evaluations["columns"]  # text, tallied below
+        # Evaluation 0's falling episode is not full-horizon: 9 parked episodes there, 10 after.
+        assert run.evaluations["parked_named"] == [{"neck_pitch_act -": 9}] + [{"neck_pitch_act -": 10}] * 3
+        assert run.evaluations["rail_named"] == [{}, {}, {}, {"tail_3_pitch_act +": 2}]
+        assert run.series("rail_episodes").tolist() == [0.0, 0.0, 0.0, 2.0]
+        assert th.named_classes("tail_3_pitch_act+;r_ankle_act-") == ["tail_3_pitch_act +", "r_ankle_act -"]
+        assert not run.body_unmeasured and not any("body columns" in entry for entry in run.absent)
+
+    def test_the_pages_draw_them_with_their_lines_and_a_pair_in_one_colour(self, tmp_path):
+        run = th.load_run_history(_body_stage(tmp_path), read_std=False)
+        context = th._make_context([run], marks=[], smooth=5)
+        spec = {page.name: page for page in th.BODY_PAGES + th.DYNAMICS_PAGES}
+        figure = th._page_figure(spec["13_commands"], context, title="t", dpi=30, width=12.0)
+        legs, tail, other, rail, parked = figure.axes[:5]
+        texts = [text.get_text() for text in legs.texts]
+        assert any("parked +/-0.6" in text for text in texts) and any("rail +/-1" in text for text in texts)
+        lines = {line.get_label(): line for line in legs.get_lines() if not line.get_label().startswith("_")}
+        assert lines["r_knee_act"].get_color() == lines["l_knee_act"].get_color()
+        assert lines["r_knee_act"].get_linestyle() == "-" and lines["l_knee_act"].get_linestyle() == "--"
+        assert {line.get_label() for line in tail.get_lines()} >= {"tail_3_pitch_act", "tail_1_pitch_act"}
+        assert "neck_pitch_act" in {line.get_label() for line in other.get_lines()}
+        assert any("tail_3_pitch_act + (2)" == label for label in rail.get_legend_handles_labels()[1])
+        energy = th._page_figure(spec["15_energy"], context, title="t", dpi=30, width=12.0).axes[0]
+        assert energy.get_yscale() == "log"
+        dynamics = th._page_figure(spec["19_body_dynamics"], context, title="t", dpi=30, width=12.0)
+        stops = {line.get_label() for line in dynamics.axes[0].get_lines()}
+        assert "tail_1_pitch" in stops and "r_knee" not in stops  # never on its stop: not drawn
+
+    def test_an_older_ledger_renders_every_new_page_with_labelled_absent_panels(self, tmp_path):
+        run = th.load_run_history(_stage(tmp_path), read_std=False)
+        assert any("the body columns" in entry and "older ledger" in entry for entry in run.absent)
+        pages, errors = th.render_pages([run], title="old", marks=[], dpi=30)
+        assert errors == [] and [page.name for page in pages] == th.page_names()
+        captions = {page.name: page.caption for page in pages}
+        assert "this ledger records none" in captions["13_commands"]
+        context = th._make_context([run], marks=[], smooth=5)
+        spec = {page.name: page for page in th.BODY_PAGES}
+        axis = th._page_figure(spec["16_drift_slip"], context, title="t", dpi=30, width=12.0).axes[0]
+        assert any("not recorded in these files" in text.get_text() for text in axis.texts)
+        exploration = th._exploration_figure(context, title="t", dpi=30, width=12.0)
+        assert any("no K3 source" in text.get_text() for text in exploration.axes[1].texts)
+
+    def test_a_part_the_model_lacks_reads_as_absent_with_its_reason(self, tmp_path):
+        stage = _body_stage(tmp_path, nan_columns=("tail_tip_chord_mean_deg", "tail_tip_chord_min_deg"))
+        run = th.load_run_history(stage, read_std=False)
+        assert {"tail_tip_chord_mean_deg", "tail_tip_chord_min_deg"} <= set(run.body_unmeasured)
+        context = th._make_context([run], marks=[], smooth=5)
+        spec = {page.name: page for page in th.BODY_PAGES}
+        axis = th._page_figure(spec["14_tail_body"], context, title="t", dpi=30, width=12.0).axes[0]
+        assert any("the model has no such part" in text.get_text() for text in axis.texts)
+
+    def test_a_comparison_draws_one_panel_per_column(self, tmp_path):
+        runs = [
+            th.load_run_history(_body_stage(tmp_path, name="a"), label="a", read_std=False),
+            th.load_run_history(_stage(tmp_path, name="b"), label="b", read_std=False),
+        ]
+        context = th._make_context(runs, marks=[], smooth=3)
+        spec = {page.name: page for page in th.BODY_PAGES}
+        panels = th._panels(spec["13_commands"], context)
+        assert [panel.member for panel in panels[:2]] == ["r_hip_pitch_act_command_mean", "r_hip_roll_act_command_mean"]
+        assert len([panel for panel in panels if panel.member]) == len(TYRANNOSAURUS_REX_ACTUATORS)
+        pages, errors = th.render_pages(runs, title="a and b", marks=[], dpi=30)
+        assert errors == [] and len(pages) == len(th.page_names())
+
+
+class TestK3PanelAndExploration:
+    def test_the_in_run_panel_is_read_with_k3s_flags_at_its_checkpoints_only(self, tmp_path):
+        stage = _stage(tmp_path)
+        _k3_panel_file(
+            stage,
+            [(1_048_576, "grid", 0, 1, 20), (6_291_456, "grid", 2, 3, 20), (12_001_280, "final", 2, 2, 20)],
+        )
+        panel = th.read_k3_panel(stage)
+        assert panel["recorded"] and [p["timesteps"] for p in panel["points"]] == [1_048_576, 6_291_456, 12_001_280]
+        first, slot, final = panel["points"]
+        assert "joint_within_bar" not in first and first["k3_slot"] is False
+        assert slot["joint_within_bar"] is False and slot["own_within_bar"] is False
+        assert final["joint_within_bar"] is True and final["own_within_bar"] is False
+        _k3_panel_file(stage, [(6_291_456, "grid", 0, 0, 2)])
+        (point,) = th.read_k3_panel(stage)["points"]
+        assert point["joint_within_bar"] is None and "n 2, not K3's 20" in point["within_bar_withheld"]
+        assert th.read_k3_panel(tmp_path / "nowhere")["recorded"] is False
+        from environments.shared import k3_panel
+
+        assert (th.K3_PANEL_JSON_FILENAME, th.K3_PANEL_SCHEMA) == (
+            k3_panel.K3_PANEL_JSON_FILENAME,
+            k3_panel.K3_PANEL_SCHEMA,
+        )
+
+    def test_the_leg_std_comes_from_the_probe_and_is_read_at_each_k3_point(self, tmp_path):
+        pytest.importorskip("mujoco")  # the actuator names come from the checkout's MJCF
+        stage = _stage(tmp_path)
+        steps = np.arange(1, 9, dtype=np.int64) * 1_048_576
+        std = np.tile(np.linspace(0.3, 0.05, 8)[:, None], (1, 15)).astype(np.float32)
+        np.savez(stage / th.POLICY_PROBE_FILENAME, update_timesteps=steps, std_per_actuator=std)
+        _k3_panel_file(stage, [(2_097_152, "grid", 0, 1, 20), (6_291_456, "grid", 0, 2, 20)])
+        run = th.load_run_history(stage, read_std=False)
+        summary = th.exploration_summary(run)
+        assert summary["recorded"] and summary["pairs_tied"] is True
+        assert summary["leg_actuators"] == [
+            "r_hip_pitch", "r_hip_roll", "r_knee", "r_ankle", "l_hip_pitch", "l_hip_roll", "l_knee", "l_ankle"
+        ]  # fmt: skip
+        at = summary["leg_std_at_k3"]
+        assert [(p["timesteps"], p["std_timesteps"]) for p in at] == [(2_097_152, 2_097_152), (6_291_456, 6_291_456)]
+        assert at[1]["std"]["r_knee"] == pytest.approx(float(std[5, 5]))
+        context = th._make_context([run], marks=[], smooth=5)
+        figure = th._exploration_figure(context, title="t", dpi=30, width=12.0)
+        top, falls = figure.axes[:2]
+        assert top.get_yscale() == "log" and "knee (r = l, tied)" in top.get_legend_handles_labels()[1]
+        assert any("stance3 line-2 floor 0.08" in text.get_text() for text in top.texts)
+        assert any(text.get_text() == "2/0" for text in falls.texts)  # the K3 checkpoint, joint/own
+        document = th.summary([run], title="t", marks=[], smooth=5)
+        assert document["runs"][0]["k3_panel"]["points"][1]["joint_falls"] == 2
+
+
+def test_two_joint_sigmas_are_never_joined_into_one_series(tmp_path):
+    """A resumed session that read another sigma vector draws its panels as a series of their own."""
+    stage = _stage(tmp_path)
+    _k3_panel_file(stage, [(1_048_576, "grid", 0, 1, 20)], sigma="a" * 64)
+    first = json.loads((stage / th.K3_PANEL_JSON_FILENAME).read_text(encoding="utf-8"))
+    _k3_panel_file(stage, [(2_097_152, "grid", 0, 2, 20)], sigma="b" * 64)
+    record = json.loads((stage / th.K3_PANEL_JSON_FILENAME).read_text(encoding="utf-8"))
+    record["panels"] = first["panels"] + [{**record["panels"][0], "panel": 1}]
+    (stage / th.K3_PANEL_JSON_FILENAME).write_text(json.dumps(record), encoding="utf-8")
+    run = th.load_run_history(stage, read_std=False)
+    assert run.k3_panel["sigma_series"] == ["a" * 64, "b" * 64]
+    figure = th._exploration_figure(th._make_context([run], marks=[], smooth=5), title="t", dpi=30, width=12.0)
+    labels = figure.axes[1].get_legend_handles_labels()[1]
+    assert "in-run panel joint-space falls" in labels and "in-run panel joint-space falls (sigma bbbbbbbb)" in labels
+
+
+class TestObsNormalization:
+    def test_the_stub_unpickler_refuses_any_other_global(self, tmp_path):
+        import os
+        import pickle
+
+        class Evil:
+            def __reduce__(self):
+                return (os.system, ("true",))
+
+        path = tmp_path / "evil.pkl"
+        path.write_bytes(pickle.dumps(Evil()))
+        with pytest.raises(pickle.UnpicklingError, match="refused"):
+            th.read_vecnormalize_stats(path)
+
+    def test_the_drift_per_checkpoint_and_the_probe_check(self, tmp_path, monkeypatch):
+        models = tmp_path / "stage" / "models"
+        means = [np.array([0.0, 1.0, 5.0]), np.array([0.5, 1.0, 5.0]), np.array([0.5, 2.0, 5.0])]
+        variances = [np.array([1.0, 4.0, 1e-9]), np.array([4.0, 4.0, 1e-9]), np.array([4.0, 4.0, 1e-9])]
+        for name, mean, var in zip(
+            (
+                "stage1_vecnormalize_262144_steps.pkl",
+                "stage1_vecnormalize_524288_steps.pkl",
+                "stage1_final_vecnorm.pkl",
+            ),
+            means,
+            variances,
+        ):
+            _fake_vecnorm(models / name, monkeypatch, mean, var)
+        stats = th.read_vecnormalize_stats(models / "stage1_final_vecnorm.pkl")
+        assert np.array_equal(stats["mean"], means[2]) and stats["epsilon"] == 1e-8 and stats["clip_obs"] == 10.0
+        probe = {
+            "timesteps": np.array([262_144, 393_216, 524_288], dtype=np.int64),
+            "obs_mean": np.stack([means[0], means[0], means[1]]).astype(np.float32).astype(np.float64),
+            "obs_var": np.stack([variances[0], variances[0], variances[1]]).astype(np.float32).astype(np.float64),
+            "bank_raw_obs": np.array([[1.0, 1.0, 5.0]]),
+            "bank_labels": np.array(["statue_settled"]),
+        }
+        result = th.obs_normalization(models, final_step=600_000, probe=probe, model_id=None)
+        first, second, final = result["checkpoints"]
+        assert [p["timesteps"] for p in result["checkpoints"]] == [262_144, 524_288, 600_000]
+        # 262,144 -> 524,288: dimension 0's mean moves 0.5 over sqrt(1 + eps); its variance quadruples.
+        assert second["shift_prev_max"] == pytest.approx(0.5 / math.sqrt(1.0 + 1e-8))
+        assert second["scale_prev_max"] == pytest.approx(0.5 * math.log((4.0 + 1e-8) / (1.0 + 1e-8)))
+        assert second["shift_prev_top"][0]["dim"] == "obs[0]" and final["shift_prev_top"][0]["dim"] == "obs[1]"
+        assert first["flat_dims"] == ["obs[2]"] and "shift_prev_max" not in first
+        assert final["shift_final_max"] == 0.0 and first["shift_final_max"] > 0.0
+        assert second["bank_change_inf"] == pytest.approx(
+            abs(0.5 / math.sqrt(4.0 + 1e-8) - 1.0 / math.sqrt(1.0 + 1e-8))
+        )
+        assert result["probe"]["pickle_checks_equal"] == 2 and len(result["probe"]["pickle_checks"]) == 2
+        assert [d["dim"] for d in result["most_drifting_dims"]][:2] == ["obs[1]", "obs[0]"]
+
+    def test_the_page_draws_pickles_and_reads_as_absent_without_them(self, tmp_path, monkeypatch):
+        stage = _stage(tmp_path)
+        for steps, shift in ((262_144, 0.0), (524_288, 0.3), (786_432, 0.4)):
+            _fake_vecnorm(
+                stage / "models" / f"stage1_vecnormalize_{steps}_steps.pkl", monkeypatch, [shift, 0.0], [1.0, 2.0]
+            )
+        run = th.load_run_history(stage, read_std=False)
+        assert [p["timesteps"] for p in run.obs_norm["checkpoints"]] == [262_144, 524_288, 786_432]
+        context = th._make_context([run], marks=[], smooth=5)
+        figure = th._normalization_figure(context, title="t", dpi=30, width=12.0)
+        assert figure.axes[0].get_yscale() == "log" and figure.axes[0].get_lines()
+        older = th.load_run_history(_stage(tmp_path, name="old"), read_std=False)
+        assert any("normalization drift" in entry for entry in older.absent)
+        empty = th._normalization_figure(th._make_context([older], marks=[], smooth=5), title="t", dpi=30, width=12.0)
+        assert any("no VecNormalize pickle" in text.get_text() for text in empty.axes[0].texts)
