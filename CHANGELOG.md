@@ -46,6 +46,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `SHA256SUMS` (now 528 files) are extended. `docs/README.md` adds a note to
   the record's and the gait plan's rows, and `docs/KNOWN_ISSUES.md` gains
   Update 19 of the T-Rex stance entry.
+- **Decision D-D43 recorded: a scratch CPU continuation screen of a bound on
+  the T. rex tail actuator's mean, the first step of D-D42's round; D-D42
+  amended with three more report-only tools** (the maintainer's decisions of
+  2026-10-24; `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2,
+  `docs/CONSOLIDATION_PLAN_2026_09.md` §6, a dated note in §17 of
+  `docs/GAIT_QUALITY_PLAN_2026_09.md`, `docs/NEXT_STEPS.md` §3; §24.1–§24.4 of
+  `docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md`). Records
+  only. At 16:00 and 17:46 UTC, on the options study's corrected brief, the
+  maintainer decided no-training probes first and then a scratch CPU
+  continuation screen of a training-loss bound on `tail_3_pitch_act`'s
+  Gaussian mean, upper side only: three arms (no bound, b = 0.90 as a rail
+  guard, b = 0.60 as a posture bound), three replicates on each of two band
+  checkpoints, one continuous 1M-step run each, a durable copy on an orphan
+  branch never merged, and a tail parked below the rail (a command of 0.60 or
+  more with the rail clear) counting as not adopted and going to the posture
+  decision. The criteria were approved at 19:06 UTC with coef 2.4 for both
+  bounds, before any training step, and re-pinned at 19:10 UTC after the
+  maintainer had one gate test deselected (`main`'s rule against stage configs
+  that set `[ppo] symmetry*`, which fails on the band commit itself); D-D43 is
+  amended for that re-pin. D-D42 is amended with the maintainer's report-only
+  items of 15:56 UTC: the band runs' `policy_probe.npz` read from Drive, the
+  per-step trace tool, the training rollouts' clip shares and the stage-end
+  training-history report, in their own pull requests. Nothing trains on
+  `main`. `docs/KNOWN_ISSUES.md` gains Update 18 of the T-Rex stance entry.
 - **The saturating actuator, named per evaluation episode and drawn over
   training** (#640; the maintainer's decision of 2026-10-24, "both, from the
   ledger"; `environments/shared/gait/stance_metrics.py`,
