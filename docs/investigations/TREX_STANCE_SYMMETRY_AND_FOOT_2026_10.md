@@ -118,6 +118,21 @@ next. The screen certifies nothing, and nothing it ran is on `main`. Its
 evidence is in [stance_2026_10/stance5/tailscreen/](stance_2026_10/stance5/tailscreen/README.md).
 The statuses above are unchanged.*
 
+*Status 2026-10-25, later (appended): §25, appended that day, records the
+posture options study that followed the screen (report only, corrected by two
+skeptics: no posture reachable on r9 holds a level tail); the r10 tail probe
+and its candidate SR3, `springref` 52.5, 25.9 and 10.4° on the three tail
+pitch joints and nothing else, under which the zero-action statue rests its
+tail level on its springs; the CPU checks of SR3 (eight r9 checkpoints zero-shot
+in closed loop, the statue through the real gate code, a diagnosis of the
+heading-invariance test, a skeptic); and decision D-D44: T. rex physics r10 is
+SR3, with `tail_home_pose` re-centred on its settled pose, every constant pinned
+to r9 re-measured, and no training. Here "physics r10" is the plant counter's
+next integer on `main`, not the foot of the parked draft #623 that the title
+and §6 name. Its evidence is in
+[stance_2026_10/stance5/tail_sr3/](stance_2026_10/stance5/tail_sr3/README.md).
+The statuses above are unchanged.*
+
 It continues [STANCE_REWARD_PILOT_FINDINGS_2026_10.md](STANCE_REWARD_PILOT_FINDINGS_2026_10.md)
 (2026-10-10), [STANCE_HACK_AUDIT_2026_10.md](STANCE_HACK_AUDIT_2026_10.md)
 §12 (the physics-r9 statue) and the blog post
@@ -3921,3 +3936,424 @@ records no launch), and its parent stays stance3 Run 2's final.
   validation and review folders, the options study's research folders, the
   probes' code trees and large outputs, and the fetched files are in the second
   session's scratch (`scratchpad2/tailround/`) only.
+
+## 25. Status 2026-10-25, later (appended): the posture study, the r10 tail probe and the CPU checks; decision D-D44, T. rex physics r10 (the preloaded tail springs)
+
+*Appended 2026-10-25; §1–§24 above are unchanged, so §24.7's "no posture
+option is designed or decided" is the state when its copied log ends (00:16
+UTC). A note on the name: "physics r10" in this record's title, in §1–§24 and in
+`r10_screen/` is the foot that the parked draft #623 screened under that name (decision D-D34),
+which never became part of `main`; in this section it is the plant counter's
+next integer on `main` after r9, the revision decision D-D44 builds.* After
+§24.7 the work went on in the same session: the posture options study reported,
+corrected by two skeptics (§25.1); the maintainer asked for a CPU probe of a
+tail chain that holds a level tail off the rail, which proposed a candidate,
+SR3 (§25.2); the maintainer asked for more CPU checks of it before deciding,
+which ran (§25.3); the maintainer approved SR3 as physics r10 with a reward
+change, recorded as decision D-D44 (§25.4); and the revision was built on a
+scratch branch with every constant pinned to r9 re-measured (§25.5), and
+the maintainer then decided its open items and asked for its pull request
+(§25.6). Nothing here trained a policy or took an optimizer step. The evidence is in
+`stance5/tail_sr3/` of [stance_2026_10/](stance_2026_10/README.md), added on
+2026-10-25, with its own [README](stance_2026_10/stance5/tail_sr3/README.md).
+Paths in backticks below are relative to `stance5/tail_sr3/`, and every number
+below is read from `results/run_log.txt` there (lines 578 to 603 of the
+session's run log, from the entry timed 01:01 UTC on 2026-10-25 to the one
+timed 12:08 UTC), the files
+named, or the branch's own files. Labels: measured, as each file records it;
+inferred, where said.
+
+### 25.1 The posture options study (report only)
+
+From 01:02 to 01:31 UTC (six agents: the screen's traces in angle and cost
+terms, anatomy and literature, option costs and approval classes, a synthesis
+and two skeptics; no training) the session studied the posture options §24.7
+asked for. The draft brief (`posture/brief_draft.md`) recommended revisiting
+the PARKED rule for later rounds and recording that a level tail needs an r10
+tail chain; the skeptics found four blocking problems in its framing and the
+corrected summary (`posture/brief_corrected_summary.md`) governs it:
+
+- **Measured** (re-derived by the facts skeptic from the raw traces, with
+  forward kinematics on a byte copy of the r9 MJCF): BOUND60 holds `tail_3` at
+  q3 = −2.28° (a command of about 0.62), steady within episodes; against the
+  one cured control (`s42_control_r202`, n = 1, still descending at R2) it is
+  1.7° higher at the joint and 2.1° at the distal segment over the R1/R2 mean;
+  against the walking-pilot parent (stance3 Run 2's final, q3 −1.09°, 0 of 40
+  flagged) it is 1.2° lower; the rail controls and BOUND90 sit about 1.5°
+  above it at the joint. In every arm the distal tail points 22–28° below
+  horizontal and `tail_1` sits on its ventral stop: r9 cannot hold a level
+  tail. Under BOUND60 52–59% of the training rows still had `tail_3`'s mean
+  above b = 0.60, so the outward drive persists.
+- **The corrections:** the PARKED rule exists so that a bound that only masks
+  the outward drive is not credited, not as an anatomy rule, and on that
+  purpose BOUND60 masks rather than cures; anatomy does not rank the r9
+  postures, which differ by 1.5–3° inside a band 22–28° below the roughly
+  level tail that reconstructions softly favour (no source fixes a tail angle;
+  inferred, from the agents' literature knowledge, unchecked); a servo
+  redesign sized just to hold a level tail (the break-even kp and control
+  range) holds it only at a command of +1, the rail, and r9's own servos
+  cannot reach it at all (commands of +3.50, +2.16 and +1.15, §25.2), so
+  passive support (`springref`) is the route that holds a level tail off the
+  rail, and any r10 tail chain is a new lineage; and two CPU options were
+  missing (a persistence screen of BOUND60, and a lower bound of about
+  0.45–0.50 with the masking caveat).
+
+### 25.2 The r10 tail probe (CPU only, scratch MJCF copies)
+
+At 01:33 UTC the maintainer decided: probe an r10 tail first, on CPU with no
+training and scratch MJCF copies only, sizing a tail chain with passive support
+that holds a level tail off the rail, and then decide whether r10 comes before
+more r9 work; the physics change itself still needs the maintainer's approval.
+The probe ran from 01:34 to 02:07 UTC (four agents: a chain sizer, a repository
+cost probe, a synthesis and a skeptic). Measured (`probe/brief_draft.md`,
+`probe/chainsizer/`, `probe/cost/`, and the run log's entry timed 02:07 UTC,
+which applies the skeptic's corrections):
+
+- **The candidate SR3:** `springref` 52.5, 25.9 and 10.4° on `tail_1_pitch`,
+  `tail_2_pitch` and `tail_3_pitch`, nothing else; the compiled model differs
+  from r9 only in `qpos_spring`. The zero-action statue settles with the tail
+  joints at about 0.01°, the keyframe pose (r9: −12.07, −11.62 and −5.30°,
+  `tail_1` on its stop at 30.3 N·m), its segments −4.7 to +6.7° to horizontal
+  (r9 −16.2 to −27.5°) and the base-to-tip chord at +0.1° (r9 −23.4°); the
+  springs carry the tail, the servos hold about 0 N·m, a level tail needs a
+  command of about 0 (r9 +3.50, +2.16 and +1.15, outside ±1), the distal
+  segment reaches −12.4 to +16.2° within commands of ±0.8, and no joint touches
+  a limit.
+- **The statue:** 40/40 on 3042–3081, 3768.8 ± 16.1 with the tail target
+  re-centred and 3584.4 with r9's target (r9 39/40, 3755.7 ± 19.9, seed 3081
+  nosedives), and 40/40 on 7042–7081. The centre of mass moves 10.7 mm further
+  back (−16.1 → −26.8 mm against the mean foot site) and the pelvis pitch from
+  1.54 to 0.96° nose-down. Under open-loop command noise of SD 0.10 the statue
+  reaches the horizon on 16/40 against r9's 21/40, its falls mostly backward
+  where r9's are nosedives (`probe/chainsizer/panels/falldir_*`); 21 against
+  16 of 40 is within chance (inferred), and the closed loop was untested.
+- **Rejected:** `springref` on `tail_1` alone (the distal segment still at
+  −16.6°), raised ventral stops (all three joints rest on them) and stiffness
+  40 or 160 with `springref` (no benefit).
+- **The repository cost** (`probe/cost/layer_probe.out`): `springref`,
+  stiffness, damping, kp, forcerange, joint range, mass and the keyframe qpos
+  move only the physics digest; a change to the tail's control range or the
+  home keyframe's ctrl moves the policy-interface digest too. SR3 moves only
+  the physics digest, so policy interface r15 can stay; every r9 checkpoint
+  stops loading, the walking-pilot parent and every band run included; the
+  statue constants, the tail target and the mirror map are re-measured or
+  regenerated; retraining is estimated at 85–170 GPU-h (inferred).
+- **The skeptic** (2 blocking and 5 minor findings, applied in the report to
+  the maintainer; its checks are `probe/skeptic/`): the SR3 statue's 40/40
+  holds through the gate's own code (`g_sr3rc.log`), where the brief had used
+  its own copy of the thresholds; and the heading-invariance test fails on an
+  SR3 tree too (`head_om_sr3rc.log`: rewards 1.34e-8 against the 1e-9 bound,
+  a float32 rounding flip), where the brief had called that untested.
+
+### 25.3 The CPU checks (no training)
+
+At 02:18 UTC the maintainer decided more CPU checks first, with no training:
+existing r9 finals in closed loop on the SR3 plant, the walking-pilot parent
+included; the full statue panels and the six-heading certificate through the
+real gate code; and a diagnosis of the heading-invariance failure; then
+decide. Three r9 final pairs were fetched read-only from Drive (02:19–02:31
+UTC; their zip sha256 match the judge and score records, and each pkl was
+transcribed twice to the same sha256; `cpucheck/zeroshot/checkpoints.csv`),
+and the checks ran from 02:36 to 04:27 UTC (four agents; judge clones read
+through `git archive` only). Measured:
+
+- **(a) Zero-shot closed loop** (`cpucheck/zeroshot/`): eight r9 checkpoints
+  (c1 the walking-pilot parent, stance3 Run 2's final; c2 and c3 the band
+  finals of seeds 52 and 70; c4 and c5 the band's 4,194,304 checkpoints of
+  seeds 42 and 80; c6–c8 the tail_3 screen's finals `s42_control_r202`,
+  `s80_b60_r101` and `s80_b90_r101`), each on its own branch's code with the
+  plant check bypassed in scratch only, 40 deterministic and 40 stochastic
+  episodes per plant on seeds 3042–3081. The harness reproduces the screen's
+  `panels.csv` rows and c1's certificate bit for bit on r9
+  (`validation.json`). Every episode reaches the horizon on both plants (640
+  of 640 per plant). Gate-clean episodes fall from 293 to 229 of 320
+  deterministic (246 to 179 stochastic): c3 pins `tail_2` at +1 and c5
+  `tail_3` at +1 on SR3 (40 → 0 clean each), c4 loses its r9 `tail_3` rail (16
+  → 36) and c8 gains 3 (37 → 40), and c1, c2, c6 and c7 lose 1 to 3 episodes
+  each, to sole tilt (23 tilt failures on SR3, none on r9). On SR3 the distal
+  tail chord is +0.3 to +6.8° in 7 of 8 (r9 −19.4 to −25.7°) and the centre of
+  mass 2.9 to 32.5 mm further back in 7 of 8. The walking-pilot parent and c2
+  drop their heads on SR3 (head tip 1.24 → 0.61 m and 1.08 → 0.67 m,
+  `head_neck.csv`).
+- **(b) The gate's code on an SR3 tree** (`cpucheck/gate/`): `9f2355a3` with
+  three hand edits (the `springref`s, `_TAIL_SETTLED_QPOS` re-centred on the
+  measured settle, `physics_revision` 10 with a note) and six files
+  regenerated by the repository's tools (`sr3.patch`); the models differ only
+  in `qpos_spring` and no policy digest line moves. The 280-seed statue: r9
+  275/280 (four nosedives and seed 3121's 2.061° pad tilt), SR3 278/280 (seed
+  9047 falls backward at step 273, and seed 3121 tilts 2.087°), Fisher exact p
+  0.37 (measured; not a significant difference, inferred). The six-heading
+  certificate on 3042–3081: r9 39/40 at every heading, SR3 40/40 (bound
+  0.928). The statue reference 3768.85 against 3755.72; the worst pad CoP
+  0.404 against 0.476 (bar 0.80). The tests: 2584 per tree, 13 failing on SR3
+  only, 12 of them pinning r9 values or goldens (`test_classification.json`)
+  and one the heading test; the pad-CoP fixture passes on SR3 with its lean
+  command moved from −0.0825 to −0.09 (`cop_fixture_diagnosis.json`). An r9
+  checkpoint is refused on SR3 by the plant contract (physics revision 9
+  against 10, and the physics sha256; `checkpoint_refusal.json`). Not
+  re-measured: the recovery stage's statue reference.
+- **(c) The heading-invariance test** (`cpucheck/heading/`): not a heading bug
+  and not specific to SR3. On r9 the test's own check fails 7 of 20 seeds
+  (SR3 6 of 20; `q1_summary.json`); r9 passes the test's seeds 3042–3043 by
+  luck, and which headings fail depends on the torch thread count. A float64
+  observation value lying across a float32 rounding boundary (rotation noise
+  of about 1e-13) flips one action ulp, and the closed loop then carries a
+  difference of about 1e-9 to 1e-8, over the test's 1e-9 reward bound and its
+  1e-5 observation bound (one float32 ulp of a foot force of about 400 N;
+  `q2_*_analysis.json`). The fix belongs in the test.
+- **(d) The skeptic** (`cpucheck/coord/skeptic_*.txt`, `cpucheck/skeptic/`):
+  no blocking error; every number it re-measured matched bit for bit (its own
+  loader reproduced c1 and c5 on both plants, its own zero-action loop seven
+  gate seeds on both trees, and four heading pairs). Its 14 minor corrections,
+  which the run log's entry timed 04:27 UTC applies and which this record
+  keeps: the pooled McNemar p-values overreach (at the checkpoint level 6 go
+  down and 2 up, sign test p 0.29; stochastic p 0.07); zero-shot gives no sign
+  that SR3 cures the rail (actuator-saturation failures 27 → 80 deterministic
+  and 74 → 130 stochastic; tail-up episodes 27 → 40 and 73 → 90), and the tail
+  observations sit 5 to 8 SD outside the r9 normalizer's statistics, so
+  zero-shot cannot predict a policy trained on SR3; the backward-fall risk under
+  perturbation is untested at useful power (0 falls in 40 is compatible with a
+  2% rate, P 0.45); the zero-shot reward numbers come from an SR3 env that kept
+  r9's tail target, so they are not r10 values; c1's PASS (37/40, bound 0.817)
+  and c4's FAIL (36/40, 0.786) on SR3 are each one episode from flipping; the
+  head drop is a blind spot of the stance gate, which passes c1 with its head
+  tip at 0.61 m, not a property of SR3; the fixture's "not a loss of gate
+  margin" is inferred (the window where only the CoP bar trips is one lean step
+  wide on both plants); and the heading report's index 38 is observation index
+  35. None of the checks tests whether a policy trained on SR3 avoids the
+  `tail_3` rail.
+
+### 25.4 Decision D-D44: T. rex physics r10, SR3
+
+At 04:55 UTC on 2026-10-25, after the CPU checks, the maintainer decided, as
+the run log has it in short: (1) approved: build the r10 pull request as SR3
+(the physics change `springref` 52.5, 25.9 and 10.4° on `tail_1`, `tail_2` and
+`tail_3` pitch; `physics_revision` 10; policy interface r15 kept), with no
+training, every r9-pinned constant and golden re-measured and adversarially
+checked, and no pull request opened until the maintainer asks; the first r10
+training round gets its own criteria for approval; (2) approved, a reward
+change for r10: `tail_home_pose`'s target re-centred on SR3's measured settled
+pose, its tolerance kept at 0.05 rad; (3) the heading-invariance test's
+fragility goes to its own test-only pull request now (the full-horizon traces
+test only: a closed-loop reward bound of 1e-6, the `METRIC_ATOL` precedent,
+and a float32-aware observation bound; the 250-step test keeps its tight
+bounds; no gate, physics or interface change).
+[BEHAVIOR_RECIPES_PLAN.md](../BEHAVIOR_RECIPES_PLAN.md) §6.2 records them, with
+the decisions of 01:33 and 02:18 UTC that led to them, as decision D-D44. The
+builds started at 04:59 UTC: the heading-test fix on the branch
+`claude/heading-test-float32-bounds` and r10 on `claude/physics-r10-sr3`, both
+off `main` at `3ffc18e9`, both scratch clones with their push URL disabled.
+
+### 25.5 The revision as built (`claude/physics-r10-sr3`)
+
+Three commits on `3ffc18e9` build it: `df321d50` (the MJCF's three
+`springref`s and comments, `configs/plant_versions.toml` note 20 and
+`physics_revision` 10, and the files the repository's tools regenerate: both
+plant manifests, the T. rex mirror map, the species catalog and the digest
+snapshot), `24d86f73` (the constants re-measured on the statue, with their
+provenance comments: `base_env.py`, the four stage TOMLs, `stages.toml` and
+`recovery_evaluation.py`) and `d597418a` (the tests and goldens re-pinned, the
+Phase C reset golden's two T. rex captures re-taken). This record's two
+commits follow (`24d9f917`, the evidence; `dac20f1b`, the records), then the
+branch review's corrections: `150bb1ce` (comments only, in the MJCF, note 20,
+`base_env.py`, the stance TOML and a test docstring: r9's settled tail had
+`tail_1` alone on its stop, r9's m·g·h, the tail backstop under
+`healthy_z_range` and the statue's spawn pop under
+`floor_impact_threshold_bw`; the MJCF's bytes move the T. rex
+`source_closure_sha256` and bundle digest, one golden line, already among the
+39 moved ones) and `7d48b0af` (the correction of these records). These are
+the ids after the maintainer had three of the commit messages reworded
+before the first push (12:08 UTC; every tree unchanged; §25.6). A follow-up
+commit then carries out the maintainer's decisions of 12:06 UTC in the tree
+and records them (§25.6), and one more makes its review's corrections
+(comments and records only). The env-built compiled
+model differs from r9's only in `qpos_spring` (0.91630, 0.45204 and 0.18151
+rad, 595 fields compared; `remeasure/env_model_diff.json`); the physics sha256
+moves from `3d68aec7…` to `6a47a0eb…`, the policy interface stays r15
+(`ffbf6631…`) and the visual layer r4 (`7042dcd5…`). Every value below was
+measured with the procedure that set it, each procedure first run on a
+`git archive` of `3ffc18e9`, where it gave r9's own figures
+(`remeasure/*_main_r9.*`: `forward_z` −0.02714, the settled leg pose bit for
+bit, the CoP golden, m·g·h 704.57 and the pushed statue's 1369.4 ± 519.6). The
+tail and neck targets, the m·g·h literal 704.4 and the recovery reference
+1329.1 are pins from before r9 that r9 carried, and r9 re-measures them within
+1.6e-4 rad, 0.02% and 0.5 standard errors. The zero-action references' r9
+figures are the gate worker's on `9f2355a3`
+(`cpucheck/gate/statue_reference.json`: stance 3755.72 ± 19.93 and locomotion
+1092.14 ± 5.74 over their 39 standing episodes, behavior 593.41 ± 187.19 over
+40), whose code is `3ffc18e9`'s (the two differ only in `docs/` and the
+CHANGELOG); `remeasure/` holds no r9 log of those three.
+`remeasure/remeasure_summary.json` has the table.
+
+| Constant | r9 → r10 | Procedure (file) |
+|---|---|---|
+| `_TAIL_SETTLED_QPOS` (`tail_home_pose`'s target, D-D44 (2)) | (−0.2107, 0, −0.2029, −0.0926) → (0.00002, 0, 0.00006, 0.00018) rad | the settled-pose test's helper: noise 0, seed 0, mean of steps 200–999; 40-seed sd at reset noise 0.05 at most 0.00027 rad (`settle_r10_final.json`) |
+| `_NECK_SETTLED_QPOS` | (0.21432, 0, 0.21963) → (0.21401, 0, 0.22054) rad | the same helper |
+| `_LEG_SETTLED_QPOS` | ankle +4.9 mrad, the largest move | stance config, zero action, seeds 3042–3051 (10/10 full horizon), steps 200–999, mirror-symmetrised (`legs_r10_final.json`); its largest deviation from the keyframe 2.74 → 2.60° |
+| `natural_pitch` | 0.027 → 0.017 | noise-free statue, mean `forward_z` over steps 200–999: −0.01666, asin 0.01666 rad (0.95°), three decimals |
+| stance `nosedive_termination_threshold` | 0.493 → 0.503 | sin(0.05) + 0.47 − sin(0.017); the absolute cut stays at `forward_z` −0.520 |
+| `target_z` | 0.9260 carries | pelvis 0.92613 m after 600 noise-free steps |
+| lateral m·g·h (test literal, MJCF comment) | 704.6 → 729.1 N·m/rad (the literal was 704.4, r8's figure at a 0.8377 m subtree CoM, which r9 carried) | the static-balance test's fixture, 600 steps: 704.57 at a subtree CoM of 0.8379 m on r9 (`mgh_main_r9.json`), 729.10 at 0.8670 m on r10 (`mgh_r10.json`); the hip-roll servos' 1280 is 1.76× (1.82×) |
+| stance statue reference, rail | 3756.8 → 3766.6; `min_avg_reward` 2250 → 2260 | `zero_action_baseline.py --stage 1`, 40 episodes from seed 3042: 3766.56 ± 16.21, 40/40, 3.8 standard errors over 3756.8; `stance_quality_baseline` agrees (3766.6 ± 16.2); rail 0.60 × 3766.6, nearest 10 |
+| recovery's pushed statue reference | 1329.1 → 1429.1 | `recovery_offdist_panel --controller statue --schedule on --safe-set provisional`, 40 episodes on 3042–3081: 1429.1 ± 470.1, 1.35 standard errors over 1329.1; ends nosedive 20, fallen 19, `tail_contact` 1 (r9 26, 0, 14); 51 of 70 shoves recovered (r9 44 of 69); the same command gives r9's 1369.4 ± 519.6 exactly on `3ffc18e9` |
+| locomotion statue reference | 1091.5 → 1092.6 | `--stage 2`: 1092.60 ± 5.35, 40/40, 1.3 standard errors |
+| behavior statue reference, rail | 602.0 and 361 carry | `--stage 3`: 600.93 ± 174.59, within one standard error |
+| `statue_constants_physics_revision` (four TOMLs) | 9 → 10 | — |
+| pad-CoP fixture's lean command | −0.0825 → −0.09 | the fixture's three episodes: at −0.0875 one row reads 0.806, under its 0.82 assertion; at −0.09 0.9998, 0.8294 and 0.9842, corner lift at most 3.74 mm; −0.095 trips the corner-lift bar (`cop_fixture_sweep_r10.json`) |
+| the statue's whole-foot CoP golden (seed 3042, 1000 steps) | right gate 0.13037 → 0.06238, left 0.04581 → 0.18206; the left foot now sets the metric | the test body (`cop_r10.json`); the test is renamed for r10 |
+| head tip in `head_clearance`'s comment | ~0.94 → ~0.96 m | noise-free statue, steps 200–999: 0.958 m (r9 0.945) |
+
+By the precedent's rule a move inside one standard error carries; the stance,
+recovery and locomotion references moved by more, so they and the stance rail
+moved (the stance `gate_sha256` digest line moves with the rail, which r9's
+revision did not). The MJCF's comments give the r10 settle (pitch 0.95°, the
+pelvis at 0.9261 m with `forward_z` −0.017) and m·g·h; its "CoM 3.7 mm behind
+the foot-contact centroid at home" is the keyframe's geometry and stays.
+
+The statue panels on the final tree (`remeasure/panels/`): the six-heading
+certificate passes, 40/40 seeds clean at every heading (bound 0.928), the
+rewards equal across headings to 4.2e-11; on the 280 seeds at 0°, 278 are
+clean (seed 9047 falls at step 273; seed 3121's worse pad tilts 2.087°, over
+the 2.0° bar, the next highest 1.88°), every floor-truth extreme equal to the
+gate worker's (§25.3 (b)). Every stance bar is kept, with the r10 statue's
+extremes added to each bar's comment in the stance TOML, the precedent's rule:
+
+| Bar | 3042–3081 | Out of sample (240 seeds) |
+|---|---|---|
+| Sole tilt (≤ 2.0°) | 1.60° | 2.087° (seed 3121) |
+| Corner lift (≤ 4 mm) | 2.6 mm | 3.4 mm |
+| Loaded sole contacts (≥ 1.5) | at least 2.0, median 2.84 | at least 2.0 |
+| Pad CoP fore-aft (≤ 0.80) | 0.322 | 0.404 |
+| Settle peak floor force (≤ 1.5 BW) | 1.207 BW | 1.337 BW |
+| Windowed load share (≥ 0.35) | 0.469 | 0.437 |
+| Window displacement (≤ 0.10 m) | 0.019 m | 0.057 m |
+| Settle stance-width change (≤ 0.08 m) | 0.0543 m | 0.0550 m |
+| Episode yaw change (≤ 25°) | 14.1° | 14.8° (seed 5061) |
+
+The certificate and the 280-seed panels were rolled under the final stance
+task (`533fff20…`) and the stance gate block as it stood before its rail moved
+to 2260 (gate digest `06375c21…`, r9's). The branch's review re-rolled the
+six-heading certificate under the final block (gate `d26c34e6…`, the rail
+2260; `remeasure/panels/stance_heading_report_final_gate.txt`): 40/40 at every
+heading, bound 0.928, the rewards equal across headings to 4.2e-11 (measured).
+The 280-seed panels were not re-rolled; the rail is a panel rail that no
+episode's classification reads and the statue's 3766.6 clears it, so their
+verdicts hold under the final block (inferred). The yaw bar's comment calls 25°
+twice the statue's largest, which r10's 14.8° makes 1.69×, and seed 3121's
+2.087° tilt is over the 2.0° bar as r9's 2.061° was; both bars are kept, as
+the precedent keeps every bar, and the maintainer kept both on 2026-10-25
+(§25.6).
+
+The digest snapshot (649 lines) moves 39 lines, all T. rex
+(`remeasure/digest_moved_lines.txt`): the plant's `physics_revision`,
+`physics_sha256` and `source_closure_sha256`; each of the four stages'
+`task_sha256` and `stage_config_view_sha256.PPO` and `.SAC`; the stance
+`gate_sha256`; the four reward stages' `summary`, `shape_sha256` and
+`rounded_values_sha256`; and the 11 behavior recipes' `task_sha256`. No policy
+line moves. The tests on the branch (the build's logs): the T. rex suite 161
+passed, the other species 359 passed, and one run of the shared and T. rex
+suites 6371 tests, 6179 passed, 1 skipped and 191 failed or errored, of which
+190 were stopped by the no-training guard (they train, so they are not
+results) and one is the expected heading case
+(`test_full_horizon_traces_repeat_at_every_heading[tyrannosaurus_rex-anatomical]`:
+rewards 5.08e-9 against 1e-9), which passes on `3ffc18e9`. That guard was an
+in-process pytest plugin and did not reach subprocesses: 4 of the 6179 passes,
+`test_curriculum_cli_end_to_end`'s, ran the real `train.py` in a subprocess and
+trained 64-step PPO curricula of other species (Dibothrosuchus elaphros and
+the Compsognathus longipes robot; two 32-step rollouts with one epoch each, in
+temporary directories), against the no-training rule; their outputs are only
+in the build's pytest temporary directory in session scratch, and no T. rex
+policy was touched. The branch's review re-ran the CI
+jobs with a guard that does reach subprocesses (a `sitecustomize` module on
+`PYTHONPATH`) and found no other failure (its logs are in session scratch
+only). With the heading fix's branch brought into a scratch copy, not this
+branch, the heading tests pass (24), at `d5dfc167` and at its later head
+`153b297a`. ruff and mypy are clean in the lint job's environment and in
+the full one.
+
+### 25.6 The maintainer's decisions on the branch (12:06 UTC)
+
+At 12:06 UTC on 2026-10-25, on the branch's final check (no blocking problem;
+two wording nits in comments) and the open items it listed, the maintainer
+decided, as the run log has it in short: (1) `healthy_z_range`'s 0.70 floor,
+`floor_impact_threshold_bw` 1.4, the 25° yaw bar and the 2.0° sole-tilt bar
+stay as they are, their comments updated only. The r10 facts the branch
+records for each (measured): in a level squat the floor, not the tail, is
+r10's backstop, `tail_3`, `tail_4` and `tail_5` sitting 0.13, 0.11 and
+0.075 m below a level pelvis against r9's 0.46, 0.55 and 0.60 m; the
+statue's spawn pop reaches 1.571, 1.588 and 1.797 BW and is charged 2.49,
+3.67 and 10.02 over the 40 episodes from each of seeds 3042, 7042 and 3162,
+nothing after step 10; 25° is 1.69× the r10 statue's largest yaw change
+(14.8°, seed 5061); and seed 3121's pad tilts 2.087° against the 2.0° bar, as
+r9's 2.061° did.
+(2) The MJCF's sensor-block comment, which still named the `mjx_config.py`
+registration deleted at note 18 and which note 18 deferred to "the next T-Rex
+physics revision", is fixed in this one. (3) The three commit messages that
+later commits corrected are reworded before the first push; at 12:08 UTC the
+seven commits were replayed on `3ffc18e9` with corrected messages, every tree
+byte-identical, and §25.5 gives the new ids. Four messages changed
+(measured, each pair's `git log --format=%B`): those of `df321d50`,
+`24d9f917` and `7d48b0af`, and that of `150bb1ce`, whose note on the first
+commit's message the reword made stale (the run log's entry of 12:08 UTC).
+(4) The pull request is to be opened now, with the heading-test fix's branch
+(`claude/heading-test-float32-bounds`, #642, head `153b297a`) merged in, a
+no-op once #642 is on `main` (inferred), and the `full-ci` label, and driven
+to green.
+
+A follow-up commit on the branch carries out (1) and (2) in the tree. The
+MJCF's sensor comment now names `TyrannosaurusRexEnv._cache_ids`
+(`base_env.py`), where the T. rex's foot sensor indices have lived since the
+registration was deleted (`git log -S` on `main`: `69734c07`, 2026-10-11),
+and the shared gyro, accelerometer and quaternion starts in
+`environments/shared/constants.py` that it inherits; it gives the touch
+sensors as 10–11 and 24–29, the compiled model's addresses (measured). Note
+20 says so, and note 18 is left as written. The MJCF's bytes move the T. rex
+`source_closure_sha256` and bundle digest once more (one golden line, already
+among the 39 moved against `main`); the physics (`6a47a0eb…`), policy-interface
+(`ffbf6631…`) and visual (`7042dcd5…`) digests do not move. The comments of
+the four values kept in (1) say that the maintainer kept them; two comments
+that still said r9's tail rested on its ventral "stops" now say `tail_1`
+alone was on its stop; and the `healthy_z_range` comment gives r9's and r10's
+measured tail heights above. The same commit records #641's landing (its row
+in the consolidation plan's status table and its two CHANGELOG entries), puts
+the new commit ids in this record and in `SOURCES.txt`, records these
+decisions in D-D44's row and the plans, and extends `results/run_log.txt` to
+the source's line 603. Nothing trained.
+
+### 25.7 What changes in §13–§24
+
+- **§13 and §24.8, certification:** no T. rex stance is certified, and the
+  two-seed ask stands, now on physics r10, where no T. rex stance has trained.
+  Every physics-r9 T. rex checkpoint is refused by the plant contract once r10
+  is on `main` and none can be widened: the walking-pilot parent
+  (`stance3_armLT_s60`'s final), every band run and every screen replicate
+  included. Walking pilot 2 can still run only on its r9 branch, and its result
+  would not carry to r10 (inferred).
+- **§21–§24, the tail habit:** on r10 the statue's tail rests level on its
+  springs, off its stops and off the rail. Whether a policy trained on r10
+  pins `tail_3` again is untested; r9 policies rolled zero-shot on r10 gave
+  no sign that r10 cures it, and zero-shot cannot predict a policy trained on
+  r10 (§25.3 (d)).
+  The first r10 training round gets its own criteria, for the maintainer's
+  approval, before anything trains; this record proposes none. On its panels,
+  check the backward falls (the r10 statue's one fall, seed 9047, is
+  backward), the pad tilt (seed 3121) and the head posture, which the stance
+  gate does not read.
+- **§14, this repository:** the folder `stance5/tail_sr3/` (106 files), with
+  its sources and sha256 in `SOURCES.txt` and `SHA256SUMS` (now 634 files).
+- **§14, branches:** `claude/physics-r10-sr3` (this record's branch; a scratch
+  clone of `3ffc18e9`, its push disabled while it was built; the maintainer
+  asked for its pull request on 2026-10-25, §25.6) and
+  `claude/heading-test-float32-bounds` (the heading-test fix, its
+  own pull request, #642, opened at 07:35 UTC with `d5dfc167` and `153b297a`;
+  its CI ran green at full depth on `153b297a`, on `main`'s r9 plant, the
+  full-horizon T. rex case included, in the run log's entry timed 08:21 UTC).
+  The full-horizon heading test runs only at CI's full depth, so it fails on
+  r10 there until that fix lands; landing the fix first, or with r10, avoids
+  it (inferred); by the maintainer's decision (4) of §25.6 the fix's branch
+  is to be merged into this one for the pull request.
+- **§14, Google Drive:** only read (§25.3); nothing new is on Drive.
+- **§14, session scratch:** the probe's MJCF copies, panels and trees, the CPU
+  checks' trees, code archives, per-episode files and per-step traces, the
+  fetched checkpoints and the r10 build's trees and test logs are in the second
+  session's scratch (`scratchpad2/tailround/` and `scratchpad2/prs/`) only.

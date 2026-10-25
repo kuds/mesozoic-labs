@@ -92,10 +92,10 @@ CALIBRATED_POSTURE_ONLY = {
 #: 0.0168 m tolerance itself.
 #:
 #: Both T. rex constants are stale since physics r8 (decision D-D24,
-#: 2026-10-06; the plant is r9 since D-D29): they were measured on the r7
-#: certified stance, which r8 retires.  They stay as written until the
-#: first r9 stance certifies under ``stance_quality/v2``; re-measure them
-#: on it with the §4 protocol, then re-freeze the gate resolution
+#: 2026-10-06; the plant is r9 since D-D29 and r10 since D-D44): they were
+#: measured on the r7 certified stance, which r8 retires.  They stay as
+#: written until the first r10 stance certifies under ``stance_quality/v2``;
+#: re-measure them on it with the §4 protocol, then re-freeze the gate resolution
 #: (``harnesses/freeze_recovery_gate.py``).
 CALIBRATED_HEIGHT_REFERENCE_M = 0.9267
 

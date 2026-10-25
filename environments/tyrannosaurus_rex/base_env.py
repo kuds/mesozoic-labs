@@ -145,39 +145,43 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
     # Settled tail pose for the tail_home_pose term, in tail_home_joint_names
     # order (tail_1_pitch, tail_1_yaw, tail_2_pitch, tail_3_pitch); see the
     # provenance comment in _cache_ids.
-    _TAIL_SETTLED_QPOS = (-0.2107, 0.0, -0.2029, -0.0926)
+    _TAIL_SETTLED_QPOS = (0.00002, 0.0, 0.00006, 0.00018)
     # Settled neck pose for the neck_posture term under
     # neck_posture_reference = "settled", in neck_home_joint_names order
     # (neck_pitch, neck_yaw, head_pitch); see the provenance comment in
     # _cache_ids.
-    _NECK_SETTLED_QPOS = (0.21432, 0.0, 0.21963)
+    _NECK_SETTLED_QPOS = (0.21401, 0.0, 0.22054)
     _NECK_POSTURE_REFERENCES = ("keyframe", "settled")
     # Settled leg pose for the leg_home_pose term under leg_home_pose_reference
     # = "settled", in leg_home_joint_names order (r_hip_pitch, r_hip_roll,
     # r_knee, r_ankle, l_hip_pitch, l_hip_roll, l_knee, l_ankle).  Measured on
-    # the physics-r9 plant as the zero-action statue's mean over the
+    # the physics-r10 plant as the zero-action statue's mean over the
     # post-settle window (steps 200-999) of the stance config, seeds 3042-3051
     # (all ten full-horizon), then mirror-symmetrised: each left-right pair
-    # replaced by its mean, hip roll sign-mapped (the raw pairs agreed to 5e-5
-    # rad).  Against the keyframe that is hip pitch -2.74, hip roll -/+0.42,
-    # knee -0.40 and ankle +1.67 degrees: the servos do not hold the keyframe
+    # replaced by its mean, hip roll sign-mapped (the raw pairs agreed to 8e-5
+    # rad).  Against the keyframe that is hip pitch -2.60, hip roll -/+0.39,
+    # knee -0.25 and ankle +1.95 degrees: the servos do not hold the keyframe
     # under load.  The statues ran at the stance config's reset_noise_scale
     # 0.05; the noise-free statue settles at hip roll 0.000 degrees with the
-    # other joints within 0.02 degrees of these, so the -/+0.42 degree hip-roll
+    # other joints within 0.02 degrees of these, so the -/+0.39 degree hip-roll
     # splay is the noise-averaged settle.  Centred on the keyframe, the term
     # paid a policy for pulling the hips and ankles back toward it, which leans
-    # the animal forward; centred here it does not.
+    # the animal forward; centred here it does not.  First measured on physics
+    # r9 (-0.0931906, -/+0.0073721, -0.4397564, 1.3713665; hip pitch -2.74,
+    # hip roll -/+0.42, knee -0.40, ankle +1.67 degrees); re-measured the same
+    # way on r10 (plant_versions note 20, D-D44), whose level tail moves the
+    # ankle most (+4.9 mrad).
     # Re-measure whenever leg masses, springs, gains or the feet change (any
     # plant revision; test_the_settled_leg_pose_is_the_statues checks it).
     _LEG_SETTLED_QPOS = (
-        -0.0931906447971345,
-        -0.0073721451044150895,
-        -0.43975640189259646,
-        1.3713665366344738,
-        -0.0931906447971345,
-        0.0073721451044150895,
-        -0.43975640189259646,
-        1.3713665366344738,
+        -0.09084374343772902,
+        -0.006823512801851125,
+        -0.43726937988410725,
+        1.3762339038992937,
+        -0.09084374343772902,
+        0.006823512801851125,
+        -0.43726937988410725,
+        1.3762339038992937,
     )
     _LEG_HOME_POSE_REFERENCES = ("keyframe", "settled")
     #: Opt-in task options carved out of the task fingerprint and of the
@@ -221,7 +225,7 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         bite_head_proximity_weight: float = 0.0,
         posture_weight: float = 0.2,
         nosedive_weight: float = 0.0,
-        natural_pitch: float = 0.027,
+        natural_pitch: float = 0.017,
         height_weight: float = 0.0,
         height_target_tolerance: float = 0.0,
         gait_symmetry_weight: float = 0.0,
@@ -287,8 +291,22 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         #     termination geoms and the tail reaches the floor at a pelvis
         #     height of ~0.55-0.57 in a level squat, so the plant is already
         #     lying down below that.  The tail's pose is fixed relative to the
-        #     pelvis and does not move with the legs, so that figure is
-        #     unchanged and 0.70 still clears it by ~0.13.
+        #     pelvis and does not move with the legs, so the stance change
+        #     left that figure unchanged (0.70 cleared it by ~0.13).  A
+        #     kinematic scan of 2026-10-25 (level pelvis, home-keyframe legs,
+        #     the settled tail pitches) re-measures it on the settled tail and
+        #     supersedes both figures: on physics r9, whose settled tail
+        #     drooped, the lowest points of tail_3/4/5 sit 0.46 / 0.55 /
+        #     0.60 m below the pelvis, so r9's tail first reaches the floor
+        #     at a pelvis height of about 0.60, which 0.70 clears by about
+        #     0.10.  Physics r10 (plant_versions note 20, D-D44) preloads the
+        #     tail pitch springs and the settled tail is level: 0.13 / 0.11 /
+        #     0.075 m below the pelvis, so in a level squat tail_3/4/5 reach
+        #     the floor only at a pelvis height of about 0.13, and this floor,
+        #     not the tail, is the backstop on r10 (the pushed recovery
+        #     statue's 40 ends: tail_contact 14 -> 1, fallen 0 -> 19).  The
+        #     bound itself is unchanged (the maintainer kept 0.70 on
+        #     2026-10-25).
         #   * Healthy full-horizon episodes bottomed out 0.134 m above the
         #     floor (0.884 against 0.75).  0.834 against 0.70 is the same
         #     margin under a stance that sits 0.0497 lower.
@@ -444,15 +462,20 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         # whenever an env swaps its compiled model.
         self._leg_home_settled_qpos = np.array(self._LEG_SETTLED_QPOS)
 
-        # Natural forward pitch (~1.55°), measured: the pelvis frame at the home
+        # Natural forward pitch (~0.95°), measured: the pelvis frame at the home
         # keyframe is level, and under the home controller the plant settles at
-        # forward_z ≈ -0.027.  The nosedive penalty and termination are measured
+        # forward_z ≈ -0.017.  The nosedive penalty and termination are measured
         # relative to that neutral pose.  The former 0.17 rad (9.7°) described
         # the torso capsule's built-in slope, not the pelvis frame the reward
         # actually reads, so it granted ~7 deg of unpenalized nose-down pitch.
         # The theropod stance halved the residual: a flexed limb settles closer
-        # to its commanded pose than a columnar one does, so the plant now
-        # settles 1.55° nose-down where the columnar stance settled 2.9°.
+        # to its commanded pose than a columnar one does, so the plant settled
+        # 1.55° nose-down where the columnar stance settled 2.9° (0.027 through
+        # physics r9).  Physics r10 (plant_versions note 20, D-D44) preloads
+        # the tail pitch springs, so the tail holds level instead of drooping
+        # with tail_1 on its ventral stop, and the plant settles 0.95°
+        # nose-down: the noise-free statue's mean forward_z over steps
+        # 200-999 is -0.01666 (r9 -0.02714), asin 0.01666 rad, so 0.017.
         # nosedive_termination_threshold in configs/tyrannosaurus_rex/anatomical/stance.toml is
         # calibrated against this number and moved with it.
         # Unlike the raptor, the T-Rex posture reward stays centred on world
@@ -624,21 +647,38 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         # neck_yaw 0.0, head_pitch 0.21963 rad.  The 40-seed window means at
         # reset noise 0.05 are 0.21438 / -0.00002 / 0.21955 (sd <= 0.0002),
         # and the long-run equilibrium is 0.21424 / 0.21957.  The r8 hip-roll
-        # servo revision did not move it: r7's 40-seed means agree to 1e-4.
+        # servo revision did not move it: r7's 40-seed means agree to 1e-4,
+        # and r9 carried it (0.21431 / 0.21968).  Re-measured on physics r10
+        # (plant_versions note 20: the level tail moves the settled pitch) the
+        # same way (seed 0, steps 200-999): 0.21401 / 0.0 / 0.22054 rad, the
+        # target since.  Its 40-seed window means (the stance config, seeds
+        # 3042-3081, reset noise 0.05) are 0.21407 / -0.00001 / 0.22066 (sd
+        # <= 0.00015), and a 5000-step noise-free roll ends (steps 4000-4999)
+        # at 0.21401 / 0.22052.
         # Re-measure whenever neck or head masses, springs, or gains change.
         if self.neck_posture_reference == "settled":
             self._neck_home_qpos = np.array(self._NECK_SETTLED_QPOS)
         else:
             self._neck_home_qpos = home_qpos[self._neck_home_qpos_indices].copy()
-        # Statue-derived, NOT the keyframe: the passive tail cannot hold the
-        # authored zeros against gravity -- under the home controller it
-        # settles onto its ventral stops (tail_1/tail_2 pitch at
-        # -0.2107/-0.2029 rad against the -0.2094 stop, tail_3 at -0.0926)
-        # with sub-milliradian spread across 40 seeds at reset noise 0.05.
-        # Pricing the keyframe would cap the ideal statue at ~0.25 quality,
-        # so the term targets the settled droop instead (the precedent is the
-        # 0.9260 m settled height target in _get_reward_info).  Re-measure
-        # whenever tail masses, springs, or gains change.
+        # Statue-derived: the noise-free statue's post-settle tail pose (seed
+        # 0, steps 200-999, as TestSettledPoseTargetsTrackTheStatue measures
+        # it; the precedent is the 0.9260 m settled height target in
+        # _get_reward_info).  Through physics r9 the passive tail could not
+        # hold the authored zeros against gravity: under the home controller
+        # it drooped with tail_1 pitch on its ventral stop (tail_1/tail_2
+        # pitch at -0.2107/-0.2029 rad against the -0.2094 stop, so tail_2
+        # just above its own, tail_3 at -0.0926) with sub-milliradian spread
+        # across 40 seeds at reset noise 0.05, and the term targeted that
+        # droop, since pricing the keyframe would have capped the ideal
+        # statue at ~0.25 quality.  Physics r10
+        # (plant_versions note 20, D-D44) preloads the three tail pitch
+        # springs (springref 52.5 / 25.9 / 10.4 deg), and the statue now
+        # settles at the keyframe zeros: 0.00002 / 0.0 / 0.00006 / 0.00018
+        # rad, the target since (D-D44 re-centred it; the stance tolerance
+        # stays 0.05 rad).  Its 40-seed window means (the stance config, seeds
+        # 3042-3081, reset noise 0.05) are 0.00016 / 0.00003 / 0.00014 /
+        # 0.00022 (sd <= 0.0003).  Re-measure whenever tail masses, springs,
+        # or gains change.
         self._tail_home_qpos = np.array(self._TAIL_SETTLED_QPOS)
 
         # Sole flatness reads the plantar boxes' own frames: each box's local
@@ -1011,7 +1051,8 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         min_z = self.healthy_z_range[0]
         # Settled pelvis height under the home controller, measured (zero action,
         # zero reset noise, 600 steps: 0.9260 m, sd 0.00001, on physics r8; 0.9262
-        # on r9, which carries it: plant_versions note 16).  This must track the
+        # on r9, which carries it: plant_versions note 16; 0.9261 on r10, which
+        # carries it too: note 20).  This must track the
         # plant: the previous 0.90 was the root height of the PRE-repair plant,
         # and after the July home-equilibrium fix raised the stance to 0.9757 the
         # term saturated at 1.0 everywhere in the healthy band -- a flat constant

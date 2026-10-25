@@ -1,0 +1,98 @@
+[
+ {
+  "id": "F1",
+  "claim": "The harness reproduces recorded r9 measurements exactly. c8 and c7 (20 deterministic episodes, seeds 3042-3061) match their panels.csv 'final' rows bit-for-bit (cmd, frac99, q3_window_mean, falls, return_mean) and every per-episode value in flags.csv. c1 matches its certificate's 0 deg cell: 40/40 clean, LCB 0.9278, mean reward 4363.7755248230615 exactly, statue 39/40 with seed 3081 falling and statue mean reward 4459.404429297972, and all 10 per-criterion medians and worsts agree to 4 significant figures.",
+  "label": "measured",
+  "source": "ZS/validation.txt, ZS/validation.json"
+ },
+ {
+  "id": "F2",
+  "claim": "The SR3 compiled model differs from both arms' r9 model only in qpos_spring of tail_1/2/3_pitch (0 -> 52.5/25.9/10.4 deg; 593 fields checked). On the SR3 env, validate_environment_plant reports only a physics_sha256 mismatch; policy_interface_sha256 and every dimension are equal.",
+  "label": "measured",
+  "source": "ZS/plants/cmp_cf80ecb1_r9_vs_sr3.json, ZS/plants/cmp_1af2d4d7_r9_vs_sr3.json, ZS/panels/*_sr3_*/panel.json summary.plant_check"
+ },
+ {
+  "id": "F3",
+  "claim": "Nothing in the observation reads _TAIL_SETTLED_QPOS, natural_pitch, qpos_spring or any other settled or keyframe constant. The observation is the state plus sensors. At the same reset state, r9 and SR3 observations differ only in the accelerometer and right-foot touch channels (51-54), which carry the spring torque through the physics. Both envs keep the r9 tail target (-0.2107, 0, -0.2029, -0.0926).",
+  "label": "measured",
+  "source": "ZS/logs/obs_check_cf80ecb1.json, ZS/logs/obs_check_1af2d4d7.json"
+ },
+ {
+  "id": "F4",
+  "claim": "All 8 r9 policies stay up zero-shot on SR3: 320/320 deterministic and 320/320 stochastic episodes reach the 1000-step horizon, the same as on r9 (McNemar p=1 for every checkpoint).",
+  "label": "measured",
+  "source": "ZS/summary.csv, ZS/paired_tests.csv"
+ },
+ {
+  "id": "F5",
+  "claim": "Gate-clean episodes drop on SR3: deterministic 293/320 -> 229/320 (lost 88, gained 24) and stochastic 246 -> 179 (lost 99, gained 32). c3 and c5 go from 40/40 to 0/40 clean (p=1.8e-12 each). c4 improves from 16 to 36 deterministic (p=1.1e-5) and from 4 to 35 stochastic (p=9.3e-10). c7 stochastic drops from 40 to 26 (p=1.2e-4). c1, c2, c6, c8 deterministic changes are not significant (0-3 discordant pairs). The panel-level v2 verdict on SR3 deterministic is PASS for c1, c2, c6, c7, c8 and FAIL for c3, c4 (LCB 0.786), c5.",
+  "label": "measured",
+  "source": "ZS/paired_tests.csv, ZS/pooled.json, ZS/summary.csv"
+ },
+ {
+  "id": "F6",
+  "claim": "Saturation moves on SR3 rather than disappearing. c5 (tail_3 cmd 0.60, no rail on r9) pins tail_3 at +1 for 100% of window steps in all 40 deterministic episodes, from a median of step 17. c3 pins tail_2_pitch_act at +1 for the whole window in all 40 episodes. c4, the r9 tail_3 rail case (24/40 tail-up, frac99 0.465), shows no tail-up episodes on SR3 (cmd 0.327). c8 keeps a near-rail command (0.870 deterministic; stochastic frac99 0.193 vs 0.197 on r9). c7 rises from 0.645 to 0.778, with 13/40 stochastic tail-up episodes on SR3 against 0 on r9.",
+  "label": "measured",
+  "source": "ZS/summary.csv, ZS/rail_breakdown.csv, ZS/panels/c5_sr3_det/series.npz"
+ },
+ {
+  "id": "F7",
+  "claim": "Tail posture on SR3: the distal chord (tail_3 joint to tip) sits above horizontal for 7 of 8 checkpoints, +0.33 to +6.78 deg; c2 is at -2.91 deg. On r9 it is -19.40 to -25.74 deg, so the paired change is +21.6 to +28.6 deg. With tail_3 at +1 (c5), q3 is +5.17 deg and the distal chord +4.90 deg. tail_1 leaves its ventral stop: q1 is -1.0 to -4.8 deg on SR3 against -12.07 deg on r9. The SR3 statue's distal chord is +3.24 deg.",
+  "label": "measured",
+  "source": "ZS/summary.csv"
+ },
+ {
+  "id": "F8",
+  "claim": "Every policy commands tail_1 downward on SR3 (window mean -0.16 to -0.73, against +0.02 to +0.19 on r9). c1 is the most negative at -0.734. The policies push the tail toward the r9 droop they were trained on.",
+  "label": "measured",
+  "source": "ZS/summary.csv (tail1_cmd)"
+ },
+ {
+  "id": "F9",
+  "claim": "On SR3 the CoM moves rearward in 7 of 8 checkpoints. Paired deterministic means: c5 -32.5, c6 -19.1, c4 -17.7, c7 -9.2, c3 -9.1, c2 -6.4, c8 -2.9 mm; c1 +0.2\u00b12.0 mm. The statue moves -16.1 -> -27.3 mm. Pelvis pitch changes by -0.85 to +0.21 deg, except c1 at +1.88 deg nose-down.",
+  "label": "measured",
+  "source": "ZS/paired_tests.csv, ZS/summary.csv"
+ },
+ {
+  "id": "F10",
+  "claim": "Fall direction cannot be compared for the policies: no policy episode fell on either plant in either mode. The only fall in the study is the r9 statue's forward nosedive on seed 3081 (both code copies); the SR3 statue is 40/40.",
+  "label": "measured",
+  "source": "ZS/summary.csv, ZS/per_episode.csv"
+ },
+ {
+  "id": "F11",
+  "claim": "The walking parent c1 and c2 drop their heads on SR3. c1: head-tip height 1.241 -> 0.613 m, neck pitch -2.2 -> +32.9 deg, head pitch 0.1 -> 33.0 deg. c2: 1.082 -> 0.671 m, neck pitch 3.4 -> 35.7 deg. Head clearance quality goes from about 1 to 0, costing -338 and -323 reward per episode. c4 and c8 hold or raise their heads.",
+  "label": "measured",
+  "source": "ZS/head_neck.csv, ZS/reward_components.csv"
+ },
+ {
+  "id": "F12",
+  "claim": "On SR3 the tail joint position observations sit far outside the r9 VecNormalize statistics: mean window z-score +5.0 to +8.0 for tail_1, +4.5 to +7.3 for tail_2 and +1.4 to +5.6 for tail_3, against within \u00b11.5 on r9. No observation channel reaches clip 10.",
+  "label": "measured",
+  "source": "ZS/summary.csv (obsz_tail1/2/3, obs_share_steps_any_clipped)"
+ },
+ {
+  "id": "F13",
+  "claim": "Sole tilt worsens on SR3. The worst max_sole_tilt_deg per panel is 1.94-3.36 deg (r9: 0.92-1.62), the paired median rise is +0.10 to +1.04 deg, and 23 deterministic SR3 episodes across 7 checkpoints fail max_sole_tilt_deg (r9: 0).",
+  "label": "measured",
+  "source": "ZS/gate_metrics.csv, ZS/rail_breakdown.csv"
+ },
+ {
+  "id": "F14",
+  "claim": "Return falls by 139-578 per episode on SR3. tail_home_pose accounts for -122 to -171 on every checkpoint, because its target is still the r9 droop (window quality about 0.25 on SR3). leg_home_pose adds -18 to -189, and head_clearance adds about -330 for c1 and c2. The statue loses about 171 (4456.3 -> 4285.3).",
+  "label": "measured",
+  "source": "ZS/reward_components.csv, ZS/summary.csv"
+ },
+ {
+  "id": "F15",
+  "claim": "Zero-shot transfer does not settle the r10 tail_3 question. Policies trained on r9 see an out-of-distribution tail state on SR3 (F12) and respond in ways specific to each checkpoint: one rail goes away (c4), new rails appear (c5 on tail_3, c3 on tail_2), and some drop their heads (c1, c2). Whether a policy trained on SR3 would develop a tail_3 rail is untested; a policy that did would point the tail above horizontal (c5: distal chord +4.9 deg).",
+  "label": "inferred",
+  "source": "F6, F7, F11, F12"
+ },
+ {
+  "id": "F16",
+  "claim": "Balance is not the limiting factor zero-shot: despite the rearward CoM shift (up to 32.5 mm) there were no falls and no backward tipping in 640 SR3 episodes. The new SR3 failures are saturation and sole tilt or corner lift, not horizon failures.",
+  "label": "inferred",
+  "source": "F4, F9, F10, F13"
+ }
+]

@@ -1,0 +1,117 @@
+Base dir B = scratchpad2/tailround/r10cpu/heading/ . All paths below are relative to B. Torch ran at 1 thread (OMP_NUM_THREADS=1) unless a row says t4 (4 threads).
+
+### Trees
+| check | result | source |
+|---|---|---|
+| om_r9 vs main_clone 9f2355a3, whole tree | identical (no file differs) | `diff -rq`, recorded in this session |
+| om_sr3rc vs main_clone | differs only in `tyrannosaurus_rex_anatomical.xml` (springref 52.5/25.9/10.4 on tail_1/2/3_pitch) and `base_env.py` (`_TAIL_SETTLED_QPOS` (0.00013, 0.0, 0.00014, 0.00023) instead of (-0.2107, 0.0, -0.2029, -0.0926)). No manifest file differs. | same |
+| trees used | trees/r9 = git archive 9f2355a3; trees/sr3 = trees/r9 plus those two files | trees/ |
+
+### The actual test (pytest, T. rex only, 1 thread)
+| tree | traces test | floor-truth metrics test | assert dict | source |
+|---|---|---|---|---|
+| SR3 | FAIL at `rewards <= REWARD_ATOL` | pass | actions 1.3504e-08, joints 6.5557e-08, rewards 5.0758e-09, obs 3.0518e-05 | logs/pytest_sr3.log |
+| r9 | pass | pass | - | logs/pytest_r9.log |
+
+The assertion that trips is rewards ≤ 1e-9. The joint bound is CLOSED_LOOP_STATE_ATOL = 1e-6, not 1e-9. The probe brief's line "joints differed by 7.2e-8 against a 1e-9 bound" names the wrong bound (source: `heading_free_helpers.py` lines 123-127).
+
+### Q1: the test's own check over seeds 3042-3061 (100 heading pairs per tree)
+| tree | seeds failing | pairs failing | pairs > ACTION 1e-6 | > JOINT 1e-6 | > REWARD 1e-9 | > OBS 1e-5 | pairs with any action diff | max action | max joints | max reward | max obs | source |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| r9 | 7/20 (3047, 3048, 3051, 3056, 3057, 3060, 3061) | 20 | 0 | 0 | 20 | 20 | 20 | 1.63e-08 | 6.93e-08 | 2.09e-08 | 3.05e-05 | out/q1_summary.json |
+| SR3 | 6/20 (3042, 3043, 3051, 3052, 3057, 3058) | 16 | 0 | 0 | 16 | 16 | 17 | 1.35e-08 | 6.56e-08 | 5.08e-09 | 3.05e-05 | out/q1_summary.json |
+
+**Pairs with no action difference** (80 on r9, 83 on SR3):
+
+| tree | max joints | max reward | max obs |
+|---|---|---|---|
+| r9 | 2.75e-13 | 5.87e-13 | 1.86e-09 |
+| SR3 | 2.69e-13 | 4.02e-13 | 4.66e-10 |
+
+Source: out/q1_summary.json.
+
+- No pair without an action difference fails. Every r9 pair with an action difference fails; on SR3 one does not (seed 3061 at -45, first action difference at step 876).
+- Every observation exceedance is element 54 or 55: the r/l foot force, about 400-700 N. One float32 ulp there is 3.05e-5 in [256, 512) N and 6.1e-5 in [512, 1024) N (logs/stats.log).
+- Fisher exact test, failing seeds 7/20 vs 6/20: p = 1.0. Failing pairs 20/100 vs 16/100: p = 0.58 (logs/stats.log).
+- Chance that two seeds both pass, from the measured per-seed rate: r9 0.42, SR3 0.49 (logs/stats.log).
+
+| rates before the first action difference (out/q1_straddle_rates.json) | r9 | SR3 |
+|---|---|---|
+| steps with a float32 observation difference, per 1000 steps | 62.6 | 93.8 |
+| action differences per such step | 0.0036 | 0.0019 |
+| action differences per 1000 steps | 0.23 | 0.18 |
+| largest joint diff before the first action difference | 2.75e-13 | 2.69e-13 |
+| joint diff after it (range over pairs) | 1.1e-08..6.9e-08 | 1.8e-11..6.6e-08 |
+
+**Torch thread count:** out/q1_sr3_t4_3042_3044.json, out/q1_r9_t4_3042_3044.json.
+- SR3 at 4 threads, seeds 3042-3043, worst values: actions 1.4435499906539917e-08, joints 4.754853485496377e-08, rewards 1.3421945332936502e-08, obs 3.0517578125e-05. These equal the earlier pytest log (r10probe/skeptic/head_om_sr3rc.log) bit for bit.
+- Failing headings for seed 3042: -45 and 90 at 4 threads, versus all five rotated headings at 1 thread.
+- r9 passes seeds 3042-3043 under both thread counts.
+
+### Q2: where the divergence starts (SR3 seed 3042; source out/q2_sr3_3042_analysis.json and out/q2_funnel.json)
+The float64 copy of `_get_obs`, cast to float32, matched the observation the env returned at every step: 0 mismatches over 6 x 1000 steps (logs/q2_record.log).
+
+| quantity | value | source |
+|---|---|---|
+| float64 noise in the first 50 steps (+45 deg vs 0) | joints ≤1.0e-13, de-rotated root ≤5.2e-14, float64 obs ≤4.8e-11 abs, reward ≤3.1e-13 | out/q2_sr3_3042_analysis.json |
+| float64 joint diff before the first action difference (per-100-step maxima) | flat at 9.4e-14..2.4e-13; no growth | same |
+| largest float64 obs diff before the first action difference | 1.1e-10..1.6e-10 abs on a foot force of 486-702 N (1.6e-13..3.2e-13 relative) | out/q2_funnel.json |
+| first float32 obs difference | step 197-211, toe joint velocities, 1 ulp; action unchanged | out/q2_sr3_3042_analysis.json |
+| float32 obs differences before the first action difference (+45 deg) | 49 steps, then 2 steps with a different float32 network input (normalize_obs casts to float32 again), then 1 step with a different action | out/q2_funnel.json |
+| first action difference (±45, 90, 180) | step 759; 7 action elements, up to 9.3e-10 (1-2 ulp for actions near 0.006) | out/q2_sr3_3042_analysis.json |
+| the one float32 obs element differing at step 759 | l_hip_pitch:qvel (index 38) | same |
+| its float64 values | heading 0: 1.9833433182177767e-04; +45 deg: 1.983343317583627e-04 | same |
+| float32 rounding boundary between them | 1.9833433179883286e-04 (1 ulp = 1.455e-11) | same |
+| distance from the boundary | heading 0: +2.29e-14; +45: -4.05e-14; -45: -6.76e-14; 90: -5.82e-14; 180: -3.48e-14. They straddle it. | same |
+| joint diff at step 759, then 760, then 809 | 9.8e-14, then 2.15e-09, then 1.45e-08 max | same |
+| reward first > 1e-9 / obs first > 1e-5 | step 762 / step 766 (r_foot_force 418.47 N, diff 3.0517578125e-05 = 1 ulp) | out/q1_sr3_3042_3062.json |
+| -90 deg pair | first action difference at step 689 from r_toe_d4_joint:qvel. Heading 0 is 9.06e-14 below the boundary, -90 deg is 2.3e-15 above it; joint diff 1.18e-13 at that step | out/q2_sr3_3042_analysis.json |
+| r9 seed 3042, all five pairs | 56-82 steps with a float32 obs difference, 0 network-input differences, 0 action differences | out/q2_funnel.json |
+| r9 seed 3048, ±45 and 90 | same mechanism: step 246, head_pitch:qvel straddles (heading 0 is 8.2e-14 below the boundary); reward first > 1e-9 at step 261 | out/q2_r9_3048_analysis.json |
+
+All four rotated headings that differ at step 759 sit on the same side of the boundary, opposite heading 0. Heading 0 is the only heading where the rotation is exactly the identity; that is a plausible cause, not tested [inferred].
+
+**World-yaw audit**
+- State dump at heading 0 vs 45 (out/audit_state_sr3_3042.json, out/audit_state_r9_3042.json):
+  - After the spawn yaw, the only env attribute that differs is `_initial_prey_dir_2d`, which the harness turns on purpose.
+  - After one step, `_prev_pos_2d` also differs. It is world xy, used only inside a norm (distance travelled).
+  - `qacc_warmstart` is 0 after reset at both headings: reset runs no physics step.
+- Code read:
+  - The observation's root blocks come from the free root's quaternion (heading_observation.py). Gyro and accelerometer read in their own site frame; foot forces are scalars.
+  - Reward terms: tilt, forward_z and posture come from the world quaternion through functions that do not depend on yaw. Drift and stance width are norms; the CoM lateral offset is in the heading frame; forward velocity is measured against the turned prey reference.
+- Zero-action heading-45 pairs over 1000 steps: qpos ≤5.4e-15, reward ≤4.6e-13 on both trees (out/q3_tables.json).
+
+### Q3: 1e-12 initial perturbation at heading 0 (seeds 3042, 3043, 3047, 3048; control step 0.01 s)
+Source for all rows: out/q3_tables.json, out/q3_summary.csv, out/q3_summary_b.csv; per-50-step log10 curves in out/q3_envelope_log10*.csv.
+
+| case, zero action | r9 decay (decades per 100 steps) | SR3 decay | r9 residual, steps 400-499 | SR3 residual, steps 400-499 |
+|---|---|---|---|---|
+| tail_1_pitch +1e-12 | -0.14, -0.15, -0.14, -0.15 | -0.17, -0.16, -0.15, -0.15 | 1.4e-14..1.8e-14 | 1.5e-14..2.0e-14 |
+| tail_1_pitch -1e-12 | -0.14..-0.15 | -0.14..-0.16 | 1.4e-14..2.0e-14 | 1.3e-14..1.8e-14 |
+| tail_3_pitch +1e-12 | -0.11..-0.15 | -0.10..-0.14 | 4.9e-15..6.2e-15 | 4.9e-15..6.7e-15 |
+| r_knee ±1e-12 | -0.12..-0.17 | -0.11..-0.18 | 4.8e-14..1.8e-13 | 4.4e-14..1.3e-13 |
+| heading 45 (rotation noise) | about 0 | about 0 | ≤4.9e-15 | ≤4.4e-15 |
+
+- About -0.15 decades per 100 steps is an e-fold time of about 2.9 s (logs/stats.log).
+- The slopes are fitted over a curve that bottoms out at the float64 floor (about 3e-15), so they understate the early decay. The method is the same on both trees.
+
+| test policy | runs with any action difference | by seed | qpos diff after the first action difference |
+|---|---|---|---|
+| r9 | 10/24 | 3042: 1/6, 3043: 2/6, 3047: 5/6, 3048: 2/6 | saturates at 6.2e-10..1.7e-9 (both trees); no exponential growth |
+| SR3 | 16/24 | 3042: 6/6, 3043: 6/6, 3047: 1/6, 3048: 3/6 | same |
+
+- Fisher exact test, 10/24 vs 16/24: p = 0.147 (logs/stats.log).
+- Which runs get an action difference depends on the seed: on the seeds where a tree fails the heading test, a 1e-12 nudge also changes the action there.
+
+### Q4: fix options (none applied; the repo is unchanged)
+| option | what changes | gate | policy interface | physics | r9 behaviour |
+|---|---|---|---|---|---|
+| A. Add a closed-loop reward bound (e.g. 1e-6, the METRIC_ATOL precedent) and make the observation bound float32-aware (atol 1e-5 + rtol about 1e-6, or ≤2 float32 ulps per element). Use them only in the full-horizon traces test; keep `assert_paired`'s defaults for the 250-step test. | test files (`heading_free_helpers.py`, `test_heading_free_rollouts.py`) | no | no | no | trajectories unchanged; r9's 7 latent failing seeds of 20 would pass too. Worst measured values (actions 1.6e-8, joints 6.9e-8, rewards 2.1e-8, obs 3.05e-5 on a foot force of at least 256 N) all pass [inferred from out/q1_summary.json]. A heading leak, which moves the observation by O(1) from step 1, would still fail. |
+| B. Two-phase check: tight float64 bounds up to the first action difference, closed-loop bounds plus a no-growth check after it | test only | no | no | no | unchanged |
+| C. Open-loop replay: drive every heading with heading 0's actions and compare at float64 tolerance; check the policy's actions on paired observations separately, with no feedback | test only | no | no | no | unchanged |
+| D. Call `torch.set_num_threads` in the test | test only; makes runs reproducible, does not remove action differences (r9 still fails 7/20 seeds at 1 thread) | no | no | no | unchanged |
+| E. Pick other seeds | test only; not recommended: which pairs fail depends on the torch thread count and on any future change to physics or policy | no | no | no | unchanged |
+| F. Float64 observation path | policy interface revision (observation dtype and plant-contract digest). SB3 `normalize_obs` casts to float32 again and the MLP is float32, so the rounding points stay [inferred] | no | yes | no | trajectories change bitwise |
+| G. Physics change (e.g. more tail damping) | physics revision; not supported: r9 fails at the same rate and decays at the same rate | possibly | no | yes | changes |
+
+No gate change is needed. The companion floor-truth metric test (METRIC_ATOL 1e-6) passes on SR3 (logs/pytest_sr3.log).

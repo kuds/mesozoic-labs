@@ -1,0 +1,22 @@
+F.F                                                                      [100%]
+=================================== FAILURES ===================================
+_ TestThePadCentreOfPressure.test_a_pad_pushed_onto_its_front_edge_fails_the_bar_alone_and_the_statue_reads_under_it _
+environments/shared/tests/test_stance_gate_v2_report.py:490: in test_a_pad_pushed_onto_its_front_edge_fails_the_bar_alone_and_the_statue_reads_under_it
+    _record_stage(tmp_path, config, model_id=TYRANNOSAURUS_REX)
+environments/shared/tests/test_stance_gate_v2_report.py:110: in _record_stage
+    identity = current_plant_identity(model_id)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+environments/shared/plant_contract/manifest.py:490: in current_plant_identity
+    raise PlantContractError(
+E   environments.shared.plant_contract.errors.PlantContractError: generated plant manifest is stale for tyrannosaurus_rex/anatomical; run the plant-contract check before training
+______________ test_the_physics_r9_statue_whole_foot_cop_reading _______________
+environments/shared/tests/test_gait_recorder.py:688: in test_the_physics_r9_statue_whole_foot_cop_reading
+    assert pads["r_foot_cop_fore_aft_gate"] == pytest.approx(0.1303721171614448, abs=1e-6)
+E   assert 0.06238254546319513 == 0.1303721171614448 ± 1.0e-06
+E
+E     comparison failed
+E     Obtained: 0.06238254546319513
+E     Expected: 0.1303721171614448 ± 1.0e-06
+=========================== short test summary info ============================
+FAILED environments/shared/tests/test_stance_gate_v2_report.py::TestThePadCentreOfPressure::test_a_pad_pushed_onto_its_front_edge_fails_the_bar_alone_and_the_statue_reads_under_it
+FAILED environments/shared/tests/test_gait_recorder.py::test_the_physics_r9_statue_whole_foot_cop_reading

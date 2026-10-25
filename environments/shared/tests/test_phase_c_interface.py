@@ -28,7 +28,10 @@ contract code:
   interface r14, compsognathus r4), an interface-only revision: the reset,
   second-reset and trajectory halves re-took byte-identical and only the
   observation half moved, and each record names the policy interface and
-  observation schema it was taken under.
+  observation schema it was taken under.  The trex captures were re-taken
+  again for physics r10 (note 20, D-D44: the tail pitch springs preloaded):
+  their reset halves were unchanged again, and only their observation and
+  trajectory halves moved.
 * The command hook itself is pinned directly: under ``command_mode =
   "none"`` it touches ``np_random`` not at all, and it runs after every
   reset draw (the push schedule included) and before ``_get_obs``.
@@ -186,10 +189,11 @@ def test_golden_fixture_records_its_provenance():
 #: re-taken on, and the policy interface and observation schema its observation half was taken under (the last
 #: recapture, plant_versions note 18's heading-free observation, an interface-only revision).  Re-pinned 14, 14,
 #: 4 -> 15, 15, 5 by the identity migration (plant_versions note 19, decision D-D33), which refreshed each
-#: recapture's interface revision; no capture was re-taken.
+#: recapture's interface revision; no capture was re-taken.  The trex captures were re-taken on physics r10
+#: (plant_versions note 20, decision D-D44), so their physics revision moved 9 -> 10.
 RECAPTURED = {
-    (TYRANNOSAURUS_REX, "stance"): 9,
-    (TYRANNOSAURUS_REX, "recovery"): 9,
+    (TYRANNOSAURUS_REX, "stance"): 10,
+    (TYRANNOSAURUS_REX, "recovery"): 10,
     (COMPSOGNATHUS_LONGIPES, "recovery"): 2,
 }
 RECAPTURED_INTERFACES = {

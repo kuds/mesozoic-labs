@@ -1,0 +1,53 @@
+worker,finding,verdict,label_as_given,label_corrected,evidence
+zeroshot,F1,supported,measured,measured,"out/validation_recheck.json (c6/c7/c8 per-episode bit-equal to screen flags.csv); out/c1_rerun_vs_worker.csv (own harness c1 r9 bit-equal)"
+zeroshot,F2,supported,measured,measured,"out/model_cmp_*_r9_vs_sr3.json (590 fields, only qpos_spring); own post-init qpos_spring patch reproduces SR3 panels bit-for-bit (out/c1_rerun_vs_worker.csv, out/c5_rerun_vs_worker.csv)"
+zeroshot,F3,supported (code read only),measured,measured,"code_1af2d4d7 base_env.py: _tail_home_qpos used only at line 988 (reward); not re-measured"
+zeroshot,F4,supported,measured,measured,out/zs_recount.json
+zeroshot,F5,counts supported; pooled p-values overclaimed,measured,measured (counts) / inferred (pooled p),"out/zs_recount.json; checkpoint-level sign test det p=0.29 stoch p=0.07 (out/power_and_stats.json); SR3 PASS/FAIL per checkpoint is knife-edge (37/40 LCB 0.817 vs 36/40 0.786)"
+zeroshot,F6,supported,measured,measured,"out/c5_rerun_vs_worker.csv (own harness: c5 SR3 frac99=1.0 all 10 seeds); out/zs_recount.json; aggregate saturation failures det 27->80 stoch 74->130"
+zeroshot,F7,supported,measured,measured,out/zs_recount.json
+zeroshot,F8,first sentence supported; second sentence is interpretation,measured,measured + inferred,"out/zs_recount.json tail1_cmd; _scale_action (negative action = ctrl below home)"
+zeroshot,F9,supported,measured,measured,out/zs_recount.json pairs
+zeroshot,F10,supported,measured,measured,out/zs_recount.json
+zeroshot,F11,supported,measured,measured,"out/my_c1_head_r9.json, out/my_c1_head_sr3.json (own harness 5 seeds: head-tip 1.17-1.33 -> 0.61-0.63 m, neck +32.4..+33.3 deg)"
+zeroshot,F12,not checked,measured,measured,-
+zeroshot,F13,supported,measured,measured,"out/zs_recount.json; sign test 7/7 checkpoints p=0.016"
+zeroshot,F14,supported for the harness env; not an r10 number,measured,measured (harness) / inferred (r10),"zero-shot SR3 env keeps r9 _TAIL_SETTLED_QPOS; r10 candidate re-centres it (gate sr3.patch)"
+zeroshot,F15,supported as inference,inferred,inferred,-
+zeroshot,F16,overclaimed,inferred,inferred,"P(0 falls in 40 | p=0.02)=0.45; gate SR3 statue has a new backward fall 1/280 (out/power_and_stats.json, out/my_statue_sr3.json)"
+gate,F1,supported,measured,measured,"own tree from sr3.patch == gate tree_sr3 (diff -rq clean); out/model_cmp_*"
+gate,F2,supported (contract check only),measured,measured,"plant_contract --check and --check --baseline r9 manifest report current on own trees; digest/symmetry not re-run"
+gate,F3,not re-measured,measured,measured,-
+gate,F4,supported,measured,measured,"out/statue_rerun_vs_gate.csv (7 seeds x 2 trees bit-equal); recount of panels_episodes.csv"
+gate,F5,supported,measured,measured,"out/my_statue_sr3.json seed 9047: fallen @273 forward_z +0.6119 pitch 37.7 nose-up"
+gate,F6,supported,inferred,inferred (computed),"Fisher p=0.373 recomputed; 1/280 vs 4/280 unresolvable"
+gate,F7,not re-run,measured,measured,-
+gate,F8,supported,measured,measured,recount of panels_episodes.csv (3755.72 / 3768.85)
+gate,F9,supported,measured,measured,recount (0.475/0.476 -> 0.322/0.404; median 0.261 -> 0.126)
+gate,F10,supported; 'not a loss of gate margin' is interpretation,measured,measured + inferred,"logs/pytest_subset_sr3.log (n_clean 1 at -0.0825); cop_fixture_diagnosis.json corner-lift headroom r9@-0.0825 3.79 mm vs SR3@-0.09 3.74 mm"
+gate,F11,supported as inference,inferred,inferred,-
+gate,F12,supported (4 of 13 re-run),measured,measured,"logs/pytest_subset_r9.log pass, logs/pytest_subset_sr3.log fail for statue freshness, species catalog, pad CoP, settled pose; each class (i) entry names a constant"
+gate,F13,not re-run,measured,measured,-
+gate,F14,supported,measured,measured,out/heading_sr3_3042_p45.json
+gate,F15,supported,measured,measured,"out/refusal_sr3.json (PlantCompatibilityError r9 vs 10), out/refusal_r9.json (loaded)"
+gate,F16,supported (code read); pre-existing; not SR3-specific,measured,measured,"PlantCompatibilityError(PlantContractError) is not a PolicyLoadError(RuntimeError)"
+gate,F17,not re-run,measured,measured,-
+heading,F1,supported with a caveat,measured,measured,"heading trees/sr3 uses _TAIL_SETTLED_QPOS (0.00013,0,0.00014,0.00023), not the gate r10 candidate (0.00002,0,0.00006,0.00018); reward diffs move by ~2e-13, pass/fail unchanged"
+heading,F2,supported,measured,measured,out/heading_sr3_3042_p45.json fails rewards and obs bounds
+heading,F3,supported in part (one r9 failing pair reproduced; sweep not re-run),measured,measured,"out/heading_r9_3048_p45.json bit-equal to heading q1_pairs_r9.csv; Fisher p=1 = no evidence of difference, not equality"
+heading,F4,supported (4 pairs),measured,measured,out/heading_*.json
+heading,F5,supported (4 pairs),measured,measured,out/heading_*.json
+heading,F6,supported (2 failing pairs),measured,measured,"argmax obs element 54 (SR3 3042 +45), 55 (r9 3048 +45)"
+heading,F7,supported; report text index wrong,measured,measured,"out/heading_sr3_3042_p45.json: step 759, obs index 35 = l_hip_pitch:qvel (report text says 38 = l_ankle:qvel), 7 elements, 9.31e-10, joint 9.79e-14 -> 2.15e-9, reward>1e-9 at 762"
+heading,F8,supported (one pair),measured,measured,"max joint diff before flip 2.43e-13"
+heading,F9,partly supported,measured,measured,"first network-input diff at step 353 on SR3 3042 +45 (before the action flip at 759)"
+heading,F10,not re-run,measured,measured,-
+heading,F11,not re-run,measured,measured,-
+heading,F12,supported as inference,inferred,inferred,-
+heading,F13,not re-run,measured,measured,-
+heading,F14,not re-run,measured,measured,-
+heading,F15,not re-run (no 4-thread run),measured,measured,-
+heading,F16,not checked,inferred,inferred,-
+heading,F17,supported as inference,inferred,inferred,"out/heading_*.json"
+heading,F18,plausible; not prototyped,inferred,inferred,-
+heading,F19,supported,measured,measured,"heading_free_helpers.py STATE_ATOL 1e-9 default; test passes CLOSED_LOOP_STATE_ATOL 1e-6"

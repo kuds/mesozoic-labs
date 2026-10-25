@@ -1,0 +1,149 @@
+
+=== C0_r9: r9 unchanged
+  params: tail_1 sr +0.0 k 80 kp 100 fr 80 rng [-12.0, 12.0]; tail_2 sr +0.0 k 80 kp 80 fr 65 rng [-12.0, 12.0]; tail_3 sr +0.0 k 80 kp 60 fr 50 rng [-12.0, 12.0]
+  statue20s q(deg) [-12.07, -11.62, -5.3] seg [-16.24, -25.96, -27.45, -25.16, -21.74] base->tip -23.35 tip_z 0.3966 tip_x -1.4391
+  CoM-feet -16.07 mm  heel->toe frac 0.526  CoM z 0.838  pelvis z 0.9262 pitch(nose-down) 1.543  loads {'r': 0.5, 'l': 0.5} standing True
+    tail_1_pitch: grav  -68.22 spring  +16.86 act  +21.07 (0.263 of fr) constr  +30.30
+    tail_2_pitch: grav  -32.44 spring  +16.22 act  +16.22 (0.250 of fr) constr   +0.00
+    tail_3_pitch: grav  -12.95 spring   +7.40 act   +5.55 (0.111 of fr) constr   +0.00
+  limits: [['tail_1_pitch', 30.3]]  tail-floor 0 nonfoot []
+  conv20s maxv 3.3e-05 q-drift 0.002 mrad pitch-drift -0.001;  5s: q(deg) [-12.07, -11.63, -5.31] seg [-16.36, -26.09, -27.58, -25.29, -21.87] pitch 1.427 maxv 8.3e-03 pitch-drift -0.275 standing True
+  hold q=0 a_req: {'tail_1': (3.5012, 73.314, True), 'tail_2': (2.1577, 36.146, True), 'tail_3': (1.1528, 14.484, True)}
+   tail_1_pitch_act: a-1.0: q-12.12 d3seg -27.47 tip 0.396 F0.00 LIM['tail_1'] | a-0.8: q-12.11 d3seg -27.46 tip 0.396 F0.06 LIM['tail_1'] | a+0.0: q-12.07 d3seg -27.43 tip 0.397 F0.26 LIM['tail_1'] | a+0.8: q-12.04 d3seg -27.40 tip 0.398 F0.47 LIM['tail_1'] | a+1.0: q-12.03 d3seg -27.39 tip 0.398 F0.52 LIM['tail_1']
+   tail_2_pitch_act: a-1.0: q-12.10 d3seg -27.88 tip 0.389 F0.00 LIM['tail_1', 'tail_2'] | a-0.8: q-12.08 d3seg -27.86 tip 0.390 F0.05 LIM['tail_1', 'tail_2'] | a+0.0: q-11.61 d3seg -27.43 tip 0.397 F0.25 LIM['tail_1'] | a+0.8: q -7.21 d3seg -23.32 tip 0.466 F0.36 LIM['tail_1'] | a+1.0: q -6.10 d3seg -22.28 tip 0.484 F0.39 LIM['tail_1']
+   tail_3_pitch_act: a-1.0: q-10.21 d3seg -32.09 tip 0.344 F0.04 LIM['tail_1'] | a-0.8: q -9.23 d3seg -31.16 tip 0.355 F0.01 LIM['tail_1'] | a+0.0: q -5.30 d3seg -27.43 tip 0.397 F0.11 LIM['tail_1'] | a+0.8: q -1.35 d3seg -23.65 tip 0.441 F0.23 LIM['tail_1'] | a+1.0: q -0.36 d3seg -22.70 tip 0.453 F0.26 LIM['tail_1']
+    all a=-1.0: q(deg) [-12.12, -12.1, -10.17] seg [-16.2, -26.4, -32.76, -30.47, -27.05] b->t -26.39 tip_z 0.3335 frac [0.003, 0.002, 0.038] lim [['tail_1_pitch', 50.36], ['tail_2_pitch', 14.67]] CoM-f -14.47 pitch 1.634 stand True
+    all a=-0.8: q(deg) [-12.11, -12.08, -9.2] seg [-16.2, -26.38, -31.76, -29.47, -26.05] b->t -25.84 tip_z 0.3448 frac [0.055, 0.053, 0.008] lim [['tail_1_pitch', 46.34], ['tail_2_pitch', 11.52]] CoM-f -14.74 pitch 1.62 stand True
+    all a=+0.8: q(deg) [-12.04, -7.32, -1.5] seg [-16.35, -21.77, -19.46, -17.17, -13.75] b->t -18.01 tip_z 0.513 frac [0.472, 0.363, 0.232] lim [['tail_1_pitch', 15.02]] CoM-f -18.85 pitch 1.403 stand True
+    all a=+1.0: q(deg) [-12.04, -6.23, -0.54] seg [-16.38, -20.71, -17.43, -15.14, -11.72] b->t -16.65 tip_z 0.5435 frac [0.524, 0.392, 0.263] lim [['tail_1_pitch', 11.14]] CoM-f -19.47 pitch 1.37 stand True
+
+=== SR1_t1: springref solved for q=0 on ('tail_1_pitch',), stiffness r9 80
+  params: tail_1 sr +51.6 k 80 kp 100 fr 80 rng [-12.0, 12.0]; tail_2 sr +0.0 k 80 kp 80 fr 65 rng [-12.0, 12.0]; tail_3 sr +0.0 k 80 kp 60 fr 50 rng [-12.0, 12.0]
+  solve q hist (deg): [[0.055, -12.018, -5.708], [0.003, -12.018, -5.706], [0.0, -12.018, -5.706], [0.0, -12.018, -5.706]]
+  statue20s q(deg) [-0.0, -12.02, -5.71] seg [-4.61, -14.73, -16.63, -14.33, -10.91] base->tip -12.26 tip_z 0.6434 tip_x -1.5185
+  CoM-feet -24.19 mm  heel->toe frac 0.4688  CoM z 0.856  pelvis z 0.9261 pitch(nose-down) 1.101  loads {'r': 0.5, 'l': 0.5} standing True
+    tail_1_pitch: grav  -72.06 spring  +72.05 act   +0.00 (0.000 of fr) constr   +0.00
+    tail_2_pitch: grav  -34.91 spring  +16.78 act  +16.78 (0.258 of fr) constr   +1.35
+    tail_3_pitch: grav  -13.94 spring   +7.97 act   +5.98 (0.120 of fr) constr   +0.00
+  limits: [['tail_2_pitch', 1.35]]  tail-floor 0 nonfoot []
+  conv20s maxv 3.4e-05 q-drift 0.001 mrad pitch-drift +0.000;  5s: q(deg) [0.03, -12.02, -5.7] seg [-4.54, -14.66, -16.54, -14.25, -10.83] pitch 1.147 maxv 6.7e-03 pitch-drift +0.118 standing True
+  hold q=0 a_req: {'tail_1': (0.0593, 1.242, True), 'tail_2': (2.1575, 36.143, True), 'tail_3': (1.1531, 14.488, True)}
+   tail_1_pitch_act: a-1.0: q -6.14 d3seg -22.34 tip 0.512 F0.13 LIM['tail_2'] | a-0.8: q -4.92 d3seg -21.22 tip 0.538 F0.10 LIM['tail_2'] | a+0.0: q -0.01 d3seg -16.63 tip 0.643 F0.00 LIM['tail_2'] | a+0.8: q +5.06 d3seg -11.81 tip 0.756 F0.10 LIM['tail_2'] | a+1.0: q +6.36 d3seg -10.55 tip 0.786 F0.12 LIM['tail_2']
+   tail_2_pitch_act: a-1.0: q-12.12 d3seg -16.73 tip 0.642 F0.00 LIM['tail_2'] | a-0.8: q-12.10 d3seg -16.71 tip 0.642 F0.05 LIM['tail_2'] | a+0.0: q-12.02 d3seg -16.63 tip 0.643 F0.26 LIM['tail_2'] | a+0.8: q -7.91 d3seg -12.87 tip 0.710 F0.38 | a+1.0: q -6.76 d3seg -11.80 tip 0.729 F0.40
+   tail_3_pitch_act: a-1.0: q-10.69 d3seg -21.45 tip 0.585 F0.03 LIM['tail_2'] | a-0.8: q -9.70 d3seg -20.49 tip 0.596 F0.00 LIM['tail_2'] | a+0.0: q -5.71 d3seg -16.63 tip 0.643 F0.12 LIM['tail_2'] | a+0.8: q -1.69 d3seg -12.72 tip 0.692 F0.24 LIM['tail_2'] | a+1.0: q -0.68 d3seg -11.74 tip 0.705 F0.27 LIM['tail_2']
+    all a=-1.0: q(deg) [-5.99, -12.11, -10.45] seg [-10.33, -20.54, -27.18, -24.89, -21.47] b->t -20.69 tip_z 0.4555 frac [0.131, 0.002, 0.032] lim [['tail_2_pitch', 16.2]] CoM-f -19.51 pitch 1.368 stand True
+    all a=-0.8: q(deg) [-4.81, -12.09, -9.52] seg [-9.21, -19.41, -25.11, -22.82, -19.4] b->t -19.04 tip_z 0.4915 frac [0.104, 0.054, 0.002] lim [['tail_2_pitch', 13.28]] CoM-f -20.58 pitch 1.309 stand True
+    all a=+0.8: q(deg) [4.93, -8.11, -1.81] seg [0.16, -6.05, -4.05, -1.76, 1.66] b->t -2.29 tip_z 0.8755 frac [0.102, 0.38, 0.239] lim [] CoM-f -27.01 pitch 0.938 stand True
+    all a=+1.0: q(deg) [6.25, -6.94, -0.79] seg [1.47, -3.57, -0.54, 1.75, 5.17] b->t 0.51 tip_z 0.9414 frac [0.126, 0.407, 0.268] lim [] CoM-f -27.08 pitch 0.941 stand True
+
+=== SR2_t12: springref solved for q=0 on ('tail_1_pitch', 'tail_2_pitch'), stiffness r9 80
+  params: tail_1 sr +52.5 k 80 kp 100 fr 80 rng [-12.0, 12.0]; tail_2 sr +25.9 k 80 kp 80 fr 65 rng [-12.0, 12.0]; tail_3 sr +0.0 k 80 kp 60 fr 50 rng [-12.0, 12.0]
+  solve q hist (deg): [[0.018, 0.01, -5.917], [0.001, 0.0, -5.916], [0.0, -0.0, -5.916], [0.0, -0.0, -5.916]]
+  statue20s q(deg) [0.02, 0.02, -5.92] seg [-4.73, -2.82, -4.92, -2.63, 0.79] base->tip -3.14 tip_z 0.8555 tip_x -1.5506
+  CoM-feet -26.73 mm  heel->toe frac 0.4509  CoM z 0.8651  pelvis z 0.9261 pitch(nose-down) 0.963  loads {'r': 0.5, 'l': 0.5} standing True
+    tail_1_pitch: grav  -73.25 spring  +73.28 act   -0.03 (0.000 of fr) constr   +0.00
+    tail_2_pitch: grav  -36.11 spring  +36.14 act   -0.03 (0.000 of fr) constr   +0.00
+    tail_3_pitch: grav  -14.46 spring   +8.26 act   +6.20 (0.124 of fr) constr   +0.00
+  limits: []  tail-floor 0 nonfoot []
+  conv20s maxv 3.9e-05 q-drift 0.002 mrad pitch-drift -0.000;  5s: q(deg) [0.09, 0.06, -5.89] seg [-4.49, -2.53, -4.61, -2.32, 1.1] pitch 1.133 maxv 1.1e-02 pitch-drift +0.417 standing True
+  hold q=0 a_req: {'tail_1': (-0.0011, -0.024, True), 'tail_2': (-0.0013, -0.022, True), 'tail_3': (1.1532, 14.489, True)}
+   tail_1_pitch_act: a-1.0: q -6.34 d3seg -10.95 tip 0.713 F0.12 | a-0.8: q -5.09 d3seg  -9.80 tip 0.740 F0.10 | a+0.0: q +0.01 d3seg  -4.96 tip 0.855 F0.00 | a+0.8: q +5.31 d3seg  +0.35 tip 0.980 F0.09 | a+1.0: q +6.66 d3seg  +1.74 tip 1.013 F0.12
+   tail_2_pitch_act: a-1.0: q -5.85 d3seg -10.58 tip 0.752 F0.13 | a-0.8: q -4.69 d3seg  -9.49 tip 0.772 F0.11 | a+0.0: q +0.01 d3seg  -4.96 tip 0.855 F0.00 | a+0.8: q +4.80 d3seg  -0.18 tip 0.942 F0.10 | a+1.0: q +6.01 d3seg  +1.05 tip 0.965 F0.13
+   tail_3_pitch_act: a-1.0: q-11.00 d3seg  -9.93 tip 0.791 F0.02 | a-0.8: q -9.99 d3seg  -8.95 tip 0.803 F0.01 | a+0.0: q -5.92 d3seg  -4.96 tip 0.855 F0.12 | a+0.8: q -1.82 d3seg  -0.88 tip 0.908 F0.24 | a+1.0: q -0.79 d3seg  +0.16 tip 0.921 F0.27
+    all a=-1.0: q(deg) [-6.02, -5.45, -10.71] seg [-10.52, -14.07, -20.96, -18.67, -15.25] b->t -15.83 tip_z 0.5619 frac [0.131, 0.141, 0.027] lim [] CoM-f -22.4 pitch 1.207 stand True
+    all a=-0.8: q(deg) [-4.86, -4.41, -9.78] seg [-9.44, -11.95, -17.92, -15.63, -12.21] b->t -13.43 tip_z 0.6162 frac [0.103, 0.112, 0.004] lim [] CoM-f -23.66 pitch 1.132 stand True
+    all a=+0.8: q(deg) [5.45, 4.97, -1.71] seg [0.77, 7.63, 9.73, 12.02, 15.44] b->t 8.54 tip_z 1.13 frac [0.09, 0.1, 0.237] lim [] CoM-f -25.89 pitch 1.027 stand True
+    all a=+1.0: q(deg) [6.92, 6.3, -0.6] seg [2.28, 10.48, 13.7, 15.99, 19.41] b->t 11.72 tip_z 1.2034 frac [0.111, 0.122, 0.264] lim [] CoM-f -24.96 pitch 1.081 stand True
+
+=== SR3_t123: springref solved for q=0 on ('tail_1_pitch', 'tail_2_pitch', 'tail_3_pitch'), stiffness r9 80
+  params: tail_1 sr +52.5 k 80 kp 100 fr 80 rng [-12.0, 12.0]; tail_2 sr +25.9 k 80 kp 80 fr 65 rng [-12.0, 12.0]; tail_3 sr +10.4 k 80 kp 60 fr 50 rng [-12.0, 12.0]
+  solve q hist (deg): [[0.011, 0.002, -0.002], [0.0, 0.0, -0.0], [-0.0, 0.0, -0.0], [-0.0, 0.0, -0.0]]
+  statue20s q(deg) [0.01, 0.01, 0.01] seg [-4.74, -2.84, 0.99, 3.28, 6.7] base->tip 0.13 tip_z 0.9326 tip_x -1.5501
+  CoM-feet -26.79 mm  heel->toe frac 0.4505  CoM z 0.8669  pelvis z 0.9261 pitch(nose-down) 0.96  loads {'r': 0.5, 'l': 0.5} standing True
+    tail_1_pitch: grav  -73.28 spring  +73.29 act   -0.01 (0.000 of fr) constr   +0.00
+    tail_2_pitch: grav  -36.14 spring  +36.15 act   -0.01 (0.000 of fr) constr   +0.00
+    tail_3_pitch: grav  -14.49 spring  +14.50 act   -0.01 (0.000 of fr) constr   +0.00
+  limits: []  tail-floor 0 nonfoot []
+  conv20s maxv 3.7e-05 q-drift 0.010 mrad pitch-drift +0.000;  5s: q(deg) [0.07, 0.05, 0.03] seg [-4.51, -2.56, 1.29, 3.58, 7.0] pitch 1.132 maxv 1.2e-02 pitch-drift +0.433 standing True
+  hold q=0 a_req: {'tail_1': (-0.0011, -0.024, True), 'tail_2': (-0.0013, -0.022, True), 'tail_3': (-0.0026, -0.032, True)}
+   tail_1_pitch_act: a-1.0: q -6.40 d3seg  -5.23 tip 0.786 F0.12 | a-0.8: q -5.14 d3seg  -4.04 tip 0.814 F0.10 | a+0.0: q +0.01 d3seg  +0.96 tip 0.932 F0.00 | a+0.8: q +5.35 d3seg  +6.45 tip 1.060 F0.09 | a+1.0: q +6.72 d3seg  +7.89 tip 1.094 F0.12
+   tail_2_pitch_act: a-1.0: q -5.91 d3seg  -4.85 tip 0.826 F0.13 | a-0.8: q -4.74 d3seg  -3.71 tip 0.847 F0.10 | a+0.0: q +0.01 d3seg  +0.96 tip 0.932 F0.00 | a+0.8: q +4.84 d3seg  +5.90 tip 1.022 F0.10 | a+1.0: q +6.07 d3seg  +7.18 tip 1.046 F0.13
+   tail_3_pitch_act: a-1.0: q -5.12 d3seg  -4.17 tip 0.865 F0.14 | a-0.8: q -4.10 d3seg  -3.15 tip 0.878 F0.12 | a+0.0: q +0.01 d3seg  +0.96 tip 0.932 F0.00 | a+0.8: q +4.16 d3seg  +5.18 tip 0.988 F0.11 | a+1.0: q +5.20 d3seg  +6.24 tip 1.002 F0.14
+    all a=-1.0: q(deg) [-6.14, -5.59, -4.93] seg [-10.69, -14.38, -15.5, -13.21, -9.79] b->t -12.91 tip_z 0.6281 frac [0.128, 0.138, 0.148] lim [] CoM-f -23.24 pitch 1.158 stand True
+    all a=-0.8: q(deg) [-4.96, -4.53, -3.98] seg [-9.59, -12.21, -12.38, -10.09, -6.67] b->t -10.45 tip_z 0.6846 frac [0.101, 0.109, 0.118] lim [] CoM-f -24.39 pitch 1.089 stand True
+    all a=+0.8: q(deg) [5.58, 5.11, 4.39] seg [0.95, 7.95, 16.15, 18.44, 21.86] b->t 12.22 tip_z 1.2139 frac [0.088, 0.096, 0.109] lim [] CoM-f -24.99 pitch 1.079 stand True
+    all a=+1.0: q(deg) [7.08, 6.49, 5.55] seg [2.51, 10.89, 20.26, 22.55, 25.97] b->t 15.51 tip_z 1.288 frac [0.107, 0.118, 0.135] lim [] CoM-f -23.84 pitch 1.141 stand True
+
+=== SR3_k40: springref solved for q=0 on ('tail_1_pitch', 'tail_2_pitch', 'tail_3_pitch'), stiffness 40.0
+  params: tail_1 sr +105.0 k 40 kp 100 fr 80 rng [-12.0, 12.0]; tail_2 sr +51.8 k 40 kp 80 fr 65 rng [-12.0, 12.0]; tail_3 sr +20.8 k 40 kp 60 fr 50 rng [-12.0, 12.0]
+  solve q hist (deg): [[0.014, 0.002, -0.003], [0.001, 0.0, -0.0], [-0.0, 0.0, -0.0], [-0.0, -0.0, -0.0]]
+  statue20s q(deg) [0.01, 0.01, 0.02] seg [-4.74, -2.83, 1.0, 3.29, 6.71] base->tip 0.14 tip_z 0.9328 tip_x -1.5501
+  CoM-feet -26.79 mm  heel->toe frac 0.4505  CoM z 0.8669  pelvis z 0.9261 pitch(nose-down) 0.96  loads {'r': 0.5, 'l': 0.5} standing True
+    tail_1_pitch: grav  -73.28 spring  +73.30 act   -0.02 (0.000 of fr) constr   +0.00
+    tail_2_pitch: grav  -36.14 spring  +36.16 act   -0.01 (0.000 of fr) constr   +0.00
+    tail_3_pitch: grav  -14.49 spring  +14.51 act   -0.02 (0.000 of fr) constr   +0.00
+  limits: []  tail-floor 0 nonfoot []
+  conv20s maxv 1.2e-05 q-drift 0.008 mrad pitch-drift +0.001;  5s: q(deg) [0.05, 0.03, 0.03] seg [-4.57, -2.64, 1.21, 3.5, 6.92] pitch 1.093 maxv 9.7e-03 pitch-drift +0.349 standing True
+  hold q=0 a_req: {'tail_1': (-0.0011, -0.024, True), 'tail_2': (-0.0013, -0.022, True), 'tail_3': (-0.0026, -0.032, True)}
+   tail_1_pitch_act: a-1.0: q -8.08 d3seg  -6.73 tip 0.750 F0.09 | a-0.8: q -6.50 d3seg  -5.28 tip 0.784 F0.07 | a+0.0: q +0.01 d3seg  +1.00 tip 0.933 F0.00 | a+0.8: q +6.92 d3seg  +8.15 tip 1.099 F0.06 | a+1.0: q +8.72 d3seg +10.08 tip 1.144 F0.07
+   tail_2_pitch_act: a-1.0: q -7.80 d3seg  -6.60 tip 0.794 F0.09 | a-0.8: q -6.26 d3seg  -5.14 tip 0.821 F0.07 | a+0.0: q +0.01 d3seg  +1.00 tip 0.933 F0.00 | a+0.8: q +6.50 d3seg  +7.69 tip 1.055 F0.07 | a+1.0: q +8.16 d3seg  +9.46 tip 1.087 F0.08
+   tail_3_pitch_act: a-1.0: q -7.15 d3seg  -6.13 tip 0.840 F0.10 | a-0.8: q -5.72 d3seg  -4.73 tip 0.858 F0.08 | a+0.0: q +0.02 d3seg  +1.00 tip 0.933 F0.00 | a+0.8: q +5.85 d3seg  +6.97 tip 1.012 F0.08 | a+1.0: q +7.33 d3seg  +8.50 tip 1.032 F0.10
+    all a=-1.0: q(deg) [-7.55, -7.14, -6.71] seg [-12.0, -17.25, -20.14, -17.85, -14.43] b->t -16.41 tip_z 0.5486 frac [0.097, 0.104, 0.111] lim [] CoM-f -21.42 pitch 1.263 stand True
+    all a=-0.8: q(deg) [-6.15, -5.82, -5.44] seg [-10.7, -14.62, -16.25, -13.96, -10.54] b->t -13.38 tip_z 0.6173 frac [0.075, 0.081, 0.087] lim [] CoM-f -23.11 pitch 1.163 stand True
+    all a=+0.8: q(deg) [7.48, 7.16, 6.43] seg [2.91, 11.97, 22.21, 24.5, 27.92] b->t 16.92 tip_z 1.319 frac [0.046, 0.052, 0.066] lim [] CoM-f -23.53 pitch 1.141 stand True
+    all a=+1.0: q(deg) [9.69, 9.29, 8.27] seg [5.25, 16.43, 28.52, 30.81, 34.23] b->t 21.95 tip_z 1.4276 frac [0.05, 0.058, 0.078] lim [] CoM-f -21.04 pitch 1.27 stand True
+
+=== SR3_k160: springref solved for q=0 on ('tail_1_pitch', 'tail_2_pitch', 'tail_3_pitch'), stiffness 160.0
+  params: tail_1 sr +26.2 k 160 kp 100 fr 80 rng [-12.0, 12.0]; tail_2 sr +12.9 k 160 kp 80 fr 65 rng [-12.0, 12.0]; tail_3 sr +5.2 k 160 kp 60 fr 50 rng [-12.0, 12.0]
+  solve q hist (deg): [[0.006, 0.001, -0.001], [0.0, 0.0, -0.0], [0.0, -0.0, -0.0], [0.0, 0.0, -0.0]]
+  statue20s q(deg) [-0.03, -0.03, 0.01] seg [-4.78, -2.91, 0.91, 3.2, 6.62] base->tip 0.07 tip_z 0.9311 tip_x -1.5501
+  CoM-feet -26.8 mm  heel->toe frac 0.4505  CoM z 0.8668  pelvis z 0.9261 pitch(nose-down) 0.959  loads {'r': 0.5, 'l': 0.5} standing True
+    tail_1_pitch: grav  -73.28 spring  +73.23 act   +0.04 (0.001 of fr) constr   +0.00
+    tail_2_pitch: grav  -36.14 spring  +36.10 act   +0.04 (0.001 of fr) constr   +0.00
+    tail_3_pitch: grav  -14.49 spring  +14.50 act   -0.01 (0.000 of fr) constr   +0.00
+  limits: []  tail-floor 0 nonfoot []
+  conv20s maxv 7.8e-05 q-drift 0.007 mrad pitch-drift -0.002;  5s: q(deg) [0.04, 0.02, 0.03] seg [-4.49, -2.58, 1.27, 3.56, 6.98] pitch 1.178 maxv 1.4e-02 pitch-drift +0.530 standing True
+  hold q=0 a_req: {'tail_1': (0.0055, 0.116, True), 'tail_2': (0.007, 0.118, True), 'tail_3': (-0.0026, -0.032, True)}
+   tail_1_pitch_act: a-1.0: q -4.53 d3seg  -3.53 tip 0.827 F0.16 | a-0.8: q -3.64 d3seg  -2.67 tip 0.847 F0.13 | a+0.0: q -0.03 d3seg  +0.86 tip 0.930 F0.00 | a+0.8: q +3.64 d3seg  +4.58 tip 1.017 F0.13 | a+1.0: q +4.58 d3seg  +5.54 tip 1.040 F0.16
+   tail_2_pitch_act: a-1.0: q -4.00 d3seg  -3.06 tip 0.858 F0.17 | a-0.8: q -3.21 d3seg  -2.29 tip 0.872 F0.14 | a+0.0: q -0.03 d3seg  +0.86 tip 0.930 F0.00 | a+0.8: q +3.17 d3seg  +4.09 tip 0.989 F0.14 | a+1.0: q +3.98 d3seg  +4.92 tip 1.004 F0.17
+   tail_3_pitch_act: a-1.0: q -3.27 d3seg  -2.41 tip 0.887 F0.18 | a-0.8: q -2.61 d3seg  -1.76 tip 0.895 F0.15 | a+0.0: q +0.01 d3seg  +0.86 tip 0.930 F0.00 | a+0.8: q +2.63 d3seg  +3.51 tip 0.965 F0.15 | a+1.0: q +3.29 d3seg  +4.17 tip 0.973 F0.18
+    all a=-1.0: q(deg) [-4.44, -3.89, -3.21] seg [-9.09, -11.09, -10.49, -8.2, -4.78] b->t -9.04 tip_z 0.7174 frac [0.165, 0.174, 0.184] lim [] CoM-f -24.91 pitch 1.058 stand True
+    all a=-0.8: q(deg) [-3.58, -3.14, -2.58] seg [-8.27, -9.51, -8.28, -5.99, -2.57] b->t -7.28 tip_z 0.7583 frac [0.131, 0.139, 0.147] lim [] CoM-f -25.56 pitch 1.018 stand True
+    all a=+0.8: q(deg) [3.71, 3.25, 2.7] seg [-1.0, 4.14, 10.66, 12.95, 16.37] b->t 7.89 tip_z 1.1143 frac [0.128, 0.136, 0.144] lim [] CoM-f -26.3 pitch 0.992 stand True
+    all a=+1.0: q(deg) [4.69, 4.1, 3.4] seg [0.01, 6.01, 13.22, 15.51, 18.93] b->t 9.95 tip_z 1.162 frac [0.159, 0.17, 0.18] lim [] CoM-f -25.72 pitch 1.033 stand True
+
+=== KP_x10: kp x10 and forcerange x2 on the three tail pitch servos
+  params: tail_1 sr +0.0 k 80 kp 1000 fr 160 rng [-12.0, 12.0]; tail_2 sr +0.0 k 80 kp 800 fr 130 rng [-12.0, 12.0]; tail_3 sr +0.0 k 80 kp 600 fr 100 rng [-12.0, 12.0]
+  statue20s q(deg) [-3.86, -2.33, -1.22] seg [-8.54, -8.98, -6.38, -4.09, -0.67] base->tip -6.17 tip_z 0.7845 tip_x -1.5438
+  CoM-feet -25.55 mm  heel->toe frac 0.4593  CoM z 0.8588  pelvis z 0.9261 pitch(nose-down) 1.027  loads {'r': 0.5, 'l': 0.5} standing True
+    tail_1_pitch: grav  -72.69 spring   +5.38 act  +67.31 (0.421 of fr) constr   +0.00
+    tail_2_pitch: grav  -35.84 spring   +3.26 act  +32.58 (0.251 of fr) constr   +0.00
+    tail_3_pitch: grav  -14.43 spring   +1.70 act  +12.73 (0.127 of fr) constr   +0.00
+  limits: []  tail-floor 0 nonfoot []
+  conv20s maxv 4.8e-05 q-drift 0.000 mrad pitch-drift -0.000;  5s: q(deg) [-3.85, -2.33, -1.21] seg [-8.39, -8.82, -6.22, -3.93, -0.51] pitch 1.169 maxv 9.2e-03 pitch-drift +0.346 standing True
+  hold q=0 a_req: {'tail_1': (0.35, 73.284, True), 'tail_2': (0.2157, 36.142, True), 'tail_3': (0.1153, 14.489, True)}
+   tail_1_pitch_act: a-1.0: q-12.12 d3seg -14.30 tip 0.601 F0.01 LIM['tail_1'] | a-0.8: q-12.04 d3seg -14.22 tip 0.603 F0.27 LIM['tail_1'] | a+0.0: q -3.86 d3seg  -6.40 tip 0.784 F0.42 | a+0.8: q +4.99 d3seg  +2.32 tip 0.989 F0.50 | a+1.0: q +7.22 d3seg  +4.60 tip 1.043 F0.52
+   tail_2_pitch_act: a-1.0: q-12.11 d3seg -15.91 tip 0.614 F0.01 LIM['tail_2'] | a-0.8: q-10.99 d3seg -14.83 tip 0.633 F0.15 | a+0.0: q -2.33 d3seg  -6.40 tip 0.784 F0.25 | a+0.8: q +6.37 d3seg  +2.22 tip 0.941 F0.35 | a+1.0: q +8.55 d3seg  +4.42 tip 0.982 F0.37
+   tail_3_pitch_act: a-1.0: q-11.76 d3seg -16.82 tip 0.651 F0.03 | a-0.8: q -9.65 d3seg -14.75 tip 0.677 F0.01 | a+0.0: q -1.21 d3seg  -6.40 tip 0.784 F0.13 | a+0.8: q +7.25 d3seg  +2.04 tip 0.894 F0.25 | a+1.0: q +9.37 d3seg  +4.17 tip 0.922 F0.28
+    all a=-1.0: q(deg) [-12.11, -12.09, -11.61] seg [-16.17, -26.36, -34.16, -31.86, -28.44] b->t -27.16 tip_z 0.3182 frac [0.013, 0.01, 0.041] lim [['tail_1_pitch', 48.36], ['tail_2_pitch', 13.35]] CoM-f -14.09 pitch 1.655 stand True
+    all a=-0.8: q(deg) [-12.03, -10.82, -9.53] seg [-16.17, -25.09, -30.8, -28.51, -25.09] b->t -25.01 tip_z 0.3619 frac [0.265, 0.131, 0.008] lim [['tail_1_pitch', 8.72]] CoM-f -15.53 pitch 1.574 stand True
+    all a=+0.8: q(deg) [5.06, 6.45, 7.33] seg [0.51, 8.86, 20.0, 22.29, 25.71] b->t 14.47 tip_z 1.264 frac [0.495, 0.338, 0.238] lim [] CoM-f -23.86 pitch 1.161 stand True
+    all a=+1.0: q(deg) [7.35, 8.71, 9.51] seg [2.99, 13.6, 26.92, 29.21, 32.63] b->t 19.93 tip_z 1.3837 frac [0.507, 0.353, 0.261] lim [] CoM-f -20.89 pitch 1.358 stand True
+
+=== RNG_m3: ventral stops raised to -3 deg on tail_1/2/3
+  params: tail_1 sr +0.0 k 80 kp 100 fr 80 rng [-3.0, 12.0]; tail_2 sr +0.0 k 80 kp 80 fr 65 rng [-3.0, 12.0]; tail_3 sr +0.0 k 80 kp 60 fr 50 rng [-3.0, 12.0]
+  statue20s q(deg) [-3.15, -3.18, -3.05] seg [-7.83, -9.12, -8.35, -6.06, -2.64] base->tip -7.14 tip_z 0.7617 tip_x -1.5419
+  CoM-feet -25.55 mm  heel->toe frac 0.4593  CoM z 0.8587  pelvis z 0.9261 pitch(nose-down) 1.028  loads {'r': 0.5, 'l': 0.5} standing True
+    tail_1_pitch: grav  -72.69 spring   +4.40 act   +5.50 (0.069 of fr) constr  +62.80
+    tail_2_pitch: grav  -35.77 spring   +4.44 act   +4.44 (0.068 of fr) constr  +26.89
+    tail_3_pitch: grav  -14.37 spring   +4.26 act   +3.19 (0.064 of fr) constr   +6.91
+  limits: [['tail_1_pitch', 62.8], ['tail_2_pitch', 26.89], ['tail_3_pitch', 6.91]]  tail-floor 0 nonfoot []
+  conv20s maxv 4.4e-05 q-drift 0.000 mrad pitch-drift +0.000;  5s: q(deg) [-3.15, -3.18, -3.05] seg [-7.71, -8.99, -8.23, -5.94, -2.52] pitch 1.15 maxv 7.9e-03 pitch-drift +0.306 standing True
+  hold q=0 a_req: {'tail_1': (3.4997, 73.284, True), 'tail_2': (2.1575, 36.142, True), 'tail_3': (1.1532, 14.489, True)}
+   tail_1_pitch_act: a-1.0: q -3.20 d3seg  -8.41 tip 0.760 F0.19 LIM['tail_1', 'tail_2', 'tail_3'] | a-0.8: q -3.19 d3seg  -8.41 tip 0.760 F0.14 LIM['tail_1', 'tail_2', 'tail_3'] | a+0.0: q -3.15 d3seg  -8.37 tip 0.761 F0.07 LIM['tail_1', 'tail_2', 'tail_3'] | a+0.8: q -3.11 d3seg  -8.33 tip 0.762 F0.28 LIM['tail_1', 'tail_2', 'tail_3'] | a+1.0: q -3.10 d3seg  -8.32 tip 0.762 F0.33 LIM['tail_1', 'tail_2', 'tail_3']
+   tail_2_pitch_act: a-1.0: q -3.29 d3seg  -8.48 tip 0.759 F0.19 LIM['tail_1', 'tail_2', 'tail_3'] | a-0.8: q -3.27 d3seg  -8.45 tip 0.760 F0.14 LIM['tail_1', 'tail_2', 'tail_3'] | a+0.0: q -3.18 d3seg  -8.37 tip 0.761 F0.07 LIM['tail_1', 'tail_2', 'tail_3'] | a+0.8: q -3.09 d3seg  -8.28 tip 0.763 F0.27 LIM['tail_1', 'tail_2', 'tail_3'] | a+1.0: q -3.07 d3seg  -8.26 tip 0.763 F0.32 LIM['tail_1', 'tail_2', 'tail_3']
+   tail_3_pitch_act: a-1.0: q -3.14 d3seg  -8.45 tip 0.760 F0.19 LIM['tail_1', 'tail_2', 'tail_3'] | a-0.8: q -3.12 d3seg  -8.44 tip 0.760 F0.14 LIM['tail_1', 'tail_2', 'tail_3'] | a+0.0: q -3.05 d3seg  -8.37 tip 0.761 F0.06 LIM['tail_1', 'tail_2', 'tail_3'] | a+0.8: q -1.79 d3seg  -7.11 tip 0.778 F0.24 LIM['tail_1', 'tail_2'] | a+1.0: q -0.77 d3seg  -6.09 tip 0.791 F0.27 LIM['tail_1', 'tail_2']
+    all a=-1.0: q(deg) [-3.2, -3.29, -3.14] seg [-7.89, -9.29, -8.61, -6.32, -2.9] b->t -7.33 tip_z 0.7571 frac [0.192, 0.187, 0.186] lim [['tail_1_pitch', 83.57], ['tail_2_pitch', 43.32], ['tail_3_pitch', 19.26]] CoM-f -25.62 pitch 1.017 stand True
+    all a=-0.8: q(deg) [-3.19, -3.27, -3.12] seg [-7.88, -9.26, -8.56, -6.27, -2.85] b->t -7.29 tip_z 0.758 frac [0.14, 0.136, 0.136] lim [['tail_1_pitch', 79.42], ['tail_2_pitch', 40.03], ['tail_3_pitch', 16.79]] CoM-f -25.63 pitch 1.016 stand True
+    all a=+0.8: q(deg) [-3.11, -3.09, -1.79] seg [-7.81, -9.01, -6.98, -4.69, -1.27] b->t -6.35 tip_z 0.7802 frac [0.277, 0.273, 0.238] lim [['tail_1_pitch', 46.23], ['tail_2_pitch', 13.79]] CoM-f -25.79 pitch 1.006 stand True
+    all a=+1.0: q(deg) [-3.1, -3.07, -0.77] seg [-7.81, -8.98, -5.94, -3.65, -0.23] b->t -5.76 tip_z 0.794 frac [0.329, 0.324, 0.267] lim [['tail_1_pitch', 42.11], ['tail_2_pitch', 10.53]] CoM-f -25.87 pitch 1.002 stand True

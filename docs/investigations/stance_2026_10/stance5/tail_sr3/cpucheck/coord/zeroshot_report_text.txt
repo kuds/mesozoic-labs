@@ -1,0 +1,83 @@
+All files below are under `scratchpad2/tailround/r10cpu/zeroshot/` (written ZS/ below).
+
+**Harness.** The harness is `ZS/scripts/zs_harness.py`, run on the arm's own code copy (`ZS/code_1af2d4d7` or `ZS/code_cf80ecb1`; tree digests are unchanged before and after the runs, `ZS/logs/code_tree_digest_*.txt`). Plant check: the SR3 model differs from both arms' r9 MJCF only in `qpos_spring` of tail_1/2/3_pitch: 0 becomes 52.5 / 25.9 / 10.4 deg, out of 593 compiled fields checked (`ZS/plants/cmp_*_r9_vs_sr3.json`). Both code copies' MJCFs are byte-identical to `chainsizer/r9.xml`, so I used `xml/SR3_t123.xml`, copied to `ZS/plants/sr3.xml`. On the SR3 env, validate_environment_plant reports exactly one mismatch, physics_sha256. policy_interface_sha256, nq, nv, nu and the observation and action dims are all equal (recorded in `panel.json` summary.plant_check). Bypass: on the SR3 plant only, `run_panel` is called with `plant_identity=None`. The checkpoint and its VecNormalize statistics are still validated against r9 (`ZS/harness_bypass.patch`). Stage configs were checked against each arm's recorded stage_config.json (`ZS/logs/config_check_*.json`): there are no real differences, physics r9 / interface r15, gate kind stance_quality_heading/v1. I scored the single-heading v2 decision, which is equivalent to the certificate's 0 deg cell.
+
+**Checkpoint hashes** (`ZS/checkpoints.csv`)
+| id | checkpoint | code | zip sha256 | pkl sha256 |
+|---|---|---|---|---|
+| c1 | stance3_armLT_s60 final | 1af2d4d7 | cc21604a…81903 | 894e86f4…17f28 |
+| c2 | stance5_LTSB_s52 final | cf80ecb1 | 24a4fada…5546a | 34a3f535…f2f05 |
+| c3 | stance5_LTSB_s70 final | cf80ecb1 | 9f115034…da499 | 1a01e9f4…77130 |
+| c4 | stance5_LTSB_s42 4194304 | cf80ecb1 | d3c90db8…b8df2 | 3903cbcf…ca118 |
+| c5 | stance5_LTSB_s80 4194304 | cf80ecb1 | 649db94c…5a3cc | 98fe3043…6d9 |
+| c6 | screen s42_control_r202 final | cf80ecb1 | eb084027…e041 | 09de0eaa…1fb1 |
+| c7 | screen s80_b60_r101 final | cf80ecb1 | f71f1196…028b | 363e4721…ecf9 |
+| c8 | screen s80_b90_r101 final | cf80ecb1 | 432315d7…0cf4 | d1d4ba0e…7566 |
+
+**Validation on r9** (`ZS/validation.txt`, `ZS/validation.json`)
+| check | recorded | harness | match |
+|---|---|---|---|
+| c8 panels.csv final (20 det): cmd / frac99 / q3 / falls / return_mean | 0.9033336158581078 / 0.0745 / -0.015639345928910448 / 0 / 4384.491312906789 | identical | bit-equal; per-episode return, cmd and share≥0.99 diffs are 0 vs flags.csv |
+| c7 panels.csv final | 0.6422163657918574 / 0.0 / -0.03744360642693621 / 0 / 4405.061169179162 | identical | bit-equal |
+| c1 certificate 0° cell | 40/40 clean, LCB 0.92784, mean reward 4363.7755248230615, SD 34.7 | 40/40, 0.92784, 4363.7755248230615, 34.740 (population SD) | exact |
+| c1 statue | 39/40 (seed 3081), statue mean reward 4459.404429297972 | 39/40 (seed 3081), 4459.404429297972 | exact |
+| c1 per-criterion median/worst (10 criteria) | printed to 4 significant figures | all agree to 4 s.f. | yes |
+| c1 statue CoM minus foot site (stance3 judge, live data) | -0.016112836 m | -0.016112735 m (my kinematics recomputed from qpos) | 1e-7 m apart (definition difference) |
+
+The first harness version also wrote a `return_seq` field. It uses Python's compensated `sum()` and differs from the judge's sequential sum by up to 8e-12. I report the sequential `return_run_panel` everywhere, which is bit-equal to the judge. Re-running all 16 deterministic panels with the v2 harness was bit-identical (`ZS/determinism_check.json`).
+
+**Deterministic panels, 40 episodes on seeds 3042-3081** (`ZS/summary.csv`). Window = steps 200..L-1. Every episode reached the full horizon (1000 steps) on both plants. "Tail-up" = episodes with tail_3 cmd ≥ 0.99 on more than 10% of window steps. Chord = distal chord from the tail_3 joint to the tail tip, degrees to horizontal, + = above horizontal. CoM = CoM minus the mean foot site, along the heading, + = forward.
+| ckpt | plant | clean/40 | tail-up | t3 cmd | frac99 | q1 / q3 (deg) | distal chord | CoM mm | pitch deg (nose-down +) | others' max sat (actuator) | return |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| c1 | r9 | 40 | 0 | 0.851 | 0.000 | -12.06 / -1.06 | -21.90 | -26.8 | 0.47 | 0 | 4363.8 |
+| c1 | SR3 | 37 (sole tilt 3) | 0 | 0.251 | 0.000 | -4.76 / +1.30 | +0.33 | -26.6 | 2.35 | 0 | 3789.6 |
+| c2 | r9 | 40 | 0 | 0.203 | 0 | -12.07 / -4.28 | -24.53 | -31.4 | 0.07 | 0 | 4410.1 |
+| c2 | SR3 | 39 (tilt 1) | 0 | 0.038 | 0 | -1.42 / +0.23 | -2.91 | -37.7 | -0.63 | 0 | 3832.4 |
+| c3 | r9 | 40 | 0 | -0.207 | 0 | -12.06 / -6.41 | -23.78 | -36.5 | -0.37 | 0 | 4319.4 |
+| c3 | SR3 | **0** (saturation 40, tilt 11, corner 7) | 0 | 0.002 | 0 | -3.19 / +0.03 | +4.85 | -45.6 | -0.29 | **1.000 (tail_2 at +1)** | 4044.0 |
+| c4 | r9 | 16 (tail_3 saturation 24) | 24 | 0.943 | 0.465 | -12.07 / -0.67 | -20.13 | -11.6 | 1.64 | 0 | 4369.6 |
+| c4 | SR3 | 36 (tilt 4, corner 2) | 0 | 0.327 | 0 | -1.45 / +1.71 | +5.52 | -29.3 | 1.16 | 0 | 4219.4 |
+| c5 | r9 | 40 | 0 | 0.602 | 0 | -12.07 / -2.35 | -22.40 | -22.3 | 1.47 | 0 | 4416.7 |
+| c5 | SR3 | **0** (tail_3 saturation 40) | **40** | **1.000** | **1.000** | -1.66 / +5.17 | +4.90 | -54.8 | 0.62 | 0 | 4021.3 |
+| c6 | r9 | 40 | 0 | 0.055 | 0 | -12.07 / -4.99 | -25.74 | -11.1 | 1.03 | 0 | 4438.9 |
+| c6 | SR3 | 38 (tilt 2) | 0 | -0.102 | 0 | -2.31 / -0.51 | +1.89 | -30.1 | 1.24 | 0 | 4198.6 |
+| c7 | r9 | 40 | 0 | 0.645 | 0 | -12.07 / -2.13 | -21.76 | -19.3 | 1.67 | 0 | 4403.6 |
+| c7 | SR3 | 39 (tilt 1) | 0 | 0.778 | 0 | -1.47 / +4.01 | +3.54 | -28.5 | 1.22 | 0 | 4227.6 |
+| c8 | r9 | 37 (tail_3 saturation 3) | 3 | 0.896 | 0.037 | -12.07 / -0.94 | -19.40 | -16.6 | 1.63 | 0 | 4381.2 |
+| c8 | SR3 | 40 | 0 | 0.870 | 0 | -1.04 / +4.51 | +6.78 | -19.4 | 1.30 | 0 | 4241.7 |
+
+**Stochastic panels** (policy Gaussian; z = default_rng(3042+i).standard_normal(15) each step of episode i). Full horizon 40/40 everywhere.
+| ckpt | clean r9→SR3 | tail-up r9→SR3 | t3 cmd r9→SR3 | frac99 r9→SR3 |
+|---|---|---|---|---|
+| c1 | 39→38 | 1→0 | 0.823→0.246 | 0.061→0 |
+| c2 | 40→39 | 0→0 | 0.203→0.039 | 0→0 |
+| c3 | 39→**0** (tail_2 rail) | 0→0 | -0.191→0.003 | 0→0 |
+| c4 | 4→**35** | 36→0 | 0.834→0.315 | 0.252→0 |
+| c5 | 36→**0** | 4→40 | 0.560→0.999 | 0.037→0.985 |
+| c6 | 40→38 | 0→0 | 0.065→-0.116 | 0→0 |
+| c7 | 40→**26** | 0→13 | 0.622→0.762 | 0.012→0.086 |
+| c8 | 8→3 | 32→37 | 0.827→0.837 | 0.197→0.193 |
+
+**Paired SR3 vs r9, same seeds** (`ZS/paired_tests.csv`, per-seed table `ZS/paired_seeds.csv`). The full-horizon McNemar test gives p = 1 everywhere (no discordant pairs). Differences are SR3 minus r9, mean ± SD over the 40 seeds.
+| ckpt | det clean lost/gained, McNemar p | stoch lost/gained, p | Δ t3 cmd (det) | Δ CoM mm (det) | Δ distal chord deg | Δ pitch deg |
+|---|---|---|---|---|---|---|
+| c1 | 3/0, 0.25 | 2/1, 1.0 | -0.600±0.055 | +0.2±2.0 | +22.2 | +1.88 |
+| c2 | 1/0, 1.0 | 1/0, 1.0 | -0.164±0.030 | -6.4±2.2 | +21.6 | -0.70 |
+| c3 | 40/0, 1.8e-12 | 39/0, 3.6e-12 | +0.209±0.070 | -9.1±1.8 | +28.6 | +0.08 |
+| c4 | 1/21, 1.1e-5 | 0/31, 9.3e-10 | -0.616±0.080 | -17.7±1.7 | +25.7 | -0.48 |
+| c5 | 40/0, 1.8e-12 | 36/0, 2.9e-11 | +0.398±0.197 | -32.5±2.1 | +27.3 | -0.85 |
+| c6 | 2/0, 0.5 | 2/0, 0.5 | -0.156±0.077 | -19.1±2.4 | +27.6 | +0.21 |
+| c7 | 1/0, 1.0 | 14/0, 1.2e-4 | +0.133±0.012 | -9.2±2.2 | +25.3 | -0.45 |
+| c8 | 0/3, 0.25 | 5/0, 0.0625 | -0.025±0.040 | -2.9±1.7 | +26.2 | -0.34 |
+
+Pooled over 320 pairs (`ZS/pooled.json`; this treats the pairs as independent): deterministic clean 293→229 (lost 88, gained 24, p 9.0e-10); stochastic 246→179 (99/32, p 3.7e-9).
+
+**Statues** (zero action, same seeds; identical across the two codes except reward): r9 39/40, seed 3081 falls forward (nosedive). Full-horizon values: CoM -16.1±0.4 mm, pitch 1.54 deg, distal chord -25.15 deg, base chord -23.35 deg. SR3 40/40: CoM -27.3±0.5 mm, pitch 0.92 deg, distal chord +3.24 deg, base chord +0.10 deg. Statue mean reward 4456.3→4285.3 (cf80ecb1) and 4459.4→4286.6 (1af2d4d7). Source: `ZS/statues/*/panel.json`, `ZS/summary.csv`.
+
+**Reward change on SR3, per episode, deterministic** (`ZS/reward_components.csv`): tail_home_pose falls by 122 to 171 for every checkpoint (window quality 0.73-0.98 → about 0.25). leg_home_pose falls by 18 to 189 (c5 -188.7). head_clearance falls by 338.2 for c1 and 322.9 for c2. action_saturation falls by 43.3 (c3) and 32.8 (c5).
+
+**Head and neck, deterministic** (`ZS/head_neck.csv`): c1 head-tip height 1.241→0.613 m, neck pitch -2.2→+32.9 deg, head pitch 0.1→33.0 deg. c2: 1.082→0.671 m, neck pitch 3.4→35.7 deg. c4: 0.902→0.970 m. c8: 0.891→1.041 m.
+
+**Observation distance** (`ZS/summary.csv` obsz_*): on SR3 the mean window z-score of the tail_1 position channel is +5.0 to +8.0 against the r9 VecNormalize statistics, tail_2 is +4.5 to +7.3 and tail_3 is +1.4 to +5.6. On r9 these are within ±1.5. No channel ever reaches clip 10.
+
+**Sole tilt** (`ZS/gate_metrics.csv`, `ZS/rail_breakdown.csv`): the worst max_sole_tilt per panel is 1.94-3.36 deg on SR3 against 0.92-1.62 deg on r9. The paired median increase is +0.10 to +1.04 deg. Deterministic SR3 has 23 sole-tilt failures across 7 checkpoints; r9 has 0.

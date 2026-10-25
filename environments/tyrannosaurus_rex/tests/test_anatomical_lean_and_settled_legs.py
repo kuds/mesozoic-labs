@@ -232,7 +232,7 @@ def test_the_settled_leg_target_is_mirror_symmetric():
         np.testing.assert_array_equal(qpos_map.apply(q)[env._leg_home_qpos_indices], settled)
         keyframe = env.model.key_qpos[env.home_keyframe_id][env._leg_home_qpos_indices]
         np.testing.assert_array_equal(env._leg_home_qpos, keyframe)  # the keyframe target itself is untouched
-        assert np.degrees(np.max(np.abs(settled - keyframe))) == pytest.approx(2.74, abs=0.01)
+        assert np.degrees(np.max(np.abs(settled - keyframe))) == pytest.approx(2.60, abs=0.01)
     finally:
         env.close()
 

@@ -56,6 +56,9 @@ designed and approved before any training (§17, its second note of 2026-10-24).
 tail-tip actuator's mean, its criteria approved before any training (§17, its third note of 2026-10-24).*
 *Updated 2026-10-25: that screen adopts neither bound; the second pilot keeps `stance3_armLT_s60`'s final as its parent
 and is not yet trained (§17, its note of 2026-10-25).*
+*Updated 2026-10-25, later: the maintainer took D-D44, T-Rex physics r10 (the tail pitch springs preloaded; the plant
+counter's next integer, not §17's r10 foot of the parked draft #623), which strands the second pilot's physics-r9
+parent on `main` once it lands (§17, its second note of 2026-10-25).*
 
 ## How to use this document
 
@@ -1062,4 +1065,18 @@ as 0.00017), which the criteria count as parked, not cured. The maintainer takes
 before any decision. The second pilot keeps `stance3_armLT_s60`'s final as its parent; it is not yet trained, is still
 the same deliberate exception to GQ-3 (a) and GQ-17, both still open, and certifies nothing, and the trex `gait-r1` walk
 (§5.4, §14) still waits for a certified stance. The screen's record is §24 of
+[investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).
+
+*Appended 2026-10-25, later (D-D44); the text above is unchanged.* **T. rex physics r10: the tail holds level on its
+springs.** (This r10 is the plant counter's next integer, not the r10 foot of the parked draft #623 that this section's
+note of 2026-10-17 names.) On 2026-10-25, after a posture options study, a CPU probe and CPU checks, none of which
+trained, the maintainer took D-D44: the three tail pitch springs preloaded (`springref` 52.5, 25.9 and 10.4°, nothing
+else), so the zero-action statue rests its tail level instead of on `tail_1`'s ventral stop, with the stance's
+`tail_home_pose` target re-centred on it and every constant pinned to r9 re-measured; the policy interface stays r15. It
+is built on a branch; the maintainer asked for its pull request on 2026-10-25. Once it is on `main` it strands every
+physics-r9 T. rex checkpoint, the second pilot's parent `stance3_armLT_s60`'s final among them, so that pilot can run
+only on its r9 branch and its result would not carry to r10; it is not yet trained, is still the same deliberate
+exception to GQ-3 (a) and GQ-17, both still open, and certifies nothing. The first r10 T. rex stance round gets its own
+criteria, approved before any training, and the trex `gait-r1` walk (§5.4, §14) still waits for a certified stance. This
+is a plant revision, not a walker session: it answers none of GQ-1..GQ-18. Its record is §25 of
 [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).

@@ -1,0 +1,5 @@
+[
+ "The first pytest attempt with MUJOCO_GL=osmesa failed at import (OpenGL glGetError is None; OSMesa is not available here). Rerunning without MUJOCO_GL worked (logs/pytest_*.log). No permission check refused anything.",
+ "My 1-thread results differ from the earlier hm_om_sr3rc.log in which headings fail. The cause is the torch thread count: a 4-thread rerun reproduces that log bit for bit. Any CI result therefore depends on the runner's default thread count, which was not measured.",
+ "Shared CPU: one Q1 seed took about 20 s instead of about 10 s at one point. At most one simulation process ran at a time, except that pytest ran alone after all other runs had finished."
+]

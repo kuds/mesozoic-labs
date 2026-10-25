@@ -987,7 +987,9 @@ builder, so `TRexEnv` declares `supported_training_backends = ("stable-baselines
 stay hashed for trex (its `action_low_pass_filter`) and pinned. The anatomical compsognathus, SB3-only from the start,
 took the same schema at its revision 4. The batched checklist above was not taken with it either. The core now serves
 two species, brachiosaurus and dibothrosuchus. `trex.xml`'s sensor-block comment still names `mjx_config.py`: an MJCF
-byte edit moves the source closure, so it waits for the next trex physics revision.
+byte edit moves the source closure, so it waits for the next trex physics revision. *Amended 2026-10-25 (D-D44):*
+T. rex physics r10 (`configs/plant_versions.toml` note 20) fixes it: the comment, now in
+`tyrannosaurus_rex_anatomical.xml`, names `TyrannosaurusRexEnv._cache_ids` instead.
 
 ### 4.2 What stays
 

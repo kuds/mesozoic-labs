@@ -1466,7 +1466,7 @@ def _passing_certificate(stage_dir: Path, curriculum: dict[str, Any], *, task_sh
 
     The synthetic statue grid of ``stance_heading_helpers`` stands in for the
     12 panels the judge would roll: clean at every heading, with a policy
-    reward above the stance's 2250 rail (the synthetic statue's is 1000).
+    reward above the stance's 2260 rail (the synthetic statue's is 1000).
     """
     from environments.shared.curriculum.stance_heading_gate import HEADING_GRID_DEG
     from environments.shared.reporting.stance_report import write_stance_heading_report

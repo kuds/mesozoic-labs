@@ -1,0 +1,14 @@
+baseline vs committed manifest: physics True policy True visual True
+V0 unmodified                                                  moved=[]  policy_sections=[] obs=63 act=15
+V0b comment-only edit                                          moved=[] source policy_sections=[] obs=63 act=15
+V1 springref tail_1_pitch +10deg                               moved=['physics'] source policy_sections=[] obs=63 act=15
+V2 tail_joint class stiffness 80->160                          moved=['physics'] source policy_sections=[] obs=63 act=15
+V3 tail_1 kp 100->200, forcerange 80->160                      moved=['physics'] source policy_sections=[] obs=63 act=15
+V4 tail_1 forcerange 80->120 only                              moved=['physics'] source policy_sections=[] obs=63 act=15
+V5 tail_1_pitch joint range -12..12 -> -20..12                 moved=['physics'] source policy_sections=[] obs=63 act=15
+V6 tail_3 ctrlrange +/-0.2094 -> +/-0.30                       moved=['physics', 'policy_interface'] source policy_sections=['actuators'] obs=63 act=15
+V7 home key ctrl tail_1 0 -> 0.1                               moved=['physics', 'policy_interface'] source policy_sections=['action_mapping'] obs=63 act=15
+V8 home key qpos tail_1 0 -> -0.2                              moved=['physics'] source policy_sections=[] obs=63 act=15
+V9 tail_4 mass 1.5 -> 1.0                                      moved=['physics'] source policy_sections=[] obs=63 act=15
+V10 tail_joint damping 30 -> 40                                moved=['physics'] source policy_sections=[] obs=63 act=15
+V11 springref on tail_1/tail_2/tail_3 pitch (+10/+5/+3 deg)    moved=['physics'] source policy_sections=[] obs=63 act=15

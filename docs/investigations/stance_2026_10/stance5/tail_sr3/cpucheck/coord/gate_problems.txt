@@ -1,0 +1,8 @@
+[
+ "configs/plant_versions.toml had to be hand-edited (physics_revision 9 -> 10 plus a note). By the repo's design this counter is human-reviewed, and plant_contract --write refuses to regenerate without it. Every generated file (both manifests, catalog, mirror map, digest snapshot) came from the tools.",
+ "The CLI surfaces the plant-contract refusal of an r9 checkpoint as a raw PlantCompatibilityError traceback, not a clean exit message, because _load_policy converts only PolicyLoadError. The refusal itself is correct.",
+ "The cost probe's three test_plant_contract_digest_snapshot failures in tests_r10_targeted.log were environmental (ModuleNotFoundError 'environments' in the harness subprocess, which needs the repo on PYTHONPATH). Here they pass on both trees with PYTHONPATH=<tree>.",
+ "Two SR3-only failures do not appear in the placeholder r10's failure list: test_the_settled_leg_pose_is_the_statues (ankle +4.75 mrad) and TestLateralSwayStiffness (m.g.h 729.1, CoM 29 mm higher). Both are class (i) but add constants to re-measure.",
+ "Test subprocesses that ran without -B wrote __pycache__ directories into both trees (inside my output dir). They are excluded from sr3.patch. Otherwise tree_r9 is identical to a fresh archive, and sr3.patch was unchanged after the tests.",
+ "No writes were made to the main checkout, main_clone, judge clones or checkpoint dirs; git status is clean in main_clone and the main checkout. No permission refusals were hit."
+]

@@ -427,11 +427,14 @@ class TestSettledPoseTargetsTrackTheStatue:
     ``_NECK_SETTLED_QPOS`` (the neck term under ``neck_posture_reference =
     "settled"``) and ``_TAIL_SETTLED_QPOS`` are the noise-free statue's pose
     over the post-settle window, measured on physics r8 and carried on r9
-    (inside the tolerances below).  Nothing derives them from the plant at
-    run time, so a gain, spring or mass edit that moves the
-    neck or tail would silently re-centre the statue off its own targets; this
-    re-measures them instead, as TestHeightTargetTracksStance does for the
-    height target that went stale exactly that way.
+    (inside the tolerances below), and re-measured on r10 (plant_versions
+    note 20: the preloaded tail springs hold the tail at the keyframe zeros
+    instead of drooping with tail_1 on its ventral stop, decision D-D44).
+    Nothing derives them from the plant at run time, so a gain, spring or mass
+    edit that moves the neck or tail would silently re-centre the statue off
+    its own targets; this re-measures them instead, as
+    TestHeightTargetTracksStance does for the height target that went stale
+    exactly that way.
     """
 
     SETTLE_STEPS = 200
@@ -459,7 +462,8 @@ class TestSettledPoseTargetsTrackTheStatue:
         # Measured 0.21432 / 0.0 / 0.21963 (to 3e-7) and -0.21069 / 0.0 /
         # -0.20280 / -0.09252 on r8, 0.21431 / 0.0 / 0.21968 and -0.21069 /
         # 0.0 / -0.20274 / -0.09249 on r9; the 40-seed spread at reset noise
-        # 0.05 is under 2e-4 rad.
+        # 0.05 is under 2e-4 rad.  On r10: 0.21401 / 0.0 / 0.22054 and
+        # 0.00002 / 0.0 / 0.00006 / 0.00018, 40-seed sd under 3e-4 rad.
         np.testing.assert_allclose(neck, TyrannosaurusRexAnatomicalEnv._NECK_SETTLED_QPOS, atol=1e-4)
         np.testing.assert_allclose(tail, TyrannosaurusRexAnatomicalEnv._TAIL_SETTLED_QPOS, atol=5e-4)
 

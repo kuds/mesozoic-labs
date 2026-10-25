@@ -1,0 +1,158 @@
+...........................F............................................ [  9%]
+........................................................................ [ 18%]
+............................................FFF......................... [ 27%]
+........................................................................ [ 36%]
+.....................................F.................................. [ 45%]
+....................................................F................... [ 55%]
+.......................................F......FF..FF.................... [ 64%]
+........................................................................ [ 73%]
+........................................................................ [ 82%]
+................F..........F............................................ [ 91%]
+.....F..........................................................         [100%]
+=================================== FAILURES ===================================
+E   AssertionError:
+    Not equal to tolerance rtol=1e-07, atol=0.0001
+
+    Mismatched elements: 1 / 3 (33.3%)
+    Mismatch at index:
+     [2]: 0.21981543384681182 (ACTUAL), 0.21963 (DESIRED)
+    Max absolute difference among violations: 0.00018543
+    Max relative difference among violations: 0.0008443
+     ACTUAL: array([ 2.142854e-01, -8.635784e-18,  2.198154e-01])
+     DESIRED: array([0.21432, 0.     , 0.21963])
+scratchpad2/tailround/r10probe/cost/om_r10/environments/tyrannosaurus_rex/tests/test_anatomical_env.py:463: AssertionError:
+E   AssertionError: Traceback (most recent call last):
+        File "scratchpad2/tailround/r10probe/cost/om_r10/environments/shared/harnesses/digest_snapshot.py", line 137, in <module>
+          from environments.shared.model_id import ModelId
+      ModuleNotFoundError: No module named 'environments'
+
+    assert 1 == 2
+     +  where 1 = CompletedProcess(args=['scratchpad2/venv/bi...odule>\n    from environments.shared.model_id import ModelId\nModuleNotFoundError: No module named \'environments\'\n').returncode
+scratchpad2/tailround/r10probe/cost/om_r10/environments/shared/tests/test_plant_contract_digest_snapshot.py:491: AssertionError: Traceback (most recent call last):
+E   AssertionError: Traceback (most recent call last):
+        File "scratchpad2/tailround/r10probe/cost/om_r10/environments/shared/harnesses/digest_snapshot.py", line 137, in <module>
+          from environments.shared.model_id import ModelId
+      ModuleNotFoundError: No module named 'environments'
+
+    assert 1 == 2
+     +  where 1 = CompletedProcess(args=['scratchpad2/venv/bi...odule>\n    from environments.shared.model_id import ModelId\nModuleNotFoundError: No module named \'environments\'\n').returncode
+scratchpad2/tailround/r10probe/cost/om_r10/environments/shared/tests/test_plant_contract_digest_snapshot.py:491: AssertionError: Traceback (most recent call last):
+E   AssertionError: Traceback (most recent call last):
+        File "scratchpad2/tailround/r10probe/cost/om_r10/environments/shared/harnesses/digest_snapshot.py", line 137, in <module>
+          from environments.shared.model_id import ModelId
+      ModuleNotFoundError: No module named 'environments'
+
+    assert 1 == 2
+     +  where 1 = CompletedProcess(args=['scratchpad2/venv/bi...odule>\n    from environments.shared.model_id import ModelId\nModuleNotFoundError: No module named \'environments\'\n').returncode
+scratchpad2/tailround/r10probe/cost/om_r10/environments/shared/tests/test_plant_contract_digest_snapshot.py:491: AssertionError: Traceback (most recent call last):
+E   assert 10 == 9
+scratchpad2/tailround/r10probe/cost/om_r10/environments/shared/tests/test_species_catalog.py:281: assert 10 == 9
+E   AssertionError: scratchpad2/tailround/r10probe/cost/om_r10/configs/tyrannosaurus_rex/anatomical/stance.toml: statue constants were measured on physics revision 9, but the manifest is at revision 10. Re-measure the statue on the current plant (zero_action_baseline.py / stance_quality_baseline.py), re-derive min_avg_reward and collapse_peak_floor_reference, and update this pin in the same commit.
+    assert 9 == 10
+scratchpad2/tailround/r10probe/cost/om_r10/environments/shared/tests/test_statue_constant_freshness.py:74: AssertionError: scratchpad2/tailround/r10probe/cost/om_r10/configs/tyrannosaurus_rex/anatomical/stance.toml: statue constants were measured on physics revision 9, but the manifest is at revision 10. Re-measure the statue on the current plant (zero_action_baseline.py / stance_quality_baseline.py), re-derive min_avg_reward and collapse_peak_floor_reference, and update this pin in the same commit.
+E   AssertionError: (ModelId(species='tyrannosaurus_rex', embodiment='anatomical'), 'recovery') was recaptured on another tyrannosaurus_rex/anatomical plant; re-take it with reset_golden.py --recapture
+    assert (9, 'sha256:3...b14bac872d67') == (10, 'sha256:...7401b48ca682')
+
+      At index 0 diff: 9 != 10
+      Use -v to get more diff
+scratchpad2/tailround/r10probe/cost/om_r10/environments/shared/tests/test_phase_c_interface.py:218: AssertionError: (ModelId(species='tyrannosaurus_rex', embodiment='anatomical'), 'recovery') was recaptured on another tyrannosaurus_rex/anatomical plant; re-take it with reset_golden.py --recapture
+E   AssertionError:
+    Arrays are not equal
+    (ModelId(species='tyrannosaurus_rex', embodiment='anatomical'), 'recovery') seed 3042
+    Mismatched elements: 4 / 63 (6.35%)
+    Mismatch at indices:
+     [51]: -3.392819 (ACTUAL), -3.252403 (DESIRED)
+     [52]: 0.477568 (ACTUAL), 0.46971 (DESIRED)
+     [53]: 4.511907 (ACTUAL), 4.935281 (DESIRED)
+     [54]: 199.668869 (ACTUAL), 198.449844 (DESIRED)
+    Max absolute difference among violations: 1.219025
+    Max relative difference among violations: 0.08578519
+     ACTUAL: array([-4.889600e-02,  4.155800e-02,  4.766200e-02,  2.713000e-02,
+            9.673000e-03,  4.490200e-02,  1.716800e-02, -2.828900e-02,
+           -4.871300e-02, -4.443720e-01,  1.316187e+00,  1.839080e-01,...
+     DESIRED: array([-4.889600e-02,  4.155800e-02,  4.766200e-02,  2.713000e-02,
+            9.673000e-03,  4.490200e-02,  1.716800e-02, -2.828900e-02,
+           -4.871300e-02, -4.443720e-01,  1.316187e+00,  1.839080e-01,...
+scratchpad2/tailround/r10probe/cost/om_r10/environments/shared/tests/test_phase_c_interface.py:265: AssertionError:
+E   AssertionError:
+    Arrays are not equal
+    (ModelId(species='tyrannosaurus_rex', embodiment='anatomical'), 'stance') seed 3042
+    Mismatched elements: 4 / 63 (6.35%)
+    Mismatch at indices:
+     [51]: -3.392819 (ACTUAL), -3.252403 (DESIRED)
+     [52]: 0.477568 (ACTUAL), 0.46971 (DESIRED)
+     [53]: 4.511907 (ACTUAL), 4.935281 (DESIRED)
+     [54]: 199.668869 (ACTUAL), 198.449844 (DESIRED)
+    Max absolute difference among violations: 1.219025
+    Max relative difference among violations: 0.08578519
+     ACTUAL: array([-4.889600e-02,  4.155800e-02,  4.766200e-02,  2.713000e-02,
+            9.673000e-03,  4.490200e-02,  1.716800e-02, -2.828900e-02,
+           -4.871300e-02, -4.443720e-01,  1.316187e+00,  1.839080e-01,...
+     DESIRED: array([-4.889600e-02,  4.155800e-02,  4.766200e-02,  2.713000e-02,
+            9.673000e-03,  4.490200e-02,  1.716800e-02, -2.828900e-02,
+           -4.871300e-02, -4.443720e-01,  1.316187e+00,  1.839080e-01,...
+scratchpad2/tailround/r10probe/cost/om_r10/environments/shared/tests/test_phase_c_interface.py:265: AssertionError:
+E   AssertionError:
+    Not equal to tolerance rtol=0, atol=1e-05
+    (ModelId(species='tyrannosaurus_rex', embodiment='anatomical'), 'recovery') seed 3042
+    Mismatched elements: 466 / 560 (83.2%)
+    First 5 mismatches are at indices:
+     [0, 2]: 0.929842 (ACTUAL), 0.929879 (DESIRED)
+     [0, 5]: -0.00015 (ACTUAL), -6e-05 (DESIRED)
+     [0, 7]: -0.046238 (ACTUAL), -0.04656 (DESIRED)
+     [0, 9]: 0.045378 (ACTUAL), 0.045415 (DESIRED)
+     [0, 10]: 0.02793 (ACTUAL), 0.027427 (DESIRED)
+    Max absolute difference among violations: 0.028989
+    Max relative difference among violations: 58.73793103
+     ACTUAL: array([[-4.430000e-04,  3.570000e-04,  9.298420e-01,  9.999990e-01,
+            -9.570000e-04, -1.500000e-04, -2.510000e-04, -4.623800e-02,
+             4.136500e-02,  4.537800e-02,  2.793000e-02,  1.023300e-02,...
+     DESIRED: array([[-4.450000e-04,  3.570000e-04,  9.298790e-01,  1.000000e+00,
+            -9.540000e-04, -6.000000e-05, -2.490000e-04, -4.656000e-02,
+             4.136400e-02,  4.541500e-02,  2.742700e-02,  1.022800e-02,...
+scratchpad2/tailround/r10probe/cost/om_r10/environments/shared/tests/test_phase_c_interface.py:283: AssertionError:
+E   AssertionError:
+    Not equal to tolerance rtol=0, atol=1e-05
+    (ModelId(species='tyrannosaurus_rex', embodiment='anatomical'), 'stance') seed 3042
+    Mismatched elements: 466 / 560 (83.2%)
+    First 5 mismatches are at indices:
+     [0, 2]: 0.929842 (ACTUAL), 0.929879 (DESIRED)
+     [0, 5]: -0.00015 (ACTUAL), -6e-05 (DESIRED)
+     [0, 7]: -0.046238 (ACTUAL), -0.04656 (DESIRED)
+     [0, 9]: 0.045378 (ACTUAL), 0.045415 (DESIRED)
+     [0, 10]: 0.02793 (ACTUAL), 0.027427 (DESIRED)
+    Max absolute difference among violations: 0.028989
+    Max relative difference among violations: 58.73793103
+     ACTUAL: array([[-4.430000e-04,  3.570000e-04,  9.298420e-01,  9.999990e-01,
+            -9.570000e-04, -1.500000e-04, -2.510000e-04, -4.623800e-02,
+             4.136500e-02,  4.537800e-02,  2.793000e-02,  1.023300e-02,...
+     DESIRED: array([[-4.450000e-04,  3.570000e-04,  9.298790e-01,  1.000000e+00,
+            -9.540000e-04, -6.000000e-05, -2.490000e-04, -4.656000e-02,
+             4.136400e-02,  4.541500e-02,  2.742700e-02,  1.022800e-02,...
+scratchpad2/tailround/r10probe/cost/om_r10/environments/shared/tests/test_phase_c_interface.py:283: AssertionError:
+E   assert 0.10723151522469208 == 0.1303721171614448 ± 1.0e-06
+
+      comparison failed
+      Obtained: 0.10723151522469208
+      Expected: 0.1303721171614448 ± 1.0e-06
+scratchpad2/tailround/r10probe/cost/om_r10/environments/shared/tests/test_gait_recorder.py:688: assert 0.10723151522469208 == 0.1303721171614448 ± 1.0e-06
+E   AssertionError: {'actions': 1.909211277961731e-08, 'joints': 7.244920360600232e-08, 'rewards': 1.9409866158781597e-08, 'observations': 3.0517578125e-05}
+scratchpad2/tailround/r10probe/cost/om_r10/environments/shared/tests/heading_free_helpers.py:126: AssertionError: {'actions': 1.909211277961731e-08, 'joints': 7.244920360600232e-08, 'rewards': 1.9409866158781597e-08, 'observations': 3.0517578125e-05}
+E   assert 0.8169314081070191 > 0.82
+scratchpad2/tailround/r10probe/cost/om_r10/environments/shared/tests/test_stance_gate_v2_report.py:502: assert 0.8169314081070191 > 0.82
+=========================== short test summary info ============================
+FAILED environments/tyrannosaurus_rex/tests/test_anatomical_env.py::TestSettledPoseTargetsTrackTheStatue::test_settled_targets_are_the_statues_post_settle_pose
+FAILED environments/shared/tests/test_plant_contract_digest_snapshot.py::test_refusals_come_before_the_run[check-skip-behaviors]
+FAILED environments/shared/tests/test_plant_contract_digest_snapshot.py::test_refusals_come_before_the_run[write-skip-behaviors]
+FAILED environments/shared/tests/test_plant_contract_digest_snapshot.py::test_refusals_come_before_the_run[check-no-golden]
+FAILED environments/shared/tests/test_species_catalog.py::test_catalog_publishes_layered_plant_contract
+FAILED environments/shared/tests/test_statue_constant_freshness.py::test_statue_derived_constants_record_the_plant_they_were_measured_on
+FAILED environments/shared/tests/test_phase_c_interface.py::test_recaptured_goldens_record_the_plant_they_were_taken_on
+FAILED environments/shared/tests/test_phase_c_interface.py::test_reset_observation_is_byte_inert_except_the_trailing_zeros[tyrannosaurus_rex-anatomical-recovery]
+FAILED environments/shared/tests/test_phase_c_interface.py::test_reset_observation_is_byte_inert_except_the_trailing_zeros[tyrannosaurus_rex-anatomical-stance]
+FAILED environments/shared/tests/test_phase_c_interface.py::test_zero_action_trajectories_match_the_pre_bump_golden[tyrannosaurus_rex-anatomical-recovery]
+FAILED environments/shared/tests/test_phase_c_interface.py::test_zero_action_trajectories_match_the_pre_bump_golden[tyrannosaurus_rex-anatomical-stance]
+FAILED environments/shared/tests/test_gait_recorder.py::test_the_physics_r9_statue_whole_foot_cop_reading
+FAILED environments/shared/tests/test_heading_free_rollouts.py::test_full_horizon_traces_repeat_at_every_heading[tyrannosaurus_rex-anatomical]
+FAILED environments/shared/tests/test_stance_gate_v2_report.py::TestThePadCentreOfPressure::test_a_pad_pushed_onto_its_front_edge_fails_the_bar_alone_and_the_statue_reads_under_it
+exit 1
