@@ -958,8 +958,8 @@ class TestTyrannosaurusRexBehaviorCollapseFloor:
 
     The absolute ``collapse_peak_floor = 100.0`` sat 6x below the measured
     do-nothing reward (602.13 +/- 175.35, n = 40, seed 3042, 40/40 full
-    horizon, physics r7; 601.94 +/- 175.17 re-measured on physics r8 and
-    593.41 +/- 187.19 on r9), so it armed on the first qualifying evaluation of
+    horizon, physics r7; 601.94 +/- 175.17 re-measured on physics r8,
+    593.41 +/- 187.19 on r9 and 600.93 +/- 174.59 on r10), so it armed on the first qualifying evaluation of
     every run and encoded nothing.  ``collapse_settings_from_config`` lets an
     explicit absolute floor win over the pair, so the key must be ABSENT,
     not shadowed.
@@ -984,7 +984,7 @@ class TestTyrannosaurusRexBehaviorCollapseFloor:
         # Explicit, at locomotion's tuned values rather than the 12/8/0.4 defaults.
         assert (settings["min_evals"], settings["patience"], settings["drop_fraction"]) == (20, 10, 0.5)
         # The freshness pin that lets test_statue_constant_freshness.py guard it.
-        assert cur["statue_constants_physics_revision"] == 9
+        assert cur["statue_constants_physics_revision"] == 10
 
     def test_tyrannosaurus_rex_behavior_rail_sits_below_the_statue(self):
         """D-B4: the rail is round(0.6 x reference); a statue must clear it, a collapse must not."""

@@ -241,6 +241,8 @@ def test_catalog_publishes_layered_plant_contract() -> None:
     # The binomial rename (plant_versions note 19, decision D-D33) bumped every
     # policy revision once more: the hashed methods' qualnames moved to the
     # species base classes. POLICY only, physics and visual unchanged.
+    # T-Rex physics r10 (plant_versions note 20, decision D-D44) preloaded the
+    # tail pitch springs: PHYSICS only, policy and visual unchanged.
     expected_policy_revisions = {
         VELOCIRAPTOR_MONGOLIENSIS: 12,
         TYRANNOSAURUS_REX: 15,
@@ -251,7 +253,7 @@ def test_catalog_publishes_layered_plant_contract() -> None:
     }
     expected_physics_revisions = {
         VELOCIRAPTOR_MONGOLIENSIS: 4,
-        TYRANNOSAURUS_REX: 9,
+        TYRANNOSAURUS_REX: 10,
         BRACHIOSAURUS_ALTITHORAX: 5,
         DIBOTHROSUCHUS_ELAPHROS: 2,
     }
@@ -321,8 +323,9 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
     # Stage-1 reward gates are COLLAPSE RAILS: 0.60 x each species' zero-action
     # statue standing reward at the 1a operating point (reset noise 0.05),
     # measured over 40 episodes with
-    # environments/shared/scripts/stance_quality_baseline.py -- trex 3756.8
-    # (physics r8 with the D-D27 stance task: the settled width reference, the
+    # environments/shared/scripts/stance_quality_baseline.py -- trex 3766.6
+    # (physics r10 with the D-D27 stance task; 3756.8 on physics r8 and r9:
+    # the settled width reference, the
     # load gate and the floor-impact, airborne and raw-command terms; 3766.1
     # under the r8 stance task: settled neck target, foot flatness and stance
     # width; 3495.2 on r7 with the 20260810 shaping pack:
@@ -356,9 +359,10 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
         # Re-derived at tolerance 0.10 (statue 3241.3 -> rail 1940), then
         # again for the 20260810 shaping pack: statue 3495.2, x0.60 = 2097.1
         # -> 2100 nearest-10, for physics r8 with its stance task: statue
-        # 3766.1, x0.60 = 2259.7 -> 2260, and for the D-D27 follow-up: statue
-        # 3756.8, x0.60 = 2254.1 -> 2250.
-        TYRANNOSAURUS_REX: 2250.0,
+        # 3766.1, x0.60 = 2259.7 -> 2260, for the D-D27 follow-up: statue
+        # 3756.8, x0.60 = 2254.1 -> 2250, and for physics r10 (D-D44): statue
+        # 3766.6, x0.60 = 2260.0 -> 2260.
+        TYRANNOSAURUS_REX: 2260.0,
         # 0.60 x 2842.76 = 1705.7 -> 1710 nearest-10 (1050 on the r2 plant).
         VELOCIRAPTOR_MONGOLIENSIS: 1710.0,
         BRACHIOSAURUS_ALTITHORAX: 1040.0,

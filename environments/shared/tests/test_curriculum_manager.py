@@ -498,10 +498,10 @@ class TestThresholdsFromConfigs:
         # The six-heading certificate since D-D32, stance_quality/v2 from physics r8 (D-D24) and
         # stance_quality/v1 before it: a stance kind every time.
         assert curriculum["gate_kind"] == "stance_quality_heading/v1"
-        # The statue scores 3756.8 at 1000.0 steps on the D-D27 stance task (3766.1 on the r8 task,
-        # 3271.8 when the reward gate was retired), so the retired reward and length criteria were both
-        # cleared by doing nothing.
-        assert curriculum["min_avg_reward"] < curriculum["collapse_peak_floor_reference"] == 3756.8, (
+        # The statue scores 3766.6 at 1000.0 steps on the D-D27 stance task and physics r10 (3756.8
+        # through r9, 3766.1 on the r8 task, 3271.8 when the reward gate was retired), so the retired
+        # reward and length criteria were both cleared by doing nothing.
+        assert curriculum["min_avg_reward"] < curriculum["collapse_peak_floor_reference"] == 3766.6, (
             "reward must be a rail below the statue, not a gate"
         )
         assert "min_avg_episode_length" not in curriculum

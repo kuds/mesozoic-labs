@@ -468,10 +468,10 @@ class TestStanceReports:
         certificate under the moved gate.  Trex stance now declares the six-heading certificate
         ``stance_quality_heading/v1`` (D-D32; ``stance_quality/v2`` from D-D24), whose arm admits only a
         ``stance_heading_report.json`` the heading code scored on this handoff pair; the directory holds
-        none, and a v1 report scored under the 1940 rail (whose 1950 would also fail the current 2250
+        none, and a v1 report scored under the 1940 rail (whose 1950 would also fail the current 2260
         rail) is not one under any name."""
         current = load_all_stages(ModelId("tyrannosaurus_rex", "anatomical"))[1]["curriculum_kwargs"]
-        assert current["gate_kind"] == "stance_quality_heading/v1" and current["min_avg_reward"] == 2250.0
+        assert current["gate_kind"] == "stance_quality_heading/v1" and current["min_avg_reward"] == 2260.0
         stage_dir = _stance_stage_dir(
             tmp_path, recorded=STANCE_CURRICULUM_AT_1940, report=_stance_report(STANCE_CURRICULUM_AT_1940)
         )
@@ -499,7 +499,7 @@ class TestStanceReports:
         # And under the current gate once a certificate scored under it is on disk:
         # the synthetic grid re-derives, so its verdict is written -- the FAIL it
         # re-derives to, since its statue-like episodes score 1000 at every heading
-        # against the 2250 rail, which still applies at each.
+        # against the 2260 rail, which still applies at each.
         from environments.shared.reporting.stance_report import write_stance_heading_report
 
         from .stance_heading_helpers import heading_report
@@ -513,7 +513,7 @@ class TestStanceReports:
         assert verdict["gate_sha256"] == gate_config_sha256(gate_config_view(current))
         assert verdict["passed"] is False and verdict["stage_result"]["stance_heading_clean_seeds"] == 40
         assert len(verdict["failures"]) == 6
-        assert all("mean_reward 1000.0 < 2250.0 (rail)" in failure for failure in verdict["failures"])
+        assert all("mean_reward 1000.0 < 2260.0 (rail)" in failure for failure in verdict["failures"])
 
     def test_gate_current_on_a_v2_stance_refuses_another_gate_and_re_derives_its_own(self, tmp_path):
         """``--gate current`` on a stance whose current gate is still ``stance_quality/v2`` (the velociraptor's,
