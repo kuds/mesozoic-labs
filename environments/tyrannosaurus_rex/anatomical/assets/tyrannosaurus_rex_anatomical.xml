@@ -81,10 +81,10 @@
       - Heavy muscular tail as counterbalance to skull (~18% of mass)
       - Vertebral column held roughly horizontal: the PELVIS FRAME IS LEVEL at
         the home keyframe, and settles ~0.95 deg nose-down under the home
-        controller (~1.55 deg through physics r9, while the tail rested on its
-        ventral stops).  Only the torso capsule slopes (~10 deg).  Reward code
-        reads the pelvis frame, so natural_pitch tracks that 0.95 deg, not the
-        capsule slope.
+        controller (~1.55 deg through physics r9, while the tail drooped with
+        tail_1 on its ventral stop).  Only the torso capsule slopes (~10 deg).
+        Reward code reads the pelvis frame, so natural_pitch tracks that 0.95
+        deg, not the capsule slope.
       - Body pivots at hips, skull and tail balance each other: the CoM sits
         3.7mm behind the foot-contact centroid at home
 
@@ -190,9 +190,10 @@
            10.4 deg, stiffness 80 unchanged, so the passive springs carry the
            tail's weight and the zero-action statue holds the keyframe zeros
            (0.00002 / 0.00006 / 0.00018 rad).  Through r9 the springs rested
-           at zero and the statue's tail settled onto its -12 deg ventral
-           stops (tail_1 / tail_2 pitch -0.2107 / -0.2029 rad, tail_3
-           -0.0926).  The compiled model differs from r9 only in qpos_spring. -->
+           at zero and the statue's tail drooped: tail_1 pitch on its -12 deg
+           ventral stop (-0.2107 rad against the -0.2094 stop, about 30 N.m on
+           the limit), tail_2 just above its own (-0.2029) and tail_3 at
+           -0.0926.  The compiled model differs from r9 only in qpos_spring. -->
 
       <body name="tail_1" pos="-0.2 0 0">
         <joint name="tail_1_pitch" class="tail_joint" type="hinge" axis="0 1 0" springref="52.5"/>
@@ -451,17 +452,18 @@
          sway in parallel, so they are stable only while 2 x (kp + 40)
          exceeds the gravity stiffness m.g.h of the settled statue: 85.72 kg
          x 9.81 x 0.8670 m (subtree CoM height) = 729.1 N.m/rad on physics
-         r10, whose level tail raises the CoM (0.8377 m and 704.4 through
-         r9).  kp 150
+         r10, whose level tail raises the CoM (0.8379 m and 704.6 on r9;
+         0.8377 m and 704.4 when first measured on r8).  kp 150
          gave 380, so the servos could not pull the reset's hip-roll noise
          back: a wide spawn stayed wide on the pads' inner edges and a
          narrow one on their outer edges, up to 3.4 deg of pad roll with the
          outer digit unloaded on 4/40 statue episodes, the same signature as
-         the trained stances' propped leg.  kp 600 gives 1280 (1.76x); the
-         statue's worst pad tilt falls from 3.4 to 1.2 deg (1.5 over 80
-         more seeds), its settled foot-site width from 0.218-0.337 m to
-         0.244-0.316 m about the home 0.280, and its quasi-static lateral
-         push capacity rises from 3.3% to 5.1% of body weight.
+         the trained stances' propped leg.  kp 600 gives 1280 (1.8x on r8,
+         1.76x on r10); on r8 the statue's worst pad tilt fell from 3.4 to
+         1.2 deg (1.5 over 80 more seeds), its settled foot-site width from
+         0.218-0.337 m to 0.244-0.316 m about the home 0.280, and its
+         quasi-static lateral push capacity rose from 3.3% to 5.1% of body
+         weight.
          forcerange keeps the 0.8x kp spike cap of every actuator outside
          the gait-headroom six; the statue uses under 3% of it.  ctrlrange,
          and so what an action means, is unchanged. -->

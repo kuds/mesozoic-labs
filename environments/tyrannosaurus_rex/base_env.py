@@ -292,7 +292,17 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         #     height of ~0.55-0.57 in a level squat, so the plant is already
         #     lying down below that.  The tail's pose is fixed relative to the
         #     pelvis and does not move with the legs, so that figure is
-        #     unchanged and 0.70 still clears it by ~0.13.
+        #     unchanged and 0.70 still clears it by ~0.13.  That holds through
+        #     physics r9, whose settled tail drooped.  Physics r10
+        #     (plant_versions note 20, D-D44) preloads the tail pitch springs
+        #     and the settled tail is level: a kinematic scan (level pelvis,
+        #     home-keyframe legs, settled tail pitches; 2026-10-25) puts the
+        #     lowest points of tail_3/4/5 0.13 / 0.11 / 0.07 m below the
+        #     pelvis on r10 against 0.46 / 0.55 / 0.60 m on r9's droop, so in
+        #     a level squat the tail no longer reaches the floor above 0.70
+        #     and this floor, not the tail, is the backstop on r10 (the
+        #     pushed recovery statue's 40 ends: tail_contact 14 -> 1, fallen
+        #     0 -> 19).  The bound itself is unchanged.
         #   * Healthy full-horizon episodes bottomed out 0.134 m above the
         #     floor (0.884 against 0.75).  0.834 against 0.70 is the same
         #     margin under a stance that sits 0.0497 lower.
@@ -651,11 +661,12 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         # it; the precedent is the 0.9260 m settled height target in
         # _get_reward_info).  Through physics r9 the passive tail could not
         # hold the authored zeros against gravity: under the home controller
-        # it settled onto its ventral stops (tail_1/tail_2 pitch at
-        # -0.2107/-0.2029 rad against the -0.2094 stop, tail_3 at -0.0926)
-        # with sub-milliradian spread across 40 seeds at reset noise 0.05, and
-        # the term targeted that droop, since pricing the keyframe would have
-        # capped the ideal statue at ~0.25 quality.  Physics r10
+        # it drooped with tail_1 pitch on its ventral stop (tail_1/tail_2
+        # pitch at -0.2107/-0.2029 rad against the -0.2094 stop, so tail_2
+        # just above its own, tail_3 at -0.0926) with sub-milliradian spread
+        # across 40 seeds at reset noise 0.05, and the term targeted that
+        # droop, since pricing the keyframe would have capped the ideal
+        # statue at ~0.25 quality.  Physics r10
         # (plant_versions note 20, D-D44) preloads the three tail pitch
         # springs (springref 52.5 / 25.9 / 10.4 deg), and the statue now
         # settles at the keyframe zeros: 0.00002 / 0.0 / 0.00006 / 0.00018

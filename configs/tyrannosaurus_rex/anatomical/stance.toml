@@ -222,7 +222,13 @@ floor_impact_threshold_bw = 1.4                # The statue's per-step peak neve
                                                # grace (1.272 / 1.316 / 1.331 on 3042 / 7042 / 3162, 1.277 / 1.294 on
                                                # 5042 / 9042); its spawn pop reaches 1.345 / 1.370 / 1.560 at steps 3-8,
                                                # which this charges 0 / 0 / 1.19 in total over 40 episodes. Below the v2
-                                               # settle bar (1.5), so pricing starts before refusal does.
+                                               # settle bar (1.5), so pricing starts before refusal does. (Those are
+                                               # physics r8's figures; on r9 1.280 / 1.301 / 1.325 after the grace and
+                                               # 1.368 / 1.404 / 1.593 in the spawn pop, charged 0 / 0.007 / 1.48.) On r10
+                                               # (D-D44) the statue's peak after the grace is at most 1.207 / 1.196 /
+                                               # 1.322, but the level tail's spawn pop reaches 1.571 / 1.588 / 1.797,
+                                               # which this charges 2.49 / 3.67 / 10.02 in total over 40 episodes (on
+                                               # 11 / 12 / 13 of them; nothing after step 10). The threshold is kept.
 airborne_substep_weight = 1.0                  # Per fully airborne step: the share of the step's substeps on which every
                                                # foot's touch is at or below 0.1 N (the floor-truth contact threshold),
                                                # so one alive bonus per step in the air. Touch-airborne substeps equal
@@ -262,14 +268,15 @@ tail_home_pose_weight = 0.25                   # Prices tail JOINT positions. ta
                                                # optimal for it -- the 20260809 run parked tail_1_yaw, tail_2_pitch
                                                # and tail_3_pitch exactly that way (all three at stops by 10M).
 tail_home_pose_tolerance = 0.05                # rad; around the statue's SETTLED tail, not the keyframe. Through
-                                               # physics r9 the passive tail rested on its ventral stops (tail_1/2
-                                               # pitch -0.2107/-0.2029, tail_3 -0.0926; sub-milliradian spread over
-                                               # 40 seeds at noise 0.05), so the keyframe zeros were unreachable and
-                                               # would have capped the statue at ~0.25 quality. Physics r10 (D-D44,
-                                               # plant_versions note 20) preloads the tail pitch springs, and the
-                                               # statue settles at the keyframe zeros (0.00002 / 0.0 / 0.00006 /
-                                               # 0.00018 rad; 40-seed sd <= 0.0003), the target since; D-D44 kept
-                                               # this tolerance. Targets live plant-side (TyrannosaurusRexEnv._TAIL_SETTLED_QPOS
+                                               # physics r9 the passive tail drooped with tail_1 on its ventral stop
+                                               # (tail_1/2 pitch -0.2107/-0.2029 against the -0.2094 stops, tail_3
+                                               # -0.0926; sub-milliradian spread over 40 seeds at noise 0.05), so the
+                                               # keyframe zeros were unreachable and would have capped the statue at
+                                               # ~0.25 quality. Physics r10 (D-D44, plant_versions note 20) preloads
+                                               # the tail pitch springs, and the statue settles at the keyframe zeros
+                                               # (0.00002 / 0.0 / 0.00006 / 0.00018 rad; 40-seed sd <= 0.0003), the
+                                               # target since; D-D44 kept this tolerance. Targets live plant-side
+                                               # (TyrannosaurusRexEnv._TAIL_SETTLED_QPOS
                                                # in tyrannosaurus_rex/base_env.py). At 0.05 the statue scores
                                                # ~1.0 and every parked-tail pose from the 20260809 run scores ~0.
 action_saturation_weight = 0.5                 # Prices commands parked past |action| = threshold (linear ramp to
@@ -638,7 +645,7 @@ timesteps = 12000000
 # bars where they are; the audit note's appended §12 holds the r9 panels.
 #
 # Physics r10 (plant_versions note 20, D-D44: the tail pitch springs preloaded,
-# so the statue's tail holds level instead of resting on its ventral stops)
+# so the statue's tail holds level instead of drooping with tail_1 on its ventral stop)
 # keeps every bar too; each comment below adds the r10 statue's extremes
 # ("r10") on the same 40 + 240 seeds, rolled with this file's r10 [env]. The
 # r10 statue is clean on 40/40 here (bound 0.928) and at every heading of the

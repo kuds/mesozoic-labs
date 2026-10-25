@@ -129,12 +129,12 @@ class TestLateralSwayStiffness:
     resist lateral sway in parallel, so the stance is stable only while
     ``2 x (kp + k)`` exceeds ``m.g.h``: the animal's weight times its CoM
     height, measured on the settled statue (729.1 N.m/rad on physics r10,
-    whose level tail raises the subtree CoM to 0.8670 m; 704.4 at 0.8377 m
-    through r9).  Physics r7 kept
-    the raptor-era kp 150, which gave 380 (0.54x): the servos could not pull
-    the reset's hip-roll noise back, and the statue stood rolled onto its pad
-    edges with the outer digit lifted, like the trained stances' propped
-    leg.  kp 600 gives 1280 (1.76x; 1.82x through r9).  The bar is 1.5x, so a later re-sizing
+    whose level tail raises the subtree CoM to 0.8670 m; 704.6 at 0.8379 m
+    on r9, and 704.4 at 0.8377 m on r8).  Physics r7 kept the raptor-era kp
+    150, which gave 380 (0.54x): the servos could not pull the reset's
+    hip-roll noise back, and the statue stood rolled onto its pad edges with
+    the outer digit lifted, like the trained stances' propped leg.  kp 600
+    gives 1280 (1.76x; 1.82x on r9).  The bar is 1.5x, so a later re-sizing
     has to keep real margin rather than just clear the instability.
     """
 
