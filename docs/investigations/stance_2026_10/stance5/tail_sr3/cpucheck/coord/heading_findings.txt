@@ -1,0 +1,116 @@
+[
+ {
+  "id": "F1",
+  "claim": "The trees match: om_r9 is identical to main_clone 9f2355a3 in every file. om_sr3rc differs only in the T. rex XML (springref 52.5/25.9/10.4 deg) and base_env.py (_TAIL_SETTLED_QPOS); no manifest file differs. The test file, heading_free_helpers.py, the env, base_env and the observation code are identical across all three.",
+  "label": "measured",
+  "source": "diff -rq recorded in this session; scratch trees built under trees/ in the heading output dir"
+ },
+ {
+  "id": "F2",
+  "claim": "Run as pytest at 1 torch thread, the SR3 T. rex traces test fails on rewards <= REWARD_ATOL 1e-9 (actions 1.3504e-08, joints 6.5557e-08, rewards 5.0758e-09, obs 3.0518e-05), and the SR3 floor-truth metrics test passes. r9 passes both.",
+  "label": "measured",
+  "source": "scratchpad2/tailround/r10cpu/heading/logs/pytest_sr3.log, logs/pytest_r9.log"
+ },
+ {
+  "id": "F3",
+  "claim": "r9 passing seeds 3042-3043 is luck. Over seeds 3042-3061, r9 fails 7/20 seeds (20/100 pairs) and SR3 fails 6/20 (16/100). Fisher p = 1.0 on seeds, 0.58 on pairs.",
+  "label": "measured",
+  "source": "out/q1_summary.json, logs/stats.log"
+ },
+ {
+  "id": "F4",
+  "claim": "Every failing pair on both trees exceeds only REWARD_ATOL (1e-9) and CLOSED_LOOP_OBSERVATION_ATOL (1e-5). No pair exceeds the action or joint 1e-6 bounds. Maxima: r9 actions 1.63e-8, joints 6.93e-8, rewards 2.09e-8, obs 3.05e-5; SR3 1.35e-8, 6.56e-8, 5.08e-9, 3.05e-5.",
+  "label": "measured",
+  "source": "out/q1_summary.json"
+ },
+ {
+  "id": "F5",
+  "claim": "Every failing pair has at least one differing action element, and no pair without one fails. Pairs without an action difference agree to joints 2.75e-13, rewards 5.87e-13 and obs 1.86e-9 on r9, and 2.69e-13, 4.02e-13 and 4.66e-10 on SR3.",
+  "label": "measured",
+  "source": "out/q1_summary.json"
+ },
+ {
+  "id": "F6",
+  "claim": "The 3.05e-5 observation exceedance is always element 54 or 55 (r/l foot force, about 400-700 N). It is one float32 ulp in [256, 512) N, so a 1e-5 observation bound cannot absorb a single ulp difference in a T. rex foot force.",
+  "label": "measured",
+  "source": "out/q1_summary.json (argmax_obs_elements), logs/stats.log"
+ },
+ {
+  "id": "F7",
+  "claim": "SR3 seed 3042 at +45 deg: the first action difference is at step 759. It comes from a float32 straddle of l_hip_pitch:qvel: heading 0 is 1.9833433182177767e-4, +45 deg is 1.983343317583627e-4, and the float32 boundary is 1.9833433179883286e-4 (heading 0 is +2.29e-14 above it, +45 deg is -4.05e-14 below it). Joint state at that step differs by only 9.8e-14; it is 2.15e-9 at the next step, and the reward first exceeds 1e-9 at step 762.",
+  "label": "measured",
+  "source": "out/q2_sr3_3042_analysis.json"
+ },
+ {
+  "id": "F8",
+  "claim": "Before the first action difference, float64 state never grows above rotation noise. The joint-difference maxima stay at 9.4e-14..2.4e-13 in every 100-step window. Float64 observation differences are at most 1.6e-10 absolute (foot force, about 3e-13 relative).",
+  "label": "measured",
+  "source": "out/q2_sr3_3042_analysis.json, out/q2_funnel.json, out/q1_straddle_rates.json"
+ },
+ {
+  "id": "F9",
+  "claim": "Most float32 observation straddles do not reach the action. On SR3 seed 3042 at +45 deg, 49 steps had a float32 observation difference before the first action difference, 2 of them a different normalized float32 network input, and 1 a different action. On r9 seed 3042, 56-82 such steps per pair produced 0 network-input and 0 action differences.",
+  "label": "measured",
+  "source": "out/q2_funnel.json"
+ },
+ {
+  "id": "F10",
+  "claim": "SR3 has more float32 observation-difference steps (93.8 vs 62.6 per 1000 steps) but fewer action differences per such step (0.0019 vs 0.0036), so the per-1000-step rate is similar (0.18 vs 0.23).",
+  "label": "measured",
+  "source": "out/q1_straddle_rates.json"
+ },
+ {
+  "id": "F11",
+  "claim": "No world-yaw dependence was found. After the spawn yaw, only _initial_prey_dir_2d differs between headings (the harness turns it on purpose); after one step, _prev_pos_2d also differs, and it is used only inside a norm. qacc_warmstart is 0 after reset. Zero-action heading-45 pairs agree to qpos 5.4e-15 and reward 4.6e-13 over 1000 steps.",
+  "label": "measured",
+  "source": "out/audit_state_sr3_3042.json, out/audit_state_r9_3042.json, out/q3_tables.json"
+ },
+ {
+  "id": "F12",
+  "claim": "The reward and observation terms that read world-frame quantities use only yaw-invariant functions: tilt, forward_z, norms, the heading frame and the turned prey reference. A code read found no heading leak.",
+  "label": "inferred",
+  "source": "trees/r9/environments/tyrannosaurus_rex/base_env.py _get_obs and _get_reward_info; environments/shared/base_env.py; environments/shared/heading_observation.py"
+ },
+ {
+  "id": "F13",
+  "claim": "The free SR3 tail does not amplify small differences. Under zero action, a 1e-12 tail_1_pitch perturbation decays at -0.14..-0.15 decades per 100 steps on r9 and -0.15..-0.17 on SR3, with residuals of 1.3e-14..2.0e-14 at steps 400-499 on both. r_knee and tail_3_pitch also decay at matching rates.",
+  "label": "measured",
+  "source": "out/q3_tables.json, out/q3_summary.csv, out/q3_summary_b.csv"
+ },
+ {
+  "id": "F14",
+  "claim": "Under the test policy, a 1e-12 perturbation causes an action difference in 10/24 runs on r9 and 16/24 on SR3 (Fisher p 0.147). Whether it does depends on the seed: SR3 seeds 3042/3043 6/6 each and 3047 1/6; r9 seed 3047 5/6 and 3042 1/6. After the first action difference, qpos difference saturates at 6.2e-10..1.7e-9, with no exponential growth.",
+  "label": "measured",
+  "source": "out/q3_tables.json, logs/stats.log"
+ },
+ {
+  "id": "F15",
+  "claim": "Which pairs fail depends on the torch thread count. At 4 threads, SR3 seeds 3042-3043 reproduce the earlier pytest worst dict bit for bit (1.4435499906539917e-08, 4.754853485496377e-08, 1.3421945332936502e-08, 3.0517578125e-05), with 2/5 failing headings for seed 3042 against 5/5 at 1 thread. r9 passes seeds 3042-3043 at both thread counts.",
+  "label": "measured",
+  "source": "out/q1_sr3_t4_3042_3044.json, out/q1_r9_t4_3042_3044.json, r10probe/skeptic/head_om_sr3rc.log"
+ },
+ {
+  "id": "F16",
+  "claim": "CI runs this test file in its own pytest step, so torch uses the runner's default thread count, and the CI outcome need not match either local setting.",
+  "label": "inferred",
+  "source": "main_clone .github/workflows/python-ci.yml lines 410-418"
+ },
+ {
+  "id": "F17",
+  "claim": "Conclusion: this is float32 rounding (the observation cast, the normalize_obs cast and the float32 MLP) turning about 1e-13 rotation noise into one tiny action difference, which a stable loop carries at about 1e-9 qpos. It is not a heading leak and not less-damped dynamics. The test's REWARD_ATOL (1e-9) and observation bound (1e-5) contradict its own stated intent to admit one-ulp action differences.",
+  "label": "inferred",
+  "source": "F3-F15; test_heading_free_rollouts.py docstring"
+ },
+ {
+  "id": "F18",
+  "claim": "A closed-loop reward bound of about 1e-6 plus an observation bound sized to float32 resolution, in the full-horizon test only, would pass all 200 measured pairs and still catch an O(1) heading leak. It touches neither gate, policy interface nor physics, and r9 trajectories do not change.",
+  "label": "inferred",
+  "source": "out/q1_summary.json maxima"
+ },
+ {
+  "id": "F19",
+  "claim": "The probe brief's statement 'joints differed by 7.2e-8 against a 1e-9 bound' names the wrong bound: the joint bound in this test is CLOSED_LOOP_STATE_ATOL 1e-6, and the assertion that trips is rewards <= REWARD_ATOL 1e-9.",
+  "label": "measured",
+  "source": "main_clone environments/shared/tests/heading_free_helpers.py lines 44-49 and 123-127; r10probe/cost/out/tests_r10_targeted.log line 140"
+ }
+]

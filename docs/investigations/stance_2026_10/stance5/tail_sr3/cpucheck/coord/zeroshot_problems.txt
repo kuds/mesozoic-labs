@@ -1,0 +1,8 @@
+[
+ "No policy episode fell on either plant, so fall direction (nosedive vs backward vs side) could not be compared for the policies. The fall_dir column is 'none' for all 1280 policy episodes; the only fall in the study is the r9 statue's forward nosedive on seed 3081.",
+ "The gate is defined on deterministic rollouts. Applying classify_stance_episode to stochastic episodes is my extension: the gate counts the sampled tail_3 command saturations against max_actuator_saturation_fraction, so the stochastic clean counts mostly measure saturation from exploration noise.",
+ "The pooled McNemar p-values (9.0e-10 deterministic, 3.7e-9 stochastic) treat 320 pairs as independent across 8 policies that share seeds; read them as approximate. The per-checkpoint tests are the primary ones.",
+ "The first harness version's return_seq field used Python's compensated sum() and differs from the judge's sequential sum by up to 8e-12. All reported returns use the sequential return_run_panel, which is bit-equal to the judge; return_seq is still in per_episode panel.json files.",
+ "The task called checkpoint 6 'CURED'. Its panels.csv 'final' row is class_single LOW (cmd 0.096) and screen/scores/score.txt lists it as CURED; these are consistent (a longitudinal class versus a single-checkpoint class), not a conflict.",
+ "The harness file changed twice after the main panels, adding output fields only. v2 added reward components and v3 added head/neck readings; both re-runs were bit-identical in every compared field, and the hashes of all three versions are in run_record.json."
+]

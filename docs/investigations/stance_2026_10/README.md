@@ -115,6 +115,18 @@ verification, with an index of its own,
 [stance5/tailscreen/README.md](stance5/tailscreen/README.md). As a screen it
 certifies nothing, and nothing it ran is on `main`.
 
+*Added 2026-10-25, later still:* `stance5/tail_sr3/` holds the evidence of
+decision D-D44, T. rex physics r10 (the note's §25): the posture options study
+that followed the tail_3 screen, the r10 tail probe and its candidate SR3 (the
+three tail pitch springs preloaded, nothing else), the CPU checks of SR3 (eight
+r9 checkpoints zero-shot in closed loop, the statue through the gate's code on
+an SR3 tree, a diagnosis of the heading-invariance test, a skeptic), the
+re-measurement of every constant pinned to r9 on the branch that builds r10,
+and the run log's lines 578 to 598, with an index of its own,
+[stance5/tail_sr3/README.md](stance5/tail_sr3/README.md). Nothing in it trained
+a policy. Its "physics r10" is the plant counter's next integer on `main`, not
+the foot of `r10_screen/` (the parked draft #623, D-D34).
+
 ## What changed in the copies
 
 [SOURCES.txt](SOURCES.txt) lists every file with the scratch file it came from,
@@ -326,6 +338,21 @@ probes' counts; the panels' own `flags.csv` and per-step CSVs are not here.
 After these changes no copy holds a model identifier, an email address or a
 commit trailer.
 
+*Added 2026-10-25, later still (`stance5/tail_sr3/`):* no new kind of change.
+Its sources are in the second scratch tree but for the run log.
+`results/run_log.txt` carries **lines** (lines 578 to 598 of the session's run
+log) and **redact** (12 workflow run ids, 7 distinct, and one scheduled-task
+id); `posture/brief_corrected_summary.md` carries **redact** (one workflow run
+id); 26 copies carry **prefix2** where they name a scratch path, and
+`posture/brief_draft.md` **prefix** and **checkout** too; **whitespace**
+removes trailing spaces and adds final newlines, and in
+`cpucheck/gate/sr3.patch` removes the single space of the blank context lines
+(`patch -p1` of the copy on a `git archive` of `9f2355a3` still gives the CPU
+checks' SR3 tree exactly); the eight Python scripts of `remeasure/scripts/` are
+kept as **gzip** copies, since `test_policy_loading.py` parses every Python
+file under `docs/`. The rest are byte-identical. No copy holds a model
+identifier, an email address or a commit trailer.
+
 [SHA256SUMS](SHA256SUMS) pins every file here but this README and itself
 (`sha256sum -c SHA256SUMS` in this directory). *Added 2026-10-19:* nor
 `stance3/results/README.md`, which, like this README, has no source.
@@ -333,6 +360,7 @@ commit trailer.
 *Added 2026-10-22:* nor `stance5/results/README.md`, likewise.
 *Added 2026-10-24:* nor `stance5/replication/results/README.md`, likewise.
 *Added 2026-10-25:* nor `stance5/tailscreen/README.md`, likewise.
+*Added 2026-10-25, later still:* nor `stance5/tail_sr3/README.md`, likewise.
 
 ## Contents
 
@@ -1222,6 +1250,33 @@ byte-identical, the approval, request and pins, the calibration, the patch, the
 gate records (the first gate's failure on one test of `main`'s rule and the
 passing gate after the re-pin), the tools, the results and the verification.
 
+### Added on 2026-10-25, later still (decision D-D44)
+
+**`stance5/tail_sr3/`: T. rex physics r10, the preloaded tail springs (the
+posture study 01:02–01:31 UTC, the r10 tail probe 01:34–02:07 UTC and the CPU
+checks 02:36–04:27 UTC on 2026-10-25, all without training; decided at 04:55
+UTC; built and re-measured on the scratch branch `claude/physics-r10-sr3`,
+05:34–06:21 UTC).** The candidate SR3 gives `tail_1_pitch`, `tail_2_pitch` and
+`tail_3_pitch` a spring rest angle of 52.5, 25.9 and 10.4° and changes nothing
+else, so the zero-action statue rests its tail level on its springs instead of
+on `tail_1`'s ventral stop. Its files: the posture study's draft and corrected
+summary (`posture/`); the probe's brief, settle sweep, statue panels' summaries,
+repository-cost outputs and its skeptic's checks (`probe/`); the CPU checks'
+reports (`cpucheck/coord/`), the zero-shot closed loop of eight r9 checkpoints
+(`cpucheck/zeroshot/`: 293 → 229 of 320 deterministic episodes clean on SR3,
+no falls, two checkpoints pinning a tail actuator at +1 and one losing its
+rail), the gate worker's SR3 tree as a patch with its statue panels (278/280
+against r9's 275/280; the six-heading certificate 40/40) and its test
+classification (`cpucheck/gate/`), the heading-invariance diagnosis
+(`cpucheck/heading/`: the test's own check fails 7 of 20 r9 seeds too) and the
+skeptic's statistics (`cpucheck/skeptic/`); the re-measurement on the branch
+(`remeasure/`: the tail target (0.00002, 0, 0.00006, 0.00018) rad,
+`natural_pitch` 0.017, m·g·h 729.1, the stance, recovery and locomotion statue
+references 3766.6, 1429.1 and 1092.6, the stance rail 2260); and the run log's
+lines 578 to 598 (`results/run_log.txt`). Its
+[README](stance5/tail_sr3/README.md) indexes the folder and gives the skeptics'
+corrections that apply to its files.
+
 ## How to re-check each verdict
 
 Commands as run on 2026-10-17 from a copy of this directory (Python 3.13;
@@ -1299,6 +1354,9 @@ copies.
 | The tail_3 bound screen's criteria, approval, calibration, gate and score (2026-10-25) | `sha256sum stance5/tailscreen/criteria.txt stance5/tailscreen/APPROVED stance5/tailscreen/calib/coef.json stance5/tailscreen/gate/gate_pass.json stance5/tailscreen/results/score.txt stance5/tailscreen/results/score.json` | `9930ee72…`, `42627d1f…`, `f6d90f99…`, `d7118520…`, `66c4a92d…` and `471ad8e4…`, the values in the run log's entries timed 19:10, 19:11 and 23:53 UTC |
 | The screen's outcome from the criteria alone (2026-10-25; session scratch only) | as `stance5/tailscreen/README.md` gives it | `DIFFS []` |
 | The files themselves (2026-10-25, later, with `stance5/tailscreen/`) | `sha256sum -c SHA256SUMS` | all 528 files OK |
+| The CPU checks' SR3 tree (2026-10-25, later still; needs the repository's history and the session scratch) | `git archive 9f2355a3 \| tar -x -C <dir>`, then `patch -p1 -d <dir> < stance5/tail_sr3/cpucheck/gate/sr3.patch`, and `diff -rq` against `scratchpad2/tailround/r10cpu/gate/tree_sr3` | applies; no difference |
+| The r10 constants (2026-10-25, later still) | read `stance5/tail_sr3/remeasure/remeasure_summary.json` against the branch's `base_env.py` and four stage TOMLs | each value as committed |
+| The files themselves (2026-10-25, later still, with `stance5/tail_sr3/`) | `sha256sum -c SHA256SUMS` | all 633 files OK |
 
 `test_pilot_score.py` prints sample "Walking pilot score" blocks while it runs;
 they score synthetic panels, not the pilot.
@@ -1408,3 +1466,13 @@ and reports 107 findings in the other eight (15 in `tools/run_tailscreen.py`,
 the rest in the verifiers' quick scripts, most in `verify/rescore/rescore.py`,
 32); `ruff format --check` would reformat all 16, and all 16 parse on Python
 3.11, 3.12 and 3.13. The three shell scripts in `tools/` are left as they ran.
+
+*Added 2026-10-25, later still:* the eight Python scripts added in
+`stance5/tail_sr3/remeasure/scripts/` (kept gzipped) are left as they ran:
+`ruff check` (ruff 0.16.9, the same configuration) passes on five of them and
+reports 27 findings in the other three (`analyze_panels_r10.py` 8,
+`cop_probe.py` 10, `statue_v2_blocks.py` 9: statements joined by `;`, imports
+after the `sys.path` line that points them at the tree they measure, unsorted
+or joined imports); `ruff format --check` would reformat six; all eight parse
+on Python 3.11, 3.12 and 3.13. The two shell scripts there are left as they
+ran.

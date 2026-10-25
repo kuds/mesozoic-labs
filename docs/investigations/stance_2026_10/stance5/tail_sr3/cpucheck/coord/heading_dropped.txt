@@ -1,0 +1,8 @@
+[
+ "Q1 and Q3 ran with torch at 1 thread only. The 4-thread check covered only Q1 on seeds 3042-3043 for each tree. The CI runner's default thread count was not reproduced.",
+ "Q2 was instrumented for SR3 seed 3042 (all five headings) and r9 seeds 3042 and 3048. SR3 seed 3043 and the other failing SR3 seeds (3051, 3052, 3057, 3058) were not traced step by step.",
+ "Q3 covered 4 seeds (3042, 3043, 3047, 3048) and only qpos perturbations: tail_1_pitch \u00b11e-12, tail_3_pitch +1e-12 only, r_knee \u00b11e-12. There was no qvel perturbation, no other leg joint and no tail_2 perturbation.",
+ "Q3 growth rates are slopes fitted to per-50-step maxima of log10 difference over steps \u226550; that curve bottoms out at the float64 floor (about 3e-15). No linearized (Jacobian or eigenvalue) analysis of the plant was done.",
+ "The compsognathus parameter of the test was not run.",
+ "None of the fix options was prototyped, even in scratch. The pass/fail figures quoted for option A are inferred from the measured maxima, not from running a modified test."
+]

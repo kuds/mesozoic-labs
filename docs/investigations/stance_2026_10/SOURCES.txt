@@ -155,6 +155,29 @@
 # stance5/tailscreen/probes/probecheck/probe_s42.json, probe_s80.json, probes/skeptic/noise_shift_s80.json and
 # unclip_alt_s42.json (6, 6, 90 and 40 episodes; at most 14 KB each), the evidence of the re-measurement's
 # field-for-field result and of the probes' counts.
+# Added 2026-10-25, later still (stance5/tail_sr3/): the evidence of decision D-D44, T. rex physics r10 (the preloaded
+# tail pitch springs, candidate SR3).  The sources are in the second scratch root (scratchpad2/tailround/posture/,
+# r10probe/ and r10cpu/, and scratchpad2/prs/r10_work/build/, the build of the r10 branch), but for the run log.  No
+# new kind of change.  lines: stance5/tail_sr3/results/run_log.txt is lines 578 to 598 of the session's run log, whose
+# lines 505 to 577 are stance5/tailscreen/results/run_log.txt; the sha256 given is that of the source's first 598
+# lines, the whole file when copied (lines 578 to 598 alone:
+# 03838263e2591de0381d60b92c8173daa609d491cc7c2e77ed12b1b161c6970d); its first 577 lines are unchanged
+# (e9367d9035f73e271e9bd58a0b30d800728133532946e26566c4ed62731379ee, as given above).  redact, in that copy: 12
+# workflow run ids (7 distinct; a bare one becomes 'workflow [id removed]') and 1 scheduled-task id, each by
+# '[id removed]'; in posture/brief_corrected_summary.md, 1 workflow run id.  prefix2 wherever a copy names a path in the
+# second scratch root, and in posture/brief_draft.md prefix and checkout too.  whitespace removes trailing spaces and
+# blank last lines and adds a final newline; in cpucheck/gate/sr3.patch it removes the single space of the blank
+# context lines, and patch -p1 of the copy on a git archive of 9f2355a3 still gives the CPU checks' SR3 tree
+# (scratchpad2/tailround/r10cpu/gate/tree_sr3) exactly.  gzip: the eight Python scripts of remeasure/scripts/ are
+# copied as <name>.py.gz, since test_policy_loading.py parses every Python file under docs/; gunzip restores each byte
+# for byte.  cpucheck/coord/ holds five of the six fields of each worker's record in the CPU checks' result file
+# (scratchpad2/tailround/r10cpu/coord/wf_result.json, not copied), as the coordinator wrote them out on 2026-10-25 at
+# 04:26 UTC (the sixth, each worker's file list, is not copied).  Not copied: the probes' MJCF copies and per-episode
+# panel JSONs (about 0.1 MB each), results_v1.json and results_tsweep.json; the CPU checks' trees, code archives and
+# clones, the zero-shot and gate per-episode CSVs and series, the heading study's per-step CSV and npz traces, the
+# skeptic's trees and per-run JSONs; the eight zero-shot checkpoint pairs (three fetched read-only from Drive at 02:31
+# UTC on 2026-10-25, two at 16:08 UTC on 2026-10-24 and three the tail_3 screen's finals; their sha256 are in
+# cpucheck/zeroshot/checkpoints.csv); and the r10 build's trees, test logs and JUnit files.
 
 audit/foot_ankle_audit.md foot/audit_2026_10_17/foot_ankle_audit.md e9da4ef84be17a87b70096d1e2aede87609ad22f446b10786f9e14d5064725c8 prefix
 audit/geometry/geometry_audit.json foot/audit_2026_10_17/geometry/geometry_audit.json 934110bec337b9693f894800efb309bf1a9529ae87f91f129bfefc8fef5b650a prefix,whitespace
@@ -556,6 +579,111 @@ stance5/results/saturation/stance5_LTSB_s42_5242880.json foot/stance5/tools/satr
 stance5/results/saturation/stance5_LTSB_s42_6291456.json foot/stance5/tools/satroll/stance5_LTSB_s42_6291456.json e4f1c3c7d6845448ba0ae3dee510895614e9fdb8c2a41d6c4bc7816d46de0fe7 prefix,whitespace
 stance5/results/scores/score_final.json foot/stance5/scores/score_final.json c690165043dbc32fc8bf5bcce7a57c8bc38692c67e21464e706017d0dd45e307 prefix,whitespace
 stance5/results/scores/score_final.txt foot/stance5/scores/score_final.txt 1629943ccf08a948e91e6cfc252d64225cd910bf075d7d5566ce0f7c21db47d7 prefix
+stance5/tail_sr3/cpucheck/coord/gate_dropped.txt scratchpad2/tailround/r10cpu/coord/gate_dropped.txt f304688820f06346bc459d729edf47afb90923ea7aa3bb7a38fbdbf9e80932ab whitespace
+stance5/tail_sr3/cpucheck/coord/gate_findings.txt scratchpad2/tailround/r10cpu/coord/gate_findings.txt 2f2068b67d26eba4c2d2af5c6c6fd4ae2ff01288846b5d82d41c1ef1e5b2ac86 whitespace
+stance5/tail_sr3/cpucheck/coord/gate_problems.txt scratchpad2/tailround/r10cpu/coord/gate_problems.txt d3197b13d8344dc240c32f5b7e6d949df0aac36d754e33476c0d3efbbdd46c95 whitespace
+stance5/tail_sr3/cpucheck/coord/gate_report_text.txt scratchpad2/tailround/r10cpu/coord/gate_report_text.txt ccec27ff88a3f5effb97ba6d6595e1525892e46dfee4cf941af194d406a751d1 prefix2,whitespace
+stance5/tail_sr3/cpucheck/coord/gate_summary.txt scratchpad2/tailround/r10cpu/coord/gate_summary.txt 7786a48de5bb9a920c836bcb2b54fa89ce95e6750cf08697f7bf6928a14f76c1 whitespace
+stance5/tail_sr3/cpucheck/coord/heading_dropped.txt scratchpad2/tailround/r10cpu/coord/heading_dropped.txt a13a663d18b963c6a48e50fa220b7a39a8942be7db10eaec2d2f378a9485429e whitespace
+stance5/tail_sr3/cpucheck/coord/heading_findings.txt scratchpad2/tailround/r10cpu/coord/heading_findings.txt 319e18608486336e3741597186ef3080c94c377e47badd738ddc6a9c05d3f3b2 prefix2,whitespace
+stance5/tail_sr3/cpucheck/coord/heading_problems.txt scratchpad2/tailround/r10cpu/coord/heading_problems.txt 91115559269c8153b08fab3fe4b105e775d45b2ca8485e5f1694ecb5ff8cae58 whitespace
+stance5/tail_sr3/cpucheck/coord/heading_report_text.txt scratchpad2/tailround/r10cpu/coord/heading_report_text.txt 45480c8d10134666c76a04d39febee5021b47b2d105b06bdf891f8a5b8ad3298 prefix2,whitespace
+stance5/tail_sr3/cpucheck/coord/heading_summary.txt scratchpad2/tailround/r10cpu/coord/heading_summary.txt f416fb434e86312f2fc0e0ddfb52fd8afd19351d61e134589f82102842ee1c83 whitespace
+stance5/tail_sr3/cpucheck/coord/skeptic_dropped.txt scratchpad2/tailround/r10cpu/coord/skeptic_dropped.txt 492479894b91cc6e66371b756f7c6ed285ff15253028c7590a8f187af8f7813e whitespace
+stance5/tail_sr3/cpucheck/coord/skeptic_findings.txt scratchpad2/tailround/r10cpu/coord/skeptic_findings.txt e6c7d847f5a89f81e1c1b1d985d6b26144885f5fc90a58dd78847403c1388a66 whitespace
+stance5/tail_sr3/cpucheck/coord/skeptic_problems.txt scratchpad2/tailround/r10cpu/coord/skeptic_problems.txt d391c9491cad4cc33cfce94225dd2f50da3e7b0606faa020e525d7018348ba0b whitespace
+stance5/tail_sr3/cpucheck/coord/skeptic_report_text.txt scratchpad2/tailround/r10cpu/coord/skeptic_report_text.txt ccd9e5be83e4d72ec16ba7269f9617ae44beec8f91b3fe3bb309de78307cbc7c prefix2,whitespace
+stance5/tail_sr3/cpucheck/coord/skeptic_summary.txt scratchpad2/tailround/r10cpu/coord/skeptic_summary.txt a0d3bec874386a16cbf0fb5b30b5b55ac4686ff709e19d169d748517847c226c whitespace
+stance5/tail_sr3/cpucheck/coord/zeroshot_dropped.txt scratchpad2/tailround/r10cpu/coord/zeroshot_dropped.txt d28a456ffe6f41e33b3380c82999beb6cd3e0f6a5ebd3e731c0e106086e8f5f5 whitespace
+stance5/tail_sr3/cpucheck/coord/zeroshot_findings.txt scratchpad2/tailround/r10cpu/coord/zeroshot_findings.txt 31740608c7625d5e327bf51939379051c0d83ab5b65a24e4b1053ca5ed4f52a1 whitespace
+stance5/tail_sr3/cpucheck/coord/zeroshot_problems.txt scratchpad2/tailround/r10cpu/coord/zeroshot_problems.txt 29c22c1b8f2ed27e4e6f5a967528091b6830ee2e5fea5a7e80b9f3b39b437cf7 whitespace
+stance5/tail_sr3/cpucheck/coord/zeroshot_report_text.txt scratchpad2/tailround/r10cpu/coord/zeroshot_report_text.txt 957147d5985e21036c63d13bc443d69ea5f17b43de81f38742328a585755032a prefix2,whitespace
+stance5/tail_sr3/cpucheck/coord/zeroshot_summary.txt scratchpad2/tailround/r10cpu/coord/zeroshot_summary.txt 16cb393e22e5c26599c28163402b470b94426d30b71ad46947d443cec2de531c whitespace
+stance5/tail_sr3/cpucheck/gate/checkpoint_refusal.json scratchpad2/tailround/r10cpu/gate/checkpoint_refusal.json 028f78ed9f69ce0c72910a96a826bc954690e3002e2fef852a010d63abd4b65e prefix2,whitespace
+stance5/tail_sr3/cpucheck/gate/cop_fixture_diagnosis.json scratchpad2/tailround/r10cpu/gate/cop_fixture_diagnosis.json b7f1db0036fa57383106aa62fdb4323d1ad97394b9169a4a8be75f852890fe2b whitespace
+stance5/tail_sr3/cpucheck/gate/panels_summary.json scratchpad2/tailround/r10cpu/gate/panels_summary.json ab38264f26efa475adbaf36d1e9f401c0720e03330c9882dbae0bb62cf7695d0 whitespace
+stance5/tail_sr3/cpucheck/gate/settle_sr3.json scratchpad2/tailround/r10cpu/gate/settle_sr3.json 0231360539a9a6a7392c0c074f9a360b2d49fa1a61670c51361f57c629f2e953 prefix2
+stance5/tail_sr3/cpucheck/gate/sr3.patch scratchpad2/tailround/r10cpu/gate/sr3.patch 045b1a492380ad1696afedd4dabf5717a658a58d26b72ff63710840a7d8e21a6 whitespace
+stance5/tail_sr3/cpucheck/gate/statue_reference.json scratchpad2/tailround/r10cpu/gate/statue_reference.json 52cf1efe7e8e8d76e9623e716c2ad70a0f2d13086e4634e40485fcd0313aa708 whitespace
+stance5/tail_sr3/cpucheck/gate/test_classification.json scratchpad2/tailround/r10cpu/gate/test_classification.json 3fb6362dc0622348d82ce6624bfcb71a9bb85ac88f8890c0ac5df12857b6be95 whitespace
+stance5/tail_sr3/cpucheck/heading/q1_summary.json scratchpad2/tailround/r10cpu/heading/out/q1_summary.json d64eb32306826996b93c6c97a8123ef671fc2511232915fef4e4589eb4ba5708 whitespace
+stance5/tail_sr3/cpucheck/heading/q2_funnel.json scratchpad2/tailround/r10cpu/heading/out/q2_funnel.json 974c1d90fb97067c804f435fce60e51e503b28823eda886e04771b33f5c96e7d whitespace
+stance5/tail_sr3/cpucheck/heading/q2_r9_3042_analysis.json scratchpad2/tailround/r10cpu/heading/out/q2_r9_3042_analysis.json dc9dd24180877f95b3c56156c698e0efb16e69b6475b0da560bd22088ead5e46 whitespace
+stance5/tail_sr3/cpucheck/heading/q2_r9_3048_analysis.json scratchpad2/tailround/r10cpu/heading/out/q2_r9_3048_analysis.json 088a18931fc288ab2af188335f6966d79e857e83451d7b76899719ae1cbac789 whitespace
+stance5/tail_sr3/cpucheck/heading/q2_sr3_3042_analysis.json scratchpad2/tailround/r10cpu/heading/out/q2_sr3_3042_analysis.json a38c4cac807c3c5aa470e5931c599b5603d4b5b0fcf122c6f011ae64edfe1539 whitespace
+stance5/tail_sr3/cpucheck/skeptic/power_and_stats.json scratchpad2/tailround/r10cpu/skeptic/out/power_and_stats.json 0b026c0484517c1d78f65835509c0c613e40df98b13085111f21873435b87efa whitespace
+stance5/tail_sr3/cpucheck/skeptic/statue_rerun_vs_gate.csv scratchpad2/tailround/r10cpu/skeptic/out/statue_rerun_vs_gate.csv 493277211dc6ee716db5c4b095f85a7123982574d1fe9d866083fb2b4e16c615 whitespace
+stance5/tail_sr3/cpucheck/skeptic/verdicts.csv scratchpad2/tailround/r10cpu/skeptic/verdicts.csv 35c5dbe55788769adda3818bb917c74465d6f1264853fbedf9947cdabad66c63 none
+stance5/tail_sr3/cpucheck/skeptic/zs_recount.json scratchpad2/tailround/r10cpu/skeptic/out/zs_recount.json 531ed41625fc832811016f50e7e9875e5fcf36b53f643542e173fe4811ba6802 whitespace
+stance5/tail_sr3/cpucheck/zeroshot/checkpoints.csv scratchpad2/tailround/r10cpu/zeroshot/checkpoints.csv 0da3aa32434e31ec7681f9834957caa4f000eca57f29a9becaac514e675b8245 prefix2
+stance5/tail_sr3/cpucheck/zeroshot/head_neck.csv scratchpad2/tailround/r10cpu/zeroshot/head_neck.csv c4b3d6e7c5f4179ebaf1434d3ff0c6a1a99d045c34971398d1772f1999550a5c none
+stance5/tail_sr3/cpucheck/zeroshot/paired_tests.csv scratchpad2/tailround/r10cpu/zeroshot/paired_tests.csv 6f9bcb100a390258b4eaa267bae641da6af7ab6951003c242c6926a26a54aade none
+stance5/tail_sr3/cpucheck/zeroshot/pooled.json scratchpad2/tailround/r10cpu/zeroshot/pooled.json 3b627953edd629455d8a6119f34323fc696ecc3d13eb918d64fd587f0296398c whitespace
+stance5/tail_sr3/cpucheck/zeroshot/summary.csv scratchpad2/tailround/r10cpu/zeroshot/summary.csv 4c237a44940431eba931f76a1c7c240781ac23331be28f2769656dc386b2c3b5 none
+stance5/tail_sr3/cpucheck/zeroshot/validation.json scratchpad2/tailround/r10cpu/zeroshot/validation.json bf1c3fd62d252b48484c0795e1695f96b3bb42d093442214e9977d7b240700cf whitespace
+stance5/tail_sr3/posture/brief_corrected_summary.md scratchpad2/tailround/posture/brief_corrected_summary.md 1176db325a02a006f340130d81f971f70450567071c53db272ee142a1e2b71c0 redact
+stance5/tail_sr3/posture/brief_draft.md scratchpad2/tailround/posture/brief_draft.md 90a29d10dd58391cc25c5322475597446b345b795e1a2c4abcd6902172e92617 prefix2,prefix,checkout
+stance5/tail_sr3/probe/brief_draft.md scratchpad2/tailround/r10probe/brief_draft.md 017e4c8205bc5269705665baf15be5eacae7f5662fdcffeaf8e398fa6129dae4 prefix2
+stance5/tail_sr3/probe/chainsizer/panels/C0_r9.log scratchpad2/tailround/r10probe/chainsizer/panels/C0_r9.log 6eb1c13c19b2187bfabe014bf0cf20e3a097fe418b24b8ce71e3cfcfd74b5228 none
+stance5/tail_sr3/probe/chainsizer/panels/C0_r9_7042.log scratchpad2/tailround/r10probe/chainsizer/panels/C0_r9_7042.log 1960a0fe310359014a52214629a00fab610f02116f19e5afca343b7c612f6a2e none
+stance5/tail_sr3/probe/chainsizer/panels/C0_r9_noise10.log scratchpad2/tailround/r10probe/chainsizer/panels/C0_r9_noise10.log 5d58e85cd75b6def94c1d95cb75321b1c43c14a23c86eac034107c15b5caa627 none
+stance5/tail_sr3/probe/chainsizer/panels/KP_recentred.log scratchpad2/tailround/r10probe/chainsizer/panels/KP_recentred.log 1b83cd448075dd4f2ac649e31d65acd15db8ecf9144035d605244ce037e8f7a2 none
+stance5/tail_sr3/probe/chainsizer/panels/SR2_recentred.log scratchpad2/tailround/r10probe/chainsizer/panels/SR2_recentred.log 03f56e8e2a38e3cbd0bdc4b61bd3e35ab350862ea9b798300b0afa0284d9c68f none
+stance5/tail_sr3/probe/chainsizer/panels/SR3_noise10.log scratchpad2/tailround/r10probe/chainsizer/panels/SR3_noise10.log b16f71e98649e2767dd30936512162536e0f8a411380409ee242c25cd14d3de3 none
+stance5/tail_sr3/probe/chainsizer/panels/SR3_r9target.log scratchpad2/tailround/r10probe/chainsizer/panels/SR3_r9target.log 3f1495abf353ee4b0a0f62cabe909589b08456989515f6e5d4485950ba4d0245 none
+stance5/tail_sr3/probe/chainsizer/panels/SR3_recentred.log scratchpad2/tailround/r10probe/chainsizer/panels/SR3_recentred.log 487dbd318ca25d90c772b0cf99bb0199143aacba077c2bd2f315dcdeda360aef none
+stance5/tail_sr3/probe/chainsizer/panels/SR3_recentred_7042.log scratchpad2/tailround/r10probe/chainsizer/panels/SR3_recentred_7042.log 62975649fe5b489f33d027828280637f51492fced811ea7be6833c2a5e751b73 none
+stance5/tail_sr3/probe/chainsizer/panels/falldir_SR3_noise10.txt scratchpad2/tailround/r10probe/chainsizer/panels/falldir_SR3_noise10.txt 069043e7eb0f13c8c299a81f78b7874276a841ae8eb4a8626fa74abb477c20a2 none
+stance5/tail_sr3/probe/chainsizer/panels/falldir_r9_noise10.txt scratchpad2/tailround/r10probe/chainsizer/panels/falldir_r9_noise10.txt 666dc31926c07ca8eaf8b92baca76535f24e6f5878d5bff05018c678f157a729 none
+stance5/tail_sr3/probe/chainsizer/results_v1.txt scratchpad2/tailround/r10probe/chainsizer/results_v1.txt 935fc246a2fb4464129ec8ad244ec95c287ac8cff414a570504a8b73a3116f86 none
+stance5/tail_sr3/probe/cost/const_probe.out scratchpad2/tailround/r10probe/cost/out/const_probe.out ca9acfa956f9bdb7f2deed21d05db1846c2ea7da15338988e3c84c3d130ab60c none
+stance5/tail_sr3/probe/cost/layer_probe.out scratchpad2/tailround/r10probe/cost/out/layer_probe.out ce9779b3b060d5e5cc4f44d279042129dbfa2ebf4a697b3b949e6a7707bd26cd none
+stance5/tail_sr3/probe/cost/statue_probe.out scratchpad2/tailround/r10probe/cost/out/statue_probe.out 8333dc319ef9b90717a3395f3496d0def07077a9fb756ff9e64e284c0bce3986 none
+stance5/tail_sr3/probe/cost/tests_r10_targeted.log scratchpad2/tailround/r10probe/cost/out/tests_r10_targeted.log d9f155a5f785f0a3d652ab0b4f2e148fbc6bf70c39dcfe569403bcd87a3e1fe4 prefix2,whitespace
+stance5/tail_sr3/probe/skeptic/cop_om_sr3.log scratchpad2/tailround/r10probe/skeptic/cop_om_sr3.log c494299943f5d17aadab95f4d5e816dc7ab5772e7814e7963c5a642c376ba5e1 whitespace
+stance5/tail_sr3/probe/skeptic/g_r9.log scratchpad2/tailround/r10probe/skeptic/g_r9.log 034272b8bfeae35420b220bd119215b5995972aa143534d92b61be680299fc36 none
+stance5/tail_sr3/probe/skeptic/g_sr3r9t.log scratchpad2/tailround/r10probe/skeptic/g_sr3r9t.log 76e38dad612fdba372efb304bfc286ebfdbd477c4759fb2296e46b97a13a435f none
+stance5/tail_sr3/probe/skeptic/g_sr3rc.log scratchpad2/tailround/r10probe/skeptic/g_sr3rc.log 7909948693c8465db4388109aaa71abbccc3fbc3260e925afe10879b453273c9 none
+stance5/tail_sr3/probe/skeptic/head_om_r9.log scratchpad2/tailround/r10probe/skeptic/head_om_r9.log 99db33d5c94c6f7da021687c7391181685cc33299c5435b1c861e2db3be3ec87 none
+stance5/tail_sr3/probe/skeptic/head_om_sr3rc.log scratchpad2/tailround/r10probe/skeptic/head_om_sr3rc.log e8fd353da8948459d7b3c136fdc2ea331a3581c66af8611466f00ffe3149757c none
+stance5/tail_sr3/probe/skeptic/hm_om_r9.log scratchpad2/tailround/r10probe/skeptic/hm_om_r9.log e8c06fb77b791d334e8116ba220d6fccfdf9274712b26e34747a4a96952b68ee none
+stance5/tail_sr3/probe/skeptic/hm_om_sr3rc.log scratchpad2/tailround/r10probe/skeptic/hm_om_sr3rc.log f225c521e5641087161e55a783b3123bf142cf7a04cdb144b5688f575d11b95f none
+stance5/tail_sr3/remeasure/cop_fixture_sweep_r10.json scratchpad2/prs/r10_work/build/remeasure/cop_fixture_sweep_r10.json 99fc4b9f08c63148e7ac35c63f0ff641b3fbae7449ae5e57d6e9676215902b91 prefix2,whitespace
+stance5/tail_sr3/remeasure/cop_main_r9.json scratchpad2/prs/r10_work/build/remeasure/cop_main_r9.json a25a1646ad640a8130acaf091a2793c2b6f15f27749184aef30bd563e7870a30 prefix2
+stance5/tail_sr3/remeasure/cop_r10.json scratchpad2/prs/r10_work/build/remeasure/cop_r10.json b068622762b7ed8350e46d58a8cecab8d891b8456fb532ffda924d632362adf4 prefix2
+stance5/tail_sr3/remeasure/digest_moved_lines.txt scratchpad2/prs/r10_work/build/remeasure/digest_moved_lines.txt ec6c4feafd878f7cf55181aca8347d142a3e04d2bc7dd31ba5df5896d751b25c none
+stance5/tail_sr3/remeasure/env_model_diff.json scratchpad2/prs/r10_work/build/env_model_diff.json 3a74e430651ffb361ef21136a83d7d3d6564864708a052fba5346ab334fd7c5b none
+stance5/tail_sr3/remeasure/legs_main_r9.json scratchpad2/prs/r10_work/build/remeasure/legs_main_r9.json 8faff1c54f6238375ef623c7e1049e3fa43032b23ef2a1254a40eaacbd26d5f6 prefix2
+stance5/tail_sr3/remeasure/legs_r10_final.json scratchpad2/prs/r10_work/build/remeasure/legs_r10_final.json 47f1dd816bf72c3f55cd57d110ccb46413e47e97606345ac2bd77da00546067f prefix2
+stance5/tail_sr3/remeasure/mgh_main_r9.json scratchpad2/prs/r10_work/build/remeasure/mgh_main_r9.json 9f95e58b3458206008c012738794a9000e1c611a0c87490e204466d95c4529ef prefix2
+stance5/tail_sr3/remeasure/mgh_r10.json scratchpad2/prs/r10_work/build/remeasure/mgh_r10.json 2e32fd7cc520da7ec630b7b0e08c0c1cc335b747b94363e934578c6126931175 prefix2
+stance5/tail_sr3/remeasure/panels/panels_summary.json scratchpad2/prs/r10_work/build/panelsets/panels_summary.json be198b8c04ec11d9a8fceb5839f081283478a16a34946ce71c1c390e22d9adea whitespace
+stance5/tail_sr3/remeasure/panels/stance_heading_report.txt scratchpad2/prs/r10_work/build/panels/heading_cert/stance_heading_report.txt 437300c8404f131d206ca551010448f64af833fc999af2b363e735256fee6fb9 none
+stance5/tail_sr3/remeasure/recovery_statue_ends_main_r9.json scratchpad2/prs/r10_work/build/remeasure/recovery_statue_ends_main_r9.json 7959f41ed1ba8f81955841f3250147f0b5957c1867089044b0d7fdf9d53ae7e7 prefix2,whitespace
+stance5/tail_sr3/remeasure/recovery_statue_ends_r10.json scratchpad2/prs/r10_work/build/remeasure/recovery_statue_ends_r10.json a659de100552c0473cf154e46645c831d102a3a37d698eaa1ee62ca14be83720 prefix2,whitespace
+stance5/tail_sr3/remeasure/recovery_statue_main_r9.json scratchpad2/prs/r10_work/build/remeasure/recovery_statue_main_r9.json 84d9eedf97d1ad491146d69e226de52f47d61b8ca94434af936d87e45e434de7 whitespace
+stance5/tail_sr3/remeasure/recovery_statue_main_r9.log scratchpad2/prs/r10_work/build/remeasure/recovery_statue_main_r9.log ef38a19b4a519a17c77fe962dff26cc1f25537ea69f3dc1744d35e2eee22c4d3 none
+stance5/tail_sr3/remeasure/recovery_statue_r10.json scratchpad2/prs/r10_work/build/remeasure/recovery_statue_r10.json 7d36b38d2880168e45a8f71dd3f7a960adfdb02b5923405b253671d47efdfd05 whitespace
+stance5/tail_sr3/remeasure/recovery_statue_r10.log scratchpad2/prs/r10_work/build/remeasure/recovery_statue_r10.log 5411ad9b15234d6924f9414939da5348eb4bb43dc1821305431c313fd1e44a9d none
+stance5/tail_sr3/remeasure/remeasure_summary.json scratchpad2/prs/r10_work/build/remeasure_summary.json c8f369b3b01cf5a196776857c98c680abb070eaaaf6a61f99bfe37e4682746f9 prefix2,whitespace
+stance5/tail_sr3/remeasure/scripts/analyze_panels_r10.py.gz scratchpad2/prs/r10_work/build/scripts/analyze_panels_r10.py 2097f75b8f7bfc5423a66d4d7b9b62c04678ad5d166f54b317e49305f39183b8 gzip
+stance5/tail_sr3/remeasure/scripts/cop_probe.py.gz scratchpad2/prs/r10_work/build/scripts/cop_probe.py 03b04af9ada6bb12d20caa586affc7095d62d789109252964fac0cc00840c789 gzip
+stance5/tail_sr3/remeasure/scripts/measure_cop.py.gz scratchpad2/prs/r10_work/build/scripts/measure_cop.py ecc3c403db6de4c161e5305e070c1bb89d3d86e6364a6aa79f9bd116a1f5c534 gzip
+stance5/tail_sr3/remeasure/scripts/measure_legs.py.gz scratchpad2/prs/r10_work/build/scripts/measure_legs.py f317697df847cae87c5cc1ebe0274bb88894691f4f3d56ddd1567704cda2c062 gzip
+stance5/tail_sr3/remeasure/scripts/measure_mgh.py.gz scratchpad2/prs/r10_work/build/scripts/measure_mgh.py 81ff310f694d2016e4c393f647d16888915cd84664d7c27ab58e0ddce7000b91 gzip
+stance5/tail_sr3/remeasure/scripts/measure_settle.py.gz scratchpad2/prs/r10_work/build/scripts/measure_settle.py 3286b0dc9b5c486f63184a9a17e2b318db4b722f80c29a3c0a56c13d0d544b7b gzip
+stance5/tail_sr3/remeasure/scripts/recovery_ends.py.gz scratchpad2/prs/r10_work/build/scripts/recovery_ends.py 7655a4f765df6af804b87bc02747b4833e940cb69024d0836a26282d026b7998 gzip
+stance5/tail_sr3/remeasure/scripts/run_statue_q1.sh scratchpad2/prs/r10_work/build/scripts/run_statue_q1.sh eefa23dfbff480c063b1dbda6fc0ef89000c63b3c84ba6177332ba3d4888bf22 prefix2
+stance5/tail_sr3/remeasure/scripts/run_statue_q2.sh scratchpad2/prs/r10_work/build/scripts/run_statue_q2.sh 4c4807aa84813d583bfc9ad4973956c50773425c6e9cee69a23fa455920f229f prefix2
+stance5/tail_sr3/remeasure/scripts/statue_v2_blocks.py.gz scratchpad2/prs/r10_work/build/scripts/statue_v2_blocks.py 0eb2622a0e119b837f23b85eba950c28621d8f411f5f3d418db0efd42c6ac48a gzip
+stance5/tail_sr3/remeasure/settle_main_r9.json scratchpad2/prs/r10_work/build/remeasure/settle_main_r9.json 6869938bd8803d43b5232916502cb4989ab28e6d70d0739f681ba1d5ba7fed22 prefix2
+stance5/tail_sr3/remeasure/settle_r10_final.json scratchpad2/prs/r10_work/build/remeasure/settle_r10_final.json 3546c898f006ebf520bf5e45b6d3c6d72609e4d740a862dc73214e329217a5dc prefix2
+stance5/tail_sr3/remeasure/sole_tilt_noise_free.txt scratchpad2/prs/r10_work/build/remeasure/sole_tilt_noise_free.txt ecbab1c51ad43e968af0ee96cec7080c7742d3815762912a4be810342b7ba2b2 prefix2
+stance5/tail_sr3/remeasure/sqb_stance_r10.log scratchpad2/prs/r10_work/build/remeasure/sqb_stance_r10.log 57f8b75706c23cebce48d4a5c22d70a6edf9ee631a5db1d2435e9deced92ee42 none
+stance5/tail_sr3/remeasure/zab_stage1_r10.log scratchpad2/prs/r10_work/build/remeasure/zab_stage1_r10.log 7dc43b152a4a058467bbd22ea689bd35b95751e19925eb86a6b5fa1e7f88b7b1 none
+stance5/tail_sr3/remeasure/zab_stage2_r10.log scratchpad2/prs/r10_work/build/remeasure/zab_stage2_r10.log be01a343179bf533f7637aaf4e8065b7dee04d40855260d097b9a3da5e2198ae none
+stance5/tail_sr3/remeasure/zab_stage3_r10.log scratchpad2/prs/r10_work/build/remeasure/zab_stage3_r10.log 554db4a0afe0f749b18d9491c346959713c2749cb80158429d5bb7906210da02 none
+stance5/tail_sr3/results/run_log.txt foot/stance4/live/run_log.txt b64155f6421d6654535bd27bedfbcb7e31b75426ad7ead4bb9d95c50635237d7 lines,redact
 stance5/tailexp/report.md foot/stance5/tailexp/report.md de1710e6374533ca0c37e52dbbad7e871da38b4fe4578d3f20c9cea442ec8a4d prefix,checkout,redact
 stance5/tailscreen/APPROVAL_REQUEST.md scratchpad2/tailround/screen/APPROVAL_REQUEST.md afcf09732ee88b6396d45b530f71d478e4e1f4ed4e833c29bdcd9e040a0d96ec prefix2
 stance5/tailscreen/APPROVED scratchpad2/tailround/screen/APPROVED 42627d1f7f3135ad3ff73526bb042e900c9c2e9108ae07c7916507f23c575957 none

@@ -1,0 +1,296 @@
+{
+ "generated_utc": "2026-10-25T06:06:55Z",
+ "rows": [
+  {
+   "id": "K01",
+   "value": "springref tail_1/2/3_pitch",
+   "old": "none (qpos_spring 0)",
+   "new": "52.5 / 25.9 / 10.4 deg (qpos_spring 0.91630 / 0.45204 / 0.18151 rad)",
+   "procedure": "approved values (D-D44 decision 1); env models compared field by field, only qpos_spring differs",
+   "log": "build/env_model_diff.json",
+   "gate": "same (gate model_diff.json, env_model_diff.json)"
+  },
+  {
+   "id": "K02",
+   "value": "physics_revision",
+   "old": 9,
+   "new": 10,
+   "procedure": "hand edit + note 20; plant_contract --write/--check/--check --baseline",
+   "log": "build/logs/regen_plant_1..3.log"
+  },
+  {
+   "id": "K03",
+   "value": "_TAIL_SETTLED_QPOS",
+   "old": [
+    -0.2107,
+    0.0,
+    -0.2029,
+    -0.0926
+   ],
+   "new": [
+    2e-05,
+    0.0,
+    6e-05,
+    0.00018
+   ],
+   "measured": [
+    2.3711656617508606e-05,
+    8.696315875901298e-18,
+    5.618368425806058e-05,
+    0.0001810702622668913
+   ],
+   "procedure": "TestSettledPoseTargetsTrackTheStatue._post_settle_means (noise 0, seed 0, steps 200-999), rounded 5 decimals",
+   "log": "build/remeasure/settle_r10_final.json",
+   "gate": [
+    2.3711656617508606e-05,
+    8.696315875901298e-18,
+    5.618368425806058e-05,
+    0.0001810702622668913
+   ],
+   "spread40": {
+    "mean": [
+     0.00015843031781639618,
+     2.7656057604540286e-05,
+     0.0001406770877092071,
+     0.00022308614746124048
+    ],
+    "sd": [
+     0.00015707218833835846,
+     0.0002720277221904684,
+     0.00010679557847031344,
+     5.8506033761020555e-05
+    ]
+   }
+  },
+  {
+   "id": "K04",
+   "value": "_NECK_SETTLED_QPOS",
+   "old": [
+    0.21432,
+    0.0,
+    0.21963
+   ],
+   "new": [
+    0.21401,
+    0.0,
+    0.22054
+   ],
+   "measured": [
+    0.21400721843807374,
+    -5.2811297360017804e-18,
+    0.220543808334501
+   ],
+   "procedure": "same helper",
+   "log": "build/remeasure/settle_r10_final.json",
+   "gate": [
+    0.21400721843807374,
+    -5.2811297360017804e-18,
+    0.220543808334501
+   ],
+   "spread40": {
+    "mean": [
+     0.2140668052490023,
+     -7.181156838957947e-06,
+     0.2206577597049273
+    ],
+    "sd": [
+     9.885282430459102e-05,
+     0.00014502528347534494,
+     7.221640453357496e-05
+    ]
+   },
+   "long_run": [
+    0.21401418955474744,
+    6.6963051662097635e-18,
+    0.22051831104865754
+   ]
+  },
+  {
+   "id": "K05",
+   "value": "_LEG_SETTLED_QPOS",
+   "old": [
+    -0.0931906447971345,
+    -0.0073721451044150895,
+    -0.43975640189259646,
+    1.3713665366344738
+   ],
+   "new": [
+    -0.09084374343772902,
+    -0.006823512801851125,
+    -0.43726937988410725,
+    1.3762339038992937
+   ],
+   "procedure": "stance config, zero action, seeds 3042-3051 (10/10 full horizon), steps 200-999, mirror-symmetrised; procedure reproduces the r9 constant bit for bit on 3ffc18e",
+   "log": "build/remeasure/legs_r10_final.json (control legs_main_r9.json)",
+   "gate_200_399": [
+    -0.09091870081305535,
+    -0.008075751238834063,
+    -0.43735154862644143,
+    1.3761152526136433
+   ]
+  },
+  {
+   "id": "K05b",
+   "value": "test literal max deviation from keyframe (deg)",
+   "old": 2.74,
+   "new": 2.6,
+   "measured": 2.6049379156269783,
+   "log": "build/remeasure/legs_r10_final.json"
+  },
+  {
+   "id": "K06",
+   "value": "natural_pitch default",
+   "old": 0.027,
+   "new": 0.017,
+   "measured": {
+    "forward_z": -0.01666095600788412,
+    "asin": 0.016661726916248475
+   },
+   "procedure": "noise-free statue, 1000 steps, mean forward_z 200-999, asin, 3 decimals (procedure reproduces r9 -0.02714 on 3ffc18e)",
+   "log": "build/remeasure/settle_r10_final.json",
+   "gate": -0.01666095600788412
+  },
+  {
+   "id": "K07",
+   "value": "stance nosedive_termination_threshold",
+   "old": 0.493,
+   "new": 0.503,
+   "procedure": "sin(0.05)+0.47-sin(0.017)=0.50298; absolute cut -0.519999",
+   "log": "arithmetic"
+  },
+  {
+   "id": "K09",
+   "value": "target_z",
+   "old": 0.926,
+   "new": "0.9260 (carries)",
+   "measured": {
+    "step600": 0.9261269161252227,
+    "mean_200_999": 0.9261374472411735
+   },
+   "log": "build/remeasure/settle_r10_final.json"
+  },
+  {
+   "id": "K10",
+   "value": "m.g.h (static balance test literal)",
+   "old": 704.4,
+   "new": 729.1,
+   "measured": {
+    "tree": "scratchpad2/prs/r10",
+    "subtree_mass": 85.72,
+    "com_height_m": 0.8670308317146673,
+    "mgh": 729.0976711958425,
+    "servo_sum": 1280.0,
+    "ratio": 1.755594689941315
+   },
+   "procedure": "test's env fixture, seed 0, 600 steps",
+   "log": "build/remeasure/mgh_r10.json (control mgh_main_r9.json 704.57)",
+   "gate": 729.0976711958425
+  },
+  {
+   "id": "K11",
+   "value": "stance collapse_peak_floor_reference",
+   "old": 3756.8,
+   "new": 3766.6,
+   "measured": "3766.56 +/- 16.21, 40/40 (SE 2.56, +3.8 SE)",
+   "procedure": "zero_action_baseline.py --stage 1 --episodes 40 --seed 3042; stance_quality_baseline 0.05 40 agrees 3766.6",
+   "log": "build/remeasure/zab_stage1_r10.log, sqb_stance_r10.log",
+   "gate": "3768.85 +/- 16.11 (before natural_pitch/neck re-centre)"
+  },
+  {
+   "id": "K12",
+   "value": "stance min_avg_reward",
+   "old": 2250.0,
+   "new": 2260.0,
+   "procedure": "nearest-10 of 0.60 x 3766.6 = 2260.0"
+  },
+  {
+   "id": "K13",
+   "value": "locomotion collapse_peak_floor_reference",
+   "old": 1091.5,
+   "new": 1092.6,
+   "measured": "1092.60 +/- 5.35, 40/40 (SE 0.85, +1.3 SE)",
+   "log": "build/remeasure/zab_stage2_r10.log",
+   "gate": "1093.37 +/- 5.21"
+  },
+  {
+   "id": "K14",
+   "value": "behavior collapse_peak_floor_reference / rail",
+   "old": "602.0 / 361",
+   "new": "602.0 / 361 (carry)",
+   "measured": "600.93 +/- 174.59, 40/40 (SE 27.6, -0.04 SE)",
+   "log": "build/remeasure/zab_stage3_r10.log",
+   "gate": "601.24 +/- 174.55"
+  },
+  {
+   "id": "K15",
+   "value": "recovery collapse_peak_floor_reference",
+   "old": 1329.1,
+   "new": 1429.1,
+   "measured": "1429.12 +/- 470.12 (SE 74.33), mean length 465.4, ends {'nosedive': 20, 'fallen': 19, 'tail_contact': 1}, shoves 51/70",
+   "procedure": "recovery_offdist_panel --controller statue --schedule on --safe-set provisional (40 ep, seeds 3042-3081); control on 3ffc18e reproduces 1369.4 +/- 519.6, 442.05, 26/14, 44/69",
+   "log": "build/remeasure/recovery_statue_r10.json/.log, recovery_statue_ends_r10.json; controls *_main_r9.*",
+   "gate": "not measured"
+  },
+  {
+   "id": "K16",
+   "value": "statue_constants_physics_revision x4",
+   "old": 9,
+   "new": 10
+  },
+  {
+   "id": "K17",
+   "value": "pad-CoP fixture lean",
+   "old": -0.0825,
+   "new": -0.09,
+   "procedure": "fixture sweep via cop_probe.py (test module helpers); -0.0875 leaves a row at 0.8062 < 0.82; -0.09 rows 0.9998/0.8294/0.9842, lift <= 3.74 mm; -0.095 trips corner lift",
+   "log": "build/remeasure/cop_fixture_sweep_r10.json",
+   "gate": "identical rows"
+  },
+  {
+   "id": "K18",
+   "value": "whole-foot CoP golden",
+   "old": {
+    "r_gate": 0.1303721171614448,
+    "l_gate": 0.0458057900853806,
+    "r": 0.1303721171614448,
+    "l": -0.0170667335389278,
+    "mean": 0.1491260482013012,
+    "metric": "r_gate"
+   },
+   "new": {
+    "r_foot_cop_fore_aft_gate": 0.06238254546319513,
+    "l_foot_cop_fore_aft_gate": 0.18206248521391608,
+    "r_foot_cop_fore_aft": -0.032432548549299216,
+    "l_foot_cop_fore_aft": -0.18206248521391608,
+    "mean_foot_cop_right_200_999": 0.13772972160154906,
+    "mean_foot_cop_left_200_999": 0.12725562603502588,
+    "max_foot_cop_fore_aft_metric": 0.18206248521391608
+   },
+   "procedure": "the test body (seed 3042, 1000 steps); main reproduces the r9 golden exactly",
+   "log": "build/remeasure/cop_r10.json (control cop_main_r9.json)"
+  },
+  {
+   "id": "K19",
+   "value": "T. rex statue CoP ceiling reading (comment)",
+   "old": 0.441,
+   "new": 0.349,
+   "log": "build/remeasure/cop_r10.json"
+  },
+  {
+   "id": "K20",
+   "value": "Phase C reset golden T. rex recaptures",
+   "old": "physics r9 3d68ae..",
+   "new": "physics r10 6a47a0..; RECAPTURED 9 -> 10",
+   "procedure": "draw-stream test passes first, then reset_golden.py --recapture x2",
+   "log": "build/logs/phase_c_draw_stream.log, reset_golden_recapture.log"
+  },
+  {
+   "id": "K21",
+   "value": "head tip comment",
+   "old": "~0.94 m",
+   "new": "~0.96 m (0.958)",
+   "measured": 0.9579469745761867,
+   "log": "build/remeasure/settle_r10_final.json"
+  }
+ ]
+}

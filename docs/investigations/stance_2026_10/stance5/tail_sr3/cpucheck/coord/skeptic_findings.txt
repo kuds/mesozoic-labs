@@ -1,0 +1,122 @@
+[
+ {
+  "id": "S1",
+  "claim": "My own loader (PPO.load + pickled VecNormalize, env kwargs from the recorded stage_config.json, SR3 built by writing the SR3 MJCF's qpos_spring into an r9 env after construction) reproduces the zero-shot worker's c1 deterministic episodes on seeds 3042-3051 on both r9 and SR3 bit for bit: length, termination, tail_3 command mean, q3 and return (max abs diff 0.0).",
+  "label": "measured",
+  "source": "SK/out/c1_rerun_vs_worker.csv, SK/out/my_c1_r9.json, SK/out/my_c1_sr3.json"
+ },
+ {
+  "id": "S2",
+  "claim": "The same holds for checkpoint c5 (code cf80ecb1) on both plants, seeds 3042-3051. On SR3, c5 pins tail_3 (frac99 = 1.0, q3 about +5.17 deg) in all 10 seeds, confirming the new SR3 tail_3 rail with independent code.",
+  "label": "measured",
+  "source": "SK/out/c5_rerun_vs_worker.csv, SK/out/my_c5_sr3.json"
+ },
+ {
+  "id": "S3",
+  "claim": "Compiled SR3_t123.xml differs from both arms' r9 MJCF only in qpos_spring (590 fields compared). Because an SR3 built by post-construction qpos_spring writes reproduces the worker's MODEL_PATH SR3 panels bit for bit, the plant-check bypass touched nothing that changes dynamics or observations.",
+  "label": "measured",
+  "source": "SK/out/model_cmp_1af2d4d7_r9_vs_sr3.json, SK/out/model_cmp_cf80ecb1_r9_vs_sr3.json, SK/out/c1_rerun_vs_worker.csv"
+ },
+ {
+  "id": "S4",
+  "claim": "Every one of the 16 zero-shot SR3 panels recorded tail qpos_spring 52.5/25.9/10.4 deg and SR3 xml sha 209a63ae (= chainsizer SR3_t123.xml), with physics_sha256 as the only plant-check mismatch. Every r9 panel recorded 0/0/0 and no mismatch, and all panels used seeds 3042-3081 (n = 40).",
+  "label": "measured",
+  "source": "SK/out/zs_panel_plants.csv"
+ },
+ {
+  "id": "S5",
+  "claim": "Recounting all 32 zero-shot panels from per_episode.csv reproduces summary.csv and paired_tests.csv exactly. Pooled clean counts: deterministic 293 -> 229 (lost 88, gained 24), stochastic 246 -> 179 (99/32).",
+  "label": "measured",
+  "source": "SK/out/zs_recount.json"
+ },
+ {
+  "id": "S6",
+  "claim": "The zero-shot validation holds: for c6, c7 and c8 the 20 per-episode return, tail_3 command and share>=0.99 values equal the screen flags.csv bit for bit, and panels.csv cmd/return/q3 are reproduced to 1e-16.",
+  "label": "measured",
+  "source": "SK/out/validation_recheck.json"
+ },
+ {
+  "id": "S7",
+  "claim": "In aggregate, zero-shot SR3 increases tail and actuator saturation rather than removing it. Actuator-saturation failures go from 27 to 80 (deterministic) and 74 to 130 (stochastic); tail-up episodes go from 27 to 40 and 73 to 90; sole-tilt failures from 0 to 23 and 0 to 20.",
+  "label": "measured",
+  "source": "SK/out/power_and_stats.json, SK/out/zs_recount.json"
+ },
+ {
+  "id": "S8",
+  "claim": "The pooled McNemar p-values (9.0e-10 deterministic, 3.7e-9 stochastic) overstate the evidence that SR3 degrades r9 policies in general. 80 of 88 deterministic losses come from c3 and c5. Across checkpoints the clean count falls in 6 and rises in 2 (sign test p = 0.29); stochastic 7 down and 1 up (p = 0.07). The sole-tilt worsening is consistent across checkpoints (7 of 7, p = 0.016).",
+  "label": "inferred",
+  "source": "SK/out/power_and_stats.json, SK/out/zs_recount.json"
+ },
+ {
+  "id": "S9",
+  "claim": "The c1 head drop on SR3 is real. With my own code, head-tip height is 1.17-1.33 m on r9 against 0.61-0.63 m on SR3, and neck pitch is +32.4 to +33.3 deg on SR3 (5 seeds). The c1 SR3 deterministic panel still passes the stance v2 gate (37/40), so the gate does not see this posture change.",
+  "label": "measured",
+  "source": "SK/out/my_c1_head_r9.json, SK/out/my_c1_head_sr3.json, SK/out/zs_panel_plants.csv"
+ },
+ {
+  "id": "S10",
+  "claim": "Per-checkpoint SR3 gate verdicts are one episode from flipping. c1 at 37/40 has a one-sided Clopper-Pearson LCB of 0.817 and passes; c4 at 36/40 has 0.786 and fails against the 0.80 bar.",
+  "label": "measured",
+  "source": "SK/out/power_and_stats.json, SK/out/zs_panel_plants.csv"
+ },
+ {
+  "id": "S11",
+  "claim": "The zero-shot SR3 env keeps the r9 _TAIL_SETTLED_QPOS reward target, while the gate's r10 candidate re-centres it. Zero-shot returns, reward components and statue rewards (e.g. statue 4285) are therefore not r10 values. Per-episode gate classification does not read reward, so the clean counts are unaffected.",
+  "label": "inferred",
+  "source": "ZS/code_cf80ecb1 base_env.py:148/642/988; code_cf80ecb1 stance_gate_v2.py classify_stance_episode; G/sr3.patch"
+ },
+ {
+  "id": "S12",
+  "claim": "sr3.patch applied to a fresh git archive of 9f2355a3 gives a tree identical to the gate's tree_sr3. The only hand edits are the 3 springrefs, _TAIL_SETTLED_QPOS plus its comment, and physics_revision 9 -> 10 plus note 20. The digest snapshot moves 30 of 649 lines, all T. rex, with no policy line, and plant_contract --check (with and without the r9 baseline) reports current.",
+  "label": "measured",
+  "source": "SK/trees/r9, SK/trees/sr3 (diff -rq and plant_contract runs in this session)"
+ },
+ {
+  "id": "S13",
+  "claim": "The gate statue re-run on seeds 3042, 3081, 3121, 3174, 5048, 9047 and 9062 with my own zero-action loop matches G/panels_episodes.csv bit for bit on both trees (length, termination, reward, max sole tilt, pad CoP). SR3 seed 9047 falls backward ('fallen' at step 273, forward_z +0.6119, 37.7 deg nose-up), and all four r9 nosedive seeds stand on SR3.",
+  "label": "measured",
+  "source": "SK/out/statue_rerun_vs_gate.csv, SK/out/my_statue_r9.json, SK/out/my_statue_sr3.json"
+ },
+ {
+  "id": "S14",
+  "claim": "Four of the gate's 13 SR3-only test failures reproduce, failing on SR3 and passing on r9: statue_constant_freshness, species_catalog, the pad-CoP fixture (n_clean = 1) and the settled neck pose (0.214007/0.220544 vs 0.21432/0.21963). On the SR3 tree the r9 checkpoint is refused with PlantCompatibilityError (physics_revision 9 vs 10); on r9 it loads.",
+  "label": "measured",
+  "source": "SK/logs/pytest_subset_r9.log, SK/logs/pytest_subset_sr3.log, SK/out/refusal_sr3.json, SK/out/refusal_r9.json"
+ },
+ {
+  "id": "S15",
+  "claim": "Heading re-runs reproduce the claims. SR3 3042 at +45 deg fails on rewards (5.076e-9) and observations (3.05e-5); the first action difference is at step 759 from observation index 35 (l_hip_pitch:qvel), with joints 9.79e-14 before and 2.15e-9 after. r9 3042 at +45 passes (joints 1.75e-13). r9 3048 at +45 fails the same way (step 246, head_pitch:qvel). SR3 3061 at -45 has an action flip at step 876 but passes.",
+  "label": "measured",
+  "source": "SK/out/heading_sr3_3042_p45.json, SK/out/heading_r9_3042_p45.json, SK/out/heading_r9_3048_p45.json, SK/out/heading_sr3_3061_m45.json"
+ },
+ {
+  "id": "S16",
+  "claim": "The heading worker's conclusion (float32 rounding plus a tolerance too tight for the T. rex, not a heading leak and not caused by SR3) follows from the evidence. A reproduced r9 pair fails the same test through the same mechanism, and the state agrees to about 2e-13 until a one-ulp float32 observation straddle flips an action.",
+  "label": "inferred",
+  "source": "S15"
+ },
+ {
+  "id": "S17",
+  "claim": "The heading report text names the wrong index: 'l_hip_pitch:qvel (index 38)'. That element is observation index 35; 38 is l_ankle:qvel. The worker's own q2 JSON records index 35.",
+  "label": "measured",
+  "source": "SK/out/heading_sr3_3042_p45.json; H/out/q2_sr3_3042_analysis.json"
+ },
+ {
+  "id": "S18",
+  "claim": "The heading worker's SR3 tree uses _TAIL_SETTLED_QPOS (0.00013, 0, 0.00014, 0.00023) from om_sr3rc, not the gate's r10 candidate (0.00002, 0, 0.00006, 0.00018). The reward maxima differ by about 2e-13 (5.075812e-9 vs 5.075989e-9 for SR3 3042 at +45); the pass/fail result is unchanged.",
+  "label": "measured",
+  "source": "H/trees/sr3 and SK/trees/sr3 base_env.py:148; H/out/q1_pairs_sr3.csv; SK/out/heading_sr3_3042_p45.json"
+ },
+ {
+  "id": "S19",
+  "claim": "A 40-episode panel cannot resolve rare falls or small clean-rate changes. P(0 falls in 40) is 0.45 at a 2% fall rate; McNemar needs at least 6 one-way discordant pairs, and its power against a 10 / 20 percentage-point drop is 0.21 / 0.84. The zero-shot claim that balance is not the limiting factor (ZS F16) is therefore overclaimed, given the SR3 statue's new backward fall (1/280).",
+  "label": "inferred",
+  "source": "SK/out/power_and_stats.json"
+ },
+ {
+  "id": "S20",
+  "claim": "The pad-CoP fixture is a recalibration, but the window where only the CoP bar trips is one lean step wide on both plants: corner-lift headroom is 0.21 mm on r9 at -0.0825 and 0.26 mm on SR3 at -0.09. 'Not a loss of gate margin' is an interpretation and should be labelled inferred.",
+  "label": "inferred",
+  "source": "G/cop_fixture_diagnosis.json, SK/logs/pytest_subset_sr3.log"
+ }
+]

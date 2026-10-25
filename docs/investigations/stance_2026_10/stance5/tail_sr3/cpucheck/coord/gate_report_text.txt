@@ -1,0 +1,129 @@
+All paths are under `scratchpad2/tailround/r10cpu/gate/`, written `G/` below.
+
+## 1. The SR3 tree (G/sr3.patch, 333 lines)
+
+| File | How it changed |
+|---|---|
+| environments/tyrannosaurus_rex/anatomical/assets/tyrannosaurus_rex_anatomical.xml | Hand edit: springref 52.5 / 25.9 / 10.4 on tail_1/2/3_pitch. Byte-identical to skeptic/om_sr3rc's XML. |
+| environments/tyrannosaurus_rex/base_env.py | Hand edit: `_TAIL_SETTLED_QPOS = (0.00002, 0.0, 0.00006, 0.00018)`, measured (G/settle_sr3.json). The old attempt om_sr3rc used (0.00013, 0, 0.00014, 0.00023). The provenance comment is updated (comments only; they are not token-hashed). |
+| configs/plant_versions.toml | Hand edit: physics_revision 9 -> 10 plus note 20. This counter is human-reviewed by design, and the writer refuses without it. |
+| configs/plant_manifest.generated.json, environments/shared/data/plant_manifest.generated.json | Tool: `plant_contract --write`. Then `--check` and `--check --baseline <r9 manifest>` both report "current" (G/logs/contract_regen_sr3.log). |
+| docs/SPECIES_CATALOG.md, website/src/data/species.generated.json | Tool: `species_catalog`. |
+| configs/tyrannosaurus_rex/anatomical/mirror_map.json | Tool: `symmetry --write`, then `--check` reports current. |
+| configs/digest_snapshot.generated.txt | Tool: `digest_snapshot --block-optional-backends --write`. 30 of 649 lines move, all T. rex: plant 3, stage task_sha 4, behavior task_sha 11, reward 12. No policy line moves, so r15 stays (G/logs/digest_snapshot_write_sr3.log). |
+
+**Model diff:**
+- Raw MJCF: only `qpos_spring[10, 12, 13]` = 52.5 / 25.9 / 10.4 deg (G/model_diff.json).
+- Env-built model: also only qpos_spring, out of 595 fields (G/env_model_diff.json).
+- tree_sr3 against chainsizer SR3_t123.xml: no difference.
+
+**Left out of the minimal patch on purpose:** `_NECK_SETTLED_QPOS`, `_LEG_SETTLED_QPOS`, natural_pitch, nosedive_termination_threshold, the stage-TOML statue constants and their `statue_constants_physics_revision`, the Phase C reset golden, the test pins, and the records.
+
+## 2. Statue panels through the gate code
+
+The 0-deg cell is `build_stance_gate_report` on the committed stance config with only `gate_kind` swapped to stance_quality/v2. The repo's `statue_stance_verdict` scores the 0-deg cell the same way. On both trees the certificate's 0-deg cell matches this driver bit for bit (reward diff 0.0, same clean flags; G/panels_summary.json).
+
+### 280-seed panel (G/panels/<tree>/v2cell0_*.json, G/panels_summary.json)
+
+| Block | r9 clean (LCB) | SR3 clean (LCB) | r9 unclean | SR3 unclean | r9 / SR3 statue ref reward |
+|---|---|---|---|---|---|
+| 3042-3081 | 39/40 (0.887) | 40/40 (0.928) | 3081 nosedive @292 | none | 3755.72 / 3768.85 |
+| 3082-3161 | 79/80 (0.942) | 79/80 (0.942) | 3121 tilt 2.061 deg | 3121 tilt 2.087 deg | 3757.08 / 3767.27 |
+| 3162-3201 | 39/40 (0.887) | 40/40 (0.928) | 3174 nosedive @227 | none | 3758.46 / 3768.64 |
+| 5042-5081 | 39/40 (0.887) | 40/40 (0.928) | 5048 nosedive @241 | none | 3752.98 / 3764.04 |
+| 7042-7081 | 40/40 (0.928) | 40/40 (0.928) | none | none | 3760.05 / 3769.95 |
+| 9042-9081 | 39/40 (0.887) | 39/40 (0.887) | 9062 nosedive @228 | 9047 'fallen' @273, backward | 3756.80 / 3765.24 |
+| **All** | **275/280**, 4 falls | **278/280**, 1 fall | | | standing 3756.89±19.26 / 3767.33±18.25 |
+
+- **Fall direction** (G/logs/fall_probe_*.log): SR3 seed 9047 ends at forward_z +0.612, pitch 37.9 deg nose-up, pelvis 0.69 m, so it falls backward. All four r9 nosedive seeds stand on SR3, and 9047 stands on r9.
+- **Falls are not significantly different:** 4 vs 1 of 280, Fisher p = 0.37 (inferred).
+- **Every block passes the v2 decision on both trees.** No rail fails.
+
+Bar extremes over full-horizon episodes, certification block / the 240 other seeds:
+
+| Bar | r9 | SR3 |
+|---|---|---|
+| tilt ≤ 2 deg | 1.544 / 2.061 (3121) | 1.603 / 2.087 (3121) |
+| corner lift ≤ 4 mm | 2.5 / 3.3 | 2.6 / 3.4 |
+| sole contacts ≥ 1.5 | 1.959 / 1.956 (median 2.566) | 2.000 / 2.000 (median 2.603) |
+| pad CoP fore-aft ≤ 0.80 | 0.475 / 0.476 (median 0.261) | 0.322 / 0.404 (median 0.126) |
+| settle peak ≤ 1.5 BW | 1.280 / 1.325 | 1.207 / 1.337 |
+| windowed share ≥ 0.35 | 0.462 / 0.444 | 0.469 / 0.437 |
+| load share ≥ 0.40 | 0.495 / 0.493 | 0.497 / 0.494 |
+| displacement ≤ 0.10 m | 0.019 / 0.020 | 0.019 / 0.057 (9077) |
+| settle width change ≤ 0.08 m | 0.046 / 0.046 | 0.054 / 0.055 |
+| yaw change ≤ 25 deg | 12.1 / 12.8 | 14.1 / 14.8 |
+| support, touchdowns, saturation, airborne, settle touchdowns, guards | 1, 0, 0, 0, 1, 0 | same |
+
+### Six-heading certificate, 3042-3081 (G/panels/<tree>/heading_cert/stance_heading_report.{txt,json})
+
+The heading grid is -90, -45, 0, 45, 90 and 180 deg.
+
+| Tree | Verdict | Each heading | Reward per heading | Worst per-seed reward diff vs 0 deg |
+|---|---|---|---|---|
+| r9 | PASS, seeds clean at every heading 39/40 (LCB 0.887) | 39/40, v2 PASS, nosedive 3081 | 3681.75 | 1.3e-10 |
+| SR3 | PASS, 40/40 (LCB 0.928) | 40/40, v2 PASS | 3768.85 | 4.2e-11 |
+
+- The gate sha is the same on both trees (06375c21...).
+- task_sha256 moves from bde44225... to 8587bd97....
+
+### Statue reference values (G/statue_reference.json; zero_action_baseline logs in G/logs/zab_stage*_*.log)
+
+| Value | Committed | r9 measured | SR3 measured |
+|---|---|---|---|
+| Stance statue standing reward, 3042-3081 (collapse_peak_floor_reference) | 3756.8 | 3755.72 ± 19.93 (39/40) | 3768.85 ± 16.11 (40/40) |
+| 0.45 x reference (collapse floor) | 1690.6 | 1690.07 | 1695.98 |
+| 0.60 x statue (min_avg_reward_statue_ratio rail) / min_avg_reward | 2250 | 2253.43 | 2261.31 (2250 is then 0.597 x) |
+| Noise-free forward_z, implied natural_pitch | 0.027 | -0.02714, 0.0271 | -0.01666, 0.0167 |
+| nosedive threshold re-derived, sin(0.05)+0.47-sin(np) (inferred) | 0.493 | 0.4928 | 0.5033 |
+| Pelvis settle z (target_z) | 0.9260 | 0.92616 | 0.92614 |
+| Neck settle minus `_NECK_SETTLED_QPOS` | | -0.01 / +0.05 mrad | -0.31 / +0.91 mrad |
+| Leg settle, max deviation | | 1.36 mrad | 4.75 mrad (ankle) |
+| Locomotion statue (zab stage 2) | 1091.5 | 1092.14 ± 5.74 (39/40) | 1093.37 ± 5.21 (40/40) |
+| Behavior statue (zab stage 3, all episodes) | 602.0 | 593.41 ± 187.19 | 601.24 ± 174.55 |
+| CoM height / m.g.h (G/sway_probe.jsonl) | 704.4 | 0.8379 m / 704.57 (1.817x) | 0.8670 m / 729.10 (1.756x; bar 1.5x) |
+
+## 3. Tests (G/tests_out/<tree>/junit.xml, G/logs/tests_<tree>.log, G/tests_compare.json, G/test_classification.json)
+
+- **What ran:** 2584 tests per tree: environments/tyrannosaurus_rex/tests plus 54 shared files (G/test_files_shared.txt), in one process.
+- **r9:** 2500 passed, 1 skipped, 83 blocked by the no-training guard, 0 failed.
+- **SR3:** 2487 passed, 13 failed, 1 skipped, 83 blocked.
+- No test fails on r9 only.
+
+| SR3-only failure | Class | What it pins / reads on SR3 |
+|---|---|---|
+| test_anatomical_env TestSettledPoseTargetsTrackTheStatue | (i) | `_NECK_SETTLED_QPOS`. The tail now holds; the neck is off by -0.31 / +0.91 mrad against a 0.1 mrad tolerance. |
+| test_anatomical_lean_and_settled_legs::test_the_settled_leg_pose_is_the_statues | (i) | `_LEG_SETTLED_QPOS`. Ankle is off by 4.75 mrad against 2.5. |
+| test_anatomical_static_balance TestLateralSwayStiffness | (i) | Literal m.g.h 704.4. Reads 729.10; the 1.5x margin assert still holds at 1.756x. |
+| test_gait_recorder::test_the_physics_r9_statue_whole_foot_cop_reading | (i) | r9 golden 0.13037. Reads 0.06238. |
+| test_phase_c_interface: recaptured_goldens, reset_observation x2, zero_action_trajectories x2 | (i) | Reset golden and RECAPTURED=9. Obs 51-53 (accelerometer) and 54 (first foot-contact channel) differ at reset; recapture with reset_golden.py. |
+| test_species_catalog::test_catalog_publishes_layered_plant_contract | (i) | Expected T. rex physics revision 9. |
+| test_statue_constant_freshness | (i) | statue_constants_physics_revision = 9. |
+| test_stance_gate_v2_report TestThePadCentreOfPressure | (i), fixture recalibration | The lean command -0.0825 (see the diagnosis below). |
+| test_heading_free_rollouts::test_full_horizon_traces_repeat_at_every_heading[trex] | Left to the heading worker | r9 passes. SR3: rewards 5.08e-9 against a 1e-9 bound (the assert that trips), observations 3.05e-5 against 1e-5. Joints 6.56e-8 and actions 1.35e-8 are inside their 1e-6 bounds. |
+
+- **Digest-snapshot failures in the cost log were environmental:** its three test_plant_contract_digest_snapshot failures were a ModuleNotFoundError in the subprocess. Both trees pass them here, with PYTHONPATH set to the tree.
+
+### Pad CoP diagnosis (G/cop_fixture_diagnosis.json, G/cop_probe_*.json, G/copfix_test_change.patch, G/logs/copfix_test.log)
+
+The fixture uses seeds 3042-3044, 400 steps, and l_ankle ramped to the command.
+
+| Lean command | r9 lean pad CoP | SR3 lean pad CoP | SR3 corner lift (mm) / tilt (deg) |
+|---|---|---|---|
+| -0.0825 (committed) | 0.9998 / 0.8292 / 0.9994, CoP bar only, test passes | 0.9800 / **0.7586** / 0.9605, seed 3043 clean, so n_clean = 1 and the test fails | 2.97 / 2.91 / 2.81; 1.08 / 1.24 / 1.59 |
+| -0.0875 | corner-lift bar trips too | 0.9998 / 0.8062 / 0.9775, CoP bar only, but under the 0.82 margin assert | 3.31 max |
+| -0.09 | corner-lift bar trips | 0.9998 / 0.8294 / 0.9842, CoP bar only, the **full test passes** | ≤3.74; ≤1.72 |
+| -0.095 | | corner-lift bar trips | 4.59 |
+
+- **The statue moved away from the bar.** Statue CoP on the fixture seeds: r9 0.361 / 0.421 / 0.218, SR3 0.207 / 0.274 / 0.116. On the 280-seed panel the statue's worst CoP leaves 0.324 of margin to the bar on r9 and 0.396 on SR3.
+- **The placeholder r10 (springref 10/5/3) read 0.817.**
+- **At matched pad geometry the lean reads the same:** r9 at -0.0825 and SR3 at -0.09 both read 0.829 to 1.0.
+
+## 4. Checkpoint refusal (G/checkpoint_refusal.json, G/logs/checkpoint_load_*.log, G/sidecar_check_*.json)
+
+| Tree | stance_gate_report.py --model stage1_4194304_steps.zip --vecnorm ... | Sidecar .pkl alone through load_vecnormalize + validate_model_plant |
+|---|---|---|
+| SR3 | Refused, exit 1: `PlantCompatibilityError: .../stage1_4194304_steps.zip is incompatible with the current tyrannosaurus_rex/anatomical plant: - physics_revision: checkpoint=9, current=10 - physics_sha256: checkpoint='sha256:3d68aec7...', current='sha256:6a47a0eb...'` | Refused, same two lines |
+| r9 | Loads ("VecNormalize stats applied (clip 10)") and scores 1 seed at six headings (reward 3702.5) | Accepted |
+
+The refusal is raised in plant_contract/validation.py:139 (`validate_recorded_identity`). It is reached through validation.py:160 `validate_model_plant`, then policy_loading.py:693 `load_sb3_checkpoint`, then reporting/stance_report.py:160 `_load_policy`, then :2183 `build_stance_heading_report`.

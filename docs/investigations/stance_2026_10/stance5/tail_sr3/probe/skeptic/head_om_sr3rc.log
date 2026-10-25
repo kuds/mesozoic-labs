@@ -1,0 +1,11 @@
+F.                                                                       [100%]
+=================================== FAILURES ===================================
+_ test_full_horizon_traces_repeat_at_every_heading[tyrannosaurus_rex-anatomical] _
+environments/shared/tests/test_heading_free_rollouts.py:105: in test_full_horizon_traces_repeat_at_every_heading
+    assert_paired(traces, state_atol=CLOSED_LOOP_STATE_ATOL, observation_atol=CLOSED_LOOP_OBSERVATION_ATOL)
+environments/shared/tests/heading_free_helpers.py:126: in assert_paired
+    assert worst["rewards"] <= REWARD_ATOL, worst
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AssertionError: {'actions': 1.4435499906539917e-08, 'joints': 4.754853485496377e-08, 'rewards': 1.3421945332936502e-08, 'observations': 3.0517578125e-05}
+=========================== short test summary info ============================
+FAILED environments/shared/tests/test_heading_free_rollouts.py::test_full_horizon_traces_repeat_at_every_heading[tyrannosaurus_rex-anatomical]

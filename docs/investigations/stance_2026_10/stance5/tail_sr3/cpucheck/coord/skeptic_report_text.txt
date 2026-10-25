@@ -1,0 +1,87 @@
+Paths: SK = `scratchpad2/tailround/r10cpu/skeptic/`. ZS, G and H are the worker dirs `r10cpu/zeroshot/`, `r10cpu/gate/` and `r10cpu/heading/`. A per-claim verdict table for every finding (F1-F19 of each worker) is in `SK/verdicts.csv`.
+
+## Bottom line
+- I found **no blocking error**. Every worker number I re-measured matched bit for bit.
+- The corrections below are about interpretation, statistical power and labels.
+- None of (a)-(c) tests the decision's core question: whether a policy **trained** on SR3 avoids the tail rail.
+
+## (a) Zero-shot: independent checks
+| Check | Result | Source |
+|---|---|---|
+| Own harness (PPO.load + pickled VecNormalize, env kwargs from the recorded stage_config.json, SR3 made by writing qpos_spring after construction): c1, seeds 3042-3051, r9 and SR3 | length, termination, t3 cmd, q3 and return all identical (max abs diff 0.0, 20 episodes) | SK/out/c1_rerun_vs_worker.csv, SK/out/my_c1_{r9,sr3}.json |
+| Same, c5 (code cf80ecb1) | identical (max diff 0.0). SR3 frac99 = 1.0 and q3 ≈ 5.17 deg in all 10 seeds | SK/out/c5_rerun_vs_worker.csv, SK/out/my_c5_sr3.json |
+| Compiled model, both arms' r9 XML vs SR3_t123.xml | 590 fields; only qpos_spring differs (tail_1/2/3 = 52.5/25.9/10.4 deg) | SK/out/model_cmp_{1af2d4d7,cf80ecb1}_r9_vs_sr3.json |
+| Plant and seeds per panel | all 16 SR3 panels: qpos_spring 52.5/25.9/10.4, sr3.xml sha 209a63ae (= chainsizer SR3_t123.xml), only mismatch physics_sha256. All 16 r9 panels: 0/0/0, no mismatch. Every panel uses seeds 3042-3081, n = 40 | SK/out/zs_panel_plants.csv |
+| Bypass | It only skips run_panel's validate_environment_plant. Building SR3 a different way (post-construction qpos_spring) reproduces the worker's MODEL_PATH SR3 bit for bit, so the bypass changes no dynamics or observations | SK/out/c1_rerun_vs_worker.csv, SK/out/c5_rerun_vs_worker.csv |
+| Code copies | the worker's code_1af2d4d7 and code_cf80ecb1 equal my own git archives (diff -rq empty) | diff run in this session |
+| Validation vs screen | c6, c7, c8: all 20 per-episode return, cmd and share≥0.99 values bit-equal to the screen flags.csv. Recomputed panel cmd/return/q3 match panels.csv to 1e-16 | SK/out/validation_recheck.json |
+| Recount of all 32 panels from per_episode.csv | n_full, n_clean, tail-up, means and paired lost/gained/McNemar p all match summary.csv and paired_tests.csv. Pooled totals: deterministic 293→229 (88/24), stochastic 246→179 (99/32) | SK/out/zs_recount.json |
+| c1 head drop, own harness, 5 seeds | head-tip height 1.17-1.33 m (r9) → 0.61-0.63 m (SR3); neck +32.4 to +33.3 deg on SR3; tail_1 command -0.72 to -0.75 | SK/out/my_c1_head_{r9,sr3}.json |
+| c1 on SR3 passes the v2 gate with the head down | verdict passed, 37/40 clean | SK/out/zs_panel_plants.csv |
+
+**Aggregates the worker did not state** (from per_episode.csv):
+
+| | deterministic r9 → SR3 | stochastic r9 → SR3 |
+|---|---|---|
+| actuator-saturation failures | 27 → 80 | 74 → 130 |
+| tail-up episodes | 27 → 40 | 73 → 90 |
+| sole-tilt failures | 0 → 23 | 0 → 20 |
+
+Sources: SK/out/power_and_stats.json, SK/out/zs_recount.json. Zero-shot SR3 does not reduce saturation in aggregate: the rails move to other checkpoints and actuators.
+
+**Verdicts for (a):**
+- **Supported:** F1, F2, F4, F6, F7, F9, F10, F11, F13. For F13, the direction holds in all 7 checkpoints that have tilt failures; sign test p = 0.016.
+- **F3:** supported by a code read only. `_tail_home_qpos` is used only in the reward, at base_env.py:988.
+- **F5:** the counts are supported. The pooled p-values (9.0e-10 and 3.7e-9) overreach: 80 of the 88 deterministic losses come from c3 and c5. At the checkpoint level, 6 checkpoints go down and 2 up (sign test p = 0.29); stochastic 7 down and 1 up (p = 0.07).
+- **F5, per-checkpoint verdicts on SR3** are one episode from flipping. c1 at 37/40 has an LCB of 0.817 and passes; c4 at 36/40 has 0.786 and fails.
+- **F8:** the command sign is measured and confirmed (negative action means a target below home, per `_scale_action`). "Toward the r9 droop they were trained on" is an interpretation, so that clause should be labelled inferred.
+- **F12:** not checked.
+- **F14:** measured on the harness env, but these are not r10 numbers. The harness keeps the r9 `_TAIL_SETTLED_QPOS`, and the r10 candidate re-centres it.
+- **F15:** fine as an inference.
+- **F16:** overclaimed.
+  - A 40-episode panel cannot see rare falls: P(0 falls in 40 | p = 2%) = 0.45, and the one-sided 95% upper bound for 0/40 is 7.2%.
+  - The SR3 statue does have a new backward fall (1/280).
+
+## (b) Gate: independent checks
+| Check | Result | Source |
+|---|---|---|
+| sr3.patch | Applies cleanly to a fresh git archive of 9f2355a3, and the result equals G/tree_sr3 (diff -rq empty; my tree_r9 also equals G/tree_r9). Hand edits: 3 springref attributes; `_TAIL_SETTLED_QPOS` (-0.2107, 0, -0.2029, -0.0926) → (0.00002, 0, 0.00006, 0.00018) with its comment; physics_revision 9 → 10 plus note 20. Everything else is generated: both manifests, the catalog, the website json, mirror_map (physics_sha only), and digest_snapshot (30 of 649 lines, all T. rex: plant 3, stage 4, behavior 11, reward 12, no policy line) | SK/trees/{r9,sr3} |
+| plant_contract --check, and --check --baseline r9 manifest | "Plant manifest is current" on both trees | run in this session |
+| Own zero-action loop, seeds 3042, 3081, 3121, 3174, 5048, 9047, 9062, both trees | length, termination, reward, max_sole_tilt and pad CoP bit-equal to G/panels_episodes.csv. r9: nosedive 3081@292, 3174@227, 5048@241, 9062@228; 3121 tilt 2.0613. SR3: 9047 fallen@273, forward_z +0.6119, 37.7 deg nose-up; 3121 tilt 2.0868; the four r9 nosedive seeds stand on SR3 | SK/out/statue_rerun_vs_gate.csv, SK/out/my_statue_{r9,sr3}.json |
+| Recount of the 280-seed panel | r9 275/280, SR3 278/280. Reference reward 3755.72 / 3768.85. CoP worst 0.475/0.476 → 0.322/0.404, median 0.261 → 0.126. Fisher p = 0.373 | recount of G/panels_episodes.csv (this session) |
+| Tests (4 of the 13 SR3-only failures) | pass on r9, fail on SR3: statue_constant_freshness (9 vs 10), species_catalog (10 vs 9), pad CoP (n_clean = 1), settled neck pose (0.214007 / 0.220544 vs 0.21432 / 0.21963) | SK/logs/pytest_subset_{r9,sr3}.log |
+| Checkpoint refusal (c4 4194304) | SR3: PlantCompatibilityError (physics_revision 9 vs 10, physics sha). r9: loads | SK/out/refusal_{sr3,r9}.json |
+
+**Verdicts for (b):**
+- **Supported:** F1, F2 (contract check only), F4, F5, F6, F8, F9, F12, F14, F15.
+- **F12:** each class (i) entry names its constant, and I reproduced 4 of the 13. The statue-freshness fix also needs the recovery-stage constant, which the worker dropped.
+- **F10:** the measurement is supported. "Not a loss of gate margin" is an interpretation and should be labelled inferred. The window where only the CoP bar trips is one lean step wide on both plants, with corner-lift headroom of 0.21 mm on r9 at -0.0825 and 0.26 mm on SR3 at -0.09 (G/cop_fixture_diagnosis.json).
+- **F16:** supported by a code read: PlantCompatibilityError is not a PolicyLoadError. This behaviour predates SR3.
+- **Not re-run:** F3, F7, F13, F17.
+
+## (c) Heading: re-run pairs (torch 1 thread, own script, the test's fixture rebuilt)
+| Tree, seed, heading | Worst actions / joints / rewards / obs | First action diff | Test | Source |
+|---|---|---|---|---|
+| SR3 (gate tree) 3042 +45 (claimed fail) | 1.176e-8 / 3.673e-8 / 5.0760e-9 / 3.05e-5 | step 759; obs index 35 = l_hip_pitch:qvel; 7 elements, max 9.31e-10; joints 9.79e-14 → 2.15e-9; reward > 1e-9 at step 762, obs > 1e-5 at step 766 | FAIL (rewards, obs) | SK/out/heading_sr3_3042_p45.json |
+| r9 3042 +45 (claimed pass) | 0 / 1.75e-13 / 5.2e-13 / 1.16e-10 | none | pass | SK/out/heading_r9_3042_p45.json |
+| r9 3048 +45 (claimed r9 fail) | 1.42e-8 / 5.89e-8 / 1.376e-8 / 3.05e-5 | step 246; obs index 23 = head_pitch:qvel; reward > 1e-9 at step 261 | FAIL | SK/out/heading_r9_3048_p45.json |
+| SR3 3061 -45 (action diff but pass) | 2.3e-10 / 1.80e-11 / 3.1e-13 / 2.3e-10 | step 876, 1 element | pass | SK/out/heading_sr3_3061_m45.json |
+
+All four rows equal the worker's H/out/q1_pairs_*.csv values, with one exception. The SR3 reward maxima differ by about 2e-13 (5.075812e-9 for the worker against 5.075989e-9 for me) because the worker's SR3 tree uses the om_sr3rc `_TAIL_SETTLED_QPOS` (0.00013, 0, 0.00014, 0.00023), not the gate's r10 candidate.
+
+**Verdicts for (c):**
+- **Supported:** F2, F4-F6 (on the pairs I ran), F7, F8 (one pair), F17 (as an inference), F19.
+- **F7:** the measurement is right, but the report text says "l_hip_pitch:qvel (index 38)". The element is observation index 35; 38 is l_ankle:qvel. The worker's own JSON says 35.
+- **F3:** supported in part. One r9 failing pair is reproduced, but the 20-seed sweep was not re-run. Fisher p = 1 means no evidence of a difference, not equal fragility: 20 seeds cannot resolve about ±30 percentage points.
+- **F18:** plausible, but not prototyped.
+- **Not re-run:** F10, F11, F13-F16.
+
+## What n = 40 can resolve (SK/out/power_and_stats.json)
+**Single panels:**
+- 40/40 clean gives a one-sided 95% lower bound of 0.928, so failure rates below about 7% are invisible.
+- McNemar needs at least 6 one-way discordant pairs to reach p < 0.05. Its power against a drop of 10 / 15 / 20 / 25 percentage points is 0.21 / 0.57 / 0.84 / 0.96.
+- The deterministic changes in c1, c2, c6 and c8 (0-3 episodes) cannot be resolved.
+
+**Rare falls:**
+- P(0 falls in 40) is 0.85 at a 0.4% fall rate and 0.45 at 2%.
+- On the gate's 280 seeds, 4 falls against 1 gives p = 0.37. The single backward fall is anecdotal, though it fits the earlier open-loop probe.

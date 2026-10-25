@@ -1,0 +1,27 @@
+{
+ "command": "python environments/shared/scripts/stance_gate_report.py --species tyrannosaurus_rex --embodiment anatomical --model <ck>/stage1_4194304_steps.zip --vecnorm <ck>/stage1_vecnormalize_4194304_steps.pkl --episodes 1",
+ "checkpoint_dir": "scratchpad2/tailround/fetch/stance5_LTSB_s42/A",
+ "sr3": {
+  "exit_code": 1,
+  "refused": true,
+  "exception": "PlantCompatibilityError (uncaught; the CLI prints a traceback, not its SystemExit message)",
+  "message": "environments.shared.plant_contract.errors.PlantCompatibilityError: scratchpad2/tailround/fetch/stance5_LTSB_s42/A/stage1_4194304_steps.zip is incompatible with the current tyrannosaurus_rex/anatomical plant:\n- physics_revision: checkpoint=9, current=10\n- physics_sha256: checkpoint='sha256:3d68aec73fbc4642681ed601bedaf3524459d693d6a7afce036bb14bac872d67', current='sha256:6a47a0eb78164b9738752e2cf928aa0a6fd3ef98fc953eddc9bcb2eca366da4d'",
+  "call_chain": [
+   "stance_gate_report.py:342 main -> build_stance_heading_report",
+   "reporting/stance_report.py:2183 build_stance_heading_report -> _load_policy",
+   "reporting/stance_report.py:160 _load_policy -> load_sb3_checkpoint",
+   "policy_loading.py:693 load_sb3_checkpoint -> validate_model_plant",
+   "plant_contract/validation.py:160 validate_model_plant -> validate_recorded_identity",
+   "plant_contract/validation.py:139 validate_recorded_identity raises PlantCompatibilityError"
+  ],
+  "refused_before_vecnormalize_was_read": true
+ },
+ "r9_control": {
+  "exit_code": 1,
+  "loaded": true,
+  "note": "same command on tree_r9 loads the checkpoint and scores a 1-seed six-heading grid; exit 1 is the certificate FAIL at 1 episode (LCB 0.05 < 0.80), not a load error",
+  "reward_seed3042": [
+   "3702.5"
+  ]
+ }
+}
