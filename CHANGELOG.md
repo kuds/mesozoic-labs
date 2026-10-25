@@ -8,6 +8,110 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **The stance5 replication judge's K3 criterion, read out over training in
+  the training-history report** (the maintainer's decisions of 2026-10-25
+  14:13 UTC in the stance run log, item (4): task #47's remaining judge-K3
+  overlay;
+  `environments/shared/reporting/training_history.py`,
+  `environments/shared/scripts/plot_training_history.py`; documented in
+  `docs/TRAINING_ARTIFACT_PRESENTATION.md`, "Training history pages").
+  Report only, and never a verdict. The ledgers hold none of K3's inputs:
+  they are the judge's own perturbation panels on spawns 3042-3061 at each
+  judged checkpoint. `plot_training_history.py --judged JUDGED_DIR ...` (one
+  per stage directory, `-` for none) reads a run's `judge_<steps>.json` and
+  `judge_final.json` (`noise_matched_control_joint` and `noise_matched_own`:
+  `falls` of `n`) and the outcomes page gains a last panel: both counts per
+  judged checkpoint against K3's bars ("K3, robustness at 6,291,456 and at
+  final: joint-space noise falls at most 2 of 20, and own-sigma falls at
+  most 1 of 20", `docs/investigations/stance_2026_10/stance5/replication/criteria.txt`),
+  K3's checkpoints filled and annotated; a comparison draws a strip per run.
+  The JSON (`judge_k3`), the HTML and the checkpoint table carry the points,
+  with within-bar flags at K3's checkpoints only, withheld where a panel is
+  not K3's 20 episodes on spawns 3042-3061; only the stance3, stance4,
+  stance5 and stance5 replication judges' files are read (the same K3),
+  each named by its own judge, and a file of another schema, one that is
+  not a full noise run, records another seed or lacks a panel is skipped
+  with its reason. Measured: on the judge files of `stance5_LTSB_s70` and
+  `stance5_LTSB_s80` the readout gives 0/0 and 1/0 (s70) and 1/0 and 2/0
+  (s80) at 6,291,456 and the final, the replication score of record's K3
+  values, and on the stance4 and stance5 rounds' judge files it equals
+  those scores' K3 falls and pass too (8 of 8 runs: stance4 s52, s60, s42;
+  stance5 s52, s60, s42; the replication's s70, s80); a test rebuilds the
+  judge files of all five band runs from the replication's score
+  (`docs/investigations/stance_2026_10/stance5/replication/results/scores/score_final.json.gz`)
+  and checks the readout against its K3 values and pass, and against
+  `k3readouts/out`'s judge falls. Without `--judged` (the stage-end report)
+  nothing is drawn.
+- **Head posture and hip roll drawn over training** (the maintainer's
+  decisions of 2026-10-25 14:13 UTC in the stance run log, items (2) and
+  (4);
+  `environments/shared/reporting/training_history.py`; documented in
+  `docs/TRAINING_ARTIFACT_PRESENTATION.md`, "Training history pages").
+  Report only. Two pages after the policy std page, so every earlier page
+  keeps its name: `11_head_posture` (the head tip's window mean and minimum,
+  with the `head_clearance` reward's target height where the stage records
+  it, and the neck and head pitch) and `12_hip_roll` (per foot, the window
+  mean, + abduction, and the maximum |angle from home|); the asymmetry page
+  gains the left-minus-right hip roll (per episode, the left leg's mean minus
+  the right's), and the checkpoint table the head's values and the
+  left-minus-right hip roll. A ledger written before the columns renders
+  them as labelled absent series (the captions and the JSON's `absent` say
+  so), and a column the model has no site or hinge for (nan on every
+  episode, as the Compsognathus robot's neck and head pitch) is drawn as
+  absent with that reason. The posture panels keep a least y span (0.05 m,
+  1 degree) with plain tick labels, so a statue's near-constant head tip is
+  not drawn at micrometre scale. The stage-end report now holds twelve
+  pages.
+- **Each evaluation episode's head posture and hip roll, in the eval-episode
+  ledger** (the maintainer's decisions of 2026-10-25 14:13 UTC in the
+  stance run log, items (2) and (4):
+  head posture as report-only telemetry, no gate change; task #47's
+  remaining hip-roll telemetry; `environments/shared/gait/posture_telemetry.py`,
+  `environments/shared/gait/recorder.py`,
+  `environments/shared/eval_diagnostics.py`; documented in
+  `docs/TRAINING_ARTIFACT_PRESENTATION.md`, "Evaluation episodes"). Report
+  only. The stance gate does not read where the head is: on T. rex physics
+  r10 the walking parent of stance3 passed 37 of 40 clean zero-shot with its
+  head tip down from 1.24 to 0.61 m and its neck pitched about +33 degrees
+  (the CPU checks of 2026-10-25), and the ledger's left-right offsets stop at
+  hip pitch, knee and ankle. `eval_episodes.csv` now ends with, per episode
+  and over the gate's window `[settle_steps, T)`:
+  `head_tip_height_mean_m` and `head_tip_height_min_m` (the `head_tip` site,
+  else `snout_tip`; bit for bit the env's own `info["head_tip_z"]` on flat
+  ground), `neck_pitch_mean_deg` (the sum over the neck's pitch hinges) and
+  `head_pitch_mean_deg` (each from its home angle, + nose down), and per foot
+  `<label>_hip_roll_mean_deg` (from home, + abduction on either side: the
+  mirror convention) and `<label>_hip_roll_max_abs_deg`. The recorder gains
+  an opt-in `record_sites` (one `site_xpos` read per control step, behind
+  `report_extensions`); `PostureLayout.from_env` fixes each hinge's sign at
+  the home keyframe on a scratch `MjData`; what a model lacks reads `nan`
+  for a stated reason (no head-tip site, no neck hinge, no `head_pitch`; the
+  Velociraptor Mongoliensis (Anatomical) and the Brachiosaurus Altithorax
+  (Anatomical) run no evaluation recorder, so their ledgers carry none of
+  these columns and the callback names none: its `posture_columns` is empty
+  there, the gap the maintainer's decision of 2026-10-25 17:42 UTC keeps). Validated
+  (measured) on the r9 tree
+  (`3ffc18e9` with this change) with stance3 Run 2's final, the walking
+  parent: over the stance panel's 40 episodes the neck and head pitch
+  reproduce the zero-shot check's -2.158 and +0.142 degrees to 9e-16 per
+  episode, and the head tip reads 1.24084 m against the check's 1.24086
+  (its forward kinematics at the control boundary; this column is the
+  boundary substep's, one physics step earlier: at most 3.8e-5 m per
+  episode in the window mean and 2.9e-4 m in the window minimum); on the
+  r10 statue the window means read 0.959 m, 12.27 and 12.64 degrees; and
+  on physics r10 the same parent reads the dropped head the gate missed
+  (measured in review over the same 40 episodes): head tip 0.6126 m, neck
+  +32.86 and head +33.00 degrees, the zero-shot check's values (its
+  forward-kinematics head tip 0.61255 m; the pitches equal to every
+  printed digit). What moves: eight ledger columns on the T. rex (a row from
+  68 to 76 columns, about 155 bytes more), appended after every other
+  column. What does not: no gate verdict, reward, observation, action,
+  termination, task, checkpoint selection, plant, hyperparameter or
+  stage-config digest, no `StanceEpisodeMetrics` field, panel column,
+  balance key, `gate_progress.npz` key, `progress.json` block, env info key
+  or MJCF sensor, and no random draw; the in-suite inertness proof's full run
+  carries the columns and still trains and evaluates exactly like the plain
+  run, and the digest snapshot is unchanged.
 - **The T. rex tail_3 bound screen of D-D43 run, scored and verified: neither
   bound is adopted (outcome C); the options study and the no-training probes
   recorded, report only** (#641; D-D43's amendment of 2026-10-25;
@@ -4090,6 +4194,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sampler writes no `terrain_sampling` record).
 
 ### Fixed
+- **A comparison's run names sit at their lines' ends in the
+  training-history report** (report only;
+  `environments/shared/reporting/training_history.py`). Each run's name at
+  the right of a line panel was placed by a transform read while the
+  panel's autoscale was still pending, so on a panel with no J mark or
+  alarm line (whose vertical lines happen to apply it first) the name sat
+  where its line would be under earlier view limits. Measured with the
+  r10 walking parent, the r10 statue and `stance5_LTSB_s70` compared: 36
+  of 77 names more than 0.15 of the axes height from their line on
+  `08a4d189`, none after the fix. The view limits are now settled first.
 - **The full-horizon heading trace test bounds the closed loop it runs**
   (tests only; approved by the maintainer on 2026-10-25;
   `environments/shared/tests/heading_free_helpers.py`,

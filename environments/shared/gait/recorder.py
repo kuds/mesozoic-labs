@@ -108,6 +108,15 @@ own guard, and the reduction builds the balance fields in its own guard
 after every other field, so a failure in either costs the balance fields
 (``None``) and logs once, never the step, the episode or the other fields.
 
+Extra sites (opt-in)
+--------------------
+:meth:`SubstepContactRecorder.record_sites`, called before
+:meth:`~SubstepContactRecorder.attach`, also copies the world position of
+the sites it names at each control step's boundary substep, beside the feet
+and the root (``EpisodeTrace.site_pos`` and ``site_names``): the head tip of
+:mod:`.posture_telemetry`.  One ``site_xpos`` gather per control step, read
+only; without it the hot path and the trace are what they were.
+
 Hook ownership and failing closed
 ---------------------------------
 The hook is a single slot.  :meth:`SubstepContactRecorder.attach` chains
@@ -272,6 +281,10 @@ class EpisodeTrace:
     #: (T,D,3) each hinged digit's tip (the capsule's far end), boundary substep; (D,) its foot.
     digit_tip_pos: np.ndarray | None = None
     digit_tip_foot: np.ndarray | None = None
+    # --- :meth:`SubstepContactRecorder.record_sites` only (``None`` and ``()`` otherwise) ---
+    #: (T,K,3) the recorded sites' world positions, boundary substep; (K,) their names.
+    site_pos: np.ndarray | None = None
+    site_names: tuple[str, ...] = ()
 
     @property
     def length(self) -> int:
@@ -365,6 +378,9 @@ class SubstepContactRecorder:
         self._warned_balance = False
         if self._balance:
             self._setup_balance(model, morphology)
+        # record_sites() only: the sites copied at each boundary substep, and their names.
+        self._sites_extra = np.zeros(0, dtype=np.int64)
+        self._site_names: tuple[str, ...] = ()
         self._reset_episode_buffers()
 
     def _setup_balance(self, model: Any, morphology: Morphology) -> None:
@@ -404,6 +420,23 @@ class SubstepContactRecorder:
     def episode_open(self) -> bool:
         """An episode has started (its first substep was seen) and not yet been closed."""
         return self._in_episode
+
+    def record_sites(self, sites: Sequence[int]) -> "SubstepContactRecorder":
+        """Also copy these sites' world positions at each boundary substep (``EpisodeTrace.site_pos``); before attach.
+
+        Replaces any earlier choice; an empty *sites* records none.  Raises
+        :class:`RecorderError` once attached (an episode's fields are fixed
+        at its start) and for a site id the model does not have.
+        """
+        if self._attached:
+            raise RecorderError("record_sites() must be called before attach()")
+        model = self._env.model
+        ids = np.array([int(site) for site in sites], dtype=np.int64)
+        if ids.size and (int(ids.min()) < 0 or int(ids.max()) >= int(model.nsite)):
+            raise RecorderError(f"site ids {ids.tolist()} are not all sites of a model with {int(model.nsite)}")
+        self._sites_extra = ids
+        self._site_names = tuple(str(model.site(int(site)).name) for site in ids)
+        return self
 
     def attach(self) -> "SubstepContactRecorder":
         """Install the recorder's hook, chaining the one already there; refuses a second attach."""
@@ -456,6 +489,7 @@ class SubstepContactRecorder:
         self._boundary: list[np.ndarray] = []  # per step
         self._joint_qpos: list[np.ndarray] = []  # per step
         self._ctrl: list[np.ndarray] = []  # per step
+        self._site_rows: list[np.ndarray] = []  # per step, (K, 3): record_sites() only
         self._actions: list[np.ndarray] = []  # per closed step
         self._rewards: list[float] = []
         self._spawn: np.ndarray | None = None
@@ -541,6 +575,8 @@ class SubstepContactRecorder:
             self._boundary.append(self._geometry_row(data))
             self._joint_qpos.append(data.qpos[self._joint_qpos_index])
             self._ctrl.append(data.ctrl.copy())
+            if self._sites_extra.size:
+                self._site_rows.append(data.site_xpos[self._sites_extra])
         # Called only at the substeps it copies: the spawn substep and the boundary one.
         if (
             self._balance
@@ -813,6 +849,13 @@ class SubstepContactRecorder:
             geom_floor_mean = per_substep(animal >= 0, animal, len(self._animal_names)).mean(axis=1)
             geom_floor_names = self._animal_names
 
+        # record_sites(): one (K, 3) row per boundary sample, copied beside the feet and the root.
+        sites = None
+        if self._sites_extra.size:
+            if len(self._site_rows) != steps:
+                raise RecorderError(f"{len(self._site_rows)} site samples recorded for {steps} steps")
+            sites = np.asarray(self._site_rows, dtype=np.float64).reshape(steps, self._sites_extra.size, 3)
+
         # The balance fields last, in their own guard: a failure costs them alone (None), never the fields above.
         balance: dict[str, Any] = {}
         if self._balance and not self._balance_failed:  # a failed capture has already warned
@@ -884,6 +927,8 @@ class SubstepContactRecorder:
             termination_reason=reason,
             geom_floor_mean=geom_floor_mean,
             geom_floor_names=geom_floor_names,
+            site_pos=sites,
+            site_names=self._site_names if sites is not None else (),
             **balance,
         )
 

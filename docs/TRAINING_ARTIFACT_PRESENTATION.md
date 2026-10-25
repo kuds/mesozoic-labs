@@ -639,14 +639,19 @@ evaluation could not align with its episodes reads empty.
 | `<label>_sole_cop_fore_aft`, `<label>_sole_cop_fore_aft_gate`, `<label>_digit_share`, `<label>_foot_cop_fore_aft`, `<label>_foot_cop_fore_aft_gate`, `<label>_toe_margin_nm`, `<label>_sole_tilt_deg`, `<label>_sole_corner_lift_m` | Per foot, where it has them: the episode values whose full-horizon means `gate_progress.npz` holds |
 | `max_sole_cop_fore_aft`, `max_foot_cop_fore_aft`, `max_sole_tilt_deg`, `max_sole_corner_lift_m` | The episode's maxima over the feet, the per-episode numbers the gate's rails read |
 | The balance and force keys | The episode's own values of the keys in the balance table above, with `xcom_toe_lead_s` in place of its fall mean (NaN on an episode that did not fall) |
+| `head_tip_height_mean_m`, `head_tip_height_min_m` | Where the recorder runs, last: the head tip's height over the post-settle window, its mean and minimum (m above the floor plane `z = 0`; a heightfield's local height is not subtracted). The model's `head_tip` site, else `snout_tip`, read at each control step's boundary substep, as the recorder reads the feet and the root: bit for bit the env's own `info["head_tip_z"]` on flat ground, one physics step before forward kinematics at the control boundary would read it (on stance3's walking parent, at most 3.8e-5 m per episode in the mean and 2.9e-4 m in the minimum on physics r9, 4.7e-6 m and 6.3e-5 m on r10; measured). In this file only |
+| `neck_pitch_mean_deg`, `head_pitch_mean_deg` | Where the recorder runs: the window mean of the neck's pitch (the sum over its pitch hinges, `neck_pitch` or `neck_<n>_pitch`) and of the `head_pitch` hinge, each from its home keyframe angle and signed about the animal's leftward axis, so + pitches the head down (nose down), in degrees, at the control boundary. Every model's hinges have home 0 and point left today, so these are the joints' own angles. In this file only |
+| `<label>_hip_roll_mean_deg`, `<label>_hip_roll_max_abs_deg` | Where the recorder runs, per foot: the window mean of its leg's hip roll hinge (`<prefix>_hip_roll`, the prefix of the foot's reference site) from its home angle, signed so + is abduction (the foot away from the midline) on either side, so a mirror-symmetric posture reads the same on both legs; and the window maximum of its absolute angle from home, unsigned. Degrees. In this file only |
 
 The per-digit load fields and the whole-foot CoP spread and frequency stay
-in `gate_progress.npz` only. On the T. rex a row has 68 columns and about
-1.09 KB (measured; the five saturating-actuator columns add 13 bytes to a
-row that names no actuator and up to about 50 to one that does), so the
-file of a 12M stance (40 episodes every 50,000 steps, 9,600 rows) ends at
-about 10.5 MB, and rewriting it at every evaluation writes about 1.25 GB to
-Drive over the run.
+in `gate_progress.npz` only. On the T. rex a row has 76 columns and about
+1.24 KB (measured; the five saturating-actuator columns add 13 bytes to a
+row that names no actuator and up to about 50 to one that does, and the
+eight head posture and hip roll columns 148 to 157 bytes, measured on
+physics r10 rows of the walking parent and the statue), so the file of a
+12M stance (40 episodes every 50,000 steps, 9,600 rows) ends at about 12
+MB, and rewriting it at every evaluation writes about 1.4 GB to Drive over
+the run.
 
 The saturating-actuator columns name what `max_actuator_saturation_fraction`
 only flags: `gait.stance_metrics.saturated_actuator` reads the trace the
@@ -658,6 +663,44 @@ reward, observation, action, termination, checkpoint selection or digest
 reads them, and no name begins with `max_` or `min_` or ends in a per-foot
 suffix, so no rail, foot or gate reader takes one up. A ledger written
 before them lacks the columns (a resumed run's earlier rows read empty).
+
+The head posture and hip roll columns read what the stance gate does not:
+on T. rex physics r10 the walking parent of stance3 passed 37 of 40 clean
+zero-shot with its head tip down from 1.24 to 0.61 m and its neck pitched
+about +33 degrees (the CPU checks of 2026-10-25), and the left-right
+offsets above stop at hip pitch, knee and ankle.
+`gait.posture_telemetry.episode_posture_telemetry` reduces the trace the
+recorder closed over the gate's window `[settle_steps, T)`; the recorder
+captures the head-tip site for it (`record_sites`, one `site_xpos` read per
+control step, behind `report_extensions`, so the in-suite inertness proof
+covers it), and `PostureLayout.from_env` fixes each hinge's sign once at
+the home keyframe on a scratch `MjData`. The columns are the same on every
+model with the same feet, and what a model lacks reads `nan` for a fixed
+reason: no head-tip site, no neck pitch hinge, no `head_pitch` hinge, or a
+leg without a hip roll hinge. Where the recorder runs:
+
+| Model | Head tip | Neck pitch | Head pitch | Hip roll |
+|---|---|---|---|---|
+| Tyrannosaurus Rex | `head_tip` | `neck_pitch` | `head_pitch` | `r`, `l` |
+| Compsognathus Longipes (Anatomical) | `head_tip` | `neck_pitch` | `nan` (the head turns on the neck alone) | `r`, `l` |
+| Compsognathus Longipes (Robot) | `head_tip` | `nan` (no neck hinge) | `nan` | `r`, `l` (`right_hip_roll`, `left_hip_roll`) |
+| Dibothrosuchus Elaphros | `snout_tip` | `neck_pitch` | `head_pitch` | `fr`, `fl`, `rr`, `rl` |
+
+The Velociraptor Mongoliensis (Anatomical) (no head-tip site, no neck
+hinge; hip rolls on both legs) and the Brachiosaurus Altithorax
+(Anatomical) (`head_tip`, `neck_1_pitch` to `neck_4_pitch`,
+`head_pitch`, four hip rolls) have no box pad, so their evaluations run no
+recorder and their ledgers hold none of the recorder's columns, these
+included. The maintainer's decision of 2026-10-25 17:42 UTC keeps that gap rather
+than attach a recorder for the posture columns alone, and the callback
+names none of them there either: `StageAwareEvalCallback.posture_columns`
+is empty on a model whose evaluation runs no recorder, as on one it cannot
+describe. Like the saturating-actuator columns, these are not
+`StanceEpisodeMetrics` fields, panel columns, balance keys or gate keys,
+never reach `gate_progress.npz` or `progress.json`, and no name begins with
+`max_`, `min_` or `leg_q_` or ends in a per-foot rail suffix. They are
+appended after every other column, so a ledger written before them keeps
+each column where it was, and a resumed run's earlier rows read empty.
 
 ## Training episodes: `train_episodes.csv` and the rollout counts
 
@@ -987,13 +1030,13 @@ every key and type the file had before is kept.
 ## Training history pages: `plot_training_history.py`
 
 `gate_progress.npz` and `progress.json` hold per-evaluation means and the
-latest row. To see how one run's feet, balance, asymmetry and saturation
-moved over its training, or to overlay several runs, draw them from the
-ledgers above:
+latest row. To see how one run's feet, balance, asymmetry, saturation, head
+posture and hip roll moved over its training, or to overlay several runs,
+draw them from the ledgers above:
 
     python environments/shared/scripts/plot_training_history.py STAGE_DIR [STAGE_DIR ...] --out DIR \
         [--labels ...] [--groups ...] [--mark-steps 4194304 ... final] [--title ...] \
-        [--reference-band LOWER UPPER PAD_LOWER PAD_UPPER]
+        [--reference-band LOWER UPPER PAD_LOWER PAD_UPPER] [--judged JUDGED_DIR ...]
 
 One stage directory gives that run's pages; several give a comparison (at
 most eight runs, with distinct labels), one colour per seed (else per run)
@@ -1010,7 +1053,7 @@ reads the files and writes nothing else (`reporting/training_history.py`).
 
 | Page | What it draws, against the training step |
 |---|---|
-| Outcomes | Clean episodes (`screen_v2_clean`), falls (shorter than the horizon) and the mean return per evaluation, and the training falls per 262,144-step window of `train_episodes.csv` (`cause` not `truncated`; the stochastic policy's) |
+| Outcomes | Clean episodes (`screen_v2_clean`), falls (shorter than the horizon) and the mean return per evaluation, and the training falls per 262,144-step window of `train_episodes.csv` (`cause` not `truncated`; the stochastic policy's); with `--judged`, the stance5 replication judge's K3 readout (below) |
 | Saturation | The episodes per evaluation listing `max_actuator_saturation_fraction` in `screen_v2_reasons`; those episodes by the actuator each names (`saturated_actuator`) and its sign; `saturated_actuator_fraction` (mean and worst episode) against the stage's `max_actuator_saturation_fraction` bar; `actuator_force_frac_max` against its limit of 1; and, per training rollout from `policy_probe.npz`, each actuator's share of sampled actions clipped at a bound and of the policy's means beyond one |
 | Whole-foot CoP | Per foot, the signed `<label>_foot_cop_fore_aft` with the reward band's edges; the full-horizon episodes with either foot's window mean outside the band; the report-only `max_foot_cop_fore_aft` |
 | Pad CoP and the pad rail | Per foot, the signed `<label>_sole_cop_fore_aft` with the pad band's edges; the rail's own `max_sole_cop_fore_aft` (mean and worst episode) against its bar; the full-horizon episodes over that bar; those outside the pad band |
@@ -1018,8 +1061,10 @@ reads the files and writes nothing else (`reporting/training_history.py`).
 | Balance | `xcom_toe_margin_min_m`, `xcom_heel_margin_min_m`, `com_fore_aft_mean_m`, `root_pitch_mean_deg` |
 | Sole roll | `max_sole_tilt_deg` and `max_sole_corner_lift_m` against their bars, and the full-horizon episodes over each |
 | Floor forces | Per foot, `<label>_shear_over_normal` and `<label>_cone_use_mean` |
-| Asymmetry | `leg_q_<left>_minus_<right>_<joint>_deg` for hip pitch, knee and ankle. `eval_episodes.csv` records no hip roll difference, so there is none to draw |
+| Asymmetry | `leg_q_<left>_minus_<right>_<joint>_deg` for hip pitch, knee and ankle, and the hip roll's left minus right: per episode, the left leg's `<left>_hip_roll_mean_deg` minus the right leg's (both + abduction, so a mirror-symmetric posture reads 0; the first foot pair on a quadruped) |
 | Policy std | `exp(log_std)` per actuator at the checkpoint zips in `models/` (`robust_best`, `best`, final, and at most 12 periodic ones evenly spaced), with the number read of those chosen |
+| Head posture | `head_tip_height_mean_m` (mean), `head_tip_height_min_m` (mean and the lowest episode), `neck_pitch_mean_deg` and `head_pitch_mean_deg` (+ nose down), with the `head_clearance` reward's target height where the stage records one (`reward_weights.head_clearance_target`), dotted. Report only: no gate reads them |
+| Hip roll | Per foot, `<label>_hip_roll_mean_deg` (+ abduction) and `<label>_hip_roll_max_abs_deg` (mean and the worst episode). Report only |
 
 Each per-episode value is reduced over the evaluation's full-horizon
 episodes, as `gate_progress.npz` reduces it: one run's pages draw the mean
@@ -1086,7 +1131,8 @@ actuator names come from the checkout's MJCF, used only when the stage's
 actuators are labelled by index. A missing file or column is an absent
 series, listed in the JSON and on the page, never an error. The evaluation
 episodes are the deterministic policy's at yaw 0, so the judge's perturbation
-panels and verdicts are not in these files.
+panels and verdicts are not in these files; the K3 readout below reads the
+judge's own files.
 
 The saturation page's last two panels are the training rollouts', from
 `policy_probe.npz`'s `rollout_*` arrays (above): per rollout, each
@@ -1111,11 +1157,65 @@ resumed from such a file has no value at the rollouts before the resume
 step its rollouts were measured, the caption says the run has gaps, and
 the JSON's `rollouts_measured` and `first_timesteps` record them.
 
+The head posture and hip roll pages (`11_head_posture`, `12_hip_roll`) are
+drawn after the policy std page, so every earlier page keeps its name. They
+reduce the ledger's report-only posture columns ("Evaluation episodes",
+above) like any other column, over the evaluation's full-horizon episodes,
+with the head's values and the left-minus-right hip roll in the checkpoint
+table (`head tip m`, `head tip lowest m`, `neck pitch`,
+`head pitch`, `L-R hip roll`). A ledger written before the columns, or a
+model whose evaluation runs no recorder, draws them as labelled absent
+series, says so in the captions and lists the columns in the JSON's
+`absent`; a comparison draws the runs that have them. A column the model
+has no site or hinge for reads nan on every episode: its panel says so
+("nan on every episode (column): the model has no such site or hinge"),
+the captions name it and `absent` lists it, rather than an empty panel
+with a legend. The posture panels keep a least y span (0.05 m for the head
+tip, 1 degree for the pitches and hip rolls) with plain tick labels, so a
+near-constant series is not drawn at micrometre scale with an offset.
+
+`--judged` names, per stage directory (`-` for none), a directory of that
+run's judge files: `judge_<steps>.json` and `judge_final.json`, one per
+judged checkpoint, as the stance judges write them (their other panels,
+`judge_best.json`, `judge_quick_<steps>.json` and the like, are listed as
+not read). Only the stance3, stance4, stance5 and stance5 replication
+judges' files are read (`stance3-judge/v1`, `stance4-judge/v1`,
+`stance5-judge/v1`, `stance5r-judge/v1`: their criteria fix the same K3),
+each named by its own judge; a file of any other schema is skipped with
+its reason, since its K3 need not be this one. The outcomes page then
+gains a last panel: a readout of the
+stance5 replication judge's K3 criterion
+(`docs/investigations/stance_2026_10/stance5/replication/criteria.txt`,
+"CRITERIA, PER RUN", unchanged from stance3 and stance4: "K3, robustness at
+6,291,456 and at final: joint-space noise falls at most 2 of 20, and
+own-sigma falls at most 1 of 20"), labelled as such and never as a verdict.
+Its inputs are the judge's own perturbation panels on spawns 3042-3061 at
+each judged checkpoint (`noise_matched_control_joint` and
+`noise_matched_own`: `falls` of `n`), not the ledger's deterministic
+evaluations, which hold none of them. One run's panel draws both counts per
+judged checkpoint against K3's two bars (dashed and dotted), the
+checkpoints K3 reads (6,291,456 and the final, at the judge's recorded
+`checkpoint_num_timesteps`) filled and annotated `joint/own`; a comparison
+draws one strip per run, a cell per judged checkpoint with `joint/own`
+written in it, coloured by the joint-space falls and outlined at K3's
+checkpoints. A file that is not a full noise run, records another seed than
+the run's or lacks either panel is skipped with its reason. The JSON's
+`judge_k3` keeps every point, with `joint_within_bar` and `own_within_bar`
+at K3's checkpoints, withheld (null, with `within_bar_withheld`) where
+either panel is not K3's 20 episodes on spawns 3042-3061 or its `falls`
+disagrees with its listed episodes, as the scorers check them; the HTML
+lists them per run and the checkpoint table
+adds `judge joint` and `judge own` at a checkpoint judged at exactly that
+step. Whether a run holds stays the scorer's (`score_stance5r.py`, with the
+criteria's missing-file, refusal and run-handling rules, none of which is
+applied here). Without `--judged` (the stage-end report) the panel is not
+drawn.
+
 ### At stage end: `figures/training_history/`
 
 When a stage ends, `generate_stage_artifacts` draws the same report for
 that stage into `figures/training_history/`
-(`stage_layout.training_history_dir`): the ten pages as PNGs,
+(`stage_layout.training_history_dir`): the twelve pages as PNGs,
 `training_history.html` and `training_history.json`, as
 `plot_training_history.py STAGE_DIR` draws them with its defaults (one run,
 no `--mark-steps`; the alarms, `robust_best`, `best` and the kept

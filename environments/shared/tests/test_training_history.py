@@ -721,7 +721,7 @@ class TestTolerance:
         assert not run.steps.size and run.training is None and run.errors == []
         written = th.write_report([run], tmp_path / "out", title="empty", marks=["final"], dpi=30)
         assert written["errors"] == []
-        assert len(written["pngs"]) == len(th.PAGES) + 1
+        assert len(written["pngs"]) == len(th.page_names())
         document = json.loads((tmp_path / "out" / th.JSON_FILENAME).read_text(), parse_constant=_no_constant)
         assert document["runs"][0]["evaluations"]["timesteps"] == []
 
@@ -833,6 +833,392 @@ class TestPolicyStd:
         assert solid == [(1, 2), (2, 3)] and dotted == [(0, 1), (3, 4), (4, 5)]
 
 
+POSTURE = [*th.POSTURE_COLUMNS, *(f"{foot}_{suffix}" for foot in FEET for suffix in th.HIP_ROLL_SUFFIXES)]
+
+
+def _posture_stage(
+    tmp_path: Path,
+    *,
+    name: str = "posed",
+    head_target: float | None = 0.9,
+    constant: dict[str, float] | None = None,
+    saturated: list[int] | None = None,
+) -> Path:
+    """:func:`_stage` with the head posture and hip roll columns appended, as the ledger writes them (last).
+
+    Evaluation k: the head tip at 1.2 - 0.2 k m (episode i 0.01 i higher), its window minimum 0.05 m lower, the neck
+    at 10 k degrees and the head at -2 degrees; the left hip roll 1 + k degrees, the right 0.5 degrees, each
+    episode's max |roll| 2 degrees.  *constant*: columns given one value on every episode instead (nan: a model
+    without that site or hinge); *saturated*: as :func:`_stage`'s.
+    """
+    stage = _stage(tmp_path, name=name, saturated=saturated)
+    rows = list(csv.DictReader((stage / th.EVAL_EPISODES_FILENAME).open(newline="", encoding="utf-8")))
+    for row in rows:
+        evaluation, episode = int(row["evaluation"]), int(row["episode"])
+        head = 1.2 - 0.2 * evaluation + 0.01 * episode
+        row.update(
+            head_tip_height_mean_m=head,
+            head_tip_height_min_m=head - 0.05,
+            neck_pitch_mean_deg=10.0 * evaluation,
+            head_pitch_mean_deg=-2.0,
+            r_hip_roll_mean_deg=0.5,
+            r_hip_roll_max_abs_deg=2.0,
+            l_hip_roll_mean_deg=1.0 + evaluation,
+            l_hip_roll_max_abs_deg=2.0,
+        )
+        row.update(constant or {})
+    _write_csv(stage / th.EVAL_EPISODES_FILENAME, rows, COLUMNS + POSTURE)
+    config = json.loads((stage / th.STAGE_CONFIG_FILENAME).read_text(encoding="utf-8"))
+    if head_target is not None:
+        config["reward_weights"]["head_clearance_target"] = head_target
+    (stage / th.STAGE_CONFIG_FILENAME).write_text(json.dumps(config), encoding="utf-8")
+    return stage
+
+
+class TestHeadPostureAndHipRoll:
+    def test_the_columns_reduce_over_the_full_horizon_episodes(self, tmp_path):
+        run = th.load_run_history(_posture_stage(tmp_path), read_std=False)
+        assert run.hip_roll_feet == ["r", "l"] and run.head_target == 0.9
+        # Evaluation 0 drops its fallen episode 9: the mean of episodes 0..8, and the lowest minimum is episode 0's.
+        assert run.column("head_tip_height_mean_m")[0] == pytest.approx(1.2 + 0.01 * 4)
+        assert run.column("head_tip_height_mean_m")[1] == pytest.approx(1.0 + 0.01 * 4.5)
+        assert run.column("head_tip_height_min_m", "min")[1] == pytest.approx(1.0 - 0.05)
+        assert run.column("neck_pitch_mean_deg").tolist() == pytest.approx([0.0, 10.0, 20.0, 30.0])
+        assert run.column("r_hip_roll_max_abs_deg", "max").tolist() == pytest.approx([2.0] * 4)
+        # The left-minus-right hip roll: per episode, the left leg's mean minus the right's (both + abduction).
+        assert run.lr["hip_roll"] == "hip_roll_l_minus_r_deg"
+        assert run.column("hip_roll_l_minus_r_deg").tolist() == pytest.approx([0.5, 1.5, 2.5, 3.5])
+        assert not any("hip roll" in entry or "head_tip" in entry for entry in run.absent)
+        row = th.checkpoint_rows(run, [2 * STEP])[0]
+        assert row["head_tip_height_mean_m"] == pytest.approx(1.045) and row["l_minus_r_hip_roll_deg"] == 1.5
+        assert row["head_tip_height_min_m_worst"] == pytest.approx(0.95) and row["neck_pitch_mean_deg"] == 10.0
+
+    def test_the_pairs_follow_the_side_letter(self):
+        assert th.hip_roll_pairs(["fr", "fl", "rr", "rl"]) == [("fl", "fr"), ("rl", "rr")]
+        assert th.hip_roll_pairs(["r", "l"]) == [("l", "r")] and th.hip_roll_pairs(["l"]) == []
+        header = [f"{foot}_hip_roll_mean_deg" for foot in ("fr", "fl", "rr", "rl")]
+        assert th.hip_roll_labels(header) == ["fr", "fl", "rr", "rl"]
+        assert th.lr_columns(header) == {"hip_roll": "hip_roll_fl_minus_fr_deg"}
+        # No posture column reads as a foot's centre of pressure or a left-right offset of the ledger.
+        assert th.foot_labels(POSTURE) == [] and set(th.lr_columns(POSTURE)) == {"hip_roll"}
+
+    def test_the_pages_draw_them_with_the_reward_target_and_zero_lines(self, tmp_path):
+        run = th.load_run_history(_posture_stage(tmp_path), read_std=False)
+        context = th._make_context([run], marks=[], smooth=5)
+        spec = {page.name: page for page in th.POSTURE_PAGES}
+        head = th._page_figure(spec["11_head_posture"], context, title="t", dpi=30, width=12.0)
+        mean, lowest, neck, _head_pitch = head.axes[:4]
+        assert any("head_clearance reward target 0.9 m" in text.get_text() for text in mean.texts)
+        assert lowest.get_legend() is not None  # the worst episode's minimum, dashed
+        assert 0.0 in [line.get_ydata()[0] for line in neck.lines if len(line.get_ydata()) == 2]
+        hips = th._page_figure(spec["12_hip_roll"], context, title="t", dpi=30, width=12.0).axes[0]
+        assert [text.get_text() for text in hips.get_legend().get_texts()][:2] == ["foot r", "foot l"]
+        asymmetry = {page.name: page for page in th.PAGES}["09_asymmetry"]
+        roll = th._page_figure(asymmetry, context, title="t", dpi=30, width=12.0).axes[3]
+        assert roll.get_title(loc="left").startswith("Hip roll: left minus right (each leg + abduction)")
+        assert not any("not recorded" in text.get_text() for text in roll.texts)
+
+    def test_an_older_ledger_renders_them_as_labelled_absent_series(self, tmp_path):
+        run = th.load_run_history(_stage(tmp_path), read_std=False)
+        assert run.hip_roll_feet == [] and "hip_roll" not in run.lr and run.head_target is None
+        assert f"{th.EVAL_EPISODES_FILENAME}: column head_tip_height_mean_m" in run.absent
+        assert f"{th.EVAL_EPISODES_FILENAME}: column l_hip_roll_mean_deg" in run.absent
+        assert any("left-minus-right hip roll" in entry for entry in run.absent)
+        pages, errors = th.render_pages([run], title="t", marks=[], dpi=30)
+        assert errors == [] and [page.name for page in pages] == th.page_names()
+        captions = {page.name: page.caption for page in pages}
+        assert (
+            "this ledger records none" in captions["11_head_posture"] and "none recorded" in captions["11_head_posture"]
+        )
+        context = th._make_context([run], marks=[], smooth=5)
+        for spec in th.POSTURE_PAGES:
+            figure = th._page_figure(spec, context, title="t", dpi=30, width=12.0)
+            assert all(
+                any("not recorded" in t.get_text() for t in axis.texts) for axis in figure.axes[: len(spec.quantities)]
+            )
+        asymmetry = th._page_figure(th.PAGES[8], context, title="t", dpi=30, width=12.0).axes[3]
+        assert any("hip_roll_mean_deg" in text.get_text() for text in asymmetry.texts)
+
+    def test_a_comparison_of_an_older_and_a_newer_ledger(self, tmp_path):
+        runs = [
+            th.load_run_history(_stage(tmp_path, name="old"), label="old", read_std=False),
+            th.load_run_history(_posture_stage(tmp_path, name="new"), label="new", read_std=False),
+        ]
+        pages, errors = th.render_pages(runs, title="t", marks=[], dpi=30)
+        caption = {page.name: page for page in pages}["12_hip_roll"].caption
+        assert errors == [] and "(old records none" in caption and "so its series are absent" in caption
+
+    def test_a_column_the_model_cannot_measure_is_drawn_as_absent_with_its_reason(self, tmp_path):
+        """A model without a neck or head pitch hinge writes nan there on every episode: the panel says why, the
+        captions name the columns, and the JSON's absent lists them, rather than an empty panel with a legend."""
+        nan = math.nan
+        run = th.load_run_history(
+            _posture_stage(tmp_path, constant={"neck_pitch_mean_deg": nan, "head_pitch_mean_deg": nan}),
+            read_std=False,
+        )
+        assert run.posture_unmeasured == ["neck_pitch_mean_deg", "head_pitch_mean_deg"]
+        assert f"{th.EVAL_EPISODES_FILENAME}: column neck_pitch_mean_deg is nan on every episode" in " ".join(
+            run.absent
+        )
+        context = th._make_context([run], marks=[], smooth=5)
+        head = th._page_figure(th.POSTURE_PAGES[0], context, title="t", dpi=30, width=12.0)
+        mean, _lowest, neck, pitch = head.axes[:4]
+        for axis, column in ((neck, "neck_pitch_mean_deg"), (pitch, "head_pitch_mean_deg")):
+            texts = [text.get_text() for text in axis.texts]
+            assert any(f"nan on every episode ({column}): the model has no such site or hinge" in t for t in texts)
+            assert axis.get_legend() is None and not [line for line in axis.lines if line.get_label() == "mean"]
+        assert not any("nan on every episode" in text.get_text() for text in mean.texts)
+        pages, errors = th.render_pages([run], title="t", marks=[], dpi=30)
+        caption = {page.name: page for page in pages}["11_head_posture"].caption
+        assert (
+            errors == []
+            and "this ledger reads nan on every episode in neck_pitch_mean_deg, head_pitch_mean_deg" in (caption)
+        )
+        # Beside a run that measures it, the column draws that run's line and no end label for the other.
+        other = th.load_run_history(_posture_stage(tmp_path, name="measured"), label="measured", read_std=False)
+        run.label = "unmeasured"
+        neck = th._page_figure(
+            th.POSTURE_PAGES[0], th._make_context([run, other], marks=[], smooth=5), title="t", dpi=30, width=12.0
+        ).axes[2]
+        labels = [text.get_text() for text in neck.texts]
+        assert "measured" in labels and "unmeasured" not in labels
+
+    def test_a_near_constant_series_keeps_a_readable_span_without_an_offset(self, tmp_path):
+        run = th.load_run_history(
+            _posture_stage(tmp_path, constant={"head_tip_height_mean_m": 0.325, "neck_pitch_mean_deg": 12.0}),
+            read_std=False,
+        )
+        figure = th._page_figure(
+            th.POSTURE_PAGES[0], th._make_context([run], marks=[], smooth=5), title="t", dpi=30, width=12.0
+        )
+        mean, _lowest, neck, _pitch = figure.axes[:4]
+        low, high = mean.get_ylim()
+        assert high - low >= 0.05 - 1e-12 and low < 0.325 < high
+        assert neck.get_ylim()[1] - neck.get_ylim()[0] >= 1.0 - 1e-12
+        assert mean.yaxis.get_major_formatter().get_useOffset() is False
+
+
+def _judge_file(directory: Path, name: str, *, joint: int, own: int, seed: int = 42, **extra: Any) -> None:
+    """A judge file as the stance judges write one (the keys the readout reads), joint/own falls of 20."""
+    record = {
+        "schema": "stance5r-judge/v1",
+        "mode": "full",
+        "smoke": False,
+        "noise_run": True,
+        "seed": seed,
+        "steps": name[len("judge_") : -len(".json")],
+        "noise_matched_control_joint": {"n": 20, "falls": joint, "space": "joint"},
+        "noise_matched_own": {"n": 20, "falls": own, "space": "policy"},
+        **extra,
+    }
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / name).write_text(json.dumps(record), encoding="utf-8")
+
+
+class TestJudgeK3:
+    def _judged(self, tmp_path: Path) -> Path:
+        judged = tmp_path / "judged" / "run_a"
+        _judge_file(judged, "judge_4194304.json", joint=2, own=0)
+        _judge_file(judged, "judge_6291456.json", joint=3, own=0)
+        _judge_file(judged, "judge_final.json", joint=1, own=1, checks={"checkpoint_num_timesteps": 12_001_280})
+        _judge_file(judged, "judge_8388608.json", joint=0, own=0, smoke=True)
+        _judge_file(judged, "judge_2097152.json", joint=0, own=0, seed=70)
+        _judge_file(judged, "judge_best.json", joint=0, own=0)
+        _judge_file(judged, "judge_quick_4718592.json", joint=0, own=0)
+        return judged
+
+    def test_the_readout_reads_each_judged_checkpoint_against_k3s_bars(self, tmp_path):
+        k3 = th.read_judge_k3(self._judged(tmp_path), seed=42, final_step=None)
+        assert [(p["timesteps"], p["joint_falls"], p["own_falls"], p["k3_slot"]) for p in k3["checkpoints"]] == [
+            (4194304, 2, 0, False),
+            (6291456, 3, 0, True),
+            (12_001_280, 1, 1, True),
+        ]
+        six, final = k3["checkpoints"][1:]
+        assert (six["joint_within_bar"], six["own_within_bar"]) == (False, True)
+        assert (final["joint_within_bar"], final["own_within_bar"]) == (True, True)
+        assert "joint_within_bar" not in k3["checkpoints"][0]  # K3 does not read 4,194,304
+        assert {entry["file"] for entry in k3["skipped"]} == {"judge_2097152.json", "judge_8388608.json"}
+        assert set(k3["not_read"]) == {"judge_best.json", "judge_quick_4718592.json"}
+        assert k3["criterion"] == th.K3_CRITERION and "never a verdict" in k3["readout"]
+        assert "why" not in k3 and "note" not in k3
+
+    def test_only_the_stance_judges_files_are_read_and_each_is_named_by_its_judge(self, tmp_path):
+        """stance3 to stance5 and the replication fix the same K3: their files are read and named by their own judge;
+        a file of any other schema is skipped, since its K3 need not be the one drawn."""
+        judged = tmp_path / "judged"
+        _judge_file(judged, "judge_6291456.json", joint=0, own=0, schema="stance5-judge/v1")
+        _judge_file(judged, "judge_final.json", joint=1, own=0, schema="stance4-judge/v1")
+        _judge_file(judged, "judge_8388608.json", joint=0, own=0, schema="r10-judge/v1")
+        k3 = th.read_judge_k3(judged, seed=42, final_step=12_001_280)
+        assert [(p["file"], p["judge"]) for p in k3["checkpoints"]] == [
+            ("judge_6291456.json", "the stance5 judge"),
+            ("judge_final.json", "the stance4 judge"),
+        ]
+        assert k3["schemas"] == ["stance4-judge/v1", "stance5-judge/v1"]
+        assert [entry["file"] for entry in k3["skipped"]] == ["judge_8388608.json"]
+        assert "judge schema 'r10-judge/v1': its K3 is not the one drawn here" in k3["skipped"][0]["why"]
+        run = th.load_run_history(_stage(tmp_path), read_std=False, judged=judged)
+        panel = th._page_figure(
+            th.PAGES[0], th._make_context([run], marks=[], smooth=5), title="t", dpi=30, width=12.0
+        ).axes[4]
+        title = panel.get_title(loc="left").replace("\n", " ")
+        assert "(files of the stance4 judge and the stance5 judge)" in title
+        assert "against the stance5 replication judge's K3 criterion" in title
+
+    def test_within_bar_flags_are_withheld_where_a_panel_is_not_k3s(self, tmp_path):
+        """K3's bars are set on 20 episodes on spawns 3042-3061, as the scorers require: a panel of another size or
+        spawns, or whose falls disagree with its episodes, keeps its counts but gives no within-bar flag."""
+        judged = tmp_path / "judged"
+        detail = [{"seed": seed, "reached_horizon": seed != 3042} for seed in range(3042, 3062)]
+        _judge_file(
+            judged, "judge_6291456.json", joint=0, own=0, noise_matched_own={"n": 10, "falls": 0, "space": "policy"}
+        )
+        _judge_file(
+            judged,
+            "judge_final.json",
+            joint=0,
+            own=0,
+            noise_matched_control_joint={"n": 20, "falls": 0, "seeds": [3042, 3061], "episodes_detail": detail},
+        )
+        _judge_file(
+            judged,
+            "judge_4194304.json",
+            joint=1,
+            own=0,
+            noise_matched_control_joint={"n": 20, "falls": 1, "seeds": [3042, 3061], "episodes_detail": detail},
+        )
+        six, final = (p for p in th.read_judge_k3(judged, final_step=12_001_280)["checkpoints"] if p["k3_slot"])
+        assert six["joint_within_bar"] is None and six["own_within_bar"] is None
+        assert "noise_matched_own: n 10, not K3's 20" in six["within_bar_withheld"]
+        assert final["joint_within_bar"] is None and "falls 0, but 1 of its episodes" in final["within_bar_withheld"]
+        early = th.read_judge_k3(judged, final_step=12_001_280)["checkpoints"][0]
+        assert early["timesteps"] == 4194304 and "panel_issues" not in early  # recorded falls agree with its episodes
+        _judge_file(
+            judged, "judge_final.json", joint=0, own=0, noise_matched_own={"n": 20, "falls": 0, "seeds": [3062, 3081]}
+        )
+        final = th.read_judge_k3(judged, final_step=12_001_280)["checkpoints"][-1]
+        assert "spawns [3062, 3081], not K3's 3042-3061" in final["within_bar_withheld"]
+        record = th.run_record(th.load_run_history(_stage(tmp_path), read_std=False, judged=judged), [])
+        assert "withheld: noise_matched_own" in th._k3_table(record)
+
+    def test_the_final_slot_without_a_recorded_step_sits_at_the_runs_final(self, tmp_path):
+        judged = tmp_path / "judged"
+        _judge_file(judged, "judge_final.json", joint=0, own=0)
+        assert th.read_judge_k3(judged, final_step=12_001_280)["checkpoints"][0]["timesteps"] == 12_001_280
+        assert th.read_judge_k3(judged)["checkpoints"][0]["timesteps"] is None
+        assert "no such directory" in th.read_judge_k3(tmp_path / "nowhere")["why"]
+
+    def test_the_outcomes_page_draws_it_only_when_judge_files_are_named(self, tmp_path):
+        stage = _stage(tmp_path)
+        plain = th.load_run_history(stage, read_std=False)
+        judged = th.load_run_history(stage, read_std=False, judged=self._judged(tmp_path))
+        outcomes = th.PAGES[0]
+        assert len(th._panels(outcomes, th._make_context([plain], marks=[], smooth=5))) == 4
+        figure = th._page_figure(
+            outcomes, th._make_context([judged], marks=[], smooth=5), title="t", dpi=30, width=12.0
+        )
+        panel = figure.axes[4]
+        assert panel.get_title(loc="left").startswith("Judge K3 readout, never a verdict")
+        legend = [text.get_text() for text in panel.get_legend().get_texts()]
+        assert legend == [
+            "joint-space noise falls (K3)",
+            "joint-space noise falls (report only)",
+            "own-sigma falls (K3)",
+            "own-sigma falls (report only)",
+        ]
+        texts = [text.get_text() for text in panel.texts]
+        assert "3/0" in texts and "1/1" in texts and "2/0" not in texts  # counts written at K3's checkpoints only
+        # One label for both bars (two overprint once the falls axis spans more than a few falls), and the counts
+        # boxed over the marks and that label.
+        assert [text for text in texts if text.startswith("K3 bar")] == [
+            "K3 bars: joint <= 2 (dashed), own <= 1 (dotted)"
+        ]
+        label = next(text for text in panel.texts if text.get_text().startswith("K3 bars"))
+        counts = [text for text in panel.texts if text.get_text() in ("3/0", "1/1")]
+        assert all(text.get_bbox_patch() is not None and text.get_zorder() > label.get_zorder() for text in counts)
+        caption = th.render_pages([judged], title="t", marks=[], dpi=30)[0][0].caption
+        assert "readout of the stance5 replication judge's K3 criterion" in caption and "never a verdict" in caption
+
+    def test_a_comparison_draws_one_strip_cell_per_judged_checkpoint(self, tmp_path):
+        runs = [
+            th.load_run_history(_stage(tmp_path, name="a"), label="a", read_std=False, judged=self._judged(tmp_path)),
+            th.load_run_history(_stage(tmp_path, name="b"), label="b", read_std=False),
+        ]
+        figure = th._page_figure(th.PAGES[0], th._make_context(runs, marks=[], smooth=5), title="t", dpi=30, width=12.0)
+        strip = figure.axes[4]
+        assert len([patch for patch in strip.patches if patch.get_fill()]) == 3
+        assert len([patch for patch in strip.patches if not patch.get_fill()]) == 2  # K3's two checkpoints
+        texts = [text.get_text() for text in strip.texts]
+        assert {"2/0", "3/0", "1/1", "no judge files"} <= set(texts)
+        # The final checkpoint's cell (K3's) is drawn whole, not cut at the axes' right edge.
+        right = max(patch.get_x() + patch.get_width() for patch in strip.patches)
+        assert right <= strip.get_xlim()[1]
+
+    def test_the_json_html_and_table_carry_it(self, tmp_path, capsys):
+        stage = _stage(tmp_path)
+        out = tmp_path / "reports" / "k3"
+        judged = self._judged(tmp_path)
+        argv = [str(stage), "--out", str(out), "--no-std", "--dpi", "30", "--mark-steps", str(4194304)]
+        assert script.main([*argv, "--judged", str(judged)]) == 0, capsys.readouterr().err
+        document = json.loads((out / th.JSON_FILENAME).read_text(), parse_constant=_no_constant)
+        record = document["runs"][0]
+        assert [p["joint_falls"] for p in record["judge_k3"]["checkpoints"]] == [2, 3, 1]
+        assert "judge_k3" in document["rules"] and record["judge_k3"]["source"] == str(judged)
+        text = (out / th.HTML_FILENAME).read_text(encoding="utf-8")
+        assert "judge K3 readout" in text and "never a verdict" in text and "judge_6291456.json" in text
+        # The stage-end report (no judge files) and a run given "-" draw none.
+        assert script.main([*argv, "--judged", "-"]) == 0
+        document = json.loads((out / th.JSON_FILENAME).read_text(), parse_constant=_no_constant)
+        assert document["runs"][0]["judge_k3"] is None
+        with pytest.raises(SystemExit):
+            script.main([*argv, "--judged", str(judged), str(judged)])
+
+    @pytest.mark.parametrize("group", ["new", "stance5"])
+    def test_the_readout_of_the_runs_the_repo_records_agrees_with_their_scored_k3(self, tmp_path, group):
+        """The replication's score of record (results/scores/score_final.json.gz) and the K3 mechanism readouts
+        (k3readouts/out) hold each judge file's recorded falls: the readout of files carrying them reproduces the
+        scorer's K3 values at 6,291,456 and the final, and its within-bar flags agree with the scorer's K3 pass."""
+        import gzip
+
+        from environments.shared.paths import REPOSITORY_ROOT
+
+        root = REPOSITORY_ROOT / "docs" / "investigations" / "stance_2026_10" / "stance5" / "replication"
+        with gzip.open(root / "results" / "scores" / "score_final.json.gz", "rt", encoding="utf-8") as handle:
+            score = json.load(handle)
+        for run_id, run in score[group].items():
+            judged = tmp_path / run_id
+            for cell in run["cells"].values():
+                if not cell:
+                    continue
+                name = Path(cell["path"]).name
+                extra = {"checks": {"checkpoint_num_timesteps": 12_001_280}} if name == "judge_final.json" else {}
+                _judge_file(
+                    judged,
+                    name,
+                    joint=cell["noise_joint_falls_recorded"],
+                    own=cell["noise_own_falls_recorded"],
+                    seed=run["seed"],
+                    **extra,
+                )
+            k3 = th.read_judge_k3(judged, seed=run["seed"])
+            slots = {
+                ("6.3M" if p["timesteps"] == th.K3_SLOT_STEPS else "final"): p
+                for p in k3["checkpoints"]
+                if p["k3_slot"]
+            }
+            recorded = run["criteria"]["K3"]
+            assert {slot: p["joint_falls"] for slot, p in slots.items()} == recorded["joint_falls"], run_id
+            assert {slot: p["own_falls"] for slot, p in slots.items()} == recorded["own_falls"], run_id
+            within = all(p["joint_within_bar"] and p["own_within_bar"] for p in slots.values())
+            assert within == recorded["pass"], run_id
+            for slot, steps in (("6.3M", "6291456"), ("final", "final")):
+                readout = root / "k3readouts" / "out" / run_id / f"k3r_{steps}.json"
+                for candidate in sorted(readout.parent.glob(f"k3r_{steps}*.json")) if readout.parent.is_dir() else []:
+                    full = json.loads(candidate.read_text(encoding="utf-8"))["conditions"]["full"]
+                    assert full["judge_falls"] == slots[slot]["joint_falls"], (run_id, candidate.name)
+
+
 class TestRefusal:
     def test_an_out_inside_the_run_is_refused(self, tmp_path):
         stage = _stage(tmp_path)
@@ -874,7 +1260,7 @@ class TestRender:
         )
         assert status == 0, capsys.readouterr().err
         pngs = sorted(out.glob("*.png"))
-        assert [p.stem for p in pngs] == [spec.name for spec in th.PAGES] + ["10_policy_std"]
+        assert [p.stem for p in pngs] == th.page_names()
         assert all(p.read_bytes()[:8] == b"\x89PNG\r\n\x1a\n" for p in pngs)
         document = json.loads((out / th.JSON_FILENAME).read_text(), parse_constant=_no_constant)
         assert document["schema"] == th.SCHEMA and document["errors"] == []
@@ -896,7 +1282,7 @@ class TestRender:
             ),
         ]
         pages, errors = th.render_pages(runs, title="a against b", marks=[STEP], dpi=30)
-        assert errors == [] and len(pages) == len(th.PAGES) + 1
+        assert errors == [] and [page.name for page in pages] == th.page_names()
         assert all(page.png[:4] == b"\x89PNG" for page in pages)
         assert "colour per seed" in pages[0].caption and "10 episodes per evaluation" in pages[0].caption
 
@@ -942,6 +1328,28 @@ class TestRender:
         outlined = [patch for patch in strip.patches if not patch.get_fill()]
         assert len(outlined) == 2  # run a's evaluations 2 and 3 (6 and 7 flagged episodes)
         assert "a" in self._texts(strip) and "b" in self._texts(strip)
+
+    def test_a_comparisons_run_labels_sit_at_their_lines_ends(self, tmp_path):
+        """Each run's name sits at its line's last value under the panel's final view limits (the lines only request
+        an autoscale; reading the limits before it is applied put the labels where earlier limits would). No alarm
+        and no mark: their vertical lines happen to apply the autoscale first."""
+        runs = [
+            th.load_run_history(
+                _posture_stage(tmp_path, name=name, constant={"neck_pitch_mean_deg": neck}, saturated=[0, 0, 0, 0]),
+                label=name,
+                read_std=False,
+            )
+            for name, neck in (("low", 12.0), ("high", 33.0))
+        ]
+        figure = th._page_figure(
+            th.POSTURE_PAGES[0], th._make_context(runs, marks=[], smooth=5), title="t", dpi=30, width=12.0
+        )
+        neck = figure.axes[2]
+        figure.canvas.draw()
+        low, high = neck.get_ylim()
+        labels = {text.get_text(): text.get_position()[1] for text in neck.texts}
+        for name, value in (("low", 12.0), ("high", 33.0)):
+            assert abs(labels[name] - (value - low) / (high - low)) < 0.1, (name, labels, (low, high))
 
     def test_at_most_eight_runs(self, tmp_path):
         run = th.load_run_history(_stage(tmp_path), read_std=False)

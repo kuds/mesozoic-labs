@@ -25,8 +25,13 @@ the training step, for one run or overlaid for several:
 - the whole-body balance (``com_fore_aft_mean_m``, ``root_pitch_mean_deg``,
   the XcoM's toe and heel margin minima) and ``actuator_force_frac_max``;
 - the achieved left-minus-right hip pitch, knee and ankle offsets
-  (``leg_q_<left>_minus_<right>_<joint>_deg``; ``eval_episodes.csv`` records no
-  hip roll difference);
+  (``leg_q_<left>_minus_<right>_<joint>_deg``) and the hip roll's, each
+  episode's left leg's ``<left>_hip_roll_mean_deg`` minus its right's
+  (both + abduction, so a mirror-symmetric posture reads 0);
+- the head posture (``head_tip_height_mean_m``, ``head_tip_height_min_m``,
+  ``neck_pitch_mean_deg``, ``head_pitch_mean_deg``) and, per foot, the hip
+  roll (``<foot>_hip_roll_mean_deg``, ``<foot>_hip_roll_max_abs_deg``):
+  report-only columns no gate reads (``gait.posture_telemetry``);
 - the training falls per window of ``train_episodes.csv``;
 - the per-actuator policy standard deviation ``exp(log_std)`` at the
   checkpoint zips in ``models/``;
@@ -87,6 +92,7 @@ import numpy as np
 
 from ..file_io import atomic_write_json, atomic_write_text, read_json_object
 from ..gait.constants import SATURATION_ABS
+from ..gait.posture_telemetry import HEAD_POSTURE_COLUMNS, HIP_ROLL_FIELDS
 from ..gait.stance_metrics import SATURATED_ACTUATOR_COLUMNS
 from ..model_id import ModelId
 
@@ -189,6 +195,16 @@ _LR_COLUMN = re.compile(
     r"^leg_q_(?P<left>[A-Za-z0-9]+)_minus_(?P<right>[A-Za-z0-9]+)_(?P<joint>hip_pitch|knee|ankle)_deg$"
 )
 _FOOT_COLUMN = re.compile(r"^(?P<foot>[A-Za-z0-9]+)_(?:foot|sole)_cop_fore_aft$")
+#: The head posture columns reduced per evaluation (``gait.posture_telemetry``: ledger-only, written last).
+POSTURE_COLUMNS: tuple[str, ...] = HEAD_POSTURE_COLUMNS
+#: A foot's hip roll columns: ``<foot>_<field>`` for each of these.
+HIP_ROLL_SUFFIXES: tuple[str, ...] = HIP_ROLL_FIELDS
+_HIP_ROLL_COLUMN = re.compile(r"^(?P<foot>[A-Za-z0-9]+)_hip_roll_mean_deg$")
+#: Why a head posture or hip roll column reads nan on every episode (:func:`unmeasured_posture_columns`).
+POSTURE_UNMEASURED_REASON = "a model without that site or hinge reads nan there: gait.posture_telemetry"
+#: The asymmetry page's joints: the ledger's left-minus-right offsets, then the hip roll's, derived per episode
+#: from its two legs' window means (:func:`hip_roll_pairs`).
+LR_PAGE_JOINTS: tuple[str, ...] = (*LR_JOINTS, "hip_roll")
 #: The declared bars recorded and drawn, from ``stage_config.json``'s ``curriculum``.
 BAR_KEYS: tuple[str, ...] = (
     "max_sole_cop_fore_aft",
@@ -209,11 +225,17 @@ BAND_COUNTS: tuple[tuple[str, str, str, str], ...] = (
 KEY_ACTUATORS: tuple[str, ...] = ("hip_pitch", "hip_roll", "knee", "ankle", "tail_3")
 #: What the ledgers do not hold, said on every page set.
 NOT_RECORDED: tuple[str, ...] = (
-    "Hip roll: eval_episodes.csv records the left-minus-right achieved offset of hip pitch, knee and ankle only "
-    "(leg_q_<left>_minus_<right>_<joint>_deg); there is no hip roll difference to draw.",
+    "Hip roll and head posture: recorded per episode (<foot>_hip_roll_mean_deg, <foot>_hip_roll_max_abs_deg, "
+    "head_tip_height_mean_m, head_tip_height_min_m, neck_pitch_mean_deg, head_pitch_mean_deg) only in ledgers "
+    "written since those columns were added; an older run's are absent series. The left-minus-right hip roll is "
+    "each episode's left leg's mean minus its right leg's, both + abduction. A model without a head-tip site or a "
+    "neck or head pitch hinge reads nan there, and a model without a box-soled foot records none (its evaluation "
+    "runs no recorder). No gate reads them.",
     "The evaluation episodes are the deterministic policy's, at yaw 0 on the evaluation env's own resets. The "
-    "judge's perturbation panels (its joint-noise falls, K3) and its verdicts are not in these files. The training "
-    "falls are the stochastic training policy's.",
+    "judge's perturbation panels (its joint-noise falls, K3) and its verdicts are not in these files: the outcomes "
+    "page draws K3's inputs only from the judge files a caller names (--judged; the stance3, stance4, stance5 and "
+    "stance5 replication judges' files, whose K3 is the same), as a readout of the stance5 replication judge's K3 "
+    "criterion, never a verdict. The training falls are the stochastic training policy's.",
     "The saturating actuator and the saturation fraction itself are recorded per episode (saturated_actuator, "
     "saturated_actuator_fraction) only in ledgers written since those columns were added; an older run's are absent "
     "series, and its screen_v2_reasons lists max_actuator_saturation_fraction without naming the actuator. An episode "
@@ -258,6 +280,35 @@ MAX_RUNS = len(_SERIES)
 DEFAULT_DPI = 96
 #: A training-fall strip's colour scale tops out here (a window at or above it is the darkest cell).
 TRAINING_FALL_CAP = 0.10
+
+#: The stance5 replication judge's K3 criterion, as its criteria fix it before training (section "CRITERIA, PER
+#: RUN", unchanged from stance3 and stance4), drawn as a readout of the judge's files, never as a verdict (the
+#: replication's scorer, ``score_stance5r.py``, applies it).
+K3_CRITERIA_FILE = "docs/investigations/stance_2026_10/stance5/replication/criteria.txt"
+K3_CRITERION = (
+    "K3, robustness at 6,291,456 and at final: joint-space noise falls at most 2 of 20, and own-sigma falls at most "
+    "1 of 20"
+)
+#: K3's bars: the joint-space noise falls (``noise_matched_control_joint``) and the own-sigma falls
+#: (``noise_matched_own``) allowed of :data:`K3_EPISODES` (spawns 3042-3061; a fall is an episode shorter than the
+#: 1000-step horizon), and the checkpoints K3 reads (6,291,456 and the final).
+K3_JOINT_MAX_FALLS = 2
+K3_OWN_MAX_FALLS = 1
+K3_EPISODES = 20
+K3_SLOT_STEPS = 6_291_456
+#: The spawns K3's noise panels run on, as a judge records a panel's ``seeds`` range (the scorers' NOISE_SEEDS).
+K3_SPAWNS: tuple[int, int] = (3042, 3061)
+#: The judges whose files the readout reads, by the files' ``schema``: each round's criteria fix the same K3
+#: (``docs/investigations/stance_2026_10/stance3/criteria.txt``, ``stance4/criteria.txt``, ``stance5/criteria.txt``
+#: and :data:`K3_CRITERIA_FILE`).  A file of any other schema is skipped with the reason: its K3 need not be this one.
+K3_JUDGE_SCHEMAS: dict[str, str] = {
+    "stance3-judge/v1": "the stance3 judge",
+    "stance4-judge/v1": "the stance4 judge",
+    "stance5-judge/v1": "the stance5 judge",
+    "stance5r-judge/v1": "the stance5 replication judge",
+}
+#: The judge files read: one per judged checkpoint, ``judge_<steps>.json`` or ``judge_final.json``.
+_JUDGE_FILE = re.compile(r"^judge_(?P<slot>\d+|final)\.json$")
 
 
 def _number(text: Any) -> float:
@@ -311,22 +362,74 @@ def foot_labels(header: Sequence[str]) -> list[str]:
     return feet
 
 
+def hip_roll_labels(header: Sequence[str]) -> list[str]:
+    """The foot labels the header records a hip roll for (``<foot>_hip_roll_mean_deg``), in header order."""
+    feet: list[str] = []
+    for column in header:
+        match = _HIP_ROLL_COLUMN.match(column)
+        if match is not None and match.group("foot") not in feet:
+            feet.append(match.group("foot"))
+    return feet
+
+
+def hip_roll_pairs(labels: Sequence[str]) -> list[tuple[str, str]]:
+    """``(left, right)`` foot pairs among *labels*: labels that differ only in a last ``l`` / ``r`` (``l``/``r``,
+    ``fl``/``fr``, ``rl``/``rr``), in the left labels' order, as ``eval_diagnostics.sagittal_leg_dc_pairs`` pairs
+    the feet."""
+    return [(left, left[:-1] + "r") for left in labels if left.endswith("l") and left[:-1] + "r" in labels]
+
+
+def hip_roll_lr_column(left: str, right: str) -> str:
+    """The derived per-episode column of a pair's left-minus-right hip roll (never a ledger column)."""
+    return f"hip_roll_{left}_minus_{right}_deg"
+
+
 def lr_columns(header: Sequence[str]) -> dict[str, str]:
-    """``{joint: column}`` of the left-minus-right achieved offsets the header holds."""
+    """``{joint: column}`` of the left-minus-right offsets the header holds, hip roll's derived (the first pair)."""
     found: dict[str, str] = {}
     for column in header:
         match = _LR_COLUMN.match(column)
         if match is not None and match.group("joint") not in found:
             found[match.group("joint")] = column
-    return {joint: found[joint] for joint in LR_JOINTS if joint in found}
+    pairs = hip_roll_pairs(hip_roll_labels(header))
+    if pairs:
+        found["hip_roll"] = hip_roll_lr_column(*pairs[0])
+    return {joint: found[joint] for joint in LR_PAGE_JOINTS if joint in found}
 
 
 def reduced_columns(header: Sequence[str]) -> list[str]:
-    """The per-episode columns of the header that are reduced per evaluation, in a fixed order."""
+    """The per-episode columns of the header that are reduced per evaluation, in a fixed order.
+
+    The derived left-minus-right hip roll columns (:func:`hip_roll_lr_column`) are not header columns; they are
+    reduced beside these (:func:`reduce_evaluations`).
+    """
     present = set(header)
     columns = [f"{foot}_{suffix}" for foot in foot_labels(header) for suffix in FOOT_SUFFIXES]
-    columns += list(BODY_COLUMNS) + list(SATURATION_COLUMNS) + list(lr_columns(header).values())
+    columns += list(BODY_COLUMNS) + list(SATURATION_COLUMNS)
+    columns += [column for joint, column in lr_columns(header).items() if joint != "hip_roll"]
+    columns += list(POSTURE_COLUMNS)
+    columns += [f"{foot}_{suffix}" for foot in hip_roll_labels(header) for suffix in HIP_ROLL_SUFFIXES]
     return [column for column in columns if column in present]
+
+
+def unmeasured_posture_columns(header: Sequence[str], rows: Sequence[Mapping[str, str]]) -> list[str]:
+    """The head posture and hip roll columns of *header* that read nan (or empty) on every one of *rows*.
+
+    A model without the head-tip site, a neck or head pitch hinge or a hip roll hinge writes nan in that column on
+    every episode (``gait.posture_telemetry``), so the report draws it as absent with that reason, not as an empty
+    line.  Empty when there are no rows.
+    """
+    if not rows:
+        return []
+    columns = list(POSTURE_COLUMNS) + [
+        f"{foot}_{suffix}" for foot in hip_roll_labels(header) for suffix in HIP_ROLL_SUFFIXES
+    ]
+    present = set(header)
+    return [
+        column
+        for column in columns
+        if column in present and not any(math.isfinite(_number(row.get(column))) for row in rows)
+    ]
 
 
 def expected_columns(feet: Sequence[str]) -> list[str]:
@@ -334,6 +437,7 @@ def expected_columns(feet: Sequence[str]) -> list[str]:
     columns = ["timesteps", "return", "full_horizon", "cause", "screen_v2_clean", "screen_v2_reasons"]
     columns += [f"{foot}_{suffix}" for foot in feet for suffix in FOOT_SUFFIXES]
     columns += list(BODY_COLUMNS) + [ACTUATOR_COLUMN, ACTUATOR_FRACTION_COLUMN, ACTUATOR_SHARE_COLUMN]
+    columns += list(POSTURE_COLUMNS) + [f"{foot}_{suffix}" for foot in feet for suffix in HIP_ROLL_SUFFIXES]
     return columns
 
 
@@ -471,7 +575,10 @@ def reduce_evaluations(
     full-horizon episodes whose own value exceeds the bar) and
     ``<rail>_over_bar_fraction`` (over those that measured it); and
     ``columns``: per reduced column its ``mean``, ``std``, ``min``, ``max``
-    and ``n`` over the evaluation's full-horizon episodes.  A count whose
+    and ``n`` over the evaluation's full-horizon episodes, with, per foot
+    pair recording a hip roll, the left-minus-right hip roll
+    (:func:`hip_roll_lr_column`: each episode's left leg's
+    ``<foot>_hip_roll_mean_deg`` minus its right leg's).  A count whose
     column is absent is left out.
     """
     present = set(header)
@@ -520,6 +627,18 @@ def reduce_evaluations(
     for column in reduced_columns(header):
         stats = [_stats([_number(row.get(column)) for row in group]) for group in fh_rows]
         out["columns"][column] = {key: np.asarray([s[key] for s in stats], dtype=float) for key in stats[0]}
+    for left, right in hip_roll_pairs(hip_roll_labels(header)):
+        stats = [
+            _stats(
+                [
+                    _number(row.get(f"{left}_hip_roll_mean_deg")) - _number(row.get(f"{right}_hip_roll_mean_deg"))
+                    for row in group
+                ]
+            )
+            for group in fh_rows
+        ]
+        derived = hip_roll_lr_column(left, right)
+        out["columns"][derived] = {key: np.asarray([s[key] for s in stats], dtype=float) for key in stats[0]}
     return out
 
 
@@ -969,6 +1088,13 @@ def _band(record: Mapping[str, Any]) -> dict[str, float] | None:
     return None
 
 
+def _head_target(record: Mapping[str, Any]) -> float | None:
+    """The head_clearance reward's target height (m) the stage records (``reward_weights``), else ``None``."""
+    weights = record.get("reward_weights")
+    value = _number(weights.get("head_clearance_target")) if isinstance(weights, Mapping) else math.nan
+    return value if math.isfinite(value) else None
+
+
 def _edges(band: Mapping[str, float] | None) -> dict[str, float]:
     """The band's four edges (``lower``, ``upper``, ``pad_lower``, ``pad_upper``) that are finite."""
     edges = {
@@ -994,6 +1120,8 @@ class RunHistory:
     progress_timesteps: int | None = None
     progress_written_at: str | None = None
     feet: list[str] = field(default_factory=list)
+    #: The feet the ledger records a hip roll for (``<foot>_hip_roll_mean_deg``).
+    hip_roll_feet: list[str] = field(default_factory=list)
     lr: dict[str, str] = field(default_factory=dict)
     evaluations: dict[str, Any] = field(
         default_factory=lambda: {"timesteps": np.zeros(0, dtype=np.int64), "columns": {}}
@@ -1002,6 +1130,13 @@ class RunHistory:
     saturation: dict[str, Any] = field(default_factory=dict)
     bars: dict[str, float | None] = field(default_factory=dict)
     band: dict[str, float] | None = None
+    #: The head_clearance reward's target height (``reward_weights.head_clearance_target``), when recorded.
+    head_target: float | None = None
+    #: The head posture and hip roll columns the ledger holds but reads nan on every episode: what the model has no
+    #: site or hinge for (``gait.posture_telemetry``), drawn as absent with that reason.
+    posture_unmeasured: list[str] = field(default_factory=list)
+    #: The judge's K3 inputs read from the judge files a caller named (:func:`read_judge_k3`); ``None``: none named.
+    k3: dict[str, Any] | None = None
     #: The edges the outside-band counts read: the run's own band, else a reference (``band_edges_source`` says).
     band_edges: dict[str, float] = field(default_factory=dict)
     band_edges_source: str | None = None
@@ -1035,7 +1170,8 @@ class RunHistory:
 
     @property
     def last_step(self) -> int:
-        """The latest step this run's files show: an evaluation, a training episode, a checkpoint or progress.json."""
+        """The latest step this run's files show: an evaluation, a training episode, a checkpoint, progress.json or a
+        judged checkpoint."""
         candidates = [int(self.steps[-1])] if self.steps.size else []
         if self.training is not None:
             candidates.append(int(self.training["window_end"][-1]))
@@ -1045,6 +1181,7 @@ class RunHistory:
             candidates.append(self.progress_timesteps)
         if self.rollout_shares is not None and self.rollout_shares["timesteps"].size:
             candidates.append(int(self.rollout_shares["timesteps"].max()))
+        candidates += [p["timesteps"] for p in (self.k3 or {}).get("checkpoints", []) if p.get("timesteps") is not None]
         return max(candidates) if candidates else 0
 
     @property
@@ -1107,8 +1244,14 @@ def load_run_history(
     group: str | None = None,
     read_std: bool = True,
     training_window: int = TRAINING_WINDOW_TIMESTEPS,
+    judged: "str | Path | None" = None,
 ) -> RunHistory:
-    """Read and reduce one stage directory's files; a missing file or column is recorded as absent, never raised."""
+    """Read and reduce one stage directory's files; a missing file or column is recorded as absent, never raised.
+
+    *judged*: a directory of the run's judge files (``judge_<steps>.json``, ``judge_final.json``), read for K3's
+    inputs (:func:`read_judge_k3`), drawn as a readout of the stance5 replication judge's K3 criterion on the outcomes
+    page.
+    """
     stage = Path(stage_dir)
     run = RunHistory(stage_dir=stage, label=label or stage.resolve().parent.name or stage.name, group=group)
     names = (EVAL_EPISODES_FILENAME, TRAIN_EPISODES_FILENAME, STAGE_CONFIG_FILENAME, PROGRESS_FILENAME)
@@ -1141,6 +1284,7 @@ def load_run_history(
     run.progress_written_at = written if isinstance(written, str) else None
     run.bars = _bars(record)
     run.band = _band(record)
+    run.head_target = _head_target(record)
     if not record:
         run.absent.append("stage_config.json: no bars or band recorded")
 
@@ -1148,20 +1292,29 @@ def load_run_history(
     if table is not None:
         header, rows = table
         run.feet = foot_labels(header)
+        run.hip_roll_feet = hip_roll_labels(header)
         run.lr = lr_columns(header)
         run.evaluations = reduce_evaluations(header, rows, bars=run.bars)
+        run.posture_unmeasured = unmeasured_posture_columns(header, rows)
         run.fh_rows = _full_horizon_rows(header, rows)[2]
         run.absent += [
             f"{EVAL_EPISODES_FILENAME}: column {column}"
-            for column in expected_columns(run.feet or ["r", "l"])
+            for column in expected_columns(run.feet or run.hip_roll_feet or ["r", "l"])
             if column not in header
         ]
-        if len(run.lr) < len(LR_JOINTS):
-            run.absent += [
-                f"{EVAL_EPISODES_FILENAME}: left-minus-right {joint} (leg_q_*_minus_*_{joint}_deg)"
-                for joint in LR_JOINTS
-                if joint not in run.lr
-            ]
+        run.absent += [
+            f"{EVAL_EPISODES_FILENAME}: left-minus-right {joint} (leg_q_*_minus_*_{joint}_deg)"
+            for joint in LR_JOINTS
+            if joint not in run.lr
+        ]
+        if "hip_roll" not in run.lr:
+            run.absent.append(
+                f"{EVAL_EPISODES_FILENAME}: left-minus-right hip roll (no <left>/<right>_hip_roll_mean_deg)"
+            )
+        run.absent += [
+            f"{EVAL_EPISODES_FILENAME}: column {column} is nan on every episode ({POSTURE_UNMEASURED_REASON})"
+            for column in run.posture_unmeasured
+        ]
         if not run.steps.size:
             run.absent.append(f"{EVAL_EPISODES_FILENAME}: no row with a timesteps value")
     elif run.files[EVAL_EPISODES_FILENAME]:
@@ -1232,6 +1385,10 @@ def load_run_history(
         step = checkpoints.get(f"{kind}_model_timesteps")
         if run.checkpoint_steps.get(kind) is None and isinstance(step, int) and not isinstance(step, bool):
             run.checkpoint_steps[kind] = step
+    if judged is not None:
+        run.k3 = read_judge_k3(Path(judged), seed=run.seed, final_step=run.final_step)
+        if run.k3.get("why"):
+            run.errors.append(f"judge K3: {run.k3['why']}")
     return run
 
 
@@ -1250,6 +1407,164 @@ def name_alarms(run: RunHistory) -> None:
         inside = [counts for step, counts in zip(run.steps.tolist(), named) if entry["from"] <= step <= entry["to"]]
         entry["actuators"] = tally(inside)
         entry["named"] = most_named(entry["actuators"])
+
+
+# ---------------------------------------------------------------------------------------------- judge K3
+
+
+def _whole(value: Any) -> int | None:
+    """*value* as a whole number (an int, not a bool), else ``None``."""
+    return int(value) if isinstance(value, int) and not isinstance(value, bool) else None
+
+
+def _judge_point(path: Path, *, seed: int | None, final_step: int | None) -> tuple[dict[str, Any] | None, str]:
+    """One judge file's K3 inputs, or ``(None, why it is not read)``."""
+    match = _JUDGE_FILE.match(path.name)
+    assert match is not None
+    record = read_json_object(path)
+    if record is None:
+        return None, "unreadable (not a JSON object)"
+    schema = record.get("schema")
+    if schema not in K3_JUDGE_SCHEMAS:
+        return None, f"judge schema {schema!r}: its K3 is not the one drawn here (read: {', '.join(K3_JUDGE_SCHEMAS)})"
+    if record.get("mode", "full") != "full" or record.get("smoke") is True or record.get("noise_run") is False:
+        return None, f"not a full noise run (mode {record.get('mode')!r}, smoke {record.get('smoke')!r})"
+    judged_seed = _whole(record.get("seed"))
+    if seed is not None and judged_seed is not None and judged_seed != seed:
+        return None, f"judged seed {judged_seed}, not the run's {seed}"
+    blocks = {}
+    issues: list[str] = []
+    for name, key in (("joint", "noise_matched_control_joint"), ("own", "noise_matched_own")):
+        block = record.get(key)
+        falls = _whole(block.get("falls")) if isinstance(block, Mapping) else None
+        episodes = _whole(block.get("n")) if isinstance(block, Mapping) else None
+        if falls is None or episodes is None or not isinstance(block, Mapping):
+            return None, f"no {key} falls and n"
+        blocks[name] = (falls, episodes)
+        issue = _k3_panel_issue(block, falls)
+        if issue:
+            issues.append(f"{key}: {issue}")
+    slot = match.group("slot")
+    steps: int | None
+    if slot == "final":
+        checks = record.get("checks")
+        recorded = _whole(checks.get("checkpoint_num_timesteps")) if isinstance(checks, Mapping) else None
+        steps = recorded if recorded is not None else final_step
+    else:
+        steps = int(slot)
+    k3_slot = slot == "final" or steps == K3_SLOT_STEPS
+    (joint, joint_n), (own, own_n) = blocks["joint"], blocks["own"]
+    point: dict[str, Any] = {
+        "file": path.name,
+        "schema": schema,
+        "judge": K3_JUDGE_SCHEMAS[schema],
+        "slot": slot,
+        "timesteps": steps,
+        "k3_slot": k3_slot,
+        "joint_falls": joint,
+        "joint_episodes": joint_n,
+        "own_falls": own,
+        "own_episodes": own_n,
+    }
+    if issues:
+        point["panel_issues"] = issues
+    if k3_slot and issues:  # K3's bars are set on its 20 episodes on spawns 3042-3061, as the scorers require
+        point["joint_within_bar"] = point["own_within_bar"] = None
+        point["within_bar_withheld"] = "; ".join(issues)
+    elif k3_slot:
+        point["joint_within_bar"] = joint <= K3_JOINT_MAX_FALLS
+        point["own_within_bar"] = own <= K3_OWN_MAX_FALLS
+    return point, ""
+
+
+def _k3_panel_issue(block: Mapping[str, Any], falls: int) -> str:
+    """Why a judge's noise panel is not the one K3's bars are set on, as the scorers check it, else ``""``.
+
+    :data:`K3_EPISODES` episodes (``n``) on :data:`K3_SPAWNS` (the panel's ``seeds`` range, where recorded), and,
+    where the panel lists its episodes (``episodes_detail``), those spawns in order with ``falls`` the count of
+    episodes short of the horizon (``reached_horizon`` false: the scorers' own count).
+    """
+    episodes = _whole(block.get("n"))
+    if episodes != K3_EPISODES:
+        return f"n {episodes}, not K3's {K3_EPISODES}"
+    seeds = block.get("seeds")
+    if seeds is not None and (not isinstance(seeds, list) or tuple(seeds) != K3_SPAWNS):
+        return f"spawns {seeds!r}, not K3's {K3_SPAWNS[0]}-{K3_SPAWNS[1]}"
+    detail = block.get("episodes_detail")
+    if isinstance(detail, list):
+        rows = [row for row in detail if isinstance(row, Mapping)]
+        if len(rows) != len(detail) or [row.get("seed") for row in rows] != list(range(K3_SPAWNS[0], K3_SPAWNS[1] + 1)):
+            return f"its episodes are not spawns {K3_SPAWNS[0]}-{K3_SPAWNS[1]} in order"
+        short = sum(1 for row in rows if not row.get("reached_horizon"))
+        if short != falls:
+            return f"falls {falls}, but {short} of its episodes stop short of the horizon"
+    return ""
+
+
+def read_judge_k3(directory: Path, *, seed: int | None = None, final_step: int | None = None) -> dict[str, Any]:
+    """K3's inputs from *directory*'s judge files, read against the stance5 replication judge's K3: a readout.
+
+    One point per ``judge_<steps>.json`` and ``judge_final.json`` (the judge's
+    files per judged checkpoint; its other panels, ``judge_best.json``,
+    ``judge_quick_<steps>.json`` and the like, are listed as not read): the
+    joint-space noise falls (``noise_matched_control_joint``: ``falls`` of
+    ``n``) and the own-sigma falls (``noise_matched_own``).  The final slot
+    sits at the judge's recorded ``checks.checkpoint_num_timesteps``, else at
+    *final_step*.  A file of a judge whose K3 is not this one (a schema not
+    in :data:`K3_JUDGE_SCHEMAS`), that is not a full noise run, records
+    another seed than *seed*, or lacks the two blocks is skipped with the
+    reason.  At K3's checkpoints (:data:`K3_SLOT_STEPS` and the final) each
+    test says whether it is within its bar (:data:`K3_JOINT_MAX_FALLS`,
+    :data:`K3_OWN_MAX_FALLS`), withheld (``None``, with
+    ``within_bar_withheld``) when either panel is not K3's 20 episodes on
+    spawns 3042-3061 (:func:`_k3_panel_issue`): a readout of the criterion
+    on the judge's own numbers; whether a run holds is the scorer's to say
+    (its missing-file, refusal and run-handling rules are not applied here).
+    """
+    out: dict[str, Any] = {
+        "source": str(directory),
+        "criterion": K3_CRITERION,
+        "criteria_file": K3_CRITERIA_FILE,
+        "bars": {"joint_space_falls_max": K3_JOINT_MAX_FALLS, "own_sigma_falls_max": K3_OWN_MAX_FALLS},
+        "episodes": K3_EPISODES,
+        "k3_checkpoints": [K3_SLOT_STEPS, "final"],
+        "readout": "the judge's recorded falls against K3's bars, never a verdict",
+        "judge_schemas_accepted": dict(K3_JUDGE_SCHEMAS),
+        "schemas": [],
+        "checkpoints": [],
+        "skipped": [],
+        "not_read": [],
+    }
+    if not directory.is_dir():
+        out["why"] = f"no such directory: {directory}"
+        return out
+    points: list[dict[str, Any]] = []
+    for path in sorted(directory.glob("judge_*.json")):
+        if _JUDGE_FILE.match(path.name) is None:
+            out["not_read"].append(path.name)
+            continue
+        try:
+            point, why = _judge_point(path, seed=seed, final_step=final_step)
+        except Exception as exc:  # noqa: BLE001 - a bad file costs its own point only
+            point, why = None, f"{type(exc).__name__}: {exc}"
+        if point is None:
+            out["skipped"].append({"file": path.name, "why": why})
+        else:
+            points.append(point)
+    points.sort(key=lambda p: (p["timesteps"] is None, p["timesteps"] or 0, p["file"]))
+    out["checkpoints"] = points
+    out["schemas"] = sorted({p["schema"] for p in points})
+    sizes = sorted({p[key] for p in points for key in ("joint_episodes", "own_episodes")})
+    if any(size != K3_EPISODES for size in sizes):
+        out["note"] = f"K3's bars are set on {K3_EPISODES} episodes; these files hold {sizes}, read unchanged"
+    if not points:
+        out["why"] = f"no judge_<steps>.json or judge_final.json with both noise panels in {directory}"
+    return out
+
+
+def k3_point(run: "RunHistory", step: int) -> dict[str, Any] | None:
+    """The judge's K3 point at exactly *step*, or ``None``."""
+    return next((p for p in (run.k3 or {}).get("checkpoints", []) if p.get("timesteps") == step), None)
 
 
 # ---------------------------------------------------------------------------------------------- marks
@@ -1369,14 +1684,21 @@ def checkpoint_rows(run: RunHistory, marks: Sequence[int]) -> list[dict[str, Any
                 values = run.column(column, stat)
                 if values is not None:
                     row[f"{column}{suffix}"] = values[index]
-        for column in ("actuator_force_frac_max", "com_fore_aft_mean_m"):
+        for column in ("actuator_force_frac_max", "com_fore_aft_mean_m", *POSTURE_COLUMNS):
             values = run.column(column)
             if values is not None:
                 row[column] = values[index]
+        lowest = run.column("head_tip_height_min_m", "min")
+        if lowest is not None:
+            row["head_tip_height_min_m_worst"] = lowest[index]
         for joint, column in run.lr.items():
             values = run.column(column)
             if values is not None:
                 row[f"l_minus_r_{joint}_deg"] = values[index]
+        judged = k3_point(run, step)
+        if judged is not None:
+            row["judge_joint_falls"] = judged["joint_falls"]
+            row["judge_own_falls"] = judged["own_falls"]
         at_step = [point for point in points if point["timesteps"] == step]
         entry = next((point for point in at_step if point["kind"] == prefer), at_step[0] if at_step else None)
         if entry is not None and run.actuators:
@@ -1416,6 +1738,8 @@ def run_record(run: RunHistory, marks: Sequence[int]) -> dict[str, Any]:
             "band_edges_counted": run.band_edges,
             "band_edges_source": run.band_edges_source,
             "feet": run.feet,
+            "hip_roll_feet": run.hip_roll_feet,
+            "head_clearance_target": run.head_target,
             "left_minus_right_columns": run.lr,
             "evaluations": evaluations,
             "training": run.training,
@@ -1426,6 +1750,7 @@ def run_record(run: RunHistory, marks: Sequence[int]) -> dict[str, Any]:
             "policy_std": std,
             "rollout_shares": rollout_summary(run),
             "checkpoint_table": checkpoint_rows(run, marks),
+            "judge_k3": run.k3,
             "absent": run.absent,
             "errors": run.errors,
         }
@@ -1475,6 +1800,19 @@ def summary(runs: Sequence[RunHistory], *, title: str, marks: Sequence["int | st
             "percentile. Each actuator's peak share and its values at the last measured rollout; first_at_level, the "
             "first rollout whose share at either bound reaches level; named, the (actuator, bound) series the "
             f"pages draw by name (at most {ROLLOUT_NAMED_SERIES}, the highest peak first). Never smoothed",
+            "posture": "head_tip_height_mean_m and head_tip_height_min_m: each episode's post-settle window mean and "
+            "minimum of the head tip's height (m above z = 0); neck_pitch_mean_deg and head_pitch_mean_deg: the window "
+            "means of the neck's pitch (its pitch hinges summed) and the head's, from home, + nose down; "
+            "<foot>_hip_roll_mean_deg: the window mean of the leg's hip roll from home, + abduction on either side, and "
+            "<foot>_hip_roll_max_abs_deg its window maximum of |angle from home|; left-minus-right hip roll: per "
+            "episode, the left leg's mean minus the right's. Reduced like every other column; no gate reads them",
+            "judge_k3": f"from the judge files named per run (--judged): per judged checkpoint, the joint-space noise "
+            f"falls (noise_matched_control_joint) and the own-sigma falls (noise_matched_own) of the judge's "
+            f"{K3_EPISODES} episodes, against the stance5 replication judge's K3 ({K3_CRITERIA_FILE}: "
+            f"{K3_CRITERION}; the same K3 as stance3's, stance4's and stance5's). Files of those judges only "
+            f"({', '.join(K3_JUDGE_SCHEMAS)}); within_bar at K3's checkpoints only, withheld (null) where a panel is "
+            f"not {K3_EPISODES} episodes on spawns {K3_SPAWNS[0]}-{K3_SPAWNS[1]}. A readout of the judge's records, "
+            "never a verdict: the scorer decides whether a run holds",
             "comparison_smoothing_evaluations": smooth,
             "comparison_smoothing": "comparisons draw the continuous series as a centred rolling mean over that many "
             "evaluations, each evaluation's value faint behind it; counts are never smoothed",
@@ -1492,7 +1830,8 @@ def summary(runs: Sequence[RunHistory], *, title: str, marks: Sequence["int | st
 class Quantity:
     """One quantity drawn against the step.
 
-    ``kind``: ``column`` (a reduced column, ``{foot}`` for each foot),
+    ``kind``: ``column`` (a reduced column, ``{foot}`` for each foot: the
+    feet with a centre of pressure, or with a hip roll for a hip roll key),
     ``series`` (a continuous evaluation series), ``count`` (a per-evaluation
     count: a line on one run's page, a strip per run on a comparison, never
     smoothed), ``training`` (the training-fall fraction per window, likewise),
@@ -1501,7 +1840,9 @@ class Quantity:
     comparison, never smoothed) or ``rollout`` (a :data:`ROLLOUT_SHARES`
     share per training rollout: the named actuators' lines and the rest's
     maximum on one run's page, each run's largest actuator on a comparison,
-    never smoothed).
+    never smoothed), or ``k3`` (the judge's K3 inputs at each judged
+    checkpoint, from the files a caller named: drawn only when some run has
+    them).
     """
 
     key: str
@@ -1513,6 +1854,9 @@ class Quantity:
     per_foot: bool = False
     ramp: str = "orange"  # a count strip's sequential ramp
     annotate: bool = False  # write each non-zero count (sparse counts only)
+    #: A line panel's least y span (its unit), centred on the data, with plain tick labels: a near-constant series
+    #: (a statue's head tip) is not drawn at micrometre scale with an offset; 0 leaves the panel's autoscale.
+    min_span: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -1548,7 +1892,8 @@ PAGES: tuple[PageSpec, ...] = (
         "Counts are over each evaluation's episodes ({episodes}). Clean is the in-training stance_quality/v2 screen "
         "at yaw 0 without the statue-relative criteria (never a verdict). Evaluation episodes are the deterministic "
         "policy's; the training falls come from train_episodes.csv (the stochastic policy). Counts are never "
-        "smoothed: a comparison draws one strip per run, a cell per evaluation (per window for training falls).",
+        "smoothed: a comparison draws one strip per run, a cell per evaluation (per window for training falls)."
+        "{k3_note}",
         (
             Quantity("clean", "Clean episodes per evaluation (screen_v2_clean = 1)", "episodes", "count", ramp="blue"),
             Quantity(
@@ -1566,6 +1911,15 @@ PAGES: tuple[PageSpec, ...] = (
                 "training",
             ),
             Quantity("mean_return", "Mean evaluation return (all episodes)", "return", "series", None),
+            Quantity(
+                "k3",
+                f"Judge K3 readout, never a verdict: joint-space noise falls and own-sigma falls of {K3_EPISODES} "
+                "episodes at each judged checkpoint ({judges}), against the stance5 replication judge's K3 criterion, "
+                f"the same K3 as stance3's to stance5's ({K3_CRITERION})",
+                f"falls of {K3_EPISODES}",
+                "k3",
+                None,
+            ),
         ),
     ),
     PageSpec(
@@ -1784,20 +2138,89 @@ PAGES: tuple[PageSpec, ...] = (
     ),
     PageSpec(
         "09_asymmetry",
-        "Left-right asymmetry of the legs: hip pitch, knee and ankle (hip roll is not recorded)",
+        "Left-right asymmetry of the legs: hip pitch, knee, ankle and hip roll",
         "The achieved joint angle offset from the home pose, left minus right, each side signed about the animal's "
-        "leftward axis (leg_q_<left>_minus_<right>_<joint>_deg); a mirror-symmetric posture reads 0. Hip roll is "
-        "not recorded in eval_episodes.csv, so it has no panel.",
+        "leftward axis (leg_q_<left>_minus_<right>_<joint>_deg); a mirror-symmetric posture reads 0. Hip roll: each "
+        "episode's left leg's <left>_hip_roll_mean_deg minus its right leg's, both signed + abduction (the foot away "
+        "from the midline), so a mirror-symmetric posture reads 0 too and + means the left leg is the more abducted "
+        "(a lean to the right, say); the first foot pair on a quadruped. Hip roll is recorded only in ledgers "
+        "written since its columns were added{posture_note}.",
         tuple(
             Quantity(
                 f"lr:{joint}",
-                f"{joint.replace('_', ' ').capitalize()}: left minus right; {_FH}",
+                f"{joint.replace('_', ' ').capitalize()}: left minus right"
+                + (" (each leg + abduction)" if joint == "hip_roll" else "")
+                + f"; {_FH}",
                 "degrees",
             )
-            for joint in LR_JOINTS
+            for joint in LR_PAGE_JOINTS
         ),
     ),
 )
+#: The pages drawn after the policy std page (``10_policy_std``), so the earlier pages keep their names: the head
+#: posture and the hip roll per leg (``gait.posture_telemetry``), report-only columns no gate reads.
+POSTURE_PAGES: tuple[PageSpec, ...] = (
+    PageSpec(
+        "11_head_posture",
+        "Head posture: head-tip height, neck and head pitch",
+        "Report only: no gate criterion reads where the head is (gait.posture_telemetry). Over each episode's "
+        "post-settle window: the head tip's height (the model's head_tip site, else snout_tip, in m above the floor "
+        "plane, the env's own head_tip_z), its mean and its minimum; the neck's pitch (its pitch hinges summed) and "
+        "the head's on the neck, each from its home angle, + nose down. Dotted: the head_clearance reward's target "
+        "height (reward_weights.head_clearance_target), where the stage records one: {head_target}. Recorded only in "
+        "ledgers written since these columns were added{posture_note}.",
+        (
+            Quantity("head_tip_height_mean_m", f"Head-tip height, window mean; {_FH}", "m", min_span=0.05),
+            Quantity(
+                "head_tip_height_min_m",
+                f"Head-tip height, window minimum; {_FH}",
+                "m",
+                spread="min",
+                min_span=0.05,
+            ),
+            Quantity(
+                "neck_pitch_mean_deg",
+                f"Neck pitch (its hinges summed), window mean; {_FH}",
+                "deg (+ nose down)",
+                min_span=1.0,
+            ),
+            Quantity(
+                "head_pitch_mean_deg", f"Head pitch on the neck, window mean; {_FH}", "deg (+ nose down)", min_span=1.0
+            ),
+        ),
+    ),
+    PageSpec(
+        "12_hip_roll",
+        "Hip roll, per leg",
+        "Report only: no gate criterion reads the hip roll (gait.posture_telemetry). Each leg's hip roll hinge "
+        "from its home angle over the post-settle window, signed + abduction (the foot away from the midline) on "
+        "either side, so a mirror-symmetric posture reads the same on both legs: the window mean, and the window "
+        "maximum of the absolute angle from home (unsigned). The left-minus-right difference is on the asymmetry "
+        "page. Recorded only in ledgers written since these columns were added{posture_note}.",
+        (
+            Quantity(
+                "{foot}_hip_roll_mean_deg",
+                f"Hip roll, window mean; {_FH}",
+                "degrees (+ abduction)",
+                per_foot=True,
+                min_span=1.0,
+            ),
+            Quantity(
+                "{foot}_hip_roll_max_abs_deg",
+                f"Hip roll, window maximum of |angle from home|; {_FH}",
+                "degrees",
+                spread="max",
+                per_foot=True,
+                min_span=1.0,
+            ),
+        ),
+    ),
+)
+
+
+def page_names() -> list[str]:
+    """Every page's name in the order a report draws them: :data:`PAGES`, ``10_policy_std``, :data:`POSTURE_PAGES`."""
+    return [spec.name for spec in PAGES] + ["10_policy_std"] + [spec.name for spec in POSTURE_PAGES]
 
 
 def _stem(name: str) -> str:
@@ -1821,6 +2244,11 @@ def _smooth(values: np.ndarray, window: int) -> np.ndarray:
     sums, counts = total[high] - total[low], count[high] - count[low]
     with np.errstate(invalid="ignore", divide="ignore"):
         return np.where(counts > 0, sums / np.where(counts > 0, counts, 1.0), np.nan)
+
+
+def _quantity_feet(run: RunHistory, quantity: Quantity) -> list[str]:
+    """The feet a per-foot quantity is drawn for: those with a hip roll for a hip roll key, else a CoP."""
+    return run.hip_roll_feet if "hip_roll" in quantity.key else run.feet
 
 
 def _values(
@@ -1900,7 +2328,17 @@ def _quantity_title(quantity: Quantity, runs: Sequence[RunHistory]) -> str:
         band=_band_text(runs, "lower", "upper"),
         pad_band=_band_text(runs, "pad_lower", "pad_upper"),
         foot="{foot}",
+        judges=_judges_text(runs),
     )
+
+
+def _judges_text(runs: Sequence[RunHistory]) -> str:
+    """Whose judge files the K3 readout read (``files of the stance5 judge``), or ``no judge files``."""
+    read = {schema for run in runs for schema in (run.k3 or {}).get("schemas", [])}
+    names = [name for schema, name in K3_JUDGE_SCHEMAS.items() if schema in read]
+    if not names:
+        return "no judge files"
+    return "files of " + (names[0] if len(names) == 1 else ", ".join(names[:-1]) + " and " + names[-1])
 
 
 def _reference_lines(runs: Sequence[RunHistory], quantity: Quantity) -> list[tuple[float, str, str]]:
@@ -1937,6 +2375,17 @@ def _reference_lines(runs: Sequence[RunHistory], quantity: Quantity) -> list[tup
         lines.append((1.0, "limit 1.0", "--"))
     elif key in ROLLOUT_SHARES:
         lines.append((ROLLOUT_SHARE_LEVEL, f"named from {ROLLOUT_SHARE_LEVEL:g}", ":"))
+    elif key in ("head_tip_height_mean_m", "head_tip_height_min_m"):
+        for value in _common(run.head_target for run in runs):
+            lines.append((value, f"head_clearance reward target {value:g} m", ":"))
+    elif key == "k3":
+        # One short label for both bars, above the upper one: the own-sigma bar sits one fall under the joint-space
+        # bar, so two labels overprint once the falls axis spans more than a few falls.
+        bars = f"K3 bars: joint <= {K3_JOINT_MAX_FALLS} (dashed), own <= {K3_OWN_MAX_FALLS} (dotted)"
+        lines.append((float(K3_JOINT_MAX_FALLS), bars, "--"))
+        lines.append((float(K3_OWN_MAX_FALLS), "", ":"))
+    if key in ("neck_pitch_mean_deg", "head_pitch_mean_deg", "{foot}_hip_roll_mean_deg"):
+        lines.append((0.0, "", "-"))
     if key.endswith(("_fore_aft", "margin_min_m", "com_fore_aft_mean_m", "shear_over_normal")) and not key.startswith(
         "max_"
     ):
@@ -2042,6 +2491,42 @@ def _style_axis(axis: Any, panel: _Panel, *, top: bool) -> None:
     for side in ("left", "bottom"):
         axis.spines[side].set_color(_AXIS)
     axis.tick_params(colors=_INK_2, labelsize=_TICK_PT, labelbottom=True)
+
+
+def _no_value_note(context: "_Context", quantity: Quantity, foot: str | None) -> str | None:
+    """Why a column quantity the files hold draws no line (nan at every evaluation), or ``None``: not held.
+
+    A head posture or hip roll column that reads nan on every episode
+    (:attr:`RunHistory.posture_unmeasured`) is what the model has no site or
+    hinge for; any other held column has no full-horizon episode with a
+    finite value.
+    """
+    if quantity.kind != "column" or quantity.key.startswith("lr:"):
+        return None
+    if foot is not None:
+        names = [quantity.key.replace("{foot}", foot)]
+    elif quantity.per_foot:
+        names = [quantity.key.replace("{foot}", f) for run in context.runs for f in _quantity_feet(run, quantity)]
+    else:
+        names = [quantity.key]
+    held = [
+        name for name in dict.fromkeys(names) if any(name in run.evaluations.get("columns", {}) for run in context.runs)
+    ]
+    if not held:
+        return None
+    shown = ", ".join(held) if foot is not None or not quantity.per_foot else quantity.key.replace("{foot}", "<foot>")
+    if all(any(name in run.posture_unmeasured for run in context.runs) for name in held):
+        return f"nan on every episode ({shown}): the model has no such site or hinge (gait.posture_telemetry)"
+    return f"no finite value over the full-horizon episodes in these files ({shown})"
+
+
+def _hold_span(axis: Any, span: float) -> None:
+    """At least *span* of y around what the panel draws, centred, with plain tick labels (no offset)."""
+    low, high = axis.get_ylim()
+    if high - low < span:
+        middle = 0.5 * (low + high)
+        axis.set_ylim(middle - 0.5 * span, middle + 0.5 * span)
+    axis.ticklabel_format(axis="y", useOffset=False)
 
 
 def _absent(axis: Any, text: str) -> None:
@@ -2184,7 +2669,8 @@ def _draw_strips(axis: Any, context: _Context, quantity: Quantity) -> bool:
     return drawn
 
 
-def _colourbar(axis: Any, cmap: Any, norm: Any, *, training: bool, top: int) -> None:
+def _colourbar(axis: Any, cmap: Any, norm: Any, *, training: bool, top: int, over: bool = False) -> None:
+    """A colour key beside *axis*; *over*: the top count is a cap (labelled ``>= top``)."""
     from matplotlib.cm import ScalarMappable
 
     figure = axis.figure
@@ -2201,18 +2687,18 @@ def _colourbar(axis: Any, cmap: Any, norm: Any, *, training: bool, top: int) -> 
     else:
         ticks = list(range(0, top + 1, 2 if top > 6 else 1))
         bar.set_ticks(ticks)
-        bar.set_ticklabels([str(t) for t in ticks])
+        bar.set_ticklabels([f">= {t}" if over and t == top else str(t) for t in ticks])
     cax.set_title("fraction" if training else "episodes", fontsize=8, color=_INK_2, loc="left")
 
 
 def _draw_line_single(axis: Any, context: _Context, quantity: Quantity) -> bool:
     run = context.runs[0]
-    feet = run.feet if quantity.per_foot else [None]
+    feet: list[str | None] = list(_quantity_feet(run, quantity)) if quantity.per_foot else [None]
     drawn = False
     for foot_index, which in enumerate(feet):
         values = _values(run, quantity, which)
-        if values is None:
-            continue
+        if values is None or not np.isfinite(values[1]).any():
+            continue  # absent, or nan at every evaluation: said on the panel (_no_value_note), not an empty line
         x, y = values
         drawn = True
         colour = _SERIES[foot_index % len(_SERIES)] if quantity.per_foot else _SERIES[0]
@@ -2379,6 +2865,114 @@ def _draw_actuator_strips(axis: Any, context: _Context, quantity: Quantity) -> b
     return drawn
 
 
+def _k3_points(run: RunHistory) -> list[dict[str, Any]]:
+    """The judge's K3 points of *run* that sit at a step (the final one needs the judge's or the run's step)."""
+    return [p for p in (run.k3 or {}).get("checkpoints", []) if p.get("timesteps") is not None]
+
+
+def _draw_k3_single(axis: Any, context: _Context, quantity: Quantity) -> bool:
+    """The judge's joint-space (circles) and own-sigma (squares) falls per judged checkpoint, K3's filled."""
+    points = _k3_points(context.runs[0])
+    if not points:
+        return False
+    x = np.asarray([p["timesteps"] for p in points], dtype=float) / 1e6
+    slot = np.asarray([p["k3_slot"] for p in points], dtype=bool)
+    top = 0.0
+    for key, marker, colour, size, name in (
+        ("joint_falls", "o", _SERIES[0], 7.5, "joint-space noise falls"),
+        ("own_falls", "s", _SERIES[1], 4.5, "own-sigma falls"),
+    ):
+        y = np.asarray([p[key] for p in points], dtype=float)
+        top = max(top, float(y.max()))
+        axis.plot(x, y, color=colour, linewidth=0.8, alpha=0.5, label="_nolegend_")
+        axis.plot(
+            x[slot], y[slot], linestyle="none", marker=marker, markersize=size, color=colour, label=f"{name} (K3)"
+        )
+        axis.plot(
+            x[~slot],
+            y[~slot],
+            linestyle="none",
+            marker=marker,
+            markersize=size,
+            markerfacecolor="white",
+            markeredgecolor=colour,
+            label=f"{name} (report only)",
+        )
+    for xi, point in zip(x[slot], [p for p, k in zip(points, slot) if k]):
+        axis.annotate(
+            f"{point['joint_falls']}/{point['own_falls']}",
+            (xi, max(point["joint_falls"], point["own_falls"])),
+            xytext=(0, 7),
+            textcoords="offset points",
+            ha="center",
+            va="bottom",
+            fontsize=8,
+            color=_INK,
+            zorder=6,  # over the marks and the bars' label: a J, alarm or checkpoint line through K3's step stays behind
+            bbox={"facecolor": _SURFACE, "alpha": 0.85, "edgecolor": "none", "pad": 0.6},
+        )
+    axis.set_ylim(-0.6, max(float(K3_JOINT_MAX_FALLS) + 2.0, top + 2.0))
+    return True
+
+
+def _draw_k3_strips(axis: Any, context: _Context, quantity: Quantity) -> bool:
+    """One row per run, a cell per judged checkpoint (``joint/own`` written in it), K3's checkpoints outlined."""
+    from matplotlib.patches import Rectangle
+    from matplotlib.transforms import blended_transform_factory
+
+    cap = K3_JOINT_MAX_FALLS + 3  # the colour tops out a little over K3's bar; the counts are written in the cells
+    cmap, norm = _strip_cmap("orange", cap)
+    every = np.concatenate([np.asarray([p["timesteps"] for p in _k3_points(run)], dtype=float) for run in context.runs])
+    width = 0.45 * _spacing(every / 1e6, 0.5) if every.size else 0.5
+    drawn = False
+    transform = blended_transform_factory(axis.transAxes, axis.transData)
+    for row, run in enumerate(context.runs):
+        points = _k3_points(run)
+        if not points:
+            axis.text(0.005, row, "no judge files", transform=transform, va="center", fontsize=8.5, color=_MUTED)
+            continue
+        drawn = True
+        for point in points:
+            xi = point["timesteps"] / 1e6
+            shade = cmap(norm(min(point["joint_falls"], cap)))
+            axis.bar(xi, 0.8, width=width, bottom=row - 0.4, color=shade, linewidth=0)
+            if point["k3_slot"]:
+                axis.add_patch(
+                    Rectangle(
+                        (xi - width / 2, row - 0.4), width, 0.8, fill=False, edgecolor=_INK, linewidth=1.0, zorder=3
+                    )
+                )
+            colour = "white" if point["joint_falls"] >= 0.6 * cap else _INK
+            axis.text(
+                xi,
+                row,
+                f"{point['joint_falls']}/{point['own_falls']}",
+                ha="center",
+                va="center",
+                fontsize=7.5,
+                color=colour,
+            )
+    if every.size:  # the last cell (K3's final, as a rule) whole, not cut at the axes' right edge (x is shared)
+        axis.set_xlim(right=max(axis.get_xlim()[1], float(every.max()) / 1e6 + 0.55 * width))
+    axis.set_ylim(len(context.runs) - 0.5, -0.75)
+    axis.set_yticks(range(len(context.runs)))
+    axis.set_yticklabels([])
+    axis.tick_params(axis="y", length=0)
+    for row, run in enumerate(context.runs):
+        axis.plot(
+            [1.008, 1.04],
+            [row, row],
+            transform=transform,
+            color=context.colours[row],
+            linestyle=context.styles[row],
+            linewidth=2.0,
+            clip_on=False,
+        )
+        axis.text(1.048, row, run.label, transform=transform, va="center", ha="left", fontsize=8.5, color=_INK)
+    _colourbar(axis, cmap, norm, training=False, top=cap, over=True)
+    return drawn
+
+
 def _rollout_gap(run: RunHistory) -> str:
     """The rollouts of *run* its ``rollout_*`` arrays did not measure (0 buffer rows), in words; ``""`` for none.
 
@@ -2534,8 +3128,8 @@ def _draw_line_compare(axis: Any, context: _Context, quantity: Quantity, foot: s
     ends: list[tuple] = []
     for index, run in enumerate(context.runs):
         values = _values(run, quantity, foot)
-        if values is None:
-            continue
+        if values is None or not np.isfinite(values[1]).any():
+            continue  # absent, or nan at every evaluation: no line and no end label
         x, y = values
         colour, style = context.colours[index], context.styles[index]
         axis.plot(x, y, color=colour, linewidth=0.8, alpha=0.22, label="_nolegend_")
@@ -2551,6 +3145,9 @@ def _end_labels(axis: Any, ends: Sequence[tuple]) -> None:
     """Each run's name at the right of the axes, at its line's last value, nudged apart."""
     if not ends:
         return
+    # The lines and reference lines only request an autoscale, applied lazily: settle the view limits before the
+    # transform reads them, or a label sits where the line would be under the limits before them.
+    axis.autoscale_view()
     to_axes = axis.transScale + axis.transLimits
     height_in = axis.get_position().height * axis.figure.get_figheight()
     gap = 0.16 / height_in
@@ -2764,11 +3361,13 @@ class Page:
 def _panels(spec: PageSpec, context: _Context) -> list[_Panel]:
     panels: list[_Panel] = []
     for quantity in spec.quantities:
+        if quantity.kind == "k3" and not any(_k3_points(run) for run in context.runs):
+            continue  # drawn only from the judge files a caller named
         title = _quantity_title(quantity, context.runs)
-        strip = context.comparison and quantity.kind in ("count", "training", "actuators")
+        strip = context.comparison and quantity.kind in ("count", "training", "actuators", "k3")
         if strip:
             height = _STRIP_ROW_IN * len(context.runs) + 0.3
-        elif quantity.kind in ("count", "training", "actuators"):
+        elif quantity.kind in ("count", "training", "actuators", "k3"):
             height = _COUNT_IN
         else:
             height = _LINE_IN
@@ -2785,7 +3384,12 @@ def _panels(spec: PageSpec, context: _Context) -> list[_Panel]:
             )
         elif not context.comparison and quantity.spread in _SPREAD_NOTES and quantity.kind == "column":
             title += _SPREAD_NOTES[quantity.spread]
-        if strip and quantity.kind == "training":
+        if strip and quantity.kind == "k3":
+            title += (
+                " [one cell per judged checkpoint, joint-space/own-sigma falls written in it and coloured by the "
+                "joint-space falls; outlined: the checkpoints K3 reads]"
+            )
+        elif strip and quantity.kind == "training":
             title += f" [one cell per window; colour capped at {TRAINING_FALL_CAP:g}]"
         elif strip and quantity.kind == "actuators":
             title += " [one cell per evaluation with a flagged episode, coloured by the actuator most of them name]"
@@ -2794,7 +3398,7 @@ def _panels(spec: PageSpec, context: _Context) -> list[_Panel]:
         if quantity.per_foot and context.comparison:
             feet: list[str] = []
             for run in context.runs:
-                feet += [foot for foot in run.feet if foot not in feet]
+                feet += [foot for foot in _quantity_feet(run, quantity) if foot not in feet]
             panels += [
                 _Panel(quantity, foot, f"Foot {foot}: {title}", quantity.unit, height) for foot in (feet or ["r", "l"])
             ]
@@ -2822,6 +3426,10 @@ def _page_figure(spec: PageSpec, context: _Context, *, title: str, dpi: int, wid
         ends: list[tuple] = []
         if panel.strip and quantity.kind == "actuators":
             drawn = _draw_actuator_strips(axis, context, quantity)
+        elif panel.strip and quantity.kind == "k3":
+            drawn = _draw_k3_strips(axis, context, quantity)
+        elif quantity.kind == "k3":
+            drawn = _draw_k3_single(axis, context, quantity)
         elif panel.strip:
             drawn = _draw_strips(axis, context, quantity)
         elif quantity.kind == "rollout" and context.comparison:
@@ -2846,13 +3454,17 @@ def _page_figure(spec: PageSpec, context: _Context, *, title: str, dpi: int, wid
                 if quantity.kind == "actuators"
                 else f"{POLICY_PROBE_FILENAME} {quantity.key}_*"
                 if quantity.kind == "rollout"
+                else "the left and right <foot>_hip_roll_mean_deg"
+                if quantity.key == "lr:hip_roll"
                 else quantity.key.replace("{foot}", panel.foot or "<foot>")
             )
-            _absent(axis, f"not recorded in these files ({column})")
+            _absent(axis, _no_value_note(context, quantity, panel.foot) or f"not recorded in these files ({column})")
         elif not panel.strip:
             _draw_references(axis, context, quantity)
             if quantity.key == "actuator_force_frac_max":
                 axis.set_ylim(0.0, 1.08)
+            if quantity.min_span > 0:
+                _hold_span(axis, quantity.min_span)
         _draw_marks(axis, context, top=index == 0, strip=panel.strip)
         if context.comparison:
             _end_labels(axis, ends)
@@ -3185,6 +3797,36 @@ def render_pages(
             f" ({'this run' if len(runs) == 1 else ', '.join(gaps)}: some rollouts not measured, said on the panel: "
             f"a resume kept rows from a {POLICY_PROBE_FILENAME} written before the arrays, or a buffer pass failed)"
         )
+    unposed = [run.label for run in runs if "head_tip_height_mean_m" not in run.evaluations.get("columns", {})]
+    posture_parts = []
+    if unposed:
+        posture_parts.append(
+            f"{'this ledger' if len(runs) == 1 else ', '.join(unposed)} records none: an older ledger, or a model "
+            "whose evaluation runs no recorder, so "
+            + (
+                "those panels are absent"
+                if len(runs) == 1
+                else f"{'its' if len(unposed) == 1 else 'their'} series are absent"
+            )
+        )
+    posture_parts += [
+        f"{'this ledger' if len(runs) == 1 else run.label} reads nan on every episode in "
+        f"{', '.join(run.posture_unmeasured)} ({POSTURE_UNMEASURED_REASON}), drawn as absent"
+        for run in runs
+        if run.posture_unmeasured
+    ]
+    posture_note = f" ({'; '.join(posture_parts)})" if posture_parts else ""
+    judged = [run for run in runs if _k3_points(run)]
+    k3_note = (
+        ""
+        if not judged
+        else " The last panel is a readout of the stance5 replication judge's K3 criterion from the judge files named "
+        f"for {'this run' if len(runs) == 1 else ', '.join(run.label for run in judged)} ({_judges_text(judged)}; "
+        f"{K3_CRITERIA_FILE}: {K3_CRITERION}, the same K3 as stance3's to stance5's): the judge's own perturbation "
+        "panels on spawns 3042-3061 at each judged checkpoint, not these deterministic evaluations, and never a "
+        "verdict (the scorer decides whether a run holds)."
+    )
+    targets = _common(run.head_target for run in runs)
     fields = {
         "episodes": episodes,
         "rollout_note": rollout_note,
@@ -3192,20 +3834,27 @@ def render_pages(
         "pad_band": _band_text(runs, "pad_lower", "pad_upper"),
         "saturation_note": saturation_note,
         "named_note": named_note,
+        "posture_note": posture_note,
+        "k3_note": k3_note,
+        "head_target": ("none recorded" if not targets else ", ".join(f"{value:g} m" for value in targets)),
     }
     pages: list[Page] = []
     errors: list[str] = []
+
+    def draw(spec: PageSpec) -> None:
+        try:
+            figure = _page_figure(spec, context, title=title, dpi=dpi, width=width)
+            caption = spec.caption.format(**fields)
+            if comparison:
+                caption += f" Runs: {colour_note}; each run's name sits at its line's end."
+            pages.append(Page(spec.name, spec.title, caption, _png(figure, dpi)))
+        except Exception as exc:  # noqa: BLE001 - a failure costs this page only
+            logger.warning("training history page %s failed: %s", spec.name, exc)
+            errors.append(f"{spec.name}: {type(exc).__name__}: {exc}")
+
     with matplotlib.rc_context({"font.family": "DejaVu Sans", "figure.facecolor": "white"}):
         for spec in PAGES:
-            try:
-                figure = _page_figure(spec, context, title=title, dpi=dpi, width=width)
-                caption = spec.caption.format(**fields)
-                if comparison:
-                    caption += f" Runs: {colour_note}; each run's name sits at its line's end."
-                pages.append(Page(spec.name, spec.title, caption, _png(figure, dpi)))
-            except Exception as exc:  # noqa: BLE001 - a failure costs this page only
-                logger.warning("training history page %s failed: %s", spec.name, exc)
-                errors.append(f"{spec.name}: {type(exc).__name__}: {exc}")
+            draw(spec)
         try:
             figure = _std_figure(context, title=title, dpi=dpi, width=width)
             sources = sorted({run.actuator_source for run in runs if run.actuator_source})
@@ -3219,6 +3868,8 @@ def render_pages(
         except Exception as exc:  # noqa: BLE001
             logger.warning("training history page 10_policy_std failed: %s", exc)
             errors.append(f"10_policy_std: {type(exc).__name__}: {exc}")
+        for spec in POSTURE_PAGES:
+            draw(spec)
     return pages, errors
 
 
@@ -3304,6 +3955,64 @@ _COUNT_HEADERS = {
 }
 
 
+#: The checkpoint table's head posture and judge columns: ``(row key, header)``, shown where a row has them.
+_POSTURE_HEADERS: tuple[tuple[str, str], ...] = (
+    ("head_tip_height_mean_m", "head tip m"),
+    ("head_tip_height_min_m_worst", "head tip lowest m"),
+    ("neck_pitch_mean_deg", "neck pitch"),
+    ("head_pitch_mean_deg", "head pitch"),
+)
+_JUDGE_HEADERS: tuple[tuple[str, str], ...] = (("judge_joint_falls", "judge joint"), ("judge_own_falls", "judge own"))
+
+
+def _k3_table(run: Mapping[str, Any]) -> str:
+    """The run's judge K3 readout as HTML: the source, each judged checkpoint's falls, K3's checkpoints marked."""
+    k3 = run.get("judge_k3")
+    if not isinstance(k3, Mapping):
+        return ""
+    rows = []
+    for point in k3.get("checkpoints") or []:
+        within = ""
+        if point.get("k3_slot") and point.get("within_bar_withheld"):
+            within = f"withheld: {point['within_bar_withheld']}"
+        elif point.get("k3_slot"):
+            within = "; ".join(
+                f"{name} {'within' if point.get(key) else 'over'}"
+                for name, key in (("joint", "joint_within_bar"), ("own", "own_within_bar"))
+            )
+        rows.append(
+            [
+                html.escape(str(point.get("file"))),
+                html.escape(str(point.get("judge") or point.get("schema"))),
+                _fmt(point.get("timesteps")),
+                "K3" if point.get("k3_slot") else "report only",
+                f"{point.get('joint_falls')} / {point.get('joint_episodes')}",
+                f"{point.get('own_falls')} / {point.get('own_episodes')}",
+                html.escape(within or "–"),
+            ]
+        )
+    skipped = "; ".join(f"{entry['file']}: {entry['why']}" for entry in k3.get("skipped") or [])
+    parts = [
+        f"<h3>{html.escape(str(run['label']))}: judge K3 readout</h3>",
+        f"<p>From <code>{html.escape(str(k3.get('source')))}</code>. K3, the stance5 replication judge's criterion "
+        f"({html.escape(str(k3.get('criteria_file')))}; the same K3 as stance3's to stance5's): "
+        f"{html.escape(str(k3.get('criterion')))}. A readout of the judge's records against K3's bars, never a "
+        "verdict: the scorer decides whether a run holds, under the criteria's missing-file and run-handling rules, "
+        "which are not applied here."
+        + (f" Skipped: {html.escape(skipped)}." if skipped else "")
+        + (f" {html.escape(str(k3['why']))}." if k3.get("why") else "")
+        + "</p>",
+    ]
+    if rows:
+        parts.append(
+            _table(
+                ["judge file", "judge", "checkpoint", "read by", "joint-space falls", "own-sigma falls", "K3 bars"],
+                rows,
+            )
+        )
+    return "".join(parts)
+
+
 def _fmt_named(counts: Any) -> str:
     """A ``flagged_actuators`` entry as table text: ``tail_3_pitch_act + 5; r_ankle_act - 1``, ``none`` or ``–``."""
     if not isinstance(counts, Mapping):
@@ -3325,7 +4034,9 @@ def render_html(document: Mapping[str, Any], pages: Sequence[Page], *, json_name
         f"<style>{_CSS}</style></head><body><main>",
         f"<h1>{html.escape(title)}</h1>",
         '<p class="sub">Training history read back from each stage directory\'s ledgers '
-        "(eval_episodes.csv, train_episodes.csv, stage_config.json, progress.json, plant_identity.json, models/). "
+        "(eval_episodes.csv, train_episodes.csv, stage_config.json, progress.json, plant_identity.json, models/)"
+        + (", and the judge files named per run (--judged)" if any(run.get("judge_k3") for run in runs) else "")
+        + ". "
         f"Report only: nothing reads this page back. Generated {html.escape(document['generated_at'])}; the numbers "
         f"are in <code>{html.escape(json_name)}</code> ({html.escape(SCHEMA)}).</p>",
         "<nav>" + "".join(f'<a href="#{p.name}">{html.escape(p.title)}</a>' for p in pages) + "</nav>",
@@ -3393,8 +4104,12 @@ def render_html(document: Mapping[str, Any], pages: Sequence[Page], *, json_name
         "the actuator each names and its sign (+ every saturated step at +1, - at -1, +/- both), so the final, best "
         "and robust_best checkpoints are read from their own evaluation's rows. The rail and saturation-fraction "
         "columns are the mean and the worst full-horizon episode. "
-        "CoP in half-lengths (+ toe), tilt in degrees, lift in mm, left minus right in degrees, std in action units "
-        "at the checkpoint saved at that step.</p>"
+        "CoP in half-lengths (+ toe), tilt in degrees, lift in mm, left minus right in degrees (hip roll: each leg "
+        "+ abduction), the head tip in m (its window mean, and the lowest episode's window minimum), the neck and "
+        "head pitch in degrees (+ nose down), std in action units at the checkpoint saved at that step. <i>judge "
+        "joint</i> and <i>judge own</i> are the judge's joint-space and own-sigma noise falls (of 20) at a "
+        "checkpoint judged at exactly that step, from the judge files named for the run: a readout, never a "
+        "verdict.</p>"
     )
     for run in runs:
         table = run.get("checkpoint_table") or []
@@ -3409,8 +4124,11 @@ def render_html(document: Mapping[str, Any], pages: Sequence[Page], *, json_name
         cols += [(key, header, scale) for key, header, scale in _TABLE_VALUES if key in present]
         cols += [(f"{f}_foot_cop_fore_aft", f"foot CoP {f}", 1.0) for f in feet]
         cols += [(f"{f}_sole_cop_fore_aft", f"pad CoP {f}", 1.0) for f in feet]
-        cols += [(f"l_minus_r_{j}_deg", f"L-R {j.replace('_', ' ')}", 1.0) for j in LR_JOINTS]
+        cols += [(f"l_minus_r_{j}_deg", f"L-R {j.replace('_', ' ')}", 1.0) for j in LR_PAGE_JOINTS if j != "hip_roll"]
+        cols += [("l_minus_r_hip_roll_deg", "L-R hip roll", 1.0)] if "l_minus_r_hip_roll_deg" in present else []
         cols += [("actuator_force_frac_max", "force frac", 1.0)]
+        cols += [(key, header, 1.0) for key, header in _POSTURE_HEADERS if key in present]
+        cols += [(key, header, 1.0) for key, header in _JUDGE_HEADERS if key in present]
         std_cols = sorted(
             {k for row in table for k in row if k.startswith("std_") and k != "std_checkpoint"}, key=_std_order
         )
@@ -3428,6 +4146,7 @@ def render_html(document: Mapping[str, Any], pages: Sequence[Page], *, json_name
             body.append(cells)
         parts.append(f"<h3>{html.escape(str(run['label']))}</h3>")
         parts.append(_table(headers, body))
+    parts += [_k3_table(run) for run in runs if run.get("judge_k3")]
     parts.append("<h2>What these pages do not show</h2><ul>")
     parts += [f"<li>{html.escape(note)}</li>" for note in document["not_recorded"]]
     parts.append("</ul><h2>How the numbers are reduced</h2><ul>")
