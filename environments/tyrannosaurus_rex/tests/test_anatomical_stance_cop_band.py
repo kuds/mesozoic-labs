@@ -81,6 +81,12 @@ BAND_INFO_KEYS = {f"{side}_cop_band_{name}" for side in "rl" for name in PER_FOO
 #: The proposed dose (copband design.md): the stagger term's maximum price.
 ON = {"stance_cop_band_weight": 0.30}
 SETTLE_STEPS = 250
+#: Both ankles opened from the settled stance until the right foot's whole-foot CoP sits just past the band's toe edge
+#: (+0.55 against the upper edge 0.4; the pad CoP +0.43, inside its band), both feet fully counted (load shares 0.55 /
+#: 0.45): 0.135 rad on physics r10, whose settled stance stands further back on its feet (right foot -0.02, left -0.31
+#: as stood).  On physics r9 (right +0.27, left -0.01) 0.06 rad did the same (+0.58); on r10 0.06 rad leaves it at
+#: +0.12, inside the band.  Re-calibrated for physics r10 (D-D44) by the r10 round's decision D19 (a).
+OPENED_ANKLES = {"r_ankle": 0.135, "l_ankle": 0.135}
 
 
 def _off_kwargs() -> dict:
@@ -389,8 +395,8 @@ def test_on_the_reading_is_the_recorders_bit_for_bit(off_kwargs):
 
 
 def test_on_it_matches_the_formula_and_an_independent_oracle_on_constructed_states(off_kwargs):
-    """Hand-posed states from a settled stance: as stood (inside the band), both ankles opened 0.06 rad (the right
-    foot's whole-foot CoP past the toe edge), and the right toes flexed 0.2 rad (the right foot's load onto its
+    """Hand-posed states from a settled stance: as stood (inside the band), both ankles opened (OPENED_ANKLES: the
+    right foot's whole-foot CoP past the toe edge), and the right toes flexed 0.2 rad (the right foot's load onto its
     digits: whole-foot CoP far past the toe edge, pad CoP on its heel edge).  The readings match a plain
     mj_contactForce loop and the reward matches the formula."""
     env, base = _settled({**off_kwargs, **ON})
@@ -398,7 +404,7 @@ def test_on_it_matches_the_formula_and_an_independent_oracle_on_constructed_stat
         morphology = Morphology.from_env(env, TYRANNOSAURUS_REX)
         toes = {f"r_toe_d{d}_joint": 0.2 for d in (2, 3, 4)}
         rewards = []
-        for edits in ({}, {"r_ankle": 0.06, "l_ankle": 0.06}, toes):
+        for edits in ({}, OPENED_ANKLES, toes):
             info = _pose(env, base, edits)
             oracle = _oracle(env, morphology)
             for index, side in enumerate("rl"):
@@ -421,7 +427,7 @@ def test_on_it_matches_the_formula_and_an_independent_oracle_on_constructed_stat
 def test_the_gates_pay_nothing_at_or_before_the_settle_and_under_a_command(off_kwargs):
     env, base = _settled({**off_kwargs, **ON})
     try:
-        edits = {"r_ankle": 0.06, "l_ankle": 0.06}
+        edits = OPENED_ANKLES
         paid = _pose(env, base, edits)
         assert paid["reward_stance_cop_band"] < 0.0
         for step in (0, 1, env.stance_width_settle_steps):
@@ -604,27 +610,30 @@ def test_on_the_env_loads_no_gait_curriculum_or_registry_module_at_run_time():
 #: which keys moved.  Re-pinned once, for the load guard's ramp (decision 3a): the guard keys are new, and the
 #: quality and reward keys moved on the 16 foot-steps whose share lies in (0.25, 0.35), 14 of them paid; the counted
 #: keys (1 only at a guard of 1, the prototype's counted rule), foot CoP, pad CoP, load share and digit share kept
-#: the prototype's digests (and their bytes).  The 6-decimal digests do not see a 1-ulp change: the 300-step test
-#: pins the env's values to the pure functions byte for byte.
+#: the prototype's digests (and their bytes).  Re-pinned a second time for physics r10 (D-D44; the r10 round's
+#: decision D19 (a)), the band's code unchanged: every key moved, the r10 plant's settled stance standing further back
+#: on its feet.  The same rollout on r10 still reads 2 lifted, 12 light and 1 off-pad foot-steps (guard 0), pays its
+#: 50 open steps and puts 22 foot-steps on the load guard's ramp (16 on r9).  The 6-decimal digests do not see a 1-ulp
+#: change: the 300-step test pins the env's values to the pure functions byte for byte.
 GOLDEN_MUJOCO = "3.10.0"
 GOLDEN_STEPS = 60
 GOLDEN = {
-    "l_cop_band_counted": "2ef683d346aa2ef2c78c774881d1ed74fb4a35b671b08de3e168b895b90e3bb9",
-    "l_cop_band_digit_share": "cd6acb09122511149cbf1aaf088cc89f6f03336a967817ce506d075f0b993a1c",
-    "l_cop_band_foot_cop": "9c26b615d48fc35e009cddf01e030d3d1467db88dc405834cbd0b37cb42ee921",
-    "l_cop_band_guard": "987725e9730fa444ea8ac7505136ce7ab0487b7b60070103c73270697333b7c0",
-    "l_cop_band_load_share": "8beaacd30795cdc5bad6bdc39d9bb493e74c8c55547f012fa2e3058b17f9805e",
-    "l_cop_band_pad_cop": "3727b9c534e1bccb3f1bba1684a11393bf7a41877599e10ee7d194dc7cccf1bf",
-    "l_cop_band_quality": "7042d46e08fe3c24212af47b6c6ed68ad65b856bfa78ae88746e2fff3262cbe4",
-    "r_cop_band_counted": "3e48d7e29fa41f25ca9e45597f9827d4ade3f242e687605091bc582de0f873a9",
-    "r_cop_band_digit_share": "f8ea879b7902755d4d6fd4f99d63c94fb4b14b045fb20a8d9409ac9c7dd7053c",
-    "r_cop_band_foot_cop": "0084fee3b6b1ad7853fbe0e7329074446d4b2d982801d69bf001534fafabbc6d",
-    "r_cop_band_guard": "b7ce226b3d2a85408a395c120520180207b5faf9fffe7a142159cc92f8b2d8e2",
-    "r_cop_band_load_share": "1864e45c647c70b85583434ba32e5ff2faaee8257a56eb4d3dc31639fb083ae9",
-    "r_cop_band_pad_cop": "e826fe34cd686ab8e1b6073be86b69fd0278e8aec3b07f6bfe433f7faa253174",
-    "r_cop_band_quality": "e5e46024f350ccae89f2a721e248ca1209682e41a2812dda14f14cf9eb7bfa9a",
-    "reward_stance_cop_band": "689f731979b8bcafd16e24eb07659e60d6d9279e3de72667090bbecfa7612181",
-    "stance_cop_band_quality": "6e1e465579884c13dd7cf0660f1ce715957254145020a9a343b9208271cb9f8a",
+    "l_cop_band_counted": "cc88401e67155807cef60fe7102aff654d9bf1e3ef7232dd25e92cabc57c3473",
+    "l_cop_band_digit_share": "051882b8bedb62c1a4584ff338698e4543d39577de7ad993c2b0021ba4606e4d",
+    "l_cop_band_foot_cop": "776c9ece54c8cffe28531f815fa778532bea9fbc34af44bbddc990a68b1b4c4a",
+    "l_cop_band_guard": "209eaf36a5b7fd3324aeb031b3843a02044e713c58d72319920371835a8ffc9e",
+    "l_cop_band_load_share": "7a1587ce0b2119450f9407bd1e000a82869a51f634586efbc51f2c4d00e7e792",
+    "l_cop_band_pad_cop": "45fbdc44b87566e926ad078c33b7ed631faf0db7b33bd2f7ac5b870e672a1b14",
+    "l_cop_band_quality": "017893271384dc42e97a7d9b5b88d24c19e0fa7c5b607064f93113dd85a09805",
+    "r_cop_band_counted": "e188e7ab94d000c1041c00fec10c7a126c164e85d002786bab57271a39b51552",
+    "r_cop_band_digit_share": "3c1ae8d1a02d221c45132591433d122a34353bf4651c123a464dd9d3646cde49",
+    "r_cop_band_foot_cop": "47a1df1794b724d79567343db0531d5e4593d69bc18bf2b46560214adcebba41",
+    "r_cop_band_guard": "1f6df42a4eeefd0cf740f55752a69d5a57dfdf2aeda1ab3a067be1107f4c28cd",
+    "r_cop_band_load_share": "d500ddb9d3ed5fa0244ad6a8643415a31864bd55bfc4c1856ce0d937af5f72dc",
+    "r_cop_band_pad_cop": "37995751d19ea0aafa61605b7ee9153a06e3540754c7616939f90cae98fe5dbe",
+    "r_cop_band_quality": "6d173cb5031faf91c6176f84e3275940d4576d7b01399215fc6977e609f7bbff",
+    "reward_stance_cop_band": "30ded0ad977663bc6d454b71f37767730d351e7d52223da4548d3e03eb3f8b6e",
+    "stance_cop_band_quality": "a9b29bb778a6ed7c8a9d5da9dc23bb7fb9d7bb742af75dd08c33c28612ff856f",
 }
 
 
@@ -664,7 +673,7 @@ def test_the_shared_reduction_is_pinned_by_a_golden_band_on_rollout(off_kwargs):
     quality = np.array([[row["r_cop_band_quality"], row["l_cop_band_quality"]] for row in rows])
     assert (counted == 0.0).any() and ((quality > 0.0) & (quality < 1.0)).any()  # guards and the slope both read
     guard = np.array([[row["r_cop_band_guard"], row["l_cop_band_guard"]] for row in rows])
-    assert ((guard > 0.0) & (guard < 1.0)).sum() == 16  # the load guard's ramp too
+    assert ((guard > 0.0) & (guard < 1.0)).sum() == 22  # the load guard's ramp too (16 on physics r9)
     digests = _golden_digests(rows)
     moved = sorted(key for key in GOLDEN.keys() | digests.keys() if GOLDEN.get(key) != digests.get(key))
     assert moved == [], f"the band's readings moved ({moved}): {digests}"
@@ -966,10 +975,14 @@ def test_guard_1_a_lifted_foot_pays_the_maximum(off_kwargs):
 
 
 def test_guard_1_a_lightly_loaded_foot_pays_by_the_load_ramp(off_kwargs):
-    """Opening the right ankle 0.06 rad leaves the right foot about 43% of the limbs' load, its whole-foot CoP just
-    past the toe edge.  Its guard factor is 1 on the default ramp (0.25 -> 0.35), about 0.9 on a 0.25 -> 0.45 ramp,
-    and 0 on a 0.44 -> 0.45 ramp, where it pays the full per-foot price: the lighter the foot against the ramp, the
-    higher the price, and the quality is the guard times the band's Gaussian."""
+    """Opening the right ankle 0.06 rad leaves the right foot about 44% of the limbs' load.  Its guard factor is 1 on
+    the default ramp (0.25 -> 0.35), about 0.94 on a 0.25 -> 0.45 ramp, and 0 on a 0.44 -> 0.45 ramp, where it pays
+    the full per-foot price: the lighter the foot against the ramp, the higher the price.  The quality is the guard
+    times the band's Gaussian.  On physics r10 (D-D44), whose settled stance stands further back on its feet, this
+    pose leaves the right foot's whole-foot CoP inside the band (+0.15; pad +0.27), so the Gaussian is 1 and the
+    quality is the guard factor alone.  On physics r9 the same pose put it just past the toe edge (+0.59; share 0.43,
+    guard about 0.90 on the 0.25 -> 0.45 ramp).  The pose and every assertion are r9's; only this docstring was
+    corrected for r10 (the r10 round's decision D19 (a))."""
     rewards = []
     for ramp, low, high in (
         ({}, 1.0, 1.0),
@@ -1017,11 +1030,15 @@ def test_guard_2_a_foot_off_its_pad_pays_the_maximum(off_kwargs):
 
 
 def test_guard_2_the_pad_band_prices_load_moved_onto_the_digits(off_kwargs):
-    """The right toes extended 0.6 rad: about 40% of the right foot's load moves onto its digits near their MTP
-    joints, which pulls the whole-foot CoP back inside the band (+0.03) while the pad itself sits toe-loaded
-    (+0.63).  The whole-foot band alone pays nothing; the pad band prices the pad's own excursion (here with its
-    upper edge at 0.5 to show it binding; the default 0.65 sits just past this pose)."""
-    toes = {f"r_toe_d{d}_joint": -0.6 for d in (2, 3, 4)}
+    """The right ankle opened 0.08 rad and the right toes extended 0.4 rad: about 38% of the right foot's load moves
+    onto its digits near their MTP joints, which pulls the whole-foot CoP back inside the band (+0.05; +0.23 with the
+    ankle opened alone) while the pad itself sits toe-loaded (+0.59).  The whole-foot band alone pays nothing; the
+    pad band prices the pad's own excursion (here with its upper edge at 0.5 to show it binding; the default 0.65
+    sits just past this pose).  Physics r10 (D-D44; re-calibrated by the r10 round's decision D19 (a)): its settled
+    stance stands further back on its feet, so the toes alone leave the pad at +0.33 at most, and the ankle opening
+    first moves the right foot's load forward; on physics r9 the toes extended 0.6 rad alone did this (whole foot
+    +0.03, pad +0.63, digits about 40%)."""
+    toes = {"r_ankle": 0.08, **{f"r_toe_d{d}_joint": -0.4 for d in (2, 3, 4)}}
     env, base = _settled({**off_kwargs, **ON})
     try:
         info = _pose(env, base, toes)
@@ -1044,9 +1061,11 @@ def test_guard_2_the_pad_band_prices_load_moved_onto_the_digits(off_kwargs):
 
 
 # ---------------------------------------------------------------------------------------------------- on: the mirror
+#: The second case's ramp brackets the right foot's load share in this state: 0.384 on physics r10 (0.34 -> 0.43;
+#: re-calibrated by the r10 round's decision D19 (a)), 0.452 on physics r9 (0.40 -> 0.49).
 @pytest.mark.parametrize(
     "ramp",
-    [{}, {"stance_cop_band_full_price_load_share": 0.40, "stance_cop_band_min_load_share": 0.49}],
+    [{}, {"stance_cop_band_full_price_load_share": 0.34, "stance_cop_band_min_load_share": 0.43}],
     ids=["defaults", "the right foot on the load ramp"],
 )
 def test_the_readings_swap_feet_under_the_mirror_and_the_term_does_not_move(off_kwargs, ramp):
@@ -1064,7 +1083,7 @@ def test_the_readings_swap_feet_under_the_mirror_and_the_term_does_not_move(off_
         env._invalidate_substep_aggregates()
         _, after = env._get_reward_info(np.zeros(15))
         assert before["reward_stance_cop_band"] < 0.0
-        if ramp:  # the right foot carries about 45% of the load here: on the 0.40 -> 0.49 ramp
+        if ramp:  # the right foot carries about 38% of the load here on physics r10: on the 0.34 -> 0.43 ramp
             assert 0.0 < before["r_cop_band_guard"] < 1.0 == before["l_cop_band_guard"]
         for name in PER_FOOT:
             assert after[f"r_cop_band_{name}"] == pytest.approx(before[f"l_cop_band_{name}"], abs=1e-9)
