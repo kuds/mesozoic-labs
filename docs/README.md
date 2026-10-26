@@ -44,6 +44,7 @@ past a couple of files get their own subdirectory (`investigations/`,
 
 | Document | Date | Status |
 |---|---|---|
+| [MICRODUCK_TRANSFER_DESIGN_2026_10.md](MICRODUCK_TRANSFER_DESIGN_2026_10.md) | 2026-10-26 | Proposed — MicroDuck lessons for gait validity, motion initiation, calibrated robot actuation, sensor-realizable policies and exported-controller rehearsal; staged acceptance criteria within the existing SB3, plant-contract and gait-plan decisions |
 | [ROADMAP.md](ROADMAP.md) | 2026-10-05 | Active — phased project timeline |
 | [RECOMMENDATIONS.md](RECOMMENDATIONS.md) | 2026-03-25 | Dated snapshot — the codebase-wide improvement backlog as of 2026-03-25 (one item added 2026-07-27, §6.1 reworded 2026-07-13), not maintained; ROADMAP.md holds the phased plan and KNOWN_ISSUES.md the open problems, and D-D17 retired the JAX/MJX migration it recommends |
 | [RL_TRAINING_PLAN.md](RL_TRAINING_PLAN.md) | 2026-03-26 | Dated planning snapshot (update notes 2026-04-18, 2026-09-13 and 2026-09-27) — trial list for the remaining SAC/PPO runs; its notebook setup predates the behavior chain loop (`BEHAVIOR`) and the id-named T-Rex stage configs, which the 2026-09-13 note maps; its trials 2 and 4 were Ray Tune sweeps, retired by D-D17 (the notebook and sweep JSONs are recoverable from the `0.3.8` tag) |
@@ -185,3 +186,4 @@ findings are in KNOWN_ISSUES),
   landed-PR table) in the root README, CONTRIBUTING, `results/README.md`, the
   species READMEs and every document under `docs/` outside `investigations/`
   and `reviews/`.
+
