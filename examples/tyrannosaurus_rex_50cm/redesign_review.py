@@ -24,6 +24,8 @@ from .hardware_checks import check_hardware
 from .hardware_layout import MANIFEST_PATH, load_manifest
 from .leg_load_screen import compare_motor_locations
 from .recovery_checks import run_crouch_trial
+from .torso_checks import check_torso
+from .torso_structure import check_supports
 
 HERE = Path(__file__).resolve().parent
 SOURCE_ROOT = HERE.parents[1]
@@ -149,11 +151,16 @@ def compare(*, candidate: Path = OUTPUT / "model.xml", duration: float = 10) -> 
             "leg_motor_location_screen": compare_motor_locations(model, ledger["components"]),
         }
         if name == "long_body":
-            cases[name]["hardware"] = check_hardware(model, ledger, load_manifest(ledger["layout"]))
+            manifest = load_manifest(ledger["layout"])
+            cases[name]["hardware"] = check_hardware(model, ledger, manifest)
+            cases[name]["torso"] = check_torso(model, manifest)
+            cases[name]["supports"] = check_supports(model)
     revised = cases["long_body"]
     failed = (
         candidate_mechanical["status"] == "failed"
         or revised["hardware"]["status"] == "failed"
+        or revised["torso"]["status"] == "failed"
+        or revised["supports"]["status"] == "failed"
         or not all(trial["passed"] for trial in revised["standing"].values())
         or not all(trial["passed"] for trial in revised["crouch_to_stand"])
         or any(trial["recorded_clearance"]["status"] == "failed" for trial in revised["crouch_to_stand"])
@@ -189,6 +196,9 @@ def source_paths(candidate: Path = OUTPUT / "model.xml") -> tuple[Path, ...]:
         HERE / "hardware_checks.py",
         HERE / "hardware_layout.py",
         HERE / "hardware_views.py",
+        HERE / "torso_shell.py",
+        HERE / "torso_checks.py",
+        HERE / "torso_structure.py",
         MANIFEST_PATH,
         candidate,
         candidate.with_name("components.json"),
@@ -245,7 +255,7 @@ def render_comparison(report: dict[str, Any], output_dir: Path = OUTPUT) -> None
     )
     draw.text(
         (30, 1270),
-        "Fall recovery and walking remain undemonstrated. These are model views, not fabrication CAD.",
+        "Continuous torso with an open hip bay for motion. Visible supports are conceptual, not fabrication CAD.",
         font=font(19),
         fill="#536158",
     )
@@ -316,18 +326,21 @@ def main(argv: Sequence[str] | None = None) -> int:
         if argv is None
         else [sys.executable, "-m", "examples.tyrannosaurus_rex_50cm.redesign_review", *argv]
     )
-    hardware = report["cases"]["long_body"]["hardware"]
-    report["cases"]["long_body"]["hardware"] = {
-        "status": hardware["status"],
-        "known_limits_passed": hardware["known_limits_passed"],
-        "report": "hardware_validation.json",
-        "coverage": hardware["coverage"],
-    }
-    for payload, filename in (
-        (report, "comparison.json"),
-        (mechanical, "mechanical_validation.json"),
-        (hardware, "hardware_validation.json"),
+    reports = [(report, "comparison.json"), (mechanical, "mechanical_validation.json")]
+    for key, filename in (
+        ("hardware", "hardware_validation.json"),
+        ("torso", "torso_validation.json"),
+        ("supports", "support_validation.json"),
     ):
+        evidence = report["cases"]["long_body"][key]
+        reports.append((evidence, filename))
+        report["cases"]["long_body"][key] = {
+            "status": evidence["status"],
+            "known_limits_passed": evidence["known_limits_passed"],
+            "report": filename,
+            "coverage": evidence["coverage"],
+        }
+    for payload, filename in reports:
         write_report(
             payload, output=OUTPUT / filename, source_paths=source_paths(), source_root=SOURCE_ROOT, command=command
         )

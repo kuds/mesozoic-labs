@@ -26,9 +26,7 @@ def test_service_copy_exposes_every_assembly_part_and_preserves_physical_model()
     assert all(row["visible_in"] for row in report["parts"].values())
     assert all(service.geom(name).group == 4 for name in hardware_views.required_hardware())
     for name in (
-        "torso_front_shell",
-        "torso_bridge_shell",
-        "torso_rear_shell",
+        "torso_shell",
         "left_torso_cover",
         "right_torso_cover",
         "left_torso_vent_0",
@@ -47,7 +45,7 @@ def test_service_copy_exposes_every_assembly_part_and_preserves_physical_model()
 def test_visibility_detects_shell_occlusion_and_writer_refuses_hidden_hardware(tmp_path, monkeypatch):
     model, _ = demo.load_model(path=CANDIDATE / "model.xml")
     service = hardware_views.service_model(model)
-    service.geom("torso_rear_shell").group = 1
+    service.geom("torso_shell").group = 1
     report = hardware_views.hardware_visibility(service)
     assert not report["passed"]
     assert not report["parts"]["hardware_battery"]["visible_in"]

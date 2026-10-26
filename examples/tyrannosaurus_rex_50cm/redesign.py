@@ -8,6 +8,7 @@ packaging allocation, not fabrication CAD or demonstrated self-righting.
 from __future__ import annotations
 
 import argparse
+import itertools
 import math
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -21,6 +22,9 @@ from environments.shared.robot_building import element, loft
 from . import build_model as base
 from .hardware_layout import apply_hardware
 from .proportions import attrs, component, find
+from .torso_shell import COLLISIONS as TORSO_PROXIES
+from .torso_shell import add_shell, build_meshes
+from .torso_structure import add_supports
 
 HERE = Path(__file__).resolve().parent
 
@@ -43,7 +47,6 @@ class Layout:
         return asdict(self)
 
 
-TORSO_PROXIES = ("torso_front_collision", "torso_bridge_collision", "torso_rear_collision")
 UPPER_PROXIES = (
     *TORSO_PROXIES,
     "neck_support_collision",
@@ -56,11 +59,20 @@ UPPER_PROXIES = (
     "tail_segment_2_collision",
 )
 ATTACHMENT_EXCLUSIONS = {
-    ("torso_front_collision", "torso_bridge_collision"): "Overlapping proxy volumes form one rigid torso envelope.",
-    ("torso_bridge_collision", "torso_rear_collision"): "Overlapping proxy volumes form one rigid torso envelope.",
-    ("torso_front_collision", "neck_support_collision"): "Neck support is rooted in the rigid front torso structure.",
-    ("torso_bridge_collision", "neck_support_collision"): "Neck support crosses the rigid upper torso structure.",
-    ("torso_rear_collision", "tail_segment_0_collision"): "Tail root meets its mounting aperture in the rear torso.",
+    **{pair: "Sections form one continuous rigid torso shell." for pair in itertools.combinations(TORSO_PROXIES, 2)},
+    (
+        "torso_front_shell_collision",
+        "neck_support_collision",
+    ): "Neck support is rooted in the rigid front torso structure.",
+    ("torso_bridge_shell_collision", "neck_support_collision"): "Neck support crosses the rigid upper torso structure.",
+    (
+        "torso_shoulder_shell_collision",
+        "neck_support_collision",
+    ): "Neck support is rooted in the rigid front torso structure.",
+    (
+        "torso_rear_shell_collision",
+        "tail_segment_0_collision",
+    ): "Tail root meets its mounting aperture in the rear torso.",
     ("tail_segment_0_collision", "tail_segment_1_collision"): "Adjacent segments describe one continuous rigid tail.",
     ("tail_segment_0_collision", "tail_segment_2_collision"): "Both segments belong to the same rigid tail.",
     ("tail_segment_1_collision", "tail_segment_2_collision"): "Adjacent segments describe one continuous rigid tail.",
@@ -107,28 +119,27 @@ class Builder(base.Builder):
                 ("back_vent_", "back_screw_")
             ):
                 t.remove(geom)
-        # Three occupied lobes leave the hip-motor bay open below the bridge.
-        # The visible surfaces follow these envelopes rather than covering an
-        # opening with a cosmetic solid shell that the clearance screen ignores.
+        # Retain the three convex hardware-containment boundaries separately
+        # from the continuous visible shell and its convex collision sections.
         for name, size, pos in (
             ("torso_front", (0.085, 0.100, 0.070), (0.112, 0, 0.120)),
             ("torso_bridge", (0.135, 0.105, 0.055), (-0.015, 0, 0.170)),
             ("torso_rear", (0.110, 0.105, 0.075), (-0.170, 0, 0.072)),
         ):
-            self.geom(t, name + "_shell", "ellipsoid", size, pos)
-            self.collision(t, name, "ellipsoid", size, pos)
+            self.geom(t, name + "_collision", "ellipsoid", size, pos, group=5)
+        add_shell(self)
         for side, sign in (("left", 1), ("right", -1)):
             self.geom(
                 t,
                 side + "_torso_cover",
                 "ellipsoid",
                 (0.087, 0.003, 0.029),
-                (-0.030, sign * 0.103, 0.170),
+                (-0.030, sign * 0.111, 0.170),
                 "dark_sage",
             )
             for i, x in enumerate((-0.085, -0.055, -0.025)):
                 self.geom(
-                    t, f"{side}_torso_vent_{i}", "box", (0.006, 0.001, 0.010), (x, sign * 0.107, 0.170), "graphite"
+                    t, f"{side}_torso_vent_{i}", "box", (0.006, 0.001, 0.010), (x, sign * 0.115, 0.170), "graphite"
                 )
             shoulder = (0.093, sign * 0.087, 0.108)
             attrs(self, "geom", side + "_shoulder_case", pos=shoulder)
@@ -207,6 +218,7 @@ class Builder(base.Builder):
         # The base builder has already attached tail_shell to this body.
         assert find(self, "geom", "tail_shell") in list(tail)
         apply_hardware(self, battery_x_m=spec.battery_x_m)
+        add_supports(self, spec)
 
     def head(self) -> None:
         t, spec = self.torso, self.layout
@@ -309,6 +321,7 @@ def build(directory: Path = HERE / "long_body", layout: Layout = Layout()) -> Pa
     directory.mkdir(parents=True, exist_ok=True)
     assets = directory / "assets"
     base.make_meshes(assets)
+    build_meshes(assets)
     loft(
         assets / "tail.obj",
         [
@@ -356,7 +369,7 @@ def build(directory: Path = HERE / "long_body", layout: Layout = Layout()) -> Pa
             "Unweighed packaging candidate with original leg joint axes, torque caps and ranges; motor cases allow 56 mm axial length.",
             "Existing component allocations are retained; longer torso, neck and tail receive explicit additional mass.",
             "The 600 g integration reserve is retained. Component box inertias use the parallel-axis theorem.",
-            "Three torso lobes represent occupied envelopes around an open lower hip bay, not qualified fabrication CAD.",
+            "A continuous torso surface uses convex collision sections around an open hip bay; hidden ellipsoids retain hardware containment bounds.",
             "Bearing capacities, wiring clearances, bracket strength and thermal performance are unverified.",
             "Local leg actuators are retained. Crouch-to-stand and self-righting require separate motion evidence.",
             "Sourced catalog dimensions and planning installation allowances are separate in long_body_hardware.json.",

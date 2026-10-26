@@ -105,6 +105,68 @@ def test_mesh_support_uses_compiled_scaled_rotated_vertices():
     assert proof["distance_lower_bound_m"] <= exact_projection_gap
 
 
+def _oblique_mesh_box(*, intersect=False):
+    # The irregular tetrahedron's sloping face is not a body/principal axis.
+    # The box sits 4 mm beyond it; the control moves 8 mm back across that face.
+    position = np.array([0.17668488735946256, 0.007570441935370943, 0.02713861552182297])
+    if intersect:
+        position -= 0.008 * np.array([0.919659704508675, 0.34695629543287737, 0.18397651198593498])
+    position_text = " ".join(str(value) for value in position)
+    model = mujoco.MjModel.from_xml_string(f"""
+    <mujoco>
+      <asset><mesh name="tet" vertex="0 0 0 .3 0 0 0 .19 0 0 0 .27"/></asset>
+      <worldbody>
+        <geom type="mesh" mesh="tet"
+          quat=".9325791439782217 .07172061747936202 .27686578017187014 -.2202217814273778"/>
+        <geom type="box" size=".018 .023 .015" pos="{position_text}"
+          quat=".9726088352080943 .21867981458883579 -.05151048622937668 -.05964781785580746"/>
+      </worldbody>
+    </mujoco>
+    """)
+    data = mujoco.MjData(model)
+    mujoco.mj_forward(model, data)
+    return model, data
+
+
+def test_oblique_mesh_face_proves_clearance_when_body_frame_projections_overlap(monkeypatch):
+    model, data = _oblique_mesh_box()
+    vertices = model.mesh_vert @ data.geom_xmat[0].reshape(3, 3).T + data.geom_xpos[0]
+    signs = np.array([(x, y, z) for x in (-1, 1) for y in (-1, 1) for z in (-1, 1)])
+    corners = (signs * model.geom_size[1]) @ data.geom_xmat[1].reshape(3, 3).T + data.geom_xpos[1]
+    simple_axes = np.concatenate(
+        (
+            np.eye(3),
+            data.geom_xmat[0].reshape(3, 3).T,
+            data.geom_xmat[1].reshape(3, 3).T,
+            (data.geom_xpos[1] - data.geom_xpos[0])[None, :],
+        )
+    )
+    # Independent vertex enumeration shows why the old direction set cannot
+    # certify this clearance, even though the complete shapes are separated.
+    first, second = vertices @ simple_axes.T, corners @ simple_axes.T
+    assert np.max(np.maximum(second.min(axis=0) - first.max(axis=0), first.min(axis=0) - second.max(axis=0))) < 0
+    monkeypatch.setattr(mujoco, "mj_geomDistance", lambda *args: 0.0)
+    evidence = clearance_distance(model, data, 0, 1, required_clearance_m=0.002, search_distance_m=1)
+    assert evidence["distance_method"] == "support_plane_lower_bound"
+    assert evidence["distance_is_lower_bound"]
+    assert evidence["min_distance_m"] == pytest.approx(0.004, abs=1e-7)
+    normal = np.array(evidence["separation_plane"]["axis_world"])
+    exact_projection = max(
+        (corners @ normal).min() - (vertices @ normal).max(), (vertices @ normal).min() - (corners @ normal).max()
+    )
+    assert 0.002 < evidence["min_distance_m"] <= exact_projection
+
+
+def test_oblique_mesh_face_does_not_clear_an_intersecting_box(monkeypatch):
+    model, data = _oblique_mesh_box(intersect=True)
+    assert mujoco.mj_geomDistance(model, data, 0, 1, 1, None) < 0
+    assert separation_lower_bound(model, data, 0, 1) is None
+    monkeypatch.setattr(mujoco, "mj_geomDistance", lambda *args: 0.0)
+    evidence = clearance_distance(model, data, 0, 1, required_clearance_m=0.002, search_distance_m=1)
+    assert evidence["distance_method"] == "mujoco"
+    assert evidence["min_distance_m"] == 0
+
+
 @pytest.mark.parametrize("offset", [0.0, 0.10, 0.199, 0.20])
 def test_touching_or_overlapping_boxes_do_not_receive_a_separation_certificate(offset):
     model = mujoco.MjModel.from_xml_string(f"""

@@ -26,6 +26,8 @@ from environments.shared.paths import REPOSITORY_ROOT
         ("tyrannosaurus_rex_50cm", "long_body/mechanical_validation.json", "."),
         ("tyrannosaurus_rex_50cm", "long_body/comparison.json", "."),
         ("tyrannosaurus_rex_50cm", "long_body/hardware_validation.json", "."),
+        ("tyrannosaurus_rex_50cm", "long_body/torso_validation.json", "."),
+        ("tyrannosaurus_rex_50cm", "long_body/support_validation.json", "."),
     ],
 )
 def test_current_report_source_hashes(directory, report, source_base):

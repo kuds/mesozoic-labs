@@ -21,7 +21,7 @@ MANIFEST_PATH = Path(__file__).with_name("long_body_hardware.json")
 SERVICE_GROUPS = (1, 2, 4)
 VIEWS = {"right elevated": (0.35, -1.0, 0.45), "left elevated": (-0.35, 1.0, 0.45)}
 HIDDEN_PANELS = re.compile(
-    r"torso_(front|bridge|rear)_shell|(?:left|right)_torso_(?:cover|vent_\d+)"
+    r"torso_shell|torso_(front|bridge|rear)_shell|(?:left|right)_torso_(?:cover|vent_\d+)"
     r"|pelvis_structure_envelope|head_shell|neck_(?:yaw|nod)_case|(?:left|right)_shoulder_case"
     r"|(?:left|right)_(?:eye_socket|eye_white|iris|pupil|eye_glint|nostril)"
 )
@@ -46,7 +46,7 @@ def service_model(model: mujoco.MjModel) -> mujoco.MjModel:
     also hidden because it is not a fabricated structure. No physical geometry,
     mass, actuator limit or original rendering state is changed.
     """
-    if mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, "torso_front_shell") < 0:
+    if mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, "torso_front_shell_collision") < 0:
         raise ValueError("Hardware service views require the separate long-body candidate.")
     for name in required_hardware():
         geom = mujoco.mj_name2id(model, mujoco.mjtObj.mjOBJ_GEOM, name)

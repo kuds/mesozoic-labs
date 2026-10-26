@@ -42,13 +42,17 @@
     <mesh name="right_toe_0_mesh" file="soft.obj" scale="0.03 0.012 0.02" />
     <mesh name="right_toe_1_mesh" file="soft.obj" scale="0.03 0.012 0.02" />
     <mesh name="right_toe_2_mesh" file="soft.obj" scale="0.03 0.012 0.02" />
-    <mesh name="torso_shell_mesh" file="soft.obj" scale="0.089 0.084 0.085" />
     <mesh name="belly_panel_mesh" file="soft.obj" scale="0.028 0.065 0.074" />
     <mesh name="back_access_panel_mesh" file="soft.obj" scale="0.033 0.06 0.066" />
     <mesh name="tail_shell_mesh" file="tail.obj" scale="1 1 1" />
     <mesh name="head_shell_mesh" file="skull.obj" scale="1 1 1" />
     <mesh name="jaw_shell_mesh" file="jaw.obj" scale="1 1 1" />
     <mesh name="snout_camera_panel_mesh" file="rounded.obj" scale="0.004 0.049 0.02" />
+    <mesh name="torso_shell_mesh" file="torso_continuous.obj" scale="1 1 1" />
+    <mesh name="torso_rear_collision_mesh" file="torso_rear.obj" />
+    <mesh name="torso_bridge_collision_mesh" file="torso_bridge.obj" />
+    <mesh name="torso_shoulder_collision_mesh" file="torso_shoulder.obj" />
+    <mesh name="torso_front_collision_mesh" file="torso_front.obj" />
   </asset>
   <worldbody>
     <light pos="1 -1 2" dir="-1 1 -2" diffuse="0.8 0.8 0.75" />
@@ -169,7 +173,11 @@
             <geom name="left_thigh_link_collision" class="collision" type="capsule" fromto="0 0 0 0.027 0 -0.097" size="0.014" />
             <geom name="left_thigh_fairing" type="mesh" mesh="left_thigh_fairing_mesh" pos="0.014 -0.012 -0.047" material="sage" euler="0 -0.27 0" />
           </body>
+          <geom name="left_hip_roll_bracket" type="capsule" size="0.005" pos="0 0 0" material="metal" group="2" fromto="-0.004 0 0 0.03 0.005 0" />
+          <geom name="left_hip_roll_bracket_collision" type="capsule" size="0.005" group="3" contype="0" conaffinity="0" rgba="0.9 0.25 0.1 0.2" fromto="-0.004 0 0 0.03 0.005 0" />
         </body>
+        <geom name="left_hip_yaw_bracket" type="capsule" size="0.004" pos="0 0 0" material="metal" group="2" fromto="0 0 -0.031 -0.032 0.035 -0.044" />
+        <geom name="left_hip_yaw_bracket_collision" type="capsule" size="0.004" group="3" contype="0" conaffinity="0" rgba="0.9 0.25 0.1 0.2" fromto="0 0 -0.031 -0.032 0.035 -0.044" />
       </body>
       <geom name="right_hip_yaw_case" type="cylinder" size="0.03 0.028" pos="0 -0.045 0.075" material="graphite" euler="0 0 0" group="2" />
       <geom name="right_hip_yaw_case_collision" class="collision" type="cylinder" size="0.03 0.028" pos="0 -0.045 0.075" euler="0 0 0" />
@@ -280,7 +288,11 @@
             <geom name="right_thigh_link_collision" class="collision" type="capsule" fromto="0 0 0 0.027 0 -0.097" size="0.014" />
             <geom name="right_thigh_fairing" type="mesh" mesh="right_thigh_fairing_mesh" pos="0.014 0.012 -0.047" material="sage" euler="0 -0.27 0" />
           </body>
+          <geom name="right_hip_roll_bracket" type="capsule" size="0.005" pos="0 0 0" material="metal" group="2" fromto="-0.004 0 0 0.03 -0.005 0" />
+          <geom name="right_hip_roll_bracket_collision" type="capsule" size="0.005" group="3" contype="0" conaffinity="0" rgba="0.9 0.25 0.1 0.2" fromto="-0.004 0 0 0.03 -0.005 0" />
         </body>
+        <geom name="right_hip_yaw_bracket" type="capsule" size="0.004" pos="0 0 0" material="metal" group="2" fromto="0 0 -0.031 -0.032 -0.035 -0.044" />
+        <geom name="right_hip_yaw_bracket_collision" type="capsule" size="0.004" group="3" contype="0" conaffinity="0" rgba="0.9 0.25 0.1 0.2" fromto="0 0 -0.031 -0.032 -0.035 -0.044" />
       </body>
       <geom name="battery_envelope" type="box" size="0.08 0.045 0.0325" pos="-0.17 0 0.072" material="graphite" group="5" />
       <geom name="compute_tray_envelope" type="box" size="0.06 0.055 0.0325" pos="-0.015 0 0.17" material="pcb" group="5" />
@@ -359,21 +371,31 @@
           <geom name="hardware_jaw_motor" type="box" size="0.01 0.013 0.017" pos="-0.025 0.0375 -0.0225" material="graphite" group="4" />
         </body>
         <geom name="hardware_head_nod_motor" type="box" size="0.01425 0.017 0.02325" pos="0.06 0 0.018" material="graphite" group="4" />
+        <geom name="neck_output_hub" type="cylinder" size="0.01 0.003" pos="0 0 0.02" material="metal" group="2" />
+        <geom name="neck_output_hub_collision" type="cylinder" size="0.01 0.003" group="3" contype="0" conaffinity="0" rgba="0.9 0.25 0.1 0.2" pos="0 0 0.02" />
+        <geom name="neck_yoke_root" type="capsule" size="0.003" pos="0 0 0" material="metal" group="2" fromto="0 0 0.023 0 -0.035 0.023" />
+        <geom name="neck_yoke_root_collision" type="capsule" size="0.003" group="3" contype="0" conaffinity="0" rgba="0.9 0.25 0.1 0.2" fromto="0 0 0.023 0 -0.035 0.023" />
+        <geom name="neck_yoke_rail" type="capsule" size="0.003" pos="0 0 0" material="metal" group="2" fromto="0 -0.035 0.023 0.06 -0.035 0.028" />
+        <geom name="neck_yoke_rail_collision" type="capsule" size="0.003" group="3" contype="0" conaffinity="0" rgba="0.9 0.25 0.1 0.2" fromto="0 -0.035 0.023 0.06 -0.035 0.028" />
+        <geom name="neck_yoke_tab" type="capsule" size="0.0025" pos="0 0 0" material="metal" group="2" fromto="0.06 -0.035 0.028 0.06 -0.017 0.028" />
+        <geom name="neck_yoke_tab_collision" type="capsule" size="0.0025" group="3" contype="0" conaffinity="0" rgba="0.9 0.25 0.1 0.2" fromto="0.06 -0.035 0.028 0.06 -0.017 0.028" />
       </body>
-      <geom name="torso_front_shell" type="ellipsoid" size="0.085 0.1 0.07" pos="0.112 0 0.12" material="sage" />
-      <geom name="torso_front_collision" class="collision" type="ellipsoid" size="0.085 0.1 0.07" pos="0.112 0 0.12" />
-      <geom name="torso_bridge_shell" type="ellipsoid" size="0.135 0.105 0.055" pos="-0.015 0 0.17" material="sage" />
-      <geom name="torso_bridge_collision" class="collision" type="ellipsoid" size="0.135 0.105 0.055" pos="-0.015 0 0.17" />
-      <geom name="torso_rear_shell" type="ellipsoid" size="0.11 0.105 0.075" pos="-0.17 0 0.072" material="sage" />
-      <geom name="torso_rear_collision" class="collision" type="ellipsoid" size="0.11 0.105 0.075" pos="-0.17 0 0.072" />
-      <geom name="left_torso_cover" type="ellipsoid" size="0.087 0.003 0.029" pos="-0.03 0.103 0.17" material="dark_sage" />
-      <geom name="left_torso_vent_0" type="box" size="0.006 0.001 0.01" pos="-0.085 0.107 0.17" material="graphite" />
-      <geom name="left_torso_vent_1" type="box" size="0.006 0.001 0.01" pos="-0.055 0.107 0.17" material="graphite" />
-      <geom name="left_torso_vent_2" type="box" size="0.006 0.001 0.01" pos="-0.025 0.107 0.17" material="graphite" />
-      <geom name="right_torso_cover" type="ellipsoid" size="0.087 0.003 0.029" pos="-0.03 -0.103 0.17" material="dark_sage" />
-      <geom name="right_torso_vent_0" type="box" size="0.006 0.001 0.01" pos="-0.085 -0.107 0.17" material="graphite" />
-      <geom name="right_torso_vent_1" type="box" size="0.006 0.001 0.01" pos="-0.055 -0.107 0.17" material="graphite" />
-      <geom name="right_torso_vent_2" type="box" size="0.006 0.001 0.01" pos="-0.025 -0.107 0.17" material="graphite" />
+      <geom name="torso_front_collision" type="ellipsoid" size="0.085 0.1 0.07" pos="0.112 0 0.12" material="sage" group="5" />
+      <geom name="torso_bridge_collision" type="ellipsoid" size="0.135 0.105 0.055" pos="-0.015 0 0.17" material="sage" group="5" />
+      <geom name="torso_rear_collision" type="ellipsoid" size="0.11 0.105 0.075" pos="-0.17 0 0.072" material="sage" group="5" />
+      <geom name="torso_shell" type="mesh" mesh="torso_shell_mesh" pos="0 0 0" material="sage" />
+      <geom name="torso_rear_shell_collision" class="collision" type="mesh" mesh="torso_rear_collision_mesh" />
+      <geom name="torso_bridge_shell_collision" class="collision" type="mesh" mesh="torso_bridge_collision_mesh" />
+      <geom name="torso_shoulder_shell_collision" class="collision" type="mesh" mesh="torso_shoulder_collision_mesh" />
+      <geom name="torso_front_shell_collision" class="collision" type="mesh" mesh="torso_front_collision_mesh" />
+      <geom name="left_torso_cover" type="ellipsoid" size="0.087 0.003 0.029" pos="-0.03 0.111 0.17" material="dark_sage" />
+      <geom name="left_torso_vent_0" type="box" size="0.006 0.001 0.01" pos="-0.085 0.115 0.17" material="graphite" />
+      <geom name="left_torso_vent_1" type="box" size="0.006 0.001 0.01" pos="-0.055 0.115 0.17" material="graphite" />
+      <geom name="left_torso_vent_2" type="box" size="0.006 0.001 0.01" pos="-0.025 0.115 0.17" material="graphite" />
+      <geom name="right_torso_cover" type="ellipsoid" size="0.087 0.003 0.029" pos="-0.03 -0.111 0.17" material="dark_sage" />
+      <geom name="right_torso_vent_0" type="box" size="0.006 0.001 0.01" pos="-0.085 -0.115 0.17" material="graphite" />
+      <geom name="right_torso_vent_1" type="box" size="0.006 0.001 0.01" pos="-0.055 -0.115 0.17" material="graphite" />
+      <geom name="right_torso_vent_2" type="box" size="0.006 0.001 0.01" pos="-0.025 -0.115 0.17" material="graphite" />
       <geom name="neck_support" type="capsule" fromto="0.085 0 0.135 0.15 0 0.168" size="0.012" material="graphite" group="2" />
       <geom name="neck_support_collision" type="capsule" fromto="0.085 0 0.135 0.15 0 0.168" size="0.012" class="collision" />
       <geom name="hardware_battery" type="box" size="0.0715 0.022 0.0225" pos="-0.17 0 0.072" material="graphite" group="4" />
@@ -392,6 +414,8 @@
       <geom name="hardware_left_shoulder_motor" type="box" size="0.01 0.013 0.017" pos="0.093 0.087 0.1005" material="graphite" group="4" />
       <geom name="hardware_right_shoulder_motor" type="box" size="0.01 0.013 0.017" pos="0.093 -0.087 0.1005" material="graphite" group="4" />
       <geom name="hardware_tail_motor" type="box" size="0.01 0.017 0.013" pos="-0.22 -0.0075 0.125" material="graphite" group="4" />
+      <geom name="pelvis_hip_bridge" type="box" size="0.025 0.065 0.008" pos="0 0 0.111" material="metal" group="2" />
+      <geom name="pelvis_hip_bridge_collision" type="box" size="0.025 0.065 0.008" group="3" contype="0" conaffinity="0" rgba="0.9 0.25 0.1 0.2" pos="0 0 0.111" />
     </body>
   </worldbody>
   <equality>

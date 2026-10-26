@@ -58,13 +58,31 @@ mass budgets](HARDWARE.md) for sources and limits.
 
 ## Geometry and mechanical evidence
 
-Three occupied torso volumes leave an open lower hip bay. Head, jaw, arms and
-tail have revised collision envelopes; actual attachment exclusions are listed
-in the generator. The snout camera package retains its mass, and all three
+The torso now has **one continuous outer shell**, replacing the three rounded
+volumes whose narrow joins looked like gaps. The opening below its middle is
+intentional clearance for the hip motors. Visible hip brackets and a neck yoke
+show the connections to the legs and head. These shapes use the existing
+structural allocations; hardware positions and total mass are unchanged.
+
+Four convex collision sections follow the shell around the hip opening.
+A single convex hull would incorrectly fill that opening. The [torso surface
+report](torso_validation.json) checks a closed, connected surface, verifies that
+every visible triangle has collision coverage, and checks the entire hardware
+reserves inside the actual outer surface with a 3 mm allowance.
+
+The [support report](support_validation.json) checks nine planned support shapes
+against hardware and moving parts at 790 poses. Intended mounting junctions are
+listed explicitly. At the neck interface, conservative hulls of the compiled
+skull/jaw meshes replace broad boxes that already surround the nod motor. Support
+inspection shapes do not generate simulation contacts with those coarse boxes;
+their direct clearance queries remain active. Bracket strength, fasteners and
+fatigue remain unqualified.
+
+Head, jaw, arms and tail retain their collision envelopes. The snout camera package retains its mass, and all three
 home center rays clear the visual geometry. That check does not establish a
 clear full field of view or calibrated optics.
 
-The [mechanical report](mechanical_validation.json) checks **790 poses and 245
+The [mechanical report](mechanical_validation.json) checks **790 poses and 263
 selected pairs** under the same 2 mm clearance and 80% gravity-torque criteria:
 
 - All selected candidate pairs pass. The unchanged reference has 15 failing
@@ -84,7 +102,7 @@ evidence; a known failure at another sampled pose remains a failure. This also
 removes one false head/jaw failure from the reference's earlier 16-pair result.
 
 Coverage is limited to the declared pair set and samples. Electronics packing
-has its separate hardware screen. Decorative surfaces, wiring, foot and leg-link clearance pairs, brackets,
+has its separate hardware screen. Decorative surfaces, wiring, foot and leg-link clearance pairs, bracket strength,
 manufacturing tolerances, intermediate poses and dynamic bearing loads still
 need review. Passing this screen is not assembly qualification.
 
@@ -165,7 +183,8 @@ pytest environments/tyrannosaurus_rex/tests/test_tyrannosaurus_rex_redesign.py \
   environments/tyrannosaurus_rex/tests/test_tyrannosaurus_rex_recovery.py \
   environments/tyrannosaurus_rex/tests/test_tyrannosaurus_rex_leg_loads.py \
   environments/tyrannosaurus_rex/tests/test_tyrannosaurus_rex_hardware_layout.py \
-  environments/tyrannosaurus_rex/tests/test_tyrannosaurus_rex_hardware_views.py
+  environments/tyrannosaurus_rex/tests/test_tyrannosaurus_rex_hardware_views.py \
+  environments/tyrannosaurus_rex/tests/test_tyrannosaurus_rex_torso.py
 ```
 
 `redesign.Layout` exposes the neck position, nod reach, skull/tail lengths,
@@ -184,3 +203,6 @@ declared interior part and camera to appear in the two service views. Source
 hashes bind reports, PNGs and GIFs to the current model and implementation;
 the GIF also records a hash of its replayed poses. These checks catch stale or
 hidden geometry without relying on exact pixels across renderer platforms.
+Torso tests also reject open seams, disconnected surfaces, missing collision
+coverage, hardware protrusions and a closed hip opening. Support tests verify
+that visible connections match their inspection geometry and touch their mounts.

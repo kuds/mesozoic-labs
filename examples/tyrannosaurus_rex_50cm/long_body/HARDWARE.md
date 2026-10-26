@@ -2,6 +2,10 @@
 
 The [hardware manifest](../long_body_hardware.json) separates published part
 dimensions from installation space reserved in the [longer candidate](README.md).
+The current continuous torso shell also has a [surface check](torso_validation.json)
+against the complete installed reserves, including a 3 mm allowance. The original
+ellipsoid containers remain hidden planning bounds, separate from the visible
+shell and its four convex collision sections around the hip opening.
 It replaces this candidate's earlier generic electronics proxies with sourced
 part envelopes, explicit quantities and estimated assembly allocations. The
 [silhouette-C reference](../README.md) remains unchanged.
