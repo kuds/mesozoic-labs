@@ -1,3 +1,21 @@
+# SCREEN, NEVER MERGED. Branch claude/screen-trex-r10-armltsb: the first physics-r10 training round's arm LTSB,
+# the maintainer's decisions D1 and D2 of 2026-10-25: stance5's recipe (claude/screen-trex-r9-armlts-copband at
+# cf80ecb1: L+T plus the stance stagger penalty, stance_stagger_weight 0.30, stance_stagger_tolerance_m 0.045,
+# plus the per-foot CoP band, stance_cop_band_weight 0.30, every other band key at its code default) ported onto
+# main 08a4d189, physics r10 (D-D44), 12M, from scratch; seeds 60, 42 and 80, the seeds LTSB ran on r9
+# (stance5_LTSB_s60, stance5_LTSB_s42 and stance5_LTSB_s80). The criteria are the r10 round's, fixed before any
+# training step. The r9 screens' criteria: stance5 sha256
+# 3b28963f644ffb765e666a8cf6ada5d31ab8a2769dd1a77ff53cbc1e0cf3cf16, stance4 sha256
+# 978a93da8da469c1acde7b9f7261d9236e4799eb2111b3af0f0cbeaa153f0f38, K1-K4 stance3's sha256
+# 1ce910dcd6e2ff7b41a4f592b9f34b9a6c9cb398c523e88f0ebd19af754f18fa.
+# recovery.toml inherits [env] and [ppo] here; only stance is trained.
+# The screen-only keys: [env] stance_cop_band_weight / stance_stagger_weight / stance_stagger_tolerance_m /
+# leg_home_pose_weight / leg_home_pose_tolerance / lateral_lean_weight / lateral_lean_tolerance_m /
+# leg_home_pose_reference, [ppo] symmetry*, [curriculum] eval_freq / eval_episodes / checkpoint_freq /
+# max_checkpoints and collapse_peak_floor_reference. Every key and value is cf80ecb1's, except
+# collapse_peak_floor_reference, re-measured on physics r10. Everything else is main's committed stance stage,
+# physics r10's constants included (natural_pitch 0.017 in the env, nosedive_termination_threshold 0.503,
+# min_avg_reward 2260, statue_constants_physics_revision 10).
 [stage]
 name = "stance"
 description = "Learn to stand and balance without falling"
@@ -65,7 +83,8 @@ action_jerk_weight = 3.0                       # Frequency-aware smoothness: pen
                                                # ~8e4, so the term is nearly free for the behaviour we want and is
                                                # charged almost entirely to chatter.
 support_conditioned_alive_fraction = 0.5       # Keep recovery headroom while making one-foot survival less profitable
-leg_home_pose_weight = 0.5                     # Softly retain the authored p5 theropod leg stance.
+leg_home_pose_weight = 1.0                     # SCREEN, Runs 2-3 (L+T; never merged): 1.0 here, production 0.5.
+                                               # Softly retain the authored p5 theropod leg stance.
                                                # REVERTED from 1.5 (issue #491): the 1.5 experiment could not have
                                                # worked, and measurement says why. This term governs 8 joints --
                                                # r/l hip_pitch, hip_roll, knee, ankle -- and those 8 carry only
@@ -78,7 +97,10 @@ leg_home_pose_weight = 0.5                     # Softly retain the authored p5 t
                                                # weight had nothing to pull on: measured DC moved 0.766 -> 0.738,
                                                # 3.7%, while the run took ~2M extra steps to escape its early
                                                # collapse. The list, not the weight, is the problem (#491).
-leg_home_pose_tolerance = 0.10                 # rad; Gaussian width of the home-pose bonus, narrowed from 0.20
+leg_home_pose_tolerance = 0.05                 # SCREEN, Runs 2-3 (L+T; never merged): 0.05 rad here, production
+                                               # 0.10. leg_home_pose_broad_fraction 0.25 and _broad_scale 6.0 are
+                                               # unchanged, so the broad component's width becomes 0.30 rad.
+                                               # rad; Gaussian width of the home-pose bonus, narrowed from 0.20
                                                # after the 20260808 run (postmortem: TREX_STAGE1_PASSIVE_TOES_RUN_
                                                # 2026_08.md section 6). At 0.20 the statue-breaking left-knee/ankle
                                                # offsets the release ablation convicted (0.21/0.17 rad measured)
@@ -386,6 +408,27 @@ reset_noise_scale = 0.05                       # Stage 1a operating point (PLANT
                                                # reward gate, which §9 retired: the statue is the reward optimum at
                                                # every noise level. Robustness is stage 1b's job, via perturbations,
                                                # not lucky-draw reset noise (§13).
+# SCREEN (never merged): arm L's two T. rex stance options as #624 ships them (website/docs/training/
+# mirror-symmetry.md), off by default on main: the standing lateral-lean bonus on the centre of mass over the
+# feet, paid after stance_width_settle_steps with a zero command and both feet loaded, and the leg_home_pose term
+# centred on the statue's settled leg pose (base_env._LEG_SETTLED_QPOS: physics r10's on this branch, r9's on the
+# r9 screens). The collapse reference in [curriculum] moves with them.
+lateral_lean_weight = 0.25
+lateral_lean_tolerance_m = 0.015
+leg_home_pose_reference = "settled"
+# SCREEN, stance4 arm LTS (never merged): the stance stagger penalty (base_env 8h), off by default: -w (1 -
+# exp(-(s/tol)^2)), s the right foot site's lead over the left along the pelvis heading, paid after
+# stance_width_settle_steps with a zero command. Design SP/foot/stance3/night/design/spec.md section 3.1. The
+# collapse reference in [curriculum] moves with it.
+stance_stagger_weight = 0.30
+stance_stagger_tolerance_m = 0.045
+# SCREEN, stance5 arm LTSB (never merged): the per-foot CoP band (base_env 8i), off by default: -w mean_feet
+# (1 - g exp(-(u/0.357)^2)), u each foot's excess of its whole-foot CoP outside [-0.6, +0.4] or of its pad CoP
+# outside [-0.65, +0.65] (span half-lengths), g the load-share ramp (0 at a share <= 0.25, 1 at >= 0.35, linear
+# between; 0 for a foot unloaded or off its pad), paid after stance_width_settle_steps with a zero command. Only the
+# weight is set here; the other seven band keys stay at their code defaults. Design SP/foot/stance4/copband/design.md;
+# maintainer's decisions D-D40 3a-3d. The collapse reference in [curriculum] moves with it.
+stance_cop_band_weight = 0.30
 
 [ppo]                                   # recovery.toml inherits this and [ppo.policy_kwargs] (`extends`), all but ent_coef_decay_timesteps: an edit here moves recovery's hyperparameters too
 learning_rate = 3e-5                    # Setting 4 sweep: 3.23e-5 — 10x lower. All successful S1→S3 runs used this. Old 3e-4 caused instability.
@@ -460,6 +503,13 @@ ent_coef_decay_timesteps = 7000000      # 64% of the 11M budget (derived as 70% 
                                         # locks in; this anneal and the learning rate are unchanged.
 
 target_kl = 0.03                        # Cap destabilising late PPO updates (early-stop epochs on high approx-KL).
+# SCREEN (never merged): mirror-symmetric PPO (environments/shared/mirror_kl_ppo.py) with the committed T. rex
+# mirror map (configs/tyrannosaurus_rex/anatomical/mirror_map.json): the mirror loss at kappa 0.3 with its sigma
+# floor 0.01 and the mirrored critic, as arm L ships them (#624). The schedules above are unchanged.
+symmetry = "mirror_kl"
+symmetry_kappa = 0.3
+symmetry_sigma_floor = 0.01
+symmetry_mirror_critic = true
 
 [ppo.policy_kwargs]
 net_arch = [512, 256]
@@ -963,7 +1013,15 @@ certification_seeds = 2                 # Publication bar, not a gate threshold 
                                         # schedule). Every other stage keeps the default 1.
                                         # Enters neither gate_sha256 nor hyperparameters_sha256 nor task_sha256:
                                         # raising it relabels published bundles and invalidates no verdict.
-max_checkpoints = 5                     # Periodic checkpoints kept (CheckpointRetentionCallback). At save_freq = 500k this stage
+eval_freq = 131072                      # SCREEN (never merged): an evaluation every 131,072 steps of 10 episodes (fewer than
+eval_episodes = 10                      # min_eval_episodes, so the in-training gate cannot pass and the stage trains its whole
+checkpoint_freq = 524288                # budget; the screen judges its checkpoints offline on the 40-episode panel), and a
+                                        # periodic checkpoint every 524,288 steps, every one kept (max_checkpoints = 0), so
+                                        # models/stage1_{4194304,5242880,6291456,8388608,10485760}_steps.zip and their
+                                        # _vecnormalize_ pickles exist for the judge. Production: 50,000 / 30-or-
+                                        # min_eval_episodes / 100,000 / 5 (train_base._stage_cadence).
+max_checkpoints = 0                     # SCREEN: keep every periodic checkpoint. Production: 5, as this note says.
+                                        # Periodic checkpoints kept (CheckpointRetentionCallback). At save_freq = 500k this stage
                                         # wrote 12 and kept all of them: 48 MB of the 60 MB models/ on run 20260801_021545, on a
                                         # Drive mount, for files nothing in this repository reads — they exist for manual rollback,
                                         # which needs recent history, not all of it. 5 is the default (DEFAULT_MAX_CHECKPOINTS), the depth the
@@ -1034,7 +1092,16 @@ collapse_peak_warmup_timesteps = 1000000 # Evaluations before this step cannot S
                                          # candidacy; past it a statue-level peak arms the floor legitimately, and
                                          # collapse_patience consecutive evaluations under half of it are a collapse
                                          # at either start. Untested on a full run at -1.5.
-collapse_peak_floor_reference = 3766.6   # The zero-action statue's standing reward at noise 0.05, 40 episodes,
+collapse_peak_floor_reference = 4470.4   # SCREEN, r10 LTSB (never merged): 3766.6 + LTSB statue gain 703.81.
+                                         # The gain is the zero-action statue panel (seeds 3042-3081, noise 0.05,
+                                         # 40/40 standing) through train_base.make_env under this branch's stance
+                                         # env minus under main 08a4d189's, measured on physics r10 on this branch's
+                                         # config: 4470.37 against 3766.56 (+703.8132: leg term +506.53, lean
+                                         # +198.60, stagger -1.17, band -0.15), so 4470.4132 exact, rounded. Floor
+                                         # 0.45 x 4470.4 = 2011.68. On physics r9 (stance5, cf80ecb1) it was 4457.4:
+                                         # 3756.8 + 700.55 (leg +505.42, lean +198.27, stagger -1.22, band -1.91).
+                                         # Production keeps 3766.6, which the rest of this note is about:
+                                         # the zero-action statue's standing reward at noise 0.05, 40 episodes,
                                          # seeds 3042-3081, on physics r10 (the preloaded tail springs, D-D44)
                                          # with the D-D27 stance task: 3766.56 +/- 16.21, 40/40 full horizon
                                          # (min_avg_reward above has the figures; floor 0.45 x 3766.6 = 1695.0).
