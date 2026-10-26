@@ -542,6 +542,82 @@ def reward_stance_stagger(
     return -weight * (1.0 - stagger_quality), stagger_quality
 
 
+def band_excess(value: Array, lower: float, upper: float) -> Array:
+    """How far ``value`` lies outside ``[lower, upper]``: 0 inside, ``lower - value`` below, ``value - upper`` above."""
+    xp = _array_mod(value)
+    return xp.maximum(lower - value, 0.0) + xp.maximum(value - upper, 0.0)
+
+
+def cop_band_load_guard(
+    load_share: Array,
+    foot_loaded: Array,
+    pad_loaded: Array,
+    full_price_share: float,
+    min_share: float,
+) -> Array:
+    """The per-foot CoP band's guard factor, in ``[0, 1]`` per foot (screen-only, never merged).
+
+    ``load_share`` is each foot's share of the two limbs' floor load;
+    ``foot_loaded`` and ``pad_loaded`` are the caller's loaded rules for the
+    limb and for its pad.  The factor is 0 for a foot that is unloaded or
+    stands off its pad (or whose share is not finite), 0 at a share of
+    ``full_price_share`` or less, 1 at ``min_share`` or more, and linear
+    between, so at fixed readings a foot pays more of the per-foot price as
+    it sheds load, with no step at ``min_share``.  Needs ``full_price_share
+    < min_share`` (the env validates it): the span is not floored, so both
+    ends of the ramp are exact.  Per foot, so swapping the feet swaps the
+    factors.
+    """
+    xp = _array_mod(load_share)
+    loaded = xp.asarray(foot_loaded, dtype=bool) & xp.asarray(pad_loaded, dtype=bool) & xp.isfinite(load_share)
+    ramp = xp.clip((load_share - full_price_share) / (min_share - full_price_share), 0.0, 1.0)
+    return xp.where(loaded, ramp, 0.0)
+
+
+def reward_stance_cop_band(
+    foot_cop: Array,
+    pad_cop: Array,
+    guard: Array,
+    band: tuple[float, float],
+    pad_band: tuple[float, float],
+    tolerance: float,
+    weight: float,
+) -> tuple[Array, Array]:
+    """Per-foot centre-of-pressure band PENALTY for a standing animal (screen-only, never merged).
+
+    Per foot ``k`` (arrays over the feet): ``u_k`` is the larger of how far
+    its whole-foot CoP ``foot_cop`` lies outside ``band`` and how far its pad
+    CoP ``pad_cop`` lies outside ``pad_band`` (both in the foot's span
+    half-lengths); ``quality_k = guard_k * exp(-(u_k / tolerance)^2)``, with
+    ``guard_k`` the caller's guard factor in ``[0, 1]``
+    (:func:`cop_band_load_guard`).  A foot whose guard is 0 (unloaded, too
+    lightly loaded, or standing off its pad) scores 0 whatever its readings,
+    which are then not read; a foot whose guard is above 0 must carry finite
+    readings (the caller's loaded rules require them).  The penalty is
+    ``-weight * mean_k (1 - quality_k)``: 0 with every foot fully guarded
+    and inside both bands, ``-weight`` at most.  The mean over the feet is
+    symmetric and the readings are fore-aft, so swapping the feet (the
+    left-right mirror) leaves the term unchanged.  The T. rex env runs this
+    function's and :func:`cop_band_load_guard`'s arithmetic on Python floats
+    (its reward section 8i); its tests pin the two byte for byte.
+
+    Returns:
+        ``(reward, quality)`` with reward in ``[-weight, 0]`` and ``quality`` the per-foot qualities in ``[0, 1]``.
+    """
+    xp = _array_mod(foot_cop)
+    guard = xp.asarray(guard)
+    read = guard > 0.0
+    lower, upper = band
+    pad_lower, pad_upper = pad_band
+    # A foot whose guard is 0 may carry NaN readings: read it at its band's lower edge (excess 0); it scores 0 below.
+    whole = band_excess(xp.where(read, foot_cop, lower), lower, upper)
+    pad = band_excess(xp.where(read, pad_cop, pad_lower), pad_lower, pad_upper)
+    excess = xp.maximum(whole, pad)
+    safe_tolerance = xp.maximum(tolerance, 1e-8)
+    quality = xp.where(read, guard * xp.exp(-xp.square(excess / safe_tolerance)), 0.0)
+    return -weight * xp.mean(1.0 - quality), quality
+
+
 def reward_action_saturation(
     action: Array,
     weight: float,

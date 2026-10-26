@@ -833,6 +833,16 @@ def test_flat_probability_is_no_longer_a_transition_setting(learned_behavior, re
 
 
 _LEAN_KWARGS = {"lateral_lean_weight", "lateral_lean_tolerance_m"}
+_COP_BAND_KWARGS = {
+    "stance_cop_band_weight",
+    "stance_cop_band_lower",
+    "stance_cop_band_upper",
+    "stance_cop_band_pad_lower",
+    "stance_cop_band_pad_upper",
+    "stance_cop_band_tolerance",
+    "stance_cop_band_full_price_load_share",
+    "stance_cop_band_min_load_share",
+}
 
 
 @pytest.mark.parametrize(
@@ -846,6 +856,12 @@ _LEAN_KWARGS = {"lateral_lean_weight", "lateral_lean_tolerance_m"}
         (
             {"stance_stagger_weight": 0.3, "stance_stagger_tolerance_m": 0.03},
             {"stance_stagger_weight", "stance_stagger_tolerance_m"},
+        ),
+        # Scratch prototype (stance4 copband design, never merged): the per-foot CoP band.
+        ({"stance_cop_band_weight": 0.3}, _COP_BAND_KWARGS),
+        (
+            {"stance_cop_band_weight": 0.3, "stance_cop_band_lower": -0.5, "stance_cop_band_tolerance": 0.2},
+            _COP_BAND_KWARGS,
         ),
     ],
 )

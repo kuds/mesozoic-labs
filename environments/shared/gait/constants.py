@@ -17,6 +17,9 @@ Pure: no mujoco import, so the pure gate module
 (``curriculum/stance_gate_v2.py``) and the reporting layer can read the
 constants without building an env.  :func:`measurement_manifest` reads names
 off a compiled model it is handed, and never imports mujoco to do so.
+:data:`CONTACT_THRESHOLD_N` is defined beside the contact reduction that
+applies it (``floor_contact/reduction.py``, pure as well; scratch, the
+stance4 copband design) and imported here.
 
 The values, and where each was measured (``61a3424``, mujoco 3.10.0, the
 40-episode zero-action statue panels of all six species on seeds 3042-3081
@@ -65,6 +68,8 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import TYPE_CHECKING, Any
 
+from ..floor_contact.reduction import CONTACT_THRESHOLD_N
+
 if TYPE_CHECKING:
     from .morphology import Morphology
 
@@ -90,7 +95,9 @@ MEASUREMENT_VERSION = "floor-truth/v2"
 #: ``ankle_joint`` and ``support_span_m``, and the hinged digits' MTP joints.
 MEASUREMENT_MANIFEST_SCHEMA = "mesozoic.floor-truth-measurement/v3"
 
-CONTACT_THRESHOLD_N = 0.1
+# CONTACT_THRESHOLD_N (0.1 N) is imported above: the neutral contact reduction applies it, and the T. rex's opt-in
+# CoP band imports that reduction (a species env never imports this package).  It is still one of these constants:
+# measurement_constants() records it, and changing it needs a new MEASUREMENT_VERSION.
 DOWN_SUBSTEP_FRACTION = 0.5
 DEBOUNCE_S = 0.020
 SPAWN_GRACE_S = 0.10

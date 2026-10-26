@@ -11,7 +11,10 @@ audit, not here.
 
 Also pinned here: the layering rules of ``environments/shared/gait/`` (pure
 modules import no mujoco; the package imports neither ``curriculum`` nor
-``reporting``; no species env module imports it).
+``reporting``; no species env module imports it), and of the contact
+reduction it shares with the T. rex's opt-in CoP band,
+``environments/shared/floor_contact/`` (it imports nothing from those three;
+its reduction is pure).
 """
 
 from __future__ import annotations
@@ -48,6 +51,7 @@ from environments.shared.species_names import model_ids
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 GAIT = REPO_ROOT / "environments" / "shared" / "gait"
+FLOOR_CONTACT = REPO_ROOT / "environments" / "shared" / "floor_contact"
 BODY_WEIGHT = 100.0
 NU = 4
 
@@ -950,6 +954,10 @@ def test_edges_and_runs():
 # ── layering ─────────────────────────────────────────────────────────────────
 
 PURE_MODULES = ("__init__.py", "constants.py", "events.py", "stance_metrics.py", "pad_telemetry.py")
+#: Scratch (stance4 copband design): the contact reduction the recorder shares with the T. rex's opt-in CoP band
+#: moved out of gait/ so that env can import it.  constants (the contact threshold) and stance_metrics (the whole-foot
+#: CoP normalization) import it back, so it must be pure too (test_the_neutral_reduction_is_pure).
+NEUTRAL_PURE_MODULES = ("__init__.py", "reduction.py")
 
 
 def _import_time_imports(path: Path) -> list[str]:
@@ -978,8 +986,10 @@ def _import_time_imports(path: Path) -> list[str]:
 def test_the_pure_modules_import_no_mujoco(module):
     """The gate (pure) imports constants, events and stance_metrics: they import only the standard library,
     numpy and each other.  So does pad_telemetry, which the evaluation callback reduces with (its layout
-    builder imports mujoco in its body)."""
+    builder imports mujoco in its body).  The one import outside the package is the neutral reduction, itself
+    pure (below)."""
     allowed_relative = {"." + name.removesuffix(".py") for name in PURE_MODULES if name != "__init__.py"}
+    allowed_relative.add("..floor_contact.reduction")
     imported = _import_time_imports(GAIT / module)
     foreign = [
         name
@@ -987,6 +997,31 @@ def test_the_pure_modules_import_no_mujoco(module):
         if name.split(".")[0] not in sys.stdlib_module_names and name != "numpy" and name not in allowed_relative
     ]
     assert foreign == []
+
+
+@pytest.mark.parametrize("module", NEUTRAL_PURE_MODULES)
+def test_the_neutral_reduction_is_pure(module):
+    """floor_contact's package file and its reduction import only the standard library and numpy (the decode
+    settings read mujoco's cone enum in their body), so the gait pure modules that import it stay pure."""
+    imported = _import_time_imports(FLOOR_CONTACT / module)
+    assert [name for name in imported if name.split(".")[0] not in sys.stdlib_module_names and name != "numpy"] == []
+
+
+def test_the_floor_contact_package_imports_neither_gait_curriculum_nor_reporting():
+    """The T. rex env imports floor_contact, so an import of gait here (in a function body too) would bring the
+    gait package into a species env by the back door; curriculum and reporting build on gait.  This reads import
+    statements only: support_entry's species_registry import loads train_base, and through it the curriculum and gait,
+    when called, so the band builds its morphology without it (test_anatomical_stance_cop_band's
+    test_on_the_env_loads_no_gait_curriculum_or_registry_module_at_run_time pins that at run time)."""
+    paths = sorted(FLOOR_CONTACT.glob("*.py"))
+    assert {path.name for path in paths} >= {"__init__.py", "reduction.py", "morphology.py", "step_cop.py"}
+    offenders = [
+        f"{path.name}: {name}"
+        for path in paths
+        for name in _all_imports(path)
+        if any(part in ("gait", "curriculum", "reporting") for part in name.split("."))
+    ]
+    assert offenders == []
 
 
 def test_the_gait_package_imports_neither_curriculum_nor_reporting():

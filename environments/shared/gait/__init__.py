@@ -18,7 +18,9 @@ Modules, bottom-up:
   touchdowns, windows in seconds; pure numpy;
 * :mod:`~environments.shared.gait.morphology` -- feet, legs, support geoms,
   soles and body weight read off a live env, with each embodiment class's
-  explicit ``FOOT_SUPPORT`` entry (``support_entry``); imports mujoco;
+  explicit ``FOOT_SUPPORT`` entry (``support_entry``), re-exported from
+  :mod:`environments.shared.floor_contact.morphology`, and the measurement
+  definition; imports mujoco;
 * :mod:`~environments.shared.gait.recorder` -- ``SubstepContactRecorder``,
   attached through ``BaseDinoEnv._substep_probe_hook``, and the per-step
   ``EpisodeTrace`` it reduces an episode to; imports mujoco;
@@ -40,6 +42,9 @@ Modules, bottom-up:
 Layering rules: no species env module imports this package (an import line
 would change the env module's bytes, and with them its identity), and this
 package imports neither ``curriculum`` nor ``reporting``, which build on it.
+The contact reduction the recorder shares with the T. rex's opt-in CoP band
+(scratch, the stance4 copband design) lives outside it, in
+:mod:`environments.shared.floor_contact`, which imports nothing from here.
 Only the pure constants are re-exported here, so a pure reader (the gate) can
 import the package without mujoco; import the rest from its module.
 """
