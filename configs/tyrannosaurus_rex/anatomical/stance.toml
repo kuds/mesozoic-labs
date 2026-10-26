@@ -13,7 +13,8 @@
 # leg_home_pose_weight / leg_home_pose_tolerance / lateral_lean_weight / lateral_lean_tolerance_m /
 # leg_home_pose_reference, [ppo] symmetry*, [curriculum] eval_freq / eval_episodes / checkpoint_freq /
 # max_checkpoints and collapse_peak_floor_reference. Every key and value is cf80ecb1's, except
-# collapse_peak_floor_reference, re-measured on physics r10. Everything else is main's committed stance stage,
+# collapse_peak_floor_reference, re-measured on physics r10, and checkpoint_freq, 262,144 under the round's
+# D3 (a) (cf80ecb1: 524,288). Everything else is main's committed stance stage,
 # physics r10's constants included (natural_pitch 0.017 in the env, nosedive_termination_threshold 0.503,
 # min_avg_reward 2260, statue_constants_physics_revision 10).
 [stage]
@@ -1015,10 +1016,11 @@ certification_seeds = 2                 # Publication bar, not a gate threshold 
                                         # raising it relabels published bundles and invalidates no verdict.
 eval_freq = 131072                      # SCREEN (never merged): an evaluation every 131,072 steps of 10 episodes (fewer than
 eval_episodes = 10                      # min_eval_episodes, so the in-training gate cannot pass and the stage trains its whole
-checkpoint_freq = 524288                # budget; the screen judges its checkpoints offline on the 40-episode panel), and a
-                                        # periodic checkpoint every 524,288 steps, every one kept (max_checkpoints = 0), so
-                                        # models/stage1_{4194304,5242880,6291456,8388608,10485760}_steps.zip and their
-                                        # _vecnormalize_ pickles exist for the judge. Production: 50,000 / 30-or-
+checkpoint_freq = 262144                # budget; the screen judges its checkpoints offline on the 40-episode panel), and a
+                                        # periodic checkpoint every 262,144 steps, every one kept (max_checkpoints = 0):
+                                        # 45 pairs, models/stage1_{262144,524288,...,11796480}_steps.zip and their
+                                        # _vecnormalize_ pickles, for the judge (the r10 round's D3 (a), 2026-10-25;
+                                        # cf80ecb1 had 524,288). Production: 50,000 / 30-or-
                                         # min_eval_episodes / 100,000 / 5 (train_base._stage_cadence).
 max_checkpoints = 0                     # SCREEN: keep every periodic checkpoint. Production: 5, as this note says.
                                         # Periodic checkpoints kept (CheckpointRetentionCallback). At save_freq = 500k this stage
