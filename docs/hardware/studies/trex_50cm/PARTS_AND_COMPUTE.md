@@ -5,6 +5,18 @@ now represents the visual concept, 18-axis architecture and complete assigned
 mass ledger. Its short standing/gesture checks do not establish physical part
 fit, electrical compatibility, thermal duty or walking.
 
+**Longer candidate hardware reconciliation, 2026-10-26:** the
+[candidate hardware manifest](../../../../examples/tyrannosaurus_rex_50cm/long_body_hardware.json)
+and [sourcing/installation notes](../../../../examples/tyrannosaurus_rex_50cm/long_body/HARDWARE.md)
+supersede that candidate's earlier generic hardware proxies. NVIDIA's current
+[Super developer-kit datasheet](https://dam-cdn.nvd.orangelogic.com/AssetLink/2ug686w80406gxf6q8uv7r3l7265m2n8.pdf)
+specifies **103 × 90.5 × 34.77 mm**, including feet, carrier, module and thermal
+solution. The **120 × 110 × 65 mm** compute reservation remains an installation
+allowance, not a supplier dimension. The candidate also records battery
+tolerances, individual board quantities and unresolved motor revisions;
+aggregate masses remain unweighed budgets. The baseline BOM and original
+reference model remain unchanged.
+
 **Latest character direction, 2026-10-24:** the
 [head-focused study](../../../../examples/tyrannosaurus_rex_50cm/head_study/README.md)
 supersedes the fuller-torso preference. It explores a large skull and jaw over

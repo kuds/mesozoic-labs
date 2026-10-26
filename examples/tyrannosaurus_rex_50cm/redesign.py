@@ -12,10 +12,14 @@ import math
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
+from xml.etree import ElementTree as ET
+
+import numpy as np
 
 from environments.shared.robot_building import element, loft
 
 from . import build_model as base
+from .hardware_layout import apply_hardware
 from .proportions import attrs, component, find
 
 HERE = Path(__file__).resolve().parent
@@ -29,7 +33,7 @@ class Layout:
     skull_length_m: float = 0.260
     tail_length_m: float = 0.440
     tail_root_x_m: float = -0.220
-    battery_x_m: float = -0.145
+    battery_x_m: float = -0.170
     torso_shell_mass_g: float = 230
     pelvis_structure_mass_g: float = 380
     neck_support_mass_g: float = 80
@@ -73,6 +77,27 @@ class Builder(base.Builder):
         statistic.set("center", "-0.10 0 0.27")
         statistic.set("extent", "1.15")
 
+    def motor(self, parent: ET.Element, name: str, pos: Any, axis: str) -> None:
+        if name.endswith("_ankle_roll"):
+            # Preserve the joint axis while giving its axial case an extra
+            # millimeter behind the pitch case; bracket design is still pending.
+            pos = (pos[0] - 0.001, pos[1], pos[2])
+        super().motor(parent, name, pos, axis)
+        # Related supplier drawing reaches 56 mm at maximum axial tolerance.
+        # Keep the conservative 60 mm planning diameter and original joint axes.
+        for suffix in ("_case", "_case_collision"):
+            attrs(self, "geom", name + suffix, size=(0.030, 0.028))
+        dims = [0.030] * 3
+        axial = "xyz".index(axis)
+        dims[axial] = 0.028
+        component(self, name + "_motor", inertia_box_halfsize_m=dims)
+        sign = -1 if axis == "y" and pos[1] < 0 else 1
+        for suffix in ("_rim", "_cap", "_hub", *(f"_bolt_{i}" for i in range(6))):
+            geom = find(self, "geom", name + suffix)
+            location = np.fromstring(geom.attrib["pos"], sep=" ")
+            location[axial] += sign * 0.0005
+            attrs(self, "geom", name + suffix, pos=location)
+
     def upper_body(self) -> None:
         super().upper_body()
         t, spec = self.torso, self.layout
@@ -86,9 +111,9 @@ class Builder(base.Builder):
         # The visible surfaces follow these envelopes rather than covering an
         # opening with a cosmetic solid shell that the clearance screen ignores.
         for name, size, pos in (
-            ("torso_front", (0.070, 0.100, 0.060), (0.110, 0, 0.130)),
-            ("torso_bridge", (0.135, 0.095, 0.035), (-0.040, 0, 0.155)),
-            ("torso_rear", (0.070, 0.090, 0.065), (-0.160, 0, 0.125)),
+            ("torso_front", (0.085, 0.100, 0.070), (0.112, 0, 0.120)),
+            ("torso_bridge", (0.135, 0.105, 0.055), (-0.015, 0, 0.170)),
+            ("torso_rear", (0.110, 0.105, 0.075), (-0.170, 0, 0.072)),
         ):
             self.geom(t, name + "_shell", "ellipsoid", size, pos)
             self.collision(t, name, "ellipsoid", size, pos)
@@ -98,12 +123,12 @@ class Builder(base.Builder):
                 side + "_torso_cover",
                 "ellipsoid",
                 (0.087, 0.003, 0.029),
-                (-0.030, sign * 0.093, 0.153),
+                (-0.030, sign * 0.103, 0.170),
                 "dark_sage",
             )
             for i, x in enumerate((-0.085, -0.055, -0.025)):
                 self.geom(
-                    t, f"{side}_torso_vent_{i}", "box", (0.006, 0.001, 0.010), (x, sign * 0.097, 0.154), "graphite"
+                    t, f"{side}_torso_vent_{i}", "box", (0.006, 0.001, 0.010), (x, sign * 0.107, 0.170), "graphite"
                 )
             shoulder = (0.093, sign * 0.087, 0.108)
             attrs(self, "geom", side + "_shoulder_case", pos=shoulder)
@@ -120,7 +145,7 @@ class Builder(base.Builder):
                 size=(0.042, 0.015, 0.022),
                 pos=(0.031, sign * 0.002, -0.013),
             )
-            component(self, side + "_shoulder_motor", pos_m=list(shoulder))
+            component(self, side + "_shoulder_motor", pos_m=[shoulder[0], shoulder[1], shoulder[2] - 0.0075])
             component(self, side + "_shoulder_mount", pos_m=list(shoulder))
             attrs(self, "mesh", side + "_thigh_fairing_mesh", scale=(0.037, 0.027, 0.048))
             component(self, side + "_leg_cover", mass_kg=0.035, inertia_box_halfsize_m=[0.037, 0.027, 0.048])
@@ -141,8 +166,8 @@ class Builder(base.Builder):
             self,
             "torso_shell_mass",
             mass_kg=spec.torso_shell_mass_g / 1000,
-            pos_m=[-0.035, 0, 0.140],
-            inertia_box_halfsize_m=[0.200, 0.100, 0.060],
+            pos_m=[-0.030, 0, 0.135],
+            inertia_box_halfsize_m=[0.230, 0.105, 0.080],
         )
         self.component(
             t,
@@ -163,7 +188,7 @@ class Builder(base.Builder):
         tail = self.bodies["tail"]
         attrs(self, "body", "tail", pos=(spec.tail_root_x_m, 0, 0.125))
         attrs(self, "geom", "tail_bearing", pos=(spec.tail_root_x_m + 0.009, 0, 0.125), size=(0.035, 0.009))
-        component(self, "tail_motor", pos_m=[spec.tail_root_x_m + 0.016, 0, 0.125])
+        component(self, "tail_motor", pos_m=[spec.tail_root_x_m, -0.0075, 0.125])
         component(
             self,
             "tail_shell_mass",
@@ -181,16 +206,26 @@ class Builder(base.Builder):
             attrs(self, "geom", f"tail_segment_{i}_collision", fromto=(*points[i], *points[i + 1]), size=radius)
         # The base builder has already attached tail_shell to this body.
         assert find(self, "geom", "tail_shell") in list(tail)
+        apply_hardware(self, battery_x_m=spec.battery_x_m)
 
     def head(self) -> None:
         t, spec = self.torso, self.layout
         yaw_pos = (spec.neck_x_m, 0, spec.neck_z_m)
-        self.component(t, "head_yaw_motor", "head_motors_2_x_82g", 82, yaw_pos, (0.01425, 0.017, 0.02325))
+        self.component(
+            t, "head_yaw_motor", "head_motors_2_x_82g", 82, (yaw_pos[0], -0.012, yaw_pos[2]), (0.01425, 0.02325, 0.017)
+        )
         self.geom(t, "neck_yaw_case", "cylinder", (0.025, 0.018), yaw_pos, "graphite", group=2)
         yaw = self.body(t, "head_yaw_body", yaw_pos)
         self.joint(yaw, "head_yaw", (0, 0, 1), (-0.65, 0.65), 0.6, 6, 0.25)
         nod_pos = (spec.nod_reach_m, 0, 0.030)
-        self.component(yaw, "head_nod_motor", "head_motors_2_x_82g", 82, nod_pos, (0.01425, 0.02325, 0.017))
+        self.component(
+            yaw,
+            "head_nod_motor",
+            "head_motors_2_x_82g",
+            82,
+            (nod_pos[0], 0, nod_pos[2] - 0.012),
+            (0.01425, 0.017, 0.02325),
+        )
         self.geom(yaw, "neck_nod_case", "box", (0.01425, 0.02325, 0.017), nod_pos, "graphite", group=2)
         head = self.body(yaw, "head", nod_pos)
         self.joint(head, "head_nod", (0, 1, 0), (-0.25, 0.20), 0.6, 6, 0.25)
@@ -203,7 +238,11 @@ class Builder(base.Builder):
         self.component(head, "head_structure", "load_bearing_structure", 50, (0.025, 0, 0.015), (0.055, 0.035, 0.020))
         self.component(head, "head_bearings", "bearings_feet_fasteners", 39, (0, 0, 0), (0.020, 0.030, 0.020))
         jaw_pivot = (-0.025, 0, -0.015)
-        self.component(head, "jaw_motor", "character_motors_4_x_18g", 18, jaw_pivot, (0.013, 0.010, 0.017))
+        # The actuator sits beside the jaw on its unchanged Y axis, clear of
+        # the nod-motor body. The shaft and mounting bracket remain unqualified.
+        self.component(
+            head, "jaw_motor", "character_motors_4_x_18g", 18, (-0.025, 0.0375, -0.0225), (0.010, 0.013, 0.017)
+        )
         jaw = self.body(head, "jaw", jaw_pivot)
         self.joint(jaw, "jaw_pitch", (0, 1, 0), (0, 0.28), 0.1, 1.5, 0.04)
         self.mesh(jaw, "jaw_shell", (1, 1, 1), (0, 0, 0), "cream", source="jaw")
@@ -314,12 +353,14 @@ def build(directory: Path = HERE / "long_body", layout: Layout = Layout()) -> Pa
             (f"{side}_contact_force_{i}", f"{side}_contact_{i}") for side in ("left", "right") for i in range(4)
         ],
         limitations=[
-            "Unweighed packaging candidate with the original medium leg mechanism, motor cases, torque caps and joint ranges.",
+            "Unweighed packaging candidate with original leg joint axes, torque caps and ranges; motor cases allow 56 mm axial length.",
             "Existing component allocations are retained; longer torso, neck and tail receive explicit additional mass.",
             "The 600 g integration reserve is retained. Component box inertias use the parallel-axis theorem.",
             "Three torso lobes represent occupied envelopes around an open lower hip bay, not qualified fabrication CAD.",
             "Bearing capacities, wiring clearances, bracket strength and thermal performance are unverified.",
             "Local leg actuators are retained. Crouch-to-stand and self-righting require separate motion evidence.",
+            "Sourced catalog dimensions and planning installation allowances are separate in long_body_hardware.json.",
+            "Electronics consume aggregate mass budgets; their installed masses and centers of gravity remain estimates.",
         ],
         metadata={
             "layout": layout.as_dict(),

@@ -12,6 +12,8 @@ import pytest
 from environments.shared.robot_design_validation import screen_design
 from environments.shared.robot_geometry import visual_bounds
 from examples.tyrannosaurus_rex_50cm import demo, redesign, redesign_review
+from examples.tyrannosaurus_rex_50cm.hardware_checks import check_hardware
+from examples.tyrannosaurus_rex_50cm.hardware_layout import load_manifest
 
 HERE = Path(redesign.__file__).parent
 
@@ -43,8 +45,11 @@ def test_longer_lower_layout_keeps_hardware_caps_leg_geometry_and_reserve():
             np.testing.assert_array_equal(model.body(side + "_" + suffix).pos, baseline.body(side + "_" + suffix).pos)
         for suffix in ("hip_yaw", "hip_roll", "hip_pitch", "knee", "ankle_pitch", "ankle_roll"):
             name = f"{side}_{suffix}_case_collision"
-            np.testing.assert_array_equal(model.geom(name).size, baseline.geom(name).size)
-            np.testing.assert_array_equal(model.geom(name).pos, baseline.geom(name).pos)
+            np.testing.assert_allclose(model.geom(name).size, [0.030, 0.028, 0])
+            expected_pos = baseline.geom(name).pos.copy()
+            if suffix == "ankle_roll":
+                expected_pos[0] -= 0.001
+            np.testing.assert_array_equal(model.geom(name).pos, expected_pos)
     ledger = json.loads((HERE / "long_body/components.json").read_text())
     assert ledger["categories_kg"]["unallocated_integration_reserve"] == 0.6
     assert ledger["categories_kg"]["leg_motors_12_x_330g"] == 3.96
@@ -85,3 +90,14 @@ def test_parameterized_build_records_actual_layout_and_updates_mass(tmp_path):
     model = mujoco.MjModel.from_xml_path(str(path))
     current = mujoco.MjModel.from_xml_path(str(HERE / "long_body/model.xml"))
     assert model.body_mass.sum() - current.body_mass.sum() == pytest.approx(0.020)
+
+
+def test_custom_battery_placement_uses_resolved_hardware_evidence(tmp_path):
+    path = redesign.build(tmp_path, replace(redesign.Layout(), battery_x_m=-0.168))
+    ledger = json.loads(path.with_name("components.json").read_text())
+    model = mujoco.MjModel.from_xml_path(str(path))
+    assert check_hardware(model, ledger, load_manifest(ledger["layout"]))["known_limits_passed"]
+    assert not check_hardware(model, ledger, load_manifest())["known_limits_passed"]
+    sources = redesign_review.source_paths(path)
+    assert path in sources and path.with_name("components.json") in sources
+    assert HERE / "long_body/model.xml" not in sources

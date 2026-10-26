@@ -25,6 +25,7 @@ from environments.shared.paths import REPOSITORY_ROOT
         ("tyrannosaurus_rex_50cm", "mechanical_validation.json", "."),
         ("tyrannosaurus_rex_50cm", "long_body/mechanical_validation.json", "."),
         ("tyrannosaurus_rex_50cm", "long_body/comparison.json", "."),
+        ("tyrannosaurus_rex_50cm", "long_body/hardware_validation.json", "."),
     ],
 )
 def test_current_report_source_hashes(directory, report, source_base):
@@ -36,7 +37,10 @@ def test_current_report_source_hashes(directory, report, source_base):
         required.update(("robot_building.py", "robot_geometry.py"))
         if report != "validation.json":
             required.add("robot_rendering.py")
-        if report.endswith("mechanical_validation.json") or report == "long_body/comparison.json":
+        if (
+            report.endswith(("mechanical_validation.json", "hardware_validation.json"))
+            or report == "long_body/comparison.json"
+        ):
             required.update(("robot_design_spec.py", "robot_design_validation.py", "robot_clearance.py"))
     elif report == "character_validation.json":
         required.add("robot_rendering.py")

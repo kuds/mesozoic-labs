@@ -1,6 +1,6 @@
 """Compare static leg support loads with an idealized motor-mass relocation.
 
-This is a symmetric two-foot gravity balance, not a transmission design or a
+This is a two-foot gravity balance, not a transmission design or a
 fall-recovery trial. The remote-drive alternative adds no mechanism mass or
 losses; its motors deliberately share abstract torso mass locations.
 """
@@ -62,7 +62,17 @@ def _support_loads(
     support = np.zeros(model.nv)
     feet: dict[str, Any] = {}
     floor_z = float(data.geom_xpos[model.geom("floor").id, 2])
-    for side in ("left", "right"):
+    sides = ("left", "right")
+    lateral = [float(data.geom_xpos[model.geom(side + "_sole_collision").id, 1]) for side in sides]
+    span = lateral[0] - lateral[1]
+    if not math.isfinite(span) or abs(span) <= 1e-10:
+        raise ValueError("Static support comparison requires laterally separated sole centers.")
+    weight = float(model.body_subtreemass[root] * 9.81)
+    left_force = weight * (center[1] - lateral[1]) / span
+    # Keep negative results as evidence of infeasible support. Clamping would
+    # silently discard the roll moment from a COM outside the assumed contacts.
+    normal_forces = (left_force, weight - left_force)
+    for side, normal_force in zip(sides, normal_forces, strict=True):
         geom = model.geom(side + "_sole_collision").id
         rotation = data.geom_xmat[geom].reshape(3, 3)
         if model.geom_type[geom] != mujoco.mjtGeom.mjGEOM_BOX or not np.allclose(
@@ -75,7 +85,7 @@ def _support_loads(
         margin = model.geom_size[geom, :2] - np.abs(local[:2])
         jacobian = np.zeros((3, model.nv))
         mujoco.mj_jac(model, data, jacobian, None, point, int(model.geom_bodyid[geom]))
-        force = np.array([0.0, 0.0, model.body_subtreemass[root] * 9.81 / 2])
+        force = np.array([0.0, 0.0, normal_force])
         support += jacobian.T @ force
         feet[side] = {
             "assumed_center_of_pressure_m": point.tolist(),
@@ -112,6 +122,7 @@ def _support_loads(
         "checks": {
             "cop_inside_both_soles": all(min(foot["cop_margin_xy_m"]) >= 0 for foot in feet.values()),
             "soles_at_floor": all(abs(foot["sole_bottom_z_m"] - floor_z) <= 1e-9 for foot in feet.values()),
+            "positive_normal_forces": all(force > 0 for force in normal_forces),
             "free_root_equilibrium": residual <= 1e-8,
             "within_gravity_torque_budget": max(fractions.values()) <= TORQUE_BUDGET_FRACTION,
         },
@@ -124,7 +135,8 @@ def compare_motor_locations(
     """Compare the actual layout with moving six motor masses to the torso.
 
     ``components`` is the full ``components.json["components"]`` list. Each
-    scenario uses explicit equal vertical ground forces at the sagittal COM.
+    scenario solves vertical ground forces at the sagittal COM and lateral
+    sole centers, balancing the whole-body weight and lateral gravity moment.
     Failed center-of-pressure/equilibrium checks make that assumed support
     infeasible even when individual actuator torques remain below their caps.
     """
@@ -162,14 +174,15 @@ def compare_motor_locations(
             }
         )
     return {
-        "scope": "Symmetric two-foot quasi-static gravity balance; no transmission or recovery validation.",
+        "scope": "Two-foot quasi-static gravity balance; no transmission or recovery validation.",
         "model_mass_kg": float(model.body_subtreemass[root]),
         "relocated_motor_mass_kg": sum(float(part["mass_kg"]) for part in motors),
         "relocated_motor_names": list(MOVED_MOTORS),
         "allowed_torque_fraction": TORQUE_BUDGET_FRACTION,
         "assumptions": [
-            "Both soles are horizontal; each foot supplies half the body weight vertically, with sagittal "
-            "center of pressure at the scenario's whole-body center of mass and lateral position at sole center.",
+            "Both soles are horizontal. Vertical foot forces balance weight and the lateral gravity moment, "
+            "with sagittal center of pressure at the scenario's whole-body center of mass and lateral position "
+            "at sole center. Nonpositive foot forces make this assumed two-foot support infeasible.",
             "The crouch uses hip and ankle pitch offsets of minus half the knee angle. The torso stays upright.",
             "The alternative moves knee/ankle motor mass to torso-local points (0.015, +/-0.060, 0.040)m; "
             "coincident motors are abstract mass locations, not a packaged or clearance-checked mechanism.",

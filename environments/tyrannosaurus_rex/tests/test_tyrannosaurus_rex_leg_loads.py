@@ -78,6 +78,42 @@ def test_unsupported_center_of_pressure_is_reported_even_with_adequate_torque():
     assert home["feet"]["left"]["cop_margin_xy_m"][0] < 0
 
 
+@pytest.mark.parametrize("battery_offset_y", [0.080, 3.0])
+def test_lateral_mass_placement_balances_normal_loads_or_rejects_tension(battery_offset_y):
+    model, components = inputs()
+    battery = next(part for part in components if part["name"] == "battery")
+    body = model.body(battery["body"]).id
+    battery["pos_m"][1] += battery_offset_y
+    model.body_ipos[body, 1] += battery["mass_kg"] * battery_offset_y / model.body_mass[body]
+    mujoco.mj_setConst(model, mujoco.MjData(model))
+    report = compare_motor_locations(model, components)
+    for pose in report["poses"]:
+        for scenario in ("actual_layout", "ideal_torso_relocation"):
+            row = pose[scenario]
+            left, right = (row["feet"][side] for side in ("left", "right"))
+            loads = [left["assumed_vertical_force_n"], right["assumed_vertical_force_n"]]
+            weight = report["model_mass_kg"] * 9.81
+            assert sum(loads) == pytest.approx(weight)
+            assert sum(
+                foot["assumed_vertical_force_n"] * foot["assumed_center_of_pressure_m"][1] for foot in (left, right)
+            ) == pytest.approx(weight * row["whole_body_com_m"][1])
+            assert row["free_root_equilibrium_residual_norm"] < 1e-8
+            if battery_offset_y < 1:
+                assert loads[0] > loads[1] > 0
+                assert row["checks"]["positive_normal_forces"]
+            else:
+                assert loads[1] < 0  # Infeasible contact is reported, never clamped away.
+                assert not row["checks"]["positive_normal_forces"]
+
+
+def test_coincident_lateral_sole_centers_are_rejected():
+    model, components = inputs()
+    for side, sign in (("left", 1), ("right", -1)):
+        model.geom_pos[model.geom(side + "_sole_collision").id, 1] -= sign * 0.112
+    with pytest.raises(ValueError, match="laterally separated sole centers"):
+        compare_motor_locations(model, components)
+
+
 def test_study_rejects_a_ledger_that_does_not_describe_the_compiled_model():
     model, components = inputs()
     components[0]["mass_kg"] += 0.1

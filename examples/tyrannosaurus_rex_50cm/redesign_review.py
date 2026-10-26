@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import itertools
 import json
 import sys
@@ -19,6 +20,8 @@ from environments.shared.robot_design_validation import screen_design, write_rep
 from environments.shared.robot_geometry import visual_bounds
 
 from . import demo, mechanical_checks, redesign, validate
+from .hardware_checks import check_hardware
+from .hardware_layout import MANIFEST_PATH, load_manifest
 from .leg_load_screen import compare_motor_locations
 from .recovery_checks import run_crouch_trial
 
@@ -145,9 +148,12 @@ def compare(*, candidate: Path = OUTPUT / "model.xml", duration: float = 10) -> 
             "crouch_to_stand": rises,
             "leg_motor_location_screen": compare_motor_locations(model, ledger["components"]),
         }
+        if name == "long_body":
+            cases[name]["hardware"] = check_hardware(model, ledger, load_manifest(ledger["layout"]))
     revised = cases["long_body"]
     failed = (
         candidate_mechanical["status"] == "failed"
+        or revised["hardware"]["status"] == "failed"
         or not all(trial["passed"] for trial in revised["standing"].values())
         or not all(trial["passed"] for trial in revised["crouch_to_stand"])
         or any(trial["recorded_clearance"]["status"] == "failed" for trial in revised["crouch_to_stand"])
@@ -180,6 +186,10 @@ def source_paths(candidate: Path = OUTPUT / "model.xml") -> tuple[Path, ...]:
         HERE / "recovery_checks.py",
         HERE / "leg_load_screen.py",
         HERE / "validate.py",
+        HERE / "hardware_checks.py",
+        HERE / "hardware_layout.py",
+        HERE / "hardware_views.py",
+        MANIFEST_PATH,
         candidate,
         candidate.with_name("components.json"),
         *sorted((candidate.parent / "assets").glob("*.obj")),
@@ -192,9 +202,13 @@ def render_comparison(report: dict[str, Any], output_dir: Path = OUTPUT) -> None
 
     from environments.shared.robot_rendering import font
 
+    from .hardware_views import png_metadata, source_stamp, write_service_view
     from .render_design import camera_basis, geometry, render
 
     model_paths = [Path(report["cases"][name]["model"]) for name in ("current", "long_body")]
+    candidate_path = model_paths[1] if model_paths[1].is_absolute() else SOURCE_ROOT / model_paths[1]
+    sources = source_paths(candidate_path)
+    stamp = source_stamp(sources, SOURCE_ROOT)
     models = [demo.load_model(path=path if path.is_absolute() else SOURCE_ROOT / path) for path in model_paths]
     output_dir.mkdir(parents=True, exist_ok=True)
     sheet = Image.new("RGB", (1600, 1320), (245, 247, 244))
@@ -235,8 +249,9 @@ def render_comparison(report: dict[str, Any], output_dir: Path = OUTPUT) -> None
         font=font(19),
         fill="#536158",
     )
-    sheet.save(output_dir / "comparison.png")
+    sheet.save(output_dir / "comparison.png", pnginfo=png_metadata(stamp))
     model, _ = models[1]
+    write_service_view(model, output=output_dir / "hardware_layout.png", source_paths=sources, source_root=SOURCE_ROOT)
     data = mujoco.MjData(model)
     trial = report["cases"]["long_body"]["crouch_to_stand"][-1]
     projections = []
@@ -273,7 +288,20 @@ def render_comparison(report: dict[str, Any], output_dir: Path = OUTPUT) -> None
             1000 * (trial["pose_samples"][-1]["time_s"] - trial["pose_samples"][0]["time_s"]) / max(1, len(frames) - 1)
         )
         frames[0].save(
-            output_dir / "crouch_to_stand.gif", save_all=True, append_images=frames[1:], duration=interval, loop=0
+            output_dir / "crouch_to_stand.gif",
+            save_all=True,
+            append_images=frames[1:],
+            duration=interval,
+            loop=0,
+            comment=json.dumps(
+                {
+                    **stamp,
+                    "pose_samples_sha256": hashlib.sha256(
+                        json.dumps(trial["pose_samples"], sort_keys=True, separators=(",", ":")).encode()
+                    ).hexdigest(),
+                },
+                sort_keys=True,
+            ).encode(),
         )
 
 
@@ -288,7 +316,18 @@ def main(argv: Sequence[str] | None = None) -> int:
         if argv is None
         else [sys.executable, "-m", "examples.tyrannosaurus_rex_50cm.redesign_review", *argv]
     )
-    for payload, filename in ((report, "comparison.json"), (mechanical, "mechanical_validation.json")):
+    hardware = report["cases"]["long_body"]["hardware"]
+    report["cases"]["long_body"]["hardware"] = {
+        "status": hardware["status"],
+        "known_limits_passed": hardware["known_limits_passed"],
+        "report": "hardware_validation.json",
+        "coverage": hardware["coverage"],
+    }
+    for payload, filename in (
+        (report, "comparison.json"),
+        (mechanical, "mechanical_validation.json"),
+        (hardware, "hardware_validation.json"),
+    ):
         write_report(
             payload, output=OUTPUT / filename, source_paths=source_paths(), source_root=SOURCE_ROOT, command=command
         )
