@@ -80,7 +80,7 @@ class TestJointSigma:
         assert "no joint-space sigma file" in K.read_joint_sigma(None, "80").problem
         assert "cannot be read" in K.read_joint_sigma(tmp_path / "missing.json", "80").problem
         (tmp_path / "bad.json").write_text("{", encoding="utf-8")
-        assert "not JSON" in K.read_joint_sigma(tmp_path / "bad.json", "80").problem
+        assert "not a JSON object" in K.read_joint_sigma(tmp_path / "bad.json", "80").problem
 
     def test_a_vector_of_another_width_is_withdrawn(self):
         sigma = K.read_joint_sigma(SIDECAR, "80").checked(12)

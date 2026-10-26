@@ -72,7 +72,6 @@ from __future__ import annotations
 
 import csv
 import hashlib
-import json
 import logging
 import math
 import platform
@@ -87,6 +86,7 @@ import numpy as np
 
 from .curriculum import sb3_compat
 from .curriculum.sb3_compat import BaseCallback
+from .file_io import read_json_object
 from .model_id import ModelId
 
 logger = logging.getLogger(__name__)
@@ -235,12 +235,17 @@ def read_joint_sigma(sigma_file: str | Path | None, sigma_key: str | None) -> Jo
         )
     digest = hashlib.sha256(raw).hexdigest()
     base = JointSigma(None, "", str(path), digest, sigma_key, None)
-    try:
-        document = json.loads(raw.decode("utf-8"))
-    except (UnicodeDecodeError, ValueError) as exc:
-        return JointSigma(None, f"the sigma file is not JSON ({exc})", base.file, digest, sigma_key)
-    if not isinstance(document, Mapping):
-        return JointSigma(None, "the sigma file is not a JSON object", base.file, digest, sigma_key)
+    # The repo's one lenient reader (``file_io.read_json_object``): a file that is not UTF-8, not
+    # JSON or not an object reads ``None``, named here, never raised on.
+    document = read_json_object(path)
+    if document is None:
+        return JointSigma(
+            None,
+            "the sigma file is not a JSON object (not UTF-8, not JSON, or not an object)",
+            base.file,
+            digest,
+            sigma_key,
+        )
     if not sigma_key:
         return JointSigma(None, "no sigma key was given at launch", base.file, digest, sigma_key)
     candidates = (
