@@ -8,6 +8,114 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **Commands, tail and body posture, energy, drift and slip, and four
+  `MjData` extras per evaluation episode in `eval_episodes.csv`** (the
+  maintainer's decisions of 2026-10-25 15:44 UTC in the stance run log,
+  items (1) to (3), and 16:15 UTC: no MuJoCo sensor, all four MjData-derived
+  extras, the specification's other defaults accepted;
+  `environments/shared/gait/body_telemetry.py`,
+  `environments/shared/gait/recorder.py`,
+  `environments/shared/eval_diagnostics.py`; documented in
+  `docs/TRAINING_ARTIFACT_PRESENTATION.md`, "The body columns"). Report
+  only. Where the recorder runs (the T. rex, both Compsognathus models and
+  the Dibothrosuchus; the Velociraptor and the Brachiosaurus keep the
+  documented gap), 118 columns on the T. rex, appended after the posture
+  columns, over the gate's window: (1a) each actuator's window-mean command
+  and the at-rail and parked actuators named with their signs; (1b) each
+  tail hinge's angle (+ tip up, + tip left), the tail-tip chord angle,
+  the pelvis height, pitch range and roll; (2) per group (legs, tail,
+  neck and head) the absolute and net mechanical work, peak power, torque
+  RMS (and as a fraction of the force limit) and command jitter from the
+  actuator force and velocity at every substep, the episode's
+  `action_delta` term and each leg's work; (3) the screen's drift copied,
+  its fore-aft and lateral parts, the path length, the signed yaw change,
+  each foot's slip (the force-weighted sliding speed of its floor contacts
+  from `efc_vel`) and net site travel; and the extras: (g) each limited tail
+  hinge's and leg joint's share of substeps on its stop and mean stop
+  torque, (h) the CoM's and capture point's margins to the toe and heel
+  lines and the centroidal angular momentum, (c, d) the tail-base and
+  neck-base wrench from `cfrc_int`, (a) the head's angular-rate RMS. The
+  recorder's new opt-in captures (`record_actuators`, `record_slip`,
+  `record_joint_limits`, `record_momentum`, `record_wrenches`,
+  `record_body_velocity`; the tail tip joins the head tip in the one
+  `record_sites` call) copy `MjData` and never write it, behind
+  `report_extensions`; no new MJCF sensor, no `gate_progress.npz` key, gate
+  input, `StanceEpisodeMetrics` field or `progress.json` entry, no digest
+  moves, and `train_episodes.csv` is unchanged. Measured: the extended
+  in-suite inertness proof trains and evaluates bit for bit alike with them
+  on and off; on the r10 statue and the r9 checkpoint `stance5_LTSB_s42`
+  4,194,304 (deterministic, K3 joint-space and own-sigma noise; seeds 3042
+  and 3043) all 116 numeric columns equal an independent per-substep
+  recomputation with MuJoCo's own functions to 2.3e-14, the copied drift is
+  the screen's bit for bit, and a Newton-Euler free-body check agrees with
+  the base wrenches to 4e-4 N standing (0.42 N of 154 under joint noise);
+  per window-step weighted evaluation the command means and jitter are its
+  `action_dc_per_actuator` and `action_delta` to 1e-12. Cost [measured,
+  loaded host]: about 67 ms per 1000-step statue episode attributed in
+  place (4.4%), median A/B +2.3% (statue) and +6.0% (r9 policy), within the
+  specification's +10%; a T. rex row grows by about 1.6 to 2.0 KB, to
+  about 3.2 KB.
+- **The in-run K3 noise panel** (the maintainer's decisions of 2026-10-25
+  15:44 UTC in the stance run log, item (6), and 16:15 UTC: the judge's full
+  K3 every 1,048,576 steps and at the end, synchronous, off by default and
+  enabled at launch, the offline judge's K3 staying the K3 of record, the
+  specification's other defaults accepted;
+  `environments/shared/k3_panel.py`, wired in `train_base.train(...,
+  k3_panel=...)`, the command line's `train --k3-panel` and the SB3
+  notebook's `K3_PANEL` cell; documented in
+  `docs/TRAINING_ARTIFACT_PRESENTATION.md`, "The in-run K3 noise panel").
+  Report only, never a stage key (no digest moves). On the stance stage, at
+  every 1,048,576 steps and at training end (after the final checkpoint
+  pair is saved, so an interruption during it cannot cost the pair), it
+  rolls the stance5
+  replication judge's two K3 noise tests with the judge's arithmetic (20
+  spawns each, own sigma and the joint-space sigma read at launch from a
+  JSON file and recorded by sha256) on a CPU copy of the live policy and a
+  copy of the normalizer's statistics, in an env of its own, inside a guard
+  of the global generators, into `k3_panel.csv` and `k3_panel.json`
+  (`mesozoic.k3-panel/v1`) beside the ledgers; never `gate_progress.npz`,
+  `progress.json`, TensorBoard or any gate input. A resume keeps the prior
+  panels, copies the prior files aside and rolls a missing grid panel on the
+  restored pair's statistics. Measured: the extended in-suite inertness
+  proof trains bit for bit alike with the panel on and off, with stock PPO
+  and with mirror-symmetric PPO (`[ppo] symmetry = "mirror_kl"`), its
+  panels every 128 steps (three inside a rollout), and its panels equal an
+  offline run on the checkpoint pairs saved at their steps; on the
+  judges' own tree (cf80ecb1) the panel reproduces the judge files of
+  `stance5_LTSB_s80` at 4,194,304 (joint-space falls 2 of 20, at seeds 3051
+  and 3061) and `stance5_LTSB_s42` at 4,194,304 (0 and 0) episode for
+  episode, lengths, termination reasons and returns bit for bit; a
+  40-episode panel of that checkpoint (38 of 40 episodes to the horizon)
+  takes about 85 s on the local 4-vCPU host. [inferred] One that holds all
+  40 takes about 88 s, so a 12M-step run's 12 panels about 17.6 min; on a
+  Colab L4 about 18 to 26 min, about 2 to 3% of a 14.4 to 15.4 h run.
+- **Training-history pages 13 to 19** (the maintainer's decisions of
+  2026-10-25 15:44 UTC, item (4), and 16:15 UTC: the observation
+  normalization read through a whitelisting stub unpickler;
+  `environments/shared/reporting/training_history.py`; documented in
+  `docs/TRAINING_ARTIFACT_PRESENTATION.md`, "Training history pages"). Report
+  only, after the hip roll page so every earlier page keeps its name:
+  `13_commands` (each actuator's window-mean command with the parked and
+  rail lines, and the episodes at rail and parked by actuator and sign),
+  `14_tail_body` (the tail's chord and hinges, the pelvis's height, pitch
+  and roll), `15_energy` (work, peak power, torque and command jitter per
+  actuator group, and per leg), `16_drift_slip` (the displacement, path,
+  signed yaw, and each foot's slip beside its site travel),
+  `17_exploration_k3` (the leg actuators' exploration std from
+  `policy_probe.npz` beside K3's falls from the in-run panel and the judge
+  files), `18_obs_normalization` (the normalization's drift per checkpoint
+  from the VecNormalize pickles in `models/`, read through a stub
+  unpickler that runs no numpy, SB3 or gymnasium code and decodes the
+  statistics from their raw bytes as plain numbers, protocol 4 or 5, with
+  the probe's per-update statistics) and `19_body_dynamics` (the four
+  MjData extras: joint stops, base wrenches, the CoM's and capture point's
+  margins, the centroidal angular momentum and the head's rate, on one page
+  of their own so pages 13 to 18 are the specification's); the JSON gains
+  `k3_panel`, `exploration` (each leg actuator's std at every K3 point, the
+  point's own sigma where recorded) and `obs_normalization`. A ledger without the body columns, a run without the
+  probe, the pickles or the panel renders labelled absent panels. Measured:
+  the probe's rows equal the pickles cast to float32 at their shared steps
+  (the stance5 replication run s80 at 4,194,304, and in the suite).
 - **The stance5 replication judge's K3 criterion, read out over training in
   the training-history report** (the maintainer's decisions of 2026-10-25
   14:13 UTC in the stance run log, item (4): task #47's remaining judge-K3

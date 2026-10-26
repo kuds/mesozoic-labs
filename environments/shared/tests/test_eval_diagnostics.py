@@ -1708,9 +1708,12 @@ def _rail_keys(model_id) -> tuple[str, ...]:
 
 
 def _real_evaluation(
-    model_id, tmp_path, monkeypatch, *, action=None, episodes=2, extra_steps=40, seed=0, evaluations=1
+    model_id, tmp_path, monkeypatch, *, action=None, episodes=2, extra_steps=40, seed=0, evaluations=1, policy=None
 ):
     """*evaluations* short evaluations of *model_id*'s stance on its real eval env (VecNormalize over a DummyVecEnv).
+
+    The policy holds *action* (zero by default), or *policy* answers ``predict`` (``(observations, **kwargs) ->
+    (actions, None)``).
 
     Seeded: an unseeded reset draws a new spawn on every run, and some spawns fall before the settle window ends
     (the T. rex statue on reset seed 4 at step 178; the held left ankle on seeds 4 and 9), which leaves no
@@ -1762,7 +1765,9 @@ def _real_evaluation(
     model.get_vec_normalize_env.return_value = None
     model.num_timesteps = 1
     model.logger = MagicMock()
-    model.predict.side_effect = lambda observations, **kwargs: (np.tile(held, (observations.shape[0], 1)), None)
+    model.predict.side_effect = policy or (
+        lambda observations, **kwargs: (np.tile(held, (observations.shape[0], 1)), None)
+    )
     callback.init_callback(model)
     plateau.init_callback(model)
     try:
@@ -2785,11 +2790,16 @@ class TestTheExtensionsOnARealEvaluation:
             "l_hip_roll_mean_deg",
             "l_hip_roll_max_abs_deg",
         ]
-        assert header[-len(columns) :] == columns and header[-len(columns) - 1] == "l_ankle_moment_arm_m"
+        # The posture columns follow the force columns, and the body columns follow them (last).
+        body = list(callback.body_columns)
+        start = len(header) - len(body) - len(columns)
+        assert header[start : start + len(columns)] == columns and header[start - 1] == "l_ankle_moment_arm_m"
+        assert body and header[start + len(columns) :] == body
         (layout,) = callback._posture_layouts
         assert len(rows) == len(traces) == 2
         for row, trace in zip(rows, traces):
-            assert trace.site_names == ("head_tip",)  # the recorder captured the head tip for these columns
+            # One record_sites call: the head tip for these columns, the tail tip for the body columns' chord.
+            assert trace.site_names == ("head_tip", "tail_tip")
             expected = episode_posture_telemetry(trace, layout, settle_steps=settle)
             assert [row[key] for key in columns] == [repr(value) for value in expected.values()]
             assert 0.3 < float(row["head_tip_height_min_m"]) <= float(row["head_tip_height_mean_m"]) < 2.0
@@ -2839,7 +2849,13 @@ class TestTheExtensionsOnARealEvaluation:
                 reader = csv.DictReader(handle)
                 tables.append((list(reader.fieldnames or []), list(reader)))
         (plain_header, plain_rows), (header, rows) = tables
-        posture = [column for column in plain_header if column not in header or column in callback.posture_columns]
+        # The one record_sites call also holds the body columns' tail tip: its chord columns go with the head tip's.
+        chord = ["tail_tip_chord_mean_deg", "tail_tip_chord_min_deg", "tail_tip_chord_max_deg"]
+        posture = [
+            column
+            for column in plain_header
+            if column not in header or column in callback.posture_columns or (failure == "sites" and column in chord)
+        ]
         kept = [column for column in plain_header if column not in posture]
         assert [{key: row[key] for key in kept} for row in rows] == [
             {key: row[key] for key in kept} for row in plain_rows
@@ -2851,6 +2867,7 @@ class TestTheExtensionsOnARealEvaluation:
             for row, plain in zip(rows, plain_rows):
                 assert row["head_tip_height_mean_m"] == row["head_tip_height_min_m"] == "nan"
                 assert row["neck_pitch_mean_deg"] == plain["neck_pitch_mean_deg"] != "nan"
+                assert all(row[column] == "nan" != plain[column] for column in chord)
 
     def test_a_padless_model_has_no_force_matrix_and_no_balance_key(self, tmp_path, monkeypatch):
         callback, data, _traces, _settle, _hook = _real_evaluation(VELOCIRAPTOR_MONGOLIENSIS, tmp_path, monkeypatch)
@@ -2898,6 +2915,9 @@ class TestTheExtensionsOnARealEvaluation:
         assert callback._foot_keys() == () and attached == [] and traces == [] and not hook_left
         assert callback.posture_columns == () and callback.__dict__.get("_posture_layouts") == []
         assert callback._episode_posture(None, 0) == {}
+        # Nor any body column (the same gap: commands, posture, energy, drift and slip need a recorded trace).
+        assert callback.body_columns == () and callback.__dict__.get("_body_layouts") == []
+        assert callback._episode_body(None, 0) == {}
         assert header == list(EVAL_LEDGER_FIXED_COLUMNS) and len(rows) == 4
         assert not set(described) & (set(header) | set(data.files))
         parts = ("head_tip", "neck_pitch", "head_pitch", "hip_roll")
@@ -3025,3 +3045,175 @@ def test_the_recorded_history_reads_no_stance_v2_gate_from_the_npz_keys(tmp_path
     }
     assert _recorded_stance_v2_gate(curriculum, rows) is None
     assert not set(data.files) & {"stance_clean_count", "n_stance_samples", "success_count", "n_success_samples"}
+
+
+def _jittering_policy(seed: int = 5):
+    """A deterministic policy for a real evaluation: the tail held up at its rail (as the four failed runs held it;
+    the statue stands to the horizon so) and a small seeded jitter on every other actuator."""
+    rng = np.random.default_rng(seed)
+
+    def predict(observations, **kwargs):
+        actions = np.clip(0.03 * rng.standard_normal((observations.shape[0], 15)), -1.0, 1.0)
+        actions[:, 14] = 1.0  # tail_3_pitch_act at its rail: the at-rail column has something to name
+        return actions.astype(np.float32), None
+
+    return predict
+
+
+class TestTheBodyColumnsOnARealEvaluation:
+    """The T. rex: commands, tail and body posture, energy, drift and slip and the four extras, through its eval env."""
+
+    def test_the_body_columns_come_last_are_the_reductions_own_and_never_reach_the_npz(self, tmp_path, monkeypatch):
+        import csv
+
+        from environments.shared.gait.body_telemetry import TEXT_COLUMNS, episode_body_telemetry
+        from environments.shared.gait.stance_metrics import episode_stance_metrics
+
+        callback, data, traces, settle, _hook = _real_evaluation(
+            TYRANNOSAURUS_REX, tmp_path, monkeypatch, policy=_jittering_policy()
+        )
+        with open(tmp_path / "eval_episodes.csv", newline="") as handle:
+            reader = csv.DictReader(handle)
+            header, rows = list(reader.fieldnames or []), list(reader)
+        body = list(callback.body_columns)
+        assert len(body) == 118 and header[-len(body) :] == body  # after the posture columns, last
+        assert header[-len(body) - 1] == "l_hip_roll_max_abs_deg"
+        assert body[0] == "neck_pitch_act_command_mean" and "root_pitch_mean_deg" not in body  # the balance has it
+        (layout,) = callback._body_layouts
+        for row, trace in zip(rows, traces):
+            assert trace.actuator_force_substep is not None and trace.leg_slip_speed is not None
+            stance = episode_stance_metrics(trace, settle_steps=settle)
+            expected = episode_body_telemetry(trace, layout, settle_steps=settle, stance=stance)
+            cells = [
+                value if key in TEXT_COLUMNS else ("nan" if math.isnan(value) else repr(value))
+                for key, value in expected.items()
+            ]
+            assert [row[key] for key in body] == cells
+            # Copied from the screen's metrics, bit for bit; the per-foot travel tops out at its max_foot_slide_m.
+            assert row["window_displacement_m"] == repr(stance.window_displacement_m)
+            assert max(float(row["r_site_travel_m"]), float(row["l_site_travel_m"])) == stance.max_foot_slide_m
+            assert row["rail_actuators"] == "tail_3_pitch_act+" and row["actuators_at_rail"] == "1.0"
+            assert row["full_horizon"] == "1"
+        # Ledger-only: no body column reaches gate_progress.npz.
+        assert not set(body) & set(data.files)
+
+    def test_the_command_means_and_jitter_pool_to_the_evaluations_own_statistics(self, tmp_path, monkeypatch):
+        """Window-step-weighted over the evaluation's episodes, the per-episode command means are its
+        action_dc_per_actuator and the per-episode action_delta_mean its action_delta, to 1e-12."""
+        import csv
+
+        callback, data, traces, settle, _hook = _real_evaluation(
+            TYRANNOSAURUS_REX, tmp_path, monkeypatch, policy=_jittering_policy(), episodes=3
+        )
+        with open(tmp_path / "eval_episodes.csv", newline="") as handle:
+            rows = list(csv.DictReader(handle))
+        (layout,) = callback._body_layouts
+        windows = np.array([max(trace.length - settle, 0) for trace in traces], dtype=np.float64)
+        means = np.array([[float(row[f"{name}_command_mean"]) for name in layout.actuator_names] for row in rows])
+        pooled = (windows[:, None] * means).sum(axis=0) / windows.sum()
+        np.testing.assert_allclose(pooled, callback.evaluations_action_dc[-1], rtol=0, atol=1e-12)
+        np.testing.assert_allclose(pooled, data["action_dc_per_actuator"][-1], rtol=0, atol=1e-12)
+        deltas = np.array([float(row["action_delta_mean"]) for row in rows])
+        pooled_delta = float((windows * deltas).sum() / windows.sum())  # settle >= 1: one difference per window step
+        assert pooled_delta == pytest.approx(callback.evaluations_action_delta[-1], rel=0, abs=1e-12)
+        assert pooled_delta == pytest.approx(float(data["action_delta"][-1]), rel=0, abs=1e-12)
+        assert pooled_delta > 0.0
+
+    def test_a_body_reduction_that_fails_costs_only_the_body_columns(self, tmp_path, monkeypatch, caplog):
+        import csv
+
+        from environments.shared.gait import body_telemetry
+
+        plain_dir, failing_dir = tmp_path / "plain", tmp_path / "failing"
+        _real_evaluation(TYRANNOSAURUS_REX, plain_dir, monkeypatch)
+
+        def raising(trace, layout, *, settle_steps, stance=None):
+            raise FloatingPointError("a body reduction went wrong")
+
+        monkeypatch.setattr(body_telemetry, "episode_body_telemetry", raising)
+        with caplog.at_level(logging.WARNING, logger=eval_diagnostics_module.__name__):
+            callback, _data, _traces, _settle, _hook = _real_evaluation(TYRANNOSAURUS_REX, failing_dir, monkeypatch)
+        tables = []
+        for directory in (plain_dir, failing_dir):
+            with open(directory / "eval_episodes.csv", newline="") as handle:
+                reader = csv.DictReader(handle)
+                tables.append((list(reader.fieldnames or []), list(reader)))
+        (plain_header, plain_rows), (header, rows) = tables
+        body = set(callback.body_columns)
+        assert header == plain_header
+        kept = [column for column in header if column not in body]
+        assert [{key: row[key] for key in kept} for row in rows] == [
+            {key: row[key] for key in kept} for row in plain_rows
+        ]
+        assert all(row[key] in ("nan", "") for row in rows for key in body)
+        assert sum("Body telemetry" in record.getMessage() for record in caplog.records) == 1
+
+    def test_a_capture_the_recorder_refuses_costs_only_the_columns_that_read_it(self, tmp_path, monkeypatch):
+        import csv
+
+        from environments.shared.gait.recorder import RecorderError, SubstepContactRecorder
+
+        def refusing(self, enabled=True):
+            raise RecorderError("no actuators here")
+
+        monkeypatch.setattr(SubstepContactRecorder, "record_actuators", refusing)
+        callback, _data, traces, _settle, _hook = _real_evaluation(TYRANNOSAURUS_REX, tmp_path, monkeypatch)
+        with open(tmp_path / "eval_episodes.csv", newline="") as handle:
+            rows = list(csv.DictReader(handle))
+        assert all(trace.actuator_force_substep is None for trace in traces)
+        for row in rows:
+            assert row["legs_work_abs_j"] == row["r_leg_work_abs_j"] == "nan"  # the energy needs the capture
+            assert row["neck_pitch_act_command_mean"] == "0.0"  # the commands are the trace's own
+            assert row["window_path_length_m"] != "nan" and row["head_tip_height_mean_m"] != "nan"
+
+    def test_without_the_balance_group_the_body_columns_hold_the_root_pitch_mean(self, tmp_path, monkeypatch):
+        import csv
+
+        from environments.shared.gait import balance_telemetry
+
+        def refusing(cls, env, morphology, pairs):
+            raise ValueError("no balance here")
+
+        monkeypatch.setattr(balance_telemetry.BalanceLayout, "from_env", classmethod(refusing))
+        callback, _data, _traces, _settle, _hook = _real_evaluation(TYRANNOSAURUS_REX, tmp_path, monkeypatch)
+        with open(tmp_path / "eval_episodes.csv", newline="") as handle:
+            rows = list(csv.DictReader(handle))
+        assert callback.balance_keys == () and "root_pitch_mean_deg" in callback.body_columns
+        for row in rows:
+            assert (
+                float(row["root_pitch_min_deg"])
+                <= float(row["root_pitch_mean_deg"])
+                <= float(row["root_pitch_max_deg"])
+            )
+            assert row["com_toe_margin_min_m"] == "nan"  # the margins read the balance capture's CoM and lines
+
+    def test_the_body_columns_read_as_no_rail_foot_gate_key_or_left_right_offset(self, tmp_path, monkeypatch):
+        from environments.shared.curriculum.progress_report import _feet_of
+        from environments.shared.curriculum.stance_gate_v2 import EPISODE_CRITERIA, STANCE_V2_PANEL_FIELDNAMES
+        from environments.shared.gait.balance_telemetry import BALANCE_SCALAR_KEYS
+        from environments.shared.gait.stance_metrics import StanceEpisodeMetrics
+        from environments.shared.reporting import training_history
+        from environments.shared.visualization import _gate_progress_groups
+
+        callback, _data, _traces, _settle, _hook = _real_evaluation(TYRANNOSAURUS_REX, tmp_path, monkeypatch)
+        columns = list(callback.body_columns)
+        gate_keys = {key for criterion in EPISODE_CRITERIA for key in criterion[:2]} | set(STANCE_V2_PANEL_FIELDNAMES)
+        # Two columns ARE StanceEpisodeMetrics fields by design (the spec's names): copied from the episode's screen
+        # metrics bit for bit, so a reader that took one up as the screen's metric (the drift bar reads
+        # window_displacement_m) would read the screen's own number.  Every other column is none of them.
+        copied = {"window_displacement_m", "window_yaw_change_deg"}
+        metric_fields = {field.name for field in fields(StanceEpisodeMetrics)}
+        assert copied <= metric_fields
+        for column in columns:
+            if column in copied:
+                continue
+            assert not column.endswith(RAIL_SUFFIXES) and column not in gate_keys | metric_fields, column
+            assert column not in BALANCE_SCALAR_KEYS, column
+            assert not column.startswith(("max_", "min_", "term_", "termination_", "screen_v2_", "fall_")), column
+            assert not column.startswith(("leg_dc_", "leg_q_", "reward_", "eval_", "plant_", "std_")), column
+        assert copied <= set(columns)
+        row = {column: 0.0 for column in columns}
+        assert not any(_feet_of(row, suffix.lstrip("_")) for suffix in RAIL_SUFFIXES)
+        assert not any(_gate_progress_groups(columns).values())
+        assert training_history.foot_labels(columns) == [] and training_history.lr_columns(columns) == {}
+        assert training_history.hip_roll_labels(columns) == []
