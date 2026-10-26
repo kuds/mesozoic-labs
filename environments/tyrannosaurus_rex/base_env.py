@@ -98,6 +98,9 @@ from environments.shared.reward_functions import (
     reward_sole_flatness as _reward_sole_flatness_pure,
 )
 from environments.shared.reward_functions import (
+    reward_stance_stagger as _reward_stance_stagger_pure,
+)
+from environments.shared.reward_functions import (
     reward_stance_width as _reward_stance_width_pure,
 )
 from environments.shared.reward_functions import (
@@ -193,6 +196,8 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
     OPT_IN_TASK_KWARGS = (
         ("lateral_lean_weight", 0.0, ("lateral_lean_weight", "lateral_lean_tolerance_m")),
         ("leg_home_pose_reference", "keyframe", ("leg_home_pose_reference",)),
+        # Screen-only (stance4, never merged): the standing foot stagger penalty.
+        ("stance_stagger_weight", 0.0, ("stance_stagger_weight", "stance_stagger_tolerance_m")),
     )
     _STANCE_WIDTH_REFERENCES = ("keyframe", "settled")
     _ACTION_PENALTY_SOURCES = ("filtered", "raw")
@@ -277,6 +282,8 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         lateral_lean_weight: float = 0.0,
         lateral_lean_tolerance_m: float = 0.015,
         leg_home_pose_reference: str = "keyframe",
+        stance_stagger_weight: float = 0.0,
+        stance_stagger_tolerance_m: float = 0.045,
         nosedive_termination_threshold: float = 0.62,
         # Environment settings
         prey_distance_range: tuple[float, float] = (3.0, 8.0),
@@ -389,6 +396,8 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         self.lateral_lean_weight = lateral_lean_weight
         self.lateral_lean_tolerance_m = lateral_lean_tolerance_m
         self.leg_home_pose_reference = leg_home_pose_reference
+        self.stance_stagger_weight = stance_stagger_weight
+        self.stance_stagger_tolerance_m = stance_stagger_tolerance_m
         self.nosedive_termination_threshold = nosedive_termination_threshold
 
         if self.height_target_tolerance < 0.0:
@@ -451,6 +460,10 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
             raise ValueError("lateral_lean_weight must be finite and non-negative")
         if not 0.0 < self.lateral_lean_tolerance_m < np.inf:
             raise ValueError("lateral_lean_tolerance_m must be a positive, finite length")
+        if not 0.0 <= self.stance_stagger_weight < np.inf:
+            raise ValueError("stance_stagger_weight must be finite and non-negative")
+        if not 0.0 < self.stance_stagger_tolerance_m < np.inf:
+            raise ValueError("stance_stagger_tolerance_m must be a positive, finite length")
         if self.leg_home_pose_reference not in self._LEG_HOME_POSE_REFERENCES:
             raise ValueError(
                 f"leg_home_pose_reference must be one of {self._LEG_HOME_POSE_REFERENCES}, "
@@ -741,6 +754,19 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
         midpoint = 0.5 * (self.data.site_xpos[self.r_foot_site_id] + self.data.site_xpos[self.l_foot_site_id])
         heading = world_to_heading(body_to_world(self.data.xquat[self.pelvis_id]))
         return float((heading @ (com - midpoint))[1])
+
+    def _foot_stagger(self) -> float:
+        """The right foot site's fore-aft lead over the left, in metres, + = right foot ahead (screen-only).
+
+        Along the forward axis of the gravity-aligned pelvis heading frame (the
+        observation's own, ``world_to_heading``), from the step's last forward
+        pass: the quantity the 2026-10-19 split diagnosis calls the stagger
+        (r_foot site minus l_foot site along the pelvis heading).  It flips
+        sign under the left-right mirror.
+        """
+        offset = self.data.site_xpos[self.r_foot_site_id] - self.data.site_xpos[self.l_foot_site_id]
+        heading = world_to_heading(body_to_world(self.data.xquat[self.pelvis_id]))
+        return float((heading @ offset)[0])
 
     def _sole_tilts_deg(self) -> np.ndarray:
         """Each plantar pad's tilt from level, in degrees (right, left).
@@ -1197,6 +1223,29 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
             info["lateral_lean_quality"] = float(lateral_lean_quality)
             info["reward_lateral_lean"] = float(reward_lateral_lean) if lean_gate else 0.0
 
+        # 8h. Standing foot stagger (screen-only, never merged; off unless
+        # stance_stagger_weight > 0, its info keys exist only then).  A
+        # Gaussian PENALTY on the fore-aft stagger of the two foot sites along
+        # the pelvis heading (_foot_stagger), centred on 0 (the statue's
+        # window mean |stagger| is 2.0 mm), paid only after the settle (step >
+        # stance_width_settle_steps) and only while the command is zero.  Not
+        # gated on support: a penalty that a lifted foot escaped would pay the
+        # policy to unload a foot.  -w (1 - exp(-(s/tol)^2)); the stagger
+        # enters squared and both gates are mirror-invariant, so the term is
+        # exactly mirror-invariant.  Ported unchanged from the 2026-10-19 night
+        # continuation (SP/foot/stance3/night/design/spec.md section 3.1) for
+        # the stance4 screen (w 0.30, tol 0.045 m).  Like reward_lateral_lean,
+        # it is not in DiagnosticsCallback.REWARD_KEYS.
+        if self.stance_stagger_weight > 0.0:
+            foot_stagger = self._foot_stagger()
+            reward_stance_stagger, stagger_quality = _reward_stance_stagger_pure(
+                np.asarray(foot_stagger), self.stance_stagger_tolerance_m, self.stance_stagger_weight
+            )
+            stagger_gate = self._step_count > self.stance_width_settle_steps and not np.any(self._command)
+            info["foot_stagger_m"] = foot_stagger
+            info["stance_stagger_quality"] = float(stagger_quality)
+            info["reward_stance_stagger"] = float(reward_stance_stagger) if stagger_gate else 0.0
+
         # 9. Gait symmetry (reward alternating foot contacts, shared helper)
         reward_gait, alternation_ratio = self._compute_gait_symmetry(
             float(r_contact), float(l_contact), self.gait_symmetry_weight
@@ -1324,6 +1373,8 @@ class TyrannosaurusRexEnv(BaseDinoEnv):
             total_reward += reward_airborne_substeps
         if self.lateral_lean_weight > 0.0:
             total_reward += info["reward_lateral_lean"]
+        if self.stance_stagger_weight > 0.0:
+            total_reward += info["reward_stance_stagger"]
         info["reward_total"] = total_reward
 
         return total_reward, info

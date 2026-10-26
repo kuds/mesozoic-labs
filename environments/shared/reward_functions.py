@@ -519,6 +519,29 @@ def reward_lateral_lean(
     return weight * lean_quality, lean_quality
 
 
+def reward_stance_stagger(
+    stagger: Array,
+    tolerance: float,
+    weight: float,
+) -> tuple[Array, Array]:
+    """Gaussian penalty on a standing animal's fore-aft foot stagger (screen-only, never merged).
+
+    ``stagger`` is the right foot's lead over the left along the heading
+    frame's forward axis (a length, ``+`` = right foot ahead); ``tolerance``
+    is the stagger at which the quality is ``exp(-1)``.  The penalty is
+    ``-weight * (1 - quality)``: zero for square feet, ``-weight`` at most.
+    The stagger flips sign under the left-right mirror and enters squared,
+    so the term is exactly mirror-invariant.
+
+    Returns:
+        ``(reward, stagger_quality)`` with reward in ``[-weight, 0]`` and quality in ``[0, 1]``.
+    """
+    xp = _array_mod(stagger)
+    safe_tolerance = xp.maximum(tolerance, 1e-8)
+    stagger_quality = xp.exp(-xp.square(stagger / safe_tolerance))
+    return -weight * (1.0 - stagger_quality), stagger_quality
+
+
 def reward_action_saturation(
     action: Array,
     weight: float,
