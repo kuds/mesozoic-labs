@@ -1218,6 +1218,57 @@ class TestJudgeK3:
                     full = json.loads(candidate.read_text(encoding="utf-8"))["conditions"]["full"]
                     assert full["judge_falls"] == slots[slot]["joint_falls"], (run_id, candidate.name)
 
+    def test_the_committed_k3_extract_reads_as_its_index_and_the_scored_k3(self):
+        """The compact K3 extract of the five band runs' judge files (stance5/k3extract/, the records change of
+        2026-10-27) is read by --judged as the judge's own directories are: every file is a point, its falls and
+        episodes are the index's row, and the K3 checkpoints give the replication score of record's K3 values."""
+        import gzip
+
+        from environments.shared.paths import REPOSITORY_ROOT
+
+        stance5 = REPOSITORY_ROOT / "docs" / "investigations" / "stance_2026_10" / "stance5"
+        extract = stance5 / "k3extract"
+        with open(extract / "k3_extract.csv", encoding="utf-8", newline="") as handle:
+            index = list(csv.DictReader(handle))
+        with gzip.open(
+            stance5 / "replication" / "results" / "scores" / "score_final.json.gz", "rt", encoding="utf-8"
+        ) as handle:
+            score = json.load(handle)
+        scored = {**score["new"], **score["stance5"]}
+        run_ids = sorted({row["run_id"] for row in index})
+        assert run_ids == sorted(scored)
+        for run_id in run_ids:
+            rows = [row for row in index if row["run_id"] == run_id]
+            k3 = th.read_judge_k3(extract / run_id, seed=scored[run_id]["seed"])
+            assert not k3["skipped"] and not k3["not_read"] and "why" not in k3, run_id
+            got = [
+                (p["file"], p["timesteps"], p["joint_falls"], p["joint_episodes"], p["own_falls"], p["own_episodes"])
+                for p in k3["checkpoints"]
+            ]
+            want = [
+                (
+                    r["file"],
+                    int(r["timesteps"]),
+                    int(r["joint_falls"]),
+                    int(r["joint_n"]),
+                    int(r["own_falls"]),
+                    int(r["own_n"]),
+                )
+                for r in rows
+            ]
+            assert got == want, run_id
+            assert all("panel_issues" not in p for p in k3["checkpoints"]), run_id
+            slots = {
+                ("6.3M" if p["timesteps"] == th.K3_SLOT_STEPS else "final"): p
+                for p in k3["checkpoints"]
+                if p["k3_slot"]
+            }
+            recorded = scored[run_id]["criteria"]["K3"]
+            assert {slot: p["joint_falls"] for slot, p in slots.items()} == recorded["joint_falls"], run_id
+            assert {slot: p["own_falls"] for slot, p in slots.items()} == recorded["own_falls"], run_id
+            within = all(p["joint_within_bar"] and p["own_within_bar"] for p in slots.values())
+            assert within == recorded["pass"], run_id
+
 
 class TestRefusal:
     def test_an_out_inside_the_run_is_refused(self, tmp_path):

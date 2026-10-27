@@ -8,6 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **A compact K3 extract of the five band runs' judge files, read by the
+  training-history report's judge-K3 readout** (the maintainer's decision of
+  2026-10-25 17:42 UTC in the stance run log, D-D46;
+  `docs/investigations/stance_2026_10/stance5/k3extract/`,
+  `environments/shared/tests/test_training_history.py`). The readout
+  (`plot_training_history.py --judged`) reads a run's judge files, which
+  stayed in the session's scratch. The extract holds, for `stance5_LTSB_s52`,
+  `_s60`, `_s42`, `_s70` and `_s80`, each `judge_<steps>.json` and
+  `judge_final.json` (39 files, about 0.17 MB against their 15.8 MB)
+  cut to the keys the readout reads (the schema, mode, seed and recorded
+  final step, and of the joint-space and own-sigma noise tests `n`, `falls`,
+  the spawns, the sigma and each episode's seed, length and horizon flag),
+  values unchanged, so `--judged` reads a run's directory there as it reads
+  the judge's; an index, `k3_extract.csv`, with each source's sha256; and the
+  script that wrote them. Measured: the readout of the extract equals that of
+  the judge files for every run, and at K3's checkpoints it gives the
+  replication score of record's K3 falls and pass/fail verdicts (held for s52,
+  s70 and s80; not for s60 and s42); a new test checks the extract against its
+  index and that score. No library code changes.
 - **Decisions D-D45 to D-D51 recorded: walking pilot 2 retired; report-only
   telemetry, no MuJoCo sensor and an in-run K3 panel for the first T. rex
   stance round on physics r10; that round's design, its all-or-nothing run

@@ -365,6 +365,14 @@ lines of `results/run_log.txt`) and **redact** (three workflow run ids, two
 distinct). No copy holds a model identifier, an email address or a commit
 trailer.
 
+*Added 2026-10-27, later (`stance5/k3extract/`):* no new kind of change. Its
+39 judge copies carry **trim** (cut to the keys `stance5/k3extract/README.md`
+names, each panel's `episodes_detail` rows to their seed, length and horizon
+flag) and **whitespace** (a final newline); `k3_extract.csv` and
+`make_k3extract.py` were written for this record and are byte-identical to
+their scratch files. No copy holds a model identifier, an email address or a
+commit trailer.
+
 [SHA256SUMS](SHA256SUMS) pins every file here but this README and itself
 (`sha256sum -c SHA256SUMS` in this directory). *Added 2026-10-19:* nor
 `stance3/results/README.md`, which, like this README, has no source.
@@ -374,6 +382,7 @@ trailer.
 *Added 2026-10-25:* nor `stance5/tailscreen/README.md`, likewise.
 *Added 2026-10-25, later still:* nor `stance5/tail_sr3/README.md`, likewise.
 *Added 2026-10-27:* nor `stance6_setup/README.md`, likewise.
+*Added 2026-10-27, later:* nor `stance5/k3extract/README.md`, likewise.
 
 ## Contents
 
@@ -1307,6 +1316,19 @@ their own as `results/stance6_launch_lines.txt` (written after the launch).
 The runs were training when it was copied, and it holds no result of the
 round. Its [README](stance6_setup/README.md) names the decision entries.
 
+### Added on 2026-10-27, later (the compact K3 extract of D-D46)
+
+**`stance5/k3extract/`: the five band runs' judge files cut to the keys the
+training-history report's judge-K3 readout reads (the maintainer's decision
+of 2026-10-25 17:42 UTC).** One directory per run (`stance5_LTSB_s52`,
+`_s60`, `_s42`, `_s70`, `_s80`; 39 files: every `judge_<steps>.json` and
+`judge_final.json`), which `plot_training_history.py --judged` reads as it
+reads the judge's own, an index `k3_extract.csv` with each source's sha256,
+and the script that wrote them. Its readout equals the judge files' for
+each run, and its K3 checkpoints give the replication score of record's K3
+values (measured); a test in the suite checks it. Its
+[README](stance5/k3extract/README.md) names the keys kept.
+
 ## How to re-check each verdict
 
 Commands as run on 2026-10-17 from a copy of this directory (Python 3.13;
@@ -1391,6 +1413,9 @@ copies.
 | The run log's copy against its source (2026-10-27; session scratch only) | `head -680 scratchpad/foot/stance4/live/run_log.txt \| sha256sum`, and its lines 600 to 680 against `stance6_setup/results/run_log.txt` with the ids SOURCES.txt names put back | `f37b68ba…`, the value SOURCES.txt gives; equal |
 | The launch lines against the run log's copy (2026-10-27) | `grep ' STANCE6 ' stance6_setup/results/run_log.txt \| cmp - stance6_setup/results/stance6_launch_lines.txt` | no difference: the same six lines |
 | The files themselves (2026-10-27, with `stance6_setup/`) | `sha256sum -c SHA256SUMS` | all 636 files OK |
+| The K3 extract against the judge files (2026-10-27; session scratch only) | from the repository root, `read_judge_k3` (`environments/shared/reporting/training_history.py`) on each judge directory `k3_extract.csv`'s `source` names and on `stance5/k3extract/<run id>`, with the run's seed | equal for all five runs, the files listed as not read aside |
+| The K3 extract against its index and the replication's score (2026-10-27) | `python -m pytest environments/shared/tests/test_training_history.py -k committed_k3_extract` | passes |
+| The files themselves (2026-10-27, later, with `stance5/k3extract/`) | `sha256sum -c SHA256SUMS` | all 677 files OK |
 
 `test_pilot_score.py` prints sample "Walking pilot score" blocks while it runs;
 they score synthetic panels, not the pilot.
