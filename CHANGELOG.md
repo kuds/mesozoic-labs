@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Commands, tail and body posture, energy, drift and slip, and four
-  `MjData` extras per evaluation episode in `eval_episodes.csv`** (the
+  `MjData` extras per evaluation episode in `eval_episodes.csv`** (#645; the
   maintainer's decisions of 2026-10-25 15:44 UTC in the stance run log,
   items (1) to (3), and 16:15 UTC: no MuJoCo sensor, all four MjData-derived
   extras, the specification's other defaults accepted;
@@ -55,11 +55,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   place (4.4%), median A/B +2.3% (statue) and +6.0% (r9 policy), within the
   specification's +10%; a T. rex row grows by about 1.6 to 2.0 KB, to
   about 3.2 KB.
-- **The in-run K3 noise panel** (the maintainer's decisions of 2026-10-25
-  15:44 UTC in the stance run log, item (6), and 16:15 UTC: the judge's full
-  K3 every 1,048,576 steps and at the end, synchronous, off by default and
-  enabled at launch, the offline judge's K3 staying the K3 of record, the
-  specification's other defaults accepted;
+- **The in-run K3 noise panel** (#645; the maintainer's decisions of
+  2026-10-25 15:44 UTC in the stance run log, item (6), and 16:15 UTC: the
+  judge's full K3 every 1,048,576 steps and at the end, synchronous, off by
+  default and enabled at launch, the offline judge's K3 staying the K3 of
+  record, the specification's other defaults accepted;
   `environments/shared/k3_panel.py`, wired in `train_base.train(...,
   k3_panel=...)`, the command line's `train --k3-panel` and the SB3
   notebook's `K3_PANEL` cell; documented in
@@ -89,7 +89,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   takes about 85 s on the local 4-vCPU host. [inferred] One that holds all
   40 takes about 88 s, so a 12M-step run's 12 panels about 17.6 min; on a
   Colab L4 about 18 to 26 min, about 2 to 3% of a 14.4 to 15.4 h run.
-- **Training-history pages 13 to 19** (the maintainer's decisions of
+- **Training-history pages 13 to 19** (#645; the maintainer's decisions of
   2026-10-25 15:44 UTC, item (4), and 16:15 UTC: the observation
   normalization read through a whitelisting stub unpickler;
   `environments/shared/reporting/training_history.py`; documented in
@@ -117,9 +117,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the probe's rows equal the pickles cast to float32 at their shared steps
   (the stance5 replication run s80 at 4,194,304, and in the suite).
 - **The stance5 replication judge's K3 criterion, read out over training in
-  the training-history report** (the maintainer's decisions of 2026-10-25
-  14:13 UTC in the stance run log, item (4): task #47's remaining judge-K3
-  overlay;
+  the training-history report** (#644; the maintainer's decisions of
+  2026-10-25 14:13 UTC in the stance run log, item (4): task #47's remaining
+  judge-K3 overlay;
   `environments/shared/reporting/training_history.py`,
   `environments/shared/scripts/plot_training_history.py`; documented in
   `docs/TRAINING_ARTIFACT_PRESENTATION.md`, "Training history pages").
@@ -150,7 +150,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and checks the readout against its K3 values and pass, and against
   `k3readouts/out`'s judge falls. Without `--judged` (the stage-end report)
   nothing is drawn.
-- **Head posture and hip roll drawn over training** (the maintainer's
+- **Head posture and hip roll drawn over training** (#644; the maintainer's
   decisions of 2026-10-25 14:13 UTC in the stance run log, items (2) and
   (4);
   `environments/shared/reporting/training_history.py`; documented in
@@ -171,8 +171,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   not drawn at micrometre scale. The stage-end report now holds twelve
   pages.
 - **Each evaluation episode's head posture and hip roll, in the eval-episode
-  ledger** (the maintainer's decisions of 2026-10-25 14:13 UTC in the
-  stance run log, items (2) and (4):
+  ledger** (#644; the maintainer's decisions of 2026-10-25 14:13 UTC in
+  the stance run log, items (2) and (4):
   head posture as report-only telemetry, no gate change; task #47's
   remaining hip-roll telemetry; `environments/shared/gait/posture_telemetry.py`,
   `environments/shared/gait/recorder.py`,
@@ -1866,9 +1866,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   kind, and its `zero_action_baseline.py` entry is deleted.
 
 ### Migration
-- **Every T. rex checkpoint must be retrained; none can be widened** (T. rex
-  physics revision 9 → 10, decision D-D44). Each load path compares the
-  checkpoint's recorded `physics_revision` and `physics_sha256` with the
+- **Every T. rex checkpoint must be retrained; none can be widened** (#643;
+  T. rex physics revision 9 → 10, decision D-D44). Each load path compares
+  the checkpoint's recorded `physics_revision` and `physics_sha256` with the
   plant's and refuses a mismatch (`PlantCompatibilityError`; measured with a
   band checkpoint on an r10 tree: "physics_revision: checkpoint=9,
   current=10"), `widen_checkpoint.py` needs the same physics digest, and
@@ -2161,8 +2161,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **The T. rex's tail pitch springs are preloaded, so its passive tail holds
-  level, and the stance's tail target follows it** (breaking — plant change,
-  physics revision 9 → 10; every physics-r9 T. rex checkpoint is
+  level, and the stance's tail target follows it** (#643; breaking — plant
+  change, physics revision 9 → 10; every physics-r9 T. rex checkpoint is
   invalidated; decision D-D44, the maintainer's decisions of 2026-10-25 after
   a posture study, a CPU probe and CPU checks, none of which trained;
   `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2, `docs/CONSOLIDATION_PLAN_2026_09.md`
@@ -4303,7 +4303,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - **A comparison's run names sit at their lines' ends in the
-  training-history report** (report only;
+  training-history report** (#644; report only;
   `environments/shared/reporting/training_history.py`). Each run's name at
   the right of a line panel was placed by a transform read while the
   panel's autoscale was still pending, so on a panel with no J mark or
@@ -4313,7 +4313,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   of 77 names more than 0.15 of the axes height from their line on
   `08a4d189`, none after the fix. The view limits are now settled first.
 - **The full-horizon heading trace test bounds the closed loop it runs**
-  (tests only; approved by the maintainer on 2026-10-25;
+  (#642; tests only; approved by the maintainer on 2026-10-25;
   `environments/shared/tests/heading_free_helpers.py`,
   `environments/shared/tests/test_heading_free_rollouts.py`; documented in
   `docs/HEADING_INVARIANCE_DESIGN_2026_10.md`, "Migration and acceptance").
