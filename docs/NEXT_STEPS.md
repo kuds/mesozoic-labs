@@ -605,6 +605,21 @@ tilts a pad 2.087° over the 2.0° bar, and no stance gate reads head posture
 KNOWN_ISSUES). The decisions' full text is in
 [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2 and their record in
 §25 of the same record.*
+*2026-10-27: decisions D-D45 to D-D51. With physics r10 on `main`, the
+maintainer retired the second pilot (never launched; a new pilot is designed
+once r10 has a stance parent) and had report-only telemetry built for the
+first r10 stance round: head posture, hip roll and the judge's K3 read over
+training, per-actuator commands, body posture, energy, drift and slip, and an
+in-run K3 noise panel, with no new MuJoCo sensor. That round is a screen:
+arm LTSB of the stance5 screens ported to r10, seeds 60, 42 and 80 from
+scratch, 12M steps each on Colab L4s, from the never-merged branch
+`claude/screen-trex-r10-armltsb`, its runs read all or nothing by criteria
+the maintainer approved on 2026-10-27 before any training step. Its three
+runs were launched that day and are training: results pending. As a screen
+it certifies nothing, so the next T-Rex session above is still a fresh
+stance on physics r10. The decisions' full text is in
+[BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2 and their record in
+§26 of the same record.*
 
 *Note 2026-10-18 (decision D-D38): where §2, this section and §8 record
 `BEHAVIOR = "stand"` or a `stand` session, they give the setting as it was

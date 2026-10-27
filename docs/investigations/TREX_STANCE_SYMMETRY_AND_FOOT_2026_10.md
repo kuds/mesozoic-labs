@@ -133,6 +133,20 @@ and §6 name. Its evidence is in
 [stance_2026_10/stance5/tail_sr3/](stance_2026_10/stance5/tail_sr3/README.md).
 The statuses above are unchanged.*
 
+*Status 2026-10-27 (appended): §26, appended that day, records T. rex physics
+r10 and the heading-test fix reaching `main`; the report-only telemetry built
+for the first r10 stance round (head posture, hip roll and the judge-K3
+readout, then commands, body posture, energy, drift and slip, four `MjData`
+extras and an in-run K3 panel, with no new MuJoCo sensor); walking pilot 2's
+retirement; and decisions D-D45 to D-D51: that round's design (arm LTSB ported
+to r10, seeds 60, 42 and 80 from scratch, 12M steps each on Colab L4s), its
+all-or-nothing run handling (LEAN-R with PRESENCE), and its criteria, approved
+on 2026-10-27 before any training step, and its launch that day. Its runs are
+training: results pending. Its evidence is in
+[stance_2026_10/stance6_setup/](stance_2026_10/stance6_setup/README.md) and
+[stance_2026_10/stance5/k3extract/](stance_2026_10/stance5/k3extract/README.md).
+The statuses above are unchanged.*
+
 It continues [STANCE_REWARD_PILOT_FINDINGS_2026_10.md](STANCE_REWARD_PILOT_FINDINGS_2026_10.md)
 (2026-10-10), [STANCE_HACK_AUDIT_2026_10.md](STANCE_HACK_AUDIT_2026_10.md)
 §12 (the physics-r9 statue) and the blog post
@@ -4357,3 +4371,364 @@ the source's line 603. Nothing trained.
   checks' trees, code archives, per-episode files and per-step traces, the
   fetched checkpoints and the r10 build's trees and test logs are in the second
   session's scratch (`scratchpad2/tailround/` and `scratchpad2/prs/`) only.
+
+## 26. Status 2026-10-27 (appended): physics r10 on `main`, the report-only telemetry, walking pilot 2 retired; decisions D-D45 to D-D51, the first r10 stance round set up, approved and launched (results pending)
+
+*Appended 2026-10-27; §1–§25 above are unchanged, so §25.7's "The first r10
+training round gets its own criteria, for the maintainer's approval, before
+anything trains; this record proposes none" is the state when §25's copied log
+ends (12:08 UTC on 2026-10-25).* After §25.6 the work went on in the same
+session: T. rex physics r10 and the heading-test fix reached `main` (§26.1);
+the maintainer retired walking pilot 2 (§26.2) and had report-only telemetry
+built for the first r10 round, with no new MuJoCo sensor and an in-run K3
+panel (§26.3); designed that round (§26.4) and, after asking why its run
+rules carried so much edge-case handling, chose lean all-or-nothing rules
+(§26.5); and approved its criteria and launched its three runs on 2026-10-27
+(§26.6). The runs are training as this is written: **results pending**.
+Nothing in this section reads, or reports, any result of the round. The
+evidence is the session's run log, lines 600 to 680 (the entries timed 08:21
+UTC on 2026-10-25 to 18:41 UTC on 2026-10-27), copied as
+`stance6_setup/results/run_log.txt` of
+[stance_2026_10/](stance_2026_10/README.md), and the compact K3 extract
+`stance5/k3extract/` there. Every number below is read from that log, from
+the files it or this section names, or from the pull requests' CI, read
+only; labels: measured, as each source records it; inferred, where said.
+Quotation marks give the run log's text: the maintainer's own words where the
+log quotes them (the budget, the sensor question, the remark of 13:08 UTC on
+2026-10-26, the approval, the launch report and the request of 18:41 UTC on
+2026-10-27), otherwise the log's short form of a decision. Pull requests are
+named by what they carry: their landings are in the consolidation plan's status
+table and the CHANGELOG.
+
+### 26.1 Physics r10 and the heading-test fix on `main`
+
+The revision §25.5 built (D-D44) is on `main` as #643, opened at the
+maintainer's request (§25.6 (4)) with the heading-test fix's branch merged
+in; the fix is #642 (tests only: the full-horizon heading trace test's
+closed-loop reward bound 1e-6 and a float32-aware observation bound,
+`docs/HEADING_INVARIANCE_DESIGN_2026_10.md`). Both ran CI at full depth
+under the `full-ci` label: the fix alone on r9, and r10 with the fix merged
+in, whose full-horizon step ran `test_full_horizon_traces_repeat_at_every_heading`'s
+T. rex case on physics r10 and passed (the run log's entry timed 14:07 UTC
+on 2026-10-25), the case that fails on r10 without the fix (5.08e-9 against
+1e-9, §25.5). From then on `main` refuses every physics-r9 T. rex checkpoint
+(the plant contract): every stance screen run of §17–§24 and walking pilot
+2's parent stop loading there, and, when #643 landed, no T. rex stance had
+trained on r10.
+
+### 26.2 Walking pilot 2 retired (D-D45)
+
+At 14:13 UTC on 2026-10-25, once r10 was on `main`, the maintainer decided,
+as the run log has it in short, (3): "walking pilot 2
+(claude/pilot-walk-r9-b, r9) retired: a new pilot is designed once r10 has a
+stance parent (branch kept, never merged)". Pilot 2 (D-D36, rebuilt for
+`stance3_armLT_s60`'s final on 2026-10-21, §21.6 and §22) was never launched
+(no launch is recorded); its parent is a physics-r9 checkpoint, so it could
+have run only on its r9 branch and its result would not have carried to r10
+(§25.7). The branch `claude/pilot-walk-r9-b` stays at `8c5478a6`, never
+merged. [BEHAVIOR_RECIPES_PLAN.md](../BEHAVIOR_RECIPES_PLAN.md) §6.2 records
+it as D-D45, and D-D36's row says so.
+
+### 26.3 The report-only telemetry for the round (D-D46 to D-D48)
+
+The same decision of 14:13 UTC asked for a criteria and design brief for the
+first r10 round (§26.4) and, (2), for head posture as "report-only telemetry
+(head-tip height, neck/head pitch in eval_episodes.csv and the
+training-history report), no gate change": §25.3 found that the stance gate
+passes a stance that drops its head on r10. (4) took up the backlog's
+remaining parts: hip-roll telemetry, report only, and the judge-K3 readout
+in the training-history report. At 15:44 UTC the maintainer added the
+round's telemetry, all report only, appended columns, training unchanged bit
+for bit: per-actuator window-mean commands and tail and body posture; energy
+and smoothness; drift and slip; two report views of existing data (the leg
+actuators' exploration std beside K3, and the observation normalization's
+drift per checkpoint); "Maybe include new sensors in the MuJoCo model if
+that would help", to be assessed; and K3's noise robustness followed by an
+in-run panel, its inertness to be proved (it was, in #645's build: the run
+log's entry timed 22:28 UTC). At 16:15 UTC, on a read-only specification and
+sensor assessment, the maintainer decided: (1) no MuJoCo sensor before the
+round, the extras computed from `MjData` ("a sensor is a plant change r10->r11
+and policy interface r15->r16, 31 digest lines; it adds nothing in simulation";
+D-D47); (2) all four `MjData`-derived extras (joint-limit force and time on the
+stop; the CoM's and capture point's margins with the centroidal angular
+momentum; the tail-base and neck-base wrench from `cfrc_int`; the head's
+angular-rate RMS); (3) the in-run K3 panel: the judge's full K3 (20 spawns,
+own-sigma and joint-space noise) every 1,048,576 steps and at the end,
+synchronous, off by default and enabled at launch, the offline judge's K3
+staying the K3 of record (D-D48); (4) the specification's other defaults. At
+17:42 UTC, on the first branch's review (no blocking finding), the maintainer
+had it opened as its own pull request, the additions to follow as a second;
+kept the Velociraptor's and the Brachiosaurus's documented gap (they run no
+evaluation recorder, so their ledgers carry none of the columns); and asked for
+a compact per-run K3 extract of the judge files in the next records change. On
+2026-10-26 at 01:12 UTC the maintainer had the second opened as built (the
+extras on page 19, the command columns on the raw policy command, the final K3
+panel after the final save, and the joint-space sigma per seed from the
+replication's sidecar file: seeds 60 and 42 their own, 80 the mean).
+[BEHAVIOR_RECIPES_PLAN.md](../BEHAVIOR_RECIPES_PLAN.md) §6.2 records these
+as D-D46 to D-D48.
+
+- **#644** (head posture, hip roll and the judge-K3 readout): each
+  evaluation episode's head-tip height (mean and minimum over the gate's
+  window), neck and head pitch and per-foot hip roll, eight columns appended
+  to `eval_episodes.csv` on the T. rex, pages 11 and 12 of the
+  training-history report, and the stance5 replication judge's K3 drawn
+  from the judge files a caller names (`--judged`), never a verdict. On r10,
+  over the stance panel's 40 episodes, the walking parent of stance3 reads a
+  head tip of 0.6126 m and neck and head pitch of +32.86 and +33.00°, the
+  zero-shot check's values (measured in its review); the readout reproduces
+  the K3 values and pass of the stance4, stance5 and replication scores on 8
+  of 8 runs (measured; the CHANGELOG's entries give the rest).
+- **#645** (the body columns, the in-run K3 panel and pages 13 to 19): 118
+  more T. rex ledger columns (66 of the specification and 52 extras), every
+  numeric column within 2.8e-14 of an independent recomputation (the
+  reviewer, 15 real evaluation episodes); the in-run panel reproduces the
+  judge files' 80 episodes of `stance5_LTSB_s80` and `stance5_LTSB_s42` at
+  4,194,304 bit for bit; the inertness proof with the panel on passes (stock
+  PPO and mirror-symmetric PPO); evaluation overhead +2.3 to +6.0% (median);
+  about 85 s per 40-episode panel locally, about 17 to 26 min per 12M run on
+  an L4 (inferred) (the run log's entry timed 22:28 UTC on 2026-10-25). Its
+  first CI runs failed one guard test, and only that one,
+  `test_no_new_lenient_json_reader_beside_the_shared_one`, in their shared
+  legs: the panel's sigma reader caught a JSON decode error itself; it now
+  reads through `file_io.read_json_object`, and the next run was green. The
+  reviews had run guard subsets that did not include that file (the run
+  log's entries timed 01:29 and 01:38 UTC on 2026-10-26).
+- **The K3 extract** (this records change): the five band runs' judge files
+  cut to the keys the readout reads, `stance5/k3extract/`, which `--judged`
+  reads as it reads the judges' own directories; its readout equals theirs
+  run for run, and its K3 checkpoints give the replication score of record's
+  K3 values (measured; its README).
+
+### 26.4 The round's design (D-D49)
+
+The criteria and design brief of 14:13 UTC (1) were first drafted for a
+budget the maintainer then fixed in two steps: "I'm good doing another
+3-seed, 12-hour run on Google Colab, if that gives us enough data to help
+figure out what's going on and to diagnose any lingering issues" (14:30 UTC),
+then "When I said a 12-hour run, sorry, I really should have been specifying
+the full 12 million steps that we've done in the past" (14:45 UTC): three
+seeds from scratch, 12M steps each on Colab. The drafts stopped before any
+result each time. The brief's checks corrected three of its premises
+(measured; the entry timed 16:01 UTC): 12M steps on an L4 took 12.1 to
+14.4 h at r9's evaluation cadence; stance3's Run 2 railed in training (only
+its final was clean); and r9's rail incidence was 4 of 10 runs of the L+T
+family. The maintainer then decided, as the log numbers them:
+
+- D2 (16:01 UTC): seeds 60, 42 and 80. Stated plainly in the criteria: three
+  of LTSB's five r9 seeds, chosen with their r9 outcomes known (s60 no
+  alarm; s42 an alarm at 3,670,016; s80 at 4,456,448), the analysis treating
+  the runs as exchangeable draws.
+- D15 (16:01 UTC, confirmed at 19:01 UTC): the runs start only once both
+  telemetry changes are on `main` (they were, on 2026-10-26).
+- D17 (16:01 UTC): a durable copy of the round's text outputs on an orphan
+  branch, never merged.
+- D1 (16:03 UTC), after the reasoning between the options the maintainer had
+  asked for: arm LTSB of stance5 (`cf80ecb1`: the per-foot CoP band and the
+  stagger penalty on L+T) ported to r10. On r9, L+T failed fore-aft K2 on
+  both its runs, and LTSB's runs that did not hold were mostly tail rails,
+  the habit r10 targets; LTSB had run seeds 60, 42 and 80.
+- D3 to D18 (19:01 UTC; D10 worded at 22:18 UTC): a periodic checkpoint
+  every 262,144 steps, all kept (D3); a rail is a ledger tail alarm or an
+  end-of-run trace rail (D5); PARKED, a tail pitch actuator held tail-up at
+  0.60 or more, counts against success (D6 to D8); the gate is the
+  six-heading certificate on the final (D9); one pre-registered statistic,
+  the runs with an alarm on any actuator against LTSB's r9 2 of 5 (D10); the
+  reading's line 4 needs the gate in 2 of 3 (D11); K1–K4 report only, the
+  in-run panel off if its validation failed, the launch not delayed (D12);
+  the run branch carried onto the merged `main`, the five CoP-band tests
+  re-calibrated with r10 scenarios, the collapse reference 4470.4, the run
+  ids `stance6_r10LTSB_s60`, `_s42` and `_s80` (D16); three L4s, the
+  maintainer checking the compute balance, about 3 × 15.5 h (D18). (D13 and
+  D14, an interim and a final fetch, were replaced by the lean rules'
+  fetches, §26.5.)
+
+The arm was first ported on a local branch and checked against `cf80ecb1`:
+17 of its 20 code files byte-identical, 3 clean three-way merges, and, on an
+r9 build, bit for bit the band commit at every step (observations, actions,
+rewards, all 109 info keys, terminations) on seeds 3042–3051 under three
+policies, and per its reviewer on 3052–3061 and the first PPO rollout
+(measured; the entry timed 18:58 UTC). On r10 the LTSB statue scores 4470.37
+± 30.88 (40/40; the six-heading certificate 40/40), the collapse reference
+4470.4 (measured). Once both telemetry changes were on `main`, the run
+branch `claude/screen-trex-r10-armltsb` was rebuilt on `main` at `06b1a8e1`:
+the port's four commits (`176af89f`, `60c0c1f9`, `740fc3f5`, `7fa2f2c3`),
+the D3 cadence (`2ca69a8f`) and the five band tests re-calibrated on r10
+(`cf9402bc`, a fixer's docstring-only amendment of `5b38f97b`), its training
+data identical to the verified port's (first rollouts and finals checked by
+the builder and, with its own harness, the reviewer), the statue
+4470.36863624995 (40/40), the in-run panel reproducing the offline and judge
+rows bitwise, and injected panel failures leaving training unchanged; the
+re-calibrated band tests catch 12 of 12 mutations of the band code
+(measured; the entry timed 07:13 UTC on 2026-10-26). `main` at `06b1a8e1`
+fails no test in this container, and the branch fails 25 test ids, every
+one configuration-caused (14 cadence, 6 of the arm's `[env]` keys, a
+stagger pin, the checkpoint-count setting, 2 collapse references and the
+`[ppo]` symmetry rule). At 12:54 UTC on 2026-10-26 the maintainer accepted those 25
+as the known set, the one hand-resolved merge hunk in `recorder.py` (equal
+to `main`'s decode state on 74 model variants) and the amended docstring
+commit. The branch is never merged.
+
+### 26.5 The run rules: from full to lean (D-D50)
+
+The criteria were drafted and checked in rounds, each by fresh skeptics who
+read the text and built a literal rule model of it; nothing trained. Their
+hard part was not the science but the run handling: the headline claim is
+an absence (no rail in 12M steps), so missing or late Drive data could fake
+a clean run, and the rules grew to cover interrupted, resumed, replaced and
+partly uploaded runs. Blocking findings by round from v4 to v12 were 4, 2,
+1, 2, 1, 1, 2, 1 and 0, all in that machinery or in which of a run's files its
+records are read from (inferred from the run log's summaries); v12 ran to 1,019
+lines, where the stance3, stance4 and stance5 criteria had 79, 142 and 190
+(measured; the entries timed 07:17 and 13:06 UTC on 2026-10-26). On the way the
+maintainer simplified twice: at 22:18 UTC on 2026-10-25, only a run completed
+in one session with complete records can read "no rail", "not parked" or
+POSITIVE, an interrupted, resumed or stopped run reading RAIL from what it
+recorded, else UNREAD; and at 01:12 UTC on 2026-10-26, no resumes, and a
+replacement of an incomplete run reported beside and never counted. The same
+entries decided more: at 22:18 UTC (2), no notebook change, a run whose final
+save is cut short being LOST; at 01:12 UTC, the timing of a replacement's
+approval; and at 12:54 UTC on 2026-10-26, on criteria v12, (1) two fixes for
+lost data, (2) a relaunch launched after the old runtime is deleted, within 1 h
+of the run log's trigger note, and a launch-check stop replaceable only if its
+records show the fault, (3) v12's defaults 1, 2, 4, 5 and 6 and (4) the in-run
+K3 panel on. When the full rules were retired (below), (2) to (4) stayed where
+they bear on the lean rules, whose relaunch timing cites (2).
+
+At 13:06 UTC on 2026-10-26 the maintainer asked why these criteria carried
+so much edge-case handling compared with the past all-or-nothing criteria,
+had the lean variant drafted and compared on the same rule model, and paused
+the full rules' next revision; at 13:08 UTC: "I'm wondering if we're trying
+to solve for a problem that really doesn't happen very often. It's very rare
+where I see a Google Colab session reclaimed. I am using ... Google Colab
+Pro." The log bears it out (measured, the coordinator's check of the same
+time): every reclaim or restart it records was the coordinator's own
+container, the Colab training runs recorded no disconnect (r9: 0 in 10), and
+the one Drive quirk on record, a mid-run fetch holding a ledger newer than
+`progress.json`, is avoided by one fetch after the runs end. The comparison
+(the entry timed 15:30 UTC; 3,000 model rounds per setting): wrong readings
+0 for the full rules and both lean variants in every setting; a round reads
+INCOMPLETE 8.8%, 11.1% and 18.9% of the time at realistic rates (full,
+LEAN-R, LEAN-0), 4.3%, 5.9% and 14.5% at Colab Pro rates; file copies per
+round 428, 185 and 172 [model].
+
+At 15:47 UTC the maintainer chose LEAN-R: the round's runs are read all or
+nothing. A run counts only if it is COMPLETE: ended in one session, FINISHED at
+12,001,280 steps or STOPPED earlier by the trainer's own stop rule (which reads
+NEGATIVE), with every grid evaluation up to its end present, judged from one
+settled final fetch; no run is ever resumed; a seed gets at most one relaunch,
+decided by rule, for a run that dies before its first checkpoint or that the
+launch check stops for a fault its own files show, and the relaunch, not the
+first run, is then that seed's run; any other run that is not COMPLETE is LOST,
+reported beside the reading and never in the statistic, except that a tail
+alarm in a LOST run's ledger rows still counts in the headline (PRESENCE: its
+ledger, provenance and stage config each read from two agreeing copies, its
+session and configuration facts in order, and no trace or end rail read;
+keeping the spirit of the simplification of 22:18 UTC); a read-only dry run of
+the completeness check on a finished r9 run folder before launch (it passed on
+`stance5_LTSB_s70`'s folder: 98 manifest entries, every Drive file but the
+manifest, 0 mismatches; measured, the entry timed 20:15 UTC). The full rules
+were retired. The lean text's fresh checks found 2 blocking problems in v3,
+fixed in v4, and the tools' reviews 6 (1 in lane A, 5 in lane B): the tool
+fixes were applied, and the rule wordings two of them needed were among the ten
+the maintainer decided at 21:21 UTC; one more point was decided at 01:32 UTC on
+2026-10-27 (V5C-2, a mean taken from the one formed checkpoint). The later
+fresh checks found no blocking problem. The final text is lean v6 with its pins
+filled: 829 lines, sha256 `99a44469…`.
+[BEHAVIOR_RECIPES_PLAN.md](../BEHAVIOR_RECIPES_PLAN.md) §6.2 records the
+rules as D-D50.
+
+### 26.6 Validation, approval and launch (D-D51)
+
+Before approval every validation the criteria name passed (V6 is dropped by the
+criteria; measured; the entries timed 07:13 and 20:15 UTC on 2026-10-26 and
+00:49 and 03:52 UTC on 2026-10-27, and the approval request). V0 (i), V1, V3,
+V4, V5 and V7 ran on the run branch's header commit `8737cd3d` (parent
+`cf9402bc`; it changes only comment lines of `stance.toml`, naming the
+criteria's sha256) or its measuring copy, V7 also on the parent; V0 (a) to (h)
+and V8 were carried from the run-branch build, not re-run on the header (V8
+measured on `5b38f97b`'s tree, which differs from `cf9402bc` only in one test
+docstring); V2 and V9 ran with the lane B tools, and V10 on Drive on
+2026-10-26: V0, the branch as it trains (the digest snapshot current, 649
+lines; ruff clean; the band tests 63 of 63; the 25 known failures, none on
+`main`); V1, the measuring harness on the zero-action statue (40/40, mean
+reward 4470.368636249949, every non-reward field equal to `main`'s statue's);
+V2, the lane B tools (318 tests; the rule model's 183 named scenarios 183 of
+183; the eight r9 ledgers 8 of 8); V3, the six-heading certificate on the
+statue (40/40 at every heading); V4, the per-step trace on a zero-action
+checkpoint (20 episodes, every command 0.0, no tail or fall flag); V5, every
+runner refusing a checkpoint whose `physics_revision` is not 10; V7, the in-run
+panel's validation in the measured form the maintainer decided on 2026-10-26
+(the panel's 23 tests, its inertness proofs, and a cadence-neutral copy 39 of
+40, the one failure `test_the_plain_run_writes_the_bases_artifacts`), on the
+parent and on the header; V8, the telemetry leaving every class input
+unchanged; V9, the completeness check on the dry run's real files and on a
+test-scale folder; V10, the dry run itself. Lane A's tools passed 76 tests
+and lane B's 318.
+
+At 05:55 UTC on 2026-10-27 the maintainer approved ("Approve"): the
+criteria `99a44469a387d01c55b98d76595d3633029681866ed14afcb185521eca0164db`,
+the two texts they cite (`0ab5edeb…`, the criteria v12 they cite by line,
+and `353f4536…`, their evidence), the branch head `8737cd3d`, the
+validations, the push of the branch (never merged), and the budgets: about
+46.5 L4-hours for three runs, about 62 with one relaunch, and about 195 file
+copies for the final fetch (inferred). The approval record was written in
+the session's scratch (`APPROVED`, sha256 `07246480…`); the rules froze at
+the first training step.
+
+The three runs were launched from the branch's notebook: `stance6_r10LTSB_s60`
+reported by the maintainer at 14:57 UTC, and `_s42` and `_s80` reported at
+15:55 UTC ("I have kicked off all 3 runs"), their launch time written as 14:57
+UTC, an estimate set no later than their likely start (their sessions started
+at 15:03:06 and 15:03:09 UTC, s60's at 15:01:06). Their `LAUNCH` lines record
+an L4 runtime and every cell-6 setting as the Colab steps give them (the in-run
+K3 panel on, each seed's sigma key); the coordinator saw neither the runtime
+nor cell 6 (the `CHECK` lines: "not seen by the coordinator"). Each passed its
+launch check, which reads configuration only, from the first files each run
+wrote: (1) commit `8737cd3d`, not dirty; (2) the run's seed; (3) the
+hyperparameter (`054ab483…`), task (`1e5964b6…`) and plant digests equal to the
+pins; (4) the zero-action reward 4470.36863624995 (LTSB on); (5) the ledger
+columns present; (6) one session; (7) the run id equal to `RUN_ID` (the
+`STANCE6 CHECK` lines timed 15:32 and 15:54 UTC). Listings of the runs' folders
+by name, size and time only, at the maintainer's request, showed all three
+writing and each run's in-run K3 panel files present after the first panel
+(17:00 UTC: the panel on in each run; that each found its sigma is inferred
+from the files' sizes only). At 18:41 UTC the maintainer asked for a
+report-only look at the running files ("could you check the contents? We can do
+full review once the training is complete"), outside the round's folder, a
+change from the criteria's no-interim-fetch decision; the approved rules are
+unchanged, the round is read from its final fetch only, and nothing it shows
+stops, changes or decides anything (D-D51's amendment). This record ends before
+that look and holds nothing from it.
+
+**Results pending.** The runs were projected to end in the early hours of
+2026-10-28 (inferred, from their checkpoint times); the round is read by its
+fixed criteria from one settled final fetch after all three have ended, and
+the reading goes to the maintainer. Nothing of it is in this record.
+
+### 26.7 What changes in §13–§25
+
+- **§13 and §25.7, certification:** none. No T. rex stance is certified, and
+  the two-seed ask stands on physics r10, where the first stance runs are
+  training now.
+- **§21–§25, the tail habit:** whether a policy trained on r10 pins `tail_3`
+  again is what the round tests, against LTSB's r9 record of 2 alarm runs of
+  5 (its one statistic) and with PARKED counted against success. Its
+  pre-registered diagnostic readouts include the head posture and hip roll
+  of §26.3, which no gate reads. Results pending.
+- **§21.6 and §22, walking pilot 2:** retired (D-D45), never launched; a new
+  pilot comes once r10 has a stance parent.
+- **§14, this repository:** the folders `stance6_setup/` (the run log's
+  lines 600 to 680, and its six `STANCE6` lines on their own) and
+  `stance5/k3extract/` (the compact K3 extract, 41 files), with their
+  sources and sha256 in `SOURCES.txt` and `SHA256SUMS` (now 677 files).
+- **§14, branches:** `claude/screen-trex-r10-armltsb`, pushed at `8737cd3d`
+  with the maintainer's OK and never merged (the round's run branch);
+  `claude/pilot-walk-r9-b`, kept and never merged (pilot 2, retired).
+- **§14, Google Drive:** the three runs' folders, written by the runs; the
+  session only read them (the launch checks' fetch and listings).
+- **§14, session scratch:** the criteria drafts (v1 to v12, lean v1 to v6),
+  their checks and rule models, the tools of both lanes and their tests, the
+  dry run, the run branch's build and reviews, the launch checks' fetched
+  copies, and the approval request and record, in the second session's
+  scratch (`scratchpad2/r10round/`) and the first's (`scratchpad/foot/`).
