@@ -2160,6 +2160,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   verdicts with the gate they were earned under.
 
 ### Changed
+- **The development version is `0.4.0.dev2`** (`pyproject.toml`; the
+  maintainer's decision of 2026-10-25 20:13 UTC in the stance run log: bump
+  it once the current work is done, as #619 did, carried by the next records
+  change). Every run records the package version in its provenance
+  (`dependency_versions`) and its stage config (`library_version`), so the
+  runs started from `main` from here on are told apart from the `0.4.0.dev1`
+  runs: every run since 2026-10-12, the three runs of the first T. rex
+  physics-r10 stance round among them (launched on 2026-10-27 from the
+  never-merged branch `claude/screen-trex-r10-armltsb` at `8737cd3d`, on
+  `main` `06b1a8e1`, whose `pyproject.toml` reads `0.4.0.dev1`). No code,
+  config, plant or digest changes; `[Unreleased]` stays open.
 - **The T. rex's tail pitch springs are preloaded, so its passive tail holds
   level, and the stance's tail target follows it** (#643; breaking — plant
   change, physics revision 9 → 10; every physics-r9 T. rex checkpoint is
