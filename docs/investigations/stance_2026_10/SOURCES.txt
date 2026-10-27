@@ -190,6 +190,24 @@
 # this one's message and tree unchanged; its tree is the one archived), under the final stance gate block (gate
 # sha256:d26c34e6..., the rail 2260); its source is in the second scratch root (scratchpad2/prs/r10_work/fixer/), and
 # the branch's later commits move no stance task or gate digest.
+# Added 2026-10-27 (stance6_setup/): the run log of the first T. rex stance round on physics r10, from its set-up to
+# its launch (decisions D-D45 to D-D51).  No new kind of change.  lines: stance6_setup/results/run_log.txt is lines 600
+# to 680 of the session's run log, whose lines 578 to 603 are stance5/tail_sr3/results/run_log.txt (lines 600 to 603 are
+# in both, byte for byte); the sha256 given is that of the source's first 680 lines, the whole file when copied at
+# 19:01 UTC on 2026-10-27 (lines 600 to 680 alone: 6fa787a017dd5aa6dadce5343b67c9292ff23b70d997e1a8ad98107e6f8c655f);
+# its first 603 lines are unchanged (3b281b95406de40ec6278e38ae01f2a802bc8dcc5dba6b6094b7bee91b79ada3, as given above).
+# The source is appended to after it was copied; the copy ends with the entry timed 18:41 UTC on 2026-10-27, which
+# starts a report-only snapshot of the running files, before that snapshot read any of their content (the earlier
+# reads were the launch checks, which read configuration facts from the runs' first files, and listings of file
+# names, sizes and times).  redact, in that copy: 47 workflow run ids (23 distinct; a bare one becomes
+# 'workflow [id removed]'), 3 scheduled-task ids, 1 background-job id, 1 task id of the session's task list (a '#' and
+# a number) and 2 Drive folder ids (33 characters), each by '[id removed]'.  checkout once.
+# lines: stance6_setup/results/stance6_launch_lines.txt is the run log's six STANCE6 lines, its lines 666, 668 and
+# 671 to 674 (the three runs' launch and launch-check lines, written after the launch, from 14:57 to 15:54 UTC on
+# 2026-10-27; the same bytes as those lines of stance6_setup/results/run_log.txt; the sha256 given is again that of
+# the source's first 680 lines), and redact replaces its 3 workflow run ids (2 distinct), all bare, by
+# 'workflow [id removed]'.
+# stance6_setup/README.md has no source.
 
 audit/foot_ankle_audit.md foot/audit_2026_10_17/foot_ankle_audit.md e9da4ef84be17a87b70096d1e2aede87609ad22f446b10786f9e14d5064725c8 prefix
 audit/geometry/geometry_audit.json foot/audit_2026_10_17/geometry/geometry_audit.json 934110bec337b9693f894800efb309bf1a9529ae87f91f129bfefc8fef5b650a prefix,whitespace
@@ -808,6 +826,8 @@ stance5/tailscreen/verify/rescore/rescore.out scratchpad2/tailround/screen/verif
 stance5/tailscreen/verify/rescore/rescore.py scratchpad2/tailround/screen/verify/rescore/rescore.py 35a1d927f99f44f0dec1e24b890ac27194c8ebc85bc0bfeb90631fdaaa239381 none
 stance5/tailscreen/verify/rescore/sens.out scratchpad2/tailround/screen/verify/rescore/sens.out 4d81d1f3c627d126ee07b7810781e2cc929729af0a6d857a144909d9290a617d none
 stance5/tailscreen/verify/rescore/sens.py scratchpad2/tailround/screen/verify/rescore/sens.py 46d1485b3eb0c40ac6c87e5b81c46fc9a9381d167aebdefcbaf3c03fcd8beba0 none
+stance6_setup/results/run_log.txt foot/stance4/live/run_log.txt f37b68bac910d5225477dcbc12a63b0235f1392532c7a786ade5dc19726e718b lines,redact,checkout
+stance6_setup/results/stance6_launch_lines.txt foot/stance4/live/run_log.txt f37b68bac910d5225477dcbc12a63b0235f1392532c7a786ade5dc19726e718b lines,redact
 symmetry/J1_recount.log foot/symmetry/screen/analysis/J1_recount.log ad7297a2009227b47fa20eba17c5e5e730aa2b761a15be0615489188ff247a31 none
 symmetry/J2_recount.log foot/symmetry/screen/analysis/J2_recount.log a2eb01c9f5df0c0bb695cfca5524972260208134419ce8a348bc21d4e2560378 none
 symmetry/ema_credit.json foot/symmetry/review2/ema_credit.json 90ec310e68f8c0c6380c090a83b6b06fa1c8cafb6c397a171f051ee224e4cfe1 whitespace
