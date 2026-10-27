@@ -1,0 +1,262 @@
+APPROVAL REQUEST -- T. REX r10 FIRST TRAINING ROUND (ARM LTSB, SEEDS 60/42/80, 12M STEPS, COLAB L4), LEAN RULES v6
+===================================================================================================================
+Written by the v6 re-pin step, 2026-10-27 02:55 to 03:50 UTC (date -u). It replaces the v5 pin step's request, which is
+kept in FL/superseded_v5/APPROVAL_REQUEST.txt. This is a request: nothing here is approved.
+<ROUND>/APPROVED and RUNLOG were NOT written. The run branch was NOT pushed (push URL DISABLED). No training, no
+optimizer step outside the repo tests a V-item names, no Drive, no GitHub.
+S2 = /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad
+SP = /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad
+RUNLOG = SP/foot/stance4/live/run_log.txt (662 lines, unchanged); <ROUND> = SP/foot/stance6 (does not exist yet)
+BR = S2/r10round/runbranch/clone (branch claude/screen-trex-r10-armltsb); FL = S2/r10round/final_lean
+LA = S2/r10round/lean/build/laneA; LB = S2/r10round/lean/build/laneB
+PY = S2/venv/bin/python (Python 3.13.17): the interpreter every tool and check here ran with (see open item 5).
+Labels: [measured] = run or read here; [inferred] = reasoned; [model] = computed by MODEL.
+
+1. WHAT IS ASKED TO BE APPROVED
+- The criteria text: FL/criteria_r10round_final.txt
+    sha256 99a44469a387d01c55b98d76595d3633029681866ed14afcb185521eca0164db, 829 lines.
+  It is lean v6 (S2/r10round/lean/v6/criteria_r10round_lean_v6.txt, sha256 e5bea5d314cb..., the decision of RUNLOG
+  line 661) with only its PINS filled [measured]:
+    - FL/diff_v6_to_final.txt: one hunk, "729,739c729,814" (v6's 11 PINS lines replaced by 86).
+    - FL/logs/pins_only_proof.txt: lines 1-728 and every line after the PINS block identical to v6.
+    - FL/logs/pins_verify.txt: every sha256 in the PINS block recomputed from its source (61 checks; the block's 53
+      distinct 64-hex values all traced to a source): PINS VERIFY PASS.
+  The filled block is the v5 pin step's block with these changes only: its first lines name the re-fill for lean v6
+  (RUNLOG line 661); lane A's and lane B's SHA256SUMS.txt sha256; lane B's r10round_common.py, score_r10round.py and
+  pins_r10round.json sha256; V2's lane B test count 292 -> 318 [FL/tools/make_final_v6.py, which reads each new value
+  from its file].
+  The STATUS paragraph (v6's, PIN-2) reads: "This text is pinned by the build, which fills PINS and changes nothing
+  else in it; pinned, it awaits the maintainer's approval and is not approved until <ROUND>/APPROVED exists (PINS)."
+- The texts it cites, copied unchanged beside it (kept in place from the v5 pin; byte-identical to S2/r10round/v12/):
+    FL/criteria_r10round_v12.txt  sha256 0ab5edeba04b319a4233a4700ebf9abf7d7d7127c30afc7565a7fa3bc34369ac (THIS12)
+    FL/evidence_r10round_v12.txt  sha256 353f4536ef3c0e06a1937714c44a22c7d52819be2e613cbc1ad23b47821f4e20 (EVID)
+  Both equal the text's own pins. sha256sum -c passes on FL/*.sha256 [FL/logs/sha256sum_c_texts.txt] and on
+  FL/MANIFEST.txt.
+- The branch HEAD (the header commit, made anew): 8737cd3d86431de1bdd0fcdb49a0d956a45e084d
+    parent: cf9402bc57dab92c716c7e0ee4bc96f72f237efb (D19, the parent the text pins)
+    tree:   cc7651b12645f57f71e7c7202a34e046aa122726
+  Branch claude/screen-trex-r10-armltsb in BR. Title: "Pin the r10 round's criteria in the T. rex stance config header
+  (never merged)".
+  - How it was made: 7bd71791 (the v5 header) kept at refs/superseded/header-v5; the local branch reset to cf9402bc;
+    the new commit made on it. Nothing was pushed; 7bd71791 was never pushed.
+  - What changes: only configs/tyrannosaurus_rex/anatomical/stance.toml (blob e89fae86..., mode unchanged), 4 comment
+    lines replacing 3, the same lines as 7bd71791's with the new sha256. They name the carry onto main 06b1a8e1 (#644
+    and #645 merged) and the final text's sha256 (99a44469...).
+  - Effect on the config: the parsed TOML equals cf9402bc's; digest_snapshot --check is current on the tree before
+    the commit [FL/logs/digest_check_prehead.log] and on HEAD's tree [FL/logs/digest_check_head.log].
+  - Message: the v5 header's message with "RUNLOG lines 653, 657 and 661" and the new sha256 [FL/work/
+    header_commit_msg.txt]; it ends with exactly the two trailer lines and names no model.
+  - Lane A's tools accept it from the draft record FL/DRAFT_approval_record.json (not APPROVED): only parent
+    cf9402bc, only stance.toml, comment lines only [measured: build-copy and check-copy, FL/logs/build_copy_head.log].
+- The tools (the values the PINS block holds):
+  - Lane A, LA/SHA256SUMS.txt (54 files) sha256 55a2170766fb171c2edb6332a5e6e1a2082ebdb9bd8dbca601bf9b22db12d799:
+      judge_r10ltsb.py 76da649c..., make_judge_r10ltsb.py 7e85dfa9..., kscore_r10ltsb.py 3a2e8ea9...,
+      measure_r10round.py b293a511..., r10m_common.py 97431323..., zs_harness_copy.py (M2) fbb71d22...,
+      runs/run_validations.sh f4ddecb1... (no lane A tool changed in v6; the PIN-1 test tools/tests/
+      test_judge_r10ltsb.py c8f6053d... and the new tools/tests/test_v6_laneA.py dfbf97a4... are in the list)
+  - Lane B, LB/SHA256SUMS.txt (133 files) sha256 932f20504f8af32fd3df3f6352a6d8735198d230b9138f111727de0817500eda:
+      ledger_r10round.py 0d89bcb8..., complete_r10round.py d322ed0e..., k3panel_r10round.py 89d279d4...,
+      score_r10round.py 3de2330a... (v6), fetch_r10round.py 36b7aee0..., v9_bundle.py 37eef565...,
+      r10round_common.py ea2c5ea6... (v6), pins_r10round.json 0d45721b... (refilled here, section 2),
+      colab_steps_r10round.txt f2eb9a24..., fetch_agent_brief.txt 24ac49d6...
+  - Code on the branch: M1 episode_trace_report.py b5923e5c... and episode_trace.py 96ced68e...;
+    M3 stance_gate_report.py bbfe8016...; M4's scoring code score_stance3.py 2c3879d3...
+  - sha256sum -c passes in both lanes, and every file in LB is listed [measured, FL/logs/laneA_sha256sum_c.txt,
+    laneB_sha256sum_c.txt, after the last run].
+  - pins_r10round.json: every pin filled, no branch_head, every lane B tool's sha256 equal to its pin, the judge files
+    equal to theirs, and the configuration pins equal to a measurement on HEAD's copy [measured, FL/logs/
+    pins_check_head_measurement.txt: PINS CHECK PASS].
+- MODEL: unchanged, MODEL v5 (S2/r10round/lean/v5/model_compare.py 0912b8ed..., output 0bacb2ab...), as v6 states.
+
+2. WHAT THIS STEP CHANGED (besides the text, the commit and the files in FL)
+- RP-1 (tool side, a pin fill; found here, verified, fixed). After the v6 amender changed r10round_common.py and
+  score_r10round.py, lane B's pins_r10round.json still held their v5 sha256 (a76d2f9d..., 1084cb88...) in
+  "tool_sha256". The scorer's PROVISIONAL check compares every lane B tool with that pin, so every reading of the round
+  would have printed two "tool ... is not its pin" lines and ended PROVISIONAL (read, printed, not acted on).
+  - Before [measured]: FL/logs/pins_check_before_fix.txt (PINS CHECK FAIL on those two tools);
+    FL/logs/provisional_probe_before_fix.txt (score_r10round.provisional with the real pins file: 2 tool lines).
+  - Fix: FL/tools/refill_tool_pins_v6.py refilled those two values and named the re-fill in "_status" and in
+    "_sources.tool_sha256"; every other byte kept [FL/logs/refill_tool_pins_v6.txt]. The pinned v5 file is kept as
+    LB/tools/pins_r10round.json.v5pin (b1b7d7bf...).
+  - After [measured]: PINS CHECK PASS [FL/logs/pins_check_after_fix.txt]; 0 PROVISIONAL tool lines
+    [FL/logs/provisional_probe_after_fix.txt]; lane B tests 318 passed (they build their own pins, so they could not
+    see it); V2's outputs byte-identical (section 3).
+  - Neither the amender's list of changed pins nor the fresh check's named this file; no unit test reads the real
+    pins file's tool_sha256. The pin step's pins_check.py does, and caught it.
+- LB/SHA256SUMS.txt refreshed (133 files: the 131 before, plus pins_r10round.json.v5pin and the amender's list kept as
+  SHA256SUMS.txt.v6amend, 5ff0d04f...). LA was not changed.
+- No other tool, test or text was changed. The fresh check's findings were all info (none minor), so nothing else was
+  applied (section 4 lists them).
+
+3. V-ITEM RESULTS
+V0 (the branch as it will train)
+- (a)-(h): PASS, carried from the run-branch build, unchanged by the header commit [inferred: the header commit
+  changes only stance.toml comment lines, the parsed TOML is equal and the digest snapshot is current]:
+  - (a) S2/r10round/runbranch/build/merge/mergeproof_all_port_files.txt; S2/r10round/runbranch/fixer/merge/
+    (recorder.py's one hand-resolved hunk, decode_head.json = decode_main.json on 74 model variants);
+  - (b) S2/r10round/runbranch/build/equiv/digests/compare_digests.txt; re-measured on HEAD's copy: every configuration
+    pin equal [FL/logs/pins_measured_head.json, FL/logs/pins_check_head_measurement.txt];
+  - (c) S2/r10round/runbranch/build/v0/statue_head_3042.log (4470.3686 +/- 30.8760, 40/40);
+  - (d) S2/r10round/runbranch/build/v0/cert.log (40/40 at every heading);
+  - (e) S2/r10round/runbranch/build/v0/smoke.log; S2/r10round/lean/build/fixer/out/f3_launch_check_on_head_files.txt;
+  - (f) S2/r10round/runbranch/fixer/logs/head2_full_failed_all.txt = known25.txt (main 06b1a8e1 fails none);
+  - (g) S2/r10round/runbranch/build/r9eq/out/;
+  - (h) S2/r10round/runbranch/build/equiv/rollout_digest_pins.txt, compare_rb1.txt, rb33/, k3on/.
+- (i) ON THE NEW HEADER COMMIT: PASS [measured, FL/logs/v0i_head.txt, 03:30 UTC; FL/tools/v0i_check.sh]:
+  - git rev-list --count 06b1a8e1..HEAD = 7; git diff --name-only 06b1a8e1 HEAD = exactly the port's 22 files
+    (FL/superseded_v5/work/v0i_names.txt), the D19 test file one of them;
+  - the notebook is main's blob (70f5c095...); notebooks/ unchanged from main;
+  - the header commit: one parent cf9402bc, one file, 7 changed lines, all comment lines; its message names the carry
+    onto 06b1a8e1;
+  - all 7 messages end with exactly the two trailer lines, and none names a model;
+  - on HEAD's tree (git archive 8737cd3d):
+    - digest_snapshot --block-optional-backends --check: 649 lines, 0 errors, current; snapshot sha256 62b5163c...
+      [FL/logs/digest_check_head.log];
+    - ruff 0.16.9 (lint venv): check clean and format --check clean on environments/, 418 files [FL/logs/ruff_head.txt];
+    - the band test file (test_anatomical_stance_cop_band.py, sha256 536e8441...): 63 of 63 passed [FL/logs/band_head/];
+  - git status clean; push URL DISABLED; refs: the branch at 8737cd3d, refs/superseded/header-v5 at 7bd71791.
+V1 (M2 on the zero-action statue, on the new HEAD's measuring copy): PASS [measured]
+  - 40/40 clean and full horizon; the 107 non-reward fields equal to the main statue's (worst difference 0.0); mean
+    reward 4470.368636249949 [FL/laneA_head/logs/V1_check.log, FL/laneA_head/V1/v1_check.json].
+  - The copy: FL/copies/head_8737cd3d, commit 8737cd3d, tree digest 331fe8fc..., archive e7ae1e91..., 1406 files
+    [FL/logs/build_copy_head.log]; deleted at 03:46:38 UTC [FL/logs/copies_and_trees_deleted_utc.txt].
+  - The branch HEAD was read from the draft record FL/DRAFT_approval_record.json (not APPROVED); every output names
+    commit 8737cd3d.
+V2: PASS [measured]
+  - lane B tests 318 passed, on a private copy of LB in the final state [FL/logs/laneB_v2_head/pytest_lane_b.txt]
+    (and before the HEAD was made, FL/logs/laneB_v2_prehead/);
+  - MODEL's named scenarios 183 of 183 (MODEL v5 0912b8ed..., output 0bacb2ab...); the output file byte-identical to
+    LB/out/v2_model_named_a1_a2_a3_a4.txt/.json [FL/logs/laneB_v2_head/run.txt]; 183 of 183 in each of 21 runs here
+    (see open item 2 on byte-identity);
+  - the eight r9 ledgers 8 of 8 equal to rail_check2.json; LB/out/v2_ledgers.txt reproduced byte for byte;
+  - C6 on V9 (a) and (b) as stated.
+V3 (M3 on the statue, header commit's copy): PASS [measured]
+  - 40/40 clean at each of the six headings (-90, -45, 0, +45, +90, +180 deg); verdict PASS; physics_revision 10;
+    commit 8737cd3d [FL/laneA_head/V3/m3_statue/m3_summary.json, FL/laneA_head/logs/V3_check.log]; 03:35 to 03:43 UTC.
+V4 (M1 on a zero-action checkpoint of the branch, no optimizer step, header commit's copy): PASS [measured]
+  - 20 episodes, 20,000 steps; every command 0.0; hip-roll joint positions present and finite at every step; 0 tail
+    flags, 0 fall flags [FL/laneA_head/V4/v4_check.json].
+  - The checkpoints were built on that copy by statue_ckpt.py, num_timesteps 0, no learn() [FL/laneA_ckpt/,
+    FL/logs/statue_ckpt/].
+V5 (the M1-M4 runners refuse physics_revision != 10, header commit's copy): PASS [measured]
+  - M1, M2, M3 and the judge refuse the r9 record (revision 9) and the unrecorded one (None), writing nothing; the copy
+    unchanged [FL/laneA_head/logs/V5_check.log].
+Lane A's unit tests on the header commit's copy (run_validations.sh): 76 passed [measured,
+  FL/laneA_head/logs/unit_tests.log]. This includes PIN-1's test (test_judge_r10ltsb.py line 156 now accepts the copy
+  of the approved header commit, checked as the tools check it), so PIN-1 is measured on the real header; the v5 pin
+  step had 64 of 65 on 7bd71791's copy.
+Also in run_validations.sh on that copy (all rc 0) [FL/laneA_head/logs/validations.log]:
+- the two M4 r9 comparisons (compare only, on lane A's existing judge files of stance5_LTSB_s70 final and
+  stance5_LTSB_s80 4,194,304): 0 differing values each; the tool rewrote its two compare JSONs in LA/out/M4_r9/
+  (not in LA's SHA256SUMS) byte for byte [FL/logs/m4_r9_compare_before.txt = m4_r9_compare_after.txt];
+- the M4 scoring reproduction: equal to REPL's score of record;
+- the copy's seal: unchanged after every run, and after the pins measurement [FL/logs/check_copy_head_after_pins.json].
+V7 (P-K3 (i), the measured form decided at RUNLOG line 645 (4)): PASS on the header's parent and on HEAD [measured]
+  - cf9402bc, with the pinned patch FL/v7/stance_toml_cadence_neutral.patch (641eb048...), re-run here 03:00 to 03:04
+    UTC [FL/logs/v7_parent_cf9402bc/v7_verdict.txt; the PINS block cites this path]:
+    - as written: test_curriculum_k3_panel.py 23/23, both failure-injection tests included; the two RolloutBuffer/
+      update/RNG inertness proofs and test_the_k3_panel_runs_beside_mirror_symmetric_ppo pass; 26 passed, the 9
+      failures the 9 cadence ids of test_curriculum_balance_telemetry.py;
+    - cadence-neutral copy: 39 of 40 pass; the one failure is test_the_plain_run_writes_the_bases_artifacts.
+  - HEAD 8737cd3d, 03:30 to 03:34 UTC [FL/logs/v7_head/v7_verdict.txt]: the same result. The patch applied with an
+    offset of 1 line and commented out the same two lines [FL/logs/v7_head_patch_apply.txt].
+  - So v7_failed_on_head = false (pins_r10round.json) holds, and every run launches with the K3 panel ON.
+  - Record V7 on HEAD in RUNLOG and APPROVED (the text's V7).
+V8 (i)-(ii): PASS [measured on 5b38f97b's tree by the run-branch build; not re-run]
+  - S2/r10round/runbranch/build/v8/compare_statue.txt, compare_s80.txt: the callback's 68 port columns identical cell
+    for cell with TEL on and with TEL's capture forced to raise; the return equals evaluations.npz in every row.
+  - 5b38f97b -> cf9402bc changes one test docstring, and the header commit only comment lines [measured diffs]; no
+    effect [inferred].
+V9: PASS [measured, LB/out/v9_and_dryrun.txt; reproduced byte for byte on a lane copy, FL/logs/laneB_v2_head/]
+  - (a) on the dry run's real files: C2 passes; C3 passes on the 12 held files and the 5 listed zips by size; C6 fails
+    at exactly evaluation 8,126,464 episode 5. (b) on the HEAD-written test-scale folder: C2, C3 and C6 pass whole.
+V10 / D9 (the dry run on real Drive bytes, read only): PASS, 2026-10-26 15:48:59-16:24:24Z [S2/r10round/lean/dryrun/
+  dryrun_result.txt sha256 9b1e8d78817b004c3304c51877257fbcb8fcb4041061555c51c1548b90670af2; not re-run (no Drive)].
+
+4. OPEN ITEMS (none blocking; none changes a rule)
+Settled by v6 and this step:
+- V5C-2: MEAN_a with one or both CMD_a not formed -- option A, v6 lines 184-187 (RUNLOG line 661).
+- V5C-3: a formed CMD_a of exactly 0.60 beside one not formed gives MEAN_a 0.60 -- resolved by that wording.
+- PIN-1: lane A's tests pass on the header commit's copy, 76 of 76 [measured above].
+- PIN-2: the STATUS paragraph states the real state (pinned by the build, awaiting approval).
+- RP-1: the pins file's two stale tool pins (section 2).
+Open:
+1. Text points: none minor. The fresh check's text-side items are information only (items 6 and 7).
+2. RP-2 (minor; lane B test harness, not a tool; found here; not fixed). V2's named-scenario output is not always
+   byte-identical between runs: in 5 of 18 runs a scenario's first store failed C3 and was read from the re-fetch
+   store, moving a printed fetch count or C3 fact; the verdict did not move in any of 21 runs (183 of 183 each).
+   Cause [measured]: tests/synth.py sb3_zip() stamps its synthetic zip entries with the wall clock (2-second
+   resolution), and the harness builds a run's served zips and its manifest entries in separate calls
+   [FL/logs/v2_named_repeat/README.txt, FL/logs/zip_clock_evidence/]. MODEL's row cache is not involved (0 stale
+   hits). It can only add C3 mismatches, so it can show a false DIFF, never a false SAME [inferred]. The amender's and
+   the fresh check's "byte-identical" V2 outputs hold for most runs, not all. Fix at the next tool revision
+   (test-only): a fixed ZipInfo date_time in sb3_zip. Not applied: it is not a check finding, and no reading depends
+   on it.
+3. The pins file's _status now names v6; the headers of colab_steps_r10round.txt and fetch_agent_brief.txt, lane A's
+   docstrings and r10m_common.CRITERIA (tests only) still name lean v5; LA/REPORT.txt and LB/REPORT.txt describe the
+   v5 tools (S2/r10round/lean/build/v6/REPORT.txt supersedes them for MEAN_a and PIN-1). No rule or reading is
+   involved; their pins are unchanged (V6-5, V6C-6).
+4. MODEL (info, V6C-7): model_v12_rules.py line 489 reads R1 at 10,485,760 even for a STOPPED run, where the text uses
+   the last multiple of 262,144 at or before E. The same in v5 and v6; V2's 183 scenarios do not depend on it.
+5. Python version (info, V6-3, V6C-5): an exact 0.60 tie depends on the interpreter. Twenty window means of 0.6
+   average to 0.6 under Python 3.13.17 but to 0.5999999999999999 under 3.11.17; lane A's np.mean gives
+   0.5999999999999999. The scorer reads lane B's value. The Colab steps write "PY" without naming it: run the lane B
+   tools (scorer, completeness, ledger, fetch) with PY = S2/venv/bin/python (3.13.17), as every check here did.
+6. Carried from the v5 pin (info; process): fetch_r10round.py runlog-listing does not refuse a models/ listing made
+   before the trigger note, and the scorer then leaves relaunch (i) undecided (PIN-5): make the trigger listing only
+   after the trigger note. Write TRIGGER-a with FOUND-GONE, and STOP with TRIGGER-d, at one time, and every F2-START
+   line before F2's first file (V5C-7, V5C-8).
+7. Carried (info): the tools' readings where the text leaves room (U5-2: "beyond step 200" as length > 200; the
+   restating rule; the trigger listing's time window on both paths); kscore keeps RA-3's checkpoint revision check
+   beside A-3's rebound plant check (V5C-6); COMPUTE's "F2 starts 6 h after" is an estimate (V5-2, V5-3); the M4 r9
+   comparisons compare lane A's existing judge files (PIN-4); V0 (a)-(h) and V8 are carried, not re-run on the header
+   commit (PIN-3).
+
+5. WHAT THE MAINTAINER MUST STILL DO BEFORE LAUNCH
+1. Approve or not:
+   - the final text 99a44469a387d01c55b98d76595d3633029681866ed14afcb185521eca0164db;
+   - THIS12 0ab5edeb... and EVID 353f4536...;
+   - the branch HEAD 8737cd3d86431de1bdd0fcdb49a0d956a45e084d (parent cf9402bc...);
+   - the V-item results above.
+2. On approval (this step wrote neither file):
+   - copy the three texts byte for byte to <ROUND>/criteria.txt, <ROUND>/criteria_v12_cited.txt and
+     <ROUND>/evidence.txt, chmod 0444;
+   - write <ROUND>/APPROVED (JSON) with these keys (FL/DRAFT_approval_record.json shows the names; it is not
+     APPROVED): criteria_sha256, this12_sha256, evid_sha256; branch_head; validations: "V0", "V1", "V2", "V3",
+     "V4", "V5", "V8 (i)", "V8 (ii)" and "V9", each "PASS" (the scorer reads these keys and is PROVISIONAL
+     otherwise); add V7's result on HEAD;
+   - note in RUNLOG the three sha256, the branch HEAD and V7 on HEAD.
+3. Give the OK to push claude/screen-trex-r10-armltsb at 8737cd3d, never merged (D16), so that Colab's REPO_REF can
+   install it. The clone's push URL is DISABLED and stays so until then. Push only the branch: refs/superseded/
+   header-v5 (7bd71791), refs/fixer-reference/5b38f97b and refs/port-reference/e5e56382 are local records.
+4. Colab compute balance (D18; Colab steps B1): about 3 x 15.5 = 46.5 L4-hours for the three runs, plus about 15.5
+   for one possible relaunch (_b): about 62 L4-hours in all, times the L4 rate read in Colab on the day. Note both
+   numbers in RUNLOG.
+5. The weekly fetch budget (L8 (a); Colab steps B2): about 195 file copies per round [model, TABLE M], PRESENCE's
+   second copies included, each a Drive download through the connector (about 50k tokens each [inferred]). Check it
+   against the account's weekly budget and note it in RUNLOG.
+6. Launch with the launch steps: S2/r10round/lean/build/laneB/colab_steps_r10round.txt (sha256 f2eb9a24...).
+   - Its <ANGLE BRACKET> fields (the HEAD) are read from APPROVED; the LAUNCH line records
+     head=8737cd3d86431de1bdd0fcdb49a0d956a45e084d.
+   - Fetches follow S2/r10round/lean/build/laneB/fetch_agent_brief.txt (sha256 24ac49d6...).
+   - Run every lane B tool with PY = S2/venv/bin/python (open item 5).
+
+6. FILES (FL = S2/r10round/final_lean; MANIFEST.txt lists every file's sha256)
+- criteria_r10round_final.txt (+ .sha256), criteria_r10round_v12.txt (+ .sha256), evidence_r10round_v12.txt
+  (+ .sha256), diff_v6_to_final.txt, DRAFT_approval_record.json (not APPROVED), APPROVAL_REQUEST.txt, MANIFEST.txt.
+- v7/: stance_toml_cadence_neutral.patch (+ README.txt), unchanged from the v5 pin.
+- tools/: the v5 pin's v7_run.sh, v7_verdict.py, pins_check.py, pins_verify.py, make_manifest.sh (unchanged); this
+  step's make_final_v6.py, refill_tool_pins_v6.py, v0i_check.sh, laneB_copy_checks.sh (its start line was extended
+  after its first run to print R10M_COPY), provisional_probe.py, named_repeat.sh, named_repeat_isolated.sh,
+  probe_a2_63_fetches.py, probe_first_fetch.py, probe_rowcache.py, probe_first_store.py, zip_dates.py.
+- logs/: every log named above. laneA_head/ holds lane A's outputs on the header commit's copy, and laneA_ckpt/ the
+  three zero-action pairs built on it.
+- work/: the PINS block, the commit message, the three stance.toml versions, the lane B sums list, the HEAD id.
+- superseded_v5/: the v5 pin's text (4b622101...), request, draft record, MANIFEST, diff, logs, laneA_head/,
+  laneA_ckpt/ and work/, moved unchanged (README.txt there).
+- Deleted after use (recreatable with git archive or build-copy): the trees of cf9402bc and 8737cd3d (with their
+  cadence-neutral copies and the pre-commit tree) and the measuring copy head_8737cd3d.
+- Not written: the main checkout (clean at 1b71f00b), RUNLOG (662 lines), <ROUND>, Drive, GitHub. BR was written only
+  by the header commit and the ref refs/superseded/header-v5 (HEAD 8737cd3d, clean, push URL DISABLED). In LB only
+  tools/pins_r10round.json (refilled), tools/pins_r10round.json.v5pin, SHA256SUMS.txt and SHA256SUMS.txt.v6amend
+  were written; in LA only run_validations.sh's two compare JSONs, rewritten byte for byte.

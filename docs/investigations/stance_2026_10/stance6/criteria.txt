@@ -1,0 +1,829 @@
+T. REX STANCE ON PHYSICS r10, FIRST TRAINING ROUND: ARM LTSB, THREE SEEDS FROM SCRATCH, 12M STEPS, COLAB L4 -- FIXED
+CRITERIA -- LEAN v6: ALL-OR-NOTHING RUN HANDLING, LEAN-R WITH PRESENCE, AS DECIDED AT RUNLOG LINES 653, 657 AND 661
+
+STATUS: LEAN v6, written 2026-10-27 01:41 UTC (date -u) by the amender, from lean v5
+(S2/r10round/lean/v5/criteria_r10round_lean_v5.txt, sha256
+16f288782d77e7e35c1b9f807094556050f793b729eaf26c040ce1583bb89794) under the maintainer's decision of RUNLOG line 661
+(V5C-2, option A): MEAN_a when one or both of CMD_a(R1), CMD_a(R2) is not formed (CLASSES), which also settles
+V5C-3 (a formed CMD_a of exactly 0.60 beside one not formed gives MEAN_a 0.60); and this STATUS paragraph made
+accurate (PIN-2); no other rule change. changes_v6.txt lists each change with its lines and worddiff_v6.txt is the
+word diff from v5. MODEL is MODEL v5, unchanged: every CMD_a it builds is formed, and there v6's MEAN_a is v5's
+(changes_v6.txt). Lean v5 was written 2026-10-26 21:39 UTC by the reviser, from lean v4
+(S2/r10round/lean/v4/criteria_r10round_lean_v4.txt, sha256
+91c0e6e4ff6bda46f644019ee3eed6597a5ad59bf58bd92df1673c9aad0435a3) under the maintainer's decision of RUNLOG line 657:
+the ten rule wordings of S2/r10round/lean/build/fixer/FIXES.txt section D (MODEL changed at its line 1450 to match
+the first) and the minor clarifications listed in that section's last item (O-3, O-5, O-9 to O-14, O-16 to O-18,
+A-5, A-7 to A-9, F-4, R-m10); no other rule change. changes_v5.txt lists each change with its lines and
+worddiff_v5.txt is the word diff from v4. Lean v4 was written 2026-10-26 17:20 UTC by the reviser, from lean v3
+(S2/r10round/lean/v3/criteria_r10round_lean_v3.txt, sha256
+b8f4b2204697a72d0ea5e537a945710f930cf34b7ad09ea81e368e9da66481fa), the two fresh checks of v3
+(S2/r10round/lean/v3check/) and the D9 dry run (S2/r10round/lean/dryrun/), under the maintainer's decisions of RUNLOG
+line 653: L1 LEAN-R; L3 (b) PRESENCE; L9 the dry run (V10: done, PASS); L2 (a), L4 (a), L5 (a), L6 (a), L7 (a), L8 (a),
+L10 (a). FULL (criteria v12 with a v13) is retired. Still applying: RUNLOG line 645 (2)-(4) where they bear on these
+rules, line 646 (the run branch), D17 and D18. No decision is open (decisions_lean_v4.txt; the build's open
+rule points were decided at RUNLOG line 657, V5C-2 at line 661). This text is pinned by the build, which fills
+PINS and changes nothing else in it; pinned, it awaits the maintainer's approval and is not approved until
+<ROUND>/APPROVED exists (PINS). Nothing trained: no training run and no optimizer step; no Drive and no GitHub
+access were used to write it (V10's facts are the dry run's). changes_v4.txt lists every change from v3.
+NAMES OF DECISIONS: D<n> is criteria v12's decision n as THIS12 uses it (D1 recipe, D2 seeds, D3 cadence, ... D22);
+L<n> is item D<n> of S2/r10round/lean/final/decisions_lean_v2.txt as decided at RUNLOG line 653; D-<n> is a
+diagnostic readout.
+PRECEDENCE AND FREEZE: this text cites THIS12 and EVID by line or section for definitions, readouts and validations it
+does not repeat. Where this text and THIS12 differ, this text governs; THIS12's saturation counts (lines 311-313),
+fetched versions and their union, STABLE, the traced set T and its 66 pairs (lines 321-329), MISSING INPUTS fills, the
+return check as a class rule (V8 (i) keeps its return-equality test of the callback), F1, O0-O10 and REPLACEMENT do not
+apply. Once the build has filled every pin, this text goes byte for byte to <ROUND>/criteria.txt, THIS12 to
+<ROUND>/criteria_v12_cited.txt and EVID to <ROUND>/evidence.txt (chmod 0444); the three sha256 and the branch HEAD are
+recorded in RUNLOG and <ROUND>/APPROVED (PINS); none of the three is edited after the first training step.
+
+Short names (as THIS12). SP = /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad. S2
+= /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad. RUNLOG =
+SP/foot/stance4/live/run_log.txt. MAIN = S2/tailround/r10cpu/main_clone (read only). BR = S2/r10round/runbranch/clone
+(branch claude/screen-trex-r10-armltsb, read only). STOML = BR/configs/tyrannosaurus_rex/anatomical/stance.toml. THIS12
+= S2/r10round/v12/criteria_r10round_v12.txt (sha256 0ab5edeba04b319a4233a4700ebf9abf7d7d7127c30afc7565a7fa3bc34369ac).
+MJCF, REC, EV, SR3EV, ZS, SCREEN, REPL, SAT, DRAFT, FSR, V4PKG, PORT, PE, FX, PW, PN, JC and TEL as THIS12 defines them.
+EVID = S2/r10round/v12/evidence_r10round_v12.txt (sha256
+353f4536ef3c0e06a1937714c44a22c7d52819be2e613cbc1ad23b47821f4e20), cited for its tables, calibration and detail only
+(its COMPLETE RUN and V2 CASES sections do not apply here). MODEL = S2/r10round/lean/v5/model_compare.py (output
+model_compare.out; both pinned in PINS). D9 = S2/r10round/lean/dryrun/ (the dry run's files, V10). <ROUND> =
+SP/foot/stance6 (D16).
+Labels: [measured] = read or computed from the named file; [inferred] = reasoned; [model] = computed by MODEL, which
+applies these rules and v12's (with RUNLOG 645) to the same synthetic worlds.
+
+WHAT IS TRAINED (D1, D2, D3, D16, D18 decided; as THIS12, shortened)
+- Physics r10 (physics_revision 10, policy interface r15), the stance stage, the SB3 notebook, n_envs 4, three Colab L4
+  runtimes in parallel, from scratch, 12,000,000 steps (final 12,001,280), main's PPO schedules (STOML; learning_rate
+  3e-5 -> 1e-5, n_steps 2048, batch 128, n_epochs 10, gamma 0.98, ent_coef 0.005 -> 0 by 7,000,000, target_kl 0.03,
+  net [512, 256], log_std_init -1.5); hyperparameters_sha256.PPO 054ab483..., LTSB's r9 runs' [measured, PW digests].
+- Recipe (D1): arm LTSB of stance5 (JC at cf80ecb1) ported to r10; the config keys it changes, the code it carries and
+  its measured equivalence are THIS12 lines 66-101 and EVID (WHAT IS TRAINED). checkpoint_freq 262144 (D3 (a));
+  collapse_peak_floor_reference 4470.4 (D20 (a): main's 3766.6 plus the measured statue gain +703.8132; floor 2011.68).
+- Code: BR = main 06b1a8e1 (both TEL PRs merged, D15 met) + the port's four commits 176af89f, 60c0c1f9, 740fc3f5,
+  7fa2f2c3 (each message names its carry onto main 06b1a8e1) + 2ca69a8f (D3) + cf9402bc (D19, amended from 5b38f97b:
+  the guard_1 docstring only; accepted, RUNLOG line 646) [measured, BR git log; S2/r10round/runbranch/fixer/logs/
+  v0i_head.txt]; recorder.py's one hand-resolved hunk (_configure_decode) accepted and listed in V0 (a) (RUNLOG line
+  646); last, the header commit: this text's sha256 in a stance.toml comment, its message naming the branch's carry
+  onto main 06b1a8e1 (PINS). No notebook change (D22). Pushed only after the maintainer's OK so Colab's REPO_REF can
+  install it (D16); never merged.
+- The zero-action baseline row reads "reward" and "standing" about 4470.4, 40/40 full horizon (main: 3766.6); only the
+  task digest tells band on from band off (launch check).
+- The in-run K3 panel of TEL is ON at launch (RUNLOG line 645 (4)), per seed with the sigma below; report only.
+
+ARMS AND SEEDS (as THIS12 lines 116-136, shortened)
+- One arm, three runs, no concurrent control; the comparison is historical (THE r9 REFERENCE).
+- Seeds 60, 42, 80 (D2); RUN_IDs stance6_r10LTSB_s60, _s42, _s80 (D16). Stated plainly: three of LTSB's five r9 seeds,
+  chosen with their r9 outcomes known (s60 no alarm; s42 alarm 3,670,016; s80 alarm 4,456,448) [measured, REC sec.
+  21.3-21.4, 23.3-23.4]. The analysis treats the runs as exchangeable draws; seeds do not pair runs (GPU training is not
+  bit-reproducible); per-seed comparisons are report only (D-12).
+- K3 joint-space sigma (report only): seeds 60 and 42 their frozen control_sigma, seed 80 the replication sidecar's mean
+  vector (THIS12 lines 132-136); offline judge (M4) and in-run panel (M7) use the same vector per seed.
+
+CHECKPOINTS AND LEDGER CADENCE (D3 (a))
+- An evaluation of 10 deterministic episodes every 131,072 steps (91, the last at 11,927,552), as every LTSB r9 ledger.
+- A periodic pair every 262,144 steps, all kept (45 pairs), plus stage1_final (12,001,280), best_model,
+  robust_best_model. J = 4,194,304; 5,242,880; 6,291,456; 8,388,608; 10,485,760; final. About 0.19 GB of checkpoints per
+  run [inferred].
+- The notebook's outputs used here [measured, D9 listing.csv and the manifest; BR config.py lines 942-995,
+  reporting/bundles.py lines 770-808]. In 01_stance/: stage_config.json (written at the stage's start with the
+  plant_identity and task_fingerprint blocks embedded, lines 973-976; rewritten at the end with the run's duration),
+  plant_identity.json and task_fingerprint.json (copies of those blocks written just after it, read only by M4's judge,
+  report only),
+  eval_episodes.csv (screen_v2_reasons, #640's saturated_actuator columns, TEL's columns), evaluations.npz,
+  progress.json, gate_verdict.json, policy_probe.npz, train_episodes.csv, hop_watch.json (only when the hop watch
+  trips), k3_panel.csv/json, models/ (the pairs stage1_<steps>_steps.zip with stage1_vecnormalize_<steps>_steps.pkl and
+  stage1_final.zip with stage1_final_vecnorm.pkl, best_model and robust_best_model), figures/ (with
+  figures/training_history/) and replays/. At the run folder's root: provenance.json, trunk_run.json and
+  zero_action_baseline.json, written at launch; and, written by the result bundle at the end, plant_identity.json
+  (bundles.py line 772: the only writer of the root copy in the notebook path), collected_results.csv, summary.json and
+  artifact_manifest.json. The manifest lists every other file of the run folder with its size_bytes and sha256 (written
+  "sha256:<hex>"), with schema_version, the run_id from provenance.json and a status (partial, failed or complete; a run
+  whose gate failed is bundled "failed" (a stance-only run; "partial" when a later stage passes) [measured, V9 (b)]);
+  it is written last, after the
+  gate verdict, the figures and the summary, whether the gate passed or failed, just before the gate line or the halt
+  [measured, BR environments/shared/result_bundle/manifest.py lines 93-129; reporting/bundles.py lines 770-808; notebook
+  sb3_training.ipynb cell 20 lines 306-315]; the notebook flushes Drive before it releases the runtime [measured, BR
+  environments/shared/notebook_runtime.py lines 15-43]. An interrupt never reaches the final save (C5). A chain past
+  stance rewrites the bundle after each later node, stance's files unchanged [inferred, BR notebook cell 20 lines
+  306-309].
+- One Colab-written manifest has been checked (V10, the D9 dry run, read only): stance5_LTSB_s70's, two equal copies
+  (sha256 c245da0b16f2e48900fc24dec22fb3a9dedf93dc920cef3620493a21852c8240), schema_version 1, run_id the RUN_ID, status
+  complete, 98 entries = every other file of the run folder, every size equal to Drive's listing, every C3 file checked
+  equal to its entry; it landed 45.3 min after progress.json's "ended" (gate_verdict.json's judged_at at 30.7 min)
+  [measured, D9]. The code that wrote it (result_bundle/manifest.py, provenance.py, constants.py, reporting/bundles.py;
+  notebook cell 20) is byte-identical on BR [measured, D9].
+
+HOW IT IS MEASURED (offline, in session scratch, on files fetched read-only; nothing during a run but M7's panel)
+- Measuring copy: git archive of the branch HEAD the runs trained (git_commit in stage_config.json), python -I -B,
+  OMP_NUM_THREADS=1, nice -n 10, at most 2 processes; outputs to <ROUND>/panels/<RUN_ID>/<label>/, never into a run
+  folder; every M1-M4 output records the model's physics_revision and the runner refuses anything but 10.
+- M1 TRACE (main's episode_trace_report.py, #638; pinned): deterministic, seeds 3042-3061, every actuator, window
+  200..L-1: per episode and actuator the window-mean command, raw mean, joint position, shares at |command| >= 0.99 and
+  >= 0.9, |raw| > 1 share, first rail step, return, length. Command as THIS12 lines 173-180.
+- M2 POSTURE PANEL (zs_harness_copy.py, sha256 fbb71d22..., validated bit for bit): seeds 3042-3081 deterministic, the
+  statue panel being M2's own zero-action panel on the same measuring copy; tail
+  commands, joint angles, chords, tip height, CoM fore-aft and lateral, pelvis pitch/roll/height, head-tip height,
+  neck/head pitch, fall direction, other actuators' saturation (THIS12 lines 181-193).
+- M3 CERTIFICATE (stance_gate_report.py, sha256 bbfe8016...): the six-heading certificate (-90, -45, 0, +45, +90, +180
+  deg; seeds 3042-3081 each) under the run's own stage config; PASS = its own verdict. A measurement of the gate's
+  criteria on a screen task, not certification.
+- M4 JUDGE (report only, D12 (a)): K1-K4 as REPL, judged at J by judge_r10ltsb.py (REPL's judge_stance5r.py rebound to
+  r10, the branch HEAD, its task and statue, the per-seed sigma), scored with score_stance3.py's code unchanged but for
+  its judge identity (JUDGE_SCHEMA r10ltsb-judge/v1, ARM_ENV LTSB, HEADS the branch HEAD, as score_stance5.py rebinds
+  them) and its r9 plant check, which reads the pinned r10 plant (physics_revision 10, physics_sha256 6a47a0eb...) in
+  place of r9's.
+- M5 LEDGER READER (to build): on ONE ledger, per evaluation: (a) the ANY count: episodes whose ANY input (THIS12 lines
+  351-358) is over the bar: with the screen measured, screen_v2_reasons lists max_actuator_saturation_fraction (the
+  D-D40 5a rule as score_stance4.saturation_alarm reads it); with the screen unmeasured (screen_v2_clean blank or NaN on
+  that evaluation's rows, which the code writes when one episode's stance metrics or the screen judge raised [measured,
+  BR eval_diagnostics.py lines 1596-1630]), saturated_actuator_fraction > 0.10; a row over the bar on a tail actuator is
+  any-over; (b) the TAIL count (saturated_actuator_fraction > 0.10 and saturated_actuator in 11-14, by actuator and
+  sign); (c) the TAIL-UNRESOLVED count (CLASSES). Read on a COMPLETE run's whole ledger, and on a LOST run's ledger as
+  it stands for PRESENCE and D-16. Tested on the eight r9 ledgers (path (a)) and on synthetic ledgers (V2). TEL's
+  rail_actuators column is printed beside (b) and (c), report only.
+- M6 TRAINING-ROW READER, M7 IN-RUN K3 PANEL READER, M8 TELEMETRY READER (to build, small): as THIS12 lines 234-246.
+
+THE TELEMETRY OF TEL (report only; on main, D15)
+- TEL's columns and pages 11-19 sit outside every reward, observation, termination, gate, checkpoint selection and
+  digest [measured, TEL spec Parts 0-5]; no class, reading, statistic or run-handling rule reads them; V8 tests that a
+  failing TEL column changes no class input. Names and the measured invariance: EVID (THE TELEMETRY OF TEL).
+
+THE IN-RUN K3 PANEL (TEL; report only; ON, RUNLOG line 645 (4))
+- At every multiple of 1,048,576 and once after the final save: the replication judge's two K3 noise tests (20 spawns
+  3042-3061 x own-sigma and joint-space noise), on a CPU twin, in its own env and RNGs, written to k3_panel.csv/json
+  only; 12 panels per run, about 17-26 min of paused training per run [RUNLOG line 630]. Not the K3 of record (M4 is).
+- Sigma file and key set at launch in notebook cell 6 (RUN HANDLING, Launch): K3_PANEL_SIGMA_FILE the absolute Colab
+  path /content/mesozoic-labs/docs/investigations/stance_2026_10/stance5/replication/sigma_s70_s80.json (the branch's
+  copy, sha256 939285e30f377e696fef7bdcc30d6d61786e18c593ae39a1b50c936e3822a0ab [measured, BR]); K3_PANEL_SIGMA_KEY
+  "source_vectors.60", "source_vectors.42" or "control_sigma.80" (the bare "60", "42", "80" resolve to the same nodes
+  [measured, BR environments/shared/k3_panel.py lines 215-253; the file's keys]); each row carries its sigma sha256.
+- P-K3, V7 in the measured form decided at RUNLOG line 645 (4) (VALIDATIONS). A panel launched off or mis-set is
+  recorded and the run goes on; an exception inside the panel is caught and recorded [measured, TEL
+  test_curriculum_k3_panel.py line 329]; a crash it cannot catch ends the run (LOST; KNOWN LIMITS).
+
+CLASSES PER RUN
+Definitions (as THIS12 lines 297-337, unchanged in substance, with PRECEDENCE: no saturation counts, no T).
+- TAIL ACTUATORS 11-14; TAIL PITCH ACTUATORS 11, 13, 14; TAIL-UP = a positive command on a tail pitch actuator.
+- BAR: an episode's share of window steps at |command| >= 0.99 on an actuator exceeds 0.10.
+- TAIL FLAG (M1): a tail actuator over the BAR in a FULL-HORIZON (1000-step) traced episode, with its sign; on an exact
+  tie the flag counts once in each sign; flags in shorter episodes are FALL FLAGS (report only).
+- ANY-FLAGGED EVALUATION: at least 5 of its 10 ledger episodes over the bar on any actuator (M5 (a)). ANY ALARM: the
+  second of two consecutive any-flagged evaluations (D-D40 5a as r9 was read).
+- TAIL-FLAGGED EVALUATION: at least 5 of its 10 episodes over the bar with a tail actuator named (M5 (b)). TAIL ALARM:
+  the second of two consecutive tail-flagged evaluations.
+- TAIL-UNRESOLVED EPISODE: over the bar, a non-tail actuator named, and saturated_actuator_ties >= 1 or
+  actuators_saturated >= 2. An ANY ALARM without a TAIL ALARM at its step NEEDS RESOLUTION when counting the
+  TAIL-UNRESOLVED episodes of either evaluation as tail episodes would make both tail-flagged; its RESOLUTION CHECKPOINT
+  is the pair at the second evaluation's step when that step is a multiple of 262,144, else the pair at the next
+  multiple of 262,144 at or before E, else stage1_final (C3 then fails when that pair is not in the manifest). It
+  counts as a TAIL ALARM (kind RESOLVED BY TRACE) when at least 2 full-horizon episodes of that checkpoint's M1 trace
+  carry a TAIL FLAG on one actuator and sign. Every RESOLUTION checkpoint of a COMPLETE run is fetched and traced (no
+  budget).
+- R1 = the periodic pair 10,485,760 (for a STOPPED run that ended before it: the pair at the last multiple of 262,144 at
+  or before E; C3 then fails when that pair is not in the manifest); R2 = stage1_final. CMD_a(X) = the mean, over those
+  of M1's 20 episodes at X that last beyond step 200, of each one's window-mean command of tail actuator a (the others
+  are printed); with none, CMD_a(X) is not formed and reads as below 0.60 in either sign. MEAN_a =
+  (CMD_a(R1) + CMD_a(R2)) / 2; when one of CMD_a(R1), CMD_a(R2) is not formed, MEAN_a is the formed one's CMD_a, so a
+  park the readable checkpoint shows is never hidden; with neither formed, MEAN_a is not formed and reads as below 0.60
+  in either sign.
+- TRACE RAIL (D5 (a)): among R1's and R2's 40 traced episodes, at least 2 full-horizon TAIL FLAGS on one actuator and
+  sign, or 1 on an actuator whose MEAN_a in that sign is >= 0.60. A lone flag otherwise is a SINGLE TAIL FLAG (report
+  only). Each TRACE RAIL is printed DRIVE-BACKED (when, at any checkpoint holding one of its flags, CMD_a is >= 0.60 in
+  the flag's sign) or not.
+- COMPLETE RUN. A run is COMPLETE when all of C1-C7 hold, each computed by complete_r10round.py from the files F2 (or
+  its one re-fetch) holds and from RUNLOG's launches and actions, never transcribed by hand; each fact is printed with
+  the value read:
+  C1 RUNLOG records exactly one launch of the RUN_ID, no launch-check stop, and no action on it but THE ENDING
+     PROCEDURE's (no resume, restart, relaunch under the RUN_ID or other cell run; REPLACEMENT's <RUN_ID>_b is another
+     RUN_ID and is not an action on the first run).
+  C2 the run folder's artifact_manifest.json is in F2: two equal copies (a third on a mismatch, read when two of the
+     three agree); its schema valid as BR result_bundle/manifest.py verify_artifact_manifest checks it (lines 218-237):
+     schema_version 1; run_id a non-empty string; status partial, failed or complete (complete is not required: a run
+     whose gate failed is bundled "failed" (a stance-only run; "partial" when a later stage passes) [measured, V9 (b)]);
+     files a list of path/size_bytes/sha256 entries with unique, normalized
+     relative paths; and its run_id the RUN_ID.
+  C3 every file the reading uses is listed in the manifest at the path named here and fetched with the manifest's
+     size_bytes and sha256 (the hex after the entry's "sha256:" prefix): provenance.json, 01_stance/stage_config.json,
+     01_stance/progress.json, 01_stance/eval_episodes.csv, 01_stance/gate_verdict.json, 01_stance/hop_watch.json when
+     the manifest lists it, and the pairs 01_stance/models/stage1_<steps>_steps.zip with
+     01_stance/models/stage1_vecnormalize_<steps>_steps.pkl of R1, the J checkpoints up to the run's end and every
+     RESOLUTION checkpoint, and 01_stance/models/stage1_final.zip with 01_stance/models/stage1_final_vecnorm.pkl
+     [measured, D9 manifest paths].
+  C4 one session from step 0 in the round's configuration: provenance.json holds exactly one "sessions" entry, with
+     "started_at" within 60 minutes before or after RUNLOG's launch time and no "resumed_at" (a later process appends
+     one, unless the
+     bundle is complete [measured, PORT result_bundle/provenance.py lines 165-170, 278-341]); stage_config.json carries
+     none of load_path, load_mode, parent_checkpoint_sha256, resume_load_path, resume_checkpoint_sha256 at any depth
+     (written into its run block at every same-stage resume, in any process [measured, PORT config.py lines 570-590,
+     960-971]); its run.seed is the RUN_ID's, run.n_envs 4, and run.hyperparameters_sha256, task_fingerprint.task_sha256
+     and the plant identity (the plant_identity block save_stage_config embeds in it [measured, BR config.py lines
+     973-976]; on stance5_LTSB_s70 that block equals provenance.json's plant_identity and both plant_identity.json files
+     [measured, D9 files/copy1 and the 2026-10-25 copy of its stage_config.json,
+     S2/tailround/r10fetch/stance5_LTSB_s70/A/]) are the pinned ones, each compared as the file writes it ("sha256:"
+     prefix included); its stage_config_view_sha256, computed as THIS12 O0 (lines 376-383) defines it (the canonical
+     JSON sha256 of stage_config.json without digest_snapshot.py's UNPINNED_STAGE_CONFIG_KEYS and without plant_identity
+     and task_fingerprint, which the harness does not pass [measured, BR
+     environments/shared/harnesses/digest_snapshot.py lines 145, 387-402]), is the pinned one; provenance.json's
+     repository_commit and stage_config.json's git_commit are the branch HEAD, repository_dirty false; and k3_panel.csv
+     is absent from the manifest if V7 failed on HEAD (the panel ran only while P-K3 (i) was met).
+  C5 the end: 01_stance/progress.json reads "ended" at step E; 01_stance/models/stage1_final.zip's recorded
+     num_timesteps is E; gate_verdict.json's judged_at is at most 2 hours after progress.json's written_at (the end
+     phase takes about 30-32 min [measured, the five LTSB r9 runs: S2/r10round/v12check/text/notes_v12_text.txt, probe
+     P2]); and either E = 12,001,280 (FINISHED) or E < 12,001,280 by the trainer's own stop rule (STOPPED: only the
+     collapse stop and the hop watch end train() early, and an interrupt never reaches the final save [measured, BR
+     early_stopping.py line 261, hop_watch.py lines 122 and 134; notebook cell 15 line 157]).
+  C6 eval_episodes.csv holds every evaluation of the grid up to E (91 for a FINISHED run), each with exactly 10 rows,
+     episode indices 0-9 once, grouped by timesteps on the grid, and no row at any other timesteps; and every row's ANY
+     and TAIL inputs are measured as
+     THIS12 lines 351-364 define them. An input those lines call missing is a failure; a blank or NaN cell those lines
+     read as measured (a blank saturated_actuator or a NaN positive share in an unsaturated row, a blank
+     screen_v2_reasons on a measured screen) is not. (The code writes such cells in normal rows: 80/80 blank
+     saturated_actuator and 77/80 blank screen_v2_reasons in the run branch's own ledger [measured,
+     S2/r10round/runbranch/build/equiv/k3on/scr_B_head_60_k3default/eval_episodes.csv]. Under this reading the eight r9
+     one-session ledgers have 0 missing ANY inputs and pass the row rules [measured,
+     S2/r10round/lean/check_model/c6_on_r9.out]; their TAIL inputs cannot be read, since they predate #640's columns:
+     1,225 rows in 7 of the 8 list the saturation key with no fraction (stance5_LTSB_s70: 1, at 8,126,464) [measured, D9
+     tail_inputs_r9.out]. r10 ledgers carry the columns.)
+  C7 R1, R2, the J checkpoints up to E and every RESOLUTION checkpoint traced (M1), and, for a FINISHED run, R2's
+     certificate measured (M3). A measurement crash is rerun on the same files; it never fails C7.
+- LOST: every run that is not COMPLETE: interrupted (Colab reclaim, disconnect, kernel death, a cut in the end phase
+  before the manifest), stopped at the launch check, not of the round's configuration, re-opened or resumed against RUN
+  HANDLING, or with any file of C3 missing or different after the re-fetch; and every replaced first run (REPLACEMENT).
+  A LOST run has no class, no gate, no outcome, is in neither A nor n_A, and enters the reading only as a PRESENCE
+  RAIL; otherwise it is printed report only (D-16, "A WITH LOST RUNS", a certificate of an intact final).
+- PRESENCE RAIL (L3 (b), RUNLOG line 653; one mechanical rule, monotone: it can only add a rail). A LOST run, a replaced
+  first run included, is a PRESENCE RAIL when, on the files of any one of its fetches (F2 and, when made, its re-fetch;
+  a PRESENCE RAIL on either counts):
+  (p1) it passes C1;
+  (p2) it passes C4's session and configuration facts, read from its provenance.json and 01_stance/stage_config.json,
+       the plant identity from stage_config.json's plant_identity block (C4's manifest clause aside: no manifest is
+       needed; the run folder's root plant_identity.json is written only by the end-of-run bundle [measured, BR
+       reporting/bundles.py line 772; D9: created 14.52 h after provenance.json], so a run cut before it has none);
+  (p3) its 01_stance/eval_episodes.csv shows a TAIL ALARM by M5 (b) on its rows as they stand: two tail-flagged
+       evaluations at consecutive grid steps, an evaluation tail-flagged when at least 5 of its rows are over the bar
+       with a tail actuator named (a row with a missing input flags nothing; no trace, RESOLUTION or end rail is read).
+  Each of the three files is read only when two copies of it from that fetch agree byte for byte (FETCHES; a third copy
+  on a mismatch, read when two of the three agree); a file absent from a fetch, or without two agreeing copies, fails
+  that fetch. complete_r10round.py computes p1-p3 for each fetch, each fact printed with the value read. A PRESENCE RAIL
+  makes line 1 read (ROUND READING), printed with its actuator, sign and alarm step; it gives the run no class, gate or
+  outcome and never enters A or n_A.
+TAIL CLASS (a COMPLETE run, read on its records as measured; the first line that applies)
+1. RAIL: a TAIL ALARM (RESOLVED BY TRACE included) or a TRACE RAIL. Kind: RAIL-LEDGER-PERSISTENT (a TAIL ALARM and a
+   TAIL FLAG at R1 or R2), RAIL-LEDGER-RESOLVED (a TAIL ALARM, none at R1 or R2), RAIL-END-ONLY (a TRACE RAIL, no TAIL
+   ALARM). Reported with actuator(s), sign(s), alarm step and flagged-evaluation count.
+2. UNREAD (L4 (a), RUNLOG line 628 (1)): a STOPPED run without RAIL. It was not observed to 12,001,280, so it supports
+   no "no rail" or "not parked" reading; its class to its stop (PARKED or CLEAR by lines 3-4, with E) is printed, report
+   only.
+3. PARKED (D6 (a), D7 (a)): for some tail pitch actuator a, MEAN_a >= +0.60, or CMD_a(J) >= +0.60 at 2 or more of the J
+   checkpoints. Reported with the window(s) that fired and each margin.
+4. CLEAR: neither.
+DRIVEN (report only): any tail actuator with |MEAN_a| >= 0.60 that PARKED does not count.
+GATE CLASS (D9 (a)): PASS: a FINISHED COMPLETE run whose stage1_final certificate (M3) passes; FAIL: a COMPLETE run
+whose certificate fails or is refused (failing criteria named), and every STOPPED run. Printed "GATE CERTIFICATE (final
+checkpoint, measured on a screen task; not certification)". A LOST run's intact stage1_final at 12,001,280 may be
+certified, report only.
+RUN OUTCOME (a COMPLETE run): POSITIVE = CLEAR and GATE PASS. NEGATIVE = RAIL, UNREAD, PARKED or GATE FAIL, every reason
+named (D8 (a): a parked tail or a late-resolved rail is not success). Fails stay fails: a STOPPED run is NEGATIVE.
+None of TEL's columns, the in-run panel, the K-criteria or the same-seed comparisons enters a class or an outcome.
+
+STATISTICAL ANALYSIS (ONE, pre-registered; everything else is report only)
+- Statistic A (D10: any-actuator alarm runs, as LTSB's r9 2 of 5 was counted): A = the COMPLETE runs of the round with
+  an ANY ALARM; n_A = the COMPLETE FINISHED runs plus the STOPPED runs with an ANY ALARM (a STOPPED run without one is
+  censored, as decided at RUNLOG line 628 (1)). LOST runs (PRESENCE RAILS included) never count. Printed "A of n_A
+  against LTSB r9's 2 of 5" with each alarm's actuator(s), tail scope and reasons ("> 0.1" or "unmeasured"). Runs are
+  exchangeable; one-sided Fisher exact test (r10 lower), printed with its p; nothing is "significant": 0 of 3 gives
+  0.36, 0 of 2 0.48, 0 of 1 0.67, and a "0 of n" result needs n >= 16 to reach 0.05 [inferred, REFERENCE TABLE E]. With
+  n_A = 0: no test, "no run counted". Every printed figure is computed from the observed A of n_A (TABLE E).
+- Printed beside A, never tested: the family's 4 of 10; the same-seed LTSB record (2 of 3); "A WITH LOST RUNS": A plus
+  the LOST runs whose D-16 records show an ANY ALARM, of n_A plus those runs (report only; it shows what dropping LOST
+  runs did to A); RAIL by kind; PRESENCE RAILS; END-ONLY rails (drive-backed or not); SINGLE TAIL FLAGS; PARKED;
+  DRIVEN; every UNREAD run's class to its stop; and every LOST run with what its files show (D-16).
+
+THE r9 REFERENCE (historical; as THIS12 lines 513-527)
+- Comparator: LTSB's 5 r9 runs (Colab L4, 12M, same notebook path and evaluation cadence): ANY ALARM 2 of 5 (stance5
+  s42 at 3,670,016; stance5r s80 at 4,456,448; both tail_3 at +1); s52, s60, s70 no flagged evaluation. Family context:
+  4 of 10, every first alarm by 4,456,448 [measured, EVID TABLES A and D]. What differs besides the plant is in EVID;
+  the comparison tests "r10 as shipped".
+
+ROUND READING (read once WHEN THE READING IS MADE allows; the first line that applies is the reading; every line that
+applies is printed). Each seed's run of the round is fixed by RUN HANDLING (LEAN-R). R = COMPLETE runs with TAIL CLASS
+RAIL plus PRESENCE RAILS; U = seeds whose run of the round is not COMPLETE (LOST, or never launched) or is UNREAD
+(STOPPED without RAIL); P = COMPLETE runs PARKED; G+ = POSITIVE runs. Every line prints A of n_A with its figures (TABLE
+E) and D-16 for every LOST run, a replaced first run included.
+1. R >= 1: TAIL RAIL FORMED ON r10 IN TRAINING, with its basis: "(ledger)" when a COMPLETE run's rail rests on a TAIL
+   ALARM; else "(ledger, a LOST run)" when a PRESENCE RAIL; else "(end-only, drive-backed)"; else "(end-only, not
+   drive-backed: weak evidence; false-rail chance if r10 cured the habit 0.003-0.11 per round, up to 0.31 [inferred,
+   EVID])". An existence result for r10 as shipped (weak for the last); not a rate. To the maintainer with the
+   DIAGNOSTIC READOUTS; nothing is proposed by this text.
+2. R = 0 and U >= 1: INCOMPLETE. "No tail rail in the <3 - U> run(s) read to 12M; U seed(s) LOST or STOPPED without a
+   rail: not a no-rail reading." Printed with every COMPLETE run's class, gate and outcome (an UNREAD run with E and
+   its class to E). No parent, confirmation or certification route follows.
+3. R = 0, U = 0, P >= 1: NO RAIL, TAIL DRIVE PERSISTS (PARKED in P of 3). To the posture decision (RUNLOG line 509
+   (3)); the best gate-passing final by stance3's parent rule (most clean panel episodes at final; ties to fewer
+   joint-space plus own-sigma noise falls; ties named) is NAMED with its posture (no automatic offer, D8 (a)).
+4. R = 0, U = 0, P = 0, G+ >= 2 (D11 (a)): NO RAIL IN 3 OF 3, NO PARKED TAIL, GATE CERTIFICATE PASSED IN G+ OF 3.
+   Consistent with r10 removing the habit, not confirmatory. Printed: A of n_A with its Fisher p, P(r10 rate < r9
+   rate), P(r10 rate < half r9's) and the one-sided 95% upper bound (TABLE E; at 0 of 3: 0.36, 0.83, 0.59, 0.63; if
+   nothing had changed, 0 of 3 has probability 0.24). Line 4 needs R = 0 only, so A can be 1 through a non-tail or
+   unresolved any-actuator alarm (1 of 3: 0.71, 0.55, 0.22, 0.86), and that alarm's actuator is named [inferred, V4PKG
+   out/power_v4.json]. To the maintainer: the confirmation or certification step and the best POSITIVE final by
+   stance3's parent rule (as line 3) as the candidate stance parent for a new walking pilot.
+5. R = 0, U = 0, P = 0, G+ <= 1: NO RAIL, GATE CERTIFICATE NOT PASSED; each GATE FAIL's failing criteria and K1 failure
+   modes named; the maintainer chooses the next round.
+Fails stay fails. Nothing in this round is stopped, changed, extended or rerun because of a readout; the readings change
+no gate, criterion, configuration, verdict or parent on main.
+
+PRE-REGISTERED DIAGNOSTIC READOUTS (report only, never in a class or a reading)
+- D-1 Rail timeline (M5 on each COMPLETE run's ledger): per evaluation, episodes over the bar by named actuator and
+  sign, TAIL-UNRESOLVED counts, TEL's rail_actuators beside; first tail-saturated episode, first tail-flagged
+  evaluation, alarm steps, flagged spells; shares in [0, 4,194,304), [4,194,304, 8,388,608), [8,388,608, 12,001,280];
+  the same for every other actuator; the ANY ALARM count.
+- D-2 to D-15 exactly as THIS12 lines 577-630 (training-row drive, deterministic tail commands at every 1,048,576
+  checkpoint and the onset pairs, posture at J, head posture and hip roll, saturation by actuator, K1-K4, the
+  certificate at 6,291,456 and the notebook's own verdict, value of the habit, own-noise behaviour, the training-history
+  report, the same-seed comparison, TEL's columns, the in-run K3 panel, TEL's pages 17-18), for COMPLETE runs, on the
+  readout files F2 fetches (FETCHES); a readout file missing or differing from the manifest leaves that readout absent,
+  nothing else.
+- D-16 LOST runs (L10 (a)): for each, RUNLOG's trigger and times; whether the run's own files support the trigger
+  (complete_r10round.py prints SUPPORTED or NOT SUPPORTED BY ITS FILES: a STALL against 01_stance/progress.json's last
+  written_at, which must be at least 2 hours before the trigger note; "no cell running" against the downloaded
+  notebook's last output, an error or the end of Run all; a launch-check stop against its computed fault; "found gone"
+  as noted); the last error line of its downloaded notebook; its PRESENCE facts p1-p3 for each fetch with the values
+  read; and what its last fetch's files show as they stand (each small file copied twice, read only when the two copies
+  agree; no manifest check): the last evaluation recorded, its ANY and TAIL flags and alarms by M5, the last checkpoint
+  listed. Printed under every reading line as "LOST (report only; not in a class or A; in the reading only as a PRESENCE
+  RAIL)".
+
+RUN HANDLING (all or nothing; no run is ever resumed)
+- Fails stay fails. No run is stopped, changed, restarted, extended or rerun because of a readout, a saturation alarm,
+  a fetch, the in-run panel or anything the notebook prints beyond the configuration the launch check reads; no fetch
+  writes to Drive or acts on a run.
+- Before the first launch: the maintainer's compute-balance check (D18, RUNLOG line 621: about 3 x 15.5 L4-hours plus
+  one _b, at the L4 rate the Colab steps read) and the fetch-budget check (L8 (a): the account's remaining spend against
+  about 195 file copies per round, COMPUTE); both recorded in RUNLOG.
+- Launch: the notebook opened from the branch's own link; on an L4 runtime (Runtime > Change runtime type); cell 3
+  REPO_REF "claude/screen-trex-r10-armltsb"; in cell 6 ("# ===== SPECIES SELECTION =====") every setting:
+    SPECIES "tyrannosaurus_rex"; EMBODIMENT "anatomical"; ALGORITHM "ppo"; N_ENVS 4; SEED 60 / 42 / 80; VERBOSE 0;
+    QUICK_TEST False; USE_GOOGLE_DRIVE True; AUTO_DISCONNECT True; BEHAVIOR "stance"; TRUNK_FROM "" (empty, not
+    "auto"); RETRAIN_FROM ""; RUN_LABEL "r10 LTSB s60" / "r10 LTSB s42" / "r10 LTSB s80" (free text, recorded in the
+    unpinned run block); RUN_ID "stance6_r10LTSB_s60" / "stance6_r10LTSB_s42" / "stance6_r10LTSB_s80" (a relaunch:
+    the same with "_b" appended, every other setting the same); K3_PANEL True; K3_PANEL_SIGMA_FILE
+    "/content/mesozoic-labs/docs/investigations/stance_2026_10/stance5/replication/sigma_s70_s80.json";
+    K3_PANEL_SIGMA_KEY "source_vectors.60" / "source_vectors.42" / "control_sigma.80";
+  RESUME_STAGE (cell 18) stays None; Run all; the maintainer notes the UTC time at once (RUNLOG: RUN_ID, seed, runtime
+  type, every cell-6 value above as set). [measured: these 17 are every setting of BR notebooks/sb3_training.ipynb
+  cell 6 (cells counted from 0; cell 3 holds REPO_REF, cell 18 RESUME_STAGE); the r9 steps set the same values for
+  the settings they list, seed, RUN_ID and RUN_LABEL aside, SP/foot/stance5/replication/colab_steps.txt lines 61-80.]
+- Launch check (configuration only), within the first 60 minutes: complete_r10round.py computes from F0's files (1)
+  provenance.json's repository_commit and 01_stance/stage_config.json's git_commit = the branch HEAD recorded in RUNLOG,
+  repository_dirty false; (2) stage_config.json's run.seed is the RUN_ID's; (3) stage_config.json's
+  run.hyperparameters_sha256, task_fingerprint.task_sha256 and plant_identity block are the pins (blocks
+  save_stage_config embeds at the stage's start [measured, BR config.py lines 973-976]; the root plant_identity.json
+  does not exist before the end-of-run bundle [measured, D9: created 14.52 h after provenance.json]); (4)
+  zero_action_baseline.json's results.tyrannosaurus_rex.anatomical.reward_mean [measured, BR
+  environments/shared/scripts/zero_action_baseline.py lines 101 and 341-351] is not within 50 of 3766.6 (main's statue:
+  LTSB off; LTSB's is 4470.4); (5) the first ledger rows carry screen_v2_reasons and #640's saturated_actuator columns;
+  (6) provenance.json holds one "sessions" entry; (7) provenance.json's run_id is the RUN_ID (C2 needs it; stance5 s52's
+  first launch carried the RUN_LABEL text instead and was stopped at 2 min [measured, RUNLOG line 238]). A run failing
+  any is stopped at once by THE ENDING PROCEDURE and is LOST. A fact that cannot be computed within the 60 minutes (its
+  file not yet on Drive) is not a fault: no stop, recorded "not computed", and no relaunch by (ii) below. Recorded only,
+  never a stop: a non-L4 runtime, a K3 panel off or mis-set, a missing TEL column, any other baseline value, and
+  BEHAVIOR as the notebook prints it ("Behavior recipe: ..."; no F0 file records it; a chain past stance keeps the
+  stance record exact and only delays the run's end). A fault first seen after the 60 minutes stops nothing (the run is
+  then LOST by C2, C4 or C6).
+- THE ENDING PROCEDURE (liveness or configuration only, never an outcome), applied to every runtime of the round:
+  (a) the runtime is no longer assigned (Runtime > Manage sessions does not list it): RUNLOG notes "found gone" with the
+  time; nothing else is done but downloading the notebook with its output if the browser still shows it; (b) no cell is
+  running (Run all stopped, a dead kernel, a halt that did not release), (c) a STALL: 2 hours with neither a
+  progress.json rewrite (Drive's file view) nor a new notebook output line, or (d) a launch-check stop: RUNLOG notes the
+  trigger with its time; then Runtime > Interrupt execution (Restart session if it does not stop), File > Download
+  .ipynb to <ROUND>/outputs/<RUN_ID>.ipynb, one new cell "from google.colab import drive; drive.flush_and_unmount()"
+  waited for at most 30 minutes, the runtime deleted, and RUNLOG notes the deletion time. A run has ENDED when its
+  runtime is deleted so or noted found gone (a finished run releases its runtime itself, AUTO_DISCONNECT True). A run
+  that reached its manifest is not harmed by these steps (C1 counts them as the procedure's).
+- Records: RUNLOG holds launch times and actions only, each with its date -u time (launches, launch-check results and
+  stops, triggers, trigger listings, deletions, "found gone", relaunches, F2 and re-fetch starts), each as one line of
+  the form the Colab steps fix and the tools parse: "<date -u> STANCE6 <KIND> <RUN_ID> <fields>", KIND one of LAUNCH,
+  CHECK, STOP, TRIGGER-a, TRIGGER-b, TRIGGER-c, TRIGGER-d, LISTING, DELETED, FOUND-GONE, RELAUNCH, ACTION, F2-START,
+  REFETCH-START (the Colab steps give each kind's fields; ACTION's are
+  "ACTION <RUN_ID> what=<resume|restart|relaunch|cell>", read by C1 as an action); trigger (a) is noted as TRIGGER-a
+  and FOUND-GONE at one time; a launch-check stop as STOP and TRIGGER-d at one time; complete_r10round.py and
+  score_r10round.py read only these lines and print any other RUNLOG line that names a RUN_ID of the round, for the
+  coordinator to restate in this form, with its original time and the KIND its own words name, before F2's start note
+  (F2-START); a line not restated by then is printed and read by no rule. One runtime opens each RUN_ID; RESUME_STAGE
+  stays None; no cell is run in a runtime after its
+  Run all stopped except the flush line; no notebook cell with a RUN_ID is run in any other runtime or after the run
+  ENDED; nobody moves, edits or deletes a file in a run folder.
+- REPLACEMENT (LEAN-R, L1 and L2 (a)): a seed gets one relaunch, <RUN_ID>_b, launched within 1 hour after RUNLOG's note
+  of its first run's trigger and after that runtime's deletion (or "found gone" note) (RUNLOG line 645 (2)), only when
+  that note is within 2 hours of the first run's launch and either (i) the first run ended by itself (trigger (a) or
+  (b)) and its TRIGGER LISTING (FETCHES) holds no 01_stance/models/stage1_<steps>_steps.zip, or (ii) the launch check
+  stopped it for a fault (1)-(5) or (7) computed from F0's files. The approval of this text approves these relaunches in
+  advance; no other judgement enters. The _b is then the seed's run of the round, whatever either run's files show, and
+  the first run is LOST (D-16; it can still be a PRESENCE RAIL). No _c: a _b that is not COMPLETE leaves the seed LOST.
+  A _b launched when the rule does not hold is no run of the round: no class, no PRESENCE, printed with D-16 only.
+  A first run not so replaced stays the seed's run, COMPLETE or LOST. (i) is outcome-blind: a periodic zip still
+  uploading at the trigger makes the listing empty and costs only a relaunch of a run past 262,144 steps; the evaluation
+  callback runs before the checkpoint callback at the same step [measured, BR train_base.py lines 821 and 846-852], so a
+  first run with early evaluations can meet (i).
+- A measurement crash (M1-M8) is rerun on the same files. A tool refusal on a run's own records (commit, seed, task,
+  plant) is reported; it never makes a run COMPLETE. A refusal by the measuring runner's own preflight (copy commit,
+  physics_revision, RUN_ID, seed, label) writes nothing and the measurement is made again with the right inputs. A
+  measurement the measuring tool itself refuses (it exits with its own error, writes no output and prints no traceback;
+  the runner records it REFUSED in m1_refused.json or m3_refused.json) is not a crash and is not rerun: a refused M3 at
+  R2 is the certificate "refused" of GATE CLASS (GATE FAIL, its message the failing criterion); a refused M1 at a label
+  C7 names fails C7 (the run is LOST). Reruns for any other reason are not allowed.
+
+FETCHES FROM DRIVE (read only; the maintainer's Drive is never written; every listing by folder id, never by title
+search [measured, RUNLOG line 440], each followed through its page tokens to the last page: the dry run's first pages
+held at most 5 items at pageSize 100 [measured, D9 cost.json])
+- Copies. Drive is reached only through the Drive connector from an agent session [measured, D9 calls.log];
+  fetch_r10round.py checks and records what each transfer returns. A COPY is one transfer whose decoded bytes have the
+  size Drive's listing gives; a transfer that fails its own decode or that size check is a transfer error, repeated and
+  not counted as a copy (2 of 9 inline binary transfers first failed it in the dry run; repaired, both then matched the
+  manifest's sha256 [measured, D9 cost.json, dryrun_table.csv]), up to 10 transfers per file in one fetch; a file whose
+  10 transfers give no copy is not fetched (C3 then fails and the re-fetch applies; for PRESENCE the file is absent).
+  Every transfer, error or not, is recorded in the fetch manifest with its decoded size; no transfer is repaired by
+  hand. Only sizes and sha256 are evidence: Drive's
+  modifiedTime is not (provenance.json's is 7.7 s after the manifest that hashes it [measured, D9 listing.csv]).
+- F0, at the launch check, per run: provenance.json, zero_action_baseline.json, 01_stance/stage_config.json (its
+  embedded plant_identity and task_fingerprint blocks included) and, once they exist, 01_stance/eval_episodes.csv and
+  01_stance/progress.json; each copied twice and read only when the two copies agree (a third on a mismatch); a
+  transfer of a live file whose size differs from the listing lists that folder again before the next transfer.
+  complete_r10round.py computes the launch-check facts (1)-(7) from them and records P-K3's launch settings from the
+  LAUNCH line (no F0 file holds them); no count or flag is shown.
+- THE TRIGGER LISTING: at a trigger noted within 2 hours of a launch, before the relaunch decision, the coordinator
+  lists that run's 01_stance/models/ folder by folder id (names and sizes); a run folder, 01_stance/ or
+  01_stance/models/ absent from its parent's complete listing (the ppo folder's (the run folder's parent), the run
+  folder's, 01_stance/'s, each by folder id to its last page) is a TRIGGER LISTING that holds no file, noted
+  folder=absent:<key>; the listing goes to RUNLOG and to the fetch manifest, and score_r10round.py reads it there for
+  (i). Nothing else is fetched.
+- No interim fetch (L5 (a); THIS12's F1 is dropped: nothing in these rules reads interim data).
+- F2 (L6 (a)), once every RUN_ID launched for the round (each first run and each _b) has ENDED: one fetch, starting at
+  least 6 hours after RUNLOG's last ending note, the delay printed, its start noted in RUNLOG before its first file.
+  Per run, in this order: (1)
+  the listings of the run folder, 01_stance/, 01_stance/models/, 01_stance/figures/training_history/ and
+  01_stance/replays/ (names and sizes); (2) artifact_manifest.json (two copies, equal; a third on a mismatch); (3)
+  PRESENCE's three files (provenance.json, 01_stance/stage_config.json, 01_stance/eval_episodes.csv), each copied twice
+  (a third on a mismatch), for every run whatever its manifest shows; (4) with the manifest in hand, the other non-zip
+  files C3 names and then the readout files, report only (the stage folder's policy_probe.npz, train_episodes.csv,
+  evaluations.npz, gate_progress.npz, plant_identity.json, task_fingerprint.json and k3_panel.csv/json, the notebook's
+  certificate files,
+  01_stance/figures/training_history/ and 01_stance/replays/*_stance.csv), each copied until its sha256 equals the
+  manifest's entry, at most three copies (the manifest's hash is the check: no second agreeing copy is needed; a
+  PRESENCE copy that matches it serves); (5) for a run passing C1, C2, C4 and C6 whose non-zip C3 files match, the pairs
+  C3 names (L7 (a)), checked the same way, after which C3, C5 and C7 are decided; (6) for a run passing C1-C6, the
+  report-only pairs (the 11 pairs of the 1,048,576 grid and at most 8 D-3 onset pairs). Each zip also passes testzip and
+  has its num_timesteps noted. Every fetched file's sha256 goes to <ROUND>/fetch/manifest.csv.
+- THE RE-FETCH: a seed's run of the round (not a replaced first run) that passes C1 and fails C2 or C3 at F2, unless it
+  fails C4 or C6 on files matching the manifest, is fetched once more (the listings, the manifest, PRESENCE's three
+  files twice, the files C2 and C3 name, then its readout files and pairs), 6 hours after F2's last row in
+  <ROUND>/fetch/manifest.csv (the scorer prints both times), its start noted in RUNLOG; its classes and C1-C7 are read
+  on the re-fetch, PRESENCE
+  on either fetch. No other fetch is made for the reading. A fetch that cannot start at its time (a tool or account
+  limit) starts at the first whole hour (UTC) it can, the delay printed; a fetch is never moved for any other reason.
+- LOST runs' other small files for D-16 (progress.json, gate_verdict.json, zero_action_baseline.json and hop_watch.json
+  when listed) are fetched in their last fetch as they stand (two copies each), report only.
+
+WHEN THE READING IS MADE
+- After F2 and every re-fetch, once each run's C1-C7 and each LOST run's p1-p3 are decided: until then "incomplete"
+  and no line is read.
+- PROVISIONAL, and not acted on, while any of these stands (the scorer prints each): a pin unfilled or a tool's sha256
+  other than its pin; this text's, THIS12's or EVID's sha256 or the branch HEAD other than APPROVED's (and, for the
+  branch HEAD, the LAUNCH lines' head=); a
+  class input measured on a measuring copy of another commit, with other seeds or on a model whose physics_revision is
+  not 10; a read file whose sha256 differs from the fetch manifest; V0-V5, V8 (i)-(ii) or V9 not passed. Each is
+  cleared only by filling the pin or measuring again, never by a ruling. A configuration or session fact (C1, C4, p1,
+  p2) is not PROVISIONAL: it decides COMPLETE, LOST or PRESENCE, and no RUNLOG note or ruling changes a class, A, n_A
+  or the line.
+- A reading neither incomplete nor provisional is final and goes to the maintainer at once. The durable copy (D17,
+  RUNLOG line 613): the round's derived text outputs, this text, THIS12, EVID and the fetch manifest, committed to an
+  orphan never-merged handoff branch and pushed, as THIS12 lines 802-807.
+
+VALIDATIONS (before the first training step; no training and no optimizer step outside existing repo tests)
+- V0 (the branch as it will train): (a) every ported file byte-identical to PORT's or a clean three-way merge with TEL,
+  each listed, and recorder.py's one hand-resolved hunk (_configure_decode) listed as accepted (RUNLOG line 646); (b)
+  task_sha256 and hyperparameters_sha256 = PORT's (1e5964b6..., 054ab483...) and the gate digest main's,
+  stage_config_view moved only by D3's key, plant identity main's r10; (c) the zero-action statue 4470.3686 within 0.05,
+  40/40; (d) the six-heading statue certificate 40/40 at every heading; (e) the smoke build (MirrorKLPPO kappa 0.3,
+  sigma floor 0.01, mirrored critic; eval every 131,072 x 10; checkpoints every 262,144; 300 steps x 4 envs, no learn),
+  whose stage_config.json, written by config.save_stage_config as train_base writes it (the run-branch build's
+  smoke_build.py wrote smoke.json only [measured, S2/r10round/runbranch/build/tools/smoke_build.py]), gives the pinned
+  stage_config_view_sha256 by C4's computation; (f) the T. rex suite and the shared tests fail exactly the known set
+  decided at RUNLOG line 646 (main 06b1a8e1 fails none of them; any other failing id stops the build), the 25 ids by
+  name with their six configuration causes [measured, RUNLOG line 640; S2/r10round/runbranch/fixer/logs/known25.txt,
+  sha256 62e01b73cac3f14452564a54c37491c0ca2ef4e35b3e9150e065d1be9f2e47b8]
+  (E = environments/shared/tests/, T = environments/tyrannosaurus_rex/tests/):
+    cadence (14; the screen's eval_freq 131072 and checkpoint_freq 262144 replace the tests' small cadence):
+      E/test_curriculum_balance_telemetry.py::
+        test_the_additions_change_no_evaluation_no_checkpoint_and_no_normalization[trained]
+        test_the_additions_change_no_evaluation_no_checkpoint_and_no_normalization[trained_symmetric]
+        test_the_full_run_adds_exactly_this_changes_keys_and_keeps_every_value_of_the_plain_runs
+        test_the_full_run_writes_the_body_columns_last_and_ledger_only
+        test_the_full_run_writes_the_ledger_and_the_progress_blocks
+        test_the_k3_panel_rolls_the_saved_checkpoint_pairs_and_reaches_no_other_record
+        test_the_plain_run_writes_the_bases_artifacts (also the LTSB key set; V7)
+        test_the_reports_stub_unpickler_reads_the_runs_own_pickles_as_sb3_does[trained]
+        test_the_reports_stub_unpickler_reads_the_runs_own_pickles_as_sb3_does[trained_symmetric]
+      E/test_curriculum_policy_probe.py::TestTheTrainerWiring::
+        test_the_probe_follows_the_training_ledger_on_the_checkpoint_cadence
+      E/test_curriculum_progress_report.py::test_a_real_tyrannosaurus_rex_stance_run_writes_its_progress
+      E/test_curriculum_progress_report.py::test_the_additions_change_no_evaluation_and_no_checkpoint
+      E/test_curriculum_rollout_ledger.py::TestTheTrainerWiring::
+        test_the_ledger_runs_after_the_checkpoint_and_diagnostics_callbacks_on_their_cadence
+      E/test_resume_continuation.py::TestTrainResumeIntegration::test_second_session_continues_the_first
+    arm [env] keys on in the stance config (6): T/test_anatomical_lean_and_settled_legs.py::
+        test_off_the_options_change_no_reward_and_no_info_key
+        test_off_the_options_move_no_task_fingerprint_and_no_recorded_config
+        test_the_lateral_offset_flips_under_the_mirror
+        test_the_lean_term_is_a_gated_gaussian_of_the_lateral_offset
+        test_the_options_default_to_off
+        test_the_settled_reference_centres_leg_home_pose_on_the_settled_pose
+    stagger 1-ulp pin (1): T/test_anatomical_stance_stagger.py::test_on_it_changes_no_dynamics_and_adds_exactly_its_term
+    max_checkpoints 0 (1): E/test_curriculum_checkpoint_archive.py::
+        test_the_tyrannosaurus_rex_stance_keeps_one_checkpoint_per_half_million_steps_and_no_other_stage_declares_it
+    collapse reference 4470.4 (2):
+      E/test_curriculum_manager.py::TestThresholdsFromConfigs::test_tyrannosaurus_rex_stage1_gates_on_stance_quality
+      E/test_stance_gate_config.py::test_the_reward_rails_are_the_same_fraction_of_the_statue
+    [ppo] symmetry (1): E/test_mirror_kl_ppo.py::test_no_stage_config_enables_symmetry;
+  (g) the r9 equivalence re-run if any ported file's merge differs from PORT's; (h) training data unchanged across the
+  first evaluations and the first checkpoint: PE tools/rollbuf.py rollout digests equal to the port's (THIS12 lines
+  824-834); (i) the base named by SHA: git rev-list --count 06b1a8e1..HEAD = 7 (4 port, D3, D19, header) and git diff
+  --name-only 06b1a8e1 HEAD lists exactly the 22 port files (the D19 test file,
+  environments/tyrannosaurus_rex/tests/test_anatomical_stance_cop_band.py, is one of them) [measured on cf9402bc: 22,
+  S2/r10round/runbranch/fixer/logs/v0i_head.txt]; the notebook main's, unchanged; the header commit's message names
+  the carry onto 06b1a8e1; re-run on HEAD after the header commit with the digest snapshot --check current.
+- V1 (M2 on the zero-action statue, 40/40 clean, posture equal to the main statue's within 1e-9 but the reward), V3 (M3
+  on the statue: 40/40 at every heading), V4 (M1 on a zero-action checkpoint of the branch (its action_net zero, no
+  optimizer step): hip-roll positions present, no flags, CMD 0), V5 (the
+  M1-M4 runners refuse physics_revision != 10): as THIS12 lines 838-840 and 855-858. V1, V3, V4 and V5 run on the
+  measuring copy of the header commit once it is made. No tool holds the header commit: this text pins the header's
+  parent (cf9402bc, D19) and the tools' sha256s (PINS); the branch HEAD (the header commit) is recorded in RUNLOG and
+  <ROUND>/APPROVED, never inside a tool, so no pin is circular.
+- V2: M5 path (a) on the eight r9 ledgers reproduces DRAFT verify/rail_check2.json exactly; C6's row rules and ANY
+  inputs pass on those eight ledgers (they predate #640's columns, so their TAIL inputs are not tested there); C6 passes
+  whole on V9 (b)'s ledger and fails on V9 (a)'s exactly as V9 states; synthetic ledgers and records for every class,
+  kind, completeness fact C1-C7 and reading line, and these cases: a file differing from the manifest at F2 and matching
+  at the re-fetch (COMPLETE); still differing (LOST); no manifest (LOST); a replaced first run with no manifest (no
+  re-fetch); a gate-FAIL run bundled "partial" (C2 passes); a manifest hash with and without its "sha256:" prefix read
+  the same; a transfer whose decoded size differs from the listing (a transfer error, repeated, not a copy); provenance
+  with a "resumed_at" entry (LOST); a load key at any depth (LOST); judged_at 3 h after "ended" (LOST); a STOPPED run
+  without a rail (UNREAD, line 2; in n_A only with an alarm) and with a TAIL ALARM (RAIL, line 1); a row with a blank
+  saturated_actuator and a NaN positive share under the bar (measured, C6 passes); a row whose fraction is over the bar
+  with a blank saturated_actuator (missing, LOST); an evaluation with an unmeasured screen and 5 rows over the bar on a
+  non-tail actuator (any-flagged; its alarm in A; RESOLUTION when the rows are TAIL-UNRESOLVED); LEAN-R's relaunch by
+  (i), by (ii), refused for a stop with no fault computed, refused for a trigger noted at 130 minutes, refused for a
+  periodic zip in the trigger listing; D-16's trigger check SUPPORTED and NOT SUPPORTED; PRESENCE, every synthetic LOST
+  record holding only the files the code had written before its cut (cut before the bundle: no root plant_identity.json,
+  collected_results.csv, summary.json or manifest): a LOST run cut before its bundle whose two agreeing ledger copies
+  show a TAIL ALARM (line 1 "(ledger, a LOST run)" over what would be line 2, 3, 4 or 5; not in A or n_A), the same with
+  the two copies differing and the third agreeing with neither (no PRESENCE), a TAIL ALARM in F2's agreeing copies and
+  none at the re-fetch (PRESENCE), with a "resumed_at" entry or a load key (no PRESENCE: p2), stopped at the launch
+  check (no PRESENCE: p1), only an ANY ALARM (no PRESENCE), and a replaced first run with tail-flagged evaluations at
+  131,072 and 262,144 (PRESENCE; its _b stays the seed's run); the round lines 1-5; and every named scenario of MODEL
+  gives the class, A and line MODEL prints for LEAN-R.
+- V7 (P-K3 (i), the measured form decided at RUNLOG line 645 (4)): on the header's parent, as written,
+  test_curriculum_k3_panel.py passes (23/23, both failure-injection tests included) and the two RolloutBuffer/update/RNG
+  inertness proofs and test_the_k3_panel_runs_beside_mirror_symmetric_ppo of test_curriculum_balance_telemetry.py pass;
+  on a cadence-neutral copy 39 of 40 ids pass, the one failure test_the_plain_run_writes_the_bases_artifacts, which
+  meets the LTSB key set. The method, pinned: the copy's stance.toml with its eval_freq and checkpoint_freq lines
+  commented out (the build pins that diff as a patch file by its sha256) and the run
+  S2/r10round/runbranch/fixer/tools/run_b2.sh (sha256 7d704114fc7a5c6fbd7c93ad87d3c0ab9ae5624c6eda8341f895a24a094a2090;
+  its ids: test_curriculum_balance_telemetry.py, test_curriculum_k3_panel.py and the other cadence ids of
+  fixer/logs/cadence_ids.txt). Beside them, the training-level evidence of the run-branch review (panels and injected
+  failures inside 40 rollouts, training data unchanged; S2/r10round/runbranch/review/eq/k3on). Recorded again on HEAD in
+  RUNLOG and APPROVED. If V7 fails, every run launches with the panel OFF.
+- V8 (i)-(ii) as THIS12 lines 865-877 (the evaluation callback's ledger columns identical with TEL on, on the statue and
+  on stance5r s80's 4,194,304 pair, which pins tail_3 at +1 on r10; and with TEL's capture forced to raise); V8 (i)
+  keeps its return-equality check, a test of the callback that reads no run's data (PRECEDENCE drops the return check as
+  a class rule only); V6 dropped.
+- V9: complete_r10round.py's C2, C3 and C6 on two sources, each passing as stated below and failing when one C3 file is
+  changed, removed or truncated, or the manifest is removed: (a) the dry run's real files (D9 files/copy1 and copy2, and
+  the 2026-10-25 local copies of stance5_LTSB_s70's stage_config.json and final pair,
+  S2/tailround/r10fetch/stance5_LTSB_s70/A/): C2 passes, C3 passes on every C3 file held (the five periodic zips not
+  held are checked by their listed sizes, as V10 did), and C6 fails at exactly one row, timesteps 8,126,464 (the
+  ledger's evaluation 61) episode 5, whose TAIL input the pre-#640 ledger cannot hold [measured, D9]; (b) one run folder
+  written on HEAD at test scale (from runs already made on the run branch, such as
+  S2/r10round/runbranch/build/equiv/k3on/, and the branch's own writers; no new training), holding every C3 file and an
+  r10-column ledger (its final pair a copy of its last periodic pair; R1 its last periodic pair), its bundle written by
+  the real reporting.bundles.save_result_bundle (what cell 15's save_run_bundle
+  forwards to): C2, C3 and C6 pass whole (C6 on the evaluations up to the folder's own last step). Neither the repo's
+  executed-notebook tests nor the smoke build writes a bundle (changes_v4.txt).
+- V10 (L9, RUNLOG line 653): THE DRY RUN ON REAL DRIVE BYTES, read only, before launch: one finished r9 LTSB run folder,
+  stance5_LTSB_s70: its folders listed by folder id; its artifact_manifest.json copied twice; C2 on it (schema, the two
+  copies equal, run_id stance5_LTSB_s70); C3's non-zip files fetched and checked against the manifest's size_bytes and
+  sha256; the pairs' zips checked by their listed sizes, and the final pair and any C3 file already held locally from an
+  earlier read-only fetch by that copy's sha256; nothing written. It passes when C2 holds and every checked file matches
+  its manifest entry. RESULT: PASS, 2026-10-26 15:48:59-16:24:24Z [measured, D9 dryrun_result.txt sha256
+  9b1e8d78817b004c3304c51877257fbcb8fcb4041061555c51c1548b90670af2, dryrun_table.csv sha256
+  6013b5a090615d84767d0c71ed5736cc52d2e7c33c1f92a9d2aa609bf81338d3]: C2 holds (two equal copies, sha256 c245da0b...;
+  schema_version 1; run_id stance5_LTSB_s70; status complete; 98 entries, every other file of the folder, every size
+  equal to the listing); 12 of the 17 C3 files match on size and sha256 (stage_config.json and the final pair by the
+  2026-10-25 local copies; the 4,194,304 pkl after a transfer error repaired to its pickle opcode lengths, not
+  re-fetched as FETCHES now requires, its sha256 then equal to the manifest's), the 5 periodic zips on size; 0 differ;
+  no RESOLUTION checkpoint; 29 Drive calls, 0 writes. Not re-run by the build (no Drive access, RUNLOG line 654).
+
+KNOWN LIMITS
+- Three runs measure no rate (TABLE E; the chances of 0-3 rails under "unchanged", "halved", "cured" are in EVID). A
+  ledger or drive-backed rail settles existence; a not-drive-backed end-only rail is weak evidence. Historical control
+  only: a before/after of 3 against 5 runs, the comparator's rate itself uncertain (about 0.12-0.77 [inferred,
+  Beta(3,4)]). The seeds were chosen with their r9 outcomes known.
+- LOST RUNS ARE DROPPED FROM A AND FROM EVERY CLASS; THEIR RECORDED TAIL ALARMS ARE NOT (PRESENCE). Argument [inferred]:
+  what ends a run early here is mostly infrastructure (Colab reclaims and disconnects, kernel deaths, upload losses,
+  launch-configuration faults), which does not depend on what the policy does, so leaving such runs out keeps A/n_A an
+  unbiased estimate of the rail rate; the trainer's own stops are not losses (C5). Ends that can depend on the policy
+  are still LOST: an exception from training itself, a K3-panel crash the panel cannot catch, an evaluation whose rows
+  cannot be assembled (the code drops them [measured, BR eval_diagnostics.py lines 1698-1708], which fails C6); none
+  occurred in the eight r9 ledgers [measured, check_model/c6_on_r9.out]. The limit: if a railing run were likelier to be
+  lost, A would read low. [model] At REALISTIC rates the mean A/n_A minus the clean round's was +0.001 for
+  LEAN-R (FULL +0.013); with interruptions twice and five times as likely for runs whose data hold an alarm or
+  an end rail it was -0.017 and -0.054 (FULL +0.010 and +0.001). Dropping is
+  one-directional: whatever makes a run LOST, a misjudged STALL included, removes its alarm from A, never adds one; its
+  recorded TAIL ALARM still reads line 1 when p1-p3 hold on a fetch, otherwise the line is 2; lines 3-5 need U = 0, so
+  no loss produces them, and PRESENCE can only move a line to 1. "A WITH LOST RUNS" and D-16 print what was dropped and
+  why. The cost [model, REALISTIC]: INCOMPLETE in 9.5% of rounds (FULL 8.8%; without PRESENCE
+  11.1%); PRESENCE reads line 1 in 1.5% (0.4% at LOW rates); TABLE M.
+- PRESENCE reads a LOST run's ledger without a manifest check (two agreeing copies instead), and only its TAIL ALARM: a
+  LOST run's end rail, RESOLVED BY TRACE alarm or ANY ALARM never reaches the reading (D-16 shows them). It can read the
+  rows of a forbidden resume whose load-key stage_config.json and resumed provenance.json were lost with its runtime:
+  real r10 training rows of that run's lineage, and it can only add line 1 [model,
+  S2/r10round/lean/v3check/model/skeptic_v3_model.out: 507 of 86,490 readings, no false rail]. [model, MODEL]
+  'presence-false-rail' (line 1 through PRESENCE with no TAIL ALARM in the lifting run's own data):
+  0 in 12 settings x 3,000 rounds, 1,000 violate rounds and 1,000 RV stress rounds; PRESENCE moved a line through
+  a replaced first run alone in 2 of 36,000 random rounds.
+- Only the files C3 names are checked for the reading; a late Drive copy that the re-fetch still does not show makes the
+  run LOST (a cost); nothing measured bounds Drive's delays (the one Colab-written manifest checked landed 45.3 min
+  after "ended" [measured, D9]). The one Colab cut on record outside r9 was the ~24 h session cap in a multi-stage chain
+  at 5.49M [measured, MAIN docs/reviews/TREX_REVIEW_2026_08_MERGES_AND_NEXT_STEPS.md line 30]; these runs take about
+  14.4-15.4 h.
+- What C1-C7 and p1-p3 cannot see (forbidden by RUN HANDLING): a hand edit of a run folder; a relaunch under the RUN_ID
+  within the first hour after a loss that left nothing on Drive (it reads as that fresh run, decided before any data of
+  the round exists); a re-run of the chain-loop cell in the same kernel within 2 hours of the end, unnoted (it leaves
+  no trace in the files); a second runtime running at the same time under the same RUN_ID, whose Drive cache can let
+  the first runtime's manifest hash stale provenance and stage_config files and the other's checkpoints [model,
+  inferred cache behaviour: 289 of 4,000 adversarial worlds, S2/r10round/lean/check_model/check_model.out]. A resume in
+  a later session shows in provenance.json or stage_config.json (C4, p2) [model: 0 of 6,882 forbidden resumes read
+  COMPLETE, check_model.out].
+- A STOPPED run supports no "no rail" reading (UNREAD) though it is a complete record to its stop: the collapse stop can
+  fire from about 2,621,440 [inferred, STOML collapse_min_evals 20, collapse_patience 10, peak warm-up 1,000,000],
+  inside r9's alarm onsets.
+- RAIL reads the whole ledger and the end; PARKED the end and J; a rail can form and clear between two evaluations; a
+  run within about 0.05 of the 0.60 PARKED line classifies by chance (SE 0.019-0.048 [inferred]); if r10 only delays
+  onset past 7,000,000, "no rail by 12M" would not mean "removed" (D-2's late window); the gate reads the final only;
+  head posture and hip roll are report only; how much the band binds for policies trained on r10 is unknown until the
+  runs.
+- The in-run K3 panel pauses training about 17-26 min per run; its inertness is proven on the CPU, inferred on the GPU.
+  GPU non-determinism: a seed fixes the start, not the run. The PARKED line is r9's ruling carried to r10.
+
+COMPUTE
+- About 14.4-15.4 h per run on an L4, three in parallel, about 43-46 L4-hours [inferred from LTSB r9's 13 h 36 min to 14
+  h 26 min]; each _b is another full run (about 15 L4-hours), [model] 3.1 L4-hours per round on average at
+  REALISTIC rates. F2 starts 6 h after the last runtime ended (a re-fetch 6 h later); then about 6-8 CPU-hours of
+  measurement. [model] About 195 file copies per round, PRESENCE's second copies included (FULL about
+  428), at about 50k tokens per download [inferred, RUNLOG line 515]; both checks before the first launch
+  (RUN HANDLING).
+
+TABLE M. THE RULE MODEL, FOR THE RECORD [model, MODEL v5, 3,000 rounds per setting, fixed seeds, two runs CMP IDENTICAL;
+FULL = criteria v12 + RUNLOG 645-646; LEAN-R = these rules; P = chance per run of an ANY ALARM]
+                              REALISTIC P 0.4       LOW P 0.4             STRESS P 0.4
+                                FULL LEAN-R     v2    FULL LEAN-R     v2    FULL LEAN-R     v2
+wrong readings (count)             0      0      0       0      0      0       0      0      0
+round reads INCOMPLETE, %        8.8    9.5   11.1     4.3    5.5    5.9    35.1   37.2   62.0
+line 1 through PRESENCE, %         -    1.5      -       -    0.4      -       -   24.8      -
+A/n_A minus clean round's     +0.013 +0.001 +0.001  +0.009 +0.003 +0.003  +0.146 -0.001 -0.001
+n_A = 3, %                      81.0   73.9   73.9    90.1   86.4   86.4    21.1    5.2    5.2
+Fisher p below clean's, %        6.9   11.0   11.0     5.6    7.5    7.5    14.5   26.5   26.5
+relaunch L4-hours per round      3.4    3.1    3.1     3.6    3.3    3.3     6.3    3.1    3.1
+file copies per round            428    195    185     434    196    186     426    195    179
+v2 = LEAN-R without PRESENCE, for the record. Wrong readings: MODEL's docstring (every check of a counted run
+against its own data, presence-false-rail, each model's break checks). Clean round = the same first runs with
+no infrastructure trouble. REALISTIC: interruptions 0.05 per run, launch faults 1 in 11 (partly from the record);
+LOW: interruptions 0.01; STRESS: the v12 checks' stress regime; P 0.1 and the other settings: model_compare.out.
+Losses 2x or 5x as likely for runs whose data hold an alarm or an end rail, A/n_A minus clean / INCOMPLETE:
+ 2x, any time         FULL +0.010 / 10.7%   LEAN-R -0.017 / 11.7%   v2 -0.017 / 16.3%
+ 5x, any time         FULL +0.001 / 13.7%   LEAN-R -0.054 / 15.0%   v2 -0.054 / 23.8%
+
+BUILD LIST (nothing trains; pins filled before approval)
+1. The branch as WHAT IS TRAINED lists it, the header commit last (its message naming the carry onto 06b1a8e1); push URL
+   disabled until the maintainer's OK.
+2. V0 with PW/tools and PE tools/rollbuf.py; the statue re-measure (refuse beyond 0.05 of 4470.3686).
+3. Tools: judge_r10ltsb.py (M4); measure_r10round.py (M1/M2/M3, physics_revision check, flags, DRIVE-BACKED, hip roll,
+   gzip, disk floor 3 GB free); ledger_r10round.py (M5 with THIS12's ANY input, M6, M8 on one ledger);
+   complete_r10round.py (the
+   launch-check facts from F0; C1-C7 from F2 against the manifest and RUNLOG's note lines; PRESENCE's p1-p3 for each
+   fetch from two agreeing copies; D-16's trigger check; each fact printed with the value read); k3panel_r10round.py
+   (M7); score_r10round.py (each seed's run by LEAN-R from RUNLOG's note lines and the trigger listings, classes of
+   COMPLETE runs, PRESENCE RAILS, LOST beside, A and "A WITH LOST RUNS", the reading, PROVISIONAL, pins);
+   fetch_r10round.py (no Drive access of its own: it checks and records the copies an agent session makes through the
+   Drive connector: the decoded size against the listing before hashing, a transfer error repeated and not counted,
+   sha256 against the manifest, two-copy agreement, listings to their last page, the trigger listing, the fetch
+   manifest); v9_bundle.py (V9 (b)'s run folder and its bundle); V2's synthetic tests.
+4. V1-V5, V7, V8, V9; V10's result recorded from D9 (done 2026-10-26 15:48:59-16:24:24Z, PASS), not re-run.
+5. Colab steps text: RUN_IDs and seeds, the branch's notebook link, REPO_REF, every cell-6 setting as RUN HANDLING lists
+   it (BEHAVIOR "stance", TRUNK_FROM "", K3_PANEL True with the absolute sigma path and the seed's key), RESUME_STAGE
+   None, the check row (4470.4), the L4 rate and compute-balance check (D18), the fetch budget check (L8 (a)), the
+   launch check (1)-(7), THE ENDING PROCEDURE, the trigger listing, LEAN-R's relaunch rule, the RUNLOG note form
+   (Records) with each kind's fields, F2's time, and a suggested liveness check, not a rule (Runtime > Manage sessions
+   every 30 min in a run's first 2 h, every 2 h after; a later note costs at most a relaunch or a later F2).
+6. This text with pins. 7. After the reading: the durable copy (D17).
+
+PINS (filled by the build's pin step, 2026-10-27 (date -u), and re-filled for lean v6 (RUNLOG line 661) by the re-pin
+step, 2026-10-27 (date -u); every value [measured] at the header's parent cf9402bc or on the file named;
+S2/r10round/final_lean/APPROVAL_REQUEST.txt gives each source and log):
+- Base and commits [BR git log]: main 06b1a8e1fb940eec0d7a8e3af420c5b384ac0e8b; the port's four carried commits
+  176af89f9dce6990833e4024dfa2d004caee4e93, 60c0c1f984bf158dd14955710aec179e88f8615e,
+  740fc3f5f69e625afd9935d5cfccfc180573559e, 7fa2f2c328d89f97ac54d208bb635d9a2249b014; D3
+  2ca69a8f848342eee3baa4f321651558e738b028; D19 cf9402bc57dab92c716c7e0ee4bc96f72f237efb (the header's parent).
+- TEL's merged column list: the 126 columns of lane B's pins_r10round.json "tel_columns" (the list, one name per line,
+  sha256 1d833cf24e8d93ef04f98480f81d2897b5b899d69be876442f066de3d5d244be). THIS12's and EVID's sha256: filled above.
+- Configuration, as the files write them: task_sha256
+  sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456; hyperparameters_sha256 (PPO)
+  sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c; stage_config_view_sha256 (PPO)
+  sha256:3200f159e7f0c8d59be196976e990bbc572c688ba332d8574106c706d46cbce1; gate digest
+  sha256:d26c34e6e6caa7e726fd44ac39534fdbecae4127d92f389393e9d076b2f0deaf; plant identity: the
+  mesozoic.plant-identity/v2 block of pins_r10round.json (tyrannosaurus_rex anatomical, physics_revision 10,
+  physics_sha256 sha256:6a47a0eb78164b9738752e2cf928aa0a6fd3ef98fc953eddc9bcb2eca366da4d, policy_interface_revision
+  15, policy_interface_sha256 sha256:ffbf6631e4de0469cfcaa6771e80f47973b127342bc362f74190451e8555cbd8,
+  source_closure_sha256 sha256:ccda5ddff3602676409ce79f28373a56e8ac069f37ab4b83808ef02aae8442e0, visual_revision 4,
+  visual_sha256 sha256:7042dcd597fbd0ce25489164a7f132d51e1c2adbc050729c9866d7bde42e35a4, nq 28, nv 27, nu 15,
+  action_dim 15, observation_dim 63); collapse_peak_floor_reference 4470.4.
+- Measuring code on BR: M1 environments/shared/scripts/episode_trace_report.py
+  b5923e5cfbcafd9f6e108df207a268500313de9bff44572121c8e3b48aad0af2 and environments/shared/reporting/episode_trace.py
+  96ced68e124ddf4fa225ce32d93831a3e3261a2ba5b3ef502a0b900ce7b16c0b (not re-pinned); M2 zs_harness_copy.py
+  fbb71d22cfa40266188b1b836a454bb150dec589d724fb74d1cab53c1ef51828; M3 environments/shared/scripts/
+  stance_gate_report.py bbfe80168c200332b0997181a1efbb13b01b522eb8b755203a85b5a0eeaf299b; M4's scoring code
+  score_stance3.py 2c3879d3a83d453159773d6fed7cacdfbe88e5337c83605834b14377588cc66a.
+- Lane A tools (S2/r10round/lean/build/laneA, SHA256SUMS.txt sha256
+  55a2170766fb171c2edb6332a5e6e1a2082ebdb9bd8dbca601bf9b22db12d799): judge_r10ltsb.py
+  76da649c5dd0b2237d33345e660e2133e7e0e146e6ea93f13bc601dd6bdc17f8; make_judge_r10ltsb.py
+  7e85dfa97864f81df55e356f2e947f2b3ce3e418d0b3f85c7e57f75684c59173; kscore_r10ltsb.py
+  3a2e8ea9a3f62c10b712f41593afb8a7811e142b9e7ce546d70c3fa015722e5d; measure_r10round.py
+  b293a511d8beb5b6d6f24cec8744e601382748ce9b2f89e6bb653b6c97f5840c; r10m_common.py
+  97431323a84a45026671d681dbd0dc5fe3914aa4068ab20a49e428620b26f5bf; runs/run_validations.sh
+  f4ddecb152e86d15320a8881c436cfa6f644a8848c50a5d8b582d42b593da64a; the validation helpers by that SHA256SUMS.txt.
+- Lane B tools (S2/r10round/lean/build/laneB, SHA256SUMS.txt sha256
+  932f20504f8af32fd3df3f6352a6d8735198d230b9138f111727de0817500eda): ledger_r10round.py
+  0d89bcb858e19f780c3ce0ac7a5886fc01b33d78164d9ee37d2e50dc1d4b0511; complete_r10round.py
+  d322ed0efddec7a4f5f5eb75964fdfdec847c50fc5a4bb07fb7762d1696d533b; k3panel_r10round.py
+  89d279d4f53b8894f3c69a7acfc518060365e4f0cf8523ca245d4f2dcaf081b2; score_r10round.py
+  3de2330a4e0451d8c48fa05b53507f6921352e537f15fd5f28558946ba080707; fetch_r10round.py
+  36b7aee0f0b204b8807abfc62f02cd8b82763f67d5dfcb9893a28dcf77382a0f; v9_bundle.py
+  37eef565f867399b1c7e107aa6c0fa7da614f6558a83f68283ecb27e41f5a67a; r10round_common.py
+  ea2c5ea6984b8dc00c1c066a4441a59526c515ceb111da17eaf1688a009226c5; pins_r10round.json (these pins, as the tools read
+  them) 0d45721bc6ff3ca6eb75bfc6f9093724fdcbebdcd41e5ae31b5621dbf380228a; colab_steps_r10round.txt
+  f2eb9a24c54e4718a66666f47f95c7c3240d2fc4cd2a1ce647e0cc1a08f61e7d; fetch_agent_brief.txt
+  24ac49d6c6d8f0009df19404d9039a90b328bc00e5f432a38e91412f4c0fba1e.
+- The K3 sigma file 939285e30f377e696fef7bdcc30d6d61786e18c593ae39a1b50c936e3822a0ab (repo copy); the vectors' sha256:
+  seed 60 (source_vectors.60) 17fb067f6dba951ffbffbd137c53a10a86ef09eaa2f65f17542b485e96c83843, seed 42
+  (source_vectors.42) 929e3f6dcf2ea6cbbf01135fab718f53a6ad8dc15bd62ea5d7927d4808e3cae8, seed 80 (control_sigma.80)
+  df38050540f4a30844636d4d9e862a7126e232b38299b8774685a2f73a30ffe1.
+- V0 (f)'s 25 ids: listed above (known25.txt 62e01b73cac3f14452564a54c37491c0ca2ef4e35b3e9150e065d1be9f2e47b8).
+- V0 (h)'s digests (first PPO rollout, fixed-order / sorted-key / initial weights): seed 60
+  3aab2bf74d8accd1b18374a5a1209a515da46b8253a0f9ff40c03c2a209c5428 /
+  aeb166271485063f4b7f6d25328423019cfafe9b10ea930e133f69a3e464497f /
+  b25724e30cfe947ef7b1ca5710554a155d64183211e4155a7d3955b8570e2f41; seed 42
+  19b0024fb0f309139355597efc8773cd24971cf1692064ca855e1c385f8949ff /
+  688296d5d9f4ac1205d83cae3205299f1caec90dd2d127b7fd75512361e0d3c2 /
+  b8870621262d31125c2ed84ee377d956a45c18fa3aa3a4995dbf4686882f2740; seed 80
+  8b675bb02c5fc7891242e54890364b1b022e56b0b44b8da5f9a1f1348f05698e /
+  d4b1dd4905b20a86255df46f35175c276726378e422f47b18e74916a98b44730 /
+  3b79f2906de24f3815982b7245b253c705f88c76872eb7d5332841eef4674fde; seed 42 rollouts 17 and 33
+  08e778c79b9f8857f479647aec224321ba4918d114231b4a33b5e2657dc52a17 and
+  94f7eb64eb52a9c83a9ddc4aa2c1d726784ee4043386f160e8050e41351645e9; seed 60 rollout 129 (1,056,768 steps, panel on)
+  1a547a17b224d1267333245069bb1910c89f15b8a2b705cc341411564ff7caa9 [S2/r10round/runbranch/build/equiv/
+  rollout_digest_pins.txt].
+- V7's result on the header's parent cf9402bc: PASS [S2/r10round/final_lean/logs/v7_parent_cf9402bc/v7_verdict.txt]:
+  as written, test_curriculum_k3_panel.py 23/23 (both failure-injection tests included), the two RolloutBuffer/update/
+  RNG inertness proofs and test_the_k3_panel_runs_beside_mirror_symmetric_ppo pass (26 passed; the 9 cadence ids of
+  test_curriculum_balance_telemetry.py fail); on the cadence-neutral copy 39 of 40 ids pass, the one failure
+  test_the_plain_run_writes_the_bases_artifacts. Its method: run_b2.sh 7d704114... above (its two commands, the tree
+  and log folders set per run: S2/r10round/final_lean/tools/v7_run.sh) and the cadence-neutral stance.toml patch
+  S2/r10round/final_lean/v7/stance_toml_cadence_neutral.patch, sha256
+  641eb0488bfa79cd903053d5ab6ebf154217f9b073c8923a7beedf8bf4491517.
+- V-item results before the header commit [measured]: V0 (a)-(h) PASS (the run-branch build and its fixer,
+  S2/r10round/runbranch/build/ and fixer/; (e)'s view sha256 by C4's computation on a stage_config.json the branch's
+  train_base wrote: S2/r10round/lean/build/fixer/out/f3_launch_check_on_head_files.txt); V2 PASS (lane B's tests 318
+  passed; MODEL's named scenarios 183 of 183; the eight r9 ledgers 8 of 8 equal to rail_check2.json); V8 (i)-(ii) PASS
+  (S2/r10round/runbranch/build/v8/compare_statue.txt, compare_s80.txt; measured on 5b38f97b's tree, which cf9402bc
+  changes by one test docstring); V9 (a) and (b) PASS (lane B out/v9_and_dryrun.txt). V0 (i), V1, V3, V4, V5 and V7
+  on the header commit need that commit, which holds this text's sha256: they are recorded with the branch HEAD.
+- Filled earlier: MODEL sha256 0912b8ed05f09753ac9f1fbb05bd20f6afa36d7e47b99d6c3650c59b53e4d41a and its output
+  model_compare.out sha256 0bacb2abe006b34488fdcdd1d5363d0873a2f4d73f76d709708a33778422c30e (V2's oracle and TABLE
+  M's source); V10's result PASS (D9 dryrun_result.txt
+  9b1e8d78817b004c3304c51877257fbcb8fcb4041061555c51c1548b90670af2, above).
+The branch HEAD (the header commit) and this text's sha256 are recorded in RUNLOG, <ROUND>/APPROVED and the Colab
+steps, not here.
+
+REFERENCE TABLE E. STATISTIC A OF n_A: WHAT EACH POSSIBLE RESULT PRINTS [inferred, V4PKG out/power_v4.json; uniform
+prior on the r10 rate, LTSB r9 rate Beta(3,4)]
+ A of n_A   Fisher p vs 2/5   P(r10 < r9)   P(r10 < r9/2)   one-sided 95% upper bound
+ 0 of 3     0.36              0.83          0.59            0.63
+ 1 of 3     0.71              0.55          0.22            0.86
+ 2 of 3     0.93              0.26          0.05            0.98
+ 3 of 3     1.00              0.07          0.004           1
+ 0 of 2     0.48              0.76          0.50            0.78
+ 1 of 2     0.86              0.41          0.13            0.97
+ 2 of 2     1.00              0.12          0.015           1
+ 0 of 1     0.67              0.64          0.38            0.95
+ 1 of 1     1.00              0.21          0.05            1
+ 0 of 0     no test and no figure: "no run counted"
+ Before the runs: P(r10 rate < r9 rate) 0.43. Nothing reaches 0.05. The family's 4 of 10 is printed beside A, untested.

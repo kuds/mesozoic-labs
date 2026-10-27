@@ -335,6 +335,20 @@ robustness, **LOW** = cosmetic / QoL.
   on physics r10, where no T-Rex stance has trained. Record, numbers and
   evidence: §25 of
   [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).
+  **Update 21 (2026-10-27):** the first r10 round is set up and training
+  (decisions D-D45 to D-D51,
+  [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2). Walking pilot
+  2 is retired, never launched. The round trains arm LTSB of the stance5
+  screens, ported to r10, on seeds 60, 42 and 80 from scratch, 12M steps each
+  on Colab L4s, with report-only telemetry (head posture, hip roll, commands,
+  body posture, energy, drift and slip, an in-run K3 panel); its criteria,
+  approved on 2026-10-27 before any training step, read each run all or
+  nothing and test one statistic, the runs with an alarm against LTSB's r9 2
+  of 5, a parked tail counting against success. Its three runs were launched
+  that day: results pending, so whether a policy trained on r10 pins the
+  tail-tip actuator again is still open. The two-seed ask stands. Record:
+  §26 of
+  [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).
 - **LOW** — **stage 1a (stance) contains no in-episode disturbance, so a
   stance-gate PASS certifies stance quality, not active balance control.** The
   only perturbation is joint-angle noise at reset (`reset_noise_scale 0.05`).
@@ -1229,7 +1243,13 @@ robustness, **LOW** = cosmetic / QoL.
   term prices it (about 330 per episode on both), the gate does not. A
   head-height criterion is a gate change and the maintainer's to decide, for
   the first r10 round's criteria at the latest; until then, check a stance's
-  head tip by hand before using it.
+  head tip by hand before using it. *Update (2026-10-27):* the maintainer kept
+  head posture out of the gate (2026-10-25, D-D46: report-only telemetry, no
+  gate change). `eval_episodes.csv` now records each evaluation episode's
+  head-tip height and neck and head pitch, the training-history report draws
+  them, and the first r10 round's criteria read them as a report-only
+  diagnostic readout, never in a class or its reading; no gate reads them, so
+  check a stance's head before using it still.
 
 - **MEDIUM** — **`stance_quality/v2` on the anatomical compsognathus certifies
   a soft two-foot bounce, a one-foot flutter and a fast weight shuttle
@@ -1955,7 +1975,8 @@ Still open:
   the first r10 stances are where the backward falls, the hop-or-fall rail and
   the pad tilt need watching. Backward-fall risk under perturbation is untested
   at useful power (the CPU checks' skeptic: 0 falls in 40 episodes is compatible
-  with a 2% rate).
+  with a 2% rate). *Update (2026-10-27):* the first r10 stances, the round of
+  D-D49 to D-D51, are training; results pending (§26 of the stance record).
 - **LOW** — the raptor's toe-clipping margin now sits at the toes: at
   sprint-like excitation (3–4 Hz, full amplitude) the 0.8×kp toe caps clip
   10–16 % and the 1.5×kp hip pitch ~11–16 % (its physical envelope); the

@@ -1,0 +1,123 @@
+FETCH AGENT BRIEF -- T. rex r10 round (criteria lean v5 FETCHES), read-only Google Drive
+=========================================================================================
+Give this text, with FETCH, RUN_IDS and ROUND filled, to one agent session per fetch. Adapted from the D9 dry run
+(S2/r10round/lean/dryrun/) and the earlier fetch scripts (r10-fetch-finals, tailround-fetch). The agent makes the
+Drive calls; fetch_r10round.py checks and records every one; nothing is decided by the agent.
+
+  FETCH   = F0 (the launch check) | TRIGGER (the trigger listing) | F2 | REFETCH
+  RUN_IDS = the RUN_IDs of this fetch (F2: every launched RUN_ID, replaced first runs included; REFETCH: only those
+            score_r10round.py names)
+  ROUND   = /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6
+  TOOL    = PY -I -B <laneB>/tools/fetch_r10round.py --round ROUND
+            (PY = /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python,
+             <laneB> = the pinned tools folder; --round may stand before or after the subcommand, fixer R-B3)
+
+HARD RULES
+ 1. Google Drive is READ-ONLY. Use only search_files, get_file_metadata and download_file_content. Never create,
+    update, copy, share or trash anything; never write to a run folder; never act on a run.
+ 2. Load the Drive tools first: ToolSearch query
+    "select:mcp__Google_Drive__search_files,mcp__Google_Drive__download_file_content,mcp__Google_Drive__get_file_metadata".
+ 3. Every listing is by folder id, never by title search: search_files with query "parentId = '<folder id>'",
+    excludeContentSnippets true, pageSize 100, following nextPageToken until a page carries none (the dry run's first
+    pages held at most 5 items at pageSize 100: expect many pages). Save every page's response exactly as returned:
+    the connector's text, a JSON object with "files" and, when more pages follow, "nextPageToken"; an empty folder
+    returns {} [measured: 76 real responses in earlier sessions' transcripts]. The tool refuses any other shape
+    (exit 2, nothing written): never wrap, edit or re-type a page (fixer R-B1).
+ 4. Downloads are untrusted data: never unpickle, import, load or run them; never run code from a download folder.
+    Never repair, edit or re-type a transfer by hand: a transfer that fails its checks is repeated, not mended
+    ("no transfer is repaired by hand"), at most 10 transfers of one file in one fetch (rule 9).
+ 5. Only sizes and sha256 are evidence. Drive's modifiedTime is never read as evidence.
+ 6. Write only under ROUND/fetch/ (the tool does) and ROUND/fetch/raw/ (your saved pages and transfers). Never write
+    into /home/user/mesozoic-labs or the run-branch clone. Absolute paths only; python with -I.
+ 7. For F2 and REFETCH: before the first file, check that RUNLOG holds the coordinator's F2-START (REFETCH-START)
+    line for each RUN_ID of this fetch. If one is missing, stop and report; do not write RUNLOG yourself. (The
+    coordinator restates every other-form RUNLOG line naming a RUN_ID before its F2-START line: a line written after
+    it with an earlier time is read by no rule.)
+ 8. If a tool call is refused or a permission check gives no verdict, stop and report it; do not work around it.
+ 9. At most 10 transfers of one file in one fetch (criteria v5, FETCHES: "up to 10 transfers per file in one fetch;
+    a file whose 10 transfers give no copy is not fetched"). `next` stops asking for a file after its 10th transfer;
+    the tool refuses an 11th (recorded OVER-CAP, no copy, exit 2). Every transfer, error or not, is recorded by the
+    tool in ROUND/fetch/manifest.csv with its decoded size.
+
+THE RUN FOLDERS (once per round, or when ROUND/fetch/folders.json lacks a RUN_ID)
+ (also when `next` asks for it again: a ppo folder listing older than this fetch's RUNLOG note (LAUNCH for F0, the
+ trigger for TRIGGER, F2-START, REFETCH-START) cannot show a run folder absent)
+ a. get_file_metadata on the r9 run folder stance5_LTSB_s70, id 12uAVYvh1IF3aYMu2qBaXd56Ur_BJD5z7 (known from the
+    earlier fetches and the dry run): its "parentId" field is the ppo folder (MyDrive/mesozoic-labs/logs/
+    tyrannosaurus_rex/anatomical/ppo/, where notebook cell 8 puts every run). Report its id. [measured: the
+    connector's get_file_metadata responses carry "parentId", 3 real responses in earlier sessions' transcripts;
+    fixer R-i3]
+ b. List the ppo folder by its id (rule 3), saving pages to ROUND/fetch/raw/folders/ppo_p<k>.json, then
+       TOOL folders --ppo-id <id> --pages <page files in order>
+    It records every RUN_ID folder's id in ROUND/fetch/folders.json, and whether the ppo listing was complete. A
+    RUN_ID with two folders: stop and report.
+
+THE LOOP (for each RUN_ID of this fetch, one at a time)
+    TOOL next --fetch FETCH --run RUN_ID
+ prints the next action, in the text's order. Do exactly that action, record it, and run next again, until it prints
+ "done: ...". Actions:
+  "list KEY (folder id ID) ..."
+      search_files "parentId = 'ID'" as rule 3; save each page to ROUND/fetch/raw/FETCH/RUN_ID/<KEY with / as __>_p<k>.json;
+      TOOL listing --fetch FETCH --run RUN_ID --key KEY --folder-id ID --pages <the page files in order>
+      (exit 2 when the last page still carries a nextPageToken: fetch the remaining pages and run it again).
+  "transfer PATH (copy n ...; id ID, size S)"
+      download_file_content(fileId=ID).
+      - Returned inline (a base64 "content" field): transcribe the content EXACTLY with the Write tool into
+        ROUND/fetch/raw/FETCH/RUN_ID/<PATH with / as __>.t<k>.b64 (a new file each transfer), then
+            TOOL transfer --fetch FETCH --run RUN_ID --path PATH --b64 <that file>
+      - Saved to a file by the tool (large files): pass that saved response file,
+            TOOL transfer --fetch FETCH --run RUN_ID --path PATH --saved <saved file>
+        (if it wraps the JSON in a list of text blocks, the tool takes the first object with a "content" field).
+        The tool checks the saved response's id and title against the listed file: another file is recorded
+        WRONG-FILE (no copy, exit 2): download the listed id again (fixer R-m5).
+      The tool decodes the bytes and compares their size with the listing's: equal = a COPY (stored, sha256 recorded,
+      a zip also testzip-ed with its num_timesteps noted); otherwise a TRANSFER-ERROR (recorded, not a copy, exit 1):
+      download the same file again, a new transfer, as `next` asks. Base64 is case-sensitive; long repeated runs are
+      where characters get dropped (the dry run's two failures were such runs).
+      At most 10 transfers of one file in this fetch (rule 9): after the 10th `next` asks for that file no more and
+      the file has the copies it has (none: "not fetched"; C3 then fails and the re-fetch applies; for PRESENCE the
+      file is absent). If you must stop earlier (a tool or budget limit), stop, and report the file, its id and every
+      transfer made.
+  "done: ..."  this RUN_ID is finished for this fetch (the line says why: every file held as the rules require, step
+      5 not reached, no manifest, ...). Report it as printed.
+
+WHAT EACH FETCH HOLDS (the tool's order; for the agent's information)
+ F0      (at the launch check, within the first 60 minutes): the listings of the run folder and 01_stance/; then
+         provenance.json, zero_action_baseline.json, 01_stance/stage_config.json and, once listed,
+         01_stance/eval_episodes.csv and 01_stance/progress.json, two copies each that agree byte for byte (a third on a
+         mismatch). Then the coordinator runs complete_r10round.py launch-check (nothing about counts or flags is shown).
+         A live file rewritten between the listing and the transfer fails the size check: `next` then asks for that
+         folder's listing again (every listing is kept) before the next transfer; do it and go on (fixer R-m8). When
+         `next` says eval_episodes.csv or progress.json is not listed yet, list 01_stance again later within the 60
+         minutes.
+ TRIGGER (at a trigger noted within 2 h of a launch): the listings of the run folder, 01_stance/ and
+         01_stance/models/ only (names and sizes). Nothing else is fetched. Then
+            TOOL runlog-listing --run RUN_ID
+         prints the LISTING line; give it to the coordinator for RUNLOG. When `next` says a folder (the run folder,
+         01_stance/ or 01_stance/models/) is absent from its parent's complete listing, runlog-listing prints the line
+         with folder=absent:<key> files="" and records that LISTING row in the fetch manifest: criteria v5, "a run
+         folder, 01_stance/ or 01_stance/models/ absent from its parent's complete listing ... is a TRIGGER LISTING
+         that holds no file" (the scorer reads it in RUNLOG and the fetch manifest for relaunch (i)). The run folder
+         counts as absent only on a ppo folder listing made at or after the trigger note: `next` asks for it again
+         otherwise. Give the LISTING line to the coordinator at once: the scorer reads only a parent listing made at or
+         after the trigger note and not after the LISTING line.
+ F2, REFETCH: (1) the listings of the run folder, 01_stance/, 01_stance/models/, 01_stance/figures/ (to reach
+         training_history), 01_stance/figures/training_history/ and 01_stance/replays/; (2) artifact_manifest.json, two
+         equal copies (a third on a mismatch); (3) provenance.json, 01_stance/stage_config.json and
+         01_stance/eval_episodes.csv, two copies each (a third on a mismatch), for every run whatever its manifest
+         shows; (4) with a valid manifest, the other non-zip C3 files and the readout files (the stage folder's
+         policy_probe.npz, train_episodes.csv, evaluations.npz, gate_progress.npz, plant_identity.json,
+         task_fingerprint.json, k3_panel.csv/json, the certificate files, figures/training_history/ and
+         replays/*_stance.csv), each copied until its sha256 equals the manifest's entry, at most three copies; without
+         one (a LOST run), D-16's small files (progress.json, gate_verdict.json, zero_action_baseline.json and
+         hop_watch.json when listed), two copies each; (5) for a run passing C1, C2, C4 and C6 whose non-zip C3
+         files match, the pairs C3 names (R1: 10,485,760, or for a run that stopped before it the pair at the last
+         multiple of 262,144 at or before its end; the J checkpoints up to the end; every RESOLUTION checkpoint; the
+         final pair), checked the same way;
+         (6) for a run passing C1-C6, the report-only pairs (the 11 of the 1,048,576 grid and at most 8 D-3 onset pairs).
+
+REPORT AT THE END (to the coordinator)
+ Per RUN_ID: the final "next" line, TOOL status --fetch FETCH --run RUN_ID (its JSON), the number of Drive calls by kind,
+ every TRANSFER-ERROR and OVER-CAP (path, transfer number, decoded size against the listing), every file left without a
+ copy after its 10 transfers, anything stopped and why. Every
+ transfer and listing is already in ROUND/fetch/manifest.csv; do not summarize sizes or hashes by hand.

@@ -8,8 +8,79 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **The first T. rex stance round on physics r10 recorded as set up, approved
+  and launched, results pending, with the report-only telemetry built for it
+  and walking pilot 2's retirement** (decisions D-D45 to D-D51; the appended
+  §26 of `docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md`, with
+  a dated status note at its top; `docs/NEXT_STEPS.md` §3,
+  `docs/KNOWN_ISSUES.md` (Update 21 of the T-Rex stance entry and two dated
+  updates), a dated note in §17 of `docs/GAIT_QUALITY_PLAN_2026_09.md` and its
+  header, `docs/README.md`; evidence in `stance6_setup/` of
+  `docs/investigations/stance_2026_10/`, and the round's pre-registration,
+  approved before any training step, in `stance6/` there: the criteria and the
+  texts they cite as byte copies, the approval record, the launch steps and
+  fetch brief and the pinned tools, all from before the first training
+  step). Records only. §26 records physics r10 and the heading-test fix
+  reaching `main`; the telemetry of #644 and #645, with no new MuJoCo sensor
+  and the in-run K3 panel, and the compact K3 extract; walking pilot 2 retired,
+  never launched; the round's design (arm LTSB ported to r10, seeds 60, 42 and
+  80 from scratch, 12M steps each on Colab L4s, on the never-merged branch
+  `claude/screen-trex-r10-armltsb`, one pre-registered statistic against
+  LTSB's r9 2 of 5); its run rules, drafted as full rules over twelve checked
+  versions and replaced, after the maintainer's question and a rule-model
+  comparison, by the maintainer's choice of all-or-nothing rules (LEAN-R with
+  PRESENCE; the rule model gave no wrong reading under either [model]); its
+  validations, all passed; its approval on 2026-10-27 before any training step
+  (criteria `99a44469…`, branch head `8737cd3d`); and its launch that day at
+  about 14:57 UTC, three runs (on L4 runtimes as their launch lines record
+  them), each passing its configuration-only launch check. The runs are
+  training: no result is recorded, and nothing trains on `main`.
+- **A compact K3 extract of the five band runs' judge files, read by the
+  training-history report's judge-K3 readout** (the maintainer's decision of
+  2026-10-25 17:42 UTC in the stance run log, D-D46;
+  `docs/investigations/stance_2026_10/stance5/k3extract/`,
+  `environments/shared/tests/test_training_history.py`). The readout
+  (`plot_training_history.py --judged`) reads a run's judge files, which
+  stayed in the session's scratch. The extract holds, for `stance5_LTSB_s52`,
+  `_s60`, `_s42`, `_s70` and `_s80`, each `judge_<steps>.json` and
+  `judge_final.json` (39 files, about 0.17 MB against their 15.8 MB)
+  cut to the keys the readout reads (the schema, mode, seed and recorded
+  final step, and of the joint-space and own-sigma noise tests `n`, `falls`,
+  the spawns, the sigma and each episode's seed, length and horizon flag),
+  values unchanged, so `--judged` reads a run's directory there as it reads
+  the judge's; an index, `k3_extract.csv`, with each source's sha256; and the
+  script that wrote them. Measured: the readout of the extract equals that of
+  the judge files for every run, and at K3's checkpoints it gives the
+  replication score of record's K3 falls and pass/fail verdicts (held for s52,
+  s70 and s80; not for s60 and s42); a new test checks the extract against its
+  index and that score. No library code changes.
+- **Decisions D-D45 to D-D51 recorded: walking pilot 2 retired; report-only
+  telemetry, no MuJoCo sensor and an in-run K3 panel for the first T. rex
+  stance round on physics r10; that round's design, its all-or-nothing run
+  handling, its approval and its launch** (the maintainer's decisions of
+  2026-10-25 to 2026-10-27 in the stance run log;
+  `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2, `docs/CONSOLIDATION_PLAN_2026_09.md`
+  §6). Records only. D-D45: walking pilot 2 (D-D36, physics r9, never
+  launched) is retired, a new pilot to be designed once r10 has a stance
+  parent; D-D36 notes it. D-D46: head posture, hip roll and the judge-K3
+  readout, then commands, posture, energy, drift and slip and four `MjData`
+  extras, in appended columns and pages (#644 and #645).
+  D-D47: no MuJoCo sensor before that round (a sensor is a plant change).
+  D-D48: the in-run K3 noise panel, off by default, on in that round. D-D49:
+  arm LTSB of stance5 ported to r10, seeds 60, 42 and 80 from scratch, 12M
+  steps each on Colab L4s, once both telemetry changes were on `main`, one
+  pre-registered statistic (alarm runs against LTSB's r9 2 of 5), on a
+  never-merged run branch. D-D50: the runs read all or nothing (LEAN-R with
+  PRESENCE), after the maintainer asked why the criteria carried so much
+  edge-case handling. D-D51: the criteria (sha256 `99a44469…`) approved on
+  2026-10-27 before any training step, and the three runs launched that day at
+  about 14:57 UTC (on L4 runtimes as their launch lines record them, which the
+  launch check does not see), each passing its configuration-only launch check,
+  with D-D51 amended that day for a report-only snapshot of the running files
+  at the maintainer's request (the rules unchanged, the round read from its
+  final fetch only); their results are pending. Nothing trains on `main`.
 - **Commands, tail and body posture, energy, drift and slip, and four
-  `MjData` extras per evaluation episode in `eval_episodes.csv`** (the
+  `MjData` extras per evaluation episode in `eval_episodes.csv`** (#645; the
   maintainer's decisions of 2026-10-25 15:44 UTC in the stance run log,
   items (1) to (3), and 16:15 UTC: no MuJoCo sensor, all four MjData-derived
   extras, the specification's other defaults accepted;
@@ -55,11 +126,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   place (4.4%), median A/B +2.3% (statue) and +6.0% (r9 policy), within the
   specification's +10%; a T. rex row grows by about 1.6 to 2.0 KB, to
   about 3.2 KB.
-- **The in-run K3 noise panel** (the maintainer's decisions of 2026-10-25
-  15:44 UTC in the stance run log, item (6), and 16:15 UTC: the judge's full
-  K3 every 1,048,576 steps and at the end, synchronous, off by default and
-  enabled at launch, the offline judge's K3 staying the K3 of record, the
-  specification's other defaults accepted;
+- **The in-run K3 noise panel** (#645; the maintainer's decisions of
+  2026-10-25 15:44 UTC in the stance run log, item (6), and 16:15 UTC: the
+  judge's full K3 every 1,048,576 steps and at the end, synchronous, off by
+  default and enabled at launch, the offline judge's K3 staying the K3 of
+  record, the specification's other defaults accepted;
   `environments/shared/k3_panel.py`, wired in `train_base.train(...,
   k3_panel=...)`, the command line's `train --k3-panel` and the SB3
   notebook's `K3_PANEL` cell; documented in
@@ -89,7 +160,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   takes about 85 s on the local 4-vCPU host. [inferred] One that holds all
   40 takes about 88 s, so a 12M-step run's 12 panels about 17.6 min; on a
   Colab L4 about 18 to 26 min, about 2 to 3% of a 14.4 to 15.4 h run.
-- **Training-history pages 13 to 19** (the maintainer's decisions of
+- **Training-history pages 13 to 19** (#645; the maintainer's decisions of
   2026-10-25 15:44 UTC, item (4), and 16:15 UTC: the observation
   normalization read through a whitelisting stub unpickler;
   `environments/shared/reporting/training_history.py`; documented in
@@ -117,9 +188,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the probe's rows equal the pickles cast to float32 at their shared steps
   (the stance5 replication run s80 at 4,194,304, and in the suite).
 - **The stance5 replication judge's K3 criterion, read out over training in
-  the training-history report** (the maintainer's decisions of 2026-10-25
-  14:13 UTC in the stance run log, item (4): task #47's remaining judge-K3
-  overlay;
+  the training-history report** (#644; the maintainer's decisions of
+  2026-10-25 14:13 UTC in the stance run log, item (4): task #47's remaining
+  judge-K3 overlay;
   `environments/shared/reporting/training_history.py`,
   `environments/shared/scripts/plot_training_history.py`; documented in
   `docs/TRAINING_ARTIFACT_PRESENTATION.md`, "Training history pages").
@@ -150,7 +221,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and checks the readout against its K3 values and pass, and against
   `k3readouts/out`'s judge falls. Without `--judged` (the stage-end report)
   nothing is drawn.
-- **Head posture and hip roll drawn over training** (the maintainer's
+- **Head posture and hip roll drawn over training** (#644; the maintainer's
   decisions of 2026-10-25 14:13 UTC in the stance run log, items (2) and
   (4);
   `environments/shared/reporting/training_history.py`; documented in
@@ -171,8 +242,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   not drawn at micrometre scale. The stage-end report now holds twelve
   pages.
 - **Each evaluation episode's head posture and hip roll, in the eval-episode
-  ledger** (the maintainer's decisions of 2026-10-25 14:13 UTC in the
-  stance run log, items (2) and (4):
+  ledger** (#644; the maintainer's decisions of 2026-10-25 14:13 UTC in
+  the stance run log, items (2) and (4):
   head posture as report-only telemetry, no gate change; task #47's
   remaining hip-roll telemetry; `environments/shared/gait/posture_telemetry.py`,
   `environments/shared/gait/recorder.py`,
@@ -1866,9 +1937,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   kind, and its `zero_action_baseline.py` entry is deleted.
 
 ### Migration
-- **Every T. rex checkpoint must be retrained; none can be widened** (T. rex
-  physics revision 9 → 10, decision D-D44). Each load path compares the
-  checkpoint's recorded `physics_revision` and `physics_sha256` with the
+- **Every T. rex checkpoint must be retrained; none can be widened** (#643;
+  T. rex physics revision 9 → 10, decision D-D44). Each load path compares
+  the checkpoint's recorded `physics_revision` and `physics_sha256` with the
   plant's and refuses a mismatch (`PlantCompatibilityError`; measured with a
   band checkpoint on an r10 tree: "physics_revision: checkpoint=9,
   current=10"), `widen_checkpoint.py` needs the same physics digest, and
@@ -2160,9 +2231,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   verdicts with the gate they were earned under.
 
 ### Changed
+- **The development version is `0.4.0.dev2`** (`pyproject.toml`; the
+  maintainer's decision of 2026-10-25 20:13 UTC in the stance run log: bump
+  it once the current work is done, as #619 did, carried by the next records
+  change). Every run records the package version in its provenance
+  (`dependency_versions`) and its stage config (`library_version`), so the
+  runs started from `main` from here on are told apart from the `0.4.0.dev1`
+  runs: every run since 2026-10-12, the three runs of the first T. rex
+  physics-r10 stance round among them (launched on 2026-10-27 from the
+  never-merged branch `claude/screen-trex-r10-armltsb` at `8737cd3d`, on
+  `main` `06b1a8e1`, whose `pyproject.toml` reads `0.4.0.dev1`). No code,
+  config, plant or digest changes; `[Unreleased]` stays open.
 - **The T. rex's tail pitch springs are preloaded, so its passive tail holds
-  level, and the stance's tail target follows it** (breaking — plant change,
-  physics revision 9 → 10; every physics-r9 T. rex checkpoint is
+  level, and the stance's tail target follows it** (#643; breaking — plant
+  change, physics revision 9 → 10; every physics-r9 T. rex checkpoint is
   invalidated; decision D-D44, the maintainer's decisions of 2026-10-25 after
   a posture study, a CPU probe and CPU checks, none of which trained;
   `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2, `docs/CONSOLIDATION_PLAN_2026_09.md`
@@ -4303,7 +4385,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - **A comparison's run names sit at their lines' ends in the
-  training-history report** (report only;
+  training-history report** (#644; report only;
   `environments/shared/reporting/training_history.py`). Each run's name at
   the right of a line panel was placed by a transform read while the
   panel's autoscale was still pending, so on a panel with no J mark or
@@ -4313,7 +4395,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   of 77 names more than 0.15 of the axes height from their line on
   `08a4d189`, none after the fix. The view limits are now settled first.
 - **The full-horizon heading trace test bounds the closed loop it runs**
-  (tests only; approved by the maintainer on 2026-10-25;
+  (#642; tests only; approved by the maintainer on 2026-10-25;
   `environments/shared/tests/heading_free_helpers.py`,
   `environments/shared/tests/test_heading_free_rollouts.py`; documented in
   `docs/HEADING_INVARIANCE_DESIGN_2026_10.md`, "Migration and acceptance").

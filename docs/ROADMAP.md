@@ -33,8 +33,10 @@ walkers hopping; the Dibothrosuchus and Brachiosaurus sessions remain
 ([NEXT_STEPS.md](NEXT_STEPS.md)). The cleanup's 0.3.9 gate has landed, and
 0.3.9, the clean base release, was tagged on 2026-10-02
 ([CLEANUP_PLAN_2026_09.md](CLEANUP_PLAN_2026_09.md), D-D21); `main` now
-carries the development version `0.4.0.dev1` (from 2026-10-12, when
-training restarted on the D-D33 names). The deferred cleanup PRs, in the
+carries the development version `0.4.0.dev2` (from 2026-10-27, at the
+maintainer's decision of 2026-10-25 20:13 UTC to bump it once the work
+then in hand was done; `0.4.0.dev1` from 2026-10-12, when training
+restarted on the D-D33 names). The deferred cleanup PRs, in the
 order of the cleanup plan's §3.1 item 5, which follows the maintainer's
 answers of 2026-10-02, come before the direction and terrain nodes
 (consolidation PR-8..PR-15, [CONSOLIDATION_PLAN_2026_09.md](CONSOLIDATION_PLAN_2026_09.md))

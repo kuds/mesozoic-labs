@@ -59,6 +59,9 @@ and is not yet trained (§17, its note of 2026-10-25).*
 *Updated 2026-10-25, later: the maintainer took D-D44, T-Rex physics r10 (the tail pitch springs preloaded; the plant
 counter's next integer, not §17's r10 foot of the parked draft #623), which strands the second pilot's physics-r9
 parent on `main` once it lands (§17, its second note of 2026-10-25).*
+*Updated 2026-10-27: the maintainer retired the second pilot (D-D45; never launched), a new pilot to be designed once
+physics r10 has a stance parent, and the first r10 T-Rex stance round was set up, approved and launched (D-D49 to D-D51;
+§17, its note of 2026-10-27).*
 
 ## How to use this document
 
@@ -1079,4 +1082,14 @@ only on its r9 branch and its result would not carry to r10; it is not yet train
 exception to GQ-3 (a) and GQ-17, both still open, and certifies nothing. The first r10 T. rex stance round gets its own
 criteria, approved before any training, and the trex `gait-r1` walk (§5.4, §14) still waits for a certified stance. This
 is a plant revision, not a walker session: it answers none of GQ-1..GQ-18. Its record is §25 of
+[investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).
+
+*Appended 2026-10-27 (D-D45, and D-D49 to D-D51); the text above is unchanged.* **The second pilot is retired.** On
+2026-10-25, with T. rex physics r10 on `main`, the maintainer retired walking pilot 2 (D-D45): it was never launched,
+its parent `stance3_armLT_s60`'s final is a physics-r9 checkpoint that `main` refuses, and a new pilot is designed once
+r10 has a stance parent; its branch `claude/pilot-walk-r9-b` is kept and never merged. GQ-3 (a) and GQ-17 stay open,
+and a new pilot is the maintainer's to decide. The first r10 T. rex stance round, where such a parent could come from,
+was set up under its own criteria, approved on 2026-10-27 before any training step, and launched that day (D-D49 to
+D-D51); as a screen it certifies nothing, and the trex `gait-r1` walk (§5.4, §14) still waits for a certified stance.
+Its record is §26 of
 [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).
