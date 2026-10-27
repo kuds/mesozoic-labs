@@ -8,6 +8,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **Decisions D-D45 to D-D51 recorded: walking pilot 2 retired; report-only
+  telemetry, no MuJoCo sensor and an in-run K3 panel for the first T. rex
+  stance round on physics r10; that round's design, its all-or-nothing run
+  handling, its approval and its launch** (the maintainer's decisions of
+  2026-10-25 to 2026-10-27 in the stance run log;
+  `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2, `docs/CONSOLIDATION_PLAN_2026_09.md`
+  §6). Records only. D-D45: walking pilot 2 (D-D36, physics r9, never
+  launched) is retired, a new pilot to be designed once r10 has a stance
+  parent; D-D36 notes it. D-D46: head posture, hip roll and the judge-K3
+  readout, then commands, posture, energy, drift and slip and four `MjData`
+  extras, in appended columns and pages (#644 and #645).
+  D-D47: no MuJoCo sensor before that round (a sensor is a plant change).
+  D-D48: the in-run K3 noise panel, off by default, on in that round. D-D49:
+  arm LTSB of stance5 ported to r10, seeds 60, 42 and 80 from scratch, 12M
+  steps each on Colab L4s, once both telemetry changes were on `main`, one
+  pre-registered statistic (alarm runs against LTSB's r9 2 of 5), on a
+  never-merged run branch. D-D50: the runs read all or nothing (LEAN-R with
+  PRESENCE), after the maintainer asked why the criteria carried so much
+  edge-case handling. D-D51: the criteria (sha256 `99a44469…`) approved on
+  2026-10-27 before any training step, and the three runs launched that day at
+  about 14:57 UTC (on L4 runtimes as their launch lines record them, which the
+  launch check does not see), each passing its configuration-only launch check,
+  with D-D51 amended that day for a report-only snapshot of the running files
+  at the maintainer's request (the rules unchanged, the round read from its
+  final fetch only); their results are pending. Nothing trains on `main`.
 - **Commands, tail and body posture, energy, drift and slip, and four
   `MjData` extras per evaluation episode in `eval_episodes.csv`** (#645; the
   maintainer's decisions of 2026-10-25 15:44 UTC in the stance run log,
