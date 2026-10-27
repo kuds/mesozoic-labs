@@ -373,6 +373,16 @@ flag) and **whitespace** (a final newline); `k3_extract.csv` and
 their scratch files. No copy holds a model identifier, an email address or a
 commit trailer.
 
+*Added 2026-10-27, later still (`stance6/`):* no new kind of change. Every
+copy is byte-identical to its source, its absolute session-scratch paths
+included (no **prefix**, **prefix2** or **checkout**), so that each sha256 is
+the one the approval and the criteria pin; the 13 Python tools are **gzip**
+copies (`test_policy_loading.py` parses every Python file under `docs/`).
+Every file but its README existed before the first training step; the run
+log's launch and launch-check lines, written after the launch, are in
+`stance6_setup/`. No copy holds a model identifier, an email address or a
+commit trailer.
+
 [SHA256SUMS](SHA256SUMS) pins every file here but this README and itself
 (`sha256sum -c SHA256SUMS` in this directory). *Added 2026-10-19:* nor
 `stance3/results/README.md`, which, like this README, has no source.
@@ -383,6 +393,7 @@ commit trailer.
 *Added 2026-10-25, later still:* nor `stance5/tail_sr3/README.md`, likewise.
 *Added 2026-10-27:* nor `stance6_setup/README.md`, likewise.
 *Added 2026-10-27, later:* nor `stance5/k3extract/README.md`, likewise.
+*Added 2026-10-27, later still:* nor `stance6/README.md`, likewise.
 
 ## Contents
 
@@ -1329,6 +1340,21 @@ each run, and its K3 checkpoints give the replication score of record's K3
 values (measured); a test in the suite checks it. Its
 [README](stance5/k3extract/README.md) names the keys kept.
 
+### Added on 2026-10-27, later still (decision D-D51: the first r10 round's pre-registration)
+
+**`stance6/`: the pre-registration of the first T. rex stance round on
+physics r10, approved at 05:55 UTC on 2026-10-27 before any training step;
+results pending.** The approved criteria (`99a44469…`, 829 lines) and the
+two texts they cite (criteria v12, `0ab5edeb…`, and their evidence,
+`353f4536…`), byte copies whose sha256 are `APPROVED`'s; the approval record
+`APPROVED` and the request it answered; the launch steps and the fetch
+brief; and each tool lane's `SHA256SUMS.txt` with its pinned tools (the
+Python files gzipped). Every file but its README existed before the first
+training step. The runs were training when it was copied; it holds none of
+their files, and the run log's launch and launch-check lines, written after
+the launch, are in `stance6_setup/`. Its [README](stance6/README.md)
+indexes it.
+
 ## How to re-check each verdict
 
 Commands as run on 2026-10-17 from a copy of this directory (Python 3.13;
@@ -1416,6 +1442,9 @@ copies.
 | The K3 extract against the judge files (2026-10-27; session scratch only) | from the repository root, `read_judge_k3` (`environments/shared/reporting/training_history.py`) on each judge directory `k3_extract.csv`'s `source` names and on `stance5/k3extract/<run id>`, with the run's seed | equal for all five runs, the files listed as not read aside |
 | The K3 extract against its index and the replication's score (2026-10-27) | `python -m pytest environments/shared/tests/test_training_history.py -k committed_k3_extract` | passes |
 | The files themselves (2026-10-27, later, with `stance5/k3extract/`) | `sha256sum -c SHA256SUMS` | all 677 files OK |
+| The first r10 round's approved texts (2026-10-27, later still) | `sha256sum stance6/criteria.txt stance6/criteria_v12_cited.txt stance6/evidence.txt`, against `stance6/APPROVED` | `99a44469…`, `0ab5edeb…` and `353f4536…`: its `criteria_sha256`, `this12_sha256` and `evid_sha256` |
+| The pinned tools against their lanes' lists (2026-10-27, later still) | in a copy of `stance6/tools/laneA/` and of `laneB/` (with the two `.txt` steps beside it): `gunzip` the `.gz` files, then `sha256sum -c --ignore-missing SHA256SUMS.txt` | 7 and 10 files OK |
+| The files themselves (2026-10-27, later still, with `stance6/`) | `sha256sum -c SHA256SUMS` | all 701 files OK |
 
 `test_pilot_score.py` prints sample "Walking pilot score" blocks while it runs;
 they score synthetic panels, not the pilot.

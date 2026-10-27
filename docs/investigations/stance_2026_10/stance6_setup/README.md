@@ -16,6 +16,10 @@ checks, the run branch, and the launch of the round's three runs,
 were training when this copy was taken (2026-10-27, at 19:01 UTC): no result
 of the round is in it, and none is recorded here.
 
+The round's pre-registration, approved before any training step, is
+[`../stance6/`](../stance6/README.md); it holds only files that existed before
+the first training step, so the launch lines below are kept here.
+
 [SOURCES.txt](../SOURCES.txt) lists each file's source, its sha256 and the
 changes the copy made; [SHA256SUMS](../SHA256SUMS) pins them (every file of
 the folder but this README).

@@ -144,7 +144,9 @@ all-or-nothing run handling (LEAN-R with PRESENCE), and its criteria, approved
 on 2026-10-27 before any training step, and its launch that day. Its runs are
 training: results pending. Its evidence is in
 [stance_2026_10/stance6_setup/](stance_2026_10/stance6_setup/README.md) and
-[stance_2026_10/stance5/k3extract/](stance_2026_10/stance5/k3extract/README.md).
+[stance_2026_10/stance5/k3extract/](stance_2026_10/stance5/k3extract/README.md),
+and the round's pre-registration in
+[stance_2026_10/stance6/](stance_2026_10/stance6/README.md).
 The statuses above are unchanged.*
 
 It continues [STANCE_REWARD_PILOT_FINDINGS_2026_10.md](STANCE_REWARD_PILOT_FINDINGS_2026_10.md)
@@ -4674,7 +4676,12 @@ validations, the push of the branch (never merged), and the budgets: about
 46.5 L4-hours for three runs, about 62 with one relaunch, and about 195 file
 copies for the final fetch (inferred). The approval record was written in
 the session's scratch (`APPROVED`, sha256 `07246480…`); the rules froze at
-the first training step.
+the first training step. That pre-registration is the folder `stance6/` of
+[stance_2026_10/](stance_2026_10/README.md): the criteria and the two texts
+they cite (byte copies, their sha256 `APPROVED`'s), `APPROVED` and the
+request it answered, the Colab steps and the fetch brief, and both tool
+lanes' `SHA256SUMS.txt` with the pinned tools; every file in it but its
+README existed before the first training step.
 
 The three runs were launched from the branch's notebook: `stance6_r10LTSB_s60`
 reported by the maintainer at 14:57 UTC, and `_s42` and `_s80` reported at
@@ -4719,9 +4726,10 @@ the reading goes to the maintainer. Nothing of it is in this record.
 - **§21.6 and §22, walking pilot 2:** retired (D-D45), never launched; a new
   pilot comes once r10 has a stance parent.
 - **§14, this repository:** the folders `stance6_setup/` (the run log's
-  lines 600 to 680, and its six `STANCE6` lines on their own) and
-  `stance5/k3extract/` (the compact K3 extract, 41 files), with their
-  sources and sha256 in `SOURCES.txt` and `SHA256SUMS` (now 677 files).
+  lines 600 to 680, and its six `STANCE6` lines on their own),
+  `stance5/k3extract/` (the compact K3 extract, 41 files) and `stance6/`
+  (the round's pre-registration, 24 files), with their sources and sha256
+  in `SOURCES.txt` and `SHA256SUMS` (now 701 files).
 - **§14, branches:** `claude/screen-trex-r10-armltsb`, pushed at `8737cd3d`
   with the maintainer's OK and never merged (the round's run branch);
   `claude/pilot-walk-r9-b`, kept and never merged (pilot 2, retired).

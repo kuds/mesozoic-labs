@@ -8,31 +8,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
-- **The first T. rex stance round on physics r10 recorded as set up,
-  approved and launched, results pending, with the report-only telemetry
-  built for it and walking pilot 2's retirement** (decisions D-D45 to D-D51;
-  the appended §26 of
-  `docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md`, with a
-  dated status note at its top; `docs/NEXT_STEPS.md` §3,
+- **The first T. rex stance round on physics r10 recorded as set up, approved
+  and launched, results pending, with the report-only telemetry built for it
+  and walking pilot 2's retirement** (decisions D-D45 to D-D51; the appended
+  §26 of `docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md`, with
+  a dated status note at its top; `docs/NEXT_STEPS.md` §3,
   `docs/KNOWN_ISSUES.md` (Update 21 of the T-Rex stance entry and two dated
-  updates), a dated note in §17 of `docs/GAIT_QUALITY_PLAN_2026_09.md` and
-  its header, `docs/README.md`; evidence in `stance6_setup/` of
-  `docs/investigations/stance_2026_10/`). Records only. §26 records physics
-  r10 and the heading-test fix reaching `main`; the telemetry of #644 and
-  #645, with no new MuJoCo sensor and the in-run K3 panel, and the compact
-  K3 extract; walking pilot 2 retired, never launched; the round's design
-  (arm LTSB ported to r10, seeds 60, 42 and 80 from scratch, 12M steps each
-  on Colab L4s, on the never-merged branch `claude/screen-trex-r10-armltsb`,
-  one pre-registered statistic against LTSB's r9 2 of 5); its run rules,
-  drafted as full rules over twelve checked versions and replaced, after the
-  maintainer's question and a rule-model comparison, by the maintainer's choice
-  of all-or-nothing rules (LEAN-R with PRESENCE; the rule model gave no wrong
-  reading under either [model]); its validations, all passed; its approval on
-  2026-10-27 before any training step (criteria `99a44469…`, branch head
-  `8737cd3d`); and its launch that day at about 14:57 UTC, three runs (on L4
-  runtimes as their launch lines record them), each passing its
-  configuration-only launch check. The runs are training: no result is
-  recorded, and nothing trains on `main`.
+  updates), a dated note in §17 of `docs/GAIT_QUALITY_PLAN_2026_09.md` and its
+  header, `docs/README.md`; evidence in `stance6_setup/` of
+  `docs/investigations/stance_2026_10/`, and the round's pre-registration,
+  approved before any training step, in `stance6/` there: the criteria and the
+  texts they cite as byte copies, the approval record, the launch steps and
+  fetch brief and the pinned tools, all from before the first training
+  step). Records only. §26 records physics r10 and the heading-test fix
+  reaching `main`; the telemetry of #644 and #645, with no new MuJoCo sensor
+  and the in-run K3 panel, and the compact K3 extract; walking pilot 2 retired,
+  never launched; the round's design (arm LTSB ported to r10, seeds 60, 42 and
+  80 from scratch, 12M steps each on Colab L4s, on the never-merged branch
+  `claude/screen-trex-r10-armltsb`, one pre-registered statistic against
+  LTSB's r9 2 of 5); its run rules, drafted as full rules over twelve checked
+  versions and replaced, after the maintainer's question and a rule-model
+  comparison, by the maintainer's choice of all-or-nothing rules (LEAN-R with
+  PRESENCE; the rule model gave no wrong reading under either [model]); its
+  validations, all passed; its approval on 2026-10-27 before any training step
+  (criteria `99a44469…`, branch head `8737cd3d`); and its launch that day at
+  about 14:57 UTC, three runs (on L4 runtimes as their launch lines record
+  them), each passing its configuration-only launch check. The runs are
+  training: no result is recorded, and nothing trains on `main`.
 - **A compact K3 extract of the five band runs' judge files, read by the
   training-history report's judge-K3 readout** (the maintainer's decision of
   2026-10-25 17:42 UTC in the stance run log, D-D46;
