@@ -14,5 +14,5 @@ The reading (score_r10round.py, STATUS FINAL): line 1, TAIL RAIL FORMED ON r10 I
 - tools/: the pinned lane A and lane B tools as they measured, with their SHA256SUMS.txt.
 - run_log.txt: the session's run log as it stood when this copy was made.
 
-Stage mode: reading. Built 2026-10-28 15:04 UTC. FILELIST.txt and SHA256SUMS cover every file
+Stage mode: review. Built 2026-10-28 19:26 UTC. FILELIST.txt and SHA256SUMS cover every file
 (sha256sum -c SHA256SUMS).

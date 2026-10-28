@@ -1,0 +1,271 @@
+======================================================================================================================
+STANCE6 REVIEW AND NEXT STEPS: FIXER RECORD (one entry per verifier finding)
+======================================================================================================================
+Written 2026-10-28 19:02-19:14 UTC (date -u) by the fixer. Report only. No class, count, A, n_A, p or reading line was
+changed. The scorer's reading stands as printed (SCORE l168-l172):
+  line 1: TAIL RAIL FORMED ON r10 IN TRAINING (ledger); R 1 (COMPLETE 1, PRESENCE 0), U 0, P 1, G+ 1; A 2 of 3
+  against LTSB r9's 2 of 5, one-sided Fisher p 0.9286; STATUS FINAL.
+
+FILES
+  Revised   S2/r10round/f2/REVIEW.txt      (898 lines, sha256 5c76f556...)
+            S2/r10round/f2/NEXT_STEPS.txt  (sha256 in CLOSING HASHES at the end of this file)
+  Originals S2/r10round/f2/REVIEW.v1.txt     (832 lines, sha256 fbe54c2b..., byte-identical to the text before revision)
+            S2/r10round/f2/NEXT_STEPS.v1.txt (527 lines, sha256 1d66d5d6...)
+  Fixer's scripts and outputs (read-only; JSON and CSV only; no simulation, no checkpoint load):
+            S2/r10round/f2/fixer/f_m2panel.py, f_m2med.py (M2 panels at s42 final and s80 6,291,456)
+            S2/r10round/f2/fixer/f_m1.py, f_hiproll.py (M1 tail commands and hip roll, every label)
+            S2/r10round/f2/fixer/f_round.py (D-13 and D-4 exact values)
+            S2/r10round/f2/fixer/f_power.py, f_power.out (Fisher p, power, schedule values, TABLE E bound)
+            S2/r10round/f2/fixer/f_align.py (restored table column widths after the rounding edits)
+  S1 = /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad
+  S2 = /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad
+  Other keys as in REVIEW.txt's SOURCES (CRIT, THIS12, EVID, SCORE, SCOREJ, RO, STD-r, PAN-r, RUNLOG, TSW).
+
+COUNTS: 35 findings across three lenses (numbers N-1..N-10; rules F1-F7; claims B1, B2, M1-M9, I1-I7), 30 distinct
+after merging duplicates (N-1 = F1 = M3; N-3 = F7 = I7; F3 = M2); F4 overlaps the first of I6's three points.
+  By severity: blocking 3 (N-1, B1, B2; N-1's duplicates F1 and M3 were filed as minor), minor 18, info 14.
+  CONFIRMED-FIXED 35 (every blocking, minor and info finding). REFUTED 0. OPEN 0.
+  One partial note: the same wording as N-3 and B1 also sits in READOUTS.txt (RO l802-l805). RO is not one of the two
+  files this stage revises, so it keeps its wording; REVIEW §4.3 now carries the corrected statement and says it
+  narrows RO's.
+
+======================================================================================================================
+LENS 1: NUMBERS
+======================================================================================================================
+N-1 (blocking) "2 rails of 3 had probability 0.286" (REVIEW §6)                                     CONFIRMED-FIXED
+  Verified: SCORE l169 R 1 (COMPLETE 1, PRESENCE 0); SCORE l170 A 2 of 3 [measured]. EVID l355-l356 gives 0.238 /
+  0.357 / 0.286 / 0.119 for 0-3 "rails of 3" at r9's 2-of-5 rate, which for r9 was both its ANY-ALARM rate (CRIT
+  l302-l303) and its tail-rail rate (both r9 alarms were tail_3 +1) [measured]. So 0.286 fits A = 2; R = 1 is 0.357.
+  Fix: REVIEW §6 now reads "2 alarm runs of 3 (the observed A = 2) had probability 0.286, and 1 tail rail of 3 (the
+  observed R = 1) 0.357 [read from EVID l355-l356, which labels them inferred; ...]". Merged with F1 and M3.
+
+N-2 (minor) "A 1.5M continuation would reach only its first flagged evaluation" (NEXT_STEPS Option 1) CONFIRMED-FIXED
+  Verified: 3,145,728 + 1,572,864 = 4,718,592 < 4,849,664, s80's first ANY-flagged evaluation (REVIEW D-1; RO E3)
+  [computed]. Fix: "would end at about 4.7M (4,718,592 for 1,572,864 steps), before even its first flagged evaluation
+  (4,849,664); it would see only the first neck over-bar episode (3,801,088)". The proposed 2,359,296 length stands.
+
+N-3 (minor) "the bonus is below 0.0007 from 6M on" (REVIEW §4.3)                                    CONFIRMED-FIXED
+  Verified: STD-s60 ent_coef column: 5,996,544 0.0007168; 6,004,736 0.0007109; 6,021,120 0.0006992 (the first below
+  0.0007); 6,291,456 0.0005061 [measured]. Schedule 0.005 x (1 - 6/7) = 0.000714 [computed, f_power.out].
+  Fix: "the bonus is about 0.0007 or less from 6M on (0.00071 at 6.0M, 0.00051 at 6.29M) [measured, STD-s60 ent_coef
+  column]". RO l805 keeps its wording (outside this stage's two files). Merged with F7 and I7.
+
+N-4 (minor) D-5 hip roll "+-0.01 in s60 and s42, +-0.03 in s80" (REVIEW D-5)                         CONFIRMED-FIXED
+  Verified with f_hiproll.py on PAN-r <label>/m1/m1_summary.json hip_roll (12, 13, 12 labels): means over episodes
+  [-0.0076, +0.0075] s60, [-0.0085, +0.0081] s42, [-0.0080, +0.0082] s80; per-episode window means [-0.029, +0.036],
+  [-0.036, +0.037], [-0.028, +0.031]; mean r-l -0.016 to +0.004; present_every_step true [measured]. s80 is not wider.
+  Fix: "means over the 20 episodes within +-0.009 rad in every run and at every label (largest magnitudes 0.0076 s60,
+  0.0085 s42, 0.0082 s80); per-episode window means within +-0.04 rad (widest s42, -0.036 to +0.037)", source key
+  changed to the M1 summaries.
+
+N-5 (minor) s42 tail_1_pitch "-0.150 to -0.190 from 3.67M to 8.39M" (REVIEW D-3)                     CONFIRMED-FIXED
+  Verified: PAN-s42 m1 cmd_a.11: 3.67M -0.1499, 4.19M -0.1617, 5.24M -0.1533, 6.29M -0.1074, 7.34M -0.1899, 8.39M
+  -0.1836 [measured, f_m1.py]. Fix: "-0.107 to -0.190 from 3.67M to 8.39M (-0.150 to -0.190 except -0.107 at 6.29M)".
+
+N-6 (minor) "The log-std slope shows no break at 7M" labelled measured (REVIEW §4.2 E4, §4.3)         CONFIRMED-FIXED
+  Verified: S2/r10round/f2/readouts/work/std_kink_7M.json: s42 tail_3 -0.0443 -> -0.0602; s80 tail_3 -0.0434 ->
+  -0.0609; s42 tail_1_pitch -0.0388 -> -0.0583; s80 tail_1_pitch -0.0344 -> -0.0526; s60 neck -0.0527 -> -0.0374;
+  s60 tail_1_pitch -0.0508 -> -0.0317; lr_mean 1.917e-5 -> 1.750e-5 [measured]. No threshold for a "break" exists in
+  CRIT or RO. Fix: E4 now prints the slopes [measured] and a separate read [inferred]: no consistent break; tail_3's
+  decline steepened by about 35-40% after 7M in s42 and s80 (ratios 1.36 and 1.40), the direction expected if the
+  bonus had been holding std up; in s60 some declines eased. §4.3 cites it; "not supported, not excluded" kept.
+
+N-7 (minor) double rounding in D-3, D-4, D-13 (REVIEW)                                              CONFIRMED-FIXED
+  Verified [measured, f_round.py]: RO json D13 windows: s60 W1 tail_3 command 0.02146; s80 W3 head tip 1.13347; s42 W2
+  head_pitch_act -0.20148; s60 W2 tail chord 2.14496; root height s42 W2 0.92702 (every other window 0.9256-0.9264).
+  m2_summary posture_means_full_horizon: s60 4.19M base chord 0.65499; s42 5.24M distal 7.2647; s80 4.19M distal
+  2.8549; s80 final distal 6.3846. Fix: 0.021 (D-3 and D-13), 1.133, -0.201, 2.14; root height "0.926 in every window
+  of every run, except s42 W2 0.927"; D-4 +0.65, +7.26, +2.85, +6.38; both tables now say they are rounded from the
+  exact values. Column widths restored (f_align.py).
+
+N-8 (info) TABLE E's upper-bound column basis (REVIEW §1.3)                                         CONFIRMED-FIXED
+  Verified: 0.95^(1/3) = 0.983 (exact one-sided binomial, 2 of 3); a uniform-prior Beta(3,2) 95% bound is 0.902
+  [computed, f_power.out]; CRIT l816-l821 headers the table with the uniform prior. Fix: one sentence added to §1.3;
+  the printed figures are unchanged.
+
+N-9 (info) score.txt / score.json byte count (NEXT_STEPS P2 (b))                                   CONFIRMED-FIXED
+  Verified: ls: score.json 3,542,297 bytes, score.txt 28,548 bytes [measured]. Fix: both sizes given.
+
+N-10 (info) the r9 s80 start called "clean" (NEXT_STEPS Option 1, WHY)                             CONFIRMED-FIXED
+  Verified: D-D43 started from the 4,194,304 pairs (RUNLOG l509); EVID l220: stance5r LTSB s80 4,194,304 r9 tail_3
+  +0.602 with 0 flags [measured]. Fix: "from a flag-free but mid-rise state (tail_3 CMD +0.602, 0 flags)", compared
+  with r10 s42's 3,145,728 (+0.524); still labelled untested on r10.
+
+======================================================================================================================
+LENS 2: RULES
+======================================================================================================================
+F1 (minor) = N-1                                                                                    CONFIRMED-FIXED
+  Same fix; F1's wording (0.286 for A, 0.357 for R) adopted.
+
+F2 (minor) "Everything after section 2 is a PRE-REGISTERED DIAGNOSTIC READOUT or a record"           CONFIRMED-FIXED
+  Verified: CRIT l335-l354 pre-registers D-1, D-2..D-15 (THIS12 l577-l630) and D-16; the entropy analysis is RO's
+  "ENTROPY CHECK (the maintainer's question ...)" (RO l689), not a D-item; THIS12's D-7 list (l602-l604) names K1-K4,
+  failure modes, K5, late falls, noise falls, band readouts and fall direction, not the S3 step [measured].
+  Fix: the opening paragraph now separates section 3 (pre-registered, with post-hoc items marked), section 4
+  (post-hoc) and sections 5-7 (comparisons and records); section 3's heading names D-1..D-16; section 4 is headed
+  "POST-HOC, REPORT ONLY"; D-7's S3 step is marked "post-hoc, beyond THIS12's D-7 list".
+
+F3 (minor) the actuators behind s42's final and s80's 6,291,456 certificate failures               CONFIRMED-FIXED
+  Verified with f_m2panel.py and f_m2med.py [measured]:
+    PAN-s42 final/m2/panel.json (seeds 3042-3081, heading 0): seed 3079 tail3_frac99 0.53875, tail3_cmd_mean +0.984;
+    seed 3080 0.515, +0.969; others_max_sat 0.0 in both; equal to the certificate's 0.53875 / 0.515 (its l76-l77).
+    PAN-s80 6291456/m2/panel.json: 35 of 40 episodes with others_max_sat > 0.1, every one neck_pitch_act; tail3
+    frac99 0 in all 40; median over 40 0.6325 and max 0.90625, equal to the certificate's l54; mean 0.54825.
+    Both certificates give identical clean counts and rewards at all six headings (report l14-l19).
+  Fix: REVIEW §2.2 and D-8 now give the heading-0 actuator as measured and the other headings as inferred; D-8's
+  "0.548" is named as the 40-episode mean; D-12's "neck_pitch [inferred from D-6]" now cites M2. NEXT_STEPS Option 2
+  (a) and (b) are narrowed to the non-zero headings and marked optional; its WHY, COST and RISKS lines follow.
+  Merged with M2.
+
+F4 (info) "the strongest of line 1's bases" labelled measured (REVIEW §1.4)                         CONFIRMED-FIXED
+  Verified: CRIT l312-l316 orders the bases with "when ... else ... else"; EVID l379 says a ledger rail or a
+  drive-backed end-only rail settles existence [measured]. Fix: "the first basis in line 1's order ..., and a ledger
+  rail settles the existence question [read from CRIT l312-l316 and EVID l379]".
+
+F5 (info) D-16 never stated (REVIEW §3)                                                             CONFIRMED-FIXED
+  Verified: score.json presence_rails [], reading.with_lost {"A": 2, "n_A": 3, "runs": []}; all three runs COMPLETE
+  (SCORE l12-l152) [measured]. Fix: a "D-16 LOST RUNS: none" line closes section 3.
+
+F6 (info) "Re-fetch: none due" labelled from SCORE l8 alone (REVIEW §1.2)                          CONFIRMED-FIXED
+  Verified: SCORE l8 refetch_start_notes []; CRIT l477-l478 (a re-fetch is for a run that passes C1 and fails C2 or
+  C3); C2 and C3 PASS for every run (SCORE l12-l152) [measured]. Fix: the line now gives the rule and both sources.
+
+F7 (info) = N-3                                                                                     CONFIRMED-FIXED
+
+======================================================================================================================
+LENS 3: CLAIMS
+======================================================================================================================
+B1 (blocking) "It is not necessary for them" (REVIEW §4.3; NEXT_STEPS 0.2 (b))                     CONFIRMED-FIXED
+  Verified [measured]: RO l802-l803 says only "As a necessary cause: the records argue against it". Every r10 and r9
+  run had ent_coef 0.005 -> 0 by 7M (RO E1, E6). s60's rollout mean of tail_3 rose +0.031 -> +0.127 -> +0.158 ->
+  +0.441 over the bins 3.1-7.3M with the bin bonus 0.0024 -> 0.0002 (RO l751-l754); M1 CMD +0.273 at 6,291,456
+  (bonus 0.000506, RO l701). s42's rail ran 3.67-5.9M under the bonus, cleared, then re-formed at 0 (RO l773-l774).
+  REVIEW's own l588-l590 and l602 called the timing role open. So the records show only that a non-zero bonus at the
+  time is not needed for a crossing or a re-formed rail [inferred].
+  Fix: REVIEW §4.3's second bullet replaced with that narrower statement plus "Whether the schedule's first 7M steps
+  are needed is untested: every run on both plants had them ..."; the section header now says it narrows RO's answer.
+  NEXT_STEPS 0.2 (b) rewritten to match, and P2 (a) now says §27 takes the revised answer.
+
+B2 (blocking) Option 3 gated on Option 1, and a null in Option 1 read as evidence against Option 3   CONFIRMED-FIXED
+  Verified [measured, NEXT_STEPS.v1 lines named]: the text itself says Option 1's starts are mid-rise and test the
+  crossing, not the rise (l227-l229); 4 against 4 detects only a large effect and a null cannot exclude a modest one
+  (l223-l225); only from-scratch arms reach the early phase (l318-l319); Option 3 is itself an ent_coef contrast, so
+  "the only option that answers ... with a contrast" (l182-l183) was false. Bonus at 3,145,728 0.002753, 55% of 0.005
+  [computed, f_power.out].
+  Fix (NEXT_STEPS): the gate is removed from Option 3's heading, the summary list (l132), WHY (l192-l193), RISKS
+  (l333) and section 4 (l512). Option 1's WHAT IT WOULD TEST says it answers the crossing question only; WHY says a
+  null leaves the early-phase question open and is not evidence against Option 3; l183 now reads "the cheapest
+  contrast". The ranking is kept (Option 1 recommended, Option 3 third), now on cost, not on a gate. An earlier start
+  (1,048,576, F2-held, bonus 0.004251) is offered in Option 1's RISKS for bearing on the rise; it is not added to
+  the core design, since the gate it was meant to support is gone.
+
+M1 (minor) Option 3 sizing stated as p-values without the assumption or power                      CONFIRMED-FIXED
+  Verified with my own exact computation (f_power.py, f_power.out): p at outcomes 4/6 vs 0/6 0.0303, 5/8 vs 0/8 0.0128,
+  4/8 vs 0/8 0.0385 (RO l825-l827's figures); power at one-sided alpha 0.05: 2/3 vs 0 0.680 (n 6), 0.912 (n 8); 2/3 vs
+  1/3 0.181, 0.179; 0.4 vs 0 0.179, 0.406 [computed]. Fix: REVIEW §4.5 and NEXT_STEPS Option 3 COST state the
+  assumption (0 alarms in one arm against r10's 3-run 2 of 3), say the figures are not power, and give the power;
+  sizing left to that round's pre-registration.
+
+M2 (minor) = F3; also D-8's 0.548 is the 40-episode mean                                           CONFIRMED-FIXED
+
+M3 (minor) = N-1                                                                                    CONFIRMED-FIXED
+
+M4 (minor) "every first onset" and "the railing actuator was the least noisy" (REVIEW §4.3; NS)     CONFIRMED-FIXED
+  Verified [measured, RO E3, E6, l804]: first saturated episodes with the bonus at 0: r10 s60 8,126,464, r9 s60
+  11,403,264, r9 s70 8,126,464 (r9 s52 6,946,816, just before 0); RO l804 says "least noisy of the three runs"; within
+  s42 the knee std (0.0087) is far below tail_3's (0.095, RO D-15). Fix: "every first onset of an alarm run", the
+  non-alarm runs' late onsets named; "tail_3 was the least noisy tail_3 of the three runs"; NEXT_STEPS 0.2 (b) and
+  Option 3 WHY ("every alarm run's first onset") changed to match.
+
+M5 (minor) "the s60 drive lies entirely after 7M" and "exactly such a late case"                   CONFIRMED-FIXED
+  Verified [measured]: s60 M1 CMD +0.273 at 6,291,456 (D-3), bin mean +0.441 over 6.3-7.3M (RO l754); its 41
+  rollouts >= 0.05 all after 7M (RO l216); r9 s60's first saturated episode 11,403,264 (RO l784). Fix: D-2 now says
+  s60's mu-beyond rollouts lie after 7M and its rise began before; §6 says "s60's bound crossings are such a late
+  case", drops "exactly", and says nothing shows r10 delayed it.
+
+M6 (minor) Option 1 cost basis from a harness with no in-run evaluation                             CONFIRMED-FIXED
+  Verified [measured]: S2/tailround/screen/tools/run_tailscreen.py l455 "eval_env.close()  # built only for the order
+  and the statistics load; it never runs"; RUNLOG l630's "+2.3 to +6.0%" is TEL's evaluation overhead; run_waves.sh
+  l41 MIN_FREE_KB = 5 GB; df at 19:00 UTC 3.9 GB free. The +10% for the ledger is an estimate (about 80 episodes per
+  1,048,576 steps at about 3.5 s each, from ROLOG-s80's M1 times) [inferred]. Fix: NEXT_STEPS core estimate now about
+  25-28 CPU-hours and 8.5-9.5 h of wall clock; add-ons C 13-14, N and S 12-13 each; the in-run ledger named as new
+  harness code (RISKS); the D-D43 control figures noted as panel readings; the 5 GB floor stated under Disk and P4.
+
+M7 (minor) approval items misnamed or missing                                                       CONFIRMED-FIXED
+  Verified [measured]: copy_8737cd3d environments/shared/mirror_kl_ppo.py l379 "loss = policy_loss + self.ent_coef *
+  entropy_loss + self.vf_coef * value_loss"; RUNLOG l509 names D-D43's change "training-loss change"; REVIEW D-14
+  "That check loads checkpoints". Fix: Option 1 (i) and Option 3 now say "training-loss change (the entropy
+  coefficient ...)"; Option 3 asks for "a never-merged run branch"; Option 2 RISKS and NEEDS name item (e)'s
+  checkpoint loader and ask for its OK.
+
+M8 (minor) s60's raised final head tip missing from Option 4                                       CONFIRMED-FIXED
+  Verified: PAN-s60 final/m2 head_tip_z_m 1.1153; statue 0.959; TEL W3 1.08965 (REVIEW D-4, D-13) [measured]. Fix:
+  added to s60's Against list, to the posture ruling (both runs' head tips against the statue's) and to Option 2 WHY.
+
+M9 (minor) five unlabelled or mislabelled inferences in NEXT_STEPS                                   CONFIRMED-FIXED
+  Verified at NEXT_STEPS.v1 l63, l96, l280, l420, l508 [measured, the lines]. Fix: l63 [inferred, from one run (s80)
+  and the measured facts]; l96 "screened on r9, not repeated on r10", carry-over to r10 untested [inferred]; l280
+  [inferred, from KNOWN's checks]; l420 [inferred, from the habits' spread across actuators]; l508 "can go ahead on
+  the maintainer's word; P2's content grows with any option done first".
+
+I1 (info) second-order path through the gradient-norm clip                                          CONFIRMED-FIXED
+  Verified: mirror_kl_ppo.py l401 clip_grad_norm_(self.policy.parameters(), self.max_grad_norm); stage_config sets no
+  max_grad_norm (stage_config.json.copy1, sha256 898bb25d... = manifest); SB3 PPO's default is 0.5 in this venv's
+  stable_baselines3/ppo/ppo.py l95 [measured]; the Colab runtime's SB3 version was not checked, so the 0.5 is labelled
+  inferred in the text. Fix: one parenthesis in REVIEW §4.3 and one in NEXT_STEPS 0.2 (b).
+
+I2 (info) add-on C has no statistic                                                                 CONFIRMED-FIXED
+  Verified: s60 ANY-flagged evaluations 0 (REVIEW D-1) [measured]. Fix: C's reading is named as a pre-registration
+  item (for example M6 tail_3 mu-beyond share, or end-trace CMD_a against 0.60, direction "C higher").
+
+I3 (info) the durable clone's push URL is live                                                      CONFIRMED-FIXED
+  Verified: git remote -v in S2/r10round/durable/repo shows the GitHub URL for push at 19:00 UTC [measured, local
+  only]. Fix: P1 now proposes, on the maintainer's word, setting it to DISABLED now and enabling it only for the
+  approved push. The clone itself was not touched.
+
+I4 (info) the run log has moved on                                                                  CONFIRMED-FIXED
+  Verified: RUNLOG has 716 lines at 19:00 UTC; l715 #650 merged 18:39 UTC (CI 10 of 10 green on e76e775e); l716 the
+  maintainer's note to revisit #650's tests after the stance6 review (S2/r10round/FOLLOW_UPS.txt) [measured]. Fix:
+  P2 (g) updated; the l716 follow-up listed as pending; SOURCES' RUNLOG line updated.
+
+I5 (info) Option 1 does not name the risk of losing the container                                   CONFIRMED-FIXED
+  Fix: a RISKS bullet (8.5-9.5 h core, about 21-23 h with all three add-ons; a durable copy per continuation and a
+  rerun-from-start rule for one cut short) [inferred].
+
+I6 (info) three wording points (REVIEW l85, l87, l482)                                              CONFIRMED-FIXED
+  l85 as F4. l87 now [inferred, from CRIT l312-l316 and EVID l379]. l482 "alarmed on neck_pitch on r10 (an ANY ALARM in
+  a CLEAR run)" in place of "railed".
+
+I7 (info) = N-3                                                                                     CONFIRMED-FIXED
+
+======================================================================================================================
+WHAT DID NOT CHANGE (checked after the edits)
+======================================================================================================================
+- REVIEW §1.1 still prints the reading line exactly as SCORE l168-l169; §1.3 A 2 of 3, p 0.9286, TABLE E 0.26 / 0.05
+  / 0.98; §2's SUMMARY table (classes, gates, outcomes, ANY ALARM counts) unchanged [measured, diff against
+  REVIEW.v1.txt].
+- No section was renumbered, so NEXT_STEPS's "REVIEW §x" references still hold.
+- Nothing was trained, simulated, fetched or pushed. No checkpoint was loaded; npz files were not opened. RUNLOG, the
+  main checkout, the run-branch clone, APPROVED, the criteria files, the fetch store and every tool folder were only
+  read. No Drive, no GitHub.
+
+CLOSING HASHES (sha256sum, 2026-10-28 19:13 UTC)
+  REVIEW.txt      5c76f5560f9f629722f8c50b3deaa9fdd238486a4dc89fdcd676f52924632d1d
+  NEXT_STEPS.txt  caae31d21f1f6c88edd274fbf6f73f418ca1bcf8b1e4ba3c9b8a3a22199aea90
+  HEADLINE.txt    189e75ff1d3b9fceabc75a6c65990f4ca5578f3edf6f52bc0da4bff46cd73072
+  REVIEW.v1.txt   fbe54c2bd593f94df2e48d14a266f599cda08d3c89f53420cb7a974e6c761fde
+  NEXT_STEPS.v1.txt 1d66d5d688ccec3e6c5e9b7eb4dab5c7e7b6b09eff5e024e8d2acd47177b0996
+
+======================================================================================================================
+RE-CHECK OF THE FIXED TEXTS (2026-10-28 19:26 UTC; wf_9195cb25-b07, one fresh agent; notes recheck/NOTES.txt)
+======================================================================================================================
+Result: the three blocking fixes (N-1, B1, B2) are right and complete; every figure in HEADLINE.txt, REVIEW §1 and the
+§2 per-run table matches its source; 0 blocking, 2 minor, 9 info. Applied by the coordinator (originals kept as
+NEXT_STEPS.v2.txt and HEADLINE.v1.txt):
+RC-1 (minor) Option 1's core cost: about 25-26 CPU-hours and about 8.5-9 h of wall clock (was 25-28 and 8.5-9.5),
+     in NEXT_STEPS COST, RISKS and section 4, and in HEADLINE.                                     CONFIRMED-FIXED
+RC-2 (minor) NEXT_STEPS P2 (b) now says READOUTS l802-l805's entropy wording is narrowed by REVIEW §4.3.  CONFIRMED-FIXED
+RC-3 (info) HEADLINE l2: "existence result" attached to line 1, not to statistic A ("nothing significant"). FIXED
+The other 8 info points (recheck/NOTES.txt) are left as noted: wording refinements in REVIEW §4.3, §6 and NEXT_STEPS
+sections 1-2 (indirect-path phrasing, the r9 ledger-only tail-rail rate, Option 1's distance from onset vs D-D43,
+Option 5's header-commit item); none changes a figure, class, cost or approval list beyond the two minors above.

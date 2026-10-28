@@ -1,0 +1,392 @@
+start 2026-10-28T16:52:46Z try=1 sim_jobs_before=0 []
+cmd: OMP_NUM_THREADS=1 nice -n 10 /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python -I -B /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/copy_8737cd3d/environments/shared/scripts/episode_trace_report.py --species tyrannosaurus_rex --embodiment anatomical --model /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/models/stage1_3670016_steps.zip.copy1 --vecnorm /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/models/stage1_vecnormalize_3670016_steps.pkl.copy1 --seed 3042 --episodes 20 --hold tail_3_pitch_act=0 --out-dir /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/d9_d10/stance6_r10LTSB_s42/d9_3670016_hold_tail_3_pitch_act_0  (cwd /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/d9_d10/stance6_r10LTSB_s42)
+Episode trace — Tyrannosaurus Rex (Anatomical) / Stance (report only)
+  checkpoint     /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/models/stage1_3670016_steps.zip.copy1
+  normalization  vecnormalize-frozen
+  rollout        deterministic
+  held           tail_3_pitch_act=0 (a counterfactual probe, not the judge's rollout)
+  window         steps 200-end (0-based), saturated at |command| >= 0.99, near at >= 0.9
+
+seed 3042: length 1000, return 4454.33, truncated; gate saturation max 0.000
+  actuator              cmd      raw     sat   >=0.9   raw>1   rawmax   first  win1st   force
+  neck_pitch_act     +0.087   +0.087   0.000   0.000   0.000   +0.094       -       -   0.266
+  neck_yaw_act       -0.011   -0.011   0.000   0.000   0.000   -0.008       -       -   0.000
+  head_pitch_act     +0.080   +0.080   0.000   0.000   0.000   +0.090       -       -   0.257
+  r_hip_pitch_act    -0.006   -0.006   0.000   0.000   0.000   -0.004       -       -   0.030
+  r_hip_roll_act     +0.097   +0.097   0.000   0.000   0.000   +0.100       -       -   0.060
+  r_knee_act         -0.003   -0.003   0.000   0.000   0.000   -0.002       -       -   0.003
+  r_ankle_act        -0.004   -0.004   0.000   0.000   0.000   -0.000       -       -   0.042
+  l_hip_pitch_act    +0.001   +0.001   0.000   0.000   0.000   +0.003       -       -   0.031
+  l_hip_roll_act     -0.099   -0.099   0.000   0.000   0.000   -0.090       -       -   0.060
+  l_knee_act         -0.001   -0.001   0.000   0.000   0.000   +0.000       -       -   0.004
+  l_ankle_act        -0.008   -0.008   0.000   0.000   0.000   -0.004       -       -   0.044
+  tail_1_pitch_act   -0.092   -0.092   0.000   0.000   0.000   -0.089       -       -   0.011
+  tail_1_yaw_act     +0.193   +0.193   0.000   0.000   0.000   +0.195       -       -   0.016
+  tail_2_pitch_act   -0.005   -0.005   0.000   0.000   0.000   +0.010       -       -   0.001
+  tail_3_pitch_act   +0.000   +0.298   0.000   0.000   0.000   +0.333       -       -   0.000
+
+seed 3043: length 1000, return 4473.72, truncated; gate saturation max 0.000
+  actuator              cmd      raw     sat   >=0.9   raw>1   rawmax   first  win1st   force
+  neck_pitch_act     +0.045   +0.045   0.000   0.000   0.000   +0.048       -       -   0.267
+  neck_yaw_act       +0.010   +0.010   0.000   0.000   0.000   +0.024       -       -   0.000
+  head_pitch_act     +0.061   +0.061   0.000   0.000   0.000   +0.074       -       -   0.263
+  r_hip_pitch_act    -0.006   -0.006   0.000   0.000   0.000   -0.004       -       -   0.028
+  r_hip_roll_act     +0.066   +0.066   0.000   0.000   0.000   +0.073       -       -   0.038
+  r_knee_act         -0.004   -0.004   0.000   0.000   0.000   -0.003       -       -   0.003
+  r_ankle_act        -0.003   -0.003   0.000   0.000   0.000   -0.000       -       -   0.043
+  l_hip_pitch_act    -0.005   -0.005   0.000   0.000   0.000   +0.000       -       -   0.032
+  l_hip_roll_act     -0.067   -0.067   0.000   0.000   0.000   -0.064       -       -   0.040
+  l_knee_act         -0.001   -0.001   0.000   0.000   0.000   +0.001       -       -   0.004
+  l_ankle_act        +0.001   +0.001   0.000   0.000   0.000   +0.003       -       -   0.042
+  tail_1_pitch_act   -0.089   -0.089   0.000   0.000   0.000   -0.075       -       -   0.010
+  tail_1_yaw_act     -0.073   -0.073   0.000   0.000   0.000   -0.053       -       -   0.006
+  tail_2_pitch_act   +0.015   +0.015   0.000   0.000   0.000   +0.028       -       -   0.002
+  tail_3_pitch_act   +0.000   +0.339   0.000   0.000   0.000   +0.343       -       -   0.000
+
+seed 3044: length 1000, return 4424.33, truncated; gate saturation max 0.000
+  actuator              cmd      raw     sat   >=0.9   raw>1   rawmax   first  win1st   force
+  neck_pitch_act     +0.026   +0.026   0.000   0.000   0.000   +0.028       -       -   0.267
+  neck_yaw_act       -0.010   -0.010   0.000   0.000   0.000   -0.004       -       -   0.000
+  head_pitch_act     +0.047   +0.047   0.000   0.000   0.000   +0.051       -       -   0.265
+  r_hip_pitch_act    -0.008   -0.008   0.000   0.000   0.000   -0.007       -       -   0.030
+  r_hip_roll_act     +0.019   +0.019   0.000   0.000   0.000   +0.026       -       -   0.007
+  r_knee_act         -0.003   -0.003   0.000   0.000   0.000   -0.003       -       -   0.003
+  r_ankle_act        +0.004   +0.004   0.000   0.000   0.000   +0.005       -       -   0.042
+  l_hip_pitch_act    +0.004   +0.004   0.000   0.000   0.000   +0.005       -       -   0.031
+  l_hip_roll_act     -0.018   -0.018   0.000   0.000   0.000   -0.011       -       -   0.006
+  l_knee_act         -0.003   -0.003   0.000   0.000   0.000   -0.002       -       -   0.004
+  l_ankle_act        -0.007   -0.007   0.000   0.000   0.000   -0.005       -       -   0.042
+  tail_1_pitch_act   -0.104   -0.104   0.000   0.000   0.000   -0.096       -       -   0.012
+  tail_1_yaw_act     +0.244   +0.244   0.000   0.000   0.000   +0.252       -       -   0.020
+  tail_2_pitch_act   +0.012   +0.012   0.000   0.000   0.000   +0.013       -       -   0.001
+  tail_3_pitch_act   +0.000   +0.297   0.000   0.000   0.000   +0.307       -       -   0.000
+
+seed 3045: length 1000, return 4442.87, truncated; gate saturation max 0.000
+  actuator              cmd      raw     sat   >=0.9   raw>1   rawmax   first  win1st   force
+  neck_pitch_act     +0.043   +0.043   0.000   0.000   0.000   +0.059       -       -   0.266
+  neck_yaw_act       +0.011   +0.011   0.000   0.000   0.000   +0.015       -       -   0.000
+  head_pitch_act     +0.079   +0.079   0.000   0.000   0.000   +0.091       -       -   0.261
+  r_hip_pitch_act    -0.006   -0.006   0.000   0.000   0.000   -0.002       -       -   0.029
+  r_hip_roll_act     +0.088   +0.088   0.000   0.000   0.000   +0.104       -       -   0.061
+  r_knee_act         -0.005   -0.005   0.000   0.000   0.000   -0.002       -       -   0.003
+  r_ankle_act        -0.004   -0.004   0.000   0.000   0.000   -0.001       -       -   0.041
+  l_hip_pitch_act    -0.010   -0.010   0.000   0.000   0.000   -0.006       -       -   0.031
+  l_hip_roll_act     -0.079   -0.079   0.000   0.000   0.000   -0.070       -       -   0.061
+  l_knee_act         -0.001   -0.001   0.000   0.000   0.000   +0.000       -       -   0.004
+  l_ankle_act        +0.006   +0.006   0.000   0.000   0.000   +0.011       -       -   0.043
+  tail_1_pitch_act   -0.095   -0.095   0.000   0.000   0.000   -0.085       -       -   0.011
+  tail_1_yaw_act     -0.202   -0.202   0.000   0.000   0.000   -0.196       -       -   0.017
+  tail_2_pitch_act   +0.022   +0.022   0.000   0.000   0.000   +0.034       -       -   0.003
+  tail_3_pitch_act   +0.000   +0.355   0.000   0.000   0.000   +0.400       -       -   0.000
+
+seed 3046: length 1000, return 4462.76, truncated; gate saturation max 0.000
+  actuator              cmd      raw     sat   >=0.9   raw>1   rawmax   first  win1st   force
+  neck_pitch_act     +0.041   +0.041   0.000   0.000   0.000   +0.059       -       -   0.267
+  neck_yaw_act       +0.013   +0.013   0.000   0.000   0.000   +0.051       -       -   0.000
+  head_pitch_act     +0.063   +0.063   0.000   0.000   0.000   +0.087       -       -   0.263
+  r_hip_pitch_act    -0.006   -0.006   0.000   0.000   0.000   -0.004       -       -   0.028
+  r_hip_roll_act     +0.066   +0.066   0.000   0.000   0.000   +0.086       -       -   0.040
+  r_knee_act         -0.004   -0.004   0.000   0.000   0.000   -0.001       -       -   0.002
+  r_ankle_act        -0.003   -0.003   0.000   0.000   0.000   +0.000       -       -   0.043
+  l_hip_pitch_act    -0.005   -0.005   0.000   0.000   0.000   +0.003       -       -   0.033
+  l_hip_roll_act     -0.068   -0.068   0.000   0.000   0.000   -0.063       -       -   0.042
+  l_knee_act         -0.002   -0.002   0.000   0.000   0.000   +0.002       -       -   0.004
+  l_ankle_act        +0.001   +0.001   0.000   0.000   0.000   +0.003       -       -   0.041
+  tail_1_pitch_act   -0.086   -0.086   0.000   0.000   0.000   -0.067       -       -   0.010
+  tail_1_yaw_act     -0.087   -0.087   0.000   0.000   0.000   -0.069       -       -   0.007
+  tail_2_pitch_act   +0.019   +0.019   0.000   0.000   0.000   +0.034       -       -   0.002
+  tail_3_pitch_act   +0.000   +0.340   0.000   0.000   0.000   +0.344       -       -   0.000
+
+seed 3047: length 1000, return 4413.73, truncated; gate saturation max 0.000
+  actuator              cmd      raw     sat   >=0.9   raw>1   rawmax   first  win1st   force
+  neck_pitch_act     +0.039   +0.039   0.000   0.000   0.000   +0.069       -       -   0.266
+  neck_yaw_act       +0.003   +0.003   0.000   0.000   0.000   +0.014       -       -   0.000
+  head_pitch_act     +0.075   +0.075   0.000   0.000   0.000   +0.091       -       -   0.262
+  r_hip_pitch_act    -0.013   -0.013   0.000   0.000   0.000   -0.007       -       -   0.029
+  r_hip_roll_act     +0.109   +0.109   0.000   0.000   0.000   +0.126       -       -   0.082
+  r_knee_act         -0.002   -0.002   0.000   0.000   0.000   +0.001       -       -   0.002
+  r_ankle_act        -0.000   -0.000   0.000   0.000   0.000   +0.004       -       -   0.040
+  l_hip_pitch_act    -0.011   -0.011   0.000   0.000   0.000   -0.005       -       -   0.031
+  l_hip_roll_act     -0.106   -0.106   0.000   0.000   0.000   -0.088       -       -   0.083
+  l_knee_act         +0.001   +0.001   0.000   0.000   0.000   +0.004       -       -   0.004
+  l_ankle_act        +0.004   +0.004   0.000   0.000   0.000   +0.010       -       -   0.042
+  tail_1_pitch_act   -0.115   -0.115   0.000   0.000   0.000   -0.099       -       -   0.014
+  tail_1_yaw_act     -0.039   -0.039   0.000   0.000   0.000   -0.032       -       -   0.003
+  tail_2_pitch_act   +0.022   +0.022   0.000   0.000   0.000   +0.033       -       -   0.003
+  tail_3_pitch_act   +0.000   +0.419   0.000   0.000   0.000   +0.438       -       -   0.000
+
+seed 3048: length 1000, return 4467.35, truncated; gate saturation max 0.000
+  actuator              cmd      raw     sat   >=0.9   raw>1   rawmax   first  win1st   force
+  neck_pitch_act     +0.042   +0.042   0.000   0.000   0.000   +0.044       -       -   0.267
+  neck_yaw_act       +0.003   +0.003   0.000   0.000   0.000   +0.005       -       -   0.000
+  head_pitch_act     +0.037   +0.037   0.000   0.000   0.000   +0.039       -       -   0.265
+  r_hip_pitch_act    -0.005   -0.005   0.000   0.000   0.000   -0.004       -       -   0.030
+  r_hip_roll_act     +0.043   +0.043   0.000   0.000   0.000   +0.049       -       -   0.012
+  r_knee_act         -0.001   -0.001   0.000   0.000   0.000   -0.001       -       -   0.003
+  r_ankle_act        -0.002   -0.002   0.000   0.000   0.000   -0.002       -       -   0.042
+  l_hip_pitch_act    -0.004   -0.004   0.000   0.000   0.000   -0.003       -       -   0.031
+  l_hip_roll_act     -0.044   -0.044   0.000   0.000   0.000   -0.039       -       -   0.012
+  l_knee_act         +0.000   +0.000   0.000   0.000   0.000   +0.000       -       -   0.004
+  l_ankle_act        -0.001   -0.001   0.000   0.000   0.000   +0.000       -       -   0.042
+  tail_1_pitch_act   -0.119   -0.119   0.000   0.000   0.000   -0.115       -       -   0.014
+  tail_1_yaw_act     +0.020   +0.020   0.000   0.000   0.000   +0.023       -       -   0.002
+  tail_2_pitch_act   +0.003   +0.003   0.000   0.000   0.000   +0.006       -       -   0.000
+  tail_3_pitch_act   +0.000   +0.358   0.000   0.000   0.000   +0.367       -       -   0.000
+
+seed 3049: length 1000, return 4484.10, truncated; gate saturation max 0.000
+  actuator              cmd      raw     sat   >=0.9   raw>1   rawmax   first  win1st   force
+  neck_pitch_act     +0.011   +0.011   0.000   0.000   0.000   +0.016       -       -   0.266
+  neck_yaw_act       +0.001   +0.001   0.000   0.000   0.000   +0.004       -       -   0.000
+  head_pitch_act     +0.061   +0.061   0.000   0.000   0.000   +0.071       -       -   0.266
+  r_hip_pitch_act    -0.008   -0.008   0.000   0.000   0.000   -0.005       -       -   0.031
+  r_hip_roll_act     +0.053   +0.053   0.000   0.000   0.000   +0.063       -       -   0.035
+  r_knee_act         -0.005   -0.005   0.000   0.000   0.000   -0.003       -       -   0.003
+  r_ankle_act        +0.001   +0.001   0.000   0.000   0.000   +0.004       -       -   0.040
+  l_hip_pitch_act    -0.009   -0.009   0.000   0.000   0.000   -0.007       -       -   0.030
+  l_hip_roll_act     -0.048   -0.048   0.000   0.000   0.000   -0.040       -       -   0.033
+  l_knee_act         -0.003   -0.003   0.000   0.000   0.000   -0.001       -       -   0.003
+  l_ankle_act        +0.005   +0.005   0.000   0.000   0.000   +0.009       -       -   0.043
+  tail_1_pitch_act   -0.077   -0.077   0.000   0.000   0.000   -0.073       -       -   0.009
+  tail_1_yaw_act     -0.064   -0.064   0.000   0.000   0.000   -0.055       -       -   0.005
+  tail_2_pitch_act   +0.037   +0.037   0.000   0.000   0.000   +0.048       -       -   0.005
+  tail_3_pitch_act   +0.000   +0.359   0.000   0.000   0.000   +0.382       -       -   0.000
+
+seed 3050: length 1000, return 4407.63, truncated; gate saturation max 0.000
+  actuator              cmd      raw     sat   >=0.9   raw>1   rawmax   first  win1st   force
+  neck_pitch_act     +0.052   +0.052   0.000   0.000   0.000   +0.056       -       -   0.265
+  neck_yaw_act       -0.018   -0.018   0.000   0.000   0.000   -0.017       -       -   0.000
+  head_pitch_act     +0.110   +0.110   0.000   0.000   0.000   +0.121       -       -   0.258
+  r_hip_pitch_act    -0.003   -0.003   0.000   0.000   0.000   +0.000       -       -   0.032
+  r_hip_roll_act     +0.053   +0.053   0.000   0.000   0.000   +0.067       -       -   0.039
+  r_knee_act         -0.007   -0.007   0.000   0.000   0.000   -0.003       -       -   0.004
+  r_ankle_act        +0.001   +0.001   0.000   0.000   0.000   +0.004       -       -   0.043
+  l_hip_pitch_act    +0.006   +0.006   0.000   0.000   0.000   +0.008       -       -   0.029
+  l_hip_roll_act     -0.057   -0.057   0.000   0.000   0.000   -0.051       -       -   0.037
+  l_knee_act         -0.011   -0.011   0.000   0.000   0.000   -0.011       -       -   0.003
+  l_ankle_act        -0.011   -0.011   0.000   0.000   0.000   -0.008       -       -   0.044
+  tail_1_pitch_act   -0.041   -0.041   0.000   0.000   0.000   -0.033       -       -   0.005
+  tail_1_yaw_act     +0.367   +0.367   0.000   0.000   0.000   +0.370       -       -   0.030
+  tail_2_pitch_act   +0.020   +0.020   0.000   0.000   0.000   +0.033       -       -   0.002
+  tail_3_pitch_act   +0.000   +0.177   0.000   0.000   0.000   +0.189       -       -   0.000
+
+seed 3051: length 1000, return 4466.90, truncated; gate saturation max 0.000
+  actuator              cmd      raw     sat   >=0.9   raw>1   rawmax   first  win1st   force
+  neck_pitch_act     +0.060   +0.060   0.000   0.000   0.000   +0.063       -       -   0.266
+  neck_yaw_act       -0.008   -0.008   0.000   0.000   0.000   +0.006       -       -   0.000
+  head_pitch_act     +0.075   +0.075   0.000   0.000   0.000   +0.080       -       -   0.260
+  r_hip_pitch_act    -0.006   -0.006   0.000   0.000   0.000   -0.004       -       -   0.029
+  r_hip_roll_act     +0.068   +0.068   0.000   0.000   0.000   +0.070       -       -   0.040
+  r_knee_act         -0.004   -0.004   0.000   0.000   0.000   -0.003       -       -   0.003
+  r_ankle_act        -0.001   -0.001   0.000   0.000   0.000   +0.002       -       -   0.043
+  l_hip_pitch_act    +0.002   +0.002   0.000   0.000   0.000   +0.003       -       -   0.031
+  l_hip_roll_act     -0.073   -0.073   0.000   0.000   0.000   -0.068       -       -   0.040
+  l_knee_act         -0.003   -0.003   0.000   0.000   0.000   -0.003       -       -   0.004
+  l_ankle_act        -0.007   -0.007   0.000   0.000   0.000   -0.005       -       -   0.043
+  tail_1_pitch_act   -0.078   -0.078   0.000   0.000   0.000   -0.072       -       -   0.009
+  tail_1_yaw_act     +0.217   +0.217   0.000   0.000   0.000   +0.218       -       -   0.018
+  tail_2_pitch_act   +0.009   +0.009   0.000   0.000   0.000   +0.017       -       -   0.001
+  tail_3_pitch_act   +0.000   +0.284   0.000   0.000   0.000   +0.297       -       -   0.000
+
+seed 3052: length 1000, return 4447.05, truncated; gate saturation max 0.000
+  actuator              cmd      raw     sat   >=0.9   raw>1   rawmax   first  win1st   force
+  neck_pitch_act     +0.034   +0.034   0.000   0.000   0.000   +0.039       -       -   0.267
+  neck_yaw_act       +0.012   +0.012   0.000   0.000   0.000   +0.014       -       -   0.000
+  head_pitch_act     +0.048   +0.048   0.000   0.000   0.000   +0.051       -       -   0.265
+  r_hip_pitch_act    -0.002   -0.002   0.000   0.000   0.000   +0.000       -       -   0.030
+  r_hip_roll_act     +0.036   +0.036   0.000   0.000   0.000   +0.051       -       -   0.001
+  r_knee_act         -0.005   -0.005   0.000   0.000   0.000   -0.005       -       -   0.003
+  r_ankle_act        -0.005   -0.005   0.000   0.000   0.000   -0.004       -       -   0.041
+  l_hip_pitch_act    -0.002   -0.002   0.000   0.000   0.000   -0.001       -       -   0.031
+  l_hip_roll_act     -0.015   -0.015   0.000   0.000   0.000   -0.013       -       -   0.001
+  l_knee_act         -0.002   -0.002   0.000   0.000   0.000   -0.001       -       -   0.004
+  l_ankle_act        +0.001   +0.001   0.000   0.000   0.000   +0.002       -       -   0.044
+  tail_1_pitch_act   -0.108   -0.108   0.000   0.000   0.000   -0.104       -       -   0.013
+  tail_1_yaw_act     -0.257   -0.257   0.000   0.000   0.000   -0.246       -       -   0.021
+  tail_2_pitch_act   +0.006   +0.006   0.000   0.000   0.000   +0.007       -       -   0.001
+  tail_3_pitch_act   +0.000   +0.292   0.000   0.000   0.000   +0.296       -       -   0.000
+
+seed 3053: length 1000, return 4454.80, truncated; gate saturation max 0.000
+  actuator              cmd      raw     sat   >=0.9   raw>1   rawmax   first  win1st   force
+  neck_pitch_act     +0.088   +0.088   0.000   0.000   0.000   +0.091       -       -   0.266
+  neck_yaw_act       +0.013   +0.013   0.000   0.000   0.000   +0.016       -       -   0.000
+  head_pitch_act     +0.078   +0.078   0.000   0.000   0.000   +0.085       -       -   0.257
+  r_hip_pitch_act    +0.002   +0.002   0.000   0.000   0.000   +0.003       -       -   0.030
+  r_hip_roll_act     +0.093   +0.093   0.000   0.000   0.000   +0.099       -       -   0.052
+  r_knee_act         -0.005   -0.005   0.000   0.000   0.000   -0.004       -       -   0.004
+  r_ankle_act        -0.012   -0.012   0.000   0.000   0.000   -0.008       -       -   0.042
+  l_hip_pitch_act    -0.004   -0.004   0.000   0.000   0.000   -0.003       -       -   0.031
+  l_hip_roll_act     -0.083   -0.083   0.000   0.000   0.000   -0.049       -       -   0.050
+  l_knee_act         -0.002   -0.002   0.000   0.000   0.000   -0.001       -       -   0.004
+  l_ankle_act        -0.001   -0.001   0.000   0.000   0.000   +0.004       -       -   0.045
+  tail_1_pitch_act   -0.096   -0.096   0.000   0.000   0.000   -0.092       -       -   0.011
+  tail_1_yaw_act     -0.238   -0.238   0.000   0.000   0.000   -0.224       -       -   0.020
+  tail_2_pitch_act   -0.010   -0.010   0.000   0.000   0.000   +0.002       -       -   0.002
+  tail_3_pitch_act   +0.000   +0.283   0.000   0.000   0.000   +0.320       -       -   0.000
+
+seed 3054: length 1000, return 4464.28, truncated; gate saturation max 0.000
+  actuator              cmd      raw     sat   >=0.9   raw>1   rawmax   first  win1st   force
+  neck_pitch_act     +0.011   +0.011   0.000   0.000   0.000   +0.015       -       -   0.267
+  neck_yaw_act       +0.000   +0.000   0.000   0.000   0.000   +0.004       -       -   0.000
+  head_pitch_act     +0.034   +0.034   0.000   0.000   0.000   +0.038       -       -   0.268
+  r_hip_pitch_act    -0.006   -0.006   0.000   0.000   0.000   -0.005       -       -   0.031
+  r_hip_roll_act     +0.027   +0.027   0.000   0.000   0.000   +0.029       -       -   0.003
+  r_knee_act         -0.003   -0.003   0.000   0.000   0.000   -0.002       -       -   0.003
+  r_ankle_act        +0.002   +0.002   0.000   0.000   0.000   +0.005       -       -   0.040
+  l_hip_pitch_act    -0.005   -0.005   0.000   0.000   0.000   -0.004       -       -   0.029
+  l_hip_roll_act     -0.016   -0.016   0.000   0.000   0.000   +0.005       -       -   0.003
+  l_knee_act         -0.002   -0.002   0.000   0.000   0.000   -0.001       -       -   0.003
+  l_ankle_act        +0.001   +0.001   0.000   0.000   0.000   +0.002       -       -   0.043
+  tail_1_pitch_act   -0.107   -0.107   0.000   0.000   0.000   -0.101       -       -   0.013
+  tail_1_yaw_act     -0.047   -0.047   0.000   0.000   0.000   -0.032       -       -   0.004
+  tail_2_pitch_act   +0.021   +0.021   0.000   0.000   0.000   +0.025       -       -   0.003
+  tail_3_pitch_act   +0.000   +0.360   0.000   0.000   0.000   +0.372       -       -   0.000
+
+seed 3055: length 1000, return 4458.79, truncated; gate saturation max 0.000
+  actuator              cmd      raw     sat   >=0.9   raw>1   rawmax   first  win1st   force
+  neck_pitch_act     +0.066   +0.066   0.000   0.000   0.000   +0.069       -       -   0.267
+  neck_yaw_act       +0.010   +0.010   0.000   0.000   0.000   +0.014       -       -   0.000
+  head_pitch_act     +0.039   +0.039   0.000   0.000   0.000   +0.040       -       -   0.263
+  r_hip_pitch_act    -0.002   -0.002   0.000   0.000   0.000   -0.001       -       -   0.029
+  r_hip_roll_act     +0.060   +0.060   0.000   0.000   0.000   +0.066       -       -   0.020
+  r_knee_act         -0.000   -0.000   0.000   0.000   0.000   -0.000       -       -   0.003
+  r_ankle_act        -0.007   -0.007   0.000   0.000   0.000   -0.007       -       -   0.042
+  l_hip_pitch_act    -0.004   -0.004   0.000   0.000   0.000   -0.003       -       -   0.032
+  l_hip_roll_act     -0.060   -0.060   0.000   0.000   0.000   -0.048       -       -   0.020
+  l_knee_act         +0.002   +0.002   0.000   0.000   0.000   +0.002       -       -   0.004
+  l_ankle_act        -0.002   -0.002   0.000   0.000   0.000   +0.001       -       -   0.042
+  tail_1_pitch_act   -0.130   -0.130   0.000   0.000   0.000   -0.128       -       -   0.015
+  tail_1_yaw_act     -0.077   -0.077   0.000   0.000   0.000   -0.070       -       -   0.006
+  tail_2_pitch_act   -0.012   -0.012   0.000   0.000   0.000   -0.009       -       -   0.002
+  tail_3_pitch_act   +0.000   +0.350   0.000   0.000   0.000   +0.356       -       -   0.000
+
+seed 3056: length 1000, return 4480.45, truncated; gate saturation max 0.000
+  actuator              cmd      raw     sat   >=0.9   raw>1   rawmax   first  win1st   force
+  neck_pitch_act     +0.036   +0.036   0.000   0.000   0.000   +0.047       -       -   0.266
+  neck_yaw_act       -0.004   -0.004   0.000   0.000   0.000   -0.001       -       -   0.000
+  head_pitch_act     +0.067   +0.067   0.000   0.000   0.000   +0.075       -       -   0.263
+  r_hip_pitch_act    -0.010   -0.010   0.000   0.000   0.000   -0.007       -       -   0.030
+  r_hip_roll_act     +0.073   +0.073   0.000   0.000   0.000   +0.077       -       -   0.050
+  r_knee_act         -0.003   -0.003   0.000   0.000   0.000   -0.002       -       -   0.003
+  r_ankle_act        +0.001   +0.001   0.000   0.000   0.000   +0.005       -       -   0.041
+  l_hip_pitch_act    -0.006   -0.006   0.000   0.000   0.000   -0.004       -       -   0.031
+  l_hip_roll_act     -0.072   -0.072   0.000   0.000   0.000   -0.064       -       -   0.050
+  l_knee_act         -0.001   -0.001   0.000   0.000   0.000   +0.001       -       -   0.004
+  l_ankle_act        +0.001   +0.001   0.000   0.000   0.000   +0.005       -       -   0.042
+  tail_1_pitch_act   -0.091   -0.091   0.000   0.000   0.000   -0.086       -       -   0.011
+  tail_1_yaw_act     +0.066   +0.066   0.000   0.000   0.000   +0.068       -       -   0.005
+  tail_2_pitch_act   +0.025   +0.025   0.000   0.000   0.000   +0.041       -       -   0.003
+  tail_3_pitch_act   +0.000   +0.369   0.000   0.000   0.000   +0.421       -       -   0.000
+
+seed 3057: length 1000, return 4474.15, truncated; gate saturation max 0.000
+  actuator              cmd      raw     sat   >=0.9   raw>1   rawmax   first  win1st   force
+  neck_pitch_act     +0.067   +0.067   0.000   0.000   0.000   +0.068       -       -   0.267
+  neck_yaw_act       +0.004   +0.004   0.000   0.000   0.000   +0.005       -       -   0.000
+  head_pitch_act     +0.052   +0.052   0.000   0.000   0.000   +0.053       -       -   0.261
+  r_hip_pitch_act    -0.003   -0.003   0.000   0.000   0.000   -0.003       -       -   0.030
+  r_hip_roll_act     +0.075   +0.075   0.000   0.000   0.000   +0.077       -       -   0.034
+  r_knee_act         -0.002   -0.002   0.000   0.000   0.000   -0.001       -       -   0.003
+  r_ankle_act        -0.006   -0.006   0.000   0.000   0.000   -0.004       -       -   0.042
+  l_hip_pitch_act    -0.003   -0.003   0.000   0.000   0.000   -0.003       -       -   0.031
+  l_hip_roll_act     -0.071   -0.071   0.000   0.000   0.000   -0.057       -       -   0.034
+  l_knee_act         +0.000   +0.000   0.000   0.000   0.000   +0.001       -       -   0.004
+  l_ankle_act        -0.003   -0.003   0.000   0.000   0.000   -0.001       -       -   0.043
+  tail_1_pitch_act   -0.110   -0.110   0.000   0.000   0.000   -0.108       -       -   0.013
+  tail_1_yaw_act     -0.049   -0.049   0.000   0.000   0.000   -0.046       -       -   0.004
+  tail_2_pitch_act   -0.005   -0.005   0.000   0.000   0.000   -0.002       -       -   0.001
+  tail_3_pitch_act   +0.000   +0.340   0.000   0.000   0.000   +0.343       -       -   0.000
+
+seed 3058: length 1000, return 4450.45, truncated; gate saturation max 0.000
+  actuator              cmd      raw     sat   >=0.9   raw>1   rawmax   first  win1st   force
+  neck_pitch_act     +0.032   +0.032   0.000   0.000   0.000   +0.035       -       -   0.267
+  neck_yaw_act       +0.001   +0.001   0.000   0.000   0.000   +0.003       -       -   0.000
+  head_pitch_act     +0.028   +0.028   0.000   0.000   0.000   +0.031       -       -   0.267
+  r_hip_pitch_act    -0.007   -0.007   0.000   0.000   0.000   -0.006       -       -   0.030
+  r_hip_roll_act     +0.034   +0.034   0.000   0.000   0.000   +0.040       -       -   0.002
+  r_knee_act         -0.001   -0.001   0.000   0.000   0.000   -0.000       -       -   0.003
+  r_ankle_act        +0.000   +0.000   0.000   0.000   0.000   +0.001       -       -   0.041
+  l_hip_pitch_act    -0.003   -0.003   0.000   0.000   0.000   -0.002       -       -   0.031
+  l_hip_roll_act     -0.029   -0.029   0.000   0.000   0.000   -0.013       -       -   0.002
+  l_knee_act         +0.001   +0.001   0.000   0.000   0.000   +0.001       -       -   0.003
+  l_ankle_act        -0.001   -0.001   0.000   0.000   0.000   +0.000       -       -   0.042
+  tail_1_pitch_act   -0.133   -0.133   0.000   0.000   0.000   -0.127       -       -   0.016
+  tail_1_yaw_act     +0.009   +0.009   0.000   0.000   0.000   +0.017       -       -   0.001
+  tail_2_pitch_act   +0.003   +0.003   0.000   0.000   0.000   +0.006       -       -   0.000
+  tail_3_pitch_act   +0.000   +0.374   0.000   0.000   0.000   +0.380       -       -   0.000
+
+seed 3059: length 1000, return 4423.57, truncated; gate saturation max 0.000
+  actuator              cmd      raw     sat   >=0.9   raw>1   rawmax   first  win1st   force
+  neck_pitch_act     -0.004   -0.004   0.000   0.000   0.000   +0.026       -       -   0.266
+  neck_yaw_act       +0.013   +0.013   0.000   0.000   0.000   +0.066       -       -   0.001
+  head_pitch_act     +0.070   +0.070   0.000   0.000   0.000   +0.127       -       -   0.266
+  r_hip_pitch_act    -0.010   -0.010   0.000   0.000   0.000   -0.007       -       -   0.029
+  r_hip_roll_act     +0.052   +0.052   0.000   0.000   0.000   +0.081       -       -   0.042
+  r_knee_act         -0.005   -0.005   0.000   0.000   0.000   -0.002       -       -   0.002
+  r_ankle_act        +0.003   +0.003   0.000   0.000   0.000   +0.018       -       -   0.041
+  l_hip_pitch_act    -0.011   -0.011   0.000   0.000   0.000   +0.006       -       -   0.032
+  l_hip_roll_act     -0.051   -0.051   0.000   0.000   0.000   -0.039       -       -   0.042
+  l_knee_act         -0.003   -0.003   0.000   0.000   0.000   +0.002       -       -   0.003
+  l_ankle_act        +0.008   +0.008   0.000   0.000   0.000   +0.011       -       -   0.041
+  tail_1_pitch_act   -0.074   -0.074   0.000   0.000   0.000   -0.032       -       -   0.009
+  tail_1_yaw_act     -0.147   -0.147   0.000   0.000   0.000   -0.034       -       -   0.011
+  tail_2_pitch_act   +0.050   +0.050   0.000   0.000   0.000   +0.069       -       -   0.006
+  tail_3_pitch_act   +0.000   +0.365   0.000   0.000   0.000   +0.394       -       -   0.000
+
+seed 3060: length 1000, return 4461.43, truncated; gate saturation max 0.000
+  actuator              cmd      raw     sat   >=0.9   raw>1   rawmax   first  win1st   force
+  neck_pitch_act     +0.013   +0.013   0.000   0.000   0.000   +0.025       -       -   0.266
+  neck_yaw_act       -0.002   -0.002   0.000   0.000   0.000   +0.001       -       -   0.000
+  head_pitch_act     +0.065   +0.065   0.000   0.000   0.000   +0.081       -       -   0.265
+  r_hip_pitch_act    -0.011   -0.011   0.000   0.000   0.000   -0.008       -       -   0.030
+  r_hip_roll_act     +0.066   +0.066   0.000   0.000   0.000   +0.106       -       -   0.049
+  r_knee_act         -0.003   -0.003   0.000   0.000   0.000   -0.002       -       -   0.002
+  r_ankle_act        +0.003   +0.003   0.000   0.000   0.000   +0.006       -       -   0.040
+  l_hip_pitch_act    -0.009   -0.009   0.000   0.000   0.000   -0.007       -       -   0.031
+  l_hip_roll_act     -0.063   -0.063   0.000   0.000   0.000   -0.054       -       -   0.049
+  l_knee_act         -0.001   -0.001   0.000   0.000   0.000   +0.002       -       -   0.003
+  l_ankle_act        +0.005   +0.005   0.000   0.000   0.000   +0.008       -       -   0.042
+  tail_1_pitch_act   -0.088   -0.088   0.000   0.000   0.000   -0.081       -       -   0.010
+  tail_1_yaw_act     +0.014   +0.014   0.000   0.000   0.000   +0.020       -       -   0.001
+  tail_2_pitch_act   +0.039   +0.039   0.000   0.000   0.000   +0.052       -       -   0.005
+  tail_3_pitch_act   +0.000   +0.391   0.000   0.000   0.000   +0.425       -       -   0.000
+
+seed 3061: length 1000, return 4434.45, truncated; gate saturation max 0.000
+  actuator              cmd      raw     sat   >=0.9   raw>1   rawmax   first  win1st   force
+  neck_pitch_act     +0.055   +0.055   0.000   0.000   0.000   +0.059       -       -   0.266
+  neck_yaw_act       -0.020   -0.020   0.000   0.000   0.000   -0.015       -       -   0.000
+  head_pitch_act     +0.091   +0.091   0.000   0.000   0.000   +0.104       -       -   0.259
+  r_hip_pitch_act    -0.004   -0.004   0.000   0.000   0.000   +0.001       -       -   0.032
+  r_hip_roll_act     +0.062   +0.062   0.000   0.000   0.000   +0.066       -       -   0.039
+  r_knee_act         -0.006   -0.006   0.000   0.000   0.000   -0.005       -       -   0.004
+  r_ankle_act        +0.000   +0.000   0.000   0.000   0.000   +0.004       -       -   0.042
+  l_hip_pitch_act    +0.003   +0.003   0.000   0.000   0.000   +0.005       -       -   0.029
+  l_hip_roll_act     -0.062   -0.062   0.000   0.000   0.000   -0.033       -       -   0.036
+  l_knee_act         -0.007   -0.007   0.000   0.000   0.000   -0.006       -       -   0.003
+  l_ankle_act        -0.008   -0.008   0.000   0.000   0.000   -0.004       -       -   0.045
+  tail_1_pitch_act   -0.059   -0.059   0.000   0.000   0.000   -0.053       -       -   0.007
+  tail_1_yaw_act     +0.296   +0.296   0.000   0.000   0.000   +0.300       -       -   0.024
+  tail_2_pitch_act   +0.015   +0.015   0.000   0.000   0.000   +0.028       -       -   0.002
+  tail_3_pitch_act   +0.000   +0.236   0.000   0.000   0.000   +0.250       -       -   0.000
+
+cmd/raw: window means of the command and of the raw Gaussian mean; sat/>=0.9/raw>1: shares of window steps; rawmax: the window maximum of the raw Gaussian mean; first/win1st: the first step at |command| >= saturation, anywhere and in the window; force: the window mean of |force| / its limit.
+written: /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/d9_d10/stance6_r10LTSB_s42/d9_3670016_hold_tail_3_pitch_act_0/episode_trace_seed3042.csv
+written: /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/d9_d10/stance6_r10LTSB_s42/d9_3670016_hold_tail_3_pitch_act_0/episode_trace_seed3043.csv
+written: /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/d9_d10/stance6_r10LTSB_s42/d9_3670016_hold_tail_3_pitch_act_0/episode_trace_seed3044.csv
+written: /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/d9_d10/stance6_r10LTSB_s42/d9_3670016_hold_tail_3_pitch_act_0/episode_trace_seed3045.csv
+written: /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/d9_d10/stance6_r10LTSB_s42/d9_3670016_hold_tail_3_pitch_act_0/episode_trace_seed3046.csv
+written: /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/d9_d10/stance6_r10LTSB_s42/d9_3670016_hold_tail_3_pitch_act_0/episode_trace_seed3047.csv
+written: /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/d9_d10/stance6_r10LTSB_s42/d9_3670016_hold_tail_3_pitch_act_0/episode_trace_seed3048.csv
+written: /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/d9_d10/stance6_r10LTSB_s42/d9_3670016_hold_tail_3_pitch_act_0/episode_trace_seed3049.csv
+written: /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/d9_d10/stance6_r10LTSB_s42/d9_3670016_hold_tail_3_pitch_act_0/episode_trace_seed3050.csv
+written: /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/d9_d10/stance6_r10LTSB_s42/d9_3670016_hold_tail_3_pitch_act_0/episode_trace_seed3051.csv
+written: /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/d9_d10/stance6_r10LTSB_s42/d9_3670016_hold_tail_3_pitch_act_0/episode_trace_seed3052.csv
+written: /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/d9_d10/stance6_r10LTSB_s42/d9_3670016_hold_tail_3_pitch_act_0/episode_trace_seed3053.csv
+written: /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/d9_d10/stance6_r10LTSB_s42/d9_3670016_hold_tail_3_pitch_act_0/episode_trace_seed3054.csv
+written: /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/d9_d10/stance6_r10LTSB_s42/d9_3670016_hold_tail_3_pitch_act_0/episode_trace_seed3055.csv
+written: /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/d9_d10/stance6_r10LTSB_s42/d9_3670016_hold_tail_3_pitch_act_0/episode_trace_seed3056.csv
+written: /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/d9_d10/stance6_r10LTSB_s42/d9_3670016_hold_tail_3_pitch_act_0/episode_trace_seed3057.csv
+written: /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/d9_d10/stance6_r10LTSB_s42/d9_3670016_hold_tail_3_pitch_act_0/episode_trace_seed3058.csv
+written: /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/d9_d10/stance6_r10LTSB_s42/d9_3670016_hold_tail_3_pitch_act_0/episode_trace_seed3059.csv
+written: /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/d9_d10/stance6_r10LTSB_s42/d9_3670016_hold_tail_3_pitch_act_0/episode_trace_seed3060.csv
+written: /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/d9_d10/stance6_r10LTSB_s42/d9_3670016_hold_tail_3_pitch_act_0/episode_trace_seed3061.csv
+written: /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/d9_d10/stance6_r10LTSB_s42/d9_3670016_hold_tail_3_pitch_act_0/episode_trace.json
+end rc=0 2026-10-28T16:53:47Z

@@ -1,0 +1,42 @@
+verify_rules NOTES (independent adversarial verifier, lens RULES; report only). Written 2026-10-28T18:39Z (date -u).
+Nothing trained, simulated, fetched or pushed. Read only: criteria.txt / THIS12 / EVID / APPROVED, F2 copies (JSON/CSV
+only), panels m1/m2/m3 JSON, score.txt/json, complete_*.txt, kscore_*.json, READOUTS.txt, RUNLOG.
+Scripts here: rederive.py (+ rederive.json, rederive.out), c3check.py.
+
+RE-APPLIED RULES [measured, rederive.out, from F2 eval_episodes.csv.copy1 (sha256 = manifest entry) and
+PAN-r <label>/m1/m1_summary.json, final/m3/m3_summary.json]
+  s60  ledger: 0 ANY / 0 TAIL alarms; R1/R2 flags 0; MEAN_a tail_3 0.6420; J >= 0.60 at 8388608 (0.8797) and
+       10485760 (0.7267) -> PARKED (END +0.042; J +0.2797, +0.1267). M3 final PASS. OUTCOME NEGATIVE [PARKED].
+  s42  22 TAIL alarms (= 22 ANY), first 3932160, 26 tail-flagged evals; R1 flags 14+ 16, R2 0 -> RAIL,
+       RAIL-LEDGER-PERSISTENT; trace rail 14+ (16). M3 final FAIL (hop_or_fall 2 > 1 at six headings).
+       OUTCOME NEGATIVE [RAIL, GATE FAIL]. PARKED windows also fire (report only; class is RAIL, line 1 of TAIL CLASS).
+  s80  6 ANY alarms (neck_pitch_act -), 0 TAIL alarms, 12 any-flagged evals; TAIL-UNRESOLVED rows 0 (all 119 over-bar
+       rows ties 0, actuators_saturated 1) -> no RESOLUTION; R1/R2 flags 0; MEAN_a tail_3 0.5052; no J >= 0.60
+       (final 0.5877) -> CLEAR. M3 final PASS. OUTCOME POSITIVE.
+  A = 2 (s42, s80), n_A = 3 (all COMPLETE FINISHED); one-sided Fisher (r10 lower) P(X<=2 | N 8, K 4, n 3) = 0.9286.
+  R 1 (COMPLETE 1, PRESENCE 0), U 0, P 1, G+ 1 -> line 1, basis (ledger). All equal score.json.
+PROVISIONAL / FINAL [measured]: criteria/THIS12/EVID sha256 = APPROVED's; APPROVED branch_head = 8737cd3d = every
+  LAUNCH line head= (RUNLOG l666, l671, l672) = every M1/M3 copy_seal commit; every M1 at J physics_revision 10, seeds
+  3042-3061, run seed right, zip sha256 = manifest; M3 physics 10; every C3 copy sha256 = run manifest entry and present
+  in fetch/manifest.csv as an F2 row (c3check.py); lane A 54/54 and lane B 133/133 sha256sum -c OK; every PINS tool
+  sha256 equal (incl. measure_r10round.py b293a511, pins json 0d45721b); APPROVED V0-V5, V8, V9 PASS. No re-fetch due
+  (C2, C3 pass). STATUS FINAL is right.
+
+FINDINGS (none blocking)
+  F1 minor  REVIEW sec. 6 bullet 1: "If nothing changed from r9, 2 rails of 3 had probability 0.286". The round has
+            R = 1 rail; 2 of 3 is A (any-actuator alarm runs). EVID l355-l356's 0.286 is its 2-of-3 figure; for this
+            round's 1 rail of 3 the same line gives 0.357.
+  F2 minor  REVIEW header (l9-l10): "Everything after section 2 is a PRE-REGISTERED DIAGNOSTIC READOUT or a record".
+            Section 4 (entropy E1-E7) is a post-hoc report-only analysis, not one of D-1..D-16 (CRIT l335-l354).
+  F3 minor  REVIEW sec. 2.2 GATE: "The certificate does not name the actuator ... this is not shown [inferred]".
+            PAN-s42 final/m2/panel.json: seeds 3079 / 3080 tail3_frac99 0.53875 / 0.515 (= the certificate's
+            fractions), tail3_cmd_mean +0.984 / +0.969, others_max_sat 0.0. NEXT_STEPS Option 2 (a) and (b) build on
+            this gap (s80 6.29M: M2 names neck_pitch_act in 35 of 40, worst 0.90625 = the certificate's 0.9062).
+  F4 info   REVIEW sec. 1.4: "(ledger), the strongest of line 1's bases" labelled [measured, CRIT l312-l316]; those
+            lines give an order of precedence, and EVID l379 has ledger and drive-backed end-only both settle existence.
+  F5 info   REVIEW names no D-16 line (sec. 3 covers D-1..D-15); "D-16: no LOST run, nothing printed" would close the
+            pre-registered list (CRIT l346-l354).
+  F6 info   REVIEW sec. 1.2 "Re-fetch: none due" is labelled measured from SCORE l8, which shows only that none was
+            started; "none due" follows from C2 and C3 PASS under THE RE-FETCH (CRIT l477-l478).
+  F7 info   REVIEW sec. 4.3 "the bonus is below 0.0007 from 6M on": the linear schedule gives 0.000714 at 6,000,000
+            (below 0.0007 from about 6.02M); RO l805 says "by 6-7M".

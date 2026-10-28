@@ -1,0 +1,91 @@
+VERIFY_CLAIMS NOTES (independent adversarial verifier; lens: claims and proposals). REPORT ONLY.
+Written 2026-10-28 18:54 UTC (date -u). Checked: REVIEW.txt sha256 fbe54c2b... (= the version NEXT_STEPS read), NEXT_STEPS.txt
+sha256 1d66d5d6.... The criteria, THIS12, EVID and APPROVED still have their approved sha256 (99a44469 / 0ab5edeb / 353f4536 /
+07246480). Nothing was trained, simulated, fetched or pushed. The only files written are this file and power_check.py/.out
+beside it. Downloads were read as JSON only: no unpickling, no cd into a download folder.
+
+BLOCKING
+B1 REVIEW l584-585 (section 4.3), NEXT_STEPS l70-77 (0.2 (b)). "It is not necessary for them" and "neither a direct driver nor
+   necessary" clear the entropy bonus as a necessary cause, but no run contrasts ent_coef.
+   - Source wording is weaker: RO l802-803 says only "As a necessary cause: the records argue against it".
+   - Every run on both plants had the 0.005 -> 0 schedule through 7M steps (RO E1, E6).
+   - s60's tail_3 rollout mean rose from +0.031 to +0.441 while the bonus fell from 0.0024 to 0.0002 (RO l751-754). Its M1
+     CMD was already +0.273 at 6,291,456, where the bonus was 0.000506 (RO l701; REVIEW D-3).
+   - s42 re-formed after 7M from a policy that had railed 3.67-5.9M under the bonus (RO l773-774).
+   - REVIEW l588-590 and l602 themselves say the timing role "cannot be judged" and is "open, not answered 'no'".
+   [measured, the files named; inferred, the logic]
+B2 NEXT_STEPS l146-147, l182-183, l192-193, l310, l512. Option 3 is gated on Option 1 showing a contrast, and the text says
+   "If B looks like A, a from-scratch entropy round is unlikely to pay". The text's own facts contradict this:
+   - Option 1 starts mid-rise (l227-229).
+   - At 3,145,728 the bonus is already 0.002753, 55% of 0.005 (computed).
+   - s42's mu rose from -0.017 to +0.241 in the first 3.1M steps, before any start (RO l735-737).
+   - 4 against 4 detects only a large effect (l223-225).
+   - Only from-scratch arms test the early phase, where the onsets fell (l318-319; REVIEW l614; RO l824).
+   - "the only option that answers ... with a contrast" (l183) is false: Option 3 is a contrast too.
+   [measured, the lines named; inferred, the logic]
+
+MINOR
+M1 REVIEW l614-616, NEXT_STEPS l321-322 (Option 3 sizing). The "6-8 per arm for p near 0.01-0.04" uses r10's 3-run 2 of 3 as
+   the control rate and assumes 0 alarms in the other arm (RO l825-827). The p-values are at fixed outcomes, not power.
+   Power at one-sided 0.05 [measured, power_check.out]:
+     true 2/3 vs 0:     0.680 at 6 per arm, 0.912 at 8.
+     true 2/3 vs 1/3:   0.181 at 6, 0.179 at 8.
+     true 0.4 vs 0:     0.179 at 6, 0.406 at 8.
+M2 REVIEW l194-195, l427-428, l474; NEXT_STEPS l257-262 (Option 2 (a), (b)). The actuators are labelled "inferred" and "not
+   shown", but the existing M2 panels already show them at heading 0 [measured, PAN panel.json]:
+     s42 final/m2: seeds 3079 and 3080 have tail3_frac99 0.5387 and 0.515 (the certificate prints 0.53875 and 0.515), with
+     others_max_sat 0.0.
+     s80 6291456/m2: all 35 over-bar episodes are on neck_pitch_act; median 0.6325 and worst 0.9062, both equal to the
+     certificate's.
+   REVIEW D-8's "others' max saturation 0.548" is the 40-episode mean (m2_summary.json 0.54825).
+M3 REVIEW l676. "2 rails of 3 had probability 0.286": the round has R = 1 tail rail (s42). EVID l355-356 gives 0.357 for 1 rail
+   of 3; 0.286 fits A = 2 alarm runs of 3.
+M4 REVIEW l586, l588-589; NEXT_STEPS l73-74, l319.
+   - "Every first onset on both plants ... above 0" is true only for alarm runs. r10 s60 (8,126,464), r9 s60 (11,403,264) and
+     r9 s70 (8,126,464) had their first saturated episodes at a bonus of 0 (RO E3, E6). RO l806-807 has that qualifier.
+   - "The railing actuator was the least noisy" drops RO's "of the three runs". Within s42 the leg std is far lower (RO D-15).
+M5 REVIEW l274-275 ("the s60 drive lies entirely after 7M") and l700-701 ("exactly such a late case") conflict with REVIEW
+   l591-593, where the rise comes before 7M. "Exactly such" also implies r10 delayed the onset, but r9 s60 never flagged
+   either (RO l784).
+M6 NEXT_STEPS l186-191, l202-206 (Option 1 precedent and cost).
+   - D-D43's eval env "never runs" (S2/tailround/screen/tools/run_tailscreen.py l455), so its 44-46 min per 1,048,576 steps
+     includes no in-run ledger. Option 1's ledger reading needs new harness code.
+   - The +2.3-6.0% (RUNLOG l630) is the telemetry's overhead on evaluation, not the evaluations' share of training. They add
+     about +10% (8 x 10 episodes per 1M at about 3.5 s each, from ROLOG-s80's M1 1.1-1.2 min per 20 episodes) [inferred].
+   - D-D43's CONTROL RAIL was read from panels, not a ledger.
+   - run_waves.sh refuses below 5 GB free (l41); 3.9 GB is free (df, 18:52 UTC).
+M7 NEXT_STEPS l242-244, l335, l337, l268-269 (approval naming).
+   - ent_coef is the loss coefficient (copy_8737cd3d mirror_kl_ppo.py l379), i.e. a training-loss change. D-D43 named its
+     change "training-loss change" (RUNLOG l509).
+   - Option 3's run branch is not marked never-merged.
+   - Option 2 (e) loads checkpoints outside the pinned tools (RO notes), which needs the maintainer's OK.
+M8 NEXT_STEPS l349-359, l383-385 (Option 4). s80's head tip (1.166 m) is listed against it. s60's final head tip (1.115 m;
+   REVIEW D-4 l327) and TEL W3 1.090 m (D-13 l491), against the statue's 0.959 m, are not listed.
+M9 NEXT_STEPS l63 ("[measured]" on an interpretation), l96 ("does not need repeating": r9 -> r10 untested), l280, l420 and
+   l508 (unlabelled, or "depend on no option" while P2 (d) uses Option 2's results).
+
+INFO
+I1 The global clip_grad_norm_ (mirror_kl_ppo.py l401; max_grad_norm unset, so SB3's 0.5) couples the entropy's log_std gradient
+   (norm at most 0.005 x sqrt(15) = 0.019) to the mean's step: second order. "Never the mean" holds to that order.
+I2 Add-on C has no statistic or direction. s60 never had a flagged evaluation, so the core statistic likely reads 0 in both arms.
+I3 The durable clone's push URL is live (REVIEW l807). Set it to DISABLED now, not only after the next push (NEXT_STEPS l442-443).
+I4 RUNLOG has grown to 716 lines: l715 (#650 merged 18:39 UTC) and l716 (a maintainer note to revisit the CoM tests after the
+   stance6 review).
+I5 Option 1's 8-9 h core (up to about 20 h with add-ons) is bound to this container, and its risks do not name container or
+   session loss.
+I6 REVIEW l85 "the strongest of line 1's bases" and l87 "does not prevent the tail rail" are labelled measured but are
+   interpretive. REVIEW l482 "seed 80 railed ... neck_pitch" uses the class word for a CLEAR run.
+I7 REVIEW l587 "below 0.0007 from 6M on": the bonus is 0.000714 at 6,000,000 (below 0.0007 from about 6.02M).
+
+HELD (checked and correct)
+- Fisher p-values: 0.9286, 0.0143, 0.0714, 0.0051 (stratified), 0.7381 and 0.2222.
+- Option 1 arithmetic: 31,457,280 steps, 22.5-24 CPU-h before overhead.
+- ent_coef values: 0.002753 at 3,145,728; 0.000506 at 6,291,456.
+- F2 holds the 3,145,728 pairs (s42, s80) and the 6,291,456 pair (s60), each with its manifest sha256.
+- Checkpoint zips are 4,033,63x bytes.
+- Job times: M1 1.1-1.18 min, M2 2.0-2.1 min, M3 19.97 min.
+- KNOWN Update 21 is the latest, so Update 22 is next. NEXT l459-461 is the std-reset precedent. RUNLOG l573 CONTROL is 5 of 6.
+- D-4's +0.76 grouping holds (M2 tail3_cmd_mean).
+- E7 code facts hold (l201, l379). The stage_config settings equal the maintainer's line.
+- Interim snapshots are used only as report-only context (REVIEW 5.3).
+- No option merges or pushes without the maintainer.

@@ -1,0 +1,27 @@
+STANCE6 REVIEW RE-CHECK (fresh adversarial re-checker; read only; notes only here)
+Written 2026-10-28 (date -u at write time). Nothing trained, simulated, fetched or pushed. No Drive, no GitHub.
+Script: rc_power.py (own exact Fisher p, power, beta-binomial, TABLE E bound, schedule), output rc_power.out.
+
+(1) BLOCKING FIXES
+N-1  RIGHT AND COMPLETE. EVID l355-l356 beta-binomial Beta(3,4), n 3: 0.238/0.357/0.286/0.119 [computed, rc_power.out].
+     A = 2 -> 0.286, R = 1 -> 0.357 (SCORE l169-l170) [measured]. Old wording stood only at REVIEW.v1 l676; absent
+     from NEXT_STEPS, HEADLINE, READOUTS [measured, grep]. Nuance: 0.357 for R assumes r9's tail-rail rate = its
+     2-of-5 ledger rate; r9 R1 traces never measured (EVID l371-l372) [inferred].
+B1   RIGHT AND COMPLETE in REVIEW §4.3, D-2, §6, NEXT_STEPS 0.2(b), P2(a), HEADLINE [measured, diff v1 vs revised].
+     RO E2/E5 support every narrowed statement (crossings: all 41 s60 rollouts >= 0.05 after 7M; s42 re-formed
+     7.99-8.39M, 9.57-10.62M at ent_coef 0; s60 mean +0.127 in 4.2-5.2M at bonus 0.00163) [measured, RO l689-l797].
+     Residual: RO l802-l805 keeps "As a necessary cause: the records argue against it" and ships in P1/P2(b).
+B2   RIGHT AND COMPLETE: gate gone from Option 3 heading, summary, WHY, RISKS, section 4 [measured, diff]. Residual
+     wording: §2 "follow Option 1's mechanism answer" (l485).
+
+(2) FIGURES: HEADLINE and REVIEW §1, §2 match SCORE l7-l172, SCOREJ (status/provisional/incomplete/stat/with_lost),
+    panels m1/m2/m3 (CMD_a by label, rewards 4396.02/4353.12/4386.87, s42 3079/3080 0.53875/0.515, +0.984/+0.969,
+    others 0.0), KS-r, lane SUMS (54/54, 133/133), sha256 of CRIT/THIS12/EVID/APPROVED [measured]. Fisher 0.9286,
+    TABLE E bound 0.983 exact vs 0.902 Beta(3,2), MC P(r10<r9) 0.262, P(<half) 0.046 [computed].
+
+(3) NEXT_STEPS: power 0.68/0.91, 0.18/0.18, 0.18/0.41; p 0.030/0.013/0.038; 0.014/0.071/0.005; 0.74/0.22 all
+    reproduce [computed]. Core cost: 30 x 1,048,576 steps x (44-46 min = 0.73-0.77 CPU-h) x 1.1 = 24.2-25.3 CPU-h;
+    with the text's 0.75-0.8: 24.8-26.4, not 25-28; LPT packing on 3 slots about 8.9 h [computed]. Add-ons, 21-23 h,
+    Option 3/5 runs, copies, CPU-h reproduce [computed]. Approvals: Option 1 training-loss + pre-registration +
+    launch; Option 3 training-loss/log_std + pre-registration + run branch + launches; Option 2 none (loader OK);
+    Option 5 lacks a new header commit/run branch item [inferred, approval comment lines name seeds 60/42/80].

@@ -1,0 +1,527 @@
+======================================================================================================================
+STANCE6 NEXT STEPS: OPTIONS FOR THE MAINTAINER AFTER THE FIRST r10 ROUND (T. REX, ARM LTSB, SEEDS 60 / 42 / 80)
+PROPOSALS ONLY. NOTHING HERE IS STARTED, APPROVED OR SCHEDULED.
+======================================================================================================================
+Written 2026-10-28 18:10-18:30 UTC (date -u) by the next-steps proposer. Nothing was trained, simulated, fetched, pushed
+or committed for this text. No Drive, no GitHub. The repository and the run log were only read.
+
+WHAT THIS TEXT IS
+- The round's reading is FIXED: "line 1: TAIL RAIL FORMED ON r10 IN TRAINING (ledger)", STATUS FINAL [measured, SCORE
+  l168-l172]. Nothing below changes a class, A, n_A or the reading line [measured, CRIT l332-l333].
+- Line 1 routes the round "To the maintainer with the DIAGNOSTIC READOUTS; nothing is proposed by this text" [measured,
+  CRIT l312-l316]. That sentence is about the criteria text. The options below are this workflow's proposals, written
+  because the maintainer asked for "the full review and next steps" [measured, RUNLOG l690]. Each one needs the
+  maintainer's word before it starts.
+- Line 1 routes to no parent, confirmation or certification step. Those routes belong to lines 3 and 4 only
+  [measured, CRIT l320-l329]. Under D8 the maintainer may still choose any parent [measured, RUNLOG l621].
+- Three runs give an existence or consistency result, never a rate. No option below claims or needs a rate from
+  this round.
+
+Labels: [measured, KEY ...] = read or computed from the file KEY names. [inferred, basis] = reasoned, with its basis.
+"lN" = line N of that file. "REVIEW §x" = section x of the round's review. Steps are training timesteps.
+
+SOURCES (full paths; every label names one of these keys)
+  S1        /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad
+  S2        /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad
+  REVIEW    S2/r10round/f2/REVIEW.txt (832 lines, sha256 fbe54c2b...; read in full)
+  SCORE     S2/r10round/f2/score.txt          CRIT  S1/foot/stance6/criteria.txt (sha256 99a44469..., = APPROVED's)
+  RO        S2/r10round/f2/readouts/READOUTS.txt (ENTROPY CHECK l689-l812; WHAT WOULD TEST IT l813-l828; D-15 l625-l688)
+  KS-r      S2/r10round/f2/kscore_stance6_r10LTSB_<r>.json     ROLOG-r  S2/r10round/f2/logs/report_only/<RUN_ID>/summary.tsv
+  F2C-r     S1/foot/stance6/fetch/F2/stance6_r10LTSB_<r>/copies/ (read here: 01_stance/stage_config.json.copy1,
+            artifact_manifest.json.copy1, the models/ listing)
+  RUNLOG    S1/foot/stance4/live/run_log.txt (714 lines at 18:21 UTC; read only; lines 600-714 read for this text,
+            plus l378-l379, l508-l509, l518, l547, l565-l573 for the r9 tail-screen precedent)
+  MAIN      origin/main at 05deef3a (the merge of #647), read with git show in the scratch clone
+            S2/prs/com_tests/clone, read only. The main checkout /home/user/mesozoic-labs has 1b71f00b checked out
+            (#634), which is older than sections 25-26, so the plans were read from origin/main instead [measured,
+            git log in both].
+  STANCEDOC MAIN:docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md (§25 l3956-l4376, §26 l4377-l4742)
+  NEXT      MAIN:docs/NEXT_STEPS.md        KNOWN  MAIN:docs/KNOWN_ISSUES.md        BRP  MAIN:docs/BEHAVIOR_RECIPES_PLAN.md
+  ROADMAP   MAIN:docs/ROADMAP.md
+  TSW       S2/tailround/screen/tools/run_waves.sh (D-D43's wave runner; read only)
+
+======================================================================================================================
+0. WHERE THE ROUND LEAVES THINGS
+======================================================================================================================
+0.1 THE READING AND WHAT WAS PLANNED AFTER IT
+- The reading: R 1 (COMPLETE 1, PRESENCE 0), U 0, P 1, G+ 1. The rail is s42's, on tail_3_pitch_act at +1 with 22 TAIL
+  ALARMs, the first at 3,932,160. s60 is PARKED and s80 is POSITIVE. A is 2 of 3 against LTSB r9's 2 of 5; the
+  one-sided Fisher p is 0.9286 [measured, SCORE l159-l172; REVIEW §1, §2].
+- What the plans say comes next:
+    STANCEDOC §26.6 (l4711): the reading goes to the maintainer.
+    STANCEDOC §26.7 (l4716-l4742) and D-D45: no T. rex stance is certified, the two-seed ask stands on r10, and a new
+    walking pilot comes once r10 has a stance parent [measured, MAIN; BRP l1250-l1252; NEXT l608-l622].
+    RUNLOG l687: #647's landing record and the ROADMAP's "from 2026-10-27" date check go into the next records PR,
+    with the round's results.
+    RUNLOG l712: a second commit to the durable copy will carry workflow 2's outputs.
+  [measured]
+- KNOWN asks the first r10 stances to be watched for backward falls, the hop-or-fall rail and pad tilt (l1963-l1979),
+  and asks for a stance's head to be checked by hand before it is used, because no gate reads head posture
+  (l1236-l1252) [measured, MAIN].
+
+0.2 FINDINGS THAT SHAPE THE OPTIONS (all from REVIEW)
+(a) On r10 the habit is not only a tail habit [measured]:
+    - s42 rails on tail_3 at +1.
+    - s60 parks tail_3 late, with 24 single over-bar episodes from 8,126,464.
+    - s80 forms a non-tail saturation habit on neck_pitch_act at -1: 6 ANY ALARMs at 5.5-7.1M, the head raised to a
+      W2 head tip of 1.305 m against the statue's 0.959 m, and head_pitch_act parked negative in 185 W3 episodes.
+    Sources: REVIEW §2.2, §2.3, D-1, D-5, D-6, D-13.
+(b) Entropy [measured]:
+    - The drive formed, or re-formed, while ent_coef was exactly 0: s60's bound crossings and over-bar episodes, and
+      s42's rail re-forming twice.
+    - The bonus's gradient reaches log_std only, never the mean action.
+    - Every first onset, on both plants, fell while the bonus was above 0, and every run shares one schedule. So the
+      records hold no contrast for timing.
+    Sources: REVIEW §4.2 E3, E5, E7; §4.3; §4.4.
+    The review's inferred answer: the bonus is neither a direct driver nor necessary. Its role in when an onset
+    happens is untested [REVIEW §4.3, inferred there].
+(c) At s42's onset the rail cost reward [measured, REVIEW D-9]:
+    - Holding tail_3 at 0 at 3,670,016 gains +78.29 per window, positive in 20 of 20 episodes.
+    - At the final, the same hold loses -64.46.
+    - r9's figures were +73.1 to +85.9.
+    This fits a training-dynamics cause better than a reward incentive [inferred, from D-9 and from the r9 finding
+    that no reward term pays for tail-up, RUNLOG l508].
+(d) The observation-normalisation drift [measured, REVIEW D-15; RO l625-l688]:
+    - In each run, the observation dimension that shifts most at the checkpoints just before the onset is the joint
+      that later saturates or parks.
+    - s42: qpos.tail_3_pitch tops the shifts at 2,097,152, 3,145,728 and 3,407,872. Its first over-bar episode is at
+      3,670,016.
+    - s80: qpos.neck_pitch tops them at 3,145,728, 3,407,872 and 3,670,016. Its first neck over-bar episode is at
+      3,801,088.
+    - s60: qpos.tail_3_pitch tops them at 6,553,600, 6,815,744 and 7,077,888. Its DRIVE ONSET is at 7,340,032.
+    - In each run, an early hip-roll shift at 524,288 is also among the four largest.
+    Whether this drift is a cause or an effect is open. Each joint's command was already rising when its shifts came;
+    for example s60's rollout mean was +0.44 in 6.3-7.3M (REVIEW §4.3). So the drift may only follow the posture
+    [inferred].
+(e) What the r9 work already ruled out or ranked, and so does not need repeating:
+    - Training-loss bounds on tail_3's mean (D-D43): BOUND90 RAIL in 6 of 6, BOUND60 PARKED in 6 of 6 [measured,
+      RUNLOG l573].
+    - A penalty on |mu| > 1 (P1) never pulled the deterministic mean under its bound [measured, RUNLOG l508].
+    - The "flat cost beyond |a| = 1" dead zone was ranked at most a contributor beyond mu of about 1.2. A
+      deterministic fixed point through the joint-angle loop was ranked first [measured as recorded, RUNLOG l518; the
+      ranking itself is inferred there].
+
+0.3 THE SETTINGS THE MAINTAINER ASKED ABOUT, READ FROM THE RUNS' OWN stage_config.json COPIES
+[measured, F2C-r 01_stance/stage_config.json.copy1. The sha256 values 898bb25d... (s60), 5d54e6de... (s42) and
+ec1c49a5... (s80) each equal the run's artifact_manifest.json entry. Read as JSON for this text.]
+  hyperparameters.ent_coef 0.005, ent_coef_end 0.0, ent_coef_decay_timesteps 7,000,000 (linear, then held at 0, per
+  the copy's EntCoefDecayCallback docstring, REVIEW §4.1);
+  hyperparameters.policy_kwargs.log_std_init -1.5; hyperparameters.symmetry_sigma_floor 0.01;
+  reward_weights.action_saturation_weight 0.5 with action_saturation_threshold 0.9 (the same pair in
+  task_fingerprint.env). Identical in all three runs.
+How each bears on a test [inferred, from REVIEW §4.2 E7 and RO D-15 unless marked]:
+- ent_coef: the only one of the four that a short continuation can vary cleanly. It is Option 1's contrast.
+- log_std_init: acts only at initialisation. In a continuation its analogue is a std reset (Option 1, add-on S). From
+  scratch it could be an arm of Option 3.
+- symmetry_sigma_floor 0.01:
+    - It clamps only the sigma inside the symmetry KL, which passes no gradient to log_std (E7).
+    - It can bind only where std is below 0.01. That happened only on the knees, late in each run: final r_knee std
+      was 0.0090 (s60), 0.0087 (s42) and 0.0096 (s80) [measured, RO D-15].
+    - Tail and neck std stayed at 0.095 or above [measured, REVIEW D-15].
+    - So it is unlikely to bear on these habits. Not varied here.
+- action_saturation_weight 0.5 above 0.9: a reward term, so changing it is a reward and task change. The r9 evidence in
+  0.2 (e) ranks its dead zone as at most a contributor. Not varied in the recommended option.
+
+======================================================================================================================
+1. RANKED OPTIONS (the recommended one first)
+======================================================================================================================
+In short:
+  1. RECOMMENDED: a CPU continuation screen from the round's own checkpoints, contrasting ent_coef as recorded with
+     ent_coef 0.
+  2. A no-training addendum (report only): close the review's named gaps and run KNOWN's r10 checks on the finals.
+  3. A from-scratch two-arm entropy round. Only if Option 1 shows a contrast.
+  4. The maintainer's choice of an r10 stance parent and a new r10 walking pilot.
+  5. Two more unchanged r10 LTSB runs on seeds 52 and 70, for consistency only.
+Every option leaves the round's reading as it is. None changes physics, the gate, the policy interface or main
+unless its "needs" line says so.
+
+----------------------------------------------------------------------------------------------------------------------
+OPTION 1 (RECOMMENDED). A CPU CONTINUATION SCREEN FROM THE ROUND'S OWN CHECKPOINTS: THE ENTROPY CONTRAST
+----------------------------------------------------------------------------------------------------------------------
+WHAT IT WOULD TEST
+- From fixed pre-onset training states, does removing the entropy bonus change whether, or when, an actuator's mean
+  crosses its bound?
+- Readings: the ledger rule (ANY- or TAIL-flagged evaluations and alarms, as the round's M5 defines them), M6's
+  mu-beyond share per actuator, and deterministic end traces (M1, seeds 3042-3061).
+- This is the test REVIEW §4.5 describes as the cheapest one that isolates the term. It would give the maintainer a
+  tested answer, at least for a large effect, in place of the review's inferred one.
+
+PROPOSED DESIGN (for the pre-registration to fix; numbers here are the proposer's)
+- Starts: the F2-held, manifest-verified 1,048,576-grid pairs, so no new fetch [measured, F2C-r models/ listing: every
+  run holds the zip and the vecnormalize pkl at each 1,048,576 multiple].
+    s42 at 3,145,728: tail_3 CMD +0.524 with 0 flags. Its first over-bar episode came at 3,670,016 and its first TAIL
+    ALARM at 3,932,160.
+    s80 at 3,145,728: its first neck over-bar episode came at 3,801,088, its first ANY-flagged evaluation at 4,849,664
+    and its first ANY ALARM at 5,505,024.
+    [measured, REVIEW D-1, D-3]
+- Arms:
+    A: the recorded schedule. ent_coef continues linearly from about 0.00275 at 3,145,728 to 0 at 7,000,000
+       [inferred, the schedule's arithmetic; E2 records the schedule to within 2.3e-10].
+    B: ent_coef 0 from the start of the continuation.
+- 4 training seeds per arm per start: 16 continuations.
+- Lengths:
+    s42: 1,572,864 steps, to 4,718,592. This covers its original first alarm and most of its first spell
+         (3.80-5.11M).
+    s80: 2,359,296 steps, to 5,505,024, the step of its original first ANY ALARM. A 1.5M continuation would reach
+         only its first flagged evaluation.
+    [inferred, from REVIEW D-1]
+- Statistic: at each start, the number of continuations with an ANY-flagged evaluation in A against B. One-sided
+  exact test (B lower), stratified by start. The step of the first flag is printed beside it, report only.
+- Optional add-ons, each its own approval:
+    C (the converse): from s60's F2-held 6,291,456 pair, where the bonus is 0.00051 and reaches 0 at 7,004,160.
+       Arm A is recorded; arm C holds the bonus at 0.002 to 8,388,608. 4 + 4 continuations of 2,097,152 steps, covering
+       s60's DRIVE ONSET (7,340,032), its first over-bar episode (8,126,464) and its TRACE ONSET (8,388,608)
+       [measured, REVIEW D-1, D-3, §4.2 E2].
+    N: VecNormalize statistics frozen at the start, schedule as recorded, 4 per start. This tests whether the drift
+       in 0.2 (d) matters.
+    S: log_std reset to -1.5 on every actuator at the start, 4 per start. This tests the noise-level path that REVIEW
+       §4.3 leaves "not supported and not excluded". Pilot 2's planned std reset is a precedent for the operation
+       [measured, NEXT l459-l461].
+
+WHY THE EVIDENCE SUPPORTS IT
+- No run of either plant contrasts ent_coef, so the timing question is open (REVIEW §4.4). This is the only option
+  that answers the maintainer's question with a contrast.
+- It holds the training state fixed. Seed choice and GPU non-determinism, which limit every from-scratch comparison
+  (REVIEW §6), matter less here [inferred].
+- There is a precedent that this is feasible:
+    D-D43 ran 18 pre-registered CPU continuations from Drive checkpoints, 3 at a time, in about 4.6 h of wall clock
+    (19:11-23:46 UTC) [measured, RUNLOG l565-l573].
+    Its CONTROL arm read RAIL in 5 of 6 continuations from those r9 states: s42 in 2 of 3 from a railed start, and
+    s80 in 3 of 3 from a clean one [measured, RUNLOG l573; KNOWN l311-l313]. So a control arm from a clean, pre-onset
+    state can be expected to show onsets [inferred, from s80's 3 of 3; untested on r10].
+- It decides whether Option 3's 170-230 L4-hours are worth spending. If B looks like A, a from-scratch entropy round is
+  unlikely to pay [inferred].
+- Because the r10 habit spans actuators (0.2 (a)), a training-dynamics test fits better than another tail-only bound,
+  which r9 already screened (0.2 (e)) [inferred].
+
+COST
+- L4-hours: 0, because it runs on this container's CPU (4 cores [measured, nproc]).
+    Run on Colab instead, the core would take about 31.5M steps / about 240 steps/s, so about 36 L4-hours [inferred,
+    REVIEW §7.3's 237.6-239.9 steps/s].
+    RO's figure of 25-30 L4-hours is for 16 continuations of 1.5M [RO l817-l820].
+- CPU-hours, core: 8 x 1,572,864 + 8 x 2,359,296 = 31,457,280 steps.
+    At about 0.75-0.8 CPU-hours per 1,048,576 steps single-threaded, that is about 23-25 CPU-hours, or about 8-9 h of
+    wall clock at 3 at a time.
+    Basis [inferred]: D-D43's continuations took 44-46 min per 1,048,576 steps at OMP_NUM_THREADS=1 [measured, RUNLOG
+    l567-l572; TSW l32, l40]. r10's evaluation and telemetry add +2.3 to +6.0% [measured, RUNLOG l630].
+- CPU-hours, add-ons: C about 12-13; N and S about 11-12 each [inferred, same rate].
+- CPU-hours, end traces: under 1 in all. One M1 20-episode trace takes 1.1-1.2 min [measured, ROLOG-s80].
+- Drive copies: 0.
+    If the maintainer prefers the analyst's closer starts (s42 3,407,872, s80 3,670,016, s60 6,815,744): one read-only
+    fetch of 6 files (3 pairs) and 3 listings. Those pairs are in the manifests but not in F2 [measured, the
+    manifest copies and the F2 models/ listings].
+- Disk:
+    About 4.0 MB per checkpoint zip [measured, ls F2C-s42 models/]. At 262,144 cadence that is about 0.4-0.6 GB for the
+    core [inferred].
+    3.9 GB is free against the tools' 3 GB floor (REVIEW §7.3), so housekeeping comes first (section 3, P4).
+- Pre-registration work: one criteria-and-harness workflow. D-D43's package was one workflow of 7 agents, pinned about
+  3 h after the decision, with probes in between [measured times RUNLOG l509 (16:00 UTC) and l547 (19:05 UTC);
+  inferred duration].
+
+RISKS
+- Low power.
+    4 of 4 against 0 of 4 gives p 0.014. 3 of 4 against 0 of 4 gives 0.071. Stratified over both starts, 3 of 4 against
+    0 of 4 at each gives 0.005.
+    So it detects only a large effect, and a null cannot exclude a modest one [inferred, exact hypergeometric sums
+    computed for this text].
+- The starts are mid-rise for s42: its tail_3 command was already +0.524 at 3,145,728 (D-3).
+    So the screen tests the crossing of the bound, not the start of the rise.
+    To test the rise, start at 2,097,152 (CMD +0.151) with longer continuations, at about 1.5 times the cost [inferred].
+- These are diagnostics, not round runs: RUN HANDLING forbids resumes inside a round (RO l822-l823). The device is CPU,
+  not GPU. Nothing here certifies anything [inferred].
+- The harness has to be ported and reviewed.
+    D-D43's harness (MAIN: docs/investigations/stance_2026_10/stance5/tailscreen/tools/run_tailscreen.py.gz) was
+    built for r9 on cf80ecb1. An earlier
+    harness once hard-coded seed 42 (RUNLOG l518).
+    It loads checkpoints (an SB3 zip and a VecNormalize pickle) and must load them only as the pinned tools do.
+    Arm A must reproduce the recorded ent_coef exactly at the start [inferred].
+- Arm N carries a confound: freezing normalisation changes what the policy sees, and the drift may follow the posture
+  rather than lead it (0.2 (d)) [inferred].
+
+WHAT IT NEEDS FROM THE MAINTAINER
+(i)   Approval of a training-hyperparameter change for scratch diagnostic continuations only: ent_coef per arm.
+      If chosen, also N's frozen normalisation statistics and S's std reset, both training-procedure changes.
+      No physics, reward, task, gate or policy-interface change. Nothing on main, nothing in a round.
+(ii)  A new pre-registration: the screen's criteria (starts, arms, seeds, lengths, readings, statistic, reading lines),
+      checked before any optimizer step, and the maintainer's approval of it, as for D-D43.
+(iii) The launch: a local CPU run in this container, with the number of parallel processes and the nice level.
+      D-D43 ran 3 at a time.
+(iv)  A local scratch clone of the run branch at 8737cd3d for the harness: push disabled, never merged.
+(v)   Optionally, an orphan never-merged durable branch for its outputs, pushed only on the maintainer's word.
+(vi)  Drive: nothing if the F2-held starts are used. Otherwise one read-only fetch of 6 files.
+
+----------------------------------------------------------------------------------------------------------------------
+OPTION 2. A NO-TRAINING ADDENDUM (REPORT ONLY): CLOSE THE REVIEW'S NAMED GAPS AND RUN KNOWN's r10 CHECKS ON THE FINALS
+----------------------------------------------------------------------------------------------------------------------
+WHAT IT WOULD DELIVER (each item is a post-hoc readout beyond the pre-registered set, labelled as such)
+(a) The actuator behind s42's final certificate failure.
+    - Per-step traces of seeds 3079 and 3080 at the six headings, 12 episodes.
+    - The review names tail_3 only as inferred (REVIEW §2.2).
+(b) The actuator behind s80's 6,291,456 certificate failure.
+    - Traces of a sample of its 35 failing episodes.
+    - The review infers neck_pitch_act (D-8).
+(c) The direction of the K3 noise falls, from per-step traces of the falling seeds.
+    - s80: 3042, 3046, 3048, 3054 and 3061 at 6.29M; 3051 and 3061 at the final.
+    - s60: 3051 and 3061.
+    - The judge files have no direction field, so the review inferred direction from CoM (D-7).
+(d) D-7's band readouts reduced. They sit unreduced in every judge file (D-7). This item needs no simulation.
+(e) The in-run panels' policy-state and obs-statistics sha256 matched against the checkpoint pairs. This was never done
+    (D-14, REVIEW §7.4).
+(f) KNOWN's checks on the gate-passing finals (s60, s80) and on s42's final:
+    - the 280-seed stance panel, for backward falls and the pad-tilt bar;
+    - the out-of-sample certificate on seeds 7042-7081, the seeds the r10 statue passed 40 of 40 [measured,
+      STANCEDOC §25.2, l4017-l4063];
+    - the head tip checked by hand.
+    These are the checks KNOWN l1963-l1979 and l1236-l1252 ask for before an r10 stance is used.
+
+WHY THE EVIDENCE SUPPORTS IT
+- The review names each of these gaps (REVIEW §2.2, D-7, D-8, D-14, §7.4).
+- KNOWN asks for these checks on the first r10 stances [measured, MAIN].
+- Option 4 cannot be weighed without (f): s80's head was raised and head_pitch_act parked in W3 (D-5, D-13). Its
+  certificate failed at 6.29M and passed at the final (D-8).
+- It is the cheapest option and needs no change approval [inferred].
+
+COST
+- L4-hours: 0.
+- Drive copies: 0. F2 holds every final and every 1,048,576-grid pair [measured, F2C-r models/ listing].
+- CPU-hours: about 2.5-4 in all, about 2 h of wall clock at 2 at a time [inferred, from these measured job times
+  (ROLOG-s80) and the estimates built on them]:
+    M1 trace, 20 episodes: 1.1-1.2 min.
+    M2 panel, 40 episodes: 2.0-2.1 min, so a 280-episode panel takes about 15 min.
+    M3 six-heading certificate: about 20 min.
+  Items (a)-(c) come to under 0.5 CPU-hours. Item (f) is about 0.6 CPU-hours per final.
+
+RISKS
+- These are post-hoc readouts on n = 3. They can be over-read, and none can change the reading or a class (CRIT
+  l332-l333).
+- measure_r10round.py is pinned to its own seed sets. The 280-seed panel and the targeted traces would run through the
+  measuring copy's own scripts, as D-9 and D-10 did (REVIEW §7.4). That is a process departure to be named
+  [inferred].
+- s42's failing seeds may name another actuator than tail_3. That would correct the review's inference, which is the
+  point.
+
+WHAT IT NEEDS FROM THE MAINTAINER
+- An OK for report-only measurements beyond the pre-registered readouts, and where they are recorded: the records PR
+  (P2) and the durable copy (P1).
+- No approval of any physics, reward, task, gate, training-loss or policy-interface change. No pre-registration
+  [inferred: it changes no class, but the maintainer may still want its readouts fixed in advance].
+
+----------------------------------------------------------------------------------------------------------------------
+OPTION 3. A FROM-SCRATCH TWO-ARM ENTROPY ROUND (ONLY IF OPTION 1 SHOWS A CONTRAST)
+----------------------------------------------------------------------------------------------------------------------
+WHAT IT WOULD TEST
+- Whether the alarm rate from scratch differs between two arms identical but for ent_coef: as shipped (0.005 to 0 by
+  7M) against 0 throughout, or against a fixed or lower log_std.
+- The same pre-registered lean all-or-nothing rules and ledger rule as stance6.
+- This is the only test of onset from scratch (REVIEW §4.5).
+WHY
+- Option 1 can show an effect at a fixed state. Only from-scratch arms can show what the schedule does to a whole run,
+  including the early phase, where every first onset on both plants fell (REVIEW §4.3) [inferred].
+COST
+- 12-16 runs, about 170-230 L4-hours. That is 6-8 per arm, for a one-sided Fisher p near 0.01-0.04 under the analyst's
+  assumed outcomes [read from REVIEW §4.5 and RO l824-l827, inferred there].
+- Drive copies: about 950-1,260 [inferred, from REVIEW §7.2: F0 + F2 made 237 copies for 3 runs, about 79 per run].
+  APPROVED's budget was about 195 per round [measured, RUNLOG l664], so a new fetch budget is needed.
+- CPU-hours: about 20-27 for measurement [inferred, from REVIEW §7.3: about 5.1 per 3 runs].
+- Calendar: at three L4s in parallel (D18), 4-6 waves of about 15 h, so about 2.5-4 days [inferred].
+RISKS
+- Cost.
+- ent_coef 0 throughout also changes early learning. W1's training episodes were mostly falls and nosedives (REVIEW
+  D-2), so stance quality and gate outcomes may differ by arm. That confounds everything except the alarm statistic
+  [inferred].
+- Seeds and GPU non-determinism.
+- If Option 1 finds nothing, this round is unlikely to be worth its cost [inferred].
+WHAT IT NEEDS FROM THE MAINTAINER
+- Approval of a training-hyperparameter change (ent_coef or log_std) as one arm of a round. Not on main.
+- A new pre-registration with its power and fetch budget.
+- A run branch carrying the arm.
+- The compute-balance check.
+- 12-16 launches, which the maintainer makes.
+- D17 for that round, and a records PR.
+
+----------------------------------------------------------------------------------------------------------------------
+OPTION 4. AN r10 STANCE PARENT CHOSEN BY THE MAINTAINER, AND A NEW r10 WALKING PILOT
+----------------------------------------------------------------------------------------------------------------------
+WHAT IT WOULD DELIVER
+- A pilot pre-registration on r10 from a parent the maintainer chooses outside the reading. D-D45 says a new pilot is
+  designed once r10 has a stance parent [measured, BRP l1250-l1251; STANCEDOC §26.2].
+THE FACTS A CHOICE WOULD REST ON (the criteria name no parent under line 1)
+- s80's final:
+    For: the round's one POSITIVE (CLEAR and GATE PASS, 40/40 at six headings); M2 at the final 40/40, reward 4386.9;
+    K2 and K4 PASS; 0 own-sigma noise falls.
+    Against: K1 FAIL (6.29M at 5/40, LCB 0.051); K3 FAIL (joint-space noise falls 5/20 at 6.29M and 2/20 at the final;
+    KS-s80); a neck saturation habit at 4.85-7.34M; the head tip at the final 1.166 m against the statue's 0.959 m;
+    head_pitch_act parked negative in W3; the final tail_3 CMD +0.588, 0.012 below the PARKED line.
+    [measured, REVIEW §2.3, D-4, D-5, D-7, D-13; KS-s80]
+- s60's final:
+    For: GATE PASS 40/40; K1-K4 all PASS; FORE_AFT_HOLDS true; 1/20 joint-space noise falls at the final.
+    Against: PARKED (MEAN_a +0.642), so NEGATIVE: by D8 (a) a parked tail is not success.
+    [measured, REVIEW §2.1, D-7; KS-s60; CRIT l284-l285]
+- Ranking them by the two parent rules [inferred; neither rule applies under line 1]:
+    Line 3's rule (most clean panel episodes at the final, ties to fewer joint-space plus own-sigma falls) puts s60
+      (40; 1) before s80 (40; 2).
+    Line 4's rule (POSITIVE finals only) leaves only s80.
+- Neither final is certified, and the gate certificate is a screen-task measurement (REVIEW §6).
+WHY IT IS RANKED FOURTH
+- It moves the programme towards walking. But this round gives thin support for any parent: one POSITIVE out of 3, with
+  mid-run K1 and K3 failures and a non-tail habit [inferred, from the facts above].
+- Option 2's item (f) would supply the checks KNOWN asks for before a stance is used.
+COST
+- Pilot training at pilot 1's shape (4,194,304 steps on 3 seeds) is about 15 L4-hours [inferred: about 4.9 h per run at
+  the round's about 240 steps/s; pilot 1's shape from NEXT l443-l448].
+- Plus its pre-registration workflow, its fetches (budget set in its criteria) and a few CPU-hours of judging
+  [inferred].
+RISKS
+- The parent's flaws carry into the walk: the neck habit and K3 for s80, the parked tail for s60.
+- Pilot 1 read STILL, "too short to tell" [measured, NEXT l457-l458], so a pilot of that shape has little power.
+- The habit may re-form in locomotion training.
+- A later stance fix would make this lineage obsolete. Its checkpoints would still load, because no physics change is
+  involved [inferred].
+WHAT IT NEEDS FROM THE MAINTAINER
+- The choice of a parent outside the reading (D8, RUNLOG l621).
+- A decision that a walk may start from an uncertified r10 stance, an exception like D-D36's (NEXT l443-l445).
+- A ruling on the posture question for that parent: is a parked tail_3 (s60), or a raised head and parked head_pitch
+  (s80), acceptable? The 0.60 PARKED line is r9's ruling carried to r10, about a +3.1 to +4.0 deg joint offset
+  (REVIEW §6).
+- A new pilot pre-registration and its approval, a never-merged pilot branch, the launches, and records.
+
+----------------------------------------------------------------------------------------------------------------------
+OPTION 5. TWO MORE UNCHANGED r10 LTSB RUNS, SEEDS 52 AND 70 (CONSISTENCY ONLY)
+----------------------------------------------------------------------------------------------------------------------
+WHAT IT WOULD DELIVER
+- The same recipe on LTSB's two other r9 seeds, both of which had no flagged evaluation on r9 [measured, RO E6]. That
+  completes a 5-against-5 same-seed set, report only (D-12).
+- More existence and consistency facts: does the neck habit or the late park recur?
+WHY IT IS RANKED LAST
+- It cannot show that r10 lowers the rate. With 2 of 3 already counted, even 0 alarms in 2 more runs reads 2 of 5
+  against 2 of 5: one-sided p 0.74. 0 of 5 against 2 of 5 would itself only reach 0.22 [inferred, exact sums computed
+  for this text; the scorer's 2 of 3 against 2 of 5 reproduces as 0.9286].
+- It adds no mechanism information.
+COST
+- About 30 L4-hours: about 14.8 h per run from session start to manifest [inferred, from REVIEW §7.3].
+- About 160 Drive copies [inferred, about 79 per run].
+- About 3.4 CPU-hours of measurement [inferred].
+RISKS
+- A historical control only.
+- Pooling across rounds is a design question the pre-registration would have to settle.
+- The seeds' r9 outcomes are known.
+WHAT IT NEEDS FROM THE MAINTAINER
+- A new pre-registration (the lean v6 rules with new RUN_IDs and the pooling rule) and its approval.
+- The compute-balance check, two launches, D17 and records.
+
+======================================================================================================================
+2. CONSIDERED, NOT RANKED
+======================================================================================================================
+- A training-loss bound, or a saturation-cost change, now. r9 already screened mean bounds (RAIL at 0.90, PARKED at
+  0.60) and found P1 never pulled the mean under its bound (0.2 (e)). Such a change would also be a training-loss or a
+  reward and task change. Any later arm of this kind should follow Option 1's mechanism answer [inferred].
+- A MuJoCo sensor or physics r11. The assessment behind D-D47 found a sensor adds nothing in simulation [measured,
+  RUNLOG l616]. The round gives no sign that a further plant change would help. For seed 80, the saturating actuator
+  moved from tail_3 on r9 to neck_pitch_act on r10 once the tail was changed [inferred, from REVIEW D-12; same seed,
+  not a paired effect].
+- The null option: pause this line, for example for the deferred cleanup and consolidation PRs the ROADMAP orders
+  before the direction and terrain nodes [measured, ROADMAP l33-l44]. This option is always available, needs only the
+  maintainer's word, and leaves the T. rex stance uncertified.
+
+======================================================================================================================
+3. PENDING ITEMS (EACH ONLY ON THE MAINTAINER'S WORD; INDEPENDENT OF THE OPTIONS)
+======================================================================================================================
+P1. THE D17 DURABLE COPY, SECOND COMMIT [measured, RUNLOG l712; REVIEW §7.5]
+- The first commit was pushed at 15:05 UTC on "Yes, push the durable copy branch": orphan handoff branch at 6c3f27b9...,
+  178 files, never merged.
+- The second commit (build_stage.sh review) would add workflow 2's report-only outputs. RUNLOG l712 names them as
+  "panels, readouts, review and next steps". In files:
+    the panels' summaries and judge files;
+    the kscore files;
+    the D-9 / D-10 summaries;
+    READOUTS.txt and .json, and the std CSVs;
+    review_extras.*;
+    REVIEW.txt;
+    this NEXT_STEPS.txt.
+- Needs: the maintainer's word to push.
+- Note: the durable clone's push URL points at the remote, while the run-branch clone's reads DISABLED (REVIEW §7.4).
+  After the push, the coordinator sets it back to DISABLED.
+
+P2. THE RECORDS PR FOR THE ROUND'S RESULTS: WHAT IT WOULD HOLD
+Built locally in a scratch clone off origin/main (05deef3a or later): builder, three checkers, fixer, as for #647.
+Pushed, and the PR opened, only on the maintainer's word.
+ (a) §27 appended to STANCEDOC, "the first r10 round judged". §26's "results pending" stays as written, by the
+     appended-section convention. §27 would hold:
+       the reading line exactly as printed;
+       R / U / P / G+;
+       A of n_A with TABLE E's figures, and "an existence result, not a rate";
+       each run's class, gate and outcome;
+       D-1..D-15 in short;
+       the entropy settings as read from the runs' stage_config copies, the inferred answer and its limits;
+       the two interim looks, as report only;
+       the process departures REVIEW §7.4 names;
+       "what changes in §13-§26": still no certified T. rex stance and the two-seed ask stands; a policy trained on r10
+       did pin tail_3 at +1, in 1 of 3 runs (existence only).
+ (b) A results evidence folder beside stance6/ and stance6_setup/. The maintainer names it; the RUNLOG l683 precedent
+     keeps pre-training files apart. It would hold:
+       score.txt and score.json (3,542,297 bytes [measured, ls]);
+       the completeness outputs;
+       the independent check's notes;
+       READOUTS, REVIEW and NEXT_STEPS;
+       the compact panel summaries, judge files and kscore files;
+       the D-9 / D-10 summaries;
+       the fetch manifest and folders.json;
+       SOURCES.txt and SHA256SUMS.
+     No checkpoints, per-step traces or binaries, as for the durable copy (RUNLOG l712).
+ (c) The RUNLOG copy from line 681 to its end, with ids redacted as #647's copy of lines 600-680 was (RUNLOG l682).
+ (d) KNOWN updates:
+       the tail-habit entry's Update 22: an r10-trained policy pinned tail_3 at +1 (existence, 1 of 3), another parked
+       it, and the third formed a non-tail habit on neck_pitch_act;
+       the head-posture entry: s80's raised head and parked head_pitch; no HEAD LOW anywhere;
+       the backward-fall and pad-tilt entry: what the round's panels showed (no deterministic M2 fall; s80's noise
+       falls inferred backward), plus Option 2's results if they exist.
+ (e) NEXT's T. rex status line (2026-10-28: the round read line 1, certifies nothing, and the next T. rex session is
+     still a fresh stance on r10).
+ (f) BRP §6.2:
+       D-D51 amended with the outcome, the second interim look (23:59 UTC on 10-27), the end-noting rule (01:09 UTC),
+       the F2 transfer method (13:31 UTC) and the durable push (15:05 UTC);
+       any new decision as D-D52.
+ (g) #647's landing record in the consolidation plan's status table and the CHANGELOG: merged 22:51:31 UTC on
+     2026-10-27, head f22d11e9, CI run 40589544371 green [measured, RUNLOG l685, l687]. #650's record too, if it lands
+     first [measured, RUNLOG l714].
+ (h) P3's record.
+- Cost: no compute beyond CI. #647's build took about 2 h (18:35-20:31 UTC) [measured times, RUNLOG l678, l682].
+- Needs: the maintainer's word to build, then to push and open the PR. #647 ran without the full-ci label (RUNLOG l684).
+
+P3. THE ROADMAP DATE CHECK (#647's "from 2026-10-27")
+- [measured, ROADMAP l36 on MAIN] "`main` now carries the development version `0.4.0.dev2` (from 2026-10-27, at the
+  maintainer's decision of 2026-10-25 20:13 UTC ...)".
+- [measured] #647 carried the bump (commit 537f03a8) and merged at 22:51:31 UTC on 2026-10-27 (RUNLOG l687). Its merge
+  commit 05deef3a is dated 2026-10-27T17:51:25-05:00, which is 22:51:25 UTC [git show -s in S2/prs/com_tests/clone].
+- So the date holds in UTC and in the merge's own time zone, and no edit appears needed [inferred].
+- The check and its result go into the records PR (P2 (h)), on the maintainer's word.
+
+P4. HOUSEKEEPING (none affects the reading) [measured, REVIEW §7.3-§7.4]
+- The three byte-identical complete_pre/*.withjson.txt duplicates. Their removal was refused by a permission check.
+- Disk: 3.9 GB free against the tools' 3 GB floor. Before Option 1 or 2 runs, remove recreatable tree copies, as RUNLOG
+  l647 did.
+- The working file review_wf1_flat.txt.
+
+======================================================================================================================
+4. SUGGESTED ORDER [inferred, from the dependencies above]
+======================================================================================================================
+- P1, P2 and P3 can go ahead now. They depend on no option.
+- Option 2 costs a few CPU-hours. It can run before or beside Option 1, keeping within the process limit the maintainer
+  sets.
+- Option 1: pre-registration, then approval, then a run of about 8-9 h of wall clock for the core.
+- Option 3 only after Option 1, and only if B differs from A.
+- Option 4 after the maintainer's parent and posture rulings. Option 2's item (f) is its input.
+- Option 5 at any time, but it is the least informative per L4-hour.
+
+======================================================================================================================
+5. LIMITS OF THIS TEXT
+======================================================================================================================
+- Every cost is an estimate from the measured times named. CPU rates come from an r9 harness and may differ on r10's
+  branch.
+- The power figures assume exchangeable continuations. Onset in a continuation is stochastic, and its rate is unknown
+  on r10.
+- The plans were read from origin/main 05deef3a, not from the main checkout, which has an older commit checked out.
+- Nothing here was checked by a second reader. The options are the proposer's. The criteria propose nothing under
+  line 1.
+
+END (proposals only; the reading is unchanged).
