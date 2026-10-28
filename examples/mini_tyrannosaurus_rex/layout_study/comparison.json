@@ -1,0 +1,1607 @@
+{
+  "status": "fail",
+  "invocation": "python -m examples.mini_tyrannosaurus_rex.layout_study.validate --random-count 512 --seconds 30",
+  "python": "3.12.14",
+  "mujoco": "3.10.0",
+  "numpy": "2.3.5",
+  "layouts": [
+    {
+      "name": "a_low_spine",
+      "label": "A \u00b7 Low spine",
+      "home": {
+        "loaded_mass_g": 754.1000000000001,
+        "core_mass_g": 639.1000000000001,
+        "head_tail_arms_budget_g": 115,
+        "motor_count": 10,
+        "all_cases_full_size": true,
+        "core_extent_xyz_mm": [
+          182.73739246,
+          151.0,
+          228.1768714
+        ],
+        "core_top_above_floor_mm": 228.1768714,
+        "foot_center_spacing_mm": 96.0,
+        "loaded_com_xyz_mm": [
+          6.107810635283677,
+          -0.2134995358636266,
+          137.85877204795156
+        ],
+        "support_projection_margin_mm": 34.107810635283684,
+        "margin_basis": "Home double-support convex hull only; not a balance controller or single-support margin",
+        "symmetric_flat_feet_crouch_drop_mm": 12.011275557081838,
+        "crouch_basis": "Kinematic endpoint at hip=-0.35, knee=0.70, ankle=-0.35 rad; root would lower by this amount; not a dynamic crouch trial"
+      },
+      "packing": {
+        "status": "pass",
+        "margin_mm": 2,
+        "pose_count": 1050,
+        "pair_count": 210,
+        "evaluations": 162805,
+        "failed_evaluations": 0,
+        "inconclusive_evaluations": 0,
+        "seed": 635648,
+        "static_pairs_checked_once": 55,
+        "closest_pairs": [
+          {
+            "pair": [
+              "part_character_electronics_reserve",
+              "part_harness_trunk_reserve"
+            ],
+            "pose": "home",
+            "qpos": [
+              0.0,
+              0.0,
+              0.113,
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "status": "pass",
+            "min_distance_m": 0.0024999999999857914,
+            "native_distance_m": 0.0,
+            "distance_is_lower_bound": true,
+            "distance_method": "support_plane_lower_bound",
+            "separation_plane": {
+              "distance_lower_bound_m": 0.0024999999999857914,
+              "axis_world": [
+                0.0,
+                0.0,
+                1.0
+              ],
+              "first_interval_m": [
+                0.19,
+                0.21000000000000002
+              ],
+              "second_interval_m": [
+                0.16249999999999998,
+                0.1875
+              ],
+              "roundoff_allowance_m": 1.4210854715202004e-14
+            }
+          },
+          {
+            "pair": [
+              "part_computer_reserve",
+              "part_logic_regulator_reserve"
+            ],
+            "pose": "home",
+            "qpos": [
+              0.0,
+              0.0,
+              0.113,
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "status": "pass",
+            "min_distance_m": 0.0024999999999999988,
+            "native_distance_m": 0.0024999999999999988,
+            "distance_is_lower_bound": false,
+            "distance_method": "mujoco"
+          },
+          {
+            "pair": [
+              "part_computer_reserve",
+              "part_body_imu_reserve"
+            ],
+            "pose": "home",
+            "qpos": [
+              0.0,
+              0.0,
+              0.113,
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "status": "pass",
+            "min_distance_m": 0.0024999999999999988,
+            "native_distance_m": 0.0024999999999999988,
+            "distance_is_lower_bound": false,
+            "distance_method": "mujoco"
+          },
+          {
+            "pair": [
+              "part_computer_reserve",
+              "part_battery_reserve"
+            ],
+            "pose": "home",
+            "qpos": [
+              0.0,
+              0.0,
+              0.113,
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "status": "pass",
+            "min_distance_m": 0.0030000000000000027,
+            "native_distance_m": 0.0030000000000000027,
+            "distance_is_lower_bound": false,
+            "distance_method": "mujoco"
+          },
+          {
+            "pair": [
+              "left_hip_yaw_servo_case",
+              "left_hip_roll_servo_case"
+            ],
+            "pose": "simultaneous_random/76",
+            "qpos": [
+              0.0,
+              0.0,
+              0.113,
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              0.026691692068538775,
+              -0.04008275370468631,
+              0.34698019974733935,
+              0.31745294802063595,
+              -0.04855161533022678,
+              -0.1308304164397222,
+              0.016375737946347668,
+              -0.06349924322204231,
+              0.5705238591667963,
+              0.08711636886546653
+            ],
+            "status": "pass",
+            "min_distance_m": 0.0034999999999857923,
+            "native_distance_m": 0.0,
+            "distance_is_lower_bound": true,
+            "distance_method": "support_plane_lower_bound",
+            "separation_plane": {
+              "distance_lower_bound_m": 0.0034999999999857923,
+              "axis_world": [
+                0.0,
+                0.0,
+                1.0
+              ],
+              "first_interval_m": [
+                0.1265,
+                0.15250000000000002
+              ],
+              "second_interval_m": [
+                0.10300000000000001,
+                0.123
+              ],
+              "roundoff_allowance_m": 1.4210854715202004e-14
+            }
+          },
+          {
+            "pair": [
+              "right_hip_yaw_servo_case",
+              "right_hip_roll_servo_case"
+            ],
+            "pose": "simultaneous_random/13",
+            "qpos": [
+              0.0,
+              0.0,
+              0.113,
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              -0.16226852736737776,
+              -0.0407841671214674,
+              0.21738763825749935,
+              -0.23259326782441458,
+              -0.07261936351162085,
+              -0.13394100509782914,
+              -0.07345767570723946,
+              0.35196950751742445,
+              -0.20991926692889917,
+              0.12848937395901122
+            ],
+            "status": "pass",
+            "min_distance_m": 0.0034999999999857923,
+            "native_distance_m": 0.0,
+            "distance_is_lower_bound": true,
+            "distance_method": "support_plane_lower_bound",
+            "separation_plane": {
+              "distance_lower_bound_m": 0.0034999999999857923,
+              "axis_world": [
+                0.0,
+                0.0,
+                1.0
+              ],
+              "first_interval_m": [
+                0.1265,
+                0.15250000000000002
+              ],
+              "second_interval_m": [
+                0.10300000000000001,
+                0.123
+              ],
+              "roundoff_allowance_m": 1.4210854715202004e-14
+            }
+          },
+          {
+            "pair": [
+              "part_battery_reserve",
+              "part_motor_regulator_reserve"
+            ],
+            "pose": "home",
+            "qpos": [
+              0.0,
+              0.0,
+              0.113,
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "status": "pass",
+            "min_distance_m": 0.0035000000000000035,
+            "native_distance_m": 0.0035000000000000035,
+            "distance_is_lower_bound": false,
+            "distance_method": "mujoco"
+          },
+          {
+            "pair": [
+              "left_hip_yaw_servo_case",
+              "part_battery_reserve"
+            ],
+            "pose": "home",
+            "qpos": [
+              0.0,
+              0.0,
+              0.113,
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "status": "pass",
+            "min_distance_m": 0.003500000000000018,
+            "native_distance_m": 0.003500000000000018,
+            "distance_is_lower_bound": false,
+            "distance_method": "mujoco"
+          },
+          {
+            "pair": [
+              "right_hip_yaw_servo_case",
+              "part_battery_reserve"
+            ],
+            "pose": "home",
+            "qpos": [
+              0.0,
+              0.0,
+              0.113,
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "status": "pass",
+            "min_distance_m": 0.003500000000000018,
+            "native_distance_m": 0.003500000000000018,
+            "distance_is_lower_bound": false,
+            "distance_method": "mujoco"
+          },
+          {
+            "pair": [
+              "left_ankle_servo_case",
+              "left_flat_pad_collision"
+            ],
+            "pose": "left_cartesian/203",
+            "qpos": [
+              0.0,
+              0.0,
+              0.113,
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              0.2,
+              0.0,
+              0.0,
+              0.175,
+              0.45,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "status": "pass",
+            "min_distance_m": 0.003838873390733869,
+            "native_distance_m": 0.0,
+            "distance_is_lower_bound": true,
+            "distance_method": "support_plane_lower_bound",
+            "separation_plane": {
+              "distance_lower_bound_m": 0.003838873390733869,
+              "axis_world": [
+                0.5734342819950017,
+                0.11624088366509688,
+                0.8109631195052178
+              ],
+              "first_interval_m": [
+                0.0028364247601412283,
+                0.035634194966976604
+              ],
+              "second_interval_m": [
+                -0.00550244863060686,
+                -0.0010024486306068514
+              ],
+              "roundoff_allowance_m": 1.4210854715202004e-14
+            }
+          },
+          {
+            "pair": [
+              "right_ankle_servo_case",
+              "right_flat_pad_collision"
+            ],
+            "pose": "right_cartesian/41",
+            "qpos": [
+              0.0,
+              0.0,
+              0.113,
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              -0.2,
+              0.0,
+              0.0,
+              0.175,
+              0.45
+            ],
+            "status": "pass",
+            "min_distance_m": 0.003838873390733869,
+            "native_distance_m": 0.0,
+            "distance_is_lower_bound": true,
+            "distance_method": "support_plane_lower_bound",
+            "separation_plane": {
+              "distance_lower_bound_m": 0.003838873390733869,
+              "axis_world": [
+                0.5734342819950017,
+                -0.11624088366509688,
+                0.8109631195052178
+              ],
+              "first_interval_m": [
+                0.0028364247601412283,
+                0.035634194966976604
+              ],
+              "second_interval_m": [
+                -0.00550244863060686,
+                -0.0010024486306068514
+              ],
+              "roundoff_allowance_m": 1.4210854715202004e-14
+            }
+          },
+          {
+            "pair": [
+              "part_computer_reserve",
+              "part_u2d2_reserve"
+            ],
+            "pose": "home",
+            "qpos": [
+              0.0,
+              0.0,
+              0.113,
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "status": "pass",
+            "min_distance_m": 0.003999999999999997,
+            "native_distance_m": 0.003999999999999997,
+            "distance_is_lower_bound": false,
+            "distance_method": "mujoco"
+          }
+        ],
+        "scope": "All 10 exact motor cases, 9 installed electronics reserves, 2 sole boxes; all their pair combinations",
+        "omitted": "Bracket/shaft mounting interfaces, moving cables, future modules and the proposed outer shell"
+      },
+      "standing": [
+        {
+          "status": "pass",
+          "loaded": false,
+          "requested_duration_s": 30,
+          "completed_duration_s": 29.99999999999425,
+          "torque_cap_nm": 0.1,
+          "max_tilt_deg": 0.688345919541685,
+          "max_horizontal_drift_mm": 0.6707059175413108,
+          "min_root_height_mm": 112.57845086936051,
+          "unexpected_ground_contact": [],
+          "max_self_penetration_mm": 0.0,
+          "max_settled_joint_rms_nm": 0.027983708415365575,
+          "no_support_fixtures": true,
+          "scope": "Ideal position servos at 0.10 Nm; open chassis, fixed future mass surrogates; no walking claim"
+        },
+        {
+          "status": "pass",
+          "loaded": true,
+          "requested_duration_s": 30,
+          "completed_duration_s": 29.99999999999425,
+          "torque_cap_nm": 0.1,
+          "max_tilt_deg": 0.45642718431540147,
+          "max_horizontal_drift_mm": 0.35877982738769504,
+          "min_root_height_mm": 112.56676842992277,
+          "unexpected_ground_contact": [],
+          "max_self_penetration_mm": 0.0,
+          "max_settled_joint_rms_nm": 0.023245574251725104,
+          "no_support_fixtures": true,
+          "scope": "Ideal position servos at 0.10 Nm; open chassis, fixed future mass surrogates; no walking claim"
+        }
+      ],
+      "silhouette_dimensions_mm": [
+        182.7373924603724,
+        140.26203939942556,
+        87.50505362038405
+      ],
+      "overall_status": "incomplete",
+      "hardware_ready": false,
+      "reason": "Shell, mounts, moving cables, thermal/electrical qualification and trained locomotion remain open"
+    },
+    {
+      "name": "b_upright_core",
+      "label": "B \u00b7 Upright core",
+      "home": {
+        "loaded_mass_g": 754.1000000000001,
+        "core_mass_g": 639.1000000000001,
+        "head_tail_arms_budget_g": 115,
+        "motor_count": 10,
+        "all_cases_full_size": true,
+        "core_extent_xyz_mm": [
+          158.21542994,
+          151.0,
+          266.57481632
+        ],
+        "core_top_above_floor_mm": 266.57481632,
+        "foot_center_spacing_mm": 96.0,
+        "loaded_com_xyz_mm": [
+          3.0155151835233007,
+          0.29651239890242564,
+          141.38164699389375
+        ],
+        "support_projection_margin_mm": 31.015515183523306,
+        "margin_basis": "Home double-support convex hull only; not a balance controller or single-support margin",
+        "symmetric_flat_feet_crouch_drop_mm": 12.011275557081838,
+        "crouch_basis": "Kinematic endpoint at hip=-0.35, knee=0.70, ankle=-0.35 rad; root would lower by this amount; not a dynamic crouch trial"
+      },
+      "packing": {
+        "status": "pass",
+        "margin_mm": 2,
+        "pose_count": 1050,
+        "pair_count": 210,
+        "evaluations": 162805,
+        "failed_evaluations": 0,
+        "inconclusive_evaluations": 0,
+        "seed": 635648,
+        "static_pairs_checked_once": 55,
+        "closest_pairs": [
+          {
+            "pair": [
+              "part_battery_reserve",
+              "part_logic_regulator_reserve"
+            ],
+            "pose": "home",
+            "qpos": [
+              0.0,
+              0.0,
+              0.113,
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "status": "pass",
+            "min_distance_m": 0.0020000000000000018,
+            "native_distance_m": 0.0020000000000000018,
+            "distance_is_lower_bound": false,
+            "distance_method": "mujoco"
+          },
+          {
+            "pair": [
+              "part_battery_reserve",
+              "part_harness_trunk_reserve"
+            ],
+            "pose": "home",
+            "qpos": [
+              0.0,
+              0.0,
+              0.113,
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "status": "pass",
+            "min_distance_m": 0.002000000000000002,
+            "native_distance_m": 0.002000000000000002,
+            "distance_is_lower_bound": false,
+            "distance_method": "mujoco"
+          },
+          {
+            "pair": [
+              "part_battery_reserve",
+              "part_character_electronics_reserve"
+            ],
+            "pose": "home",
+            "qpos": [
+              0.0,
+              0.0,
+              0.113,
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "status": "pass",
+            "min_distance_m": 0.0030000000000000027,
+            "native_distance_m": 0.0030000000000000027,
+            "distance_is_lower_bound": false,
+            "distance_method": "mujoco"
+          },
+          {
+            "pair": [
+              "left_hip_yaw_servo_case",
+              "left_hip_roll_servo_case"
+            ],
+            "pose": "simultaneous_random/76",
+            "qpos": [
+              0.0,
+              0.0,
+              0.113,
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              0.026691692068538775,
+              -0.04008275370468631,
+              0.34698019974733935,
+              0.31745294802063595,
+              -0.04855161533022678,
+              -0.1308304164397222,
+              0.016375737946347668,
+              -0.06349924322204231,
+              0.5705238591667963,
+              0.08711636886546653
+            ],
+            "status": "pass",
+            "min_distance_m": 0.0034999999999857923,
+            "native_distance_m": 0.0,
+            "distance_is_lower_bound": true,
+            "distance_method": "support_plane_lower_bound",
+            "separation_plane": {
+              "distance_lower_bound_m": 0.0034999999999857923,
+              "axis_world": [
+                0.0,
+                0.0,
+                1.0
+              ],
+              "first_interval_m": [
+                0.1265,
+                0.15250000000000002
+              ],
+              "second_interval_m": [
+                0.10300000000000001,
+                0.123
+              ],
+              "roundoff_allowance_m": 1.4210854715202004e-14
+            }
+          },
+          {
+            "pair": [
+              "right_hip_yaw_servo_case",
+              "right_hip_roll_servo_case"
+            ],
+            "pose": "simultaneous_random/13",
+            "qpos": [
+              0.0,
+              0.0,
+              0.113,
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              -0.16226852736737776,
+              -0.0407841671214674,
+              0.21738763825749935,
+              -0.23259326782441458,
+              -0.07261936351162085,
+              -0.13394100509782914,
+              -0.07345767570723946,
+              0.35196950751742445,
+              -0.20991926692889917,
+              0.12848937395901122
+            ],
+            "status": "pass",
+            "min_distance_m": 0.0034999999999857923,
+            "native_distance_m": 0.0,
+            "distance_is_lower_bound": true,
+            "distance_method": "support_plane_lower_bound",
+            "separation_plane": {
+              "distance_lower_bound_m": 0.0034999999999857923,
+              "axis_world": [
+                0.0,
+                0.0,
+                1.0
+              ],
+              "first_interval_m": [
+                0.1265,
+                0.15250000000000002
+              ],
+              "second_interval_m": [
+                0.10300000000000001,
+                0.123
+              ],
+              "roundoff_allowance_m": 1.4210854715202004e-14
+            }
+          },
+          {
+            "pair": [
+              "part_logic_regulator_reserve",
+              "part_power_distribution_reserve"
+            ],
+            "pose": "home",
+            "qpos": [
+              0.0,
+              0.0,
+              0.113,
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "status": "pass",
+            "min_distance_m": 0.0034999999999999754,
+            "native_distance_m": 0.0034999999999999754,
+            "distance_is_lower_bound": false,
+            "distance_method": "mujoco"
+          },
+          {
+            "pair": [
+              "part_battery_reserve",
+              "part_body_imu_reserve"
+            ],
+            "pose": "home",
+            "qpos": [
+              0.0,
+              0.0,
+              0.113,
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "status": "pass",
+            "min_distance_m": 0.003499999999999999,
+            "native_distance_m": 0.003499999999999999,
+            "distance_is_lower_bound": false,
+            "distance_method": "mujoco"
+          },
+          {
+            "pair": [
+              "part_battery_reserve",
+              "part_u2d2_reserve"
+            ],
+            "pose": "home",
+            "qpos": [
+              0.0,
+              0.0,
+              0.113,
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "status": "pass",
+            "min_distance_m": 0.0035,
+            "native_distance_m": 0.0035,
+            "distance_is_lower_bound": false,
+            "distance_method": "mujoco"
+          },
+          {
+            "pair": [
+              "left_ankle_servo_case",
+              "left_flat_pad_collision"
+            ],
+            "pose": "left_cartesian/203",
+            "qpos": [
+              0.0,
+              0.0,
+              0.113,
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              0.2,
+              0.0,
+              0.0,
+              0.175,
+              0.45,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "status": "pass",
+            "min_distance_m": 0.003838873390733869,
+            "native_distance_m": 0.0,
+            "distance_is_lower_bound": true,
+            "distance_method": "support_plane_lower_bound",
+            "separation_plane": {
+              "distance_lower_bound_m": 0.003838873390733869,
+              "axis_world": [
+                0.5734342819950017,
+                0.11624088366509688,
+                0.8109631195052178
+              ],
+              "first_interval_m": [
+                0.0028364247601412283,
+                0.035634194966976604
+              ],
+              "second_interval_m": [
+                -0.00550244863060686,
+                -0.0010024486306068514
+              ],
+              "roundoff_allowance_m": 1.4210854715202004e-14
+            }
+          },
+          {
+            "pair": [
+              "right_ankle_servo_case",
+              "right_flat_pad_collision"
+            ],
+            "pose": "right_cartesian/41",
+            "qpos": [
+              0.0,
+              0.0,
+              0.113,
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              -0.2,
+              0.0,
+              0.0,
+              0.175,
+              0.45
+            ],
+            "status": "pass",
+            "min_distance_m": 0.003838873390733869,
+            "native_distance_m": 0.0,
+            "distance_is_lower_bound": true,
+            "distance_method": "support_plane_lower_bound",
+            "separation_plane": {
+              "distance_lower_bound_m": 0.003838873390733869,
+              "axis_world": [
+                0.5734342819950017,
+                -0.11624088366509688,
+                0.8109631195052178
+              ],
+              "first_interval_m": [
+                0.0028364247601412283,
+                0.035634194966976604
+              ],
+              "second_interval_m": [
+                -0.00550244863060686,
+                -0.0010024486306068514
+              ],
+              "roundoff_allowance_m": 1.4210854715202004e-14
+            }
+          },
+          {
+            "pair": [
+              "part_computer_reserve",
+              "part_body_imu_reserve"
+            ],
+            "pose": "home",
+            "qpos": [
+              0.0,
+              0.0,
+              0.113,
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "status": "pass",
+            "min_distance_m": 0.004123105625617665,
+            "native_distance_m": 0.004123105625617665,
+            "distance_is_lower_bound": false,
+            "distance_method": "mujoco"
+          },
+          {
+            "pair": [
+              "part_u2d2_reserve",
+              "part_character_electronics_reserve"
+            ],
+            "pose": "home",
+            "qpos": [
+              0.0,
+              0.0,
+              0.113,
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "status": "pass",
+            "min_distance_m": 0.004499999999999976,
+            "native_distance_m": 0.004499999999999976,
+            "distance_is_lower_bound": false,
+            "distance_method": "mujoco"
+          }
+        ],
+        "scope": "All 10 exact motor cases, 9 installed electronics reserves, 2 sole boxes; all their pair combinations",
+        "omitted": "Bracket/shaft mounting interfaces, moving cables, future modules and the proposed outer shell"
+      },
+      "standing": [
+        {
+          "status": "pass",
+          "loaded": false,
+          "requested_duration_s": 30,
+          "completed_duration_s": 29.99999999999425,
+          "torque_cap_nm": 0.1,
+          "max_tilt_deg": 1.343342022239907,
+          "max_horizontal_drift_mm": 1.2369550545433767,
+          "min_root_height_mm": 112.5426321588545,
+          "unexpected_ground_contact": [],
+          "max_self_penetration_mm": 0.0,
+          "max_settled_joint_rms_nm": 0.04092791749402299,
+          "no_support_fixtures": true,
+          "scope": "Ideal position servos at 0.10 Nm; open chassis, fixed future mass surrogates; no walking claim"
+        },
+        {
+          "status": "pass",
+          "loaded": true,
+          "requested_duration_s": 30,
+          "completed_duration_s": 29.99999999999425,
+          "torque_cap_nm": 0.1,
+          "max_tilt_deg": 0.18442320221578157,
+          "max_horizontal_drift_mm": 0.1950519476603902,
+          "min_root_height_mm": 112.54139688588465,
+          "unexpected_ground_contact": [],
+          "max_self_penetration_mm": 0.0,
+          "max_settled_joint_rms_nm": 0.021691305813461723,
+          "no_support_fixtures": true,
+          "scope": "Ideal position servos at 0.10 Nm; open chassis, fixed future mass surrogates; no walking claim"
+        }
+      ],
+      "silhouette_dimensions_mm": [
+        158.2154299430069,
+        128.67390266049554,
+        139.14963264423866
+      ],
+      "overall_status": "incomplete",
+      "hardware_ready": false,
+      "reason": "Shell, mounts, moving cables, thermal/electrical qualification and trained locomotion remain open"
+    },
+    {
+      "name": "c_saddle",
+      "label": "C \u00b7 Low saddle",
+      "home": {
+        "loaded_mass_g": 754.1000000000001,
+        "core_mass_g": 639.1000000000001,
+        "head_tail_arms_budget_g": 115,
+        "motor_count": 10,
+        "all_cases_full_size": true,
+        "core_extent_xyz_mm": [
+          155.2926057,
+          193.0,
+          220.37956573
+        ],
+        "core_top_above_floor_mm": 220.37956573,
+        "foot_center_spacing_mm": 138.0,
+        "loaded_com_xyz_mm": [
+          6.107810635283677,
+          -0.21853865535403838,
+          127.6279008097325
+        ],
+        "support_projection_margin_mm": 34.107810635283684,
+        "margin_basis": "Home double-support convex hull only; not a balance controller or single-support margin",
+        "symmetric_flat_feet_crouch_drop_mm": 12.011275557081838,
+        "crouch_basis": "Kinematic endpoint at hip=-0.35, knee=0.70, ankle=-0.35 rad; root would lower by this amount; not a dynamic crouch trial"
+      },
+      "packing": {
+        "status": "pass",
+        "margin_mm": 2,
+        "pose_count": 1050,
+        "pair_count": 210,
+        "evaluations": 162805,
+        "failed_evaluations": 0,
+        "inconclusive_evaluations": 0,
+        "seed": 635648,
+        "static_pairs_checked_once": 55,
+        "closest_pairs": [
+          {
+            "pair": [
+              "part_battery_reserve",
+              "left_hip_roll_servo_case"
+            ],
+            "pose": "individual/left_hip_yaw/0.00",
+            "qpos": [
+              0.0,
+              0.0,
+              0.113,
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              -0.2,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "status": "pass",
+            "min_distance_m": 0.0027259609136440215,
+            "native_distance_m": 0.0027259609136440215,
+            "distance_is_lower_bound": false,
+            "distance_method": "mujoco"
+          },
+          {
+            "pair": [
+              "part_battery_reserve",
+              "right_hip_roll_servo_case"
+            ],
+            "pose": "individual/right_hip_yaw/1.00",
+            "qpos": [
+              0.0,
+              0.0,
+              0.113,
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.2,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "status": "pass",
+            "min_distance_m": 0.0027259609136440215,
+            "native_distance_m": 0.0027259609136440215,
+            "distance_is_lower_bound": false,
+            "distance_method": "mujoco"
+          },
+          {
+            "pair": [
+              "left_hip_yaw_servo_case",
+              "part_u2d2_reserve"
+            ],
+            "pose": "home",
+            "qpos": [
+              0.0,
+              0.0,
+              0.113,
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "status": "pass",
+            "min_distance_m": 0.002999999999999989,
+            "native_distance_m": 0.002999999999999989,
+            "distance_is_lower_bound": false,
+            "distance_method": "mujoco"
+          },
+          {
+            "pair": [
+              "right_hip_yaw_servo_case",
+              "part_motor_regulator_reserve"
+            ],
+            "pose": "home",
+            "qpos": [
+              0.0,
+              0.0,
+              0.113,
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "status": "pass",
+            "min_distance_m": 0.00299999999999999,
+            "native_distance_m": 0.00299999999999999,
+            "distance_is_lower_bound": false,
+            "distance_method": "mujoco"
+          },
+          {
+            "pair": [
+              "part_computer_reserve",
+              "part_motor_regulator_reserve"
+            ],
+            "pose": "home",
+            "qpos": [
+              0.0,
+              0.0,
+              0.113,
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "status": "pass",
+            "min_distance_m": 0.0029999999999999957,
+            "native_distance_m": 0.0029999999999999957,
+            "distance_is_lower_bound": false,
+            "distance_method": "mujoco"
+          },
+          {
+            "pair": [
+              "left_hip_yaw_servo_case",
+              "left_hip_roll_servo_case"
+            ],
+            "pose": "simultaneous_random/11",
+            "qpos": [
+              0.0,
+              0.0,
+              0.113,
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              0.08407868050877643,
+              0.1018466136598361,
+              0.025180308500228843,
+              0.387399306513168,
+              -0.12864538493890298,
+              0.0654711254215975,
+              0.04210851438721161,
+              0.10105477442512184,
+              0.6523464660608961,
+              0.09667087213626652
+            ],
+            "status": "pass",
+            "min_distance_m": 0.0034999999999857923,
+            "native_distance_m": 0.0,
+            "distance_is_lower_bound": true,
+            "distance_method": "support_plane_lower_bound",
+            "separation_plane": {
+              "distance_lower_bound_m": 0.0034999999999857923,
+              "axis_world": [
+                0.0,
+                0.0,
+                1.0
+              ],
+              "first_interval_m": [
+                0.1265,
+                0.15250000000000002
+              ],
+              "second_interval_m": [
+                0.10300000000000001,
+                0.123
+              ],
+              "roundoff_allowance_m": 1.4210854715202004e-14
+            }
+          },
+          {
+            "pair": [
+              "right_hip_yaw_servo_case",
+              "right_hip_roll_servo_case"
+            ],
+            "pose": "simultaneous_random/1",
+            "qpos": [
+              0.0,
+              0.0,
+              0.113,
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              0.03917430048273926,
+              -0.1499965110852371,
+              -0.2503150587624595,
+              0.2920538441349928,
+              0.13832087379260166,
+              -0.1551638033200345,
+              -0.18237607239842601,
+              0.3288436581166498,
+              0.5796085763126972,
+              -0.2504175470366411
+            ],
+            "status": "pass",
+            "min_distance_m": 0.0034999999999857923,
+            "native_distance_m": 0.0,
+            "distance_is_lower_bound": true,
+            "distance_method": "support_plane_lower_bound",
+            "separation_plane": {
+              "distance_lower_bound_m": 0.0034999999999857923,
+              "axis_world": [
+                0.0,
+                0.0,
+                1.0
+              ],
+              "first_interval_m": [
+                0.1265,
+                0.15250000000000002
+              ],
+              "second_interval_m": [
+                0.10300000000000001,
+                0.123
+              ],
+              "roundoff_allowance_m": 1.4210854715202004e-14
+            }
+          },
+          {
+            "pair": [
+              "part_character_electronics_reserve",
+              "part_harness_trunk_reserve"
+            ],
+            "pose": "home",
+            "qpos": [
+              0.0,
+              0.0,
+              0.113,
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "status": "pass",
+            "min_distance_m": 0.0034999999999999754,
+            "native_distance_m": 0.0034999999999999754,
+            "distance_is_lower_bound": false,
+            "distance_method": "mujoco"
+          },
+          {
+            "pair": [
+              "left_ankle_servo_case",
+              "left_flat_pad_collision"
+            ],
+            "pose": "left_cartesian/41",
+            "qpos": [
+              0.0,
+              0.0,
+              0.113,
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              -0.2,
+              0.0,
+              0.0,
+              0.175,
+              0.45,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "status": "pass",
+            "min_distance_m": 0.003838873390733871,
+            "native_distance_m": 0.0,
+            "distance_is_lower_bound": true,
+            "distance_method": "support_plane_lower_bound",
+            "separation_plane": {
+              "distance_lower_bound_m": 0.003838873390733871,
+              "axis_world": [
+                -0.5734342819950017,
+                0.11624088366509684,
+                -0.8109631195052179
+              ],
+              "first_interval_m": [
+                -0.029008464598066087,
+                0.00378930560876929
+              ],
+              "second_interval_m": [
+                0.007628178999517372,
+                0.012128178999517378
+              ],
+              "roundoff_allowance_m": 1.4210854715202004e-14
+            }
+          },
+          {
+            "pair": [
+              "right_ankle_servo_case",
+              "right_flat_pad_collision"
+            ],
+            "pose": "right_cartesian/41",
+            "qpos": [
+              0.0,
+              0.0,
+              0.113,
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              -0.2,
+              0.0,
+              0.0,
+              0.175,
+              0.45
+            ],
+            "status": "pass",
+            "min_distance_m": 0.003838873390733871,
+            "native_distance_m": 0.0,
+            "distance_is_lower_bound": true,
+            "distance_method": "support_plane_lower_bound",
+            "separation_plane": {
+              "distance_lower_bound_m": 0.003838873390733871,
+              "axis_world": [
+                0.5734342819950017,
+                -0.11624088366509684,
+                0.8109631195052179
+              ],
+              "first_interval_m": [
+                0.005277483317108259,
+                0.03807525352394364
+              ],
+              "second_interval_m": [
+                -0.0030613900736398284,
+                0.0014386099263601774
+              ],
+              "roundoff_allowance_m": 1.4210854715202004e-14
+            }
+          },
+          {
+            "pair": [
+              "left_hip_yaw_servo_case",
+              "part_computer_reserve"
+            ],
+            "pose": "home",
+            "qpos": [
+              0.0,
+              0.0,
+              0.113,
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "status": "pass",
+            "min_distance_m": 0.003999999999999997,
+            "native_distance_m": 0.003999999999999997,
+            "distance_is_lower_bound": false,
+            "distance_method": "mujoco"
+          },
+          {
+            "pair": [
+              "right_hip_yaw_servo_case",
+              "part_computer_reserve"
+            ],
+            "pose": "home",
+            "qpos": [
+              0.0,
+              0.0,
+              0.113,
+              1.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "status": "pass",
+            "min_distance_m": 0.003999999999999997,
+            "native_distance_m": 0.003999999999999997,
+            "distance_is_lower_bound": false,
+            "distance_method": "mujoco"
+          }
+        ],
+        "scope": "All 10 exact motor cases, 9 installed electronics reserves, 2 sole boxes; all their pair combinations",
+        "omitted": "Bracket/shaft mounting interfaces, moving cables, future modules and the proposed outer shell"
+      },
+      "standing": [
+        {
+          "status": "fail",
+          "loaded": false,
+          "requested_duration_s": 30,
+          "completed_duration_s": 29.99999999999425,
+          "torque_cap_nm": 0.1,
+          "max_tilt_deg": 1.2928302254587671,
+          "max_horizontal_drift_mm": 68.40597329143124,
+          "min_root_height_mm": 112.4040084066709,
+          "unexpected_ground_contact": [],
+          "max_self_penetration_mm": 0.0,
+          "max_settled_joint_rms_nm": 0.047821315096496606,
+          "no_support_fixtures": true,
+          "scope": "Ideal position servos at 0.10 Nm; open chassis, fixed future mass surrogates; no walking claim"
+        },
+        {
+          "status": "pass",
+          "loaded": true,
+          "requested_duration_s": 30,
+          "completed_duration_s": 29.99999999999425,
+          "torque_cap_nm": 0.1,
+          "max_tilt_deg": 0.45080423822358223,
+          "max_horizontal_drift_mm": 0.3405646964411834,
+          "min_root_height_mm": 112.5619497556701,
+          "unexpected_ground_contact": [],
+          "max_self_penetration_mm": 0.0,
+          "max_settled_joint_rms_nm": 0.022971454026730512,
+          "no_support_fixtures": true,
+          "scope": "Ideal position servos at 0.10 Nm; open chassis, fixed future mass surrogates; no walking claim"
+        }
+      ],
+      "silhouette_dimensions_mm": [
+        155.29260569510154,
+        145.40865581758263,
+        136.55084539846303
+      ],
+      "overall_status": "fail",
+      "hardware_ready": false,
+      "reason": "Shell, mounts, moving cables, thermal/electrical qualification and trained locomotion remain open"
+    }
+  ],
+  "sources": {
+    "examples/mini_tyrannosaurus_rex/layout_study/build.py": "bb587ebc860bb88712e0b2802057f1b881294545c27a2d2a2f9af1a16bd39a11",
+    "examples/mini_tyrannosaurus_rex/layout_study/validate.py": "8b4c3ad9c5f9f2e48c5c527c45697a48006c49c25d19cc8508f3e90f1d0c1522",
+    "examples/mini_tyrannosaurus_rex/layout_study/render.py": "d24f20247d21c34e52548589781ce9e64302ceeea42306f409837e6bd086ef45",
+    "examples/mini_tyrannosaurus_rex/model.xml": "50af049aee204de8d89a0c11dbd365a8175cc1ada98384e9d9bf3dc5316dfe7d",
+    "environments/shared/robot_building.py": "ad68f4f6bba8a37deff67bd42a3e6b1a095cdad63b897deaa11e0f9f81ba6a98",
+    "environments/shared/robot_clearance.py": "b4356d5bee7d54054c3c913cdc082060d84d1ccc36b86a34060a9e803dab980f",
+    "environments/shared/robot_rendering.py": "29d440e57dab2c6b2d3592ce99febde53c747a9b88ee393f599ed3561c5c1fff",
+    "examples/mini_tyrannosaurus_rex/layout_study/a_low_spine/model.xml": "a43b2623712e0ec80f1c1769ba97d4d5c17944634cf3b6603caac165865c52f2",
+    "examples/mini_tyrannosaurus_rex/layout_study/a_low_spine/layout.json": "f74181db6c097e617c2502f83972054e9b1a96679b67c9251f286ca26785c3b8",
+    "examples/mini_tyrannosaurus_rex/layout_study/b_upright_core/model.xml": "8f096119b15068bdda6978d0ce1581a67207eedc37be2587b89fb784c5ad8c2d",
+    "examples/mini_tyrannosaurus_rex/layout_study/b_upright_core/layout.json": "fc4be2dd6f3294eb6bdb87a44ea16152f863372956d65d943801cf275ef14cad",
+    "examples/mini_tyrannosaurus_rex/layout_study/c_saddle/model.xml": "1913818a9b96fff38747fedda9681e3d33c3928b2d5cc3ebb54d1378603f4127",
+    "examples/mini_tyrannosaurus_rex/layout_study/c_saddle/layout.json": "d47d46a956ff9eff8ff042be961bde3f99987c8f184a59bcf1b21e547e27387f"
+  }
+}

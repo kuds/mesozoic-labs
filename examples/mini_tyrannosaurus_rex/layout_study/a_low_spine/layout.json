@@ -1,0 +1,465 @@
+{
+  "name": "a_low_spine",
+  "label": "A \u00b7 Low spine",
+  "intent": "Lengthwise battery and computer; low oval torso; best initial dinosaur silhouette",
+  "source_reference": "28a6bcd52c07d8381e18e5947bdb40afbb7151a7",
+  "parts": [
+    {
+      "name": "computer",
+      "pos_mm": [
+        -10,
+        0,
+        87
+      ],
+      "raw_mm": [
+        65,
+        30,
+        8
+      ],
+      "installed_mm": [
+        85,
+        50,
+        22
+      ],
+      "mass_g": 35,
+      "source": "https://docs.radxa.com/en/zero/zero3",
+      "basis": "65x30 PCB; 8 mm thickness and installed mass are allowances"
+    },
+    {
+      "name": "battery",
+      "pos_mm": [
+        -10,
+        0,
+        58
+      ],
+      "raw_mm": [
+        70,
+        35,
+        22
+      ],
+      "installed_mm": [
+        80,
+        43,
+        30
+      ],
+      "mass_g": 70,
+      "source": "../juvenile/hardware.py",
+      "basis": "Unselected pack: maximum procurement envelope, not a verified battery SKU"
+    },
+    {
+      "name": "u2d2",
+      "pos_mm": [
+        -10,
+        39,
+        65
+      ],
+      "raw_mm": [
+        48,
+        14.9,
+        18
+      ],
+      "installed_mm": [
+        60,
+        20,
+        25
+      ],
+      "mass_g": 9,
+      "source": "https://docs.robotis.com/docs/parts/interface/u2d2/",
+      "basis": "Body dimensions; connector reserve provisional"
+    },
+    {
+      "name": "motor_regulator",
+      "pos_mm": [
+        -10,
+        -40,
+        60
+      ],
+      "raw_mm": [
+        40.64,
+        20.32,
+        7.62
+      ],
+      "installed_mm": [
+        50,
+        30,
+        15
+      ],
+      "mass_g": 4.8,
+      "source": "https://www.pololu.com/product/2866/specs",
+      "basis": "D24V90F5 without terminals; heat rejection unqualified"
+    },
+    {
+      "name": "logic_regulator",
+      "pos_mm": [
+        13,
+        -40,
+        85
+      ],
+      "raw_mm": [
+        17.78,
+        17.78,
+        7.874
+      ],
+      "installed_mm": [
+        25,
+        25,
+        12
+      ],
+      "mass_g": 2.3,
+      "source": "https://www.pololu.com/product/2858/specs",
+      "basis": "D24V22F5 without headers"
+    },
+    {
+      "name": "power_distribution",
+      "pos_mm": [
+        -65,
+        0,
+        64
+      ],
+      "raw_mm": [
+        10,
+        20,
+        30
+      ],
+      "installed_mm": [
+        15,
+        25,
+        35
+      ],
+      "mass_g": 28,
+      "source": "../juvenile/hardware.py",
+      "basis": "Unselected protection and distribution assembly; procurement allowance"
+    },
+    {
+      "name": "body_imu",
+      "pos_mm": [
+        -19,
+        -40,
+        84
+      ],
+      "raw_mm": [
+        25.4,
+        17.78,
+        4.5
+      ],
+      "installed_mm": [
+        30,
+        25,
+        8
+      ],
+      "mass_g": 3,
+      "source": "https://github.com/adafruit/Adafruit-LSM6DSOX-PCB",
+      "basis": "ISM330DHCX board; thickness and plugs assumed"
+    },
+    {
+      "name": "character_electronics",
+      "pos_mm": [
+        45,
+        0,
+        87
+      ],
+      "raw_mm": [
+        10,
+        20,
+        15
+      ],
+      "installed_mm": [
+        15,
+        25,
+        20
+      ],
+      "mass_g": 10,
+      "source": "../juvenile/hardware.py",
+      "basis": "Unselected audio/LED/button allowance"
+    },
+    {
+      "name": "harness_trunk",
+      "pos_mm": [
+        50,
+        0,
+        62
+      ],
+      "raw_mm": [
+        6,
+        32,
+        20
+      ],
+      "installed_mm": [
+        10,
+        39,
+        25
+      ],
+      "mass_g": 35,
+      "source": "../juvenile/hardware.py",
+      "basis": "Whole-robot wire mass at a reserved gathering bay; not complete moving cable routes"
+    }
+  ],
+  "torso_mass_components": [
+    {
+      "name": "computer",
+      "mass_kg": 0.035,
+      "pos_m": [
+        -0.01,
+        0.0,
+        0.087
+      ],
+      "inertia_box_halfsize_m": [
+        0.0425,
+        0.025,
+        0.011
+      ]
+    },
+    {
+      "name": "battery",
+      "mass_kg": 0.07,
+      "pos_m": [
+        -0.01,
+        0.0,
+        0.058
+      ],
+      "inertia_box_halfsize_m": [
+        0.04,
+        0.0215,
+        0.015
+      ]
+    },
+    {
+      "name": "u2d2",
+      "mass_kg": 0.009,
+      "pos_m": [
+        -0.01,
+        0.039,
+        0.065
+      ],
+      "inertia_box_halfsize_m": [
+        0.03,
+        0.01,
+        0.0125
+      ]
+    },
+    {
+      "name": "motor_regulator",
+      "mass_kg": 0.0048,
+      "pos_m": [
+        -0.01,
+        -0.04,
+        0.06
+      ],
+      "inertia_box_halfsize_m": [
+        0.025,
+        0.015,
+        0.0075
+      ]
+    },
+    {
+      "name": "logic_regulator",
+      "mass_kg": 0.0023,
+      "pos_m": [
+        0.013,
+        -0.04,
+        0.085
+      ],
+      "inertia_box_halfsize_m": [
+        0.0125,
+        0.0125,
+        0.006
+      ]
+    },
+    {
+      "name": "power_distribution",
+      "mass_kg": 0.028,
+      "pos_m": [
+        -0.065,
+        0.0,
+        0.064
+      ],
+      "inertia_box_halfsize_m": [
+        0.0075,
+        0.0125,
+        0.0175
+      ]
+    },
+    {
+      "name": "body_imu",
+      "mass_kg": 0.003,
+      "pos_m": [
+        -0.019,
+        -0.04,
+        0.084
+      ],
+      "inertia_box_halfsize_m": [
+        0.015,
+        0.0125,
+        0.004
+      ]
+    },
+    {
+      "name": "character_electronics",
+      "mass_kg": 0.01,
+      "pos_m": [
+        0.045,
+        0.0,
+        0.087
+      ],
+      "inertia_box_halfsize_m": [
+        0.0075,
+        0.0125,
+        0.01
+      ]
+    },
+    {
+      "name": "harness_trunk",
+      "mass_kg": 0.035,
+      "pos_m": [
+        0.05,
+        0.0,
+        0.062
+      ],
+      "inertia_box_halfsize_m": [
+        0.005,
+        0.0195,
+        0.0125
+      ]
+    },
+    {
+      "name": "left_hip_yaw_motor",
+      "mass_kg": 0.018,
+      "pos_m": [
+        -0.0075,
+        0.018,
+        0.0265
+      ],
+      "inertia_box_halfsize_m": [
+        0.017,
+        0.01,
+        0.013
+      ]
+    },
+    {
+      "name": "right_hip_yaw_motor",
+      "mass_kg": 0.018,
+      "pos_m": [
+        -0.0075,
+        -0.018,
+        0.0265
+      ],
+      "inertia_box_halfsize_m": [
+        0.017,
+        0.01,
+        0.013
+      ]
+    },
+    {
+      "name": "torso_frame_fasteners",
+      "mass_kg": 0.08,
+      "pos_m": [
+        0.0,
+        0.0,
+        0.035
+      ],
+      "inertia_box_halfsize_m": [
+        0.045,
+        0.0425,
+        0.025
+      ]
+    },
+    {
+      "name": "integration_reserve",
+      "mass_kg": 0.04,
+      "pos_m": [
+        0.0,
+        0.0,
+        0.035
+      ],
+      "inertia_box_halfsize_m": [
+        0.045,
+        0.0425,
+        0.025
+      ]
+    },
+    {
+      "name": "future_torso_skin",
+      "mass_kg": 0.03,
+      "pos_m": [
+        0.0,
+        0.0,
+        0.06
+      ],
+      "inertia_box_halfsize_m": [
+        0.05,
+        0.045,
+        0.0325
+      ]
+    }
+  ],
+  "future_payloads": [
+    [
+      "future_head_and_neck",
+      90,
+      [
+        65,
+        0,
+        105
+      ],
+      [
+        45,
+        32,
+        30
+      ]
+    ],
+    [
+      "future_fixed_tail",
+      15,
+      [
+        -105,
+        0,
+        55
+      ],
+      [
+        65,
+        10,
+        10
+      ]
+    ],
+    [
+      "future_fixed_arms",
+      10,
+      [
+        35,
+        0,
+        55
+      ],
+      [
+        10,
+        45,
+        10
+      ]
+    ]
+  ],
+  "future_head_budget_g": {
+    "two_full_XL330_motors_g": 36,
+    "camera_and_mount_g": 8,
+    "head_imu_g": 3,
+    "neck_frame_shell_fasteners_and_cable_g": 43
+  },
+  "hip_yaw_half_spacing_mm": 18,
+  "foot_allocation_g": 25,
+  "common_ankle_pedestal_extension_mm": 3,
+  "silhouette_center_mm": [
+    -9.38747470552648,
+    -2.9339325157999,
+    71.42434458872955
+  ],
+  "silhouette_radii_mm": [
+    91.3686962301862,
+    70.13101969971278,
+    43.75252681019202
+  ],
+  "silhouette_dimensions_mm": [
+    182.7373924603724,
+    140.26203939942556,
+    87.50505362038405
+  ],
+  "scope": "Open-chassis packing study; rounded shape is a visual envelope, not shell CAD",
+  "omitted": "Detailed mounting plates, horn/idler loads, moving cables, cooling, extraction paths and actual future head/tail geometry"
+}
