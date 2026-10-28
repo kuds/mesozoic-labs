@@ -1,0 +1,285 @@
+<mujoco model="tyrannosaurus_rex_60cm_skeleton_concept_r01">
+  <!--Generated concept: unweighed component inertias, ideal torque-bounded drives; not hardware CAD.-->
+  <compiler angle="radian" autolimits="true" inertiafromgeom="false" meshdir="assets" />
+  <option timestep="0.002" integrator="implicitfast" gravity="0 0 -9.81" cone="elliptic" iterations="100" tolerance="1e-9" />
+  <statistic center="-0.07 0 0.3" extent="1.25" />
+  <visual>
+    <global offwidth="1600" offheight="1200" />
+    <quality shadowsize="4096" />
+    <headlight ambient="0.4 0.4 0.4" diffuse="0.6 0.6 0.6" />
+  </visual>
+  <default>
+    <geom contype="0" conaffinity="0" group="1" />
+    <joint limited="true" damping="0.1" frictionloss="0.2" armature="0.002" />
+    <default class="collision">
+      <geom contype="1" conaffinity="1" group="3" rgba="0.9 0.25 0.1 0.2" condim="4" friction="0.9 0.005 0.0001" solref="0.008 1" />
+    </default>
+  </default>
+  <asset>
+    <material name="frame" rgba="0.23 0.29 0.27 1" specular="0.35" shininess="0.45" />
+    <material name="metal" rgba="0.52 0.58 0.57 1" specular="0.35" shininess="0.45" />
+    <material name="motor" rgba="0.055 0.075 0.075 1" specular="0.35" shininess="0.45" />
+    <material name="rim" rgba="0.32 0.39 0.36 1" specular="0.35" shininess="0.45" />
+    <material name="pcb" rgba="0.055 0.3 0.18 1" specular="0.35" shininess="0.45" />
+    <material name="compute" rgba="0.14 0.27 0.32 1" specular="0.35" shininess="0.45" />
+    <material name="battery" rgba="0.57 0.28 0.07 1" specular="0.35" shininess="0.45" />
+    <material name="rubber" rgba="0.035 0.043 0.039 1" specular="0.35" shininess="0.45" />
+    <material name="outline" rgba="0.5 0.65 0.45 1" specular="0.35" shininess="0.45" />
+    <material name="reserve" rgba="0.25 0.53 0.72 0.2" specular="0.35" shininess="0.45" />
+  </asset>
+  <worldbody>
+    <light pos="1 -1 2" dir="-1 1 -2" diffuse="0.8 0.8 0.75" />
+    <light pos="-1 1 1.2" dir="1 -1 -1.2" diffuse="0.4 0.4 0.4" castshadow="false" />
+    <geom name="floor" type="plane" size="3 3 0.02" rgba="0.88 0.89 0.84 1" group="0" contype="1" conaffinity="1" friction="0.9 0.005 0.0001" condim="4" />
+    <camera name="side" pos="0 -2 0.45" xyaxes="0.9995503035 0.02998650911 0 -0.002241686572 0.07472288573 0.9972018177" fovy="34" />
+    <camera name="isometric" pos="1.1 -1.8 0.9" xyaxes="0.8405710351 0.5417013337 0 -0.1461509563 0.2267859667 0.9629164155" fovy="34" />
+    <body name="pelvis" pos="0 0 0.36">
+      <inertial pos="-0.01122828784 0 0.0749751861" mass="4.03" fullinertia="0.01720734085 0.1178667608 0.1115502533 0 -0.01738337717 0" />
+      <freejoint name="root" />
+      <geom name="left_hip_yaw_case" type="cylinder" size="0.03 0.032" pos="0 0.045 0.09" material="motor" euler="0 0 0" group="2" contype="1" conaffinity="1" friction="0.7 0.005 0.0001" />
+      <geom name="left_hip_yaw_cable_reserve" type="box" size="0.009 0.012 0.009" pos="-0.044 0.045 0.09" material="reserve" group="5" />
+      <geom name="left_hip_yaw_face_-1" type="cylinder" size="0.022 0.0005" pos="0 0.045 0.0575" material="rim" euler="0 0 0" group="2" />
+      <geom name="left_hip_yaw_face_1" type="cylinder" size="0.022 0.0005" pos="0 0.045 0.1225" material="rim" euler="0 0 0" group="2" />
+      <body name="left_yaw" pos="0 0.045 0.09">
+        <inertial pos="-0.02739130435 0.03108695652 -0.08347826087" mass="0.46" fullinertia="0.000415957971 0.0005105176812 0.0004029394203 4.930434783e-05 -8.217391304e-05 4.226086957e-05" />
+        <joint name="left_hip_yaw" axis="0 0 1" range="-0.25 0.25" damping="0.1" frictionloss="0.2" armature="0.002" />
+        <geom name="left_hip_roll_case" type="cylinder" size="0.03 0.032" pos="-0.035 0.035 -0.09" material="motor" euler="0 1.570796327 0" group="2" contype="1" conaffinity="1" friction="0.7 0.005 0.0001" />
+        <geom name="left_hip_roll_cable_reserve" type="box" size="0.009 0.012 0.009" pos="-0.035 0.035 -0.134" material="reserve" group="5" />
+        <geom name="left_hip_roll_face_-1" type="cylinder" size="0.022 0.0005" pos="-0.0675 0.035 -0.09" material="rim" euler="0 1.570796327 0" group="2" />
+        <geom name="left_hip_roll_face_1" type="cylinder" size="0.022 0.0005" pos="-0.0025 0.035 -0.09" material="rim" euler="0 1.570796327 0" group="2" />
+        <body name="left_roll" pos="0 0.035 -0.09">
+          <inertial pos="0.03223255814 0.003255813953 0" mass="0.43" fullinertia="0.0002834885271 0.0002685200775 0.000306841938 1.99255814e-05 0 0" />
+          <joint name="left_hip_roll" axis="1 0 0" range="-0.25 0.25" damping="0.1" frictionloss="0.2" armature="0.002" />
+          <geom name="left_hip_pitch_case" type="cylinder" size="0.03 0.032" pos="0.035 0 0" material="motor" euler="1.570796327 0 0" group="2" contype="1" conaffinity="1" friction="0.7 0.005 0.0001" />
+          <geom name="left_hip_pitch_cable_reserve" type="box" size="0.009 0.012 0.009" pos="0.079 0 0" material="reserve" group="5" />
+          <geom name="left_hip_pitch_face_-1" type="cylinder" size="0.022 0.0005" pos="0.035 -0.0325 0" material="rim" euler="1.570796327 0 0" group="2" />
+          <geom name="left_hip_pitch_face_1" type="cylinder" size="0.022 0.0005" pos="0.035 0.0325 0" material="rim" euler="1.570796327 0 0" group="2" />
+          <body name="left_thigh" pos="0.035 0.032 0">
+            <inertial pos="0.05076923077 0.02215384615 -0.1184615385" mass="0.52" fullinertia="0.00124974359 0.001285128205 0.0005506666667 -0.0001063384615 0.0002326153846 0.0002481230769" />
+            <joint name="left_hip_pitch" axis="0 1 0" range="-0.6 0.45" damping="0.1" frictionloss="0.2" armature="0.002" />
+            <geom name="left_knee_case" type="cylinder" size="0.03 0.032" pos="0.06 0.032 -0.14" material="motor" euler="1.570796327 0 0" group="2" contype="1" conaffinity="1" friction="0.7 0.005 0.0001" />
+            <geom name="left_knee_cable_reserve" type="box" size="0.009 0.012 0.009" pos="0.016 0.032 -0.14" material="reserve" group="5" />
+            <geom name="left_knee_face_-1" type="cylinder" size="0.022 0.0005" pos="0.06 -0.0005 -0.14" material="rim" euler="1.570796327 0 0" group="2" />
+            <geom name="left_knee_face_1" type="cylinder" size="0.022 0.0005" pos="0.06 0.0645 -0.14" material="rim" euler="1.570796327 0 0" group="2" />
+            <body name="left_shin" pos="0.06 0 -0.14">
+              <inertial pos="-0.04963636364 0.02094545455 -0.1158181818" mass="0.55" fullinertia="0.001368276848 0.001393975758 0.000566822303 0.0001193890909 -0.0002611636364 0.0002785745455" />
+              <joint name="left_knee" axis="0 1 0" range="-0.25 0.9" damping="0.1" frictionloss="0.2" armature="0.002" />
+              <geom name="left_ankle_pitch_case" type="cylinder" size="0.03 0.032" pos="-0.06 0.032 -0.14" material="motor" euler="1.570796327 0 0" group="2" contype="1" conaffinity="1" friction="0.7 0.005 0.0001" />
+              <geom name="left_ankle_pitch_cable_reserve" type="box" size="0.009 0.012 0.009" pos="-0.06 0.032 -0.096" material="reserve" group="5" />
+              <geom name="left_ankle_pitch_face_-1" type="cylinder" size="0.022 0.0005" pos="-0.06 -0.0005 -0.14" material="rim" euler="1.570796327 0 0" group="2" />
+              <geom name="left_ankle_pitch_face_1" type="cylinder" size="0.022 0.0005" pos="-0.06 0.0645 -0.14" material="rim" euler="1.570796327 0 0" group="2" />
+              <body name="left_ankle" pos="-0.06 0 -0.14">
+                <inertial pos="-0.06262790698 0 -0.02" mass="0.43" fullinertia="0.0002451666667 0.0003466171318 0.0003466171318 0 0 0" />
+                <joint name="left_ankle_pitch" axis="0 1 0" range="-0.6 0.5" damping="0.1" frictionloss="0.2" armature="0.002" />
+                <geom name="left_ankle_roll_case" type="cylinder" size="0.03 0.032" pos="-0.068 0 -0.02" material="motor" euler="0 1.570796327 0" group="2" contype="1" conaffinity="1" friction="0.7 0.005 0.0001" />
+                <geom name="left_ankle_roll_cable_reserve" type="box" size="0.009 0.012 0.009" pos="-0.068 0 0.024" material="reserve" group="5" />
+                <geom name="left_ankle_roll_face_-1" type="cylinder" size="0.022 0.0005" pos="-0.1005 0 -0.02" material="rim" euler="0 1.570796327 0" group="2" />
+                <geom name="left_ankle_roll_face_1" type="cylinder" size="0.022 0.0005" pos="-0.0355 0 -0.02" material="rim" euler="0 1.570796327 0" group="2" />
+                <body name="left_foot" pos="-0.036 0 -0.02">
+                  <inertial pos="0.025 0 -0.0455" mass="0.2" fullinertia="0.0001362166667 0.0004220566667 0.00053016 0 0 0" />
+                  <joint name="left_ankle_roll" axis="1 0 0" range="-0.25 0.25" damping="0.1" frictionloss="0.2" armature="0.002" />
+                  <geom name="left_metatarsal_-0.025" type="capsule" fromto="0 -0.025 0 0.025 -0.025 -0.044" size="0.006" material="frame" group="2" />
+                  <geom name="left_metatarsal_0.025" type="capsule" fromto="0 0.025 0 0.025 0.025 -0.044" size="0.006" material="frame" group="2" />
+                  <geom name="left_sole" type="box" size="0.08 0.044 0.006" pos="0.025 0 -0.054" material="rubber" group="2" contype="1" conaffinity="1" condim="4" friction="0.8 0.005 0.0001" solref="0.008 1" />
+                  <geom name="left_plate" type="box" size="0.073 0.038 0.002" pos="0.025 0 -0.046" material="metal" group="2" />
+                  <geom name="left_toe_0" type="capsule" fromto="0.025 -0.027 -0.039 0.096 -0.027 -0.039" size="0.005" material="metal" group="2" />
+                  <geom name="left_toe_1" type="capsule" fromto="0.025 0 -0.039 0.096 0 -0.039" size="0.005" material="metal" group="2" />
+                  <geom name="left_toe_2" type="capsule" fromto="0.025 0.027 -0.039 0.096 0.027 -0.039" size="0.005" material="metal" group="2" />
+                  <site name="left_sole_center" pos="0.025 0 -0.06" size="0.002" rgba="0 0 0 0" />
+                  <site name="left_touch" type="box" pos="0.025 0 -0.054" size="0.081 0.045 0.007" rgba="0 0 0 0" group="3" />
+                </body>
+                <geom name="left_ankle_yoke" type="capsule" fromto="0 0 0 -0.036 0 -0.02" size="0.007" material="frame" group="2" />
+              </body>
+              <geom name="left_shin_rail_0" type="capsule" fromto="0 -0.006 0 -0.06 -0.006 -0.14" size="0.005" material="frame" group="2" />
+              <geom name="left_shin_rail_1" type="capsule" fromto="0 -0.02 0 -0.06 -0.02 -0.14" size="0.005" material="frame" group="2" />
+            </body>
+            <geom name="left_thigh_rail_0" type="capsule" fromto="0 -0.006 0 0.06 -0.006 -0.14" size="0.005" material="frame" group="2" />
+            <geom name="left_thigh_rail_1" type="capsule" fromto="0 -0.02 0 0.06 -0.02 -0.14" size="0.005" material="frame" group="2" />
+          </body>
+          <geom name="left_pitch_yoke" type="capsule" fromto="0 0 0 0.035 0.032 0" size="0.008" material="frame" group="2" />
+        </body>
+        <geom name="left_hip_yoke" type="capsule" fromto="0 0 -0.032 0 0.035 -0.09" size="0.008" material="frame" group="2" />
+      </body>
+      <geom name="right_hip_yaw_case" type="cylinder" size="0.03 0.032" pos="0 -0.045 0.09" material="motor" euler="0 0 0" group="2" contype="1" conaffinity="1" friction="0.7 0.005 0.0001" />
+      <geom name="right_hip_yaw_cable_reserve" type="box" size="0.009 0.012 0.009" pos="-0.044 -0.045 0.09" material="reserve" group="5" />
+      <geom name="right_hip_yaw_face_-1" type="cylinder" size="0.022 0.0005" pos="0 -0.045 0.0575" material="rim" euler="0 0 0" group="2" />
+      <geom name="right_hip_yaw_face_1" type="cylinder" size="0.022 0.0005" pos="0 -0.045 0.1225" material="rim" euler="0 0 0" group="2" />
+      <body name="right_yaw" pos="0 -0.045 0.09">
+        <inertial pos="-0.02739130435 -0.03108695652 -0.08347826087" mass="0.46" fullinertia="0.000415957971 0.0005105176812 0.0004029394203 -4.930434783e-05 -8.217391304e-05 -4.226086957e-05" />
+        <joint name="right_hip_yaw" axis="0 0 1" range="-0.25 0.25" damping="0.1" frictionloss="0.2" armature="0.002" />
+        <geom name="right_hip_roll_case" type="cylinder" size="0.03 0.032" pos="-0.035 -0.035 -0.09" material="motor" euler="0 1.570796327 0" group="2" contype="1" conaffinity="1" friction="0.7 0.005 0.0001" />
+        <geom name="right_hip_roll_cable_reserve" type="box" size="0.009 0.012 0.009" pos="-0.035 -0.035 -0.134" material="reserve" group="5" />
+        <geom name="right_hip_roll_face_-1" type="cylinder" size="0.022 0.0005" pos="-0.0675 -0.035 -0.09" material="rim" euler="0 1.570796327 0" group="2" />
+        <geom name="right_hip_roll_face_1" type="cylinder" size="0.022 0.0005" pos="-0.0025 -0.035 -0.09" material="rim" euler="0 1.570796327 0" group="2" />
+        <body name="right_roll" pos="0 -0.035 -0.09">
+          <inertial pos="0.03223255814 -0.003255813953 0" mass="0.43" fullinertia="0.0002834885271 0.0002685200775 0.000306841938 -1.99255814e-05 0 0" />
+          <joint name="right_hip_roll" axis="1 0 0" range="-0.25 0.25" damping="0.1" frictionloss="0.2" armature="0.002" />
+          <geom name="right_hip_pitch_case" type="cylinder" size="0.03 0.032" pos="0.035 0 0" material="motor" euler="1.570796327 0 0" group="2" contype="1" conaffinity="1" friction="0.7 0.005 0.0001" />
+          <geom name="right_hip_pitch_cable_reserve" type="box" size="0.009 0.012 0.009" pos="0.079 0 0" material="reserve" group="5" />
+          <geom name="right_hip_pitch_face_-1" type="cylinder" size="0.022 0.0005" pos="0.035 -0.0325 0" material="rim" euler="1.570796327 0 0" group="2" />
+          <geom name="right_hip_pitch_face_1" type="cylinder" size="0.022 0.0005" pos="0.035 0.0325 0" material="rim" euler="1.570796327 0 0" group="2" />
+          <body name="right_thigh" pos="0.035 -0.032 0">
+            <inertial pos="0.05076923077 -0.02215384615 -0.1184615385" mass="0.52" fullinertia="0.00124974359 0.001285128205 0.0005506666667 0.0001063384615 0.0002326153846 -0.0002481230769" />
+            <joint name="right_hip_pitch" axis="0 1 0" range="-0.6 0.45" damping="0.1" frictionloss="0.2" armature="0.002" />
+            <geom name="right_knee_case" type="cylinder" size="0.03 0.032" pos="0.06 -0.032 -0.14" material="motor" euler="1.570796327 0 0" group="2" contype="1" conaffinity="1" friction="0.7 0.005 0.0001" />
+            <geom name="right_knee_cable_reserve" type="box" size="0.009 0.012 0.009" pos="0.016 -0.032 -0.14" material="reserve" group="5" />
+            <geom name="right_knee_face_-1" type="cylinder" size="0.022 0.0005" pos="0.06 -0.0645 -0.14" material="rim" euler="1.570796327 0 0" group="2" />
+            <geom name="right_knee_face_1" type="cylinder" size="0.022 0.0005" pos="0.06 0.0005 -0.14" material="rim" euler="1.570796327 0 0" group="2" />
+            <body name="right_shin" pos="0.06 0 -0.14">
+              <inertial pos="-0.04963636364 -0.02094545455 -0.1158181818" mass="0.55" fullinertia="0.001368276848 0.001393975758 0.000566822303 -0.0001193890909 -0.0002611636364 -0.0002785745455" />
+              <joint name="right_knee" axis="0 1 0" range="-0.25 0.9" damping="0.1" frictionloss="0.2" armature="0.002" />
+              <geom name="right_ankle_pitch_case" type="cylinder" size="0.03 0.032" pos="-0.06 -0.032 -0.14" material="motor" euler="1.570796327 0 0" group="2" contype="1" conaffinity="1" friction="0.7 0.005 0.0001" />
+              <geom name="right_ankle_pitch_cable_reserve" type="box" size="0.009 0.012 0.009" pos="-0.06 -0.032 -0.096" material="reserve" group="5" />
+              <geom name="right_ankle_pitch_face_-1" type="cylinder" size="0.022 0.0005" pos="-0.06 -0.0645 -0.14" material="rim" euler="1.570796327 0 0" group="2" />
+              <geom name="right_ankle_pitch_face_1" type="cylinder" size="0.022 0.0005" pos="-0.06 0.0005 -0.14" material="rim" euler="1.570796327 0 0" group="2" />
+              <body name="right_ankle" pos="-0.06 0 -0.14">
+                <inertial pos="-0.06262790698 0 -0.02" mass="0.43" fullinertia="0.0002451666667 0.0003466171318 0.0003466171318 0 0 0" />
+                <joint name="right_ankle_pitch" axis="0 1 0" range="-0.6 0.5" damping="0.1" frictionloss="0.2" armature="0.002" />
+                <geom name="right_ankle_roll_case" type="cylinder" size="0.03 0.032" pos="-0.068 0 -0.02" material="motor" euler="0 1.570796327 0" group="2" contype="1" conaffinity="1" friction="0.7 0.005 0.0001" />
+                <geom name="right_ankle_roll_cable_reserve" type="box" size="0.009 0.012 0.009" pos="-0.068 0 0.024" material="reserve" group="5" />
+                <geom name="right_ankle_roll_face_-1" type="cylinder" size="0.022 0.0005" pos="-0.1005 0 -0.02" material="rim" euler="0 1.570796327 0" group="2" />
+                <geom name="right_ankle_roll_face_1" type="cylinder" size="0.022 0.0005" pos="-0.0355 0 -0.02" material="rim" euler="0 1.570796327 0" group="2" />
+                <body name="right_foot" pos="-0.036 0 -0.02">
+                  <inertial pos="0.025 0 -0.0455" mass="0.2" fullinertia="0.0001362166667 0.0004220566667 0.00053016 0 0 0" />
+                  <joint name="right_ankle_roll" axis="1 0 0" range="-0.25 0.25" damping="0.1" frictionloss="0.2" armature="0.002" />
+                  <geom name="right_metatarsal_-0.025" type="capsule" fromto="0 -0.025 0 0.025 -0.025 -0.044" size="0.006" material="frame" group="2" />
+                  <geom name="right_metatarsal_0.025" type="capsule" fromto="0 0.025 0 0.025 0.025 -0.044" size="0.006" material="frame" group="2" />
+                  <geom name="right_sole" type="box" size="0.08 0.044 0.006" pos="0.025 0 -0.054" material="rubber" group="2" contype="1" conaffinity="1" condim="4" friction="0.8 0.005 0.0001" solref="0.008 1" />
+                  <geom name="right_plate" type="box" size="0.073 0.038 0.002" pos="0.025 0 -0.046" material="metal" group="2" />
+                  <geom name="right_toe_0" type="capsule" fromto="0.025 -0.027 -0.039 0.096 -0.027 -0.039" size="0.005" material="metal" group="2" />
+                  <geom name="right_toe_1" type="capsule" fromto="0.025 0 -0.039 0.096 0 -0.039" size="0.005" material="metal" group="2" />
+                  <geom name="right_toe_2" type="capsule" fromto="0.025 0.027 -0.039 0.096 0.027 -0.039" size="0.005" material="metal" group="2" />
+                  <site name="right_sole_center" pos="0.025 0 -0.06" size="0.002" rgba="0 0 0 0" />
+                  <site name="right_touch" type="box" pos="0.025 0 -0.054" size="0.081 0.045 0.007" rgba="0 0 0 0" group="3" />
+                </body>
+                <geom name="right_ankle_yoke" type="capsule" fromto="0 0 0 -0.036 0 -0.02" size="0.007" material="frame" group="2" />
+              </body>
+              <geom name="right_shin_rail_0" type="capsule" fromto="0 0.006 0 -0.06 0.006 -0.14" size="0.005" material="frame" group="2" />
+              <geom name="right_shin_rail_1" type="capsule" fromto="0 0.02 0 -0.06 0.02 -0.14" size="0.005" material="frame" group="2" />
+            </body>
+            <geom name="right_thigh_rail_0" type="capsule" fromto="0 0.006 0 0.06 0.006 -0.14" size="0.005" material="frame" group="2" />
+            <geom name="right_thigh_rail_1" type="capsule" fromto="0 0.02 0 0.06 0.02 -0.14" size="0.005" material="frame" group="2" />
+          </body>
+          <geom name="right_pitch_yoke" type="capsule" fromto="0 0 0 0.035 -0.032 0" size="0.008" material="frame" group="2" />
+        </body>
+        <geom name="right_hip_yoke" type="capsule" fromto="0 0 -0.032 0 -0.035 -0.09" size="0.008" material="frame" group="2" />
+      </body>
+      <geom name="battery_reserve" type="box" size="0.08 0.045 0.0325" pos="-0.17 0 0.04" material="reserve" group="5" />
+      <geom name="battery_pack" type="box" size="0.0715 0.022 0.0225" pos="-0.17 0 0.04" material="battery" group="4" />
+      <geom name="compute_reserve" type="box" size="0.06 0.055 0.0325" pos="0.105 0 0.11" material="reserve" group="5" />
+      <geom name="jetson_kit" type="box" size="0.0515 0.04525 0.017385" pos="0.105 0 0.11" material="compute" group="4" />
+      <geom name="control_reserve" type="box" size="0.055 0.025 0.0125" pos="0.015 0 0.04" material="reserve" group="5" />
+      <geom name="teensy_41" type="box" size="0.03048 0.00919 0.0075" pos="-0.003 -0.012 0.04" material="pcb" group="4" />
+      <geom name="can_left" type="box" size="0.015 0.01 0.0075" pos="-0.012 0.012 0.04" material="pcb" group="4" />
+      <geom name="can_right" type="box" size="0.015 0.01 0.0075" pos="0.03 0.012 0.04" material="pcb" group="4" />
+      <geom name="pelvis_imu" type="box" size="0.01 0.01 0.003" pos="0.048 -0.012 0.04" material="pcb" group="4" />
+      <geom name="power_reserve" type="box" size="0.05 0.025 0.03" pos="-0.015 0 -0.0175" material="reserve" group="5" />
+      <geom name="logic_converter" type="box" size="0.0175 0.0175 0.01" pos="-0.041 0 -0.0025" material="pcb" group="4" />
+      <geom name="compute_converter" type="box" size="0.0175 0.0175 0.01" pos="0.005 0 -0.0025" material="pcb" group="4" />
+      <geom name="protection_distribution" type="box" size="0.0375 0.0125 0.0125" pos="-0.015 0 -0.0305" material="pcb" group="4" />
+      <geom name="spine_-1" type="capsule" fromto="-0.255 -0.075 0.13 0.17 -0.075 0.13" size="0.006" material="frame" group="2" />
+      <geom name="rear_battery_rail_-1" type="capsule" fromto="-0.25 -0.05 0.003 -0.09 -0.05 0.003" size="0.006" material="frame" group="2" />
+      <geom name="rear_battery_hanger_-1" type="capsule" fromto="-0.2 -0.075 0.13 -0.2 -0.05 0.003" size="0.005" material="frame" group="2" />
+      <geom name="pelvis_web_-1" type="capsule" fromto="0 -0.075 0.13 0 -0.045 0.105" size="0.006" material="frame" group="2" />
+      <geom name="neck_rail_-1" type="capsule" fromto="0.17 -0.05 0.13 0.23 -0.04 0.17" size="0.005" material="frame" group="2" />
+      <geom name="tail_root_-1" type="capsule" fromto="-0.2 -0.075 0.13 -0.3 -0.025 0.1" size="0.005" material="frame" group="2" />
+      <geom name="spine_1" type="capsule" fromto="-0.255 0.075 0.13 0.17 0.075 0.13" size="0.006" material="frame" group="2" />
+      <geom name="rear_battery_rail_1" type="capsule" fromto="-0.25 0.05 0.003 -0.09 0.05 0.003" size="0.006" material="frame" group="2" />
+      <geom name="rear_battery_hanger_1" type="capsule" fromto="-0.2 0.075 0.13 -0.2 0.05 0.003" size="0.005" material="frame" group="2" />
+      <geom name="pelvis_web_1" type="capsule" fromto="0 0.075 0.13 0 0.045 0.105" size="0.006" material="frame" group="2" />
+      <geom name="neck_rail_1" type="capsule" fromto="0.17 0.05 0.13 0.23 0.04 0.17" size="0.005" material="frame" group="2" />
+      <geom name="tail_root_1" type="capsule" fromto="-0.2 0.075 0.13 -0.3 0.025 0.1" size="0.005" material="frame" group="2" />
+      <geom name="spine_cross_0" type="capsule" fromto="-0.25 -0.075 0.13 -0.25 0.075 0.13" size="0.005" material="frame" group="2" />
+      <geom name="spine_cross_1" type="capsule" fromto="-0.06 -0.075 0.13 -0.06 0.075 0.13" size="0.005" material="frame" group="2" />
+      <geom name="spine_cross_2" type="capsule" fromto="0.17 -0.075 0.13 0.17 0.075 0.13" size="0.005" material="frame" group="2" />
+      <geom name="fixed_tail_spar" type="capsule" fromto="-0.3 0 0.1 -0.61 0 0.045" size="0.004" material="metal" group="2" />
+      <geom name="outline_skull_-1_0" type="capsule" fromto="0.18 -0.065 0.17 0.22 -0.065 0.24" size="0.0015" material="outline" group="1" />
+      <geom name="outline_skull_-1_1" type="capsule" fromto="0.22 -0.065 0.24 0.32 -0.065 0.24" size="0.0015" material="outline" group="1" />
+      <geom name="outline_skull_-1_2" type="capsule" fromto="0.32 -0.065 0.24 0.43 -0.065 0.2" size="0.0015" material="outline" group="1" />
+      <geom name="outline_skull_-1_3" type="capsule" fromto="0.43 -0.065 0.2 0.43 -0.065 0.15" size="0.0015" material="outline" group="1" />
+      <geom name="outline_skull_-1_4" type="capsule" fromto="0.43 -0.065 0.15 0.29 -0.065 0.12" size="0.0015" material="outline" group="1" />
+      <geom name="outline_skull_-1_5" type="capsule" fromto="0.29 -0.065 0.12 0.21 -0.065 0.13" size="0.0015" material="outline" group="1" />
+      <geom name="outline_skull_-1_6" type="capsule" fromto="0.21 -0.065 0.13 0.18 -0.065 0.17" size="0.0015" material="outline" group="1" />
+      <geom name="outline_skull_1_0" type="capsule" fromto="0.18 0.065 0.17 0.22 0.065 0.24" size="0.0015" material="outline" group="1" />
+      <geom name="outline_skull_1_1" type="capsule" fromto="0.22 0.065 0.24 0.32 0.065 0.24" size="0.0015" material="outline" group="1" />
+      <geom name="outline_skull_1_2" type="capsule" fromto="0.32 0.065 0.24 0.43 0.065 0.2" size="0.0015" material="outline" group="1" />
+      <geom name="outline_skull_1_3" type="capsule" fromto="0.43 0.065 0.2 0.43 0.065 0.15" size="0.0015" material="outline" group="1" />
+      <geom name="outline_skull_1_4" type="capsule" fromto="0.43 0.065 0.15 0.29 0.065 0.12" size="0.0015" material="outline" group="1" />
+      <geom name="outline_skull_1_5" type="capsule" fromto="0.29 0.065 0.12 0.21 0.065 0.13" size="0.0015" material="outline" group="1" />
+      <geom name="outline_skull_1_6" type="capsule" fromto="0.21 0.065 0.13 0.18 0.065 0.17" size="0.0015" material="outline" group="1" />
+      <geom name="outline_torso_-1_0" type="capsule" fromto="-0.26 -0.085 0.13 -0.07 -0.085 0.165" size="0.0015" material="outline" group="1" />
+      <geom name="outline_torso_-1_1" type="capsule" fromto="-0.07 -0.085 0.165 0.12 -0.085 0.165" size="0.0015" material="outline" group="1" />
+      <geom name="outline_torso_-1_2" type="capsule" fromto="0.12 -0.085 0.165 0.19 -0.085 0.12" size="0.0015" material="outline" group="1" />
+      <geom name="outline_torso_-1_3" type="capsule" fromto="0.19 -0.085 0.12 0.17 -0.085 0.01" size="0.0015" material="outline" group="1" />
+      <geom name="outline_torso_-1_4" type="capsule" fromto="0.17 -0.085 0.01 0.03 -0.085 -0.06" size="0.0015" material="outline" group="1" />
+      <geom name="outline_torso_-1_5" type="capsule" fromto="0.03 -0.085 -0.06 -0.19 -0.085 -0.015" size="0.0015" material="outline" group="1" />
+      <geom name="outline_torso_-1_6" type="capsule" fromto="-0.19 -0.085 -0.015 -0.26 -0.085 0.13" size="0.0015" material="outline" group="1" />
+      <geom name="outline_torso_1_0" type="capsule" fromto="-0.26 0.085 0.13 -0.07 0.085 0.165" size="0.0015" material="outline" group="1" />
+      <geom name="outline_torso_1_1" type="capsule" fromto="-0.07 0.085 0.165 0.12 0.085 0.165" size="0.0015" material="outline" group="1" />
+      <geom name="outline_torso_1_2" type="capsule" fromto="0.12 0.085 0.165 0.19 0.085 0.12" size="0.0015" material="outline" group="1" />
+      <geom name="outline_torso_1_3" type="capsule" fromto="0.19 0.085 0.12 0.17 0.085 0.01" size="0.0015" material="outline" group="1" />
+      <geom name="outline_torso_1_4" type="capsule" fromto="0.17 0.085 0.01 0.03 0.085 -0.06" size="0.0015" material="outline" group="1" />
+      <geom name="outline_torso_1_5" type="capsule" fromto="0.03 0.085 -0.06 -0.19 0.085 -0.015" size="0.0015" material="outline" group="1" />
+      <geom name="outline_torso_1_6" type="capsule" fromto="-0.19 0.085 -0.015 -0.26 0.085 0.13" size="0.0015" material="outline" group="1" />
+      <geom name="outline_tail_-1_0" type="capsule" fromto="-0.22 -0.015 0.13 -0.4 -0.015 0.115" size="0.0015" material="outline" group="1" />
+      <geom name="outline_tail_-1_1" type="capsule" fromto="-0.4 -0.015 0.115 -0.61 -0.015 0.045" size="0.0015" material="outline" group="1" />
+      <geom name="outline_tail_-1_2" type="capsule" fromto="-0.61 -0.015 0.045 -0.4 -0.015 0.04" size="0.0015" material="outline" group="1" />
+      <geom name="outline_tail_-1_3" type="capsule" fromto="-0.4 -0.015 0.04 -0.22 -0.015 0.015" size="0.0015" material="outline" group="1" />
+      <geom name="outline_tail_1_0" type="capsule" fromto="-0.22 0.015 0.13 -0.4 0.015 0.115" size="0.0015" material="outline" group="1" />
+      <geom name="outline_tail_1_1" type="capsule" fromto="-0.4 0.015 0.115 -0.61 0.015 0.045" size="0.0015" material="outline" group="1" />
+      <geom name="outline_tail_1_2" type="capsule" fromto="-0.61 0.015 0.045 -0.4 0.015 0.04" size="0.0015" material="outline" group="1" />
+      <geom name="outline_tail_1_3" type="capsule" fromto="-0.4 0.015 0.04 -0.22 0.015 0.015" size="0.0015" material="outline" group="1" />
+      <site name="pelvis_imu" pos="0 0 0.04" size="0.003" rgba="0 0 0 0" />
+      <site name="future_head_crown" pos="0.27 0 0.24" size="0.002" rgba="0 0 0 0" />
+    </body>
+  </worldbody>
+  <actuator>
+    <position name="left_hip_yaw_servo" joint="left_hip_yaw" kp="120" kv="6" ctrlrange="-0.25 0.25" forcerange="-6 6" forcelimited="true" />
+    <position name="left_hip_roll_servo" joint="left_hip_roll" kp="120" kv="6" ctrlrange="-0.25 0.25" forcerange="-6 6" forcelimited="true" />
+    <position name="left_hip_pitch_servo" joint="left_hip_pitch" kp="160" kv="6" ctrlrange="-0.6 0.45" forcerange="-6 6" forcelimited="true" />
+    <position name="left_knee_servo" joint="left_knee" kp="160" kv="6" ctrlrange="-0.25 0.9" forcerange="-6 6" forcelimited="true" />
+    <position name="left_ankle_pitch_servo" joint="left_ankle_pitch" kp="160" kv="6" ctrlrange="-0.6 0.5" forcerange="-6 6" forcelimited="true" />
+    <position name="left_ankle_roll_servo" joint="left_ankle_roll" kp="120" kv="6" ctrlrange="-0.25 0.25" forcerange="-6 6" forcelimited="true" />
+    <position name="right_hip_yaw_servo" joint="right_hip_yaw" kp="120" kv="6" ctrlrange="-0.25 0.25" forcerange="-6 6" forcelimited="true" />
+    <position name="right_hip_roll_servo" joint="right_hip_roll" kp="120" kv="6" ctrlrange="-0.25 0.25" forcerange="-6 6" forcelimited="true" />
+    <position name="right_hip_pitch_servo" joint="right_hip_pitch" kp="160" kv="6" ctrlrange="-0.6 0.45" forcerange="-6 6" forcelimited="true" />
+    <position name="right_knee_servo" joint="right_knee" kp="160" kv="6" ctrlrange="-0.25 0.9" forcerange="-6 6" forcelimited="true" />
+    <position name="right_ankle_pitch_servo" joint="right_ankle_pitch" kp="160" kv="6" ctrlrange="-0.6 0.5" forcerange="-6 6" forcelimited="true" />
+    <position name="right_ankle_roll_servo" joint="right_ankle_roll" kp="120" kv="6" ctrlrange="-0.25 0.25" forcerange="-6 6" forcelimited="true" />
+  </actuator>
+  <sensor>
+    <jointpos name="left_hip_yaw_position" joint="left_hip_yaw" />
+    <jointvel name="left_hip_yaw_velocity" joint="left_hip_yaw" />
+    <jointpos name="left_hip_roll_position" joint="left_hip_roll" />
+    <jointvel name="left_hip_roll_velocity" joint="left_hip_roll" />
+    <jointpos name="left_hip_pitch_position" joint="left_hip_pitch" />
+    <jointvel name="left_hip_pitch_velocity" joint="left_hip_pitch" />
+    <jointpos name="left_knee_position" joint="left_knee" />
+    <jointvel name="left_knee_velocity" joint="left_knee" />
+    <jointpos name="left_ankle_pitch_position" joint="left_ankle_pitch" />
+    <jointvel name="left_ankle_pitch_velocity" joint="left_ankle_pitch" />
+    <jointpos name="left_ankle_roll_position" joint="left_ankle_roll" />
+    <jointvel name="left_ankle_roll_velocity" joint="left_ankle_roll" />
+    <jointpos name="right_hip_yaw_position" joint="right_hip_yaw" />
+    <jointvel name="right_hip_yaw_velocity" joint="right_hip_yaw" />
+    <jointpos name="right_hip_roll_position" joint="right_hip_roll" />
+    <jointvel name="right_hip_roll_velocity" joint="right_hip_roll" />
+    <jointpos name="right_hip_pitch_position" joint="right_hip_pitch" />
+    <jointvel name="right_hip_pitch_velocity" joint="right_hip_pitch" />
+    <jointpos name="right_knee_position" joint="right_knee" />
+    <jointvel name="right_knee_velocity" joint="right_knee" />
+    <jointpos name="right_ankle_pitch_position" joint="right_ankle_pitch" />
+    <jointvel name="right_ankle_pitch_velocity" joint="right_ankle_pitch" />
+    <jointpos name="right_ankle_roll_position" joint="right_ankle_roll" />
+    <jointvel name="right_ankle_roll_velocity" joint="right_ankle_roll" />
+    <gyro name="pelvis_gyro" site="pelvis_imu" />
+    <accelerometer name="pelvis_accelerometer" site="pelvis_imu" />
+    <framequat name="pelvis_orientation" objtype="site" objname="pelvis_imu" />
+    <subtreecom name="robot_center_of_mass" body="pelvis" />
+    <touch name="left_contact" site="left_touch" />
+    <touch name="right_contact" site="right_touch" />
+  </sensor>
+  <keyframe>
+    <key name="home" qpos="0 0 0.36 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0" ctrl="0 0 0 0 0 0 0 0 0 0 0 0" />
+  </keyframe>
+</mujoco>

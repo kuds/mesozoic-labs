@@ -1,0 +1,29 @@
+milestone = "m01_skeleton"
+hardware_revision = "concept_r01"
+status = "engineering_study"
+physical_build_status = "not_built"
+parent_commit = "6e5fb9bc4418e653b6957ab382cc2d62e4263f8c"
+source_manifest = "hardware/tyrannosaurus_rex_60cm/m01_skeleton/design.json"
+
+[model]
+path = "examples/tyrannosaurus_rex_60cm/model.xml"
+training_registry_status = "not_registered"
+height_definition = "600 mm to future head crown; 360 mm hip pitch height"
+total_allocation_kg = 9.21
+future_fixed_payload_kg = 0.75
+integration_reserve_kg = 0.60
+tail = "fixed spar and inertia allowance; no actuator"
+
+[control]
+simulation_timestep_s = 0.002
+joint_count = 12
+joint_torque_cap_nm = 6.0
+actuator_model = "Ideal position servos with assumed friction, damping and armature"
+hardware_interface = "not_implemented"
+
+[qualification]
+standing_and_crouching = "short ideal-PD trials pass"
+sampled_m1_clearance = "declared independent-travel and standing/crouching scope passes"
+combined_joint_range_clearance = "fails: foot crossing and ankle-to-opposite-foot clearance"
+walking = "not_demonstrated"
+manufacturing = "not_qualified"

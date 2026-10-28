@@ -1,0 +1,1177 @@
+{
+  "status": "preliminary_study",
+  "versions": {
+    "mujoco": "3.10.0",
+    "numpy": "2.3.5"
+  },
+  "model": {
+    "nq": 19,
+    "nv": 18,
+    "nu": 12,
+    "active_constraints": 0
+  },
+  "balance": {
+    "mass_kg": 9.209999999999999,
+    "home_com_m": [
+      0.008926167209250815,
+      0.0,
+      0.3065092290947448
+    ],
+    "future_head_crown_height_mm": 600.0,
+    "nominal_support_bounds_xy_m": [
+      [
+        -0.055999999999999994,
+        0.10400000000000001
+      ],
+      [
+        -0.156,
+        0.156
+      ]
+    ],
+    "home_sagittal_margin_mm": 64.9261672092508,
+    "head_mass_sensitivity": [
+      {
+        "extra_head_mass_kg": 0.0,
+        "total_mass_kg": 9.209999999999999,
+        "com_m": [
+          0.008926167209250815,
+          0.0,
+          0.3065092290947448
+        ],
+        "forward_shift_mm": 0.0
+      },
+      {
+        "extra_head_mass_kg": 0.15,
+        "total_mass_kg": 9.36,
+        "com_m": [
+          0.013270299145000001,
+          0.0,
+          0.31009081196181615
+        ],
+        "forward_shift_mm": 4.344131935749186
+      },
+      {
+        "extra_head_mass_kg": 0.3,
+        "total_mass_kg": 9.51,
+        "com_m": [
+          0.017477392218422712,
+          0.0,
+          0.3135594111422291
+        ],
+        "forward_shift_mm": 8.551225009171898
+      }
+    ],
+    "battery_40mm_translation_com_shift_mm": 2.8230184581976117,
+    "note": "Static first moments at home only. Battery translations are sensitivity cases, not clearance-approved alternate installations. CoM projection alone does not certify dynamic balance or single support."
+  },
+  "installed_parts": {
+    "status": "pass",
+    "failures": [],
+    "margins": [
+      {
+        "part": "battery_pack",
+        "minimum_containment_mm": 8.500000000000007
+      },
+      {
+        "part": "jetson_kit",
+        "minimum_containment_mm": 8.5
+      },
+      {
+        "part": "teensy_41",
+        "minimum_containment_mm": 3.810000000000001
+      },
+      {
+        "part": "can_left",
+        "minimum_containment_mm": 3.000000000000001
+      },
+      {
+        "part": "can_right",
+        "minimum_containment_mm": 3.000000000000001
+      },
+      {
+        "part": "pelvis_imu",
+        "minimum_containment_mm": 3.000000000000001
+      },
+      {
+        "part": "logic_converter",
+        "minimum_containment_mm": 4.999999999999999
+      },
+      {
+        "part": "compute_converter",
+        "minimum_containment_mm": 4.999999999999999
+      },
+      {
+        "part": "protection_distribution",
+        "minimum_containment_mm": 4.500000000000001
+      }
+    ],
+    "limitation": "Box containment and internal board spacing only; cooling, connected cables, access and electrical design unqualified."
+  },
+  "hardware_contract": {
+    "status": "pass",
+    "checks": {
+      "twelve_motors_and_actions": true,
+      "no_constraints": true,
+      "ledger_mass_matches": true,
+      "direct_joint_drives": true,
+      "unit_gear": true,
+      "capped_at_design_torque": true,
+      "left_hip_yaw_case_full_size": true,
+      "left_hip_yaw_case_coaxial": true,
+      "left_hip_roll_case_full_size": true,
+      "left_hip_roll_case_coaxial": true,
+      "left_hip_pitch_case_full_size": true,
+      "left_hip_pitch_case_coaxial": true,
+      "left_knee_case_full_size": true,
+      "left_knee_case_coaxial": true,
+      "left_ankle_pitch_case_full_size": true,
+      "left_ankle_pitch_case_coaxial": true,
+      "left_ankle_roll_case_full_size": true,
+      "left_ankle_roll_case_coaxial": true,
+      "right_hip_yaw_case_full_size": true,
+      "right_hip_yaw_case_coaxial": true,
+      "right_hip_roll_case_full_size": true,
+      "right_hip_roll_case_coaxial": true,
+      "right_hip_pitch_case_full_size": true,
+      "right_hip_pitch_case_coaxial": true,
+      "right_knee_case_full_size": true,
+      "right_knee_case_coaxial": true,
+      "right_ankle_pitch_case_full_size": true,
+      "right_ankle_pitch_case_coaxial": true,
+      "right_ankle_roll_case_full_size": true,
+      "right_ankle_roll_case_coaxial": true
+    },
+    "shaft_lines": [
+      {
+        "case": "left_hip_yaw_case",
+        "perpendicular_offset_mm": 0.0,
+        "absolute_axis_dot": 1.0
+      },
+      {
+        "case": "left_hip_roll_case",
+        "perpendicular_offset_mm": 0.0,
+        "absolute_axis_dot": 1.0
+      },
+      {
+        "case": "left_hip_pitch_case",
+        "perpendicular_offset_mm": 0.0,
+        "absolute_axis_dot": 1.0
+      },
+      {
+        "case": "left_knee_case",
+        "perpendicular_offset_mm": 0.0,
+        "absolute_axis_dot": 1.0
+      },
+      {
+        "case": "left_ankle_pitch_case",
+        "perpendicular_offset_mm": 0.0,
+        "absolute_axis_dot": 1.0
+      },
+      {
+        "case": "left_ankle_roll_case",
+        "perpendicular_offset_mm": 0.0,
+        "absolute_axis_dot": 1.0
+      },
+      {
+        "case": "right_hip_yaw_case",
+        "perpendicular_offset_mm": 0.0,
+        "absolute_axis_dot": 1.0
+      },
+      {
+        "case": "right_hip_roll_case",
+        "perpendicular_offset_mm": 0.0,
+        "absolute_axis_dot": 1.0
+      },
+      {
+        "case": "right_hip_pitch_case",
+        "perpendicular_offset_mm": 0.0,
+        "absolute_axis_dot": 1.0
+      },
+      {
+        "case": "right_knee_case",
+        "perpendicular_offset_mm": 0.0,
+        "absolute_axis_dot": 1.0
+      },
+      {
+        "case": "right_ankle_pitch_case",
+        "perpendicular_offset_mm": 0.0,
+        "absolute_axis_dot": 1.0
+      },
+      {
+        "case": "right_ankle_roll_case",
+        "perpendicular_offset_mm": 0.0,
+        "absolute_axis_dot": 1.0
+      }
+    ],
+    "limitation": "Shaft-line alignment does not qualify flanges, bearings, bolts, brackets or centered inertia assumptions."
+  },
+  "clearance": {
+    "status": "pass",
+    "margin_mm": 3,
+    "pose_count": 376,
+    "pair_count": 647,
+    "evaluations": 233522,
+    "failed_by_pose_family": {},
+    "incomplete_evaluations": 0,
+    "worst_pairs": [
+      {
+        "pair": [
+          "left_hip_yaw_case",
+          "control_reserve"
+        ],
+        "pose": "home",
+        "status": "pass",
+        "min_distance_m": 0.005499999999999949,
+        "native_distance_m": 0.005499999999999949,
+        "distance_is_lower_bound": false,
+        "distance_method": "mujoco"
+      },
+      {
+        "pair": [
+          "right_hip_yaw_case",
+          "control_reserve"
+        ],
+        "pose": "home",
+        "status": "pass",
+        "min_distance_m": 0.005499999999999949,
+        "native_distance_m": 0.005499999999999949,
+        "distance_is_lower_bound": false,
+        "distance_method": "mujoco"
+      },
+      {
+        "pair": [
+          "left_ankle_pitch_case",
+          "left_ankle_roll_case"
+        ],
+        "pose": "left_ankle_pitch:0",
+        "status": "pass",
+        "min_distance_m": 0.0059999999936618835,
+        "native_distance_m": 0.0059999999936618835,
+        "distance_is_lower_bound": false,
+        "distance_method": "mujoco"
+      },
+      {
+        "pair": [
+          "right_ankle_pitch_case",
+          "right_ankle_roll_case"
+        ],
+        "pose": "right_ankle_pitch:6",
+        "status": "pass",
+        "min_distance_m": 0.005999999994005569,
+        "native_distance_m": 0.005999999994005569,
+        "distance_is_lower_bound": false,
+        "distance_method": "mujoco"
+      },
+      {
+        "pair": [
+          "left_thigh_rail_1",
+          "left_hip_pitch_cable_reserve"
+        ],
+        "pose": "left_hip_pitch:0",
+        "status": "pass",
+        "min_distance_m": 0.006169349104485282,
+        "native_distance_m": 0.006169349104485282,
+        "distance_is_lower_bound": false,
+        "distance_method": "mujoco"
+      },
+      {
+        "pair": [
+          "right_thigh_rail_1",
+          "right_hip_pitch_cable_reserve"
+        ],
+        "pose": "right_hip_pitch:0",
+        "status": "pass",
+        "min_distance_m": 0.006169349104485282,
+        "native_distance_m": 0.006169349104485282,
+        "distance_is_lower_bound": false,
+        "distance_method": "mujoco"
+      },
+      {
+        "pair": [
+          "left_hip_roll_case",
+          "left_hip_pitch_case"
+        ],
+        "pose": "left_hip_roll:2",
+        "status": "pass",
+        "min_distance_m": 0.007999999999858249,
+        "native_distance_m": 0.007999999999858249,
+        "distance_is_lower_bound": false,
+        "distance_method": "mujoco"
+      },
+      {
+        "pair": [
+          "right_hip_roll_case",
+          "right_hip_pitch_case"
+        ],
+        "pose": "right_hip_roll:2",
+        "status": "pass",
+        "min_distance_m": 0.00799999999985825,
+        "native_distance_m": 0.00799999999985825,
+        "distance_is_lower_bound": false,
+        "distance_method": "mujoco"
+      },
+      {
+        "pair": [
+          "left_hip_roll_case",
+          "power_reserve"
+        ],
+        "pose": "left_hip_yaw:6",
+        "status": "pass",
+        "min_distance_m": 0.008348658989685441,
+        "native_distance_m": 0.008348658989685441,
+        "distance_is_lower_bound": false,
+        "distance_method": "mujoco"
+      },
+      {
+        "pair": [
+          "right_hip_roll_case",
+          "power_reserve"
+        ],
+        "pose": "right_hip_yaw:0",
+        "status": "pass",
+        "min_distance_m": 0.008348658989685441,
+        "native_distance_m": 0.008348658989685441,
+        "distance_is_lower_bound": false,
+        "distance_method": "mujoco"
+      },
+      {
+        "pair": [
+          "left_hip_pitch_case",
+          "control_reserve"
+        ],
+        "pose": "left_hip_yaw:0",
+        "status": "pass",
+        "min_distance_m": 0.010398569392462241,
+        "native_distance_m": 0.010398569392462241,
+        "distance_is_lower_bound": false,
+        "distance_method": "mujoco"
+      },
+      {
+        "pair": [
+          "right_hip_pitch_case",
+          "control_reserve"
+        ],
+        "pose": "right_hip_yaw:6",
+        "status": "pass",
+        "min_distance_m": 0.01039856940139032,
+        "native_distance_m": 0.01039856940139032,
+        "distance_is_lower_bound": false,
+        "distance_method": "mujoco"
+      },
+      {
+        "pair": [
+          "left_thigh_rail_0",
+          "left_hip_pitch_cable_reserve"
+        ],
+        "pose": "left_hip_pitch:0",
+        "status": "pass",
+        "min_distance_m": 0.01290961639505062,
+        "native_distance_m": 0.01290961639505062,
+        "distance_is_lower_bound": false,
+        "distance_method": "mujoco"
+      },
+      {
+        "pair": [
+          "right_thigh_rail_0",
+          "right_hip_pitch_cable_reserve"
+        ],
+        "pose": "right_hip_pitch:0",
+        "status": "pass",
+        "min_distance_m": 0.01290961639505062,
+        "native_distance_m": 0.01290961639505062,
+        "distance_is_lower_bound": false,
+        "distance_method": "mujoco"
+      },
+      {
+        "pair": [
+          "right_hip_pitch_case",
+          "power_reserve"
+        ],
+        "pose": "right_hip_yaw:6",
+        "status": "pass",
+        "min_distance_m": 0.013719109860145547,
+        "native_distance_m": 0.013719109860145547,
+        "distance_is_lower_bound": false,
+        "distance_method": "mujoco"
+      },
+      {
+        "pair": [
+          "left_hip_pitch_case",
+          "power_reserve"
+        ],
+        "pose": "left_hip_yaw:0",
+        "status": "pass",
+        "min_distance_m": 0.013719109860463647,
+        "native_distance_m": 0.013719109860463647,
+        "distance_is_lower_bound": false,
+        "distance_method": "mujoco"
+      },
+      {
+        "pair": [
+          "left_hip_yaw_case",
+          "compute_reserve"
+        ],
+        "pose": "home",
+        "status": "pass",
+        "min_distance_m": 0.015,
+        "native_distance_m": 0.015,
+        "distance_is_lower_bound": false,
+        "distance_method": "mujoco"
+      },
+      {
+        "pair": [
+          "right_hip_yaw_case",
+          "compute_reserve"
+        ],
+        "pose": "home",
+        "status": "pass",
+        "min_distance_m": 0.015,
+        "native_distance_m": 0.015,
+        "distance_is_lower_bound": false,
+        "distance_method": "mujoco"
+      },
+      {
+        "pair": [
+          "control_reserve",
+          "power_reserve"
+        ],
+        "pose": "home",
+        "status": "pass",
+        "min_distance_m": 0.015000000000000013,
+        "native_distance_m": 0.015000000000000013,
+        "distance_is_lower_bound": false,
+        "distance_method": "mujoco"
+      },
+      {
+        "pair": [
+          "left_ankle_roll_case",
+          "left_sole"
+        ],
+        "pose": "standing:101",
+        "status": "pass",
+        "min_distance_m": 0.01799999999343666,
+        "native_distance_m": 0.01799999999343666,
+        "distance_is_lower_bound": false,
+        "distance_method": "mujoco"
+      },
+      {
+        "pair": [
+          "right_ankle_roll_case",
+          "right_sole"
+        ],
+        "pose": "right_hip_roll:5",
+        "status": "pass",
+        "min_distance_m": 0.017999999993436676,
+        "native_distance_m": 0.017999999993436676,
+        "distance_is_lower_bound": false,
+        "distance_method": "mujoco"
+      },
+      {
+        "pair": [
+          "left_hip_yaw_case",
+          "left_hip_roll_case"
+        ],
+        "pose": "home",
+        "status": "pass",
+        "min_distance_m": 0.02,
+        "native_distance_m": 0.02,
+        "distance_is_lower_bound": true,
+        "distance_method": "mujoco"
+      },
+      {
+        "pair": [
+          "left_hip_yaw_case",
+          "left_hip_pitch_case"
+        ],
+        "pose": "home",
+        "status": "pass",
+        "min_distance_m": 0.02,
+        "native_distance_m": 0.02,
+        "distance_is_lower_bound": true,
+        "distance_method": "mujoco"
+      },
+      {
+        "pair": [
+          "left_hip_yaw_case",
+          "left_knee_case"
+        ],
+        "pose": "home",
+        "status": "pass",
+        "min_distance_m": 0.02,
+        "native_distance_m": 0.02,
+        "distance_is_lower_bound": true,
+        "distance_method": "mujoco"
+      }
+    ],
+    "retained_pair_evidence": "24 smallest minima plus every other failing/inconclusive pair; all pairs evaluated by the reproducible source-bound screen",
+    "excluded_pairs": [
+      [
+        "left_hip_pitch_cable_reserve",
+        "left_hip_pitch_case"
+      ],
+      [
+        "right_hip_pitch_cable_reserve",
+        "right_hip_pitch_case"
+      ],
+      [
+        "right_ankle_roll_cable_reserve",
+        "right_ankle_roll_case"
+      ],
+      [
+        "left_ankle_pitch_cable_reserve",
+        "left_ankle_pitch_case"
+      ],
+      [
+        "right_hip_yaw_cable_reserve",
+        "right_hip_yaw_case"
+      ],
+      [
+        "left_hip_yaw_cable_reserve",
+        "left_hip_yaw_case"
+      ],
+      [
+        "left_ankle_roll_cable_reserve",
+        "left_ankle_roll_case"
+      ],
+      [
+        "right_hip_roll_cable_reserve",
+        "right_hip_roll_case"
+      ],
+      [
+        "left_knee_cable_reserve",
+        "left_knee_case"
+      ],
+      [
+        "right_ankle_pitch_cable_reserve",
+        "right_ankle_pitch_case"
+      ],
+      [
+        "right_knee_cable_reserve",
+        "right_knee_case"
+      ],
+      [
+        "left_hip_roll_cable_reserve",
+        "left_hip_roll_case"
+      ],
+      [
+        "left_thigh_rail_0",
+        "left_hip_pitch_case"
+      ],
+      [
+        "left_thigh_rail_0",
+        "left_knee_case"
+      ],
+      [
+        "left_thigh_rail_1",
+        "left_hip_pitch_case"
+      ],
+      [
+        "left_thigh_rail_1",
+        "left_knee_case"
+      ],
+      [
+        "left_shin_rail_0",
+        "left_knee_case"
+      ],
+      [
+        "left_shin_rail_0",
+        "left_ankle_pitch_case"
+      ],
+      [
+        "left_shin_rail_1",
+        "left_knee_case"
+      ],
+      [
+        "left_shin_rail_1",
+        "left_ankle_pitch_case"
+      ],
+      [
+        "right_thigh_rail_0",
+        "right_hip_pitch_case"
+      ],
+      [
+        "right_thigh_rail_0",
+        "right_knee_case"
+      ],
+      [
+        "right_thigh_rail_1",
+        "right_hip_pitch_case"
+      ],
+      [
+        "right_thigh_rail_1",
+        "right_knee_case"
+      ],
+      [
+        "right_shin_rail_0",
+        "right_knee_case"
+      ],
+      [
+        "right_shin_rail_0",
+        "right_ankle_pitch_case"
+      ],
+      [
+        "right_shin_rail_1",
+        "right_knee_case"
+      ],
+      [
+        "right_shin_rail_1",
+        "right_ankle_pitch_case"
+      ]
+    ],
+    "scope": "All motor-case, connector-reserve, assembly-reserve and sole pairs, except own connectors; eight thigh/shin rails versus that set, except each rail's two attachment motors.",
+    "omissions": "Other frame/yoke proxies, rail-to-rail pairs, mounts, cables along moving links, payload outlines, continuous swept volume and tolerances beyond the stated envelopes."
+  },
+  "combined_range_probe": {
+    "status": "fail",
+    "margin_mm": 3,
+    "pose_count": 628,
+    "pair_count": 647,
+    "evaluations": 390014,
+    "failed_by_pose_family": {
+      "combined_range": 10
+    },
+    "incomplete_evaluations": 0,
+    "worst_pairs": [
+      {
+        "pair": [
+          "left_sole",
+          "right_sole"
+        ],
+        "pose": "combined_range:202",
+        "status": "fail",
+        "min_distance_m": -0.027129321849897876,
+        "native_distance_m": -0.027129321849897876,
+        "distance_is_lower_bound": false,
+        "distance_method": "mujoco",
+        "qpos": [
+          0.0,
+          0.0,
+          0.36,
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          0.2403821807359905,
+          -0.24103857640941612,
+          -0.11559410464185743,
+          -0.0072380461456064416,
+          0.1346556743169801,
+          -0.18567174459893443,
+          0.11121951799743207,
+          0.23000905382936093,
+          -0.08899493856651408,
+          -0.08960304105120345,
+          0.4894275714998878,
+          -0.013469540659041546
+        ]
+      },
+      {
+        "pair": [
+          "left_ankle_roll_case",
+          "right_sole"
+        ],
+        "pose": "combined_range:351",
+        "status": "fail",
+        "min_distance_m": 0.0014302724723875154,
+        "native_distance_m": 0.0014302724723875154,
+        "distance_is_lower_bound": false,
+        "distance_method": "mujoco",
+        "qpos": [
+          0.0,
+          0.0,
+          0.36,
+          1.0,
+          0.0,
+          0.0,
+          0.0,
+          -0.17210594350615588,
+          -0.2316057311364373,
+          -0.09282202936066364,
+          -0.2230561281596521,
+          0.13391046331871936,
+          0.09650158438561984,
+          -0.05041485854597211,
+          0.2282922498388847,
+          -0.3332550525248676,
+          0.32670023226630585,
+          -0.18750126817076096,
+          -0.09215584539610139
+        ]
+      },
+      {
+        "pair": [
+          "left_hip_yaw_case",
+          "control_reserve"
+        ],
+        "pose": "home",
+        "status": "pass",
+        "min_distance_m": 0.005499999999999949,
+        "native_distance_m": 0.005499999999999949,
+        "distance_is_lower_bound": false,
+        "distance_method": "mujoco"
+      },
+      {
+        "pair": [
+          "right_hip_yaw_case",
+          "control_reserve"
+        ],
+        "pose": "home",
+        "status": "pass",
+        "min_distance_m": 0.005499999999999949,
+        "native_distance_m": 0.005499999999999949,
+        "distance_is_lower_bound": false,
+        "distance_method": "mujoco"
+      },
+      {
+        "pair": [
+          "left_ankle_pitch_case",
+          "left_ankle_roll_case"
+        ],
+        "pose": "left_ankle_pitch:0",
+        "status": "pass",
+        "min_distance_m": 0.0059999999936618835,
+        "native_distance_m": 0.0059999999936618835,
+        "distance_is_lower_bound": false,
+        "distance_method": "mujoco"
+      },
+      {
+        "pair": [
+          "right_ankle_pitch_case",
+          "right_ankle_roll_case"
+        ],
+        "pose": "right_ankle_pitch:6",
+        "status": "pass",
+        "min_distance_m": 0.005999999994005569,
+        "native_distance_m": 0.005999999994005569,
+        "distance_is_lower_bound": false,
+        "distance_method": "mujoco"
+      },
+      {
+        "pair": [
+          "left_thigh_rail_1",
+          "left_hip_pitch_cable_reserve"
+        ],
+        "pose": "left_hip_pitch:0",
+        "status": "pass",
+        "min_distance_m": 0.006169349104485282,
+        "native_distance_m": 0.006169349104485282,
+        "distance_is_lower_bound": false,
+        "distance_method": "mujoco"
+      },
+      {
+        "pair": [
+          "right_thigh_rail_1",
+          "right_hip_pitch_cable_reserve"
+        ],
+        "pose": "right_hip_pitch:0",
+        "status": "pass",
+        "min_distance_m": 0.006169349104485282,
+        "native_distance_m": 0.006169349104485282,
+        "distance_is_lower_bound": false,
+        "distance_method": "mujoco"
+      },
+      {
+        "pair": [
+          "right_ankle_roll_case",
+          "left_sole"
+        ],
+        "pose": "combined_range:0",
+        "status": "pass",
+        "min_distance_m": 0.007025890691802808,
+        "native_distance_m": 0.007025890691802808,
+        "distance_is_lower_bound": false,
+        "distance_method": "mujoco"
+      },
+      {
+        "pair": [
+          "left_hip_pitch_case",
+          "power_reserve"
+        ],
+        "pose": "combined_range:279",
+        "status": "pass",
+        "min_distance_m": 0.007998721747587515,
+        "native_distance_m": 0.007998721747587515,
+        "distance_is_lower_bound": false,
+        "distance_method": "mujoco"
+      },
+      {
+        "pair": [
+          "left_hip_roll_case",
+          "left_hip_pitch_case"
+        ],
+        "pose": "combined_range:125",
+        "status": "pass",
+        "min_distance_m": 0.007999999999698883,
+        "native_distance_m": 0.007999999999698883,
+        "distance_is_lower_bound": false,
+        "distance_method": "mujoco"
+      },
+      {
+        "pair": [
+          "right_hip_roll_case",
+          "right_hip_pitch_case"
+        ],
+        "pose": "combined_range:421",
+        "status": "pass",
+        "min_distance_m": 0.007999999999702608,
+        "native_distance_m": 0.007999999999702608,
+        "distance_is_lower_bound": false,
+        "distance_method": "mujoco"
+      },
+      {
+        "pair": [
+          "right_hip_pitch_case",
+          "power_reserve"
+        ],
+        "pose": "combined_range:0",
+        "status": "pass",
+        "min_distance_m": 0.008050278826231706,
+        "native_distance_m": 0.008050278826231706,
+        "distance_is_lower_bound": false,
+        "distance_method": "mujoco"
+      },
+      {
+        "pair": [
+          "left_hip_roll_case",
+          "power_reserve"
+        ],
+        "pose": "left_hip_yaw:6",
+        "status": "pass",
+        "min_distance_m": 0.008348658989685441,
+        "native_distance_m": 0.008348658989685441,
+        "distance_is_lower_bound": false,
+        "distance_method": "mujoco"
+      },
+      {
+        "pair": [
+          "right_hip_roll_case",
+          "power_reserve"
+        ],
+        "pose": "right_hip_yaw:0",
+        "status": "pass",
+        "min_distance_m": 0.008348658989685441,
+        "native_distance_m": 0.008348658989685441,
+        "distance_is_lower_bound": false,
+        "distance_method": "mujoco"
+      },
+      {
+        "pair": [
+          "right_hip_pitch_case",
+          "control_reserve"
+        ],
+        "pose": "combined_range:16",
+        "status": "pass",
+        "min_distance_m": 0.009166412060199644,
+        "native_distance_m": 0.009166412060199644,
+        "distance_is_lower_bound": false,
+        "distance_method": "mujoco"
+      },
+      {
+        "pair": [
+          "left_hip_pitch_case",
+          "control_reserve"
+        ],
+        "pose": "combined_range:317",
+        "status": "pass",
+        "min_distance_m": 0.009225717745661638,
+        "native_distance_m": 0.009225717745661638,
+        "distance_is_lower_bound": false,
+        "distance_method": "mujoco"
+      },
+      {
+        "pair": [
+          "left_thigh_rail_0",
+          "left_hip_pitch_cable_reserve"
+        ],
+        "pose": "left_hip_pitch:0",
+        "status": "pass",
+        "min_distance_m": 0.01290961639505062,
+        "native_distance_m": 0.01290961639505062,
+        "distance_is_lower_bound": false,
+        "distance_method": "mujoco"
+      },
+      {
+        "pair": [
+          "right_thigh_rail_0",
+          "right_hip_pitch_cable_reserve"
+        ],
+        "pose": "right_hip_pitch:0",
+        "status": "pass",
+        "min_distance_m": 0.01290961639505062,
+        "native_distance_m": 0.01290961639505062,
+        "distance_is_lower_bound": false,
+        "distance_method": "mujoco"
+      },
+      {
+        "pair": [
+          "left_hip_yaw_case",
+          "compute_reserve"
+        ],
+        "pose": "home",
+        "status": "pass",
+        "min_distance_m": 0.015,
+        "native_distance_m": 0.015,
+        "distance_is_lower_bound": false,
+        "distance_method": "mujoco"
+      },
+      {
+        "pair": [
+          "right_hip_yaw_case",
+          "compute_reserve"
+        ],
+        "pose": "home",
+        "status": "pass",
+        "min_distance_m": 0.015,
+        "native_distance_m": 0.015,
+        "distance_is_lower_bound": false,
+        "distance_method": "mujoco"
+      },
+      {
+        "pair": [
+          "control_reserve",
+          "power_reserve"
+        ],
+        "pose": "home",
+        "status": "pass",
+        "min_distance_m": 0.015000000000000013,
+        "native_distance_m": 0.015000000000000013,
+        "distance_is_lower_bound": false,
+        "distance_method": "mujoco"
+      },
+      {
+        "pair": [
+          "right_shin_rail_1",
+          "left_sole"
+        ],
+        "pose": "combined_range:0",
+        "status": "pass",
+        "min_distance_m": 0.015643441556270378,
+        "native_distance_m": 0.015643441556270378,
+        "distance_is_lower_bound": false,
+        "distance_method": "mujoco"
+      },
+      {
+        "pair": [
+          "left_ankle_roll_case",
+          "left_sole"
+        ],
+        "pose": "left_hip_roll:1",
+        "status": "pass",
+        "min_distance_m": 0.017999999993436676,
+        "native_distance_m": 0.017999999993436676,
+        "distance_is_lower_bound": false,
+        "distance_method": "mujoco"
+      }
+    ],
+    "retained_pair_evidence": "24 smallest minima plus every other failing/inconclusive pair; all pairs evaluated by the reproducible source-bound screen",
+    "excluded_pairs": [
+      [
+        "left_hip_pitch_cable_reserve",
+        "left_hip_pitch_case"
+      ],
+      [
+        "right_hip_pitch_cable_reserve",
+        "right_hip_pitch_case"
+      ],
+      [
+        "right_ankle_roll_cable_reserve",
+        "right_ankle_roll_case"
+      ],
+      [
+        "left_ankle_pitch_cable_reserve",
+        "left_ankle_pitch_case"
+      ],
+      [
+        "right_hip_yaw_cable_reserve",
+        "right_hip_yaw_case"
+      ],
+      [
+        "left_hip_yaw_cable_reserve",
+        "left_hip_yaw_case"
+      ],
+      [
+        "left_ankle_roll_cable_reserve",
+        "left_ankle_roll_case"
+      ],
+      [
+        "right_hip_roll_cable_reserve",
+        "right_hip_roll_case"
+      ],
+      [
+        "left_knee_cable_reserve",
+        "left_knee_case"
+      ],
+      [
+        "right_ankle_pitch_cable_reserve",
+        "right_ankle_pitch_case"
+      ],
+      [
+        "right_knee_cable_reserve",
+        "right_knee_case"
+      ],
+      [
+        "left_hip_roll_cable_reserve",
+        "left_hip_roll_case"
+      ],
+      [
+        "left_thigh_rail_0",
+        "left_hip_pitch_case"
+      ],
+      [
+        "left_thigh_rail_0",
+        "left_knee_case"
+      ],
+      [
+        "left_thigh_rail_1",
+        "left_hip_pitch_case"
+      ],
+      [
+        "left_thigh_rail_1",
+        "left_knee_case"
+      ],
+      [
+        "left_shin_rail_0",
+        "left_knee_case"
+      ],
+      [
+        "left_shin_rail_0",
+        "left_ankle_pitch_case"
+      ],
+      [
+        "left_shin_rail_1",
+        "left_knee_case"
+      ],
+      [
+        "left_shin_rail_1",
+        "left_ankle_pitch_case"
+      ],
+      [
+        "right_thigh_rail_0",
+        "right_hip_pitch_case"
+      ],
+      [
+        "right_thigh_rail_0",
+        "right_knee_case"
+      ],
+      [
+        "right_thigh_rail_1",
+        "right_hip_pitch_case"
+      ],
+      [
+        "right_thigh_rail_1",
+        "right_knee_case"
+      ],
+      [
+        "right_shin_rail_0",
+        "right_knee_case"
+      ],
+      [
+        "right_shin_rail_0",
+        "right_ankle_pitch_case"
+      ],
+      [
+        "right_shin_rail_1",
+        "right_knee_case"
+      ],
+      [
+        "right_shin_rail_1",
+        "right_ankle_pitch_case"
+      ]
+    ],
+    "scope": "All motor-case, connector-reserve, assembly-reserve and sole pairs, except own connectors; eight thigh/shin rails versus that set, except each rail's two attachment motors.",
+    "omissions": "Other frame/yoke proxies, rail-to-rail pairs, mounts, cables along moving links, payload outlines, continuous swept volume and tolerances beyond the stated envelopes."
+  },
+  "standing": {
+    "status": "pass",
+    "checks": {
+      "full_horizon": true,
+      "tilt_below_8_degrees": true,
+      "planar_drift_under_25mm": true,
+      "both_feet_loaded": true,
+      "feet_carry_body_weight": true,
+      "no_other_ground_support": true,
+      "rms_below_6nm": true,
+      "no_torque_clipping": true
+    },
+    "seconds": 12,
+    "controller": "Fixed ideal PD, free root, no fixture, no external forces or root resets",
+    "max_tilt_deg": 2.373986569982803,
+    "max_planar_drift_mm": 6.267881386777631,
+    "held_crouch_drop_mm": null,
+    "final_height_error_mm": -2.8017560504964845,
+    "max_joint_rms_nm": 3.126563783916554,
+    "max_joint_peak_nm": 3.126977072241339,
+    "min_sagittal_com_margin_mm": 60.466503472593175,
+    "mean_absolute_relative_foot_weight_error": 2.23913015112173e-07,
+    "nonfoot_support_contacts": 0,
+    "com_min_xyz_m": [
+      0.0032746521169959007,
+      -1.2054538812433838e-17,
+      0.3043050946896372
+    ],
+    "com_max_xyz_m": [
+      0.00892801892385685,
+      2.4109077624867676e-17,
+      0.3064918014444374
+    ],
+    "final_com_m": [
+      0.004473316322121641,
+      0.0,
+      0.30451215023089306
+    ]
+  },
+  "crouch": {
+    "status": "pass",
+    "checks": {
+      "full_horizon": true,
+      "tilt_below_8_degrees": true,
+      "planar_drift_under_25mm": true,
+      "both_feet_loaded": true,
+      "feet_carry_body_weight": true,
+      "no_other_ground_support": true,
+      "rms_below_6nm": true,
+      "no_torque_clipping": true,
+      "crouch_over_40mm": true,
+      "return_within_10mm": true
+    },
+    "seconds": 14,
+    "controller": "Fixed ideal PD, free root, no fixture, no external forces or root resets",
+    "max_tilt_deg": 2.393416882170721,
+    "max_planar_drift_mm": 6.267881386777631,
+    "held_crouch_drop_mm": 52.44004654271234,
+    "final_height_error_mm": -2.7997732486678695,
+    "max_joint_rms_nm": 3.6964104651707217,
+    "max_joint_peak_nm": 4.474124283195465,
+    "min_sagittal_com_margin_mm": 60.42868634829572,
+    "mean_absolute_relative_foot_weight_error": 0.008958283276450313,
+    "nonfoot_support_contacts": 0,
+    "com_min_xyz_m": [
+      0.0032746521169959007,
+      -3.6163616437301514e-17,
+      0.2695353658357071
+    ],
+    "com_max_xyz_m": [
+      0.009120063923054115,
+      3.01363470310846e-17,
+      0.3064918014444374
+    ],
+    "final_com_m": [
+      0.004536018373626725,
+      -6.027269406216919e-18,
+      0.3045130562739025
+    ]
+  },
+  "insufficient_torque_negative_control": {
+    "expected": "fail",
+    "observed": "fail"
+  },
+  "source_sha256": {
+    "hardware/tyrannosaurus_rex_60cm/m01_skeleton/design.json": "4a0dd655bb92a83ab597e8476b193124fe435618f598b3e133d3c2c855589d63",
+    "examples/tyrannosaurus_rex_60cm/model.xml": "fb5e84485ef4d5ce01ab9a118c0fb82319b8005183ac358e7f3a615451968651",
+    "examples/tyrannosaurus_rex_60cm/components.json": "055870766d5922c2128e00fc757a78a6983c3ef07b16749893544710cf76bfb7",
+    "examples/tyrannosaurus_rex_60cm/build.py": "ac09272e9801da6be20d457b1a5a9335beb75c6dd608481af3f6b376a6b6c5c0",
+    "examples/tyrannosaurus_rex_60cm/validate.py": "cad955ba55cf1d1dd70931f6494beac568365fc06bb87f366727b7fe3072de72",
+    "environments/shared/robot_building.py": "ad68f4f6bba8a37deff67bd42a3e6b1a095cdad63b897deaa11e0f9f81ba6a98",
+    "environments/shared/robot_clearance.py": "b4356d5bee7d54054c3c913cdc082060d84d1ccc36b86a34060a9e803dab980f"
+  }
+}
