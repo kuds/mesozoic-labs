@@ -190,7 +190,7 @@ def apply_hardware(root: ET.Element) -> dict[str, Any]:
     add(
         "logic_regulator",
         "torso",
-        (-10, -31.5, 58.75),
+        (-10, -31, 58.5),
         (17.78, 17.78, 7.874),
         (25, 25, 12),
         2.3,
