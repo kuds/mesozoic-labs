@@ -14,17 +14,26 @@ manifest, executable environment, compiled MJCF, current TOML stage configs, and
 
 ## Models
 
-The species has one model, the pair (species, embodiment) of
-[docs/SPECIES_NAMING.md](../../docs/SPECIES_NAMING.md):
+The species has anatomical and robot embodiments, each with its own plant and policies.
 
-| | Anatomical |
-|---|---|
-| Species / embodiment | `tyrannosaurus_rex` / `anatomical` |
-| Environment class | `TyrannosaurusRexAnatomicalEnv` (`anatomical/env.py`), on the species base `TyrannosaurusRexEnv` (`base_env.py`) |
-| Gymnasium ID | `MesozoicLabs/TyrannosaurusRex-Anatomical-v0` |
-| MJCF | `anatomical/assets/tyrannosaurus_rex_anatomical.xml` |
-| Configs | `configs/tyrannosaurus_rex/anatomical/` |
-| Catalog | [Tyrannosaurus Rex (Anatomical)](../../docs/SPECIES_CATALOG.md#tyrannosaurus_rex-anatomical) |
+| | Anatomical | Robot |
+|---|---|---|
+| Species / embodiment | `tyrannosaurus_rex` / `anatomical` | `tyrannosaurus_rex` / `robot` |
+| Environment class | `TyrannosaurusRexAnatomicalEnv` | `TyrannosaurusRexRobotEnv` |
+| Gymnasium ID | `MesozoicLabs/TyrannosaurusRex-Anatomical-v0` | `MesozoicLabs/TyrannosaurusRex-Robot-v0` |
+| MJCF | `anatomical/assets/tyrannosaurus_rex_anatomical.xml` | `robot/assets/tyrannosaurus_rex_robot.xml` |
+| Configs | `configs/tyrannosaurus_rex/anatomical/` | `configs/tyrannosaurus_rex/robot/` |
+| Catalog | [Anatomical](../../docs/SPECIES_CATALOG.md#tyrannosaurus_rex-anatomical) | [Robot](../../docs/SPECIES_CATALOG.md#tyrannosaurus_rex-robot) |
+
+The **mini M1 skeleton** uses torso A, ten full servo envelopes and forward-folding
+legs, with fixed future head/tail/arm inertia allowances. Its allocated mass is
+754.1 g, its action/observation dimensions are 10/41, and its shared SB3 recipes
+are experimental. It has no actuated head or tail. Its final task is a slow,
+upright planar target arrival, not biting. Start with stance; no learned walking
+or hardware validation is claimed. See the [hardware milestone guide](../../hardware/mini_tyrannosaurus_rex/README.md)
+and [M1 build, assumptions and training commands](../../hardware/mini_tyrannosaurus_rex/m01_skeleton/README.md).
+
+The implementation notes below describe the **anatomical** model.
 
 ## Implementation Notes
 

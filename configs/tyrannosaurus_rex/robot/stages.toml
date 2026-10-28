@@ -1,0 +1,32 @@
+# M1 skeleton behavior graph; hardware milestones are independent.
+schema = "mesozoic.stage-manifest/v2"
+
+[[stages]]                       # quiet stance
+id = "stance"
+config = "stance.toml"
+legacy_number = 1
+recipe = "stance"
+deliverable = true               # stance_quality/v1
+
+[[stages]]                       # balance under pushes
+id = "recovery"
+config = "recovery.toml"
+warm_start_from = "stance"
+recipe = "recover"
+deliverable = true               # recovery_quality/v1, judged against a per-run frozen resolution
+
+[[stages]]
+id = "locomotion"
+config = "locomotion.toml"
+legacy_number = 2
+warm_start_from = "stance"       # the previous advancing entry, as the v1 reader derived
+recipe = "walk"
+deliverable = true
+
+[[stages]]                       # id stays "behavior"; the task name (target_reach) is the TOML's [stage] name
+id = "behavior"
+config = "behavior.toml"
+legacy_number = 3
+warm_start_from = "locomotion"
+recipe = "hunt"
+deliverable = true

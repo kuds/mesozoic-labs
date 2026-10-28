@@ -1,0 +1,43 @@
+---
+sidebar_position: 2
+sidebar_label: Robot
+---
+
+import SpeciesCatalog from '@site/src/components/SpeciesCatalog';
+import {requireModel} from '@site/src/data/species';
+
+export const MODEL = requireModel('tyrannosaurus_rex', 'robot');
+
+# Tyrannosaurus Rex (Robot)
+
+The mini M1 skeleton promotes torso A and the forward-folding ten-servo legs
+into a registered SB3 environment. Its 754.1 g mass is an engineering allocation,
+including 115 g of fixed future head/neck, tail and arm inertia allowances.
+The tail has no joint or actuator. No physical prototype or learned walking is
+claimed. M2 integration and M3 production readiness are later hardware milestones.
+
+<SpeciesCatalog species={MODEL} />
+
+## Training
+
+Choose `SPECIES = "tyrannosaurus_rex"`, `EMBODIMENT = "robot"`,
+`BEHAVIOR = "stance"` and `QUICK_TEST = True` in the SB3 notebook first.
+
+```bash
+python -m environments.shared.train --species tyrannosaurus_rex --embodiment robot train --stage stance
+```
+
+The four recipes are stance, push recovery from stance, locomotion from stance,
+and target reaching from locomotion. The legacy `hunt` recipe label means slow,
+upright arrival within 4 cm of a planar target; it does not mean biting.
+The 41 observations include privileged simulator velocity, target and foot-force
+signals. Ten home-relative position commands pass through a 10 Hz action filter
+at a 50 Hz control rate. Actual motor and sensor identification is pending.
+
+The recovery calibration measures fixed-command PD baselines in simulation.
+Budgets and qualification thresholds remain experimental, and a short training
+run establishes software integration only. Every trained checkpoint retains its
+own plant/task identity and normalization statistics.
+
+See the [hardware milestones and revision rules](https://github.com/kuds/mesozoic-labs/blob/main/hardware/mini_tyrannosaurus_rex/README.md)
+and [M1 assumptions and reproduction commands](https://github.com/kuds/mesozoic-labs/blob/main/hardware/mini_tyrannosaurus_rex/m01_skeleton/README.md).

@@ -1,0 +1,36 @@
+# M1 recovery pilot: calibration is measured for this plant. No learned recovery claim.
+extends = { stage = "stance", tables = ["stage", "env", "ppo", "sac"] }
+
+[stage]
+name = "recovery"
+description = "Pilot: recover an upright stance after calibrated horizontal pushes"
+
+[env]
+# Plant-scaled finite force pulses. The selected multiple is calibrated separately
+# for each embodiment; see RECOVERY_CALIBRATION.md and recovery_calibration.json.
+perturbation_capture_velocity_multiple = 1.2
+perturbation_interval = 2.0
+perturbation_jitter = 0.25
+perturbation_duration = 0.2
+perturbation_direction = "uniform_horizontal"
+
+[ppo]
+ent_coef_decay_timesteps = 2000000
+
+[curriculum]
+gate_schema_version = 1
+gate_kind = "recovery_quality/v1"
+# Experimental allowance; no Mini T-Rex convergence budget is established.
+timesteps = 3000000
+warmup_timesteps = 100000
+warmup_clip_range = 0.02
+warmup_ent_coef = 0.005
+# Pre-registered pilot targets. PASS requires the frozen same-task null panel;
+# these values never substitute for a measured policy evaluation.
+min_recovery_success_lcb = 0.50
+min_paired_success_delta_lcb = 0.10
+recovery_t_recover_steps = 40
+recovery_dwell_steps = 20
+min_eval_episodes = 40
+required_consecutive = 3
+# Keep collapse detection unarmed until a learned-policy history calibrates it.

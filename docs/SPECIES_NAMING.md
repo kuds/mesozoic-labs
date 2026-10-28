@@ -24,6 +24,7 @@ Regenerate the public catalog with
 |---|---|---|---|---|
 | `velociraptor_mongoliensis` | `anatomical` | Velociraptor Mongoliensis (Anatomical) | `MesozoicLabs/VelociraptorMongoliensis-Anatomical-v0` | [`/docs/models/velociraptor_mongoliensis/anatomical`](../website/docs/models/velociraptor_mongoliensis/anatomical.mdx) |
 | `tyrannosaurus_rex` | `anatomical` | Tyrannosaurus Rex (Anatomical) | `MesozoicLabs/TyrannosaurusRex-Anatomical-v0` | [`/docs/models/tyrannosaurus_rex/anatomical`](../website/docs/models/tyrannosaurus_rex/anatomical.mdx) |
+| `tyrannosaurus_rex` | `robot` | Tyrannosaurus Rex (Robot) | `MesozoicLabs/TyrannosaurusRex-Robot-v0` | [`/docs/models/tyrannosaurus_rex/robot`](../website/docs/models/tyrannosaurus_rex/robot.mdx) |
 | `brachiosaurus_altithorax` | `anatomical` | Brachiosaurus Altithorax (Anatomical) | `MesozoicLabs/BrachiosaurusAltithorax-Anatomical-v0` | [`/docs/models/brachiosaurus_altithorax/anatomical`](../website/docs/models/brachiosaurus_altithorax/anatomical.mdx) |
 | `dibothrosuchus_elaphros` | `anatomical` | Dibothrosuchus Elaphros (Anatomical) | `MesozoicLabs/DibothrosuchusElaphros-Anatomical-v0` | [`/docs/models/dibothrosuchus_elaphros/anatomical`](../website/docs/models/dibothrosuchus_elaphros/anatomical.mdx) |
 | `compsognathus_longipes` | `anatomical` | Compsognathus Longipes (Anatomical) | `MesozoicLabs/CompsognathusLongipes-Anatomical-v0` | [`/docs/models/compsognathus_longipes/anatomical`](../website/docs/models/compsognathus_longipes/anatomical.mdx) |

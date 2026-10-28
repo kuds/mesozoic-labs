@@ -54,6 +54,7 @@ from environments.shared.species_registry import get_species_config
 
 VELOCIRAPTOR_MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
 TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
+TYRANNOSAURUS_REX_ROBOT = ModelId("tyrannosaurus_rex", "robot")
 BRACHIOSAURUS_ALTITHORAX = ModelId("brachiosaurus_altithorax", "anatomical")
 DIBOTHROSUCHUS_ELAPHROS = ModelId("dibothrosuchus_elaphros", "anatomical")
 COMPSOGNATHUS_LONGIPES = ModelId("compsognathus_longipes", "anatomical")
@@ -61,6 +62,7 @@ COMPSOGNATHUS_LONGIPES_ROBOT = ModelId("compsognathus_longipes", "robot")
 
 MODEL_IDS = (
     TYRANNOSAURUS_REX,
+    TYRANNOSAURUS_REX_ROBOT,
     VELOCIRAPTOR_MONGOLIENSIS,
     COMPSOGNATHUS_LONGIPES,
     COMPSOGNATHUS_LONGIPES_ROBOT,
@@ -703,6 +705,7 @@ def test_the_physics_r9_statue_whole_foot_cop_reading(envs):
 #: foot has no box sole, so the metric is unmeasured: velociraptor (no sole) and brachiosaurus (ellipsoids, whose
 #: one contact sits where the authored pitch puts it).
 STATUE_COP_FORE_AFT_CEILING = {
+    TYRANNOSAURUS_REX_ROBOT: 0.03,  # M1/hw_r01: measured 0.01276 at seed 3042.
     TYRANNOSAURUS_REX: 0.47,
     VELOCIRAPTOR_MONGOLIENSIS: None,
     COMPSOGNATHUS_LONGIPES: 0.20,

@@ -281,6 +281,46 @@
           "schema": "mesozoic.mujoco-visual/v1",
           "sha256": "sha256:7042dcd597fbd0ce25489164a7f132d51e1c2adbc050729c9866d7bde42e35a4"
         }
+      },
+      "robot": {
+        "bundle_sha256": "sha256:03911272024c35ef38feb86b0c14c6fd9cab3065410732d3d0c89db21a04b497",
+        "embodiment": "robot",
+        "env_entrypoint": "environments.tyrannosaurus_rex.robot.env:TyrannosaurusRexRobotEnv",
+        "model_path": "environments/tyrannosaurus_rex/robot/assets/tyrannosaurus_rex_robot.xml",
+        "physics": {
+          "nq": 17,
+          "nu": 10,
+          "nv": 16,
+          "revision": 1,
+          "schema": "mesozoic.mujoco-physics/v1",
+          "sha256": "sha256:54735a33426f05433485c1ff90595b0891cc02423ad492ec8da15d80496aca3f"
+        },
+        "policy_interface": {
+          "action_dim": 10,
+          "observation_dim": 41,
+          "observation_schema": "bipedal-target-heading-free/v1",
+          "revision": 1,
+          "schema": "mesozoic.policy-interface/v1",
+          "sha256": "sha256:b02203187a603566a7ada1747aa3c8d218755eec3860beb9766441def5ff444c"
+        },
+        "source": {
+          "closure_sha256": "sha256:76348d5af8f43f42e72cfb5dcedaef302264dfcd622ca1ebcc835f514fc4a90d",
+          "dependencies": [
+            {
+              "content_sha256": "sha256:c53d5a4b11099be3b614ab43ffdb410ee768920ab93fb166acd2460d51c1bcf5",
+              "kind": "mjcf",
+              "logical_path": "environments/tyrannosaurus_rex/robot/assets/tyrannosaurus_rex_robot.xml"
+            }
+          ],
+          "root": "environments/tyrannosaurus_rex/robot/assets/tyrannosaurus_rex_robot.xml",
+          "schema": "mesozoic.source-closure/v1"
+        },
+        "species": "tyrannosaurus_rex",
+        "visual": {
+          "revision": 1,
+          "schema": "mesozoic.mujoco-visual/v1",
+          "sha256": "sha256:69c51eecd6d60a70b4285f2f905df9f7c27a93378cbca744eaf1b36000198175"
+        }
       }
     },
     "velociraptor_mongoliensis": {

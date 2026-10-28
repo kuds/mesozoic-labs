@@ -64,6 +64,7 @@ _STAGE_NAMES = [
 _REWARD_NAMES = ["summary", "poses", "shape_sha256", "rounded_values_sha256"]
 #: The success reason each model's behavior stage ends the success probe with.
 _SUCCESS = {
+    ModelId("tyrannosaurus_rex", "robot"): "target_reach",
     ModelId("brachiosaurus_altithorax", "anatomical"): "food_reached",
     ModelId("compsognathus_longipes", "anatomical"): "target_reached",
     ModelId("compsognathus_longipes", "robot"): "target_reached",
@@ -73,6 +74,7 @@ _SUCCESS = {
 }
 #: The reasons each model's state probes reach (the union over its stages' poses line).
 _POSE_REASONS = {
+    ModelId("tyrannosaurus_rex", "robot"): {"fallen", "too_high", "excessive_tilt", "body_contact"},
     ModelId("brachiosaurus_altithorax", "anatomical"): {
         "fallen",
         "too_high",
@@ -367,7 +369,10 @@ def test_state_probes_keep_clear_of_the_thresholds() -> None:
             info = rows[0][1]
             height = info.get("torso_height", info.get("pelvis_height"))
             assert abs(info["tilt_angle"] - env.max_tilt_angle) > 1e-3, (model_id, stage, part)
-            assert min(abs(height - low), abs(height - high)) > 1e-3, (model_id, stage, part)
+            # The 113 mm mini uses a 0.5 mm margin; larger plants keep 1 mm.
+            # Both are far above floating-point noise, the purpose of this guard.
+            height_margin = 5e-4 if model_id == ModelId("tyrannosaurus_rex", "robot") else 1e-3
+            assert min(abs(height - low), abs(height - high)) > height_margin, (model_id, stage, part)
             if nosedive is not None:
                 assert abs(info["forward_z"] - (env._natural_forward_z - nosedive)) > 1e-3, (model_id, stage, part)
             probes += 1

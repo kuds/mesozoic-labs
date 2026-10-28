@@ -1643,6 +1643,7 @@ class TestSagittalLegDc:
 #: Every manifest model: its pad feet's whole-foot fields (a declared support span) and digit fields -- the digits'
 #: key names and whether each is hinged (FOOT_SUPPORT and the MTP rule).
 REAL_FOOT_FIELDS = {
+    ModelId("tyrannosaurus_rex", "robot"): (True, ()),
     ModelId("tyrannosaurus_rex", "anatomical"): (True, (("toe_d2", True), ("toe_d3", True), ("toe_d4", True))),
     ModelId("compsognathus_longipes", "anatomical"): (
         False,
@@ -1656,6 +1657,7 @@ REAL_FOOT_FIELDS = {
 #: Every manifest model: its box-soled feet, whether they have digits, and its sagittal leg DC pairs (FOOT_SUPPORT
 #: and the actuated joints).
 REAL_TELEMETRY = {
+    ModelId("tyrannosaurus_rex", "robot"): (("r", "l"), False, (("l", "r"),)),
     ModelId("tyrannosaurus_rex", "anatomical"): (("r", "l"), True, (("l", "r"),)),
     ModelId("compsognathus_longipes", "anatomical"): (("r", "l"), True, (("l", "r"),)),
     ModelId("compsognathus_longipes", "robot"): (("r", "l"), False, (("l", "r"),)),
@@ -1672,7 +1674,7 @@ def _balance_keys(model_id) -> tuple[str, ...]:
     pad_feet, _digits, pairs = REAL_TELEMETRY[model_id]
     if not pad_feet:
         return ()
-    tyrannosaurus = model_id == TYRANNOSAURUS_REX
+    spanned, digits = REAL_FOOT_FIELDS[model_id]
     keys = [
         "com_fore_aft_mean_m",
         "root_pitch_mean_deg",
@@ -1684,7 +1686,7 @@ def _balance_keys(model_id) -> tuple[str, ...]:
     for left, right in pairs:
         for joint in ("hip_pitch", "knee", "ankle"):
             keys += [f"leg_q_{left}_minus_{right}_{joint}_deg", f"leg_q_{left}_{right}_mean_{joint}_deg"]
-    if tyrannosaurus:
+    if spanned:
         keys += [
             "xcom_toe_margin_min_m",
             "xcom_toe_margin_mean_m",
@@ -1692,12 +1694,13 @@ def _balance_keys(model_id) -> tuple[str, ...]:
             "xcom_past_toe_fraction",
             "time_to_toe_min_s",
             "xcom_toe_lead_s",
-            "xcom_tip_margin_min_m",
         ]
+    if any(hinged for _name, hinged in digits):
+        keys += ["xcom_tip_margin_min_m"]
     keys += ["actuator_force_frac_max", "actuator_force_limited_fraction", "shear_over_normal"]
     for foot in pad_feet:
         keys += [f"{foot}_shear_over_normal", f"{foot}_cone_use_mean", f"{foot}_cone_use_max"]
-        keys += [f"{foot}_ankle_moment_arm_m"] if tyrannosaurus else []
+        keys += [f"{foot}_ankle_moment_arm_m"] if spanned else []
     return tuple(keys)
 
 

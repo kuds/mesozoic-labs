@@ -30,6 +30,7 @@ EXPECTED_MODELS = {
     ModelId("compsognathus_longipes", "robot"): ModelExpectations(19, 18, 12, 1.5856),
     ModelId("dibothrosuchus_elaphros", "anatomical"): ModelExpectations(35, 34, 27, 8.65),
     ModelId("tyrannosaurus_rex", "anatomical"): ModelExpectations(28, 27, 15, 85.72),
+    ModelId("tyrannosaurus_rex", "robot"): ModelExpectations(17, 16, 10, 0.7541),
     ModelId("velociraptor_mongoliensis", "anatomical"): ModelExpectations(31, 30, 22, 13.5),
 }
 

@@ -78,6 +78,39 @@ Apex Predator. **Specialty:** Head-contact attack task.
 
 [Full documentation →](../environments/tyrannosaurus_rex/README.md)
 
+<a id="tyrannosaurus_rex-robot"></a>
+
+### Tyrannosaurus Rex (Robot)
+
+Mini T-Rex M1 Skeleton. **Specialty:** Non-contact target reaching with fixed future payload allowances.
+
+| Generated specification | Value |
+|---|---|
+| Observation dimension | 41 |
+| Action dimension / actuators | 10 |
+| Generalized coordinates / velocities | nq=17, nv=16 |
+| Compiled dynamic model mass | 0.8 kg |
+| Plant contract revisions | policy r1; physics r1; visual r1 ([details](PLANT_CONTRACT.md)) |
+| Model | `environments/tyrannosaurus_rex/robot/assets/tyrannosaurus_rex_robot.xml` |
+
+| Current stage | Recipe | Warm-start from | Objective | SB3 configured budget | SB3 early-advancement gate |
+|---|---|---|---|---:|---:|
+| 1 — Stance | stance (deliverable) | — | Hold the M1 skeleton upright on both feet | 3M | reward ≥ 1800; full-horizon episodes ≥ 95.0%; unsupported duty ≤ 0.02; unsupported duty 95% upper bound ≤ 0.02; ≥ 40 episodes/evaluation; 3 consecutive passes |
+| recovery — Recovery | recover (deliverable) | 1 — Stance | Pilot: recover an upright stance after calibrated horizontal pushes | 3M | recovery success LCB95 ≥ 0.5; paired Δ vs each required frozen null LCB95 ≥ 0.1; re-entry ≤ 40 steps + 20-step dwell; ≥ 40 episodes/evaluation; verdict from the frozen gate_resolution.json (post-stage; fail-closed when absent or stale) |
+| 2 — Locomotion | walk (deliverable) | 1 — Stance | Experimental forward locomotion for the loaded M1 skeleton | 3M | reward ≥ 500; episode length ≥ 900; avg. velocity ≥ 0.025 m/s; ≥ 20 episodes/evaluation; 3 consecutive passes |
+| 3 — Target Reach | hunt (deliverable) | 2 — Locomotion | Reach a planar target and slow down; no bite or articulated head | 3M | reward ≥ 25; task success ≥ 70.0%; ≥ 20 episodes/evaluation; 3 consecutive passes |
+
+**Backend-specific success semantics:**
+- **Stable-Baselines3 — Pelvis target-reaching success:** While the target task is enabled, the upright pelvis enters the configured horizontal target radius at or below the configured speed; non-foot floor contact is forbidden.
+
+**Per-deliverable success semantics:**
+- **stance (1 — Stance) · Stable-Baselines3 — Stance quality (stance_quality/v1):** The stance checkpoint clears the stance_quality/v1 gate: the unsupported-duty 95% upper bound and the full-horizon episode fraction meet the configured bounds over 40-episode evaluations, with the reward rail as a collapse floor only. The duty and full-horizon statistics are not exported to summary.json until a later phase (decision D-A9, deferred by D-B15), so the catalog names them with no value.
+- **recover (recovery — Recovery) · Stable-Baselines3 — Recovery under pushes (recovery_quality/v1):** The recovery checkpoint clears the recovery_quality/v1 gate, judged post-stage against the run's frozen gate_resolution.json: recovery-success LCB95 and the paired delta against each required frozen null meet the frozen thresholds, with re-entry inside the configured step budget and dwell. The statistics are not exported to summary.json until a later phase (decision D-A9, deferred by D-B15).
+- **walk (2 — Locomotion) · Stable-Baselines3 — Gated forward velocity (reward_and_length/v1):** The locomotion checkpoint clears the reward_and_length/v1 gate: mean forward velocity at or above the stage's configured minimum, with its reward and episode-length floors, over the required consecutive evaluations.
+- **hunt (3 — Target Reach) · Stable-Baselines3 — Pelvis target-reaching success:** While the target task is enabled, the upright pelvis enters the configured horizontal target radius at or below the configured speed; non-foot floor contact is forbidden.
+
+[Full documentation →](../environments/tyrannosaurus_rex/README.md)
+
 <a id="brachiosaurus_altithorax-anatomical"></a>
 
 ### Brachiosaurus Altithorax (Anatomical)

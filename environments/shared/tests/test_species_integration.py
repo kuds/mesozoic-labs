@@ -20,10 +20,12 @@ from environments.shared.config import load_all_stages, load_stage_config
 from environments.shared.model_id import ModelId
 from environments.shared.species_names import model_ids
 from environments.tyrannosaurus_rex.anatomical.env import TyrannosaurusRexAnatomicalEnv
+from environments.tyrannosaurus_rex.robot.env import TyrannosaurusRexRobotEnv
 from environments.velociraptor_mongoliensis.anatomical.env import VelociraptorMongoliensisAnatomicalEnv
 
 VELOCIRAPTOR_MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
 TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
+TYRANNOSAURUS_REX_ROBOT = ModelId("tyrannosaurus_rex", "robot")
 BRACHIOSAURUS_ALTITHORAX = ModelId("brachiosaurus_altithorax", "anatomical")
 DIBOTHROSUCHUS_ELAPHROS = ModelId("dibothrosuchus_elaphros", "anatomical")
 
@@ -38,6 +40,7 @@ MODEL_ENVS = [
     for env_class, model_id in (
         (VelociraptorMongoliensisAnatomicalEnv, VELOCIRAPTOR_MONGOLIENSIS),
         (TyrannosaurusRexAnatomicalEnv, TYRANNOSAURUS_REX),
+        (TyrannosaurusRexRobotEnv, TYRANNOSAURUS_REX_ROBOT),
         (BrachiosaurusAltithoraxAnatomicalEnv, BRACHIOSAURUS_ALTITHORAX),
         (DibothrosuchusElaphrosAnatomicalEnv, DIBOTHROSUCHUS_ELAPHROS),
     )
@@ -48,6 +51,7 @@ MODEL_ENVS = [
 # segment to every species: 67/61/83/77 -> 70/64/86/80.  The trex's
 # heading-free observation (plant_versions note 18) then took it to 63.
 SPECIES_DIMS = {
+    TYRANNOSAURUS_REX_ROBOT: {"obs": 41, "act": 10},
     VELOCIRAPTOR_MONGOLIENSIS: {"obs": 70, "act": 22},
     TYRANNOSAURUS_REX: {"obs": 63, "act": 15},
     BRACHIOSAURUS_ALTITHORAX: {"obs": 86, "act": 30},
@@ -56,6 +60,23 @@ SPECIES_DIMS = {
 
 # Expected reward component keys per species
 SPECIES_REWARD_KEYS = {
+    TYRANNOSAURUS_REX_ROBOT: [
+        "reward_alive",
+        "reward_forward",
+        "reward_energy",
+        "reward_posture",
+        "reward_height",
+        "reward_home_pose",
+        "reward_smoothness",
+        "reward_spin",
+        "reward_drift",
+        "reward_lateral",
+        "reward_heading",
+        "reward_gait",
+        "reward_approach",
+        "reward_target",
+        "reward_total",
+    ],
     VELOCIRAPTOR_MONGOLIENSIS: [
         "reward_forward",
         "reward_alive",
@@ -143,6 +164,7 @@ class TestGymnasiumRegistration:
         [
             "MesozoicLabs/VelociraptorMongoliensis-Anatomical-v0",
             "MesozoicLabs/TyrannosaurusRex-Anatomical-v0",
+            "MesozoicLabs/TyrannosaurusRex-Robot-v0",
             "MesozoicLabs/BrachiosaurusAltithorax-Anatomical-v0",
             "MesozoicLabs/DibothrosuchusElaphros-Anatomical-v0",
         ],
@@ -385,7 +407,9 @@ class TestRewardConsistency:
         action = np.zeros(env.action_space.shape, dtype=np.float32)
         _, _, _, _, info = env.step(action)
         assert info["reward_approach"] == 0.0
-        assert info["approach_delta"] == 0.0
+        # Anatomical models also expose their raw, unclipped distance delta.
+        if model_id.embodiment == "anatomical":
+            assert info["approach_delta"] == 0.0
         env.close()
 
     @pytest.mark.parametrize("env_class, model_id", MODEL_ENVS)

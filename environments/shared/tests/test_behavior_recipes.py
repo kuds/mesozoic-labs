@@ -188,7 +188,7 @@ def test_terrain_scale_fits_the_actual_animal_and_25_second_course(model_id):
     )
     recipe = _recipe(model_id, "combined_mixed_terrain")
     terrain = _terrain(recipe)
-    frame_skip = 10 if model_id.species == "compsognathus_longipes" else 5
+    frame_skip = 10 if model_id.species == "compsognathus_longipes" or model_id.embodiment == "robot" else 5
     duration = recipe["env"]["max_episode_steps"] * frame_skip * model.opt.timestep
     assert duration == pytest.approx(25.0)
     assert terrain.apron_radius > radius + terrain.cell_diagonal
