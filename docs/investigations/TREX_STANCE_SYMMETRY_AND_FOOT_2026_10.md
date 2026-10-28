@@ -4775,7 +4775,8 @@ and the files beside it there: the scorer's output (`score/`), the
 completeness check per run (`complete/`), the independent check of the
 reading (`check1/`), the readouts (`readouts/`), the review, the next-step
 proposals and the fixer's record (`review/`), K1–K4 per run (`kscore/`), the
-D-9 and D-10 summaries (`d9_d10/`) and the fetch record (`fetch/`). Every
+D-9 and D-10 summaries (`d9_d10/`), the fetch record (`fetch/`) and the
+measurement panels' summaries and the judge's files (`panels/`). Every
 number below is read from those files or from the run log; labels: measured,
 as each source records it; inferred, where said. Quotation marks give the
 scorer's printed text or the run log's: the maintainer's own words where the
@@ -5170,8 +5171,9 @@ plant, reward, gate or digest.
   statue is still not re-run on r10.
 - **§14, this repository:** the folder `stance6_results/` (the run log's
   lines 681 to 720, the reading, the readouts, the review, the next-step
-  proposals, K1–K4, the D-9 and D-10 summaries and the fetch record), with
-  its sources and sha256 in `SOURCES.txt` and `SHA256SUMS`.
+  proposals, K1–K4, the D-9 and D-10 summaries, the fetch record and, 122
+  files, the measurement panels' summaries and the judge's files), with its
+  sources and sha256 in `SOURCES.txt` and `SHA256SUMS` (now 849 files).
 - **§14, branches:** `claude/handoff-stance6`, the round's durable copy,
   pushed at `6c3f27b9` and `e4733d8` with the maintainer's OK (§27.1),
   never merged; `claude/screen-trex-r10-armltsb` stays at `8737cd3d`, never

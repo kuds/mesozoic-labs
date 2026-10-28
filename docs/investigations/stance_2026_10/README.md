@@ -410,6 +410,13 @@ D-10 summaries keep their missing final newline and `score/score.txt` its 4
 lines ending in spaces; leave them out of a manual pre-commit run. No copy
 holds a model identifier, an email address or a commit trailer.
 
+*Added 2026-10-28, later still (`stance6_results/panels/`):* no new kind of
+change. All 122 copies are byte-identical to their sources, absolute
+session-scratch paths included: none held a session tool id or a Drive id,
+and none is over 500 KB. The 18 judge files keep their missing final
+newline; leave them out of a manual pre-commit run. No copy holds a model
+identifier, an email address or a commit trailer.
+
 [SHA256SUMS](SHA256SUMS) pins every file here but this README and itself
 (`sha256sum -c SHA256SUMS` in this directory). *Added 2026-10-19:* nor
 `stance3/results/README.md`, which, like this README, has no source.
@@ -1410,6 +1417,17 @@ run (`kscore/`), the D-9 and D-10 summaries (`d9_d10/`) and the fetch
 manifest and run-folder record (`fetch/`). All but the reading are report
 only. Its [README](stance6_results/README.md) indexes it.
 
+### Added on 2026-10-28, later still (decision D-D51's outcome: the panels' summaries)
+
+**`stance6_results/panels/`: the measurement panels' summaries and the
+judge's files of the round's three runs (122 files, about 13 MB), byte
+copies.** For each traced checkpoint the per-step traces' reduction (M1),
+and at the judged checkpoints the 40-episode panel's summary (M2), the
+six-heading certificate's summary and report (M3) and the judge's file (M4);
+the per-step traces and the per-episode panel files are not here. Report
+only but for the M1 figures and the final certificates the classes read.
+Its [README](stance6_results/README.md) indexes it.
+
 ## How to re-check each verdict
 
 Commands as run on 2026-10-17 from a copy of this directory (Python 3.13;
@@ -1506,6 +1524,9 @@ copies.
 | The round's reading and the review's texts (2026-10-28, later) | `sed -n '/^READING/,/^STATUS/p' stance6_results/score/score.txt`; `sha256sum stance6_results/review/REVIEW.txt stance6_results/review/NEXT_STEPS.txt` | line 1, "TAIL RAIL FORMED ON r10 IN TRAINING (ledger)", R 1 (COMPLETE 1, PRESENCE 0), U 0, P 1, G+ 1, A 2 of 3 against 2 of 5 (one-sided Fisher p 0.9286), `STATUS: FINAL`; `5c76f556…` and `9fd7fe64…`, the values the run log's entry timed 19:27 UTC gives |
 | The redacted run-log lines against the run-log copy (2026-10-28, later) | each run-log line that `score/score.txt`, `complete/*.txt` and the gunzipped `score/score.json.gz` print ("RUNLOG line <n> names a RUN_ID …") against line <n> of `stance6_setup/results/run_log.txt` | equal, or its leading part where the tool shortens it: 16 lines in the four texts and 4 in the JSON |
 | The files themselves (2026-10-28, later, with `stance6_results/score/` to `fetch/`) | `sha256sum -c SHA256SUMS` | all 727 files OK |
+| The M1 summaries against the reading (2026-10-28, later still) | for each run and tail actuator, the mean of `cmd_a` in `panels/<run>/10485760/m1/m1_summary.json` and `panels/<run>/final/m1/m1_summary.json` (actuators 11 to 14) against the `MEAN` that `score/score.txt` prints on the line after the run's `CLASS` line | equal (12 values; the largest difference 2.8e-17): `tail_3` +0.6420, +0.9148 and +0.5052 for s60, s42 and s80 |
+| The panels against the durable copy (2026-10-28, later still; needs the durable branch) | `git show e4733d8:SHA256SUMS` of `claude/handoff-stance6` (its `round/panels/` lines) against `sha256sum` of each file in `stance6_results/panels/` | equal for all 122 |
+| The files themselves (2026-10-28, later still, with `stance6_results/panels/`) | `sha256sum -c SHA256SUMS` | all 849 files OK |
 
 `test_pilot_score.py` prints sample "Walking pilot score" blocks while it runs;
 they score synthetic panels, not the pilot.

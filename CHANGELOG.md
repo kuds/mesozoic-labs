@@ -18,8 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `docs/investigations/stance_2026_10/`: the run log's lines 681 to 720, the
   scorer's output, the completeness check per run, the independent check of
   the reading, the report-only readouts, the review, the next-step proposals
-  and the fixer's record, K1–K4 per run, the D-9 and D-10 summaries and the
-  fetch record). Records only. §27 records the runs' ends, noted from Drive;
+  and the fixer's record, K1–K4 per run, the D-9 and D-10 summaries, the
+  fetch record, and the measurement panels' summaries and the judge's
+  files). Records only. §27 records the runs' ends, noted from Drive;
   the final fetch, its inline transfers made by an exact-copy script at the
   maintainer's decision; the reading, final, with all three runs complete:
   seed 42 pinned `tail_3_pitch_act` at +1 in training (22 ledger alarms from

@@ -130,13 +130,28 @@ the folder but this README).
   ends are LF here (**lineends**, a kind of change new with this folder, which
   SOURCES.txt defines), as the repository's `.gitattributes` (`text=auto`)
   stores them.
+- **`panels/<run>/<label>/`** (122 files, about 13 MB; the last addition, in
+  a commit of its own): for each run and each checkpoint traced (every
+  1,048,576 steps, the final, and s42's onset checkpoint 3,670,016) the
+  measurement panels' summaries, byte copies: `m1/m1_summary.json` and
+  `m1/flags.csv` (M1, the 20-episode per-step traces reduced: the CMD_a
+  figures the classes read, the tail and fall flags, hip roll), at the six J
+  checkpoints `m2/m2_summary.json` (M2, the 40-episode panel: clean count,
+  reward, posture) and `m4/judge_<label>.json` (M4, the judge's file, which
+  `kscore/` scores), and at 6,291,456 and the final `m3/m3_summary.json` and
+  `m3/stance_heading_report.txt` (M3, the six-heading certificate). The M1
+  summaries at R1 and the final give the MEAN_a values `score/score.txt`
+  prints.
 
 Not copied, and in the session's scratch only (the runs' own folders also
 on Drive): the final fetch's copies of the runs' files (238,406,989 bytes,
-the checkpoints among them), the raw transfers, the per-step traces and the
-measuring copy of the run branch. The workflows' result files and the
-independent check's scripts are on the durable branch.
+the checkpoints among them), the raw transfers, the per-step traces, the M2
+panels' series and the measuring copy of the run branch. The panels'
+per-episode files (M2's `panel.json`, M1's `episode_trace.json`, M3's
+`stance_heading_report.json` and its CSV), the workflows' result files and
+the independent check's scripts are on the durable branch.
 
 Left as their sources have them, against the repository's pre-commit hooks:
-the five D-9 and D-10 summaries end without a final newline and 4 lines of
-`score/score.txt` end in spaces; leave them out of a manual pre-commit run.
+the five D-9 and D-10 summaries and the 18 judge files end without a final
+newline and 4 lines of `score/score.txt` end in spaces; leave them out of a
+manual pre-commit run.
