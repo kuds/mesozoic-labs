@@ -1,0 +1,341 @@
+{
+ "stage": "scored",
+ "folders": {
+  "summary": "The F2 run-folder step did not need to run. RUNLOG has F2-START lines for all three RUN_IDs (lines 703-705, 12:25 UTC). The first `next --fetch F2` call for each run asked for its run folder's root listing, not the ppo listing or THE RUN FOLDERS, so step 3 was not triggered. No Drive calls were made and the tool wrote nothing; nothing was stopped. The per-run fetches can start from \"list root\".",
+  "report_text": "F2 run-folder step (12:25:27-12:26:54 UTC, date -u)\n\nThe run-folder step did not need to run. None of the three runs asked for it, so no Drive call was made and nothing was stopped. Each per-run session should start with its \"list root\" action below.\n\n1. F2-START lines in RUNLOG (Rule 7, read only) [measured: /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance4/live/run_log.txt, 706 lines]\n- Line 703: `2026-10-28 12:25 UTC  STANCE6 F2-START stance6_r10LTSB_s60 ...`\n- Line 704: `2026-10-28 12:25 UTC  STANCE6 F2-START stance6_r10LTSB_s42 ...`\n- Line 705: `2026-10-28 12:25 UTC  STANCE6 F2-START stance6_r10LTSB_s80 ...`\n- All three are present, so the check passes. I did not write to RUNLOG.\n\n2. One `next --fetch F2 --run <RUN_ID>` per run (12:25:46 UTC, cwd /tmp, all exit 0) [measured: tool output]\nThe first line of every output is the version banner, printed twice:\n`r10round lane B tools 1.3 (criteria lean v6 sha256 e5bea5d314cb...; built 2026-10-26; fixer 2026-10-26; v5 tool update 2026-10-26; v6 MEAN_a 2026-10-27)`\nAfter the banner, each run's action is:\n- **s60:** `NEXT for stance6_r10LTSB_s60 in F2:` / `list root (folder id 1qOjkr2S_pMivrKCjWLuPPqBALDTd4FbY), following every page token: listing --key root --folder-id 1qOjkr2S_pMivrKCjWLuPPqBALDTd4FbY`\n- **s42:** `NEXT for stance6_r10LTSB_s42 in F2:` / `list root (folder id 1mEXGjKoMtKDvf9suMNVEe4qkDcnFFyLS), following every page token: listing --key root --folder-id 1mEXGjKoMtKDvf9suMNVEe4qkDcnFFyLS`\n- **s80:** `NEXT for stance6_r10LTSB_s80 in F2:` / `list root (folder id 1TBDdiiyK3Uwn7qAbUXj2JRDl3PdPApYH), following every page token: listing --key root --folder-id 1TBDdiiyK3Uwn7qAbUXj2JRDl3PdPApYH`\n\n3. THE RUN FOLDERS steps (a) and (b)\n- **Not done.** None of the three `next` calls asked for the ppo listing or the run folders.\n- **Not repeated:** since step 3 did not apply, there is no \"after\" line to record. The before lines in item 2 stay current.\n- **Existing records** [measured]: `ROUND/fetch/folders.json` holds ppo folder id 140ohzCwAhkWRoW1Ny4PJ8LnHsbnCCfdA. Its last ppo listing is from 2026-10-27T15:05:40Z, 2 pages, complete. It lists all three stance6 RUN_IDs.\n- **No writes by `next`** [measured: find -newermt '2026-10-28 12:00' over ROUND]: no file was written since 12:00 UTC. folders.json (2026-10-27 15:05:40) and manifest.csv (2026-10-27 15:45:24) are unchanged.\n\nDrive calls: none. I made no search_files, get_file_metadata or download_file_content call, and did not load the Drive tools.\n\nStopped: nothing. No refusal and no permission check without a verdict.\n\nObservation for the coordinator (report only; nothing decided or acted on):\n- **The two hashes differ** [measured]:\n  - The tool banner and `CRITERIA_SHA256` in laneB/tools/r10round_common.py (line 52) give `e5bea5d314cb3c6b...`.\n  - criteria.txt (sha256sum) and APPROVED (line 4, criteria_sha256) give `99a44469a387d01c...`.\n- **The banner's hash matches the unpinned text** [measured]: `e5bea5d314cb...` is the sha256 of the v6 text before the pins were filled in. It is recorded in /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/lean/v6/criteria_r10round_lean_v6.sha256 for criteria_r10round_lean_v6.txt.\n- **Likely cause** [inferred]: the banner names the text the tools were built against, before the pins were added. It does not look like a tool mismatch, but whether that matters is the coordinator's call.",
+  "per_run": [
+   {
+    "run_id": "stance6_r10LTSB_s60",
+    "text": "F2-START is at RUNLOG line 703 (12:25 UTC) [measured]. First output line of `next --fetch F2`: the version banner `r10round lane B tools 1.3 (criteria lean v6 sha256 e5bea5d314cb...; ...)`. Action: `list root (folder id 1qOjkr2S_pMivrKCjWLuPPqBALDTd4FbY), following every page token: listing --key root --folder-id 1qOjkr2S_pMivrKCjWLuPPqBALDTd4FbY` (exit 0). It did not ask for the ppo listing or the run folders, so there was no rerun and no after line. Drive calls: 0. Nothing stopped."
+   },
+   {
+    "run_id": "stance6_r10LTSB_s42",
+    "text": "F2-START is at RUNLOG line 704 (12:25 UTC) [measured]. First output line of `next --fetch F2`: the version banner `r10round lane B tools 1.3 (criteria lean v6 sha256 e5bea5d314cb...; ...)`. Action: `list root (folder id 1mEXGjKoMtKDvf9suMNVEe4qkDcnFFyLS), following every page token: listing --key root --folder-id 1mEXGjKoMtKDvf9suMNVEe4qkDcnFFyLS` (exit 0). It did not ask for the ppo listing or the run folders, so there was no rerun and no after line. Drive calls: 0. Nothing stopped."
+   },
+   {
+    "run_id": "stance6_r10LTSB_s80",
+    "text": "F2-START is at RUNLOG line 705 (12:25 UTC) [measured]. First output line of `next --fetch F2`: the version banner `r10round lane B tools 1.3 (criteria lean v6 sha256 e5bea5d314cb...; ...)`. Action: `list root (folder id 1TBDdiiyK3Uwn7qAbUXj2JRDl3PdPApYH), following every page token: listing --key root --folder-id 1TBDdiiyK3Uwn7qAbUXj2JRDl3PdPApYH` (exit 0). It did not ask for the ppo listing or the run folders, so there was no rerun and no after line. Drive calls: 0. Nothing stopped."
+   }
+  ],
+  "files": [
+   "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/lean/build/laneB/fetch_agent_brief.txt",
+   "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance4/live/run_log.txt",
+   "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/folders.json",
+   "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/manifest.csv",
+   "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/lean/build/laneB/tools/r10round_common.py",
+   "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/lean/v6/criteria_r10round_lean_v6.sha256"
+  ],
+  "problems": [
+   "The lane B tool banner and CRITERIA_SHA256 (r10round_common.py line 52) give criteria sha256 e5bea5d314cb..., which is the v6 text before the pins were filled in (lean/v6/criteria_r10round_lean_v6.sha256). The approved criteria.txt and APPROVED give 99a44469a387d01c.... Report only: likely the tools' build-time text, not acted on, left to the coordinator [inferred]."
+  ]
+ },
+ "fetched": [
+  {
+   "run_id": "stance6_r10LTSB_s60",
+   "done": true,
+   "sessions": [
+    {
+     "run_id": "stance6_r10LTSB_s60",
+     "done": false,
+     "chunk_limit_reached": true,
+     "final_next_line": "transfer 01_stance/replays/tyrannosaurus_rex_anatomical_ppo_stage1_final_stance.csv (copy 1 (until its sha256 equals the manifest's entry); id 1Whux_AZlMGs5X3LNZ8RXW9TYRo5EcPEb, size 4526737)",
+     "transfers_this_session": 30,
+     "drive_calls_this_session": {
+      "download_file_content": 30,
+      "get_file_metadata": 0,
+      "search_files": 0
+     },
+     "transfer_errors": [],
+     "over_cap_or_without_copy": [],
+     "status_json": "{\n \"next\": [\n  \"transfer 01_stance/replays/tyrannosaurus_rex_anatomical_ppo_stage1_final_stance.csv (copy 1 (until its sha256 equals the manifest's entry); id 1Whux_AZlMGs5X3LNZ8RXW9TYRo5EcPEb, size 4526737)\"\n ],\n \"state\": {\n  \"artifact_manifest.json\": \"copies 1 and 2 agree (sha256 8523cf22a155)\",\n  \"provenance.json\": \"copies 1 and 2 agree (sha256 d18c3118c0f4)\",\n  \"01_stance/stage_config.json\": \"copies 1 and 2 agree (sha256 898bb25d06a1)\",\n  \"01_stance/eval_episodes.csv\": \"copies 1 and 2 agree (sha256 1821fd2e9f65)\"\n }\n}",
+     "stopped_reason": "This session stopped because it used its allowance of 30 transfers. It stopped at a clean point: transfer 30 (01_stance/figures/training_history/01_outcomes.png) had just been recorded as COPY and `next` had run again. [measured, manifest.csv] All 30 transfers this session are COPY rows with no errors. 5 came back inline and were saved byte for byte with extract_response.py, each finding exactly 1 response: 01_stance/evaluations.npz (transfer 2), plant_identity.json, task_fingerprint.json, k3_panel.json and stance_heading_report.txt. The other 25 were saved to files by the harness; cp --update=none copied each one unchanged into the raw folder as <path>.t<k>.saved.json, and that file was passed with --saved. The files fetched this session are: evaluations.npz, gate_progress.npz, plant_identity.json, task_fingerprint.json, k3_panel.csv, k3_panel.json, stance_heading_report.json/.txt, stance_heading_panel_selected.csv, training_history.html/.json and 19 training_history PNGs. The next session continues with the replays CSVs. RUNLOG line 703 holds the F2-START line for this RUN_ID; it was checked before the first transfer.",
+     "problems": [
+      "The task called this the first F2 fetch session for this RUN_ID, but [measured, manifest.csv] 19 F2 rows for stance6_r10LTSB_s60 were already there from the interrupted workflow wf_07eb7acd-ec5 (RUNLOG 708). Among them was the TRANSFER-ERROR on 01_stance/evaluations.npz transfer 1 (inline base64, 'Incorrect padding'). This session continued the tool's numbering, so evaluations.npz is transfer 2 = COPY 1, 16058 bytes. The earlier raw files were left untouched, and the old 01_stance__evaluations.npz.t1.b64 was not passed to the tool again.",
+      "To give each transfer a new file name, a small helper script was written outside every tool folder, at /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/agent_s60_s1/step.sh. It reads the next transfer number k from manifest.csv, runs extract_response.py or the cp copy, then runs TOOL transfer and TOOL next. No response content was typed by hand.",
+      "The tool banner prints criteria sha256 e5bea5d314cb... The coordinator already noted in RUNLOG 708 that this is expected (by design; the scorer checks criteria.txt against APPROVED)."
+     ],
+     "blocked": false
+    },
+    {
+     "run_id": "stance6_r10LTSB_s60",
+     "done": true,
+     "chunk_limit_reached": false,
+     "blocked": false,
+     "final_next_line": "done: every file of this fetch is held as the rules require",
+     "transfers_this_session": 26,
+     "drive_calls_this_session": {
+      "download_file_content": 26,
+      "search_files": 0,
+      "get_file_metadata": 0
+     },
+     "transfer_errors": [],
+     "over_cap_or_without_copy": [],
+     "status_json": "r10round lane B tools 1.3 (criteria lean v6 sha256 e5bea5d314cb...; built 2026-10-26; fixer 2026-10-26; v5 tool update 2026-10-26; v6 MEAN_a 2026-10-27)\n{\n \"next\": [\n  \"done: every file of this fetch is held as the rules require\"\n ],\n \"state\": {\n  \"artifact_manifest.json\": \"copies 1 and 2 agree (sha256 8523cf22a155)\",\n  \"provenance.json\": \"copies 1 and 2 agree (sha256 d18c3118c0f4)\",\n  \"01_stance/stage_config.json\": \"copies 1 and 2 agree (sha256 898bb25d06a1)\",\n  \"01_stance/eval_episodes.csv\": \"copies 1 and 2 agree (sha256 1821fd2e9f65)\",\n  \"step 5\": {\n   \"C1\": \"PASS\",\n   \"C2\": \"PASS\",\n   \"C4\": \"PASS\",\n   \"C6\": \"PASS\",\n   \"nonzip_C3_match\": true\n  }\n }\n}",
+     "stopped_reason": "TOOL next printed \"done: every file of this fetch is held as the rules require\" right after transfer 26 (01_stance/models/stage1_vecnormalize_11534336_steps.pkl) was recorded as COPY. That was a clean point, before the 30-transfer allowance was reached. RUNLOG line 703 holds the F2-START line for this RUN_ID; it was checked before the first transfer this session. [measured, manifest.csv] This session's 26 rows (13:41:32Z to 13:46:40Z) are all COPY with copy number 1, and each decoded size equals its listing's size: the 2 replays CSVs (final_stance.csv and selected_stance.csv), then the pairs for steps 4194304, 5242880, 6291456, 8388608 and 10485760 and the final pair (stage1_final.zip and stage1_final_vecnorm.pkl). After those came the report-only pairs for steps 1048576, 2097152, 3145728, 7340032, 9437184 and 11534336. Every zip passed testzip, and the tool noted a num_timesteps equal to its step (12001280 for stage1_final.zip). 13 responses came back inline (all of them .pkl files). extract_response.py saved each one byte for byte, found exactly 1 response for each on its first try, and wrote it to <path>.t1.json. The other 13 (the 2 CSVs and 11 zips) were saved to files by the harness. Each was copied unchanged with cp --update=none into <path>.t1.saved.json, checked with cmp, and passed with --saved. No raw file was overwritten or reused. The helper script that ran these steps is /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/f2agent_s60_sess2/step.sh. It lives outside every tool, round and download folder and does not change any of them.",
+     "problems": [
+      "No stop. Earlier sessions, not this one, left two TRANSFER-ERROR rows for this RUN_ID in manifest.csv. One is F0 2026-10-27T15:28:33Z, 01_stance/eval_episodes.csv transfer 2 (decoded 67919 against listing 36016). The other is F2 2026-10-28T13:02:03Z, 01_stance/evaluations.npz transfer 1 (inline base64 does not decode). Both files later have COPY rows. Listed here only so the report covers every non-COPY row. [measured, manifest.csv]",
+      "Observation only, not acted on: the lane B tool's banner reads 'criteria lean v6 sha256 e5bea5d314cb...'. The approved criteria file /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/criteria.txt has sha256 99a44469a387d01c55b98d76595d3633029681866ed14afcb185521eca0164db [measured, sha256sum]. A grep of laneB/REPORT.txt and of APPROVED for 'e5bea5d314cb' found nothing [measured]. It is probably the hash of the v6 text before its PINS were filled [inferred]. The tool's own checks were not affected. The coordinator decides whether this matters."
+     ]
+    }
+   ]
+  },
+  {
+   "run_id": "stance6_r10LTSB_s42",
+   "done": true,
+   "sessions": [
+    {
+     "run_id": "stance6_r10LTSB_s42",
+     "done": false,
+     "chunk_limit_reached": true,
+     "final_next_line": "transfer 01_stance/replays/tyrannosaurus_rex_anatomical_ppo_stage1_selected_stance.csv (copy 1 (until its sha256 equals the manifest's entry); id 1s-k_34Sk99y5Ja1djANpDVGzHKSYD0T5, size 4558220)",
+     "transfers_this_session": 30,
+     "transfer_errors": [],
+     "over_cap_or_without_copy": [],
+     "status_json": "{\n \"next\": [\n  \"transfer 01_stance/replays/tyrannosaurus_rex_anatomical_ppo_stage1_selected_stance.csv (copy 1 (until its sha256 equals the manifest's entry); id 1s-k_34Sk99y5Ja1djANpDVGzHKSYD0T5, size 4558220)\"\n ],\n \"state\": {\n  \"artifact_manifest.json\": \"copies 1 and 2 agree (sha256 3ffa31e68aa9)\",\n  \"provenance.json\": \"copies 1 and 2 agree (sha256 3462607b284c)\",\n  \"01_stance/stage_config.json\": \"copies 1 and 2 agree (sha256 5d54e6deac8d)\",\n  \"01_stance/eval_episodes.csv\": \"copies 1 and 2 agree (sha256 d1bcb7896469)\"\n }\n}",
+     "stopped_reason": "I stopped because this session used its full allowance of 30 transfers (download_file_content calls). I stopped at a clean point: the 30th transfer (01_stance/figures/training_history/01_outcomes.png) had just been recorded by TOOL transfer as COPY 1, and TOOL next had returned after it. The RUN_ID is not done, so another session needs to continue with the replays/ files. Before the first file I checked RUNLOG: the F2-START line for stance6_r10LTSB_s42 is there (line 704, 12:25 UTC) [measured]. The exact-copy script's sha256 is 98e8041e..., which matches RUNLOG line 710 [measured]. Transfers followed the maintainer's 13:31 UTC decision. For an inline response (5 files: evaluations.npz, plant_identity.json, task_fingerprint.json, k3_panel.json, stance_heading_report.txt), extract_response.py saved it to <PATH>.t1.json with T0 taken by date -u just before the download, and found exactly 1 response each time. For a response the harness saved to a file (25 files), I copied it byte for byte (cp, then cmp) into the raw folder as <PATH>.t1.saved.json and passed it to TOOL transfer --saved. I typed no base64 by hand. The manifest has 30 rows for this RUN_ID at 13:35:05-13:40:07 UTC, all COPY at transfer 1, each with decoded size equal to the listing [measured, ROUND/fetch/manifest.csv]. All saved files are under /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/raw/F2/stance6_r10LTSB_s42/. The next session should keep the numbering going from the manifest: every file this session covered is at t1, and the next file (selected_stance.csv) has no transfer yet. My helper scripts, which only call the pinned tools, are in /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/agent_s42_sess1/ (inline.sh, saved.sh).",
+     "problems": [
+      "A file the manifest does not record was left by the earlier s42 session that died (RUNLOG line 708): /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/raw/F2/stance6_r10LTSB_s42/01_stance__evaluations.npz.t1.b64. I ignored it and never passed it to the tool. This session's transfer 1 of evaluations.npz was saved under a new name (.t1.json) and recorded as COPY 1 [measured: the manifest had no evaluations.npz row for s42 before 13:35:05 UTC].",
+      "The tool banner reports criteria sha256 e5bea5d3, not the APPROVED 99a44469. RUNLOG line 708 says this is by design: it is the v6 text before pins, and the scorer checks criteria.txt against APPROVED. I am noting it, not acting on it."
+     ],
+     "drive_calls_this_session": {
+      "download_file_content": 30,
+      "get_file_metadata": 0,
+      "search_files": 0
+     }
+    },
+    {
+     "run_id": "stance6_r10LTSB_s42",
+     "done": true,
+     "chunk_limit_reached": false,
+     "final_next_line": "done: every file of this fetch is held as the rules require",
+     "transfers_this_session": 28,
+     "transfer_errors": [],
+     "over_cap_or_without_copy": [],
+     "status_json": "{\n \"next\": [\n  \"done: every file of this fetch is held as the rules require\"\n ],\n \"state\": {\n  \"artifact_manifest.json\": \"copies 1 and 2 agree (sha256 3ffa31e68aa9)\",\n  \"provenance.json\": \"copies 1 and 2 agree (sha256 3462607b284c)\",\n  \"01_stance/stage_config.json\": \"copies 1 and 2 agree (sha256 5d54e6deac8d)\",\n  \"01_stance/eval_episodes.csv\": \"copies 1 and 2 agree (sha256 d1bcb7896469)\",\n  \"step 5\": {\n   \"C1\": \"PASS\",\n   \"C2\": \"PASS\",\n   \"C4\": \"PASS\",\n   \"C6\": \"PASS\",\n   \"nonzip_C3_match\": true\n  }\n }\n}",
+     "stopped_reason": "The F2 fetch of stance6_r10LTSB_s42 is finished. I stopped because TOOL next printed \"done: every file of this fetch is held as the rules require\" at 13:53:32 UTC, right after this session's 28th transfer (stage1_vecnormalize_3670016_steps.pkl) was recorded as COPY 1. The 30-transfer allowance was not reached.\n\nChecks before the first file [measured]: RUNLOG line 704 holds the F2-START line for s42 (12:25 UTC). extract_response.py has sha256 98e8041e..., which matches RUNLOG's 13:34 UTC line.\n\nWhat this session fetched, in TOOL's order:\n- Both replays/*_stance.csv files.\n- The step-5 C3 pairs: the zip and vecnormalize pkl at 4194304, 5242880, 6291456, 8388608 and 10485760 steps, plus stage1_final.zip and stage1_final_vecnorm.pkl.\n- The step-6 report-only pairs at 1048576, 2097152, 3145728, 7340032, 9437184, 11534336 and 3670016 steps.\n\nEvery transfer was copy 1, and each was COPY on its first try [measured, ROUND/fetch/manifest.csv]. Each zip passed testzip, and its num_timesteps matched its step count; for stage1_final.zip it was 12001280.\n\nTransfer method, per the maintainer's 13:31 UTC decision. T0 came from date -u just before each download.\n- 14 responses were inline (the .pkl files). extract_response.py saved each one byte for byte to <PATH>.t1.json and found exactly 1 response every time.\n- 14 responses were saved to a file by the harness (the zips and csvs). I copied each one byte for byte (cp, then cmp) to <PATH>.t1.saved.json in the raw folder, then passed it to TOOL transfer --saved.\n- I typed no base64 by hand.\n\nRaw files are in /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/raw/F2/stance6_r10LTSB_s42/. Session 1 left no unrecorded or partial raw file. My helper scripts are in /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/agent_s42_sess2/ (inline.sh and saved.sh, copied from session 1; they only call the pinned tools). The status output is saved there as status_out.txt.\n\nDrive calls this session: download_file_content 28, search_files 0, get_file_metadata 0.\n\nThe F2 manifest rows for s42 are 76 in all: 70 COPY and 6 LISTING, with no TRANSFER-ERROR or OVER-CAP [measured]. The manifest holds one TRANSFER-ERROR for s42, but it belongs to fetch F0, not F2: 01_stance/eval_episodes.csv at 2026-10-27T15:38:17Z, transfer 1, decoded size 100279 against a listing of 68270.",
+     "problems": [],
+     "blocked": false,
+     "drive_calls_this_session": {
+      "download_file_content": 28,
+      "get_file_metadata": 0,
+      "search_files": 0
+     }
+    }
+   ]
+  },
+  {
+   "run_id": "stance6_r10LTSB_s80",
+   "done": true,
+   "sessions": [
+    {
+     "run_id": "stance6_r10LTSB_s80",
+     "done": false,
+     "chunk_limit_reached": true,
+     "final_next_line": "transfer 01_stance/replays/tyrannosaurus_rex_anatomical_ppo_stage1_final_stance.csv (copy 1 (until its sha256 equals the manifest's entry); id 11V91ZUx1spIawJuL9rPngzwQWWRon4YB, size 4584751)",
+     "transfers_this_session": 30,
+     "transfer_errors": [],
+     "over_cap_or_without_copy": [],
+     "status_json": "{\n \"next\": [\n  \"transfer 01_stance/replays/tyrannosaurus_rex_anatomical_ppo_stage1_final_stance.csv (copy 1 (until its sha256 equals the manifest's entry); id 11V91ZUx1spIawJuL9rPngzwQWWRon4YB, size 4584751)\"\n ],\n \"state\": {\n  \"artifact_manifest.json\": \"copies 1 and 2 agree (sha256 29e92b9786f9)\",\n  \"provenance.json\": \"copies 1 and 2 agree (sha256 c05af1e785aa)\",\n  \"01_stance/stage_config.json\": \"copies 1 and 2 agree (sha256 ec1c49a551ba)\",\n  \"01_stance/eval_episodes.csv\": \"copies 1 and 2 agree (sha256 b677ce762e73)\"\n }\n}",
+     "stopped_reason": "I stopped because this session used its 30-transfer allowance (download_file_content calls). The stop came at a clean point: the tool had just recorded the 30th transfer (01_stance/figures/training_history/01_outcomes.png, COPY 1) and printed its next action. The next session continues from the next line above (the replays/*_stance.csv files). [measured, ROUND/fetch/manifest.csv] Rows this session (utc >= 13:41Z, F2, s80): 30, all COPY, decoded size equal to the listing size in each row. Files this session: 01_stance/ evaluations.npz, gate_progress.npz, plant_identity.json, task_fingerprint.json, k3_panel.csv, k3_panel.json, stance_heading_report.json, stance_heading_report.txt, stance_heading_panel_selected.csv. Also 01_stance/figures/training_history/: training_history.html, training_history.json and 19 PNGs (03, 05, 15, 02, 19, 18, 17, 16, 14, 13, 12, 11, 10, 09, 08, 07, 06, 04, 01). The tool numbered each one transfer 1, copy 1. [measured] RUNLOG line 705 holds the F2-START line for s80 (12:25 UTC), checked before the first file.",
+     "problems": [
+      "Transfer method (per the maintainer's decision, RUNLOG 13:31 UTC): 8 inline responses (evaluations.npz, plant_identity.json, task_fingerprint.json, k3_panel.json, stance_heading_report.txt and 3 others) were saved byte for byte with extract_response.py, sha256 98e8041e..., which matches RUNLOG line 710. The script found exactly 1 response at or after T0 each time and no retry was needed. They were then passed with --saved. No content was typed by hand.",
+      "The harness saved 22 large responses to files under /root/.claude/projects/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/tool-results/. Each was copied byte for byte (cp --update=none, then cmp identical) to a new name ROUND/fetch/raw/F2/stance6_r10LTSB_s80/<PATH with / as __>.t1.saved.json, following the .tN.saved.json convention of the earlier session, and that copy was passed with --saved. The tool checked id, title and size each time. [inferred] This copy step is not spelled out in the brief, which says only 'pass that saved response file'.",
+      "I wrote a helper shell script for the repeated extract/copy -> transfer -> next sequence at /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/f2agent_s80/step.sh. It is in my own scratchpad, not in a tool, download or round folder, and it refuses any existing output file.",
+      "The task said this was the first F2 session for s80, but raw files and 18 manifest rows from the interrupted workflow (13:02-13:28 UTC) were already there. No earlier file was overwritten or reused. None of this session's 30 files had an earlier transfer recorded, so each is t1. The leftover 01_stance__evaluations.npz.t1.b64.INCOMPLETE_unrecorded was ignored and never passed to the tool; evaluations.npz got a fresh transfer 1 saved as ...evaluations.npz.t1.json.",
+      "Drive calls this session: download_file_content 30, search_files 0, get_file_metadata 0. No refusals, no permission prompts left without a verdict, no tool INPUT ERROR, no TRANSFER-ERROR, no WRONG-FILE, no OVER-CAP."
+     ],
+     "blocked": false,
+     "drive_calls_this_session": {
+      "download_file_content": 30,
+      "search_files": 0,
+      "get_file_metadata": 0
+     }
+    },
+    {
+     "run_id": "stance6_r10LTSB_s80",
+     "done": true,
+     "chunk_limit_reached": false,
+     "final_next_line": "done: every file of this fetch is held as the rules require",
+     "transfers_this_session": 26,
+     "transfer_errors": [],
+     "over_cap_or_without_copy": [],
+     "status_json": "{\n \"next\": [\n  \"done: every file of this fetch is held as the rules require\"\n ],\n \"state\": {\n  \"artifact_manifest.json\": \"copies 1 and 2 agree (sha256 29e92b9786f9)\",\n  \"provenance.json\": \"copies 1 and 2 agree (sha256 c05af1e785aa)\",\n  \"01_stance/stage_config.json\": \"copies 1 and 2 agree (sha256 ec1c49a551ba)\",\n  \"01_stance/eval_episodes.csv\": \"copies 1 and 2 agree (sha256 b677ce762e73)\",\n  \"step 5\": {\n   \"C1\": \"PASS\",\n   \"C2\": \"PASS\",\n   \"C4\": \"PASS\",\n   \"C6\": \"PASS\",\n   \"nonzip_C3_match\": true\n  }\n }\n}",
+     "stopped_reason": "TOOL next printed \"done: every file of this fetch is held as the rules require\" for stance6_r10LTSB_s80 in F2 at 13:54:49Z. That was right after the 26th transfer of this session was recorded, so the stop came at a clean point and the 30-transfer allowance was not reached. This session started from the line the previous session handed over (01_stance/replays/tyrannosaurus_rex_anatomical_ppo_stage1_final_stance.csv). It then did the second replays file, the step-5 pairs (zip and vecnormalize pkl at 4194304, 5242880, 6291456, 8388608 and 10485760, plus stage1_final.zip and stage1_final_vecnorm.pkl) and the step-6 report-only pairs (1048576, 2097152, 3145728, 7340032, 9437184 and 11534336). Each was transfer 1, COPY 1. [measured, ROUND/fetch/manifest.csv] This session wrote 26 rows (utc >= 13:49Z, F2, s80), all COPY, each with a decoded size equal to its listing size. The whole F2 fetch for s80 has 74 rows: 68 COPY and 6 LISTING, with no TRANSFER-ERROR, WRONG-FILE or OVER-CAP row. The tool reported testzip ok on every zip, and num_timesteps for each one matches its step count (stage1_final.zip: 12001280). Transfer method, following the maintainer's decision of 13:31 UTC: 13 responses came back inline (the .pkl files). Each was saved with extract_response.py (T0 from date -u before the call; the first attempt found the response every time) to ROUND/fetch/raw/F2/stance6_r10LTSB_s80/<PATH with / as __>.t1.json and passed with --saved. The other 13 (the .zip and .csv files) were too large to return inline, so the harness saved them to /root/.claude/projects/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/tool-results/. Each was copied without overwriting to the raw folder as <PATH with / as __>.t1.saved.json and passed with --saved. Every file name was new. No base64 was retyped. Drive calls this session: download_file_content 26, search_files 0, get_file_metadata 0. [measured, RUNLOG line 705] The F2-START line for s80 (12:25 UTC) was checked again this session.",
+     "problems": [],
+     "blocked": false,
+     "drive_calls_this_session": {
+      "download_file_content": 26,
+      "get_file_metadata": 0,
+      "search_files": 0
+     }
+    }
+   ]
+  }
+ ],
+ "measure": {
+  "summary": "I made every C7 measurement for all three runs: 18 M1 traces and 3 M3 certificates, all exit code 0, with no crash, no refusal and no rerun. After measuring, the completeness tool prints C1-C7 PASS and VERDICT: COMPLETE for s60, s42 and s80. The s42 final certificate's own verdict is FAIL, and that fail stands.",
+  "report_text": "C7 CLASS-INPUT MEASUREMENT, stance6 F2 (work 13:55 to 14:41 UTC, times from date -u)\n\nResult: all 21 C7 measurements were made (18 M1 traces and 3 M3 certificates), every one exit code 0, with no crash, no refusal and no rerun [measured, logs/measure/summary_slot1.tsv and summary_slot2.tsv]. After measuring, the completeness tool prints C1-C7 PASS and \"VERDICT: COMPLETE\" for all three runs [measured, complete_post/<RUN_ID>.txt]. The s42 final certificate's own verdict is FAIL (details below); it is recorded as written and left a fail.\n\nSTEP 1: completeness before measuring (complete_r10round.py run; stdout in .../r10round/f2/complete_pre/<RUN_ID>.txt) [measured]\n- s60, s42 and s80 each print C1, C2, C3, C4, C5 and C6 PASS. C7 is \"NOT ESTABLISHED ... PENDING: a measurement absent\". The verdict line is \"PENDING (C7: a measurement absent)\".\n- No run failed any of C1-C6, so no run was left unmeasured; that exclusion rule applied to none of the three.\n- Each run is FINISHED: E 12001280, the final zip's num_timesteps 12001280.\n- The labels C7 needs, the same for all three runs (from the tool's JSON):\n  - R1: 10485760.\n  - J: 4194304, 5242880, 6291456, 8388608, 10485760.\n  - RESOLUTION checkpoints: none (resolution {}).\n  - final, with M3 there because the runs are FINISHED.\n  - That is 6 M1 plus 1 M3 per run.\n- Every pair C7 names is held in F2 as a COPY matching the manifest. C3 prints OK for all 12 pair files and for 01_stance/stage_config.json.\n- My resolver script (c7tools/resolve_pairs.py) found exactly one copy per file (copy1). For all 39 input files, that copy's sha256 equals both the artifact_manifest entry and the completeness tool's files_read.\n\nSTEP 2: measurements\n- Setup: copy_8737cd3d, with its seal checked before and after (check-copy rc 0, tree digest 331fe8fc...). Every job ran with OMP_NUM_THREADS=1 nice -n 10, cwd /tmp, the approval record at its default, and --stage-config set to the F2 copy of 01_stance/stage_config.json. Two sequential slots meant at most 2 simulation processes at any time.\n- Each job's command, tool output and rc are in logs/measure/<RUN_ID>_<label>_<kind>.try1.log.\n\n| run | label | kind | rc | start (UTC) | end (UTC) |\n|---|---|---|---|---|---|\n| s60 | 4194304 | M1 | 0 | 13:59:04 | 14:00:13 |\n| s60 | 5242880 | M1 | 0 | 14:00:13 | 14:01:25 |\n| s60 | 6291456 | M1 | 0 | 14:01:25 | 14:02:36 |\n| s60 | 8388608 | M1 | 0 | 14:02:36 | 14:03:41 |\n| s60 | 10485760 | M1 | 0 | 14:03:41 | 14:04:50 |\n| s60 | final | M1 | 0 | 14:04:50 | 14:06:03 |\n| s60 | final | M3 | 0 | 13:59:04 | 14:19:27 |\n| s42 | 4194304 | M1 | 0 | 14:06:03 | 14:07:16 |\n| s42 | 5242880 | M1 | 0 | 14:07:16 | 14:08:26 |\n| s42 | 6291456 | M1 | 0 | 14:08:26 | 14:09:34 |\n| s42 | 8388608 | M1 | 0 | 14:09:34 | 14:10:45 |\n| s42 | 10485760 | M1 | 0 | 14:10:45 | 14:11:56 |\n| s42 | final | M1 | 0 | 14:11:56 | 14:13:11 |\n| s42 | final | M3 | 0 | 14:19:27 | 14:39:43 |\n| s80 | 4194304 | M1 | 0 | 14:13:11 | 14:14:23 |\n| s80 | 5242880 | M1 | 0 | 14:14:23 | 14:15:31 |\n| s80 | 6291456 | M1 | 0 | 14:15:31 | 14:16:38 |\n| s80 | 8388608 | M1 | 0 | 14:16:38 | 14:17:45 |\n| s80 | 10485760 | M1 | 0 | 14:17:45 | 14:18:47 |\n| s80 | final | M1 | 0 | 14:18:47 | 14:19:53 |\n| s80 | final | M3 | 0 | 14:19:53 | 14:40:07 |\n\n- Every output records physics_revision 10.\n- There is no Traceback, REFUSED or CRASH in any log, and no *.crashed* or m*_refused.json under the panels folder.\n- The M3 verdicts as the tool printed them:\n  - s60 final: \"verdict\": \"PASS\", n_clean 40 at each of the six headings, 1222.9 s.\n  - s42 final: \"verdict\": \"FAIL\", n_clean 38 at each heading, 1214.9 s. m3_summary.json gives failures \"heading <h>: hop_or_fall_episodes 2 > 1 (episodes ending early or failing min_all_feet_support, max_touchdown_rate, max_window_displacement_m, max_actuator_saturation_fraction; panel rail)\" for each of -90, -45, +0, +45, +90 and +180.\n  - s80 final: \"verdict\": \"PASS\", n_clean 40 at each heading, 1212.8 s.\n- The M1 runner's printed \"tail_flags\" counts are report only; forming classes is the scorer's job, not this stage's:\n  - s42: 4194304: 19, 5242880: 3, 6291456: 0, 8388608: 19, 10485760: 16, final: 0.\n  - s60: 8388608: 3, every other label 0.\n  - s80: 0 at every label.\n  - fall_flags: 0 everywhere.\n\nSTEP 3: completeness after measuring (stdout in .../r10round/f2/complete_post/<RUN_ID>.txt) [measured]\nFor each of the three runs the tool prints:\n  C1: PASS  C1 one launch, no launch-check stop, no other action\n  C2: PASS  C2 artifact_manifest.json\n  C3: PASS  C3 every file the reading uses equals its manifest entry\n  C4: PASS  C4 one session from step 0 in the round's configuration  [read on manifest-verified copies]\n  C5: PASS  C5 the end\n  C6: PASS  C6 ledger whole to E, every ANY and TAIL input measured\n  C7: PASS  C7 traces (and the final certificate)\n      value: {\"labels\": [\"4194304\", \"5242880\", \"6291456\", \"8388608\", \"10485760\", \"final\"], \"missing\": []}\n  VERDICT: COMPLETE\n- measured_on_another_file is [] for every run, so nothing failed the R-B4 binding check.\n- The tool's certificate: passed True for s60 and s80; passed False for s42, with the six failures above.\n- PRESENCE (as printed, unchanged by measuring):\n  - s42: PRESENCE RAIL {\"step\": 3932160, \"actuators\": {\"tail_3_pitch_act+\": 20}, \"flagged_evaluations\": 26}.\n  - s60 and s80: no PRESENCE RAIL.\n\nLEFT UNCHANGED [measured]\n- RUNLOG: 710 lines, last modified 13:34:20 UTC, before this stage started.\n- APPROVED and the criteria files: sha256 unchanged.\n- The main checkout and the run-branch clone: clean, with the clone at 8737cd3d.\n- Both lanes' tools: sha256sum -c passes.\n- No Drive or GitHub access, nothing trained. Downloads were only hashed or read as JSON by my scripts; the checkpoints were loaded only by the pinned runner.\n\nITEMS TO REPORT\n- A removal was refused by a permission/safety check, so I stopped that item. While getting the tool's JSON I wrote three duplicate stdout files, .../complete_pre/<RUN_ID>.withjson.txt; cmp shows each is byte-identical to <RUN_ID>.txt. My \"rm -f $O/*.withjson.txt\" was refused, and the three files are still there for someone to delete.\n- Observation, not acted on: the lane B tools' banner reads \"criteria lean v6 sha256 e5bea5d314cb...\", and r10m_common.py holds CRITERIA_SHA256 16f28878... (v5). The approved criteria sha256 is 99a44469... These are tool-internal constants; whether they matter for PROVISIONAL is the scorer's check, not this stage's.",
+  "per_run": [
+   {
+    "run_id": "stance6_r10LTSB_s60",
+    "text": "Before measuring: C1-C6 PASS; C7 PENDING; FINISHED, E 12001280. C7 labels: 4194304, 5242880, 6291456, 8388608, 10485760 (R1), final; no RESOLUTION checkpoint. Every pair is held as a manifest-matching copy1. Measurements, all rc 0 with no crash or refusal: M1 at 4194304 (13:59:04-14:00:13), 5242880 (14:00:13-14:01:25), 6291456 (14:01:25-14:02:36), 8388608 (14:02:36-14:03:41), 10485760 (14:03:41-14:04:50) and final (14:04:50-14:06:03); M3 at final (13:59:04-14:19:27), verdict PASS, n_clean 40 at all six headings. After measuring: C1 PASS, C2 PASS, C3 PASS, C4 PASS, C5 PASS, C6 PASS, C7 PASS (missing []); VERDICT: COMPLETE. PRESENCE: no PRESENCE RAIL."
+   },
+   {
+    "run_id": "stance6_r10LTSB_s42",
+    "text": "Before measuring: C1-C6 PASS; C7 PENDING; FINISHED, E 12001280. C7 labels: 4194304, 5242880, 6291456, 8388608, 10485760 (R1), final; no RESOLUTION checkpoint. Every pair is held as a manifest-matching copy1. Measurements, all rc 0 with no crash or refusal: M1 at 4194304 (14:06:03-14:07:16), 5242880 (14:07:16-14:08:26), 6291456 (14:08:26-14:09:34), 8388608 (14:09:34-14:10:45), 10485760 (14:10:45-14:11:56) and final (14:11:56-14:13:11); M3 at final (14:19:27-14:39:43), the certificate's own verdict FAIL, n_clean 38 at every heading, failures 'hop_or_fall_episodes 2 > 1' at -90, -45, +0, +45, +90 and +180 (recorded as written; a fail stays a fail). The M1 runner printed tail_flags 19/3/0/19/16/0 (report only). After measuring: C1 PASS, C2 PASS, C3 PASS, C4 PASS, C5 PASS, C6 PASS, C7 PASS (missing []); VERDICT: COMPLETE; the tool's certificate passed False. PRESENCE: PRESENCE RAIL {step 3932160, tail_3_pitch_act+: 20, flagged_evaluations 26}."
+   },
+   {
+    "run_id": "stance6_r10LTSB_s80",
+    "text": "Before measuring: C1-C6 PASS; C7 PENDING; FINISHED, E 12001280. C7 labels: 4194304, 5242880, 6291456, 8388608, 10485760 (R1), final; no RESOLUTION checkpoint. Every pair is held as a manifest-matching copy1. Measurements, all rc 0 with no crash or refusal: M1 at 4194304 (14:13:11-14:14:23), 5242880 (14:14:23-14:15:31), 6291456 (14:15:31-14:16:38), 8388608 (14:16:38-14:17:45), 10485760 (14:17:45-14:18:47) and final (14:18:47-14:19:53); M3 at final (14:19:53-14:40:07), verdict PASS, n_clean 40 at all six headings. After measuring: C1 PASS, C2 PASS, C3 PASS, C4 PASS, C5 PASS, C6 PASS, C7 PASS (missing []); VERDICT: COMPLETE. PRESENCE: no PRESENCE RAIL."
+   }
+  ],
+  "files": [
+   "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/complete_pre/stance6_r10LTSB_s60.txt",
+   "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/complete_pre/stance6_r10LTSB_s42.txt",
+   "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/complete_pre/stance6_r10LTSB_s80.txt",
+   "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/complete_pre/stance6_r10LTSB_s60.json",
+   "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/complete_pre/stance6_r10LTSB_s42.json",
+   "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/complete_pre/stance6_r10LTSB_s80.json",
+   "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/complete_post/stance6_r10LTSB_s60.txt",
+   "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/complete_post/stance6_r10LTSB_s42.txt",
+   "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/complete_post/stance6_r10LTSB_s80.txt",
+   "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/complete_post/stance6_r10LTSB_s60.json",
+   "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/complete_post/stance6_r10LTSB_s42.json",
+   "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/complete_post/stance6_r10LTSB_s80.json",
+   "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/logs/measure/summary_slot1.tsv",
+   "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/logs/measure/summary_slot2.tsv",
+   "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/logs/measure/stance6_r10LTSB_s42_final_m3.try1.log",
+   "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/panels/stance6_r10LTSB_s60",
+   "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/panels/stance6_r10LTSB_s42",
+   "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/panels/stance6_r10LTSB_s80",
+   "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/panels/stance6_r10LTSB_s42/final/m3/m3_summary.json",
+   "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/c7tools/resolve_pairs.py",
+   "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/c7tools/plan.json",
+   "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/c7tools/gen_jobs.py",
+   "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/c7tools/run_slot.sh"
+  ],
+  "problems": [
+   "A safety check refused my removal of three duplicate files I had created: rm -f $O/*.withjson.txt. I stopped that item as the rules require. The files are still there, each byte-identical to its <RUN_ID>.txt (checked with cmp): /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/complete_pre/stance6_r10LTSB_s60.withjson.txt, /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/complete_pre/stance6_r10LTSB_s42.withjson.txt and /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/complete_pre/stance6_r10LTSB_s80.withjson.txt. Someone can delete them by hand.",
+   "Not a crash or refusal: the s42 final M3 certificate's own verdict is FAIL ('hop_or_fall_episodes 2 > 1' at all six headings, n_clean 38). It counts as R2's certificate measured for C7, and the fail is recorded as written.",
+   "Observation only, not acted on: the lane B tools' version banner names 'criteria lean v6 sha256 e5bea5d314cb...', and lane A's r10m_common.py holds CRITERIA_SHA256 16f28878... (v5); the approved criteria sha256 is 99a44469.... These are tool-internal constants, and the PROVISIONAL check on them belongs to the scorer stage."
+  ]
+ },
+ "score": {
+  "scorer_exit_code": 0,
+  "reading_line": "READING: line 1: TAIL RAIL FORMED ON r10 IN TRAINING (ledger). An existence result for r10 as shipped (weak for the last); not a rate. To the maintainer with the DIAGNOSTIC READOUTS; nothing is proposed by this text. | R 1 (COMPLETE 1, PRESENCE 0), U 0, P 1, G+ 1 | STATUS: FINAL",
+  "provisional_items": [],
+  "incomplete_items": [],
+  "refetch_named": [],
+  "statistic_A": "Statistic A: 2 of 3 against LTSB r9's 2 of 5; one-sided Fisher p 0.9286 (TABLE E 0.93); TABLE E {'p_r10_below_r9': 0.26, 'p_r10_below_half': 0.05, 'upper_95': 0.98}; nothing is significant. Beside A: family 4 of 10; same-seed LTSB 2 of 3; A WITH LOST RUNS 2 of 3 (report only) []",
+  "per_run": [
+   {
+    "run_id": "stance6_r10LTSB_s60",
+    "complete_or_lost": "COMPLETE (RUN stance6_r10LTSB_s60: COMPLETE  F2)",
+    "c1_c7": "C1 PASS, C2 PASS, C3 PASS, C4 PASS, C5 PASS (E 12001280, FINISHED), C6 PASS (grid_evaluations 91, failures []), C7 PASS (labels 4194304, 5242880, 6291456, 8388608, 10485760, final; missing [])",
+    "tail_class": "PARKED",
+    "kind": "none (kind null); tail alarms []; resolved by trace []; trace rail []; single tail flags []; flagged_evaluations 0",
+    "gate": "GATE PASS",
+    "outcome": "OUTCOME NEGATIVE ['PARKED']",
+    "any_alarm": "ANY ALARM []",
+    "parked_driven": "PARKED [{'actuator': 'tail_3_pitch_act', 'windows': [('END', 0.042), ('J', [('8388608', 0.2797), ('10485760', 0.1267)])]}]; DRIVEN []; MEAN_a basis R1 and R2 for all four tail actuators",
+    "presence": "Scorer: no PRESENCE line printed (score.json runs.presence []). complete_r10round.py on F2: no PRESENCE RAIL (p1 PASS, p2 PASS, p3 FAIL: tail_alarms [], tail_flagged [])"
+   },
+   {
+    "run_id": "stance6_r10LTSB_s42",
+    "complete_or_lost": "COMPLETE (RUN stance6_r10LTSB_s42: COMPLETE  F2)",
+    "c1_c7": "C1 PASS, C2 PASS, C3 PASS, C4 PASS, C5 PASS (E 12001280, FINISHED), C6 PASS (grid_evaluations 91, failures []), C7 PASS (labels 4194304, 5242880, 6291456, 8388608, 10485760, final; missing [])",
+    "tail_class": "RAIL (RAIL-LEDGER-PERSISTENT)",
+    "kind": "RAIL-LEDGER-PERSISTENT; actuator tail_3_pitch_act, sign +; first tail alarm step 3932160 (tail_3_pitch_act+: 20); flagged_evaluations 26; 22 tail-alarm steps 3932160, 4063232, 4194304, 4325376, 4456448, 4587520, 4718592, 4849664, 4980736, 5111808, 5505024, 8126464, 8257536, 8388608, 9699328, 9830400, 9961472, 10092544, 10223616, 10354688, 10485760, 10616832; trace rail [{'actuator': 'tail_3_pitch_act', 'sign': '+', 'basis': '2+ flags', 'drive_backed': True, 'drive_backed_by_checkpoint': {'10485760': True}}]; resolved by trace []; single tail flags []",
+    "gate": "GATE FAIL: 'hop_or_fall_episodes 2 > 1 (episodes ending early or failing min_all_feet_support, max_touchdown_rate, max_window_displacement_m, max_actuator_saturation_fraction; panel rail)' at heading -90, -45, +0, +45, +90 and +180",
+    "outcome": "OUTCOME NEGATIVE ['RAIL (RAIL-LEDGER-PERSISTENT)', 'GATE FAIL (the six heading failures above)']",
+    "any_alarm": "ANY ALARM: 22 entries, each actuator tail_3_pitch_act, tail_scope 'tail', reason '> 0.1', at steps 3932160 (20), 4063232 (18), 4194304 (17), 4325376 (15), 4456448 (16), 4587520 (20), 4718592 (20), 4849664 (19), 4980736 (19), 5111808 (19), 5505024 (13), 8126464 (12), 8257536 (12), 8388608 (17), 9699328 (20), 9830400 (20), 9961472 (20), 10092544 (20), 10223616 (20), 10354688 (19), 10485760 (19), 10616832 (18)",
+    "parked_driven": "PARKED [{'actuator': 'tail_3_pitch_act', 'windows': [('END', 0.3148), ('J', [('4194304', 0.3894), ('5242880', 0.2842), ('8388608', 0.341), ('10485760', 0.3362), ('final', 0.2934)])]}]; DRIVEN []; MEAN_a basis R1 and R2 for all four tail actuators",
+    "presence": "Scorer: no PRESENCE line printed (score.json runs.presence []). complete_r10round.py on F2: PRESENCE RAIL {\"step\": 3932160, \"actuators\": {\"tail_3_pitch_act+\": 20}, \"flagged_evaluations\": 26} (p1 PASS, p2 PASS, p3 PASS)"
+   },
+   {
+    "run_id": "stance6_r10LTSB_s80",
+    "complete_or_lost": "COMPLETE (RUN stance6_r10LTSB_s80: COMPLETE  F2)",
+    "c1_c7": "C1 PASS, C2 PASS, C3 PASS, C4 PASS, C5 PASS (E 12001280, FINISHED), C6 PASS (grid_evaluations 91, failures []), C7 PASS (labels 4194304, 5242880, 6291456, 8388608, 10485760, final; missing [])",
+    "tail_class": "CLEAR",
+    "kind": "none (kind null); tail alarms []; resolved by trace []; trace rail []; single tail flags []; flagged_evaluations 0",
+    "gate": "GATE PASS",
+    "outcome": "OUTCOME POSITIVE []",
+    "any_alarm": "ANY ALARM: 6 entries, each actuator neck_pitch_act, tail_scope 'non-tail or unnamed', reason '> 0.1', at steps 5505024 (18), 5636096 (18), 6029312 (15), 6422528 (18), 6553600 (14), 7077888 (14)",
+    "parked_driven": "PARKED []; DRIVEN []; MEAN_a basis R1 and R2 for all four tail actuators",
+    "presence": "Scorer: no PRESENCE line printed (score.json runs.presence []). complete_r10round.py on F2: no PRESENCE RAIL (p1 PASS, p2 PASS, p3 FAIL: tail_alarms [], tail_flagged [])"
+   }
+  ],
+  "scorer_stdout_path": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/score.txt",
+  "scorer_json_path": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/score.json",
+  "summary": "The pinned scorer ran once, from 14:43:14 to 14:43:18 UTC (times from date -u), with exit code 0 and STATUS: FINAL [measured, score.txt and score.rc].\n\nWhat it printed [measured, score.txt]:\n- The reading is line 1: \"TAIL RAIL FORMED ON r10 IN TRAINING (ledger)\", with R 1 (COMPLETE 1, PRESENCE 0), U 0, P 1, G+ 1.\n- Statistic A is 2 of 3 against LTSB r9's 2 of 5, one-sided Fisher p 0.9286 (TABLE E 0.93), and \"nothing is significant\".\n- It printed no PROVISIONAL item and no incomplete item (score.json has provisional [] and incomplete []).\n- It named no re-fetch. Its re-fetch timing line (O-17) gives F2's last fetch-manifest row as 2026-10-28T13:54:48+00:00 and the planned start as 2026-10-28T19:54:48+00:00, with refetch_start_notes [].\n- F2 timing (O-14): last ending note 2026-10-28T06:25:00+00:00; the three F2-START notes came 6.0 h after it, so at_least_6_hours is true for all three.\n\nPer run [measured, score.txt]:\n- s60: COMPLETE, C1-C7 PASS; class PARKED (tail_3_pitch_act); GATE PASS; OUTCOME NEGATIVE ['PARKED']; ANY ALARM [].\n- s42: COMPLETE, C1-C7 PASS; class RAIL (RAIL-LEDGER-PERSISTENT), on tail_3_pitch_act in the + sign; first alarm at step 3932160; flagged_evaluations 26.\n  - It is also PARKED on tail_3_pitch_act.\n  - GATE FAIL: hop_or_fall_episodes 2 > 1 at all six headings. The fail stands.\n  - OUTCOME NEGATIVE; ANY ALARM has 22 tail_3_pitch_act entries.\n- s80: COMPLETE, C1-C7 PASS; class CLEAR; GATE PASS; OUTCOME POSITIVE []; ANY ALARM has 6 neck_pitch_act entries, scope 'non-tail or unnamed'.\n- All three: DRIVEN [], and the RA-8 M1 cross-check prints \"lane A's reduction equals this reader's\" at every label.\n\nPRESENCE: the scorer printed no PRESENCE line for any run (score.json runs.*.presence []). In its code at line 692, PRESENCE is formed only for LOST runs [measured, score_r10round.py]. The completeness tool, run on F2, prints PRESENCE RAIL {\"step\": 3932160, \"actuators\": {\"tail_3_pitch_act+\": 20}, \"flagged_evaluations\": 26} for s42 and no PRESENCE RAIL for s60 and s80 [measured, complete_<RUN_ID>.txt].\n\nCompleteness tool: run --json was run once per run with --round and --runlog given and the other options at their defaults. All three exited 0 with VERDICT: COMPLETE, written to these files:\n- /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/complete_stance6_r10LTSB_s60.json\n- /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/complete_stance6_r10LTSB_s42.json\n- /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/complete_stance6_r10LTSB_s80.json\n\nEach has its stdout beside it as complete_<RUN_ID>.txt. cmp shows each .json and .txt is byte-identical to the earlier complete_post/<RUN_ID>.* [measured].\n\nOther output files:\n- Exit code: /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/score.rc\n- score.txt holds stdout and stderr together. It has no Traceback or warning line.\n\nLeft unchanged [measured]:\n- Both lanes' SHA256SUMS.txt checks pass, before and after the run.\n- RUNLOG is still 710 lines with sha256 5d85e846..., last modified 13:34:20 UTC.\n- APPROVED and the three criteria files have the same sha256 as before.\n- The main checkout and the run-branch clone are clean, with the clone at 8737cd3d.\n- No file in the round folder is newer than score.rc.\n- No Drive, GitHub, training or simulation was used.",
+  "problems": [
+   "Observation only, not acted on: the lane B banner and r10round_common.py CRITERIA_SHA256 read e5bea5d314cb..., while APPROVED's criteria_sha256 is 99a44469.... The scorer's PROVISIONAL check (score_r10round.py lines 544-591) compares the sha256 of criteria.txt, criteria_v12_cited.txt and evidence.txt on disk against APPROVED's, and the tool hashes against the pins; it does not compare the banner constant. It printed no PROVISIONAL item [measured, from that code and score.json provisional []]. Whether the constant matters is for the coordinator to decide.",
+   "The scorer prints no PRESENCE line for COMPLETE runs (score.json runs.*.presence [] for all three; at line 692 it forms PRESENCE only for LOST runs). The PRESENCE values in per_run come from complete_r10round.py's output. The reading's 'PRESENCE 0' is the scorer's own count of presence_rails.",
+   "Still there from the earlier measuring stage, untouched by me: three duplicate files whose removal was refused. They are /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/complete_pre/stance6_r10LTSB_s60.withjson.txt, /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/complete_pre/stance6_r10LTSB_s42.withjson.txt and /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/complete_pre/stance6_r10LTSB_s80.withjson.txt."
+  ]
+ },
+ "check": {
+  "agrees_with_scorer": true,
+  "independent_reading": "I agree with the scorer: the reading is line 1, \"TAIL RAIL FORMED ON r10 IN TRAINING (ledger)\", with R 1 (COMPLETE 1, PRESENCE 0), U 0, P 1, G+ 1. Statistic A is 2 of 3 against LTSB r9's 2 of 5, one-sided Fisher p 0.928571 (TABLE E 0.93 / 0.26 / 0.05 / 0.98). [measured, check1/derive_stdout.txt]\n\nPer run, re-derived with my own code from the F2 ledger copies and the raw per-step M1 trace CSVs (window steps 200-999, |command| >= 0.99, bar 0.10):\n\n- **s60:** COMPLETE. No ANY- or TAIL-flagged evaluation (at most 3 tail_3 over-bar rows in any evaluation). No flag at R1 or R2, so no trace rail. CMD tail_3 at J: 0.0666, 0.1435, 0.2730, 0.8797, 0.7267, 0.5572; MEAN 0.6420. Class PARKED on END +0.042 and J (8,388,608 +0.2797; 10,485,760 +0.1267). DRIVEN []. GATE PASS (40/40 at six headings). OUTCOME NEGATIVE ['PARKED']. No ANY ALARM.\n- **s42:** COMPLETE. 26 tail-flagged evaluations, the first at 3,801,088. 22 TAIL ALARMs, the same steps as its 22 ANY ALARMs, from 3,932,160 to 10,616,832, all tail_3_pitch_act '+'. M1 at R1: 16 of 20 full-horizon tail_3+ flags, drive-backed (CMD 0.9362); none at R2. Class RAIL, kind RAIL-LEDGER-PERSISTENT. MEAN tail_3 0.9148 (its PARKED windows also fire; report only). GATE FAIL: hop_or_fall 2 > 1 at all six headings, from seeds 3079 and 3080 on max_actuator_saturation_fraction. OUTCOME NEGATIVE.\n- **s80:** COMPLETE. 12 any-flagged evaluations and 6 ANY ALARMs on neck_pitch_act (non-tail), at 5,505,024, 5,636,096, 6,029,312, 6,422,528, 6,553,600 and 7,077,888. No TAIL-UNRESOLVED row (ties 0, actuators_saturated <= 1), so no alarm NEEDS RESOLUTION. 0 tail-flagged evaluations, no tail flag at any label. CMD tail_3 at J below 0.60 (R1 0.4227, final 0.5877); MEAN 0.5052. Class CLEAR. GATE PASS. OUTCOME POSITIVE.\n\nC1-C7 PASS for all three runs:\n- one LAUNCH each, no STOP or ACTION;\n- the manifest copies are equal and valid;\n- every C3 copy equals the manifest and the fetch manifest;\n- started_at is 4.1 / 6.1 / 6.2 min after LAUNCH;\n- my own stage_config_view_sha256 equals the pin;\n- judged_at is 32.6 / 32.4 / 33.0 min after written_at;\n- the zips record num_timesteps 12,001,280;\n- C6 is whole;\n- all traces and certificates are present.\n\nNothing is PROVISIONAL:\n- every hash equals APPROVED's or its pin;\n- the measuring copy equals a fresh git archive of 8737cd3d;\n- M1 and M3 used the right seeds at physics_revision 10.",
+  "findings": [
+   {
+    "id": "N1",
+    "severity": "minor",
+    "claim": "The scorer's PROVISIONAL tool-hash check covers only the 7 lane B code files. Lane A's tools (measure_r10round.py, judge, kscore, r10m_common) and pins_r10round.json are never compared with their pins at score time.",
+    "evidence": "score_r10round.py lines 548-551 use r10round_common.tool_hashes(), which lists 7 lane B names (r10round_common.py line 932). The pins file's tool_sha256 holds only those 7. b293a511 (measure_r10round.py) appears in the criteria's PINS line 759, not in pins_r10round.json. I hashed every lane A and lane B file, pins_r10round.json, colab_steps, fetch_agent_brief and the copy's M1/M3 code: each equals its PINS value. Both SHA256SUMS.txt equal their pins (55a21707, 932f2050) and check whole.",
+    "fix": "None needed for this reading. For later rounds, add lane A's tools and the pins file to the scorer's PROVISIONAL hash check."
+   },
+   {
+    "id": "N3",
+    "severity": "minor",
+    "claim": "The earlier stage's per-run text calls s42 'also PARKED' and quotes the completeness tool's 'PRESENCE RAIL' for s42. Both can be misread: s42's class is RAIL, so P = 1 is s60 alone, and PRESENCE RAIL is defined only for LOST runs.",
+    "evidence": "Criteria TAIL CLASS says the first line that applies is the class; ROUND READING says P = COMPLETE runs PARKED; PRESENCE RAIL is defined at criteria lines 253-268 for LOST runs. complete_stance6_r10LTSB_s42.txt line 53 prints 'PRESENCE RAIL' for this COMPLETE run. score.json has presence_rails [] and P 1, which is correct.",
+    "fix": "In the record, say: 'its PARKED windows also fire (report only; class RAIL)' and 'p1-p3 as the tool computes them; not a PRESENCE RAIL, the run is COMPLETE'."
+   },
+   {
+    "id": "N2",
+    "severity": "info",
+    "claim": "The scorer's per-alarm actuator counts are sums over the two evaluations of the alarm pair, not over-bar episodes in one evaluation. Examples: tail_3_pitch_act 20 at 3,932,160 and neck 18 at 5,505,024.",
+    "evidence": "My per-evaluation counts are 10 at 3,801,088 plus 10 at 3,932,160 (= 20), and 9 at 5,373,952 plus 9 at 5,505,024 (= 18). One evaluation holds at most 10. complete_r10round.py's PRESENCE line uses the same sum.",
+    "fix": "Label these counts 'over the alarm pair' in the record."
+   },
+   {
+    "id": "N4",
+    "severity": "info",
+    "claim": "The notebook's own gate verdict passed for all three runs, on robust_best_model.zip. That is why s42 is bundled 'complete' while M3 on stage1_final fails.",
+    "evidence": "gate_verdict.json: passed True, selected models/robust_best_model.zip, for s60, s42 and s80. For s42, M3 on stage1_final: seeds 3079 and 3080 at max_actuator_saturation_fraction 0.539 and 0.515 (heading 0), hop_or_fall 2 > 1 at all six headings. Both seeds are outside M1's 3042-3061.",
+    "fix": "None. This is D-7, report only; M3 is the class input and the fail stands."
+   },
+   {
+    "id": "N5",
+    "severity": "info",
+    "claim": "Two values sit near the 0.60 line, but neither class depends on them alone.",
+    "evidence": "s60: MEAN 0.642 is within 0.05 of the line, but PARKED also fires on J (0.880, 0.727). s80: CMD tail_3 at final is 0.5877. Even at 0.60 it would be a single J label, with MEAN 0.505, so s80 would stay CLEAR [inferred from measured values].",
+    "fix": "None."
+   },
+   {
+    "id": "N6",
+    "severity": "info",
+    "claim": "Several process departures are already stated in RUNLOG. None changes a C1-C7 fact.",
+    "evidence": "(1) The s42/s80 LAUNCH lines were written at 15:54 with an estimated 14:57. The folders appeared between the 14:59:10 and 15:05:40 listings, and the sessions started 15:03:06 / 15:03:09, so C4 holds for any plausible launch time [inferred]. (2) The ends were noted from Drive (maintainer's 01:09 decision). (3) Two interim read-only snapshots, against L5 (a), at the maintainer's request. (4) The exact-copy transfer method (13:31 decision). (5) One s60 TRANSFER-ERROR and one unrecorded s80 download, both on evaluations.npz, a readout file and not a C3 file. Every C3 and PRESENCE copy matches both manifests [measured].",
+    "fix": "Name them in the review, as RUNLOG already intends."
+   },
+   {
+    "id": "N7",
+    "severity": "info",
+    "claim": "The banner constant CRITERIA_SHA256 e5bea5d3 is the sha256 of the unpinned v6 text. No rule reads it, so it is not a PROVISIONAL item.",
+    "evidence": "sha256 of S2/r10round/lean/v6/criteria_r10round_lean_v6.txt = e5bea5d314cb... The constant appears only in r10round_common.py lines 36 and 52 (banner and constant) and is used nowhere. r10round_common.py itself equals its pin ea2c5ea6.",
+    "fix": "None."
+   }
+  ],
+  "report_text": "I agree with the scorer: the reading is line 1, \"TAIL RAIL FORMED ON r10 IN TRAINING (ledger)\", and I could not show it wrong. There is no blocking finding. The numbers are R 1, U 0, P 1, G+ 1, with A 2 of 3 against 2 of 5 and one-sided Fisher p 0.9286.\n\nI re-derived everything with my own code, from the F2 ledger copies and the raw per-step trace CSVs. MEAN_a and every CMD_a equal score.json with a difference of exactly 0.0. The following also match the scorer:\n- the ANY and TAIL alarm steps;\n- the flagged-evaluation counts;\n- the trace rails, PARKED windows and margins;\n- DRIVEN;\n- the gates and outcomes.\n\nPer run:\n- **s60:** PARKED (MEAN 0.642, and 2 J labels at 0.880 and 0.727). GATE PASS, OUTCOME NEGATIVE, no alarm.\n- **s42:** RAIL-LEDGER-PERSISTENT on tail_3+. 22 tail alarms, the first at 3,932,160, and 16 of 20 drive-backed flags at R1. GATE FAIL: 2 episodes over 1 at all six headings, from seeds 3079 and 3080. OUTCOME NEGATIVE.\n- **s80:** CLEAR. Its 6 ANY ALARMs are on neck_pitch_act, and none needs resolution. GATE PASS, OUTCOME POSITIVE.\n\nC1-C7 hold for all three runs, checked from RUNLOG and the files. C4's session start is 4.1 / 6.1 / 6.2 minutes after the LAUNCH time. My own stage_config_view_sha256 equals the pin. C5's judged_at is 32-33 minutes after written_at.\n\nThe empty PROVISIONAL and incomplete lists are right: every hash equals APPROVED's or its pin. The measuring copy equals a fresh git archive of 8737cd3d.\n\nTwo minor points, neither of which changes the reading:\n- **N1:** the scorer's PROVISIONAL hash check covers only the 7 lane B code files. I hashed lane A's tools and the pins file myself, and all equal their pins.\n- **N3:** the earlier stage's text says s42 is \"also PARKED\" and quotes a \"PRESENCE RAIL\" for it. s42's class is RAIL, and PRESENCE applies only to LOST runs; the counts P 1 and PRESENCE 0 are right.\n\nInfo points:\n- **N2:** the scorer's per-alarm counts (such as 20) are sums over the two evaluations of the alarm pair.\n- **N4:** the notebook's own gate passed on robust_best_model.zip, which is why s42 is bundled \"complete\".\n- **N5:** s60's MEAN and s80's final CMD sit near the 0.60 line, but neither class depends on them alone.\n- **N6:** several process departures are already logged in RUNLOG, and none moves a C1-C7 fact.\n- **N7:** the banner constant is the sha256 of the unpinned v6 text, and no rule reads it.\n\nAll notes are in /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/check1/NOTES.txt.",
+  "files": [
+   "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/check1/NOTES.txt",
+   "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/check1/derive.py",
+   "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/check1/derive_out.json",
+   "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/check1/derive_stdout.txt",
+   "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/check1/check_c.py",
+   "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/check1/check_c_stdout.txt"
+  ]
+ }
+}

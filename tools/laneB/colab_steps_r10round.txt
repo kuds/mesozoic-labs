@@ -1,0 +1,185 @@
+T. rex r10 FIRST TRAINING ROUND: ARM LTSB, THREE SEEDS FROM SCRATCH, 12M STEPS, THREE COLAB L4s -- COLAB STEPS
+=================================================================================================================
+Written by the lane B builder, 2026-10-26 (date -u), against criteria lean v4; updated to criteria lean v5
+(S2/r10round/lean/v5/criteria_r10round_lean_v5.txt, sha256 16f288782d77e7e35c1b9f807094556050f793b729eaf26c040ce1583bb89794;
+the decisions of RUNLOG line 657: the ACTION note, the restating deadline, the combined notes, the 10-transfer cap, the
+absent-folder trigger listing, F2's and the re-fetch's times) and checked line by line against BR
+notebooks/sb3_training.ipynb (read only; check: out/colab_steps_check.txt).
+S2 = /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad
+SP = /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad, RUNLOG = SP/foot/stance4/live/run_log.txt
+<ROUND> = SP/foot/stance6.  Fields in <ANGLE BRACKETS> are filled when the text is approved (PINS, <ROUND>/APPROVED).
+
+Three runs, one Colab L4 runtime each, started together. Nothing in these steps is decided by what a run prints
+during training: no run is stopped, changed, restarted, extended or rerun because of a readout, a saturation alarm, a
+fetch, the in-run panel or anything the notebook prints beyond the configuration the launch check reads. Fails stay
+fails. Nobody moves, edits or deletes a file in a run folder, and no fetch writes to Drive.
+
+THE RUNS (D2, D16)
+   Run    SEED   RUN_ID                  RUN_LABEL        K3_PANEL_SIGMA_KEY
+   s60    60     stance6_r10LTSB_s60     r10 LTSB s60     source_vectors.60
+   s42    42     stance6_r10LTSB_s42     r10 LTSB s42     source_vectors.42
+   s80    80     stance6_r10LTSB_s80     r10 LTSB s80     control_sigma.80
+   A relaunch (only as REPLACEMENT below allows): the same RUN_ID with "_b" appended (stance6_r10LTSB_s60_b ...),
+   every other setting the same. There is no "_c".
+   The branch: claude/screen-trex-r10-armltsb, HEAD <the header commit, 40 hex, as APPROVED records it>. It is pushed
+   only after the maintainer's OK (D16), so that REPO_REF can install it; it is never merged.
+
+BEFORE THE FIRST LAUNCH (RUN HANDLING; both recorded in RUNLOG)
+ B1. Compute balance (D18, RUNLOG line 621): read the L4's rate in compute units per hour where Colab shows it
+     (Runtime > Change runtime type, the L4 GPU entry; the rate is not recorded anywhere in the project's records, so
+     read it from Colab on the day) and the account's remaining balance. Needed: about 3 x 15.5 L4-hours for the three
+     runs plus about 15.5 L4-hours for one _b, about 62 L4-hours x the rate. Note both numbers in RUNLOG.
+ B2. Fetch budget (L8 (a)): the account's remaining spend against about 195 file copies per round [model, TABLE M]
+     (each copy one Drive download through the connector, about 50k tokens [inferred, RUNLOG line 515]). Note it.
+ B3. The pinned texts and pins are in <ROUND>/APPROVED and RUNLOG (criteria.txt, criteria_v12_cited.txt,
+     evidence.txt sha256; the branch HEAD). The RUNLOG LAUNCH line records the same HEAD (head= below).
+
+FOR EACH RUN (all three at once, each in its own runtime)
+ 1. Open the notebook from the branch's own link (not from main):
+       https://colab.research.google.com/github/kuds/mesozoic-labs/blob/claude/screen-trex-r10-armltsb/notebooks/sb3_training.ipynb
+    Run it as opened from this link, one fresh opening per run (the text: "the notebook opened from the branch's own
+    link"; no Drive copy of the notebook is made: fixer R-m10).
+ 2. Runtime > Change runtime type: L4 GPU. (Another runtime type is recorded, never a stop.)
+ 3. Cell 3 (section 1, "# Install dependencies"): REPO_REF = "claude/screen-trex-r10-armltsb"
+ 4. Cell 6 (section 2, "# ===== SPECIES SELECTION ====="): set every one of its 17 settings exactly so:
+       SPECIES             = "tyrannosaurus_rex"
+       EMBODIMENT          = "anatomical"
+       ALGORITHM           = "ppo"
+       N_ENVS              = 4
+       SEED                = 60                         (s42: 42; s80: 80)
+       VERBOSE             = 0
+       QUICK_TEST          = False
+       USE_GOOGLE_DRIVE    = True
+       AUTO_DISCONNECT     = True
+       BEHAVIOR            = "stance"                   (type it; the notebook's default is "hunt")
+       TRUNK_FROM          = ""                         (empty, not "auto"; the default is "auto")
+       RETRAIN_FROM        = ""
+       RUN_LABEL           = "r10 LTSB s60"             (s42: "r10 LTSB s42"; s80: "r10 LTSB s80")
+       RUN_ID              = "stance6_r10LTSB_s60"      (s42: "stance6_r10LTSB_s42"; s80: "stance6_r10LTSB_s80")
+                                                        <- the Drive folder name, NOT the label
+       K3_PANEL            = True                       (the default is False)
+       K3_PANEL_SIGMA_FILE = "/content/mesozoic-labs/docs/investigations/stance_2026_10/stance5/replication/sigma_s70_s80.json"
+       K3_PANEL_SIGMA_KEY  = "source_vectors.60"        (s42: "source_vectors.42"; s80: "control_sigma.80")
+    Read SEED, RUN_ID, RUN_LABEL and K3_PANEL_SIGMA_KEY once more side by side: all name the same seed.
+ 5. Cell 18 (section 5, "RESUME AN INTERRUPTED STAGE"): RESUME_STAGE stays None. Touch nothing else.
+ 6. Runtime > Run all; allow Drive access. Note the UTC time at once, then write the LAUNCH line (RUNLOG NOTES).
+ 7. Check rows in the output (recorded; the launch check below decides, these are what to look for):
+    - cell 3:  "Repository ref: claude/screen-trex-r10-armltsb; commit: <HEAD>"
+    - cell 6:  "Behavior recipe: stance" and "In-run K3 panel: on"
+    - cell 8:  "Run directory: /content/drive/MyDrive/mesozoic-labs/logs/tyrannosaurus_rex/anatomical/ppo/stance6_r10LTSB_s60
+               (new run: RUN_ID names no existing run)"   (s42 / s80 likewise). It must end in the RUN_ID exactly.
+    - cell 9:  "Behavior 'stance' -> deliverable 'stance'; chain: stance"
+    - cell 13: the zero-action baseline row "Tyrannosaurus Rex (Anatomical)": "reward" and "standing" about 4470.4,
+               "full-hz" 100%, verdict "OK — the statue passes the stance gate". About 3766.6 would be main's statue
+               (LTSB off); only the task digest tells the band on from off (launch check (3)).
+    - cell 15: "Timesteps: 12,000,000"; then an evaluation every 131,072 steps.
+    A K3 panel off or mis-set, a non-L4 runtime, a missing TEL column, another baseline value and BEHAVIOR as printed
+    are recorded only (a CHECK line), never a stop.
+ 8. Leave it running: about 14.4-15.4 h [inferred from LTSB r9's 13 h 36 min to 14 h 26 min, plus about 17-26 min of
+    K3 panels]. The run disconnects by itself at the end (AUTO_DISCONNECT True). A PASS or a FAIL at the end is fine.
+
+THE LAUNCH CHECK (configuration only; within the first 60 minutes of each launch)
+ L1. F0: a fetch agent (fetch_agent_brief.txt, FETCH F0) copies, by folder id, provenance.json,
+     zero_action_baseline.json and 01_stance/stage_config.json and, once listed, 01_stance/eval_episodes.csv and
+     01_stance/progress.json, two agreeing copies each (a third on a mismatch). Nothing is shown about counts or flags.
+ L2. PY -I -B <laneB>/tools/complete_r10round.py launch-check --run <RUN_ID> --pins <the approved pins file>
+     (it refuses to run while a pin it compares is unfilled: fixer R-m3)   computes:
+     (1) provenance.json repository_commit and stage_config.json git_commit = the HEAD the LAUNCH line records,
+         repository_dirty false; (2) run.seed the RUN_ID's; (3) run.hyperparameters_sha256,
+         task_fingerprint.task_sha256 and the plant_identity block = the pins, as the file writes them (the "sha256:"
+         prefix included); (4) zero_action_baseline.json results.tyrannosaurus_rex.anatomical.reward_mean not within
+         50 of 3766.6; (5) the first ledger rows carry screen_v2_reasons and #640's five saturated_actuator columns;
+         (6) one provenance "sessions" entry; (7) provenance.json run_id = the RUN_ID.
+ L3. Write its result as a CHECK line. A fault (a computed fact that fails): stop the run at once by THE ENDING
+     PROCEDURE (d), its STOP and TRIGGER-d lines written at one time (the same minute): the run is LOST. A fact whose
+     file is not yet on Drive is "not computed": no stop, no relaunch by (ii). A fault first seen after the 60 minutes
+     stops nothing.
+
+THE ENDING PROCEDURE (liveness or configuration only, never an outcome; for every runtime of the round)
+ (a) The runtime is no longer assigned (Runtime > Manage sessions does not list it): write TRIGGER-a and FOUND-GONE
+     lines at one time (the same minute); do nothing else but download the notebook with its output (File > Download
+     .ipynb to <ROUND>/outputs/<RUN_ID>.ipynb) if the browser still shows it. A finished run releases its runtime
+     itself; it too is noted so when found gone.
+ (b) No cell is running (Run all stopped, a dead kernel, a halt that did not release),
+ (c) a STALL: 2 hours with neither a progress.json rewrite (Drive's file view) nor a new notebook output line, or
+ (d) a launch-check stop:
+     write the TRIGGER-b / TRIGGER-c line with its time (a launch-check stop: STOP and TRIGGER-d at one time); then
+     Runtime > Interrupt execution (Restart session if it does not stop); File > Download .ipynb to
+     <ROUND>/outputs/<RUN_ID>.ipynb; one new cell
+         from google.colab import drive; drive.flush_and_unmount()
+     waited for at most 30 minutes; delete the runtime (Runtime > Manage sessions > Terminate); write the DELETED line.
+ A run has ENDED when its runtime is deleted so or noted found gone. No cell is run in a runtime after its Run all
+ stopped except the flush line; no notebook cell with a RUN_ID is run in any other runtime or after the run ENDED.
+ Suggested liveness check (not a rule): Runtime > Manage sessions every 30 min in a run's first 2 h, every 2 h after;
+ a later note costs at most a relaunch or a later F2.
+
+THE TRIGGER LISTING (at a trigger noted within 2 hours of a launch, before any relaunch decision)
+ A fetch agent (FETCH TRIGGER) lists that run's 01_stance/models/ folder by folder id (names and sizes), every page.
+ Nothing else is fetched. PY -I -B <laneB>/tools/fetch_r10round.py runlog-listing --run <RUN_ID> prints the LISTING line
+ for RUNLOG (the scorer reads it there and in the fetch manifest). When the run folder, 01_stance/ or 01_stance/models/
+ is absent from its parent's complete listing (the ppo folder's; the run folder's; 01_stance/'s; each listed at or
+ after the trigger note and before the LISTING line is written), that is a TRIGGER LISTING that holds no file: the
+ line reads folder=absent:<key> files="" and runlog-listing records it in the fetch manifest too.
+
+REPLACEMENT (LEAN-R): THE ONE RELAUNCH PER SEED
+ A seed gets one relaunch, <RUN_ID>_b, only when all of these hold (the approval of the text approves it in advance):
+   - RUNLOG's trigger note of the first run is within 2 hours of its LAUNCH line;
+   - the _b is launched within 1 hour after that trigger note and after the first runtime's DELETED (or FOUND-GONE)
+     line;
+   - and either (i) the first run ended by itself (TRIGGER-a or TRIGGER-b) and its TRIGGER LISTING (written before
+     the relaunch) holds no 01_stance/models/stage1_<steps>_steps.zip (any listed periodic zip refuses it; an absent
+     folder is a listing holding no file), or (ii) the launch check stopped it (STOP) for a fault (1)-(5) or (7)
+     computed from F0's files.
+ Launch the _b exactly as steps 1-8 with RUN_ID "<RUN_ID>_b" (every other setting the same) and write its RELAUNCH
+ line. The _b is then the seed's run, whatever either run's files show; the first run is LOST (it can still be a
+ PRESENCE RAIL). No _c. A first run not so replaced stays the seed's run. A _b launched when the rule does not hold is
+ no run of the round: no class, no PRESENCE, printed with D-16 only.
+
+RUNLOG NOTES (Records: the tools read only these lines; every other line naming a RUN_ID is printed and read by no rule)
+ One line per event, with its date -u time, in this exact form (two spaces after "UTC" as RUNLOG's other lines):
+     <YYYY-MM-DD HH:MM UTC>  STANCE6 <KIND> <RUN_ID> key=value key="value with spaces" ...
+ The time: date -u '+%Y-%m-%d %H:%M UTC'.  KINDs and their fields:
+   LAUNCH <RUN_ID>          seed=<n> runtime=<L4|...> head=<40-hex HEAD> REPO_REF=... RESUME_STAGE=None and every
+                            cell-6 setting as set: SPECIES= EMBODIMENT= ALGORITHM= N_ENVS= SEED= VERBOSE= QUICK_TEST=
+                            USE_GOOGLE_DRIVE= AUTO_DISCONNECT= BEHAVIOR= TRUNK_FROM="" RETRAIN_FROM="" RUN_LABEL="..."
+                            RUN_ID= K3_PANEL= K3_PANEL_SIGMA_FILE= K3_PANEL_SIGMA_KEY=
+   RELAUNCH <RUN_ID>_b      replaces=<RUN_ID> and the same fields as LAUNCH (the _b's launch; one per seed at most)
+   CHECK <RUN_ID>           result=<no-fault|FAULT (n,...)|not-computed (n,...)> runtime=<as seen>
+                            behavior="<the notebook's 'Behavior recipe: ...' row, as printed>" (the launch-check
+                            output, the recorded-only items included; fixer R-i5)
+   STOP <RUN_ID>            fault=<n,...> (the launch check's stop)
+   TRIGGER-a|b|c|d <RUN_ID> [note="..."] (THE ENDING PROCEDURE's trigger, with its time)
+   LISTING <RUN_ID>         folder=<id> pages=<n> files="<name>:<size>;..." (the trigger listing, as runlog-listing
+                            prints it; folder=absent:<key> files="" when the folder is absent from its parent's complete
+                            listing: a TRIGGER LISTING that holds no file)
+   DELETED <RUN_ID>         (the runtime deleted at the end of THE ENDING PROCEDURE)
+   FOUND-GONE <RUN_ID>      (ending (a): the runtime no longer listed; written at one time with TRIGGER-a)
+   ACTION <RUN_ID>          what=<resume|restart|relaunch|cell> (any resume, restart, relaunch under the RUN_ID or other
+                            cell run in its runtime, which RUN HANDLING does not allow; THE ENDING PROCEDURE's own steps
+                            are not ACTION lines; C1 reads an ACTION line as an action: the run is LOST)
+   F2-START <RUN_ID>        (one line per launched RUN_ID, written before F2's first file)
+   REFETCH-START <RUN_ID>   (a re-fetch's start)
+ Trigger (a) is noted as TRIGGER-a and FOUND-GONE at one time; a launch-check stop as STOP and TRIGGER-d at one time
+ (the scorer prints any note of such a pair without its partner). A RUNLOG line in any other form that names a RUN_ID
+ is printed by the tools for the coordinator to restate in this form, with its original time and the KIND its own words
+ name, before that RUN_ID's F2-START line; a line not restated by then (one written after the F2-START line with its
+ original, earlier time) is printed and read by no rule. A note of an event after F2's start (its own later time) is
+ read as written.
+
+F2, THE RE-FETCH AND THE READING
+ F2: once every RUN_ID launched (each first run and each _b) has ENDED, one fetch starting at least 6 hours after
+ RUNLOG's last ending note (DELETED / FOUND-GONE; the scorer prints the delay); before its F2-START lines, restate any
+ other-form RUNLOG line naming a RUN_ID (RUNLOG NOTES); its F2-START lines go to RUNLOG before its first file; a fetch
+ agent follows fetch_agent_brief.txt (FETCH F2) for every launched RUN_ID, replaced first runs included. At most 10
+ transfers of one file per fetch (the tool refuses more; a file with no copy after 10 is not fetched). A fetch that
+ cannot start at its time starts at the first whole hour (UTC) it can, the delay printed; never moved for any other
+ reason.
+ The re-fetch: a seed's run of the round (not a replaced first run) that passes C1 and fails C2 or C3 at F2, unless it
+ fails C4 or C6 on files matching the manifest, is fetched once more, 6 hours after F2's last row in
+ <ROUND>/fetch/manifest.csv (REFETCH-START first; the scorer prints both times); score_r10round.py names these runs.
+ Then the measurements (M1-M4, lane A's runner, which reads the branch HEAD from <ROUND>/APPROVED) on the held pairs (a
+ measurement the measuring tool itself refuses is recorded and not rerun: a refused M1 fails C7, a refused M3 at R2 is
+ GATE FAIL; a runner preflight refusal writes nothing and is made again with the right inputs), and
+ PY -I -B <laneB>/tools/score_r10round.py:
+ exit 10 = incomplete (nothing read), 11 = PROVISIONAL (read, printed, not acted on), 0 = final (to the maintainer at
+ once; then the durable copy, D17).

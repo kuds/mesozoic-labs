@@ -1,0 +1,433 @@
+T. REX STANCE ON PHYSICS r10, FIRST TRAINING ROUND, ARM LTSB -- CRITERIA v12: EVIDENCE (EVID; NO RULE READS IT)
+
+Written 2026-10-26 06:31 UTC (date -u) by the reviser. Every section below is moved unchanged: the sections of EVID v11
+(S2/r10round/v11/evidence_r10round_v11.txt, sha256 f9e662da44ded432e4e5de53991bcc23e68c4868dc14b8289895bffe3c7eb324;
+copied byte for byte with their source tags, after its header), then two blocks from criteria v11
+(S2/r10round/v11/criteria_r10round_v11.txt, sha256 af57a9fa1fb88159082c5ccb1f2df6b75220fa756875782b5cd606d5d5746b78),
+from the lines named, and the last section, V2 CASES, which is criteria v11's V2 text (lines 814-844) from its synthetic
+ledgers to its fetch-pair cases, re-wrapped with no word changed. The criteria
+(S2/r10round/v12/criteria_r10round_v12.txt) pin this file's sha256 and cite it as EVID; short names, labels and
+references (CLASSES, KNOWN LIMITS, ...) are the criteria's. No class, reading, statistic or run-handling rule reads this
+file; the build's validation V2 runs the cases V2 CASES lists. Status facts in it are as of the version it was moved
+from; the criteria hold the current ones.
+
+[moved unchanged from criteria v9, lines 65-116]
+WHY THIS IS RUN
+- The maintainer's decision, 2026-10-25 14:13 UTC [measured, RUNLOG line 607]: "(1) first r10 training round: a
+  criteria + design brief for approval (pre-registered criteria, seeds from scratch on r10, readouts incl. tail_3 rail
+  incidence and head posture report-only, power, compute venue and cost; adversarially checked; nothing trains until
+  approved); (2) head posture: report-only telemetry ..., no gate change; (3) walking pilot 2 ... retired: a new pilot is
+  designed once r10 has a stance parent ...".
+- The budget, 14:30 and 14:45 UTC [measured, RUNLOG lines 609-610, the maintainer's words]: "I'm good doing another
+  3-seed, 12-hour run on Google Colab ..."; "... I really should have been specifying the full 12 million steps that
+  we've done in the past." Fixed by the maintainer and not reopened: exactly 3 runs, from scratch, 12,000,000 steps each,
+  on Colab.
+- The recipe, 16:03 UTC [measured, RUNLOG line 614]: "MAINTAINER DECISION D1 (r10 round recipe): arm LTSB (band +
+  stagger, stance5's cf80ecb1), ported to r10, after the reasoning between options (L+T failed fore-aft K2 on both r9
+  runs; LTSB's r9 non-holding runs were mostly tail rails; LTSB ran seeds 60/42/80 on r9)."
+- Question. Physics r10 (D-D44, #643, on main since 2026-10-25 14:08 UTC [RUNLOG line 606]) set the tail_1/2/3 pitch
+  spring rest angles to 52.5/25.9/10.4 deg [measured, MJCF lines 199, 205, 210]; the zero-action statue's tail rests level
+  on its springs with its servos near 0 N.m (r9: tail_1 on its ventral stop) [measured, REC sec. 25.2]. Does an LTSB
+  policy TRAINED on r10 form the tail saturation rail again (tail_3 or any tail actuator), does it pass the stance gate,
+  and where do its tail and body (and, report only, its head and hip roll) sit?
+- Why it cannot be answered without training [measured, ZS; REC sec. 25.3]: eight r9 policies rolled zero-shot on r10
+  gave no sign of a cure; four of them were LTSB's (stance5 s70's final pinned tail_2 at +1; stance5r s80's 4,194,304
+  pinned tail_3 at +1; stance5 s42's 4,194,304 lost its tail_3 rail; stance5 s52's final dropped its head); their tail
+  observations sat 5-8 SD outside the r9 normaliser's statistics, so zero-shot cannot predict a policy trained on r10.
+- Why it is DIAGNOSTIC as much as confirmatory [inferred, KNOWN LIMITS]: with 3 runs no rate claim is possible. Each run
+  is instrumented so that, whatever its class, it says when, where and how a tail drive or rail forms (or does not),
+  from instruments on main when the runs start (main's and TEL's), read offline and never acted on during a run.
+
+PREDICTED OUTCOME (stated before anything runs) [inferred unless marked]
+- Rail: open, with no measured basis for a rate on r10. For a rail: r9's habit ran through a positive loop in the tail_3
+  joint-angle observation [measured, SAT sec. 2; RUNLOG line 527], which r10 does not remove; both of LTSB's r9 rails were
+  tail_3 at +1 with first alarms at 3,670,016 and 4,456,448 [measured, REC sec. 21.4, 23.4]; two LTSB policies pinned a
+  tail actuator on r10 zero-shot [measured, ZS]. Against: on r10 a level tail costs no command (level needs a about 0; r9
+  needed +3.50/+2.16/+1.15 [measured, REC sec. 25.2]) and tail_home_pose is re-centred on that level pose (D-D44 (2));
+  LTSB s42's railed 4,194,304 lost its rail zero-shot on r10 [measured, ZS]. On r10 a rail moves the tail little: tail_3
+  at +1 holds q3 at about +5.1 deg (q3 = 0.018 + 5.149 x CMD deg, max residual 0.011 deg over 10 r10 rows [inferred fit
+  of measured rows, DRAFT verify/cmd_q3_fit.out]; MJCF gains give 12 x 60/140 = 5.14 deg per unit).
+- Gate: open. The r10 LTSB statue passes 40/40 at every heading, LCB 0.928 [measured, PW r10/cert_compare.txt]; four of
+  LTSB's five r9 finals passed the six-heading certificate offline (s52 40/40, s60 39/40, s70 40/40, s80 38/40; s42's
+  final, 19/40 at heading 0, was not rolled) [measured, REC sec. 21.4, 23.4]; four r9 policies on r10 lost 1-3 clean
+  episodes each to sole tilt [measured, ZS]; the r10 statue's one out-of-sample fall (seed 9047) is backward [measured,
+  REC sec. 25.5].
+- Fore-aft (K2, report only): LTSB passed K2 in 5 of 5 r9 runs [measured, REC sec. 23.3]. On r10 the band charges the
+  statue -0.15 per full-horizon episode against -1.91 on r9, and the r10 statue's settled right-foot CoP sits at -0.020
+  span half-lengths against +0.272 on r9 [measured, PW r10/statue_port_r10.json, eq_r9/statue_port_r9.json,
+  band_r10/scan.txt]: near the zero-action statue the band binds less on r10. A trained LTSB policy can pay it more:
+  stance5r s70's r9 final, rolled deterministically on r10 (seeds 3052-3061), pays the band on 926 of 10,000 steps (-1.56
+  per episode) and on none on r9, and through the stochastic training-env path -86.3 against -13.2 per 10,000 steps
+  [measured, PE notes/review_port_equiv.txt sec. 6, r10eq/porton_det.pkl, re-counted by FX; one transplanted checkpoint].
+  How much the band binds for policies trained on r10, and so whether LTSB's r9 K2 record carries, is open [inferred].
+- Head: LTSB s52's final dropped its head zero-shot on r10 (head tip 1.08 -> 0.67 m), as did the walking-pilot parent
+  (1.24 -> 0.61 m), while the gate still passed the parent [measured, ZS head_neck.csv]. Report only (decision (2)).
+- K3 (report only): the r10 statue itself fell once in 2 spawns under the K3 joint-space noise (seed 3042, step 987)
+  [measured, n = 2, TEL spec Part 6 side note], so K3 is not trivially passed on r10.
+
+[moved unchanged from criteria v9, lines 163-199, of WHAT IS TRAINED]
+WHAT IS TRAINED: THE PORT'S EQUIVALENCE, THE r10 DIGESTS AND THE COLLAPSE REFERENCE (detail)
+- Equivalence of the port [measured, PN; PW eq_r9/, digests/]: on an r9 build (3ffc18e9 plus the four commits) against a
+  git archive of cf80ecb1, seeds 3042-3051, at every step: observations (reset included), actions, reward, terminated,
+  truncated, every info key (109; 110 in the noise run; the 34 reward terms and reward_total among them) and the
+  termination reason are bit-identical (0 differences) under zero action (10 episodes, 10,000 steps), under
+  stance5_LTSB_s52's stage1_final deterministic policy (10,000 steps) and under a fixed uniform(+/-0.15) noise policy
+  (8,952 steps, 4 nosedives); the only value left out is the Monitor's wall-clock info["episode"]["t"].
+  task_sha256 8c6998d2... (the stance5 runs' task), gate 06375c21..., hyperparameters 054ab483...,
+  stage_config_view cbffed71... and the plant identity are identical on both r9 trees; the training construction
+  (MirrorKLPPO, 300 steps x 4 envs, no learn) gives the same initial weights (b25724e3...) and steps digest (5a8b79c8...).
+  The r9 statue on the r9 build reproduces cf80ecb1's record (4456.2732 vs 3755.7220, gain +700.5512).
+  Re-checked independently with other tools, seeds and a second checkpoint [measured, PE notes/review_port_equiv.txt]:
+  the port changes the same 22 files as cf80ecb1, with identical changed lines per commit; on a separate r9 build (PE
+  r9port_repo: 3ffc18e9 plus the four commits) every step is bit-identical to cf80ecb1, physics state (qpos, qvel, act,
+  ctrl) included, under zero action and stance5r s70's final on seeds 3052-3061 (deterministic, and stochastic through
+  create_vec_env with 10 auto-resets) and under uniform random actions (30 episodes, all three termination reasons); one
+  PPO rollout (MirrorKLPPO through _create_or_load_model, all 14 core callbacks, no train()) gives identical buffers,
+  VecNormalize statistics and global and per-env RNG states for seeds 42 and 80; the would-be stage_config.json equals
+  all five stance5 runs' records in 280 flattened fields except git_commit and gpu.
+- On r10 [measured, PN; PW r10/, digests/port_r10.json]: task_sha256 1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a
+  7799626a6a456; gate d26c34e6... (main's); hyperparameters 054ab483...; stage_config_view eb6a5e10... (at checkpoint_freq
+  524288; 3200f159... under D3 (a), the only digest D3 (a) moves [measured, FX out/digests_port_d3a.json]);
+  plant: physics 6a47a0eb..., source closure ccda5ddf..., policy interface ffbf6631...
+  (main's). The smoke build (MirrorKLPPO, kappa 0.3, sigma floor 0.01, mirrored critic; 300 steps x 4 envs, no learn, no
+  optimizer step) steps with finite rewards, reward_total equal to the env reward on 1200/1200 steps and n_updates 0.
+  With the screen keys set to main's values the port is bit-identical to main 08a4d189; with them on, against main with
+  L+T on, physics, observations and actions are identical and the port's reward equals main's plus the stagger and band
+  terms exactly on 32,801 of 32,801 steps, both terms matching an independent recomputation to 1.1e-16 [measured, PE
+  r10eq/].
+- collapse_peak_floor_reference 4470.4 (D20 (a); stance4/5's method: production reference plus the arm's statue gain).
+  Measured on PORT, zero-action statue through train_base.make_env, seeds 3042-3081, noise 0.05: 4470.3686 +/- 30.8760
+  (40/40 full horizon) against main's 3766.5555 +/- 16.2078 (40/40) on the same seeds, gain +703.8132 (leg +506.5345,
+  lean +198.6027, stagger -1.1693, band -0.1548); 3766.6 + 703.8132 = 4470.4132 -> 4470.4; floor 0.45 x 4470.4 = 2011.68;
+  zero_action_baseline.score through build_env gives the same 4470.3686 and 3766.5555 [measured, PN; PW
+  r10/statue_port_r10.json, statue_main_r10.json]. r9's LTSB gain was +700.55 (reference 4457.4) [measured, PN]. An
+  independent re-measure reproduces 4470.3686 and 3766.5555 exactly, and a second block, seeds 3082-3121, gives a gain of
+  +702.5791 (4469.2 by the same convention): the floor moves by at most 0.54 [measured, PE r10/statue_*_3082.json]. The
+  build re-measures the statue on the final tree (V0) and refuses if its mean differs from 4470.3686 by more than 0.05.
+
+[moved unchanged from criteria v9, lines 588-620]
+CALIBRATION OF THE THRESHOLDS (references in the REFERENCE TABLES)
+- 0.10 at |a| >= 0.99 is the gate's own saturation bar [measured, STOML] and the screen's TAIL-UP threshold. The r10
+  statue reads 0 on every episode [measured, DRAFT statue probe: all_max_sat 0 on 40/40]. Every railed r9 checkpoint read
+  checkpoint-level tail_3 frac99 0.019-0.975; the lowest, stance3 Run 2 at 6,291,456, had only 2 of 20 episodes flagged
+  [measured, SCREEN REFERENCE TABLE rows 6-7]. The r9 policies pinned on r10 zero-shot read 1.0 (s80 4.19M on tail_3; s70
+  final on tail_2: 40 of 40 episodes over the bar) [measured, ZS summary.csv].
+- The ledger rule (>= 5 of 10, two consecutive) is D-D40 5a, the rule every r9 reference run was read by. On r9 it gave 2
+  ANY ALARMS in LTSB's 5 runs and 4 in the family's 10 [measured, DRAFT verify/rail_check2.json, re-counted in DV
+  out/recount_r9.json and FSR out/ledger_sporadic.json]; rollouts named tail_3 at +1 at each [measured, SCORES; REC sec.
+  21.4, 23.4], so the tail-scoped count is the same [inferred: the r9 ledgers name no actuator].
+- TRACE RAIL's ">= 2 flags, or 1 with its drive >= 0.60": the false-rail chance per round if r10 had cured the habit
+  (any actuator, so an upper range for the tail actuators) [inferred, V4PKG out/power_v4.json]:
+    at LTSB's judged-panel stray rate (1 saturated full-horizon episode in 920 on the non-alarm runs' judged panels,
+    seeds 3042-3081 [measured, JUDGED5]): 0.003 (up to 0.054 at the rate's 95% upper bound);
+    at LTSB's late-window ledger rate (3 saturated episodes in 840, runs s52 2, s60 1, s70 0 [measured, FSR
+    out/ledger_sporadic.json]): 0.027 (up to 0.149), assuming independent episodes;
+    about 0.11 (up to 0.31) if those episodes cluster as they did (all 3 in 2 of 84 late evaluations): a rough model.
+  Direct r9 proxy: LTSB's three non-alarm runs had no saturated full-horizon episode at R1 or R2 on the judged panels of
+  seeds 3042-3081 (0 of 240), and 1 of 360 over every 40-episode judged panel at R1/R2 including the fresh-seed finals
+  (s52's fresh final, seed 7065, failing only the saturation bar); every judged panel including the fresh finals gives 2
+  in 1,040, so a false trace rail of 0.008 per round (up to 0.072), and 1 in 360 gives 0.017 (up to 0.26) [measured
+  counts, JUDGED5 judge_*.json panel.episodes_detail failing_rails; VS judged_sat.json, re-counted by FX; figures
+  inferred, V4PKG out/power_v4.json]. s80, an alarm run, had none at R1 and none full-horizon at R2 [measured, JUDGED5].
+  Under the screen's single-flag rule the figures would be 0.12-0.35 per round [inferred]. A railed policy is not missed
+  by the 2-flag rule when its drive is >= 0.60: every railed r9 checkpoint had CMD +0.808 to +0.999 and 1-20 of 20
+  flagged [measured, SCREEN].
+- PARKED 0.60: the maintainer's literal ruling (RUNLOG lines 509, 538), SAT's T2 watch threshold [measured, SCREEN
+  CALIBRATION]. References: r9 rail checkpoints CMD +0.808 to +0.999; r9 parked +0.6285 to +0.866; r9 low -0.518 to
+  +0.224 [measured, SCREEN REFERENCE TABLE]; r10 statue 0.000 [measured, DRAFT]; LTSB s70's r9 final held tail_2 at
+  +0.767 with 40/40 clean on r9 and pinned it at +1 on r10 [measured, ZS summary.csv c3] (why every tail pitch actuator is
+  read). The R1/R2 mean's standard error lies between the 40-episode and 20-episode values of the episode SD (0.120-0.215
+  on r9 states gives 0.019-0.048) [inferred, as SCREEN]; the J window reads single 20-episode checkpoints (SE
+  0.027-0.048) [inferred].
+
+[moved unchanged from criteria v9, lines 644-649, of STATISTICAL ANALYSIS]
+WHY LTSB'S 2 OF 5 (D10, decided)
+- Why LTSB's 2 of 5 (D10, decided) and not the family's 4 of 10: the round trains LTSB, and its own r9 record is the
+  like-for-like reference (the same reward terms, PPO, cadence and notebook path; equivalence measured bit for bit on
+  r9), the record on which the maintainer chose the recipe (RUNLOG line 614); both have the point rate 0.40, so the
+  choice moves little (P(0 of 3 | unchanged) 0.238 against 0.231; 0 of 3 gives Fisher p 0.36 against 0.29 [inferred,
+  V4PKG out/power_v4.json]); the cost is a wider reference (Beta(3,4) against Beta(5,7)) and a higher bar for a future
+  "0 of n" claim (16 runs against 10). The family's 4 of 10 is printed beside A as context, without a test.
+
+[moved unchanged from criteria v9, lines 1003-1027]
+WHAT IS MEASURED AND WHAT IS INFERRED
+- Measured: the r9 ledgers' alarms, flags and spells (counted three times independently, equal); the r9 finals' v2
+  panels, certificates and K results (SCORES, REC sec. 21, 23); the LTSB judged panels' saturated episodes (JUDGED5);
+  the r9 durations and rates (progress.json, REC); the port's commits, files, r9 bit-identity, digests, r10 statue,
+  statue certificate, smoke and test results (PN, PW); the r10 statue's posture (DRAFT probes); the zero-shot rows (ZS);
+  the actuator order, joint axes and gains (MJCF); the main-code tie rule; the sigma sidecar's vectors and hash; TEL's
+  prototype numbers (TEL spec); the port review's independent equivalence, statue and rollout checks (PE); the D3 (a)
+  digest move and rollout identity, the r9 ledgers' completeness and the s70 band re-count (FX); the ledger, stop and
+  notebook facts read in MAIN and PORT (episode_ledger.py lines 102-156; curriculum/checkpoints.py lines 445-490,
+  536-556; train_base.py lines 202-217, 810-844, 975, 1016, 1526; eval_diagnostics.py lines 1270-1312, 1431-1492,
+  2306-2336; early_stopping.py lines 177-265; hop_watch.py lines 120-165; progress_report.py lines 94-106, 327-442,
+  593-599; file_io.py lines 43-63; stance.toml lines 582, 1037-1039; notebook cells 15 and 18; the same check on
+  cf80ecb1's notebook in JC); the session facts of O1-O3 (result_bundle/provenance.py, config.py, progress_report.py;
+  byte-identical on MAIN a6bf78ce, PORT and PR 2 e22a5439) and their values on the LTSB r9 runs' files; an SB3 zip's
+  recorded num_timesteps; #645's K3 panel and notebook facts at its head e22a5439 (accepted as built, not merged;
+  re-read on the merged code in the build); the interrupt that records nothing (TEL notebook cell 15, train_base.py) and
+  the notebook's Drive flush (notebook_runtime.py); main after #644's merge, a6bf78ce; the complete-bundle exception, a
+  curated load's counter restart, notebook cells 6, 8, 15 and 20, the r9 s70 and s80 rates and the callback order at a
+  shared step, as cited where used.
+- Inferred: the q3-CMD map (a fit) and the tail_1/tail_2 offsets (gains), tail-up = positive (kinematics), the run time
+  on r10, every probability and test value, the seed sensitivity, the Drive, token, disk and CPU budgets, the stray-flag
+  rates' transfer to r10 and their clustering, the panel's GPU inertness and Colab cost, the band-off and stagger-off
+  baseline rows (term arithmetic), Drive's upload timing (the code documents buffering, not its timing), the 2-hour
+  stall bound, the present-data reading's monotonicity and the rules' agreement with a true world (checked on the
+  literal model of the text, not on the tools still to build), and every prediction.
+
+[moved unchanged from criteria v9, lines 1095-1118]
+COMPUTE AND COST
+- Colab, measured on LTSB's r9 runs (L4, 12,001,280 steps, one session each): stance5 s52 13 h 55 min (239.5 steps/s),
+  s60 14 h 26 min (230.9), s42 13 h 36 min (245.2) [measured, REC sec. 21.2: session_started_at to written_at];
+  stance5r s70 13 h 42 min (243.3), s80 13 h 47 min (241.9) [measured, REC sec. 23.1]; then about 30 min of end-of-stage
+  evaluation, certificate and videos [measured statement, REPL colab_steps step 7].
+- This round [inferred]: 13.6-14.4 h of training per run (r10 differs from r9 only in qpos_spring [measured, RUNLOG
+  lines 594, 601], so the step cost is taken as r9's), plus the in-run K3 panel 17-26 min, plus TEL's per-substep
+  captures about 2 min (about +6% of each evaluation episode [measured prototype, TEL spec Part 3]), plus about 0.5 h at
+  the end: about 14.4-15.4 h per run; three runtimes in parallel: about 14.5-15.5 h of wall clock and 43-46 L4
+  runtime-hours. Colab compute-unit prices and the account's balance are not in the project records: the Colab steps
+  read the L4 rate and the balance before launch (D18).
+- Drive fetches: per recorded batch about 0.56M subagent tokens for 2 checkpoint pairs and 5 files [measured, RUNLOG
+  line 515]; F2's at most 66 pairs will cost many times that [inferred]; the ledger is about 2.7 MB per run [RUNLOG line
+  632], fetched twice at F1 and at F2; fetch agents hit the account's weekly spend limit on 2026-10-23 [measured, RUNLOG
+  line 486].
+- Session CPU after F2 [inferred from measured unit costs: 68-76 s per 40-episode statue panel, 58 s per 20-episode
+  trace]: M1 at most about 75 traces (about 1.2 h), M2 18 panels (about 0.4 h), M3 6 certificates (13-18 min each), M4
+  about 1 CPU-h per run, D-9/D-10 about 0.3 h, M7/M8 minutes: about 6-8 CPU-h, 3-4 h of wall clock at 2 processes.
+- Disk: 6.6 GB free on this container at 22:39 UTC (7.4 GB at 21:16 UTC) [measured, df].
+  Checkpoints about 0.3 GB; trace CSVs 44.2 MB per 20-episode trace [measured, SCREEN COMPUTE], at most
+  about 75 traces = about 3.3 GB before gzip, about 1.3 GB after (2.53x [measured, SCREEN]). Each trace is gzipped when
+  its row is written, and the runner refuses a batch below 3 GB free.
+- Build before approval: about 3-5 h of session time, no training beyond existing repo tests (BUILD LIST) [inferred; the
+  screen package took 1 h 18 min, RUNLOG lines 539, 547; the port and its checks took about 1 h, RUNLOG line 615 to PN].
+
+[moved unchanged from criteria v9, lines 1175-1216]
+REFERENCE TABLE B. TAIL AND BODY POSTURE, DETERMINISTIC, 40 EPISODES 3042-3081, WINDOW 200-999 [measured, DRAFT
+out/ref_posture.csv: ZS summary.csv and head_neck.csv; r10 statue from DRAFT probe; re-derived by DV
+out/tableB_rederived.txt]
+ state                                  plant  CMD t1/t2/t3        flags/40  q3 deg  distal chord  tip z m  CoM mm   pitch  head tip m
+ statue (zero action), main 08a4d189    r10    0/0/0               0         +0.01   +3.24         0.932    -27.3    +0.92  0.959
+ statue (zero action)                   r9     0/0/0               0         -5.32   -24.81        0.406    -10.9    +1.91  (0.945, REC 25.5)
+ stance3 Run 2 final (walking parent)   r9     +0.156/+0.023/+0.851 0        -1.06   -21.90        0.423    -26.8    +0.47  1.241
+                                        r10    -0.734/-0.150/+0.251 0        +1.30   +0.33         0.856    -26.6    +2.35  0.613
+ stance5 LTSB s52 final                 r9     +0.082/+0.181/+0.203 0        -4.28   -24.53        0.391    -31.4    +0.07  1.082
+                                        r10    -0.239/-0.584/+0.038 0        +0.23   -2.91         0.795    -37.7    -0.63  0.671
+ stance5r LTSB s70 final                r9     +0.187/+0.767/-0.207 0        -6.41   -23.78        0.408    -36.5    -0.37  n/r
+                                        r10    -0.496/+1.000/+0.002 0 (tail_2 over the bar 40/40)  +0.03  +4.85  0.932  -45.6  -0.29  n/r
+ stance5 LTSB s42 4,194,304             r9     +0.129/+0.085/+0.943 24       -0.67   -20.13        0.460    -11.6    +1.64  0.902
+                                        r10    -0.222/+0.298/+0.327 0        +1.71   +5.52         0.958    -29.3    +1.16  0.970
+ stance5r LTSB s80 4,194,304            r9     +0.017/-0.022/+0.602 0        -2.35   -22.40        0.429    -22.3    +1.47  n/r
+                                        r10    -0.264/-0.263/+1.000 40       +5.17   +4.90         0.922    -54.8    +0.62  n/r
+ screen s80_b90_r101 final              r9     +0.044/+0.268/+0.896 3        -0.94   -19.40        0.474    -16.6    +1.63  0.891
+                                        r10    -0.162/-0.052/+0.870 0        +4.51   +6.78         0.969    -19.4    +1.30  1.041
+ (flags/40 = tail_3 tail-up flags. n/r: not recorded. CoM: harness metric, fore-aft relative to the feet's centre, +
+ ahead. Pitch: + nose-down. Chords: + above level. The r10 LTSB statue's posture equals main's statue row (zero action;
+ the LTSB terms change the reward only) [measured, PW r10/cert_compare.txt]. On r10 several r9 policies drove tail_1 or
+ tail_2 DOWN (-0.48 to -0.73): DRIVEN, report only, under this text.)
+
+REFERENCE TABLE C. CHECKPOINT CLASSES ON r9 (deterministic, 20 episodes, the screen's single-checkpoint classes):
+SCREEN's REFERENCE TABLE rows 1-26 apply unchanged as r9 references (RAIL: CMD +0.808..+0.999, checkpoint frac99
+0.019..0.975, 1-20 of 20 flagged; PARKED: +0.6285..+0.866, 0 flagged; LOW: -0.518..+0.224) [measured, SCREEN].
+
+REFERENCE TABLE D. THE SAME-SEED LTSB r9 RUNS (report only, D-12) [measured, REC sec. 21.2-21.4, 23.1-23.4; FSR
+out/ledger_sporadic.json; JUDGED5 (saturation-rail episodes on the 40-episode judged panels, full horizon)]
+ seed  r9 run             ANY ALARM  flagged/91  sat. eps on judged panels    final v2    certificate    K1 K2 K3 K4  wall clock
+                                                 (4.19M/5.24M/6.29M/8.39M/
+                                                  10.49M/final)
+ 60    stance5_LTSB_s60   none       0           0/0/0/0/0/0                  39/40 PASS  PASS 39/40     P  P  F  P   14 h 26 min
+ 42    stance5_LTSB_s42   3,670,016  30          24/13/22/24/2/20             19/40 FAIL  not rolled     F  P  F  P   13 h 36 min
+ 80    stance5_LTSB_s80   4,456,448  37          0/36/25/14/0/0 (1 fall)      38/40 PASS  PASS 38/40     F  P  P  P   13 h 47 min
+ Failure details: s60 K3: 3 of 20 joint-space noise falls at the final (bar 2; 0 at 6,291,456; own-sigma 0 and 0). s42
+ K1: v2 FAIL at 6,291,456 and the final, five J below 33/40, mostly on the actuator-saturation rail; K3: 13 of 20
+ joint-space falls at the final and 1 of 20 own-sigma, the limit; rollouts at 4,194,304 named tail_3 at +1 (77% of window
+ steps at >= 0.9, mean +0.92). s80 K1: 5,242,880, 6,291,456 and 8,388,608 below 33/40 on the saturation rail (36, 25, 14
+ episodes); rollouts at 4,718,592 named tail_3 at +1 (74%, mean +0.91); back to 39/40 by 10,485,760. The other LTSB
+ seeds: s52 (H; 1 saturated judged episode at 7,340,032) and s70 (H; final tail_2
+ +0.767: PARKED-like at R2, R1 and J unmeasured).
+
+[moved unchanged from criteria v10, lines 130-136, of ARMS AND SEEDS]
+ARMS AND SEEDS: WHY SEEDS DO NOT PAIR RUNS (detail)
+- Seeds do not pair runs. The seed fixes the initial policy weights: the CPU construction gives the same initial-weight
+  digest on the r9 trees and on the r10 port for each seed (60 b25724e3..., 42 b8870621..., 80 3b79f290...) [measured, PW
+  eq_r9/smoke_port_r9/smoke.json, r10/smoke_scratch/smoke.json; PE rollbuf/r9_vs_r10_same_seed.txt], and on Colab the
+  weights are built on the CPU before moving to the GPU [inferred]; but r10 changes the dynamics from the first step (the
+  first normalized observation already differs; seed 60's 300-step digest is 5a8b79c8... on r9, bb8cfc04... on r10
+  [measured, same files]) and Colab GPU training is not bit-reproducible [inferred, as REPL]. Per-seed comparisons are
+  report only.
+
+[moved unchanged from criteria v10, lines 147-157, of CHECKPOINTS AND LEDGER CADENCE]
+CHECKPOINTS: THE D3 SPACING'S EQUIVALENCE (detail)
+- A periodic checkpoint pair every 262,144 steps, every one kept (45 pairs, 262,144 ... 11,796,480), plus stage1_final
+  (12,001,280), best_model and robust_best_model. PORT carries cf80ecb1's 524,288 (the LTSB r9 runs' spacing); D3 (a)
+  changes that one key. It moves the stage_config_view digest only (eb6a5e10... -> 3200f159...; task, gate and
+  hyperparameter digests and the plant identity unchanged; the would-be stage_config.json differs in
+  curriculum.checkpoint_freq alone) [measured, FX out/digests_port*.json], and no training input: 33
+  rollouts of seed 42 (270,336 steps, no train(): the evaluations at 131,072 and 262,144 and, under D3 (a) only, the
+  checkpoint at 262,144) give identical buffer digests at every rollout, VecNormalize statistics, global and per-env
+  RNG states, evaluations.npz, diagnostics.npz, gate_progress.npz and ledger with either spacing; the first 17
+  reproduce PE's run digest for digest [measured, FX out/compare_rb33.txt]. The judged checkpoints J =
+  4,194,304; 5,242,880; 6,291,456; 8,388,608; 10,485,760; final, and every in-run K3 panel step, lie on the 1,048,576 grid
+  [inferred arithmetic]. About 4.03 MB per zip [measured, SCREEN]: about 0.19 GB per run on Drive [inferred].
+
+[moved unchanged from criteria v10, lines 250-289]
+THE TELEMETRY OF TEL (report only, never a verdict; on main when the runs start, D15) The columns and pages below are
+"columns of the telemetry PR": appended to eval_episodes.csv (or drawn by training_history.py), behind TEL's
+report_extensions switch, outside every reward, observation, termination, gate, checkpoint selection and digest
+[measured, TEL spec Parts 0-5; the build pins the merged column list]. No class, reading, statistic or run-handling rule
+reads any of them. Names below are #644's and #645's at e22a5439 (accepted as built, RUNLOG line 632); the merged list
+is pinned. The same switch governs eval_episodes.csv itself, which carries the class inputs (screen_v2_reasons and
+#640's columns), and TEL's captures run inside the same per-episode ledger capture [measured, MAIN eval_diagnostics.py
+lines 387-410, 437, 1021-1035, 1294-1300; TEL spec Part 0]: so "an absent or failing TEL column changes no class input"
+is tested (V8), not assumed. With the port's four commits on #644's pushed head 5b63e1a7 (a clean cherry-pick; digest
+snapshot current), one evaluation (seed 42, 17 rollouts, no training) kept the training data, the npz outputs and all 68
+existing ledger columns identical to the port's on 08a4d189 and appended #644's 8; seeds 60 and 80 gave identical first
+rollouts [measured, FX out/compare_fwd644_*.txt; PE saw the same on the pre-PR head 70cac9fc]. No episode saturated
+there, so the saturation columns were not exercised (V8 (i)).
+- Head posture: head_tip_height_mean_m, head_tip_height_min_m, neck_pitch_mean_deg, head_pitch_mean_deg (#644) and
+  page 11_head_posture.
+- Hip roll: r_hip_roll_mean_deg, r_hip_roll_max_abs_deg, l_hip_roll_mean_deg, l_hip_roll_max_abs_deg (#644) and page
+  12_hip_roll.
+- Window-mean command per actuator: <actuator>_command_mean for all 15 (the raw policy command, before the 10 Hz
+  low-pass [RUNLOG line 632]), actuators_at_rail and rail_actuators (|command| >= 0.99 on more than 10% of window steps,
+  with sign), actuators_parked and parked_actuators (not at rail, |mean| >= 0.60); page 13_commands. (Same thresholds as
+  the classes' BAR and PARKED line, but per evaluation episode: descriptive.)
+- Tail and body posture: tail_1_pitch_mean_deg, tail_1_yaw_mean_deg, tail_2_pitch_mean_deg, tail_3_pitch_mean_deg (+ tip
+  up; yaw + tip left), tail_tip_chord_mean/min/max_deg, root_height_mean/min_m, root_pitch_min/max_deg,
+  root_roll_mean/min/max_deg; page 14_tail_body.
+- Energy and smoothness, per group (legs, tail, neck_head): work_abs_j, work_net_j, power_peak_w, torque_rms_nm,
+  torque_rms_frac, command_delta_rms; action_delta_mean; r_leg_work_abs_j, l_leg_work_abs_j; page 15_energy.
+- Drift and slip: window_displacement_m, window_yaw_change_deg, window_displacement_fore_aft_m,
+  window_displacement_lateral_m, window_path_length_m, window_yaw_change_signed_deg, <foot>_slip_m,
+  <foot>_slip_speed_max_mps, <foot>_site_travel_m; page 16_drift_slip.
+- The MjData extras the maintainer added at 16:15 UTC (RUNLOG line 616 (2)): joint-limit force and time on stop (tail
+  and leg joints), CoM and capture-point margins and centroidal angular momentum, tail-base and neck-base wrench
+  (cfrc_int), head angular-rate RMS; names as at e22a5439.
+- Page 17_exploration_k3: each leg actuator's exploration std from policy_probe.npz (every PPO update) beside the K3
+  points (the in-run panel's, and the judge's when given), with stance3's line-2 reference 0.08 drawn, not applied.
+- Page 18_obs_normalization: per checkpoint the observation-normalisation drift (shift and scale against the previous
+  checkpoint and against the final) from the saved VecNormalize files read by a whitelisting unpickler, with
+  policy_probe.npz's float32 rows as the dense companion.
+- Page 19_body_dynamics (PR 2 at e22a5439): the MjData extras of 16:15 on a page of their own [measured, TEL PR 2
+  CHANGELOG].
+- The judge-K3 overlay on page 01 (#644), drawn from M4's judge files when given.
+
+[moved unchanged from criteria v10, lines 409-431, of CLASSES (v10's O1-O4 with their evidence)]
+COMPLETE RUN: v10's O1-O4 WITH THEIR EVIDENCE (the rules are the criteria's)
+  One session from step 0:
+  O1 provenance.json (run folder): exactly one "sessions" entry, with "started_at" and no "resumed_at" (every later
+     process that opens the run appends an entry with "resumed_at", unless the run's bundle manifest already reads
+     "complete" [measured, PORT result_bundle/provenance.py lines 165-170, 278-341]; the LTSB r9 s70 and s80 launch-time
+     copies hold one entry [measured, SP/foot/stance5/replication/startup/*/A]; at the end of a run, inferred from the
+     code: a same-process capture changes nothing and update_provenance keeps "sessions"); and that entry's started_at
+     is within 30 minutes of the launch time RUNLOG records for the RUN_ID (Records): a relaunch under the RUN_ID after
+     a loss that left nothing on Drive writes a fresh "started_at" entry [measured, provenance.py line 340], so only a
+     relaunch within those 30 minutes can pass.
+  O2 01_stance/stage_config.json's run block holds none of load_path, load_mode, parent_checkpoint_sha256,
+     resume_load_path, resume_checkpoint_sha256 (save_stage_config writes them at every same-stage resume, in a new
+     process or the same one, and none from scratch [measured, PORT config.py lines 570-590, 774-816, 960-971]; the
+     LTSB r9 runs' blocks hold none [measured, SP/foot/stance5/runs/*/01_stance/stage_config.json]).
+  O3 01_stance/progress.json: status "ended", timesteps 12,001,280, and steps_per_s x wall_clock_s within 0.5% of
+     12,001,280, so the session that ended counted every step from its own start (both are that session's own;
+     steps_per_s keeps 4 significant digits [measured, PORT progress_report.py lines 94-106, 327-339, 425-442]; a
+     session resumed at 262,144 or later gives at most 0.979 of it; the five LTSB r9 runs' files give 0.99982-1.00002
+     [measured, SP/foot/stance5/runs/*/01_stance/progress.json and replication/runs/*/01_stance/progress.json]). A
+     curated checkpoint (best_model.zip, robust_best_model.zip, stage1_final.zip) loaded under resume_same_stage
+     restarts the counter and passes O3 [measured, PORT train_base.py lines 395-430, 1392-1398]: O2 is the fact that
+     excludes it.
+  O4 no *.prior_* file in the run folder or 01_stance (TEL's panel copies its files aside so when a resumed session runs
+     it [measured, TEL k3_panel.py lines 596-603 at c05f6f89]; a redundant check of O1 and O2 under no resumes).
+
+[moved unchanged from criteria v10, lines 561-569, of THE r9 REFERENCE]
+THE r9 REFERENCE: WHAT DIFFERS BESIDES THE PLANT (detail)
+- What differs besides the plant [measured, PN; RUNLOG lines 597-606]: main's code between cf80ecb1's base 04ced045 and
+  3ffc18e9 (16 non-doc commits: the recipe label, the training-history report, the ledger's saturated actuator, the
+  episode trace, the policy probe's clip shares, a test helper; the port is bit-identical to cf80ecb1 on r9 across them);
+  3ffc18e9..08a4d189 (#643's r10 physics and re-measured constants: natural_pitch 0.017 against 0.027, nosedive 0.503
+  against 0.493, min_avg_reward 2260 against 2250, the re-centred tail_home_pose target; #642's heading test); TEL (report
+  only, inertness-proven on the CPU) and its in-run K3 panel (synchronous; inert by P-K3); the collapse reference 4470.4
+  against 4457.4; under D3 (a) checkpoints every 262,144 against 524,288; the date and Colab's library versions (read from
+  each run's provenance.json and reported). The build prints every digest line that moves against stance5_LTSB_s52's
+  recorded stage_config.json. So the comparison tests "r10 as shipped", not the springs alone.
+
+[moved unchanged from criteria v10, lines 891-898, of KNOWN LIMITS]
+KNOWN LIMITS: WHAT THREE RUNS CAN SHOW (detail)
+- Three runs measure no rate. With LTSB's r9 2 of 5 and its uncertainty (uniform prior: Beta(3,4)), 0, 1, 2 and 3 rails
+  of 3 have probability 0.238, 0.357, 0.286, 0.119 if nothing changed (plug-in at 0.40: 0.216, 0.432, 0.288, 0.064);
+  0.512, 0.384, 0.096, 0.008 if the rate halved; 1, 0, 0, 0 if cured [inferred, V4PKG out/power_v4.json]. P(at least one
+  rail | unchanged) = 0.76. After 0 of 3 the one-sided 95% upper bound on the r10 rate is 0.63, above r9's 0.40.
+- 0 of 3 is 4.2 times likelier under "cured" than "unchanged" (4.6 at the plug-in), 1.95 times likelier under "cured"
+  than "halved", and 2.15 times likelier under "halved" than "unchanged" (2.37 at the plug-in): halved and cured are
+  barely separated [inferred]. Continuous read (uniform prior on the r10 rate, LTSB's r9 rate Beta(3,4)): P(r10 rate <
+  r9 rate) is 0.43 before the runs and 0.83, 0.55, 0.26, 0.07 after 0, 1, 2, 3 rails of 3 [inferred].
+
+[moved unchanged from criteria v11, lines 507-516, of THE r9 REFERENCE]
+THE r9 REFERENCE: THE COMPARATOR'S OTHER RECORDS (detail)
+    Final v2 panel (heading 0, 40 episodes) PASS 4 of 5 (s42 19/40 FAIL). Six-heading certificate on the finals: s52
+    40/40, s60 39/40 (LCB 0.887), s70 40/40, s80 38/40 (0.851) PASSED; s42's not rolled.
+    K1 3/5 (s52, s60, s70), K2 5/5, K3 3/5 (s52, s70, s80), K4 5/5, H 2/5 (s52, s70). Non-holding runs: s42 (rail; K1,
+    K3), s80 (rail; K1), s60 (K3 only).
+    POSITIVE-equivalent (no alarm, final v2 PASS, every tail pitch actuator's final CMD below +0.60): s52 yes
+    (+0.082/+0.181/+0.203 [measured, ZS c2 r9]); s70 NOT (tail_2 +0.767 [measured, ZS c3 r9]); s60 not recorded: 1 to 2
+    of 5 on the end window; 0 to 2 under this text's PARKED, whose J window was never recorded. The nearest r9 equivalent
+    (heading-0 panel, certificates where rolled, final commands only), not this round's definition.
+    Wall clock 13 h 36 min to 14 h 26 min per run at 230.9-245.2 steps/s, one session each [measured, REC sec. 21.2,
+    23.1].
+
+[moved unchanged from criteria v11, lines 872-876 and 881-883, of KNOWN LIMITS]
+KNOWN LIMITS: THE FALSE-RAIL CHANCE AND THE SEED CHOICE (detail)
+- A ledger rail or a drive-backed end-only rail settles the existence question (r10 does not prevent it); a
+  not-drive-backed end-only rail is weak evidence: the trace component can print a false rail if r10 cured the habit,
+  0.003-0.027 per round with independent episodes, about 0.11 if stray saturations cluster as LTSB's late ledger
+  episodes did, up to 0.31 at the rates' upper bounds (any actuator) [inferred]; an END-ONLY rail is printed with that
+  figure and its DRIVE-BACKED status. None says much about the rate.
+- The seeds were chosen with their r9 outcomes known (2 of the 3 railed on LTSB r9); under the pre-registered
+  exchangeable analysis this changes nothing, and the r9 record does not support a seed effect (p 0.19) [inferred]. The
+  seed fixes the initial weights, so same-seed runs share a start but not a trajectory.
+
+[moved unchanged from criteria v11, lines 996-1012]
+REFERENCE TABLE A. r9 RUNS (L+T family; Colab L4; 12M; LTSB rows are the comparator, the rest context) [measured, DRAFT
+out/ref_r9_runs.csv; ledgers; SCORES; REC sec. 21, 23; final tail commands: SAT checkpoint table, ZS r9 deterministic rows]
+ run                 arm   seed  ANY ALARM  first sat   first flag  flagged/91  last flag   final v2    K1 K2 K3 K4  final CMD t1/t2/t3
+ stance3 Run 2       LT    60    2,359,296  1,310,720   2,228,224   44          11,272,192  40/40 PASS  F  F  P  P   +0.156/+0.023/+0.851
+ stance3 Run 3       LT    52    none       655,360     4,718,592    1          4,718,592   39/40 PASS  P  F  P  P   n/r
+ stance4 LTS s52     LTS   52    none       7,864,320   none         0          none        39/40 PASS  F  F  P  P   n/r / n/r / -0.486
+ stance4 LTS s60     LTS   60    none       none        none         0          none        39/40 PASS  F  F  P  P   n/r / n/r / -0.518
+ stance4 LTS s42     LTS   42    2,228,224  1,835,008   2,097,152   70          11,796,480  14/40 FAIL  F  F  F  F   n/r / n/r / +0.888
+ stance5 LTSB s52    LTSB  52    none       6,946,816   none         0          none        40/40 PASS  P  P  P  P   +0.082/+0.181/+0.203
+ stance5 LTSB s60    LTSB  60    none       11,403,264  none         0          none        39/40 PASS  P  P  F  P   n/r
+ stance5 LTSB s42    LTSB  42    3,670,016  3,145,728   3,538,944   30          11,927,552  19/40 FAIL  F  P  F  P   n/r
+ stance5r LTSB s70   LTSB  70    none       8,126,464   none         0          none        40/40 PASS  P  P  P  P   +0.187/+0.767/-0.207
+ stance5r LTSB s80   LTSB  80    4,456,448  4,325,376   4,325,376   37          10,223,616  38/40 PASS  F  P  P  P   n/r
+ (stance3 Run 2's final is the walking parent: PARKED on r9 by tail_3 (+0.851). stance5r s70: PARKED-like at R2 by
+ tail_2 (+0.767); its R1 and J commands were never measured, so PARKED under this text is not established.
+ n/r = not recorded. The walking parent's final tail_3 command reads +0.841 in SAT's 20-episode table and
+ +0.851 in ZS's 40-episode panel.)
+
+[criteria v11, lines 814-844 (V2): its synthetic case list, re-wrapped; criteria v12's V2 adds the cases it names]
+V2 CASES (the build's synthetic test list; V2 of the criteria runs every case below and every scenario of the literal rule model)
+Paths (b) and (c) on synthetic ledgers: a tail actuator named; a tie with a lower-index leg actuator; a larger leg
+saturation with actuators_saturated 2; tail_2 at -1; an "actuator[14]" name; a blank name over the bar; the RESOLUTION
+trigger and the traced set T within the 66 pairs; every class, kind (in their order) and reading line on synthetic rows,
+DRIVE-BACKED included. MISSING INPUTS: an evaluation with NaN or blank screen_v2_clean (screen_v2_reasons "") with and
+without measured fractions; a blank saturated_actuator_fraction column under a screen that lists the key and, on two
+adjacent evaluations, under one that does not (measured, under the bar); a fraction over 0.10 under an unlisted screen
+(missing); a missing evaluation; an evaluation with 9 rows (5 tail-over beside a tail-flagged evaluation: RAIL on the
+present data; 4: UNREAD); one with 11 rows; a truncated file; a NaN saturated_actuator_fraction on a full-horizon row; a
+row whose return disagrees with evaluations.npz; missing R1, R2, J and RESOLUTION pairs; each read INCOMPLETE and on its
+present data. The COMPLETE test on synthetic records: each of O0-O10 failing alone (a wrong commit or task digest; a
+second provenance entry, a provenance.json version that differs from another fetch's, or a started_at more than 60
+minutes from the launch time; a load key; progress.json "ended" below 12,001,280, or a rate outside 0.995-1.005; a
+*.prior_* file; RUNLOG with a launch-check stop or a second launch; hop_watch.json; a broken final pair, or one
+recording another step; no gate_verdict.json or no artifact_manifest.json; records not STABLE; a 9-row evaluation; a
+return mismatch; an earlier version's row that differs from the stable copy's in a column it holds; a missing J trace or
+RESOLUTION checkpoint), each INCOMPLETE; a curated-checkpoint load: INCOMPLETE by O2 alone; the LTSB r9 runs'
+stage_config.json and progress.json passing O2 and O3, and O1 on the s70 and s80 launch-time provenance.json copies (no
+finished r9 run's copy is in the records). Statistic A with a run INCOMPLETE through O10 alone, an ended run with and
+without a recorded alarm, a STOPPED run, an F1 version holding the only alarm, and n_A = 0; GATE FAIL on an INCOMPLETE
+run; a second session (INCOMPLETE, printed); a cell error after the manifest (COMPLETE); an end nobody saw (read from
+the records); REPLACEMENT (an EARLY run by its records, and runs whose models/ listing shows a stage1_<steps>_steps.zip
+or whose ledger passes 262,144; a replacement launched within 2 hours of the EARLY run's launch, later, none; an EARLY
+run with an ANY ALARM; a run on another plant identity or task digest); T's first group; O0's view digest, computed as
+O0 states, giving cf80ecb1's pin cbffed71... on the five LTSB r9 stage_config.json files; the fetch tool on synthetic
+fetch pairs (equal: STABLE; a changed file, size or listing: not; the third pair's limit).

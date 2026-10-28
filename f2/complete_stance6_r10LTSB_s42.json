@@ -1,0 +1,1374 @@
+{
+ "completeness": {
+  "run_id": "stance6_r10LTSB_s42",
+  "fetch_dir": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s42",
+  "C1": {
+   "name": "C1 one launch, no launch-check stop, no other action",
+   "ok": true,
+   "value": {
+    "launches": [
+     671
+    ],
+    "launch_check_stops": [],
+    "actions": [],
+    "lines": {
+     "671": "LAUNCH",
+     "673": "CHECK",
+     "693": "TRIGGER-a",
+     "694": "FOUND-GONE",
+     "704": "F2-START"
+    }
+   },
+   "note": "C1 reads the RUN_ID's LAUNCH/RELAUNCH lines, its launch-check stops (STOP, TRIGGER-d) and its ACTION lines (what=resume|restart|relaunch|cell)"
+  },
+  "C2": {
+   "name": "C2 artifact_manifest.json",
+   "ok": true,
+   "value": {
+    "copies": "copies 1 and 2 agree (sha256 3ffa31e68aa9)",
+    "sha256": "3ffa31e68aa9a104873f59d26851913a3ede433736dd6a94a4cd5b861489cfe5",
+    "schema_problems": [],
+    "run_id": "stance6_r10LTSB_s42",
+    "status": "complete",
+    "entries": 167
+   },
+   "note": null
+  },
+  "C3": {
+   "name": "C3 every file the reading uses equals its manifest entry",
+   "ok": true,
+   "value": {
+    "provenance.json": "OK",
+    "01_stance/stage_config.json": "OK",
+    "01_stance/progress.json": "OK",
+    "01_stance/eval_episodes.csv": "OK",
+    "01_stance/gate_verdict.json": "OK",
+    "01_stance/models/stage1_4194304_steps.zip": "OK",
+    "01_stance/models/stage1_vecnormalize_4194304_steps.pkl": "OK",
+    "01_stance/models/stage1_5242880_steps.zip": "OK",
+    "01_stance/models/stage1_vecnormalize_5242880_steps.pkl": "OK",
+    "01_stance/models/stage1_6291456_steps.zip": "OK",
+    "01_stance/models/stage1_vecnormalize_6291456_steps.pkl": "OK",
+    "01_stance/models/stage1_8388608_steps.zip": "OK",
+    "01_stance/models/stage1_vecnormalize_8388608_steps.pkl": "OK",
+    "01_stance/models/stage1_10485760_steps.zip": "OK",
+    "01_stance/models/stage1_vecnormalize_10485760_steps.pkl": "OK",
+    "01_stance/models/stage1_final.zip": "OK",
+    "01_stance/models/stage1_final_vecnorm.pkl": "OK"
+   },
+   "note": null
+  },
+  "C4": {
+   "name": "C4 one session from step 0 in the round's configuration",
+   "ok": true,
+   "value": [
+    {
+     "name": "C4 exactly one sessions entry with started_at, no resumed_at",
+     "ok": true,
+     "value": {
+      "sessions": 1,
+      "started_at": "2026-10-27T15:03:06.837271+00:00",
+      "resumed_at": false
+     },
+     "note": null
+    },
+    {
+     "name": "C4 started_at within 60 minutes before or after RUNLOG's launch time",
+     "ok": true,
+     "value": {
+      "minutes_from_launch": 6.1,
+      "launch": "2026-10-27T14:57:00+00:00"
+     },
+     "note": null
+    },
+    {
+     "name": "C4 provenance repository_commit = branch HEAD, repository_dirty false",
+     "ok": true,
+     "value": {
+      "repository_commit": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d",
+      "repository_dirty": false,
+      "head": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d"
+     },
+     "note": null
+    },
+    {
+     "name": "C4 no load key at any depth",
+     "ok": true,
+     "value": [],
+     "note": null
+    },
+    {
+     "name": "C4 run.seed",
+     "ok": true,
+     "value": {
+      "got": 42,
+      "want": 42
+     },
+     "note": null
+    },
+    {
+     "name": "C4 run.n_envs 4",
+     "ok": true,
+     "value": 4,
+     "note": null
+    },
+    {
+     "name": "C4 run.hyperparameters_sha256 = pin",
+     "ok": true,
+     "value": "sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c",
+     "note": null
+    },
+    {
+     "name": "C4 task_fingerprint.task_sha256 = pin",
+     "ok": true,
+     "value": "sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456",
+     "note": null
+    },
+    {
+     "name": "C4 plant_identity block = pin",
+     "ok": true,
+     "value": "(block)",
+     "note": null
+    },
+    {
+     "name": "C4 stage_config_view_sha256 = pin",
+     "ok": true,
+     "value": "sha256:3200f159e7f0c8d59be196976e990bbc572c688ba332d8574106c706d46cbce1",
+     "note": null
+    },
+    {
+     "name": "C4 git_commit = branch HEAD",
+     "ok": true,
+     "value": {
+      "git_commit": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d",
+      "head": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d"
+     },
+     "note": null
+    },
+    {
+     "name": "C4 k3_panel.csv absent from the manifest if V7 failed on HEAD",
+     "ok": true,
+     "value": {
+      "v7_failed_on_head": false,
+      "k3_panel_csv_listed": true
+     },
+     "note": null
+    }
+   ],
+   "note": "read on manifest-verified copies"
+  },
+  "C4_on_manifest_files": true,
+  "C5": {
+   "name": "C5 the end",
+   "ok": true,
+   "value": {
+    "progress_status": "ended",
+    "E": 12001280,
+    "final_zip_num_timesteps": 12001280,
+    "zip_problem": null,
+    "judged_at": "2026-10-28T05:33:20+00:00",
+    "written_at": "2026-10-28T05:00:58Z",
+    "judged_minus_written_min": 32.4,
+    "ending": "FINISHED"
+   },
+   "note": null
+  },
+  "C6": {
+   "name": "C6 ledger whole to E, every ANY and TAIL input measured",
+   "ok": true,
+   "value": {
+    "grid_evaluations": 91,
+    "failures": [],
+    "n_failures": 0
+   },
+   "note": null
+  },
+  "C6_on_manifest_files": true,
+  "C7": {
+   "name": "C7 traces (and the final certificate)",
+   "ok": true,
+   "value": {
+    "labels": [
+     "4194304",
+     "5242880",
+     "6291456",
+     "8388608",
+     "10485760",
+     "final"
+    ],
+    "missing": []
+   },
+   "note": null
+  },
+  "measured_on_another_file": [],
+  "E": 12001280,
+  "finished": true,
+  "stopped": false,
+  "r1": 10485760,
+  "js": [
+   4194304,
+   5242880,
+   6291456,
+   8388608,
+   10485760
+  ],
+  "resolution": {},
+  "certificate": {
+   "passed": false,
+   "failures": [
+    "heading -90: hop_or_fall_episodes 2 > 1 (episodes ending early or failing min_all_feet_support, max_touchdown_rate, max_window_displacement_m, max_actuator_saturation_fraction; panel rail)",
+    "heading -45: hop_or_fall_episodes 2 > 1 (episodes ending early or failing min_all_feet_support, max_touchdown_rate, max_window_displacement_m, max_actuator_saturation_fraction; panel rail)",
+    "heading +0: hop_or_fall_episodes 2 > 1 (episodes ending early or failing min_all_feet_support, max_touchdown_rate, max_window_displacement_m, max_actuator_saturation_fraction; panel rail)",
+    "heading +45: hop_or_fall_episodes 2 > 1 (episodes ending early or failing min_all_feet_support, max_touchdown_rate, max_window_displacement_m, max_actuator_saturation_fraction; panel rail)",
+    "heading +90: hop_or_fall_episodes 2 > 1 (episodes ending early or failing min_all_feet_support, max_touchdown_rate, max_window_displacement_m, max_actuator_saturation_fraction; panel rail)",
+    "heading +180: hop_or_fall_episodes 2 > 1 (episodes ending early or failing min_all_feet_support, max_touchdown_rate, max_window_displacement_m, max_actuator_saturation_fraction; panel rail)"
+   ],
+   "seeds": [
+    3042,
+    3043,
+    3044,
+    3045,
+    3046,
+    3047,
+    3048,
+    3049,
+    3050,
+    3051,
+    3052,
+    3053,
+    3054,
+    3055,
+    3056,
+    3057,
+    3058,
+    3059,
+    3060,
+    3061,
+    3062,
+    3063,
+    3064,
+    3065,
+    3066,
+    3067,
+    3068,
+    3069,
+    3070,
+    3071,
+    3072,
+    3073,
+    3074,
+    3075,
+    3076,
+    3077,
+    3078,
+    3079,
+    3080,
+    3081
+   ],
+   "physics_revision": 10,
+   "commit": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d",
+   "record": {
+    "schema": "r10m-m3/1",
+    "tool": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/lean/build/laneA/tools/measure_r10round.py",
+    "tool_sha256": "b293a511d8beb5b6d6f24cec8744e601382748ce9b2f89e6bb653b6c97f5840c",
+    "version": "measure_r10round 1.2 (2026-10-26; fixer: RA-1, RA-4, RA-5; v5: the approved HEAD, O-6, O-7, O-8)",
+    "utc": "2026-10-28T14:39:43Z",
+    "kind": "M3 CERTIFICATE",
+    "label": "GATE CERTIFICATE (final checkpoint, measured on a screen task; not certification)",
+    "zero_action": false,
+    "physics_revision": 10,
+    "certificate_plant": {
+     "physics_revision": 10,
+     "physics_sha256": "sha256:6a47a0eb78164b9738752e2cf928aa0a6fd3ef98fc953eddc9bcb2eca366da4d"
+    },
+    "checkpoint": {
+     "path": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/models/stage1_final.zip.copy1",
+     "sha256": "ba5e46a9fb20f4edeaba05e8070f0bd868146a02a6eb0dd2866105bc09846866",
+     "readable": true,
+     "plant_identity": {
+      "schema": "mesozoic.plant-identity/v2",
+      "species": "tyrannosaurus_rex",
+      "embodiment": "anatomical",
+      "model_path": "environments/tyrannosaurus_rex/anatomical/assets/tyrannosaurus_rex_anatomical.xml",
+      "physics_revision": 10,
+      "policy_interface_revision": 15,
+      "visual_revision": 4,
+      "source_closure_sha256": "sha256:ccda5ddff3602676409ce79f28373a56e8ac069f37ab4b83808ef02aae8442e0",
+      "policy_interface_sha256": "sha256:ffbf6631e4de0469cfcaa6771e80f47973b127342bc362f74190451e8555cbd8",
+      "physics_sha256": "sha256:6a47a0eb78164b9738752e2cf928aa0a6fd3ef98fc953eddc9bcb2eca366da4d",
+      "visual_sha256": "sha256:7042dcd597fbd0ce25489164a7f132d51e1c2adbc050729c9866d7bde42e35a4",
+      "nq": 28,
+      "nv": 27,
+      "nu": 15,
+      "observation_dim": 63,
+      "action_dim": 15
+     },
+     "physics_revision": 10,
+     "physics_sha256": "sha256:6a47a0eb78164b9738752e2cf928aa0a6fd3ef98fc953eddc9bcb2eca366da4d",
+     "seed": 42,
+     "num_timesteps": 12001280,
+     "task_sha256": "sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456",
+     "symmetry": {
+      "schema": "mesozoic.mirror-kl/v1",
+      "method": "mirror_kl",
+      "species": "tyrannosaurus_rex",
+      "embodiment": "anatomical",
+      "mirror_map_sha256": "sha256:76272aa04bdf542f876e5f82fc38a437d02eda94744c826974bed7dc77e11b91",
+      "kappa": 0.3,
+      "sigma_floor": 0.01,
+      "mirror_critic": true
+     },
+     "vecnorm": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/models/stage1_final_vecnorm.pkl.copy1",
+     "vecnorm_sha256": "b654c266b229fdec3b7f1f7b8123d44113381f22421da309140a3f36f6317d19"
+    },
+    "run_records": {
+     "validation_no_run_records": false,
+     "stage_config": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/stage_config.json.copy1",
+     "stage_config_sha256": "5d54e6deac8ddda5c37914da97d4d59b6838a8daef52cb7bec237c49d63d24ec",
+     "git_commit": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d",
+     "run_seed": 42,
+     "task_sha256": "sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456",
+     "plant_physics_revision": 10
+    },
+    "filed": {
+     "run_id": "stance6_r10LTSB_s42",
+     "seed": 42,
+     "label": "final",
+     "pair_names": [
+      "stage1_final.zip",
+      "stage1_final_vecnorm.pkl"
+     ]
+    },
+    "copy_seal": {
+     "schema": "r10m-measuring-copy/1",
+     "commit": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d",
+     "repo": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/runbranch/clone",
+     "archive_sha256": "e7ae1e91236294f259344c1ad90921855ff34a7c9ca61db4c20e57b74bea2a55",
+     "tree_digest": "331fe8fc3f6bdf73acc0d3cc324dd753d9d9d695d7ce914e4e011d5c6437ebf1",
+     "files": 1406,
+     "built_utc": "2026-10-28T11:47:38Z",
+     "built_by": "measure_r10round 1.2 (2026-10-26; fixer: RA-1, RA-4, RA-5; v5: the approved HEAD, O-6, O-7, O-8)"
+    },
+    "copy_commit_basis": {
+     "commit": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d",
+     "basis": "approved",
+     "approval": {
+      "head": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d",
+      "header_parent": "cf9402bc57dab92c716c7e0ee4bc96f72f237efb",
+      "approved": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/APPROVED",
+      "approved_sha256": "072464809f9c0072eb17b3c05821ed0d154ee0378c09bef757e70329240001bf",
+      "repo": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/runbranch/clone",
+      "file": "configs/tyrannosaurus_rex/anatomical/stance.toml",
+      "comment_lines_added": [
+       "# main 08a4d189 and carried onto main 06b1a8e1 (#644 and #645 merged), physics r10 (D-D44), 12M, from scratch;",
+       "# seeds 60, 42 and 80, the seeds LTSB ran on r9 (stance5_LTSB_s60, stance5_LTSB_s42 and stance5_LTSB_s80). The",
+       "# criteria are the r10 round's, fixed before any training step: criteria_r10round_final.txt, sha256",
+       "# 99a44469a387d01c55b98d76595d3633029681866ed14afcb185521eca0164db. The r9 screens' criteria: stance5 sha256"
+      ],
+      "comment_lines_removed": [
+       "# main 08a4d189, physics r10 (D-D44), 12M, from scratch; seeds 60, 42 and 80, the seeds LTSB ran on r9",
+       "# (stance5_LTSB_s60, stance5_LTSB_s42 and stance5_LTSB_s80). The criteria are the r10 round's, fixed before any",
+       "# training step. The r9 screens' criteria: stance5 sha256"
+      ]
+     }
+    },
+    "copy_tree_digest_after": "331fe8fc3f6bdf73acc0d3cc324dd753d9d9d695d7ce914e4e011d5c6437ebf1",
+    "pinned_files": {
+     "environments/shared/scripts/stance_gate_report.py": "bbfe80168c200332b0997181a1efbb13b01b522eb8b755203a85b5a0eeaf299b"
+    },
+    "certificate_run": {
+     "argv": [
+      "nice",
+      "-n",
+      "10",
+      "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python",
+      "-I",
+      "-B",
+      "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/copy_8737cd3d/environments/shared/scripts/stance_gate_report.py",
+      "--species",
+      "tyrannosaurus_rex",
+      "--embodiment",
+      "anatomical",
+      "--seed",
+      "3042",
+      "--out-dir",
+      "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/panels/stance6_r10LTSB_s42/final/m3",
+      "--model",
+      "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/models/stage1_final.zip.copy1",
+      "--vecnorm",
+      "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/models/stage1_final_vecnorm.pkl.copy1"
+     ],
+     "returncode": 1,
+     "stdout_tail": " 38/40   0.8508   1.0000    4353.1      40/40         4470.4  FAIL\n       -45  38/40   0.8508   1.0000    4353.1      40/40         4470.4  FAIL\n        +0  38/40   0.8508   1.0000    4353.1      40/40         4470.4  FAIL\n       +45  38/40   0.8508   1.0000    4353.1      40/40         4470.4  FAIL\n       +90  38/40   0.8508   1.0000    4353.1      40/40         4470.4  FAIL\n      +180  38/40   0.8508   1.0000    4353.1      40/40         4470.4  FAIL\n\nseeds not clean at every heading (2; first 2 shown):\n  seed 3079: -90, -45, +0, +45, +90, +180 deg\n  seed 3080: -90, -45, +0, +45, +90, +180 deg\n\nthe 0 deg cell in detail (that heading's v2 decision; the certificate's verdict closes this report):\n\npolicy              stage1_final.zip.copy1 \u2014 VecNormalize stats applied (clip 10)\nstage               Tyrannosaurus Rex (Anatomical) \u2014 Stance (stage 1, stance_quality/v2, floor truth)\npanel               40 episodes, seeds 3042-3081\nsettle_steps        200 (window criteria over the remaining 800; settle criteria after the 0.1 s spawn grace)\nmeasurement         floor-truth/v2 (sha256:16ecfdedccc43917c95e3a55b619285f3ffccc76ca66f078b998d58334806567)\ntask                sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456\n\nclean episodes           38 / 40   LCB95 0.8508   (>= 0.8000, min_eval_episodes 40)\nfull_horizon_fraction     1.0000\nreward                    4353.1 +/- 31.2\nterminations           {'truncated': 40}\n\nper-episode criteria (fails = episodes failing it; median and worst over the panel):\n  horizon                              reach 1000 steps         fails   0/40\n  min_all_feet_support                 >= 0.98         fails   0/40   median 1, worst 1\n  max_touchdown_rate                   <= 0.25         fails   0/40   median 0, worst 0\n  max_window_displacement_m            <= 0.1          fails   0/40   median 0.004622, worst 0.01995\n  min_foot_load_share                  >= 0.4          fails   0/40   median 0.4957, worst 0.4781\n  max_actuator_saturation_fraction     <= 0.1          fails   2/40   median 0, worst 0.5387\n  max_settle_airborne_substeps         <= 0            fails   0/40   median 0, worst 0\n  max_settle_peak_floor_force_bw       <= 1.5          fails   0/40   median 1.055, worst 1.178\n  min_foot_load_share_windowed         >= 0.35         fails   0/40   median 0.4927, worst 0.4542\n  max_foot_contact_fraction            <= 0.02         fails   0/40   median 0, worst 0\n  max_phantom_support_fraction         <= 0.05         fails   0/40   median 0, worst 0\n  max_nonfoot_load_fraction            <= 0.02         fails   0/40   median 0, worst 0\n  max_settle_stance_width_change_m     <= 0.08         fails   0/40   median 0.007747, worst 0.06043\n  max_sole_tilt_deg                    <= 2            fails   0/40   median 0.4558, worst 1.67\n  max_sole_corner_lift_m               <= 0.004        fails   0/40   median 0.0007762, worst 0.002775\n  min_sole_contacts                    >= 1.5          fails   0/40   median 3.26, worst 2\n  max_episode_yaw_change_deg           <= 25           fails   0/40   median 3.634, worst 12.45\n  max_settle_touchdowns                <= 2            fails   0/40   median 1, worst 1\n  max_sole_cop_fore_aft                <= 0.8          fails   0/40   median 0.109, worst 0.2147\n  min_avg_reward                       2260 (panel rail)\n  min_avg_reward_statue_ratio          0.6 (panel rail)\n  min_full_horizon_fraction            0.95 (panel rail)\n  max_hop_or_fall_episodes             <= 1 (panel rail: 2 episodes end early or fail support, touchdowns, drift or saturation)\n\nstatue reference (zero action, same seeds): 40/40 full-horizon, mean reward 4470.4, foot load shares [0.500, 0.500]\n\nreport-only (not gated; median and max over the panel):\n  touch agrees with floor truth        1, max 1\n  spawn-grace peak floor force (BW)    1.238, max 1.39\n  foot CoP fore-aft (|.| / half-span)  0.2608, max 0.3804\n  window both-feet-unloaded substeps   0, max 0\n  window peak floor force (BW)         1.001, max 1.018\n  touch unsupported duty (v1 measure)  0.0000\n\nunclean episodes (2; first 2 shown):\n  seed 3079: max_actuator_saturation_fraction: max_actuator_saturation_fraction 0.53875 > 0.1\n  seed 3080: max_actuator_saturation_fraction: max_actuator_saturation_fraction 0.515 > 0.1\n\n\nGATE: FAIL\n  - heading -90: hop_or_fall_episodes 2 > 1 (episodes ending early or failing min_all_feet_support, max_touchdown_rate, max_window_displacement_m, max_actuator_saturation_fraction; panel rail)\n  - heading -45: hop_or_fall_episodes 2 > 1 (episodes ending early or failing min_all_feet_support, max_touchdown_rate, max_window_displacement_m, max_actuator_saturation_fraction; panel rail)\n  - heading +0: hop_or_fall_episodes 2 > 1 (episodes ending early or failing min_all_feet_support, max_touchdown_rate, max_window_displacement_m, max_actuator_saturation_fraction; panel rail)\n  - heading +45: hop_or_fall_episodes 2 > 1 (episodes ending early or failing min_all_feet_support, max_touchdown_rate, max_window_displacement_m, max_actuator_saturation_fraction; panel rail)\n  - heading +90: hop_or_fall_episodes 2 > 1 (episodes ending early or failing min_all_feet_support, max_touchdown_rate, max_window_displacement_m, max_actuator_saturation_fraction; panel rail)\n  - heading +180: hop_or_fall_episodes 2 > 1 (episodes ending early or failing min_all_feet_support, max_touchdown_rate, max_window_displacement_m, max_actuator_saturation_fraction; panel rail)\nwritten: /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/panels/stance6_r10LTSB_s42/final/m3/stance_heading_report.txt\nwritten: /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/panels/stance6_r10LTSB_s42/final/m3/stance_heading_report.json\nwritten: /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/panels/stance6_r10LTSB_s42/final/m3/stance_heading_panel_selected.csv\n",
+     "stderr_tail": "",
+     "seconds": 1214.9,
+     "traceback": false,
+     "signal": false
+    },
+    "report_sha256": "87c6a99300956cacd1f9ef99eafe4c74a1f96fb6343292812edea2350e26b0a3",
+    "verdict": "FAIL",
+    "passed": false,
+    "failures": [
+     "heading -90: hop_or_fall_episodes 2 > 1 (episodes ending early or failing min_all_feet_support, max_touchdown_rate, max_window_displacement_m, max_actuator_saturation_fraction; panel rail)",
+     "heading -45: hop_or_fall_episodes 2 > 1 (episodes ending early or failing min_all_feet_support, max_touchdown_rate, max_window_displacement_m, max_actuator_saturation_fraction; panel rail)",
+     "heading +0: hop_or_fall_episodes 2 > 1 (episodes ending early or failing min_all_feet_support, max_touchdown_rate, max_window_displacement_m, max_actuator_saturation_fraction; panel rail)",
+     "heading +45: hop_or_fall_episodes 2 > 1 (episodes ending early or failing min_all_feet_support, max_touchdown_rate, max_window_displacement_m, max_actuator_saturation_fraction; panel rail)",
+     "heading +90: hop_or_fall_episodes 2 > 1 (episodes ending early or failing min_all_feet_support, max_touchdown_rate, max_window_displacement_m, max_actuator_saturation_fraction; panel rail)",
+     "heading +180: hop_or_fall_episodes 2 > 1 (episodes ending early or failing min_all_feet_support, max_touchdown_rate, max_window_displacement_m, max_actuator_saturation_fraction; panel rail)"
+    ],
+    "task_sha256": "sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456",
+    "gate_sha256": "sha256:d26c34e6e6caa7e726fd44ac39534fdbecae4127d92f389393e9d076b2f0deaf",
+    "headings": [
+     {
+      "yaw_deg": -90.0,
+      "n_clean": 38,
+      "clean_lcb": 0.8508480387267765,
+      "full_horizon_fraction": 1.0,
+      "reward_mean": 4353.11637847518,
+      "n_episodes": 40
+     },
+     {
+      "yaw_deg": -45.0,
+      "n_clean": 38,
+      "clean_lcb": 0.8508480387267765,
+      "full_horizon_fraction": 1.0,
+      "reward_mean": 4353.116378297106,
+      "n_episodes": 40
+     },
+     {
+      "yaw_deg": 0.0,
+      "n_clean": 38,
+      "clean_lcb": 0.8508480387267765,
+      "full_horizon_fraction": 1.0,
+      "reward_mean": 4353.1164489068315,
+      "n_episodes": 40
+     },
+     {
+      "yaw_deg": 45.0,
+      "n_clean": 38,
+      "clean_lcb": 0.8508480387267765,
+      "full_horizon_fraction": 1.0,
+      "reward_mean": 4353.116365184294,
+      "n_episodes": 40
+     },
+     {
+      "yaw_deg": 90.0,
+      "n_clean": 38,
+      "clean_lcb": 0.8508480387267765,
+      "full_horizon_fraction": 1.0,
+      "reward_mean": 4353.116378312417,
+      "n_episodes": 40
+     },
+     {
+      "yaw_deg": 180.0,
+      "n_clean": 38,
+      "clean_lcb": 0.8508480387267765,
+      "full_horizon_fraction": 1.0,
+      "reward_mean": 4353.116378390196,
+      "n_episodes": 40
+     }
+    ],
+    "stack": {
+     "python": "3.13.17",
+     "torch": "2.13.0+cpu",
+     "numpy": "2.5.4",
+     "gymnasium": "1.4.0",
+     "stable_baselines3": "2.9.0",
+     "mujoco": "3.10.0"
+    },
+    "_file": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/panels/stance6_r10LTSB_s42/final/m3/m3_summary.json"
+   },
+   "label_dir": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/panels/stance6_r10LTSB_s42/final/m3",
+   "binding": {
+    "checkpoint_sha256": "ba5e46a9fb20f4edeaba05e8070f0bd868146a02a6eb0dd2866105bc09846866",
+    "vecnorm_sha256": "b654c266b229fdec3b7f1f7b8123d44113381f22421da309140a3f36f6317d19",
+    "num_timesteps": 12001280,
+    "seed": 42,
+    "validation_no_run_records": false,
+    "run_git_commit": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d",
+    "filed_run_id": "stance6_r10LTSB_s42",
+    "filed_label": "final"
+   }
+  },
+  "entries": {
+   "01_stance/diagnostics.npz": [
+    1275566,
+    "fe01d968e56bbacc825edc6781ca1a786f68ebdf1e3a6cf393e347b602973bca"
+   ],
+   "01_stance/eval_episodes.csv": [
+    2905418,
+    "d1bcb78964691cf194e6276f06740d1f24aa69ad36831a046ad6307c1c4db11e"
+   ],
+   "01_stance/evaluation_final.csv": [
+    7029,
+    "b67914325708d358c1165d6f24ae92eab0f8def40988753df7f7717b69cb595d"
+   ],
+   "01_stance/evaluation_selected.csv": [
+    7125,
+    "e10e734c80d2b661980139a3381618b922771756ebeb0c0d5012cabfa28f6de8"
+   ],
+   "01_stance/evaluations.npz": [
+    16058,
+    "3e11136120622b90cc63203c46332004a9989188a0b8fe91620dbabb9f2563e9"
+   ],
+   "01_stance/figures/behavioral_metrics.png": [
+    325422,
+    "b09e1d8249e8af6c6bf804277c7ff12baa88655b44c033e3f284089f8ea4ee02"
+   ],
+   "01_stance/figures/foot_contacts.png": [
+    89192,
+    "d572efd53e63ee4eeaef911c43e4f41aea33757bbaeb8853d0ebb9f4cb2b9ac4"
+   ],
+   "01_stance/figures/gate_progress.png": [
+    438784,
+    "998c36834f187bffc6ea39927c5e257a634ec1157969930d1a9f6623b4eee8d5"
+   ],
+   "01_stance/figures/locomotion_health.png": [
+    314756,
+    "92637c7cee89cda16c5c18d2cb20025d69eadeb8f4028692471b3d75a91ff3c8"
+   ],
+   "01_stance/figures/stance_diagnostics.png": [
+    279666,
+    "b84ce3a2312865c412eefd21541600367e898e836c7fb6194be3625b0174472b"
+   ],
+   "01_stance/figures/training_curves.png": [
+    184102,
+    "8dc15d620d39f4e24cac208b35b8c5204e28410ac0817801bef7859c2fd23eac"
+   ],
+   "01_stance/figures/training_history/01_outcomes.png": [
+    55181,
+    "576bcb84424a150f2e6f1663edadf6b546d1b4ebad2e4c8355967e191bedeae6"
+   ],
+   "01_stance/figures/training_history/02_saturation.png": [
+    112357,
+    "3826976912e724f1186d427fe3f21515c2201d994693d95ca50208bfbe86d7b1"
+   ],
+   "01_stance/figures/training_history/03_foot_cop.png": [
+    66205,
+    "e362e4e609a6ee951bd647037ecdd2ae677823e637dbcb2efef97f4ae770b060"
+   ],
+   "01_stance/figures/training_history/04_pad_cop.png": [
+    72563,
+    "ae97d963022838f1880ab80835a5917631f18bf5ffa6ed6378ededbf7daf9a56"
+   ],
+   "01_stance/figures/training_history/05_digits_margins.png": [
+    69886,
+    "268171bb7efcb7a24d82c02b225a9d9428e6436ce553b072bd331f17e31d13a1"
+   ],
+   "01_stance/figures/training_history/06_balance.png": [
+    77648,
+    "f11832e142d1bce2d14adfd2ca2a96e008b83dd8f23dcf2be3fea8bc1984fd87"
+   ],
+   "01_stance/figures/training_history/07_sole_roll.png": [
+    72393,
+    "ba2f807505c2adfbc4fb61fbd072c82476e254f52f00b5ef4593664a820988ba"
+   ],
+   "01_stance/figures/training_history/08_floor_forces.png": [
+    64401,
+    "bcdd7ccad71dde23f4be6357e2bc00a62b78ae80728aedffac4eab3d3d18eb4d"
+   ],
+   "01_stance/figures/training_history/09_asymmetry.png": [
+    84791,
+    "bbcdfc926ef248c4aaceb08289e54456619c5224f67662c78937f426b858007f"
+   ],
+   "01_stance/figures/training_history/10_policy_std.png": [
+    59420,
+    "b04d063307d944f71e7a4dd3d1815ea80f96ef9ab04770cecedfd6e8978aa1f1"
+   ],
+   "01_stance/figures/training_history/11_head_posture.png": [
+    83370,
+    "e26005170945d46be2f9e05ab33f0b8272df1ae102edddaa9c352f4da3e30185"
+   ],
+   "01_stance/figures/training_history/12_hip_roll.png": [
+    72180,
+    "e82a394cf5affd09c8570c3b8438bf08ac62463619ead52f0a0111ac2f3b364d"
+   ],
+   "01_stance/figures/training_history/13_commands.png": [
+    84057,
+    "4c52d5110af976c07a8c420777b5bbb4141e4bdbeaa2d37cbac6b326a8c596f7"
+   ],
+   "01_stance/figures/training_history/14_tail_body.png": [
+    92872,
+    "1b5a4a9636eea3f7b2f98d2ceda39f389ffa96f7bd5b812b5f2054b314ee2760"
+   ],
+   "01_stance/figures/training_history/15_energy.png": [
+    125407,
+    "d415d97fed58f47c092aa209766805643e81bce30d8d9fb89e8fca8d370d6864"
+   ],
+   "01_stance/figures/training_history/16_drift_slip.png": [
+    119040,
+    "d377de9acdcff7844a14460d45e3b1c35e0c53b44f3943ab39bc8dc7b099bd41"
+   ],
+   "01_stance/figures/training_history/17_exploration_k3.png": [
+    50498,
+    "ca783c9dbfc0fd2e3efe7138d247419f55c5afd4a54b58bb9ff928d0f120b64d"
+   ],
+   "01_stance/figures/training_history/18_obs_normalization.png": [
+    86207,
+    "a3ffaedb188864b5415e7764579b91ec8733f1950edbcc91aaacaa87fd697432"
+   ],
+   "01_stance/figures/training_history/19_body_dynamics.png": [
+    118635,
+    "70dc379b7967d09e7f91c476a2229e1a367954400f79b2e2623d3ff0d6a55c02"
+   ],
+   "01_stance/figures/training_history/training_history.html": [
+    2142732,
+    "9d70b4ad901459d5defdf8d95e2122897a2a9281bdd2b96c14408619f216d441"
+   ],
+   "01_stance/figures/training_history/training_history.json": [
+    748655,
+    "b2d5f6a266b3235d413b607e1f51ef3d420d699da5ff6e7f4ba66869025f306f"
+   ],
+   "01_stance/gate_progress.npz": [
+    254784,
+    "4097099b6880fa234a38e1b43819a21a8531f39ca0aa1daefaaeeb35a06c5a0e"
+   ],
+   "01_stance/gate_verdict.json": [
+    4483,
+    "4aa1a4072e98547e3db2a795576f324e737597626f041a97b8fa80ea01cf982f"
+   ],
+   "01_stance/handoff_in_training.json": [
+    286,
+    "a9ca3ef003113a9926cf10c459e0a8b3ad98e21a864c1ebabd85259f0ea8d028"
+   ],
+   "01_stance/k3_panel.csv": [
+    57842,
+    "7cb47dd15314c01551b66428a822934af129861679d0d05ab54e6c86a129a9a4"
+   ],
+   "01_stance/k3_panel.json": [
+    26240,
+    "d7a6e91a0859a4addf43b0a02de2c6ed8b7cd688e47a1c1ebb30eaad66ff9716"
+   ],
+   "01_stance/models/best_model.zip": [
+    4033633,
+    "13b43b8d855594a2bc2c6ff21d7bb263ff85711c55401ba3dcd41feba53dace2"
+   ],
+   "01_stance/models/best_model_vecnorm.pkl": [
+    5291,
+    "d3a6104f111e696d3c4e90c9c1cbd178679d79e0af7aa366371ec29b8a39a010"
+   ],
+   "01_stance/models/robust_best_model.zip": [
+    4033635,
+    "1d7d38c4d9e42d6407572ee377eb48faa631d10f05c9933a49640277a97cc1e9"
+   ],
+   "01_stance/models/robust_best_model_vecnorm.pkl": [
+    5291,
+    "043d6bafa83ac3486d8b7c09e9bd8e80f0b55048658b051f098e187b58eafe69"
+   ],
+   "01_stance/models/stage1_10223616_steps.zip": [
+    4033630,
+    "8e8589602f115f8ed4d05f83f36c87dbbea4e25ae02946ac6ae404d06bd55751"
+   ],
+   "01_stance/models/stage1_10485760_steps.zip": [
+    4033630,
+    "91086e05b25b61b929a3a6c69bca4ad5bd383642c6b0681d6794457ea9bfb66f"
+   ],
+   "01_stance/models/stage1_1048576_steps.zip": [
+    4033631,
+    "0f765bd692371f212555f6b203c4f2ce14aaa05df62f58202017c227424d2b80"
+   ],
+   "01_stance/models/stage1_10747904_steps.zip": [
+    4033619,
+    "87aedc767a0eba64238616bc846db6e6358045f0056b9e58138a721627ef1e6d"
+   ],
+   "01_stance/models/stage1_11010048_steps.zip": [
+    4033630,
+    "62508aec345496183ee31619fa8bf58a44a3af8f19255469cf47662f2ffd8bc9"
+   ],
+   "01_stance/models/stage1_11272192_steps.zip": [
+    4033630,
+    "d41adcf8a4624a2a27ffbe1339b6c900ee53574d952191faa0ddffb9630a0931"
+   ],
+   "01_stance/models/stage1_11534336_steps.zip": [
+    4033631,
+    "628f864247e653d7a7e83cdf9d2ca318532cfd315b0efd3e963a3334da590ee8"
+   ],
+   "01_stance/models/stage1_11796480_steps.zip": [
+    4033632,
+    "81667101a677277e5a9b2a95f74ab8bd1a1d4ad1919730b2416c0cb56c917fd7"
+   ],
+   "01_stance/models/stage1_1310720_steps.zip": [
+    4033631,
+    "473ff1f753f85e7e6154594db294c4e7a45707b526d9877678376cdef457c83c"
+   ],
+   "01_stance/models/stage1_1572864_steps.zip": [
+    4033646,
+    "66b1149c0c10231bf7c07818204e394f1507067240f40d3e2aa8a5d4639a36ae"
+   ],
+   "01_stance/models/stage1_1835008_steps.zip": [
+    4033645,
+    "d7458540f19733eb0051e361d742bba425d610d224d7f09bce33830063588f8c"
+   ],
+   "01_stance/models/stage1_2097152_steps.zip": [
+    4033634,
+    "83b6c88edb933005adcb2089bdac67654f4e77809ca5506f4e47364995ef1b61"
+   ],
+   "01_stance/models/stage1_2359296_steps.zip": [
+    4033646,
+    "d4dee55b6cc507ce19a2baf3f5c3cabeb146b1ac820f8e0a0e505790bba34c60"
+   ],
+   "01_stance/models/stage1_2621440_steps.zip": [
+    4033646,
+    "2a034d715e59570b05989f7b34f1b589774064fa36f58079890c0ea4f47100fe"
+   ],
+   "01_stance/models/stage1_262144_steps.zip": [
+    4033639,
+    "5486537c0c529ce5c4560015764675fc30d6923094ff089a97c061dd957f13fb"
+   ],
+   "01_stance/models/stage1_2883584_steps.zip": [
+    4033636,
+    "4144e8a724c7a113dc780edd36c5eff2e269f9d0c294b55278181893ccadf4f8"
+   ],
+   "01_stance/models/stage1_3145728_steps.zip": [
+    4033646,
+    "3c054bd738304965bbbcfde588982635ed047436311a267b91f8855e02edad18"
+   ],
+   "01_stance/models/stage1_3407872_steps.zip": [
+    4033642,
+    "c566ab81cda08c426c90e492521a14be0356f853bc9c26fb3505f5558f7f0341"
+   ],
+   "01_stance/models/stage1_3670016_steps.zip": [
+    4033635,
+    "15bee0d40618649da97ba639790abd590200bb3f8a66ec8f8c6d1df2852d159b"
+   ],
+   "01_stance/models/stage1_3932160_steps.zip": [
+    4033646,
+    "51d1629ac4a3c12ccfa946f01d329d1f0152dd099ee1ab2e8d5464d736f447b4"
+   ],
+   "01_stance/models/stage1_4194304_steps.zip": [
+    4033646,
+    "d6c66477d809cfdd49e70ab4db75e8ac6995958e473aa4dc6e3d8b641e4f2a68"
+   ],
+   "01_stance/models/stage1_4456448_steps.zip": [
+    4033636,
+    "7bd4a6b7c7d9929e48190c07b82c992669613cb30c0b96ae816b96e105899cd9"
+   ],
+   "01_stance/models/stage1_4718592_steps.zip": [
+    4033646,
+    "168d75388d7ae80be7f6d55ae6d9e35cc44fd9d845bb1354fa06a59b075f5107"
+   ],
+   "01_stance/models/stage1_4980736_steps.zip": [
+    4033642,
+    "04c21954e1a2cfd5125434fc8bc6806a6ced6760b9fe5c3980089672f95d52ec"
+   ],
+   "01_stance/models/stage1_5242880_steps.zip": [
+    4033636,
+    "4158e599856d4d04f415f2e5f67edb23f69aa9dd66d52d2ce34c02019986bb92"
+   ],
+   "01_stance/models/stage1_524288_steps.zip": [
+    4033633,
+    "13b43b8d855594a2bc2c6ff21d7bb263ff85711c55401ba3dcd41feba53dace2"
+   ],
+   "01_stance/models/stage1_5505024_steps.zip": [
+    4033645,
+    "6592887d72d1172f54ffd1532626c16f785d2379d805e805d25aac4c050ab3a7"
+   ],
+   "01_stance/models/stage1_5767168_steps.zip": [
+    4033646,
+    "28efc83f4a5261563185cca5c3582db7e22526eb38c962d969c4cc702192bc78"
+   ],
+   "01_stance/models/stage1_6029312_steps.zip": [
+    4033635,
+    "fc6ab600b61cdcfa02a281d802ae4c54f426373bc0a96eda2eb3594cf0eea746"
+   ],
+   "01_stance/models/stage1_6291456_steps.zip": [
+    4033647,
+    "b432e0d0f758ad1949e2caf62d0c32e0b9491d9c41d608dd554d930c71b4ae82"
+   ],
+   "01_stance/models/stage1_6553600_steps.zip": [
+    4033648,
+    "9068440b1efcc73f923e87ea86f01d59c2248ce4600045dd73f2d2436c125207"
+   ],
+   "01_stance/models/stage1_6815744_steps.zip": [
+    4033637,
+    "9823a2628a9d595fbf59454ea82ecbe24c52682c1fd540137c1ee441565d34d6"
+   ],
+   "01_stance/models/stage1_7077888_steps.zip": [
+    4033628,
+    "ead64de8a295e7da37ae5f3c47f2cb1a7d70334eac288e2db82e2e0a38a42bc7"
+   ],
+   "01_stance/models/stage1_7340032_steps.zip": [
+    4033628,
+    "d19b78ea30cf5d40b50ff0fd9e8c94513f48bf065180603ba62926beb838aed1"
+   ],
+   "01_stance/models/stage1_7602176_steps.zip": [
+    4033629,
+    "b1d04e4ef406182caf3d50981f3ccf00db596ec5725dcc4bdb5fb783219ba47e"
+   ],
+   "01_stance/models/stage1_7864320_steps.zip": [
+    4033629,
+    "28bb84740c67816eb649f184643dc42a6a7cdc547eebb8f1afa64f49b75b214f"
+   ],
+   "01_stance/models/stage1_786432_steps.zip": [
+    4033639,
+    "6f2c8bca553b2858d15621e1306a0b4340edd0013b568e747538a8b824f7f97b"
+   ],
+   "01_stance/models/stage1_8126464_steps.zip": [
+    4033628,
+    "1ca51a4d92921546cc02783f1f6c2d010553ea19d72d88e4c3ca08947f7b3515"
+   ],
+   "01_stance/models/stage1_8388608_steps.zip": [
+    4033618,
+    "9b1acb676577554b66c84fa7645f436e32627dba2e5ccd5b8a64bd6125cd14e0"
+   ],
+   "01_stance/models/stage1_8650752_steps.zip": [
+    4033629,
+    "7429ba47755ac9cb0bc1bf1e93fd761bf81972c6361d9809ba2ad3c7b4444897"
+   ],
+   "01_stance/models/stage1_8912896_steps.zip": [
+    4033625,
+    "ef3ea29269207e2aecb3be3c692a66853bbd1fb5bf4bde9db1192e2606404f33"
+   ],
+   "01_stance/models/stage1_9175040_steps.zip": [
+    4033629,
+    "278e79cebb870bc42d1ec300f447042d21b622a9381cdb0ffdad6c420d75402b"
+   ],
+   "01_stance/models/stage1_9437184_steps.zip": [
+    4033628,
+    "199f36b6c13935070246c7e6c304e6c96d39e5bbd253334843691061189678be"
+   ],
+   "01_stance/models/stage1_9699328_steps.zip": [
+    4033629,
+    "f77d1fbecbc88228640ac521923ae5da51b1ee0bc4d8e6622a03acc71b8b9f0b"
+   ],
+   "01_stance/models/stage1_9961472_steps.zip": [
+    4033629,
+    "3b3546b60bcc7fa7bfa1c9658a7173010956bb7263daa73b042b0385a53f9deb"
+   ],
+   "01_stance/models/stage1_final.zip": [
+    4033635,
+    "ba5e46a9fb20f4edeaba05e8070f0bd868146a02a6eb0dd2866105bc09846866"
+   ],
+   "01_stance/models/stage1_final_vecnorm.pkl": [
+    5291,
+    "b654c266b229fdec3b7f1f7b8123d44113381f22421da309140a3f36f6317d19"
+   ],
+   "01_stance/models/stage1_vecnormalize_10223616_steps.pkl": [
+    5291,
+    "db37707b0394498984bd57845bce7fdcd8dea1444aeaefe42a1f68212f38a90c"
+   ],
+   "01_stance/models/stage1_vecnormalize_10485760_steps.pkl": [
+    5291,
+    "b7215a9f94e102ebb703e1acfed671f8014ac562bddbeb6190da7f496e15d977"
+   ],
+   "01_stance/models/stage1_vecnormalize_1048576_steps.pkl": [
+    5291,
+    "52e52a7b9820af808265acb2d4f6d1573e6edebb550393db8ee47d9676229bcb"
+   ],
+   "01_stance/models/stage1_vecnormalize_10747904_steps.pkl": [
+    5291,
+    "b0730cc7b29125d267a046ee26896c5dba7bc815459d025d04c6a0cd5b5f247c"
+   ],
+   "01_stance/models/stage1_vecnormalize_11010048_steps.pkl": [
+    5291,
+    "6a34b68866c9bcab957ff1cbb9b8dfc994ae1d766008f8439f4888e883946ae8"
+   ],
+   "01_stance/models/stage1_vecnormalize_11272192_steps.pkl": [
+    5291,
+    "bc6c4b879bdc1002e64db2e653e4feffd3e65422ac1ebb350a59528a692652c7"
+   ],
+   "01_stance/models/stage1_vecnormalize_11534336_steps.pkl": [
+    5291,
+    "50a2dbdf7f3c416c6df212cb22e17e661dc5fa51bfb746010ae3956381bd3df4"
+   ],
+   "01_stance/models/stage1_vecnormalize_11796480_steps.pkl": [
+    5291,
+    "84403c22d8208b84112726e6e16dd2310c6bb3c04e47484a26208a8262b7f082"
+   ],
+   "01_stance/models/stage1_vecnormalize_1310720_steps.pkl": [
+    5291,
+    "2e736d916e796884b8028cbf0cc903d6b4bb296bbc23e523383106eb74962f61"
+   ],
+   "01_stance/models/stage1_vecnormalize_1572864_steps.pkl": [
+    5291,
+    "3690ba8e6cb9f13f8b3552f0673d4be06b63289f2d9af348e268bfa03e573343"
+   ],
+   "01_stance/models/stage1_vecnormalize_1835008_steps.pkl": [
+    5291,
+    "2dd751e3773f67936af709afa54424b1a0c0a6dbcc6eb11b59cad0753eea3aa3"
+   ],
+   "01_stance/models/stage1_vecnormalize_2097152_steps.pkl": [
+    5291,
+    "991d434f385187e87301755ddf9a12fe2b3adb65cf186e7e32b175b3574bed90"
+   ],
+   "01_stance/models/stage1_vecnormalize_2359296_steps.pkl": [
+    5291,
+    "64e0dc8eac180de057cfca90267bc2b2f6ed4fcee7b7c8444b88b03177007869"
+   ],
+   "01_stance/models/stage1_vecnormalize_2621440_steps.pkl": [
+    5291,
+    "e9edb48453d4653cd06cd4cc305ef8766d867a127bb1cf9eca995345a2dbe38a"
+   ],
+   "01_stance/models/stage1_vecnormalize_262144_steps.pkl": [
+    5291,
+    "f9e515a4a1c3a2d14b6ecea1f91c8c679f95d2b11037a412165a6e4df41ead90"
+   ],
+   "01_stance/models/stage1_vecnormalize_2883584_steps.pkl": [
+    5291,
+    "29f93edea203faf6d8243227f2ff5d796b6aee647a71d21d8fb563e7ad6e13bf"
+   ],
+   "01_stance/models/stage1_vecnormalize_3145728_steps.pkl": [
+    5291,
+    "997f31421d805f6e6cd366b9a9bd05451ed7ab679fd615e7567d259a310f22e0"
+   ],
+   "01_stance/models/stage1_vecnormalize_3407872_steps.pkl": [
+    5291,
+    "b7e015d1eb27e3c8ba8c29a9433ec7784b64f8dfa74604fb688b6011eaf0cf7a"
+   ],
+   "01_stance/models/stage1_vecnormalize_3670016_steps.pkl": [
+    5291,
+    "24348365e10d22a07fd8848408c3a2a70f879864575086365e076604a51b5c4c"
+   ],
+   "01_stance/models/stage1_vecnormalize_3932160_steps.pkl": [
+    5291,
+    "2ce51fc12fcc3bd00e82d1c7a28169ee10484c6ba7fda19a1ca1cf68a29e4914"
+   ],
+   "01_stance/models/stage1_vecnormalize_4194304_steps.pkl": [
+    5291,
+    "4c84d6b818776beeca9d2ed9bd94793267913610e5e2cc25049c1f06930f746f"
+   ],
+   "01_stance/models/stage1_vecnormalize_4456448_steps.pkl": [
+    5291,
+    "a88c0b59c82194049256467125de5788d5d00ade03c8eff6e4fb760af379408c"
+   ],
+   "01_stance/models/stage1_vecnormalize_4718592_steps.pkl": [
+    5291,
+    "fe3351229455a0dabaeb008fd27b7fdcb37aefa476b33365050d209f81a71375"
+   ],
+   "01_stance/models/stage1_vecnormalize_4980736_steps.pkl": [
+    5291,
+    "328e0653fdef3ae0f6652abf18c73e69404353173f9df6f02963c208df1471dc"
+   ],
+   "01_stance/models/stage1_vecnormalize_5242880_steps.pkl": [
+    5291,
+    "bb9e651bc413a512d947c13d09c0d74b2e22d56459a3f44aadf9ac41497712da"
+   ],
+   "01_stance/models/stage1_vecnormalize_524288_steps.pkl": [
+    5291,
+    "d3a6104f111e696d3c4e90c9c1cbd178679d79e0af7aa366371ec29b8a39a010"
+   ],
+   "01_stance/models/stage1_vecnormalize_5505024_steps.pkl": [
+    5291,
+    "4e2a551235c171e18f29f746b0b3b93c54d56b943030436fb2531d1ec9b042ff"
+   ],
+   "01_stance/models/stage1_vecnormalize_5767168_steps.pkl": [
+    5291,
+    "90e0b39486979111270ef17ba577a27de3cc189c21fbfbf3c7be11ff5d66a395"
+   ],
+   "01_stance/models/stage1_vecnormalize_6029312_steps.pkl": [
+    5291,
+    "554bc26b158042ff441414237ebff1ffe0f76d968f8f0010a75aba5d42ecb210"
+   ],
+   "01_stance/models/stage1_vecnormalize_6291456_steps.pkl": [
+    5291,
+    "47b0584a1815ad8c501fe82b653ef578bea36c057f35d57fbeb302afeab755d9"
+   ],
+   "01_stance/models/stage1_vecnormalize_6553600_steps.pkl": [
+    5291,
+    "a80917105c2028c2a20f7d9ed0ec3f54eacf03060ffeb4cc33470c13fcbc3148"
+   ],
+   "01_stance/models/stage1_vecnormalize_6815744_steps.pkl": [
+    5291,
+    "41bdfdcbbc22fe0ce34f9bbfd3d226c802f6f5a4516e96952d4dbf8fdf6ada21"
+   ],
+   "01_stance/models/stage1_vecnormalize_7077888_steps.pkl": [
+    5291,
+    "bede2a5948d9532026284b5d0afa620b164b8ae47720921da629558bba5b3238"
+   ],
+   "01_stance/models/stage1_vecnormalize_7340032_steps.pkl": [
+    5291,
+    "2c10c1c57dd2e28929d6463f91492df911e9ee6ba23a80c787ca3c0ba16e9abb"
+   ],
+   "01_stance/models/stage1_vecnormalize_7602176_steps.pkl": [
+    5291,
+    "0b702db56792ade91b6960c99bf773387cbab8ac40087f9ed5b66c195c7f3259"
+   ],
+   "01_stance/models/stage1_vecnormalize_7864320_steps.pkl": [
+    5291,
+    "c61a15ac38873d9a5fc7a70e4e881acd1e4efdaf87b96932e1b99a1c743df951"
+   ],
+   "01_stance/models/stage1_vecnormalize_786432_steps.pkl": [
+    5291,
+    "8d47ae3b1a3742f22d973fa2c64451d8b6c424b6823f670e4bf100f738819aab"
+   ],
+   "01_stance/models/stage1_vecnormalize_8126464_steps.pkl": [
+    5291,
+    "82b3d04e6afde996e088fa18d2809d1b7dd024d797de083a20bd9f66e638c94f"
+   ],
+   "01_stance/models/stage1_vecnormalize_8388608_steps.pkl": [
+    5291,
+    "d0694c0b38657fe93425acdab12910bac7519e10080e90ed6472e2ab5030290e"
+   ],
+   "01_stance/models/stage1_vecnormalize_8650752_steps.pkl": [
+    5291,
+    "203c2d7d4fec6e1aa91afa468e156ab32d0946842d389b1baffbe9fe10acb566"
+   ],
+   "01_stance/models/stage1_vecnormalize_8912896_steps.pkl": [
+    5291,
+    "beb3c0a7b665ef5d1240c1c1bc2f087f1f4d571295b99dcc4fcbd1d674ff2caa"
+   ],
+   "01_stance/models/stage1_vecnormalize_9175040_steps.pkl": [
+    5291,
+    "d3c7ec4ed0266284a387e111c7d25b947f312e2e96c5ca32e27f95b5a2f38f09"
+   ],
+   "01_stance/models/stage1_vecnormalize_9437184_steps.pkl": [
+    5291,
+    "bd6fafd3ed16e6465cfccdbe0006f72939fabc9d60ea833d210c9bf66ba56256"
+   ],
+   "01_stance/models/stage1_vecnormalize_9699328_steps.pkl": [
+    5291,
+    "e0b90db8fca47d82be6f17cc2fb8c1eadc60e89e32904a0c036b0149b9b0363c"
+   ],
+   "01_stance/models/stage1_vecnormalize_9961472_steps.pkl": [
+    5291,
+    "fba38dbe006ec8bacee33e5323c385fb6004ae827926744a87d579a917ec66bc"
+   ],
+   "01_stance/plant_identity.json": [
+    771,
+    "e611a493f587db531d875d7b7b1dd9c57655a8b5cf3aaec644a7fa2a490179d9"
+   ],
+   "01_stance/policy_probe.npz": [
+    3485432,
+    "4e0e7220668faf124d394bffb760ba246d54bed8f48cb79925cb36234257fc11"
+   ],
+   "01_stance/progress.json": [
+    9239,
+    "672e46d2a3517fa5ceed06ee0f295c5b8f75b46ed48c5db13de2b3833769e052"
+   ],
+   "01_stance/replays/tyrannosaurus_rex_anatomical_ppo_stage1_final.mp4": [
+    110169,
+    "daabdcd5cd9b2ceb75f00c7fad0b371c090f0508ac877064dfea19a6d9245e81"
+   ],
+   "01_stance/replays/tyrannosaurus_rex_anatomical_ppo_stage1_final_front.mp4": [
+    122094,
+    "641f74c8fd47e917299440eb5cdb4959027b44be5d0810247b545392d4b0032c"
+   ],
+   "01_stance/replays/tyrannosaurus_rex_anatomical_ppo_stage1_final_side.mp4": [
+    129447,
+    "6d5800b29d46bdd85e9f485c80723c3f9bc3775b327123256c477abe0c06be74"
+   ],
+   "01_stance/replays/tyrannosaurus_rex_anatomical_ppo_stage1_final_stance.csv": [
+    4526979,
+    "a4670dcc872ab6243ba15930855f2d0713a5c04550576e7885214918a2f28dab"
+   ],
+   "01_stance/replays/tyrannosaurus_rex_anatomical_ppo_stage1_selected.mp4": [
+    100487,
+    "ce4955c062f1410ea6c9387b6a42cefd9467137fa0ee7c1acd10f2b227e85dbf"
+   ],
+   "01_stance/replays/tyrannosaurus_rex_anatomical_ppo_stage1_selected_front.mp4": [
+    104264,
+    "67a39332149ef5e9808d990744010b1e6cb48aa344d113e54e1fca1cfb842d70"
+   ],
+   "01_stance/replays/tyrannosaurus_rex_anatomical_ppo_stage1_selected_side.mp4": [
+    114728,
+    "cc24b326c81cad5420263872874475653a92069c1fbef8541fd8215959074259"
+   ],
+   "01_stance/replays/tyrannosaurus_rex_anatomical_ppo_stage1_selected_stance.csv": [
+    4558220,
+    "5a4f133eb6490e9dabd34639da3fb8ef8aec7bed5f768abd10cde1b9eb469cd3"
+   ],
+   "01_stance/stage_config.json": [
+    10970,
+    "5d54e6deac8ddda5c37914da97d4d59b6838a8daef52cb7bec237c49d63d24ec"
+   ],
+   "01_stance/stage_summary.txt": [
+    1192,
+    "1efde44c4b6bb58c4562c3b3d0b9d896ce95f95bb76930a075701a9c52808103"
+   ],
+   "01_stance/stance_gate_probe_constant.json": [
+    82525,
+    "e075ef111343baa969144214ddd9d61572d8ed3aa46038d861dcdcd563f8f3a5"
+   ],
+   "01_stance/stance_gate_probe_constant.txt": [
+    1518,
+    "578444b04b3fe531f1edaab636e17c16c82341d9d590eaa38f720afff4b05467"
+   ],
+   "01_stance/stance_gate_probe_filtered.json": [
+    80217,
+    "d6acf2a4750013ed47b93006b7af6730ff18c28c1ed564055cebaa6d946ed480"
+   ],
+   "01_stance/stance_gate_probe_filtered.txt": [
+    1139,
+    "a2b03131d4649e5414c9a169c2553ce93f8e8d38d39cde2add075b99349add40"
+   ],
+   "01_stance/stance_gate_probe_impulse.json": [
+    214565,
+    "94c307067d146983676b4a59b1e52d54b5a6c2a8405812a8cabf99ab72176396"
+   ],
+   "01_stance/stance_gate_probe_impulse.txt": [
+    2174,
+    "6bb3934744659b7ad275540a24227cfdbde07934ddbc077b591ffd752c2347fe"
+   ],
+   "01_stance/stance_gate_probe_release.json": [
+    232842,
+    "3b038b2bfe529b8db0746ef362a553151ac44155df109bdb36e06681500014da"
+   ],
+   "01_stance/stance_gate_probe_release.txt": [
+    4312,
+    "a6bfbd32b4e961008314b7c73670285154018431156a7a9be69f86516bbaa7e0"
+   ],
+   "01_stance/stance_heading_panel_selected.csv": [
+    760745,
+    "6aa778258091bee77f67482f035c063c7b786e6fc8d8070fabae8238a5c81226"
+   ],
+   "01_stance/stance_heading_report.json": [
+    1777781,
+    "2f0ad418f17596d4fd37b75d9f228933895b59700393a1d58d1990e5d8420bd1"
+   ],
+   "01_stance/stance_heading_report.txt": [
+    5127,
+    "c8d0ffca8d4782ef3da7190b475453d9dd878921f9268634c067d6c781e540a9"
+   ],
+   "01_stance/task_fingerprint.json": [
+    3587,
+    "5964a6f375d39ebc4b9eabf854a71ca59936b8710b22f4ebae42df6affcb4b83"
+   ],
+   "01_stance/tensorboard/PPO_1/events.out.tfevents.1793113613.f967b8e5a5c5.2281.0": [
+    12853531,
+    "4ccb6920c074874636bb5cd3f13cef0cabf9785cb8fdbaefa1c6e12c528a4ec8"
+   ],
+   "01_stance/train_episodes.csv": [
+    3928933,
+    "14b2f9e49b67e9c90cc79362f740e1768de5a2d159035176d5299b9c476d851d"
+   ],
+   "collected_results.csv": [
+    7467,
+    "ab0f9268260a1f5ae520ba529d7a264f6ebcc05e80320a1b776ab8d982e3166a"
+   ],
+   "plant_identity.json": [
+    771,
+    "e611a493f587db531d875d7b7b1dd9c57655a8b5cf3aaec644a7fa2a490179d9"
+   ],
+   "provenance.json": [
+    4098,
+    "3462607b284c35f1f02695bbf63cbb7174b1c3e9afcd32f3219c11e492387edc"
+   ],
+   "summary.json": [
+    6754,
+    "5a9ebfe0b1c6d8643dd853ea5f5153391b44aec157cd204bb0ab6b3c0793dd5a"
+   ],
+   "training_summary.txt": [
+    913,
+    "e324a9b6713e20d093c59de7861cc82b0a9e64b124503adf7f150cc537f0938a"
+   ],
+   "trunk_run.json": [
+    60,
+    "7c26c63b9e154d2f9619dc2d07c8cd50b80173bf1e49a0c5cbdcf97586d25d48"
+   ],
+   "zero_action_baseline.json": [
+    5020,
+    "e0d95ae86a7c3aabad6615f0e802af45a71b5700c130515d6dc2113847c3646e"
+   ]
+  },
+  "files_read": {
+   "provenance.json": "3462607b284c35f1f02695bbf63cbb7174b1c3e9afcd32f3219c11e492387edc",
+   "01_stance/stage_config.json": "5d54e6deac8ddda5c37914da97d4d59b6838a8daef52cb7bec237c49d63d24ec",
+   "01_stance/progress.json": "672e46d2a3517fa5ceed06ee0f295c5b8f75b46ed48c5db13de2b3833769e052",
+   "01_stance/eval_episodes.csv": "d1bcb78964691cf194e6276f06740d1f24aa69ad36831a046ad6307c1c4db11e",
+   "01_stance/gate_verdict.json": "4aa1a4072e98547e3db2a795576f324e737597626f041a97b8fa80ea01cf982f",
+   "01_stance/models/stage1_4194304_steps.zip": "d6c66477d809cfdd49e70ab4db75e8ac6995958e473aa4dc6e3d8b641e4f2a68",
+   "01_stance/models/stage1_vecnormalize_4194304_steps.pkl": "4c84d6b818776beeca9d2ed9bd94793267913610e5e2cc25049c1f06930f746f",
+   "01_stance/models/stage1_5242880_steps.zip": "4158e599856d4d04f415f2e5f67edb23f69aa9dd66d52d2ce34c02019986bb92",
+   "01_stance/models/stage1_vecnormalize_5242880_steps.pkl": "bb9e651bc413a512d947c13d09c0d74b2e22d56459a3f44aadf9ac41497712da",
+   "01_stance/models/stage1_6291456_steps.zip": "b432e0d0f758ad1949e2caf62d0c32e0b9491d9c41d608dd554d930c71b4ae82",
+   "01_stance/models/stage1_vecnormalize_6291456_steps.pkl": "47b0584a1815ad8c501fe82b653ef578bea36c057f35d57fbeb302afeab755d9",
+   "01_stance/models/stage1_8388608_steps.zip": "9b1acb676577554b66c84fa7645f436e32627dba2e5ccd5b8a64bd6125cd14e0",
+   "01_stance/models/stage1_vecnormalize_8388608_steps.pkl": "d0694c0b38657fe93425acdab12910bac7519e10080e90ed6472e2ab5030290e",
+   "01_stance/models/stage1_10485760_steps.zip": "91086e05b25b61b929a3a6c69bca4ad5bd383642c6b0681d6794457ea9bfb66f",
+   "01_stance/models/stage1_vecnormalize_10485760_steps.pkl": "b7215a9f94e102ebb703e1acfed671f8014ac562bddbeb6190da7f496e15d977",
+   "01_stance/models/stage1_final.zip": "ba5e46a9fb20f4edeaba05e8070f0bd868146a02a6eb0dd2866105bc09846866",
+   "01_stance/models/stage1_final_vecnorm.pkl": "b654c266b229fdec3b7f1f7b8123d44113381f22421da309140a3f36f6317d19"
+  },
+  "verdict": "COMPLETE"
+ },
+ "presence": [
+  {
+   "fetch": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s42",
+   "p1": {
+    "name": "C1 one launch, no launch-check stop, no other action",
+    "ok": true,
+    "value": {
+     "launches": [
+      671
+     ],
+     "launch_check_stops": [],
+     "actions": [],
+     "lines": {
+      "671": "LAUNCH",
+      "673": "CHECK",
+      "693": "TRIGGER-a",
+      "694": "FOUND-GONE",
+      "704": "F2-START"
+     }
+    },
+    "note": "C1 reads the RUN_ID's LAUNCH/RELAUNCH lines, its launch-check stops (STOP, TRIGGER-d) and its ACTION lines (what=resume|restart|relaunch|cell)"
+   },
+   "p2": {
+    "name": "p2 C4's session and configuration facts",
+    "ok": true,
+    "value": [
+     {
+      "name": "C4 exactly one sessions entry with started_at, no resumed_at",
+      "ok": true,
+      "value": {
+       "sessions": 1,
+       "started_at": "2026-10-27T15:03:06.837271+00:00",
+       "resumed_at": false
+      },
+      "note": null
+     },
+     {
+      "name": "C4 started_at within 60 minutes before or after RUNLOG's launch time",
+      "ok": true,
+      "value": {
+       "minutes_from_launch": 6.1,
+       "launch": "2026-10-27T14:57:00+00:00"
+      },
+      "note": null
+     },
+     {
+      "name": "C4 provenance repository_commit = branch HEAD, repository_dirty false",
+      "ok": true,
+      "value": {
+       "repository_commit": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d",
+       "repository_dirty": false,
+       "head": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d"
+      },
+      "note": null
+     },
+     {
+      "name": "C4 no load key at any depth",
+      "ok": true,
+      "value": [],
+      "note": null
+     },
+     {
+      "name": "C4 run.seed",
+      "ok": true,
+      "value": {
+       "got": 42,
+       "want": 42
+      },
+      "note": null
+     },
+     {
+      "name": "C4 run.n_envs 4",
+      "ok": true,
+      "value": 4,
+      "note": null
+     },
+     {
+      "name": "C4 run.hyperparameters_sha256 = pin",
+      "ok": true,
+      "value": "sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c",
+      "note": null
+     },
+     {
+      "name": "C4 task_fingerprint.task_sha256 = pin",
+      "ok": true,
+      "value": "sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456",
+      "note": null
+     },
+     {
+      "name": "C4 plant_identity block = pin",
+      "ok": true,
+      "value": "(block)",
+      "note": null
+     },
+     {
+      "name": "C4 stage_config_view_sha256 = pin",
+      "ok": true,
+      "value": "sha256:3200f159e7f0c8d59be196976e990bbc572c688ba332d8574106c706d46cbce1",
+      "note": null
+     },
+     {
+      "name": "C4 git_commit = branch HEAD",
+      "ok": true,
+      "value": {
+       "git_commit": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d",
+       "head": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d"
+      },
+      "note": null
+     }
+    ],
+    "note": "provenance.json copies 1 and 2 agree (sha256 3462607b284c); stage_config.json copies 1 and 2 agree (sha256 5d54e6deac8d)"
+   },
+   "p3": {
+    "name": "p3 TAIL ALARM by M5 (b) on the ledger as it stands",
+    "ok": true,
+    "value": {
+     "tail_alarms": [
+      3932160,
+      4063232,
+      4194304,
+      4325376,
+      4456448,
+      4587520,
+      4718592,
+      4849664,
+      4980736,
+      5111808,
+      5505024,
+      8126464,
+      8257536,
+      8388608,
+      9699328,
+      9830400,
+      9961472,
+      10092544,
+      10223616,
+      10354688,
+      10485760,
+      10616832
+     ],
+     "tail_flagged": [
+      3801088,
+      3932160,
+      4063232,
+      4194304,
+      4325376,
+      4456448,
+      4587520,
+      4718592,
+      4849664,
+      4980736,
+      5111808,
+      5373952,
+      5505024,
+      7995392,
+      8126464,
+      8257536,
+      8388608,
+      9568256,
+      9699328,
+      9830400,
+      9961472,
+      10092544,
+      10223616,
+      10354688,
+      10485760,
+      10616832
+     ],
+     "first": {
+      "step": 3932160,
+      "actuators": {
+       "tail_3_pitch_act+": 20
+      },
+      "flagged_evaluations": 26
+     },
+     "ledger": "copies 1 and 2 agree (sha256 d1bcb7896469)"
+    },
+    "note": null
+   },
+   "rail": true,
+   "rail_decided": true,
+   "detail": {
+    "step": 3932160,
+    "actuators": {
+     "tail_3_pitch_act+": 20
+    },
+    "flagged_evaluations": 26
+   }
+  }
+ ]
+}

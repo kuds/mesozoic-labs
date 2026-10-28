@@ -1,0 +1,1298 @@
+{
+ "completeness": {
+  "run_id": "stance6_r10LTSB_s80",
+  "fetch_dir": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s80",
+  "C1": {
+   "name": "C1 one launch, no launch-check stop, no other action",
+   "ok": true,
+   "value": {
+    "launches": [
+     672
+    ],
+    "launch_check_stops": [],
+    "actions": [],
+    "lines": {
+     "672": "LAUNCH",
+     "674": "CHECK",
+     "695": "TRIGGER-a",
+     "696": "FOUND-GONE",
+     "705": "F2-START"
+    }
+   },
+   "note": "C1 reads the RUN_ID's LAUNCH/RELAUNCH lines, its launch-check stops (STOP, TRIGGER-d) and its ACTION lines (what=resume|restart|relaunch|cell)"
+  },
+  "C2": {
+   "name": "C2 artifact_manifest.json",
+   "ok": true,
+   "value": {
+    "copies": "copies 1 and 2 agree (sha256 29e92b9786f9)",
+    "sha256": "29e92b9786f928af8bea9bd903fa423cc7e7a1612a3b00c7de6245ca3f935813",
+    "schema_problems": [],
+    "run_id": "stance6_r10LTSB_s80",
+    "status": "complete",
+    "entries": 167
+   },
+   "note": null
+  },
+  "C3": {
+   "name": "C3 every file the reading uses equals its manifest entry",
+   "ok": true,
+   "value": {
+    "provenance.json": "OK",
+    "01_stance/stage_config.json": "OK",
+    "01_stance/progress.json": "OK",
+    "01_stance/eval_episodes.csv": "OK",
+    "01_stance/gate_verdict.json": "OK",
+    "01_stance/models/stage1_4194304_steps.zip": "OK",
+    "01_stance/models/stage1_vecnormalize_4194304_steps.pkl": "OK",
+    "01_stance/models/stage1_5242880_steps.zip": "OK",
+    "01_stance/models/stage1_vecnormalize_5242880_steps.pkl": "OK",
+    "01_stance/models/stage1_6291456_steps.zip": "OK",
+    "01_stance/models/stage1_vecnormalize_6291456_steps.pkl": "OK",
+    "01_stance/models/stage1_8388608_steps.zip": "OK",
+    "01_stance/models/stage1_vecnormalize_8388608_steps.pkl": "OK",
+    "01_stance/models/stage1_10485760_steps.zip": "OK",
+    "01_stance/models/stage1_vecnormalize_10485760_steps.pkl": "OK",
+    "01_stance/models/stage1_final.zip": "OK",
+    "01_stance/models/stage1_final_vecnorm.pkl": "OK"
+   },
+   "note": null
+  },
+  "C4": {
+   "name": "C4 one session from step 0 in the round's configuration",
+   "ok": true,
+   "value": [
+    {
+     "name": "C4 exactly one sessions entry with started_at, no resumed_at",
+     "ok": true,
+     "value": {
+      "sessions": 1,
+      "started_at": "2026-10-27T15:03:09.172165+00:00",
+      "resumed_at": false
+     },
+     "note": null
+    },
+    {
+     "name": "C4 started_at within 60 minutes before or after RUNLOG's launch time",
+     "ok": true,
+     "value": {
+      "minutes_from_launch": 6.2,
+      "launch": "2026-10-27T14:57:00+00:00"
+     },
+     "note": null
+    },
+    {
+     "name": "C4 provenance repository_commit = branch HEAD, repository_dirty false",
+     "ok": true,
+     "value": {
+      "repository_commit": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d",
+      "repository_dirty": false,
+      "head": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d"
+     },
+     "note": null
+    },
+    {
+     "name": "C4 no load key at any depth",
+     "ok": true,
+     "value": [],
+     "note": null
+    },
+    {
+     "name": "C4 run.seed",
+     "ok": true,
+     "value": {
+      "got": 80,
+      "want": 80
+     },
+     "note": null
+    },
+    {
+     "name": "C4 run.n_envs 4",
+     "ok": true,
+     "value": 4,
+     "note": null
+    },
+    {
+     "name": "C4 run.hyperparameters_sha256 = pin",
+     "ok": true,
+     "value": "sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c",
+     "note": null
+    },
+    {
+     "name": "C4 task_fingerprint.task_sha256 = pin",
+     "ok": true,
+     "value": "sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456",
+     "note": null
+    },
+    {
+     "name": "C4 plant_identity block = pin",
+     "ok": true,
+     "value": "(block)",
+     "note": null
+    },
+    {
+     "name": "C4 stage_config_view_sha256 = pin",
+     "ok": true,
+     "value": "sha256:3200f159e7f0c8d59be196976e990bbc572c688ba332d8574106c706d46cbce1",
+     "note": null
+    },
+    {
+     "name": "C4 git_commit = branch HEAD",
+     "ok": true,
+     "value": {
+      "git_commit": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d",
+      "head": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d"
+     },
+     "note": null
+    },
+    {
+     "name": "C4 k3_panel.csv absent from the manifest if V7 failed on HEAD",
+     "ok": true,
+     "value": {
+      "v7_failed_on_head": false,
+      "k3_panel_csv_listed": true
+     },
+     "note": null
+    }
+   ],
+   "note": "read on manifest-verified copies"
+  },
+  "C4_on_manifest_files": true,
+  "C5": {
+   "name": "C5 the end",
+   "ok": true,
+   "value": {
+    "progress_status": "ended",
+    "E": 12001280,
+    "final_zip_num_timesteps": 12001280,
+    "zip_problem": null,
+    "judged_at": "2026-10-28T05:37:03+00:00",
+    "written_at": "2026-10-28T05:04:05Z",
+    "judged_minus_written_min": 33.0,
+    "ending": "FINISHED"
+   },
+   "note": null
+  },
+  "C6": {
+   "name": "C6 ledger whole to E, every ANY and TAIL input measured",
+   "ok": true,
+   "value": {
+    "grid_evaluations": 91,
+    "failures": [],
+    "n_failures": 0
+   },
+   "note": null
+  },
+  "C6_on_manifest_files": true,
+  "C7": {
+   "name": "C7 traces (and the final certificate)",
+   "ok": true,
+   "value": {
+    "labels": [
+     "4194304",
+     "5242880",
+     "6291456",
+     "8388608",
+     "10485760",
+     "final"
+    ],
+    "missing": []
+   },
+   "note": null
+  },
+  "measured_on_another_file": [],
+  "E": 12001280,
+  "finished": true,
+  "stopped": false,
+  "r1": 10485760,
+  "js": [
+   4194304,
+   5242880,
+   6291456,
+   8388608,
+   10485760
+  ],
+  "resolution": {},
+  "certificate": {
+   "passed": true,
+   "failures": [],
+   "seeds": [
+    3042,
+    3043,
+    3044,
+    3045,
+    3046,
+    3047,
+    3048,
+    3049,
+    3050,
+    3051,
+    3052,
+    3053,
+    3054,
+    3055,
+    3056,
+    3057,
+    3058,
+    3059,
+    3060,
+    3061,
+    3062,
+    3063,
+    3064,
+    3065,
+    3066,
+    3067,
+    3068,
+    3069,
+    3070,
+    3071,
+    3072,
+    3073,
+    3074,
+    3075,
+    3076,
+    3077,
+    3078,
+    3079,
+    3080,
+    3081
+   ],
+   "physics_revision": 10,
+   "commit": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d",
+   "record": {
+    "schema": "r10m-m3/1",
+    "tool": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/lean/build/laneA/tools/measure_r10round.py",
+    "tool_sha256": "b293a511d8beb5b6d6f24cec8744e601382748ce9b2f89e6bb653b6c97f5840c",
+    "version": "measure_r10round 1.2 (2026-10-26; fixer: RA-1, RA-4, RA-5; v5: the approved HEAD, O-6, O-7, O-8)",
+    "utc": "2026-10-28T14:40:07Z",
+    "kind": "M3 CERTIFICATE",
+    "label": "GATE CERTIFICATE (final checkpoint, measured on a screen task; not certification)",
+    "zero_action": false,
+    "physics_revision": 10,
+    "certificate_plant": {
+     "physics_revision": 10,
+     "physics_sha256": "sha256:6a47a0eb78164b9738752e2cf928aa0a6fd3ef98fc953eddc9bcb2eca366da4d"
+    },
+    "checkpoint": {
+     "path": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s80/copies/01_stance/models/stage1_final.zip.copy1",
+     "sha256": "55ca16f498ccd7f4bc017459098c1e271fc4dfa9e3a65cc8be2ec7a721dbaba6",
+     "readable": true,
+     "plant_identity": {
+      "schema": "mesozoic.plant-identity/v2",
+      "species": "tyrannosaurus_rex",
+      "embodiment": "anatomical",
+      "model_path": "environments/tyrannosaurus_rex/anatomical/assets/tyrannosaurus_rex_anatomical.xml",
+      "physics_revision": 10,
+      "policy_interface_revision": 15,
+      "visual_revision": 4,
+      "source_closure_sha256": "sha256:ccda5ddff3602676409ce79f28373a56e8ac069f37ab4b83808ef02aae8442e0",
+      "policy_interface_sha256": "sha256:ffbf6631e4de0469cfcaa6771e80f47973b127342bc362f74190451e8555cbd8",
+      "physics_sha256": "sha256:6a47a0eb78164b9738752e2cf928aa0a6fd3ef98fc953eddc9bcb2eca366da4d",
+      "visual_sha256": "sha256:7042dcd597fbd0ce25489164a7f132d51e1c2adbc050729c9866d7bde42e35a4",
+      "nq": 28,
+      "nv": 27,
+      "nu": 15,
+      "observation_dim": 63,
+      "action_dim": 15
+     },
+     "physics_revision": 10,
+     "physics_sha256": "sha256:6a47a0eb78164b9738752e2cf928aa0a6fd3ef98fc953eddc9bcb2eca366da4d",
+     "seed": 80,
+     "num_timesteps": 12001280,
+     "task_sha256": "sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456",
+     "symmetry": {
+      "schema": "mesozoic.mirror-kl/v1",
+      "method": "mirror_kl",
+      "species": "tyrannosaurus_rex",
+      "embodiment": "anatomical",
+      "mirror_map_sha256": "sha256:76272aa04bdf542f876e5f82fc38a437d02eda94744c826974bed7dc77e11b91",
+      "kappa": 0.3,
+      "sigma_floor": 0.01,
+      "mirror_critic": true
+     },
+     "vecnorm": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s80/copies/01_stance/models/stage1_final_vecnorm.pkl.copy1",
+     "vecnorm_sha256": "47dab7fd335e9e1d26c9602fb6e67abd11c35c92a223050893e71287841d331e"
+    },
+    "run_records": {
+     "validation_no_run_records": false,
+     "stage_config": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s80/copies/01_stance/stage_config.json.copy1",
+     "stage_config_sha256": "ec1c49a551badd146416a12d874a9ecf5db5574886e21c6df414a07d533e72c5",
+     "git_commit": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d",
+     "run_seed": 80,
+     "task_sha256": "sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456",
+     "plant_physics_revision": 10
+    },
+    "filed": {
+     "run_id": "stance6_r10LTSB_s80",
+     "seed": 80,
+     "label": "final",
+     "pair_names": [
+      "stage1_final.zip",
+      "stage1_final_vecnorm.pkl"
+     ]
+    },
+    "copy_seal": {
+     "schema": "r10m-measuring-copy/1",
+     "commit": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d",
+     "repo": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/runbranch/clone",
+     "archive_sha256": "e7ae1e91236294f259344c1ad90921855ff34a7c9ca61db4c20e57b74bea2a55",
+     "tree_digest": "331fe8fc3f6bdf73acc0d3cc324dd753d9d9d695d7ce914e4e011d5c6437ebf1",
+     "files": 1406,
+     "built_utc": "2026-10-28T11:47:38Z",
+     "built_by": "measure_r10round 1.2 (2026-10-26; fixer: RA-1, RA-4, RA-5; v5: the approved HEAD, O-6, O-7, O-8)"
+    },
+    "copy_commit_basis": {
+     "commit": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d",
+     "basis": "approved",
+     "approval": {
+      "head": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d",
+      "header_parent": "cf9402bc57dab92c716c7e0ee4bc96f72f237efb",
+      "approved": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/APPROVED",
+      "approved_sha256": "072464809f9c0072eb17b3c05821ed0d154ee0378c09bef757e70329240001bf",
+      "repo": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/runbranch/clone",
+      "file": "configs/tyrannosaurus_rex/anatomical/stance.toml",
+      "comment_lines_added": [
+       "# main 08a4d189 and carried onto main 06b1a8e1 (#644 and #645 merged), physics r10 (D-D44), 12M, from scratch;",
+       "# seeds 60, 42 and 80, the seeds LTSB ran on r9 (stance5_LTSB_s60, stance5_LTSB_s42 and stance5_LTSB_s80). The",
+       "# criteria are the r10 round's, fixed before any training step: criteria_r10round_final.txt, sha256",
+       "# 99a44469a387d01c55b98d76595d3633029681866ed14afcb185521eca0164db. The r9 screens' criteria: stance5 sha256"
+      ],
+      "comment_lines_removed": [
+       "# main 08a4d189, physics r10 (D-D44), 12M, from scratch; seeds 60, 42 and 80, the seeds LTSB ran on r9",
+       "# (stance5_LTSB_s60, stance5_LTSB_s42 and stance5_LTSB_s80). The criteria are the r10 round's, fixed before any",
+       "# training step. The r9 screens' criteria: stance5 sha256"
+      ]
+     }
+    },
+    "copy_tree_digest_after": "331fe8fc3f6bdf73acc0d3cc324dd753d9d9d695d7ce914e4e011d5c6437ebf1",
+    "pinned_files": {
+     "environments/shared/scripts/stance_gate_report.py": "bbfe80168c200332b0997181a1efbb13b01b522eb8b755203a85b5a0eeaf299b"
+    },
+    "certificate_run": {
+     "argv": [
+      "nice",
+      "-n",
+      "10",
+      "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python",
+      "-I",
+      "-B",
+      "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/copy_8737cd3d/environments/shared/scripts/stance_gate_report.py",
+      "--species",
+      "tyrannosaurus_rex",
+      "--embodiment",
+      "anatomical",
+      "--seed",
+      "3042",
+      "--out-dir",
+      "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/panels/stance6_r10LTSB_s80/final/m3",
+      "--model",
+      "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s80/copies/01_stance/models/stage1_final.zip.copy1",
+      "--vecnorm",
+      "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s80/copies/01_stance/models/stage1_final_vecnorm.pkl.copy1"
+     ],
+     "returncode": 0,
+     "stdout_tail": "\npolicy              stage1_final.zip.copy1 \u2014 VecNormalize stats applied (clip 10)\nstage               Tyrannosaurus Rex (Anatomical) \u2014 Stance (stage 1, stance_quality_heading/v1, floor truth)\nprotocol            whole_scene_yaw/v1: the whole scene turned about vertical through the root (the animal, the prey and the reference direction)\ngrid                -90, -45, +0, +45, +90, +180 deg; 40 seeds 3042-3081 at every heading\nsettle_steps        200; horizon 1000; control step 0.01 s\nmeasurement         floor-truth/v2 (sha256:16ecfdedccc43917c95e3a55b619285f3ffccc76ca66f078b998d58334806567)\ntask                sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456\ngate                sha256:d26c34e6e6caa7e726fd44ac39534fdbecae4127d92f389393e9d076b2f0deaf\n\nseeds clean at every heading     40 / 40   LCB95 0.9278   (>= 0.8000, min_eval_episodes 40: the statistic)\nepisodes clean, pooled          240 / 240   LCB95 0.9876   (NOT the statistic: the turns of a seed are not independent)\n\neach heading's full v2 decision, against the statue rolled at that heading:\n   heading   clean   LCB95  full-hz    reward  statue fh  statue reward  v2\n       -90  40/40   0.9278   1.0000    4386.9      40/40         4470.4  PASS\n       -45  40/40   0.9278   1.0000    4386.9      40/40         4470.4  PASS\n        +0  40/40   0.9278   1.0000    4386.9      40/40         4470.4  PASS\n       +45  40/40   0.9278   1.0000    4386.9      40/40         4470.4  PASS\n       +90  40/40   0.9278   1.0000    4386.9      40/40         4470.4  PASS\n      +180  40/40   0.9278   1.0000    4386.9      40/40         4470.4  PASS\n\nthe 0 deg cell in detail (that heading's v2 decision; the certificate's verdict closes this report):\n\npolicy              stage1_final.zip.copy1 \u2014 VecNormalize stats applied (clip 10)\nstage               Tyrannosaurus Rex (Anatomical) \u2014 Stance (stage 1, stance_quality/v2, floor truth)\npanel               40 episodes, seeds 3042-3081\nsettle_steps        200 (window criteria over the remaining 800; settle criteria after the 0.1 s spawn grace)\nmeasurement         floor-truth/v2 (sha256:16ecfdedccc43917c95e3a55b619285f3ffccc76ca66f078b998d58334806567)\ntask                sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456\n\nclean episodes           40 / 40   LCB95 0.9278   (>= 0.8000, min_eval_episodes 40)\nfull_horizon_fraction     1.0000\nreward                    4386.9 +/- 19.1\nterminations           {'truncated': 40}\n\nper-episode criteria (fails = episodes failing it; median and worst over the panel):\n  horizon                              reach 1000 steps         fails   0/40\n  min_all_feet_support                 >= 0.98         fails   0/40   median 1, worst 1\n  max_touchdown_rate                   <= 0.25         fails   0/40   median 0, worst 0\n  max_window_displacement_m            <= 0.1          fails   0/40   median 0.002681, worst 0.01446\n  min_foot_load_share                  >= 0.4          fails   0/40   median 0.4975, worst 0.488\n  max_actuator_saturation_fraction     <= 0.1          fails   0/40   median 0, worst 0\n  max_settle_airborne_substeps         <= 0            fails   0/40   median 0, worst 0\n  max_settle_peak_floor_force_bw       <= 1.5          fails   0/40   median 1.084, worst 1.318\n  min_foot_load_share_windowed         >= 0.35         fails   0/40   median 0.4948, worst 0.478\n  max_foot_contact_fraction            <= 0.02         fails   0/40   median 0, worst 0\n  max_phantom_support_fraction         <= 0.05         fails   0/40   median 0, worst 0\n  max_nonfoot_load_fraction            <= 0.02         fails   0/40   median 0, worst 0\n  max_settle_stance_width_change_m     <= 0.08         fails   0/40   median 0.01067, worst 0.07401\n  max_sole_tilt_deg                    <= 2            fails   0/40   median 0.3296, worst 1.088\n  max_sole_corner_lift_m               <= 0.004        fails   0/40   median 0.0006334, worst 0.001958\n  min_sole_contacts                    >= 1.5          fails   0/40   median 3.795, worst 2\n  max_episode_yaw_change_deg           <= 25           fails   0/40   median 3.811, worst 12.83\n  max_settle_touchdowns                <= 2            fails   0/40   median 1, worst 1\n  max_sole_cop_fore_aft                <= 0.8          fails   0/40   median 0.2008, worst 0.4767\n  min_avg_reward                       2260 (panel rail)\n  min_avg_reward_statue_ratio          0.6 (panel rail)\n  min_full_horizon_fraction            0.95 (panel rail)\n  max_hop_or_fall_episodes             <= 1 (panel rail: 0 episodes end early or fail support, touchdowns, drift or saturation)\n\nstatue reference (zero action, same seeds): 40/40 full-horizon, mean reward 4470.4, foot load shares [0.500, 0.500]\n\nreport-only (not gated; median and max over the panel):\n  touch agrees with floor truth        1, max 1\n  spawn-grace peak floor force (BW)    1.405, max 1.625\n  foot CoP fore-aft (|.| / half-span)  0.2591, max 0.4861\n  window both-feet-unloaded substeps   0, max 0\n  window peak floor force (BW)         1.001, max 1.006\n  touch unsupported duty (v1 measure)  0.0000\n\n\nGATE: PASS\nwritten: /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/panels/stance6_r10LTSB_s80/final/m3/stance_heading_report.txt\nwritten: /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/panels/stance6_r10LTSB_s80/final/m3/stance_heading_report.json\nwritten: /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/panels/stance6_r10LTSB_s80/final/m3/stance_heading_panel_selected.csv\n",
+     "stderr_tail": "",
+     "seconds": 1212.8,
+     "traceback": false,
+     "signal": false
+    },
+    "report_sha256": "1a1791cd5d13ffee5232c630b0367359cb7a8328bbbba11675ee1978e9d4badd",
+    "verdict": "PASS",
+    "passed": true,
+    "failures": [],
+    "task_sha256": "sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456",
+    "gate_sha256": "sha256:d26c34e6e6caa7e726fd44ac39534fdbecae4127d92f389393e9d076b2f0deaf",
+    "headings": [
+     {
+      "yaw_deg": -90.0,
+      "n_clean": 40,
+      "clean_lcb": 0.9278424754944773,
+      "full_horizon_fraction": 1.0,
+      "reward_mean": 4386.8715722622655,
+      "n_episodes": 40
+     },
+     {
+      "yaw_deg": -45.0,
+      "n_clean": 40,
+      "clean_lcb": 0.9278424754944773,
+      "full_horizon_fraction": 1.0,
+      "reward_mean": 4386.871572361116,
+      "n_episodes": 40
+     },
+     {
+      "yaw_deg": 0.0,
+      "n_clean": 40,
+      "clean_lcb": 0.9278424754944773,
+      "full_horizon_fraction": 1.0,
+      "reward_mean": 4386.871572130216,
+      "n_episodes": 40
+     },
+     {
+      "yaw_deg": 45.0,
+      "n_clean": 40,
+      "clean_lcb": 0.9278424754944773,
+      "full_horizon_fraction": 1.0,
+      "reward_mean": 4386.871572280882,
+      "n_episodes": 40
+     },
+     {
+      "yaw_deg": 90.0,
+      "n_clean": 40,
+      "clean_lcb": 0.9278424754944773,
+      "full_horizon_fraction": 1.0,
+      "reward_mean": 4386.871572164406,
+      "n_episodes": 40
+     },
+     {
+      "yaw_deg": 180.0,
+      "n_clean": 40,
+      "clean_lcb": 0.9278424754944773,
+      "full_horizon_fraction": 1.0,
+      "reward_mean": 4386.87157215669,
+      "n_episodes": 40
+     }
+    ],
+    "stack": {
+     "python": "3.13.17",
+     "torch": "2.13.0+cpu",
+     "numpy": "2.5.4",
+     "gymnasium": "1.4.0",
+     "stable_baselines3": "2.9.0",
+     "mujoco": "3.10.0"
+    },
+    "_file": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/panels/stance6_r10LTSB_s80/final/m3/m3_summary.json"
+   },
+   "label_dir": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/panels/stance6_r10LTSB_s80/final/m3",
+   "binding": {
+    "checkpoint_sha256": "55ca16f498ccd7f4bc017459098c1e271fc4dfa9e3a65cc8be2ec7a721dbaba6",
+    "vecnorm_sha256": "47dab7fd335e9e1d26c9602fb6e67abd11c35c92a223050893e71287841d331e",
+    "num_timesteps": 12001280,
+    "seed": 80,
+    "validation_no_run_records": false,
+    "run_git_commit": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d",
+    "filed_run_id": "stance6_r10LTSB_s80",
+    "filed_label": "final"
+   }
+  },
+  "entries": {
+   "01_stance/diagnostics.npz": [
+    1277118,
+    "bf15aa3bdd8c1933dbc7de27f8eaf2381673315014f1c8941f64b19a926d204d"
+   ],
+   "01_stance/eval_episodes.csv": [
+    2905716,
+    "b677ce762e739513c18eaa35ffb7b149c0532753746259d5037356580e934d13"
+   ],
+   "01_stance/evaluation_final.csv": [
+    7044,
+    "f41495b9dda622c89a5363dc449a0c8ef764fc9e967289bf5eb7f601a323bfbf"
+   ],
+   "01_stance/evaluation_selected.csv": [
+    7132,
+    "5783c097b8cbf6e2bce597739ea3a3167a86e4c43c80a7868f8215aa826d559e"
+   ],
+   "01_stance/evaluations.npz": [
+    16058,
+    "89e18b1006deb304b368284d6106299fa219cce9e7f1d73c3ef37f5120c39be8"
+   ],
+   "01_stance/figures/behavioral_metrics.png": [
+    326361,
+    "0cbd546a303da6f3d24a8e4b11f9ad917924bd69bfbbbfe1804dcf0dadd76b13"
+   ],
+   "01_stance/figures/foot_contacts.png": [
+    89306,
+    "b5ac3acf2bf2e060f46069f8419370fa69b352832b010fba4016437c5f0ada5a"
+   ],
+   "01_stance/figures/gate_progress.png": [
+    424612,
+    "1f4eff464906d71dca2ef8fc73d4624b83d337ec272c9240fb653182803568d9"
+   ],
+   "01_stance/figures/locomotion_health.png": [
+    311940,
+    "f4be4d3599827c17e771034a15bfd2a93611274bef245d729d5d8de11f9b1270"
+   ],
+   "01_stance/figures/stance_diagnostics.png": [
+    288715,
+    "9b35694d13d60d88e199d1b523639c7b4608da1b5fe5fd565aa3c033a9a1a86c"
+   ],
+   "01_stance/figures/training_curves.png": [
+    190988,
+    "e88b3b064a40cf4cfcef4c7a1caa87f5107cc28d7bb1e176c37d2404693a143e"
+   ],
+   "01_stance/figures/training_history/01_outcomes.png": [
+    52678,
+    "c0324949384376e93281351de7e9b9cc9f5bf2f76cee452caf9765acb4cdec3d"
+   ],
+   "01_stance/figures/training_history/02_saturation.png": [
+    107118,
+    "0b72833ed627753d980641b86ba2466c44f391025a65d636ff755d4ba4b3d0d2"
+   ],
+   "01_stance/figures/training_history/03_foot_cop.png": [
+    67469,
+    "4024c70d23abd3ee4558e5a2099b6a0541c126958ae623b709c5772fe79ea21d"
+   ],
+   "01_stance/figures/training_history/04_pad_cop.png": [
+    73286,
+    "b2346ebb3b3348299ca19d32926e4b3d9c58a1229ce95401cbf37700328016c0"
+   ],
+   "01_stance/figures/training_history/05_digits_margins.png": [
+    68009,
+    "ce3baff8fda961264f3e74aa8dd2de227d955028428dd317795efa3106e73acd"
+   ],
+   "01_stance/figures/training_history/06_balance.png": [
+    77864,
+    "cc17dbd7ca199d4c87b132fd0f78c8df3584fcca82914a7ad7f2964cd3c30cbd"
+   ],
+   "01_stance/figures/training_history/07_sole_roll.png": [
+    75860,
+    "2e7f97e92206f53264604eddb395081c15768136542bda123e733f55e0b746a3"
+   ],
+   "01_stance/figures/training_history/08_floor_forces.png": [
+    65533,
+    "f335a3bafdfa7c24fb6c1e0ce1580862365a81ebca2e2d51cb1c84a977787ccb"
+   ],
+   "01_stance/figures/training_history/09_asymmetry.png": [
+    99975,
+    "bf15258b207bb5be43d34bd487e9f09e4324756b40a5e0806cc3ca6c623ae2d7"
+   ],
+   "01_stance/figures/training_history/10_policy_std.png": [
+    56841,
+    "0996199e80951a6ceb5723e215ba6735076197de7969567f0c673d3aa3881a3a"
+   ],
+   "01_stance/figures/training_history/11_head_posture.png": [
+    90369,
+    "90d5c63cd436a0805522c2ab2503d4545df5db4f821bbc75eaea8d5567b58bc5"
+   ],
+   "01_stance/figures/training_history/12_hip_roll.png": [
+    77593,
+    "b06de9f44af5379942ffd4207417c261ecbe730d48c95af84896f6418b263c9c"
+   ],
+   "01_stance/figures/training_history/13_commands.png": [
+    82614,
+    "febfe372dedb40fc1c28f006c111e1ebe4f3050ae2a3c39bdc1761175482c575"
+   ],
+   "01_stance/figures/training_history/14_tail_body.png": [
+    92675,
+    "34c0a14acf4bb2aa46a88a826f0c7e6f4e2e27c238525619f9926850abc1b71d"
+   ],
+   "01_stance/figures/training_history/15_energy.png": [
+    129029,
+    "df718de54a65e5d76e5508361139fd95cd2003c63e1f8081d3e9950ce69c7e59"
+   ],
+   "01_stance/figures/training_history/16_drift_slip.png": [
+    124563,
+    "e2857551238de638e41ae9c79c8e95adea80b0d75900279e7515e05f7d37ea99"
+   ],
+   "01_stance/figures/training_history/17_exploration_k3.png": [
+    50495,
+    "b01c7150beb7f86c8e54d59af6b5afa77ded27afc7bef3003bdaa7f30ea01424"
+   ],
+   "01_stance/figures/training_history/18_obs_normalization.png": [
+    85031,
+    "0b13ad6b8ebe07e764683b7072bac402657a8628c4097822aa2200216f9ae100"
+   ],
+   "01_stance/figures/training_history/19_body_dynamics.png": [
+    109250,
+    "dea9710457f30f2e390e040845a638e0b02f8995871aa907cf6a3a12450ab28c"
+   ],
+   "01_stance/figures/training_history/training_history.html": [
+    2168310,
+    "8570940b17773c4389623f2346948bc21f544920f7866359ec21fe45f838b6fc"
+   ],
+   "01_stance/figures/training_history/training_history.json": [
+    750800,
+    "1a9791d3e2d363a6e737fa7a679fd4e40cc1833f9ad50ab6bce70063439e262e"
+   ],
+   "01_stance/gate_progress.npz": [
+    254784,
+    "02dc43115adff9096f175cc6387f01e81cc816aca54c7070b1e8a9b6400cb65c"
+   ],
+   "01_stance/gate_verdict.json": [
+    4487,
+    "356dabb48522d6c5b5de6534ad649762afbd45bfdd9bdb48a6c62ba63249abb4"
+   ],
+   "01_stance/handoff_in_training.json": [
+    287,
+    "109b9d02976805c69b1f93636f3a685068cf77b2eef9d1e8343b494ef9dd952b"
+   ],
+   "01_stance/k3_panel.csv": [
+    57936,
+    "5defada15135c78d6210f662eef75879e2f6a7562ec384e9051ad25b8d6ae2ab"
+   ],
+   "01_stance/k3_panel.json": [
+    26676,
+    "7e8f5ee3ed4a11b228ba05be733212aaec6336200b6d76ce379c8dcf6fdfbc63"
+   ],
+   "01_stance/models/best_model.zip": [
+    4033641,
+    "7cdc360159c4c0457dc80f9ead1e1d491bd6bc9f19a16e861471e78455d9c59e"
+   ],
+   "01_stance/models/best_model_vecnorm.pkl": [
+    5290,
+    "21526d25e5e403ee31bf830372da55bcb21436957d6f0dc1f935383587a69eae"
+   ],
+   "01_stance/models/robust_best_model.zip": [
+    4033641,
+    "7cdc360159c4c0457dc80f9ead1e1d491bd6bc9f19a16e861471e78455d9c59e"
+   ],
+   "01_stance/models/robust_best_model_vecnorm.pkl": [
+    5290,
+    "21526d25e5e403ee31bf830372da55bcb21436957d6f0dc1f935383587a69eae"
+   ],
+   "01_stance/models/stage1_10223616_steps.zip": [
+    4033626,
+    "5a77ca0762efe98d7ee5b4e60a05ff8e57fd73be3ac81ffe1564a1bdc438d13a"
+   ],
+   "01_stance/models/stage1_10485760_steps.zip": [
+    4033626,
+    "1185802b03cc4d231c2a6c9422d0f1413e5c5ff353ee1b7540c26fe49357affe"
+   ],
+   "01_stance/models/stage1_1048576_steps.zip": [
+    4033627,
+    "45f175eb3b0500a5c907f7debc9792ddaefdc14784ac9fcd7c26f9a2d3f5ee74"
+   ],
+   "01_stance/models/stage1_10747904_steps.zip": [
+    4033615,
+    "1fb77789e39ef21ef70eb9dc62341a7de4a946245ba14b4f60521f10ff88a954"
+   ],
+   "01_stance/models/stage1_11010048_steps.zip": [
+    4033626,
+    "ddc438f874af1901ea1f0c0e14bf58fd9d8d819e2186a2e54d1dd25ae89d8182"
+   ],
+   "01_stance/models/stage1_11272192_steps.zip": [
+    4033627,
+    "476c08de515f6ec2b5704b4bc1517643ae5efbd1dc4f5fea7d5e16b6ee5187a8"
+   ],
+   "01_stance/models/stage1_11534336_steps.zip": [
+    4033627,
+    "6a9658b44958419b91a3dad7ecb7ba97a7c9e8287ce20730e8aedd3e6b66864a"
+   ],
+   "01_stance/models/stage1_11796480_steps.zip": [
+    4033628,
+    "2f1d67b3737eaf2c4cc2ee9829c8b372cfead81630e081e3925043fafa283fd4"
+   ],
+   "01_stance/models/stage1_1310720_steps.zip": [
+    4033631,
+    "0e2b07b6622f335e7f41531914078dd649dabe317585535bf57d2e3edc20712a"
+   ],
+   "01_stance/models/stage1_1572864_steps.zip": [
+    4033642,
+    "5f8cbeea0d0fb37ef89e3557a8e390857f871620b25f7e538cf2527ef2dafd02"
+   ],
+   "01_stance/models/stage1_1835008_steps.zip": [
+    4033641,
+    "7cdc360159c4c0457dc80f9ead1e1d491bd6bc9f19a16e861471e78455d9c59e"
+   ],
+   "01_stance/models/stage1_2097152_steps.zip": [
+    4033630,
+    "18062dc9f56441618dbcb41698ed8a18f21f2fdcd1256937204900584f01ff17"
+   ],
+   "01_stance/models/stage1_2359296_steps.zip": [
+    4033642,
+    "3c9b2234fb31370fff79a1bf314d96a8ca8bb4b2d4901b2f5b734931fbba5e35"
+   ],
+   "01_stance/models/stage1_2621440_steps.zip": [
+    4033642,
+    "b71e224ef0b8908b3f6dbc67c1ec1426bf7cf19564388e90b8d6d6ad18c1c5a7"
+   ],
+   "01_stance/models/stage1_262144_steps.zip": [
+    4033627,
+    "681d0eb8549ec49aa2fe0a86466c753d0047c622e367d79a84cacd79199d92e8"
+   ],
+   "01_stance/models/stage1_2883584_steps.zip": [
+    4033632,
+    "a7451915ce207ca0a7091e192b0912bb58506b5bf6b4c5f9c03d7ab1c5e36147"
+   ],
+   "01_stance/models/stage1_3145728_steps.zip": [
+    4033642,
+    "d4710ba89818c553575350df2c4bbd1d598036a02a59673fcadc6ad04fca556c"
+   ],
+   "01_stance/models/stage1_3407872_steps.zip": [
+    4033642,
+    "e39355b6e29e0d779f0f4c8d4e4733fd517def9928c67e9e004d3465eef910f2"
+   ],
+   "01_stance/models/stage1_3670016_steps.zip": [
+    4033631,
+    "608319f7e6acfe5fe94dd04e22988409583691e76a0e18f229c4ccbfd6504eb8"
+   ],
+   "01_stance/models/stage1_3932160_steps.zip": [
+    4033642,
+    "c0f383d663d19b4f12f951479ed3d2dbb176b6636ef7a9dde5422b34e091333b"
+   ],
+   "01_stance/models/stage1_4194304_steps.zip": [
+    4033642,
+    "51197dbd7f90e481a99214ba7bd63ebbe92804367c2e5edab988c0b4c4840096"
+   ],
+   "01_stance/models/stage1_4456448_steps.zip": [
+    4033632,
+    "e4b881d076dcb35777a9948e4718b932dbff3399273f60067be3768bedc7dac5"
+   ],
+   "01_stance/models/stage1_4718592_steps.zip": [
+    4033642,
+    "1d3559fbaf9f91189b6acd1b2703f2896799d98161a95a4dba53d25030ff12a4"
+   ],
+   "01_stance/models/stage1_4980736_steps.zip": [
+    4033642,
+    "41a457d52822b217902b4cab8a99d78fe80658f2e524346bbf44bddf606363ea"
+   ],
+   "01_stance/models/stage1_5242880_steps.zip": [
+    4033632,
+    "6a36b95288639d23ea673b7e5d3c6870201b4f6a8efed5600a3cdf60f8c6deae"
+   ],
+   "01_stance/models/stage1_524288_steps.zip": [
+    4033629,
+    "8e90c01f19a7db927750229815f06aa26b53c23f10d75b90c2b1beffc5fd1087"
+   ],
+   "01_stance/models/stage1_5505024_steps.zip": [
+    4033641,
+    "0d34b08159181c7506025677d0ddd47b8301358ebae47d92efeb05c61c76fcaa"
+   ],
+   "01_stance/models/stage1_5767168_steps.zip": [
+    4033642,
+    "da606f0182107cda63f1041c187d9fadcfebb917d3b3619f26a68af612445514"
+   ],
+   "01_stance/models/stage1_6029312_steps.zip": [
+    4033631,
+    "c6a620c1ea1543b6c5a715439ffc5c9703e0780c3ba0322be19c037c113fd2df"
+   ],
+   "01_stance/models/stage1_6291456_steps.zip": [
+    4033643,
+    "0c818fcb2f5162ad9a953e65fc8490d89615b43b9a6c6993a3e93cd22aa74b86"
+   ],
+   "01_stance/models/stage1_6553600_steps.zip": [
+    4033644,
+    "ab4be9d86455f9d69d2e6aebfd469a6b68dc4b8c507d816a922889fecfcbce2f"
+   ],
+   "01_stance/models/stage1_6815744_steps.zip": [
+    4033633,
+    "c0d949fe1588b34a286c28ee5550c550ae288deec6d17ba61106e40b445286cc"
+   ],
+   "01_stance/models/stage1_7077888_steps.zip": [
+    4033624,
+    "5d9edcbc56117308cc950c58d34d279ff1a1bb5cf72990c1572da97e738f6188"
+   ],
+   "01_stance/models/stage1_7340032_steps.zip": [
+    4033624,
+    "3bc5148f12aa38b1749aab5b425545875bc7a22bc0d1b865eeb9b434f5ab71b8"
+   ],
+   "01_stance/models/stage1_7602176_steps.zip": [
+    4033625,
+    "4747b4f930d2a928af554aaad4749402d7c4ab006bff7cc708aaa9a25677a09b"
+   ],
+   "01_stance/models/stage1_7864320_steps.zip": [
+    4033625,
+    "e260774ba4fb216b40fe433214d1034e02820d92ae6bba1279a8b102278857c6"
+   ],
+   "01_stance/models/stage1_786432_steps.zip": [
+    4033635,
+    "30281ffde2f745d48b42b6345c27f8cb6d80261526f2b03169470d9779e09e85"
+   ],
+   "01_stance/models/stage1_8126464_steps.zip": [
+    4033624,
+    "54800083f0caad38156a52590b3640f1138289d941482eb2a0b0a7e4ed7d5d33"
+   ],
+   "01_stance/models/stage1_8388608_steps.zip": [
+    4033614,
+    "71a101a1ceb43340ba5c8495d198855542141c484cce72be0b0a49de757cace9"
+   ],
+   "01_stance/models/stage1_8650752_steps.zip": [
+    4033625,
+    "93c0e2a0f18e70f434bcab9a105460d504fa0443ae947ebcd8ed9254b59d99aa"
+   ],
+   "01_stance/models/stage1_8912896_steps.zip": [
+    4033625,
+    "e645852137c102b47fc3cdf9c8c3e7a7d20421e88d76788f1600ab57cf3dc773"
+   ],
+   "01_stance/models/stage1_9175040_steps.zip": [
+    4033625,
+    "6c3ed8f7bc1a5a0371d49847b21442edf4a2fc9617d6aa33505e64ebd3707ba6"
+   ],
+   "01_stance/models/stage1_9437184_steps.zip": [
+    4033624,
+    "72808420f7d6f93f4ea2de073371fecb7802b2169dd1ba5da5d09a992daff665"
+   ],
+   "01_stance/models/stage1_9699328_steps.zip": [
+    4033625,
+    "5f6fa12896f1f2981c157e2568907fd1c454b7886cb7b02144ad03d1de221dc0"
+   ],
+   "01_stance/models/stage1_9961472_steps.zip": [
+    4033625,
+    "a077675fae930fbdd8fe03cc9c2c53992c45a8df6bc81562fe910939b58e1079"
+   ],
+   "01_stance/models/stage1_final.zip": [
+    4033631,
+    "55ca16f498ccd7f4bc017459098c1e271fc4dfa9e3a65cc8be2ec7a721dbaba6"
+   ],
+   "01_stance/models/stage1_final_vecnorm.pkl": [
+    5290,
+    "47dab7fd335e9e1d26c9602fb6e67abd11c35c92a223050893e71287841d331e"
+   ],
+   "01_stance/models/stage1_vecnormalize_10223616_steps.pkl": [
+    5290,
+    "d7c69d6c0d2539f90ea649896fb51dd6a29b27ba601d4269b83030540950555c"
+   ],
+   "01_stance/models/stage1_vecnormalize_10485760_steps.pkl": [
+    5290,
+    "8b430ed2c31298f307b4f47a2d4fb6926f41c3db44e2b67a489038be02a91478"
+   ],
+   "01_stance/models/stage1_vecnormalize_1048576_steps.pkl": [
+    5290,
+    "ea8781be088fb26abc3e26046dd5d17fd834b2b8af3f3816013da0315bae72c4"
+   ],
+   "01_stance/models/stage1_vecnormalize_10747904_steps.pkl": [
+    5290,
+    "de3b165f7c2c7af0b2349052696c79c240fb922da3a22051b0d5911542115f65"
+   ],
+   "01_stance/models/stage1_vecnormalize_11010048_steps.pkl": [
+    5290,
+    "024c4422ed17c699addd97500cffa18b00fbea2b840e0c508ec9b0a7039aaefe"
+   ],
+   "01_stance/models/stage1_vecnormalize_11272192_steps.pkl": [
+    5290,
+    "35a94917b47766dfc23c3da873f7a8f33584d601447e5bc8958641c395803df8"
+   ],
+   "01_stance/models/stage1_vecnormalize_11534336_steps.pkl": [
+    5290,
+    "cf2fb28d3c10b54cf0ab75613c3466be5c65e76be831e79469e0ef817f85400a"
+   ],
+   "01_stance/models/stage1_vecnormalize_11796480_steps.pkl": [
+    5290,
+    "94a36fa4fc7dded996182289a291a9b1e3aef9fc3e8689f5f58e4e33b928e6c4"
+   ],
+   "01_stance/models/stage1_vecnormalize_1310720_steps.pkl": [
+    5290,
+    "b3626a787b6578fc2a23a3d0224a5f6951ceec1efe7fc0aa2e170ff4a9ac705e"
+   ],
+   "01_stance/models/stage1_vecnormalize_1572864_steps.pkl": [
+    5290,
+    "ec71a930daff0ceec57f9c578ed5f47ff8a3cd32106d08a937d7daf12a766841"
+   ],
+   "01_stance/models/stage1_vecnormalize_1835008_steps.pkl": [
+    5290,
+    "21526d25e5e403ee31bf830372da55bcb21436957d6f0dc1f935383587a69eae"
+   ],
+   "01_stance/models/stage1_vecnormalize_2097152_steps.pkl": [
+    5290,
+    "f2f92b097da2188f1e96bd1e220080a8fece800ea50da682496793bf6ff72c5b"
+   ],
+   "01_stance/models/stage1_vecnormalize_2359296_steps.pkl": [
+    5290,
+    "ac912ec0325841dc9a4679ce70ab7e6a315f712b57dc6950e45dfa9883113411"
+   ],
+   "01_stance/models/stage1_vecnormalize_2621440_steps.pkl": [
+    5290,
+    "8174d1a1f0194226b9be73f85b8b007837a380036100ae2ad882b0f37568b426"
+   ],
+   "01_stance/models/stage1_vecnormalize_262144_steps.pkl": [
+    5290,
+    "439b1e88c2b67c13b4c17bac1cd5c69c8a28c2028ce0baf9dac351b86e180a68"
+   ],
+   "01_stance/models/stage1_vecnormalize_2883584_steps.pkl": [
+    5290,
+    "acb320bca4aa4fc31f426fd8f2ec047d031c6c9fe04d9d767ca1cf448ecddb99"
+   ],
+   "01_stance/models/stage1_vecnormalize_3145728_steps.pkl": [
+    5290,
+    "c00a49099c6b66f3f1f8dc2bcf2d81de77b8df90446361e613ef05b385a0820d"
+   ],
+   "01_stance/models/stage1_vecnormalize_3407872_steps.pkl": [
+    5290,
+    "05ab888aa8525cdb92e6e9b2733a113ef133a66fded9b3732f3c6c66e1542d41"
+   ],
+   "01_stance/models/stage1_vecnormalize_3670016_steps.pkl": [
+    5290,
+    "d4047643963fb33b184c7e75712f6e2fdadb90e255e69bba643c173e8948dca2"
+   ],
+   "01_stance/models/stage1_vecnormalize_3932160_steps.pkl": [
+    5290,
+    "178807093f49d1912d814cfe37c291fcc8d6fb42ac69c800752310a9060f7f25"
+   ],
+   "01_stance/models/stage1_vecnormalize_4194304_steps.pkl": [
+    5290,
+    "f405244b94662bdffae9bbe1b047fda9b34bb62012bec9491ed09131ef6155cb"
+   ],
+   "01_stance/models/stage1_vecnormalize_4456448_steps.pkl": [
+    5290,
+    "0e89ad5a3c8c94b08d05bd73626228ae9d5ed43c595a092852a8f39c9640b69b"
+   ],
+   "01_stance/models/stage1_vecnormalize_4718592_steps.pkl": [
+    5290,
+    "4feedc6a5cf1b8796c1b0ac2d996e9f9540a1326141697887c08e3096e2f72a1"
+   ],
+   "01_stance/models/stage1_vecnormalize_4980736_steps.pkl": [
+    5290,
+    "32f2be11b6da1e07ee163f51b8fb07cb4ed949c6709cf0dece8cf10919aa58ca"
+   ],
+   "01_stance/models/stage1_vecnormalize_5242880_steps.pkl": [
+    5290,
+    "556679f690a17ffafa679c623b753d012bde3abe2243960246b8a1129eefe621"
+   ],
+   "01_stance/models/stage1_vecnormalize_524288_steps.pkl": [
+    5290,
+    "3a95163dd5cb816edf7d9d28582ed9050ddfd8d4305125bf4bc79b04fa97d6cd"
+   ],
+   "01_stance/models/stage1_vecnormalize_5505024_steps.pkl": [
+    5290,
+    "eef019bd0351bb44611a776609c64190a3188c3888905eaee5a27ad0a897f455"
+   ],
+   "01_stance/models/stage1_vecnormalize_5767168_steps.pkl": [
+    5290,
+    "fca20e71104822a7fc3ea4dc7e192c794228c37160bb83f0bbda85fe2a332e6a"
+   ],
+   "01_stance/models/stage1_vecnormalize_6029312_steps.pkl": [
+    5290,
+    "9a3b95ca436f233cbe2cca7cbcfb1fe58a7bbc220ed43837f1902018d0947cf3"
+   ],
+   "01_stance/models/stage1_vecnormalize_6291456_steps.pkl": [
+    5290,
+    "3b632f2a6f15236bf56fdef5fd9194bbb6ea1f3e36d6b1e5322da688998c2d62"
+   ],
+   "01_stance/models/stage1_vecnormalize_6553600_steps.pkl": [
+    5290,
+    "438cf6780350be7d57dcc82f27b4fb3532299e29fb07c8e3750fae9708b147d7"
+   ],
+   "01_stance/models/stage1_vecnormalize_6815744_steps.pkl": [
+    5290,
+    "4b06c6fb4ebd32c740d89b5193463698b37363f2a9b175db1dfa46e1f678d13e"
+   ],
+   "01_stance/models/stage1_vecnormalize_7077888_steps.pkl": [
+    5290,
+    "273901dbe8a4379d4c556624ee358a1bd2f507baa3735e88f3f5a9fe788860de"
+   ],
+   "01_stance/models/stage1_vecnormalize_7340032_steps.pkl": [
+    5290,
+    "74290efbadd039937de72087f3b992f67fd74a0d344550787a39a97aa8d6c5d5"
+   ],
+   "01_stance/models/stage1_vecnormalize_7602176_steps.pkl": [
+    5290,
+    "96fdff9674c188d4b917a7c4897be859cde9d31491acf72d923832652f3de4da"
+   ],
+   "01_stance/models/stage1_vecnormalize_7864320_steps.pkl": [
+    5290,
+    "c88bfd63e61b5123e1a4442a7d5737c76109c017991cc8a9577a28427d28f422"
+   ],
+   "01_stance/models/stage1_vecnormalize_786432_steps.pkl": [
+    5290,
+    "97c1d1e1e5f5dbcbe2e734b7d2089da561c86219795fd0292d149f1ac1a592b0"
+   ],
+   "01_stance/models/stage1_vecnormalize_8126464_steps.pkl": [
+    5290,
+    "4a434356122ce7e91aa9f6da6bef0588cb121d3ca25692ee4fbbc18128b88d3d"
+   ],
+   "01_stance/models/stage1_vecnormalize_8388608_steps.pkl": [
+    5290,
+    "e296e3774ff024a218ac6ebf5641c634db46a9f8219102a53fdd2b82f0afe1b4"
+   ],
+   "01_stance/models/stage1_vecnormalize_8650752_steps.pkl": [
+    5290,
+    "a601d294d2bef26ac8b2eef2bc312bf26f6663a2ebeac94d9ca4d8fa03eb1477"
+   ],
+   "01_stance/models/stage1_vecnormalize_8912896_steps.pkl": [
+    5290,
+    "3bbae7cf9f43b000385345a09ab6fba1fda3387ef2d2eb792b572e7942832d33"
+   ],
+   "01_stance/models/stage1_vecnormalize_9175040_steps.pkl": [
+    5290,
+    "44b190f66af4f99e5ca6cfe53520d6ca839750a77e7189e48ea51e388a715778"
+   ],
+   "01_stance/models/stage1_vecnormalize_9437184_steps.pkl": [
+    5290,
+    "c70b4e0ccce38eeda008fb4e9338d11a484aa706a9023b34a18f0031cef008ac"
+   ],
+   "01_stance/models/stage1_vecnormalize_9699328_steps.pkl": [
+    5290,
+    "51cdf2f722a1c811c2c84e59fe014aabd8440a6f10d9a989bd0ef0362a453ab8"
+   ],
+   "01_stance/models/stage1_vecnormalize_9961472_steps.pkl": [
+    5290,
+    "f8eb8a3923dbb6867fa27a04c5f46cf035830402a8ddb63772faddb5d57ba7d9"
+   ],
+   "01_stance/plant_identity.json": [
+    771,
+    "e611a493f587db531d875d7b7b1dd9c57655a8b5cf3aaec644a7fa2a490179d9"
+   ],
+   "01_stance/policy_probe.npz": [
+    3485432,
+    "0e61919dc9a0a2a508095cec5e14a673c2d909b61420d9b6c95c74d7562b3957"
+   ],
+   "01_stance/progress.json": [
+    9230,
+    "de3d906011cfc5ed0a0819205b5cd7ed9b705209a8686e78643f68d7e41f8d20"
+   ],
+   "01_stance/replays/tyrannosaurus_rex_anatomical_ppo_stage1_final.mp4": [
+    99887,
+    "6442242ccd5bb39c9687f943cd37f8fc1520e1c71edd6db38cfc3e6d02eb8c1a"
+   ],
+   "01_stance/replays/tyrannosaurus_rex_anatomical_ppo_stage1_final_front.mp4": [
+    109480,
+    "573e239a3a6335caceee0c36f987bfa3be9f210837351de070bcfb5fa46ab258"
+   ],
+   "01_stance/replays/tyrannosaurus_rex_anatomical_ppo_stage1_final_side.mp4": [
+    125619,
+    "aa4aedbd97b71eb3d9c10366789f51f1b5b85d303e6b3e67f64d1b7afad3379b"
+   ],
+   "01_stance/replays/tyrannosaurus_rex_anatomical_ppo_stage1_final_stance.csv": [
+    4584751,
+    "9fce8fe3ab1be713dafa4beff54ac41cda18de96cec47f847ffe11cf00ddfa55"
+   ],
+   "01_stance/replays/tyrannosaurus_rex_anatomical_ppo_stage1_selected.mp4": [
+    91659,
+    "a8b29ba6d8a24af9b7c8dd7d3901cdb718f24fdd972d0bba97e7591c5b3a184a"
+   ],
+   "01_stance/replays/tyrannosaurus_rex_anatomical_ppo_stage1_selected_front.mp4": [
+    98243,
+    "6753cceacfc4c3c00ccb142a7c440b2bd3e8c911fcac12c241af11f408e68d1e"
+   ],
+   "01_stance/replays/tyrannosaurus_rex_anatomical_ppo_stage1_selected_side.mp4": [
+    111632,
+    "95634a0a9e7b9afc59986acf9e3d3791c6ffb59fb5b9459c0b7fc92ff4ec1ff9"
+   ],
+   "01_stance/replays/tyrannosaurus_rex_anatomical_ppo_stage1_selected_stance.csv": [
+    4608199,
+    "a64dd59beea61e2a1d7f29bba60d7ffbcb95fa09c242ad8f239a17a1781d8dd0"
+   ],
+   "01_stance/stage_config.json": [
+    10970,
+    "ec1c49a551badd146416a12d874a9ecf5db5574886e21c6df414a07d533e72c5"
+   ],
+   "01_stance/stage_summary.txt": [
+    1194,
+    "392fd217bf183c639b7e911ade826300a9908a71c19b4da5a4ff6316b16a5fa2"
+   ],
+   "01_stance/stance_gate_probe_constant.json": [
+    82814,
+    "9b0126099a6d3910749eac30869227ac623780b5299fa6e98139d4ba6b0157d7"
+   ],
+   "01_stance/stance_gate_probe_constant.txt": [
+    1518,
+    "1d76429e7a2ceade5a23b61f1d16bbfd7ed8772a02cf809c4f8628bc5737d0b0"
+   ],
+   "01_stance/stance_gate_probe_filtered.json": [
+    80646,
+    "5cf80a34624d1c86776789252628dc0491da9665c2cc412db855f9b57a64da54"
+   ],
+   "01_stance/stance_gate_probe_filtered.txt": [
+    1163,
+    "c2826945b10af625e1c82f4b74e8daabd8050726db543cc1d01a322a5c2894ae"
+   ],
+   "01_stance/stance_gate_probe_impulse.json": [
+    214663,
+    "b53a0453904d9b03042585d06f7f6ee1470bc5af40325873661717a7ef3c1e71"
+   ],
+   "01_stance/stance_gate_probe_impulse.txt": [
+    2134,
+    "3e3e4c4dc57442d30b98686c95bcbdb1ad4ca7a233bf9b0301109d27d11e499b"
+   ],
+   "01_stance/stance_gate_probe_release.json": [
+    232462,
+    "958987e18dcbc39f00faab8dc69be7c20cb05ee0723a46e30e8d1d2e17b8700a"
+   ],
+   "01_stance/stance_gate_probe_release.txt": [
+    4312,
+    "5212bcd1156f74a85a1fe3d0064bd9e59f8c8fec52d072f871052ba009eacf82"
+   ],
+   "01_stance/stance_heading_panel_selected.csv": [
+    760520,
+    "550bd5a072a8882f11f15fdf525759ad6a15eee012f25bd6bf87d9423965baba"
+   ],
+   "01_stance/stance_heading_report.json": [
+    1778028,
+    "eb3c2d25c7f3299adf4051b246fa5bdfd92828f16d4c1b9631bb4898c63f2b5b"
+   ],
+   "01_stance/stance_heading_report.txt": [
+    5123,
+    "78a23721f4260df852e8bd01040a63c2c1abe1ad1987bb02fed87f203d024911"
+   ],
+   "01_stance/task_fingerprint.json": [
+    3587,
+    "5964a6f375d39ebc4b9eabf854a71ca59936b8710b22f4ebae42df6affcb4b83"
+   ],
+   "01_stance/tensorboard/PPO_1/events.out.tfevents.1793113619.d20b73d394f0.5478.0": [
+    12852441,
+    "f8e9b7f94b911e6ec48de7d24a03d77b06addd4a3320aa1cb6df3f66383ddc04"
+   ],
+   "01_stance/train_episodes.csv": [
+    3935345,
+    "fd65c2058c4b6970c5fca7a32a6461131f41a768ec792b5d625ea8a5049af8c6"
+   ],
+   "collected_results.csv": [
+    7469,
+    "80d48fe544201fd88a8617f71e1bfa50a000dc541d329c1f7788eedde747b9eb"
+   ],
+   "plant_identity.json": [
+    771,
+    "e611a493f587db531d875d7b7b1dd9c57655a8b5cf3aaec644a7fa2a490179d9"
+   ],
+   "provenance.json": [
+    4098,
+    "c05af1e785aafeea889954fb65befad8d605c672f9bbfe144b180e3ae7bd32cb"
+   ],
+   "summary.json": [
+    6757,
+    "cb623cc9b27b0f72b99678eb357b205275a253ca8356c3e92f2e2ac605406275"
+   ],
+   "training_summary.txt": [
+    915,
+    "55224bb40a1dc4b4f417325792fdc75a0deb3763b23beb4c9f53dbf10dd7861f"
+   ],
+   "trunk_run.json": [
+    60,
+    "7c26c63b9e154d2f9619dc2d07c8cd50b80173bf1e49a0c5cbdcf97586d25d48"
+   ],
+   "zero_action_baseline.json": [
+    5020,
+    "541b1e22e870afaadeefa0f22cc0d2352c2cf67a099374331d94f5548aaf40e8"
+   ]
+  },
+  "files_read": {
+   "provenance.json": "c05af1e785aafeea889954fb65befad8d605c672f9bbfe144b180e3ae7bd32cb",
+   "01_stance/stage_config.json": "ec1c49a551badd146416a12d874a9ecf5db5574886e21c6df414a07d533e72c5",
+   "01_stance/progress.json": "de3d906011cfc5ed0a0819205b5cd7ed9b705209a8686e78643f68d7e41f8d20",
+   "01_stance/eval_episodes.csv": "b677ce762e739513c18eaa35ffb7b149c0532753746259d5037356580e934d13",
+   "01_stance/gate_verdict.json": "356dabb48522d6c5b5de6534ad649762afbd45bfdd9bdb48a6c62ba63249abb4",
+   "01_stance/models/stage1_4194304_steps.zip": "51197dbd7f90e481a99214ba7bd63ebbe92804367c2e5edab988c0b4c4840096",
+   "01_stance/models/stage1_vecnormalize_4194304_steps.pkl": "f405244b94662bdffae9bbe1b047fda9b34bb62012bec9491ed09131ef6155cb",
+   "01_stance/models/stage1_5242880_steps.zip": "6a36b95288639d23ea673b7e5d3c6870201b4f6a8efed5600a3cdf60f8c6deae",
+   "01_stance/models/stage1_vecnormalize_5242880_steps.pkl": "556679f690a17ffafa679c623b753d012bde3abe2243960246b8a1129eefe621",
+   "01_stance/models/stage1_6291456_steps.zip": "0c818fcb2f5162ad9a953e65fc8490d89615b43b9a6c6993a3e93cd22aa74b86",
+   "01_stance/models/stage1_vecnormalize_6291456_steps.pkl": "3b632f2a6f15236bf56fdef5fd9194bbb6ea1f3e36d6b1e5322da688998c2d62",
+   "01_stance/models/stage1_8388608_steps.zip": "71a101a1ceb43340ba5c8495d198855542141c484cce72be0b0a49de757cace9",
+   "01_stance/models/stage1_vecnormalize_8388608_steps.pkl": "e296e3774ff024a218ac6ebf5641c634db46a9f8219102a53fdd2b82f0afe1b4",
+   "01_stance/models/stage1_10485760_steps.zip": "1185802b03cc4d231c2a6c9422d0f1413e5c5ff353ee1b7540c26fe49357affe",
+   "01_stance/models/stage1_vecnormalize_10485760_steps.pkl": "8b430ed2c31298f307b4f47a2d4fb6926f41c3db44e2b67a489038be02a91478",
+   "01_stance/models/stage1_final.zip": "55ca16f498ccd7f4bc017459098c1e271fc4dfa9e3a65cc8be2ec7a721dbaba6",
+   "01_stance/models/stage1_final_vecnorm.pkl": "47dab7fd335e9e1d26c9602fb6e67abd11c35c92a223050893e71287841d331e"
+  },
+  "verdict": "COMPLETE"
+ },
+ "presence": [
+  {
+   "fetch": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s80",
+   "p1": {
+    "name": "C1 one launch, no launch-check stop, no other action",
+    "ok": true,
+    "value": {
+     "launches": [
+      672
+     ],
+     "launch_check_stops": [],
+     "actions": [],
+     "lines": {
+      "672": "LAUNCH",
+      "674": "CHECK",
+      "695": "TRIGGER-a",
+      "696": "FOUND-GONE",
+      "705": "F2-START"
+     }
+    },
+    "note": "C1 reads the RUN_ID's LAUNCH/RELAUNCH lines, its launch-check stops (STOP, TRIGGER-d) and its ACTION lines (what=resume|restart|relaunch|cell)"
+   },
+   "p2": {
+    "name": "p2 C4's session and configuration facts",
+    "ok": true,
+    "value": [
+     {
+      "name": "C4 exactly one sessions entry with started_at, no resumed_at",
+      "ok": true,
+      "value": {
+       "sessions": 1,
+       "started_at": "2026-10-27T15:03:09.172165+00:00",
+       "resumed_at": false
+      },
+      "note": null
+     },
+     {
+      "name": "C4 started_at within 60 minutes before or after RUNLOG's launch time",
+      "ok": true,
+      "value": {
+       "minutes_from_launch": 6.2,
+       "launch": "2026-10-27T14:57:00+00:00"
+      },
+      "note": null
+     },
+     {
+      "name": "C4 provenance repository_commit = branch HEAD, repository_dirty false",
+      "ok": true,
+      "value": {
+       "repository_commit": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d",
+       "repository_dirty": false,
+       "head": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d"
+      },
+      "note": null
+     },
+     {
+      "name": "C4 no load key at any depth",
+      "ok": true,
+      "value": [],
+      "note": null
+     },
+     {
+      "name": "C4 run.seed",
+      "ok": true,
+      "value": {
+       "got": 80,
+       "want": 80
+      },
+      "note": null
+     },
+     {
+      "name": "C4 run.n_envs 4",
+      "ok": true,
+      "value": 4,
+      "note": null
+     },
+     {
+      "name": "C4 run.hyperparameters_sha256 = pin",
+      "ok": true,
+      "value": "sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c",
+      "note": null
+     },
+     {
+      "name": "C4 task_fingerprint.task_sha256 = pin",
+      "ok": true,
+      "value": "sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456",
+      "note": null
+     },
+     {
+      "name": "C4 plant_identity block = pin",
+      "ok": true,
+      "value": "(block)",
+      "note": null
+     },
+     {
+      "name": "C4 stage_config_view_sha256 = pin",
+      "ok": true,
+      "value": "sha256:3200f159e7f0c8d59be196976e990bbc572c688ba332d8574106c706d46cbce1",
+      "note": null
+     },
+     {
+      "name": "C4 git_commit = branch HEAD",
+      "ok": true,
+      "value": {
+       "git_commit": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d",
+       "head": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d"
+      },
+      "note": null
+     }
+    ],
+    "note": "provenance.json copies 1 and 2 agree (sha256 c05af1e785aa); stage_config.json copies 1 and 2 agree (sha256 ec1c49a551ba)"
+   },
+   "p3": {
+    "name": "p3 TAIL ALARM by M5 (b) on the ledger as it stands",
+    "ok": false,
+    "value": {
+     "tail_alarms": [],
+     "tail_flagged": [],
+     "first": null,
+     "ledger": "copies 1 and 2 agree (sha256 b677ce762e73)"
+    },
+    "note": null
+   },
+   "rail": false,
+   "rail_decided": false,
+   "detail": null
+  }
+ ]
+}

@@ -1,0 +1,172 @@
+r10round lane B tools 1.3 (criteria lean v6 sha256 e5bea5d314cb...; built 2026-10-26; fixer 2026-10-26; v5 tool update 2026-10-26; v6 MEAN_a 2026-10-27)
+ROUND /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6
+RUNLOG line 621 names a RUN_ID and is not a STANCE6 note of a round RUN_ID (printed; read by no rule; for the coordinator to restate): 2026-10-25 19:01 UTC  MAINTAINER DECISIONS (r10 round, criteria v4): D15 confirmed: the runs start only after BOTH telemetry PRs merge (#644 and PR 2 with the a
+RUNLOG line 667 names a RUN_ID and is not a STANCE6 note of a round RUN_ID (printed; read by no rule; for the coordinator to restate): 2026-10-27 14:57 UTC  F0 for stance6_r10LTSB_s60 started (wf_79d18978-4d3, 1 fetch agent, read-only Drive, per fetch_agent_brief.txt; the launch-check tool to f
+RUNLOG line 669 names a RUN_ID and is not a STANCE6 note of a round RUN_ID (printed; read by no rule; for the coordinator to restate): 2026-10-27 15:32 UTC  F0 found run folders for stance6_r10LTSB_s42 (1mEXGjKoMtKDvf9suMNVEe4qkDcnFFyLS) and stance6_r10LTSB_s80 (1TBDdiiyK3Uwn7qAbUXj2JRDl3PdPApY
+RUNLOG line 670 names a RUN_ID and is not a STANCE6 note of a round RUN_ID (printed; read by no rule; for the coordinator to restate): 2026-10-27 15:46 UTC  F0 for stance6_r10LTSB_s42 and s80 done (wf_68b58e3e-41f, 2 agents in parallel, read-only Drive; finished 15:45 UTC; each file 2 agreeing 
+F2 timing (O-14, report only): {"last_ending_note": "2026-10-28T06:25:00+00:00", "planned_start": "2026-10-28T12:25:00+00:00", "f2_start_notes": ["2026-10-28 12:25 UTC  STANCE6 F2-START stance6_r10LTSB_s60 note=\"F2 begins, 6 h after the last ending note (06:25 UTC); fetch per fetch_agent_brief.txt, read-only Drive\"", "2026-10-28 12:25 UTC  STANCE6 F2-START stance6_r10LTSB_s42 note=\"F2 begins, 6 h after the last ending note (06:25 UTC); fetch per fetch_agent_brief.txt, read-only Drive\"", "2026-10-28 12:25 UTC  STANCE6 F2-START stance6_r10LTSB_s80 note=\"F2 begins, 6 h after the last ending note (06:25 UTC); fetch per fetch_agent_brief.txt, read-only Drive\""], "f2_start_hours_after_last_ending": [6.0, 6.0, 6.0], "at_least_6_hours": [true, true, true]}
+re-fetch timing (O-17, both times printed): {"f2_last_fetch_manifest_row": "2026-10-28T13:54:48+00:00", "planned_start": "2026-10-28T19:54:48+00:00", "refetch_start_notes": [], "hours_after_f2_last_row": []}
+SEED 60: run of the round stance6_r10LTSB_s60; launched ['stance6_r10LTSB_s60']; 
+SEED 42: run of the round stance6_r10LTSB_s42; launched ['stance6_r10LTSB_s42']; 
+SEED 80: run of the round stance6_r10LTSB_s80; launched ['stance6_r10LTSB_s80']; 
+RUN stance6_r10LTSB_s60: COMPLETE  F2 {"C1": "PASS", "C2": "PASS", "C3": "PASS", "C4": "PASS", "C5": "PASS", "C6": "PASS", "C7": "PASS"}
+    C1: PASS  C1 one launch, no launch-check stop, no other action  [C1 reads the RUN_ID's LAUNCH/RELAUNCH lines, its launch-check stops (STOP, TRIGGER-d) and its ACTION lines (what=resume|restart|relaunch|cell)]
+        value: {"launches": [666], "launch_check_stops": [], "actions": [], "lines": {"666": "LAUNCH", "668": "CHECK", "697": "TRIGGER-a", "698": "FOUND-GONE", "703": "F2-START"}}
+    C2: PASS  C2 artifact_manifest.json
+        value: {"copies": "copies 1 and 2 agree (sha256 8523cf22a155)", "sha256": "8523cf22a15517f9b4777084ae0bf1a47cf5f65db169b03c599308d14095f769", "schema_problems": [], "run_id": "stance6_r10LTSB_s60", "status": "complete", "entries": 167}
+    C3: PASS  C3 every file the reading uses equals its manifest entry
+        provenance.json: OK
+        01_stance/stage_config.json: OK
+        01_stance/progress.json: OK
+        01_stance/eval_episodes.csv: OK
+        01_stance/gate_verdict.json: OK
+        01_stance/models/stage1_4194304_steps.zip: OK
+        01_stance/models/stage1_vecnormalize_4194304_steps.pkl: OK
+        01_stance/models/stage1_5242880_steps.zip: OK
+        01_stance/models/stage1_vecnormalize_5242880_steps.pkl: OK
+        01_stance/models/stage1_6291456_steps.zip: OK
+        01_stance/models/stage1_vecnormalize_6291456_steps.pkl: OK
+        01_stance/models/stage1_8388608_steps.zip: OK
+        01_stance/models/stage1_vecnormalize_8388608_steps.pkl: OK
+        01_stance/models/stage1_10485760_steps.zip: OK
+        01_stance/models/stage1_vecnormalize_10485760_steps.pkl: OK
+        01_stance/models/stage1_final.zip: OK
+        01_stance/models/stage1_final_vecnorm.pkl: OK
+    C4: PASS  C4 one session from step 0 in the round's configuration  [read on manifest-verified copies]
+        PASS             C4 exactly one sessions entry with started_at, no resumed_at: {"sessions": 1, "started_at": "2026-10-27T15:01:06.625783+00:00", "resumed_at": false}
+        PASS             C4 started_at within 60 minutes before or after RUNLOG's launch time: {"minutes_from_launch": 4.1, "launch": "2026-10-27T14:57:00+00:00"}
+        PASS             C4 provenance repository_commit = branch HEAD, repository_dirty false: {"repository_commit": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d", "repository_dirty": false, "head": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d"}
+        PASS             C4 no load key at any depth: []
+        PASS             C4 run.seed: {"got": 60, "want": 60}
+        PASS             C4 run.n_envs 4: 4
+        PASS             C4 run.hyperparameters_sha256 = pin: "sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c"
+        PASS             C4 task_fingerprint.task_sha256 = pin: "sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456"
+        PASS             C4 plant_identity block = pin: "(block)"
+        PASS             C4 stage_config_view_sha256 = pin: "sha256:3200f159e7f0c8d59be196976e990bbc572c688ba332d8574106c706d46cbce1"
+        PASS             C4 git_commit = branch HEAD: {"git_commit": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d", "head": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d"}
+        PASS             C4 k3_panel.csv absent from the manifest if V7 failed on HEAD: {"v7_failed_on_head": false, "k3_panel_csv_listed": true}
+    C5: PASS  C5 the end
+        value: {"progress_status": "ended", "E": 12001280, "final_zip_num_timesteps": 12001280, "zip_problem": null, "judged_at": "2026-10-28T05:39:40+00:00", "written_at": "2026-10-28T05:07:04Z", "judged_minus_written_min": 32.6, "ending": "FINISHED"}
+    C6: PASS  C6 ledger whole to E, every ANY and TAIL input measured
+        value: {"grid_evaluations": 91, "failures": [], "n_failures": 0}
+    C7: PASS  C7 traces (and the final certificate)
+        value: {"labels": ["4194304", "5242880", "6291456", "8388608", "10485760", "final"], "missing": []}
+    VERDICT: COMPLETE
+    M1 cross-check 10485760 (report only, RA-8): lane A's reduction equals this reader's
+    M1 cross-check 4194304 (report only, RA-8): lane A's reduction equals this reader's
+    M1 cross-check 5242880 (report only, RA-8): lane A's reduction equals this reader's
+    M1 cross-check 6291456 (report only, RA-8): lane A's reduction equals this reader's
+    M1 cross-check 8388608 (report only, RA-8): lane A's reduction equals this reader's
+    M1 cross-check final (report only, RA-8): lane A's reduction equals this reader's
+RUN stance6_r10LTSB_s42: COMPLETE  F2 {"C1": "PASS", "C2": "PASS", "C3": "PASS", "C4": "PASS", "C5": "PASS", "C6": "PASS", "C7": "PASS"}
+    C1: PASS  C1 one launch, no launch-check stop, no other action  [C1 reads the RUN_ID's LAUNCH/RELAUNCH lines, its launch-check stops (STOP, TRIGGER-d) and its ACTION lines (what=resume|restart|relaunch|cell)]
+        value: {"launches": [671], "launch_check_stops": [], "actions": [], "lines": {"671": "LAUNCH", "673": "CHECK", "693": "TRIGGER-a", "694": "FOUND-GONE", "704": "F2-START"}}
+    C2: PASS  C2 artifact_manifest.json
+        value: {"copies": "copies 1 and 2 agree (sha256 3ffa31e68aa9)", "sha256": "3ffa31e68aa9a104873f59d26851913a3ede433736dd6a94a4cd5b861489cfe5", "schema_problems": [], "run_id": "stance6_r10LTSB_s42", "status": "complete", "entries": 167}
+    C3: PASS  C3 every file the reading uses equals its manifest entry
+        provenance.json: OK
+        01_stance/stage_config.json: OK
+        01_stance/progress.json: OK
+        01_stance/eval_episodes.csv: OK
+        01_stance/gate_verdict.json: OK
+        01_stance/models/stage1_4194304_steps.zip: OK
+        01_stance/models/stage1_vecnormalize_4194304_steps.pkl: OK
+        01_stance/models/stage1_5242880_steps.zip: OK
+        01_stance/models/stage1_vecnormalize_5242880_steps.pkl: OK
+        01_stance/models/stage1_6291456_steps.zip: OK
+        01_stance/models/stage1_vecnormalize_6291456_steps.pkl: OK
+        01_stance/models/stage1_8388608_steps.zip: OK
+        01_stance/models/stage1_vecnormalize_8388608_steps.pkl: OK
+        01_stance/models/stage1_10485760_steps.zip: OK
+        01_stance/models/stage1_vecnormalize_10485760_steps.pkl: OK
+        01_stance/models/stage1_final.zip: OK
+        01_stance/models/stage1_final_vecnorm.pkl: OK
+    C4: PASS  C4 one session from step 0 in the round's configuration  [read on manifest-verified copies]
+        PASS             C4 exactly one sessions entry with started_at, no resumed_at: {"sessions": 1, "started_at": "2026-10-27T15:03:06.837271+00:00", "resumed_at": false}
+        PASS             C4 started_at within 60 minutes before or after RUNLOG's launch time: {"minutes_from_launch": 6.1, "launch": "2026-10-27T14:57:00+00:00"}
+        PASS             C4 provenance repository_commit = branch HEAD, repository_dirty false: {"repository_commit": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d", "repository_dirty": false, "head": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d"}
+        PASS             C4 no load key at any depth: []
+        PASS             C4 run.seed: {"got": 42, "want": 42}
+        PASS             C4 run.n_envs 4: 4
+        PASS             C4 run.hyperparameters_sha256 = pin: "sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c"
+        PASS             C4 task_fingerprint.task_sha256 = pin: "sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456"
+        PASS             C4 plant_identity block = pin: "(block)"
+        PASS             C4 stage_config_view_sha256 = pin: "sha256:3200f159e7f0c8d59be196976e990bbc572c688ba332d8574106c706d46cbce1"
+        PASS             C4 git_commit = branch HEAD: {"git_commit": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d", "head": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d"}
+        PASS             C4 k3_panel.csv absent from the manifest if V7 failed on HEAD: {"v7_failed_on_head": false, "k3_panel_csv_listed": true}
+    C5: PASS  C5 the end
+        value: {"progress_status": "ended", "E": 12001280, "final_zip_num_timesteps": 12001280, "zip_problem": null, "judged_at": "2026-10-28T05:33:20+00:00", "written_at": "2026-10-28T05:00:58Z", "judged_minus_written_min": 32.4, "ending": "FINISHED"}
+    C6: PASS  C6 ledger whole to E, every ANY and TAIL input measured
+        value: {"grid_evaluations": 91, "failures": [], "n_failures": 0}
+    C7: PASS  C7 traces (and the final certificate)
+        value: {"labels": ["4194304", "5242880", "6291456", "8388608", "10485760", "final"], "missing": []}
+    VERDICT: COMPLETE
+    M1 cross-check 10485760 (report only, RA-8): lane A's reduction equals this reader's
+    M1 cross-check 4194304 (report only, RA-8): lane A's reduction equals this reader's
+    M1 cross-check 5242880 (report only, RA-8): lane A's reduction equals this reader's
+    M1 cross-check 6291456 (report only, RA-8): lane A's reduction equals this reader's
+    M1 cross-check 8388608 (report only, RA-8): lane A's reduction equals this reader's
+    M1 cross-check final (report only, RA-8): lane A's reduction equals this reader's
+RUN stance6_r10LTSB_s80: COMPLETE  F2 {"C1": "PASS", "C2": "PASS", "C3": "PASS", "C4": "PASS", "C5": "PASS", "C6": "PASS", "C7": "PASS"}
+    C1: PASS  C1 one launch, no launch-check stop, no other action  [C1 reads the RUN_ID's LAUNCH/RELAUNCH lines, its launch-check stops (STOP, TRIGGER-d) and its ACTION lines (what=resume|restart|relaunch|cell)]
+        value: {"launches": [672], "launch_check_stops": [], "actions": [], "lines": {"672": "LAUNCH", "674": "CHECK", "695": "TRIGGER-a", "696": "FOUND-GONE", "705": "F2-START"}}
+    C2: PASS  C2 artifact_manifest.json
+        value: {"copies": "copies 1 and 2 agree (sha256 29e92b9786f9)", "sha256": "29e92b9786f928af8bea9bd903fa423cc7e7a1612a3b00c7de6245ca3f935813", "schema_problems": [], "run_id": "stance6_r10LTSB_s80", "status": "complete", "entries": 167}
+    C3: PASS  C3 every file the reading uses equals its manifest entry
+        provenance.json: OK
+        01_stance/stage_config.json: OK
+        01_stance/progress.json: OK
+        01_stance/eval_episodes.csv: OK
+        01_stance/gate_verdict.json: OK
+        01_stance/models/stage1_4194304_steps.zip: OK
+        01_stance/models/stage1_vecnormalize_4194304_steps.pkl: OK
+        01_stance/models/stage1_5242880_steps.zip: OK
+        01_stance/models/stage1_vecnormalize_5242880_steps.pkl: OK
+        01_stance/models/stage1_6291456_steps.zip: OK
+        01_stance/models/stage1_vecnormalize_6291456_steps.pkl: OK
+        01_stance/models/stage1_8388608_steps.zip: OK
+        01_stance/models/stage1_vecnormalize_8388608_steps.pkl: OK
+        01_stance/models/stage1_10485760_steps.zip: OK
+        01_stance/models/stage1_vecnormalize_10485760_steps.pkl: OK
+        01_stance/models/stage1_final.zip: OK
+        01_stance/models/stage1_final_vecnorm.pkl: OK
+    C4: PASS  C4 one session from step 0 in the round's configuration  [read on manifest-verified copies]
+        PASS             C4 exactly one sessions entry with started_at, no resumed_at: {"sessions": 1, "started_at": "2026-10-27T15:03:09.172165+00:00", "resumed_at": false}
+        PASS             C4 started_at within 60 minutes before or after RUNLOG's launch time: {"minutes_from_launch": 6.2, "launch": "2026-10-27T14:57:00+00:00"}
+        PASS             C4 provenance repository_commit = branch HEAD, repository_dirty false: {"repository_commit": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d", "repository_dirty": false, "head": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d"}
+        PASS             C4 no load key at any depth: []
+        PASS             C4 run.seed: {"got": 80, "want": 80}
+        PASS             C4 run.n_envs 4: 4
+        PASS             C4 run.hyperparameters_sha256 = pin: "sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c"
+        PASS             C4 task_fingerprint.task_sha256 = pin: "sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456"
+        PASS             C4 plant_identity block = pin: "(block)"
+        PASS             C4 stage_config_view_sha256 = pin: "sha256:3200f159e7f0c8d59be196976e990bbc572c688ba332d8574106c706d46cbce1"
+        PASS             C4 git_commit = branch HEAD: {"git_commit": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d", "head": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d"}
+        PASS             C4 k3_panel.csv absent from the manifest if V7 failed on HEAD: {"v7_failed_on_head": false, "k3_panel_csv_listed": true}
+    C5: PASS  C5 the end
+        value: {"progress_status": "ended", "E": 12001280, "final_zip_num_timesteps": 12001280, "zip_problem": null, "judged_at": "2026-10-28T05:37:03+00:00", "written_at": "2026-10-28T05:04:05Z", "judged_minus_written_min": 33.0, "ending": "FINISHED"}
+    C6: PASS  C6 ledger whole to E, every ANY and TAIL input measured
+        value: {"grid_evaluations": 91, "failures": [], "n_failures": 0}
+    C7: PASS  C7 traces (and the final certificate)
+        value: {"labels": ["4194304", "5242880", "6291456", "8388608", "10485760", "final"], "missing": []}
+    VERDICT: COMPLETE
+    M1 cross-check 10485760 (report only, RA-8): lane A's reduction equals this reader's
+    M1 cross-check 4194304 (report only, RA-8): lane A's reduction equals this reader's
+    M1 cross-check 5242880 (report only, RA-8): lane A's reduction equals this reader's
+    M1 cross-check 6291456 (report only, RA-8): lane A's reduction equals this reader's
+    M1 cross-check 8388608 (report only, RA-8): lane A's reduction equals this reader's
+    M1 cross-check final (report only, RA-8): lane A's reduction equals this reader's
+CLASS s60 stance6_r10LTSB_s60: PARKED; GATE PASS ; OUTCOME NEGATIVE ['PARKED']; ANY ALARM []
+    tail alarms []; resolved by trace []; trace rail []; single tail flags []; PARKED [{'actuator': 'tail_3_pitch_act', 'windows': [('END', 0.042), ('J', [('8388608', 0.2797), ('10485760', 0.1267)])]}]; DRIVEN []; MEAN {"tail_1_pitch_act": -0.0010166569281573178, "tail_1_yaw_act": 0.003662033471769973, "tail_2_pitch_act": 0.16817333067767323, "tail_3_pitch_act": 0.6419694004189223}
+    CMD_a episodes beyond step 200 {"4194304": {"tail_1_pitch_act": 20, "tail_1_yaw_act": 20, "tail_2_pitch_act": 20, "tail_3_pitch_act": 20}, "5242880": {"tail_1_pitch_act": 20, "tail_1_yaw_act": 20, "tail_2_pitch_act": 20, "tail_3_pitch_act": 20}, "6291456": {"tail_1_pitch_act": 20, "tail_1_yaw_act": 20, "tail_2_pitch_act": 20, "tail_3_pitch_act": 20}, "8388608": {"tail_1_pitch_act": 20, "tail_1_yaw_act": 20, "tail_2_pitch_act": 20, "tail_3_pitch_act": 20}, "10485760": {"tail_1_pitch_act": 20, "tail_1_yaw_act": 20, "tail_2_pitch_act": 20, "tail_3_pitch_act": 20}, "final": {"tail_1_pitch_act": 20, "tail_1_yaw_act": 20, "tail_2_pitch_act": 20, "tail_3_pitch_act": 20}}; episodes ended by step 200 (printed, not averaged) {"4194304": [], "5242880": [], "6291456": [], "8388608": [], "10485760": [], "final": []}; MEAN_a from {"tail_1_pitch_act": "R1 and R2", "tail_1_yaw_act": "R1 and R2", "tail_2_pitch_act": "R1 and R2", "tail_3_pitch_act": "R1 and R2"}
+CLASS s42 stance6_r10LTSB_s42: RAIL (RAIL-LEDGER-PERSISTENT); GATE FAIL ['heading -90: hop_or_fall_episodes 2 > 1 (episodes ending early or failing min_all_feet_support, max_touchdown_rate, max_window_displacement_m, max_actuator_saturation_fraction; panel rail)', 'heading -45: hop_or_fall_episodes 2 > 1 (episodes ending early or failing min_all_feet_support, max_touchdown_rate, max_window_displacement_m, max_actuator_saturation_fraction; panel rail)', 'heading +0: hop_or_fall_episodes 2 > 1 (episodes ending early or failing min_all_feet_support, max_touchdown_rate, max_window_displacement_m, max_actuator_saturation_fraction; panel rail)', 'heading +45: hop_or_fall_episodes 2 > 1 (episodes ending early or failing min_all_feet_support, max_touchdown_rate, max_window_displacement_m, max_actuator_saturation_fraction; panel rail)', 'heading +90: hop_or_fall_episodes 2 > 1 (episodes ending early or failing min_all_feet_support, max_touchdown_rate, max_window_displacement_m, max_actuator_saturation_fraction; panel rail)', 'heading +180: hop_or_fall_episodes 2 > 1 (episodes ending early or failing min_all_feet_support, max_touchdown_rate, max_window_displacement_m, max_actuator_saturation_fraction; panel rail)']; OUTCOME NEGATIVE ['RAIL (RAIL-LEDGER-PERSISTENT)', "GATE FAIL (['heading -90: hop_or_fall_episodes 2 > 1 (episodes ending early or failing min_all_feet_support, max_touchdown_rate, max_window_displacement_m, max_actuator_saturation_fraction; panel rail)', 'heading -45: hop_or_fall_episodes 2 > 1 (episodes ending early or failing min_all_feet_support, max_touchdown_rate, max_window_displacement_m, max_actuator_saturation_fraction; panel rail)', 'heading +0: hop_or_fall_episodes 2 > 1 (episodes ending early or failing min_all_feet_support, max_touchdown_rate, max_window_displacement_m, max_actuator_saturation_fraction; panel rail)', 'heading +45: hop_or_fall_episodes 2 > 1 (episodes ending early or failing min_all_feet_support, max_touchdown_rate, max_window_displacement_m, max_actuator_saturation_fraction; panel rail)', 'heading +90: hop_or_fall_episodes 2 > 1 (episodes ending early or failing min_all_feet_support, max_touchdown_rate, max_window_displacement_m, max_actuator_saturation_fraction; panel rail)', 'heading +180: hop_or_fall_episodes 2 > 1 (episodes ending early or failing min_all_feet_support, max_touchdown_rate, max_window_displacement_m, max_actuator_saturation_fraction; panel rail)'])"]; ANY ALARM [{'step': 3932160, 'actuators': {'tail_3_pitch_act': 20}, 'tail_scope': 'tail', 'reasons': {'> 0.1': 20}}, {'step': 4063232, 'actuators': {'tail_3_pitch_act': 18}, 'tail_scope': 'tail', 'reasons': {'> 0.1': 18}}, {'step': 4194304, 'actuators': {'tail_3_pitch_act': 17}, 'tail_scope': 'tail', 'reasons': {'> 0.1': 17}}, {'step': 4325376, 'actuators': {'tail_3_pitch_act': 15}, 'tail_scope': 'tail', 'reasons': {'> 0.1': 15}}, {'step': 4456448, 'actuators': {'tail_3_pitch_act': 16}, 'tail_scope': 'tail', 'reasons': {'> 0.1': 16}}, {'step': 4587520, 'actuators': {'tail_3_pitch_act': 20}, 'tail_scope': 'tail', 'reasons': {'> 0.1': 20}}, {'step': 4718592, 'actuators': {'tail_3_pitch_act': 20}, 'tail_scope': 'tail', 'reasons': {'> 0.1': 20}}, {'step': 4849664, 'actuators': {'tail_3_pitch_act': 19}, 'tail_scope': 'tail', 'reasons': {'> 0.1': 19}}, {'step': 4980736, 'actuators': {'tail_3_pitch_act': 19}, 'tail_scope': 'tail', 'reasons': {'> 0.1': 19}}, {'step': 5111808, 'actuators': {'tail_3_pitch_act': 19}, 'tail_scope': 'tail', 'reasons': {'> 0.1': 19}}, {'step': 5505024, 'actuators': {'tail_3_pitch_act': 13}, 'tail_scope': 'tail', 'reasons': {'> 0.1': 13}}, {'step': 8126464, 'actuators': {'tail_3_pitch_act': 12}, 'tail_scope': 'tail', 'reasons': {'> 0.1': 12}}, {'step': 8257536, 'actuators': {'tail_3_pitch_act': 12}, 'tail_scope': 'tail', 'reasons': {'> 0.1': 12}}, {'step': 8388608, 'actuators': {'tail_3_pitch_act': 17}, 'tail_scope': 'tail', 'reasons': {'> 0.1': 17}}, {'step': 9699328, 'actuators': {'tail_3_pitch_act': 20}, 'tail_scope': 'tail', 'reasons': {'> 0.1': 20}}, {'step': 9830400, 'actuators': {'tail_3_pitch_act': 20}, 'tail_scope': 'tail', 'reasons': {'> 0.1': 20}}, {'step': 9961472, 'actuators': {'tail_3_pitch_act': 20}, 'tail_scope': 'tail', 'reasons': {'> 0.1': 20}}, {'step': 10092544, 'actuators': {'tail_3_pitch_act': 20}, 'tail_scope': 'tail', 'reasons': {'> 0.1': 20}}, {'step': 10223616, 'actuators': {'tail_3_pitch_act': 20}, 'tail_scope': 'tail', 'reasons': {'> 0.1': 20}}, {'step': 10354688, 'actuators': {'tail_3_pitch_act': 19}, 'tail_scope': 'tail', 'reasons': {'> 0.1': 19}}, {'step': 10485760, 'actuators': {'tail_3_pitch_act': 19}, 'tail_scope': 'tail', 'reasons': {'> 0.1': 19}}, {'step': 10616832, 'actuators': {'tail_3_pitch_act': 18}, 'tail_scope': 'tail', 'reasons': {'> 0.1': 18}}]
+    tail alarms [{'step': 3932160, 'actuators': {'tail_3_pitch_act+': 20}, 'flagged_evaluations': 26}, {'step': 4063232, 'actuators': {'tail_3_pitch_act+': 18}, 'flagged_evaluations': 26}, {'step': 4194304, 'actuators': {'tail_3_pitch_act+': 17}, 'flagged_evaluations': 26}, {'step': 4325376, 'actuators': {'tail_3_pitch_act+': 15}, 'flagged_evaluations': 26}, {'step': 4456448, 'actuators': {'tail_3_pitch_act+': 16}, 'flagged_evaluations': 26}, {'step': 4587520, 'actuators': {'tail_3_pitch_act+': 20}, 'flagged_evaluations': 26}, {'step': 4718592, 'actuators': {'tail_3_pitch_act+': 20}, 'flagged_evaluations': 26}, {'step': 4849664, 'actuators': {'tail_3_pitch_act+': 19}, 'flagged_evaluations': 26}, {'step': 4980736, 'actuators': {'tail_3_pitch_act+': 19}, 'flagged_evaluations': 26}, {'step': 5111808, 'actuators': {'tail_3_pitch_act+': 19}, 'flagged_evaluations': 26}, {'step': 5505024, 'actuators': {'tail_3_pitch_act+': 13}, 'flagged_evaluations': 26}, {'step': 8126464, 'actuators': {'tail_3_pitch_act+': 12}, 'flagged_evaluations': 26}, {'step': 8257536, 'actuators': {'tail_3_pitch_act+': 12}, 'flagged_evaluations': 26}, {'step': 8388608, 'actuators': {'tail_3_pitch_act+': 17}, 'flagged_evaluations': 26}, {'step': 9699328, 'actuators': {'tail_3_pitch_act+': 20}, 'flagged_evaluations': 26}, {'step': 9830400, 'actuators': {'tail_3_pitch_act+': 20}, 'flagged_evaluations': 26}, {'step': 9961472, 'actuators': {'tail_3_pitch_act+': 20}, 'flagged_evaluations': 26}, {'step': 10092544, 'actuators': {'tail_3_pitch_act+': 20}, 'flagged_evaluations': 26}, {'step': 10223616, 'actuators': {'tail_3_pitch_act+': 20}, 'flagged_evaluations': 26}, {'step': 10354688, 'actuators': {'tail_3_pitch_act+': 19}, 'flagged_evaluations': 26}, {'step': 10485760, 'actuators': {'tail_3_pitch_act+': 19}, 'flagged_evaluations': 26}, {'step': 10616832, 'actuators': {'tail_3_pitch_act+': 18}, 'flagged_evaluations': 26}]; resolved by trace []; trace rail [{'actuator': 'tail_3_pitch_act', 'sign': '+', 'basis': '2+ flags', 'drive_backed': True, 'drive_backed_by_checkpoint': {'10485760': True}}]; single tail flags []; PARKED [{'actuator': 'tail_3_pitch_act', 'windows': [('END', 0.3148), ('J', [('4194304', 0.3894), ('5242880', 0.2842), ('8388608', 0.341), ('10485760', 0.3362), ('final', 0.2934)])]}]; DRIVEN []; MEAN {"tail_1_pitch_act": 0.04151702154093072, "tail_1_yaw_act": 0.011939142438874112, "tail_2_pitch_act": 0.007377712859582971, "tail_3_pitch_act": 0.9148334751408547}
+    CMD_a episodes beyond step 200 {"4194304": {"tail_1_pitch_act": 20, "tail_1_yaw_act": 20, "tail_2_pitch_act": 20, "tail_3_pitch_act": 20}, "5242880": {"tail_1_pitch_act": 20, "tail_1_yaw_act": 20, "tail_2_pitch_act": 20, "tail_3_pitch_act": 20}, "6291456": {"tail_1_pitch_act": 20, "tail_1_yaw_act": 20, "tail_2_pitch_act": 20, "tail_3_pitch_act": 20}, "8388608": {"tail_1_pitch_act": 20, "tail_1_yaw_act": 20, "tail_2_pitch_act": 20, "tail_3_pitch_act": 20}, "10485760": {"tail_1_pitch_act": 20, "tail_1_yaw_act": 20, "tail_2_pitch_act": 20, "tail_3_pitch_act": 20}, "final": {"tail_1_pitch_act": 20, "tail_1_yaw_act": 20, "tail_2_pitch_act": 20, "tail_3_pitch_act": 20}}; episodes ended by step 200 (printed, not averaged) {"4194304": [], "5242880": [], "6291456": [], "8388608": [], "10485760": [], "final": []}; MEAN_a from {"tail_1_pitch_act": "R1 and R2", "tail_1_yaw_act": "R1 and R2", "tail_2_pitch_act": "R1 and R2", "tail_3_pitch_act": "R1 and R2"}
+CLASS s80 stance6_r10LTSB_s80: CLEAR; GATE PASS ; OUTCOME POSITIVE []; ANY ALARM [{'step': 5505024, 'actuators': {'neck_pitch_act': 18}, 'tail_scope': 'non-tail or unnamed', 'reasons': {'> 0.1': 18}}, {'step': 5636096, 'actuators': {'neck_pitch_act': 18}, 'tail_scope': 'non-tail or unnamed', 'reasons': {'> 0.1': 18}}, {'step': 6029312, 'actuators': {'neck_pitch_act': 15}, 'tail_scope': 'non-tail or unnamed', 'reasons': {'> 0.1': 15}}, {'step': 6422528, 'actuators': {'neck_pitch_act': 18}, 'tail_scope': 'non-tail or unnamed', 'reasons': {'> 0.1': 18}}, {'step': 6553600, 'actuators': {'neck_pitch_act': 14}, 'tail_scope': 'non-tail or unnamed', 'reasons': {'> 0.1': 14}}, {'step': 7077888, 'actuators': {'neck_pitch_act': 14}, 'tail_scope': 'non-tail or unnamed', 'reasons': {'> 0.1': 14}}]
+    tail alarms []; resolved by trace []; trace rail []; single tail flags []; PARKED []; DRIVEN []; MEAN {"tail_1_pitch_act": 0.18586039801687004, "tail_1_yaw_act": 0.0032081565015851083, "tail_2_pitch_act": -0.12253221151127945, "tail_3_pitch_act": 0.5052089547991054}
+    CMD_a episodes beyond step 200 {"4194304": {"tail_1_pitch_act": 20, "tail_1_yaw_act": 20, "tail_2_pitch_act": 20, "tail_3_pitch_act": 20}, "5242880": {"tail_1_pitch_act": 20, "tail_1_yaw_act": 20, "tail_2_pitch_act": 20, "tail_3_pitch_act": 20}, "6291456": {"tail_1_pitch_act": 20, "tail_1_yaw_act": 20, "tail_2_pitch_act": 20, "tail_3_pitch_act": 20}, "8388608": {"tail_1_pitch_act": 20, "tail_1_yaw_act": 20, "tail_2_pitch_act": 20, "tail_3_pitch_act": 20}, "10485760": {"tail_1_pitch_act": 20, "tail_1_yaw_act": 20, "tail_2_pitch_act": 20, "tail_3_pitch_act": 20}, "final": {"tail_1_pitch_act": 20, "tail_1_yaw_act": 20, "tail_2_pitch_act": 20, "tail_3_pitch_act": 20}}; episodes ended by step 200 (printed, not averaged) {"4194304": [], "5242880": [], "6291456": [], "8388608": [], "10485760": [], "final": []}; MEAN_a from {"tail_1_pitch_act": "R1 and R2", "tail_1_yaw_act": "R1 and R2", "tail_2_pitch_act": "R1 and R2", "tail_3_pitch_act": "R1 and R2"}
+READING: line 1: TAIL RAIL FORMED ON r10 IN TRAINING (ledger). An existence result for r10 as shipped (weak for the last); not a rate. To the maintainer with the DIAGNOSTIC READOUTS; nothing is proposed by this text.
+    R 1 (COMPLETE 1, PRESENCE 0), U 0, P 1, G+ 1
+    Statistic A: 2 of 3 against LTSB r9's 2 of 5; one-sided Fisher p 0.9286 (TABLE E 0.93); TABLE E {'p_r10_below_r9': 0.26, 'p_r10_below_half': 0.05, 'upper_95': 0.98}; nothing is significant
+    beside A: family 4 of 10; same-seed LTSB 2 of 3; A WITH LOST RUNS 2 of 3 (report only) []
+STATUS: FINAL
