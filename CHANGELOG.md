@@ -8,6 +8,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **The first T. rex stance round on physics r10 recorded as judged, final:
+  line 1, a tail rail formed on r10 in training** (decision D-D51's
+  amendment and D-D52; the appended §27 of
+  `docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md`, with a
+  dated status note at its top; `docs/NEXT_STEPS.md` §3,
+  `docs/KNOWN_ISSUES.md` (Update 22 of the T-Rex stance entry and two dated
+  updates), `docs/README.md`; evidence in `stance6_results/` of
+  `docs/investigations/stance_2026_10/`: the run log's lines 681 to 720, the
+  scorer's output, the completeness check per run, the independent check of
+  the reading, the report-only readouts, the review, the next-step proposals
+  and the fixer's record, K1–K4 per run, the D-9 and D-10 summaries and the
+  fetch record). Records only. §27 records the runs' ends, noted from Drive;
+  the final fetch, its inline transfers made by an exact-copy script at the
+  maintainer's decision; the reading, final, with all three runs complete:
+  seed 42 pinned `tail_3_pitch_act` at +1 in training (22 ledger alarms from
+  3,932,160 steps) and failed its gate, seed 60 parked it (MEAN_a +0.642
+  against the 0.60 line), and seed 80 passed its gate as the round's one
+  positive run with 6 alarms on `neck_pitch_act`; line 1 an existence result,
+  not a rate; statistic A 2 of 3 against LTSB's r9 2 of 5 (one-sided Fisher p
+  0.93, nothing significant); the reading agreed by an independent check; the
+  report-only readouts D-1 to D-16 (no head-low reading, no fall in the
+  deterministic panels, the in-run K3 panel equal to the judge's K3), the
+  entropy analysis the maintainer asked for (its inferred answer: the entropy
+  bonus no direct driver, its role in when an onset happens untested) and the
+  comparison with r9 and the two looks at the running files; the process
+  departures; and the review, the next-step proposals and the maintainer's
+  decision D-D52. No T. rex stance is certified, and nothing trains on `main`.
 - **Decision D-D51's outcome and decision D-D52 recorded: the first T. rex
   stance round on physics r10 read its line 1, a tail rail formed on r10 in
   training; next, a CPU continuation screen of the entropy coefficient, its

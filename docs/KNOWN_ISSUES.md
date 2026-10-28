@@ -349,6 +349,26 @@ robustness, **LOW** = cosmetic / QoL.
   tail-tip actuator again is still open. The two-seed ask stands. Record:
   §26 of
   [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).
+  **Update 22 (2026-10-28):** the first r10 round was judged by its approved
+  criteria, final: line 1, a tail rail formed on r10 in training (decision
+  D-D51's amendment, [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md)
+  §6.2). Of its three runs, all complete, seed 42 pinned the tail-tip
+  actuator at +1 (22 training-ledger alarms from 3.9M steps; its final failed
+  the gate), seed 60 parked it (a mean command of +0.64 against the 0.60
+  line; gate passed) and seed 80 formed a non-tail habit instead,
+  `neck_pitch_act` saturated at its negative end with the head raised (gate
+  passed: the round's one positive run). So a policy trained on r10 does pin
+  the tail-tip actuator again: existence only, 1 of 3, not a rate. The runs
+  with an alarm, 2 of 3 against LTSB's r9 2 of 5 (one-sided Fisher p 0.93),
+  do not show a lower alarm rate (three runs measure no rate), and on r10
+  the habit is not only a tail habit (inferred, from one run). Report only,
+  the review's inferred answer to the entropy question: the entropy bonus is
+  no direct driver of the rail, its role in when an onset happens untested.
+  Next (D-D52): a CPU continuation screen of the entropy coefficient from
+  the round's own checkpoints, its criteria to be approved before any
+  training. As a screen the round certifies nothing. The two-seed ask
+  stands. Record: §27 of
+  [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).
 - **LOW** — **stage 1a (stance) contains no in-episode disturbance, so a
   stance-gate PASS certifies stance quality, not active balance control.** The
   only perturbation is joint-angle noise at reset (`reset_noise_scale 0.05`).
@@ -1249,7 +1269,15 @@ robustness, **LOW** = cosmetic / QoL.
   head-tip height and neck and head pitch, the training-history report draws
   them, and the first r10 round's criteria read them as a report-only
   diagnostic readout, never in a class or its reading; no gate reads them, so
-  check a stance's head before using it still.
+  check a stance's head before using it still. *Update (2026-10-28):* in the
+  first r10 round no stance dropped its head (no window-mean head tip below
+  0.75 m at any judged checkpoint or in any evaluation; one evaluation episode
+  of seed 60 that fell, at 11,534,336 steps, read 0.749 m), but seed 80 raised
+  it during its neck saturation habit (its head tip averaging 1.31 m from 4.2M
+  to 8.4M steps against the statue's 0.96 m) and later held its head-pitch
+  actuator parked negative, and seed 60's final stands with its head tip at
+  1.12 m; no gate reads head posture, so check a stance's head by hand before
+  using it still (§27 of the stance record).
 
 - **MEDIUM** — **`stance_quality/v2` on the anatomical compsognathus certifies
   a soft two-foot bounce, a one-foot flutter and a fast weight shuttle
@@ -1977,6 +2005,16 @@ Still open:
   at useful power (the CPU checks' skeptic: 0 falls in 40 episodes is compatible
   with a 2% rate). *Update (2026-10-27):* the first r10 stances, the round of
   D-D49 to D-D51, are training; results pending (§26 of the stance record).
+  *Update (2026-10-28):* in that round's deterministic panels (40 episodes at
+  each judged checkpoint) no episode fell, and the finals of seeds 60 and 80
+  passed the six-heading certificate, its 2.0° sole-tilt bar included (a
+  measurement of the gate's criteria on a screen task, not certification);
+  seed 80's joint-space noise falls (5 of 20 at 6,291,456 steps, 2 at the
+  final) are inferred backward from the centre of mass. The 280-seed panel,
+  the out-of-sample certificate and a check of the head tip by hand were not
+  run on the finals; they are among the proposals' report-only checks. The
+  ±0.03 ankle probe of the r10 statue is still not re-run, and no proposal
+  includes it (§27 of the stance record).
 - **LOW** — the raptor's toe-clipping margin now sits at the toes: at
   sprint-like excitation (3–4 Hz, full amplitude) the 0.8×kp toe caps clip
   10–16 % and the 1.5×kp hip pitch ~11–16 % (its physical envelope); the
