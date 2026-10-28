@@ -757,3 +757,13 @@ physics_revision = 1
 policy_interface_revision = 3
 visual_revision = 1
 observation_schema = "bipedal-target/v1"
+
+# 21. Mini T. rex M1 skeleton / hw_r01: promote torso A and forward-folding
+# ten-servo legs to an SB3 plant. 754.1 g includes 115 g fixed future payload
+# allowances. The initial hardware, physics, policy and visual revisions are
+# independent of later M2/M3 milestones. No physical calibration is claimed.
+[plants.tyrannosaurus_rex.robot]
+physics_revision = 1
+policy_interface_revision = 1
+visual_revision = 1
+observation_schema = "bipedal-target-heading-free/v1"

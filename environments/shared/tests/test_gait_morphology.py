@@ -40,6 +40,7 @@ COMPSOGNATHUS_LONGIPES_ROBOT = ModelId("compsognathus_longipes", "robot")
 DIBOTHROSUCHUS_ELAPHROS = ModelId("dibothrosuchus_elaphros", "anatomical")
 BRACHIOSAURUS_ALTITHORAX = ModelId("brachiosaurus_altithorax", "anatomical")
 MODEL_IDS = (
+    ModelId("tyrannosaurus_rex", "robot"),
     TYRANNOSAURUS_REX,
     VELOCIRAPTOR_MONGOLIENSIS,
     COMPSOGNATHUS_LONGIPES,
@@ -48,6 +49,7 @@ MODEL_IDS = (
     BRACHIOSAURUS_ALTITHORAX,
 )
 BODY_WEIGHT_N = {
+    ModelId("tyrannosaurus_rex", "robot"): 7.397721,
     TYRANNOSAURUS_REX: 840.91,
     VELOCIRAPTOR_MONGOLIENSIS: 132.44,
     COMPSOGNATHUS_LONGIPES: 9.81,
@@ -56,6 +58,7 @@ BODY_WEIGHT_N = {
     BRACHIOSAURUS_ALTITHORAX: 1719.69,
 }
 FEET = {
+    ModelId("tyrannosaurus_rex", "robot"): ("r", "l"),
     TYRANNOSAURUS_REX: ("r", "l"),
     VELOCIRAPTOR_MONGOLIENSIS: ("r", "l"),
     COMPSOGNATHUS_LONGIPES: ("r", "l"),
@@ -64,6 +67,7 @@ FEET = {
     BRACHIOSAURUS_ALTITHORAX: ("fr", "fl", "rr", "rl"),
 }
 ROOT = {
+    ModelId("tyrannosaurus_rex", "robot"): "pelvis",
     TYRANNOSAURUS_REX: "pelvis",
     VELOCIRAPTOR_MONGOLIENSIS: "pelvis",
     COMPSOGNATHUS_LONGIPES: "pelvis",
@@ -74,6 +78,7 @@ ROOT = {
 
 #: Per foot, the support geoms the generic rule takes and the registry drops ...
 GENERIC_ONLY = {
+    ModelId("tyrannosaurus_rex", "robot"): ("{side}_pedestal_collision",),
     TYRANNOSAURUS_REX: ("{s}_metatarsus_geom",),  # the capsule above the plantar box: 0 statue load
     # Digit II's sickle claw hangs off the metatarsus, a touch-site body since physics r3 (D-D25): it
     # is held clear of the floor and bears no statue load.
@@ -85,6 +90,7 @@ GENERIC_ONLY = {
 }
 #: ... and the ones the registry adds that the generic rule misses.
 REGISTRY_ONLY = {
+    ModelId("tyrannosaurus_rex", "robot"): (),
     TYRANNOSAURUS_REX: (),
     # Before physics r3 the toe_d3 site was the foot's only touch site, so the generic rule missed digit IV
     # and the metatarsus (0.18 and 0.26 of the r2 statue's foot load); the r3 sensors made it see both.
@@ -95,6 +101,7 @@ REGISTRY_ONLY = {
     BRACHIOSAURUS_ALTITHORAX: (),
 }
 SOLE = {
+    ModelId("tyrannosaurus_rex", "robot"): "{side}_flat_pad_collision",
     TYRANNOSAURUS_REX: "{s}_plantar_geom",
     VELOCIRAPTOR_MONGOLIENSIS: None,
     COMPSOGNATHUS_LONGIPES: "{s}_plantar_pad",
@@ -108,6 +115,7 @@ SOLE = {
 #: sole's forward axis): only the T. rex declares them, its pad's own edges (pad centre 0.14 m ahead of the
 #: ankle, half-length 0.07), so its whole-foot centre of pressure reads in pad half-lengths.
 SUPPORT_SPAN = {
+    ModelId("tyrannosaurus_rex", "robot"): ("{side}_ankle", -0.028, 0.042),
     TYRANNOSAURUS_REX: ("{s}_ankle", 0.070, 0.210),
     VELOCIRAPTOR_MONGOLIENSIS: None,
     COMPSOGNATHUS_LONGIPES: None,
@@ -119,6 +127,7 @@ SUPPORT_SPAN = {
 #: joint), by support geom template -> joint template.  The anatomical compsognathus's digits share the pad's
 #: body, and the velociraptor has no sole, so only the T. rex has any.
 DIGIT_MTP = {
+    ModelId("tyrannosaurus_rex", "robot"): {},
     TYRANNOSAURUS_REX: {f"{{s}}_toe_{d}_geom": f"{{s}}_toe_{d}_joint" for d in ("d2", "d3", "d4")},
     VELOCIRAPTOR_MONGOLIENSIS: {},
     COMPSOGNATHUS_LONGIPES: {},
@@ -200,8 +209,13 @@ def test_the_registry_departs_from_the_generic_rule_exactly_where_documented(sta
         # Every registered geom is a colliding geom of that foot's leg, and the sole one of them.
         assert support <= set(foot["leg_geoms"])
         assert foot["sole_geom"] == (None if SOLE[model_id] is None else _names([SOLE[model_id]], label).pop())
-        # The registry pins the reference site and the sole the generic rule would choose anyway.
-        assert foot["reference_site"] == generic_foot["reference_site"]
+        # M1 names its reference after the joint prefix for leg telemetry;
+        # its generic reference is the touch volume, 0.75 mm below the sole center.
+        if model_id == ModelId("tyrannosaurus_rex", "robot"):
+            assert foot["reference_site"] == _names(["{side}_sole_center"], label).pop()
+            assert generic_foot["reference_site"] == f"{label}_foot"
+        else:
+            assert foot["reference_site"] == generic_foot["reference_site"]
         assert foot["sole_geom"] == generic_foot["sole_geom"]
 
 
@@ -218,6 +232,8 @@ def test_legs_are_whole_limbs_rooted_below_the_animal_root(stance_env, model_id)
         tops.append(model.body(top).name)
     if model_id == COMPSOGNATHUS_LONGIPES_ROBOT:
         assert tops == ["hip_roll_assembly_2", "hip_roll_assembly"]
+    elif model_id == ModelId("tyrannosaurus_rex", "robot"):
+        assert tops == ["right_hip_yaw_body", "left_hip_yaw_body"]
     else:
         assert tops == [f"{label}_thigh" for label in FEET[model_id]]
     legs = [set(foot.leg_geoms) for foot in morphology.feet]
@@ -272,7 +288,8 @@ def test_the_declared_support_span_and_the_hinged_digits(stance_env, model_id):
             # without the registry fails here).
             half = float(model.geom_size[foot.sole_geom][foot.sole_forward_axis])
             centre_ahead = -foot.ankle_forward_m
-            assert centre_ahead == pytest.approx(0.14, abs=1e-12)
+            expected_centre = 0.007 if model_id == ModelId("tyrannosaurus_rex", "robot") else 0.14
+            assert centre_ahead == pytest.approx(expected_centre, abs=1e-12)
             assert (centre_ahead - half, centre_ahead + half) == pytest.approx(declared[1:], abs=1e-12)
     expected = {
         _names([geom], foot.label).pop(): _names([joint], foot.label).pop()

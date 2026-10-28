@@ -414,3 +414,48 @@ backends = ["stable-baselines3"]
 key = "target_success"
 label = "Pelvis target-reaching success"
 definition = "While the target task is enabled, the upright pelvis enters the configured horizontal target radius at or below the configured speed; non-foot floor contact is forbidden."
+
+# M1 skeleton / hw_r01; all behavior targets remain experimental.
+[species.tyrannosaurus_rex.embodiments.robot]
+tagline = "Mini T-Rex M1 Skeleton"
+gait = "Bipedal"
+specialty = "Non-contact target reaching with fixed future payload allowances"
+env_entrypoint = "environments.tyrannosaurus_rex.robot.env:TyrannosaurusRexRobotEnv"
+model_path = "environments/tyrannosaurus_rex/robot/assets/tyrannosaurus_rex_robot.xml"
+training_backends = ["stable-baselines3"]
+training_notebooks = ["sb3_training"]
+result_summary_paths = []
+
+[[species.tyrannosaurus_rex.embodiments.robot.success_metrics]]
+backends = ["stable-baselines3"]
+key = "target_reach"
+label = "Pelvis target-reaching success"
+definition = "While the target task is enabled, the upright pelvis enters the configured horizontal target radius at or below the configured speed; non-foot floor contact is forbidden."
+
+[[species.tyrannosaurus_rex.embodiments.robot.deliverable_metrics]]
+deliverable = "stance"
+backends = ["stable-baselines3"]
+key = "stance_quality"
+label = "Stance quality (stance_quality/v1)"
+definition = "The stance checkpoint clears the stance_quality/v1 gate: the unsupported-duty 95% upper bound and the full-horizon episode fraction meet the configured bounds over 40-episode evaluations, with the reward rail as a collapse floor only. The duty and full-horizon statistics are not exported to summary.json until a later phase (decision D-A9, deferred by D-B15), so the catalog names them with no value."
+
+[[species.tyrannosaurus_rex.embodiments.robot.deliverable_metrics]]
+deliverable = "recover"
+backends = ["stable-baselines3"]
+key = "recovery_quality"
+label = "Recovery under pushes (recovery_quality/v1)"
+definition = "The recovery checkpoint clears the recovery_quality/v1 gate, judged post-stage against the run's frozen gate_resolution.json: recovery-success LCB95 and the paired delta against each required frozen null meet the frozen thresholds, with re-entry inside the configured step budget and dwell. The statistics are not exported to summary.json until a later phase (decision D-A9, deferred by D-B15)."
+
+[[species.tyrannosaurus_rex.embodiments.robot.deliverable_metrics]]
+deliverable = "walk"
+backends = ["stable-baselines3"]
+key = "forward_velocity_gate"
+label = "Gated forward velocity (reward_and_length/v1)"
+definition = "The locomotion checkpoint clears the reward_and_length/v1 gate: mean forward velocity at or above the stage's configured minimum, with its reward and episode-length floors, over the required consecutive evaluations."
+
+[[species.tyrannosaurus_rex.embodiments.robot.deliverable_metrics]]
+deliverable = "hunt"
+backends = ["stable-baselines3"]
+key = "target_reach"
+label = "Pelvis target-reaching success"
+definition = "While the target task is enabled, the upright pelvis enters the configured horizontal target radius at or below the configured speed; non-foot floor contact is forbidden."

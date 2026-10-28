@@ -41,6 +41,7 @@ DUAL_BACKEND = frozenset(model_ids(backend="jax-mjx"))
 # replaces the 4-wide quaternion).
 #: Each SB3-only model's observation width.  Exempt: DUAL_BACKEND, which does claim MJX parity.
 SB3_ONLY_OBSERVATION_WIDTH = {
+    ModelId("tyrannosaurus_rex", "robot"): 41,
     COMPSOGNATHUS_LONGIPES: 55,
     COMPSOGNATHUS_LONGIPES_ROBOT: 46,
     VELOCIRAPTOR_MONGOLIENSIS: 70,
@@ -49,6 +50,7 @@ SB3_ONLY_OBSERVATION_WIDTH = {
 #: Each SB3-only model's action width, resolved from the bundled manifest alone.  Exempt: DUAL_BACKEND: the
 #: bundled manifest records no training backends, and the default the fallback assumes is theirs.
 BUNDLED_ACTION_DIM = {
+    ModelId("tyrannosaurus_rex", "robot"): 10,
     VELOCIRAPTOR_MONGOLIENSIS: 22,
     TYRANNOSAURUS_REX: 15,
     COMPSOGNATHUS_LONGIPES: 14,
@@ -57,6 +59,7 @@ BUNDLED_ACTION_DIM = {
 #: (observation_dim, action_dim) of the identity generated from each executable environment.  Exempt: both
 #: Compsognathus models, whose widths SB3_ONLY_OBSERVATION_WIDTH and BUNDLED_ACTION_DIM pin.
 IDENTITY_DIMS = {
+    ModelId("tyrannosaurus_rex", "robot"): (41, 10),
     VELOCIRAPTOR_MONGOLIENSIS: (70, 22),
     TYRANNOSAURUS_REX: (63, 15),
     BRACHIOSAURUS_ALTITHORAX: (86, 30),

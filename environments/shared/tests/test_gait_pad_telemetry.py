@@ -434,6 +434,7 @@ def test_the_step_columns_reproduce_the_episode_values():
 #: Per model: whether its pad feet declare a support span (the whole-foot fields), and how many of each foot's
 #: digits are hinged (the load position).  Only the T. rex has either.
 WHOLE_FOOT = {
+    ModelId("tyrannosaurus_rex", "robot"): (True, 0),
     ModelId("tyrannosaurus_rex", "anatomical"): (True, 3),
     ModelId("compsognathus_longipes", "anatomical"): (False, 0),
     ModelId("compsognathus_longipes", "robot"): (False, 0),
@@ -443,6 +444,7 @@ WHOLE_FOOT = {
 }
 #: Each model's pad feet and digit count per foot (the box soles of FOOT_SUPPORT; digits = its support less its sole).
 PAD_FEET = {
+    ModelId("tyrannosaurus_rex", "robot"): {"r": 0, "l": 0},
     ModelId("tyrannosaurus_rex", "anatomical"): {"r": 3, "l": 3},
     ModelId("compsognathus_longipes", "anatomical"): {"r": 3, "l": 3},
     ModelId("compsognathus_longipes", "robot"): {"r": 0, "l": 0},
@@ -607,6 +609,7 @@ def test_the_rail_feet_are_the_pad_feet():
 
 #: Each model's box-soled feet, the roll rails' feet (``FOOT_SUPPORT``).
 RAIL_FEET = {
+    ModelId("tyrannosaurus_rex", "robot"): ("r", "l"),
     ModelId("tyrannosaurus_rex", "anatomical"): ("r", "l"),
     ModelId("compsognathus_longipes", "anatomical"): ("r", "l"),
     ModelId("compsognathus_longipes", "robot"): ("r", "l"),

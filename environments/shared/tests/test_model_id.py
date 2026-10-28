@@ -22,6 +22,13 @@ SIX_MODELS = [
     ),
     (
         "tyrannosaurus_rex",
+        "robot",
+        "TyrannosaurusRexEnv",
+        "TyrannosaurusRexRobotEnv",
+        "MesozoicLabs/TyrannosaurusRex-Robot-v0",
+    ),
+    (
+        "tyrannosaurus_rex",
         "anatomical",
         "TyrannosaurusRexEnv",
         "TyrannosaurusRexAnatomicalEnv",

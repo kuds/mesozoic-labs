@@ -45,6 +45,7 @@ from environments.shared.stage_manifest import (
 from .notebook_cells import REPO_ROOT, code_cells, strip_magics
 
 TYRANNOSAURUS_REX = ModelId("tyrannosaurus_rex", "anatomical")
+TYRANNOSAURUS_REX_ROBOT = ModelId("tyrannosaurus_rex", "robot")
 VELOCIRAPTOR_MONGOLIENSIS = ModelId("velociraptor_mongoliensis", "anatomical")
 COMPSOGNATHUS_LONGIPES = ModelId("compsognathus_longipes", "anatomical")
 COMPSOGNATHUS_LONGIPES_ROBOT = ModelId("compsognathus_longipes", "robot")
@@ -56,7 +57,7 @@ INTEGER_MODELS = [
     ModelId("dibothrosuchus_elaphros", "anatomical"),
 ]
 #: The models whose manifest declares a recovery node, labelled "recover" (decision D-D35).
-RECOVERY_MODELS = [TYRANNOSAURUS_REX, COMPSOGNATHUS_LONGIPES, COMPSOGNATHUS_LONGIPES_ROBOT]
+RECOVERY_MODELS = [TYRANNOSAURUS_REX, TYRANNOSAURUS_REX_ROBOT, COMPSOGNATHUS_LONGIPES, COMPSOGNATHUS_LONGIPES_ROBOT]
 #: The pointer a retired "stand" is refused with (decision D-D38).
 STAND_POINTER = "'stand' was renamed to 'stance' (decision D-D38); use 'stance'"
 #: A made-up model for the synthetic manifests below (the reader needs no manifest entry, only its directory).
@@ -793,6 +794,8 @@ class TestCommittedManifestsAreV2:
         from environments.shared.stage_manifest import stage_dirname
 
         pre_phase_a = {
+            # M1 joins the same directory convention from its initial registration.
+            TYRANNOSAURUS_REX_ROBOT: ["01_stance", "02_recovery", "03_locomotion", "04_behavior"],
             TYRANNOSAURUS_REX: ["01_stance", "02_recovery", "03_locomotion", "04_behavior"],
             VELOCIRAPTOR_MONGOLIENSIS: ["01_stance", "02_locomotion", "03_behavior"],
             ModelId("brachiosaurus_altithorax", "anatomical"): ["01_stance", "02_locomotion", "03_behavior"],
@@ -814,6 +817,7 @@ class TestCommittedManifestsAreV2:
 #: T-Rex, whose recovery stage is PPO-only (giving it stance's never-run
 #: ``[sac]`` would move two golden digest lines).
 RECOVERY_EXTENDS = {
+    TYRANNOSAURUS_REX_ROBOT: ["stage", "env", "ppo", "sac"],
     TYRANNOSAURUS_REX: ["stage", "env", "ppo"],
     COMPSOGNATHUS_LONGIPES: ["stage", "env", "ppo", "sac"],
     COMPSOGNATHUS_LONGIPES_ROBOT: ["stage", "env", "ppo", "sac"],
@@ -926,7 +930,9 @@ class TestRecoveryStageConfig:
         # the 20260821_142144 pilot trained its whole budget at ent_coef >=
         # 0.0014 when the mirrored 7M horizon never completed (2026-08
         # review §3.4).  policy_kwargs, nested, comes over whole.
-        assert stance["ppo_kwargs"]["ent_coef_decay_timesteps"] == 7_000_000
+        # M1 starts with a 3M experimental stance budget, matching recovery.
+        stance_horizon = 2_000_000 if model_id == TYRANNOSAURUS_REX_ROBOT else 7_000_000
+        assert stance["ppo_kwargs"]["ent_coef_decay_timesteps"] == stance_horizon
         expected_ppo = {**stance["ppo_kwargs"], "ent_coef_decay_timesteps": 2_000_000}
         assert _ordered(recovery["ppo_kwargs"]) == _ordered(expected_ppo)
         assert "policy_kwargs" in recovery["ppo_kwargs"]

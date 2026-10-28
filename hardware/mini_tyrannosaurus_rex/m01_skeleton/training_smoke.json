@@ -1,0 +1,108 @@
+{
+  "schema": "mesozoic.mini-training-smoke/v1",
+  "status": "pipeline integration only; no behavior qualification",
+  "species": "tyrannosaurus_rex",
+  "embodiment": "robot",
+  "stage": "stance",
+  "algorithm": "ppo",
+  "timesteps": 2048,
+  "seed": 42,
+  "post_evaluation": false,
+  "plant_identity": {
+    "schema": "mesozoic.plant-identity/v2",
+    "species": "tyrannosaurus_rex",
+    "embodiment": "robot",
+    "model_path": "environments/tyrannosaurus_rex/robot/assets/tyrannosaurus_rex_robot.xml",
+    "physics_revision": 1,
+    "policy_interface_revision": 1,
+    "visual_revision": 1,
+    "source_closure_sha256": "sha256:76348d5af8f43f42e72cfb5dcedaef302264dfcd622ca1ebcc835f514fc4a90d",
+    "policy_interface_sha256": "sha256:b02203187a603566a7ada1747aa3c8d218755eec3860beb9766441def5ff444c",
+    "physics_sha256": "sha256:54735a33426f05433485c1ff90595b0891cc02423ad492ec8da15d80496aca3f",
+    "visual_sha256": "sha256:69c51eecd6d60a70b4285f2f905df9f7c27a93378cbca744eaf1b36000198175",
+    "nq": 17,
+    "nv": 16,
+    "nu": 10,
+    "observation_dim": 41,
+    "action_dim": 10
+  },
+  "task_fingerprint": {
+    "backend": "stable-baselines3",
+    "embodiment": "robot",
+    "env": {
+      "alive_bonus": 1.0,
+      "drift_penalty_weight": 0.5,
+      "energy_penalty_weight": 0.02,
+      "fall_penalty": -25.0,
+      "forward_vel_max": 0.1,
+      "forward_vel_weight": 0.0,
+      "frame_skip": 10,
+      "gait_symmetry_weight": 0.0,
+      "heading_weight": 0.0,
+      "healthy_z_range": [
+        0.065,
+        0.16
+      ],
+      "height_weight": 1.0,
+      "home_pose_weight": 0.15,
+      "lateral_penalty_weight": 0.1,
+      "max_episode_steps": 1000,
+      "max_tilt_angle": 0.7,
+      "perturbation_capture_velocity_multiple": 0.0,
+      "perturbation_direction": "uniform_horizontal",
+      "perturbation_duration": 0.2,
+      "perturbation_interval": 2.0,
+      "perturbation_jitter": 0.25,
+      "posture_weight": 1.0,
+      "prey_distance_range": [
+        0.5,
+        0.8
+      ],
+      "prey_lateral_range": [
+        0.0,
+        0.0
+      ],
+      "reset_height_noise_scale": 0.0,
+      "reset_noise_scale": 0.005,
+      "smoothness_weight": 0.02,
+      "spin_penalty_weight": 0.02,
+      "target_approach_weight": 0.0,
+      "target_max_speed": 0.05,
+      "target_radius": 0.04,
+      "target_reach_bonus": 0.0
+    },
+    "perturbation": null,
+    "plant": {
+      "physics_sha256": "sha256:54735a33426f05433485c1ff90595b0891cc02423ad492ec8da15d80496aca3f",
+      "policy_interface_sha256": "sha256:b02203187a603566a7ada1747aa3c8d218755eec3860beb9766441def5ff444c"
+    },
+    "schema": "mesozoic.task-fingerprint/v3",
+    "species": "tyrannosaurus_rex",
+    "stage": 1,
+    "task_sha256": "sha256:5d3e3a3589e2188e80f1d1a744bc852e0c0d9451d7eb785cb93b5aa54120ccdc"
+  },
+  "command": "python -m environments.shared.train --species tyrannosaurus_rex --embodiment robot train --stage stance --timesteps 2048 --n-envs 1 --seed 42 --eval-freq 100000 --save-freq 100000 --post-eval-episodes 0 --verbose 0 --output-dir /tmp/mini-m1-smoke --label m1-integration-smoke --override ppo.n_steps=256 ppo.batch_size=64",
+  "runtime": {
+    "python": "3.12.14",
+    "mujoco": "3.10.0",
+    "numpy": "2.3.5",
+    "stable_baselines3": "2.9.0",
+    "torch": "2.13.0+cpu"
+  },
+  "artifact_sha256": {
+    "stage1_final.zip": "16e1787b3302f34b9bbc12ca3892026e5c41e6752eed32b3a8a74c80106ba832",
+    "stage1_final_vecnorm.pkl": "c4cc61d01dfd7df781cff172c6a23e02aabef8d207650851a0baf6c3f9d6c150"
+  },
+  "reload": {
+    "plant_compatibility": "passed for policy and normalization pair",
+    "frozen_normalizer": true,
+    "steps": 100,
+    "seed": 43,
+    "finite_observations_actions_rewards": true,
+    "episode_ends": 0
+  },
+  "limitations": [
+    "Checkpoints are local smoke artifacts, not published or accepted policies",
+    "No stance gate, locomotion evaluation or hardware test was performed"
+  ]
+}

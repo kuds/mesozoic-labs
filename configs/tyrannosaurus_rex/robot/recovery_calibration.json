@@ -1,0 +1,127 @@
+{
+  "schema": "mesozoic.recovery-calibration/v2",
+  "species": "tyrannosaurus_rex",
+  "embodiment": "robot",
+  "calibration_id": "tyrannosaurus_rex-robot-m1-hw-r01-recovery-v1",
+  "status": "Simulation PD-null task calibration; learned-policy and hardware qualification outstanding",
+  "control_dt_s": 0.02,
+  "height_reference_m": 0.11256676843005967,
+  "safe_set": {
+    "height_error_max_m": 0.005,
+    "tilt_max_rad": 0.08,
+    "planar_speed_max_mps": 0.08,
+    "min_foot_force_n": 0.0
+  },
+  "recovery_env_kwargs": {
+    "frame_skip": 10,
+    "max_episode_steps": 1000,
+    "reset_noise_scale": 0.005,
+    "reset_height_noise_scale": 0.0,
+    "forward_vel_max": 0.1,
+    "fall_penalty": -25.0,
+    "energy_penalty_weight": 0.02,
+    "smoothness_weight": 0.02,
+    "spin_penalty_weight": 0.02,
+    "lateral_penalty_weight": 0.1,
+    "max_tilt_angle": 0.7,
+    "healthy_z_range": [
+      0.065,
+      0.16
+    ],
+    "gait_symmetry_weight": 0.0,
+    "forward_vel_weight": 0.0,
+    "alive_bonus": 1.0,
+    "posture_weight": 1.0,
+    "height_weight": 1.0,
+    "home_pose_weight": 0.15,
+    "drift_penalty_weight": 0.5,
+    "heading_weight": 0.0,
+    "target_approach_weight": 0.0,
+    "target_reach_bonus": 0.0,
+    "prey_distance_range": [
+      0.5,
+      0.8
+    ],
+    "prey_lateral_range": [
+      0.0,
+      0.0
+    ],
+    "perturbation_capture_velocity_multiple": 1.2,
+    "perturbation_interval": 2.0,
+    "perturbation_jitter": 0.25,
+    "perturbation_duration": 0.2,
+    "perturbation_direction": "uniform_horizontal"
+  },
+  "capability_spec": {
+    "gate_kind": "recovery_quality/v1",
+    "min_eval_episodes": 40,
+    "min_paired_success_delta_lcb": 0.1,
+    "min_recovery_success_lcb": 0.5,
+    "recovery_dwell_steps": 20,
+    "recovery_t_recover_steps": 40
+  },
+  "required_paired_nulls": [
+    "zero_action",
+    "brace"
+  ],
+  "plant_identity": {
+    "schema": "mesozoic.plant-identity/v2",
+    "species": "tyrannosaurus_rex",
+    "embodiment": "robot",
+    "model_path": "environments/tyrannosaurus_rex/robot/assets/tyrannosaurus_rex_robot.xml",
+    "physics_revision": 1,
+    "policy_interface_revision": 1,
+    "visual_revision": 1,
+    "source_closure_sha256": "sha256:76348d5af8f43f42e72cfb5dcedaef302264dfcd622ca1ebcc835f514fc4a90d",
+    "policy_interface_sha256": "sha256:b02203187a603566a7ada1747aa3c8d218755eec3860beb9766441def5ff444c",
+    "physics_sha256": "sha256:54735a33426f05433485c1ff90595b0891cc02423ad492ec8da15d80496aca3f",
+    "visual_sha256": "sha256:69c51eecd6d60a70b4285f2f905df9f7c27a93378cbca744eaf1b36000198175",
+    "nq": 17,
+    "nv": 16,
+    "nu": 10,
+    "observation_dim": 41,
+    "action_dim": 10
+  },
+  "task_sha256": "sha256:e8e6d48c9f8d1810dad9f78fb5dab51c89a4b2bd2d0f4d606b06b8dfe08c11cc",
+  "derived_push_manifest": {
+    "root_body_id": 1.0,
+    "subtree_mass_kg": 0.7541,
+    "com_height_m": 0.13784877204795157,
+    "support_radius_m": 0.03410781063528368,
+    "capture_velocity_mps": 0.28773115956831885,
+    "capture_velocity_multiple": 1.2,
+    "delta_v_mps": 0.3452773914819826,
+    "impulse_ns": 0.2603736809165631,
+    "force_n": 1.3018684045828155,
+    "duration_s": 0.2,
+    "interval_s": 2.0,
+    "jitter_s": 0.25,
+    "direction": "uniform_horizontal"
+  },
+  "provenance": {
+    "measurement_artifact": "hardware/mini_tyrannosaurus_rex/m01_skeleton/recovery_measurement.json",
+    "measurement_sha256": "da24c08a3cac9234b6bad537a1f04de99c811477ff15c73cb94487f09a496350",
+    "quiet_seed_range": [
+      1042,
+      1049
+    ],
+    "selection_seed_range": [
+      2042,
+      2073
+    ],
+    "diagnostic_seed_range": [
+      7042,
+      7081
+    ],
+    "stress_seed_range": [
+      8042,
+      8081
+    ],
+    "reserved_publication_seed_range": [
+      3042,
+      3081
+    ],
+    "method": "Shared calibrate_recovery.py; 8 quiet, 32 selection, 40 held-out episodes; unchanged engineering floors",
+    "qualification_targets": "Experimental; not measured policy achievement"
+  }
+}

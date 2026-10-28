@@ -1,0 +1,40 @@
+milestone = "m01_skeleton"
+hardware_revision = "hw_r01"
+status = "simulation_prototype"
+physical_build_status = "not_built"
+source_commit = "00589040f540a70660752a6c9830d99b4c4c1594"
+source_model = "examples/mini_tyrannosaurus_rex/leg_study/forward/model.xml"
+source_layout = "examples/mini_tyrannosaurus_rex/layout_study/a_low_spine/layout.json"
+
+[model]
+species = "tyrannosaurus_rex"
+embodiment = "robot"
+path = "environments/tyrannosaurus_rex/robot/assets/tyrannosaurus_rex_robot.xml"
+physics_revision = 1
+policy_interface_revision = 1
+visual_revision = 1
+chassis_allocation_kg = 0.6391
+fixed_future_payload_kg = 0.115
+total_allocation_kg = 0.7541
+mass_basis = "Engineering allocations; not weighed hardware"
+tail = "fixed inertia allowance; no tail joint or actuator"
+
+[control]
+simulation_timestep_s = 0.002
+control_period_s = 0.02
+action_dimension = 10
+observation_dimension = 41
+joint_torque_cap_nm = 0.10
+actuator_model = "Ideal force-limited position servos; motor identification pending"
+hardware_interface = "not_implemented"
+
+[pending]
+items = [
+  "Select battery, protection and distribution SKUs",
+  "Design load-bearing mounts, bearings, fasteners and ballast fixtures",
+  "Route moving cables and verify connector/service clearances",
+  "Measure actuator lag, backlash, friction, current and thermal limits",
+  "Weigh components and measure assembled center of mass/inertia",
+  "Demonstrate single-support weight transfer and stepping",
+  "Train and evaluate locomotion; perform supported hardware trials",
+]

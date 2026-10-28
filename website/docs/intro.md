@@ -16,7 +16,7 @@ We use articulated MuJoCo models to study how reinforcement-learning agents can 
 - **Physics-Based Models** - Articulated MuJoCo models inspired by dinosaur morphology
 - **Reinforcement Learning** - PPO and SAC algorithms for training locomotion
 - **Behavior Recipes** - Every model trains stance, walk and hunt (and recover, on the models with a recovery stage) as separately certified, separately published policies on one shared trunk, declared in `configs/<species>/<embodiment>/stages.toml`
-- **Six Models of Five Species** - The anatomical T-Rex, Velociraptor, Brachiosaurus, Dibothrosuchus and Compsognathus, and the Compsognathus robot; each model is a species and an embodiment (`anatomical` or `robot`)
+- **Seven Models of Five Species** - The anatomical T-Rex, Velociraptor, Brachiosaurus, Dibothrosuchus and Compsognathus, and the Compsognathus and mini T-Rex robots; each model is a species and an embodiment (`anatomical` or `robot`)
 - **Sim-to-Real Roadmap** - Planned hardware, system-identification, and transfer experiments; not yet validated
 - **Open Source** - Fully open codebase for research and education
 
@@ -31,6 +31,7 @@ gate kind certifies:
 
 - [Velociraptor Mongoliensis (Anatomical)](/docs/models/velociraptor_mongoliensis/anatomical)
 - [Tyrannosaurus Rex (Anatomical)](/docs/models/tyrannosaurus_rex/anatomical)
+- [Tyrannosaurus Rex (Robot)](/docs/models/tyrannosaurus_rex/robot)
 - [Brachiosaurus Altithorax (Anatomical)](/docs/models/brachiosaurus_altithorax/anatomical)
 - [Dibothrosuchus Elaphros (Anatomical)](/docs/models/dibothrosuchus_elaphros/anatomical)
 - [Compsognathus Longipes (Anatomical)](/docs/models/compsognathus_longipes/anatomical)

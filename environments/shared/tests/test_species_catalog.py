@@ -106,6 +106,7 @@ def test_catalog_derives_current_model_and_stage_facts() -> None:
         # 3-wide projected gravity: 64/56 -> 63/55.
         VELOCIRAPTOR_MONGOLIENSIS: (70, 22, 31, 30, 22, 13.5),
         TYRANNOSAURUS_REX: (63, 15, 28, 27, 15, 85.72),
+        ModelId("tyrannosaurus_rex", "robot"): (41, 10, 17, 16, 10, 0.7541),
         BRACHIOSAURUS_ALTITHORAX: (86, 30, 38, 37, 30, 175.3),
         DIBOTHROSUCHUS_ELAPHROS: (80, 27, 35, 34, 27, 8.65),
         COMPSOGNATHUS_LONGIPES: (55, 14, 24, 23, 14, 1.0),
@@ -183,6 +184,7 @@ def test_catalog_publishes_layered_plant_contract() -> None:
         "generated_with": {"mujoco": "3.10.0", "float_significant_digits": 12},
     }
     expected_observation_schemas = {
+        ModelId("tyrannosaurus_rex", "robot"): "bipedal-target-heading-free/v1",
         VELOCIRAPTOR_MONGOLIENSIS: "bipedal-target/v1",
         TYRANNOSAURUS_REX: "bipedal-target-heading-free/v1",
         BRACHIOSAURUS_ALTITHORAX: "quadrupedal-target/v1",
@@ -242,6 +244,7 @@ def test_catalog_publishes_layered_plant_contract() -> None:
     # policy revision once more: the hashed methods' qualnames moved to the
     # species base classes. POLICY only, physics and visual unchanged.
     expected_policy_revisions = {
+        ModelId("tyrannosaurus_rex", "robot"): 1,
         VELOCIRAPTOR_MONGOLIENSIS: 12,
         TYRANNOSAURUS_REX: 15,
         BRACHIOSAURUS_ALTITHORAX: 9,
@@ -250,12 +253,14 @@ def test_catalog_publishes_layered_plant_contract() -> None:
         COMPSOGNATHUS_LONGIPES_ROBOT: 3,
     }
     expected_physics_revisions = {
+        ModelId("tyrannosaurus_rex", "robot"): 1,
         VELOCIRAPTOR_MONGOLIENSIS: 4,
         TYRANNOSAURUS_REX: 9,
         BRACHIOSAURUS_ALTITHORAX: 5,
         DIBOTHROSUCHUS_ELAPHROS: 2,
     }
     expected_visual_revisions = {
+        ModelId("tyrannosaurus_rex", "robot"): 1,
         VELOCIRAPTOR_MONGOLIENSIS: 4,
         TYRANNOSAURUS_REX: 4,
         BRACHIOSAURUS_ALTITHORAX: 2,
@@ -505,7 +510,7 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
     }
 
     for model_id, entry in models.items():
-        if model_id.species == "compsognathus_longipes":
+        if model_id.species == "compsognathus_longipes" or model_id == ModelId("tyrannosaurus_rex", "robot"):
             stages_by_id = {stage["id"]: stage for stage in entry["stages"]}
             first, second, third = (
                 stages_by_id[stage_id]["advancement_gate"] for stage_id in ("stance", "locomotion", "behavior")
@@ -526,7 +531,13 @@ def test_catalog_exports_effective_early_advancement_gates() -> None:
                 assert first["max_unsupported_duty"] == 0.02
                 assert first["max_unsupported_duty_ucb"] == 0.02
             assert first["min_full_horizon_fraction"] == 0.95
-            assert second["min_avg_forward_velocity"] == (0.04 if model_id.embodiment == "robot" else 0.08)
+            assert second["min_avg_forward_velocity"] == (
+                0.025
+                if model_id == ModelId("tyrannosaurus_rex", "robot")
+                else 0.04
+                if model_id.embodiment == "robot"
+                else 0.08
+            )
             assert second["min_avg_episode_length"] == 900
             assert third["min_success_rate"] == 0.7
             assert third["min_avg_episode_length"] is None
@@ -1792,6 +1803,7 @@ def test_deliverable_metrics_for_reward_gated_stance_say_so() -> None:
     # certificate (D-D32), whose definition names the v2 decision it applies at
     # each heading; the compsognathus robot keeps v1.
     expected = {
+        ModelId("tyrannosaurus_rex", "robot"): "stance_quality/v1",
         TYRANNOSAURUS_REX: "stance_quality_heading/v1",
         VELOCIRAPTOR_MONGOLIENSIS: "stance_quality/v2",
         COMPSOGNATHUS_LONGIPES: "stance_quality_heading/v1",
