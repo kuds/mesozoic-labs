@@ -8,6 +8,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **Centre-of-mass stance regression tests: a stance that stands but leans,
+  drifts toward a support edge, sags, turns or twists on its feet, splays or
+  rocks now fails** (tests and test helpers only; the maintainer's request of
+  2026-10-28; `environments/shared/tests/stance_track_helpers.py`,
+  `com_stance_helpers.py`, `com_stance_calibration.py`,
+  `test_stance_track_reduction.py` and a `test_com_stance_quality.py` in each
+  species' tests directory). The static-balance tests read the CoM at the home
+  keyframe and check survival; these track the whole-body CoM through the
+  standing episode. A pure-numpy reduction (`stance_track_quality`) turns a
+  CoM track, the root's attitude and the feet (and, where known, the loaded
+  support points, the per-foot loads and the foot headings) into 35 named
+  numbers in six families: the CoM's and the extrapolated CoM's margins in
+  the support polygon (to the nearest edge, sideways and fore-aft), lean and
+  sideways drift, fore-aft posture, height, pivot (the turn over the window,
+  at its end and from the spawn, the twist over the feet, and the feet's
+  turn, splay and slide) and sway (the CoM's speed and the spread of the CoM
+  and of the root's roll, pitch and yaw about their trends). It reads the
+  stance in its own heading frame, so a policy's rollout, an evaluation
+  episode the gait recorder captured (`track_from_episode_trace`) or a
+  robot's log reads the same way, and `lean_sign_summary` flags a lean of one
+  sign across seeds. Each model gets 13 tests: the pins' provenance (physics
+  revision and MuJoCo version), six on the noise-free statue (a key mirror
+  symmetry fixes holds that value, every other key the statue's own pinned
+  value, each to twice a resolution floor of 0.5 mm, 0.5 mm/s, 0.05° or
+  0.005 of the load), two held-out spawns at reset noise 0.02 (widths twice
+  the worst of 30 calibration spawns, checked on 50 held-out ones), three
+  scripted poor stances that stand the full horizon and must reach twice
+  their bars (a 1° hip-roll lean, 4.7x to 37.6x; a yaw torque, 8.6x to
+  22.4x; a fore-aft rock, 4.5x to 13.0x), and a check that the sampler reads
+  what the evaluation recorder records. The window opens at each species'
+  measured settle (2 to 12 s); the T. rex and the Brachiosaurus, which rock
+  or bounce for 9 and 12 s after the reset, run 2,000 steps. Readings for the
+  maintainer: after a reset-noise-0.02 spawn the T. rex, the Velociraptor and
+  the Compsognathus turn up to 4.9°, 5.7° and 5.1° on their feet (80 spawns
+  each, nearly all of it in the first seconds); the Brachiosaurus keeps a
+  lean of up to 23 mm; 10 of the Compsognathus robot's 280 measured spawns
+  end buzzing on their feet and creeping 58 to 79 mm backwards over 18 s
+  (one kept as a strict expected failure); and the r9 T. rex checkpoint on
+  the r10 plant, which passes every existing test, rolls left side up on 10
+  of 10 seeds (sign test p = 0.002) where the statue at the same spawns does
+  not.
+  Cost: about 71 s added to the species suite on one core, 104 s under CI's
+  coverage flags (Python 3.11), all of it on every push (there is no slow
+  marker).
+  `python -m environments.shared.tests.com_stance_calibration` re-measures a
+  species' pins. No library code, environment, physics, reward, gate,
+  observation, policy interface or digest changes.
 - **The first T. rex stance round on physics r10 recorded as set up, approved
   and launched, results pending, with the report-only telemetry built for it
   and walking pilot 2's retirement** (decisions D-D45 to D-D51; the appended
