@@ -8,6 +8,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **Decision D-D51's outcome and decision D-D52 recorded: the first T. rex
+  stance round on physics r10 read its line 1, a tail rail formed on r10 in
+  training; next, a CPU continuation screen of the entropy coefficient, its
+  criteria to be approved before any training** (the maintainer's requests and
+  decisions of 2026-10-27 23:59 UTC to 2026-10-28 19:30 UTC in the stance run
+  log; `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2,
+  `docs/CONSOLIDATION_PLAN_2026_09.md` §6). Records only. D-D51 is amended
+  with how the round was read: a second report-only snapshot of the running
+  files, each run's end noted from Drive while the maintainer slept, the final
+  fetch's inline transfers copied byte for byte by an exact-copy script after
+  a hand transcription was cut off (the fetch rules unchanged), and the
+  durable copy's first commit pushed to a never-merged orphan branch, each at
+  the maintainer's word; and with its outcome, final: all three runs complete,
+  line 1 ("TAIL RAIL FORMED ON r10 IN TRAINING (ledger)"), statistic A 2 of 3
+  against LTSB's r9 2 of 5 (one-sided Fisher p 0.93, nothing significant);
+  seed 60 parked its tail-tip actuator, seed 42 railed it at +1 and failed its
+  gate, and seed 80 passed its gate as the round's one positive run, its
+  alarms on the neck. An existence result, not a rate: r10 as shipped does not
+  prevent the tail rail (the review's inference from the wording of line 1).
+  D-D52: the next step is a CPU continuation screen from the round's own
+  checkpoints, the entropy coefficient as recorded against 0, its
+  pre-registration drafted and approved before any training (a training-loss
+  change for scratch continuations only), and this records change. Nothing
+  trains on `main`.
 - **Centre-of-mass stance regression tests: a stance that stands but leans,
   drifts toward a support edge, sags, turns or twists on its feet, splays or
   rocks now fails** (#650; tests and test helpers only; the maintainer's
