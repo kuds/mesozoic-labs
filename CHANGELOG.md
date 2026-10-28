@@ -10,8 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **Centre-of-mass stance regression tests: a stance that stands but leans,
   drifts toward a support edge, sags, turns or twists on its feet, splays or
-  rocks now fails** (tests and test helpers only; the maintainer's request of
-  2026-10-28; `environments/shared/tests/stance_track_helpers.py`,
+  rocks now fails** (#650; tests and test helpers only; the maintainer's
+  request of 2026-10-28; `environments/shared/tests/stance_track_helpers.py`,
   `com_stance_helpers.py`, `com_stance_calibration.py`,
   `test_stance_track_reduction.py` and a `test_com_stance_quality.py` in each
   species' tests directory). The static-balance tests read the CoM at the home
@@ -57,9 +57,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   observation, policy interface or digest changes.
 - **The first T. rex stance round on physics r10 recorded as set up, approved
   and launched, results pending, with the report-only telemetry built for it
-  and walking pilot 2's retirement** (decisions D-D45 to D-D51; the appended
-  §26 of `docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md`, with
-  a dated status note at its top; `docs/NEXT_STEPS.md` §3,
+  and walking pilot 2's retirement** (#647; decisions D-D45 to D-D51; the
+  appended §26 of
+  `docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md`, with a
+  dated status note at its top; `docs/NEXT_STEPS.md` §3,
   `docs/KNOWN_ISSUES.md` (Update 21 of the T-Rex stance entry and two dated
   updates), a dated note in §17 of `docs/GAIT_QUALITY_PLAN_2026_09.md` and its
   header, `docs/README.md`; evidence in `stance6_setup/` of
@@ -83,8 +84,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   them), each passing its configuration-only launch check. The runs are
   training: no result is recorded, and nothing trains on `main`.
 - **A compact K3 extract of the five band runs' judge files, read by the
-  training-history report's judge-K3 readout** (the maintainer's decision of
-  2026-10-25 17:42 UTC in the stance run log, D-D46;
+  training-history report's judge-K3 readout** (#647; the maintainer's
+  decision of 2026-10-25 17:42 UTC in the stance run log, D-D46;
   `docs/investigations/stance_2026_10/stance5/k3extract/`,
   `environments/shared/tests/test_training_history.py`). The readout
   (`plot_training_history.py --judged`) reads a run's judge files, which
@@ -104,8 +105,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Decisions D-D45 to D-D51 recorded: walking pilot 2 retired; report-only
   telemetry, no MuJoCo sensor and an in-run K3 panel for the first T. rex
   stance round on physics r10; that round's design, its all-or-nothing run
-  handling, its approval and its launch** (the maintainer's decisions of
-  2026-10-25 to 2026-10-27 in the stance run log;
+  handling, its approval and its launch** (#647; the maintainer's decisions
+  of 2026-10-25 to 2026-10-27 in the stance run log;
   `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2, `docs/CONSOLIDATION_PLAN_2026_09.md`
   §6). Records only. D-D45: walking pilot 2 (D-D36, physics r9, never
   launched) is retired, a new pilot to be designed once r10 has a stance
@@ -2278,7 +2279,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   verdicts with the gate they were earned under.
 
 ### Changed
-- **The development version is `0.4.0.dev2`** (`pyproject.toml`; the
+- **The development version is `0.4.0.dev2`** (#647; `pyproject.toml`; the
   maintainer's decision of 2026-10-25 20:13 UTC in the stance run log: bump
   it once the current work is done, as #619 did, carried by the next records
   change). Every run records the package version in its provenance
