@@ -1,0 +1,295 @@
+{
+  "revision": "concept_r01",
+  "date": "2026-10-28",
+  "status": "engineering_study_not_build_release",
+  "height_definition": "600 mm floor to top of future head at home; bare torso is shorter",
+  "hip_height_m": 0.36,
+  "thigh_vector_m": [
+    0.06,
+    0.0,
+    -0.14
+  ],
+  "shin_vector_m": [
+    -0.06,
+    0.0,
+    -0.14
+  ],
+  "motor": {
+    "candidate": "MYACTUATOR RMD-X4-P36-36-E-L, V4.1",
+    "quantity": 12,
+    "catalog_diameter_m": 0.055,
+    "catalog_length_m": 0.061,
+    "diameter_tolerance_m": 0.0001,
+    "length_tolerance_m": 0.0005,
+    "planning_diameter_m": 0.06,
+    "planning_length_m": 0.064,
+    "mass_kg": 0.36,
+    "catalog_rated_torque_nm": 10.5,
+    "catalog_peak_torque_nm": 30.0,
+    "catalog_rated_speed_rpm": 83,
+    "catalog_voltage_range_v": [
+      20,
+      55
+    ],
+    "simulation_torque_cap_nm": 6.0,
+    "source_url": "https://www.myactuator.com/x4-36-l-details",
+    "drawing_url": "https://static.wixstatic.com/media/cab28a_d8a8e0059f92437fa9865849c288f823~mv2.jpg",
+    "source_note": "Manufacturer drawing inspected 2026-10-28, graphic dated 260818. Centered box inertia, ideal PD, cable reservations, friction and armature are estimates. Rated torque is not proof of sustained low-speed duty in this robot. Match delivered revision before CAD or purchase."
+  },
+  "assemblies": [
+    {
+      "name": "battery",
+      "position_m": [
+        -0.17,
+        0,
+        0.04
+      ],
+      "installed_size_m": [
+        0.16,
+        0.09,
+        0.065
+      ],
+      "mass_kg": 0.65,
+      "material": "battery",
+      "parts": [
+        {
+          "name": "battery_pack",
+          "size_m": [
+            0.143,
+            0.044,
+            0.045
+          ],
+          "offset_m": [
+            0,
+            0,
+            0
+          ],
+          "basis": "supplier tolerance maximum"
+        }
+      ],
+      "source_url": "https://genstattu.com/gens-ace-g-tech-3300mah-6s-60c-22-2v-lipo-battery-pack-with-ec5-plug/",
+      "notes": "Candidate 6S 3300 mAh, 506 +/-20 g. 650 g includes restraint and leads. Connector routing, protection, regenerative energy and usable discharge range remain open."
+    },
+    {
+      "name": "compute",
+      "position_m": [
+        0.105,
+        0,
+        0.11
+      ],
+      "installed_size_m": [
+        0.12,
+        0.11,
+        0.065
+      ],
+      "mass_kg": 0.35,
+      "material": "compute",
+      "parts": [
+        {
+          "name": "jetson_kit",
+          "size_m": [
+            0.103,
+            0.0905,
+            0.03477
+          ],
+          "offset_m": [
+            0,
+            0,
+            0
+          ],
+          "basis": "complete supplier kit"
+        }
+      ],
+      "source_url": "https://dam-cdn.nvd.orangelogic.com/AssetLink/2ug686w80406gxf6q8uv7r3l7265m2n8.pdf",
+      "notes": "Jetson Orin Nano Super P3766 complete kit, not module-only. 350 g installed mass and cable/cooling reserve are unweighed allocations; airflow is not qualified."
+    },
+    {
+      "name": "control",
+      "position_m": [
+        0.015,
+        0,
+        0.04
+      ],
+      "installed_size_m": [
+        0.11,
+        0.05,
+        0.025
+      ],
+      "mass_kg": 0.18,
+      "material": "pcb",
+      "parts": [
+        {
+          "name": "teensy_41",
+          "size_m": [
+            0.06096,
+            0.01838,
+            0.015
+          ],
+          "offset_m": [
+            -0.018,
+            -0.012,
+            0
+          ],
+          "basis": "supplier PCB width/length, estimated populated height"
+        },
+        {
+          "name": "can_left",
+          "size_m": [
+            0.03,
+            0.02,
+            0.015
+          ],
+          "offset_m": [
+            -0.027,
+            0.012,
+            0
+          ],
+          "basis": "unselected transceiver reservation"
+        },
+        {
+          "name": "can_right",
+          "size_m": [
+            0.03,
+            0.02,
+            0.015
+          ],
+          "offset_m": [
+            0.015,
+            0.012,
+            0
+          ],
+          "basis": "unselected transceiver reservation"
+        },
+        {
+          "name": "pelvis_imu",
+          "size_m": [
+            0.02,
+            0.02,
+            0.006
+          ],
+          "offset_m": [
+            0.033,
+            -0.012,
+            0
+          ],
+          "basis": "unselected IMU carrier reservation"
+        }
+      ],
+      "source_url": "https://www.pjrc.com/teensy/dimensions_teensy41.png",
+      "notes": "Separate real-time bridge, two CAN buses and pelvis IMU. Boards, connectors and timing require selection/measurement. Foot sensors are allocated separately."
+    },
+    {
+      "name": "power",
+      "position_m": [
+        -0.015,
+        0,
+        -0.0175
+      ],
+      "installed_size_m": [
+        0.1,
+        0.05,
+        0.06
+      ],
+      "mass_kg": 0.3,
+      "material": "pcb",
+      "parts": [
+        {
+          "name": "logic_converter",
+          "size_m": [
+            0.035,
+            0.035,
+            0.02
+          ],
+          "offset_m": [
+            -0.026,
+            0,
+            0.015
+          ],
+          "basis": "unselected converter reservation"
+        },
+        {
+          "name": "compute_converter",
+          "size_m": [
+            0.035,
+            0.035,
+            0.02
+          ],
+          "offset_m": [
+            0.02,
+            0,
+            0.015
+          ],
+          "basis": "unselected converter reservation"
+        },
+        {
+          "name": "protection_distribution",
+          "size_m": [
+            0.075,
+            0.025,
+            0.025
+          ],
+          "offset_m": [
+            0,
+            0,
+            -0.013
+          ],
+          "basis": "unselected protection/distribution reservation"
+        }
+      ],
+      "source_url": null,
+      "notes": "Estimated envelopes for fusing, disconnect, DC/DC and bus management; not a completed schematic or validated high-current assembly."
+    }
+  ],
+  "future_payloads": [
+    {
+      "name": "head_neck",
+      "mass_kg": 0.45,
+      "position_m": [
+        0.28,
+        0,
+        0.17
+      ],
+      "inertia_halfsize_m": [
+        0.12,
+        0.07,
+        0.07
+      ],
+      "notes": "Fixed equivalent load including future camera, neck drive and structure; outline only, no qualified module geometry."
+    },
+    {
+      "name": "tail",
+      "mass_kg": 0.25,
+      "position_m": [
+        -0.36,
+        0,
+        0.075
+      ],
+      "inertia_halfsize_m": [
+        0.2,
+        0.035,
+        0.03
+      ],
+      "notes": "Fixed spar/shell allowance; no joint, motor or active balance claim."
+    },
+    {
+      "name": "arms",
+      "mass_kg": 0.05,
+      "position_m": [
+        0.15,
+        0,
+        0.065
+      ],
+      "inertia_halfsize_m": [
+        0.04,
+        0.1,
+        0.025
+      ],
+      "notes": "Fixed future pair; no grasping or arm actuation in M1."
+    }
+  ],
+  "references": {
+    "scale_and_packaging": "https://maxtronics.com/en/nao6/",
+    "prehistoric_character": "https://wowwee.com/roboraptor-x",
+    "interpretation": "NAO6 and Roboraptor X assumed from user names. Borrow scale, serviceability and horizontal silhouette; do not claim their mechanisms, control or behaviors are reproduced."
+  }
+}
