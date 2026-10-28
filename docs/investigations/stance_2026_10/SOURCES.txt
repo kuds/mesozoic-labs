@@ -239,6 +239,22 @@
 # in that copy: 14 workflow run ids (10 distinct; a bare one becomes 'workflow [id removed]') and 2 scheduled-task ids,
 # each by '[id removed]'; these lines hold no checkout path, Drive id, background-job id or task-list id.
 # stance6_results/README.md has no source.
+# Added 2026-10-28, later (stance6_results/score/ to fetch/): the round's reading and what was read after it.  One more
+# change, nothing else:
+#   lineends    CRLF line ends made LF, as the repository's .gitattributes (text=auto) stores a text file: in
+#               fetch/manifest.csv only
+# Every copy is byte-identical to its source, absolute session-scratch paths included (none of prefix, prefix2 or
+# checkout is applied, as in stance6/; review/NEXT_STEPS.txt keeps the one checkout path it names, as
+# stance6/fetch_agent_brief.txt does), but for these.  redact: in score/score.txt 2 workflow run ids and 2 Drive folder
+# ids (one of them cut off at its line's end, where the scorer shortens its print), in score/score.json.gz 3 and 2, and
+# in each complete/complete_<run id>.txt 2 and 2, all in the run log's lines 621, 667, 669 and 670 that the two tools
+# print, which then read as those lines of stance6_setup/results/run_log.txt; in review/FIXES.txt 1 workflow run id; and
+# in fetch/manifest.csv and fetch/folders.json 216 distinct Drive file and folder ids (462 and 4 times), each by
+# '[id removed]'.  lineends: fetch/manifest.csv.  gzip: score/score.json (3,542,297 bytes) and readouts/READOUTS.json
+# (617,905 bytes), above the repository's 500 KB limit for an added file.  Every source's sha256 below equals its entry
+# in the SHA256SUMS of the round's durable copy, the orphan branch claude/handoff-stance6 at e4733d8 (read in its local
+# clone).  Not copied: the final fetch's copies of the runs' files, the raw transfers, the per-step traces, the
+# measuring copy of the run branch and the workflows' records.
 
 audit/foot_ankle_audit.md foot/audit_2026_10_17/foot_ankle_audit.md e9da4ef84be17a87b70096d1e2aede87609ad22f446b10786f9e14d5064725c8 prefix
 audit/geometry/geometry_audit.json foot/audit_2026_10_17/geometry/geometry_audit.json 934110bec337b9693f894800efb309bf1a9529ae87f91f129bfefc8fef5b650a prefix,whitespace
@@ -922,7 +938,32 @@ stance6/tools/laneB/tools/pins_r10round.json scratchpad2/r10round/lean/build/lan
 stance6/tools/laneB/tools/r10round_common.py.gz scratchpad2/r10round/lean/build/laneB/tools/r10round_common.py ea2c5ea6984b8dc00c1c066a4441a59526c515ceb111da17eaf1688a009226c5 gzip
 stance6/tools/laneB/tools/score_r10round.py.gz scratchpad2/r10round/lean/build/laneB/tools/score_r10round.py 3de2330a4e0451d8c48fa05b53507f6921352e537f15fd5f28558946ba080707 gzip
 stance6/tools/laneB/tools/v9_bundle.py.gz scratchpad2/r10round/lean/build/laneB/tools/v9_bundle.py 37eef565f867399b1c7e107aa6c0fa7da614f6558a83f68283ecb27e41f5a67a gzip
+stance6_results/check1/NOTES.txt scratchpad2/r10round/f2/check1/NOTES.txt 50ebbd4a2def15a4b81f12872548a5f9266e47d3207db82cc9d3c967c288e5ae none
+stance6_results/complete/complete_stance6_r10LTSB_s42.json scratchpad2/r10round/f2/complete_stance6_r10LTSB_s42.json 36cef37a036d353cbd69bfbf7db44b3fdbce1773d0341b0bb3c3834f63156c6f none
+stance6_results/complete/complete_stance6_r10LTSB_s42.txt scratchpad2/r10round/f2/complete_stance6_r10LTSB_s42.txt f83355df7b656c90d7f9f49d9de3fd3d8fb66ffc2b03848820de8f66b5154297 redact
+stance6_results/complete/complete_stance6_r10LTSB_s60.json scratchpad2/r10round/f2/complete_stance6_r10LTSB_s60.json 1700fc3b9e96c4ee8e65614840c489ef9322460579d182337483a0634153c657 none
+stance6_results/complete/complete_stance6_r10LTSB_s60.txt scratchpad2/r10round/f2/complete_stance6_r10LTSB_s60.txt 6d682e328b42f81927a14c89ed1048c4db1867418219dd09d23d3691e7016e5a redact
+stance6_results/complete/complete_stance6_r10LTSB_s80.json scratchpad2/r10round/f2/complete_stance6_r10LTSB_s80.json 786a485b3b5f01a1fc67c9521af43e8c9ea47056fb5633e5eab3623a43b57e0f none
+stance6_results/complete/complete_stance6_r10LTSB_s80.txt scratchpad2/r10round/f2/complete_stance6_r10LTSB_s80.txt 0999ce3e45e7591e02ba874d7d691cf0aef0cb5839314797256a7dd1d8671ad1 redact
+stance6_results/d9_d10/stance6_r10LTSB_s42/d10_final_stochastic3042/d10_summary.json scratchpad2/r10round/f2/d9_d10/stance6_r10LTSB_s42/d10_final_stochastic3042/d10_summary.json 7144b68fe9d09a1c7b190358c2d449fb0f9f5771b5af806256e57014444a10a3 none
+stance6_results/d9_d10/stance6_r10LTSB_s42/d9_3670016_hold_tail_3_pitch_act_0/d9_summary.json scratchpad2/r10round/f2/d9_d10/stance6_r10LTSB_s42/d9_3670016_hold_tail_3_pitch_act_0/d9_summary.json 5a6fa20884ad3ed74fcbf95d530fedd8487a23f3131f764003d56128ace84713 none
+stance6_results/d9_d10/stance6_r10LTSB_s42/d9_final_hold_tail_3_pitch_act_0/d9_summary.json scratchpad2/r10round/f2/d9_d10/stance6_r10LTSB_s42/d9_final_hold_tail_3_pitch_act_0/d9_summary.json c0a9d049689a902f64f14015ce3376863224a08031d4cfebd9858fbf373d67e8 none
+stance6_results/d9_d10/stance6_r10LTSB_s60/d10_final_stochastic3042/d10_summary.json scratchpad2/r10round/f2/d9_d10/stance6_r10LTSB_s60/d10_final_stochastic3042/d10_summary.json ffb0a26f99b20e5db40f95230eff03e73151d156b448d3084b75d943aaa7ff89 none
+stance6_results/d9_d10/stance6_r10LTSB_s80/d10_final_stochastic3042/d10_summary.json scratchpad2/r10round/f2/d9_d10/stance6_r10LTSB_s80/d10_final_stochastic3042/d10_summary.json fc8ea452083fc1776a5f2a906a195b6e7fdc76998ad139e8933a4cdd18aad0d2 none
+stance6_results/fetch/folders.json foot/stance6/fetch/folders.json d7abc0b5ce7b6f2dd2589660cde7945bef79a4b9fca6c3e5447f4ac8c5724ed0 redact
+stance6_results/fetch/manifest.csv foot/stance6/fetch/manifest.csv f5777ae32a5428908d59776d83d3e86d70db31b7818b1a9dd77de05a426c205e redact,lineends
+stance6_results/kscore/kscore_stance6_r10LTSB_s42.json scratchpad2/r10round/f2/kscore_stance6_r10LTSB_s42.json 284305ce50b1f184dc5777775459e0c52d55c6c084d1d53c89dfe8af582420f2 none
+stance6_results/kscore/kscore_stance6_r10LTSB_s60.json scratchpad2/r10round/f2/kscore_stance6_r10LTSB_s60.json 5be7d15188472d680f50f66ea1f8fc63e2e343a4cdb89fc6d4d5fc335f0c703f none
+stance6_results/kscore/kscore_stance6_r10LTSB_s80.json scratchpad2/r10round/f2/kscore_stance6_r10LTSB_s80.json d5648ff6b3b4c0f27ebddc5eea966045cdb9d72d18879f60b7e444367a21763c none
+stance6_results/readouts/READOUTS.json.gz scratchpad2/r10round/f2/readouts/READOUTS.json e40bf649d84eb26b3413dcdfc83adfc12e485a6de4ef720705225f6671421a4d gzip
+stance6_results/readouts/READOUTS.txt scratchpad2/r10round/f2/readouts/READOUTS.txt 491fc109434200f6a98519c32dd3ec684d095f7b49648fd732acf1cf42e5f8fe none
+stance6_results/review/FIXES.txt scratchpad2/r10round/f2/FIXES.txt f2f8a71ad4428fe438c7ee2a495a6d8151947ad33ae893512512483974d89b94 redact
+stance6_results/review/HEADLINE.txt scratchpad2/r10round/f2/HEADLINE.txt 2098c5c98a949e19325093d43d061f0e85ee419f77b43d06d84114decd0bc310 none
+stance6_results/review/NEXT_STEPS.txt scratchpad2/r10round/f2/NEXT_STEPS.txt 9fd7fe64c69bc6db1fa9489b87fdf1497459dbabf57bb1651b2ba9b2b503f7a1 none
+stance6_results/review/REVIEW.txt scratchpad2/r10round/f2/REVIEW.txt 5c76f5560f9f629722f8c50b3deaa9fdd238486a4dc89fdcd676f52924632d1d none
 stance6_results/run_log.txt foot/stance4/live/run_log.txt de6c3d736145bdf503c1e1fbb7286d65b7afba5ba05bc0d8983eafd738d4f496 lines,redact
+stance6_results/score/score.json.gz scratchpad2/r10round/f2/score.json cb380a7e816e519cce267fd4a7c00a7d4528730a388e39b3678b95d235c01474 redact,gzip
+stance6_results/score/score.txt scratchpad2/r10round/f2/score.txt 924b82a3f951ae0fc064137a01c21f62c67c5a89e860b432b1c553056f5016be redact
 stance6_setup/results/run_log.txt foot/stance4/live/run_log.txt f37b68bac910d5225477dcbc12a63b0235f1392532c7a786ade5dc19726e718b lines,redact,checkout
 stance6_setup/results/stance6_launch_lines.txt foot/stance4/live/run_log.txt f37b68bac910d5225477dcbc12a63b0235f1392532c7a786ade5dc19726e718b lines,redact
 symmetry/J1_recount.log foot/symmetry/screen/analysis/J1_recount.log ad7297a2009227b47fa20eba17c5e5e730aa2b761a15be0615489188ff247a31 none

@@ -1,0 +1,112 @@
+STANCE6 F2 READING: INDEPENDENT SKEPTIC CHECK (check1)
+Written 2026-10-28, from 14:45:54 to about 14:58 UTC (date -u). I ran none of the stages being checked.
+Rules applied as written: criteria.txt (lean v6, sha256 99a44469...), THIS12 lines 297-364, and APPROVED. Nothing was
+re-interpreted. No Drive, GitHub, training or simulation was used. Nothing was written outside this folder.
+Files in this folder:
+  derive.py / derive_out.json / derive_stdout.txt  my own M5 ledger reader, M1 reduction from the per-step trace CSVs,
+                                                   classes, gate, outcome, A of n_A, Fisher p and reading line
+  check_c.py / check_c_stdout.txt                  C1-C7 facts, plus the copies checked against both manifests
+  head.tar, head_tree/                             a fresh git archive of 8737cd3d, compared with copy_8737cd3d
+
+VERDICT: I agree with the scorer. I could not show the reading is wrong. No blocking finding.
+  READING: line 1, TAIL RAIL FORMED ON r10 IN TRAINING (ledger). R 1 (COMPLETE 1, PRESENCE 0), U 0, P 1, G+ 1.
+  Statistic A: 2 of 3 against 2 of 5, one-sided Fisher p 0.928571 (TABLE E 0.93). [measured, derive_stdout.txt]
+
+(a) RE-DERIVED FROM THE FILES [measured: derive.py on F2 copy1 of each eval_episodes.csv (copy1 = copy2, both equal
+    to the artifact manifest), and on the 20 per-step trace CSVs at each label (each csv's sha256 equals its
+    m1_summary entry). Window = steps 200..999, checked against in_window. Bar = |command| >= 0.99 share > 0.10.]
+  Ledger: in all three runs, 91 grid evaluations x 10 rows, episodes 0-9, no off-grid row and no missing ANY or TAIL
+  input (C6 PASS). Every screen is measured (screen_v2_clean 0 or 1). Every row has saturated_actuator_ties 0 and
+  actuators_saturated <= 1, so no row is TAIL-UNRESOLVED and no ANY ALARM NEEDS RESOLUTION. No RESOLUTION checkpoint
+  is due.
+  s60: 0 ANY-flagged and 0 TAIL-flagged evaluations. Its 24 tail_3 over-bar rows are spread out, at most 3 per
+    evaluation, so there is no alarm.
+    CMD tail_3 at J: 4194304 0.0666; 5242880 0.1435; 6291456 0.2730; 8388608 0.8797; 10485760 0.7267; final 0.5572.
+    MEAN tail_3 = 0.6420.
+    M1 tail flags: none at R1 or R2. 3 full-horizon tail_3+ flags at 8388608 (a J label, not R1 or R2, so not a
+    trace rail).
+    PARKED fires on both windows: END +0.042, and J at 8388608 (+0.2797) and 10485760 (+0.1267). DRIVEN [].
+    -> class PARKED. M3 at final PASS (40/40 at all six headings). OUTCOME NEGATIVE ['PARKED']. No ANY ALARM.
+  s42: 26 TAIL-flagged evaluations (all also ANY-flagged), first at 3801088. 22 TAIL ALARMs, the same 22 steps as
+    its ANY ALARMs, from 3932160 to 10616832, all on tail_3_pitch_act with positive share 1.0 ('+').
+    M1 at R1: 16 of 20 full-horizon episodes flagged tail_3+. At R2: none. CMD tail_3 at R1 0.9362, so the trace
+    rail is drive-backed.
+    -> TRACE RAIL tail_3+ (2+ flags, drive-backed); kind RAIL-LEDGER-PERSISTENT (a TAIL ALARM plus a flag at R1).
+    MEAN tail_3 0.9148; its PARKED windows also fire, but its class is RAIL (the first line that applies).
+    M3 at final FAIL: hop_or_fall_episodes 2 > 1 at all six headings. At heading 0 the failing seeds are 3079
+    (0.539) and 3080 (0.515), both on max_actuator_saturation_fraction. These seeds are outside M1's 3042-3061,
+    so this is consistent with M1 at final showing no flag. -> OUTCOME NEGATIVE [RAIL, GATE FAIL]. Fails stay fails.
+  s80: 12 ANY-flagged evaluations; 6 ANY ALARMs, at 5505024, 5636096, 6029312, 6422528, 6553600 and 7077888, all on
+    neck_pitch_act (positive share 0.0), non-tail. 0 TAIL-flagged evaluations.
+    CMD tail_3 at J: 0.0199, -0.0197, 0.1875, 0.1161, 0.4227 (R1), 0.5877 (final). MEAN 0.5052. No J label reaches
+    0.60. No tail flag at any label. DRIVEN [].
+    -> class CLEAR. M3 PASS (40/40 at all six headings). OUTCOME POSITIVE.
+  Statistic: A = 2 (s42 tail, s80 neck: criteria line 289 counts any-actuator alarms); n_A = 3 COMPLETE FINISHED
+    runs. P(X <= 2) = 1 - 4/56 = 0.9286. TABLE E row 2 of 3: 0.93 / 0.26 / 0.05 / 0.98.
+  Reading: R = 1 (s42, whose rail rests on a TAIL ALARM, hence "(ledger)"); line 1 applies first.
+  Comparison with score.json per_seed: class, kind, tail alarms, ANY ALARM steps, flagged_evaluations, PARKED
+    windows and margins, DRIVEN, trace rail, gate and outcome are identical. MEAN_a and every CMD_a at all 6 labels
+    differ by exactly 0.0. My reduction also equals lane A's m1_summary cmd_a (max |diff| 1.1e-16).
+
+(b) C1-C7 [measured, check_c_stdout.txt]
+  C1: each RUN_ID has exactly one STANCE6 LAUNCH (lines 666, 671, 672), a CHECK no-fault, TRIGGER-a + FOUND-GONE and
+      F2-START; no STOP, TRIGGER-d, ACTION or RELAUNCH. PASS x3.
+  C2: in each run, the 2 manifest copies are equal; schema_version 1; run_id = RUN_ID; status complete; 167 entries,
+      unique and normalized, typed. PASS x3.
+  C3: every C3 file (5 non-zip files plus the J/R1/R2 pairs; no hop_watch.json listed) equals its manifest entry in
+      size and sha256, in every copy held. Each of the 68/70/68 F2 COPY rows matches its stored file. No stored copy
+      is unrecorded. PASS x3.
+  C4: one sessions entry, no resumed_at. started_at minus LAUNCH time: 4.11 / 6.11 / 6.15 min. repository_commit and
+      git_commit 8737cd3d, not dirty. No load key at any depth. seed 60/42/80, n_envs 4. hyperparameters_sha256,
+      task_sha256 and the plant_identity block equal the pins. My own stage_config_view_sha256 (canonical JSON
+      without UNPINNED_STAGE_CONFIG_KEYS, plant_identity and task_fingerprint) = sha256:3200f159... = the pin.
+      k3_panel.csv is listed and V7 passed on HEAD. PASS x3.
+  C5: progress.json status ended at 12001280. The final zip's "data" member gives num_timesteps 12001280 (read as
+      JSON text from the zip, nothing unpickled), and testzip is clean for all 6 pairs. judged_at minus written_at:
+      32.6 / 32.4 / 33.0 min (<= 2 h). FINISHED. PASS x3.
+  C6: see (a). PASS x3.
+  C7: M1 at the 6 labels (20 episodes, seeds 3042-3061, rc 0, no traceback, physics_revision 10, pair sha256 = the
+      manifest's) and M3 at final (seeds 3042-3081, six headings) are all present. Each was tried once; no refusal
+      file. PASS x3.
+
+(c) PROVISIONAL / incomplete [measured]
+  criteria, THIS12 and EVID sha256 = APPROVED's. APPROVED's branch_head and all three LAUNCH head= are 8737cd3d.
+  Lane A tools, lane B tools, pins_r10round.json, colab_steps, fetch_agent_brief and the copy's M1/M3 code all equal
+  their PINS. Both SHA256SUMS.txt equal their pins (55a21707 / 932f2050) and check whole.
+  copy_8737cd3d equals a fresh git archive of 8737cd3d file for file; its only extra file is .r10m_seal.json.
+  M1/M3 ran on that copy, with M1's/M3's seeds, at physics_revision 10.
+  APPROVED records V0-V5, V8 (i)-(ii) and V9 as PASS.
+  -> provisional [] is right. incomplete [] is right: every run is COMPLETE, no run is LOST, and no re-fetch is
+     due (C2 and C3 pass).
+
+FINDINGS (none blocking)
+  N1 minor (check coverage): score_r10round.py provisional() checks tool hashes only for the 7 lane B code files
+     (r10round_common.tool_hashes; pins_r10round.json tool_sha256 holds only those). It does not compare lane A's
+     measure_r10round.py (pinned b293a511 in the criteria PINS only), judge/kscore, or pins_r10round.json itself.
+     I hashed all of them and each equals its pin, so no PROVISIONAL item is missing from this reading.
+  N2 info (record wording): the scorer's per-alarm counts ('tail_3_pitch_act': 20 at 3932160; neck 18 at 5505024)
+     and complete_r10round.py's "tail_3_pitch_act+": 20 are sums over the two evaluations of the alarm pair
+     (3801088: 10, 3932160: 10). They are not over-bar episodes of one evaluation, which caps at 10. Say "over the
+     pair" in the record.
+  N3 minor (summary wording, not the tools): the earlier stage's text "s42 ... It is also PARKED" and its quote of
+     complete_r10round.py's "PRESENCE RAIL" for s42 can be misread. s42's class is RAIL, and P = 1 is s60 only. A
+     PRESENCE RAIL is defined for LOST runs only; s42 is COMPLETE. The reading's P 1 and PRESENCE 0 are right.
+  N4 info: the notebook's own gate_verdict.json passed for all three runs, on models/robust_best_model.zip
+     (report only, D-7). That is why s42 is bundled "complete" while M3 on stage1_final fails. M3 is the class
+     input.
+  N5 info (near the line): s60's MEAN 0.642 is within 0.05 of 0.60 (KNOWN LIMITS), but PARKED also fires on J
+     (0.880, 0.727). s80's CMD tail_3 at final is 0.5877; even at 0.60 it would be a single J label, with MEAN 0.505,
+     so s80 would still be CLEAR. [inferred from the measured values]
+  N6 info (records RUNLOG already states; no C1-C7 fact moves):
+     - The s42/s80 LAUNCH lines were written at 15:54 with an estimated 14:57. The run folders appeared between the
+       14:59:10 and 15:05:40 listings and the sessions started 15:03:06 / 15:03:09, so C4 holds for any plausible
+       launch time [inferred].
+     - The ends were noted from Drive under the maintainer's 01:09 decision.
+     - Two interim read-only snapshots were taken at the maintainer's request, against L5 (a); nothing was acted
+       on.
+     - The exact-copy transfer method was the maintainer's 13:31 decision.
+     - s60 had 1 TRANSFER-ERROR and s80 1 unrecorded download, both on evaluations.npz, a readout file and not a
+       C3 file.
+  N7 info: the banner constant CRITERIA_SHA256 e5bea5d3... equals the sha256 of
+     S2/r10round/lean/v6/criteria_r10round_lean_v6.txt (the v6 text before pins). No rule reads it; it is printed
+     only, and it sits in r10round_common.py, which equals its pin. It is not a PROVISIONAL item.

@@ -1,0 +1,898 @@
+======================================================================================================================
+STANCE6 REVIEW: T. REX STANCE ON PHYSICS r10, ARM LTSB, SEEDS 60 / 42 / 80 (12M STEPS EACH, COLAB L4)
+THE ROUND'S FULL REVIEW FOR THE MAINTAINER (REPORT ONLY)
+======================================================================================================================
+Written 2026-10-28 17:52-18:10 UTC (date -u; reading from 17:52, file written from 18:02) by the review writer. Nothing was trained, simulated, fetched or pushed
+for this review. No Drive, no GitHub.
+Revised 2026-10-28 19:02-19:14 UTC (date -u) by the fixer, after three verifier lenses (numbers, rules, claims). Each
+finding's outcome is in S2/r10round/f2/FIXES.txt; the text before revision is kept as S2/r10round/f2/REVIEW.v1.txt.
+The revision changes wording, labels and rounding, and adds figures read from files already in the round's records
+(M2 panels, the std CSVs, score.json) or computed from them. No class, count, A, n_A, p or reading line changed.
+
+The reading is FIXED. It is the scorer's, made once on F2 under the approved criteria (lean v6). Nothing in this
+review changes a class, A, n_A or the reading line. Section 3 holds the PRE-REGISTERED DIAGNOSTIC READOUTS (D-1..D-15;
+D-16 has nothing to print, because no run is LOST), with the few post-hoc items in it marked as such. Section 4 is a
+post-hoc entropy analysis made for the maintainer's question; it is not one of D-1..D-16. Sections 5-7 are comparisons
+and records. All of it is report only [measured, CRIT l332-l354]. Fails stay fails. No next step is proposed here.
+
+Labels: [measured, KEY ...] = read or computed from the file KEY names (SOURCES just below). [inferred, basis] =
+reasoned; the basis is given. [read from KEY, inferred there] = a figure the named file itself labels inferred. "lN" means line N of that file. Steps are training timesteps. W1 / W2 / W3 are the r9
+windows [0, 4,194,304), [4,194,304, 8,388,608), [8,388,608, 12,001,280]. J = the six checkpoints 4,194,304,
+5,242,880, 6,291,456, 8,388,608, 10,485,760 and stage1_final (12,001,280). R1 = 10,485,760; R2 = stage1_final.
+Actuators 11 / 12 / 13 / 14 = tail_1_pitch / tail_1_yaw / tail_2_pitch / tail_3_pitch; actuator 0 = neck_pitch.
+
+SOURCES (full paths; every label below names one of these keys)
+  S1        /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad
+  S2        /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad
+  ROUND     S1/foot/stance6
+  CRIT      ROUND/criteria.txt (sha256 99a44469...)          THIS12  ROUND/criteria_v12_cited.txt (0ab5edeb...)
+  EVID      ROUND/evidence.txt (353f4536...)                 APPROVED ROUND/APPROVED (07246480...)
+  SCORE     S2/r10round/f2/score.txt        SCOREJ  S2/r10round/f2/score.json        SCORERC  S2/r10round/f2/score.rc
+  WF1       S2/r10round/f2/wf1_result.json (fetch, C7, completeness, scorer, independent check)
+  CHECK1    S2/r10round/f2/check1/NOTES.txt (the independent check of the reading)
+  COMP-r    S2/r10round/f2/complete_stance6_r10LTSB_<r>.txt and .json (r = s60, s42, s80)
+  RO        S2/r10round/f2/readouts/READOUTS.txt and READOUTS.json (D-1, D-2, D-11..D-15, entropy, interim)
+  STD-r     S2/r10round/f2/readouts/std_per_update_<r>.csv
+  PAN-r     ROUND/panels/stance6_r10LTSB_<r>/<label>/<m1|m2|m3|m4>/ (m1_summary.json, m2_summary.json,
+            m3_summary.json, judge_<label>.json)
+  HL-s60    S2/r10round/f2/ro_s60/headline_final.json     HL-s42  S2/r10round/f2/ro_s42/headline_s42.json
+  HL-s80    S2/r10round/f2/ro_s80/headline_s80.json
+  KS-r      S2/r10round/f2/kscore_stance6_r10LTSB_<r>.json (K1-K4 of M4)
+  D910-r    S2/r10round/f2/d9_d10/stance6_r10LTSB_<r>/<folder>/d9_summary.json or d10_summary.json
+  F2C-r     ROUND/fetch/F2/stance6_r10LTSB_<r>/copies/ (every copy used has its manifest sha256)
+  FMAN      ROUND/fetch/manifest.csv (sha256 f5777ae3... at 18:00 UTC; 271 rows)
+  RUNLOG    S1/foot/stance4/live/run_log.txt (714 lines at 18:00 UTC; read only)
+  SNAP1/2   S2/r10round/interim/snap1/ and snap2/ (READOUT.txt, CHECK.txt)
+  C7LOG     S2/r10round/f2/logs/measure/summary_slot1.tsv and summary_slot2.tsv
+  ROLOG-r   S2/r10round/f2/logs/report_only/stance6_r10LTSB_<r>/summary.tsv
+  XTRA      S2/r10round/f2/review/review_extras.json (this review's script review_extras.py beside it; stdout
+            review_extras.out). It reads judge files, the analyst's k3panel_<r>.json and manifest-checked F2 CSV
+            copies, and runs score_stance3.py's own report-only functions (pinned 2c3879d3..., loaded unedited).
+
+======================================================================================================================
+1. HEADLINE
+======================================================================================================================
+1.1 THE READING, EXACTLY AS THE SCORER PRINTED IT [measured, SCORE l168-l169, l172]
+
+    READING: line 1: TAIL RAIL FORMED ON r10 IN TRAINING (ledger). An existence result for r10 as shipped (weak for
+    the last); not a rate. To the maintainer with the DIAGNOSTIC READOUTS; nothing is proposed by this text.
+        R 1 (COMPLETE 1, PRESENCE 0), U 0, P 1, G+ 1
+    STATUS: FINAL
+
+1.2 FINAL, NOT PROVISIONAL, NOT INCOMPLETE
+- STATUS FINAL [measured, SCORE l172; SCOREJ "status"].
+- PROVISIONAL items: none [measured, SCOREJ "provisional": []].
+- Incomplete items: none [measured, SCOREJ "incomplete": []]. All three runs COMPLETE, C1-C7 PASS (section 2).
+- Re-fetch: none due, because every run passes C2 and C3 and a re-fetch applies only to a run that passes C1 and
+  fails C2 or C3 (CRIT l477-l478); and none made [measured, SCORE l8: refetch_start_notes []; SCORE l12-l152].
+- F2 started 6.0 h after the last ending note, for all three runs (at least 6 h: true) [measured, SCORE l7].
+- Scorer exit code 0; one run, 14:43:14-14:43:18 UTC [measured, SCORERC; WF1 score.summary].
+- Hashes: criteria, THIS12, EVID and APPROVED on disk equal the approved values at 18:00 UTC [measured, sha256sum:
+  99a44469..., 0ab5edeb..., 353f4536..., 07246480...]. Lane A SHA256SUMS 54 of 54 OK (sums file 55a21707...) and
+  lane B 133 of 133 OK (932f2050...) at 18:00 UTC [measured, sha256sum -c in each lane folder].
+- The independent check re-derived every class, A, p and the line with its own code and agrees; 0 blocking
+  findings [measured, CHECK1; WF1 check]. Its minor points are in section 7.4.
+
+1.3 STATISTIC A [measured, SCORE l170-l171; SCOREJ reading.stat]
+- A of n_A: 2 of 3, against LTSB r9's 2 of 5.
+- One-sided Fisher exact test (r10 lower): p 0.9286 (TABLE E prints 0.93).
+- TABLE E's printed figures for 2 of 3: P(r10 rate < r9 rate) 0.26; P(r10 rate < half r9's) 0.05; one-sided 95%
+  upper bound on the r10 rate 0.98 [measured, as printed in SCORE l170 and CRIT l821; TABLE E itself is inferred,
+  uniform prior on the r10 rate, LTSB r9 rate Beta(3,4), CRIT l816-l817]. The upper-bound column is the exact
+  one-sided binomial bound, not the uniform-prior one: 0.95^(1/3) = 0.983 for 2 of 3, where a uniform-prior Beta(3,2)
+  bound would be 0.902 [computed for this revision, S2/r10round/f2/fixer/f_power.out]. The printed figures are
+  unchanged.
+- The two alarm runs: s42 (tail_3_pitch_act, tail scope "tail", reason "> 0.1") and s80 (neck_pitch_act, scope
+  "non-tail or unnamed", reason "> 0.1") [measured, SCORE l162, l165].
+- Printed beside A, never tested: family 4 of 10; same-seed LTSB 2 of 3; A WITH LOST RUNS 2 of 3 (no LOST run)
+  [measured, SCORE l171].
+
+1.4 WHAT THE LINE MEANS
+- In one COMPLETE run of the three (s42), the training ledger recorded a TAIL ALARM: two consecutive evaluations each
+  with at least 5 of 10 episodes over the saturation bar on tail_3_pitch_act at +1. Its first alarm was at 3,932,160
+  [measured, SCORE l162-l163]. The rail also showed in the end traces at R1 (16 of 20 flags, drive-backed) [measured,
+  SCORE l163; CHECK1].
+- So the basis is "(ledger)", the first basis in line 1's order ("when ... else ... else"), and a ledger rail settles
+  the existence question [read from CRIT l312-l316 and EVID l379]. "Weak for the last" in the printed text refers to
+  another basis (an end-only rail that is not drive-backed); it does not apply here [measured, CRIT l312-l316].
+- The finding: r10 as shipped, with the LTSB recipe, does not prevent the tail rail. It is an existence result
+  [inferred, from CRIT l312-l316 ("An existence result for r10 as shipped") and EVID l379 ("settles the existence
+  question (r10 does not prevent it)")].
+- The other counts: P 1 is s60 (PARKED on tail_3). G+ 1 is s80 (CLEAR and GATE PASS) [measured, SCORE l159, l165].
+  U 0: no seed LOST or UNREAD. Lines 2-5 all need R = 0, so only line 1 applies [measured, CRIT l307-l331].
+
+1.5 WHAT THE LINE DOES NOT MEAN
+- It is not a rate. Three runs measure no rate [measured, CRIT l312-l316, l626].
+- It does not show that r10 lowers the alarm rate. With 2 of 3 against 2 of 5, p is 0.9286; nothing here reaches
+  any conventional level, and the criteria call no figure a test passed [measured, SCORE l170; CRIT l293-l295].
+- It does not show that r10 raises the rate. The pre-registered test is one-sided (r10 lower); the other direction
+  was not tested [inferred, from CRIT l293].
+- A mixes alarm kinds, as pre-registered: r9's 2 of 5 were both tail_3 at +1; r10's 2 of 3 are one tail_3 alarm and
+  one neck_pitch_act alarm. Counted on tail alarms alone, r10 reads 1 of 3; that count is not a pre-registered
+  statistic and is not tested [inferred, from SCORE l162, l165 and CRIT l289-l292, l302-l304].
+- It proposes nothing and changes no gate, criterion, configuration, verdict or parent on main [measured, CRIT
+  l316, l332-l333].
+
+======================================================================================================================
+2. PER RUN (the scorer's classes; each fact as printed)
+======================================================================================================================
+SUMMARY [measured, SCORE l12-l166]
+  run   seed  completeness  TAIL CLASS (kind)               GATE (final)  OUTCOME                      ANY ALARMs
+  s60   60    COMPLETE      PARKED                          PASS          NEGATIVE ['PARKED']          none
+  s42   42    COMPLETE      RAIL (RAIL-LEDGER-PERSISTENT)   FAIL          NEGATIVE [RAIL; GATE FAIL]   22, tail_3
+  s80   80    COMPLETE      CLEAR                           PASS          POSITIVE []                  6, neck_pitch
+
+Two printing notes, from the independent check [measured, CHECK1 N2, N3]:
+- Each alarm's actuator count is a sum over the two evaluations of the alarm pair (at most 20), not episodes in one
+  evaluation (at most 10).
+- complete_r10round.py prints a "PRESENCE RAIL" line for s42 [measured, COMP-s42 l53]. These are p1-p3 as the tool
+  computes them. They are not a PRESENCE RAIL: PRESENCE applies only to LOST runs, and s42 is COMPLETE. The reading
+  counts PRESENCE 0 [measured, SCORE l169; CRIT l253-l268].
+
+----------------------------------------------------------------------------------------------------------------------
+2.1 stance6_r10LTSB_s60 (seed 60)
+----------------------------------------------------------------------------------------------------------------------
+COMPLETE: C1-C7 all PASS [measured, SCORE l12-l54]
+- C1: one LAUNCH (RUNLOG l666), no launch-check stop, no ACTION; other lines CHECK 668, TRIGGER-a 697,
+  FOUND-GONE 698, F2-START 703.
+- C2: manifest copies 1 and 2 agree (sha256 8523cf22a155...); schema problems none; run_id the RUN_ID; status
+  complete; 167 entries.
+- C3: all 17 files the reading uses equal their manifest entries (OK on each).
+- C4: one session, started 2026-10-27T15:01:06Z, 4.1 min from the LAUNCH time, no resumed_at; commit 8737cd3d, not
+  dirty; no load key; seed 60; n_envs 4; hyperparameters 054ab483..., task 1e5964b6..., plant identity and
+  stage_config_view 3200f159... equal their pins.
+- C5: progress "ended" at E 12,001,280; the final zip's num_timesteps 12,001,280; judged_at 32.6 min after
+  written_at; FINISHED.
+- C6: 91 grid evaluations, failures [].
+- C7: labels 4194304, 5242880, 6291456, 8388608, 10485760, final traced; final certificate measured; missing [].
+TAIL CLASS: PARKED [measured, SCORE l159-l160]
+- No TAIL ALARM, no trace rail, no single tail flag, no RESOLUTION.
+- TRACE RAIL / SINGLE TAIL FLAGS: none at R1 or R2. (Report only: M1 found TAIL FLAGS at 8,388,608 (3, tail_3 +)
+  and 9,437,184 (1); neither is R1 or R2, so no TRACE RAIL can form from them [measured, PAN-s60 8388608/m1,
+  9437184/m1; CRIT l188-l191].)
+- PARKED on tail_3_pitch_act, two windows fired [measured, SCORE l160]:
+    END: MEAN_a +0.642 (= (CMD_a(R1) +0.7267 + CMD_a(R2) +0.5572) / 2); margin +0.042 over +0.60.
+    J:   CMD_a +0.8797 at 8,388,608 (margin +0.2797) and +0.7267 at 10,485,760 (margin +0.1267). Two J labels,
+         so this window fires.
+  CMD_a(J) tail_3 at the other J: 4,194,304 +0.0666; 5,242,880 +0.1435; 6,291,456 +0.2730; final +0.5572 [measured,
+  CHECK1 per-run text].
+- MEAN_a of the other tail actuators: tail_1_pitch -0.001, tail_1_yaw +0.004, tail_2_pitch +0.168 [measured,
+  SCORE l160]. Formed from R1 and R2, 20 of 20 episodes beyond step 200 at every label [measured, SCORE l161].
+- DRIVEN: none [measured, SCORE l160].
+- The MEAN_a margin (+0.042) is inside the criteria's 0.05 band where a run "classifies by chance"; the J window
+  fires on its own, with margins +0.28 and +0.13, so PARKED does not rest on MEAN_a alone [measured, CRIT l669-l670;
+  CHECK1 N5].
+GATE: PASS [measured, SCORE l159; PAN-s60 final/m3/m3_summary.json]
+- GATE CERTIFICATE (final checkpoint, measured on a screen task; not certification): 40/40 clean at each of the six
+  headings (-90, -45, 0, +45, +90, +180), full horizon 1.0, reward 4396.02.
+OUTCOME: NEGATIVE, reason ['PARKED'] [measured, SCORE l159]. A parked tail is not success (D8 (a)) [measured,
+CRIT l284-l285].
+ANY ALARMs: none [measured, SCORE l159].
+
+----------------------------------------------------------------------------------------------------------------------
+2.2 stance6_r10LTSB_s42 (seed 42)
+----------------------------------------------------------------------------------------------------------------------
+COMPLETE: C1-C7 all PASS [measured, SCORE l61-l103]
+- C1: one LAUNCH (RUNLOG l671), no stop, no ACTION; CHECK 673, TRIGGER-a 693, FOUND-GONE 694, F2-START 704.
+- C2: copies agree (3ffa31e68aa9...); status complete; 167 entries.
+- C3: all 17 files OK.
+- C4: one session, started 15:03:06Z, 6.1 min from the LAUNCH time (an estimate; section 7.4); commit 8737cd3d, not
+  dirty; seed 42; every pin equal.
+- C5: ended at 12,001,280; zip 12,001,280; judged_at 32.4 min after written_at; FINISHED.
+- C6: 91 evaluations, failures []. C7: the same six labels plus the final certificate; missing [].
+TAIL CLASS: RAIL, kind RAIL-LEDGER-PERSISTENT [measured, SCORE l162-l163]
+- Actuator and sign: tail_3_pitch_act, +.
+- TAIL ALARMs: 22. The first is at 3,932,160 (count 20 over the alarm pair). The steps are 3,932,160; 4,063,232;
+  4,194,304; 4,325,376; 4,456,448; 4,587,520; 4,718,592; 4,849,664; 4,980,736; 5,111,808; 5,505,024; 8,126,464;
+  8,257,536; 8,388,608; 9,699,328; 9,830,400; 9,961,472; 10,092,544; 10,223,616; 10,354,688; 10,485,760; 10,616,832.
+- Tail-flagged evaluations: 26.
+- PERSISTENT: a TAIL ALARM and a TAIL FLAG at R1 or R2.
+- TRACE RAIL: tail_3_pitch_act +, basis "2+ flags", DRIVE-BACKED true (at 10,485,760). The flags are 16 of 20 at R1,
+  CMD 0.9362; none at R2 [measured, SCORE l163; CHECK1].
+- SINGLE TAIL FLAGS: none. RESOLVED BY TRACE: none.
+- Its PARKED windows also fire on tail_3: END margin +0.3148 (MEAN_a +0.9148); J margins at 4,194,304 +0.3894,
+  5,242,880 +0.2842, 8,388,608 +0.341, 10,485,760 +0.3362 and final +0.2934. This is report only. The class is RAIL,
+  the first TAIL CLASS line that applies, so s42 is not counted in P [measured, SCORE l163; CRIT l269-l278; CHECK1
+  N3].
+- DRIVEN: none. MEAN_a of the others: tail_1_pitch +0.042, tail_1_yaw +0.012, tail_2_pitch +0.007 [measured,
+  SCORE l163].
+GATE: FAIL [measured, SCORE l162; PAN-s42 final/m3/m3_summary.json and stance_heading_report.txt]
+- GATE CERTIFICATE (final checkpoint, measured on a screen task; not certification): FAIL.
+- Failing criterion: "hop_or_fall_episodes 2 > 1 (episodes ending early or failing min_all_feet_support,
+  max_touchdown_rate, max_window_displacement_m, max_actuator_saturation_fraction; panel rail)" at each heading:
+  -90, -45, +0, +45, +90 and +180.
+- 38/40 clean at every heading; full horizon 1.0; reward 4353.12.
+- The two seeds: 3079 (max_actuator_saturation_fraction 0.53875) and 3080 (0.515), both outside M1's seeds
+  3042-3061 [measured, PAN-s42 final/m3/stance_heading_report.txt l22-l24, l76-l77]. The certificate does not name
+  the actuator. M2 on the same seeds at heading 0 does: tail_3_pitch_act at +1 in both failing episodes (tail3_frac99
+  0.53875 and 0.515, equal to the certificate's figures; tail_3 command mean +0.984 and +0.969; every other actuator's
+  saturation 0.0) [measured, PAN-s42 final/m2/panel.json]. The other five headings were not traced; they give the
+  same clean count and reward as heading 0, so they are taken to fail on the same actuator [inferred, from
+  stance_heading_report.txt l14-l19].
+OUTCOME: NEGATIVE [measured, SCORE l162]
+- Reasons: 'RAIL (RAIL-LEDGER-PERSISTENT)' and 'GATE FAIL' (the six heading failures above).
+ANY ALARMs: 22 [measured, SCORE l162]
+- The same steps as the TAIL ALARMs; each on tail_3_pitch_act, tail scope 'tail', reason '> 0.1'.
+- Counts over the alarm pair: 20, 18, 17, 15, 16, 20, 20, 19, 19, 19, 13, 12, 12, 17, 20, 20, 20, 20, 20, 19, 19, 18.
+
+----------------------------------------------------------------------------------------------------------------------
+2.3 stance6_r10LTSB_s80 (seed 80)
+----------------------------------------------------------------------------------------------------------------------
+COMPLETE: C1-C7 all PASS [measured, SCORE l110-l152]
+- C1: one LAUNCH (RUNLOG l672), no stop, no ACTION; CHECK 674, TRIGGER-a 695, FOUND-GONE 696, F2-START 705.
+- C2: copies agree (29e92b9786f9...); status complete; 167 entries.
+- C3: all 17 files OK.
+- C4: one session, started 15:03:09Z, 6.2 min from the LAUNCH time (an estimate; section 7.4); every pin equal.
+- C5: ended at 12,001,280; zip 12,001,280; judged_at 33.0 min after written_at; FINISHED.
+- C6: 91 evaluations, failures []. C7: the six labels plus the final certificate; missing [].
+TAIL CLASS: CLEAR [measured, SCORE l165-l166]
+- No tail alarm, no trace rail, no single tail flag, no PARKED, no DRIVEN.
+- MEAN_a: tail_1_pitch +0.186; tail_1_yaw +0.003; tail_2_pitch -0.123; tail_3_pitch +0.505 (0.095 below the line).
+- CMD_a tail_3 at J: 4,194,304 +0.020; 5,242,880 -0.020; 6,291,456 +0.188; 8,388,608 +0.116; 10,485,760 +0.423;
+  final +0.588. No J label at +0.60 or above [measured, PAN-s80 <label>/m1/m1_summary.json; HL-s80].
+- The final's +0.588 is within 0.05 of the line, but one J label could not fire the J window, and MEAN_a is +0.505.
+  So the class does not hang on it [measured, CHECK1 N5; inferred from CRIT l276-l277].
+- None of the 6 ANY ALARMs needs RESOLUTION: no TAIL-UNRESOLVED row (ties 0, actuators_saturated at most 1)
+  [measured, CHECK1; RO D-1].
+GATE: PASS [measured, SCORE l165; PAN-s80 final/m3/m3_summary.json]
+- GATE CERTIFICATE (final checkpoint, measured on a screen task; not certification): 40/40 clean at every heading,
+  full horizon 1.0, reward 4386.87.
+OUTCOME: POSITIVE, reasons [] [measured, SCORE l165].
+ANY ALARMs: 6 [measured, SCORE l165]
+- Each on neck_pitch_act, tail scope 'non-tail or unnamed', reason '> 0.1'.
+- Steps (count over the alarm pair): 5,505,024 (18); 5,636,096 (18); 6,029,312 (15); 6,422,528 (18); 6,553,600 (14);
+  7,077,888 (14).
+- The sign is -1 on all 119 over-bar ledger rows [measured, RO D-1 and E3].
+
+======================================================================================================================
+3. DIAGNOSTIC READOUTS D-1..D-16 (pre-registered; report only; never in a class or the reading; D-16 is empty)
+======================================================================================================================
+Inputs: F2 copies whose sha256 equals the run's artifact_manifest.json entry. That is every copied path: s60 64,
+s42 66, s80 64 [measured, RO "COPIES USED"; S2/r10round/f2/ro_<r>/verify_copies.*]. Every measurement ran on the
+sealed measuring copy copy_8737cd3d (tree digest 331fe8fc...), physics_revision 10, rc 0 on the first try; there was
+no crash, no refusal and no rerun [measured, C7LOG; ROLOG-r]. No readout file was missing or differed from its
+manifest entry, so no readout is absent [measured, RO "NOTES AND LIMITS"].
+
+D-1 RAIL TIMELINE (M5, whole ledger, 91 evaluations x 10 episodes) [measured, RO D-1]
+                           s60                      s42                                  s80
+  over-bar rows (sign)     tail_3 + 24              tail_3 + 249                         neck_pitch - 119
+  first saturated episode  8,126,464                3,670,016                            3,801,088 (neck)
+  first tail-flagged eval  none                     3,801,088                            none
+  TAIL ALARMs              0                        22, first 3,932,160                  0
+  tail-flagged spells      none                     3.80-5.11M (11), 5.37-5.51M (2),     none
+                                                    7.99-8.39M (4), 9.57-10.62M (9)
+  ANY-flagged evaluations  0                        26 (the same spells)                 12 (4.85-7.34M)
+  ANY ALARMs               0                        22                                   6 (5,505,024-7,077,888)
+  last over-bar row        11,796,480               11,927,552                           8,781,824
+  tail over-bar share W1/W2/W3   0 / 0.009 / 0.075  0.103 / 0.359 / 0.364                0 / 0 / 0
+  OTHER over-bar share W1/W2/W3  0 / 0 / 0          0 / 0 / 0                            0.003 / 0.363 / 0.007
+  TAIL-UNRESOLVED rows     0                        0                                    0
+  missing ANY / TAIL inputs 0 / 0                   0 / 0                                0 / 0
+- TEL's rail_actuators equals M5's over-bar rows row by row in every run: 24/24, 249/249, 119/119, with no extras.
+- No other actuator was over the bar in any evaluation of any run.
+- s60's 24 rows are single episodes: at most 3 per evaluation, so none is flagged.
+
+D-2 TRAINING-ROW DRIVE (M6, policy_probe.npz, 1,465 rollouts per run) [measured, RO D-2]
+- First rollout with tail_3 rollout_mu_beyond_high_share >= 0.05:
+    s60  7,962,624. It leads the first tail-saturated episode by 163,840 steps. Its 41 rollouts at >= 0.05 are all
+         after 7,000,000.
+    s42  3,735,552. It lags the first saturated episode by 65,536 steps, and leads the first flagged evaluation by
+         65,536 and the first TAIL ALARM by 196,608. 158 rollouts at >= 0.05 come after 7,000,000 (first 7,987,200).
+    s80  never (none at >= 0.01 either).
+- tail_3 muHi mean / max per window:
+    s60  W1 0 / 0;              W2 0.0030 / 0.109;   W3 0.0140 / 0.194.
+    s42  W1 0.0249 / 0.452;     W2 0.1276 / 0.799;   W3 0.0842 / 0.605.
+- s80 neck_pitch (beyond D-2's named set, report only):
+    The first rollout with muLo >= 0.05 is 4,562,944. That is after the first neck over-bar episode (3,801,088) and
+    before the first ANY-flagged evaluation (4,849,664). W2 muLo mean 0.068, max 0.570. 59 rollouts at >= 0.05 come
+    after 7M; the last is 8,765,440.
+- Hip roll (both legs, every run): muHi and muLo 0 in every window.
+- Late-onset check (the window after 7,000,000, entropy bonus 0, reported separately): s60's mu-beyond rollouts
+  (>= 0.05) lie entirely after 7M, though its rise in mean command began before (section 4.3); s42's rail re-formed
+  after 7M; s80's neck habit faded after 7M (section 4).
+- train_episodes.csv has no actuator column, so the drive is read from the probe. Training episodes not truncated:
+    W1 486 / 511 / 512 (s60 / s42 / s80), mostly fallen and nosedive.
+    W2 + W3 16 / 4 / 14.
+
+D-3 DETERMINISTIC TAIL COMMANDS (M1, seeds 3042-3061, every 1,048,576 checkpoint, the final, and onset pairs)
+[measured, PAN-r <label>/m1/m1_summary.json; HL-s60, HL-s42, HL-s80]
+  CMD_14 (tail_3) and full-horizon TAIL FLAGS (all tail_3 '+'):
+    label         s60            s42            s80
+    1,048,576     +0.013 (0)     -0.035 (0)     -0.021 (0)
+    2,097,152     +0.011 (0)     +0.151 (0)     +0.018 (0)
+    3,145,728     +0.011 (0)     +0.524 (0)     +0.078 (0)
+    3,670,016     -              +0.931 (13)    -          (s42's one D-3 onset pair)
+    4,194,304     +0.067 (0)     +0.989 (19)    +0.020 (0)
+    5,242,880     +0.144 (0)     +0.884 (3)     -0.020 (0)
+    6,291,456     +0.273 (0)     +0.355 (0)     +0.188 (0)
+    7,340,032     +0.641 (0)     +0.648 (4)     +0.126 (0)
+    8,388,608     +0.880 (3)     +0.941 (19)    +0.116 (0)
+    9,437,184     +0.862 (1)     +0.803 (0)     +0.217 (0)
+    10,485,760    +0.727 (0)     +0.936 (16)    +0.423 (0)
+    11,534,336    +0.645 (0)     +0.866 (0)     +0.550 (0)
+    final         +0.557 (0)     +0.893 (0)     +0.588 (0)
+    TRACE ONSET   8,388,608      3,670,016      none
+    DRIVE ONSET   7,340,032      3,670,016      none
+- Every label of every run: 20/20 full horizon, 0 FALL FLAGS.
+- Onset pairs: s42 had exactly one 262,144 multiple, 3,670,016, in its D-3 window [3,538,944, 3,801,088]. F2 holds
+  it and it was traced. s60 and s80 had no tail-flagged evaluation, so they have no onset pair [measured, s42
+  measurer's verify_copies.json and F2 eval_episodes.csv].
+- tail_3 detail:
+    s60 at 8.39M: raw window mean 0.880 (max 0.976), frac99 mean 0.078, frac90 0.481, |raw| > 1 share 0.037.
+    s60 at the final: frac99 0, raw mean 0.557 [measured, HL-s60].
+    s42: frac99 means 0.588 / 0.837 / 0.700 / 0.644 at 3.67 / 4.19 / 8.39 / 10.49M. At the final, frac99 is 0 but
+         frac90 is 0.565 [measured, HL-s42].
+    s80: tail frac99, frac90 and |raw| > 1 are 0 at every label [measured, HL-s80].
+- Other tail actuators: s42 tail_1_pitch -0.107 to -0.190 from 3.67M to 8.39M (-0.150 to -0.190 except -0.107 at
+  6.29M). s80 tail_1_pitch rises to +0.231 at
+  the final, and tail_2_pitch reaches -0.152 at 9.44M. None is over the bar [measured, PAN-r m1].
+- TEL's per-evaluation tail_3 command, window means W1 / W2 / W3:
+    s60  0.021 / 0.395 / 0.788.
+    s42  0.281 / 0.619 / 0.888.
+    s80  0.024 / 0.073 / 0.363.
+  [measured, RO D-13]
+
+D-4 POSTURE AT J (M2, seeds 3042-3081, 40 episodes; statue on the same copy 40/40 clean, reward 4470.369)
+[measured, PAN-r <label>/m2/m2_summary.json, as the measurers reduced them; rounded from the exact
+posture_means_full_horizon values]
+  statue: base / distal chord +0.10 / +3.24 deg; tip 0.932 m; CoM fore-aft -27.3 mm; pitch +0.92 deg;
+  head tip 0.959 m; neck / head pitch 12.3 / 12.6 deg.
+  run  label    clean/40  reward   chords deg (base/distal)  tip m   CoM f-a mm  pitch deg  head tip m  neck/head deg
+  s60  4.19M    40        4447.6   +0.65 / +4.09             0.944   -33.0       +0.72      1.061
+  s60  5.24M    39        4443.0   +1.22 / +4.77             0.959   -26.9       +1.16      1.021
+  s60  6.29M    40        4435.1   +1.63 / +5.60             0.967   -33.7       +0.71      1.058
+  s60  8.39M    34 FAIL   4376.2   +4.26 / +9.75             1.030   -30.4       +1.03      1.087
+  s60  10.49M   38        4383.6   +3.69 / +8.87             1.017   -28.6       +1.17      1.074
+  s60  final    40        4396.0   +2.38 / +7.09             0.986   -31.6       +0.94      1.115
+       (s60 neck / head pitch over its six J: 1.5-8.8 / 6.7-10.3 deg)
+  s42  4.19M    3 FAIL    4349.1   +2.92 / +8.35             1.001   -19.3       +1.87      0.924      +14.8 / +10.7
+  s42  5.24M    30 FAIL   4330.5   +1.89 / +7.26             0.975   -37.0       +0.66      1.079      +6.0 / +7.7
+  s42  6.29M    39        4412.4   +1.12 / +5.13             0.958   -19.1       +1.54      0.901      +17.2 / +11.2
+  s42  8.39M    4 FAIL    4338.3   +2.47 / +7.77             0.990   -17.3       +1.62      0.929      +21.5 / +0.3
+  s42  10.49M   7 FAIL    4351.4   +3.33 / +8.67             1.011   -25.3       +1.75      1.024      +10.0 / +5.4
+  s42  final    38 FAIL   4353.1   +3.77 / +9.01             1.019   -34.9       +1.17      1.155      -2.6 / +9.1
+  s80  4.19M    39        4416.3   -0.40 / +2.85             0.918   -34.4       +0.40      1.268      -6.5 / +3.0
+  s80  5.24M    37 FAIL   4418.0   -0.68 / +2.45             0.911   -37.1       +0.28      1.308      -12.6 / +6.7
+  s80  6.29M    5 FAIL    4377.4   -0.27 / +3.37             0.917   -42.0       -0.44      1.346      -17.4 / +10.2
+  s80  8.39M    40        4426.4   -1.10 / +2.21             0.899   -36.2       -0.14      1.014      +11.5 / +9.6
+  s80  10.49M   40        4380.6   +0.91 / +4.80             0.948   -36.0       +0.27      1.260      -0.9 / -3.6
+  s80  final    40        4386.9   +2.12 / +6.38             0.977   -30.2       +0.43      1.166      +6.5 / -3.3
+- Every M2 panel: 40/40 full horizon, fall direction "none" 40/40, pelvis height 0.925-0.928 m.
+- Every v2 FAIL above is on max_actuator_saturation_fraction (hop_or_fall). The one extra is s42's
+  max_settle_stance_width_change_m episode at 4.19M, 5.24M and 8.39M (section D-7).
+- Each M2 n_clean and mean reward equals the judge's v2 panel at the same checkpoint (s42 checked at all six J)
+  [measured, s42 measurer's cross-check].
+- Where M2's tail_3 command is +0.76 or more (s42 at 4.19, 5.24, 8.39, 10.49M and the final; s60 at 8.39 and
+  10.49M), the distal chord is 4.0-6.5 deg above the statue's and the tip 0.04-0.10 m higher [measured, the
+  differences in the table above].
+- The r9 references (EVID TABLE B) are on the r9 plant, whose statue tail sits 28 deg lower in distal chord
+  (-24.81 deg, tip 0.406 m). They are compared to their own statue, not to these numbers [measured, EVID l206-l227].
+
+D-5 HEAD POSTURE AND HIP ROLL [measured, PAN-r m2 (above); RO D-13 and D-11; PAN-r m1 hip roll]
+- HEAD LOW (window-mean head tip < 0.75 m) occurs at no J checkpoint and in no ledger evaluation of any run.
+    Lowest M2 head tip: s42 0.901 m at 6.29M.
+    Lowest TEL evaluation means: s60 0.949, s42 0.885, s80 0.945 m.
+    One s60 ledger episode fell at 11,534,336 (length 463) with head tip 0.749 m [measured, RO D-13].
+- s80's head rose during its neck habit: TEL head tip W2 1.305 m and neck pitch -13.1 deg, against the statue's
+  0.959 m and +12.3 deg. Later, head_pitch_act parked negative in 185 W3 episodes [measured, RO D-13].
+- Hip roll (r_hip_roll and l_hip_roll), M1 window means: the means over the 20 episodes are within +-0.009 rad in
+  every run and at every label (largest magnitudes 0.0076 s60, 0.0085 s42, 0.0082 s80); per-episode window means are
+  within +-0.04 rad (widest s42, -0.036 to +0.037). The mean right-minus-left difference is -0.016 to +0.004 rad.
+  Both joints are present at every step [measured, PAN-r <label>/m1/m1_summary.json hip_roll, all labels;
+  S2/r10round/f2/fixer/f_hiproll.py].
+- TEL hip roll mean is within +-0.77 deg at every evaluation (the extreme is s42 r_hip_roll +0.763 deg at 262,144)
+  [measured, RO D-13].
+
+D-6 SATURATION BY ACTUATOR (M1 OTHER flags; M5 per evaluation) [measured, PAN-r m1; RO D-1]
+- s60 and s42: no non-tail actuator over the bar at any traced checkpoint or in any evaluation.
+- s80: neck_pitch_act '-' is the only non-tail actuator over the bar:
+    5,242,880:   2 of 20 (frac99 0.056, frac90 0.347).
+    6,291,456:  18 of 20 (0.594 / 0.711; command window mean -0.917).
+    7,340,032:  15 of 20 (0.419 / 0.561).
+    From 8,388,608 on: none.
+- FALL FLAGS: 0 everywhere.
+
+D-7 K1-K4 (M4 judge at J; scored by kscore_r10ltsb.py with score_stance3.py's code) [measured, KS-r; PAN-r m4]
+- Judge bindings in every file: full mode, no relaxation, no hard failures, physics_revision 10, git 8737cd3d.
+              K1                                   K2 (K2a/K2b 0 everywhere)  K3 joint / own falls  K4    HOLDS
+              clean 4.2/5.2/6.3/8.4/10.5/final     K2c median mm (range)      at 6.3M and final     roll
+  s60  PASS   40/39/40/34/38/40, durable           PASS 46.4-53.5 (7.12)      1,1 / 0,0  PASS       0,0   true
+  s42  FAIL   3/30/39/4/7/38; final hop 2 > 1      PASS 43.6-63.1 (19.53)     1,0 / 0,0  PASS       0,0   false
+  s80  FAIL   39/37/5/40/40/40; 6.3M LCB 0.051     PASS 37.0-49.9 (12.83)     5,2 / 0,0  FAIL       0,0   false
+- Failed: s60 []; s42 [K1]; s80 [K1, K3]. FORE_AFT_HOLDS: true / false / false. Missing and invalid: none.
+- Statue K2c median 52.74 mm on the same seeds [measured, KS-r].
+- K1 failure modes: no terminations in any run; new_modes true in each.
+    s60  8.4M: max_actuator_saturation_fraction 6.
+    s42  4.2M 36, 5.2M 10, 8.4M 35, 10.5M 33 and final 2 on saturation; plus max_settle_stance_width_change_m 1 at
+         4.2M, 5.2M and 8.4M.
+    s80  6.3M: saturation 35.
+- Joint-space noise falls at every J, of 20 (seeds):
+    s60  4.2M 0; 5.2M 1 (3051); 6.3M 1 (3051); 8.4M 0; 10.5M 1 (3061); final 1 (3061).
+    s42  4.2M, 5.2M, 6.3M and 8.4M 1 each (3061); 10.5M 0; final 0.
+    s80  4.2M 0; 5.2M 2 (3046, 3048); 6.3M 5 (3042, 3046, 3048, 3054, 3061); 8.4M 1 (3061); 10.5M 1 (3061); final 2
+         (3051, 3061).
+  [measured, PAN-r <label>/m4/judge_<label>.json]
+- Own-sigma noise falls: 0 of 20 at every J in every run. Own sigma mean falls from 0.10 to 0.065-0.070; joint sigma
+  mean 0.161 [measured, same files].
+- Fall direction:
+    M2 deterministic panels: "none" 40/40 at every J (no panel fall).
+    Noise falls: the judge files carry no direction field. From com_fore_aft_footsite_m:
+      s80: every recorded value is behind the feet (-0.196 to -0.418 m), so backward [inferred]. Three s80 falls
+           end on tail_contact.
+      s60 seed 3051 (5.2M, 6.3M): -0.242 / -0.136 m, so backward [inferred].
+      s60 seed 3061 (10.5M, final): +0.048 / +0.033 m. The direction is not clear [inferred, weak].
+      s42 seed 3061: falls at 147-199 steps, before the window, so no reading [measured, PAN-r m4 episodes_detail].
+- K5 trajectory (report only; computed for this review with score_stance3.k5_readout on F2's ledgers) [measured, XTRA]:
+    The statue is -0.0273 m and the window [-0.0873, +0.0027] m. 68 evaluations from 3,145,728 were considered.
+    No flag in any run. Full-horizon CoM ranges: s60 -0.0357 to -0.0263; s42 -0.0387 to -0.0156; s80 -0.0425 to
+    -0.0285 m.
+- Late-fall fraction (score_stance3.late_falls on F2's train_episodes.csv) [measured, XTRA]:
+    Only the first 262,144-step bin is over 5%: s60 0.617, s42 0.592, s80 0.657 (early learning).
+    The maximum after 4,194,304 is 0.011 / 0.008 / 0.011.
+- S3 step (score_stance3.s3_step; post-hoc, beyond THIS12's D-7 list l602-l604; report only): s60 11,010,048; s42
+  11,534,336; s80 11,534,336 [measured, XTRA].
+- Band readouts: captured in each judge file (band_readouts, report only). Neither the measurers nor this review
+  reduced them [measured, PAN-r m4 key present].
+
+D-8 THE CERTIFICATE AT 6,291,456, BESIDE THE GATE CLASS AND THE NOTEBOOK'S OWN VERDICT
+[measured, PAN-r 6291456/m3/m3_summary.json and final/m3; F2C-r 01_stance/stance_heading_report.txt.copy1 and
+gate_verdict.json.copy1; F2C-r 01_stance/progress.json.copy1]
+  run  M3 at 6,291,456 (report only)               GATE CLASS (final)        notebook gate_verdict (robust_best)
+  s60  PASS 40/40 at six headings, LCB 0.928       PASS 40/40                PASS, 917,504: 39/40 each heading,
+                                                                            LCB 0.8868
+  s42  PASS 39/40 at six headings, LCB 0.887       FAIL 38/40 (hop 2 > 1)    PASS, 1,966,080: 40/40, LCB 0.9278
+  s80  FAIL 5/40 at six headings, LCB 0.0506;      PASS 40/40                PASS, 1,835,008: 40/40, LCB 0.9278
+       hop_or_fall 35 > 1 (saturation 35/40,
+       median 0.6325, worst 0.9062)
+- The notebook's pair sits at 0.9-2.0M in every run. It reads PASS in s42, whose final fails. As the criteria warn,
+  it cannot see a late rail [measured, THIS12 D-8 l605-l608; inferred for r10 from the table].
+- s80's 6,291,456 certificate names no actuator. M2 on the same seeds at heading 0 does: all 35 failing episodes
+  have neck_pitch_act as the saturating actuator, tail_3's frac99 is 0 in all 40, and the saturation's median 0.6325
+  and worst 0.90625 over the 40 episodes equal the certificate's (its l54; the 40-episode mean is 0.548) [measured,
+  PAN-s80 6291456/m2/panel.json; S2/r10round/f2/fixer/f_m2panel.py, f_m2med.py]. M1 agrees (18 of 20 over the bar,
+  sign -) [measured, PAN-s80 6291456/m1]. The other five headings were not traced; they give the same clean count and
+  reward as heading 0 [inferred that they share the actuator, from the certificate's per-heading table].
+
+D-9 VALUE OF THE HABIT (RAIL runs only: s42) [measured, D910-s42 d9_3670016_hold_tail_3_pitch_act_0 and
+d9_final_hold_tail_3_pitch_act_0]
+- At 3,670,016 (the first traced checkpoint with >= 5 of 20 TAIL FLAGS), holding tail_3 at 0:
+    window return held minus deterministic: mean +78.29 per window; min +33.68, max +108.32; 20 of 20 positive.
+    0 TAIL FLAGS; 20/20 full horizon.
+- At stage1_final: mean -64.46; min -124.29, max +47.12; 2 of 20 positive.
+- r9 references: +73.1 to +85.9 (stance4 s42) and +36.2 / +54.6 under own noise [measured, THIS12 D-9 l609-l612].
+- How it was run: with the copy's own episode_trace_report.py --hold, since measure_r10round.py has no hold mode.
+  Reduced by the pinned reduce_m1. At the final, the deterministic trace has 0 TAIL FLAGS, so the hold there removes
+  a parked command, not a rail [measured, D910-s42; s42 measurer's problems].
+- s60 and s80: not run (not RAIL).
+
+D-10 OWN-NOISE BEHAVIOUR AT stage1_final (--stochastic 3042, 20 episodes) [measured, D910-r d10_final_stochastic3042]
+  run  TAIL FLAGS (own noise)  CMD_14 noise / deterministic  full horizon  window return vs deterministic
+  s60  0                       +0.533 / +0.557               20/20         (episode return mean 4379.85)
+  s42  14 of 20 (tail_3 +)     +0.851 / +0.893               20/20         mean -15.95, 0 of 20 positive
+  s80  0                       +0.555 / +0.588               20/20         mean -22.4, 0 of 20 positive
+- s42's deterministic final has 0 flags. Under the policy's own noise, 14 of 20 episodes cross the bar.
+- Same method note as D-9 (the copy's own script, --stochastic).
+
+D-11 THE STAGE-END TRAINING-HISTORY REPORT, AS PRODUCED [measured, RO D-11]
+- In all three runs: 21 files, every one manifest-verified (19 pages, the html, training_history.json); errors [];
+  no absent series; plant identity matches.
+- The report's flagged list equals the ledger tool's ANY-flagged list.
+- Checkpoints named: best / robust_best at 917,504 / 917,504 (s60), 524,288 / 1,966,080 (s42) and 1,835,008 /
+  1,835,008 (s80).
+- Ledger CoM fore-aft (statue -0.0274 m), W1 / W2 / W3:
+    s60 -0.0292 / -0.0321 / -0.0303;  s42 -0.0254 / -0.0240 / -0.0240;  s80 -0.0290 / -0.0389 / -0.0332 m.
+- Root pitch (statue -0.91 deg, + nose up), W3: s60 -1.05, s42 -1.47, s80 -0.32 deg.
+- Four pages were viewed as images (s42 02_saturation, 10_policy_std, 17_exploration_k3; s80 13_commands). What they
+  show agrees with the numbers above.
+
+D-12 SAME-SEED COMPARISON (report only; seeds do not pair runs) [measured, r9 rows EVID TABLE D l233-l248 and TABLE A
+l389-l405, re-derived from the r9 ledgers in RO D-12; r10 rows SCORE, KS-r, F2C-r progress.json.copy1]
+  seed run (plant)          ANY ALARM (actuator)   first sat   first flag  flagged  final certificate      K1-K4    wall clock
+  60   stance5_LTSB_s60 r9  none                   11,403,264  none        0        PASS 39/40             P P F P  14 h 26 min
+  60   r10LTSB_s60 r10      none                   8,126,464   none        0        PASS 40/40             P P P P  14.03 h
+  42   stance5_LTSB_s42 r9  3,670,016 (tail_3 +1)  3,145,728   3,538,944   30       not rolled (v2 19/40)  F P F P  13 h 36 min
+  42   r10LTSB_s42 r10      3,932,160 (tail_3 +1)  3,670,016   3,801,088   26       FAIL 38/40             F P P P  13.90 h
+  80   stance5_LTSB_s80 r9  4,456,448 (tail_3 +1)  4,325,376   4,325,376   37       PASS 38/40             F P P P  13 h 47 min
+  80   r10LTSB_s80 r10      5,505,024 (neck -1)    3,801,088   4,849,664   12       PASS 40/40             F P F P  13.95 h
+  (r10LTSB_sNN = stance6_r10LTSB_sNN. r10 wall clock = progress.json wall_clock_s: 50,519 / 50,033 / 50,215 s.)
+- Failure details: r9 s60 K3 had 3 of 20 joint falls at the final; r10 s60 has 1 of 20. r9 s42 K3 had 13 of 20; r10
+  s42 has 0. r9 s80 K1 failed on the saturation rail (tail_3) at 5.24 / 6.29 / 8.39M; r10 s80 K1 fails at 6.29M on
+  saturation, which is neck_pitch_act [measured in M2 on the same seeds at heading 0, D-8], and K3 has 5 of 20 joint
+  falls at 6.29M and 2 at the final [measured, EVID TABLE D; KS-r].
+- Family runs of the same seed [measured, EVID TABLE A]:
+    seed 60: stance3 Run 2 (LT) alarmed at 2,359,296 on tail_3, final tail_3 +0.851 (PARKED on r9); stance4 LTS s60
+             had none.
+    seed 42: stance4 LTS s42 alarmed at 2,228,224 on tail_3.
+- Read beside each other [inferred, from the rows]:
+    seed 42 railed on tail_3 at +1 on both plants; its r10 first alarm came 262,144 steps later.
+    seed 80 railed tail_3 on r9 but alarmed on neck_pitch on r10 (an ANY ALARM in a CLEAR run), with no
+    tail-saturated episode.
+    seed 60 had no flag on either plant, but on r10 it ended PARKED on tail_3.
+  GPU training is not bit-reproducible, so none of this is a paired effect [measured, EVID l250-l258].
+
+D-13 TEL'S COLUMNS OVER TRAINING ("columns of the telemetry PR; report only") [measured, RO D-13; 124 numeric
+columns per run in RO json]
+- The statue reference is a 10-episode zero-action ledger on the run-branch head tree before the header commit. That
+  commit adds a stance.toml comment only, so the reference is taken as equal [inferred, RO notes].
+                                statue   s60 W1/W2/W3             s42 W1/W2/W3             s80 W1/W2/W3
+  head_tip_height_mean_m        0.959    1.005 / 1.066 / 1.090    0.943 / 0.963 / 1.003    1.061 / 1.305 / 1.133
+  neck_pitch_mean_deg           12.26    9.66 / 5.74 / 4.89       13.54 / 14.54 / 12.99    6.59 / -13.12 / 8.22
+  head_pitch_mean_deg           12.64    10.65 / 8.92 / 6.68      12.60 / 7.76 / 4.16      8.91 / 7.88 / -1.69
+  tail_3_pitch_act_command      0        0.021 / 0.395 / 0.788    0.281 / 0.619 / 0.888    0.024 / 0.073 / 0.363
+  neck_pitch_act_command        0        -0.086 / -0.213 / -0.242 0.031 / 0.040 / -0.022   -0.181 / -0.788 / -0.154
+  head_pitch_act_command        0        -0.094 / -0.177 / -0.272 -0.002 / -0.201 / -0.359 -0.166 / -0.223 / -0.601
+  tail_tip_chord_mean_deg       0.08     0.08 / 2.14 / 3.63       0.65 / 1.62 / 2.95       0.00 / -0.52 / 0.78
+  neck_head_work_abs_j          1.03     0.85 / 1.59 / 3.61       0.62 / 2.26 / 4.87       2.46 / 7.42 / 7.80
+  root_height_mean_m            0.926    0.926 in every window of every run, except s42 W2 0.927
+  (Cells rounded from the exact values in RO json runs.<r>.D13.windows.)
+- TEL parked_actuators, W3: s60 tail_3 + 246 episodes; s42 tail_3 + 176; s80 head_pitch - 185, tail_3 + 20.
+- HEAD LOW evaluations: none in any run.
+
+D-14 THE IN-RUN K3 PANEL (M7; not the K3 of record) BESIDE THE JUDGE'S K3
+[measured, RO D-14; XTRA d14_judge_vs_in_run_panel]
+- Panel on in every run: 12 panels, 480 csv rows, session_problem None.
+- Sigma key and sha256 equal the seed's pin: source_vectors.60 17fb067f..., source_vectors.42 929e3f6d...,
+  control_sigma.80 df380505....
+- In-run panel, own falls: 0 of 20 at every panel of every run.
+- In-run panel, joint-space falls of 20, grid then final:
+    s60  0,0,0,0,1,1,0,0,1,1,1 | final 1.
+    s42  0,0,1,1,1,1,1,1,0,0,0 | final 0.
+    s80  0,1,0,0,2,5,2,1,1,1,2 | final 2.
+- Reproduction check, filled here (the analyst's D-14 was pending M4 at 15:25 UTC): the offline judge's K3 equals the
+  in-run panel in fall count and in the falling seeds, own and joint. This holds at all six J checkpoints of all three
+  runs, 18 of 18, including 6,291,456 and the final. There are no differences to name [measured, XTRA; PAN-r m4;
+  RO work k3panel_<r>.json]. The judge's sigma equals the panel's in every file (equal_to_judge_vector true).
+- r10 statue reference: 1 joint-space fall in 2 spawns [measured, THIS12 D-14 l624-l627].
+- The panel's own sigma equals the probe's std at the 11 grid panels. At the final panel it differs by at most
+  1.5e-4, because the probe row is read before that update's train() and the final panel after it [measured / inferred,
+  RO D-14].
+- Not done: the panels' policy-state and obs-statistics sha256 were not matched against the checkpoint pairs. That
+  check loads checkpoints [measured, RO notes].
+
+D-15 EXPLORATION STD AND OBSERVATION-NORMALISATION DRIFT (TEL pages 17-18) [measured, RO D-15; STD-r]
+- std starts at exp(-1.5) = 0.2231 for every actuator and falls through every run.
+- Final std:
+    legs 0.009-0.064.
+    neck / head 0.096-0.122.
+    tail 0.095-0.134; tail_3 0.114 (s60), 0.095 (s42), 0.123 (s80).
+- First update below the 0.08 reference (drawn, not applied): knee and ankle about 0.75M; hip pitch 1.16-1.17M;
+  hip roll 7.89M (s60), 7.77M (s42) and 8.06M (s80). Neck, head and tail never go below it.
+- Leg mirror pairs are equal at every update.
+- Obs-normalisation, the three most-drifting dimensions:
+    s60  hip roll x2, target_direction.x.
+    s42  qpos.tail_3_pitch (0.258), then hip roll x2.
+    s80  qpos.neck_pitch (0.297), then hip roll x2.
+  The s42 and s80 peaks fall at 3.41M and 3.15M, before their rails formed.
+- Probe / pickle consistency: 46 of 46 equal in each run.
+
+D-16 LOST RUNS: none. Every seed's run of the round is COMPLETE, so there is nothing to print [measured, SCOREJ
+"presence_rails" [] and reading.with_lost.runs []; SCORE l12-l152].
+
+======================================================================================================================
+4. THE ENTROPY QUESTION (the maintainer asked whether the entropy setting could be introducing the bad behaviours)
+   POST-HOC, REPORT ONLY: not one of the pre-registered readouts D-1..D-16. It uses two of them (D-2's late-onset
+   check, THIS12 l580; D-15's std, THIS12 l628-l630) beside analysis made for the question [measured, CRIT l335-l354;
+   RO l689].
+======================================================================================================================
+4.1 THE SETTINGS, AS THE RUNS RECORD THEM [measured, F2C-r 01_stance/stage_config.json.copy1; sha256 898bb25d...
+(s60), 5d54e6de... (s42), ec1c49a5... (s80), each equal to its manifest entry]
+- Identical in all three runs:
+    hyperparameters.ent_coef 0.005, ent_coef_end 0.0, ent_coef_decay_timesteps 7,000,000.
+    policy_kwargs.log_std_init -1.5, net_arch [512, 256].
+    symmetry mirror_kl, kappa 0.3, symmetry_sigma_floor 0.01.
+    reward_weights.action_saturation_weight 0.5, action_saturation_threshold 0.9 (the same pair in
+    task_fingerprint.env).
+    learning_rate 3e-5 to 1e-5.
+- The copy's EntCoefDecayCallback docstring says the decay is linear, then held [measured, s60/s42 measurers,
+  copy_8737cd3d environments/shared/curriculum/schedules.py].
+- These match the maintainer's line, and LTSB's r9 runs used the same schedule [measured, RO E6].
+
+4.2 MEASURED FACTS [measured, RO "ENTROPY CHECK" E1-E7 and the files it names]
+- E2. The ent_coef recorded at every update follows the linear schedule to 2.3e-10. It is 0 from update 7,004,160.
+- E3. The bonus at the onsets:
+    s42 first TAIL ALARM (3,932,160): 0.00219 (44% of 0.005).
+    s80 first ANY ALARM (5,505,024): 0.00107 (21%).
+    s60's first over-bar episode (8,126,464) came with the bonus at 0.
+- E4. Exploration std:
+    No actuator's std rises over any 1,048,576-step stretch.
+    s42's tail_3 std was the lowest of the three runs at its onset (0.160 at 3,932,160, against 0.171 and 0.174) and
+    stayed lowest to the end (0.095).
+    Log-std slope per 1M steps, (6M,7M] against (7M,8M] [measured, S2/r10round/f2/readouts/work/std_kink_7M.json]:
+      s42 tail_3 -0.0443 -> -0.0602; s80 tail_3 -0.0434 -> -0.0609; s42 tail_1_pitch -0.0388 -> -0.0583;
+      s80 tail_1_pitch -0.0344 -> -0.0526; but s60 neck_pitch -0.0527 -> -0.0374 and s60 tail_1_pitch -0.0508 ->
+      -0.0317; s60 tail_3 -0.0530 -> -0.0497. The mean learning rate falls from 1.92e-5 to 1.75e-5 over the same
+      windows.
+    Read [inferred, from these slopes; no threshold for a "break" was set]: no consistent break at 7M. tail_3's std
+    decline steepened by about 35-40% after 7M in s42 and s80, the direction expected if the bonus had been holding
+    std up; in s60 some declines eased instead.
+- E5. Saturation before and after the bonus reached 0 (over-bar rows [0, 7M) against [7M, 12M]):
+    s60  0 against 24 (all after 7M).
+    s42  123 against 126 (11 of its 22 alarms after 7M; the rail cleared in (6.29M, 7.34M], rollout mean -0.059, then
+         re-formed twice).
+    s80  85 against 34 (faded after 7M).
+- E6. r9 under the same schedule: the railed r9 runs kept their rails after 7M, with 12 (s42) and 17 (s80) flagged
+  evaluations. The r9 records hold no per-update std; their final std_min / std_max match r10's range.
+- E7. The code [measured, copy_8737cd3d environments/shared/mirror_kl_ppo.py; SB3 distributions.py, as RO cites]:
+    The loss is policy_loss + ent_coef * entropy_loss + vf_coef * value_loss.
+    log_std is one state-independent parameter per actuator (no use_sde).
+    A diagonal Gaussian's entropy depends on log_std only.
+    The symmetry KL uses sigma = exp(log_std).detach().clamp_min(0.01), so it passes no gradient to log_std.
+    The saturation cost is on the clipped raw command and is flat beyond |a| = 1.
+
+4.3 THE INFERRED ANSWER [inferred, from E1-E7; the readouts analyst's answer (RO l798-l812), narrowed in this revision
+where its wording went beyond the records]
+- The bonus does not drive these habits directly. Its gradient reaches log_std only, the same push on all 15
+  actuators, and never the mean action that the ledger and M1 measure. (The one indirect path is the shared
+  gradient-norm clip over all policy parameters, mirror_kl_ppo.py l401; it is negligible, since the entropy
+  gradient's norm is at most 0.005 x sqrt(15) = 0.019 against SB3's default max_grad_norm of 0.5, which stage_config
+  does not override [inferred, from the code and stage_config.json.copy1].)
+- A non-zero bonus at the time is not needed for a crossing or a re-formed rail. s60's bound crossings and over-bar
+  episodes, and s42's two re-formed spells, came with ent_coef exactly 0; r9's railed runs kept their rails after 7M.
+  Whether the schedule's first 7M steps are needed is untested: every run on both plants had them, s60's rise in
+  mean command began while the bonus was above 0 (caveat below), and s42 re-formed from a policy that had railed
+  3.67-5.9M under the bonus [measured, RO E2, E5, E6, l773-l777].
+- A role through the noise level is not supported and not excluded. In the railing run, tail_3 was the least noisy
+  tail_3 of the three runs (E4). std shows no consistent break at 7M, but tail_3's decline steepened after 7M in s42
+  and s80 (E4). And the bonus is about 0.0007 or less from 6M on (0.00071 at 6.0M, 0.00051 at 6.29M), so its
+  removal is gradual [measured, STD-s60 ent_coef column].
+- A role in the timing of the early onsets cannot be judged. Every first onset of an alarm run on both plants (r10
+  s42 3.67M, s80 3.80M; r9 s42 3.15M, s80 4.33M) fell while the bonus was above 0, and every run shares one
+  schedule. The non-alarm runs' first over-bar episodes came late: r10 s60 at 8,126,464, r9 s60 at 11,403,264 and r9
+  s70 at 8,126,464 with the bonus at 0, and r9 s52's at 6,946,816 just before it reached 0 [measured, RO E3, E6].
+  There is no contrast in these records.
+- One caveat this review adds. s60's mean tail_3 command was already rising while the bonus was small but not 0
+  (rollout mean +0.13 in 4.2-5.2M, +0.44 in 6.3-7.3M). So "the s60 drive formed at 0" holds for its bound crossings
+  and over-bar episodes, not for the whole rise [measured, RO E5 bins].
+- A mechanism that needs no entropy was offered as a reading, not a test: once the mean passes the bound, every
+  sample on that side clips to the same command; the saturation cost stops growing at |a| = 1; and the clipped
+  surrogate has little to pull the mean back [inferred, RO, from E7].
+
+4.4 ITS LIMITS
+- n = 3 here and 5 on r9, all on one schedule.
+- GPU training is not bit-reproducible, so a seed fixes the start, not the run.
+- The r9 records lack per-update std.
+- No run contrasts ent_coef. So the timing question is open, not answered "no" [inferred, from 4.2].
+
+4.5 THE EXPERIMENT THAT WOULD TEST IT (described, not proposed; each would need the maintainer's approval of a
+training change and a launch) [inferred, RO "WHAT WOULD TEST IT"]
+- Branch continuations from the runs' own checkpoints:
+    s42 at 3,407,872 and s80 at 3,670,016 (before their onsets): continue about 1.5M steps with the recorded schedule
+    against ent_coef 0, several training seeds each.
+    The converse from s60's 6,815,744 pair: the bonus re-instated against 0.
+    Read the probe's mu-beyond share and the ledger rule.
+    About 16 continuations, about 25-30 L4-hours.
+    Those pairs are listed in the manifests but are not among F2's copies, so a read-only fetch would come first.
+    Continuations are diagnostics, not round runs.
+- The only test of onset: two arms from scratch, identical but for ent_coef, under the same pre-registered ledger
+  rule. About 6-8 runs per arm (12-16 runs, about 170-230 L4-hours). The analyst's figures are p-values at fixed
+  outcomes, not power: if one arm has no alarms and the other alarms at r10's observed 2 of 3 (a 3-run figure), 4 of 6
+  against 0 of 6 gives p 0.030 and 5 of 8 against 0 of 8 gives 0.013; 4 of 8 against 0 of 8 gives 0.038 [read from RO
+  l824-l827, inferred there; recomputed for this revision]. Power at one-sided alpha 0.05 [computed for this
+  revision, S2/r10round/f2/fixer/f_power.out]: with a complete cure (true 2/3 against 0), 0.68 at 6 per arm and 0.91
+  at 8; with the rate halved (2/3 against 1/3), 0.18 at either size; at r9's rate against a cure (0.4 against 0),
+  0.18 and 0.41. Sizing belongs to that round's own pre-registration.
+
+======================================================================================================================
+5. AGAINST r9 AND THE INTERIM SNAPSHOTS
+======================================================================================================================
+5.1 WHAT CHANGED WITH r10 [measured, CRIT l53-l70; EVID]
+- The plant changed: physics r10 (policy interface r15).
+- The recipe did not: arm LTSB ported to r10, the same PPO schedules (hyperparameters_sha256 054ab483..., LTSB r9's),
+  the same notebook path, the same evaluation cadence. The checkpoint cadence was 262,144 (D3 (a)).
+- The statue moved: zero-action reward 4470.4 (main 3766.6); the r10 statue tail sits at distal chord +3.24 deg,
+  tip 0.932 m (r9 -24.81 deg, 0.406 m).
+- The comparison tests "r10 as shipped", not one change alone [measured, EVID TABLE B; CRIT l301-l305].
+
+5.2 ROUND AGAINST THE LTSB r9 COMPARATOR (5 runs) [measured, EVID TABLES A and D and "THE COMPARATOR'S OTHER
+RECORDS"; r10 from SCORE and KS-r]
+                              LTSB r9 (5 runs)                          r10 (3 runs)
+  ANY ALARM runs              2 of 5 (both tail_3 +1)                   2 of 3 (s42 tail_3 +1; s80 neck_pitch -1)
+  first alarms                3,670,016 and 4,456,448                   3,932,160 (tail) and 5,505,024 (neck)
+  tail rails (R)              2 (s42, s80)                              1 (s42)
+  PARKED (this text's rule)   not established (R1 and J never measured; 1 of 3 (s60)
+                              s70 PARKED-like at R2, tail_2 +0.767)
+  final certificate PASS      4 of 4 rolled (s42 not rolled)            2 of 3 (s42 FAIL)
+  K1 / K2 / K3 / K4 pass      3 / 5 / 3 / 5 of 5                        1 / 3 / 2 / 3 of 3
+  HOLDS                       2 of 5 (s52, s70)                         1 of 3 (s60)
+  POSITIVE-equivalent         1-2 of 5 on the end window; 0-2 under     1 of 3 (s80, POSITIVE)
+                              this text's PARKED (EVID's nearest)
+  wall clock per run          13 h 36 min - 14 h 26 min                 13.90-14.03 h (progress.json)
+- The r9 POSITIVE-equivalent is not this round's definition; it is EVID's nearest equivalent [measured, EVID l365-l375].
+- Same-seed rows are in D-12 above (report only). The seeds were chosen with their r9 outcomes known [measured, CRIT
+  l74-l77].
+
+5.3 F2 AGAINST THE TWO INTERIM LOOKS (report only; neither was the reading) [measured, RO "INTERIM CONTEXT"; SNAP1;
+SNAP2; RUNLOG l681, l689]
+- Both snapshot ledgers are exact row-by-row prefixes of F2's ledgers:
+    snapshot 1: 230 rows to 3,014,656 in each run.
+    snapshot 2: 580 / 580 / 590 rows to 7,602,176 / 7,602,176 / 7,733,248.
+  Their K3 panels match F2's.
+- Snapshot 1 (files of about 18:40 UTC on 2026-10-27, 3,014,656 steps):
+    no flag or alarm in any run;
+    s42's TEL tail_3 command rising from about 0 at 1.31M to +0.394 at 3.01M.
+  s42's first over-bar row came 5 evaluations later, at 3,670,016.
+- Snapshot 2 (files of 23:52-23:58 UTC, 7.60-7.73M):
+    s42: 13 flagged evaluations and 11 alarms on tail_3 +1 (3.80-5.51M), 128 over-bar rows.
+    s80: 12 ANY-flagged evaluations and 6 neck_pitch alarms, 110 rows.
+    s60: no flag, but TEL's tail_3 command at +0.76, with 10 of 10 episodes at |command| >= 0.60 in the last two
+         evaluations. That is TEL's per-episode measure, not the criteria's CMD_a.
+- F2 against snapshot 2:
+    s42 added two more spells after the snapshot (7.99-8.39M and 9.57-10.62M): 26 flagged, 22 alarms, 249 rows.
+    s80 had the same 12 flagged evaluations and 6 alarms; 9 single rows came after, the last at 8,781,824.
+    s60 had 24 single over-bar rows from 8,126,464 and ended PARKED.
+- So snapshot 2 saw s42's first two spells, s80's whole alarm period and the start of s60's drive. It could not see
+  s42's re-formed rail or s60's park: both came after 7M, and the park needs the end traces [inferred].
+- The snapshots' own checks: snapshot 1's independent check confirmed 10,041 values. It found one blocking wording
+  error, which was corrected. Snapshot 2's check found 0 data mismatches in 4,915 values [measured, RUNLOG l681, l689].
+
+======================================================================================================================
+6. WHAT THE ROUND DOES NOT SHOW (limits that bear on this reading) [measured, CRIT KNOWN LIMITS l625-l675; THIS12
+KNOWN LIMITS l879-l951, unless marked]
+======================================================================================================================
+- Three runs measure no rate.
+    If nothing changed from r9, 2 alarm runs of 3 (the observed A = 2) had probability 0.286, and 1 tail rail of 3
+    (the observed R = 1) 0.357 [read from EVID l355-l356, which labels them inferred; EVID's "rails of 3" there are
+    runs at r9's 2-of-5 rate, which for r9 was both its alarm-run and its tail-rail rate]. The comparator's own rate
+    is uncertain (about 0.12-0.77, Beta(3,4)) [read from CRIT l626-l629,
+    inferred there].
+    "Halved" and "cured" are barely separated by 3 runs [read from EVID l359-l361, inferred there].
+- Historical control only: 3 runs against 5, trained days apart, on other code. No concurrent control.
+- The seeds were chosen with their r9 outcomes known. Per-seed comparisons are report only.
+- GPU non-determinism: a seed fixes the start, not the run. The in-run panel's inertness is proven on the CPU and
+  inferred on the GPU.
+- The gate certificate is a measurement of the gate's criteria on a screen task, not certification. The gate reads
+  stage1_final only. In this round that hides both directions:
+    s80 failed at 6,291,456 (5/40) and passed at the final.
+    s42 passed at 6,291,456 and failed at the final.
+  [measured, D-8]
+- The notebook's own gate verdict chose pairs at 0.9-2.0M. It cannot see a late rail (D-8).
+- The in-run K3 panel is not the K3 of record; M4's judge is. They agreed exactly here (D-14), but agreement on 18
+  checkpoints is not a proof for others [inferred].
+- K1-K4 are report only, judged at J only.
+- RAIL reads the ledger every 131,072 steps and the end traces. A rail can form and clear between two evaluations.
+  PARKED reads R1, R2 and J only. A drive between J checkpoints shows only in D-3 and TEL's commands.
+- The 0.60 PARKED line is r9's ruling carried to r10 (about a +3.1 to +4.0 deg joint offset on r10). A run within
+  about 0.05 of it classifies by chance:
+    s60's MEAN_a margin +0.042 is inside that band, but its J window fires with margins +0.28 and +0.13.
+    s80's final CMD +0.588 is inside the band below the line.
+  [measured, SCORE l160; PAN-s80 final/m1]
+- ent_coef reaches 0 at 7,000,000. If r10 only delayed onsets past that point, "no rail by 12M" would not mean
+  "removed". s60's bound crossings are such a late case (D-2, D-3), though its rise in mean command began before 7M
+  (section 4.3) and r9's s60 never flagged either (first saturated episode 11,403,264 on r9), so nothing here shows
+  that r10 delayed it [measured, RO E5, E6; inferred, the "not shown"].
+- Head posture and hip roll are report only, and the gate does not see the head. TEL's columns have no r9
+  reference.
+- How much the CoP band binds for policies trained on r10 is not measured by these readouts.
+- A counts any-actuator alarms, so a non-tail alarm (s80's neck) counts the same as a tail alarm. This is how r9's
+  2 of 5 were counted, but r9 had no non-tail alarm to compare [inferred, section 1.5].
+- The entropy question cannot be answered for onset timing from runs that share one schedule (section 4.4).
+- D-9 and D-10 ran through the copy's own script, not through measure_r10round.py. They are report only by
+  construction.
+- What C1-C7 cannot see (forbidden by RUN HANDLING): hand edits of a run folder, a second runtime under one RUN_ID,
+  and an unnoted re-run of the chain-loop cell. Nothing in the files suggests any of them; equally, nothing could
+  [measured, CRIT l658-l665].
+
+======================================================================================================================
+7. RECORDS
+======================================================================================================================
+7.1 WHERE EVERYTHING IS
+- Rules: CRIT, THIS12, EVID, APPROVED (all 0444; sha256 above).
+- Reading: SCORE, SCOREJ, SCORERC; completeness COMP-r (and complete_post/, complete_pre/); independent check CHECK1
+  with derive.py, check_c.py and their outputs in S2/r10round/f2/check1/; the first workflow's result WF1.
+- Fetch store: ROUND/fetch/F2/<RUN_ID>/ (copies/ and listings/); raw transfers under ROUND/fetch/raw/ (F0, F2,
+  folders); F0 under ROUND/fetch/F0/; FMAN; ROUND/fetch/folders.json.
+- Measurements: ROUND/panels/<RUN_ID>/<label>/<m1|m2|m3|m4>/; C7 logs C7LOG and S2/r10round/f2/logs/measure/*.log;
+  report-only logs S2/r10round/f2/logs/report_only/<RUN_ID>/.
+- Report-only extras: D-9 / D-10 under S2/r10round/f2/d9_d10/; K scores KS-r; judge run folders
+  S2/r10round/f2/placed/<RUN_ID>/ (cp from verified copies); measurers' scripts S2/r10round/f2/ro_s60/, ro_s42/,
+  ro_s80/.
+- Readouts: RO (READOUTS.txt 938 lines, READOUTS.json), STD-r, S2/r10round/f2/readouts/work/.
+- Measuring copy S2/r10round/f2/copy_8737cd3d (sealed); statue panel S2/r10round/f2/statue_m2/panel.json (40/40,
+  4470.368636249949).
+- Exact-copy transfer script S2/r10round/f2/xfer/extract_response.py (sha256 98e8041e...).
+- Interim: SNAP1, SNAP2.
+- This review: S2/r10round/f2/REVIEW.txt; XTRA with review_extras.py and review_extras.out. Also a flattened text view
+  of WF1 for reading, S2/r10round/f2/review_wf1_flat.txt (a working file).
+- Durable copy (local): S2/r10round/durable/ (build_stage.sh, stage/, repo/).
+
+7.2 THE FETCHES' NUMBERS [measured, FMAN, counted by status per fetch and run]
+- F2, 12:28:51-13:54:48 UTC on 2026-10-28, including the stop at 13:28 and resume at 13:34 [measured, FMAN; RUNLOG
+  l708-l710]. Rows (copies, distinct paths, bytes):
+    s60  75 rows (68 copies, 64 paths, 77,710,765 bytes).
+    s42  76 rows (70 copies, 66 paths, 82,286,525 bytes; one more pair, the 3,670,016 onset pair).
+    s80  74 rows (68 copies, 64 paths, 78,409,699 bytes).
+  Totals: 206 copies of 194 distinct paths, 238,406,989 bytes, and 18 listings.
+- TRANSFER-ERRORs in F2: 1. It is s60 01_stance/evaluations.npz transfer 1 (base64 did not decode; before the
+  transfer decision). One s80 download of evaluations.npz was never recorded; its partial text is kept as
+  ...t1.b64.INCOMPLETE_unrecorded and was not passed to the tool. Neither file is a C3 file [measured, FMAN; RUNLOG
+  l708; CHECK1 N6].
+- Two copies agree in every run for artifact_manifest.json, provenance.json, 01_stance/stage_config.json and
+  01_stance/eval_episodes.csv. Every other file has one copy equal to its manifest entry. fetch_r10round.py status
+  prints "done: every file of this fetch is held as the rules require" for each run [measured, WF1 fetched; RO
+  COPIES].
+- F0 (2026-10-27 15:06-15:45 UTC): 31 copies, 3 TRANSFER-ERRORs and 10 listings. Each TRANSFER-ERROR is a decoded
+  size of the live eval_episodes.csv that differed from the listing; the file was re-listed and copied again. One s80
+  F0 download was never passed to the tool. FOLDERS: 2 listings [measured, FMAN; RUNLOG l670].
+- Against the criteria's estimate of about 195 file copies per round: F2 206, F0 + F2 237 [measured, FMAN; CRIT l681].
+- No re-fetch [measured, SCORE l8].
+
+7.3 COMPUTE USED
+- Training, Colab L4, three runtimes in parallel, one session each, no relaunch:
+    wall clock 50,519 / 50,033 / 50,215 s (s60 / s42 / s80); 41.88 h of training in all; 237.6 / 239.9 / 239.0
+    steps/s [measured, F2C-r 01_stance/progress.json.copy1].
+    From session start to manifest: 14.88 / 14.75 / 14.81 h, about 44.4 L4-hours [inferred, from C4's started_at
+    and RUNLOG l693-l697's manifest times; the runtime release time was not seen].
+  Estimates for comparison: CRIT about 43-46 L4-hours (l678); APPROVED's budget about 46.5.
+- Session measurement, all single-thread at nice 10 (the runner's children at nice 19), at most 2 round simulations
+  at a time [measured, C7LOG; ROLOG-r; measurers' queue logs]:
+    C7 (21 jobs): 81.7 job-minutes.
+    Report-only (63 jobs: s60 20, s42 23, s80 20): 223.4 job-minutes.
+    In all about 5.1 CPU-hours [measured, sums of C7LOG start/end times and ROLOG-r minutes].
+  Plus the statue panel and three kscore runs (under 1 min each). The readouts analyst ran no simulation.
+  CRIT's estimate was about 6-8 CPU-hours (l680).
+- Wall time: F2 12:25-13:55; C7 13:55-14:41; scorer 14:43; report-only 15:06-17:50; this review 17:52-18:10 (UTC,
+  2026-10-28).
+- Disk: 3.9 GB free at 18:00 UTC against the tools' 3 GB floor [measured, df].
+
+7.4 PROCESS DEPARTURES AND NOTES (named, none changes a C1-C7 fact, a class or the line) [measured, RUNLOG lines
+named; WF1; CHECK1]
+- Launch times (RUNLOG l671-l672, l675): the s42 and s80 LAUNCH lines were written at 15:54 UTC with an estimated
+  14:57. The maintainer reported the launches without times. C4 holds for any plausible launch time: the folders
+  appeared between the 14:59:10 and 15:05:40 listings, and the sessions started 15:03:06 / 15:03:09 [inferred,
+  CHECK1 N6].
+- Run ends were noted from Drive (RUNLOG l690, l693-l698): the manifest present, progress ended, and no write for
+  30+ min, per the maintainer's decision of 01:09 UTC. The runtimes' release was not seen.
+- Two interim read-only snapshots were taken at the maintainer's request (RUNLOG l680, l688). This departs from L5 (a)
+  "no interim fetch". Their downloads were kept outside the round folder, and neither was read for the reading.
+- F2 transfer method (RUNLOG l708-l710):
+    The hand transcription named in the fetch brief was cut off on 01_stance/evaluations.npz (s60 TRANSFER-ERROR; the
+    s80 download unrecorded; the s42 session ended).
+    The maintainer decided at 13:31 UTC to use the exact-copy script (extract_response.py, sha256 98e8041e...).
+    The fetch rules themselves were unchanged.
+- F0: one s80 download was never passed to the tool (RUNLOG l670).
+- F2 prep (RUNLOG l702): the statue panel's first try was refused by the tool itself (a missing flag) and was rerun
+  as the V1 script runs it. This happened before any run data was read.
+- D-9 / D-10 were run with the copy's own episode_trace_report.py, because measure_r10round.py has no hold or
+  stochastic mode. They were reduced with the pinned reduce_m1.
+- Processes outside the round ran beside the measurements, each a single process at nice 15: the maintainer's CoM
+  side task (RUNLOG l707, l713-l714) and an unrelated record.py process seen at 16:00. The 2-process cap counted
+  round simulations only [measured, RUNLOG l707; the measurers' reports].
+- The scorer's PROVISIONAL tool-hash check covers the 7 lane B code files only (CHECK1 N1). Lane A's tools and the
+  pins file were hashed by hand by the check and the coordinator: all equal their pins.
+- The lane B banner prints criteria sha256 e5bea5d3.... That is the unpinned v6 text; no rule reads it (CHECK1 N7).
+- complete_r10round.py prints "PRESENCE RAIL" for COMPLETE s42 (CHECK1 N3; section 2).
+- Three duplicate scratch files remain, byte-identical to their siblings: S2/r10round/f2/complete_pre/
+  stance6_r10LTSB_<r>.withjson.txt. Their removal was refused by a permission check (WF1 measure.problems).
+- Some files were not fetched: robust_best_model.zip and the 3,407,872 / 6,815,744 pairs that section 4.5 names.
+  None is a C3 file [measured, RO; s42 measurer].
+- The local durable-copy clone S2/r10round/durable/repo has its origin push URL set to the GitHub remote. The
+  run-branch clone's push URL reads DISABLED [measured, git remote -v in each, local only]. Nothing was pushed by
+  this stage.
+
+7.5 THE DURABLE COPY (D17: the round's derived text outputs, the criteria, THIS12, EVID and the fetch manifest on an
+orphan never-merged handoff branch, pushed; CRIT l498-l500, THIS12 l802-l807)
+- First commit: pushed at 15:05 UTC on the maintainer's word ("Yes, push the durable copy branch"). It is orphan
+  branch claude/handoff-stance6 at 6c3f27b9933d5cc94d8873757bcec43460f8c4fe: 1 commit, 178 files, about 20 MB,
+  never merged, no PR [measured, RUNLOG l712]. The local clone shows that commit on claude/handoff-stance6 and a
+  remote-tracking ref origin/claude/handoff-stance6 [measured, git log and git branch -a in S2/r10round/durable/repo,
+  local only, no network].
+- Second commit: PENDING THE MAINTAINER. It would add this workflow's report-only panels, readouts, this review and
+  the next-steps text [measured, RUNLOG l712]. Nothing is pushed without the maintainer. This stage pushed nothing
+  and wrote nothing in S2/r10round/durable/.
+
+7.6 WHAT THIS STAGE TOUCHED [measured]
+- Wrote only under S2/r10round/f2/:
+    REVIEW.txt;
+    review/review_extras.py, review_extras.json, review_extras.out;
+    review_wf1_flat.txt.
+- Read only, never written: RUNLOG (714 lines), the main checkout (git status clean), the run-branch clone, APPROVED,
+  the criteria files, the fetch store and every tool folder.
+- No simulation, no training, no Drive, no GitHub. Downloads were read as JSON or CSV only: no unpickling, no import
+  of a download, no cd into a download folder.
+- The revision (fixer stage, 19:02-19:14 UTC) wrote only under S2/r10round/f2/: this REVIEW.txt (revised),
+  REVIEW.v1.txt (the text before revision, byte-identical copy), NEXT_STEPS.txt (revised), NEXT_STEPS.v1.txt,
+  FIXES.txt, HEADLINE.txt, and its own read-only scripts and outputs in fixer/. It read panel and readout JSON, the
+  std CSVs, score.json and stage_config.json.copy1 (sha256 equal to the manifest entry) as data; it ran no
+  simulation, loaded no checkpoint and pushed nothing.
+
+END OF REVIEW (report only).

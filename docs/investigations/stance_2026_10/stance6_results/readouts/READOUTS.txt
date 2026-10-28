@@ -1,0 +1,938 @@
+======================================================================================================================
+STANCE6 (r10 round) - PRE-REGISTERED DIAGNOSTIC READOUTS, REPORT ONLY - D-1, D-2, D-11..D-15, ENTROPY CHECK, INTERIM
+======================================================================================================================
+Written Wed Oct 28 15:24:36 UTC 2026 (date -u). Readouts analyst; no simulation, no training, no Drive, no GitHub.
+What this is: the criteria's PRE-REGISTERED DIAGNOSTIC READOUTS (criteria.txt lines 335-342; THIS12 lines 566-630)
+on F2's manifest-verified copies. Report only: nothing here changes a class, A, n_A, a gate, an outcome or the reading.
+The reading is the scorer's and is FIXED [measured, SCORE]: 'READING: line 1: TAIL RAIL FORMED ON r10 IN TRAINING
+(ledger)', R 1 (COMPLETE 1, PRESENCE 0), U 0, P 1, G+ 1, STATUS: FINAL; A 2 of 3 against LTSB r9's 2 of 5, one-sided
+Fisher p 0.9286. Classes: s60 PARKED / GATE PASS / NEGATIVE; s42 RAIL (RAIL-LEDGER-PERSISTENT) / GATE FAIL / NEGATIVE;
+s80 CLEAR / GATE PASS / POSITIVE (ANY ALARMs on neck_pitch_act, non-tail).
+Labels: [measured, KEY] = read or computed from the file KEY names (SOURCES below); [inferred] = reasoned, basis given.
+Steps are training timesteps. W1/W2/W3 = the r9 windows [0, 4,194,304), [4,194,304, 8,388,608), [8,388,608, 12,001,280].
+
+COPIES USED [measured, VER]: every F2 copy of every run was hashed and compared with that run's artifact_manifest.json
+entry. s60 64 paths, s42 66 paths, s80 64 paths: every path has a copy whose sha256 equals the manifest's entry; the only
+path without an entry is artifact_manifest.json itself (no self-entry), whose two copies agree in each run (s60
+8523cf22..., s42 3ffa31e6..., s80 29e92b97...). Where two copies exist (eval_episodes.csv, stage_config.json,
+provenance.json) both match. fetch_r10round.py status --fetch F2 prints 'done: every file of this fetch is held as the
+rules require' for all three [measured, /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/readouts/work/status_s60.json, status_s42.json, status_s80.json].
+Tools used as pinned (sha256 equal to lane B SHA256SUMS.txt: ledger_r10round.py 0d89bcb8..., k3panel_r10round.py
+89d279d4..., r10round_common.py ea2c5ea6...) [measured, sha256sum vs /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/lean/build/laneB/SHA256SUMS.txt].
+Commands (cwd /tmp, PY = S2/venv/bin/python -I -B):
+  ledger_r10round.py <E copy> --E 12001280 --probe <P copy> --tel --json work/ledger_<run>.json   (rc 0, all three)
+  k3panel_r10round.py --json <K copy> --csv <KC copy> --seed <60|42|80> --out work/k3panel_<run>.json   (rc 0)
+  ledger_r10round.py <r9 LTSB ledger> --r9-summary --json work/r9ledger_<run>.json   (rc 0, five r9 runs)
+
+----------------------------------------------------------------------------------------------------------------------
+HEADLINE PER RUN (report only)
+----------------------------------------------------------------------------------------------------------------------
+s60: no flagged evaluation and no alarm in 91 [measured, L-s60]. tail_3_pitch_act was over the bar (+1) in 24 single episodes, the first at 8,126,464,
+  all after 7,000,000 (entropy bonus 0); its training-row drive reached 0.05 at 7,962,624 (41 rollouts >= 0.05, all after 7M); TEL's window-mean tail_3 command rose from
+  0.021 (W1) to 0.788 (W3), final evaluation 0.626: the PARKED drive [measured, P-s60, E-s60, L-s60].
+  In-run K3: own 0 of 20 everywhere; joint 0-1 of 20 (1 at the final) [measured, K3T-s60].
+s42: tail_3_pitch_act at +1 in 249 of 910 episodes; first over-bar episode 3,670,016, first flagged evaluation 3,801,088,
+  first TAIL ALARM 3,932,160; 26 flagged evaluations in 4 spells, 22 alarms, 11 of them after 7,000,000 [measured, L-s42].
+  The rail cleared at about 5.6-7.3M (rollout mean tail_3 -0.059 in (6.29M, 7.34M]) and came back twice with the bonus at 0 [measured, BINS]. Its tail_3 exploration std was the lowest
+  of the three runs at its first alarm (0.1597 at 3,932,160 vs 0.1707 s60, 0.1744 s80) [measured, P-*]. In-run K3: own 0 of 20; joint 0-1 of 20, 0 at the final [measured, K3T-s42].
+s80: no tail-saturated episode; neck_pitch_act at -1 in 119 episodes (first 3,801,088), 12 ANY-flagged evaluations 4,849,664-7,340,032, 6 ANY ALARMs
+  5,505,024, 5,636,096, 6,029,312, 6,422,528, 6,553,600, 7,077,888 (one after 7M); last over-bar row 8,781,824 [measured, L-s80]. TEL: the head rose (W2 head tip 1.305 m
+  vs statue 0.959 m, neck pitch -13.1 deg vs 12.3) and later head_pitch_act parked at - (W3 185 episodes) [measured, L-s80, STAT].
+  In-run K3: own 0 of 20; joint up to 5 of 20 at 6,291,456, 2 of 20 at the final [measured, K3T-s80].
+ENTROPY [inferred, from the measured facts in the ENTROPY CHECK]: the run records do not support the entropy bonus as
+  the driver of these habits. The bonus acts only on the state-independent log_std, by the same amount on all 15
+  actuators, never on the mean action the ledger measures; the s60 drive formed and the s42 rail re-formed with the
+  bonus at exactly 0; r9 under the same schedule kept its rails after 7M too. A contributing role in the early onsets
+  (all while the bonus was > 0) cannot be ruled out from records in which every run had the same schedule; a contrast
+  in ent_coef (described at the end of the ENTROPY CHECK) would test it.
+
+----------------------------------------------------------------------------------------------------------------------
+D-1 RAIL TIMELINE (M5 on the whole ledger, per run) [measured, E-<run> via L-<run>; signs from saturated_actuator_
+positive_share >= 0.5 = '+'; TEL rail_actuators = episodes naming the actuator in that column, all 10 episodes]
+----------------------------------------------------------------------------------------------------------------------
+stance6_r10LTSB_s60 (seed 60): evaluations read 91 (910 rows); C6 with E 12,001,280: PASS; missing ANY inputs 0, missing TAIL inputs 0; TAIL-UNRESOLVED rows 0; over-bar rows with ties or >= 2 actuators saturated 0; NEEDS RESOLUTION none.
+  first tail-saturated episode 8,126,464; first tail-flagged evaluation none; TAIL ALARM steps: none
+  tail-flagged spells (from, to, evaluations): none
+  first any-actuator over-bar episode 8,126,464; ANY-flagged spells: none
+  ANY ALARM count 0: none
+  over-bar rows by actuator and sign (whole ledger): {'tail_3_pitch_act+': 24}
+  TEL rail_actuators vs M5 row by row: over the bar and TEL rail 24; over, no TEL rail 0; TEL rail, not over 0; neither 886.
+  per evaluation (only evaluations with a count; all others 0 over the bar, none missing):
+      step         n ANY TAIL UNRES fl  over-bar by actuator/sign        TEL rail_actuators (episodes)    at_rail rows
+      8,126,464  10   2    2     0 --  {"tail_3_pitch_act+": 2}         {"tail_3_pitch_act+": 2}         2
+      8,257,536  10   1    1     0 --  {"tail_3_pitch_act+": 1}         {"tail_3_pitch_act+": 1}         1
+      8,388,608  10   1    1     0 --  {"tail_3_pitch_act+": 1}         {"tail_3_pitch_act+": 1}         1
+      8,519,680  10   2    2     0 --  {"tail_3_pitch_act+": 2}         {"tail_3_pitch_act+": 2}         2
+      8,650,752  10   2    2     0 --  {"tail_3_pitch_act+": 2}         {"tail_3_pitch_act+": 2}         2
+      8,912,896  10   1    1     0 --  {"tail_3_pitch_act+": 1}         {"tail_3_pitch_act+": 1}         1
+      9,175,040  10   3    3     0 --  {"tail_3_pitch_act+": 3}         {"tail_3_pitch_act+": 3}         3
+      9,306,112  10   1    1     0 --  {"tail_3_pitch_act+": 1}         {"tail_3_pitch_act+": 1}         1
+      9,437,184  10   3    3     0 --  {"tail_3_pitch_act+": 3}         {"tail_3_pitch_act+": 3}         3
+      9,568,256  10   3    3     0 --  {"tail_3_pitch_act+": 3}         {"tail_3_pitch_act+": 3}         3
+      9,699,328  10   1    1     0 --  {"tail_3_pitch_act+": 1}         {"tail_3_pitch_act+": 1}         1
+     10,878,976  10   1    1     0 --  {"tail_3_pitch_act+": 1}         {"tail_3_pitch_act+": 1}         1
+     11,010,048  10   1    1     0 --  {"tail_3_pitch_act+": 1}         {"tail_3_pitch_act+": 1}         1
+     11,141,120  10   1    1     0 --  {"tail_3_pitch_act+": 1}         {"tail_3_pitch_act+": 1}         1
+     11,796,480  10   1    1     0 --  {"tail_3_pitch_act+": 1}         {"tail_3_pitch_act+": 1}         1
+  windows (rows over the bar / rows; flagged evaluations / evaluations; OTHER = non-tail actuators):
+    window                  evals rows  tail-over (share)  OTHER-over (share)  tail-flagged (share)  ANY-flagged  OTHER-flagged  TAIL alarms  ANY alarms
+    W1 [0, 4.19M)             31  310     0 (0.0000)        0 (0.0000)        0 (0.0000)           0            0            0            0
+    W2 [4.19M, 8.39M)         32  320     3 (0.0094)        0 (0.0000)        0 (0.0000)           0            0            0            0
+    W3 [8.39M, 12.0M]         28  280    21 (0.0750)        0 (0.0000)        0 (0.0000)           0            0            0            0
+    [0, 7.0M) bonus > 0       53  530     0 (0.0000)        0 (0.0000)        0 (0.0000)           0            0            0            0   (entropy split)
+    [7.0M, 12.0M] bonus 0     38  380    24 (0.0632)        0 (0.0000)        0 (0.0000)           0            0            0            0   (entropy split)
+  every other actuator: none over the bar (every non-listed actuator: 0 rows over the bar in all 91 evaluations).
+
+stance6_r10LTSB_s42 (seed 42): evaluations read 91 (910 rows); C6 with E 12,001,280: PASS; missing ANY inputs 0, missing TAIL inputs 0; TAIL-UNRESOLVED rows 0; over-bar rows with ties or >= 2 actuators saturated 0; NEEDS RESOLUTION none.
+  first tail-saturated episode 3,670,016; first tail-flagged evaluation 3,801,088; TAIL ALARM steps: 3,932,160, 4,063,232, 4,194,304, 4,325,376, 4,456,448, 4,587,520, 4,718,592, 4,849,664, 4,980,736, 5,111,808, 5,505,024, 8,126,464, 8,257,536, 8,388,608, 9,699,328, 9,830,400, 9,961,472, 10,092,544, 10,223,616, 10,354,688, 10,485,760, 10,616,832
+  tail-flagged spells (from, to, evaluations): [[3801088, 5111808, 11], [5373952, 5505024, 2], [7995392, 8388608, 4], [9568256, 10616832, 9]]
+  first any-actuator over-bar episode 3,670,016; ANY-flagged spells: [[3801088, 5111808, 11], [5373952, 5505024, 2], [7995392, 8388608, 4], [9568256, 10616832, 9]]
+  ANY ALARM count 22: 3,932,160, 4,063,232, 4,194,304, 4,325,376, 4,456,448, 4,587,520, 4,718,592, 4,849,664, 4,980,736, 5,111,808, 5,505,024, 8,126,464, 8,257,536, 8,388,608, 9,699,328, 9,830,400, 9,961,472, 10,092,544, 10,223,616, 10,354,688, 10,485,760, 10,616,832
+  over-bar rows by actuator and sign (whole ledger): {'tail_3_pitch_act+': 249}
+  TEL rail_actuators vs M5 row by row: over the bar and TEL rail 249; over, no TEL rail 0; TEL rail, not over 0; neither 661.
+  per evaluation (only evaluations with a count; all others 0 over the bar, none missing):
+      step         n ANY TAIL UNRES fl  over-bar by actuator/sign        TEL rail_actuators (episodes)    at_rail rows
+      3,670,016  10   4    4     0 --  {"tail_3_pitch_act+": 4}         {"tail_3_pitch_act+": 4}         4
+      3,801,088  10  10   10     0 AT  {"tail_3_pitch_act+": 10}        {"tail_3_pitch_act+": 10}        10
+      3,932,160  10  10   10     0 AT  {"tail_3_pitch_act+": 10}        {"tail_3_pitch_act+": 10}        10
+      4,063,232  10   8    8     0 AT  {"tail_3_pitch_act+": 8}         {"tail_3_pitch_act+": 8}         8
+      4,194,304  10   9    9     0 AT  {"tail_3_pitch_act+": 9}         {"tail_3_pitch_act+": 9}         9
+      4,325,376  10   6    6     0 AT  {"tail_3_pitch_act+": 6}         {"tail_3_pitch_act+": 6}         6
+      4,456,448  10  10   10     0 AT  {"tail_3_pitch_act+": 10}        {"tail_3_pitch_act+": 10}        10
+      4,587,520  10  10   10     0 AT  {"tail_3_pitch_act+": 10}        {"tail_3_pitch_act+": 10}        10
+      4,718,592  10  10   10     0 AT  {"tail_3_pitch_act+": 10}        {"tail_3_pitch_act+": 10}        10
+      4,849,664  10   9    9     0 AT  {"tail_3_pitch_act+": 9}         {"tail_3_pitch_act+": 9}         9
+      4,980,736  10  10   10     0 AT  {"tail_3_pitch_act+": 10}        {"tail_3_pitch_act+": 10}        10
+      5,111,808  10   9    9     0 AT  {"tail_3_pitch_act+": 9}         {"tail_3_pitch_act+": 9}         9
+      5,373,952  10   6    6     0 AT  {"tail_3_pitch_act+": 6}         {"tail_3_pitch_act+": 6}         6
+      5,505,024  10   7    7     0 AT  {"tail_3_pitch_act+": 7}         {"tail_3_pitch_act+": 7}         7
+      5,636,096  10   2    2     0 --  {"tail_3_pitch_act+": 2}         {"tail_3_pitch_act+": 2}         2
+      5,898,240  10   3    3     0 --  {"tail_3_pitch_act+": 3}         {"tail_3_pitch_act+": 3}         3
+      7,340,032  10   4    4     0 --  {"tail_3_pitch_act+": 4}         {"tail_3_pitch_act+": 4}         4
+      7,471,104  10   1    1     0 --  {"tail_3_pitch_act+": 1}         {"tail_3_pitch_act+": 1}         1
+      7,995,392  10   7    7     0 AT  {"tail_3_pitch_act+": 7}         {"tail_3_pitch_act+": 7}         7
+      8,126,464  10   5    5     0 AT  {"tail_3_pitch_act+": 5}         {"tail_3_pitch_act+": 5}         5
+      8,257,536  10   7    7     0 AT  {"tail_3_pitch_act+": 7}         {"tail_3_pitch_act+": 7}         7
+      8,388,608  10  10   10     0 AT  {"tail_3_pitch_act+": 10}        {"tail_3_pitch_act+": 10}        10
+      9,306,112  10   1    1     0 --  {"tail_3_pitch_act+": 1}         {"tail_3_pitch_act+": 1}         1
+      9,568,256  10  10   10     0 AT  {"tail_3_pitch_act+": 10}        {"tail_3_pitch_act+": 10}        10
+      9,699,328  10  10   10     0 AT  {"tail_3_pitch_act+": 10}        {"tail_3_pitch_act+": 10}        10
+      9,830,400  10  10   10     0 AT  {"tail_3_pitch_act+": 10}        {"tail_3_pitch_act+": 10}        10
+      9,961,472  10  10   10     0 AT  {"tail_3_pitch_act+": 10}        {"tail_3_pitch_act+": 10}        10
+     10,092,544  10  10   10     0 AT  {"tail_3_pitch_act+": 10}        {"tail_3_pitch_act+": 10}        10
+     10,223,616  10  10   10     0 AT  {"tail_3_pitch_act+": 10}        {"tail_3_pitch_act+": 10}        10
+     10,354,688  10   9    9     0 AT  {"tail_3_pitch_act+": 9}         {"tail_3_pitch_act+": 9}         9
+     10,485,760  10  10   10     0 AT  {"tail_3_pitch_act+": 10}        {"tail_3_pitch_act+": 10}        10
+     10,616,832  10   8    8     0 AT  {"tail_3_pitch_act+": 8}         {"tail_3_pitch_act+": 8}         8
+     10,747,904  10   1    1     0 --  {"tail_3_pitch_act+": 1}         {"tail_3_pitch_act+": 1}         1
+     10,878,976  10   2    2     0 --  {"tail_3_pitch_act+": 2}         {"tail_3_pitch_act+": 2}         2
+     11,927,552  10   1    1     0 --  {"tail_3_pitch_act+": 1}         {"tail_3_pitch_act+": 1}         1
+  windows (rows over the bar / rows; flagged evaluations / evaluations; OTHER = non-tail actuators):
+    window                  evals rows  tail-over (share)  OTHER-over (share)  tail-flagged (share)  ANY-flagged  OTHER-flagged  TAIL alarms  ANY alarms
+    W1 [0, 4.19M)             31  310    32 (0.1032)        0 (0.0000)        3 (0.0968)           3            0            2            2
+    W2 [4.19M, 8.39M)         32  320   115 (0.3594)        0 (0.0000)       13 (0.4062)          13            0           11           11
+    W3 [8.39M, 12.0M]         28  280   102 (0.3643)        0 (0.0000)       10 (0.3571)          10            0            9            9
+    [0, 7.0M) bonus > 0       53  530   123 (0.2321)        0 (0.0000)       13 (0.2453)          13            0           11           11   (entropy split)
+    [7.0M, 12.0M] bonus 0     38  380   126 (0.3316)        0 (0.0000)       13 (0.3421)          13            0           11           11   (entropy split)
+  every other actuator: none over the bar (every non-listed actuator: 0 rows over the bar in all 91 evaluations).
+
+stance6_r10LTSB_s80 (seed 80): evaluations read 91 (910 rows); C6 with E 12,001,280: PASS; missing ANY inputs 0, missing TAIL inputs 0; TAIL-UNRESOLVED rows 0; over-bar rows with ties or >= 2 actuators saturated 0; NEEDS RESOLUTION none.
+  first tail-saturated episode none; first tail-flagged evaluation none; TAIL ALARM steps: none
+  tail-flagged spells (from, to, evaluations): none
+  first any-actuator over-bar episode 3,801,088; ANY-flagged spells: [[4849664, 4849664, 1], [5373952, 5636096, 3], [5898240, 6029312, 2], [6291456, 6553600, 3], [6946816, 7077888, 2], [7340032, 7340032, 1]]
+  ANY ALARM count 6: 5,505,024, 5,636,096, 6,029,312, 6,422,528, 6,553,600, 7,077,888
+  over-bar rows by actuator and sign (whole ledger): {'neck_pitch_act-': 119}
+  TEL rail_actuators vs M5 row by row: over the bar and TEL rail 119; over, no TEL rail 0; TEL rail, not over 0; neither 791.
+  per evaluation (only evaluations with a count; all others 0 over the bar, none missing):
+      step         n ANY TAIL UNRES fl  over-bar by actuator/sign        TEL rail_actuators (episodes)    at_rail rows
+      3,801,088  10   1    0     0 --  {"neck_pitch_act-": 1}           {"neck_pitch_act-": 1}           1
+      4,849,664  10   6    0     0 A-  {"neck_pitch_act-": 6}           {"neck_pitch_act-": 6}           6
+      5,373,952  10   9    0     0 A-  {"neck_pitch_act-": 9}           {"neck_pitch_act-": 9}           9
+      5,505,024  10   9    0     0 A-  {"neck_pitch_act-": 9}           {"neck_pitch_act-": 9}           9
+      5,636,096  10   9    0     0 A-  {"neck_pitch_act-": 9}           {"neck_pitch_act-": 9}           9
+      5,898,240  10   8    0     0 A-  {"neck_pitch_act-": 8}           {"neck_pitch_act-": 8}           8
+      6,029,312  10   7    0     0 A-  {"neck_pitch_act-": 7}           {"neck_pitch_act-": 7}           7
+      6,160,384  10   3    0     0 --  {"neck_pitch_act-": 3}           {"neck_pitch_act-": 3}           3
+      6,291,456  10  10    0     0 A-  {"neck_pitch_act-": 10}          {"neck_pitch_act-": 10}          10
+      6,422,528  10   8    0     0 A-  {"neck_pitch_act-": 8}           {"neck_pitch_act-": 8}           8
+      6,553,600  10   6    0     0 A-  {"neck_pitch_act-": 6}           {"neck_pitch_act-": 6}           6
+      6,684,672  10   4    0     0 --  {"neck_pitch_act-": 4}           {"neck_pitch_act-": 4}           4
+      6,946,816  10   5    0     0 A-  {"neck_pitch_act-": 5}           {"neck_pitch_act-": 5}           5
+      7,077,888  10   9    0     0 A-  {"neck_pitch_act-": 9}           {"neck_pitch_act-": 9}           9
+      7,208,960  10   1    0     0 --  {"neck_pitch_act-": 1}           {"neck_pitch_act-": 1}           1
+      7,340,032  10   8    0     0 A-  {"neck_pitch_act-": 8}           {"neck_pitch_act-": 8}           8
+      7,471,104  10   3    0     0 --  {"neck_pitch_act-": 3}           {"neck_pitch_act-": 3}           3
+      7,602,176  10   4    0     0 --  {"neck_pitch_act-": 4}           {"neck_pitch_act-": 4}           4
+      7,864,320  10   3    0     0 --  {"neck_pitch_act-": 3}           {"neck_pitch_act-": 3}           3
+      7,995,392  10   1    0     0 --  {"neck_pitch_act-": 1}           {"neck_pitch_act-": 1}           1
+      8,126,464  10   2    0     0 --  {"neck_pitch_act-": 2}           {"neck_pitch_act-": 2}           2
+      8,257,536  10   1    0     0 --  {"neck_pitch_act-": 1}           {"neck_pitch_act-": 1}           1
+      8,781,824  10   2    0     0 --  {"neck_pitch_act-": 2}           {"neck_pitch_act-": 2}           2
+  windows (rows over the bar / rows; flagged evaluations / evaluations; OTHER = non-tail actuators):
+    window                  evals rows  tail-over (share)  OTHER-over (share)  tail-flagged (share)  ANY-flagged  OTHER-flagged  TAIL alarms  ANY alarms
+    W1 [0, 4.19M)             31  310     0 (0.0000)        1 (0.0032)        0 (0.0000)           0            0            0            0
+    W2 [4.19M, 8.39M)         32  320     0 (0.0000)      116 (0.3625)        0 (0.0000)          12           12            0            6
+    W3 [8.39M, 12.0M]         28  280     0 (0.0000)        2 (0.0071)        0 (0.0000)           0            0            0            0
+    [0, 7.0M) bonus > 0       53  530     0 (0.0000)       85 (0.1604)        0 (0.0000)          10           10            0            5   (entropy split)
+    [7.0M, 12.0M] bonus 0     38  380     0 (0.0000)       34 (0.0895)        0 (0.0000)           2            2            0            1   (entropy split)
+  every other actuator: neck_pitch_act- (every non-listed actuator: 0 rows over the bar in all 91 evaluations).
+
+----------------------------------------------------------------------------------------------------------------------
+D-2 TRAINING-ROW DRIVE (M6: policy_probe.npz, every PPO rollout; 1,465 rollouts of 8,192 rows) [measured, P-<run> via
+L-<run> m6 and DATA D2]. A rollout's step is the update it fed (update_timesteps). mu = the policy's mean action at the
+rollout's observations; muHi/muLo = share of rows with mu beyond the high/low bound; clipHi/clipLo = share of sampled
+actions beyond the high/low bound (clipped by env.step). Per window: mean / max (and rollouts with share >= 0.05).
+train_episodes.csv carries no actuator column (its 20 columns: timesteps, env, length, return, cause, CoM, root pitch,
+force-limited fraction, touch shares) [measured, T-<run> header], so the drive is read from the probe; its training
+falls per window are given beside.
+----------------------------------------------------------------------------------------------------------------------
+stance6_r10LTSB_s60:
+    actuator          window                 muHi mean/max (n>=.05)    muLo mean/max (n)       clipHi mean/max    clipLo mean/max    mu mean [min, max]        q50     q95 mean/max
+    tail_1_pitch     W1 [0, 4.19M)          0.0000/0.0000 (  0)      0.0000/0.0000 (  0)   0.0000/0.0001    0.0000/0.0002    -0.019 [-0.068, 0.037]   -0.019  0.080/0.144
+    tail_1_pitch     W2 [4.19M, 8.39M)      0.0000/0.0000 (  0)      0.0000/0.0000 (  0)   0.0000/0.0001    0.0000/0.0001     0.044 [0.004, 0.076]    0.043  0.146/0.207
+    tail_1_pitch     W3 [8.39M, 12.0M]      0.0000/0.0000 (  0)      0.0000/0.0000 (  0)   0.0000/0.0001    0.0000/0.0000     0.033 [-0.030, 0.084]    0.031  0.121/0.203
+    tail_1_pitch     [7.0M, 12.0M] bonus 0  0.0000/0.0000 (  0)      0.0000/0.0000 (  0)   0.0000/0.0001    0.0000/0.0000     0.040 [-0.030, 0.084]    0.038  0.132/0.207
+    tail_1_yaw       W1 [0, 4.19M)          0.0000/0.0002 (  0)      0.0000/0.0084 (  0)   0.0008/0.0149    0.0008/0.0203     0.007 [-0.363, 0.300]    0.010  0.318/0.789
+    tail_1_yaw       W2 [4.19M, 8.39M)      0.0015/0.0181 (  0)      0.0016/0.0206 (  0)   0.0033/0.0396    0.0031/0.0342     0.004 [-0.297, 0.278]    0.006  0.494/0.870
+    tail_1_yaw       W3 [8.39M, 12.0M]      0.0004/0.0072 (  0)      0.0004/0.0078 (  0)   0.0008/0.0090    0.0007/0.0088    -0.003 [-0.216, 0.282]   -0.003  0.423/0.740
+    tail_1_yaw       [7.0M, 12.0M] bonus 0  0.0007/0.0103 (  0)      0.0009/0.0172 (  0)   0.0012/0.0107    0.0013/0.0194    -0.004 [-0.266, 0.282]   -0.003  0.423/0.740
+    tail_2_pitch     W1 [0, 4.19M)          0.0000/0.0002 (  0)      0.0000/0.0000 (  0)   0.0000/0.0004    0.0000/0.0001     0.016 [-0.027, 0.086]    0.016  0.109/0.193
+    tail_2_pitch     W2 [4.19M, 8.39M)      0.0000/0.0001 (  0)      0.0000/0.0000 (  0)   0.0000/0.0002    0.0000/0.0000     0.137 [0.041, 0.219]    0.139  0.251/0.357
+    tail_2_pitch     W3 [8.39M, 12.0M]      0.0000/0.0001 (  0)      0.0000/0.0000 (  0)   0.0000/0.0002    0.0000/0.0000     0.186 [0.132, 0.251]    0.189  0.274/0.376
+    tail_2_pitch     [7.0M, 12.0M] bonus 0  0.0000/0.0001 (  0)      0.0000/0.0000 (  0)   0.0000/0.0002    0.0000/0.0000     0.185 [0.132, 0.251]    0.188  0.279/0.376
+    tail_3_pitch     W1 [0, 4.19M)          0.0000/0.0000 (  0)      0.0000/0.0000 (  0)   0.0000/0.0002    0.0000/0.0001     0.019 [-0.009, 0.074]    0.021  0.120/0.188
+    tail_3_pitch     W2 [4.19M, 8.39M)      0.0030/0.1092 (  4)      0.0001/0.0038 (  0)   0.0207/0.2236    0.0001/0.0038     0.350 [0.064, 0.816]    0.378  0.520/1.047
+    tail_3_pitch     W3 [8.39M, 12.0M]      0.0140/0.1938 ( 37)      0.0003/0.0062 (  0)   0.0607/0.2288    0.0004/0.0077     0.655 [0.480, 0.785]    0.722  0.901/1.094
+    tail_3_pitch     [7.0M, 12.0M] bonus 0  0.0126/0.1938 ( 41)      0.0003/0.0062 (  0)   0.0610/0.2288    0.0004/0.0077     0.650 [0.448, 0.816]    0.716  0.891/1.094
+    r_hip_roll       W1 [0, 4.19M)          0.0000/0.0000 (  0)      0.0000/0.0000 (  0)   0.0000/0.0001    0.0000/0.0001    -0.029 [-0.082, 0.030]   -0.029  0.100/0.193
+    r_hip_roll       W2 [4.19M, 8.39M)      0.0000/0.0000 (  0)      0.0000/0.0000 (  0)   0.0000/0.0000    0.0000/0.0000    -0.077 [-0.159, -0.011]   -0.082  0.065/0.151
+    r_hip_roll       W3 [8.39M, 12.0M]      0.0000/0.0000 (  0)      0.0000/0.0000 (  0)   0.0000/0.0000    0.0000/0.0000    -0.067 [-0.125, -0.018]   -0.069  0.054/0.149
+    r_hip_roll       [7.0M, 12.0M] bonus 0  0.0000/0.0000 (  0)      0.0000/0.0000 (  0)   0.0000/0.0000    0.0000/0.0000    -0.072 [-0.136, -0.018]   -0.076  0.054/0.149
+    l_hip_roll       W1 [0, 4.19M)          0.0000/0.0000 (  0)      0.0000/0.0000 (  0)   0.0000/0.0001    0.0000/0.0001     0.028 [-0.029, 0.082]    0.029  0.155/0.233
+    l_hip_roll       W2 [4.19M, 8.39M)      0.0000/0.0000 (  0)      0.0000/0.0000 (  0)   0.0000/0.0000    0.0000/0.0000     0.077 [0.010, 0.152]    0.082  0.204/0.280
+    l_hip_roll       W3 [8.39M, 12.0M]      0.0000/0.0000 (  0)      0.0000/0.0000 (  0)   0.0000/0.0000    0.0000/0.0000     0.067 [0.019, 0.122]    0.069  0.178/0.247
+    l_hip_roll       [7.0M, 12.0M] bonus 0  0.0000/0.0000 (  0)      0.0000/0.0000 (  0)   0.0000/0.0000    0.0000/0.0000     0.072 [0.019, 0.141]    0.076  0.186/0.280
+  first rollout with tail_3 muHi >= 0.05: 7,962,624 (>= 0.01: 7,454,720); against D-1: vs first tail-saturated episode -163840 steps, vs first tail-flagged evaluation n/a, vs first TAIL ALARM n/a (negative = the drive leads).
+  after 7,000,000 (entropy bonus 0), separately: tail_3 rollouts with muHi >= 0.05: 41 (first 7,962,624); [7.0M, 12.0M] row above.
+  training episodes not truncated (falls and other causes) per window [measured, T-s60]: W1 [0, 4.19M) 486 of 4527 {'fallen': 213, 'nosedive': 183, 'tail_contact': 90}; W2 [4.19M, 8.39M) 7 of 4198 {'fallen': 6, 'tail_contact': 1}; W3 [8.39M, 12.0M] 9 of 3620 {'fallen': 9}; [7.0M, 12.0M] bonus 0 12 of 5010 {'fallen': 12}
+
+stance6_r10LTSB_s42:
+    actuator          window                 muHi mean/max (n>=.05)    muLo mean/max (n)       clipHi mean/max    clipLo mean/max    mu mean [min, max]        q50     q95 mean/max
+    tail_1_pitch     W1 [0, 4.19M)          0.0000/0.0000 (  0)      0.0000/0.0000 (  0)   0.0000/0.0001    0.0000/0.0001    -0.064 [-0.185, 0.004]   -0.067  0.042/0.132
+    tail_1_pitch     W2 [4.19M, 8.39M)      0.0000/0.0000 (  0)      0.0000/0.0000 (  0)   0.0000/0.0002    0.0000/0.0001    -0.132 [-0.226, 0.074]   -0.138  -0.013/0.181
+    tail_1_pitch     W3 [8.39M, 12.0M]      0.0000/0.0000 (  0)      0.0000/0.0000 (  0)   0.0000/0.0000    0.0000/0.0000    -0.070 [-0.183, 0.093]   -0.071  0.022/0.201
+    tail_1_pitch     [7.0M, 12.0M] bonus 0  0.0000/0.0000 (  0)      0.0000/0.0000 (  0)   0.0000/0.0001    0.0000/0.0000    -0.091 [-0.195, 0.093]   -0.095  0.009/0.201
+    tail_1_yaw       W1 [0, 4.19M)          0.0000/0.0000 (  0)      0.0000/0.0000 (  0)   0.0000/0.0011    0.0000/0.0004    -0.002 [-0.129, 0.129]   -0.002  0.176/0.456
+    tail_1_yaw       W2 [4.19M, 8.39M)      0.0000/0.0000 (  0)      0.0000/0.0000 (  0)   0.0000/0.0010    0.0000/0.0010    -0.004 [-0.162, 0.126]   -0.004  0.262/0.552
+    tail_1_yaw       W3 [8.39M, 12.0M]      0.0000/0.0010 (  0)      0.0000/0.0029 (  0)   0.0000/0.0013    0.0001/0.0031     0.001 [-0.140, 0.138]    0.000  0.271/0.472
+    tail_1_yaw       [7.0M, 12.0M] bonus 0  0.0000/0.0010 (  0)      0.0000/0.0029 (  0)   0.0000/0.0013    0.0001/0.0031    -0.001 [-0.162, 0.138]   -0.001  0.274/0.490
+    tail_2_pitch     W1 [0, 4.19M)          0.0000/0.0000 (  0)      0.0000/0.0000 (  0)   0.0000/0.0002    0.0000/0.0001     0.025 [-0.019, 0.069]    0.026  0.113/0.181
+    tail_2_pitch     W2 [4.19M, 8.39M)      0.0000/0.0000 (  0)      0.0000/0.0000 (  0)   0.0000/0.0002    0.0000/0.0001     0.055 [0.008, 0.113]    0.056  0.160/0.234
+    tail_2_pitch     W3 [8.39M, 12.0M]      0.0000/0.0000 (  0)      0.0000/0.0000 (  0)   0.0000/0.0001    0.0000/0.0000     0.033 [-0.021, 0.101]    0.034  0.113/0.200
+    tail_2_pitch     [7.0M, 12.0M] bonus 0  0.0000/0.0000 (  0)      0.0000/0.0000 (  0)   0.0000/0.0001    0.0000/0.0000     0.038 [-0.021, 0.101]    0.038  0.123/0.200
+    tail_3_pitch     W1 [0, 4.19M)          0.0249/0.4520 ( 55)      0.0000/0.0029 (  0)   0.0480/0.4185    0.0000/0.0032     0.252 [-0.055, 0.896]    0.277  0.380/1.114
+    tail_3_pitch     W2 [4.19M, 8.39M)      0.1276/0.7988 (219)      0.0000/0.0007 (  0)   0.1677/0.6389    0.0003/0.0211     0.547 [-0.555, 1.012]    0.592  0.818/1.200
+    tail_3_pitch     W3 [8.39M, 12.0M]      0.0842/0.6050 (132)      0.0000/0.0000 (  0)   0.1456/0.4915    0.0000/0.0000     0.759 [0.564, 0.925]    0.844  0.960/1.107
+    tail_3_pitch     [7.0M, 12.0M] bonus 0  0.0690/0.6050 (158)      0.0000/0.0000 (  0)   0.1244/0.4915    0.0000/0.0001     0.688 [-0.277, 0.925]    0.768  0.924/1.107
+    r_hip_roll       W1 [0, 4.19M)          0.0000/0.0000 (  0)      0.0000/0.0000 (  0)   0.0000/0.0001    0.0000/0.0001    -0.011 [-0.059, 0.054]   -0.011  0.114/0.192
+    r_hip_roll       W2 [4.19M, 8.39M)      0.0000/0.0000 (  0)      0.0000/0.0000 (  0)   0.0000/0.0000    0.0000/0.0000     0.009 [-0.129, 0.117]    0.008  0.136/0.241
+    r_hip_roll       W3 [8.39M, 12.0M]      0.0000/0.0000 (  0)      0.0000/0.0000 (  0)   0.0000/0.0000    0.0000/0.0000     0.040 [-0.043, 0.123]    0.039  0.163/0.254
+    r_hip_roll       [7.0M, 12.0M] bonus 0  0.0000/0.0000 (  0)      0.0000/0.0000 (  0)   0.0000/0.0000    0.0000/0.0000     0.048 [-0.043, 0.123]    0.048  0.169/0.254
+    l_hip_roll       W1 [0, 4.19M)          0.0000/0.0000 (  0)      0.0000/0.0000 (  0)   0.0000/0.0001    0.0000/0.0001     0.011 [-0.054, 0.064]    0.011  0.136/0.207
+    l_hip_roll       W2 [4.19M, 8.39M)      0.0000/0.0000 (  0)      0.0000/0.0000 (  0)   0.0000/0.0000    0.0000/0.0000    -0.009 [-0.114, 0.131]   -0.008  0.116/0.243
+    l_hip_roll       W3 [8.39M, 12.0M]      0.0000/0.0000 (  0)      0.0000/0.0000 (  0)   0.0000/0.0000    0.0000/0.0000    -0.041 [-0.122, 0.042]   -0.039  0.075/0.138
+    l_hip_roll       [7.0M, 12.0M] bonus 0  0.0000/0.0000 (  0)      0.0000/0.0000 (  0)   0.0000/0.0000    0.0000/0.0000    -0.048 [-0.122, 0.042]   -0.048  0.070/0.138
+  first rollout with tail_3 muHi >= 0.05: 3,735,552 (>= 0.01: 3,579,904); against D-1: vs first tail-saturated episode 65536 steps, vs first tail-flagged evaluation -65536, vs first TAIL ALARM -196608 (negative = the drive leads).
+  after 7,000,000 (entropy bonus 0), separately: tail_3 rollouts with muHi >= 0.05: 158 (first 7,987,200); [7.0M, 12.0M] row above.
+  training episodes not truncated (falls and other causes) per window [measured, T-s42]: W1 [0, 4.19M) 511 of 4552 {'fallen': 289, 'nosedive': 190, 'tail_contact': 32}; W2 [4.19M, 8.39M) 2 of 4196 {'fallen': 2}; W3 [8.39M, 12.0M] 2 of 3614 {'fallen': 2}; [7.0M, 12.0M] bonus 0 2 of 5002 {'fallen': 2}
+
+stance6_r10LTSB_s80:
+    actuator          window                 muHi mean/max (n>=.05)    muLo mean/max (n)       clipHi mean/max    clipLo mean/max    mu mean [min, max]        q50     q95 mean/max
+    tail_1_pitch     W1 [0, 4.19M)          0.0000/0.0000 (  0)      0.0000/0.0002 (  0)   0.0000/0.0002    0.0000/0.0006    -0.013 [-0.064, 0.023]   -0.012  0.083/0.134
+    tail_1_pitch     W2 [4.19M, 8.39M)      0.0000/0.0004 (  0)      0.0000/0.0007 (  0)   0.0000/0.0002    0.0001/0.0010    -0.044 [-0.131, 0.032]   -0.040  0.068/0.127
+    tail_1_pitch     W3 [8.39M, 12.0M]      0.0000/0.0000 (  0)      0.0000/0.0001 (  0)   0.0000/0.0001    0.0000/0.0004     0.110 [-0.044, 0.239]    0.124  0.233/0.362
+    tail_1_pitch     [7.0M, 12.0M] bonus 0  0.0000/0.0000 (  0)      0.0000/0.0007 (  0)   0.0000/0.0001    0.0000/0.0007     0.064 [-0.119, 0.239]    0.075  0.185/0.362
+    tail_1_yaw       W1 [0, 4.19M)          0.0000/0.0000 (  0)      0.0000/0.0000 (  0)   0.0000/0.0005    0.0000/0.0002    -0.002 [-0.073, 0.080]   -0.002  0.128/0.303
+    tail_1_yaw       W2 [4.19M, 8.39M)      0.0000/0.0004 (  0)      0.0000/0.0039 (  0)   0.0001/0.0017    0.0001/0.0037    -0.001 [-0.099, 0.100]   -0.001  0.190/0.307
+    tail_1_yaw       W3 [8.39M, 12.0M]      0.0000/0.0000 (  0)      0.0000/0.0029 (  0)   0.0000/0.0011    0.0001/0.0029     0.002 [-0.109, 0.119]    0.002  0.195/0.346
+    tail_1_yaw       [7.0M, 12.0M] bonus 0  0.0000/0.0000 (  0)      0.0000/0.0029 (  0)   0.0000/0.0011    0.0001/0.0029     0.001 [-0.109, 0.119]    0.001  0.194/0.346
+    tail_2_pitch     W1 [0, 4.19M)          0.0000/0.0000 (  0)      0.0000/0.0000 (  0)   0.0000/0.0001    0.0000/0.0002     0.035 [-0.021, 0.170]    0.038  0.141/0.291
+    tail_2_pitch     W2 [4.19M, 8.39M)      0.0000/0.0000 (  0)      0.0000/0.0000 (  0)   0.0000/0.0001    0.0000/0.0001     0.008 [-0.092, 0.082]    0.011  0.105/0.172
+    tail_2_pitch     W3 [8.39M, 12.0M]      0.0000/0.0000 (  0)      0.0000/0.0000 (  0)   0.0000/0.0001    0.0000/0.0001    -0.147 [-0.266, -0.050]   -0.149  -0.005/0.076
+    tail_2_pitch     [7.0M, 12.0M] bonus 0  0.0000/0.0000 (  0)      0.0000/0.0000 (  0)   0.0000/0.0001    0.0000/0.0001    -0.116 [-0.266, 0.004]   -0.117  0.014/0.100
+    tail_3_pitch     W1 [0, 4.19M)          0.0000/0.0000 (  0)      0.0000/0.0000 (  0)   0.0000/0.0001    0.0000/0.0001     0.020 [-0.022, 0.091]    0.021  0.118/0.192
+    tail_3_pitch     W2 [4.19M, 8.39M)      0.0000/0.0000 (  0)      0.0000/0.0000 (  0)   0.0000/0.0001    0.0000/0.0000     0.058 [-0.071, 0.199]    0.063  0.154/0.316
+    tail_3_pitch     W3 [8.39M, 12.0M]      0.0000/0.0000 (  0)      0.0000/0.0000 (  0)   0.0003/0.0053    0.0000/0.0001     0.324 [0.092, 0.570]    0.344  0.470/0.760
+    tail_3_pitch     [7.0M, 12.0M] bonus 0  0.0000/0.0000 (  0)      0.0000/0.0000 (  0)   0.0002/0.0053    0.0000/0.0001     0.268 [0.019, 0.570]    0.285  0.404/0.760
+    r_hip_roll       W1 [0, 4.19M)          0.0000/0.0000 (  0)      0.0000/0.0000 (  0)   0.0000/0.0001    0.0000/0.0001    -0.039 [-0.107, 0.018]   -0.040  0.090/0.185
+    r_hip_roll       W2 [4.19M, 8.39M)      0.0000/0.0000 (  0)      0.0000/0.0000 (  0)   0.0000/0.0000    0.0000/0.0000    -0.005 [-0.083, 0.086]   -0.009  0.151/0.306
+    r_hip_roll       W3 [8.39M, 12.0M]      0.0000/0.0000 (  0)      0.0000/0.0000 (  0)   0.0000/0.0000    0.0000/0.0000     0.049 [-0.055, 0.146]    0.053  0.213/0.321
+    r_hip_roll       [7.0M, 12.0M] bonus 0  0.0000/0.0000 (  0)      0.0000/0.0000 (  0)   0.0000/0.0000    0.0000/0.0000     0.041 [-0.055, 0.146]    0.043  0.206/0.321
+    l_hip_roll       W1 [0, 4.19M)          0.0000/0.0000 (  0)      0.0000/0.0000 (  0)   0.0000/0.0001    0.0000/0.0001     0.039 [-0.013, 0.106]    0.040  0.165/0.298
+    l_hip_roll       W2 [4.19M, 8.39M)      0.0000/0.0000 (  0)      0.0000/0.0000 (  0)   0.0000/0.0000    0.0000/0.0000     0.005 [-0.084, 0.084]    0.009  0.146/0.243
+    l_hip_roll       W3 [8.39M, 12.0M]      0.0000/0.0000 (  0)      0.0000/0.0000 (  0)   0.0000/0.0000    0.0000/0.0000    -0.049 [-0.146, 0.054]   -0.053  0.128/0.289
+    l_hip_roll       [7.0M, 12.0M] bonus 0  0.0000/0.0000 (  0)      0.0000/0.0000 (  0)   0.0000/0.0000    0.0000/0.0000    -0.041 [-0.146, 0.054]   -0.043  0.130/0.289
+    neck_pitch       W1 [0, 4.19M)          0.0000/0.0000 (  0)      0.0002/0.0112 (  0)   0.0000/0.0002    0.0037/0.0569    -0.163 [-0.591, 0.010]   -0.167  0.032/0.159
+    neck_pitch       W2 [4.19M, 8.39M)      0.0000/0.0000 (  0)      0.0683/0.5698 (204)   0.0000/0.0001    0.1181/0.4878    -0.675 [-0.938, 0.023]   -0.719  -0.258/0.452
+    neck_pitch       W3 [8.39M, 12.0M]      0.0000/0.0019 (  0)      0.0006/0.0527 (  1)   0.0000/0.0016    0.0016/0.0576    -0.150 [-0.648, 0.283]   -0.142  0.127/0.630
+    neck_pitch       [7.0M, 12.0M] bonus 0  0.0000/0.0019 (  0)      0.0130/0.2585 ( 59)   0.0000/0.0016    0.0236/0.2474    -0.276 [-0.813, 0.283]   -0.280  0.043/0.630
+  first rollout with tail_3 muHi >= 0.05: none (>= 0.01: none); against D-1: vs first tail-saturated episode n/a steps, vs first tail-flagged evaluation n/a, vs first TAIL ALARM n/a (negative = the drive leads).
+  after 7,000,000 (entropy bonus 0), separately: tail_3 rollouts with muHi >= 0.05: 0 (first none); [7.0M, 12.0M] row above.
+  neck_pitch (s80's ANY-alarm actuator; beyond D-2's named set, report only): first rollout with muLo >= 0.05 4,562,944 (>= 0.01: 3,817,472); against the first neck over-bar episode 3,801,088, the first ANY-flagged evaluation 4,849,664 and the first ANY ALARM 5,505,024; last rollout >= 0.05: 8,765,440.
+  training episodes not truncated (falls and other causes) per window [measured, T-s80]: W1 [0, 4.19M) 512 of 4543 {'nosedive': 193, 'fallen': 282, 'tail_contact': 36, 'head_contact': 1}; W2 [4.19M, 8.39M) 6 of 4198 {'fallen': 5, 'tail_contact': 1}; W3 [8.39M, 12.0M] 8 of 3618 {'fallen': 3, 'tail_contact': 5}; [7.0M, 12.0M] bonus 0 9 of 5007 {'tail_contact': 6, 'fallen': 3}
+
+----------------------------------------------------------------------------------------------------------------------
+D-11 THE STAGE-END TRAINING-HISTORY REPORT, AS PRODUCED (01_stance/figures/training_history/) [measured, H-<run>; pages
+listed from VER; four pages viewed as images, PAGES]
+----------------------------------------------------------------------------------------------------------------------
+stance6_r10LTSB_s60: 21 files, every one manifest-verified: 01_outcomes.png, 02_saturation.png, 03_foot_cop.png, 04_pad_cop.png, 05_digits_margins.png, 06_balance.png, 07_sole_roll.png, 08_floor_forces.png, 09_asymmetry.png, 10_policy_std.png, 11_head_posture.png, 12_hip_roll.png, 13_commands.png, 14_tail_body.png, 15_energy.png, 16_drift_slip.png, 17_exploration_k3.png, 18_obs_normalization.png, 19_body_dynamics.png, training_history.html, training_history.json.
+  training_history.json: schema mesozoic.training-history/v1, generated_at 2026-10-28T05:39:47Z, status ended, final_step 12,001,280; errors []; run errors []; absent series []; body_unmeasured []; plant identity match; 8 'not recorded' notes (what the files cannot show).
+  saturation as the report states it (flag = >= 5 episodes listing max_actuator_saturation_fraction; alarm = 2 in a row): first saturated episode 8,126,464, first flagged none, 0 flagged, alarm False, first alarm none; runs: none.
+  Its flagged list equals the ledger tool's ANY-flagged list: True.
+  checkpoints: best 917,504, robust_best (the notebook's handoff and gate pair) 917,504, final 12,001,280.
+    checkpoint table 'robust_best' at 917,504: clean 10/10, falls 0, saturated 0 , CoM fore-aft -0.0292 m, head tip 0.979 m, neck pitch 11.3 deg, tail chord -0.24 deg, std tail_3 0.2078, std hip_roll 0.1854
+    checkpoint table 'best' at 917,504: clean 10/10, falls 0, saturated 0 , CoM fore-aft -0.0292 m, head tip 0.979 m, neck pitch 11.3 deg, tail chord -0.24 deg, std tail_3 0.2078, std hip_roll 0.1854
+    checkpoint table 'last evaluation' at 11,927,552: clean 10/10, falls 0, saturated 0 , CoM fore-aft -0.0334 m, head tip 1.142 m, neck pitch -0.8 deg, tail chord 2.27 deg
+  rollout shares (named series, level 0.01): {'action_clip': ['tail_3_pitch_act +', 'tail_1_yaw_act +', 'tail_1_yaw_act -'], 'mu_beyond': ['tail_3_pitch_act +', 'tail_1_yaw_act -', 'tail_1_yaw_act +']}; first rollout at the level: {'tail_1_yaw_act': {'action_clip': 3637248, 'mu_beyond': 4636672}, 'tail_3_pitch_act': {'action_clip': 6938624, 'mu_beyond': 7454720}}.
+  policy std read at 15 checkpoints; exploration page: leg std from the probe at every update, reference 0.08 drawn and not applied, mirror pairs tied True.
+  obs normalisation: 46 VecNormalize checkpoints read, errors []; most drifting dims [('qpos.r_hip_roll', 0.226681), ('qpos.l_hip_roll', 0.226681), ('target_direction.x', 0.212165)]; probe/pickle check 46 of 46 equal (float32).
+  judge-K3 overlay: None (no judge files were given at the stage end; the page draws the in-run panel only).
+  ledger com_fore_aft_mean_m per evaluation (mean over full-horizon episodes) m (CoM ahead of the mean foot reference site, + ahead): statue -0.0274; W1 -0.0292, W2 -0.0321, W3 -0.0303; first 131,072 -0.0199; last 11,927,552 -0.0334; min -0.0357 at 7,471,104; max -0.0199 at 131,072.
+  ledger root_pitch_mean_deg per evaluation (mean over full-horizon episodes) deg (+ nose up): statue -0.9097; W1 -0.8921, W2 -0.8385, W3 -1.0499; first 131,072 -1.0450; last 11,927,552 -0.8445; min -1.3074 at 393,216; max -0.6070 at 7,340,032.
+
+stance6_r10LTSB_s42: 21 files, every one manifest-verified: 01_outcomes.png, 02_saturation.png, 03_foot_cop.png, 04_pad_cop.png, 05_digits_margins.png, 06_balance.png, 07_sole_roll.png, 08_floor_forces.png, 09_asymmetry.png, 10_policy_std.png, 11_head_posture.png, 12_hip_roll.png, 13_commands.png, 14_tail_body.png, 15_energy.png, 16_drift_slip.png, 17_exploration_k3.png, 18_obs_normalization.png, 19_body_dynamics.png, training_history.html, training_history.json.
+  training_history.json: schema mesozoic.training-history/v1, generated_at 2026-10-28T05:33:27Z, status ended, final_step 12,001,280; errors []; run errors []; absent series []; body_unmeasured []; plant identity match; 8 'not recorded' notes (what the files cannot show).
+  saturation as the report states it (flag = >= 5 episodes listing max_actuator_saturation_fraction; alarm = 2 in a row): first saturated episode 3,670,016, first flagged 3,801,088, 26 flagged, alarm True, first alarm 3,932,160; runs: 3,801,088-5,111,808 (11 evals, alarm 3,932,160, tail_3_pitch_act + 101 episodes); 5,373,952-5,505,024 (2 evals, alarm 5,505,024, tail_3_pitch_act + 13 episodes); 7,995,392-8,388,608 (4 evals, alarm 8,126,464, tail_3_pitch_act + 29 episodes); 9,568,256-10,616,832 (9 evals, alarm 9,699,328, tail_3_pitch_act + 87 episodes).
+  Its flagged list equals the ledger tool's ANY-flagged list: True.
+  checkpoints: best 524,288, robust_best (the notebook's handoff and gate pair) 1,966,080, final 12,001,280.
+    checkpoint table 'robust_best' at 1,966,080: clean 10/10, falls 0, saturated 0 , CoM fore-aft -0.0239 m, head tip 0.923 m, neck pitch 14.8 deg, tail chord 0.31 deg, std tail_3 0.1822, std hip_roll 0.1377
+    checkpoint table 'best' at 524,288: clean 8/10, falls 0, saturated 0 , CoM fore-aft -0.0290 m, head tip 0.960 m, neck pitch 12.8 deg, tail chord -0.55 deg, std tail_3 0.2131, std hip_roll 0.2008
+    checkpoint table 'last evaluation' at 11,927,552: clean 9/10, falls 0, saturated 1 {'tail_3_pitch_act +': 1}, CoM fore-aft -0.0354 m, head tip 1.159 m, neck pitch -3.0 deg, tail chord 3.68 deg
+  rollout shares (named series, level 0.01): {'action_clip': ['tail_3_pitch_act +', 'tail_3_pitch_act -'], 'mu_beyond': ['tail_3_pitch_act +']}; first rollout at the level: {'tail_3_pitch_act': {'action_clip': 3170304, 'mu_beyond': 3579904}}.
+  policy std read at 15 checkpoints; exploration page: leg std from the probe at every update, reference 0.08 drawn and not applied, mirror pairs tied True.
+  obs normalisation: 46 VecNormalize checkpoints read, errors []; most drifting dims [('qpos.tail_3_pitch', 0.258062), ('qpos.r_hip_roll', 0.238653), ('qpos.l_hip_roll', 0.238653)]; probe/pickle check 46 of 46 equal (float32).
+  judge-K3 overlay: None (no judge files were given at the stage end; the page draws the in-run panel only).
+  ledger com_fore_aft_mean_m per evaluation (mean over full-horizon episodes) m (CoM ahead of the mean foot reference site, + ahead): statue -0.0274; W1 -0.0254, W2 -0.0240, W3 -0.0240; first 131,072 -0.0273; last 11,927,552 -0.0355; min -0.0387 at 5,111,808; max -0.0156 at 7,733,248.
+  ledger root_pitch_mean_deg per evaluation (mean over full-horizon episodes) deg (+ nose up): statue -0.9097; W1 -0.9997, W2 -1.2908, W3 -1.4732; first 131,072 -0.8736; last 11,927,552 -1.1168; min -1.8429 at 4,194,304; max -0.2791 at 1,048,576.
+
+stance6_r10LTSB_s80: 21 files, every one manifest-verified: 01_outcomes.png, 02_saturation.png, 03_foot_cop.png, 04_pad_cop.png, 05_digits_margins.png, 06_balance.png, 07_sole_roll.png, 08_floor_forces.png, 09_asymmetry.png, 10_policy_std.png, 11_head_posture.png, 12_hip_roll.png, 13_commands.png, 14_tail_body.png, 15_energy.png, 16_drift_slip.png, 17_exploration_k3.png, 18_obs_normalization.png, 19_body_dynamics.png, training_history.html, training_history.json.
+  training_history.json: schema mesozoic.training-history/v1, generated_at 2026-10-28T05:37:10Z, status ended, final_step 12,001,280; errors []; run errors []; absent series []; body_unmeasured []; plant identity match; 8 'not recorded' notes (what the files cannot show).
+  saturation as the report states it (flag = >= 5 episodes listing max_actuator_saturation_fraction; alarm = 2 in a row): first saturated episode 3,801,088, first flagged 4,849,664, 12 flagged, alarm True, first alarm 5,505,024; runs: 5,373,952-5,636,096 (3 evals, alarm 5,505,024, neck_pitch_act - 27 episodes); 5,898,240-6,029,312 (2 evals, alarm 6,029,312, neck_pitch_act - 15 episodes); 6,291,456-6,553,600 (3 evals, alarm 6,422,528, neck_pitch_act - 24 episodes); 6,946,816-7,077,888 (2 evals, alarm 7,077,888, neck_pitch_act - 14 episodes).
+  Its flagged list equals the ledger tool's ANY-flagged list: True.
+  checkpoints: best 1,835,008, robust_best (the notebook's handoff and gate pair) 1,835,008, final 12,001,280.
+    checkpoint table 'robust_best' at 1,835,008: clean 10/10, falls 0, saturated 0 , CoM fore-aft -0.0264 m, head tip 0.974 m, neck pitch 11.9 deg, tail chord -0.07 deg, std tail_3 0.1969, std hip_roll 0.1392
+    checkpoint table 'best' at 1,835,008: clean 10/10, falls 0, saturated 0 , CoM fore-aft -0.0264 m, head tip 0.974 m, neck pitch 11.9 deg, tail chord -0.07 deg, std tail_3 0.1969, std hip_roll 0.1392
+    checkpoint table 'last evaluation' at 11,927,552: clean 9/10, falls 0, saturated 0 , CoM fore-aft -0.0303 m, head tip 1.201 m, neck pitch 3.7 deg, tail chord 2.43 deg
+  rollout shares (named series, level 0.01): {'action_clip': ['neck_pitch_act -', 'head_pitch_act -'], 'mu_beyond': ['neck_pitch_act -']}; first rollout at the level: {'neck_pitch_act': {'action_clip': 3268608, 'mu_beyond': 3817472}, 'head_pitch_act': {'action_clip': 9510912, 'mu_beyond': None}}.
+  policy std read at 15 checkpoints; exploration page: leg std from the probe at every update, reference 0.08 drawn and not applied, mirror pairs tied True.
+  obs normalisation: 46 VecNormalize checkpoints read, errors []; most drifting dims [('qpos.neck_pitch', 0.297474), ('qpos.r_hip_roll', 0.25167), ('qpos.l_hip_roll', 0.25167)]; probe/pickle check 46 of 46 equal (float32).
+  judge-K3 overlay: None (no judge files were given at the stage end; the page draws the in-run panel only).
+  ledger com_fore_aft_mean_m per evaluation (mean over full-horizon episodes) m (CoM ahead of the mean foot reference site, + ahead): statue -0.0274; W1 -0.0290, W2 -0.0389, W3 -0.0332; first 131,072 -0.0221; last 11,927,552 -0.0303; min -0.0425 at 6,422,528; max -0.0221 at 131,072.
+  ledger root_pitch_mean_deg per evaluation (mean over full-horizon episodes) deg (+ nose up): statue -0.9097; W1 -0.6586, W2 -0.2104, W3 -0.3179; first 131,072 -0.6239; last 11,927,552 -0.4214; min -0.9704 at 393,216; max 0.4351 at 6,291,456.
+
+  Pages viewed (what they state, read from the images) [measured, PAGES]:
+  - s42 02_saturation: flagged evaluations in four runs with alarms marked at 3.93M, 5.51M, 8.13M, 9.70M, all
+    'tail_3_pitch_act +' (249 episodes); the window fraction at |action| >= 0.99 reaching 1.0; force fraction flat
+    about 0.28 of limit (the flags are about the command, not force); rollout clip and mu-beyond shares rising with each
+    spell (mu-beyond peak about 0.8 near 4.7M, about 0.6 near 10.1M).
+  - s42 10_policy_std: per-actuator std at 15 checkpoints; tail_3 from about 0.22 to 0.095, hip_roll to about 0.062,
+    hip_pitch/ankle about 0.014, knee about 0.009; the other actuators (neck, head, tail_1, tail_2) 0.096-0.127 at the end.
+  - s42 17_exploration_k3: leg std per update (log scale) with the 0.08 reference 'not applied'; hip_roll crosses it
+    near 7.8M; the in-run panel's joint falls 1 of 20 from 3.15M to 8.39M, 0 after; own-sigma 0 throughout.
+  - s80 13_commands: neck_pitch_act's window-mean command between about -0.6 and -0.93 from about 4.9M to 7.9M (rail -1
+    in 119 episodes; the page counts parked episodes over all episodes, D-13 over full-horizon ones),
+    back near 0 by 8.6M; head_pitch_act moving to about -0.75 from 9.5M (parked '-', 189 episodes); tail_3 rising to
+    about +0.6 by 12M (parked '+', 20 episodes); legs near 0.
+
+----------------------------------------------------------------------------------------------------------------------
+D-12 SAME-SEED COMPARISON (report only; seeds do not pair runs: GPU training is not bit-reproducible and r10 changes the
+dynamics from step 1 [measured, EVID 'WHY SEEDS DO NOT PAIR RUNS']). r9 rows [measured, EVID TABLE D and TABLE A;
+re-derived from R9L-* via R9T-*]; r10 rows [measured, L-*, M3F-*, M1F-*, G-*]. K1-K4 of r10 need M4 (pending).
+----------------------------------------------------------------------------------------------------------------------
+  seed run                 plant ANY ALARM (actuator)        first sat   first flag  flagged/91  last flag    final certificate              final CMD t1p/t1y/t2/t3        K1-K4    wall clock
+  60   stance6_r10LTSB_s60  r10   none                             8,126,464        none          0         none  M3 PASS n_clean [40]/40 x6 headings -0.022/+0.004/+0.137/+0.557    pending  14 h 1 min
+  60   stance5_LTSB_s60     r9    none                            11,403,264        none          0         none  PASS 39/40 (final v2 39/40 PASS) n/r                            P P F P  14 h 26 min
+  60   stance3 Run 2 (LT)   r9 family 2,359,296 (tail_3)               1,310,720   2,228,224         44   11,272,192  final v2 40/40 PASS            +0.156/n-r/+0.023/+0.851       F F P P  n/r
+  60   stance4 LTS s60      r9 family none                                  none        none          0         none  final v2 39/40 PASS            n/r t3 -0.518                  F F P P  n/r
+  42   stance6_r10LTSB_s42  r10   3,932,160 (tail_3_pitch +1)      3,670,016   3,801,088         26   10,616,832  M3 FAIL n_clean [38]/40 x6 headings +0.129/+0.016/+0.017/+0.893    pending  13 h 53 min
+  42   stance5_LTSB_s42     r9    3,670,016 (tail_3 +1)            3,145,728   3,538,944         30   11,927,552  not rolled (final v2 19/40 FAIL) n/r                            F P F P  13 h 36 min
+  42   stance4 LTS s42      r9 family 2,228,224 (tail_3)               1,835,008   2,097,152         70   11,796,480  final v2 14/40 FAIL            n/r t3 +0.888                  F F F F  n/r
+  80   stance6_r10LTSB_s80  r10   5,505,024 (neck_pitch -1)        3,801,088   4,849,664         12    7,340,032  M3 PASS n_clean [40]/40 x6 headings +0.231/+0.004/-0.122/+0.588    pending  13 h 56 min
+  80   stance5_LTSB_s80     r9    4,456,448 (tail_3 +1)            4,325,376   4,325,376         37   10,223,616  PASS 38/40 (final v2 38/40 PASS) n/r                            F P P P  13 h 47 min
+  (r9 'final v2' is the judge's 40-episode v2 panel at the final; r10's certificate is M3 at the final, six headings x 40;
+  r10's final CMD is M1's CMD_a at stage1_final, 20 episodes [measured, M1F-*]; r10 wall clock is progress.json wall_clock_s
+  [measured, G-*]; r9 failure details as EVID TABLE D: s60 K3 3 of 20 joint falls at the final; s42 K1 v2 FAIL at 6.29M and
+  final, K3 13 of 20; s80 K1 below 33/40 at 5.24M/6.29M/8.39M on the saturation rail.)
+  re-derived from the r9 ledger [measured, R9T-stance5_LTSB_s60]: first sat 11,403,264, first flag none, alarm none, flagged 0, last flag none, saturated episodes 1 (EVID TABLE A agrees).
+  re-derived from the r9 ledger [measured, R9T-stance5_LTSB_s42]: first sat 3,145,728, first flag 3,538,944, alarm 3,670,016, flagged 30, last flag 11,927,552, saturated episodes 270 (EVID TABLE A agrees).
+  re-derived from the r9 ledger [measured, R9T-stance5_LTSB_s80]: first sat 4,325,376, first flag 4,325,376, alarm 4,456,448, flagged 37, last flag 10,223,616, saturated episodes 294 (EVID TABLE A agrees).
+  Read beside each other (report only) [inferred]: seed 42 railed on tail_3 at +1 on both plants with onsets 3.15-3.93M
+  (r10 about 0.26M later at the first alarm) and failed at the final on both (r9 v2 19/40; r10 M3 FAIL); seed 80 railed tail_3 on r9 but neck_pitch
+  (non-tail) on r10, with no tail-saturated episode; seed 60 had no flag on r9 or r10, but r10's s60 ended PARKED on tail_3.
+
+----------------------------------------------------------------------------------------------------------------------
+D-13 TEL COLUMNS OVER TRAINING (M8; 'columns of the telemetry PR; report only') [measured, E-<run> via L-<run> m8: per
+evaluation the mean over full-horizon episodes, then the mean of those over each window; statue = zero action on the
+run-branch head tree, 10 episodes, same 194-column ledger [measured, STAT, 10 rows]]. 124 numeric TEL
+columns per run are in READOUTS.json (D13); the main ones here. Signs: neck/head pitch + nose down; root pitch + nose up;
+tail angles + tip up (yaw + left); hip roll + abduction.
+----------------------------------------------------------------------------------------------------------------------
+stance6_r10LTSB_s60: TEL columns absent []; HEAD LOW evaluations (window-mean head tip < 0.75 m) none, HEAD LOW episodes 1 (the fallen episode, 11,534,336 ep 7, length 463, head tip 0.749 m); evaluation falls (step, episode, length) [[11534336, 7, 463]].
+    column                               statue        W1        W2        W3     last eval   min (at)                 max (at)
+    head_tip_height_mean_m                  0.9590    1.0050    1.0662    1.0897      1.1424      0.9494 (   393,216)     1.1561 (11,796,480)
+    head_tip_height_min_m                   0.9465    0.9991    1.0536    1.0524      1.0959      0.9464 (   393,216)     1.0961 (11,403,264)
+    neck_pitch_mean_deg                    12.2634    9.6639    5.7442    4.8871     -0.8218     -1.3461 (11,796,480)    12.5319 (   393,216)
+    head_pitch_mean_deg                    12.6425   10.6527    8.9215    6.6833      9.0153      5.2213 ( 9,175,040)    12.6739 (   131,072)
+    r_hip_roll_mean_deg                     0.1605    0.0685    0.1301   0.00949      0.1979     -0.3621 (   131,072)     0.5354 ( 1,441,792)
+    l_hip_roll_mean_deg                     0.1436    0.0394    0.1417   -0.0154      0.2586     -0.5346 (   131,072)     0.5926 (   786,432)
+    r_hip_roll_max_abs_deg                  1.0517    0.7921    0.7902    0.8309      0.7507      0.4823 ( 3,407,872)     1.1942 ( 8,126,464)
+    l_hip_roll_max_abs_deg                  1.0236    0.8054    0.7790    0.8520      0.6653      0.4474 ( 2,752,512)     1.4011 (   262,144)
+    neck_pitch_act_command_mean                  0   -0.0864   -0.2127   -0.2419     -0.4191     -0.4359 (11,796,480)    0.00432 (   393,216)
+    neck_yaw_act_command_mean                    0   0.00123   0.00038    -7e-05    -0.00166    -0.00821 (   524,288)    0.00863 (   393,216)
+    head_pitch_act_command_mean                  0   -0.0941   -0.1773   -0.2723     -0.1831     -0.3299 ( 9,175,040)   -0.00318 (   131,072)
+    r_hip_pitch_act_command_mean                 0  -0.00204  -0.00408  -0.00568    -0.00507    -0.00802 ( 9,175,040)    0.00854 (   131,072)
+    r_hip_roll_act_command_mean                  0   -0.0285   -0.0891   -0.0766     -0.0588     -0.1408 ( 7,864,320)   -0.00386 ( 3,670,016)
+    r_knee_act_command_mean                      0  -0.00092  -0.00401  -0.00268    -0.00163    -0.00854 ( 6,553,600)    0.00535 (   262,144)
+    r_ankle_act_command_mean                     0   0.00318   0.00677   0.00513     0.00494     -0.0163 (   131,072)     0.0108 ( 7,208,960)
+    l_hip_pitch_act_command_mean                 0  -0.00252  -0.00434  -0.00572    -0.00566    -0.00814 (   393,216)    0.00545 (   131,072)
+    l_hip_roll_act_command_mean                  0    0.0278    0.0895    0.0759      0.0611     0.00324 ( 3,670,016)     0.1455 ( 6,946,816)
+    l_knee_act_command_mean                      0  -0.00117  -0.00354   -0.0027     -0.0025    -0.00796 ( 6,553,600)    0.00943 (   131,072)
+    l_ankle_act_command_mean                     0   0.00316   0.00723   0.00494     0.00454     -0.0109 (   131,072)     0.0140 ( 6,946,816)
+    tail_1_pitch_act_command_mean                0   -0.0209    0.0425    0.0232     -0.0378     -0.0632 ( 1,572,864)     0.0724 ( 6,815,744)
+    tail_1_yaw_act_command_mean                  0     0.003  -0.00258   0.00724     -0.0680     -0.2415 ( 6,946,816)     0.2010 (10,616,832)
+    tail_2_pitch_act_command_mean                0    0.0190    0.1482    0.1998      0.1404     -0.0176 (   786,432)     0.2457 ( 9,175,040)
+    tail_3_pitch_act_command_mean                0    0.0215    0.3952    0.7882      0.6256    -0.00203 (   131,072)     0.8936 ( 8,650,752)
+    actuators_at_rail                            0         0   0.00938    0.0750           0           0 (   131,072)     0.3000 ( 9,175,040)
+    actuators_parked                             0    0.0161    0.3656    0.8889      0.5000           0 (   131,072)     1.1000 ( 7,995,392)
+    tail_1_pitch_mean_deg                  0.00852   -0.1244    0.3065    0.1959     -0.2128     -0.4009 ( 1,572,864)     0.5124 ( 6,815,744)
+    tail_1_yaw_mean_deg                   -0.00576   -0.0102    0.0129   -0.0285      0.2745     -0.8053 (10,616,832)     1.0170 ( 6,946,816)
+    tail_2_pitch_mean_deg                   0.0077    0.1231    0.9093    1.2385      0.8718     -0.0949 (   786,432)     1.5188 ( 9,175,040)
+    tail_3_pitch_mean_deg                   0.0126    0.1254    2.0580    4.0816      3.2515     0.00024 (   131,072)     4.6348 ( 8,650,752)
+    tail_tip_chord_mean_deg                 0.0824    0.0838    2.1450    3.6271      2.2670     -0.4075 ( 1,441,792)     4.2782 ( 8,650,752)
+    root_height_mean_m                      0.9263    0.9263    0.9264    0.9262      0.9262      0.9256 ( 7,733,248)     0.9270 ( 6,553,600)
+    root_pitch_min_deg                     -1.4154   -0.9440   -0.9160   -1.1955     -1.0712     -1.5294 (   131,072)    -0.6977 ( 7,340,032)
+    root_pitch_max_deg                     -0.3390   -0.8441   -0.7477   -0.9627     -0.7798     -1.2894 (   393,216)    -0.4976 ( 7,471,104)
+    root_roll_mean_deg                      0.0101  -0.00422  -0.00497  -0.00379    -0.00719     -0.1553 (   393,216)     0.0774 ( 7,733,248)
+    legs_work_abs_j                         5.4619    1.7007    1.5892    1.5071      1.1263      0.7098 (   524,288)     8.4105 (   131,072)
+    tail_work_abs_j                        0.00944   0.00811    0.0598    0.1598      0.0906     0.00306 ( 2,097,152)     0.2135 ( 9,043,968)
+    neck_head_work_abs_j                    1.0330    0.8530    1.5889    3.6085      4.7879      0.2296 (   524,288)     7.8188 (11,796,480)
+    legs_torque_rms_frac                    0.0277    0.0310    0.0390    0.0368      0.0312      0.0267 (   524,288)     0.0469 ( 7,864,320)
+    tail_torque_rms_frac                   0.00147   0.00913    0.0345    0.0591      0.0478     0.00267 (   262,144)     0.0666 ( 8,650,752)
+    neck_head_torque_rms_frac               0.2201    0.2232    0.2253    0.2267      0.2243      0.2200 (   393,216)     0.2279 ( 9,437,184)
+    legs_command_delta_rms                       0   0.00046   0.00083   0.00063     0.00038     0.00011 (   524,288)    0.00125 ( 3,932,160)
+    tail_command_delta_rms                       0    0.0007   0.00142   0.00139     0.00074       6e-05 (   131,072)     0.0026 (10,616,832)
+    neck_head_command_delta_rms                  0   0.00079     0.001   0.00091     0.00074       8e-05 (   262,144)    0.00207 ( 3,014,656)
+    action_delta_mean                            0     1e-05     3e-05     2e-05       1e-05           0 (   131,072)      7e-05 ( 7,471,104)
+    window_displacement_m                  0.00655    0.0034   0.00333   0.00392     0.00371     0.00104 ( 6,160,384)    0.00883 (   131,072)
+    window_yaw_change_deg                   0.9809    0.6641    0.3810    0.2721      0.2147      0.0683 (   917,504)     2.1984 ( 2,621,440)
+    window_path_length_m                    0.0430    0.0068   0.00507   0.00598     0.00624     0.00221 ( 5,767,168)     0.0583 (   131,072)
+    r_slip_m                               0.00548   0.00627   0.00776   0.00767     0.00487     0.00389 (   524,288)     0.0114 ( 7,471,104)
+    l_slip_m                               0.00558   0.00636   0.00771    0.0077     0.00455     0.00406 ( 4,980,736)     0.0130 (10,616,832)
+    tail_3_pitch_stop_share                      0         0         0         0           0           0 (   131,072)          0 (   131,072)
+    com_toe_margin_min_m                    0.0728    0.0781    0.0808    0.0780      0.0801      0.0640 (   131,072)     0.0842 ( 4,718,592)
+    com_heel_margin_min_m                   0.0573    0.0596    0.0566    0.0587      0.0554      0.0524 ( 7,471,104)     0.0634 (   393,216)
+    capture_toe_margin_min_m                0.0709    0.0780    0.0809    0.0784      0.0807      0.0599 (   131,072)     0.0842 ( 4,718,592)
+    angular_momentum_pitch_rms_nms          0.3726    0.0474    0.0370    0.0819      0.1307      0.0171 ( 2,097,152)     0.4765 (   131,072)
+    tail_base_pitch_moment_mean_nm         73.2679   73.2551   73.2276   73.1841     73.1932     73.1612 ( 8,388,608)    73.2957 (   131,072)
+    neck_base_pitch_moment_mean_nm        -42.8053  -42.7684  -42.3302  -42.3265    -40.9318    -43.1457 ( 5,505,024)   -40.7718 (11,796,480)
+    head_angular_rate_rms_dps               0.9736    0.3498    0.4548    1.0881      1.1744      0.1451 (   655,360)     1.9843 (11,796,480)
+    W1 [0, 4.19M): rail_actuators {}; parked_actuators {'tail_1_yaw_act-': 4, 'tail_1_yaw_act+': 1}
+    W2 [4.19M, 8.39M): rail_actuators {'tail_3_pitch_act+': 3}; parked_actuators {'tail_1_yaw_act-': 12, 'tail_1_yaw_act+': 12, 'tail_3_pitch_act+': 92, 'neck_pitch_act-': 1}
+    W3 [8.39M, 12.0M]: rail_actuators {'tail_3_pitch_act+': 21}; parked_actuators {'tail_3_pitch_act+': 246, 'tail_1_yaw_act-': 2}
+
+stance6_r10LTSB_s42: TEL columns absent []; HEAD LOW evaluations (window-mean head tip < 0.75 m) none, HEAD LOW episodes 0; evaluation falls (step, episode, length) [[1441792, 6, 292]].
+    column                               statue        W1        W2        W3     last eval   min (at)                 max (at)
+    head_tip_height_mean_m                  0.9590    0.9427    0.9628    1.0031      1.1588      0.8854 ( 6,291,456)     1.1588 (11,927,552)
+    head_tip_height_min_m                   0.9465    0.9394    0.9439    0.9690      1.0823      0.8798 ( 6,291,456)     1.0823 (11,927,552)
+    neck_pitch_mean_deg                    12.2634   13.5430   14.5446   12.9947     -2.9946     -2.9946 (11,927,552)    23.4021 ( 9,306,112)
+    head_pitch_mean_deg                    12.6425   12.5982    7.7616    4.1610      9.4615     -1.5337 ( 9,306,112)    14.0556 ( 2,621,440)
+    r_hip_roll_mean_deg                     0.1605    0.0141   -0.0620   -0.1460      0.0691     -0.6259 ( 4,063,232)     0.7628 (   262,144)
+    l_hip_roll_mean_deg                     0.1436    0.0309   -0.0853   -0.1586      0.0201     -0.6539 ( 7,208,960)     0.6613 ( 4,718,592)
+    r_hip_roll_max_abs_deg                  1.0517    0.8247    0.7975    0.7282      0.5891      0.5048 (11,272,192)     1.2730 ( 4,587,520)
+    l_hip_roll_max_abs_deg                  1.0236    0.7913    0.7858    0.7543      0.6335      0.4353 ( 9,175,040)     1.3723 (   393,216)
+    neck_pitch_act_command_mean                  0    0.0305    0.0401   -0.0218     -0.4885     -0.4885 (11,927,552)     0.2643 ( 9,306,112)
+    neck_yaw_act_command_mean                    0   0.00028   0.00033   -0.0006    -0.00526     -0.0119 (   393,216)     0.0141 ( 6,815,744)
+    head_pitch_act_command_mean                  0  -0.00192   -0.2015   -0.3587     -0.1660     -0.5766 ( 9,306,112)     0.0526 ( 2,621,440)
+    r_hip_pitch_act_command_mean                 0   0.00154   0.00193  -0.00356    -0.00925     -0.0130 (11,010,048)     0.0184 ( 6,684,672)
+    r_hip_roll_act_command_mean                  0   -0.0131   0.00373    0.0405     -0.0324     -0.1470 ( 5,111,808)     0.1101 ( 8,912,896)
+    r_knee_act_command_mean                      0     3e-05  -0.00806  -0.00354    -0.00959     -0.0248 ( 5,111,808)    0.00682 (   655,360)
+    r_ankle_act_command_mean                     0  -0.00203   0.00239   0.00092     0.00994     -0.0129 ( 6,946,816)     0.0276 ( 5,111,808)
+    l_hip_pitch_act_command_mean                 0   0.00151   0.00132    -0.004     -0.0100     -0.0133 (11,665,408)     0.0189 ( 6,553,600)
+    l_hip_roll_act_command_mean                  0    0.0130  -0.00418   -0.0407      0.0300     -0.1138 ( 8,912,896)     0.1456 ( 5,111,808)
+    l_knee_act_command_mean                      0  -0.00018  -0.00886  -0.00397    -0.00914     -0.0269 ( 5,111,808)    0.00612 (   131,072)
+    l_ankle_act_command_mean                     0    -0.002   0.00239   0.00085      0.0119     -0.0150 ( 6,815,744)     0.0274 ( 5,111,808)
+    tail_1_pitch_act_command_mean                0   -0.0723   -0.1421   -0.0652      0.1081     -0.2238 ( 4,980,736)     0.1081 (11,927,552)
+    tail_1_yaw_act_command_mean                  0   0.00633   0.00274   0.00853      0.0962     -0.1202 ( 7,077,888)     0.1057 ( 5,505,024)
+    tail_2_pitch_act_command_mean                0    0.0273    0.0613    0.0332     0.00611     -0.0205 (11,141,120)     0.1310 ( 5,242,880)
+    tail_3_pitch_act_command_mean                0    0.2808    0.6187    0.8877      0.9081     -0.5616 ( 6,946,816)     1.0000 ( 4,587,520)
+    actuators_at_rail                            0    0.1032    0.3594    0.3643      0.1000           0 (   131,072)     1.0000 ( 3,801,088)
+    actuators_parked                             0    0.1161    0.3563    0.6429      0.9000           0 (   131,072)     1.2000 ( 9,306,112)
+    tail_1_pitch_mean_deg                  0.00852   -0.4552   -0.9086   -0.4034      0.7337     -1.4329 ( 4,980,736)     0.7337 (11,927,552)
+    tail_1_yaw_mean_deg                   -0.00576   -0.0298   -0.0154   -0.0358     -0.3960     -0.4311 ( 5,505,024)     0.4771 ( 7,077,888)
+    tail_2_pitch_mean_deg                   0.0077    0.1817    0.3966    0.2410      0.0802     -0.0828 (11,141,120)     0.8158 ( 5,242,880)
+    tail_3_pitch_mean_deg                   0.0126    1.4600    3.2048    4.5784      4.7070     -2.8239 ( 6,946,816)     5.1896 ( 4,718,592)
+    tail_tip_chord_mean_deg                 0.0824    0.6475    1.6218    2.9505      3.6772     -1.3676 ( 6,946,816)     3.6772 (11,927,552)
+    root_height_mean_m                      0.9263    0.9263    0.9270    0.9263      0.9266      0.9258 ( 9,568,256)     0.9286 ( 5,111,808)
+    root_pitch_min_deg                     -1.4154   -1.0631   -1.4599   -1.5987     -1.3874     -1.9072 ( 3,407,872)    -0.3570 ( 1,048,576)
+    root_pitch_max_deg                     -0.3390   -0.8840   -1.1885   -1.4218     -1.0450     -1.7640 (10,354,688)    -0.1136 ( 1,441,792)
+    root_roll_mean_deg                      0.0101   0.00772   0.00868   0.00329      0.0101     -0.1893 (   262,144)     0.1638 (   393,216)
+    legs_work_abs_j                         5.4619    1.2502    2.2327    2.1528      1.7567      0.4344 (   524,288)     3.5194 ( 6,160,384)
+    tail_work_abs_j                        0.00944    0.0348    0.1184    0.1470      0.1000     0.00197 (   524,288)     0.2966 ( 8,388,608)
+    neck_head_work_abs_j                    1.0330    0.6213    2.2598    4.8749      7.3528      0.2906 (   524,288)     9.3146 (10,485,760)
+    legs_torque_rms_frac                    0.0277    0.0294    0.0360    0.0352      0.0295      0.0269 ( 1,572,864)     0.0461 ( 8,912,896)
+    tail_torque_rms_frac                   0.00147    0.0235    0.0554    0.0645      0.0655     0.00275 (   131,072)     0.0733 ( 4,980,736)
+    neck_head_torque_rms_frac               0.2201    0.2191    0.2225    0.2261      0.2237      0.2140 ( 6,684,672)     0.2279 (10,223,616)
+    legs_command_delta_rms                       0   0.00041   0.00067   0.00047     0.00031       3e-05 (   524,288)    0.00125 ( 6,160,384)
+    tail_command_delta_rms                       0   0.00044   0.00134   0.00161     0.00119       3e-05 (   524,288)    0.00281 ( 9,830,400)
+    neck_head_command_delta_rms                  0   0.00076   0.00116   0.00118     0.00082       3e-05 (   524,288)     0.0023 ( 6,160,384)
+    action_delta_mean                            0     1e-05     3e-05     3e-05       1e-05           0 (   524,288)      7e-05 ( 6,160,384)
+    window_displacement_m                  0.00655   0.00327   0.00461   0.00472     0.00562     0.00116 ( 2,097,152)    0.00975 ( 1,441,792)
+    window_yaw_change_deg                   0.9809    0.6470    1.0490    0.9412      1.0296      0.1119 (   524,288)     1.9373 ( 7,340,032)
+    window_path_length_m                    0.0430   0.00503   0.00635   0.00626     0.00699     0.00206 ( 2,490,368)     0.0153 ( 1,441,792)
+    r_slip_m                               0.00548   0.00541   0.00707   0.00713     0.00533      0.0022 (   524,288)     0.0112 ( 6,160,384)
+    l_slip_m                               0.00558   0.00539   0.00712   0.00713     0.00552     0.00223 (   524,288)     0.0116 ( 6,160,384)
+    tail_3_pitch_stop_share                      0         0         0         0           0           0 (   131,072)          0 (   131,072)
+    com_toe_margin_min_m                    0.0728    0.0747    0.0719    0.0710      0.0795      0.0652 ( 7,733,248)     0.0837 ( 5,111,808)
+    com_heel_margin_min_m                   0.0573    0.0633    0.0644    0.0649      0.0531      0.0502 ( 5,505,024)     0.0733 ( 9,175,040)
+    capture_toe_margin_min_m                0.0709    0.0746    0.0722    0.0715      0.0805      0.0652 ( 7,733,248)     0.0852 ( 5,111,808)
+    angular_momentum_pitch_rms_nms          0.3726    0.0360    0.0521    0.0658      0.1246      0.0106 ( 6,815,744)     0.1333 ( 5,767,168)
+    tail_base_pitch_moment_mean_nm         73.2679   73.2240   73.1809   73.1878     73.2146     73.0981 ( 5,111,808)    73.3022 ( 6,684,672)
+    neck_base_pitch_moment_mean_nm        -42.8053  -42.8615  -43.3049  -43.3344    -40.4138    -44.8107 ( 9,568,256)   -40.4138 (11,927,552)
+    head_angular_rate_rms_dps               0.9736    0.2791    0.6492    0.7874      1.4272      0.1137 (   393,216)     1.6572 ( 5,767,168)
+    W1 [0, 4.19M): rail_actuators {'tail_3_pitch_act+': 32}; parked_actuators {'tail_3_pitch_act+': 36}
+    W2 [4.19M, 8.39M): rail_actuators {'tail_3_pitch_act+': 115}; parked_actuators {'tail_3_pitch_act+': 106, 'tail_3_pitch_act-': 8}
+    W3 [8.39M, 12.0M]: rail_actuators {'tail_3_pitch_act+': 102}; parked_actuators {'tail_3_pitch_act+': 176, 'head_pitch_act-': 4}
+
+stance6_r10LTSB_s80: TEL columns absent []; HEAD LOW evaluations (window-mean head tip < 0.75 m) none, HEAD LOW episodes 0; evaluation falls (step, episode, length) [[6160384, 5, 470]].
+    column                               statue        W1        W2        W3     last eval   min (at)                 max (at)
+    head_tip_height_mean_m                  0.9590    1.0606    1.3052    1.1335      1.2006      0.9452 ( 9,568,256)     1.4027 ( 4,849,664)
+    head_tip_height_min_m                   0.9465    1.0327    1.2166    1.0718      1.1755      0.8748 ( 8,519,680)     1.2882 ( 4,849,664)
+    neck_pitch_mean_deg                    12.2634    6.5886  -13.1237    8.2177      3.7458    -18.2090 ( 5,505,024)    24.8004 (10,092,544)
+    head_pitch_mean_deg                    12.6425    8.9138    7.8816   -1.6905     -3.4827     -7.0318 (11,141,120)    12.9153 ( 6,815,744)
+    r_hip_roll_mean_deg                     0.1605    0.1028   -0.0125   -0.2422     -0.0100     -0.5501 ( 4,194,304)     0.4530 (   524,288)
+    l_hip_roll_mean_deg                     0.1436    0.0903   -0.0306   -0.2795     -0.0214     -0.5915 ( 9,699,328)     0.4394 ( 3,538,944)
+    r_hip_roll_max_abs_deg                  1.0517    0.7142    0.6395    0.6803      0.5649      0.3292 ( 6,815,744)     1.3288 (   655,360)
+    l_hip_roll_max_abs_deg                  1.0236    0.7047    0.6720    0.6966      0.5018      0.3202 (   393,216)     1.3446 (   655,360)
+    neck_pitch_act_command_mean                  0   -0.1811   -0.7875   -0.1544     -0.2774     -0.9361 ( 5,505,024)     0.2966 (10,092,544)
+    neck_yaw_act_command_mean                    0   0.00164  -0.00394   -0.0054    -0.00341     -0.0272 ( 9,961,472)     0.0272 ( 3,932,160)
+    head_pitch_act_command_mean                  0   -0.1662   -0.2232   -0.6014     -0.6868     -0.7965 (11,141,120)   -0.00128 (   393,216)
+    r_hip_pitch_act_command_mean                 0   0.00216   0.00113  -0.00098     0.00199    -0.00487 ( 7,077,888)     0.0137 (   131,072)
+    r_hip_roll_act_command_mean                  0   -0.0452   -0.0194    0.0574      0.0357     -0.1089 ( 3,014,656)     0.1422 ( 9,830,400)
+    r_knee_act_command_mean                      0   0.00184   0.00377   0.00668     0.00745     -0.0033 ( 4,587,520)     0.0146 ( 8,519,680)
+    r_ankle_act_command_mean                     0  -0.00165  -0.00406   0.00264    -0.00168     -0.0117 ( 6,291,456)     0.0103 ( 9,961,472)
+    l_hip_pitch_act_command_mean                 0   0.00225   0.00081  -0.00158     0.00142    -0.00558 ( 7,864,320)     0.0138 (   131,072)
+    l_hip_roll_act_command_mean                  0    0.0446    0.0184   -0.0589     -0.0350     -0.1462 ( 9,830,400)     0.1061 ( 3,014,656)
+    l_knee_act_command_mean                      0   0.00164   0.00352    0.0062      0.0064    -0.00338 ( 4,587,520)     0.0137 ( 6,291,456)
+    l_ankle_act_command_mean                     0  -0.00116  -0.00443   0.00154    -0.00269     -0.0108 ( 6,291,456)    0.00798 ( 9,699,328)
+    tail_1_pitch_act_command_mean                0   -0.0163   -0.0386    0.1396      0.2622     -0.1383 ( 6,946,816)     0.2707 (11,796,480)
+    tail_1_yaw_act_command_mean                  0   -0.0108   0.00938    0.0144      0.0117     -0.0914 ( 3,014,656)     0.0830 ( 9,961,472)
+    tail_2_pitch_act_command_mean                0    0.0437    0.0260   -0.1478     -0.1147     -0.2536 ( 9,961,472)     0.1878 ( 3,407,872)
+    tail_3_pitch_act_command_mean                0    0.0243    0.0727    0.3627      0.5660     -0.0587 ( 4,849,664)     0.6158 (11,796,480)
+    actuators_at_rail                            0   0.00323    0.3635   0.00714           0           0 (   131,072)     1.0000 ( 6,291,456)
+    actuators_parked                             0    0.0839    0.5052    0.7714      1.6000           0 (   131,072)     1.9000 (11,141,120)
+    tail_1_pitch_mean_deg                  0.00852   -0.0918   -0.2243    0.9401      1.7481     -0.8673 ( 6,946,816)     1.8049 (11,796,480)
+    tail_1_yaw_mean_deg                   -0.00576    0.0403   -0.0373   -0.0575     -0.0512     -0.3153 ( 9,961,472)     0.3563 ( 3,014,656)
+    tail_2_pitch_mean_deg                   0.0077    0.2697    0.1667   -0.8651     -0.6661     -1.4932 ( 9,961,472)     1.1244 ( 3,407,872)
+    tail_3_pitch_mean_deg                   0.0126    0.1370    0.3831    1.8757      2.9275     -0.2886 ( 4,849,664)     3.1860 (11,796,480)
+    tail_tip_chord_mean_deg                 0.0824   0.00402   -0.5203    0.7782      2.4291     -1.4393 ( 8,519,680)     2.5367 (11,796,480)
+    root_height_mean_m                      0.9263    0.9262    0.9258    0.9256      0.9256      0.9249 ( 8,519,680)     0.9268 (   131,072)
+    root_pitch_min_deg                     -1.4154   -0.7175   -0.3123   -0.3932     -0.4684     -1.0526 (   393,216)     0.3182 ( 6,291,456)
+    root_pitch_max_deg                     -0.3390   -0.6107   -0.0393   -0.2001     -0.3291     -0.9176 (   393,216)     0.5741 ( 8,519,680)
+    root_roll_mean_deg                      0.0101   0.00586    0.0002  -0.00186     0.00711     -0.0825 (   524,288)     0.0969 ( 1,179,648)
+    legs_work_abs_j                         5.4619    1.3788    1.6267    1.5073      1.3412      0.6193 (   393,216)     3.6527 (   131,072)
+    tail_work_abs_j                        0.00944   0.00531   0.00886    0.0407      0.0767     0.00119 (   524,288)     0.0975 (11,534,336)
+    neck_head_work_abs_j                    1.0330    2.4607    7.4222    7.8020      3.0346      0.2441 (   917,504)    14.1521 ( 8,781,824)
+    legs_torque_rms_frac                    0.0277    0.0324    0.0330    0.0364      0.0342      0.0267 ( 6,815,744)     0.0483 ( 9,830,400)
+    tail_torque_rms_frac                   0.00147   0.00599    0.0103    0.0302      0.0449     0.00165 (   524,288)     0.0480 (11,796,480)
+    neck_head_torque_rms_frac               0.2201    0.2218    0.2130    0.2252      0.2279      0.2031 ( 4,849,664)     0.2320 (10,223,616)
+    legs_command_delta_rms                       0   0.00051   0.00062   0.00036     0.00035       7e-05 (   393,216)    0.00144 ( 4,194,304)
+    tail_command_delta_rms                       0   0.00066   0.00147   0.00128     0.00119       9e-05 (   131,072)     0.0027 ( 4,194,304)
+    neck_head_command_delta_rms                  0   0.00051     0.001   0.00093     0.00076       7e-05 (   131,072)    0.00192 ( 8,257,536)
+    action_delta_mean                            0     1e-05     3e-05     2e-05       1e-05           0 (   131,072)      7e-05 ( 8,257,536)
+    window_displacement_m                  0.00655   0.00319   0.00373   0.00352     0.00334     0.00119 (   393,216)     0.0076 ( 7,471,104)
+    window_yaw_change_deg                   0.9809    0.5429    0.5231    0.4417      0.5199      0.1642 (   917,504)     1.2700 ( 3,670,016)
+    window_path_length_m                    0.0430   0.00535   0.00547   0.00497     0.00431     0.00237 (   393,216)     0.0200 (   131,072)
+    r_slip_m                               0.00548   0.00596   0.00659   0.00646      0.0059     0.00262 (   393,216)     0.0109 ( 4,194,304)
+    l_slip_m                               0.00558   0.00603   0.00672   0.00655      0.0059     0.00249 (   393,216)     0.0108 ( 4,194,304)
+    tail_3_pitch_stop_share                      0         0         0         0           0           0 (   131,072)          0 (   131,072)
+    com_toe_margin_min_m                    0.0728    0.0778    0.0857    0.0817      0.0797      0.0688 (   131,072)     0.0888 ( 6,684,672)
+    com_heel_margin_min_m                   0.0573    0.0600    0.0498    0.0551      0.0581      0.0457 ( 5,636,096)     0.0653 (   393,216)
+    capture_toe_margin_min_m                0.0709    0.0778    0.0861    0.0816      0.0797      0.0674 (   131,072)     0.0893 ( 6,684,672)
+    angular_momentum_pitch_rms_nms          0.3726    0.0712    0.1360    0.1220      0.0421      0.0134 ( 2,490,368)     0.2666 (   131,072)
+    tail_base_pitch_moment_mean_nm         73.2679   73.2535   73.2020   73.2508     73.2761     73.1437 ( 8,519,680)    73.2862 (   393,216)
+    neck_base_pitch_moment_mean_nm        -42.8053  -41.8766  -36.3512  -42.2902    -42.1165    -45.2154 (10,092,544)   -33.8997 ( 4,849,664)
+    head_angular_rate_rms_dps               0.9736    0.8688    2.1530    1.8089      1.0902      0.1577 (   917,504)     3.4815 ( 6,291,456)
+    W1 [0, 4.19M): rail_actuators {'neck_pitch_act-': 1}; parked_actuators {'neck_pitch_act-': 22, 'head_pitch_act-': 4}
+    W2 [4.19M, 8.39M): rail_actuators {'neck_pitch_act-': 116}; parked_actuators {'neck_pitch_act-': 161}
+    W3 [8.39M, 12.0M]: rail_actuators {'neck_pitch_act-': 2}; parked_actuators {'neck_pitch_act-': 11, 'head_pitch_act-': 185, 'tail_3_pitch_act+': 20}
+
+----------------------------------------------------------------------------------------------------------------------
+D-14 IN-RUN K3 PANEL (M7; report only, not the K3 of record) [measured, K-<run>, KC-<run> via K3T-<run>]
+----------------------------------------------------------------------------------------------------------------------
+stance6_r10LTSB_s60: k3_panel.json sha256 6f4128f3a7112573...; csv rows 480; session_problem None; joint sigma key source_vectors.60, sha256 17fb067f6dba951ffbffbd137c53a10a86ef09eaa2f65f17542b485e96c83843, equals the seed's pin True; one sigma series over all 12 panels.
+    step         kind    own falls of 20 [seeds]      joint falls of 20 [seeds]       sigma sha256   failure
+      1,048,576 grid     0 of 20 []                    0 of 20 []                     17fb067f6dba   None
+      2,097,152 grid     0 of 20 []                    0 of 20 []                     17fb067f6dba   None
+      3,145,728 grid     0 of 20 []                    0 of 20 []                     17fb067f6dba   None
+      4,194,304 grid     0 of 20 []                    0 of 20 []                     17fb067f6dba   None
+      5,242,880 grid     0 of 20 []                    1 of 20 [3051]                 17fb067f6dba   None
+      6,291,456 grid     0 of 20 []                    1 of 20 [3051]                 17fb067f6dba   None
+      7,340,032 grid     0 of 20 []                    0 of 20 []                     17fb067f6dba   None
+      8,388,608 grid     0 of 20 []                    0 of 20 []                     17fb067f6dba   None
+      9,437,184 grid     0 of 20 []                    1 of 20 [3061]                 17fb067f6dba   None
+     10,485,760 grid     0 of 20 []                    1 of 20 [3061]                 17fb067f6dba   None
+     11,534,336 grid     0 of 20 []                    1 of 20 [3061]                 17fb067f6dba   None
+     12,001,280 final    0 of 20 []                    1 of 20 [3061]                 17fb067f6dba   None
+  own-sigma vector vs the probe's std at the same update: equal at the 11 grid panels (max |diff| 0); final panel differs by 0.0001461 [measured, K-s60, P-s60] (the probe row is read before its update's train(), the final panel after it [inferred]).
+  beside the offline judge's K3 (D-7) at 6,291,456 and the final: PENDING - no m4/ folder under /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/panels/stance6_r10LTSB_s60/6291456 or /final at Wed Oct 28 15:24:36 UTC 2026 (the report-only measurer runs M4 after M1/M2/M3).
+stance6_r10LTSB_s42: k3_panel.json sha256 d7a6e91a0859a4ad...; csv rows 480; session_problem None; joint sigma key source_vectors.42, sha256 929e3f6dcf2ea6cbbf01135fab718f53a6ad8dc15bd62ea5d7927d4808e3cae8, equals the seed's pin True; one sigma series over all 12 panels.
+    step         kind    own falls of 20 [seeds]      joint falls of 20 [seeds]       sigma sha256   failure
+      1,048,576 grid     0 of 20 []                    0 of 20 []                     929e3f6dcf2e   None
+      2,097,152 grid     0 of 20 []                    0 of 20 []                     929e3f6dcf2e   None
+      3,145,728 grid     0 of 20 []                    1 of 20 [3061]                 929e3f6dcf2e   None
+      4,194,304 grid     0 of 20 []                    1 of 20 [3061]                 929e3f6dcf2e   None
+      5,242,880 grid     0 of 20 []                    1 of 20 [3061]                 929e3f6dcf2e   None
+      6,291,456 grid     0 of 20 []                    1 of 20 [3061]                 929e3f6dcf2e   None
+      7,340,032 grid     0 of 20 []                    1 of 20 [3061]                 929e3f6dcf2e   None
+      8,388,608 grid     0 of 20 []                    1 of 20 [3061]                 929e3f6dcf2e   None
+      9,437,184 grid     0 of 20 []                    0 of 20 []                     929e3f6dcf2e   None
+     10,485,760 grid     0 of 20 []                    0 of 20 []                     929e3f6dcf2e   None
+     11,534,336 grid     0 of 20 []                    0 of 20 []                     929e3f6dcf2e   None
+     12,001,280 final    0 of 20 []                    0 of 20 []                     929e3f6dcf2e   None
+  own-sigma vector vs the probe's std at the same update: equal at the 11 grid panels (max |diff| 0); final panel differs by 0.0001137 [measured, K-s42, P-s42] (the probe row is read before its update's train(), the final panel after it [inferred]).
+  beside the offline judge's K3 (D-7) at 6,291,456 and the final: PENDING - no m4/ folder under /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/panels/stance6_r10LTSB_s42/6291456 or /final at Wed Oct 28 15:24:36 UTC 2026 (the report-only measurer runs M4 after M1/M2/M3).
+stance6_r10LTSB_s80: k3_panel.json sha256 7e8f5ee3ed4a11b2...; csv rows 480; session_problem None; joint sigma key control_sigma.80, sha256 df38050540f4a30844636d4d9e862a7126e232b38299b8774685a2f73a30ffe1, equals the seed's pin True; one sigma series over all 12 panels.
+    step         kind    own falls of 20 [seeds]      joint falls of 20 [seeds]       sigma sha256   failure
+      1,048,576 grid     0 of 20 []                    0 of 20 []                     df38050540f4   None
+      2,097,152 grid     0 of 20 []                    1 of 20 [3051]                 df38050540f4   None
+      3,145,728 grid     0 of 20 []                    0 of 20 []                     df38050540f4   None
+      4,194,304 grid     0 of 20 []                    0 of 20 []                     df38050540f4   None
+      5,242,880 grid     0 of 20 []                    2 of 20 [3046, 3048]           df38050540f4   None
+      6,291,456 grid     0 of 20 []                    5 of 20 [3042, 3046, 3048, 3054, 3061] df38050540f4   None
+      7,340,032 grid     0 of 20 []                    2 of 20 [3048, 3061]           df38050540f4   None
+      8,388,608 grid     0 of 20 []                    1 of 20 [3061]                 df38050540f4   None
+      9,437,184 grid     0 of 20 []                    1 of 20 [3061]                 df38050540f4   None
+     10,485,760 grid     0 of 20 []                    1 of 20 [3061]                 df38050540f4   None
+     11,534,336 grid     0 of 20 []                    2 of 20 [3051, 3061]           df38050540f4   None
+     12,001,280 final    0 of 20 []                    2 of 20 [3051, 3061]           df38050540f4   None
+  own-sigma vector vs the probe's std at the same update: equal at the 11 grid panels (max |diff| 0); final panel differs by 0.0000882 [measured, K-s80, P-s80] (the probe row is read before its update's train(), the final panel after it [inferred]).
+  beside the offline judge's K3 (D-7) at 6,291,456 and the final: PENDING - no m4/ folder under /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/panels/stance6_r10LTSB_s80/6291456 or /final at Wed Oct 28 15:24:36 UTC 2026 (the report-only measurer runs M4 after M1/M2/M3).
+  r10 statue reference: 1 joint-space fall in 2 spawns [measured, TEL spec, as THIS12 line 627]. The panel's policy-state
+  and observation-statistics sha256 were not matched against the checkpoint pairs (k3panel_r10round.py run without
+  --models; that check loads checkpoints and is left to the measurer).
+
+----------------------------------------------------------------------------------------------------------------------
+D-15 EXPLORATION STD AND OBSERVATION-NORMALISATION DRIFT (TEL pages 17-18) [measured, P-<run> std_per_actuator at every
+PPO update (1,465 rows, written in full to STD-<run>); H-<run> obs_normalization]
+----------------------------------------------------------------------------------------------------------------------
+stance6_r10LTSB_s60: std = exp(log_std) at each K3 point (the probe row at that update):
+    step            neck_pitch   neck_yaw head_pitch r_hip_pitc r_hip_roll     r_knee    r_ankle l_hip_pitc l_hip_roll     l_knee    l_ankle tail_1_pit tail_1_yaw tail_2_pit tail_3_pit
+    0 (log_std_init)    0.2231     0.2231     0.2231     0.2231     0.2231     0.2231     0.2231     0.2231     0.2231     0.2231     0.2231     0.2231     0.2231     0.2231     0.2231
+    1048576             0.1918     0.2100     0.2137     0.0893     0.1776     0.0518     0.0555     0.0893     0.1776     0.0518     0.0555     0.2133     0.2136     0.2086     0.2063
+    2097152             0.1667     0.1899     0.1985     0.0419     0.1351     0.0240     0.0328     0.0419     0.1351     0.0240     0.0328     0.1951     0.1974     0.1917     0.1900
+    3145728             0.1526     0.1785     0.1846     0.0308     0.1155     0.0183     0.0271     0.0308     0.1155     0.0183     0.0271     0.1836     0.1892     0.1796     0.1784
+    4194304             0.1461     0.1687     0.1761     0.0260     0.1056     0.0158     0.0242     0.0260     0.1056     0.0158     0.0242     0.1749     0.1810     0.1708     0.1678
+    5242880             0.1427     0.1601     0.1681     0.0230     0.0976     0.0142     0.0219     0.0230     0.0976     0.0142     0.0219     0.1667     0.1719     0.1656     0.1615
+    6291456             0.1340     0.1513     0.1589     0.0209     0.0901     0.0130     0.0202     0.0209     0.0901     0.0130     0.0202     0.1598     0.1646     0.1564     0.1525
+    7340032             0.1278     0.1407     0.1514     0.0188     0.0831     0.0121     0.0187     0.0188     0.0831     0.0121     0.0187     0.1536     0.1552     0.1468     0.1432
+    8388608             0.1224     0.1333     0.1417     0.0173     0.0768     0.0112     0.0172     0.0173     0.0768     0.0112     0.0172     0.1466     0.1478     0.1382     0.1346
+    9437184             0.1161     0.1245     0.1367     0.0164     0.0728     0.0103     0.0163     0.0164     0.0728     0.0103     0.0163     0.1406     0.1413     0.1307     0.1275
+    10485760            0.1097     0.1187     0.1304     0.0155     0.0677     0.0098     0.0156     0.0155     0.0677     0.0098     0.0156     0.1343     0.1352     0.1253     0.1215
+    11534336            0.1050     0.1126     0.1246     0.0148     0.0640     0.0092     0.0147     0.0148     0.0640     0.0092     0.0147     0.1285     0.1304     0.1190     0.1158
+    12001280            0.1030     0.1094     0.1223     0.0145     0.0636     0.0090     0.0145     0.0145     0.0636     0.0090     0.0145     0.1269     0.1282     0.1163     0.1138
+  first update below the stance3 line-2 reference 0.08 (drawn, not applied): r_hip_pitch 1,155,072, r_hip_roll 7,888,896, r_knee 745,472, r_ankle 745,472 (left = right); neck, head and tail actuators never below 0.08. Leg mirror pairs equal at every update (max |gap| 0.0).
+  obs-normalisation drift as TEL reports it: 46 checkpoints; three most-drifting dims [('qpos.r_hip_roll', 0.226681), ('qpos.l_hip_roll', 0.226681), ('target_direction.x', 0.212165)];
+    largest checkpoint-to-checkpoint shifts: 524,288: max 0.227 (top qpos.r_hip_roll); 6,815,744: max 0.131 (top qpos.tail_3_pitch); 7,077,888: max 0.124 (top qpos.tail_3_pitch); 6,553,600: max 0.116 (top qpos.tail_3_pitch)
+    final pickle vs previous: shift max 0.0270, scale max 0.0264, top qpos.neck_pitch; probe/pickle consistency 46 of 46 equal_float32.
+
+stance6_r10LTSB_s42: std = exp(log_std) at each K3 point (the probe row at that update):
+    step            neck_pitch   neck_yaw head_pitch r_hip_pitc r_hip_roll     r_knee    r_ankle l_hip_pitc l_hip_roll     l_knee    l_ankle tail_1_pit tail_1_yaw tail_2_pit tail_3_pit
+    0 (log_std_init)    0.2231     0.2231     0.2231     0.2231     0.2231     0.2231     0.2231     0.2231     0.2231     0.2231     0.2231     0.2231     0.2231     0.2231     0.2231
+    1048576             0.1980     0.2054     0.2042     0.0884     0.1735     0.0518     0.0573     0.0884     0.1735     0.0518     0.0573     0.2110     0.2117     0.2070     0.2000
+    2097152             0.1754     0.1886     0.1888     0.0426     0.1344     0.0240     0.0332     0.0426     0.1344     0.0240     0.0332     0.1907     0.1969     0.1919     0.1816
+    3145728             0.1565     0.1760     0.1735     0.0308     0.1160     0.0180     0.0270     0.0308     0.1160     0.0180     0.0270     0.1748     0.1877     0.1807     0.1694
+    4194304             0.1445     0.1649     0.1660     0.0254     0.1020     0.0152     0.0235     0.0254     0.1020     0.0152     0.0235     0.1669     0.1755     0.1688     0.1557
+    5242880             0.1369     0.1551     0.1585     0.0227     0.0945     0.0137     0.0216     0.0227     0.0945     0.0137     0.0216     0.1611     0.1665     0.1620     0.1459
+    6291456             0.1319     0.1451     0.1496     0.0207     0.0876     0.0126     0.0202     0.0207     0.0876     0.0126     0.0202     0.1544     0.1597     0.1531     0.1330
+    7340032             0.1229     0.1370     0.1427     0.0189     0.0818     0.0115     0.0189     0.0189     0.0818     0.0115     0.0189     0.1484     0.1516     0.1450     0.1265
+    8388608             0.1140     0.1285     0.1338     0.0171     0.0760     0.0105     0.0173     0.0171     0.0760     0.0105     0.0173     0.1393     0.1433     0.1367     0.1189
+    9437184             0.1085     0.1211     0.1278     0.0157     0.0710     0.0099     0.0160     0.0157     0.0710     0.0099     0.0160     0.1312     0.1378     0.1312     0.1118
+    10485760            0.1011     0.1143     0.1220     0.0146     0.0662     0.0093     0.0152     0.0146     0.0662     0.0093     0.0152     0.1241     0.1338     0.1252     0.1057
+    11534336            0.0970     0.1100     0.1180     0.0141     0.0634     0.0089     0.0145     0.0141     0.0634     0.0089     0.0145     0.1207     0.1282     0.1201     0.0976
+    12001280            0.0962     0.1089     0.1168     0.0139     0.0622     0.0087     0.0141     0.0139     0.0622     0.0087     0.0141     0.1192     0.1266     0.1185     0.0951
+  first update below the stance3 line-2 reference 0.08 (drawn, not applied): r_hip_pitch 1,163,264, r_hip_roll 7,766,016, r_knee 745,472, r_ankle 761,856 (left = right); neck, head and tail actuators never below 0.08. Leg mirror pairs equal at every update (max |gap| 0.0).
+  obs-normalisation drift as TEL reports it: 46 checkpoints; three most-drifting dims [('qpos.tail_3_pitch', 0.258062), ('qpos.r_hip_roll', 0.238653), ('qpos.l_hip_roll', 0.238653)];
+    largest checkpoint-to-checkpoint shifts: 3,407,872: max 0.258 (top qpos.tail_3_pitch); 524,288: max 0.239 (top qpos.r_hip_roll); 2,097,152: max 0.201 (top qpos.tail_3_pitch); 3,145,728: max 0.200 (top qpos.tail_3_pitch)
+    final pickle vs previous: shift max 0.0377, scale max 0.0361, top qpos.neck_pitch; probe/pickle consistency 46 of 46 equal_float32.
+
+stance6_r10LTSB_s80: std = exp(log_std) at each K3 point (the probe row at that update):
+    step            neck_pitch   neck_yaw head_pitch r_hip_pitc r_hip_roll     r_knee    r_ankle l_hip_pitc l_hip_roll     l_knee    l_ankle tail_1_pit tail_1_yaw tail_2_pit tail_3_pit
+    0 (log_std_init)    0.2231     0.2231     0.2231     0.2231     0.2231     0.2231     0.2231     0.2231     0.2231     0.2231     0.2231     0.2231     0.2231     0.2231     0.2231
+    1048576             0.1946     0.2003     0.2122     0.0894     0.1730     0.0520     0.0560     0.0894     0.1730     0.0520     0.0560     0.2104     0.2138     0.2091     0.2056
+    2097152             0.1721     0.1881     0.1923     0.0427     0.1330     0.0240     0.0327     0.0427     0.1330     0.0240     0.0327     0.1911     0.2045     0.1898     0.1915
+    3145728             0.1604     0.1764     0.1790     0.0304     0.1142     0.0182     0.0265     0.0304     0.1142     0.0182     0.0265     0.1818     0.1924     0.1788     0.1853
+    4194304             0.1514     0.1639     0.1711     0.0257     0.1030     0.0156     0.0237     0.0257     0.1030     0.0156     0.0237     0.1697     0.1826     0.1703     0.1723
+    5242880             0.1425     0.1563     0.1624     0.0231     0.0959     0.0141     0.0215     0.0231     0.0959     0.0141     0.0215     0.1629     0.1732     0.1626     0.1679
+    6291456             0.1333     0.1476     0.1543     0.0203     0.0891     0.0128     0.0197     0.0203     0.0891     0.0128     0.0197     0.1538     0.1650     0.1533     0.1582
+    7340032             0.1249     0.1403     0.1493     0.0188     0.0836     0.0119     0.0185     0.0188     0.0836     0.0119     0.0185     0.1468     0.1575     0.1452     0.1524
+    8388608             0.1180     0.1316     0.1444     0.0174     0.0782     0.0114     0.0174     0.0174     0.0782     0.0114     0.0174     0.1404     0.1521     0.1400     0.1437
+    9437184             0.1144     0.1277     0.1389     0.0164     0.0737     0.0107     0.0163     0.0164     0.0737     0.0107     0.0163     0.1358     0.1473     0.1358     0.1378
+    10485760            0.1096     0.1218     0.1312     0.0153     0.0705     0.0102     0.0155     0.0153     0.0705     0.0102     0.0155     0.1311     0.1413     0.1314     0.1321
+    11534336            0.1067     0.1167     0.1243     0.0144     0.0662     0.0097     0.0147     0.0144     0.0662     0.0097     0.0147     0.1265     0.1362     0.1259     0.1253
+    12001280            0.1048     0.1151     0.1221     0.0141     0.0644     0.0096     0.0145     0.0141     0.0644     0.0096     0.0145     0.1246     0.1337     0.1241     0.1231
+  first update below the stance3 line-2 reference 0.08 (drawn, not applied): r_hip_pitch 1,171,456, r_hip_roll 8,060,928, r_knee 745,472, r_ankle 753,664 (left = right); neck, head and tail actuators never below 0.08. Leg mirror pairs equal at every update (max |gap| 0.0).
+  obs-normalisation drift as TEL reports it: 46 checkpoints; three most-drifting dims [('qpos.neck_pitch', 0.297474), ('qpos.r_hip_roll', 0.25167), ('qpos.l_hip_roll', 0.25167)];
+    largest checkpoint-to-checkpoint shifts: 3,145,728: max 0.297 (top qpos.neck_pitch); 3,407,872: max 0.252 (top qpos.neck_pitch); 524,288: max 0.252 (top qpos.r_hip_roll); 3,670,016: max 0.177 (top qpos.neck_pitch)
+    final pickle vs previous: shift max 0.0389, scale max 0.0426, top qpos.tail_3_pitch; probe/pickle consistency 46 of 46 equal_float32.
+
+----------------------------------------------------------------------------------------------------------------------
+ENTROPY CHECK (the maintainer's question: could the entropy setting be introducing the bad behaviours?)
+----------------------------------------------------------------------------------------------------------------------
+MEASURED FACTS
+E1 Settings, identical in all three runs' stage_config.json [measured, C-s60, C-s42, C-s80]: ent_coef 0.005 -> ent_coef_end 0.0 over ent_coef_decay_timesteps 7,000,000; policy_kwargs {'net_arch': [512, 256], 'log_std_init': -1.5}; symmetry mirror_kl (kappa 0.3, sigma_floor 0.01, mirror critic True); action_saturation_weight 0.5 above |0.9|; learning_rate 3e-05 -> 1e-05; n_steps 2048, batch 128, n_epochs 10, target_kl 0.03; no use_sde key.
+E2 ent_coef as recorded at every update (policy_probe.npz ent_coef) [measured, P-*]: 1465 updates; first 0.00499415 at 8,192; max |recorded - linear schedule| 2.3e-10; first update at 0: 7,004,160; 0 to the end. Same in all three runs. Values at the events:
+      at   1,048,576 (update 1,048,576): ent_coef 0.004251
+      at   3,670,016 (update 3,670,016): ent_coef 0.002379
+      at   3,801,088 (update 3,801,088): ent_coef 0.002285
+      at   3,932,160 (update 3,932,160): ent_coef 0.002191
+      at   4,194,304 (update 4,194,304): ent_coef 0.002004
+      at   4,849,664 (update 4,849,664): ent_coef 0.001536
+      at   5,505,024 (update 5,505,024): ent_coef 0.001068
+      at   6,291,456 (update 6,291,456): ent_coef 0.000506
+      at   7,000,000 (update 7,004,160): ent_coef 0.000000
+      at   8,126,464 (update 8,126,464): ent_coef 0.000000
+      at  12,001,280 (update 12,001,280): ent_coef 0.000000
+E3 Onsets confirmed on F2's ledgers [measured, L-s42, L-s80]: s42 tail_3_pitch_act at +1 (saturated_actuator_positive_share
+   1.0 on all 249 over-bar rows): first over-bar episode 3,670,016, first flagged evaluation 3,801,088, first TAIL ALARM
+   3,932,160 (as interim snapshot 2 said); s80 neck_pitch_act at the negative end (positive share 0.0 on all 119 over-bar
+   rows; TEL 'neck_pitch_act-'): first over-bar episode 3,801,088, first ANY-flagged 4,849,664, first ANY ALARM 5,505,024
+   (as snapshot 2 said). s60: first tail_3 + over-bar episode 8,126,464, no flagged evaluation. The bonus at those steps:
+   s42 first alarm 0.00219 (44% of 0.005); s80 first alarm 0.00107 (21%); s60 first over-bar episode 0 [measured, P-*].
+E4 Exploration std per actuator over training [measured, P-*, STD-*]: from exp(-1.5) = 0.2231 at the start, every actuator's
+   std falls through the run; no actuator's std rises over any 1,048,576-step stretch (over 262,144 steps small rises of
+   at most 0.006; single-update increases <= 0.66%). At the
+   final: legs 0.009-0.064, neck/head 0.096-0.122, tail 0.095-0.134 (D-15 tables). Std at the onsets, all three runs at the
+   same update (neck_pitch, head_pitch, tail_1_pitch, tail_1_yaw, tail_2_pitch, tail_3_pitch) [measured, DATA cross_run_std]:
+        3,670,016: s60 0.148/0.181/0.177/0.186/0.176/0.174; s42 0.149/0.170/0.171/0.180/0.173/0.163; s80 0.155/0.175/0.177/0.188/0.173/0.179
+        3,932,160: s60 0.148/0.177/0.176/0.183/0.173/0.171; s42 0.146/0.169/0.170/0.177/0.170/0.160; s80 0.152/0.172/0.173/0.185/0.173/0.174
+        5,505,024: s60 0.140/0.165/0.166/0.169/0.162/0.158; s42 0.136/0.156/0.159/0.165/0.160/0.143; s80 0.140/0.161/0.161/0.172/0.160/0.166
+        7,000,000: s60 0.130/0.153/0.156/0.161/0.149/0.146; s42 0.125/0.144/0.151/0.154/0.146/0.129; s80 0.127/0.151/0.150/0.160/0.149/0.155
+       12,001,280: s60 0.103/0.122/0.127/0.128/0.116/0.114; s42 0.096/0.117/0.119/0.127/0.119/0.095; s80 0.105/0.122/0.125/0.134/0.124/0.123
+   The railing actuator was not noisier in the railing run: s42's tail_3 std was the lowest of the three runs at its onset
+   and stayed lowest to the end (final 0.095 vs 0.114 s60, 0.123 s80); s80's neck_pitch std at its first alarm (0.1397) is
+   about equal to s60's (0.1405) and above s42's (0.1363).
+   No kink at 7,000,000 when the bonus reaches 0 (log-std slope per 1M steps in (6M,7M] vs (7M,8M]) [measured, KINK]:
+      s60: tail_3 -0.053 -> -0.050; neck_pitch -0.053 -> -0.037; head_pitch -0.059 -> -0.055; tail_1_pitch -0.051 -> -0.032
+      s42: tail_3 -0.044 -> -0.060; neck_pitch -0.065 -> -0.066; head_pitch -0.051 -> -0.060; tail_1_pitch -0.039 -> -0.058
+      s80: tail_3 -0.043 -> -0.061; neck_pitch -0.062 -> -0.059; head_pitch -0.038 -> -0.033; tail_1_pitch -0.034 -> -0.053
+E5 Saturation before and after the bonus reached 0 [measured, L-*, BINS]:
+   s60: over-bar rows [0,7M) 0 of 530 (0.000), [7M,12M] 24 of 380 (0.063); flagged evaluations 0 -> 0; alarms 0 -> 0.
+   s42: over-bar rows [0,7M) 123 of 530 (0.232), [7M,12M] 126 of 380 (0.332); flagged evaluations 13 -> 13; alarms 11 -> 11.
+   s80: over-bar rows [0,7M) 85 of 530 (0.160), [7M,12M] 34 of 380 (0.089); flagged evaluations 10 -> 2; alarms 5 -> 1.
+   Per 1,048,576-step bin (rollout mean of the actuator's mu; share of rollouts' rows with mu beyond the bound; ledger
+   over-bar rows of 80; bin-mean ent_coef) [measured, BINS]:
+      s42 tail_3_pitch_act (high bound):
+        (0,1048576]                ent 0.00462  mu -0.017  beyond 0.0000 (rollouts >= .05:   0)  over-bar rows  0/80  TEL cmd -0.034
+        (1048576,2097152]          ent 0.00387  mu +0.044  beyond 0.0000 (rollouts >= .05:   0)  over-bar rows  0/80  TEL cmd 0.063
+        (2097152,3145728]          ent 0.00313  mu +0.241  beyond 0.0000 (rollouts >= .05:   0)  over-bar rows  0/80  TEL cmd 0.293
+        (3145728,4194304]          ent 0.00238  mu +0.744  beyond 0.1005 (rollouts >= .05:  56)  over-bar rows 41/80  TEL cmd 0.889
+        (4194304,5242880]          ent 0.00163  mu +0.902  beyond 0.3930 (rollouts >= .05: 125)  over-bar rows 64/80  TEL cmd 0.976
+        (5242880,6291456]          ent 0.00088  mu +0.741  beyond 0.0776 (rollouts >= .05:  67)  over-bar rows 18/80  TEL cmd 0.785
+        (6291456,7340032]          ent 0.00017  mu -0.059  beyond 0.0005 (rollouts >= .05:   0)  over-bar rows  4/80  TEL cmd -0.076
+        (7340032,8388608]          ent 0.00000  mu +0.601  beyond 0.0388 (rollouts >= .05:  27)  over-bar rows 30/80  TEL cmd 0.784
+        (8388608,9437184]          ent 0.00000  mu +0.648  beyond 0.0024 (rollouts >= .05:   1)  over-bar rows  1/80  TEL cmd 0.805
+        (9437184,10485760]         ent 0.00000  mu +0.835  beyond 0.2556 (rollouts >= .05: 108)  over-bar rows 79/80  TEL cmd 0.981
+        (10485760,11534336]        ent 0.00000  mu +0.783  beyond 0.0316 (rollouts >= .05:  22)  over-bar rows 11/80  TEL cmd 0.878
+        (11534336,12582912]        ent 0.00000  mu +0.784  beyond 0.0013 (rollouts >= .05:   0)  over-bar rows  1/30  TEL cmd 0.871
+      s60 tail_3_pitch_act (high bound):
+        (0,1048576]                ent 0.00462  mu +0.012  beyond 0.0000 (rollouts >= .05:   0)  over-bar rows  0/80  TEL cmd 0.011
+        (1048576,2097152]          ent 0.00387  mu +0.016  beyond 0.0000 (rollouts >= .05:   0)  over-bar rows  0/80  TEL cmd 0.023
+        (2097152,3145728]          ent 0.00313  mu +0.017  beyond 0.0000 (rollouts >= .05:   0)  over-bar rows  0/80  TEL cmd 0.018
+        (3145728,4194304]          ent 0.00238  mu +0.031  beyond 0.0000 (rollouts >= .05:   0)  over-bar rows  0/80  TEL cmd 0.041
+        (4194304,5242880]          ent 0.00163  mu +0.127  beyond 0.0000 (rollouts >= .05:   0)  over-bar rows  0/80  TEL cmd 0.141
+        (5242880,6291456]          ent 0.00088  mu +0.158  beyond 0.0000 (rollouts >= .05:   0)  over-bar rows  0/80  TEL cmd 0.182
+        (6291456,7340032]          ent 0.00017  mu +0.441  beyond 0.0001 (rollouts >= .05:   0)  over-bar rows  0/80  TEL cmd 0.537
+        (7340032,8388608]          ent 0.00000  mu +0.679  beyond 0.0123 (rollouts >= .05:   5)  over-bar rows  4/80  TEL cmd 0.821
+        (8388608,9437184]          ent 0.00000  mu +0.705  beyond 0.0328 (rollouts >= .05:  30)  over-bar rows 12/80  TEL cmd 0.854
+        (9437184,10485760]         ent 0.00000  mu +0.659  beyond 0.0099 (rollouts >= .05:   5)  over-bar rows  4/80  TEL cmd 0.791
+        (10485760,11534336]        ent 0.00000  mu +0.639  beyond 0.0045 (rollouts >= .05:   1)  over-bar rows  3/80  TEL cmd 0.748
+        (11534336,12582912]        ent 0.00000  mu +0.567  beyond 0.0016 (rollouts >= .05:   0)  over-bar rows  1/30  TEL cmd 0.684
+      s80 neck_pitch_act (low bound):
+        (0,1048576]                ent 0.00462  mu -0.011  beyond 0.0000 (rollouts >= .05:   0)  over-bar rows  0/80  TEL cmd -0.017
+        (1048576,2097152]          ent 0.00387  mu -0.016  beyond 0.0000 (rollouts >= .05:   0)  over-bar rows  0/80  TEL cmd -0.013
+        (2097152,3145728]          ent 0.00313  mu -0.157  beyond 0.0000 (rollouts >= .05:   0)  over-bar rows  0/80  TEL cmd -0.189
+        (3145728,4194304]          ent 0.00238  mu -0.471  beyond 0.0007 (rollouts >= .05:   0)  over-bar rows  1/80  TEL cmd -0.556
+        (4194304,5242880]          ent 0.00163  mu -0.635  beyond 0.0196 (rollouts >= .05:  20)  over-bar rows  6/80  TEL cmd -0.718
+        (5242880,6291456]          ent 0.00088  mu -0.758  beyond 0.1254 (rollouts >= .05:  79)  over-bar rows 55/80  TEL cmd -0.887
+        (6291456,7340032]          ent 0.00017  mu -0.725  beyond 0.0823 (rollouts >= .05:  62)  over-bar rows 41/80  TEL cmd -0.868
+        (7340032,8388608]          ent 0.00000  mu -0.579  beyond 0.0457 (rollouts >= .05:  43)  over-bar rows 14/80  TEL cmd -0.617
+        (8388608,9437184]          ent 0.00000  mu -0.068  beyond 0.0015 (rollouts >= .05:   1)  over-bar rows  2/80  TEL cmd -0.046
+        (9437184,10485760]         ent 0.00000  mu +0.067  beyond 0.0000 (rollouts >= .05:   0)  over-bar rows  0/80  TEL cmd 0.062
+        (10485760,11534336]        ent 0.00000  mu -0.392  beyond 0.0005 (rollouts >= .05:   0)  over-bar rows  0/80  TEL cmd -0.436
+        (11534336,12582912]        ent 0.00000  mu -0.280  beyond 0.0004 (rollouts >= .05:   0)  over-bar rows  0/30  TEL cmd -0.289
+   In words: s42's rail ran 3.67-5.9M with the bonus at 0.0024-0.0008, cleared at 6.3-7.3M (mu -0.06, bonus 0.0002), then
+   re-formed with the bonus at 0 (7.99-8.39M and 9.57-10.62M; 11 of its 22 alarms after 7M; over-bar share 0.23 -> 0.33).
+   s60's drive began rising at 4.2-5.2M (mu 0.13) and 6.3-7.3M (mu 0.44, bonus 0.0002); its mean-beyond share reached 0.01
+   only at 7,454,720 and 0.05 at 7,962,624, with the bonus at 0 (all 41 rollouts >= 0.05 and all 24 over-bar episodes after
+   7M), and the rollout mean eased to 0.57 by the end.
+   s80's neck rail peaked at 5.2-6.3M (bonus 0.0009), was already falling at 6.3-7.3M, and faded through 7.3-8.4M (bonus 0;
+   last flagged 7,340,032, last over-bar row 8,781,824). So after the bonus reached 0 saturation grew (s60), re-formed
+   (s42) and faded (s80).
+E6 r9 under the same schedule [measured, R9C-* (ent_coef 0.005 -> 0 by 7,000,000, log_std_init -1.5, sigma_floor 0.01 in
+   all five), R9T-*, R9G-*]:
+   stance5_LTSB_s52: first sat 6,946,816, alarm none; flagged evaluations before 7M 0, after 7M 0; alarms after 7M 0 (first none); over-bar rows [0,7M) 1, [7M,12M] 2; final std_min/max 0.008578/0.1348, ent_coef 0.0.
+   stance5_LTSB_s60: first sat 11,403,264, alarm none; flagged evaluations before 7M 0, after 7M 0; alarms after 7M 0 (first none); over-bar rows [0,7M) 0, [7M,12M] 1; final std_min/max 0.008998/0.1348, ent_coef 0.0.
+   stance5_LTSB_s42: first sat 3,145,728, alarm 3,670,016; flagged evaluations before 7M 18, after 7M 12; alarms after 7M 9 (first 7,077,888); over-bar rows [0,7M) 151, [7M,12M] 119; final std_min/max 0.008749/0.1397, ent_coef 0.0.
+   stance5_LTSB_s70: first sat 8,126,464, alarm none; flagged evaluations before 7M 0, after 7M 0; alarms after 7M 0 (first none); over-bar rows [0,7M) 0, [7M,12M] 1; final std_min/max 0.008906/0.1344, ent_coef 0.0.
+   stance5_LTSB_s80: first sat 4,325,376, alarm 4,456,448; flagged evaluations before 7M 20, after 7M 17; alarms after 7M 11 (first 7,471,104); over-bar rows [0,7M) 158, [7M,12M] 136; final std_min/max 0.008768/0.1346, ent_coef 0.0.
+   The r9 records hold no per-update std: the r9 run folders held here have no policy_probe.npz, and progress.json keeps
+   only the final policy block [measured, folder listings of S0/foot/stance5/runs/* and replication/runs/*]. r10's final
+   std_min/max: s60 0.009008/0.1282; s42 0.00867/0.1266; s80 0.009552/0.1337 [measured, G-*]: the same range as r9's.
+E7 How the code applies the bonus [measured, CODE-MKL lines 21, 199-201, 335-379; CODE-SB3 lines 152, 180-181; CODE-ENV
+   lines 970, 1484-1504; CODE-RF lines 621-647]: the loss is policy_loss + ent_coef * entropy_loss + vf_coef * value_loss
+   (stock); the policy's log_std is one nn.Parameter per actuator (state-independent; use_sde not set), and a diagonal
+   Gaussian's entropy is sum(log_std) + constant; the symmetry KL uses sigma = exp(log_std).detach().clamp_min(0.01), so it
+   passes no gradient to log_std; the saturation cost is computed on the clipped raw command (stage_config
+   action_penalty_source "raw" [measured, C-*]), ramping from |a| = 0.9 to 1 and flat beyond.
+
+INFERRED ANSWER (could entropy be driving it?) [inferred, from E1-E7]
+- Direct effect: no. The entropy term's gradient reaches log_std only, with the same push on all 15 actuators, and
+  never reaches the mean action (from E7). The ledger's rails are the deterministic policy's mean command (and M6's
+  'mu beyond the bound'); nothing in the entropy term singles out tail_3 or neck_pitch.
+- As a necessary cause: the records argue against it. s60's tail drive crossed the bound, and s42's rail re-formed
+  twice, with ent_coef exactly 0 (E2, E5); r9's two railed runs kept 12 and 17 flagged evaluations after 7M (E6).
+- Via the noise level: not supported, not excluded. The railing actuator was the least noisy of the three runs, not the
+  most (E4), and std shows no kink at 7M (E4) - but by 6-7M the bonus is below 0.0007, so its removal is gradual. The
+  onsets of the alarm runs on both plants (r10 s42 3.67M and s80 3.80M first over-bar rows; r9 s42 3.15M and s80
+  4.33M) all fall while the bonus is > 0 (s60's late episodes came with it at 0), so a role in the timing of a first
+  onset cannot be judged from runs that all share one schedule: there is no contrast in these records. n = 3 (and
+  r9's 5) runs; GPU training is not bit-reproducible [measured, EVID].
+- A plausible mechanism that does not need entropy [inferred, from E7]: once the mean passes the bound, every sample on
+  that side clips to the same command, the saturation cost stops growing at |a| = 1, and the clipped surrogate has little
+  to pull the mean back; the observed std shrinking fastest on s42's tail_3 fits that. This is a reading, not a test.
+WHAT WOULD TEST IT (none of it is proposed here; each needs the maintainer's approval of a training-hyperparameter
+change and a launch) [inferred]:
+- Branch test from the runs' own checkpoints (cheapest that isolates the term): from s42's 3,407,872 pair (before its
+  first rollout with mu-beyond >= 0.01, 3,579,904, and its first over-bar episode, 3,670,016) and s80's 3,670,016 pair
+  (before its first neck over-bar episode, 3,801,088), continue for about 1.5M steps with (a) the recorded schedule and
+  (b) ent_coef 0, several training seeds each (e.g. 4 + 4 per checkpoint), reading M6's mu-beyond share and the ledger
+  rule; and the converse from s60's 6,815,744 pair (bonus re-instated at 0.002 vs 0). About 16 continuations of about 1.7
+  h each at the runs' 240 steps/s, about 25-30 L4-hours [inferred from G-* wall clock]. The three pairs are listed in
+  their runs' artifact_manifest.json but are not among F2's copies (F2 holds the 1,048,576-grid pairs, the final and, for
+  s42, the 3,670,016 onset pair) [measured, VER], so a read-only fetch would come first. Resumed runs are diagnostics,
+  not round runs (RUN HANDLING forbids resumes in the round).
+- From-scratch contrast (the only test of onset): two arms identical but for ent_coef (as shipped vs 0 throughout, or a
+  fixed log_std), pre-registered with the same ledger rule. One-sided Fisher with 0 alarms in one arm against 2 of 3 in
+  the other needs about 6 runs per arm for p 0.03, 8 for 0.013; against half, 8 per arm gives 0.038 [inferred, computed]:
+  12-16 runs, about 170-230 L4-hours.
+
+----------------------------------------------------------------------------------------------------------------------
+INTERIM CONTEXT (the two mid-run snapshots, report only; they never stood for the reading) [measured, SNAP1, SNAP2, VER]
+----------------------------------------------------------------------------------------------------------------------
+stance6_r10LTSB_s60: snapshot 1 ledger 230 rows to 3,014,656 and snapshot 2 ledger 580 rows to 7,602,176: header equal and every row equal to F2's first rows: True / True; their K3 panels (2, 7) equal F2's falls: True / True.
+stance6_r10LTSB_s42: snapshot 1 ledger 230 rows to 3,014,656 and snapshot 2 ledger 580 rows to 7,602,176: header equal and every row equal to F2's first rows: True / True; their K3 panels (2, 7) equal F2's falls: True / True.
+stance6_r10LTSB_s80: snapshot 1 ledger 230 rows to 3,014,656 and snapshot 2 ledger 590 rows to 7,733,248: header equal and every row equal to F2's first rows: True / True; their K3 panels (2, 7) equal F2's falls: True / True.
+Snapshot 1 (files of about 18:40 UTC 2026-10-27, 3,014,656 steps): no flag or alarm in any run; s42's tail_3 command
+  rising (0.202 -> 0.394). F2 agrees for those rows; s42's first over-bar row came 5 evaluations later (3,670,016).
+Snapshot 2 (files of 23:52-23:58 UTC, 7.60-7.73M): s42 13 TAIL-flagged evaluations and 11 alarms (3.80-5.51M), 128
+  over-bar rows; s80 12 ANY-flagged and 6 alarms on neck_pitch_act, 110 rows; s60 none, tail_3 command at 0.758.
+  F2 now: s42 26 flagged and 22 alarms, 249 rows (two more spells 7.99-8.39M and 9.57-10.62M, after the snapshot); s80 the same 12 and 6, 119 rows (9 single rows after the snapshot, the last 8,781,824); s60 24 single over-bar
+  rows from 8,126,464 (after the snapshot), no flag; the scorer read s60 PARKED (MEAN_a +0.642) [measured, SCORE].
+  So snapshot 2 saw s42's first two spells, s80's whole alarm period and the start of s60's drive; it could not see
+  s42's re-formed rail or s60's late over-bar episodes, both after 7M [inferred].
+
+----------------------------------------------------------------------------------------------------------------------
+NOTES AND LIMITS
+----------------------------------------------------------------------------------------------------------------------
+- D-14's judge comparison and D-12's r10 K1-K4 are pending M4 (not under ROUND/panels at the time above).
+- k3_panel.json joint-sigma keys are source_vectors.60, source_vectors.42 and control_sigma.80, each equal to its pin
+  [measured, K3T-*]; criteria.txt calls seeds 60/42 'their frozen control_sigma' and seed 80 'the replication sidecar's
+  mean vector' - a naming difference only, the hashes match the pins [inferred].
+- TEL's statue values come from a 10-episode zero-action ledger on the run-branch head tree of the V8 check (before the
+  header commit, which adds a stance.toml comment only) [measured, STAT; inferred equivalence]. Head tip 0.959 m equals
+  DRAFT's statue figure.
+- The PNG pages were copied (cp) to .png names under PAGES to view them as images; nothing was written in the fetch store.
+- Readout files missing or differing from the manifest: none (VER).
+
+SOURCES (full paths; sha256 where it identifies a copy)
+  E-s60                    /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s60/copies/01_stance/eval_episodes.csv.copy1  sha256 1821fd2e9f65d58cb8a0dc83d096230fb04af3448f850657055de001ef8e3466
+  P-s60                    /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s60/copies/01_stance/policy_probe.npz.copy1  sha256 d8709c56fe26fc517005ced6d1e313c806008e826faf8d48c5957364b096318d
+  C-s60                    /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s60/copies/01_stance/stage_config.json.copy1  sha256 898bb25d06a1f0a7ffc289cbaf6edeabcb947d5b47a2f8ea2a3cd465ee0d0d93
+  G-s60                    /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s60/copies/01_stance/progress.json.copy1  sha256 a96c983d085b47e416e74c38d2573805ac166a705b881763631dce09f8cbd07a
+  H-s60                    /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s60/copies/01_stance/figures/training_history/training_history.json.copy1  sha256 8a87ba9216be614326a5e5820e6fe65de7af7c25e857dfbd3303bc26e2a39f81
+  K-s60                    /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s60/copies/01_stance/k3_panel.json.copy1  sha256 6f4128f3a7112573070f868dc43dee84b255607cb1a56f6a6c63b7cecfe051b3
+  KC-s60                   /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s60/copies/01_stance/k3_panel.csv.copy1  sha256 4e1b3f62a9534005a1353b97cab65d99a6ebd42438cd25ced63ad6eb7b0f9fe8
+  T-s60                    /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s60/copies/01_stance/train_episodes.csv.copy1  sha256 8858b1c8b58d1fe9dac3c7c2d633609319c2f6b56994028d50b60968789f321e
+  GV-s60                   /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s60/copies/01_stance/gate_verdict.json.copy1  sha256 0ce3b95f72a9524537e1d27aacd8bf91c70905dbd9c8477540ec2ea7385b2c4d
+  L-s60                    /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/readouts/work/ledger_s60.json (+ stdout /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/readouts/work/ledger_s60.txt)
+  K3T-s60                  /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/readouts/work/k3panel_s60.json (+ stdout /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/readouts/work/k3panel_s60.txt)
+  M1F-s60                  /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/panels/stance6_r10LTSB_s60/final/m1/m1_summary.json
+  M3F-s60                  /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/panels/stance6_r10LTSB_s60/final/m3/m3_summary.json
+  STD-s60                  /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/readouts/std_per_update_s60.csv (every PPO update, from P-s60)
+  E-s42                    /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/eval_episodes.csv.copy1  sha256 d1bcb78964691cf194e6276f06740d1f24aa69ad36831a046ad6307c1c4db11e
+  P-s42                    /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/policy_probe.npz.copy1  sha256 4e0e7220668faf124d394bffb760ba246d54bed8f48cb79925cb36234257fc11
+  C-s42                    /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/stage_config.json.copy1  sha256 5d54e6deac8ddda5c37914da97d4d59b6838a8daef52cb7bec237c49d63d24ec
+  G-s42                    /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/progress.json.copy1  sha256 672e46d2a3517fa5ceed06ee0f295c5b8f75b46ed48c5db13de2b3833769e052
+  H-s42                    /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/figures/training_history/training_history.json.copy1  sha256 b2d5f6a266b3235d413b607e1f51ef3d420d699da5ff6e7f4ba66869025f306f
+  K-s42                    /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/k3_panel.json.copy1  sha256 d7a6e91a0859a4addf43b0a02de2c6ed8b7cd688e47a1c1ebb30eaad66ff9716
+  KC-s42                   /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/k3_panel.csv.copy1  sha256 7cb47dd15314c01551b66428a822934af129861679d0d05ab54e6c86a129a9a4
+  T-s42                    /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/train_episodes.csv.copy1  sha256 14b2f9e49b67e9c90cc79362f740e1768de5a2d159035176d5299b9c476d851d
+  GV-s42                   /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/gate_verdict.json.copy1  sha256 4aa1a4072e98547e3db2a795576f324e737597626f041a97b8fa80ea01cf982f
+  L-s42                    /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/readouts/work/ledger_s42.json (+ stdout /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/readouts/work/ledger_s42.txt)
+  K3T-s42                  /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/readouts/work/k3panel_s42.json (+ stdout /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/readouts/work/k3panel_s42.txt)
+  M1F-s42                  /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/panels/stance6_r10LTSB_s42/final/m1/m1_summary.json
+  M3F-s42                  /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/panels/stance6_r10LTSB_s42/final/m3/m3_summary.json
+  STD-s42                  /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/readouts/std_per_update_s42.csv (every PPO update, from P-s42)
+  E-s80                    /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s80/copies/01_stance/eval_episodes.csv.copy1  sha256 b677ce762e739513c18eaa35ffb7b149c0532753746259d5037356580e934d13
+  P-s80                    /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s80/copies/01_stance/policy_probe.npz.copy1  sha256 0e61919dc9a0a2a508095cec5e14a673c2d909b61420d9b6c95c74d7562b3957
+  C-s80                    /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s80/copies/01_stance/stage_config.json.copy1  sha256 ec1c49a551badd146416a12d874a9ecf5db5574886e21c6df414a07d533e72c5
+  G-s80                    /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s80/copies/01_stance/progress.json.copy1  sha256 de3d906011cfc5ed0a0819205b5cd7ed9b705209a8686e78643f68d7e41f8d20
+  H-s80                    /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s80/copies/01_stance/figures/training_history/training_history.json.copy1  sha256 1a9791d3e2d363a6e737fa7a679fd4e40cc1833f9ad50ab6bce70063439e262e
+  K-s80                    /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s80/copies/01_stance/k3_panel.json.copy1  sha256 7e8f5ee3ed4a11b228ba05be733212aaec6336200b6d76ce379c8dcf6fdfbc63
+  KC-s80                   /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s80/copies/01_stance/k3_panel.csv.copy1  sha256 5defada15135c78d6210f662eef75879e2f6a7562ec384e9051ad25b8d6ae2ab
+  T-s80                    /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s80/copies/01_stance/train_episodes.csv.copy1  sha256 fd65c2058c4b6970c5fca7a32a6461131f41a768ec792b5d625ea8a5049af8c6
+  GV-s80                   /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s80/copies/01_stance/gate_verdict.json.copy1  sha256 356dabb48522d6c5b5de6534ad649762afbd45bfdd9bdb48a6c62ba63249abb4
+  L-s80                    /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/readouts/work/ledger_s80.json (+ stdout /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/readouts/work/ledger_s80.txt)
+  K3T-s80                  /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/readouts/work/k3panel_s80.json (+ stdout /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/readouts/work/k3panel_s80.txt)
+  M1F-s80                  /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/panels/stance6_r10LTSB_s80/final/m1/m1_summary.json
+  M3F-s80                  /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/panels/stance6_r10LTSB_s80/final/m3/m3_summary.json
+  STD-s80                  /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/readouts/std_per_update_s80.csv (every PPO update, from P-s80)
+  DATA                     /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/readouts/work/readouts_data.json (this analyst's reductions; script /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/readouts/work/readouts_compute.py)
+  BINS                     /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/readouts/work/bins.json (1,048,576-step bins from P-* and E-*; script /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/readouts/work/bins.py)
+  KINK                     /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/readouts/work/std_kink_7M.json (log-std slopes 6-7M and 7-8M from P-*)
+  VER                      /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/readouts/work/verified_copies.json (sha256 of every F2 copy against its run's artifact_manifest.json; script /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/readouts/work/verify_copies.py)
+  STAT                     /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/runbranch/build/v8/head_statue/eval_episodes.csv  sha256 d11c9915d4e0ba6b121d287e3831432f15f2a9e29c4ea85b2175fbbe6632ccb3
+  STM2                     /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/statue_m2/panel.json
+  SCORE                    /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/score.txt
+  EVID                     /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/evidence.txt
+  THIS12                   /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/criteria_v12_cited.txt
+  CRIT                     /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/criteria.txt
+  R9L-stance5_LTSB_s52     /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance5/runs/stance5_LTSB_s52/01_stance/eval_episodes.csv  sha256 0896f90fcfade223039a35db0a2f0c00d080c27c4d3e852b9c17eff2e362cb85
+  R9G-stance5_LTSB_s52     /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance5/runs/stance5_LTSB_s52/01_stance/progress.json
+  R9C-stance5_LTSB_s52     /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance5/runs/stance5_LTSB_s52/01_stance/stage_config.json
+  R9T-stance5_LTSB_s52     /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/readouts/work/r9ledger_stance5_LTSB_s52.json (ledger_r10round.py --r9-summary)
+  R9L-stance5_LTSB_s60     /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance5/runs/stance5_LTSB_s60/01_stance/eval_episodes.csv  sha256 a74fbc7e8ea15d8bcb6dfa0a73031d32ca11417771470a996e2103e7439a0f64
+  R9G-stance5_LTSB_s60     /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance5/runs/stance5_LTSB_s60/01_stance/progress.json
+  R9C-stance5_LTSB_s60     /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance5/runs/stance5_LTSB_s60/01_stance/stage_config.json
+  R9T-stance5_LTSB_s60     /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/readouts/work/r9ledger_stance5_LTSB_s60.json (ledger_r10round.py --r9-summary)
+  R9L-stance5_LTSB_s42     /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance5/runs/stance5_LTSB_s42/01_stance/eval_episodes.csv  sha256 3c1c45497b09b4318de9188af2e2048b757d82824e2550e1923cde6ef24fa81d
+  R9G-stance5_LTSB_s42     /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance5/runs/stance5_LTSB_s42/01_stance/progress.json
+  R9C-stance5_LTSB_s42     /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance5/runs/stance5_LTSB_s42/01_stance/stage_config.json
+  R9T-stance5_LTSB_s42     /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/readouts/work/r9ledger_stance5_LTSB_s42.json (ledger_r10round.py --r9-summary)
+  R9L-stance5_LTSB_s70     /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance5/replication/runs/stance5_LTSB_s70/01_stance/eval_episodes.csv  sha256 2b25be6be52e1c758571de20000be8b498dbe5e14b9b6613b379577b81b5e883
+  R9G-stance5_LTSB_s70     /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance5/replication/runs/stance5_LTSB_s70/01_stance/progress.json
+  R9C-stance5_LTSB_s70     /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance5/replication/runs/stance5_LTSB_s70/01_stance/stage_config.json
+  R9T-stance5_LTSB_s70     /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/readouts/work/r9ledger_stance5_LTSB_s70.json (ledger_r10round.py --r9-summary)
+  R9L-stance5_LTSB_s80     /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance5/replication/runs/stance5_LTSB_s80/01_stance/eval_episodes.csv  sha256 c664f54dcb7fd6a3e27d9ff9611069f430c76b864ec6273af12ac420eb7b05b2
+  R9G-stance5_LTSB_s80     /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance5/replication/runs/stance5_LTSB_s80/01_stance/progress.json
+  R9C-stance5_LTSB_s80     /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance5/replication/runs/stance5_LTSB_s80/01_stance/stage_config.json
+  R9T-stance5_LTSB_s80     /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/readouts/work/r9ledger_stance5_LTSB_s80.json (ledger_r10round.py --r9-summary)
+  SNAP1                    /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/interim/snap1/READOUT.txt and CHECK.txt
+  SNAP2                    /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/interim/snap2/READOUT.txt and CHECK.txt
+  CODE-MKL                 /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/copy_8737cd3d/environments/shared/mirror_kl_ppo.py
+  CODE-ENV                 /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/copy_8737cd3d/environments/tyrannosaurus_rex/base_env.py
+  CODE-RF                  /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/copy_8737cd3d/environments/shared/reward_functions.py
+  CODE-SB3                 /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/lib/python3.13/site-packages/stable_baselines3/common/distributions.py
+  PAGES                    /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/readouts/work/pages (cp of 21 report pages, 7 pages x 3 runs, to .png names for viewing, four of them viewed; originals beside H-* in the F2 copies folders)
+
+Machine-readable: /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/f2/readouts/READOUTS.json. END OF READOUTS (report only).

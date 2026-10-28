@@ -389,6 +389,27 @@ it continues `stance6_setup/results/run_log.txt` with no line in both) and
 **redact** (14 workflow run ids, 10 distinct, and 2 scheduled-task ids). No
 copy holds a model identifier, an email address or a commit trailer.
 
+*Added 2026-10-28, later (`stance6_results/score/` to `fetch/`):* one more
+kind of change, nothing else: **lineends**, CRLF line ends made LF, as the
+repository's `.gitattributes` (`text=auto`) stores a text file, in
+`fetch/manifest.csv` only; SOURCES.txt defines it. Every copy is
+byte-identical to its source, absolute session-scratch paths included (no
+**prefix**, **prefix2** or **checkout**, as in `stance6/`;
+`review/NEXT_STEPS.txt` keeps the one checkout path it names, as
+`stance6/fetch_agent_brief.txt` does), so that its sha256 is the one the run
+log, the review or the round's durable copy records, but for **redact**,
+**lineends** and **gzip**: the scorer's and the completeness check's texts and
+the scorer's JSON lose the workflow run ids and Drive folder ids of the four
+run-log lines they print (which then read as those lines of
+`stance6_setup/results/run_log.txt`), the fixer's record one workflow run id,
+and the fetch manifest and folder record their 216 distinct Drive ids; the
+scorer's JSON and the readouts' JSON are **gzip** copies (3.5 and 0.6 MB,
+above the repository's 500 KB limit for an added file), and
+`fetch/manifest.csv`'s CRLF line ends are LF (**lineends**). The five D-9 and
+D-10 summaries keep their missing final newline and `score/score.txt` its 4
+lines ending in spaces; leave them out of a manual pre-commit run. No copy
+holds a model identifier, an email address or a commit trailer.
+
 [SHA256SUMS](SHA256SUMS) pins every file here but this README and itself
 (`sha256sum -c SHA256SUMS` in this directory). *Added 2026-10-19:* nor
 `stance3/results/README.md`, which, like this README, has no source.
@@ -1375,6 +1396,20 @@ check; the durable copy; the review and next-step proposals; and the
 maintainer's decisions after the review (D-D51's amendment and D-D52). Its
 [README](stance6_results/README.md) names the decision entries.
 
+### Added on 2026-10-28, later (decision D-D51's outcome: the reading, readouts and review)
+
+**`stance6_results/score/` to `fetch/`: the round's reading by its approved
+criteria, final, and what was read after it (25 files, about 1.8 MB).** The
+scorer's output (`score/`: line 1, "TAIL RAIL FORMED ON r10 IN TRAINING
+(ledger)", statistic A 2 of 3 against LTSB's r9 2 of 5), the completeness
+check per run (`complete/`: all three COMPLETE), the independent check of the
+reading (`check1/NOTES.txt`: agrees), the pre-registered diagnostic readouts
+and the entropy check (`readouts/`), the review, the next-step proposals, the
+fixer's record and the headline sent to the maintainer (`review/`), K1–K4 per
+run (`kscore/`), the D-9 and D-10 summaries (`d9_d10/`) and the fetch
+manifest and run-folder record (`fetch/`). All but the reading are report
+only. Its [README](stance6_results/README.md) indexes it.
+
 ## How to re-check each verdict
 
 Commands as run on 2026-10-17 from a copy of this directory (Python 3.13;
@@ -1468,6 +1503,9 @@ copies.
 | The second run-log copy against its source (2026-10-28; session scratch only) | `head -720 scratchpad/foot/stance4/live/run_log.txt \| sha256sum`, and its lines 681 to 720 against `stance6_results/run_log.txt` with the ids SOURCES.txt names put back | `de6c3d73…`, the value SOURCES.txt gives; equal |
 | The two run-log copies against each other (2026-10-28) | `tail -1 stance6_setup/results/run_log.txt` and `head -1 stance6_results/run_log.txt` | the entries timed 18:41 and 19:13 UTC on 2026-10-27, the source's lines 680 and 681: no gap and no line in both |
 | The files themselves (2026-10-28, with `stance6_results/run_log.txt`) | `sha256sum -c SHA256SUMS` | all 702 files OK |
+| The round's reading and the review's texts (2026-10-28, later) | `sed -n '/^READING/,/^STATUS/p' stance6_results/score/score.txt`; `sha256sum stance6_results/review/REVIEW.txt stance6_results/review/NEXT_STEPS.txt` | line 1, "TAIL RAIL FORMED ON r10 IN TRAINING (ledger)", R 1 (COMPLETE 1, PRESENCE 0), U 0, P 1, G+ 1, A 2 of 3 against 2 of 5 (one-sided Fisher p 0.9286), `STATUS: FINAL`; `5c76f556…` and `9fd7fe64…`, the values the run log's entry timed 19:27 UTC gives |
+| The redacted run-log lines against the run-log copy (2026-10-28, later) | each run-log line that `score/score.txt`, `complete/*.txt` and the gunzipped `score/score.json.gz` print ("RUNLOG line <n> names a RUN_ID …") against line <n> of `stance6_setup/results/run_log.txt` | equal, or its leading part where the tool shortens it: 16 lines in the four texts and 4 in the JSON |
+| The files themselves (2026-10-28, later, with `stance6_results/score/` to `fetch/`) | `sha256sum -c SHA256SUMS` | all 727 files OK |
 
 `test_pilot_score.py` prints sample "Walking pilot score" blocks while it runs;
 they score synthetic panels, not the pilot.
