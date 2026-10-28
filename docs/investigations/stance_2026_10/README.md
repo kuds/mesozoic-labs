@@ -383,6 +383,12 @@ log's launch and launch-check lines, written after the launch, are in
 `stance6_setup/`. No copy holds a model identifier, an email address or a
 commit trailer.
 
+*Added 2026-10-28 (`stance6_results/`):* no new kind of change.
+`run_log.txt` carries **lines** (lines 681 to 720 of the session's run log;
+it continues `stance6_setup/results/run_log.txt` with no line in both) and
+**redact** (14 workflow run ids, 10 distinct, and 2 scheduled-task ids). No
+copy holds a model identifier, an email address or a commit trailer.
+
 [SHA256SUMS](SHA256SUMS) pins every file here but this README and itself
 (`sha256sum -c SHA256SUMS` in this directory). *Added 2026-10-19:* nor
 `stance3/results/README.md`, which, like this README, has no source.
@@ -394,6 +400,7 @@ commit trailer.
 *Added 2026-10-27:* nor `stance6_setup/README.md`, likewise.
 *Added 2026-10-27, later:* nor `stance5/k3extract/README.md`, likewise.
 *Added 2026-10-27, later still:* nor `stance6/README.md`, likewise.
+*Added 2026-10-28:* nor `stance6_results/README.md`, likewise.
 
 ## Contents
 
@@ -1355,6 +1362,19 @@ their files, and the run log's launch and launch-check lines, written after
 the launch, are in `stance6_setup/`. Its [README](stance6/README.md)
 indexes it.
 
+### Added on 2026-10-28 (decision D-D51's outcome: the first r10 round's results)
+
+**`stance6_results/`: the results of the first T. rex stance round on
+physics r10, from its last day of training to the maintainer's decisions
+after its review (2026-10-27 19:13 UTC to 2026-10-28 19:32 UTC; lines 681
+to 720 of the session's run log).** The run log holds the landing of #647;
+the second report-only snapshot of the running files; the three runs'
+ends, noted from Drive at the maintainer's decision; the final fetch, its
+transfer method decided by the maintainer; the reading and its independent
+check; the durable copy; the review and next-step proposals; and the
+maintainer's decisions after the review (D-D51's amendment and D-D52). Its
+[README](stance6_results/README.md) names the decision entries.
+
 ## How to re-check each verdict
 
 Commands as run on 2026-10-17 from a copy of this directory (Python 3.13;
@@ -1445,6 +1465,9 @@ copies.
 | The first r10 round's approved texts (2026-10-27, later still) | `sha256sum stance6/criteria.txt stance6/criteria_v12_cited.txt stance6/evidence.txt`, against `stance6/APPROVED` | `99a44469…`, `0ab5edeb…` and `353f4536…`: its `criteria_sha256`, `this12_sha256` and `evid_sha256` |
 | The pinned tools against their lanes' lists (2026-10-27, later still) | in a copy of `stance6/tools/laneA/` and of `laneB/` (with the two `.txt` steps beside it): `gunzip` the `.gz` files, then `sha256sum -c --ignore-missing SHA256SUMS.txt` | 7 and 10 files OK |
 | The files themselves (2026-10-27, later still, with `stance6/`) | `sha256sum -c SHA256SUMS` | all 701 files OK |
+| The second run-log copy against its source (2026-10-28; session scratch only) | `head -720 scratchpad/foot/stance4/live/run_log.txt \| sha256sum`, and its lines 681 to 720 against `stance6_results/run_log.txt` with the ids SOURCES.txt names put back | `de6c3d73…`, the value SOURCES.txt gives; equal |
+| The two run-log copies against each other (2026-10-28) | `tail -1 stance6_setup/results/run_log.txt` and `head -1 stance6_results/run_log.txt` | the entries timed 18:41 and 19:13 UTC on 2026-10-27, the source's lines 680 and 681: no gap and no line in both |
+| The files themselves (2026-10-28, with `stance6_results/run_log.txt`) | `sha256sum -c SHA256SUMS` | all 702 files OK |
 
 `test_pilot_score.py` prints sample "Walking pilot score" blocks while it runs;
 they score synthetic panels, not the pilot.
