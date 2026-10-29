@@ -417,6 +417,13 @@ and none is over 500 KB. The 18 judge files keep their missing final
 newline; leave them out of a manual pre-commit run. No copy holds a model
 identifier, an email address or a commit trailer.
 
+*Added 2026-10-29 (`ecs_results/`):* no new kind of change.
+`ecs_results/run_log.txt` carries **lines** (lines 721 to 759 of the
+session's run log; it continues `stance6_results/run_log.txt` with no line
+in both) and **redact** (22 workflow run ids, 11 distinct, and 1
+background-job id). No copy holds a model identifier, an email address or a
+commit trailer.
+
 [SHA256SUMS](SHA256SUMS) pins every file here but this README and itself
 (`sha256sum -c SHA256SUMS` in this directory). *Added 2026-10-19:* nor
 `stance3/results/README.md`, which, like this README, has no source.
@@ -429,6 +436,7 @@ identifier, an email address or a commit trailer.
 *Added 2026-10-27, later:* nor `stance5/k3extract/README.md`, likewise.
 *Added 2026-10-27, later still:* nor `stance6/README.md`, likewise.
 *Added 2026-10-28:* nor `stance6_results/README.md`, likewise.
+*Added 2026-10-29:* nor `ecs_results/README.md`, likewise.
 
 ## Contents
 
@@ -1428,6 +1436,20 @@ the per-step traces and the per-episode panel files are not here. Report
 only but for the M1 figures and the final certificates the classes read.
 Its [README](stance6_results/README.md) indexes it.
 
+### Added on 2026-10-29 (decision D-D52's outcome and decisions D-D53 to D-D55: the run log)
+
+**`ecs_results/`: the entropy continuation screen and the work on the T. rex
+tail saturation habit that followed it (2026-10-28 21:05 UTC to 2026-10-29
+23:21 UTC; lines 721 to 759 of the session's run log).** The run log holds
+the maintainer's decisions on the screen's design, its approval and launch,
+the check-ins of its 24 CPU continuations, its reading (line 3, no
+difference detected) and independent check, the landing of #652, the
+screen's durable copy, the centre-of-mass revisit, the tail clamp test, the
+normaliser probe, the posture tests, the record of everything tried on the
+tail habit, and the maintainer's decisions on each (D-D52's amendment and
+D-D53 to D-D55). Its [README](ecs_results/README.md) names the decision
+entries.
+
 ## How to re-check each verdict
 
 Commands as run on 2026-10-17 from a copy of this directory (Python 3.13;
@@ -1527,6 +1549,9 @@ copies.
 | The M1 summaries against the reading (2026-10-28, later still) | for each run and tail actuator, the mean of `cmd_a` in `panels/<run>/10485760/m1/m1_summary.json` and `panels/<run>/final/m1/m1_summary.json` (actuators 11 to 14) against the `MEAN` that `score/score.txt` prints on the line after the run's `CLASS` line | equal (12 values; the largest difference 2.8e-17): `tail_3` +0.6420, +0.9148 and +0.5052 for s60, s42 and s80 |
 | The panels against the durable copy (2026-10-28, later still; needs the durable branch) | `git show e4733d8:SHA256SUMS` of `claude/handoff-stance6` (its `round/panels/` lines) against `sha256sum` of each file in `stance6_results/panels/` | equal for all 122 |
 | The files themselves (2026-10-28, later still, with `stance6_results/panels/`) | `sha256sum -c SHA256SUMS` | all 849 files OK |
+| The third run-log copy against its source (2026-10-29; session scratch only) | `head -759 scratchpad/foot/stance4/live/run_log.txt \| sha256sum`, and its lines 721 to 759 against `ecs_results/run_log.txt` with the ids SOURCES.txt names put back | `f2a95d7b…`, the value SOURCES.txt gives; equal |
+| The run-log copies against each other (2026-10-29) | `tail -1 stance6_results/run_log.txt` and `head -1 ecs_results/run_log.txt` | the entries timed 19:32 UTC and 21:05 UTC on 2026-10-28, the source's lines 720 and 721: no gap and no line in both |
+| The files themselves (2026-10-29, with `ecs_results/run_log.txt`) | `sha256sum -c SHA256SUMS` | all 850 files OK |
 
 `test_pilot_score.py` prints sample "Walking pilot score" blocks while it runs;
 they score synthetic panels, not the pilot.

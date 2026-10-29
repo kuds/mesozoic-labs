@@ -261,6 +261,19 @@
 # held a session tool id or a Drive id, and none is over 500 KB.  Not copied: the panels' per-step traces
 # (episode_trace_seed<seed>.csv.gz and episode_trace.json), the M2 per-episode panel.json and series.npz, the M3
 # per-episode stance_heading_report.json and stance_heading_panel_selected.csv, and csv_sha256.txt.
+# Added 2026-10-29 (ecs_results/): the results of the entropy continuation screen (decision D-D52's outcome) and the run
+# log of the day's work on the tail saturation habit (decisions D-D53 to D-D55).  No new kind of change.  lines:
+# ecs_results/run_log.txt is lines 721 to 759 of the session's run log, whose lines 681 to 720 are
+# stance6_results/run_log.txt (no line in both); the sha256 given is that of the source's first 759 lines, the whole
+# file when copied at 23:35 UTC on 2026-10-29 (lines 721 to 759 alone:
+# 34d6d35e36c80e0a11ac2b6c7e188f198392f1181864b50c41b0b7e18a60a082); its first 720 lines are unchanged
+# (de6c3d736145bdf503c1e1fbb7286d65b7afba5ba05bc0d8983eafd738d4f496, as given above).  The source is appended to after
+# it was copied; the copy ends with the entry timed 23:21 UTC on 2026-10-29, which starts this records change.  redact,
+# in that copy: 22 workflow run ids (11 distinct; a bare one becomes 'workflow [id removed]') and 1 background-job id of
+# the session's task runner (nine characters), each by '[id removed]'; these lines hold no checkout path, Drive id,
+# scheduled-task id or task-list id.  The entry timed 12:33 UTC on 2026-10-29 (the copy's line 22) corrects two earlier
+# entries in words (the source's lines 738 and 740, the copy's lines 18 and 20); the copy keeps all three as the source
+# has them.  ecs_results/README.md has no source.
 
 audit/foot_ankle_audit.md foot/audit_2026_10_17/foot_ankle_audit.md e9da4ef84be17a87b70096d1e2aede87609ad22f446b10786f9e14d5064725c8 prefix
 audit/geometry/geometry_audit.json foot/audit_2026_10_17/geometry/geometry_audit.json 934110bec337b9693f894800efb309bf1a9529ae87f91f129bfefc8fef5b650a prefix,whitespace
@@ -392,6 +405,7 @@ cap_screens/screen_6m_authority_analysis.txt foot/screen6m_auth/analysis.txt 36c
 cap_screens/screen_hip_roll_analysis.txt foot/screen_hr/analysis.txt 396c14aa0e73c94b34dbe0843fd11829843aec1544c662b25705ee3f48946af2 prefix
 diagnosis/findings_v1_superseded.txt foot/meanwhile/diagnosis/previous_v1/findings.txt d0bfc2078b60c935f6cadf7bf48104263f5d5c3f1521a50d74fb724cb32bbc1e none
 diagnosis/findings_v3.txt foot/meanwhile/diagnosis/findings.txt 514cc3ea717bb572295ceb6b5f0b898bd3af499aea068e509b5e42c951be3c6d whitespace
+ecs_results/run_log.txt foot/stance4/live/run_log.txt f2a95d7b7ebe81ceea2b52372aaee0532683bef181f20a83c69175afd06beebd lines,redact
 literature/research_notes/balance_control_foot_mechanics.md "research_notes/T rex foot and standing balance/balance_control_foot_mechanics.md" 7ef05085ad42d1e907a786844f096d3736fc1c08e3f2b4795aab0a6059ad92f8 none
 literature/research_notes/bird_standing_balance.md "research_notes/T rex foot and standing balance/bird_standing_balance.md" ddf11be08cdecdc9cef9055829796c6b71352ca20dfc232f0858bf399f791ce5 none
 literature/research_notes/rl_standing_sensing.md "research_notes/T rex foot and standing balance/rl_standing_sensing.md" a9b02c5d9a46e4b897ff2154dbd9f072d50457004f7cc2b8c2312ba34daa211f none
