@@ -12,6 +12,7 @@ each species' ``test_com_stance_quality.py``.
 
 from __future__ import annotations
 
+import ast
 import math
 from dataclasses import replace
 from types import SimpleNamespace
@@ -651,3 +652,176 @@ def test_the_spread_width_is_twice_the_worst_bad_side_deviation_never_under_twic
     assert widths["com_speed_rms_mps"] == pytest.approx(0.001)  # every spawn under the statue: the floor
     ratio, key = calibration.usage(base, reference, widths, spawns[1])
     assert (ratio, key) == (pytest.approx(0.5), "com_lateral_mean_m")
+
+
+# ── the ratchet ──────────────────────────────────────────────────────────────
+
+_SPECIES_FILES = sorted(calibration.REPO_ROOT.glob("environments/*/tests/test_com_stance_quality.py"))
+_CLASS_SOURCE = """class TestThing(ComStanceQualityBase):
+    model_id = ModelId("x", "y")
+    physics_revision = 3
+    window_start_s = 3.0
+    # The noise-free statue's window values, physics r3, mujoco 3.10.0, read on 2026-01-01 with
+    # com_stance_calibration and rounded to 0.01 mm and 1e-4 deg and of the load (under 1 % of a width).
+    reference = {
+        "com_margin_min_m": 0.06,
+        "com_height_mean_m": 0.8,
+    }
+    # Twice the worst of calibration seeds 0-29 at reset noise 0.02, never under twice the floor (SI, deg).
+    # Held-out seeds 100-149: none breaks a width; the largest use is 0.50 (root_turn_deg, seed 101).
+    spread_width = {
+        "root_turn_deg": 0.3,
+        "com_lateral_mean_m": 0.002,
+    }
+    # A hand-written note about the seeds.
+    noisy_seeds = (101, 102)
+    rock_force_bw = 0.04
+"""
+
+
+def test_the_ratchet_classes_each_pin_change_as_its_bar_reads_it():
+    old = {
+        "physics_revision": 3,
+        "window_start_s": 3.0,
+        "reference": {"com_speed_rms_mps": 0.0002, "com_margin_min_m": 0.06, "com_height_mean_m": 0.8},
+        "spread_width": {"root_turn_deg": 0.3, "com_lateral_mean_m": 0.002, "foot_travel_max_m": 0.001},
+        "noisy_seeds": (101, 102),
+    }
+    assert calibration.pin_changes(old, old) == []
+    new = {
+        "physics_revision": 4,
+        "window_start_s": 4.0,
+        # upper: more motion accepted; lower: a wider margin demanded; dev: two-sided.
+        "reference": {"com_speed_rms_mps": 0.0003, "com_margin_min_m": 0.061, "com_height_mean_m": 0.79},
+        # narrower, wider, dropped, and a new bar.
+        "spread_width": {"root_turn_deg": 0.2, "com_lateral_mean_m": 0.003, "root_yaw_sd_deg": 0.1},
+        "noisy_seeds": (101, 103),
+    }
+    directions = {(change.pin, change.key): change.direction for change in calibration.pin_changes(old, new)}
+    assert directions == {
+        ("physics_revision", None): "moved",
+        ("window_start_s", None): "looser",
+        ("reference", "com_speed_rms_mps"): "looser",
+        ("reference", "com_margin_min_m"): "tighter",
+        ("reference", "com_height_mean_m"): "moved",
+        ("spread_width", "root_turn_deg"): "tighter",
+        ("spread_width", "com_lateral_mean_m"): "looser",
+        ("spread_width", "foot_travel_max_m"): "looser",
+        ("spread_width", "root_yaw_sd_deg"): "tighter",
+        ("noisy_seeds", None): "moved",
+    }
+    back = {(change.pin, change.key): change.direction for change in calibration.pin_changes(new, old)}
+    assert back[("window_start_s", None)] == back[("reference", "com_speed_rms_mps")] == "tighter"
+    assert back[("spread_width", "com_lateral_mean_m")] == back[("spread_width", "foot_travel_max_m")] == "tighter"
+    assert back[("reference", "com_margin_min_m")] == back[("spread_width", "root_yaw_sd_deg")] == "looser"
+
+
+@pytest.mark.parametrize("path", _SPECIES_FILES, ids=lambda path: path.parts[-3])
+def test_the_ratchet_leaves_every_species_file_as_it_is_when_its_pins_are_unchanged(path):
+    source = path.read_text()
+    lines = source.splitlines()
+    classes = [node for node in ast.parse(source).body if isinstance(node, ast.ClassDef)]
+    pinned = [node for node in classes if calibration.read_pins(source, node.name)]
+    assert pinned
+    for node in pinned:
+        pins = calibration.read_pins(source, node.name)
+        assert set(pins) == set(calibration.PIN_NAMES), (node.name, sorted(pins))
+        provenance = "physics r99, mujoco 9.9.9, read on 2099-01-01"
+        assert calibration.rewrite_pins(source, node.name, pins, provenance=provenance) == source
+        # Each pin's committed lines are what the ratchet renders for its value, so a re-pin's diff shows the
+        # values that moved and nothing else.
+        for statement in node.body:
+            if isinstance(statement, ast.Assign) and getattr(statement.targets[0], "id", None) in pins:
+                name = statement.targets[0].id
+                committed = lines[statement.lineno - 1 : statement.end_lineno]
+                assert calibration.render_pin(name, pins[name], " " * statement.col_offset) == committed, name
+
+
+def test_the_ratchet_rewrites_only_the_changed_pins_and_their_provenance():
+    new = calibration.read_pins(_CLASS_SOURCE, "TestThing")
+    new["spread_width"] = {"root_turn_deg": 0.2, "com_lateral_mean_m": 0.002}
+    new["noisy_seeds"] = (101, 107)
+    provenance = "physics r3, mujoco 3.10.0, read on 2026-10-29"
+    # The same words wrapped otherwise: the committed block stays as it is.
+    same = {
+        "spread_width": [
+            "Twice the worst of calibration seeds 0-29 at reset noise 0.02, never under twice the floor (SI, deg).  "
+            "Held-out seeds 100-149: none breaks a width; the largest use is 0.50 (root_turn_deg, seed 101)."
+        ],
+        "noisy_seeds": ["Held-out seeds: the largest turn, re-read."],
+    }
+    out = calibration.rewrite_pins(_CLASS_SOURCE, "TestThing", new, provenance=provenance, comments=same)
+    assert calibration.read_pins(out, "TestThing") == new
+    removed = sorted(set(_CLASS_SOURCE.splitlines()) - set(out.splitlines()))
+    added = sorted(set(out.splitlines()) - set(_CLASS_SOURCE.splitlines()))
+    assert removed == [
+        '        "root_turn_deg": 0.3,',
+        "    # The noise-free statue's window values, physics r3, mujoco 3.10.0, read on 2026-01-01 with",
+        "    noisy_seeds = (101, 102)",
+    ]
+    assert added == [
+        '        "root_turn_deg": 0.2,',
+        "    # The noise-free statue's window values, physics r3, mujoco 3.10.0, read on 2026-10-29 with",
+        "    noisy_seeds = (101, 107)",
+    ]
+    # The hand-written note above noisy_seeds is someone's own: it stays whatever the new text.
+    assert "    # A hand-written note about the seeds.\n    noisy_seeds = (101, 107)\n" in out
+    # New words replace the block they re-read.
+    other = {
+        "spread_width": ["Twice the worst of calibration seeds 0-29, re-read.", "Held-out seeds 100-149: re-read."]
+    }
+    out = calibration.rewrite_pins(_CLASS_SOURCE, "TestThing", new, provenance=provenance, comments=other)
+    block = "    # Twice the worst of calibration seeds 0-29, re-read.\n    # Held-out seeds 100-149: re-read.\n"
+    assert block + "    spread_width = {\n" in out and "none breaks a width" not in out
+    # Nothing changes, nothing is rewritten, the provenance and the comments included.
+    unchanged = calibration.read_pins(_CLASS_SOURCE, "TestThing")
+    assert calibration.rewrite_pins(_CLASS_SOURCE, "TestThing", unchanged, provenance=provenance, comments=other) == (
+        _CLASS_SOURCE
+    )
+    with pytest.raises(ValueError, match="does not assign"):
+        calibration.rewrite_pins(
+            _CLASS_SOURCE.replace("    window_start_s = 3.0\n", ""), "TestThing", new | {"window_start_s": 4.0}
+        )
+
+
+def test_the_ratchet_refuses_to_write_a_looser_bar_without_the_flag(tmp_path):
+    path = tmp_path / "test_thing.py"
+    path.write_text(_CLASS_SOURCE)
+    pins = calibration.read_pins(_CLASS_SOURCE, "TestThing")
+    assert calibration.ratchet(path, "TestThing", pins, write=True, allow_loosen=False) == (0, "", [])
+
+    tighter = pins | {"spread_width": {"root_turn_deg": 0.2, "com_lateral_mean_m": 0.002}}
+    status, diff, changes = calibration.ratchet(path, "TestThing", tighter, write=False, allow_loosen=False)
+    assert status == 1 and [change.direction for change in changes] == ["tighter"]
+    assert '-        "root_turn_deg": 0.3,\n+        "root_turn_deg": 0.2,\n' in diff
+    assert diff.startswith(f"--- a/{path}\n+++ b/{path}\n") and path.read_text() == _CLASS_SOURCE
+
+    looser = tighter | {"reference": {"com_margin_min_m": 0.059, "com_height_mean_m": 0.8}}
+    status, diff, changes = calibration.ratchet(path, "TestThing", looser, write=True, allow_loosen=False)
+    assert status == 2 and path.read_text() == _CLASS_SOURCE
+    assert sorted(change.direction for change in changes) == ["looser", "tighter"]
+    status, _, _ = calibration.ratchet(path, "TestThing", looser, write=True, allow_loosen=True)
+    assert status == 1 and calibration.read_pins(path.read_text(), "TestThing") == looser
+
+
+def test_the_ratchet_states_the_calibration_in_the_committed_words_and_finds_the_known_poor_seeds():
+    class Biped(ComStanceQualityBase):
+        def test_known_poor_spawn_seed111_stays_within_the_calibrated_spread(self):
+            pass
+
+    usage = {101: (0.5, "root_turn_deg"), 102: (0.64, "foot_travel_max_m"), 111: (61.1, "com_margin_min_m")}
+    heldout = {101: {"root_turn_from_spawn_deg": 1.92}, 102: {"com_lateral_mean_m": -1e-6}}
+    result = calibration.Calibration(2.0, {}, {}, usage, (101, 102), {}, heldout)
+    comments = calibration.pin_comments(Biped(), result)
+    assert set(comments) == set(calibration.PIN_COMMENT_STARTS)
+    assert " ".join(comments["spread_width"]) == (
+        "Twice the worst of calibration seeds 0-29 at reset noise 0.02, never under twice the floor (SI, deg). "
+        "Held-out seeds 100-149: 1 break a width (111: see known_poor_spawns); the largest use among the rest is "
+        "0.64 (foot_travel_max_m, seed 102)."
+    )
+    assert " ".join(comments["noisy_seeds"]) == (
+        "Held-out seeds: the largest turn from the spawn (1.92 deg) and the largest lateral offset (-0.001 mm) "
+        "among those holding every width; they use 0.50 and 0.64 of a width."
+    )
+    assert all(len(line) <= 112 for lines in comments.values() for line in lines)
+    assert calibration.known_poor_seeds(Biped) == [111]

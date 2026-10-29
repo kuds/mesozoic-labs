@@ -824,13 +824,13 @@ class ComStanceQualityBase:
             f"{self.species_label}: the CoM stance pins were read on physics revision {self.physics_revision}, "
             f"but the manifest is at revision {current}. Re-measure them on the current plant "
             f"(python -m environments.shared.tests.com_stance_calibration {type(self).__module__}:"
-            f"{type(self).__name__}), review the printed differences, and update the pins and physics_revision "
-            "in the same commit."
+            f"{type(self).__name__} --diff), review the diff, and apply it with --write (a looser bar needs "
+            "--allow-loosen), so the pins and physics_revision move in the same commit."
         )
         canonical = canonical_mujoco_version()
         assert self.pinned_mujoco_version == canonical, (
             f"{self.species_label}: the pins were read on mujoco {self.pinned_mujoco_version}, but the canonical "
-            f"version is {canonical}: re-measure them with com_stance_calibration."
+            f"version is {canonical}: re-measure them with com_stance_calibration --diff (and --write)."
         )
         missing = [key for key in self.keys() if not self.symmetric(key) and key not in self.reference]
         unwidthed = [key for key in self.keys() if key not in self.spread_width]

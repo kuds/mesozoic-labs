@@ -8,6 +8,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **The centre-of-mass stance calibration hands its re-measured pins over as
+  a reviewable diff, and writes a looser bar only when told to** (tests and
+  test helpers only; the maintainer's decision of 2026-10-29;
+  `environments/shared/tests/com_stance_calibration.py`,
+  `com_stance_helpers.py` and `test_stance_track_reduction.py`).
+  `python -m environments.shared.tests.com_stance_calibration
+  <module>:<class>` printed fresh pins for a re-pin to be copied by hand. It
+  gains `--diff`, which prints on stdout a unified diff of the species file
+  with the class's pins (`physics_revision`, `window_start_s`, `reference`,
+  `spread_width` and `noisy_seeds`) replaced by the re-measured ones, which
+  `git apply` takes (the report goes to stderr); `--write`, which makes the
+  same change in place; and `--allow-loosen`. Each change is classed as its
+  bar reads it: a wider width, a later window, a one-sided reference moved
+  toward its bad side or a dropped key is looser, the opposite tighter, and a
+  two-sided reference, the physics revision and the noisy seeds moved.
+  `--write` refuses a looser change without `--allow-loosen` (exit status 2,
+  the file untouched), so after a model fix the committed bars only tighten
+  unless a reviewer accepts the loosening the diff shows. Both refuse when the
+  running MuJoCo is not the canonical one or the window is under the
+  shortest. A pin whose value is unchanged keeps its lines, so on an
+  unchanged plant the diff is empty (the robot's, measured); a changed pin
+  also re-reads the class's provenance line and the two comments that state
+  the held-out and noisy-seed numbers, never a hand-written one, and the
+  report says whether each known poor spawn still breaks a width or its
+  strict expected failure is to go. The provenance test's message names the
+  commands. Nine synthetic tests (40 in the file). No library code,
+  environment, physics, reward, gate, observation, policy interface or digest
+  changes.
 - **The first T. rex stance round on physics r10 recorded as judged, final:
   line 1, a tail rail formed on r10 in training** (decision D-D51's
   amendment and D-D52; the appended §27 of
