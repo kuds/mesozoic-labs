@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Absolute stance targets for the centre-of-mass stance tests, each a
-  strict expected failure where a model misses it today** (tests and test
+  strict expected failure where a model misses it today** (#653; tests and test
   helpers, and one input check in the reduction; the maintainer's decision of
   2026-10-29; `com_stance_helpers.TARGETS`, `Target`, `TargetMissed` and
   `ComStanceQualityBase.check_target`, a `test_target_*` per missed target in
@@ -53,8 +53,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   10 s on one core. No environment, physics, reward, gate, observation,
   policy interface or digest changes.
 - **The centre-of-mass stance calibration hands its re-measured pins over as
-  a reviewable diff, and writes a looser bar only when told to** (tests and
-  test helpers only; the maintainer's decision of 2026-10-29;
+  a reviewable diff, and writes a looser bar only when told to** (#653;
+  tests and test helpers only; the maintainer's decision of 2026-10-29;
   `environments/shared/tests/com_stance_calibration.py`,
   `com_stance_helpers.py` and `test_stance_track_reduction.py`).
   `python -m environments.shared.tests.com_stance_calibration
@@ -81,7 +81,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   environment, physics, reward, gate, observation, policy interface or digest
   changes.
 - **The first T. rex stance round on physics r10 recorded as judged, final:
-  line 1, a tail rail formed on r10 in training** (decision D-D51's
+  line 1, a tail rail formed on r10 in training** (#652; decision D-D51's
   amendment and D-D52; the appended §27 of
   `docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md`, with a
   dated status note at its top; `docs/NEXT_STEPS.md` §3,
@@ -111,9 +111,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Decision D-D51's outcome and decision D-D52 recorded: the first T. rex
   stance round on physics r10 read its line 1, a tail rail formed on r10 in
   training; next, a CPU continuation screen of the entropy coefficient, its
-  criteria to be approved before any training** (the maintainer's requests and
-  decisions of 2026-10-27 23:59 UTC to 2026-10-28 19:30 UTC in the stance run
-  log; `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2,
+  criteria to be approved before any training** (#652; the maintainer's
+  requests and decisions of 2026-10-27 23:59 UTC to 2026-10-28 19:30 UTC in
+  the stance run log; `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2,
   `docs/CONSOLIDATION_PLAN_2026_09.md` §6). Records only. D-D51 is amended
   with how the round was read: a second report-only snapshot of the running
   files, each run's end noted from Drive while the maintainer slept, the final
@@ -2404,7 +2404,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **The centre-of-mass stance reduction moves into the gait package, beside
-  the evaluation telemetry** (a pure move: no key, number, bar or test
+  the evaluation telemetry** (#653; a pure move: no key, number, bar or test
   outcome changes; the maintainer's decision of 2026-10-29;
   `environments/shared/tests/stance_track_helpers.py` is now
   `environments/shared/gait/stance_track.py`). A gate, an evaluation callback
