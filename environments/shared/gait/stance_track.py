@@ -27,10 +27,10 @@ Reading a robot's log.  Express every sample in one gravity-aligned frame (z up,
 at ``floor_z``; a state estimator's odometry frame, or the stance feet's frame from forward kinematics), give
 the root's attitude with its x axis forward and its y axis left (rotate an IMU mounted otherwise into that
 convention first: nothing here can tell a wrongly mounted IMU from a lean), and drop or interpolate missing
-samples first: a non-finite CoM, attitude or foot point is refused.  Without a world pose estimate (feet and CoM
-from forward kinematics in a frame fixed to the feet), the world-yaw keys read the yaw of that frame, and the
-foot travel keys read zero.  Without foot force sensing, leave ``foot_load`` and ``support`` out: the load keys
-and the support keys are then absent, not wrong.
+samples first: a non-finite CoM, CoM velocity, attitude or foot point is refused.  Without a world pose
+estimate (feet and CoM from forward kinematics in a frame fixed to the feet), the world-yaw keys read the yaw of
+that frame, and the foot travel keys read zero.  Without foot force sensing, leave ``foot_load`` and ``support``
+out: the load keys and the support keys are then absent, not wrong.
 
 Signs: lateral + left, fore-aft + ahead, roll + left side up, pitch + nose up, yaw + counter-clockwise seen
 from above; a drift is the least-squares line's change across the window.  Angles are reported in degrees and
@@ -320,13 +320,16 @@ def stance_track_series(track: StanceTrack) -> dict[str, np.ndarray]:
     headings: ``foot_heading`` (T, F, unwrapped), ``foot_splay`` (each foot's heading less the feet's circular
     mean, unwrapped) and ``root_minus_feet_yaw`` (the root's yaw less the feet's circular-mean heading).  With
     loads: ``foot_load_share`` (T, F; NaN on an unloaded sample), ``left_load_share`` and, on feet with both
-    front and rear labels, ``front_load_share``.  Raises ``ValueError`` on a non-finite CoM, attitude, foot
-    point or time.
+    front and rear labels, ``front_load_share``.  Raises ``ValueError`` on a non-finite CoM, CoM velocity (when
+    given), attitude, foot point or time.
     """
     t = np.asarray(track.t, dtype=np.float64)
     com = np.asarray(track.com, dtype=np.float64)
     feet = np.asarray(track.foot_pos, dtype=np.float64)
-    for name, array in (("t", t), ("com", com), ("root_quat", track.root_quat), ("foot_pos", feet)):
+    arrays = [("t", t), ("com", com), ("root_quat", track.root_quat), ("foot_pos", feet)]
+    if track.com_vel is not None:
+        arrays.append(("com_vel", track.com_vel))
+    for name, array in arrays:
         if not np.isfinite(np.asarray(array, dtype=np.float64)).all():
             raise ValueError(f"the track's {name} has non-finite samples: drop or interpolate them first")
     if track.com_vel is not None:

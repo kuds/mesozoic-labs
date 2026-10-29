@@ -8,6 +8,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **Absolute stance targets for the centre-of-mass stance tests, each a
+  strict expected failure where a model misses it today** (tests and test
+  helpers, and one input check in the reduction; the maintainer's decision of
+  2026-10-29; `com_stance_helpers.TARGETS`, `Target`, `TargetMissed` and
+  `ComStanceQualityBase.check_target`, a `test_target_*` per missed target in
+  each species' `test_com_stance_quality.py`, and a target report in
+  `com_stance_calibration`). The CoM stance tests' bars are calibrated on
+  today's plants, so they catch a change, not a poor stance the plant already
+  has; a target is what a good stance does. Six, their numbers proposals for
+  the maintainer: the body ends the episode turned under 1° from its spawn
+  (read at the end, not the largest turn along the way); no rocking after 3 s
+  (every whole second from 3 s to the horizon's end at a CoM speed RMS of
+  1 mm/s or under, the settle rule read from 3 s, so a longer horizon does
+  not thin it out; and under 1 mm of fore-aft spread, one spread over the
+  window from 3 s); settled by 2 s (the calibration's settle rule); the CoM
+  within 5 mm of the feet's centre sideways; under 0.3° of kept roll; and,
+  from 1 s (after the landing), no foot slipping farther than a 1° turn about
+  the feet's centre slides the farthest foot, at each body's own distance and
+  never under 1 mm (the T. rex 2.44 mm, the Velociraptor 1.40, the
+  Compsognathus 1.00, the robot 1.13, the Brachiosaurus 13.58, the
+  Dibothrosuchus 2.63). Each reads the noise-free statue, the two noisy test
+  spawns and, where those meet a target that other spawns miss, the worst
+  spawn that misses it (`target_seeds`: the Compsognathus 101 and 124, the
+  robot's creeping 111, the Brachiosaurus 126). Measured on the statue and
+  the 80 committed spawns per model: 22 of the 36 model-target pairs are
+  missed today (the T. rex 4, the Velociraptor 3, the Compsognathus 3, the
+  robot 4, the Brachiosaurus all 6, the Dibothrosuchus 2); each is a
+  `pytest.mark.xfail(strict=True, raises=TargetMissed)` whose reason states
+  the measured values (the Velociraptor's also that its foot site under-reads
+  its toes' slip, a median 1.4x), so a model change that meets one makes it
+  pass and so fail, and the mark comes off. A fall, a reading the reduction
+  cannot give (a renamed key, a NaN) or a non-finite sample in any series a
+  target reads raises something other than `TargetMissed` and fails the test
+  outright, and `stance_track_series` now refuses a non-finite `com_vel`, as
+  it refuses a non-finite CoM (no track sets one today). The settle rule
+  (`com_stance_calibration.settle_time`) and the per-second reading share
+  their seconds, which now reach a 20 s episode's last one: MuJoCo's summed
+  time ends it at 19.999999999999794 s, and its last second, from 19 s to
+  20 s, was left out; no pinned window and no measured value moves. The other
+  14 pairs are met by the statue and all 80 spawns and are not tested. The
+  noisy-spawn test now takes its episode from the per-class cache the targets
+  read (the same `run_episode` call; its outcomes are unchanged). Cost: about
+  10 s on one core. No environment, physics, reward, gate, observation,
+  policy interface or digest changes.
 - **The centre-of-mass stance calibration hands its re-measured pins over as
   a reviewable diff, and writes a looser bar only when told to** (tests and
   test helpers only; the maintainer's decision of 2026-10-29;

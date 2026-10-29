@@ -13,8 +13,10 @@ noisy-spawn bars allow on the current plant (80 spawns at reset noise 0.02): the
 spawn, up to 0.8 deg of it inside the window, and a foot slides up to 7.3 mm from where it spawned.
 """
 
+import pytest
+
 from environments.shared.model_id import ModelId
-from environments.shared.tests.com_stance_helpers import ComStanceQualityBase
+from environments.shared.tests.com_stance_helpers import ComStanceQualityBase, TargetMissed
 
 
 class TestComStanceQuality(ComStanceQualityBase):
@@ -89,3 +91,50 @@ class TestComStanceQuality(ComStanceQualityBase):
     # Held-out seeds: the largest turn from the spawn (-5.66 deg) and the largest lateral offset
     # (0.409 mm) among those holding every width; they use 0.51 and 0.50 of a width.
     noisy_seeds = (131, 110)
+
+    @pytest.mark.xfail(
+        strict=True,
+        raises=TargetMissed,
+        reason=(
+            "physics r4 (2026-10-29): the turn read at the episode's end (the yaw at its end less at the spawn): "
+            "root_turn_from_spawn_deg seed 131 5.66 deg, seed 110 5.19 deg (52 of the 80 spawns at reset noise 0.02 "
+            "miss; worst 5.66 deg, seed 131; median 1.32 deg). Target: |root_turn_from_spawn_deg| <= 1.00 deg. Strict: "
+            "when a model change meets it this passes and so fails; run com_stance_calibration, check the 80 spawns, "
+            "then drop the mark (the target becomes a real bar)"
+        ),
+    )
+    def test_target_turn_from_spawn(self, statue):
+        """Absolute target: the body ends the episode turned under 1 deg from its spawn."""
+        self.check_target(statue, "turn_from_spawn")
+
+    @pytest.mark.xfail(
+        strict=True,
+        raises=TargetMissed,
+        reason=(
+            "physics r4 (2026-10-29): settle_s seed 131 3 s, seed 110 3 s (60 of the 80 spawns at reset noise 0.02 "
+            "miss; worst 3 s, seed 0; median 3 s). Target: |settle_s| <= 2 s. Strict: when a model change meets it "
+            "this passes and so fails; run com_stance_calibration, check the 80 spawns, then drop the mark (the target "
+            "becomes a real bar)"
+        ),
+    )
+    def test_target_settled_by_2s(self, statue):
+        """Absolute target: the stance has settled by 2 s."""
+        self.check_target(statue, "settled_by_2s")
+
+    @pytest.mark.xfail(
+        strict=True,
+        raises=TargetMissed,
+        reason=(
+            "physics r4 (2026-10-29): foot_travel_max_m seed 131 1.49 mm, seed 110 2.21 mm (44 of the 80 spawns at "
+            "reset noise 0.02 miss; worst 4.46 mm, seed 20; median 1.52 mm). Target: |foot_travel_max_m| <= 1.40 mm: "
+            "the slide of a 1 deg turn about the feet's centre, the farthest foot standing 80.5 mm from it. The foot "
+            "site under-reads the toes' slip: on the 14 measured spawns whose site moves over 1 mm, a point of the "
+            "sole under the most loaded contact slips a median 1.4x as far (0.72-2.34x; seed 110: site 2.21 mm, sole "
+            "4.30 mm), so the slip is larger than this reads. Strict: when a model change meets it this passes and so "
+            "fails; run com_stance_calibration, check the 80 spawns, then drop the mark (the target becomes a real "
+            "bar)"
+        ),
+    )
+    def test_target_foot_slip_after_landing(self, statue):
+        """Absolute target: from 1 s no foot slips farther than a 1 deg turn about the feet's centre slides it."""
+        self.check_target(statue, "foot_slip_after_landing")

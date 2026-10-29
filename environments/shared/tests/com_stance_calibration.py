@@ -7,9 +7,11 @@ Runs, one after the other in this process, at the class's horizon: the noise-fre
 spawns (seeds 0-29) and the held-out spawns (seeds 100-149) at reset noise 0.02, and the three scripted poor
 stances.  It prints the settle time (where the window starts), the statue's ``reference`` and the
 ``spread_width`` beside the class's current values (so a re-pin shows what moved), the held-out check (how much
-of each width every held-out spawn uses, and how many break a bar), the two noisy seeds, and the scripted
-stances' detection ratios.  About 85 episodes: one to four minutes per model on one core.  Nothing here runs
-under pytest; ``test_stance_track_reduction.py`` checks the pure functions.
+of each width every held-out spawn uses, and how many break a bar), the two noisy seeds, each absolute target
+(``com_stance_helpers.TARGETS``) on the statue and the 80 spawns (so a target's strict expected failure that
+starts to pass is checked on all of them), and the scripted stances' detection ratios.  About 85 episodes: one
+to four minutes per model on one core.  Nothing here runs under pytest; ``test_stance_track_reduction.py``
+checks the pure functions.
 
 The rules, in order:
 
@@ -66,15 +68,20 @@ from .com_stance_helpers import (
     REPO_ROOT,
     ROCK_DETECTION_KEYS,
     SYMMETRIC_VALUES,
+    TARGETS,
     Bar,
     ComStanceQualityBase,
     TrackedEpisode,
     canonical_mujoco_version,
+    feet_to_centre_m,
     fore_aft_rock,
     hip_roll_lean_action,
+    last_whole_second,
     manifest_physics_revision,
     resolution_floor,
     root_yaw_torque,
+    speed_rms_by_second,
+    target_shown,
 )
 
 CALIBRATION_SEEDS: tuple[int, ...] = tuple(range(30))
@@ -89,18 +96,15 @@ MIN_WINDOW_S = 5.0
 
 def settle_time(tracks: Iterable[StanceTrack], *, speed_mps: float = SETTLE_SPEED_MPS) -> float:
     """The first whole second from :data:`EARLIEST_WINDOW_S` on after which every track's per-second horizontal
-    CoM speed RMS stays under *speed_mps* to its end (``inf`` when some track never settles)."""
+    CoM speed RMS stays under *speed_mps* to its end (``inf`` when some track never settles).  The seconds are
+    :func:`speed_rms_by_second`'s, to each track's last whole second; a track whose speed is not finite raises
+    ``ValueError``."""
     start = EARLIEST_WINDOW_S
     for track in tracks:
         series = stance_track_series(track)
-        t = series["t"] - series["t"][0]
-        speed = series["com_speed"]
-        last_bad = -1.0
-        for second in range(int(math.floor(t[-1]))):
-            inside = (t >= second - 1e-9) & (t < second + 1 - 1e-9)
-            if inside.any() and float(np.sqrt(np.mean(speed[inside] ** 2))) >= speed_mps:
-                last_bad = float(second)
-        if last_bad + 1.0 >= math.floor(t[-1]):
+        bad = [second for second, rms in speed_rms_by_second(series).items() if rms >= speed_mps]
+        last_bad = float(max(bad, default=-1))
+        if last_bad + 1.0 >= last_whole_second(series["t"]):
             return math.inf
         start = max(start, last_bad + 1.0)
     return start
@@ -192,6 +196,36 @@ def derive(
     first = by_turn[0]
     second = next(seed for seed in by_lateral if seed != first)
     return Calibration(settle, reference, widths, used, (first, second), statue_numbers, held, cal)
+
+
+def target_report(statue: StanceTrack, spawns: Mapping[int, StanceTrack], *, window_start_s: float) -> list[str]:
+    """One line for the body and one per absolute target: met or missed, and per reading the statue's size and the
+    spawns' worst (its seed) and median.  *window_start_s* is the settled window (a target may read its own); a
+    per-body limit is set from the statue's feet (``feet_to_centre_m``), as the tests set it."""
+    statue_series = stance_track_series(statue)
+    series = {seed: stance_track_series(track) for seed, track in spawns.items()}
+    reach = feet_to_centre_m(statue, window_start_s, series=statue_series)
+    lines = [f"# targets: the statue's farthest foot stands {1e3 * reach:.1f} mm from the feet's centre"]
+    for name, target in ((name, target.for_body(reach)) for name, target in TARGETS.items()):
+        mine = target.readings(statue, window_start_s, series=statue_series)
+        theirs = {seed: target.readings(track, window_start_s, series=series[seed]) for seed, track in spawns.items()}
+        missed = sorted(seed for seed, readings in theirs.items() if target.misses(readings))
+        parts = []
+        for key, limit in target.limits.items():
+            sizes = {seed: abs(readings[key]) for seed, readings in theirs.items()}
+            worst = max(sizes, key=lambda seed: sizes[seed])
+            parts.append(
+                f"{key} <= {target_shown(key, limit)}: statue {target_shown(key, abs(mine[key]))}, worst "
+                f"{target_shown(key, sizes[worst])} (seed {worst}), median "
+                f"{target_shown(key, float(np.median(list(sizes.values()))))}"
+            )
+        if target.misses(mine) or missed:
+            statue_verdict = "misses" if target.misses(mine) else "meets"
+            verdict = f"MISSED (the statue {statue_verdict}; {len(missed)} of {len(spawns)} spawns miss: {missed})"
+        else:
+            verdict = f"met by the statue and all {len(spawns)} spawns"
+        lines.append(f"# target {name}: {verdict}; " + "; ".join(parts))
+    return lines
 
 
 # ── the ratchet ──────────────────────────────────────────────────────────────
@@ -541,6 +575,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             ROCK_DETECTION_KEYS,
         ),
     }
+    say("\n".join(target_report(statue.track, {**calibration, **heldout}, window_start_s=result.settle_s)))
     for name, (hooks, keys) in scripted.items():
         episode = base.run_episode(seed=0, **hooks)  # type: ignore[arg-type]
         if not episode.stood:
