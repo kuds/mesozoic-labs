@@ -1,0 +1,152 @@
+ECS PRE-REGISTRATION DRAFT v1 -> v2: EVERY REVIEW FINDING, VERIFIED, AND WHAT CHANGED
+Written 2026-10-28 20:53-21:00 UTC (date -u) by the fixer of workflow wf_86638249-afc. Nothing trained, simulated,
+fetched or pushed; no learn(). The only run: check_v2.py (standard-library arithmetic, 1 process, OMP 1, nice 15, run
+twice, outputs identical by cmp). Each finding was checked against its source before it was applied.
+Reviews: RS = statistics-and-rules lens (S-1..S-16, <ECS>/review_stats); RF = feasibility lens (FEAS-1..12,
+<ECS>/review_feasible); RI = maintainer's lens (MI-1..13, <ECS>/review_intent). CRIT2, DEC2, BL2 = the v2 criteria,
+decisions and build list. TB = COPY/environments/shared/train_base.py. Short names as CRIT2.
+Count: 41 findings; 41 FIXED (2 of them by removing the item they were about), 0 REFUTED, 0 OPEN. Three claims inside
+findings were found slightly off and are noted (S-3, FEAS-2, FEAS-11).
+
+HOW v1's DECISION NUMBERS MAP TO v2 (MI-12: real choices first, technical defaults apart)
+  v1 D1 -> D1 (the callback variant (b) dropped: not a real choice)      v1 D2 -> D3 (option (d) 1,048,576 added)
+  v1 D3 -> D4 (k = 3 dropped)   v1 D4 -> T1 (seeds now distinct per start too)   v1 D5 -> D5 (TAIL-flagged dropped)
+  v1 D6 -> D6   v1 D7 -> T2   v1 D8 -> T3   v1 D9 -> removed (MI-5)   v1 D10 -> D7   v1 D11 -> T4   v1 D12 -> T5
+  v1 D13 -> T6 (accepted with D1; its option (b) "no screen" was not a choice)   v1 D14 -> D8   v1 D15 -> D9
+  v1 D16-D18 -> D10-D12   new: D2 (validation runs through learn() before approval)
+HOW v1's VALIDATIONS MAP: V1 -> V1 (field list); V2 -> V2 (to S + 262,144); V3 removed; V4 -> V3; V5 removed;
+  V6 -> V4 (truncated ledgers, dry run); V7 -> V5 (named keys).
+
+BLOCKING
+S-1 / FEAS-7 / MI-1 (one defect, three lenses) VOID ruled after outcomes were visible. FIXED.
+  Verified: v1 l138-139 gave VOID no consequence; R4 lived only in read_ecs at reading time (v1 BL 6) and the wave
+  runner traced each end state as it finished (v1 BL 8), so outcomes were in hand before any VOID was found.
+  Changed: CRIT2 READINGS adds CHECK (R4 + run_meta), run by the runner as each continuation exits and reading no
+  outcome; RUN HANDLING makes the screen outcome-blind until all 24 are decided (no M5, R2 or M1 before then; BL2 6
+  refuses a full read before that); VOID's consequence is fixed (set aside unread, the cause fixed from the CHECK record
+  alone, the affected continuations rerun from their start pairs under their seeds; a fix touching a pin needs the
+  maintainer's word, asked before any outcome is read; unfixed, the screen reads VOID and any rerun is a new
+  pre-registration). LOST is now mechanical (three own crashes, or C6 failing to T), written to <ECS>/lost.json by the
+  runner or reader; "a continuation that cannot run" is gone (an unfixable preflight refusal reads VOID).
+FEAS-1 V5's result was a pin that could only be filled after approval. FIXED (V5 removed).
+  Verified: v1 PINS l219-222 "filled before approval ... V5's result if D9 (a)" against V5 "After approval" (l164) and
+  PROVISIONAL "while a pin is unfilled ... never by a ruling" (l146-147). Changed: V5 and D9 removed under MI-5; CRIT2
+  PINS lists only items filled before approval; PROVISIONAL now names only pinned-file mismatches.
+FEAS-2 / MI-2 / S-15 learn() before approval was never put to the maintainer. FIXED.
+  Verified: TB l1560-l1570 always calls model.learn(); v1 BL 5 and V2-V4 ran it with train() a no-op before approval;
+  no D-item asked; no process or nice limit. Precedent checked: the run-branch build's full-length rollouts with
+  "updates 0" (RUNLOG l640; HS 5 (b) l337-l342). Changed: DEC2 D2 asks it, (a) recommended: before approval, one
+  process, OMP 1, nice 15, about 1 h, outputs only under validate/; (b) after approval. BL2 head, items 3 and 10 state
+  the limits; the one-line acceptance names D2. Noted: FEAS-2's "5 runs" was 6 in v1 (V2's 4 + V3's 2); v2 has 4.
+
+MINOR
+S-2 Line 3 and the limit claimed more than the test shows. FIXED. Verified: 6/6 vs 4/6 at both starts prints line 3
+  (P_UP 0.0517, TE 1; RS recheck_stats.out 7). CRIT2 line 3 now reads "NO DIFFERENCE DETECTED IN WHETHER AN ANY-FLAGGED
+  EVALUATION CAME BY E ... (not tested: a shift of the first flag within the window, a modest effect, the early
+  phase)" with the per-start counts; KNOWN LIMITS: "A null does not rule out an effect", power stated as conditional.
+S-3 A TAIL-only missing input made a continuation LOST. FIXED. Verified: M5 c6_check (ledger_r10round.py l68-72) adds
+  "TAIL input missing" failures apart from ANY ones. Slightly off: TAIL can also be missing when the fraction is
+  blank in an episode outliving the window start (r10round_common.py l431-433), but a TAIL-only failure there needs a
+  measured screen listing the key, i.e. an ANY-over row; so TAIL-only failures do fall on ANY-over rows, as claimed.
+  Changed: CRIT2 R1 and BL2 6: C6 counts grid, row, episode and ANY-input failures; TAIL-input failures are printed,
+  report only (read_ecs splits the list; M5 unchanged).
+S-4 LOST and censored continuations had no worst-case rule. FIXED. Verified against criteria_tailscreen_final.txt l224
+  ("Missing or LOST replicates never help a bound"). Changed: CRIT2 THE FILL: P_UP is computed with every missing one
+  against B LOWER, P_DOWN against B HIGHER; line 3 notes a line that holds only without them. Checked [computed, CHK
+  1]: 0 of 16,464 single flips make a line easier, so the size stays at most the complete-data test's; CHK 8 works
+  examples.
+S-5 One seed list at both starts. FIXED. Verified: v1 l60-62. Changed: T1 and CRIT2 use four distinct lists (s80
+  1301-1351 and 1401-1451); CHK 5: 120 derived seeds, 0 clashes, 0 overlaps with 3042-3061 or the runs' own seeds.
+  The independence assumption is stated in KNOWN LIMITS.
+S-6 The INFORMATIVE note looked one way only and was undefined at nA = 0. FIXED. CRIT2 per-start notes: LOW ARM-A RATE
+  (little power for B LOWER), ARM A AT a OF a (no room for B HIGHER), NO ARM-A CONTINUATION COUNTED at nA = 0.
+S-7 Unclassified or contradictory run states. FIXED. (a) LOST covers C6 failing up to T (E or the stop). (b) VOID is
+  no longer in the printed list (a VOID screen prints no line). (c) A crashed attempt is kept and never read; the
+  byte comparison went with V5.
+S-8 "No interim look" was false; prevention against delay was read from a report-only figure. FIXED. The screen is
+  now outcome-blind until all 24 are decided (end traces run after, BL2 8), so the sentence is true by construction;
+  "No line distinguishes prevention from delay; the first-flag steps are printed without a test."
+S-9 Loose wording. FIXED. Verified NEXT l158 ("whether, or when") and CRIT6 l166-169 (the BAR and M5 (a)). (a) Lines
+  1-2 say "SHARE OF CONTINUATIONS WITH AN ANY-FLAGGED EVALUATION BY E". (b) "(pooled over both states; per-start
+  tables beside)". (c) Fisher printed both ways, "report only, not a test". (d) The QUESTION is in the statistic's
+  terms and names "when" as untested (D5 (c)).
+S-10 The 0.75-0.95 arm-A rate rested on r9's 3 of 3 counted on another flag. FIXED. Verified DS l170-179 (5/20, 12/20,
+  6/20 M1 tail flags). CHK 4: Clopper-Pearson [0.292, 1], one-sided lower 0.368. KNOWN LIMITS and D4 say so and carry
+  the A 0.6 row (0.642 / 0.294 / 0.037).
+S-11 D6's "costs little" cited only large effects. FIXED. CHK 2 re-derived 0.578 against 0.428 (A 0.9 vs B 0.5) and
+  0.704 against 0.609 (A 0.75 vs B 0.25); both now in D6, with P(B HIGHER) 0.004 / 0.158 / 0.562.
+S-12 / FEAS-3 V1's "every field but timing" could not pass. FIXED. Verified PAN s42/3145728/m1/m1_summary.json: it
+  holds checkpoint path, sha256 and seed 42, vecnorm path and sha256, run_records, filed, copy_seal.built_utc,
+  trace_run. CRIT2 V1 names the measured fields that must be equal (including the 20 csv_sha256), checks
+  num_timesteps = S and physics_revision 10, and lists the provenance fields that differ by design.
+FEAS-4 V7's "every key" could not pass. FIXED. Verified F2 s42 stage_config.json.copy1: run {seed 42, n_envs 4,
+  timesteps 12,000,000, hyperparameters_sha256, label, duration_seconds} and gpu {L4, CUDA 13.0}; TB l1860 records
+  timesteps = total_timesteps. CRIT2 V5 compares named blocks in the record layout on both sides and names what differs.
+FEAS-5 V6 failed by construction on full ledgers. FIXED. Verified RF m5: M5 --E 4,718,592 on the full s42 ledger: C6
+  FAIL, 55 failures, all "beyond E"; truncated: PASS, 8 flagged (s42), PASS, 4 flagged (s80). CRIT2 V4 reads truncated
+  copies and expects those values.
+FEAS-6 Thin disk margin; unit; no rule for a refused trace. FIXED. Verified r10m_common.py l107 (3 * 1024**3) and df
+  -B1 5,246,861,312 B free at 20:44 UTC. T4 and CRIT2: floors in GiB, a 6 GiB housekeeping target before launch,
+  validation outputs counted (about 1.7 GB in all), a refused end trace rerun once space is freed and never holding up
+  the reading.
+FEAS-8 vecnorm_load_path left out. FIXED. Verified TB l1273 (keyword-only, no default), l515 (if load_path: guards the
+  load), l1357-l1358 (passed as load_path), l1901 (train() passes load_path). BL2 3 names every keyword-only argument,
+  vecnorm_load_path = the zip, allow_fresh_vecnorm False, save_on_interrupt False, verbose 0, the stage_callback
+  factory form (TB l1532), and adds the statistics check before learn() (also in V1).
+FEAS-9 Run-handling rules for COUNTED only or in conflict. FIXED. (1) crashed attempt: kept, never read. (2) LOST
+  written to <ECS>/lost.json by the runner or reader, mirrored in RUNLOG by the coordinator. (3) R1 and R4 in terms of
+  T, (T - S)/8,192 - 1 probe rows (SB3 collect_rollouts returns before on_rollout_end on the stop step, verified in
+  on_policy_algorithm.py). (4) readings for each COUNTED or STOPPED one. (5) stop reason from StopAtEnd's flag or the
+  collapse callback's own state (early_stopping.py l254-l261); any other reason fails CHECK (VOID, not CRASH: an
+  unknown stop is a harness fault).
+FEAS-10 V5 made 3 updates, not 4. FIXED (V5 removed). Verified: learn() breaks before train() on the stopping rollout
+  (on_policy_algorithm.py l324-l337). Moot with V5 gone; the same fact is used for E (191 updates).
+MI-3 "Pre-onset" was false for s80 under REVIEW 4.3's onset. FIXED. Verified REVIEW l638-l640 (s80 first onset 3.80M)
+  and DS 1.3 (one neck over-bar episode at 3,801,088 before 4,194,304). CRIT2 QUESTION defines pre-onset as before the
+  first ANY-flagged evaluation and says s80's start is after that episode; D3 is framed as reach against power, says
+  so in (a), and adds (d) both from 1,048,576 (F2-held; x2.67; leads 2.75M and 3.80M [computed, CHK 6]).
+MI-4 The null claim held for B LOWER only. FIXED. CHK 2: P(B HIGHER) 0.004 (A 0.9, B 1.0), 0.158 (A 0.75). A KNOWN
+  LIMITS line says a null says nothing about a protective effect at the expected rates; D6 (a) says the second side
+  buys little unless arm A runs low.
+MI-5 The determinism apparatus changed no reading. FIXED. Verified: v1 l133-135, the rerun governs either way. Removed:
+  D9, V5 (with its optimizer steps), the DETERMINISM paragraph and V3 (no stated consequence). A crash rerun is the
+  continuation; the crashed folder is kept, never read.
+MI-6 No keep-alive rule for this container. FIXED. Verified RUNLOG l295-l297 (detached workers reclaimed about 10 min
+  after a turn ends) and l565 (DD43's tracked watcher). CRIT2 WHERE AND HOW, D7 and BL2 8: a harness-tracked watcher,
+  relaunched when it exits; COMPUTE states the wall clock assumes the session is kept live.
+MI-7 The approval request did not name the harness, and D10's CPU use was hidden. FIXED. Verified RUNLOG l548 (DD43
+  named its scratch commit). BL2 12 names the harness files and D7's CPU use; DEC2's one-line acceptance names D1, D2
+  and D7 explicitly.
+MI-8 Only ent_coef of the four asked-about settings is varied. FIXED. Verified NEXT 0.3 (ent_coef, log_std_init,
+  symmetry_sigma_floor, action_saturation_weight). A KNOWN LIMITS line says so, with s60's late habit outside the core.
+MI-9 Line 3 printed "no large effect" when arm A showed nothing. FIXED. CHK 3: both starts low at pA 0.6 0.032, 0.5
+  0.118. CRIT2 line 3 variant "NO DIFFERENCE DETECTED; NOT INFORMATIVE: ..." when both starts carry the note.
+MI-10 "(Dn) ... only those lines move" was false. FIXED. CRIT2 STATUS: another pick for D3, D4 or D6 also regenerates
+  TABLE E, COMPUTE and KNOWN LIMITS; DEC2 header says the same.
+MI-11 Discretion in LOST "cannot run" and the preflight fix. FIXED. LOST is mechanical (S-1); a preflight fix that
+  changes a pinned file or the text needs the maintainer's word and a re-pin (as RUNLOG l549-l552); unfixed, VOID.
+
+INFO
+S-13 A training-raised exception is a crash and rerun. FIXED (the precedent kept and said): CRIT2 CRASH names it as
+  DD43's rule (criteria_tailscreen_final.txt l338) and notes that the fill keeps a LOST continuation from helping a line.
+S-14 The statistics hold. FIXED (nothing to fix; the optional cross-check taken): BL2 9 adds a brute-force relabelling
+  check of the scorer on every 6-per-arm table.
+S-16 "Cannot be sized" overstated D5 (d). FIXED: DEC2 D5 (c) says its size is exact and only its power is unknown, at
+  0.0125 per side; the primary stays (a).
+FEAS-11 The core mechanics hold. FIXED (relabel): D1, T3 and CRIT2 ARMS and Harness now cite [measured, code, RF
+  NOTES] for the load order, the decay callback, the seeding and StopAtEnd. Slightly off: FEAS-11's "s80 5,758,976
+  0.00088645" and v1's 0.0008865 both round 0.0008864457 [computed, CHK 7]; v2 writes 0.0008864 (MI-13).
+FEAS-12 Practical points. FIXED. (1) The runner logs the process table and load at each start; the coordinator holds
+  other simulation (CRIT2, BL2 8). (2) V3 records which way the probe's bank comparison went and expects nothing of it
+  (verified policy_probe.py l553-l570). (3) V2 now stops at S + 262,144, a checkpoint and evaluation step like E; V4
+  adds a stub-harness dry run of run_waves_ecs.sh.
+MI-12 Several decisions were not real choices. FIXED. DEC2 splits D1-D12 (choices) from T1-T6 (technical defaults);
+  D13 (b) "no screen" dropped; D4 (b)'s open sub-choice settled in T1 (the same stratified test, stated valid and
+  conservative). STOPPED stays one short rule (patience 10 of 12, verified stance.toml l1041).
+MI-13 "he" and 0.0008865. FIXED: "the maintainer" throughout; 0.0008864.
+
+NEW OR CHANGED NUMBERS IN v2, AND WHERE EACH COMES FROM
+  CHK 1 fill monotonicity; CHK 2 power (A 0.6 row, B HIGHER, one-sided comparisons); CHK 3 low-arm-A frequencies; CHK 4
+  Clopper-Pearson; CHK 5 seeds; CHK 6 steps and D3 costs (rate 43-53 min per 1,048,576, HS 7, inferred); CHK 7 ent_coef
+  endpoints and means; CHK 8 worked fills; df -B1 at 20:44 UTC; RF m5 (truncated-ledger M5 values).
+END

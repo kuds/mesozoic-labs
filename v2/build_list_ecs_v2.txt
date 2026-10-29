@@ -1,0 +1,155 @@
+ENTROPY CONTINUATION SCREEN (ECS): BUILD LIST (v2)
+What must exist before the maintainer is asked to approve criteria_ecs_v2.txt. Nothing here makes an optimizer step on
+any real policy. The only runs through learn() are V2's, with the model's train() replaced by a no-op, and they run
+before approval only under D2 (a), one process at a time, OMP 1, nice 15. Every file the build writes is under <ECS> =
+S2/r10round/ecs. COPY, CLONE, F2, the round's folders, RUNLOG and the main checkout are read only. Short names as
+criteria_ecs_v2.txt. "G<n>" is the gap number of HS 10. "TB" = COPY/environments/shared/train_base.py.
+Written 2026-10-28 20:53-21:00 UTC (date -u) by the fixer of workflow wf_86638249-afc.
+
+0. BEFORE THE BUILD
+- The maintainer's picks on DEC (another pick changes the items marked (Dn) or (Tn)). D2 decides whether V2 runs
+  before approval.
+- Disk (T4): housekeeping to at least 6 GiB free (df -B1) before the launch; 4.9 GiB at 20:44 UTC [measured, df -B1].
+
+1. CODE COPY (T2)
+- M1 build-copy --dest <ECS>/code --approved S1/foot/stance6/APPROVED, then check-copy. Its tree digest must equal
+  COPY's seal, 331fe8fc3f6bdf73acc0d3cc324dd753d9d9d695d7ce914e4e011d5c6437ebf1 (commit 8737cd3d86431de1..., 1,406
+  files) [measured, COPY/.r10m_seal.json].
+
+2. <ECS>/tools/ecs_common.py (pins and constants; no logic beyond lookups and checks)
+- Starts, S, E: s42 3,145,728 -> 4,718,592; s80 4,194,304 -> 5,767,168 (D3). Arms A, B (D1). The four seed lists (T1).
+- Start pairs, F2 path and sha256 [measured, FMAN and recomputed]:
+    s42 01_stance/models/stage1_3145728_steps.zip       3c054bd738304965bbbcfde588982635ed047436311a267b91f8855e02edad18
+    s42 01_stance/models/stage1_vecnormalize_3145728_steps.pkl
+                                                        997f31421d805f6e6cd366b9a9bd05451ed7ab679fd615e7567d259a310f22e0
+    s80 01_stance/models/stage1_4194304_steps.zip       51197dbd7f90e481a99214ba7bd63ebbe92804367c2e5edab988c0b4c4840096
+    s80 01_stance/models/stage1_vecnormalize_4194304_steps.pkl
+                                                        f405244b94662bdffae9bbe1b047fda9b34bb62012bec9491ed09131ef6155cb
+- Parent records, sha256 prefixes as FMAN records them (full values read from FMAN; every F2 copy recomputed equal
+  at about 20:07 UTC for v1 [measured]):
+    s42: eval_episodes.csv d1bcb789..., evaluations.npz 3e111361..., gate_progress.npz 4097099b...,
+         train_episodes.csv 14b2f9e4..., policy_probe.npz 4e0e7220..., stage_config.json 5d54e6de...
+    s80: eval_episodes.csv b677ce76..., evaluations.npz 89e18b10..., gate_progress.npz 02dc4311...,
+         train_episodes.csv fd65c205..., policy_probe.npz 0e61919d..., stage_config.json ec1c49a5...
+- Stack: Python 3.13.17, torch 2.13.0+cpu, numpy 2.5.4, gymnasium 1.4.0, SB3 2.9.0, MuJoCo 3.10.0. Disk floors
+  3 GiB (3 * 1024**3, as M1's r10m_common.py l107) and 6 GiB at launch (T4). M1 b293a511... and r10m_common
+  97431323...; M5 0d89bcb8... and r10round_common ea2c5ea6... (the lane SHA256SUMS files).
+
+3. <ECS>/tools/run_ecs.py (G1; ported from DD43's tools/run_tailscreen.py where it fits)
+    PY -I -B run_ecs.py --start s42|s80 --arm A|B --seed N [--save-loaded-only] [--no-update --until STEPS]
+- Preflight (refuses with a named reason, exit 2): the code copy's seal; the stack; the tool pins; start, arm and seed
+  in their sets; the run folder absent; disk at or above the floor; for a continuation, <ECS>/APPROVED present and its
+  criteria sha256 equal to <ECS>/criteria.txt's. The no-optimizer-step modes (--save-loaded-only, --no-update) write
+  only under <ECS>/validate/ and, before approval, run only under D2 (a).
+- Layout: <ECS>/runs/<start>_<arm>_<seed>/01_stance/ with models/stage1_<S>_steps.zip and
+  stage1_vecnormalize_<S>_steps.pkl (the periodic names the resume path recognises, HS 2.3) and the five parent
+  records under their real names; each copy's sha256 checked against ecs_common.
+- Config: the copy's own config loader for the T. rex stance stage; arm B edits [ppo] ent_coef and ent_coef_end to
+  0.0 in memory (D1). stage_config.json is written by the run's own save_stage_config as train() writes it (extra
+  seed, n_envs, timesteps = 12,000,000 - S; the load lineage) (TB l1860-l1870), and checked by V5's comparison
+  before learn().
+- Environment set before any import of the code: OMP/MKL/OPENBLAS_NUM_THREADS=1, torch.set_num_threads(1), TMPDIR
+  and MPLCONFIGDIR under <ECS>/tmp, GITHUB_SHA=8737cd3d86431de1bdd0fcdb49a0d956a45e084d, sys.path with the copy first
+  and a refusal if the code imports from elsewhere.
+- The body (T3): train_base._train_stage_body with every keyword-only argument named (TB l1249-l1282): log_path and
+  model_dir the run folder's; total_timesteps 12,000,000 - S; n_envs 4; seed N; eval_freq 131,072 and save_freq
+  262,144 from the stage config; use_subproc False; verbose 0 (no progress bar); algorithm "ppo"; use_wandb False;
+  use_tensorboard False; label "ECS <start> <arm> <seed>"; plant_identity and task_fingerprint as train() builds
+  them; parent_id as train() passes it for this stage (entry.warm_start_from); load_path the periodic zip;
+  task_load_mode "resume_same_stage"; vecnorm_load_path the periodic zip, as train() passes it (TB l1901; None would
+  skip the statistics load with no error, TB l515); vecnorm_path the pkl; allow_fresh_vecnorm False;
+  save_on_interrupt False (an interrupt is a CRASH); announce False; k3_panel None (T5); stage_callback a factory,
+  called by the body as stage_callback(eval_env=..., eval_callback=...) (TB l1529-l1533), that returns StopAtEnd.
+- A thin wrapper around train_base._create_or_load_model checks after the load: MirrorKLPPO, num_timesteps = S,
+  _total_timesteps 12,000,000, device cpu, ent_coef 0.005 (A) or 0.0 (B), and the training env's obs_rms and ret_rms
+  equal to the start pkl's; it refuses otherwise. With --save-loaded-only it saves the loaded policy and statistics
+  through the run's own checkpoint save path (so the zip carries the plant identity M1 checks) to <ECS>/validate/,
+  and exits before learn() (V1).
+- Records: run_meta.json written with "x" at start and rewritten at the end: args, arm, seed, S, E, start sha256,
+  code digest, stack, criteria sha256, state digests of parameters, Adam state and VecNormalize at start and end, the
+  exit status, num_timesteps at the end, wall time, and the stop reason: "end" (StopAtEnd's flag), "collapse" (the
+  collapse callback's _consecutive_drops >= its patience, early_stopping.py l254-l261) or "other".
+
+4. StopAtEnd (G2), in run_ecs.py
+- _on_step returns False when num_timesteps == E (or --until), and sets the flag run_meta records. Every other
+  callback has run on that step, so the evaluation and the checkpoint at E exist; no update is made on the rollout
+  ending at E (SB3 collect_rollouts returns before train(); HS 4.3). It refuses if num_timesteps ever passes E.
+
+5. NO-UPDATE MODE (for V2 only; never for a continuation)
+- --no-update replaces the model's train() with a function that counts its calls and returns; --until STEPS stops at
+  that step. The parameter and Adam digests at the end must equal the start's, or it exits 1.
+
+6. <ECS>/tools/read_ecs.py (G4, G7)
+- --check <run>: CHECK only. Reads run_meta.json and only the update_timesteps, ent_coef and learning_rate columns of
+  policy_probe.npz (allow_pickle False). R4: rows with update_timesteps in (S, T), (T - S)/8,192 - 1 of them, against
+  the parent's F2 probe at the same steps (A: float32 equal; B: ent_coef 0.0, learning_rate equal); run_meta: code
+  digest, start sha256, arm config, seed, stop reason "end" at E or "collapse" at T < E. Writes <run>/check.json;
+  exit 0 pass, 4 fail.
+- Full read (refused for a run without a passing check.json, and, outside <ECS>/validate/, until every continuation
+  is decided): R1 runs the pinned M5 unchanged ("ledger_r10round.py <ledger> --E <T> --json <out>") and keeps the
+  evaluations with timesteps in (S, T]; POSITIVE; first ANY-flagged step; flagged count; ANY and TAIL alarms and TAIL
+  flags in the window; C6's failures split into those that count (grid, rows, episodes, "ANY input missing") and
+  "TAIL input missing" ones (printed, report only). R2: M6's arrays and std_per_actuator for rows in (S, T). R3: M1's
+  m1_summary.json for the end pair. Prints every value with the file and sha256 it came from; exit 0 read, 2 input
+  error.
+
+7. <ECS>/tools/score_ecs.py
+- Each continuation COUNTED, STOPPED (positive or censored) or LOST from run_meta, check.json, <ECS>/lost.json and R1;
+  the two tables as counted and as filled; the exact stratified test, two-sided, in exact fractions (the code of
+  <ECS>/v1/table_e_ecs.py, moved into the tool), P_UP and P_DOWN each on its own filled table; the reading line and
+  its variants; the per-start notes; every report-only line; PROVISIONAL items; "incomplete" until all 24 are decided.
+  Exit 0 final, 3 provisional or incomplete, 2 input error.
+
+8. <ECS>/tools/run_waves_ecs.sh (G8; ported from DD43's tools/run_waves.sh)
+- Refuses without <ECS>/APPROVED. A queue in this fixed order, 3 slots at nice 10 (D7): for j = 1..6: s42 A j,
+  s42 B j, s80 A j, s80 B j (seed j of each list). The disk floor before each start (pause below it). The process
+  table and load logged at each start.
+- As each continuation exits: read_ecs --check. A pass marks it COUNTED or STOPPED. A failure renames it
+  <name>_void<k> and starts no new continuation (VOID). A non-zero exit, or a half-way folder found at (re)launch,
+  renames it <name>_crashed<k> and reruns it with the same arguments; a third crash of its own (a container restart
+  not counted) writes it to <ECS>/lost.json.
+- When all 24 are decided and none is VOID: R1-R3 for each (M1 end traces 3 at a time at nice 10, --out
+  <ECS>/traces/<name>), then score_ecs.py.
+- Run under a harness-tracked watcher that reads only the runner's log and is relaunched when it exits (DD43's,
+  RUNLOG l565). Logs under <ECS>/logs/; no push, no Drive (D9).
+
+9. TESTS (no optimizer step of any kind; a mock where training would be needed)
+- StopAtEnd: the stop step, the evaluation and checkpoint at E present, no update on the last rollout, the flag set.
+- The arm edit and V5's comparison: A changes nothing; B exactly ent_coef and ent_coef_end; the expected-to-differ
+  keys pass; any other difference refused.
+- Each preflight refusal; the folder-exists refusal; the no-update mode leaves the digests unchanged; the wrapper
+  refuses statistics that differ from the pkl's.
+- read_ecs --check on the parent's probe against itself (passes), one changed row (fails), arm B zeros (pass), a
+  wrong row count, a stop reason "other" (fails); the full read refused without check.json and before all are decided.
+- read_ecs on synthetic ledgers (window edges at S and T, an alarm straddling S, C6 failures of each kind, a TAIL-only
+  missing input kept as report only) and on truncated parent ledgers (V4).
+- score_ecs reproduces every cell of TE sections 1-2 and CHK 8, matches a brute-force relabelling of every 6-per-arm
+  table, and fills against each line as the criteria say; a few mutants of the reader and scorer are killed.
+- run_waves_ecs.sh with a stub harness (V4): a non-zero exit, a half-way folder at relaunch, a CHECK failure, the disk
+  pause, three crashes to lost.json.
+
+10. VALIDATIONS V1-V5 (criteria VALIDATIONS; none makes an optimizer step)
+- Outputs under <ECS>/validate/. Under D2 (a), before approval, one process at a time, OMP 1, nice 15: V1 (4 loads
+  and saves, 4 M1 traces), V2 (4 no-update runs to S + 262,144), V3 and V4 (reading only), V5 (on the
+  stage_config.json files of V1 and V2). About 1 h of CPU in all [inferred, HS 7]. V1 also shows that M1 accepts the
+  harness-written zip and stage_config.json (physics_revision 10; git_commit 8737cd3d) and an output under
+  <ECS>/validate/.
+
+11. ONE INDEPENDENT REVIEW, THEN A FIXER
+- One reviewer reads the text, the tools and the validation outputs against each other and re-derives TABLE E; the
+  fixer applies or answers each finding. Lean: one review lane, not two.
+
+12. PIN AND ASK
+- PINS filled; the final text's sha256; <ECS>/SHA256SUMS.txt; APPROVAL_REQUEST.txt, one page: the training change
+  (D1) named; D2's pre-approval runs and their results; the harness named (run_ecs.py's load wrapper and StopAtEnd,
+  the no-update mode, read_ecs.py, score_ecs.py, run_waves_ecs.sh, ecs_common.py, with their sha256; scratch only,
+  never in the repository); D7's use of this container's CPU (3 processes at nice 10, about 9-11 h); the other picks;
+  compute and disk. APPROVED is not written by the build.
+
+13. AFTER APPROVAL (not part of the build)
+- <ECS>/criteria.txt (0444, byte copy), <ECS>/APPROVED (criteria sha256, RUNLOG line, code digest, tool pins); V2 and
+  V3 if D2 (b); then run_waves_ecs.sh under the tracked watcher; the reading per WHEN THE READING IS MADE.
+
+NEW CODE, ROUGHLY [inferred]: run_ecs.py 300-400 lines, read_ecs.py about 250, score_ecs.py about 200, the wave runner
+about 150, tests about 450. The add-ons (D10-D12) would add C's schedule, N's freeze or S's reset to the load wrapper.
+END (build list v2).

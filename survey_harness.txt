@@ -1,0 +1,567 @@
+======================================================================================================================
+ENTROPY CONTINUATION SCREEN (NEXT_STEPS OPTION 1): HARNESS SURVEY
+How a continuation from a stance6 checkpoint pair would run on this container's CPU on the run branch's code (8737cd3d)
+CODE READING ONLY. NOTHING WAS TRAINED, SIMULATED, FETCHED, PUSHED OR COMMITTED FOR THIS TEXT.
+======================================================================================================================
+Written 2026-10-28 19:32-19:50 UTC (date -u) by the harness surveyor of workflow wf_86638249-afc (RUNLOG l720).
+No optimizer step, no learn(), no rollout, no simulation process. No Drive, no GitHub. Files were only read, except
+this file and one scratch extract of RUNLOG lines 600-720 (.runlog_600_720.txt), both in S2/r10round/ecs/. Reading
+the named sources outside ecs/ is taken to be within the task (the task names them); every write stayed in ecs/.
+Commands run: ls, du, df, nproc, free, sed/grep, git rev-parse/status/remote on the run-branch clone (read only),
+sha256 of six F2 files, JSON reads of two zips' `data` members and of npz/csv records (nothing unpickled).
+
+Labels: [measured] = read or computed here from the file named; [inferred] = reasoned from code or measured numbers,
+basis given. "lN" = line N. Steps are training timesteps.
+
+SOURCES (keys used below)
+  S1       /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad
+  S2       /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad
+  RUNLOG   S1/foot/stance4/live/run_log.txt (720 lines at 19:41 UTC; read only)
+  COPY     S2/r10round/f2/copy_8737cd3d, the sealed measuring copy (.r10m_seal.json: commit 8737cd3d86431de1..., tree
+           digest 331fe8fc..., 1,406 files, 97 MB [measured]). Code refs below are into COPY/environments/shared/:
+           TB = train_base.py, ED = eval_diagnostics.py, CK = curriculum/checkpoints.py, SCH = curriculum/schedules.py,
+           PP = policy_probe.py, K3 = k3_panel.py, MK = mirror_kl_ppo.py, HW = curriculum/hop_watch.py,
+           CFG = config.py, PL = policy_loading.py
+  CLONE    S2/r10round/runbranch/clone (HEAD 8737cd3d, clean, push URL DISABLED [measured, git, read only])
+  SB3      S2/venv/lib/python3.13/site-packages/stable_baselines3 (2.9.0): BC = common/base_class.py,
+           OPA = common/on_policy_algorithm.py, CB = common/callbacks.py, VN = common/vec_env/vec_normalize.py
+  TS       S2/tailround/screen (D-D43): RTS = tools/run_tailscreen.py, SC = tools/screen_common.py,
+           RW = tools/run_waves.sh, TSC = criteria/criteria_tailscreen_final.txt, BS = criteria/BUILD_SPEC.md,
+           TS/runs/<name>/run_meta.json and telemetry.npz, TS/logs/
+  F2       S1/foot/stance6/fetch/F2/stance6_r10LTSB_<r>/copies (read only)
+  LB, LA   S2/r10round/lean/build/laneB/tools (M5 ledger_r10round.py, r10round_common.py), .../laneA/tools (M1
+           measure_r10round.py, r10m_common.py)
+  RB       S2/r10round/runbranch/build/equiv and .../review/eq (the run-branch equivalence runs, RUNLOG l640)
+  NS, RV, RO   S2/r10round/f2/NEXT_STEPS.txt, REVIEW.txt, readouts/READOUTS.txt
+
+======================================================================================================================
+1. THE GIST
+======================================================================================================================
+- No repository code change is needed for arms A, B or C [inferred, TB l377, l629, l1524; SCH l195-215]. ent_coef is
+  a stage-config value: the load passes the config's [ppo] block to SB3 as kwargs, which overwrite the zip's stored
+  ent_coef. EntCoefDecayCallback then captures that value at training start and sets
+  ent_coef = initial + min(1, num_timesteps / 7,000,000) * (end - initial) at every step on the cumulative step axis.
+  So:
+    arm A is the config unchanged;
+    arm B is ent_coef = ent_coef_end = 0;
+    add-on C is ent_coef = ent_coef_end = 0.002.
+  Each is one in-memory config edit before the load. D-D43 needed a scratch commit for its loss term; this screen does
+  not. Its harness can run on an unmodified, sealed git archive of 8737cd3d.
+- The run branch already has a same-stage resume path that is a continuation in every respect the screen needs:
+  TB _train_stage_body l1249-1636 with task_load_mode "resume_same_stage" and a periodic zip. It keeps the cumulative
+  step counter and builds the run's full callback set, including StageAwareEvalCallback with #640's and TEL's ledger
+  columns, the policy probe and the checkpoints. It seeds every record with the parent's rows up to the start step.
+    Calling it with a `stage_callback` (TB l1529-1533) gives the in-run ledger M5 reads, unchanged.
+    D-D43's harness bypassed it and never evaluated (RTS l455).
+  Three things must be added around it: a stop at the end step; the arm's config edit; and, for N and S, an edit of
+  the loaded state before learn().
+- Proof of the applied ent_coef: policy_probe.npz records ent_coef (float32) at every rollout end, just before that
+  update's train() [measured as a record: RO E2; code PP l689, l702, l712; OPA l266 -> l337].
+    Arm A's rows can be compared one for one with the original run's own policy_probe.npz at the same update steps.
+    The update grid aligns because every start is a multiple of 8,192.
+- Determinism [inferred, likely]: two identical continuations (same container, start pair, seed, one thread, code
+  copy) should be bit-identical in tensors, VecNormalize statistics, evaluations and ledger cells.
+    Measured on this container: train-twice identity at test scale, and full-length rollout identity without
+    updates. Never measured: a full-scale rerun with updates. D-D43 had no crash, so it wrote no rerun_compare log.
+- Throughput [inferred from measured parts]: about 41-53 min per 1,048,576 steps per process at one thread with
+  the in-run ledger, so the core (30 x 1,048,576 steps) is about 21-27 CPU-hours, about 7.5-9.5 h of wall clock at
+  3 at a time. Disk: about 1.1-1.2 GB for the core with every checkpoint kept and one end trace per continuation;
+  about 2.6-2.9 GB with C, N and S. 5.2 GB was free at 19:50 UTC [measured, df].
+
+======================================================================================================================
+2. (1) WHAT D-D43's run_tailscreen.py DID, AND WHAT CARRIES TO r10
+======================================================================================================================
+2.1 WHAT IT DID [measured, RTS line refs; outcomes from TS/runs/*/run_meta.json]
+- Threads and imports. RTS l328-340 set OMP_NUM_THREADS = MKL_NUM_THREADS = 1 (setdefault), put the scratch clone
+  first on sys.path and refused if environments imported from elsewhere. build() called torch.set_num_threads(1)
+  (l410). RW l32 also exported OMP/MKL = 1 and LC_ALL=C. All 18 run_meta files record torch_threads 1 and device cpu
+  [measured].
+- Recipe check. RTS l362-397 compared the clone's stance config with the start run's own stage_config.json: [env],
+  [ppo], the hyperparameters digest, the run's seed and n_envs, task_sha256, git_commit = the parent commit,
+  [curriculum], and timesteps 12,000,000. It refused on any mismatch.
+- The load, in _train_stage_body's order (RTS l440-454):
+    create_vec_env(..., N_ENVS 4, rep_seed, use_subproc False) for training (l441);
+    an eval env seeded eval_env_seed(rep_seed) = rep_seed + 1000 (l443; TB l1215-1226);
+    _load_vecnorm_into_envs(start_zip, ..., task_load_mode "resume_same_stage", allow_fresh_vecnorm False,
+      vecnorm_path = start_pkl) (l445-447), which carries ret_rms on a same-stage resume (TB l525-526);
+    _prepare_alg_kwargs (l449);
+    alg_kwargs["seed"] = rep_seed, set rather than setdefault (l450);
+    pop_symmetry_config (l451);
+    alg_kwargs["device"] = "cpu" (l452);
+    _create_or_load_model(..., start_zip, "resume_same_stage", symmetry) (l453), which goes through
+      load_sb3_model(**alg_kwargs) (TB l629).
+  SB3's load applies `data` and then the kwargs (BC l738-739), and _setup_model calls set_random_seed(seed) (OPA
+  l116-117), which also seeds the VecEnv. So the load reseeds python, numpy, torch and the env with the replicate seed.
+- Checks after the load (RTS l456-465):
+    the class is MirrorKLPPO;
+    num_timesteps = 4,194,304;
+    _total_timesteps = 12,000,000;
+    device cpu;
+    the VecNormalize is the training env, with training and norm_reward on.
+  Every run_meta records ent_coef_after_load 0.005 [measured], the config's value and not the zip's decayed one.
+- The loss override. MK.enable_tail3_upper_bound(model, Tail3UpperBoundConfig(coef, b)) (RTS l649-650), from the
+  scratch commit 4c0c8da7 (SC l20-24). CONTROL had coef 0.
+- Callbacks (RTS l507-613), with no evaluation:
+    SB3 CheckpointCallback every 131,072 steps (l608; SC l47);
+    EntCoefDecayCallback via _maybe_ent_coef_decay_callback(config, "ppo", ...) (l610), which refused if none was
+      built (l611-612);
+    a Telemetry callback: per rollout end, float64 ent_coef (l543), the learning rate, log_std, mu and command
+      shares, and the previous update's train/* values;
+    StopAndSave (l582-604): at the first rollout start at or past the target, it dumps the logger, digests and saves
+      stage1_final.* (the state after the last update); the next _on_step returns False.
+  The eval env was built "only for the order and the statistics load; it never runs" (l455).
+- learn(total_timesteps = 12,000,000 - 4,194,304, reset_num_timesteps=False) (l656, l685-686). SB3 then sets
+  _total_timesteps = 12,000,000 (BC l411-418), so the learning-rate schedule's progress_remaining
+  (1 - num_timesteps / 12M) stays the run's. StopAndSave ends it after exactly --steps.
+- State digest. sha256 of the parameters, the Adam state and the VecNormalize statistics, at start and end (l481-495).
+- Records. run_meta.json (written with "x" at start, rewritten at the end; l646-699), progress.csv (CSV logger,
+  l651), telemetry.npz.
+- Preflight (l234-324). APPROVED and the criteria sha256; coef.json; arguments in their sets; run folder absent; the
+  start pair's sha256; the clone (clean, branch, HEAD = the approved commit, linear chain, push disabled, the
+  changed-file set); the pinned stack (SC l71-72: Python 3.13.17, torch 2.13.0+cpu, numpy 2.5.4, gymnasium 1.4.0,
+  SB3 2.9.0, mujoco 3.10.0); the gate pass; 5 GB free (l66, l319-322); the tool pins. Exit codes 0, 2 and 1.
+- Waves (RW). 6 waves of the 3 arms of one (state, seed) (l43-44, l171-235); 5 GB floor (l41, l162-184); the crash
+  rule, reruns and a report-only rerun_compare of .pth members and VecNormalize bytes (l130-160, l215-231); the
+  durable copy (l109-126); a panel follower at nice 19 (l102-107).
+- Outcome [measured]. 18 of 18 done, no crash; wall_seconds 2,591.5-2,820.0 per 1,048,576 steps with 3 at a time;
+  telemetry ent_coef at the first rollout end (4,202,496) is 0.001998217142857143, exactly the schedule's float64
+  value [TS/runs/s42_control_r101/telemetry.npz].
+
+2.2 WHAT CARRIES TO r10 UNCHANGED [inferred, from the code above and below]
+- The thread and env pinning (OMP/MKL = 1, torch.set_num_threads(1)), the seed passed to the train env, the eval env
+  and the model, device cpu, use_subproc False.
+- The load through _load_vecnorm_into_envs and _create_or_load_model in resume_same_stage mode, with the explicit
+  vecnorm_path.
+- learn(12,000,000 - start, reset_num_timesteps=False), which keeps the run's LR schedule. The start zips record
+  _total_timesteps 12,000,000 and _current_progress_remaining 0.7385386666666667 at 3,145,728 [measured, zip data].
+- The post-load assertions: MirrorKLPPO; num_timesteps = start; _total_timesteps = 12M; cpu; ent_coef after load =
+  the arm's config value.
+- The recipe check: the run's own stage_config.json against the copy's config. On r10 this reads F2's
+  01_stance/stage_config.json.copy1 (git_commit 8737cd3d, run.timesteps 12,000,000, hyperparameters_sha256 054ab483...,
+  seed, n_envs 4 [measured]).
+- The state digest, run_meta, preflight, the crash rule with a rerun from the start, and the report-only rerun
+  compare.
+
+2.3 WHAT MUST CHANGE
+- Code. Not D-D43's scratch clone with two changed files (SC l20-24): an unmodified sealed archive of 8737cd3d. No
+  Tail3 bound and no gate-tier tests for new repository code.
+- The start pairs. F2's files are named "*.copy1". The resume path recognises a continuation only by the periodic
+  name <stage>_<steps>_steps.zip (TB l398-439; PL l174). So each pair must be byte-copied into the continuation's own
+  stage dir as models/stage1_<start>_steps.zip and stage1_vecnormalize_<start>_steps.pkl, and checked against the
+  manifest's sha256 [measured now, all six equal]:
+    s42 3,145,728: zip 3c054bd738304965bbbcfde588982635ed047436311a267b91f8855e02edad18,
+                   pkl 997f31421d805f6e6cd366b9a9bd05451ed7ab679fd615e7567d259a310f22e0
+    s80 3,145,728: zip d4710ba89818c553575350df2c4bbd1d598036a02a59673fcadc6ad04fca556c,
+                   pkl c00a49099c6b66f3f1f8dc2bcf2d81de77b8df90446361e613ef05b385a0820d
+    s60 6,291,456: zip 938a78e8679a5b9661d01db981b4f0355fb84b87c4cd39fb4c14f7423a20501e,
+                   pkl 356e6e611a3ca29b54983c2aa7e4527663e9ff545b2bd27144010147e568a5ed
+  The 1,048,576 and 2,097,152 pairs (for earlier starts) are also F2-held and manifest-equal [measured for s42
+  1,048,576 and 2,097,152, and s80 2,097,152].
+- The loss term: nothing. The arm is the config edit of 1.
+- Callbacks: the run's own set, from _build_core_callbacks (TB l712-1056) through _train_stage_body, instead of
+  D-D43's four. See 4.
+- Checkpoint cadence. The run's 262,144 (TB l776 _stage_cadence reads the stage's checkpoint_freq; stage_config
+  checkpoint_freq 262144, max_checkpoints 0 [measured]), not D-D43's own 131,072.
+- Length. Per start (NS l178-185), not a fixed 1,048,576: s42 1,572,864, s80 2,359,296, C 2,097,152.
+- Device. _train_stage_body builds alg_kwargs itself and has no device argument. SB3's "auto" picks cpu on this
+  CPU-only torch [measured: torch 2.13.0+cpu]; the harness asserts model.device == cpu.
+- Original device. The stance6 runs trained on CUDA (an L4 [measured, stage_config "gpu"]); the continuation trains
+  on CPU. A named departure, not a change to any loss.
+- Temporary files. _build_core_callbacks writes evaluations.npz through tempfile.mkdtemp (TB l799), under /tmp by
+  default. To stay inside ecs/, the launcher sets TMPDIR (and MPLCONFIGDIR) under ecs/.
+- The record of the commit. CFG get_git_commit l67-91 runs `git rev-parse HEAD`. An archive copy has no .git, so a
+  continuation's stage_config.json would record "unknown" unless GITHUB_SHA is set to the archive's commit. M1's
+  --stage-config check needs that commit; --no-run-records avoids it (LA measure_r10round.py l9-24).
+
+======================================================================================================================
+3. (2) THE ENTROPY SCHEDULE AND THE ARMS
+======================================================================================================================
+3.1 HOW IT IS APPLIED IN TRAINING [measured, code]
+- The config keys ent_coef_end and ent_coef_decay_timesteps are popped from the PPO kwargs (TB l373-378) and read by
+  _maybe_ent_coef_decay_callback (TB l1059-1077). On r10: ent_coef 0.005, ent_coef_end 0.0, ent_coef_decay_timesteps
+  7,000,000 [measured, F2 stage_config.json.copy1].
+- _train_stage_body appends the callback after the core callbacks and before stage_callback (TB l1524-1533), with
+  the decay anchor absolute (the comment at l1519-1523).
+- EntCoefDecayCallback (SCH l147-216):
+    _on_training_start captures initial = model.ent_coef (l195-203). It defers only while a warm-up marker is set,
+    and a same-stage resume clears a stale marker (TB l680-686). The start zips carry none [measured, data keys].
+    _on_step: ent_coef = initial + min(1, num_timesteps / 7,000,000) * (end - initial) (l213-215), every env step.
+- At the load, kwargs override data (BC l738-739), so model.ent_coef = the config's 0.005, not the zip's stored
+  value. The zips store 0.0027530542857142856 at 3,145,728 and 0.0005061057142857145 at 6,291,456, the exact float64
+  schedule values [measured, zip data]. D-D43 recorded ent_coef_after_load 0.005 in all 18 runs [measured].
+- What train() uses. The value set at the rollout's last step: collect_rollouts adds 4 to num_timesteps per step (OPA
+  l220), calls on_step (l224) and on_rollout_end (l266), and learn then calls train() (l337). Nothing runs between
+  them. The loss is policy_loss + self.ent_coef * entropy_loss + vf_coef * value_loss (MK l379).
+- The update grid. The update after the rollout ending at t uses ent_coef(t). On the original runs: 0.00275305 at
+  update 3,145,728; 0.0027472 at 3,153,920; 0.0005061 at 6,291,456; 0.00050025 at 6,299,648 [measured, s42
+  policy_probe.npz.copy1]. It is 0 from update 7,004,160 (RO E2).
+
+3.2 THE ARMS IN A CONTINUATION [inferred, from 3.1]
+- The checkpoint stage1_<S>_steps.zip is saved inside the last step of the rollout ending at S, before that rollout's
+  update (CB l301; OPA l224, l337). So a continuation from S starts from the parameters that collected that rollout.
+    It never makes the original's update on that rollout, the one at ent_coef(S).
+    Its first update is at S + 8,192.
+  A named departure, inherent to any continuation; D-D43 had the same one.
+- Arm A (recorded schedule). The config unchanged. The first applied value is ent_coef(S + 8,192): 0.0027472 from
+  3,145,728; 0.00050025 from 6,291,456. Then the run's exact linear values, reaching 0 at update 7,004,160.
+- Arm B (0 throughout). stage_configs[stage]["ppo_kwargs"]["ent_coef"] = 0.0 and ["ent_coef_end"] = 0.0, set in memory
+  before _train_stage_body. The callback captures 0 and holds 0 (SCH l213-215). The callback list is the same as
+  arm A's.
+  Alternative: a callback after the decay callback that forces 0 at every step. It leaves the config unchanged but
+  hides the change from the config record. Not recommended.
+- Add-on C (0.002 held to 8,388,608). The same edit with 0.002 for both keys: constant 0.002 from update 6,299,648,
+  against the recorded 0.00050025 there. It reinstates the bonus at about 4x the recorded value; it does not "hold" it.
+- Every other hyperparameter, the LR schedule (via _total_timesteps 12M), clip 0.2, target_kl 0.03 and max_grad_norm
+  0.5 [measured, zip data] stay the run's. The recipe check would require B's and C's config to differ from the run's
+  stage_config in exactly {ent_coef, ent_coef_end}.
+
+3.3 PROVING WHICH VALUE WAS APPLIED AT EVERY UPDATE (from the continuation's own records)
+- policy_probe.npz (PP l689, l702): ent_coef as float32 at every rollout end (l712), i.e. the value of the update
+  that follows. It also records learning_rate (l627-631, SB3's own formula), std_per_actuator, and obs_rms
+  mean/var/count and ret_rms_var. It is a core callback, so it runs in the continuation unchanged (TB l937-947).
+  The checks [inferred]:
+    A: every row after S equals, as float32, the original run's policy_probe.npz row at the same update_timesteps.
+       Same grid; the review found the recorded rows equal to the schedule within 2.3e-10 (RO E2).
+    B: every row after S is 0.0.
+    C: every row after S is float32(0.002).
+  The same comparison of learning_rate proves the LR schedule continued as recorded.
+- The probe holds float32 only. An exact float64 proof would need a small harness callback, like D-D43's Telemetry
+  (RTS l543), recording model.ent_coef at each rollout end and asserting it against the schedule formula. New code,
+  optional (gap G3).
+- Each continuation checkpoint's zip `data` also stores ent_coef at its save step (read as JSON, no unpickling). A
+  third, sparse record.
+- The stage_config.json the harness writes through CFG save_stage_config (as train() does, TB l1855-1870) records the
+  arm's [ppo] block and its hyperparameters_sha256. Arm A's equals the run's 054ab483...; B's and C's differ. So the
+  training change is named in the run's own records.
+- With seeded records (4.2), the probe file also holds the parent's rows up to S. The check reads rows with
+  update_timesteps > S.
+
+======================================================================================================================
+4. (3) THE IN-RUN LEDGER (StageAwareEvalCallback inside a continuation, read by M5 unchanged)
+======================================================================================================================
+4.1 WHAT BUILDS IT [measured, code]
+- _build_core_callbacks (TB l712-1056) builds:
+    StageAwareEvalCallback and StageGatePlateauCallback, through build_stage_evaluation_callbacks (TB l800-817;
+      ED l2742-2801), with ledger_dir = the stage dir, model_id, eval_freq = 131,072 / 4 (TB l776, l814),
+      n_eval_episodes = 10 (l815) and deterministic=True;
+    PublishEvalArtifactsCallback, RobustBestModelCallback, CheckpointCallback (l846) and retention (l879);
+    the optional K3 panel (l900);
+    DiagnosticsCallback, the training ledger (l921) and the policy probe (l937);
+    the collapse early stop (l960); the baseline watch (advisory; built only when the run folder holds the zero-action
+      baseline, and absent from RB's run); the hop watch (l997); the posture watches; and progress.json (l1027).
+  The same list ran in a full-length run-branch rollout run on this container [measured, RB
+  build/equiv/k3on/C.log: 14 callbacks named].
+- The ledger. ED l395-418 and l1698-1709: eval_episodes.csv is rewritten after every evaluation, one row per episode,
+  with the fixed columns `evaluation`, `timesteps` (= the absolute num_timesteps, ED l1662-1663), episode, return,
+  length, screen_v2_clean, screen_v2_reasons, the #640 columns saturated_actuator* and actuators_saturated, and the
+  posture and TEL body columns.
+  The stance6 ledgers have 194 columns, 910 rows, and 91 evaluations of 10 rows on the 131,072 grid [measured, F2
+  s42 eval_episodes.csv.copy1]. A run-branch rollout run on this container wrote the same 194 (68 + 126) [measured,
+  RB review/eq/rb40/compare_stage.txt].
+- The eval env. create_vec_env(..., 1, eval_env_seed(seed)) (TB l1345). It gets the start pkl's statistics with
+  training and norm_reward off (TB l462-545). SB3's EvalCallback syncs the training env's normalisation into it before
+  each evaluation (CB l450-454).
+
+4.2 WHAT IT TAKES FOR M5 TO READ IT UNCHANGED
+- The grid. EvalCallback fires on n_calls % eval_freq == 0, counted from the continuation's start (CB l450; ED l1482).
+  CheckpointCallback likewise (CB l301). So rows land on M5's absolute grid (LB r10round_common.py l64-67: 131,072
+  ... 11,927,552) only if S is a multiple of 131,072, and checkpoints land on the 262,144 grid only if S is a multiple
+  of 262,144.
+    All proposed starts qualify [inferred, arithmetic]: 1,048,576, 2,097,152, 3,145,728, 6,291,456, and the analyst's
+    3,407,872, 3,670,016 and 6,815,744.
+    So do the ends: 4,718,592 (36 evaluations), 5,505,024 (42) and 8,388,608 (64).
+- Seeding (recommended). If the stage dir holds the parent's records under their real names (evaluations.npz,
+  eval_episodes.csv, gate_progress.npz, train_episodes.csv, policy_probe.npz, and k3_panel.json if the panel is on),
+  the resume path seeds each with the rows at or before S:
+    TB l1487-1511 seed_candidates (the stage dir, or the checkpoint's grandparent) and seed_resume_eval_state;
+    CK l273-460 (best trackers, history kept to max_timesteps l359-373, gate_progress and every seed_prior_record
+      l405-418);
+    ED l1433-1442 (the ledger keeps rows at or before S);
+    PP l779 (the probe);
+    the ledger's seed_prior, episode_ledger.py l122-150.
+  F2 holds all of them for s60, s42 and s80 [measured, listing; one copy of each but eval_episodes.csv, which has two].
+  The resulting ledger is the whole grid up to the end:
+    M5 (LB ledger_r10round.py) reads it as one eval_episodes.csv, with no change.
+    Its C6 completeness check with --E <end> passes when the continuation is complete (ledger_r10round.py l50-73).
+    The reading then counts only evaluations with timesteps > S. M5's JSON keeps per_evaluation by step (l241-247).
+  For every proposed start the parent's evaluation at S is flag-free: first flagged evaluations s42 3,801,088, s80
+  4,849,664, s60 none (RO E3; RV D-1). So an alarm at
+  S + 131,072 cannot borrow a parent flag.
+- Without seeding. The ledger holds only the continuation's rows. M5 still reads the rows as they stand, and an alarm
+  needs two consecutive present evaluations, so the first possible one is at S + 262,144. But C6 with --E fails by
+  design (the evaluations at or before S are absent), and the collapse backstop never arms: collapse_min_evals 20
+  [measured, stage_config] exceeds the 12-18 evaluations of a continuation.
+- Columns. The same code writes the same columns [inferred]. A rollout-only validation (G9, no optimizer step) can
+  confirm the header before approval, as the run-branch build did (RB: rollouts with every
+  callback and no train()).
+- M6 (ledger_r10round.py --probe, l132-151) reads "rollout_timesteps", which policy_probe.npz does not have; its step
+  key is update_timesteps [measured, PP l103; F2 probe keys]. So M6 prints per-row arrays without steps. To restrict it
+  to the continuation (C's reading, or any M6 reading) needs a small change or a reader (gap G7).
+- M1 end traces run unchanged in out-dir mode (LA measure_r10round.py l9-24, "m1 --copy DIR --zip Z --pkl P
+  (--stage-config SC | --no-run-records) --out DIR"). The continuation zips keep the plant identity (TB l692-694), so
+  its physics_revision 10 check passes [inferred].
+- Callbacks that can end a continuation early, as they could in the run (decide how they read):
+    the collapse early stop (TB l960; armed only with seeding);
+    the hop watch (HW l114-134; cumulative step, after 7,000,000, with hop_watch_stop true [measured, stage_config]).
+      It is live only in add-on C (6.29M -> 8.39M).
+  The plateau callback never stops (ED l2725-2739).
+
+4.3 THE STOP AT THE END STEP
+- _train_stage_body has no stop-at-N; total_timesteps must stay 12M - S for the LR schedule. A stop callback passed as
+  stage_callback is needed (gap G2).
+- Recommended form [inferred, CB l224; OPA l224, l324-339]: return False from _on_step when num_timesteps == END.
+    CallbackList still runs every callback's _on_step that step, so the evaluation and the checkpoint at END happen.
+    collect_rollouts then returns False before on_rollout_end, learn breaks before train(), and on_training_end runs.
+  No update is made on the END rollout. TB l1604's stage1_final pair then equals the stage1_<END>_steps pair in
+  parameters, Adam and statistics, and the last policy-probe row is END - 8,192, the last update actually applied.
+  Updates per continuation: 191 (s42), 287 (s80), 255 (C).
+- D-D43's form (save at the next rollout start, RTS l592-604) also works. It makes one extra, unread update.
+
+======================================================================================================================
+5. (4) CPU DETERMINISM: ARE TWO IDENTICAL CONTINUATIONS BIT-IDENTICAL?
+======================================================================================================================
+- From the code [inferred]: every source is deterministic given the same inputs.
+    One torch thread. Fixed by torch.set_num_threads(1) and OMP/MKL = 1. Note _train_stage_body does not set it
+    itself; the harness must.
+    MuJoCo, single-threaded.
+    DummyVecEnv, sequential.
+    Seeds through create_vec_env, eval_env_seed and set_random_seed at the load (OPA l116-117).
+    The probe and K3 panel guard the global generators (PP; K3 l683-688).
+    Adam and clip_grad_norm on CPU; the target_kl early stop on a deterministic approx_kl.
+  Nothing reads the clock into training.
+- Measured on this container:
+  (a) Training with updates, test scale. The in-suite inertness proof (test_curriculum_balance_telemetry.py l1-41,
+      l221-291) trains the real T. rex stance twice: 768 steps, one thread, stock PPO and the MirrorKLPPO pair. It
+      asserts bit-equal evaluations.npz, every checkpoint tensor (policy and optimizer) and the VecNormalize
+      statistics (l351-373). Recorded as passing here (RUNLOG l520, l534, l630).
+  (b) Full-length rollouts without updates. Run-branch HEAD against the port, in separate processes:
+        40 rollouts across a 262,144 checkpoint;
+        129 rollouts (1,056,768 steps) with in-run evaluations and the K3 panel on.
+      Identical rollout buffers, evaluations.npz, gate_progress.npz, policy_probe.npz, and ledger cells column for
+      column [measured, RB build/equiv/rollout_digest_pins.txt; review/eq/rb40/compare_records.txt,
+      compare_stage.txt; RUNLOG l640]. These ran "updates 0".
+  (c) D-D43's gate test T2: same-seed reproducibility with optimizer steps, on a toy model only (BS l254). It passed
+      at the gate (RUNLOG l553-554).
+  (d) A warning. The torch thread count changes float32 rounding of actions and so whole trajectories (RUNLOG l595).
+      Threads must be equal across replicates and reruns.
+  (e) No full-scale rerun with updates exists. D-D43 had no crash (RUNLOG l567-572 "no crashed attempt") and its
+      logs hold no *_rerun_compare.json [measured, ls TS/logs].
+- What "bit-identical" should mean. The .pth members, not the zip bytes: SB3 zips carry system_info.txt and member
+  timestamps. Also the VecNormalize mean, var and count, evaluations.npz, and the ledger cells.
+  progress.json, run_meta times and the probe's bank_build_seconds differ by design (RB compare excluded
+  bank_build_seconds).
+- Not covered [inferred]. A different container image or CPU (the container has restarted before, RUNLOG l217, l458,
+  l659) may change MKL kernel paths. A rerun after re-provisioning may not be bit-identical.
+- A built-in check, free. With the same training seed in arms A and B, the first rollout comes before any update. It
+  should be bit-identical across arms: the policy probe's first-row rollout_* arrays equal, ent_coef different. The
+  rows diverge from the second on. This proves both determinism across processes and that the arms differ only from
+  the first update.
+
+======================================================================================================================
+6. (5) THE ADD-ONS' MECHANICS
+======================================================================================================================
+N (VecNormalize statistics frozen at the start)
+- VN: obs_rms and ret_rms update only when `training` is on (step_wait l186-195, _update_reward l209-212, reset
+  l301-307).
+- MirrorKLPPO installs SymmetricRunningMeanStd at every learn() (MK l235-248, l100-164), and its update() is the
+  symmetric one.
+- learn() resets the env before any callback hook (BC l421-423, then OPA l319). With training on, the reset's 4
+  observations enter obs_rms (the K3 panel's hold_restored_normalization exists for this, K3 l657-674).
+  So an exact freeze must happen before learn(): after _create_or_load_model, before TB l1561.
+    _train_stage_body exposes no hook there for a stage_callback: its hold loop runs only over the core callbacks (TB
+    l1514-1518), and stage_callback receives only eval_env and eval_callback (l1532).
+    So the harness must wrap train_base._create_or_load_model, which is looked up at call time (TB l1395), or
+    re-implement the body.
+- Two forms:
+    N1: train_env.training = False. One line. It freezes obs_rms and ret_rms, so the reward scale is frozen too.
+    N2: obs_rms only. Replace it with a SymmetricRunningMeanStd subclass whose update() does nothing. It pickles as
+        the stock class (MK l149-152), and install_symmetric_obs_rms keeps it because it is already the symmetric
+        class (MK l157-161). About 15 lines.
+- Proof from the run's records: obs_rms_mean, obs_rms_var and obs_rms_count constant in every probe row after S (and
+  ret_rms_var for N1), and every checkpoint pkl's statistics equal to the start pkl's.
+S (log_std reset to -1.5 on every actuator)
+- policy.log_std is one state-independent parameter per actuator. Fill it with -1.5 under no_grad after the load and
+  before the first update; exp(-1.5) = 0.2231.
+- The mirror tie needs mirror pairs equal at learn() (MK l174-186, l244). An all-equal fill keeps them equal.
+- Precedent: pilot 2's planned reset, "after the parent's parameters load and before the first update, with the
+  optimizer's moments kept" (COPY docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md l1394-1407; NEXT
+  l459-461). Its code lives on claude/pilot-walk-r9-b, not in this tree.
+- Where: in the same _create_or_load_model wrapper, or in a stage_callback's _on_training_start. The latter is before
+  the first rollout (OPA l319-324) and after the tie hook is registered; an in-place fill keeps the same Parameter.
+- Proof: the probe's first row has std_per_actuator 0.2231 on all 15 (it is taken before the first update).
+C (s60's 6,291,456 start, ent_coef 0.002 to 8,388,608)
+- The config edit of 3.2, with the start pair above and 2,097,152 steps (8 checkpoints, 16 evaluations, 255
+  updates).
+- The hop watch is armed from 7,000,000 (4.2). If it trips, training stops. That is the run's own procedure, and the
+  pre-registration must say how a stopped C reads.
+- Arm A of C crosses update 7,004,160, where the recorded bonus reaches 0.
+
+======================================================================================================================
+7. (6) THROUGHPUT
+======================================================================================================================
+- [measured] D-D43 (r9 code, no core callbacks and no evaluations, 1 thread, 3 at once): 2,591.5-2,820.0 s per
+  1,048,576 steps (43.2-47.0 min), setup included [TS/runs/*/run_meta.json wall_seconds; RUNLOG l567-572: "about
+  44-46 min each"].
+  Its feasibility measurement: 21.8 s per rollout alone (17.9-18.7 s to collect, 1.5-5.6 s to update); 22.9-23.9 s
+  per rollout with three at once (TSC l429-431).
+- [measured] The run branch on this container, the full core callback set with 8 in-run evaluations per 1,048,576
+  and NO PPO update (1 thread, nice 10, mostly 2 processes at once): 2,302 s (panel off) and 2,362 s (panel on) for
+  129 rollouts, 1,056,768 steps. That is 17.8-18.3 s per rollout including the evaluations [RB build/equiv/k3on/C.log,
+  B.log, run.log; ran 02:54-03:44 UTC on 10-26].
+  A 33-rollout run with 2 evaluations took 598 s, setup included [RB build/equiv/rb33].
+- [inferred] r10 continuation: the r10 rollout figure plus D-D43's update figure is about 19.3-23.4 s per rollout, so
+  41-50 min per 1,048,576 (51 with the K3 panel on). With 3 at once, plus about 5% (D-D43's alone-against-three ratio), about 43-53 min.
+- [inferred] What the in-run evaluations add: 80 deterministic episodes per 1,048,576 at about 3.3-3.6 s each (the M1
+  rate, 20 episodes in 1.1-1.2 min, NS l234-235). That is 4.4-4.8 min, about 10%.
+  RUNLOG l630's +2.3 to +6.0% is TEL's cost within an evaluation.
+  The K3 panel, if on: about 85 s per panel per 1,048,576 [measured, RUNLOG l630], about 3%. No catch-up panel at
+  the start when the seeded k3_panel.json already holds the start step's panel (K3 l700-710).
+- [inferred] Totals, in 1,048,576-step units:
+    core 30 (8 x 1.5 + 8 x 2.25): 21-27 CPU-hours; about 7.5-9.5 h of wall clock at 3 at a time, with a 4th core
+      for the 16 end traces (about 1.2 min each).
+    C 16: about 11-14 CPU-hours.
+    N 15 and S 15 (4 per start each): about 10-13 CPU-hours each.
+  This agrees with NS l227-237 (25-26 CPU-hours, 8.5-9 h).
+  4 at a time is unmeasured. Another workflow (the records PR build, RUNLOG l720) may share the CPU.
+
+======================================================================================================================
+8. (7) DISK PER CONTINUATION
+======================================================================================================================
+Bases [measured]:
+  a trained zip 4,033,6xx B and a pkl 5,291 B (F2 listings);
+  eval_episodes.csv 3,193 B per row (2,905,418 / 910);
+  policy_probe.npz about 2,379 B per update (3,485,432 / 1,465);
+  train_episodes.csv 3.93 MB per 12M steps;
+  gate_progress.npz 255 KB per 91 evaluations;
+  diagnostics.npz about 130 KB per 1M (RB k3on/scr_B);
+  an M1 end trace 18 MB (S1/foot/stance6/panels/stance6_r10LTSB_s60/3145728/m1);
+  the code copy 97 MB.
+Per continuation, with every checkpoint kept as the run kept them (max_checkpoints 0), seeded records, and one end
+trace [inferred]:
+  s42 (1,572,864 steps): 6 pairs, 24.2 MB; final 4.0; the start pair copy 4.0; ledgers about 4.4. About 37 MB, plus
+    up to 8.1 MB if a best/robust_best pair is written (unlikely: the seeded best tracker covers the whole original
+    record, CK l347-357). Plus 18 MB of trace.
+  s80 (2,359,296 steps): 9 pairs, 36.4 MB; final 4.0; start 4.0; ledgers about 5.1. About 50 MB (up to 58), plus 18
+    MB of trace.
+  C (2,097,152 steps): 8 pairs, 32.3 MB; final 4.0; start 4.0; ledgers about 7.7. About 48 MB (up to 56), plus 18 MB.
+Totals [inferred]:
+  core about 0.70-0.82 GB of runs, 0.29 GB of traces and 0.1 GB of code: about 1.1-1.2 GB;
+  C about 0.52-0.59 GB; N and S about 0.49-0.55 GB each;
+  all about 2.6-2.9 GB.
+Free: 5.2 GB at 19:50 UTC [measured, df].
+  D-D43's 5 GB floor (RW l41) would refuse even the core's start.
+  Lane A's 3 GB floor (LA measure_r10round.py) allows the core (about 4.0 GB left) but not all the add-ons with every
+  checkpoint kept.
+  Keeping only the END pair (and the start copy) cuts runs to about 12-16 MB each.
+
+======================================================================================================================
+9. THE LEAN HARNESS THIS POINTS TO [inferred; for the drafter]
+======================================================================================================================
+  launcher: OMP_NUM_THREADS = MKL_NUM_THREADS = OPENBLAS_NUM_THREADS = 1; TMPDIR and MPLCONFIGDIR under ecs/;
+            GITHUB_SHA = the archive's commit; nice level and process count as approved;
+            PY -I -B run_ecs.py --start <s42|s80|s60> --arm <A|B|C|N|S> --seed <k>
+  preflight: APPROVED pins, the code copy's seal (r10m_common.py check_copy), the start pair's sha256 against the
+             manifest, the stack, disk, the folder absent, and tool pins (RTS l234-324, ported)
+  stage dir: ecs/runs/<name>/01_stance/ with models/ holding the start pair under its periodic name, and the five
+             parent records under their real names
+  config:    load_all_stages; the arm edit of 3.2 (A none; B 0/0; C 0.002/0.002); recipe check against the run's
+             stage_config.json.copy1 (the only allowed difference is {ent_coef, ent_coef_end}); save_stage_config
+  body:      train_base._train_stage_body(..., load_path = the periodic zip, task_load_mode "resume_same_stage",
+             vecnorm_path = the pkl, total_timesteps = 12,000,000 - S, n_envs 4, seed k, use_subproc False,
+             use_tensorboard False, k3_panel None or on, stage_callback = StopAtEnd (+ optional float64 ent_coef
+             recorder)); for N and S, a wrapper around train_base._create_or_load_model makes the start-state edit
+             and asserts ent_coef, num_timesteps, _total_timesteps, class and device
+  after:     state digests, run_meta, the copy's seal again, then an M1 end trace (LA m1 --out) on the END pair
+
+======================================================================================================================
+10. GAPS THAT NEED NEW CODE
+======================================================================================================================
+G1  run_ecs.py (the harness of 9), ported from RTS: preflight, stage-dir layout and the byte copies, the arm config
+    edit and recipe check, the _train_stage_body call, the assertions, the digests and run_meta.
+G2  The stop-at-END callback (4.3). A few lines.
+G3  (Optional) A float64 ent_coef and learning-rate recorder at each rollout end, with an assertion against the
+    schedule formula (RTS l543 precedent). The float32 probe proof needs no new training-side code.
+G4  The applied-value checker. For every row after S: A against the original policy_probe.npz, B against 0, C against
+    float32(0.002); learning_rate against the original. Report only.
+G5  N's freeze: N1 one line, or N2 a frozen SymmetricRunningMeanStd subclass; placed through the
+    _create_or_load_model wrapper. Plus its proof check (constant probe statistics, pkls equal to the start).
+G6  S's reset: log_std.fill_(-1.5) under no_grad, Adam moments kept, and its proof (first probe row 0.2231 on all 15).
+G7  The reader and statistic: M5 per continuation restricted to evaluations > S; the arm counts per start and the
+    exact test; the first-flag steps. M6 needs its step key: the probe has update_timesteps, not rollout_timesteps
+    (4.2).
+G8  The wave runner and the crash rule (RW port): process count, nice, waves by (start, seed), rerun from start,
+    rerun compare, and the disk floor.
+G9  A pre-approval validation without any optimizer step: the setup through _setup_learn and collect_rollouts, with
+    train() never called, to one evaluation. It confirms the 194-column header, the seeded row counts, the
+    ent_coef set at the first step per arm, and that A and B have identical first buffers. RB's rollbuf_k3.py is the
+    precedent (RB build/tools).
+G10 (If chosen) A durable-copy script (TS copy_durable.sh port) and a determinism probe (one start, a few rollouts
+    with updates, twice; this needs approval as training).
+
+======================================================================================================================
+11. CHOICES FOR THE MAINTAINER (each with a recommended option)
+======================================================================================================================
+C-1  Harness form. (a) Call _train_stage_body with a stage_callback, plus a _create_or_load_model wrapper for N and
+     S: the run's exact callbacks and resume seeding, least new code. (b) Re-implement the body, D-D43's pattern:
+     more code to review.
+     RECOMMENDED (a).
+C-2  The ent_coef change for B and C (a training-loss change; it needs the maintainer's approval). (a) An in-memory
+     config edit of ent_coef and ent_coef_end, recorded in the continuation's stage_config.json. (b) A callback that
+     overrides the value at every step.
+     RECOMMENDED (a).
+C-3  Code. (a) A fresh sealed archive of 8737cd3d in ecs/ (measure_r10round.py build-copy --approved, read only on
+     the clone). (b) The f2 measuring copy (outside ecs/; nothing may be written near it). (c) A scratch clone or
+     branch (not needed: no repository change).
+     RECOMMENDED (a).
+C-4  Records. (a) Seed the parent's records (4.2): M5 and its C6 run unchanged and the collapse backstop behaves as
+     in the run. (b) Fresh records, with only the continuation's rows.
+     RECOMMENDED (a), reading only evaluations > S.
+C-5  The end state for traces. (a) The stage1_<END>_steps pair, with no update on the END rollout (4.3). (b) D-D43's
+     post-update final.
+     RECOMMENDED (a).
+C-6  Seeds. (a) The same training seeds in A and B (paired: the first rollout is identical, a free determinism and
+     manipulation check, but the analysis must treat the pairs as paired). (b) Distinct seeds per arm.
+     The exact test NS l186-187 assumes 4 + 4 exchangeable continuations. A within-pair permutation test on 4 pairs
+     cannot reach p 0.05 at one start (minimum 1/16). D-D43 used 101/202/303, distinct from the runs' own seeds.
+     RECOMMENDED (b) if the pre-registered statistic stays Fisher's; otherwise (a) with a paired statistic, stated in
+     advance.
+C-7  N's form (training-procedure change). N1 (freezes both obs and return statistics; one line) or N2 (obs only;
+     about 15 lines; isolates REVIEW D-15's observation drift).
+     RECOMMENDED N2.
+C-8  S's Adam moments. Kept (pilot 2's precedent) or zeroed.
+     RECOMMENDED kept.
+C-9  Callbacks that can stop a continuation (the hop watch in C, the collapse stop). Keep them as the run had them,
+     and pre-register how a stopped continuation reads (for example as a habit-free end at its stop step, or as its
+     own class).
+     RECOMMENDED: keep them, and name the reading.
+C-10 The K3 panel. Off (no reading needs it; inert by the proof) or on (report-only K3 per continuation, about 3%).
+     RECOMMENDED off.
+C-11 Checkpoints. Keep all (the run's max_checkpoints 0; about 0.8 GB for the core), or keep the END pair only after
+     the end trace.
+     RECOMMENDED: keep all for the core; prune to END pairs before any add-on if disk falls below the floor.
+C-12 Disk floor. 5 GB (D-D43) refuses at 5.2 GB free; 3 GB (lane A) allows the core.
+     RECOMMENDED 3 GB, with housekeeping first (NS P4).
+C-13 Parallelism and nice. D-D43 ran 3 at a time with a follower at nice 19 on the 4th core.
+     RECOMMENDED 3 at nice 10 (the round's measurement level), traces at nice 19, and no other simulation beside them.
+C-14 A determinism probe after approval (a few rollouts with updates, run twice). Optional. The paired first-rollout
+     check (C-6 (a)) covers rollouts only.
+     RECOMMENDED: only if C-6 is (b).
+C-15 Named departures to accept in the pre-registration:
+       CPU against the original CUDA;
+       a fresh env reset and episode start at S;
+       the original's update on the rollout ending at S is not made;
+       new RNG streams (so arm A is not a replay of the run);
+       the eval env seeded afresh.
+
+======================================================================================================================
+12. LIMITS
+======================================================================================================================
+- Every throughput figure is an estimate combining two measured parts from different code (r9 harness updates, r10
+  rollouts without updates). Neither part was measured with updates on r10 at full callback load.
+- Determinism at full scale with updates is inferred, not measured on this stack.
+- No code was run. The ledger header, the seeded row counts and the first-step ent_coef are read from the code, and
+  are to be confirmed by G9 without any optimizer step.
+- Not checked: whether the policy probe's state bank built at a continuation's start equals the parent's (PP l779
+  holds the prior rows until it compares the banks). G9 would show it.
+
+END (survey only; nothing proposed here starts without the maintainer's approval).

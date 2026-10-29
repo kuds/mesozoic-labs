@@ -1,0 +1,162 @@
+read_ecs 1.0 (ECS build list v2 item 6; lane R, 2026-10-28)
+tool sha256 6f55b3b96bae795d46c3ef693b5b542895186adb4ccb51957076f3421c2fee15  utc 2026-10-29T12:15:26Z
+run /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/ecs/runs/s42_A_1141 (continuation) s42_A_1141: start s42 arm A seed 1141; S 3,145,728; T 4,718,592; stop reason end
+  check.json /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/ecs/runs/s42_A_1141/check.json  sha256 af3ce757939442cf0a243a25f7b2f647adc10acb2f49ae38c976582afb1bf396
+  ledger /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/ecs/runs/s42_A_1141/01_stance/eval_episodes.csv  sha256 b42880e16b727eb890f56a626d1800944fd7534f49ddb10ba2cc6f9fc5b4fc98
+  M5 /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/lean/build/laneB/tools/ledger_r10round.py  sha256 0d89bcb858e19f780c3ce0ac7a5886fc01b33d78164d9ee37d2e50dc1d4b0511 (= pin); common sha256 ea2c5ea6984b8dc00c1c066a4441a59526c515ceb111da17eaf1688a009226c5 (= pin)
+  M5 JSON /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/ecs/score/read/s42_A_1141/m5.json  sha256 ce9a1dc4712eb92a760e1ee4a878862ef4446f83784a1c1a524ea29678004c7c
+R1 window (3,145,728, 4,718,592]: evaluations read 12
+    step         n  ANY  TAIL  UNRES  flags
+       3276800  10    0     0      0  --
+       3407872  10    0     0      0  --
+       3538944  10    4     4      0  --
+       3670016  10    4     4      0  --
+       3801088  10    3     3      0  --
+       3932160  10    9     9      0  AT
+       4063232  10    3     3      0  --
+       4194304  10    9     9      0  AT
+       4325376  10    5     5      0  AT
+       4456448  10    8     8      0  AT
+       4587520  10    9     9      0  AT
+       4718592  10   10    10      0  AT
+  POSITIVE: True  first ANY-flagged step: 3932160  ANY-flagged evaluations: 6 [3932160, 4194304, 4325376, 4456448, 4587520, 4718592]
+  ANY ALARM steps in the window: [4325376, 4456448, 4587520, 4718592]; straddling S (not counted): []
+  TAIL-flagged evaluations: [3932160, 4194304, 4325376, 4456448, 4587520, 4718592]; TAIL ALARM steps: [4325376, 4456448, 4587520, 4718592]; straddling S (not counted): []
+  C6 (M5 --E 4718592): M5 PASS; counting failures 0 -> C6 OK; TAIL input missing (report only) 0
+  report only, from /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/ecs/runs/s42_A_1141/01_stance/eval_episodes.csv: mean return at T 4306.417246, mean length at T 1000.0
+R2 (report only) /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/ecs/runs/s42_A_1141/01_stance/policy_probe.npz  sha256 fa4aeec6790bca40ed04d03f7687b433de8dfee0091868145e3e908f46865693: 191 rows [3153920]..[4710400] (step key update_timesteps)
+    every array's rows in (3,145,728, 4,718,592) are in /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/ecs/score/read/s42_A_1141/r2_arrays.json; per actuator first / last / mean / max over the rows:
+    rollout_mu_beyond_high_share:
+      neck_pitch_act    0.0000 / 0.0000 / 0.0000 / 0.0000
+      neck_yaw_act      0.0000 / 0.0000 / 0.0000 / 0.0000
+      head_pitch_act    0.0000 / 0.0000 / 0.0000 / 0.0000
+      r_hip_pitch_act   0.0000 / 0.0000 / 0.0000 / 0.0000
+      r_hip_roll_act    0.0000 / 0.0000 / 0.0000 / 0.0000
+      r_knee_act        0.0000 / 0.0000 / 0.0000 / 0.0000
+      r_ankle_act       0.0000 / 0.0000 / 0.0000 / 0.0000
+      l_hip_pitch_act   0.0000 / 0.0000 / 0.0000 / 0.0000
+      l_hip_roll_act    0.0000 / 0.0000 / 0.0000 / 0.0000
+      l_knee_act        0.0000 / 0.0000 / 0.0000 / 0.0000
+      l_ankle_act       0.0000 / 0.0000 / 0.0000 / 0.0000
+      tail_1_pitch_act  0.0000 / 0.0000 / 0.0000 / 0.0000
+      tail_1_yaw_act    0.0000 / 0.0000 / 0.0000 / 0.0000
+      tail_2_pitch_act  0.0000 / 0.0000 / 0.0000 / 0.0000
+      tail_3_pitch_act  0.0000 / 0.2057 / 0.0784 / 0.4360
+    rollout_mu_beyond_low_share:
+      neck_pitch_act    0.0000 / 0.0000 / 0.0000 / 0.0000
+      neck_yaw_act      0.0000 / 0.0000 / 0.0000 / 0.0000
+      head_pitch_act    0.0000 / 0.0000 / 0.0000 / 0.0000
+      r_hip_pitch_act   0.0000 / 0.0000 / 0.0000 / 0.0000
+      r_hip_roll_act    0.0000 / 0.0000 / 0.0000 / 0.0000
+      r_knee_act        0.0000 / 0.0000 / 0.0000 / 0.0000
+      r_ankle_act       0.0000 / 0.0000 / 0.0000 / 0.0000
+      l_hip_pitch_act   0.0000 / 0.0000 / 0.0000 / 0.0000
+      l_hip_roll_act    0.0000 / 0.0000 / 0.0000 / 0.0000
+      l_knee_act        0.0000 / 0.0000 / 0.0000 / 0.0000
+      l_ankle_act       0.0000 / 0.0000 / 0.0000 / 0.0000
+      tail_1_pitch_act  0.0000 / 0.0000 / 0.0000 / 0.0000
+      tail_1_yaw_act    0.0000 / 0.0000 / 0.0000 / 0.0000
+      tail_2_pitch_act  0.0000 / 0.0000 / 0.0000 / 0.0000
+      tail_3_pitch_act  0.0000 / 0.0000 / 0.0000 / 0.0000
+    rollout_action_clip_high_share:
+      neck_pitch_act    0.0000 / 0.0000 / 0.0000 / 0.0001
+      neck_yaw_act      0.0000 / 0.0000 / 0.0000 / 0.0000
+      head_pitch_act    0.0000 / 0.0000 / 0.0000 / 0.0000
+      r_hip_pitch_act   0.0000 / 0.0000 / 0.0000 / 0.0000
+      r_hip_roll_act    0.0000 / 0.0000 / 0.0000 / 0.0000
+      r_knee_act        0.0000 / 0.0000 / 0.0000 / 0.0000
+      r_ankle_act       0.0000 / 0.0000 / 0.0000 / 0.0000
+      l_hip_pitch_act   0.0000 / 0.0000 / 0.0000 / 0.0000
+      l_hip_roll_act    0.0000 / 0.0000 / 0.0000 / 0.0000
+      l_knee_act        0.0000 / 0.0000 / 0.0000 / 0.0000
+      l_ankle_act       0.0000 / 0.0000 / 0.0000 / 0.0000
+      tail_1_pitch_act  0.0000 / 0.0000 / 0.0000 / 0.0002
+      tail_1_yaw_act    0.0000 / 0.0000 / 0.0001 / 0.0012
+      tail_2_pitch_act  0.0000 / 0.0000 / 0.0000 / 0.0002
+      tail_3_pitch_act  0.0033 / 0.3025 / 0.1683 / 0.4163
+    rollout_action_clip_low_share:
+      neck_pitch_act    0.0000 / 0.0000 / 0.0000 / 0.0001
+      neck_yaw_act      0.0000 / 0.0000 / 0.0000 / 0.0000
+      head_pitch_act    0.0000 / 0.0000 / 0.0000 / 0.0001
+      r_hip_pitch_act   0.0000 / 0.0000 / 0.0000 / 0.0000
+      r_hip_roll_act    0.0000 / 0.0000 / 0.0000 / 0.0000
+      r_knee_act        0.0000 / 0.0000 / 0.0000 / 0.0000
+      r_ankle_act       0.0000 / 0.0000 / 0.0000 / 0.0000
+      l_hip_pitch_act   0.0000 / 0.0000 / 0.0000 / 0.0000
+      l_hip_roll_act    0.0000 / 0.0000 / 0.0000 / 0.0000
+      l_knee_act        0.0000 / 0.0000 / 0.0000 / 0.0000
+      l_ankle_act       0.0000 / 0.0000 / 0.0000 / 0.0000
+      tail_1_pitch_act  0.0000 / 0.0000 / 0.0000 / 0.0001
+      tail_1_yaw_act    0.0000 / 0.0000 / 0.0001 / 0.0012
+      tail_2_pitch_act  0.0000 / 0.0000 / 0.0000 / 0.0001
+      tail_3_pitch_act  0.0000 / 0.0001 / 0.0000 / 0.0009
+    rollout_mu_mean:
+      neck_pitch_act    0.0195 / 0.0679 / 0.0219 / 0.0685
+      neck_yaw_act      -0.0057 / -0.0006 / 0.0002 / 0.0067
+      head_pitch_act    0.0105 / -0.0631 / -0.0333 / 0.0201
+      r_hip_pitch_act   0.0003 / 0.0005 / -0.0010 / 0.0048
+      r_hip_roll_act    0.0078 / 0.0442 / 0.0189 / 0.0591
+      r_knee_act        -0.0053 / -0.0031 / -0.0058 / -0.0014
+      r_ankle_act       -0.0046 / -0.0066 / -0.0024 / 0.0027
+      l_hip_pitch_act   0.0043 / 0.0006 / -0.0010 / 0.0057
+      l_hip_roll_act    -0.0095 / -0.0463 / -0.0189 / 0.0205
+      l_knee_act        -0.0026 / -0.0028 / -0.0057 / -0.0011
+      l_ankle_act       -0.0037 / -0.0058 / -0.0022 / 0.0032
+      tail_1_pitch_act  -0.0897 / -0.1410 / -0.1288 / -0.0742
+      tail_1_yaw_act    0.0696 / -0.0139 / -0.0022 / 0.1122
+      tail_2_pitch_act  0.0283 / -0.0043 / 0.0150 / 0.0547
+      tail_3_pitch_act  0.4234 / 0.8153 / 0.7149 / 0.8821
+    rollout_mu_q50:
+      neck_pitch_act    0.0279 / 0.0725 / 0.0269 / 0.0741
+      neck_yaw_act      -0.0052 / -0.0011 / 0.0002 / 0.0063
+      head_pitch_act    0.0122 / -0.0765 / -0.0354 / 0.0187
+      r_hip_pitch_act   0.0005 / 0.0006 / -0.0010 / 0.0046
+      r_hip_roll_act    0.0086 / 0.0466 / 0.0203 / 0.0624
+      r_knee_act        -0.0049 / -0.0031 / -0.0058 / -0.0012
+      r_ankle_act       -0.0044 / -0.0067 / -0.0023 / 0.0029
+      l_hip_pitch_act   0.0041 / 0.0004 / -0.0011 / 0.0054
+      l_hip_roll_act    -0.0098 / -0.0489 / -0.0202 / 0.0207
+      l_knee_act        -0.0027 / -0.0029 / -0.0057 / -0.0011
+      l_ankle_act       -0.0036 / -0.0057 / -0.0021 / 0.0032
+      tail_1_pitch_act  -0.0951 / -0.1466 / -0.1348 / -0.0792
+      tail_1_yaw_act    0.1187 / -0.0261 / -0.0032 / 0.1252
+      tail_2_pitch_act  0.0286 / -0.0076 / 0.0142 / 0.0567
+      tail_3_pitch_act  0.4681 / 0.9262 / 0.7920 / 0.9750
+    rollout_mu_q95:
+      neck_pitch_act    0.1576 / 0.2069 / 0.1584 / 0.2081
+      neck_yaw_act      0.1043 / 0.1111 / 0.1226 / 0.1401
+      head_pitch_act    0.1147 / 0.1020 / 0.0885 / 0.1393
+      r_hip_pitch_act   0.0639 / 0.0539 / 0.0564 / 0.0653
+      r_hip_roll_act    0.1290 / 0.1376 / 0.1313 / 0.1676
+      r_knee_act        0.0290 / 0.0261 / 0.0262 / 0.0321
+      r_ankle_act       0.0369 / 0.0231 / 0.0326 / 0.0408
+      l_hip_pitch_act   0.0658 / 0.0555 / 0.0564 / 0.0658
+      l_hip_roll_act    0.1090 / 0.0530 / 0.0974 / 0.1419
+      l_knee_act        0.0317 / 0.0251 / 0.0264 / 0.0324
+      l_ankle_act       0.0360 / 0.0230 / 0.0329 / 0.0427
+      tail_1_pitch_act  0.0464 / -0.0088 / 0.0193 / 0.0641
+      tail_1_yaw_act    0.3084 / 0.2442 / 0.2548 / 0.4650
+      tail_2_pitch_act  0.1360 / 0.0870 / 0.1177 / 0.1514
+      tail_3_pitch_act  0.6220 / 1.0577 / 0.9743 / 1.1826
+    std_per_actuator:
+      neck_pitch_act    0.1565 / 0.1432 / 0.1507 / 0.1567
+      neck_yaw_act      0.1760 / 0.1588 / 0.1666 / 0.1760
+      head_pitch_act    0.1735 / 0.1625 / 0.1682 / 0.1741
+      r_hip_pitch_act   0.0308 / 0.0234 / 0.0267 / 0.0308
+      r_hip_roll_act    0.1160 / 0.0971 / 0.1054 / 0.1160
+      r_knee_act        0.0180 / 0.0143 / 0.0159 / 0.0180
+      r_ankle_act       0.0270 / 0.0220 / 0.0241 / 0.0270
+      l_hip_pitch_act   0.0308 / 0.0234 / 0.0267 / 0.0308
+      l_hip_roll_act    0.1160 / 0.0971 / 0.1054 / 0.1160
+      l_knee_act        0.0180 / 0.0143 / 0.0159 / 0.0180
+      l_ankle_act       0.0270 / 0.0220 / 0.0241 / 0.0270
+      tail_1_pitch_act  0.1748 / 0.1595 / 0.1662 / 0.1751
+      tail_1_yaw_act    0.1877 / 0.1714 / 0.1793 / 0.1877
+      tail_2_pitch_act  0.1807 / 0.1626 / 0.1720 / 0.1807
+      tail_3_pitch_act  0.1694 / 0.1497 / 0.1586 / 0.1696
+    std_per_actuator mean over 15, first/last row: [0.1068246230483055, 0.09475857677559058]
+R3 (report only) /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/ecs/traces/s42_A_1141/m1_summary.json  sha256 9ddd78b7596f4f4da94c59cdac3a9e41c68718fb4665041a986392c8a271223d: read
+    end zip /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/ecs/runs/s42_A_1141/01_stance/models/stage1_4718592_steps.zip  sha256 e9e886ea45c8503a67930b43a020dd31d1f7c601e39c9735e30071e145d08d4a
+    CMD every actuator: {"0": 0.061723726476891894, "1": 0.00032550114089826865, "2": -0.09776150036763284, "3": -0.00046191777412968804, "4": 0.06139360861445311, "5": -0.0042073201327511925, "6": -0.00559354009811068, "7": -0.0013449758056740392, "8": -0.0605904895819258, "9": -0.005372931927733589, "10": -0.004947582358989167, "11": -0.15447282659821213, "12": 0.0038107023057891653, "13": 0.00209283451490046, "14": 0.9512564199846236}
+    tail flags 18; falls 0; episodes 20, full horizon 20; max |command| 1.0
+wrote /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/ecs/score/read/s42_A_1141/read.json

@@ -1,0 +1,41 @@
+ECS PRE-REGISTRATION DRAFT v1: MANIFEST
+Folder: /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/ecs/v1
+Written 2026-10-28 20:13 UTC (date -u) by the drafter of workflow wf_86638249-afc. Draft only: NOT APPROVED, nothing
+pinned, nothing trained, simulated, fetched, pushed or committed. Every file below was written in this folder only;
+a find for files newer than 20:00 UTC under the round's folders (f2/, the run-branch clone, S1/foot/stance6, lean/,
+tailround/) found none, and no __pycache__ was written [measured, find].
+
+FILES (sha256, lines, bytes, role)
+bf4f09732dbde5152f3bb7314704b2863c5049c75a0e8263a9558279e6ed0c6d  223 19674  criteria_ecs_v1.txt
+    The text the maintainer would approve, written with every recommended option of the decisions file.
+51faef44592812f063a82eb510011894479255f534a5d78502e47ded13382662  160 13161  decisions_ecs_v1.txt
+    D1-D18, options with the recommended one first and why; D1 is the training change (ent_coef), D16-D18 the add-ons.
+bdb68cec9c45140b5951912194ccf7e80f79a9abad7a4631ac9cf0b7741ebcab  127 10432  build_list_ecs_v1.txt
+    What must be built and validated (no optimizer step) before the approval request.
+3609e13790b0df0d15c4d242deee368e50a66762897ded3392126e4638a48e41  185  8740  table_e_ecs.py
+    Standard-library arithmetic for REFERENCE TABLE E (exact stratified test, two-sided, exact fractions).
+07d32255b904a62985996599ee57ea9ff5ea039322279bdb58ce41bbee4bb542   92  5896  table_e_ecs.out
+    Its output. Re-run twice, byte-identical (cmp); its section 6 reproduces power_ecs.out section 6c exactly.
+    Re-run: cd /tmp && S2/venv/bin/python -I -B S2/r10round/ecs/v1/table_e_ecs.py > S2/r10round/ecs/v1/table_e_ecs.out
+
+INPUTS READ (read only; sha256 at the time of reading)
+98f713b14888996f7d1b33577c3b5b63315404a236d0860f2a54f7dad9659ed2  S2/r10round/ecs/survey_harness.txt
+9937eb91f5f887653a8448bd20e9ff47070637b5be10f3a1c23ed1af7636cd05  S2/r10round/ecs/survey_design.txt
+84c6def617baad455840514d1e1e94d31dcf7e30ed35980f66e5093e59b6a6b1  S2/r10round/ecs/power_ecs.out
+5c76f5560f9f629722f8c50b3deaa9fdd238486a4dc89fdcd676f52924632d1d  S2/r10round/f2/REVIEW.txt
+9fd7fe64c69bc6db1fa9489b87fdf1497459dbabf57bb1651b2ba9b2b503f7a1  S2/r10round/f2/NEXT_STEPS.txt
+f2f8a71ad4428fe438c7ee2a495a6d8151947ad33ae893512512483974d89b94  S2/r10round/f2/FIXES.txt (not quoted; listed as given)
+99a44469a387d01c55b98d76595d3633029681866ed14afcb185521eca0164db  S1/foot/stance6/criteria.txt
+9930ee722bf07f21256c0998656568d544ef7413c18d4dfa823338370bcb1b6a  S2/tailround/screen/criteria/criteria_tailscreen_final.txt
+Also read: RUNLOG S1/foot/stance4/live/run_log.txt (720 lines; l217, l458, l509, l520, l534, l538-l574, l595,
+l628, l630, l640, l645-l661, l700-l720); the F2 fetch manifest S1/foot/stance6/fetch/manifest.csv (the COPY rows of
+the four start files and the twelve parent-record files of s42 and s80; each F2 copy re-hashed equal to its row);
+F2's s80 policy_probe.npz.copy1 (keys and the ent_coef / learning_rate rows at 3,145,728, 3,153,920, 4,194,304,
+4,202,496, 5,758,976 and 5,767,168; allow_pickle False); the M1 and M5 tools' docstrings and sha256 (equal to their
+lanes' SHA256SUMS.txt); COPY's .r10m_seal.json, train_base.py l1215-l1226 and l1555-l1636, stance.toml [ppo] and
+stop keys; D-D43's review-feasibility determinism_a.out and _b.out; the venv's package versions; df, nproc, free.
+S1 = /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad
+S2 = /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad
+
+CHECK: cd S2/r10round/ecs/v1 && sha256sum -c MANIFEST.sha256
+END

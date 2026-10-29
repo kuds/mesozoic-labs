@@ -1,0 +1,20 @@
+Thu Oct 29 01:26:58 UTC 2026
+V4 negative: n0 full read without check.json refused: exit 2 (want 2) ok
+V4 negative: n0 --check on the unchanged copy passes: exit 0 (want 0) ok
+V4 negative: n1 arm B's probe under arm A fails: exit 4 (want 4) ok
+V4 negative: n2 stop reason 'other' fails: exit 4 (want 4) ok
+V4 negative: n3 one ent_coef row +1 float32 ulp fails: exit 4 (want 4) ok
+V4 negative: n4 torch_threads 4 fails: exit 4 (want 4) ok
+V4 negative: n5 collapse stop not found fails: exit 4 (want 4) ok
+V4 negative: n6 status failed, exit 5 fails: exit 4 (want 4) ok
+V4 negative: n7 the validator's old-tool V2 record fails the fixed CHECK: exit 4 (want 4) ok
+  n1 failures: ["FAIL R4: ent_coef differs from the parent's F2 probe (float32) at 31 of 31 rows (first 3153920)"]
+  n2 failures: ["FAIL stop reason 'other': neither 'end' nor 'collapse'"]
+  n3 failures: ["FAIL R4: ent_coef differs from the parent's F2 probe (float32) at 1 of 31 rows (first 3227648)"]
+  n4 failures: ['FAIL run_meta torch_threads 4 != 1 (review H6)']
+  n5 failures: ["FAIL the collapse stop (D8) is not in the run with patience 10: collapse {'found': 0, 'consecutive_drops': 0, 'patience': 10, 'tripped': False}"]
+  n6 failures: ["FAIL run_meta status 'failed' != 'done'", 'FAIL run_meta exit 5 != 0']
+  n7 failures: ['FAIL run_meta torch_threads None != 1 (review H6)']
+V4 NEGATIVES OVERALL: PASS
+exit=0
+Thu Oct 29 01:27:00 UTC 2026

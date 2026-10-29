@@ -1,0 +1,92 @@
+ECS REFERENCE TABLE E (criteria_ecs_v1.txt): exact stratified test, two-sided, 0.025 per side
+
+1. THE SAME TABLE AT BOTH STARTS, k = 6 PER ARM PER START (a = arm-A positives of 6, b = arm-B positives of 6)
+   L = B LOWER, H = B HIGHER, . = NO DIFFERENCE DETECTED
+        b=0 b=1 b=2 b=3 b=4 b=5 b=6
+   a=0   .   .   .   H   H   H   H
+   a=1   .   .   .   .   H   H   H
+   a=2   .   .   .   .   .   H   H
+   a=3   L   .   .   .   .   .   H
+   a=4   L   L   .   .   .   .   .
+   a=5   L   L   L   .   .   .   .
+   a=6   L   L   L   L   .   .   .
+   p-values at selected tables (P_UP, P_DOWN):
+     6/6 vs 0/6 at both starts: B LOWER                P_UP 0.0000  P_DOWN 1.0000
+     6/6 vs 1/6 at both starts: B LOWER                P_UP 0.0001  P_DOWN 1.0000
+     6/6 vs 2/6 at both starts: B LOWER                P_UP 0.0009  P_DOWN 1.0000
+     6/6 vs 3/6 at both starts: B LOWER                P_UP 0.0083  P_DOWN 1.0000
+     6/6 vs 4/6 at both starts: NO DIFFERENCE DETECTED P_UP 0.0517  P_DOWN 1.0000
+     5/6 vs 0/6 at both starts: B LOWER                P_UP 0.0001  P_DOWN 1.0000
+     5/6 vs 1/6 at both starts: B LOWER                P_UP 0.0021  P_DOWN 0.9999
+     5/6 vs 2/6 at both starts: B LOWER                P_UP 0.0204  P_DOWN 0.9982
+     5/6 vs 3/6 at both starts: NO DIFFERENCE DETECTED P_UP 0.1019  P_DOWN 0.9844
+     4/6 vs 0/6 at both starts: B LOWER                P_UP 0.0009  P_DOWN 1.0000
+     4/6 vs 1/6 at both starts: B LOWER                P_UP 0.0204  P_DOWN 0.9982
+     4/6 vs 2/6 at both starts: NO DIFFERENCE DETECTED P_UP 0.1156  P_DOWN 0.9780
+     3/6 vs 0/6 at both starts: B LOWER                P_UP 0.0083  P_DOWN 1.0000
+     3/6 vs 1/6 at both starts: NO DIFFERENCE DETECTED P_UP 0.1019  P_DOWN 0.9844
+     2/6 vs 0/6 at both starts: NO DIFFERENCE DETECTED P_UP 0.0517  P_DOWN 1.0000
+     3/6 vs 3/6 at both starts: NO DIFFERENCE DETECTED P_UP 0.6545  P_DOWN 0.6545
+     6/6 vs 6/6 at both starts: NO DIFFERENCE DETECTED P_UP 1.0000  P_DOWN 1.0000
+     0/6 vs 0/6 at both starts: NO DIFFERENCE DETECTED P_UP 1.0000  P_DOWN 1.0000
+
+2. ONE START DECIDES (the other start uninformative: 0 or 12 positives in all, so it adds a constant)
+        b=0 b=1 b=2 b=3 b=4 b=5 b=6
+   a=0   .   .   .   .   .   H   H
+   a=1   .   .   .   .   .   .   H
+   a=2   .   .   .   .   .   .   .
+   a=3   .   .   .   .   .   .   .
+   a=4   .   .   .   .   .   .   .
+   a=5   L   .   .   .   .   .   .
+   a=6   L   L   .   .   .   .   .
+     6/6 vs 0/6 at one start, 0/6 vs 0/6 at the other: B LOWER                P_UP 0.0011
+     6/6 vs 1/6 at one start, 0/6 vs 0/6 at the other: B LOWER                P_UP 0.0076
+     6/6 vs 2/6 at one start, 0/6 vs 0/6 at the other: NO DIFFERENCE DETECTED P_UP 0.0303
+     5/6 vs 0/6 at one start, 0/6 vs 0/6 at the other: B LOWER                P_UP 0.0076
+     5/6 vs 1/6 at one start, 0/6 vs 0/6 at the other: NO DIFFERENCE DETECTED P_UP 0.0400
+     4/6 vs 0/6 at one start, 0/6 vs 0/6 at the other: NO DIFFERENCE DETECTED P_UP 0.0303
+
+3. MIXED EXAMPLES (start 1 ; start 2)
+     6/6 vs 0/6 ; 3/6 vs 3/6: B LOWER                P_UP 0.0220  P_DOWN 0.9979
+     5/6 vs 1/6 ; 3/6 vs 1/6: B LOWER                P_UP 0.0188  P_DOWN 0.9985
+     4/6 vs 1/6 ; 4/6 vs 1/6: B LOWER                P_UP 0.0204  P_DOWN 0.9982
+     6/6 vs 2/6 ; 2/6 vs 0/6: B LOWER                P_UP 0.0069  P_DOWN 1.0000
+     5/6 vs 2/6 ; 4/6 vs 2/6: NO DIFFERENCE DETECTED P_UP 0.0532  P_DOWN 0.9929
+     6/6 vs 3/6 ; 6/6 vs 3/6: B LOWER                P_UP 0.0083  P_DOWN 1.0000
+     2/6 vs 2/6 ; 1/6 vs 1/6: NO DIFFERENCE DETECTED P_UP 0.6791  P_DOWN 0.6791
+     0/6 vs 4/6 ; 1/6 vs 4/6: B HIGHER               P_UP 0.9998  P_DOWN 0.0055
+   With a LOST or censored continuation the arms are unequal; the same test applies with nA_s, nB_s as counted:
+     6/6 vs 0/5 ; 6/6 vs 0/6: B LOWER                P_UP 0.0000  P_DOWN 1.0000
+     5/5 vs 0/6 ; 4/6 vs 1/6: B LOWER                P_UP 0.0008  P_DOWN 1.0000
+     6/6 vs 1/5 ; 3/6 vs 2/6: NO DIFFERENCE DETECTED P_UP 0.0331  P_DOWN 0.9968
+
+4. POWER: P(B LOWER) with the same rates at both starts (exact enumeration over binomial outcomes)
+   k = 6 per arm per start:
+      pA \ pB      0.00     0.10     0.25     0.40     0.50
+      0.60       0.943    0.642    0.294    0.097    0.037
+      0.75       0.997    0.897    0.609    0.294    0.144
+      0.90       1.000    0.993    0.897    0.642    0.428
+      1.00       1.000    1.000    0.997    0.943    0.806
+   k = 4 per arm per start:
+      pA \ pB      0.00     0.10     0.25     0.40     0.50
+      0.60       0.601    0.396    0.181    0.065    0.028
+      0.75       0.889    0.700    0.405    0.181    0.088
+      0.90       0.995    0.932    0.700    0.396    0.220
+      1.00       1.000    0.995    0.889    0.601    0.371
+   Unequal starts, k = 6: s42-like (0.9 vs 0.1) with s80-like (0.6 vs 0.1): 0.909;
+      an effect at one start only (0.9 vs 0.1 ; 0.9 vs 0.9): 0.530;
+      one start never fires (0.9 vs 0.2 ; 0 vs 0): 0.441.
+   Reverse direction, P(B HIGHER), k = 6: pA 0.1 vs pB 0.9: 0.993; pA 0.25 vs pB 0.9: 0.897; pA 0.5 vs pB 0.9: 0.428
+      (an arm-A rate near 0.9 leaves little room to show B HIGHER: pA 0.9 vs pB 1.0: 0.004)
+
+5. SIZE UNDER THE NULL (pA = pB at each start), k = 6: largest P(B LOWER) and P(B HIGHER) over every pair of
+   null rates on the grid 0.05, 0.10, ..., 0.95 (the test is exact: each is at most 0.025)
+   P(B LOWER) at most 0.0116 (at (0.5, 0.5)); P(B HIGHER) at most 0.0116 (at (0.5, 0.5)); sum at most 0.0231
+
+6. CROSS-CHECK against S2/r10round/ecs/power_ecs.out section 6c (one side at 0.025):
+   k = 6, 0.90 vs 0.10: 0.993 (power_ecs.out 0.993)
+   k = 6, 0.90 vs 0.25: 0.897 (power_ecs.out 0.897)
+   k = 6, 0.80 vs 0.20: 0.812 (power_ecs.out 0.812)
+   k = 4, 0.90 vs 0.10: 0.932 (power_ecs.out 0.932)
+   k = 4, 0.90 vs 0.25: 0.700 (power_ecs.out 0.700)
+   k = 4, 0.80 vs 0.20: 0.599 (power_ecs.out 0.599)

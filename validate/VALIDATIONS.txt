@@ -1,0 +1,200 @@
+ECS VALIDATIONS V1-V5 (build list v2 item 10; criteria_ecs_v2.txt VALIDATIONS), the validator's record
+Written 2026-10-28 21:48-22:42 UTC (date -u).  NOT APPROVED: no continuation was launched, no optimizer step was made on
+any policy, <ECS>/APPROVED and <ECS>/criteria.txt do not exist (ls, 22:39 UTC).  Under the maintainer's D2 (a)
+(RUNLOG l721, 2026-10-28 21:05 UTC): the only runs through learn() were V2's four, with the model's train() replaced by
+run_ecs.py's counting no-op, and their parameter and Adam digests are unchanged at the end (below).  One simulation
+process at a time (the V1 saves, the V1 traces, the V2 runs and the one R3 trace ran strictly in sequence; each driver
+refused to start while another run_ecs.py / M1 process of this workflow was alive), OMP/MKL/OPENBLAS 1, nice 15, cwd
+/tmp, PY -I -B.  Another workflow's pytest ran beside them at nice 15 (process table, logs/v2_proctable.log).
+Short names as criteria_ecs_v2.txt (CRIT), build_list_ecs_v2.txt (BL).  <ECS> = S2/r10round/ecs; <V> = <ECS>/validate.
+Labels: [measured] = run or read here from the named file; [inferred] = reasoned, basis named.
+
+RESULT: V1 PASS, V2 PASS, V3 PASS, V4 PASS, V5 PASS (and both lanes' tests PASS before starting).  No defect in the
+build's own code was found; no build file was changed by the validator (sha256 below, equal before and after).
+
+THE FILES VALIDATED (sha256 at 21:48 and again at 22:39 UTC, equal [measured, <V>/logs/final_tool_sha256.txt])
+  1a146950e131426eca38510c180c7b1f5dfc94384f605d27f5a0ff545b95273c  tools/ecs_common.py
+  b89577860ded985862427504f4ec773085709c65730a3bec858f2b440c9e1a3d  tools/run_ecs.py   (lane H's fixed version; the V2
+                                                                    driver re-checked this sha256 before each start)
+  10cf27d04ebdba6743af0e533f75907b809620fd736e6b723772d78ab771ca7b  tools/read_ecs.py
+  59da8d11a2fb4ac7a16f9697c007a4a46428a3b568f1a3acf69fdbef7c67e335  tools/score_ecs.py
+  a30b8fbe0ba4643a1b7776ef6d82e6275290e923e34e339f5bc16331cc37393c  tools/run_waves_ecs.sh
+  19bf0a09...  2ecef8ac...  890be563...  bb9f0f3f...  dfd70a29...  214a5a6c...  tools/tests/ (the six test files)
+  M1 b293a511..., r10m_common 97431323..., M5 0d89bcb8..., r10round_common ea2c5ea6... (= their pins)
+  <ECS>/code: M1 check-copy at 22:39 UTC exit 0, commit 8737cd3d86431de1bdd0fcdb49a0d956a45e084d, tree digest
+  331fe8fc3f6bdf73acc0d3cc324dd753d9d9d695d7ce914e4e011d5c6437ebf1, 1,406 files (<V>/logs/final_check_copy.log); every
+  run's run_meta records code_seal_after "unchanged"; no __pycache__ or .pyc in <ECS>/code or <ECS>/tools [measured].
+
+0. BEFORE STARTING: BOTH LANES' TESTS ONCE -- PASS [measured]
+  lane H: 80 passed in 19.1 s (test_harness_run_ecs.py 68, test_harness_waves.py 12), 21:50:39-21:51:00
+          log <V>/logs/tests_laneH.log
+  lane R: 61 passed in 5.0 s (reader 22, scorer 18, mutants 21), 21:51:06-21:51:11   log <V>/logs/tests_laneR.log
+  (pytest -p no:cacheprovider, --basetemp under <ECS>/tmp/validator.)
+
+V1 START REPRODUCTION (no learn()) -- PASS
+  Runs: run_ecs.py --save-loaded-only, one per start and arm, the first seed of each list: s42_A_1101, s42_B_1201,
+  s80_A_1301, s80_B_1401 -> <V>/v1/<name>/, 21:51:20-21:51:53, each exit 0 (8-9 s).  Logs <V>/logs/v1_save_*.log.
+  M1 traces: measure_r10round.py m1 --copy <ECS>/code --zip/--pkl <V>/v1/<name>/saved/stage1_<S>_steps.zip /
+  stage1_vecnormalize_<S>_steps.pkl --stage-config <V>/v1/<name>/01_stance/stage_config.json (the harness-written one)
+  --out <V>/v1_m1/<name> --approved S1/foot/stance6/APPROVED, 21:52-21:57, each exit 0 (58-61 s in the trace tool).
+  Logs <V>/logs/v1_m1_*.log, driver <V>/scripts/v1_traces.sh.  Check: <V>/scripts/v1_check.py -> <V>/logs/v1_check.out.
+  [measured]:
+  - The load wrapper's checks passed in all four (it refuses otherwise; run_meta status "done", exit 0): MirrorKLPPO,
+    num_timesteps = S, _total_timesteps 12,000,000, device cpu, the training env's obs_rms and ret_rms equal to the
+    pkl's.  ent_coef after load 0.005 (A), 0.0 (B), 0.005 (A), 0.0 (B); the start zips store 0.0027530542857 (s42)
+    and 0.0020040714286 (s80), so the config's value is the one applied.
+  - Digests (harness): s42 params sha256:15062144..., Adam f4eee2ad..., VecNormalize eee6ade6...; s80 params
+    7b3a5808..., Adam 42342525..., VecNormalize 5844f0d4...: start zip = loaded model = saved zip; start pkl =
+    training env = saved pkl.
+  - Independently (v1_check.py, not run_ecs.py's helpers): the F2 start zip's policy.pth (13 tensors) and
+    policy.optimizer.pth (13 Adam state entries; param_groups equal) against the saved zip's, tensor by tensor
+    (torch.equal, dtype, shape): all equal.  The F2 start pkl's and the saved pkl's VecNormalize obs_rms and ret_rms
+    mean/var/count: equal (np.array_equal, dtype), clip_obs, clip_reward, gamma, epsilon, norm_obs, norm_reward equal.
+    The saved zip's data: num_timesteps S, _total_timesteps 12,000,000, ent_coef the arm's, _n_updates the start's
+    (3,458 / 4,275), seed the run's; _mesozoic_plant_identity, mesozoic_task_fingerprint, mesozoic_symmetry equal to
+    the start zip's.
+  - M1 on each saved pair equals PAN at that label (s42 3145728: PAN sha256 80a83d95...; s80 4194304: c15f5ae2...) in
+    every measured field CRIT V1 names: n_episodes, seeds, full_horizon_episodes, episodes_without_window, cmd_a,
+    cmd_a_episodes, cmd_all_actuators, tail_flags, fall_flags, tail_flags_full_horizon_by_actuator_sign,
+    sign_ties_over_bar, any_actuator_over_bar_episodes, max_abs_command_any_step, hip_roll, episodes and the 20
+    csv_sha256 (16 of 16 equal, all four).  checkpoint.num_timesteps = S; physics_revision 10.  The only keys that
+    differ are in CRIT's provenance list: checkpoint {path, seed, sha256, vecnorm, vecnorm_sha256}, copy_seal
+    {built_utc}, filed, run_records, trace_json_sha256, trace_run, utc.  Beyond CRIT: the 20 gzipped trace CSVs,
+    csv_sha256.txt and flags.csv are byte-identical to PAN's.  s42 CMD_14 (tail_3) +0.5242, s80 +0.0199; 0 flags.
+  - M1 accepted the harness-written zip and stage_config.json: run_records bind <V>/v1/<name>/01_stance/
+    stage_config.json (its sha256), git_commit 8737cd3d, plant physics_revision 10, run_seed = the run's seed; the
+    output under <V>/ was accepted; copy tree digest after = the seal.  M1 wrote nothing outside --out (S2/caches has
+    nothing newer than the V1 driver; no mpl folder) [measured, find].
+
+V2 APPLIED ent_coef AND THE STOP (D2 (a): learn() with train() a no-op) -- PASS
+  Runs: run_ecs.py --no-update --until S + 262,144 (s42 3,407,872; s80 4,456,448) -> <V>/v2/<name>/, same four names,
+  21:57:35-22:37:20 UTC, in sequence, each exit 0; wall 629 / 586 / 581 / 580 s, learn() 621 / 579 / 574 / 574 s
+  (32 rollouts and 2 evaluations each: 17.9-19.4 s per rollout at nice 15, no update).  Driver <V>/scripts/v2_runs.sh,
+  logs <V>/logs/v2_<name>.log, v2_driver.log, v2_proctable.log.  Check <V>/scripts/v2v3_check.py ->
+  <V>/logs/v2v3_check.out (all four PASS).  [measured], per run:
+  - run_meta: status done, exit 0, mode no_update, T = target = S + 262,144, stop reason "end", StopAtEnd's flag set
+    at step T (65,536 calls); the collapse callback found, 0 drops, not tripped; recipe_v5.problems []; no
+    environments module from outside the copy.
+  - NO OPTIMIZER STEP: train() reached 31 times = (T - S)/8,192 - 1 and returned; no_update_check pass; parameter and
+    Adam digests equal at start and end (s42 15062144... / f4eee2ad..., s80 7b3a5808... / 42342525...); _n_updates
+    unchanged (3,458 / 4,275).  Independently: the F2 start zip's policy.pth and policy.optimizer.pth equal, tensor by
+    tensor, to the checkpoint at T and to stage1_final.zip; both record num_timesteps T and the start's _n_updates.
+    (VecNormalize statistics moved, as the training env updates them: scratch, expected.)
+  - The evaluation and checkpoint at the stop step: evaluations.npz holds exactly S + 131,072 and T in (S, T], its
+    last entry T; the pair stage1_<T>_steps.zip / stage1_vecnormalize_<T>_steps.pkl is present.
+  - The probe (R4): 31 rows at S + 8,192 k (k = 1..31), none at or after T.  First-step ent_coef from the probe:
+    s42 A 0.0027472 (= the parent's F2 row, = 0.005 x (1 - 3,153,920 / 7,000,000)); s42 B 0.0; s80 A 0.0019982
+    (= the parent's); s80 B 0.0.  Arm A equal to the parent's F2 probe at all 31 rows (float32); arm B 0.0 at all 31;
+    learning_rate equal to the parent's at every row (first 2.4743467e-05 s42, 2.2995840e-05 s80).
+  - The ledger header and seeded rows: see V3.  The stage_config.json each wrote passes V5 (below).
+
+V3 THE READER READS THE HARNESS's LEDGER -- PASS
+  M5 (pinned, unchanged) "ledger_r10round.py <ledger> --E <T> --json" on each V2 ledger -> <V>/v3_m5/<name>/ (m5.json,
+  m5.txt); checks in v2v3_check.py -> <V>/logs/v2v3_check.out.  [measured], all four:
+  - C6 PASS with E = T (no failure of any kind).
+  - Header: 194 columns, equal to the parent's F2 ledger's header.
+  - Seeded rows: 240 (s42) / 320 (s80), the leading rows of the file, equal cell for cell to the parent's rows at or
+    before S (F2 ledgers at their FMAN sha256).
+  - New evaluations: exactly S + 131,072 and T, each 10 rows, episodes 0-9 once; no other row.
+  - The probe's bank comparison: KEPT in all four (the seeded rows were not dropped).  The 384 (s42) / 512 (s80) seeded
+    probe rows equal the parent's cell for cell in every per-row member, and the 10-state bank (bank_raw_obs, labels,
+    seeds, steps, ankle offset, CoM) equals the parent's.  File-level members that differ, as the probe defines them:
+    bank_build_seconds, and frozen_obs_mean / frozen_obs_var, the VecNormalize statistics this session froze at S;
+    the seeded rows keep frozen_reference_timesteps 0 and the window rows carry S.  No reading uses them.
+
+V4 TOOLS -- PASS
+  (a) The tests of BL item 9: 80 + 61 passed (section 0).
+  (b) The reader on the parents' ledgers truncated to timesteps <= E (<V>/scripts/v4_reader.py ->
+      <V>/logs/v4_reader.out; outputs <V>/v4/reader/<case>, <V>/v4/own/<case>) [measured]:
+        s42 (S 3,145,728, T 4,718,592): C6 PASS, POSITIVE, first ANY flag 3,801,088, 8 flagged, 7 ANY alarms
+        s80 (S 4,194,304, T 5,767,168): C6 PASS, POSITIVE, first 4,849,664, 4 flagged, 2 alarms
+        s60 truncated at 8,388,608: NEGATIVE with S 0 (64 evaluations, none flagged) and with S 6,291,456; C6 PASS
+      each by read_ecs.py --ledger --truncate and, independently, by the validator's own truncation (the original
+      lines kept byte for byte) read by M5 directly: the two agree and equal CRIT V4 (F2 ledgers at their FMAN sha256).
+  (c) The scorer (<V>/scripts/v4_scorer.py -> <V>/logs/v4_scorer.out): the validator's own exact stratified test
+      (math.comb, Fractions) equals score_ecs.pvals on all 2,401 6-per-arm tables and score_ecs.reading_of's line on
+      all of them; 242 B LOWER and 242 B HIGHER; TABLE E's 7 x 7 grid; the 7 printed P_UP examples, the 6
+      one-start-decides examples (the other start at 0 and at 12 of 12) and CHK 8's two worked fills, as counted and
+      filled (0.0114 / 0.0204 and 0.0165 / 0.0207), to 4 places with their lines.  Lane R's tests (in (a)) reproduce
+      every cell and printed p of TE sections 1-2 and CHK 8 from the files themselves.  (The first run of this
+      script reported 484 false problems from the validator's own mapping of "B LOWER" / "B HIGHER" to L / H by first
+      letter; the script was corrected and rerun; score_ecs was not involved.)
+  (d) read_ecs on V2's real outputs: --check PASS (exit 0) on all four: R4 31 of 31 rows, seeded rows 384 / 512 counted,
+      the run_meta keys as run_ecs.py writes them; logs <V>/logs/v4_check_<name>.log, check.json in each run folder.
+      The full read (exit 0) on all four: C6 OK (M5 PASS, 0 counting failures, 0 TAIL-input-missing), NEGATIVE (a
+      no-update window; not an outcome), R2 arrays written, R3 "missing" (no trace yet); logs
+      <V>/logs/v4_read_<name>.log, outputs <V>/v2/<name>/read/.
+      R3 on a real end pair (<V>/scripts/v4_r3_trace.sh -> <V>/logs/v4_r3_trace.log): M1 in run_waves_ecs.sh's R3 form
+      on <V>/v2/s42_A_1101's stage1_3407872 pair and its stage_config.json, exit 0 (58 s), -> <V>/v4_trace/s42_A_1101;
+      read_ecs.py <run> --trace that folder --out <V>/v4_trace_read/s42_A_1101: exit 0, R3 "read" (the trace's
+      checkpoint sha256 is the end zip's).
+  (e) Negative controls on copies of the real V2 records (<V>/scripts/v4_negatives.py -> <V>/logs/v4_negatives.out;
+      <V>/v4_neg/): unchanged copy without check.json, full read refused (exit 2), --check then passes (exit 0);
+      arm B's probe under arm A's run_meta: FAIL "ent_coef differs ... at 31 of 31 rows" (exit 4); stop reason "other":
+      FAIL (exit 4); one window ent_coef moved by one float32 ulp: FAIL "1 of 31 rows (first 3227648)" (exit 4).
+  (f) The wave runner on stubs, the validator's own dry run (<V>/scripts/v4_waves.sh with stubs in
+      <V>/scripts/stubs/, through run_waves_ecs.sh's test hook, roots <V>/v4_waves/{A,B,C,D}; log
+      <V>/logs/v4_waves.out; 22:01:26-22:01:48 UTC) [measured]:
+      A  the disk pause: free 1,000 < floor 5,000 -> "PAUSED", logs/PAUSED_disk, no start; resumed when the stub disk
+         read 10,000 (PAUSED_disk removed).  A non-zero exit: s42_A_1101 exit 1 -> runs/s42_A_1101_crashed1, crash
+         ledger "own 1 of 3", rerun with the same arguments -> COUNTED.  All 3 COUNTED, then traces (the
+         stage1_<E>_steps pairs), then reads, then the score, in that order; runner exit 0.
+      B  half-way folders at relaunch: "running" (a container restart) -> _crashed1, not counted (0); "crashed" ->
+         _crashed1, counted (1); both rerun and COUNTED; a "done" folder checked, not rerun.
+      C  a CHECK failure (1 slot): s42_B_1201 CHECK exit 4 -> VOID, runs/s42_B_1201_void1, the queue's 3rd and 4th
+         never started, runner exit 4; a relaunch refused at once (exit 4, no stub call).
+      D  three own crashes -> _crashed1-3, <root>/lost.json {"cause": "crashes", "by": "run_waves_ecs.sh"}, LOST; the
+         others COUNTED; the LOST one neither traced nor read; the score ran; exit 0.
+      Lane H's 12 stub tests (in (a)) cover the same paths and more.
+
+V5 RECIPE -- PASS
+  <V>/scripts/v5_check.py on the 8 stage_config.json files of V1 and V2 against the parent's stage_config.json.copy1
+  (FMAN sha256 checked) -> <V>/logs/v5_check_v1.out, v5_check_v2.out.  Pure JSON: imports neither the code nor
+  run_ecs.py; the recipe digest is recomputed from its definition (config.py l651-l683, hashing.py l26-l29), first
+  reproducing 054ab483... on the parent's own blocks.  [measured], all eight:
+  - hyperparameters: arm A equal to the parent's; arm B equal except ent_coef 0.005 -> 0.0 (ent_coef_end is 0.0 in the
+    parent's recipe too, so only ent_coef changes value).
+  - reward_weights, curriculum, git_commit (8737cd3d...), task_fingerprint.task_sha256, plant_identity, run.n_envs (4)
+    equal to the parent's.
+  - run.hyperparameters_sha256: A sha256:054ab48303167eda...; B sha256:be2e243b3fef90cd... = the digest recomputed
+    here from A's block with ent_coef and ent_coef_end at 0.0; each file's own blocks digest to its run digest.
+  - Differing, all expected: run.seed (the run's), run.timesteps (8,854,272 s42; 7,805,696 s80 = 12,000,000 - S),
+    run.label ("ECS <start> <arm> <seed>"), run.duration_seconds, load_path (the run's periodic zip), load_mode
+    resume_same_stage, parent_checkpoint_sha256 ("sha256:" + the start zip's), parent_task_sha256 (= the parent's
+    task_sha256), gpu (absent on CPU).  No other top-level or run key differs (stricter than CRIT's list); no
+    parent_run_id.  The harness's own in-run comparison (run_meta recipe_v5.problems) is [] on all eight.
+
+OBSERVATIONS FOR THE REVIEWER (none fails a V-item; none is a change made here)
+  O1 Best trackers see the parent's future [measured, code]: the F2 evaluations.npz copied into each run folder holds
+     the parent's whole run (to 11,927,552).  The resume path's seed_resume_eval_state (TB l1488-l1511;
+     curriculum/checkpoints.py l290-l297) caps the evaluation HISTORY, the gate-progress rows (eval_diagnostics.py
+     l2555-l2590) and the ledger, train-episode and probe rows at S, but seeds eval_callback.best_mean_reward and
+     RobustBestModelCallback.best_score from the FULL record.  Those trackers decide only best_model.zip /
+     robust_best_model.zip and the progress and summary records (grep of the copy); the collapse stop reads the capped
+     history (early_stopping.py) and no reading R1-R4 uses those files.  In V2 no best_model.zip was written (all four
+     models/ folders) [measured].  The reviewer may want this named in CRIT (report-only side files carry post-S
+     information), or the copy of evaluations.npz cut at S (that would change T3's "byte copies").
+  O2 R3's default trace folder for a run under <ECS>/validate/ is RUN/trace, inside the run folder, where M1 refuses
+     to write; a validation read needs --trace (used in V4 (d)).  Continuations default to <ECS>/traces/<name>,
+     which is where run_waves_ecs.sh writes, so the screen itself is unaffected.
+  O3 Lane R's note that run_waves_ecs.sh makes the full reads before the end traces is out of date: at a30b8fbe the
+     runner makes the R3 traces first (l350-l388), then the reads (l390-l397), then the score (l399); the dry run's
+     order in V4 (f) shows the same.
+     score_ecs reading R3 itself at score time stays harmless.
+  O4 run_meta.final_path is the code's own value without ".zip" (the file is stage1_final.zip).  Cosmetic.
+  O5 With parameters unchanged, the V2 end pair's M1 reads tail_3 CMD +0.473 against PAN's +0.524 at S (s42), the
+     VecNormalize statistics being the only state that moved [measured: both numbers, the digests]; so statistics
+     drift alone moves the R3 end-trace readings [inferred].  R3 is report only.
+  O6 Disk: 6,184,546,304 bytes free at 22:09 and 6,462,402,560 at 22:39 UTC (df -B1; it moves with other workflows);
+     T4's launch target is 6 GiB = 6,442,450,944.  This validation's outputs are about 245 MB (lane H's three smoke
+     folders a further 52 MB; <ECS>/tmp/validator 0.25 MB of pytest scratch, disposable) [measured, du -sb].
+  O7 Throughput for COMPUTE: 17.9-19.4 s per rollout with no update at nice 15 (V2), against HS 7's 17.8-18.3 s;
+     a continuation's update time is still unmeasured (no optimizer step was made) [measured / inferred].
+
+FILES WRITTEN BY THE VALIDATOR (all under <V>, except the run's own TMPDIR folders <ECS>/tmp/<name>/ and the pytest
+basetemp <ECS>/tmp/validator/)
+  VALIDATIONS.txt (this file); scripts/ (v1_traces.sh, v1_check.py, v2_runs.sh, v2v3_check.py, v4_reader.py,
+  v4_scorer.py, v4_negatives.py, v4_r3_trace.sh, v4_waves.sh, v5_check.py, stubs/); logs/; v1/, v1_m1/, v2/, v3_m5/,
+  v4/, v4_neg/, v4_trace/, v4_trace_read/, v4_waves/.  Lane H's validate/laneH_smoke* were not touched.  Nothing was
+  written to COPY, CLONE, F2, the round's folders, RUNLOG or the main checkout; no Drive, no GitHub, no push.
+END (validations).

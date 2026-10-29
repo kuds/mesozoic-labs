@@ -1,0 +1,180 @@
+== s42: ledger eval_episodes.csv.copy1 sha256 d1bcb78964691cf1..., 91 evaluations; over-bar steps 35; ANY-flagged 26; TAIL-flagged 26; ANY ALARMs 22; TAIL ALARMs 22
+== s80: ledger eval_episodes.csv.copy1 sha256 b677ce762e739513..., 91 evaluations; over-bar steps 23; ANY-flagged 12; TAIL-flagged 0; ANY ALARMs 6; TAIL ALARMs 0
+== s60: ledger eval_episodes.csv.copy1 sha256 1821fd2e9f65d58c..., 91 evaluations; over-bar steps 15; ANY-flagged 0; TAIL-flagged 0; ANY ALARMs 0; TAIL ALARMs 0
+
+PER START
+-- s42 3,145,728 [core (NEXT_STEPS Option 1)]  F2 holds pair: True
+     01_stance/models/stage1_3145728_steps.zip: copy sha256 3c054bd738304965... = artifact_manifest True, = fetch-manifest COPY rows (1) True; size 4033646
+     01_stance/models/stage1_vecnormalize_3145728_steps.pkl: copy sha256 997f31421d805f6e... = artifact_manifest True, = fetch-manifest COPY rows (1) True; size 5291
+     M1 (20 det. episodes, seeds 3042-3061): CMD neck_pitch +0.026 neck_yaw +0.003 head_pitch +0.005 | tail_1p -0.076 tail_1y -0.002 tail_2p +0.053 tail_3 +0.524; TAIL FLAGS 0; any-actuator over-bar episodes 0 []; falls 0; max |cmd| any step 0.679
+        share>=0.99 (mean over episodes): neck 0.000 head 0.000 tail_3 0.000
+     ledger evaluation at this step (10 det. episodes; TEL *_command_mean): neck +0.042 head -0.005 tail_1p -0.106 tail_2p +0.040 tail_3 +0.560; over-bar 0, tail 0
+     probe at update 3145728: ent_coef 0.002753 (schedule 0.002753); lr 2.48e-05; std neck 0.1565 head 0.1735 tail_3 0.1694; rollout mu neck +0.022 tail_3 +0.490; mu-beyond tail_3 hi 0.0000 neck lo 0.0000
+     next after start: over-bar episode 3,670,016 (+524,288); ANY-flagged 3,801,088 (+655,360); TAIL-flagged 3,801,088 (+655,360); ANY ALARM 3,932,160 (+786,432); TAIL ALARM 3,932,160 (+786,432)
+     at or before start: over-bar episodes at 0 evaluations (last none); ANY-flagged 0; ANY ALARMs 0
+-- s80 3,145,728 [core (NEXT_STEPS Option 1)]  F2 holds pair: True
+     01_stance/models/stage1_3145728_steps.zip: copy sha256 d4710ba89818c553... = artifact_manifest True, = fetch-manifest COPY rows (1) True; size 4033642
+     01_stance/models/stage1_vecnormalize_3145728_steps.pkl: copy sha256 c00a49099c6b66f3... = artifact_manifest True, = fetch-manifest COPY rows (1) True; size 5290
+     M1 (20 det. episodes, seeds 3042-3061): CMD neck_pitch -0.382 neck_yaw -0.002 head_pitch -0.335 | tail_1p -0.045 tail_1y +0.002 tail_2p +0.121 tail_3 +0.078; TAIL FLAGS 0; any-actuator over-bar episodes 0 []; falls 0; max |cmd| any step 0.770
+        share>=0.99 (mean over episodes): neck 0.000 head 0.000 tail_3 0.000
+     ledger evaluation at this step (10 det. episodes; TEL *_command_mean): neck -0.382 head -0.335 tail_1p -0.046 tail_2p +0.123 tail_3 +0.079; over-bar 0, tail 0
+     probe at update 3145728: ent_coef 0.002753 (schedule 0.002753); lr 2.48e-05; std neck 0.1604 head 0.1790 tail_3 0.1853; rollout mu neck -0.394 tail_3 +0.055; mu-beyond tail_3 hi 0.0000 neck lo 0.0000
+     next after start: over-bar episode 3,801,088 (+655,360); ANY-flagged 4,849,664 (+1,703,936); TAIL-flagged none; ANY ALARM 5,505,024 (+2,359,296); TAIL ALARM none
+     at or before start: over-bar episodes at 0 evaluations (last none); ANY-flagged 0; ANY ALARMs 0
+-- s60 6,291,456 [add-on C (NEXT_STEPS Option 1)]  F2 holds pair: True
+     01_stance/models/stage1_6291456_steps.zip: copy sha256 938a78e8679a5b96... = artifact_manifest True, = fetch-manifest COPY rows (1) True; size 4033643
+     01_stance/models/stage1_vecnormalize_6291456_steps.pkl: copy sha256 356e6e611a3ca29b... = artifact_manifest True, = fetch-manifest COPY rows (1) True; size 5290
+     M1 (20 det. episodes, seeds 3042-3061): CMD neck_pitch -0.214 neck_yaw +0.001 head_pitch -0.131 | tail_1p +0.037 tail_1y +0.004 tail_2p +0.150 tail_3 +0.273; TAIL FLAGS 0; any-actuator over-bar episodes 0 []; falls 0; max |cmd| any step 1.000
+        share>=0.99 (mean over episodes): neck 0.000 head 0.000 tail_3 0.000
+     ledger evaluation at this step (10 det. episodes; TEL *_command_mean): neck -0.159 head -0.142 tail_1p +0.046 tail_2p +0.130 tail_3 +0.269; over-bar 0, tail 0
+     probe at update 6291456: ent_coef 0.000506 (schedule 0.000506); lr 1.95e-05; std neck 0.1340 head 0.1589 tail_3 0.1525; rollout mu neck -0.194 tail_3 +0.245; mu-beyond tail_3 hi 0.0000 neck lo 0.0000
+     next after start: over-bar episode 8,126,464 (+1,835,008); ANY-flagged none; TAIL-flagged none; ANY ALARM none; TAIL ALARM none
+     at or before start: over-bar episodes at 0 evaluations (last none); ANY-flagged 0; ANY ALARMs 0
+-- s42 3,407,872 [closer (RO l815-l819, REVIEW 4.5)]  F2 holds pair: False
+     01_stance/models/stage1_3407872_steps.zip: NOT HELD; listed size 4033642; artifact_manifest sha256 c566ab81cda08c42... size 4033642
+     01_stance/models/stage1_vecnormalize_3407872_steps.pkl: NOT HELD; listed size 5291; artifact_manifest sha256 b7e015d1eb27e3c8... size 5291
+     M1: no panel at this label
+     ledger evaluation at this step (10 det. episodes; TEL *_command_mean): neck +0.017 head -0.023 tail_1p -0.160 tail_2p +0.034 tail_3 +0.822; over-bar 0, tail 0
+     probe at update 3407872: ent_coef 0.002566 (schedule 0.002566); lr 2.43e-05; std neck 0.1537 head 0.1726 tail_3 0.1660; rollout mu neck +0.009 tail_3 +0.693; mu-beyond tail_3 hi 0.0000 neck lo 0.0000
+     next after start: over-bar episode 3,670,016 (+262,144); ANY-flagged 3,801,088 (+393,216); TAIL-flagged 3,801,088 (+393,216); ANY ALARM 3,932,160 (+524,288); TAIL ALARM 3,932,160 (+524,288)
+     at or before start: over-bar episodes at 0 evaluations (last none); ANY-flagged 0; ANY ALARMs 0
+-- s80 3,670,016 [closer (RO l815-l819, REVIEW 4.5)]  F2 holds pair: False
+     01_stance/models/stage1_3670016_steps.zip: NOT HELD; listed size 4033631; artifact_manifest sha256 608319f7e6acfe5f... size 4033631
+     01_stance/models/stage1_vecnormalize_3670016_steps.pkl: NOT HELD; listed size 5290; artifact_manifest sha256 d4047643963fb33b... size 5290
+     M1: no panel at this label
+     ledger evaluation at this step (10 det. episodes; TEL *_command_mean): neck -0.644 head -0.492 tail_1p -0.025 tail_2p +0.134 tail_3 +0.069; over-bar 0, tail 0
+     probe at update 3670016: ent_coef 0.002379 (schedule 0.002379); lr 2.39e-05; std neck 0.1550 head 0.1751 tail_3 0.1786; rollout mu neck -0.567 tail_3 +0.064; mu-beyond tail_3 hi 0.0000 neck lo 0.0002
+     next after start: over-bar episode 3,801,088 (+131,072); ANY-flagged 4,849,664 (+1,179,648); TAIL-flagged none; ANY ALARM 5,505,024 (+1,835,008); TAIL ALARM none
+     at or before start: over-bar episodes at 0 evaluations (last none); ANY-flagged 0; ANY ALARMs 0
+-- s60 6,815,744 [closer (RO l815-l819, REVIEW 4.5)]  F2 holds pair: False
+     01_stance/models/stage1_6815744_steps.zip: NOT HELD; listed size 4033633; artifact_manifest sha256 ec59b9f01553ff75... size 4033633
+     01_stance/models/stage1_vecnormalize_6815744_steps.pkl: NOT HELD; listed size 5290; artifact_manifest sha256 03fcd71768e52239... size 5290
+     M1: no panel at this label
+     ledger evaluation at this step (10 det. episodes; TEL *_command_mean): neck -0.283 head -0.190 tail_1p +0.072 tail_2p +0.193 tail_3 +0.574; over-bar 0, tail 0
+     probe at update 6815744: ent_coef 0.000132 (schedule 0.000132); lr 1.86e-05; std neck 0.1303 head 0.1554 tail_3 0.1482; rollout mu neck -0.237 tail_3 +0.473; mu-beyond tail_3 hi 0.0001 neck lo 0.0000
+     next after start: over-bar episode 8,126,464 (+1,310,720); ANY-flagged none; TAIL-flagged none; ANY ALARM none; TAIL ALARM none
+     at or before start: over-bar episodes at 0 evaluations (last none); ANY-flagged 0; ANY ALARMs 0
+-- s80 4,194,304 [other F2-held (surveyor's addition)]  F2 holds pair: True
+     01_stance/models/stage1_4194304_steps.zip: copy sha256 51197dbd7f90e481... = artifact_manifest True, = fetch-manifest COPY rows (1) True; size 4033642
+     01_stance/models/stage1_vecnormalize_4194304_steps.pkl: copy sha256 f405244b94662bdf... = artifact_manifest True, = fetch-manifest COPY rows (1) True; size 5290
+     M1 (20 det. episodes, seeds 3042-3061): CMD neck_pitch -0.594 neck_yaw +0.001 head_pitch -0.423 | tail_1p -0.046 tail_1y +0.006 tail_2p +0.059 tail_3 +0.020; TAIL FLAGS 0; any-actuator over-bar episodes 0 []; falls 0; max |cmd| any step 1.000
+        share>=0.99 (mean over episodes): neck 0.000 head 0.000 tail_3 0.000
+     ledger evaluation at this step (10 det. episodes; TEL *_command_mean): neck -0.583 head -0.403 tail_1p -0.049 tail_2p +0.062 tail_3 +0.008; over-bar 0, tail 0
+     probe at update 4194304: ent_coef 0.002004 (schedule 0.002004); lr 2.3e-05; std neck 0.1514 head 0.1711 tail_3 0.1723; rollout mu neck -0.505 tail_3 -0.003; mu-beyond tail_3 hi 0.0000 neck lo 0.0010
+     next after start: over-bar episode 4,849,664 (+655,360); ANY-flagged 4,849,664 (+655,360); TAIL-flagged none; ANY ALARM 5,505,024 (+1,310,720); TAIL ALARM none
+     at or before start: over-bar episodes at 1 evaluations (last 3,801,088); ANY-flagged 0; ANY ALARMs 0
+-- s42 2,097,152 [other F2-held, earlier (NEXT_STEPS RISKS)]  F2 holds pair: True
+     01_stance/models/stage1_2097152_steps.zip: copy sha256 83b6c88edb933005... = artifact_manifest True, = fetch-manifest COPY rows (1) True; size 4033634
+     01_stance/models/stage1_vecnormalize_2097152_steps.pkl: copy sha256 991d434f385187e8... = artifact_manifest True, = fetch-manifest COPY rows (1) True; size 5291
+     M1 (20 det. episodes, seeds 3042-3061): CMD neck_pitch +0.065 neck_yaw +0.000 head_pitch +0.043 | tail_1p -0.051 tail_1y +0.010 tail_2p +0.037 tail_3 +0.151; TAIL FLAGS 0; any-actuator over-bar episodes 0 []; falls 0; max |cmd| any step 0.582
+        share>=0.99 (mean over episodes): neck 0.000 head 0.000 tail_3 0.000
+     ledger evaluation at this step (10 det. episodes; TEL *_command_mean): neck +0.071 head +0.038 tail_1p -0.049 tail_2p +0.017 tail_3 +0.125; over-bar 0, tail 0
+     probe at update 2097152: ent_coef 0.003502 (schedule 0.003502); lr 2.65e-05; std neck 0.1754 head 0.1888 tail_3 0.1816; rollout mu neck +0.059 tail_3 +0.131; mu-beyond tail_3 hi 0.0000 neck lo 0.0000
+     next after start: over-bar episode 3,670,016 (+1,572,864); ANY-flagged 3,801,088 (+1,703,936); TAIL-flagged 3,801,088 (+1,703,936); ANY ALARM 3,932,160 (+1,835,008); TAIL ALARM 3,932,160 (+1,835,008)
+     at or before start: over-bar episodes at 0 evaluations (last none); ANY-flagged 0; ANY ALARMs 0
+-- s80 2,097,152 [other F2-held, earlier (surveyor's addition)]  F2 holds pair: True
+     01_stance/models/stage1_2097152_steps.zip: copy sha256 18062dc9f5644161... = artifact_manifest True, = fetch-manifest COPY rows (1) True; size 4033630
+     01_stance/models/stage1_vecnormalize_2097152_steps.pkl: copy sha256 f2f92b097da2188f... = artifact_manifest True, = fetch-manifest COPY rows (1) True; size 5290
+     M1 (20 det. episodes, seeds 3042-3061): CMD neck_pitch -0.036 neck_yaw +0.000 head_pitch -0.063 | tail_1p -0.013 tail_1y +0.000 tail_2p -0.012 tail_3 +0.018; TAIL FLAGS 0; any-actuator over-bar episodes 0 []; falls 0; max |cmd| any step 0.628
+        share>=0.99 (mean over episodes): neck 0.000 head 0.000 tail_3 0.000
+     ledger evaluation at this step (10 det. episodes; TEL *_command_mean): neck -0.036 head -0.065 tail_1p -0.009 tail_2p -0.011 tail_3 +0.016; over-bar 0, tail 0
+     probe at update 2097152: ent_coef 0.003502 (schedule 0.003502); lr 2.65e-05; std neck 0.1721 head 0.1923 tail_3 0.1915; rollout mu neck -0.058 tail_3 +0.029; mu-beyond tail_3 hi 0.0000 neck lo 0.0000
+     next after start: over-bar episode 3,801,088 (+1,703,936); ANY-flagged 4,849,664 (+2,752,512); TAIL-flagged none; ANY ALARM 5,505,024 (+3,407,872); TAIL ALARM none
+     at or before start: over-bar episodes at 0 evaluations (last none); ANY-flagged 0; ANY ALARMs 0
+-- s42 1,048,576 [other F2-held, earliest (NEXT_STEPS RISKS)]  F2 holds pair: True
+     01_stance/models/stage1_1048576_steps.zip: copy sha256 0f765bd692371f21... = artifact_manifest True, = fetch-manifest COPY rows (1) True; size 4033631
+     01_stance/models/stage1_vecnormalize_1048576_steps.pkl: copy sha256 52e52a7b9820af80... = artifact_manifest True, = fetch-manifest COPY rows (1) True; size 5291
+     M1 (20 det. episodes, seeds 3042-3061): CMD neck_pitch +0.014 neck_yaw +0.002 head_pitch -0.008 | tail_1p -0.046 tail_1y +0.000 tail_2p +0.031 tail_3 -0.035; TAIL FLAGS 0; any-actuator over-bar episodes 0 []; falls 0; max |cmd| any step 0.421
+        share>=0.99 (mean over episodes): neck 0.000 head 0.000 tail_3 0.000
+     ledger evaluation at this step (10 det. episodes; TEL *_command_mean): neck +0.014 head -0.007 tail_1p -0.054 tail_2p +0.021 tail_3 -0.042; over-bar 0, tail 0
+     probe at update 1048576: ent_coef 0.004251 (schedule 0.004251); lr 2.83e-05; std neck 0.1980 head 0.2042 tail_3 0.2000; rollout mu neck -0.001 tail_3 -0.041; mu-beyond tail_3 hi 0.0000 neck lo 0.0000
+     next after start: over-bar episode 3,670,016 (+2,621,440); ANY-flagged 3,801,088 (+2,752,512); TAIL-flagged 3,801,088 (+2,752,512); ANY ALARM 3,932,160 (+2,883,584); TAIL ALARM 3,932,160 (+2,883,584)
+     at or before start: over-bar episodes at 0 evaluations (last none); ANY-flagged 0; ANY ALARMs 0
+-- s80 1,048,576 [other F2-held, earliest (NEXT_STEPS RISKS)]  F2 holds pair: True
+     01_stance/models/stage1_1048576_steps.zip: copy sha256 45f175eb3b0500a5... = artifact_manifest True, = fetch-manifest COPY rows (1) True; size 4033627
+     01_stance/models/stage1_vecnormalize_1048576_steps.pkl: copy sha256 ea8781be088fb26a... = artifact_manifest True, = fetch-manifest COPY rows (1) True; size 5290
+     M1 (20 det. episodes, seeds 3042-3061): CMD neck_pitch -0.005 neck_yaw +0.005 head_pitch -0.001 | tail_1p -0.048 tail_1y -0.010 tail_2p +0.017 tail_3 -0.021; TAIL FLAGS 0; any-actuator over-bar episodes 0 []; falls 0; max |cmd| any step 0.451
+        share>=0.99 (mean over episodes): neck 0.000 head 0.000 tail_3 0.000
+     ledger evaluation at this step (10 det. episodes; TEL *_command_mean): neck -0.005 head -0.007 tail_1p -0.031 tail_2p +0.015 tail_3 -0.022; over-bar 0, tail 0
+     probe at update 1048576: ent_coef 0.004251 (schedule 0.004251); lr 2.83e-05; std neck 0.1946 head 0.2122 tail_3 0.2056; rollout mu neck -0.000 tail_3 -0.015; mu-beyond tail_3 hi 0.0000 neck lo 0.0000
+     next after start: over-bar episode 3,801,088 (+2,752,512); ANY-flagged 4,849,664 (+3,801,088); TAIL-flagged none; ANY ALARM 5,505,024 (+4,456,448); TAIL ALARM none
+     at or before start: over-bar episodes at 0 evaluations (last none); ANY-flagged 0; ANY ALARMs 0
+-- s60 7,340,032 [other F2-held, later (surveyor's addition)]  F2 holds pair: True
+     01_stance/models/stage1_7340032_steps.zip: copy sha256 413c38e4bf272b24... = artifact_manifest True, = fetch-manifest COPY rows (1) True; size 4033624
+     01_stance/models/stage1_vecnormalize_7340032_steps.pkl: copy sha256 2198bbd17b70148a... = artifact_manifest True, = fetch-manifest COPY rows (1) True; size 5290
+     M1 (20 det. episodes, seeds 3042-3061): CMD neck_pitch -0.299 neck_yaw +0.001 head_pitch -0.173 | tail_1p +0.050 tail_1y +0.004 tail_2p +0.212 tail_3 +0.641; TAIL FLAGS 0; any-actuator over-bar episodes 0 []; falls 0; max |cmd| any step 1.000
+        share>=0.99 (mean over episodes): neck 0.000 head 0.000 tail_3 0.000
+     ledger evaluation at this step (10 det. episodes; TEL *_command_mean): neck -0.265 head -0.183 tail_1p +0.058 tail_2p +0.185 tail_3 +0.653; over-bar 0, tail 0
+     probe at update 7340032: ent_coef 0.000000 (schedule 0.000000); lr 1.78e-05; std neck 0.1278 head 0.1514 tail_3 0.1432; rollout mu neck -0.282 tail_3 +0.541; mu-beyond tail_3 hi 0.0001 neck lo 0.0000
+     next after start: over-bar episode 8,126,464 (+786,432); ANY-flagged none; TAIL-flagged none; ANY ALARM none; TAIL ALARM none
+     at or before start: over-bar episodes at 0 evaluations (last none); ANY-flagged 0; ANY ALARMs 0
+
+WINDOWS IN THE ORIGINAL RUN (evaluations at start + k x 131,072, k >= 1; an alarm needs both evaluations inside)
+  s42 3,145,728  L 1,048,576 -> 4,194,304  evals  8 | ANY-flagged  4 (first 3,801,088) | TAIL-flagged  4 | ANY ALARM  3 (first 3,932,160) | TAIL ALARM  3 | over-bar eps  41 (first 3,670,016) | end habit-actuator 14+ CMD +0.989 (M1)
+  s42 3,145,728  L 1,572,864 -> 4,718,592  evals 12 | ANY-flagged  8 (first 3,801,088) | TAIL-flagged  8 | ANY ALARM  7 (first 3,932,160) | TAIL ALARM  7 | over-bar eps  77 (first 3,670,016) | end habit-actuator 14+ CMD +1.000 (ledger)  <- design length
+  s42 3,145,728  L 2,097,152 -> 5,242,880  evals 16 | ANY-flagged 11 (first 3,801,088) | TAIL-flagged 11 | ANY ALARM 10 (first 3,932,160) | TAIL ALARM 10 | over-bar eps 105 (first 3,670,016) | end habit-actuator 14+ CMD +0.884 (M1)
+  s42 3,145,728  L 2,359,296 -> 5,505,024  evals 18 | ANY-flagged 13 (first 3,801,088) | TAIL-flagged 13 | ANY ALARM 11 (first 3,932,160) | TAIL ALARM 11 | over-bar eps 118 (first 3,670,016) | end habit-actuator 14+ CMD +0.968 (ledger)
+  s42 3,145,728  L 3,145,728 -> 6,291,456  evals 24 | ANY-flagged 13 (first 3,801,088) | TAIL-flagged 13 | ANY ALARM 11 (first 3,932,160) | TAIL ALARM 11 | over-bar eps 123 (first 3,670,016) | end habit-actuator 14+ CMD +0.355 (M1)
+  s80 3,145,728  L 1,048,576 -> 4,194,304  evals  8 | ANY-flagged  0 (first -) | TAIL-flagged  0 | ANY ALARM  0 (first -) | TAIL ALARM  0 | over-bar eps   1 (first 3,801,088) | end habit-actuator 0- CMD -0.594 (M1)
+  s80 3,145,728  L 1,572,864 -> 4,718,592  evals 12 | ANY-flagged  0 (first -) | TAIL-flagged  0 | ANY ALARM  0 (first -) | TAIL ALARM  0 | over-bar eps   1 (first 3,801,088) | end habit-actuator 0- CMD -0.805 (ledger)
+  s80 3,145,728  L 2,097,152 -> 5,242,880  evals 16 | ANY-flagged  1 (first 4,849,664) | TAIL-flagged  0 | ANY ALARM  0 (first -) | TAIL ALARM  0 | over-bar eps   7 (first 3,801,088) | end habit-actuator 0- CMD -0.793 (M1)
+  s80 3,145,728  L 2,359,296 -> 5,505,024  evals 18 | ANY-flagged  3 (first 4,849,664) | TAIL-flagged  0 | ANY ALARM  1 (first 5,505,024) | TAIL ALARM  0 | over-bar eps  25 (first 3,801,088) | end habit-actuator 0- CMD -0.936 (ledger)  <- design length
+  s80 3,145,728  L 3,145,728 -> 6,291,456  evals 24 | ANY-flagged  7 (first 4,849,664) | TAIL-flagged  0 | ANY ALARM  3 (first 5,505,024) | TAIL ALARM  0 | over-bar eps  62 (first 3,801,088) | end habit-actuator 0- CMD -0.917 (M1)
+  s60 6,291,456  L 1,048,576 -> 7,340,032  evals  8 | ANY-flagged  0 (first -) | TAIL-flagged  0 | ANY ALARM  0 (first -) | TAIL ALARM  0 | over-bar eps   0 (first -) | end habit-actuator 14+ CMD +0.641 (M1)
+  s60 6,291,456  L 1,572,864 -> 7,864,320  evals 12 | ANY-flagged  0 (first -) | TAIL-flagged  0 | ANY ALARM  0 (first -) | TAIL ALARM  0 | over-bar eps   0 (first -) | end habit-actuator 14+ CMD +0.867 (ledger)
+  s60 6,291,456  L 2,097,152 -> 8,388,608  evals 16 | ANY-flagged  0 (first -) | TAIL-flagged  0 | ANY ALARM  0 (first -) | TAIL ALARM  0 | over-bar eps   4 (first 8,126,464) | end habit-actuator 14+ CMD +0.880 (M1)  <- design length
+  s60 6,291,456  L 2,359,296 -> 8,650,752  evals 18 | ANY-flagged  0 (first -) | TAIL-flagged  0 | ANY ALARM  0 (first -) | TAIL ALARM  0 | over-bar eps   8 (first 8,126,464) | end habit-actuator 14+ CMD +0.894 (ledger)
+  s60 6,291,456  L 3,145,728 -> 9,437,184  evals 24 | ANY-flagged  0 (first -) | TAIL-flagged  0 | ANY ALARM  0 (first -) | TAIL ALARM  0 | over-bar eps  16 (first 8,126,464) | end habit-actuator 14+ CMD +0.862 (M1)
+  s42 3,407,872  L 1,048,576 -> 4,456,448  evals  8 | ANY-flagged  6 (first 3,801,088) | TAIL-flagged  6 | ANY ALARM  5 (first 3,932,160) | TAIL ALARM  5 | over-bar eps  57 (first 3,670,016) | end habit-actuator 14+ CMD +0.994 (ledger)
+  s42 3,407,872  L 1,572,864 -> 4,980,736  evals 12 | ANY-flagged 10 (first 3,801,088) | TAIL-flagged 10 | ANY ALARM  9 (first 3,932,160) | TAIL ALARM  9 | over-bar eps  96 (first 3,670,016) | end habit-actuator 14+ CMD +1.000 (ledger)  <- design length
+  s42 3,407,872  L 2,097,152 -> 5,505,024  evals 16 | ANY-flagged 13 (first 3,801,088) | TAIL-flagged 13 | ANY ALARM 11 (first 3,932,160) | TAIL ALARM 11 | over-bar eps 118 (first 3,670,016) | end habit-actuator 14+ CMD +0.968 (ledger)
+  s42 3,407,872  L 2,359,296 -> 5,767,168  evals 18 | ANY-flagged 13 (first 3,801,088) | TAIL-flagged 13 | ANY ALARM 11 (first 3,932,160) | TAIL ALARM 11 | over-bar eps 120 (first 3,670,016) | end habit-actuator 14+ CMD +0.897 (ledger)
+  s42 3,407,872  L 3,145,728 -> 6,553,600  evals 24 | ANY-flagged 13 (first 3,801,088) | TAIL-flagged 13 | ANY ALARM 11 (first 3,932,160) | TAIL ALARM 11 | over-bar eps 123 (first 3,670,016) | end habit-actuator 14+ CMD -0.354 (ledger)
+  s80 3,670,016  L 1,048,576 -> 4,718,592  evals  8 | ANY-flagged  0 (first -) | TAIL-flagged  0 | ANY ALARM  0 (first -) | TAIL ALARM  0 | over-bar eps   1 (first 3,801,088) | end habit-actuator 0- CMD -0.805 (ledger)
+  s80 3,670,016  L 1,572,864 -> 5,242,880  evals 12 | ANY-flagged  1 (first 4,849,664) | TAIL-flagged  0 | ANY ALARM  0 (first -) | TAIL ALARM  0 | over-bar eps   7 (first 3,801,088) | end habit-actuator 0- CMD -0.793 (M1)  <- design length
+  s80 3,670,016  L 2,097,152 -> 5,767,168  evals 16 | ANY-flagged  4 (first 4,849,664) | TAIL-flagged  0 | ANY ALARM  2 (first 5,505,024) | TAIL ALARM  0 | over-bar eps  34 (first 3,801,088) | end habit-actuator 0- CMD -0.762 (ledger)
+  s80 3,670,016  L 2,359,296 -> 6,029,312  evals 18 | ANY-flagged  6 (first 4,849,664) | TAIL-flagged  0 | ANY ALARM  3 (first 5,505,024) | TAIL ALARM  0 | over-bar eps  49 (first 3,801,088) | end habit-actuator 0- CMD -0.930 (ledger)
+  s80 3,670,016  L 3,145,728 -> 6,815,744  evals 24 | ANY-flagged  9 (first 4,849,664) | TAIL-flagged  0 | ANY ALARM  5 (first 5,505,024) | TAIL ALARM  0 | over-bar eps  80 (first 3,801,088) | end habit-actuator 0- CMD -0.791 (ledger)
+  s60 6,815,744  L 1,048,576 -> 7,864,320  evals  8 | ANY-flagged  0 (first -) | TAIL-flagged  0 | ANY ALARM  0 (first -) | TAIL ALARM  0 | over-bar eps   0 (first -) | end habit-actuator 14+ CMD +0.867 (ledger)
+  s60 6,815,744  L 1,572,864 -> 8,388,608  evals 12 | ANY-flagged  0 (first -) | TAIL-flagged  0 | ANY ALARM  0 (first -) | TAIL ALARM  0 | over-bar eps   4 (first 8,126,464) | end habit-actuator 14+ CMD +0.880 (M1)  <- design length
+  s60 6,815,744  L 2,097,152 -> 8,912,896  evals 16 | ANY-flagged  0 (first -) | TAIL-flagged  0 | ANY ALARM  0 (first -) | TAIL ALARM  0 | over-bar eps   9 (first 8,126,464) | end habit-actuator 14+ CMD +0.845 (ledger)
+  s60 6,815,744  L 2,359,296 -> 9,175,040  evals 18 | ANY-flagged  0 (first -) | TAIL-flagged  0 | ANY ALARM  0 (first -) | TAIL ALARM  0 | over-bar eps  12 (first 8,126,464) | end habit-actuator 14+ CMD +0.855 (ledger)
+  s60 6,815,744  L 3,145,728 -> 9,961,472  evals 24 | ANY-flagged  0 (first -) | TAIL-flagged  0 | ANY ALARM  0 (first -) | TAIL ALARM  0 | over-bar eps  20 (first 8,126,464) | end habit-actuator 14+ CMD +0.721 (ledger)
+  s80 4,194,304  L 1,048,576 -> 5,242,880  evals  8 | ANY-flagged  1 (first 4,849,664) | TAIL-flagged  0 | ANY ALARM  0 (first -) | TAIL ALARM  0 | over-bar eps   6 (first 4,849,664) | end habit-actuator 0- CMD -0.793 (M1)
+  s80 4,194,304  L 1,572,864 -> 5,767,168  evals 12 | ANY-flagged  4 (first 4,849,664) | TAIL-flagged  0 | ANY ALARM  2 (first 5,505,024) | TAIL ALARM  0 | over-bar eps  33 (first 4,849,664) | end habit-actuator 0- CMD -0.762 (ledger)
+  s80 4,194,304  L 2,097,152 -> 6,291,456  evals 16 | ANY-flagged  7 (first 4,849,664) | TAIL-flagged  0 | ANY ALARM  3 (first 5,505,024) | TAIL ALARM  0 | over-bar eps  61 (first 4,849,664) | end habit-actuator 0- CMD -0.917 (M1)
+  s80 4,194,304  L 2,359,296 -> 6,553,600  evals 18 | ANY-flagged  9 (first 4,849,664) | TAIL-flagged  0 | ANY ALARM  5 (first 5,505,024) | TAIL ALARM  0 | over-bar eps  75 (first 4,849,664) | end habit-actuator 0- CMD -0.900 (ledger)
+  s80 4,194,304  L 3,145,728 -> 7,340,032  evals 24 | ANY-flagged 12 (first 4,849,664) | TAIL-flagged  0 | ANY ALARM  6 (first 5,505,024) | TAIL ALARM  0 | over-bar eps 102 (first 4,849,664) | end habit-actuator 0- CMD -0.858 (M1)
+  s42 2,097,152  L 1,048,576 -> 3,145,728  evals  8 | ANY-flagged  0 (first -) | TAIL-flagged  0 | ANY ALARM  0 (first -) | TAIL ALARM  0 | over-bar eps   0 (first -) | end habit-actuator 14+ CMD +0.524 (M1)
+  s42 2,097,152  L 1,572,864 -> 3,670,016  evals 12 | ANY-flagged  0 (first -) | TAIL-flagged  0 | ANY ALARM  0 (first -) | TAIL ALARM  0 | over-bar eps   4 (first 3,670,016) | end habit-actuator 14+ CMD +0.931 (M1)
+  s42 2,097,152  L 2,097,152 -> 4,194,304  evals 16 | ANY-flagged  4 (first 3,801,088) | TAIL-flagged  4 | ANY ALARM  3 (first 3,932,160) | TAIL ALARM  3 | over-bar eps  41 (first 3,670,016) | end habit-actuator 14+ CMD +0.989 (M1)
+  s42 2,097,152  L 2,359,296 -> 4,456,448  evals 18 | ANY-flagged  6 (first 3,801,088) | TAIL-flagged  6 | ANY ALARM  5 (first 3,932,160) | TAIL ALARM  5 | over-bar eps  57 (first 3,670,016) | end habit-actuator 14+ CMD +0.994 (ledger)
+  s42 2,097,152  L 3,145,728 -> 5,242,880  evals 24 | ANY-flagged 11 (first 3,801,088) | TAIL-flagged 11 | ANY ALARM 10 (first 3,932,160) | TAIL ALARM 10 | over-bar eps 105 (first 3,670,016) | end habit-actuator 14+ CMD +0.884 (M1)
+  s80 2,097,152  L 1,048,576 -> 3,145,728  evals  8 | ANY-flagged  0 (first -) | TAIL-flagged  0 | ANY ALARM  0 (first -) | TAIL ALARM  0 | over-bar eps   0 (first -) | end habit-actuator 0- CMD -0.382 (M1)
+  s80 2,097,152  L 1,572,864 -> 3,670,016  evals 12 | ANY-flagged  0 (first -) | TAIL-flagged  0 | ANY ALARM  0 (first -) | TAIL ALARM  0 | over-bar eps   0 (first -) | end habit-actuator 0- CMD -0.644 (ledger)
+  s80 2,097,152  L 2,097,152 -> 4,194,304  evals 16 | ANY-flagged  0 (first -) | TAIL-flagged  0 | ANY ALARM  0 (first -) | TAIL ALARM  0 | over-bar eps   1 (first 3,801,088) | end habit-actuator 0- CMD -0.594 (M1)
+  s80 2,097,152  L 2,359,296 -> 4,456,448  evals 18 | ANY-flagged  0 (first -) | TAIL-flagged  0 | ANY ALARM  0 (first -) | TAIL ALARM  0 | over-bar eps   1 (first 3,801,088) | end habit-actuator 0- CMD -0.657 (ledger)
+  s80 2,097,152  L 3,145,728 -> 5,242,880  evals 24 | ANY-flagged  1 (first 4,849,664) | TAIL-flagged  0 | ANY ALARM  0 (first -) | TAIL ALARM  0 | over-bar eps   7 (first 3,801,088) | end habit-actuator 0- CMD -0.793 (M1)
+  s42 1,048,576  L 1,048,576 -> 2,097,152  evals  8 | ANY-flagged  0 (first -) | TAIL-flagged  0 | ANY ALARM  0 (first -) | TAIL ALARM  0 | over-bar eps   0 (first -) | end habit-actuator 14+ CMD +0.151 (M1)
+  s42 1,048,576  L 1,572,864 -> 2,621,440  evals 12 | ANY-flagged  0 (first -) | TAIL-flagged  0 | ANY ALARM  0 (first -) | TAIL ALARM  0 | over-bar eps   0 (first -) | end habit-actuator 14+ CMD +0.197 (ledger)
+  s42 1,048,576  L 2,097,152 -> 3,145,728  evals 16 | ANY-flagged  0 (first -) | TAIL-flagged  0 | ANY ALARM  0 (first -) | TAIL ALARM  0 | over-bar eps   0 (first -) | end habit-actuator 14+ CMD +0.524 (M1)
+  s42 1,048,576  L 2,359,296 -> 3,407,872  evals 18 | ANY-flagged  0 (first -) | TAIL-flagged  0 | ANY ALARM  0 (first -) | TAIL ALARM  0 | over-bar eps   0 (first -) | end habit-actuator 14+ CMD +0.822 (ledger)
+  s42 1,048,576  L 3,145,728 -> 4,194,304  evals 24 | ANY-flagged  4 (first 3,801,088) | TAIL-flagged  4 | ANY ALARM  3 (first 3,932,160) | TAIL ALARM  3 | over-bar eps  41 (first 3,670,016) | end habit-actuator 14+ CMD +0.989 (M1)
+  s80 1,048,576  L 1,048,576 -> 2,097,152  evals  8 | ANY-flagged  0 (first -) | TAIL-flagged  0 | ANY ALARM  0 (first -) | TAIL ALARM  0 | over-bar eps   0 (first -) | end habit-actuator 0- CMD -0.036 (M1)
+  s80 1,048,576  L 1,572,864 -> 2,621,440  evals 12 | ANY-flagged  0 (first -) | TAIL-flagged  0 | ANY ALARM  0 (first -) | TAIL ALARM  0 | over-bar eps   0 (first -) | end habit-actuator 0- CMD -0.080 (ledger)
+  s80 1,048,576  L 2,097,152 -> 3,145,728  evals 16 | ANY-flagged  0 (first -) | TAIL-flagged  0 | ANY ALARM  0 (first -) | TAIL ALARM  0 | over-bar eps   0 (first -) | end habit-actuator 0- CMD -0.382 (M1)
+  s80 1,048,576  L 2,359,296 -> 3,407,872  evals 18 | ANY-flagged  0 (first -) | TAIL-flagged  0 | ANY ALARM  0 (first -) | TAIL ALARM  0 | over-bar eps   0 (first -) | end habit-actuator 0- CMD -0.652 (ledger)
+  s80 1,048,576  L 3,145,728 -> 4,194,304  evals 24 | ANY-flagged  0 (first -) | TAIL-flagged  0 | ANY ALARM  0 (first -) | TAIL ALARM  0 | over-bar eps   1 (first 3,801,088) | end habit-actuator 0- CMD -0.594 (M1)
+  s60 7,340,032  L 1,048,576 -> 8,388,608  evals  8 | ANY-flagged  0 (first -) | TAIL-flagged  0 | ANY ALARM  0 (first -) | TAIL ALARM  0 | over-bar eps   4 (first 8,126,464) | end habit-actuator 14+ CMD +0.880 (M1)
+  s60 7,340,032  L 1,572,864 -> 8,912,896  evals 12 | ANY-flagged  0 (first -) | TAIL-flagged  0 | ANY ALARM  0 (first -) | TAIL ALARM  0 | over-bar eps   9 (first 8,126,464) | end habit-actuator 14+ CMD +0.845 (ledger)
+  s60 7,340,032  L 2,097,152 -> 9,437,184  evals 16 | ANY-flagged  0 (first -) | TAIL-flagged  0 | ANY ALARM  0 (first -) | TAIL ALARM  0 | over-bar eps  16 (first 8,126,464) | end habit-actuator 14+ CMD +0.862 (M1)
+  s60 7,340,032  L 2,359,296 -> 9,699,328  evals 18 | ANY-flagged  0 (first -) | TAIL-flagged  0 | ANY ALARM  0 (first -) | TAIL ALARM  0 | over-bar eps  20 (first 8,126,464) | end habit-actuator 14+ CMD +0.844 (ledger)
+  s60 7,340,032  L 3,145,728 -> 10,485,760 evals 24 | ANY-flagged  0 (first -) | TAIL-flagged  0 | ANY ALARM  0 (first -) | TAIL ALARM  0 | over-bar eps  20 (first 8,126,464) | end habit-actuator 14+ CMD +0.727 (M1)
+
+ARM A (RECORDED SCHEDULE) OVER EACH DESIGN WINDOW [computed: 0.005 x (1 - t / 7,000,000), floor 0]
+  s42 3,145,728 -> 4,718,592: ent_coef at start 0.002753, at end 0.001630, mean over window 0.002191; share of window at 0: 0.000
+  s80 3,145,728 -> 5,505,024: ent_coef at start 0.002753, at end 0.001068, mean over window 0.001910; share of window at 0: 0.000
+  s60 6,291,456 -> 8,388,608: ent_coef at start 0.000506, at end 0.000000, mean over window 0.000085; share of window at 0: 0.662
+  s42 3,407,872 -> 4,980,736: ent_coef at start 0.002566, at end 0.001442, mean over window 0.002004; share of window at 0: 0.000
+  s80 3,670,016 -> 5,242,880: ent_coef at start 0.002379, at end 0.001255, mean over window 0.001817; share of window at 0: 0.000
+  s60 6,815,744 -> 8,388,608: ent_coef at start 0.000132, at end 0.000000, mean over window 0.000008; share of window at 0: 0.883

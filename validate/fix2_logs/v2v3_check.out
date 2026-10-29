@@ -1,0 +1,626 @@
+Thu Oct 29 01:26:54 UTC 2026
+V2/V3 s42_A_1101: PASS
+V2/V3 s42_B_1201: PASS
+V2/V3 s80_A_1301: PASS
+V2/V3 s80_B_1401: PASS
+{
+ "s42_A_1101": {
+  "pass": true,
+  "problems": [],
+  "info": {
+   "T": 3407872,
+   "run_meta_sha256": "3364850885bdb67912fcdac1f0db5323de84ab757bed468f51906e549f8f6ee1",
+   "digests": {
+    "start": {
+     "params": "sha256:150621440b64f0e7434eca6c0d9b141e2013c5b60d7c54d5d60ccc52d003418d",
+     "adam": "sha256:f4eee2add2c7e472e0b2f32f25d19f22b5e0d0ad6f5ad5333f221ce3a4035798",
+     "vecnormalize": "sha256:eee6ade6075d8ee1d9ffa49b52e5db20508bebe04e287a2595b8ed45fd7146ef",
+     "n_updates": 3458
+    },
+    "end": {
+     "params": "sha256:150621440b64f0e7434eca6c0d9b141e2013c5b60d7c54d5d60ccc52d003418d",
+     "adam": "sha256:f4eee2add2c7e472e0b2f32f25d19f22b5e0d0ad6f5ad5333f221ce3a4035798",
+     "vecnormalize": "sha256:74f2bda1c55650ea1bda491df546de55a9be68af6d60d3fc61c39876247787b8",
+     "n_updates": 3458
+    }
+   },
+   "stop_at_end": {
+    "target": 3407872,
+    "flag": true,
+    "step": 3407872,
+    "calls": 65536,
+    "last_step": 3407872
+   },
+   "train_calls": 31,
+   "learn_seconds": 594.5,
+   "wall_seconds": 604.4,
+   "final_zip": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/ecs/validate/fix2_v2/s42_A_1101/01_stance/models/stage1_final.zip",
+   "checkpoint_at_T": {
+    "zip": true,
+    "pkl": true
+   },
+   "models": [
+    "stage1_3145728_steps.zip",
+    "stage1_3407872_steps.zip",
+    "stage1_final.zip",
+    "stage1_final_vecnorm.pkl",
+    "stage1_vecnormalize_3145728_steps.pkl",
+    "stage1_vecnormalize_3407872_steps.pkl"
+   ],
+   "checkpoint at T data": {
+    "num_timesteps": 3407872,
+    "_n_updates": 3458,
+    "ent_coef": 0.0025658085714285713,
+    "seed": 1101
+   },
+   "final data": {
+    "num_timesteps": 3407872,
+    "_n_updates": 3458,
+    "ent_coef": 0.0025658057142857143,
+    "seed": 1101
+   },
+   "evaluations_in_window": [
+    3276800,
+    3407872
+   ],
+   "evaluations_last3": [
+    3145728,
+    3276800,
+    3407872
+   ],
+   "first_row": {
+    "update_timesteps": 3153920,
+    "ent_coef": 0.0027471999637782574,
+    "learning_rate": 2.4743467292864807e-05,
+    "parent_ent_coef": 0.0027471999637782574,
+    "schedule_0p005_to_0_by_7M": 0.0027471999999999996
+   },
+   "last_row": {
+    "update_timesteps": 3399680,
+    "ent_coef": 0.0025716570671647787,
+    "learning_rate": 2.433386725897435e-05
+   },
+   "probe_dtypes": {
+    "ent_coef": "float32",
+    "learning_rate": "float32"
+   },
+   "probe_rows": {
+    "total": 415,
+    "seeded_at_or_before_S": 384,
+    "parent_at_or_before_S": 384,
+    "window": 31
+   },
+   "probe_members": {
+    "per_row_compared": 22,
+    "other_members": [
+     "ankle_actuators",
+     "ankle_signs",
+     "bank_ankle_offset",
+     "bank_build_seconds",
+     "bank_com_fore_aft_m",
+     "bank_horizon",
+     "bank_labels",
+     "bank_raw_obs",
+     "bank_seeds",
+     "bank_steps",
+     "frozen_obs_mean",
+     "frozen_obs_var"
+    ],
+    "other_members_differing": [
+     "bank_build_seconds",
+     "frozen_obs_mean",
+     "frozen_obs_var"
+    ]
+   },
+   "bank_comparison": "kept: the seeded rows at or before S are the parent's, cell for cell; members differing from the parent's: ['bank_build_seconds', 'frozen_obs_mean', 'frozen_obs_var']",
+   "ledger": {
+    "columns": 194,
+    "rows": 260,
+    "sha256": "d3c7910580bedc36f9b00cffc3da8ad4d2959184efe4a7edb9c5220c3b78bd27",
+    "seeded_rows": 240,
+    "parent_rows_at_or_before_S": 240,
+    "new_evaluations": {
+     "3276800": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9
+     ],
+     "3407872": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9
+     ]
+    }
+   },
+   "m5": {
+    "exit": 0,
+    "json": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/ecs/validate/fix2_v3_m5/s42_A_1101/m5.json",
+    "txt": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/ecs/validate/fix2_v3_m5/s42_A_1101/m5.txt",
+    "c6": {
+     "passed": true,
+     "failures": [],
+     "E": 3407872
+    }
+   }
+  }
+ },
+ "s42_B_1201": {
+  "pass": true,
+  "problems": [],
+  "info": {
+   "T": 3407872,
+   "run_meta_sha256": "044bac93e251c3f44ef813d01ac68f7051b490326ac510469edf091a4c4e2104",
+   "digests": {
+    "start": {
+     "params": "sha256:150621440b64f0e7434eca6c0d9b141e2013c5b60d7c54d5d60ccc52d003418d",
+     "adam": "sha256:f4eee2add2c7e472e0b2f32f25d19f22b5e0d0ad6f5ad5333f221ce3a4035798",
+     "vecnormalize": "sha256:eee6ade6075d8ee1d9ffa49b52e5db20508bebe04e287a2595b8ed45fd7146ef",
+     "n_updates": 3458
+    },
+    "end": {
+     "params": "sha256:150621440b64f0e7434eca6c0d9b141e2013c5b60d7c54d5d60ccc52d003418d",
+     "adam": "sha256:f4eee2add2c7e472e0b2f32f25d19f22b5e0d0ad6f5ad5333f221ce3a4035798",
+     "vecnormalize": "sha256:88fbb0f36b4a94ae2cbcbcb0a19836c72050cc976088f3e402a4eef453ac53a1",
+     "n_updates": 3458
+    }
+   },
+   "stop_at_end": {
+    "target": 3407872,
+    "flag": true,
+    "step": 3407872,
+    "calls": 65536,
+    "last_step": 3407872
+   },
+   "train_calls": 31,
+   "learn_seconds": 607.6,
+   "wall_seconds": 614.8,
+   "final_zip": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/ecs/validate/fix2_v2/s42_B_1201/01_stance/models/stage1_final.zip",
+   "checkpoint_at_T": {
+    "zip": true,
+    "pkl": true
+   },
+   "models": [
+    "stage1_3145728_steps.zip",
+    "stage1_3407872_steps.zip",
+    "stage1_final.zip",
+    "stage1_final_vecnorm.pkl",
+    "stage1_vecnormalize_3145728_steps.pkl",
+    "stage1_vecnormalize_3407872_steps.pkl"
+   ],
+   "checkpoint at T data": {
+    "num_timesteps": 3407872,
+    "_n_updates": 3458,
+    "ent_coef": 0.0,
+    "seed": 1201
+   },
+   "final data": {
+    "num_timesteps": 3407872,
+    "_n_updates": 3458,
+    "ent_coef": 0.0,
+    "seed": 1201
+   },
+   "evaluations_in_window": [
+    3276800,
+    3407872
+   ],
+   "evaluations_last3": [
+    3145728,
+    3276800,
+    3407872
+   ],
+   "first_row": {
+    "update_timesteps": 3153920,
+    "ent_coef": 0.0,
+    "learning_rate": 2.4743467292864807e-05,
+    "parent_ent_coef": 0.0027471999637782574,
+    "schedule_0p005_to_0_by_7M": 0.0027471999999999996
+   },
+   "last_row": {
+    "update_timesteps": 3399680,
+    "ent_coef": 0.0,
+    "learning_rate": 2.433386725897435e-05
+   },
+   "probe_dtypes": {
+    "ent_coef": "float32",
+    "learning_rate": "float32"
+   },
+   "probe_rows": {
+    "total": 415,
+    "seeded_at_or_before_S": 384,
+    "parent_at_or_before_S": 384,
+    "window": 31
+   },
+   "probe_members": {
+    "per_row_compared": 22,
+    "other_members": [
+     "ankle_actuators",
+     "ankle_signs",
+     "bank_ankle_offset",
+     "bank_build_seconds",
+     "bank_com_fore_aft_m",
+     "bank_horizon",
+     "bank_labels",
+     "bank_raw_obs",
+     "bank_seeds",
+     "bank_steps",
+     "frozen_obs_mean",
+     "frozen_obs_var"
+    ],
+    "other_members_differing": [
+     "bank_build_seconds",
+     "frozen_obs_mean",
+     "frozen_obs_var"
+    ]
+   },
+   "bank_comparison": "kept: the seeded rows at or before S are the parent's, cell for cell; members differing from the parent's: ['bank_build_seconds', 'frozen_obs_mean', 'frozen_obs_var']",
+   "ledger": {
+    "columns": 194,
+    "rows": 260,
+    "sha256": "e518e892c909a770e5d11472a4bdcf4e0da4a89e5d44a98a38dd7a132e3fe2c7",
+    "seeded_rows": 240,
+    "parent_rows_at_or_before_S": 240,
+    "new_evaluations": {
+     "3276800": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9
+     ],
+     "3407872": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9
+     ]
+    }
+   },
+   "m5": {
+    "exit": 0,
+    "json": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/ecs/validate/fix2_v3_m5/s42_B_1201/m5.json",
+    "txt": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/ecs/validate/fix2_v3_m5/s42_B_1201/m5.txt",
+    "c6": {
+     "passed": true,
+     "failures": [],
+     "E": 3407872
+    }
+   }
+  }
+ },
+ "s80_A_1301": {
+  "pass": true,
+  "problems": [],
+  "info": {
+   "T": 4456448,
+   "run_meta_sha256": "ce2d16b28170a450391fdb3db9727a061009d82ee2b30b9702adc072595243ba",
+   "digests": {
+    "start": {
+     "params": "sha256:7b3a580816cf23bb1adf009065e525e737a83a81e1ec32e63aad2a290d816489",
+     "adam": "sha256:42342525e7e292d313644bcaad5a352e9cd2ef8ed80bfeaa58cb4a837f8ba8a6",
+     "vecnormalize": "sha256:5844f0d429632a6726f46d8a99c01c3d2655f74820fe1dcd1f0b367edd985bc1",
+     "n_updates": 4275
+    },
+    "end": {
+     "params": "sha256:7b3a580816cf23bb1adf009065e525e737a83a81e1ec32e63aad2a290d816489",
+     "adam": "sha256:42342525e7e292d313644bcaad5a352e9cd2ef8ed80bfeaa58cb4a837f8ba8a6",
+     "vecnormalize": "sha256:71006f6e981723938c267e35eb9f4101fc8ac2dcc6dd8bb8ca2fea74c0ea2766",
+     "n_updates": 4275
+    }
+   },
+   "stop_at_end": {
+    "target": 4456448,
+    "flag": true,
+    "step": 4456448,
+    "calls": 65536,
+    "last_step": 4456448
+   },
+   "train_calls": 31,
+   "learn_seconds": 617.5,
+   "wall_seconds": 624.3,
+   "final_zip": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/ecs/validate/fix2_v2/s80_A_1301/01_stance/models/stage1_final.zip",
+   "checkpoint_at_T": {
+    "zip": true,
+    "pkl": true
+   },
+   "models": [
+    "stage1_4194304_steps.zip",
+    "stage1_4456448_steps.zip",
+    "stage1_final.zip",
+    "stage1_final_vecnorm.pkl",
+    "stage1_vecnormalize_4194304_steps.pkl",
+    "stage1_vecnormalize_4456448_steps.pkl"
+   ],
+   "checkpoint at T data": {
+    "num_timesteps": 4456448,
+    "_n_updates": 4275,
+    "ent_coef": 0.0018168257142857141,
+    "seed": 1301
+   },
+   "final data": {
+    "num_timesteps": 4456448,
+    "_n_updates": 4275,
+    "ent_coef": 0.0018168228571428576,
+    "seed": 1301
+   },
+   "evaluations_in_window": [
+    4325376,
+    4456448
+   ],
+   "evaluations_last3": [
+    4194304,
+    4325376,
+    4456448
+   ],
+   "first_row": {
+    "update_timesteps": 4202496,
+    "ent_coef": 0.0019982170779258013,
+    "learning_rate": 2.299584048159886e-05,
+    "parent_ent_coef": 0.0019982170779258013,
+    "schedule_0p005_to_0_by_7M": 0.001998217142857143
+   },
+   "last_row": {
+    "update_timesteps": 4448256,
+    "ent_coef": 0.0018226742977276444,
+    "learning_rate": 2.2586240447708406e-05
+   },
+   "probe_dtypes": {
+    "ent_coef": "float32",
+    "learning_rate": "float32"
+   },
+   "probe_rows": {
+    "total": 543,
+    "seeded_at_or_before_S": 512,
+    "parent_at_or_before_S": 512,
+    "window": 31
+   },
+   "probe_members": {
+    "per_row_compared": 22,
+    "other_members": [
+     "ankle_actuators",
+     "ankle_signs",
+     "bank_ankle_offset",
+     "bank_build_seconds",
+     "bank_com_fore_aft_m",
+     "bank_horizon",
+     "bank_labels",
+     "bank_raw_obs",
+     "bank_seeds",
+     "bank_steps",
+     "frozen_obs_mean",
+     "frozen_obs_var"
+    ],
+    "other_members_differing": [
+     "bank_build_seconds",
+     "frozen_obs_mean",
+     "frozen_obs_var"
+    ]
+   },
+   "bank_comparison": "kept: the seeded rows at or before S are the parent's, cell for cell; members differing from the parent's: ['bank_build_seconds', 'frozen_obs_mean', 'frozen_obs_var']",
+   "ledger": {
+    "columns": 194,
+    "rows": 340,
+    "sha256": "63b57f6851abd78ad2e56f2d33e369c761c218aeddffe95783756b8a37a51197",
+    "seeded_rows": 320,
+    "parent_rows_at_or_before_S": 320,
+    "new_evaluations": {
+     "4325376": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9
+     ],
+     "4456448": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9
+     ]
+    }
+   },
+   "m5": {
+    "exit": 0,
+    "json": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/ecs/validate/fix2_v3_m5/s80_A_1301/m5.json",
+    "txt": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/ecs/validate/fix2_v3_m5/s80_A_1301/m5.txt",
+    "c6": {
+     "passed": true,
+     "failures": [],
+     "E": 4456448
+    }
+   }
+  }
+ },
+ "s80_B_1401": {
+  "pass": true,
+  "problems": [],
+  "info": {
+   "T": 4456448,
+   "run_meta_sha256": "7901ba5c2f7de35578795703852cfbff73f89499c9d9400bf27e2ba568531678",
+   "digests": {
+    "start": {
+     "params": "sha256:7b3a580816cf23bb1adf009065e525e737a83a81e1ec32e63aad2a290d816489",
+     "adam": "sha256:42342525e7e292d313644bcaad5a352e9cd2ef8ed80bfeaa58cb4a837f8ba8a6",
+     "vecnormalize": "sha256:5844f0d429632a6726f46d8a99c01c3d2655f74820fe1dcd1f0b367edd985bc1",
+     "n_updates": 4275
+    },
+    "end": {
+     "params": "sha256:7b3a580816cf23bb1adf009065e525e737a83a81e1ec32e63aad2a290d816489",
+     "adam": "sha256:42342525e7e292d313644bcaad5a352e9cd2ef8ed80bfeaa58cb4a837f8ba8a6",
+     "vecnormalize": "sha256:54b930123d0e15729700b9bc33b739c52d4cfa056fd795f43aaeed5b2902eea0",
+     "n_updates": 4275
+    }
+   },
+   "stop_at_end": {
+    "target": 4456448,
+    "flag": true,
+    "step": 4456448,
+    "calls": 65536,
+    "last_step": 4456448
+   },
+   "train_calls": 31,
+   "learn_seconds": 605.8,
+   "wall_seconds": 612.2,
+   "final_zip": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/ecs/validate/fix2_v2/s80_B_1401/01_stance/models/stage1_final.zip",
+   "checkpoint_at_T": {
+    "zip": true,
+    "pkl": true
+   },
+   "models": [
+    "stage1_4194304_steps.zip",
+    "stage1_4456448_steps.zip",
+    "stage1_final.zip",
+    "stage1_final_vecnorm.pkl",
+    "stage1_vecnormalize_4194304_steps.pkl",
+    "stage1_vecnormalize_4456448_steps.pkl"
+   ],
+   "checkpoint at T data": {
+    "num_timesteps": 4456448,
+    "_n_updates": 4275,
+    "ent_coef": 0.0,
+    "seed": 1401
+   },
+   "final data": {
+    "num_timesteps": 4456448,
+    "_n_updates": 4275,
+    "ent_coef": 0.0,
+    "seed": 1401
+   },
+   "evaluations_in_window": [
+    4325376,
+    4456448
+   ],
+   "evaluations_last3": [
+    4194304,
+    4325376,
+    4456448
+   ],
+   "first_row": {
+    "update_timesteps": 4202496,
+    "ent_coef": 0.0,
+    "learning_rate": 2.299584048159886e-05,
+    "parent_ent_coef": 0.0019982170779258013,
+    "schedule_0p005_to_0_by_7M": 0.001998217142857143
+   },
+   "last_row": {
+    "update_timesteps": 4448256,
+    "ent_coef": 0.0,
+    "learning_rate": 2.2586240447708406e-05
+   },
+   "probe_dtypes": {
+    "ent_coef": "float32",
+    "learning_rate": "float32"
+   },
+   "probe_rows": {
+    "total": 543,
+    "seeded_at_or_before_S": 512,
+    "parent_at_or_before_S": 512,
+    "window": 31
+   },
+   "probe_members": {
+    "per_row_compared": 22,
+    "other_members": [
+     "ankle_actuators",
+     "ankle_signs",
+     "bank_ankle_offset",
+     "bank_build_seconds",
+     "bank_com_fore_aft_m",
+     "bank_horizon",
+     "bank_labels",
+     "bank_raw_obs",
+     "bank_seeds",
+     "bank_steps",
+     "frozen_obs_mean",
+     "frozen_obs_var"
+    ],
+    "other_members_differing": [
+     "bank_build_seconds",
+     "frozen_obs_mean",
+     "frozen_obs_var"
+    ]
+   },
+   "bank_comparison": "kept: the seeded rows at or before S are the parent's, cell for cell; members differing from the parent's: ['bank_build_seconds', 'frozen_obs_mean', 'frozen_obs_var']",
+   "ledger": {
+    "columns": 194,
+    "rows": 340,
+    "sha256": "f759baa4a19f7b3a4815f4ee441ee3179a2b40e3a4649159d2a97df65d719a37",
+    "seeded_rows": 320,
+    "parent_rows_at_or_before_S": 320,
+    "new_evaluations": {
+     "4325376": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9
+     ],
+     "4456448": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9
+     ]
+    }
+   },
+   "m5": {
+    "exit": 0,
+    "json": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/ecs/validate/fix2_v3_m5/s80_B_1401/m5.json",
+    "txt": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/ecs/validate/fix2_v3_m5/s80_B_1401/m5.txt",
+    "c6": {
+     "passed": true,
+     "failures": [],
+     "E": 4456448
+    }
+   }
+  }
+ }
+}
+V2/V3 OVERALL: PASS
+exit=0
+Thu Oct 29 01:26:56 UTC 2026

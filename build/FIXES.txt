@@ -1,0 +1,378 @@
+ECS BUILD: THE FIXER'S RECORD (build list v2 item 11; workflow wf_fb513a42-0e7)
+Written 2026-10-28 23:05-23:52 UTC by the fixer, whose turn was cut off by a container restart at about 00:22 UTC on
+2026-10-29; checked and completed 2026-10-29 00:24-01:30 UTC by the resumed fixer (section RESUMED below) (date -u).
+Inputs: review_harness/REVIEW_HARNESS.txt (H1-H8 minor, I1-I6 info) and review_reading/NOTES.txt (RR-1..RR-6 minor,
+RR-7..RR-10 info).  Labels: [measured] = run or read here, with the log named; [inferred] = reasoned, basis named.
+<ECS> = S2/r10round/ecs.
+
+WHAT WAS NOT DONE: nothing was launched or approved.  No optimizer step on any policy: the only runs through learn()
+were V2's no-update runs (train() swapped for a counting no-op; parameter and Adam digests checked unchanged): the
+fixer's (validate/fix_v2: 3 finished, the 4th cut off by the restart) and the resumed fixer's four
+(validate/fix2_v2), under D2 (a), one simulation process at a time, OMP 1, nice 15, cwd /tmp.  The tests' toy PPO has
+train() replaced before any learn().  <ECS>/APPROVED and <ECS>/criteria.txt do not exist (ls at the end).  Every
+write is under <ECS>: tools/, tools/tests/, build/ (this file, build/fixes/, build/pre_fix/ = the tools as they were at
+23:06), validate/fix_* and validate/fix2_* (the re-run validations), v3/, tmp/fix2/ (pytest and scratch files).  COPY,
+CLONE, F2, the round's folders, RUNLOG and the main checkout were only read.  No Drive, no GitHub, no push.
+
+SUMMARY: 0 blocking.  14 minor: all CONFIRMED and FIXED (H1-H8, RR-1..RR-6).  10 info: 8 FIXED (I1, I2, I4, I5, I6,
+RR-7, RR-9, RR-10), 2 CONFIRMED with NO CHANGE NEEDED (I3, RR-8).  None REFUTED, none OPEN.  The criteria text changes
+are in v3/criteria_ecs_v3.txt (word diff v3/worddiff.txt); the build list v2 is not edited (see NOTES FOR THE REVIEWER).
+After the restart every change was checked against its entry below and two more were made (RESUMED: R-1, a tighter
+RR-1 classification in read_ecs.py; R-2, a race in two of the runner's stub tests); all tests, lint, mutation runs and
+the validations the fixes touch were re-run.
+
+==================================================================================================== RESUMED
+RESUMED AFTER THE CONTAINER RESTART (the resumed fixer, 2026-10-29 00:24-01:30 UTC)
+State found [measured, 00:24 UTC]: no process of this workflow alive (uptime 74 s); every tool and test at the sha256
+of build/fixes/logs/tool_sha256_frozen.txt (23:44); v3/criteria_ecs_v3.txt present, v3/worddiff.txt missing; this file
+with four placeholders left (the end time, the validations, the v3 sha256, the disk note).  validate/fix_v2 held
+FOUR folders, not one: s42_A_1101, s42_B_1201 and s80_A_1301 had finished (status "done", exit 0, the no-update check
+passed; fix_logs/v2_driver.log 23:59:48, 00:08:43, 00:17:12 UTC) and s80_B_1401 was half-written (status "running",
+its last heartbeat rollout_end 4,374,528 at 00:22:53 UTC, no exit).  s80_B_1401 was moved aside as
+validate/fix_v2/s80_B_1401.crashed1 (kept; not deleted, not reused).  Not trusting the partial state, all four V2 runs
+were run again (validate/fix2_v2).
+Checked against the entries [measured]: every tool and test diffed against build/pre_fix/ (build/fixes/logs_r2/
+prefix_vs_preresume.diff, 75 hunks in the 10 changed files; test_read_score_mutants.py unchanged).  Each hunk is the
+change its entry describes: ecs_common (H3 EXIT_POST_CHECK, H6 TORCH_THREADS, the run_meta / APPROVED / lost.json key
+notes of H4, H6, RR-1, RR-10); run_ecs (H6 the thread check and record, H3 post_run_status and exit 5 in both
+no-optimizer-step modes, I1 wrapper_problems in the stage_callback factory, H4 StopAtEnd's heartbeat and last_step,
+the atomic run_meta rewrite, last_step on a crash, preflight's try); read_ecs (RR-1 R1Unreadable and r1_lost, RR-7 the
+--ledger gate, H6 / I6 CHECK's thread, collapse-stop and updates-made conditions); score_ecs (RR-2 code_seal_items,
+RR-4 the variant text, RR-9 the cause text, RR-10 the bare-hex APPROVED and the pin disagreement, the RR-8 note); the
+runner (H1 fd 9 closed in every long-lived child, flock -w and exit 3; H2 proctable and note(); H3 exit 5 checked; H4
+the early-crash rule; H7 the launch floor; H8 logs/HALTED; I2 / RR-6 per-attempt logs; I4 retire_void; I5 the
+anchored pattern); the tests the entries name.  No change was found without an entry, and none of the code paths
+changed makes an optimizer step or starts a run without <ECS>/APPROVED (preflight unchanged but for its try).
+R-1 (RR-1, tightened) [measured]: read_ecs.run_m5 took ANY M5 exit 2 as M5's INPUT ERROR (R1 unable to run: LOST).
+  Python's own "can't open file" exits 2, and so does an argparse usage error of M5 (both measured at 00:40 UTC, stderr
+  only); M5's INPUT ERROR prints "<version>\nINPUT ERROR: <reason>" on stdout and exits 2 (ledger_r10round.py
+  l232-l234; measured on a non-UTF-8 ledger).  Now R1Unreadable only on exit 2 with that line on stdout
+  (M5_INPUT_ERROR_TEXT); any other exit 2 is a tool defect (exit 2, nothing in lost.json), as criteria v3's "M5's INPUT
+  ERROR" already reads (no text change).  Test: test_r1_other_m5_failures_are_tool_defects_not_lost gains three exit-2
+  cases (can't open file, a usage error, "INPUT ERROR" without the line form).  Mutants (build/fixes/fix_mutants_r2.py):
+  the fixer's "M5 input error is a tool defect" re-anchored on the new line, and "exit 2 without M5's INPUT ERROR line
+  taken as R1" (the old line restored): both KILLED.
+R-2 (a test race, not a runner defect) [measured]: the first full test run after the restart failed one test,
+  test_all_end_counted_then_read_traced_scored (lane H's assertion, unchanged by the fixer): it read the start order
+  from the stubs' calls.log, which each stub writes when its interpreter comes up; s80_A_1301 and s80_B_1401 started in
+  the same poll and wrote in reverse order, while the runner's own log shows them started in the fixed order
+  (build/fixes/logs_r2/tests_all_run1_flake.log; tmp/fix2/pt/test_all_end_counted_then_readcurrent/).  The order is now
+  read from the runner's "start" lines; the same race in test_an_early_crash_halts_... (2 slots, both started in the
+  first poll) is compared sorted.  The runner's file is unchanged.
+Files changed on resume: tools/read_ecs.py, tests/test_read_score_reader.py, tests/test_harness_waves.py (their
+pre-resume copies, reconstructed and sha256-checked against the 23:44 list, are in build/fixes/pre_resume/; the diff
+is build/fixes/logs_r2/resume_changes.diff).
+
+==================================================================================================== FINDINGS
+H1 relaunch with a live orphan exits at the lock (minor) -- CONFIRMED, FIXED.
+  Verified: [measured] REVIEW's rv_orphan_lock.out; and the new stub test below fails on the old runner (exit 2 at the
+  lock).  Found while fixing: the runner's own `sleep` children inherit fd 9 too, so even with the continuations' fd
+  closed a just-killed runner's `sleep "$POLL"` (10 s) held the lock [measured: the first version of the new test
+  failed with exit 3 at the relaunch].
+  Fix (run_waves_ecs.sh): every long-lived child starts with fd 9 closed (`(exec 9>&-; cd /tmp && exec ...)` for the
+  continuations and the M1 traces; `9>&-` on CHECK/READ/SCORE and the python helpers; `sleep` is a function that closes
+  it); the lock is taken with `flock -w 30` (a short-lived command of a just-killed runner may still hold it for
+  milliseconds); a held lock is its own exit code, 3 ("another runner holds the lock; nothing done"), not 2.  Header
+  corrected.  Test: test_a_relaunch_waits_for_a_live_orphan_and_no_child_holds_the_lock (a second live runner exits 3;
+  the runner is SIGKILLed while its stub continuation sleeps 6 s; the relaunch waits for the orphan, then checks it,
+  COUNTED, not rerun).
+
+H2 SIGPIPE under pipefail can end the runner (minor) -- CONFIRMED, FIXED.
+  Verified: [measured] the old runner with its stdout closed exits 141 (build/fixes/regress_old, the new test on the
+  old runner: "assert 141 == 0"); the ps | head | cut exposure by code (REVIEW's 100 KB producer measurement).
+  Fix: proctable's pipeline ends in `|| true` (ps's stderr to /dev/null); note() appends to the log file first and
+  writes stdout from a subshell with `|| true`, so a closed stdout kills at most that subshell.
+  Test: test_a_large_process_table_and_a_closed_stdout_do_not_end_the_runner (a 4,000-line, ~500 KB stand-in for ps via
+  the test hook ECS_PS_CMD, and the runner's stdout closed at once: exit 0, all 4 COUNTED, 12 lines per table).
+
+H3 a post-run seal/module failure was handled as a CRASH (minor) -- CONFIRMED, FIXED.
+  Verified: [measured, code] build/pre_fix/run_ecs.py l791-l795 (status "failed", exit 1) and pre_fix runner l245-l246,
+  l275 (exit 1 -> record_crash; "failed" at relaunch counted as an own crash).
+  Fix: run_ecs.py exits ecs_common.EXIT_POST_CHECK = 5 (status "failed") for any failed post-run check (the code seal,
+  the modules' origin, and in the no-optimizer-step modes the digests), via post_run_status().  The runner treats 5 like
+  0: it runs CHECK, which fails on status "failed"/exit 5, so the continuation is VOID (decided, renamed _void<k>, no new
+  start), never renamed _crashed nor rerun; a "failed" folder found at relaunch is checked the same way.  Text: VOID
+  names it (v3).  Tests: test_post_run_status_is_not_a_crash; test_a_post_run_check_failure_is_void_not_a_crash;
+  test_a_failed_folder_at_relaunch_is_checked_not_rerun.
+
+H4 a systematic crash could spend the screen; a preflight exception exited 1 (minor) -- CONFIRMED, FIXED.
+  Verified: [measured, code] any exit but 0/2 was an own crash rerun at once (pre_fix runner l245-l246, l201-l214);
+  preflight had no try (pre_fix run_ecs.py main).  The update path is the one part of a continuation V2 cannot run.
+  Fix: (a) the early-crash rule, mechanical and outcome-blind: run_ecs.py's StopAtEnd keeps last_step (the last
+  num_timesteps it saw, every other callback having run on that step) and, at each rollout's end before its update,
+  rewrites run_meta's heartbeat {rollout_end} (atomically: tmp + os.replace); a crash records last_step.  A crash whose
+  last recorded step (heartbeat or last_step) is below S + 131,072, or unknown, has no evaluation of the window, so
+  nothing of the outcome exists: the runner records it NOT counted ("EARLY CRASH" in crash_ledger.tsv), starts no new
+  continuation, writes logs/HALTED and exits 2; the coordinator finds the cause from run_meta's error/traceback and
+  fixes it; the continuation then starts again under its name.  A deterministic failure at the first update, the case
+  REVIEW names, therefore halts the queue on the first attempt instead of making 24 LOST.  A crash after the window's
+  first evaluation counts as before (an exception raised by the training itself stays a crash, as in DD43).  (b) An
+  exception inside preflight is a refusal: exit 2 with "preflight error: <repr>", nothing made.
+  Not added: REVIEW's alternative "halt when the first crashes share one cause" (a judgement on error strings after
+  outcomes exist; the early rule covers the named case mechanically; a systematic crash after the first evaluation still
+  cannot produce a false line, the fill being conservative [inferred, RR-5's measurement]).
+  Text: RUN HANDLING CRASH (v3).  Tests: test_stop_at_end_heartbeat_at_each_rollout_end_before_its_update,
+  test_write_meta_first_exclusive_then_atomic, test_an_error_inside_preflight_is_a_refusal_not_a_crash,
+  test_an_early_crash_halts_is_not_counted_and_starts_again_after_the_fix (a crash at S + 8,192 and a kill before
+  S + 131,072: both uncounted, halted, nothing rerun until logs/HALTED is removed, then both COUNTED),
+  test_an_early_crash_found_at_relaunch_halts; the late-crash tests now carry a late last_step/heartbeat and are still
+  counted and rerun.  [measured] V2's re-run writes the heartbeat (first at S + 8,192, 23:50:55 UTC).
+
+H5 three wrapper refusals untested; collapse at T == target (minor) -- CONFIRMED, FIXED.
+  Verified: [measured] rv_mutants.out (M03, M04, M06, M09 survived).  Fix: tests only: device "cuda",
+  _total_timesteps 11,999,999, get_vec_normalize_env() returning another object (parametrised refusal cases), and
+  stop_reason(flag False, T == target, collapse tripped) == "other".  Re-run of REVIEW's 17 mutants: 17 of 17 killed.
+
+H6 the thread count is neither checked nor recorded (minor) -- CONFIRMED, FIXED.
+  Verified: [measured] validate/v2/s42_A_1101/run_meta.json has no thread key.  Fix: the load wrapper reads
+  torch.get_num_threads() / get_num_interop_threads() (run_ecs.torch_threads), refuses an intra-op count other than
+  ecs_common.TORCH_THREADS = 1 (before learn()), and run_meta records torch_threads and torch_interop_threads (the
+  latter report only: inter-op threads do not change eager computations [inferred]; D-D43 recorded torch_threads only,
+  HS 2.1).  CHECK fails unless run_meta's torch_threads is 1 (continuations and validation runs).  Text: CHECK (v3).
+  Tests: test_wrapper_refuses_a_thread_count_other_than_one; test_check_review_conditions.  [measured] V1/V2 re-runs:
+  torch_threads 1, torch_interop_threads 4.
+
+H7 T4's 6 GiB launch floor not enforced (minor) -- CONFIRMED, FIXED.
+  Verified: [measured] grep: LAUNCH_DISK_BYTES only at its definition (pre_fix).  Fix: the runner refuses a fresh queue
+  (no decision, no crash, no run folder) below ecs_common.LAUNCH_DISK_BYTES (exit 2, nothing started, no HALTED); a
+  resumed queue checks only the 3 GiB per-start floor.  Test: test_the_launch_floor.  NOTE: free disk was
+  6,434,308,096 bytes at 23:45 UTC [measured, df -B1], 8.1 MB below 6 GiB: the fixed runner would refuse the launch
+  now (see DISK below).
+
+H8 "relaunched when it exits" (minor) -- CONFIRMED, FIXED.
+  Verified: [measured, code] a REFUSED name had no decision and no folder, so a relaunch started it at once (lane H's own
+  test showed it); exit 4 repeated on every relaunch.
+  Fix: logs/HALTED: the runner writes it whenever a halt (exit 2: a refusal, an early crash, a CHECK error, lost.json
+  not written) or a VOID (exit 4) stops the queue, and refuses to start while it exists (exit 2, "halted (...)"); only
+  the coordinator removes it.  Header and text now say D-D43's form: the runner runs detached; only the harness-tracked
+  watcher is relaunched automatically; the runner is started again only by the coordinator.  Text: WHERE AND HOW,
+  Processes (v3).  Tests: test_a_refusal_stops_new_starts (a relaunch before the fix refuses and starts nothing),
+  test_a_check_failure_is_void_and_starts_nothing_new (HALTED, then the VOID line itself still refuses with 4).
+
+I1 nothing confirms the wrapper is in place before learn() (info) -- FIXED.
+  The stage_callback factory, which the body calls after the load (TB l1395, l1529-l1533), refuses (Refused, exit 2,
+  before learn()) unless the wrapper ran (holder has digest_start and model_class) and, in --no-update, the model's
+  class is the no-op subclass and not one whose train() steps (MirrorKLPPO, PPO): wrapper_problems().  Test:
+  test_wrapper_problems_guard_before_learn.  [measured] the V2 re-run passed through it.
+
+I2 logs/<name>.log carries evaluation results (info; same as RR-6) -- FIXED with RR-6.
+
+I3 a periodic checkpoint stores ent_coef of step T - 4 (info) -- CONFIRMED, NO CHANGE NEEDED.
+  [measured] validate/v2/s42_A_1101: stage1_3407872_steps.zip ent_coef 0.0025658085714 = the formula at T - 4;
+  stage1_final.zip 0.0025658057143 = the formula at T.  R4 reads the probe; no reading uses the zip's value.  The survey
+  (HS 3.3) is a dated record and is not edited; recorded here.
+
+I4 VOID renamed before it is recorded (info) -- FIXED.  retire_void() writes the VOID decision (naming the folder it
+  will get) and then renames; a kill in between leaves runs/<name> with a VOID line, which refuses the relaunch.  The
+  crash order is kept (rename, then record): a kill between under-counts by one, the safe direction.  Test: the VOID
+  test checks the decision line names <name>_void1.
+
+I5 the orphan pattern matches unrelated processes (info) -- FIXED.  ORPHAN_PATTERN is
+  "^<venv python> -I -B <ECS>/tools/[r]un_ecs[.]py --start " (anchored on this ECS's interpreter and tool; the bracketed
+  letters keep a command line that quotes the pattern from matching it).  Test:
+  test_the_orphan_pattern_matches_only_this_ecs_run_ecs_processes (`--plan` prints it).  [measured] The same hazard hit
+  my own re-run script: its unbracketed guard matched this session's shell, whose command line quoted the pattern; the
+  re-run scripts use bracketed guards (build/fixes/scripts).
+
+I6 CHECK did not confirm updates were made or the collapse stop was present (info) -- FIXED.  CHECK now fails a
+  continuation whose parameter digest is unchanged or whose n_updates did not grow, and any run whose collapse block
+  is not found == 1 with patience 10 (D8).  Text: CHECK (v3).  Test: test_check_review_conditions.  [measured] V2's
+  re-run: collapse found 1, patience 10.
+
+RR-1 no rule when R1 cannot read a decided continuation's ledger (minor, close to blocking) -- CONFIRMED, FIXED.
+  Verified: [measured] review_reading/r1_input_error.out; code: add_lost only on C6 (pre_fix read_ecs l801-l807).
+  Fix (pre-registered, mechanical): the full read writes the continuation to lost.json with cause "R1" when the ledger
+  is missing or unreadable, M5 reports its INPUT ERROR (exit 2; that covers a non-UTF-8 ledger, M5's own check), or M5
+  does not finish within 900 s twice (one retry); it writes a read.json with no outcome and exits 0; the scorer
+  classifies it LOST (filled against each line).  Any other R1 failure (M5 exiting otherwise or unable to start, M5's
+  JSON failing read_ecs's own checks) is a tool defect: exit 2, nothing in lost.json, and the text routes it like a
+  VOID cause (the maintainer's word and a re-pin, asked before the scorer runs; then every COUNTED or STOPPED one is read
+  again).  A validation run is never written to lost.json.  Text: RUN HANDLING LOST and WHEN THE READING IS MADE (v3).
+  Tests: test_r1_missing_ledger_is_lost, test_r1_ledger_not_utf8_is_lost_through_m5s_input_error,
+  test_r1_m5_timeout_twice_is_lost_once_is_retried, test_r1_other_m5_failures_are_tool_defects_not_lost.
+  Resumed fixer (R-1 above): M5's INPUT ERROR is now recognised by its stdout line as well as exit 2, so Python's own
+  exit 2 (a missing script, a usage error) is a tool defect, not LOST.
+
+RR-2 five PROVISIONAL guards untested; the seal was read, not measured (minor) -- CONFIRMED, FIXED.
+  Fix: score_ecs measures the code copy with M1's own r10m_common.check_copy, loaded only at its pin (as run_ecs's
+  preflight does): tree digest and file count against ecs_common (code_seal_items).  Tests: test_score_provisional_guards
+  (the M1/M5 pins; R1's recorded M5; run_meta's criteria sha256; a tool missing from APPROVED; a changed file under an
+  unchanged seal; a seal with another digest; another pinned file count).  The final-screen tests now build a sealed
+  code tree (fixtures sealed_code) so "final" is reached only with a measured seal.
+
+RR-3 reader guards untested, decided() among them (minor) -- CONFIRMED, FIXED (tests only).
+  Tests: test_decided_requires_a_passing_check (a failing check.json in runs/<name> keeps the gate closed);
+  test_parent_probe_is_pinned (another sha256 refused); test_check_stop_reasons ("collapse" at T == E fails);
+  test_check_review_conditions (target != E; status "running" with exit 0; identity from the folder, not run_meta).
+  Also the window battery checks n_any_flagged (REVIEW's surviving r_n_flagged_all).  The collapse-trip test was
+  sharpened (its only failure must be the trip) after the new collapse-presence check had masked mutant
+  r_collapse_without_trip in my first mutation run.
+
+RR-4 the NO ARM-A note untested in NOT INFORMATIVE; wrong wording at nA = 0 (minor) -- CONFIRMED, FIXED.
+  Text (v3) and score_ecs.LINE_NOT_INFORMATIVE: "arm A showed the outcome in fewer than half its counted continuations,
+  or none was counted, at both starts".  Test: battery_lines (s42 nA = 0, s80 LOW 2 of 6 -> NOT INFORMATIVE).
+
+RR-5 "the size stays exact" overstates (minor) -- CONFIRMED, FIXED (text).  v3 THE FILL: "so the size per side stays at
+  most the complete-data test's (0.0116 at k = 6; TE 5); with a fill the test is conservative."  [measured, RR
+  indep_stats.out 4: no completion gave a smaller filled p.]
+
+RR-6 the process log is an evaluation log (minor) -- CONFIRMED, FIXED (with I2).
+  [measured] validate/logs/v2_s42_A_1101.log has "Eval num_timesteps=... episode_reward=..." lines.  Fix: each attempt
+  logs to its own logs/<name>.attempt<k>.log; a refusal's note points to that attempt's log (exit 2 never reaches
+  learn(), so it holds no evaluation) or to run_meta's error; a crash's cause is named as run_meta's error/traceback.
+  Text (v3, Outcome-blind): the process logs are such logs; only a refused attempt's log may be read before all 24 are
+  decided.  Tests: test_all_end_counted_then_read_traced_scored and the crash test (attempt1/attempt2 logs).
+
+RR-7 --ledger has no outcome-blind gate (info) -- FIXED.  ledger_read refuses a ledger under <root>/runs/ until all 24
+  are decided; copies elsewhere (V4's form) are read.  Test: test_ledger_mode_is_gated_for_a_continuations_ledger.
+
+RR-8 two equivalent mutants (info) -- CONFIRMED, NO CHANGE NEEDED.  Re-run: both still survive (equivalent by RR's
+  boundary.out: no filled-table p equals 1/40).  score_ecs's docstring now says where "decided exactly" matters.
+
+RR-9 a C6 LOST cause printed as a dict (info) -- FIXED.  The cause prints the failure's text with its category and
+  place ("first: evaluation 5767168 absent [grid, window]").  Test: test_score_lost_censored_and_c6.
+
+RR-10 the two tools accepted different pin forms; APPROVED / SHA256SUMS disagreement silent (info) -- FIXED.
+  score_ecs now accepts only what run_ecs.py accepts: a JSON APPROVED with bare 64-hex values; a "sha256:" prefix, a
+  malformed value or a non-JSON APPROVED is a PROVISIONAL item, and a path APPROVED and SHA256SUMS.txt pin differently
+  is one.  The form is stated in ecs_common (APPROVED_KEYS comment).  Test: test_score_approved_format_and_pin_agreement.
+
+==================================================================================================== CHECKS RE-RUN
+TOOLS [measured, sha256; full values in build/fixes/logs_r2/tool_sha256_frozen_r2.txt, 00:46 UTC 2026-10-29, and
+  build/fixes/logs/tool_sha256_frozen.txt, 23:44 UTC; unchanged since 00:46 (checked again at the end)]
+  file                          before (validator's)  fixer (23:44)      final (after R-1, R-2)
+  ecs_common.py                 1a146950e131426e      05864c64d29944aa   05864c64d29944aa
+  run_ecs.py                    b89577860ded9858      f136b7e35b34c35c   f136b7e35b34c35c  (every V1 and V2 run below)
+  read_ecs.py                   10cf27d04ebdba67      3d2516caeda9e65a   6f55b3b96bae795d  (R-1)
+  score_ecs.py                  59da8d11a2fb4ac7      51b2cbe340281917   51b2cbe340281917
+  run_waves_ecs.sh              a30b8fbe0ba4643a      c007762ca72ebd88   c007762ca72ebd88
+  tests/test_harness_run_ecs.py 19bf0a09dae4b468      0c7ebf200f4664a4   0c7ebf200f4664a4
+  tests/test_harness_waves.py   2ecef8acb08c79fd      fd9689f185d2a514   a999316c50133bb8  (R-2)
+  tests/test_read_score_fixtures.py 890be56345c52907  b5b941d022d09e91   b5b941d022d09e91
+  tests/test_read_score_reader.py   dfd70a294d7ba382  b0efd33bacf7d4ff   3c73623fe271045c  (R-1)
+  tests/test_read_score_scorer.py   214a5a6cd10d5e14  39a8b340984ec8bb   39a8b340984ec8bb
+  tests/test_read_score_mutants.py  bb9f0f3fc711c10e  bb9f0f3fc711c10e   bb9f0f3fc711c10e  (its 20 anchors still apply)
+
+TESTS [measured]: the fixer's run (build/fixes/logs/tests_all.log, 23:44): 167 passed.  The resumed fixer's, on the
+  final files (build/fixes/logs_r2/tests_all.log, 00:33:46-00:34:25 UTC): 167 passed in 38.1 s: run_ecs 77 (lane H's
+  68), waves 20 (12), reader 29 (22), scorer 20 (18), mutants 21 (21); then the runner tests three more times, 20 passed
+  each (logs_r2/tests_waves_x3.log).  (The first run after the restart, 00:30 UTC, 144.6 s on a cold cache: 1 failed,
+  166 passed, the R-2 race; logs_r2/tests_all_run1_flake.log.)  One process, OMP 1, nice 15, cwd /tmp.  The final
+  runner tests against the old runner (build/fixes/regress_old_r2: pre_fix run_waves_ecs.sh, current ecs_common and
+  tests): 12 of 20 fail there, as they should (logs_r2/regress_old_runner.log).
+LINT [measured, build/fixes/logs_r2/lint.log, 00:36 UTC]: ruff 0.16.9 --isolated --select E,W,F,B --line-length 120 on
+  every tool and test: only the 13 intentional E402 of run_ecs.py (as before); --select E9,F,B: clean.  bash -n
+  run_waves_ecs.sh: ok.
+MUTATION [measured]  The fixer's (build/fixes/fix_mutants.py; logs/fix_mutants_harness.out, fix_mutants_reading.out):
+  harness 26 of 26 killed; reading 81 of 84.  Re-run by the resumed fixer on the final files (build/fixes/
+  fix_mutants_r2.py, which loads fix_mutants.py unedited and adds R-1's mutant; logs_r2/fix_mutants_harness.out,
+  fix_mutants_reading.out, 00:36-00:43 UTC):
+  harness: REVIEW's 17 mutants of run_ecs.py and 9 of the fixer's: 26 of 26 killed, each by the test its fix added.
+  reading: RR's 69 mutants (2 re-anchored where the fixes moved their text, mutation unchanged), 15 of the fixer's (1
+  re-anchored on R-1's line) and R-1's: 82 of 85 killed.  Survivors: s_line_order_swapped and s_p_up_strict_side (RR-8,
+  equivalent) and the fixer's "missing ledger not R1" (equivalent: without the explicit check the sha256 read's OSError
+  takes the same R1 LOST path).
+
+VALIDATIONS (re-run with the fixed tools, under D2 (a): one process at a time, nice 15, OMP 1, cwd /tmp.  V1 by the
+fixer: outputs validate/fix_v1, fix_v1_m1, logs validate/fix_logs, scripts build/fixes/scripts (copies of the
+validator's with the output folders changed and bracketed process guards).  Everything else by the resumed fixer on
+the final tools: outputs validate/fix2_v2, fix2_v3_m5, fix2_v4, fix2_v4_neg, fix2_v4_trace, fix2_v4_trace_read,
+fix2_v4_waves, logs validate/fix2_logs, scripts build/fixes/scripts_r2 (the same copies with fix_ -> fix2_, plus
+v2_extra_check.py, three negative controls, the stub dry run adapted to the fixed records, post_v2.sh))
+  V1 [measured, fix_logs/v1_check.out]: PASS.  4 load-and-save runs exit 0 (23:45:31-23:46:01 UTC), ent_coef after
+     load 0.005 / 0.0, torch_threads 1; saved tensors = start zips'; M1 on each saved pair = PAN in every measured
+     field, 20 trace CSVs byte-equal, M1 accepted the harness-written stage_config.json (4 traces 23:46-23:50 UTC).
+     Resumed fixer [measured, fix2_logs/v1_check.out, 00:45 UTC]: the same check run again on those outputs: PASS.  The
+     four run_meta.json record run_ecs.py f136b7e3... and ecs_common.py 05864c64... (both unchanged since), status done,
+     exit 0, torch_threads 1; V1 depends on no file changed on resume, so it was checked, not re-run.
+  V2 [measured, fix2_logs/v2_driver.log, v2_<name>.log, v2v3_check.out, v2_extra_check.out]: PASS.  The four no-update
+     runs to S + 262,144 (validate/fix2_v2; 00:45:36-01:26:45 UTC, 604-625 s each, nothing else of this workflow
+     running; v2_proctable.log) each exit 0, stop "end" at T with StopAtEnd's flag at T, train() reached 31 times, the
+     no-update check passed (parameter and Adam digests equal at start and end), recipe_v5 [] and the code seal
+     unchanged; independently, the F2 start zip's policy and optimizer tensors equal the checkpoint at T and the final
+     zip; evaluations after S exactly S + 131,072 and T, the checkpoint pair at T present; probe (R4) 31 rows on the
+     8,192 grid, none at or after T, arm A equal to the parent's as float32 (first row s42 0.0027472, s80 0.0019982),
+     arm B 0.0, learning_rate the parent's at every row.  The fixes' keys: torch_threads 1 (interop 4), the collapse
+     stop found with patience 10 and not tripped, the last heartbeat rollout_end = T - 8,192 (3,399,680 / 4,448,256:
+     none for the rollout ending at T), stop_at_end.last_step = T, no crash keys, and tool_sha256 at the start = the
+     final tools'.  The same training with and without the fixes: each run's start and end digests (params, adam,
+     vecnormalize, all, n_updates, num_timesteps) and every evaluation's mean reward equal the validator's run of the
+     same name made by the old run_ecs.py b8957786... (validate/v2), and the fixer's three finished runs
+     (validate/fix_v2): the heartbeat and the new checks change nothing a run does.
+  V3 [measured, fix2_logs/v2v3_check.out; fix2_v3_m5/]: PASS.  The pinned M5 with --E T on each run's ledger: C6 PASS;
+     194-column header equal to the parent's; the 240 (s42) / 320 (s80) seeded rows equal the parent's cell for cell;
+     the two new evaluations 10 rows each; the probe's 384 / 512 seeded rows kept.
+  V4 [measured]: PASS.
+     (a) the tests and mutation runs above.
+     (b) the reader on the parents' truncated ledgers (fix2_logs/v4_reader.out): s42 C6 PASS, POSITIVE, first flag
+         3,801,088, 8 flagged; s80 C6 PASS, POSITIVE, first 4,849,664, 4 flagged; s60 to 8,388,608 NEGATIVE (S 0 and S
+         6,291,456); read_ecs --ledger --truncate and the script's own truncation read by M5 agree.
+     (c) the scorer (fix2_logs/v4_scorer.out): the script's own exact test = score_ecs on all 2,401 tables, 242 B LOWER
+         and 242 B HIGHER, TABLE E's grid and examples and CHK 8's fills.
+     (d) read_ecs on the real V2 outputs (fix2_logs/v4_check_<name>.log, v4_read_<name>.log): --check PASS on all four
+         (R4 31 of 31 rows; seeded rows 384 / 512; with CHECK's new conditions); the full read exit 0 on all four: C6 OK
+         (M5 PASS, 0 counting failures), NEGATIVE (a no-update window, not an outcome).  R3 on a real end pair
+         (fix2_logs/v4_r3_trace.log): M1 in the runner's R3 form on fix2_v2/s42_A_1101's stage1_3407872 pair, exit 0
+         (56.7 s; tail_3 CMD +0.4732, as the validator's O5), then the full read with --trace: R3 "read".
+     (e) negative controls on copies of the real records (fix2_logs/v4_negatives.out; fix2_v4_neg/): the full read
+         without check.json refused (exit 2), --check on the unchanged copy passes; exit 4 (FAIL) for arm B's probe
+         under arm A, stop reason "other", one ent_coef row moved by one float32 ulp, and the new ones: torch_threads 4
+         (H6), collapse.found 0 (I6), status "failed" / exit 5 (H3), and the validator's own old-tool V2 record
+         (validate/v2/s42_A_1101: "run_meta torch_threads None != 1"), as NOTES says it should.
+     (f) the stub dry run of the fixed runner (build/fixes/scripts_r2/v4_waves.sh -> fix2_logs/v4_waves.out; roots
+         fix2_v4_waves/A-G; 00:44:19-00:44:49 UTC), the validator's scenarios with the crash records run_ecs.py now
+         writes: A a crash after the window's first evaluation renamed _crashed1, counted (1 of 3) and rerun ->
+         COUNTED; the disk pause and resume; then traces, reads, score in that order, exit 0.  B at relaunch: "running"
+         (a restart) renamed, not counted; "crashed" after the first evaluation renamed, counted; both rerun; a "done"
+         one checked, not rerun; exit 0.  C a CHECK failure: VOID decided (naming _void1) then renamed, no new start,
+         exit 4, logs/HALTED; a relaunch refused at once (exit 2, "halted", no stub call); with HALTED removed but
+         the VOID line kept, refused again (exit 4, HALTED written again).  D three crashes -> lost.json (cause
+         "crashes") and LOST; the LOST one neither traced nor read; exit 0.  E an early crash (last_step S + 8,192):
+         "EARLY CRASH", not counted, no new start, exit 2, HALTED; a relaunch refused while HALTED exists; with it
+         removed, the continuation starts again under its name and all three are COUNTED, exit 0.  F a fresh queue
+         with 1,000 bytes free below the 6 GiB launch floor: refused, exit 2, nothing started.  G a post-run check
+         failure (exit 5): checked, CHECK fails, VOID, no crash line, exit 4.
+  V5 [measured, fix2_logs/v5_check.out]: PASS on all 8 stage_config.json files (fix_v1's four and fix2_v2's four):
+     arm A's hyperparameters equal the parent's, digest sha256:054ab48303167eda...; arm B's differ only in ent_coef
+     (0.005 -> 0.0; ent_coef_end is 0.0 in the parent's recipe), digest sha256:be2e243b3fef90cd... = the one recomputed
+     in plain Python; every other difference in the expected list.
+  CODE SEAL [measured, fix2_logs/final_check_copy.log, 01:28 UTC]: M1 check-copy on <ECS>/code: exit 0, commit
+     8737cd3d, tree digest 331fe8fc..., 1,406 files; no __pycache__ in the copy.
+
+==================================================================================================== TEXT
+v3/criteria_ecs_v3.txt (sha256 90a9f9aa6c3d87947817aceb93e23b1bb107214c22e0cdd294e7790056ad6d58, 303 lines, none over
+120 columns) = v2 (sha256 f896b1407a2a5146...) with 13 replacements only (build/fixes/make_criteria_v3.py, each
+matching v2 exactly once).  [measured, 00:38 UTC] The script, run again on v2 with the same date argument into
+tmp/fix2/v3regen/, gives a file byte-equal to v3/criteria_ecs_v3.txt.  Word diff v3/worddiff.txt (sha256
+66385ee16dd60bd0...; written by the resumed fixer: git -C <ECS> diff --no-index --no-color --word-diff=plain
+v2/criteria_ecs_v2.txt v3/criteria_ecs_v3.txt): 10 hunks, every one inside the 13 replacements.  The changes: the
+version labels (title, STATUS, END); H8 (Processes); H6 + I6 (CHECK); RR-5 (THE FILL); RR-4 (line 3 variant); RR-6 + I2
+(Outcome-blind); H4 (CRASH); RR-1 (LOST; WHEN THE READING IS MADE); H3 (VOID); H4 (V4's dry-run list).  Nothing else.
+TABLE E, the test, the lines' texts other than the variant, the arms and the starts are unchanged.  R-1 and R-2 need
+no text change (the text already says "M5's INPUT ERROR"); each changed v3 sentence was read against the final
+tools and agrees with them.
+
+==================================================================================================== NOTES FOR THE REVIEWER
+- The build list v2 (my spec) is not edited.  Where it differs from the fixed tools, criteria v3 and the tool headers
+  govern: BL 3 (exit 5; the thread check; the stage_callback guard; heartbeat/last_step in run_meta), BL 5 (a failed
+  no-update check exits 5, not 1), BL 6 (CHECK's new conditions; R1 -> LOST "R1"; the --ledger gate), BL 8 (the early-
+  crash halt; exit 5 checked; logs/HALTED; exit 3 for a held lock; per-attempt logs; the launch floor), BL 12-13
+  (APPROVED's bare-hex form, now in ecs_common).
+- The coordinator's steps gain two: after any halt or VOID, remove logs/HALTED once the cause is fixed (and, for a VOID,
+  the ledger line); and a crash's cause is read only from run_meta's error and traceback.
+- The superseded validation outputs (validate/v1, v1_m1, v2, v3_m5, v4*) are kept as the validator left them; they
+  were made by the old tools (run_ecs b8957786...) and the fixed CHECK now fails the old V2 run_meta (no torch_threads),
+  as it should [measured: V4 (e) n7].  validate/fix_v2 (the fixer's three finished runs and s80_B_1401.crashed1) is
+  superseded by validate/fix2_v2 and kept, never read as V2's result.  Lane H's note that V2 must use run_ecs.py
+  b8957786... is superseded too: every V2 run above used f136b7e3..., the final run_ecs.py.
+- The coordinator's launch steps should name the free-disk check (DISK below) and logs/HALTED's removal.
+- Lane H's nine unstated choices (LANE_H.txt 3-4) still need the reviewer's yes; the fixes change (b) (a refusal before
+  learn() exits 2 as before; a post-run check failure now exits 5) and (g) (the disk pause is unchanged; a fresh queue
+  below 6 GiB now refuses).
+- DISK [measured, df -B1 on <ECS>]: 6,434,308,096 bytes free at 23:45 UTC (the fixer), 6,225,534,976 at 00:24 UTC
+  after the restart, 6,094,917,632 (5.68 GiB) at 01:29 UTC: 347,533,312 bytes BELOW T4's 6 GiB launch floor, so the
+  fixed runner would refuse to launch now (exit 2, nothing started; scenario F of the dry run).  The free space moves
+  with other workflows; this resume's own outputs take about 165 MB (validate/fix2_*, validate/fix_v2 incl. the
+  12.7 MB s80_B_1401.crashed1, tmp/fix2, build/fixes), of which tmp/fix2 (21 MB, pytest scratch) can be deleted.
+  Housekeeping before the launch is the maintainer's call; nothing was deleted here.
+END.

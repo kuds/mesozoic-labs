@@ -1,0 +1,92 @@
+{
+ "schema": "ecs-check/1",
+ "version": "read_ecs 1.0 (ECS build list v2 item 6; lane R, 2026-10-28)",
+ "tool_sha256": "6f55b3b96bae795d46c3ef693b5b542895186adb4ccb51957076f3421c2fee15",
+ "utc": "2026-10-29T07:52:24Z",
+ "run": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/ecs/runs/s42_A_1131",
+ "name": "s42_A_1131",
+ "mode": "continuation",
+ "passed": true,
+ "failures": [],
+ "r4": {
+  "rows_expected": 191,
+  "rows_in_window": 191,
+  "first_step": 3153920,
+  "last_step": 4710400,
+  "rows_at_or_after_T": [],
+  "n_rows_at_or_after_T": 0,
+  "seeded_rows_at_or_before_S": 384,
+  "mismatches": [],
+  "ent_coef_first": 0.0027471999637782574,
+  "ent_coef_last": 0.0016354285180568695,
+  "learning_rate_first": 2.4743467292864807e-05,
+  "learning_rate_last": 2.214933374489192e-05
+ },
+ "sources": {
+  "run_meta.json": [
+   "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/ecs/runs/s42_A_1131/run_meta.json",
+   "ad83374a05a8f41e74fcc744c00d3deeed3e83c49a01875cb40b4c5edbc2eb2e"
+  ],
+  "parent policy_probe.npz": [
+   "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/policy_probe.npz.copy1",
+   "4e0e7220668faf124d394bffb760ba246d54bed8f48cb79925cb36234257fc11"
+  ],
+  "policy_probe.npz": [
+   "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/ecs/runs/s42_A_1131/01_stance/policy_probe.npz",
+   "9793c93c88bda14091725ca7805a5abfd50b2ab4b7e87dc500bbfbd72448ef0e"
+  ]
+ },
+ "start": "s42",
+ "arm": "A",
+ "seed": 1131,
+ "S": 3145728,
+ "E": 4718592,
+ "T": 4718592,
+ "end": 4718592,
+ "stop_reason": "end",
+ "criteria_sha256": "04813918e494ae2d4845819c7ef123bc4bf74634093faa439e572c831277214e",
+ "meta": {
+  "arm_ppo": "unchanged",
+  "torch_threads": 1,
+  "torch_interop_threads": 4,
+  "criteria_sha256": "04813918e494ae2d4845819c7ef123bc4bf74634093faa439e572c831277214e",
+  "code": {
+   "dir": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/ecs/code",
+   "commit": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d",
+   "tree_digest": "331fe8fc3f6bdf73acc0d3cc324dd753d9d9d695d7ce914e4e011d5c6437ebf1",
+   "files": 1406
+  },
+  "stack": {
+   "python": "3.13.17",
+   "torch": "2.13.0+cpu",
+   "numpy": "2.5.4",
+   "gymnasium": "1.4.0",
+   "stable_baselines3": "2.9.0",
+   "mujoco": "3.10.0"
+  },
+  "wall_seconds": 4725.5,
+  "collapse": {
+   "found": 1,
+   "consecutive_drops": 0,
+   "patience": 10,
+   "tripped": false
+  },
+  "stop_at_end": {
+   "target": 4718592,
+   "flag": true,
+   "step": 4718592,
+   "calls": 393216,
+   "last_step": 4718592
+  },
+  "mode": "continuation",
+  "target": 4718592,
+  "run_tool_sha256": {
+   "run_ecs.py": "f136b7e35b34c35ccba8d69b5ff7ee8f6233c5ce58fcba539f25ed32cca585cf",
+   "read_ecs.py": "6f55b3b96bae795d46c3ef693b5b542895186adb4ccb51957076f3421c2fee15",
+   "score_ecs.py": "51b2cbe340281917302c4e286f61dbeb34bf10ec8c9c80505cb4bb4a05017fba",
+   "run_waves_ecs.sh": "c007762ca72ebd888210e1a03f5a69f62b3a3eccf48e1fe921cf16b6c3caaae9",
+   "ecs_common.py": "05864c64d29944aaa849231a3d95f37a51aff13bc2811e6fdf7171f6bd12af57"
+  },
+  "approved_sha256": "2c077437ba8a61e70abe19857a84586b3fe0ba7c4496db654b0a7a55acd6e27d"
+ }
+}

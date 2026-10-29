@@ -1,0 +1,55 @@
+ECS PRE-REGISTRATION DRAFT v2: MANIFEST
+Folder: /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/ecs/v2
+Written 2026-10-28 21:02 UTC (date -u) by the fixer of workflow wf_86638249-afc. Draft only: NOT APPROVED, nothing
+pinned, nothing trained, simulated, fetched, pushed or committed; no learn(). Every file below was written in ecs/v2/
+or ecs/ only; a find for files newer than 20:41 UTC under f2/, runbranch/, lean/, tailround/ and S1/foot/stance6 found
+none, the main checkout's git status is clean, and no __pycache__ was written [measured, find, git status].
+
+FILES (sha256, lines, bytes, role)
+f896b1407a2a5146ef22be7609d0fb708ce9de5d3c59963228d3a2997f2cf02c  281 25899  v2/criteria_ecs_v2.txt
+    The text the maintainer would approve, written with every recommended option of the decisions file.
+0be68293bf6e0e6d763082b26a83bd30958b7ce6916d924e03b61672d84eed66  151 13266  v2/decisions_ecs_v2.txt
+    D1-D12 (real choices, recommended first) and T1-T6 (technical defaults); D1, D2 and D7 need explicit word.
+b73157f76094e36bca9509cc8decd74defd1cc0e23242d8714a1dd293ff56f6c  155 13155  v2/build_list_ecs_v2.txt
+    What must be built and validated before the approval request (no optimizer step of any kind).
+d35576e0d20700504e803e5d854cd5466aa801463873597ecf9e9550e77e9d16  152 14795  v2/changes_v2.txt
+    All 41 review findings, each verified against its source: 41 FIXED, 0 REFUTED, 0 OPEN; v1 -> v2 number maps.
+c6ee618beacdf1b1a8544e8a7d483667eeee17e2c68eaf4c3873aa4bf8e2402d  210  9079  v2/check_v2.py
+    Standard-library arithmetic for v2's new numbers (loads v1/table_e_ecs.py by absolute path, unchanged).
+a8c05b9e09e85e49b3ea2aa0875b3979f3e05c47162cdda2cb34e17d0cee6448   61  4313  v2/check_v2.out
+    Its output; run twice at 1 process, OMP 1, nice 15, byte-identical (cmp).
+    Re-run: cd /tmp && OMP_NUM_THREADS=1 nice -n 15 S2/venv/bin/python -I -B S2/r10round/ecs/v2/check_v2.py
+104f72f945dd89b2b79af2e2f5c18da705ac15bfc441cca51101bb6eb1255c43   58  5141  FOR_THE_MAINTAINER.txt (in ecs/)
+    The one-page summary and the decisions as questions, recommended option first.
+MANIFEST.sha256 (this folder) lists the six v2 files, ../FOR_THE_MAINTAINER.txt and this file, for sha256sum -c.
+
+INPUTS READ (read only; sha256 at the time of reading; v1's MANIFEST.sha256 re-checked OK at 21:01 UTC)
+bf4f09732dbde5152f3bb7314704b2863c5049c75a0e8263a9558279e6ed0c6d  ecs/v1/criteria_ecs_v1.txt
+51faef44592812f063a82eb510011894479255f534a5d78502e47ded13382662  ecs/v1/decisions_ecs_v1.txt
+bdb68cec9c45140b5951912194ccf7e80f79a9abad7a4631ac9cf0b7741ebcab  ecs/v1/build_list_ecs_v1.txt
+3609e13790b0df0d15c4d242deee368e50a66762897ded3392126e4638a48e41  ecs/v1/table_e_ecs.py (unchanged; still TE's source)
+07d32255b904a62985996599ee57ea9ff5ea039322279bdb58ce41bbee4bb542  ecs/v1/table_e_ecs.out (unchanged; TE)
+a041ec834c3aefeab1c8932e8a7f1966e7c9b84f598e94da5626834ff6828764  ecs/review_stats/NOTES.txt
+f5e31f2011eff06c314a1a164f16dc5114a96c8fe39e89396803fefa35f106bb  ecs/review_stats/recheck_stats.out
+2d902cd49c97de0075a27f1541323c3f8516f833b8b26d9ac132d46be642fb68  ecs/review_feasible/NOTES.txt
+258e460774cd80364775a6f1167cf31f659d1343eddc2fb90fd5fccd4b4c0c63  ecs/review_feasible/m5/s42_full_E.json
+b7b210ad2203a434eb757609031cbf020239d0241b747539876f4c767f27fd34  ecs/review_feasible/m5/s42_trunc_E.out
+44fc75effced89c6b53c6c31c413354a5e893a13482ebc680948df5396420093  ecs/review_feasible/m5/s80_trunc_E.out
+8cc9d739f432fd43536755e185dc6cf644f23be63bdece967facd9cb7b6a0a96  ecs/review_intent/NOTES.txt
+a2c329c8023ea1d5d687721865f3f6640172f1c24d05e17530de07da0acb2d2f  ecs/review_intent/bhigher_check.out
+9937eb91f5f887653a8448bd20e9ff47070637b5be10f3a1c23ed1af7636cd05  ecs/survey_design.txt
+98f713b14888996f7d1b33577c3b5b63315404a236d0860f2a54f7dad9659ed2  ecs/survey_harness.txt
+84c6def617baad455840514d1e1e94d31dcf7e30ed35980f66e5093e59b6a6b1  ecs/power_ecs.out
+Also read, to verify findings: COPY's train_base.py (l462-l545, l1249-l1282, l1350-l1385, l1520-l1600, l1850-l1910),
+policy_probe.py (l548-l635), eval_diagnostics.py (l1425-l1440), curriculum/early_stopping.py (patience lines),
+mirror_kl_ppo.py (l375-l380), stance.toml (collapse, hop watch, checkpoint and [ppo] keys); SB3 2.9.0
+on_policy_algorithm.py (collect_rollouts, learn); M5 ledger_r10round.py (c6_check) and r10round_common.py (row
+decoding, l405-l500); M1 r10m_common.py l107; PAN s42/3145728/m1/m1_summary.json (keys); F2 s42
+01_stance/stage_config.json.copy1 (keys); REVIEW 4.3-4.5; NEXT 0.3 and Option 1; CRIT6 l160-l182, l566-l574; DD43
+criteria_tailscreen_final.txt l218-l228, l298-l306, l330-l356; RUNLOG l65-l68, l293-l298, l456-l464, l545-l575,
+l638-l662, l700-l720; df -B1 at 20:44 and 21:00 UTC; ps at 21:00 UTC (no Python job running).
+S1 = /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad
+S2 = /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad
+
+CHECK: cd S2/r10round/ecs/v2 && sha256sum -c MANIFEST.sha256
+END

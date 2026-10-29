@@ -1,0 +1,223 @@
+T. REX r10 ENTROPY CONTINUATION SCREEN (ECS) FROM STANCE6's OWN CHECKPOINTS: RECORDED ent_coef AGAINST 0, CPU, SCRATCH
+CRITERIA v1 -- DRAFT FOR THE MAINTAINER. NOT APPROVED. NOTHING TRAINS UNTIL <ECS>/APPROVED EXISTS.
+
+STATUS: draft v1, written 2026-10-28 20:02-20:12 UTC (date -u) by the drafter of workflow wf_86638249-afc, under the
+maintainer's decision of RUNLOG l719 (NEXT Option 1: "draft its pre-registration; nothing trains until the maintainer
+approves it"). Nothing was trained or simulated to write it: no learn(), no optimizer step, no rollout, no Drive, no
+GitHub. It is written with every RECOMMENDED option of DEC; "(Dn)" marks a choice the maintainer may change, and only
+those lines move if he does. It is checked by review before it goes to him. Once approved it goes byte for byte to
+<ECS>/criteria.txt (0444), its sha256 recorded in RUNLOG and <ECS>/APPROVED, and it is not edited after the first
+optimizer step.
+
+SHORT NAMES
+  S1 = /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad
+  S2 = /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad
+  <ECS> = S2/r10round/ecs (every file the screen writes is under it)      RUNLOG = S1/foot/stance4/live/run_log.txt
+  CRIT6 = S1/foot/stance6/criteria.txt (sha256 99a44469..., the round's approved text; its M1, M5, M6 definitions apply)
+  F2 = S1/foot/stance6/fetch/F2/stance6_r10LTSB_<r>/copies (read only)    FMAN = S1/foot/stance6/fetch/manifest.csv
+  PAN = S1/foot/stance6/panels/stance6_r10LTSB_<r>/<label>/m1/m1_summary.json (the round's M1 panels)
+  COPY = S2/r10round/f2/copy_8737cd3d (sealed measuring copy: commit 8737cd3d86431de1..., tree digest 331fe8fc...)
+  CLONE = S2/r10round/runbranch/clone (the run branch at 8737cd3d; read only; push URL DISABLED)
+  M1 = S2/r10round/lean/build/laneA/tools/measure_r10round.py (b293a511...; with r10m_common.py 97431323...)
+  M5 = S2/r10round/lean/build/laneB/tools/ledger_r10round.py (0d89bcb8...; with r10round_common.py ea2c5ea6...)
+  REVIEW, NEXT = S2/r10round/f2/REVIEW.txt, NEXT_STEPS.txt      DD43 = S2/tailround/screen (the r9 bound screen)
+  HS, DS = <ECS>/survey_harness.txt, survey_design.txt          POW = <ECS>/power_ecs.out
+  DEC, BL, TE = <ECS>/v1/decisions_ecs_v1.txt, build_list_ecs_v1.txt, table_e_ecs.out (from table_e_ecs.py)
+Labels: [measured] = read or computed from the named file; [inferred] = reasoned, basis named. Steps = training steps.
+
+WHY THIS IS RUN
+- The round read line 1, TAIL RAIL FORMED ON r10 IN TRAINING. REVIEW 4.3-4.4: the bonus is not a direct driver of
+  the mean, and crossings happened with it at 0; whether removing the remaining bonus changes whether or when a
+  crossing comes is untested, because every run shared one ent_coef schedule.
+- This screen holds the training state fixed and changes only ent_coef (REVIEW 4.5, NEXT Option 1).
+- QUESTION: from two fixed pre-onset states of stance6, does removing the remaining entropy bonus change whether an
+  actuator's mean crosses its bound (an ANY-flagged evaluation) within 1,572,864 steps?
+- PREDICTED OUTCOME, stated before anything runs [inferred, DS 4]: NO DIFFERENCE DETECTED is the likelier line. The
+  states are mid-rise and the bonus's gradient reaches log_std only (REVIEW 4.3).
+
+WHAT IS TRAINED
+- Starts (D2). Two F2-held, manifest-verified checkpoint pairs [measured, FMAN COPY rows; DS 1; PAN]:
+    s42 at S = 3,145,728: zip 3c054bd738304965..., pkl 997f31421d805f6e...; tail_3 CMD +0.524, 0 flags; bonus
+      0.002753. In the original run the first ANY-flagged evaluation came at 3,801,088 (+655,360).
+    s80 at S = 4,194,304: zip 51197dbd7f90e481..., pkl f405244b94662bdf...; neck_pitch CMD -0.594, 0 flags; bonus
+      0.002004. In the original run the first ANY-flagged evaluation came at 4,849,664 (+655,360).
+- Length (D2): 1,572,864 steps from each start, so E = 4,718,592 (s42) and 5,767,168 (s80): 12 evaluations and
+  191 updates each. The rule: E is at least 786,432 steps after the original first ANY-flagged evaluation (both
+  917,504). In the original runs these windows held 8 of 12 (s42) and 4 of 12 (s80) ANY-flagged evaluations [measured,
+  DS 2].
+- ARMS (D1). THIS IS A TRAINING CHANGE (a training-loss change: ent_coef weights the entropy term of the PPO loss,
+  mirror_kl_ppo.py l379). It needs the maintainer's explicit approval. Scratch diagnostic continuations only.
+    A (recorded): the run's own schedule, unchanged: 0.005 to 0 linearly by 7,000,000 on the cumulative step. Applied
+      values from 0.0027472 to 0.0016354 (s42) and 0.0019982 to 0.0008865 (s80) [measured, F2 policy_probe.npz;
+      computed, the schedule].
+    B (zero): [ppo] ent_coef = 0 and ent_coef_end = 0, set in memory before the load (D1). The run's decay callback
+      then holds 0 at every step.
+- Held, identical in both arms (the run's stage_config.json.copy1, hyperparameters_sha256 054ab483...): physics r10,
+  reward, task, gate, policy interface, MirrorKLPPO (kappa 0.3, sigma floor 0.01), learning rate 3e-5 to 1e-5 at the
+  run's position (_total_timesteps 12,000,000), n_steps 2048 x 4 envs, batch 128, 10 epochs, gamma 0.98, target_kl
+  0.03, clip 0.2, max_grad_norm 0.5, VecNormalize updating, an evaluation of 10 deterministic episodes every 131,072
+  steps, a checkpoint pair every 262,144 steps, all kept.
+- Continuations (D3, D4): 6 per arm per start, 24 in all. Distinct seeds: arm A 1101, 1111, 1121, 1131, 1141, 1151;
+  arm B 1201, 1211, 1221, 1231, 1241, 1251; the same lists at both starts. As the run branch does, the seed goes to the
+  model, the 4 training envs (seed + rank) and the evaluation env (seed + 1000).
+- Named departures from the original runs, accepted by design (D13): CPU, not the L4's CUDA; a fresh env reset at S;
+  the original's update on the rollout that ends at S is not made (the first update is at S + 8,192); new random
+  streams, so arm A is a fresh draw, not a replay; a freshly seeded evaluation env; the in-run K3 panel off (D12).
+- Add-ons C, N and S (DEC D16-D18) are off. Each would need its own approval and its own reading.
+- Never: a physics, reward, task, gate or policy-interface change; anything on main or in a round; a merge.
+
+WHERE AND HOW
+- This container's CPU (4 cores [measured, nproc]). No Drive, no GitHub, no push. 0 L4-hours.
+- Code (D7): a fresh copy of 8737cd3d at <ECS>/code, built with M1's build-copy from CLONE. Its tree digest must
+  equal COPY's seal (331fe8fc...). COPY, CLONE, F2 and the main checkout are never written.
+- Inputs (D8): into each continuation's own stage folder, byte copies of the start pair, under the run's periodic
+  names, and of the parent run's five records (eval_episodes.csv, evaluations.npz, gate_progress.npz,
+  train_episodes.csv, policy_probe.npz). Each copy is checked against FMAN's sha256 before use. The recipe check
+  (V7) reads the parent's stage_config.json.copy1 in F2.
+- Harness (D8, BL): <ECS>/tools/run_ecs.py calls the run branch's own same-stage resume (train_base._train_stage_body,
+  "resume_same_stage") from the arm's config, with a stop at E. That path keeps the step count and the LR schedule,
+  builds the run's own callbacks (ledger, probe, checkpoints) and seeds the parent's rows up to S [inferred, HS 2, 4].
+- Environment: S2/venv/bin/python -I -B (Python 3.13.17, torch 2.13.0+cpu, numpy 2.5.4, gymnasium 1.4.0, SB3 2.9.0,
+  MuJoCo 3.10.0 [measured]); cwd /tmp; absolute paths; OMP, MKL and OPENBLAS threads 1 and torch threads 1; device
+  cpu; DummyVecEnv; TMPDIR and MPLCONFIGDIR under <ECS>/tmp; GITHUB_SHA = 8737cd3d86431de1bdd0fcdb49a0d956a45e084d.
+- Processes (D10): 3 continuations at a time at nice 10. End traces one at a time at nice 19 on the 4th core. No
+  other simulation beside them.
+- Outputs: <ECS>/runs/<start>_<arm>_<seed>/ (for example s42_A_1101; refused if it exists), <ECS>/traces/<name>/,
+  <ECS>/score/. Disk (D11): at least 3 GB free before each continuation starts; below that, pause and tell the
+  maintainer. Nothing is discarded.
+
+THE READINGS
+- R1 THE LEDGER (the statistic's input). The continuation's own eval_episodes.csv, read by M5 unchanged
+  ("ledger_r10round.py <ledger> --E <E> --json"). Only evaluations with timesteps in (S, E] are read. C6 must pass
+  (every grid evaluation up to E present, 10 rows, inputs measured). The parent's evaluation at S is flag-free at both
+  starts [measured, DS 1], so no flag or alarm can come from the parent's rows.
+- R2 M6 SHARES (report only). policy_probe.npz's M6 arrays (rollout mu-beyond high and low shares, action-clip
+  shares, mu mean, q50 and q95) and std_per_actuator, for all 15 actuators, rows with update_timesteps in (S, E).
+  A small reader selects the rows, because M6 itself has no step key (HS 4.2; BL).
+- R3 END TRACE (report only). M1 on the stage1_<E>_steps pair ("m1 --copy --zip --pkl --stage-config --out"),
+  seeds 3042-3061: every actuator's CMD, the flags, the falls. A STOPPED continuation is traced at its final pair.
+- R4 MANIPULATION RECORD (a check, not a reading). Per update, ent_coef and learning_rate from policy_probe.npz.
+  Arm A: each row equal, as float32, to the parent's probe row at the same update_timesteps. Arm B: every ent_coef row
+  0.0, learning_rate as A. Each continuation's stage_config.json records its [ppo] block and hyperparameters hash.
+
+THE ONE PRE-REGISTERED STATISTIC (everything else is report only)
+- A continuation is POSITIVE when M5 reads at least one ANY-FLAGGED evaluation (at least 5 of its 10 episodes over
+  the bar, CRIT6 M5 (a)) with timesteps in (S, E]. Otherwise it is NEGATIVE.
+- Per start, a of nA arm-A and b of nB arm-B continuations are POSITIVE (nA = nB = 6 when all are counted).
+- Test (D5, D6): the exact stratified test over both starts (the exact Cochran-Mantel-Haenszel test, conditional on
+  each start's total; with equal arms it equals a within-start permutation test). T = a(s42) + a(s80).
+  P_UP = P(T >= t), P_DOWN = P(T <= t). Two-sided: 0.025 per side.
+- The reading (the first line that applies):
+  1. B LOWER (P_UP <= 0.025): "REMOVING THE REMAINING ENTROPY BONUS LOWERED THE ANY-FLAG RATE FROM THESE STATES".
+  2. B HIGHER (P_DOWN <= 0.025): "REMOVING THE REMAINING ENTROPY BONUS RAISED THE ANY-FLAG RATE FROM THESE STATES".
+  3. NO DIFFERENCE DETECTED: "NO LARGE EFFECT OF THE REMAINING BONUS DETECTED FROM THESE STATES; a modest effect and
+     the early phase are not tested".
+- Every line prints: each start's table (a of nA against b of nB), P_UP and P_DOWN, each start's one-sided Fisher p
+  (report only), the INFORMATIVE note, the TABLE E power figures, and every STOPPED, LOST or VOID continuation.
+- INFORMATIVE note: a start where fewer than half of arm A's counted continuations are POSITIVE (fewer than 3 of 6)
+  prints "START NOT INFORMATIVE (arm A a of nA)". It is a note only. It never changes a p or a line, and no start
+  is dropped.
+- Report only, never tested: each continuation's first ANY-flagged step (censored at E), its number of flagged
+  evaluations, ANY ALARM, TAIL-flagged, TAIL ALARM, R2, R3, std, returns, falls.
+
+RUN HANDLING (lean, for CPU runs; no Colab rule carries over: no relaunch window, no PRESENCE, no fetch)
+- Fails stay fails. No continuation is stopped, changed, extended or rerun because of a readout.
+- COUNTED: it reached E (stop reason "end"), C6 passed and R4 passed.
+- STOPPED: one of the run's own early stops ended it before E (D14; in these windows only the collapse stop can act),
+  with C6 to its last evaluation and R4 passed.
+  POSITIVE and counted if an ANY-flagged evaluation came before the stop; otherwise censored: not in the test, printed.
+- CRASH: the process died (exception, out of memory, killed) or the container or session restarted mid-way. The
+  folder is moved to <name>_crashed<k> (never deleted, never read). The continuation reruns from its start pair with
+  the same seed and arguments, and the rerun is the continuation. After a container restart (RUNLOG records several;
+  scratch was kept, l458, l659) the wave runner is relaunched and treats every half-way folder as a CRASH.
+- DETERMINISM decides what a rerun is. If V5 passed, a rerun is expected to be bit-identical: the crashed attempt's
+  checkpoints are compared with the rerun's at the same steps (report only; the rerun governs). If V5 was not run or
+  failed, a rerun is a new draw from the same start and seed, and the crashed attempt is reported beside.
+- LOST: three crashes of its own (a container restart does not count), a continuation that cannot run, or one that
+  reaches E with C6 failing. Declared in RUNLOG. Not in the test; printed with what its records show.
+- VOID: R4 fails, or a run_meta shows another code digest, start sha256, arm config or seed. The screen stops and goes
+  to the maintainer. Nothing is read until he decides.
+- A refusal by preflight, before any optimizer step: the cause is fixed and it starts again under the same name.
+- Order: the fixed order of BL item 8 (arms and starts interleaved, 3 at a time), so neither arm finishes first.
+
+WHEN THE READING IS MADE
+- Once all 24 continuations are COUNTED, STOPPED or LOST, and R1-R4 are done for each. Until then "incomplete": no
+  line is read, and there is no interim look.
+- PROVISIONAL, and not acted on, while a pin is unfilled, a tool's sha256 differs from its pin, or this text's sha256
+  differs from <ECS>/APPROVED's. It is cleared only by filling the pin or measuring again, never by a ruling.
+- A reading neither incomplete nor provisional is final and goes to the maintainer at once, with the screen's
+  outputs listed (D15 for any durable copy).
+
+VALIDATIONS (before the first optimizer step; V1-V4, V6 and V7 make none)
+- V1 START REPRODUCTION. For each start, the harness loads the pair under each arm's config and checks: MirrorKLPPO,
+  num_timesteps = S, _total_timesteps 12,000,000, device cpu, ent_coef after load 0.005 (A) and 0 (B). It saves the
+  loaded policy and statistics before any update. The parameter and VecNormalize digest equals the start pair's, and
+  M1 on the saved pair equals PAN at that label (s42 3145728, s80 4194304) in every field but timing.
+- V2 APPLIED ent_coef. A no-update run per start and arm (every callback on, train() never steps the optimizer) to
+  the first evaluation (S + 131,072): the probe's ent_coef and learning_rate rows pass R4's check. The stage_config
+  it writes records arm A's hash as 054ab483... and arm B's as differing in ent_coef and ent_coef_end only.
+- V3 TWO IDENTICAL EVALUATION-ONLY CHECKS. V2's s42 arm-A run, twice in separate processes: identical
+  evaluations.npz, ledger cells, probe rows and VecNormalize statistics (timing fields aside), and parameters and
+  Adam state equal at start and end.
+- V4 THE READER READS THE HARNESS's LEDGER. M5 with --E S + 131,072 on V2's ledgers: C6 PASS; the 194-column header;
+  the seeded rows equal the parent's rows at or before S, cell for cell; the new evaluation's 10 rows present.
+- V5 DETERMINISM WITH UPDATES (D9: it makes optimizer steps on scratch, so it needs its own word). After approval and
+  before the first continuation: s42, arm A, seed 1101, 4 rollouts with updates (32,768 steps), twice in separate
+  processes. Equal policy and optimizer tensors, VecNormalize statistics and probe rows: PASS. Recorded either way.
+  (DD43's 2-rollout check with updates on r9 code and this stack was bit-identical [measured,
+  S2/tailround/criteria/review-feasibility/determinism_a.out and _b.out]. On r10 only a 768-step in-suite proof and
+  rollouts without updates are recorded [measured as recorded, HS 5; RUNLOG l630, l640].)
+- V6 TOOLS. The harness and reader tests of BL pass. The reader, run on the original runs' own ledgers over each
+  window, reads both s42 and s80 POSITIVE (first flags 3,801,088 and 4,849,664) [measured, DS 2]. The scorer
+  reproduces TE's sections 1-3 exactly.
+- V7 RECIPE. Each arm's config equals the run's stage_config.json.copy1 in every key, except ent_coef and
+  ent_coef_end for arm B.
+
+COMPUTE [inferred, HS 7 and 8; POW 8]
+- 24 x 1,572,864 = 37,748,736 steps (36 x 1,048,576). At about 43-53 min per 1,048,576 steps per process with 3 at a
+  time: about 26-32 CPU-hours, about 8.6-10.6 h of wall clock in 8 waves of 3. The validations take about 1 h before
+  that. The end traces (about 1.2 min each) overlap on the 4th core. 0 L4-hours, 0 Drive copies.
+- Disk: about 37 MB per continuation (every checkpoint kept, seeded records), about 18 MB per end trace and 0.1 GB of
+  code: about 1.4 GB in all. 5.2 GB was free at 20:01 UTC [measured, df].
+
+KNOWN LIMITS
+- The starts are mid-rise. The screen tests the crossing of the bound, not the rise or the first 3.1M steps. A null
+  leaves the early-phase question open, and it is not evidence against NEXT Option 3 [inferred, DS 4].
+- A null rules out only a large effect: P(B LOWER) is 0.99 at A 0.9 against B 0.1, 0.90 at 0.25 and 0.43 at 0.5
+  [computed, TE 4]. Arm A's rate at these states is unknown on r10: 0.75-0.95 is inferred from DD43's r9 control,
+  which kept the original timing in 3 of 3 from a flag-free mid-rise start (DS 2).
+- A positive is a causal effect at these two states, on CPU, with this harness. It is not a rate from scratch, not a
+  GPU result and not a fix. The binary outcome reads "no" for any delay past 917,504 steps: prevention against delay
+  is read only from the first-flag step, report only.
+- Round context: 3 runs, and these 2 states come from 2 of them. Each original window is one realisation.
+- Arm B removes on average about 0.0022 (s42) and 0.0014 (s80) of bonus [computed, DS 1.4]. The bonus acts on
+  log_std only (REVIEW 4.3), so any effect runs through the noise level.
+- Determinism holds, if at all, on this container's CPU and stack. A rebuilt container may differ [inferred, HS 5].
+
+REFERENCE TABLE E. THE STATISTIC AT k = 6 PER ARM PER START: WHAT EACH RESULT PRINTS [computed, TE; exact]
+  The same table at both starts (a = arm-A POSITIVE of 6, b = arm-B POSITIVE of 6). L = B LOWER, H = B HIGHER,
+  . = NO DIFFERENCE DETECTED:
+           b=0 b=1 b=2 b=3 b=4 b=5 b=6
+      a=0   .   .   .   H   H   H   H
+      a=1   .   .   .   .   H   H   H
+      a=2   .   .   .   .   .   H   H
+      a=3   L   .   .   .   .   .   H
+      a=4   L   L   .   .   .   .   .
+      a=5   L   L   L   .   .   .   .
+      a=6   L   L   L   L   .   .   .
+  Examples (P_UP): 6/6 vs 3/6 at both 0.0083 (L); 6/6 vs 4/6 0.0517 (.); 5/6 vs 2/6 0.0204 (L); 4/6 vs 1/6 0.0204 (L);
+  4/6 vs 2/6 0.1156 (.); 3/6 vs 0/6 0.0083 (L); 2/6 vs 0/6 0.0517 (.).
+  One start alone decides (the other at 0 or 12 POSITIVE in all) only at 5/6 vs 0/6 (0.0076), 6/6 vs 0/6 (0.0011)
+  or 6/6 vs 1/6 (0.0076), and the mirror images for B HIGHER.
+  Unequal arms (a LOST or censored continuation) use the same test with nA, nB as counted (TE 3).
+  P(B LOWER), same rates at both starts:  B 0.00   0.10   0.25   0.40   0.50
+                                  A 0.75     0.997  0.897  0.609  0.294  0.144
+                                  A 0.90     1.000  0.993  0.897  0.642  0.428
+  Size under the null: at most 0.0116 per side, 0.0231 in all, over every pair of null rates 0.05-0.95 (TE 5).
+  The full table, k = 4 and the cross-check against POW are in TE.
+
+PINS (filled before approval; nothing here is pinned yet)
+  this text's sha256 (in <ECS>/APPROVED and RUNLOG); table_e_ecs.py and .out; <ECS>/code's tree digest (= 331fe8fc...);
+  the sha256 of run_ecs.py, ecs_common.py, read_ecs.py, score_ecs.py, run_waves_ecs.sh and their tests; M1 and M5
+  as above; the parent records' sha256 from FMAN (BL item 2); V1-V4, V6, V7 results; V5's result if D9 (a).
+END (draft; the decisions are in DEC, the build in BL).

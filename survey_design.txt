@@ -1,0 +1,428 @@
+======================================================================================================================
+ENTROPY CONTINUATION SCREEN (ECS): DESIGN-DATA SURVEY FOR THE PRE-REGISTRATION (T. REX r10, ARM LTSB, STANCE6 STARTS)
+SURVEY ONLY. NOTHING HERE IS A CRITERION, A PROPOSAL THAT STARTS ANYTHING, OR AN APPROVAL.
+======================================================================================================================
+Written 2026-10-28 19:32-19:55 UTC (date -u) by the design-data surveyor of workflow wf_86638249-afc. Nothing was
+trained, simulated, fetched, pushed or committed: no learn(), no optimizer step, no evaluation rollout, no Drive, no
+GitHub. Every number below comes from the round's records (read only) or from arithmetic on them. Written only under
+S2/r10round/ecs/. No simulation was needed: every per-start number is in an M1 panel or in the in-run ledger.
+
+Labels: [measured, KEY] = read or computed from the file KEY names; [inferred, basis] = reasoned, with its basis.
+"lN" = line N of that file. Steps are training timesteps. "+N" after a step = N steps after the candidate start.
+Actuators: 0 neck_pitch, 1 neck_yaw, 2 head_pitch, 11 tail_1_pitch, 12 tail_1_yaw, 13 tail_2_pitch, 14 tail_3_pitch.
+CMD = M1's mean over 20 deterministic episodes (seeds 3042-3061) of each episode's window-mean command (steps 200-999).
+"Ledger" = the in-run eval_episodes.csv: 10 deterministic episodes every 131,072 steps (eval_diagnostics.py l5).
+ANY-FLAGGED / TAIL-FLAGGED / ANY ALARM / TAIL ALARM = exactly as M5 reads them: the pinned lane B code
+(r10round_common.py sha256 ea2c5ea6..., checked against lane B SHA256SUMS.txt before use) was loaded and its own
+read_ledger() and m5() were called; an evaluation is flagged at >= 5 of 10 episodes over the 0.10 bar, an alarm is
+the second of two consecutive flagged evaluations. Nothing in M5 was re-implemented.
+
+SOURCES
+  S1        /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad
+  S2        /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad
+  REVIEW    S2/r10round/f2/REVIEW.txt (sha256 5c76f556...)      NEXT  S2/r10round/f2/NEXT_STEPS.txt (sha256 9fd7fe64...)
+  RO        S2/r10round/f2/readouts/READOUTS.txt                 FIXP  S2/r10round/f2/fixer/f_power.py and .out
+  LEDG-r    S1/foot/stance6/fetch/F2/stance6_r10LTSB_<r>/copies/01_stance/eval_episodes.csv.copy1
+            (sha256 s42 d1bcb789..., s80 b677ce76..., s60 1821fd2e...)
+  PROBE-r   the same folder, policy_probe.npz.copy1 (ent_coef, std and rollout mu per PPO update; allow_pickle False)
+  PAN-r     S1/foot/stance6/panels/stance6_r10LTSB_<r>/<label>/m1/m1_summary.json
+  FMAN      S1/foot/stance6/fetch/manifest.csv;  AMAN-r  .../stance6_r10LTSB_<r>/copies/artifact_manifest.json.copy1
+  RUNLOG    S1/foot/stance4/live/run_log.txt (read only; l505-l580, l640-l661, l706-l720 read)
+  TSC       S2/tailround/screen/ (D-D43): criteria/criteria_tailscreen_final.txt, tools/run_tailscreen.py,
+            scores/score.txt, panels.csv, runs/s80_control_r101/run_meta.json and telemetry.npz
+  CODE      S2/r10round/f2/copy_8737cd3d (the sealed measuring copy; read only): environments/shared/curriculum/
+            schedules.py l147-l215 (EntCoefDecayCallback), environments/shared/train_base.py l1059-l1071
+  DATA      S2/r10round/ecs/survey_data.py -> survey_data.out / survey_data.json (this survey's extraction)
+  POW       S2/r10round/ecs/power_ecs.py -> power_ecs.out (this survey's power arithmetic)
+
+======================================================================================================================
+0. GIST
+======================================================================================================================
+- All three NEXT-proposed starts are F2-held, and their copies re-hash equal to both the fetch manifest and each
+  run's artifact_manifest.json [measured, DATA]. The three "closer" starts (s42 3,407,872, s80 3,670,016, s60
+  6,815,744) are not in F2. A fetch is not needed for them: s42 3,407,872 is already at tail_3 +0.82 (ledger) and
+  262,144 steps before its first over-bar episode. The F2-held s80 4,194,304 stands in for s80 3,670,016 (neck CMD
+  -0.594 against the ledger's -0.644). s60 6,815,744's bonus is 0.000132, too small for a contrast [measured,
+  DATA; inferred reading].
+- At the core starts the habit is mid-rise but not yet over the bar. s42 3,145,728 has tail_3 CMD +0.524, 0 flags,
+  and its first ANY-flagged evaluation came 655,360 steps later. s80 3,145,728 has neck CMD -0.382 with head
+  -0.335, 0 flags, and its first ANY-flagged evaluation came 1,703,936 steps later. The bonus is 0.002753 at both
+  starts [measured, PAN, LEDG, PROBE].
+- In the original runs the proposed windows show the outcome. s42 (to 4,718,592): 8 of 12 evaluations
+  ANY-flagged, 7 ANY ALARMs. s80 (to 5,505,024): 3 of 18 ANY-flagged and 1 ANY ALARM. That alarm is the window's
+  last evaluation, so it has no margin. s60 (to 8,388,608): 0 flagged, but the end trace is tail_3 +0.880 [measured,
+  DATA].
+- Recommended primary outcome: an ANY-flagged evaluation inside the continuation, as M5 reads it. The TAIL-flagged
+  outcome never fired at s80 (its habit is on the neck). The ANY ALARM has no margin at s80 3,145,728. The end-trace
+  CMD >= 0.60 sits near its ceiling in every original window [measured, DATA; inferred choice].
+- Power: an exact stratified test (exact CMH, which is the same as a within-start permutation test here), 2 starts,
+  one-sided 0.05. With k = 4 per arm per start: 0.94 at A 0.9 against B 0.1, 0.75 against B 0.25, 0.34 against
+  B 0.5. With k = 6: 0.996, 0.94 and 0.58. With k = 3: 0.89, 0.66 and 0.24. The test is exact, so the false-positive
+  rate is at most 0.05 at any null rate. Its largest actual value on a 0.05 grid of null rates is 0.020 / 0.015 /
+  0.024 at k = 3 / 4 / 6 [computed, POW].
+- NEXT's 0.68 and 0.91 are correct. They are the power of a single-stratum, one-sided Fisher exact test at 0.05,
+  with 6 or 8 runs per arm and a true 2/3 against 0. They are Option 3's (from scratch), not the screen's. For the
+  screen, NEXT gives only p-values at fixed outcomes: 0.014 and 0.071 (single-start Fisher) and 0.005 (exact
+  stratified test). All three check [computed, POW].
+- These are mid-rise starts, so the screen tests crossing the bound, not the rise. A null rules out only a large
+  effect. A positive would show that the bonus matters for crossing from these states, not for the rise or from
+  scratch (section 4).
+
+======================================================================================================================
+1. THE CANDIDATE STARTS (design facts per start) [measured, DATA unless marked]
+======================================================================================================================
+Pair status: "held" means the zip and the pkl are in F2. Each copy's sha256, recomputed for this survey, equals its
+COPY row in FMAN and its entry in AMAN-r.
+
+1.1 THE THREE STARTS NEXT PROPOSES (all F2-held, all hashes equal)
+  run s42 start 3,145,728 (core)   zip 3c054bd7...  pkl 997f3142...
+    M1 CMD: neck +0.026, neck_yaw +0.003, head +0.005 | tail_1p -0.076, tail_1y -0.002, tail_2p +0.053, tail_3 +0.524.
+    Flags: 0 TAIL FLAGS, 0 any-actuator over-bar episodes, 0 falls; max |cmd| at any step 0.679;
+    share >= 0.99 is 0 on neck, head and tail_3.
+    Ledger at 3,145,728 (10 episodes): tail_3 +0.560, neck +0.042; 0 over the bar.
+    Probe: ent_coef 0.002753 (equal to the schedule); std neck 0.1565, head 0.1735, tail_3 0.1694; rollout mu
+    tail_3 +0.490; mu-beyond 0.
+    Next events: first over-bar episode 3,670,016 (+524,288); first ANY- and TAIL-flagged 3,801,088 (+655,360);
+    first ANY and TAIL ALARM 3,932,160 (+786,432). Nothing before the start.
+  run s80 start 3,145,728 (core)   zip d4710ba8...  pkl c00a4909...
+    M1 CMD: neck -0.382, neck_yaw -0.002, head -0.335 | tail_1p -0.045, tail_1y +0.002, tail_2p +0.121, tail_3 +0.078.
+    Flags: 0 TAIL FLAGS, 0 over-bar episodes, 0 falls; max |cmd| 0.770.
+    Ledger: neck -0.382, head -0.335; 0 over the bar.
+    Probe: ent_coef 0.002753; std neck 0.1604, head 0.1790, tail_3 0.1853; rollout mu neck -0.394.
+    Next events: first over-bar episode 3,801,088 (+655,360; neck -); first ANY-flagged 4,849,664 (+1,703,936);
+    first ANY ALARM 5,505,024 (+2,359,296); TAIL-flagged and TAIL ALARM never.
+  run s60 start 6,291,456 (add-on C)   zip 938a78e8...  pkl 356e6e61...
+    M1 CMD: neck -0.214, neck_yaw +0.001, head -0.131 | tail_1p +0.037, tail_1y +0.004, tail_2p +0.150, tail_3 +0.273.
+    Flags: 0 TAIL FLAGS, 0 over-bar episodes; max |cmd| 1.000 at some step (no episode over the bar).
+    Ledger: tail_3 +0.269.
+    Probe: ent_coef 0.000506; std tail_3 0.1525; rollout mu tail_3 +0.245.
+    Next events: first over-bar episode 8,126,464 (+1,835,008); no flagged evaluation and no alarm ever.
+    M1 tail_3 CMD reaches +0.641 at 7,340,032 and +0.880 at 8,388,608 (REVIEW D-3).
+
+1.2 THE "CLOSER" STARTS (RO l815-l819, REVIEW 4.5): NOT IN F2
+  Each pair is listed in its run's models/ listing and in AMAN-r. A read-only fetch would cost 6 files: zips of
+  4,033,642 / 4,033,631 / 4,033,633 bytes and pkls of 5,291 / 5,290 / 5,290 bytes, plus one models/ listing per
+  run. Under F2's method, consecutive model COPY rows were recorded a median of 12 s apart for zips (10-21 s) and
+  10 s for pkls (9-18 s) [measured, FMAN utc gaps]. There is no M1 panel at these labels, so the CMDs here are the
+  ledger's 10-episode means. At the F2-held labels the ledger and M1 agree within 0.04 (s42 3,145,728 +0.560 / +0.524;
+  s80 4,194,304 -0.583 / -0.594; s60 6,291,456 +0.269 / +0.273) [measured, DATA].
+  run s42 start 3,407,872: ledger tail_3 +0.822; 0 over the bar; ent_coef 0.002566; std tail_3 0.1660; rollout mu
+    tail_3 +0.693. First over-bar +262,144; first ANY-flagged +393,216; first ALARM +524,288.
+    [inferred] Later than ideal: the command is already near the bar, so less of the approach is under contrast.
+  run s80 start 3,670,016: ledger neck -0.644, head -0.492; ent_coef 0.002379. First over-bar +131,072; first
+    ANY-flagged +1,179,648; first ANY ALARM +1,835,008.
+  run s60 start 6,815,744: ledger tail_3 +0.574; ent_coef 0.000132 (2.6% of 0.005); bonus 0 from 7,004,160 (RO E2).
+    First over-bar +1,310,720; never flagged. [inferred] Under the recorded schedule the A-against-B contrast here
+    is about 0.000008 averaged over a 1.57M window, so this start is useful only for the converse C.
+
+1.3 OTHER F2-HELD STARTS (the surveyor's additions, for the choice in section 6)
+  run s80 start 4,194,304   zip 51197dbd...  pkl f405244b...
+    M1 CMD: neck -0.594, head -0.423, tail_3 +0.020; 0 TAIL FLAGS, 0 over-bar episodes; max |cmd| 1.000.
+    Ledger: neck -0.583. Probe: ent_coef 0.002004; std neck 0.1514.
+    Next events: first ANY-flagged 4,849,664 (+655,360, the same lead as s42 3,145,728); first ANY ALARM 5,505,024
+    (+1,310,720).
+    One single neck over-bar episode, at 3,801,088, came before this start. That is not a flagged evaluation.
+    This is the closest r10 analogue of D-D43's r9 s80 4,194,304 start (tail_3 +0.6285, 0 flags; TSC criteria
+    l240, l395) [inferred, from the command level and the 0 flags].
+  run s42 start 2,097,152: CMD tail_3 +0.151; ent_coef 0.003502; first ANY-flagged +1,703,936.
+  run s80 start 2,097,152: CMD neck -0.036; ent_coef 0.003502; first ANY-flagged +2,752,512.
+  run s42 start 1,048,576: CMD tail_3 -0.035; ent_coef 0.004251; first ANY-flagged +2,752,512.
+  run s80 start 1,048,576: CMD neck -0.005; ent_coef 0.004251; first ANY-flagged +3,801,088.
+  run s60 start 7,340,032: CMD tail_3 +0.641 (already over the 0.60 PARKED line); ent_coef 0, so A equals B there.
+    Useful only for C.
+
+1.4 THE BONUS UNDER ARM A (the recorded schedule) OVER EACH DESIGN WINDOW [computed, 0.005 x (1 - t / 7,000,000)]
+  s42 3,145,728 -> 4,718,592: 0.002753 -> 0.001630, mean 0.002191.
+  s80 3,145,728 -> 5,505,024: 0.002753 -> 0.001068, mean 0.001910.
+  s80 4,194,304 -> 5,767,168: 0.002004 -> 0.000880, mean about 0.00144 (same arithmetic).
+  s60 6,291,456 -> 8,388,608: 0.000506 -> 0, mean 0.000085; 66% of the window at 0.
+  The probe's recorded ent_coef equals the schedule at every start above [measured, PROBE; RO E2: within 2.3e-10].
+  Arm B removes about 0.0019-0.0022 on average in NEXT's core windows (0.0014 at s80 4,194,304). Add-on C at 0.002
+  adds about the same against s60's recorded 0.000085.
+
+======================================================================================================================
+2. THE PRIMARY OUTCOME: OPTIONS AND HOW OFTEN THE ORIGINAL RUNS SHOW THEM IN EACH WINDOW [measured, DATA]
+======================================================================================================================
+The window is (start, start + L]. Evaluations are at start + k x 131,072 (k >= 1), on the original grid because every
+start is a multiple of 131,072. An alarm counts only when both of its evaluations are inside the window. "Margin" =
+L minus the original lead to the event, i.e. how much later than in the original run the event could come and still
+fall inside the window.
+
+  start + length (end)                    ev  ANY-flagged (first, margin) TAIL  ANY ALARM (first, margin)  o-b  end CMD
+  s42 3,145,728 + 1,572,864 (4,718,592)   12  8 (3,801,088, 917,504)       8  7 (3,932,160, 786,432)     77  t3 +1.000 L
+  s42 3,145,728 + 1,048,576 (4,194,304)    8  4 (3,801,088, 393,216)       4  3 (3,932,160, 262,144)     41  t3 +0.989 M
+  s80 3,145,728 + 2,359,296 (5,505,024)   18  3 (4,849,664, 655,360)       0  1 (5,505,024, 0)           25  nk -0.936 L
+  s80 3,145,728 + 3,145,728 (6,291,456)   24  7 (4,849,664, 1,441,792)     0  3 (5,505,024, 786,432)     62  nk -0.917 M
+  s80 4,194,304 + 1,572,864 (5,767,168)   12  4 (4,849,664, 917,504)       0  2 (5,505,024, 262,144)     33  nk -0.762 L
+  s80 4,194,304 + 2,097,152 (6,291,456)   16  7 (4,849,664, 1,441,792)     0  3 (5,505,024, 786,432)     61  nk -0.917 M
+  s80 3,670,016 + 1,572,864 (5,242,880)   12  1 (4,849,664, 393,216)       0  0                           7  nk -0.793 M
+  s42 3,407,872 + 1,572,864 (4,980,736)   12  10 (3,801,088, 1,179,648)   10  9 (3,932,160, 1,048,576)   96  t3 +1.000 L
+  s60 6,291,456 + 2,097,152 (8,388,608)   16  0                            0  0                           4  t3 +0.880 M
+  s60 6,815,744 + 1,572,864 (8,388,608)   12  0                            0  0                           4  t3 +0.880 M
+  ev = evaluations in the window; TAIL = TAIL-flagged evaluations; o-b = over-bar episodes; end CMD = the habit
+  actuator's command at the window end (t3 = tail_3, nk = neck_pitch), from M1 (M) where a panel exists, else the
+  ledger's 10-episode mean (L).
+  (Every length from 1,048,576 to 3,145,728 for every start is printed in DATA, WINDOWS.)
+
+Base-rate notes:
+- Each original run is a single realisation. These counts say the outcome occurred in that realisation and how
+  robustly (count and margin). They are not a per-continuation rate [inferred].
+- The only replicated evidence on continuation rates from a mid-rise start is D-D43's CONTROL on r9 [measured,
+  TSC score.txt and panels.csv]:
+    From r9 s80 4,194,304 (tail_3 +0.6285, 0 flags), all 3 replicates had tail-up flags within 1M steps, at the
+    first or second checkpoint: r101 and r202 at 4,325,376 (5/20 and 12/20 flags), r303 at 4,456,448 (6/20).
+    The original r9 s80 run's first flagged evaluation was at 4,325,376 (REVIEW D-12). So those continuations kept
+    the original's timing to within one checkpoint.
+    From r9 s42's railed 4,194,304 state: RAIL in 2 of 3; r202 cured (0 flags from 4,980,736).
+  [inferred] A rate of 0.75-0.95 is plausible for arm A at matched-lead starts (s42 3,145,728; s80 4,194,304). It is
+  less sure at s80 3,145,728, where the original first flag came 1.70M steps in and only 655,360 before the window
+  end. These are r9 replicates on a different plant: untested on r10.
+- Specificity of an ANY-flag: none of the non-alarm runs ever had one in their 91 evaluations. That is 0 of 364
+  evaluations across r10 s60 and r9 LTSB s52, s60 and s70. r10 s60's 24 single over-bar episodes never reached more
+  than 3 of 10 in an evaluation [measured, RO D-1, E6]. So a flagged evaluation marks a habit, not a stray episode.
+
+The options, with the surveyor's reading [inferred, from the table]:
+(a) ANY-flagged evaluation in the window, as M5 reads it (NEXT's statistic).
+    For: it catches both habits (tail_3 + at s42, neck - at s80). The original shows it at every core start, with
+    margins of 655,360-917,504. It is specific (above).
+    Against: it reads 0 at s60 (useless for C). It cannot tell "prevented" from "delayed past the margin".
+    RECOMMENDED as the primary.
+(b) TAIL-flagged evaluation: 0 at s80 in every window, so the s80 stratum is unlikely to contribute and the test
+    would in effect rest on one start. Not recommended unless only s42 is run.
+(c) ANY ALARM: more specific, but its margins are smaller: 0 at s80 3,145,728 + 2,359,296 (the alarm is the last
+    evaluation) and 262,144 at s80 4,194,304 + 1,572,864. Lower arm-A rate, lower power. A secondary reading at most.
+(d) End-trace CMD of the habit actuator at >= 0.60 in magnitude (M1 on the final checkpoint): the original is at
+    +0.88 to +1.00 or -0.76 to -0.94 at every window end, against |CMD| 0.27-0.59 at the F2-held starts. Arm B reads
+    "no" only if it holds the command under 0.60, which is a much stronger effect than not crossing the bar. It is
+    near its ceiling in arm A and has the least room. It is the natural reading only for C, where (a) is at its
+    floor (section 5.6).
+(e) Graded readings (the share of the continuation's evaluations that are flagged; the first-flag step, censored
+    at L; M6's mu-beyond share): more power for a partial effect or a delay (POW section 7: k = 4, a shift of 1.5 SD
+    gives 0.88). But no record gives their between-continuation spread, so they cannot be sized now. RECOMMENDED as
+    pre-registered secondaries (report only, or a named co-primary at 0.025; section 6, D-4). The first-flag step is
+    the reading that answers "when"; (a) answers "whether, within L".
+
+======================================================================================================================
+3. POWER AND FALSE-POSITIVE RATE [computed, POW, by exact enumeration unless marked]
+======================================================================================================================
+3.1 THE TEST
+- Exact conditional test of a common odds ratio, stratified by start (exact Cochran-Mantel-Haenszel, "CMHX" in POW).
+  T = the number of positive continuations in arm A, summed over starts. Its null distribution is the convolution of
+  the per-start hypergeometric distributions (k, k, m_s), conditional on each start's total m_s. One-sided: B lower.
+- With k per arm in every start, this is exactly the stratified permutation test (labels permuted within starts) on
+  the summed A-minus-B difference, because within a start that difference is 2 a_s - m_s. So "exact CMH" and
+  "stratified permutation test" are one test here.
+- Pooling the starts into one Fisher test gives similar power at k = 3-4 and slightly more at k = 6 (POW section 3,
+  bracketed). It ignores the starts, which differ, so the stratified test is the cleaner choice [inferred].
+
+3.2 POWER, 2 STARTS WITH EQUAL RATES (one-sided alpha 0.05)
+                    B 0.00   B 0.10   B 0.25   B 0.40   B 0.50
+  k = 3   A 0.75    0.844    0.655    0.395    0.199    0.111
+          A 0.90    0.986    0.891    0.655    0.391    0.240
+  k = 4   A 0.75    0.973    0.747    0.439    0.218    0.122
+          A 0.90    1.000    0.939    0.747    0.504    0.342
+  k = 6   A 0.75    0.999    0.944    0.704    0.407    0.236
+          A 0.90    1.000    0.996    0.944    0.772    0.578
+  (A 0.6, 0.8 and 1.0 are in POW section 3. A 0.8 against B 0.2: 0.563 / 0.628 / 0.872 at k = 3 / 4 / 6.)
+3.3 UNEQUAL STARTS (POW section 4)
+- s42 (0.9 against 0.1) with s80 (0.6 against 0.1): 0.676 / 0.767 / 0.955 at k = 3 / 4 / 6.
+- An effect at one start only, s42 (0.9 against 0.1) with s80 (0.9 against 0.9): 0.398 / 0.378 / 0.671.
+- One start whose outcome never fires, s42 (0.9 against 0.2) with s80 (0 against 0): 0.373 / 0.269 / 0.737.
+3.4 WHAT EACH k CAN REACH (POW section 2)
+- k = 3: the smallest p is 0.0025 (3/3 against 0/3 at both starts). The tables that reach 0.05 are 2/3 against 0/3
+  at both starts (0.040) and 3/3 against 1/3 at both (0.040). A single start reaches 0.05 only at 3/3 against 0/3
+  (exactly 0.050).
+- k = 4: 3/4 against 0/4 at both starts gives 0.0051 (NEXT's figure); 2/4 against 0/4 at both gives 0.046; 4/4
+  against 2/4 at both gives 0.046. A single start reaches 0.05 only at 4/4 against 0/4 (0.014). So with k = 4,
+  per-start readings are nearly useless: single-start power at 0.9 against 0.1 is 0.43, less than k = 3's 0.53
+  (discreteness).
+- k = 6: single starts become readable (4/6 against 0/6 gives 0.030; 5/6 against 1/6 gives 0.040; 0.889 at 0.9
+  against 0.1).
+3.5 THE NULL'S FALSE-POSITIVE RATE (POW section 6)
+- The test is exact, so its size is at most 0.05 at every null rate. Actual sizes at a common rate p_s:
+    k = 3: 0.0015-0.0203;  k = 4: 0.0022-0.0148;  k = 6: 0.0047-0.0240 (rates 0.1-1.0 tried).
+  The largest over every pair of null rates on the grid 0.05, 0.10, ..., 0.95 is 0.0203 / 0.0152 / 0.0242.
+  The sizes are smallest at null rates near 0 or 1, the region this screen expects for arm A.
+- Paired seeds (seed j run in both arms, as common random numbers): with positively correlated pairs the test stays
+  valid and grows more conservative (rho +0.5: 0.0002-0.0036). With negative correlation (rho -0.2) the size is up to
+  0.0335, still under 0.05. The exact sign test on discordant pairs is a paired alternative; it is weaker at k = 3
+  and about equal at k = 4-6 (POW 6b).
+- Several readings or add-ons, each at 0.05: the chance that at least one reads p <= 0.05 by chance is at most the
+  sum of their sizes (four readings at about 0.02 each: under 0.10). Hence one primary, the rest report only or at a
+  split alpha.
+- A two-sided reading (0.025 per side) costs little at k >= 4: 0.932 against 0.939 at 0.9 against 0.1; 0.700 against
+  0.747 at 0.9 against 0.25 (POW 6c).
+3.6 NEXT's FIGURES CHECKED (POW section 1)
+- Option 1 (the screen): 4/4 against 0/4, one-sided Fisher, one start: 0.0143 (NEXT 0.014). 3/4 against 0/4: 0.0714
+  (0.071). 3/4 against 0/4 at both starts, exact stratified test: 0.0051 (0.005). These are p-values at fixed
+  outcomes; NEXT gives no power figure for Option 1.
+- 0.68 / 0.91 / 0.18 / 0.41 (NEXT Option 3 COST; REVIEW 4.5): the power of a SINGLE-STRATUM ONE-SIDED FISHER EXACT
+  TEST at alpha 0.05 (the test conditions on the total; the power is over binomial outcomes in each arm).
+  Recomputed: 0.680 and 0.912 for 6 and 8 runs per arm at a true 2/3 against 0; 0.181 / 0.179 for 2/3 against 1/3;
+  0.179 / 0.406 for 0.4 against 0. They match FIXP exactly (a separate re-derivation here, same test). They belong
+  to Option 3's from-scratch arms, not to this screen.
+- REVIEW 4.5's p at fixed outcomes 0.030 / 0.013 / 0.038 (4/6, 5/8, 4/8 against 0) and the round's 2/3 against 2/5
+  = 0.9286 check too (POW section 1).
+
+======================================================================================================================
+4. WHAT A NULL AND A POSITIVE WOULD AND WOULD NOT SHOW [inferred, from sections 1-3, REVIEW 4.2-4.4 and NEXT RISKS]
+======================================================================================================================
+These are mid-rise starts. At s42 3,145,728 tail_3 is already +0.524. At s80 3,145,728 the neck is at -0.382 (and
+-0.594 at 4,194,304). Both bonuses are already at 55% (or 40%) of 0.005. The screen therefore tests whether the
+REMAINING bonus affects the CROSSING of the bar from an already-rising state. It does not test the early rise
+(0-3.1M steps), which every arm shares.
+
+A POSITIVE (B lower at p <= 0.05) WOULD SHOW
+- From these fixed training states, on CPU, with this harness, removing the remaining bonus (about 0.002 on average
+  over the window) lowers the chance of an ANY-flagged evaluation within the window. It would be a causal effect at
+  these states, since the arms differ only in ent_coef and start from the same pair.
+- The bonus's gradient reaches log_std only (REVIEW 4.3, E7). So a positive would move the noise-level path from
+  "not supported, not excluded" to supported from these states. The logged std (manipulation check, section 5.2)
+  would show whether arm B's tail_3 or neck std fell faster.
+A POSITIVE WOULD NOT SHOW
+- That the bonus caused the rise, or the timing of the first onset from scratch (REVIEW 4.4), or that ent_coef 0
+  from step 0 would prevent the habit. That is Option 3's question, and ent_coef 0 from scratch also changes early
+  learning (NEXT Option 3 RISKS).
+- A rate for from-scratch runs, a result on GPU, or one for other seeds' states.
+- Prevention rather than delay, unless the first-flag step (secondary) shows B's onsets missing, not just later.
+  The binary outcome reads "no" for any delay longer than the margin (655,360-917,504 steps).
+- Anything about the round's reading, classes or gate, or a fix. Removing the bonus is not a stance recipe.
+A NULL (p > 0.05) WOULD SHOW
+- No large effect from these states within the window. At k = 4, an effect of 0.9 against 0.1 would have been seen
+  with probability 0.94, so a null makes it unlikely. 0.9 against 0.5 would have been seen only 34% of the time.
+A NULL WOULD NOT SHOW
+- That the bonus plays no role in the early phase or the onset's timing (untested), or that ent_coef does not matter
+  from scratch. A null is not evidence against Option 3 (NEXT l216-l218).
+- A null "no effect" either, when arm A itself did not show the outcome. If arm A fires in few continuations at a
+  start (say fewer than half), that start tested nothing. Section 6, D-6 proposes an "informative" check like
+  D-D43's onset note (TSC criteria l264-l267).
+Prior expectation [inferred, from REVIEW 4.3 and from D-D43's r9 CONTROL keeping the original's timing to within one
+checkpoint from a +0.63 start]: from mid-rise states the crossing looks close to committed. The bonus's direct pull
+is on log_std only. So a null is the more likely result, and the screen is mainly able to rule out a large effect.
+An earlier start gives the bonus more leverage, at about 1.5x the cost from 2,097,152 and about 2x from 1,048,576
+(POW section 8), with a less certain arm-A rate (section 1.3).
+
+======================================================================================================================
+5. OTHER DESIGN FACTS THE PRE-REGISTRATION WILL NEED
+======================================================================================================================
+5.1 Reproducing arm A. The D-D43 harness built the model from the run's config, so ent_coef after load was 0.005
+    (run_meta "ent_coef_after_load": 0.005). It ran EntCoefDecayCallback with reset_num_timesteps False and the
+    run's 12,000,000 budget. Its logged ent_coef at 4,202,496 was 0.00199822 = 0.005 x (1 - 4,202,496 / 7,000,000)
+    [measured, TSC runs/s80_control_r101/run_meta.json and telemetry.npz; run_tailscreen.py l606-l613, l676-l686].
+    The callback takes the model's ent_coef at training start as the schedule's base (CODE schedules.py l195-l215).
+    Two harness errors follow [inferred, from that code]:
+      - If a harness used the zip's stored ent_coef (the decayed value) as the base, arm A would decay from the wrong
+        base.
+      - If arm B set model.ent_coef = 0 but left the callback in place, the callback would overwrite the 0 on the
+        first step.
+    So arm B must both remove the decay and hold 0. The manipulation check is the per-update ent_coef: arm A equal
+    to the schedule (to the probe's 2.3e-10, RO E2), arm B exactly 0.
+5.2 Manipulation and side readings (report only): per-update ent_coef; std per actuator (tail_3, neck, head);
+    M6's mu-beyond share for the habit actuator; the first-flag step; the end-trace CMD (M1 seeds 3042-3061).
+5.3 Reading the ledger. Read only rows with timesteps in (start, end]. The same-stage resume path can seed the
+    original run's earlier rows into a resumed ledger (CODE eval_diagnostics.py l1394-l1442). M5's C6 completeness
+    check would then need the continuation's grid (start + 131,072 ... end), not the round's [measured code;
+    inferred consequence]. D-D43's harness never ran an in-run evaluation (NEXT COST). The ledger evaluation is new
+    harness code, as NEXT says.
+5.4 Seeds. The continuation's evaluation env is seeded from the replicate seed in D-D43's build (run_tailscreen.py
+    l440-l450). With the same replicate seeds in A and B, each pair shares its start, its env randomness and its
+    evaluation seeds, and differs only through the loss. That is harmless to the stratified test and keeps a paired
+    reading available (3.5).
+5.5 Cost (POW section 8) [inferred rate: 0.825-0.880 CPU-h per 1,048,576 steps with the ledger; D-D43 measured 44-46
+    min of wall per 1M at 3 at a time, RUNLOG l565-l573]. Wall clock is at 3 at a time, before wave packing:
+      D1, NEXT's design (s42 3,145,728 + 1.57M; s80 3,145,728 + 2.36M): k 3/4/6 = 18.6-19.8 / 24.8-26.4 /
+          37.1-39.6 CPU-h, about 6.2-6.6 / 8.3-8.8 / 12.4-13.2 h.
+      D2 (s42 3,145,728 + 1.57M; s80 4,194,304 + 1.57M): 14.9-15.8 / 19.8-21.1 / 29.7-31.7 CPU-h, about 5.0-5.3 /
+          6.6-7.0 / 9.9-10.6 h.
+      D4, earlier (both runs from 2,097,152, same end steps as D1): 28.5-30.4 / 38.0-40.5 / 56.9-60.7 CPU-h.
+      Add-on C (s60 6,291,456 + 2.10M): 9.9-10.6 / 13.2-14.1 / 19.8-21.1 CPU-h.
+    Disk: a checkpoint pair is about 4.04 MB. With pairs every 131,072 steps (D-D43), a 1.57M continuation keeps about
+    52 MB, so D2 at k = 6 is about 1.25 GB; every 262,144 halves it. 5.2 GB was free at 19:45 UTC (df), just above
+    D-D43's 5 GB wave-runner floor (NEXT COST), so housekeeping or a smaller keep-set comes first.
+5.6 Add-on C (s60): mind the direction. NEXT's text says '"C higher" if the bonus delays the crossing' for M6's
+    mu-beyond share or the end-trace CMD. For those readings, a bonus that delays the crossing predicts C LOWER; "C
+    higher" is what a bonus that PROMOTES crossing (the core's H1) predicts. The text looks inverted [inferred].
+    The room for an effect also depends on the reading:
+      - Arm A's end trace at 8,388,608 is +0.880 in the original (M1), near the >= 0.60 ceiling. So only "C lower"
+        (the bonus protects) can show there.
+      - The ANY-flag reads 0 in the original (its floor). So only "C higher" can show there.
+    One C reading cannot serve both directions. A single start reaches 0.05 only with a clean sweep at k = 3
+    (3/3 against 0/3, p 0.050) or k = 4 (4/4 against 0/4, p 0.014). k = 6 also allows 4/6 against 0/6 or 5/6
+    against 1/6 (POW sections 2 and 5).
+5.7 Process facts: these are diagnostics, not round runs, and nothing certifies anything (NEXT RISKS). A
+    continuation cut short is rerun from its start, never resumed mid-way. If the harness is bit-reproducible on CPU,
+    as the run-branch equivalence work found for training data (RUNLOG l640), a rerun gives the same result. That has
+    to be verified for the new harness [inferred].
+
+======================================================================================================================
+6. DESIGN CHOICES LEFT TO THE MAINTAINER (each with the surveyor's recommendation; none is decided here)
+======================================================================================================================
+D-1 Approval of the change itself: ent_coef per arm is a TRAINING-LOSS CHANGE (a loss-term weight; NEXT (i)), for
+    scratch diagnostic continuations only. It changes no physics, reward, task, gate or policy interface. Add-ons N
+    and S are training-procedure changes, each needing its own word.
+D-2 Starts (all F2-held; no fetch in any option):
+    (a) NEXT's D1: s42 3,145,728 and s80 3,145,728.
+    (b) D2: s42 3,145,728 and s80 4,194,304. Both are 655,360 steps before their first flagged evaluation, with
+        |CMD| 0.52 / 0.59, 0 flags and bonus 0.0028 / 0.0020. s80's window has a 917,504 margin instead of 655,360,
+        and it is about 20% cheaper.
+    (c) D4: both from 2,097,152, to test more of the rise, at about 1.5x D1's cost with a less certain arm-A rate.
+    Recommended: (b), for matched phase and margin at both starts and a surer arm-A rate. (a) gives the bonus more
+    time at s80 before the crossing (1.70M against 0.66M steps), and the maintainer may prefer that. The closer
+    starts of RO/REVIEW 4.5 are not recommended (section 1.2).
+D-3 Lengths: (b) uses 1,572,864 at both starts (to 4,718,592 and 5,767,168). (a) uses NEXT's 1,572,864 / 2,359,296,
+    or 3,145,728 at s80 to give the alarm a margin. Recommended: a fixed rule, the window ends at least 786,432 steps
+    (6 evaluations) after the original first ANY-flag. (b) meets it with 917,504 at both starts. Under (a), s80's
+    2,359,296 leaves 655,360 and would need 2,621,440 to meet it.
+D-4 Primary outcome: (a) ANY-flagged evaluation in (start, end], as M5 reads it. Recommended as the only primary.
+    Secondaries, report only: TAIL-flagged, ANY ALARM, the first-flag step, the end-trace CMD, M6 mu-beyond and std.
+    Alternatively, name the first-flag step a co-primary at 0.025 each, to answer "when".
+D-5 Test and direction: the exact stratified test (exact CMH, equal to a within-start permutation test here).
+    Recommended: TWO-SIDED, 0.025 per side. There is a mechanism story in each direction: H1, the bonus promotes
+    crossing; H1', the bonus protects. H1' is consistent with s60's over-bar episodes all coming after the bonus
+    reached 0 (RO E5), though s60's rise began while the bonus was above 0 (REVIEW 4.3).
+    The cost in power is small at k >= 4 (3.5). One-sided (B lower) is NEXT's choice and matches the question as
+    asked.
+D-6 Informative check (like D-D43's onset note). A start where arm A shows the outcome in fewer than half of its
+    continuations is printed "start not informative". The note qualifies a null and never changes the p.
+    Recommended: yes, as a note only. Dropping starts from the test on arm A's count would bias it toward A
+    (under the null, it keeps the starts where A happened to run high). If starts must be dropped, drop them on the
+    start's total over both arms (m_s), which the exact conditional test already conditions on. A start with
+    m_s = 0 or 2k adds nothing to the test anyway [inferred, from the test's construction].
+D-7 k per arm per start: 3, 4 or 6. At A 0.9: power 0.89 / 0.94 / 0.996 against B 0.1, 0.66 / 0.75 / 0.94 against
+    B 0.25, 0.24 / 0.34 / 0.58 against B 0.5. Cost (D2) 15-16 / 20-21 / 30-32 CPU-h. Recommended: k = 6 with D2
+    (about 30-32 CPU-h, 10-11 h at 3 at a time; about NEXT's D1 at k = 4 plus 20%). It is the only k at which a
+    single start can reach 0.05 without a clean sweep, and it has a fair chance (0.94) at 0.9 against 0.25. k = 4 is
+    NEXT's choice.
+D-8 Seeds: the same replicate seeds in both arms (paired). Recommended: yes; the stratified test stays valid.
+D-9 Add-ons (C, N, S): each its own approval, each against the shared arm A at the same starts (C at s60 needs its
+    own arm A). Recommended: the core first, the add-ons only on the core's result or by the maintainer's choice. If
+    run together, state the family-wise rate (3.5). For C, fix the direction and the reading together (5.6).
+D-10 Ledger reading: the in-run ledger (StageAwareEvalCallback, M5 as is) against D-D43's path of M1 panels at
+    saved checkpoints. Recommended: the in-run ledger, since the primary is defined on it, plus one M1 end trace per
+    continuation. The ledger is new harness code to review (5.3).
+D-11 Process: the number of parallel processes and nice level (D-D43: 3 at a time); a durable copy per finished
+    continuation; a rerun-from-start rule for a cut continuation; disk housekeeping first (5.5). The scratch clone
+    of 8737cd3d has push disabled and is never merged.
+
+======================================================================================================================
+7. LIMITS OF THIS SURVEY
+======================================================================================================================
+- The arm-A rates are assumptions anchored on one original realisation per start and on 3 r9 replicates from one
+  r9 state. No r10 continuation has been run, and the CPU harness may differ from the GPU runs [inferred].
+- Power assumes independent continuations, a common direction across starts and exchangeable seeds. The graded
+  figures (POW section 7) come from a Monte Carlo of a normal model (seed 20261028, 4,000 draws per cell) with an
+  effect in SD units that no record yet measures.
+- Cost rates come from D-D43's r9 harness, plus an inferred 10% for the ledger. They may differ on r10's branch.
+- The ledger CMDs at the unheld starts are 10-episode deterministic means, not M1's 20-episode panels.
+- Not checked: whether the r10 run branch's eval callback, run inside a continuation, leaves training bit-identical
+  (the inertness proof covers the round's own configuration).
+
+FILES WRITTEN (all under S2/r10round/ecs/; nothing else was written. The other files in that folder,
+.runlog_600_720.txt and survey_harness.txt, are not this survey's.)
+  survey_data.py   sha256 fa60d341...   reads the records above; prints survey_data.out, writes survey_data.json
+  survey_data.out  sha256 7312fec3...   survey_data.json sha256 42109f91... (all per-start and per-window numbers)
+  power_ecs.py     sha256 6df0eed9...   standard library only; prints power_ecs.out
+  power_ecs.out    sha256 84c6def6...
+  Re-run: cd /tmp && S2/venv/bin/python -I -B S2/r10round/ecs/survey_data.py ;
+          S2/venv/bin/python -I -B S2/r10round/ecs/power_ecs.py > S2/r10round/ecs/power_ecs.out
+END (survey only).

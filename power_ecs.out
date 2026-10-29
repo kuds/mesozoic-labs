@@ -1,0 +1,144 @@
+ECS POWER AND FALSE-POSITIVE ARITHMETIC (exact enumeration unless marked; one-sided alpha 0.05, B lower)
+
+1. CHECK OF THE FIGURES IN NEXT_STEPS AND REVIEW 4.5
+   Option 1 (NEXT_STEPS RISKS):
+     4/4 vs 0/4, one stratum, Fisher one-sided: 0.0143   (NEXT_STEPS 0.014)
+     3/4 vs 0/4, one stratum, Fisher one-sided: 0.0714   (NEXT_STEPS 0.071)
+     3/4 vs 0/4 at each of 2 starts, CMHX:       0.0051   (NEXT_STEPS 0.005)
+     the same table pooled (6/8 vs 0/8), Fisher:  0.0035   (pooling ignores the starts; see section 3)
+   Option 3 (NEXT_STEPS COST, REVIEW 4.5; from-scratch arms, one stratum, unconditional power of the one-sided
+   Fisher exact test at alpha 0.05):
+     n = 6 per arm, 2/3 vs 0 (cure)            power 0.680
+     n = 6 per arm, 2/3 vs 1/3 (halved)        power 0.181
+     n = 6 per arm, 0.4 vs 0 (r9 rate vs cure) power 0.179
+     n = 6 per arm, 0.4 vs 0.2                 power 0.064
+     n = 8 per arm, 2/3 vs 0 (cure)            power 0.912
+     n = 8 per arm, 2/3 vs 1/3 (halved)        power 0.179
+     n = 8 per arm, 0.4 vs 0 (r9 rate vs cure) power 0.406
+     n = 8 per arm, 0.4 vs 0.2                 power 0.087
+     (NEXT_STEPS / REVIEW: 0.68 and 0.91 for the cure; 0.18 at 6 or 8 for halved; 0.18 and 0.41 for 0.4 vs 0)
+     p at fixed outcomes: 4/6 vs 0/6 0.0303; 5/8 vs 0/8 0.0128; 4/8 vs 0/8 0.0385 (REVIEW 0.030 / 0.013 / 0.038)
+   Option 5 and the round (first group lower): 2/5 vs 2/5 0.7381 (NEXT_STEPS 0.74); 0/5 vs 2/5 0.2222 (0.22); the round's 2/3 vs 2/5 0.9286 (SCORE 0.9286)
+
+2. WHAT EACH DESIGN CAN REACH (CMHX, 2 strata; smallest p and the tables that reach p <= 0.05)
+   k = 3 per arm per start (12 continuations in all): all A positive, all B negative at both starts p = 0.00250; at one start only (other start uninformative, e.g. 0/k vs 0/k) p = 0.0500
+      same table at both starts, reaching 0.05: 2/3 vs 0/3 (p 0.0400); 3/3 vs 0/3 (p 0.0025); 3/3 vs 1/3 (p 0.0400)
+      single start only: smallest p 0.0500
+      single-start tables reaching 0.05 (Fisher): 3/3 vs 0/3 (p 0.0500)
+   k = 4 per arm per start (16 continuations in all): all A positive, all B negative at both starts p = 0.00020; at one start only (other start uninformative, e.g. 0/k vs 0/k) p = 0.0143
+      same table at both starts, reaching 0.05: 2/4 vs 0/4 (p 0.0459); 3/4 vs 0/4 (p 0.0051); 4/4 vs 0/4 (p 0.0002); 4/4 vs 1/4 (p 0.0051); 4/4 vs 2/4 (p 0.0459)
+      single start only: smallest p 0.0143
+      single-start tables reaching 0.05 (Fisher): 4/4 vs 0/4 (p 0.0143)
+   k = 6 per arm per start (24 continuations in all): all A positive, all B negative at both starts p = 0.00000; at one start only (other start uninformative, e.g. 0/k vs 0/k) p = 0.0011
+      same table at both starts, reaching 0.05: 3/6 vs 0/6 (p 0.0083); 4/6 vs 0/6 (p 0.0009); 4/6 vs 1/6 (p 0.0204); 5/6 vs 0/6 (p 0.0001); 5/6 vs 1/6 (p 0.0021); 5/6 vs 2/6 (p 0.0204); 6/6 vs 0/6 (p 0.0000); 6/6 vs 1/6 (p 0.0001); 6/6 vs 2/6 (p 0.0009); 6/6 vs 3/6 (p 0.0083)
+      single start only: smallest p 0.0011
+      single-start tables reaching 0.05 (Fisher): 4/6 vs 0/6 (p 0.0303); 5/6 vs 0/6 (p 0.0076); 5/6 vs 1/6 (p 0.0400); 6/6 vs 0/6 (p 0.0011); 6/6 vs 1/6 (p 0.0076); 6/6 vs 2/6 (p 0.0303)
+
+3. POWER, CMHX, 2 STRATA WITH THE SAME RATES (and, in brackets, Fisher on the pooled table)
+   k = 3 per arm per start:
+      pA \ pB           0.00           0.10           0.25           0.40           0.50
+       0.60     0.572 [0.544]  0.391 [0.377]  0.199 [0.194]  0.086 [0.083]  0.043 [0.041]
+       0.75     0.844 [0.831]  0.655 [0.648]  0.395 [0.391]  0.199 [0.194]  0.111 [0.105]
+       0.80     0.909 [0.901]  0.742 [0.737]  0.476 [0.471]  0.254 [0.246]  0.145 [0.137]
+       0.90     0.986 [0.984]  0.891 [0.889]  0.655 [0.648]  0.391 [0.377]  0.240 [0.223]
+       1.00     1.000 [1.000]  0.986 [0.984]  0.844 [0.831]  0.572 [0.544]  0.375 [0.344]
+   k = 4 per arm per start:
+      pA \ pB           0.00           0.10           0.25           0.40           0.50
+       0.60     0.826 [0.826]  0.504 [0.493]  0.218 [0.205]  0.081 [0.073]  0.037 [0.033]
+       0.75     0.973 [0.973]  0.747 [0.737]  0.439 [0.422]  0.218 [0.205]  0.122 [0.114]
+       0.80     0.990 [0.990]  0.821 [0.812]  0.534 [0.518]  0.292 [0.279]  0.175 [0.166]
+       0.90     1.000 [1.000]  0.939 [0.936]  0.747 [0.737]  0.504 [0.493]  0.342 [0.335]
+       1.00     1.000 [1.000]  1.000 [1.000]  0.973 [0.973]  0.826 [0.826]  0.637 [0.637]
+   k = 6 per arm per start:
+      pA \ pB           0.00           0.10           0.25           0.40           0.50
+       0.60     0.966 [0.985]  0.772 [0.791]  0.407 [0.459]  0.155 [0.192]  0.068 [0.085]
+       0.75     0.999 [1.000]  0.944 [0.958]  0.704 [0.766]  0.407 [0.459]  0.236 [0.263]
+       0.80     1.000 [1.000]  0.971 [0.981]  0.799 [0.848]  0.524 [0.568]  0.331 [0.356]
+       0.90     1.000 [1.000]  0.996 [0.998]  0.944 [0.958]  0.772 [0.791]  0.578 [0.600]
+       1.00     1.000 [1.000]  1.000 [1.000]  0.999 [1.000]  0.966 [0.985]  0.872 [0.927]
+
+4. POWER, CMHX, UNEQUAL STARTS (s42-like start with a sure arm-A onset, s80-like start with a doubtful one)
+   k = 3  s42 (pA 0.90, pB 0.10)  s80 (pA 0.60, pB 0.10): power 0.676
+   k = 3  s42 (pA 0.90, pB 0.25)  s80 (pA 0.60, pB 0.25): power 0.394
+   k = 3  s42 (pA 0.90, pB 0.50)  s80 (pA 0.60, pB 0.30): power 0.192
+   k = 3  s42 (pA 0.90, pB 0.10)  s80 (pA 0.90, pB 0.90): power 0.398
+   k = 3  s42 (pA 1.00, pB 0.00)  s80 (pA 0.50, pB 0.00): power 1.000
+   k = 3  s42 (pA 0.90, pB 0.20)  s80 (pA 0.00, pB 0.00): power 0.373
+   k = 4  s42 (pA 0.90, pB 0.10)  s80 (pA 0.60, pB 0.10): power 0.767
+   k = 4  s42 (pA 0.90, pB 0.25)  s80 (pA 0.60, pB 0.25): power 0.448
+   k = 4  s42 (pA 0.90, pB 0.50)  s80 (pA 0.60, pB 0.30): power 0.231
+   k = 4  s42 (pA 0.90, pB 0.10)  s80 (pA 0.90, pB 0.90): power 0.378
+   k = 4  s42 (pA 1.00, pB 0.00)  s80 (pA 0.50, pB 0.00): power 1.000
+   k = 4  s42 (pA 0.90, pB 0.20)  s80 (pA 0.00, pB 0.00): power 0.269
+   k = 6  s42 (pA 0.90, pB 0.10)  s80 (pA 0.60, pB 0.10): power 0.955
+   k = 6  s42 (pA 0.90, pB 0.25)  s80 (pA 0.60, pB 0.25): power 0.727
+   k = 6  s42 (pA 0.90, pB 0.50)  s80 (pA 0.60, pB 0.30): power 0.434
+   k = 6  s42 (pA 0.90, pB 0.10)  s80 (pA 0.90, pB 0.90): power 0.671
+   k = 6  s42 (pA 1.00, pB 0.00)  s80 (pA 0.50, pB 0.00): power 1.000
+   k = 6  s42 (pA 0.90, pB 0.20)  s80 (pA 0.00, pB 0.00): power 0.737
+   (the case s80 (0.9, 0.9) is an effect at one start only; (0.0, 0.0) is a start whose outcome never fires)
+
+5. ONE START ALONE (a single stratum: e.g. add-on C at s60, or the core if only one start is informative)
+   k = 3: pA 0.90 pB 0.10: 0.531; pA 0.90 pB 0.25: 0.308; pA 0.80 pB 0.20: 0.262; pA 1.00 pB 0.00: 1.000
+   k = 4: pA 0.90 pB 0.10: 0.430; pA 0.90 pB 0.25: 0.208; pA 0.80 pB 0.20: 0.168; pA 1.00 pB 0.00: 1.000
+   k = 6: pA 0.90 pB 0.10: 0.889; pA 0.90 pB 0.25: 0.648; pA 0.80 pB 0.20: 0.558; pA 1.00 pB 0.00: 1.000
+
+6. FALSE-POSITIVE RATE UNDER THE NULL (pA = pB in each stratum), CMHX at nominal 0.05
+   k = 3: p_s42 0.1 p_s80 0.1: 0.0015; p_s42 0.3 p_s80 0.3: 0.0140; p_s42 0.5 p_s80 0.5: 0.0203; p_s42 0.7 p_s80 0.7: 0.0140; p_s42 0.9 p_s80 0.9: 0.0015; p_s42 0.9 p_s80 0.5: 0.0136; p_s42 0.9 p_s80 0.1: 0.0015; p_s42 1.0 p_s80 0.5: 0.0156
+   k = 4: p_s42 0.1 p_s80 0.1: 0.0022; p_s42 0.3 p_s80 0.3: 0.0148; p_s42 0.5 p_s80 0.5: 0.0148; p_s42 0.7 p_s80 0.7: 0.0148; p_s42 0.9 p_s80 0.9: 0.0022; p_s42 0.9 p_s80 0.5: 0.0116; p_s42 0.9 p_s80 0.1: 0.0022; p_s42 1.0 p_s80 0.5: 0.0039
+   k = 6: p_s42 0.1 p_s80 0.1: 0.0047; p_s42 0.3 p_s80 0.3: 0.0219; p_s42 0.5 p_s80 0.5: 0.0240; p_s42 0.7 p_s80 0.7: 0.0219; p_s42 0.9 p_s80 0.9: 0.0047; p_s42 0.9 p_s80 0.5: 0.0181; p_s42 0.9 p_s80 0.1: 0.0047; p_s42 1.0 p_s80 0.5: 0.0193
+   (exact conditional test: the size is <= 0.05 at every null rate; the shortfall is the price of discreteness)
+   largest CMHX size over every pair of null rates on the grid 0.05, 0.10, ..., 0.95, k = 3: 0.0203 (at 0.50, 0.50)
+   largest CMHX size over every pair of null rates on the grid 0.05, 0.10, ..., 0.95, k = 4: 0.0152 (at 0.65, 0.65)
+   largest CMHX size over every pair of null rates on the grid 0.05, 0.10, ..., 0.95, k = 6: 0.0242 (at 0.45, 0.60)
+   pooled Fisher, k = 3: p_s42 0.1 p_s80 0.1: 0.0007; p_s42 0.3 p_s80 0.3: 0.0118; p_s42 0.5 p_s80 0.5: 0.0193; p_s42 0.7 p_s80 0.7: 0.0118; p_s42 0.9 p_s80 0.9: 0.0007; p_s42 0.9 p_s80 0.5: 0.0053; p_s42 0.9 p_s80 0.1: 0.0007; p_s42 1.0 p_s80 0.5: 0.0000
+   pooled Fisher, k = 4: p_s42 0.1 p_s80 0.1: 0.0022; p_s42 0.3 p_s80 0.3: 0.0138; p_s42 0.5 p_s80 0.5: 0.0128; p_s42 0.7 p_s80 0.7: 0.0138; p_s42 0.9 p_s80 0.9: 0.0022; p_s42 0.9 p_s80 0.5: 0.0078; p_s42 0.9 p_s80 0.1: 0.0003; p_s42 1.0 p_s80 0.5: 0.0039
+   pooled Fisher, k = 6: p_s42 0.1 p_s80 0.1: 0.0075; p_s42 0.3 p_s80 0.3: 0.0246; p_s42 0.5 p_s80 0.5: 0.0320; p_s42 0.7 p_s80 0.7: 0.0246; p_s42 0.9 p_s80 0.9: 0.0075; p_s42 0.9 p_s80 0.5: 0.0139; p_s42 0.9 p_s80 0.1: 0.0014; p_s42 1.0 p_s80 0.5: 0.0068
+   Several outcomes or add-ons each tested at 0.05: the chance that at least one reads p <= 0.05 by chance is at
+   most the sum of their sizes (e.g. 4 readings at a size of 0.03 each: <= 0.12), which is why one primary.
+
+6b. PAIRED SEEDS (continuation seed j run in both arms). CMHX treats the 2k continuations as exchangeable; with
+    positively correlated pairs it stays valid (conservative). Size of CMHX at nominal 0.05, pair correlation rho:
+   k = 3: p 0.3 rho +0.0: 0.0140; p 0.3 rho +0.5: 0.0017; p 0.3 rho -0.2: 0.0226; p 0.5 rho +0.0: 0.0203; p 0.5 rho +0.5: 0.0026; p 0.5 rho -0.2: 0.0312; p 0.7 rho +0.0: 0.0140; p 0.7 rho +0.5: 0.0017; p 0.7 rho -0.2: 0.0226; p 0.9 rho +0.0: 0.0015; p 0.9 rho +0.5: 0.0002; p 0.9 rho -0.2: 0.0026
+   k = 4: p 0.3 rho +0.0: 0.0148; p 0.3 rho +0.5: 0.0018; p 0.3 rho -0.2: 0.0230; p 0.5 rho +0.0: 0.0148; p 0.5 rho +0.5: 0.0021; p 0.5 rho -0.2: 0.0217; p 0.7 rho +0.0: 0.0148; p 0.7 rho +0.5: 0.0018; p 0.7 rho -0.2: 0.0230; p 0.9 rho +0.0: 0.0022; p 0.9 rho +0.5: 0.0002; p 0.9 rho -0.2: 0.0042
+   k = 6: p 0.3 rho +0.0: 0.0219; p 0.3 rho +0.5: 0.0028; p 0.3 rho -0.2: 0.0328; p 0.5 rho +0.0: 0.0240; p 0.5 rho +0.5: 0.0036; p 0.5 rho -0.2: 0.0335; p 0.7 rho +0.0: 0.0219; p 0.7 rho +0.5: 0.0028; p 0.7 rho -0.2: 0.0328; p 0.9 rho +0.0: 0.0047; p 0.9 rho +0.5: 0.0004; p 0.9 rho -0.2: 0.0087
+    Power of the exact sign test on discordant pairs (all 2k pairs pooled over both starts), for comparison
+    (rho 0.3 is clamped to the largest correlation the two marginals allow, e.g. 0.11 at 0.9 vs 0.1):
+   k = 3: pA 0.90 pB 0.10: sign rho 0 0.659, rho 0.3 0.655 | CMHX 0.891; pA 0.90 pB 0.25: sign rho 0 0.347, rho 0.3 0.319 | CMHX 0.655; pA 0.80 pB 0.20: sign rho 0 0.275, rho 0.3 0.233 | CMHX 0.563; pA 0.75 pB 0.50: sign rho 0 0.025, rho 0.3 0.012 | CMHX 0.111
+   k = 4: pA 0.90 pB 0.10: sign rho 0 0.903, rho 0.3 0.944 | CMHX 0.939; pA 0.90 pB 0.25: sign rho 0 0.659, rho 0.3 0.706 | CMHX 0.747; pA 0.80 pB 0.20: sign rho 0 0.549, rho 0.3 0.594 | CMHX 0.628; pA 0.75 pB 0.50: sign rho 0 0.077, rho 0.3 0.052 | CMHX 0.122
+   k = 6: pA 0.90 pB 0.10: sign rho 0 0.992, rho 0.3 0.999 | CMHX 0.996; pA 0.90 pB 0.25: sign rho 0 0.910, rho 0.3 0.974 | CMHX 0.944; pA 0.80 pB 0.20: sign rho 0 0.826, rho 0.3 0.943 | CMHX 0.872; pA 0.75 pB 0.50: sign rho 0 0.178, rho 0.3 0.184 | CMHX 0.236
+
+6c. TWO-SIDED READING (0.025 each side; detects either direction, e.g. removing the bonus making the rail worse)
+   k = 3: pA 0.90 pB 0.10: 0.701; pA 0.90 pB 0.25: 0.417; pA 0.80 pB 0.20: 0.326; pA 1.00 pB 0.00: 1.000
+   k = 4: pA 0.90 pB 0.10: 0.932; pA 0.90 pB 0.25: 0.700; pA 0.80 pB 0.20: 0.599; pA 1.00 pB 0.00: 1.000
+   k = 6: pA 0.90 pB 0.10: 0.993; pA 0.90 pB 0.25: 0.897; pA 0.80 pB 0.20: 0.812; pA 1.00 pB 0.00: 1.000
+
+7. A GRADED READING INSTEAD OF A YES/NO ONE [Monte Carlo of a statistical model, seed 20261028, 4,000 draws per
+   cell]: stratified permutation test (exact over within-stratum relabelings) on a continuous per-continuation
+   number (e.g. the share of the continuation's evaluations that are ANY-flagged, or the end-trace |CMD_a|),
+   normal with a shift of d between-continuation SDs between the arms in both strata.
+   k = 3: d 1.0: 0.474; d 1.5: 0.787; d 2.0: 0.941; d 3.0: 0.999
+   k = 4: d 1.0: 0.608; d 1.5: 0.880; d 2.0: 0.980; d 3.0: 1.000
+   k = 6: d 1.0: 0.769; d 1.5: 0.971; d 2.0: 0.999; d 3.0: 1.000
+   (a graded reading has more power for a partial effect, but needs its between-continuation SD, which no
+   record measures yet; the binary reading needs no such number)
+
+8. COST ARITHMETIC [inferred rate 0.825-0.880 CPU-h per 1,048,576 steps incl. the in-run ledger; wall = CPU-h / 3 at 3 at a time, before wave packing]
+   D1 NEXT_STEPS: s42 3,145,728 + 1,572,864; s80 3,145,728 + 2,359,296                                  k 3:  12 continuations,  23,592,960 steps,  18.6- 19.8 CPU-h, about  6.2- 6.6 h wall
+   D1 NEXT_STEPS: s42 3,145,728 + 1,572,864; s80 3,145,728 + 2,359,296                                  k 4:  16 continuations,  31,457,280 steps,  24.8- 26.4 CPU-h, about  8.3- 8.8 h wall
+   D1 NEXT_STEPS: s42 3,145,728 + 1,572,864; s80 3,145,728 + 2,359,296                                  k 6:  24 continuations,  47,185,920 steps,  37.1- 39.6 CPU-h, about 12.4-13.2 h wall
+   D2 s42 3,145,728 + 1,572,864; s80 4,194,304 + 1,572,864 (both F2-held, both 655,360 before the first flag) k 3:  12 continuations,  18,874,368 steps,  14.9- 15.8 CPU-h, about  5.0- 5.3 h wall
+   D2 s42 3,145,728 + 1,572,864; s80 4,194,304 + 1,572,864 (both F2-held, both 655,360 before the first flag) k 4:  16 continuations,  25,165,824 steps,  19.8- 21.1 CPU-h, about  6.6- 7.0 h wall
+   D2 s42 3,145,728 + 1,572,864; s80 4,194,304 + 1,572,864 (both F2-held, both 655,360 before the first flag) k 6:  24 continuations,  37,748,736 steps,  29.7- 31.7 CPU-h, about  9.9-10.6 h wall
+   D3 s42 3,145,728 + 1,572,864; s80 3,145,728 + 3,145,728 (s80 to 6,291,456)                           k 3:  12 continuations,  28,311,552 steps,  22.3- 23.8 CPU-h, about  7.4- 7.9 h wall
+   D3 s42 3,145,728 + 1,572,864; s80 3,145,728 + 3,145,728 (s80 to 6,291,456)                           k 4:  16 continuations,  37,748,736 steps,  29.7- 31.7 CPU-h, about  9.9-10.6 h wall
+   D3 s42 3,145,728 + 1,572,864; s80 3,145,728 + 3,145,728 (s80 to 6,291,456)                           k 6:  24 continuations,  56,623,104 steps,  44.6- 47.5 CPU-h, about 14.9-15.8 h wall
+   D4 earlier: s42 2,097,152 + 2,621,440; s80 2,097,152 + 3,407,872 (same end steps as D1)              k 3:  12 continuations,  36,175,872 steps,  28.5- 30.4 CPU-h, about  9.5-10.1 h wall
+   D4 earlier: s42 2,097,152 + 2,621,440; s80 2,097,152 + 3,407,872 (same end steps as D1)              k 4:  16 continuations,  48,234,496 steps,  38.0- 40.5 CPU-h, about 12.7-13.5 h wall
+   D4 earlier: s42 2,097,152 + 2,621,440; s80 2,097,152 + 3,407,872 (same end steps as D1)              k 6:  24 continuations,  72,351,744 steps,  56.9- 60.7 CPU-h, about 19.0-20.2 h wall
+   D5 earliest: s42 1,048,576 + 3,670,016; s80 1,048,576 + 4,456,448 (same end steps as D1)             k 3:  12 continuations,  48,758,784 steps,  38.4- 40.9 CPU-h, about 12.8-13.6 h wall
+   D5 earliest: s42 1,048,576 + 3,670,016; s80 1,048,576 + 4,456,448 (same end steps as D1)             k 4:  16 continuations,  65,011,712 steps,  51.2- 54.6 CPU-h, about 17.1-18.2 h wall
+   D5 earliest: s42 1,048,576 + 3,670,016; s80 1,048,576 + 4,456,448 (same end steps as D1)             k 6:  24 continuations,  97,517,568 steps,  76.7- 81.8 CPU-h, about 25.6-27.3 h wall
+   C add-on: s60 6,291,456 + 2,097,152 (2 arms)                                                         k 3:   6 continuations,  12,582,912 steps,   9.9- 10.6 CPU-h, about  3.3- 3.5 h wall
+   C add-on: s60 6,291,456 + 2,097,152 (2 arms)                                                         k 4:   8 continuations,  16,777,216 steps,  13.2- 14.1 CPU-h, about  4.4- 4.7 h wall
+   C add-on: s60 6,291,456 + 2,097,152 (2 arms)                                                         k 6:  12 continuations,  25,165,824 steps,  19.8- 21.1 CPU-h, about  6.6- 7.0 h wall

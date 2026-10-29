@@ -1,0 +1,111 @@
+diff --git a/v2/criteria_ecs_v2.txt b/v3/criteria_ecs_v3.txt
+index 8d7bcbc..ae3c671 100644
+--- a/v2/criteria_ecs_v2.txt
++++ b/v3/criteria_ecs_v3.txt
+@@ -1,9 +1,11 @@
+T. REX r10 ENTROPY CONTINUATION SCREEN (ECS) FROM STANCE6's OWN CHECKPOINTS: RECORDED ent_coef AGAINST 0, CPU, SCRATCH
+CRITERIA [-v2-]{+v3+} -- DRAFT FOR THE MAINTAINER. NOT APPROVED. NOTHING TRAINS UNTIL <ECS>/APPROVED EXISTS.
+
+STATUS: draft [-v2,-]{+v3,+} written 2026-10-28 [-20:53-21:00-]{+23:05-23:40+} UTC (date -u) by the fixer of [-workflow wf_86638249-afc:-]{+the ECS build (workflow+}
+{+wf_fb513a42-0e7): v2 with the text findings of the build's two reviews applied (build/FIXES.txt; word diff+}
+{+v3/worddiff.txt); v2 was+} v1 with every finding of its three reviews applied or answered (changes_v2.txt). Under the
+maintainer's decision of RUNLOG l719 (NEXT Option 1: "draft its pre-registration; nothing trains until the maintainer
+approves it"). Nothing was trained or
+simulated to write it. It is written with every RECOMMENDED option of DEC; "(Dn)" or "(Tn)" marks a line another pick
+changes, and another pick for D3, D4 or D6 also regenerates TABLE E, COMPUTE and KNOWN LIMITS. Once approved it goes
+byte for byte to <ECS>/criteria.txt (0444), with its sha256 in RUNLOG and <ECS>/APPROVED, and it is not edited after
+@@ -88,8 +90,11 @@ WHERE AND HOW
+- Environment: S2/venv/bin/python -I -B (Python 3.13.17, torch 2.13.0+cpu, numpy 2.5.4, gymnasium 1.4.0, SB3 2.9.0,
+  MuJoCo 3.10.0 [measured]); cwd /tmp; absolute paths; OMP, MKL and OPENBLAS threads 1 and torch threads 1; device
+  cpu; DummyVecEnv; TMPDIR and MPLCONFIGDIR under <ECS>/tmp; GITHUB_SHA = 8737cd3d86431de1bdd0fcdb49a0d956a45e084d.
+- Processes (D7): 3 continuations at a time at nice [-10,-]{+10. The runner runs detached,+} under a harness-tracked watcher
+  that {+reads only the runner's log and+} is relaunched when it exits (DD43's form, RUNLOG l565; detached workers are
+  reclaimed about 10 min after a turn ends, RUNLOG l295-l297). {+Only the watcher is relaunched automatically; the+}
+{+  runner is started again only by the coordinator, after a container restart or, once the cause is fixed, after a+}
+{+  halt (a refusal, an early crash, a CHECK error or a VOID; <ECS>/logs/HALTED holds every start until then).+}
+  The runner logs the process table and load at each start; the coordinator runs no other simulation beside it.
+- Outputs: <ECS>/runs/<start>_<arm>_<seed>/ (for example s42_A_1101; refused if it exists), <ECS>/traces/<name>/,
+  <ECS>/score/, <ECS>/lost.json.
+@@ -98,8 +103,9 @@ WHERE AND HOW
+
+THE READINGS
+- CHECK (as each continuation exits; it reads no ledger, M6 array or end state): R4, and run_meta's code digest,
+  start sha256, arm config, [-seed-]{+seed, torch threads (1), the updates made (the parameter digest changed and the update+}
+{+  count grew), the collapse stop present with patience 10 (D8),+} and stop reason, which must be "end" (StopAtEnd's
+  flag, at E) or "collapse" (the collapse callback's own state, at T < E).
+- R4 MANIPULATION. Per update, ent_coef and learning_rate from policy_probe.npz, rows with update_timesteps in (S, T):
+  (T - S)/8,192 - 1 rows (191 at E). Arm A: each equal, as float32, to the parent's F2 probe row at the same step.
+  Arm B: every ent_coef 0.0, learning_rate as A. The probe computes learning_rate from num_timesteps, so the first
+@@ -125,7 +131,8 @@ THE ONE PRE-REGISTERED STATISTIC (everything else is report only)
+- THE FILL (missing never helps a line): P_UP is computed with every LOST or censored continuation counted against
+  B LOWER (arm A NEGATIVE, arm B POSITIVE), and P_DOWN with each counted against B HIGHER (arm A POSITIVE, arm B
+  NEGATIVE), so both use 6 per arm per start; with none missing they use the same table. A fill never makes a line
+  easier than the complete data would (0 of 16,464 single flips did [computed, CHK 1]), so the size {+per side+} stays
+  [-exact.-]{+at most the complete-data test's (0.0116 at k = 6; TE 5); with a fill the test is conservative.+}
+- The reading (the first line that applies):
+  1. B LOWER (P_UP <= 0.025): "REMOVING THE REMAINING ENTROPY BONUS LOWERED THE SHARE OF CONTINUATIONS WITH AN
+     ANY-FLAGGED EVALUATION BY E (pooled over both states; per-start tables beside)".
+@@ -134,7 +141,8 @@ THE ONE PRE-REGISTERED STATISTIC (everything else is report only)
+  3. NO DIFFERENCE DETECTED: "NO DIFFERENCE DETECTED IN WHETHER AN ANY-FLAGGED EVALUATION CAME BY E FROM THESE STATES
+     (not tested: a shift of the first flag within the window, a modest effect, the early phase)", followed by each
+     start's a of 6 and b of 6. When both starts carry a LOW ARM-A RATE or NO ARM-A note it reads instead "NO DIFFERENCE
+     DETECTED; NOT INFORMATIVE: arm A showed the outcome in fewer than half its [-continuations-]{+counted continuations, or none was+}
+{+     counted,+} at both starts". When
+     line 1 or 2 would hold on the table as counted but not on the filled one, it adds "(B LOWER [or B HIGHER] holds
+     only without the n LOST or censored continuations)".
+- Every line prints: each start's table as counted and as filled; P_UP and P_DOWN (filled; as counted, report only);
+@@ -150,7 +158,10 @@ THE ONE PRE-REGISTERED STATISTIC (everything else is report only)
+RUN HANDLING (lean, for CPU runs; no Colab rule carries over: no relaunch window, no PRESENCE, no fetch)
+- Fails stay fails. No continuation is stopped, changed, extended or rerun because of an outcome.
+- Outcome-blind while running: until all 24 are decided, nothing reads a continuation's ledger, M6 arrays, logs of
+  its evaluations or end state (no M5, no R2, no M1). The runner reads only exit codes, run_meta and CHECK. {+The+}
+{+  process logs <ECS>/logs/<name>.attempt<k>.log print every evaluation's return and are such logs: a crash's cause+}
+{+  is read from run_meta's error and traceback, and only a refused attempt's log (exit 2: it never reaches learn())+}
+{+  may be read for its reason.+}
+- COUNTED: stop reason "end" at E, CHECK passed.
+- STOPPED: the run's collapse stop (D8; in these windows the only early stop that can act, and only from a window's
+  10th evaluation, its patience being 10 [measured, stance.toml l1041]) ended it at T < E, CHECK passed. POSITIVE if
+@@ -159,10 +170,19 @@ RUN HANDLING (lean, for CPU runs; no Colab rule carries over: no relaunch window
+  is renamed <name>_crashed<k>, kept and never read. The continuation reruns from its start pair with the same seed
+  and arguments, and the rerun is the continuation. A container restart does not count toward LOST. An exception
+  raised by the training itself is a crash too, as in DD43 (criteria_tailscreen_final.txt l338); the fill keeps a
+  LOST continuation from helping a line. {+A crash before the continuation's first evaluation in the window (the+}
+{+  last step run_meta records, its heartbeat or last_step, below S + 131,072, or none) is not counted toward LOST:+}
+{+  no evaluation of the window exists, so nothing of the outcome is known. The runner starts no new continuation;+}
+{+  the cause is found from run_meta's error and traceback alone and fixed (a fix that changes a pinned file or this+}
+{+  text needs the maintainer's word and a re-pin), then it starts again under its name.+}
+- LOST: three crashes of its own,[-or-] C6 (as R1 counts it) failing up to [-T.-]{+T, or R1 unable to run on its ledger (the+}
+{+  ledger missing or unreadable, M5's INPUT ERROR, or M5 not finishing within 900 s twice).+} The runner (crashes) or
+  the reader [-(C6)-]{+(C6, R1)+} writes it to <ECS>/lost.json with its cause, and the coordinator records it in RUNLOG. Filled
+  against each line. {+Any other failure of R1 (M5 exiting otherwise, or M5's output failing the reader's own checks)+}
+{+  is a tool defect: no line is read; it is fixed as a VOID's cause is (the maintainer's word and a re-pin, asked+}
+{+  before the scorer runs), and then every COUNTED or STOPPED continuation is read again.+}
+- VOID: CHECK fails, including a stop reason other than "end" or [-"collapse".-]{+"collapse" and a run whose own post-run code-seal or+}
+{+  module check failed (exit 5: it is checked, never rerun as a crash).+} The runner starts no new continuation;
+  those running finish and are checked. The folder is renamed <name>_void<k>, kept and never read. The cause is found
+  from the CHECK record alone and fixed; then every continuation whose CHECK failed and, if the fix changes a pinned
+  file, every continuation run before the fix, reruns from its start pair under its seed. A fix that changes a pinned
+@@ -174,8 +194,8 @@ RUN HANDLING (lean, for CPU runs; no Colab rule carries over: no relaunch window
+
+WHEN THE READING IS MADE
+- Once all 24 continuations are COUNTED, STOPPED or LOST and none is VOID: R1, R2 and R3 run for each COUNTED or
+  STOPPED one, then the scorer reads. A C6 failure found by {+R1, or+} R1 {+unable to run on the ledger,+} makes that
+  continuation [-LOST.-]{+LOST (RUN HANDLING LOST).+} Until then the screen is "incomplete" and no line is read.
+- An end trace refused for disk is rerun once space is freed. R3 is report only, so a trace still missing is printed
+  as missing and does not hold up the reading.
+- PROVISIONAL, and not acted on, while a pinned file's sha256 differs from its pin or this text's sha256 differs from
+@@ -204,7 +224,8 @@ VALIDATIONS (before the first optimizer step; none makes one; a failure stops th
+  reads s42 C6 PASS, POSITIVE, first flag 3,801,088, 8 flagged; s80 C6 PASS, POSITIVE, first flag 4,849,664, 4 flagged
+  [measured, RF m5]; s60 truncated at 8,388,608 NEGATIVE. The scorer reproduces TE sections 1-2 and CHK 8. A
+  stub-harness dry run of run_waves_ecs.sh shows a non-zero exit renamed and rerun, a half-way folder at relaunch
+  treated as a crash, {+an early crash halting the queue uncounted,+} a CHECK failure stopping the queue, and the disk
+  pause.
+- V5 RECIPE. The stage_config.json the harness writes, against the parent's stage_config.json.copy1: hyperparameters
+  equal (for B all but ent_coef and ent_coef_end, which are 0.0), and reward_weights, curriculum, git_commit,
+  task_fingerprint.task_sha256, plant_identity and run.n_envs equal; run.hyperparameters_sha256 equal to 054ab483...
+@@ -278,4 +299,5 @@ PINS (all filled before approval; nothing here is pinned yet)
+  <ECS>/code's tree digest (= 331fe8fc...); the sha256 of run_ecs.py, ecs_common.py, read_ecs.py, score_ecs.py,
+  run_waves_ecs.sh and their tests; M1 and M5 as above; the parent records' sha256 from FMAN (BL item 2); V1-V5
+  results.
+END (draft [-v2;-]{+v3;+} the decisions are in DEC, the build in BL, the changes from v1 in [-changes_v2.txt).-]{+changes_v2.txt, from v2 in+}
+{+<ECS>/build/FIXES.txt).+}

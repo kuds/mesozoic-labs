@@ -1,0 +1,326 @@
+Thu Oct 29 00:44:10 UTC 2026
+run_waves_ecs.sh sha256 c007762ca72ebd888210e1a03f5a69f62b3a3eccf48e1fe921cf16b6c3caaae9
+== A (crash and rerun; disk pause): runner exit 0
+-- runs/:
+   s42_A_1101
+   s42_A_1101_crashed1
+   s42_B_1201
+   s80_A_1301
+-- decided.tsv:
+   s42_B_1201	COUNTED	CHECK passed, stop reason end
+   s80_A_1301	COUNTED	CHECK passed, stop reason end
+   s42_A_1101	COUNTED	CHECK passed, stop reason end
+-- crash_ledger.tsv:
+   s42_A_1101	s42_A_1101_crashed1	exit 1	1
+-- stub calls:
+   RUN s42_A_1101
+   RUN s42_B_1201
+   RUN s80_A_1301
+   CHECK s42_B_1201
+   CHECK s80_A_1301
+   RUN s42_A_1101
+   CHECK s42_A_1101
+   TRACE s42_A_1101 stage1_4718592_steps.zip
+   TRACE s42_B_1201 stage1_4718592_steps.zip
+   TRACE s80_A_1301 stage1_5767168_steps.zip
+   READ s42_A_1101
+   READ s42_B_1201
+   READ s80_A_1301
+   SCORE
+-- runner log:
+   launch: 1000 bytes free >= the launch floor 500 bytes
+   queue: 3 pending of 3; 3 slots
+   PAUSED: 1000 bytes free < 5000; no new start until space is freed (tell the maintainer)
+   resumed: 10000 bytes free
+   start s42_A_1101 (s42_A_1101.attempt1.log)
+   start s42_B_1201 (s42_B_1201.attempt1.log)
+   start s80_A_1301 (s80_A_1301.attempt1.log)
+   s42_B_1201 exited 0
+   s42_B_1201: COUNTED (CHECK passed, stop reason end)
+   s42_A_1101 exited 1
+   s42_A_1101: CRASH (exit 1; folder s42_A_1101_crashed1; own crash 1 of 3)
+   s80_A_1301 exited 0
+   s80_A_1301: COUNTED (CHECK passed, stop reason end)
+   start s42_A_1101 (s42_A_1101.attempt2.log)
+   s42_A_1101 exited 0
+   s42_A_1101: COUNTED (CHECK passed, stop reason end)
+   all 3 decided, none VOID: the reading (R3 end traces, then R1/R2, then the score)
+   s42_B_1201: end trace (R3) exit 0
+   s42_A_1101: end trace (R3) exit 0
+   s80_A_1301: end trace (R3) exit 0
+   s42_A_1101: read_ecs (R1/R2/R3) exit 0
+   s42_B_1201: read_ecs (R1/R2/R3) exit 0
+   s80_A_1301: read_ecs (R1/R2/R3) exit 0
+   score_ecs.py exit 0 (0 final, 3 provisional or incomplete, 2 input error)
+-- runner stderr/stdout tail:
+   [run_waves_ecs 2026-10-29T00:44:18Z] s42_B_1201: read_ecs (R1/R2/R3) exit 0
+   [run_waves_ecs 2026-10-29T00:44:18Z] s80_A_1301: read_ecs (R1/R2/R3) exit 0
+   [run_waves_ecs 2026-10-29T00:44:18Z] score_ecs.py exit 0 (0 final, 3 provisional or incomplete, 2 input error)
+== B (half-way folders at relaunch): runner exit 0
+-- runs/:
+   s42_A_1101
+   s42_A_1101_crashed1
+   s42_B_1201
+   s42_B_1201_crashed1
+   s80_A_1301
+-- decided.tsv:
+   s80_A_1301	COUNTED	CHECK passed, stop reason end
+   s42_A_1101	COUNTED	CHECK passed, stop reason end
+   s42_B_1201	COUNTED	CHECK passed, stop reason end
+-- crash_ledger.tsv:
+   s42_A_1101	s42_A_1101_crashed1	half-way at relaunch (status running)	0
+   s42_B_1201	s42_B_1201_crashed1	half-way at relaunch (status crashed)	1
+-- stub calls:
+   CHECK s80_A_1301
+   RUN s42_A_1101
+   RUN s42_B_1201
+   CHECK s42_A_1101
+   CHECK s42_B_1201
+   TRACE s42_A_1101 stage1_4718592_steps.zip
+   TRACE s42_B_1201 stage1_4718592_steps.zip
+   TRACE s80_A_1301 stage1_5767168_steps.zip
+   READ s42_A_1101
+   READ s42_B_1201
+   READ s80_A_1301
+   SCORE
+-- runner log:
+   s42_A_1101: CRASH (half-way at relaunch (status running); folder s42_A_1101_crashed1; own crash 0 of 3, not counted)
+   s42_B_1201: CRASH (half-way at relaunch (status crashed); folder s42_B_1201_crashed1; own crash 1 of 3)
+   s80_A_1301: found done at relaunch; checking
+   s80_A_1301: COUNTED (CHECK passed, stop reason end)
+   queue: 2 pending of 3; 3 slots
+   start s42_A_1101 (s42_A_1101.attempt1.log)
+   start s42_B_1201 (s42_B_1201.attempt1.log)
+   s42_A_1101 exited 0
+   s42_A_1101: COUNTED (CHECK passed, stop reason end)
+   s42_B_1201 exited 0
+   s42_B_1201: COUNTED (CHECK passed, stop reason end)
+   all 3 decided, none VOID: the reading (R3 end traces, then R1/R2, then the score)
+   s42_B_1201: end trace (R3) exit 0
+   s42_A_1101: end trace (R3) exit 0
+   s80_A_1301: end trace (R3) exit 0
+   s42_A_1101: read_ecs (R1/R2/R3) exit 0
+   s42_B_1201: read_ecs (R1/R2/R3) exit 0
+   s80_A_1301: read_ecs (R1/R2/R3) exit 0
+   score_ecs.py exit 0 (0 final, 3 provisional or incomplete, 2 input error)
+-- runner stderr/stdout tail:
+   [run_waves_ecs 2026-10-29T00:44:22Z] s42_B_1201: read_ecs (R1/R2/R3) exit 0
+   [run_waves_ecs 2026-10-29T00:44:22Z] s80_A_1301: read_ecs (R1/R2/R3) exit 0
+   [run_waves_ecs 2026-10-29T00:44:22Z] score_ecs.py exit 0 (0 final, 3 provisional or incomplete, 2 input error)
+== C (a CHECK failure stops the queue): runner exit 4
+-- runs/:
+   s42_A_1101
+   s42_B_1201_void1
+-- decided.tsv:
+   s42_A_1101	COUNTED	CHECK passed, stop reason end
+   s42_B_1201	VOID	CHECK failed (logs/s42_B_1201.check.log; run exit 0); folder s42_B_1201_void1
+-- crash_ledger.tsv:
+-- stub calls:
+   RUN s42_A_1101
+   CHECK s42_A_1101
+   RUN s42_B_1201
+   CHECK s42_B_1201
+-- runner log:
+   launch: 6201929728 bytes free >= the launch floor 0 bytes
+   queue: 4 pending of 4; 1 slots
+   start s42_A_1101 (s42_A_1101.attempt1.log)
+   s42_A_1101 exited 0
+   s42_A_1101: COUNTED (CHECK passed, stop reason end)
+   start s42_B_1201 (s42_B_1201.attempt1.log)
+   s42_B_1201 exited 0
+   s42_B_1201: VOID (CHECK failed (logs/s42_B_1201.check.log; run exit 0); folder s42_B_1201_void1)
+   halted: VOID (logs/decided.tsv); the coordinator fixes the cause (criteria VOID) (logs/HALTED; the coordinator fixes the cause and removes it before starting the runner again)
+-- logs/HALTED: VOID (logs/decided.tsv); the coordinator fixes the cause (criteria VOID)
+-- runner stderr/stdout tail:
+   [run_waves_ecs 2026-10-29T00:44:26Z] s42_B_1201 exited 0
+   [run_waves_ecs 2026-10-29T00:44:26Z] s42_B_1201: VOID (CHECK failed (logs/s42_B_1201.check.log; run exit 0); folder s42_B_1201_void1)
+   [run_waves_ecs 2026-10-29T00:44:26Z] halted: VOID (logs/decided.tsv); the coordinator fixes the cause (criteria VOID) (logs/HALTED; the coordinator fixes the cause and removes it before starting the runner again)
+== C relaunch with logs/HALTED: runner exit 2; stub calls added: 0
+   run_waves_ecs: refused: halted (2026-10-29T00:44:26Z	VOID (logs/decided.tsv); the coordinator fixes the cause (criteria VOID)); the coordinator fixes the cause and removes /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/ecs/validate/fix2_v4_waves/C/logs/HALTED
+== C relaunch with logs/HALTED removed (the VOID line kept): runner exit 4; stub calls added: 0; HALTED again: yes
+== D (three crashes to lost.json): runner exit 0
+-- runs/:
+   s42_A_1101
+   s42_B_1201_crashed1
+   s42_B_1201_crashed2
+   s42_B_1201_crashed3
+   s80_A_1301
+-- decided.tsv:
+   s42_A_1101	COUNTED	CHECK passed, stop reason end
+   s80_A_1301	COUNTED	CHECK passed, stop reason end
+   s42_B_1201	LOST	3 own crashes
+-- crash_ledger.tsv:
+   s42_B_1201	s42_B_1201_crashed1	exit 1	1
+   s42_B_1201	s42_B_1201_crashed2	exit 1	1
+   s42_B_1201	s42_B_1201_crashed3	exit 1	1
+-- stub calls:
+   RUN s42_A_1101
+   RUN s42_B_1201
+   RUN s80_A_1301
+   CHECK s42_A_1101
+   CHECK s80_A_1301
+   RUN s42_B_1201
+   RUN s42_B_1201
+   TRACE s42_A_1101 stage1_4718592_steps.zip
+   TRACE s80_A_1301 stage1_5767168_steps.zip
+   READ s42_A_1101
+   READ s80_A_1301
+   SCORE
+-- runner log:
+   launch: 6201847808 bytes free >= the launch floor 0 bytes
+   queue: 3 pending of 3; 3 slots
+   start s42_A_1101 (s42_A_1101.attempt1.log)
+   start s42_B_1201 (s42_B_1201.attempt1.log)
+   start s80_A_1301 (s80_A_1301.attempt1.log)
+   s42_B_1201 exited 1
+   s42_B_1201: CRASH (exit 1; folder s42_B_1201_crashed1; own crash 1 of 3)
+   s42_A_1101 exited 0
+   s42_A_1101: COUNTED (CHECK passed, stop reason end)
+   s80_A_1301 exited 0
+   s80_A_1301: COUNTED (CHECK passed, stop reason end)
+   start s42_B_1201 (s42_B_1201.attempt2.log)
+   s42_B_1201 exited 1
+   s42_B_1201: CRASH (exit 1; folder s42_B_1201_crashed2; own crash 2 of 3)
+   start s42_B_1201 (s42_B_1201.attempt3.log)
+   s42_B_1201 exited 1
+   s42_B_1201: CRASH (exit 1; folder s42_B_1201_crashed3; own crash 3 of 3)
+   s42_B_1201: LOST (3 own crashes)
+   all 3 decided, none VOID: the reading (R3 end traces, then R1/R2, then the score)
+   s42_A_1101: end trace (R3) exit 0
+   s80_A_1301: end trace (R3) exit 0
+   s42_A_1101: read_ecs (R1/R2/R3) exit 0
+   s80_A_1301: read_ecs (R1/R2/R3) exit 0
+   score_ecs.py exit 0 (0 final, 3 provisional or incomplete, 2 input error)
+-- lost.json:
+{
+ "schema": "ecs-lost/1",
+ "lost": {
+  "s42_B_1201": {
+   "cause": "crashes",
+   "detail": "3 own crashes, last: exit 1",
+   "by": "run_waves_ecs.sh",
+   "utc": "2026-10-29T00:44:32Z"
+  }
+ }
+}
+-- runner stderr/stdout tail:
+   [run_waves_ecs 2026-10-29T00:44:33Z] s42_A_1101: read_ecs (R1/R2/R3) exit 0
+   [run_waves_ecs 2026-10-29T00:44:33Z] s80_A_1301: read_ecs (R1/R2/R3) exit 0
+   [run_waves_ecs 2026-10-29T00:44:33Z] score_ecs.py exit 0 (0 final, 3 provisional or incomplete, 2 input error)
+== E (an early crash halts, not counted): runner exit 2
+-- runs/:
+   s42_A_1101
+   s42_B_1201_crashed1
+-- decided.tsv:
+   s42_A_1101	COUNTED	CHECK passed, stop reason end
+-- crash_ledger.tsv:
+   s42_B_1201	s42_B_1201_crashed1	EARLY CRASH, no window evaluation (last step 3153920): exit 1	0
+-- stub calls:
+   RUN s42_A_1101
+   CHECK s42_A_1101
+   RUN s42_B_1201
+-- runner log:
+   launch: 6201700352 bytes free >= the launch floor 0 bytes
+   queue: 3 pending of 3; 1 slots
+   start s42_A_1101 (s42_A_1101.attempt1.log)
+   s42_A_1101 exited 0
+   s42_A_1101: COUNTED (CHECK passed, stop reason end)
+   start s42_B_1201 (s42_B_1201.attempt1.log)
+   s42_B_1201 exited 1
+   s42_B_1201: EARLY CRASH, no window evaluation (last step 3153920): exit 1; folder s42_B_1201_crashed1; not counted (own crashes 0 of 3); no new start: the coordinator finds the cause from runs/s42_B_1201_crashed1/run_meta.json (error, traceback; never a process log) and fixes it
+   halted: early crash of s42_B_1201 (runs/s42_B_1201_crashed1) (logs/HALTED; the coordinator fixes the cause and removes it before starting the runner again)
+-- logs/HALTED: early crash of s42_B_1201 (runs/s42_B_1201_crashed1)
+-- runner stderr/stdout tail:
+   [run_waves_ecs 2026-10-29T00:44:37Z] s42_B_1201 exited 1
+   [run_waves_ecs 2026-10-29T00:44:37Z] s42_B_1201: EARLY CRASH, no window evaluation (last step 3153920): exit 1; folder s42_B_1201_crashed1; not counted (own crashes 0 of 3); no new start: the coordinator finds the cause from runs/s42_B_1201_crashed1/run_meta.json (error, traceback; never a process log) and fixes it
+   [run_waves_ecs 2026-10-29T00:44:37Z] halted: early crash of s42_B_1201 (runs/s42_B_1201_crashed1) (logs/HALTED; the coordinator fixes the cause and removes it before starting the runner again)
+== E relaunch with logs/HALTED: runner exit 2; stub calls added: 0
+   run_waves_ecs: refused: halted (2026-10-29T00:44:37Z	early crash of s42_B_1201 (runs/s42_B_1201_crashed1)); the coordinator fixes the cause and removes /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/ecs/validate/fix2_v4_waves/E/logs/HALTED
+== E after the coordinator removed logs/HALTED: runner exit 0
+-- runs/:
+   s42_A_1101
+   s42_B_1201
+   s42_B_1201_crashed1
+   s80_A_1301
+-- decided.tsv:
+   s42_A_1101	COUNTED	CHECK passed, stop reason end
+   s42_B_1201	COUNTED	CHECK passed, stop reason end
+   s80_A_1301	COUNTED	CHECK passed, stop reason end
+-- crash_ledger.tsv:
+   s42_B_1201	s42_B_1201_crashed1	EARLY CRASH, no window evaluation (last step 3153920): exit 1	0
+-- stub calls:
+   RUN s42_A_1101
+   CHECK s42_A_1101
+   RUN s42_B_1201
+   RUN s42_B_1201
+   CHECK s42_B_1201
+   RUN s80_A_1301
+   CHECK s80_A_1301
+   TRACE s42_A_1101 stage1_4718592_steps.zip
+   TRACE s42_B_1201 stage1_4718592_steps.zip
+   TRACE s80_A_1301 stage1_5767168_steps.zip
+   READ s42_A_1101
+   READ s42_B_1201
+   READ s80_A_1301
+   SCORE
+-- runner log:
+   launch: 6201700352 bytes free >= the launch floor 0 bytes
+   queue: 3 pending of 3; 1 slots
+   start s42_A_1101 (s42_A_1101.attempt1.log)
+   s42_A_1101 exited 0
+   s42_A_1101: COUNTED (CHECK passed, stop reason end)
+   start s42_B_1201 (s42_B_1201.attempt1.log)
+   s42_B_1201 exited 1
+   s42_B_1201: EARLY CRASH, no window evaluation (last step 3153920): exit 1; folder s42_B_1201_crashed1; not counted (own crashes 0 of 3); no new start: the coordinator finds the cause from runs/s42_B_1201_crashed1/run_meta.json (error, traceback; never a process log) and fixes it
+   halted: early crash of s42_B_1201 (runs/s42_B_1201_crashed1) (logs/HALTED; the coordinator fixes the cause and removes it before starting the runner again)
+   queue: 2 pending of 3; 1 slots
+   start s42_B_1201 (s42_B_1201.attempt2.log)
+   s42_B_1201 exited 0
+   s42_B_1201: COUNTED (CHECK passed, stop reason end)
+   start s80_A_1301 (s80_A_1301.attempt1.log)
+   s80_A_1301 exited 0
+   s80_A_1301: COUNTED (CHECK passed, stop reason end)
+   all 3 decided, none VOID: the reading (R3 end traces, then R1/R2, then the score)
+   s42_A_1101: end trace (R3) exit 0
+   s42_B_1201: end trace (R3) exit 0
+   s80_A_1301: end trace (R3) exit 0
+   s42_A_1101: read_ecs (R1/R2/R3) exit 0
+   s42_B_1201: read_ecs (R1/R2/R3) exit 0
+   s80_A_1301: read_ecs (R1/R2/R3) exit 0
+   score_ecs.py exit 0 (0 final, 3 provisional or incomplete, 2 input error)
+-- runner stderr/stdout tail:
+   [run_waves_ecs 2026-10-29T00:44:44Z] s42_B_1201: read_ecs (R1/R2/R3) exit 0
+   [run_waves_ecs 2026-10-29T00:44:44Z] s80_A_1301: read_ecs (R1/R2/R3) exit 0
+   [run_waves_ecs 2026-10-29T00:44:44Z] score_ecs.py exit 0 (0 final, 3 provisional or incomplete, 2 input error)
+== F (a fresh queue below the launch floor): runner exit 2
+-- runs/:
+-- decided.tsv:
+-- crash_ledger.tsv:
+-- stub calls:
+-- runner log:
+-- runner stderr/stdout tail:
+   run_waves_ecs: refused: launch: 1000 bytes free < the launch floor 6442450944 bytes (T4): housekeeping first
+== G (a post-run check failure is VOID): runner exit 4
+-- runs/:
+   s42_A_1101_void1
+-- decided.tsv:
+   s42_A_1101	VOID	CHECK failed (logs/s42_A_1101.check.log; run exit 5); folder s42_A_1101_void1
+-- crash_ledger.tsv:
+-- stub calls:
+   RUN s42_A_1101
+   CHECK s42_A_1101
+-- runner log:
+   launch: 6201524224 bytes free >= the launch floor 0 bytes
+   queue: 3 pending of 3; 1 slots
+   start s42_A_1101 (s42_A_1101.attempt1.log)
+   s42_A_1101 exited 5
+   s42_A_1101: VOID (CHECK failed (logs/s42_A_1101.check.log; run exit 5); folder s42_A_1101_void1)
+   halted: VOID (logs/decided.tsv); the coordinator fixes the cause (criteria VOID) (logs/HALTED; the coordinator fixes the cause and removes it before starting the runner again)
+-- logs/HALTED: VOID (logs/decided.tsv); the coordinator fixes the cause (criteria VOID)
+-- runner stderr/stdout tail:
+   [run_waves_ecs 2026-10-29T00:44:47Z] s42_A_1101 exited 5
+   [run_waves_ecs 2026-10-29T00:44:47Z] s42_A_1101: VOID (CHECK failed (logs/s42_A_1101.check.log; run exit 5); folder s42_A_1101_void1)
+   [run_waves_ecs 2026-10-29T00:44:47Z] halted: VOID (logs/decided.tsv); the coordinator fixes the cause (criteria VOID) (logs/HALTED; the coordinator fixes the cause and removes it before starting the runner again)
+V4 WAVES DRY RUN DONE
+exit=0
+Thu Oct 29 00:44:47 UTC 2026
