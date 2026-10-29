@@ -949,7 +949,7 @@ def test_edges_and_runs():
 
 # ── layering ─────────────────────────────────────────────────────────────────
 
-PURE_MODULES = ("__init__.py", "constants.py", "events.py", "stance_metrics.py", "pad_telemetry.py")
+PURE_MODULES = ("__init__.py", "constants.py", "events.py", "stance_metrics.py", "pad_telemetry.py", "stance_track.py")
 
 
 def _import_time_imports(path: Path) -> list[str]:
@@ -978,7 +978,7 @@ def _import_time_imports(path: Path) -> list[str]:
 def test_the_pure_modules_import_no_mujoco(module):
     """The gate (pure) imports constants, events and stance_metrics: they import only the standard library,
     numpy and each other.  So does pad_telemetry, which the evaluation callback reduces with (its layout
-    builder imports mujoco in its body)."""
+    builder imports mujoco in its body), and stance_track, which reads a robot's log as well as a simulation."""
     allowed_relative = {"." + name.removesuffix(".py") for name in PURE_MODULES if name != "__init__.py"}
     imported = _import_time_imports(GAIT / module)
     foreign = [

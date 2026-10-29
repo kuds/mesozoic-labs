@@ -1,4 +1,4 @@
-"""Tests for ``stance_track_helpers`` (the centre-of-mass stance reduction), the bars of ``com_stance_helpers``
+"""Tests for ``gait.stance_track`` (the centre-of-mass stance reduction), the bars of ``com_stance_helpers``
 and the pure rules of ``com_stance_calibration``.
 
 Synthetic tracks only, so every expected number is known in closed form: the support hull, its signed and
@@ -20,17 +20,7 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
-from environments.shared.tests import com_stance_calibration as calibration
-from environments.shared.tests.com_stance_helpers import (
-    BAR_KINDS,
-    SYMMETRIC_VALUES,
-    Bar,
-    ComStanceQualityBase,
-    check,
-    format_violations,
-    resolution_floor,
-)
-from environments.shared.tests.stance_track_helpers import (
+from environments.shared.gait.stance_track import (
     FAMILIES,
     HEADING_KEYS,
     KINEMATIC_KEYS,
@@ -50,6 +40,16 @@ from environments.shared.tests.stance_track_helpers import (
     stance_track_series,
     track_from_episode_trace,
     yaw_pitch_roll,
+)
+from environments.shared.tests import com_stance_calibration as calibration
+from environments.shared.tests.com_stance_helpers import (
+    BAR_KINDS,
+    SYMMETRIC_VALUES,
+    Bar,
+    ComStanceQualityBase,
+    check,
+    format_violations,
+    resolution_floor,
 )
 
 DT = 0.01

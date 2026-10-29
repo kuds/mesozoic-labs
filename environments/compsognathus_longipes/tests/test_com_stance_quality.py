@@ -6,7 +6,7 @@ env for the full 1,000-step horizon (20 s at its 0.02 s step) and track the whol
 sideways or fore-aft), leaning or drifting sideways, off its fore-aft posture, sagging, turning or twisting on its
 feet (in the window or from the spawn), or swaying and rocking.
 
-On the robot, the same reduction (``stance_track_helpers``) can later read the hardware, key by key as its sensors
+On the robot, the same reduction (``gait.stance_track``) can later read the hardware, key by key as its sensors
 allow: the CoM against the feet (lean, fore-aft, height, their drifts and spreads) from joint encoders and forward
 kinematics; roll and pitch and their spreads from the pelvis IMU (``sensors.onboard_readings``); the twist over the
 feet from forward kinematics; the load shares and the loaded support polygon only with foot force pads, which have

@@ -7,7 +7,7 @@ per-sample arrays (the whole-body centre of mass, the root orientation, one refe
 where known, the loaded support points, the per-foot normal loads and the foot headings) to named numbers over
 a window, and :func:`stance_track_series` gives the per-sample series behind them, so a failing check can name
 the step.  The arrays are plain and the module imports nothing but numpy, so the same reduction reads a
-simulated statue (``com_stance_helpers.EnvStanceSampler`` builds its :class:`StanceTrack`), an evaluation
+simulated statue (``tests.com_stance_helpers.EnvStanceSampler`` builds its :class:`StanceTrack`), an evaluation
 episode the gait recorder already captured (:func:`track_from_episode_trace`), a trained policy's rollout or a
 robot's state-estimate log.  Nothing here is a gate criterion, a reward or an observation, and no digest reads
 it.  The key names are this module's own: ``gait.stance_metrics`` has gate keys that read similar quantities

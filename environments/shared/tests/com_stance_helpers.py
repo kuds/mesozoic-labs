@@ -4,14 +4,14 @@
 neutral action survives.  A stance can pass all of that and still be a poor one: a steady lean to one side, a
 slow drift of the CoM toward a support edge, the body turning or twisting on its feet, the CoM sagging, a sway
 or a rock.  The tests here track the whole-body CoM through a full standing episode and judge it with
-``stance_track_helpers``' reduction:
+``gait.stance_track``'s reduction:
 
 * :class:`EnvStanceSampler` reads ``env.data`` after the reset and after each ``env.step``: the root subtree's
   CoM, the root quaternion, each foot's reference site and heading, the per-foot floor normal loads and the
   loaded floor-contact points of the leg geoms (the support polygon).  No ``mj_*`` call it makes writes the
   env's data (``mj_contactForce`` only reads it), so the episode is the one the env runs untracked.  An
   evaluation episode the gait recorder captured reads the same way through
-  ``stance_track_helpers.track_from_episode_trace`` (the base class checks the two captures agree).
+  ``gait.stance_track.track_from_episode_trace`` (the base class checks the two captures agree).
 * :func:`run_tracked_episode` runs one episode under the neutral action, or under ``action_fn(obs, step)``,
   ``pre_step(env, step)`` and ``post_step(env, step, action)``, the hooks the scripted poor stances use.  A
   checkpoint's rollout goes through the same hook (offline; no policy is committed in the tests)::
@@ -66,10 +66,7 @@ import pytest
 
 from environments.shared.gait.morphology import Morphology
 from environments.shared.gait.recorder import SubstepContactRecorder
-from environments.shared.model_id import ModelId
-from environments.shared.species_registry import env_class
-
-from .stance_track_helpers import (
+from environments.shared.gait.stance_track import (
     FAMILIES,
     KINEMATIC_KEYS,
     LOAD_KEYS,
@@ -83,6 +80,8 @@ from .stance_track_helpers import (
     track_from_episode_trace,
     window_mask,
 )
+from environments.shared.model_id import ModelId
+from environments.shared.species_registry import env_class
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 

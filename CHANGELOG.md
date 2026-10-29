@@ -2359,6 +2359,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   verdicts with the gate they were earned under.
 
 ### Changed
+- **The centre-of-mass stance reduction moves into the gait package, beside
+  the evaluation telemetry** (a pure move: no key, number, bar or test
+  outcome changes; the maintainer's decision of 2026-10-29;
+  `environments/shared/tests/stance_track_helpers.py` is now
+  `environments/shared/gait/stance_track.py`). A gate, an evaluation callback
+  or a pre-registered policy check may import `environments/shared/gait/`
+  but not the tests, so this is the step before any such use of the
+  reduction; none is made here. The module is unchanged but for one line of
+  its docstring; its three importers, all in `environments/shared/tests/`
+  (the CoM stance helpers, the calibration tool and the reduction's
+  synthetic tests), import `environments.shared.gait.stance_track`, and the
+  docstrings that named the old module name the new one. It imports only the
+  standard library and numpy, which `test_gait_stance_metrics.py`'s list of
+  pure gait modules now enforces, and the gait package's module list names
+  it. As package code it ships in the wheel and counts in the coverage union;
+  a script outside the repository that imports the old path needs the new
+  one. No environment, physics, reward, gate, observation, policy interface
+  or digest changes: the exact reward captures (`digest_snapshot --exact`,
+  37,016 lines, on the base and on this change on one machine) are
+  byte-identical.
 - **The development version is `0.4.0.dev2`** (#647; `pyproject.toml`; the
   maintainer's decision of 2026-10-25 20:13 UTC in the stance run log: bump
   it once the current work is done, as #619 did, carried by the next records

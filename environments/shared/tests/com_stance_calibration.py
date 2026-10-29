@@ -57,6 +57,8 @@ from typing import Any
 import mujoco
 import numpy as np
 
+from environments.shared.gait.stance_track import StanceTrack, stance_track_quality, stance_track_series
+
 from .com_stance_helpers import (
     BAR_KINDS,
     LEAN_DETECTION_KEYS,
@@ -74,7 +76,6 @@ from .com_stance_helpers import (
     resolution_floor,
     root_yaw_torque,
 )
-from .stance_track_helpers import StanceTrack, stance_track_quality, stance_track_series
 
 CALIBRATION_SEEDS: tuple[int, ...] = tuple(range(30))
 HELDOUT_SEEDS: tuple[int, ...] = tuple(range(100, 150))
