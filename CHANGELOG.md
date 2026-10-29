@@ -8,6 +8,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **Decision D-D52's design and outcome and decisions D-D53 to D-D55 recorded:
+  the entropy continuation screen read its line 3, no difference detected;
+  next, the centre-of-mass follow-ups with a tail clamp test, a normaliser
+  probe, three posture tests and one record of everything tried on the T. rex
+  tail saturation habit** (the maintainer's decisions and requests of
+  2026-10-28 21:05 UTC to 2026-10-29 23:21 UTC in the stance run log;
+  `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2, `docs/CONSOLIDATION_PLAN_2026_09.md`
+  §6). Records only. D-D52 is amended with the screen's design, as the
+  maintainer took every recommendation of its draft (starts s42 at 3,145,728
+  steps and s80 at 4,194,304, 6 CPU continuations per arm and start, the
+  entropy coefficient as recorded against 0, an exact stratified test
+  two-sided at 0.025 per side), its approval and launch, and its outcome,
+  final: all 24 continuations ran to their end; line 3, "NO DIFFERENCE
+  DETECTED" (s42 6 of 6 in both arms, every flag on the tail-tip actuator; s80
+  1 of 6 in both, on the neck), agreed by two independent checks; its text
+  outputs on a never-merged orphan branch at the maintainer's word. D-D53: the
+  centre-of-mass regression tests revisited, with centre-of-mass checks on the
+  screen's end policies, and a tail clamp test both ways (simulation only,
+  report only). D-D54: a centre-of-mass test change in its own pull request
+  (#653), a creep scan of two more models before any plant change, a
+  report-only centre-of-mass check on trained policies in the next round's
+  pre-registration, and a no-training normaliser probe of the tail loop.
+  D-D55: one record of everything tried on the tail habit, three no-training
+  posture tests, and that record as its own investigation note with its
+  evidence: this change. Nothing trains on `main`, and no gate, reward, plant
+  or criterion changes.
 - **Absolute stance targets for the centre-of-mass stance tests, each a
   strict expected failure where a model misses it today** (#653; tests and test
   helpers, and one input check in the reduction; the maintainer's decision of
