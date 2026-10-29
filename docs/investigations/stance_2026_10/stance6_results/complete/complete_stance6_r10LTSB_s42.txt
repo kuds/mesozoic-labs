@@ -1,0 +1,53 @@
+r10round lane B tools 1.3 (criteria lean v6 sha256 e5bea5d314cb...; built 2026-10-26; fixer 2026-10-26; v5 tool update 2026-10-26; v6 MEAN_a 2026-10-27)
+RUNLOG line 621 names a RUN_ID but is not a STANCE6 note (printed, read by no rule): 2026-10-25 19:01 UTC  MAINTAINER DECISIONS (r10 round, criteria v4): D15 confirmed: the runs start only after BOTH telemetry PRs merge (#644 and PR 2 with the added columns and the in-run K3 panel); D
+RUNLOG line 667 names a RUN_ID but is not a STANCE6 note (printed, read by no rule): 2026-10-27 14:57 UTC  F0 for stance6_r10LTSB_s60 started (workflow [id removed], 1 fetch agent, read-only Drive, per fetch_agent_brief.txt; the launch-check tool to follow, run by the coordinator, before 15
+RUNLOG line 669 names a RUN_ID but is not a STANCE6 note (printed, read by no rule): 2026-10-27 15:32 UTC  F0 found run folders for stance6_r10LTSB_s42 ([id removed]) and stance6_r10LTSB_s80 ([id removed]) in the ppo folder listing of 15:05:40
+RUNLOG line 670 names a RUN_ID but is not a STANCE6 note (printed, read by no rule): 2026-10-27 15:46 UTC  F0 for stance6_r10LTSB_s42 and s80 done (workflow [id removed], 2 agents in parallel, read-only Drive; finished 15:45 UTC; each file 2 agreeing copies; one eval_episodes.csv rewrite ea
+C1-C7 stance6_r10LTSB_s42 on /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s42
+  C1: PASS  C1 one launch, no launch-check stop, no other action  [C1 reads the RUN_ID's LAUNCH/RELAUNCH lines, its launch-check stops (STOP, TRIGGER-d) and its ACTION lines (what=resume|restart|relaunch|cell)]
+      value: {"launches": [671], "launch_check_stops": [], "actions": [], "lines": {"671": "LAUNCH", "673": "CHECK", "693": "TRIGGER-a", "694": "FOUND-GONE", "704": "F2-START"}}
+  C2: PASS  C2 artifact_manifest.json
+      value: {"copies": "copies 1 and 2 agree (sha256 3ffa31e68aa9)", "sha256": "3ffa31e68aa9a104873f59d26851913a3ede433736dd6a94a4cd5b861489cfe5", "schema_problems": [], "run_id": "stance6_r10LTSB_s42", "status": "complete", "entries": 167}
+  C3: PASS  C3 every file the reading uses equals its manifest entry
+      provenance.json: OK
+      01_stance/stage_config.json: OK
+      01_stance/progress.json: OK
+      01_stance/eval_episodes.csv: OK
+      01_stance/gate_verdict.json: OK
+      01_stance/models/stage1_4194304_steps.zip: OK
+      01_stance/models/stage1_vecnormalize_4194304_steps.pkl: OK
+      01_stance/models/stage1_5242880_steps.zip: OK
+      01_stance/models/stage1_vecnormalize_5242880_steps.pkl: OK
+      01_stance/models/stage1_6291456_steps.zip: OK
+      01_stance/models/stage1_vecnormalize_6291456_steps.pkl: OK
+      01_stance/models/stage1_8388608_steps.zip: OK
+      01_stance/models/stage1_vecnormalize_8388608_steps.pkl: OK
+      01_stance/models/stage1_10485760_steps.zip: OK
+      01_stance/models/stage1_vecnormalize_10485760_steps.pkl: OK
+      01_stance/models/stage1_final.zip: OK
+      01_stance/models/stage1_final_vecnorm.pkl: OK
+  C4: PASS  C4 one session from step 0 in the round's configuration  [read on manifest-verified copies]
+      PASS             C4 exactly one sessions entry with started_at, no resumed_at: {"sessions": 1, "started_at": "2026-10-27T15:03:06.837271+00:00", "resumed_at": false}
+      PASS             C4 started_at within 60 minutes before or after RUNLOG's launch time: {"minutes_from_launch": 6.1, "launch": "2026-10-27T14:57:00+00:00"}
+      PASS             C4 provenance repository_commit = branch HEAD, repository_dirty false: {"repository_commit": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d", "repository_dirty": false, "head": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d"}
+      PASS             C4 no load key at any depth: []
+      PASS             C4 run.seed: {"got": 42, "want": 42}
+      PASS             C4 run.n_envs 4: 4
+      PASS             C4 run.hyperparameters_sha256 = pin: "sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c"
+      PASS             C4 task_fingerprint.task_sha256 = pin: "sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456"
+      PASS             C4 plant_identity block = pin: "(block)"
+      PASS             C4 stage_config_view_sha256 = pin: "sha256:3200f159e7f0c8d59be196976e990bbc572c688ba332d8574106c706d46cbce1"
+      PASS             C4 git_commit = branch HEAD: {"git_commit": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d", "head": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d"}
+      PASS             C4 k3_panel.csv absent from the manifest if V7 failed on HEAD: {"v7_failed_on_head": false, "k3_panel_csv_listed": true}
+  C5: PASS  C5 the end
+      value: {"progress_status": "ended", "E": 12001280, "final_zip_num_timesteps": 12001280, "zip_problem": null, "judged_at": "2026-10-28T05:33:20+00:00", "written_at": "2026-10-28T05:00:58Z", "judged_minus_written_min": 32.4, "ending": "FINISHED"}
+  C6: PASS  C6 ledger whole to E, every ANY and TAIL input measured
+      value: {"grid_evaluations": 91, "failures": [], "n_failures": 0}
+  C7: PASS  C7 traces (and the final certificate)
+      value: {"labels": ["4194304", "5242880", "6291456", "8388608", "10485760", "final"], "missing": []}
+  VERDICT: COMPLETE
+  PRESENCE on /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s42: PRESENCE RAIL
+    p1: PASS  {"launches": [671], "launch_check_stops": [], "actions": [], "lines": {"671": "LAUNCH", "673": "CHECK", "693": "TRIGGER-a", "694": "FOUND-GONE", "704": "F2-START"}} [C1 reads the RUN_ID's LAUNCH/RELAUNCH lines, its launch-check stops (STOP, TRIGGER-d) and its ACTION lines (what=resume|restart|relaunch|cell)]
+    p2: PASS  "all hold" [provenance.json copies 1 and 2 agree (sha256 3462607b284c); stage_config.json copies 1 and 2 agree (sha256 5d54e6deac8d)]
+    p3: PASS  {"tail_alarms": [3932160, 4063232, 4194304, 4325376, 4456448, 4587520, 4718592, 4849664, 4980736, 5111808, 5505024, 8126464, 8257536, 8388608, 9699328, 9830400, 9961472, 10092544, 10223616, 10354688, 10485760, 10616832], "tail_flagged": [3801088, 3932160, 4063232, 4194304, 4325376, 4456448, 4587520, 4718592, 4849664, 4980736, 5111808, 5373952, 5505024, 7995392, 8126464, 8257536, 8388608, 9568256, 9699328, 9830400, 9961472, 10092544, 10223616, 10354688, 10485760, 10616832], "first": {"step": 3932
+    PRESENCE RAIL: {"step": 3932160, "actuators": {"tail_3_pitch_act+": 20}, "flagged_evaluations": 26}

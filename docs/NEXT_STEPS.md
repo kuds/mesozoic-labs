@@ -620,6 +620,20 @@ it certifies nothing, so the next T-Rex session above is still a fresh
 stance on physics r10. The decisions' full text is in
 [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2 and their record in
 §26 of the same record.*
+*2026-10-28: the first r10 stance round was judged by its approved criteria,
+final: line 1, a tail rail formed on r10 in training (decision D-D51's
+amendment). Of its three runs, seed 42 pinned the tail-tip actuator at +1 in
+training and failed its gate, seed 60 parked it, and seed 80 passed its gate
+as the round's one positive run while forming a saturation habit on the neck;
+the runs with an alarm, 2 of 3 against LTSB's r9 2 of 5, do not show a lower
+alarm rate (one-sided Fisher p 0.93). The line names no parent and the round
+certifies nothing, so the next T-Rex session above is still a fresh stance on
+physics r10, and a new walking pilot still waits for an r10 stance parent. The
+maintainer's next step (D-D52) is a CPU continuation screen of the entropy
+coefficient from the round's own checkpoints, its criteria drafted and
+approved before any training. The decisions' full text is in
+[BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2 and their record in
+§27 of the same record.*
 
 *Note 2026-10-18 (decision D-D38): where §2, this section and §8 record
 `BEHAVIOR = "stand"` or a `stand` session, they give the setting as it was

@@ -8,10 +8,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **The first T. rex stance round on physics r10 recorded as judged, final:
+  line 1, a tail rail formed on r10 in training** (decision D-D51's
+  amendment and D-D52; the appended §27 of
+  `docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md`, with a
+  dated status note at its top; `docs/NEXT_STEPS.md` §3,
+  `docs/KNOWN_ISSUES.md` (Update 22 of the T-Rex stance entry and two dated
+  updates), `docs/README.md`; evidence in `stance6_results/` of
+  `docs/investigations/stance_2026_10/`: the run log's lines 681 to 720, the
+  scorer's output, the completeness check per run, the independent check of
+  the reading, the report-only readouts, the review, the next-step proposals
+  and the fixer's record, K1–K4 per run, the D-9 and D-10 summaries, the
+  fetch record, and the measurement panels' summaries and the judge's
+  files). Records only. §27 records the runs' ends, noted from Drive;
+  the final fetch, its inline transfers made by an exact-copy script at the
+  maintainer's decision; the reading, final, with all three runs complete:
+  seed 42 pinned `tail_3_pitch_act` at +1 in training (22 ledger alarms from
+  3,932,160 steps) and failed its gate, seed 60 parked it (MEAN_a +0.642
+  against the 0.60 line), and seed 80 passed its gate as the round's one
+  positive run with 6 alarms on `neck_pitch_act`; line 1 an existence result,
+  not a rate; statistic A 2 of 3 against LTSB's r9 2 of 5 (one-sided Fisher p
+  0.93, nothing significant); the reading agreed by an independent check; the
+  report-only readouts D-1 to D-16 (no head-low reading, no fall in the
+  deterministic panels, the in-run K3 panel equal to the judge's K3), the
+  entropy analysis the maintainer asked for (its inferred answer: the entropy
+  bonus no direct driver, its role in when an onset happens untested) and the
+  comparison with r9 and the two looks at the running files; the process
+  departures; and the review, the next-step proposals and the maintainer's
+  decision D-D52. No T. rex stance is certified, and nothing trains on `main`.
+- **Decision D-D51's outcome and decision D-D52 recorded: the first T. rex
+  stance round on physics r10 read its line 1, a tail rail formed on r10 in
+  training; next, a CPU continuation screen of the entropy coefficient, its
+  criteria to be approved before any training** (the maintainer's requests and
+  decisions of 2026-10-27 23:59 UTC to 2026-10-28 19:30 UTC in the stance run
+  log; `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2,
+  `docs/CONSOLIDATION_PLAN_2026_09.md` §6). Records only. D-D51 is amended
+  with how the round was read: a second report-only snapshot of the running
+  files, each run's end noted from Drive while the maintainer slept, the final
+  fetch's inline transfers copied byte for byte by an exact-copy script after
+  a hand transcription was cut off (the fetch rules unchanged), and the
+  durable copy's first commit pushed to a never-merged orphan branch, each at
+  the maintainer's word; and with its outcome, final: all three runs complete,
+  line 1 ("TAIL RAIL FORMED ON r10 IN TRAINING (ledger)"), statistic A 2 of 3
+  against LTSB's r9 2 of 5 (one-sided Fisher p 0.93, nothing significant);
+  seed 60 parked its tail-tip actuator, seed 42 railed it at +1 and failed its
+  gate, and seed 80 passed its gate as the round's one positive run, its
+  alarms on the neck. An existence result, not a rate: r10 as shipped does not
+  prevent the tail rail (the review's inference from the wording of line 1).
+  D-D52: the next step is a CPU continuation screen from the round's own
+  checkpoints, the entropy coefficient as recorded against 0, its
+  pre-registration drafted and approved before any training (a training-loss
+  change for scratch continuations only), and this records change. Nothing
+  trains on `main`.
 - **Centre-of-mass stance regression tests: a stance that stands but leans,
   drifts toward a support edge, sags, turns or twists on its feet, splays or
-  rocks now fails** (tests and test helpers only; the maintainer's request of
-  2026-10-28; `environments/shared/tests/stance_track_helpers.py`,
+  rocks now fails** (#650; tests and test helpers only; the maintainer's
+  request of 2026-10-28; `environments/shared/tests/stance_track_helpers.py`,
   `com_stance_helpers.py`, `com_stance_calibration.py`,
   `test_stance_track_reduction.py` and a `test_com_stance_quality.py` in each
   species' tests directory). The static-balance tests read the CoM at the home
@@ -57,9 +109,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   observation, policy interface or digest changes.
 - **The first T. rex stance round on physics r10 recorded as set up, approved
   and launched, results pending, with the report-only telemetry built for it
-  and walking pilot 2's retirement** (decisions D-D45 to D-D51; the appended
-  §26 of `docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md`, with
-  a dated status note at its top; `docs/NEXT_STEPS.md` §3,
+  and walking pilot 2's retirement** (#647; decisions D-D45 to D-D51; the
+  appended §26 of
+  `docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md`, with a
+  dated status note at its top; `docs/NEXT_STEPS.md` §3,
   `docs/KNOWN_ISSUES.md` (Update 21 of the T-Rex stance entry and two dated
   updates), a dated note in §17 of `docs/GAIT_QUALITY_PLAN_2026_09.md` and its
   header, `docs/README.md`; evidence in `stance6_setup/` of
@@ -83,8 +136,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   them), each passing its configuration-only launch check. The runs are
   training: no result is recorded, and nothing trains on `main`.
 - **A compact K3 extract of the five band runs' judge files, read by the
-  training-history report's judge-K3 readout** (the maintainer's decision of
-  2026-10-25 17:42 UTC in the stance run log, D-D46;
+  training-history report's judge-K3 readout** (#647; the maintainer's
+  decision of 2026-10-25 17:42 UTC in the stance run log, D-D46;
   `docs/investigations/stance_2026_10/stance5/k3extract/`,
   `environments/shared/tests/test_training_history.py`). The readout
   (`plot_training_history.py --judged`) reads a run's judge files, which
@@ -104,8 +157,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Decisions D-D45 to D-D51 recorded: walking pilot 2 retired; report-only
   telemetry, no MuJoCo sensor and an in-run K3 panel for the first T. rex
   stance round on physics r10; that round's design, its all-or-nothing run
-  handling, its approval and its launch** (the maintainer's decisions of
-  2026-10-25 to 2026-10-27 in the stance run log;
+  handling, its approval and its launch** (#647; the maintainer's decisions
+  of 2026-10-25 to 2026-10-27 in the stance run log;
   `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2, `docs/CONSOLIDATION_PLAN_2026_09.md`
   §6). Records only. D-D45: walking pilot 2 (D-D36, physics r9, never
   launched) is retired, a new pilot to be designed once r10 has a stance
@@ -2278,7 +2331,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   verdicts with the gate they were earned under.
 
 ### Changed
-- **The development version is `0.4.0.dev2`** (`pyproject.toml`; the
+- **The development version is `0.4.0.dev2`** (#647; `pyproject.toml`; the
   maintainer's decision of 2026-10-25 20:13 UTC in the stance run log: bump
   it once the current work is done, as #619 did, carried by the next records
   change). Every run records the package version in its provenance
