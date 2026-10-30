@@ -1,0 +1,218 @@
+TAIL-HABIT RECORD: UPDATE (normaliser probe result and posture tests)
+Written 2026-10-29, 22:39-23:05 UTC, by the record editor of workflow [id removed] (RUNLOG l757).
+Read only, except in-place edits to scratchpad2/tail_record/draft/ (TREX_TAIL_SATURATION_HABIT.md and
+ledger.csv) and the files in this folder (scratchpad2/tail_record/update/). No training, no simulation,
+no network, no Drive, no GitHub.
+
+scratchpad/  = /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad
+scratchpad2/ = /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad
+RUNLOG = scratchpad/foot/stance4/live/run_log.txt (757 lines when read; l754-l757 are new since the draft).
+
+SOURCES (all read in full before editing; short names as now defined in the record's short-name table)
+  PROBE   scratchpad2/com_revisit/notes/probe/NOTES.txt          (271 lines, ~20:30 UTC)
+  VPROBE  scratchpad2/com_revisit/notes/verify_probe/NOTES.txt   (262 lines, ~21:25 UTC)
+  PTIME   scratchpad2/com_revisit/notes/posture_timing/NOTES.txt (401 lines, ~20:20 UTC); also bank_drive.txt
+  PPOL    scratchpad2/com_revisit/notes/posture_policy/NOTES.txt (277 lines, final ~22:05 UTC)
+  VPOST   scratchpad2/com_revisit/notes/verify_posture/NOTES.txt (239 lines, ~22:40 UTC)
+  RUNLOG  l751-l757
+
+FILES
+- draft/TREX_TAIL_SATURATION_HABIT.md: 1,457 -> 1,863 lines; sha256 after 9e47caa9...
+  (before 517c5a91..., kept here as TREX_TAIL_SATURATION_HABIT.pre_update.md).
+- draft/ledger.csv: 156 -> 167 rows; 7 existing rows edited; sha256 after 8b91f790...
+  (before a87e885e..., kept here as ledger.pre_update.csv).
+- apply_update.py: every edit below. It rebuilds both files from the pre-update copies; each record
+  replacement must match exactly once or nothing is written. Run as: python3 -B apply_update.py 23:01.
+- apply_update.log: the last run's list of applied edits.
+
+HOW THE VERIFIERS' VERDICTS WERE USED
+- Where a verifier CORRECTED a finding, the record gives the corrected claim, and the original reading
+  where it is useful, both in §8.3:
+  - VPROBE F2 (other tail dims x0.96-1.19, not up to x1.15; s80 rank 53 or 55): E11 (L157 row), E32, L157.
+  - VPROBE F7 (s80 tail-only swaps small, not null; s80 sweep clipped at 3.1-4.0 deg; -21.6 only ~22%
+    neck_posture): E11 (L159 row), E13, E32, L159.
+  - VPROBE F9 (fixed-weight effect only; the mean part raises the gain; "8/9 of 12 above 1" range-dependent
+    and out of distribution; near-linearity weak): E05, E11, E13, E14, E32, L158, L159.
+  - VPROBE F10 (x4.3-4.65 matched-range growth against x2.29, not x5.4): E05, E12, E14, E24, E32, L158.
+  - VPROBE's missed items (sweep range, tanh compression, s80 clip, mean part, out-of-distribution swaps,
+    interaction term -0.38): E11 (L159 row), E12, E13, E21, E31, E32, L159.
+  - VPOST T1-F1 (not "together": the tail first, hinge 1.204M, pitch +0.172M [0.074, 0.270]): E05, E11,
+    E15, E21, E23, E32, L161.
+  - VPOST T1-F2 (r10 s42 proportional order endpoint-dependent; lag-0 -0.42, lags +1/+3 -0.29/-0.26):
+    E11, E32, L161.
+  - VPOST T1-F11 (order: tail bias, nose-down, CoM, then pathway and loop): E11, E15, L161, L165.
+  - VPOST T2-2 (control not "<= 0.03": -0.026 / -0.052, per policy -0.270..+0.131; lineage-specific part
+    about -0.38): E05, E11, E15, E32, L162.
+  - VPOST T2-5 ("start" is mid-rise; pre-rise pathway +0.005, G -0.250; 2.10M -0.020, G -0.386; start_s80
+    transplant -0.206): E05, E11, E12, E15, E23, E32, L162, L164.
+  - VPOST T2-7 (an amplifier, not the origin; the omitted tail -> posture -> tail path ~-0.1): E11, E12,
+    E15, E32, L162, L165.
+  - VPOST's own measurements M1-M7: E05, E07, E11 (L164 row), E12, E15, E21, E23, E25, L164.
+  - Smaller numeric differences the verifier reported as CONFIRMED (F3, F4 magnitudes about 2/3, F6, T2-1
+    -0.163, T2-6, T3-1, T3-2): given beside the tests' numbers in E11, E15, E32 and the ledger rows.
+- Where a verifier left a claim UNCHECKED, the record says so wherever the claim appears:
+  - VPOST T1-F8 (r9 b60 more nose-down): E11 (L161 row), E15, E25, L161, L165.
+  - VPOST T1-F10 (start-checkpoint clamp: ~3/4 of the pitch shift persists), with VPOST's supporting
+    evidence at s42_A_1111: E11 (L161 row), E15, E25, L161.
+  - VPOST T3-3 (pure rotation), and T3-1/T3-2's static torques, hold commands, term split and gyro:
+    E11 (L163 row), E15, E25, L163.
+  - VPOST M7: every r9 claim (F2 r9, F3 r9, F5 r9 s60, stance4 ordering); test 2's gravity-only arm and
+    20 s check: E11 (L161, L162 rows), E15, E25, L161, L162.
+- Labels: [measured] for the tests' and verifiers' measurements; [inferred] where the source marks a
+  reading as inferred (PROBE §6, PPOL's closing reading, VPOST T2-7 and M3, the hypothesis status) or
+  where this record draws a lesson.
+
+RECORD EDITS (draft/TREX_TAIL_SATURATION_HABIT.md)
+E01  Status block. Added the "Updated at about 23:01 UTC" paragraph: what is now included (the probe,
+     §3.6/§4.8, L152/L157-L159; the posture tests, §3.6/§4.11, L160-L165), how verifier verdicts are used,
+     which sections changed, and that the additions await the update workflow's fact checker. Removed the
+     placeholder paragraph (first @@PROBE@@). Ledger paragraph: 156 -> 167 rows, L157-L167 added by the
+     update. Sources: RUNLOG l751-l752, l754, l757; this file.
+E02  "How to read": the run log had 753 lines at drafting and 757 now; scratch-only lines 721-757 (to
+     22:39 UTC). Source: RUNLOG (wc -l 757; l757 timestamp).
+E03  Short-name table: PROBE, VPROBE; PTIME, PPOL, VPOST. Sources: the five folders.
+E04  §1.1 history in brief: a "2026-10-29, evening" bullet (probe: growth in the weights; posture:
+     learned amplifier from mid-rise, no mechanical push, tail first). Sources: PROBE l11-45; PPOL l19-61;
+     VPOST l10-31.
+E05  §2 Known: two bullets, "The loop's growth is in the weights, not in the normaliser" (scale 0.437,
+     2x2 0.268 -> 0.141 / 0.630 -> 1.143, L2 and output layer, x4.3-4.65, added frames +2.77..+3.89 deg)
+     and "From mid-rise on, the s42 networks read their posture as a tail offset" (-0.157/deg, transplant
+     about -0.38 of ~0.40, illusion 0.671 -> 0.154, plant identical, tail first at ~1.20M, pre-rise
+     G -0.250, s60 opposite). Sources: PROBE l14-39, l75-82, l133-158; VPROBE l14-51, F4, F9; PPOL l21-55;
+     VPOST l10-31, T2-2, T2-5, F1, M1, M2.
+E06  §2 Ruled out or narrowed: "Normaliser drift as the source of the loop's growth, at fixed weights"
+     and "A body position that comes first and pulls the tail up". Sources: as E05; PTIME l16-64; PPOL
+     l165-213.
+E07  §2 Open: the growth sits downstream of the first layer; new bullet "What changed in the policy at
+     about 1.2M". Sources: PROBE l35-39; VPOST l10-31, M1, M3.
+E08  §2 Open: the normaliser bullet now asks whether the drift shaped training (second @@PROBE@@
+     replaced). Sources: PROBE l210-215, l220-227; VPROBE F9, F10.
+E09  §3.6 heading adds "and the posture tests"; sources now run log 717-757 and PROBE, VPROBE, PTIME,
+     PPOL, VPOST.
+E10  §3.6 L152 row: When 18:19-20:30 UTC; What "design and run"; Design: the tail_3-only swap was added
+     as a closed-loop arm for s42, 20:10-20:20 UTC (was "not run in step 3"); Result: the third @@PROBE@@
+     and the pending text replaced by the run summary (times, 168 pickles, 146 checkpoints, 2,680 episodes,
+     520/520 baseline, VPROBE 460/460 and 73/73, answer "no: it rises", pointers to L157-L159); Verdict
+     pending -> adopted (as a method); Full record adds PROBE l1-10, l163-173, l244-271, VPROBE l1-11,
+     l53-96, RUNLOG l757. Sources: PROBE l163-173, l244-251; VPROBE l12-21, l53-96.
+E11  §3.6 new rows after L153, in order of completion: L160 (the maintainer's question, RUNLOG l754,
+     l756-757, PPOL l259-277), L161 (posture test 1, PTIME l11-98, l149-367, VPOST l65-136), L157 (probe
+     statistics, PROBE l62-93, l210-215, VPROBE l112-132, l164-168), L158 (probe gain split, swaps,
+     grafts, PROBE l11-45, l96-243, VPROBE l133-156, l170-232), L159 (VPROBE l1-262), L162 (posture test
+     2, PPOL l19-162, l215-231, VPOST l138-195), L163 (posture test 3, PPOL l47-55, l165-213, VPOST
+     l196-206), L164 (VPOST l1-239, PTIME bank_drive.txt l1-28).
+     The L160 row quotes the maintainer's words as this update's brief quotes them; RUNLOG l754 gives only
+     a summary ("asked whether the tail habit reflects a body positioning that encourages it"). The quote
+     has no file source beyond the brief, and the row says so.
+E12  §4.7: For gains "Where the growth sits" (PROBE l35-39, l151-158; VPROBE F4, F8) and "What feeds the
+     offset" (PPOL l27-32, l108-122); Against gains the measurement-dependence of a gain (VPROBE l233-247;
+     VPOST M6), "The positive loop is not where the habit started" (VPOST T2-5, M1, M2) and the omitted
+     tail -> posture -> tail path (VPOST T2-7); "Why the gain grows" now "Why training grew the weights";
+     Status adds what the probe and VPOST settled.
+E13  §4.8 For: the COMREV inference marked "untested then", tested by the probe; the probe confirms the
+     tail_3 drift ranking (PROBE l75-90). Against: a "normaliser probe" block (PROBE l81-82, l133-158,
+     l175-186, l114-118; VPROBE F7). New "Corrections to the probe" block (VPROBE F5, F9, F10, l233-247).
+E14  §4.8 Instruments: the swap mechanism and VPROBE's in-loop check (PROBE l166-170; VPROBE l143-156).
+     Status open -> "ruled out as the source of the gain's growth, at fixed weights; open as an influence
+     on training" (fourth @@PROBE@@ replaced). Sources: PROBE l184-186, l220-227; VPROBE F10.
+E15  New §4.11 "Body posture drives the tail": claim, For (L132; test 2 sweep, transplant, illusion,
+     cross-policy), Against (test 3 plant; test 1 timing with VPOST F1/F11/M3; VPOST M1 pre-rise; VPOST
+     M2 s60; not sufficient; s80; ECS lineage parting; r9 b60 unchecked), Status narrowed with the
+     unchecked list. Sources: PPOL l19-213; PTIME l16-98, l216-243, l299-336; VPOST l10-31, l65-230.
+E16  §5.2: five diagnostics (statistics swap, layer grafts, pitch illusion, posture transplant, held-posture
+     replay). Sources: PROBE l175-186, l151-158; PPOL l108-156, l197-213.
+E17  §6.1 new items 14 (a drifting normaliser is a record before it is a cause) and 15 (a posture can feed
+     a habit through what the policy sees; what amplifies late need not be where it began) [inferred].
+     Basis: L157-L164.
+E18  §6.2 item 8: the two verifiers changed readings again. Sources: VPROBE l12-51; VPOST l10-31.
+E19  §6.2 item 15 (what saved time): the probe and the posture tests added.
+E20  §6.2 item 16 (what cost time): the ~20:50 UTC container restart. Source: RUNLOG l756.
+E21  §6.2 new items 18 (probe before the rise; VPOST M1, F12) and 19 (give a timing or a share with its
+     method; VPOST F1, M6; VPROBE range dependence) [inferred].
+E22  §7 "Pending" -> "Done since the first draft" (fifth @@PROBE@@ replaced): the probe's answer (it rises,
+     0.632 -> 1.086 closed loop) and the posture tests' answer. Sources: PROBE l175-186; PPOL; VPOST.
+E23  §7 item 1: the earliest event is now a posture-independent tail bias at about 1.2M (tail_3 mean
+     1.20M; fixed observation rising by 1.3-1.6M; pitch ~0.17M later; pre-rise pathway absent and loop
+     negative, grown between 2.1M and 3.15M; the bank reads through each checkpoint's own normaliser);
+     the weights, not the normaliser, carry the gain growth. Sources: VPOST F1, F11, M1, M3; PROBE l35-39;
+     VPROBE F8.
+E24  §7 item 4: "Did the normaliser's drift shape training?" needs a frozen-statistics continuation (ECS
+     add-on N). Sources: PROBE l220-227; VPROBE F9, F10.
+E25  §7 new items 14 (s60's offset), 15 (pathway built because of posture?), 16 (claims left unchecked by
+     VPOST), 17 (posture variants never run). Sources: VPOST M2, M7; PPOL l56-61, l228-229; PTIME
+     l339-342.
+E26  §7 next steps heading: "none chosen beyond the probe and the posture tests".
+E27  §7 ECS add-ons: N is now the one test of whether the drift shaped training. Sources: PROBE l210-227.
+E28  §8.2 run log: 753 lines at drafting, 757 now.
+E29  §8.2 run-log table: 721-757 scratch only, adding the posture tests and the update's request
+     (RUNLOG l754-l757).
+E30  §8.2 scratch files: the probe row (was "running ... result pending") now names PROBE and VPROBE; new
+     rows for PTIME, PPOL, VPOST and the r10 F2 copies VPOST probed (VPOST l211-214, l235-236).
+E31  §8.3 "The loop gain" row: before 3,145,728 the r10 s42 loop was negative; sizes depend on range and
+     definition. Sources: VPOST T2-5, M1, M6; VPROBE l233-247.
+E32  §8.3: 15 new rows, each naming both readings: the share; "8/9 of 12 above 1"; Jz growth; the mean
+     part; s80's tail statistics and sweep (PROBE vs VPROBE F2, F4, F5, F7, F9, F10); when posture and
+     tail began; the r10 s42 lag correlation; the pathway's place; the transplant control; the start_s80
+     transplant; tail-up cost by posture; the ECS lineage's window posture; s60's main-rise posture; the
+     closed-loop railed share; the policy probe bank as an early signal (L070 against PTIME
+     bank_drive.txt l28 and VPOST M3).
+E33  §8.5 ledger description: L001-L167.
+E34  §8.5: the update's files (CHANGES.txt, apply_update.py, the pre-update copies; L157-L167 merged_from
+     U01-U11; build_ledger.py rebuilds none of them).
+
+All five @@PROBE@@ placeholders (status, §2, §3.6 L152 row, §4.8, §7) are replaced: E01, E08, E10, E14,
+E22. None remains in the record or the ledger.
+
+LEDGER EDITS (draft/ledger.csv; all fields quoted, CRLF, as before; unchanged rows byte-identical)
+LE01 L152: date "2026-10-29 18:19-20:30 UTC"; title "Tail normaliser probe: design and run (results in
+     L157-L159)"; verdict pending -> adopted; result appended "[update] Done ..." (PROBE l171-173,
+     l244-251; VPROBE l2, l16, l55); sources append PROBE l1-10, l163-173, l244-271, VPROBE l1-11, l53-96,
+     RUNLOG l756-757; where_in_record §2; §3.6; §4.8; §7.
+LE02 L151: result appended "[update] Done and verified: L152, L157-L159"; source RUNLOG l757.
+LE03 L104: verdict open -> narrowed (the fixed-weight question is answered, the training question is
+     not; §4.8's status); result appended the probe's answer; sources append PROBE l11-45, l202-231,
+     VPROBE l12-51, l212-232; where_in_record §2; §4.8; §7.
+LE04 L145: result appended the pre-rise gains (VPOST T2-5, M1) and the gain's dependence on range and
+     definition (VPROBE l233-247; VPOST M6); sources appended; where_in_record adds §8.3.
+     L146: result appended where the growth sits (PROBE), when the loop formed (VPOST M1) and s60 (M2);
+     sources appended; where_in_record §2; §4.7; §7.
+LE05 where_in_record only: L132 adds §4.11; L070 adds §8.3 (both newly cited there).
+LE06 New rows L157-L167 (merged_from U01-U11):
+     L157 probe, n/a, measured        normaliser statistics; drift follows the rail      PROBE §2, VPROBE F2
+     L158 probe, ruled out, measured  gain split, swaps, grafts; weights carry growth    PROBE §0, §3-7, VPROBE
+     L159 probe, adopted, measured    VPROBE: reproduction and corrections               VPROBE l1-262
+     L160 decision, adopted           the maintainer's posture question, workflow [id removed]  RUNLOG l754-757
+     L161 probe, ruled out, measured  posture test 1 (timing), with VPOST F1-F12         PTIME, VPOST l65-136
+     L162 probe, supported, measured  posture test 2 (pathway), with VPOST T2-1..T2-7     PPOL, VPOST l138-195
+     L163 probe, ruled out, measured  posture test 3 (plant), with VPOST T3-1..T3-3       PPOL, VPOST l196-206
+     L164 probe, adopted, measured    VPOST: M1-M7 (pre-rise, s60, bank, ...)            VPOST
+     L165 hypothesis, narrowed, inferred  H-POSTURE                                      L161-L164
+     L166 lesson, adopted, inferred   §6.1 items 14-15                                   L157-L165
+     L167 lesson, adopted, inferred   §6.2 items 18-19                                   L159, L161, L164
+     Each row's sources_disagree gives both readings where the test and its verifier differ.
+
+CHECKS RUN AFTER EDITING
+- Every L-id the record cites (ranges expanded) exists in ledger.csv, and every one of the 167 rows is
+  cited at least once.
+- Every new row's where_in_record lists exactly the sections that cite it (apart from the status block and
+  §8.5, which cite L157-L167 as a range); L163 and L165 were widened after the first check.
+- Every markdown table row has its table's column count. Repository links: 37 before, 37 after, none new.
+- ledger.csv: the csv writer reproduces the pre-update file byte for byte, so only the 7 edited rows and
+  the 11 new rows differ; line endings CRLF only.
+- No @@PROBE@@ in the record or the ledger.
+- Numbers: every number in the added record text and in the new and changed ledger text was searched for in
+  the five NOTES files, bank_drive.txt, RUNLOG l749-757 and the pre-update record. All 480 distinct numbers
+  were found except the section number 4.11 and the run log's line count 757 (wc -l). This shows that each
+  number exists in a source, not that it sits in the right context. The context was checked by hand while
+  writing, against the cited lines.
+
+NOT DONE, AND NOTES FOR THE FACT CHECKER
+- No new number was computed. Ranges such as "+2.77 to +3.89 deg" span values printed in the sources.
+- The record's §3.6 heading text changed (it now names the posture tests); any external anchor to it would
+  change.
+- build/build_ledger.py and build/part*.md were not touched. They rebuild none of the fixer's or the
+  update's edits.
+- §1.2 (detectors) was not changed. The policy probe bank's r10 reading as an early signal is recorded in
+  §8.3 only.
+- §4.2 (counterweight) and §4.9 (seed and lineage) were not changed. Test 1's pre-rise posture comparison
+  (r10 s42 more nose-up than s80 at 0.5-1.05M) bears on both and is cited in §4.11 and §3.6 only.

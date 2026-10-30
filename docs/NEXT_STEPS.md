@@ -634,6 +634,22 @@ coefficient from the round's own checkpoints, its criteria drafted and
 approved before any training. The decisions' full text is in
 [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2 and their record in
 §27 of the same record.*
+*2026-10-29: the entropy continuation screen of D-D52 was judged by its
+approved criteria, final: line 3, no difference detected (decision D-D52's
+amendment). From seed 42's mid-rise r10 checkpoint at 3.1M steps the tail-tip
+rail formed again in all 12 continuations, with the remaining entropy bonus or
+without it, and from seed 80's at 4.2M one of six per arm flagged, on the neck;
+the bonus's role in the first 3.1M steps is untested. The maintainer's
+decisions that followed (D-D53 to D-D55) asked for report-only work with no
+training (the centre-of-mass revisit with a tail clamp test, a normaliser probe
+and three posture tests) and one record of everything tried on the tail habit,
+[investigations/TREX_TAIL_SATURATION_HABIT_2026_10.md](investigations/TREX_TAIL_SATURATION_HABIT_2026_10.md);
+the centre-of-mass check on trained policies (CoM-P1) enters the next stance
+round's pre-registration as a report-only reading, with no gate change (D-D54
+(3)). These decisions choose no next round, and the screen certifies nothing,
+so the next T-Rex session above is still a fresh stance on physics r10. The
+decisions' full text is in [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md)
+§6.2 and their record in §28 of the same record.*
 
 *Note 2026-10-18 (decision D-D38): where §2, this section and §8 record
 `BEHAVIOR = "stand"` or a `stand` session, they give the setting as it was

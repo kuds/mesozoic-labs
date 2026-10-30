@@ -2,11 +2,11 @@
 
 Evidence for decisions D-D53 to D-D55
 ([BEHAVIOR_RECIPES_PLAN.md](../../../BEHAVIOR_RECIPES_PLAN.md) §6.2) and for
-`docs/investigations/TREX_TAIL_SATURATION_HABIT_2026_10.md` (§3.6, §4.7, §4.8
-and §4.11), where each folder's short name is given below. Three no-training
-experiments on the T. rex tail saturation habit, each run by one agent and
-checked by an adversarial verifier with its own code, on the 24 end policies
-of the entropy continuation screen
+[TREX_TAIL_SATURATION_HABIT_2026_10.md](../../TREX_TAIL_SATURATION_HABIT_2026_10.md)
+(§3.6, §4.7, §4.8 and §4.11), where each folder's short name is given below.
+Three no-training experiments on the T. rex tail saturation habit, each run
+by one agent and checked by an adversarial verifier with its own code, on
+the 24 end policies of the entropy continuation screen
 ([`../ecs_results/`](../ecs_results/README.md)), their two start checkpoints
 (`stance6_r10LTSB_s42` at 3,145,728 steps and `_s80` at 4,194,304) and, for
 the posture tests, the first r10 round's local checkpoints and records.

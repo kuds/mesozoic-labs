@@ -308,6 +308,18 @@
 # the larger JSON and JSONL outputs (their .txt renderings are kept, or they are per-episode or per-state), and the
 # targets, creep and design lenses with their verifiers.  com_revisit/README.md and tail_probes/README.md have no
 # source.
+# Added 2026-10-29, latest (tail_record/): the ledger, merge map and checks of the record of everything tried on the T.
+# rex tail saturation habit (docs/investigations/TREX_TAIL_SATURATION_HABIT_2026_10.md, decision D-D55).  No new kind of
+# change.  The sources are in the second scratch root, below scratchpad2/tail_record/: tail_record/ledger.csv is
+# draft/ledger.csv and tail_record/build_ledger.py is draft/build/build_ledger.py; the other files keep their paths
+# (fix/, update/, update_check/).  redact: 7 workflow run ids in ledger.csv, 2 in update/CHANGES.txt and 2 in
+# update_check/FIXES.txt (each after the word 'workflow', or a bare one becoming 'workflow [id removed]').  lineends (as
+# defined above): ledger.csv's 168 CRLF line ends made LF; no field holds a line break.  The other four copies are
+# byte-identical, absolute session-scratch and checkout paths included.  Not copied: the three source sweeps
+# (sweep_repo/, sweep_session/ and sweep_today/entries.json), the fixer's and the update's edit scripts, the pre-fix,
+# pre-update and pre-check copies of the draft and the ledger, the check's diff and row extract, and the draft itself,
+# which the note replaces (its sha256, 1f1e7bdd2c7959a5df78a328c3360b3dad1b6c60725c6554b2a187cdf5d58fc7, and the edits
+# that made the note are in tail_record/README.md).  tail_record/README.md has no source.
 
 audit/foot_ankle_audit.md foot/audit_2026_10_17/foot_ankle_audit.md e9da4ef84be17a87b70096d1e2aede87609ad22f446b10786f9e14d5064725c8 prefix
 audit/geometry/geometry_audit.json foot/audit_2026_10_17/geometry/geometry_audit.json 934110bec337b9693f894800efb309bf1a9529ae87f91f129bfefc8fef5b650a prefix,whitespace
@@ -1664,6 +1676,13 @@ tail_probes/verify_posture/vt1b_onset.py scratchpad2/com_revisit/notes/verify_po
 tail_probes/verify_posture/vt1b_onset.txt scratchpad2/com_revisit/notes/verify_posture/vt1b_onset.txt a7db99b425361093c529ab94f3a1226d99f7eac42e39fefeaa0dfe759ad689c6 none
 tail_probes/verify_posture/vt1c_boot_ecs.py scratchpad2/com_revisit/notes/verify_posture/vt1c_boot_ecs.py 246f23473c12d26eb0f4e24652a3518ab17451bc206e5f590db7f3482dde7949 none
 tail_probes/verify_posture/vt1c_boot_ecs.txt scratchpad2/com_revisit/notes/verify_posture/vt1c_boot_ecs.txt 6956af105d28e32896d0ba46acb9e6d8a6d584504f2ef59d5c85b21f13305cb7 none
+tail_record/build_ledger.py scratchpad2/tail_record/draft/build/build_ledger.py 904320de7b0d15a20e7bf21e38da8d57bc4c6438f7e89cbd5bc00d402f26a812 none
+tail_record/fix/FIXES.txt scratchpad2/tail_record/fix/FIXES.txt 48ed06f6d9e6297b304ae4b3eba40b674d3d82f59d6edc891538c544a0450fd4 none
+tail_record/fix/numcheck.py scratchpad2/tail_record/fix/numcheck.py b31836ef454f32682a0c335b7842aa6da5d3d81ee959e2687f2a0db3f6b039ea none
+tail_record/ledger.csv scratchpad2/tail_record/draft/ledger.csv ebe524e53e2a3a041b78afe0b23638dc0ad59e27c39ac8c2d1147ee8515e6ad6 redact,lineends
+tail_record/update/CHANGES.txt scratchpad2/tail_record/update/CHANGES.txt 3818ca6086fcbc2ecc92d7a40d2ed308a8bd0c7f94f8d0f05689e6276b3dc9a5 redact
+tail_record/update_check/FIXES.txt scratchpad2/tail_record/update_check/FIXES.txt cc1529ee02c1263ad901e2559486e96bbe6c51bcc18a2aaa3ea00df573203173 redact
+tail_record/update_check/check_cites.py scratchpad2/tail_record/update_check/check_cites.py d927993d6621c223c4168bc2e4065e3f5e6bb2085d220ddff1f30a9e8b60b2f7 none
 telemetry/posture_drift_replay.json foot/meanwhile/verify_fix/out/replay_real.json 43dbf59a4c627db053c68da2846ace61232ca78658180e7fa534ed7e82b97a43 whitespace
 
 # Not copied: the per-episode certificate files behind offline_certificates/ and battery/fresh_seeds/ (about

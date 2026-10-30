@@ -451,6 +451,13 @@ pre-commit run: 12 JSON files without a final newline, 5 files ending in a
 blank line and 6 with lines ending in spaces (each README names its own). No
 copy holds a model identifier, an email address or a commit trailer.
 
+*Added 2026-10-29, latest (`tail_record/`):* no new kind of change.
+`tail_record/ledger.csv` carries **redact** (7 workflow run ids) and
+**lineends** (its 168 CRLF line ends, as Python's `csv` module writes them,
+made LF); `update/CHANGES.txt` and `update_check/FIXES.txt` carry **redact**
+(2 workflow run ids each); the other four copies are byte-identical. No copy
+holds a model identifier, an email address or a commit trailer.
+
 [SHA256SUMS](SHA256SUMS) pins every file here but this README and itself
 (`sha256sum -c SHA256SUMS` in this directory). *Added 2026-10-19:* nor
 `stance3/results/README.md`, which, like this README, has no source.
@@ -465,6 +472,7 @@ copy holds a model identifier, an email address or a commit trailer.
 *Added 2026-10-28:* nor `stance6_results/README.md`, likewise.
 *Added 2026-10-29:* nor `ecs_results/README.md`, likewise.
 *Added 2026-10-29, later still:* nor `com_revisit/README.md` and `tail_probes/README.md`, likewise.
+*Added 2026-10-29, latest:* nor `tail_record/README.md`, likewise.
 
 ## Contents
 
@@ -1509,6 +1517,16 @@ centre-of-mass shift came before the tail rose, and the railed lineage's
 networks read their posture as a tail offset from mid-rise on. Exploratory and
 report only. Its [README](tail_probes/README.md) indexes it.
 
+### Added on 2026-10-29, latest (decision D-D55: the tail-habit record's ledger)
+
+**`tail_record/`: the ledger of
+[TREX_TAIL_SATURATION_HABIT_2026_10.md](../TREX_TAIL_SATURATION_HABIT_2026_10.md),
+one record of everything tried on the T. rex tail saturation habit (167
+rows, L001 to L167), with its merge map and the record's checks (the fixer's
+record and number check, the update's changes and its fact check).** Its
+[README](tail_record/README.md) holds the record's build notes, among them
+each edit that made the repository note from the session draft.
+
 ## How to re-check each verdict
 
 Commands as run on 2026-10-17 from a copy of this directory (Python 3.13;
@@ -1618,6 +1636,8 @@ copies.
 | The clamp test's loop gain (2026-10-29, later still) | `head -49 tail_probes/verify_clamp/loop_summary.txt` | the s42 ends' loop gain median +0.630 (range +0.480 to +0.910, positive in 12 of 12), start_s42 +0.268, the s80 ends' median -0.255 |
 | The copies against their sources (2026-10-29, later still; session scratch only) | `sha256sum` of each source SOURCES.txt names for `com_revisit/` and `tail_probes/` | equal to the sha256 given, and to the copy's for all but `com_revisit/REPORT.txt` |
 | The files themselves (2026-10-29, later still, with `com_revisit/` and `tail_probes/`) | `sha256sum -c SHA256SUMS` | all 1357 files OK |
+| The record's ledger (2026-10-29, latest) | `python3 -c "import csv; r = list(csv.DictReader(open('tail_record/ledger.csv', newline=''))); print(len(r), r[0]['id'], r[-1]['id'])"` | `167 L001 L167` |
+| The files themselves (2026-10-29, latest, with `tail_record/`) | `sha256sum -c SHA256SUMS` | all 1364 files OK |
 
 `test_pilot_score.py` prints sample "Walking pilot score" blocks while it runs;
 they score synthetic panels, not the pilot.

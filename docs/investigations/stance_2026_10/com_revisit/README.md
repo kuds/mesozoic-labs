@@ -2,17 +2,17 @@
 
 Evidence for decisions D-D53 and D-D54
 ([BEHAVIOR_RECIPES_PLAN.md](../../../BEHAVIOR_RECIPES_PLAN.md) §6.2) and for
-`docs/investigations/TREX_TAIL_SATURATION_HABIT_2026_10.md`, where
-`REPORT.txt` is COMREV, `policies/` POL and `verify_policies/` VPOL. After the
-entropy continuation screen's reading
+[TREX_TAIL_SATURATION_HABIT_2026_10.md](../../TREX_TAIL_SATURATION_HABIT_2026_10.md),
+where `REPORT.txt` is COMREV, `policies/` POL and `verify_policies/` VPOL.
+After the entropy continuation screen's reading
 ([`../ecs_results/`](../ecs_results/README.md)) the maintainer took up the
 centre-of-mass follow-up parked on 2026-10-28 (D-D53): four lenses on a
 scratch clone of `main` at `378ae2f8`, with an adversarial verifier for each
-measured lens, simulation only, no training; then, at the maintainer's answers
-of 17:28 UTC (D-D54), a scan of two more models for the Compsognathus robot's
-creep. Exploratory and report only: nothing here is pre-registered, and
-nothing changes a gate, reward, plant or criterion. The tail clamp test, which
-`REPORT.txt` §4 reports, is in [`../tail_probes/`](../tail_probes/README.md).
+measured lens, simulation only, no training; then, at the maintainer's
+answers of 17:28 UTC (D-D54), a scan of two more models for the Compsognathus
+robot's creep. Exploratory and report only: nothing here is pre-registered,
+and nothing changes a gate, reward, plant or criterion. The tail clamp test,
+which `REPORT.txt` §4 reports, is in [`../tail_probes/`](../tail_probes/README.md).
 
 [SOURCES.txt](../SOURCES.txt) lists each file's source, its sha256 and the
 changes the copy made; [SHA256SUMS](../SHA256SUMS) pins them (every file of

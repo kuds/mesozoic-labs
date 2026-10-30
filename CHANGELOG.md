@@ -8,6 +8,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **One record of everything tried on the T. rex tail saturation habit, with
+  the entropy continuation screen judged, final: line 3, no difference
+  detected** (decision D-D52's amendment and D-D53 to D-D55;
+  `docs/investigations/TREX_TAIL_SATURATION_HABIT_2026_10.md`, with its
+  ledger, and the appended §28 of
+  `docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md`, with a dated
+  status note at its top; `docs/NEXT_STEPS.md` §3, `docs/KNOWN_ISSUES.md`
+  (Update 23 of the T-Rex stance entry and a dated update to the
+  action-saturation entry), `docs/README.md`; evidence in `ecs_results/`,
+  `com_revisit/`, `tail_probes/` and `tail_record/` of
+  `docs/investigations/stance_2026_10/`: the run log's lines 721 to 759, the
+  screen's approved criteria, approval, tools, run records, reading and two
+  independent checks, the centre-of-mass revisit's report with its checks on
+  trained policies and the creep scan, the tail clamp test, the normaliser
+  probe and the three posture tests, each with its verifier's notes, and the
+  record's ledger and checks). Records only. The note, written at the
+  maintainer's request and fact-checked before it was put here, gathers in one
+  place what the records hold on the habit from 2026-07-09 to 2026-10-29: what
+  it is (a policy command held at its bound, almost always the tail-tip pitch
+  actuator at +1, not a saturated joint or motor) and how it is detected; where
+  it stands; every observation, change, probe, screen and round in date order,
+  each a row of a 167-row ledger; the evidence for and against each candidate
+  cause; the interventions; lessons learned; and the open questions and the
+  next steps already proposed, none chosen. The screen continued two of the
+  first r10 round's checkpoints with the entropy coefficient as recorded
+  against 0, 24 CPU continuations: seed 42's railed in all 12, one of seed 80's
+  six per arm flagged on the neck, and removing the remaining bonus from these
+  mid-rise states changed nothing it could detect. The report-only work that
+  followed it, none of which trained, found the rail no balance aid, costing
+  reward and persisting through a learned positive feedback from the observed
+  tail angle to the tail command, whose growth sits in the network's weights
+  rather than in the observation normaliser's drift; and no nose-down or
+  forward centre-of-mass shift before the tail rose, though from mid-rise on
+  the railed lineage's networks read their nose-down posture as a tail offset.
+  No T. rex stance is certified, and nothing trains on `main`.
 - **Decision D-D52's design and outcome and decisions D-D53 to D-D55 recorded:
   the entropy continuation screen read its line 3, no difference detected;
   next, the centre-of-mass follow-ups with a tail clamp test, a normaliser
