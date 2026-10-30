@@ -1,0 +1,68 @@
+LEDGER EVENTS (my own reduction).  FOB = first eval with a tail actuator named over the bar in >= 1 episode.
+run          n_eval       FOB     FOBt3   cmd>=.3   cmd>=.6   cmd>=.9  maxCMD        at  nTOB ECS: FOB after S
+s42              91   3670016             2883584   3407872   3670016  +1.000   4587520   249          3670016
+s60              91   8126464             6422528   6946816      None  +0.894   8650752    24          8126464
+s80              91      None             9830400  11796480      None  +0.616  11796480     0             None
+s42_A_1101       36   3407872             3276800   3276800   3538944  +1.000   4718592    75          3407872
+s42_A_1111       36   3538944             3276800   3407872   3670016  +0.990   4587520    76          3538944
+s42_A_1121       36   3407872             3276800   3276800   4063232  +0.994   4587520    43          3407872
+s42_A_1131       36   3538944             3276800   3276800   3670016  +0.989   4718592    65          3538944
+s42_A_1141       36   3538944             3276800   3276800   3801088  +0.986   4718592    64          3538944
+s42_A_1151       36   3801088             3276800   3276800   3801088  +0.971   4063232    31          3801088
+s42_B_1201       36   3801088             3276800   3276800   4063232  +0.973   4456448    50          3801088
+s42_B_1211       36   3670016             3276800   3407872   4194304  +0.947   4194304    41          3670016
+s42_B_1221       36   3801088             3276800   3407872   4194304  +0.977   4325376    56          3801088
+s42_B_1231       36   3670016             3276800   3276800   3801088  +0.963   4456448    44          3670016
+s42_B_1241       36   3670016             3276800   3276800   4063232  +0.975   4718592    51          3670016
+s42_B_1251       36   3538944             3276800   3276800   3932160  +0.986   4456448    55          3538944
+s80_A_1301       44      None                None      None      None  +0.096   5373952     0             None
+s80_A_1311       44      None                None      None      None  +0.093   3407872     0             None
+s80_A_1321       44      None                None      None      None  +0.093   3407872     0             None
+s80_A_1331       44      None                None      None      None  +0.093   3407872     0             None
+s80_A_1341       44      None                None      None      None  +0.093   3407872     0             None
+s80_A_1351       44      None                None      None      None  +0.093   3407872     0             None
+s80_B_1401       44      None                None      None      None  +0.165   5767168     0             None
+s80_B_1411       44      None                None      None      None  +0.093   3407872     0             None
+s80_B_1421       44      None                None      None      None  +0.093   3407872     0             None
+s80_B_1431       44      None                None      None      None  +0.093   3407872     0             None
+s80_B_1441       44      None                None      None      None  +0.093   3407872     0             None
+s80_B_1451       44      None                None      None      None  +0.093   3407872     0             None
+
+CMD_L at selected r10 steps (ledger):
+  s42 2.88M:+0.328 3.15M:+0.560 6.29M:+0.282 6.42M:+0.171 7.34M:+0.701 9.83M:+0.980 10.49M:+0.986 11.53M:+0.840 11.80M:+0.853
+  s60 2.88M:+0.016 3.15M:+0.016 6.29M:+0.269 6.42M:+0.339 7.34M:+0.653 9.83M:+0.782 10.49M:+0.839 11.53M:+0.599 11.80M:+0.721
+  s80 2.88M:+0.082 3.15M:+0.079 6.29M:+0.179 6.42M:+0.180 7.34M:+0.117 9.83M:+0.317 10.49M:+0.432 11.53M:+0.525 11.80M:+0.616
+
+PROBE statue_settled tail_3 raw mean, 8-row trailing mean (every 8,192 steps)
+  s42: rows 1465; max trailing pre-FOB +0.267 at 2981888; whole-run max +0.267; raw max +0.276
+     thr 0.100: first 1523712  lead 2.146304
+     thr 0.120: first 1966080  lead 1.703936
+     thr 0.140: first 2154496  lead 1.51552
+     thr 0.150: first 2244608  lead 1.425408
+     thr 0.160: first 2269184  lead 1.400832
+     thr 0.176: first 2359296  lead 1.31072
+     thr 0.180: first 2375680  lead 1.294336
+     thr 0.186: first 2400256  lead 1.26976
+     after crossing 0.15 at 2244608: first back below 0.05 at 3760128
+  s60: rows 1465; max trailing pre-FOB +0.176 at 3973120; whole-run max +0.176; raw max +0.182
+     thr 0.100: first 2949120  lead 5.177344
+     thr 0.120: first 3080192  lead 5.046272
+     thr 0.140: first 3653632  lead 4.472832
+     thr 0.150: first 3670016  lead 4.456448
+     thr 0.160: first 3702784  lead 4.42368
+     thr 0.176: first 3973120  lead 4.153344
+     thr 0.180: first None  lead None
+     thr 0.186: first None  lead None
+     after crossing 0.15 at 3670016: first back below 0.05 at 5169152
+  s80: rows 1465; max trailing pre-FOB +0.104 at 2785280; whole-run max +0.104; raw max +0.110
+     thr 0.100: first 2768896  lead None
+     thr 0.120: first None  lead None
+     thr 0.140: first None  lead None
+     thr 0.150: first None  lead None
+     thr 0.160: first None  lead None
+     thr 0.176: first None  lead None
+     thr 0.180: first None  lead None
+     thr 0.186: first None  lead None
+  ECS s80 after S: max trailing +0.122 (s80_B_1411); per run s80_B_1411:+0.122 s80_A_1331:+0.109 s80_B_1401:+0.109 s80_A_1351:+0.105
+  ECS s42 after S: trailing max range +0.221..+0.254
+  ECS s42_A_1101 rows at or before S: 384, max |diff| vs r10 s42 probe 0.00e+00

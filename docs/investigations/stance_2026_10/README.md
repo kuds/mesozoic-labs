@@ -466,6 +466,18 @@ both) and **redact** (16 workflow run ids, 9 distinct, 3 scheduled-task ids,
 `MORNING_REPORT.md` is byte-identical. No copy holds a model identifier, an
 email address or a commit trailer.
 
+*Added 2026-10-30, later (`overnight_probes/`):* no new kind of change.
+Every copy is byte-identical to its source, absolute session-scratch paths
+included, but `warning_r9/wr9_apply.py`, a **gzip** copy: it uses a nested
+f-string with the same quotes, which Python 3.11 cannot parse, and
+`test_policy_loading.py` parses every Python file under `docs/` on each
+Python version CI runs. None held a session tool id. Each notes folder keeps
+its top-level text files, run markers and small JSON and JSONL outputs, as
+its README states. Kept as their sources have them, so to leave out of a
+manual pre-commit run: 11 JSON files without a final newline, 2 files ending
+in a blank line and 8 with lines ending in spaces (the README names them).
+No copy holds a model identifier, an email address or a commit trailer.
+
 [SHA256SUMS](SHA256SUMS) pins every file here but this README and itself
 (`sha256sum -c SHA256SUMS` in this directory). *Added 2026-10-19:* nor
 `stance3/results/README.md`, which, like this README, has no source.
@@ -482,6 +494,7 @@ email address or a commit trailer.
 *Added 2026-10-29, later still:* nor `com_revisit/README.md` and `tail_probes/README.md`, likewise.
 *Added 2026-10-29, latest:* nor `tail_record/README.md`, likewise.
 *Added 2026-10-30:* nor `critic_blind_results/README.md`, likewise.
+*Added 2026-10-30, later:* nor `overnight_probes/README.md`, likewise.
 
 ## Contents
 
@@ -1549,6 +1562,19 @@ the landings of #653 and #654; the overnight report is the one the
 maintainer read before choosing the second screen. Its
 [README](critic_blind_results/README.md) names the decision entries.
 
+### Added on 2026-10-30, later (decision D-D56: the overnight probes)
+
+**`overnight_probes/`: the early-bias probe, the early-warning curve and its
+two follow-ups, each with its adversarial verifier (162 files, about 1.3
+MB).** Only the policy-gradient term moves the tail command's mean; just
+after seed 42's onset a push on `tail_3` carried by its own exploration
+noise is already there, and from mid-rise on the critic's bootstrapped value
+is its source. The tail loop turns positive one checkpoint before the first tail
+over-bar episode in s42 and s60, but late s80 reaches the same loop state
+with none, and the one warning signal testable on the five r9 runs fails
+there. Exploratory and report only. Its [README](overnight_probes/README.md)
+indexes it.
+
 ## How to re-check each verdict
 
 Commands as run on 2026-10-17 from a copy of this directory (Python 3.13;
@@ -1664,6 +1690,9 @@ copies.
 | The run-log copies against each other (2026-10-30) | `tail -1 ecs_results/run_log.txt` and `head -1 critic_blind_results/run_log.txt` | the entries timed 23:21 UTC and 23:47 UTC on 2026-10-29, the source's lines 759 and 760: no gap and no line in both |
 | The overnight report against the first screen's durable copy (2026-10-30; needs the durable branch) | `git show cfed2c70:FOR_THE_MAINTAINER.md` of `claude/handoff-bias-screen` against `critic_blind_results/MORNING_REPORT.md` | equal but for the copy's §4 last bullet (two lines), written after that push |
 | The files themselves (2026-10-30, with `critic_blind_results/`) | `sha256sum -c SHA256SUMS` | all 1366 files OK |
+| The margin-to-rail test's margins (2026-10-30, later) | `sed -n 20,26p overnight_probes/warning_margin/wm_analyze.txt` | s80 0.516, 0.328 and 0.297 (10.49M, 11.53M, 12.00M), s60 0.703 and 0.203 (6.29M, 7.34M), s42 1.094 and 0.281 (2.10M, 3.15M), 20 seeds each: the values the run log's entry timed 04:40 UTC gives |
+| The copies against the first screen's durable copy (2026-10-30, later; needs the durable branch) | `git show cfed2c70:SHA256SUMS` of `claude/handoff-bias-screen` (its `overnight_probes/` lines) against the source sha256 SOURCES.txt gives each `overnight_probes/` row | equal for all 162 |
+| The files themselves (2026-10-30, later, with `overnight_probes/`) | `sha256sum -c SHA256SUMS` | all 1528 files OK |
 
 `test_pilot_score.py` prints sample "Walking pilot score" blocks while it runs;
 they score synthetic panels, not the pilot.

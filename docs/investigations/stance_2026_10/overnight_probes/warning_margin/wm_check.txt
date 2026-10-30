@@ -1,0 +1,20 @@
+ctor env_kwargs: {"forward_vel_weight": 0.0, "backward_vel_penalty_weight": 0.0, "drift_penalty_weight": 0.3, "spin_penalty_weight": 0.1, "speed_penalty_weight": 0.3, "speed_penalty_threshold": 0.1, "alive_bonus": 1.0, "foot_contact_gate": 0.0, "foot_contact_weight": 0.0, "bilateral_support_weight": 0.6, "foot_contact_saturation_force": 350.0, "foot_load_balance_weight": 0.3, "foot_load_balance_min_support_force": 42.0, "foot_load_balance_airborne_penalty": 0.3, "action_jerk_weight": 3.0, "support_conditioned_alive_fraction": 0.5, "leg_home_pose_weight": 1.0, "leg_home_pose_tolerance": 0.05, "leg_home_pose_broad_fraction": 0.25, "leg_home_pose_broad_scale": 6.0, "foot_flatness_weight": 0.15, "foot_flatness_tolerance_deg": 3.0, "stance_width_weight": 0.1, "stance_width_tolerance_m": 0.05, "stance_width_reference": "settled", "stance_width_settle_steps": 200, "foot_terms_min_support_force": 168.0, "floor_impact_weight": 2.0, "floor_impact_threshold_bw": 1.4, "airborne_substep_weight": 1.0, "action_penalty_source": "raw", "tail_home_pose_weight": 0.25, "tail_home_pose_tolerance": 0.05, "action_saturation_weight": 0.5, "action_saturation_threshold": 0.9, "head_clearance_weight": 0.35, "head_clearance_target": 0.9, "head_clearance_tolerance": 0.15, "neck_posture_weight": 0.2, "neck_posture_tolerance": 0.35, "neck_posture_reference": "settled", "energy_penalty_weight": 0.075, "tail_stability_weight": 0.15, "posture_weight": 1.5, "nosedive_weight": 1.5, "nosedive_termination_threshold": 0.503, "smoothness_weight": 2.0, "heading_weight": 0.1, "gait_symmetry_weight": 0.0, "height_weight": 0.6, "height_target_tolerance": 0.06, "fall_penalty": -100.0, "bite_bonus": 0.0, "bite_approach_weight": 0.0, "prey_distance_range": [10.0, 15.0], "max_episode_steps": 1000, "reset_noise_scale": 0.05, "lateral_lean_weight": 0.25, "lateral_lean_tolerance_m": 0.015, "leg_home_pose_reference": "settled", "stance_stagger_weight": 0.3, "stance_stagger_tolerance_m": 0.045, "stance_cop_band_weight": 0.3}
+actuator 14: tail_3_pitch_act | nu 15
+obs[6] after reset 0.017168121, qpos tail_3_pitch 0.017168121
+  step: obs[6] 0.016902210 qpos 0.016902210
+  step: obs[6] 0.016067378 qpos 0.016067379
+  step: obs[6] 0.016188402 qpos 0.016188401
+  step: obs[6] 0.017395252 qpos 0.017395252
+  step: obs[6] 0.018846588 qpos 0.018846587
+action space: Box(-1.0, 1.0, (15,), float32)
+predict on an extreme input: min -0.613 max 0.963 (clipped to [-1,1] if both within)
+s80 10485760: tail_3 normaliser mean +0.397 deg sd 0.612 deg clip 10.0 -> observed angle capped at 6.51 deg
+s80 11534336: tail_3 normaliser mean +0.562 deg sd 0.815 deg clip 10.0 -> observed angle capped at 8.71 deg
+s80 12001280: tail_3 normaliser mean +0.640 deg sd 0.904 deg clip 10.0 -> observed angle capped at 9.68 deg
+s60 6291456: tail_3 normaliser mean +0.322 deg sd 0.449 deg clip 10.0 -> observed angle capped at 4.81 deg
+s60 7340032: tail_3 normaliser mean +0.597 deg sd 0.876 deg clip 10.0 -> observed angle capped at 9.36 deg
+s42 2097152: tail_3 normaliser mean +0.086 deg sd 0.419 deg clip 10.0 -> observed angle capped at 4.28 deg
+s42 3145728: tail_3 normaliser mean +0.466 deg sd 0.781 deg clip 10.0 -> observed angle capped at 8.27 deg
+seed 5001 none: own_win 0.642277 (ew own14_win 0.642277), tail3 3.3424 (ew 3.3424), pitch -0.5032 (ew -0.5032); wall 2.52 s cpu 2.50 s
+seed 3042 bias 0.3 twice: cmd_win 0.998482327 / 0.998482327, n_rail 500 / 500; wall 4.86 s for 2
+seed 3042 obs 3.0 deg: cmd_win 0.7367 own_win 0.7367 n_rail 0 tail3 3.848 cpu 2.41

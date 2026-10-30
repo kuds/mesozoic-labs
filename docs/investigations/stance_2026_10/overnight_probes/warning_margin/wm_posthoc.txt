@@ -1,0 +1,27 @@
+POST HOC (not in PREREG.txt).  M = pre-registered bias margin (11th smallest of 20 per-seed thresholds).
+
+A. Approach rate of M between measured checkpoints (per 1,048,576 steps); FOB = first tail over-bar episode
+  s42: s42 2.10M* M 1.094 -> s42 3.15M+ M 0.281: -0.812 per 1.05M | FOB 3,670,016 = 0.52M after s42 3.15M+
+  s60: s60 6.29M* M 0.703 -> s60 7.34M+ M 0.203: -0.500 per 1.05M | FOB 8,126,464 = 0.79M after s60 7.34M+
+  s80: s80 10.49M M 0.516 -> s80 11.53M M 0.328: -0.188 per 1.05M | at this rate M reaches 0 after a further 1.8 x 1.05M steps
+  s80: s80 11.53M M 0.328 -> s80 12.00M M 0.297: -0.070 per 1.05M | at this rate M reaches 0 after a further 4.2 x 1.05M steps
+
+B. Predictor errors (M - pred) on the near-rail subset M < 0.4 (4 checkpoints) and excluding s42 2.10M (6)
+  bstar_P   near       (n 4): MAE 0.032, mean signed +0.032, range [+0.005, +0.056]
+  bstar_P   excl 2.10M (n 6): MAE 0.037, mean signed +0.010, range [-0.081, +0.056]
+  bstar_L   near       (n 4): MAE 0.026, mean signed -0.024, range [-0.058, +0.004]
+  bstar_L   excl 2.10M (n 6): MAE 0.049, mean signed -0.048, range [-0.127, +0.004]
+  bstar_S   near       (n 4): MAE 0.037, mean signed -0.037, range [-0.063, -0.009]
+  bstar_S   excl 2.10M (n 6): MAE 0.058, mean signed -0.058, range [-0.127, -0.009]
+  gap_open  near       (n 4): MAE 0.094, mean signed -0.094, range [-0.128, -0.061]
+  gap_open  excl 2.10M (n 6): MAE 0.073, mean signed -0.073, range [-0.128, -0.029]
+
+C. Within a checkpoint: per-seed bias threshold T_s against the seed's baseline window command (Spearman),
+   and the seed with the largest T_s
+  s80 10.49M : rho(T_s, base cmd) -0.76 | max T_s 0.656 at seed 3050 (base cmd +0.138, tail_3 +0.72 deg; checkpoint median base +0.468) | T_s IQR [0.484, 0.547]
+  s80 11.53M : rho(T_s, base cmd) -0.76 | max T_s 0.484 at seed 3050 (base cmd +0.347, tail_3 +1.81 deg; checkpoint median base +0.577) | T_s IQR [0.281, 0.359]
+  s80 12.00M : rho(T_s, base cmd) -0.94 | max T_s 0.516 at seed 3050 (base cmd +0.219, tail_3 +1.13 deg; checkpoint median base +0.637) | T_s IQR [0.234, 0.328]
+  s60 6.29M* : rho(T_s, base cmd) -0.27 | max T_s 0.734 at seed 3048 (base cmd +0.265, tail_3 +1.39 deg; checkpoint median base +0.270) | T_s IQR [0.684, 0.707]
+  s60 7.34M+ : rho(T_s, base cmd) -0.95 | max T_s 0.234 at seed 3049 (base cmd +0.605, tail_3 +3.16 deg; checkpoint median base +0.652) | T_s IQR [0.184, 0.219]
+  s42 2.10M* : rho(T_s, base cmd) -0.93 | max T_s 1.141 at seed 3050 (base cmd +0.083, tail_3 +0.45 deg; checkpoint median base +0.154) | T_s IQR [1.047, 1.109]
+  s42 3.15M+ : rho(T_s, base cmd) -0.96 | max T_s 0.547 at seed 3050 (base cmd +0.067, tail_3 +0.37 deg; checkpoint median base +0.600) | T_s IQR [0.266, 0.344]

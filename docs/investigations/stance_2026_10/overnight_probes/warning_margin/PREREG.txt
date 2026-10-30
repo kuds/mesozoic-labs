@@ -1,0 +1,117 @@
+PRE-REGISTRATION: THE MARGIN-TO-RAIL TEST (com_revisit, role warning_margin)
+Written 2026-10-30, about 02:55 UTC, BEFORE the main run (wm_run.py) existed or ran.  Simulation only; no training,
+no optimizer step; checkpoints opened read only.  Folder:
+/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/com_revisit/notes/warning_margin/
+Its sha256 is in PREREG.sha256 (sha256sum -c PREREG.sha256).
+
+==================================================================================================================
+0. WHAT I HAD SEEN WHEN WRITING THIS (disclosure)
+==================================================================================================================
+- Read in full: early_warning/NOTES.txt, ew_analyze.txt, ew_series.csv (r10 rows); verify_early_warning/vew_analyze.txt.
+  verify_early_warning/NOTES.txt did NOT exist at 02:43 UTC nor when this was written; the verifier's b* proposal is
+  read from vew_analyze.txt section G (b* = 1 - G - c0 = (1 - G)(1 - FP); b*_L = (1 - G_L)(1 - own)).
+- wm_check.py -> wm_check.txt (checks, not part of the test):
+  obs[6] == qpos(tail_3_pitch) to 1e-9; actuator 14 = tail_3_pitch_act; SB3 predict clips to [-1, 1] (policies.py l379,
+  squash_output False); s80 12,001,280 seed 5001 unnudged reproduces ew_r10.jsonl's episode exactly (own 0.642277,
+  tail_3 3.3424 deg, pitch -0.5032 deg); 2.5 s per 1,000-step episode.
+  It ALSO ran three nudged episodes whose outcomes I saw: s80 12,001,280, seed 3042: bias +0.30 -> PARKED (500 of 500
+  window steps railed, window command 0.998), run twice, bit-identical; obs +3.0 deg -> window command 0.737, 0 railed
+  steps.  Those episodes are re-run (not reused) inside the main run.
+- wm_static.py -> wm_static.txt/json (network evaluation only, no simulation): the static curve for predictor S.
+- wm_predict.py -> wm_predict.txt/json: the table in section 3.
+
+==================================================================================================================
+1. QUESTIONS
+==================================================================================================================
+Q1  Is late r10 s80 (10.5M / 11.5M / 12.0M) as close to railing as s42 and s60 were one checkpoint before their first
+    tail over-bar episode (s42 3,145,728; s60 7,340,032)?
+Q2  Does the measured closed-loop margin match the verifier's b* = 1 - G - c0 (ew_series.csv, 0-1 deg sweep)?
+Q3  Which single number best says how close a policy is to the rail?
+
+==================================================================================================================
+2. DESIGN (fixed here)
+==================================================================================================================
+Checkpoints (local F2 copies, read only): s80 10,485,760 / 11,534,336 / 12,001,280 (stage1_final); s60 6,291,456 /
+7,340,032; s42 2,097,152 / 3,145,728.  Run order: s80 12.0M, s42 3.15M, s60 7.34M, s80 11.5M, s80 10.5M, s60 6.29M,
+s42 2.10M.
+Episodes: env_class(mid)(**load_stage_config(mid, "stance")["env_kwargs"]) (reset noise 0.05, max 1,000 steps), one env,
+env.reset(seed=s), seeds 3042-3061 (n = 20), deterministic model.predict(normalizer.normalize_obs(obs_seen)), 1,000
+steps.  Code: the sealed copy r10round/ecs/code (PYTHONPATH), venv python -B, OMP/MKL 1 thread, nice 15, one process.
+Nudges (constant from step 1, applied separately; definitions in wm_common.py):
+  BIAS b: entry 14 of the policy's own (clipped) action replaced by own14 + b before env.step (the clamp test's
+          override path, D-9 style); the env clips, filters and maps it.  command = clip(own14 + b, -1, 1).
+  OBS  d: the policy sees the true observation with obs[6] (tail_3 angle, rad) + radians(d); the normaliser clips
+          (z <= 10, i.e. the observed angle is capped at the checkpoint's cap, column 'cap').  command = own14.
+Readout per episode: window = steps 501-1000.  RAILED step: command >= 0.99.  PARKED: more than 250 railed window steps
+  ("command 1.0 for most of the window"; a terminated episode's missing steps count as not railed).
+Per-seed threshold T_s (bisection, per checkpoint x nudge x seed):
+  - value 0 (the unnudged episode, shared by both nudges) is run for every seed; if PARKED, T_s = 0.
+  - BIAS: bracket (0, 2.0]; b = 2.0 parks by construction (own14 >= -1, so own14 + 2 >= 1 every step; not simulated).
+    7 halvings -> bracket width 0.0156.  T_s = the upper end (smallest value seen to park).
+  - OBS: d = 12 deg is run first (the observed angle is then at the cap whenever the true angle exceeds cap - 12 deg:
+    the strongest push this channel allows).  Not PARKED at 12 deg -> T_s = unreachable (inf).  Else bracket
+    (0, 12] and 7 halvings -> width 0.094 deg.
+Checkpoint margin M (per nudge) = the 11th smallest T_s of the 20 seeds = the smallest value at which at least 11 of
+  20 seeds are PARKED (under per-seed monotonicity, checked in D4).  M_obs = unreachable if fewer than 11 seeds park at
+  12 deg.  Also reported: median of bracket midpoints, min/max T_s, bootstrap 95% interval over seeds (2,000 resamples).
+Cost estimate: about 1,500 episodes x 2.5 s = about 65 min (at most 2,345 episodes).
+
+==================================================================================================================
+3. PREDICTIONS (from the existing readouts; wm_predict.txt)
+==================================================================================================================
+G_P, c0, own14, FP: ew_series.csv (seeds 5001-5010 own states, 0-1 deg sweep).  PRIMARY: b*_P = 1 - G_P - c0 (the
+verifier's).  Secondary: b*_L = (1 - G_L)(1 - own14) (vew_analyze.txt G); b*_S = 1 - c_static(5.19 deg) (static
+command with the tail input at the railed angle +5.19 deg, normaliser cap included; wm_static.txt); gap = 1 - own14
+(gain-blind).  OBS (linear): the observed angle needed for command 1 is th_need = 5.16 (1 - c0) / G_P (G_P > 0);
+predicted D*_P = 5.16 b*_P / G_P deg if th_need <= cap, else UNREACHABLE.  OBS (static S): unreachable when the static
+curve's maximum over all observed angles (to the cap) is below 0.99.
+
+ckpt               G_P      c0   own14     FP |   b*_P   b*_L   b*_S  1-own |   cap th_need_P D*_P(deg) |  S max  D*_S
+s80   10485760  +0.028  +0.466  +0.455 +0.480 |  0.505  0.581  0.591  0.545 |  6.51     96.81      none | +0.471  none
+s80   11534336  +0.199  +0.500  +0.603 +0.624 |  0.301  0.354  0.365  0.397 |  8.71     12.98      none | +0.652  none
+s80   12001280  +0.273  +0.486  +0.642 +0.668 |  0.241  0.293  0.306  0.358 |  9.68      9.73      none | +0.752  none
+s60    6291456  -0.071  +0.287  +0.264 +0.268 |  0.784  0.830  0.830  0.736 |  4.81      G<=0      none | +0.287  none
+s60    7340032  +0.313  +0.490  +0.669 +0.712 |  0.198  0.261  0.266  0.331 |  9.36      8.42      3.26 | +0.791  none
+s42    2097152  -0.636  +0.238  +0.142 +0.145 |  1.399  1.413  1.201  0.858 |  4.28      G<=0      none | +0.238  none
+s42    3145728  +0.349  +0.411  +0.601 +0.632 |  0.240  0.296  0.321  0.399 |  8.27      8.70      none | +0.735  none
+
+So, PRIMARY predictions: M_bias = b*_P per row; M_obs = 3.26 deg at s60 7.34M and UNREACHABLE at the other six.
+By b*_P, late s80 12.0M (0.241) is as close as s42 3.15M (0.240) and 0.04 farther than s60 7.34M (0.198).
+
+==================================================================================================================
+4. SUCCESS CRITERIA (fixed here)
+==================================================================================================================
+C1  BIAS, per checkpoint: b*_P MATCHES iff |M_bias - b*_P| <= max(0.05, 0.20 x b*_P).
+    Overall: b*_P MATCHES THE MEASURED MARGIN iff >= 6 of 7 checkpoints match AND Spearman rho(M_bias, b*_P) >= 0.9.
+    If rho >= 0.9 but < 6 match: "ranks right, scale wrong" (mean signed error reported).  Otherwise: does not match.
+    The same criterion is applied to b*_L, b*_S and 1 - own14 (reported; not the primary verdict).
+C2  OBS: a predicted UNREACHABLE matches iff fewer than 11 of 20 seeds park at d = 12 deg; the s60 7.34M prediction
+    (3.26 deg) matches iff M_obs is reachable and |M_obs - 3.26| <= 0.65 deg.  Linear P overall: matches iff 7/7 rows
+    match.  Static S (all unreachable) judged the same way.
+Q1  Late s80 is AS CLOSE as the pre-FOB pair iff M_bias(s80 12.0M) <= max(M_bias(s42 3.15M), M_bias(s60 7.34M)) + 0.05;
+    FARTHER otherwise.  Reported for 11.5M and 10.5M too, with bootstrap intervals; the OBS channel's reachability is
+    compared the same way (descriptive).
+Q3  Among same-unit predictors (b*_P, b*_L, b*_S, 1 - own14) the best single number is the one with the smallest mean
+    absolute error to M_bias over the 7 checkpoints (ties broken by Spearman rho).  Spearman rho is also reported for
+    G_P, FP and c0 (ranking only).  n = 7 checkpoints from 3 runs: a ranking on this set, not a general result.
+
+==================================================================================================================
+5. EXPECTATIONS (inferred before data; NOT criteria)
+==================================================================================================================
+E1  The network's tail response flattens with angle (G_L < G_P at every G_P > 0 row; static curve concave), so M_bias
+    will exceed b*_P at the G > 0 rows; b*_S and b*_L will be closer.  C1 may then fail on scale while ranks hold.
+E2  OBS cannot park any of the 7 (static S), so the linear P's s60 7.34M prediction may fail.
+E3  M_bias(s80 12.0M) within about 0.05 of M_bias(s42 3.15M).
+
+==================================================================================================================
+6. SECONDARY, DESCRIPTIVE (fixed here)
+==================================================================================================================
+D1  Closed-loop amplification under BIAS below the rail: per seed, least-squares slope of the window command against b
+    over the visited values with 0 railed window steps (b = 0 included; >= 2 values); G_cl = 1 - 1/slope; median over
+    seeds; compared with G_P and G_L.
+D2  The over-bar analogue (frac99 > 0.10 in the window): per-seed bracket from the visited values; 11th smallest.
+D3  OBS response curve: d = 1, 2, 4 deg on seeds 3042-3046 (n = 5 per checkpoint): window command against the linear
+    (c0 + G_P d / 5.16) / (1 - G_P) and the static curve.
+D4  Monotonicity: per checkpoint x nudge, the number of seeds with a PARKED visited value below an unparked one.
+D5  Under BIAS at the per-seed upper bracket: the policy's own (pre-bias) window command against the linear c0 + G_P.
+Deviations from this file, if any, will be listed in NOTES.txt.

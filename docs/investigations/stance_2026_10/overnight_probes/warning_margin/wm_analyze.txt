@@ -1,0 +1,119 @@
+======================================================================================================================
+MARGIN-TO-RAIL TEST: analysis (design and criteria: PREREG.txt).  * = two checkpoints before FOB, + = one before.
+PARKED = > 250 of the 500 window steps (501-1000) with command >= 0.99.  T_s = smallest visited value that parks.
+M = the 11th smallest T_s of the 20 seeds (3042-3061).  [lo, hi] = bootstrap 95% over seeds of M.
+======================================================================================================================
+episodes in file: 1470; terminated before 1,000 steps: 0; CPU s per episode median 2.31
+
+1. BASELINE (no nudge), seeds 3042-3061, against the early-warning readouts (seeds 5001-5010)
+  ckpt         | base cmd med [min,max]       | own14(ew) FP(ew) | base tail3 deg med | parked at 0 | frac99>0.10
+  s80 10.49M   | +0.468 [+0.138,+0.495] (n 20) | +0.455  +0.480 | +2.42              | 0/20        | 0/20
+  s80 11.53M   | +0.577 [+0.347,+0.642] (n 20) | +0.603  +0.624 | +2.99              | 0/20        | 0/20
+  s80 12.00M   | +0.637 [+0.219,+0.696] (n 20) | +0.642  +0.668 | +3.31              | 0/20        | 0/20
+  s60 6.29M*   | +0.270 [+0.237,+0.316] (n 20) | +0.264  +0.268 | +1.42              | 0/20        | 0/20
+  s60 7.34M+   | +0.652 [+0.563,+0.729] (n 20) | +0.669  +0.712 | +3.40              | 0/20        | 0/20
+  s42 2.10M*   | +0.154 [+0.083,+0.206] (n 20) | +0.142  +0.145 | +0.81              | 0/20        | 0/20
+  s42 3.15M+   | +0.600 [+0.067,+0.651] (n 20) | +0.601  +0.632 | +3.12              | 0/20        | 0/20
+
+2a. BIAS NUDGE: per-seed thresholds and the checkpoint margin M
+  ckpt         | n  | M      [boot 95%]          | median mid | min    max     | parked at top | monot. viol | per-seed T_s (sorted)
+  s80 10.49M   | 20 | 0.516  [0.516, 0.547] | 0.508      | 0.469 0.656 | 2.0 by constr. |  0          | 0.469 0.469 0.469 0.484 0.484 0.484 0.516 0.516 0.516 0.516 0.516 0.531 0.531 0.547 0.547 0.547 0.562 0.562 0.578 0.656
+  s80 11.53M   | 20 | 0.328  [0.297, 0.359] | 0.320      | 0.281 0.484 | 2.0 by constr. |  0          | 0.281 0.281 0.281 0.281 0.281 0.281 0.297 0.297 0.312 0.328 0.328 0.344 0.344 0.344 0.359 0.359 0.359 0.375 0.406 0.484
+  s80 12.00M   | 20 | 0.297  [0.250, 0.328] | 0.281      | 0.219 0.516 | 2.0 by constr. |  0          | 0.219 0.219 0.234 0.234 0.234 0.234 0.250 0.266 0.281 0.281 0.297 0.297 0.297 0.312 0.328 0.328 0.344 0.344 0.375 0.516
+  s60 6.29M*   | 20 | 0.703  [0.688, 0.703] | 0.688      | 0.641 0.734 | 2.0 by constr. |  0          | 0.641 0.656 0.672 0.672 0.672 0.688 0.688 0.688 0.688 0.688 0.703 0.703 0.703 0.703 0.703 0.719 0.719 0.734 0.734 0.734
+  s60 7.34M+   | 20 | 0.203  [0.188, 0.219] | 0.195      | 0.172 0.234 | 2.0 by constr. |  0          | 0.172 0.172 0.172 0.172 0.172 0.188 0.188 0.188 0.188 0.203 0.203 0.203 0.203 0.203 0.219 0.219 0.219 0.219 0.234 0.234
+  s42 2.10M*   | 20 | 1.094  [1.062, 1.109] | 1.086      | 1.000 1.141 | 2.0 by constr. |  0          | 1.000 1.031 1.031 1.047 1.047 1.047 1.062 1.062 1.078 1.094 1.094 1.094 1.094 1.109 1.109 1.109 1.125 1.125 1.125 1.141
+  s42 3.15M+   | 20 | 0.281  [0.266, 0.328] | 0.273      | 0.234 0.547 | 2.0 by constr. |  0          | 0.234 0.234 0.250 0.250 0.266 0.266 0.266 0.266 0.266 0.281 0.281 0.297 0.312 0.328 0.328 0.391 0.391 0.391 0.422 0.547
+
+2b. OBS NUDGE: per-seed thresholds and the checkpoint margin M
+  ckpt         | n  | M deg  [boot 95%]          | median mid | min    max     | parked at top | monot. viol | per-seed T_s (sorted)
+  s80 10.49M   | 20 | unreach  [unreach, unreach] | unreach      | unreach unreach | 0/20          |  0          | unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach
+  s80 11.53M   | 20 | unreach  [unreach, unreach] | unreach      | unreach unreach | 0/20          |  0          | unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach
+  s80 12.00M   | 20 | unreach  [unreach, unreach] | unreach      | unreach unreach | 0/20          |  0          | unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach
+  s60 6.29M*   | 20 | unreach  [unreach, unreach] | unreach      | unreach unreach | 0/20          |  0          | unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach
+  s60 7.34M+   | 20 | 4.031  [3.844, 6.000] | 3.938      | 3.281 unreach | 15/20         |  0          | 3.281 3.375 3.469 3.469 3.562 3.844 3.844 3.938 3.938 3.938 4.031 4.125 4.219 4.219 6.000 unreach unreach unreach unreach unreach
+  s42 2.10M*   | 20 | unreach  [unreach, unreach] | unreach      | unreach unreach | 0/20          |  0          | unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach
+  s42 3.15M+   | 20 | unreach  [unreach, unreach] | unreach      | unreach unreach | 0/20          |  0          | unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach unreach
+
+3. C1: BIAS margin against the predictors (PREREG section 3).  match = |M - pred| <= max(0.05, 0.20 pred)
+  ckpt         | M_bias |  b*_P (verifier) err  ok |             b*_L err  ok |    b*_S (static) err  ok |        1 - own14 err  ok
+  s80 10.49M   | 0.516  |            0.505 +0.010 Y |            0.581 -0.065 Y |            0.591 -0.075 Y |            0.545 -0.029 Y
+  s80 11.53M   | 0.328  |            0.301 +0.027 Y |            0.354 -0.026 Y |            0.365 -0.037 Y |            0.397 -0.069 Y
+  s80 12.00M   | 0.297  |            0.241 +0.056 n |            0.293 +0.004 Y |            0.306 -0.009 Y |            0.358 -0.061 Y
+  s60 6.29M*   | 0.703  |            0.784 -0.081 Y |            0.830 -0.127 Y |            0.830 -0.127 Y |            0.736 -0.033 Y
+  s60 7.34M+   | 0.203  |            0.198 +0.005 Y |            0.261 -0.058 n |            0.266 -0.063 n |            0.331 -0.128 n
+  s42 2.10M*   | 1.094  |            1.399 -0.305 n |            1.413 -0.319 n |            1.201 -0.107 Y |            0.858 +0.236 n
+  s42 3.15M+   | 0.281  |            0.240 +0.042 Y |            0.296 -0.015 Y |            0.321 -0.040 Y |            0.399 -0.117 n
+
+  b*_P (verifier) : 5/7 match | Spearman rho +1.000 | MAE 0.075 | mean signed error (M - pred) -0.035 | ranks right, scale wrong
+  b*_L            : 5/7 match | Spearman rho +0.964 | MAE 0.088 | mean signed error (M - pred) -0.087 | ranks right, scale wrong
+  b*_S (static)   : 6/7 match | Spearman rho +0.964 | MAE 0.065 | mean signed error (M - pred) -0.065 | MATCHES
+  1 - own14       : 4/7 match | Spearman rho +0.893 | MAE 0.096 | mean signed error (M - pred) -0.029 | does not match
+  G_P (gain)      : Spearman rho with M_bias -0.964 (ranking only; a perfect inverse ranking is -1)
+  FP              : Spearman rho with M_bias -0.964 (ranking only; a perfect inverse ranking is -1)
+  c0              : Spearman rho with M_bias -0.643 (ranking only; a perfect inverse ranking is -1)
+  own14           : Spearman rho with M_bias -0.893 (ranking only; a perfect inverse ranking is -1)
+
+4. Q1: late s80 against the pre-FOB pair (BIAS).  AS CLOSE iff M(s80) <= max(M(s42 3.15M), M(s60 7.34M)) + 0.05
+  pre-FOB s42 3.15M+  : M 0.281 [0.266, 0.328]
+  pre-FOB s60 7.34M+  : M 0.203 [0.188, 0.219]
+  s80 10.49M  : M 0.516 [0.516, 0.547]  vs max pre-FOB 0.281 + 0.05 -> FARTHER
+  s80 11.53M  : M 0.328 [0.297, 0.359]  vs max pre-FOB 0.281 + 0.05 -> AS CLOSE
+  s80 12.00M  : M 0.297 [0.250, 0.328]  vs max pre-FOB 0.281 + 0.05 -> AS CLOSE
+
+5. C2: OBS reachability and margin.  Linear P predicts 3.26 deg at s60 7.34M and unreachable elsewhere; static S
+   predicts unreachable everywhere.  match(unreachable) = fewer than 11/20 park at 12 deg.
+  s80 10.49M  : M_obs unreach deg | pred P unreach -> Y | pred S unreach -> Y
+  s80 11.53M  : M_obs unreach deg | pred P unreach -> Y | pred S unreach -> Y
+  s80 12.00M  : M_obs unreach deg | pred P unreach -> Y | pred S unreach -> Y
+  s60 6.29M*  : M_obs unreach deg | pred P unreach -> Y | pred S unreach -> Y
+  s60 7.34M+  : M_obs 4.031 deg | pred P 3.263 -> n | pred S unreach -> n
+  s42 2.10M*  : M_obs unreach deg | pred P unreach -> Y | pred S unreach -> Y
+  s42 3.15M+  : M_obs unreach deg | pred P unreach -> Y | pred S unreach -> Y
+  linear P: 6/7 rows match; static S: 6/7
+
+6. Q3: which single number best says how close a policy is to the rail (smallest MAE to M_bias, PREREG Q3)
+  bstar_S  : MAE 0.065, rho +0.964
+  bstar_P  : MAE 0.075, rho +1.000
+  bstar_L  : MAE 0.088, rho +0.964
+  gap_open : MAE 0.096, rho +0.893
+
+7. D1: closed-loop amplification below the rail (BIAS): slope of window command vs b over visited values with 0
+   railed window steps (b = 0 included); G_cl = 1 - 1/slope; median over seeds with >= 2 such values
+  s80 10.49M  : G_cl median +0.072 [q25 +0.050, q75 +0.108] (seeds 18, values per seed median 3) | G_P +0.028 G_L -0.065
+  s80 11.53M  : G_cl median +0.217 [q25 +0.166, q75 +0.267] (seeds 20, values per seed median 3) | G_P +0.199 G_L +0.107
+  s80 12.00M  : G_cl median +0.244 [q25 +0.209, q75 +0.274] (seeds 20, values per seed median 3) | G_P +0.273 G_L +0.182
+  s60 6.29M*  : G_cl median +0.050 [q25 +0.007, q75 +0.073] (seeds 20, values per seed median 4) | G_P -0.071 G_L -0.128
+  s60 7.34M+  : G_cl median +0.431 [q25 +0.405, q75 +0.440] (seeds 20, values per seed median 3) | G_P +0.313 G_L +0.212
+  s42 2.10M*  : G_cl median -0.286 [q25 -0.306, q75 -0.277] (seeds 20, values per seed median 4) | G_P -0.636 G_L -0.648
+  s42 3.15M+  : G_cl median +0.332 [q25 +0.306, q75 +0.371] (seeds 19, values per seed median 3) | G_P +0.349 G_L +0.259
+
+8. D2: over-bar analogue (frac99 > 0.10 in the window), BIAS: 11th smallest per-seed smallest visited value
+  s80 10.49M  : M_overbar <= 0.516 (upper bound: visited values only) vs M_park 0.516
+  s80 11.53M  : M_overbar <= 0.328 (upper bound: visited values only) vs M_park 0.328
+  s80 12.00M  : M_overbar <= 0.297 (upper bound: visited values only) vs M_park 0.297
+  s60 6.29M*  : M_overbar <= 0.688 (upper bound: visited values only) vs M_park 0.703
+  s60 7.34M+  : M_overbar <= 0.203 (upper bound: visited values only) vs M_park 0.203
+  s42 2.10M*  : M_overbar <= 1.094 (upper bound: visited values only) vs M_park 1.094
+  s42 3.15M+  : M_overbar <= 0.281 (upper bound: visited values only) vs M_park 0.281
+
+9. D3: OBS response, seeds 3042-3046 (n 5): window command at d = 0, 1, 2, 4, 12 deg; linear P fixed point (cap applied);
+   static S fixed point a = c_S(5.19 a + d) (observed angle capped)
+  s80 10.49M  : d 0.0: +0.430 (P +0.480 S +0.461) | d 1.0: +0.460 (P +0.485 S +0.447) | d 2.0: +0.461 (P +0.491 S +0.430) | d 4.0: +0.449 (P +0.502 S +0.391) | d12.0: +0.444 (P +0.502 S +0.381)
+  s80 11.53M  : d 0.0: +0.573 (P +0.624 S +0.603) | d 1.0: +0.643 (P +0.672 S +0.623) | d 2.0: +0.676 (P +0.720 S +0.636) | d 4.0: +0.699 (P +0.816 S +0.649) | d12.0: +0.704 (P +0.835 S +0.652)
+  s80 12.00M  : d 0.0: +0.599 (P +0.668 S +0.641) | d 1.0: +0.676 (P +0.741 S +0.677) | d 2.0: +0.716 (P +0.814 S +0.704) | d 4.0: +0.745 (P +0.959 S +0.737) | d12.0: +0.744 (P +0.997 S +0.752)
+  s60 6.29M*  : d 0.0: +0.264 (P +0.268 S +0.264) | d 1.0: +0.286 (P +0.255 S +0.240) | d 2.0: +0.300 (P +0.242 S +0.214) | d 4.0: +0.307 (P +0.221 S +0.171) | d12.0: +0.309 (P +0.221 S +0.170)
+  s60 7.34M+  : d 0.0: +0.653 (P +0.712 S +0.681) | d 1.0: +0.786 (P +0.801 S +0.722) | d 2.0: +0.877 (P +0.889 S +0.750) | d 4.0: +0.999 (P +1.000 S +0.782) | d12.0: +1.000 (P +1.000 S +0.791)
+  s42 2.10M*  : d 0.0: +0.151 (P +0.145 S +0.145) | d 1.0: +0.098 (P +0.070 S +0.069) | d 2.0: +0.048 (P -0.005 S -0.005) | d 4.0: -0.040 (P -0.156 S -0.133) | d12.0: -0.062 (P -0.290 S -0.201)
+  s42 3.15M+  : d 0.0: +0.515 (P +0.632 S +0.600) | d 1.0: +0.625 (P +0.736 S +0.653) | d 2.0: +0.705 (P +0.840 S +0.689) | d 4.0: +0.797 (P +0.971 S +0.730) | d12.0: +0.801 (P +0.971 S +0.735)
+
+10. D5: the policy's own (pre-bias) window command in the parked episode at each seed's T_s (BIAS), against the
+    linear c0 + G_P and the static c_S(5.19 deg); tail_3 angle in that episode
+  s80 10.49M  : own at rail median +0.477 [+0.339, +0.532] (n 20) | c0 + G_P +0.494 | c_S(5.19) +0.409 | tail3 +5.17 deg
+  s80 11.53M  : own at rail median +0.672 [+0.520, +0.721] (n 20) | c0 + G_P +0.699 | c_S(5.19) +0.635 | tail3 +5.18 deg
+  s80 12.00M  : own at rail median +0.707 [+0.484, +0.775] (n 20) | c0 + G_P +0.759 | c_S(5.19) +0.694 | tail3 +5.18 deg
+  s60 6.29M*  : own at rail median +0.300 [+0.267, +0.359] (n 20) | c0 + G_P +0.216 | c_S(5.19) +0.170 | tail3 +5.19 deg
+  s60 7.34M+  : own at rail median +0.802 [+0.768, +0.835] (n 20) | c0 + G_P +0.802 | c_S(5.19) +0.734 | tail3 +5.21 deg
+  s42 2.10M*  : own at rail median -0.094 [-0.137, +0.001] (n 20) | c0 + G_P -0.399 | c_S(5.19) -0.201 | tail3 +5.19 deg
+  s42 3.15M+  : own at rail median +0.721 [+0.454, +0.763] (n 20) | c0 + G_P +0.760 | c_S(5.19) +0.679 | tail3 +5.19 deg
+

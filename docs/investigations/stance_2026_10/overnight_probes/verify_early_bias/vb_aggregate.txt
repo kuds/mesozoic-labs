@@ -1,0 +1,150 @@
+==============================================================================================================
+s42 1,048,576  n=24 rollouts (seeds 7101-7124); lr 2.825e-05 ent 0.00425; adam t 81280; n_updates 1270; hp mismatch {}
+  checks (max over rollouts; list entries = relative A-vs-B gap): fall_ok 0; gae_err 3.5e-06; clip_rows 0; comp_sum_err 2.2e-07; bank_vs_probe_err 3e-08; mean_fn_err 0; kl_vs_code 0; fd_nonlin 1.2e-07; src_sum_err 8.2e-11; gk_err 8e-15; mc_terms_sum_err 4.2e-16; routeA_vs_B_adam_roll 1.9e-05; routeA_vs_B_adam_bank 1e-05; routeA_vs_B_plain_ss 6.2e-06
+  [roll] Adam per epoch: full +0.00034±0.00044 (t+0.8) | pg +0.00027±0.00044 (t+0.6) | mirror +0.00007±0.00003 (t+2.4) | ent +0.0000000±0.0000000 (t+nan) | vf +0.0000000±0.0000000 (t+nan) | plain full +0.463±1.021 (t+0.5)e-6
+  [bank] Adam per epoch: full +0.00012±0.00055 (t+0.2) | pg +0.00025±0.00055 (t+0.4) | mirror -0.00013±0.00005 (t-2.6) | ent +0.0000000±0.0000000 (t+nan) | vf +0.0000000±0.0000000 (t+nan) | plain full +0.159±1.357 (t+0.1)e-6
+  [ss  ] Adam per epoch: full +0.00019±0.00065 (t+0.3) | pg +0.00039±0.00066 (t+0.6) | mirror -0.00020±0.00009 (t-2.3) | ent +0.0000000±0.0000000 (t+nan) | vf +0.0000000±0.0000000 (t+nan) | plain full +0.542±1.599 (t+0.3)e-6
+  [roll] policy term by noise carrier: tail3 +0.00015±0.00029 (t+0.5) legs +0.00014±0.00017 (t+0.8) other -0.00003±0.00006 (t-0.5)
+  [roll] raw source split (no fitted baselines): rewards within GAE horizon -0.00083±0.00157 (t-0.5); critic/bootstrap remainder +0.00109±0.00140 (t+0.8)
+  [roll]   terms |t|>=2: energy +0.00001 (t+6.2), posture -0.00000 (t-2.8), spin +0.00000 (t+2.1)
+  [roll] CRITIC-FREE TEST (rows >= 200 from a cut): GAE +0.00040±0.00035 (t+1.1) vs MC(0.98) +0.00027±0.00064 (t+0.4); GAE-MC +0.00014±0.00049 (t+0.3) | tail3-noise only: GAE +0.00032±0.00025 (t+1.3) MC +0.00045±0.00051 (t+0.9) diff -0.00013±0.00043 (t-0.3)
+  [roll] gae_terms noise=t3 (n 24): reward-terms sum -0.00094±0.00123 (t-0.8); |t|>=2: BOOT +0.00109±0.00114 (t+1.0), energy +0.00000±0.00000 (t+5.4), posture -0.00000±0.00000 (t-4.4), spin +0.00000±0.00000 (t+2.1)
+  [roll] mc_terms noise=t3 (n 24): reward-terms sum -0.00005±0.00120 (t-0.0); |t|>=2: MINUS_V +0.00050±0.00091 (t+0.5), action_jerk +0.00005±0.00002 (t+2.2), energy +0.00000±0.00000 (t+3.2), posture -0.00001±0.00000 (t-6.4), smoothness +0.00004±0.00002 (t+2.3), tail_home_pose +0.00010±0.00002 (t+3.8)
+  [roll] gae_terms noise=all (n 24): reward-terms sum -0.00083±0.00157 (t-0.5); |t|>=2: BOOT +0.00109±0.00140 (t+0.8), energy +0.00001±0.00000 (t+6.2), posture -0.00000±0.00000 (t-2.8), spin +0.00000±0.00000 (t+2.1)
+  [roll] mc_terms noise=all (n 24): reward-terms sum +0.00024±0.00116 (t+0.2); |t|>=2: MINUS_V +0.00002±0.00096 (t+0.0), action_jerk +0.00006±0.00002 (t+2.5), energy +0.00000±0.00000 (t+3.8), posture -0.00001±0.00000 (t-3.5), smoothness +0.00005±0.00002 (t+2.6), tail_home_pose +0.00008±0.00003 (t+2.9)
+  [ss] policy term by noise carrier: tail3 +0.00045±0.00055 (t+0.8) legs -0.00006±0.00028 (t-0.2) other +0.00000±0.00009 (t+0.0)
+  [ss] raw source split (no fitted baselines): rewards within GAE horizon -0.00173±0.00322 (t-0.5); critic/bootstrap remainder +0.00212±0.00291 (t+0.7)
+  [ss]   terms |t|>=2: action_jerk +0.00007 (t+2.1), energy +0.00001 (t+7.8), smoothness +0.00007 (t+2.3), spin +0.00000 (t+2.1)
+  [ss] CRITIC-FREE TEST (rows >= 200 from a cut): GAE +0.00077±0.00057 (t+1.4) vs MC(0.98) +0.00104±0.00125 (t+0.8); GAE-MC -0.00027±0.00098 (t-0.3) | tail3-noise only: GAE +0.00088±0.00049 (t+1.8) MC +0.00189±0.00113 (t+1.7) diff -0.00101±0.00085 (t-1.2)
+  [ss] gae_terms noise=t3 (n 24): reward-terms sum -0.00079±0.00295 (t-0.3); |t|>=2: BOOT +0.00124±0.00278 (t+0.4), energy +0.00001±0.00000 (t+7.1), posture -0.00000±0.00000 (t-3.1)
+  [ss] mc_terms noise=t3 (n 24): reward-terms sum +0.00166±0.00192 (t+0.9); |t|>=2: MINUS_V +0.00023±0.00146 (t+0.2), energy +0.00000±0.00000 (t+4.6), posture -0.00001±0.00000 (t-4.5), smoothness +0.00006±0.00003 (t+2.0), tail_home_pose +0.00015±0.00005 (t+2.8)
+  [ss] gae_terms noise=all (n 24): reward-terms sum -0.00173±0.00322 (t-0.5); |t|>=2: BOOT +0.00212±0.00291 (t+0.7), action_jerk +0.00007±0.00003 (t+2.1), energy +0.00001±0.00000 (t+7.8), smoothness +0.00007±0.00003 (t+2.3), spin +0.00000±0.00000 (t+2.1)
+  [ss] mc_terms noise=all (n 24): reward-terms sum +0.00202±0.00279 (t+0.7); |t|>=2: MINUS_V -0.00098±0.00223 (t-0.4), energy +0.00001±0.00000 (t+5.0), posture -0.00001±0.00000 (t-2.2), tail_home_pose +0.00015±0.00006 (t+2.4)
+  r9-style dL_pg/d bias14 per mini-batch +0.0004±0.0111 (t+0.0), 13/24 negative; RMS(SD) 0.434
+  grad norms (median): full 20.0, pg 20.0, mirror 0.89, vf 0.034, ent 0.0165; clip factor 0.0249
+  rollout: mu14 -0.0272±0.0013 (t-20.3); tail angle -0.12 deg; dV/dq3 per deg -0.0049±0.0005 (t-10.9); G=5.16*dmu/dq3 -0.748±0.001 (t-685.1); corr(tail, ep step) -0.06; episodes 192 return 4033.4 falls 0
+==============================================================================================================
+s42 1,310,720  n=64 rollouts (seeds 7001-7064); lr 2.782e-05 ent 0.00406; adam t 101496; n_updates 1586; hp mismatch {}
+  checks (max over rollouts; list entries = relative A-vs-B gap): fall_ok 0; gae_err 3.6e-06; clip_rows 0; comp_sum_err 3.7e-07; bank_vs_probe_err 3e-08; mean_fn_err 0; kl_vs_code 0; fd_nonlin 1.6e-07; src_sum_err 1.2e-10; routeA_vs_B_adam_roll 2.1e-05; routeA_vs_B_adam_bank 4.5e-05; routeA_vs_B_plain_ss 0.00013; gk_err 9.8e-15; mc_terms_sum_err 3.8e-16
+  [roll] Adam per epoch: full +0.00115±0.00032 (t+3.6) | pg +0.00112±0.00032 (t+3.5) | mirror +0.00003±0.00002 (t+1.1) | ent +0.0000000±0.0000000 (t+nan) | vf +0.0000000±0.0000000 (t+nan) | plain full +3.454±0.764 (t+4.5)e-6
+  [bank] Adam per epoch: full -0.00026±0.00026 (t-1.0) | pg -0.00017±0.00027 (t-0.6) | mirror -0.00009±0.00002 (t-3.8) | ent +0.0000000±0.0000000 (t+nan) | vf +0.0000000±0.0000000 (t+nan) | plain full +1.109±0.597 (t+1.9)e-6
+  [ss  ] Adam per epoch: full +0.00054±0.00037 (t+1.5) | pg +0.00037±0.00037 (t+1.0) | mirror +0.00017±0.00003 (t+5.4) | ent +0.0000000±0.0000000 (t+nan) | vf +0.0000000±0.0000000 (t+nan) | plain full +2.650±0.820 (t+3.2)e-6
+  [roll] policy term by noise carrier: tail3 +0.00134±0.00031 (t+4.3) legs -0.00022±0.00011 (t-2.1) other +0.00000±0.00004 (t+0.1)
+  [roll] raw source split (no fitted baselines): rewards within GAE horizon +0.00157±0.00105 (t+1.5); critic/bootstrap remainder -0.00044±0.00106 (t-0.4)
+  [roll]   terms |t|>=2: energy -0.00000 (t-2.9)
+  [roll] CRITIC-FREE TEST (rows >= 200 from a cut): GAE +0.00075±0.00030 (t+2.5) vs MC(0.98) +0.00027±0.00070 (t+0.4); GAE-MC +0.00048±0.00045 (t+1.1) | tail3-noise only: GAE +0.00099±0.00029 (t+3.4) MC +0.00043±0.00070 (t+0.6) diff +0.00056±0.00045 (t+1.2)
+  [roll] gae_terms noise=t3 (n 24): reward-terms sum +0.00066±0.00141 (t+0.5); |t|>=2: BOOT +0.00032±0.00148 (t+0.2), energy -0.00000±0.00000 (t-3.5)
+  [roll] mc_terms noise=t3 (n 24): reward-terms sum +0.00080±0.00105 (t+0.8); |t|>=2: MINUS_V -0.00105±0.00064 (t-1.6), energy -0.00000±0.00000 (t-2.9), floor_impact +0.00007±0.00003 (t+2.2), foot_load_balance -0.00009±0.00005 (t-2.1), leg_home_pose +0.00041±0.00018 (t+2.3)
+  [roll] gae_terms noise=all (n 24): reward-terms sum +0.00201±0.00176 (t+1.1); |t|>=2: BOOT -0.00101±0.00177 (t-0.6)
+  [roll] mc_terms noise=all (n 24): reward-terms sum +0.00117±0.00101 (t+1.2); |t|>=2: MINUS_V -0.00081±0.00075 (t-1.1), energy -0.00000±0.00000 (t-2.4), leg_home_pose +0.00047±0.00020 (t+2.4)
+  [ss] policy term by noise carrier: tail3 +0.00077±0.00036 (t+2.1) legs -0.00036±0.00018 (t-2.0) other -0.00004±0.00005 (t-0.8)
+  [ss] raw source split (no fitted baselines): rewards within GAE horizon +0.00152±0.00155 (t+1.0); critic/bootstrap remainder -0.00115±0.00157 (t-0.7)
+  [ss]   terms |t|>=2: drift -0.00000 (t-2.3), energy -0.00000 (t-3.8)
+  [ss] CRITIC-FREE TEST (rows >= 200 from a cut): GAE +0.00001±0.00034 (t+0.0) vs MC(0.98) -0.00060±0.00085 (t-0.7); GAE-MC +0.00061±0.00058 (t+1.1) | tail3-noise only: GAE +0.00035±0.00033 (t+1.0) MC -0.00004±0.00084 (t-0.1) diff +0.00039±0.00057 (t+0.7)
+  [ss] gae_terms noise=t3 (n 24): reward-terms sum +0.00060±0.00186 (t+0.3); |t|>=2: BOOT -0.00057±0.00201 (t-0.3), energy -0.00000±0.00000 (t-3.2)
+  [ss] mc_terms noise=t3 (n 24): reward-terms sum -0.00062±0.00200 (t-0.3); |t|>=2: MINUS_V -0.00057±0.00192 (t-0.3), energy -0.00000±0.00000 (t-2.3)
+  [ss] gae_terms noise=all (n 24): reward-terms sum +0.00249±0.00212 (t+1.2); |t|>=2: BOOT -0.00261±0.00233 (t-1.1)
+  [ss] mc_terms noise=all (n 24): reward-terms sum +0.00112±0.00223 (t+0.5); |t|>=2: MINUS_V -0.00210±0.00188 (t-1.1), spin +0.00001±0.00000 (t+2.1)
+  r9-style dL_pg/d bias14 per mini-batch -0.0398±0.0071 (t-5.6), 50/64 negative; RMS(SD) 0.462
+  grad norms (median): full 24.3, pg 24.2, mirror 1.26, vf 0.037, ent 0.0157; clip factor 0.0206
+  rollout: mu14 -0.0017±0.0008 (t-2.2); tail angle +0.01 deg; dV/dq3 per deg +0.0177±0.0004 (t+42.0); G=5.16*dmu/dq3 -0.518±0.000 (t-1039.2); corr(tail, ep step) +0.07; episodes 512 return 4147.8 falls 2
+==============================================================================================================
+s42 2,097,152  n=24 rollouts (seeds 7101-7124); lr 2.650e-05 ent 0.00350; adam t 157349; n_updates 2471; hp mismatch {}
+  checks (max over rollouts; list entries = relative A-vs-B gap): fall_ok 0; gae_err 3.7e-06; clip_rows 0; comp_sum_err 4.2e-07; bank_vs_probe_err 8.9e-08; mean_fn_err 0; kl_vs_code 0; fd_nonlin 1.2e-07; src_sum_err 8.3e-11; gk_err 9.8e-15; mc_terms_sum_err 7e-16; routeA_vs_B_adam_roll 2.8e-05; routeA_vs_B_adam_bank 7.9e-05; routeA_vs_B_plain_ss 7.3e-05
+  [roll] Adam per epoch: full +0.00181±0.00066 (t+2.8) | pg +0.00212±0.00066 (t+3.2) | mirror -0.00030±0.00005 (t-5.6) | ent +0.0000000±0.0000000 (t+nan) | vf +0.0000000±0.0000000 (t+nan) | plain full +2.676±0.816 (t+3.3)e-6
+  [bank] Adam per epoch: full +0.00061±0.00042 (t+1.4) | pg +0.00079±0.00041 (t+1.9) | mirror -0.00018±0.00005 (t-3.7) | ent +0.0000000±0.0000000 (t+nan) | vf +0.0000000±0.0000000 (t+nan) | plain full +0.840±0.631 (t+1.3)e-6
+  [ss  ] Adam per epoch: full +0.00101±0.00050 (t+2.0) | pg +0.00094±0.00049 (t+1.9) | mirror +0.00007±0.00005 (t+1.3) | ent +0.0000000±0.0000000 (t+nan) | vf +0.0000000±0.0000000 (t+nan) | plain full +1.264±0.577 (t+2.2)e-6
+  [roll] policy term by noise carrier: tail3 +0.00207±0.00060 (t+3.4) legs +0.00014±0.00020 (t+0.7) other -0.00010±0.00014 (t-0.7)
+  [roll] raw source split (no fitted baselines): rewards within GAE horizon -0.00434±0.00284 (t-1.5); critic/bootstrap remainder +0.00645±0.00288 (t+2.2)
+  [roll]   terms |t|>=2: energy -0.00004 (t-24.4), nosedive +0.00010 (t+4.0), posture +0.00001 (t+3.5), spin +0.00000 (t+3.1), tail_home_pose -0.00088 (t-5.3)
+  [roll] CRITIC-FREE TEST (rows >= 200 from a cut): GAE +0.00197±0.00061 (t+3.2) vs MC(0.98) -0.00175±0.00149 (t-1.2); GAE-MC +0.00372±0.00099 (t+3.7) | tail3-noise only: GAE +0.00196±0.00057 (t+3.4) MC -0.00212±0.00148 (t-1.4) diff +0.00407±0.00103 (t+4.0)
+  [roll] gae_terms noise=t3 (n 24): reward-terms sum -0.00360±0.00262 (t-1.4); |t|>=2: BOOT +0.00567±0.00260 (t+2.2), energy -0.00004±0.00000 (t-23.8), spin +0.00000±0.00000 (t+3.2), tail_home_pose -0.00083±0.00015 (t-5.6)
+  [roll] mc_terms noise=t3 (n 24): reward-terms sum -0.00281±0.00238 (t-1.2); |t|>=2: MINUS_V +0.00070±0.00179 (t+0.4), action_jerk +0.00006±0.00003 (t+2.2), action_saturation +0.00000±0.00000 (t+2.2), energy -0.00003±0.00000 (t-12.3), smoothness +0.00006±0.00002 (t+2.5), tail_home_pose -0.00089±0.00006 (t-14.4)
+  [roll] gae_terms noise=all (n 24): reward-terms sum -0.00434±0.00284 (t-1.5); |t|>=2: BOOT +0.00645±0.00288 (t+2.2), energy -0.00004±0.00000 (t-24.4), nosedive +0.00010±0.00003 (t+4.0), posture +0.00001±0.00000 (t+3.5), spin +0.00000±0.00000 (t+3.1), tail_home_pose -0.00088±0.00017 (t-5.3)
+  [roll] mc_terms noise=all (n 24): reward-terms sum -0.00101±0.00207 (t-0.5); |t|>=2: MINUS_V -0.00073±0.00157 (t-0.5), energy -0.00003±0.00000 (t-13.3), neck_posture -0.00006±0.00002 (t-2.6), smoothness +0.00005±0.00002 (t+2.2), tail_home_pose -0.00089±0.00006 (t-15.4)
+  [ss] policy term by noise carrier: tail3 +0.00070±0.00046 (t+1.5) legs +0.00011±0.00015 (t+0.7) other +0.00014±0.00009 (t+1.5)
+  [ss] raw source split (no fitted baselines): rewards within GAE horizon +0.00279±0.00240 (t+1.2); critic/bootstrap remainder -0.00185±0.00231 (t-0.8)
+  [ss]   terms |t|>=2: energy -0.00001 (t-3.4), posture -0.00000 (t-2.3)
+  [ss] CRITIC-FREE TEST (rows >= 200 from a cut): GAE +0.00086±0.00051 (t+1.7) vs MC(0.98) +0.00115±0.00122 (t+0.9); GAE-MC -0.00029±0.00086 (t-0.3) | tail3-noise only: GAE +0.00068±0.00046 (t+1.5) MC +0.00076±0.00106 (t+0.7) diff -0.00008±0.00079 (t-0.1)
+  [ss] gae_terms noise=t3 (n 24): reward-terms sum +0.00325±0.00225 (t+1.4); |t|>=2: BOOT -0.00255±0.00222 (t-1.1), energy -0.00001±0.00000 (t-3.3), posture -0.00000±0.00000 (t-2.3)
+  [ss] mc_terms noise=t3 (n 24): reward-terms sum +0.00078±0.00178 (t+0.4); |t|>=2: MINUS_V -0.00002±0.00177 (t-0.0), energy -0.00001±0.00000 (t-3.1), nosedive -0.00007±0.00003 (t-2.0), posture -0.00000±0.00000 (t-2.1), tail_home_pose -0.00012±0.00006 (t-2.1)
+  [ss] gae_terms noise=all (n 24): reward-terms sum +0.00279±0.00240 (t+1.2); |t|>=2: BOOT -0.00185±0.00231 (t-0.8), energy -0.00001±0.00000 (t-3.4), posture -0.00000±0.00000 (t-2.3)
+  [ss] mc_terms noise=all (n 24): reward-terms sum +0.00100±0.00215 (t+0.5); |t|>=2: MINUS_V +0.00015±0.00209 (t+0.1), energy -0.00001±0.00000 (t-3.3), tail_home_pose -0.00011±0.00006 (t-2.0)
+  r9-style dL_pg/d bias14 per mini-batch -0.0435±0.0120 (t-3.6), 19/24 negative; RMS(SD) 0.468
+  grad norms (median): full 33.0, pg 32.9, mirror 2.87, vf 0.027, ent 0.0136; clip factor 0.0151
+  rollout: mu14 +0.1285±0.0018 (t+71.7); tail angle +0.66 deg; dV/dq3 per deg +0.0205±0.0007 (t+27.7); G=5.16*dmu/dq3 -0.604±0.001 (t-869.1); corr(tail, ep step) +0.32; episodes 192 return 4304.4 falls 0
+==============================================================================================================
+s42 3,145,728  n=16 rollouts (seeds 7201-7216); lr 2.476e-05 ent 0.00275; adam t 218275; n_updates 3458; hp mismatch {}
+  checks (max over rollouts; list entries = relative A-vs-B gap): fall_ok 0; gae_err 3.3e-06; clip_rows 0; comp_sum_err 2.4e-07; bank_vs_probe_err 6e-08; mean_fn_err 0; kl_vs_code 0; fd_nonlin 9.9e-08; src_sum_err 2.1e-10; gk_err 1.2e-14; mc_terms_sum_err 1.5e-15; routeA_vs_B_adam_roll 2.1e-06; routeA_vs_B_adam_bank 1.5e-05; routeA_vs_B_plain_ss 3.2e-05
+  [roll] Adam per epoch: full +0.02295±0.00247 (t+9.3) | pg +0.02263±0.00248 (t+9.1) | mirror +0.00032±0.00033 (t+1.0) | ent +0.0000000±0.0000000 (t+nan) | vf +0.0000000±0.0000000 (t+nan) | plain full +15.687±1.891 (t+8.3)e-6
+  [bank] Adam per epoch: full +0.00192±0.00126 (t+1.5) | pg +0.00223±0.00125 (t+1.8) | mirror -0.00031±0.00016 (t-1.9) | ent +0.0000000±0.0000000 (t+nan) | vf +0.0000000±0.0000000 (t+nan) | plain full +5.759±1.278 (t+4.5)e-6
+  [ss  ] Adam per epoch: full -0.00118±0.00131 (t-0.9) | pg -0.00129±0.00132 (t-1.0) | mirror +0.00011±0.00017 (t+0.6) | ent +0.0000000±0.0000000 (t+nan) | vf +0.0000000±0.0000000 (t+nan) | plain full +3.818±0.958 (t+4.0)e-6
+  [roll] policy term by noise carrier: tail3 +0.02199±0.00236 (t+9.3) legs +0.00059±0.00033 (t+1.8) other +0.00005±0.00030 (t+0.2)
+  [roll] raw source split (no fitted baselines): rewards within GAE horizon -0.00118±0.01011 (t-0.1); critic/bootstrap remainder +0.02381±0.01106 (t+2.2)
+  [roll]   terms |t|>=2: action_saturation -0.00078 (t-9.1), energy -0.00054 (t-17.8), nosedive +0.00100 (t+6.0), posture +0.00005 (t+6.2), tail_home_pose -0.00336 (t-6.2)
+  [roll] CRITIC-FREE TEST (rows >= 200 from a cut): GAE +0.01743±0.00228 (t+7.6) vs MC(0.98) -0.00644±0.00420 (t-1.5); GAE-MC +0.02386±0.00301 (t+7.9) | tail3-noise only: GAE +0.01699±0.00220 (t+7.7) MC -0.00743±0.00449 (t-1.7) diff +0.02442±0.00336 (t+7.3)
+  [roll] gae_terms noise=t3 (n 16): reward-terms sum -0.00370±0.01039 (t-0.4); |t|>=2: BOOT +0.02570±0.01120 (t+2.3), action_saturation -0.00080±0.00009 (t-9.1), energy -0.00054±0.00003 (t-18.1), nosedive +0.00074±0.00016 (t+4.6), posture +0.00003±0.00001 (t+4.8), tail_home_pose -0.00335±0.00049 (t-6.8)
+  [roll] mc_terms noise=t3 (n 16): reward-terms sum -0.00920±0.00854 (t-1.1); |t|>=2: MINUS_V +0.00177±0.00960 (t+0.2), action_saturation -0.00069±0.00009 (t-7.7), energy -0.00052±0.00004 (t-14.8), tail_home_pose -0.00584±0.00092 (t-6.3)
+  [roll] gae_terms noise=all (n 16): reward-terms sum -0.00118±0.01011 (t-0.1); |t|>=2: BOOT +0.02381±0.01106 (t+2.2), action_saturation -0.00078±0.00009 (t-9.1), energy -0.00054±0.00003 (t-17.8), nosedive +0.00100±0.00017 (t+6.0), posture +0.00005±0.00001 (t+6.2), tail_home_pose -0.00336±0.00054 (t-6.2)
+  [roll] mc_terms noise=all (n 16): reward-terms sum -0.00770±0.00825 (t-0.9); |t|>=2: MINUS_V +0.00126±0.00859 (t+0.1), action_saturation -0.00068±0.00010 (t-7.2), energy -0.00052±0.00004 (t-13.3), nosedive +0.00100±0.00041 (t+2.4), posture +0.00005±0.00002 (t+2.5), tail_home_pose -0.00599±0.00093 (t-6.5)
+  [ss] policy term by noise carrier: tail3 -0.00134±0.00131 (t-1.0) legs +0.00001±0.00015 (t+0.1) other +0.00004±0.00015 (t+0.3)
+  [ss] raw source split (no fitted baselines): rewards within GAE horizon -0.00706±0.00587 (t-1.2); critic/bootstrap remainder +0.00577±0.00632 (t+0.9)
+  [ss]   terms |t|>=2: energy +0.00003 (t+2.6)
+  [ss] CRITIC-FREE TEST (rows >= 200 from a cut): GAE -0.00112±0.00127 (t-0.9) vs MC(0.98) -0.00122±0.00301 (t-0.4); GAE-MC +0.00010±0.00214 (t+0.0) | tail3-noise only: GAE -0.00114±0.00125 (t-0.9) MC -0.00130±0.00308 (t-0.4) diff +0.00017±0.00220 (t+0.1)
+  [ss] gae_terms noise=t3 (n 16): reward-terms sum -0.00566±0.00485 (t-1.2); |t|>=2: BOOT +0.00431±0.00542 (t+0.8), energy +0.00003±0.00001 (t+2.4), nosedive -0.00016±0.00008 (t-2.0)
+  [ss] mc_terms noise=t3 (n 16): reward-terms sum -0.00164±0.00591 (t-0.3); |t|>=2: MINUS_V +0.00033±0.00759 (t+0.0), nosedive -0.00040±0.00018 (t-2.2), posture -0.00002±0.00001 (t-2.1)
+  [ss] gae_terms noise=all (n 16): reward-terms sum -0.00706±0.00587 (t-1.2); |t|>=2: BOOT +0.00577±0.00632 (t+0.9), energy +0.00003±0.00001 (t+2.6)
+  [ss] mc_terms noise=all (n 16): reward-terms sum -0.00126±0.00590 (t-0.2); |t|>=2: MINUS_V +0.00004±0.00733 (t+0.0), nosedive -0.00041±0.00019 (t-2.2), posture -0.00002±0.00001 (t-2.1)
+  r9-style dL_pg/d bias14 per mini-batch -0.1365±0.0190 (t-7.2), 16/16 negative; RMS(SD) 0.528
+  grad norms (median): full 45.9, pg 45.5, mirror 3.75, vf 0.044, ent 0.0107; clip factor 0.0109
+  rollout: mu14 +0.4582±0.0124 (t+36.9); tail angle +2.32 deg; dV/dq3 per deg +0.0571±0.0005 (t+106.3); G=5.16*dmu/dq3 +0.267±0.002 (t+175.0); corr(tail, ep step) +0.52; episodes 128 return 4303.6 falls 0
+==============================================================================================================
+s80 1,310,720  n=56 rollouts (seeds 7001-7056); lr 2.782e-05 ent 0.00406; adam t 101598; n_updates 1588; hp mismatch {}
+  checks (max over rollouts; list entries = relative A-vs-B gap): fall_ok 0; gae_err 3.7e-06; clip_rows 0; comp_sum_err 3.3e-07; bank_vs_probe_err 3e-08; mean_fn_err 0; kl_vs_code 0; fd_nonlin 1.2e-07; src_sum_err 9.3e-11; routeA_vs_B_adam_roll 6.4e-05; routeA_vs_B_adam_bank 3.3e-05; routeA_vs_B_plain_ss 0.00017; gk_err 1.1e-14; mc_terms_sum_err 3.4e-16
+  [roll] Adam per epoch: full +0.00011±0.00025 (t+0.4) | pg +0.00023±0.00024 (t+1.0) | mirror -0.00012±0.00004 (t-3.3) | ent +0.0000000±0.0000000 (t+nan) | vf +0.0000000±0.0000000 (t+nan) | plain full +0.137±0.547 (t+0.2)e-6
+  [bank] Adam per epoch: full -0.00080±0.00031 (t-2.5) | pg -0.00026±0.00029 (t-0.9) | mirror -0.00054±0.00010 (t-5.6) | ent +0.0000000±0.0000000 (t+nan) | vf +0.0000000±0.0000000 (t+nan) | plain full -1.085±0.566 (t-1.9)e-6
+  [ss  ] Adam per epoch: full -0.00069±0.00042 (t-1.6) | pg -0.00025±0.00039 (t-0.6) | mirror -0.00044±0.00014 (t-3.1) | ent +0.0000000±0.0000000 (t+nan) | vf +0.0000000±0.0000000 (t+nan) | plain full -0.879±0.700 (t-1.3)e-6
+  [roll] policy term by noise carrier: tail3 +0.00006±0.00024 (t+0.3) legs +0.00014±0.00005 (t+2.5) other +0.00004±0.00004 (t+0.9)
+  [roll] raw source split (no fitted baselines): rewards within GAE horizon +0.00153±0.00080 (t+1.9); critic/bootstrap remainder -0.00130±0.00079 (t-1.7)
+  [roll]   terms |t|>=2: energy +0.00000 (t+6.1), leg_home_pose +0.00038 (t+2.0), nosedive -0.00001 (t-2.3), posture -0.00000 (t-6.0), tail_home_pose +0.00010 (t+2.3)
+  [roll] CRITIC-FREE TEST (rows >= 200 from a cut): GAE +0.00025±0.00024 (t+1.0) vs MC(0.98) +0.00082±0.00063 (t+1.3); GAE-MC -0.00058±0.00043 (t-1.3) | tail3-noise only: GAE +0.00011±0.00024 (t+0.5) MC +0.00071±0.00063 (t+1.1) diff -0.00060±0.00045 (t-1.3)
+  [roll] gae_terms noise=t3 (n 16): reward-terms sum +0.00239±0.00138 (t+1.7); |t|>=2: BOOT -0.00239±0.00140 (t-1.7), alive +0.00068±0.00033 (t+2.0), bilateral_support +0.00044±0.00020 (t+2.2), energy +0.00000±0.00000 (t+3.0), head_clearance +0.00023±0.00011 (t+2.1), posture -0.00000±0.00000 (t-4.1), tail_home_pose +0.00019±0.00009 (t+2.2)
+  [roll] mc_terms noise=t3 (n 16): reward-terms sum -0.00019±0.00141 (t-0.1); |t|>=2: MINUS_V +0.00073±0.00118 (t+0.6), posture -0.00000±0.00000 (t-3.8)
+  [roll] gae_terms noise=all (n 16): reward-terms sum +0.00261±0.00144 (t+1.8); |t|>=2: BOOT -0.00261±0.00144 (t-1.8), action_jerk -0.00004±0.00002 (t-2.1), energy +0.00000±0.00000 (t+4.3), posture -0.00000±0.00000 (t-2.8), smoothness -0.00003±0.00001 (t-2.2), tail_home_pose +0.00020±0.00009 (t+2.1)
+  [roll] mc_terms noise=all (n 16): reward-terms sum +0.00027±0.00145 (t+0.2); |t|>=2: MINUS_V +0.00032±0.00121 (t+0.3), posture -0.00000±0.00000 (t-3.3)
+  [ss] policy term by noise carrier: tail3 -0.00046±0.00038 (t-1.2) legs +0.00012±0.00009 (t+1.4) other +0.00009±0.00008 (t+1.2)
+  [ss] raw source split (no fitted baselines): rewards within GAE horizon +0.00161±0.00155 (t+1.0); critic/bootstrap remainder -0.00186±0.00156 (t-1.2)
+  [ss]   terms |t|>=2: energy +0.00000 (t+2.4), posture -0.00000 (t-3.0)
+  [ss] CRITIC-FREE TEST (rows >= 200 from a cut): GAE -0.00036±0.00036 (t-1.0) vs MC(0.98) -0.00030±0.00091 (t-0.3); GAE-MC -0.00006±0.00065 (t-0.1) | tail3-noise only: GAE -0.00051±0.00036 (t-1.4) MC -0.00028±0.00091 (t-0.3) diff -0.00024±0.00066 (t-0.4)
+  [ss] gae_terms noise=t3 (n 16): reward-terms sum +0.00213±0.00202 (t+1.1); |t|>=2: BOOT -0.00303±0.00238 (t-1.3), bilateral_support +0.00053±0.00025 (t+2.1), stance_width -0.00050±0.00024 (t-2.1)
+  [ss] mc_terms noise=t3 (n 16): reward-terms sum -0.00191±0.00249 (t-0.8); |t|>=2: MINUS_V -0.00020±0.00231 (t-0.1), spin +0.00001±0.00000 (t+2.5)
+  [ss] gae_terms noise=all (n 16): reward-terms sum +0.00232±0.00188 (t+1.2); |t|>=2: BOOT -0.00323±0.00228 (t-1.4), bilateral_support +0.00048±0.00024 (t+2.0)
+  [ss] mc_terms noise=all (n 16): reward-terms sum -0.00151±0.00252 (t-0.6); |t|>=2: MINUS_V -0.00080±0.00238 (t-0.3), spin +0.00001±0.00000 (t+3.3)
+  r9-style dL_pg/d bias14 per mini-batch -0.0006±0.0075 (t-0.1), 28/56 negative; RMS(SD) 0.436
+  grad norms (median): full 24.5, pg 24.4, mirror 1.35, vf 0.033, ent 0.0157; clip factor 0.0204
+  rollout: mu14 -0.0103±0.0005 (t-22.4); tail angle -0.04 deg; dV/dq3 per deg -0.0040±0.0002 (t-21.8); G=5.16*dmu/dq3 -1.410±0.001 (t-1687.2); corr(tail, ep step) +0.00; episodes 448 return 4176.2 falls 0
+==============================================================================================================
+s80 2,097,152  n=16 rollouts (seeds 7101-7116); lr 2.650e-05 ent 0.00350; adam t 158613; n_updates 2490; hp mismatch {}
+  checks (max over rollouts; list entries = relative A-vs-B gap): fall_ok 0; gae_err 3.5e-06; clip_rows 0; comp_sum_err 5.1e-07; bank_vs_probe_err 6e-08; mean_fn_err 0; kl_vs_code 0; fd_nonlin 1.4e-07; src_sum_err 4.5e-11; gk_err 1.1e-14; mc_terms_sum_err 3.3e-16; routeA_vs_B_adam_roll 7.9e-06; routeA_vs_B_adam_bank 3.5e-06; routeA_vs_B_plain_ss 8.8e-06
+  [roll] Adam per epoch: full +0.00284±0.00076 (t+3.7) | pg +0.00287±0.00078 (t+3.7) | mirror -0.00003±0.00008 (t-0.4) | ent +0.0000000±0.0000000 (t+nan) | vf +0.0000000±0.0000000 (t+nan) | plain full +4.439±0.967 (t+4.6)e-6
+  [bank] Adam per epoch: full +0.00114±0.00048 (t+2.4) | pg +0.00122±0.00049 (t+2.5) | mirror -0.00007±0.00007 (t-1.1) | ent +0.0000000±0.0000000 (t+nan) | vf +0.0000000±0.0000000 (t+nan) | plain full +2.765±0.505 (t+5.5)e-6
+  [ss  ] Adam per epoch: full +0.00265±0.00075 (t+3.6) | pg +0.00291±0.00077 (t+3.8) | mirror -0.00026±0.00008 (t-3.2) | ent +0.0000000±0.0000000 (t+nan) | vf +0.0000000±0.0000000 (t+nan) | plain full +4.115±0.749 (t+5.5)e-6
+  [roll] policy term by noise carrier: tail3 +0.00326±0.00074 (t+4.4) legs -0.00021±0.00022 (t-1.0) other -0.00018±0.00010 (t-1.8)
+  [roll] raw source split (no fitted baselines): rewards within GAE horizon -0.00113±0.00273 (t-0.4); critic/bootstrap remainder +0.00401±0.00269 (t+1.5)
+  [roll]   terms |t|>=2: action_saturation +0.00000 (t+2.2), foot_load_balance +0.00011 (t+2.8), posture +0.00000 (t+2.1)
+  [roll] CRITIC-FREE TEST (rows >= 200 from a cut): GAE +0.00233±0.00071 (t+3.3) vs MC(0.98) -0.00032±0.00159 (t-0.2); GAE-MC +0.00265±0.00096 (t+2.8) | tail3-noise only: GAE +0.00262±0.00064 (t+4.1) MC -0.00030±0.00147 (t-0.2) diff +0.00292±0.00092 (t+3.2)
+  [roll] gae_terms noise=t3 (n 16): reward-terms sum -0.00048±0.00277 (t-0.2); |t|>=2: BOOT +0.00374±0.00263 (t+1.4), action_saturation +0.00000±0.00000 (t+2.2), foot_load_balance +0.00009±0.00004 (t+2.4), posture +0.00000±0.00000 (t+3.1)
+  [roll] mc_terms noise=t3 (n 16): reward-terms sum +0.00141±0.00229 (t+0.6); |t|>=2: MINUS_V -0.00171±0.00200 (t-0.9), action_jerk +0.00006±0.00002 (t+2.4), foot_flatness +0.00035±0.00017 (t+2.1), smoothness +0.00006±0.00002 (t+3.3)
+  [roll] gae_terms noise=all (n 16): reward-terms sum -0.00113±0.00273 (t-0.4); |t|>=2: BOOT +0.00401±0.00269 (t+1.5), action_saturation +0.00000±0.00000 (t+2.2), foot_load_balance +0.00011±0.00004 (t+2.8), posture +0.00000±0.00000 (t+2.1)
+  [roll] mc_terms noise=all (n 16): reward-terms sum +0.00226±0.00283 (t+0.8); |t|>=2: MINUS_V -0.00258±0.00259 (t-1.0), action_jerk +0.00006±0.00003 (t+2.2), smoothness +0.00005±0.00002 (t+2.8)
+  [ss] policy term by noise carrier: tail3 +0.00284±0.00074 (t+3.8) legs +0.00005±0.00020 (t+0.3) other +0.00002±0.00009 (t+0.2)
+  [ss] raw source split (no fitted baselines): rewards within GAE horizon -0.00003±0.00516 (t-0.0); critic/bootstrap remainder +0.00294±0.00518 (t+0.6)
+  [ss]   terms |t|>=2: 
+  [ss] CRITIC-FREE TEST (rows >= 200 from a cut): GAE +0.00257±0.00080 (t+3.2) vs MC(0.98) +0.00357±0.00192 (t+1.9); GAE-MC -0.00100±0.00133 (t-0.8) | tail3-noise only: GAE +0.00234±0.00072 (t+3.3) MC +0.00219±0.00182 (t+1.2) diff +0.00015±0.00137 (t+0.1)
+  [ss] gae_terms noise=t3 (n 16): reward-terms sum +0.00119±0.00432 (t+0.3); |t|>=2: BOOT +0.00165±0.00445 (t+0.4), energy -0.00000±0.00000 (t-2.1)
+  [ss] mc_terms noise=t3 (n 16): reward-terms sum +0.00072±0.00294 (t+0.2); |t|>=2: MINUS_V +0.00148±0.00249 (t+0.6)
+  [ss] gae_terms noise=all (n 16): reward-terms sum -0.00003±0.00516 (t-0.0); |t|>=2: BOOT +0.00294±0.00518 (t+0.6)
+  [ss] mc_terms noise=all (n 16): reward-terms sum +0.00238±0.00368 (t+0.6); |t|>=2: MINUS_V +0.00118±0.00328 (t+0.4)
+  r9-style dL_pg/d bias14 per mini-batch -0.0761±0.0140 (t-5.4), 16/16 negative; RMS(SD) 0.463
+  grad norms (median): full 33.6, pg 33.4, mirror 2.17, vf 0.031, ent 0.0136; clip factor 0.0149
+  rollout: mu14 +0.0228±0.0011 (t+21.5); tail angle +0.12 deg; dV/dq3 per deg +0.0286±0.0005 (t+54.4); G=5.16*dmu/dq3 -1.985±0.002 (t-1017.9); corr(tail, ep step) +0.11; episodes 128 return 4320.4 falls 0

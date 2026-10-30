@@ -1,0 +1,316 @@
+THE EARLY-WARNING CURVE (com_revisit, role "early_warning")
+Written 2026-10-30, about 02:15 UTC.  EXPLORATORY AND REPORT-ONLY: candidate telemetry, never a gate.
+- No training, no optimizer step.  Deterministic simulation and network evaluation only; checkpoints opened read only.
+- Every file I wrote is in this folder:
+  /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/com_revisit/notes/early_warning/
+  (one exception, an accident, repaired: see section 8).
+- Labels: [measured] = a named script here computed it (output file named); [inferred] = reasoned, basis given.
+- Everything here is correlational over checkpoints of 3 r10 runs and 24 continuations; nothing is isolated.
+- Sign conventions: cmd14 = tail_3_pitch_act command (raw Gaussian mean unless "own" = the clipped command the env got);
+  G = loop gain = d cmd14 / d observed tail_3 angle (deg) x 5.16 deg per command unit; c0 = cmd14 with the observed
+  tail_3 angle set to 0; FP = c0 / (1 - G); posture slope reported as d cmd14 per deg nose-DOWN seen (+ = the s42
+  pathway; the record's -0.157 per deg nose-up is +0.157 here).
+
+==================================================================================================================
+0. ANSWER IN SHORT
+==================================================================================================================
+- No loop readout meets all three conditions with any margin.  The conditions were: present in s42 and s60 well
+  before their first over-bar episode, and absent in s80 and in the s80 ECS lineage.
+  [measured, ew_analyze.txt sections 1-3]
+  - G rises in all three r10 runs, s80 included, and in the ECS s80 lineage.
+    - Early it is strongly negative: -0.73 (s42), -1.38 (s60) and -1.38 (s80) at 1,048,576 on the unclipped sweep.
+    - It climbs toward 0 over training.  It turns positive one checkpoint before the first over-bar episode (FOB):
+      - s42: +0.35 at 3,145,728; FOB 3,670,016.
+      - s60: +0.31 at 7,340,032; FOB 8,126,464.
+    - s80 crosses 0 at 8,388,608 (+0.07) and ends at +0.27 at 12,001,280, with no tail over-bar episode ever.
+  - c0 rises earliest at checkpoint resolution, but it rises in s80 too:
+    - s42: +0.24 at 2.10M.
+    - s80: +0.18 at 3.15M, +0.23 at 6.29M, +0.47 to +0.50 from 10.5M.
+  - The fixed point FP is the deterministic command in another form.  It matches the measured own command with
+    median |diff| 0.001 over 183 checkpoints.
+  - The posture pathway is s42-only.  s60's has the opposite sign.
+- s80 is not a clean negative after about 9M.
+  - At 11.5M-12.0M its loop state equals s60's at 7.34M: G +0.20 to +0.27, c0 +0.49 to +0.50, own command
+    +0.60 to +0.64.
+  - Its ledger reaches the PARK line (CMD_L 0.616) at 11,796,480.  It never had a tail over-bar episode by 12.0M.
+  [measured]
+  - So any loop readout that fires in s42 and s60 also fires in late s80, or misses it by a hair.  That firing is a
+    false alarm about over-bar episodes, but arguably a true warning of s80's own late park. [inferred]
+- The best loop-based candidate, chosen on TRAIN = r10 s42 + r10 s80 and checked on the rest:
+  - RULE A: G (own settled states, 0-1 deg sweep) > 0.311.
+  - Lead [measured]:
+    - s42: 0.52M.
+    - s60: 0.79M.  s60 is a seen test: its value is 0.313, against a threshold of 0.311.
+    - ECS s42: 12/12 fire at the shared start; lead from S to each FOB 0.26-0.66M, median 0.46M.
+  - False alarms: 0 in r10 s80 (its maximum is 0.273, at 12.0M) and 0/12 ECS s80 continuations (0 of their 72
+    checkpoints after S).
+  - The margins are 0.002 (s60) and 0.04 (s80).  This is a one-checkpoint warning, not an early one.
+- The earliest signal that is absent in every negative is not a loop readout.  It is the FIXED-REFERENCE OFFSET:
+  - What it is: the policy probe's deterministic tail_3 mean on the bank's two statue_settled states.  The probe
+    already records it every 8,192 steps, at zero extra cost.  [measured, section 4]
+  - Its 8-row trailing mean crosses 0.14-0.16 at:
+    - s42: 2.15-2.27M (lead 1.40-1.52M);
+    - s60: 3.65-3.70M (lead 4.4-4.5M).
+  - It never exceeds 0.104 in r10 s80 (whole run) or 0.122 in ECS s80.
+  - But:
+    (a) The pre-stated TRAIN rule puts its threshold at 0.186, which misses s60 (s60's maximum is 0.176).  The
+        0.14-0.16 band was read off the grid, not chosen blind.
+    (b) It is not monotone.  It falls back once the habit forms (s42 after about 3.4M; s60 already from about 5.3M,
+        about 3M before its FOB).
+    (c) n = 2 positive runs.
+  - Candidate only.
+- The cheap baseline already in the ledger is as early as any loop readout at checkpoint resolution:
+  - Signal: CMD_L >= 0.3, the 10-episode deterministic tail_3 command, every 131,072 steps.
+  - Leads: 0.79M (s42) and 1.70M (s60).
+  - It fires in s80 at 9.83M, and never in ECS s80 (maximum 0.165).  [measured]
+- Cost per checkpoint (CPU seconds, single thread, nice 15, beside other jobs) [measured]:
+  - Fixed-reference sweeps (G, c0, FP and pitch on fixed states): 0.013 s median.
+  - Own-state readouts: 20.2 s median [18.5, 32.4], almost all of it the 10 x 1,000-step deterministic rollouts;
+    the sweeps on the settled states take 0.011 s.
+  - The probe offset and CMD_L: 0 (already recorded).
+  - G on the fixed reference (G_ref) has the same first crossing of 0 as G_own at every r10 run (3.15M, 7.34M,
+    8.39M), at 1/1,500 of the cost.  Its fitted threshold (0.300) misses s60 (0.269).
+
+==================================================================================================================
+1. METHOD (ew_common.py, ew_measure.py; fixed for every checkpoint)
+==================================================================================================================
+- Checkpoints [measured]:
+  - r10 s42: all 12 saved numbered checkpoints (1.05M-11.53M, plus 3,670,016) and the final (12,001,280).
+  - r10 s60 and s80: 11 numbered checkpoints each, plus the final.
+  - That is 37 in all.
+  - Correction to the brief: the r10 F2 copies hold checkpoints every 1,048,576 steps, not every 262,144.  Every
+    262,144-step file elsewhere under r10round is a 256-byte stub.  So the r10 lead times have a 1.05M step
+    resolution.
+  - 24 ECS continuations x 7 checkpoints (262,144 apart) = 168 rows.  The first of each is byte-identical (weights
+    sha1 and pickle sha1) to the r10 start checkpoint, so it was measured once and copied: 22 duplicates.
+  - 183 unique checkpoints.
+- Loader: the harness load_sb3_checkpoint from the sealed code copy (r10round/ecs/code), CPU, statistics frozen.
+- OWN settled states:
+  - Deterministic rollouts, seeds 5001-5010 (VPOST's), env.reset(seed), 1,000 steps.
+  - Snapshots: raw observations after steps 500, 600, ..., 1000, so 60 states.
+  - Episode readouts over steps 501-1000: own (clipped) command, tail_3 angle, pelvis pitch from the quaternion.
+- REF fixed reference: the policy probe's bank_raw_obs.
+  - It is byte-identical in all 27 runs (sha1 767bab20e8).
+  - REF = its two statue_settled rows (seeds 3042/3043, step 199).
+  - "bank" = all 10 rows (it adds the ankle-perturbed and statue rows).
+- PRIMARY tail sweep: obs[6] (tail_3 angle) = 0, 0.25, 0.5, 0.75, 1.0 deg; all else fixed.
+  - Least-squares slope per state, median over states; G = slope x 5.16.
+  - c0 = the value at 0 deg, evaluated directly (median over states).
+  - FP = c0 / (1 - G).
+  - Why 0-1 deg [measured, ew_stats.txt, 183 pickles]:
+    - Before each run's rise, and in s80 up to 9.4M, the tail_3 normaliser SD is 0.29-0.46 deg.  So the
+      verifier's 0-6 deg sweep is clipped (z = 10) from 2.97-4.9 deg at those checkpoints.
+    - The 0-1 deg sweep reaches at most z = +3.38 (s80 at 2,097,152), with 0 clipped points.
+    - It is near-linear: slope over 0.5-1.0 deg / slope over 0-0.5 deg, median 0.988 (OWN, n 182) and 0.992 (REF).
+      One OWN outlier ratio is 0.52, at a checkpoint with a slope near 0.
+- LEGACY 0-6 deg sweep: the verify_loop / posture_policy / VPOST definition, kept for comparison only.  It is clipped
+  at 90 of 183 checkpoints.
+- PITCH: the pitch illusion (gravity, accelerometer and prey direction rotated about the pelvis y axis) at -0.5 to
+  +0.5 deg.  Least-squares slope per state, median.  Maximum |z| on the rotated channels 1.77; nothing clipped.
+- Ledger events (ew_events.py; eval_episodes.csv, 10 episodes per 131,072 steps):
+  - over the BAR = saturated_actuator_fraction > 0.10; TAIL = a tail actuator (11-14) is named.
+  - ANY / TAIL flag = >= 5 of 10 over the bar; alarm = the second of two consecutive flags.
+  - CMD_L = the mean of the 10 episodes' tail_3_pitch_act_command_mean.  PARK = CMD_L >= 0.60; RAIL = CMD_L >= 0.90.
+- Probe: bank_action_now[:, :, 14], the raw mean, on the statue_settled rows; rollout_mu_mean[:, 14].
+
+==================================================================================================================
+2. VALIDATION [measured, ew_analyze.txt section 0]
+==================================================================================================================
+- VPOST is reproduced exactly, legacy definition, s42 3,145,728, seeds 5001-5010:
+  - G +0.2607 (VPOST +0.261), c0 +0.411, FP +0.556, pitch slope -0.093 per deg nose-up.
+  - Held pitch -1.422 deg, own command +0.601.
+  - s60 legacy G at 1.05M and 8.39M: -0.470 / +0.316 (VPOST -0.47 / +0.32).
+- My network's raw tail_3 mean on the probe bank against the probe's recorded bank_action_now, at the same update
+  row:
+  - 156/159 checkpoints agree to <= 5.5e-7.
+  - The 3 finals (12,001,280) differ by 0.009-0.013: the probe's last row precedes the final save.
+  - So the probe row at step N is checkpoint N's network under checkpoint N's statistics.
+- own14 (my 10 seeds) against the ledger's CMD_L at the same step: n 180, median |diff| 0.020, max 0.227.
+- 1,828 of 1,830 episodes ran 1,000 steps.  Two terminated, both seed 5009: s80_A_1321 at 5,767,168 (step 419) and
+  s42_B_1241 at 4,194,304 (step 354).  Each of those checkpoints keeps 54 states.
+- My ledger events reproduce the record:
+  - s42: first over-bar 3,670,016, first TAIL flag 3,801,088, first alarm 3,932,160.
+  - s60: first over-bar 8,126,464, never flagged.
+  - s80: neck over-bar from 3,801,088, 12 flagged evaluations, no tail over-bar episode.
+  - ECS first flags as L125 (ew_events.txt).
+
+==================================================================================================================
+3. THE SERIES AGAINST THE EVENTS [measured, ew_analyze.txt section 1; ew_series.csv]
+==================================================================================================================
+Primary sweep on own states.  Cells are own14 / c0 / G / FP.  Events are ledger events.
+
+r10 s42 (FOB 3,670,016):
+- 1.05M: -0.03 / -0.06 / -0.73 / -0.03
+- 2.10M: +0.14 / +0.24 / -0.64 / +0.15
+- 3.15M: +0.60 / +0.41 / +0.35 / +0.63.  CMD_L >= 0.3 came at 2.88M.
+- 3.67M: +1.00 / +0.52 / +0.54 / +1.13.  PARK at 3.41M; FOB, RAIL.
+- G stays +0.48 to +0.83 to the end, including at 6.29M, where the command had fallen to +0.30.
+
+r10 s60 (FOB 8,126,464):
+- 1.05M-4.19M: G -1.38, -1.75, -1.94, -1.57; c0 +0.02 to +0.18.
+- 5.24M: G -0.51.
+- 6.29M: G -0.07, c0 +0.29, own +0.26.  CMD_L >= 0.3 came at 6.42M; PARK at 6.95M.
+- 7.34M: G +0.31, c0 +0.49, own +0.67, FP +0.71.
+- 8.39M: G +0.36, own +0.91.
+
+r10 s80 (no tail over-bar; ledger PARK 11,796,480):
+- G: -1.38, -1.98, -1.16, -1.12, -0.57, -0.21, -0.13, +0.07 (8.39M), -0.16, +0.03, +0.20, +0.27 (12.0M).
+- c0: +0.18 at 3.15M, +0.23 at 6.29M, +0.47-0.50 from 10.5M.
+- own: +0.46 / +0.60 / +0.64 at 10.5M / 11.5M / 12.0M.
+
+ECS s42 (12 continuations; start S = 3.15M):
+- G median 0.35 (S), 0.46 (3.41M), 0.52, 0.56, 0.58, 0.62, 0.66 (4.72M).
+- FOBs: 3.41M (2 continuations), 3.54M (4), 3.67M (3), 3.80M (3).
+- At the last checkpoint before each FOB:
+  - for the 2 continuations with FOB at 3.41M, that checkpoint is S itself (G 0.35, command 0.60);
+  - for the other 10, G is 0.42-0.54 and the command 0.73-0.90.
+
+ECS s80 (12 continuations; S = 4.19M):
+- G median -1.12 -> -0.72 over the window; maximum +0.18 (s80_B_1401 at 5.77M; own +0.19).
+- Command at most +0.19.  Tail over-bar: never.
+
+Fixed reference:
+- G_ref follows G_own closely, e.g. s42 -0.70 / -0.62 / +0.33 against -0.73 / -0.64 / +0.35.
+- c0_ref and the probe offset (bank_ss):
+  - s42: up from 1.3M to 0.21-0.28 by 2.4-3.2M, then down and negative after the rail forms (-0.09 at 4.19M,
+    -0.26 at 9.4M).
+  - s60: up to 0.16-0.18 at 3.5-4.2M, then down to about 0 by 6.3M and negative from 7.3M.
+  - s80: at most 0.10.
+- So the fixed-reference offset is an ONSET marker, not a state marker.
+
+Posture pathway (d cmd14 per deg nose-down):
+- s42: -0.005, +0.02, +0.09 (3.15M), +0.12 to +0.17 later.
+- s60: negative (-0.13 at 3.15M), about 0 after 7M.
+- s80: about 0.
+- ECS s80: 5/12 continuations exceed +0.05 somewhere.
+- So it is not a general marker.
+
+==================================================================================================================
+4. RULES, LEADS, FALSE ALARMS [measured, ew_analyze.txt sections 2, 2b, 3, 4]
+==================================================================================================================
+- Pre-stated choice rule:
+  - Threshold = the midpoint of (r10 s80's maximum over all 12 checkpoints, r10 s42's maximum before its FOB).
+  - TRAIN = r10 s42 + r10 s80.
+  - TEST = r10 s60 (a SEEN test: its series was printed before the rule was fixed), and ECS s42 x12 and ECS s80 x12
+    (UNSEEN when the rule was fixed).
+  - Lead = FOB minus the first firing checkpoint.
+- Results under the rule [measured]:
+  - G_own > 0.311:
+    - leads s42 0.52M, s60 0.79M;
+    - ECS s42 12/12, median 0.46M;
+    - r10 s80 never; ECS s80 0/12.
+    - The only loop readout that passes.
+  - G_ref > 0.300: s60 is missed (0.269 at 7.34M; it fires at 8.39M, after FOB).
+  - own14, c0, FP, the probe rollout mean: no threshold.  s80's maximum is above s42's pre-FOB maximum.
+  - Posture pathway > 0.064: misses s60; fires in 2/12 ECS s80.
+  - c0_ref > 0.144: misses s60.
+  - Probe bank_ss at checkpoints > 0.150: s60 lead 3.93M.  At native resolution the rule gives 0.186, which misses
+    s60.
+  - CMD_L at native resolution > 0.723: leads 0.26M (s42) and 0.66M (s60); ECS s42 8/12; no s80 alarm.
+- TRAIN-early variant (s80's maximum taken only to 8.39M, before its own late rise):
+  - G > 0.207, own14 > 0.394, c0 > 0.319, FP > 0.410 and CMD_L > 0.370 all give the same 0.52M / 0.79M leads.
+  - All of them then fire in s80 at 10.5-12.0M.
+- Natural lines (not fitted):
+  - G > 0 first holds at:
+    - s42: 3.15M;
+    - s60: 7.34M;
+    - s80: 8.39M, 3.4M before its ledger PARK;
+    - ECS s80: 1/12 (s80_B_1401 at 5.77M).
+  - FP > 0.6 first holds at: s42 3.15M, s60 7.34M, s80 11.53M.
+- Threshold grids (section 2b) show how fragile each choice is.  For example, c0 > 0.20 gives leads 1.57M / 1.84M but
+  fires in s80 at 6.29M.
+- Candidate telemetry, report only, never a gate [inferred from the above]:
+  (T1) The probe's fixed-reference offset.  Zero cost; an onset marker.
+       - Flag when the 8-row trailing mean of the statue_settled tail_3 mean exceeds about 0.15.
+       - On this data: leads 1.43M (s42) and 4.46M (s60); 0 alarms in r10 s80 and ECS s80.
+       - The threshold was read off the grid, so it is not a held-out estimate.  It needs an independent test
+         (section 9).
+  (T2) G on fixed states.  0.013 s per checkpoint; a mechanism marker.
+       - Report G_ref with its sign.
+       - A crossing from strongly negative to > 0 marks the loop turning positive.  On this data it came 1
+         checkpoint (0.5-0.8M) before FOB, and in s80 3.4M before its park.
+  (T3) CMD_L is already in the ledger.  CMD_L >= 0.3 is the cheapest command-level early marker.
+
+==================================================================================================================
+5. CORRECTIONS / ADDITIONS TO THE RECORD [measured]
+==================================================================================================================
+- §4.7 / §4.11 quote VPOST's G -0.250 (1.05M) and -0.386 (2.10M) for r10 s42 on the 0-6 deg sweep.
+  - At 1.05M that sweep is clipped beyond 3.74 deg; at 2.10M beyond 4.28 deg (ew_stats.txt).
+  - On the unclipped 0-1 deg sweep these are -0.725 and -0.636.
+  - For s60 and s80 at 1.05M the corresponding values are -0.47 -> -1.38 and -0.48 -> -1.38.
+  - The signs hold; the magnitudes are 2-3x larger.
+  - Likewise s80's late G (legacy +0.023 at 8.39M) is +0.066 primary, and +0.27 at the final.
+- s42's restoring gain was already weaker at 1.05M and 2.10M (-0.73 / -0.64) than s60's and s80's
+  (-1.38 / -1.75 and -1.38 / -1.98).  n = 1 run each; noted, not interpreted.
+- r10 s80 develops the same loop state late: G +0.27, c0 +0.49, own +0.64 at 12.0M; ledger PARK at 11.80M.
+
+==================================================================================================================
+6. LIMITS
+==================================================================================================================
+- The r10 lead resolution is one checkpoint (1.05M steps).  The ECS checkpoints are 262,144 apart, but every ECS
+  s42 continuation starts mid-rise (G +0.35, command +0.60), so they test persistence, not onset.
+- Only 2 independent positive onsets (r10 s42, r10 s60) and 1 full-length negative (r10 s80), which itself drifts
+  to PARK.  ECS s80 covers only 4.19-5.77M.  No threshold here is estimated with useful precision.
+- Deterministic settled states only.  Training rows are stochastic.  G is a local (0-1 deg) linearisation at the
+  level tail.  At the railed operating point (about 5 deg), the slopes differ (the legacy G).
+- Seeds 5001-5010 throughout; the bank (seeds 3042/3043) is fixed.  Nothing was isolated: all links are
+  correlational.
+
+==================================================================================================================
+7. RULES AND COST OF THIS WORK
+==================================================================================================================
+- One simulation process at a time, nice 15, OMP/MKL 1 thread.  python -B; PYTHONPATH = the sealed code copy plus
+  this folder.
+- Runs:
+  - 00:52-01:04 UTC: 34 r10 checkpoints.
+  - 01:06-02:02 UTC: 3 finals and the 24 ECS continuations.
+- Total about 3,700 CPU-seconds of rollouts.  This folder is about 12 MB (states/ holds the 183 snapshot sets).
+
+==================================================================================================================
+8. INCIDENT (my error, repaired; please pass on)
+==================================================================================================================
+- At about 01:05 UTC I ran `mv ew_ecs.jsonl /dev/null` while debugging.  I meant to hide the partial ECS output from
+  a test run.  As root this REPLACED the /dev/null device node with a regular file, for about 1-2 minutes.
+- Repaired at 01:06 UTC: mknod -m 666 /dev/null c 1 3, renamed into place.  It is now a character device 1:3, mode
+  666, and writes are discarded.
+- Possible effect on others: any process that opened /dev/null during that window wrote into, or read from, a
+  regular file, not the null device.
+  - That file held 48 bytes when I checked it, before the repair.  The repair replaced it with the device node.
+  - The early-bias probe and others' pytest runs were active then.  Their own output files are unaffected.  A
+    process that read stdin from /dev/null in that window may have seen those bytes.
+- My own consequence: the first 4 ECS rows were written into that file and lost.  I stopped the measurement (PID
+  27056), repaired /dev/null and re-ran the ECS phase from the start (run_rest.sh).  No data in this folder comes from
+  the lost rows.
+- In the same step, a pkill pattern matched my own shell and killed the original run_all.sh.  The measurement
+  process was then stopped by PID.
+
+==================================================================================================================
+9. SUGGESTED NEXT RUNS (no training; each fits tonight)
+==================================================================================================================
+(1) Held-out test of T1 and T3 on r9, the most direct test of the only early, s80-absent signal.
+    - No simulation; minutes of CPU.
+    - Inputs, already local:
+      - probes in tailround/fetch/stance5_LTSB_{s42,s52,s60,s70,s80}/A/policy_probe.npz;
+      - ledgers in the 0fdf74a4 scratch foot/stance5/{runs,replication/runs}/stance5_LTSB_*/01_stance/
+        eval_episodes.csv.
+    - Positives: r9 s42 (FOB 3,145,728) and r9 s80 (flagged from 4,325,376).  Negatives: s52, s60 and s70.
+    - Fix the threshold on r10 first (0.15 on the statue_settled 8-row trailing mean).  Check that the r9 bank holds
+      the same statue_settled rows.  L070 read only the 10-row bank mean, whose ankle-minus rows exceed 1.
+(2) Closed-loop distance to the rail: is late s80 really one step from railing?
+    - Checkpoints: s80 10.5M / 11.5M / 12.0M against s60 6.29M / 7.34M and s42 2.10M / 3.15M.
+    - Add a fixed offset delta to the observation pathway (the pitch illusion, which moves c0 only), or a constant
+      bias on action 14, in deterministic closed loop: 10 seeds x 1,000 steps x 4-5 delta levels.
+    - Find the delta at which the episode share at |command| >= 0.99 exceeds 0.10.
+    - About 7 checkpoints x 50 episodes x 2 s, so about 15 min.
+    - This turns G and c0 into one margin-to-rail number and says whether s80's late G > 0 state is a near-miss.
+
+==================================================================================================================
+10. FILES
+==================================================================================================================
+- ew_common.py, ew_measure.py: the fixed method.  ew_r10.jsonl (37 rows) and ew_ecs.jsonl (168 rows): per checkpoint
+  every readout, its episodes and CPU times.  states/<run>_<steps>.npz: the snapshot states.
+- ew_stats.py -> ew_stats.txt: tail_3 normaliser mean / SD and z at 0-6 deg, all 183 pickles.
+- ew_events.py -> ew_events.txt, ew_events.json: ledger events and the probe series per run.
+- ew_analyze.py -> ew_analyze.txt (validation, series, rules, grids, natural crossings, native-resolution signals, ECS
+  per continuation) and ew_series.csv (one row per run and checkpoint, every signal).
+- run_all.sh (first pass; stopped at 01:06), run_rest.sh (finals + ECS); logs run_r10.log, run_ecs.log.
