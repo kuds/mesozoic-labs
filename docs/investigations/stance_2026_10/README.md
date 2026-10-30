@@ -458,6 +458,22 @@ made LF); `update/CHANGES.txt` and `update_check/FIXES.txt` carry **redact**
 (2 workflow run ids each); the other four copies are byte-identical. No copy
 holds a model identifier, an email address or a commit trailer.
 
+*Added 2026-10-30 (`pop_pose_saturation/`):* no new kind of change. The
+sources are in the files folder of the session that wrote
+[TREX_STANCE_POP_POSE_SATURATION_2026_10.md](../TREX_STANCE_POP_POSE_SATURATION_2026_10.md),
+and SOURCES.txt writes them below `session/files/`. The changes:
+- Eleven scripts carry **prefix**: that files folder, their `D`, becomes
+  `scratchpad`.
+- `common.py` carries **checkout**: its `REPO` becomes `checkout`. With both
+  changes the copies rerun from a working folder, as the folder's README
+  describes.
+- The nine JSON copies carry **whitespace** (a final newline added).
+- The three JSON copies above 500 KB also carry **gzip**
+  (`t2/pins.json.gz`, `t2/patterns.json.gz`, `t2b.json.gz`).
+- `an_pins.py` and the two printouts are byte-identical.
+
+No copy holds a model identifier, an email address or a commit trailer.
+
 [SHA256SUMS](SHA256SUMS) pins every file here but this README and itself
 (`sha256sum -c SHA256SUMS` in this directory). *Added 2026-10-19:* nor
 `stance3/results/README.md`, which, like this README, has no source.
@@ -473,6 +489,7 @@ holds a model identifier, an email address or a commit trailer.
 *Added 2026-10-29:* nor `ecs_results/README.md`, likewise.
 *Added 2026-10-29, later still:* nor `com_revisit/README.md` and `tail_probes/README.md`, likewise.
 *Added 2026-10-29, latest:* nor `tail_record/README.md`, likewise.
+*Added 2026-10-30:* nor `pop_pose_saturation/README.md`, likewise.
 
 ## Contents
 
@@ -1527,6 +1544,27 @@ record and number check, the update's changes and its fact check).** Its
 [README](tail_record/README.md) holds the record's build notes, among them
 each edit that made the repository note from the session draft.
 
+### Added on 2026-10-30 (the maintainer's request: the stance pop, displaced-pose and saturation diagnosis)
+
+**`pop_pose_saturation/`: the scripts and outputs of
+[TREX_STANCE_POP_POSE_SATURATION_2026_10.md](../TREX_STANCE_POP_POSE_SATURATION_2026_10.md),
+a root-cause diagnosis of #489 and #491 on physics r10 (24 files, about 1.5
+MB).** These are open-loop rollouts of the real environment, none of which
+trained or loaded a policy. They cover:
+- the reset pop and its settling;
+- single-actuator rails and the #491 and satdiag patterns, with their
+  release;
+- leg-lean counterweights and unwinds, the counterbalanced lean and neck
+  pair, and the lean × neck return surface;
+- the keyframe and settled leg references;
+- the per-actuator price of rails and chatter;
+- the observation statistics behind VecNormalize;
+- the statue under action noise;
+- the head–tail balance.
+
+Report only: it enters no verdict or decision. Its
+[README](pop_pose_saturation/README.md) indexes it.
+
 ## How to re-check each verdict
 
 Commands as run on 2026-10-17 from a copy of this directory (Python 3.13;
@@ -1638,6 +1676,9 @@ copies.
 | The files themselves (2026-10-29, later still, with `com_revisit/` and `tail_probes/`) | `sha256sum -c SHA256SUMS` | all 1357 files OK |
 | The record's ledger (2026-10-29, latest) | `python3 -c "import csv; r = list(csv.DictReader(open('tail_record/ledger.csv', newline=''))); print(len(r), r[0]['id'], r[-1]['id'])"` | `167 L001 L167` |
 | The files themselves (2026-10-29, latest, with `tail_record/`) | `sha256sum -c SHA256SUMS` | all 1364 files OK |
+| The copies against their sources (2026-10-30; the session folder only) | `sha256sum` of each source SOURCES.txt names for `pop_pose_saturation/` | equal to the sha256 given for all 23, and to the copy's for the 3 byte-identical copies |
+| The scripts against their kept outputs (2026-10-30) | in a working folder set up as `pop_pose_saturation/README.md` describes, run `t4d_ref.py`, `t5_price.py` and `t8_headtail.py` | printouts and JSON identical byte for byte (the JSON after its final newline) |
+| The files themselves (2026-10-30, with `pop_pose_saturation/`) | `sha256sum -c SHA256SUMS` | all 1387 files OK |
 
 `test_pilot_score.py` prints sample "Walking pilot score" blocks while it runs;
 they score synthetic panels, not the pilot.
@@ -1757,3 +1798,19 @@ after the `sys.path` line that points them at the tree they measure, unsorted
 or joined imports); `ruff format --check` would reformat six; all eight parse
 on Python 3.11, 3.12 and 3.13. The two shell scripts there are left as they
 ran.
+
+*Added 2026-10-30:* the 12 Python scripts added in `pop_pose_saturation/` are
+left as they ran, apart from the prefix and checkout that SOURCES.txt records.
+Under the same configuration, `ruff check` (ruff 0.16.9) reports 44 findings
+across all 12, in quick-script style:
+- statements joined by `;` (17) or `:` (2);
+- unsorted imports (14);
+- several modules on one import line (3);
+- unused imports (2) and an unused variable (1);
+- lambdas assigned to a name (2);
+- variables named `l` or `O` (2);
+- an import below the `sys.path` line (1).
+
+Most are in `an_pins.py` and `t8_headtail.py` (10 each). `ruff format
+--check` would reformat all 12, and all 12 parse on Python 3.11, 3.12 and
+3.13.

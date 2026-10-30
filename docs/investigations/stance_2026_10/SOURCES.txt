@@ -320,6 +320,21 @@
 # pre-update and pre-check copies of the draft and the ledger, the check's diff and row extract, and the draft itself,
 # which the note replaces (its sha256, 1f1e7bdd2c7959a5df78a328c3360b3dad1b6c60725c6554b2a187cdf5d58fc7, and the edits
 # that made the note are in tail_record/README.md).  tail_record/README.md has no source.
+# Added 2026-10-30 (pop_pose_saturation/): the scripts and outputs of the T. rex stance pop, displaced-pose and
+# saturation diagnosis (docs/investigations/TREX_STANCE_POP_POSE_SATURATION_2026_10.md), written at the maintainer's
+# request; no decision.  No new kind of change.  The sources are in the files folder of the session that wrote the
+# note, not in the scratch roots above: each is written below 'session/files/' (the session directory replaced by
+# 'session', as for a source outside the scratch root).  prefix: that files folder, which the scripts hard-code as
+# their D (t1_pop.py and t2_pins.py also as their OUT), is replaced by 'scratchpad' in eleven scripts.  checkout:
+# common.py's REPO, the session's checkout directory (here not below the home directory), is replaced by 'checkout'.
+# Both are now relative to the working directory, so the copies rerun from a folder that holds this folder as
+# scratchpad/ and a link to the checkout as checkout (pop_pose_saturation/README.md).  whitespace adds a final newline
+# to the nine JSON copies.  gzip: t2/pins.json, t2/patterns.json and t2b.json, each above the repository's 500 KB
+# limit for an added file, are copied as .json.gz.  an_pins.py and the two printouts (t4d_ref.txt, t8_headtail.txt)
+# are byte-identical.  Not copied (above the limit even gzipped; the folder's README gives their sha256):
+# t1/t1_traces.npz (3,404,738 bytes) and t4b.json (23,057,516 bytes).  The note's draft, session/files/REPORT.md, is
+# not copied either; the note replaces it (its sha256 and the edits that made the note are in
+# pop_pose_saturation/README.md).  pop_pose_saturation/README.md has no source.
 
 audit/foot_ankle_audit.md foot/audit_2026_10_17/foot_ankle_audit.md e9da4ef84be17a87b70096d1e2aede87609ad22f446b10786f9e14d5064725c8 prefix
 audit/geometry/geometry_audit.json foot/audit_2026_10_17/geometry/geometry_audit.json 934110bec337b9693f894800efb309bf1a9529ae87f91f129bfefc8fef5b650a prefix,whitespace
@@ -859,6 +874,29 @@ pilot2/colab_steps_2026-10-21.txt foot/pilot2/colab_steps.txt 60845fdc2d38bc26f5
 pilot2/criteria.txt foot/pilot2/criteria.txt a240ff5de2f212e5cd089a60f4a5fe62e44f3a5220cdd5484b2dd6560d56672a none
 pilot2/criteria_2026-10-21.txt foot/pilot2/criteria.txt bdcdae4bea468be4ebb9d542f7ba609671ace15b007ced641c18c7dc3c5b0533 redact
 pilot2/rebuild_1021_summary.md foot/pilot2/rebuild_1021/summary.md 4a333d2800d12bf9c5a67e426a8af6aeab768e476e36a9cbc2db5f4ad71a6871 redact
+pop_pose_saturation/an_pins.py session/files/an_pins.py 33b9c78e69759fae76de1db3680063c27db9582dc50e9b5bb170a06f8eaca2af none
+pop_pose_saturation/common.py session/files/common.py a4905e1b692302144c62249d65fe3c331c8a42bbefbee6fc53c3ed9efef9bdc9 checkout
+pop_pose_saturation/t1/t1_results.json session/files/t1/t1_results.json 9a4556a17759de00ae3288e6b2f68369bbb586e7d47d0956a6fbadcf24136190 whitespace
+pop_pose_saturation/t1_pop.py session/files/t1_pop.py e83ac47a9ec18bff06531430f17ed0412943f22a563f912e87dd4d9983beb8b1 prefix
+pop_pose_saturation/t2/patterns.json.gz session/files/t2/patterns.json 31bd5872d2b71bc7f36d29a721ae29ac2fd8a157344a6bc33ae8b0432747d57d whitespace,gzip
+pop_pose_saturation/t2/pins.json.gz session/files/t2/pins.json 0548bbddca8ea38c48a789aa12d99391b314346d3ed7e00c4d1714e5cfff5fe6 whitespace,gzip
+pop_pose_saturation/t2_pins.py session/files/t2_pins.py dabbac58cdfc3cb3e0a0f61fa8f6353158373c492df90cf8dd1268d522bbc267 prefix
+pop_pose_saturation/t2b.json.gz session/files/t2b.json 74e2e4d8706be04280b186a8f7e18d9c6952f7543e78dfcd770a102a169150f8 whitespace,gzip
+pop_pose_saturation/t2b.py session/files/t2b.py efb78183296a3abda4f9b8ad0e5c9a7270d8854c96568b5ac829f8c4caf9e8c1 prefix
+pop_pose_saturation/t4b.py session/files/t4b.py c43bffb00450709546806c910d6adb84ba51c02b7fc5a61f15ed4a9311e12cf3 prefix
+pop_pose_saturation/t4c_grid.json session/files/t4c_grid.json 6167e20d88d27392dace4c318a9ca4c52dc8ae6f090ad943005e456f1ff92be1 whitespace
+pop_pose_saturation/t4c_grid.py session/files/t4c_grid.py 938e606c7a6455f1a0e61bbaea29fb9611f319fedbffb5ba16ca57282c04459c prefix
+pop_pose_saturation/t4d_ref.py session/files/t4d_ref.py 0b471624bae30f2d9884d737a14553acb8d590b7c025ccd3fa7369a1987ee27d prefix
+pop_pose_saturation/t4d_ref.txt session/files/t4d_ref.txt 0e4b883a389fda6e560c5deb87ac6d513a8a86f8ae0e7cb2b2c5209fe1b2bfdc none
+pop_pose_saturation/t5_price.json session/files/t5_price.json 40977587a370969339e8b4ff2489f61b2b561b2933ea2cb70f2de7861a638f76 whitespace
+pop_pose_saturation/t5_price.py session/files/t5_price.py cb25510fc76a85011bc08bd16ff2113682c2c6bf6e005b6c5a86446f4a644e47 prefix
+pop_pose_saturation/t6_vecnorm.json session/files/t6_vecnorm.json a370ada2db262c5776ad72cd0c98371ed59c2b1e6c63ba76f1dce44c4d5adb2a whitespace
+pop_pose_saturation/t6_vecnorm.py session/files/t6_vecnorm.py 99be4ef93f4a0f17ad224c9f32c2f1c364b78e9488ee57e007029f92accabefd prefix
+pop_pose_saturation/t7_noise.json session/files/t7_noise.json 7709c1993ccb84baa5aeb70a09c60374d38cb5e995a0655f35886f2e3b08e91f whitespace
+pop_pose_saturation/t7_noise.py session/files/t7_noise.py d44dbc79207abb6148400148b7adcfa62f6dfb8ced5299a66110640063eb4007 prefix
+pop_pose_saturation/t8_headtail.json session/files/t8_headtail.json 2f7f88431ad1b6d64fad56dc44f2bdb5d6430bdb811dc26732fed808b8e59352 whitespace
+pop_pose_saturation/t8_headtail.py session/files/t8_headtail.py f28bcee92edb77fdea28cb7867775bce3a24ae0d3fabad8f5f081779e897ac8d prefix
+pop_pose_saturation/t8_headtail.txt session/files/t8_headtail.txt 68b8667a6cb4424ce60d8364aa743a9fe8b31c542a9eae9a1989fce67528d926 none
 r10_screen/colab_steps.txt foot/r10screen/colab_steps.txt 3ce1685330d43b1b255de131f57aa4547e6beecdd59e13c830516fcf0e58debb none
 r10_screen/criteria.txt foot/r10screen/criteria.txt fc4305b75e558f178b51d5cb4051d419498d2fa19b5561b911f0477aaff050f8 none
 r10_screen/fetch_record.json foot/r10screen/judged/fetch_record.json 540a3563dc0f053fe8a578b493ef5d08aa6ea47c36365de37b01b8e196732c8e prefix,whitespace

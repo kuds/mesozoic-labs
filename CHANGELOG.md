@@ -8,6 +8,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **A root-cause diagnosis of the T. rex stance reset pop, the displaced pose
+  of #489 and the actuator saturation and chatter of #491, report only**
+  (`docs/investigations/TREX_STANCE_POP_POSE_SATURATION_2026_10.md`,
+  `docs/README.md`; evidence in `pop_pose_saturation/` of
+  `docs/investigations/stance_2026_10/`: twelve open-loop scripts on the real
+  environment and their outputs, with the folder's README and their rows in
+  SOURCES.txt and SHA256SUMS). Report only. The note was written at the
+  maintainer's request. It follows the six tracks of the maintainer's
+  investigation brief of 2026-10-30 and proposes no fix. It measures on
+  physics r10 and takes the two issues' r6 numbers and the r9 numbers from
+  the records. Its findings:
+  - The keyframe is no static equilibrium. Under zero action the body settles
+    in about 155 to 190 steps, which costs about 3 points without reset noise
+    and 12 to 26 with it. The trained tail rail forms after the settle, not
+    during it.
+  - #489's 270-point gap was 39% rate penalties, 34% joint home-pose terms
+    and 20% energy. Pelvis attitude and height were a net gain.
+  - Tail and head rails are PD-target windup at mid-range, not
+    counterweights. Only the neck moves the centre of mass back (25 to
+    32 mm). The head and tail balance passively, but tail pitch can only move
+    the centre of mass forward.
+  - Releasing a pure rail pays at once. Releasing only the counterweight half
+    of a lean and neck pair falls 170 to 350 steps later, beyond the discount
+    horizon.
+  - The reward prices rates, and the chatter is a 4- to 5-step limit cycle,
+    not one-step bang-bang.
+  - The statue does not survive PPO's initial exploration noise on the legs.
+  - Under the committed keyframe leg reference, a small lean beats the statue
+    by 17 to 24.5 points.
+
+  The critic's values across the settle could not be measured without
+  checkpoints. The note lists the open questions and the instrumentation that
+  would settle them. Nothing trains on `main`, and no code, config, reward,
+  plant, gate or criterion changes.
 - **One record of everything tried on the T. rex tail saturation habit, with
   the entropy continuation screen judged, final: line 3, no difference
   detected** (decision D-D52's amendment and D-D53 to D-D55;
