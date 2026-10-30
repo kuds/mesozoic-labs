@@ -16,8 +16,10 @@ on the current plant (80 spawns at reset noise 0.02): the body turns up to 4.9 d
 up to 17 mm from where it spawned, nearly all of it before the window (the window turn stays under 0.17 deg).
 """
 
+import pytest
+
 from environments.shared.model_id import ModelId
-from environments.shared.tests.com_stance_helpers import ComStanceQualityBase
+from environments.shared.tests.com_stance_helpers import ComStanceQualityBase, TargetMissed
 
 
 class TestComStanceQuality(ComStanceQualityBase):
@@ -97,3 +99,64 @@ class TestComStanceQuality(ComStanceQualityBase):
     # Held-out seeds: the largest turn from the spawn (4.21 deg) and the largest lateral offset
     # (-0.006 mm) among those holding every width; they use 0.59 and 0.47 of a width.
     noisy_seeds = (121, 106)
+
+    @pytest.mark.xfail(
+        strict=True,
+        raises=TargetMissed,
+        reason=(
+            "physics r10 (2026-10-29): the turn read at the episode's end (the yaw at its end less at the spawn): "
+            "root_turn_from_spawn_deg seed 121 4.21 deg, seed 106 2.72 deg (49 of the 80 spawns at reset noise 0.02 "
+            "miss; worst 4.85 deg, seed 4; median 1.53 deg). Target: |root_turn_from_spawn_deg| <= 1.00 deg. Strict: "
+            "when a model change meets it this passes and so fails; run com_stance_calibration, check the 80 spawns, "
+            "then drop the mark (the target becomes a real bar)"
+        ),
+    )
+    def test_target_turn_from_spawn(self, statue):
+        """Absolute target: the body ends the episode turned under 1 deg from its spawn."""
+        self.check_target(statue, "turn_from_spawn")
+
+    @pytest.mark.xfail(
+        strict=True,
+        raises=TargetMissed,
+        reason=(
+            "physics r10 (2026-10-29): the worst whole second's CoM speed RMS from 3 s and the fore-aft spread from 3 "
+            "s: com_speed_worst_second_rms_mps the statue 6.33 mm/s, seed 121 1.82 mm/s, seed 106 6.05 mm/s (80 of the "
+            "80 spawns at reset noise 0.02 miss; worst 9.41 mm/s, seed 12; median 5.65 mm/s); com_fore_aft_sd_m every "
+            "episode read meets it (2 of the 80 spawns at reset noise 0.02 miss; worst 1.02 mm, seed 139; median 0.62 "
+            "mm). Target: |com_speed_worst_second_rms_mps| <= 1.00 mm/s, |com_fore_aft_sd_m| <= 1.00 mm. Strict: when "
+            "a model change meets it this passes and so fails; run com_stance_calibration, check the 80 spawns, then "
+            "drop the mark (the target becomes a real bar)"
+        ),
+    )
+    def test_target_still_from_3s(self, statue):
+        """Absolute target: no rocking after 3 s (every second under 1 mm/s RMS, under 1 mm fore-aft)."""
+        self.check_target(statue, "still_from_3s")
+
+    @pytest.mark.xfail(
+        strict=True,
+        raises=TargetMissed,
+        reason=(
+            "physics r10 (2026-10-29): settle_s the statue 8 s, seed 121 5 s, seed 106 8 s (80 of the 80 spawns at "
+            "reset noise 0.02 miss; worst 9 s, seed 1; median 8 s). Target: |settle_s| <= 2 s. Strict: when a model "
+            "change meets it this passes and so fails; run com_stance_calibration, check the 80 spawns, then drop the "
+            "mark (the target becomes a real bar)"
+        ),
+    )
+    def test_target_settled_by_2s(self, statue):
+        """Absolute target: the stance has settled by 2 s."""
+        self.check_target(statue, "settled_by_2s")
+
+    @pytest.mark.xfail(
+        strict=True,
+        raises=TargetMissed,
+        reason=(
+            "physics r10 (2026-10-29): foot_travel_max_m seed 121 5.67 mm, seed 106 4.17 mm (61 of the 80 spawns at "
+            "reset noise 0.02 miss; worst 10.87 mm, seed 16; median 3.78 mm). Target: |foot_travel_max_m| <= 2.44 mm: "
+            "the slide of a 1 deg turn about the feet's centre, the farthest foot standing 140.0 mm from it. Strict: "
+            "when a model change meets it this passes and so fails; run com_stance_calibration, check the 80 spawns, "
+            "then drop the mark (the target becomes a real bar)"
+        ),
+    )
+    def test_target_foot_slip_after_landing(self, statue):
+        """Absolute target: from 1 s no foot slips farther than a 1 deg turn about the feet's centre slides it."""
+        self.check_target(statue, "foot_slip_after_landing")

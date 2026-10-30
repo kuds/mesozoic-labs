@@ -4,14 +4,14 @@
 neutral action survives.  A stance can pass all of that and still be a poor one: a steady lean to one side, a
 slow drift of the CoM toward a support edge, the body turning or twisting on its feet, the CoM sagging, a sway
 or a rock.  The tests here track the whole-body CoM through a full standing episode and judge it with
-``stance_track_helpers``' reduction:
+``gait.stance_track``'s reduction:
 
 * :class:`EnvStanceSampler` reads ``env.data`` after the reset and after each ``env.step``: the root subtree's
   CoM, the root quaternion, each foot's reference site and heading, the per-foot floor normal loads and the
   loaded floor-contact points of the leg geoms (the support polygon).  No ``mj_*`` call it makes writes the
   env's data (``mj_contactForce`` only reads it), so the episode is the one the env runs untracked.  An
   evaluation episode the gait recorder captured reads the same way through
-  ``stance_track_helpers.track_from_episode_trace`` (the base class checks the two captures agree).
+  ``gait.stance_track.track_from_episode_trace`` (the base class checks the two captures agree).
 * :func:`run_tracked_episode` runs one episode under the neutral action, or under ``action_fn(obs, step)``,
   ``pre_step(env, step)`` and ``post_step(env, step, action)``, the hooks the scripted poor stances use.  A
   checkpoint's rollout goes through the same hook (offline; no policy is committed in the tests)::
@@ -41,6 +41,12 @@ or a rock.  The tests here track the whole-body CoM through a full standing epis
   that prove the bars separate a poor stance from a good one (the scripted lean, pivot and rock each stand the
   full horizon and exceed their bars at least :attr:`ComStanceQualityBase.detection_ratio` times) and one that
   the sampler reads what the evaluation recorder records.
+* :data:`TARGETS`, the absolute stance targets (:class:`Target`): what a good stance does, not what today's plant
+  does, read on the statue, the noisy test spawns and ``target_seeds`` by :meth:`ComStanceQualityBase.check_target`
+  (the foot-slip limit per body, from the statue's feet).  A species that misses one today keeps it as a strict
+  expected failure (``raises=TargetMissed``) whose reason states the measured values; when a model change meets it,
+  that test passes and so fails, and the mark comes off.  A fall, or a reading the reduction cannot give (a renamed
+  key, a NaN), fails the test outright: neither is a missed target.
 
 The window starts at each species' settle time (``window_start_s``): the first whole second from which the
 statue's and every calibration spawn's horizontal CoM speed stays under 1 mm/s in every second to the end.
@@ -56,7 +62,7 @@ import json
 import math
 import tomllib
 from collections.abc import Callable, Iterable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, ClassVar
 
@@ -66,10 +72,7 @@ import pytest
 
 from environments.shared.gait.morphology import Morphology
 from environments.shared.gait.recorder import SubstepContactRecorder
-from environments.shared.model_id import ModelId
-from environments.shared.species_registry import env_class
-
-from .stance_track_helpers import (
+from environments.shared.gait.stance_track import (
     FAMILIES,
     KINEMATIC_KEYS,
     LOAD_KEYS,
@@ -83,6 +86,8 @@ from .stance_track_helpers import (
     track_from_episode_trace,
     window_mask,
 )
+from environments.shared.model_id import ModelId
+from environments.shared.species_registry import env_class
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
@@ -572,6 +577,237 @@ def format_violations(title: str, violations: list[Violation]) -> str:
     return title + ":\n" + "\n".join(f"  {violation.describe()}" for violation in violations)
 
 
+# ── absolute targets ─────────────────────────────────────────────────────────
+
+#: A target reading that is not a window key: the first whole second (from 2 s) after which the horizontal CoM
+#: speed's RMS stays under 1 mm/s in every second to the end, on this one episode (``inf``: never settles), by
+#: the rule that places each species' window (``com_stance_calibration.settle_time``).
+SETTLE_READING = "settle_s"
+#: A target reading that is not a window key: the largest RMS of the horizontal CoM speed over any whole second
+#: of the episode from the target's window start to its end (:func:`worst_second_speed_rms`).
+WORST_SECOND_READING = "com_speed_worst_second_rms_mps"
+#: The per-sample series (:func:`stance_track_series`) the targets' readings come from.  A non-finite sample in
+#: any of them is a broken track and fails a target outright (a support margin or a load share may be NaN on a
+#: sample, but no target reads one).
+TARGET_SERIES: tuple[str, ...] = ("t", "com_fore_aft", "com_lateral", "com_speed", "root_yaw", "root_roll", "foot_xy")
+
+
+def last_whole_second(t: np.ndarray) -> int:
+    """The end of the last whole second the sample times *t* reach, counted from the first sample: a last time
+    within 1e-9 s under a whole second reaches it (MuJoCo sums its timestep, so a 20 s episode of 0.002 s steps
+    ends at 19.999999999999794 s, and its last second, [19, 20), is a whole one)."""
+    return int(math.floor(t[-1] - t[0] + 1e-9))
+
+
+def speed_rms_by_second(series: Mapping[str, np.ndarray], from_s: float = 0.0) -> dict[int, float]:
+    """The RMS of the horizontal CoM speed over each whole second ``[k, k + 1)`` of the episode, by ``k``, from
+    *from_s* to the episode's last whole second (:func:`last_whole_second`): the seconds both the settle rule
+    (``com_stance_calibration.settle_time``) and :func:`worst_second_speed_rms` read.  *series* is the track's
+    :func:`stance_track_series`.  Raises ``ValueError`` on a second whose speed is not finite: a broken track,
+    which must never read as a still second."""
+    t = series["t"] - series["t"][0]
+    speed = series["com_speed"]
+    out: dict[int, float] = {}
+    for second in range(int(math.ceil(from_s - 1e-9)), last_whole_second(t)):
+        inside = (t >= second - 1e-9) & (t < second + 1 - 1e-9)
+        if inside.any():
+            rms = float(np.sqrt(np.mean(speed[inside] ** 2)))
+            if not math.isfinite(rms):
+                raise ValueError(f"the CoM speed is not finite in [{second}, {second + 1}) s: a broken track")
+            out[second] = rms
+    return out
+
+
+def worst_second_speed_rms(series: Mapping[str, np.ndarray], from_s: float) -> float:
+    """The largest RMS of the horizontal CoM speed over a whole second ``[k, k + 1)`` of the episode, for every
+    whole ``k`` from *from_s* to the last whole second (:func:`speed_rms_by_second`): the settle rule's seconds
+    (``com_stance_calibration.settle_time``), so this is at or under a speed exactly when every second from
+    *from_s* on is, however long the horizon (an RMS over the whole window thins out a rock that lasts a second or
+    two past its start).  *series* is the track's :func:`stance_track_series`."""
+    rms = speed_rms_by_second(series, from_s)
+    if not rms:
+        t = series["t"] - series["t"][0]
+        raise ValueError(f"the track holds no whole second from {from_s:g} s (it ends at {t[-1]:g} s)")
+    return max(rms.values())
+
+
+def feet_to_centre_m(
+    track: StanceTrack, window_start_s: float, series: Mapping[str, np.ndarray] | None = None
+) -> float:
+    """How far the farthest foot stands from the feet's centre: each foot reference point's horizontal distance
+    from the centroid of them all (the point the CoM's offsets are read from), averaged over the window, the
+    largest.  A turn of the body by an angle about that centre slides that foot this distance times the angle."""
+    s = stance_track_series(track) if series is None else series
+    feet = s["foot_xy"][window_mask(s["t"], window_start_s)]
+    return float(np.linalg.norm(feet - feet.mean(axis=1, keepdims=True), axis=2).mean(axis=0).max())
+
+
+class TargetMissed(AssertionError):
+    """An episode misses an absolute stance target: the one failure a target's strict expected failure expects
+    (a stance that falls, a reading the reduction cannot give, or any other error, fails the test outright)."""
+
+
+def _unread(target: Target, readings: Mapping[str, float]) -> None:
+    """Raise ``ValueError`` when *readings* lacks one of *target*'s readings or holds a NaN (or an infinite value
+    other than a settle that never comes): a broken reading, which must fail a test outright and never count as a
+    missed target that a strict expected failure would absorb."""
+    missing = [key for key in target.limits if key not in readings]
+    broken = [
+        key
+        for key in target.limits
+        if key in readings and not (math.isfinite(readings[key]) or (key == SETTLE_READING and readings[key] > 0))
+    ]
+    if missing or broken:
+        found = [f"no reading of {missing}"] if missing else []
+        found += [f"a non-finite reading of {broken}"] if broken else []
+        raise ValueError(
+            f"target {target.name}: {' and '.join(found)}: the reduction does not give what the target reads (a "
+            "renamed or dropped key, or a NaN), which is a broken test, not a missed target"
+        )
+
+
+@dataclass(frozen=True)
+class Target:
+    """An absolute stance-quality target: on every episode it reads, each reading's size stays at or under its limit.
+
+    The two tiers of bars are calibrated on today's plants: they catch a change, not a poor stance the plant
+    already has.  A target is what a good stance does, whatever the plant does now.  A species that misses one
+    today overrides the target's test with a strict expected failure whose reason states the measured value;
+    when a model change meets the target, that test passes and so fails, and the mark comes off: the target is
+    then a real bar.  ``limits`` maps a :func:`stance_track_quality` key, :data:`SETTLE_READING` or
+    :data:`WORST_SECOND_READING` to its limit, in SI units or degrees; they are read over the window from
+    ``window_start_s`` (None: the species' settled window).  With ``pivot_deg`` set the limits are per body
+    (:meth:`for_body`), and the ones given are their least.
+    """
+
+    name: str
+    limits: Mapping[str, float]
+    window_start_s: float | None
+    basis: str
+    pivot_deg: float | None = None
+
+    def for_body(self, feet_to_centre: float) -> Target:
+        """This target for a body whose farthest foot stands *feet_to_centre* (m) from the feet's centre
+        (:func:`feet_to_centre_m`): with ``pivot_deg`` set, each limit is the slide a turn of ``pivot_deg`` about
+        that centre gives the foot, never under the limit given; otherwise the target as it is."""
+        if self.pivot_deg is None:
+            return self
+        slide = feet_to_centre * math.radians(self.pivot_deg)
+        limits = {key: max(least, slide) for key, least in self.limits.items()}
+        basis = (
+            f"{self.basis}; here {', '.join(target_shown(key, limit) for key, limit in limits.items())}, the feet "
+            f"{shown('foot_travel_max_m', feet_to_centre, 1)} from their centre"
+        )
+        return replace(self, limits=limits, basis=basis, pivot_deg=None)
+
+    def readings(
+        self, track: StanceTrack, settled_window_start_s: float, series: Mapping[str, np.ndarray] | None = None
+    ) -> dict[str, float]:
+        """Each limited reading of *track*; *series*, when given, is the track's :func:`stance_track_series`.
+        Raises ``ValueError`` when a series a reading comes from (:data:`TARGET_SERIES`) holds a non-finite sample,
+        or when the reduction does not give a reading, or gives a NaN (see :func:`_unread`)."""
+        s = stance_track_series(track) if series is None else series
+        broken = [name for name in TARGET_SERIES if name not in s or not np.isfinite(s[name]).all()]
+        if broken:
+            raise ValueError(
+                f"target {self.name}: the track's {', '.join(broken)} series has non-finite samples (or is missing), "
+                "which is a broken test, not a missed target"
+            )
+        start = settled_window_start_s if self.window_start_s is None else self.window_start_s
+        keys = [key for key in self.limits if key not in (SETTLE_READING, WORST_SECOND_READING)]
+        numbers = stance_track_quality(track, window_start_s=start, series=s) if keys else {}
+        out = {key: float(numbers[key]) for key in keys if key in numbers}
+        if WORST_SECOND_READING in self.limits:
+            out[WORST_SECOND_READING] = worst_second_speed_rms(s, start)
+        if SETTLE_READING in self.limits:
+            from .com_stance_calibration import settle_time  # the calibration module imports this one
+
+            out[SETTLE_READING] = float(settle_time([track]))
+        _unread(self, out)
+        return out
+
+    def misses(self, readings: Mapping[str, float]) -> list[str]:
+        """One line per reading over its limit.  Raises ``ValueError`` on a broken reading (:func:`_unread`) and
+        on a per-body target not yet set for a body (:meth:`for_body`)."""
+        if self.pivot_deg is not None:
+            raise ValueError(f"target {self.name}'s limits are per body: read it through for_body")
+        _unread(self, readings)
+        return [
+            f"{key} = {target_shown(key, readings[key])}, target |x| <= {target_shown(key, limit)}"
+            for key, limit in self.limits.items()
+            if not abs(readings[key]) <= limit
+        ]
+
+    def describe(self) -> str:
+        window = "the settled window" if self.window_start_s is None else f"the window from {self.window_start_s:g} s"
+        limits = ", ".join(f"|{key}| <= {target_shown(key, limit)}" for key, limit in self.limits.items())
+        return f"{self.name} ({limits}, over {window}): {self.basis}"
+
+
+def target_shown(key: str, value: float) -> str:
+    """*value* of a target's reading in display units (s for :data:`SETTLE_READING`)."""
+    if key == SETTLE_READING:
+        return "never" if value == math.inf else f"{value:g} s"
+    return shown(key, value)
+
+
+#: The absolute targets.  Their numbers are proposals, each with its basis; setting them is the maintainer's call.
+TARGETS: dict[str, Target] = {
+    "turn_from_spawn": Target(
+        "turn_from_spawn",
+        {"root_turn_from_spawn_deg": 1.0},
+        None,
+        "standing still, the body ends the episode turned under 1 deg from where it spawned (read at the end: the "
+        "root's yaw at the last sample less at the spawn, not the largest turn along the way); the reset perturbs "
+        "each joint by up to 0.02 rad (1.15 deg), and a stance that takes that up in its joints, its feet planted, "
+        "turns less",
+    ),
+    "still_from_3s": Target(
+        "still_from_3s",
+        {WORST_SECOND_READING: 0.001, "com_fore_aft_sd_m": 0.001},
+        3.0,
+        "no rocking after 3 s: in every whole second from 3 s to the horizon's end the CoM's horizontal speed RMS "
+        "stays at or under 1 mm/s (the settle rule's speed and seconds, read from 3 s, so a longer horizon does "
+        "not thin it out), and from 3 s the CoM rocks fore-aft under 1 mm about its trend (twice the resolution "
+        "floor; one spread over the whole window from 3 s, so this half, unlike the speed's, is not read per "
+        "second); 3 s is 1.5 periods of the slowest sway mode measured (0.5 Hz, the T. rex)",
+    ),
+    "settled_by_2s": Target(
+        "settled_by_2s",
+        {SETTLE_READING: 2.0},
+        None,
+        "settled by 2 s: the calibration's settle rule (every whole second's horizontal CoM speed RMS under "
+        "1 mm/s from there to the end) holds from 2 s, its earliest window, on this episode; 2 s is one period "
+        "of the slowest sway mode measured (0.5 Hz)",
+    ),
+    "lean": Target(
+        "lean",
+        {"com_lateral_mean_m": 0.005},
+        None,
+        "the settled CoM sits within 5 mm of the feet's centre sideways (the maintainer's Brachiosaurus "
+        "number, 1.7 % of its 300 mm half-track)",
+    ),
+    "kept_roll": Target(
+        "kept_roll",
+        {"root_roll_mean_deg": 0.3},
+        None,
+        "the settled pelvis keeps under 0.3 deg of roll: the roll that moves a 0.94 m-high CoM (the "
+        "Brachiosaurus's) 5 mm sideways, and the lean an IMU reads without foot force pads",
+    ),
+    "foot_slip_after_landing": Target(
+        "foot_slip_after_landing",
+        {"foot_travel_max_m": 2.0 * resolution_floor("foot_travel_max_m")},
+        1.0,
+        "a planted foot does not slip: from 1 s on (past the reset's landing, as support_from_s) no foot's "
+        "reference point moves farther from where it stood than a 1 deg turn of the body about the feet's centre "
+        "slides the farthest foot (the turn target's 1 deg at the body's own feet-to-centre distance, never under "
+        "twice the 0.5 mm floor).  Not the travel from the spawn: a foot that spawns unloaded lands 3-9 mm away "
+        "within 0.1 s, a reset artefact",
+        pivot_deg=1.0,
+    ),
+}
+
+
 # ── provenance ───────────────────────────────────────────────────────────────
 
 
@@ -600,6 +836,9 @@ class _Statue:
 #: Each test class's noise-free statue, rolled and reduced once for its six statue tests and kept for the
 #: session (under a MB each); pytest 9.1 deprecates a class-scoped fixture written as a method.
 _STATUES: dict[type, _Statue] = {}
+#: Each test class's noisy spawns by seed (with their series), run once for the noisy-spawn tests and the
+#: targets that read them.
+_SPAWNS: dict[tuple[type, int], _Statue] = {}
 
 
 def _held(action: np.ndarray) -> Callable[[np.ndarray, int], np.ndarray]:
@@ -652,6 +891,8 @@ class ComStanceQualityBase:
     rock_force_bw: ClassVar[float] = 0.005
     rock_hz: ClassVar[float] = 0.75
     imu_lean_keys: ClassVar[tuple[str, ...]] = ()
+    #: Spawns the absolute targets read besides the statue and ``noisy_seeds``: held-out spawns known to miss one.
+    target_seeds: ClassVar[tuple[int, ...]] = ()
     #: How many times its bar a scripted poor stance must reach: room on the poor side, so a later change that
     #: moves the bars or the plant until the two sit close fails here instead of passing at 1.1x.
     detection_ratio: ClassVar[float] = 2.0
@@ -704,6 +945,15 @@ class ComStanceQualityBase:
             series, metrics = self.reduce(episode) if episode.stood else ({}, {})
             _STATUES[cls] = _Statue(episode, series, metrics)
         return _STATUES[cls]
+
+    def noisy_spawn(self, seed: int) -> _Statue:
+        """The spawn of *seed* at the noisy tier's reset noise and its series, run once per class and seed and kept
+        for the session (its window numbers are left empty: each reader reduces over its own window)."""
+        key = (type(self), seed)
+        if key not in _SPAWNS:
+            episode = self.run_episode(seed=seed, reset_noise_scale=self.noisy_reset_noise_scale)
+            _SPAWNS[key] = _Statue(episode, stance_track_series(episode.track) if episode.stood else {}, {})
+        return _SPAWNS[key]
 
     # ── bars ──
 
@@ -824,13 +1074,13 @@ class ComStanceQualityBase:
             f"{self.species_label}: the CoM stance pins were read on physics revision {self.physics_revision}, "
             f"but the manifest is at revision {current}. Re-measure them on the current plant "
             f"(python -m environments.shared.tests.com_stance_calibration {type(self).__module__}:"
-            f"{type(self).__name__}), review the printed differences, and update the pins and physics_revision "
-            "in the same commit."
+            f"{type(self).__name__} --diff), review the diff, and apply it with --write (a looser bar needs "
+            "--allow-loosen), so the pins and physics_revision move in the same commit."
         )
         canonical = canonical_mujoco_version()
         assert self.pinned_mujoco_version == canonical, (
             f"{self.species_label}: the pins were read on mujoco {self.pinned_mujoco_version}, but the canonical "
-            f"version is {canonical}: re-measure them with com_stance_calibration."
+            f"version is {canonical}: re-measure them with com_stance_calibration --diff (and --write)."
         )
         missing = [key for key in self.keys() if not self.symmetric(key) and key not in self.reference]
         unwidthed = [key for key in self.keys() if key not in self.spread_width]
@@ -881,7 +1131,9 @@ class ComStanceQualityBase:
         """The noisy-spawn check on *seed*: it stands, and every key holds its spread bar."""
         noisy_seed = seed
         what = f"spawn at reset noise {self.noisy_reset_noise_scale} (seed {noisy_seed})"
-        episode = self.run_episode(seed=noisy_seed, reset_noise_scale=self.noisy_reset_noise_scale)
+        # The episode the absolute targets read too (noisy_spawn runs it once per class and seed): the same
+        # run_episode call, so the same episode.
+        episode = self.noisy_spawn(noisy_seed).episode
         self.assert_stood(episode, what)
         series, metrics = self.reduce(episode)
         # The support keys are checked per step (a window sample with no support polygon breaks them too).
@@ -891,6 +1143,40 @@ class ComStanceQualityBase:
         assert not problems, f"{self.species_label} {what}{self.provenance()}:\n" + "\n".join(
             f"  {problem}" for problem in problems
         )
+
+    # ── absolute targets ──
+
+    def target(self, statue: _Statue, name: str) -> Target:
+        """:data:`TARGETS` [*name*] for this body: a per-body limit is set from the noise-free statue's feet
+        (:func:`feet_to_centre_m` over the settled window)."""
+        reach = feet_to_centre_m(statue.episode.track, self.window_start_s, series=statue.series)
+        return TARGETS[name].for_body(reach)
+
+    def target_episodes(self, statue: _Statue) -> list[tuple[str, _Statue]]:
+        """What the targets read: the noise-free statue, the ``noisy_seeds`` spawns and the ``target_seeds`` spawns."""
+        seeds = dict.fromkeys((*self.noisy_seeds, *self.target_seeds))
+        return [("noise-free statue", statue)] + [
+            (f"spawn at reset noise {self.noisy_reset_noise_scale} (seed {seed})", self.noisy_spawn(seed))
+            for seed in seeds
+        ]
+
+    def check_target(self, statue: _Statue, name: str) -> None:
+        """Every episode the targets read stands and meets :data:`TARGETS` [*name*]; else :class:`TargetMissed`.
+
+        A fall fails on :meth:`assert_stood`, and a reading the reduction cannot give on ``ValueError``: neither is
+        a :class:`TargetMissed`, so a strict expected failure (``raises=TargetMissed``) does not absorb them."""
+        self.assert_stood(statue.episode, "noise-free statue")
+        target = self.target(statue, name)
+        misses = []
+        for what, run in self.target_episodes(statue):
+            self.assert_stood(run.episode, what)
+            readings = target.readings(run.episode.track, self.window_start_s, series=run.series)
+            misses += [f"{what}: {miss}" for miss in target.misses(readings)]
+        if misses:
+            raise TargetMissed(
+                f"{self.species_label} misses the absolute target {target.describe()}{self.provenance()}:\n"
+                + "\n".join(f"  {miss}" for miss in misses)
+            )
 
     # ── the bars catch a poor stance that survives ──
 

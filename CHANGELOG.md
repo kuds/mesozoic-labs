@@ -8,6 +8,78 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **Absolute stance targets for the centre-of-mass stance tests, each a
+  strict expected failure where a model misses it today** (tests and test
+  helpers, and one input check in the reduction; the maintainer's decision of
+  2026-10-29; `com_stance_helpers.TARGETS`, `Target`, `TargetMissed` and
+  `ComStanceQualityBase.check_target`, a `test_target_*` per missed target in
+  each species' `test_com_stance_quality.py`, and a target report in
+  `com_stance_calibration`). The CoM stance tests' bars are calibrated on
+  today's plants, so they catch a change, not a poor stance the plant already
+  has; a target is what a good stance does. Six, their numbers proposals for
+  the maintainer: the body ends the episode turned under 1° from its spawn
+  (read at the end, not the largest turn along the way); no rocking after 3 s
+  (every whole second from 3 s to the horizon's end at a CoM speed RMS of
+  1 mm/s or under, the settle rule read from 3 s, so a longer horizon does
+  not thin it out; and under 1 mm of fore-aft spread, one spread over the
+  window from 3 s); settled by 2 s (the calibration's settle rule); the CoM
+  within 5 mm of the feet's centre sideways; under 0.3° of kept roll; and,
+  from 1 s (after the landing), no foot slipping farther than a 1° turn about
+  the feet's centre slides the farthest foot, at each body's own distance and
+  never under 1 mm (the T. rex 2.44 mm, the Velociraptor 1.40, the
+  Compsognathus 1.00, the robot 1.13, the Brachiosaurus 13.58, the
+  Dibothrosuchus 2.63). Each reads the noise-free statue, the two noisy test
+  spawns and, where those meet a target that other spawns miss, the worst
+  spawn that misses it (`target_seeds`: the Compsognathus 101 and 124, the
+  robot's creeping 111, the Brachiosaurus 126). Measured on the statue and
+  the 80 committed spawns per model: 22 of the 36 model-target pairs are
+  missed today (the T. rex 4, the Velociraptor 3, the Compsognathus 3, the
+  robot 4, the Brachiosaurus all 6, the Dibothrosuchus 2); each is a
+  `pytest.mark.xfail(strict=True, raises=TargetMissed)` whose reason states
+  the measured values (the Velociraptor's also that its foot site under-reads
+  its toes' slip, a median 1.4x), so a model change that meets one makes it
+  pass and so fail, and the mark comes off. A fall, a reading the reduction
+  cannot give (a renamed key, a NaN) or a non-finite sample in any series a
+  target reads raises something other than `TargetMissed` and fails the test
+  outright, and `stance_track_series` now refuses a non-finite `com_vel`, as
+  it refuses a non-finite CoM (no track sets one today). The settle rule
+  (`com_stance_calibration.settle_time`) and the per-second reading share
+  their seconds, which now reach a 20 s episode's last one: MuJoCo's summed
+  time ends it at 19.999999999999794 s, and its last second, from 19 s to
+  20 s, was left out; no pinned window and no measured value moves. The other
+  14 pairs are met by the statue and all 80 spawns and are not tested. The
+  noisy-spawn test now takes its episode from the per-class cache the targets
+  read (the same `run_episode` call; its outcomes are unchanged). Cost: about
+  10 s on one core. No environment, physics, reward, gate, observation,
+  policy interface or digest changes.
+- **The centre-of-mass stance calibration hands its re-measured pins over as
+  a reviewable diff, and writes a looser bar only when told to** (tests and
+  test helpers only; the maintainer's decision of 2026-10-29;
+  `environments/shared/tests/com_stance_calibration.py`,
+  `com_stance_helpers.py` and `test_stance_track_reduction.py`).
+  `python -m environments.shared.tests.com_stance_calibration
+  <module>:<class>` printed fresh pins for a re-pin to be copied by hand. It
+  gains `--diff`, which prints on stdout a unified diff of the species file
+  with the class's pins (`physics_revision`, `window_start_s`, `reference`,
+  `spread_width` and `noisy_seeds`) replaced by the re-measured ones, which
+  `git apply` takes (the report goes to stderr); `--write`, which makes the
+  same change in place; and `--allow-loosen`. Each change is classed as its
+  bar reads it: a wider width, a later window, a one-sided reference moved
+  toward its bad side or a dropped key is looser, the opposite tighter, and a
+  two-sided reference, the physics revision and the noisy seeds moved.
+  `--write` refuses a looser change without `--allow-loosen` (exit status 2,
+  the file untouched), so after a model fix the committed bars only tighten
+  unless a reviewer accepts the loosening the diff shows. Both refuse when the
+  running MuJoCo is not the canonical one or the window is under the
+  shortest. A pin whose value is unchanged keeps its lines, so on an
+  unchanged plant the diff is empty (the robot's, measured); a changed pin
+  also re-reads the class's provenance line and the two comments that state
+  the held-out and noisy-seed numbers, never a hand-written one, and the
+  report says whether each known poor spawn still breaks a width or its
+  strict expected failure is to go. The provenance test's message names the
+  commands. Nine synthetic tests (40 in the file). No library code,
+  environment, physics, reward, gate, observation, policy interface or digest
+  changes.
 - **The first T. rex stance round on physics r10 recorded as judged, final:
   line 1, a tail rail formed on r10 in training** (decision D-D51's
   amendment and D-D52; the appended §27 of
@@ -2331,6 +2403,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   verdicts with the gate they were earned under.
 
 ### Changed
+- **The centre-of-mass stance reduction moves into the gait package, beside
+  the evaluation telemetry** (a pure move: no key, number, bar or test
+  outcome changes; the maintainer's decision of 2026-10-29;
+  `environments/shared/tests/stance_track_helpers.py` is now
+  `environments/shared/gait/stance_track.py`). A gate, an evaluation callback
+  or a pre-registered policy check may import `environments/shared/gait/`
+  but not the tests, so this is the step before any such use of the
+  reduction; none is made here. The module is unchanged but for one line of
+  its docstring; its three importers, all in `environments/shared/tests/`
+  (the CoM stance helpers, the calibration tool and the reduction's
+  synthetic tests), import `environments.shared.gait.stance_track`, and the
+  docstrings that named the old module name the new one. It imports only the
+  standard library and numpy, which `test_gait_stance_metrics.py`'s list of
+  pure gait modules now enforces, and the gait package's module list names
+  it. As package code it ships in the wheel and counts in the coverage union;
+  a script outside the repository that imports the old path needs the new
+  one. No environment, physics, reward, gate, observation, policy interface
+  or digest changes: the exact reward captures (`digest_snapshot --exact`,
+  37,016 lines, on the base and on this change on one machine) are
+  byte-identical.
 - **The development version is `0.4.0.dev2`** (#647; `pyproject.toml`; the
   maintainer's decision of 2026-10-25 20:13 UTC in the stance run log: bump
   it once the current work is done, as #619 did, carried by the next records

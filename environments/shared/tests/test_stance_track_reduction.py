@@ -1,4 +1,4 @@
-"""Tests for ``stance_track_helpers`` (the centre-of-mass stance reduction), the bars of ``com_stance_helpers``
+"""Tests for ``gait.stance_track`` (the centre-of-mass stance reduction), the bars of ``com_stance_helpers``
 and the pure rules of ``com_stance_calibration``.
 
 Synthetic tracks only, so every expected number is known in closed form: the support hull, its signed and
@@ -12,6 +12,7 @@ each species' ``test_com_stance_quality.py``.
 
 from __future__ import annotations
 
+import ast
 import math
 from dataclasses import replace
 from types import SimpleNamespace
@@ -19,17 +20,7 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
-from environments.shared.tests import com_stance_calibration as calibration
-from environments.shared.tests.com_stance_helpers import (
-    BAR_KINDS,
-    SYMMETRIC_VALUES,
-    Bar,
-    ComStanceQualityBase,
-    check,
-    format_violations,
-    resolution_floor,
-)
-from environments.shared.tests.stance_track_helpers import (
+from environments.shared.gait.stance_track import (
     FAMILIES,
     HEADING_KEYS,
     KINEMATIC_KEYS,
@@ -49,6 +40,26 @@ from environments.shared.tests.stance_track_helpers import (
     stance_track_series,
     track_from_episode_trace,
     yaw_pitch_roll,
+)
+from environments.shared.tests import com_stance_calibration as calibration
+from environments.shared.tests.com_stance_helpers import (
+    BAR_KINDS,
+    SETTLE_READING,
+    SYMMETRIC_VALUES,
+    TARGETS,
+    WORST_SECOND_READING,
+    Bar,
+    ComStanceQualityBase,
+    TargetMissed,
+    TrackedEpisode,
+    _Statue,
+    check,
+    feet_to_centre_m,
+    format_violations,
+    last_whole_second,
+    resolution_floor,
+    speed_rms_by_second,
+    worst_second_speed_rms,
 )
 
 DT = 0.01
@@ -610,6 +621,166 @@ def test_the_floors_and_the_two_tiers_of_bars():
     assert "front_load_share_mean" in quadruped.keys("sagittal") and "front_load_share_mean" not in biped.keys()
 
 
+def test_a_target_reads_its_own_window_and_names_each_reading_over_its_limit():
+    # The body turns 2 deg in its first second; the CoM slides sideways at 5 mm/s until 4 s, then stands still.
+    def track_of(samples):
+        return _track(
+            samples,
+            yaw=lambda t: math.radians(2.0) * np.minimum(t, 1.0),
+            com_xy=lambda t: np.stack([np.zeros_like(t), 0.005 * np.minimum(t, 4.0)], axis=1),
+            support=False,
+        )
+
+    track = track_of(1001)
+    turn, still, settled = TARGETS["turn_from_spawn"], TARGETS["still_from_3s"], TARGETS["settled_by_2s"]
+    readings = turn.readings(track, 6.0)
+    assert readings == {"root_turn_from_spawn_deg": pytest.approx(2.0)}
+    assert turn.misses(readings) == ["root_turn_from_spawn_deg = 2.0000 deg, target |x| <= 1.0000 deg"]
+    assert turn.misses({"root_turn_from_spawn_deg": -0.5}) == []  # the size of a turn, either way
+    # Read at the end: a body that turns 2 deg and comes back meets it.
+    back = _track(1001, yaw=lambda t: math.radians(2.0) * np.sin(math.pi * t / 10.0), support=False)
+    assert turn.misses(turn.readings(back, 6.0)) == []
+    # From 3 s the CoM moves for one more second, at 5 mm/s: the worst second reads it whatever the horizon,
+    # where the RMS over the window from 3 s thins out (1.9 mm/s over 10 s, 1.2 mm/s over 20 s).
+    for samples, thinned in ((1001, 7.0), (2001, 17.0)):
+        sliding = track_of(samples)
+        reading = still.readings(sliding, 6.0)
+        assert reading[WORST_SECOND_READING] == pytest.approx(0.005, rel=0.02)
+        assert [miss.split(" = ")[0] for miss in still.misses(reading)] == [WORST_SECOND_READING]
+        window_rms = stance_track_quality(sliding, window_start_s=3.0)["com_speed_rms_mps"]
+        assert window_rms == pytest.approx(0.005 * math.sqrt(1.0 / thinned), rel=0.02)
+    assert still.readings(track, 4.5) == still.readings(track, 6.0)  # its own window, not the settled one
+    assert settled.readings(track, 6.0) == {SETTLE_READING: 4.0}
+    assert settled.misses({SETTLE_READING: 4.0}) == [f"{SETTLE_READING} = 4 s, target |x| <= 2 s"]
+    assert settled.misses({SETTLE_READING: math.inf}) == [f"{SETTLE_READING} = never, target |x| <= 2 s"]
+    assert TARGETS["lean"].misses(TARGETS["lean"].readings(_track(1001, support=False), 6.0)) == []
+
+
+def test_no_rocking_after_3s_is_the_settle_rule_read_from_3s():
+    def sliding_until(stop):
+        return _track(
+            1001, com_xy=lambda t: np.stack([np.zeros_like(t), 0.01 * np.minimum(t, stop)], axis=1), support=False
+        )
+
+    for stop in (0.5, 2.5, 2.95, 3.05, 3.5, 6.5, 20.0):
+        track = sliding_until(stop)
+        worst = worst_second_speed_rms(stance_track_series(track), 3.0)
+        assert (worst <= 0.001) == (calibration.settle_time([track]) <= 3.0), stop
+    with pytest.raises(ValueError, match="no whole second"):
+        worst_second_speed_rms(stance_track_series(sliding_until(0.5)), 10.0)
+
+
+def test_the_last_whole_second_is_read_when_the_summed_time_ends_a_hair_under_it():
+    # MuJoCo sums its timestep: 10,000 steps of 0.002 s end a 20 s episode at 19.999999999999794 s.
+    end = 0.0
+    for _ in range(10_000):
+        end += 0.002
+    assert end < 20.0 and last_whole_second(np.array([0.0, end])) == 20
+    # A track that stands still and then slides at 5 mm/s in its last second only, [19, 20) s.
+    track = _track(
+        2001, com_xy=lambda t: np.stack([0.005 * np.clip(t - 19.0, 0.0, 1.0), np.zeros_like(t)], axis=1), support=False
+    )
+    track = replace(track, t=np.r_[track.t[:-1], end])
+    series = stance_track_series(track)
+    assert max(speed_rms_by_second(series, 3.0)) == 19
+    assert worst_second_speed_rms(series, 3.0) == pytest.approx(0.005, rel=0.02)
+    assert calibration.settle_time([track]) == math.inf  # it still moves in its last second
+    still, settled = TARGETS["still_from_3s"], TARGETS["settled_by_2s"]
+    assert [miss.split(" = ")[0] for miss in still.misses(still.readings(track, 2.0))] == [WORST_SECOND_READING]
+    assert settled.misses(settled.readings(track, 2.0)) == [f"{SETTLE_READING} = never, target |x| <= 2 s"]
+
+
+def test_a_nan_in_a_series_a_target_reads_fails_every_target_outright_and_never_reads_as_still():
+    # The CoM moves at 3 mm/s in [2, 3) s only: it settles at 3 s.
+    track = _track(
+        1001, com_xy=lambda t: np.stack([np.zeros_like(t), 0.003 * np.clip(t - 2.0, 0.0, 1.0)], axis=1), support=False
+    )
+    series = stance_track_series(track)
+    assert TARGETS["settled_by_2s"].readings(track, 6.0, series=series) == {SETTLE_READING: 3.0}
+    # A CoM velocity with a dropped sample is refused, as a dropped CoM sample is.
+    velocity = np.zeros((1001, 3))
+    velocity[250] = np.nan
+    with pytest.raises(ValueError, match="com_vel has non-finite samples"):
+        stance_track_series(replace(track, com_vel=velocity))
+    # A NaN over the only second that moves, or in the fore-aft offset, fails every target with ValueError: never
+    # read as still or settled (a met target), nor as a missed one a strict expected failure would absorb.
+    for name, where in (("com_speed", slice(200, 300)), ("com_fore_aft", 350)):
+        broken = dict(series)
+        broken[name] = series[name].copy()
+        broken[name][where] = np.nan
+        for target in TARGETS.values():
+            with pytest.raises(ValueError, match="a broken test, not a missed target"):
+                target.for_body(0.15).readings(track, 6.0, series=broken)
+    speed = series["com_speed"].copy()
+    speed[250] = np.nan
+    with pytest.raises(ValueError, match=r"not finite in \[2, 3\) s"):
+        speed_rms_by_second({"t": series["t"], "com_speed": speed})
+
+
+def test_a_reading_the_reduction_cannot_give_fails_outright_and_is_never_a_missed_target(monkeypatch):
+    still, turned = _track(1001, support=False), _track(1001, yaw=lambda t: math.radians(3.0) * np.minimum(t, 1.0))
+    renamed = replace(TARGETS["turn_from_spawn"], limits={"root_turn_from_spawn_deg_renamed": 1.0})
+    with pytest.raises(ValueError, match="a broken test, not a missed target"):
+        renamed.readings(still, 6.0)
+    for broken in ({}, {"root_turn_from_spawn_deg": math.nan}, {"root_turn_from_spawn_deg": math.inf}):
+        with pytest.raises(ValueError, match="a broken test, not a missed target"):
+            TARGETS["turn_from_spawn"].misses(broken)
+    with pytest.raises(ValueError, match="per body"):
+        TARGETS["foot_slip_after_landing"].misses({"foot_travel_max_m": 0.0})
+    assert not issubclass(ValueError, TargetMissed) and issubclass(TargetMissed, AssertionError)
+
+    class Body(ComStanceQualityBase):
+        species_label = "a synthetic biped"
+
+    def run(track):
+        steps = len(track.t) - 1
+        episode = TrackedEpisode(track, steps, steps, False, True, None, DT)
+        return _Statue(episode, stance_track_series(track), {})
+
+    Body().check_target(run(still), "turn_from_spawn")  # met: nothing raised
+    with pytest.raises(TargetMissed, match="noise-free statue: root_turn_from_spawn_deg = 3.0000 deg"):
+        Body().check_target(run(turned), "turn_from_spawn")
+    # A renamed reading fails with ValueError, which a strict xfail(raises=TargetMissed) does not absorb.
+    monkeypatch.setitem(TARGETS, "turn_from_spawn", renamed)
+    with pytest.raises(ValueError, match="a broken test, not a missed target"):
+        Body().check_target(run(turned), "turn_from_spawn")
+
+
+def test_the_slip_limit_is_a_one_degree_turn_at_the_bodys_own_feet_to_centre_distance():
+    slip = TARGETS["foot_slip_after_landing"]
+    still = _track(1001, support=False)
+    assert feet_to_centre_m(still, 2.0) == pytest.approx(0.15)  # two feet 0.3 m apart
+    body = slip.for_body(0.15)
+    assert body.limits == {"foot_travel_max_m": pytest.approx(0.15 * math.radians(1.0))}
+    assert "|foot_travel_max_m| <= 2.618 mm" in body.describe() and body.pivot_deg is None
+    assert slip.for_body(0.02).limits == {"foot_travel_max_m": 0.001}  # never under twice the 0.5 mm floor
+    assert TARGETS["lean"].for_body(0.15) is TARGETS["lean"]
+    # Four feet 1.4 m long and 0.6 m wide: the farthest foot's distance takes in its fore-aft offset.
+    quad = np.array([[0.7, 0.3, 0.0], [0.7, -0.3, 0.0], [-0.7, 0.3, 0.0], [-0.7, -0.3, 0.0]])
+    four = _track(1001, support=False, feet=quad, labels=("fl", "fr", "rl", "rr"))
+    assert feet_to_centre_m(four, 2.0) == pytest.approx(math.hypot(0.7, 0.3))
+
+    # The feet turned rigidly about their centre by 1 deg over 1-2 s read just under the limit (the chord of the
+    # arc): the slip target and the turn target agree.
+    def turning(t):
+        angle = math.radians(1.0) * np.clip(t - 1.0, 0.0, 1.0)
+        cos, sin = np.cos(angle)[:, None], np.sin(angle)[:, None]
+        x, y = FEET[:, 0][None], FEET[:, 1][None]
+        return np.stack([cos * x - sin * y - x, sin * x + cos * y - y], axis=2)
+
+    reading = body.readings(_track(1001, support=False, foot_xy=turning), 6.0)["foot_travel_max_m"]
+    assert (
+        reading == pytest.approx(0.15 * math.radians(1.0), rel=1e-4)
+        and body.misses({"foot_travel_max_m": reading}) == []
+    )
+    # A foot that slides 3 mm in the first 0.5 s (a landing) and then stands: not a slip after landing.
+    landing = _track(1001, support=False, foot_xy=lambda t: np.stack([np.minimum(t, 0.5) * 0.006, 0 * t], 1)[:, None])
+    assert body.readings(landing, 6.0) == {"foot_travel_max_m": pytest.approx(0.0)}
+    sliding = _track(1001, support=False, foot_xy=lambda t: np.stack([t * 0.0005, 0 * t], 1)[:, None])
+    assert body.readings(sliding, 6.0)["foot_travel_max_m"] == pytest.approx(0.0045)  # 0.5 mm/s over 1-10 s
+    assert len(body.misses(body.readings(sliding, 6.0))) == 1
+
+
 # ── the calibration rules ────────────────────────────────────────────────────
 
 
@@ -622,6 +793,20 @@ def test_the_settle_time_is_the_first_second_after_which_every_track_stays_still
     assert calibration.settle_time([sliding_until(0.5)]) == 2.0  # never before EARLIEST_WINDOW_S
     assert calibration.settle_time([sliding_until(0.5), sliding_until(4.5)]) == 5.0
     assert calibration.settle_time([sliding_until(20.0)]) == math.inf
+
+
+def test_the_target_report_names_each_target_met_or_missed_with_its_worst_spawn():
+    still = _track(1001, support=False)
+    turned = _track(1001, yaw=lambda t: math.radians(3.0) * np.minimum(t, 1.0), support=False)
+    lines = calibration.target_report(still, {7: still, 8: turned}, window_start_s=2.0)
+    assert len(lines) == 1 + len(TARGETS)
+    assert lines[0] == "# targets: the statue's farthest foot stands 150.0 mm from the feet's centre"
+    turn = next(line for line in lines if line.startswith("# target turn_from_spawn:"))
+    assert "MISSED (the statue meets; 1 of 2 spawns miss: [8])" in turn and "worst 3.0000 deg (seed 8)" in turn
+    lean = next(line for line in lines if line.startswith("# target lean:"))
+    assert "met by the statue and all 2 spawns" in lean
+    slip = next(line for line in lines if line.startswith("# target foot_slip_after_landing:"))
+    assert "foot_travel_max_m <= 2.618 mm: statue 0.000 mm" in slip
 
 
 def test_the_rounding_rules():
@@ -651,3 +836,176 @@ def test_the_spread_width_is_twice_the_worst_bad_side_deviation_never_under_twic
     assert widths["com_speed_rms_mps"] == pytest.approx(0.001)  # every spawn under the statue: the floor
     ratio, key = calibration.usage(base, reference, widths, spawns[1])
     assert (ratio, key) == (pytest.approx(0.5), "com_lateral_mean_m")
+
+
+# ── the ratchet ──────────────────────────────────────────────────────────────
+
+_SPECIES_FILES = sorted(calibration.REPO_ROOT.glob("environments/*/tests/test_com_stance_quality.py"))
+_CLASS_SOURCE = """class TestThing(ComStanceQualityBase):
+    model_id = ModelId("x", "y")
+    physics_revision = 3
+    window_start_s = 3.0
+    # The noise-free statue's window values, physics r3, mujoco 3.10.0, read on 2026-01-01 with
+    # com_stance_calibration and rounded to 0.01 mm and 1e-4 deg and of the load (under 1 % of a width).
+    reference = {
+        "com_margin_min_m": 0.06,
+        "com_height_mean_m": 0.8,
+    }
+    # Twice the worst of calibration seeds 0-29 at reset noise 0.02, never under twice the floor (SI, deg).
+    # Held-out seeds 100-149: none breaks a width; the largest use is 0.50 (root_turn_deg, seed 101).
+    spread_width = {
+        "root_turn_deg": 0.3,
+        "com_lateral_mean_m": 0.002,
+    }
+    # A hand-written note about the seeds.
+    noisy_seeds = (101, 102)
+    rock_force_bw = 0.04
+"""
+
+
+def test_the_ratchet_classes_each_pin_change_as_its_bar_reads_it():
+    old = {
+        "physics_revision": 3,
+        "window_start_s": 3.0,
+        "reference": {"com_speed_rms_mps": 0.0002, "com_margin_min_m": 0.06, "com_height_mean_m": 0.8},
+        "spread_width": {"root_turn_deg": 0.3, "com_lateral_mean_m": 0.002, "foot_travel_max_m": 0.001},
+        "noisy_seeds": (101, 102),
+    }
+    assert calibration.pin_changes(old, old) == []
+    new = {
+        "physics_revision": 4,
+        "window_start_s": 4.0,
+        # upper: more motion accepted; lower: a wider margin demanded; dev: two-sided.
+        "reference": {"com_speed_rms_mps": 0.0003, "com_margin_min_m": 0.061, "com_height_mean_m": 0.79},
+        # narrower, wider, dropped, and a new bar.
+        "spread_width": {"root_turn_deg": 0.2, "com_lateral_mean_m": 0.003, "root_yaw_sd_deg": 0.1},
+        "noisy_seeds": (101, 103),
+    }
+    directions = {(change.pin, change.key): change.direction for change in calibration.pin_changes(old, new)}
+    assert directions == {
+        ("physics_revision", None): "moved",
+        ("window_start_s", None): "looser",
+        ("reference", "com_speed_rms_mps"): "looser",
+        ("reference", "com_margin_min_m"): "tighter",
+        ("reference", "com_height_mean_m"): "moved",
+        ("spread_width", "root_turn_deg"): "tighter",
+        ("spread_width", "com_lateral_mean_m"): "looser",
+        ("spread_width", "foot_travel_max_m"): "looser",
+        ("spread_width", "root_yaw_sd_deg"): "tighter",
+        ("noisy_seeds", None): "moved",
+    }
+    back = {(change.pin, change.key): change.direction for change in calibration.pin_changes(new, old)}
+    assert back[("window_start_s", None)] == back[("reference", "com_speed_rms_mps")] == "tighter"
+    assert back[("spread_width", "com_lateral_mean_m")] == back[("spread_width", "foot_travel_max_m")] == "tighter"
+    assert back[("reference", "com_margin_min_m")] == back[("spread_width", "root_yaw_sd_deg")] == "looser"
+
+
+@pytest.mark.parametrize("path", _SPECIES_FILES, ids=lambda path: path.parts[-3])
+def test_the_ratchet_leaves_every_species_file_as_it_is_when_its_pins_are_unchanged(path):
+    source = path.read_text()
+    lines = source.splitlines()
+    classes = [node for node in ast.parse(source).body if isinstance(node, ast.ClassDef)]
+    pinned = [node for node in classes if calibration.read_pins(source, node.name)]
+    assert pinned
+    for node in pinned:
+        pins = calibration.read_pins(source, node.name)
+        assert set(pins) == set(calibration.PIN_NAMES), (node.name, sorted(pins))
+        provenance = "physics r99, mujoco 9.9.9, read on 2099-01-01"
+        assert calibration.rewrite_pins(source, node.name, pins, provenance=provenance) == source
+        # Each pin's committed lines are what the ratchet renders for its value, so a re-pin's diff shows the
+        # values that moved and nothing else.
+        for statement in node.body:
+            if isinstance(statement, ast.Assign) and getattr(statement.targets[0], "id", None) in pins:
+                name = statement.targets[0].id
+                committed = lines[statement.lineno - 1 : statement.end_lineno]
+                assert calibration.render_pin(name, pins[name], " " * statement.col_offset) == committed, name
+
+
+def test_the_ratchet_rewrites_only_the_changed_pins_and_their_provenance():
+    new = calibration.read_pins(_CLASS_SOURCE, "TestThing")
+    new["spread_width"] = {"root_turn_deg": 0.2, "com_lateral_mean_m": 0.002}
+    new["noisy_seeds"] = (101, 107)
+    provenance = "physics r3, mujoco 3.10.0, read on 2026-10-29"
+    # The same words wrapped otherwise: the committed block stays as it is.
+    same = {
+        "spread_width": [
+            "Twice the worst of calibration seeds 0-29 at reset noise 0.02, never under twice the floor (SI, deg).  "
+            "Held-out seeds 100-149: none breaks a width; the largest use is 0.50 (root_turn_deg, seed 101)."
+        ],
+        "noisy_seeds": ["Held-out seeds: the largest turn, re-read."],
+    }
+    out = calibration.rewrite_pins(_CLASS_SOURCE, "TestThing", new, provenance=provenance, comments=same)
+    assert calibration.read_pins(out, "TestThing") == new
+    removed = sorted(set(_CLASS_SOURCE.splitlines()) - set(out.splitlines()))
+    added = sorted(set(out.splitlines()) - set(_CLASS_SOURCE.splitlines()))
+    assert removed == [
+        '        "root_turn_deg": 0.3,',
+        "    # The noise-free statue's window values, physics r3, mujoco 3.10.0, read on 2026-01-01 with",
+        "    noisy_seeds = (101, 102)",
+    ]
+    assert added == [
+        '        "root_turn_deg": 0.2,',
+        "    # The noise-free statue's window values, physics r3, mujoco 3.10.0, read on 2026-10-29 with",
+        "    noisy_seeds = (101, 107)",
+    ]
+    # The hand-written note above noisy_seeds is someone's own: it stays whatever the new text.
+    assert "    # A hand-written note about the seeds.\n    noisy_seeds = (101, 107)\n" in out
+    # New words replace the block they re-read.
+    other = {
+        "spread_width": ["Twice the worst of calibration seeds 0-29, re-read.", "Held-out seeds 100-149: re-read."]
+    }
+    out = calibration.rewrite_pins(_CLASS_SOURCE, "TestThing", new, provenance=provenance, comments=other)
+    block = "    # Twice the worst of calibration seeds 0-29, re-read.\n    # Held-out seeds 100-149: re-read.\n"
+    assert block + "    spread_width = {\n" in out and "none breaks a width" not in out
+    # Nothing changes, nothing is rewritten, the provenance and the comments included.
+    unchanged = calibration.read_pins(_CLASS_SOURCE, "TestThing")
+    assert calibration.rewrite_pins(_CLASS_SOURCE, "TestThing", unchanged, provenance=provenance, comments=other) == (
+        _CLASS_SOURCE
+    )
+    with pytest.raises(ValueError, match="does not assign"):
+        calibration.rewrite_pins(
+            _CLASS_SOURCE.replace("    window_start_s = 3.0\n", ""), "TestThing", new | {"window_start_s": 4.0}
+        )
+
+
+def test_the_ratchet_refuses_to_write_a_looser_bar_without_the_flag(tmp_path):
+    path = tmp_path / "test_thing.py"
+    path.write_text(_CLASS_SOURCE)
+    pins = calibration.read_pins(_CLASS_SOURCE, "TestThing")
+    assert calibration.ratchet(path, "TestThing", pins, write=True, allow_loosen=False) == (0, "", [])
+
+    tighter = pins | {"spread_width": {"root_turn_deg": 0.2, "com_lateral_mean_m": 0.002}}
+    status, diff, changes = calibration.ratchet(path, "TestThing", tighter, write=False, allow_loosen=False)
+    assert status == 1 and [change.direction for change in changes] == ["tighter"]
+    assert '-        "root_turn_deg": 0.3,\n+        "root_turn_deg": 0.2,\n' in diff
+    assert diff.startswith(f"--- a/{path}\n+++ b/{path}\n") and path.read_text() == _CLASS_SOURCE
+
+    looser = tighter | {"reference": {"com_margin_min_m": 0.059, "com_height_mean_m": 0.8}}
+    status, diff, changes = calibration.ratchet(path, "TestThing", looser, write=True, allow_loosen=False)
+    assert status == 2 and path.read_text() == _CLASS_SOURCE
+    assert sorted(change.direction for change in changes) == ["looser", "tighter"]
+    status, _, _ = calibration.ratchet(path, "TestThing", looser, write=True, allow_loosen=True)
+    assert status == 1 and calibration.read_pins(path.read_text(), "TestThing") == looser
+
+
+def test_the_ratchet_states_the_calibration_in_the_committed_words_and_finds_the_known_poor_seeds():
+    class Biped(ComStanceQualityBase):
+        def test_known_poor_spawn_seed111_stays_within_the_calibrated_spread(self):
+            pass
+
+    usage = {101: (0.5, "root_turn_deg"), 102: (0.64, "foot_travel_max_m"), 111: (61.1, "com_margin_min_m")}
+    heldout = {101: {"root_turn_from_spawn_deg": 1.92}, 102: {"com_lateral_mean_m": -1e-6}}
+    result = calibration.Calibration(2.0, {}, {}, usage, (101, 102), {}, heldout)
+    comments = calibration.pin_comments(Biped(), result)
+    assert set(comments) == set(calibration.PIN_COMMENT_STARTS)
+    assert " ".join(comments["spread_width"]) == (
+        "Twice the worst of calibration seeds 0-29 at reset noise 0.02, never under twice the floor (SI, deg). "
+        "Held-out seeds 100-149: 1 break a width (111: see known_poor_spawns); the largest use among the rest is "
+        "0.64 (foot_travel_max_m, seed 102)."
+    )
+    assert " ".join(comments["noisy_seeds"]) == (
+        "Held-out seeds: the largest turn from the spawn (1.92 deg) and the largest lateral offset (-0.001 mm) "
+        "among those holding every width; they use 0.50 and 0.64 of a width."
+    )
+    assert all(len(line) <= 112 for lines in comments.values() for line in lines)
+    assert calibration.known_poor_seeds(Biped) == [111]

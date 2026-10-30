@@ -35,7 +35,13 @@ Modules, bottom-up:
   toe line, Hof's split of its acceleration, the achieved leg offsets, the
   actuators' force limits, the floor's shear and friction-cone use, the
   ankle torque's lever) for the periodic evaluations; pure numpy at module
-  level.
+  level;
+* :mod:`~environments.shared.gait.stance_track` -- report-only reduction of a
+  standing episode's centre-of-mass track (a simulated statue, a recorded
+  trace through ``track_from_episode_trace``, a policy rollout or a robot
+  log) to named lean, pivot, posture, height, sway and support numbers, and
+  the lean-sign summary across seeds; the CoM stance tests
+  (``tests/com_stance_helpers.py``) judge it; pure numpy.
 
 Layering rules: no species env module imports this package (an import line
 would change the env module's bytes, and with them its identity), and this

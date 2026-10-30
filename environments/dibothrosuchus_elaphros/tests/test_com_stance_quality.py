@@ -14,8 +14,10 @@ the current plant (80 spawns at reset noise 0.02): a turn of up to 1.4 deg from 
 to 11 mm from where it spawned.
 """
 
+import pytest
+
 from environments.shared.model_id import ModelId
-from environments.shared.tests.com_stance_helpers import ComStanceQualityBase
+from environments.shared.tests.com_stance_helpers import ComStanceQualityBase, TargetMissed
 
 
 class TestComStanceQuality(ComStanceQualityBase):
@@ -96,3 +98,33 @@ class TestComStanceQuality(ComStanceQualityBase):
     noisy_seeds = (122, 139)
     # A 0.5 % m g push barely moves this low, wide stance (0.30x): the rock is 8 % of the weight.
     rock_force_bw = 0.08
+
+    @pytest.mark.xfail(
+        strict=True,
+        raises=TargetMissed,
+        reason=(
+            "physics r2 (2026-10-29): the turn read at the episode's end (the yaw at its end less at the spawn): "
+            "root_turn_from_spawn_deg seed 122 1.20 deg (7 of the 80 spawns at reset noise 0.02 miss; worst 1.40 deg, "
+            "seed 28; median 0.34 deg). Target: |root_turn_from_spawn_deg| <= 1.00 deg. Strict: when a model change "
+            "meets it this passes and so fails; run com_stance_calibration, check the 80 spawns, then drop the mark "
+            "(the target becomes a real bar)"
+        ),
+    )
+    def test_target_turn_from_spawn(self, statue):
+        """Absolute target: the body ends the episode turned under 1 deg from its spawn."""
+        self.check_target(statue, "turn_from_spawn")
+
+    @pytest.mark.xfail(
+        strict=True,
+        raises=TargetMissed,
+        reason=(
+            "physics r2 (2026-10-29): foot_travel_max_m seed 139 3.13 mm (24 of the 80 spawns at reset noise 0.02 "
+            "miss; worst 3.85 mm, seed 8; median 2.22 mm). Target: |foot_travel_max_m| <= 2.63 mm: the slide of a 1 "
+            "deg turn about the feet's centre, the farthest foot standing 150.8 mm from it. Strict: when a model "
+            "change meets it this passes and so fails; run com_stance_calibration, check the 80 spawns, then drop the "
+            "mark (the target becomes a real bar)"
+        ),
+    )
+    def test_target_foot_slip_after_landing(self, statue):
+        """Absolute target: from 1 s no foot slips farther than a 1 deg turn about the feet's centre slides it."""
+        self.check_target(statue, "foot_slip_after_landing")
