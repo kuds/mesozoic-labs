@@ -1,0 +1,255 @@
+ADVERSARIAL VERIFICATION OF THE TAIL CLAMP TEST (com_revisit, role "verify_clamp")
+Written 2026-10-29 ~17:30 UTC.  EXPLORATORY AND REPORT-ONLY, NOT PRE-REGISTERED, like the test it checks.  Nothing here is
+a gate reading.  p-values are two-sided exact sign tests, given only as descriptions.
+I did not run the clamp test.  I read the runner's folder com_revisit/notes/clamp/ and wrote nothing there.
+No training of any kind.  Simulation and network evaluation only.
+Every file I wrote is in this folder:
+/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/com_revisit/notes/verify_clamp/
+Paths below are relative to this folder unless they are absolute.
+Labels: [measured] = a named script here computed it, and the output file is named.  [inferred] = reasoned, with the
+basis given.
+
+==================================================================================================================
+0. VERDICT IN SHORT
+==================================================================================================================
+- The override does what it claims.  This voids nothing.
+  - I read the env code.  I re-ran the subset with my own loader and my own loop.  Inside the env, at every step, the
+    filter state and data.ctrl[14] equal the held value's mapping exactly (0 deviation in 73 overridden episodes).
+  - My episodes are bit-identical to the runner's (70 of 70), and to D-9 (3 of 3 seeds).
+- Every number I recomputed from the runner's raw episodes.jsonl matches its analysis.txt.  That covers the paired
+  medians, the ranges, the policy counts, the sign-test p, the episode counts, the plant and feedback split, the
+  statue, the start checkpoints, the long runs and the Spearman links.
+- Claims: 10 CONFIRMED, 4 CORRECTED (F8, F9, F12, and the mechanism wording in the summary), 0 REFUTED.
+  - The corrections are small.  The 5.2 deg comes from the servo-spring stiffness split, and gravity is cancelled by
+    the preload.  Five s80 policies lose head-clearance reward, not two.  The s80 opposite sign holds in 10 of 12
+    policies.  The loop's gain is below 1.  One wording slip ("opposite and inconsistent").
+- What the runner missed, measured here:
+  (a) The s42 start-to-ends CoM drift depends on which tail state the two are compared in.
+      - Both held at 0: -0.7 mm, the runner's number.
+      - Both railed: -7.7 mm, 0 of 12 ends ahead of the start.
+      - So the drift is not gone when the tail is controlled; it sits in the tail-up state.
+      - Over the continuation, the policies' response to the rail reversed.  The start answers the rail with CoM +5.8 mm
+        forward and pitch -0.37 deg (nose-down); the ends answer it with -1.6 mm and +0.16 deg.
+  (b) The loop is now measured, not only inferred: an observation-only sweep of the tail_3 angle.
+      - s42 ends: d(own tail_3 cmd)/d(tail deg) = +0.12 per deg on 12 of 12.  The loop gain is 0.63 (0.48-0.91), below
+        1.  The rail is the loop's fixed point pushed past the +1 bound, not a runaway.
+      - The start checkpoint's gain is 0.27.  s80 ends: -0.25, negative on 10 of 12.
+  (c) The head-up coupling is a direct mapping of the observed tail angle: head_pitch command -0.043 per deg on 12 of 12
+      s42 ends.
+  (d) The lateral lean under the imposed rail is not specific to the runner's three long-run s80 policies.
+      - Its three long-run policies happened to be the nose-down responders.
+      - On three other s80 policies, 20 s runs, |lateral| rises +4.1 -> +5.5 mm (5/0) on s80_A_1321 and +13.9 -> +19.8 mm
+        (5/0) on s80_B_1411.  On s80_B_1441 it is +0.8 mm and flat.
+
+==================================================================================================================
+1. THE ACTION MAPPING AND THE OVERRIDE, CHECKED FROM THE ENV CODE AND AT RUN TIME
+==================================================================================================================
+[code read in policies/code_copy; measured: static_tail.py -> static_tail.txt; verify_sim.py -> out/*.jsonl,
+compare.py -> compare.txt section 2]
+- The code path.
+  - shared/base_env.py step() calls _filter_action and then _scale_action, and writes data.ctrl.
+  - The T. rex _filter_action keeps the clipped pre-filter command (_policy_action), then calls the base filter.
+  - The base filter clips to [-1, 1].  Its state is seeded with the first post-reset action, then
+    state += alpha (x - state), with alpha 0.386 at 10 Hz and dt 0.01.
+  - _scale_action is the home-keyframe residual.
+  - Under action_penalty_source "raw", the jerk, smoothness and saturation terms price _policy_action, which is the
+    overridden command.  Energy prices the filtered one.
+- The observation carries no action history (_get_obs: qpos[7:], qvel[6:], gravity, gyro, velocity, accelerometer,
+  contacts, prey, command).  So the override reaches the policy only through the state, as D-9's did.
+- Index 14 is tail_3_pitch_act, with trnid on the tail_3_pitch joint.  The tail_3 angle is observation index 6
+  (qposadr 13 - 7).
+- _scale_action maps action 0 / +0.5 / +1 to ctrl 0 / +0.1047 / +0.2094 rad [static_tail.txt].
+- At run time: 73 overridden episodes (held 0, held 0.5, forced +1, the D-9 onset checkpoint, the start checkpoint).
+  At every step, _action_filter_state[14] equals V and data.ctrl[14] equals V's mapping.  0 steps deviate; the maximum
+  deviation is 0.0 [compare.txt section 2].
+- The override is D-9's.
+  - I read r10round/f2/copy_8737cd3d/environments/shared/reporting/episode_trace.py trace_episode (holds).
+  - D-9's run header: deterministic, holds tail_3_pitch_act = 0, vecnormalize-frozen.
+  - My own loader: PPO.load, the VecNormalize pickle unpickled directly, and the normalisation written out by hand
+    with SB3's float32 cast.  On D-9's onset checkpoint at seeds 3042, 3050 and 3061 it gives D-9's return and window
+    return exactly.  Held minus D-9 baseline: +70.32 / +33.68 / +50.12, as in d9_summary.json [compare.txt section 3].
+- Why command +1 holds the tail at +5.2 deg, not 12 deg [measured, static_tail.txt].
+  - The spring preload k x springref = 80 x 0.1815 = +14.52 N m.  It cancels the gravity torque on the joint at 0 deg
+    (+14.49 N m).
+  - So the equilibrium is set by the servo (kp 60) against the joint stiffness (k 80):
+    q = 12 deg x 60 / 140 = 5.14 deg, plus 0.04 deg from gravity's angle dependence = 5.18 deg.
+  - Servo torque is +7.1 N m against a +-50 N m force range: not saturated.
+  - The runner's summary says "because of the spring and gravity".  More exactly, it is the spring's stiffness.
+    Gravity is nulled by the preload.
+
+==================================================================================================================
+2. MY OWN RE-RUN OF A SUBSET (verify_sim.py; run_verify.sh -> out/; compare.py -> compare.txt)
+==================================================================================================================
+- Written from scratch.  It imports none of the runner's scripts.
+  - Loader: PPO.load(zip, device cpu), the VecNormalize pickle read with pickle.load, hand normalisation.
+  - Loop: my own, with D-9's override.
+  - Instrument: PR #650's EnvStanceSampler and stance_track_quality, so the numbers are comparable.  Pitch and CoM
+    height are also computed directly from env.data, independent of the reduction.
+- Conditions, all at seeds 3042, 3046, 3050, 3055 and 3061:
+  - s42_A_1121, s42_B_1221 and s42_B_1251: unforced, held 0, and held 0.5 (new).
+  - s80_A_1321, s80_B_1411 and s80_B_1441: unforced and forced +1, as 2,000-step episodes.  The first 1,000 steps are
+    compared with the runner's 1,000-step episodes.
+  - start_s42: unforced and held 0 (5 seeds), and forced +1 (20 seeds, 3042-3061; new).
+  - The D-9 onset checkpoint held 0: 3 seeds.
+- Agreement with the runner [measured, compare.txt section 1]:
+  - Every one of 70 matched episodes gives an identical return (max |diff| 0.0).
+  - The 5 s CoM fore-aft, pitch, height, lateral and roll are identical in all 70.
+  - My own pitch proxy (asin of the root x-axis z) equals the reduction's root_pitch_mean_deg.  My own subtree CoM
+    height equals com_height_mean_m to 0.005 mm.  So the sign convention holds: pitch negative = nose-down.
+- No falls in any of my 108 verify_sim episodes.  The loop sweep adds 50 more episodes plus 2 statue episodes;
+  falls were not recorded there.
+- Cost: about 4.5 min of simulation on two processes (17:15-17:19 UTC), then the loop sweep (about 1.5 min on two
+  processes).  Never more than two simulation processes.  OMP/MKL 1 thread, nice 10, python -B.
+- Disk: this folder is under 1 MB.
+
+==================================================================================================================
+3. RECOMPUTATION FROM THE RUNNER'S RAW OUTPUTS (recompute.py -> recompute.txt; onset.py -> onset.txt)
+==================================================================================================================
+- Written from scratch.  It does not import or copy analyze_clamp.py.
+- It pairs forced and unforced by (policy, seed), takes the per-policy median over 20 seeds, and reports the median of
+  medians, the range, the counts and an exact sign test.
+- Results [measured, recompute.txt].  Every value below equals analysis.txt:
+  - s42: fore-aft +1.6294 mm [-6.13, +11.55] 8/4 p 0.3877; pitch -0.1624 deg 2/10 p 0.0386; height -3.4217 mm 2/10;
+    return +63.5766 12/0, 239/240 episodes; head_pitch command +0.1420 and joint +3.529 deg, 12/0.
+  - s80: |lateral| +0.5821 mm 11/1 p 0.0063; |roll| +0.0418 deg 12/0; return -179.88 0/12; per-seed lateral SD
+    1.745 -> 4.048 mm, 10/2.
+  - Plant and feedback, start checkpoints, statue and long runs: as in analysis.txt.
+  - Spearman: +0.87, -0.86 and -0.91 (s42), -0.99 (s80).
+- The unforced 5 s metrics are identical to the lens's episodes.jsonl: 480 of 480.  The runner's compare.jsonl files
+  are all true: 240, 240, 20, 20 and 4.
+- The rail onset bins in rail_onset.txt are reproduced exactly from the runner's tracks [onset.txt].
+- Reproducibility gap: rail_onset.txt and per_policy_links.txt each say "inline script, logged here", but they hold only
+  output, not the code.  I recomputed both.
+
+==================================================================================================================
+4. CLAIM BY CLAIM
+==================================================================================================================
+F1  CONFIRMED.
+    - Index 14, kp 60, +-50 N m, stiffness 80, springref 10.4 deg, range +-12 deg, 10 Hz with alpha 0.386, residual
+      about home 0.  Raw pricing of saturation, jerk and smoothness.  +1 -> 0.2094 rad.
+    - Joint 5.18-5.20 deg; s42 per-policy medians 4.42-5.20.
+    - Everything was checked in the code and at run time [static_tail.txt, compare.txt, recompute.txt].
+    - The summary's mechanism wording ("spring and gravity") is corrected in section 1.
+F2  CONFIRMED.
+    - The same override as D-9.  D-9 is reproduced exactly with an independent loader on 3 seeds [compare.txt
+      section 3].
+    - The runner's 20-seed reproduction (d9_repro.txt) is consistent with this.
+F3  CONFIRMED.
+    - compare.jsonl is all true.  My lens check is 480/480.  check_long.txt.
+    - My own 2,000-step s80 episodes' first 1,000 steps equal the runner's 1,000-step returns and metrics (15/15).
+    - No falls in any runner file (recompute.txt) or in mine.
+F4  CONFIRMED.
+    - Plant part: fore-aft -0.2016/+0.1763 mm, height -1.6065/+1.5546 mm, pitch +0.0108/-0.0105 deg, all 12/0.
+      Statue: +0.230 mm, +1.606 mm, -0.0136 deg, 20/0.
+    - Replay return +81.43 / -96.84; statue -97.50.
+    - Note: "mechanically negligible" is about posture.  The open-loop CoM speed does rise (+0.05 and +0.16 mm/s,
+      12/0), and the policies' feedback removes it.
+F5  CONFIRMED.  Every number is reproduced, and the subset re-run is bit-identical.
+F6  CONFIRMED.  Levels -25.70 -> -24.88 mm; start -20.73 mm (lineage.txt).
+F7  CONFIRMED as stated, with an important comparison missed (section 5a).
+    - At the railed state, ends minus start is -7.65 mm (0/12, p 0.0005).
+    - So "-0.7 mm with both held at 0" is one choice of matched state, not the drift removed.
+F8  CORRECTED.
+    - Five s80 policies lose head-clearance reward when forced, not two.  Per-policy medians: s80_B_1451 -331.9,
+      s80_B_1411 -311.6, s80_B_1431 -164.6, s80_A_1321 -65.0, s80_B_1401 -12.6 [recompute.txt].
+    - "The CoM does not settle": 3 of 3 of the runner's long-run policies; 2 of 3 of mine (s80_B_1441 settles).
+    - The rest is confirmed.
+F9  CORRECTED (wording).
+    - Height and fore-aft are opposite in sign between s42 and s80.  But s42's height change is consistent (10/2).
+      Only s80's (5/7) and both fore-aft changes (4/8, 7/5) are not.
+    - "Opposite and inconsistent" fits fore-aft only.  The NOTES table words it correctly.
+F10 CONFIRMED.
+    - Values reproduced.  By construction, feedback = closed loop - replay.
+    - Caveat: the two Spearman links quoted are the strongest of 12 computed pairs, at n = 12.
+F11 CONFIRMED (bins reproduced exactly).
+    - Nuance: the s80 -0.29 is a mean over episodes.
+    - Per policy, 11 of 12 command negative when forced.  s80_B_1401 commands +0.27 (paired change: 10 of 12 lower).
+F12 CORRECTED (the inference holds; it is now measured, with three precisions):
+    (1) The loop is measured.
+        - Observation-only sweep of the tail_3 angle, the rest of the observation fixed [verify_loop.py ->
+          out/loop_*.jsonl, loop_summary.py -> loop_summary.txt].
+        - s42 ends: +0.12 command per deg, 12/12; loop gain 0.48-0.91, median 0.63.
+        - The closed-loop intermediate hold agrees.  Held 0 / 0.5 / free gives tail 0.0 / 2.6 / 4.9-5.2 deg and own
+          command 0.29-0.33 / 0.66-0.68 / 0.94-1.0, linear [compare.txt section 7].
+        - The gain is below 1, so this is amplification to a fixed point, not instability.
+        - The offset at 0 deg (+0.15 to +0.64), times 1/(1-G) (about 2.7), lands beyond +1, hence the bound.
+    (2) "The s80 policies have the opposite sign": in 10 of 12 (gain median -0.25).  s80_B_1401 (+0.05) and s80_B_1421
+        (+0.01) are about zero or slightly positive.
+    (3) The coupling that "does not explain the gap" is the ends'.  The start's coupling had the opposite sign (section
+        5a).  At the start, the partial rail added about 0.23 deg of nose-down (start unforced minus held 0) to its
+        -0.99 deg gap to s80's start.
+    - The conclusion stands for the trained ends: the rail does not account for the s42/s80 posture gap.
+F13 CONFIRMED (the limits are correctly named).  Add the items in section 5.
+F14 CONFIRMED.
+    - No .pyc files remain under policies/code_copy.  No file there, in r10round/ecs or in r10round/f2 is newer than the
+      runner's first file (probe_env.py, 16:08).
+    - Eight code_copy directories have mtime 17:06:19, consistent with the disclosed delete.  The repository's working
+      tree is untouched; only .git's own mtime moved (17:06:30).
+    - My own session wrote nothing outside this folder (find -newer, after my runs).
+
+==================================================================================================================
+5. WHAT THE RUNNER MISSED (measured here; exploratory)
+==================================================================================================================
+a) The start checkpoint forced to +1, the "both railed" comparison [verify_sim.py -> out/start_s42_forced1.jsonl;
+   compare.py section 6; start_coupling.py -> start_coupling.txt].
+   - start_s42 at tail 0 / 3.1 (its own) / 5.2 deg: fore-aft -24.17 / -20.73 / -18.05 mm; pitch -1.197 / -1.448 /
+     -1.630 deg.  So the start moves its CoM forward and pitches nose-down as the tail rises.
+   - Ends minus start by matched state:
+     - both held 0: -0.72 mm (6/6);
+     - natural: -4.98 mm (1/11);
+     - both railed: -7.65 mm (0/12, p 0.0005), pitch +0.28 (9/3), height +0.5 (6/6).
+   - Rail minus no rail:
+     - start: fore-aft +5.81 mm (20/0 seeds), pitch -0.374 deg (0/20), height +4.66 mm;
+     - ends: -1.63 mm, +0.162 deg, +3.42 mm.
+     - 11 of 12 ends' fore-aft response, and 12 of 12 ends' pitch response, lie on the other side of the start's.
+   - Reading [inferred; one start checkpoint]:
+     - During the continuation, how the policies' posture couples to the tail state reversed.
+     - The lineage's backward CoM drift exists only with the tail up.  It is absent at tail 0 and largest when both are
+       railed.
+     - This ties the drift more closely to the tail channel than the runner's reading does.  It still does not show
+       that the rail caused it in training.
+b) The loop gain, measured (section 4, F12).
+   - The continuation roughly doubled the gain: start 0.27 (offset 0.35 -> fixed point about 0.5), ends 0.63 (fixed
+     point beyond the bound).
+   - s80 ends are negative (-0.25 median).
+c) The head-up coupling is a direct mapping from the tail_3 angle observation [loop_summary.txt].
+   - s42 ends: d head_pitch command / d tail deg = -0.043 (12/12).  Over 5.2 deg that is -0.22, larger than the
+     closed-loop -0.14.
+   - The start already had it (-0.032).  In s80 it is small (-0.007; 8/12).
+   - The neck shows no consistent slope.
+d) The lateral lean under the imposed rail generalises beyond the runner's long-run trio, which happened to be 3 of the
+   4 nose-down responders [compare.txt section 5; 5 seeds each, windows from 5, 10 and 15 s]:
+   - s80_A_1321: |lateral| +4.11 / +4.90 / +5.54 mm (5/0), CoM speed 0.015 -> 0.101 mm/s at 15-20 s.
+   - s80_B_1411: |lateral| +13.9 / +18.7 / +19.8 mm (5/0), level 21.4 mm at 15-20 s; speed 0.017 -> 0.454 mm/s;
+     |roll| +0.59 deg.
+   - s80_B_1441: +0.82 / +0.72 / +0.73 mm (4/1); settles.
+   - So for some s80 policies the imposed rail leads to a large and growing sideways lean, 20 mm on one.
+e) The head-clearance count (F8), the stiffness mechanism (F1 summary), and the per-policy exceptions in s80's push-back
+   (F11, F12).
+f) Not done here either:
+   - stochastic (own-noise) rollouts;
+   - other reset-noise levels and pushes;
+   - more start checkpoints;
+   - tail_1 and tail_2 clamps;
+   - any training counterfactual.
+   The lineage confound (all s42 railed, no s80) is untouched.
+
+==================================================================================================================
+6. FILES (this folder)
+==================================================================================================================
+recompute.py -> recompute.txt        paired statistics recomputed from the runner's raw episodes, lens equality
+onset.py -> onset.txt                rail onset bins and per-policy own commands from the runner's tracks
+verify_sim.py, run_verify.sh -> out/{s42_unforced,s42_held0,s42_hold05,s80_unforced_long,s80_forced1_long,
+    start_s42_unforced,start_s42_held0,start_s42_forced1,d9_held0}.jsonl, out/p1.log, out/p2.log
+compare.py -> compare.txt            my rollouts against the runner's, override check, D-9, subset pairs, long runs,
+                                     both-railed drift, intermediate hold, onset
+start_coupling.py -> start_coupling.txt   the start's rail response against the ends'
+verify_loop.py, run_loop.sh -> out/loop_s42.jsonl, out/loop_s80.jsonl; loop_summary.py -> loop_summary.txt
+static_tail.py -> static_tail.txt    the servo, spring and gravity static balance; the action-to-ctrl map
+Read only, outside this folder:
+- com_revisit/notes/clamp/;
+- com_revisit/notes/policies/ (code_copy, run/);
+- verify_policies/lineage.txt;
+- r10round/ecs/runs checkpoints;
+- r10round/f2 (d9 summary, episode_trace.py, REVIEW.txt);
+- the D-9 onset checkpoint copy under the other session's scratchpad (0fdf74a4-.../foot/stance6/fetch/F2/...).

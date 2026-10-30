@@ -1,0 +1,129 @@
+VecNormalize observation statistics, ECS stance checkpoints (read_stats.py)
+(eps, clip_obs, norm_obs, norm_reward) over all checkpoints: [(1e-08, 10.0, True, True)]
+harness loader check: 36/36 pickles identical via load_sb3_checkpoint; max |hand - normalize_obs| 0
+
+=== s42: start pair statistics identical in all 12 runs: True
+count (frames) at start, end: 6291464.0001 [9437200.0001, 9437200.0001, 9437200.0001] ...
+  scale = 1/sqrt(var+eps); medians over the 12 continuations (range at the end)
+  -- mean (angles in deg / deg^-1 , velocities in deg/s / (deg/s)^-1)
+  step                 t1p:q            t1y:q            t2p:q            t3p:q            t1p:v            t1y:v            t2p:v            t3p:v
+    3145728          -0.2046                0           0.1698           0.4665          0.07328                0          0.04655          0.05986
+    3407872          -0.2391                0           0.1732           0.6435          0.06147                0          0.04483          0.08033
+    3670016            -0.28                0            0.172           0.8386          0.05027                0          0.04316           0.1028
+    3932160          -0.3093                0           0.1691            1.023          0.04091                0          0.04115           0.1244
+    4194304          -0.3233                0           0.1657            1.191          0.03342                0          0.03935            0.144
+    4456448          -0.3328                0           0.1633            1.346          0.02884                0          0.03831           0.1628
+    4718592          -0.3359                0           0.1639            1.488          0.02421                0          0.03723           0.1798
+  -- sd (angles in deg / deg^-1 , velocities in deg/s / (deg/s)^-1)
+  step                 t1p:q            t1y:q            t2p:q            t3p:q            t1p:v            t1y:v            t2p:v            t3p:v
+    3145728           0.6643            0.596           0.4267           0.7807            12.38             5.27            5.436            4.345
+    3407872            0.663              0.6            0.416            1.028            11.95            5.101            5.285            4.224
+    3670016           0.6681           0.6035           0.4061            1.266            11.57             4.95             5.15            4.114
+    3932160            0.666           0.6065           0.3977            1.451            11.23            4.814            5.027            4.013
+    4194304           0.6575           0.6116           0.3899            1.588            10.92            4.692            4.915            3.922
+    4456448           0.6476           0.6165            0.383            1.694            10.63            4.579            4.813             3.84
+    4718592           0.6396           0.6203           0.3765            1.787            10.37            4.476             4.72            3.768
+  -- scale (angles in deg / deg^-1 , velocities in deg/s / (deg/s)^-1)
+  step                 t1p:q            t1y:q            t2p:q            t3p:q            t1p:v            t1y:v            t2p:v            t3p:v
+    3145728            1.505            1.678            2.343            1.281           0.0808           0.1897           0.1839           0.2302
+    3407872            1.508            1.666            2.404           0.9725          0.08367            0.196           0.1892           0.2368
+    3670016            1.497            1.657            2.462           0.7902          0.08641            0.202           0.1942           0.2431
+    3932160            1.502            1.649            2.514            0.689          0.08906           0.2077           0.1989           0.2492
+    4194304            1.521            1.635            2.564           0.6296          0.09162           0.2131           0.2034           0.2549
+    4456448            1.544            1.622            2.611           0.5903          0.09408           0.2184           0.2078           0.2604
+    4718592            1.563            1.612            2.656           0.5595          0.09645           0.2234           0.2119           0.2654
+  -- end / start ratio of scale, per run (tail_3 angle, tail_3 velocity), and end mean of tail_3 angle (deg)
+    s42_A_1101: scale ratio t3q 0.423  t3v 1.149  t2q 1.143  t1p 1.001  mean t3q +0.466 -> +1.529 deg  sd t3q 0.781 -> 1.845 deg
+    s42_A_1111: scale ratio t3q 0.436  t3v 1.160  t2q 1.133  t1p 1.063  mean t3q +0.466 -> +1.503 deg  sd t3q 0.781 -> 1.790 deg
+    s42_A_1121: scale ratio t3q 0.444  t3v 1.158  t2q 1.128  t1p 1.070  mean t3q +0.466 -> +1.458 deg  sd t3q 0.781 -> 1.760 deg
+    s42_A_1131: scale ratio t3q 0.420  t3v 1.152  t2q 1.134  t1p 0.968  mean t3q +0.466 -> +1.569 deg  sd t3q 0.781 -> 1.857 deg
+    s42_A_1141: scale ratio t3q 0.438  t3v 1.148  t2q 1.138  t1p 1.004  mean t3q +0.466 -> +1.485 deg  sd t3q 0.781 -> 1.783 deg
+    s42_A_1151: scale ratio t3q 0.435  t3v 1.153  t2q 1.131  t1p 1.045  mean t3q +0.466 -> +1.507 deg  sd t3q 0.781 -> 1.795 deg
+    s42_B_1201: scale ratio t3q 0.433  t3v 1.156  t2q 1.135  t1p 1.057  mean t3q +0.466 -> +1.491 deg  sd t3q 0.781 -> 1.805 deg
+    s42_B_1211: scale ratio t3q 0.451  t3v 1.145  t2q 1.131  t1p 1.080  mean t3q +0.466 -> +1.452 deg  sd t3q 0.781 -> 1.730 deg
+    s42_B_1221: scale ratio t3q 0.442  t3v 1.159  t2q 1.134  t1p 1.070  mean t3q +0.466 -> +1.465 deg  sd t3q 0.781 -> 1.767 deg
+    s42_B_1231: scale ratio t3q 0.444  t3v 1.153  t2q 1.122  t1p 1.032  mean t3q +0.466 -> +1.462 deg  sd t3q 0.781 -> 1.758 deg
+    s42_B_1241: scale ratio t3q 0.437  t3v 1.153  t2q 1.147  t1p 0.983  mean t3q +0.466 -> +1.457 deg  sd t3q 0.781 -> 1.785 deg
+    s42_B_1251: scale ratio t3q 0.427  t3v 1.154  t2q 1.119  t1p 1.007  mean t3q +0.466 -> +1.511 deg  sd t3q 0.781 -> 1.827 deg
+  -- all 63 dims ranked by median over runs of |log(scale_end / scale_start)|; also the mean shift in start sd units |mu_end - mu_start| / sd_start
+    rank  dim name                      med log scale ratio   ratio  med |dmu|/sd0
+       1    6 tail_3_pitch:q                         -0.828   0.437          1.308
+       2   44 gravity[2]                             +0.201   1.223          0.019
+       3   37 l_knee:v                               +0.192   1.212          0.000
+       4   30 r_knee:v                               +0.192   1.212          0.000
+       5   28 r_hip_pitch:v                          +0.190   1.209          0.001
+       6   35 l_hip_pitch:v                          +0.190   1.209          0.001
+       7   43 gravity[1]                             +0.189   1.208          0.000
+       8   31 r_ankle:v                              +0.186   1.204          0.001
+       9   38 l_ankle:v                              +0.186   1.204          0.001
+      10   50 heading_velocity[2]                    +0.184   1.202          0.015
+      11   46 pelvis_gyro[1]                         +0.182   1.200          0.007
+      12   48 heading_velocity[0]                    +0.180   1.197          0.032
+      13   53 pelvis_accel[2]                        +0.178   1.195          0.004
+      14   24 tail_1_pitch:v                         +0.177   1.194          0.004
+      15   49 heading_velocity[1]                    +0.174   1.190          0.000
+    by mean shift: tail_3_pitch:q 1.31, tail_1_pitch:q 0.20, head_pitch:q 0.19, r_knee:q 0.17, l_knee:q 0.17, l_hip_pitch:q 0.15, r_hip_pitch:q 0.15, gravity[0] 0.13
+    tail_3 angle (dim 6) rank by |log scale ratio|: 1 of 63; by mean shift: 1 of 63
+
+=== s80: start pair statistics identical in all 12 runs: True
+count (frames) at start, end: 8388616.0001 [11534352.0001, 11534352.0001, 11534352.0001] ...
+  scale = 1/sqrt(var+eps); medians over the 12 continuations (range at the end)
+  -- mean (angles in deg / deg^-1 , velocities in deg/s / (deg/s)^-1)
+  step                 t1p:q            t1y:q            t2p:q            t3p:q            t1p:v            t1y:v            t2p:v            t3p:v
+    4194304         -0.05761                0            0.226           0.1138          0.06659                0          0.04716          0.02173
+    4456448         -0.07212                0           0.2294           0.1088          0.06064                0           0.0465          0.02048
+    4718592         -0.09084                0           0.2291          0.09955           0.0551                0          0.04508          0.01901
+    4980736          -0.1059                0           0.2241          0.08938          0.04985                0          0.04319           0.0177
+    5242880          -0.1124                0           0.2134          0.08126          0.04584                0          0.04137           0.0168
+    5505024          -0.1239                0           0.2039          0.08106          0.04243                0          0.03998            0.017
+    5767168          -0.1332                0           0.1968          0.07857          0.03924                0          0.03818          0.01688
+  -- sd (angles in deg / deg^-1 , velocities in deg/s / (deg/s)^-1)
+  step                 t1p:q            t1y:q            t2p:q            t3p:q            t1p:v            t1y:v            t2p:v            t3p:v
+    4194304           0.5601           0.5064           0.4727           0.3088            10.79            4.651            4.905            3.951
+    4456448            0.551           0.5048           0.4631           0.3065            10.51            4.542            4.809            3.876
+    4718592           0.5459           0.5051           0.4541           0.3062            10.25            4.442            4.722            3.807
+    4980736           0.5402           0.5057           0.4461           0.3085            10.01            4.349             4.64            3.743
+    5242880            0.532           0.5061           0.4412           0.3098            9.794            4.261            4.562            3.684
+    5505024           0.5279           0.5059           0.4356           0.3115            9.592             4.18            4.491            3.629
+    5767168           0.5268           0.5051           0.4301            0.314            9.404            4.104            4.424            3.579
+  -- scale (angles in deg / deg^-1 , velocities in deg/s / (deg/s)^-1)
+  step                 t1p:q            t1y:q            t2p:q            t3p:q            t1p:v            t1y:v            t2p:v            t3p:v
+    4194304            1.785            1.975            2.115            3.238          0.09268            0.215           0.2039           0.2531
+    4456448            1.815            1.981            2.159            3.262          0.09516           0.2202           0.2079            0.258
+    4718592            1.832             1.98            2.202            3.266          0.09756           0.2251           0.2118           0.2627
+    4980736            1.851            1.977            2.241            3.241          0.09987           0.2299           0.2155           0.2672
+    5242880             1.88            1.976            2.266            3.227           0.1021           0.2347           0.2192           0.2714
+    5505024            1.894            1.977            2.295             3.21           0.1043           0.2392           0.2227           0.2756
+    5767168            1.898             1.98            2.325            3.184           0.1063           0.2437           0.2261           0.2794
+  -- end / start ratio of scale, per run (tail_3 angle, tail_3 velocity), and end mean of tail_3 angle (deg)
+    s80_A_1301: scale ratio t3q 0.986  t3v 1.098  t2q 1.094  t1p 1.047  mean t3q +0.114 -> +0.089 deg  sd t3q 0.309 -> 0.313 deg
+    s80_A_1311: scale ratio t3q 1.028  t3v 1.097  t2q 1.117  t1p 1.068  mean t3q +0.114 -> +0.077 deg  sd t3q 0.309 -> 0.300 deg
+    s80_A_1321: scale ratio t3q 0.974  t3v 1.108  t2q 1.081  t1p 1.035  mean t3q +0.114 -> +0.055 deg  sd t3q 0.309 -> 0.317 deg
+    s80_A_1331: scale ratio t3q 1.005  t3v 1.099  t2q 1.100  t1p 1.059  mean t3q +0.114 -> +0.092 deg  sd t3q 0.309 -> 0.307 deg
+    s80_A_1341: scale ratio t3q 0.974  t3v 1.100  t2q 1.098  t1p 1.095  mean t3q +0.114 -> +0.048 deg  sd t3q 0.309 -> 0.317 deg
+    s80_A_1351: scale ratio t3q 1.016  t3v 1.107  t2q 1.108  t1p 1.086  mean t3q +0.114 -> +0.089 deg  sd t3q 0.309 -> 0.304 deg
+    s80_B_1401: scale ratio t3q 0.932  t3v 1.109  t2q 1.111  t1p 1.085  mean t3q +0.114 -> +0.127 deg  sd t3q 0.309 -> 0.331 deg
+    s80_B_1411: scale ratio t3q 1.013  t3v 1.103  t2q 1.103  t1p 1.095  mean t3q +0.114 -> +0.098 deg  sd t3q 0.309 -> 0.305 deg
+    s80_B_1421: scale ratio t3q 0.772  t3v 1.110  t2q 0.991  t1p 1.032  mean t3q +0.114 -> -0.015 deg  sd t3q 0.309 -> 0.400 deg
+    s80_B_1431: scale ratio t3q 0.981  t3v 1.100  t2q 1.074  t1p 1.035  mean t3q +0.114 -> +0.069 deg  sd t3q 0.309 -> 0.315 deg
+    s80_B_1441: scale ratio t3q 0.880  t3v 1.106  t2q 1.096  t1p 1.027  mean t3q +0.114 -> +0.013 deg  sd t3q 0.309 -> 0.351 deg
+    s80_B_1451: scale ratio t3q 1.009  t3v 1.105  t2q 1.117  t1p 1.103  mean t3q +0.114 -> +0.080 deg  sd t3q 0.309 -> 0.306 deg
+  -- all 63 dims ranked by median over runs of |log(scale_end / scale_start)|; also the mean shift in start sd units |mu_end - mu_start| / sd_start
+    rank  dim name                      med log scale ratio   ratio  med |dmu|/sd0
+       1    0 neck_pitch:q                           -0.177   0.838          0.376
+       2   44 gravity[2]                             +0.154   1.166          0.023
+       3   35 l_hip_pitch:v                          +0.151   1.163          0.000
+       4   28 r_hip_pitch:v                          +0.151   1.163          0.000
+       5   30 r_knee:v                               +0.150   1.162          0.001
+       6   37 l_knee:v                               +0.150   1.162          0.001
+       7   42 gravity[0]                             +0.149   1.161          0.048
+       8   58 prey_direction_body[2]                 +0.147   1.159          0.049
+       9   46 pelvis_gyro[1]                         +0.143   1.154          0.001
+      10   38 l_ankle:v                              +0.142   1.153          0.001
+      11   31 r_ankle:v                              +0.142   1.153          0.001
+      12   50 heading_velocity[2]                    +0.141   1.152          0.011
+      13   48 heading_velocity[0]                    +0.141   1.152          0.019
+      14   53 pelvis_accel[2]                        +0.138   1.148          0.003
+      15   24 tail_1_pitch:v                         +0.137   1.147          0.003
+    by mean shift: neck_pitch:q 0.38, head_pitch:q 0.14, tail_1_pitch:q 0.13, tail_3_pitch:q 0.11, r_ankle:q 0.09, l_ankle:q 0.09, tail_2_pitch:q 0.06, r_toe_d3_joint:q 0.06
+    tail_3 angle (dim 6) rank by |log scale ratio|: 55 of 63; by mean shift: 4 of 63

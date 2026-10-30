@@ -1,0 +1,13 @@
+joints in qpos[7:] order (obs index = qpos adr - 7): neck_pitch:0, neck_yaw:1, head_pitch:2, tail_1_pitch:3, tail_1_yaw:4, tail_2_pitch:5, tail_3_pitch:6, r_hip_pitch:7, r_hip_roll:8, r_knee:9, r_ankle:10, r_toe_d2_joint:11, r_toe_d3_joint:12, r_toe_d4_joint:13, l_hip_pitch:14, l_hip_roll:15, l_knee:16, l_ankle:17, l_toe_d2_joint:18, l_toe_d3_joint:19, l_toe_d4_joint:20
+actuators: 0:neck_pitch_act, 1:neck_yaw_act, 2:head_pitch_act, 3:r_hip_pitch_act, 4:r_hip_roll_act, 5:r_knee_act, 6:r_ankle_act, 7:l_hip_pitch_act, 8:l_hip_roll_act, 9:l_knee_act, 10:l_ankle_act, 11:tail_1_pitch_act, 12:tail_1_yaw_act, 13:tail_2_pitch_act, 14:tail_3_pitch_act
+actuator 14 = tail_3_pitch_act; its joint = tail_3_pitch; gain/bias [60.  0.  0.] [  0. -60.   0.]; ctrlrange [-0.2094  0.2094]
+obs[0:21] == qpos[7:28]: max diff 3.02e-08; obs[6] - qpos[tail_3_pitch] 2.65e-12
+  skull in pelvis frame: [0.777, -0.0, 0.254]
+  tail_5 in pelvis frame: [-1.35, -0.002, -0.036]
+  r_thigh in pelvis frame: [-0.05, -0.14, -0.05]
+pelvis nose-up pitch from quaternion -1.1383 deg; asin(-obs g_x) -1.1383 deg; obs g = [0.019869999960064888, -0.0022799998987466097, -0.9998000264167786]
+  nose-up +1.1: quat pitch +1.1000 deg; |g_env - g_analytic| 3.6e-08; |prey_env - prey_analytic| 1.3e-06; obs pitch change +1.1000
+  nose-up -1.1: quat pitch -1.1000 deg; |g_env - g_analytic| 4.3e-08; |prey_env - prey_analytic| 1.3e-06; obs pitch change -1.1000
+  nose-up +2.0: quat pitch +2.0000 deg; |g_env - g_analytic| 4.4e-09; |prey_env - prey_analytic| 1.3e-06; obs pitch change +2.0000
+accelerometer / -9.81 vs g: [0.022299999371170998, -0.005200000014156103, -1.000100016593933] vs [0.019899999722838402, -0.002300000051036477, -0.9998000264167786]
+prey direction obs [0.9937999844551086, -0.10989999771118164, -0.014499999582767487], distance 12.359

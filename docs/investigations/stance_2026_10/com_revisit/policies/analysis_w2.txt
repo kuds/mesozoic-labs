@@ -1,0 +1,286 @@
+window from 2.0 s to the end of 1,000 steps (10 s); run run
+policies and controls: 27; episodes stood: 
+
+SETTLE (the PR's rule: the first whole second after which the horizontal CoM speed RMS stays under 1 mm/s in every second to step 1,000; 10 = not settled within the episode)
+  who            settle s: median [min max] n<=5s  | lateral-only settle median [max] | per-second RMS mm/s, median over seeds (s 0-9)
+  statue          9.5 [ 7 10]  0/20   |  6.0 [10] | 85.10 31.37 16.20 10.23  6.85  4.47  2.97  2.12  1.39  0.99
+  start_s42       3.0 [ 2  8] 18/20   |  2.0 [ 8] | 54.33  6.17  1.54  0.66  0.37  0.19  0.18  0.13  0.11  0.11
+  start_s80       4.0 [ 3 10] 17/20   |  3.0 [10] | 49.66  8.01  2.42  1.18  0.81  0.60  0.41  0.25  0.20  0.21
+  s42_A_1101      3.0 [ 2  5] 20/20   |  2.0 [ 4] | 51.97  5.42  1.81  0.44  0.47  0.39  0.31  0.25  0.22  0.20
+  s42_A_1111      3.0 [ 2 10] 17/20   |  2.0 [ 6] | 54.81  3.71  1.08  0.74  0.39  0.27  0.21  0.19  0.17  0.13
+  s42_A_1121      3.0 [ 2  5] 20/20   |  3.0 [ 5] | 62.27  8.18  2.22  0.68  0.32  0.25  0.19  0.16  0.15  0.12
+  s42_A_1131      3.0 [ 2  8] 17/20   |  2.0 [ 8] | 55.43  4.21  1.16  0.50  0.38  0.22  0.15  0.13  0.11  0.09
+  s42_A_1141      3.0 [ 2  8] 18/20   |  2.0 [ 8] | 65.78  7.81  1.22  0.53  0.26  0.19  0.14  0.11  0.08  0.06
+  s42_A_1151      3.5 [ 2  8] 17/20   |  3.0 [ 7] | 58.38  8.43  3.20  0.96  0.52  0.37  0.31  0.22  0.11  0.10
+  s42_B_1201      3.0 [ 2  5] 20/20   |  2.0 [ 5] | 56.86  4.35  1.06  0.43  0.32  0.25  0.21  0.20  0.17  0.14
+  s42_B_1211      3.0 [ 2  8] 16/20   |  3.0 [ 8] | 57.93  8.40  1.68  0.85  0.45  0.32  0.27  0.19  0.14  0.12
+  s42_B_1221      4.0 [ 3  8] 19/20   |  2.5 [ 8] | 55.51  4.95  2.42  1.18  0.66  0.34  0.27  0.23  0.14  0.14
+  s42_B_1231      4.0 [ 2  7] 17/20   |  3.0 [ 7] | 51.26  7.89  2.81  1.43  0.80  0.52  0.36  0.32  0.26  0.24
+  s42_B_1241      3.0 [ 2  9] 18/20   |  3.0 [ 9] | 54.23  6.59  1.45  0.78  0.30  0.11  0.10  0.07  0.06  0.06
+  s42_B_1251      3.0 [ 2  4] 20/20   |  2.0 [ 4] | 56.59  8.34  1.05  0.40  0.37  0.25  0.21  0.18  0.17  0.16
+  s80_A_1301      4.0 [ 2 10] 16/20   |  4.0 [10] | 50.84  7.49  2.13  1.20  0.60  0.35  0.24  0.18  0.11  0.07
+  s80_A_1311      4.0 [ 3 10] 18/20   |  4.0 [10] | 57.21  8.51  3.24  1.60  0.76  0.34  0.21  0.21  0.23  0.21
+  s80_A_1321      3.0 [ 2  6] 19/20   |  3.0 [ 7] | 56.11 10.97  2.68  0.78  0.29  0.15  0.13  0.10  0.09  0.07
+  s80_A_1331      3.0 [ 2 10] 16/20   |  3.0 [10] | 48.89  6.01  1.30  0.42  0.42  0.34  0.29  0.25  0.20  0.13
+  s80_A_1341      4.0 [ 2  8] 18/20   |  4.0 [ 8] | 53.63 10.17  3.25  1.26  0.77  0.44  0.31  0.20  0.16  0.13
+  s80_A_1351      2.0 [ 2 10] 17/20   |  2.0 [10] | 48.23  6.16  0.98  0.35  0.17  0.12  0.08  0.07  0.06  0.05
+  s80_B_1401      3.0 [ 2  6] 18/20   |  3.0 [ 6] | 46.69  7.14  1.87  0.83  0.23  0.18  0.13  0.11  0.09  0.08
+  s80_B_1411      4.0 [ 2 10] 16/20   |  3.5 [10] | 51.97  4.78  1.35  1.01  0.74  0.38  0.23  0.15  0.11  0.08
+  s80_B_1421      3.0 [ 2  6] 17/20   |  3.0 [ 6] | 52.93  8.26  2.02  0.83  0.38  0.14  0.08  0.08  0.08  0.08
+  s80_B_1431      3.0 [ 2 10] 14/20   |  3.0 [10] | 49.39  8.58  2.36  0.91  0.46  0.27  0.18  0.15  0.10  0.08
+  s80_B_1441      5.0 [ 3  8] 16/20   |  3.5 [ 8] | 49.55  6.98  2.97  1.89  1.08  0.69  0.51  0.34  0.24  0.19
+  s80_B_1451      3.5 [ 2  8] 15/20   |  3.0 [ 8] | 52.84  6.21  1.86  0.75  0.47  0.42  0.31  0.24  0.20  0.14
+  group statue              : settle median 9.5 s, 90th pct 10.0, max 10, share settled by 2/3/4/5 s: 0.00/0.00/0.00/0.00
+  group starts              : settle median 3.5 s, 90th pct 6.0, max 10, share settled by 2/3/4/5 s: 0.10/0.50/0.75/0.88
+  group s42 ends (rail)     : settle median 3.0 s, 90th pct 5.0, max 10, share settled by 2/3/4/5 s: 0.24/0.66/0.85/0.91
+  group s80 ends (no rail)  : settle median 4.0 s, 90th pct 7.0, max 10, share settled by 2/3/4/5 s: 0.22/0.46/0.70/0.83
+
+FAMILIES at the window: median over the stood seeds [min, max]; units mm, mm/s, deg, load share
+  -- lean
+    com_lateral_mean_m                   statue -0.021 [-0.481, +0.599] | starts -0.184 [-9.696, +3.239] | s42 -0.008 [-4.911, +4.333] | s80 -0.074 [-14.584, +4.932]
+    root_roll_mean_deg                   statue +0.008 [-0.033, +0.032] | starts +0.013 [-0.172, +0.249] | s42 +0.009 [-0.172, +0.143] | s80 +0.005 [-0.218, +0.356]
+    left_load_share_mean                 statue +0.500 [+0.498, +0.503] | starts +0.500 [+0.484, +0.520] | s42 +0.500 [+0.483, +0.515] | s80 +0.499 [+0.468, +0.534]
+    lightest_foot_share_min              statue +0.483 [+0.454, +0.499] | starts +0.492 [+0.454, +0.499] | s42 +0.493 [+0.410, +0.500] | s80 +0.490 [+0.440, +0.499]
+    com_lateral_drift_m                  statue -0.084 [-4.178, +2.397] | starts +0.646 [-9.112, +15.179] | s42 +0.219 [-10.246, +15.954] | s80 +0.040 [-12.964, +17.024]
+    root_roll_drift_deg                  statue -0.011 [-0.098, +0.078] | starts -0.026 [-0.352, +0.289] | s42 -0.012 [-0.291, +0.350] | s80 -0.003 [-0.513, +0.243]
+    com_margin_lateral_min_m             statue +135.7 [+98.230, +186.4] | starts +165.5 [+121.9, +186.5] | s42 +161.1 [+39.576, +188.1] | s80 +155.3 [+109.3, +189.5]
+    xcom_margin_lateral_min_m            statue +132.4 [+90.473, +186.4] | starts +165.5 [+121.6, +186.5] | s42 +161.1 [-3.461, +188.1] | s80 +155.0 [+86.617, +189.4]
+  -- pivot
+    root_turn_deg                        statue +0.702 [-1.727, +2.023] | starts +0.184 [-1.815, +1.975] | s42 +0.250 [-10.289, +3.552] | s80 +0.059 [-2.249, +3.995]
+    root_turn_end_deg                    statue +0.007 [-0.110, +0.102] | starts +0.010 [-0.133, +0.258] | s42 +0.016 [-0.268, +0.559] | s80 -0.003 [-0.330, +0.372]
+    root_turn_from_spawn_deg             statue +2.094 [-12.987, +11.460] | starts +2.265 [-11.637, +12.489] | s42 +1.692 [-15.454, +12.324] | s80 +1.741 [-10.309, +11.514]
+    root_minus_feet_yaw_from_spawn_deg   statue -0.011 [-0.554, +0.365] | starts -0.012 [-0.567, +0.372] | s42 -0.013 [-0.565, +0.426] | s80 -0.015 [-0.576, +0.404]
+    foot_turn_max_deg                    statue +1.170 [+0.169, +2.163] | starts +0.850 [+0.111, +2.198] | s42 +1.091 [+0.037, +12.610] | s80 +0.621 [+0.046, +4.109]
+    foot_turn_from_spawn_max_deg         statue +4.163 [+0.292, +12.855] | starts +4.785 [+0.801, +13.654] | s42 +4.347 [+0.231, +22.643] | s80 +4.530 [+0.322, +13.031]
+    foot_splay_change_max_deg            statue +0.176 [+0.042, +0.395] | starts +0.203 [+0.043, +0.580] | s42 +0.198 [+0.006, +0.652] | s80 +0.206 [+0.004, +0.665]
+    foot_travel_max_m                    statue +5.463 [+2.003, +9.567] | starts +5.737 [+0.713, +16.154] | s42 +5.834 [+0.568, +21.317] | s80 +5.950 [+0.227, +21.728]
+    foot_travel_from_spawn_max_m         statue +14.612 [+6.580, +37.818] | starts +17.933 [+7.115, +45.948] | s42 +19.087 [+4.927, +52.234] | s80 +18.897 [+4.279, +59.255]
+  -- height
+    com_height_mean_m                    statue +867.0 [+866.9, +867.5] | starts +875.6 [+864.4, +891.9] | s42 +868.0 [+862.8, +876.8] | s80 +874.9 [+858.8, +895.7]
+    com_height_drift_m                   statue -0.155 [-0.409, +0.314] | starts -0.061 [-1.231, +9.946] | s42 -0.526 [-3.684, +3.327] | s80 +0.074 [-12.788, +9.951]
+  -- sway
+    com_speed_rms_mps                    statue +7.317 [+3.634, +14.401] | starts +0.804 [+0.187, +2.950] | s42 +0.766 [+0.081, +22.857] | s80 +1.002 [+0.061, +19.792]
+    com_speed_end_rms_mps                statue +1.214 [+0.486, +2.427] | starts +0.138 [+0.013, +1.734] | s42 +0.137 [+0.007, +1.160] | s80 +0.103 [+0.003, +2.073]
+    com_lateral_sd_m                     statue +1.004 [+0.051, +3.037] | starts +0.272 [+0.009, +2.859] | s42 +0.187 [+0.002, +5.506] | s80 +0.353 [+0.004, +5.859]
+    com_fore_aft_sd_m                    statue +1.923 [+0.654, +4.558] | starts +0.303 [+0.043, +0.790] | s42 +0.255 [+0.017, +4.015] | s80 +0.177 [+0.006, +3.525]
+    com_height_sd_m                      statue +0.204 [+0.055, +0.469] | starts +0.286 [+0.013, +1.335] | s42 +0.129 [+0.013, +0.890] | s80 +0.360 [+0.021, +2.000]
+    root_roll_sd_deg                     statue +0.021 [+0.003, +0.079] | starts +0.008 [+0.001, +0.082] | s42 +0.006 [+0.000, +0.131] | s80 +0.012 [+0.001, +0.139]
+    root_pitch_sd_deg                    statue +0.212 [+0.070, +0.501] | starts +0.011 [+0.003, +0.071] | s42 +0.022 [+0.002, +0.212] | s80 +0.010 [+0.001, +0.153]
+    root_yaw_sd_deg                      statue +0.132 [+0.019, +0.225] | starts +0.076 [+0.014, +0.415] | s42 +0.098 [+0.001, +2.104] | s80 +0.062 [+0.003, +0.499]
+  -- sagittal
+    com_fore_aft_mean_m                  statue -27.198 [-28.211, -26.457] | starts -26.732 [-38.587, -18.972] | s42 -26.526 [-44.288, -14.302] | s80 -32.621 [-45.408, -21.569]
+    com_fore_aft_drift_m                 statue +0.632 [-2.407, +2.231] | starts +0.399 [-8.952, +2.982] | s42 +1.570 [-13.434, +6.700] | s80 -0.489 [-7.266, +9.393]
+    root_pitch_mean_deg                  statue -0.924 [-1.000, -0.836] | starts -0.933 [-1.699, -0.124] | s42 -1.327 [-2.434, -0.160] | s80 -0.271 [-1.364, +0.398]
+  -- support
+    com_margin_min_m                     statue +56.847 [+39.349, +60.618] | starts +62.217 [+51.497, +70.841] | s42 +61.537 [+12.609, +75.562] | s80 +56.825 [+28.670, +67.280]
+    xcom_margin_min_m                    statue +56.719 [+36.242, +60.061] | starts +62.106 [+51.467, +70.837] | s42 +61.762 [-1.712, +75.562] | s80 +56.795 [+31.895, +67.225]
+    support_defined_fraction             statue +1.000 [+1.000, +1.000] | starts +1.000 [+1.000, +1.000] | s42 +1.000 [+1.000, +1.000] | s80 +1.000 [+1.000, +1.000]
+
+LEAN SIGN ACROSS THE SEEDS (lean_sign_summary; signs: com_lateral + = CoM left of the feet's centre; root_roll + = left side up; left_load_excess = left_load_share_mean - 0.5, + = left foot heavier; turn/yaw + = to the left (counter-clockwise from above); p = two-sided sign test; m = mean over seeds)
+  who                     com_lateral_mean_m          root_roll_mean_deg            left_load_excess         com_lateral_drift_m
+  statue                9+11- p0.824 m+0.009       13+ 7- p0.263 m+0.004       11+ 9- p0.824 m+0.000        9+11- p0.824 m-0.165
+  start_s42             9+11- p0.824 m-0.368       12+ 8- p0.503 m+0.007       11+ 9- p0.824 m+0.000       15+ 5- p0.041 m+1.306
+  start_s80             7+13- p0.263 m-1.310       12+ 8- p0.503 m+0.032        9+11- p0.824 m-0.002       12+ 8- p0.503 m+2.495
+  s42_A_1101           12+ 8- p0.503 m+0.053        9+11- p0.824 m-0.005        9+11- p0.824 m-0.000       12+ 8- p0.503 m+0.329
+  s42_A_1111            9+11- p0.824 m-0.201       12+ 8- p0.503 m+0.004       11+ 9- p0.824 m-0.001       11+ 9- p0.824 m+0.195
+  s42_A_1121           11+ 9- p0.824 m-0.143       14+ 6- p0.115 m+0.025       12+ 8- p0.503 m+0.001       15+ 5- p0.041 m+0.440
+  s42_A_1131           10+10- p1.000 m-0.140       11+ 9- p0.824 m+0.008        8+12- p0.503 m-0.000       13+ 7- p0.263 m+0.600
+  s42_A_1141           12+ 8- p0.503 m-0.168       11+ 9- p0.824 m+0.009       11+ 9- p0.824 m+0.001       10+10- p1.000 m+0.042
+  s42_A_1151            7+13- p0.263 m-0.477       13+ 7- p0.263 m+0.017        8+12- p0.503 m+0.000       13+ 7- p0.263 m+0.456
+  s42_B_1201            8+12- p0.503 m-0.506       13+ 7- p0.263 m+0.012        8+12- p0.503 m-0.001       14+ 6- p0.115 m+1.265
+  s42_B_1211           12+ 8- p0.503 m+0.059        8+12- p0.503 m-0.013        9+11- p0.824 m-0.001        8+12- p0.503 m-0.361
+  s42_B_1221           10+10- p1.000 m-0.304       12+ 8- p0.503 m+0.015       11+ 9- p0.824 m-0.001       13+ 7- p0.263 m+0.371
+  s42_B_1231            9+11- p0.824 m+0.026        9+11- p0.824 m-0.003       10+10- p1.000 m+0.000       10+10- p1.000 m-0.730
+  s42_B_1241           11+ 9- p0.824 m-0.270       10+10- p1.000 m+0.007        8+12- p0.503 m-0.001       14+ 6- p0.115 m+2.198
+  s42_B_1251            8+12- p0.503 m-0.367       16+ 4- p0.012 m+0.012       11+ 9- p0.824 m-0.000       11+ 9- p0.824 m+0.551
+  s80_A_1301            9+11- p0.824 m-1.928       12+ 8- p0.503 m+0.046        7+13- p0.263 m-0.003       13+ 7- p0.263 m+3.191
+  s80_A_1311           11+ 9- p0.824 m-1.132        9+11- p0.824 m+0.005        8+12- p0.503 m-0.003        8+12- p0.503 m+0.860
+  s80_A_1321            8+12- p0.503 m-1.300       10+10- p1.000 m+0.028        6+14- p0.115 m-0.004       10+10- p1.000 m+0.192
+  s80_A_1331            7+13- p0.263 m-1.452       12+ 8- p0.503 m+0.037       11+ 9- p0.824 m-0.002       13+ 7- p0.263 m+1.294
+  s80_A_1341           12+ 8- p0.503 m+0.003        9+11- p0.824 m-0.006        7+13- p0.263 m-0.001        7+13- p0.263 m+0.561
+  s80_A_1351            9+11- p0.824 m-0.768        8+12- p0.503 m-0.010        8+12- p0.503 m-0.003        9+11- p0.824 m+1.416
+  s80_B_1401           12+ 8- p0.503 m+0.011        7+13- p0.263 m-0.006        7+13- p0.263 m-0.001       11+ 9- p0.824 m+1.297
+  s80_B_1411            7+13- p0.263 m-1.310       13+ 7- p0.263 m+0.034       10+10- p1.000 m-0.003       13+ 7- p0.263 m+2.040
+  s80_B_1421           13+ 7- p0.263 m+0.083       10+10- p1.000 m+0.000       11+ 9- p0.824 m+0.000       10+10- p1.000 m+0.010
+  s80_B_1431            9+11- p0.824 m-0.678       15+ 5- p0.041 m+0.027       10+10- p1.000 m-0.001       13+ 7- p0.263 m+1.365
+  s80_B_1441            7+13- p0.263 m-0.997       12+ 8- p0.503 m+0.050       10+10- p1.000 m-0.000       12+ 8- p0.503 m+2.283
+  s80_B_1451           10+10- p1.000 m-0.354       12+ 8- p0.503 m-0.000        8+12- p0.503 m-0.001       12+ 8- p0.503 m+1.416
+  who                    root_roll_drift_deg               root_turn_deg      root_turn_from_spawn_d      root_minus_feet_yaw_fr
+  statue                7+13- p0.263 m-0.008       13+ 7- p0.263 m+0.295       13+ 7- p0.263 m+0.904        9+11- p0.824 m-0.072
+  start_s42             5+15- p0.041 m-0.033       12+ 8- p0.503 m+0.174       14+ 6- p0.115 m+1.245        9+11- p0.824 m-0.075
+  start_s80             8+12- p0.503 m-0.060       11+ 9- p0.824 m+0.137       12+ 8- p0.503 m+0.909        9+11- p0.824 m-0.075
+  s42_A_1101            9+11- p0.824 m-0.008       11+ 9- p0.824 m-0.010       14+ 6- p0.115 m+1.000        9+11- p0.824 m-0.071
+  s42_A_1111           13+ 7- p0.263 m+0.001        9+11- p0.824 m+0.059       12+ 8- p0.503 m+0.722       10+10- p1.000 m-0.072
+  s42_A_1121            5+15- p0.041 m-0.017       13+ 7- p0.263 m+0.391       14+ 6- p0.115 m+1.124        9+11- p0.824 m-0.066
+  s42_A_1131            7+13- p0.263 m-0.010        9+11- p0.824 m-0.069       13+ 7- p0.263 m+0.748       10+10- p1.000 m-0.070
+  s42_A_1141           11+ 9- p0.824 m-0.007        9+11- p0.824 m-0.365       13+ 7- p0.263 m+1.303        9+11- p0.824 m-0.069
+  s42_A_1151            6+14- p0.115 m-0.013       13+ 7- p0.263 m+0.329       11+ 9- p0.824 m+0.804        9+11- p0.824 m-0.072
+  s42_B_1201            4+16- p0.012 m-0.032       14+ 6- p0.115 m+0.284       12+ 8- p0.503 m+1.047        9+11- p0.824 m-0.073
+  s42_B_1211            9+11- p0.824 m+0.004       12+ 8- p0.503 m+0.149       13+ 7- p0.263 m+1.115        9+11- p0.824 m-0.075
+  s42_B_1221            6+14- p0.115 m-0.002       12+ 8- p0.503 m-0.061       11+ 9- p0.824 m+0.823        9+11- p0.824 m-0.070
+  s42_B_1231           10+10- p1.000 m+0.013       11+ 9- p0.824 m+0.258       13+ 7- p0.263 m+0.976        9+11- p0.824 m-0.073
+  s42_B_1241            6+14- p0.115 m-0.048       11+ 9- p0.824 m+0.184       13+ 7- p0.263 m+1.055        9+11- p0.824 m-0.071
+  s42_B_1251            7+13- p0.263 m-0.023       13+ 7- p0.263 m+0.224       13+ 7- p0.263 m+1.028        9+11- p0.824 m-0.072
+  s80_A_1301            8+12- p0.503 m-0.056        9+11- p0.824 m-0.080       12+ 8- p0.503 m+0.752        9+11- p0.824 m-0.076
+  s80_A_1311            8+12- p0.503 m-0.019       11+ 9- p0.824 m+0.059       12+ 8- p0.503 m+0.967        9+11- p0.824 m-0.088
+  s80_A_1321           10+10- p1.000 m+0.004       10+10- p1.000 m+0.029       12+ 8- p0.503 m+0.752        9+11- p0.824 m-0.086
+  s80_A_1331            7+13- p0.263 m-0.032        9+11- p0.824 m+0.014       11+ 9- p0.824 m+0.831        9+11- p0.824 m-0.085
+  s80_A_1341           10+10- p1.000 m+0.005       13+ 7- p0.263 m-0.054       12+ 8- p0.503 m+1.038        9+11- p0.824 m-0.069
+  s80_A_1351           11+ 9- p0.824 m-0.026       10+10- p1.000 m-0.023       12+ 8- p0.503 m+1.149        9+11- p0.824 m-0.081
+  s80_B_1401            9+11- p0.824 m-0.011       11+ 9- p0.824 m+0.061       13+ 7- p0.263 m+1.012       10+10- p1.000 m-0.065
+  s80_B_1411           10+10- p1.000 m-0.050       11+ 9- p0.824 m+0.008       12+ 8- p0.503 m+1.059        9+11- p0.824 m-0.076
+  s80_B_1421           11+ 9- p0.824 m-0.006       12+ 8- p0.503 m+0.093       13+ 7- p0.263 m+1.175        9+11- p0.824 m-0.070
+  s80_B_1431           12+ 8- p0.503 m-0.037        6+14- p0.115 m-0.213       13+ 7- p0.263 m+1.098        9+11- p0.824 m-0.070
+  s80_B_1441            7+13- p0.263 m-0.073       13+ 7- p0.263 m+0.557       13+ 7- p0.263 m+1.187        9+11- p0.824 m-0.067
+  s80_B_1451           13+ 7- p0.263 m-0.015       13+ 7- p0.263 m+0.162       13+ 7- p0.263 m+1.020       10+10- p1.000 m-0.068
+
+PAIRED AGAINST THE STATUE AT THE SAME SPAWN (policy minus statue, per seed): sign counts and sign-test p
+  start_s42      com_lateral_mean_m  8+12- p0.503 med-0.093 | root_roll_mean_deg 11+ 9- p0.824 med+0.003 | left_load_excess 11+ 9- p0.824 med+0.000
+  start_s80      com_lateral_mean_m  6+14- p0.115 med-0.265 | root_roll_mean_deg 10+10- p1.000 med+0.001 | left_load_excess  8+12- p0.503 med-0.002
+  s42_A_1101     com_lateral_mean_m 13+ 7- p0.263 med+0.370 | root_roll_mean_deg  6+14- p0.115 med-0.009 | left_load_excess 10+10- p1.000 med-0.000
+  s42_A_1111     com_lateral_mean_m  9+11- p0.824 med-0.103 | root_roll_mean_deg  7+13- p0.263 med-0.004 | left_load_excess 12+ 8- p0.503 med+0.000
+  s42_A_1121     com_lateral_mean_m 11+ 9- p0.824 med+0.164 | root_roll_mean_deg 13+ 7- p0.263 med+0.021 | left_load_excess 13+ 7- p0.263 med+0.002
+  s42_A_1131     com_lateral_mean_m 11+ 9- p0.824 med+0.105 | root_roll_mean_deg 11+ 9- p0.824 med+0.003 | left_load_excess  9+11- p0.824 med-0.000
+  s42_A_1141     com_lateral_mean_m 12+ 8- p0.503 med+0.208 | root_roll_mean_deg  8+12- p0.503 med-0.005 | left_load_excess 13+ 7- p0.263 med+0.001
+  s42_A_1151     com_lateral_mean_m  9+11- p0.824 med-0.274 | root_roll_mean_deg 11+ 9- p0.824 med+0.004 | left_load_excess 11+ 9- p0.824 med+0.001
+  s42_B_1201     com_lateral_mean_m  8+12- p0.503 med-0.412 | root_roll_mean_deg 13+ 7- p0.263 med+0.010 | left_load_excess  9+11- p0.824 med-0.001
+  s42_B_1211     com_lateral_mean_m 11+ 9- p0.824 med+0.164 | root_roll_mean_deg  7+13- p0.263 med-0.023 | left_load_excess  9+11- p0.824 med-0.001
+  s42_B_1221     com_lateral_mean_m 10+10- p1.000 med+0.038 | root_roll_mean_deg  9+11- p0.824 med-0.004 | left_load_excess 12+ 8- p0.503 med+0.001
+  s42_B_1231     com_lateral_mean_m  8+12- p0.503 med-0.142 | root_roll_mean_deg  9+11- p0.824 med-0.007 | left_load_excess 13+ 7- p0.263 med+0.001
+  s42_B_1241     com_lateral_mean_m 11+ 9- p0.824 med+0.129 | root_roll_mean_deg  9+11- p0.824 med-0.002 | left_load_excess  7+13- p0.263 med-0.001
+  s42_B_1251     com_lateral_mean_m  6+14- p0.115 med-0.251 | root_roll_mean_deg 12+ 8- p0.503 med+0.008 | left_load_excess 12+ 8- p0.503 med+0.001
+  s80_A_1301     com_lateral_mean_m  9+11- p0.824 med-0.336 | root_roll_mean_deg 12+ 8- p0.503 med+0.023 | left_load_excess  7+13- p0.263 med-0.002
+  s80_A_1311     com_lateral_mean_m 11+ 9- p0.824 med+0.388 | root_roll_mean_deg  6+14- p0.115 med-0.024 | left_load_excess  9+11- p0.824 med-0.001
+  s80_A_1321     com_lateral_mean_m  8+12- p0.503 med-0.293 | root_roll_mean_deg 11+ 9- p0.824 med+0.006 | left_load_excess  7+13- p0.263 med-0.003
+  s80_A_1331     com_lateral_mean_m  7+13- p0.263 med-1.211 | root_roll_mean_deg 12+ 8- p0.503 med+0.023 | left_load_excess  9+11- p0.824 med-0.001
+  s80_A_1341     com_lateral_mean_m 11+ 9- p0.824 med+0.248 | root_roll_mean_deg  8+12- p0.503 med-0.020 | left_load_excess  6+14- p0.115 med-0.001
+  s80_A_1351     com_lateral_mean_m  9+11- p0.824 med-0.122 | root_roll_mean_deg  7+13- p0.263 med-0.034 | left_load_excess  5+15- p0.041 med-0.002
+  s80_B_1401     com_lateral_mean_m 12+ 8- p0.503 med+0.265 | root_roll_mean_deg  7+13- p0.263 med-0.014 | left_load_excess  8+12- p0.503 med-0.002
+  s80_B_1411     com_lateral_mean_m  7+13- p0.263 med-0.360 | root_roll_mean_deg 11+ 9- p0.824 med+0.011 | left_load_excess  9+11- p0.824 med-0.001
+  s80_B_1421     com_lateral_mean_m 10+10- p1.000 med+0.042 | root_roll_mean_deg  9+11- p0.824 med-0.007 | left_load_excess 10+10- p1.000 med+0.000
+  s80_B_1431     com_lateral_mean_m  9+11- p0.824 med-0.243 | root_roll_mean_deg 11+ 9- p0.824 med+0.004 | left_load_excess 11+ 9- p0.824 med+0.001
+  s80_B_1441     com_lateral_mean_m  7+13- p0.263 med-0.640 | root_roll_mean_deg 13+ 7- p0.263 med+0.022 | left_load_excess 11+ 9- p0.824 med+0.002
+  s80_B_1451     com_lateral_mean_m 13+ 7- p0.263 med+0.115 | root_roll_mean_deg  8+12- p0.503 med-0.006 | left_load_excess  9+11- p0.824 med-0.001
+
+GROUPS (one number per policy: its median over the seeds; exact two-sided Mann-Whitney U on those numbers)
+  -- s42 vs s80 ends (12 vs 12)
+    com_lateral_mean_m                  +0.022 vs    -0.135 mm    p 0.3186
+    root_roll_mean_deg                  +0.008 vs    +0.007 deg   p 0.8874
+    left_load_excess                    +0.000 vs    -0.001       p 0.0887
+    lightest_foot_share_min             +0.493 vs    +0.490       p 0.0068  *
+    com_margin_lateral_min_m          +158.795 vs  +157.162 mm    p 0.7553
+    root_turn_from_spawn_deg            +1.686 vs    +2.099 deg   p 0.1135
+    foot_travel_from_spawn_max_m       +18.923 vs   +18.497 mm    p 0.7125
+    foot_travel_max_m                   +5.795 vs    +6.290 mm    p 0.9323
+    com_height_mean_m                 +867.873 vs  +874.879 mm    p 0.0387
+    com_speed_rms_mps                   +0.686 vs    +0.980 mm/s  p 0.1005
+    com_speed_end_rms_mps               +0.139 vs    +0.098 mm/s  p 0.6297
+    root_pitch_sd_deg                   +0.022 vs    +0.010 deg   p 0.0003  *
+    com_fore_aft_mean_m                -26.385 vs   -32.308 mm    p 0.0083  *
+    root_pitch_mean_deg                 -1.317 vs    -0.263 deg   p 0.0000  *
+    com_fore_aft_sd_m                   +0.222 vs    +0.151 mm    p 0.2657
+    root_roll_sd_deg                    +0.007 vs    +0.012 deg   p 0.0145
+    root_yaw_sd_deg                     +0.100 vs    +0.063 deg   p 0.0018  *
+  -- s42 A vs B (6 vs 6)
+    com_lateral_mean_m                  +0.157 vs    -0.065 mm    p 0.3939
+    root_roll_mean_deg                  +0.008 vs    +0.006 deg   p 0.8182
+    left_load_excess                    +0.000 vs    -0.000       p 0.3095
+    lightest_foot_share_min             +0.493 vs    +0.493       p 0.5887
+    com_margin_lateral_min_m          +160.365 vs  +154.957 mm    p 0.0411
+    root_turn_from_spawn_deg            +1.481 vs    +1.812 deg   p 0.3939
+    foot_travel_from_spawn_max_m       +18.429 vs   +19.411 mm    p 0.5887
+    foot_travel_max_m                   +5.629 vs    +5.921 mm    p 0.3095
+    com_height_mean_m                 +867.543 vs  +868.082 mm    p 0.3939
+    com_speed_rms_mps                   +0.651 vs    +0.686 mm/s  p 0.8182
+    com_speed_end_rms_mps               +0.124 vs    +0.149 mm/s  p 0.5887
+    root_pitch_sd_deg                   +0.026 vs    +0.017 deg   p 0.0411
+    com_fore_aft_mean_m                -26.366 vs   -26.385 mm    p 0.9372
+    root_pitch_mean_deg                 -1.128 vs    -1.366 deg   p 0.5887
+    com_fore_aft_sd_m                   +0.264 vs    +0.212 mm    p 0.8182
+    root_roll_sd_deg                    +0.006 vs    +0.008 deg   p 0.2403
+    root_yaw_sd_deg                     +0.095 vs    +0.102 deg   p 0.4848
+  -- s80 A vs B (6 vs 6)
+    com_lateral_mean_m                  -0.234 vs    -0.101 mm    p 0.9372
+    root_roll_mean_deg                  -0.003 vs    +0.014 deg   p 0.4848
+    left_load_excess                    -0.002 vs    +0.000       p 0.1320
+    lightest_foot_share_min             +0.489 vs    +0.491       p 0.8182
+    com_margin_lateral_min_m          +158.390 vs  +156.649 mm    p 0.6991
+    root_turn_from_spawn_deg            +1.611 vs    +2.367 deg   p 0.1797
+    foot_travel_from_spawn_max_m       +18.978 vs   +18.132 mm    p 0.0649
+    foot_travel_max_m                   +4.648 vs    +6.308 mm    p 0.3939
+    com_height_mean_m                 +872.508 vs  +878.627 mm    p 0.8182
+    com_speed_rms_mps                   +1.189 vs    +0.899 mm/s  p 0.6991
+    com_speed_end_rms_mps               +0.121 vs    +0.095 mm/s  p 0.9372
+    root_pitch_sd_deg                   +0.008 vs    +0.011 deg   p 0.4848
+    com_fore_aft_mean_m                -33.552 vs   -31.576 mm    p 0.3095
+    root_pitch_mean_deg                 -0.130 vs    -0.482 deg   p 0.0931
+    com_fore_aft_sd_m                   +0.181 vs    +0.134 mm    p 0.8182
+    root_roll_sd_deg                    +0.016 vs    +0.010 deg   p 0.2403
+    root_yaw_sd_deg                     +0.056 vs    +0.064 deg   p 0.2403
+  -- A vs B (both) (12 vs 12)
+    com_lateral_mean_m                  +0.012 vs    -0.065 mm    p 0.4428
+    root_roll_mean_deg                  +0.008 vs    +0.012 deg   p 0.6707
+    left_load_excess                    -0.001 vs    +0.000       p 0.5512
+    lightest_foot_share_min             +0.492 vs    +0.492       p 0.6707
+    com_margin_lateral_min_m          +159.082 vs  +156.649 mm    p 0.1005
+    root_turn_from_spawn_deg            +1.611 vs    +1.965 deg   p 0.1432
+    foot_travel_from_spawn_max_m       +18.924 vs   +18.288 mm    p 0.7125
+    foot_travel_max_m                   +5.278 vs    +6.280 mm    p 0.1135
+    com_height_mean_m                 +868.877 vs  +869.438 mm    p 0.4776
+    com_speed_rms_mps                   +0.800 vs    +0.850 mm/s  p 0.9323
+    com_speed_end_rms_mps               +0.124 vs    +0.134 mm/s  p 0.8428
+    root_pitch_sd_deg                   +0.020 vs    +0.013 deg   p 0.5899
+    com_fore_aft_mean_m                -32.181 vs   -28.153 mm    p 0.5899
+    root_pitch_mean_deg                 -0.622 vs    -1.014 deg   p 0.3474
+    com_fore_aft_sd_m                   +0.216 vs    +0.176 mm    p 0.5899
+    root_roll_sd_deg                    +0.007 vs    +0.009 deg   p 0.8874
+    root_yaw_sd_deg                     +0.068 vs    +0.084 deg   p 0.2189
+  start policies' medians beside their 12 ends' range:
+    start_s42 com_lateral_mean_m           -0.182 mm   ; its ends   -0.514 ..   +0.366 (median   +0.022; ends with the start's sign 6/12)
+    start_s42 root_roll_mean_deg           +0.004 deg  ; its ends   -0.023 ..   +0.030 (median   +0.008; ends with the start's sign 9/12)
+    start_s42 left_load_excess             +0.000      ; its ends   -0.002 ..   +0.003 (median   +0.000; ends with the start's sign 6/12)
+    start_s42 com_fore_aft_mean_m         -20.947 mm   ; its ends  -34.938 ..  -18.663 (median  -26.385; ends with the start's sign 12/12)
+    start_s42 root_pitch_mean_deg          -1.409 deg  ; its ends   -1.917 ..   -0.638 (median   -1.317; ends with the start's sign 12/12)
+    start_s42 com_speed_rms_mps            +0.667 mm/s ; its ends   +0.451 ..   +1.294 (median   +0.686; ends with the start's sign 12/12)
+    start_s80 com_lateral_mean_m           -0.232 mm   ; its ends   -1.078 ..   +0.355 (median   -0.135; ends with the start's sign 7/12)
+    start_s80 root_roll_mean_deg           +0.019 deg  ; its ends   -0.028 ..   +0.037 (median   +0.007; ends with the start's sign 7/12)
+    start_s80 left_load_excess             -0.001      ; its ends   -0.003 ..   +0.001 (median   -0.001; ends with the start's sign 7/12)
+    start_s80 com_fore_aft_mean_m         -33.958 mm   ; its ends  -41.515 ..  -25.490 (median  -32.308; ends with the start's sign 12/12)
+    start_s80 root_pitch_mean_deg          -0.480 deg  ; its ends   -1.058 ..   +0.073 (median   -0.263; ends with the start's sign 11/12)
+    start_s80 com_speed_rms_mps            +1.040 mm/s ; its ends   +0.422 ..   +1.544 (median   +0.980; ends with the start's sign 12/12)
+
+CREEP over the window: the feet's mean horizontal position, its travel and least-squares speed (whole window and last 2 s), and the reduction's foot_travel_max_m and com_speed_end_rms_mps
+  statue               n  20: feet-mean travel mm median 0.449 max 0.935; creep speed mm/s median 0.0384 max 0.0900 (end 0.0077 / 0.0235); foot_travel_max mm median 5.463 max 9.567; CoM speed end RMS mm/s median 1.214 max 2.427
+  starts               n  40: feet-mean travel mm median 0.317 max 2.817; creep speed mm/s median 0.0291 max 0.3330 (end 0.0071 / 0.1619); foot_travel_max mm median 5.737 max 16.154; CoM speed end RMS mm/s median 0.138 max 1.734
+  s42 ends (rail)      n 240: feet-mean travel mm median 0.355 max 3.401; creep speed mm/s median 0.0340 max 0.1765 (end 0.0110 / 0.2084); foot_travel_max mm median 5.834 max 21.317; CoM speed end RMS mm/s median 0.137 max 1.160
+  s80 ends (no rail)   n 240: feet-mean travel mm median 0.320 max 4.554; creep speed mm/s median 0.0309 max 0.5880 (end 0.0066 / 0.4167); foot_travel_max mm median 5.950 max 21.728; CoM speed end RMS mm/s median 0.103 max 2.073
+  largest feet creep speeds: s80_A_1301 3047 0.588 mm/s; s80_B_1431 3059 0.516 mm/s; s80_A_1301 3059 0.510 mm/s; s80_B_1411 3047 0.367 mm/s; s80_A_1301 3045 0.366 mm/s; s80_B_1431 3047 0.361 mm/s; start_s80 3059 0.333 mm/s; s80_A_1351 3059 0.332 mm/s
+
+COMMANDS from 2 s (mean over seeds of the window mean; tail_3 = actuator 14; hip rolls 4 r, 8 l)
+  statue         tail_3 +0.000  r_hip_roll +0.0000  l_hip_roll +0.0000  (r+l +0.0000)
+  start_s42      tail_3 +0.524  r_hip_roll +0.0189  l_hip_roll -0.0169  (r+l +0.0021)
+  start_s80      tail_3 +0.020  r_hip_roll -0.0148  l_hip_roll +0.0176  (r+l +0.0028)
+  s42_A_1101     tail_3 +0.987  r_hip_roll +0.0147  l_hip_roll -0.0150  (r+l -0.0003)
+  s42_A_1111     tail_3 +0.982  r_hip_roll +0.0342  l_hip_roll -0.0342  (r+l +0.0000)
+  s42_A_1121     tail_3 +0.945  r_hip_roll -0.0246  l_hip_roll +0.0247  (r+l +0.0001)
+  s42_A_1131     tail_3 +0.979  r_hip_roll +0.0233  l_hip_roll -0.0235  (r+l -0.0002)
+  s42_A_1141     tail_3 +0.951  r_hip_roll +0.0614  l_hip_roll -0.0606  (r+l +0.0008)
+  s42_A_1151     tail_3 +0.834  r_hip_roll -0.0112  l_hip_roll +0.0128  (r+l +0.0016)
+  s42_B_1201     tail_3 +0.947  r_hip_roll +0.0207  l_hip_roll -0.0196  (r+l +0.0011)
+  s42_B_1211     tail_3 +0.930  r_hip_roll -0.0155  l_hip_roll +0.0155  (r+l +0.0001)
+  s42_B_1221     tail_3 +0.919  r_hip_roll +0.0015  l_hip_roll -0.0016  (r+l -0.0001)
+  s42_B_1231     tail_3 +0.915  r_hip_roll +0.0196  l_hip_roll -0.0190  (r+l +0.0006)
+  s42_B_1241     tail_3 +0.952  r_hip_roll +0.0556  l_hip_roll -0.0555  (r+l +0.0001)
+  s42_B_1251     tail_3 +0.942  r_hip_roll +0.0264  l_hip_roll -0.0251  (r+l +0.0013)
+  s80_A_1301     tail_3 +0.012  r_hip_roll +0.0017  l_hip_roll +0.0025  (r+l +0.0042)
+  s80_A_1311     tail_3 -0.011  r_hip_roll -0.0185  l_hip_roll +0.0221  (r+l +0.0036)
+  s80_A_1321     tail_3 +0.037  r_hip_roll -0.0998  l_hip_roll +0.1014  (r+l +0.0015)
+  s80_A_1331     tail_3 +0.070  r_hip_roll -0.0374  l_hip_roll +0.0410  (r+l +0.0036)
+  s80_A_1341     tail_3 -0.048  r_hip_roll -0.0435  l_hip_roll +0.0423  (r+l -0.0012)
+  s80_A_1351     tail_3 +0.049  r_hip_roll +0.0083  l_hip_roll -0.0053  (r+l +0.0031)
+  s80_B_1401     tail_3 +0.184  r_hip_roll -0.0754  l_hip_roll +0.0743  (r+l -0.0011)
+  s80_B_1411     tail_3 +0.038  r_hip_roll -0.0236  l_hip_roll +0.0259  (r+l +0.0022)
+  s80_B_1421     tail_3 -0.170  r_hip_roll +0.0445  l_hip_roll -0.0450  (r+l -0.0005)
+  s80_B_1431     tail_3 +0.013  r_hip_roll +0.0096  l_hip_roll -0.0091  (r+l +0.0004)
+  s80_B_1441     tail_3 -0.047  r_hip_roll -0.0206  l_hip_roll +0.0222  (r+l +0.0017)
+  s80_B_1451     tail_3 +0.022  r_hip_roll -0.0333  l_hip_roll +0.0344  (r+l +0.0011)

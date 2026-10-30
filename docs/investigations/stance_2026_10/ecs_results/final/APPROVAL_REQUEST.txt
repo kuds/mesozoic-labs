@@ -1,0 +1,56 @@
+ECS APPROVAL REQUEST: ENTROPY CONTINUATION SCREEN (s42, s80 FROM STANCE6's F2 CHECKPOINTS; ent_coef RECORDED vs 0)
+Written 2026-10-29 01:40-01:45 UTC (date -u) by the build's pin step (build list v2 item 12). A request only: nothing
+is approved. <ECS>/APPROVED and <ECS>/criteria.txt are NOT written; nothing launched; no optimizer step; no Drive or
+GitHub. <ECS> = /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/ecs;
+paths below are under it. [measured] unless marked [inferred]. The decisions: RUNLOG l721 (21:05 UTC).
+
+1. TEXT: final/criteria_ecs_final.txt, 365 lines (0444 here),
+   sha256 04813918e494ae2d4845819c7ef123bc4bf74634093faa439e572c831277214e
+   = v3 (90a9f9aa...) with only PINS filled: final/diff_v3_to_final.txt is one hunk, "297,301c297,363";
+   build/pin/pins_only_proof.txt PASS. Its title, STATUS and END keep v3's words ("draft v3 ... NOT APPROVED").
+2. TRAINING CHANGE (D1 (a)): arm B sets [ppo] ent_coef and ent_coef_end to 0.0 in memory before the load (a
+   training-loss change; scratch continuations only). Arm A = the run's recorded schedule. V5: B's hyperparameters
+   differ from A's in ent_coef only (ent_coef_end is 0.0 in the parent); hash A 054ab483..., B be2e243b.... T6's
+   departures come with it (CPU; fresh env reset at S; no update on the rollout ending at S; new random streams;
+   K3 panel off).
+3. D2 (a) PRE-APPROVAL RUNS (one process at a time, OMP 1, nice 15; logs listed in the text's PINS): all PASS.
+   V1: 4 loads and saves, no learn(); saved tensors = start zips'; M1 on each = PAN in every measured field.
+   V2: 4 runs through learn() to S + 262,144 with train() a counting no-op (31 calls each); parameter and Adam
+       digests equal at start and end; R4 rows pass (A = parent float32, B 0.0); StopAtEnd at T with its
+       evaluation and checkpoint there.
+   V3: M5 C6 PASS on V2's ledgers; seeded rows equal the parent's. V5: 8 stage_config.json files pass.
+   V4: 167 tests; mutants killed 26/26 and 82/85 (3 equivalent); reader: s42 first flag 3,801,088 (8 flagged), s80
+       4,849,664 (4), s60 NEGATIVE; scorer = TABLE E on all 2,401 tables; stub dry run of the runner, scenarios A-G.
+   Re-checked by this step: the code copy (M1 check-copy: 331fe8fc..., 1,406 files), the 16 F2 inputs against FMAN,
+   V2's run records, ruff.
+4. HARNESS (scratch only, under tools/, never in the repository; SHA256SUMS.txt covers tools/ and final/, -c OK):
+     run_ecs.py (load wrapper, StopAtEnd, --no-update) f136b7e35b34c35ccba8d69b5ff7ee8f6233c5ce58fcba539f25ed32cca585cf
+     ecs_common.py (pins and constants)                05864c64d29944aaa849231a3d95f37a51aff13bc2811e6fdf7171f6bd12af57
+     read_ecs.py (CHECK, R1-R4)                        6f55b3b96bae795d46c3ef693b5b542895186adb4ccb51957076f3421c2fee15
+     score_ecs.py (the exact stratified test)          51b2cbe340281917302c4e286f61dbeb34bf10ec8c9c80505cb4bb4a05017fba
+     run_waves_ecs.sh (the wave runner)                c007762ca72ebd888210e1a03f5a69f62b3a3eccf48e1fe921cf16b6c3caaae9
+   plus 6 test files (sha256 in PINS); M1 b293a511... and M5 0d89bcb8... as pinned, unchanged.
+5. D7 (a): this container's CPU (4 cores), 3 continuations at a time at nice 10 under a harness-tracked watcher:
+   24 x 1,572,864 steps, about 26-32 CPU-hours, about 9-11 h of wall clock (8 waves of 3) if the session stays
+   live; each container restart costs up to one wave; then 24 end traces, about 10 min. 0 L4-hours, 0 Drive copies.
+   [inferred, HS 7: no update has been timed on this container, since no optimizer step was made]
+6. OTHER PICKS AS DECIDED: D3 (a) s42 3,145,728 -> 4,718,592, s80 4,194,304 -> 5,767,168; D4 (a) 6 per arm per
+   start (24); D5 (a) POSITIVE = at least one ANY-flagged evaluation in (S, T]; D6 (a) two-sided, 0.025 per side
+   (size at most 0.0116 per side); D8 (a) collapse stop kept; D9 (a) durable copy only after the reading, on your
+   word; D10-D12 off; T1-T6 as listed (seeds s42 A 1101-1151, B 1201-1251, s80 A 1301-1351, B 1401-1451).
+7. COMPUTE AND DISK: df -B1 at 01:40 UTC: 6,093,152,256 bytes free (5.67 GiB), 349,298,688 bytes BELOW the 6 GiB
+   launch target (T4, 6,442,450,944). The runner refuses a fresh queue below it (exit 2, nothing started). The
+   screen needs about 1.7 GB [inferred]. Candidates in <ECS> (nothing deleted; your call), 380 MB in all (du):
+   superseded validate/v1 75 MB, v1_m1 72 MB, v2 64 MB, fix_v2 60 MB, v4* 36 MB; scratch tmp/lane_r_tests 46 MB,
+   tmp/fix2 21 MB.
+8. OPEN ITEMS: (1) the disk shortfall above. (2) Lane H's nine harness choices not in the build list
+   (build/LANE_H.txt section 3 (a)-(i); the fixes revised some, FIXES NOTES) have no explicit review yes;
+   approving accepts them. (3) Build list v2 is not edited: where it differs, the text and the tool headers govern
+   (build/FIXES.txt NOTES). (4) The coordinator's steps gain two: remove logs/HALTED only once a halt's cause is
+   fixed; read a crash's cause only from run_meta's error and traceback. (5) Superseded outputs are kept, not results.
+9. ON APPROVAL (the coordinator): copy final/criteria_ecs_final.txt to <ECS>/criteria.txt, chmod 0444, sha256
+   checked = 04813918...; a RUNLOG line with it; <ECS>/APPROVED as JSON with bare hex: criteria_sha256, runlog_line,
+   code_tree_digest 331fe8fc3f6bdf73acc0d3cc324dd753d9d9d695d7ce914e4e011d5c6437ebf1, tool_sha256 {the 5 tools
+   of 4}; cd <ECS> && sha256sum -c SHA256SUMS.txt; free disk >= 6 GiB; then tools/run_waves_ecs.sh started detached
+   (setsid nohup) under a harness-tracked watcher that reads only logs/run_waves_ecs.log and is relaunched when it
+   exits; no other simulation beside it; the reading per WHEN THE READING IS MADE, sent to you at once.

@@ -1,0 +1,277 @@
+POSTURE AND THE TAIL HABIT: TESTS 2 AND 3 (com_revisit, role "posture_policy")
+Written 2026-10-29, final ~22:05 UTC.  EXPLORATORY AND REPORT-ONLY, not pre-registered as a gate; the design fixed before
+any result was read is copied in section 6.  No training of any kind: simulation, statics and network evaluation only;
+checkpoints opened read only.  Every file named below is in this folder:
+/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/com_revisit/notes/posture_policy/
+Labels: [measured] = a named script here computed it, output file named.  [inferred] = reasoned, basis given.
+Sign conventions: pitch + = nose UP (so the s42 lineage's -1.35 deg is nose-down); "cmd14" = tail_3_pitch_act command
+(the raw Gaussian mean unless "own", which is the clipped command the env received); loop gain G = d cmd14 / d observed
+tail_3 deg x the plant's 5.18 deg per command unit (the verifier's definition); offset c0 = cmd14 with the observed
+tail_3 angle set to 0; linear fixed point = c0 / (1 - G), "railed" if >= 1.
+Samples: 12 s42 ends (4,718,592), 12 s80 ends (5,767,168), one start checkpoint each (s42_A_1101 3,145,728;
+s80_A_1301 4,194,304), the statue; closed loop deterministic, seeds 3042-3061 (20 per policy), 1,000 steps (10 s),
+reset noise 0.05, the policies lens's harness.  Statistics are descriptive (median over seeds per policy, then median
+[range] and counts over policies; exact two-sided sign tests given only as descriptions).  Everything about the network
+is the network's map at the policies' own settled states, so it says what the policy RESPONDS to, not why training
+built it; between-policy links are correlational (n = 12).
+
+==================================================================================================================
+0. ANSWER IN SHORT
+==================================================================================================================
+- Yes, in the s42 lineage there is a posture-to-tail pathway, and it is what feeds the tail loop.  It is a learned
+  response, not a mechanical push: the plant is the same in every posture.
+  - The s42 networks raise the tail command when they SEE the pelvis more nose-down (gravity vector and prey
+    direction in pelvis coordinates) and when the knee and hip pitch angles sit where the s42 lineage holds them
+    (about 0.5 deg more negative than the s80 lineage's).  s42 ends: -0.157 command per deg of
+    nose-up (0/12 positive), i.e. 1 deg of nose-down is worth 1.26 deg of observed tail angle [measured, sweep.txt].
+  - It sets the loop's OFFSET, not its gain.  Giving the s42 ends the s80 ends' typical orientation and leg angles
+    (all within 1.3 normaliser SD) removes almost their whole offset: c0 0.40 -> about 0.00 (change -0.39
+    [-0.76, -0.24], 0/12), gain unchanged (+0.01), linear fixed point -1.2, predicted rail 9/12 -> 0/12; the control
+    (own lineage's typical values) moves c0 by -0.03 (4/8) [measured, sweep_extra.txt].
+  - The loop (gain 0.63) then multiplies that offset by about 1/(1 - G) = 2.7.  With no offset the loop has nothing
+    to amplify [inferred from the linear fixed-point arithmetic; the closed-loop arms below agree in direction].
+  - Closed loop: showing the s42 ends a pelvis 1.1 deg more nose-up than it is (only the orientation channels)
+    lowers the tail command in 11 of 12 policies (12/12 on the raw mean) and cuts railed episodes 0.67 -> 0.15;
+    the reverse (1.1 deg more nose-down) pushes it up (raw +0.085, 11/1) and railed episodes 0.67 -> 0.90.  The
+    gravity vector alone does a third of it (railed 0.67 -> 0.39); the prey direction in pelvis coordinates, which
+    a pelvis pitch also rotates, carries the rest [measured, analysis_cl.txt].  Over 20 s (5 seeds) the illusion's
+    effect holds: railed episodes at 15-20 s 37/60 -> 8/60, command -0.155 (0/12) [measured, analysis_long.txt].
+- The s80 lineage has no such pathway (pitch slope -0.019, 5/7 split; transplanting the s42 posture into s80 ends
+  moves c0 by -0.02, 5/7) and its loop is negative (G -0.28).  Shown a nose-down pelvis in closed loop, s80 ends
+  raise the command by only +0.025 and no rail forms (0 of 240 episodes) [measured].
+- Start against ends (s42): the pathway was already there at the start (pitch slope -0.090 vs -0.157 at the ends;
+  orientation + legs transplant from s80 lowers the start's c0 by 0.16-0.21 of its 0.41), while the loop gain was
+  0.26 vs 0.63.  So between start and ends the posture pathway grew about 1.7x and the loop gain about 2.4x; at the
+  start the fixed point was 0.55 (no rail), at the ends 1.04 (railed in 9 of 12 by the linear rule, 0.67 of
+  episodes in closed loop) [measured, sweep.txt, sweep_extra.txt].
+- The plant does not force the tail up or make it measurably cheaper in the s42 posture (test 3).  In the
+  postures the s42 ends actually hold, the tail_3 angle reached is q3 = +0.026 + 5.16 a deg, the same as the statue's (+0.026 + 5.16 a)
+  and the s80 ends' (+0.024 + 5.15 a); the command needed to hold the tail_home target is -0.0007 (statue -0.0006);
+  gravity on tail_3 differs by < 0.01 N m of 14.49; tail-up (a = +1 against 0) costs 0.0989 reward per step in the
+  s42 posture, 0.0986 on the statue and 0.0984 in the s80 posture; the tail-tip gyro is about 0.001 rad/s and
+  tail_stability pays under 0.0001 per step for it either way [measured, analysis_plant.txt].  A pure 1 deg
+  nose-down rotation of the held posture raises the railed tail_3 angle by 0.013 deg (worth 0.0025 command units)
+  and lowers the command needed to hold the target by 0.0007: the sign that "helps" tail-up, but 1/60 or less of
+  the 0.157 command the policy's own pitch pathway adds per degree [measured, plant_pitch.txt, sweep.txt].
+- So the answer to the maintainer: the habit tracks a body positioning, but through the policy's perception of it,
+  not through the body's mechanics.  The s42 lineage stands nose-down from the start (held pelvis pitch -1.45 deg
+  at the start, -1.35 at the ends, against -0.46 and -0.25 for s80) with its knee and hip angles set differently; its
+  networks map that posture to a positive tail offset; the learned tail_3 positive feedback amplifies the offset to
+  the bound.  Whether training built the pathway because of the posture, or the two grew together, is not testable
+  without training [inferred].
+
+==================================================================================================================
+1. OBSERVATION LAYOUT AND THE POSTURE INPUTS (probe_obs.py -> probe_obs.txt; pp_common.py)
+==================================================================================================================
+[measured, probe_obs.txt; code read in policies/code_copy environments/tyrannosaurus_rex/base_env.py _get_obs]
+- 63 values (bipedal-target-heading-free/v1): joint angles qpos[7:] (0-20), joint velocities qvel[6:] (21-41),
+  projected gravity in the pelvis frame (42-44), pelvis gyro (45-47; 46 = pitch rate), root velocity in the
+  heading frame (48-50), accelerometer in the pelvis frame (51-53; at rest about -9.81 x gravity, so it also carries
+  orientation), foot contact forces r/l (54-55), prey direction in pelvis coordinates (56-58), prey distance (59),
+  command (60-62, zeros in stance).
+- Posture inputs: root orientation = gravity 42-44 (pitch nose-up = asin(-g_x)), accelerometer 51-53 and the prey
+  direction 56-58 (a pelvis pitch rotates all three); pelvis pitch and roll rates 46 and 45; neck/head angles 0-2;
+  leg angles 7-20 (hip pitch 7/14, hip roll 8/15, knee 9/16, ankle 10/17, toes); foot loads 54-55.
+- There is NO CoM input.  The foot contact forces are the only load signals; the CoM position is not observed.
+- Checks: the joint indices match the live observation; the illusion used below (pp_common.pitch_illusion, rotating
+  gravity, accelerometer and prey direction about the pelvis y axis) equals the env's own heading_free_root_segments
+  on a root quaternion rotated by +1.1, -1.1 and +2.0 deg to 1e-6.  tail_3's angle is observation index 6.
+
+==================================================================================================================
+2. TEST 2: DOES THE TAIL COMMAND RESPOND TO POSTURE?
+==================================================================================================================
+2a. Observation-only sweeps (sweep.py -> sweep.json, sweep.txt).  verify_loop.py's method (copied as
+    verify_loop_copy.py) at every policy's own 120 settled states (steps 500..1000 by 100, seeds 3042-3061, from the
+    baseline rollouts); slopes per state, median over states.  [measured]
+- The loop itself reproduces the verifier: s42 ends G 0.632 [0.480, 0.908] 12/0 (verifier 0.63, 0.48-0.91); start
+  0.262 (verifier 0.27); s80 ends -0.285 [-0.493, +0.040] 1/11 (verifier -0.25); start_s80 -0.414.  c0: s42 ends
+  0.396 [0.144, 0.580]; start_s42 0.407; s80 ends 0.044; start_s80 0.040.
+- Pitch (gravity + accelerometer + prey direction rotated together), d cmd14 per deg nose-up:
+    start_s42 -0.090 | s42 ends -0.157 [-0.207, -0.124] 0/12 | start_s80 -0.014 | s80 ends -0.019 [-0.087, +0.038] 5/7
+  by channel (s42 ends): gravity -0.069 (0/12), prey direction -0.087 (0/12), accelerometer -0.002 (4/8).
+  Against the loop: 1 deg nose-up = -1.26 [-2.00, -0.78] deg of observed tail angle (s42 ends), -1.77 (start_s42).
+  The lineage pitch gap (+1.09 deg nose-up from s42 to s80) is worth -0.171 [-0.225, -0.135] 0/12 of cmd14 in s42 ends.
+- Legs, d cmd14 per deg added to both knee angles: s42 ends -0.222 [-0.327, -0.168] 0/12, start -0.106, s80 ends
+  +0.071 (11/1), start_s80 +0.069; both hip pitch angles: s42 ends -0.149 (0/12), start -0.047, s80 +0.011 (8/4);
+  both ankles: s42 ends +0.005 (6/6).  (The knees sit near -0.44 rad; the s42 ends hold them 0.53 deg more negative
+  and the hips 0.51 deg more negative than the s80 ends, so in s42 the held leg angles push cmd14 up.)
+- Head/neck: neck_pitch -0.008 (3/9) and head_pitch -0.016 (0/12) per deg in s42 ends; small.  Pitch rate (gyro_y):
+  +0.005 per 0.01 rad/s (12/0), small at settled rates.  Roll: about 0 (4/8).  Foot loads: -0.006 per 10 N (0/12),
+  small.  tail_1_pitch: -0.058 per deg in s42 ends (2/10) and -0.051 in s80 (1/11); tail_2_pitch: s80 +0.129 (12/0),
+  s42 -0.015 (4/8).
+- First-order lineage-gap budget (per-input slope x (s42 typical - s80 typical)), s42 ends: tail_3 angle +0.585 (the
+  loop); all other inputs together +0.318 [+0.145, +0.396] 12/0, led by prey_bz +0.093, grav_x +0.082, knees +0.060
+  each, hips +0.039/+0.036, neck -0.072 (3/9).  start_s42: +0.255 loop, +0.312 others.  s80 ends: others +0.022 (7/5).
+- Within each policy across its own 120 states, pitch and offset are not consistently linked (Spearman median -0.13,
+  5/7 in s42 ends; pitch SD over states only 0.21 deg) [measured; correlational].
+
+2b. Transplants (sweep.py section D -> sweep.txt section 4; sweep_extra.py -> sweep_extra.txt).  [measured]
+- s42 ends given the s80 ends' typical (median) values, change in c0 / G / fixed point / predicted rail count:
+    orientation (gravity, accelerometer, prey direction)  -0.182 (0/12) / +0.002 / -0.51 / 9 -> 0
+    legs (14 angles)                                       -0.234 (0/12) / +0.009 / -0.72 / 9 -> 0
+    orientation + legs + feet                              -0.392 (0/12) / +0.010 / -1.20 / 9 -> 0
+    head/neck angles (4.0 SD shift: out of distribution)   +0.058 (8/4)  / -0.059 / -0.01 / 9 -> 6
+    pitch rotation by the lineage gap (+1.09 deg)          -0.196 (0/12) / +0.002 / -0.55 / 9 -> 0
+  Controls (own lineage's typical values): |change in c0| <= 0.03 in every group, rail count 9 -> 4..8 (the count by
+  the linear rule is sensitive because the fixed points sit near 1; the c0 change is the robust readout).
+- The reverse, s80 ends given the s42 ends' values: orientation +0.012 (8/4), legs -0.042 (1/11), orientation + legs
+  + feet -0.023 (5/7), pitch rotation -1.11 deg +0.009 (7/5); predicted rail 0/12 in every case.
+- start_s42 given start_s80's values: orientation -0.086, legs -0.090, orientation + legs + feet -0.157 of its 0.407
+  (fixed point 0.55 -> 0.34); from the s80 ends' values -0.207.  Head/neck from start_s80 is a 9.3 SD shift and is
+  not interpreted.  start_s80 given start_s42's values: +0.020.
+- No posture group changes the loop gain by more than 0.06 in any group; the pathway acts on the offset.
+
+2c. Closed loop: the observed pelvis pitch offset toward the other lineage (run_base.py -> run/*/episodes.jsonl;
+    analyze_cl.py -> analysis_cl.txt).  Deterministic, seeds 3042-3061, the lens's harness; the observation's
+    gravity, accelerometer and prey direction rotated as if the pelvis were pitched D more nose-up; plant untouched.
+    Paired with each policy's own baseline (540/540 baseline returns bit-identical to the clamp runner's unforced
+    arms; 540 baseline + 1,300 illusion episodes, every one stood the 1,000 steps).  [measured]
+- s42 ends, D = +1.10 (toward s80): own cmd14 -0.190 [-0.346, 0], 0/11 (one tie at the bound), p 0.001; raw mean
+  -0.209, 0/12; railed episodes (window own mean >= 0.99) 0.671 -> 0.154; tail_3 -0.99 deg (1/11).  The bodies
+  pitched 0.47 deg further nose-down (0/12) in answer, so the perceived pitch moved only +0.63 deg.  Return +10.7
+  (8/4, p 0.39); nosedive term worse (-5.8, 0/12).  Time course: the rail's 0.9 crossing at about 2.75 s in the
+  baseline is never reached by 10 s under the illusion (0.79 at 9-10 s, still rising slowly).
+- s42 ends, D = -1.10 (away, more nose-down seen): raw cmd14 +0.085 (11/1, p 0.006); railed episodes 0.671 -> 0.896;
+  the three least-railed policies rail more (s42_A_1151 0.05 -> 0.65, s42_A_1121 0.35 -> 0.95, s42_B_1231 0.50 -> 1.0).
+- start_s42: D = +1.10: -0.118 (0/20 seeds), tail -0.61 deg; D = -1.10: +0.089 (20/0), tail +0.46 deg.  No rail in
+  either (fixed point well below 1).
+- s80 ends, D = -1.10 (toward s42, more nose-down seen): own cmd14 +0.025 [-0.020, +0.099] 10/2 p 0.04; tail +0.13 deg;
+  railed 0 -> 0 of 240.  Their bodies pitched +0.84 deg nose-up in answer (12/0), cancelling most of the illusion
+  (perceived -0.26 deg).  Return -22.9 (1/11).  D = +1.10: -0.025 (2/10).  start_s80: +0.014 / -0.018.
+- s42 ends, D = +1.10 on the gravity and accelerometer channels only (prey direction untouched; added on resume
+  because the sweep put more than half of the pitch pathway on the prey channel): raw cmd14 -0.071 [-0.138, +0.000]
+  1/11 p 0.006; own -0.024, 0/9; railed episodes 0.671 -> 0.392; tail -0.14 deg (4/8).  The bodies answered with only
+  -0.19 deg, so the perceived pitch moved +0.91 deg.  About a third of the full illusion's effect on the raw command,
+  in line with the sweep's split (gravity -0.069, prey direction -0.087, accelerometer -0.002 per deg).
+  start_s42: -0.045 (0/20).  So the prey direction in pelvis coordinates (a second, equally valid pitch sensor in
+  stance, where the prey does not move) carries the larger share of the pathway.
+- 20 s check (run_long.py -> run/long_base, run/long_toward; analyze_long.py -> analysis_long.txt; 13 policies x
+  seeds 3042, 3046, 3050, 3055, 3061, 2,000 steps; all 130 episodes ran the full 2,000 steps without termination;
+  the analysis's "stood 0" is an artefact of run_long's stood field, which tests steps == 1000).  The first 1,000
+  steps of every long baseline equal run/base exactly (65/65).  s42 ends, D = +1.10: own cmd14 at 15-20 s 0.943 ->
+  0.794 (-0.155 [-0.310, -0.004], 0/12); railed episodes at 15-20 s (own mean >= 0.99) 37/60 (11 policies) -> 8/60
+  (4 policies: s42_A_1101, s42_A_1131, s42_B_1201, s42_B_1221); per-policy railed share median 0.70 -> 0.00;
+  tail 4.90 -> 4.14 deg.  The illusion arm's command plateaus at about 0.77 from 7 s (0.774 at 5-10 s, 0.794 at
+  15-20 s), so the slow creep seen at 10 s does not carry it back to the rail by 20 s.
+  start_s42: 0.426 -> 0.315 at 15-20 s.
+
+2d. Across policies (cross_policy.py -> cross_policy.txt; n = 12 per lineage; Spearman; correlational).  [measured]
+- s42 ends: the more nose-down a policy stands, the larger its offset (rho -0.61) and its pitch pathway (+0.62), and
+  the smaller its loop gain (+0.52); offset and gain trade against each other (rho -0.93), so the fixed points of
+  all 12 sit near the bound.  Held pitch does not predict the rail share (-0.31).
+- s80 ends: held pitch is unrelated to offset, gain or pathway (|rho| <= 0.16).
+
+==================================================================================================================
+3. TEST 3: THE PLANT CHECK IN THE RAILED POSTURE (run_plant.py -> plant_static.json, plant_replay.jsonl;
+   analyze_plant.py -> analysis_plant.txt)
+==================================================================================================================
+Method: the r9 check (tailround/mech/probe_plant.py parts B-D and probe_reward.py; copied here as
+r9_probe_plant_copy.py) redone on r10, in each posture held in the baseline deterministic rollouts (window-mean qpos
+over steps 501-1000, 20 seeds per policy, 520 policy postures + 20 statue).  r9 measured only the statue
+(q3 = -0.0924 + 0.0863 a rad).
+3a. Static (mj_forward, qvel 0; tail_3's equilibrium q3(a) solved with gravity re-evaluated at q, everything else frozen
+    in the posture).  [measured]
+- Plant map, deg: statue +0.023 + 5.158 a; s42 ends +0.024 + 5.160 a [5.157, 5.165]; s80 ends +0.021 + 5.150 a;
+  starts +0.024 + 5.161 a (s42) and +0.022 + 5.154 a (s80).  s42 minus s80: slope +0.010 deg/unit, intercept +0.003
+  deg (12/0 but tiny).  On r10 the tail_3 spring preload cancels gravity, so a = 0 holds the tail at the target in
+  every posture; r9's droop (-5.3 deg at a = 0) is gone.
+- Command needed to hold the tail_home target: statue -0.0006, s42 ends -0.0007, s80 ends -0.0002.
+- Gravity on tail_3 at the target: statue -14.489, s42 -14.487, s80 -14.494 N m (differences <= 0.007 N m);
+  at the held tail angles, tail_2 -36.14 / -36.04 / -36.13 and tail_1 -73.28 / -73.18 / -73.21 N m.  In every posture
+  spring + servo balance gravity (net static torque within 0.012 N m).  At the rail (s42 ends, tail_3 5.19 deg) the
+  spring's lift falls to +7.27 N m and the servo supplies +7.12 N m against gravity's -14.39 (force range +-50: not
+  saturated).
+- Why pitch barely matters: the tail_3 segment is near level in the world (statue +0.97 deg, s42 ends +6.2 deg with the
+  tail railed), so its gravity torque, about m g L cos(segment pitch), changes with body pitch only through
+  sin(segment pitch), which is small [inferred from the measured segment pitch; the pure-rotation run below measures
+  0.008-0.031 N m per deg].
+- Across all 520 policy postures, q3(a = 0) changes by -0.0017 deg per deg of pelvis pitch [measured; correlational].
+- Pure pelvis rotation, everything else frozen (plant_pitch.py -> plant_pitch.txt; statue, s42-ends and s80-ends
+  typical postures and the 12 s42 ends' own postures, D = -2.2..+2.2 deg).  Per deg of nose-up, over the 12 s42
+  postures: tail_3 segment world pitch -1.000 deg (it rotates with the body); gravity on tail_3 at the railed angle
+  -0.031 N m [-0.034, -0.030], at the target -0.008 N m; q3 at a = 0 -0.0034 deg, at a = +1 -0.0128 deg; command to
+  hold the target +0.00065.  So 1 deg of nose-down lifts the tail by 0.003-0.013 deg on its own and eases the hold by
+  0.0007 command units.  The s42 lineage's 1.1 deg of extra nose-down is therefore worth about 0.014 deg of tail at the
+  rail, against the 5.2 deg the policy holds.  On the statue the same numbers: q3(+1) 5.196 -> 5.211 deg at D = -1.1.
+  [measured]
+3b. Open-loop replays (the policy's own recorded commands of seeds 3042, 3051, 3061 with entry 14 replaced by a in
+    {-1, -0.5, 0, +0.5, +1}; 486 replays, all stood; 81/81 unreplaced replays reproduce the baseline return exactly).
+    Window means, steps 501-1000.  [measured]
+- tail_3 angle reached (time-stepped; least squares over a): s42 ends +0.026 + 5.160 a, statue +0.026 + 5.159 a,
+  s80 ends +0.024 + 5.152 a; at a = 0 the s42 ends' tail sits at +0.014 deg.
+- Reward per step, a = +1 minus a = 0: s42 ends -0.0989 [-0.0993, -0.0986], statue -0.0986, s80 ends -0.0984
+  [-0.0986, -0.0980].  By term (all postures alike to 0.0004): tail_home_pose -0.060, action_saturation -0.033 (only at
+  |a| = 1), energy -0.005, nosedive -0.0003 (s42; the raised tail pitches the body 0.0135 deg further nose-down),
+  tail_stability 0.0000, smoothness and jerk 0 (constant command).  a = +0.5 against 0: -0.036 per step everywhere.
+  Over a 1,000-step episode tail-up costs about 99 reward in every posture.
+- Tail-tip gyro (what tail_stability prices; norm of the tail_tip_angvel sensor, equal to the env's tail_instability):
+  s42 ends 0.0013 rad/s at a = 0 and 0.0015 at a = +1; statue 0.0073 / 0.0069; s80 0.0006 / 0.0010.  The term pays
+  -0.15 x min(w / 10 rad/s, 1) (stance.toml weight 0.15, shared constants TAIL_ANGULAR_VEL_MAX 10), i.e. under
+  0.0001 per step in every case.
+- So in the posture the s42 ends hold, tail-up is neither forced (a = 0 puts the tail at 0.01 deg) nor cheaper (it
+  costs 0.0005 per step MORE than in the s80 posture).
+
+==================================================================================================================
+4. LIMITS
+==================================================================================================================
+- Observation-only results describe the network's map near the settled states; transplanted values are medians,
+  and big shifts (the neck, 4-9 SD) are out of distribution and not interpreted.  The linear fixed point ignores the
+  map's curvature and the clip at +1.
+- The closed-loop illusion is answered by the policies' own posture control (s42 ends pitched 0.47 deg further
+  nose-down, s80 ends 0.84 deg nose-up), so the perceived change was smaller than the 1.1 deg applied, and actual
+  and perceived pitch moved in opposite directions.
+- Deterministic play only; one start checkpoint per lineage; 20 seeds; 10 s episodes (plus the 20 s check on 5
+  seeds).  The ECS screens' stochastic training dynamics are not touched: whether the posture pathway causes the
+  rail to form in training cannot be tested without training.
+- Availability: everything these tests needed was local (checkpoints under r10round/ecs/runs, read only; the code
+  copy under policies/code_copy; tailround's r9 method).  Nothing was fetched.
+- Not done: the r9 lineage's posture pathway; tail_1/tail_2 pathways in closed loop; leg-angle illusions in closed
+  loop (the legs' share rests on the observation-only transplant); stochastic (own-noise) play.
+
+==================================================================================================================
+5. FILES AND RESUME LOG
+==================================================================================================================
+- pp_common.py (layout, loader, illusions), probe_obs.py -> probe_obs.txt (layout and illusion checks)
+- run_base.py (closed loop, harness copied from policies/run_policies.py as run_policies_copy.py) -> run/base,
+  run/toward_s42, run/toward_s80, run/away_s42, run/away_s80, run/towardgrav_s42; analyze_cl.py -> analysis_cl.txt
+  (analysis_cl_base.txt is the first attempt's mid-run partial, superseded)
+- sweep.py -> sweep.json, sweep.log; summarize_sweep.py -> sweep.txt; sweep_extra.py -> sweep_extra.json, sweep_extra.txt
+- cross_policy.py -> cross_policy.txt
+- run_plant.py -> plant_static.json, plant_replay.jsonl; analyze_plant.py -> analysis_plant.txt; plant_pitch.py ->
+  plant_pitch.json, plant_pitch.txt
+- run_long.py -> run/long_base, run/long_toward; analyze_long.py -> analysis_long.txt
+- Queues: run_queue1.sh, run_queue2.sh (first attempt; killed), run_queue3.sh, run_queue4.sh (resume); logs q*.log
+- Copies of reused scripts: verify_loop_copy.py, verify_sim_copy.py (verify_clamp), run_policies_copy.py (policies),
+  r9_probe_plant_copy.py (tailround/mech/probe_plant.py).
+- test/sweep_test.json: the first attempt's code test of sweep.py (starts only); not used.
+Resume (container restart about 20:50 UTC killed the first attempt):
+- Checked complete and reused: run/base (27 who x 20 seeds), run/toward_s42 and run/toward_s80 (13 x 20 each); every
+  npz loads; 540/540 baseline returns bit-identical to the clamp runner; sweep.json (26 policies, written 20:31 after
+  run/base was complete).  analysis_cl_base.txt was a mid-run partial (2 seeds of toward_s42) and is superseded.
+- Re-run: the away arms (never started), all of queue 2 (static, replay, long; never started).
+- Added on resume (after seeing the sweep): sweep_extra.py, cross_policy.py, the gravity-only closed-loop arm,
+  plant_pitch.py.
+- One simulation process at a time (queues are sequential; the network-only sweep_extra ran beside a simulation, as
+  the first attempt's sweep did); OMP/MKL 1 thread, nice 15, python -B; PYTHONPATH = policies/code_copy + this folder.
+- Disk: this folder about 46 MB (run/base 32 MB of it).
+
+==================================================================================================================
+6. PRE-STATED DESIGN (copied verbatim from the plan-only NOTES of the first attempt, written ~20:15 UTC before any
+   test-2/3 result was read; exploratory, not a gate)
+==================================================================================================================
+- Closed-loop harness: run_base.py = the policies lens's run_policies.py loop (copied as run_policies_copy.py), deterministic,
+  stance config constructor, reset noise 0.05, seeds 3042-3061, 1,000 steps; smoke check: returns bit-identical to the
+  clamp runner's unforced arm (s42_A_1101 seeds 3042/3043, statue).
+- Who: statue, start_s42 (s42_A_1101 3,145,728), start_s80 (s80_A_1301 4,194,304), 12 s42 ends (4,718,592),
+  12 s80 ends (5,767,168).
+- Pitch illusion (test 2 closed loop): the observation's projected gravity, accelerometer and prey direction rotated as if
+  the pelvis were pitched D further nose-up (pp_common.pitch_illusion, checked against the env's own
+  heading_free_root_segments in probe_obs.txt).  D = +1.10 deg for the s42 lineage (toward s80) and -1.10 deg for the
+  s80 lineage (toward s42), from the lens's lineage levels (root pitch -1.35 vs -0.25 deg).  The reverse ("away") offsets
+  are run too.  The plant is untouched.
+- Readouts: own tail_3 command (window 5-10 s mean, saturation share >= 0.99), tail_3 angle, actual and perceived pitch,
+  return; per policy paired against its own baseline over 20 seeds; across policies, count and sign test.
+- Obs-only sweeps (test 2): verify_loop.py's method (copied as verify_loop_copy.py): copy settled observations (steps
+  500..1000 by 100, all 20 seeds), change only the named inputs, read the raw Gaussian mean of entry 14.
+- Test 3: settled qpos and ctrl from the baseline rollouts; static tail_3 balance per posture; open-loop replays of the
+  policy's own recorded commands with entry 14 replaced by a in {-1, -0.5, 0, 0.5, 1}.

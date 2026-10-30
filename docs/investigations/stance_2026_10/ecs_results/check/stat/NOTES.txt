@@ -1,0 +1,130 @@
+VERDICT: AGREE. The reading (line 3, NO DIFFERENCE DETECTED; s42 arm A 6 of 6, arm B 6 of 6; s80 arm A 1 of 6, arm B 1 of 6), P_UP = P_DOWN = 17/22, all 24 COUNTED and STATUS final all reproduce independently. 0 blocking, 0 minor, 4 info.
+
+ECS STAT SKEPTIC (lens: THE STATISTIC). Written 2026-10-29 by an independent checker who ran none of the screen.
+<ECS> = /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/ecs
+My folder: <ECS>/check/stat/. I wrote only there. No training, no simulation, no network. I edited no tool.
+Python: S2/venv/bin/python -I -B, cwd /tmp.
+My code (it imports no read_ecs, score_ecs, ecs_common or M5; standard library, plus numpy for evaluations.npz):
+  stat_check.py   sha256 23180629fc73142dd48766a6c34a89c92e3a42addab732cdee5a1e4d9be3ab26  -> stat_out.txt, stat_out.json
+  extra_check.py  sha256 084786654a6676418e3afe54a082988b004d3fd36da6e245ae144681b4521d8e  -> extra_out.txt
+  fresh_check.py  sha256 151b2d015aa66c8398ff0a24a5cce69a66c8a9302b9b48b0b265f78976258889  -> fresh_out.txt
+I read M5 (ledger_r10round.py 0d89bcb8..., r10round_common.py ea2c5ea6...) only for its column names and actuator
+order. I wrote the ANY and TAIL row rules from THIS12 lines 351-364 and CRIT6 CLASSES/M5, then compared my results
+with M5's.
+Inputs checked [measured]: criteria.txt sha256 04813918...214e (equals APPROVED); score.json f86b9923...,
+score.txt c3ba2144...; F2 parent ledgers copy1 equal to the pins (s42 d1bcb789..., s80 b677ce76..., s60 1821fd2e...).
+
+(a) PER CONTINUATION, RE-DERIVED [measured, stat_check.py on runs/<name>/01_stance/eval_episodes.csv]
+Window (S, T]. T = E for all 24 (run_meta T, num_timesteps_end, stop_reason "end"; check.json passed true, T = E).
+  name        class    outcome   T          grid  first-ANY   nANY  ANY-ALARM(n)  TAIL-flag(n)  TAIL-ALARM(n)  straddle  parent@S(any,tail)  seeded=F2  ret@T
+  s42_A_1101  COUNTED  POSITIVE  4718592    12x10 3538944       10      9            10             9         0         (0,0)               True       4373.2
+  s42_A_1111  COUNTED  POSITIVE  4718592    12x10 3670016        9      8             9             8         0         (0,0)               True       4374.5
+  s42_A_1121  COUNTED  POSITIVE  4718592    12x10 4063232        3      1             3             1         0         (0,0)               True       4388.0
+  s42_A_1131  COUNTED  POSITIVE  4718592    12x10 3670016        7      5             7             5         0         (0,0)               True       4327.1
+  s42_A_1141  COUNTED  POSITIVE  4718592    12x10 3932160        6      4             6             4         0         (0,0)               True       4306.4
+  s42_A_1151  COUNTED  POSITIVE  4718592    12x10 4063232        3      1             3             1         0         (0,0)               True       4396.4
+  s42_B_1201  COUNTED  POSITIVE  4718592    12x10 3932160        6      5             6             5         0         (0,0)               True       4392.9
+  s42_B_1211  COUNTED  POSITIVE  4718592    12x10 3670016        6      3             6             3         0         (0,0)               True       4372.7
+  s42_B_1221  COUNTED  POSITIVE  4718592    12x10 4063232        6      5             6             5         0         (0,0)               True       4381.3
+  s42_B_1231  COUNTED  POSITIVE  4718592    12x10 3670016        4      1             4             1         0         (0,0)               True       4375.7
+  s42_B_1241  COUNTED  POSITIVE  4718592    12x10 3932160        6      4             6             4         0         (0,0)               True       4347.3
+  s42_B_1251  COUNTED  POSITIVE  4718592    12x10 3932160        6      4             6             4         0         (0,0)               True       4344.9
+  s80_A_1301  COUNTED  NEGATIVE  5767168    12x10 None           0      0             0             0         0         (0,0)               True       4458.9
+  s80_A_1311  COUNTED  NEGATIVE  5767168    12x10 None           0      0             0             0         0         (0,0)               True       4421.3
+  s80_A_1321  COUNTED  NEGATIVE  5767168    12x10 None           0      0             0             0         0         (0,0)               True       4442.1
+  s80_A_1331  COUNTED  NEGATIVE  5767168    12x10 None           0      0             0             0         0         (0,0)               True       4057.6
+  s80_A_1341  COUNTED  POSITIVE  5767168    12x10 4849664        3      1             0             0         0         (0,0)               True       4417.5
+  s80_A_1351  COUNTED  NEGATIVE  5767168    12x10 None           0      0             0             0         0         (0,0)               True       4482.1
+  s80_B_1401  COUNTED  NEGATIVE  5767168    12x10 None           0      0             0             0         0         (0,0)               True       4459.1
+  s80_B_1411  COUNTED  NEGATIVE  5767168    12x10 None           0      0             0             0         0         (0,0)               True       4458.0
+  s80_B_1421  COUNTED  NEGATIVE  5767168    12x10 None           0      0             0             0         0         (0,0)               True       4465.5
+  s80_B_1431  COUNTED  NEGATIVE  5767168    12x10 None           0      0             0             0         0         (0,0)               True       4467.2
+  s80_B_1441  COUNTED  POSITIVE  5767168    12x10 5111808        3      0             0             0         0         (0,0)               True       4381.9
+  s80_B_1451  COUNTED  NEGATIVE  5767168    12x10 None           0      0             0             0         0         (0,0)               True       4439.2
+  The full flag and alarm lists and the per-evaluation ANY/TAIL counts with the actuators named are in stat_out.txt.
+  - Grid and rows [measured]. Every continuation has exactly the 12 evaluations S + 131,072 k (k = 1..12), each with 10
+    rows and episodes 0-9 once. No row is off the grid, no row is past T, and no ANY input is missing in the window.
+    0 TAIL inputs are missing in the window. My whole-ledger check (the parent part too) agrees with M5's C6 PASS on all
+    24. Ledgers have 360 rows (s42) and 440 rows (s80), 194 columns.
+  - Seeded parent rows [measured]. In all 24 the header and every row with timesteps <= S equal the F2 parent copy1's,
+    cell for cell. The parent's evaluation at S has 0 ANY-over and 0 TAIL-over rows. No evaluation at or before S is
+    ANY- or TAIL-flagged, so no alarm straddles S (0 everywhere). s80's seeded part holds the one neck over-bar episode
+    at 3,801,088, which the criteria name.
+  - Window rows are fresh [measured, fresh_check.py]. 0 of the 120 window returns of any continuation equal the
+    parent's row at the same step and episode. No two continuations of one start share a window return (66 pairs per
+    start).
+  - Return check [measured, info]. All 2,880 window rows have a return equal to their own evaluations.npz entry.
+  - Comparison [measured]. For each continuation I compared 30 fields: class, outcome and T against score.json; positive,
+    first_any_flag, n_any_flagged, any_flagged, any_alarms, the straddle lists, tail_flagged, tail_alarms,
+    flagged_at_or_before_S, window_evaluations, absent, c6_ok and c6_tail_missing against read.json r1; each window
+    evaluation's (n, any, tail, unres, any_by, tail_by) against r1.per_evaluation; and every evaluation's
+    (n, any, tail, unres) and C6 against m5.json. 0 differ. The ledgers' sha256 now equal m5.json's. All 24 score.txt
+    report-only lines (class, outcome, T, first flag or "censored at T", flagged count, ANY ALARM, TAIL-flagged, TAIL
+    ALARM, TAIL-input missing, mean return at T) equal mine [extra_check.py].
+  - ANY input robustness [measured, extra_check.py, all 9,600 rows of the 24 ledgers]. 0 rows have an unmeasured
+    screen. 0 rows list max_actuator_saturation_fraction without a fraction > 0.10. 0 rows contradict their screen. So
+    the r9 rule (key listed) and the fraction rule give identical flags in every window. The evaluation column equals
+    timesteps/131,072 - 1 in every row; M5 does not read it.
+
+(b) THE STATISTIC [measured, stat_check.py; exact, Fractions; my own hypergeometric convolution]
+  Per start, as counted (= both fills, since nothing is missing):
+    s42: arm A 6/6, arm B 6/6 (missing A 0, B 0)    s80: arm A 1/6, arm B 1/6 (missing A 0, B 0)
+    P_UP table = P_DOWN table = counted table.
+  The exact stratified (CMH) test, conditional on each start's total: s42's total is 12 of 12, so a(s42) = 6 with
+  probability 1. s80's total is 2, so P(a = 0, 1, 2) = 15/66, 36/66, 15/66. X = 6 + 1 = 7.
+    P_UP = P(X >= 7) = 17/22 (0.772727); P_DOWN = P(X <= 7) = 17/22 (0.772727). As counted: 17/22 and 17/22.
+    Both are > 1/40.
+  One-sided Fisher (report only): s42 1 / 1 (as counted and on both fills); s80 17/22 / 17/22 (as counted and on both
+  fills).
+  Notes: s42 "ARM A AT 6 OF 6: no room for B HIGHER at this start"; s80 "LOW ARM-A RATE (1 of 6): little power for B
+  LOWER at this start".
+  Reading: line 1 needs P_UP <= 0.025 (no); line 2 needs P_DOWN <= 0.025 (no); so line 3 applies.
+  NOT INFORMATIVE variant: it needs a LOW ARM-A RATE or NO ARM-A note at BOTH starts. s42 carries neither, so it does
+  not apply. "(holds only without ...)" addition: line 1 and line 2 also fail on the counted table (n missing 0), so it
+  does not apply.
+  MY READING LINE: "NO DIFFERENCE DETECTED IN WHETHER AN ANY-FLAGGED EVALUATION CAME BY E FROM THESE STATES (not
+  tested: a shift of the first flag within the window, a modest effect, the early phase)", followed by
+  "s42: arm A 6 of 6, arm B 6 of 6" and "s80: arm A 1 of 6, arm B 1 of 6".
+  - All four line strings in my code are found verbatim in criteria.txt (whitespace-normalised). score.txt and
+    score.json line_text carry the line-3 string exactly.
+  - Against score.json I compared 26 fields: status, provisional, line, line_text, additions, p_up, p_down, counted
+    p_up and p_down, n_missing, and per start tables.counted/up/down/missing, notes and fisher.counted/up/down.
+    0 differ.
+  - The required printed items are all in score.txt: tables as counted and filled, P_UP and P_DOWN (filled, and as
+    counted), Fisher both ways, notes, TABLE E figures, and STOPPED/censored/LOST ("none").
+  - TABLE E figures (report only) [measured, my enumeration]. P(B LOWER) at A 0.60: 0.943 0.642 0.294 0.097 0.037; at
+    A 0.75: 0.997 0.897 0.609 0.294 0.144; at A 0.90: 1.000 0.993 0.897 0.642 0.428. P(B HIGHER) against B 1.0:
+    0.004 / 0.158 / 0.562. Size 0.01157 per side. The symmetric L/H/. table equals criteria TABLE E. All equal
+    score.txt.
+  - Status [measured, extra_check.py]. criteria sha256 equals APPROVED. All 5 APPROVED tool hashes and all 20 PINS
+    files (ECS tools and tests, M1, M5, v1/v2 cited outputs) equal. Every read.json records M5's two pinned sha256 and
+    argv "--E T". All 24 are decided COUNTED (decided.tsv). crash_ledger.tsv is empty. There is no lost.json and no
+    _crashed or _void folder. All 24 traces/<name>/m1_summary.json are present. The runner's log shows R3, then R1/R2,
+    then the score after "all 24 decided, none VOID". So "final" with provisional [] is right.
+
+(c) PARENT CROSS-CHECK [measured, stat_check.py, F2 copy1 ledgers truncated to timesteps <= E, my ANY flag]
+  s42: C6-like PASS; POSITIVE; first flag 3,801,088; 8 flagged [3801088 ... 4718592, all 8 consecutive]; 0 over-bar rows
+       at or before S.
+  s80: C6-like PASS; POSITIVE; first flag 4,849,664; 4 flagged [4849664, 5373952, 5505024, 5636096]; 1 over-bar row at
+       or before S (3,801,088, neck_pitch_act).
+  s60 (V4's negative control, truncated at 8,388,608): NEGATIVE.
+  All equal V4 and ecs_common STARTS (first_any_flag, flagged_to_E).
+
+DISAGREEMENTS: none (0 blocking, 0 minor).
+
+INFO (no class, p, line or status affected)
+  I1 [measured, stat_out.txt; computed, extra_check.py] s42's stratum is degenerate: 12 of 12 POSITIVE, so it adds
+     nothing to the conditional test. P_UP and P_DOWN come from s80's 2 POSITIVEs of 12 alone. The line is robust:
+     every single change of one continuation's class leaves line 3 (P values 1/2 to 1). With s42 held, leaving line 3
+     needs at least 5 class changes at s80 (for example a 0/6 against b 5/6, P_DOWN 1/132).
+  I2 [measured] s80's two POSITIVEs are neck_pitch_act flags, not tail flags (TAIL-flagged 0). s80_B_1441's three
+     ANY-flagged evaluations (5,111,808; 5,505,024; 5,767,168) are each at exactly 5 of 10. Their over-bar fractions are
+     at least 0.169, clear of 0.10, so no row is near the bar. 13 window evaluations across the 24 sit at exactly 5 of
+     10 (listed in extra_out.txt). The rule is ">= 5"; this is noted only for the reader.
+  I3 [inferred, from the criteria text and the counts] Line 3 is the plain variant, not NOT INFORMATIVE, because s42
+     carries "ARM A AT 6 OF 6", not a LOW note. That follows the text as written. In substance neither direction had
+     power here: s42 has no room for either, and s80 has little for B LOWER. The per-start notes printed beside the
+     line say this.
+  I4 [measured, score.txt] For the fills, score.txt prints only the direction each fill is for ("A greater on the
+     B-LOWER fill", "B greater on the B-HIGHER fill"). Both ways are printed as counted, and with 0 missing the filled
+     tables equal the counted ones, so nothing is lost.

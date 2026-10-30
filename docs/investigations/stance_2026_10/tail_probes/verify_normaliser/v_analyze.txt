@@ -1,0 +1,90 @@
+=== A. per-checkpoint loop gain, s42, seed 3042, own statistics (v_ckpts.jsonl)
+  73 checkpoints; vs probe: max|gain diff| 0.00e+00, max|return diff| 1.18e-11; states byte-identical 73/73
+  step      gain(med)  scale/deg  Jz(med)
+   3145728  +0.268     1.281      +0.0403
+   3407872  +0.401     0.973      +0.0821
+   3670016  +0.467     0.790      +0.1130
+   3932160  +0.513     0.689      +0.1428
+   4194304  +0.541     0.630      +0.1687
+   4456448  +0.583     0.590      +0.1928
+   4718592  +0.630     0.559      +0.2187
+  OLS over 73: gain = -0.519 x scale +0.898, R^2 0.48; Spearman -0.73; log-log slope -0.81 (R^2 0.56); Spearman(Jz, gain) +0.95; Spearman(scale, Jz) -0.90
+  Jz end/start: median of per-run ratios 5.42 [4.19..7.79]; ratio of medians 5.42
+
+=== B. static decomposition on my seed-3042 states, s42 (12 ends)
+  run          own(ee)  endW,N_S  startW,N_E  startW,N_S | t3q_S  tail8_S  var_S  mean_S | w6 ratio  cos
+  s42_A_1101  +0.660   +1.222    +0.135     +0.269   | +1.244 +1.242 +1.400 +0.639 | 1.004  0.9984
+  s42_A_1111  +0.910   +1.654    +0.145     +0.274   | +1.670 +1.671 +1.870 +0.883 | 1.003  0.9979
+  s42_A_1121  +0.816   +1.454    +0.143     +0.278   | +1.473 +1.469 +1.647 +0.789 | 1.004  0.9980
+  s42_A_1131  +0.530   +0.961    +0.132     +0.244   | +0.980 +0.972 +1.125 +0.508 | 0.997  0.9989
+  s42_A_1141  +0.603   +1.081    +0.142     +0.258   | +1.103 +1.099 +1.236 +0.583 | 1.001  0.9986
+  s42_A_1151  +0.648   +1.166    +0.138     +0.279   | +1.186 +1.187 +1.335 +0.626 | 1.006  0.9980
+  s42_B_1201  +0.612   +1.119    +0.136     +0.265   | +1.137 +1.137 +1.272 +0.592 | 1.001  0.9985
+  s42_B_1211  +0.543   +0.944    +0.141     +0.269   | +0.965 +0.965 +1.082 +0.523 | 0.996  0.9982
+  s42_B_1221  +0.669   +1.208    +0.142     +0.262   | +1.225 +1.223 +1.363 +0.650 | 1.003  0.9985
+  s42_B_1231  +0.694   +1.234    +0.144     +0.264   | +1.253 +1.251 +1.402 +0.671 | 1.003  0.9982
+  s42_B_1241  +0.565   +1.021    +0.141     +0.259   | +1.046 +1.038 +1.164 +0.549 | 0.999  0.9987
+  s42_B_1251  +0.480   +0.854    +0.138     +0.259   | +0.867 +0.867 +0.994 +0.461 | 1.005  0.9977
+  2x2 on X_end: G(We,Ne) +0.630  G(We,Ns) +1.143  G(Ws,Ne) +0.141  G(Ws,Ns) +0.264
+     normaliser part: at end W -0.513 (0/12 >0), at start W -0.124 (0/12 >0); weight part: at N_S +0.871 (12/12 >0), at N_E +0.493 (12/12 >0)
+     symmetric normaliser share, median over runs -0.89 [-1.12..-0.69]; log-scale share -0.74; interaction G(We,Ne)-G(We,Ns)-G(Ws,Ne)+G(Ws,Ns) median -0.378
+  2x2 on X_start: G(We,Ne) +0.650  G(We,Ns) +1.203  G(Ws,Ne) +0.144  G(Ws,Ns) +0.268
+     normaliser part: at end W -0.549 (0/12 >0), at start W -0.124 (0/12 >0); weight part: at N_S +0.935 (12/12 >0), at N_E +0.508 (12/12 >0)
+     symmetric normaliser share, median over runs -0.88 [-1.20..-0.67]; log-scale share -0.70; interaction G(We,Ne)-G(We,Ns)-G(Ws,Ne)+G(Ws,Ns) median -0.426
+  end W on X_end: own +0.630; tail_3 both from S +1.162; tail 8 from S +1.162; var only +1.303; mean only +0.609
+  start W on X_S: own +0.268; end tail_3 var only +0.139; mean only +0.299; both +0.144
+  mean effect: at end variance -0.021, at start variance -0.141; variance effect: at end mean +0.674, at start mean +0.553
+  variance swap ratio var_S/own 2.06 vs scale ratio 2.29 (linear expectation)
+  grafts with end stats on X_end: start L0 into end -0.043 (12/12 lower), start L2 -0.290 (12/12), start OUT -0.247 (12/12); medians +0.586 / +0.340 / +0.383
+  end layer alone into start (end stats): L0 +0.177, L2 +0.352, OUT +0.292 (start W with end stats +0.141)
+  first-layer tail_3 column: ||w6|| start 1.281, end median 1.285; ratio [0.996..1.006]; cos [0.9977..0.9989]
+  sweep linearity (raw action-14 slope per deg, 0-3 deg vs 3-6 deg, medians): own stats +0.1262 / +0.1161; tail_3 stats from S +0.2708 / +0.1752
+  z range of the 0-6 deg sweep: own end stats -0.83...+2.52; start stats -0.60..+7.09
+
+=== B. static decomposition on my seed-3042 states, s80 (2 ends)
+  run          own(ee)  endW,N_S  startW,N_E  startW,N_S | t3q_S  tail8_S  var_S  mean_S | w6 ratio  cos
+  s80_B_1421  +0.009   +0.014    -0.331     -0.329   | +0.007 +0.010 +0.008 +0.008 | 0.971  0.9974
+  s80_A_1331  -0.463   -0.465    -0.380     -0.383   | -0.469 -0.468 -0.464 -0.469 | 0.985  0.9983
+  2x2 on X_end: G(We,Ne) -0.227  G(We,Ns) -0.226  G(Ws,Ne) -0.356  G(Ws,Ns) -0.356
+     normaliser part: at end W -0.002 (1/2 >0), at start W +0.000 (1/2 >0); weight part: at N_S +0.130 (1/2 >0), at N_E +0.128 (1/2 >0)
+     symmetric normaliser share, median over runs -0.02 [-0.03..-0.01]; interaction G(We,Ne)-G(We,Ns)-G(Ws,Ne)+G(Ws,Ns) median -0.002
+  2x2 on X_start: G(We,Ne) -0.214  G(We,Ns) -0.208  G(Ws,Ne) -0.375  G(Ws,Ns) -0.370
+     normaliser part: at end W -0.006 (0/2 >0), at start W -0.005 (0/2 >0); weight part: at N_S +0.163 (1/2 >0), at N_E +0.161 (1/2 >0)
+     symmetric normaliser share, median over runs +0.20 [-0.02..+0.42]; interaction G(We,Ne)-G(We,Ns)-G(Ws,Ne)+G(Ws,Ns) median -0.001
+  end W on X_end: own -0.227; tail_3 both from S -0.231; tail 8 from S -0.229; var only -0.228; mean only -0.230
+  start W on X_S: own -0.370; end tail_3 var only -0.380; mean only -0.354; both -0.367
+  mean effect: at end variance -0.003, at start variance -0.003; variance effect: at end mean -0.001, at start mean -0.001
+  variance swap ratio var_S/own 0.97 vs scale ratio 1.15 (linear expectation)
+  grafts with end stats on X_end: start L0 into end -0.004 (1/2 lower), start L2 -0.012 (1/2), start OUT -0.089 (1/2); medians -0.231 / -0.240 / -0.317
+  end layer alone into start (end stats): L0 -0.347, L2 -0.327, OUT -0.243 (start W with end stats -0.356)
+  first-layer tail_3 column: ||w6|| start 1.320, end median 1.291; ratio [0.971..0.985]; cos [0.9974..0.9983]
+  sweep linearity (raw action-14 slope per deg, 0-3 deg vs 3-6 deg, medians): own stats -0.0915 / -0.0019; tail_3 stats from S -0.0916 / -0.0029
+  z range of the 0-6 deg sweep: own end stats -0.13...+17.13; start stats -0.37..+19.06
+
+=== C. closed loop: my v_swaps.jsonl vs the probe's swaps/episodes.jsonl
+  460 episodes matched by (condition, policy, seed); return equal within 1e-6 in 460/460; max |diff|: return 1.09e-11, own14 0.00e+00, tail3 0.00e+00, gain 0.00e+00
+  in-loop z6 check: max over all episodes |z6 - formula(condition stats)| 3.49e-07
+  cond              who          gain   own14  rail  tail3   z6(cond) z6(own)  d return [paired]  up/dn  falls
+  own               start_s42   +0.262  +0.600  0.00  +3.12   +3.39    +3.39      +0.0            0/0  0
+  own               s42_A_1111  +0.907  +1.000  1.00  +5.20   +2.07    +2.07      +0.0            0/0  0
+  endW_startN       s42_A_1111  +1.670  +1.000  1.00  +5.20   +6.07    +2.07     -11.5            3/17  0
+  endW_startN_t3q   s42_A_1111  +1.676  +1.000  1.00  +5.21   +6.07    +2.07      -9.6            4/16  0
+  startW_endN       s42_A_1111  +0.143  +0.410  0.00  +2.13   +0.35    +2.13     +12.8            19/1  0
+  startW_endN_tail  s42_A_1111  +0.143  +0.410  0.00  +2.13   +0.35    +2.13     +19.6            20/0  0
+  own               s42_A_1151  +0.648  +0.851  0.00  +4.42   +1.62    +1.62      +0.0            0/0  0
+  endW_startN       s42_A_1151  +1.067  +1.000  1.00  +5.21   +6.07    +2.06    -104.9            0/20  0
+  endW_startN_t3q   s42_A_1151  +1.077  +1.000  1.00  +5.21   +6.07    +2.06     -96.2            0/20  0
+  startW_endN       s42_A_1151  +0.143  +0.411  0.00  +2.14   +0.35    +2.14     +10.3            15/5  0
+  startW_endN_tail  s42_A_1151  +0.143  +0.409  0.00  +2.12   +0.34    +2.12     +19.9            20/0  0
+  own               s42_B_1251  +0.479  +1.000  1.00  +5.19   +2.02    +2.02      +0.0            0/0  0
+  endW_startN       s42_B_1251  +0.816  +1.000  1.00  +5.20   +6.06    +2.02     -24.2            1/19  0
+  endW_startN_t3q   s42_B_1251  +0.825  +1.000  1.00  +5.20   +6.06    +2.02     -37.8            0/20  0
+  startW_endN       s42_B_1251  +0.141  +0.396  0.00  +2.06   +0.30    +2.04      +8.7            16/4  0
+  startW_endN_tail  s42_B_1251  +0.140  +0.403  0.00  +2.09   +0.32    +2.08     +20.3            20/0  0
+  own               start_s80   -0.413  +0.018  0.00  +0.10   -0.03    -0.03      +0.0            0/0  0
+  own               s80_B_1421  -0.003  -0.167  0.00  -0.85   -2.09    -2.09      +0.0            0/0  0
+  endW_startN_tail  s80_B_1421  +0.002  -0.171  0.00  -0.87   -3.19    -2.14      -8.5            0/20  0
+  startW_endN_tail  s80_B_1421  -0.414  +0.005  0.00  +0.04   +0.13    -0.25      +2.3            17/3  0
+  own               s80_A_1331  -0.494  +0.076  0.00  +0.40   +1.01    +1.01      +0.0            0/0  0
+  endW_startN_tail  s80_A_1331  -0.499  +0.078  0.00  +0.41   +0.96    +1.04      +0.3            14/6  0
+  startW_endN_tail  s80_A_1331  -0.408  +0.016  0.00  +0.09   +0.00    -0.07      +0.4            15/5  0

@@ -1,0 +1,199 @@
+ADVERSARIAL VERIFICATION OF THE "POLICIES" LENS (com_revisit, CoM checks on trained T. rex policies)
+Written 2026-10-29 15:35 UTC.  Notes folder (all paths below are relative to it):
+/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/com_revisit/notes/verify_policies/
+Nothing committed, pushed or opened; no training.  I read the lens's worktree (wt_policies) and notes (notes/policies/)
+and wrote nothing there: every rollout ran from my own copies of the code (git archive of 378ae2f8 into main_tree/,
+of 3ffc18e9 into r9_tree/, a copy of the lens's sealed-code copy into copy_tree/, and a patched copy patch_tree/),
+with -B and PYTHONDONTWRITEBYTECODE=1, nice 10, OMP/MKL 1, one simulation process at a time.  The four trees were
+deleted at the end to keep disk use low; `git -C com_revisit/base archive <commit> environments configs pyproject.toml`
+rebuilds them (r9_tree also needs PR #650's stance_track_helpers.py and com_stance_helpers.py copied in from main).
+[measured] = computed by the named script here, output file named; [inferred] = reasoned, basis given.
+Simulation CPU: about 15 min (panel 11.1 min, r9-on-r9 1.3, long runs 0.4, equivalence and fall checks 0.5).
+
+======================================================================================================================
+0. IN SHORT
+======================================================================================================================
+- The lens's numbers reproduce.  My own numpy re-reduction of its 920 saved tracks matches its in-run metrics to
+  4e-7 mm / 1e-9 deg with no sign disagreement (verify_claims.txt section 0); every count, median, p, SD, Spearman,
+  extreme, settle share and power figure I re-derived agrees (verify_claims.txt, power_check.txt).  Four new
+  (policy, seed) pairs run on a pristine main tree are identical to the lens's copy-tree tracks (24/24 arrays) and
+  metrics (32/32, support keys included).
+- REFUTED: POL-12.  The r9 checkpoint (stance5_LTSB_s42, 4,194,304 steps) WAS trained with lateral_lean_weight 0.25,
+  tolerance 0.015 m and mirror_kl kappa 0.3, the same as the ECS runs (its own checkpoint metadata).  And on its own
+  physics-r9 plant it does not lean (CoM 6+/14-, p 0.12, median -0.19 mm; roll 8+/12-, median -0.003 deg; CoM-P1 does
+  not flag it).  Its lean appears only on the r10 plant: it is a plant-transfer effect, not a missing-bonus effect.
+- NEW on the gate's own 40-seed panel (3042-3081; I ran the last 10 seeds, which the lens never ran):
+  * the proposed gate rule fails r9 and none of the 26 ECS checkpoints (POL-10 is now measured, and holds);
+  * but s80_A_1321 FALLS on seed 3072 ("fallen" at 2.85 s, deterministic, in both trees), so "all stood" holds only on
+    the lens's 30 seeds, and CoM-P1's "a panel with a fall is not read" would leave that checkpoint unread;
+  * 3 of 26 policies keep one roll sign on 30-31 of 40 seeds (p 0.0007-0.0022) at medians of 0.007-0.020 deg; only the
+    0.10 deg floor keeps them from failing.  The floor is load-bearing.
+- NEW past the 10 s horizon (2,000-step runs; the observation has no clock): 3 of the 4 extreme s80 leans re-centre
+  (to -0.3, -1.5 and +0.4 mm at 15-20 s) and their "creep" (0.41-0.51 mm/s, almost all lateral) falls to 0.002-0.13
+  mm/s; only s80_A_1311 seed 3059 still holds -7.4 mm.  So much of POL-6's "held lean" and POL-1's largest creeps
+  is a slow lateral settle that a 5-10 s window reads as a lean and a creep.
+- POL-6's proposed target is already met today: 5 of 26 policies have a per-seed SD under 1 mm, and 17 of 26
+  (all 12 s42) have no episode over 5 mm.  It cannot be a strict expected failure "until a policy meets it".
+- Labels: the proposals of POL-1, POL-5 and POL-12 (CoM-P1 on future rounds) are criteria changes (the lens's own
+  decisions list says so), and POL-8's (moving the window off the gate's settle_steps), if meant for the gate, is a
+  gate change.  All four are marked needs_maintainer false; they should be true.
+
+Verdicts: CONFIRMED POL-1, POL-2, POL-5, POL-7, POL-9, POL-10, POL-11; CORRECTED POL-3, POL-4, POL-6, POL-8;
+REFUTED POL-12; UNCHECKED none (POL-5's "fixed before the end policies were read" cannot be checked, section 2).
+
+======================================================================================================================
+1. WHAT I RAN
+======================================================================================================================
+recompute.py -> recompute.json      my own reduction (numpy only) of the lens's tracks: run/ (540), run_held/ (260),
+                                     run_null/ (100), run_r9/ (20); windows from 2, 5 and 9 s
+verify_claims.py -> verify_claims.txt   every POL number re-derived from recompute.json, plus the PR's policy_demo.jsonl
+power_check.py -> power_check.txt   POL-5's power table re-derived
+lineage.py -> lineage.txt           POL-4: each lineage's start-to-end shift
+target_check.py -> target_check.txt POL-6's proposed target on today's policies
+run_verify.py equiv -> sim_equiv/equiv_main.npz, sim_equiv.log; compare_tracks.py -> compare_tracks_equiv.txt
+                                     4 new pairs on main: s42_B_1251/3050, s80_A_1311/3059, start_s80/3059, statue/3059
+support_transient.py -> support_transient.txt   POL-8's support excursion, sample by sample
+run_verify.py panel -> sim_panel/panel.jsonl, sim_panel.log   26 policies on 3072-3081, r9 on 3062-3081 (280 eps)
+panel40.py -> panel40.txt           the proposed gate rule on the 40-seed gate panel
+fall_check.py -> fall_check.txt     the s80_A_1321 / 3072 fall: reason, repeat, siblings, and the copy tree
+run_r9_plant.py -> r9_on_r9_plant.jsonl/.log/.txt   r9 on its own physics-r9 plant (r9_tree = 3ffc18e9 + PR #650 files)
+run_verify.py long -> sim_long/long.jsonl, sim_long.log, compare_tracks_long.txt   2,000-step runs
+patch_tests_mine.txt, patch_mutations.txt   the lens's patch applied to my own copy, its tests, 7 hand mutations
+
+======================================================================================================================
+2. PER FINDING
+======================================================================================================================
+POL-1  CONFIRMED [measured: verify_claims.txt 1; panel40.txt]
+  My reduction: at 2 and 5 s, 0 of 52 lean keys at p <= 0.005; smallest s42_B_1251 roll 16+/4- (p 0.0118).  At 9 s one
+  key, s80_A_1301 roll 19+/1-, median +0.018 deg.  Feet creep max 0.513 mm/s (s80_A_1301 3047) on M1, 0.346 on the
+  held-out panel, statue 0.048 (120 eps); no policy episode reaches 1 mm/s.  My new seeds 3072-3081: no CoM-P1 flag,
+  creep max 0.428 mm/s.  Additions: (a) the 8 largest creeps are lateral (fore-aft component at most 0.043 mm/s) and come
+  from the same spawns that hold the largest leans (3047, 3059, 3045); past 10 s they mostly stop (section 3).
+  (b) s80_A_1321 falls on gate-panel seed 3072, so "all stood" holds on the lens's 30 seeds, not on the gate's 40.
+  Label: the proposal "use CoM-P1 on future rounds" is a criteria change -> needs_maintainer should be true.
+
+POL-2  CONFIRMED [measured: verify_claims.txt 2; panel40.txt]
+  r9 at 5 s: CoM 1+/19-, median -1.304 mm; roll 19+/1-, +0.1264 deg; each p 4.0e-5.  At 2 s on 3042-3051 the lens's
+  values equal the PR's policy_demo.jsonl exactly (max diff 0; median 0.13009, min 0.00746, max 0.14827).  On my
+  3062-3081 r9 still leans (40 seeds: CoM 3+/37-, -1.96 mm; roll 39+/1-, +0.130 deg).  Caveat the lens did not give:
+  r9 is run off its training plant (physics r9 -> r10), and on its own plant it does not lean (POL-12).  It remains
+  a valid positive control for the harness, but it is not an example of training producing a same-side lean.
+
+POL-3  CORRECTED [measured: compare_tracks_equiv.txt, sim_equiv.log vs the lens's run/episodes.jsonl; diff -rq]
+  The equivalence holds: on 4 new pairs, including a start checkpoint and the most extreme lean, my pristine-main
+  rollouts equal the lens's copy-tree float32 tracks bit for bit (com, quat, feet, load, heading, actions: 24/24) and
+  its in-run metrics exactly (32/32, including com/xcom support margins).  Plant manifest identical (cmp).  But "only
+  the stance config's reward keys differ" is too narrow: stance.toml also differs in [ppo] symmetry keys and
+  [curriculum] eval/checkpoint/collapse keys, and about ten code files differ (gait/morphology.py, gait/recorder.py,
+  gait/constants.py, gait/stance_metrics.py, reward_functions.py, train_base.py, curriculum/gate_schema.py,
+  behavior_checkpoint.py, T. rex base_env.py; shared/floor_contact/ only in the copy).  None changes a rollout or the
+  reduction's output on the 10 pairs now checked.
+
+POL-4  CORRECTED [measured: verify_claims.txt 3, lineage.txt]
+  Re-derived: lean not different (com p 0.078, roll p 0.41); pitch -1.351 vs -0.245 deg (p 1e-5), CoM fore-aft
+  -25.7 vs -32.4 mm (p 0.0068); roll SD 0.033 vs 0.069 (p 0.0056); arm A vs B nothing (p >= 0.13).  The pitch gap is
+  in the starts (-0.99 deg; ends -1.11).  But the fore-aft CoM gap halves, 13.5 mm between the starts to 6.7 mm between
+  the ends: the railed s42 continuations moved the CoM 5.0 mm further back (11 of 12 ends behind their start, sign p
+  0.006) while tail_3 went from 0.52 at the start to 0.83-0.99, and s80 moved 1.8 mm forward (7/5, n.s.).  So one
+  posture change did happen in the continuations, only in the railed lineage.  It is still confounded (one start per
+  lineage; within a lineage tail_3 vs CoM fore-aft rho +0.18, p 0.57), so "not shown to be the rail's effect" stands.
+
+POL-5  CONFIRMED, with a label error and an unverifiable timing claim [measured: verify_claims.txt 1, 7; power_check.txt]
+  0/26 M1, 0/26 held-out, 0/6 statue panels (0/12 keys at p <= 0.005; smallest p 0.115), r9 flagged; the held-out
+  s80_B_1401 roll 0+/10- at -0.013 deg; P(>= 17 of 20) = 2702/1048576 = 0.00258, union <= 0.00515; power 0.88/0.92 at
+  2 mm and 0.96/1.00 at 0.15 deg, 0 at 0.5 mm / 0.05 deg: all reproduce.  Timing [measured from run.log durations]:
+  the M1 run started 13:39:47; s42_A_1101's 20 episodes were on disk by about 13:43:26 and s42_A_1111's by 13:44:28;
+  PREREG.txt is dated 13:44:59 and sealed 13:45:05.  The claim that no end-policy number was read before sealing
+  cannot be checked; the results sit far from every threshold, so it does not change them.  check.py (written
+  14:19) implements PREREG.txt as written.  Label: "adopt CoM-P1 as the report-only check" is the criteria change the
+  lens's own decision list names -> needs_maintainer should be true.  40-seed note: 3 of 26 policies would fail on
+  the sign alone (POL-10); with 40 seeds the floor decides.
+
+POL-6  CORRECTED (the measurement holds; the proposal and the reading of "held" do not) [measured: verify_claims.txt 4,
+  target_check.txt, sim_long.log, panel40.txt]
+  Re-derived: SD 0.149 (statue) / 1.35 / 1.75 mm; pairwise Spearman +0.73 / +0.43, against the statue about -0.10;
+  seed 3059: -13.68, -11.78, -10.88, -9.57 mm (statue -0.554); |CoM lat| > 5 mm 0/240, 16/240, 0/20.  The 16 come from 5
+  spawns (3059: 7, 3047: 4, 3045: 3); on my new seeds it is 2/120.  Corrections: (a) past 10 s the leans mostly re-centre:
+  s80_A_1301 3047 -6.97 -> -0.28 (10-20 s) -> -0.007 mm (15-20 s); s80_A_1301 3059 -11.8 -> -3.5 -> -1.5; s80_B_1431 3059
+  -6.1 -> +0.1 -> +0.4; only s80_A_1311 3059 holds -13.7 -> -8.8 -> -7.4 mm (statue at both spawns within 0.03 mm).
+  So the 5-10 s figure is partly a slow settle, not a held lean.  (b) The proposed target is already met: SD < 1 mm by
+  5/26 policies (s42_A_1111 0.85, s42_B_1201 0.94, s42_B_1211 0.98, s42_B_1231 0.90, s80_B_1421 0.42 mm) and "no
+  episode over 5 mm" by 17/26 (all 12 s42).  A strict expected failure on "a policy meets it" would pass at once.  A
+  usable target would have to be relative to the statue or an aggregate over a round.  needs_maintainer true is right.
+
+POL-7  CONFIRMED, plus support for its inference [measured: verify_claims.txt 5]
+  CoM speed RMS 5-10 s 2.641 / 0.316 / 0.219 / 0.240 mm/s; settled by 5 s 0 / 0.88 / 0.91 / 0.83; |turn from spawn|
+  < 1 deg 0.100 / 0.125 / 0.133 / 0.083, max 13.0 / 12.5 / 15.5 / 11.5 deg.  New: each policy's turn from spawn tracks
+  the statue's at the same spawn (Spearman median +0.96, range +0.93 to +0.99 over 26), median |policy - statue|
+  0.77 deg.  So the pivot is the spawn's and the plant's.  One wording error in the lens's summary and PREREG: the
+  statue at noise 0.05 does settle within 10 s by the PR's rule on 10 of 20 M1 seeds (7-9 s; 68 of 120 overall); it
+  is "by 5 s" that none settle.
+
+POL-8  CORRECTED [measured: sim_equiv run on main, support_transient.txt]
+  Numbers reproduce exactly (least XcoM margin from 2 s -1.712 mm, CoM 21.03 mm, from 3 s 74.3 mm; loads r/l 458/379
+  N).  But the excursion is not "an instant in 2-3 s": the XcoM is outside the polygon on 19 consecutive samples,
+  1.83-2.01 s.  It starts before the window and the 2 s window clips its last two samples.  At that time the CoM
+  moves at 86-88 mm/s (2-3 s RMS 43.6, 3-4 s 3.2 mm/s) and the right foot has 2-3 loaded contact points (hull
+  331-358 cm2, against 739 cm2 median from 3 s).  So the cause is an unsettled CoM velocity together with a shrunken
+  polygon; "a sole rocking onto an edge" alone is half of it.  Label: opening the support window at 5 s "not at the
+  gate's 2 s settle_steps" is a gate change if it is meant for the gate -> needs_maintainer.
+
+POL-9  CONFIRMED [inferred; basis checked]
+  base_env.py:1609-1612 on main: qpos[7:] and all of qvel += uniform(-s, s), i.i.d.  The mirror map pairs every
+  left/right actuator with a sign (hip roll r <-> -l), so the spawn distribution is mirror-symmetric if the plant is
+  (the PR's statue symmetric keys are <= 1.6e-13).  Statue feet drift forward on 85 of 120 [measured].
+
+POL-10  CONFIRMED, now measured on the 40-seed panel [measured: panel40.txt; basis checked]
+  Rule as proposed (30+ of 40 one way and |median| >= 1 mm / 0.10 deg, or 2+ creeping episodes): r9 fails (CoM 3/37,
+  -1.96 mm; roll 39/1, +0.130 deg); 0 of 26 ECS checkpoints fail.  Basis: eval_diagnostics.py:910 builds
+  SubstepContactRecorder(env, morphology, balance=True); body_telemetry.py:648 writes root_roll_mean_deg;
+  balance_telemetry.py has no lateral key; gate_schema.py (environments/shared/curriculum/) is versioned and
+  fail-closed.  Three things the proposal needs: (a) s80_A_1321 falls on 3072, so the rule needs a reading for a panel
+  with a fall (CoM-P1 says "not read"); (b) s42_B_1251 31/9, s80_B_1401 9/31 and s80_A_1301 30/10 on roll (p 0.0007,
+  0.0007, 0.0022; medians +0.007, -0.010, +0.020 deg) pass only on the floor; (c) body_telemetry's roll is
+  asin(R21) and the reduction's atan2(R21, R22): equal to first order, not identical.  needs_maintainer true is right.
+
+POL-11  CONFIRMED [measured: patch_tests_mine.txt, patch_mutations.txt]
+  The patch applies cleanly to a git-archive of 378ae2f8 and is byte-identical to the worktree's diff (sha256
+  84e58052...).  33 passed with -W error; ruff 0.16.9 check and format clean; mypy clean on the module.  Only test files
+  are touched and no stance_track_quality key is added.  Review notes: 3 of 7 hand mutations survive the two new tests
+  (median -> mean in the floor; the lateral axis's sign; the endpoint difference in place of the least-squares slope,
+  because the buzz runs whole periods).  The POLICY_CHECK_* comment cites "com_revisit notes, policies/PREREG.txt",
+  a scratch path that will not exist in the repository.
+
+POL-12  REFUTED [measured: checkpoint metadata, r9_on_r9_plant.txt]
+  The r9 checkpoint's own task fingerprint has lateral_lean_weight 0.25, lateral_lean_tolerance_m 0.015,
+  leg_home_pose_reference "settled", stagger 0.30 and CoP band 0.30, and its mesozoic_symmetry record is mirror_kl,
+  kappa 0.3, sigma floor 0.01, mirrored critic: the same as the ECS ends.  The only env keys that differ are
+  natural_pitch (0.027 vs 0.017) and nosedive_termination_threshold (0.493 vs 0.503), plus the plant (physics r9,
+  sha256 3d68aec7..., against r10's 6a47a0eb...).  On its own r9 plant, r9 has no same-side lean (above), CoM speed
+  0.10 mm/s; the statue on r9 is 8/12 and 10/10.  Corrected claim: r9's lean is specific to running it on the r10 plant
+  (the tail-pitch spring preload, D-D44), not to missing the lean bonus or the mirror loss.  Neither of those prevents
+  it.  The ECS policies were trained on r10.  The proposal's trigger ("a run that drops the lean bonus or the mirror
+  loss") is therefore the wrong one.  A plant revision under a policy is the trigger shown here (needs_maintainer, as
+  a criteria item).
+
+======================================================================================================================
+3. WHAT THE LENS MISSED
+======================================================================================================================
+M1  r9 was trained with the lean bonus and mirror_kl, and on its own plant it does not lean (POL-12).  So PR #650's
+    "balances but leans one direction" example (REPORT 4e) is a policy running off its training plant.
+M2  The gate's 40-seed panel was never completed: on seeds 3072-3081 s80_A_1321 falls (seed 3072, "fallen", 2.85 s,
+    deterministic, also in the sealed code; the start, s80_A_1301 and the statue stand there).
+M3  On 40 seeds, 3 of 26 policies have a reproducible one-sided roll at 0.007-0.020 deg.  The proposed gate passes
+    them on the floor alone.
+M4  The 10 s horizon: the policies' largest leans and creeps are mostly a slow lateral re-centring that continues past
+    10 s (sim_long.log; first 1,000 steps identical to the lens's tracks, compare_tracks_long.txt).  A CoM check on
+    policies that wants "held lean" or "creep" should read at least 20 s, or the statement should say "at 5-10 s".
+M5  POL-6's target is already met by some of today's policies.
+M6  needs_maintainer is false on POL-1, POL-5, POL-12 (criteria) and POL-8 (gate window if applied to the gate).
+M7  The pre-registration's seal came after two end policies' episodes were on disk (not checkable; no effect here).
+M8  POL-4: the railed lineage's CoM moved 5 mm back during the continuation (11/12), the one posture change not
+    already in the starts.
+
+======================================================================================================================
+4. HYGIENE
+======================================================================================================================
+- wt_policies still shows the lens's two modified files only (git status), and notes/policies/ was only read.
+- The four code trees I made (about 100 MB) were removed at the end; scripts, outputs and recompute.json (5.8 MB)
+  remain.  /home/user/mesozoic-labs and r10round/ were not touched (checkpoints opened read-only).

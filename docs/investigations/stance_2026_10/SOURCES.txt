@@ -261,6 +261,65 @@
 # held a session tool id or a Drive id, and none is over 500 KB.  Not copied: the panels' per-step traces
 # (episode_trace_seed<seed>.csv.gz and episode_trace.json), the M2 per-episode panel.json and series.npz, the M3
 # per-episode stance_heading_report.json and stance_heading_panel_selected.csv, and csv_sha256.txt.
+# Added 2026-10-29 (ecs_results/): the results of the entropy continuation screen (decision D-D52's outcome) and the run
+# log of the day's work on the tail saturation habit (decisions D-D53 to D-D55).  No new kind of change.  lines:
+# ecs_results/run_log.txt is lines 721 to 759 of the session's run log, whose lines 681 to 720 are
+# stance6_results/run_log.txt (no line in both); the sha256 given is that of the source's first 759 lines, the whole
+# file when copied at 23:35 UTC on 2026-10-29 (lines 721 to 759 alone:
+# 34d6d35e36c80e0a11ac2b6c7e188f198392f1181864b50c41b0b7e18a60a082); its first 720 lines are unchanged
+# (de6c3d736145bdf503c1e1fbb7286d65b7afba5ba05bc0d8983eafd738d4f496, as given above).  The source is appended to after
+# it was copied; the copy ends with the entry timed 23:21 UTC on 2026-10-29, which starts this records change.  redact,
+# in that copy: 22 workflow run ids (11 distinct; a bare one becomes 'workflow [id removed]') and 1 background-job id of
+# the session's task runner (nine characters), each by '[id removed]'; these lines hold no checkout path, Drive id,
+# scheduled-task id or task-list id.  The entry timed 12:33 UTC on 2026-10-29 (the copy's line 22) corrects two earlier
+# entries in words (the source's lines 738 and 740, the copy's lines 18 and 20); the copy keeps all three as the source
+# has them.  ecs_results/README.md has no source.
+# Added 2026-10-29, later (ecs_results/ but its run log and README): the entropy continuation screen's approved text and
+# approval, its design, harness and run records, its reading and the reading's two independent checks (decision D-D52's
+# outcome).  No new kind of change.  Each copy's source is the file at the same path below scratchpad2/r10round/ecs/,
+# but ecs_results/run_logs/ and ecs_results/build_notes/, whose sources are that folder's logs/ and build/ (the
+# repository's .gitignore ignores every directory named logs or build).  Every copy is byte-identical to its source,
+# absolute session-scratch paths included (none of prefix, prefix2 or checkout is applied, as in stance6/), but for
+# these.  redact: one workflow run id each in FOR_THE_MAINTAINER.txt, survey_design.txt, v2/decisions_ecs_v2.txt,
+# build_notes/LANE_R.txt and build_notes/FIXES.txt.  ecs_results/criteria.txt and
+# ecs_results/final/criteria_ecs_final.txt keep the one workflow run id of their line 5, the only copies in this folder
+# that do: each is byte-identical because its sha256 is the approved pin (APPROVED's criteria_sha256), so redact is not
+# applied to them.  gzip: ecs_results/tools/run_ecs.py is copied as tools/run_ecs.py.gz (it reads policy_loading's
+# _ensure_sb3, and test_policy_loading.py parses every Python file under docs/); gunzip restores it byte for byte, with
+# the sha256 APPROVED and SHA256SUMS.txt pin.  run_logs/crash_ledger.tsv is empty, as its source is.  Every source's
+# sha256 below equals its entry in the SHA256SUMS of the screen's durable copy, the orphan branch claude/handoff-ecs at
+# 067b8a10 (read in its local clone).  Not copied: each continuation's ledger (runs/<name>/01_stance/eval_episodes.csv,
+# about 1.2 to 1.4 MB each) and its other run files, checkpoints, policy probes and training episodes; the end traces
+# (traces/); the per-continuation logs; the readouts' arrays (score/read/<name>/r2_arrays.json); the validation runs,
+# reviews, drafts and their checks but v2/decisions_ecs_v2.txt; the sealed code copy and the scratch folders.
+# ecs_results/README.md has no source (as above).
+# Added 2026-10-29, later still (com_revisit/, tail_probes/): the centre-of-mass revisit's report, its checks on trained
+# policies and the creep scan, each with its verifier (decisions D-D53 and D-D54), and the tail clamp test, the
+# normaliser probe and the three posture tests, each with its verifier (D-D53 to D-D55).  No new kind of change.  The
+# sources are in the second scratch root: com_revisit/REPORT.txt is scratchpad2/com_revisit/REPORT.txt, and each other
+# folder of com_revisit/ and tail_probes/ is the folder of the same name under scratchpad2/com_revisit/notes/, but
+# tail_probes/normaliser/ (its probe/) and tail_probes/verify_normaliser/ (its verify_probe/).  Every copy is
+# byte-identical to its source, absolute session-scratch paths and checkout paths included (none of prefix, prefix2 or
+# checkout is applied), but com_revisit/REPORT.txt, which carries redact (2 workflow run ids, each after the word
+# 'workflow'); no other copy held a session tool id.  Kept from each notes folder: the files at its top level that are
+# text (notes, tables, scripts, logs and non-empty error logs), its run markers, its JSON outputs of at most 130 KB and
+# its JSONL outputs of at most 60 KB, and from a verifier's out/ folder its text outputs, logs and run markers.  Not
+# copied: every other subdirectory (rollouts, per-episode JSONL, tracks, stored states, code copies), the .npz files,
+# the larger JSON and JSONL outputs (their .txt renderings are kept, or they are per-episode or per-state), and the
+# targets, creep and design lenses with their verifiers.  com_revisit/README.md and tail_probes/README.md have no
+# source.
+# Added 2026-10-29, latest (tail_record/): the ledger, merge map and checks of the record of everything tried on the T.
+# rex tail saturation habit (docs/investigations/TREX_TAIL_SATURATION_HABIT_2026_10.md, decision D-D55).  No new kind of
+# change.  The sources are in the second scratch root, below scratchpad2/tail_record/: tail_record/ledger.csv is
+# draft/ledger.csv and tail_record/build_ledger.py is draft/build/build_ledger.py; the other files keep their paths
+# (fix/, update/, update_check/).  redact: 7 workflow run ids in ledger.csv, 2 in update/CHANGES.txt and 2 in
+# update_check/FIXES.txt (each after the word 'workflow', or a bare one becoming 'workflow [id removed]').  lineends (as
+# defined above): ledger.csv's 168 CRLF line ends made LF; no field holds a line break.  The other four copies are
+# byte-identical, absolute session-scratch and checkout paths included.  Not copied: the three source sweeps
+# (sweep_repo/, sweep_session/ and sweep_today/entries.json), the fixer's and the update's edit scripts, the pre-fix,
+# pre-update and pre-check copies of the draft and the ledger, the check's diff and row extract, and the draft itself,
+# which the note replaces (its sha256, 1f1e7bdd2c7959a5df78a328c3360b3dad1b6c60725c6554b2a187cdf5d58fc7, and the edits
+# that made the note are in tail_record/README.md).  tail_record/README.md has no source.
 
 audit/foot_ankle_audit.md foot/audit_2026_10_17/foot_ankle_audit.md e9da4ef84be17a87b70096d1e2aede87609ad22f446b10786f9e14d5064725c8 prefix
 audit/geometry/geometry_audit.json foot/audit_2026_10_17/geometry/geometry_audit.json 934110bec337b9693f894800efb309bf1a9529ae87f91f129bfefc8fef5b650a prefix,whitespace
@@ -390,8 +449,302 @@ cap_screens/screen_3m_cop_authority_analysis.txt foot/screen3m_cop/analysis.txt 
 cap_screens/screen_3m_noise_analysis.txt foot/screen3m/analysis.txt 085d4976735a50fc19cf10d94e9a4c42ffc2c7a87175df60357df25711a4ba03 prefix
 cap_screens/screen_6m_authority_analysis.txt foot/screen6m_auth/analysis.txt 36c2959608d159dd2d6fb70f963aa2938fa93a7b07a8e0f4d1f59de7e02914bb prefix
 cap_screens/screen_hip_roll_analysis.txt foot/screen_hr/analysis.txt 396c14aa0e73c94b34dbe0843fd11829843aec1544c662b25705ee3f48946af2 prefix
+com_revisit/REPORT.txt scratchpad2/com_revisit/REPORT.txt 71b880cb3449eaea9830598deaf0a2bd76216db5d1e6b06e5ec1f6c4ba35244c redact
+com_revisit/policies/NOTES.txt scratchpad2/com_revisit/notes/policies/NOTES.txt 57d29f868e9ead47e0f4277f8744ee931f1df4a1bbb34d6a0f9a7276cf5728a8 none
+com_revisit/policies/PREREG.txt scratchpad2/com_revisit/notes/policies/PREREG.txt cc267c527c5c5f88626c56c25f68e1835b79e111d1318c638d9f373af7294a40 none
+com_revisit/policies/analysis_w2.txt scratchpad2/com_revisit/notes/policies/analysis_w2.txt 5a8a102704dc023a43bcebc1edbdf2baf0c837bc1e1aef8bd8ca5ecf2926bfca none
+com_revisit/policies/analysis_w5.txt scratchpad2/com_revisit/notes/policies/analysis_w5.txt 03d3316945b41436f8116572689a396ebe615c30dec98805491305e7e3c44d36 none
+com_revisit/policies/analysis_w9.txt scratchpad2/com_revisit/notes/policies/analysis_w9.txt de4b688cc577032a9431f4708c9eb9c2febe2627d4dd1cb5d1a8e396c3ae9f50 none
+com_revisit/policies/analyze.py scratchpad2/com_revisit/notes/policies/analyze.py 71c0308d9a300975e90cf2dde591f79ba52e5ed70b516efa83273f97533196c8 none
+com_revisit/policies/check.py scratchpad2/com_revisit/notes/policies/check.py 0bd7434c6ad4c467456e851deaf813766f703a2090f4d8d9dd18b01d1a44f996 none
+com_revisit/policies/check_final.json scratchpad2/com_revisit/notes/policies/check_final.json 7dda6d4649f1422a348f593a5492f480df0e30f760fe9a78911e1ee2900f1957 none
+com_revisit/policies/check_final.txt scratchpad2/com_revisit/notes/policies/check_final.txt 183ff90f09a6a80c8bdc24653b7b0f7de9054030ecc7d663ecead393f9615c95 none
+com_revisit/policies/check_m1_held.json scratchpad2/com_revisit/notes/policies/check_m1_held.json fdde6ec3c2ba214db87c36a7099e887a1711e6ef371f29a6251500b8454477f9 none
+com_revisit/policies/check_m1_held.txt scratchpad2/com_revisit/notes/policies/check_m1_held.txt abf95a00d396a2e82d6ba3011dc645656275a1dbb0ab2b7debb765c68fa5e594 none
+com_revisit/policies/check_r9.json scratchpad2/com_revisit/notes/policies/check_r9.json d775f19b7a06791955ff574a770a5589659a9d828cca9b7ac8deb1bc9af3f209 none
+com_revisit/policies/check_r9.txt scratchpad2/com_revisit/notes/policies/check_r9.txt c44cf94acde449129bea89a6576b9a66dcbbae2107ef9baecebc63fc45abbe8c none
+com_revisit/policies/checkpoints_sha256.txt scratchpad2/com_revisit/notes/policies/checkpoints_sha256.txt 5823db2e93f55ef6c9cc5c04c708bafd487ea643cde0887571b9f6e8e6f2def8 none
+com_revisit/policies/compare_equiv.py scratchpad2/com_revisit/notes/policies/compare_equiv.py 05087f995a5e06daa23c4ce16e306786c7cd4fafa965488c162cfa0b35592b28 none
+com_revisit/policies/equiv.py scratchpad2/com_revisit/notes/policies/equiv.py 72b02276f480674e21091be0a602505a32e720fe4efadbb32fe1c66f4511b616 none
+com_revisit/policies/equiv_compare.txt scratchpad2/com_revisit/notes/policies/equiv_compare.txt 4bd32e1679a9a8e543ca25bdc9f79fc329fb922250a6c45c22a434d445a0b5ab none
+com_revisit/policies/equiv_copy.log scratchpad2/com_revisit/notes/policies/equiv_copy.log 8190fef542bcc548f3fd76495bc5eccb4e9b876896b5780d9e70247843257f75 none
+com_revisit/policies/equiv_main.log scratchpad2/com_revisit/notes/policies/equiv_main.log 8190fef542bcc548f3fd76495bc5eccb4e9b876896b5780d9e70247843257f75 none
+com_revisit/policies/extremes.txt scratchpad2/com_revisit/notes/policies/extremes.txt 0119358ee363684c97db4e370bbd1894c6723c089cae9d4ca549df529ec6a7b2 none
+com_revisit/policies/m1_link.txt scratchpad2/com_revisit/notes/policies/m1_link.txt 5a2f48e8608f1be60a0185cf7a0764374d4d4d1dc6b84e06922361292cece25e none
+com_revisit/policies/patch_tests.txt scratchpad2/com_revisit/notes/policies/patch_tests.txt 353347e22b82cb4027294a4fb818df31b52380d563a6ebd75f92dc85951e1087 none
+com_revisit/policies/policy_com_check.patch scratchpad2/com_revisit/notes/policies/policy_com_check.patch 84e58052c9727f32e6d3a419fde849c0b546b4d6895813207a983a87d0e75c02 none
+com_revisit/policies/power.py scratchpad2/com_revisit/notes/policies/power.py 0fc96062eef49017b2ca8d56ee3379c1934ceaf6a4c89d266942ef6478f78e9f none
+com_revisit/policies/power.txt scratchpad2/com_revisit/notes/policies/power.txt bedbbb51b99e1efd2130a627718437a2bccb4e388fb0f391d2a21ea0e3ea2ef0 none
+com_revisit/policies/rail_posture.py scratchpad2/com_revisit/notes/policies/rail_posture.py fa914e69a82554daed2712b3ea7dc2cca54a7a6c444bf84a794198e54d36288e none
+com_revisit/policies/rail_posture.txt scratchpad2/com_revisit/notes/policies/rail_posture.txt 35a9749f3c57cfc8ce4d31e602926aa2e28a7710dd68c5adc32f6f0f2370da24 none
+com_revisit/policies/run.log scratchpad2/com_revisit/notes/policies/run.log e3ec0478d42a6260d9159af8c44a918e3c6efcae91e5d17d05c65dc952159f8f none
+com_revisit/policies/run.started scratchpad2/com_revisit/notes/policies/run.started 2d016658a892d29fbb4f46ba77125d5d0468766d0621f8803ce6852ab89fa9c4 none
+com_revisit/policies/run_after.log scratchpad2/com_revisit/notes/policies/run_after.log e5f3e37d306791331426803f0f1105dcf0977ecb8487c61e52ad2799a1aa6350 none
+com_revisit/policies/run_after.sh scratchpad2/com_revisit/notes/policies/run_after.sh 25e9354528f983e623eab8eb554174e58f41ec2f72e728e6f1ae697726ba49ac none
+com_revisit/policies/run_held.log scratchpad2/com_revisit/notes/policies/run_held.log 6cabca11397250af2942ff3f57469f1a485fc5cc566fac6f353354058408b078 none
+com_revisit/policies/run_null.log scratchpad2/com_revisit/notes/policies/run_null.log f2fe9fe7670bd51cb19447e5a6d57db569c40adb70b194dbdfdf706db2913143 none
+com_revisit/policies/run_policies.py scratchpad2/com_revisit/notes/policies/run_policies.py 197711132c4c71b195eb47c9f309b08f92f27d94b79061587e1367081fbad60d none
+com_revisit/policies/run_r9.log scratchpad2/com_revisit/notes/policies/run_r9.log 9e23e217ff6d1d0c51534180f31198116573aa60d967e760e77a999a555aabd4 none
+com_revisit/policies/spread.py scratchpad2/com_revisit/notes/policies/spread.py 9ab246494c7d428e857292cea2504b3a591e7495f25dcfe052372bcb8d4431df none
+com_revisit/policies/spread.txt scratchpad2/com_revisit/notes/policies/spread.txt 8862eb053e72b1ac77abbf3408aafcab2f44dda544229436a722c728209ce1d4 none
+com_revisit/policies/support_low.txt scratchpad2/com_revisit/notes/policies/support_low.txt 54776b7419683556ec525b5e1a6f0bf64a163960fc7d2a047d7e90603c7f54f2 none
+com_revisit/policies/support_low_loads.txt scratchpad2/com_revisit/notes/policies/support_low_loads.txt c53581e0c271d05b40f1ce8469b3aeb3e9b1ae4397caba047177c59ba8ce61e3 none
+com_revisit/policies/targets_on_policies.txt scratchpad2/com_revisit/notes/policies/targets_on_policies.txt bd5bc80a52566a7cb8932845632572fbd8beda6c827cce55ae8284e471b89345 none
+com_revisit/scan/NOTES.txt scratchpad2/com_revisit/notes/scan/NOTES.txt db4e2c4d84c0e45ddb4345156e1cc07d32189a0250ff4985abaaa86f65f9743b none
+com_revisit/scan/ci_extra.txt scratchpad2/com_revisit/notes/scan/ci_extra.txt f50ae0b2453395c78292094fdbe73c0deea0a093db52e6cd784903a00f28c477 none
+com_revisit/scan/contacts.py scratchpad2/com_revisit/notes/scan/contacts.py a6b155ea8e67ffb82fa8b89631be518a7a56fc876c44d8bc66cc9cd5d2cfa8d4 none
+com_revisit/scan/contacts.txt scratchpad2/com_revisit/notes/scan/contacts.txt 618f8fca0793c97e37299d8960036bfff800f975a51450ab69c6038bc05694ff none
+com_revisit/scan/controls.jsonl scratchpad2/com_revisit/notes/scan/controls.jsonl 657864fc6334b109f2e704a0f3fcf0bd8b1cda475f67e87b89d07a25ed9e0331 none
+com_revisit/scan/controls.py scratchpad2/com_revisit/notes/scan/controls.py 22b27fb24591070315b93cbfe87d6173c54a7ef51d5c4cd3e4791839bc80b2e0 none
+com_revisit/scan/controls.txt scratchpad2/com_revisit/notes/scan/controls.txt aa3b095dad2935a864f82b12968d218ead140b51bc1fe1ec5223d596fd47e58b none
+com_revisit/scan/creeplib.py scratchpad2/com_revisit/notes/scan/creeplib.py 1363d927072bccbba8e5bb690bb00e9419dacc36f7326f6356fba8b9aff64685 none
+com_revisit/scan/fixcheck.log scratchpad2/com_revisit/notes/scan/fixcheck.log b76b130e039ef197275381e1f03f127a418b64b8c3cdb6d1ca77966933f0a65f none
+com_revisit/scan/fixcheck.py scratchpad2/com_revisit/notes/scan/fixcheck.py 6ac4a85ca0ac4e1f658174f7dc6f04c317f7f26d8b9b9e3ad4152a9db6413a71 none
+com_revisit/scan/fixcheck_table.py scratchpad2/com_revisit/notes/scan/fixcheck_table.py 24a9f6467a28990df0e34a3045b1f3dad58c0a47c5fc0b0dadcc09183fd6433d none
+com_revisit/scan/fixcheck_table.txt scratchpad2/com_revisit/notes/scan/fixcheck_table.txt 7c69095462257381fe2fa53ce830d6be676cf4979d31966c71c9742ee40f9bb7 none
+com_revisit/scan/mech.py scratchpad2/com_revisit/notes/scan/mech.py e0357f8bbf06ba188919e9d2cd11ce89a9dc4d0eaf1a5fb5723782215cbb16b8 none
+com_revisit/scan/mech.txt scratchpad2/com_revisit/notes/scan/mech.txt afe2bcecdf125285db1f1320973db3db8ade19e3af4ff2d756ebed212539427e none
+com_revisit/scan/probe_models.py scratchpad2/com_revisit/notes/scan/probe_models.py dad1a1f4c743377cfa3132e4c66cd33b5494bdec40ae41c81e527da308c850a1 none
+com_revisit/scan/probe_models.txt scratchpad2/com_revisit/notes/scan/probe_models.txt 4fc3ade9cf7e8fc9d174b29bbbe1800f7a2be93d8e6216a6f238946f9f89e91e none
+com_revisit/scan/scan.log scratchpad2/com_revisit/notes/scan/scan.log 9231da1a45c621763d1bf43482caba520635f00962853f788c35bb43e6b329b3 none
+com_revisit/scan/scan_all.py scratchpad2/com_revisit/notes/scan/scan_all.py 33d6d44674a1d20a1358af572da1df62e08131ed2039eb1fcff7ab43e1c4c9e1 none
+com_revisit/scan/scan_table.py scratchpad2/com_revisit/notes/scan/scan_table.py 0e167c2ea66fb9f46ba73da6d2d1e5f94198de537f821912a48e5d88d3becd55 none
+com_revisit/scan/scan_table.txt scratchpad2/com_revisit/notes/scan/scan_table.txt f6d9a50a91e879adf6420cef1635f5697ca97455736eb9396a3f9de25392aab2 none
+com_revisit/scan/scanlib.py scratchpad2/com_revisit/notes/scan/scanlib.py a56fa602baba0513326e533703c04fc3f62a9f73a9f1afb25d157c87c201be71 none
+com_revisit/scan/velo_ext.jsonl scratchpad2/com_revisit/notes/scan/velo_ext.jsonl 567dea46e88005b874eaa49ffc2fd9ecdf34c123021b213912ec3bb76783c430 none
+com_revisit/scan/velo_ext.py scratchpad2/com_revisit/notes/scan/velo_ext.py e7052db590161a9f4ced86a8c058b55f2d98459aaf489f4267665261d7803738 none
+com_revisit/scan/velo_ext.txt scratchpad2/com_revisit/notes/scan/velo_ext.txt b1fb5b7a40f186cada0430486e47532be211809942de9ffa8f721e03d29f5144 none
+com_revisit/scan/velo_travel_split.txt scratchpad2/com_revisit/notes/scan/velo_travel_split.txt a5982be388e7d0ec21dfc7b998b43e087087c7ef895af4ea4f7daf0cc157642d none
+com_revisit/verify_policies/NOTES.txt scratchpad2/com_revisit/notes/verify_policies/NOTES.txt 080e3a7da73c25bf55b4abbfd4ccf6204e3e5e1da06904e05f9eafa30b160303 none
+com_revisit/verify_policies/compare_tracks.py scratchpad2/com_revisit/notes/verify_policies/compare_tracks.py 4161049de2c0fac78b33bae3cc038efac0d507ed652036141a580856968fef1e none
+com_revisit/verify_policies/compare_tracks_equiv.txt scratchpad2/com_revisit/notes/verify_policies/compare_tracks_equiv.txt 032d42dccf9019ca49da15804b359db97688eb55053d16e1bab899145935aaf2 none
+com_revisit/verify_policies/compare_tracks_long.txt scratchpad2/com_revisit/notes/verify_policies/compare_tracks_long.txt ab0f137b8555c3a64a402d46e8b3d17f2c1fa3d489897bd30037f001ab7d99ce none
+com_revisit/verify_policies/fall_check.py scratchpad2/com_revisit/notes/verify_policies/fall_check.py 45acc312c5789d50dfc1e01ce083ed6b393ab1b3835a74af28a60c3913925e3e none
+com_revisit/verify_policies/fall_check.txt scratchpad2/com_revisit/notes/verify_policies/fall_check.txt c57d88092c9e0a33414becf767e550539b4a052b406584d1f45401c99aa8e59a none
+com_revisit/verify_policies/lineage.py scratchpad2/com_revisit/notes/verify_policies/lineage.py 0e6eeb63018a88b93179523d3a17c34c78ed4204b4a976c78f572042003f6ae2 none
+com_revisit/verify_policies/lineage.txt scratchpad2/com_revisit/notes/verify_policies/lineage.txt 0c89664586671c6542827013cc76f3702f6a78f20dda46d315529ce4b81eef82 none
+com_revisit/verify_policies/panel40.py scratchpad2/com_revisit/notes/verify_policies/panel40.py 7bf8b7500ebcc1c12d5c156164b2ceca11a667835d96dd1291fb1acf76a90c2f none
+com_revisit/verify_policies/panel40.txt scratchpad2/com_revisit/notes/verify_policies/panel40.txt 152f85ffe5e9907eefba78fed9edf83f01713ff2e28c01ab485ebfcb1960c412 none
+com_revisit/verify_policies/patch_mutations.txt scratchpad2/com_revisit/notes/verify_policies/patch_mutations.txt cb07fc2d32f39b14c28775ce841060331ae58c8c0445f67db26b290ae7b38609 none
+com_revisit/verify_policies/patch_tests_mine.txt scratchpad2/com_revisit/notes/verify_policies/patch_tests_mine.txt 535f07a732174f941ee19bee8f297d8b9fabfc9e4fcedd7971561ce727cbac5e none
+com_revisit/verify_policies/power_check.py scratchpad2/com_revisit/notes/verify_policies/power_check.py 9cca17e650fed0926320ea2f45473012ec139310ae2b8a12c755ffd8903fbb6f none
+com_revisit/verify_policies/power_check.txt scratchpad2/com_revisit/notes/verify_policies/power_check.txt 23db9d2808e1930d6540ff24c3c51cb518e1efa33888d60b766e88f83a5dec33 none
+com_revisit/verify_policies/r9_on_r9_plant.jsonl scratchpad2/com_revisit/notes/verify_policies/r9_on_r9_plant.jsonl d02caf978e10384de6d61e7b8821b41054b427b402a85a4d061071242158d187 none
+com_revisit/verify_policies/r9_on_r9_plant.log scratchpad2/com_revisit/notes/verify_policies/r9_on_r9_plant.log c10cdb58a127a8bae8e0cc9692b4f883e199ffb9f1073a2314f62588af66d8a2 none
+com_revisit/verify_policies/r9_on_r9_plant.txt scratchpad2/com_revisit/notes/verify_policies/r9_on_r9_plant.txt fbf2fa2fdcef00581c9911cd508aefc126d5921f61a5fb0b35ff295573d26bdb none
+com_revisit/verify_policies/recompute.py scratchpad2/com_revisit/notes/verify_policies/recompute.py c807bd0d41efc1d34a9401526c5e8a710f75d4ab5641d7ac4ff3b9bf04308d98 none
+com_revisit/verify_policies/run_after.log scratchpad2/com_revisit/notes/verify_policies/run_after.log 953716f281e5b87834478d3a0b971013fb8040fb56441cd82c075a3175dab210 none
+com_revisit/verify_policies/run_after.sh scratchpad2/com_revisit/notes/verify_policies/run_after.sh 02c7e2b4f8552d23d0db6d1c90f85579eec0d42e0442ac7eb04685e77682b920 none
+com_revisit/verify_policies/run_r9_plant.py scratchpad2/com_revisit/notes/verify_policies/run_r9_plant.py 5c39708610edb668c050b4ebef1ea9dbdd6ea8f5b60a202f31fe5132ab8d6b59 none
+com_revisit/verify_policies/run_verify.py scratchpad2/com_revisit/notes/verify_policies/run_verify.py 84ad5ac02935dbb16fb5229e9e64f1e526d73d56258db136ff60acd810af519e none
+com_revisit/verify_policies/sim_equiv.log scratchpad2/com_revisit/notes/verify_policies/sim_equiv.log 6238107e6ae52cfa1af0483c6d1bedbc28645a7f563473f9551d5f9406aa8fa8 none
+com_revisit/verify_policies/sim_long.log scratchpad2/com_revisit/notes/verify_policies/sim_long.log ac06299a9fda990b33018cec81827e923f4ce84913be319c23c32b46cd7891a1 none
+com_revisit/verify_policies/sim_panel.log scratchpad2/com_revisit/notes/verify_policies/sim_panel.log 586d4a99fe9f5d4622e7e55ec1b883061a4c45c09bb745e49bb82c41c46043d8 none
+com_revisit/verify_policies/sim_panel.started scratchpad2/com_revisit/notes/verify_policies/sim_panel.started 1fc189a1b1e6b099ff8c54a77efa16265fb9bd08bcd6b10e1c541a57e199a4bd none
+com_revisit/verify_policies/support_transient.py scratchpad2/com_revisit/notes/verify_policies/support_transient.py b66c4c1f78282ff0033eb08e09d55ba869ddcca333efd1b5ff39bc1909d76de7 none
+com_revisit/verify_policies/support_transient.txt scratchpad2/com_revisit/notes/verify_policies/support_transient.txt dcd5f8b09ada7ded01b80994703bd16ea55d8a4f71f62e7dc506d588ef06c1ed none
+com_revisit/verify_policies/target_check.py scratchpad2/com_revisit/notes/verify_policies/target_check.py fb038ffee46a83bbf9301bf32f4bba74512f318981bc8f5ae8566b44c5a58695 none
+com_revisit/verify_policies/target_check.txt scratchpad2/com_revisit/notes/verify_policies/target_check.txt 9aa7a9b780f29f1612c6be6d8534fbb5197de41c58b4b3717e3c6f2d6fdb9ddd none
+com_revisit/verify_policies/verify_claims.py scratchpad2/com_revisit/notes/verify_policies/verify_claims.py 3c4e9c86ba8ea15a577fb978d160483cc0c260ac002b39088c8401882e16ab21 none
+com_revisit/verify_policies/verify_claims.txt scratchpad2/com_revisit/notes/verify_policies/verify_claims.txt d3b4f3fc69f846b1da88e57afb907ef7774dd6c74eb517337642ab94f025315c none
+com_revisit/verify_scan/NOTES.txt scratchpad2/com_revisit/notes/verify_scan/NOTES.txt af291354863647a19f43707a85caaf7c7847023028589c7a80c233c9b50394a5 none
+com_revisit/verify_scan/out/probe.txt scratchpad2/com_revisit/notes/verify_scan/out/probe.txt 09a89e0fa10217c2c3643877ee0da829555de8f5e05f089d97a0897ece0ceb10 none
+com_revisit/verify_scan/out/vs_compare.txt scratchpad2/com_revisit/notes/verify_scan/out/vs_compare.txt 96fe62f0591de1b74b77ee137f9a4e9e104c65aa07892a67b2dd036ba12ba421 none
+com_revisit/verify_scan/out/vs_ext.txt scratchpad2/com_revisit/notes/verify_scan/out/vs_ext.txt 08010cd3e9a1e07bb5f27035d13b985fbd0f40c06a34f1c600a74de062ec17b2 none
+com_revisit/verify_scan/out/vs_fix.txt scratchpad2/com_revisit/notes/verify_scan/out/vs_fix.txt ea9c3cf4f1f1c7b2427dd6618ccf0dee6b334133b5019f26225ed930acfed2a2 none
+com_revisit/verify_scan/out/vs_mech.txt scratchpad2/com_revisit/notes/verify_scan/out/vs_mech.txt 72f496cf21242988da5bff0d6b1ac9ef5b2681545f95b2c405a601f3e157d1d4 none
+com_revisit/verify_scan/out/vs_sample.log scratchpad2/com_revisit/notes/verify_scan/out/vs_sample.log 931f5b378ec9721b3062343148b8cd5511e1845baac2efe238ccb838a55be4f3 none
+com_revisit/verify_scan/out/vs_stats.txt scratchpad2/com_revisit/notes/verify_scan/out/vs_stats.txt 2b74e66b9bc12b82a99bf4646edaa98bd830c22d0f02726c9dc951cfc7b40bce none
+com_revisit/verify_scan/probe.py scratchpad2/com_revisit/notes/verify_scan/probe.py d791726acd19db8ef9bad07adfad710e725761a00f33ceaa761bef83c64e612a none
+com_revisit/verify_scan/vs_compare.py scratchpad2/com_revisit/notes/verify_scan/vs_compare.py debc305aeda6d08df848ba4cd8cb3a69e3e76c9b370c320dbe55434d15f579fa none
+com_revisit/verify_scan/vs_ext.py scratchpad2/com_revisit/notes/verify_scan/vs_ext.py 965b967272b9d0ec1d92666c88e05569a9c49e3ec5711d0a8fdbda231e9192db none
+com_revisit/verify_scan/vs_fix.py scratchpad2/com_revisit/notes/verify_scan/vs_fix.py 259c1b1dd2030a4d27334559f7338a6f792e4ddda5387e18c3c91556cb84e1fa none
+com_revisit/verify_scan/vs_lib.py scratchpad2/com_revisit/notes/verify_scan/vs_lib.py b884f23529eb447ec9e273b7daa10cf133b45ef5b379be440371979e7aacc900 none
+com_revisit/verify_scan/vs_mech.py scratchpad2/com_revisit/notes/verify_scan/vs_mech.py cdf8bb9ea89e0df11d57b4fd7ca4dac75639d02cc70b8f628775bc343e0f87e6 none
+com_revisit/verify_scan/vs_sample.py scratchpad2/com_revisit/notes/verify_scan/vs_sample.py fa259b6ab5194b4a684478afb25b59e59f687ba80774d8a4b74264ae117a614c none
+com_revisit/verify_scan/vs_stats.py scratchpad2/com_revisit/notes/verify_scan/vs_stats.py 666e8d5b93bf758acaac61141f741103da318d95918b59687ce94ce3189819f2 none
 diagnosis/findings_v1_superseded.txt foot/meanwhile/diagnosis/previous_v1/findings.txt d0bfc2078b60c935f6cadf7bf48104263f5d5c3f1521a50d74fb724cb32bbc1e none
 diagnosis/findings_v3.txt foot/meanwhile/diagnosis/findings.txt 514cc3ea717bb572295ceb6b5f0b898bd3af499aea068e509b5e42c951be3c6d whitespace
+ecs_results/APPROVED scratchpad2/r10round/ecs/APPROVED 2c077437ba8a61e70abe19857a84586b3fe0ba7c4496db654b0a7a55acd6e27d none
+ecs_results/FOR_THE_MAINTAINER.txt scratchpad2/r10round/ecs/FOR_THE_MAINTAINER.txt 104f72f945dd89b2b79af2e2f5c18da705ac15bfc441cca51101bb6eb1255c43 redact
+ecs_results/SHA256SUMS.txt scratchpad2/r10round/ecs/SHA256SUMS.txt f36c887fcdb51dd70228d1601ff1671db88c77322e1f2af514e5ef42f255ff34 none
+ecs_results/build_notes/FIXES.txt scratchpad2/r10round/ecs/build/FIXES.txt 9c41e6709beb32775b9fff615bba0ef1ff30eac80be05d9b0030c715c880ace3 redact
+ecs_results/build_notes/LANE_H.txt scratchpad2/r10round/ecs/build/LANE_H.txt 7acc44158f6c5a6f742a982d8ab660716f57519f2481ed5cb2a955f8b051d4d5 none
+ecs_results/build_notes/LANE_R.txt scratchpad2/r10round/ecs/build/LANE_R.txt 7604eed96f68712b3896c7d4d830186cac573ff3fc5def009c6224fb97310e14 redact
+ecs_results/check/proc/NOTES.txt scratchpad2/r10round/ecs/check/proc/NOTES.txt 0b7f8f5a2377a31d55bb572a27f8a6697506fe13f10bac80a273590ce572641b none
+ecs_results/check/proc/atimes.out scratchpad2/r10round/ecs/check/proc/atimes.out 2872ea463e51315f0cf187f65ff2900e543d94cc7542dfc41d23433d46b14729 none
+ecs_results/check/proc/classes.out scratchpad2/r10round/ecs/check/proc/classes.out 57c7ecd6d7ea2ccf74e582472fb6c92f78163f50cfe6d1393de1bf612d25ed90 none
+ecs_results/check/proc/order.out scratchpad2/r10round/ecs/check/proc/order.out 2ae33a6efe14cc5d838b005406596a5fad5117f9468e96de36a0895a5864a408 none
+ecs_results/check/proc/pins.out scratchpad2/r10round/ecs/check/proc/pins.out e9e8b53acbf9e60121843bb402da79ef1d071022159b62133e918e647e3098c9 none
+ecs_results/check/proc/printed.out scratchpad2/r10round/ecs/check/proc/printed.out a039e00086f10aaef50768ef73c179153cfaee73354df0075e65c309d1592185 none
+ecs_results/check/proc/pvals.out scratchpad2/r10round/ecs/check/proc/pvals.out cf898120c707bb6f1531501e9265aaea314634bf1273ce8522e69a4a817bb8be none
+ecs_results/check/proc/readjson.out scratchpad2/r10round/ecs/check/proc/readjson.out 99059236a57218b9837dccb185a6662ccdd0eedbed2e037fd3b8fee937718afb none
+ecs_results/check/proc/score_read_sums.txt scratchpad2/r10round/ecs/check/proc/score_read_sums.txt f7438a1431b7b4fc9b743ad8e826191df5f2b656a6f2b8a5e6e5542245e87b2e none
+ecs_results/check/proc/score_trace_sums.txt scratchpad2/r10round/ecs/check/proc/score_trace_sums.txt ffd1b9864d1235872e9c9a96bf0245b0a520b466fcf07729b80377ad8a033042 none
+ecs_results/check/proc/scripts/atimes.py scratchpad2/r10round/ecs/check/proc/scripts/atimes.py 9cdff67caac93286fbaaf72bba08fe1cff3cdaf6b546a99eeaf0f1b224e5cc9f none
+ecs_results/check/proc/scripts/classes.py scratchpad2/r10round/ecs/check/proc/scripts/classes.py 90968ad2e23d12f0286430c6131af9760acd13405fb2192cd7f586f67ece8fcc none
+ecs_results/check/proc/scripts/order.py scratchpad2/r10round/ecs/check/proc/scripts/order.py 84dbd027d8c57b74870cfcf53a3a4a916575bf1c8f71db23d62e1b90ea92994f none
+ecs_results/check/proc/scripts/pins.py scratchpad2/r10round/ecs/check/proc/scripts/pins.py 3aacedfdc5f0532e1d429dc4e1f7726249443811e4e0db90d100ba47f367c7c6 none
+ecs_results/check/proc/scripts/printed.py scratchpad2/r10round/ecs/check/proc/scripts/printed.py f6e66759ac382bb628df4292076a96983ade52d94ebb92aff688bdead0ff1a43 none
+ecs_results/check/proc/scripts/pvals.py scratchpad2/r10round/ecs/check/proc/scripts/pvals.py cedc50d6fb642820d8b8deda07c2ab2ade3388cc91f947cf4a4142fc1868f69c none
+ecs_results/check/proc/scripts/readjson.py scratchpad2/r10round/ecs/check/proc/scripts/readjson.py 41c169e610e28b0c320f0bd6260793db01b051d7bb077f4ca602fefd9c95ae06 none
+ecs_results/check/proc/scripts/timeline.py scratchpad2/r10round/ecs/check/proc/scripts/timeline.py d1cb9d0b906ac0f40772f77b4b2fa5493a7bab497a2613cd3fa986afa58484a8 none
+ecs_results/check/proc/scripts/traces.py scratchpad2/r10round/ecs/check/proc/scripts/traces.py f5222469983d32de338ec9122fd2273cba89a1f70621c1555fda48da8a72dc4f none
+ecs_results/check/proc/scripts/tree_walk.py scratchpad2/r10round/ecs/check/proc/scripts/tree_walk.py 34bb408644ce04e09937b4c3d5392753a559e4b6ada3902687a399b30862534e none
+ecs_results/check/proc/timeline.out scratchpad2/r10round/ecs/check/proc/timeline.out e3ab0ea522fc127ba8c3fe6eb429633c4aaf2824cbed3df11c9d726e76866c94 none
+ecs_results/check/proc/traces.out scratchpad2/r10round/ecs/check/proc/traces.out 32eb2ed7b6aac0481b5d553804f62bd36b48d2ce63ef357a8c44362a0d719559 none
+ecs_results/check/proc/tree_walk.out scratchpad2/r10round/ecs/check/proc/tree_walk.out 6ab66cbb62905b3a016d7879b38135e75200f1608401d30e2bec3697913875a1 none
+ecs_results/check/stat/NOTES.txt scratchpad2/r10round/ecs/check/stat/NOTES.txt d7bb54b1c1237affcf9204c861bb25562ac5c38bccb9eeedced8818ea240fb46 none
+ecs_results/check/stat/extra_check.py scratchpad2/r10round/ecs/check/stat/extra_check.py 084786654a6676418e3afe54a082988b004d3fd36da6e245ae144681b4521d8e none
+ecs_results/check/stat/extra_out.txt scratchpad2/r10round/ecs/check/stat/extra_out.txt 3ad7bd2ed900ebf81ed2720692c42f67b16aa791dd7ed11b1ad2ea0e858418a4 none
+ecs_results/check/stat/fresh_check.py scratchpad2/r10round/ecs/check/stat/fresh_check.py 151b2d015aa66c8398ff0a24a5cce69a66c8a9302b9b48b0b265f78976258889 none
+ecs_results/check/stat/fresh_out.txt scratchpad2/r10round/ecs/check/stat/fresh_out.txt 7146f8e91883d2ca22dc6abae6b79de83be950435105b0fc3c536f2c1b070aaa none
+ecs_results/check/stat/stat_check.py scratchpad2/r10round/ecs/check/stat/stat_check.py 23180629fc73142dd48766a6c34a89c92e3a42addab732cdee5a1e4d9be3ab26 none
+ecs_results/check/stat/stat_out.json scratchpad2/r10round/ecs/check/stat/stat_out.json 99c56e190907fa8a3edb07f2fd375f78a32105de671ce107a852be17ad370218 none
+ecs_results/check/stat/stat_out.txt scratchpad2/r10round/ecs/check/stat/stat_out.txt 484038940067d05eeb4f1905c2f7f8f3350c5a63d732197ab05466ce71c6fa14 none
+ecs_results/criteria.txt scratchpad2/r10round/ecs/criteria.txt 04813918e494ae2d4845819c7ef123bc4bf74634093faa439e572c831277214e none
+ecs_results/final/APPROVAL_REQUEST.txt scratchpad2/r10round/ecs/final/APPROVAL_REQUEST.txt 603e715ac21c7b2adcdd56a311fbe1b64fda1a505b888afab49036a1344f8263 none
+ecs_results/final/criteria_ecs_final.txt scratchpad2/r10round/ecs/final/criteria_ecs_final.txt 04813918e494ae2d4845819c7ef123bc4bf74634093faa439e572c831277214e none
+ecs_results/final/diff_v3_to_final.txt scratchpad2/r10round/ecs/final/diff_v3_to_final.txt cc94af420a811f30dcb3a87a50e71e896c0dd8935a03372d58d54409c34eb92c none
+ecs_results/run_log.txt foot/stance4/live/run_log.txt f2a95d7b7ebe81ceea2b52372aaee0532683bef181f20a83c69175afd06beebd lines,redact
+ecs_results/run_logs/crash_ledger.tsv scratchpad2/r10round/ecs/logs/crash_ledger.tsv e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 none
+ecs_results/run_logs/decided.tsv scratchpad2/r10round/ecs/logs/decided.tsv fca7b7862a9e96b5253756a73d71c8824a27a1069a0fd7e2fcc0dd16a37ee672 none
+ecs_results/run_logs/run_waves_ecs.log scratchpad2/r10round/ecs/logs/run_waves_ecs.log c5ac6eed9a5496f9fcbdc7c43aba0c4603388ed94395ea40e4010f28c5e5dbf3 none
+ecs_results/runs/s42_A_1101/check.json scratchpad2/r10round/ecs/runs/s42_A_1101/check.json f83813800a1c5cba62a0c3590649dcb87f9dac9d1219fa02ecda62113a2f9f3b none
+ecs_results/runs/s42_A_1101/run_meta.json scratchpad2/r10round/ecs/runs/s42_A_1101/run_meta.json cbb55e9f7a34b9bf305ffe4c0ad5dbe013c70b23084b15686b127b36578b13a0 none
+ecs_results/runs/s42_A_1111/check.json scratchpad2/r10round/ecs/runs/s42_A_1111/check.json c6e5f9e23ce26e6a6cf37bbd5a8eec41c68710863a8e584047f4afe18bd5de1d none
+ecs_results/runs/s42_A_1111/run_meta.json scratchpad2/r10round/ecs/runs/s42_A_1111/run_meta.json 69b27d4c0baf9dd2e99cfef0e7ac9df02e83ac072461481558140ac4bf0529d4 none
+ecs_results/runs/s42_A_1121/check.json scratchpad2/r10round/ecs/runs/s42_A_1121/check.json 1026b6b5eb929369ea47cce6a7196ba64c6bd678720be20f53d0ba9403609689 none
+ecs_results/runs/s42_A_1121/run_meta.json scratchpad2/r10round/ecs/runs/s42_A_1121/run_meta.json b311842d2ee013d368a6585b0145593c77cd18b4c9b17ab87d9192eaa87462c9 none
+ecs_results/runs/s42_A_1131/check.json scratchpad2/r10round/ecs/runs/s42_A_1131/check.json e6f527a8836e33d4e73edc8029640ff3720fa3e17e3c16562e37254425ad7ceb none
+ecs_results/runs/s42_A_1131/run_meta.json scratchpad2/r10round/ecs/runs/s42_A_1131/run_meta.json ad83374a05a8f41e74fcc744c00d3deeed3e83c49a01875cb40b4c5edbc2eb2e none
+ecs_results/runs/s42_A_1141/check.json scratchpad2/r10round/ecs/runs/s42_A_1141/check.json af3ce757939442cf0a243a25f7b2f647adc10acb2f49ae38c976582afb1bf396 none
+ecs_results/runs/s42_A_1141/run_meta.json scratchpad2/r10round/ecs/runs/s42_A_1141/run_meta.json 8ecc501be4e88d2b7c3403e668580456bce615d9cc7d7345f8cbe6e3a676b05a none
+ecs_results/runs/s42_A_1151/check.json scratchpad2/r10round/ecs/runs/s42_A_1151/check.json a0dc01d6e3a5351b9445fa1167cf435b5f22c8ae0dceea390f1ad7a78c0b147c none
+ecs_results/runs/s42_A_1151/run_meta.json scratchpad2/r10round/ecs/runs/s42_A_1151/run_meta.json 0322437b4e5b601bb1f665767e44aff07b47fcee1ee496f51cc9605563a20e91 none
+ecs_results/runs/s42_B_1201/check.json scratchpad2/r10round/ecs/runs/s42_B_1201/check.json e74012b1d734a75693b8e1782323bc248d7ecacdd924fea6f066a973043d165e none
+ecs_results/runs/s42_B_1201/run_meta.json scratchpad2/r10round/ecs/runs/s42_B_1201/run_meta.json afceb7fb87dfc013b9ec70538b87f4ecd551683723c4bc995a563aa7bf9f7831 none
+ecs_results/runs/s42_B_1211/check.json scratchpad2/r10round/ecs/runs/s42_B_1211/check.json 58b09d6ecb3abea16d44cefed73ad1463bd6443ae5919c03ab286f9d8e72c31d none
+ecs_results/runs/s42_B_1211/run_meta.json scratchpad2/r10round/ecs/runs/s42_B_1211/run_meta.json 8717426b516f34be7efcd06cb6c3b5df3956d4ad893133a4877952eef8b6a433 none
+ecs_results/runs/s42_B_1221/check.json scratchpad2/r10round/ecs/runs/s42_B_1221/check.json 7e57fd5ea49763dc1bc5a6519cb836aedd3705839101401a23ca146515600edc none
+ecs_results/runs/s42_B_1221/run_meta.json scratchpad2/r10round/ecs/runs/s42_B_1221/run_meta.json d9816cf0c2338bf42ca5d5633d4f41c1c89bd6114f491e013f3d8ed92da3f163 none
+ecs_results/runs/s42_B_1231/check.json scratchpad2/r10round/ecs/runs/s42_B_1231/check.json e224c683fdb6289bbeb6117ca3dd071d8af555978f6a0ee183fcdeff69918658 none
+ecs_results/runs/s42_B_1231/run_meta.json scratchpad2/r10round/ecs/runs/s42_B_1231/run_meta.json bce7345f120cd28cb21e1cf941405ca60e90b92f0eb257d4b843432d94cdcefd none
+ecs_results/runs/s42_B_1241/check.json scratchpad2/r10round/ecs/runs/s42_B_1241/check.json 424844dd3b11fd5847d6031f6a50df926aecd82ddc1364f7cf9503445915366b none
+ecs_results/runs/s42_B_1241/run_meta.json scratchpad2/r10round/ecs/runs/s42_B_1241/run_meta.json 4d73e46ebcf9ad49a6d89150fb0f4644f7e22a3dbd5c1a38316bf8738a24dd9f none
+ecs_results/runs/s42_B_1251/check.json scratchpad2/r10round/ecs/runs/s42_B_1251/check.json 2eb3ae406828c1365d47887dbbc68991546dad121d6991e9644db53ad445f915 none
+ecs_results/runs/s42_B_1251/run_meta.json scratchpad2/r10round/ecs/runs/s42_B_1251/run_meta.json d99a39ad2d08264f1dac91d2e25310b7957a2ff4062eb9e70fdccae03e6a347f none
+ecs_results/runs/s80_A_1301/check.json scratchpad2/r10round/ecs/runs/s80_A_1301/check.json 937c41ade6e0fac16ab15881ab37fbf3a224626a1337bc69dc929e993601ec7d none
+ecs_results/runs/s80_A_1301/run_meta.json scratchpad2/r10round/ecs/runs/s80_A_1301/run_meta.json 734c428ef0a78f2399482abf5cb0f0ac5c131881ac596fde4478ac2969655f42 none
+ecs_results/runs/s80_A_1311/check.json scratchpad2/r10round/ecs/runs/s80_A_1311/check.json b4e77763a6d716e7e2d76c7fdea9cce66d2c0a1d559e9c6a1972177ffe48f89c none
+ecs_results/runs/s80_A_1311/run_meta.json scratchpad2/r10round/ecs/runs/s80_A_1311/run_meta.json 1635075bb1e44dd53552f8c18255d122eaaad740831d978921abe51e5b2fae85 none
+ecs_results/runs/s80_A_1321/check.json scratchpad2/r10round/ecs/runs/s80_A_1321/check.json 54c8c2bfda884a581a22397508ce666aee1f8a25d3695e13dd6e41ae9e618eb9 none
+ecs_results/runs/s80_A_1321/run_meta.json scratchpad2/r10round/ecs/runs/s80_A_1321/run_meta.json 11878d891a8be53874a3e297fb08babf446825ebae9e65222b01666c603491c1 none
+ecs_results/runs/s80_A_1331/check.json scratchpad2/r10round/ecs/runs/s80_A_1331/check.json 143bfb40ba33df83cd7761c286581735fdce105a2d9abb23bf23570364fb50ea none
+ecs_results/runs/s80_A_1331/run_meta.json scratchpad2/r10round/ecs/runs/s80_A_1331/run_meta.json 85532c4c6ff421d7e59c30572d9d1e05f35508f0e9193cc98d346a1d7271e2d1 none
+ecs_results/runs/s80_A_1341/check.json scratchpad2/r10round/ecs/runs/s80_A_1341/check.json 8ed19f2cb164a689f0c297cd0683c415fd721bac4ff98bbcb654e3e0ebfdadfa none
+ecs_results/runs/s80_A_1341/run_meta.json scratchpad2/r10round/ecs/runs/s80_A_1341/run_meta.json e3c7fad76fcd19ee7b847c6787a9b9075125db116e4e193d502a1c51fcad5d3e none
+ecs_results/runs/s80_A_1351/check.json scratchpad2/r10round/ecs/runs/s80_A_1351/check.json 3f381d40cc22ffa13e5e5ec3811b90eed411a1ed846c4dd054f11ba026e56484 none
+ecs_results/runs/s80_A_1351/run_meta.json scratchpad2/r10round/ecs/runs/s80_A_1351/run_meta.json 417a0a4619bfcb4cdc2ce91b0399754640445f42cc95ea5a4ca5ab5724a053ca none
+ecs_results/runs/s80_B_1401/check.json scratchpad2/r10round/ecs/runs/s80_B_1401/check.json 51362bd1e37b6ece744ad45d306555cf9cc8b69617dbdb77daaceb598d15eaa4 none
+ecs_results/runs/s80_B_1401/run_meta.json scratchpad2/r10round/ecs/runs/s80_B_1401/run_meta.json 732bf33ba85a82f7de2097ee38d538fcc568bc55cfc646d4a7788be148905722 none
+ecs_results/runs/s80_B_1411/check.json scratchpad2/r10round/ecs/runs/s80_B_1411/check.json 9ecf7803861b782e770be0e86f6667a8979c88f5b52dcc998b3b58acfcefe719 none
+ecs_results/runs/s80_B_1411/run_meta.json scratchpad2/r10round/ecs/runs/s80_B_1411/run_meta.json 9e527891a81ca6cdd70bb832efce19cee80a37c94a2d500eea282c81ed9b8c03 none
+ecs_results/runs/s80_B_1421/check.json scratchpad2/r10round/ecs/runs/s80_B_1421/check.json af27824f1d8089d21271473c849d076198b95ed73c130229196c8a061a33156d none
+ecs_results/runs/s80_B_1421/run_meta.json scratchpad2/r10round/ecs/runs/s80_B_1421/run_meta.json c40870863bad8e3a16a1a9ac6953109f2edb8c856b9d87526a5e5179a4a0535c none
+ecs_results/runs/s80_B_1431/check.json scratchpad2/r10round/ecs/runs/s80_B_1431/check.json 98e55f0d1b9c89ee188d351ad2eed10c70297853985f85f9b06bdd4efc1128ff none
+ecs_results/runs/s80_B_1431/run_meta.json scratchpad2/r10round/ecs/runs/s80_B_1431/run_meta.json 90d9a546a93082e8ac9263f82f460cee357e96d603a6b5581a9417b8cd0be09c none
+ecs_results/runs/s80_B_1441/check.json scratchpad2/r10round/ecs/runs/s80_B_1441/check.json 57903b4b5c8539277036c32d6ef40a4aa66e11de49a331d4c65ba2a07ad8d491 none
+ecs_results/runs/s80_B_1441/run_meta.json scratchpad2/r10round/ecs/runs/s80_B_1441/run_meta.json 0b4442296a30201847fd3d1d59b9c70da2bf3568519798b57840b7bcc917eac6 none
+ecs_results/runs/s80_B_1451/check.json scratchpad2/r10round/ecs/runs/s80_B_1451/check.json 7018cac2d36349718d40f0698bad6e26c0f665beb1472a629235a1f10aa3c78b none
+ecs_results/runs/s80_B_1451/run_meta.json scratchpad2/r10round/ecs/runs/s80_B_1451/run_meta.json 6cac059d1764a3473c57f170041d407515f46e3533983a82a3740a17b46f838c none
+ecs_results/score/read/s42_A_1101/m5.json scratchpad2/r10round/ecs/score/read/s42_A_1101/m5.json 1c73d928a64b6e90568952ba91d3c1929a0e6e4904f055c3bf5b4442ef1766eb none
+ecs_results/score/read/s42_A_1101/m5.txt scratchpad2/r10round/ecs/score/read/s42_A_1101/m5.txt 6649144447f3dcfaf20ffb03a837defb7ff2498599ade840474f45577004e439 none
+ecs_results/score/read/s42_A_1101/read.json scratchpad2/r10round/ecs/score/read/s42_A_1101/read.json df8b20c12d69ca51dade6785cc2293a653bea55a6f9ec1463353e7491d22be87 none
+ecs_results/score/read/s42_A_1111/m5.json scratchpad2/r10round/ecs/score/read/s42_A_1111/m5.json f8dd84abbc2c9698f4b53f3acab6b502ac1afc975e726e2be7ed162be1b9946c none
+ecs_results/score/read/s42_A_1111/m5.txt scratchpad2/r10round/ecs/score/read/s42_A_1111/m5.txt 4b223f96c59b834ce8ac45a044b66bf8ef1742c9e7ed744e6b4e2ec8246e8203 none
+ecs_results/score/read/s42_A_1111/read.json scratchpad2/r10round/ecs/score/read/s42_A_1111/read.json ca5d6a9afc38924a1f632738b4e94ab92914e2a747da4b6827b9bea04f8d1cda none
+ecs_results/score/read/s42_A_1121/m5.json scratchpad2/r10round/ecs/score/read/s42_A_1121/m5.json ddd2a92040812ba23a7c0875e8b4d20d16134e01010c9c45585c7b2d3d9922f0 none
+ecs_results/score/read/s42_A_1121/m5.txt scratchpad2/r10round/ecs/score/read/s42_A_1121/m5.txt f3494f3023814809987cf841ed08ac27aba952a6a1588c92616c18b798a4baec none
+ecs_results/score/read/s42_A_1121/read.json scratchpad2/r10round/ecs/score/read/s42_A_1121/read.json def1f3dbceec7c80ae83109c3cfff95d8ea8a74e0925012214d1ec905b8c0535 none
+ecs_results/score/read/s42_A_1131/m5.json scratchpad2/r10round/ecs/score/read/s42_A_1131/m5.json 7dc048183097a624901460763037af906d5d8e18adb2503d6d52b4f2262885d3 none
+ecs_results/score/read/s42_A_1131/m5.txt scratchpad2/r10round/ecs/score/read/s42_A_1131/m5.txt e2e9f2f058ae7a77e4c7c973d0a62b4a8fe5d96ff1aa0be3f67987db286f35a1 none
+ecs_results/score/read/s42_A_1131/read.json scratchpad2/r10round/ecs/score/read/s42_A_1131/read.json 756bfdd4e0c46e21a5390b1607509b3ece864afa6ddd3cff4e7a56a0f909e0b4 none
+ecs_results/score/read/s42_A_1141/m5.json scratchpad2/r10round/ecs/score/read/s42_A_1141/m5.json ce9a1dc4712eb92a760e1ee4a878862ef4446f83784a1c1a524ea29678004c7c none
+ecs_results/score/read/s42_A_1141/m5.txt scratchpad2/r10round/ecs/score/read/s42_A_1141/m5.txt 16e5c053954ff12479a797370926359e4c82e9f9bc718262c4a73f108a906f9c none
+ecs_results/score/read/s42_A_1141/read.json scratchpad2/r10round/ecs/score/read/s42_A_1141/read.json 3200a7c9ce8df8c31325738d552d0ee3114701296058b789bcd09b54f23f825d none
+ecs_results/score/read/s42_A_1151/m5.json scratchpad2/r10round/ecs/score/read/s42_A_1151/m5.json 520b040bfc2732fe568b59a6266bf746049a024da795496f6dd88542df5aa9be none
+ecs_results/score/read/s42_A_1151/m5.txt scratchpad2/r10round/ecs/score/read/s42_A_1151/m5.txt 66d9d8bdb2c051e0cdd4be787d5e0ba22aa84b543c6c0ecda6383a63198d98df none
+ecs_results/score/read/s42_A_1151/read.json scratchpad2/r10round/ecs/score/read/s42_A_1151/read.json e1666fb961b24c9bdf698b150799b6dc942599b5fa261f3c98119731ca1e8ba9 none
+ecs_results/score/read/s42_B_1201/m5.json scratchpad2/r10round/ecs/score/read/s42_B_1201/m5.json 9ad8942cc8b4b9ab71ecbb3a167621dde4ac46bd672b3550c4652beba6a857c1 none
+ecs_results/score/read/s42_B_1201/m5.txt scratchpad2/r10round/ecs/score/read/s42_B_1201/m5.txt 82b41d9cb4e99b6a1f74255926d5176f2e90c53995a9da09c33804e3524f443e none
+ecs_results/score/read/s42_B_1201/read.json scratchpad2/r10round/ecs/score/read/s42_B_1201/read.json f797f5db575d15daf234a0530ed7cdf830f249c7f979a06cf622f9c86356869e none
+ecs_results/score/read/s42_B_1211/m5.json scratchpad2/r10round/ecs/score/read/s42_B_1211/m5.json c3035dc475e31e34db345a03c23329a827bdc25a5c7d93e5ef444c10fd88d5f6 none
+ecs_results/score/read/s42_B_1211/m5.txt scratchpad2/r10round/ecs/score/read/s42_B_1211/m5.txt ac47ac263e7c813f009af9037df132fb1c502e5ee0d980df6f8bb36c29e0bfb8 none
+ecs_results/score/read/s42_B_1211/read.json scratchpad2/r10round/ecs/score/read/s42_B_1211/read.json 21b76a3dfb95f0d32a0e5361adc857ad51e26bb4cb9f879f8891c96135f6c401 none
+ecs_results/score/read/s42_B_1221/m5.json scratchpad2/r10round/ecs/score/read/s42_B_1221/m5.json 04e4693d7dc59e75d91266de1f0418339ae42df6181e2a28daa7978ac80896eb none
+ecs_results/score/read/s42_B_1221/m5.txt scratchpad2/r10round/ecs/score/read/s42_B_1221/m5.txt 3879a0b81c1979bd0df9acc53fa343752aa61192f7df6d8ca88d1567c253cd0b none
+ecs_results/score/read/s42_B_1221/read.json scratchpad2/r10round/ecs/score/read/s42_B_1221/read.json f75d87c208f8e8bcd5307d399eaaa1a84d34b2dd90ea44ad00f0a94b2afedc27 none
+ecs_results/score/read/s42_B_1231/m5.json scratchpad2/r10round/ecs/score/read/s42_B_1231/m5.json 15412b69ca2b1b8c9f4afaafb2f0da1e8fd0d203d1b98af3c810ffa7a666cba1 none
+ecs_results/score/read/s42_B_1231/m5.txt scratchpad2/r10round/ecs/score/read/s42_B_1231/m5.txt ddea6753031657c11cb3a9261632a531a849df3e7d7131ad2afaa613d98f32ec none
+ecs_results/score/read/s42_B_1231/read.json scratchpad2/r10round/ecs/score/read/s42_B_1231/read.json d5f4f8006b7eb9ddc4ff3aeae25a63bec4ab6dd6a62deb72f3ff7a23601412d6 none
+ecs_results/score/read/s42_B_1241/m5.json scratchpad2/r10round/ecs/score/read/s42_B_1241/m5.json dbd1be428faed59beec72634d3061f378b510d175813df1940fab8413c071ea5 none
+ecs_results/score/read/s42_B_1241/m5.txt scratchpad2/r10round/ecs/score/read/s42_B_1241/m5.txt f559a3ed126dd2e6052a215da640f0a5aa805d9ddcb66fce988d277498840e9f none
+ecs_results/score/read/s42_B_1241/read.json scratchpad2/r10round/ecs/score/read/s42_B_1241/read.json 4a903ad788fa187240db7685cd046990dceeaf3a553cc98626415f98b1d0e947 none
+ecs_results/score/read/s42_B_1251/m5.json scratchpad2/r10round/ecs/score/read/s42_B_1251/m5.json ea993ad80e627ca6798b45e8028de083420f495f1db2afefe5d6b11bf3ad306b none
+ecs_results/score/read/s42_B_1251/m5.txt scratchpad2/r10round/ecs/score/read/s42_B_1251/m5.txt 1ab3708d6f187fa0426af25372ac940c4989dc2497fa695a6ff034199a387808 none
+ecs_results/score/read/s42_B_1251/read.json scratchpad2/r10round/ecs/score/read/s42_B_1251/read.json 5805f8890888346cf4a088da62b966c0c109804cb07bf5061c6cb5dc0d0047f0 none
+ecs_results/score/read/s80_A_1301/m5.json scratchpad2/r10round/ecs/score/read/s80_A_1301/m5.json ff3cc846ce20261c58598d64ea14600ccf23d5554cd90245f200690eaa882103 none
+ecs_results/score/read/s80_A_1301/m5.txt scratchpad2/r10round/ecs/score/read/s80_A_1301/m5.txt f18519860f770a34642b92dba5a47ad7c6584539e4116a79e0a70009a4b64788 none
+ecs_results/score/read/s80_A_1301/read.json scratchpad2/r10round/ecs/score/read/s80_A_1301/read.json 80a7c3d29f643a48d2e1899940c6822c45c626b6d223dd1b0d0523ee94f19afe none
+ecs_results/score/read/s80_A_1311/m5.json scratchpad2/r10round/ecs/score/read/s80_A_1311/m5.json 3f6d33db4df9ef5d7125fe8366e863bde31287fb86cacc189113162ed82c74e0 none
+ecs_results/score/read/s80_A_1311/m5.txt scratchpad2/r10round/ecs/score/read/s80_A_1311/m5.txt 9acfc5e23ba1d0d45db80a19cde3b36bcbbb3384cffe1478e92672d1611015b8 none
+ecs_results/score/read/s80_A_1311/read.json scratchpad2/r10round/ecs/score/read/s80_A_1311/read.json b967c19c57b7fb828a9d6ee60f27d1b4e98b00aaca1d8bf5dd0290daa2165dcd none
+ecs_results/score/read/s80_A_1321/m5.json scratchpad2/r10round/ecs/score/read/s80_A_1321/m5.json e2b1090127e375574fe39eba45b68c6dda28396ee71038f60a50c368104d5f33 none
+ecs_results/score/read/s80_A_1321/m5.txt scratchpad2/r10round/ecs/score/read/s80_A_1321/m5.txt 7556f0081b1674048987b9df2fa78d5dcadbaeda9625d2b4a9c21f1ca0899a33 none
+ecs_results/score/read/s80_A_1321/read.json scratchpad2/r10round/ecs/score/read/s80_A_1321/read.json 8a79082d3e09a2923b23f5c0f5589f3dcfbf1af49423be2039a0bb6cedb74cb5 none
+ecs_results/score/read/s80_A_1331/m5.json scratchpad2/r10round/ecs/score/read/s80_A_1331/m5.json b8d1e976069929d5647748e5974b8d5a03a4492b687d26501433f4b494758fb3 none
+ecs_results/score/read/s80_A_1331/m5.txt scratchpad2/r10round/ecs/score/read/s80_A_1331/m5.txt 72bb50adca4433b93b66ea8cdd32b79523e29e09f5403630914d82182636d072 none
+ecs_results/score/read/s80_A_1331/read.json scratchpad2/r10round/ecs/score/read/s80_A_1331/read.json 38a49ae4b3c40d42023a8f3b75de44cc7eac26bb3f7f46da06d47ed9bfef956e none
+ecs_results/score/read/s80_A_1341/m5.json scratchpad2/r10round/ecs/score/read/s80_A_1341/m5.json 2b4996e1d28c66779d0618282b24d82cd118cea014bfbe8b47217990b994a2d3 none
+ecs_results/score/read/s80_A_1341/m5.txt scratchpad2/r10round/ecs/score/read/s80_A_1341/m5.txt bfc8fd9663898468b3df011bc6c39f8d7f5d3a3acc7b3e7af0a8c7afb46f15c9 none
+ecs_results/score/read/s80_A_1341/read.json scratchpad2/r10round/ecs/score/read/s80_A_1341/read.json c3fb9bed6ac989948981c306b60c6763602b7f6a9143c0f1c175133ac352cc48 none
+ecs_results/score/read/s80_A_1351/m5.json scratchpad2/r10round/ecs/score/read/s80_A_1351/m5.json f3d77b49f270f4d7407fb5d6390561df1eca58e539c658154b43cafb6e4ca966 none
+ecs_results/score/read/s80_A_1351/m5.txt scratchpad2/r10round/ecs/score/read/s80_A_1351/m5.txt 046c7fd863f9a121c7c64bce01caa73f5f4b42e5853839361c5cdc826ee8892d none
+ecs_results/score/read/s80_A_1351/read.json scratchpad2/r10round/ecs/score/read/s80_A_1351/read.json 08002b34e1e1c5134d26beb69c9399a72a2a63e71914816f53cea9ae6fe9080e none
+ecs_results/score/read/s80_B_1401/m5.json scratchpad2/r10round/ecs/score/read/s80_B_1401/m5.json ccb09c2bccfe69198a612ff40f2af65e2179133b073d217d40663985e92e8e41 none
+ecs_results/score/read/s80_B_1401/m5.txt scratchpad2/r10round/ecs/score/read/s80_B_1401/m5.txt 36058de570b82a8ca13df5fdd4444cf64e0e1a07d12256809f1b5c48fdd4c228 none
+ecs_results/score/read/s80_B_1401/read.json scratchpad2/r10round/ecs/score/read/s80_B_1401/read.json 453dc96c0178aa0e6087e211be9034d0ba541371fb8845e5c2bc2d556e7356de none
+ecs_results/score/read/s80_B_1411/m5.json scratchpad2/r10round/ecs/score/read/s80_B_1411/m5.json 706cbbb49bc1248349ab75e3ebbd238d5682ca2beb5789413d0b6f51c3aae859 none
+ecs_results/score/read/s80_B_1411/m5.txt scratchpad2/r10round/ecs/score/read/s80_B_1411/m5.txt ff5d28aa1730b973cc98e163fb6c891feb44be18be8f31d1d7d36a0ad29d6c8c none
+ecs_results/score/read/s80_B_1411/read.json scratchpad2/r10round/ecs/score/read/s80_B_1411/read.json d236118ade37c4bebe4dab697801cafea2e7afcc2ba7b5362dca607e29888c51 none
+ecs_results/score/read/s80_B_1421/m5.json scratchpad2/r10round/ecs/score/read/s80_B_1421/m5.json 6c5e051eaf31f03c0990abf45ad84ab15b43f0f7420c2f6956af6ea9ed3375c3 none
+ecs_results/score/read/s80_B_1421/m5.txt scratchpad2/r10round/ecs/score/read/s80_B_1421/m5.txt 5e9e8126023fb76128de068387c368452b41c5c2588cc2c48f2477cd91c9f77b none
+ecs_results/score/read/s80_B_1421/read.json scratchpad2/r10round/ecs/score/read/s80_B_1421/read.json d4ea4da5fbef0999bfaad7dd72b9d420cb963baa63050c79f171462937c01891 none
+ecs_results/score/read/s80_B_1431/m5.json scratchpad2/r10round/ecs/score/read/s80_B_1431/m5.json 680f336fb3936144e17b42dad2ea3286d50698b0fc74d280954fc1e976d7ebf5 none
+ecs_results/score/read/s80_B_1431/m5.txt scratchpad2/r10round/ecs/score/read/s80_B_1431/m5.txt 10964b41bb68898ff8d4789b1023c63e9bd19debd02a8eb37582b265c9d643d5 none
+ecs_results/score/read/s80_B_1431/read.json scratchpad2/r10round/ecs/score/read/s80_B_1431/read.json 8402a24a34bdacc0d067ad57ad5df3a69616347924f5b682fdd6aefb791c42c2 none
+ecs_results/score/read/s80_B_1441/m5.json scratchpad2/r10round/ecs/score/read/s80_B_1441/m5.json 1f80f54ff04213ab1f1aded4505c7929afa2e236d70919ca2a22d7ddbe81f970 none
+ecs_results/score/read/s80_B_1441/m5.txt scratchpad2/r10round/ecs/score/read/s80_B_1441/m5.txt 9109314da8a9c05eed313e02f1c761b3bbd02f72a1516b7693716fa88b1b47a1 none
+ecs_results/score/read/s80_B_1441/read.json scratchpad2/r10round/ecs/score/read/s80_B_1441/read.json dbeaf09002f3ea48c186f1249366ad353c143cb37ec186473779929040dd2dbf none
+ecs_results/score/read/s80_B_1451/m5.json scratchpad2/r10round/ecs/score/read/s80_B_1451/m5.json 808513bfe073ff6d1a0d6873f8d6c10c45277507b04628d326e1be358e00faf8 none
+ecs_results/score/read/s80_B_1451/m5.txt scratchpad2/r10round/ecs/score/read/s80_B_1451/m5.txt 954e99c520f71fe3cf30157547e4c451b58271f26d89bb5b3d57c2c9387d6c61 none
+ecs_results/score/read/s80_B_1451/read.json scratchpad2/r10round/ecs/score/read/s80_B_1451/read.json 05de5483c1d9f59b491b71c633e394979c3f91b001d857b3722159ba96471eee none
+ecs_results/score/score.json scratchpad2/r10round/ecs/score/score.json f86b9923b7bb5d8416216e70250912ae54e20e52bff74ce0ee094bea5e247e42 none
+ecs_results/score/score.txt scratchpad2/r10round/ecs/score/score.txt c3ba2144082dd923589445fc4e90ffc14ff9276673866d5ecca86756eff9ec9f none
+ecs_results/survey_design.txt scratchpad2/r10round/ecs/survey_design.txt 9937eb91f5f887653a8448bd20e9ff47070637b5be10f3a1c23ed1af7636cd05 redact
+ecs_results/tools/ecs_common.py scratchpad2/r10round/ecs/tools/ecs_common.py 05864c64d29944aaa849231a3d95f37a51aff13bc2811e6fdf7171f6bd12af57 none
+ecs_results/tools/read_ecs.py scratchpad2/r10round/ecs/tools/read_ecs.py 6f55b3b96bae795d46c3ef693b5b542895186adb4ccb51957076f3421c2fee15 none
+ecs_results/tools/run_ecs.py.gz scratchpad2/r10round/ecs/tools/run_ecs.py f136b7e35b34c35ccba8d69b5ff7ee8f6233c5ce58fcba539f25ed32cca585cf gzip
+ecs_results/tools/run_waves_ecs.sh scratchpad2/r10round/ecs/tools/run_waves_ecs.sh c007762ca72ebd888210e1a03f5a69f62b3a3eccf48e1fe921cf16b6c3caaae9 none
+ecs_results/tools/score_ecs.py scratchpad2/r10round/ecs/tools/score_ecs.py 51b2cbe340281917302c4e286f61dbeb34bf10ec8c9c80505cb4bb4a05017fba none
+ecs_results/tools/tests/test_harness_run_ecs.py scratchpad2/r10round/ecs/tools/tests/test_harness_run_ecs.py 0c7ebf200f4664a45d9845e8c742533907ca476171400ecdad1762eeca9f21e1 none
+ecs_results/tools/tests/test_harness_waves.py scratchpad2/r10round/ecs/tools/tests/test_harness_waves.py a999316c50133bb8e035cced6d47059916c32543c45899e1914a1b993aec2596 none
+ecs_results/tools/tests/test_read_score_fixtures.py scratchpad2/r10round/ecs/tools/tests/test_read_score_fixtures.py b5b941d022d09e9182f0a54e962119513c9d06bf7c9e28e1cb9f5f8fcafb0622 none
+ecs_results/tools/tests/test_read_score_mutants.py scratchpad2/r10round/ecs/tools/tests/test_read_score_mutants.py bb9f0f3fc711c10e44d81152dbd976ec5d7454822ae45c07c5d1b59b521bd970 none
+ecs_results/tools/tests/test_read_score_reader.py scratchpad2/r10round/ecs/tools/tests/test_read_score_reader.py 3c73623fe271045c814d54df3a056d68a2bc760795bbfd0aa02158af81feaa99 none
+ecs_results/tools/tests/test_read_score_scorer.py scratchpad2/r10round/ecs/tools/tests/test_read_score_scorer.py 39a8b340984ec8bbde11bf8ea9aced4dc0abdcca4ed6e992bbba73372f6434e4 none
+ecs_results/v2/decisions_ecs_v2.txt scratchpad2/r10round/ecs/v2/decisions_ecs_v2.txt 0be68293bf6e0e6d763082b26a83bd30958b7ce6916d924e03b61672d84eed66 redact
 literature/research_notes/balance_control_foot_mechanics.md "research_notes/T rex foot and standing balance/balance_control_foot_mechanics.md" 7ef05085ad42d1e907a786844f096d3736fc1c08e3f2b4795aab0a6059ad92f8 none
 literature/research_notes/bird_standing_balance.md "research_notes/T rex foot and standing balance/bird_standing_balance.md" ddf11be08cdecdc9cef9055829796c6b71352ca20dfc232f0858bf399f791ce5 none
 literature/research_notes/rl_standing_sensing.md "research_notes/T rex foot and standing balance/rl_standing_sensing.md" a9b02c5d9a46e4b897ff2154dbd9f072d50457004f7cc2b8c2312ba34daa211f none
@@ -1109,6 +1462,227 @@ symmetry/verdict_scripts/decide_final.py foot/symmetry/design/final/analysis/dec
 symmetry/verdict_scripts/recount_final.py foot/symmetry/design/final/analysis/recount_final.py bbb230e7635aba7e841fd360ab13be11a50cc32631cd44a5379206f50af834b2 none
 symmetry/verdict_scripts/test_decide_final.py foot/symmetry/design/final/analysis/test_decide_final.py e02f78831fa14cae0925398df79c54c72ba46197d5ae7b22b3ab09d6e184b776 none
 symmetry/verdict_scripts/verify_final.py foot/symmetry/design/final/analysis/verify_final.py f5c606860f0c5d465ca9e6002eb03df6868a9a5c8ec36fc1987988b0207c9f02 none
+tail_probes/clamp/NOTES.txt scratchpad2/com_revisit/notes/clamp/NOTES.txt b079f6a16de84d2456225349f381349bea660600274dc776aa1c170270c6efc2 none
+tail_probes/clamp/analysis.txt scratchpad2/com_revisit/notes/clamp/analysis.txt 01f64687f99e6f8b78a5dcfa7c8793891600583c09cac5b5a9947973c7c101cb none
+tail_probes/clamp/analyze_clamp.py scratchpad2/com_revisit/notes/clamp/analyze_clamp.py fcec43e83c8642e63474c6a9250c32dc7ef3a89b098a709d894177c654d537ef none
+tail_probes/clamp/check_long.py scratchpad2/com_revisit/notes/clamp/check_long.py 7ff0f8adfa940ba327d315d18c16a16bfa01471564d320594d074ab61c8ebae2 none
+tail_probes/clamp/check_long.txt scratchpad2/com_revisit/notes/clamp/check_long.txt ec5da0d8fd6115a4afd0e90d9517b39edad743a0877a838bd2e657f1c50a1a7d none
+tail_probes/clamp/d9_repro.err scratchpad2/com_revisit/notes/clamp/d9_repro.err 28d3b9e880a77975493dc7e359144c0295a4f694cfe0af4f928c22307bc5c320 none
+tail_probes/clamp/d9_repro.py scratchpad2/com_revisit/notes/clamp/d9_repro.py 0f93149e899d512dfcfb783f41720a67778ea183d53b6e5b3c12570b3e418ed8 none
+tail_probes/clamp/d9_repro.txt scratchpad2/com_revisit/notes/clamp/d9_repro.txt 58567dfb208bbdc40392eccec129619496d920acc3597a33db1bfa63b80341fa none
+tail_probes/clamp/per_policy_links.txt scratchpad2/com_revisit/notes/clamp/per_policy_links.txt 23a8ca6b4f7789a808b7b54515dd174404cee4fee10445da6166185d3dfec91d none
+tail_probes/clamp/probe_env.py scratchpad2/com_revisit/notes/clamp/probe_env.py 6fcc3234e3ba1d4b133bd185fd24855f32cbf13bc44f6b40d600af45dbba1a81 none
+tail_probes/clamp/probe_env.txt scratchpad2/com_revisit/notes/clamp/probe_env.txt e0472855b89bba908a391820d45dc72ec9f777030e97b897ac5699fd74f83e5d none
+tail_probes/clamp/probe_signs.py scratchpad2/com_revisit/notes/clamp/probe_signs.py c6bde6db7f5b7c61963a80854cceb52db2088ab98c2dfdd39a6d263662bc5cd0 none
+tail_probes/clamp/probe_signs.txt scratchpad2/com_revisit/notes/clamp/probe_signs.txt c6b1b21e98fcf5916414c59a879cc4e8051709595097b23c36a072bc18a4bf3b none
+tail_probes/clamp/rail_onset.txt scratchpad2/com_revisit/notes/clamp/rail_onset.txt 31217d3242b46e5296de218d67fcf98f219945eb0f6f3bcbfef02ff338e9ce38 none
+tail_probes/clamp/replay.finished scratchpad2/com_revisit/notes/clamp/replay.finished f716b9290ef88c7efed8c0467c23d6b4b62832719fc01ad4503f2a0541c11b4a none
+tail_probes/clamp/replay.started scratchpad2/com_revisit/notes/clamp/replay.started 933942d2ebffaea987c6fb8cfa9c5a4de15133c702bcad39b3479049dece7d18 none
+tail_probes/clamp/replay_p1.log scratchpad2/com_revisit/notes/clamp/replay_p1.log d7853c27b495c3c967f959cdc939f6f4e85905bd0f984220d9f887308219f3c6 none
+tail_probes/clamp/replay_p2.log scratchpad2/com_revisit/notes/clamp/replay_p2.log a4d53e19bdb14c1ca1f1fd8f8ed1baf77563e0359618d5c0dcf1f7b2c1310604 none
+tail_probes/clamp/run.finished scratchpad2/com_revisit/notes/clamp/run.finished 803c302ecc90db6775e60ae858eefbaaacee658be9ee553e342f3f722a53dbad none
+tail_probes/clamp/run.started scratchpad2/com_revisit/notes/clamp/run.started 4684682c007cfe26e82c7d24589c4a39cd63af277eb7592d8024a2f1acfbf597 none
+tail_probes/clamp/run_all.sh scratchpad2/com_revisit/notes/clamp/run_all.sh 5c71d35d251bb234999e3581a537a7fffa10f6b9c7f3bbd62fe42c51a6da0835 none
+tail_probes/clamp/run_clamp.py scratchpad2/com_revisit/notes/clamp/run_clamp.py c349c238ad2e16de38469c10c9a2be9c2377226b49af4890cf13fedc064e17a5 none
+tail_probes/clamp/run_d9.sh scratchpad2/com_revisit/notes/clamp/run_d9.sh ae9883c4a1cdbb462dcac2ac09824042eb55c71cc9c1b1298be117a53d474c69 none
+tail_probes/clamp/run_p1.log scratchpad2/com_revisit/notes/clamp/run_p1.log 9ecb14b0506455acd41acc928a69a8a4b1eee9bcf36e6b910bf8c873ffe84d9a none
+tail_probes/clamp/run_p2.log scratchpad2/com_revisit/notes/clamp/run_p2.log 57366c91a81baeb81b2b51293bb95163fc1ca1ad8943fabf17dc221a4e880fb9 none
+tail_probes/clamp/run_replay.py scratchpad2/com_revisit/notes/clamp/run_replay.py 554779356cb57019fdc0bca8be580f9ef28e88820a4f36d752c25da725133879 none
+tail_probes/clamp/run_replay_all.sh scratchpad2/com_revisit/notes/clamp/run_replay_all.sh 67afa04f9f1073196faf2ae554d6c568890e8a41280c207f5d3800106ce00d60 none
+tail_probes/clamp/run_start.py scratchpad2/com_revisit/notes/clamp/run_start.py ecc7e91784a7ea06e5a22352fbf5a792b4e78ffc411f8498f28a95b83a4e983c none
+tail_probes/clamp/run_start.sh scratchpad2/com_revisit/notes/clamp/run_start.sh 0f9393b4cb6e05f60bf0c9c2acd1062caa49f838af77d3c3c6cc607e6c56961b none
+tail_probes/clamp/start.finished scratchpad2/com_revisit/notes/clamp/start.finished ee1f2105dba81fe80c4edb7c0f0b4b3a96a5a2715edd448dd6d2459708c127ad none
+tail_probes/clamp/start_p1.log scratchpad2/com_revisit/notes/clamp/start_p1.log e70907a88a97a2e707b33874795a4eeeff8e14f0459b8c4247b97c6f6f4c1cd0 none
+tail_probes/clamp/start_p2.log scratchpad2/com_revisit/notes/clamp/start_p2.log d85380a8dfbd7377dac518d297203e87136ec391d59f7c10f71b5fbf7ac7411b none
+tail_probes/normaliser/NOTES.txt scratchpad2/com_revisit/notes/probe/NOTES.txt cda5d5705ea0896d10a483f6e5cbe722ddadb7a7e36fa4b9d709721ec5e0ed9e none
+tail_probes/normaliser/analyze_static.py scratchpad2/com_revisit/notes/probe/analyze_static.py 69abf4348804e799924bce741f1fb97cad34300d929ae59629af6e73243207d4 none
+tail_probes/normaliser/analyze_swaps.py scratchpad2/com_revisit/notes/probe/analyze_swaps.py 8a8939523efada7fb46c25d977dbeedb5cb3b38e6c7c1b0f61100ed6f95bf8de none
+tail_probes/normaliser/ckpts.finished scratchpad2/com_revisit/notes/probe/ckpts.finished 78cbcd3ca83deec407ba1f30cb547701c6fd4f3dc3694f22f08eda24cf3e3245 none
+tail_probes/normaliser/ckpts.log scratchpad2/com_revisit/notes/probe/ckpts.log db00366f5e7716f04ffdde0952d1bc8e3ac1445bc79010f4f43172d5b75b4eee none
+tail_probes/normaliser/ckpts.started scratchpad2/com_revisit/notes/probe/ckpts.started f6c59452fa3ba92733b6095d8fe16dd5a12979ecfc8d87ff25e851b22bbeca37 none
+tail_probes/normaliser/hybrid.txt scratchpad2/com_revisit/notes/probe/hybrid.txt fd08b6e3164d4b8925175d4acf9b4781c84eb3a3ddc2535e5f8e772f328e0ef8 none
+tail_probes/normaliser/hybrid_probe.py scratchpad2/com_revisit/notes/probe/hybrid_probe.py b7135b44ec2042e625d6b1932f9bb504dba769ba244df1043946563e1e3b63e8 none
+tail_probes/normaliser/implied_window.py scratchpad2/com_revisit/notes/probe/implied_window.py e3f3b703330fedb29ad8e6152b0a3bb2bf572cbf8cc821632c0c5ea375ebde96 none
+tail_probes/normaliser/implied_window.txt scratchpad2/com_revisit/notes/probe/implied_window.txt 1b93e410ceb8a8abc918cb46ae11b71e7bbe599c59136576ffe314036000786e none
+tail_probes/normaliser/layout.json scratchpad2/com_revisit/notes/probe/layout.json 1f3232f2381c5a6d934c3b3db93ef9a1fba4ed5083ea782dfc7da2dfbe602baf none
+tail_probes/normaliser/layout.txt scratchpad2/com_revisit/notes/probe/layout.txt 07ee01468338e048032704e6e65d11237b44c8bca1ad21a4588ded9c475411d8 none
+tail_probes/normaliser/mean_vs_var.py scratchpad2/com_revisit/notes/probe/mean_vs_var.py beff564010b35cc952b68849a045e4b1ae73ffef5995893f1645d0082ed90279 none
+tail_probes/normaliser/mean_vs_var.txt scratchpad2/com_revisit/notes/probe/mean_vs_var.txt 748774fffa0cbb310b2ed887022a7e1d8da70836d9f7a87ef0d0d45d84c40754 none
+tail_probes/normaliser/probe_common.py scratchpad2/com_revisit/notes/probe/probe_common.py 02fd34bc2188fbca7d6c0843f7ea36b3e14fc0edf79767b0d2ac966d0d4711cb none
+tail_probes/normaliser/probe_layout.py scratchpad2/com_revisit/notes/probe/probe_layout.py 7f01395d3140104ad6c2ad778324d7e5220bba3989425d9293cb5d56da6d7a0d none
+tail_probes/normaliser/read_stats.py scratchpad2/com_revisit/notes/probe/read_stats.py 63ec11c591c154a2f1782e97d89774d579d057c905fbcb25a6effdd27d47a6e3 none
+tail_probes/normaliser/run_ckpts.py scratchpad2/com_revisit/notes/probe/run_ckpts.py e4a43fd39848da27d301ab0a80262b9c911c10887f7d95ac44e74851bf9a5414 none
+tail_probes/normaliser/run_step2.sh scratchpad2/com_revisit/notes/probe/run_step2.sh 840fa6a2772b60310b659d69285e6329442f40d27cb74e7a50f3b877a41fab4a none
+tail_probes/normaliser/run_step3.sh scratchpad2/com_revisit/notes/probe/run_step3.sh c09532b9b445463fab6aea1e8177604d54d221d47887de7a76acadd388292365 none
+tail_probes/normaliser/run_swaps.py scratchpad2/com_revisit/notes/probe/run_swaps.py 1250eb50080fbc52b71ebb852f2646d0d48054af7524aaa9c71de3dadfb4e90d none
+tail_probes/normaliser/static.err scratchpad2/com_revisit/notes/probe/static.err c36d14a2ffe14c98b18dbb656d0de7827d055909d24c7261811f423b00e921c2 none
+tail_probes/normaliser/static.json scratchpad2/com_revisit/notes/probe/static.json 2d71a91eb9a9b0ef59766c685498fcdccc28c0ea140d4f49bf8b2505e4230925 none
+tail_probes/normaliser/static.txt scratchpad2/com_revisit/notes/probe/static.txt c3b785f67e75a3e51a3521f308c70158cdfe594ec97c692f4d1701c9af13c51b none
+tail_probes/normaliser/stats.err scratchpad2/com_revisit/notes/probe/stats.err a6d57b40ea76a2cb46e043352c66353718a121f96707f70c485669c25d222a7f none
+tail_probes/normaliser/stats.txt scratchpad2/com_revisit/notes/probe/stats.txt 0de89a08454e92c0bdfcefe2988b74a52c6dffcd9ec8c1de0d69272bdc5fefbf none
+tail_probes/normaliser/swaps.finished scratchpad2/com_revisit/notes/probe/swaps.finished aac01b05d69e8229400027389077cf07295599730104d7fd84f351c57f03e1bf none
+tail_probes/normaliser/swaps.started scratchpad2/com_revisit/notes/probe/swaps.started c290d01950e5e09c85a193a001fcec4e96f3a2fd98bc9f31bdaf39c57482162e none
+tail_probes/normaliser/swaps.txt scratchpad2/com_revisit/notes/probe/swaps.txt b3b98f7b20a07632322ea2e9de020143e279b744a41a1c8d885f54e8c9e08ea0 none
+tail_probes/normaliser/swaps_s42.log scratchpad2/com_revisit/notes/probe/swaps_s42.log 92f37dec7bc792f0e4fb3e5b0394b1c16f640c278d47dc4867ecefff2bac6252 none
+tail_probes/normaliser/swaps_s42_t3q.log scratchpad2/com_revisit/notes/probe/swaps_s42_t3q.log 24ab55550d0b0030cf573834ef2daff0621c48eed76aa1e7a6d548ea2144cf21 none
+tail_probes/normaliser/swaps_s80.log scratchpad2/com_revisit/notes/probe/swaps_s80.log d543c2126070248473a79c1b85cfba49ee315676502bb411b1991d29e1bc327c none
+tail_probes/normaliser/swaps_summary.json scratchpad2/com_revisit/notes/probe/swaps_summary.json 4e1ed6e18781abe65c7136ebf6e85c9d65c74c3fa1f985be48fb8f5d95afacd7 none
+tail_probes/normaliser/swaps_t3q.finished scratchpad2/com_revisit/notes/probe/swaps_t3q.finished b825bca041e67e9a6d8e8f449b39f11c1fceaaa85bdb50d2c9872632d7e72848 none
+tail_probes/normaliser/term_deltas.py scratchpad2/com_revisit/notes/probe/term_deltas.py efaf79e2d5a4f39928ca36d7b4b3bc9091652c16a7558b925f73a709caa1bf21 none
+tail_probes/normaliser/term_deltas.txt scratchpad2/com_revisit/notes/probe/term_deltas.txt ef9b67f08c193245436c57da4bff620d8399d62df2a94f8da13457a8734a74bd none
+tail_probes/normaliser/weights.txt scratchpad2/com_revisit/notes/probe/weights.txt 9d6b3833db28dc0517233842c26bd209cda22c83a0986d022f4a105f4111161b none
+tail_probes/normaliser/weights_probe.py scratchpad2/com_revisit/notes/probe/weights_probe.py c4fea5b04906f125acd34e8c6c5a5ca9d2bf9d6971157ceb7315f0bc5ca8cd58 none
+tail_probes/posture_policy/NOTES.txt scratchpad2/com_revisit/notes/posture_policy/NOTES.txt 39625abe8ea30479c2f1b22d49d2a5fbd54b6303b2d6ed8dd9c55218bca4f585 none
+tail_probes/posture_policy/analysis_cl.txt scratchpad2/com_revisit/notes/posture_policy/analysis_cl.txt 559d856d0d859ee792504ec734e32ad2092f16ead5fe1a1d980ec487a5883c80 none
+tail_probes/posture_policy/analysis_cl_base.txt scratchpad2/com_revisit/notes/posture_policy/analysis_cl_base.txt 89b9ebd369dcf9e1d994d49991c2d5f3ee0dbab1749859c77d734e7296610a7b none
+tail_probes/posture_policy/analysis_long.txt scratchpad2/com_revisit/notes/posture_policy/analysis_long.txt ee1e7e6e99548d7b36ef69dbbec3be545b2ddd3763b8cd68489279088eb0f0cd none
+tail_probes/posture_policy/analysis_plant.txt scratchpad2/com_revisit/notes/posture_policy/analysis_plant.txt 1c58030f1cec75bdaff60b37d87ca1bd15dfb99cba749991a1253e7b98c64056 none
+tail_probes/posture_policy/analyze_cl.py scratchpad2/com_revisit/notes/posture_policy/analyze_cl.py 7674cbdf1eae609f7f6501e03d069912c4d58167a7008a3652f4c82ff764d98c none
+tail_probes/posture_policy/analyze_long.py scratchpad2/com_revisit/notes/posture_policy/analyze_long.py e599672b86f74233f3025e710677af7168fb7a1509ec83b1c1514a84086fba3c none
+tail_probes/posture_policy/analyze_plant.py scratchpad2/com_revisit/notes/posture_policy/analyze_plant.py a7b574600ed5bc87f2c07dbf0ec03a888ab45f5b5b37fb7006d1e33d31b37a7f none
+tail_probes/posture_policy/cross_policy.py scratchpad2/com_revisit/notes/posture_policy/cross_policy.py 5335ddfd2f81244c11c5f43f2cd9d37294b74af44c4e4246aebb67409e234156 none
+tail_probes/posture_policy/cross_policy.txt scratchpad2/com_revisit/notes/posture_policy/cross_policy.txt 9b7e1156a89191cc17a4857de41d360851ae4dbf70f3daaef05e85bb44e02ef5 none
+tail_probes/posture_policy/plant_pitch.json scratchpad2/com_revisit/notes/posture_policy/plant_pitch.json 0a98e608c4272e0d41d6d34b3c7b36bcc260ce486d95d4c016aec7e94ce36a3a none
+tail_probes/posture_policy/plant_pitch.py scratchpad2/com_revisit/notes/posture_policy/plant_pitch.py 37c968a0fed0a2ca7d8cd2779d24507545766bb260a046eaa4dc9c49f0763de7 none
+tail_probes/posture_policy/plant_pitch.txt scratchpad2/com_revisit/notes/posture_policy/plant_pitch.txt 4f7c4127f9c4a5c7db040b5adf5697ba357ca281a8f90fdb986267162ed3e530 none
+tail_probes/posture_policy/pp_common.py scratchpad2/com_revisit/notes/posture_policy/pp_common.py 675b12f8a213c1c9e1955bfa10d2cea7c59939a21db1c2cd33265812353ae5a6 none
+tail_probes/posture_policy/probe_obs.py scratchpad2/com_revisit/notes/posture_policy/probe_obs.py e745c2009c5c7f0b3e24d873142c834599e2b247ca752ee8d3d9a1fa1b400b2d none
+tail_probes/posture_policy/probe_obs.txt scratchpad2/com_revisit/notes/posture_policy/probe_obs.txt 1b4dd203a77f926c0036b539b6ebe1745444af3084001844fc122d4b12fd6c0d none
+tail_probes/posture_policy/q1_away.log scratchpad2/com_revisit/notes/posture_policy/q1_away.log 143985c4ae4e42115aba239f4e4afbb8ecce2895c4bd794a3d42c1a39126bcbf none
+tail_probes/posture_policy/q1_base.log scratchpad2/com_revisit/notes/posture_policy/q1_base.log b99a26397a4a53d3f335c7395484085e0c5bbe12fafff8fae74f49a92815088b none
+tail_probes/posture_policy/q1_toward.log scratchpad2/com_revisit/notes/posture_policy/q1_toward.log bbfb24331bedab1594d1c5695f8410f1b35037b8f4981fa06d25a70d7856a495 none
+tail_probes/posture_policy/q3.finished scratchpad2/com_revisit/notes/posture_policy/q3.finished c05f965ce7e40278d556fe5b31649b95fdd96b89dd0bc02386f356e87c0c9d2a none
+tail_probes/posture_policy/q3.started scratchpad2/com_revisit/notes/posture_policy/q3.started 133585b37e0219a95dff245c9b704b60bee40e1dff069443805e2742c43fa72b none
+tail_probes/posture_policy/q4.finished scratchpad2/com_revisit/notes/posture_policy/q4.finished a544f9875073ca0a153fc2bb1af8ddff6a48312c04b55b71fea132352caee523 none
+tail_probes/posture_policy/q4.started scratchpad2/com_revisit/notes/posture_policy/q4.started 674ce343bd1814fdcc4412b4c92b8f052a97e84ad2987b1a7125502ba5ec0243 none
+tail_probes/posture_policy/q4_long.log scratchpad2/com_revisit/notes/posture_policy/q4_long.log 558b19f90d7a65992b8cbf89848ee6a6bcdfb06586ccf5bb9d00d9f5e7c500e9 none
+tail_probes/posture_policy/q4_replay.log scratchpad2/com_revisit/notes/posture_policy/q4_replay.log 04de78ecde129fb7637fc64c42a26c50c71c695f4468ebadd1f17664b955fc8b none
+tail_probes/posture_policy/q4_static.log scratchpad2/com_revisit/notes/posture_policy/q4_static.log 4ca8ad6a750cbd13459644775188155e23a2473973dc9ae9fc1a2d92732da54a none
+tail_probes/posture_policy/q4_towardgrav.log scratchpad2/com_revisit/notes/posture_policy/q4_towardgrav.log c79ac7737d60cbe7cefaa99d91f4c363423bcba7c156f30b60712c657c16413d none
+tail_probes/posture_policy/r9_probe_plant_copy.py scratchpad2/com_revisit/notes/posture_policy/r9_probe_plant_copy.py e262fcbc7649be5736ee0d44363732f977132900e76d1253591e63e662b942e5 none
+tail_probes/posture_policy/run_base.py scratchpad2/com_revisit/notes/posture_policy/run_base.py 94ef24bc71be08accbdaf4d9e655a5e9f38ce7c658a93d7793f1716008d167d7 none
+tail_probes/posture_policy/run_long.py scratchpad2/com_revisit/notes/posture_policy/run_long.py 89320c6992655c2ef01d8ddb3a1479617d197432481c4f1e5efb43a0fa6c6d79 none
+tail_probes/posture_policy/run_plant.py scratchpad2/com_revisit/notes/posture_policy/run_plant.py 7a4b2ef915484ee27bfee28926c2d0b185e68bb432d3b09c1d20c6305e10374f none
+tail_probes/posture_policy/run_policies_copy.py scratchpad2/com_revisit/notes/posture_policy/run_policies_copy.py 197711132c4c71b195eb47c9f309b08f92f27d94b79061587e1367081fbad60d none
+tail_probes/posture_policy/run_queue1.sh scratchpad2/com_revisit/notes/posture_policy/run_queue1.sh 1381a6d26612e61f0be2d9e61c718d5138bed263908586f7436f8abca1f59da6 none
+tail_probes/posture_policy/run_queue2.sh scratchpad2/com_revisit/notes/posture_policy/run_queue2.sh fec8e4c3c11fbbffe79c1d2ed5b8645f897b6d988b084fb30a7040a795580fce none
+tail_probes/posture_policy/run_queue3.sh scratchpad2/com_revisit/notes/posture_policy/run_queue3.sh 9fc8db76645580b90e7acc57d6f89fee76d796d83e6755021015284af91916db none
+tail_probes/posture_policy/run_queue4.sh scratchpad2/com_revisit/notes/posture_policy/run_queue4.sh dc922e992fae03486b732dff8e00fb9e656d48c73c595e84653184e052f79eab none
+tail_probes/posture_policy/summarize_sweep.py scratchpad2/com_revisit/notes/posture_policy/summarize_sweep.py 546865024bf98616b86fb7d0287b43883f3503c7ac92cab00e6dadb17984ae4d none
+tail_probes/posture_policy/sweep.log scratchpad2/com_revisit/notes/posture_policy/sweep.log 32599c15e5cdf6f9765e07ffee58f26adce775764d239e1d5f664c8cf5ec68dd none
+tail_probes/posture_policy/sweep.py scratchpad2/com_revisit/notes/posture_policy/sweep.py 1adc4df9918ca1a396875295d8ce779f18c2e6bc320e748967c122ba4c0a0c3a none
+tail_probes/posture_policy/sweep.txt scratchpad2/com_revisit/notes/posture_policy/sweep.txt 298639fa42db1376a9c5a4ba3c1997accabf4f47e529aae2677246fc546c6f68 none
+tail_probes/posture_policy/sweep_extra.json scratchpad2/com_revisit/notes/posture_policy/sweep_extra.json 968cdf485e122787d3d9c8ddc7f325b9c03e854ac2004fffd136d47d91e53ab5 none
+tail_probes/posture_policy/sweep_extra.py scratchpad2/com_revisit/notes/posture_policy/sweep_extra.py c7d2b50e2dacc2a54d50b9232fe65b8b08ce4a3a570c0c1b5063340c334abf70 none
+tail_probes/posture_policy/sweep_extra.txt scratchpad2/com_revisit/notes/posture_policy/sweep_extra.txt 22f87c12524337359a4b65e4c1ced796ddda6d4cf369e3d978c8b1b488edd697 none
+tail_probes/posture_policy/verify_loop_copy.py scratchpad2/com_revisit/notes/posture_policy/verify_loop_copy.py 097f8ddb69e669d1e24ffd83b11d6e0a1a4f8ad1aa6ebc148e1b2a0bb08300c3 none
+tail_probes/posture_policy/verify_sim_copy.py scratchpad2/com_revisit/notes/posture_policy/verify_sim_copy.py aff9868b79863b73ade4db178bc73ae1d356f321476af689408ec39e9ebc0679 none
+tail_probes/posture_timing/NOTES.txt scratchpad2/com_revisit/notes/posture_timing/NOTES.txt bad88def9842578ef197590b7bc0e78908f74c01698ef1816d2fd872ddfc88a1 none
+tail_probes/posture_timing/bank_drive.py scratchpad2/com_revisit/notes/posture_timing/bank_drive.py c559b1c79f1c0f47a7760e7f2684052e2cb0ce2b775efa38c85bfe5be3091b51 none
+tail_probes/posture_timing/bank_drive.txt scratchpad2/com_revisit/notes/posture_timing/bank_drive.txt cd61044a94851e329b33935bb4e5994a47b79025d77a71ad6e8c98d64fd26645 none
+tail_probes/posture_timing/ecs_comovement.py scratchpad2/com_revisit/notes/posture_timing/ecs_comovement.py 187434bd5090fd23008f501e06f1df87c135b6d8fecabb74f778518f1416cd12 none
+tail_probes/posture_timing/ecs_comovement.txt scratchpad2/com_revisit/notes/posture_timing/ecs_comovement.txt 570df1f8c5af1e5732f86eb3d6480a21d81ccb6b2401e7a4d6e65c3793692ae8 none
+tail_probes/posture_timing/ecs_series.json scratchpad2/com_revisit/notes/posture_timing/ecs_series.json f441a70c1f6212dff5a5dcac21638d703b2d15e04a9d47037b0ef4b782a3205f none
+tail_probes/posture_timing/inventory.py scratchpad2/com_revisit/notes/posture_timing/inventory.py 1804623a3646a276eba51e2afbddf2aeb6b0329bbfc0ebb75c2fe8f8432dcd2a none
+tail_probes/posture_timing/inventory.txt scratchpad2/com_revisit/notes/posture_timing/inventory.txt f3bdfb02f1ec51a101eaaf1d08905935d47a247fa3efc8e19b93c43b53547922 none
+tail_probes/posture_timing/prop_timing.py scratchpad2/com_revisit/notes/posture_timing/prop_timing.py 8e057b4e3ddba04d4f1032e25a869a4241d81b387979be401669b25516689b48 none
+tail_probes/posture_timing/prop_timing.txt scratchpad2/com_revisit/notes/posture_timing/prop_timing.txt dc2d85cf0df52f2c22575e218ea58b2c36b6228e9160efc23be952d76fc61431 none
+tail_probes/posture_timing/pt_common.py scratchpad2/com_revisit/notes/posture_timing/pt_common.py 4ca6ecab5e907501debf866439f067d4836b439e0be4afbc0616b8bfd5fad4ce none
+tail_probes/posture_timing/r10_timeline.py scratchpad2/com_revisit/notes/posture_timing/r10_timeline.py e61e88ee639d21320af53f3456dbb97a91343c4a97659032cbd80f55ba39ce88 none
+tail_probes/posture_timing/r10_timeline.txt scratchpad2/com_revisit/notes/posture_timing/r10_timeline.txt ee8ec96890ce5085d61349bdccfa324743cc20f6ce26bc19dfe9f0674dc6f383 none
+tail_probes/posture_timing/r10_timing.json scratchpad2/com_revisit/notes/posture_timing/r10_timing.json 7375da888b2e09e4527a4386f3018bda75b916f343f830bd5354124da629106c none
+tail_probes/posture_timing/r9_timeline.py scratchpad2/com_revisit/notes/posture_timing/r9_timeline.py 7467aec330a74f0dffa28989a97f8fff166d9f90406eb4c40fb18c8827a9b9c2 none
+tail_probes/posture_timing/r9_timeline.txt scratchpad2/com_revisit/notes/posture_timing/r9_timeline.txt 8d5ce85851e8e10ab6c89171a5714c6afee99368389ea1a32b1692f9329f04fc none
+tail_probes/posture_timing/ts_comovement.py scratchpad2/com_revisit/notes/posture_timing/ts_comovement.py 2f323298657ae5d5ae5ec49164e8f9517a3698ca85f7d406d8a897d691eac57e none
+tail_probes/posture_timing/ts_comovement.txt scratchpad2/com_revisit/notes/posture_timing/ts_comovement.txt 015402c5c915df580bdfa8cff453a39ef7522dc2f78e32aa777d1308e28e24c0 none
+tail_probes/verify_clamp/NOTES.txt scratchpad2/com_revisit/notes/verify_clamp/NOTES.txt 1e4cc843517b8704e891945efab0f93dce53bd8dd331fcaf52de24e2b5d1c974 none
+tail_probes/verify_clamp/compare.py scratchpad2/com_revisit/notes/verify_clamp/compare.py 4cea987fcbd52afbaf1aeea23bd85e58cfd673cc79c46800decd856301384a91 none
+tail_probes/verify_clamp/compare.txt scratchpad2/com_revisit/notes/verify_clamp/compare.txt 1e075e76bada5ae0e7c97c7c4117c0f453b6c4e750c99fdc0fb7809b1f3306f5 none
+tail_probes/verify_clamp/loop_summary.py scratchpad2/com_revisit/notes/verify_clamp/loop_summary.py 352d87816342f4a730571e48d03fd634a9b4d113b64d01f59c08dbb56c3fd1fa none
+tail_probes/verify_clamp/loop_summary.txt scratchpad2/com_revisit/notes/verify_clamp/loop_summary.txt f4cbf4f77567a654f229f022214a2f4f550d1608dd40ba2119dd3f74e6aba17a none
+tail_probes/verify_clamp/onset.py scratchpad2/com_revisit/notes/verify_clamp/onset.py b5b5092bda90b1a674b4979ec58948d2d3160af73ed7f6e3a8b52fc804ae5a83 none
+tail_probes/verify_clamp/onset.txt scratchpad2/com_revisit/notes/verify_clamp/onset.txt e9d9f2e1d19333487cd2b092efc295c2b4f13f0aaf8642ea748146faeb32da91 none
+tail_probes/verify_clamp/out/finished scratchpad2/com_revisit/notes/verify_clamp/out/finished 59bfd3493762a2b86b3592f86b6820e2ffbaf0af52a69f303e686c17c9ceedc0 none
+tail_probes/verify_clamp/out/loop_finished scratchpad2/com_revisit/notes/verify_clamp/out/loop_finished a218f17e8e01743f2ef9f1a9ac78dcb8a813bdeea7bede68c3e56383b22880fb none
+tail_probes/verify_clamp/out/loop_p1.log scratchpad2/com_revisit/notes/verify_clamp/out/loop_p1.log 8e9c98f21de634fb551162b6105a9bf8be0b0317900421a5a8a80605b24b1239 none
+tail_probes/verify_clamp/out/loop_p2.log scratchpad2/com_revisit/notes/verify_clamp/out/loop_p2.log cb1412bc81555f18d82ab42986e3e666d47432860acc594b0b8d82901726953e none
+tail_probes/verify_clamp/out/p1.log scratchpad2/com_revisit/notes/verify_clamp/out/p1.log 4384fdedca6dfd9891e7766f427924f230c689e803d565cf9d761af6637d4f25 none
+tail_probes/verify_clamp/out/p2.log scratchpad2/com_revisit/notes/verify_clamp/out/p2.log 90712c5b53049d30d5af3d5bf925a3e133c81d15b1e05eec6cd827c8892bc9bd none
+tail_probes/verify_clamp/out/started scratchpad2/com_revisit/notes/verify_clamp/out/started 3121e5bdc8406d7ef8c481603bc633fe0036ca86228f2215ea33862dd525d7c6 none
+tail_probes/verify_clamp/recompute.py scratchpad2/com_revisit/notes/verify_clamp/recompute.py a12e21cd60ea9faf91d0c1edd2ebeaccba587b6377f0e3415fb8c86f12fbd49d none
+tail_probes/verify_clamp/recompute.txt scratchpad2/com_revisit/notes/verify_clamp/recompute.txt 7ef6e40bdd5e33bab685a0da7470db112c6ea33716fb6f493ef6a9c989306f7e none
+tail_probes/verify_clamp/run_loop.sh scratchpad2/com_revisit/notes/verify_clamp/run_loop.sh 3b31a60c238e2a4f088473dcc6fd85876c097a446d13801a4321a0cd7bfb2551 none
+tail_probes/verify_clamp/run_verify.sh scratchpad2/com_revisit/notes/verify_clamp/run_verify.sh 003e7840e3fbbd214609b8ad3b44757c309c880f893b345ce1a5f485bd7f0472 none
+tail_probes/verify_clamp/start_coupling.py scratchpad2/com_revisit/notes/verify_clamp/start_coupling.py 2d39b72c99aedf9dca40ae2b918bdc496d721deeabfde139bdbffffd3fb2a547 none
+tail_probes/verify_clamp/start_coupling.txt scratchpad2/com_revisit/notes/verify_clamp/start_coupling.txt 97f50498285aab123cd2c597b2078f3ae431b7e3346a7c88b96ac1a9dc1995ac none
+tail_probes/verify_clamp/static_tail.err scratchpad2/com_revisit/notes/verify_clamp/static_tail.err 6725d33bec46e51105cbd14db78b4fa397ff740a394dabded08a4e00bdc592d1 none
+tail_probes/verify_clamp/static_tail.py scratchpad2/com_revisit/notes/verify_clamp/static_tail.py 6e660de38d720533d78d6aa11902eaf741d46eeccfa814a93af96957e9f3741d none
+tail_probes/verify_clamp/static_tail.txt scratchpad2/com_revisit/notes/verify_clamp/static_tail.txt c6ed8ee0388e4719f437350304a0f78b610214c9b29be3992b4e94e876f71681 none
+tail_probes/verify_clamp/verify_loop.py scratchpad2/com_revisit/notes/verify_clamp/verify_loop.py 097f8ddb69e669d1e24ffd83b11d6e0a1a4f8ad1aa6ebc148e1b2a0bb08300c3 none
+tail_probes/verify_clamp/verify_sim.py scratchpad2/com_revisit/notes/verify_clamp/verify_sim.py aff9868b79863b73ade4db178bc73ae1d356f321476af689408ec39e9ebc0679 none
+tail_probes/verify_normaliser/NOTES.txt scratchpad2/com_revisit/notes/verify_probe/NOTES.txt 878e205803b911a20d148d5d30552aba4e71de8d0dd8cf38fbd38533bef821a3 none
+tail_probes/verify_normaliser/run_v_loop.sh scratchpad2/com_revisit/notes/verify_probe/run_v_loop.sh 2eb6bfacdae3c19d5c33b970271ab5b6035d0af6167e7d1eddc43f52717c9766 none
+tail_probes/verify_normaliser/v_analyze.py scratchpad2/com_revisit/notes/verify_probe/v_analyze.py 37ecd34e24d7f5341536976ecc1b97a9e7840ac75770600a2be2ae35c4214311 none
+tail_probes/verify_normaliser/v_analyze.txt scratchpad2/com_revisit/notes/verify_probe/v_analyze.txt 7cbaed83fb6317ea08aa4094761540ec08f105987c3c74395d10d1273bb50389 none
+tail_probes/verify_normaliser/v_check_eval.py scratchpad2/com_revisit/notes/verify_probe/v_check_eval.py a63f35e57c01c02a4862250f27c385cb4987d757179e31ab0862362d20261343 none
+tail_probes/verify_normaliser/v_check_eval.txt scratchpad2/com_revisit/notes/verify_probe/v_check_eval.txt e6f46878d760117e8867585d06aed720da9e634ed1d2530c829e6f46350035e2 none
+tail_probes/verify_normaliser/v_ckpts.jsonl scratchpad2/com_revisit/notes/verify_probe/v_ckpts.jsonl e2cfed0200208db5d0e27e45b14d475280afe13c6f36e45b63ca5840f6d3758f none
+tail_probes/verify_normaliser/v_ckpts.log scratchpad2/com_revisit/notes/verify_probe/v_ckpts.log 4c70d8a84f2eddc2ac3c2ca2fb5965a08b05b48af75a0cd38e2ae55bc5d57b1f none
+tail_probes/verify_normaliser/v_common.py scratchpad2/com_revisit/notes/verify_probe/v_common.py b6f95089aaad837f018e5aa8b0aa3759a4b801ad51fdf136f9b70a4ff8800230 none
+tail_probes/verify_normaliser/v_jz.py scratchpad2/com_revisit/notes/verify_probe/v_jz.py dc3d41a22c98663db1e9e9b15c69bccda0c9c973be3dace26c27602cf97b8ca0 none
+tail_probes/verify_normaliser/v_jz.txt scratchpad2/com_revisit/notes/verify_probe/v_jz.txt 4952ffbd281767c56af46fa644df4301ee59fd42ae199105226f6623e3c40d4b none
+tail_probes/verify_normaliser/v_layout.py scratchpad2/com_revisit/notes/verify_probe/v_layout.py 9082a1b4974f4b6f240c841d602601272da62f7a2a01416b72f87326cddd29ef none
+tail_probes/verify_normaliser/v_layout.txt scratchpad2/com_revisit/notes/verify_probe/v_layout.txt 74e4018f650ff2e4903e9fe6b64818d02d4f441bc154b26ff97b3047d39962b5 none
+tail_probes/verify_normaliser/v_loop.finished scratchpad2/com_revisit/notes/verify_probe/v_loop.finished 63ae5a8d0405a4381ef677d3e25b44e13d1b83b22817a5337ce99e5ec3010689 none
+tail_probes/verify_normaliser/v_loop.py scratchpad2/com_revisit/notes/verify_probe/v_loop.py 4c5258138a10396093cbf6459bf9ea5f3c71e4965848bf012018cc914b5bb7eb none
+tail_probes/verify_normaliser/v_loop.started scratchpad2/com_revisit/notes/verify_probe/v_loop.started 4fcc6ea6d06a0574fe3452c7d9871dd6b2e0a3402bb6be4671be8f37d5434930 none
+tail_probes/verify_normaliser/v_range.py scratchpad2/com_revisit/notes/verify_probe/v_range.py d16454c34c9c0a23173612e50e2f9f46a8ab59304d11d1e89eba6d8bfacfc062 none
+tail_probes/verify_normaliser/v_range.txt scratchpad2/com_revisit/notes/verify_probe/v_range.txt 1a1fc239bd23c2329e5f8405f22ad6c09886bb665323ef3e1f976f5a8e301c31 none
+tail_probes/verify_normaliser/v_s80clip.py scratchpad2/com_revisit/notes/verify_probe/v_s80clip.py c3b5485db9bcc0f031c260142e661c6f00a19b4212aaee13957082dad3d1ad7d none
+tail_probes/verify_normaliser/v_s80clip.txt scratchpad2/com_revisit/notes/verify_probe/v_s80clip.txt 29d1d01f1c58475bc01957efbc9a16cd6eaca39f2d3f406e0aeb5ccfd9b00813 none
+tail_probes/verify_normaliser/v_s80ends.jsonl scratchpad2/com_revisit/notes/verify_probe/v_s80ends.jsonl e0d2e7de35c90287d1aa422266818dbfbe77d068cc7aa322a3d1f9bb38b1979c none
+tail_probes/verify_normaliser/v_s80ends.log scratchpad2/com_revisit/notes/verify_probe/v_s80ends.log 5ff2cfd08076b5550920e44adeb29d44b6bf88a165209745ad618994fbd85114 none
+tail_probes/verify_normaliser/v_stats.py scratchpad2/com_revisit/notes/verify_probe/v_stats.py 1de7ee4ec9215f932e2a81543f6fdf2750ce7ce879cd52442a6ca18c43b3e8c2 none
+tail_probes/verify_normaliser/v_stats.txt scratchpad2/com_revisit/notes/verify_probe/v_stats.txt d0a47ce773f6b49edeee73c660673192882f5f35375f2be12dad62714c622e82 none
+tail_probes/verify_normaliser/v_swaps.log scratchpad2/com_revisit/notes/verify_probe/v_swaps.log ab7629b554d0326fb566ec2662356c3ef16068aa65c888c700a60856cbcff681 none
+tail_probes/verify_normaliser/v_terms.py scratchpad2/com_revisit/notes/verify_probe/v_terms.py 5eb644243d066f142f7766e5c1a52142b9fc26f546f6aa92ee7e9826c58931a5 none
+tail_probes/verify_normaliser/v_terms.txt scratchpad2/com_revisit/notes/verify_probe/v_terms.txt 1a5a0c9eb4ef74af822807faea0b6722843c61ec5e02dadf386e37ee18053964 none
+tail_probes/verify_posture/NOTES.txt scratchpad2/com_revisit/notes/verify_posture/NOTES.txt ed975be6fd0fd3a0eb0a81df883d3b52126e2be99e58a77f1aae6463941fa857 none
+tail_probes/verify_posture/vp_analyze.py scratchpad2/com_revisit/notes/verify_posture/vp_analyze.py d0051678cc3f54912ef5654795cef2f099e8d6d5bd005aa3a642c113077aa16d none
+tail_probes/verify_posture/vp_analyze.txt scratchpad2/com_revisit/notes/verify_posture/vp_analyze.txt a17d755127bd965cf2a3289a13d968c8d011e4810ce7d3ee6d41f42ac2f0878f none
+tail_probes/verify_posture/vp_illus.jsonl scratchpad2/com_revisit/notes/verify_posture/vp_illus.jsonl fffef0f36c496c83a749a21a66c87dbaec64821f1b3fe4addbd81686b497fd5e none
+tail_probes/verify_posture/vp_layout.txt scratchpad2/com_revisit/notes/verify_posture/vp_layout.txt 04c558b009af6a4c7d3cd85d93e0fd50bfcf7950df146f821726ecc245fdc33b none
+tail_probes/verify_posture/vp_plant.jsonl scratchpad2/com_revisit/notes/verify_posture/vp_plant.jsonl daeef26065459f2c46fcd695f5847802c9d0bfa1b9991ca355dfb23f9458f568 none
+tail_probes/verify_posture/vp_prerise.jsonl scratchpad2/com_revisit/notes/verify_posture/vp_prerise.jsonl d6a5e5ff8c3de4d72cb40db66b087e1f7686ada1a1c4b469fb400cb87b15f66b none
+tail_probes/verify_posture/vp_prerise.py scratchpad2/com_revisit/notes/verify_posture/vp_prerise.py cd1adf52671730a31937afc4afe320cb6e06cf97208dec368d2d46e6c07d1f2e none
+tail_probes/verify_posture/vp_prerise.txt scratchpad2/com_revisit/notes/verify_posture/vp_prerise.txt 4dc3312415b1fac2189f85a133351142112cbc9a558e89063b470e57f5d2fd2e none
+tail_probes/verify_posture/vp_roll.jsonl scratchpad2/com_revisit/notes/verify_posture/vp_roll.jsonl 21aa7540e243d28b7b15e3f20efd7a70114748f34d1f0bb78d4d249e65809db1 none
+tail_probes/verify_posture/vp_roll2.err scratchpad2/com_revisit/notes/verify_posture/vp_roll2.err 56ce5aa4d0f785fbae988c1b06dfd8c322babe72cc80fdee0653ebf20bb9c418 none
+tail_probes/verify_posture/vp_s60.jsonl scratchpad2/com_revisit/notes/verify_posture/vp_s60.jsonl b92bde09aa2c3354432e566d53dadf1d0335767c46808e8e6de59ba5136aa49f none
+tail_probes/verify_posture/vp_s60.py scratchpad2/com_revisit/notes/verify_posture/vp_s60.py 56fe8a245ba8660a1ad20c116685ef9d0f10d5f151613a744a3d572219aa4ac3 none
+tail_probes/verify_posture/vp_s60.txt scratchpad2/com_revisit/notes/verify_posture/vp_s60.txt f72b2cdf0116b7ab9ab10248e56d1ec9b9fb42081fcf7ec8c5699ff95c60b058 none
+tail_probes/verify_posture/vp_sim.py scratchpad2/com_revisit/notes/verify_posture/vp_sim.py 8e560941babf679be4bbcb6ce60140ed98bb38c34e82aad0e94861647c557eca none
+tail_probes/verify_posture/vp_sweep.py scratchpad2/com_revisit/notes/verify_posture/vp_sweep.py 9997314554a5f110c47d43fb3a86d025ab7faa3bceb474e061115a90a7e91cbf none
+tail_probes/verify_posture/vp_sweep.txt scratchpad2/com_revisit/notes/verify_posture/vp_sweep.txt b617d903b89968d5be13ea8a0b478b3e35d1878541fc55dcc5d813e268af2672 none
+tail_probes/verify_posture/vp_sweep2.err scratchpad2/com_revisit/notes/verify_posture/vp_sweep2.err 8e729fcc8fad9dcfb78100767ec305621c69e2f8a14674f13fd93a496ab7c39e none
+tail_probes/verify_posture/vp_sweep2.json scratchpad2/com_revisit/notes/verify_posture/vp_sweep2.json 6b095c6e1c0aaa170d2a02752e155241e4b6bb3ec481b9746a4267e898a7512a none
+tail_probes/verify_posture/vp_sweep2.py scratchpad2/com_revisit/notes/verify_posture/vp_sweep2.py 26a23622bd59583864ff9806877d16a2e34429afbea17a8efce0c3c167a64bbf none
+tail_probes/verify_posture/vp_sweep2.txt scratchpad2/com_revisit/notes/verify_posture/vp_sweep2.txt cc723395a1ccf46729f97b223392974823c030028d14cc1cd756defd53f36b3a none
+tail_probes/verify_posture/vt1_timing.json scratchpad2/com_revisit/notes/verify_posture/vt1_timing.json ce557113550937ebecf3eb9f6273f2cff4b43a3dabff520f3d399d51ef142dc8 none
+tail_probes/verify_posture/vt1_timing.py scratchpad2/com_revisit/notes/verify_posture/vt1_timing.py 90d9f3839fa1e5eb1e6436aa084dba93728ae77726c7cf52a1855ddb66b5d3d9 none
+tail_probes/verify_posture/vt1_timing.txt scratchpad2/com_revisit/notes/verify_posture/vt1_timing.txt 987edb6baf296f76779cfd0e534bca716f4ac0b2ac912d335fe98c410a55094f none
+tail_probes/verify_posture/vt1_timing_lib.py scratchpad2/com_revisit/notes/verify_posture/vt1_timing_lib.py 0e166481a06124b4b32048e39843753d4dd3d38504b30526ca857f42522730db none
+tail_probes/verify_posture/vt1b_onset.py scratchpad2/com_revisit/notes/verify_posture/vt1b_onset.py 328dc615cc20b5509f8146d3db0a2700c8d1257055aa8d68fa6f46d1952cef33 none
+tail_probes/verify_posture/vt1b_onset.txt scratchpad2/com_revisit/notes/verify_posture/vt1b_onset.txt a7db99b425361093c529ab94f3a1226d99f7eac42e39fefeaa0dfe759ad689c6 none
+tail_probes/verify_posture/vt1c_boot_ecs.py scratchpad2/com_revisit/notes/verify_posture/vt1c_boot_ecs.py 246f23473c12d26eb0f4e24652a3518ab17451bc206e5f590db7f3482dde7949 none
+tail_probes/verify_posture/vt1c_boot_ecs.txt scratchpad2/com_revisit/notes/verify_posture/vt1c_boot_ecs.txt 6956af105d28e32896d0ba46acb9e6d8a6d584504f2ef59d5c85b21f13305cb7 none
+tail_record/build_ledger.py scratchpad2/tail_record/draft/build/build_ledger.py 904320de7b0d15a20e7bf21e38da8d57bc4c6438f7e89cbd5bc00d402f26a812 none
+tail_record/fix/FIXES.txt scratchpad2/tail_record/fix/FIXES.txt 48ed06f6d9e6297b304ae4b3eba40b674d3d82f59d6edc891538c544a0450fd4 none
+tail_record/fix/numcheck.py scratchpad2/tail_record/fix/numcheck.py b31836ef454f32682a0c335b7842aa6da5d3d81ee959e2687f2a0db3f6b039ea none
+tail_record/ledger.csv scratchpad2/tail_record/draft/ledger.csv ebe524e53e2a3a041b78afe0b23638dc0ad59e27c39ac8c2d1147ee8515e6ad6 redact,lineends
+tail_record/update/CHANGES.txt scratchpad2/tail_record/update/CHANGES.txt 3818ca6086fcbc2ecc92d7a40d2ed308a8bd0c7f94f8d0f05689e6276b3dc9a5 redact
+tail_record/update_check/FIXES.txt scratchpad2/tail_record/update_check/FIXES.txt cc1529ee02c1263ad901e2559486e96bbe6c51bcc18a2aaa3ea00df573203173 redact
+tail_record/update_check/check_cites.py scratchpad2/tail_record/update_check/check_cites.py d927993d6621c223c4168bc2e4065e3f5e6bb2085d220ddff1f30a9e8b60b2f7 none
 telemetry/posture_drift_replay.json foot/meanwhile/verify_fix/out/replay_real.json 43dbf59a4c627db053c68da2846ace61232ca78658180e7fa534ed7e82b97a43 whitespace
 
 # Not copied: the per-episode certificate files behind offline_certificates/ and battery/fresh_seeds/ (about

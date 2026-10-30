@@ -1,0 +1,54 @@
+1. rows with screen_v2_clean unmeasured: 0
+   rows listing the key with fraction not > 0.10: 0 []
+   contradiction rows (measured screen, key not listed, fraction > 0.10): 0 []
+   (evaluation column + 1) * 131072 != timesteps: 0 []
+   window ANY-flag sets by 'listed' vs by 'fraction > 0.10' differ in: []
+   window evaluations at exactly 5 of 10 (borderline), with the smallest over-bar fraction among the 5:
+     ('s42_A_1101', 3538944, 5, 0.7075)
+     ('s42_A_1141', 4325376, 5, 0.825)
+     ('s42_A_1151', 4456448, 5, 0.59)
+     ('s42_B_1201', 4063232, 5, 0.6188)
+     ('s42_B_1211', 3670016, 5, 0.35)
+     ('s42_B_1211', 3801088, 5, 0.5775)
+     ('s42_B_1211', 3932160, 5, 0.8287)
+     ('s42_B_1221', 4063232, 5, 0.675)
+     ('s42_B_1231', 3670016, 5, 0.6425)
+     ('s42_B_1241', 4325376, 5, 0.6212)
+     ('s80_B_1441', 5111808, 5, 0.2625)
+     ('s80_B_1441', 5505024, 5, 0.1688)
+     ('s80_B_1441', 5767168, 5, 0.3262)
+2. score.txt per-continuation lines parsed 24; field mismatches with mine: []
+3. criteria sha256 04813918e494ae2d4845819c7ef123bc4bf74634093faa439e572c831277214e == APPROVED True
+   run_ecs.py: True
+   read_ecs.py: True
+   score_ecs.py: True
+   run_waves_ecs.sh: True
+   ecs_common.py: True
+   pin tools/ecs_common.py: equal
+   pin tools/run_ecs.py: equal
+   pin tools/read_ecs.py: equal
+   pin tools/score_ecs.py: equal
+   pin tools/run_waves_ecs.sh: equal
+   pin tools/tests/test_harness_run_ecs.py: equal
+   pin tools/tests/test_harness_waves.py: equal
+   pin tools/tests/test_read_score_fixtures.py: equal
+   pin tools/tests/test_read_score_mutants.py: equal
+   pin tools/tests/test_read_score_reader.py: equal
+   pin tools/tests/test_read_score_scorer.py: equal
+   pin laneA/tools/measure_r10round.py: equal
+   pin laneA/tools/r10m_common.py: equal
+   pin laneB/tools/ledger_r10round.py: equal
+   pin laneB/tools/r10round_common.py: equal
+   pin v1/table_e_ecs.py: equal
+   pin v1/table_e_ecs.out: equal
+   pin v2/check_v2.py: equal
+   pin v2/check_v2.out: equal
+   M5 sha256 (both files) and argv --E T checked in all 24 read.json (only exceptions printed above)
+4. single-flip sensitivity (start, arm, change, P_UP, P_DOWN, would leave line 3):
+     ('s42', 'A', -1, '39/44', '1/2', False)
+     ('s42', 'B', -1, '1/2', '39/44', False)
+     ('s80', 'A', -1, '1', '1/2', False)
+     ('s80', 'A', 1, '1/2', '10/11', False)
+     ('s80', 'B', -1, '1/2', '1', False)
+     ('s80', 'B', 1, '10/11', '1/2', False)
+   fewest changed s80 classes to leave line 3 (s42 fixed 6/6 vs 6/6): (5, 0, 5, '1', '1/132')

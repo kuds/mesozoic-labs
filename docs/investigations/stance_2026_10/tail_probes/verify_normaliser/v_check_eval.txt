@@ -1,0 +1,20 @@
+=== (1) my evaluator vs the harness loader
+  s42_A_1101@3145728: stats identical True; max|z diff| 0.00e+00; max|mean diff| 0.00e+00 over 200 inputs; max|action diff| 0.00e+00
+  s42_A_1111@4718592: stats identical True; max|z diff| 0.00e+00; max|mean diff| 0.00e+00 over 200 inputs; max|action diff| 0.00e+00
+  s42_A_1151@4718592: stats identical True; max|z diff| 0.00e+00; max|mean diff| 0.00e+00 over 200 inputs; max|action diff| 0.00e+00
+  s42_B_1251@4718592: stats identical True; max|z diff| 0.00e+00; max|mean diff| 0.00e+00 over 200 inputs; max|action diff| 0.00e+00
+  s80_A_1301@4194304: stats identical True; max|z diff| 0.00e+00; max|mean diff| 0.00e+00 over 200 inputs; max|action diff| 0.00e+00
+  s80_B_1421@5767168: stats identical True; max|z diff| 0.00e+00; max|mean diff| 0.00e+00 over 200 inputs; max|action diff| 0.00e+00
+  worst difference 0.00e+00
+
+=== (2) the probe's swap, inspected inside the loop (probe_common copy)
+  endW_startN (all 63): predict saw 60 inputs; max|seen - donor-formula z| 0.00e+00; dims differing from the agent's own-statistics z: 60 dims
+     step 60: raw obs6 +4.183 deg -> z6 seen +4.7601; own-stats z6 +1.4971; donor-formula z6 +4.7601
+  endW_startN_t3q (obs 6): predict saw 60 inputs; max|seen - donor-formula z| 0.00e+00; dims differing from the agent's own-statistics z: [6]
+     step 60: raw obs6 +3.588 deg -> z6 seen +3.9988; own-stats z6 +1.1650; donor-formula z6 +3.9988
+  endW_startN_tail (tail 8): predict saw 60 inputs; max|seen - donor-formula z| 0.00e+00; dims differing from the agent's own-statistics z: [3, 4, 5, 6, 24, 25, 26, 27]
+     step 60: raw obs6 +3.776 deg -> z6 seen +4.2386; own-stats z6 +1.2696; donor-formula z6 +4.2386
+  startW_endN (all 63): predict saw 60 inputs; max|seen - donor-formula z| 0.00e+00; dims differing from the agent's own-statistics z: 60 dims
+     step 60: raw obs6 +0.077 deg -> z6 seen -0.7962; own-stats z6 -0.4982; donor-formula z6 -0.7962
+  own (end): predict saw 60 inputs; max|seen - donor-formula z| 0.00e+00; dims differing from the agent's own-statistics z: []
+     step 60: raw obs6 +1.040 deg -> z6 seen -0.2587; own-stats z6 -0.2587; donor-formula z6 -0.2587

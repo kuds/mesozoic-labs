@@ -1,0 +1,3385 @@
+{
+ "donor_seen_pitch_deg": {
+  "ends_s42": -1.3566249508041477,
+  "ends_s80": -0.2683451062998907,
+  "start_s42": -1.45709339429742,
+  "start_s80": -0.45834057051013777
+ },
+ "groups": {
+  "orient(grav+acc+prey)": [
+   "grav_x",
+   "grav_y",
+   "grav_z",
+   "acc_x",
+   "acc_y",
+   "acc_z",
+   "prey_bx",
+   "prey_by",
+   "prey_bz"
+  ],
+  "legs_q": [
+   "r_hip_pitch:q",
+   "r_hip_roll:q",
+   "r_knee:q",
+   "r_ankle:q",
+   "r_toe_d2_joint:q",
+   "r_toe_d3_joint:q",
+   "r_toe_d4_joint:q",
+   "l_hip_pitch:q",
+   "l_hip_roll:q",
+   "l_knee:q",
+   "l_ankle:q",
+   "l_toe_d2_joint:q",
+   "l_toe_d3_joint:q",
+   "l_toe_d4_joint:q"
+  ],
+  "ORIENT+LEGS+FEET": [
+   "grav_x",
+   "grav_y",
+   "grav_z",
+   "acc_x",
+   "acc_y",
+   "acc_z",
+   "prey_bx",
+   "prey_by",
+   "prey_bz",
+   "r_hip_pitch:q",
+   "r_hip_roll:q",
+   "r_knee:q",
+   "r_ankle:q",
+   "r_toe_d2_joint:q",
+   "r_toe_d3_joint:q",
+   "r_toe_d4_joint:q",
+   "l_hip_pitch:q",
+   "l_hip_roll:q",
+   "l_knee:q",
+   "l_ankle:q",
+   "l_toe_d2_joint:q",
+   "l_toe_d3_joint:q",
+   "l_toe_d4_joint:q",
+   "r_foot_contact",
+   "l_foot_contact"
+  ],
+  "head_neck_q": [
+   "neck_pitch:q",
+   "neck_yaw:q",
+   "head_pitch:q"
+  ],
+  "ORIENT+LEGS+FEET+HEAD": [
+   "grav_x",
+   "grav_y",
+   "grav_z",
+   "acc_x",
+   "acc_y",
+   "acc_z",
+   "prey_bx",
+   "prey_by",
+   "prey_bz",
+   "r_hip_pitch:q",
+   "r_hip_roll:q",
+   "r_knee:q",
+   "r_ankle:q",
+   "r_toe_d2_joint:q",
+   "r_toe_d3_joint:q",
+   "r_toe_d4_joint:q",
+   "l_hip_pitch:q",
+   "l_hip_roll:q",
+   "l_knee:q",
+   "l_ankle:q",
+   "l_toe_d2_joint:q",
+   "l_toe_d3_joint:q",
+   "l_toe_d4_joint:q",
+   "r_foot_contact",
+   "l_foot_contact",
+   "neck_pitch:q",
+   "neck_yaw:q",
+   "head_pitch:q"
+  ]
+ },
+ "policies": {
+  "start_s42": {
+   "none": {
+    "slope_per_deg": 0.05061826854944229,
+    "gain": 0.2623544858917594,
+    "offset_c0": 0.4074119031429291,
+    "fixed_point_cmd": 0.5523139439619046,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.5993771553039551
+   },
+   "other_ends:orient(grav+acc+prey)": {
+    "slope_per_deg": 0.051073034959180016,
+    "gain": 0.26471154019343,
+    "offset_c0": 0.30409887433052063,
+    "fixed_point_cmd": 0.41357765143018693,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.49060943722724915,
+    "shift_median_max_z": 0.6642789293092421
+   },
+   "other_ends:legs_q": {
+    "slope_per_deg": 0.05112536198326519,
+    "gain": 0.2649827511592635,
+    "offset_c0": 0.28367258608341217,
+    "fixed_point_cmd": 0.38594003954440304,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.4791299104690552,
+    "shift_median_max_z": 0.8561078297503781
+   },
+   "other_ends:ORIENT+LEGS+FEET": {
+    "slope_per_deg": 0.052352452916758406,
+    "gain": 0.2713427634675588,
+    "offset_c0": 0.20011059939861298,
+    "fixed_point_cmd": 0.2746292623825519,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.3828496038913727,
+    "shift_median_max_z": 1.028159559131404
+   },
+   "other_ends:head_neck_q": {
+    "slope_per_deg": 0.05159361780221973,
+    "gain": 0.26740972106890487,
+    "offset_c0": 0.23260344564914703,
+    "fixed_point_cmd": 0.3175082339183276,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.4055332541465759,
+    "shift_median_max_z": 4.034595459859028
+   },
+   "other_ends:ORIENT+LEGS+FEET+HEAD": {
+    "slope_per_deg": 0.055768312088080814,
+    "gain": 0.28904716155252286,
+    "offset_c0": 0.05332750454545021,
+    "fixed_point_cmd": 0.075008497978435,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.2300458773970604,
+    "shift_median_max_z": 4.034595459859028
+   },
+   "other_ends:pitch_rotation": {
+    "slope_per_deg": 0.05204160990459578,
+    "gain": 0.2697316641355199,
+    "offset_c0": 0.29154500365257263,
+    "fixed_point_cmd": 0.3992299670332088,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.4826255142688751,
+    "rotation_deg": 1.18874823679949
+   },
+   "own_ends:orient(grav+acc+prey)": {
+    "slope_per_deg": 0.04970401099749974,
+    "gain": 0.2576158890000412,
+    "offset_c0": 0.4036414921283722,
+    "fixed_point_cmd": 0.5437097671509763,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.5912845432758331,
+    "shift_median_max_z": 0.569373655413955
+   },
+   "own_ends:legs_q": {
+    "slope_per_deg": 0.050313668591635566,
+    "gain": 0.26077574431044714,
+    "offset_c0": 0.34543487429618835,
+    "fixed_point_cmd": 0.4672937496808254,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.542106419801712,
+    "shift_median_max_z": 0.8899285426208949
+   },
+   "own_ends:ORIENT+LEGS+FEET": {
+    "slope_per_deg": 0.04958978508199964,
+    "gain": 0.2570238560800041,
+    "offset_c0": 0.3622540235519409,
+    "fixed_point_cmd": 0.48757154118120466,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.5475270748138428,
+    "shift_median_max_z": 1.0639873239724407
+   },
+   "own_ends:head_neck_q": {
+    "slope_per_deg": 0.05115213218544211,
+    "gain": 0.26512150111714644,
+    "offset_c0": 0.39521950483322144,
+    "fixed_point_cmd": 0.5378025148837877,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.5863226354122162,
+    "shift_median_max_z": 0.9596978451722482
+   },
+   "own_ends:ORIENT+LEGS+FEET+HEAD": {
+    "slope_per_deg": 0.05007429687040193,
+    "gain": 0.2595350806792932,
+    "offset_c0": 0.35519278049468994,
+    "fixed_point_cmd": 0.4796888700960193,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.5352993905544281,
+    "shift_median_max_z": 1.201791268173424
+   },
+   "own_ends:pitch_rotation": {
+    "slope_per_deg": 0.05069600684302194,
+    "gain": 0.2627574034673827,
+    "offset_c0": 0.39822763204574585,
+    "fixed_point_cmd": 0.5401581974762188,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.5900588631629944,
+    "rotation_deg": 0.10046839229523297
+   },
+   "other_start:orient(grav+acc+prey)": {
+    "slope_per_deg": 0.05086416697927884,
+    "gain": 0.2636289774536022,
+    "offset_c0": 0.32128122448921204,
+    "fixed_point_cmd": 0.43630345933251136,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.5078503489494324,
+    "shift_median_max_z": 0.5918079555252032
+   },
+   "other_start:legs_q": {
+    "slope_per_deg": 0.05076313231672559,
+    "gain": 0.26310531479758875,
+    "offset_c0": 0.31698644161224365,
+    "fixed_point_cmd": 0.43016518910727847,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.5130300223827362,
+    "shift_median_max_z": 0.8069226041826097
+   },
+   "other_start:ORIENT+LEGS+FEET": {
+    "slope_per_deg": 0.051486635846751075,
+    "gain": 0.2668552335937108,
+    "offset_c0": 0.2505866289138794,
+    "fixed_point_cmd": 0.3417969279685358,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.4340205788612366,
+    "shift_median_max_z": 1.0265861777695466
+   },
+   "other_start:head_neck_q": {
+    "slope_per_deg": 0.044729322394622226,
+    "gain": 0.231832077971327,
+    "offset_c0": 0.09180798754096031,
+    "fixed_point_cmd": 0.11951551855810694,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.22648654878139496,
+    "shift_median_max_z": 9.292868296260007
+   },
+   "other_start:ORIENT+LEGS+FEET+HEAD": {
+    "slope_per_deg": 0.04731583874672651,
+    "gain": 0.2452379922242835,
+    "offset_c0": -0.009374015033245087,
+    "fixed_point_cmd": -0.012419828948293658,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.1315099373459816,
+    "shift_median_max_z": 9.292868296260007
+   },
+   "other_start:pitch_rotation": {
+    "slope_per_deg": 0.05171452569110052,
+    "gain": 0.268036386656974,
+    "offset_c0": 0.310993492603302,
+    "fixed_point_cmd": 0.42487561804190205,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.5021131634712219,
+    "rotation_deg": 0.9987527725892429
+   },
+   "own_start:orient(grav+acc+prey)": {
+    "slope_per_deg": 0.04961771837302617,
+    "gain": 0.2571686343273946,
+    "offset_c0": 0.4100867509841919,
+    "fixed_point_cmd": 0.5520590135728505,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.5980716347694397,
+    "shift_median_max_z": 0.5737658681627855
+   },
+   "own_start:legs_q": {
+    "slope_per_deg": 0.05136219092777797,
+    "gain": 0.2662102355786732,
+    "offset_c0": 0.3805628716945648,
+    "fixed_point_cmd": 0.5186265741859729,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.5793367922306061,
+    "shift_median_max_z": 0.6001727062676732
+   },
+   "own_start:ORIENT+LEGS+FEET": {
+    "slope_per_deg": 0.05040051468781062,
+    "gain": 0.26122586762692246,
+    "offset_c0": 0.40242186188697815,
+    "fixed_point_cmd": 0.544715690835473,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.5909384787082672,
+    "shift_median_max_z": 1.064017786814496
+   },
+   "own_start:head_neck_q": {
+    "slope_per_deg": 0.050632315022604804,
+    "gain": 0.2624272887621607,
+    "offset_c0": 0.40331465005874634,
+    "fixed_point_cmd": 0.5468134109542627,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.592988133430481,
+    "shift_median_max_z": 0.4206786756521136
+   },
+   "own_start:ORIENT+LEGS+FEET+HEAD": {
+    "slope_per_deg": 0.050493897071906504,
+    "gain": 0.2617098685236914,
+    "offset_c0": 0.40420588850975037,
+    "fixed_point_cmd": 0.5474892203983376,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.5879649817943573,
+    "shift_median_max_z": 1.064017786814496
+   },
+   "own_start:pitch_rotation": {
+    "slope_per_deg": 0.050618261098861694,
+    "gain": 0.26235444727540014,
+    "offset_c0": 0.40741193294525146,
+    "fixed_point_cmd": 0.5523139554497644,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.5993771553039551,
+    "rotation_deg": -5.1198039363598014e-08
+   }
+  },
+  "start_s80": {
+   "none": {
+    "slope_per_deg": -0.0798085822856852,
+    "gain": -0.4136478819867064,
+    "offset_c0": 0.040369875729084015,
+    "fixed_point_cmd": 0.028557235676220285,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.017307518981397152
+   },
+   "other_ends:orient(grav+acc+prey)": {
+    "slope_per_deg": -0.08059549305055821,
+    "gain": -0.41772644048104324,
+    "offset_c0": 0.06846707500517368,
+    "fixed_point_cmd": 0.04829357275860806,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.04465300776064396,
+    "shift_median_max_z": 0.7071890498514974
+   },
+   "other_ends:legs_q": {
+    "slope_per_deg": -0.08006978340979132,
+    "gain": -0.4150016874129484,
+    "offset_c0": 0.03510458581149578,
+    "fixed_point_cmd": 0.02480886498141044,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.006514997687190771,
+    "shift_median_max_z": 0.8765122089472609
+   },
+   "other_ends:ORIENT+LEGS+FEET": {
+    "slope_per_deg": -0.08077847372208323,
+    "gain": -0.41867482930155736,
+    "offset_c0": 0.055044692009687424,
+    "fixed_point_cmd": 0.03880007657342243,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.018141853623092175,
+    "shift_median_max_z": 1.2408797612828855
+   },
+   "other_ends:head_neck_q": {
+    "slope_per_deg": -0.08508405115987575,
+    "gain": -0.440990637161636,
+    "offset_c0": 0.12156396359205246,
+    "fixed_point_cmd": 0.0843613833824075,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.10804379731416702,
+    "shift_median_max_z": 3.0184720656668684
+   },
+   "other_ends:ORIENT+LEGS+FEET+HEAD": {
+    "slope_per_deg": -0.08619122539779969,
+    "gain": -0.4467291212367958,
+    "offset_c0": 0.1307670883834362,
+    "fixed_point_cmd": 0.09038809440128265,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.10643243789672852,
+    "shift_median_max_z": 3.0184720656668684
+   },
+   "other_ends:pitch_rotation": {
+    "slope_per_deg": -0.08008961199915834,
+    "gain": -0.41510445899163767,
+    "offset_c0": 0.05330595746636391,
+    "fixed_point_cmd": 0.03766927390247091,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.030394410714507103,
+    "rotation_deg": -0.8982844068891653
+   },
+   "own_ends:orient(grav+acc+prey)": {
+    "slope_per_deg": -0.08055840632213013,
+    "gain": -0.41753421996760043,
+    "offset_c0": 0.05530646815896034,
+    "fixed_point_cmd": 0.0390159668669053,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.03135277610272169,
+    "shift_median_max_z": 0.3840061653212019
+   },
+   "own_ends:legs_q": {
+    "slope_per_deg": -0.08216268476098776,
+    "gain": -0.42584919511619956,
+    "offset_c0": 0.07667579501867294,
+    "fixed_point_cmd": 0.05377552919432286,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.04735737107694149,
+    "shift_median_max_z": 0.6779937577045506
+   },
+   "own_ends:ORIENT+LEGS+FEET": {
+    "slope_per_deg": -0.08275868437652079,
+    "gain": -0.4289382611235072,
+    "offset_c0": 0.08342951163649559,
+    "fixed_point_cmd": 0.05838566571161645,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.04562895931303501,
+    "shift_median_max_z": 1.200500193445432
+   },
+   "own_ends:head_neck_q": {
+    "slope_per_deg": -0.08317774587443896,
+    "gain": -0.43111025686721716,
+    "offset_c0": 0.09027224034070969,
+    "fixed_point_cmd": 0.06307846646164135,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.076451126486063,
+    "shift_median_max_z": 1.8498588272561771
+   },
+   "own_ends:ORIENT+LEGS+FEET+HEAD": {
+    "slope_per_deg": -0.08598090508686645,
+    "gain": -0.44563903106522884,
+    "offset_c0": 0.12950026243925095,
+    "fixed_point_cmd": 0.08957994330287818,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.10408257693052292,
+    "shift_median_max_z": 1.8597661498056743
+   },
+   "own_ends:pitch_rotation": {
+    "slope_per_deg": -0.07961945175858481,
+    "gain": -0.4126676184647451,
+    "offset_c0": 0.03746940940618515,
+    "fixed_point_cmd": 0.02652386797603958,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.0144476224668324,
+    "rotation_deg": 0.18999543761509158
+   },
+   "other_start:orient(grav+acc+prey)": {
+    "slope_per_deg": -0.08040072735665099,
+    "gain": -0.41671696988952206,
+    "offset_c0": 0.06873485073447227,
+    "fixed_point_cmd": 0.0485169954164044,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.04497181251645088,
+    "shift_median_max_z": 0.7705124884780401
+   },
+   "other_start:legs_q": {
+    "slope_per_deg": -0.07923688373661467,
+    "gain": -0.4106847684068738,
+    "offset_c0": 0.03896498400717974,
+    "fixed_point_cmd": 0.0276213260962504,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.010040467604994774,
+    "shift_median_max_z": 0.8918888374477444
+   },
+   "other_start:ORIENT+LEGS+FEET": {
+    "slope_per_deg": -0.07988732973379749,
+    "gain": -0.41405603001027236,
+    "offset_c0": 0.05991722457110882,
+    "fixed_point_cmd": 0.04237259578085711,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.022917714901268482,
+    "shift_median_max_z": 1.1656247174990007
+   },
+   "other_start:head_neck_q": {
+    "slope_per_deg": -0.08516093995422125,
+    "gain": -0.4413891517827287,
+    "offset_c0": 0.12795357406139374,
+    "fixed_point_cmd": 0.08877101225795901,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.11452251300215721,
+    "shift_median_max_z": 3.0956232576451077
+   },
+   "other_start:ORIENT+LEGS+FEET+HEAD": {
+    "slope_per_deg": -0.0846374234450715,
+    "gain": -0.4386757657158056,
+    "offset_c0": 0.14111999422311783,
+    "fixed_point_cmd": 0.09809020043713902,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.11672158539295197,
+    "shift_median_max_z": 3.0956232576451077
+   },
+   "other_start:pitch_rotation": {
+    "slope_per_deg": -0.0800563764891454,
+    "gain": -0.4149321993432406,
+    "offset_c0": 0.05462435074150562,
+    "fixed_point_cmd": 0.03860563125700315,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.03177112806588411,
+    "rotation_deg": -0.9987528503824377
+   },
+   "own_start:orient(grav+acc+prey)": {
+    "slope_per_deg": -0.0807287051741566,
+    "gain": -0.41841687891765367,
+    "offset_c0": 0.058105750009417534,
+    "fixed_point_cmd": 0.040965213311446265,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.0341546144336462,
+    "shift_median_max_z": 0.38587602147538785
+   },
+   "own_start:legs_q": {
+    "slope_per_deg": -0.08118936053610275,
+    "gain": -0.4208044556586205,
+    "offset_c0": 0.06123718433082104,
+    "fixed_point_cmd": 0.04310036056470153,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.03174762800335884,
+    "shift_median_max_z": 0.6840362974082717
+   },
+   "own_start:ORIENT+LEGS+FEET": {
+    "slope_per_deg": -0.08206054142543248,
+    "gain": -0.4253197862080165,
+    "offset_c0": 0.07092273980379105,
+    "fixed_point_cmd": 0.049759177196632504,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.03291293606162071,
+    "shift_median_max_z": 1.198938660081461
+   },
+   "own_start:head_neck_q": {
+    "slope_per_deg": -0.07906100932242616,
+    "gain": -0.40977321131813477,
+    "offset_c0": 0.03182023577392101,
+    "fixed_point_cmd": 0.022571173518164078,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.01802227273583412,
+    "shift_median_max_z": 0.6199305352057971
+   },
+   "own_start:ORIENT+LEGS+FEET+HEAD": {
+    "slope_per_deg": -0.08102178107947111,
+    "gain": -0.4199358913348988,
+    "offset_c0": 0.05793800763785839,
+    "fixed_point_cmd": 0.040803255971922914,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.03234427981078625,
+    "shift_median_max_z": 1.198938660081461
+   },
+   "own_start:pitch_rotation": {
+    "slope_per_deg": -0.07980858208611608,
+    "gain": -0.4136478809523396,
+    "offset_c0": 0.040369872003793716,
+    "fixed_point_cmd": 0.02855723306188351,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.017307516187429428,
+    "rotation_deg": -2.6595155466768716e-08
+   }
+  },
+  "s42_A_1101": {
+   "none": {
+    "slope_per_deg": 0.1276381015777588,
+    "gain": 0.6615482804775238,
+    "offset_c0": 0.40044495463371277,
+    "fixed_point_cmd": 1.1831671447812504,
+    "railed_pred": true,
+    "cmd14_own_tail": 1.0673757791519165
+   },
+   "other_ends:orient(grav+acc+prey)": {
+    "slope_per_deg": 0.1277825433228697,
+    "gain": 0.6622969220424336,
+    "offset_c0": 0.2861053794622421,
+    "fixed_point_cmd": 0.8472098661125982,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.9608074128627777,
+    "shift_median_max_z": 0.672974202218858
+   },
+   "other_ends:legs_q": {
+    "slope_per_deg": 0.12892554846725296,
+    "gain": 0.6682211177057721,
+    "offset_c0": 0.13875970244407654,
+    "fixed_point_cmd": 0.418229458983534,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.8086464107036591,
+    "shift_median_max_z": 0.7602591407279287
+   },
+   "other_ends:ORIENT+LEGS+FEET": {
+    "slope_per_deg": 0.1287466777222497,
+    "gain": 0.6672940306344202,
+    "offset_c0": 0.026572290807962418,
+    "fixed_point_cmd": 0.07986718981517456,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.6994927227497101,
+    "shift_median_max_z": 1.0338688881022378
+   },
+   "other_ends:head_neck_q": {
+    "slope_per_deg": 0.1137363367847034,
+    "gain": 0.5894954335551177,
+    "offset_c0": 0.5578590035438538,
+    "fixed_point_cmd": 1.358959312864931,
+    "railed_pred": true,
+    "cmd14_own_tail": 1.1562656164169312,
+    "shift_median_max_z": 3.9834905547578465
+   },
+   "other_ends:ORIENT+LEGS+FEET+HEAD": {
+    "slope_per_deg": 0.11833426835281508,
+    "gain": 0.6133265128726405,
+    "offset_c0": 0.21492518484592438,
+    "fixed_point_cmd": 0.5558311909167282,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.8262065052986145,
+    "shift_median_max_z": 3.9834905547578465
+   },
+   "other_ends:pitch_rotation": {
+    "slope_per_deg": 0.12737922130950857,
+    "gain": 0.660206504047183,
+    "offset_c0": 0.2766875624656677,
+    "fixed_point_cmd": 0.8142815143939304,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.942267507314682,
+    "rotation_deg": 0.8603736507815325
+   },
+   "own_ends:orient(grav+acc+prey)": {
+    "slope_per_deg": 0.12760934020791737,
+    "gain": 0.6613992102976357,
+    "offset_c0": 0.4398529529571533,
+    "fixed_point_cmd": 1.2990310901040465,
+    "railed_pred": true,
+    "cmd14_own_tail": 1.117006778717041,
+    "shift_median_max_z": 0.5161308215090505
+   },
+   "own_ends:legs_q": {
+    "slope_per_deg": 0.12791998365095683,
+    "gain": 0.6630092752629092,
+    "offset_c0": 0.4143199026584625,
+    "fixed_point_cmd": 1.2294697516725466,
+    "railed_pred": true,
+    "cmd14_own_tail": 1.0795289874076843,
+    "shift_median_max_z": 0.5098541665353538
+   },
+   "own_ends:ORIENT+LEGS+FEET": {
+    "slope_per_deg": 0.12798322098595755,
+    "gain": 0.663337034370218,
+    "offset_c0": 0.45890289545059204,
+    "fixed_point_cmd": 1.363092892002958,
+    "railed_pred": true,
+    "cmd14_own_tail": 1.1257839798927307,
+    "shift_median_max_z": 1.0663368790688943
+   },
+   "own_ends:head_neck_q": {
+    "slope_per_deg": 0.1291414839880807,
+    "gain": 0.6693403115102222,
+    "offset_c0": 0.33637644350528717,
+    "fixed_point_cmd": 1.0172889384902633,
+    "railed_pred": true,
+    "cmd14_own_tail": 1.0108839869499207,
+    "shift_median_max_z": 0.9043086355130646
+   },
+   "own_ends:ORIENT+LEGS+FEET+HEAD": {
+    "slope_per_deg": 0.12965206482580732,
+    "gain": 0.6719866519921593,
+    "offset_c0": 0.398714154958725,
+    "fixed_point_cmd": 1.2155424691716945,
+    "railed_pred": true,
+    "cmd14_own_tail": 1.0691337585449219,
+    "shift_median_max_z": 1.0742186540481913
+   },
+   "own_ends:pitch_rotation": {
+    "slope_per_deg": 0.12747595459222794,
+    "gain": 0.6607078726515174,
+    "offset_c0": 0.4312208294868469,
+    "fixed_point_cmd": 1.2709426324058075,
+    "railed_pred": true,
+    "cmd14_own_tail": 1.09796941280365,
+    "rotation_deg": -0.22790619372272447
+   }
+  },
+  "s42_A_1111": {
+   "none": {
+    "slope_per_deg": 0.17512627212064608,
+    "gain": 0.9076794684013085,
+    "offset_c0": 0.1438954770565033,
+    "fixed_point_cmd": 1.5586508717476106,
+    "railed_pred": true,
+    "cmd14_own_tail": 1.0608794689178467
+   },
+   "other_ends:orient(grav+acc+prey)": {
+    "slope_per_deg": 0.17604482027568988,
+    "gain": 0.9124403034889006,
+    "offset_c0": -0.04102560877799988,
+    "fixed_point_cmd": -0.46854443782590444,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.8741281032562256,
+    "shift_median_max_z": 0.6519202618236251
+   },
+   "other_ends:legs_q": {
+    "slope_per_deg": 0.17608133397464243,
+    "gain": 0.9126295539905717,
+    "offset_c0": 0.03327362611889839,
+    "fixed_point_cmd": 0.3808338819205268,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.9572492837905884,
+    "shift_median_max_z": 0.8193242463022693
+   },
+   "other_ends:ORIENT+LEGS+FEET": {
+    "slope_per_deg": 0.17641902555312428,
+    "gain": 0.914379809441843,
+    "offset_c0": -0.14891132712364197,
+    "fixed_point_cmd": -1.7392080787591209,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.7745494246482849,
+    "shift_median_max_z": 1.0667110899819876
+   },
+   "other_ends:head_neck_q": {
+    "slope_per_deg": 0.15346942309822353,
+    "gain": 0.7954320199180925,
+    "offset_c0": 0.4086044579744339,
+    "fixed_point_cmd": 1.9974018309748758,
+    "railed_pred": true,
+    "cmd14_own_tail": 1.2126726508140564,
+    "shift_median_max_z": 4.691253929688144
+   },
+   "other_ends:ORIENT+LEGS+FEET+HEAD": {
+    "slope_per_deg": 0.1586807758680412,
+    "gain": 0.8224424613240575,
+    "offset_c0": 0.14384394139051437,
+    "fixed_point_cmd": 0.8101257905643856,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.9788708686828613,
+    "shift_median_max_z": 4.691253929688144
+   },
+   "other_ends:pitch_rotation": {
+    "slope_per_deg": 0.1761357919978244,
+    "gain": 0.9129118099247238,
+    "offset_c0": -0.05295194685459137,
+    "fixed_point_cmd": -0.6080267233573393,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.8692493438720703,
+    "rotation_deg": 0.9419525590580569
+   },
+   "own_ends:orient(grav+acc+prey)": {
+    "slope_per_deg": 0.17459230391042574,
+    "gain": 0.9049119111677366,
+    "offset_c0": 0.17648179084062576,
+    "fixed_point_cmd": 1.8559821004704586,
+    "railed_pred": true,
+    "cmd14_own_tail": 1.0949968695640564,
+    "shift_median_max_z": 0.4220412180512161
+   },
+   "own_ends:legs_q": {
+    "slope_per_deg": 0.17400829015033586,
+    "gain": 0.9018849678491908,
+    "offset_c0": 0.22519592195749283,
+    "fixed_point_cmd": 2.2952234435529926,
+    "railed_pred": true,
+    "cmd14_own_tail": 1.1388978958129883,
+    "shift_median_max_z": 0.8661575774021617
+   },
+   "own_ends:ORIENT+LEGS+FEET": {
+    "slope_per_deg": 0.17344718320029123,
+    "gain": 0.8989767505271095,
+    "offset_c0": 0.26751066744327545,
+    "fixed_point_cmd": 2.6480109166856844,
+    "railed_pred": true,
+    "cmd14_own_tail": 1.1770078539848328,
+    "shift_median_max_z": 1.0867291504661551
+   },
+   "own_ends:head_neck_q": {
+    "slope_per_deg": 0.17367936005549772,
+    "gain": 0.9001801231676446,
+    "offset_c0": 0.2085140347480774,
+    "fixed_point_cmd": 2.0889029456354744,
+    "railed_pred": true,
+    "cmd14_own_tail": 1.1174564957618713,
+    "shift_median_max_z": 0.7476428282169447
+   },
+   "own_ends:ORIENT+LEGS+FEET+HEAD": {
+    "slope_per_deg": 0.17203173360654284,
+    "gain": 0.8916404752827115,
+    "offset_c0": 0.33030977845191956,
+    "fixed_point_cmd": 3.0482763680784166,
+    "railed_pred": true,
+    "cmd14_own_tail": 1.236362636089325,
+    "shift_median_max_z": 1.0867291504661551
+   },
+   "own_ends:pitch_rotation": {
+    "slope_per_deg": 0.17475312176559654,
+    "gain": 0.9057454301110869,
+    "offset_c0": 0.1735268458724022,
+    "fixed_point_cmd": 1.8410443767015017,
+    "railed_pred": true,
+    "cmd14_own_tail": 1.0889525413513184,
+    "rotation_deg": -0.1463272854462001
+   }
+  },
+  "s42_A_1121": {
+   "none": {
+    "slope_per_deg": 0.158460920676589,
+    "gain": 0.8213029518667608,
+    "offset_c0": 0.16460908204317093,
+    "fixed_point_cmd": 0.9211628494301481,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.9771817326545715
+   },
+   "other_ends:orient(grav+acc+prey)": {
+    "slope_per_deg": 0.15840819557862623,
+    "gain": 0.8210296776840197,
+    "offset_c0": 0.13972823321819305,
+    "fixed_point_cmd": 0.7807340983132189,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.9505531787872314,
+    "shift_median_max_z": 0.5801627566630678
+   },
+   "other_ends:legs_q": {
+    "slope_per_deg": 0.1613395583948919,
+    "gain": 0.8362229311607247,
+    "offset_c0": -0.04161140322685242,
+    "fixed_point_cmd": -0.25407343971754853,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.7783456444740295,
+    "shift_median_max_z": 0.8807399104252445
+   },
+   "other_ends:ORIENT+LEGS+FEET": {
+    "slope_per_deg": 0.16146949106561287,
+    "gain": 0.8368963721930714,
+    "offset_c0": -0.07382156699895859,
+    "fixed_point_cmd": -0.4526053037051006,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.7428020536899567,
+    "shift_median_max_z": 1.2222488131912224
+   },
+   "other_ends:head_neck_q": {
+    "slope_per_deg": 0.14284607927714077,
+    "gain": 0.7403712288934206,
+    "offset_c0": 0.22615909576416016,
+    "fixed_point_cmd": 0.8710864161942986,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.940081387758255,
+    "shift_median_max_z": 3.8585343446664235
+   },
+   "other_ends:ORIENT+LEGS+FEET+HEAD": {
+    "slope_per_deg": 0.14520973579159807,
+    "gain": 0.7526220606078527,
+    "offset_c0": 0.0029615871608257294,
+    "fixed_point_cmd": 0.011971912968888372,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.740508109331131,
+    "shift_median_max_z": 3.8802387162331717
+   },
+   "other_ends:pitch_rotation": {
+    "slope_per_deg": 0.1582888952855553,
+    "gain": 0.820411344265033,
+    "offset_c0": 0.1157253310084343,
+    "fixed_point_cmd": 0.6443910977273488,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.9267945885658264,
+    "rotation_deg": 0.3799457795780038
+   },
+   "own_ends:orient(grav+acc+prey)": {
+    "slope_per_deg": 0.15835051238536835,
+    "gain": 0.8207307056933641,
+    "offset_c0": 0.27378615736961365,
+    "fixed_point_cmd": 1.5272339773999943,
+    "railed_pred": true,
+    "cmd14_own_tail": 1.081014335155487,
+    "shift_median_max_z": 0.7353388925327529
+   },
+   "own_ends:legs_q": {
+    "slope_per_deg": 0.1594396120469485,
+    "gain": 0.8263755092393341,
+    "offset_c0": 0.19201858341693878,
+    "fixed_point_cmd": 1.1059418091058846,
+    "railed_pred": true,
+    "cmd14_own_tail": 1.0032865405082703,
+    "shift_median_max_z": 0.8536586154047519
+   },
+   "own_ends:ORIENT+LEGS+FEET": {
+    "slope_per_deg": 0.15872425745640484,
+    "gain": 0.8226678263965462,
+    "offset_c0": 0.2958233654499054,
+    "fixed_point_cmd": 1.6681877825025648,
+    "railed_pred": true,
+    "cmd14_own_tail": 1.102670967578888,
+    "shift_median_max_z": 1.2191986655275224
+   },
+   "own_ends:head_neck_q": {
+    "slope_per_deg": 0.15679766344172613,
+    "gain": 0.8126822896184666,
+    "offset_c0": 0.207271546125412,
+    "fixed_point_cmd": 1.1065240211576155,
+    "railed_pred": true,
+    "cmd14_own_tail": 0.9992086291313171,
+    "shift_median_max_z": 0.8063522796810737
+   },
+   "own_ends:ORIENT+LEGS+FEET+HEAD": {
+    "slope_per_deg": 0.15751420546855247,
+    "gain": 0.8163961269435074,
+    "offset_c0": 0.32735614478588104,
+    "fixed_point_cmd": 1.7829479266222104,
+    "railed_pred": true,
+    "cmd14_own_tail": 1.13014554977417,
+    "shift_median_max_z": 1.227677046474489
+   },
+   "own_ends:pitch_rotation": {
+    "slope_per_deg": 0.15801469875233515,
+    "gain": 0.8189901836333531,
+    "offset_c0": 0.24972793459892273,
+    "fixed_point_cmd": 1.3796375224926083,
+    "railed_pred": true,
+    "cmd14_own_tail": 1.0641347169876099,
+    "rotation_deg": -0.7083340649262532
+   }
+  },
+  "s42_A_1131": {
+   "none": {
+    "slope_per_deg": 0.10327042905347689,
+    "gain": 0.5352506337841707,
+    "offset_c0": 0.5801501274108887,
+    "fixed_point_cmd": 1.2483075170918412,
+    "railed_pred": true,
+    "cmd14_own_tail": 1.1262935400009155
+   },
+   "other_ends:orient(grav+acc+prey)": {
+    "slope_per_deg": 0.10443043815238134,
+    "gain": 0.5412629609437924,
+    "offset_c0": 0.24703583121299744,
+    "fixed_point_cmd": 0.5385129391802369,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.7899755835533142,
+    "shift_median_max_z": 1.0153707971682984
+   },
+   "other_ends:legs_q": {
+    "slope_per_deg": 0.10578886845282146,
+    "gain": 0.5483037051909736,
+    "offset_c0": 0.170488178730011,
+    "fixed_point_cmd": 0.3774398432957969,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.7266662418842316,
+    "shift_median_max_z": 1.2697209568982715
+   },
+   "other_ends:ORIENT+LEGS+FEET": {
+    "slope_per_deg": 0.10703895799815655,
+    "gain": 0.5547829193044453,
+    "offset_c0": -0.17851854860782623,
+    "fixed_point_cmd": -0.40096967602619804,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.3735828846693039,
+    "shift_median_max_z": 1.2835430385211004
+   },
+   "other_ends:head_neck_q": {
+    "slope_per_deg": 0.0915382749267987,
+    "gain": 0.4744428789455976,
+    "offset_c0": 0.6698263883590698,
+    "fixed_point_cmd": 1.274507301918441,
+    "railed_pred": true,
+    "cmd14_own_tail": 1.1514233350753784,
+    "shift_median_max_z": 4.5468224751205915
+   },
+   "other_ends:ORIENT+LEGS+FEET+HEAD": {
+    "slope_per_deg": 0.09697549244655031,
+    "gain": 0.5026239773504703,
+    "offset_c0": -0.006433151662349701,
+    "fixed_point_cmd": -0.012934181322372966,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.49281077086925507,
+    "shift_median_max_z": 4.5468224751205915
+   },
+   "other_ends:pitch_rotation": {
+    "slope_per_deg": 0.10467416048049927,
+    "gain": 0.5425261737704277,
+    "offset_c0": 0.21347959339618683,
+    "fixed_point_cmd": 0.4666487592430199,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.7646613717079163,
+    "rotation_deg": 1.5539918205289978
+   },
+   "own_ends:orient(grav+acc+prey)": {
+    "slope_per_deg": 0.10392515999930246,
+    "gain": 0.5386441042763846,
+    "offset_c0": 0.5020837783813477,
+    "fixed_point_cmd": 1.0882786652023868,
+    "railed_pred": true,
+    "cmd14_own_tail": 1.0399796962738037,
+    "shift_median_max_z": 0.5789300779437223
+   },
+   "own_ends:legs_q": {
+    "slope_per_deg": 0.10616682044097356,
+    "gain": 0.5502626303455659,
+    "offset_c0": 0.40171097218990326,
+    "fixed_point_cmd": 0.8932123485726058,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.9602945446968079,
+    "shift_median_max_z": 0.8092748856890803
+   },
+   "own_ends:ORIENT+LEGS+FEET": {
+    "slope_per_deg": 0.1067942146744047,
+    "gain": 0.5535144146574396,
+    "offset_c0": 0.31058216094970703,
+    "fixed_point_cmd": 0.695615202697791,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.8632290065288544,
+    "shift_median_max_z": 1.1341173652333427
+   },
+   "own_ends:head_neck_q": {
+    "slope_per_deg": 0.10283715810094561,
+    "gain": 0.5330049904372011,
+    "offset_c0": 0.6008924841880798,
+    "fixed_point_cmd": 1.2867214250332906,
+    "railed_pred": true,
+    "cmd14_own_tail": 1.14464271068573,
+    "shift_median_max_z": 0.8031797573678685
+   },
+   "own_ends:ORIENT+LEGS+FEET+HEAD": {
+    "slope_per_deg": 0.10638658808810371,
+    "gain": 0.5514016860606415,
+    "offset_c0": 0.34428201615810394,
+    "fixed_point_cmd": 0.7674616811079767,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.8936728239059448,
+    "shift_median_max_z": 1.1464096309977787
+   },
+   "own_ends:pitch_rotation": {
+    "slope_per_deg": 0.10391853696533612,
+    "gain": 0.5386097770913371,
+    "offset_c0": 0.47264060378074646,
+    "fixed_point_cmd": 1.0243836568559248,
+    "railed_pred": true,
+    "cmd14_own_tail": 1.0223565101623535,
+    "rotation_deg": 0.4657119760247408
+   }
+  },
+  "s42_A_1141": {
+   "none": {
+    "slope_per_deg": 0.11621822948966709,
+    "gain": 0.6023590834449445,
+    "offset_c0": 0.4535065293312073,
+    "fixed_point_cmd": 1.1404926164544158,
+    "railed_pred": true,
+    "cmd14_own_tail": 1.0677769780158997
+   },
+   "other_ends:orient(grav+acc+prey)": {
+    "slope_per_deg": 0.11734864355197974,
+    "gain": 0.608218019529911,
+    "offset_c0": 0.1492145135998726,
+    "fixed_point_cmd": 0.38086109376657384,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.7636147737503052,
+    "shift_median_max_z": 1.0876226080331892
+   },
+   "other_ends:legs_q": {
+    "slope_per_deg": 0.11531285675508636,
+    "gain": 0.5976665365616126,
+    "offset_c0": 0.3214091956615448,
+    "fixed_point_cmd": 0.7988626969150052,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.9248294532299042,
+    "shift_median_max_z": 0.9886126553949183
+   },
+   "other_ends:ORIENT+LEGS+FEET": {
+    "slope_per_deg": 0.11655299857790982,
+    "gain": 0.6040941916293066,
+    "offset_c0": 0.0065865591168403625,
+    "fixed_point_cmd": 0.016636682204655237,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.6177754402160645,
+    "shift_median_max_z": 1.1523634873097368
+   },
+   "other_ends:head_neck_q": {
+    "slope_per_deg": 0.10434385442308017,
+    "gain": 0.5408141974748245,
+    "offset_c0": 0.4438076615333557,
+    "fixed_point_cmd": 0.9665099815646485,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.9919948875904083,
+    "shift_median_max_z": 4.8687662528927715
+   },
+   "other_ends:ORIENT+LEGS+FEET+HEAD": {
+    "slope_per_deg": 0.10838253337091633,
+    "gain": 0.5617466704614593,
+    "offset_c0": 0.0436329860240221,
+    "fixed_point_cmd": 0.09956110560521127,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.6109293103218079,
+    "shift_median_max_z": 4.8687662528927715
+   },
+   "other_ends:pitch_rotation": {
+    "slope_per_deg": 0.11753897142729589,
+    "gain": 0.6092044889076745,
+    "offset_c0": 0.09596425667405128,
+    "fixed_point_cmd": 0.24556130751302238,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.7110826075077057,
+    "rotation_deg": 1.6638946746225272
+   },
+   "own_ends:orient(grav+acc+prey)": {
+    "slope_per_deg": 0.11713386539902006,
+    "gain": 0.607104824363121,
+    "offset_c0": 0.3764249384403229,
+    "fixed_point_cmd": 0.9580798181859626,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.9937711954116821,
+    "shift_median_max_z": 0.5752211416446937
+   },
+   "own_ends:legs_q": {
+    "slope_per_deg": 0.11413198603051049,
+    "gain": 0.5915460835961358,
+    "offset_c0": 0.5135050415992737,
+    "fixed_point_cmd": 1.2571921114634113,
+    "railed_pred": true,
+    "cmd14_own_tail": 1.1124101281166077,
+    "shift_median_max_z": 1.0559595100978025
+   },
+   "own_ends:ORIENT+LEGS+FEET": {
+    "slope_per_deg": 0.11526413953730039,
+    "gain": 0.5974140352218279,
+    "offset_c0": 0.43079355359077454,
+    "fixed_point_cmd": 1.070066001501431,
+    "railed_pred": true,
+    "cmd14_own_tail": 1.038681983947754,
+    "shift_median_max_z": 1.1300115585253234
+   },
+   "own_ends:head_neck_q": {
+    "slope_per_deg": 0.11670574226549693,
+    "gain": 0.6048858621620705,
+    "offset_c0": 0.4504711925983429,
+    "fixed_point_cmd": 1.1401039584747032,
+    "railed_pred": true,
+    "cmd14_own_tail": 1.0655660033226013,
+    "shift_median_max_z": 0.942110050972231
+   },
+   "own_ends:ORIENT+LEGS+FEET+HEAD": {
+    "slope_per_deg": 0.11637352619852338,
+    "gain": 0.6031639862869467,
+    "offset_c0": 0.43089932203292847,
+    "fixed_point_cmd": 1.0858372404287526,
+    "railed_pred": true,
+    "cmd14_own_tail": 1.0443097352981567,
+    "shift_median_max_z": 1.225193176293765
+   },
+   "own_ends:pitch_rotation": {
+    "slope_per_deg": 0.11720381464276995,
+    "gain": 0.6074673712934766,
+    "offset_c0": 0.33252428472042084,
+    "fixed_point_cmd": 0.8471252079506294,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.9499654173851013,
+    "rotation_deg": 0.5756148301182702
+   }
+  },
+  "s42_A_1151": {
+   "none": {
+    "slope_per_deg": 0.1249554609613759,
+    "gain": 0.6476441541628113,
+    "offset_c0": 0.28594887256622314,
+    "fixed_point_cmd": 0.8115343506982714,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.853347659111023
+   },
+   "other_ends:orient(grav+acc+prey)": {
+    "slope_per_deg": 0.1251024760838066,
+    "gain": 0.6484061335423695,
+    "offset_c0": 0.21455243229866028,
+    "fixed_point_cmd": 0.6102280294599944,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.7783397734165192,
+    "shift_median_max_z": 0.44827494944626334
+   },
+   "other_ends:legs_q": {
+    "slope_per_deg": 0.12760709917971066,
+    "gain": 0.6613875950484404,
+    "offset_c0": 0.051357025280594826,
+    "fixed_point_cmd": 0.15166906034627328,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.6281420588493347,
+    "shift_median_max_z": 0.7964547641564241
+   },
+   "other_ends:ORIENT+LEGS+FEET": {
+    "slope_per_deg": 0.1275399411097169,
+    "gain": 0.6610395147716627,
+    "offset_c0": -0.024739235639572144,
+    "fixed_point_cmd": -0.07298560368447315,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.5542621910572052,
+    "shift_median_max_z": 1.1737766130994483
+   },
+   "other_ends:head_neck_q": {
+    "slope_per_deg": 0.12200314179062843,
+    "gain": 0.6323422839008271,
+    "offset_c0": 0.27965977787971497,
+    "fixed_point_cmd": 0.7606525461967426,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.8356107771396637,
+    "shift_median_max_z": 2.0196988231009705
+   },
+   "other_ends:ORIENT+LEGS+FEET+HEAD": {
+    "slope_per_deg": 0.12470760728631701,
+    "gain": 0.646359528564981,
+    "offset_c0": -0.038951531052589417,
+    "fixed_point_cmd": -0.11014443820451335,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.5378951132297516,
+    "shift_median_max_z": 2.0196988231009705
+   },
+   "other_ends:pitch_rotation": {
+    "slope_per_deg": 0.12482850493064948,
+    "gain": 0.6469861410555562,
+    "offset_c0": 0.20320023596286774,
+    "fixed_point_cmd": 0.5756154632865186,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.7690814137458801,
+    "rotation_deg": 0.5209911965918459
+   },
+   "own_ends:orient(grav+acc+prey)": {
+    "slope_per_deg": 0.12496797740459442,
+    "gain": 0.6477090268880129,
+    "offset_c0": 0.38086751103401184,
+    "fixed_point_cmd": 1.0811162933571414,
+    "railed_pred": true,
+    "cmd14_own_tail": 0.9451884329319,
+    "shift_median_max_z": 0.5087912252142233
+   },
+   "own_ends:legs_q": {
+    "slope_per_deg": 0.1263658327183553,
+    "gain": 0.6549541109792355,
+    "offset_c0": 0.2951011657714844,
+    "fixed_point_cmd": 0.8552519394129791,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.870027631521225,
+    "shift_median_max_z": 0.7119215991239445
+   },
+   "own_ends:ORIENT+LEGS+FEET": {
+    "slope_per_deg": 0.1263908270214285,
+    "gain": 0.6550836564520639,
+    "offset_c0": 0.38900126516819,
+    "fixed_point_cmd": 1.1278133740105796,
+    "railed_pred": true,
+    "cmd14_own_tail": 0.9625417590141296,
+    "shift_median_max_z": 1.1835694973941062
+   },
+   "own_ends:head_neck_q": {
+    "slope_per_deg": 0.125359299991812,
+    "gain": 0.6497372518575616,
+    "offset_c0": 0.2208206206560135,
+    "fixed_point_cmd": 0.6304427799618995,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.7869480550289154,
+    "shift_median_max_z": 1.5858141114966648
+   },
+   "own_ends:ORIENT+LEGS+FEET+HEAD": {
+    "slope_per_deg": 0.12749955324190004,
+    "gain": 0.6608301844527679,
+    "offset_c0": 0.3167204111814499,
+    "fixed_point_cmd": 0.9338107244904404,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.9066449999809265,
+    "shift_median_max_z": 1.8111535559895278
+   },
+   "own_ends:pitch_rotation": {
+    "slope_per_deg": 0.12460984236427716,
+    "gain": 0.6458528129740485,
+    "offset_c0": 0.37363845109939575,
+    "fixed_point_cmd": 1.055037184502657,
+    "railed_pred": true,
+    "cmd14_own_tail": 0.9404410719871521,
+    "rotation_deg": -0.5672886479124111
+   }
+  },
+  "s42_B_1201": {
+   "none": {
+    "slope_per_deg": 0.11897258673395428,
+    "gain": 0.616634917042085,
+    "offset_c0": 0.39227207005023956,
+    "fixed_point_cmd": 1.0232336941684965,
+    "railed_pred": true,
+    "cmd14_own_tail": 1.0168032050132751
+   },
+   "other_ends:orient(grav+acc+prey)": {
+    "slope_per_deg": 0.11963863910308906,
+    "gain": 0.6200870664713105,
+    "offset_c0": 0.21318194270133972,
+    "fixed_point_cmd": 0.5611336806074834,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.8380157649517059,
+    "shift_median_max_z": 0.7571681309418163
+   },
+   "other_ends:legs_q": {
+    "slope_per_deg": 0.12169202576790536,
+    "gain": 0.6307297695550534,
+    "offset_c0": 0.10210869461297989,
+    "fixed_point_cmd": 0.27651482896399626,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.7338683605194092,
+    "shift_median_max_z": 0.9998314736500014
+   },
+   "other_ends:ORIENT+LEGS+FEET": {
+    "slope_per_deg": 0.12184934797031538,
+    "gain": 0.6315451705301446,
+    "offset_c0": -0.07489150017499924,
+    "fixed_point_cmd": -0.20325829432811485,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.5470710396766663,
+    "shift_median_max_z": 1.1576755746784027
+   },
+   "other_ends:head_neck_q": {
+    "slope_per_deg": 0.11079732009342738,
+    "gain": 0.5742625100442341,
+    "offset_c0": 0.39726749062538147,
+    "fixed_point_cmd": 0.9331278076230909,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.9751826822757721,
+    "shift_median_max_z": 2.797032021561779
+   },
+   "other_ends:ORIENT+LEGS+FEET+HEAD": {
+    "slope_per_deg": 0.11477014768336502,
+    "gain": 0.5948536754428809,
+    "offset_c0": -0.032966069877147675,
+    "fixed_point_cmd": -0.0813683054219587,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.5518998801708221,
+    "shift_median_max_z": 2.8302166219854215
+   },
+   "other_ends:pitch_rotation": {
+    "slope_per_deg": 0.11964277444141252,
+    "gain": 0.6201084999298411,
+    "offset_c0": 0.19801048189401627,
+    "fixed_point_cmd": 0.5212290400218151,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.8256667852401733,
+    "rotation_deg": 1.0933558921425934
+   },
+   "own_ends:orient(grav+acc+prey)": {
+    "slope_per_deg": 0.11889935178416115,
+    "gain": 0.6162553402973072,
+    "offset_c0": 0.4027583599090576,
+    "fixed_point_cmd": 1.0495477910261886,
+    "railed_pred": true,
+    "cmd14_own_tail": 1.0249574780464172,
+    "shift_median_max_z": 0.5331636750204212
+   },
+   "own_ends:legs_q": {
+    "slope_per_deg": 0.11991457853998456,
+    "gain": 0.6215172605727399,
+    "offset_c0": 0.34971149265766144,
+    "fixed_point_cmd": 0.923982671407587,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.9762681722640991,
+    "shift_median_max_z": 0.5128146826469384
+   },
+   "own_ends:ORIENT+LEGS+FEET": {
+    "slope_per_deg": 0.11993553702320371,
+    "gain": 0.6216258883912649,
+    "offset_c0": 0.3635028898715973,
+    "fixed_point_cmd": 0.9606970422106581,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.9821594953536987,
+    "shift_median_max_z": 1.1447785502551162
+   },
+   "own_ends:head_neck_q": {
+    "slope_per_deg": 0.11954629634107863,
+    "gain": 0.6196084539358105,
+    "offset_c0": 0.38452690839767456,
+    "fixed_point_cmd": 1.0108713308070922,
+    "railed_pred": true,
+    "cmd14_own_tail": 1.009320855140686,
+    "shift_median_max_z": 1.0130445388186422
+   },
+   "own_ends:ORIENT+LEGS+FEET+HEAD": {
+    "slope_per_deg": 0.12077113507049425,
+    "gain": 0.6259567930703717,
+    "offset_c0": 0.35872165858745575,
+    "fixed_point_cmd": 0.9590380253983462,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.9761936664581299,
+    "shift_median_max_z": 1.2982714652965635
+   },
+   "own_ends:pitch_rotation": {
+    "slope_per_deg": 0.11898071372083255,
+    "gain": 0.6166770392150751,
+    "offset_c0": 0.39140886068344116,
+    "fixed_point_cmd": 1.0210942226939885,
+    "railed_pred": true,
+    "cmd14_own_tail": 1.0159751772880554,
+    "rotation_deg": 0.005076047638336467
+   }
+  },
+  "s42_B_1211": {
+   "none": {
+    "slope_per_deg": 0.1064639613032341,
+    "gain": 0.5518027114346623,
+    "offset_c0": 0.4724617600440979,
+    "fixed_point_cmd": 1.0541379256363417,
+    "railed_pred": true,
+    "cmd14_own_tail": 1.0325984358787537
+   },
+   "other_ends:orient(grav+acc+prey)": {
+    "slope_per_deg": 0.10641349213463919,
+    "gain": 0.5515411297338348,
+    "offset_c0": 0.36488234996795654,
+    "fixed_point_cmd": 0.8136361529684872,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.9270925223827362,
+    "shift_median_max_z": 0.5438881727588363
+   },
+   "other_ends:legs_q": {
+    "slope_per_deg": 0.11063268554529974,
+    "gain": 0.5734092091812886,
+    "offset_c0": 0.055766962468624115,
+    "fixed_point_cmd": 0.13072706600533118,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.6354603171348572,
+    "shift_median_max_z": 1.2114350772838933
+   },
+   "other_ends:ORIENT+LEGS+FEET": {
+    "slope_per_deg": 0.11083716553236755,
+    "gain": 0.574469028954261,
+    "offset_c0": -0.0555897131562233,
+    "fixed_point_cmd": -0.1306361156735831,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.5199418365955353,
+    "shift_median_max_z": 1.2184663752786489
+   },
+   "other_ends:head_neck_q": {
+    "slope_per_deg": 0.10306791907974652,
+    "gain": 0.5342010245903263,
+    "offset_c0": 0.5267259180545807,
+    "fixed_point_cmd": 1.1308009374458612,
+    "railed_pred": true,
+    "cmd14_own_tail": 1.0697667598724365,
+    "shift_median_max_z": 1.6023531842337784
+   },
+   "other_ends:ORIENT+LEGS+FEET+HEAD": {
+    "slope_per_deg": 0.10692967713943549,
+    "gain": 0.5542165166136941,
+    "offset_c0": 0.015561234205961227,
+    "fixed_point_cmd": 0.034907606014815525,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.5676191449165344,
+    "shift_median_max_z": 1.610621885948298
+   },
+   "other_ends:pitch_rotation": {
+    "slope_per_deg": 0.10614761071545736,
+    "gain": 0.5501630663382155,
+    "offset_c0": 0.36872105300426483,
+    "fixed_point_cmd": 0.8196771438991988,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.9279163181781769,
+    "rotation_deg": 0.7324107739897152
+   },
+   "own_ends:orient(grav+acc+prey)": {
+    "slope_per_deg": 0.1064903906413487,
+    "gain": 0.5519396946941103,
+    "offset_c0": 0.5155870020389557,
+    "fixed_point_cmd": 1.1507089468391218,
+    "railed_pred": true,
+    "cmd14_own_tail": 1.079456627368927,
+    "shift_median_max_z": 0.511437576596167
+   },
+   "own_ends:legs_q": {
+    "slope_per_deg": 0.10926926136016846,
+    "gain": 0.566342581629753,
+    "offset_c0": 0.26939883828163147,
+    "fixed_point_cmd": 0.6212250197265732,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.8459016978740692,
+    "shift_median_max_z": 1.1342006601103911
+   },
+   "own_ends:ORIENT+LEGS+FEET": {
+    "slope_per_deg": 0.1094331241079739,
+    "gain": 0.5671918822516288,
+    "offset_c0": 0.31955885887145996,
+    "fixed_point_cmd": 0.7383384131839392,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.8879368305206299,
+    "shift_median_max_z": 1.178925579557108
+   },
+   "own_ends:head_neck_q": {
+    "slope_per_deg": 0.10622170780386245,
+    "gain": 0.5505471115474191,
+    "offset_c0": 0.4011617451906204,
+    "fixed_point_cmd": 0.8925557171782301,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.9599906206130981,
+    "shift_median_max_z": 1.8467198341566036
+   },
+   "own_ends:ORIENT+LEGS+FEET+HEAD": {
+    "slope_per_deg": 0.11027004144021442,
+    "gain": 0.5715296247846313,
+    "offset_c0": 0.24778974056243896,
+    "fixed_point_cmd": 0.5783124222716415,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.8242024183273315,
+    "shift_median_max_z": 1.912170546673759
+   },
+   "own_ends:pitch_rotation": {
+    "slope_per_deg": 0.10638798028230667,
+    "gain": 0.5514089018031955,
+    "offset_c0": 0.5208631753921509,
+    "fixed_point_cmd": 1.1611090311106427,
+    "railed_pred": true,
+    "cmd14_own_tail": 1.0800051093101501,
+    "rotation_deg": -0.35586907051454175
+   }
+  },
+  "s42_B_1221": {
+   "none": {
+    "slope_per_deg": 0.12888177377837046,
+    "gain": 0.667994233493294,
+    "offset_c0": 0.3513014316558838,
+    "fixed_point_cmd": 1.0581184638815244,
+    "railed_pred": true,
+    "cmd14_own_tail": 1.0227299928665161
+   },
+   "other_ends:orient(grav+acc+prey)": {
+    "slope_per_deg": 0.1287848015448877,
+    "gain": 0.6674916264071529,
+    "offset_c0": 0.16499006003141403,
+    "fixed_point_cmd": 0.49619821073571685,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.8325916826725006,
+    "shift_median_max_z": 0.7306926585486451
+   },
+   "other_ends:legs_q": {
+    "slope_per_deg": 0.12957537666495358,
+    "gain": 0.6715891772544544,
+    "offset_c0": 0.11774163320660591,
+    "fixed_point_cmd": 0.3585193454414039,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.7931973338127136,
+    "shift_median_max_z": 0.86215270615431
+   },
+   "other_ends:ORIENT+LEGS+FEET": {
+    "slope_per_deg": 0.12937853006379946,
+    "gain": 0.6705689213206726,
+    "offset_c0": -0.04389292746782303,
+    "fixed_point_cmd": -0.1332385749510567,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.6361873745918274,
+    "shift_median_max_z": 0.945807419759972
+   },
+   "other_ends:head_neck_q": {
+    "slope_per_deg": 0.11777831933328084,
+    "gain": 0.6104450291043946,
+    "offset_c0": 0.4629397988319397,
+    "fixed_point_cmd": 1.188381187301035,
+    "railed_pred": true,
+    "cmd14_own_tail": 1.0794994235038757,
+    "shift_median_max_z": 3.246525499877386
+   },
+   "other_ends:ORIENT+LEGS+FEET+HEAD": {
+    "slope_per_deg": 0.1206195858706321,
+    "gain": 0.6251713135674861,
+    "offset_c0": 0.10225209593772888,
+    "fixed_point_cmd": 0.27279687931819724,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.7233891487121582,
+    "shift_median_max_z": 3.251516013190952
+   },
+   "other_ends:pitch_rotation": {
+    "slope_per_deg": 0.1291386229651315,
+    "gain": 0.6693254828282766,
+    "offset_c0": 0.15368176996707916,
+    "fixed_point_cmd": 0.46475238334519237,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.8289541006088257,
+    "rotation_deg": 1.087198771147131
+   },
+   "own_ends:orient(grav+acc+prey)": {
+    "slope_per_deg": 0.12856669085366385,
+    "gain": 0.6663611586945397,
+    "offset_c0": 0.355635404586792,
+    "fixed_point_cmd": 1.065929264096661,
+    "railed_pred": true,
+    "cmd14_own_tail": 1.0239599347114563,
+    "shift_median_max_z": 0.47483803780484857
+   },
+   "own_ends:legs_q": {
+    "slope_per_deg": 0.1290564454559769,
+    "gain": 0.6688995567983281,
+    "offset_c0": 0.30547916889190674,
+    "fixed_point_cmd": 0.9226178193480722,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.9755140841007233,
+    "shift_median_max_z": 0.6634671387930164
+   },
+   "own_ends:ORIENT+LEGS+FEET": {
+    "slope_per_deg": 0.1291085864816393,
+    "gain": 0.6691698037343365,
+    "offset_c0": 0.3366030156612396,
+    "fixed_point_cmd": 1.0174494936095266,
+    "railed_pred": true,
+    "cmd14_own_tail": 1.0115798115730286,
+    "shift_median_max_z": 0.9681418638627506
+   },
+   "own_ends:head_neck_q": {
+    "slope_per_deg": 0.12908268187727248,
+    "gain": 0.6690355401699033,
+    "offset_c0": 0.3237159699201584,
+    "fixed_point_cmd": 0.9780988873740117,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.9969581663608551,
+    "shift_median_max_z": 0.5823784714629106
+   },
+   "own_ends:ORIENT+LEGS+FEET+HEAD": {
+    "slope_per_deg": 0.1294579931667873,
+    "gain": 0.6709807785834585,
+    "offset_c0": 0.3166355788707733,
+    "fixed_point_cmd": 0.9623619480574651,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.9861453771591187,
+    "shift_median_max_z": 1.100945686749155
+   },
+   "own_ends:pitch_rotation": {
+    "slope_per_deg": 0.12888035391058242,
+    "gain": 0.6679868743185486,
+    "offset_c0": 0.3514915406703949,
+    "fixed_point_cmd": 1.0586676052308608,
+    "railed_pred": true,
+    "cmd14_own_tail": 1.0229105949401855,
+    "rotation_deg": -0.001081073357126039
+   }
+  },
+  "s42_B_1231": {
+   "none": {
+    "slope_per_deg": 0.13472104870847293,
+    "gain": 0.6982591954560151,
+    "offset_c0": 0.2926472872495651,
+    "fixed_point_cmd": 0.9698631502353067,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.9890426993370056
+   },
+   "other_ends:orient(grav+acc+prey)": {
+    "slope_per_deg": 0.1362939387825983,
+    "gain": 0.706411484710207,
+    "offset_c0": 0.09911774843931198,
+    "fixed_point_cmd": 0.3376077171870147,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.778582751750946,
+    "shift_median_max_z": 0.7932709156351473
+   },
+   "other_ends:legs_q": {
+    "slope_per_deg": 0.1368829110371215,
+    "gain": 0.7094641279054007,
+    "offset_c0": 0.11092505976557732,
+    "fixed_point_cmd": 0.3817947125285094,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.7999825477600098,
+    "shift_median_max_z": 0.931817478100442
+   },
+   "other_ends:ORIENT+LEGS+FEET": {
+    "slope_per_deg": 0.13762071968189307,
+    "gain": 0.7132881901112518,
+    "offset_c0": -0.09613484889268875,
+    "fixed_point_cmd": -0.33530132201387736,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.5922682285308838,
+    "shift_median_max_z": 1.1201463339956468
+   },
+   "other_ends:head_neck_q": {
+    "slope_per_deg": 0.12300480848976544,
+    "gain": 0.6375339224024543,
+    "offset_c0": 0.4018237739801407,
+    "fixed_point_cmd": 1.1085831166421447,
+    "railed_pred": true,
+    "cmd14_own_tail": 1.028403103351593,
+    "shift_median_max_z": 4.050675141741841
+   },
+   "other_ends:ORIENT+LEGS+FEET+HEAD": {
+    "slope_per_deg": 0.12578582956588696,
+    "gain": 0.6519479546399921,
+    "offset_c0": 0.04983090981841087,
+    "fixed_point_cmd": 0.14317085758501502,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.6811344623565674,
+    "shift_median_max_z": 4.050675141741841
+   },
+   "other_ends:pitch_rotation": {
+    "slope_per_deg": 0.13567256475133554,
+    "gain": 0.7031909031061722,
+    "offset_c0": 0.08682988956570625,
+    "fixed_point_cmd": 0.2925445698073275,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.7829380035400391,
+    "rotation_deg": 1.18885280420487
+   },
+   "own_ends:orient(grav+acc+prey)": {
+    "slope_per_deg": 0.13568050680415972,
+    "gain": 0.7032320667659598,
+    "offset_c0": 0.28812164068222046,
+    "fixed_point_cmd": 0.9708651387715769,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.967555046081543,
+    "shift_median_max_z": 0.5163242120876108
+   },
+   "own_ends:legs_q": {
+    "slope_per_deg": 0.1361870893410274,
+    "gain": 0.7058576840545451,
+    "offset_c0": 0.27131161093711853,
+    "fixed_point_cmd": 0.9223821131109539,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.9581117033958435,
+    "shift_median_max_z": 0.8856885593191794
+   },
+   "own_ends:ORIENT+LEGS+FEET": {
+    "slope_per_deg": 0.1364533150834697,
+    "gain": 0.7072375320776234,
+    "offset_c0": 0.25715208053588867,
+    "fixed_point_cmd": 0.8783642328225977,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.9403464198112488,
+    "shift_median_max_z": 1.1237730334278835
+   },
+   "own_ends:head_neck_q": {
+    "slope_per_deg": 0.13393861747213773,
+    "gain": 0.6942038543580898,
+    "offset_c0": 0.32092827558517456,
+    "fixed_point_cmd": 1.04948437107178,
+    "railed_pred": true,
+    "cmd14_own_tail": 1.0223695635795593,
+    "shift_median_max_z": 0.5973872008366331
+   },
+   "own_ends:ORIENT+LEGS+FEET+HEAD": {
+    "slope_per_deg": 0.13629339422498432,
+    "gain": 0.7064086622680937,
+    "offset_c0": 0.28998175263404846,
+    "fixed_point_cmd": 0.9877054100923308,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.969293475151062,
+    "shift_median_max_z": 1.1237730334278835
+   },
+   "own_ends:pitch_rotation": {
+    "slope_per_deg": 0.13490272206919535,
+    "gain": 0.6992008084846395,
+    "offset_c0": 0.27570007741451263,
+    "fixed_point_cmd": 0.9165585719349709,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.9725136160850525,
+    "rotation_deg": 0.10057295970061308
+   }
+  },
+  "s42_B_1241": {
+   "none": {
+    "slope_per_deg": 0.10930979145424707,
+    "gain": 0.5665526491073626,
+    "offset_c0": 0.4481571763753891,
+    "fixed_point_cmd": 1.0339368217442289,
+    "railed_pred": true,
+    "cmd14_own_tail": 1.0276939868927002
+   },
+   "other_ends:orient(grav+acc+prey)": {
+    "slope_per_deg": 0.11025991769773619,
+    "gain": 0.5714771534273666,
+    "offset_c0": 0.17483999580144882,
+    "fixed_point_cmd": 0.40800624097369786,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.7515853643417358,
+    "shift_median_max_z": 1.0135361449944054
+   },
+   "other_ends:legs_q": {
+    "slope_per_deg": 0.11033895798027515,
+    "gain": 0.5718868192117661,
+    "offset_c0": 0.18607233464717865,
+    "fixed_point_cmd": 0.4346335104763319,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.7651468515396118,
+    "shift_median_max_z": 0.9127152578650575
+   },
+   "other_ends:ORIENT+LEGS+FEET": {
+    "slope_per_deg": 0.11076503047453506,
+    "gain": 0.5740951529495152,
+    "offset_c0": -0.07589251548051834,
+    "fixed_point_cmd": -0.17819124625158914,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.5046219527721405,
+    "shift_median_max_z": 1.1200713961869688
+   },
+   "other_ends:head_neck_q": {
+    "slope_per_deg": 0.10001901111432485,
+    "gain": 0.5183985346055456,
+    "offset_c0": 0.44252993166446686,
+    "fixed_point_cmd": 0.9188716469166346,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.970307856798172,
+    "shift_median_max_z": 4.197435142846878
+   },
+   "other_ends:ORIENT+LEGS+FEET+HEAD": {
+    "slope_per_deg": 0.1037285253405571,
+    "gain": 0.5376249468401074,
+    "offset_c0": -0.03816438466310501,
+    "fixed_point_cmd": -0.08253988705118893,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.5083308815956116,
+    "shift_median_max_z": 4.197435142846878
+   },
+   "other_ends:pitch_rotation": {
+    "slope_per_deg": 0.11032415580536638,
+    "gain": 0.5718100995392139,
+    "offset_c0": 0.16561609506607056,
+    "fixed_point_cmd": 0.3867818808613815,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.7476611435413361,
+    "rotation_deg": 1.5112744061725119
+   },
+   "own_ends:orient(grav+acc+prey)": {
+    "slope_per_deg": 0.10974796009915216,
+    "gain": 0.5688236771939057,
+    "offset_c0": 0.3717750608921051,
+    "fixed_point_cmd": 0.862234406733176,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.94967320561409,
+    "shift_median_max_z": 0.48289315412590206
+   },
+   "own_ends:legs_q": {
+    "slope_per_deg": 0.10945302194782666,
+    "gain": 0.5672950127555856,
+    "offset_c0": 0.400248259305954,
+    "fixed_point_cmd": 0.9249910934811408,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.9778767228126526,
+    "shift_median_max_z": 0.9078168733022138
+   },
+   "own_ends:ORIENT+LEGS+FEET": {
+    "slope_per_deg": 0.11012340922440803,
+    "gain": 0.5707696300101068,
+    "offset_c0": 0.3415292203426361,
+    "fixed_point_cmd": 0.795678135148447,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.92010098695755,
+    "shift_median_max_z": 1.0891178741311605
+   },
+   "own_ends:head_neck_q": {
+    "slope_per_deg": 0.10940859466791153,
+    "gain": 0.5670647461637854,
+    "offset_c0": 0.4490214139223099,
+    "fixed_point_cmd": 1.0371560411021203,
+    "railed_pred": true,
+    "cmd14_own_tail": 1.0305331349372864,
+    "shift_median_max_z": 0.4229861116019949
+   },
+   "own_ends:ORIENT+LEGS+FEET+HEAD": {
+    "slope_per_deg": 0.1106144402708326,
+    "gain": 0.5733146439237253,
+    "offset_c0": 0.3422333002090454,
+    "fixed_point_cmd": 0.8020741638667053,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.9196369051933289,
+    "shift_median_max_z": 1.0891178741311605
+   },
+   "own_ends:pitch_rotation": {
+    "slope_per_deg": 0.10988247554217066,
+    "gain": 0.5695208707350705,
+    "offset_c0": 0.37217630445957184,
+    "fixed_point_cmd": 0.8645629466289959,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.953558474779129,
+    "rotation_deg": 0.4229945616682549
+   }
+  },
+  "s42_B_1251": {
+   "none": {
+    "slope_per_deg": 0.09252402665359633,
+    "gain": 0.4795520301455897,
+    "offset_c0": 0.5282111167907715,
+    "fixed_point_cmd": 1.0149162786407504,
+    "railed_pred": true,
+    "cmd14_own_tail": 1.0159792304039001
+   },
+   "other_ends:orient(grav+acc+prey)": {
+    "slope_per_deg": 0.09205129157219613,
+    "gain": 0.4771018442186925,
+    "offset_c0": 0.36392857134342194,
+    "fixed_point_cmd": 0.6959836582319643,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.846124529838562,
+    "shift_median_max_z": 0.8078722494237421
+   },
+   "other_ends:legs_q": {
+    "slope_per_deg": 0.09218953709517207,
+    "gain": 0.4778183707642768,
+    "offset_c0": 0.320539265871048,
+    "fixed_point_cmd": 0.6138463092625386,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.805381715297699,
+    "shift_median_max_z": 0.9070518642922243
+   },
+   "other_ends:ORIENT+LEGS+FEET": {
+    "slope_per_deg": 0.09246877527662686,
+    "gain": 0.479265662258757,
+    "offset_c0": 0.14974743872880936,
+    "fixed_point_cmd": 0.28756974118196144,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.6275023221969604,
+    "shift_median_max_z": 1.0691009095109962
+   },
+   "other_ends:head_neck_q": {
+    "slope_per_deg": 0.08647414030773298,
+    "gain": 0.44819546921498005,
+    "offset_c0": 0.2822644114494324,
+    "fixed_point_cmd": 0.5115297097105589,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.7280775308609009,
+    "shift_median_max_z": 4.35343493858418
+   },
+   "other_ends:ORIENT+LEGS+FEET+HEAD": {
+    "slope_per_deg": 0.08913443450416837,
+    "gain": 0.46198377403510466,
+    "offset_c0": -0.08305690437555313,
+    "fixed_point_cmd": -0.15437620719820533,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.37731166183948517,
+    "shift_median_max_z": 4.35343493858418
+   },
+   "other_ends:pitch_rotation": {
+    "slope_per_deg": 0.09194297875676836,
+    "gain": 0.4765404588963304,
+    "offset_c0": 0.35809578001499176,
+    "fixed_point_cmd": 0.6840944751144998,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.8423007130622864,
+    "rotation_deg": 1.234746123884051
+   },
+   "own_ends:orient(grav+acc+prey)": {
+    "slope_per_deg": 0.09251414132969721,
+    "gain": 0.4795007945118206,
+    "offset_c0": 0.5126426219940186,
+    "fixed_point_cmd": 0.9849056762982143,
+    "railed_pred": false,
+    "cmd14_own_tail": 1.0002447366714478,
+    "shift_median_max_z": 0.4868119411464622
+   },
+   "own_ends:legs_q": {
+    "slope_per_deg": 0.0919271068913596,
+    "gain": 0.4764581950179168,
+    "offset_c0": 0.5030123889446259,
+    "fixed_point_cmd": 0.9607874369494525,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.9870117902755737,
+    "shift_median_max_z": 0.8528887915266541
+   },
+   "own_ends:ORIENT+LEGS+FEET": {
+    "slope_per_deg": 0.09206444450787135,
+    "gain": 0.4771700158842972,
+    "offset_c0": 0.48384563624858856,
+    "fixed_point_cmd": 0.925435898759611,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.9663668870925903,
+    "shift_median_max_z": 1.0636768214807337
+   },
+   "own_ends:head_neck_q": {
+    "slope_per_deg": 0.09354724096400396,
+    "gain": 0.48485534991643253,
+    "offset_c0": 0.4276048243045807,
+    "fixed_point_cmd": 0.8300674853853457,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.9147834777832031,
+    "shift_median_max_z": 0.9764936394832966
+   },
+   "own_ends:ORIENT+LEGS+FEET+HEAD": {
+    "slope_per_deg": 0.09387613300766265,
+    "gain": 0.48655999737871547,
+    "offset_c0": 0.37526780366897583,
+    "fixed_point_cmd": 0.7308892991451913,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.8666223883628845,
+    "shift_median_max_z": 1.179678258405621
+   },
+   "own_ends:pitch_rotation": {
+    "slope_per_deg": 0.09256427522216523,
+    "gain": 0.47976063847648237,
+    "offset_c0": 0.5089565813541412,
+    "fixed_point_cmd": 0.9783123288935022,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.9962087273597717,
+    "rotation_deg": 0.14646627937979395
+   }
+  },
+  "s80_A_1301": {
+   "none": {
+    "slope_per_deg": -0.029471642237954905,
+    "gain": -0.15275152171932027,
+    "offset_c0": 0.009549407754093409,
+    "fixed_point_cmd": 0.008284012273391353,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.006165236467495561
+   },
+   "other_ends:orient(grav+acc+prey)": {
+    "slope_per_deg": -0.027224924797857444,
+    "gain": -0.14110678522729514,
+    "offset_c0": -0.009681854397058487,
+    "fixed_point_cmd": -0.008484617322760003,
+    "railed_pred": false,
+    "cmd14_own_tail": -0.011809785850346088,
+    "shift_median_max_z": 0.9729264758309428
+   },
+   "other_ends:legs_q": {
+    "slope_per_deg": -0.025156590422349315,
+    "gain": -0.1303866081590365,
+    "offset_c0": -0.059536516666412354,
+    "fixed_point_cmd": -0.05266916313116479,
+    "railed_pred": false,
+    "cmd14_own_tail": -0.06294788047671318,
+    "shift_median_max_z": 0.9258921870200527
+   },
+   "other_ends:ORIENT+LEGS+FEET": {
+    "slope_per_deg": -0.023599219508469105,
+    "gain": -0.12231475471239536,
+    "offset_c0": -0.07546189799904823,
+    "fixed_point_cmd": -0.06723773137811605,
+    "railed_pred": false,
+    "cmd14_own_tail": -0.07902878522872925,
+    "shift_median_max_z": 1.0985394844774952
+   },
+   "other_ends:head_neck_q": {
+    "slope_per_deg": -0.0307293954704489,
+    "gain": -0.15927045672333665,
+    "offset_c0": 0.026174116879701614,
+    "fixed_point_cmd": 0.022578093600075365,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.024410919286310673,
+    "shift_median_max_z": 0.9448813972167152
+   },
+   "other_ends:ORIENT+LEGS+FEET+HEAD": {
+    "slope_per_deg": -0.02423539278762681,
+    "gain": -0.12561204081826974,
+    "offset_c0": -0.06010544300079346,
+    "fixed_point_cmd": -0.05339800999028003,
+    "railed_pred": false,
+    "cmd14_own_tail": -0.06513508409261703,
+    "shift_median_max_z": 1.2288824080583884
+   },
+   "other_ends:pitch_rotation": {
+    "slope_per_deg": -0.02730102018020781,
+    "gain": -0.14150118759401706,
+    "offset_c0": -0.007539242506027222,
+    "fixed_point_cmd": -0.006604673379199852,
+    "railed_pred": false,
+    "cmd14_own_tail": -0.010571252554655075,
+    "rotation_deg": -1.2772577804171679
+   },
+   "own_ends:orient(grav+acc+prey)": {
+    "slope_per_deg": -0.029151414471146254,
+    "gain": -0.15109178120395103,
+    "offset_c0": 0.004193924367427826,
+    "fixed_point_cmd": 0.0036434317713929924,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.002174836117774248,
+    "shift_median_max_z": 0.42173465581457503
+   },
+   "own_ends:legs_q": {
+    "slope_per_deg": -0.028313674964010722,
+    "gain": -0.14674977733846756,
+    "offset_c0": -0.005648829974234104,
+    "fixed_point_cmd": -0.004925948176196445,
+    "railed_pred": false,
+    "cmd14_own_tail": -0.009120902046561241,
+    "shift_median_max_z": 0.651466563647642
+   },
+   "own_ends:ORIENT+LEGS+FEET": {
+    "slope_per_deg": -0.02825533578704511,
+    "gain": -0.1464474053842548,
+    "offset_c0": -0.009855157695710659,
+    "fixed_point_cmd": -0.00859625801360465,
+    "railed_pred": false,
+    "cmd14_own_tail": -0.013595730066299438,
+    "shift_median_max_z": 1.0196438072080996
+   },
+   "own_ends:head_neck_q": {
+    "slope_per_deg": -0.031389150236334123,
+    "gain": -0.16268996567491975,
+    "offset_c0": 0.03877737186849117,
+    "fixed_point_cmd": 0.0333514290251758,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.036667341366410255,
+    "shift_median_max_z": 1.815526273009079
+   },
+   "own_ends:ORIENT+LEGS+FEET+HEAD": {
+    "slope_per_deg": -0.030134286166035702,
+    "gain": -0.15618600519856304,
+    "offset_c0": 0.020719869062304497,
+    "fixed_point_cmd": 0.017920878620863494,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.016353042796254158,
+    "shift_median_max_z": 1.9658933976861184
+   },
+   "own_ends:pitch_rotation": {
+    "slope_per_deg": -0.02927474113779941,
+    "gain": -0.15173098331721435,
+    "offset_c0": 0.007307297782972455,
+    "fixed_point_cmd": 0.006344622041794849,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.00389464502222836,
+    "rotation_deg": -0.188977935912911
+   }
+  },
+  "s80_A_1311": {
+   "none": {
+    "slope_per_deg": -0.06486194967458557,
+    "gain": -0.336179485163377,
+    "offset_c0": -0.003585459664463997,
+    "fixed_point_cmd": -0.002683366796359395,
+    "railed_pred": false,
+    "cmd14_own_tail": -0.002915123011916876
+   },
+   "other_ends:orient(grav+acc+prey)": {
+    "slope_per_deg": -0.06637304615495461,
+    "gain": -0.34401149822112975,
+    "offset_c0": 0.02065761387348175,
+    "fixed_point_cmd": 0.015370116922975133,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.02217161748558283,
+    "shift_median_max_z": 0.6799566116769606
+   },
+   "other_ends:legs_q": {
+    "slope_per_deg": -0.06448692678739981,
+    "gain": -0.3342357415390932,
+    "offset_c0": -0.0201563136652112,
+    "fixed_point_cmd": -0.015107010731072233,
+    "railed_pred": false,
+    "cmd14_own_tail": -0.021325227804481983,
+    "shift_median_max_z": 0.9855025520155511
+   },
+   "other_ends:ORIENT+LEGS+FEET": {
+    "slope_per_deg": -0.06582481530494988,
+    "gain": -0.3411700177255552,
+    "offset_c0": 0.00594633468426764,
+    "fixed_point_cmd": 0.004433691929940268,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.009896257892251015,
+    "shift_median_max_z": 1.1886513196808859
+   },
+   "other_ends:head_neck_q": {
+    "slope_per_deg": -0.07304155746740953,
+    "gain": -0.3785743923535836,
+    "offset_c0": 0.11886219680309296,
+    "fixed_point_cmd": 0.0862210972888916,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.13499993830919266,
+    "shift_median_max_z": 2.964742591801627
+   },
+   "other_ends:ORIENT+LEGS+FEET+HEAD": {
+    "slope_per_deg": -0.07388800156435796,
+    "gain": -0.3829615121080673,
+    "offset_c0": 0.13837192952632904,
+    "fixed_point_cmd": 0.10005479423314304,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.1516764834523201,
+    "shift_median_max_z": 3.0042959120330535
+   },
+   "other_ends:pitch_rotation": {
+    "slope_per_deg": -0.06539858096013113,
+    "gain": -0.3389608451163596,
+    "offset_c0": 0.01887754537165165,
+    "fixed_point_cmd": 0.01409865377356209,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.01964745484292507,
+    "rotation_deg": -0.7654091595599284
+   },
+   "own_ends:orient(grav+acc+prey)": {
+    "slope_per_deg": -0.0659675100635338,
+    "gain": -0.34190960465929565,
+    "offset_c0": -0.008770001586526632,
+    "fixed_point_cmd": -0.006535463757078698,
+    "railed_pred": false,
+    "cmd14_own_tail": -0.006447350140661001,
+    "shift_median_max_z": 0.5499756332020733
+   },
+   "own_ends:legs_q": {
+    "slope_per_deg": -0.06511110360068934,
+    "gain": -0.3374708499623728,
+    "offset_c0": -0.006352455820888281,
+    "fixed_point_cmd": -0.004749603194018767,
+    "railed_pred": false,
+    "cmd14_own_tail": -0.007561992853879929,
+    "shift_median_max_z": 0.863395376231743
+   },
+   "own_ends:ORIENT+LEGS+FEET": {
+    "slope_per_deg": -0.06585020360736442,
+    "gain": -0.3413016052969698,
+    "offset_c0": -0.010303486604243517,
+    "fixed_point_cmd": -0.007681707502290122,
+    "railed_pred": false,
+    "cmd14_own_tail": -0.004776108544319868,
+    "shift_median_max_z": 1.1867564502619286
+   },
+   "own_ends:head_neck_q": {
+    "slope_per_deg": -0.07027800926672562,
+    "gain": -0.3642509220294389,
+    "offset_c0": 0.06800476461648941,
+    "fixed_point_cmd": 0.04984769555099627,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.08492065221071243,
+    "shift_median_max_z": 1.9806868143882181
+   },
+   "own_ends:ORIENT+LEGS+FEET+HEAD": {
+    "slope_per_deg": -0.07132498268038034,
+    "gain": -0.36967738523241134,
+    "offset_c0": 0.07599340006709099,
+    "fixed_point_cmd": 0.05548270044204328,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.08969169482588768,
+    "shift_median_max_z": 2.0202400416575643
+   },
+   "own_ends:pitch_rotation": {
+    "slope_per_deg": -0.0644361583981663,
+    "gain": -0.33397260897769593,
+    "offset_c0": -0.013578981161117554,
+    "fixed_point_cmd": -0.010179355310394229,
+    "railed_pred": false,
+    "cmd14_own_tail": -0.012845000252127647,
+    "rotation_deg": 0.3228706849443286
+   }
+  },
+  "s80_A_1321": {
+   "none": {
+    "slope_per_deg": -0.04209601193932551,
+    "gain": -0.2181836298815241,
+    "offset_c0": 0.055755799636244774,
+    "fixed_point_cmd": 0.045769618199242565,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.034721845760941505
+   },
+   "other_ends:orient(grav+acc+prey)": {
+    "slope_per_deg": -0.04136550120477166,
+    "gain": -0.21439739274433148,
+    "offset_c0": 0.06746959686279297,
+    "fixed_point_cmd": 0.05555808771157122,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.0458498727530241,
+    "shift_median_max_z": 0.9321157033106781
+   },
+   "other_ends:legs_q": {
+    "slope_per_deg": -0.041840428552989445,
+    "gain": -0.2168589411901443,
+    "offset_c0": 0.04616181738674641,
+    "fixed_point_cmd": 0.037935224720129036,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.014869061298668385,
+    "shift_median_max_z": 0.9444130255359413
+   },
+   "other_ends:ORIENT+LEGS+FEET": {
+    "slope_per_deg": -0.03993696247094444,
+    "gain": -0.20699327648690505,
+    "offset_c0": 0.045321304351091385,
+    "fixed_point_cmd": 0.03754892859304431,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.014439603313803673,
+    "shift_median_max_z": 1.2154345323461722
+   },
+   "other_ends:head_neck_q": {
+    "slope_per_deg": -0.04403046664914914,
+    "gain": -0.22820990864253998,
+    "offset_c0": 0.05749942548573017,
+    "fixed_point_cmd": 0.046815633941009745,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.039146726951003075,
+    "shift_median_max_z": 1.5957092296378235
+   },
+   "other_ends:ORIENT+LEGS+FEET+HEAD": {
+    "slope_per_deg": -0.04313316661864519,
+    "gain": -0.223559202584438,
+    "offset_c0": 0.05970503017306328,
+    "fixed_point_cmd": 0.04879619232723071,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.02773343026638031,
+    "shift_median_max_z": 1.648631028566242
+   },
+   "other_ends:pitch_rotation": {
+    "slope_per_deg": -0.04054012176181589,
+    "gain": -0.21011945109149174,
+    "offset_c0": 0.0543464720249176,
+    "fixed_point_cmd": 0.044910006178231994,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.03302331082522869,
+    "rotation_deg": -1.2512411956483487
+   },
+   "own_ends:orient(grav+acc+prey)": {
+    "slope_per_deg": -0.04326153493353298,
+    "gain": -0.22422453556050143,
+    "offset_c0": 0.07157100364565849,
+    "fixed_point_cmd": 0.05846231762777919,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.048509661108255386,
+    "shift_median_max_z": 0.3865150468138011
+   },
+   "own_ends:legs_q": {
+    "slope_per_deg": -0.04229089917082871,
+    "gain": -0.2191937304024052,
+    "offset_c0": 0.0538556557148695,
+    "fixed_point_cmd": 0.04417317311588699,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.021976200863718987,
+    "shift_median_max_z": 0.7129489437932925
+   },
+   "own_ends:ORIENT+LEGS+FEET": {
+    "slope_per_deg": -0.04226040647232107,
+    "gain": -0.2190356867460401,
+    "offset_c0": 0.057178717106580734,
+    "fixed_point_cmd": 0.04690487549155129,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.025452516973018646,
+    "shift_median_max_z": 1.156488729882577
+   },
+   "own_ends:head_neck_q": {
+    "slope_per_deg": -0.04168037039094738,
+    "gain": -0.21602935973628026,
+    "offset_c0": 0.016430875286459923,
+    "fixed_point_cmd": 0.013511906727336976,
+    "railed_pred": false,
+    "cmd14_own_tail": -0.002503712777979672,
+    "shift_median_max_z": 1.7836495986107481
+   },
+   "own_ends:ORIENT+LEGS+FEET+HEAD": {
+    "slope_per_deg": -0.0428497128055564,
+    "gain": -0.2220900614711988,
+    "offset_c0": 0.027267809957265854,
+    "fixed_point_cmd": 0.022312439006696296,
+    "railed_pred": false,
+    "cmd14_own_tail": -0.006327301962301135,
+    "shift_median_max_z": 1.8138716416932963
+   },
+   "own_ends:pitch_rotation": {
+    "slope_per_deg": -0.04195712240678924,
+    "gain": -0.21746376543438864,
+    "offset_c0": 0.05604326352477074,
+    "fixed_point_cmd": 0.04603279794924706,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.034969957545399666,
+    "rotation_deg": -0.16296135114409166
+   }
+  },
+  "s80_A_1331": {
+   "none": {
+    "slope_per_deg": -0.09510077136967864,
+    "gain": -0.49290729800904437,
+    "offset_c0": 0.17009608447551727,
+    "fixed_point_cmd": 0.11393613300863294,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.07390221580862999
+   },
+   "other_ends:orient(grav+acc+prey)": {
+    "slope_per_deg": -0.09635884820350578,
+    "gain": -0.4994279102387704,
+    "offset_c0": 0.21964631229639053,
+    "fixed_point_cmd": 0.14648674390849095,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.1315862312912941,
+    "shift_median_max_z": 1.1361159929432674
+   },
+   "other_ends:legs_q": {
+    "slope_per_deg": -0.08817957022360393,
+    "gain": -0.4570347124689391,
+    "offset_c0": 0.05198025330901146,
+    "fixed_point_cmd": 0.03567537057571617,
+    "railed_pred": false,
+    "cmd14_own_tail": -0.04083554819226265,
+    "shift_median_max_z": 0.9960113590889674
+   },
+   "other_ends:ORIENT+LEGS+FEET": {
+    "slope_per_deg": -0.09045734735471861,
+    "gain": -0.46884043133950654,
+    "offset_c0": 0.10799544304609299,
+    "fixed_point_cmd": 0.07352428537632691,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.015117536298930645,
+    "shift_median_max_z": 1.1742079532949092
+   },
+   "other_ends:head_neck_q": {
+    "slope_per_deg": -0.09560024552047253,
+    "gain": -0.4954960725326091,
+    "offset_c0": 0.1685364842414856,
+    "fixed_point_cmd": 0.11269603935239401,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.07528621330857277,
+    "shift_median_max_z": 0.8048909688584557
+   },
+   "other_ends:ORIENT+LEGS+FEET+HEAD": {
+    "slope_per_deg": -0.09092812705785036,
+    "gain": -0.47128048254083843,
+    "offset_c0": 0.10502075776457787,
+    "fixed_point_cmd": 0.07138051446398004,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.013871568255126476,
+    "shift_median_max_z": 1.1742079532949092
+   },
+   "other_ends:pitch_rotation": {
+    "slope_per_deg": -0.09628336504101753,
+    "gain": -0.49903668100759385,
+    "offset_c0": 0.21478069573640823,
+    "fixed_point_cmd": 0.14327914617275478,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.12035691738128662,
+    "rotation_deg": -1.4421499266422495
+   },
+   "own_ends:orient(grav+acc+prey)": {
+    "slope_per_deg": -0.09644812771252224,
+    "gain": -0.4998906459340028,
+    "offset_c0": 0.19152702391147614,
+    "fixed_point_cmd": 0.12769399184579192,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.10132862627506256,
+    "shift_median_max_z": 0.4308515594576897
+   },
+   "own_ends:legs_q": {
+    "slope_per_deg": -0.09425072850925581,
+    "gain": -0.48850152586347284,
+    "offset_c0": 0.14422642439603806,
+    "fixed_point_cmd": 0.09689370275409895,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.05036114528775215,
+    "shift_median_max_z": 0.7877738456795695
+   },
+   "own_ends:ORIENT+LEGS+FEET": {
+    "slope_per_deg": -0.09589333699217863,
+    "gain": -0.49701516563046183,
+    "offset_c0": 0.17049989849328995,
+    "fixed_point_cmd": 0.11389323395497107,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.07449790090322495,
+    "shift_median_max_z": 1.1260918317033235
+   },
+   "own_ends:head_neck_q": {
+    "slope_per_deg": -0.09125637582370213,
+    "gain": -0.47298179589424816,
+    "offset_c0": 0.10821927711367607,
+    "fixed_point_cmd": 0.07346952787558117,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.01433921605348587,
+    "shift_median_max_z": 0.9858331930493364
+   },
+   "own_ends:ORIENT+LEGS+FEET+HEAD": {
+    "slope_per_deg": -0.09142836555838585,
+    "gain": -0.47387321868911386,
+    "offset_c0": 0.10511289536952972,
+    "fixed_point_cmd": 0.07131746071281408,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.010915816761553288,
+    "shift_median_max_z": 1.2102534930800886
+   },
+   "own_ends:pitch_rotation": {
+    "slope_per_deg": -0.0957988708146981,
+    "gain": -0.4965255474325802,
+    "offset_c0": 0.18265245109796524,
+    "fixed_point_cmd": 0.12205100768999327,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.08625024929642677,
+    "rotation_deg": -0.35387008213799254
+   }
+  },
+  "s80_A_1341": {
+   "none": {
+    "slope_per_deg": -0.06881693577659981,
+    "gain": -0.3566781781301168,
+    "offset_c0": -0.08328361436724663,
+    "fixed_point_cmd": -0.061387892655600025,
+    "railed_pred": false,
+    "cmd14_own_tail": -0.0409728791564703
+   },
+   "other_ends:orient(grav+acc+prey)": {
+    "slope_per_deg": -0.07324211440780865,
+    "gain": -0.37961387897567217,
+    "offset_c0": 0.011850891634821892,
+    "fixed_point_cmd": 0.008590006099112944,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.0509544275701046,
+    "shift_median_max_z": 0.9966857978425603
+   },
+   "other_ends:legs_q": {
+    "slope_per_deg": -0.07209356095907943,
+    "gain": -0.37366092645090865,
+    "offset_c0": -0.048920731991529465,
+    "fixed_point_cmd": -0.03561339705419493,
+    "railed_pred": false,
+    "cmd14_own_tail": -0.008837346453219652,
+    "shift_median_max_z": 0.8761872867914301
+   },
+   "other_ends:ORIENT+LEGS+FEET": {
+    "slope_per_deg": -0.07608622079715133,
+    "gain": -0.3943548823916353,
+    "offset_c0": 0.04261202551424503,
+    "fixed_point_cmd": 0.030560387497016353,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.07590807974338531,
+    "shift_median_max_z": 1.1126729053048066
+   },
+   "other_ends:head_neck_q": {
+    "slope_per_deg": -0.07635939257618572,
+    "gain": -0.3957707317223706,
+    "offset_c0": 0.025092744268476963,
+    "fixed_point_cmd": 0.017977697696463877,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.06443596258759499,
+    "shift_median_max_z": 2.902538906163324
+   },
+   "other_ends:ORIENT+LEGS+FEET+HEAD": {
+    "slope_per_deg": -0.08265722117253713,
+    "gain": -0.4284123773372599,
+    "offset_c0": 0.14066092669963837,
+    "fixed_point_cmd": 0.09847361233444925,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.18324067443609238,
+    "shift_median_max_z": 2.902538906163324
+   },
+   "other_ends:pitch_rotation": {
+    "slope_per_deg": -0.072634718480653,
+    "gain": -0.3764657458852245,
+    "offset_c0": -0.004242795519530773,
+    "fixed_point_cmd": -0.0030823836569955263,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.03681168705224991,
+    "rotation_deg": -1.2302936114042302
+   },
+   "own_ends:orient(grav+acc+prey)": {
+    "slope_per_deg": -0.07065037943954978,
+    "gain": -0.36618091663518654,
+    "offset_c0": -0.05549356900155544,
+    "fixed_point_cmd": -0.04061948774561457,
+    "railed_pred": false,
+    "cmd14_own_tail": -0.011266634799540043,
+    "shift_median_max_z": 0.3838349887601584
+   },
+   "own_ends:legs_q": {
+    "slope_per_deg": -0.07012995179476483,
+    "gain": -0.36348354015226614,
+    "offset_c0": -0.07141452468931675,
+    "fixed_point_cmd": -0.05237652130464412,
+    "railed_pred": false,
+    "cmd14_own_tail": -0.030522150918841362,
+    "shift_median_max_z": 0.7433438518316382
+   },
+   "own_ends:ORIENT+LEGS+FEET": {
+    "slope_per_deg": -0.07154641539922782,
+    "gain": -0.37082507101419776,
+    "offset_c0": -0.045324983075261116,
+    "fixed_point_cmd": -0.0330640167251447,
+    "railed_pred": false,
+    "cmd14_own_tail": -0.010498523712158203,
+    "shift_median_max_z": 1.0584609238322469
+   },
+   "own_ends:head_neck_q": {
+    "slope_per_deg": -0.07424043664026873,
+    "gain": -0.38478818310651286,
+    "offset_c0": -0.014057856984436512,
+    "fixed_point_cmd": -0.010151629798645697,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.025422551669180393,
+    "shift_median_max_z": 1.9828910730446685
+   },
+   "own_ends:ORIENT+LEGS+FEET+HEAD": {
+    "slope_per_deg": -0.0763875766923385,
+    "gain": -0.39591680999639045,
+    "offset_c0": 0.01831231452524662,
+    "fixed_point_cmd": 0.01311848556741284,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.06328088790178299,
+    "shift_median_max_z": 1.9828910730446685
+   },
+   "own_ends:pitch_rotation": {
+    "slope_per_deg": -0.06933278018342598,
+    "gain": -0.35935179969069686,
+    "offset_c0": -0.074227724224329,
+    "fixed_point_cmd": -0.05460523481943273,
+    "railed_pred": false,
+    "cmd14_own_tail": -0.03193901665508747,
+    "rotation_deg": -0.14201376689997328
+   }
+  },
+  "s80_A_1351": {
+   "none": {
+    "slope_per_deg": -0.0546730687908296,
+    "gain": -0.2833705155428698,
+    "offset_c0": 0.11571258306503296,
+    "fixed_point_cmd": 0.09016303683436748,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.06789901107549667
+   },
+   "other_ends:orient(grav+acc+prey)": {
+    "slope_per_deg": -0.05316069795350943,
+    "gain": -0.27553189749303936,
+    "offset_c0": 0.10599394887685776,
+    "fixed_point_cmd": 0.08309784262171786,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.07136886194348335,
+    "shift_median_max_z": 0.7703934470042461
+   },
+   "other_ends:legs_q": {
+    "slope_per_deg": -0.05272760588143553,
+    "gain": -0.27328718128348034,
+    "offset_c0": 0.07800937443971634,
+    "fixed_point_cmd": 0.061266127222833165,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.020749635994434357,
+    "shift_median_max_z": 1.2105107520515186
+   },
+   "other_ends:ORIENT+LEGS+FEET": {
+    "slope_per_deg": -0.051887529636068,
+    "gain": -0.2689330661037404,
+    "offset_c0": 0.08014698326587677,
+    "fixed_point_cmd": 0.0631609226733827,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.04211593046784401,
+    "shift_median_max_z": 1.3400044343676762
+   },
+   "other_ends:head_neck_q": {
+    "slope_per_deg": -0.05413329395066415,
+    "gain": -0.28057286254629227,
+    "offset_c0": 0.10262763500213623,
+    "fixed_point_cmd": 0.08014197239669077,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.05407653748989105,
+    "shift_median_max_z": 0.479455305150123
+   },
+   "other_ends:ORIENT+LEGS+FEET+HEAD": {
+    "slope_per_deg": -0.052005513571202755,
+    "gain": -0.26954457683954386,
+    "offset_c0": 0.07570414617657661,
+    "fixed_point_cmd": 0.05963094763087217,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.03778000921010971,
+    "shift_median_max_z": 1.3400044343676762
+   },
+   "other_ends:pitch_rotation": {
+    "slope_per_deg": -0.05361776858834283,
+    "gain": -0.27790089459338085,
+    "offset_c0": 0.11140234023332596,
+    "fixed_point_cmd": 0.08717604057141959,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.06399355828762054,
+    "rotation_deg": -0.9235569510114885
+   },
+   "own_ends:orient(grav+acc+prey)": {
+    "slope_per_deg": -0.054604981294167895,
+    "gain": -0.28301761804767217,
+    "offset_c0": 0.1149490624666214,
+    "fixed_point_cmd": 0.08959273890684041,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.0793624259531498,
+    "shift_median_max_z": 0.4896738531829674
+   },
+   "own_ends:legs_q": {
+    "slope_per_deg": -0.056443982824151,
+    "gain": -0.2925491629775746,
+    "offset_c0": 0.14323197305202484,
+    "fixed_point_cmd": 0.11081355909284657,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.08510161191225052,
+    "shift_median_max_z": 0.7618141020169019
+   },
+   "own_ends:ORIENT+LEGS+FEET": {
+    "slope_per_deg": -0.05693145063040512,
+    "gain": -0.29507570861738974,
+    "offset_c0": 0.15366553515195847,
+    "fixed_point_cmd": 0.11865370814190491,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.11505181714892387,
+    "shift_median_max_z": 1.018026731187852
+   },
+   "own_ends:head_neck_q": {
+    "slope_per_deg": -0.05104857590049505,
+    "gain": -0.26458476889226584,
+    "offset_c0": 0.05900673568248749,
+    "fixed_point_cmd": 0.04666095712521939,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.010135313495993614,
+    "shift_median_max_z": 1.0272865117359435
+   },
+   "own_ends:ORIENT+LEGS+FEET+HEAD": {
+    "slope_per_deg": -0.053999043202825954,
+    "gain": -0.2798770409202469,
+    "offset_c0": 0.10604550689458847,
+    "fixed_point_cmd": 0.08285601155743874,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.06643658503890038,
+    "shift_median_max_z": 1.349831373814395
+   },
+   "own_ends:pitch_rotation": {
+    "slope_per_deg": -0.054723041863845925,
+    "gain": -0.28362952598031343,
+    "offset_c0": 0.11596327647566795,
+    "fixed_point_cmd": 0.0903401441993992,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.06826990842819214,
+    "rotation_deg": 0.16472289349276853
+   }
+  },
+  "s80_B_1401": {
+   "none": {
+    "slope_per_deg": 0.007632107340863773,
+    "gain": 0.039557212347696935,
+    "offset_c0": 0.15350180864334106,
+    "fixed_point_cmd": 0.15982400057223542,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.18793611228466034
+   },
+   "other_ends:orient(grav+acc+prey)": {
+    "slope_per_deg": 0.009644054541630403,
+    "gain": 0.04998513468927038,
+    "offset_c0": 0.12411429733037949,
+    "fixed_point_cmd": 0.13064458448214317,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.15929532796144485,
+    "shift_median_max_z": 0.7258691308666072
+   },
+   "other_ends:legs_q": {
+    "slope_per_deg": 0.016738382899867635,
+    "gain": 0.08675503857001395,
+    "offset_c0": 0.027512230910360813,
+    "fixed_point_cmd": 0.030125795457202793,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.07021524757146835,
+    "shift_median_max_z": 0.9850329422671401
+   },
+   "other_ends:ORIENT+LEGS+FEET": {
+    "slope_per_deg": 0.017281444710014124,
+    "gain": 0.0895697279320032,
+    "offset_c0": 0.008784055709838867,
+    "fixed_point_cmd": 0.009648246526212628,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.0486739706248045,
+    "shift_median_max_z": 1.3438035148932674
+   },
+   "other_ends:head_neck_q": {
+    "slope_per_deg": 0.008614041975566318,
+    "gain": 0.044646579559360224,
+    "offset_c0": 0.14208326488733292,
+    "fixed_point_cmd": 0.14872324926810807,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.1715870350599289,
+    "shift_median_max_z": 0.7825984739245562
+   },
+   "other_ends:ORIENT+LEGS+FEET+HEAD": {
+    "slope_per_deg": 0.01804903838118272,
+    "gain": 0.09354816592967004,
+    "offset_c0": -0.0008288249373435974,
+    "fixed_point_cmd": -0.0009143618074242767,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.03504113294184208,
+    "shift_median_max_z": 1.3438035148932674
+   },
+   "other_ends:pitch_rotation": {
+    "slope_per_deg": 0.009610190987586975,
+    "gain": 0.04980961988866329,
+    "offset_c0": 0.1269434243440628,
+    "fixed_point_cmd": 0.13359788417263124,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.16098947823047638,
+    "rotation_deg": -0.7626348604715687
+   },
+   "own_ends:orient(grav+acc+prey)": {
+    "slope_per_deg": 0.006701698526740074,
+    "gain": 0.0347349034640938,
+    "offset_c0": 0.16201171278953552,
+    "fixed_point_cmd": 0.1678416772459243,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.19670671969652176,
+    "shift_median_max_z": 0.4362129247671327
+   },
+   "own_ends:legs_q": {
+    "slope_per_deg": 0.010045560742063182,
+    "gain": 0.05206614132611347,
+    "offset_c0": 0.12945107370615005,
+    "fixed_point_cmd": 0.13656129330293762,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.17063485831022263,
+    "shift_median_max_z": 0.7319129943463886
+   },
+   "own_ends:ORIENT+LEGS+FEET": {
+    "slope_per_deg": 0.008572259917855263,
+    "gain": 0.044430023154243825,
+    "offset_c0": 0.14705997705459595,
+    "fixed_point_cmd": 0.1538976533566141,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.18610814213752747,
+    "shift_median_max_z": 1.3322733414951213
+   },
+   "own_ends:head_neck_q": {
+    "slope_per_deg": 0.012583569823099033,
+    "gain": 0.06522064239312228,
+    "offset_c0": 0.07476874440908432,
+    "fixed_point_cmd": 0.07998544661972348,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.10489076375961304,
+    "shift_median_max_z": 1.5659421351712568
+   },
+   "own_ends:ORIENT+LEGS+FEET+HEAD": {
+    "slope_per_deg": 0.012718517599361283,
+    "gain": 0.06592007671748953,
+    "offset_c0": 0.07080723717808723,
+    "fixed_point_cmd": 0.07580425979958863,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.10751358419656754,
+    "shift_median_max_z": 1.6137949785921686
+   },
+   "own_ends:pitch_rotation": {
+    "slope_per_deg": 0.006919058571968759,
+    "gain": 0.03586148057851408,
+    "offset_c0": 0.1631757840514183,
+    "fixed_point_cmd": 0.16924516629553296,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.19724322110414505,
+    "rotation_deg": 0.32564498403268827
+   }
+  },
+  "s80_B_1411": {
+   "none": {
+    "slope_per_deg": -0.07843935915402005,
+    "gain": -0.40655119849528587,
+    "offset_c0": 0.10743841156363487,
+    "fixed_point_cmd": 0.0763842878087704,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.04829957149922848
+   },
+   "other_ends:orient(grav+acc+prey)": {
+    "slope_per_deg": -0.07821427485240356,
+    "gain": -0.40538458656000764,
+    "offset_c0": 0.11320369318127632,
+    "fixed_point_cmd": 0.08054997490641876,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.06630778685212135,
+    "shift_median_max_z": 0.7012796886686581
+   },
+   "other_ends:legs_q": {
+    "slope_per_deg": -0.07501782995781728,
+    "gain": -0.38881741267136694,
+    "offset_c0": 0.04104146733880043,
+    "fixed_point_cmd": 0.029551377282819244,
+    "railed_pred": false,
+    "cmd14_own_tail": -0.00024963682517409325,
+    "shift_median_max_z": 0.8354574098137107
+   },
+   "other_ends:ORIENT+LEGS+FEET": {
+    "slope_per_deg": -0.07637105695903301,
+    "gain": -0.3958311882186681,
+    "offset_c0": 0.06869564205408096,
+    "fixed_point_cmd": 0.049214863970584416,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.014562893658876419,
+    "shift_median_max_z": 1.0945950306431345
+   },
+   "other_ends:head_neck_q": {
+    "slope_per_deg": -0.08211243604975087,
+    "gain": -0.4255887560458587,
+    "offset_c0": 0.15955045074224472,
+    "fixed_point_cmd": 0.11191898790278637,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.09965404123067856,
+    "shift_median_max_z": 2.1041062546655254
+   },
+   "other_ends:ORIENT+LEGS+FEET+HEAD": {
+    "slope_per_deg": -0.0802131611853838,
+    "gain": -0.4157448144238442,
+    "offset_c0": 0.12465408444404602,
+    "fixed_point_cmd": 0.088048413226769,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.0760909952223301,
+    "shift_median_max_z": 2.1041062546655254
+   },
+   "other_ends:pitch_rotation": {
+    "slope_per_deg": -0.07859421321856122,
+    "gain": -0.4073538071118028,
+    "offset_c0": 0.11862296983599663,
+    "fixed_point_cmd": 0.08428795178338051,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.060247913002967834,
+    "rotation_deg": -0.7418975185190619
+   },
+   "own_ends:orient(grav+acc+prey)": {
+    "slope_per_deg": -0.07822721052382672,
+    "gain": -0.4054516321449939,
+    "offset_c0": 0.09908317029476166,
+    "fixed_point_cmd": 0.07049916768999114,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.051716260612010956,
+    "shift_median_max_z": 0.46499528579003496
+   },
+   "own_ends:legs_q": {
+    "slope_per_deg": -0.07715659428920066,
+    "gain": -0.399902628200927,
+    "offset_c0": 0.08975669741630554,
+    "fixed_point_cmd": 0.06411638610297889,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.04727659933269024,
+    "shift_median_max_z": 0.5940053023738331
+   },
+   "own_ends:ORIENT+LEGS+FEET": {
+    "slope_per_deg": -0.07838918441640479,
+    "gain": -0.406291142830226,
+    "offset_c0": 0.1030699834227562,
+    "fixed_point_cmd": 0.07329206611891409,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.047603800892829895,
+    "shift_median_max_z": 1.0292112938047888
+   },
+   "own_ends:head_neck_q": {
+    "slope_per_deg": -0.07977694299604213,
+    "gain": -0.41348389554848636,
+    "offset_c0": 0.12951155379414558,
+    "fixed_point_cmd": 0.09162577246335736,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.06909333914518356,
+    "shift_median_max_z": 1.1351749843972558
+   },
+   "own_ends:ORIENT+LEGS+FEET+HEAD": {
+    "slope_per_deg": -0.08044605648943355,
+    "gain": -0.4169519107847341,
+    "offset_c0": 0.13212113827466965,
+    "fixed_point_cmd": 0.09324320555204905,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.08103902265429497,
+    "shift_median_max_z": 1.3607245250081783
+   },
+   "own_ends:pitch_rotation": {
+    "slope_per_deg": -0.07802736173783029,
+    "gain": -0.40441581588717435,
+    "offset_c0": 0.1008281484246254,
+    "fixed_point_cmd": 0.07179365775009583,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.04178346320986748,
+    "rotation_deg": 0.346382325985195
+   }
+  },
+  "s80_B_1421": {
+   "none": {
+    "slope_per_deg": -0.0006577247487647193,
+    "gain": -0.00340898737284754,
+    "offset_c0": -0.18080265074968338,
+    "fixed_point_cmd": -0.18018839080071003,
+    "railed_pred": false,
+    "cmd14_own_tail": -0.1670360043644905
+   },
+   "other_ends:orient(grav+acc+prey)": {
+    "slope_per_deg": -0.0012472250631877355,
+    "gain": -0.0064643675025020325,
+    "offset_c0": -0.16795169562101364,
+    "fixed_point_cmd": -0.1668729674332918,
+    "railed_pred": false,
+    "cmd14_own_tail": -0.15348586440086365,
+    "shift_median_max_z": 0.4419715470446235
+   },
+   "other_ends:legs_q": {
+    "slope_per_deg": -0.0005034149757453374,
+    "gain": -0.0026091998192880835,
+    "offset_c0": -0.18284311890602112,
+    "fixed_point_cmd": -0.18236728621578283,
+    "railed_pred": false,
+    "cmd14_own_tail": -0.16507986932992935,
+    "shift_median_max_z": 0.4988997076530111
+   },
+   "other_ends:ORIENT+LEGS+FEET": {
+    "slope_per_deg": -0.0009144023060798645,
+    "gain": -0.004739347152411938,
+    "offset_c0": -0.17027299851179123,
+    "fixed_point_cmd": -0.16946982219256315,
+    "railed_pred": false,
+    "cmd14_own_tail": -0.15210463851690292,
+    "shift_median_max_z": 1.288707274116667
+   },
+   "other_ends:head_neck_q": {
+    "slope_per_deg": -0.0014712786568062647,
+    "gain": -0.00762563727822687,
+    "offset_c0": -0.16802812367677689,
+    "fixed_point_cmd": -0.16675649910084686,
+    "railed_pred": false,
+    "cmd14_own_tail": -0.1546688675880432,
+    "shift_median_max_z": 0.45659392556482925
+   },
+   "other_ends:ORIENT+LEGS+FEET+HEAD": {
+    "slope_per_deg": -0.0016730457012142453,
+    "gain": -0.008671395869393432,
+    "offset_c0": -0.15804850310087204,
+    "fixed_point_cmd": -0.15668978395550415,
+    "railed_pred": false,
+    "cmd14_own_tail": -0.13999789953231812,
+    "shift_median_max_z": 1.288707274116667
+   },
+   "other_ends:pitch_rotation": {
+    "slope_per_deg": -0.0010220219514199666,
+    "gain": -0.005297139774209687,
+    "offset_c0": -0.1729915663599968,
+    "fixed_point_cmd": -0.17208003436561134,
+    "railed_pred": false,
+    "cmd14_own_tail": -0.159695066511631,
+    "rotation_deg": -0.3203485551157239
+   },
+   "own_ends:orient(grav+acc+prey)": {
+    "slope_per_deg": -0.00030011763530118126,
+    "gain": -0.0015555097037660225,
+    "offset_c0": -0.1923309862613678,
+    "fixed_point_cmd": -0.19203227818920818,
+    "railed_pred": false,
+    "cmd14_own_tail": -0.17606167495250702,
+    "shift_median_max_z": 0.6842919123960642
+   },
+   "own_ends:legs_q": {
+    "slope_per_deg": -0.005722621854926859,
+    "gain": -0.02966034907408591,
+    "offset_c0": -0.10469857603311539,
+    "fixed_point_cmd": -0.10168263362502478,
+    "railed_pred": false,
+    "cmd14_own_tail": -0.08881549909710884,
+    "shift_median_max_z": 0.7355274090463482
+   },
+   "own_ends:ORIENT+LEGS+FEET": {
+    "slope_per_deg": -0.005247253791562149,
+    "gain": -0.027196516401666617,
+    "offset_c0": -0.11673636361956596,
+    "fixed_point_cmd": -0.11364559921649728,
+    "railed_pred": false,
+    "cmd14_own_tail": -0.09915857389569283,
+    "shift_median_max_z": 1.2999570379641776
+   },
+   "own_ends:head_neck_q": {
+    "slope_per_deg": 2.6286978806768146e-05,
+    "gain": 0.0001362454111554793,
+    "offset_c0": -0.1904842108488083,
+    "fixed_point_cmd": -0.19051016698483844,
+    "railed_pred": false,
+    "cmd14_own_tail": -0.17624689638614655,
+    "shift_median_max_z": 0.8815192095951271
+   },
+   "own_ends:ORIENT+LEGS+FEET+HEAD": {
+    "slope_per_deg": -0.004607886342065675,
+    "gain": -0.02388267491092639,
+    "offset_c0": -0.12582996487617493,
+    "fixed_point_cmd": -0.12289490579291383,
+    "railed_pred": false,
+    "cmd14_own_tail": -0.10782403498888016,
+    "shift_median_max_z": 1.2999570379641776
+   },
+   "own_ends:pitch_rotation": {
+    "slope_per_deg": -0.00018284336796828678,
+    "gain": -0.0009476771761796303,
+    "offset_c0": -0.19602134823799133,
+    "fixed_point_cmd": -0.19583575915875678,
+    "railed_pred": false,
+    "cmd14_own_tail": -0.18132112175226212,
+    "rotation_deg": 0.7679312893885331
+   }
+  },
+  "s80_B_1431": {
+   "none": {
+    "slope_per_deg": -0.06468555464276246,
+    "gain": -0.3352652297134378,
+    "offset_c0": 0.03239575773477554,
+    "fixed_point_cmd": 0.024261665033940876,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.016382623463869095
+   },
+   "other_ends:orient(grav+acc+prey)": {
+    "slope_per_deg": -0.06267718564985053,
+    "gain": -0.3248558532231753,
+    "offset_c0": 0.010472998023033142,
+    "fixed_point_cmd": 0.007905009437482508,
+    "railed_pred": false,
+    "cmd14_own_tail": -0.010536899790167809,
+    "shift_median_max_z": 0.837077073013489
+   },
+   "other_ends:legs_q": {
+    "slope_per_deg": -0.06222029254838292,
+    "gain": -0.32248777627826863,
+    "offset_c0": -0.014556072186678648,
+    "fixed_point_cmd": -0.011006583537310414,
+    "railed_pred": false,
+    "cmd14_own_tail": -0.025040674954652786,
+    "shift_median_max_z": 0.8059718305161645
+   },
+   "other_ends:ORIENT+LEGS+FEET": {
+    "slope_per_deg": -0.059261535826538286,
+    "gain": -0.30715254018894794,
+    "offset_c0": -0.04387068748474121,
+    "fixed_point_cmd": -0.03356202595788839,
+    "railed_pred": false,
+    "cmd14_own_tail": -0.05972851812839508,
+    "shift_median_max_z": 1.1508272335895542
+   },
+   "other_ends:head_neck_q": {
+    "slope_per_deg": -0.069020515174738,
+    "gain": -0.35773333015066705,
+    "offset_c0": 0.09520095959305763,
+    "fixed_point_cmd": 0.07011756836115471,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.08065168932080269,
+    "shift_median_max_z": 1.159899213191569
+   },
+   "other_ends:ORIENT+LEGS+FEET+HEAD": {
+    "slope_per_deg": -0.06365252833347768,
+    "gain": -0.3299110543524148,
+    "offset_c0": 0.014843270648270845,
+    "fixed_point_cmd": 0.011161100285386085,
+    "railed_pred": false,
+    "cmd14_own_tail": -0.015633726958185434,
+    "shift_median_max_z": 1.3225598696710272
+   },
+   "other_ends:pitch_rotation": {
+    "slope_per_deg": -0.0612388780573383,
+    "gain": -0.3174011049711844,
+    "offset_c0": -0.009269867092370987,
+    "fixed_point_cmd": -0.007036480429074596,
+    "railed_pred": false,
+    "cmd14_own_tail": -0.02556598000228405,
+    "rotation_deg": -1.0090241389461925
+   },
+   "own_ends:orient(grav+acc+prey)": {
+    "slope_per_deg": -0.06678402556904725,
+    "gain": -0.34614160452437187,
+    "offset_c0": 0.05811935476958752,
+    "fixed_point_cmd": 0.043174770450782295,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.037391092628240585,
+    "shift_median_max_z": 0.38184374263690835
+   },
+   "own_ends:legs_q": {
+    "slope_per_deg": -0.0666113393381238,
+    "gain": -0.34524657178949564,
+    "offset_c0": 0.05700046382844448,
+    "fixed_point_cmd": 0.04237175921780674,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.04709467105567455,
+    "shift_median_max_z": 0.4874759302575886
+   },
+   "own_ends:ORIENT+LEGS+FEET": {
+    "slope_per_deg": -0.06759805112544978,
+    "gain": -0.3503606989832062,
+    "offset_c0": 0.07636487111449242,
+    "fixed_point_cmd": 0.05655146152579351,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.05902836658060551,
+    "shift_median_max_z": 1.0799822599417086
+   },
+   "own_ends:head_neck_q": {
+    "slope_per_deg": -0.0662797473237983,
+    "gain": -0.34352793037924656,
+    "offset_c0": 0.05151854082942009,
+    "fixed_point_cmd": 0.038345716277649405,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.03625418804585934,
+    "shift_median_max_z": 0.6945097473217401
+   },
+   "own_ends:ORIENT+LEGS+FEET+HEAD": {
+    "slope_per_deg": -0.069491010026208,
+    "gain": -0.36017190496583606,
+    "offset_c0": 0.09320010617375374,
+    "fixed_point_cmd": 0.0685208287522265,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.060674406588077545,
+    "shift_median_max_z": 1.148963656912731
+   },
+   "own_ends:pitch_rotation": {
+    "slope_per_deg": -0.06492550850712828,
+    "gain": -0.33650891059244586,
+    "offset_c0": 0.03559369221329689,
+    "fixed_point_cmd": 0.026631840559535786,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.019631629809737206,
+    "rotation_deg": 0.07925570555806438
+   }
+  },
+  "s80_B_1441": {
+   "none": {
+    "slope_per_deg": -0.047271424372281344,
+    "gain": -0.2450077925215342,
+    "offset_c0": -0.07371962442994118,
+    "fixed_point_cmd": -0.059212179130731096,
+    "railed_pred": false,
+    "cmd14_own_tail": -0.045793693512678146
+   },
+   "other_ends:orient(grav+acc+prey)": {
+    "slope_per_deg": -0.049180837713980255,
+    "gain": -0.25490428187155967,
+    "offset_c0": -0.02162205148488283,
+    "fixed_point_cmd": -0.01723004040805071,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.006482389639131725,
+    "shift_median_max_z": 1.0898962242936647
+   },
+   "other_ends:legs_q": {
+    "slope_per_deg": -0.04901104686515672,
+    "gain": -0.25402425590210725,
+    "offset_c0": -0.08798063918948174,
+    "fixed_point_cmd": -0.07015864228733847,
+    "railed_pred": false,
+    "cmd14_own_tail": -0.06815658509731293,
+    "shift_median_max_z": 1.1071156209319877
+   },
+   "other_ends:ORIENT+LEGS+FEET": {
+    "slope_per_deg": -0.0506593159932111,
+    "gain": -0.26256723479281313,
+    "offset_c0": -0.035111602395772934,
+    "fixed_point_cmd": -0.027809689201648523,
+    "railed_pred": false,
+    "cmd14_own_tail": -0.017321763560175896,
+    "shift_median_max_z": 1.2243335765976493
+   },
+   "other_ends:head_neck_q": {
+    "slope_per_deg": -0.05535134706380112,
+    "gain": -0.2868860318316812,
+    "offset_c0": 0.09444668143987656,
+    "fixed_point_cmd": 0.07339164394025356,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.12171695753931999,
+    "shift_median_max_z": 3.219651433073488
+   },
+   "other_ends:ORIENT+LEGS+FEET+HEAD": {
+    "slope_per_deg": -0.05943324643054179,
+    "gain": -0.3080425162494981,
+    "offset_c0": 0.11709441244602203,
+    "fixed_point_cmd": 0.08951881226442279,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.13865995407104492,
+    "shift_median_max_z": 3.219651433073488
+   },
+   "other_ends:pitch_rotation": {
+    "slope_per_deg": -0.04952090343327395,
+    "gain": -0.2566668424946589,
+    "offset_c0": -0.023256474174559116,
+    "fixed_point_cmd": -0.018506475533636085,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.005694935331121087,
+    "rotation_deg": -1.2574511048049923
+   },
+   "own_ends:orient(grav+acc+prey)": {
+    "slope_per_deg": -0.04734434293849128,
+    "gain": -0.24538572945020032,
+    "offset_c0": -0.0693310983479023,
+    "fixed_point_cmd": -0.05567038123883903,
+    "railed_pred": false,
+    "cmd14_own_tail": -0.04025233909487724,
+    "shift_median_max_z": 0.4096098222478604
+   },
+   "own_ends:legs_q": {
+    "slope_per_deg": -0.04800895668034043,
+    "gain": -0.24883042247420442,
+    "offset_c0": -0.0786360502243042,
+    "fixed_point_cmd": -0.06296775671792901,
+    "railed_pred": false,
+    "cmd14_own_tail": -0.058413924649357796,
+    "shift_median_max_z": 0.7556031153977392
+   },
+   "own_ends:ORIENT+LEGS+FEET": {
+    "slope_per_deg": -0.04830486513674259,
+    "gain": -0.25036411600373687,
+    "offset_c0": -0.0723121203482151,
+    "fixed_point_cmd": -0.05783284998559491,
+    "railed_pred": false,
+    "cmd14_own_tail": -0.05407862551510334,
+    "shift_median_max_z": 1.1970792306378732
+   },
+   "own_ends:head_neck_q": {
+    "slope_per_deg": -0.052788969195846996,
+    "gain": -0.273605227342075,
+    "offset_c0": 0.04064580053091049,
+    "fixed_point_cmd": 0.03191397118849412,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.0679629035294056,
+    "shift_median_max_z": 2.388935340625168
+   },
+   "own_ends:ORIENT+LEGS+FEET+HEAD": {
+    "slope_per_deg": -0.05448749618205641,
+    "gain": -0.28240869271159835,
+    "offset_c0": 0.02962526772171259,
+    "fixed_point_cmd": 0.023101268643985273,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.05265261232852936,
+    "shift_median_max_z": 2.388935340625168
+   },
+   "own_ends:pitch_rotation": {
+    "slope_per_deg": -0.047630454546638896,
+    "gain": -0.2468686459152294,
+    "offset_c0": -0.06778818741440773,
+    "fixed_point_cmd": -0.05436674315011722,
+    "railed_pred": false,
+    "cmd14_own_tail": -0.039713457226753235,
+    "rotation_deg": -0.16917126030073545
+   }
+  },
+  "s80_B_1451": {
+   "none": {
+    "slope_per_deg": -0.055189686228654215,
+    "gain": -0.28604814372311477,
+    "offset_c0": 0.061859412118792534,
+    "fixed_point_cmd": 0.04810038599310075,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.033744024112820625
+   },
+   "other_ends:orient(grav+acc+prey)": {
+    "slope_per_deg": -0.06095108522900513,
+    "gain": -0.3159094747419336,
+    "offset_c0": 0.17806517332792282,
+    "fixed_point_cmd": 0.1353171906926528,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.15113110840320587,
+    "shift_median_max_z": 0.9507220812510351
+   },
+   "other_ends:legs_q": {
+    "slope_per_deg": -0.05113723312388174,
+    "gain": -0.26504427928107904,
+    "offset_c0": -0.001578676630742848,
+    "fixed_point_cmd": -0.0012479220345077606,
+    "railed_pred": false,
+    "cmd14_own_tail": -0.02700831089168787,
+    "shift_median_max_z": 0.8917309907240685
+   },
+   "other_ends:ORIENT+LEGS+FEET": {
+    "slope_per_deg": -0.057689112544591935,
+    "gain": -0.29900267031862,
+    "offset_c0": 0.12229160219430923,
+    "fixed_point_cmd": 0.09414268730049145,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.09113519638776779,
+    "shift_median_max_z": 1.017318055256232
+   },
+   "other_ends:head_neck_q": {
+    "slope_per_deg": -0.05562802530559045,
+    "gain": -0.2883200551588753,
+    "offset_c0": 0.06150322966277599,
+    "fixed_point_cmd": 0.047739092018707595,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.03348105773329735,
+    "shift_median_max_z": 1.817878090382901
+   },
+   "other_ends:ORIENT+LEGS+FEET+HEAD": {
+    "slope_per_deg": -0.058401672435658324,
+    "gain": -0.30269586823401706,
+    "offset_c0": 0.12560953199863434,
+    "fixed_point_cmd": 0.09642276072381752,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.09353801980614662,
+    "shift_median_max_z": 1.8424142194933988
+   },
+   "other_ends:pitch_rotation": {
+    "slope_per_deg": -0.060350830799766955,
+    "gain": -0.3127983560351921,
+    "offset_c0": 0.17127834260463715,
+    "fixed_point_cmd": 0.13046812697261306,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.14441269636154175,
+    "rotation_deg": -1.2097012909070608
+   },
+   "own_ends:orient(grav+acc+prey)": {
+    "slope_per_deg": -0.056761977928025384,
+    "gain": -0.29419733160095557,
+    "offset_c0": 0.08462395146489143,
+    "fixed_point_cmd": 0.06538720904346898,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.05603148601949215,
+    "shift_median_max_z": 0.5199088168718138
+   },
+   "own_ends:legs_q": {
+    "slope_per_deg": -0.0532955583850188,
+    "gain": -0.27623087910955246,
+    "offset_c0": 0.03273131139576435,
+    "fixed_point_cmd": 0.025646857423322598,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.0071601965464651585,
+    "shift_median_max_z": 0.5130780123558434
+   },
+   "own_ends:ORIENT+LEGS+FEET": {
+    "slope_per_deg": -0.05498620202498777,
+    "gain": -0.2849934850955116,
+    "offset_c0": 0.06304723396897316,
+    "fixed_point_cmd": 0.049064244060573546,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.03171044960618019,
+    "shift_median_max_z": 0.8560141545620881
+   },
+   "own_ends:head_neck_q": {
+    "slope_per_deg": -0.055911598194922724,
+    "gain": -0.28978981344428445,
+    "offset_c0": 0.06393655389547348,
+    "fixed_point_cmd": 0.04957129698887591,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.03571963682770729,
+    "shift_median_max_z": 0.9765672389963584
+   },
+   "own_ends:ORIENT+LEGS+FEET+HEAD": {
+    "slope_per_deg": -0.05561559381229536,
+    "gain": -0.28825562272912686,
+    "offset_c0": 0.06716256588697433,
+    "fixed_point_cmd": 0.05213450242483139,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.03490690886974335,
+    "shift_median_max_z": 1.1833769555808145
+   },
+   "own_ends:pitch_rotation": {
+    "slope_per_deg": -0.055812556961817396,
+    "gain": -0.2892764827330995,
+    "offset_c0": 0.07344750314950943,
+    "fixed_point_cmd": 0.05696800037320949,
+    "railed_pred": false,
+    "cmd14_own_tail": 0.045376334339380264,
+    "rotation_deg": -0.12142144640280383
+   }
+  }
+ }
+}

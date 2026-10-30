@@ -1,0 +1,271 @@
+NORMALISER PROBE: DOES VecNormalize DRIFT EXPLAIN THE GROWTH OF THE tail_3 LOOP GAIN? (com_revisit, role "probe")
+Written 2026-10-29 ~20:30 UTC.  EXPLORATORY AND REPORT-ONLY, NOT PRE-REGISTERED.  Nothing here is a gate reading.
+p-values are two-sided exact sign tests over policies, given as descriptions only.
+No training of any kind.  Simulation and network evaluation only; checkpoints opened read only.
+Every file I wrote is in this folder:
+/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/com_revisit/notes/probe/
+Paths below are relative to this folder unless absolute.
+Labels: [measured] = a named script here computed it, output file named.  [inferred] = reasoned, basis given.
+
+==================================================================================================================
+0. ANSWER IN SHORT
+==================================================================================================================
+- NOT AT ALL.  Normaliser drift does not explain the s42 gain growth.  It works against it.
+  - The tail_3 angle's normalised scale 1/sqrt(var+eps) fell from 1.281 to 0.560 per deg (x0.437, 12 of 12 runs,
+    0.420-0.451) as the tail rose.  So the same weights see a 2.3x smaller tail_3 signal at the end.
+  - The start network with the end statistics: loop gain 0.268 -> 0.143 (12/12 lower).
+  - The end network with the start statistics: loop gain 0.632 -> 1.086 (12/12 higher; 8 of 12 above 1).
+    In closed loop, deterministic, seeds 3042-3061, 20 x 12 episodes per arm.
+  - So the weight change alone would have raised the gain from 0.27 to about 1.1.  The drift pulled it back to 0.63.
+    Over the 12 runs the normaliser's symmetric share of the start-to-end change is -0.89 (static, same states).
+    The weights carry more than all of the growth.  [measured: run_swaps.py -> swaps.txt; analyze_static.py ->
+    static.txt]
+- The tail_3 angle is the only dimension that matters.
+  - It is the most-drifted of 63 in s42 (scale x0.437; the next one moves x1.22).  The round review's observation
+    holds.
+  - Swapping only that one dimension's statistics reproduces the whole swap (static 1.162 vs 1.143; closed loop
+    1.100 vs 1.086).
+  - Within it, the variance (scale) is what acts.  The mean shift (0.47 -> 1.49 deg) moves the gain by under 0.03.
+  [measured: stats.txt, static.txt, swaps.txt, mean_vs_var.txt]
+- Does the command still park at the rail?
+  - End weights with start statistics (full, tail-8 or tail_3 only): yes, own tail_3 command 1.000, share at >= 0.99
+    1.00, tail +5.20 deg, 12 of 12.  s42_A_1151 goes from 0.85 to the rail.  Return -21 to -27 per episode (0/12).
+  - Start weights with end statistics: further from the rail than the start itself.  Own command 0.41 (start 0.60),
+    tail +2.1 deg (start +3.1), return +10.5 (full) / +19.8 (tail dims) (12/0).
+- The gain growth lives in the weights downstream of the first layer.
+  - The first layer's column for the tail_3 angle did not change: norm ratio 1.00, cosine 0.998.
+  - Grafting the start's second hidden layer or its output layer into each end lowers the gain by 0.30 or 0.24
+    (12/12).  Grafting the start's first layer lowers it by only 0.05.
+  - Per normalised unit, the sensitivity rose 5.4x (0.040 -> 0.219 per z).  [measured: weights.txt, hybrid.txt]
+- s80 contrast:
+  - The tail_3 scale barely moved (x0.98 median; rank 55 of 63).  The normaliser's share of the gain change
+    (-0.37 -> -0.26) is +0.01.
+  - Tail-dimension swaps change neither the gain nor the return (6 up / 6 down).
+  - The s80 full swap's return effects (-21.6, 3/9; start with end stats +21.8, 12/0) come from non-tail dimensions,
+    through neck_posture.  [measured: static.txt, swaps.txt, term_deltas.txt]
+
+==================================================================================================================
+1. OBSERVATION INDICES (probe_layout.py -> layout.txt, layout.json)  [measured]
+==================================================================================================================
+- The obs is 63 values (T. rex _get_obs, code_copy environments/tyrannosaurus_rex/base_env.py:974):
+  - qpos[7:] = obs 0-20, then qvel[6:] = obs 21-41;
+  - gravity 42-44, gyro 45-47, heading velocity 48-50, accelerometer 51-53;
+  - contacts 54-55, prey direction 56-58, prey distance 59, command 60-62.
+- Tail joints, each angle and velocity checked equal to the live obs:
+  - tail_1_pitch: obs 3 / 24
+  - tail_1_yaw:   obs 4 / 25
+  - tail_2_pitch: obs 5 / 26
+  - tail_3_pitch: obs 6 / 27.  Index 6 is the verifier's.
+- "Tail dims" below means these 8.
+
+==================================================================================================================
+2. THE NORMALISER'S STATISTICS OVER TRAINING (read_stats.py -> stats.txt, stats.json; implied_window.py ->
+   implied_window.txt)  [measured]
+==================================================================================================================
+- Pickles read: all 168 (24 runs x 7 checkpoints).
+  - Each one was opened with pickle.load.
+  - 36 of them were also opened with the harness's load_sb3_checkpoint: 36/36 identical statistics, and
+    normalize_obs equals the hand formula (max diff 0).
+- eps 1e-8, clip_obs 10, norm_obs True, norm_reward True in every pickle.  No tail value comes near the clip: z <= 7.1 even at the sweep's 6 deg under
+  the start's statistics.
+- The start pair is byte-identical in all 12 runs of each lineage, statistics included.
+- Statistics are cumulative over the lineage.
+  - Counts: s42 6.29M -> 9.44M frames; s80 8.39M -> 11.53M frames.
+  - 524,288 frames are added per 262,144-step checkpoint interval.
+- s42, tail_3 angle (median of 12 runs; mean deg, sd deg, scale per deg):
+    step        3145728  3407872  3670016  3932160  4194304  4456448  4718592
+    mean deg     +0.47    +0.64    +0.84    +1.02    +1.19    +1.35    +1.49
+    sd deg        0.78     1.03     1.27     1.45     1.59     1.69     1.79
+    scale /deg   1.281    0.973    0.790    0.689    0.630    0.590    0.560
+  - End/start scale ratio per run: 0.420-0.451.
+  - The frames added in each interval have tail_3 means of +2.77, +3.35, +3.61, +3.75, +3.89 and +3.86 deg (implied
+    from counts).  The normaliser lags the behaviour: the start pair already parked the tail near 3 deg.
+  - Other tail dims move little:
+    - tail_3 velocity scale x1.15 (0.230 -> 0.265 per deg/s);
+    - tail_2 angle x1.13;
+    - tail_1 pitch x0.97-1.08;
+    - tail_1 yaw x0.96 (its mean is exactly 0 throughout).
+  - Ranking of all 63 dims by |log scale ratio|: the tail_3 angle is first (x0.437).  Next is gravity[2] (x1.22),
+    then a block of leg velocities, all about x1.2 (the general calming of the stance).
+  - By mean shift in start-sd units the tail_3 angle is also first (1.31), then tail_1 pitch (0.20).
+- s80, tail_3 angle: scale 3.238 -> 3.184 per deg (x0.98 median; per run 0.77 (s80_B_1421) to 1.03); mean +0.11 ->
+  +0.08 deg.
+  - Rank 55 of 63.  The most-drifted s80 dim is the neck_pitch angle (x0.84).
+
+==================================================================================================================
+3. LOOP GAIN AT EVERY CHECKPOINT, AND THE REGRESSION ON SCALE
+==================================================================================================================
+Method [measured: run_ckpts.py, run_step2.sh -> ckpts/episodes.jsonl, ckpts/states/; analyze_static.py ->
+static.txt, static.json]:
+- The verifier's observation-only sweep (verify_clamp/verify_loop.py), copied in probe_common.py:
+  - one unforced deterministic 1,000-step episode, seed 3042, own statistics;
+  - at steps 500, 600, ..., 1000 only obs 6 is set to 0..6 deg;
+  - fit the slope of the raw Gaussian mean of action 14; median over the 6 states;
+  - loop gain = slope x 5.183 deg per unit command (the verifier's statue plant gain).
+- It reproduces the verifier exactly: start 0.268 (verifier 0.268); s42_A_1101 0.660 (0.660); s80_B_1451 -0.251
+  (-0.251).
+- 146 checkpoints in all: 2 starts, plus 24 runs x 6 later checkpoints.
+- Jz = slope / scale = d command / d z_tail3, the network's sensitivity per normalised unit.
+s42 (median of 12 runs per step):
+    step        3145728  3407872  3670016  3932160  4194304  4456448  4718592
+    gain         0.268    0.401    0.467    0.513    0.541    0.583    0.630
+    scale /deg   1.281    0.973    0.790    0.689    0.630    0.590    0.560
+    Jz           0.040    0.082    0.113    0.143    0.169    0.193    0.219
+- The gain rises while the scale falls.  Over the 73 s42 checkpoints:
+  - gain = -0.519 x scale + 0.898, R^2 0.48, Spearman -0.73;
+  - log gain on log scale: slope -0.81, R^2 0.56.  A pure scale effect would give +1;
+  - Jz tracks the gain (Spearman +0.95) and runs against the scale (-0.90).
+  So the gain change does not track the normaliser's scale change.  It runs opposite to it.
+- Within one step, across the 12 runs, Spearman(scale, gain) is weakly positive: +0.19 to +0.48.  Runs that drifted
+  less have slightly higher gain.  That is consistent with the drift damping the gain; n = 12 each, so weak.
+- s80: gain -0.370 -> -0.255 while the median scale is flat.  Regression R^2 0.26, Spearman -0.37.
+  - The runs whose scale fell most include the two whose gain reached about 0: s80_B_1421 (x0.77, gain +0.009) and
+    s80_B_1401 (x0.93, +0.049).  s80_B_1441 (x0.88) has gain -0.213.
+  - The swap shows this link is not the normaliser acting.  With the start's statistics the two read +0.014 and
+    +0.044.  Their scale fell because their tail moves more (sd 0.40 and 0.33 deg) [static.txt, stats.txt].
+  - Jz tracks the gain (+1.00).
+
+==================================================================================================================
+4. SEPARATING SCALE FROM WEIGHTS ON FIXED STATES (static; analyze_static.py -> static.txt;
+   mean_vs_var.py -> mean_vs_var.txt; weights_probe.py -> weights.txt; hybrid_probe.py -> hybrid.txt)  [measured]
+==================================================================================================================
+G(W, N | X) = loop gain of weights W with statistics N, on the stored states X; only W and N vary.
+s42, 12 ends, medians:
+- On the end's states X_end:
+    G(W_end, N_end)    0.630   (own)
+    G(W_end, N_start)  1.143   (12/12 above own)
+    G(W_start, N_end)  0.141   (12/12 below 0.268)
+    G(W_start, N_start) 0.264
+  - Normaliser part: -0.513 at end weights; -0.124 at start weights (0/12 > 0 at both).
+  - Weight part: +0.871 at start statistics; +0.493 at end statistics (12/12 > 0 at both).
+  - Symmetric normaliser share of the total change: -0.89.
+  - On the start's states X_S: 0.650, 1.203, 0.144, 0.268; share -0.88.
+- One-dimension and per-component swaps, end weights on X_end:
+  - all 63 dims from the start: 1.143; tail 8: 1.162; tail_3 angle only: 1.162.
+  - tail_3 variance only: 1.303; tail_3 mean only: 0.609.  So the scale acts and the mean barely does.
+  - Start weights on X_S with the end's tail_3 variance only: 0.139; mean only: 0.299.
+- Intermediate checkpoints, end weights with the start's statistics: 0.268, 0.496, 0.652, 0.799, 0.915, 1.024, 1.143.
+  The start's weights with each checkpoint's statistics: 0.268, 0.218, 0.186, 0.164, 0.153, 0.146, 0.141.
+  - The weight effect grows steadily from the first interval.  The normaliser effect is biggest in the first interval
+    (scale x0.76) and then flattens.
+- Where the weight change sits (actor 63 -> 512 tanh -> 256 tanh -> 15):
+  - First layer, tail_3 column: ||w6|| 1.281 -> 1.285, cosine with the start 0.998, end/start 1.00 in all 12 runs.
+    In raw units the first-layer input gain ||w6|| x scale therefore fell 1.64 -> 0.72 [weights.txt].
+  - Hybrids on X_end with the end's statistics: start's L0 in the end network 0.586 (-0.046); start's L2 0.340
+    (-0.298); start's output layer 0.383 (-0.240); each 12/12 lower.
+  - End's L2 alone on the start network 0.352; end's output layer alone 0.292; end's L0 alone 0.177; versus 0.141.
+  - So the growth is carried jointly by the second hidden layer and the output layer, not by the input weights of the
+    tail_3 angle [hybrid.txt].
+s80, 12 ends: the normaliser part is +0.001 / +0.003 (7/12 and 8/12 > 0); the weight part is +0.123 / +0.122 (11/12);
+share +0.01.  Most of the s80 change sits in the output layer (start's output layer in the end: -0.085, 10/12).
+
+==================================================================================================================
+5. CLOSED-LOOP SWAPS (run_swaps.py, run_step3.sh -> swaps/episodes.jsonl, swaps/states/; analyze_swaps.py ->
+   swaps.txt, swaps_summary.json; term_deltas.py -> term_deltas.txt)  [measured]
+==================================================================================================================
+Setup:
+- The harness's loader and action: model.predict(normalizer.normalize_obs(obs), deterministic=True).  The swapped
+  statistics are written into normalizer.obs_rms.
+- Fresh env per seed (stance constructor, reset noise 0.05), seeds 3042-3061, 1,000 steps, unforced.
+- Each episode's own 6 states are swept under the condition's statistics.  Gain = median over the 20 seeds.
+- The own-statistics baseline equals the clamp runner's unforced episodes: 520 of 520 identical returns and own
+  tail_3 commands.
+- No falls in any of the 2,680 episodes.
+Paired change in return is the per-policy median over seeds, then the median over policies, with policies up/down.
+s42 (12 ends; the start with its own statistics: gain 0.262, own command 0.600, tail +3.12 deg):
+  arm                          gain   [range]          own cmd  at rail  tail deg  d return [range]           up/down
+  end, own stats               0.632  [0.479, 0.907]   1.000    1.00     +5.19     (baseline 4387.1)
+  end W, start stats (all 63)  1.086  [0.816, 1.670]   1.000    1.00     +5.20     -20.8 [-104.9, -11.5]     0/12
+  end W, start stats (tail 8)  1.103  [0.827, 1.678]   1.000    1.00     +5.20     -25.8 [-98.4, -10.9]      0/12
+  end W, start stats (obs 6)   1.100  [0.825, 1.676]   1.000    1.00     +5.20     -26.9 [-96.2, -9.6]       0/12
+  start W, end stats (all 63)  0.143  [0.139, 0.148]   0.410    0.00     +2.13     +10.5 [+8.7, +12.8]       12/0
+  start W, end stats (tail 8)  0.143  [0.138, 0.148]   0.408    0.00     +2.12     +19.8 [+19.5, +20.3]      12/0
+  ("at rail" is the median share of steps 500-1000 with own command >= 0.99.)
+- The gain does not fall back toward 0.27 when the end network gets the start's statistics.  It rises further, 12 of
+  12, and stays at the rail, 12 of 12.
+- The start network with the ends' statistics halves its gain and settles lower.
+- Return terms [term_deltas.txt]:
+  - End W with start stats loses on action_saturation (-6.8 to -7.2), tail_home_pose (-5.9 to -6.9) and neck_posture
+    (-6.3), each 0/12.  The head coupling scales up with the tail input too [inferred].
+  - Start W with end stats gains on tail_home_pose (+14.9, 12/0), because the tail sits lower.
+s80 (12 ends; the start with its own statistics: gain -0.413, own command +0.018, tail +0.10 deg):
+  end, own stats               -0.286 [-0.494, +0.040]  +0.026  0.00   +0.14     (baseline 4461.4)
+  end W, start stats (all 63)  -0.267                   +0.027  0.00   +0.15     -21.6 [-86.9, +4.0]       3/9 (p 0.15)
+  end W, start stats (tail 8)  -0.291                   +0.028  0.00   +0.15     -0.0 [-8.5, +3.6]         6/6
+  start W, end stats (all 63)  -0.398                   +0.006  0.00   +0.04     +21.8 [+11.4, +26.5]      12/0
+  start W, end stats (tail 8)  -0.406                   +0.014  0.00   +0.08     +1.0 [-0.2, +2.3]         11/1
+- In s80 the tail statistics are inert, for the gain and for the return.  The full swaps' return changes come from
+  the other dimensions, mainly through neck_posture (-8.2 / +23.1).  That fits neck_pitch being s80's most-drifted
+  dimension [inferred from stats.txt and term_deltas.txt].
+
+==================================================================================================================
+6. READING  [inferred; basis given]
+==================================================================================================================
+- The hypothesis predicted a falling input scale x fixed weights = rising gain.  The scale did fall, but a smaller
+  scale shrinks the network's response to a raw tail angle: gain = Jz x scale.  The network is close to linear here:
+  restoring the start's variance raises the ends' gain x2.07, where a linear network would give x2.29.
+  So drift of this kind can only lower the gain at fixed weights, and it did (0.27 -> 0.14 for the start's weights).
+- The growth is a change in the weights (Jz x5.4, in L2 and the output layer).  It more than offsets the x0.44 input
+  compression.  Basis: sections 3-5.
+- The causal arrow between the tail and the statistics: the statistics drifted because the tail rose.
+  - The added frames sit at +2.8 to +3.9 deg, against the start's 0.47 deg running mean.
+  - So the drift is a consequence of the rail behaviour.
+  - That is also why the drifting dimension is the one that saturates: the normaliser is a record of where the
+    observation went.
+  - Basis: implied_window.txt; the start policy already holds the tail near +3 deg on its own.
+- The drift probably even made the s42 rail less pronounced than the weights alone would make it.  Without it, 8 of
+  12 ends (closed loop) or 9 of 12 (static) would have a loop gain above 1.  Basis: section 5, end W with start stats.
+
+==================================================================================================================
+7. WHAT THESE DATA CANNOT SHOW
+==================================================================================================================
+- Whether the drift shaped the training trajectory.
+  - As the input compressed, PPO may have grown the downstream weights partly to compensate.
+  - Full compensation needs x2.3; the weights grew x5.4 per normalised unit.  So compensation cannot be the whole
+    story.  But part of the weight growth may be a response to the drift.
+  - Only a training counterfactual can settle it, for example a continuation with frozen statistics.  None was run
+    (no training allowed).
+- Why the weights changed (which reward gradient).  The probe localises the change (L2 and the output layer), not its
+  cause.
+- One start checkpoint per lineage.  No other lineage that drifts the tail_3 statistics without railing.  s80 does
+  not drift them, so it cannot separate "drift" from "rail" either.
+- The loop gain is local and static.
+  - It is an observation-only sweep of the tail_3 angle (0-6 deg) at visited states, times the statue's static plant
+    gain.
+  - It ignores the velocity channel, the 10 Hz filter, the other observations' response to the tail, and the critic.
+  - The per-checkpoint sweep uses seed 3042 only.  The 20-seed closed-loop gains agree within 0.01 (s42).  In s80
+    they are 0.01-0.06 more negative (median 0.03).
+- Deterministic policies only.  Reset noise 0.05.  No pushes.  No own-noise rollouts.
+- A swap moves every swapped input's operating point at once.  The mean/variance split is static only (one dimension,
+  seed 3042 states).
+- Multiplicity: many keys were read.  The firm results are the 12/12 and 0/12 ones.
+
+==================================================================================================================
+8. RULES, COST, FILES
+==================================================================================================================
+- No training.  Python: the session venv, -B, PYTHONPATH = policies/code_copy plus this folder, OMP/MKL 1 thread,
+  nice 10.
+- Simulation processes ran one at a time, in series:
+  - step 2: 18:22-18:28 UTC;
+  - step 3: 18:28-20:10;
+  - the tail_3-only arm: 20:10-20:20.
+- analyze_static.py, weights_probe.py and hybrid_probe.py ran during step 3.  They are network evaluation on stored
+  states and simulate nothing.  load_sb3_checkpoint builds an env object without stepping it.
+- Nothing was written under r10round, policies/, clamp/ or verify_clamp/.  find -newer probe_layout.py over them
+  lists nothing.  No .pyc anywhere in code_copy or here.
+- One read-only "git status --porcelain" in /home/user/mesozoic-labs at 20:20 UTC moved only .git's own mtime.
+  .git/index is unchanged; the working tree is untouched.
+- Disk: this folder is about 11 MB.  No large temporary files were made.
+Files:
+probe_layout.py -> layout.txt, layout.json        observation indices
+read_stats.py -> stats.txt, stats.json            normaliser statistics, all 168 checkpoints; drift ranking
+implied_window.py -> implied_window.txt           tail_3 statistics of the frames added per interval
+probe_common.py                                   loader (harness's), swappable statistics, rollout, verifier's sweep
+run_ckpts.py, run_step2.sh -> ckpts/ (episodes.jsonl, states/), ckpts.log    step 2 rollouts (146 checkpoints)
+analyze_static.py -> static.txt, static.json      gain vs scale, regression, 2x2 decomposition, static swaps
+mean_vs_var.py -> mean_vs_var.txt                 tail_3 mean vs variance split
+weights_probe.py -> weights.txt                   first-layer tail_3 column over training
+hybrid_probe.py -> hybrid.txt                     layer grafts (start/end) and their gains
+run_swaps.py, run_step3.sh -> swaps/ (episodes.jsonl, states/), swaps_s42.log, swaps_s80.log, swaps_s42_t3q.log
+analyze_swaps.py -> swaps.txt, swaps_summary.json closed-loop swaps; baseline identity check
+term_deltas.py -> term_deltas.txt                 reward terms behind each swap's return change

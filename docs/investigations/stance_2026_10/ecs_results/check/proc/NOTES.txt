@@ -1,0 +1,235 @@
+VERDICT: AGREE. Through the process-and-status lens, the reading (line 3, NO DIFFERENCE DETECTED; s42 A 6/6, B 6/6; s80 A 1/6, B 1/6; P_UP = P_DOWN = 17/22), the 24 COUNTED classes and STATUS final all stand. 0 blocking, 1 minor, 9 info.
+
+ECS process lens (proc), independent check of <ECS>/score/score.txt, STATUS final. Written 2026-10-29 12:18-12:35 UTC.
+<ECS> = /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/ecs
+My scripts are in <ECS>/check/proc/scripts/ and their outputs in <ECS>/check/proc/*.out. All Python ran with
+S2/venv/bin/python -I -B, with cwd /tmp. Nothing outside <ECS>/check/proc was written: no tool was run except
+sha256sum -c and stat, and there was no M1, no harness, no env, no network.
+Labels: [measured] means read or computed from a named file or my own code. [inferred] means reasoned, with the basis given.
+
+==================================================================================================================
+(a) CLASSES: all 24 COUNTED, which is right
+==================================================================================================================
+[measured, scripts/classes.py -> classes.out] For each of the 24 folders runs/<start>_<arm>_<seed>, named from the seed
+lists typed in from criteria.txt l68-69, my own code checks run_meta.json for:
+  - schema ecs-run/1, mode continuation, status done and exit 0;
+  - argv "--start <s> --arm <a> --seed <x>", equal to the folder's name;
+  - S and E (3,145,728 and 4,718,592 for s42; 4,194,304 and 5,767,168 for s80), with target = T = num_timesteps_end = E;
+  - stop_reason "end", with stop_at_end flag true at step E;
+  - code commit 8737cd3d..., tree digest 331fe8fc..., 1406 files, code_seal_after "unchanged" and
+    modules_outside_code [];
+  - start pair sha256 as recorded, and also recomputed from the copies on disk in runs/<name>/01_stance/models/, all
+    equal to the PINS;
+  - parent_records equal to the PINS;
+  - criteria_sha256 04813918..., approved_sha256 equal to sha256(APPROVED) = 2c077437..., and tool_sha256 equal to
+    APPROVED's;
+  - torch_threads 1, and OMP, MKL and OPENBLAS threads "1", GITHUB_SHA 8737cd3d...;
+  - collapse found 1, patience 10, tripped false;
+  - arm_ppo "unchanged" for A and {ent_coef 0, ent_coef_end 0} for B; ent_coef_after_load 0.005 for A and 0.0 for B;
+    ppo_applied (0.005, 0.0) for A and (0.0, 0.0) for B;
+  - recipe_v5 problems [];
+  - updates made: the params digest changed and n_updates grew by 992-1171 per run; digest num_timesteps S -> E;
+  - heartbeat rollout_end = E - 8,192, with no error or traceback key.
+check.json: passed true with failures [], made by read_ecs 6f55b3b9 (the pin), and still current: its run_meta and
+probe sha256 equal the files now, and its parent-probe sha256 equals the pin.
+Every run's stage_config.json carries the right hyperparameters_sha256 (A 054ab483..., B be2e243b...), ent_coef
+(0.005 for A, 0.0 for B), ent_coef_end 0.0, and run.seed equal to the folder's seed [measured, inline check].
+Result: no problem in any of the 24.
+
+R4, re-derived with my own code [measured, classes.py]:
+  - Parent probes F2/stance6_r10LTSB_<r>/copies/01_stance/policy_probe.npz.copy1 (the path read_ecs.parent_probe and
+    ecs_common.f2_record give). sha256 4e0e7220... (s42) and 0e61919d... (s80), both equal to the pins.
+  - Both probes opened with np.load(allow_pickle=False).
+  - Every continuation has exactly 191 rows with S < update_timesteps < T, at S + 8,192 k for k = 1..191, and no row at
+    or after T. The first rows are at 3,153,920 and 4,202,496; the last at 4,710,400 and 5,758,976.
+  - Arm A: ent_coef and learning_rate equal the parent's row at the same step as float32 at all 191 rows, and are also
+    exactly equal before the cast. ent_coef runs 0.0027472 -> 0.0016354 (s42) and 0.0019982 -> 0.0008864 (s80), as in
+    criteria l59.
+  - Arm B: every ent_coef is 0.0, and learning_rate equals the parent's at all 191 rows.
+  - 0 mismatches in all 24.
+
+Other class records [measured]:
+  - runs/ holds exactly the 24 own-name folders, with no _crashed, _void or _refused folder. The only "*_void*" path
+    under <ECS> is tmp/lane_r_tests/score_void, a lane-R test fixture made 00:34 UTC, before the approval.
+  - logs/crash_ledger.tsv is 0 bytes, and <ECS>/lost.json (and lost.json.tmp) is absent.
+  - There is no logs/HALTED and no logs/PAUSED_disk.
+  - Only attempt1 logs exist, so there were no reruns.
+  - decided.tsv names each of the 24 exactly once, all COUNTED "CHECK passed, stop reason end".
+  - score.json classes: 24 COUNTED with read_ok true; its tables are s42 [6,6,6,6] and s80 [1,6,1,6], with 0 missing.
+So the COUNTED/STOPPED/LOST/VOID classes are right, and POSITIVE/NEGATIVE agree too
+[measured, scripts/printed.py: ANY-flagged evaluations re-derived from m5.json per_evaluation "any" >= 5 within (S, T],
+which equals M5's own any_flagged list]. That gives s42 a=6, b=6 and s80 a=1 (s80_A_1341), b=1 (s80_B_1441).
+My own exact stratified enumeration [scripts/pvals.py] gives X = 7, P_UP = P_DOWN = 17/22, line 3. The Fisher values
+are 1/1 at s42 and 17/22 / 17/22 at s80, and the notes are as printed.
+
+==================================================================================================================
+(b) OUTCOME-BLIND ORDER: holds
+==================================================================================================================
+Timeline [measured, scripts/timeline.py and scripts/order.py; birth, atime, mtime and ctime by stat; ext4 mounted
+relatime (/proc/mounts)]:
+  - The runner's line "all 24 decided, none VOID" is at 12:05:20Z (run_waves_ecs.log l75). It comes after the 24th
+    decision, s80_B_1451 COUNTED at 12:05:20.
+  - Every file of the reading was born after it:
+      - traces/ directory born 12:05:20.547, after the line was written. Earliest trace file born 12:06:25. The last
+        m1_summary.json was written 12:15:10.
+      - score/ and score/read/ born 12:15:20.976. The first m5.json was born 12:15:21, and score.txt 12:15:29.
+      - The *.trace.log files were born 12:05:20.55 (in the same second as the line; the runner writes the note before
+        it calls trace_one, run_waves_ecs.sh l465-497 [inferred, code order]). The *.read.log files were born 12:15:20.87.
+  - No file of the reading was born or modified before the line.
+  - For each continuation: trace mtime <= m5.json birth <= read.json birth <= score.txt birth (0 violations).
+  - Each read, check and trace log holds exactly one invocation, so nothing was read twice or earlier.
+Runner steps against RUN HANDLING and WHEN THE READING IS MADE [measured, order.py]:
+  - The start order equals the fixed BL-8 queue (s42 A j, s42 B j, s80 A j, s80 B j). At most 3 ran at once, and
+    arm-A and arm-B decisions never differed by more than 1.
+  - All 24 exited 0, with one launch line and one queue line.
+  - No log line of any other kind: no relaunch, crash, refusal, halt, pause, orphan wait or VOID.
+  - Every run_meta utc_start and utc_end lies inside the runner's start and exit times.
+  - After the line: R3 for all 24 (3 at a time), then read_ecs for all 24, then score_ecs exit 0 (run_waves_ecs.exit
+    "0 2026-10-29T12:15:29Z").
+  - proctable.log: all 41 python processes in the 24 snapshots ran at nice 10, with load about 3.0.
+  - The container booted at 00:23:07Z (/proc/stat btime) and has been up since, so there was no restart during the run.
+What file atimes can and cannot show (relatime: a read updates atime only while atime <= mtime/ctime, or after 24 h):
+  - Attempt logs: atime equals birth to the nanosecond for all 24, ctime equals mtime, and atime < mtime
+    [measured, stat and os.stat]. Since every write after creation leaves atime <= mtime, any read() since creation would
+    have moved atime. So no atime-updating read of any attempt log has happened, before or after the decided line.
+    The equal ctime and mtime also rules out an atime reset (utimensat) after the last write.
+    The atime evidence does not cover:
+      - an O_NOATIME open (root can do this);
+      - a reset made before a later write;
+      - output seen some other way than reading the file. The runner sends the process output only to the file
+        (l429) [inferred, code].
+  - Run folders, read after their last write and before the line [measured, scripts/atimes.py]:
+      - run_meta.json, read at each decision (CHECK);
+      - policy_probe.npz, read at each decision (CHECK, R4 columns only by read_ecs.load_probe [inferred, code]);
+      - the start pair, read at load.
+    All three are allowed by RUN HANDLING.
+  - The first read after the last write came after the line for each of these:
+      - eval_episodes.csv: 12:15:20.975, by M5 via read_ecs;
+      - the E pair zip and pkl, and stage_config.json: 12:05:20.84, by the trace;
+      - check.json: 12:15:20;
+      - evaluations.npz: 12:22:33, after the score; another check, probably.
+  - Never read after their last write: diagnostics.npz, train_episodes.csv, gate_progress.npz, progress.json, all 216
+    intermediate checkpoints and the final pairs.
+  - What cannot be established: a read of a ledger, probe or diagnostics file during the run, before that file's last
+    write, leaves no trace under relatime. Such a read can be neither shown nor excluded.
+
+==================================================================================================================
+(c) STATUS: final is right
+==================================================================================================================
+[measured, scripts/pins.py -> pins.out; sha256sum -c] Pins and approval:
+  - criteria.txt sha256 04813918e494ae2d... equals APPROVED criteria_sha256 and is byte-equal to
+    final/criteria_ecs_final.txt; mode 0444. v3/criteria_ecs_v3.txt is 90a9f9aa..., as PINS says.
+  - All 35 sha256 values in criteria.txt's PINS section equal their files, parsed from the text itself: 4 cited v1/v2
+    outputs, 5 tools, 6 tests, M1 and M5 with their 2 commons, 2 start pairs (4 files) and 2 x 6 parent records.
+  - APPROVED's 5 tool sha256 equal the files.
+  - <ECS>/SHA256SUMS.txt: sha256sum -c gives 14 of 14 OK.
+  - CRIT6 is 99a44469..., as the criteria's short name says.
+Code copy [measured, scripts/tree_walk.py, my own walk from the seal's documented format, without M1's code]:
+  - The format, read from r10m_common.tree_digest: sha256 of the sorted "relpath<TAB>sha256" lines, with the seal file
+    excluded.
+  - <ECS>/code: 331fe8fc3f6bdf73acc0d3cc324dd753d9d9d695d7ce914e4e011d5c6437ebf1, 1406 files, no __pycache__. This equals
+    the seal (.r10m_seal.json: commit 8737cd3d86431de1..., files 1406), APPROVED's code_tree_digest and COPY's walk;
+    file for file there is no difference from COPY.
+No pinned file changed during the run [measured, stat]:
+  - The newest mtime or ctime among all pinned files (tools, tests, criteria, APPROVED, SHA256SUMS, final/, v1, v2, M1,
+    M5, commons, F2 copies) is 01:43:42Z, the approval.
+  - No file under <ECS>/code has an mtime or ctime after APPROVED.
+So no pin differed at any time from the launch to now, and score.json's provisional [] is right.
+Incomplete status: all 24 are decided, with a passing check.json, and all are read (read.json present, read_ok true,
+24 traces). So "incomplete" would be wrong. STATUS final is right.
+
+==================================================================================================================
+(d) PRINTED ITEMS
+==================================================================================================================
+[measured, score.txt against criteria l136-156] The reading line's wording is exact, followed by "s42: arm A 6 of 6,
+arm B 6 of 6" and "s80: arm A 1 of 6, arm B 1 of 6". The NOT INFORMATIVE variant does not apply, because only s80
+carries LOW ARM-A RATE. There is no addition, since nothing is missing.
+score.txt prints everything on the "Every line prints" list:
+  - each start's table as counted and as filled, both ways;
+  - P_UP and P_DOWN filled, and as counted (report only);
+  - each start's one-sided Fisher p, A greater and B greater;
+  - the per-start notes, with the exact wording;
+  - the TABLE E power figures, equal to criteria l289-294;
+  - STOPPED, CENSORED AND LOST: "none".
+Per-continuation report-only figures [measured, scripts/printed.py]: for all 24 the whole printed tail of the line is
+equal, character for character, to one I rebuilt from the sources:
+  - first ANY flag, flagged count, ANY ALARM, TAIL-flagged, TAIL ALARM and TAIL-input missing, from m5.json;
+  - mean std first/last row, from the probe's std_per_actuator rows in (S, T), with my own mean;
+  - mean return at T, my own mean of the ledger's 10 rows at T;
+  - R3 CMD tail_3 (cmd_a["14"]), tail flags and falls, from m1_summary.json, with the trace's file sha256.
+I also checked the inputs:
+  - read.json names the check.json, ledger, probe, m5.json and trace by sha256 equal to the files now
+    [scripts/readjson.py].
+  - The M5 argv is exactly "ledger_r10round.py <ledger> --E <T> --json <out>".
+  - Each trace was made by the pinned M1 on the run's own stage1_<E>_steps zip and pkl (sha256 named), with
+    num_timesteps E, seeds 3042-3061, physics 10 and the copy 331fe8fc... [scripts/traces.py].
+  - The 48 check.json and read.json sha256 printed in score.txt l4-51, and the 24 trace sha256, all verify with
+    sha256sum -c.
+The RUNLOG's l740 score.json and score.txt sha256 prefixes (f86b9923b7bb5d84, c3ba2144082dd923) match.
+
+==================================================================================================================
+(e) RUNLOG l730-l740 against the runner's log
+==================================================================================================================
+[measured, run_log.txt read only]
+  - l730: the approval, sha 04813918..., at line 730, as APPROVED's runlog_line says.
+  - l731:
+      - launch at 01:44:05 UTC, with free 6.26 GiB. The runner's 6,719,037,440 bytes is 6.258 GiB.
+      - APPROVED sha256 2c077437, which equals sha256(APPROVED).
+      - first wave s42_A_1101, s42_B_1201 and s80_A_1301.
+  - l732-l739 check-ins: every wave, name, decision, time and "x of 24" count agrees with run_waves_ecs.log and
+    decided.tsv. The rounded durations hold: "about 71 min" in fact ran 71-73 min, and "about 79 min" ran 78.8 min.
+  - No container restart line after l727 (00:24). The "Watcher relaunched" lines (l734, l738) relaunch the watcher, not
+    the runner. The runner log shows a single launch and no relaunch handling.
+  - l740: the reading, its status, the tables, P values and notes agree with score.txt and score.json.
+Disagreements are listed as I5 and I6 below.
+
+==================================================================================================================
+FINDINGS (every disagreement; none blocking)
+==================================================================================================================
+M1 minor: score.txt leaves out R2's M6 shares and R3's per-actuator CMDs.
+  - What is missing: score.txt prints, per continuation, only "mean std first/last row" for R2 and only "CMD tail_3"
+    for R3. It does not print R2's M6 shares (rollout mu-beyond high and low, action-clip high and low, mu mean, q50,
+    q95) or R3's other 14 actuators' CMD (criteria R2 l118-120, R3 l121-122, "Report only ... R2, R3" l154-155).
+    [measured: grep finds no rollout_mu, action_clip or cmd_all in score.txt; score.json has no R2 either.]
+  - Where the values are: read.json r2.summary (8 arrays x 15 actuators x 191 rows), r2_arrays.json and
+    r3.cmd_all_actuators (15), for all 24 [measured].
+  - Effect: none on any p, class or line. This counts as a missing printed item only if the "Report only" list is read
+    as a list of what must be printed; the criteria do not say which file carries them.
+  - Fix: print the R2 summary and the R3 CMDs, or add a pointer to score/read/<name>/read.json, in score.txt.
+I1 info: the scorer's PROVISIONAL check (score_ecs.provisional_items) does not re-measure everything in PINS.
+  - It does not re-measure the start pairs, the parent records or the 4 cited v1/v2 outputs. It covers APPROVED,
+    criteria.txt, SHA256SUMS.txt, M1, M5, their commons and the code copy [measured, code l463-539].
+  - I measured all of them: equal to their pins and unchanged since the approval, so the status is unaffected.
+I2 info: stale comment in score_ecs.py l606.
+  - The comment says "the runner makes the end traces after the R1/R2 reads". run_waves_ecs.sh l473-519 and the log make
+    them before.
+  - No effect: r3 status "read" in all 24 read.json, and the scorer re-reads the trace.
+I3 info: run_meta records torch_interop_threads 4 in all 24 runs.
+  - The criteria pin only "torch threads 1"; CHECK checks the intra-op count only. No class effect.
+I4 info: R3's command adds an argument the criteria's form does not name.
+  - The runner adds --approved S1/foot/stance6/APPROVED (run_waves_ecs.sh l486-487) to the criteria's
+    "m1 --copy --zip --pkl --stage-config --out" form.
+  - R3 is report only. The traces used the pinned M1 on the right pairs.
+I5 info: RUNLOG l738 (09:27) is imprecise about what was running.
+  - It says "the last wave (6 continuations, 2 waves of 3) running". At 09:27 three were running (s80_A_1341,
+    s80_B_1441, s42_A_1151, started 09:18:56-09:21:46) and three were queued (started 10:41:18-10:44:08).
+I6 info: RUNLOG l740 shortens the reading line.
+  - It quotes the line without its pre-registered parenthesis "(not tested: a shift of the first flag within the
+    window, a modest effect, the early phase)". score.txt l55 has the full wording, and l740 cites score.txt's sha256.
+I7 info: some files were read during the run; none is an outcome file.
+  - logs/crash_ledger.tsv atime 03:41:14 is the time of the RUNLOG l732 check-in.
+  - run_waves_ecs.log is read by the watcher, as allowed.
+  - proctable.log was never read after its last write.
+I8 info: the outcome-blind evidence has limits; see (b).
+  - Attempt logs: never read at all, measured, but within atime's limits.
+  - Ledgers, probe and diagnostics: no read between each file's last write and the decided line; a read before a file's
+    last write cannot be excluded.
+I9 info, outside this lens: THIS12 l310-311 also lets "a saturation count of at least 5 at its step in the same fetch"
+  ANY-flag an evaluation.
+  - That clause has no counterpart in ECS R1, which is M5 on the continuation's own ledger, as written, with no fetch.
+  - CRIT6 l169, the approved round text, defines ANY-FLAGGED by ledger rows only (M5 (a)). The reading follows R1 as
+    written. Left to the statistic lens.
+
+Files: <ECS>/check/proc/NOTES.txt (this file); scripts/{classes,timeline,atimes,tree_walk,pins,printed,readjson,traces,
+order,pvals}.py; outputs tree_walk.out, classes.out, timeline.out, atimes.out, pins.out, printed.out, readjson.out, traces.out,
+order.out, pvals.out, score_read_sums.txt, score_trace_sums.txt.

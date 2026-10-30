@@ -369,6 +369,29 @@ robustness, **LOW** = cosmetic / QoL.
   training. As a screen the round certifies nothing. The two-seed ask
   stands. Record: §27 of
   [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).
+  **Update 23 (2026-10-29):** the CPU continuation screen of the entropy
+  coefficient (decision D-D52's amendment,
+  [BEHAVIOR_RECIPES_PLAN.md](BEHAVIOR_RECIPES_PLAN.md) §6.2) read, final: line
+  3, no difference detected. From seed 42's r10 checkpoint at 3.1M steps the
+  tail-tip rail formed again in all 12 continuations, with the entropy bonus
+  as recorded or at 0 (6 of 6 each); from seed 80's at 4.2M, 1 of 6 in each
+  arm, on the neck. So removing the remaining bonus from mid-rise states does
+  not stop the rail; its role in the first 3.1M steps is untested. Report
+  only, with no training (D-D53 to D-D55): the rail is a saturated command,
+  not a saturated joint or motor (+1 holds the tail tip about 5° up); it is no
+  balance aid (on the plant alone it moves the centre of mass 0.2 mm forward
+  and 1.6 mm up; held at 0 it gains 63.6 reward per episode and leaves
+  the stance otherwise unchanged, the head about 3.5° lower); it
+  persists through a learned positive feedback from the observed tail
+  angle to the tail command, whose growth the observation normaliser's
+  drift does not carry; and no nose-down or forward centre-of-mass shift
+  came before the tail rose (the verifier did not re-check the r9 runs),
+  though from mid-rise on seed 42's networks read their nose-down
+  posture as a tail offset. Why the loop forms in training is open. Everything
+  tried on the habit since 2026-07-09 is gathered in
+  [investigations/TREX_TAIL_SATURATION_HABIT_2026_10.md](investigations/TREX_TAIL_SATURATION_HABIT_2026_10.md).
+  The two-seed ask stands. Record: §28 of
+  [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md).
 - **LOW** — **stage 1a (stance) contains no in-episode disturbance, so a
   stance-gate PASS certifies stance quality, not active balance control.** The
   only perturbation is joint-angle noise at reset (`reset_noise_scale 0.05`).
@@ -998,6 +1021,15 @@ robustness, **LOW** = cosmetic / QoL.
   T-Rex's two paths already agree. Clipping once at the top of `step` for the
   filter-free species would close it everywhere and moves no fingerprint.
   (2026-07 T-Rex telemetry review)
+
+  **Update 2026-10-29:** on the T-Rex since physics r9 the habit is one
+  actuator at a time, almost always `tail_3_pitch_act` commanded to +1 in
+  deterministic play, and it fails the stance gate's saturation key without
+  falls; on physics r10 it persists through a learned positive feedback from
+  the observed tail angle to the tail command. Everything tried on it since
+  2026-07-09, and what is open, is gathered in
+  [investigations/TREX_TAIL_SATURATION_HABIT_2026_10.md](investigations/TREX_TAIL_SATURATION_HABIT_2026_10.md)
+  (the T-Rex stance entry's Update 23 has the latest).
 
 - **LOW** — `BaseDinoEnv.reset` still applies one `reset_noise_scale` scalar to
   the whole of `qvel`, which mixes root linear velocity (m/s), root angular

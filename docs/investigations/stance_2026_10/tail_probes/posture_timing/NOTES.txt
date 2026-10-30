@@ -1,0 +1,401 @@
+TEST 1: POSTURE BEFORE ONSET (com_revisit, role "posture_timing")
+Written 2026-10-29 ~20:20 UTC.  EXPLORATORY AND REPORT-ONLY: NOT PRE-REGISTERED.  Analysis of existing records only.
+No training and no simulation of any kind.  The VecNormalize pickles of the r9 tail screen were unpickled to read their
+running observation statistics; no env was built.  Everything here is correlational.
+Every file I wrote is in this folder:
+/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/com_revisit/notes/posture_timing/
+Labels: [measured] = the named script computed it, and the output file is named.  [inferred] = reasoned, with the basis.
+Paths below are relative to this folder unless absolute.  S1 = the other session's scratchpad
+(/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad), S2 = this session's.
+
+QUESTION: is the tail habit a reflection of some body positioning that encourages it?  Specifically, in the runs that
+railed or parked, did a posture shift (nose-down, head raised, CoM forward) come BEFORE the tail started rising,
+AFTER it, or TOGETHER; and in the runs that did not, was there the same shift without a tail rise?
+
+==================================================================================================================
+0. IN SHORT
+==================================================================================================================
+- No nose-down or CoM-forward shift came clearly before the tail started rising, in any run that has a tail signal
+  before its rise.
+  - The only posture changes that came before a rise are r10 s60's: the head raised about 3M steps earlier, then
+    nose-up and CoM back at or just before its main rise.  Both are in the direction opposite to the hypothesis, and
+    s80 made the same head-raising shift without railing.
+  - The nose-down pelvis pitch and the tail command started together, within one 65,536-131,072-step bin.  This
+    holds for r10 s42, r9 s42, r9 s80 and r9 s52, and for r10 s42's re-formed rail at 7.0-7.3M.
+  - Both started 1.8-3.2M steps before the records' onsets (first over-bar episode, first alarm, DRIVE ONSET).
+    Measured against the onsets, then, the posture shift is "before".  Measured against the start of the tail's rise,
+    it is "together".
+  - Proportional timing gives no consistent leader.  This is the step at which each signal completes 10 / 25 / 50 % of
+    its own change.
+    - Pitch is ahead in r10 s42 (by 0.12 / 0.75 / 0.75M) and in r9 s80 (by 0.05 / 0.21 / 0.47M).
+    - The tail is ahead in r9 s42 (by 0.19 / 0.11 / 0.44M) and in r9 s52 (by 0.26 / 0.22 / 0.08M).
+    - The two move together in r10 s42's re-formed rail and in r10 s60's final approach.
+    - First-difference cross-correlations of pitch peak at lag 0, with nothing comparable at other lags: r10 s42
+      -0.52, r9 s42 -0.47, r9 s52 -0.61, ECS s42 pooled -0.50.  They are weaker in r9 s80 (-0.28) and absent in r10 s60
+      (max |r| 0.22, at lag +3).
+  [measured: prop_timing.py -> prop_timing.txt; r10_timeline.py -> r10_timeline.txt sections 1b, 2, 4;
+  r9_timeline.py -> r9_timeline.txt sections 2, 4]
+- Before its rise, the railing lineage did not stand differently.
+  - At 0.5-1.05M, r10 s42 stood 0.24-0.33 deg MORE NOSE-UP than s80, with its CoM 1.6-1.8 mm FURTHER BACK.
+  - The well-known s42 offset (nose-down, CoM forward) opened only at 2.1-3.15M, as the tail rose.  At 3.15-3.67M it
+    reached -1.2 deg and +11.4 mm against s80.
+  - The same holds on r9.  At 0.5-1.05M, r9 s42 stood 0.48-0.59 deg more nose-up than the median of the three
+    non-alarm runs, with its CoM 3.8 mm further back.
+  - r9 s80 did not differ before its rise.  Its gap opened at 1.05-2.10M, with its rise.
+  [measured: r10_timeline.txt section 3; r9_timeline.txt section 3]
+- The direction of the posture shift that accompanies a tail rise is not consistent across runs.
+  - Nose-down, CoM forward: r10 s42, r9 s42, r9 s80 and r9 s52.
+  - Nose-up, CoM back, head raised: r10 s60's main rise (6.0-7.4M).  r10 s60 then went nose-down and forward over its
+    last climb to the bound (7.5-8.1M).
+  - Nose-up: r10 s80's two small tail bumps (to 0.08 and 0.17).
+  - Head: in r10 s42 the head first lowered with the rise (neck joint +2 deg, head tip -0.05 m).  It rose only near the
+    onset (2.9-4.0M).
+  [measured: r10_timeline.txt sections 1, 1b; prop_timing.txt]
+- The runs that did not rail show the same shifts without a tail rise.  So the shifts are not sufficient.
+  - r9 s60, no alarm: the pelvis went about 1.0 deg nose-down (to -1.8 to -1.9 deg by 3.4-3.7M), and its CoM moved
+    forward about 10 mm (-21 -> -11 to -12 mm) by 4.2-4.5M.  Its implied tail command stayed at or below 0.13 until 7.6M.
+  - r10 s60: nose-down 0.3 deg and CoM forward 7 mm at 5.0-5.5M while its tail command was flat or falling
+    (0.17 -> 0.13).
+  - r10 s80: the head rose (head tip 0.97 -> 1.31 m, neck -13 deg) with no tail rise.
+  - ECS s80 lineage: CoM forward +4.0 mm (9 of 12) and the head lowered with no tail rise.  Pitch did not change
+    consistently.
+  - r10 s60 is the one partial "before".  Its head rose (ledger head tip +0.03 m at 1.44M; neck -3 deg at 2.87M) about
+    3M steps before its tail rose (0.1 at 4.45M).  But s80 did the same, more strongly, and never railed.
+  [measured: r9_timeline.txt; r10_timeline.txt; ecs_comovement.txt section 1]
+- Within the s42 ECS lineage (12 continuations from 3,145,728), posture and tail move together only until the rail
+  forms.  After that they part.
+  - From S to the last evaluation before each continuation's first tail over-bar episode, the median changes are:
+    - tail command +0.196 (12 of 12);
+    - pelvis pitch -0.28 deg (nose-down in 12 of 12);
+    - neck joint -1.4 deg (12 of 12);
+    - head tip +0.010 m (11 of 12, the twelfth 0.000);
+    - CoM -1.2 mm (forward in only 4 of 12).
+  - Over the whole window, the median pitch returns to +0.09 deg (7 up / 5 down).  The CoM moves 4.7 mm BACK (11 of
+    12).  The tail keeps rising (+0.39, 12 of 12).
+  - Rollout-to-rollout, the tail and pitch co-vary only at lag 0 (pooled r -0.50, n 264).
+  [measured: ecs_comovement.py -> ecs_comovement.txt sections 1-4, 6]
+- Holding the tail down in training did not undo the nose-down posture.  The source is the r9 tail screen, where a
+  training-loss bound held the tail_3 mean at 0.6 (b60).
+  - s42 b60 ended MORE nose-down than the controls: -1.88 deg (3 of 3 between -1.80 and -1.98) against -1.39 deg
+    (-1.15 to -1.73).  Its tail command was 0.56 against 0.61, with one control un-railing to 0.24.
+  - The one natural un-railing (s42_control_r202, 0.90 -> 0.24) went 0.64 deg nose-up together with the tail drop
+    (same 131,072-step interval).
+  [measured: ts_comovement.py -> ts_comovement.txt]
+- Reading [inferred]:
+  - The records show posture and tail changing together as part of one reorganisation of the policy.  They do not show
+    a body position that comes first and then pulls the tail up.
+  - The concurrent nose-down is mostly not the policy's reflex to its own raised tail.  Combining the clamp test's
+    start checkpoint with these references:
+    - with the tail held at 0, the 3,145,728 policy still stands at -1.20 deg, against -1.45 with its own tail and
+      about -0.36 to -0.49 at 1M;
+    - its CoM still sits at -24.2 mm, against -20.7 with its own tail and -26 to -29 at 1M.
+    - So about three quarters of the pitch shift, and a third to a half of the CoM shift, persist without the tail.
+    - Basis: clamp/NOTES.txt section 7 and verify_clamp/NOTES.txt section 5a, against r10_timeline.txt section 2.  The
+      protocols differ (lens rollouts against ledger evaluations), and there is only one checkpoint.
+  - Timing cannot settle causation.  What these records rule out is:
+    - a posture shift that clearly comes first in the railing runs;
+    - a posture shift that, wherever it appears, is followed by a tail rise.
+
+==================================================================================================================
+1. RECORDS FOUND, AND THE POSTURE SIGNALS EACH HOLDS (inventory.py -> inventory.txt) [measured]
+==================================================================================================================
+r10 stance6 s42 / s60 / s80, F2 copies (S1/foot/stance6/fetch/F2/stance6_r10LTSB_<r>/copies/01_stance/*.copy1):
+- eval_episodes.csv: 91 evaluations x 10 deterministic episodes (131,072 to 11,927,552), 194 columns.  It holds:
+  - posture: pelvis pitch, roll and height; CoM fore-aft; xcom; head tip height; neck and head pitch joints; hip-roll
+    mean / max; hip, knee and ankle means; head, neck and tail commands;
+  - tail_3: command, joint angle and tail-tip chord;
+  - flags: saturated_actuator and its fraction, rail_actuators, parked_actuators.
+  - It has no CoM height column, only root (pelvis) height.
+- train_episodes.csv: about 12,350 training episodes (stochastic policy), each with its CoM fore-aft and pitch means.
+- gate_progress.npz: 91 rows of per-evaluation means.  It holds CoM fore-aft, pitch, action DC per actuator and reward
+  terms.  It duplicates the ledger means and was not used separately.
+- policy_probe.npz: 1,465 rollouts (8,192 steps each).
+  - It holds rollout_mu_mean / beyond-share per actuator, std, and obs_rms mean / count.
+  - bank_action_now gives the policy's commands at 10 fixed observations.
+- evaluations.npz: returns only.
+- diagnostics.npz: NOT AVAILABLE LOCALLY for any of the three runs.  It is on Drive in F2 (1.28 MB each, per
+  fetch/F2/<r>/listings/01_stance.json) and was not fetched.
+  - The only local copy is an early partial for s60, covering 8,192..1,048,576: S2/r10round/lean/build/laneB/work/v9b.
+- M1 panels (S1/foot/stance6/panels/<run>/<label>/m1): per-step traces at 1M-grid labels plus J (and 3,670,016 for
+  s42), 20 seeds.  They hold joint angles and commands per actuator, but no pelvis pitch and no CoM.  They were
+  inventoried, not re-reduced; their tail commands are REVIEW D-3.
+- M2 series.npz at J labels (4.19M on): posture means.  These come after s42's onset; REVIEW D-4 tabulates them.
+r10 ECS, 24 continuations (S2/r10round/ecs/runs/<name>/01_stance; read only):
+- Each has eval_episodes.csv (the parent's evaluations to S, then 12 continuation evaluations), train_episodes.csv,
+  gate_progress.npz, policy_probe.npz (the parent's rows to S, then 191), diagnostics.npz and evaluations.npz.
+  - diagnostics.npz holds 191 continuation rollouts, with tilt_angle, head_tip_z, head_pelvis_rel_z, pelvis_height
+    and neck_posture_error.
+  - None missing.
+r9 (physics revision 9):
+- stance5 LTSB s42 / s52 / s60 (S1/foot/stance5/runs) and s70 / s80 (stance5/replication/runs): eval_episodes.csv with
+  63 columns.
+  - Posture: CoM fore-aft and pitch, plus hip / knee / ankle means.
+  - No actuator, tail, head or neck columns.  An over-bar episode is one listing max_actuator_saturation_fraction in
+    screen_v2_reasons, with the actuator unnamed.
+  - train_episodes.csv exists for s70 and s80 only.
+  - No gate_progress, diagnostics or evaluations locally.
+- stance5 policy_probe.npz for all five: S2/tailround/fetch/<run>/A.  This is the older schema, without rollout_mu_*.
+  The r9 tail command per rollout is therefore NOT recorded.
+- stance4 LTS s42 / s52 / s60 (S1/foot/stance4/runs): eval_episodes.csv only.  No tail signal at all.
+- r9 tail screen, 18 continuations (S2/tailround/screen/runs).  Each has:
+  - telemetry.npz: 128 rollouts with tail_3 command / mu statistics, and no posture;
+  - 8 VecNormalize pkls + final (posture recoverable per 131,072 steps);
+  - progress.csv.
+  - S2/tailround/screen/panels.csv holds deterministic per-checkpoint tail_3 commands and q3, but no pelvis and no CoM.
+- Repository evidence under com_revisit/base/docs/investigations/stance_2026_10/: per-checkpoint summaries (stance5
+  checkpoints.csv, panels_summary.csv, satwatch json).  These add no per-evaluation posture series beyond the ledgers
+  above, and were not used.
+
+THE RECOVERED TRAINING-TIME POSTURE [measured: r10_timeline.txt section 0, r9_timeline.txt section 0]
+- The observation normaliser is SymmetricRunningMeanStd (mirror_kl_ppo.py l100-l140).  Each update adds the batch and
+  its mirror image, so:
+  - sagittal channels keep their batch mean: pitch joints, tail joints, g_x giving pelvis pitch, and leg pitch
+    (left/right averaged);
+  - lateral channels cancel exactly.  Batch-mean g_y is 0.0 in every run, so roll cannot be recovered.
+- The per-rollout mean is (m_n c_n - m_{n-1} c_{n-1}) / (c_n - c_{n-1}).  Pitch is -asin(g_x), in the ledger's sign
+  convention (+ nose up).
+- Checks, from 262,144-step bins:
+  - probe pitch against training-episode pitch: r +0.984 to +0.998, median offset -0.08 to +0.05 deg;
+  - against ledger pitch: r +0.944 to +0.989;
+  - probe tail_3 angle against the ledger's tail_3_pitch_mean_deg: r +0.992 to +0.998.
+- For r9, the tail command proxy is a_imp = (q3 + 0.0924) / 0.0863.  This is the r9 options study's plant map,
+  measured at the statue posture (tailround/posture/brief_draft.md l48).  Its use away from that posture is
+  [inferred].  r9 tail screen panels agree in shape: cmd 0.6 -> q3 -0.041 rad, against -0.040 from the map.
+
+ONSET DEFINITIONS USED (the records' own; recomputed where possible) [measured]
+- r10, from REVIEW.txt D-1 to D-3 and recomputed from the ledger by r10_timeline.py (identical):
+  - s42: first tail over-bar episode 3,670,016; first tail-flagged evaluation 3,801,088; first TAIL ALARM 3,932,160;
+    DRIVE / TRACE ONSET 3,670,016; first rollout with muHi >= 0.05 3,735,552.
+  - s60: first over-bar episode 8,126,464; DRIVE ONSET 7,340,032; first muHi >= 0.05 rollout 7,962,624; TRACE ONSET
+    8,388,608.
+  - s80: no tail onset.  Its neck habit has first over-bar episode 3,801,088, first ANY-flagged evaluation 4,849,664
+    and first ANY ALARM 5,505,024.
+- r9, from r10round/draft/verify/rail_check2.json:
+  - stance5 s42: first over-bar 3,145,728, first flag 3,538,944, ALARM 3,670,016.
+  - s80: 4,325,376 / 4,325,376 / 4,456,448.
+  - s52: single over-bar episodes from 6,946,816, no flag.
+  - s60: one at 11,403,264.
+  - s70: one at 8,126,464.
+  - stance4 s42: 1,835,008 / 2,097,152 / 2,228,224.
+- My own "tail rise start" (TRS): the 16-rollout moving mean of the probe's tail_3 mu (r9: of a_imp) first reaching
+  +0.1 / 0.2 / 0.3 / 0.5 above its reference, sustained 16 rollouts.
+- Posture-shift thresholds were stated in the scripts' headers before any time course was read: pitch 0.3 deg, CoM
+  3 mm, head tip 0.03 m, neck / head joint 3 deg.  Each is measured against the run's own median over
+  [524,288, 1,048,576) and searched after it.
+
+==================================================================================================================
+2. PER RUN
+==================================================================================================================
+r10 stance6 s42 (RAIL) [measured: r10_timeline.txt sections 1, 1b, 2, 3; prop_timing.txt]
+- Tail rise:
+  - The probe's tail_3 mu starts climbing at about 1.11-1.3M (-0.036 -> +0.015 by 1.44M).
+  - TRS 0.1 / 0.2 / 0.3 / 0.5 at 1.93 / 2.68 / 2.97 / 3.23M.  The ledger command reaches the same thresholds at 1.84 /
+    2.36 / 2.88 / 3.15M.
+  - The onsets come after: over-bar 3.67M, alarm 3.93M.
+- Posture, in 65,536-step bins:
+  - Pitch moves -0.36 (1.31M) -> -0.50 (1.44M) -> -0.68 (1.84M) -> -0.96 (2.03M).
+  - CoM (training episodes) moves -29.8 (1.31M) -> -26.5 (1.84M) -> -23.0 mm (2.03M).
+  - The tail mu at the same bins is -0.007 / +0.015 / +0.074 / +0.126.
+  - First sustained shifts: pitch -0.3 deg at 1.84-1.90M (all three sources); ledger CoM +3 mm at 1.84M.  These are
+    the same evaluation as the tail's 0.1 crossing.
+  - At a fixed observation (bank, statue_settled), the policy's tail_3 command passes its reference +0.05 at 1.41M.
+    The leg commands at that state barely move (<= 0.03).  [bank_drive.txt]
+- TOGETHER with the tail rise; BEFORE the records' onsets, by about 1.8M steps.
+- Head:
+  - First lowered with the rise (opposite shift: head tip -0.03 m at 1.97M; neck joint +2 deg).
+  - Raised only around the onset: head tip 0.914 -> 0.966 m and head joint 13.1 -> 11.6 deg over 2.9-4.0M.
+  - The head-up shift (+0.03 m, -3 deg) is first sustained at 4.7-5.0M, AFTER the onset.  This fits verify_clamp's
+    measured coupling, head_pitch command -0.043 per tail deg [inferred].
+- Before the rise (0.5-1.05M), s42 against s80: pitch +0.24 to +0.33 deg (nose-up), CoM -1.6 to -1.8 mm (back).  The
+  offset appears only at 2.1-3.15M (-0.48 deg, +7 mm) and 3.15-3.67M (-1.2 deg, +11.4 mm).
+- Later phases:
+  - Re-formed rail at 7.0-7.3M: tail and pitch complete 10 / 25 / 50 % within 0-0.1M of each other.
+  - Decoupling at 4.7-6.3M: the tail stayed at 0.85-0.95 while pitch went 0.75 deg nose-up and the CoM 12-13 mm back,
+    with the head raised (head tip 0.95 -> 1.10 m).  Pitch then went nose-down again (-1.66 at 6.29M) while the tail FELL (0.79 -> 0.53).
+
+r10 stance6 s60 (PARKED late) [measured: same files]
+- Tail:
+  - A first small rise at 3.9-5.0M (0.02 -> 0.17; TRS 0.1 at 4.45M).
+  - The main rise at 6.0-7.4M (0.15 -> 0.6).  DRIVE ONSET 7.34M.
+  - The final approach at 7.5-8.1M (0.6 -> 0.74).  First over-bar episode 8.13M.
+- Posture with the main rise was the OPPOSITE of s42's: nose-UP (-0.90 -> -0.61 deg), CoM BACK (-30.2 -> -34.9 mm),
+  neck joint -4.6 deg (head raised).
+  - Proportionally, the CoM-back and neck changes had passed 25 % (the CoM 50 %) at 6.03M.  The tail had only
+    reached 10 % by 6.08M.  So in this rise the posture moved at or just before the tail, in the direction OPPOSITE to
+    the hypothesis.  The pitch change lagged the tail at 50 % (6.76 against 6.57M).
+- With the final approach to the bound, the posture moved nose-down (-0.62 -> -0.97 deg) and CoM forward
+  (+4.1 mm).  This was together with the tail: 10 / 25 / 50 % within about 0.07M.
+- Head raised early: ledger head tip +0.03 m at 1.44M, neck -3 deg at 2.87M.  This is about 3M steps BEFORE its tail
+  rise.
+- A nose-down / CoM-forward shift without a tail rise: 5.0-5.5M, pitch -0.79 -> -1.15 deg, CoM -33 -> -25 mm, tail
+  0.17 -> 0.13.  It reversed with the main rise.
+
+r10 stance6 s80 (CLEAR; neck habit) [measured: same files]
+- Tail: only small bumps, 0.02 -> 0.079 at 2.4-3.6M and 0.01 -> 0.17 at 5.6-6.6M.  Later it drifted to 0.5 by 11.8M,
+  with no over-bar episode.
+- Posture:
+  - The head rose strongly: head tip 0.97 -> 1.31 m; neck 12 -> -13 deg from 2.7M; head-up shifts at 2.23-2.75M.
+  - The pelvis went nose-UP (-0.73 -> +0.47 deg at 6.4M).
+  - The CoM went BACK (-27 -> -42 mm).
+- The tail bumps came with nose-up pitch.  As the pitch returned nose-down (6.4-7.0M), the tail fell back.
+- So: no nose-down or CoM-forward shift at any time (no sustained crossing), and a large head-raised shift without a
+  tail rise.
+
+r9 stance5 s42 (RAIL) [measured: r9_timeline.txt sections 1-4; prop_timing.txt]
+- Tail and posture:
+  - a_imp rises from about 1.1-1.3M; TRS 0.1 / 0.3 / 0.5 at 1.28 / 1.61 / 2.59M.  First over-bar 3.15M, alarm 3.67M.
+  - Pitch -0.3 deg at 1.44M (ledger) and 1.56M (probe).  CoM forward from 1.2M.  A forward CoM drift is common to all
+    r9 runs at 0.3-1.5M, so it is not specific.
+  - Proportionally, the tail ran slightly ahead: 10 / 25 / 50 % at 1.22 / 1.47 / 1.82M, against pitch at 1.41 / 1.58 /
+    2.26M.
+- Before the rise, s42 stood 0.48-0.59 deg more nose-up than the non-alarm median, with its CoM 3.8 mm further back.
+  The nose-down / forward gap opened at 2.1M and later.
+- Head joint +5.4 deg (head lowered) with the rise.
+
+r9 stance5 s80 (RAIL) [measured: same files]
+- Tail and posture:
+  - a_imp TRS 0.1 / 0.3 / 0.5 at 1.24 / 1.88 / 2.63M; first over-bar and flag 4.33M, alarm 4.46M.
+  - Pitch -0.3 deg at 1.18-1.29M.  Proportionally, pitch was slightly ahead: 10 / 25 / 50 % at 1.08 / 1.20 / 1.47M,
+    against the tail at 1.13 / 1.41 / 1.94M.
+  - CoM unchanged over the rise (training episodes, +0.1 mm).
+- No pre-rise difference from the non-alarm runs: pitch +0.12 / -0.05 deg, CoM +0.8 mm at 0.5-1.05M.
+
+r9 stance5 s52 (no alarm; 3 over-bar episodes from 6.95M) [measured: same files]
+- The tail and the nose-down posture rose together, twice:
+  - 1.1-2.9M: a_imp to 0.31, pitch to -0.94;
+  - 4.2-5.5M: a_imp to 0.53, pitch to -1.17.
+- It fell together with a nose-up return twice (3.1-3.9M and 8.6-9.2M).  First differences at lag 0: pitch r -0.61,
+  head joint r -0.87.
+- Proportionally the tail led (10 % at 1.09M against pitch 1.35M).
+- The same coupling as the railing runs, without an alarm.
+
+r9 stance5 s60 (no alarm; one over-bar episode at 11.40M) [measured: same files]
+- NOSE-DOWN WITHOUT A TAIL RISE: pitch -0.88 (1.05M) -> -1.8 to -1.9 deg (3.4-3.7M), sustained -0.3 deg from 1.84M.
+  The CoM moved forward -21 -> -11 to -12 mm by 4.2-4.5M.
+- a_imp stayed 0.07-0.13 until 7.6M.  Its later rises (0.49 at 8.1M; 0.66-0.78 at 10.7-11.8M) came with nose-UP pitch.
+
+r9 stance5 s70 (no alarm) [measured: same files]
+- No nose-down shift; the pelvis went nose-up from 5.4M (to +0.45 deg).
+- a_imp ~0 early, then negative (-0.33 by 8.6M).  The tail went down together with the nose-up shift.
+
+r9 stance4 s42 / s52 / s60 (ledger only) [measured: r9_timeline.txt]
+- stance4 s42 (alarm 2.23M) went nose-down (-0.48 deg against s52 / s60) and its CoM forward (+4.8 mm) at 1.05-1.84M,
+  before its first over-bar episode (1.84M).
+- There is no tail signal before that episode, so whether this preceded the tail rise cannot be told.  Coverage gap.
+
+r9 tail screen (18 continuations from stance5 s42 / s80 at 4,194,304) [measured: ts_comovement.txt]
+- s42 starts after r9 s42's alarm.  s80 starts at 4.19M, before its first over-bar at 4.33M, but with a_imp already
+  0.55.  Neither is a pre-rise window.
+- Free-running arms, tail command against pitch over 8 intervals:
+  - s42 control -0.36 / -0.98 / -0.90 and b90 -0.57 / -0.19 / -0.38;
+  - s80 control -0.71 / -0.88 / -0.38 and b90 -0.74 / -0.81 / -0.90.
+  - So the tail rises with nose-down here too.
+- b60 arms (the tail mean held at 0.6 by a training-loss bound):
+  - s42 b60 pitch fell further (-0.31 deg, 3 of 3) to -1.88.  Controls ended at -1.39 and b90 at -1.61.
+  - Across the 9 s42 continuations, end tail command against end pitch: rho -0.07.  For s80: -0.35.
+- So with the tail held down, the nose-down posture stayed or deepened.
+
+==================================================================================================================
+3. WITHIN THE s42 ECS LINEAGE (and the s80 lineage) [measured: ecs_comovement.txt]
+==================================================================================================================
+- Parent rows at S are identical across each lineage's 12 continuations:
+  - s42 at 3,145,728: tail +0.560, pitch -1.436, CoM -20.55 mm, head tip 0.930 m;
+  - s80 at 4,194,304: tail +0.008, pitch -0.225, CoM -36.20 mm, head tip 1.265 m.
+- s42, from S to the last evaluation before each first tail over-bar episode (section 4 of the output):
+  - tail +0.196, 12 of 12 up;
+  - pitch -0.277 deg, 12 of 12 nose-down;
+  - neck -1.41 deg, 12 of 12;
+  - head tip +0.010 m, 11 up, one 0.000;
+  - CoM -1.2 mm, 4 forward / 8 back.
+  - So, step by step before the onset, the tail and a nose-down pitch moved together.  The CoM did not move forward.
+- s42 lineage median time course (section 6):
+  - pitch reaches -0.35 deg at 3.67M (tail +0.28), then returns to +0.08 by 4.72M while the tail rises to +0.40;
+  - the CoM drifts back to -5.1 mm;
+  - the head joint falls by 2.0 deg (head up).
+  - Start to end, per continuation: CoM -4.7 mm (1 forward / 11 back, sign test p 0.006); head tip +0.027 m (11 / 1);
+    head joint -2.0 deg (1 / 11); pitch +0.09 (7 / 5).
+- Within each continuation over its 12 evaluations (Spearman, tail command against posture):
+  - head joint -0.77 (0 positive / 12 negative);
+  - CoM -0.51 (1 / 11);
+  - pitch +0.48 (9 / 3).  This is the late reversal; at rollout level the sign is mixed, +0.06 (7 / 5).
+- At rollout level (65,536-step bins, pooled n 264): r(lag 0) -0.50 for pitch and -0.41 for the head joint; |r| <= 0.10
+  at lags +-1 to +-4.  Concurrent, with no lead either way.
+- Between continuations (n 12; descriptive; critical |rho| about 0.58 at p 0.05 before multiplicity):
+  - the first over-bar step against early (2-evaluation) change: CoM -0.55, pitch +0.37, head +0.54, tail -0.46;
+  - none clearly beyond chance.
+  - Among the railed ends (tail 0.89-0.98), a higher tail goes with the CoM more forward (+0.74), the head lower
+    (-0.74) and the neck more flexed (+0.83).
+- s80 lineage (no tail rise; tail end range -0.16..+0.14):
+  - CoM +4.0 mm (9 of 12 forward);
+  - head lowered (tip -0.169 m, 3 / 9; neck +8.3 deg, 9 / 3; head joint +5.6 deg, 12 / 0);
+  - pitch -0.10 deg (5 / 7, not consistent).
+  - So a CoM-forward shift without any tail rise.
+- This fits verify_clamp's finding that the policies' tail-to-posture coupling reversed sign over the continuation:
+  the start answers the rail nose-down, the ends nose-up [inferred].
+
+==================================================================================================================
+4. COVERAGE GAPS (stated plainly)
+==================================================================================================================
+- r10 F2 diagnostics.npz (per-rollout training head_tip_z, tilt, pelvis height) is not local for s42 / s60 / s80.  It
+  is on Drive (1.28 MB each) and was not fetched, under the rules.
+  - So training-time head height for the parents is missing.  Head height there comes only from the deterministic
+    ledger, every 131,072 steps.
+- r9 has no recorded tail command per rollout and no named actuator in its ledgers.  The tail is read from the tail_3
+  angle through a plant map measured at the statue posture.
+  - r9 ledgers have no head, neck or tail columns.  Head and neck come only from the probe recovery.
+  - r9 s42, s52 and s60 have no train_episodes.csv locally.
+- stance4 (r9 LTS) has ledgers only.  No tail signal exists before the first over-bar episode, so timing cannot be
+  ordered there.
+- The r9 tail screen starts after r9 s42's alarm, and after r9 s80's rise had begun.  It has no CoM and no head
+  height.
+- No CoM height anywhere in the ledgers; pelvis height is the only height.
+- Roll and lateral posture: the mirror-symmetric normaliser cancels lateral channels.  Lateral posture exists only in
+  the r10 ledgers, which were not timed here.  REVIEW D-5 found hip roll within +-0.009 rad throughout.
+- Resolution:
+  - ledger every 131,072 steps; probe every 8,192 steps; "together" means within one 65,536-131,072-step bin.
+  - Early training (< 0.5M) is excluded as reference noise; falls dominate there.
+- Sample sizes and statistics:
+  - one run per seed and plant (r10: 3 runs; r9 stance5: 5; stance4: 3; tail screen 3 per arm; ECS 12 per lineage);
+  - thresholds are arbitrary, though pre-stated;
+  - many signals were read, so single correlations near |0.5| mean little;
+  - everything is correlational.  The interventions read here (r9 bound arms; the clamp test) are the only
+    non-observational evidence, and the clamp test is not mine.
+- Not done:
+  - ECS's own end traces (r10round/ecs/traces) and the M1 / M2 panels beyond the REVIEW's tabulation;
+  - gate_progress, which duplicates the ledger means.
+
+==================================================================================================================
+5. RULE NOTES
+==================================================================================================================
+- No training and no simulation.
+- Python: venv python -B with cwd in this folder.  No PYTHONPATH code tree was needed: the scripts import numpy and,
+  for the tail screen pkls, the venv's stable_baselines3 only.
+  - OMP_NUM_THREADS=1, MKL_NUM_THREADS=1, nice -n 15, one process at a time.
+- Read only, never written:
+  - S2/r10round (including ecs);
+  - S1;
+  - S2/tailround;
+  - com_revisit/notes/{clamp, verify_clamp, policies, probe};
+  - com_revisit/base.
+- A find -newer check after the runs shows no file newer than this folder's first file in S2/r10round or S2/tailround.
+  In S1 the only one is foot/stance4/live/run_log.txt (20:11 UTC), the coordinator's run log, not written by me.
+- No __pycache__ was created.  The folder holds about 0.3 MB.
+
+==================================================================================================================
+6. FILES (this folder)
+==================================================================================================================
+pt_common.py                       shared read-only loaders: ledger grouping, over-bar counts, probe obs recovery,
+                                   training episodes, thresholds
+inventory.py -> inventory.txt      every local record per run and its posture / tail signals
+r10_timeline.py -> r10_timeline.txt, r10_series.npz, r10_timing.json
+                                   r10 s42 / s60 / s80: binned tables, finer bins at the rises, onsets, shift timing,
+                                   cross-run gaps, lead-lag
+r9_timeline.py -> r9_timeline.txt  r9 stance5 (5 runs) and stance4 (3): the same
+prop_timing.py -> prop_timing.txt  proportional (10 / 25 / 50 %) timing of tail and posture per rise
+ecs_comovement.py -> ecs_comovement.txt, ecs_series.json
+                                   ECS 24 continuations: pre-onset changes, start-to-end signs, within-run Spearman,
+                                   pooled lead-lag, between-continuation links, lineage time course
+ts_comovement.py -> ts_comovement.txt
+                                   r9 tail screen 18 continuations: interval posture from the pkls, arms compared
+bank_drive.py -> bank_drive.txt    the policy's commands at one fixed observation over training (r10 and r9 stance5)
+*.err                              stderr of each script (all empty)

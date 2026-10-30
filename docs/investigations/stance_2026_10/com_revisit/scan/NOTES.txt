@@ -1,0 +1,219 @@
+CREEP SCAN: THE ANATOMICAL COMPSOGNATHUS AND THE VELOCIRAPTOR
+Role: creep scan (the maintainer chose to scan these two models before deciding any plant fix).
+Written 2026-10-29 18:15 UTC.
+Tree: scratchpad/com_revisit/wt_scan, detached at origin/main 378ae2f8, read only (git status clean afterwards, no
+__pycache__ written).  Folder: scratchpad/com_revisit/notes/scan/ (all file names below are relative to it).
+Python 3.13.17, mujoco 3.10.0, numpy 2.5.4 (scratchpad venv); PYTHONPATH=wt_scan, OMP/MKL threads 1, nice 10, python -B,
+one simulation process at a time.  No training.  No plant change: every variant is an in-memory edit of one env's
+MjModel (or that env's frame_skip).  Nothing written to /home/user/mesozoic-labs, r10round, the tree or another agent's
+folder.  Folder size 8.9 MB (traces/ 5.4 MB).
+[measured] = computed by the named script here, output file named.  [inferred] = reasoned, basis given.
+Full path of this folder:
+/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/com_revisit/notes/scan/
+
+======================================================================================================================
+1. IN SHORT
+======================================================================================================================
+  - No creep on either model at either noise: 0 of 962 episodes (481 per model) [measured, scan_table.txt]:
+      model                      noise                 spawns   creep   95 % CI (Clopper-Pearson)
+      Compsognathus anatomical   statue (noise 0)      1        0       -
+      Compsognathus anatomical   0.02 (CoM tests)      280      0       0.00-1.31 %
+      Compsognathus anatomical   0.01 (stance config)  200      0       0.00-1.83 %
+      Velociraptor               statue (noise 0)      1        0       -
+      Velociraptor               0.02 (CoM tests)      280      0       0.00-1.31 %
+      Velociraptor               0.05 (stance config)  200      0       0.00-1.83 %
+    Pooled per model 0/480 (0.00-0.77 %).  Against the robot on the same 280 seeds at 0.02 (10/280, 3.6 %, 1.73-6.47 %;
+    PR + creep lens), Fisher exact p = 0.0018 for each model; against the robot's 16/480 at 0.02 (adding the verifier's
+    seeds 400-599), p = 2.7e-5 for each model's pooled 0/480 [measured, scan_table.txt, ci_extra.txt].  Every spawn
+    stood its whole horizon; on the Compsognathus no spawn trips any of the three flags, nor does any Velociraptor spawn
+    at 0.02.
+  - The one non-zero cell is not a creep: the Velociraptor at its training noise 0.05 trips the foot-travel flag alone
+    on 46 of 200 spawns (17.4-29.5 %).  The speed and oscillation flags stay clear: largest end speed 0.25 mm/s, largest
+    load oscillation 5e-5 of the weight.  It is a slow, decaying sideways relaxation of the landing's
+    friction pre-stress (time constant 14.0 s on every spawn, the noise-free statue included).  The contacts do
+    negative work, the solver mismatch is zero at that stage, it dies out over 60 s, and both robot-fix analogues leave
+    it unchanged (section 5).
+  - The anatomical Compsognathus (eigenvalue 3.45, the light ankle in the load path) lands with the robot's
+    ingredients: a narrow line contact, 1.7 N of lateral friction per foot, the solver's velocity off by up to
+    1.45 rad/s, and contacts doing net positive work in the landing.  It rings down every time: root vz RMS
+    25 -> 0.9 -> 0.26 mm/s over the first three seconds, at worst, and flat on 10 contacts per foot by 10 s (section 6).
+    The Velociraptor's light DOF (the claw, 1.96) never touches the floor (section 6).
+  - So there is no creeper on which to confirm the mechanism or test a fix [measured].  [inferred] Neither model needs a
+    plant fix for this artefact.  At eigenvalue 3.45 and 0/480, the anatomical Compsognathus adds to the verifier's C5:
+    the eigenvalue of h*M^-1*D neither predicts nor bounds incidence.
+  - The detector was proven first: it flags the robot's known creepers 111 (24.11 Hz) and 143 (25.00 Hz) on all three
+    criteria, clears the resting robot seeds 141 and 102, reproduces creeplib's numbers to the last digit and matches
+    creeplib's per-substep foot loads exactly (section 3).
+
+======================================================================================================================
+2. WHAT WAS RUN
+======================================================================================================================
+Models and classes (the committed CoM test classes, unchanged):
+  environments/compsognathus_longipes/tests/test_com_stance_quality.py::TestAnatomicalComStanceQuality (physics r2;
+    20 s horizon, dt 0.02 s, h 2 ms, frame_skip 10, window from 3 s; 1.000 kg)
+  environments/velociraptor_mongoliensis/tests/test_com_stance_quality.py::TestComStanceQuality (physics r4; 10 s
+    horizon, dt 0.01 s, h 2 ms, frame_skip 5, window from 3 s; 13.5 kg)
+  Both: implicitfast, elliptic cone, Newton, 100 iterations, tol 1e-8, noslip 0 [measured, probe_models.txt].
+  Compsognathus servos: position actuators with kv 0.2 on the legs (0.12-0.16 neck and tail), joint damping 0.01,
+    armature 5e-5 (toes 2e-4).  Velociraptor servos: kv 0, all damping is joint damping (implicit under implicitfast;
+    10 legs, 15 tail, 2 arms, 5 claw), armature 0.05 (claw 0.005); the claw is kp 1 x gear 50 [measured, probe_models.txt].
+Spawns: the class's own make_env (reset_noise_scale overridden), neutral action, run_tracked_episode, the class's
+  reduce, spread bars and support checks (as creeplib.run does).  Statue = make_env() (reset noise 0), seed 0.
+  CoM tests' noise 0.02: seeds 0-29, 100-149, 200-399 (280).  Training noise, read from each stance config's [env]
+  reset_noise_scale: configs/compsognathus_longipes/anatomical/stance.toml 0.01; configs/velociraptor_mongoliensis/
+  anatomical/stance.toml 0.05 (its only reset key; the height channel is overwritten by _settle_root_on_ground): seeds
+  0-199 (200).  All other env kwargs stay the test class's.
+Detection (scanlib.py; creeplib.py copied unchanged from ../creep/, sha256 1363d927...):
+  speed  : com_speed_end_rms_mps (the test reduction's RMS horizontal CoM speed over the window's last 2 s) > 1 mm/s;
+           this is creeplib.summary's "creeps".
+  travel : the largest horizontal travel of any foot reference site from its position at t = 1 s, over t >= 1 s
+           (control-rate samples of the test's sampler) > 5 mm.
+  oscill : per physics substep, each foot's floor normal load (the sampler's own attribution: floor contacts of the
+           foot's leg geoms, mj_contactForce, through the env's _substep_probe_hook); over the last 2 s its linearly
+           detrended standard deviation > 1 % of the body weight on either foot.  Frequency = the peak above 1 Hz of
+           the Hann-windowed spectrum of that foot's load over the window.
+  creep  = all three.  Each flag is also counted alone, with falls and spread-bar failures.
+Scripts: scan_all.py (driver, resumable) -> scan.jsonl (962 rows), scan.log; scan_table.py -> scan_table.txt.
+
+======================================================================================================================
+3. THE DETECTOR'S CONTROLS  [measured: controls.py -> controls.txt, controls.jsonl]
+======================================================================================================================
+  Robot, reset noise 0.02, through scanlib and through the copied creeplib.run/summary:
+    seed 111: speed 4.4818 mm/s (creeplib identical), foot travel 85.49 mm, load sd 0.182 BW at 24.11 Hz (peak share
+              0.79), each foot unloaded on 4.8 % of substeps: creep on all three flags.  CoM 78.58 mm (= creeplib).
+    seed 143: 3.2015 mm/s, 62.33 mm, 0.207 BW at 25.00 Hz (share 0.80), unloaded 5.0 %: creep.  CoM 57.88 mm.
+    seeds 141, 102 (resting): 0.0000 mm/s, 1.81 / 0.47 mm, load sd 0.0000 BW: no flag.  Bar failures 16 / 15 / 0 / 0
+    match creeplib's.
+  Seed 143 with scanlib's LoadRecorder and creeplib's SubstepTracer on the same episode: per-foot load identical
+    (max difference 0.000e+00 N over 10,000 substeps); root vz identical.
+  Statues: Compsognathus anatomical window values within 4.3e-6 of every pinned reference (largest com_speed_rms);
+    Velociraptor within 4.0e-6 (com_fore_aft_mean).  Both pass every bar.
+  The mechanism probe (mech.py) on robot 143 from t = 10 s reproduces the verifier's v_trace numbers: contact work
+    +383.93 / +258.75 / +321.34 mJ along v1 / v0 / mean, the solver's prediction off by 2.1411 (median 0.3546),
+    realised = (M + hD) formula to 2.6e-9, 25.00 Hz, COP +-45.00 mm, 3.396 N lateral [measured: mech.py -> mech.txt].
+
+======================================================================================================================
+4. HOW FAR FROM A CREEP  [measured: scan_table.txt]
+======================================================================================================================
+  Largest values over each block (the flags' bars: 1 mm/s, 5 mm, 0.01 BW; the robot's creepers 3.2-4.5 mm/s, 62-85 mm,
+  0.18-0.21 BW):
+                                  end speed     foot travel     load sd       root vz last 2 s   CoM travel in window
+                                  (mm/s)        after 1 s (mm)  (BW)          (mm/s)             (mm)
+    Compsognathus 0.02            0.0174 (313)  2.81 (313)      5.8e-8 (285)  8.8e-7             0.196
+    Compsognathus 0.01            0.0104 (5)    1.30 (29)       5.9e-8 (121)  5.4e-7             0.059
+    Velociraptor 0.02             0.094 (20)    4.46 (20)       1.5e-5 (274)  0.018              2.51
+    Velociraptor 0.05             0.253 (126)   9.80 (20)       5.2e-5 (126)  0.041              6.77
+  No foot is ever fully unloaded in the last 2 s; no non-foot geom touches the floor.  Spread-bar failures: 0/280 and
+  0/200 (Compsognathus), 0/280 (Velociraptor 0.02), 68/200 (Velociraptor 0.05: bars calibrated at 0.02, so a larger
+  spawn noise is expected to break some; most-listed keys foot_splay_change, foot_travel_from_spawn,
+  root_minus_feet_yaw_from_spawn).
+  Ring-down, root vz RMS per second (median / max over spawns, mm/s):
+    Compsognathus 0.02: 8.27/25.5, 0.31/0.91, 0.081/0.26, 0.021/0.067, 0.006/0.019 ... 0.0000 from 9 s.
+    Velociraptor 0.05: 21.0/49.5, 1.34/10.1, 0.34/2.43, 0.080/0.57, 0.029/0.11, then 0.014-0.019/0.039-0.058 to 10 s.
+  The robot's creepers hold 21.6-24.9 mm/s for all 20 s (lens 4f).
+
+======================================================================================================================
+5. THE VELOCIRAPTOR'S TRAVEL FLAG AT 0.05: A DECAYING FRICTION RELAXATION, NOT THE ARTEFACT
+======================================================================================================================
+5a [measured: velo_travel_split.txt] The 46 flagged spawns: foot travel inside the window (3-10 s) up to 6.99 mm
+   (median 4.66), CoM travel 3-10 s up to 6.77 mm (7 spawns over 5 mm, the verifier's travel criterion), end speed at most
+   0.25 mm/s.  So the slide runs into the window.  At 0.02 the in-window foot travel is at most 3.19 mm and no spawn trips.
+5b [measured: velo_ext.py -> velo_ext.txt, velo_ext.jsonl] The same spawns run 60 s (max_episode_steps 6000; the first
+   10 s reproduce scan.jsonl's CoM travel to every printed digit): 14 at 0.05 (the 7, five more flagged, two
+   unflagged), seeds 20 and 274 at 0.02, and the statue.  Seed 126: CoM speed RMS 3.21 (s 3), 0.22 (s 9), 0.086 (s 19),
+   0.040 (s 29), 0.0051 mm/s (s 59).  The mean lateral floor force per foot is 7.19, 5.50, 4.09, 0.98 and 0.11 N at
+   1, 5, 9, 29 and 59 s, equal and opposite on the two feet.  Load oscillation over the last 2 s 3e-11 BW.  Every spawn
+   behaves alike.
+   [measured: contacts.py -> contacts.txt] A log-linear fit of the lateral force over 10-58 s gives a time constant
+   of 13.92-14.00 s on all 17, the noise-free statue included (0.48 N at 1 s).  The amplitude scales with the
+   spawn; the decay rate does not.
+   [inferred: the decay is the same on the statue and every spawn, so it belongs to the contact model] It is the
+   soft-friction relaxation the creep lens saw on resting robot spawns (lens 4f, "the feet slide sideways under
+   MuJoCo's soft friction").  The 10 s horizon cuts it off at 0.05.
+5c [measured: mech.py -> mech.txt] Seed 126 at 0.05, t = 5-6 s: contact work -11.46 mJ (the contacts dissipate); the
+   solver's prediction matches the realised velocity (max 0.0000); root vz 0.029 mm/s; 4 contacts per foot, 5.5 N
+   lateral each (friction ratio 0.08).  At landing (0.01-0.11 s): contact work -77 mJ, prediction error at most 0.039
+   (a toe), the claw DOF not involved.
+5d [measured: fixcheck.py -> fixcheck.jsonl, fixcheck.log; fixcheck_table.py -> fixcheck_table.txt] The robot fix's
+   analogues, in memory, on the 46 flagged spawns (0.05) and the 30 calibration spawns (0.02, seeds 0-29):
+     claw armature x3 (0.005 -> 0.015, the DOF of the 1.96 eigenvalue): 46 of 46 still trip the travel flag; travel
+       changes by at most +0.0036 mm, CoM travel in window +0.0026 mm; the 30 resting spawns move by at most
+       0.0003 mm (foot travel from spawn), 0.0002 deg, others 0.0000.  Nothing changes.
+     1 ms step (frame_skip 5 -> 10, control period kept): 46 of 46 still trip; travel changes by -0.115 to +0.050 mm.
+       On the 30 resting spawns, posture means move by at most 0.008 mm fore-aft, 0.0035 mm lateral, 0.0013 mm height
+       and 0.0012 deg pitch.  The settle-path keys move more: lateral margin minimum up to 1.81 mm (base seed range
+       12.0 mm), foot travel from spawn 0.20 mm, turn from spawn 0.05 deg.  All stay inside the base seed-to-seed range.
+       Bar failures 0/30 (base 0) and 31/46 (base 31).
+   So the slide does not come from the time step or the light joint; a plant fix of the robot kind would not
+   touch it.
+
+======================================================================================================================
+6. THE MECHANISM'S INGREDIENTS ON THE TWO MODELS (no creeper, so a precondition check, not a confirmation)
+======================================================================================================================
+6a Compsognathus anatomical [measured: mech.py -> mech.txt (seed 313 at 0.02, the block's largest end speed and foot
+   travel); contacts.py -> contacts.txt]
+   - The light DOF is in the load path: the ankle carries the metatarsus and the whole foot (plantar pad, three toes).
+     The largest h*M^-1*D is 3.448 (r_ankle) at landing, 3.447 (l_ankle) at 10 s, matching the audit's 3.45
+     (verifier v_audit.txt 3.449).
+   - Landing (0.02-0.12 s): seed 313 stands on the plantar pad and toe d2 only (4.1-7.8 N per foot), on a contact
+     line 58-60 mm long and 1.1-4.2 mm wide.  The load point sits 16.4 mm off the foot site's centre line,
+     mirrored on the two feet.  Lateral friction is 1.77 / 1.67 N per foot (ratio 0.39 / 0.30) and the hip rolls are
+     1.07 / 0.97 deg off.  The solver's v + h*qacc is off by up to 1.447 rad/s (l_ankle; median 0.035), and the
+     realised step equals the (M + hD) formula to 5e-11.  The contacts do +2.79 mJ along v1 (+1.34 along v0) while the
+     energy falls 4.81 mJ.  These are the same ingredients as the robot's resting spawn 141 at landing (+7.40 mJ,
+     prediction error 2.46; mech.txt).
+   - By 10 s: 10 contacts per foot over 73 x 34 mm, lateral 0.078 N (ratio 0.016), load point within 2.6 mm of the
+     centre line, prediction error 0.0000, contact work -0.0014 mJ.  Every one of the 480 spawns rings down
+     (section 4).
+   [inferred: the lens's 6g said "its foot has no box-sole edge to rock on"] The anatomical foot does land on a narrow
+   line with a pre-stress, so the edge is not what it lacks.  With the light ankle in the load path at a larger
+   eigenvalue than the robot's, it still never locks into a cycle.  Per the verifier's C5, lock-in depends on more
+   than h*M^-1*D (at least h*D/I together with omega*dt; here 0.73 at the ankle, audit_models_main.txt).  Which
+   difference keeps this model clear was not isolated.
+6b Velociraptor [measured: contacts.txt, mech.txt]
+   - The light DOF (claw, 1.963) carries only the claw body, and the claw geom never touches the floor: the floor load
+     sits on the metatarsus and toes d3 and d4, on the statue and on a spawn, at the first step and at the end.  That is
+     why claw armature x3 changes nothing (5d).  The next DOF in the audit (tail_5_pitch 0.98) is not in contact
+     either: no non-foot geom carries floor load in the last 2 s of any spawn (scan_table.txt) or at the instants in
+     contacts.txt; earlier instants were not checked.
+   - Its servos have no kv; the damping is implicit joint damping, the kind the verifier showed can creep (M4), but
+     on DOFs heavy enough that the solver's prediction stays within 0.04 at landing (seed 126 at 0.05).
+
+======================================================================================================================
+7. FOR THE MAINTAINER
+======================================================================================================================
+  [measured, sections 1-5]  Neither model has a creeper in its 481 neutral-action episodes (statue, the CoM tests'
+  noise, its own training noise): 0 of 280 and 0 of 200 each.  The upper 95 % bound is 1.3 % at 0.02 against the robot's 3.6 %
+  (1.7-6.5 %) on the same seeds.
+  [inferred]
+  - No plant fix is indicated for either model on this evidence; the decision on the robot (D1) is unaffected.
+  - D4 (an eigenvalue limit as a plant check) is contradicted again: it would flag the anatomical Compsognathus
+    (3.45), which does not creep on 480 spawns.  The scan here (scan_all.py with scanlib.py; about 30 min for
+    both models, 19 of them the Compsognathus) is the empirical check the verifier proposed in C8/M1.
+  - The Velociraptor's 0.05 travel flag is a 14 s friction relaxation that the 10 s horizon cuts off.  It is not a
+    creep, and the CoM tests run at 0.02, where it stays under every bar (largest in-window foot travel 3.19 mm against
+    the 5.6 mm width).  Whether that slow sideways relaxation matters for training at 0.05 (the drift penalty, the
+    spawn-relative keys) was not examined.
+  Not tested [open]: anything but the neutral action (pushes, policies, scripted stances), other MuJoCo versions,
+  other seeds, the T. rex, Brachiosaurus and Dibothrosuchus.
+
+======================================================================================================================
+8. FILES (this folder)
+======================================================================================================================
+  creeplib.py                      copy of ../creep/creeplib.py (unchanged; used by controls.py)
+  scanlib.py                       the harness: run() through any CoM test class, the three flags, LoadRecorder,
+                                   in-memory perturbations, Clopper-Pearson
+  probe_models.py -> probe_models.txt          plant parameters of both models, one timed episode
+  controls.py -> controls.txt, controls.jsonl  detector controls (robot 111/143/141/102; recorder vs SubstepTracer;
+                                               statues)
+  scan_all.py -> scan.jsonl, scan.log          the scan (962 rows), traces/*.npz (per-substep load and root vz of the
+                                               46 travel-flagged Velociraptor spawns, 5.4 MB)
+  scan_table.py -> scan_table.txt              incidence, intervals, margins, Fisher tests; ci_extra.txt (pooled
+                                               intervals)
+  velo_travel_split.txt                        where the Velociraptor's travel happens (from scan.jsonl)
+  velo_ext.py -> velo_ext.txt, velo_ext.jsonl  60 s extensions
+  mech.py -> mech.txt                          mechanism probe (mismatch, contact work, pre-stress, eigenvalue)
+  fixcheck.py -> fixcheck.jsonl, fixcheck.log; fixcheck_table.py -> fixcheck_table.txt   fix analogues
+  contacts.py -> contacts.txt                  load-carrying geoms, light joints' bodies, the decay time constants
+  Other agents' numbers cited (read only): ../creep/NOTES.txt (robot 111, 143; 6g audit), ../creep/audit_models_main.txt,
+  ../verify_creep/NOTES.txt (C5, C6 seeds 400-599: 6/200, M2 0.01: 0/202, M4), ../verify_creep/v_audit.txt.

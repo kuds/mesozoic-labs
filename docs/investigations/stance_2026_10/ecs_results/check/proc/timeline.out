@@ -1,0 +1,60 @@
+all-24-decided line at [run_waves_ecs 2026-10-29T12:05:20Z] 1793275520.0
+score: 99 entries; earliest birth 12:15:21 (after the decided line)
+traces: 576 entries; earliest birth 12:06:25 (after the decided line)
+read/trace/score logs: 49 entries; earliest birth 12:05:20 (BEFORE the decided line)
+files of the reading born or modified before the decided line: none
+per continuation trace-mtime <= m5.json birth <= read.json birth <= score birth violated: none
+last trace m1_summary mtime 12:15:10; first m5.json birth 12:15:21; score.txt birth 12:15:29
+check.json born after its run_meta's last write and at its decision: checked (odd ones printed above)
+
+attempt logs (birth / atime / mtime / ctime), relatime ext4:
+  s42_A_1101.attempt1.log      01:44:05 01:44:05 02:55:45 02:55:45  atime==birth
+  s42_A_1111.attempt1.log      02:55:47 02:55:47 04:08:05 04:08:05  atime==birth
+  s42_A_1121.attempt1.log      04:08:09 04:08:09 05:21:15 05:21:15  atime==birth
+  s42_A_1131.attempt1.log      06:33:32 06:33:32 07:52:18 07:52:18  atime==birth
+  s42_A_1141.attempt1.log      07:54:34 07:54:34 09:20:03 09:20:03  atime==birth
+  s42_A_1151.attempt1.log      09:21:46 09:21:46 10:44:02 10:44:02  atime==birth
+  s42_B_1201.attempt1.log      01:44:05 01:44:05 02:55:29 02:55:29  atime==birth
+  s42_B_1211.attempt1.log      02:56:57 02:56:57 04:07:51 04:07:51  atime==birth
+  s42_B_1221.attempt1.log      05:20:10 05:20:10 06:33:27 06:33:27  atime==birth
+  s42_B_1231.attempt1.log      06:36:02 06:36:02 07:54:30 07:54:30  atime==birth
+  s42_B_1241.attempt1.log      07:56:04 07:56:04 09:21:36 09:21:36  atime==birth
+  s42_B_1251.attempt1.log      10:41:18 10:41:18 12:02:10 12:02:10  atime==birth
+  s80_A_1301.attempt1.log      01:44:05 01:44:05 02:56:55 02:56:55  atime==birth
+  s80_A_1311.attempt1.log      04:07:28 04:07:28 05:20:02 05:20:02  atime==birth
+  s80_A_1321.attempt1.log      05:21:20 05:21:20 06:35:52 06:35:52  atime==birth
+  s80_A_1331.attempt1.log      06:36:22 06:36:22 07:56:02 07:56:02  atime==birth
+  s80_A_1341.attempt1.log      09:18:56 09:18:56 10:41:32 10:41:32  atime==birth
+  s80_A_1351.attempt1.log      10:41:38 10:41:38 12:04:06 12:04:06  atime==birth
+  s80_B_1401.attempt1.log      02:55:37 02:55:37 04:07:22 04:07:22  atime==birth
+  s80_B_1411.attempt1.log      04:07:59 04:07:59 05:21:19 05:21:19  atime==birth
+  s80_B_1421.attempt1.log      05:21:20 05:21:20 06:36:14 06:36:14  atime==birth
+  s80_B_1431.attempt1.log      07:52:24 07:52:24 09:18:48 09:18:48  atime==birth
+  s80_B_1441.attempt1.log      09:20:06 09:20:06 10:41:09 10:41:09  atime==birth
+  s80_B_1451.attempt1.log      10:44:08 10:44:08 12:05:14 12:05:14  atime==birth
+
+run ledgers / probes / end pairs: atime before the decided line but after their mtime (a read after the last write, during the run)?
+   s42_A_1101 01_stance/policy_probe.npz atime 02:55:47 mtime 02:55:45 decided 02:55:47
+   s42_A_1111 01_stance/policy_probe.npz atime 04:08:09 mtime 04:08:05 decided 04:08:09
+   s42_A_1121 01_stance/policy_probe.npz atime 05:21:20 mtime 05:21:15 decided 05:21:20
+   s42_A_1131 01_stance/policy_probe.npz atime 07:52:24 mtime 07:52:17 decided 07:52:24
+   s42_A_1141 01_stance/policy_probe.npz atime 09:20:06 mtime 09:20:03 decided 09:20:06
+   s42_A_1151 01_stance/policy_probe.npz atime 10:44:08 mtime 10:44:02 decided 10:44:08
+   s42_B_1201 01_stance/policy_probe.npz atime 02:55:37 mtime 02:55:28 decided 02:55:37
+   s42_B_1211 01_stance/policy_probe.npz atime 04:07:59 mtime 04:07:50 decided 04:07:59
+   s42_B_1221 01_stance/policy_probe.npz atime 06:33:32 mtime 06:33:27 decided 06:33:32
+   s42_B_1231 01_stance/policy_probe.npz atime 07:54:34 mtime 07:54:30 decided 07:54:34
+   s42_B_1241 01_stance/policy_probe.npz atime 09:21:46 mtime 09:21:36 decided 09:21:46
+   s42_B_1251 01_stance/policy_probe.npz atime 12:02:19 mtime 12:02:10 decided 12:02:19
+   s80_A_1301 01_stance/policy_probe.npz atime 02:56:57 mtime 02:56:55 decided 02:56:57
+   s80_A_1311 01_stance/policy_probe.npz atime 05:20:10 mtime 05:20:02 decided 05:20:10
+   s80_A_1321 01_stance/policy_probe.npz atime 06:36:02 mtime 06:35:52 decided 06:36:02
+   s80_A_1331 01_stance/policy_probe.npz atime 07:56:04 mtime 07:56:02 decided 07:56:04
+   s80_A_1341 01_stance/policy_probe.npz atime 10:41:38 mtime 10:41:32 decided 10:41:38
+   s80_A_1351 01_stance/policy_probe.npz atime 12:04:10 mtime 12:04:06 decided 12:04:10
+   s80_B_1401 01_stance/policy_probe.npz atime 04:07:28 mtime 04:07:22 decided 04:07:28
+   s80_B_1411 01_stance/policy_probe.npz atime 05:21:20 mtime 05:21:19 decided 05:21:20
+   s80_B_1421 01_stance/policy_probe.npz atime 06:36:22 mtime 06:36:14 decided 06:36:22
+   s80_B_1431 01_stance/policy_probe.npz atime 09:18:56 mtime 09:18:48 decided 09:18:56
+   s80_B_1441 01_stance/policy_probe.npz atime 10:41:18 mtime 10:41:08 decided 10:41:18
+done

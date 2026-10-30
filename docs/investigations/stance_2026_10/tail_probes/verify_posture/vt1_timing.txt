@@ -1,0 +1,140 @@
+VERIFY TEST 1: own re-derivation (vt1_timing.py).  Read only.  pitch + = nose up; CoM + = forward (mm).
+
+0. RECOVERY AND SIGN CHECKS
+  s42: probe pitch asin(-g_x) vs train-episode pitch, 262,144 bins n=43: r +0.995, median diff +0.050 deg (sign asin(+g_x) would give r -0.995); probe tail_3 angle vs ledger tail_3 angle r +0.987 (n=43); max|batch g_y| 0.0e+00; max|r_hip - l_hip batch| 0.0e+00
+  s60: probe pitch asin(-g_x) vs train-episode pitch, 262,144 bins n=43: r +0.990, median diff +0.007 deg (sign asin(+g_x) would give r -0.990); probe tail_3 angle vs ledger tail_3 angle r +0.999 (n=43); max|batch g_y| 0.0e+00; max|r_hip - l_hip batch| 0.0e+00
+  s80: probe pitch asin(-g_x) vs train-episode pitch, 262,144 bins n=43: r +0.997, median diff -0.006 deg (sign asin(+g_x) would give r -0.997); probe tail_3 angle vs ledger tail_3 angle r +0.998 (n=43); max|batch g_y| 0.0e+00; max|r_hip - l_hip batch| 0.0e+00
+
+1. ONSETS FROM THE LEDGER (M5 bar: fraction > 0.10; flag >= 5 of 10; alarm = 2nd consecutive flag)
+  s42: tail_3 first over-bar 3.670M, first flag 3.801M, first alarm 3.932M, over-bar rows 249;  neck_pitch first over-bar -, flag -, alarm -, rows 0
+  s60: tail_3 first over-bar 8.126M, first flag -, first alarm -, over-bar rows 24;  neck_pitch first over-bar -, flag -, alarm -, rows 0
+  s80: tail_3 first over-bar -, first flag -, first alarm -, over-bar rows 0;  neck_pitch first over-bar 3.801M, flag 4.850M, alarm 5.505M, rows 119
+
+2. r10 s42 time course around the rise (131,072-step bins ending at the step shown; probe = mean of 16 rollouts;
+   train = median of full-horizon training episodes; ledger = mean of 10 deterministic episodes at that step)
+   step   mu14_probe  pitch_probe  q3_probe  pitch_train  com_train(n)   L_tcmd  L_pitch   L_com   L_head  L_neck
+  0.918     -0.025      -0.463    -0.115      -0.511    -27.46(130)   -0.036   -0.325   -30.08   0.961  +13.23
+  1.049     -0.029      -0.374    -0.128      -0.440    -28.64(130)   -0.042   -0.279   -31.33   0.966  +12.81
+  1.180     -0.030      -0.355    -0.142      -0.376    -29.81(131)   -0.025   -0.304   -31.20   0.963  +12.93
+  1.311     -0.012      -0.369    -0.046      -0.391    -29.79(132)   -0.003   -0.410   -30.71   0.961  +13.00
+  1.442     +0.009      -0.437    +0.056      -0.489    -29.23(130)   +0.050   -0.538   -28.92   0.965  +12.65
+  1.573     +0.028      -0.517    +0.151      -0.582    -28.56(131)   +0.047   -0.630   -28.12   0.951  +13.68
+  1.704     +0.045      -0.626    +0.234      -0.663    -27.21(132)   +0.062   -0.621   -28.27   0.947  +13.93
+  1.835     +0.074      -0.688    +0.391      -0.741    -26.46(131)   +0.117   -0.844   -25.66   0.935  +14.20
+  1.966     +0.111      -0.915    +0.576      -0.982    -24.05(130)   +0.126   -1.000   -23.85   0.923  +14.83
+  2.097     +0.125      -0.924    +0.642      -1.018    -23.27(131)   +0.125   -0.971   -24.11   0.918  +15.10
+  2.228     +0.140      -0.997    +0.721      -1.068    -22.31(132)   +0.163   -1.017   -22.54   0.913  +15.32
+  2.359     +0.164      -1.060    +0.839      -1.124    -21.74(131)   +0.202   -1.129   -22.35   0.914  +15.35
+  2.490     +0.201      -1.171    +1.028      -1.229    -21.40(131)   +0.255   -1.193   -22.00   0.917  +14.61
+
+3. CHANGE-POINT (hinge) FITS, window [0.524M, END]; t0 = start of the linear change; [approx. range]
+  s42: window [0.524M, 3.670M]
+    tail mu (probe)              t0  2.064M [1.974, 2.146]  slope +0.443/M  n 385
+    pitch (probe)                t0  1.245M [1.204, 1.286]  slope -0.539/M  n 385
+    q3 angle (probe)             t0  2.023M [1.917, 2.105]  slope +2.142/M  n 385
+    neck joint (probe)           t0  2.966M [2.818, 3.113]  slope -1.720/M  n 385
+    head joint (probe)           t0  2.785M [2.671, 2.908]  slope -1.234/M  n 385
+    CoM (train, 65,536 bins)     t0  1.245M [1.049, 1.507]  slope +3.241/M  n 49
+    pitch (train, 65,536 bins)   t0  1.311M [1.245, 1.376]  slope -0.571/M  n 49
+    tail cmd (ledger)            t0  2.228M [1.966, 2.490]  slope +0.585/M  n 25
+    pitch (ledger)               t0  1.180M [1.049, 1.180]  slope -0.596/M  n 25
+    CoM (ledger)                 t0  1.049M [0.524, 1.311]  slope +3.869/M  n 25
+  s42_reformed: window [6.816M, 7.602M]
+    tail mu (probe)              t0  6.873M [6.816, 6.914]  slope +1.513/M  n 97
+    pitch (probe)                t0  6.873M [6.816, 6.922]  slope -1.140/M  n 97
+    q3 angle (probe)             t0  6.873M [6.816, 6.914]  slope +7.539/M  n 97
+    neck joint (probe)           t0  7.487M [7.381, 7.537]  slope +5.915/M  n 97
+    head joint (probe)           t0  6.824M [6.816, 6.865]  slope -7.785/M  n 97
+    CoM (train, 65,536 bins)     t0  7.012M [6.816, 7.143]  slope +4.166/M  n 13
+    pitch (train, 65,536 bins)   t0  6.881M [6.816, 7.012]  slope -1.301/M  n 13
+    tail cmd (ledger)            t0  6.947M [6.816, 6.947]  slope +1.935/M  n 7
+    pitch (ledger)               t0  6.947M [6.816, 6.947]  slope -1.271/M  n 7
+    CoM (ledger)                 t0  6.947M [6.816, 6.947]  slope +2.859/M  n 7
+  s60: window [5.505M, 8.126M]
+    tail mu (probe)              t0  5.726M [5.652, 5.784]  slope +0.269/M  n 321
+    pitch (probe)                t0  7.528M [7.430, 7.635]  slope -0.416/M  n 321
+    q3 angle (probe)             t0  5.726M [5.652, 5.784]  slope +1.345/M  n 321
+    neck joint (probe)           t0  5.505M [5.505, 5.652]  slope -1.459/M  n 321
+    head joint (probe)           t0  7.209M [7.152, 7.266]  slope -2.280/M  n 321
+    CoM (train, 65,536 bins)     t0  5.505M [5.505, 7.799]  slope -1.218/M  n 41
+    pitch (train, 65,536 bins)   t0  7.537M [7.209, 7.799]  slope -0.544/M  n 41
+    tail cmd (ledger)            t0  5.767M [5.505, 5.898]  slope +0.328/M  n 21
+    pitch (ledger)               t0  7.471M [5.505, 7.471]  slope -0.389/M  n 21
+    CoM (ledger)                 t0  5.505M [5.505, 6.554]  slope -1.480/M  n 21
+
+3b. PROPORTIONAL TIMING (probe, 8-rollout trailing mean), fractions 10/25/50% of the change from the reference
+    median [0.524M,1.049M) to the value at END; END varied to show sensitivity
+  s42 END 3.146M: tail mu ref -0.022 end +0.432 -> 1.516M / 1.868M / 2.425M;  pitch ref -0.471 end -1.324 -> 1.597M / 1.835M / 1.909M
+  s42 END 3.408M: tail mu ref -0.022 end +0.691 -> 1.679M / 2.236M / 3.039M;  pitch ref -0.471 end -1.610 -> 1.630M / 1.851M / 2.253M
+  s42 END 3.670M: tail mu ref -0.022 end +0.765 -> 1.720M / 2.376M / 3.072M;  pitch ref -0.471 end -1.707 -> 1.647M / 1.860M / 2.359M
+  s42 END 3.932M: tail mu ref -0.022 end +0.823 -> 1.745M / 2.400M / 3.080M;  pitch ref -0.471 end -1.680 -> 1.638M / 1.860M / 2.351M
+
+4. FIRST-DIFFERENCE CROSS-CORRELATION, probe tail mu vs probe pitch, 65,536-step bins (8 rollouts), window
+   [0.524M, 3.67M] for s42; r(lag k) = corr(d tail[t], d pitch[t+k]) (k > 0: pitch moves after tail)
+  s42 [0.52,3.67] n=47: -4:-0.03  -3:-0.13  -2:+0.06  -1:-0.22  +0:-0.42  +1:-0.29  +2:-0.11  +3:-0.26  +4:+0.02
+  s60 [3.15,8.13] n=75: -4:+0.06  -3:+0.12  -2:+0.12  -1:-0.01  +0:+0.15  +1:-0.02  +2:-0.01  +3:-0.13  +4:-0.02
+  s80 [0.52,8.13] n=115: -4:+0.09  -3:+0.10  -2:+0.15  -1:+0.18  +0:+0.38  +1:+0.22  +2:+0.31  +3:+0.02  +4:+0.23
+
+5. PRE-RISE GAP: s42 minus s80 (and s42 minus s60), windows (lo, hi]
+  (0.524,0.786]  s42-s80: pitch ledger +0.31 train +0.24 probe +0.27 deg; CoM ledger -0.1 train -1.9 mm; mu14 -0.009  | s42-s60: pitch L +0.55 T +0.33 P +0.35; CoM L -0.5 T -1.5
+  (0.786,1.049]  s42-s80: pitch ledger +0.44 train +0.24 probe +0.28 deg; CoM ledger -3.5 train -1.7 mm; mu14 -0.016  | s42-s60: pitch L +0.48 T +0.30 P +0.35; CoM L -1.3 T -0.8
+  (0.524,1.049]  s42-s80: pitch ledger +0.37 train +0.24 probe +0.27 deg; CoM ledger -1.8 train -1.3 mm; mu14 -0.012  | s42-s60: pitch L +0.51 T +0.31 P +0.35; CoM L -0.9 T -1.2
+  (1.049,1.573]  s42-s80: pitch ledger +0.26 train +0.28 probe +0.30 deg; CoM ledger -2.5 train -2.8 mm; mu14 +0.007  | s42-s60: pitch L +0.35 T +0.37 P +0.40; CoM L +0.5 T -1.2
+  (2.097,3.146]  s42-s80: pitch ledger -0.55 train -0.51 probe -0.48 deg; CoM ledger +7.4 train +7.1 mm; mu14 +0.196  | s42-s60: pitch L -0.31 T -0.30 P -0.26; CoM L +7.0 T +6.5
+  (3.146,3.670]  s42-s80: pitch ledger -1.32 train -1.30 probe -1.19 deg; CoM ledger +12.1 train +11.7 mm; mu14 +0.598  | s42-s60: pitch L -0.90 T -0.82 P -0.74; CoM L +9.1 T +8.7
+
+6. s60 / s80 EPISODES: start -> end values over the window (probe means over 16 rollouts at each end; train
+   medians over 131,072 at each end; ledger mean of the 2 evaluations at each end)
+  s60 main rise (6.03 -> 7.34M):
+    mu14 +0.177->+0.549 (+0.372); pitch_probe -0.793->-0.616 (+0.177); pitch_train -0.789->-0.589 (+0.201); com_train -31.751->-34.909 (-3.159); neck_probe +7.193->+3.968 (-3.225); L_tcmd +0.195->+0.647 (+0.453); L_pitch -0.789->-0.609 (+0.180); L_com -32.089->-35.123 (-3.034); L_head +1.045->+1.090 (+0.045); L_neck +7.020->+4.204 (-2.816)
+  s60 final approach (7.47 -> 8.13M):
+    mu14 +0.592->+0.682 (+0.090); pitch_probe -0.601->-0.978 (-0.376); pitch_train -0.606->-1.037 (-0.431); com_train -34.776->-30.067 (+4.709); neck_probe +3.515->+5.781 (+2.266); L_tcmd +0.720->+0.833 (+0.114); L_pitch -0.614->-1.040 (-0.425); L_com -35.535->-30.840 (+4.695); L_head +1.098->+1.083 (-0.014); L_neck +3.786->+5.207 (+1.420)
+  s60 5.0-5.5M (claimed nose-down / CoM fwd, no tail rise):
+    mu14 +0.161->+0.129 (-0.032); pitch_probe -0.835->-1.118 (-0.283); pitch_train -0.834->-1.163 (-0.329); com_train -32.686->-25.380 (+7.306); neck_probe +4.276->+9.580 (+5.304); L_tcmd +0.177->+0.143 (-0.034); L_pitch -0.863->-1.184 (-0.321); L_com -31.667->-26.335 (+5.332); L_head +1.087->+1.005 (-0.082); L_neck +3.777->+10.182 (+6.405)
+  s60 1.05 -> 4.46M (claimed head raised before tail):
+    mu14 +0.014->+0.102 (+0.088); pitch_probe -0.716->-0.687 (+0.029); pitch_train -0.735->-0.713 (+0.021); com_train -27.782->-32.915 (-5.133); neck_probe +11.172->+4.796 (-6.375); L_tcmd +0.013->+0.110 (+0.097); L_pitch -0.779->-0.725 (+0.055); L_com -29.417->-33.806 (-4.389); L_head +0.980->+1.075 (+0.095); L_neck +11.290->+4.682 (-6.608)
+  s80 bump 1 (2.36 -> 3.60M):
+    mu14 +0.026->+0.066 (+0.039); pitch_probe -0.681->-0.429 (+0.252); pitch_train -0.690->-0.430 (+0.260); com_train -29.245->-33.143 (-3.898); neck_probe +10.109->-2.494 (-12.603); L_tcmd +0.038->+0.077 (+0.039); L_pitch -0.683->-0.507 (+0.176); L_com -29.591->-32.856 (-3.266); L_head +1.008->+1.256 (+0.248); L_neck +9.918->-5.085 (-15.002)
+  s80 bump 2 (5.64 -> 6.55M):
+    mu14 +0.012->+0.134 (+0.122); pitch_probe +0.140->+0.264 (+0.123); pitch_train +0.156->+0.287 (+0.131); com_train -40.660->-42.402 (-1.742); neck_probe -12.577->-12.658 (-0.081); L_tcmd +0.018->+0.164 (+0.146); L_pitch +0.131->+0.167 (+0.036); L_com -41.346->-42.079 (-0.733); L_head +1.367->+1.337 (-0.029); L_neck -17.792->-17.443 (+0.349)
+  s80 after bump 2 (6.55 -> 7.08M):
+    mu14 +0.134->+0.042 (-0.092); pitch_probe +0.264->-0.465 (-0.728); pitch_train +0.287->-0.495 (-0.783); com_train -42.402->-38.870 (+3.531); neck_probe -12.658->-9.486 (+3.172); L_tcmd +0.164->+0.066 (-0.098); L_pitch +0.167->-0.504 (-0.672); L_com -42.079->-40.433 (+1.646); L_head +1.337->+1.293 (-0.045); L_neck -17.443->-15.264 (+2.179)
+  s42 decoupling (4.72 -> 6.29M):
+    mu14 +0.969->+0.430 (-0.539); pitch_probe -1.610->-1.588 (+0.021); pitch_train -1.648->-1.666 (-0.018); com_train -25.837->-18.467 (+7.370); neck_probe +12.035->+15.749 (+3.714); L_tcmd +1.000->+0.429 (-0.571); L_pitch -1.544->-1.776 (-0.232); L_com -29.891->-18.403 (+11.488); L_head +0.980->+0.896 (-0.084); L_neck +11.388->+16.997 (+5.609)
+  s42 re-formed rail (6.82 -> 7.34M):
+    mu14 -0.362->+0.479 (+0.841); pitch_probe -0.847->-1.489 (-0.642); pitch_train -0.817->-1.602 (-0.784); com_train -18.591->-18.316 (+0.274); neck_probe +17.945->+17.782 (-0.162); L_tcmd -0.452->+0.580 (+1.032); L_pitch -0.810->-1.554 (-0.744); L_com -18.654->-18.728 (-0.074); L_head +0.893->+0.920 (+0.026); L_neck +18.408->+18.241 (-0.167)
+
+7. ECS CONTINUATIONS (ledger): from S (the parent's evaluation at S) to the last evaluation before the first
+   tail over-bar episode (PRE), and S to the end (END).  Means over the 10 deterministic episodes per evaluation.
+  lineage s42, S = 3,145,728
+    s42_A_1101: first over-bar 3.408M; PRE at 3.277M: tcmd +0.207, pitch -0.364, CoM +2.074, head +0.002, neck -0.650, headj -0.328 | END 4.719M: tcmd +0.440, pitch +0.219, CoM -5.269, head +0.043, neck -0.736, headj -3.999
+    s42_A_1111: first over-bar 3.539M; PRE at 3.408M: tcmd +0.123, pitch -0.175, CoM -2.475, head +0.009, neck -1.164, headj +0.138 | END 4.719M: tcmd +0.414, pitch +0.180, CoM -3.596, head +0.005, neck +0.483, headj -0.938
+    s42_A_1121: first over-bar 3.408M; PRE at 3.277M: tcmd +0.120, pitch -0.126, CoM -1.505, head +0.006, neck -1.067, headj +0.511 | END 4.719M: tcmd +0.368, pitch +0.678, CoM -11.947, head +0.030, neck -1.427, headj +0.116
+    s42_A_1131: first over-bar 3.539M; PRE at 3.408M: tcmd +0.241, pitch -0.498, CoM +0.857, head +0.000, neck -1.143, headj +0.379 | END 4.719M: tcmd +0.430, pitch -0.295, CoM -4.381, head -0.003, neck +0.087, headj -0.437
+    s42_A_1141: first over-bar 3.539M; PRE at 3.408M: tcmd +0.163, pitch -0.344, CoM -0.689, head +0.021, neck -1.923, headj -0.694 | END 4.719M: tcmd +0.426, pitch -0.374, CoM +0.621, head +0.003, neck +0.840, headj -2.701
+    s42_A_1151: first over-bar 3.801M; PRE at 3.670M: tcmd +0.226, pitch -0.316, CoM +0.560, head +0.017, neck -1.657, headj -0.551 | END 4.719M: tcmd +0.297, pitch +0.454, CoM -9.946, head +0.096, neck -4.650, headj -4.196
+    s42_B_1201: first over-bar 3.801M; PRE at 3.670M: tcmd +0.255, pitch -0.095, CoM -3.135, head +0.006, neck -0.312, headj -0.546 | END 4.719M: tcmd +0.352, pitch +0.115, CoM -7.770, head +0.058, neck -3.449, headj -2.101
+    s42_B_1211: first over-bar 3.670M; PRE at 3.539M: tcmd +0.135, pitch -0.027, CoM -5.862, head +0.030, neck -2.118, headj -0.813 | END 4.719M: tcmd +0.363, pitch +0.536, CoM -15.766, head +0.100, neck -6.167, headj -2.119
+    s42_B_1221: first over-bar 3.801M; PRE at 3.670M: tcmd +0.195, pitch -0.258, CoM -1.890, head +0.029, neck -2.580, headj -0.622 | END 4.719M: tcmd +0.347, pitch +0.043, CoM -5.006, head +0.038, neck -1.983, headj -1.910
+    s42_B_1231: first over-bar 3.670M; PRE at 3.539M: tcmd +0.196, pitch -0.296, CoM -0.900, head +0.012, neck -1.907, headj +0.502 | END 4.719M: tcmd +0.392, pitch +0.015, CoM -5.660, head +0.008, neck -0.210, headj -0.730
+    s42_B_1241: first over-bar 3.670M; PRE at 3.539M: tcmd +0.171, pitch -0.183, CoM -2.646, head +0.033, neck -2.324, headj -1.326 | END 4.719M: tcmd +0.416, pitch -0.404, CoM -1.466, head +0.008, neck -0.273, headj -1.853
+    s42_B_1251: first over-bar 3.539M; PRE at 3.408M: tcmd +0.216, pitch -0.347, CoM +1.365, head +0.004, neck -0.528, headj -0.666 | END 4.719M: tcmd +0.414, pitch -0.006, CoM -4.204, head +0.025, neck +0.707, headj -4.387
+    S values: tcmd +0.560, pitch -1.436, CoM -20.553, head +0.930, neck +13.979, headj +12.394
+    PRE medians (n 12): tcmd +0.196 (+12/-0), pitch -0.277 (+0/-12), CoM -1.202 (+4/-8), head +0.010 (+12/-0), neck -1.411 (+0/-12), headj -0.549 (+4/-8)
+    END medians (n 12): tcmd +0.403 (+12/-0), pitch +0.079 (+8/-4), CoM -5.137 (+1/-11), head +0.027 (+11/-1), neck -0.504 (+4/-8), headj -2.006 (+1/-11)
+  lineage s80, S = 4,194,304
+    s80_A_1301: first over-bar -; PRE at -: - | END 5.767M: tcmd -0.008, pitch +0.082, CoM +4.588, head -0.343, neck +24.907, headj +6.330
+    s80_A_1311: first over-bar -; PRE at -: - | END 5.767M: tcmd -0.030, pitch -0.279, CoM +1.956, head -0.027, neck -1.908, headj +5.180
+    s80_A_1321: first over-bar -; PRE at -: - | END 5.767M: tcmd +0.023, pitch +0.135, CoM +0.965, head -0.202, neck +8.139, headj +13.353
+    s80_A_1331: first over-bar -; PRE at -: - | END 5.767M: tcmd +0.038, pitch +0.382, CoM +3.734, head -0.250, neck +15.983, headj +8.614
+    s80_A_1341: first over-bar -; PRE at -: - | END 5.767M: tcmd -0.059, pitch +0.124, CoM -4.948, head +0.055, neck -8.787, headj +5.508
+    s80_A_1351: first over-bar -; PRE at -: - | END 5.767M: tcmd +0.050, pitch -0.198, CoM +7.969, head -0.296, neck +19.935, headj +7.139
+    s80_B_1401: first over-bar -; PRE at -: - | END 5.767M: tcmd +0.158, pitch -0.234, CoM +9.330, head -0.309, neck +22.099, headj +5.323
+    s80_B_1411: first over-bar -; PRE at -: - | END 5.767M: tcmd +0.030, pitch -0.216, CoM +3.409, head -0.081, neck +3.524, headj +4.125
+    s80_B_1421: first over-bar -; PRE at -: - | END 5.767M: tcmd -0.173, pitch -0.818, CoM +8.408, head -0.259, neck +16.520, headj +5.653
+    s80_B_1431: first over-bar -; PRE at -: - | END 5.767M: tcmd -0.002, pitch -0.218, CoM +4.676, head -0.164, neck +9.645, headj +5.420
+    s80_B_1441: first over-bar -; PRE at -: - | END 5.767M: tcmd -0.047, pitch +0.287, CoM -4.613, head +0.069, neck -9.794, headj +5.626
+    s80_B_1451: first over-bar -; PRE at -: - | END 5.767M: tcmd +0.020, pitch +0.157, CoM -0.547, head -0.074, neck +2.104, headj +6.287
+    S values: tcmd +0.008, pitch -0.225, CoM -36.196, head +1.265, neck -6.267, headj +3.525
+    END medians (n 12): tcmd +0.009 (+6/-6), pitch -0.058 (+6/-6), CoM +3.571 (+9/-3), head -0.183 (+2/-10), neck +8.892 (+9/-3), headj +5.639 (+12/-0)
+

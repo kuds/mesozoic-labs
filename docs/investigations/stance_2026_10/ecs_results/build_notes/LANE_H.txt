@@ -1,0 +1,210 @@
+ECS BUILD, LANE H (harness builder): build list v2 items 1, 2, 3-5, 8 and item 9's harness, wave-runner and
+preflight parts.  Written 2026-10-28 21:08-21:47 UTC (date -u).  NOT APPROVED: nothing here launches a
+continuation; no optimizer step was made on any policy; <ECS>/APPROVED and <ECS>/criteria.txt were not written.
+Short names as criteria_ecs_v2.txt (CRIT), build_list_ecs_v2.txt (BL), survey_harness.txt (HS); TB =
+<ECS>/code/environments/shared/train_base.py.  Labels: [measured] read or computed here from the named file or run;
+[inferred] reasoned, basis named.
+
+FILES (lane H owns these; sha256 at 21:47 UTC [measured, sha256sum])
+  1a146950e131426eca38510c180c7b1f5dfc94384f605d27f5a0ff545b95273c  tools/ecs_common.py
+  b89577860ded985862427504f4ec773085709c65730a3bec858f2b440c9e1a3d  tools/run_ecs.py
+  a30b8fbe0ba4643a1b7776ef6d82e6275290e923e34e339f5bc16331cc37393c  tools/run_waves_ecs.sh
+  19bf0a09dae4b4683825e0fd9dd8c216e974ea0a17e73980ec5f88b503782f12  tools/tests/test_harness_run_ecs.py
+  2ecef8acb08c79fdc783ca940c2a8a21b40e8355c34c337e5b76977786ac5ce6  tools/tests/test_harness_waves.py
+  7d18e36177e9edc3ef6da53a4d82c0a3c0c0750dc19ef932c37d8767cbba5e72  build/smoke_check.py (lane H's read-only look
+                                                                    at a smoke run's records; not a pinned tool)
+  (paths relative to <ECS>; <ECS>/code is item 1's copy, sealed 331fe8fc...)
+
+1. ITEM 1, THE CODE COPY [measured]
+- 21:12:01-21:12:11 UTC: M1 build-copy --dest <ECS>/code --approved S1/foot/stance6/APPROVED (nice 15, one process):
+  commit 8737cd3d86431de1bdd0fcdb49a0d956a45e084d, tree digest
+  331fe8fc3f6bdf73acc0d3cc324dd753d9d9d695d7ce914e4e011d5c6437ebf1, 1,406 files, archive_sha256 e7ae1e91..., built
+  2026-10-28T21:12:11Z.  Equal to COPY's seal in commit, tree digest, file count and archive sha256.
+- 21:12:18 UTC: M1 check-copy --copy <ECS>/code --approved S1/foot/stance6/APPROVED: exit 0, the same seal
+  (<ECS>/build/check_copy.out).  Re-checked by run_ecs.py's preflight and after each smoke run below ("unchanged"),
+  and no __pycache__ appeared in the copy (find, 21:47 UTC).
+- CLONE was only read (git archive / rev-parse with --no-optional-locks, M1's own code).
+
+2. ITEM 2, <ECS>/tools/ecs_common.py
+- First written 21:11 UTC (3 minutes into the lane), with every constant items 2, 6 and 7 need; names never renamed
+  since.  Later additions only (21:18): RUN_SCHEMA, RUN_META, CHECK_JSON, RUN_MODES, APPROVED_KEYS, LOST_SCHEMA and
+  the run_meta / lost.json key comments; 21:26: derived_seeds() now returns the 5 distinct seeds (seed, +1, +2, +3,
+  +1000; CHK 5's 120 = 24 x 5), it had listed seed twice; 21:35: the run_meta comment names ppo_applied.
+- Pins in it, each recomputed at 21:11 UTC against the files [measured]: the four start files and the twelve parent
+  records (FMAN rows, full sha256; all 16 F2 copies recomputed equal); M1 b293a511..., r10m_common 97431323..., M5
+  0d89bcb8..., r10round_common ea2c5ea6... (equal to the lane SHA256SUMS files); the stack (check_stack() empty in the
+  venv); commit, tree digest and file count; hyperparameters_sha256 054ab483... (both parents' run blocks); s60's
+  ledger sha256 1821fd2e... for V4's negative control; the queue (24, the fixed order of BL 8), seeds (T1), slots 3,
+  nice 10, crash limit 3, the 3 GiB and 6 GiB floors, ALPHA_PER_SIDE 0.025.
+- Lookups and checks only: run_name/parse_run_name, window, f2_file/f2_record/pan_summary, periodic_names,
+  expected_update_rows, seed_ok/arm_of, derived_seeds, sha256_file, stack_versions/check_stack, check_pins.
+
+3. ITEMS 3-5, <ECS>/tools/run_ecs.py (StopAtEnd, the no-update mode)
+    PY -I -B run_ecs.py --start s42|s80 --arm A|B --seed N [--preflight-only]
+    PY -I -B run_ecs.py ... --save-loaded-only [--out DIR]              (V1: no learn())
+    PY -I -B run_ecs.py ... --no-update --until STEPS [--out DIR]       (V2: learn() with train() a counting no-op)
+- As BL 3 specifies: preflight (exit 2, every reason listed, nothing created); the layout (periodic names, the five
+  records, each copy's sha256 checked); the copy's own config loader with arm B's in-memory edit of [ppo] ent_coef and
+  ent_coef_end (deep copy); stage_config.json by the copy's own save_stage_config as train() writes it (extra seed,
+  n_envs 4, timesteps 12,000,000 - S; load_path the periodic zip, load_mode resume_same_stage); V5's comparison before
+  learn(); _train_stage_body with every keyword argument named (k3_panel None, use_tensorboard False, verbose 0,
+  save_on_interrupt False, announce False, vecnorm_load_path = load_path = the periodic zip, vecnorm_path = the pkl,
+  parent_id entry.warm_start_from); the thin wrapper around train_base._create_or_load_model (MirrorKLPPO,
+  num_timesteps S, _total_timesteps 12,000,000, device cpu, ent_coef 0.005 / 0.0, the VecNormalize the training env
+  with training and norm_reward on, obs_rms and ret_rms mean/var/count exactly the start pkl's); run_meta.json ("x" at
+  start, rewritten at the end; keys listed in ecs_common.py); record_stage_duration after the body as train() does.
+- StopAtEnd (item 4): _on_step returns False at num_timesteps == E (or --until) and sets `flag`; RuntimeError (a
+  crash, exit 1) if num_timesteps ever passes the target.  At training start it keeps, read only, the callback list
+  learn() runs (locals()["callback"]), so the run can read the collapse callback's own counters
+  (EvalCollapseEarlyStopCallback._consecutive_drops >= patience) for the stop reason.
+- No-update mode (item 5): install_no_update() swaps in a subclass of the loaded class whose train() counts its calls
+  and returns (learn() calls self.train(); nothing is added to the model's __dict__, so checkpoints carry nothing new;
+  see 6 for why).  At the end: parameter and Adam digests equal to the start's AND train() reached
+  (T - S)/8,192 - 1 times, else exit 1 (status "failed").
+- DECISIONS MADE HERE (each for the reviewer):
+  (a) --out (no-optimizer-step modes only) and --preflight-only are added.  --out must lie under <ECS>/validate/
+      (refused otherwise); the defaults are <ECS>/validate/v1 and /v2.  Lane H's smoke runs used
+      <ECS>/validate/laneH_smoke and laneH_smoke2 so the validator's default folders stay empty.
+  (b) A check that fails after the folder exists but before learn() (V5's comparison, the load wrapper, the stage
+      cadence) exits 2 with run_meta status "refused" (no optimizer step was made), not 1.  The wave runner renames
+      such a folder <name>_refused<k> and starts nothing new (CRIT: a refusal before any optimizer step is fixed and
+      starts again under the same name).  BL 8 names only the crash and VOID renames.
+  (c) parent_run_id is not passed (None, as a plain load records none); the parent's RUN_ID is in run_meta
+      (run_id_parent).  V5 then refuses a parent_run_id in the written run block.
+  (d) V5 compares every top-level key of the written stage_config.json with the parent's copy1 except run,
+      hyperparameters (compared key by key: equal, or for B exactly ent_coef and ent_coef_end at 0.0) and gpu: so
+      task_fingerprint and plant_identity are compared whole, stricter than task_sha256 alone.  The run block may
+      differ only in seed, timesteps, label, duration_seconds, hyperparameters_sha256 (054ab483... for A; for B the
+      digest the copy's hyperparameters_sha256 recomputes from the parent's block with the two keys at 0.0:
+      sha256:be2e243b3fef90cdc4809ca9455c51e1fe07bb27fd30678c4e3e463fed9a0a76 [measured, smoke run_meta]) and the
+      lineage keys, each checked: load_path the periodic zip, load_mode resume_same_stage, parent_checkpoint_sha256
+      "sha256:" + the start zip's, parent_task_sha256 the parent's task_sha256.
+  (e) GIT_CEILING_DIRECTORIES=<ECS> is set beside GITHUB_SHA, so get_git_commit cannot find a repository above the
+      copy and falls back to GITHUB_SHA (the copy has no .git; `git -C <ECS>/code rev-parse HEAD` fails today
+      [measured]).  TMPDIR and MPLCONFIGDIR are per run: <ECS>/tmp/<name>/ and <ECS>/tmp/<name>/mpl.
+  (f) Stop reason "end" when StopAtEnd's flag is set at the target, even if the collapse callback tripped on that same
+      step (then recorded in run_meta.collapse); "collapse" only at T < target with the callback tripped; else "other".
+  (g) V1's save goes through SB3's CheckpointCallback object (save_freq 1, name_prefix stage1, save_vecnormalize),
+      the class TB l846 builds, into <run>/saved/; run_meta.v1 compares the start zip's, the loaded model's and the
+      saved zip's parameter and Adam digests (policy.pth / policy.optimizer.pth, torch.load weights_only) and the
+      start pkl's, the training env's and the saved pkl's VecNormalize digest; exit 1 unless all equal.
+  (h) After the run: the copy's seal is checked again and every `environments` module must come from the copy; a
+      failure exits 1 (status "failed").
+  (i) run_meta's arm_ppo is the arm's edit ({} -> "unchanged" for A), as lane R's read_ecs.py reads it;
+      ppo_applied records the [ppo] ent_coef, ent_coef_end and ent_coef_decay_timesteps after the edit.
+
+4. ITEM 8, <ECS>/tools/run_waves_ecs.sh
+- Refuses without <ECS>/APPROVED and <ECS>/criteria.txt; one runner at a time (flock on logs/run_waves_ecs.lock); the
+  queue, slots, nice, floor and crash limit are read from ecs_common.py (one source).  A slot pool of 3 at nice 10
+  (a freed slot starts the next entry in the fixed order), cwd /tmp, OMP/MKL/OPENBLAS 1.  Before each start: disk
+  >= 3 GiB (df -B1) and the process table and load appended to logs/proctable.log.
+- Exit 0 -> `read_ecs.py --check <run>`: 0 COUNTED ("end") or STOPPED ("collapse"); 4 VOID (renamed <name>_void<k>,
+  nothing new started, running ones finish and are checked, exit 4); other CHECK exits HALT (folder left, exit 2).
+  Exit 2 -> REFUSED (decision 3 (b)).  Other exits -> CRASH: renamed <name>_crashed<k>, logged in
+  logs/crash_ledger.tsv, rerun at once with the same arguments; the third own crash writes <ECS>/lost.json (schema
+  ecs_common.LOST_SCHEMA, cause "crashes") and decides LOST.
+- Relaunch (under the tracked watcher): waits while any `run_ecs.py --start` process is alive; reads its ledger
+  logs/decided.tsv and lost.json; a runs/<name> found done is checked, not rerun; one found refused is handled as exit
+  2; any other half-way folder is a CRASH, counted as its own only when run_meta says "crashed" or "failed" (a
+  container restart leaves "starting"/"running": not counted).  A VOID in the ledger refuses the relaunch (exit 4):
+  the coordinator fixes the cause and removes that ledger line.
+- DECISIONS MADE HERE: the disk pause WAITS (logs/PAUSED_disk written, removed on resume) instead of exiting, so a
+  relaunching watcher does not spin; after all 24 are decided and none VOID the order is R3 (M1 end traces, 3 at a
+  time at nice 10: `m1 --copy <ECS>/code --zip --pkl --stage-config <run>/01_stance/stage_config.json --out
+  <ECS>/traces/<name> --approved S1/foot/stance6/APPROVED`, the stage1_<E>_steps pair or a STOPPED one's
+  stage1_final pair), then `read_ecs.py <run>` (lane R's full read takes the trace's m1_summary.json), then
+  `score_ecs.py`; a failed trace is logged and does not hold up the score; exit 0 on score_ecs 0 or 3.  Logs only
+  under <ECS>/logs/; no push, no Drive.  The command lines match lane R's read_ecs.py and score_ecs.py usage as
+  written at 21:35 UTC [measured, their docstrings].
+- The test hook (ECS_WAVES_TEST=1 with ECS_ROOT, the stub commands, poll, slots, floor, a free-bytes file and a short
+  queue) is honoured only with a root that is not the real <ECS> (refused otherwise; tested).
+
+5. ITEM 9 (lane H's part), THE TESTS [measured]
+- tools/tests/test_harness_run_ecs.py: 68 tests.  StopAtEnd on a real SB3 PPO with a toy gymnasium env (no MuJoCo)
+  and train() replaced by the counting no-op before learn(): it stops at the target with the evaluation at the stop
+  step (evaluations_timesteps [80, 96]) and the checkpoint pair there, no rollout end and no train() call on the
+  last rollout (3 = (96 - 64)/8 - 1), parameters and Adam unchanged, the checkpoint's policy.pth equal to the end
+  state, the flag set; a step past the target refused; a collapse callback stop before the target reads "collapse".
+  The arm edit (A nothing; B exactly ent_coef; a missing key and an unknown arm refused) and V5's comparison on the
+  real F2 stage_config.json.copy1 (A and B pass with the expected-to-differ keys; 19 single mutations of other keys
+  refused; B with A's digest refused).  The load wrapper on the toy model: passes and installs the no-update train;
+  refuses obs_rms.mean or ret_rms.var that differ from the pkl's, another num_timesteps, another ent_coef, a
+  non-updating VecNormalize, another class; save-loaded-only saves and leaves before learn(); a continuation leaves
+  train() alone.  Every preflight refusal on a synthetic <ECS> (13 argument cases, 6 approval cases, the folder
+  exists (runs/ and validate/v1/), an input sha256 or missing file, the seal (a changed file, another commit), the
+  stack, the pins, the disk floor), the validation modes passing without APPROVED, main --preflight-only and a refusal
+  creating nothing; the real F2 inputs, pins, stack and the 24-entry queue with 120 distinct derived seeds clear of
+  3042-3061 and 42/60/80; importing run_ecs pulls in neither torch, numpy, SB3 nor environments.
+- tools/tests/test_harness_waves.py: 12 tests of run_waves_ecs.sh with stubs (V4's dry run): all COUNTED then traces,
+  reads and the score in that order and nothing read before every CHECK; a non-zero exit (and a 137) renamed and
+  rerun; three crashes to lost.json; a CHECK failure VOID, nothing new started, a relaunch with the VOID refused;
+  running ones finish and are checked after a VOID; a refusal stops new starts and the fixed one starts again under
+  its name; a half-way folder at relaunch (restart not counted; recorded crash counted); a done folder at relaunch
+  checked, not rerun; a collapse STOPPED and traced on its final pair; the disk pause and resume; the runner's own
+  refusals (no APPROVED, the real <ECS> in test mode); --plan lists the 24 in the fixed order and writes nothing.
+- Runs: 21:46:13-21:46:34 UTC, one process, OMP 1, nice 15: 80 passed (68 + 12) in 19.5 s; also 68/68 at 21:39 and
+  12/12 at 21:30 [measured, pytest -q -p no:cacheprovider].  The toy PPO's train() is replaced before every learn(),
+  so no test makes an optimizer step.
+- Ruff 0.16.9 (the CI lint venv), --select E9,F,B (the selection the lanes used): all checks passed on the five
+  Python files (21:46 UTC).  With E and W also selected (line length 120) only E402 remains, in run_ecs.py (the
+  imports after sys.dont_write_bytecode = True, as D-D43's run_tailscreen.py).  bash -n on run_waves_ecs.sh: ok.
+- Not mine: read_ecs/score_ecs tests (lane R).  Not covered by any test here: the real body end to end (see 6).
+
+6. HARNESS SMOKE ON THE REAL CODE (no optimizer step; one process, OMP 1, nice 15; outputs under <ECS>/validate/)
+- 21:31:00 UTC preflight-only, real paths: a continuation refused with exactly "APPROVED: missing"; the
+  --save-loaded-only mode passes (seal, inputs, stack, pins, disk) [measured].
+- 21:31:21 --save-loaded-only s42 A 1101 (--out validate/laneH_smoke): exit 2, V5 refused on one key only:
+  parent_checkpoint_sha256 is recorded with a "sha256:" prefix.  Fixed (decision 3 (d)); the folder is kept.  The rest
+  of V5 passed on the real record (task_fingerprint, plant_identity, reward_weights, curriculum, hyperparameters,
+  git_commit 8737cd3d through GITHUB_SHA, no gpu block on CPU) [measured].
+- 21:31:48-21:31:58 --save-loaded-only s42 A 1101 (--out validate/laneH_smoke2): exit 0.  The wrapper's checks passed
+  (MirrorKLPPO, num_timesteps 3,145,728, ent_coef after load 0.005, statistics equal to the pkl's); V5 problems [];
+  the start zip's, the loaded model's and the saved zip's parameter digest sha256:15062144... and Adam digest
+  sha256:f4eee2ad... all equal; VecNormalize digest sha256:eee6ade6... equal for the start pkl, the training env and
+  the saved pkl; the saved zip's data carries _mesozoic_plant_identity, mesozoic_task_fingerprint and
+  mesozoic_symmetry, num_timesteps 3,145,728 and ent_coef 0.005 (the start zip stores 0.0027530542857142856); code
+  seal unchanged [measured, run_meta.json, zip data members].  M1 on the saved pair (V1's comparison with PAN) was not
+  run here: that is V1.
+- 21:32:10-21:38:34 --no-update s42 B 1201 --until 3,276,800 (S + 131,072; shorter than V2's S + 262,144: a harness
+  smoke of the mode, not V2) (--out validate/laneH_smoke2): exit 1, a CRASH at the body's final save
+  (_save_final_and_sync_tb -> model.save -> save_util.data_to_json: TypeError: cannot pickle '_thread.lock'
+  object).  Cause: the first no-update form set train as an INSTANCE attribute, and SB3 serialises every instance
+  attribute into the zip's data; that closure reached StopAtEnd and its sibling callbacks.  Everything before the save
+  had worked: StopAtEnd stopped at 3,276,800, the evaluation there is in evaluations.npz, the probe holds 15 window
+  rows, all ent_coef 0.0 [measured].  It would also have put a pickled function into every periodic checkpoint of a
+  V2 run.  FIX: install_no_update now swaps in a subclass whose train() counts and returns (the idiom
+  enable_mirror_kl uses); nothing is added to the model's __dict__.  Regression test added
+  (test_no_update_model_saves_without_the_counter: a holder with a lock, the save works, no "train" in data).  The
+  folder is kept.
+- 21:39:53-21:45:58 the same command (--out validate/laneH_smoke3): exit 0 in 361.9 s wall, 354.2 s in learn() (16
+  rollouts with one 10-episode evaluation, one process at nice 15: about 22 s per rollout) [measured, run_meta;
+  <ECS>/build/smoke3_check.out from build/smoke_check.py]:
+    stop reason "end": StopAtEnd's flag at 3,276,800 (its 32,768th call); the collapse callback found, 0 drops of
+    patience 10; train() reached 15 times = (T - S)/8,192 - 1; parameter and Adam digests equal at start and end
+    (VecNormalize moved, scratch); ent_coef after load 0.0; code seal unchanged; no environments module outside the
+    copy; stage1_final pair saved;
+    policy_probe.npz: 399 rows = the parent's 384 rows at or before S (seeded, kept, update steps equal to the
+    parent's) + 15 rows in (S, T), 3,153,920 ... 3,268,608, every ent_coef 0.0, learning_rate equal as float32 to the
+    parent's F2 probe at the same steps (R4's arm-B rule, read by this lane's script, not by read_ecs.py);
+    evaluations.npz ends 3,014,656 / 3,145,728 / 3,276,800; eval_episodes.csv: 194 columns, 250 rows = the parent's
+    240 rows at or before S, cell for cell, + the 10 rows of 3,276,800 [measured].
+  The probe's bank comparison kept the seeded rows (V3 records which way it went; here: kept).
+
+7. OPEN ITEMS FOR THE REVIEWER / VALIDATOR
+- V1-V5 themselves are not run by lane H (item 10).  The smoke folders under <ECS>/validate/laneH_smoke* are lane H's
+  and may be deleted or kept; V1/V2 default to <ECS>/validate/v1 and /v2.
+- Decisions 3 (a)-(i) and 4 above are not in BL's text; each needs the review's yes or a change before the pins.
+- The fix of 6 (the no-update class swap) is the one real defect the smoke found; V2 should be run with the tool at the
+  sha256 above (b8957786...), not an earlier copy.  The crashed smoke folder validate/laneH_smoke2/s42_B_1201 is kept
+  and never read for anything.
+- Throughput: about 22 s per rollout for one process at nice 15 with one evaluation per 16 rollouts and no update
+  [measured, 6]; HS 7's 17.8-18.3 s (no update) and 19.3-23.4 s (with updates) are [inferred] from other runs.  A
+  continuation's update time on r10 is still unmeasured (no optimizer step was made here).
+- run_waves_ecs.sh calls lane R's tools as their docstrings read at 21:35 UTC: `read_ecs.py --check RUN` (0 pass, 4
+  fail, 2 error), `read_ecs.py RUN` (full read), `score_ecs.py` (0 final, 3 provisional or incomplete, 2 error).  A
+  change there needs the CHECK_CMD / READ_CMD / SCORE_CMD lines at the top of the runner changed with it.
+- run_meta's arm_ppo keeps the form lane R's read_ecs.py checks (the edit, "unchanged" for A); ppo_applied is extra.
+- No mutation run of the harness was made (BL 9 asks mutants of the reader and scorer, lane R's).
+- Disk: 6,610,841,600 bytes (6.16 GiB) free at 21:46 UTC [measured, df -B1]; lane H's files: the code copy 96.9 MB, the
+  three smoke folders 14.7 + 25.8 + 11.2 MB, <ECS>/tmp/s42_B_1201 10 KB [measured, du -sb].
+END (lane H).

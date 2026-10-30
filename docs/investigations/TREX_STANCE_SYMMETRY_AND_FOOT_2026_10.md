@@ -164,6 +164,21 @@ stance is certified. Its evidence is in
 [stance_2026_10/stance6_results/](stance_2026_10/stance6_results/README.md).
 The statuses above are unchanged.*
 
+*Status 2026-10-29 (appended): §28, appended that day, records the entropy
+continuation screen judged by its approved criteria, final: line 3, "NO
+DIFFERENCE DETECTED": removing the remaining entropy bonus from two mid-rise
+states of the first r10 round changed nothing the screen could detect (s42 6
+of 6 in both arms, on the tail-tip actuator; s80 1 of 6 in both, on the
+neck). It also records D-D52's amendment and decisions D-D53 to D-D55 (the
+centre-of-mass revisit, a tail clamp test, a normaliser probe and three
+posture tests, none of which trained), and points to the new note
+[TREX_TAIL_SATURATION_HABIT_2026_10.md](TREX_TAIL_SATURATION_HABIT_2026_10.md),
+one record of everything tried on the T. rex tail saturation habit. No T. rex
+stance is certified. Its evidence is in
+[stance_2026_10/ecs_results/](stance_2026_10/ecs_results/README.md) and the
+folders `com_revisit/`, `tail_probes/` and `tail_record/` beside it. The
+statuses above are unchanged.*
+
 It continues [STANCE_REWARD_PILOT_FINDINGS_2026_10.md](STANCE_REWARD_PILOT_FINDINGS_2026_10.md)
 (2026-10-10), [STANCE_HACK_AUDIT_2026_10.md](STANCE_HACK_AUDIT_2026_10.md)
 §12 (the physics-r9 statue) and the blog post
@@ -5186,3 +5201,117 @@ plant, reward, gate or digest.
   review's working files and the two looks' downloads, in the second
   session's scratch (`scratchpad2/r10round/`) and the first's
   (`scratchpad/foot/stance6/`).
+
+## 28. Status 2026-10-29 (appended): the entropy continuation screen judged, final: line 3, no difference detected; D-D52 amended, decisions D-D53 to D-D55, and the tail-habit record
+
+*Appended 2026-10-29; §1–§27 above are unchanged, so §27.7's "Its design is
+pending" is the state when §27's copied log ends (19:32 UTC on 2026-10-28).*
+This section is a pointer. The day's work on the T. rex tail saturation
+habit, and everything tried on it since 2026-07-09, is recorded in its own
+note, [TREX_TAIL_SATURATION_HABIT_2026_10.md](TREX_TAIL_SATURATION_HABIT_2026_10.md),
+with its ledger; this section gives the outcome in short and says what it
+changes here. The evidence is the session's run log, lines 721 to 759 (the
+entries timed 21:05 UTC on 2026-10-28 to 23:21 UTC on 2026-10-29), copied as
+`ecs_results/run_log.txt` of [stance_2026_10/](stance_2026_10/README.md),
+and the folders `ecs_results/` (the entropy continuation screen),
+`com_revisit/` (the centre-of-mass revisit), `tail_probes/` (the tail clamp
+test, the normaliser probe and the posture tests) and `tail_record/` (the
+note's ledger and checks) there. Labels as in §27: measured, as each source
+records it; inferred, where said. Pull requests are named by what they
+carry.
+
+### 28.1 The entropy continuation screen (D-D52 amended)
+
+At 21:05 UTC on 2026-10-28 the maintainer took every recommendation of the
+screen's second draft. The design departs from §27.7's proposal in its s80
+start and its size: continuations of `stance6_r10LTSB_s42` from 3,145,728
+steps and of `_s80` from 4,194,304 (after s80's one neck over-bar episode),
+each 655,360 steps before its run's first ANY-flagged evaluation, for
+1,572,864 steps; arm A with `ent_coef` as the runs recorded it, arm B with it
+at 0 (the screen's one training change, for scratch continuations only); 6
+continuations per arm and start, 24 in all, on the session's CPUs. A
+continuation is POSITIVE when it has at least one ANY-flagged evaluation by
+its end; an exact stratified test, two-sided at 0.025 per side, reads the
+two arms. The harness was validated with no optimizer step before the
+approval. At 01:43 UTC on 2026-10-29 the maintainer approved the final
+criteria (sha256 `04813918…`, `ecs_results/criteria.txt`), and the 24
+continuations ran from 01:44 to 12:05 UTC, all to their end, none stopped,
+lost or re-run (`ecs_results/run_logs/decided.tsv`).
+
+The scorer read, final, at 12:15 UTC (`ecs_results/score/score.txt`): line 3,
+"NO DIFFERENCE DETECTED IN WHETHER AN ANY-FLAGGED EVALUATION CAME BY E FROM
+THESE STATES (not tested: a shift of the first flag within the window, a
+modest effect, the early phase)": s42 arm A 6 of 6 and arm B 6 of 6, every
+flag on `tail_3_pitch_act`; s80 arm A 1 of 6 and arm B 1 of 6, both on
+`neck_pitch_act`; P_UP = P_DOWN = 17/22. Two independent checks, of the
+statistic and of the process, agreed with no blocking finding
+(`ecs_results/check/`). Removing the remaining entropy bonus from these
+mid-rise states changed nothing the screen could detect; s42's stratum, 12
+of 12 positive, adds nothing to the test, and the early phase and when an
+onset comes are untested (the note's §4.6). At the maintainer's word of 12:34
+UTC the screen's text outputs were pushed to the orphan branch
+`claude/handoff-ecs` at `067b8a10`, never to be merged. Screen runs certify
+nothing.
+
+### 28.2 After the screen (D-D53 to D-D55)
+
+All of it is simulation, statics or network evaluation, with no training,
+exploratory and report only; each measured lens and probe was checked by an
+adversarial verifier (the revisit's design lens had none). The decisions are
+in [BEHAVIOR_RECIPES_PLAN.md](../BEHAVIOR_RECIPES_PLAN.md) §6.2; the findings,
+with every correction the verifiers made, are in the note's §3.6 and §4.
+
+- **D-D53 (12:34, 12:42 and 13:10 UTC):** the centre-of-mass follow-up
+  parked on 2026-10-28, with checks on the screen's 24 end policies and their
+  two starts, and the tail clamp test both ways. The railed and unrailed
+  policies lean alike. On the plant alone the rail moves the body's centre of
+  mass 0.2 mm forward and 1.6 mm up, so it is no counterweight; holding it at
+  0 gains 63.6 reward per episode (12 of 12) and leaves the stance otherwise
+  unchanged; forcing it on the s80 ends costs 180 (12 of 12). The rail
+  persists through a learned positive feedback from the observed tail angle
+  to the tail command, loop gain about 0.63 at the s42 ends against 0.27 at
+  their start, with its fixed point past the +1 bound (the note's §4.2 and
+  §4.7).
+- **D-D54 (17:28 UTC):** a centre-of-mass test change in its own pull
+  request; a creep scan of the anatomical Compsognathus and the Velociraptor
+  (no creep on either); the centre-of-mass check on trained policies as a
+  report-only reading in the next stance round's pre-registration, with no
+  gate change; and a normaliser probe of the tail loop. At fixed weights the
+  drift of the tail_3 angle's normaliser lowers the loop gain, and the gain's
+  growth sits in the weights downstream of the first layer; whether the drift
+  shaped training is untested (the note's §4.8).
+- **D-D55 (18:18, 19:55 and 23:21 UTC):** one record of everything tried on
+  the habit, three posture tests, and that record as its own note in a
+  records pull request. The plant gives no mechanical push; no nose-down or
+  forward centre-of-mass shift came before the tail rose; in r10 s42 a
+  posture-independent tail bias rose first (at about 1.20M steps), and from
+  mid-rise on the s42 networks read their nose-down posture as a tail offset
+  that the loop amplifies, a pathway absent at 1,048,576 (the note's §4.11).
+
+### 28.3 What changes in §13–§27
+
+- **§13 and §27.8, certification:** none. No T. rex stance is certified, and
+  the two-seed ask stands on physics r10.
+- **§21–§27, the tail habit:** from s42's mid-rise checkpoint the rail
+  formed again in all 12 continuations, with or without the remaining entropy
+  bonus, so §27.4's inferred answer stands (the bonus is no direct driver)
+  and the screen adds that removing it from mid-rise states does not stop
+  the rail; its role in the first 3.1M steps is untested. The habit is a
+  saturated command, not a saturated joint or motor, it costs reward, it is
+  not a balance aid (inferred, the note's §4.2), and it persists through a
+  learned loop (the mechanism inferred); why the loop forms in training is
+  open (the note's §7, with the candidate next steps already proposed, none
+  chosen).
+- **§27.7, D-D52:** done; its outcome is D-D52's amendment of 2026-10-29.
+- **§14, this repository:** the note
+  [TREX_TAIL_SATURATION_HABIT_2026_10.md](TREX_TAIL_SATURATION_HABIT_2026_10.md)
+  and the folders `ecs_results/`, `com_revisit/`, `tail_probes/` and
+  `tail_record/` of [stance_2026_10/](stance_2026_10/README.md), with their
+  sources and sha256 in `SOURCES.txt` and `SHA256SUMS` (now 1364 files).
+- **§14, branches:** `claude/handoff-ecs`, the screen's durable copy, at
+  `067b8a10`, never merged.
+- **§14, session scratch:** the screen's ledgers, end traces, checkpoints and
+  code copy, and the probes' rollouts, stored states and per-episode outputs,
+  in the second session's scratch (`scratchpad2/r10round/ecs/`,
+  `scratchpad2/com_revisit/`); the text ones of the screen are also on the
+  durable branch.

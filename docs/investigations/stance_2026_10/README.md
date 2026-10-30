@@ -417,6 +417,47 @@ and none is over 500 KB. The 18 judge files keep their missing final
 newline; leave them out of a manual pre-commit run. No copy holds a model
 identifier, an email address or a commit trailer.
 
+*Added 2026-10-29 (`ecs_results/`):* no new kind of change.
+`ecs_results/run_log.txt` carries **lines** (lines 721 to 759 of the
+session's run log; it continues `stance6_results/run_log.txt` with no line
+in both) and **redact** (22 workflow run ids, 11 distinct, and 1
+background-job id). No copy holds a model identifier, an email address or a
+commit trailer.
+
+*Added 2026-10-29, later (`ecs_results/` but its run log):* no new kind of
+change. Each copy has its source at the same path in the screen's scratch
+folder (`run_logs/` and `build_notes/` are its `logs/` and `build/`). Every
+copy is byte-identical to its source, absolute session-scratch paths included
+(no **prefix**, **prefix2** or **checkout**, as in `stance6/`), so that its
+sha256 is the one the approval, the screen's `SHA256SUMS.txt` or its durable
+copy records, but for **redact** (one workflow run id in each of five design
+and build notes) and **gzip** (`tools/run_ecs.py`, which reads
+`policy_loading._ensure_sb3`; `test_policy_loading.py` parses every Python
+file under `docs/`). The two copies of the approved criteria, `criteria.txt`
+and `final/criteria_ecs_final.txt`, keep the one workflow run id of their line
+5: their sha256 is the approved pin, so **redact** is not applied to them.
+`run_logs/crash_ledger.tsv` is empty, as its source is. No other copy holds a
+session tool id, and none holds a model identifier, an email address or a
+commit trailer.
+
+*Added 2026-10-29, later still (`com_revisit/`, `tail_probes/`):* no new kind
+of change. Every copy is byte-identical to its source, absolute
+session-scratch paths and checkout paths included, but `com_revisit/REPORT.txt`
+(**redact**: 2 workflow run ids); no other copy held a session tool id. Each
+notes folder keeps its top-level text files, run markers, small JSON and
+JSONL outputs and its verifier's `out/` text outputs, as the two READMEs
+state. Kept as their sources have them, so to leave out of a manual
+pre-commit run: 12 JSON files without a final newline, 5 files ending in a
+blank line and 6 with lines ending in spaces (each README names its own). No
+copy holds a model identifier, an email address or a commit trailer.
+
+*Added 2026-10-29, latest (`tail_record/`):* no new kind of change.
+`tail_record/ledger.csv` carries **redact** (7 workflow run ids) and
+**lineends** (its 168 CRLF line ends, as Python's `csv` module writes them,
+made LF); `update/CHANGES.txt` and `update_check/FIXES.txt` carry **redact**
+(2 workflow run ids each); the other four copies are byte-identical. No copy
+holds a model identifier, an email address or a commit trailer.
+
 [SHA256SUMS](SHA256SUMS) pins every file here but this README and itself
 (`sha256sum -c SHA256SUMS` in this directory). *Added 2026-10-19:* nor
 `stance3/results/README.md`, which, like this README, has no source.
@@ -429,6 +470,9 @@ identifier, an email address or a commit trailer.
 *Added 2026-10-27, later:* nor `stance5/k3extract/README.md`, likewise.
 *Added 2026-10-27, later still:* nor `stance6/README.md`, likewise.
 *Added 2026-10-28:* nor `stance6_results/README.md`, likewise.
+*Added 2026-10-29:* nor `ecs_results/README.md`, likewise.
+*Added 2026-10-29, later still:* nor `com_revisit/README.md` and `tail_probes/README.md`, likewise.
+*Added 2026-10-29, latest:* nor `tail_record/README.md`, likewise.
 
 ## Contents
 
@@ -1428,6 +1472,61 @@ the per-step traces and the per-episode panel files are not here. Report
 only but for the M1 figures and the final certificates the classes read.
 Its [README](stance6_results/README.md) indexes it.
 
+### Added on 2026-10-29 (decision D-D52's outcome and decisions D-D53 to D-D55: the run log)
+
+**`ecs_results/`: the entropy continuation screen and the work on the T. rex
+tail saturation habit that followed it (2026-10-28 21:05 UTC to 2026-10-29
+23:21 UTC; lines 721 to 759 of the session's run log).** The run log holds
+the maintainer's decisions on the screen's design, its approval and launch,
+the check-ins of its 24 CPU continuations, its reading (line 3, no
+difference detected) and independent check, the landing of #652, the
+screen's durable copy, the centre-of-mass revisit, the tail clamp test, the
+normaliser probe, the posture tests, the record of everything tried on the
+tail habit, and the maintainer's decisions on each (D-D52's amendment and
+D-D53 to D-D55). Its [README](ecs_results/README.md) names the decision
+entries.
+
+### Added on 2026-10-29, later (decision D-D52's outcome: the entropy continuation screen)
+
+**`ecs_results/` but its run log: the entropy continuation screen, from its
+approved criteria to its reading, final (179 files, about 2.2 MB).** The
+approved criteria and the approval (`criteria.txt`, `APPROVED`, `final/`), the
+screen's design notes for the maintainer, the five pinned tools with their
+tests and the builders' notes (`tools/`, `build_notes/`), each continuation's
+run record and check (`runs/`, `run_logs/`), the scorer's reading and readouts
+(`score/`: line 3, "NO DIFFERENCE DETECTED", s42 6 of 6 in both arms and s80 1
+of 6 in both) and the reading's two independent checks (`check/stat/`,
+`check/proc/`: both agree). The ledgers, traces and checkpoints are not here;
+the text ones are on the never-merged orphan branch `claude/handoff-ecs`. Its
+[README](ecs_results/README.md) indexes it.
+
+### Added on 2026-10-29, later still (decisions D-D53 to D-D55: the centre-of-mass revisit and the tail probes)
+
+**`com_revisit/`: the centre-of-mass revisit's report, its checks on the
+entropy screen's 26 policies and the creep scan of two more models, each with
+its adversarial verifier (114 files, about 0.7 MB).** No policy leans to one
+side or creeps, railed and unrailed policies lean alike, and neither scanned
+model creeps. Its [README](com_revisit/README.md) indexes it.
+
+**`tail_probes/`: the tail clamp test, the normaliser probe and the three
+posture tests, each with its adversarial verifier (214 files, about 1.8
+MB).** The rail is no counterweight, costs reward and persists through a
+learned positive feedback from the observed tail angle; the loop's growth is
+in the weights, not the normaliser's drift; no nose-down or forward
+centre-of-mass shift came before the tail rose, and the railed lineage's
+networks read their posture as a tail offset from mid-rise on. Exploratory and
+report only. Its [README](tail_probes/README.md) indexes it.
+
+### Added on 2026-10-29, latest (decision D-D55: the tail-habit record's ledger)
+
+**`tail_record/`: the ledger of
+[TREX_TAIL_SATURATION_HABIT_2026_10.md](../TREX_TAIL_SATURATION_HABIT_2026_10.md),
+one record of everything tried on the T. rex tail saturation habit (167
+rows, L001 to L167), with its merge map and the record's checks (the fixer's
+record and number check, the update's changes and its fact check).** Its
+[README](tail_record/README.md) holds the record's build notes, among them
+each edit that made the repository note from the session draft.
+
 ## How to re-check each verdict
 
 Commands as run on 2026-10-17 from a copy of this directory (Python 3.13;
@@ -1527,6 +1626,18 @@ copies.
 | The M1 summaries against the reading (2026-10-28, later still) | for each run and tail actuator, the mean of `cmd_a` in `panels/<run>/10485760/m1/m1_summary.json` and `panels/<run>/final/m1/m1_summary.json` (actuators 11 to 14) against the `MEAN` that `score/score.txt` prints on the line after the run's `CLASS` line | equal (12 values; the largest difference 2.8e-17): `tail_3` +0.6420, +0.9148 and +0.5052 for s60, s42 and s80 |
 | The panels against the durable copy (2026-10-28, later still; needs the durable branch) | `git show e4733d8:SHA256SUMS` of `claude/handoff-stance6` (its `round/panels/` lines) against `sha256sum` of each file in `stance6_results/panels/` | equal for all 122 |
 | The files themselves (2026-10-28, later still, with `stance6_results/panels/`) | `sha256sum -c SHA256SUMS` | all 849 files OK |
+| The third run-log copy against its source (2026-10-29; session scratch only) | `head -759 scratchpad/foot/stance4/live/run_log.txt \| sha256sum`, and its lines 721 to 759 against `ecs_results/run_log.txt` with the ids SOURCES.txt names put back | `f2a95d7b…`, the value SOURCES.txt gives; equal |
+| The run-log copies against each other (2026-10-29) | `tail -1 stance6_results/run_log.txt` and `head -1 ecs_results/run_log.txt` | the entries timed 19:32 UTC and 21:05 UTC on 2026-10-28, the source's lines 720 and 721: no gap and no line in both |
+| The files themselves (2026-10-29, with `ecs_results/run_log.txt`) | `sha256sum -c SHA256SUMS` | all 850 files OK |
+| The screen's approved text and pinned tools (2026-10-29, later) | `sha256sum ecs_results/criteria.txt` against `ecs_results/APPROVED`; in a copy of `ecs_results/`: `gunzip tools/run_ecs.py.gz`, then `sha256sum -c SHA256SUMS.txt` and each tool's sha256 against `APPROVED`'s `tool_sha256` | `04813918…`, its `criteria_sha256`; 14 files OK; 5 of 5 equal |
+| The screen's reading (2026-10-29, later) | `sed -n '/^STATUS/,/^TABLES/p' ecs_results/score/score.txt` | `STATUS: final`; line 3, "NO DIFFERENCE DETECTED IN WHETHER AN ANY-FLAGGED EVALUATION CAME BY E FROM THESE STATES (not tested: …)"; s42 arm A 6 of 6, arm B 6 of 6; s80 arm A 1 of 6, arm B 1 of 6 |
+| The copies against the screen's durable copy (2026-10-29, later; needs the durable branch) | `git show 067b8a10:SHA256SUMS` of `claude/handoff-ecs` against the source sha256 SOURCES.txt gives each `ecs_results/` row but the run log's | equal for all 179 |
+| The files themselves (2026-10-29, later, with `ecs_results/`) | `sha256sum -c SHA256SUMS` | all 1029 files OK |
+| The clamp test's loop gain (2026-10-29, later still) | `head -49 tail_probes/verify_clamp/loop_summary.txt` | the s42 ends' loop gain median +0.630 (range +0.480 to +0.910, positive in 12 of 12), start_s42 +0.268, the s80 ends' median -0.255 |
+| The copies against their sources (2026-10-29, later still; session scratch only) | `sha256sum` of each source SOURCES.txt names for `com_revisit/` and `tail_probes/` | equal to the sha256 given, and to the copy's for all but `com_revisit/REPORT.txt` |
+| The files themselves (2026-10-29, later still, with `com_revisit/` and `tail_probes/`) | `sha256sum -c SHA256SUMS` | all 1357 files OK |
+| The record's ledger (2026-10-29, latest) | `python3 -c "import csv; r = list(csv.DictReader(open('tail_record/ledger.csv', newline=''))); print(len(r), r[0]['id'], r[-1]['id'])"` | `167 L001 L167` |
+| The files themselves (2026-10-29, latest, with `tail_record/`) | `sha256sum -c SHA256SUMS` | all 1364 files OK |
 
 `test_pilot_score.py` prints sample "Walking pilot score" blocks while it runs;
 they score synthetic panels, not the pilot.

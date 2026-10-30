@@ -1,0 +1,164 @@
+TAIL-HABIT RECORD UPDATE: FACT CHECK AND FIXES (normaliser probe and posture tests)
+Written 2026-10-29 by the update workflow's fact checker (workflow [id removed], RUNLOG l757). I did not make the update.
+Read only, except in-place edits to scratchpad2/tail_record/draft/ (TREX_TAIL_SATURATION_HABIT.md, ledger.csv) and
+the files in this folder. No training, no simulation, no network.
+
+scratchpad/  = /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad
+scratchpad2/ = /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad
+PROBE, VPROBE, PTIME, PPOL, VPOST = scratchpad2/com_revisit/notes/{probe,verify_probe,posture_timing,posture_policy,
+verify_posture}/NOTES.txt (all read in full).  RUNLOG = scratchpad/foot/stance4/live/run_log.txt (757 lines; l749-l757
+read).  Also read: PTIME bank_drive.txt; update/CHANGES.txt and apply_update.log; the ledger rows the update touched
+(L070, L104, L116, L132, L145, L146, L151, L152) and the new rows L157-L167.
+
+METHOD
+- diff of update/TREX_TAIL_SATURATION_HABIT.pre_update.md against draft/ (record.diff here): every changed or added
+  passage (E01-E34) read against the cited NOTES lines; the verifier's CORRECTED wording checked to win, its UNCHECKED
+  claims checked to be marked.
+- check_cites.py (here): every L-id the record cites exists; every row is cited; each new row's where_in_record
+  matches the sections that cite it (status block and §8.5 cite ranges and are exempt, as before).
+- Table rows: column counts per table.  @@PROBE@@ in record and ledger.  Links: every markdown link resolved against
+  docs/investigations/ at main 378ae2f8 with git cat-file.  Cited scratch files: existence.
+- Backups before fixing: TREX_TAIL_SATURATION_HABIT.pre_check.md, ledger.pre_check.csv (here).
+  Ledger fixes: fix_ledger.py (each replacement must match exactly once; the csv writer round-trips the file byte for
+  byte before editing; QUOTE_ALL, CRLF kept).
+
+STRUCTURAL CHECKS (after fixing)
+- @@PROBE@@: 0 in the record, 0 in the ledger.
+- Ledger: 167 rows, CRLF only; every id cited, no cited id missing; new rows' where_in_record match their citing
+  sections.  Rows changed by this check: L160, L161, L162, L164 (others byte-identical to ledger.pre_check.csv).
+- Tables: every row has its table's column count.
+- Links: 59 links, 37 distinct targets, all resolve at 378ae2f8 (unchanged by the update and by this check).  No
+  anchor links, so the §3.6 heading change breaks nothing inside the record.
+- Every scratch file the new rows and sections cite exists (PROBE stats/static/swaps/weights/hybrid/mean_vs_var/
+  term_deltas/implied_window; VPROBE v_range/v_jz/v_s80clip/v_terms/v_analyze/v_check_eval; PTIME r10_timeline/
+  prop_timing/ecs_comovement/bank_drive/ts_comovement; PPOL sweep/sweep_extra/analysis_cl/analysis_long/cross_policy/
+  analysis_plant/plant_pitch; VPOST vp_prerise/vp_s60/vt1_timing/vt1b_onset/vt1c_boot_ecs/vp_sweep2/vp_analyze; the
+  r10 F2 copies incl. models/stage1_1048576 and _2097152).
+
+FINDINGS
+C01 FIXED (wrong: no source).  "the maintainer asked ... at about 19:50 UTC" (status block, §3.6 L160 date "about
+    19:50-19:55 UTC", §4.11 intro, §7 "Done"; ledger L160 date "~19:50-19:55 UTC").  No file gives 19:50: RUNLOG l754
+    logs the question at 19:55 UTC, and "19:50" occurs only in the editor's own apply_update.py and the record (grep of
+    the five notes, CHANGES.txt and the tail_record tree).  L165 already says "of 19:55 UTC".  Now "logged at 19:55
+    UTC (RUNLOG l754)" in all four places and the ledger date "2026-10-29 19:55 UTC (logged)".
+C02 FIXED (wrong).  "No posture shift came before the tail in any run with a tail signal before its rise" (§2 Ruled
+    out), "No posture shift came first" (§4.11 Against heading), "no posture shift before the tail" (§7 Done), ledger
+    L161 title "no posture shift came before the tail rose".  PTIME l18-22: "No nose-down or CoM-forward shift came
+    clearly before ...  The only posture changes that came before a rise are r10 s60's: the head raised about 3M steps
+    earlier, then nose-up and CoM back at or just before its main rise ... opposite to the hypothesis."  Narrowed to
+    nose-down / CoM-forward, with s60's earlier opposite shifts named (§2, §4.11, L161 result); §2 also says VPOST did
+    not check the r9 runs (VPOST F2/F3/F5 r9, M7).
+C03 FIXED (wrong).  §4.8 Against and §3.6 L159 row: s80's tail statistics "inert over the unclipped 0-2.5° and small
+    but not null beyond it".  VPROBE F7 (l195-205): "small but not null" is about the tail-only SWAPS (end W with start
+    tail statistics: gain change -0.005, 11/12 lower; start W with end tail statistics: return +1.0, 11/1), not about
+    sweep points beyond 2.5°.  Reworded in both places, with the gain change -0.005 added; §8.3 s80 row clarified the
+    same way.
+C04 FIXED (wrong: the uncorrected claim kept).  §3.6 L158 row: "its variance acts (1.303), its mean barely (0.609)".
+    VPROBE F5 (l182-183) and F9 (l219-220) correct this: the drifted mean raises the gain 12/12, -0.021 at the end
+    variance but -0.141 at the start variance (order-dependent).  Now gives both (+0.02 there, +0.14 at the start
+    variance, VPROBE F5).
+C05 FIXED (wrong).  §4.8 Against: "On the ends' states: the start weights with the ends' statistics 0.268 -> 0.141".
+    On X_end, G(W_start, N_start) is 0.264 (PROBE l138; VPROBE l138); 0.268 is the start's gain on its own states.
+    Now 0.264 -> 0.141 (12/12 holds: normaliser part at start weights -0.124, 0/12 > 0, PROBE l139).  §2's unqualified
+    "0.268 -> 0.141" (PROBE l137, l148) left as is.
+C06 FIXED (missing).  VPROBE F9's correction "the basis 'near-linear network (x2.07 vs x2.29)' is weak; under the
+    start's statistics the 0-3 deg slope is 0.271 and the 3-6 deg slope 0.175 per deg" (l224-225) was in ledger
+    L158/L159 but nowhere in the record, although CHANGES.txt says F9's near-linearity was used in E13.  Added to §4.8
+    "Corrections to the probe" and to the §3.6 L159 row.
+C07 FIXED (wrong attribution).  §3.6 L162 row: "per policy -0.270 to +0.131, taking the rail count 9 -> 5 alone".
+    VPOST T2-2 (l157-161): -0.270 to +0.131 is PPOL's own file (VPOST's states: -0.280 to +0.124); the 9 -> 5 is on
+    VPOST's states; PPOL had 9 -> 4..8 (PPOL l115-116).  Attributed in the L162 row, the §8.3 control row (PPOL's
+    9 -> 4..8 added to its column) and ledger L162.
+C08 FIXED (unclear: easily misread).  "the tail_3 mean rose first (t0 1.204M)" (§3.6 L161 row, §4.11, §7 item 1).
+    VPOST F1 (l73-74): t0 1.204M is the probe's tail mu, the policy's tail_3 COMMAND mean; the tail_3 angle (q3) is
+    1.212M.  Now "the policy's tail_3 command mean (mu)"; the L161 row also gives q3 1.212M.  (Ledger L161 already
+    said "tail mu".)
+C09 FIXED (unclear source).  §3.6 L164 row and ledger L164: M3's "(-0.11 at 1.05M -> +0.08 at 1.57M)" is cited to
+    PTIME bank_drive.txt l1-28, but those values are VPOST's (NOTES l131, F11); bank_drive.txt's 262,144-step bin
+    medians for tail3 are -0.105 at 1.049M and +0.030 at 1.573M (+0.082 at 2.097M), with the first sustained +0.05 at
+    1,409,024 (l8-l10, l28).  Both put the rise at 1.3-1.6M.  Now attributed to VPOST F11 with bank_drive's medians
+    beside them (record row; ledger result and sources_disagree).
+C10 FIXED (wrong).  §6.2 item 18: "Both posture tests took the ECS start (3,145,728) as 'the start'".  There were three
+    tests in two reports; test 1 (PTIME) is records-only and read pre-rise ledgers; tests 2-3 (PPOL) used 3,145,728 as
+    "the start".  VPOST l20-21: "Neither test examined a checkpoint before 3,145,728".  Now "Neither posture report
+    probed a checkpoint before the ECS start (3,145,728), which tests 2-3 took as 'the start'".
+C11 FIXED (unclear).  §4.7 "The positive loop is not where the habit started": "the loop was negative before and early
+    in the rise (G -0.250 at 1,048,576 ...), while the tail bias was already rising".  At 1,048,576 the bias had not
+    yet risen (t0 1.204M, VPOST F1).  Now "by 2,097,152 the tail bias had been rising since about 1.20M".
+C12 FIXED (unclear).  §7 item 1: "At that time the network had no posture-to-tail pathway" covers 2,097,152, where the
+    pathway was -0.020, about 1/8 of its 3,145,728 value (VPOST l24, T2-5).  Now "little or no ... (+0.005 per degree
+    at 1,048,576; -0.020 at 2,097,152, about 1/8 ...)"; the broken short line ("by 1.3-1.6M. At that time") reflowed.
+C13 FIXED (label).  §2 Known "The drift is a record of the rail" and §4.8 "The drift follows the rail" sat under
+    [measured, verified] labels, but PROBE gives this reading as [inferred] (§6, l210-215) and the record's own L157
+    row labels it [inferred, PROBE §6].  Both now carry [inferred, PROBE §6].
+C14 FIXED (missing UNCHECKED mark).  §5.2 "Show the policy a different pelvis pitch" gives the 20 s check (37/60 ->
+    8/60) without saying VPOST left it unchecked (VPOST T2-3 l169, M7).  Marked.
+C15 FIXED (qualifier).  §1.1 "A normaliser probe placed the loop's growth in the policy's weights, not in the drift"
+    and §7 Done "the weights carry the growth": VPROBE F9 (l217-218) limits "explains none" to the direct,
+    fixed-weight effect.  §1.1 now says the drift "at fixed weights works against it"; §7 adds "whether the drift
+    shaped training is untested".
+C16 FIXED (missing cross-reference).  §2 "Other dead ends: The policy probe's bank as an early detector [L070]" stands
+    unqualified, while the update's §8.3 row and VPOST M3 show r10 s42's statue_settled row rising (first +0.05 at
+    1,409,024, bank_drive.txt l28) ahead of the pitch.  Added: that was the r9 read; on r10 s42 the row rose ahead of
+    the pitch (§8.3) [L164].
+C17 FIXED (consistency).  VPOST F7 (CONFIRMED with different numbers: s80 lineage CoM +3.6 mm, 9/3) is given in
+    ledger L161 but not beside test 1's +4.0 mm (9 of 12) in the §3.6 L161 row or §4.11 "Not sufficient", unlike
+    F3/F4/F6.  Added in both.
+C18 FIXED (attribution).  Ledger L161: "ECS pooled lag-0 r -0.50 (VPOST -0.56), |r| <= 0.11 elsewhere": 0.11 is
+    VPOST's bound (l83-84); PTIME's own is |r| <= 0.10 (l321-322).  Now "|r| <= 0.10 elsewhere (VPOST <= 0.11)".
+C19 FIXED (stale status).  Status block: "have not been through ... the fact check; the update workflow's fact checker
+    reads them next".  Now says this check was done, with this file; §4.8 added to the list of brought-up-to-date
+    sections (it was changed: E13, E14).  §8.5 lists this folder's files.
+
+CHECKED AND NOT CHANGED (NOT VALID as findings, or already handled)
+N01 NOT VALID.  The maintainer's quoted words in the L160 row ("Could the tail habit be a reflection of ...") have no
+    file source (they appear only in apply_update.py and the record), but the row already says they are quoted "as the
+    update's brief quotes them", and CHANGES.txt (E11) discloses it; RUNLOG l754 confirms the summary and "Yes, queue
+    them up".  Left as is.
+N02 NOT VALID.  "18:19-20:30 UTC" for L152/L157 and the step times 18:22-18:28, 18:28-20:10, 20:10-20:20 (PROBE
+    l248-251); 168 pickles, 146 checkpoints, 2,680 episodes, 520/520 (PROBE l65, l107, l171-173); 460/460, 73/73,
+    1.1e-11 (VPROBE l16-18).  All match.
+N03 NOT VALID.  "The tail_3-only swap ... added as a closed-loop arm for s42 (20:10-20:20 UTC, swaps_s42_t3q.log)":
+    PROBE l251 and l269; the file exists.
+N04 NOT VALID.  2x2 values, normaliser and weight parts, swaps (1.143 / 1.162 / 1.162 / 1.303 / 0.609), closed-loop
+    1.086 [0.816, 1.670], 1.100, 0.143, 0.410 vs 0.600, +2.13 vs +3.12, -20.8 (0/12), +10.5 (12/0), grafts 0.298 /
+    0.240 / 0.046, w6 1.281 -> 1.285, cosine 0.998, Jz 0.040 -> 0.219, log-log -0.81, s80 -0.370 -> -0.255 and share
+    +0.01: PROBE l14-45, l105-160, l175-199; VPROBE l135-140, F8.
+N05 NOT VALID.  VPROBE corrections in L159/§4.8/§8.3: share -1.32 / -0.90 / -0.47 / -0.26, -0.74 log, interaction
+    -0.38; 12 / 9 / 2 / 1 of 12; z6 +6.1 vs +2.1; x4.3-4.65 vs x2.29; mean +0.02 / +0.14; s80 clip 3.1-4.0°, 48%;
+    inert 0-2.5° (-0.003 / +0.019); s80_B_1421 -8.5; +1.0 (11/1); -21.6 is 22% neck_posture; action_saturation -13 to
+    -29; start's gain 0.32 / 0.18; ranks 53 / 55; other tail dims x0.96-1.19.  All match VPROBE l27-50, l125-131,
+    F4-F10, §4.
+N06 NOT VALID.  Posture test 2/3 numbers (-0.157 [-0.207, -0.124], -0.069 / -0.087 / -0.002, 1.26°, knees -0.222,
+    hips -0.149, c0 -0.392 [-0.76, -0.24], G +0.010, fixed point -1.20 (a change, as PPOL's table header gives it),
+    9 -> 0, reverse -0.023, closed loop -0.190 (0/11), 0.671 -> 0.154 / 0.896 / 0.392, 37/60 -> 8/60, s80 +0.025, 0 of
+    240, G/c0 of starts and ends, rho -0.61 / -0.93; plant maps, costs 0.0989 / 0.0986 / 0.0984, terms, hold commands,
+    14.49 N m, 0.013° and 0.0025, 1/60) and VPOST's beside them (-0.163, -0.436, -0.64, 28/40 -> 0/40, 0.82, 0.0982 /
+    0.0978 / 0.0978, 0.0004, -0.071 vs -0.122, T2-5 -0.206 and mid-rise 0.36 / 0.60, T2-7 -2.42 / -1.83 / -1.22 and
+    about -0.1): PPOL l19-212; VPOST l140-206.  All match.
+N07 NOT VALID.  VPOST M1/M2/M6 numbers (+0.005, G -0.250, c0 -0.06; -0.020, G -0.386, c0 +0.238, -0.058, control
+    -0.002; s60 +0.013 / +0.085 / +0.045 / +0.027 / +0.005, G -0.47 -> +0.32, c0 +0.02 -> +0.61; -0.72 vs -0.28) and
+    F1/F2 timing (1.204 / 1.212 / 1.384 / 1.442 / 1.638M; +0.172M [+0.074, +0.270], 400 resamples; -0.42, -0.29,
+    -0.26; ECS -0.56): VPOST l20-29, l67-86, l175-182, l211-227.  All match.
+N08 NOT VALID.  RUNLOG facts: l754 (19:55, workflow [id removed], the three tests, nice 15, no Drive), l756 (restart ~20:50,
+    probe:verify and test2-3 killed, resumed from caches), l757 (22:39, "done and verified", the update launched with
+    a fact checker); E02's "721 to 757 (2026-10-28 21:05 UTC to 2026-10-29 22:39 UTC)": l721 and l757 timestamps.
+N09 NOT VALID.  §4.11 "root pitch -1.35° against -0.25°, CoM -25.7 against -32.4 mm, both already in the start
+    checkpoints [L132]": ledger L132 result.
+N10 NOT VALID.  §8.3 bank row "first rose 0.05 above its reference at 1,409,024 (PTIME bank_drive.txt l28)": l28
+    "tail3 ref -0.061 up 1,409,024".
+N11 NOT VALID (style).  §3.6 verdict "record (§4.8)" for L157 against the ledger's "n/a": the record's other n/a rows
+    use "record" too (e.g. L132, L147).
+
+FILES (this folder)
+FIXES.txt                                this file
+record.diff                              pre-update -> post-update record diff that was checked
+check_cites.py                           ledger ids cited per section vs where_in_record (read only)
+fix_ledger.py                            the ledger fixes (C01, C02, C07, C09, C18), each matched exactly once
+TREX_TAIL_SATURATION_HABIT.pre_check.md  the record as the update left it (sha256 9e47caa9...)
+ledger.pre_check.csv                     the ledger as the update left it (sha256 8b91f790...)
+rows36.txt                               the §3.6 new rows as the update left them (reference copy)
+
+AFTER THIS CHECK
+- draft/TREX_TAIL_SATURATION_HABIT.md: 1,863 -> 1,891 lines (wc -l); sha256 1f1e7bdd...
+- draft/ledger.csv: 167 rows (L160, L161, L162, L164 edited); sha256 ebe524e5...

@@ -1,0 +1,40 @@
+PRE-REGISTERED CoM CHECK ON TRAINED POLICIES, "CoM-P1" (scratch, report-only; NOT a gate change)
+Written 2026-10-29 13:45 UTC, before any end policy's lean, turn or creep numbers were read and before the held-out
+panel ran.  What had been read by then: the statue's and the two start policies' numbers at the 2 s window (the
+analysis script's smoke test, analyze.py on the partial run) and two seeds of s42_A_1101 in the harness smoke test
+(deleted).  The rule below is fixed from those, the PR's resolution floors and the sign test's null; check.py
+implements it verbatim and is run on (a) the M1 panel, (b) the held-out panel, (c) the statue panels.
+
+Inputs.  One checkpoint, deterministic, the stance config's own env constructor (reset noise 0.05), 1,000 steps,
+a panel of seeds; every episode must stand its horizon (an episode that falls is the gate's business, not this
+check's; a panel with a fall is reported "not read").  Each episode is reduced by
+stance_track_helpers.stance_track_quality over the window from W = 5.0 s to step 1,000.
+
+Why W = 5 s.  The PR's settle rule (the first whole second after which the horizontal CoM speed RMS stays under 1
+mm/s in every second to the end) put 88 % of the start policies' 40 episodes settled by 5 s (median 3.5 s), while the
+neutral-action statue at the same spawns (noise 0.05) does not settle within 10 s at all (median 9.5 s: the
+plant's 0.5 Hz fore-aft ring, about 1 mm/s still at 9-10 s; its lateral-only settle median 6 s).  So no window inside
+the 1,000-step episode settles the statue; 5 s settles nearly every policy episode, keeps 500 samples, and is past
+the gate's settle_steps (2 s).  The end policies' settle is reported as a check of this choice, not used to move W.
+
+The flags (per checkpoint and panel of n episodes; p = stance_track_helpers.sign_test_p, two-sided):
+  LEAN-COM   com_lateral_mean_m keeps one sign: p <= 0.005 AND |median over seeds| >= 1.0 mm (2x the 0.5 mm floor)
+  LEAN-ROLL  root_roll_mean_deg keeps one sign: p <= 0.005 AND |median| >= 0.10 deg (2x the 0.05 deg floor)
+  LEAN = LEAN-COM or LEAN-ROLL.
+  CREEP      at least 2 of the n episodes creep, an episode creeping when the least-squares speed of its feet's mean
+             horizontal position over the window is >= 1.0 mm/s (2x the 0.5 mm/s floor; the robot's creep reads
+             3.2-4.4 mm/s).  One odd episode does not flag a panel (the gate's max_hop_or_fall_episodes = 1 logic).
+  Report-only, not flags: the same sign rule on left_load_share_mean - 0.5 (floor 0.01) and on root_turn_deg
+  (floor 0.10 deg); the feet's creep direction (fore-aft component in the heading frame) sign test.
+
+Null.  Under a mirror-symmetric plant and a mirror-symmetric spawn distribution [inferred for the reset noise:
+i.i.d. symmetric per-coordinate noise], each lean key's sign is +/- with probability 1/2 per episode, so
+P(p <= 0.005) = P(>= 17 of 20 one way) = 2702/1048576 = 0.0026 per key on 20 seeds, <= 0.0052 for LEAN; with the
+magnitude floor it is lower still.  The neutral-action statue at the same spawns is that null, measured: the M1
+seeds and five more 20-seed panels (seeds 3062-3161).
+
+Replication on the held-out panel (seeds 3062-3071, 10 seeds, the next seeds of the gate's 3042-3081 panel; 10 to
+keep the CPU budget).  A flagged key REPLICATES when at least 9 of the 10 held-out episodes have the sign of its M1
+median (one-sided p = 0.011).  A flag that does not replicate is counted a false alarm of the check on that
+policy; a flag that replicates is a reproducible bias of the checkpoint (not a statement that it matters).
+Also reported: the n = 10 form of every flag on the held-out panel (p <= 0.005 needs 10 of 10, p = 0.002).

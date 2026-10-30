@@ -1,0 +1,262 @@
+ADVERSARIAL VERIFICATION OF THE NORMALISER PROBE (com_revisit/notes/probe), role "verify_probe"
+Written 2026-10-29, about 21:25 UTC.  I did not run the probe.  This is exploratory and report-only.
+- No training of any kind.  Simulation and network evaluation only.
+- Every file I wrote is in this folder:
+  /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/com_revisit/notes/verify_probe/
+- Paths below are relative to this folder.
+- Labels:
+  - [measured] = one of my scripts computed it; the output file is named.
+  - [inferred] = reasoned; the basis is given.
+
+==================================================================================================================
+0. VERDICT IN SHORT
+==================================================================================================================
+- The probe's measurements reproduce bit-for-bit with my own code.
+  - Its network evaluator is the SB3 harness; mine reads policy.pth directly and uses my own unpickler.
+  - Closed loop: 460 of 460 episodes match by condition, policy and seed.  Return differs by at most 1.1e-11; own
+    command, tail angle and loop gain match exactly.
+  - Static: 73 of 73 checkpoints; the stored states are byte-identical.
+  - The 2x2, the swaps, the grafts and the first-layer column all match.
+- The statistics swap was really applied.  The network received the donor's statistics on exactly the intended
+  dimensions and on no others.
+- Observation indices and the VecNormalize statistics are CONFIRMED independently.
+- The headline direction holds.  At fixed weights, the drift of the tail_3 statistics lowers the loop gain.  It does
+  not raise it.  This is 12/12 in every order and every sweep range I tried.  The weights carry more than all of the
+  gain growth.
+- What is overstated, all in the "how much" part:
+  (a) The share -0.89 is not a property of the policies.  It is tied to the 0-6 deg sweep.
+    - Under the start's statistics, the 0-6 deg sweep drives z_tail3 up to +7.1, where tanh compresses.  The response
+      becomes curved.
+    - The symmetric share is -1.32 for a 0-3 deg sweep, -0.90 for 0-6, -0.47 for 3-6 and -0.26 for 4.5-6 deg.  The
+      4.5-6 deg range sits around the rail's operating point of +5.2 deg.
+    - Its sign is negative in all ranges, 12/12.
+  (b) The claim "without the drift, 8 (closed loop) / 9 (static) of 12 ends would have loop gain above 1" does not
+    hold up.
+    - It is range-dependent: 12/12 for 0-3 deg, 9/12 for 0-6, 2/12 for 3-6, 1/12 for 4.5-6.
+    - It is also not a "without the drift" counterfactual.  The end weights co-evolved with the drifted statistics.
+      With the start's statistics they run at z6 of about +6.1 in closed loop, against about +2.1 under their own
+      statistics.  That is outside the range they were trained on.
+  (c) The sensitivity growth per normalised unit (Jz) of x5.4 compares slopes over different z ranges.  On matched z
+    ranges it is x4.3 to x4.65.  That is still well above the x2.29 that compensating the scale alone would need.
+  (d) "A shrinking scale can only lower the gain" holds for the variance part.  The mean part of the drift acts the
+    other way.
+    - The drifted mean raises the gain in 12/12, at both start and end weights.
+    - The effect is +0.02 at the end variance and +0.14 at the start variance, so it depends on the order.  The
+      probe's "mean moves the gain by under 0.03" is order-dependent.
+  (e) In s80 the 0-6 deg sweep reaches the normaliser's clip (|z| = 10) at 3.1-4.0 deg.  48% of the sweep points are
+    clipped.
+    - So the s80 gain values are about half of the unclipped slope.
+    - The probe's "no tail value comes near the clip" is true for s42 only.
+    - s80's "inert tail statistics" still holds over the unclipped 0-2.5 deg range.
+
+==================================================================================================================
+1. WHAT I RAN (all with the session venv, -B, OMP/MKL 1 thread, nice 10; simulations one process at a time)
+==================================================================================================================
+- Resume after the 20:50 container restart.  The earlier attempt left v_layout.* and v_stats.*.  I re-ran both at
+  21:19 and the outputs were byte-identical (txt and json), so they are complete and kept.
+- code/ is my copy of the environment code.  diff -rq shows it is identical to policies/code_copy, which the probe
+  used.  Against r10round/ecs/code it differs only in two test helper files.
+- v_layout.py -> v_layout.txt [measured]
+  - For each hinge joint, perturb qpos and then qvel, call _get_obs(), and list the entries that change.
+  - Also maps actuators to joints.
+- v_stats.py -> v_stats.txt, v_stats.json [measured]
+  - My own restricted unpickler: no SB3, every class is a stub.
+  - All 168 pickles.
+- v_common.py
+  - My evaluator: actor read straight from policy.pth (63 -> 512 tanh -> 256 tanh -> 15), my normaliser formula, my
+    rollout, and my re-implementation of the verifier's sweep.
+- v_check_eval.py -> v_check_eval.txt [measured]
+  (1) My evaluator against the harness loader (load_sb3_checkpoint) on 6 checkpoints.
+  (2) The probe's own Agent, from probe_copy/probe_common.py.  This is a byte-identical copy (sha256 02fd34bc...).
+    - Its model.predict is wrapped, so I record the normalised observation the network actually receives during a
+      60-step rollout.
+    - This was done under each swap, set up exactly as run_swaps.py does it.
+- v_loop.py + run_v_loop.sh -> v_ckpts.jsonl, v_swaps.jsonl, v_s80ends.jsonl, *.states_*.npz [measured]
+  - v_ckpts: all 73 s42 checkpoints, seed 3042.
+  - v_swaps: 460 closed-loop episodes, seeds 3042-3061.
+    - s42 start own.
+    - s42_A_1111 (highest gain), s42_A_1151 (the one end that does not rail) and s42_B_1251 (lowest gain), each under
+      own, endW_startN, endW_startN_t3q, startW_endN and startW_endN_tail.
+    - s80 start own.
+    - s80_B_1421 (largest s80 scale drift) and s80_A_1331, each under own, endW_startN_tail and startW_endN_tail.
+    - The episode loop also records the in-loop z6 check.
+  - v_s80ends: the s80 start and 12 ends, seed 3042.
+  - Runs: 21:01-21:17 UTC; s80ends at 21:18.  Zero falls in 533 episodes.
+- v_analyze.py -> v_analyze.txt [measured]
+  - Part A: per-checkpoint gains and regression.
+  - Part B: static 2x2, swaps, mean/variance split, grafts and the w6 column, on MY states.
+  - Part C: my 460 rows against the probe's rows, plus my own summary.
+- v_range.py -> v_range.txt [measured]: gain and 2x2 share by sweep range.
+- v_jz.py -> v_jz.txt [measured]: Jz growth on matched z ranges.
+- v_s80clip.py -> v_s80clip.txt [measured]: s80 clip onset and the unclipped-range gains.
+- v_terms.py -> v_terms.txt [measured]
+  - Reward-term deltas re-derived from the probe's swaps/episodes.jsonl.
+  - Those rows were shown identical to mine where they overlap.
+
+==================================================================================================================
+2. CHECKS ASKED FOR
+==================================================================================================================
+2.1 Observation indices (from the env code)  -> CONFIRMED [measured: v_layout.txt; code read]
+- base_env.py:974 _get_obs builds the observation as:
+  - qpos[7:] then qvel[6:];
+  - then gravity, pelvis_gyro, heading_velocity, pelvis_accel, foot_contact(2), prey_direction_body, prey_distance,
+    command;
+  - 63 values in all.
+- Perturbing each joint moves exactly one entry:
+  - tail_1_pitch 3 / 24;
+  - tail_1_yaw 4 / 25;
+  - tail_2_pitch 5 / 26;
+  - tail_3_pitch 6 / 27 (qposadr 13, dofadr 12).
+- Actuator 14 is tail_3_pitch_act and drives tail_3_pitch, so the sweep's action index 14 is right.
+
+2.2 VecNormalize statistics (own reader)  -> CONFIRMED with two small corrections [measured: v_stats.txt]
+- eps 1e-8, clip 10, norm_obs and norm_reward True in all 168 pickles.
+- The start pickle is byte-identical across the 12 runs (one sha256).
+- Counts: 6,291,464 -> 9,437,200 (s42).  524,288 or 524,296 frames are added per interval.
+- s42 tail_3 angle, medians:
+  - mean +0.466 -> +1.488 deg;
+  - sd 0.781 -> 1.787 deg;
+  - scale 1.281, 0.973, 0.790, 0.689, 0.630, 0.590, 0.559 per deg;
+  - end/start ratio 0.437 [0.420..0.451].
+  - It ranks first of 63, both by scale change and by mean shift (1.31 start sd).
+- Implied mean of the frames added per interval: +2.77, +3.35, +3.61, +3.75, +3.89, +3.86 deg.  These are identical to
+  the probe's.
+- The harness loader gives the same statistics bit-for-bit, 6/6 [v_check_eval.txt].
+- Correction 1: "other tail dims changed at most x0.96-1.15" is not right.
+  - The tail velocities reach x1.19 (tail_1_pitch:v 1.194, tail_1_yaw:v 1.177).
+  - Like every joint velocity, they share the x1.15-1.21 calming of the stance.
+- Correction 2: the s80 tail_3 rank is 53 of 63 by median |log ratio|.
+  - The probe's header names that definition, but its code (read_stats.py:146) ranks by |median log ratio|.  That
+    gives 55.
+  - It is immaterial either way.
+
+2.3 Loop gain on at least 3 policies  -> CONFIRMED [measured: v_analyze.txt A, B, C]
+- Done on all 73 s42 checkpoints at seed 3042, and closed loop on 3 s42 ends plus 2 s80 ends at 20 seeds.
+- Per-step medians: 0.268, 0.401, 0.467, 0.513, 0.541, 0.583, 0.630.
+- OLS slope -0.519, R^2 0.48, Spearman -0.73, log-log slope -0.81.
+- Jz 0.0403 -> 0.2187; the per-run ratio median is 5.42.
+- The 2x2 on X_end: 0.630 / 1.143 / 0.141 / 0.264, share -0.89.  On X_start: 0.650 / 1.203 / 0.144 / 0.268, share
+  -0.88.
+- tail_3-only 1.162, tail-8 1.162, variance-only 1.303, mean-only 0.609.
+- All of these are identical to the probe's.
+
+2.4 The swap was actually applied  -> CONFIRMED [measured: v_check_eval.txt (2); v_analyze.txt C]
+- Inside the probe's own loop, model.predict received exactly the donor-formula z.  The max difference was 0.
+- The dimensions differing from the agent's own-statistics z were:
+  - [6] for the t3q swap;
+  - [3, 4, 5, 6, 24, 25, 26, 27] for the tail-8 swap;
+  - 60 dimensions for the full swaps.  The 3 command dimensions are 0 under both.
+- Example: endW_startN at step 60, raw tail_3 +4.18 deg.
+  - The network saw z6 = +4.760.
+  - Under its own statistics z6 would have been +1.497.
+- In my 460 episodes, z6 equals the condition formula within 3.5e-7 (float32).
+- Closed-loop mean z6 over steps 500-1000:
+  - s42 ends with start statistics: +6.07, against +2.07 own;
+  - start with end statistics: +0.35, against +2.13.
+
+2.5 Does each "how much the normaliser explains" conclusion follow?  See section 3 (F5, F9, F10) and section 0.
+
+==================================================================================================================
+3. FINDING BY FINDING
+==================================================================================================================
+F1 CONFIRMED.  Indices 3/24, 4/25, 5/26, 6/27 (v_layout.txt; base_env.py:974).
+
+F2 CONFIRMED, with minor corrections (v_stats.txt):
+- The other tail dimensions span x0.96-1.19, not up to x1.15.
+- The s80 rank is 53 or 55 depending on the ranking definition.  The probe's header and its code disagree.
+
+F3 CONFIRMED.  Counts and implied means are identical (v_stats.txt).
+
+F4 CONFIRMED.  Every number reproduces exactly (v_analyze.txt A).
+- Caveat: x5.4 is a slope ratio over different z ranges.
+  - Start: z -0.6 to +7.1, where tanh compresses.
+  - End: z -0.8 to +2.5.
+  - On matched ranges the ratio is x4.3-4.65 (v_jz.txt).
+
+F5 CONFIRMED as measured under the verifier's 0-6 deg definition (v_analyze.txt B).  Caveats:
+- The share depends on the range: -1.32 / -0.90 / -0.47 / -0.26 for 0-3 / 0-6 / 3-6 / 4.5-6 deg (v_range.txt).
+- A log-scale symmetric share is -0.74.
+- The interaction term is large: G(We,Ne) - G(We,Ns) - G(Ws,Ne) + G(Ws,Ns) = -0.38.  So any single "share" depends
+  on the convention.
+- The sign (normaliser part < 0) holds 12/12 at both weight sets in every range.
+- The mean-only effect depends on the order: -0.021 at the end variance, -0.141 at the start variance.  In both, the
+  drifted mean raises the gain.
+
+F6 CONFIRMED (v_analyze.txt C; v_check_eval.txt):
+- 460/460 of my closed-loop episodes are identical to the probe's rows.
+- Medians for the 3 s42 ends match swaps.txt:
+  - gain 1.670 / 1.067 / 0.816 with the start's statistics;
+  - own command 1.000 and rail share 1.00 under the swap;
+  - s42_A_1151 goes from 0.851 to the rail;
+  - start W with end statistics: 0.143, own command 0.41, tail +2.1 deg.
+- My own baseline equals the clamp runner's unforced episodes, 140/140.
+- The probe's file holds 2,680 episodes with 0 falls, and 8/12 ends above 1 for the all-63 swap.
+
+F7 CORRECTED (minor):
+- The s80 tail-only swaps are small but not null.
+  - End W with start tail statistics: gain change -0.005, but 11/12 lower.  s80_B_1421 loses -8.5 in return
+    (0/20 seeds up).
+  - Start W with end tail statistics: return +1.0, 11/1 (p 0.006).
+- The full swap's -21.6 is only partly neck_posture: a median of 22% per policy.  action_saturation is -13 to -29 in
+  the large-loss policies (v_terms.txt).  The +21.8 is neck_posture (+23.1).
+- The s80 sweep is clipped beyond 3.1-4.0 deg (v_s80clip.txt).
+- Inertness still holds over 0-2.5 deg:
+  - end W with start tail_3 statistics: -0.003;
+  - start W with end tail_3 statistics: +0.019 (median).
+
+F8 CONFIRMED (v_analyze.txt B):
+- w6 norm ratio 0.996-1.006; cosine 0.9977-0.9989.
+- Graft medians: 0.586 (L0) / 0.340 (L2) / 0.383 (OUT), 12/12 lower.
+- End's single layer into the start: L0 0.177, L2 0.352, OUT 0.292.
+
+F9 CORRECTED:
+- What holds:
+  - The fixed-weight effect of the drift opposes the gain growth (12/12, every range).
+  - The weights carry more than all of the growth.
+- What does not:
+  - "Explains none" is true only of the direct, fixed-weight effect.  F10 itself cannot exclude an indirect effect
+    through training.
+  - "At fixed weights a shrinking scale can only lower the gain" is a statement about the variance part.  The mean part
+    of the drift raises the gain 12/12, though less.
+  - "Without the drift, 8 / 9 of 12 ends would exceed 1" is an out-of-distribution evaluation of co-adapted weights
+    (z6 about +6.1, against about +2.1 in training).  The count is also range-dependent: 1/12 above 1 for the
+    4.5-6 deg sweep around the operating point (v_range.txt).
+  - The basis "near-linear network (x2.07 vs x2.29)" is weak.  Under the start's statistics, the 0-3 deg slope is
+    0.271 and the 3-6 deg slope is 0.175 per deg (v_analyze.txt B).
+
+F10 CORRECTED (minor):
+- The compensation comparison should use matched-range growth: x4.3-4.65 against x2.29, not x5.4.
+- The conclusion stands.  Compensation cannot be the whole story, and part of it may be.
+- Add the s80 clip to the stated limits.
+
+==================================================================================================================
+4. MISSED BY THE PROBE
+==================================================================================================================
+- Sweep-range dependence: the share and the "above 1" counts move with the range (v_range.txt).
+- tanh compression under the start's statistics.  This makes the start's own 0-6 deg gain (0.268) partly a
+  saturation effect: 0.32 over 0-3 deg against 0.18 over 4.5-6 deg.
+- The s80 sweep hits clip_obs = 10 at 3.1-4.0 deg.  The probe's "no tail value comes near the clip" holds for s42 only;
+  s42's clip onset is 8.3 deg.
+- The mean part of the drift raises the gain (12/12).  The probe calls it negligible, but its size depends on the
+  order.
+- Swapped networks run out of distribution in closed loop (z6 +6.1 against +2.1).  This limits every "end weights with
+  start statistics" reading.
+- The large interaction term (-0.38) in the 2x2.
+- Small wording items: the tail-velocity drift range (x1.19), and the ranking-definition mismatch in read_stats.py.
+
+==================================================================================================================
+5. RULES AND COST
+==================================================================================================================
+- Nothing was written under /home/user/mesozoic-labs: git status --porcelain is empty.
+- Nothing was written under r10round, probe/ or any other agent's folder.
+  - find -newer v_layout.py over probe/ and r10round/ecs lists nothing.
+  - probe_common.py was copied into probe_copy/ and imported from there.
+- No .pyc or __pycache__ in this folder.
+- Simulations ran one process at a time:
+  - v_check_eval 21:00;
+  - v_loop 21:01-21:17;
+  - v_s80ends 21:18;
+  - v_layout re-run 21:19.
+- Static scripts are network evaluation only.
+- This folder is about 26 MB.  No large temporary files remain.  The superseded partial v_analyze_ab.* was removed
+  after checking that it matched v_analyze.txt.

@@ -1,0 +1,156 @@
+diff --git a/environments/shared/tests/stance_track_helpers.py b/environments/shared/tests/stance_track_helpers.py
+index f2b0d508..97c0dd53 100644
+--- a/environments/shared/tests/stance_track_helpers.py
++++ b/environments/shared/tests/stance_track_helpers.py
+@@ -557,3 +557,81 @@ def lean_sign_summary(
+             "sign_test_p": sign_test_p(positive, negative),
+         }
+     return out
++
++
++def feet_creep_speed(track: StanceTrack, *, window_start_s: float) -> dict[str, float]:
++    """How fast the feet's mean horizontal position moves over the window: a stance that creeps.
++
++    The least-squares velocity of the foot reference points' centroid over the window, in m/s: its magnitude
++    (``feet_creep_speed_mps``) and its components along the window's mean heading (``feet_creep_fore_aft_mps``,
++    + forward) and left of it (``feet_creep_lateral_mps``).  A settling slide or a buzz back and forth averages
++    out; a steady creep (the Compsognathus robot's 3.2-4.4 mm/s) does not.  Not one of
++    :func:`stance_track_quality`'s keys, so no species pin reads it.
++    """
++    s = stance_track_series(track)
++    t = s["t"]
++    w = window_mask(t, window_start_s)
++    if int(w.sum()) < MIN_WINDOW_SAMPLES:
++        raise ValueError(f"the window holds {int(w.sum())} samples; at least {MIN_WINDOW_SAMPLES} are needed")
++    tw = t[w]
++    feet = s["foot_xy"][w].mean(axis=1)
++    velocity = np.array([_slope(tw, feet[:, 0]), _slope(tw, feet[:, 1])])
++    forward = s["forward"][w].mean(axis=0)
++    forward = forward / max(float(np.linalg.norm(forward)), 1e-12)
++    left = np.array([-forward[1], forward[0]])
++    return {
++        "feet_creep_speed_mps": float(np.linalg.norm(velocity)),
++        "feet_creep_fore_aft_mps": float(velocity @ forward),
++        "feet_creep_lateral_mps": float(velocity @ left),
++    }
++
++
++#: CoM-P1, the same-side lean and creep check on a trained policy's panel of deterministic episodes: a lean key
++#: flags when it keeps one sign across the seeds (two-sided sign test p <= ``alpha``) and its median is at least
++#: its floor (twice the key's resolution floor); the panel creeps when ``creep_episodes`` or more episodes'
++#: feet creep at ``creep_speed_mps`` or more.  The window and the numbers were fixed before the ECS policies'
++#: readings (com_revisit notes, policies/PREREG.txt); see :func:`policy_com_check`.
++POLICY_CHECK_LEAN_FLOORS: dict[str, float] = {"com_lateral_mean_m": 1.0e-3, "root_roll_mean_deg": 0.10}
++POLICY_CHECK_ALPHA = 0.005
++POLICY_CHECK_CREEP_SPEED_MPS = 1.0e-3
++POLICY_CHECK_CREEP_EPISODES = 2
++
++
++def policy_com_check(
++    per_seed: Sequence[Mapping[str, float]],
++    creep_speeds_mps: Sequence[float],
++    *,
++    alpha: float = POLICY_CHECK_ALPHA,
++    lean_floors: Mapping[str, float] = POLICY_CHECK_LEAN_FLOORS,
++    creep_speed_mps: float = POLICY_CHECK_CREEP_SPEED_MPS,
++    creep_episodes: int = POLICY_CHECK_CREEP_EPISODES,
++) -> dict[str, Any]:
++    """CoM-P1 on one checkpoint's panel: does it lean to the same side on (nearly) every seed, or creep?
++
++    *per_seed* holds each episode's :func:`stance_track_quality` numbers and *creep_speeds_mps* each episode's
++    ``feet_creep_speed_mps`` (:func:`feet_creep_speed`), over the same window, every episode one that stood its
++    horizon.  Per lean key: :func:`lean_sign_summary`'s counts and p, the median over seeds and ``flag`` (p <=
++    *alpha* and |median| >= its floor).  ``lean`` is any key's flag; ``creep_seed_indices`` the episodes at or
++    over *creep_speed_mps*; ``creep`` whether there are *creep_episodes* of them or more.  Under a
++    mirror-symmetric plant and spawn distribution each key flags with probability at most 0.0026 on 20 seeds,
++    so ``lean`` at most 0.0052; the neutral-action statue at the same spawns is that null.  Report-only: no
++    gate reads it.
++    """
++    if len(per_seed) != len(creep_speeds_mps):
++        raise ValueError("one creep speed per episode")
++    summary = lean_sign_summary(per_seed, keys=tuple(lean_floors))
++    out: dict[str, Any] = {"n": len(per_seed)}
++    lean = False
++    for key, floor in lean_floors.items():
++        values = np.array([float(m.get(key, NAN)) for m in per_seed], dtype=np.float64)
++        values = values[np.isfinite(values)]
++        median = float(np.median(values)) if values.size else NAN
++        flag = bool(summary[key]["sign_test_p"] <= alpha and abs(median) >= floor)
++        out[key] = {**summary[key], "median": median, "floor": float(floor), "flag": flag}
++        lean = lean or flag
++    speeds = np.asarray(creep_speeds_mps, dtype=np.float64)
++    creeping = [int(i) for i in np.flatnonzero(~(speeds < creep_speed_mps))]
++    out["lean"] = lean
++    out["creep_seed_indices"] = creeping
++    out["creep"] = len(creeping) >= creep_episodes
++    return out
+diff --git a/environments/shared/tests/test_stance_track_reduction.py b/environments/shared/tests/test_stance_track_reduction.py
+index 9b9c8618..7435bfc6 100644
+--- a/environments/shared/tests/test_stance_track_reduction.py
++++ b/environments/shared/tests/test_stance_track_reduction.py
+@@ -39,9 +39,11 @@ from environments.shared.tests.stance_track_helpers import (
+     SUPPORT_SERIES,
+     StanceTrack,
+     convex_hull,
++    feet_creep_speed,
+     first_violation,
+     lean_sign_summary,
+     nearest_edge_side,
++    policy_com_check,
+     ray_margin,
+     sign_test_p,
+     signed_margin,
+@@ -510,6 +512,53 @@ def test_the_lean_sign_summary_flags_a_lean_of_one_sign_on_every_seed():
+     assert roll["same_sign_fraction"] == pytest.approx(0.9)
+ 
+ 
++def test_a_steady_creep_reads_as_the_feets_speed_and_a_buzz_or_a_settling_slide_does_not():
++    def creep(t):
++        slide = np.zeros((t.size, 2, 2))
++        slide[:, :, 0] = -0.003 * t[:, None]  # both feet backwards at 3 mm/s (the robot's creep)
++        return slide
++
++    def buzz_and_slide(t):
++        slide = np.zeros((t.size, 2, 2))
++        slide[:, :, 0] = 0.002 * np.sin(2 * np.pi * 5 * t)[:, None] + 0.004 * np.minimum(t, 1.0)[:, None]
++        return slide
++
++    yaw = 0.7  # the heading frame turns the creep's world direction back into "backwards"
++    c, s_ = math.cos(yaw), math.sin(yaw)
++    rot = np.array([[c, -s_], [s_, c]])
++
++    def turned(fn):
++        return lambda t: fn(t) @ rot.T
++
++    got = feet_creep_speed(_track(601, yaw=lambda t: np.full(t.size, yaw), foot_xy=turned(creep)), window_start_s=1.0)
++    assert got["feet_creep_speed_mps"] == pytest.approx(0.003)
++    assert got["feet_creep_fore_aft_mps"] == pytest.approx(-0.003)
++    assert got["feet_creep_lateral_mps"] == pytest.approx(0.0, abs=1e-12)
++    still = feet_creep_speed(_track(601, foot_xy=buzz_and_slide), window_start_s=1.0)
++    assert still["feet_creep_speed_mps"] < 2e-4  # a 5 Hz buzz of 2 mm over whole periods and a slide before the window
++
++
++def test_the_policy_check_flags_a_same_side_lean_over_its_floor_and_a_creep_on_two_episodes():
++    lean = [
++        {"com_lateral_mean_m": -0.002 + 0.0001 * k, "root_roll_mean_deg": 0.05 if k % 2 else -0.05} for k in range(20)
++    ]
++    out = policy_com_check(lean, [0.0] * 20)
++    assert out["com_lateral_mean_m"]["flag"] and out["lean"] and not out["creep"]
++    assert out["com_lateral_mean_m"]["sign_test_p"] == pytest.approx(2.0 / 2**20)
++    assert not out["root_roll_mean_deg"]["flag"]  # 10 and 10
++    small = [dict(m, com_lateral_mean_m=-0.0005) for m in lean]  # one-sided on every seed, under the 1 mm floor
++    assert not policy_com_check(small, [0.0] * 20)["lean"]
++    sixteen = [dict(m, com_lateral_mean_m=(-0.002 if k < 16 else 0.002)) for k, m in enumerate(lean)]
++    assert not policy_com_check(sixteen, [0.0] * 20)["lean"]  # 16 of 20: p 0.012 > 0.005
++    seventeen = [dict(m, com_lateral_mean_m=(-0.002 if k < 17 else 0.002)) for k, m in enumerate(lean)]
++    assert policy_com_check(seventeen, [0.0] * 20)["lean"]  # 17 of 20: p 0.0026
++    speeds = [0.0] * 18 + [0.0011, 0.0009]
++    assert policy_com_check(lean, speeds)["creep_seed_indices"] == [18] and not policy_com_check(lean, speeds)["creep"]
++    assert policy_com_check(lean, [0.0] * 18 + [0.001, 0.004])["creep"]
++    with pytest.raises(ValueError, match="one creep speed per episode"):
++        policy_com_check(lean, [0.0])
++
++
+ def test_a_recorder_trace_reads_as_a_track_with_its_spawn_first():
+     steps, dt = 50, 0.02
+     # The CoM creeping forward, so the spawn sample differs from the first step's.

@@ -1,0 +1,157 @@
+ADVERSARIAL VERIFICATION OF THE CREEP SCAN (anatomical Compsognathus and Velociraptor)
+Verifier notes, written 2026-10-29 ~20:00 UTC.  I did not run the scan; I tried to refute it.
+Folder: scratchpad/com_revisit/notes/verify_scan/ (paths below are relative to it).
+Full path: /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/com_revisit/notes/verify_scan/
+Read only: ../scan/ (never written; mtimes unchanged), /home/user/mesozoic-labs (git status clean), r10round, other
+agents' folders.  No training.  Python 3.13 scratchpad venv, mujoco 3.10.0; PYTHONPATH=tree (my own copy), OMP/MKL
+threads 1, nice 10, python -B (no .pyc anywhere: checked), one simulation process at a time.
+tree = `git -C /home/user/mesozoic-labs archive 378ae2f8 environments configs conftest.py pyproject.toml | tar -x`
+       (identical to the scan's wt_scan: diff -rq clean).  Deleted at the end to save disk (25 MB); recreate with that
+       command before re-running any script here.
+[measured] = computed by the named script here, output file named.  [inferred] = reasoned, basis given.
+
+======================================================================================================================
+MY HARNESS (vs_lib.py) -- independent of the scan's scanlib.py / creeplib.py
+======================================================================================================================
+Shares only the code under test: the committed test classes' make_env, run_tracked_episode (stepping) and the test
+reduction (for its own com_speed_end_rms_mps).  Computed here from raw MjData:
+  - foot attribution by kinematic subtree (the root child that carries each foot's site), not Morphology.geom_foot;
+  - body weight = summed mass of the animal's kinematic tree x g; CoM = mass-weighted xipos (not subtree_com);
+  - my own end speed (forward differences), foot travel after 1 s, per-substep per-foot load sd (last 2 s,
+    detrended), unloaded fraction, root vz, per-foot world lateral floor force, and per-geom floor contact over the
+    WHOLE episode (every substep).
+Same bars as the scan: speed 1 mm/s, foot travel after 1 s 5 mm, load sd 1 % of body weight; creep3 = all three.
+
+======================================================================================================================
+VERDICTS
+======================================================================================================================
+F1  CONFIRMED   0 creep in every block; my re-run of 168 of the 962 spawns reproduces every flag.
+F2  CORRECTED   p = 0.0018 holds; the 2.7e-5 compares a noise-mixed pool with the robot at 0.02 only.  Matched noise
+                (0.02 only): 0/280 vs 16/480, p = 9.1e-4.
+F3  CORRECTED   detector works (and catches all 10 known robot creepers, not only 111/143; 32 resting robot seeds
+                clean); but "statues hold their pins to 4e-6" holds only for SI keys (4.3e-6); degree keys are off by
+                up to 3.7e-5 deg (inside the 1e-4 deg rounding).  "Bit for bit with creeplib" is by construction (same
+                run_tracked_episode + reduce path), not independent evidence.
+F4  CORRECTED   Compsognathus end speeds are 1000x smaller than stated: 1.74e-5 mm/s (0.02) and 1.04e-5 mm/s (0.01),
+                not 0.017 / 0.0104 mm/s (scan_table.txt has it right; NOTES section 4 and F4 do not).  "Worst case
+                25 -> 0.9 -> 0.26" is a per-second maximum over different spawns (102, then 206), not one spawn.  All
+                other margins reproduce.
+F5  CONFIRMED   46/200 travel-only; 60 s runs reproduce, tau 13.97-14.02 s, clean exponential (log residual <= 0.006).
+F6  CONFIRMED   on a 22-spawn subset (claw x3: no change; 1 ms: -0.115 to +0.050 mm; lateral margin 1.81 mm).
+F7  CONFIRMED   my own probe reproduces every landing and 10 s number on seed 313.
+F8  CONFIRMED   and extended: no claw (and no non-leg geom) contact at ANY substep of 106 Velociraptor episodes.
+F9  CONFIRMED   [inferred] as a reading; compy eigenvalue 3.448 measured here.
+F10 CORRECTED   the relaxation is soft-friction slip, but its 14 s time constant is set jointly by contact softness and
+                the legs' servo stiffness (kp x2 -> 6.3 s); not by MuJoCo's soft contact alone.  It also runs at the
+                tests' 0.02 and past the 10 s horizon (seed 274: 6.8 mm of foot travel by 60 s), so "does not affect
+                the CoM tests" should read "breaks no bar at 0.02 in 280 spawns".
+
+======================================================================================================================
+EVIDENCE
+======================================================================================================================
+Sample [measured: vs_sample.py -> out/vs_sample.jsonl, out/vs_sample.log; vs_compare.py -> out/vs_compare.txt]
+  Per cell: every scan-flagged spawn plus 30 unflagged (the 6 largest by end speed, by foot travel, by load sd, the 4
+  largest by CoM window travel, then random to 30).  compy 0.02: 30; compy 0.01: 30; velo 0.02: 30; velo 0.05: all 46
+  flagged + 30 unflagged; both statues; robot at 0.02: the 10 known creepers + resting 0-29, 102, 141.  210 episodes,
+  483 s.
+  - All 168 model spawns: stood 168/168; flags (speed, travel, oscill) identical to scan.jsonl on 168/168; the test's
+    end speed bit-identical; my foot travel equal to 0.0 m; my load sd within 3.9e-16 relative of the scan's (my own
+    foot attribution); my mass-weighted CoM window travel within 3.4e-14 mm; total floor load in the last 2 s = 1.000000
+    BW on both feet on every spawn (no load missed).
+  - Maxima in my sample equal the scan's block maxima: compy 0.02 speed 1.738e-5 mm/s, travel 2.805 mm, load sd 5.82e-8;
+    compy 0.01 1.037e-5 mm/s, 1.296 mm, 5.88e-8; velo 0.02 0.09407 mm/s, 4.461 mm, 1.45e-5; velo 0.05 0.2533 mm/s,
+    9.797 mm, 5.2e-5.  No foot ever fully unloaded in the last 2 s.
+F1 [measured: vs_compare.txt; scan.jsonl audited directly]  scan.jsonl has 962 unique (model, seed, noise) rows; seeds
+  exactly 0-29, 100-149, 200-399 at 0.02 and 0-199 at 0.01 / 0.05, statue seed 0; every row stood 1000/1000 steps; spec
+  empty.  Training noises read from configs/compsognathus_longipes/anatomical/stance.toml (0.01) and
+  configs/velociraptor_mongoliensis/anatomical/stance.toml (0.05).  [inferred: base_env.reset] the scan's "training
+  noise" spawns use the test class's env with only reset_noise_scale changed; the stance configs' other dynamic keys
+  (frame_skip, horizon, compy reset_height_noise_scale 0.0 = the env default; the height draw is state-inert anyway)
+  match, so the neutral-action trajectories are those of the training env's reset.
+F2 [measured: vs_stats.py -> out/vs_stats.txt]  CP intervals 0/280 0-1.31 %, 0/200 0-1.83 %, 0/480 0-0.77 %, 10/280
+  1.73-6.47 %, 46/200 17.36-29.46 % reproduce.  Fisher 0/280 vs 10/280 p = 0.0018 reproduces.  0/480 vs 16/480 p = 2.69e-5
+  reproduces, but the 0/480 pools 200 spawns at each model's own training noise (compy 0.01, where the robot is itself
+  0/202) against a robot count taken at 0.02 only.  Like for like: 0/280 vs 16/480 at 0.02, p = 9.1e-4; 0/480 vs the
+  robot's 16/682 measured at both noises, p = 3.6e-4.  The robot counts use creeplib's speed-only definition and the
+  models' use all three flags; this is moot: all 10 known robot creepers trip all three (F3) and the models trip none.
+F3 [measured: vs_compare.txt section 1; statue deviations computed from ../scan/controls.jsonl]
+  My harness, the scan's bars:
+    known creepers 111, 143, 218, 249, 251, 271, 304, 330, 388, 390: creep3 on 10/10; test speed 3.16-4.48 mm/s (my
+      forward-difference speed 3.29-5.35), foot travel 61.0-85.5 mm, load sd 0.182-0.208 BW at 24.11 Hz (111) / 25.00 Hz
+      (others), each foot unloaded 4.8-5.0 % of the last 2 s.  Smallest margins: speed 3.2x, travel 12x, load sd 18x.
+    resting 141 / 102: 0.0000 mm/s, 1.81 / 0.47 mm, load sd 0.0000 BW: no flag.  Resting 0-29 too (32 seeds: largest
+      travel 1.81 mm, load sd 4e-9 BW, speed 0.0000 mm/s).
+  Statues vs pinned reference: compy SI keys max |dev| 4.30e-6 (com_speed_rms_mps), degree keys 2.45e-5 deg
+  (root_pitch_sd_deg); velo SI 3.96e-6 (com_fore_aft_mean_m), degree keys 3.68e-5 deg (foot_turn_from_spawn_max_deg).
+  All within the pins' rounding (5e-6 m, 5e-5 deg), so the statues do hold their pins; the "4e-6" figure covers the SI
+  keys only.  The mech.py control on robot 143 reproduces with my own probe: contact work +383.9320 / +258.7528 mJ along
+  v1 / v0, prediction error 2.1411 on right_ankle_roll (out/vs_mech.txt).
+  Note [measured, test source]: the test's speed uses np.gradient (central differences) at the control rate, which
+  has zero gain at the 25 Hz Nyquist of the robot's 50 Hz sampler; it reads the creep's drift, not its 24-25 Hz
+  buzz.  My forward-difference speed is larger (3.3-5.4 mm/s); no flag changes.
+F4 [measured: ../scan/scan.jsonl rows read directly]  compy 313 at 0.02: com_speed_end_rms_mps = 1.7376e-8 (1.74e-5
+  mm/s); compy 5 at 0.01: 1.0371e-8 (1.04e-5 mm/s).  NOTES section 4's table and F4 print 0.0174 and 0.0104 mm/s.
+  Per-second root vz RMS maxima at 0.02 come from seed 102 (s0, 25.46) and seed 206 (s1-s4, 0.91, 0.26, 0.067,
+  0.019); seed 102 alone goes 25.46 -> 0.26 -> 0.064 mm/s.  No spawn of any block has its last second above its
+  4th (the ring-down never reverses).  Other F4 numbers reproduce (see Sample).
+F5 [measured: vs_compare.txt; vs_ext.py -> out/vs_ext.txt, out/vs_ext.jsonl; vs_mech.py -> out/vs_mech.txt]
+  All 46 flagged velo 0.05 spawns re-run: travel flag only, identical.  60 s base runs (statue, 126, 1, 20 at 0.05, 274
+  at 0.02): log-linear fit of each foot's mean lateral floor force over 10-58 s gives tau 13.97-14.02 s, max log
+  residual 0.001-0.006 (a clean exponential); forces equal and opposite on the two feet; seed 126 CoM speed 3.21 (s3)
+  -> 0.0051 mm/s (s59); load sd 1e-13 to 3e-11 BW.  Seed 126 at 5-6 s: contact work -11.4628 mJ, max |v1 - (v0 + h
+  qacc)| 0.0000.
+F6 [measured: vs_fix.py -> out/vs_fix.txt]  12 of the 46 flagged spawns (every 4th) and seeds 0-9 at 0.02.  Claw
+  armature x3: travel flag 12/12, travel change 0.0000 mm, resting keys <= 0.0002 mm.  1 ms step: 12/12 still trip,
+  travel change -0.1153 to +0.0504 mm (the scan's extremes fall in my subset); resting seeds: posture means <= 0.0057 mm
+  / 0.0008 deg, com_margin_lateral_min_m 1.8128 mm.  Matches fixcheck_table.txt.
+F7 [measured: vs_mech.py -> out/vs_mech.txt; eigenvalue also in vs_mech]  Seed 313 at 0.02-0.12 s: largest eigenvalue
+  3.448 (r_ankle); prediction error up to 1.4473 on l_ankle (median 0.0353); contact work +2.7923 mJ along v1, +1.3447
+  along v0; 2.9 / 3.1 contacts per foot over 57.7 x 1.1 / 60.3 x 4.2 mm; lateral 1.77 / 1.67 N (ratio 0.39 / 0.30).
+  At 10-11 s: 10 contacts per foot over 73 x 34 mm, 0.078 N lateral, error 0.0000, work -0.0014 mJ.  Robot 141 at
+  landing: +7.3988 mJ, error 2.4574 (the scan's comparison).
+F8 [measured: vs_compare.txt, vs_ext.jsonl]  Over every physics substep of 106 Velociraptor episodes (statue, 30 at
+  0.02, 76 at 0.05) and 14 60-s runs, only l/r metatarsus, toe d3 and toe d4 ever touch the floor; claw geoms 0
+  contacts; non-leg floor force 0 N at all times.  This closes the scan's "earlier instants were not checked" for the
+  sample.  Same for the Compsognathus (plantar pad and toes only).
+F9 [inferred: F1, F7, ../verify_creep/NOTES.txt C5/C8]  Holds as an inference.  Note the robot-comparable count for the
+  Compsognathus is 0/280 at 0.02 (the 0.01 block is a noise at which the robot does not creep either).
+F10 [measured: vs_ext.py -> out/vs_ext.txt]  60 s statue (and seed 126 at 0.05), lateral-force tau:
+    base 14.02 (13.98); noslip 10: no relaxation at all (tau > 2900 s; seed 126 holds 7.35 N sideways at 59 s);
+    impratio 10: 139 (133) s; contact solref timeconst x2: 11.1 (11.0) s; servo kp x2: 6.27 s (seed 126 falls at 1.85 s
+    under kp x2, so statue only); joint damping x2: 14.09 (14.09) s.
+  So it is soft-friction slip (noslip stops it, stiffer friction slows it 10x) relaxing a landing pre-stress held by
+  the leg servos, with a time constant that scales with the friction softness and inversely with servo stiffness;
+  joint damping plays no part.  "A property of MuJoCo's soft contact" is half of it.  At 0.02 the same slide runs
+  (seed 274: tau 13.97 s; foot travel after 1 s 6.80 mm by 60 s, past the 5 mm flag); within the 10 s horizon its
+  in-window foot travel uses up to 3.19 of the 5.6 mm width.  Amplitude: lateral force at 1 s 0.48 N (statue),
+  3.1-3.7 N (0.02), 1.3-8.1 N (0.05): larger with noise on the whole, but spawn-dependent, not proportional.
+
+======================================================================================================================
+WHAT THE SCAN MISSED
+======================================================================================================================
+M1 [measured, F10] The Velociraptor's slide time constant is set by contact softness AND servo kp (kp x2 halves it;
+   impratio 10 makes it 10x longer; noslip removes the slide and leaves a 7 N sideways pre-stress in place).  Any
+   change to kp, impratio, noslip or solref (e.g. future domain randomization) changes this slide; the robot-fix
+   analogues do not.
+M2 [measured, vs_ext] The travel flag is horizon-dependent: at the tests' 0.02, seed 274 crosses 5 mm of foot travel
+   after 10 s (6.80 mm by 60 s).  A 0.02 scan on a 60 s horizon would show travel flags too; 0/280 at 0.02 is "within
+   10 s", not "never".
+M3 [measured, F4] NOTES section 4's Compsognathus end-speed column is 1000x too large (conservative direction).
+M4 [measured, F2] The headline pooled Fisher p (2.7e-5) mixes noise levels; like-for-like is 9.1e-4.
+M5 [measured, F3] The detector also catches the other 8 known robot creepers on all three flags (the scan only checked
+   111 and 143) with at least 3x margin per flag, and 32 resting robot seeds are clean: sensitivity and specificity
+   on everything known.
+M6 [inferred] Only neutral-action episodes on flat ground were scanned: pushes, policies, terrain and other MuJoCo
+   versions stay open (the scan says so).
+
+======================================================================================================================
+FILES (this folder)
+======================================================================================================================
+  vs_lib.py                         my harness (independent attribution, CoM, flags, whole-episode contacts)
+  probe.py -> out/probe.txt         feet, leg subtrees, collidable geoms of the three models
+  vs_sample.py -> out/vs_sample.jsonl, out/vs_sample.log      the 210-episode sample
+  vs_compare.py -> out/vs_compare.txt                         agreement with scan.jsonl, robot controls, contacts
+  vs_stats.py -> out/vs_stats.txt                             intervals and Fisher tests
+  vs_ext.py -> out/vs_ext.txt, out/vs_ext.jsonl               60 s runs and the tau variants
+  vs_mech.py -> out/vs_mech.txt                               landing / late mechanism probe
+  vs_fix.py -> out/vs_fix.txt                                 fix analogues spot check

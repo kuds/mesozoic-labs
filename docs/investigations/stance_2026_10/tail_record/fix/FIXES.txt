@@ -1,0 +1,223 @@
+TAIL-HABIT RECORD: FIXER'S REPORT
+Written 2026-10-29, 19:49-20:12 UTC. Read only, except for edits in scratchpad2/tail_record/draft/ (the record and
+ledger.csv, edited in place) and the files in this folder (scratchpad2/tail_record/fix/). No training, no simulation,
+no network, no Drive, no GitHub.
+
+Paths: scratchpad/ = /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad;
+scratchpad2/ = /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad. Repo paths are
+relative to scratchpad2/com_revisit/base (main 378ae2f8). RUNLOG = scratchpad/foot/stance4/live/run_log.txt (753 lines).
+C-Fnn = the completeness critic's findings; K-Fnn = the fact check's findings.
+
+WHAT CHANGED
+- Draft: draft/TREX_TAIL_SATURATION_HABIT.md, 1,302 -> 1,457 lines. The changes came from apply_fixes_draft.py (109
+  exact-match replacements; it stops if any match is not unique) and a few hand edits (the status time, the s70
+  wording, SATDIAG line 71, §8.5). The pre-fix copy is TREX_TAIL_SATURATION_HABIT.pre_fix.md, in this folder.
+- Ledger: draft/ledger.csv, 153 -> 156 rows. apply_fixes_ledger.py made 36 field substitutions and 41 marked appends
+  ("[fix, <finding>]") and added three rows: L154 (DVREV DV3/DV5 and s70's tail_2), L155 (r9 neck/head parking in
+  S3SAT) and L156 (the entropy schedule's history). apply_fixes_followup.py added SATDIAG l71 to L066, and the probe's
+  status time was refreshed by hand. The pre-fix copy is ledger.pre_fix.csv. build/build_ledger.py rebuilds only
+  L001-L153 and none of these edits. build/part*.md are now stale against the draft.
+- @@PROBE@@ is kept (5 occurrences, as before). At 20:09 UTC the probe was still running. The s42 swaps had finished
+  (swaps_s42.log, exit 0, 19:18 UTC). The s80 swaps were still being written (swaps_s80.log, 20:08 UTC; no
+  swaps.finished). There was no NOTES.txt and no verify_probe folder. L152 states this.
+
+RE-CHECKS AFTER FIXING
+- Links: all 37 distinct relative links resolve under docs/investigations/. That is the 36 before plus the new THIS12
+  link to stance_2026_10/stance6/criteria_v12_cited.txt.
+- Ledger ids: every L-id the draft cites exists in ledger.csv, and every one of the 156 rows is cited at least once.
+  L135 is now cited in §4.2, and L154-L156 in the sections listed in their where_in_record.
+- Tables: every markdown table row has its table's column count.
+- Numbers: numcheck.py checks 88 source passages, one for each fixer-touched number or quote, at its cited lines. All
+  are present except one paraphrase: DV3's "11 tail_1_pitch, 13 tail_2_pitch, 14 tail_3_pitch", given as "(11, 13,
+  14)". Every source was read before the edit (the evidence for each finding is below).
+
+COMPLETENESS CRITIC (C-F01 .. C-F24)
+C-F01 FIXED. Verified: EVID6 l137-138, l216-217, l369-373, l400-403; DVREV (r10round/design_validity/
+  findings_design_validity.txt) l71-88, written 2026-10-25 15:33 UTC; REVIEW l692-693; RUNLOG l621 (D6/D7, any tail
+  pitch actuator). Changes:
+  - New §3.5 row L154, after L096.
+  - §1.1: an s70 bullet and the "Back on r9" history line.
+  - §1.3: PARKED reads tail pitch actuators 11, 13 and 14, and why. The 0.60-line bullet notes that its figures are
+    tail_3 only.
+  - §2: the "4 of 10" is alarm-based, and a fifth run held tail_2 at +0.767.
+  - §5.1 row 7.
+  - §6.1 items 8 and 10.
+  - L089 notes that c3 was already parked on tail_2.
+  - Short-name table: DVREV.
+  - s70 is called "PARKED-like at R2", as EVID6 l402-403 has it, because its R1 and J commands were never measured.
+C-F02 FIXED. Verified: EVID6 Table A l392-401 (first saturated episodes 655,360; 7,864,320; 6,946,816; 11,403,264;
+  8,126,464; stance4 s60 none) and l122-129 (3 in 840; s52 2, s60 1, s70 0; seed 7065); DV5 l102-115 ("4 to 6 of 10";
+  the count is the reviewer's inference). Changes:
+  - §7 item 11 extended.
+  - §2 and the §8.3 "How many runs" row (reading: "4 of 10, alarm-based").
+  - L154 and L064 (sources_disagree).
+C-F03 FIXED. Verified: S3SAT §1 l31-34 (Run 3 neck_pitch -0.700, head_pitch -0.298, tail_3 +0.035; Run 2 head_pitch
+  -0.52; Run 1 tail_3 -0.375, tail_2 -0.270). These are window means pooled over 40 episodes at 4,194,304 (l16), with
+  no window step at 0.9 (l32). Changes:
+  - New row L155 in §3.3.
+  - §1.1 bullet; §4.9 bullet; §6.1 item 8.
+  - L106 adds "not new on r10". The STANCE quote itself is unchanged, because it is a quote. "Parked" for the neck is
+    labelled [inferred, this record], since the 0.60 line was defined for the tail.
+C-F04 FIXED. Verified: RUNLOG l689 (0.88-1.00 through 5.77M; -0.35..-0.56 at 6.55-6.95M; +0.67 at 7.60M); READOUTS
+  l467 (min -0.5616 at 6,946,816), l473 (-2.8239 deg), l503 (W2 parked tail_3 + 106, - 8). Changes: L099, L101,
+  §6.2 item 1 ("a cleared rail can be a swing to the opposite park").
+C-F05 FIXED. Verified: RUNLOG l621 (19:01 UTC: tail-alarm runs, 2 of 5), l627 and l628 (22:18 UTC: any-actuator, as
+  LTSB's r9 2 of 5 was counted); STANCE l4548. Changes: L096 (both wordings, their times, the reason, and When =
+  14:13-19:01 UTC with D10 worded 22:18 UTC); §6.2 item 13; ledger L096 and L109.
+C-F06 FIXED. Verified: RUNLOG l611 (item (4)) and l616 (stub unpickler); CL l263-284 (18_obs_normalization); READOUTS
+  l625 (D-15 = TEL pages 17-18); CL l1155-1164 (policy_probe.npz: the deterministic action on a 10-state bank under
+  the current and session-start normalisation; the bank is "the statue and held ankle leans"; landed with #630, CL
+  l1089). Changes:
+  - New §1.2 row for page 18.
+  - A note in the policy_probe row's limits.
+  - L095 names page 18.
+  - §4.8 gets an "Instruments" bullet, with its limit labelled [inferred].
+  - §8.1 changelog list; ledger L095 and L104.
+C-F07 FIXED. Verified: NEXT 0.2 (e) l109-117 ("screened on r9, not repeated on r10 ... untested [inferred]").
+  Changes: §2 bullet on bounding the training-row mean; §4.5 Status; §5.1 rows 4-6 Status.
+C-F08 FIXED. Verified: REVIEW l162-164 (+0.042 inside the 0.05 band; J margins +0.28, +0.13), l754-758 (s80 +0.588),
+  l759-762 (ent_coef 0 at 7,000,000; "removed"); SCREEN criteria.txt l421 (about 0.03; BOUND60's b on the line).
+  Changes: §1.3 "Limits of the line"; L082; L100; §2 Open (r10 rate); §6.1 item 10; ledger L044, L082, L100.
+C-F09 FIXED. Verified: S3SAT §4 l102 (0.1762 / 0.1532 / 0.1732); STANCE l4999 (0.114, 0.095, 0.123); READOUTS l653
+  (s42 at 3,145,728: tail_3 0.1694 against 0.1748, 0.1877, 0.1807). Added from the same source: SATDIAG §3 l71, where
+  after onset at 2.1M sigma is 0.179 / 0.194 / 0.202 and "s42 is lowest in all 15 dimensions". Changes: §4.6 "Std
+  before and after onset" (cause or effect [inferred], unknown); §5.3 log-std-floor row; ledger L066.
+C-F10 FIXED. Verified: TOML l399-438 (0.005 -> 0 by 7,000,000, no floor, std 0.05 rationale) and l444-460
+  (FALSIFIED 2026-10-07; D-D27 changed log_std_init; anneal unchanged); BOUNCE l720 (#487: 0.001 -> 0.0, 3M -> 7M);
+  REVIEW l638-641 ("every run shares one schedule"), l759. Changes: a §4.6 paragraph, new ledger row L156, and §8.1
+  TOML lines. "Every r9 and r10 stance run" rests on REVIEW l638-641.
+C-F11 FIXED. Verified: SATDIAG §7 l127 (Y1 "Against": "...hides it from the rail rather than discouraging it"); r10
+  s60 PARKED +0.642 without a flag (L100). Changes: §5.3 Y1 row; §4.10 Against ("fits the warning" labelled
+  [inferred, this record]); ledger L042.
+C-F12 FIXED. Verified: SR3 posture/brief_corrected_summary.md l13-14 in the repository copy (scratch copy l13-14
+  too; the critic's "l15-16" was off by two). Changes: L084 (cost sentence) and §5.1 row 6 Effect. Ledger L084
+  already held these returns (sweep S55).
+C-F13 FIXED. Verified: brief_v2 §4 l240-245 ("0.15-0.68"; a stated false-veto rate) and Appendix A D4 l287
+  ("0.146-0.683"). Changes: L065 and §6.2 item 6; ledger L065.
+C-F14 FIXED. Verified: RUNLOG l448 ("the never-push tail-fix code is described, not pushed"), l500 (scratch_tailfix
+  stays unpushed); scratchpad/handoff/HANDOFF.md l106-110; brief_v2 l95 ("fix/scratch_tailfix is gone"). Also,
+  scratchpad/fix/ today holds no scratch_tailfix (listed). Changes: §6.2 item 11 reworded (code left out by decision,
+  not lost with a container); §8.4; §8.2 lists the handoff files; ledger L076 (title and append).
+C-F15 FIXED. Verified: RUNLOG l468; items_for_next_session.md l3 (quoted exactly); HANDOFF.md l139-141. Changes: L056
+  and ledger L056.
+C-F16 FIXED. Verified: RUNLOG l593 ("6 down / 2 up, p 0.29 (pooled McNemar overreaches)"). Changes: L089. The ledger
+  L089 already had it.
+C-F17 FIXED. Verified: EVID6 l384-386 ("does not support a seed effect (p 0.19) [inferred]"). Changes: §4.9 Against.
+C-F18 FIXED. Verified: SCREEN criteria.txt l53-66 (BOUND60 "open ... PASS or PARKED; OTHER is a real risk"; P1 0.566
+  -> CMD 0.837). The scratch and repo copies are byte-identical. Changes: L078 and ledger L078. L078's BOUND90 sentence
+  was also corrected (see K-F27 note below): the criteria predicted BOUND90 "most likely NOT ADOPTED, with ... s80
+  reading PARKED" (l54).
+C-F19 FIXED. Verified: CRIT6 l165, l190-191 (DRIVE-BACKED), l270-272 (RAIL kinds), l279 (DRIVEN); EVID6 l224-227
+  (DRIVEN on r10 zero-shot, -0.48 to -0.73). Changes: §1.3 (tail pitch actuators and TAIL-UP, DRIVE-BACKED, the RAIL
+  kinds, DRIVEN) and L089; ledger L089.
+C-F20 FIXED. Verified:
+  - VPOL NOTES l27-28 and l181-182: s80_A_1321 falls on seed 3072, "fallen" at 2.85 s, deterministic; "all stood"
+    holds on the lens's seeds only.
+  - COMREV l83 and l130-131 (the "isolated p near 0.04" caveat).
+  Changes:
+  - The fall caveat goes in L132 only. The fall is an s80 end, and L141 (the s42 clamp) makes no claim about it.
+  - The p-value caveat goes in L132 and L141.
+  - Ledger L132 and L141.
+C-F21 FIXED. Verified: REVIEW l670-673 (0.68 / 0.91; 0.18; 0.18 / 0.41; "computed for this revision"). Changes: §7
+  option (3); ledger L112.
+C-F22 FIXED. Verified: RUNLOG l575 ("s42_b90_r101's RAIL rests on one episode at a tail-up share of 0.111"). Changes:
+  L082, together with C-F08's limit; ledger L082.
+C-F23 FIXED. Verified: KI l2064-2065 ("reads commands and is blind to the MTP servo's force saturation"). Changes: §1.2
+  gate-key row, marked as another species; §8.1 KI list.
+C-F24 FIXED. Verified: READOUTS l440 (s60 W2: tail_1_yaw_act- 12, + 12, tail_3_pitch_act+ 92); RUNLOG l681 (spread
+  -0.60..+0.56, mean ~0). Changes: L101 and ledger L101.
+
+FACT CHECK (K-F01 .. K-F31)
+K-F01 FIXED. Verified: STANCE l4101-4103 (c3 pins tail_2, c5 pins tail_3, c4 loses its rail 16 -> 36); EVID6 l400 (s70
+  no alarm). §5.1 row 7 now reads: zero-shot on SR3, the band s70 final (no r9 rail, but tail_2 at +0.767) newly pinned
+  tail_2 at +1; the band s80 4,194,304 checkpoint pinned tail_3; the s42 4,194,304 checkpoint lost its tail_3 rail.
+K-F02 FIXED. Verified: scratchpad2/com_revisit/notes/probe/run_step3.sh l11-12 pass the five conditions own,
+  endW_startN, endW_startN_tail, startW_endN and startW_endN_tail. run_swaps.py l32 defines endW_startN_t3q, and
+  analyze_static.py has sN_t3q. Changes: L152 Design; ledger L152 "what".
+K-F03 FIXED. Verified: REVIEW l315 (DRIVE ONSET 7,340,032); NEXT l104; criteria_v12_cited l585 (DRIVE ONSET = first
+  traced checkpoint with a tail pitch CMD >= +0.60); STANCE l4946-4947 (D-2: s60 at 7,962,624). Changes: §4.8 (trace
+  DRIVE ONSET named and sourced; training-row drive 7,962,624); §8.3 "Every recorded onset" row; ledger L104 and L064
+  sources_disagree.
+K-F04 FIXED. Verified: STANCE l4529-4533 ("corrected three of its premises": 12.1 to 14.4 h; Run 2 railed; 4 of 10).
+  Changes: L096 lists all three; ledger L096.
+K-F05 FIXED. Verified: decisions_v1.md l27-28 (dose 5.2 = 0.122 / 0.02362; "A NOT ADOPTED at 2.7 does not reject (c)");
+  SCREEN verify/REPORT.md l50 and STANCE l3928-3929 (the coef 2.4 sentence). Changes: the §5.3 row cites l27-28 for
+  the dose and STANCE l3928-3929 and SCREEN verify l50 for the quote, kept in STANCE's lower-case form; ledger L086
+  sources.
+K-F06 FIXED. Verified: PV l557-558 (-0.2107 rad; tail_2 -0.2029 "just above its own"); STANCE l4047 and CL l2367 (30.3
+  N·m); RUNLOG l601 (-0.21069 rad, 30.29 N.m). Changes: the §8.3 row gives the repository figures with their lines and
+  the verifier's figures with RUNLOG l601; ledger L090 sources_disagree.
+K-F07 FIXED. Verified: BOUNCE l52 (## 3), table l54-60; l11 is §1 Summary. Changes: L004 cites "BOUNCE §3 table lines
+  54-63"; §8.1 adds §3; ledger L004.
+K-F08 FIXED. Verified: NARROW l55 (§1 item 3: "Saturation became the cheapest way to be smooth"); §6 item 3 (l213-224)
+  does not use the phrase. Changes: §6.1 item 3 cites NARROW §1 item 3 lines 50-55, labelled [inferred] without
+  "there". L012's Full record adds §1 item 3 l50-55, because its first quote ("A saturated command cannot oscillate")
+  is also there. Ledger L012.
+K-F09 FIXED. Verified: S3SAT l36-37 (## 2; kp 60, ±0.2094 rad, ±50 N·m). Change: §1.1 cites "S3SAT §2 line 37".
+K-F10 NOT VALID as stated, source added anyway. Evidence: RUNLOG l575, which L081 cites, does give the steps:
+  "CONTROL s42_r202 came off the rail between 4,718,592 and 4,980,736". The finding is right that the SCREEN verify
+  lines do not. panels.csv confirms them (tail-up flags 19 / 3 / 0 at 4,718,592 / 4,849,664 / 4,980,736; frac99 0.95
+  / 0.0395 / 0.0), so it is added as a further source in L081 and ledger L081.
+K-F11 FIXED. Verified: ECS score/score.txt l55 ("not tested: a shift of the first flag within the window, a modest
+  effect, the early phase"); check/stat/NOTES.txt l124-127 (no power either direction). Changes: §6.1 item 12 is
+  restricted to s42's 3,145,728 state, with an [inferred] sentence on what was and was not seen, and notes that s80's
+  state did not rail. Ledger L127: title and append.
+K-F12 FIXED. Verified: BRIEF l46 (stiffness-40 numbers measured; "So softening the spring would not help
+  [inferred]"). Changes: §4.1 Against splits the [measured] numbers from the [inferred there] conclusion; ledger L040.
+K-F13 FIXED. Verified: BRIEF l25 (0.72 and 3.5x "[inferred; MECH probe_plant, SAT §2]"). Changes: §4.7 limits ("all come
+  from deterministic states; 0.72 is an inference ... the others are measured"); §8.3 loop-gain row labels; ledger L062
+  sources_disagree.
+K-F14 FIXED. Verified: STANCE l4917-4919 ("inferred, the review's §1.4"). Change: §4.10 Status adds "[inferred
+  there]".
+K-F15 FIXED. Verified: BOUNCE l704-718 ("Measured on the passing run: policy std starts at 1.00 and only reaches 0.42 at
+  10M"; then "The fingerprint: ... -0.967"). Changes: L007 Design ("On the passing r6 run ...; the source does not say
+  whether the correlation pools runs"); ledger L007 "what".
+K-F16 FIXED. Verified: GATEPASS l173-181 (column "run 1 (passive toes)": ~10 of 21); PASSIVE l5 (action_dim 15).
+  Changes: L014 quotes the table's headings and labels the r6 reading [inferred, this record]; ledger L014.
+K-F17 FIXED. Verified: SATDIAG l18 (the 3.1-4.2M range follows the pinned-step mean) and l19 ("[Inferred from the XML]
+  It cannot be force-clipped"). Changes: L035 and ledger L035.
+K-F18 FIXED. Verified: BOUNCE l184 and NARROW l53-55 (many actuators at once on r6/r7); SATDIAG l8 and STANCE l4943
+  (one actuator on r9/r10). Change: §2 first bullet now reads "On r9 and r10 it is a command habit of one actuator at a
+  time (on r6 and r7 many actuators were pinned at once [L004, L011])".
+K-F19 FIXED. Verified: STANCE l2425 (s42 70 at >= 5 of 10); l1869-1870 (Run 2 39 at >= 8 of 10); EVID6 l392 (Run 2
+  44 flagged). Change: §6.2 item 2 gives 70 and 44 at >= 5 of 10 and notes Run 2's 39 at >= 8.
+K-F20 FIXED. Verified: docs/investigations/stance_2026_10/stance6/criteria_v12_cited.txt l310-311. Changes: a THIS12 row
+  in the short-name table (with link); the §8.3 row names the file.
+K-F21 FIXED. Verified: STANCE l3430-3433 (s80 robust_best 393,216, inside §23.4, which starts at l3411); RUNLOG
+  l327-330 (917,504). Change: §6.2 item 1's citations.
+K-F22 FIXED, all five. Verified:
+  - L010: PASSIVE l159-160, with −25.0°/+12.0°/−8.0° restored.
+  - L020: AUDIT l170, with "−15°" restored.
+  - L049: TAILEXP l51, with "tail_3_pitch_act's Gaussian mean" restored.
+  - L106: STANCE l5009-5011, with the dropped parenthesis marked "(...)" and `tail_3` restored.
+  - §8.3 snapshot row: RUNLOG l681, with "~0.00" restored.
+  Ledger L010, L020, L049 and L099 were corrected too.
+K-F23 FIXED. Verified: TAILEXP l68-80 (CONTROL 0.9254 / re-roll 0.925375 at 5,242,880; final 0.920875) and l144 (RMS
+  0.602 over 256 mini-batches; theory 0.547 at sigma 0.162). Changes: L049 and ledger L049.
+K-F24 FIXED. Verified: BRIEF l118 (+0.031 with ±0.30, +0.052 with ±0.35). Change: §5.3 Option B row.
+K-F25 FIXED. Verified: SCREEN probes/noisevalue/analyze.out l7, l19, l35, l47 (mu +0.3157, +0.3213, +0.1914, +0.2053);
+  REVIEW l456-466 (D-9 records no own-output value). Change: the §5.2 sub-bullet names each measured case and says that
+  D-9 recorded none.
+K-F26 FIXED. Verified: STANCE l4548 (19:01; D10 at 22:18); ECS survey_design.txt l5 (19:32-19:55 UTC); KI l102 (Update
+  3, 2026-08-16, seed 44). Changes: L096 When; L114 When; L015 When ("2026-08-15 to 2026-08-16"); ledger dates.
+K-F27 FIXED. Verified: STANCE l3799-3800 (inside §24.4, which starts at l3778); l4550-4551 (§26.4); CRIT6 l285;
+  stance5/criteria.txt l70 ("none below 33/40"). Changes: §1.3 Rail (D-D43) cites §24.4 l3799-3800. PARKED cites §24.3
+  for the screen and §26.4 / CRIT6 l285 for the round. K1 adds "none below 33/40".
+  Related: L078's sentence "The criteria had predicted BOUND90 most likely PARKED at s80" was imprecise. SCREEN
+  criteria l54 has "most likely NOT ADOPTED, with ... s80 reading PARKED", so it now says that, as ledger L078 already
+  did.
+K-F28 FIXED. Verified: there is no "43%" in CLAMP NOTES, VCLAMP NOTES, static_tail.txt or COMREV; static_tail.txt l8
+  has kp/(kp+k) = 0.4286; VCLAMP NOTES l76 has "not saturated". Changes: §1.1, §6.1 item 1 and L138 now say "about 43%
+  of its 12° upward range (5.19 of 12°)" [inferred, this record]. L138's "saturated command, not a saturated actuator"
+  is labelled [inferred, this record; not a source's wording]. Ledger L138.
+K-F29 FIXED. Verified: EVID6 l396 (LTS s42 alarm 2,228,224) and l399 (LTSB s42 3,670,016); REVIEW l493-494. Change:
+  §4.9 now reads "later than in its r9 LTSB run (3,670,016)".
+K-F30 FIXED. Verified: BRIEF l43 (item 5 headed [measured]) and l47 (no [inferred] on the sentence). Change: §4.1 Status
+  now reads "(same item, under its [measured] heading; a conclusion, so [inferred, this record])".
+K-F31 FIXED. Verified: sweep_repo 91 + sweep_session 85 + sweep_today 43 = 219 entries; merged_from also holds W01 and
+  W02 (221 ids). Changes: the opening paragraph and §8.5 now give 219 sweep entries plus 2 writer entries, and 156 rows
+  after the fixer. L135 is cited in §4.2's Status.
+
+FOR THE NEXT STEP (not done here)
+- When the probe's NOTES.txt and its verifier exist, replace @@PROBE@@ (5 places: opening, §2 Open, §3.6 L152, §4.8
+  Status, §7 Pending) and update L152 and L104.

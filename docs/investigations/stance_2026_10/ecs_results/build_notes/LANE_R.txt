@@ -1,0 +1,217 @@
+ECS BUILD, LANE R (reader and scorer): build list v2 items 6, 7 and item 9's reader and scorer parts
+Written 2026-10-28 21:09-21:48 UTC (date -u) by the lane R builder of workflow [id removed] (RUNLOG l723).
+No optimizer step, no learn(), no train(), no rollout, no simulation process was run by lane R. The only subprocesses
+were the pinned M5 (ledger_r10round.py, a CSV reader) on synthetic ledgers and on copies of the parents' F2 ledgers.
+Every file lane R wrote is under <ECS> = S2/r10round/ecs: tools/read_ecs.py, tools/score_ecs.py,
+tools/tests/test_read_score_*.py, build/LANE_R.txt, and the test scratch <ECS>/tmp/lane_r_tests/ (26 MB, synthetic runs,
+truncated ledger copies, mutant copies; disposable). ecs_common.py (lane H) was imported, never edited. Nothing read
+outside the named read-only places (F2 copies, lane B tools, v1/v2 outputs, COPY code for reference, RUNLOG).
+Labels: [measured] = run or read here; [inferred] = reasoned, basis named.
+
+1. FILES (sha256 in section 9)
+  tools/read_ecs.py                       item 6: --check (CHECK, R4), the full read (R1, R2, R3), --ledger (V4)
+  tools/score_ecs.py                      item 7: classes, the two tables, the exact test, the line, PROVISIONAL
+  tools/tests/test_read_score_fixtures.py shared builders (no tests): synthetic ledgers, probes, run folders, trees
+  tools/tests/test_read_score_reader.py   item 9, reader part (22 tests)
+  tools/tests/test_read_score_scorer.py   item 9, scorer part (18 tests)
+  tools/tests/test_read_score_mutants.py  item 9, mutants (11 of the reader, 9 of the scorer; 21 tests)
+
+2. read_ecs.py
+  PY -I -B read_ecs.py --check RUN        -> RUN/check.json; exit 0 pass, 4 fail, 2 input error
+  PY -I -B read_ecs.py RUN [--out DIR] [--trace DIR]   -> DIR/{m5.json, m5.txt, read.json, r2_arrays.json}; 0 / 2
+  PY -I -B read_ecs.py --ledger CSV --S S --T T [--truncate] --out DIR                 -> V4's R1 alone; 0 / 2
+  (--root ROOT: tests only; default <ECS>.)
+  CHECK reads run_meta.json and, from RUN/01_stance/policy_probe.npz, only update_timesteps, ent_coef and
+  learning_rate (np.load, allow_pickle False; members are read only when asked), and the same three columns of the
+  parent's F2 probe after its sha256 is checked against ecs_common (FMAN). It reads no ledger, no M6 array, no end state.
+    R4: rows with update_timesteps in (S, T) must be exactly S + 8,192 k, k = 1..(T - S)/8,192 - 1 (191 at E); no row
+    at or after T (an update on the end rollout); arm A ent_coef and learning_rate equal to the parent's row at the same
+    step as float32 (exact ==, NaN never equal); arm B every ent_coef 0.0 and learning_rate as A. Seeded rows at or
+    before S are counted and printed (V3's "bank comparison went which way"), never compared.
+    run_meta (the keys ecs_common's records comment lists, as run_ecs.py writes them [measured, run_ecs.py l637-l790]):
+    schema; folder name = run_meta name/start/arm/seed (a continuation's identity is its folder name; a _crashed or
+    _void folder is refused, exit 2); seed in its T1 list; S, E; mode ("continuation" under <ECS>/runs/, "no_update"
+    under <ECS>/validate/); status "done", exit 0; code tree_digest and commit; start pair sha256; the five parent
+    records' sha256; arm_ppo = ARM_PPO_EDIT[arm] or "unchanged" (as run_ecs.py records it); ent_coef_after_load 0.005
+    / 0.0; recipe_v5.problems == [] (V5 passed before learn()); stop reason "end" at T = E with stop_at_end.flag true,
+    or "collapse" at S < T < E with collapse.tripped true; anything else (incl. "other") fails. A no-update run: T =
+    its target, params and adam digests equal at start and end, train_calls = the probe-row count.
+    check.json records the failures, the R4 detail, every source file with its sha256, run_meta's criteria sha256,
+    its tool_sha256 and approved_sha256 (for the scorer's PROVISIONAL check).
+  Full read: refused (exit 2) without a passing check.json, when run_meta.json or policy_probe.npz changed since the
+  check, and, for a continuation (RUN = <ECS>/runs/<name>), until all 24 are decided (a passing continuation
+  check.json in runs/<name>, or a lost.json entry). A run under <ECS>/validate/ needs no gate; a run anywhere else is
+  refused.
+    R1: the pinned M5 unchanged as a subprocess (E.PY -I -B M5 <ledger> --E <T> --json <out>/m5.json, cwd /tmp, OMP 1);
+    M5's and its common's sha256 recorded against ecs_common.PIN_SHA256 (a mismatch is recorded and makes the score
+    PROVISIONAL; the read is not refused). From M5's JSON, only evaluations in (S, T]: POSITIVE, first ANY-flagged
+    step, flagged count and list; ANY and TAIL alarms counted only when both evaluations lie in (S, T]; an alarm whose
+    first evaluation is at S is listed as "straddling S (not counted)"; TAIL-flagged evaluations; ANY-flagged
+    evaluations at or before S printed as the parent's, never read. M5's flagged lists are cross-checked against its
+    per-evaluation counts (>= 5 rows) and its C6 E against T (input error otherwise). C6's failures are split by their
+    text: "TAIL input missing" -> report only; grid ("absent", "beyond E", "not on the grid"), rows/episodes, "ANY input
+    missing" and any unrecognised failure -> count (missing never helps). Counting failures anywhere up to T (window or
+    seeded rows) make the continuation LOST: written to <ECS>/lost.json (cause "C6", by "read_ecs.py") under a flock on
+    lost.json.lock. Report only: mean return and length per evaluation from the ledger's own columns.
+    R2: probe rows with update_timesteps in (S, T) (the step key read in this tool's own code; the pinned M6 is not
+    used), the 8 ecs_common.M6_COLUMNS for all 15 actuators: all values in r2_arrays.json, first/last/mean/max per
+    actuator printed and in read.json.
+    R3: <ECS>/traces/<name>/m1_summary.json (default; --trace DIR otherwise): read only if its checkpoint sha256 is the
+    end pair's zip (stage1_<E>_steps.zip, a STOPPED one's stage1_final.zip), num_timesteps = T, physics_revision 10,
+    seeds 3042-3061; otherwise "not of the end pair (printed, not read)"; absent: "missing" (no hold-up).
+  Every value printed with the file and sha256 it came from (check.json, ledger, M5, M5 JSON, probe, trace).
+
+3. score_ecs.py
+  PY -I -B score_ecs.py [--out <ECS>/score] [--no-power]  -> score.json, score.txt; exit 0 final, 3 provisional or
+  incomplete, 2 input error.
+  Classes from check.json, read.json (R1), lost.json: LOST (lost.json, or R1's C6 counting failures even before
+  lost.json has it); COUNTED (stop "end" at E); STOPPED (stop "collapse", S < T < E), POSITIVE or CENSORED; otherwise
+  undecided. Records that disagree (name/start/arm/seed/S/E/T, a read.json bound to another check.json's sha256, a
+  passing check with another stop reason, a lost.json name outside the queue) are input errors.
+  INCOMPLETE while any of the 24 is undecided or a decided one has no R1 read: no line, no table, no p, no outcome word
+  is printed (tested); the undecided are listed with any kept _void/_crashed folders ("VOID until fixed").
+  Tables: as counted (known outcomes only); filled against B LOWER (arm A missing -> NEGATIVE, arm B missing ->
+  POSITIVE) for P_UP; filled against B HIGHER (the reverse) for P_DOWN; missing = LOST or CENSORED. The exact test is
+  table_e_ecs.py's stratum_null / null_T / pvals / binom / power, moved unchanged in arithmetic; SIDE = Fraction("0.025")
+  = 1/40 from ecs_common.ALPHA_PER_SIDE, so the 0.025 line is decided exactly.
+  The line (first that applies), its texts verbatim from criteria v2: 1 B LOWER, 2 B HIGHER, 3 NO DIFFERENCE DETECTED
+  (followed by each start's "arm A a of 6, arm B b of 6"), or the NOT INFORMATIVE variant when both starts carry a LOW
+  ARM-A RATE or NO ARM-A note; with "(B LOWER [B HIGHER] holds only without the n LOST or censored continuations)" when
+  that line holds on the table as counted (unequal arms, same test) but not filled. Printed beside: both tables per
+  start, P_UP and P_DOWN as exact fractions (filled; as counted, report only), the per-start notes, one-sided Fisher p
+  both ways per start (as counted and on the fills; report only), TABLE E's power figures (recomputed), every STOPPED /
+  CENSORED / LOST continuation with its cause, and one report-only line per continuation (first ANY flag or "none,
+  censored at T", flagged count, ANY/TAIL alarms, TAIL-flagged, TAIL-input-missing count, std first/last, mean return,
+  R3 CMD tail_3 / tail flags / falls).
+  R3 is read by the scorer itself at score time (R.trace_reading on <ECS>/traces/<name>), because run_waves_ecs.sh runs
+  the full reads (R1/R2) before it makes the end traces [measured, run_waves_ecs.sh l340-l392].
+  PROVISIONAL (printed, not acted on; exit 3) while any of: no <ECS>/APPROVED; no criteria.txt; criteria.txt's sha256
+  != APPROVED's criteria_sha256 (APPROVED read as JSON with ecs_common.APPROVED_KEYS; a text APPROVED is read line by
+  line); APPROVED code_tree_digest != the pin; any ecs_common.TOOL_FILES entry without a tool_sha256 pin; any pinned
+  file (APPROVED tool_sha256, <ECS>/SHA256SUMS.txt) differing; M1/M5 pins (ecs_common.check_pins); a check.json or
+  read.json made by another read_ecs.py than the current; R1 run with another M5; a continuation whose run_meta
+  criteria sha256 or tool_sha256 differs from criteria.txt / the pins; the code copy's seal tree_digest. It clears only
+  when the files match their pins (no ruling clears it).
+
+4. WHAT LANE R DEFINED LOCALLY (ecs_common has no constant for it; each commented in the tool)
+  read_ecs.py: READ_SUBDIR ("score", "read") -> <ECS>/score/read/<name>/ for a continuation's full read (RUN/read/ for a
+  validation run); READ_NAME "read.json"; CHECK_SCHEMA "ecs-check/1"; READ_SCHEMA "ecs-read/1"; LEDGER_REL / PROBE_REL /
+  MODELS_REL under ecs_common.STAGE_DIR; FINAL_ZIP "stage1_final.zip" (TB l1161); TRACE_NAME "m1_summary.json";
+  FLAG_ROWS 5 (M5's ANY/TAIL-FLAGGED threshold, used only to cross-check M5's lists); N_ACTUATORS 15 and
+  ACTUATOR_NAMES (copied from r10round_common.py l94-l96; a test asserts equality with the pinned file); M5_TIMEOUT_S
+  900; the lost.json lock file <ECS>/lost.json.lock.
+  score_ecs.py: the class / outcome words (COUNTED, STOPPED, LOST from the text; UNDECIDED, POSITIVE, NEGATIVE,
+  CENSORED), the four line texts (verbatim from criteria v2), SIDE derived exactly from ALPHA_PER_SIDE.
+  Suggested for ecs_common (lane H's call): READ_SUBDIR / READ_NAME, so the runner and the coordinator name the same
+  folder; FINAL_ZIP (run_waves_ecs.sh spells stage1_final.zip itself).
+
+5. TESTS [measured]
+  Command (one process, nice 15, OMP/MKL/OPENBLAS 1, cwd /tmp, no cache, no bytecode):
+    cd /tmp && OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 PYTHONDONTWRITEBYTECODE=1 nice -n 15 \
+      S2/venv/bin/python -I -B -m pytest -p no:cacheprovider --basetemp=<ECS>/tmp/pytest_lane_r -q \
+      <ECS>/tools/tests/test_read_score_reader.py <ECS>/tools/tests/test_read_score_scorer.py \
+      <ECS>/tools/tests/test_read_score_mutants.py
+  Result: see section 9 (the final run).
+  Item 9's list, where each is tested:
+  - --check on the parent's probe against itself: passes (191 rows, both starts, both arms) [battery_r4]; one row
+    changed by one float32 ulp fails and names the step; learning_rate changed on the first row fails; arm B zeros
+    pass; arm B with one non-zero fails; zeros under arm A fail; a dropped row (190) fails; a repeated row fails; a row
+    at T fails; a STOPPED run's (S, T) rows pass. On synthetic run folders [test_check_*]: A and B pass (exit 0); stop
+    reason "other" fails (exit 4); "end" not at E fails; "collapse" without the callback's state fails; T past E
+    fails; wrong code digest, start sha256, parent records, schema, mode, arm edit (B recorded as A's, A recorded with
+    an edit, B "unchanged"), ent_coef after load, recipe_v5 problems, status/exit, StopAtEnd flag, a seed outside T1,
+    run_meta disagreeing with its folder: each fails; a probe missing fails; a crashed folder, a missing folder and a
+    folder outside runs/ and validate/ are input errors (exit 2). No-update validation run passes with 31 rows; a
+    changed params digest fails; a "continuation" mode under validate/ fails.
+  - Full read refused without check.json, with a failed check.json, with a stale check.json (run_meta edited after),
+    and before all 24 are decided; allowed once the other 23 have passing check.json; a validation run needs no gate.
+  - Synthetic ledgers through the real M5: window edges (flag at S not read, at S + 131,072 and at T read), an ANY and
+    a TAIL alarm straddling S (listed, not counted), an inside alarm counted, 4 of 10 rows not flagged; C6 failures of
+    each kind: TAIL input only (C6 OK, report only, M5's own C6 FAIL), ANY input missing in the window and on a seeded
+    row (counts, where "seeded"), 9 rows, an absent evaluation, an evaluation beyond T, an off-grid row (all count);
+    a counting C6 failure writes lost.json (once).
+  - V4 [measured, M5 on F2 copies truncated to timesteps <= E, written under <ECS>/tmp/lane_r_tests/v4_*]:
+      s42 (S 3,145,728, T 4,718,592): C6 PASS, POSITIVE, first ANY flag 3,801,088, 8 flagged, 7 ANY alarms, 12
+        evaluations read, none at or before S flagged;
+      s80 (S 4,194,304, T 5,767,168): C6 PASS, POSITIVE, first 4,849,664, 4 flagged, 2 alarms;
+      s60 truncated at 8,388,608: NEGATIVE with S 6,291,456 (16 evaluations) and with S 0; C6 PASS.
+    These equal the criteria's V4 figures and RF m5. The parent's whole ledger with --E E fails C6 on "beyond E" only
+    (RF F-5), and those failures count.
+  - Scorer: every cell of TE sections 1 and 2 (98 grid cells), every printed p-value line of sections 1-2 (24) and
+    section 3's 11 examples, read from v1/table_e_ecs.out (sha256 07d32255... = v1/MANIFEST.sha256), equal; CHK 8's five
+    worked fills from v2/check_v2.out (sha256 a8c05b9e... = v2/MANIFEST.sha256), with the missing one LOST and again
+    CENSORED, equal (as counted and filled, 4 decimals and L/.); a brute-force relabelling (every choice of which nA of
+    a start's continuations are arm A, outcomes fixed) equals pvals exactly on all 2,401 tables with 6 per arm and on
+    unequal 5/6, 6/5, 4/6, 6/4 tables, and a direct 924 x 924 enumeration on two tables; 242 B LOWER and 242 B HIGHER
+    tables of 2,401 (RS's count); the fill direction for each line; P_DOWN on its own table; the lines, the NOT
+    INFORMATIVE variant, both "holds only without" additions, the notes (2 of 6 LOW, 3 of 6 not, 0 counted NO ARM-A,
+    6 of 6 no room); classification of every class and every inconsistency; end to end on synthetic 24-run trees:
+    incomplete (outcome-blind), unread R1 (incomplete), LOST / CENSORED / STOPPED POSITIVE / C6 LOST tables, PROVISIONAL
+    without APPROVED, FINAL with APPROVED + pins + seal, PROVISIONAL again when a pinned tool, the criteria sha256 or a
+    continuation's run tools differ; R3 read at score time; input errors exit 2.
+  - Mutants killed (each a one-line change, loaded from <ECS>/tmp/lane_r_tests/mutants/; the reason checked to be the
+    battery's assertion or the tool's own guard [measured]):
+      reader: window lower edge S <= s; window upper edge s < T; straddling alarm counted; TAIL-missing counted; flag
+      threshold 6 (caught by the cross-check); R4 tolerance 1e-6 instead of float32 equality; arm B compared as A; row
+      count + 1; rows at T ignored; learning_rate unchecked; rows failure classed as grid;
+      scorer: side 0.05; P_UP with > instead of >=; the fill reversed; censored not missing; P_DOWN on the up table;
+      LOW note at half; the addition from the filled table; NOT INFORMATIVE on one start; stratum range off by one.
+
+6. LINT [measured]: ruff 0.16.9 (S2/prs/r10_work/ci/venv_lint311), --isolated --select E,W,F,B --line-length 120 on
+  read_ecs.py, score_ecs.py and the four test files: "All checks passed!" (the lane precedent set E9,F,B is a subset).
+
+7. CHOICES MADE WHERE THE TEXT IS OPEN (for the reviewer; none changes a pinned rule) [inferred unless marked]
+  a. An alarm counts in the window only when both its evaluations are in (S, T]; one at S + 131,072 needs the parent's
+     evaluation at S and is printed as straddling. ("Only evaluations with timesteps in (S, T] are read.")
+  b. C6 counting failures count wherever they fall up to T, seeded rows included ("C6 ... failing up to T"); an
+     unrecognised C6 failure text counts.
+  c. The per-start notes use the table as counted (nA = arm A's known outcomes), as "(a of nA)" suggests.
+  d. The NOT INFORMATIVE variant also prints the per-start counts; an addition can follow either line-3 text.
+  e. One-sided Fisher both ways is printed on the counted table and on the two fills.
+  f. A decided continuation without its R1 read keeps the screen incomplete.
+  g. CHECK also requires run_meta's recipe_v5.problems == [] (a run_meta key; the run refuses before learn()
+     otherwise), and the run's tool sha256 are carried to the scorer's PROVISIONAL check.
+  h. CHECK input errors (exit 2: the parent's F2 probe not matching FMAN, a crashed/void folder name, a folder outside
+     runs/ and validate/) are not CHECK failures; run_waves_ecs.sh treats any exit other than 0/4 as CHECK ERROR and
+     halts [measured, run_waves_ecs.sh l217-l237], which fits.
+  i. "Prints every value": R2's arrays (8 x 15 x 191 values) go to r2_arrays.json with its path; the print gives the
+     file, its sha256 and per-actuator first/last/mean/max.
+
+8. INTERFACE NOTES FOR LANE H AND THE COORDINATOR [measured from the files at 21:31-21:38 UTC]
+  - run_waves_ecs.sh calls `read_ecs.py --check <run>` and `read_ecs.py <run>` exactly as provided; it writes lost.json
+    without the reader's lock; the two never write at the same time (the reader's full read runs only after all 24 are
+    decided) [inferred].
+  - The full read writes to <ECS>/score/read/<name>/; the runner does not need the path (the scorer finds it).
+  - At 21:38 UTC lane H's no-update smoke run validate/laneH_smoke2/s42_B_1201 had run_meta status "crashed"
+    (TypeError "cannot pickle '_thread.lock' object") [measured, read only]; lane R did not touch it.
+  - Real harness output, read on a COPY (lane H's folder untouched): at 21:46 UTC lane H's no-update smoke run
+    validate/laneH_smoke3/s42_B_1201 (arm B, --until 3,276,800 = S + 131,072) was "done" with no_update_check pass and
+    train_calls 15. Its run_meta.json, policy_probe.npz, eval_episodes.csv and models/ were copied to
+    <ECS>/tmp/lane_r_tests/integ/validate/v2copy/s42_B_1201 (script <ECS>/tmp/lane_r_tests/integ_check.sh) and read
+    there with --root <ECS>/tmp/lane_r_tests/integ [measured]:
+      --check: PASS, exit 0; R4 15 of 15 rows (3,153,920..3,268,608), ent_coef 0.0 on every row, learning_rate equal
+        to the parent's (first 2.4743467e-05); 384 seeded parent rows at or before S kept (the probe's bank comparison
+        kept the prior rows: V3's "which way"); arm_ppo {ent_coef 0.0, ent_coef_end 0.0}; every run_meta key the CHECK
+        reads was present with the names ecs_common lists.
+      full read: exit 0; M5 = pin; C6 PASS on the seeded + new ledger with --E 3,276,800; 1 evaluation in the window,
+        0 of 10 over the bar (NEGATIVE, as expected of a no-update window); std_per_actuator mean 0.10682 on the first
+        and last row (unchanged, as no update was made); R3 "missing" (no trace made).
+    So the reader's key names and the probe's step key match the harness's real files. An arm A no-update run was not
+    yet finished; arm A's R4 equality was tested on the parent's own rows (battery_r4).
+
+9. FINAL STATE (21:47 UTC, date -u)
+  sha256 [measured, sha256sum]:
+    10cf27d04ebdba6743af0e533f75907b809620fd736e6b723772d78ab771ca7b  tools/read_ecs.py (889 lines)
+    59da8d11a2fb4ac7a16f9697c007a4a46428a3b568f1a3acf69fdbef7c67e335  tools/score_ecs.py (670 lines)
+    890be56345c5290792904836d824dbe22cee4ab390f063c621e1f9a046400f94  tools/tests/test_read_score_fixtures.py
+    dfd70a294d7ba382d54b24735ea09d91b1e860d21fd4b49bf1cb159e349e8c3f  tools/tests/test_read_score_reader.py
+    214a5a6cd10d5e1464b7902bc20090c87a35017612315c6cafc3a1fbe78fb8c6  tools/tests/test_read_score_scorer.py
+    bb9f0f3fc711c10e44d81152dbd976ec5d7454822ae45c07c5d1b59b521bd970  tools/tests/test_read_score_mutants.py
+    built against ecs_common.py 1a146950e131426eca38510c180c7b1f5dfc94384f605d27f5a0ff545b95273c (lane H; it changed
+    twice while lane R worked, 21:17 and 21:27 UTC; lane R re-read it each time). If ecs_common.py changes again, rerun
+    the command of section 5.
+  Tests: 61 passed in 4.8 s (22 reader, 18 scorer, 21 mutant: 11 + 9 killed and the batteries pass on the real tools)
+    [measured, 21:46:59 UTC]. ruff: all checks passed. No __pycache__ or .pytest_cache written.
+  Not done by lane R (not its items): V1, V2, V3, V5 and the wave-runner stub test (lane H / the coordinator); the
+  review (item 11); pins and APPROVAL_REQUEST (item 12). Nothing in <ECS>/APPROVED or <ECS>/criteria.txt was written.
+END (lane R).

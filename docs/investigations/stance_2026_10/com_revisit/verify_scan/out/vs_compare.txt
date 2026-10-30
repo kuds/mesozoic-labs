@@ -1,0 +1,45 @@
+== 1. Robot controls with the scan's bars (1 mm/s, 5 mm, 0.01 BW) applied to MY metrics
+  seed 111 (known_creeper): test speed 4.4818 mm/s, my speed 5.3528; foot travel after 1 s 85.49 mm; load sd 0.1823 BW at 24.11 Hz; unloaded [0.048, 0.048]; CoM travel window 78.58 mm -> speed True/True travel True oscill True creep3 True
+  seed 143 (known_creeper): test speed 3.2015 mm/s, my speed 4.4860; foot travel after 1 s 62.33 mm; load sd 0.2074 BW at 25.00 Hz; unloaded [0.05, 0.05]; CoM travel window 57.88 mm -> speed True/True travel True oscill True creep3 True
+  seed 218 (known_creeper): test speed 3.1606 mm/s, my speed 4.4438; foot travel after 1 s 61.10 mm; load sd 0.1984 BW at 25.00 Hz; unloaded [0.05, 0.05]; CoM travel window 57.17 mm -> speed True/True travel True oscill True creep3 True
+  seed 249 (known_creeper): test speed 3.2009 mm/s, my speed 4.1039; foot travel after 1 s 62.32 mm; load sd 0.2075 BW at 25.00 Hz; unloaded [0.05, 0.05]; CoM travel window 57.87 mm -> speed True/True travel True oscill True creep3 True
+  seed 251 (known_creeper): test speed 3.1620 mm/s, my speed 3.8871; foot travel after 1 s 61.10 mm; load sd 0.1985 BW at 25.00 Hz; unloaded [0.05, 0.05]; CoM travel window 57.18 mm -> speed True/True travel True oscill True creep3 True
+  seed 271 (known_creeper): test speed 3.2075 mm/s, my speed 3.2886; foot travel after 1 s 61.02 mm; load sd 0.2083 BW at 25.00 Hz; unloaded [0.05, 0.05]; CoM travel window 57.60 mm -> speed True/True travel True oscill True creep3 True
+  seed 304 (known_creeper): test speed 3.1609 mm/s, my speed 4.2025; foot travel after 1 s 61.10 mm; load sd 0.1985 BW at 25.00 Hz; unloaded [0.05, 0.05]; CoM travel window 57.18 mm -> speed True/True travel True oscill True creep3 True
+  seed 330 (known_creeper): test speed 3.2439 mm/s, my speed 4.4751; foot travel after 1 s 61.04 mm; load sd 0.2082 BW at 25.00 Hz; unloaded [0.05, 0.05]; CoM travel window 57.60 mm -> speed True/True travel True oscill True creep3 True
+  seed 388 (known_creeper): test speed 3.2009 mm/s, my speed 4.1039; foot travel after 1 s 62.32 mm; load sd 0.2075 BW at 25.00 Hz; unloaded [0.05, 0.05]; CoM travel window 57.87 mm -> speed True/True travel True oscill True creep3 True
+  seed 390 (known_creeper): test speed 3.2097 mm/s, my speed 3.3001; foot travel after 1 s 62.33 mm; load sd 0.2076 BW at 25.00 Hz; unloaded [0.05, 0.05]; CoM travel window 57.87 mm -> speed True/True travel True oscill True creep3 True
+  seed 102 (resting): test speed 0.0000 mm/s, my speed 0.0000; foot travel after 1 s 0.47 mm; load sd 0.0000 BW at 1.06 Hz; unloaded [0.0, 0.0]; CoM travel window 0.03 mm -> speed False/False travel False oscill False creep3 False
+  seed 141 (resting): test speed 0.0000 mm/s, my speed 0.0000; foot travel after 1 s 1.81 mm; load sd 0.0000 BW at 1.06 Hz; unloaded [0.0, 0.0]; CoM travel window 0.04 mm -> speed False/False travel False oscill False creep3 False
+  resting robot seeds (32: 0-29, 102, 141): any flag on []; largest speed 0.0000 mm/s (test 0.0000), travel 1.81 mm, load sd 3.96e-09 BW
+  known creepers flagged creep3: 10/10; smallest per-criterion values among them: speed(test) 3.161 mm/s, travel 61.02 mm, load sd 0.1823 BW
+
+== 2. Agreement with scan.jsonl, per cell (model, noise)
+  compy_anat noise 0.02: 30 re-run (0 scan-flagged, 30 unflagged); stood 30/30; flags identical on 30/30; disagreements []
+     test end speed bit-identical 30/30; |foot travel diff| max 0.00e+00 m; load sd |diff| max 1.32e-23 BW (rel 3.05e-16); |CoM travel diff| max 1.57e-14 mm (my CoM = mass-weighted xipos); root vz tail |diff| max 0.00e+00 mm/s; my/test end speed ratio 0.998-0.999
+     my maxima: test speed 1.738e-05 mm/s, my speed 1.736e-05 mm/s, travel 2.805 mm, load sd 5.82e-08 BW, unloaded frac 0.0, total tail load 1.000000-1.000000 BW
+     whole-episode floor contact: non-leg geoms max 0 N; geoms ever touching the floor (spawns touching, max N): [('l_plantar_pad', 30, 10.684), ('l_toe_d2_geom', 30, 3.346), ('l_toe_d3_geom', 30, 4.776), ('l_toe_d4_geom', 30, 6.686), ('r_plantar_pad', 30, 10.089), ('r_toe_d2_geom', 30, 5.248), ('r_toe_d3_geom', 30, 5.266), ('r_toe_d4_geom', 30, 4.672)]
+  compy_anat noise 0.01: 30 re-run (0 scan-flagged, 30 unflagged); stood 30/30; flags identical on 30/30; disagreements []
+     test end speed bit-identical 30/30; |foot travel diff| max 0.00e+00 m; load sd |diff| max 1.32e-23 BW (rel 3.12e-16); |CoM travel diff| max 1.39e-14 mm (my CoM = mass-weighted xipos); root vz tail |diff| max 0.00e+00 mm/s; my/test end speed ratio 0.998-0.999
+     my maxima: test speed 1.037e-05 mm/s, my speed 1.036e-05 mm/s, travel 1.296 mm, load sd 5.88e-08 BW, unloaded frac 0.0, total tail load 1.000000-1.000000 BW
+     whole-episode floor contact: non-leg geoms max 0 N; geoms ever touching the floor (spawns touching, max N): [('l_plantar_pad', 30, 7.463), ('l_toe_d2_geom', 30, 3.858), ('l_toe_d3_geom', 30, 3.64), ('l_toe_d4_geom', 30, 3.208), ('r_plantar_pad', 30, 6.438), ('r_toe_d2_geom', 30, 3.526), ('r_toe_d3_geom', 30, 2.718), ('r_toe_d4_geom', 30, 3.944)]
+  velo noise 0.02: 30 re-run (0 scan-flagged, 30 unflagged); stood 30/30; flags identical on 30/30; disagreements []
+     test end speed bit-identical 30/30; |foot travel diff| max 0.00e+00 m; load sd |diff| max 3.39e-21 BW (rel 3.41e-16); |CoM travel diff| max 2.62e-14 mm (my CoM = mass-weighted xipos); root vz tail |diff| max 0.00e+00 mm/s; my/test end speed ratio 0.999-1.000
+     my maxima: test speed 0.09407 mm/s, my speed 0.09406 mm/s, travel 4.461 mm, load sd 1.45e-05 BW, unloaded frac 0.0, total tail load 1.000000-1.000000 BW
+     whole-episode floor contact: non-leg geoms max 0 N; geoms ever touching the floor (spawns touching, max N): [('l_metatarsus_geom', 30, 64.019), ('l_toe_d3_geom', 30, 61.337), ('l_toe_d4_geom', 30, 77.768), ('r_metatarsus_geom', 30, 65.452), ('r_toe_d3_geom', 30, 65.615), ('r_toe_d4_geom', 30, 72.423)]
+  velo noise 0.05: 76 re-run (46 scan-flagged, 30 unflagged); stood 76/76; flags identical on 76/76; disagreements []
+     test end speed bit-identical 76/76; |foot travel diff| max 0.00e+00 m; load sd |diff| max 1.36e-20 BW (rel 3.88e-16); |CoM travel diff| max 3.42e-14 mm (my CoM = mass-weighted xipos); root vz tail |diff| max 0.00e+00 mm/s; my/test end speed ratio 0.999-1.000
+     my maxima: test speed 0.2533 mm/s, my speed 0.2532 mm/s, travel 9.797 mm, load sd 5.2e-05 BW, unloaded frac 0.0, total tail load 1.000000-1.000000 BW
+     whole-episode floor contact: non-leg geoms max 0 N; geoms ever touching the floor (spawns touching, max N): [('l_metatarsus_geom', 76, 99.041), ('l_toe_d3_geom', 76, 91.364), ('l_toe_d4_geom', 76, 103.0), ('r_metatarsus_geom', 76, 82.416), ('r_toe_d3_geom', 76, 106.574), ('r_toe_d4_geom', 76, 107.035)]
+  compy_anat noise None: 1 re-run (0 scan-flagged, 1 unflagged); stood 1/1; flags identical on 1/1; disagreements []
+     test end speed bit-identical 1/1; |foot travel diff| max 0.00e+00 m; load sd |diff| max 1.58e-30 BW (rel 1.45e-16); |CoM travel diff| max 1.04e-14 mm (my CoM = mass-weighted xipos); root vz tail |diff| max 0.00e+00 mm/s; my/test end speed ratio 0.994-0.994
+     my maxima: test speed 3.261e-11 mm/s, my speed 3.242e-11 mm/s, travel 0.001 mm, load sd 1.09e-14 BW, unloaded frac 0.0, total tail load 1.000000-1.000000 BW
+     whole-episode floor contact: non-leg geoms max 0 N; geoms ever touching the floor (spawns touching, max N): [('l_plantar_pad', 1, 0.644), ('l_toe_d2_geom', 1, 0.603), ('l_toe_d3_geom', 1, 0.603), ('l_toe_d4_geom', 1, 0.603), ('r_plantar_pad', 1, 0.644), ('r_toe_d2_geom', 1, 0.603), ('r_toe_d3_geom', 1, 0.603), ('r_toe_d4_geom', 1, 0.603)]
+  velo noise None: 1 re-run (0 scan-flagged, 1 unflagged); stood 1/1; flags identical on 1/1; disagreements []
+     test end speed bit-identical 1/1; |foot travel diff| max 0.00e+00 m; load sd |diff| max 4.14e-25 BW (rel 2.90e-16); |CoM travel diff| max 0.00e+00 mm (my CoM = mass-weighted xipos); root vz tail |diff| max 0.00e+00 mm/s; my/test end speed ratio 1.000-1.000
+     my maxima: test speed 0.01157 mm/s, my speed 0.01157 mm/s, travel 0.570 mm, load sd 1.43e-09 BW, unloaded frac 0.0, total tail load 1.000000-1.000000 BW
+     whole-episode floor contact: non-leg geoms max 0 N; geoms ever touching the floor (spawns touching, max N): [('l_metatarsus_geom', 1, 20.821), ('l_toe_d3_geom', 1, 27.823), ('l_toe_d4_geom', 1, 15.293), ('r_metatarsus_geom', 1, 20.821), ('r_toe_d3_geom', 1, 27.823), ('r_toe_d4_geom', 1, 15.293)]
+
+== 3. Statues
+  compy_anat: test speed identical True; flags any False; floor geoms ['l_plantar_pad', 'l_toe_d2_geom', 'l_toe_d3_geom', 'l_toe_d4_geom', 'r_plantar_pad', 'r_toe_d2_geom', 'r_toe_d3_geom', 'r_toe_d4_geom']
+  velo: test speed identical True; flags any False; floor geoms ['l_metatarsus_geom', 'l_toe_d3_geom', 'l_toe_d4_geom', 'r_metatarsus_geom', 'r_toe_d3_geom', 'r_toe_d4_geom']

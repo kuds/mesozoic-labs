@@ -8,8 +8,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased] — Into the Wild (v0.4.0)
 
 ### Added
+- **One record of everything tried on the T. rex tail saturation habit, with
+  the entropy continuation screen judged, final: line 3, no difference
+  detected** (decision D-D52's amendment and D-D53 to D-D55;
+  `docs/investigations/TREX_TAIL_SATURATION_HABIT_2026_10.md`, with its
+  ledger, and the appended §28 of
+  `docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md`, with a dated
+  status note at its top; `docs/NEXT_STEPS.md` §3, `docs/KNOWN_ISSUES.md`
+  (Update 23 of the T-Rex stance entry and a dated update to the
+  action-saturation entry), `docs/README.md`; evidence in `ecs_results/`,
+  `com_revisit/`, `tail_probes/` and `tail_record/` of
+  `docs/investigations/stance_2026_10/`: the run log's lines 721 to 759, the
+  screen's approved criteria, approval, tools, run records, reading and two
+  independent checks, the centre-of-mass revisit's report with its checks on
+  trained policies and the creep scan, the tail clamp test, the normaliser
+  probe and the three posture tests, each with its verifier's notes, and the
+  record's ledger and checks). Records only. The note, written at the
+  maintainer's request and fact-checked before it was put here, gathers in one
+  place what the records hold on the habit from 2026-07-09 to 2026-10-29: what
+  it is (a policy command held at its bound, almost always the tail-tip pitch
+  actuator at +1, not a saturated joint or motor) and how it is detected; where
+  it stands; every observation, change, probe, screen and round in date order,
+  each a row of a 167-row ledger; the evidence for and against each candidate
+  cause; the interventions; lessons learned; and the open questions and the
+  next steps already proposed, none chosen. The screen continued two of the
+  first r10 round's checkpoints with the entropy coefficient as recorded
+  against 0, 24 CPU continuations: seed 42's railed in all 12, one of seed 80's
+  six per arm flagged on the neck, and removing the remaining bonus from these
+  mid-rise states changed nothing it could detect. The report-only work that
+  followed it, none of which trained, found the rail no balance aid, costing
+  reward and persisting through a learned positive feedback from the observed
+  tail angle to the tail command, whose growth sits in the network's weights
+  rather than in the observation normaliser's drift; and no nose-down or
+  forward centre-of-mass shift before the tail rose, though from mid-rise on
+  the railed lineage's networks read their nose-down posture as a tail offset.
+  No T. rex stance is certified, and nothing trains on `main`.
+- **Decision D-D52's design and outcome and decisions D-D53 to D-D55 recorded:
+  the entropy continuation screen read its line 3, no difference detected;
+  next, the centre-of-mass follow-ups with a tail clamp test, a normaliser
+  probe, three posture tests and one record of everything tried on the T. rex
+  tail saturation habit** (the maintainer's decisions and requests of
+  2026-10-28 21:05 UTC to 2026-10-29 23:21 UTC in the stance run log;
+  `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2, `docs/CONSOLIDATION_PLAN_2026_09.md`
+  §6). Records only. D-D52 is amended with the screen's design, as the
+  maintainer took every recommendation of its draft (starts s42 at 3,145,728
+  steps and s80 at 4,194,304, 6 CPU continuations per arm and start, the
+  entropy coefficient as recorded against 0, an exact stratified test
+  two-sided at 0.025 per side), its approval and launch, and its outcome,
+  final: all 24 continuations ran to their end; line 3, "NO DIFFERENCE
+  DETECTED" (s42 6 of 6 in both arms, every flag on the tail-tip actuator; s80
+  1 of 6 in both, on the neck), agreed by two independent checks; its text
+  outputs on a never-merged orphan branch at the maintainer's word. D-D53: the
+  centre-of-mass regression tests revisited, with centre-of-mass checks on the
+  screen's end policies, and a tail clamp test both ways (simulation only,
+  report only). D-D54: a centre-of-mass test change in its own pull request
+  (#653), a creep scan of two more models before any plant change, a
+  report-only centre-of-mass check on trained policies in the next round's
+  pre-registration, and a no-training normaliser probe of the tail loop.
+  D-D55: one record of everything tried on the tail habit, three no-training
+  posture tests, and that record as its own investigation note with its
+  evidence: this change. Nothing trains on `main`, and no gate, reward, plant
+  or criterion changes.
 - **Absolute stance targets for the centre-of-mass stance tests, each a
-  strict expected failure where a model misses it today** (tests and test
+  strict expected failure where a model misses it today** (#653; tests and test
   helpers, and one input check in the reduction; the maintainer's decision of
   2026-10-29; `com_stance_helpers.TARGETS`, `Target`, `TargetMissed` and
   `ComStanceQualityBase.check_target`, a `test_target_*` per missed target in
@@ -53,8 +114,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   10 s on one core. No environment, physics, reward, gate, observation,
   policy interface or digest changes.
 - **The centre-of-mass stance calibration hands its re-measured pins over as
-  a reviewable diff, and writes a looser bar only when told to** (tests and
-  test helpers only; the maintainer's decision of 2026-10-29;
+  a reviewable diff, and writes a looser bar only when told to** (#653;
+  tests and test helpers only; the maintainer's decision of 2026-10-29;
   `environments/shared/tests/com_stance_calibration.py`,
   `com_stance_helpers.py` and `test_stance_track_reduction.py`).
   `python -m environments.shared.tests.com_stance_calibration
@@ -81,7 +142,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   environment, physics, reward, gate, observation, policy interface or digest
   changes.
 - **The first T. rex stance round on physics r10 recorded as judged, final:
-  line 1, a tail rail formed on r10 in training** (decision D-D51's
+  line 1, a tail rail formed on r10 in training** (#652; decision D-D51's
   amendment and D-D52; the appended §27 of
   `docs/investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md`, with a
   dated status note at its top; `docs/NEXT_STEPS.md` §3,
@@ -111,9 +172,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Decision D-D51's outcome and decision D-D52 recorded: the first T. rex
   stance round on physics r10 read its line 1, a tail rail formed on r10 in
   training; next, a CPU continuation screen of the entropy coefficient, its
-  criteria to be approved before any training** (the maintainer's requests and
-  decisions of 2026-10-27 23:59 UTC to 2026-10-28 19:30 UTC in the stance run
-  log; `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2,
+  criteria to be approved before any training** (#652; the maintainer's
+  requests and decisions of 2026-10-27 23:59 UTC to 2026-10-28 19:30 UTC in
+  the stance run log; `docs/BEHAVIOR_RECIPES_PLAN.md` §6.2,
   `docs/CONSOLIDATION_PLAN_2026_09.md` §6). Records only. D-D51 is amended
   with how the round was read: a second report-only snapshot of the running
   files, each run's end noted from Drive while the maintainer slept, the final
@@ -2404,7 +2465,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **The centre-of-mass stance reduction moves into the gait package, beside
-  the evaluation telemetry** (a pure move: no key, number, bar or test
+  the evaluation telemetry** (#653; a pure move: no key, number, bar or test
   outcome changes; the maintainer's decision of 2026-10-29;
   `environments/shared/tests/stance_track_helpers.py` is now
   `environments/shared/gait/stance_track.py`). A gate, an evaluation callback

@@ -1,0 +1,246 @@
+CoM CHECKS ON TRAINED POLICIES (com_revisit, lens "policies")
+Written 2026-10-29 14:30 UTC.  Worktree com_revisit/wt_policies (detached origin/main 378ae2f8); notes here.
+Nothing committed or pushed; no PR; no training.  [measured] = computed by the named script in this folder, with
+its output file; [inferred] = reasoned, with its basis.  Every path below is relative to this folder:
+/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/com_revisit/notes/policies/
+
+==================================================================================================================
+0. IN SHORT
+==================================================================================================================
+- None of the 26 T. rex policies (24 ECS end checkpoints and their 2 start checkpoints) leans to the same side
+  across seeds, and none creeps.  On the 20 M1 seeds (window 5-10 s) the most one-sided lean key is a roll at 16
+  of 20 (p = 0.012).  No CoM-offset or roll key reaches p <= 0.005 at windows from 2, 5 or 9 s, except one
+  sub-resolution roll of 0.018 deg in the 1 s window from 9 s.  The largest feet creep is 0.51 mm/s.  [measured]
+- The same harness flags the r9 checkpoint at once: CoM right of the feet on 19 of 20 seeds (median -1.30 mm),
+  pelvis rolled left side up on 19 of 20 (+0.126 deg), each p = 4e-5.  On seeds 3042-3051 it reproduces the PR's
+  policy_demo numbers to five digits.  So the check works, and the r10 ECS policies have no such bias.  [measured]
+- Tail rail (s42) against no rail (s80): the CoM lean does not differ.  The fore-aft posture does: pitch -1.35
+  against -0.25 deg, CoM 25.7 against 32.4 mm behind the feet.  The per-seed lean spread differs too: roll SD
+  0.033 against 0.069 deg, load SD 0.0052 against 0.0079.  Each difference is already there in the two start
+  checkpoints.  Within a start the tail_3 command does not track the posture (Spearman p >= 0.12).  So these are
+  differences between the two parent runs.  They are not shown to be the rail's effect.  [measured; cause inferred]
+- Arm A against arm B: no CoM-family difference at the 0.01 level on any key, at either start.  [measured]
+- What the policies do worse than the statue: they hold a lean that depends on the spawn.  The CoM sideways SD
+  over seeds is 1.35-1.75 mm against the statue's 0.15 mm, and spawn 3059 makes four s80 policies hold 10-14 mm to
+  the right.  The lean averages to zero across seeds.  What they do better: they stop the T. rex statue's rocking.
+  CoM speed over 5-10 s is 0.22-0.24 mm/s against 2.64 mm/s.  By the PR's rule 83-91 % of policy episodes have
+  settled by 5 s; no statue episode settles within 10 s at noise 0.05.  [measured]
+- A pre-registered check, CoM-P1 (PREREG.txt, sealed 13:45 UTC before the end policies were read), flags:
+  0 of 26 policies on the M1 panel, 0 of 26 on 10 held-out seeds, 0 of 6 statue panels of 20, and the r9
+  checkpoint.  Measured false alarms: none (0/26, 0/26, 0/6); under the symmetric null the analytic rate is at most
+  0.0052 per panel.  On these policies' own spread it catches an added bias of 2 mm on 88-92 % of policies and of
+  0.15 deg on 96-100 %.  [measured]
+- Proposed: a patch with the check as a test helper plus synthetic tests (policy_com_check.patch, 33 of 33 pass).
+  Also proposed, needs_maintainer: the check as a report-only reading of the round, then as a stance-gate key.
+
+==================================================================================================================
+1. PLANT AND CONSTRUCTION: MAIN 378ae2f8 AGAINST THE SEALED RUN-BRANCH COPY (8737cd3d)
+==================================================================================================================
+- configs/plant_manifest.generated.json is byte-identical in the two trees (cmp).  [measured]
+- The stance env's construction differs.  The copy's configs/tyrannosaurus_rex/anatomical/stance.toml carries the
+  screen-only reward keys: lateral_lean_weight 0.25, leg_home_pose_weight 1.0 / tolerance 0.05, stagger, CoP band,
+  the mirror_kl PPO keys and the cadence keys.  Its base_env.py has the stagger and CoP-band terms, which main lacks.
+  So main's env cannot take the copy's kwargs.  [measured: diff, see the session]
+- I therefore ran the rollouts in a scratch copy of ecs/code (code_copy/: environments, configs, pyproject).  I
+  copied in PR #650's two reduction files, stance_track_helpers.py (sha256 92f903be...) and com_stance_helpers.py
+  (8889443e...), both identical to main's.
+- Equivalence check: equiv.py ran the statue and two end policies, s42_A_1101 (rail) and s80_B_1401 (no rail), on
+  seeds 3042 and 3043, once in each tree with that tree's own stance config.  compare_equiv.py found every array
+  bit-identical, 42 of 42: the observations' sha256, the actions, CoM, root quaternion, feet, loads and steps.  So
+  the plant, observations and dynamics match and only the reward differs, which a rollout does not read.  The
+  results below therefore hold on main.  [measured: equiv_copy.npz, equiv_main.npz, equiv_compare.txt]
+- Checkpoints: checkpoints_sha256.txt (52 files).  The two start pairs match ecs_common.STARTS' sha256.  All 24
+  end zips match the sha256 that M1's m1_summary.json records, and M1's tail_3 cmd_a reproduces in this run's
+  commands (COMMANDS in analysis_w5.txt).  [measured: m1_link.txt]
+- Run: run_policies.py.  The stance config's env_class(mid)(**env_kwargs), reset noise 0.05, 1,000 steps (10 s),
+  deterministic model.predict(normalizer.normalize_obs(obs)), PR #650's run_tracked_episode, seeds 3042-3061.  All
+  540 episodes stood the full horizon (run/episodes.jsonl).  Metrics were reduced in the run at windows from
+  2/3/4/5/9 s, support keys included; the float32 tracks are kept in run/tracks/.
+- CPU, one simulation process at a time, nice 10, OMP 1: M1 panel 25.8 min (13:39:47-14:05:33), equivalence
+  0.5, held-out panel 12.6, statue null 3.5, r9 control 0.9.  About 43 min in all.
+
+==================================================================================================================
+2. THE WINDOW: FROM 5 S, AND WHY
+==================================================================================================================
+[measured: analysis_w5.txt SETTLE]  The PR's settle rule: the first whole second after which the horizontal CoM
+speed RMS stays under 1 mm/s in every second to the end.
+  statue (noise 0.05): median 9.5 s; 0 of 20 settled by 5 s.  This is the plant's 0.5 Hz fore-aft ring: 85 mm/s in
+                       0-1 s, still 0.99 mm/s in 9-10 s.  Lateral-only settle has median 6 s.
+  starts: median 3.5 s, 88 % by 5 s;  s42 ends: 3.0 s, 91 %;  s80 ends: 4.0 s, 83 %.
+No window inside 1,000 steps settles the statue.  From 5 s nearly every policy episode has settled, the window
+keeps 500 samples, and it lies past the gate's settle_steps (2 s).  The window was fixed in PREREG.txt from the
+starts, before the ends were read.
+Sensitivity (analysis_w2.txt, analysis_w9.txt):
+  - The lean sign answers do not change between the 2 s and 5 s windows.
+  - At 2 s three of 520 policy episodes have a least CoM margin of 12.6-28.7 mm, and one (s42_B_1251, seed 3050)
+    has its XcoM 1.7 mm outside the polygon for an instant in 2-3 s, with both feet loaded.  From 3 s all are at
+    49.6 mm or more [measured: support_low.txt, support_low_loads.txt].  The likely cause is a sole rocking onto an
+    edge, which shrinks the polygon [inferred].  So a 2 s window reads settle transients on the support keys.
+
+==================================================================================================================
+3. THE FAMILIES ON THE M1 PANEL, WINDOW FROM 5 S  [measured: analysis_w5.txt FAMILIES]
+==================================================================================================================
+Median over episodes [min, max], in the order statue | starts | s42 ends | s80 ends:
+  lean   com_lateral_mean_m: -0.009 [-0.55, +0.21] | -0.005 [-7.6, +2.4] | +0.071 [-4.8, +4.3] | -0.020 [-13.7, +4.1] mm
+         root_roll_mean_deg: +0.001 [+-0.018] | +0.001 [-0.19, +0.21] | +0.004 [-0.16, +0.15] | +0.004 [-0.23, +0.26] deg
+         lightest_foot_share_min: 0.498 | 0.496 | 0.496 | 0.494 (min 0.459)
+         com_margin_lateral_min_m: 169 | 176 | 176 | 178 mm
+  pivot  root_turn_from_spawn_deg: up to 13.0 | 12.5 | 15.5 | 11.5 deg (|turn| < 1 deg on 10 / 12 / 13 / 8 %)
+         root_turn_deg (window): within +-0.5 | +-0.8 | -2.45..+1.37 | -0.77..+1.24 deg
+         foot_travel_max_m (window): median 2.65 | 2.74 | 2.92 | 3.01 mm; max 5.7 | 8.3 | 10.6 | 12.2 mm
+  height com_height_mean_m: 867.0 | 875.5 | 868.0 | 875.4 mm; drift within -7.2..+5.5 mm (policies)
+  sway   com_speed_rms_mps: 2.64 | 0.32 | 0.22 | 0.24 mm/s; root_pitch_sd_deg 0.091 | 0.002 | 0.002 | 0.002
+The pivot during the settle belongs to the plant, as the PR found for r9: the statue turns as far as the policies.
+The policies damp the statue's rock by a factor of about 10.
+
+==================================================================================================================
+4. SAME-SIDE LEAN AND CREEP  [measured]
+==================================================================================================================
+lean_sign_summary over the 20 seeds per policy (analysis_w5.txt LEAN SIGN; also at 2 and 9 s):
+  - At 5 s no policy reaches p <= 0.005 on com_lateral_mean_m, root_roll_mean_deg, left_load_share_mean - 0.5,
+    the two drifts, root_turn_deg, root_turn_from_spawn_deg or the twist.  The smallest p are roll 16/20 (0.012,
+    s42_B_1251) and roll 15/20 (0.041, s80_B_1401 and s80_B_1431).
+  - At 2 s: none at p <= 0.005.  At 9 s (a 1 s window): s80_A_1301's roll is 19/1 one way but its median is +0.018
+    deg, under the 0.05 deg resolution floor.  As the spawn transient fades, a deterministic policy's tiny bias
+    becomes visible to a sign test.  Hence the magnitude floor in CoM-P1.
+  - Paired against the statue at the same spawn (policy minus statue): the same, with no key at p <= 0.005.
+  - The statue: 9+/11- (CoM) and 12+/8- (roll) on M1.  Pooled over 120 statue episodes: CoM 53+/67- (p 0.24),
+    roll 70+/50- (p 0.08) (check_final.txt).
+Creep: the least-squares speed of the feet's mean position over 5-10 s (check.py, check_final.txt):
+  - Policies: at most 0.513 mm/s on the M1 panel and 0.346 mm/s on the held-out panel (s80_A_1301 seeds 3047, 3059;
+    s80_B_1431).  The statue reaches at most 0.048 mm/s.  No policy episode reaches the 1 mm/s bar.  The Compsognathus
+    robot's creep is 3.2-4.4 mm/s.  So there is no creep, although the policies' sub-bar drift is up to 10 times the
+    statue's.
+  - Direction (report-only): s80_B_1431 18 of 20 forward, s80_B_1411 17/3, r9 20 of 20 backward.  The fore-aft
+    direction is not mirror-symmetric, and the statue itself goes forward on 85 of 120.  So no sign null exists
+    for it, and it stays out of the flags.  Only lateral, roll and yaw signs have a symmetry null.
+Per-episode spread (spread.py -> spread.txt): the policies keep a lean that depends on the spawn.
+  - SD over seeds of the CoM sideways offset: statue 0.149 mm; s42 ends median 1.35 mm; s80 ends 1.75 mm (up to
+    4.2).  Roll SD: 0.009 against 0.033 and 0.069 deg.
+  - The same spawn makes different policies lean alike: mean pairwise Spearman 0.73 (s42) and 0.43 (s80) on the CoM
+    offset.  This is not the statue's lean at that spawn (rho -0.1).
+  - Spawn 3059 makes s80_A_1311, s80_A_1301, s80_A_1321 and s80_B_1411 hold the CoM 9.6-13.7 mm right of the feet
+    all through 5-10 s (statue -0.55 mm) [extremes.txt].
+  - Episodes with |CoM sideways| > 5 mm: s42 0/240, s80 16/240, statue 0/20.  Roll above 0.1 deg: 7/240, 28/240
+    and 0/20.
+
+==================================================================================================================
+5. RAIL (s42) AGAINST NO RAIL (s80), AND ARM A AGAINST ARM B  [measured: analysis_w5.txt GROUPS, rail_posture.txt]
+==================================================================================================================
+One number per policy (its median over seeds), exact two-sided Mann-Whitney, 12 against 12:
+  - Lean: com_lateral 0.11 against -0.14 mm (p 0.078); roll 0.002 against 0.010 deg (p 0.41); load p 0.068.  Not
+    different.
+  - Fore-aft posture: root_pitch_mean_deg -1.35 against -0.25 (p < 1e-4); com_fore_aft_mean_m -25.7 against -32.4 mm
+    (p 0.007).  Height 867.9 against 874.4 mm (p 0.045) and lightest foot 0.496 against 0.494 (p 0.033) do not
+    survive the 17 keys tested.
+  - Spread (spread.txt): roll SD p 0.0056, load SD p 0.0018, CoM sideways SD p 0.068.
+  - Every difference is already in the start checkpoints.  start_s42 has pitch -1.45 deg, CoM -20.7 mm and roll SD
+    0.030; start_s80 has -0.46 deg, -34.2 mm and roll SD 0.108.  Each start's ends spread around it.
+  - Across the 26 policies tail_3 correlates with pitch (rho -0.73), but within a start it does not (s42 rho
+    -0.19, p 0.53; s80 rho +0.10, p 0.75).  The design confounds rail with parent (all s42 continuations railed,
+    no s80 one did), so these data cannot separate the rail's effect from the parent's.  [inferred]
+  - The rail does not tilt the stance sideways [measured], as expected of a pitch actuator [inferred].  The
+    hip-roll commands sum to within +-0.0042 in every policy, while each one reaches 0.10.  That is a symmetric
+    width change, not a lean (COMMANDS).
+  - Arm A against arm B (6 against 6 per start, 17 keys): at 5 s the smallest p is 0.24 within s42 and 0.065
+    within s80 (foot_travel_from_spawn); both starts together, 0.14.  At 2 s two s42 keys reach 0.041.  The entropy
+    bonus shows no CoM-family effect over 1.57 M steps.
+  - Why no same-side lean when r9 had one: these runs train with the lateral-lean bonus on the CoM over the feet
+    (lateral_lean_weight 0.25, tolerance 15 mm) and with mirror-symmetric PPO (mirror_kl, kappa 0.3).  r9 had
+    neither [inferred from the copy's stance.toml; not isolated].
+
+==================================================================================================================
+6. A PRE-REGISTERED CoM CHECK ON TRAINED POLICIES: CoM-P1
+==================================================================================================================
+The rule (PREREG.txt, sha256 cc267c52... in PREREG.sha256, 13:45:05 UTC):
+  - Window from 5 s, on a panel of deterministic episodes at the stance config's noise.
+  - LEAN = com_lateral_mean_m or root_roll_mean_deg keeps one sign across the seeds (two-sided sign test p <=
+    0.005: at least 17 of 20, or 30 of 40) with |median| >= 1 mm, or >= 0.10 deg, twice the resolution floors.
+  - CREEP = at least 2 episodes whose feet's mean position moves at 1 mm/s or more by least squares over the window.
+  - Report-only: the same rule on the load share and the window turn, and the creep direction.
+check.py implements the rule and the pure helper in the patch (stance_track_helpers.policy_com_check,
+feet_creep_speed) implements the same rule.
+Measured (check_final.txt, check_r9.txt):
+                                   LEAN     CREEP    keys at p<=0.005 ignoring the floor
+  26 policies, M1 seeds 3042-3061   0/26     0/26     0/52
+  26 policies, held-out 3062-3071   0/26     0/26     1/52 (s80_B_1401 roll 0+/10-, median -0.013 deg)
+  statue, 6 panels of 20            0/6      0/6      0/12
+  r9 checkpoint (positive control)  FLAG     -        2/2  (CoM 1+/19- med -1.30 mm; roll 19+/1- med +0.126 deg)
+- False-alarm rate.  Measured 0/26 + 0/26 on policies and 0/6 on the statue null.  Under a mirror-symmetric plant
+  and spawn the analytic rate is <= 0.0026 per key and <= 0.0052 for LEAN on 20 seeds.  The reset noise is i.i.d.
+  uniform per joint and velocity (base_env.py:1609-1612), so its distribution is mirror-symmetric [inferred].
+- Replication: no M1 flag to replicate.  Of the 52 unflagged keys, 1 had the M1 median's sign on at least 9 of 10
+  held-out seeds anyway.  Without the floor, the sign test flags sub-resolution biases of deterministic policies:
+  s80_B_1401 held-out 0.013 deg, s80_A_1301 0.018 deg at 9 s.  The floor is what keeps those from being alarms.
+- Sensitivity on these policies' own spread (power.py -> power.txt).  A same-side bias added to the 20 values flags
+  0 % at 0.5 mm / 0.05 deg (by design), 62-85 % at 1.5 mm, 88-92 % at 2 mm and 92-100 % at 3 mm.  For roll:
+  0 / 96 % at 0.10 deg (against / along the policy's own sign) and 96-100 % at 0.15 deg.  On 20 seeds the CoM key
+  is the weaker one (spread 1.35-1.75 mm); the gate's 40 seeds would sharpen it [inferred].
+- Cost.  On the round's M1 panel CoM-P1 needs one 20-episode rollout per checkpoint, about 55 s on one core here
+  [measured].  In the gate it costs nothing extra: the evaluation recorder already captures the CoM, the root
+  quaternion and the feet (balance=True, track_from_episode_trace), and body telemetry already writes
+  root_roll_mean_deg per evaluation episode (gait/body_telemetry.py).  com_lateral_mean_m is not yet a balance
+  column (gait/balance_telemetry.py has only the fore-aft keys) [measured: grep].
+
+==================================================================================================================
+7. PROPOSALS
+==================================================================================================================
+P1 (test helpers only, a reviewable PR, no gate): policy_com_check.patch, left uncommitted in the worktree.  It
+   adds stance_track_helpers.feet_creep_speed (feet-centroid least-squares velocity over a window: magnitude,
+   fore-aft, lateral) and policy_com_check (CoM-P1 on a panel), with the constants POLICY_CHECK_*.  It also adds
+   two synthetic tests: a 3 mm/s creep read in a turned frame, a buzz and a settling slide that are not a creep,
+   and the 16- against 17-of-20 boundary, floor, creep count and refusal.  No stance_track_quality key is added,
+   so no species pin moves.  33/33 of test_stance_track_reduction.py pass with warnings as errors; ruff 0.16.9
+   check and format, and mypy on the module, are clean [measured: patch_tests.txt].
+P2 (needs_maintainer, criteria text): pre-register CoM-P1 as a report-only reading of the next T. rex round.  It
+   would run on M1's 20 seeds from 5 s, with the statue at the same spawns, and fix its rule before any training
+   step, as M1 does.  It costs one extra 20-episode rollout per judged checkpoint, or nothing if read from M1's
+   own episodes once M1 records the CoM.
+P3 (needs_maintainer, a gate change; only proposed): a stance-gate addition, in stages.
+   (a) Report-only columns first: com_lateral_mean_m beside the balance keys (the move of the reduction beside
+       gait/balance_telemetry.py, #650 open item 8.6, would supply it), with root_roll_mean_deg already in body
+       telemetry; and the panel reading in the gate report, measured on the 40-episode gate panel (3042-3081),
+       window from com_check_window_start_steps = 500.
+   (b) After a round of record, gate keys in a new gate_kind version (gate_schema.py is fail-closed):
+         max_lean_same_sign_episodes = 29      # of 40: 30+ one way (two-sided p 0.0022) fails ...
+         lean_floor_com_lateral_m = 0.001      # ... only when |median| >= this,
+         lean_floor_root_roll_deg = 0.10       # or this
+         max_creep_episodes = 1                # episodes whose feet creep at >= creep_speed_mps
+         creep_speed_mps = 0.001
+       A failing reading would mark a checkpoint as "balances but leans" (the r9 case).  Measured on today's
+       policies: it would fail none of the 26 ECS checkpoints and would fail r9.
+P4 (reading, for the maintainer's "improve on today's behaviour"): the policies' spawn-dependent lean.  The
+   per-seed SD of the CoM offset is 9-12x the statue's, and some spawns hold 10-14 mm.  This is the number a
+   policy-side target could tighten, for example a per-seed SD under 1 mm or no episode over 5 mm, as a strict
+   expected failure on the ECS policies today.  That would be an evaluation target, not a gate [inferred].
+
+==================================================================================================================
+8. THE MAINTAINER'S NOTE, FROM THIS LENS
+==================================================================================================================
+- Absolute targets on policies [measured: targets_on_policies.txt]:
+  - "Turn < 1 deg from spawn" is met on 8-15 % of policy episodes and on 10 % of statue episodes: the plant's
+    settle pivot.
+  - "No rocking after 3 s" (settled by the PR's rule by 3 s) is met on 46-66 % of policy episodes and on 0 % of
+    statue episodes at noise 0.05.
+  - "|CoM sideways| < 5 mm" is met on 93-100 % (s80 93 %).
+- Ratchet: the CoM-P1 numbers are not pins.  Its floors are twice the PR's resolution floors, so a body-size
+  scaling of the floors (#650 item 8.3) would move them as well [inferred].
+- CoM checks on trained policies: section 6.  The gate change (P3) is needs_maintainer.
+- Robot creep and the robot's force pads: not this lens.  The creep bar of 1 mm/s sits between the T. rex policies'
+  0.51 mm/s and the robot's 3.2 mm/s.
+
+==================================================================================================================
+9. FILES (this folder)
+==================================================================================================================
+PREREG.txt, PREREG.sha256                     the pre-registered rule, sealed before the ends were read
+run_policies.py; run/ (M1), run_held/ (3062-3071), run_null/ (statue 3062-3161), run_r9/ (r9 control)
+    each: episodes.jsonl (per episode: metrics at 2/3/4/5/9 s, commands), tracks/*.npz (float32, no support points)
+run.log, run_after.sh, run_after.log, run_held.log, run_null.log, run_r9.log, run.started
+analyze.py -> analysis_w2/w5/w9 .txt/.json      settle, families, lean signs, paired, groups, creep, commands
+check.py   -> check_final.txt/.json, check_r9.txt/.json   CoM-P1 on M1, held-out, null; the r9 control
+spread.py -> spread.txt; rail_posture.py -> rail_posture.txt; power.py -> power.txt
+extremes.txt, support_low.txt, support_low_loads.txt, targets_on_policies.txt (inline scripts, logged here)
+equiv.py, compare_equiv.py -> equiv_copy.npz, equiv_main.npz, equiv_compare.txt     main = copy, bit for bit
+checkpoints_sha256.txt, m1_link.txt            provenance of the 26 checkpoints
+code_copy/                                     the scratch copy of ecs/code with the two reduction files
+policy_com_check.patch, patch_tests.txt        P1 (uncommitted in the worktree)

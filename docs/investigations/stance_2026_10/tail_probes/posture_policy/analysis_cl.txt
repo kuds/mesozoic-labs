@@ -1,0 +1,287 @@
+==============================================================================================================
+1. BASELINE BIT IDENTITY against the clamp runner's unforced arms (return per policy and seed)
+   540 of 540 matched episodes have an identical return (baseline has 540 episodes; 0 without a reference)
+   stood the full 1,000 steps: 540 of 540
+==============================================================================================================
+2. BASELINE LEVELS (window steps 501-1000; per-policy median over 20 seeds; median [range] over policies)
+   statue     (n_policies 1): own14 +0; own14_sat_share +0; raw14_mean +0; tail3_deg +0.01498; pitch_deg -0.9345; seen_pitch_deg -0.9346; head_cmd +0; neck_cmd +0; fore_aft_mm -27.12; height_mm +867; nosedive_sum -0.1998; return +4476; rail_ep +0
+   start_s42  (n_policies 1): own14 +0.5997; own14_sat_share +0; raw14_mean +0.5998; tail3_deg +3.116; pitch_deg -1.448; seen_pitch_deg -1.448; head_cmd +0.00368; neck_cmd +0.03227; fore_aft_mm -20.73; height_mm +865.7; nosedive_sum -6.202; return +4426; rail_ep +0
+   start_s80  (n_policies 1): own14 +0.01786; own14_sat_share +0; raw14_mean +0.01787; tail3_deg +0.1035; pitch_deg -0.4574; seen_pitch_deg -0.4575; head_cmd -0.4478; neck_cmd -0.6469; fore_aft_mm -34.19; height_mm +889.4; nosedive_sum +0; return +4437; rail_ep +0
+   s42        (n_policies 12): own14 +1 [+0.8505,+1]; own14_sat_share +1 [+0,+1]; raw14_mean +1.027 [+0.8509,+1.126]; tail3_deg +5.194 [+4.42,+5.203]; pitch_deg -1.351 [-1.934,-0.6495]; seen_pitch_deg -1.351 [-1.934,-0.6494]; head_cmd -0.09933 [-0.1971,-0.01657]; neck_cmd +0.02187 [-0.134,+0.06902]; fore_aft_mm -25.7 [-34.67,-18.21]; height_mm +867.9 [+864.1,+874.6]; nosedive_sum -4.94 [-12.56,+0]; return +4387 [+4355,+4398]; rail_ep +0.725 [+0.05,+0.95]
+   s80        (n_policies 12): own14 +0.02582 [-0.1669,+0.1874]; own14_sat_share +0 [+0,+0]; raw14_mean +0.02585 [-0.1668,+0.1875]; tail3_deg +0.1408 [-0.8498,+0.9765]; pitch_deg -0.2448 [-1.034,+0.08543]; seen_pitch_deg -0.2448 [-1.034,+0.08545]; head_cmd -0.1509 [-0.2483,+0.1221]; neck_cmd -0.2611 [-0.9648,+0.1987]; fore_aft_mm -32.41 [-41.74,-25.5]; height_mm +874.4 [+861.1,+894.6]; nosedive_sum +0 [-0.7865,+0]; return +4461 [+4400,+4476]; rail_ep +0 [+0,+0]
+   per policy (own14 median, rail share of seeds, tail3 deg, pitch deg):
+     start_s42   own14 +0.600 rail_seeds 0.00 tail3 +3.12 pitch -1.448 seen -1.448
+     start_s80   own14 +0.018 rail_seeds 0.00 tail3 +0.10 pitch -0.457 seen -0.457
+     s42_A_1101  own14 +1.000 rail_seeds 0.95 tail3 +5.20 pitch -1.103 seen -1.103
+     s42_A_1111  own14 +1.000 rail_seeds 0.90 tail3 +5.20 pitch -1.215 seen -1.215
+     s42_A_1121  own14 +0.981 rail_seeds 0.35 tail3 +5.09 pitch -0.650 seen -0.649
+     s42_A_1131  own14 +1.000 rail_seeds 0.85 tail3 +5.19 pitch -1.817 seen -1.817
+     s42_A_1141  own14 +1.000 rail_seeds 0.90 tail3 +5.19 pitch -1.934 seen -1.934
+     s42_A_1151  own14 +0.851 rail_seeds 0.05 tail3 +4.42 pitch -0.793 seen -0.793
+     s42_B_1201  own14 +1.000 rail_seeds 0.75 tail3 +5.19 pitch -1.357 seen -1.357
+     s42_B_1211  own14 +1.000 rail_seeds 0.75 tail3 +5.20 pitch -1.000 seen -1.000
+     s42_B_1221  own14 +1.000 rail_seeds 0.70 tail3 +5.20 pitch -1.345 seen -1.345
+     s42_B_1231  own14 +0.985 rail_seeds 0.50 tail3 +5.12 pitch -1.461 seen -1.460
+     s42_B_1241  own14 +1.000 rail_seeds 0.65 tail3 +5.19 pitch -1.783 seen -1.783
+     s42_B_1251  own14 +1.000 rail_seeds 0.70 tail3 +5.19 pitch -1.513 seen -1.513
+     s80_A_1301  own14 +0.006 rail_seeds 0.00 tail3 +0.04 pitch -0.075 seen -0.075
+     s80_A_1311  own14 -0.003 rail_seeds 0.00 tail3 -0.00 pitch -0.601 seen -0.601
+     s80_A_1321  own14 +0.034 rail_seeds 0.00 tail3 +0.18 pitch -0.103 seen -0.103
+     s80_A_1331  own14 +0.076 rail_seeds 0.00 tail3 +0.40 pitch +0.085 seen +0.085
+     s80_A_1341  own14 -0.041 rail_seeds 0.00 tail3 -0.20 pitch -0.127 seen -0.127
+     s80_A_1351  own14 +0.068 rail_seeds 0.00 tail3 +0.36 pitch -0.430 seen -0.430
+     s80_B_1401  own14 +0.187 rail_seeds 0.00 tail3 +0.98 pitch -0.592 seen -0.592
+     s80_B_1411  own14 +0.047 rail_seeds 0.00 tail3 +0.26 pitch -0.614 seen -0.614
+     s80_B_1421  own14 -0.167 rail_seeds 0.00 tail3 -0.85 pitch -1.034 seen -1.034
+     s80_B_1431  own14 +0.018 rail_seeds 0.00 tail3 +0.10 pitch -0.344 seen -0.344
+     s80_B_1441  own14 -0.044 rail_seeds 0.00 tail3 -0.22 pitch -0.108 seen -0.108
+     s80_B_1451  own14 +0.034 rail_seeds 0.00 tail3 +0.19 pitch -0.145 seen -0.145
+==============================================================================================================
+3. PITCH ILLUSION TOWARD the other lineage (s42 +1.10 deg nose-up seen; s80 -1.10 deg): illusion minus baseline, paired by (policy, seed)
+   start_s42 (1 policies, 20 paired episodes, stood 20/20):
+     own14            median -0.1178; seeds +0/-20
+     own14_sat_share  median +0; seeds +0/-0
+     raw14_mean       median -0.1177; seeds +0/-20
+     tail3_deg        median -0.6078; seeds +0/-20
+     pitch_deg        median -0.2608; seeds +0/-20
+     seen_pitch_deg   median +0.8392; seeds +20/-0
+     head_cmd         median +0.01995; seeds +20/-0
+     neck_cmd         median -0.0003605; seeds +4/-16
+     fore_aft_mm      median -0.7355; seeds +0/-20
+     height_mm        median -0.9021; seeds +0/-20
+     nosedive_sum     median -3.412; seeds +0/-20
+     return           median +3.571; seeds +17/-3
+     railed episodes (window own14 mean >= 0.99): baseline 0.000 -> illusion 0.000
+   start_s80 (1 policies, 20 paired episodes, stood 20/20):
+     own14            median +0.0138; seeds +20/-0
+     own14_sat_share  median +0; seeds +0/-0
+     raw14_mean       median +0.01383; seeds +20/-0
+     tail3_deg        median +0.07029; seeds +20/-0
+     pitch_deg        median +0.8289; seeds +20/-0
+     seen_pitch_deg   median -0.2711; seeds +0/-20
+     head_cmd         median -0.158; seeds +0/-20
+     neck_cmd         median -0.1967; seeds +0/-20
+     fore_aft_mm      median -8.829; seeds +0/-20
+     height_mm        median +8.371; seeds +20/-0
+     nosedive_sum     median +0; seeds +0/-0
+     return           median -34.11; seeds +0/-20
+     railed episodes (window own14 mean >= 0.99): baseline 0.000 -> illusion 0.000
+   s42 (12 policies, 240 paired episodes, stood 240/240):
+     own14            median -0.1895 [-0.3458,+0]; policies +0/-11 p 0.0010; episodes +1/-210
+     own14_sat_share  median -0.75 [-1,+0]; policies +0/-9 p 0.0039; episodes +0/-139
+     raw14_mean       median -0.2093 [-0.3455,-0.01368]; policies +0/-12 p 0.0005; episodes +2/-238
+     tail3_deg        median -0.9897 [-1.802,+0.01089]; policies +1/-11 p 0.0063; episodes +33/-207
+     pitch_deg        median -0.4691 [-0.7755,-0.07708]; policies +0/-12 p 0.0005; episodes +7/-233
+     seen_pitch_deg   median +0.6309 [+0.3245,+1.023]; policies +12/-0 p 0.0005; episodes +240/-0
+     head_cmd         median +0.04117 [+0.01669,+0.08891]; policies +12/-0 p 0.0005; episodes +240/-0
+     neck_cmd         median +0.002888 [-0.05975,+0.02728]; policies +6/-6 p 1.0000; episodes +131/-109
+     fore_aft_mm      median +2.122 [-2.563,+6.528]; policies +11/-1 p 0.0063; episodes +220/-20
+     height_mm        median -1.745 [-2.527,+1.137]; policies +1/-11 p 0.0063; episodes +22/-218
+     nosedive_sum     median -5.752 [-10.15,-0.7619]; policies +0/-12 p 0.0005; episodes +5/-229
+     return           median +10.66 [-22.24,+32.01]; policies +8/-4 p 0.3877; episodes +149/-91
+     railed episodes (window own14 mean >= 0.99): baseline 0.671 -> illusion 0.154
+       s42_A_1101  d own14 -0.008 (+0/-12) d tail3 -0.04 deg, d pitch -0.341, d seen +0.759, rail 0.95->0.50
+       s42_A_1111  d own14 -0.257 (+0/-20) d tail3 -1.35 deg, d pitch -0.546, d seen +0.554, rail 0.90->0.00
+       s42_A_1121  d own14 -0.188 (+0/-20) d tail3 -0.98 deg, d pitch -0.466, d seen +0.634, rail 0.35->0.00
+       s42_A_1131  d own14 -0.080 (+0/-18) d tail3 -0.43 deg, d pitch -0.435, d seen +0.665, rail 0.85->0.20
+       s42_A_1141  d own14 -0.191 (+0/-19) d tail3 -1.00 deg, d pitch -0.499, d seen +0.601, rail 0.90->0.15
+       s42_A_1151  d own14 -0.198 (+0/-20) d tail3 -1.02 deg, d pitch -0.515, d seen +0.585, rail 0.05->0.00
+       s42_B_1201  d own14 +0.000 (+1/-8) d tail3 +0.01 deg, d pitch -0.776, d seen +0.324, rail 0.75->0.60
+       s42_B_1211  d own14 -0.183 (+0/-20) d tail3 -0.97 deg, d pitch -0.272, d seen +0.828, rail 0.75->0.00
+       s42_B_1221  d own14 -0.030 (+0/-13) d tail3 -0.16 deg, d pitch -0.582, d seen +0.518, rail 0.70->0.40
+       s42_B_1231  d own14 -0.346 (+0/-20) d tail3 -1.80 deg, d pitch -0.077, d seen +1.023, rail 0.50->0.00
+       s42_B_1241  d own14 -0.235 (+0/-20) d tail3 -1.21 deg, d pitch -0.472, d seen +0.627, rail 0.65->0.00
+       s42_B_1251  d own14 -0.197 (+0/-20) d tail3 -1.04 deg, d pitch -0.444, d seen +0.656, rail 0.70->0.00
+   s80 (12 policies, 240 paired episodes, stood 240/240):
+     own14            median +0.0249 [-0.01984,+0.09937]; policies +10/-2 p 0.0386; episodes +189/-51
+     own14_sat_share  median +0 [+0,+0]; policies +0/-0 p nan; episodes +0/-0
+     raw14_mean       median +0.02496 [-0.01994,+0.09967]; policies +10/-2 p 0.0386; episodes +189/-51
+     tail3_deg        median +0.1263 [-0.1008,+0.51]; policies +10/-2 p 0.0386; episodes +189/-51
+     pitch_deg        median +0.837 [+0.3063,+1.195]; policies +12/-0 p 0.0005; episodes +240/-0
+     seen_pitch_deg   median -0.263 [-0.7935,+0.09454]; policies +2/-10 p 0.0386; episodes +29/-211
+     head_cmd         median -0.02949 [-0.104,+0.06822]; policies +2/-10 p 0.0386; episodes +65/-175
+     neck_cmd         median -0.03696 [-0.6152,+0.1507]; policies +5/-7 p 0.7744; episodes +94/-133
+     fore_aft_mm      median -5.77 [-11.34,-1.988]; policies +0/-12 p 0.0005; episodes +0/-240
+     height_mm        median +2.909 [-2.443,+20.21]; policies +9/-3 p 0.1460; episodes +182/-58
+     nosedive_sum     median +0 [+0,+0.7865]; policies +1/-0 p 1.0000; episodes +15/-0
+     return           median -22.89 [-60.93,+0.2925]; policies +1/-11 p 0.0063; episodes +21/-219
+     railed episodes (window own14 mean >= 0.99): baseline 0.000 -> illusion 0.000
+       s80_A_1301  d own14 +0.099 (+20/-0) d tail3 +0.51 deg, d pitch +0.306, d seen -0.793, rail 0.00->0.00
+       s80_A_1311  d own14 +0.011 (+20/-0) d tail3 +0.06 deg, d pitch +0.643, d seen -0.456, rail 0.00->0.00
+       s80_A_1321  d own14 +0.001 (+11/-9) d tail3 +0.01 deg, d pitch +0.969, d seen -0.131, rail 0.00->0.00
+       s80_A_1331  d own14 +0.068 (+20/-0) d tail3 +0.35 deg, d pitch +1.195, d seen +0.095, rail 0.00->0.00
+       s80_A_1341  d own14 -0.020 (+0/-20) d tail3 -0.10 deg, d pitch +1.106, d seen +0.006, rail 0.00->0.00
+       s80_A_1351  d own14 +0.026 (+20/-0) d tail3 +0.13 deg, d pitch +0.676, d seen -0.424, rail 0.00->0.00
+       s80_B_1401  d own14 +0.081 (+20/-0) d tail3 +0.42 deg, d pitch +0.782, d seen -0.318, rail 0.00->0.00
+       s80_B_1411  d own14 +0.024 (+20/-0) d tail3 +0.12 deg, d pitch +0.680, d seen -0.420, rail 0.00->0.00
+       s80_B_1421  d own14 +0.088 (+20/-0) d tail3 +0.45 deg, d pitch +0.969, d seen -0.131, rail 0.00->0.00
+       s80_B_1431  d own14 +0.007 (+18/-2) d tail3 +0.03 deg, d pitch +0.735, d seen -0.365, rail 0.00->0.00
+       s80_B_1441  d own14 -0.007 (+0/-20) d tail3 -0.04 deg, d pitch +0.943, d seen -0.157, rail 0.00->0.00
+       s80_B_1451  d own14 +0.042 (+20/-0) d tail3 +0.21 deg, d pitch +0.892, d seen -0.208, rail 0.00->0.00
+   time course of the own tail_3 command (mean over seeds; bins 0-4 s by 0.25 s, then 4-10 s by 1 s):
+     start_s42  base  own14 -0.09 +0.08 +0.28 +0.40 +0.45 +0.47 +0.49 +0.51 +0.52 +0.52 +0.52 +0.53 +0.53 +0.53 +0.53 +0.53 +0.53 +0.53 +0.52 +0.52 +0.52 +0.52  (first >= 0.9: never)
+     start_s42  illus own14 -0.14 -0.01 +0.18 +0.30 +0.34 +0.36 +0.37 +0.39 +0.40 +0.40 +0.40 +0.41 +0.41 +0.41 +0.41 +0.41 +0.41 +0.41 +0.41 +0.40 +0.40 +0.40  (first >= 0.9: never)
+     start_s42  base  tail3 -0.2 -0.0 +0.9 +1.5 +1.9 +2.3 +2.5 +2.6 +2.6 +2.7 +2.7 +2.7 +2.7 +2.7 +2.7 +2.7 +2.7 +2.7 +2.7 +2.7 +2.7 +2.7
+     start_s42  illus tail3 -0.4 -0.3 +0.5 +1.0 +1.4 +1.7 +1.9 +2.0 +2.0 +2.1 +2.1 +2.1 +2.1 +2.1 +2.1 +2.1 +2.1 +2.1 +2.1 +2.1 +2.1 +2.1
+     start_s80  base  own14 -0.11 -0.01 +0.02 +0.00 +0.02 +0.02 +0.02 +0.02 +0.02 +0.02 +0.02 +0.02 +0.02 +0.02 +0.02 +0.02 +0.02 +0.02 +0.02 +0.02 +0.02 +0.02  (first >= 0.9: never)
+     start_s80  illus own14 -0.11 +0.01 +0.03 +0.02 +0.03 +0.04 +0.04 +0.04 +0.04 +0.04 +0.03 +0.03 +0.03 +0.03 +0.03 +0.03 +0.03 +0.03 +0.03 +0.03 +0.03 +0.03  (first >= 0.9: never)
+     start_s80  base  tail3 +0.0 -0.2 -0.2 -0.0 +0.1 +0.1 +0.1 +0.1 +0.1 +0.1 +0.1 +0.1 +0.1 +0.1 +0.1 +0.1 +0.1 +0.1 +0.1 +0.1 +0.1 +0.1
+     start_s80  illus tail3 +0.1 -0.2 -0.2 +0.0 +0.2 +0.2 +0.2 +0.2 +0.2 +0.2 +0.2 +0.2 +0.2 +0.2 +0.2 +0.2 +0.2 +0.2 +0.2 +0.2 +0.2 +0.2
+     s42        base  own14 -0.01 +0.21 +0.41 +0.53 +0.62 +0.70 +0.77 +0.82 +0.85 +0.88 +0.90 +0.91 +0.92 +0.93 +0.93 +0.94 +0.94 +0.95 +0.95 +0.95 +0.96 +0.96  (first >= 0.9: bin 11)
+     s42        illus own14 -0.11 +0.08 +0.26 +0.36 +0.44 +0.50 +0.56 +0.60 +0.64 +0.66 +0.68 +0.70 +0.71 +0.72 +0.73 +0.74 +0.75 +0.77 +0.78 +0.78 +0.79 +0.79  (first >= 0.9: never)
+     s42        base  tail3 -0.1 +0.4 +1.4 +2.1 +2.7 +3.2 +3.7 +4.0 +4.2 +4.4 +4.6 +4.7 +4.7 +4.8 +4.8 +4.8 +4.9 +4.9 +4.9 +5.0 +5.0 +5.0
+     s42        illus tail3 -0.3 -0.1 +0.7 +1.4 +1.9 +2.3 +2.6 +2.9 +3.1 +3.3 +3.4 +3.6 +3.6 +3.7 +3.8 +3.8 +3.9 +4.0 +4.0 +4.1 +4.1 +4.1
+     s80        base  own14 -0.08 -0.02 -0.00 -0.01 -0.00 +0.00 +0.01 +0.01 +0.01 +0.01 +0.01 +0.01 +0.01 +0.01 +0.01 +0.01 +0.01 +0.01 +0.01 +0.01 +0.01 +0.01  (first >= 0.9: never)
+     s80        illus own14 -0.07 +0.01 +0.03 +0.02 +0.03 +0.03 +0.04 +0.04 +0.04 +0.04 +0.04 +0.04 +0.04 +0.04 +0.04 +0.04 +0.04 +0.05 +0.05 +0.05 +0.05 +0.05  (first >= 0.9: never)
+     s80        base  tail3 +0.0 -0.1 -0.2 -0.1 -0.0 +0.0 +0.0 +0.1 +0.1 +0.1 +0.1 +0.1 +0.1 +0.1 +0.1 +0.1 +0.1 +0.1 +0.1 +0.1 +0.1 +0.1
+     s80        illus tail3 +0.1 -0.0 -0.1 +0.0 +0.1 +0.2 +0.2 +0.2 +0.2 +0.2 +0.2 +0.2 +0.2 +0.2 +0.2 +0.2 +0.2 +0.2 +0.3 +0.3 +0.3 +0.3
+==============================================================================================================
+3. PITCH ILLUSION AWAY from the other lineage (s42 -1.10 deg; s80 +1.10 deg): illusion minus baseline, paired by (policy, seed)
+   start_s42 (1 policies, 20 paired episodes, stood 20/20):
+     own14            median +0.08877; seeds +20/-0
+     own14_sat_share  median +0; seeds +0/-0
+     raw14_mean       median +0.08878; seeds +20/-0
+     tail3_deg        median +0.4562; seeds +20/-0
+     pitch_deg        median +0.2981; seeds +20/-0
+     seen_pitch_deg   median -0.8019; seeds +0/-20
+     head_cmd         median -0.01878; seeds +0/-20
+     neck_cmd         median +0.0003975; seeds +11/-9
+     fore_aft_mm      median +0.2862; seeds +18/-2
+     height_mm        median +0.8927; seeds +20/-0
+     nosedive_sum     median +3.827; seeds +20/-0
+     return           median -6.388; seeds +1/-19
+     railed episodes (window own14 mean >= 0.99): baseline 0.000 -> illusion 0.000
+   start_s80 (1 policies, 20 paired episodes, stood 20/20):
+     own14            median -0.01769; seeds +0/-20
+     own14_sat_share  median +0; seeds +0/-0
+     raw14_mean       median -0.01772; seeds +0/-20
+     tail3_deg        median -0.08985; seeds +0/-20
+     pitch_deg        median -0.7835; seeds +0/-20
+     seen_pitch_deg   median +0.3165; seeds +20/-0
+     head_cmd         median +0.1661; seeds +20/-0
+     neck_cmd         median +0.1986; seeds +20/-0
+     fore_aft_mm      median +6.971; seeds +20/-0
+     height_mm        median -8.502; seeds +0/-20
+     nosedive_sum     median -3.433; seeds +0/-19
+     return           median +15.98; seeds +20/-0
+     railed episodes (window own14 mean >= 0.99): baseline 0.000 -> illusion 0.000
+   s42 (12 policies, 240 paired episodes, stood 240/240):
+     own14            median +0 [+0,+0.1489]; policies +3/-0 p 0.2500; episodes +88/-9
+     own14_sat_share  median +0 [+0,+0.929]; policies +3/-0 p 0.2500; episodes +66/-3
+     raw14_mean       median +0.08451 [-0.007412,+0.1569]; policies +11/-1 p 0.0063; episodes +223/-17
+     tail3_deg        median -0.007438 [-0.01066,+0.7782]; policies +3/-9 p 0.1460; episodes +84/-156
+     pitch_deg        median +0.4292 [+0.186,+0.7746]; policies +12/-0 p 0.0005; episodes +239/-1
+     seen_pitch_deg   median -0.6707 [-0.914,-0.3254]; policies +0/-12 p 0.0005; episodes +0/-240
+     head_cmd         median -0.02416 [-0.05019,-0.002267]; policies +0/-12 p 0.0005; episodes +4/-236
+     neck_cmd         median -0.000541 [-0.02584,+0.02868]; policies +6/-6 p 1.0000; episodes +112/-128
+     fore_aft_mm      median -1.885 [-6.558,+0.8775]; policies +2/-10 p 0.0386; episodes +26/-214
+     height_mm        median +1.246 [-0.7794,+2.204]; policies +10/-2 p 0.0386; episodes +204/-36
+     nosedive_sum     median +4.009 [+0,+6.693]; policies +10/-0 p 0.0020; episodes +196/-1
+     return           median +1.508 [-21.13,+10.51]; policies +8/-4 p 0.3877; episodes +135/-105
+     railed episodes (window own14 mean >= 0.99): baseline 0.671 -> illusion 0.896
+       s42_A_1101  d own14 +0.000 (+4/-0) d tail3 -0.01 deg, d pitch +0.340, d seen -0.760, rail 0.95->1.00
+       s42_A_1111  d own14 +0.000 (+2/-0) d tail3 -0.01 deg, d pitch +0.414, d seen -0.686, rail 0.90->1.00
+       s42_A_1121  d own14 +0.019 (+15/-0) d tail3 +0.10 deg, d pitch +0.272, d seen -0.828, rail 0.35->0.95
+       s42_A_1131  d own14 +0.000 (+3/-0) d tail3 -0.01 deg, d pitch +0.446, d seen -0.654, rail 0.85->1.00
+       s42_A_1141  d own14 +0.000 (+3/-0) d tail3 -0.01 deg, d pitch +0.512, d seen -0.588, rail 0.90->0.95
+       s42_A_1151  d own14 +0.149 (+20/-0) d tail3 +0.78 deg, d pitch +0.445, d seen -0.655, rail 0.05->0.65
+       s42_B_1201  d own14 +0.000 (+1/-9) d tail3 -0.01 deg, d pitch +0.775, d seen -0.325, rail 0.75->0.70
+       s42_B_1211  d own14 +0.000 (+5/-0) d tail3 -0.01 deg, d pitch +0.240, d seen -0.860, rail 0.75->0.90
+       s42_B_1221  d own14 +0.000 (+7/-0) d tail3 -0.01 deg, d pitch +0.589, d seen -0.511, rail 0.70->0.70
+       s42_B_1231  d own14 +0.015 (+11/-0) d tail3 +0.07 deg, d pitch +0.186, d seen -0.914, rail 0.50->1.00
+       s42_B_1241  d own14 +0.000 (+8/-0) d tail3 -0.01 deg, d pitch +0.391, d seen -0.709, rail 0.65->0.95
+       s42_B_1251  d own14 +0.000 (+9/-0) d tail3 -0.01 deg, d pitch +0.449, d seen -0.651, rail 0.70->0.95
+   s80 (12 policies, 240 paired episodes, stood 240/240):
+     own14            median -0.02549 [-0.1237,+0.01866]; policies +2/-10 p 0.0386; episodes +37/-203
+     own14_sat_share  median +0 [+0,+0]; policies +0/-0 p nan; episodes +0/-0
+     raw14_mean       median -0.02544 [-0.1238,+0.01865]; policies +2/-10 p 0.0386; episodes +37/-203
+     tail3_deg        median -0.1287 [-0.6361,+0.09709]; policies +2/-10 p 0.0386; episodes +37/-203
+     pitch_deg        median -0.781 [-1.202,-0.4479]; policies +0/-12 p 0.0005; episodes +0/-240
+     seen_pitch_deg   median +0.3189 [-0.102,+0.6522]; policies +11/-1 p 0.0063; episodes +220/-20
+     head_cmd         median +0.05218 [-0.1124,+0.08133]; policies +10/-2 p 0.0386; episodes +203/-37
+     neck_cmd         median +0.09914 [-0.1945,+0.7989]; policies +7/-5 p 0.7744; episodes +143/-97
+     fore_aft_mm      median +5.235 [+0.7055,+14.04]; policies +12/-0 p 0.0005; episodes +236/-4
+     height_mm        median -4.575 [-22.6,+3.482]; policies +3/-9 p 0.1460; episodes +57/-183
+     nosedive_sum     median -1.793 [-11.3,+0]; policies +0/-10 p 0.0020; episodes +0/-181
+     return           median -2.682 [-291,+51.63]; policies +5/-7 p 0.7744; episodes +108/-132
+     railed episodes (window own14 mean >= 0.99): baseline 0.000 -> illusion 0.000
+       s80_A_1301  d own14 -0.080 (+0/-20) d tail3 -0.41 deg, d pitch -0.448, d seen +0.652, rail 0.00->0.00
+       s80_A_1311  d own14 -0.012 (+0/-20) d tail3 -0.06 deg, d pitch -0.587, d seen +0.513, rail 0.00->0.00
+       s80_A_1321  d own14 -0.014 (+0/-20) d tail3 -0.07 deg, d pitch -0.984, d seen +0.116, rail 0.00->0.00
+       s80_A_1331  d own14 -0.083 (+0/-20) d tail3 -0.43 deg, d pitch -1.202, d seen -0.102, rail 0.00->0.00
+       s80_A_1341  d own14 +0.019 (+20/-0) d tail3 +0.10 deg, d pitch -0.711, d seen +0.389, rail 0.00->0.00
+       s80_A_1351  d own14 -0.026 (+0/-20) d tail3 -0.13 deg, d pitch -0.669, d seen +0.431, rail 0.00->0.00
+       s80_B_1401  d own14 -0.124 (+0/-20) d tail3 -0.64 deg, d pitch -0.831, d seen +0.269, rail 0.00->0.00
+       s80_B_1411  d own14 -0.025 (+0/-20) d tail3 -0.13 deg, d pitch -0.650, d seen +0.450, rail 0.00->0.00
+       s80_B_1421  d own14 -0.065 (+0/-20) d tail3 -0.33 deg, d pitch -0.887, d seen +0.213, rail 0.00->0.00
+       s80_B_1431  d own14 -0.008 (+2/-18) d tail3 -0.04 deg, d pitch -0.731, d seen +0.369, rail 0.00->0.00
+       s80_B_1441  d own14 +0.002 (+15/-5) d tail3 +0.01 deg, d pitch -0.919, d seen +0.181, rail 0.00->0.00
+       s80_B_1451  d own14 -0.046 (+0/-20) d tail3 -0.24 deg, d pitch -0.883, d seen +0.217, rail 0.00->0.00
+   time course of the own tail_3 command (mean over seeds; bins 0-4 s by 0.25 s, then 4-10 s by 1 s):
+     start_s42  base  own14 -0.09 +0.08 +0.28 +0.40 +0.45 +0.47 +0.49 +0.51 +0.52 +0.52 +0.52 +0.53 +0.53 +0.53 +0.53 +0.53 +0.53 +0.53 +0.52 +0.52 +0.52 +0.52  (first >= 0.9: never)
+     start_s42  illus own14 -0.04 +0.16 +0.38 +0.49 +0.54 +0.57 +0.59 +0.60 +0.61 +0.61 +0.62 +0.62 +0.62 +0.62 +0.62 +0.62 +0.62 +0.62 +0.61 +0.61 +0.61 +0.61  (first >= 0.9: never)
+     start_s42  base  tail3 -0.2 -0.0 +0.9 +1.5 +1.9 +2.3 +2.5 +2.6 +2.6 +2.7 +2.7 +2.7 +2.7 +2.7 +2.7 +2.7 +2.7 +2.7 +2.7 +2.7 +2.7 +2.7
+     start_s42  illus tail3 -0.1 +0.2 +1.2 +1.9 +2.4 +2.8 +3.0 +3.1 +3.1 +3.2 +3.2 +3.2 +3.2 +3.2 +3.2 +3.2 +3.2 +3.2 +3.2 +3.2 +3.2 +3.2
+     start_s80  base  own14 -0.11 -0.01 +0.02 +0.00 +0.02 +0.02 +0.02 +0.02 +0.02 +0.02 +0.02 +0.02 +0.02 +0.02 +0.02 +0.02 +0.02 +0.02 +0.02 +0.02 +0.02 +0.02  (first >= 0.9: never)
+     start_s80  illus own14 -0.12 -0.03 +0.00 -0.01 -0.00 +0.00 +0.00 +0.00 +0.00 +0.00 +0.00 +0.00 +0.00 +0.00 +0.00 +0.00 +0.00 +0.00 +0.00 +0.00 +0.00 +0.00  (first >= 0.9: never)
+     start_s80  base  tail3 +0.0 -0.2 -0.2 -0.0 +0.1 +0.1 +0.1 +0.1 +0.1 +0.1 +0.1 +0.1 +0.1 +0.1 +0.1 +0.1 +0.1 +0.1 +0.1 +0.1 +0.1 +0.1
+     start_s80  illus tail3 -0.1 -0.3 -0.2 -0.1 +0.0 +0.0 +0.0 +0.0 +0.0 +0.0 +0.0 +0.0 +0.0 +0.0 +0.0 +0.0 +0.0 +0.0 +0.0 +0.0 +0.0 +0.0
+     s42        base  own14 -0.01 +0.21 +0.41 +0.53 +0.62 +0.70 +0.77 +0.82 +0.85 +0.88 +0.90 +0.91 +0.92 +0.93 +0.93 +0.94 +0.94 +0.95 +0.95 +0.95 +0.96 +0.96  (first >= 0.9: bin 11)
+     s42        illus own14 +0.08 +0.34 +0.53 +0.66 +0.76 +0.84 +0.89 +0.93 +0.94 +0.96 +0.97 +0.97 +0.97 +0.98 +0.98 +0.98 +0.98 +0.98 +0.98 +0.99 +0.99 +0.99  (first >= 0.9: bin 7)
+     s42        base  tail3 -0.1 +0.4 +1.4 +2.1 +2.7 +3.2 +3.7 +4.0 +4.2 +4.4 +4.6 +4.7 +4.7 +4.8 +4.8 +4.8 +4.9 +4.9 +4.9 +5.0 +5.0 +5.0
+     s42        illus tail3 +0.1 +0.8 +1.9 +2.8 +3.4 +4.0 +4.4 +4.6 +4.8 +4.9 +5.0 +5.0 +5.0 +5.1 +5.1 +5.1 +5.1 +5.1 +5.1 +5.1 +5.1 +5.1
+     s80        base  own14 -0.08 -0.02 -0.00 -0.01 -0.00 +0.00 +0.01 +0.01 +0.01 +0.01 +0.01 +0.01 +0.01 +0.01 +0.01 +0.01 +0.01 +0.01 +0.01 +0.01 +0.01 +0.01  (first >= 0.9: never)
+     s80        illus own14 -0.09 -0.05 -0.03 -0.04 -0.03 -0.03 -0.03 -0.02 -0.02 -0.02 -0.03 -0.03 -0.03 -0.03 -0.03 -0.03 -0.02 -0.02 -0.02 -0.02 -0.02 -0.02  (first >= 0.9: never)
+     s80        base  tail3 +0.0 -0.1 -0.2 -0.1 -0.0 +0.0 +0.0 +0.1 +0.1 +0.1 +0.1 +0.1 +0.1 +0.1 +0.1 +0.1 +0.1 +0.1 +0.1 +0.1 +0.1 +0.1
+     s80        illus tail3 -0.0 -0.2 -0.3 -0.2 -0.2 -0.1 -0.1 -0.1 -0.1 -0.1 -0.1 -0.1 -0.1 -0.1 -0.1 -0.1 -0.1 -0.1 -0.1 -0.1 -0.1 -0.1
+==============================================================================================================
+3. PITCH ILLUSION TOWARD, GRAVITY + ACCELEROMETER CHANNELS ONLY, prey direction untouched (s42 +1.10 deg; added on resume): illusion minus baseline, paired by (policy, seed)
+   start_s42 (1 policies, 20 paired episodes, stood 20/20):
+     own14            median -0.04464; seeds +0/-20
+     own14_sat_share  median +0; seeds +0/-0
+     raw14_mean       median -0.04466; seeds +0/-20
+     tail3_deg        median -0.23; seeds +0/-20
+     pitch_deg        median -0.138; seeds +0/-20
+     seen_pitch_deg   median +0.962; seeds +20/-0
+     head_cmd         median +0.007161; seeds +20/-0
+     neck_cmd         median +0.001785; seeds +20/-0
+     fore_aft_mm      median -0.2097; seeds +1/-19
+     height_mm        median -0.542; seeds +0/-20
+     nosedive_sum     median -1.805; seeds +0/-20
+     return           median +2.106; seeds +14/-6
+     railed episodes (window own14 mean >= 0.99): baseline 0.000 -> illusion 0.000
+   s42 (12 policies, 240 paired episodes, stood 240/240):
+     own14            median -0.02437 [-0.1166,+0]; policies +0/-9 p 0.0039; episodes +5/-172
+     own14_sat_share  median -0.034 [-0.648,+0]; policies +0/-6 p 0.0312; episodes +2/-93
+     raw14_mean       median -0.07137 [-0.1381,+0.000488]; policies +1/-11 p 0.0063; episodes +11/-229
+     tail3_deg        median -0.1399 [-0.6037,+0.006002]; policies +4/-8 p 0.3877; episodes +79/-161
+     pitch_deg        median -0.1872 [-0.4037,-0.09887]; policies +0/-12 p 0.0005; episodes +2/-238
+     seen_pitch_deg   median +0.9128 [+0.6962,+1.001]; policies +12/-0 p 0.0005; episodes +240/-0
+     head_cmd         median +0.01254 [+0.003559,+0.03983]; policies +12/-0 p 0.0005; episodes +240/-0
+     neck_cmd         median +0.001371 [-0.02354,+0.01303]; policies +8/-4 p 0.3877; episodes +150/-90
+     fore_aft_mm      median +0.9937 [-0.6953,+3.332]; policies +11/-1 p 0.0063; episodes +221/-19
+     height_mm        median -0.6757 [-1.156,+0.3561]; policies +2/-10 p 0.0386; episodes +30/-210
+     nosedive_sum     median -2.364 [-5.283,+0]; policies +0/-11 p 0.0010; episodes +0/-207
+     return           median +4.005 [-11.97,+13.82]; policies +7/-5 p 0.7744; episodes +131/-109
+     railed episodes (window own14 mean >= 0.99): baseline 0.671 -> illusion 0.392
+       s42_A_1101  d own14 +0.000 (+0/-6) d tail3 +0.00 deg, d pitch -0.180, d seen +0.920, rail 0.95->0.80
+       s42_A_1111  d own14 -0.021 (+0/-18) d tail3 -0.12 deg, d pitch -0.162, d seen +0.938, rail 0.90->0.40
+       s42_A_1121  d own14 -0.079 (+0/-20) d tail3 -0.41 deg, d pitch -0.190, d seen +0.910, rail 0.35->0.00
+       s42_A_1131  d own14 +0.000 (+0/-6) d tail3 +0.00 deg, d pitch -0.244, d seen +0.856, rail 0.85->0.75
+       s42_A_1141  d own14 -0.000 (+0/-12) d tail3 +0.00 deg, d pitch -0.287, d seen +0.813, rail 0.90->0.60
+       s42_A_1151  d own14 -0.094 (+0/-20) d tail3 -0.49 deg, d pitch -0.182, d seen +0.918, rail 0.05->0.00
+       s42_B_1201  d own14 +0.000 (+5/-3) d tail3 +0.01 deg, d pitch -0.404, d seen +0.696, rail 0.75->0.75
+       s42_B_1211  d own14 -0.028 (+0/-17) d tail3 -0.16 deg, d pitch -0.132, d seen +0.968, rail 0.75->0.30
+       s42_B_1221  d own14 -0.001 (+0/-11) d tail3 -0.00 deg, d pitch -0.288, d seen +0.812, rail 0.70->0.65
+       s42_B_1231  d own14 -0.117 (+0/-20) d tail3 -0.60 deg, d pitch -0.099, d seen +1.001, rail 0.50->0.15
+       s42_B_1241  d own14 -0.080 (+0/-20) d tail3 -0.41 deg, d pitch -0.184, d seen +0.916, rail 0.65->0.10
+       s42_B_1251  d own14 -0.078 (+0/-19) d tail3 -0.42 deg, d pitch -0.213, d seen +0.887, rail 0.70->0.20
+   time course of the own tail_3 command (mean over seeds; bins 0-4 s by 0.25 s, then 4-10 s by 1 s):
+     start_s42  base  own14 -0.09 +0.08 +0.28 +0.40 +0.45 +0.47 +0.49 +0.51 +0.52 +0.52 +0.52 +0.53 +0.53 +0.53 +0.53 +0.53 +0.53 +0.53 +0.52 +0.52 +0.52 +0.52  (first >= 0.9: never)
+     start_s42  illus own14 -0.11 +0.04 +0.24 +0.36 +0.40 +0.42 +0.44 +0.46 +0.47 +0.47 +0.48 +0.48 +0.48 +0.48 +0.48 +0.48 +0.48 +0.48 +0.48 +0.48 +0.48 +0.48  (first >= 0.9: never)
+     start_s42  base  tail3 -0.2 -0.0 +0.9 +1.5 +1.9 +2.3 +2.5 +2.6 +2.6 +2.7 +2.7 +2.7 +2.7 +2.7 +2.7 +2.7 +2.7 +2.7 +2.7 +2.7 +2.7 +2.7
+     start_s42  illus tail3 -0.3 -0.2 +0.7 +1.3 +1.7 +2.0 +2.2 +2.3 +2.4 +2.4 +2.5 +2.5 +2.5 +2.5 +2.5 +2.5 +2.5 +2.5 +2.5 +2.5 +2.5 +2.5
+     s42        base  own14 -0.01 +0.21 +0.41 +0.53 +0.62 +0.70 +0.77 +0.82 +0.85 +0.88 +0.90 +0.91 +0.92 +0.93 +0.93 +0.94 +0.94 +0.95 +0.95 +0.95 +0.96 +0.96  (first >= 0.9: bin 11)
+     s42        illus own14 -0.06 +0.15 +0.34 +0.45 +0.54 +0.61 +0.68 +0.73 +0.76 +0.79 +0.81 +0.83 +0.84 +0.85 +0.86 +0.86 +0.88 +0.89 +0.90 +0.90 +0.91 +0.91  (first >= 0.9: bin 19)
+     s42        base  tail3 -0.1 +0.4 +1.4 +2.1 +2.7 +3.2 +3.7 +4.0 +4.2 +4.4 +4.6 +4.7 +4.7 +4.8 +4.8 +4.8 +4.9 +4.9 +4.9 +5.0 +5.0 +5.0
+     s42        illus tail3 -0.2 +0.1 +1.1 +1.8 +2.3 +2.8 +3.2 +3.5 +3.8 +4.0 +4.1 +4.2 +4.3 +4.4 +4.4 +4.5 +4.5 +4.6 +4.7 +4.7 +4.7 +4.7
