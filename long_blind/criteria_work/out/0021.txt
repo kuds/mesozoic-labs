@@ -1,0 +1,97 @@
+WHEN THE READING IS MADE
+- After F2 and every re-fetch, once each run's C1-C7 and each LOST run's p1-p3 are decided: until then "incomplete"
+  and no line is read.
+- PROVISIONAL, and not acted on, while any of these stands (the scorer prints each): a pin unfilled or a tool's sha256
+  other than its pin; this text's, THIS12's or EVID's sha256 or the branch HEAD other than APPROVED's (and, for the
+  branch HEAD, the LAUNCH lines' head=); a
+  class input measured on a measuring copy of another commit, with other seeds or on a model whose physics_revision is
+  not 10; a read file whose sha256 differs from the fetch manifest; V0-V5, V8 (i)-(ii) or V9 not passed. Each is
+  cleared only by filling the pin or measuring again, never by a ruling. A configuration or session fact (C1, C4, p1,
+  p2) is not PROVISIONAL: it decides COMPLETE, LOST or PRESENCE, and no RUNLOG note or ruling changes a class, A, n_A
+  or the line.
+- A reading neither incomplete nor provisional is final and goes to the maintainer at once. The durable copy (D17,
+  RUNLOG line 613): the round's derived text outputs, this text, THIS12, EVID and the fetch manifest, committed to an
+  orphan never-merged handoff branch and pushed, as THIS12 lines 802-807.
+
+VALIDATIONS (before the first training step; no training and no optimizer step outside existing repo tests)
+......
+KNOWN LIMITS
+- Three runs measure no rate (TABLE E; the chances of 0-3 rails under "unchanged", "halved", "cured" are in EVID). A
+  ledger or drive-backed rail settles existence; a not-drive-backed end-only rail is weak evidence. Historical control
+  only: a before/after of 3 against 5 runs, the comparator's rate itself uncertain (about 0.12-0.77 [inferred,
+  Beta(3,4)]). The seeds were chosen with their r9 outcomes known.
+- LOST RUNS ARE DROPPED FROM A AND FROM EVERY CLASS; THEIR RECORDED TAIL ALARMS ARE NOT (PRESENCE). Argument [inferred]:
+  what ends a run early here is mostly infrastructure (Colab reclaims and disconnects, kernel deaths, upload losses,
+  launch-configuration faults), which does not depend on what the policy does, so leaving such runs out keeps A/n_A an
+  unbiased estimate of the rail rate; the trainer's own stops are not losses (C5). Ends that can depend on the policy
+  are still LOST: an exception from training itself, a K3-panel crash the panel cannot catch, an evaluation whose rows
+  cannot be assembled (the code drops them [measured, BR eval_diagnostics.py lines 1698-1708], which fails C6); none
+  occurred in the eight r9 ledgers [measured, check_model/c6_on_r9.out]. The limit: if a railing run were likelier to be
+  lost, A would read low. [model] At REALISTIC rates the mean A/n_A minus the clean round's was +0.001 for
+  LEAN-R (FULL +0.013); with interruptions twice and five times as likely for runs whose data hold an alarm or
+  an end rail it was -0.017 and -0.054 (FULL +0.010 and +0.001). Dropping is
+  one-directional: whatever makes a run LOST, a misjudged STALL included, removes its alarm from A, never adds one; its
+  recorded TAIL ALARM still reads line 1 when p1-p3 hold on a fetch, otherwise the line is 2; lines 3-5 need U = 0, so
+  no loss produces them, and PRESENCE can only move a line to 1. "A WITH LOST RUNS" and D-16 print what was dropped and
+  why. The cost [model, REALISTIC]: INCOMPLETE in 9.5% of rounds (FULL 8.8%; without PRESENCE
+  11.1%); PRESENCE reads line 1 in 1.5% (0.4% at LOW rates); TABLE M.
+- PRESENCE reads a LOST run's ledger without a manifest check (two agreeing copies instead), and only its TAIL ALARM: a
+  LOST run's end rail, RESOLVED BY TRACE alarm or ANY ALARM never reaches the reading (D-16 shows them). It can read the
+  rows of a forbidden resume whose load-key stage_config.json and resumed provenance.json were lost with its runtime:
+  real r10 training rows of that run's lineage, and it can only add line 1 [model,
+  S2/r10round/lean/v3check/model/skeptic_v3_model.out: 507 of 86,490 readings, no false rail]. [model, MODEL]
+  'presence-false-rail' (line 1 through PRESENCE with no TAIL ALARM in the lifting run's own data):
+  0 in 12 settings x 3,000 rounds, 1,000 violate rounds and 1,000 RV stress rounds; PRESENCE moved a line through
+  a replaced first run alone in 2 of 36,000 random rounds.
+- Only the files C3 names are checked for the reading; a late Drive copy that the re-fetch still does not show makes the
+  run LOST (a cost); nothing measured bounds Drive's delays (the one Colab-written manifest checked landed 45.3 min
+  after "ended" [measured, D9]). The one Colab cut on record outside r9 was the ~24 h session cap in a multi-stage chain
+  at 5.49M [measured, MAIN docs/reviews/TREX_REVIEW_2026_08_MERGES_AND_NEXT_STEPS.md line 30]; these runs take about
+  14.4-15.4 h.
+- What C1-C7 and p1-p3 cannot see (forbidden by RUN HANDLING): a hand edit of a run folder; a relaunch under the RUN_ID
+  within the first hour after a loss that left nothing on Drive (it reads as that fresh run, decided before any data of
+  the round exists); a re-run of the chain-loop cell in the same kernel within 2 hours of the end, unnoted (it leaves
+  no trace in the files); a second runtime running at the same time under the same RUN_ID, whose Drive cache can let
+  the first runtime's manifest hash stale provenance and stage_config files and the other's checkpoints [model,
+  inferred cache behaviour: 289 of 4,000 adversarial worlds, S2/r10round/lean/check_model/check_model.out]. A resume in
+  a later session shows in provenance.json or stage_config.json (C4, p2) [model: 0 of 6,882 forbidden resumes read
+  COMPLETE, check_model.out].
+- A STOPPED run supports no "no rail" reading (UNREAD) though it is a complete record to its stop: the collapse stop can
+  fire from about 2,621,440 [inferred, STOML collapse_min_evals 20, collapse_patience 10, peak warm-up 1,000,000],
+  inside r9's alarm onsets.
+- RAIL reads the whole ledger and the end; PARKED the end and J; a rail can form and clear between two evaluations; a
+  run within about 0.05 of the 0.60 PARKED line classifies by chance (SE 0.019-0.048 [inferred]); if r10 only delays
+  onset past 7,000,000, "no rail by 12M" would not mean "removed" (D-2's late window); the gate reads the final only;
+  head posture and hip roll are report only; how much the band binds for policies trained on r10 is unknown until the
+  runs.
+- The in-run K3 panel pauses training about 17-26 min per run; its inertness is proven on the CPU, inferred on the GPU.
+  GPU non-determinism: a seed fixes the start, not the run. The PARKED line is r9's ruling carried to r10.
+
+COMPUTE
+- About 14.4-15.4 h per run on an L4, three in parallel, about 43-46 L4-hours [inferred from LTSB r9's 13 h 36 min to 14
+  h 26 min]; each _b is another full run (about 15 L4-hours), [model] 3.1 L4-hours per round on average at
+  REALISTIC rates. F2 starts 6 h after the last runtime ended (a re-fetch 6 h later); then about 6-8 CPU-hours of
+  measurement. [model] About 195 file copies per round, PRESENCE's second copies included (FULL about
+  428), at about 50k tokens per download [inferred, RUNLOG line 515]; both checks before the first launch
+  (RUN HANDLING).
+
+TABLE M. THE RULE MODEL, FOR THE RECORD [model, MODEL v5, 3,000 rounds per setting, fixed seeds, two runs CMP IDENTICAL;
+FULL = criteria v12 + RUNLOG 645-646; LEAN-R = these rules; P = chance per run of an ANY ALARM]
+                              REALISTIC P 0.4       LOW P 0.4             STRESS P 0.4
+                                FULL LEAN-R     v2    FULL LEAN-R     v2    FULL LEAN-R     v2
+wrong readings (count)             0      0      0       0      0      0       0      0      0
+round reads INCOMPLETE, %        8.8    9.5   11.1     4.3    5.5    5.9    35.1   37.2   62.0
+line 1 through PRESENCE, %         -    1.5      -       -    0.4      -       -   24.8      -
+A/n_A minus clean round's     +0.013 +0.001 +0.001  +0.009 +0.003 +0.003  +0.146 -0.001 -0.001
+n_A = 3, %                      81.0   73.9   73.9    90.1   86.4   86.4    21.1    5.2    5.2
+Fisher p below clean's, %        6.9   11.0   11.0     5.6    7.5    7.5    14.5   26.5   26.5
+relaunch L4-hours per round      3.4    3.1    3.1     3.6    3.3    3.3     6.3    3.1    3.1
+file copies per round            428    195    185     434    196    186     426    195    179
+v2 = LEAN-R without PRESENCE, for the record. Wrong readings: MODEL's docstring (every check of a counted run
+against its own data, presence-false-rail, each model's break checks). Clean round = the same first runs with
+no infrastructure trouble. REALISTIC: interruptions 0.05 per run, launch faults 1 in 11 (partly from the record);
+LOW: interruptions 0.01; STRESS: the v12 checks' stress regime; P 0.1 and the other settings: model_compare.out.
+Losses 2x or 5x as likely for runs whose data hold an alarm or an end rail, A/n_A minus clean / INCOMPLETE:
+ 2x, any time         FULL +0.010 / 10.7%   LEAN-R -0.017 / 11.7%   v2 -0.017 / 16.3%
+ 5x, any time         FULL +0.001 / 13.7%   LEAN-R -0.054 / 15.0%   v2 -0.054 / 23.8%
+

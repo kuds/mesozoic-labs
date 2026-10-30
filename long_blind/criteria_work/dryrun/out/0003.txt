@@ -1,0 +1,150 @@
+   331	    5: the rail did not form, but a named cost or partial return did: a PARKED tail means the drive came back without
+   332	       saturating; a GATE FAIL needs its criteria read; a habit elsewhere means the habit moved or a second one formed.
+   333	- No line is a test. Fails stay fails. Nothing is stopped, changed, extended or rerun because of an outcome.
+   334	
+   335	PRE-REGISTERED COMPARISONS (descriptive; printed with every line; none changes a line)
+   336	- C1 THE CONTROL AGAINST THE PARENT [the parent's values measured: WORK parent_long.out; MEAS]: first over-bar episode
+   337	  (parent 3,670,016), first TAIL ALARM (3,932,160), TAIL ALARMs (22), tail-flagged evaluations (26), tail-flagged
+   338	  spells (4), GATE CLASS (FAIL), RUN OUTCOME (NEGATIVE), O7 (b) (+0.70538) and (a) (+0.81159), O8 (+0.9081); for each
+   339	  the control's value and, for a step, "earlier", "the same" or "later" with the difference in evaluations.
+   340	- C2 THE FIRST 1,441,792 STEPS AGAINST BS2: O7 (b) and CMD_L at 3,538,944 of each continuation, beside BS2's (blind
+   341	  O7 (b) +0.06516 to +0.14283, CMD_L +0.068 to +0.181; control O7 (b) +0.41938 to +0.79227, CMD_L +0.475 to +0.955
+   342	  [measured, <BS2>/score/score.txt]). "REPEATS BS2 AT 3,538,944" when every blind O7 (b) is below +0.41938 (BS2's
+   343	  lowest control) and the control's above +0.14283 (BS2's highest blind), compared as exact rationals; otherwise
+   344	  "DOES NOT REPEAT BS2 AT 3,538,944" with the values.
+   345	- C3 THE CLIMB BY 12M: each blind continuation's O7 (a) rise beside BS2's climb gate +0.20 ("CLIMBED BY 12M" when the
+   346	  rise is at least 1/5, exact), the control's rise and the parent's +0.68500.
+   347	- C4 THE MARGIN AT THE FINAL PAIR: O9 per continuation beside BS2's blind range at 3,538,944 (+0.983 to +1.301), BS2's
+   348	  control range (-0.060 to +0.404) and the three parents' final pairs (s42 +0.014, s60 +0.213, s80 +0.241: 1 - G - c0
+   349	  from S2/com_revisit/notes/early_warning/ew_r10.jsonl lines 35-37, each one update after its E state) [computed, WORK
+   350	  parent_long.out lines 144-146].
+   351	- The pair control 2701 / blind 2701 (same seeds): O7, O8, O9 and the first TAIL ALARM side by side (report only).
+   352	
+   353	RUN HANDLING (the harness's rules; one continuation = one queue entry)
+   354	- Fails stay fails. No continuation is stopped, changed, extended or rerun because of an outcome.
+   355	- ONE CONTINUATION = one queue entry (arm, seed): its decided attempt in runs/<name>/ together with the rows its records
+   356	  carry over, stitched, from earlier attempts up to its resume point. The study reads one decided attempt per entry.
+   357	- COUNTED: CHECK passed, stop reason "end" at E.
+   358	- STOPPED: CHECK passed, stop reason "collapse" or "hop_watch" at T < E (the stage's own stops; the collapse stop can
+   359	  fire from 3,801,088 on, the hop watch from 7,077,888 on; the parent never came near either over this window: 0 of 72
+   360	  collapse observations dropped, hop duty 0.0 [measured, <LB>/logs/notes_design.txt EARLY ENDS]). Read to T by the
+   361	  round's rules: TAIL CLASS UNREAD unless RAIL, GATE FAIL, NEGATIVE; in THE READING it is NOT READ TO 12M unless RAILED.
+   362	- RESUMED: a COUNTED or STOPPED continuation whose decided attempt loaded a resume point P > S (run_meta resumed_from,
+   363	  load_step, attempt, attempts). It is one continuation and counts in every line, printed "RESUMED from P (attempt
+   364	  k)". A resume is not a replay: the work after P is discarded (the update on the rollout ending at P included), the
+   365	  envs, the evaluation env and the random generators restart at P under the same seed, the collapse and hop-watch
+   366	  counters restart, and diagnostics.npz covers (P, T] only [measured, notes_design.txt WHAT A RESUME CHANGES]. The
+   367	  resume point is chosen by content, never by outcome (the newest saved pair whose pair and records are complete,
+   368	  bs_resume.resume_point).
+   369	- CRASH: the process died (an exception, out of memory, killed). The runner renames the folder runs/<name>_crashed<k>
+   370	  (kept; never opened by anyone; the resume's own reads of it are the pinned tools' work) and reruns the entry at once
+   371	  with --resume-from that folder: from its newest complete saved pair, else from S. An EARLY crash (the attempt's last
+   372	  recorded step below its load step + 131,072, or none) is not counted and halts new starts until the coordinator has
+   373	  found the cause from run_meta's error and traceback alone. A container restart that leaves attempts half-way (their
+   374	  run_meta not "crashed"): the coordinator relaunches the runner, which resumes them; not counted as own crashes
+   375	  [measured: <LB>/tools/run_waves_bs.sh header lines 4-7 and 60-63].
+   376	- LOST: a third own crash (the runner writes <LB>/lost.json), or the full read or the measurement refused for a cause
+   377	  in the continuation's own files (the coordinator writes it to lost.json with the cause and records it in RUNLOG).
+   378	  Never READ TO 12M; its ledger as it stands is read by the pinned M5 once all are decided (RAILED, Q3, Q4 above).
+   379	  A failure caused by a tool (read_bs.py, measure_lb.py or a round tool) is a tool defect, not LOST: no line is read
+   380	  until it is fixed (the maintainer's word, and a re-pin if a pinned file changes) and every continuation is read
+   381	  again.
+   382	- VOID: CHECK fails, or exit 5 with CHECK failing. The folder becomes runs/<name>_void<k>, kept and never read; the
+   383	  runner starts nothing new and halts (logs/HALTED). The cause is found from the CHECK record alone and fixed; then,
+   384	  with the maintainer's word, the voided continuation reruns from its start pair under its seed. A fix that changes a
+   385	  pinned file or this text needs the maintainer's word and a re-pin first. Unfixed, the study reads VOID: no line.
+   386	- REFUSED by preflight (exit 2, before any optimizer step): as BS2 (fixed and restarted under the same name; its cause
+   387	  found by re-running, read only, cd /tmp && nice -n 10 S2/venv/bin/python -I -B <LB>/tools/run_bs.py --arm ARM --seed
+   388	  N --preflight-only; a pinned-file change needs the maintainer's word and a re-pin; unfixed, VOID).
+   389	- TRAINING ATTEMPTS: at most 3 own crashes per entry (the third makes it LOST); an EARLY crash, a container restart or
+   390	  a VOID rerun is not counted. Every VOID rerun needs the maintainer's word first (RUNLOG).
+   391	- MEASUREMENT: a measurement crash is rerun on the same files (ROUND lines 428-434; measure_lb.py reruns once); a
+   392	  measuring tool's own refusal is final: a refused M3 at the final pair is GATE FAIL with its message (ROUND line 282);
+   393	  a refused M1 at a label C7 names leaves the continuation not READ TO 12M (cause printed). A measurement not made for
+   394	  lack of disk is not a refusal: the reading waits (INCOMPLETE).
+   395	- The runner is restarted only by the coordinator (after a container restart or a fixed halt); it re-reads its
+   396	  ledgers (logs/decided.tsv, crash_ledger.tsv, lost.json).
+   397	
+   398	OUTCOME-BLINDNESS -- as BS2 (an allow-list), over a run of about 10 h
+   399	- Until every queue entry is decided (COUNTED, STOPPED or LOST) and none is VOID, nobody (no person and no agent; the
+   400	  pinned tools' own work, run_bs.py, bs_resume.py and CHECK, excepted) opens any file of a continuation (runs/<name>
+   401	  and every runs/<name>_crashed<k> / _void<k> / _refused<k>; its TMPDIR <LB>/tmp/<name>/, which holds its live
+   402	  eval_stage1_*/evaluations.npz; <LB>/tmp/read_<name>/; reads/<name>; logs/<name>.attempt<k>.log) except:
+   403	  run_meta.json's fields status, exit, stop_reason, heartbeat, last_step, load_step, resumed_from, attempt, error and
+   404	  traceback (the last two only to find a crash's or a refusal's cause); check.json's pass / fail with its failures
+   405	  list and its identity and source fields, and logs/<name>.check.log. Everything else is outcome-bearing or may be
+   406	  and is not opened. The runner's own records (logs/run_waves_bs.log, decided.tsv, crash_ledger.tsv, PAUSED_disk,
+   407	  HALTED, proctable.log, run_waves_bs.exit, atimes_at_exit/*.tsv, atimes_at_ALL_DECIDED*.tsv) and <LB>/lost.json may
+   408	  be read. The watch during the run reads logs/run_waves_bs.log only. read_bs.py and measure_lb.py refuse a
+   409	  continuation until all are decided; score_bs.py, while any entry is undecided or unread, prints only which are
+   410	  decided and opens no outcome file.
+   411	- P4 (BS's lesson) and I1 (BS2's process check): the runner records lstat times of every file of an attempt as it
+   412	  exits (logs/atimes_at_exit/<name>.attempt<k>.tsv, before CHECK and any rename), re-arms the files of a decided
+   413	  COUNTED or STOPPED continuation (atime = mtime - 1 ns) and snapshots all at ALL_DECIDED before the full reads
+   414	  (logs/atimes_at_ALL_DECIDED.tsv; a relaunch writes .relaunch<k>.tsv and keeps the first). The process verification
+   415	  compares the three; any read of an outcome file by anyone but the pinned tools, before the reading, is reported.
+   416	- The parent's records (F2), the round's panels and BS2's finished records are not outcomes of this study; they were
+   417	  read for this design.
+   418	
+   419	WHEN THE READING IS MADE
+   420	- 1. All four decided and none VOID: the runner writes logs/ALL_DECIDED (after the P4 snapshot) and runs the full reads
+   421	  (read_bs.py <run>, the markers, 4 at a time at nice 10).
+   422	- 2. The measurement (DISK first): cd <LB>/measure/work && S2/venv/bin/python -I -B ../tools/measure_lb.py plan
+   423	  <LB>/runs/<name> ... --out-root <LB>/measure/reads --start 2097152; then the same with classify and --slots 2
+   424	  --prune-csv for the four (measure_lb.py waits while 4 or more simulation processes run machine-wide; it is started
+   425	  at nice 0, its runner then runs at nice 10 and the simulations at nice 19, MEAS NOTES.txt USE FOR LB).
+   426	- 3. The scorer: cd /tmp && S2/venv/bin/python -I -B <LB>/tools/score_bs.py, which writes <LB>/score/score.json and
+   427	  score.txt (exit 0 final, 3 provisional or incomplete, 2 input error).
+   428	- INCOMPLETE (no line) while any entry is undecided, a decided COUNTED or STOPPED continuation lacks its markers or its
+   429	  measurement, or a measurement waits for disk.
+   430	- PROVISIONAL (printed, not acted on) while any of: <LB>/APPROVED missing, or not pinning exactly this text's sha256,
+   431	  SCREEN.json's, the code tree digest, the tools' (run_bs.py, read_bs.py, run_waves_bs.sh, bs_common.py, bs_hooks.py,
+   432	  bs_resume.py, score_bs.py) and measure_lb.py's; a pinned file's current sha256 differing; this text not naming
+   433	  score_bs.py's and measure_lb.py's sha256 (PINS); a continuation's run_meta naming another criteria.txt, SCREEN.json,
+   434	  APPROVED or tool sha256, or changed since CHECK; a check.json or markers.json made by another read_bs.py; a ledger or
+   435	  probe changed since its read; measure_lb.py's own pins failing (its 11 round files, the code copy's seal, the stack);
+   436	  a class input measured on another commit than 8737cd3d or another physics_revision than 10; the code copy failing
+   437	  M1's check_copy. Cleared only by measuring again with the pinned files, never by a ruling.
+   438	- A reading neither incomplete nor provisional is final and goes to the maintainer at once. Report only: nothing is
+   439	  merged or pushed by the study.
+   440	
+   441	DISK [measured: df -B1 / 3,005,566,976 bytes free at 17:58 UTC (WORK CMD_LOG entry 0061); the builder's
+   442	<LB>/validate/logs/disk_estimate.out; MEAS NOTES.txt]
+   443	- A continuation takes about 184.4 MiB (models 39 zips and 38 pkls, the records, evidence, diagnostics, reads, one
+   444	  resume) (bs_common.RUN_BYTES_EST 200 MiB): about 0.72 GiB for the four [computed, WORK design_numbers.out line 43].
+   445	- LAUNCH: the runner refuses a fresh queue below 2,449,473,536 bytes free (1.5 GiB + 4 x 200 MiB) and pauses new
+   446	  starts below 1,610,612,736 bytes. The coordinator launches only with at least 2.6 GiB (2,791,728,742 bytes) free
+   447	  (df -B1 /tmp), BS2's floor.
+   448	- THE MEASUREMENT needs more: the round's pinned measure_r10round.py refuses below 3,221,225,472 bytes free
+   449	  (r10m_common.DISK_FLOOR_BYTES) and measure_lb.py launches a job only with that floor plus the job's output plus
+   450	  64 MiB free, about 3,309,305,856 bytes. With 2.88-3.01 GB free now (3,005,566,976 bytes at 17:58 UTC, 2,877,734,912
+   451	  at 18:19 UTC, WORK CMD_LOG entries 0061 and 0086), about 2.1-2.2 GB is expected after the runs, short by about 1.2 GB
+   452	  [inferred, WORK design_numbers.out lines 45-46]. The plan, in this order, reading no outcome while doing it:
+   453	    (a) WITH THE FINAL CHOICES (HOW THE COORDINATOR PINS step 0): the maintainer is asked which finished studies'
+   454	        binary files outside <LB> may go, enough for about 1.2 GB (candidates and sizes, du at 17:58 UTC:
+   455	        S2/r10round/ecs/runs 855 MB, S2/r10round/bias_screen/runs 284 MB, S2/r10round/bias_screen2/runs 253 MB and
+   456	        validate 111 MB, S2/com_revisit/notes/phase_probe 247 MB; each study's text records are in its pushed durable
+   457	        copy, its checkpoints are not); the coordinator removes only what the word names, before launch or before the
+   458	        measurement, and records it in RUNLOG;
+   459	    (b) inside <LB>, after the queue is decided: the validation folders <LB>/validate/* and the validation runs' tmp
+   460	        folders, after copying their run_meta / check / markers files and a full sha256 list to
+   461	        <LB>/validate_records/ (BS2's RR-7; <LB>/validate held 176 MB at 17:58 UTC);
+   462	    (c) only if still short, after the full reads (their loop results are in markers.json) and measure_lb.py plan:
+   463	        the periodic pairs of <LB>/runs/*/01_stance/models that the plan does not name (it names the J checkpoints,
+   464	        R1, every RESOLUTION checkpoint and the final pair; about 32 x 4.04 MB = 129 MB per continuation), their names
+   465	        and sha256 first recorded in <LB>/logs/pruned_pairs.tsv [computed, WORK design_numbers.out line 49]. A later
+   466	        reader fix could then not re-read their report-only loop rows; no line depends on them.
+   467	  (b) and (c) together give about 0.69 GB, not enough alone (design_numbers.out line 49): (a) is needed. If the space is
+   468	  not there the reading waits (INCOMPLETE); no class is read from a partial measurement, and the floor is not lowered
+   469	  without the maintainer's word and a re-pin.
+   470	- Never removed while the study may run or be read: <BS>/code, F2, PANELS, any file of a continuation (but the pairs
+   471	  of (c), after the reads and the plan), <LB>/tmp/<queue name>/ (a running continuation's TMPDIR holds its live
+   472	  evaluations.npz; removing it crashes the run at its next evaluation [inferred, BS2 criteria DISK]).
+   473	
+   474	REPORT ONLY (never tested; no line depends on them)
+   475	- Per continuation: the on-policy trajectory (O7 (c)) beside the parent's; the probe's on-policy command of every
+   476	  actuator (8-row means; the D-1 windows [S, 4,194,304), [4,194,304, 8,388,608), [8,388,608, E)); CMD_L per
+   477	  evaluation; M5's over-bar episodes per evaluation by actuator and sign, its flags, alarms and spells (D-1, ROUND
+   478	  lines 336-339, for every actuator); the habit summary per actuator (measure_lb.py HABIT SITES and its M1 commands at
+   479	  every traced checkpoint); DRIVEN; SINGLE TAIL FLAGS; at each M-LOOP pair G, c0, b*_P, G_L, b*_L, own14, REF G and
+   480	  the critic's slope on observation 6 (per degree, effective and raw; the blind arm's effective slope is 0 by

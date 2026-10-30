@@ -1,0 +1,455 @@
+   146	class InputError(Exception):
+   147	    """An input the reader cannot read as required (exit 2)."""
+   148	
+   149	
+   150	# The reader's own digests, for the loop cache (P3): this file, and the two modules it loads (bs_common.py: the pins
+   151	# and grid; bs_hooks.py: the critic-blind class the EFFECTIVE critic slope installs).
+   152	READER_SHA256 = C.sha256_file(Path(__file__).resolve())
+   153	DEPS_SHA256 = hashlib.sha256((C.sha256_file(TOOLS / "bs_common.py") + C.sha256_file(TOOLS / "bs_hooks.py")
+   154	                              + C.sha256_file(TOOLS / "bs_resume.py")).encode()).hexdigest()
+   155	
+   156	
+   157	def cache_key(zip_sha256, pkl_sha256, *, blind, onpolicy, own, reader=READER_SHA256, deps=DEPS_SHA256):
+   158	    """The loop cache's file stem: the reader's own sha256 and its modules' digest first (an entry never outlives the
+   159	    reader that wrote it: BS's process lens P3), then the pair and the read's form (pure)."""
+   160	    return (f"r{reader[:16]}_d{deps[:8]}_{zip_sha256[:16]}_{pkl_sha256[:16]}_{'blind' if blind else 'plain'}_"
+   161	            f"{'on' if onpolicy else 'off'}{'_own' if own else ''}")
+   162	
+   163	
+   164	def cache_entry_problem(row, reader=READER_SHA256, deps=DEPS_SHA256):
+   165	    """None if a cache entry was written by this reader (its recorded digests), else the reason (pure)."""
+   166	    if not isinstance(row, dict):
+   167	        return "not a JSON object"
+   168	    if row.get("reader_sha256") != reader or row.get("deps_sha256") != deps:
+   169	        return (f"written by reader {str(row.get('reader_sha256'))[:16]} / modules {str(row.get('deps_sha256'))[:8]}, "
+   170	                f"not this reader {reader[:16]} / {deps[:8]}")
+   171	    return None
+   172	
+   173	
+   174	# ================================================================================================ small helpers
+   175	def utcnow():
+   176	    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+   177	
+   178	
+   179	def atomic_write_text(path, text):
+   180	    path = Path(path)
+   181	    tmp = path.with_name(f".{path.name}.tmp{os.getpid()}")
+   182	    tmp.write_text(text, encoding="utf-8")
+   183	    os.replace(tmp, path)
+   184	
+   185	
+   186	def require_under(path, root):
+   187	    p, r = Path(path).resolve(), Path(root).resolve()
+   188	    if p != r and r not in p.parents:
+   189	        raise InputError(f"{p} is not under {r} (the reader writes only under the screen's folder)")
+   190	    return p
+   191	
+   192	
+   193	def read_json_file(path):
+   194	    try:
+   195	        raw = Path(path).read_bytes()
+   196	    except OSError as exc:
+   197	        raise InputError(f"cannot read {path}: {exc}") from exc
+   198	    try:
+   199	        d = json.loads(raw.decode("utf-8"))
+   200	    except (UnicodeDecodeError, ValueError) as exc:
+   201	        raise InputError(f"{path} is not JSON: {exc}") from exc
+   202	    if not isinstance(d, dict):
+   203	        raise InputError(f"{path} is not a JSON object")
+   204	    return d, hashlib.sha256(raw).hexdigest()
+   205	
+   206	
+   207	def run_kind(run_dir, root):
+   208	    run, root = Path(run_dir).resolve(), Path(root).resolve()
+   209	    if run.parent == root / "runs":
+   210	        return "continuation"
+   211	    if (root / "validate") in run.parents:
+   212	        return "validation"
+   213	    return None
+   214	
+   215	
+   216	def finite_or_none(v):
+   217	    v = float(v)
+   218	    return v if math.isfinite(v) else None
+   219	
+   220	
+   221	def load_probe(path, keys):
+   222	    import numpy as np
+   223	
+   224	    try:
+   225	        with np.load(path, allow_pickle=False) as z:
+   226	            missing = [k for k in keys if k not in z.files]
+   227	            if missing:
+   228	                raise InputError(f"{path}: no {missing}")
+   229	            return {k: np.asarray(z[k]) for k in keys}
+   230	    except (OSError, ValueError) as exc:
+   231	        raise InputError(f"cannot read {path}: {exc}") from exc
+   232	
+   233	
+   234	def parent_probe(keys):
+   235	    path = C.f2_record("policy_probe.npz")
+   236	    want = C.START["records"]["policy_probe.npz"]
+   237	    got = C.sha256_file(path)
+   238	    if got != want:
+   239	        raise InputError(f"parent probe {path}: sha256 {got} != FMAN's {want}")
+   240	    return path, got, load_probe(path, keys)
+   241	
+   242	
+   243	def window_rows(steps, S, T):
+   244	    return [i for i, u in enumerate(steps.tolist()) if S < int(u) < T]
+   245	
+   246	
+   247	# ================================================================================================ CHECK
+   248	def probe_check(run_cols, parent_cols, arm, S, T, start_stats):
+   249	    """R4 (as read_ecs) for every arm: rows at S + 8,192 k, k = 1..(T - S)/8,192 - 1, none at or after T; ent_coef
+   250	    and learning_rate equal (float32) to the parent's F2 probe at the same step (no arm changes them).  Then the
+   251	    observation statistics the probe recorded per row (float32): frozen_obs_norm, every row equal to the start pkl's
+   252	    (as float32); the other arms, moved from it by the last row.  (failures, details: no marker values)."""
+   253	    import numpy as np
+   254	
+   255	    fails = []
+   256	    n_exp = C.expected_update_rows(S, T)
+   257	    steps = np.asarray(run_cols["update_timesteps"]).astype(np.int64)
+   258	    idx = window_rows(steps, S, T)
+   259	    got_steps = [int(steps[i]) for i in idx]
+   260	    exp_steps = [S + C.ROLLOUT * k for k in range(1, n_exp + 1)]
+   261	    late = [int(u) for u in steps.tolist() if int(u) >= T]
+   262	    det = dict(rows_expected=n_exp, rows_in_window=len(idx), n_rows_at_or_after_T=len(late),
+   263	               seeded_rows_at_or_before_S=sum(1 for u in steps.tolist() if int(u) <= S))
+   264	    if len(idx) != n_exp or got_steps != exp_steps:
+   265	        fails.append(f"probe: {len(idx)} rows in ({S}, {T}) not at S + 8,192 k, k = 1..{n_exp}")
+   266	    if late:
+   267	        fails.append(f"probe: {len(late)} rows at or after T = {T}: an update on the end rollout")
+   268	    if fails:
+   269	        return fails, det
+   270	    pst = np.asarray(parent_cols["update_timesteps"]).astype(np.int64).tolist()
+   271	    where = {}
+   272	    for i, u in enumerate(pst):
+   273	        where.setdefault(int(u), []).append(i)
+   274	    p_idx = []
+   275	    for s in exp_steps:
+   276	        if len(where.get(s, [])) != 1:
+   277	            raise InputError(f"parent probe has {len(where.get(s, []))} rows at update_timesteps {s}")
+   278	        p_idx.append(where[s][0])
+   279	    for col in ("ent_coef", "learning_rate"):
+   280	        a = np.asarray(run_cols[col], dtype=np.float32)[idx]
+   281	        b = np.asarray(parent_cols[col], dtype=np.float32)[p_idx]
+   282	        bad = [i for i in range(n_exp) if not a[i] == b[i]]
+   283	        det[f"{col}_mismatches"] = len(bad)
+   284	        if bad:
+   285	            fails.append(f"probe: {col} differs from the parent's F2 probe at {len(bad)} of {n_exp} rows")
+   286	    mean0 = np.asarray(start_stats.obs_rms.mean, dtype=np.float32)
+   287	    var0 = np.asarray(start_stats.obs_rms.var, dtype=np.float32)
+   288	    cnt0 = float(start_stats.obs_rms.count)
+   289	    m = np.asarray(run_cols["obs_rms_mean"], dtype=np.float32)[idx]
+   290	    v = np.asarray(run_cols["obs_rms_var"], dtype=np.float32)[idx]
+   291	    c = np.asarray(run_cols["obs_rms_count"], dtype=np.float64)[idx]
+   292	    same = [bool(np.array_equal(m[i], mean0) and np.array_equal(v[i], var0) and c[i] == cnt0) for i in range(n_exp)]
+   293	    det["obs_rms_rows_equal_start"] = int(sum(same))
+   294	    if arm == "frozen_obs_norm" and not all(same):
+   295	        fails.append(f"probe: frozen_obs_norm: {n_exp - sum(same)} rows' observation statistics differ from the start")
+   296	    if arm != "frozen_obs_norm" and same[-1]:
+   297	        fails.append(f"probe: {arm}: the observation statistics at the last row equal the start pair's (frozen?)")
+   298	    return fails, det
+   299	
+   300	
+   301	def evidence_check(run, meta, arm, n_expected):
+   302	    """The per-rollout evidence: arm_evidence.jsonl's lines, its summary recomputed and equal to run_meta's, and
+   303	    bs_hooks.evidence_problems on it."""
+   304	    fails = []
+   305	    path = Path(run) / C.EVIDENCE
+   306	    try:
+   307	        lines = [json.loads(x) for x in path.read_text().splitlines() if x.strip()]
+   308	    except (OSError, ValueError) as exc:
+   309	        return [f"evidence: {path}: {exc}"], {}
+   310	    summ = H.summarize(lines)
+   311	    if json.loads(json.dumps(summ)) != meta.get("arm_evidence"):
+   312	        fails.append("evidence: run_meta's arm_evidence summary is not the summary of arm_evidence.jsonl")
+   313	    steps = [e.get("num_timesteps") for e in lines]
+   314	    want = [C.S + C.ROLLOUT * k for k in range(1, n_expected + 1)]
+   315	    if steps != want:
+   316	        fails.append(f"evidence: {len(steps)} rollout ends recorded, not one per update row at S + 8,192 k")
+   317	    fails += H.evidence_problems(arm, summ, n_expected=n_expected)
+   318	    return fails, {"n": len(lines), "problems": list(fails)}
+   319	
+   320	
+   321	def check_meta(meta, kind, folder):
+   322	    """run_meta.json's part of CHECK.  (failures, identity)."""
+   323	    fails = []
+   324	    get = meta.get
+   325	    if get("schema") != C.RUN_SCHEMA:
+   326	        fails.append(f"run_meta schema {get('schema')!r} != {C.RUN_SCHEMA!r}")
+   327	    p = C.parse_run_name(folder)
+   328	    if kind == "continuation" and (p is None or p["suffix"]):
+   329	        raise InputError(f"{folder}: not a continuation's own folder name (a crashed / void folder is never read)")
+   330	    arm, seed = get("arm"), get("seed")
+   331	    if p is not None and (p["arm"], p["seed"]) != (arm, seed):
+   332	        fails.append(f"folder {folder} names {p['arm']} {p['seed']}, run_meta {arm} {seed}")
+   333	    if arm not in C.ARMS:
+   334	        fails.append(f"run_meta arm {arm!r} is not one of {C.ARMS}")
+   335	        return fails, dict(arm=arm, seed=seed, S=None, E=None, T=None, end=None, stop_reason=get("stop_reason"),
+   336	                           load_step=None, resumed_from=None)
+   337	    if not isinstance(seed, int) or isinstance(seed, bool):
+   338	        fails.append(f"run_meta seed {seed!r}")
+   339	    elif kind == "continuation":
+   340	        d, sp = C.load_screen(str(Path(C.BS) / "SCREEN.json"))
+   341	        if sp or (arm, seed) not in C.queue_of(d):
+   342	            fails.append(f"({arm}, {seed}) is not an entry of a valid SCREEN.json ({sp})")
+   343	    elif seed not in C.VALIDATION_SEEDS:
+   344	        fails.append(f"validation run seed {seed} is not a validation seed")
+   345	    if get("S") != C.S or get("E") != C.E:
+   346	        fails.append(f"run_meta S, E = {get('S')!r}, {get('E')!r}; expected {C.S}, {C.E}")
+   347	    if get("name") != C.run_name(arm, seed if isinstance(seed, int) else 0):
+   348	        fails.append(f"run_meta name {get('name')!r}")
+   349	    want_mode = "continuation" if kind == "continuation" else "no_update"
+   350	    if get("mode") != want_mode:
+   351	        fails.append(f"run_meta mode {get('mode')!r}: a {kind} run must be {want_mode!r}")
+   352	    if get("status") != "done" or get("exit") != 0:
+   353	        fails.append(f"run_meta status {get('status')!r} exit {get('exit')!r} (done, 0 expected)")
+   354	    code = get("code") or {}
+   355	    if code.get("tree_digest") != C.TREE_DIGEST or code.get("commit") != C.COMMIT:
+   356	        fails.append(f"code {code.get('tree_digest')!r} / {code.get('commit')!r} not the pinned copy")
+   357	    if get("code_seal_after") != "unchanged" or get("modules_outside_code"):
+   358	        fails.append("the code seal after the run or the modules' origin failed")
+   359	    st = C.START
+   360	    sp = get("start_pair") or {}
+   361	    if sp.get("zip_sha256") != st["zip_sha256"] or sp.get("pkl_sha256") != st["pkl_sha256"]:
+   362	        fails.append("start pair sha256 not FMAN's")
+   363	    pr = get("parent_records") or {}
+   364	    for rec in C.PARENT_RECORDS:
+   365	        if pr.get(rec) != st["records"][rec]:
+   366	            fails.append(f"parent record {rec} sha256 not FMAN's")
+   367	    want_ppo = dict(C.ARM_PPO_EDIT[arm]) or "unchanged"
+   368	    if get("arm_ppo") != want_ppo:
+   369	        fails.append(f"arm {arm} [ppo] edit {get('arm_ppo')!r} != {want_ppo!r}")
+   370	    if get("arm_change") != C.ARM_CHANGE[arm]:
+   371	        fails.append("run_meta arm_change is not bs_common.ARM_CHANGE[arm]")
+   372	    pa = get("ppo_applied") or {}
+   373	    if pa.get("gae_lambda") != C.ARM_GAE_LAMBDA[arm] or get("gae_lambda_after_load") != C.ARM_GAE_LAMBDA[arm]:
+   374	        fails.append(f"gae_lambda applied {pa.get('gae_lambda')!r} / after load {get('gae_lambda_after_load')!r}")
+   375	    if get("ent_coef_after_load") != C.ENT_COEF_AFTER_LOAD:
+   376	        fails.append(f"ent_coef after load {get('ent_coef_after_load')!r} != {C.ENT_COEF_AFTER_LOAD}")
+   377	    aa = get("arm_applied") or {}
+   378	    want_cls = {"critic_blind_tail3": ("CriticBlindTail3MlpExtractor", "SymmetricRunningMeanStd"),
+   379	                "frozen_obs_norm": ("MlpExtractor", "FrozenObsSymmetricRunningMeanStd")}.get(
+   380	        arm, ("MlpExtractor", "SymmetricRunningMeanStd"))
+   381	    if aa.get("arm") != arm or (aa.get("mlp_extractor_class"), aa.get("obs_rms_class")) != want_cls:
+   382	        fails.append(f"arm_applied {aa.get('arm')!r} {aa.get('mlp_extractor_class')!r} {aa.get('obs_rms_class')!r} "
+   383	                     f"!= {arm} {want_cls}")
+   384	    if get("arm_state_end") != "in force":
+   385	        fails.append(f"the arm's hook at the end: {get('arm_state_end')!r}")
+   386	    if bool(get("obs_rms_end_equal_start")) != (arm == "frozen_obs_norm"):
+   387	        fails.append(f"observation statistics at the end equal the start's: {get('obs_rms_end_equal_start')!r}")
+   388	    v5 = get("recipe_v5")
+   389	    if not isinstance(v5, dict) or v5.get("problems") != []:
+   390	        fails.append("run_meta recipe_v5 (V5 before learn()) not passed")
+   391	    if get("torch_threads") != C.TORCH_THREADS:
+   392	        fails.append(f"torch_threads {get('torch_threads')!r} != {C.TORCH_THREADS}")
+   393	    T, target, stop = get("T"), get("target"), get("stop_reason")
+   394	    if not isinstance(T, int) or isinstance(T, bool):
+   395	        fails.append(f"run_meta T {T!r} is not an integer")
+   396	        T = None
+   397	    sae, col, hop = get("stop_at_end") or {}, get("collapse") or {}, get("hop_watch") or {}
+   398	    if col.get("found") != 1 or col.get("patience") != C.COLLAPSE_PATIENCE:
+   399	        fails.append(f"the collapse stop is not in the run with patience {C.COLLAPSE_PATIENCE}")
+   400	    if (hop.get("found"), hop.get("after_timesteps"), hop.get("stop")) != (1, C.HOP_WATCH_AFTER, True):
+   401	        fails.append(f"the hop watch is not in the run with the stage's settings (after {C.HOP_WATCH_AFTER}, stop)")
+   402	    load, rf = get("load_step"), get("resumed_from")
+   403	    att, k = get("attempts"), get("attempt")
+   404	    if not isinstance(att, list) or k != len(att) + 1:
+   405	        fails.append(f"run_meta attempt {k!r} with {att!r} earlier attempts")
+   406	    lp, rs = get("load_pair") or {}, get("resume") or {}
+   407	    if rf is None:
+   408	        st0 = (C.START["zip_sha256"], C.START["pkl_sha256"])
+   409	        if load != C.S or (lp.get("zip_sha256"), lp.get("pkl_sha256")) != st0:
+   410	            fails.append(f"not resumed, but the load step {load!r} / load pair {lp} is not S's {st0}")
+   411	        load = C.S
+   412	    else:
+   413	        bad_rf = (not isinstance(rf, int) or isinstance(rf, bool) or (rf - C.S) % C.RESUME_GRID
+   414	                  or not C.S < rf < (T if isinstance(T, int) else C.E) or load != rf)
+   415	        src = Path(str(rs.get("from") or "")).name
+   416	        if bad_rf or rs.get("P") != rf or not re.fullmatch(re.escape(C.run_name(arm, seed if isinstance(seed, int)
+   417	                                                                                 else 0)) + r"_crashed\d+", src):
+   418	            fails.append(f"resumed_from {rf!r} (load step {load!r}, resume P {rs.get('P')!r}, from {src!r}) is not a "
+   419	                         f"saved pair S + {C.RESUME_GRID} k of this run's crashed folder")
+   420	        if not att:
+   421	            fails.append("a resumed run lists no earlier attempt")
+   422	        if (lp.get("zip_sha256"), lp.get("pkl_sha256")) != (rs.get("zip_sha256"), rs.get("pkl_sha256")):
+   423	            fails.append("the loaded pair is not the resume point's pair")
+   424	        if (get("digest_load") or {}).get("num_timesteps") != rf:
+   425	            fails.append("digest_load is not at the resume point")
+   426	        load = rf if isinstance(rf, int) and not isinstance(rf, bool) else C.S
+   427	    end = C.E if kind == "continuation" else target
+   428	    if kind == "continuation" and target != C.E:
+   429	        fails.append(f"run_meta target {target!r} != E = {C.E}")
+   430	    if kind == "validation" and (not isinstance(target, int) or isinstance(target, bool) or target <= C.S):
+   431	        fails.append(f"run_meta target {target!r} is not a step after S")
+   432	        end = None
+   433	    if T is not None and end is not None:
+   434	        if stop == "end":
+   435	            if T != end or sae.get("flag") is not True:
+   436	                fails.append(f"stop reason 'end' at T = {T} (target {end}, flag {sae.get('flag')})")
+   437	        elif stop == "collapse":
+   438	            if not C.S < T < end or col.get("tripped") is not True:
+   439	                fails.append(f"stop reason 'collapse' at T = {T} without the collapse state")
+   440	        elif stop == "hop_watch":
+   441	            if (not C.HOP_WATCH_FIRST_EVAL <= T < end or hop.get("tripped") is not True or col.get("tripped")
+   442	                    or (T - C.S) % C.EVAL_FREQ):
+   443	                fails.append(f"stop reason 'hop_watch' at T = {T} without the hop watch's state or off its window")
+   444	        else:
+   445	            fails.append(f"stop reason {stop!r}: neither 'end', 'collapse' nor 'hop_watch'")
+   446	        if (T - C.S) % C.ROLLOUT or T <= C.S:
+   447	            fails.append(f"T - S = {T - C.S} is not a positive multiple of {C.ROLLOUT}")
+   448	    d0, d1 = get("digest_start") or {}, get("digest_end") or {}
+   449	    if kind == "continuation":
+   450	        if not d0.get("params") or d0.get("params") == d1.get("params"):
+   451	            fails.append("continuation: the parameter digest did not change: no update made")
+   452	        n0, n1 = d0.get("n_updates"), d1.get("n_updates")
+   453	        if not all(isinstance(n, int) and not isinstance(n, bool) for n in (n0, n1)) or n1 <= n0:
+   454	            fails.append(f"continuation: n_updates {n0!r} -> {n1!r} did not grow")
+   455	    else:
+   456	        for k in ("params", "adam"):
+   457	            if not d0.get(k) or d0.get(k) != d1.get(k):
+   458	                fails.append(f"no-update run: {k} digest changed")
+   459	        if (T is not None and end is not None and T > load
+   460	                and get("train_calls") != C.expected_update_rows(load, T)):
+   461	            fails.append(f"no-update run: train_calls {get('train_calls')!r}")
+   462	    return fails, dict(arm=arm, seed=seed, S=C.S, E=C.E, T=T, end=end, stop_reason=stop, load_step=load,
+   463	                       resumed_from=rf)
+   464	
+   465	
+   466	def check_run(run_dir, root=None):
+   467	    """CHECK.  Writes <run>/check.json.  (exit code, record)."""
+   468	    root = Path(root or C.BS).resolve()
+   469	    run = Path(run_dir).resolve()
+   470	    if not run.is_dir():
+   471	        raise InputError(f"no run folder {run}")
+   472	    kind = run_kind(run, root)
+   473	    if kind is None:
+   474	        raise InputError(f"{run} is neither <BS>/runs/<name> nor under <BS>/validate/")
+   475	    require_under(run / C.CHECK_JSON, root)
+   476	    fails, sources, items = [], {}, {}
+   477	    meta_path = run / C.RUN_META
+   478	    try:
+   479	        meta, msha = read_json_file(meta_path)
+   480	        sources["run_meta.json"] = [str(meta_path), msha]
+   481	    except InputError as exc:
+   482	        meta = None
+   483	        fails.append(f"run_meta.json: {exc}")
+   484	    ident = {}
+   485	    if meta is not None:
+   486	        mf, ident = check_meta(meta, kind, run.name)
+   487	        items["run_meta"] = list(mf)
+   488	        fails += mf
+   489	        S, T = ident.get("S"), ident.get("T")
+   490	        if S is not None and T is not None and T > S and (T - S) % C.ROLLOUT == 0 and ident["arm"] in C.ARMS:
+   491	            n_exp = C.expected_update_rows(S, T)
+   492	            ef, edet = evidence_check(run, meta, ident["arm"], n_exp)
+   493	            items["evidence"] = ef
+   494	            fails += ef
+   495	            ppath, psha, pcols = parent_probe(C.PROBE_CHECK_COLUMNS)
+   496	            sources["parent policy_probe.npz"] = [ppath, psha]
+   497	            probe_path = run / PROBE_REL
+   498	            try:
+   499	                rcols = load_probe(probe_path, (*C.PROBE_CHECK_COLUMNS, *OBS_RMS_COLUMNS))
+   500	                sources["policy_probe.npz"] = [str(probe_path), C.sha256_file(probe_path)]
+   501	            except InputError as exc:
+   502	                rcols = None
+   503	                fails.append(f"policy_probe.npz: {exc}")
+   504	            if rcols is not None:
+   505	                start_stats = pkl_stats(run / MODELS_REL / C.periodic_names(S)[1])
+   506	                pf, pdet = probe_check(rcols, pcols, ident["arm"], S, T, start_stats)
+   507	                items["probe"] = pf
+   508	                items["probe_detail"] = pdet
+   509	                fails += pf
+   510	            sources[C.EVIDENCE] = [str(run / C.EVIDENCE), C.sha256_file(run / C.EVIDENCE)
+   511	                                   if (run / C.EVIDENCE).is_file() else None]
+   512	            gf, gdet = RS.evaluation_grid_problems(run / C.STAGE_DIR, T, eval_freq=C.EVAL_FREQ,
+   513	                                                   eval_episodes=C.EVAL_EPISODES)
+   514	            items["evaluation_grid"], items["evaluation_grid_detail"] = gf, gdet
+   515	            fails += gf
+   516	            for rel in (LEDGER_REL, f"{C.STAGE_DIR}/{RS.EVALS_NPZ}", f"{C.STAGE_DIR}/{RS.GATE_NPZ}"):
+   517	                sources[Path(rel).name] = [str(run / rel), C.sha256_file(run / rel) if (run / rel).is_file() else None]
+   518	            rf = ident.get("resumed_from")
+   519	            if rf is not None:
+   520	                rec = (meta.get("resume") or {}).get("stitch_digests") or {}
+   521	                try:
+   522	                    now = RS.stitch_digests(run / C.STAGE_DIR, run, int(rf), S=S, rollout=C.ROLLOUT,
+   523	                                            headers={n: (rec.get(n) or {}).get("header")
+   524	                                                     for n in (RS.EVAL_LEDGER, RS.TRAIN_LEDGER)})
+   525	                    sf = RS.stitch_problems(rec, now)
+   526	                except Exception as exc:  # noqa: BLE001 - an unreadable record is a CHECK failure, not a crash
+   527	                    sf = [f"resume: the stitched records cannot be read ({exc.__class__.__name__}: {exc})"]
+   528	                items["resume_stitch"] = sf
+   529	                fails += sf
+   530	        else:
+   531	            fails.append("evidence and probe not checked: T, S or the arm do not allow it")
+   532	    rec = dict(schema=CHECK_SCHEMA, version=VERSION, tool_sha256=C.sha256_file(Path(__file__)), utc=utcnow(),
+   533	               run=str(run), name=(meta or {}).get("name"), mode=kind, passed=not fails, failures=fails,
+   534	               items=items, sources=sources, **{k: ident.get(k) for k in ("arm", "seed", "S", "E", "T", "end",
+   535	                                                                           "stop_reason", "load_step",
+   536	                                                                           "resumed_from")})
+   537	    atomic_write_text(run / C.CHECK_JSON, json.dumps(rec, indent=1, default=str) + "\n")
+   538	    return (EXIT_OK if not fails else EXIT_CHECK_FAIL), rec
+   539	
+   540	
+   541	def pkl_stats(path):
+   542	    import pickle
+   543	
+   544	    with open(path, "rb") as fh:
+   545	        return pickle.load(fh)  # noqa: S301 - the run's own start pkl (sha256-checked copy)
+   546	
+   547	
+   548	def check_is_current(run, check):
+   549	    src = check.get("sources") or {}
+   550	    for key, rel in (("run_meta.json", C.RUN_META), ("policy_probe.npz", PROBE_REL), (C.EVIDENCE, C.EVIDENCE),
+   551	                     ("eval_episodes.csv", LEDGER_REL)):
+   552	        if key not in src:
+   553	            return f"check.json names no {key}"
+   554	        try:
+   555	            now = C.sha256_file(Path(run) / rel)
+   556	        except OSError as exc:
+   557	            return f"{rel}: {exc}"
+   558	        if now != src[key][1]:
+   559	            return f"{rel} changed since check.json"
+   560	    return None
+   561	
+   562	
+   563	def load_lost(path):
+   564	    path = Path(path)
+   565	    if not path.exists():
+   566	        return {}
+   567	    d, _ = read_json_file(path)
+   568	    if d.get("schema") != C.LOST_SCHEMA or not isinstance(d.get("lost"), dict):
+   569	        raise InputError(f"{path}: schema {d.get('schema')!r}")
+   570	    return dict(d["lost"])
+   571	
+   572	
+   573	def decided(root=None):
+   574	    """(all decided, [undecided names]) over SCREEN.json's queue: a passing continuation check.json, or lost.json."""
+   575	    root = Path(root or C.BS)
+   576	    d, problems = C.load_screen(str(root / "SCREEN.json"))
+   577	    if problems:
+   578	        return False, [f"SCREEN.json: {p}" for p in problems]
+   579	    lost = load_lost(root / "lost.json")
+   580	    und = []
+   581	    for arm, seed in C.queue_of(d):
+   582	        name = C.run_name(arm, seed)
+   583	        if name in lost:
+   584	            continue
+   585	        try:
+   586	            c, _ = read_json_file(root / "runs" / name / C.CHECK_JSON)
+   587	        except InputError:
+   588	            und.append(name)
+   589	            continue
+   590	        if c.get("passed") is not True or c.get("mode") != "continuation":
+   591	            und.append(name)
+   592	    return not und, und
+   593	
+   594	
+   595	# ================================================================================================ M-PROBE
+   596	def probe_markers(path, S, T, label):
+   597	    import numpy as np
+   598	
+   599	    keys = ("update_timesteps", "bank_action_now", "bank_value_now", "obs_rms_mean", "obs_rms_var",
+   600	            "std_per_actuator", "rollout_mu_mean", "bank_labels")

@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+# LB: BS2's run_waves_bs.sh (S2/r10round/bias_screen2/tools/run_waves_bs.sh, sha256 6e0484f6...) with the root changed
+# (BS_REAL = S2/r10round/long_blind) and these LB changes; "<BS>" below = LB:
+#   RESUME a crash that is one of its own is rerun at once with --resume-from <its retired runs/<name>_crashed<k>>:
+#          run_bs.py resumes from that attempt's newest complete saved pair (bs_resume.resume_point), or starts again
+#          from S when it has none (BS2's rerun).  A relaunch finds the folder in logs/crash_ledger.tsv.  The early
+#          crash rule counts from the attempt's load step (run_meta load_step: S, or the resume point).
+#   HOP    a continuation the stage's hop watch stopped (CHECK passed, stop reason "hop_watch") is STOPPED, like
+#          "collapse".
+#   RR-1   a relaunch after ALL_DECIDED keeps the first logs/atimes_at_ALL_DECIDED.tsv; a later snapshot goes to
+#          logs/atimes_at_ALL_DECIDED.relaunch<k>.tsv.
+#   I1     right after each attempt exits, before CHECK and the re-arm, logs/atimes_at_exit/<name>.attempt<k>.tsv
+#          records path, atime, mtime and ctime (lstat only) of runs/<name>/**, tmp/<name>/** and the attempt log.
+#   SCORER the scorer the APPROVED pin must name is bs_common.SCORER_FILE (score_bs.py).
+# The queue mechanics, slots, nice, floors and the outcome-blind reads are BS2's, unchanged.
+# BS2 review fixes (the fixer, 2026-10-30; <BS2>/review/FIXES.txt), additions only:
+#   PR-M4  the runner refuses (exit 2, nothing started) unless APPROVED's tool_sha256["score_bs.py"] equals the current
+#          tools/score_bs.py (run_bs.py's preflight pins the five bs_common.TOOL_FILES only);
+#   PR-M2  lesson P4 (relatime): right after a continuation is decided COUNTED or STOPPED, every regular file under
+#          runs/<name>/ and tmp/<name>/ and its logs/<name>.attempt<k>.log is re-armed (atime = mtime - 1 ns; content,
+#          mtime and sha256 unchanged), so any later read of one moves its atime; at ALL_DECIDED, before
+#          logs/ALL_DECIDED is written and before the full reads, logs/atimes_at_ALL_DECIDED.tsv records path, atime,
+#          mtime and ctime (lstat, which moves no atime) for runs/**, logs/** and tmp/**, with rearmed_unread = 1 where
+#          the atime is still mtime - 1 ns;
+#   PR-M3  a REFUSED note names the read-only command that shows the cause (run_bs.py --preflight-only for that
+#          entry), never the attempt log.
+# BS wave runner, derived from the ECS runner (S2/r10round/ecs/tools/run_waves_ecs.sh, sha256 c007762c...): the same
+# crash handling, relaunch, lock, HALTED and VOID rules; the bias screen's queue, slots, nice and floors.  Runs ONLY
+# after <BS>/APPROVED, <BS>/criteria.txt and <BS>/SCREEN.json exist; every continuation still passes run_bs.py's own
+# preflight (which refuses on any unpinned or changed input: APPROVED pins criteria.txt, SCREEN.json and the tools).
+#
+#   run_waves_bs.sh            run (or resume) the queue
+#   run_waves_bs.sh --plan     print the queue and the commands; check nothing, launch nothing, write nothing
+#
+# OUTCOME-BLIND: while the queue runs, the runner reads only each attempt's exit code, run_meta.json (status, exit,
+# stop_reason, heartbeat, last_step) and the CHECK's exit code (read_bs.py --check).  It never opens an attempt's log,
+# a ledger, a probe or a checkpoint (the atime re-arm and snapshot use lstat and utime only: no file is opened).  Started detached (setsid nohup) by the coordinator; a harness-tracked watcher
+# reads only logs/run_waves_bs.log.  Nothing relaunches it automatically.  While logs/HALTED exists it refuses to start
+# (exit 2); it writes logs/HALTED whenever a halt (exit 2) or a VOID (exit 4) stops the queue; only the coordinator
+# removes it.
+#
+# The queue is SCREEN.json's (bs_common.load_screen: control and ONE intervention, at most 9 continuations), in its
+# order, run in bs_common.WAVE_SLOTS (4) slots at nice bs_common.WAVE_NICE (10): a slot that frees starts the next.
+#   - a fresh queue (no decision, no crash, no run folder) starts only with free disk >= bs_common.LAUNCH_DISK_BYTES
+#     (the 1.5 GiB floor plus 9 x 50 MiB), else it refuses (exit 2; nothing started).
+#   - before each start: free disk >= bs_common.DISK_FLOOR_BYTES (1.5 GiB), else PAUSED: no new start, the running
+#     ones go on, logs/PAUSED_disk names the shortfall; it resumes by itself once space is free.  The process table and
+#     the load are appended to logs/proctable.log at each start.
+#   - each attempt's output goes to logs/<name>.attempt<k>.log (never opened by the runner; it may print evaluation
+#     returns).  A crash's cause is read from run_meta.json's error and traceback.
+#   - as each exits, by its exit code:
+#       0: `read_bs.py --check <run>` (CHECK only).  Exit 0: COUNTED (stop reason "end") or STOPPED ("collapse").
+#          Exit 4: VOID: decided VOID, runs/<name> -> runs/<name>_void<k>; no new start; the runner exits 4 at the
+#          end.  Any other CHECK exit: CHECK ERROR, the folder left as it is, no new start, exit 2.
+#       5: the run reached its end but a post-run check failed (status "failed"): checked like 0; CHECK fails: VOID.
+#       2: REFUSED before any optimizer step: runs/<name> (if made) -> runs/<name>_refused<k>, no new start, exit 2.
+#       other: CRASH: runs/<name> -> runs/<name>_crashed<k>, logs/crash_ledger.tsv.  An EARLY crash (last recorded step
+#          below S + 131,072, or none) is not counted and halts new starts.  Any other crash is one of its own and is
+#          rerun at once from the start pair with the same arguments; a third own crash writes it to <BS>/lost.json.
+# Relaunch: logs/run_waves_bs.lock (waiting up to 30 s; another live runner: exit 3), waits while any of this BS's
+# run_bs.py processes is alive, then reads logs/decided.tsv and <BS>/lost.json; a runs/<name> found done is checked; one
+# found failed is checked as exit 5; one found refused is handled as exit 2; any other is a CRASH (counted only if its
+# run_meta says "crashed", under the early-crash rule).  A VOID in the ledger refuses the relaunch (exit 4).
+# When all are COUNTED, STOPPED or LOST and none is VOID: logs/ALL_DECIDED, then the full read (`read_bs.py <run>`,
+# the markers; refused by read_bs.py itself until all are decided) of each COUNTED or STOPPED continuation, WAVE_SLOTS
+# at a time at nice 10.  No scorer is run here (the criteria's, written and pinned before launch).  No push.
+# Exit codes: 0 all decided and read; 2 refused / halted; 3 another runner holds the lock; 4 VOID.
+# No redirection onto any path outside <BS> (stderr of probes goes to logs/runner_stderr.log).
+set -euo pipefail
+export PYTHONDONTWRITEBYTECODE=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 LC_ALL=C

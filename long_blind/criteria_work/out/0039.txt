@@ -1,0 +1,78 @@
+E = 12_001_280
+LENGTH = E - S                                  # 9,904,128 = 1,209 rollouts, 1,208 update rows in (S, E)
+MAX_LENGTH = LENGTH                             # AUTH2: to the parent's own end, no further
+N_EVALS = LENGTH // EVAL_FREQ                   # 75 evaluations in (S, E]: 2,228,224 ... 11,927,552 (E off the grid)
+# The saved pairs of a continuation: the periodic ones at S + 262,144 k inside (S, E), and the final pair at E
+# (stage1_final.zip / stage1_final_vecnorm.pkl: E is not on the save grid, so no periodic pair is written there).
+SAVED_STEPS = tuple(range(S + SAVE_FREQ, E, SAVE_FREQ))       # 2,359,296 ... 11,796,480 (37)
+FINAL_ZIP, FINAL_PKL = "stage1_final.zip", "stage1_final_vecnorm.pkl"
+VALIDATE_UNTIL = S + 2 * EVAL_FREQ              # V2: S + 262,144 = 2,359,296 (TASK item 5)
+# M-LOOP read schedule (read_bs.saved_pairs): the start copy, every saved pair whose (steps - S) is a multiple of
+# LOOP_READ_EVERY, and the final pair.  SAVE_FREQ = every saved pair (BS2's reading, 39 pairs at E); 1,048,576 = the
+# parent's F2 grid (11 pairs).  The criteria lane chooses; the costs are in NOTES.txt (TIMING).
+LOOP_READ_EVERY = SAVE_FREQ
+# The stage's own early stops inside the window (stance.toml [curriculum]; code read: curriculum/early_stopping.py,
+# curriculum/hop_watch.py): the collapse backstop (min_evals 20, patience 10, drop 0.5, peak floor 0.45 x 4470.4,
+# warm-up 1,000,000) and the hop watch (unsupported duty > 0.05 at an evaluation at or after 7,000,000 stops training).
+HOP_WATCH_AFTER = 7_000_000                     # stance.toml hop_watch_after_timesteps (hop_watch_stop = true)
+HOP_WATCH_FIRST_EVAL = -(-HOP_WATCH_AFTER // EVAL_FREQ) * EVAL_FREQ   # 7,077,888: the first evaluation it can stop at
+# Resume (TASK3): a crashed or killed continuation restarts from the newest saved pair P = S + 262,144 k (k >= 1) of
+# its last attempt whose pair is intact and whose records hold every row up to P (run_bs.resume_point); none: from S.
+RESUME_GRID = SAVE_FREQ
+....
+            out.append(f"{path}: sha256 {got} != pinned {want}")
+    return out
+
+
+# ------------------------------------------------------------------------------------------------------------- SCREEN
+# <BS>/SCREEN.json: {"schema": "bs-screen/1", "intervention": one of INTERVENTIONS,
+#                    "queue": [[arm, seed], ...]}   (launch order; arms only "control" and the intervention)
+def screen_problems(d) -> list[str]:
+    """Every reason a SCREEN.json object is not a valid screen; empty means valid (pure)."""
+    if not isinstance(d, dict):
+        return ["SCREEN: not a JSON object"]
+    p = []
+    if d.get("schema") != SCREEN_SCHEMA:
+        p.append(f"SCREEN: schema {d.get('schema')!r} != {SCREEN_SCHEMA!r}")
+    inter = d.get("intervention")
+    if inter not in INTERVENTIONS:
+        p.append(f"SCREEN: intervention {inter!r} not one of {INTERVENTIONS}")
+    q = d.get("queue")
+    if not isinstance(q, list) or not q:
+        return p + ["SCREEN: queue is not a non-empty list"]
+    if len(q) > MAX_CONTINUATIONS:
+        p.append(f"SCREEN: {len(q)} continuations > {MAX_CONTINUATIONS} (AUTH)")
+    seen = set()
+    arms = set()
+    for i, item in enumerate(q):
+        if (not isinstance(item, list) or len(item) != 2 or not isinstance(item[0], str)
+                or isinstance(item[1], bool) or not isinstance(item[1], int)):
+            p.append(f"SCREEN: queue[{i}] {item!r} is not [arm, integer seed]")
+            continue
+        arm, seed = item
+        if arm not in (CONTROL, inter):
+            p.append(f"SCREEN: queue[{i}] arm {arm!r} is neither control nor the intervention {inter!r}")
+        if not 0 < seed < 2**31 - EVAL_SEED_OFFSET - N_ENVS:
+            p.append(f"SCREEN: queue[{i}] seed {seed} out of range")
+        if seed in VALIDATION_SEEDS:
+            p.append(f"SCREEN: queue[{i}] seed {seed} is a validation seed")
+        if (arm, seed) in seen:
+            p.append(f"SCREEN: queue[{i}] {arm} {seed} repeated")
+        seen.add((arm, seed))
+        arms.add(arm)
+    if inter in INTERVENTIONS and arms != {CONTROL, inter}:
+        p.append(f"SCREEN: the queue's arms {sorted(arms)} are not control and {inter}")
+    return p
+
+
+def load_screen(path: str = SCREEN) -> tuple[dict | None, list[str]]:
+    """(SCREEN object, problems).  Missing or unreadable is a problem."""
+    try:
+        with open(path) as fh:
+            d = json.load(fh)
+    except FileNotFoundError:
+        return None, [f"SCREEN: {path} missing (the intervention is not chosen yet)"]
+    except (OSError, ValueError) as exc:
+        return None, [f"SCREEN: {path} does not parse ({exc.__class__.__name__})"]
+    return d, screen_problems(d)
+

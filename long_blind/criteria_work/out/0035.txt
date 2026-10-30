@@ -1,0 +1,61 @@
+       ("stop the progression toward the rail", REPORT section 6) and the margin study's validated ranking (WM;
+       RUNLOG 04:40). The parent's +1.399 -> +0.240 -> -0.061. Shares G with (a): stated. On BS's values p 65/70
+       (context only: BS's blind margins were lower, because BS's control G became very negative).
+   Not tested (reasons): c0 alone (contained in (c); BS's blind c0 stayed low but c0 is measured on each run's own
+   settled states, which differ by arm); own14 (another deterministic command, near-duplicate of (b)); b*_L
+   (duplicate of (c) in another form); the statue_settled offset (did not climb in the parent's window); first
+   over-bar / CMD_L line crossings (censored at E for most runs: the parent's first over-bar is after E; CMD_L >= 0.90
+   never inside the window); returns and falls (a safety read: KNOWN LIMITS asks to read a REDUCED with them).
+   Family: three tests at 3/70 each -> at most 9/70 = 0.129 for any SUPPORTED under the global null; p = 1/70 alone
+   survives Bonferroni (1/70 = 0.0143 <= 0.0167).
+
+D6 SEEDS: 2501, 2511, 2521, 2531 (see section 2). The task's example 2201-2231 rejected (ECS eval-env collision).
+   SCREEN_v1.json: BS's format and schema "bs-screen/1" (the builder's bs_common.SCREEN_SCHEMA), interleaved queue;
+   accepted by both the builder's and BS's screen_problems() (CMDLOG 10:5x).
+
+D7 CARRIED-OVER FIXES (BS review R1-R9 and the 09:13 UTC verification):
+   R1 gate/test sharing: KNOWN LIMITS with BS2's own numbers (power_bs2.out E).
+   R2 line-3 wording: the "not excluded" clause re-derived for BS2 (0.25-0.96 at half the rise by spread; 0.1-0.3 if
+      climbs become rarer); "A null is not evidence that the critic plays no part" kept; the as-counted addition kept.
+   R3 quotes: every probe statement cites VEB/RUNLOG lines with numbers as written there.
+   R4 outcome-blindness as an allow-list: kept verbatim in substance.
+   R5 APPROVED never edited after the first start: kept.
+   R6 the PROVISIONAL "another read_bs.py" branch: kept in the list (the scorer adapter must test it).
+   R7 loop-marker failure is a tool defect, not LOST: kept; now also matters for SEC-G and SEC-MARGIN.
+   R8 training attempts: kept.
+   R9 a worse critic overall: kept.
+   STAT-1: a wording rule in REPORT ONLY (a claim names its measure and numbers; patterns labelled post hoc).
+   STAT-2: the median rule stated exactly (midpoint of the two middle values; exact; n = 3/2/1/0 cases).
+   STAT-3: the post hoc G pattern is now a pre-registered secondary (D5a).
+   P1: HOW THE COORDINATOR PINS step 3: APPROVED's full text and sha256 into RUNLOG in the same entry as the pin,
+       before launch.
+   P2: STATUS and HOW THE COORDINATOR PINS: the fixed version is re-reviewed and APPROVED pins exactly the re-reviewed
+       sha256s (recorded in RUNLOG).
+   P3: the reader's loop cache keyed on read_bs.py's own sha256 and its modules'; the builder's read_bs.py already
+       has cache_key()/cache_entry_problem() (read at 10:4x UTC); the build check confirms.
+   P4 (relatime / atime): not a criteria item; the outcome-blindness audit should again save atimes before any log is
+       read (BS check/proc/pc_atime.out did); noted for the process reviewer.
+
+==================================================================================================================
+4. OPEN ITEMS (for the scorer adapter, the reviewers and the coordinator)
+==================================================================================================================
+O1 The scorer adapter must implement: BASELINE_S = 0.1265954738482833; RISE_MIN = 1/5; the BS2 line texts (verbatim
+   from criteria_v1.txt, including "CLIMB" and "2,097,152"); the three secondaries with their directions, fills and
+   MISSING causes, the "(the control arm did not climb on the primary)" note under line 1, and the Bonferroni note at
+   p = 1/70; the report-only count of G(E) > G(S); the trajectory print. Tests for each (the R6 and median-vs-mean
+   tests carried over). The PRIMARY_STEPS are E - 65,536 ... E - 8,192.
+O2 The secondaries need the markers' loop row with steps == E (the final pair). The builder's read_bs.py must emit it
+   for the final pair stage1_final at E (BS's did for T = E on the save grid; BS2's E is off the 262,144 grid). To be
+   confirmed by the build check; if the row carries steps from num_timesteps, it must equal E exactly.
+O3 PINS lines in criteria_v1.txt are placeholders for SCREEN.json, score_bs.py, test_score_bs.py and the five tools;
+   they must be filled after the fix and before the re-review (the criteria name score_bs.py's sha256, as BS's did).
+O4 The dry run: SEC-G / SEC-MARGIN MISSING in all 8 when the parent's markers lack a loop row at E (the parent has no
+   F2 checkpoint at 3,538,944). The adapter may also run a synthetic dry run with loop rows at E to exercise them.
+O5 The paths S1/S2 contain the system folder name "<tmproot>/..."; BS's pinned criteria carry the same paths. If
+   the durable-copy scan treats that folder name as a product name, the coordinator decides (it did not in BS: RUNLOG
+   09:17 UTC, "model-name ... scan clean").
+O6 The gate (D3) is a judgment between 0.15 and 0.25; the reviewer may prefer 0.15. Changing it changes line 1's text,
+   the KNOWN LIMITS figures (power_bs2.out has every candidate) and RISE_MIN.
+O7 Disk: 2.8 GB free at 10:45 UTC; the builder's validations will use some. The launch floor is 2,082,471,936 bytes.
+
+END

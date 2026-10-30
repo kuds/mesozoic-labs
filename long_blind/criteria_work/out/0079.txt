@@ -1,0 +1,62 @@
+-rw-r--r-- 1 root root   2029 17:24 notes_launch.txt
+-rw-r--r-- 1 root root  10219 18:12 notes_more.txt
+-rw-r--r-- 1 root root   6716 18:12 notes_static.txt
+-rw-r--r-- 1 root root   6832 18:13 notes_summary.txt
+-rw-r--r-- 1 root root   6416 18:01 notes_valid.txt
+-rw-r--r-- 1 root root    908 16:43 tools_sha256_as_copied.txt
+-rw-r--r-- 1 root root 147483 17:33 tools_vs_bs2.diff
+-rw-r--r-- 1 root root    343 16:43 verify_copy_start.out
+S2/r10round/long_blind/logs/notes_design.txt
+S2/r10round/long_blind/logs/notes_more.txt
+S2/r10round/long_blind/logs/notes_static.txt
+S2/r10round/long_blind/logs/notes_summary.txt
+S2/r10round/long_blind/NOTES.txt
+### S2/r10round/long_blind/validate/logs/timing.out
+LB no-update (V2, V4; 2 of this build's processes beside other workflows')
+  {"run": "control_9301", "n": 31, "cpu_total": 689.4, "wall_total": 977.3, "first_rollout_end_cpu": 32.62, "cpu_per_rollout_median": 19.210000000000008, "cpu_rollout_with_eval": 53.14999999999998, "wall_per_rollout_median": 29.0, "n_updates": [2471, 2471], "T": 2359296, "load": 2097152}
+  {"run": "critic_blind_tail3_9301", "n": 31, "cpu_total": 660.7, "wall_total": 700.2, "first_rollout_end_cpu": 34.47, "cpu_per_rollout_median": 18.120000000000005, "cpu_rollout_with_eval": 48.460000000000036, "wall_per_rollout_median": 19.0, "n_updates": [2471, 2471], "T": 2359296, "load": 2097152}
+  {"run": "frozen_obs_norm_9301", "n": 31, "cpu_total": 643.6, "wall_total": 654.2, "first_rollout_end_cpu": 31.13, "cpu_per_rollout_median": 17.710000000000036, "cpu_rollout_with_eval": 47.50999999999999, "wall_per_rollout_median": 18.0, "n_updates": [2471, 2471], "T": 2359296, "load": 2097152}
+  {"run": "gae_lambda_1_9301", "n": 31, "cpu_total": 647.4, "wall_total": 658.5, "first_rollout_end_cpu": 31.24, "cpu_per_rollout_median": 17.890000000000043, "cpu_rollout_with_eval": 47.07000000000005, "wall_per_rollout_median": 18.0, "n_updates": [2471, 2471], "T": 2359296, "load": 2097152}
+  {"run": "critic_blind_tail3_9311", "n": 35, "cpu_total": 727.1, "wall_total": 740.2, "first_rollout_end_cpu": 31.95, "cpu_per_rollout_median": 18.119999999999948, "cpu_rollout_with_eval": 48.45500000000001, "wall_per_rollout_median": 18.0, "n_updates": [2471, 2471], "T": 2654208, "load": 2359296}
+  {"run": "critic_blind_tail3_9311_crashed1", "n": 65, "cpu_total": null, "wall_total": null, "first_rollout_end_cpu": 33.21, "cpu_per_rollout_median": 18.694999999999993, "cpu_rollout_with_eval": 48.245000000000005, "wall_per_rollout_median": 22.0, "n_updates": [null, null], "T": null, "load": 2097152}
+BS2 no-update V2 (4 at once)
+  {"run": "control_9201", "n": 31, "cpu_total": 706.2, "wall_total": 718.8, "first_rollout_end_cpu": 38.45, "cpu_per_rollout_median": 19.21999999999997, "cpu_rollout_with_eval": 51.59000000000003, "wall_per_rollout_median": 20.0, "n_updates": [2471, 2471], "T": 2359296, "load": 2097152}
+  {"run": "critic_blind_tail3_9201", "n": 31, "cpu_total": 710.4, "wall_total": 721.0, "first_rollout_end_cpu": 38.61, "cpu_per_rollout_median": 19.299999999999983, "cpu_rollout_with_eval": 51.69, "wall_per_rollout_median": 20.0, "n_updates": [2471, 2471], "T": 2359296, "load": 2097152}
+  {"run": "frozen_obs_norm_9201", "n": 31, "cpu_total": 705.5, "wall_total": 716.5, "first_rollout_end_cpu": 37.25, "cpu_per_rollout_median": 19.47, "cpu_rollout_with_eval": 51.69999999999999, "wall_per_rollout_median": 20.0, "n_updates": [2471, 2471], "T": 2359296, "load": 2097152}
+  {"run": "gae_lambda_1_9201", "n": 31, "cpu_total": 700.6, "wall_total": 715.6, "first_rollout_end_cpu": 41.25, "cpu_per_rollout_median": 19.20999999999998, "cpu_rollout_with_eval": 51.22000000000003, "wall_per_rollout_median": 20.0, "n_updates": [2471, 2471], "T": 2359296, "load": 2097152}
+BS2 real continuations (4 at once)
+  {"run": "control_2501", "n": 175, "cpu_total": 4887.8, "wall_total": 4950.5, "first_rollout_end_cpu": 38.29, "cpu_per_rollout_median": 26.12999999999988, "cpu_rollout_with_eval": 57.37999999999988, "wall_per_rollout_median": 26.0, "n_updates": [2471, 3803], "T": 3538944, "load": 2097152}
+  {"run": "control_2511", "n": 175, "cpu_total": 4829.9, "wall_total": 4891.7, "first_rollout_end_cpu": 39.16, "cpu_per_rollout_median": 25.930000000000177, "cpu_rollout_with_eval": 60.695000000000164, "wall_per_rollout_median": 26.0, "n_updates": [2471, 3762], "T": 3538944, "load": 2097152}
+  {"run": "control_2521", "n": 175, "cpu_total": 4880.3, "wall_total": 4932.3, "first_rollout_end_cpu": 32.88, "cpu_per_rollout_median": 26.125, "cpu_rollout_with_eval": 58.600000000000136, "wall_per_rollout_median": 26.0, "n_updates": [2471, 3758], "T": 3538944, "load": 2097152}
+  {"run": "control_2531", "n": 175, "cpu_total": 4881.4, "wall_total": 4930.2, "first_rollout_end_cpu": 34.15, "cpu_per_rollout_median": 26.024999999999864, "cpu_rollout_with_eval": 58.654999999999745, "wall_per_rollout_median": 26.0, "n_updates": [2471, 3826], "T": 3538944, "load": 2097152}
+  {"run": "critic_blind_tail3_2501", "n": 175, "cpu_total": 4996.4, "wall_total": 5060.6, "first_rollout_end_cpu": 38.15, "cpu_per_rollout_median": 26.600000000000023, "cpu_rollout_with_eval": 61.47999999999979, "wall_per_rollout_median": 27.0, "n_updates": [2471, 3870], "T": 3538944, "load": 2097152}
+  {"run": "critic_blind_tail3_2511", "n": 175, "cpu_total": 4995.3, "wall_total": 5060.9, "first_rollout_end_cpu": 35.81, "cpu_per_rollout_median": 26.43999999999994, "cpu_rollout_with_eval": 60.08999999999992, "wall_per_rollout_median": 27.0, "n_updates": [2471, 3869], "T": 3538944, "load": 2097152}
+  {"run": "critic_blind_tail3_2521", "n": 175, "cpu_total": 4954.1, "wall_total": 5005.7, "first_rollout_end_cpu": 35.76, "cpu_per_rollout_median": 26.485000000000355, "cpu_rollout_with_eval": 56.70999999999981, "wall_per_rollout_median": 27.0, "n_updates": [2471, 3847], "T": 3538944, "load": 2097152}
+  {"run": "critic_blind_tail3_2531", "n": 175, "cpu_total": 4997.3, "wall_total": 5049.1, "first_rollout_end_cpu": 36.07, "cpu_per_rollout_median": 26.490000000000123, "cpu_rollout_with_eval": 60.889999999999986, "wall_per_rollout_median": 27.0, "n_updates": [2471, 3854], "T": 3538944, "load": 2097152}
+LB no-update:   18.12 CPU-s per rollout, +30.23 per evaluation, setup 13.6 [measured]
+BS2 no-update:  19.26 CPU-s per rollout, +32.38 per evaluation, setup 19.3 [measured there]
+BS2 real:       26.28 CPU-s per rollout incl. the update; the update 7.02 CPU-s per rollout [real minus no-update]; epochs per train 7.35-7.99 (median 7.80); 0.900 CPU-s per epoch [measured there]
+BS2 real totals: CPU 4830-4997 s, wall 4892-5061 s (median 83.0 min for 176 rollouts), wall / CPU 1.012 at 4 at once
+ONE LB CONTINUATION (parent's 6.73 epochs per train): 33052 CPU-s = 9.18 h on one CPU; 4 at once on a free machine about 9.29 h wall [inferred: BS2's wall / CPU ratio]
+    with 1 other busy process(es) on the 4 CPUs: about 11.61 h
+    with 2 other busy process(es) on the 4 CPUs: about 13.93 h
+ONE LB CONTINUATION (BS2's 7.80): 34219 CPU-s = 9.51 h on one CPU; 4 at once on a free machine about 9.62 h wall [inferred: BS2's wall / CPU ratio]
+    with 1 other busy process(es) on the 4 CPUs: about 12.02 h
+    with 2 other busy process(es) on the 4 CPUs: about 14.42 h
+ONE LB CONTINUATION (10 (no early stop)): 36609 CPU-s = 10.17 h on one CPU; 4 at once on a free machine about 10.29 h wall [inferred: BS2's wall / CPU ratio]
+    with 1 other busy process(es) on the 4 CPUs: about 12.86 h
+    with 2 other busy process(es) on the 4 CPUs: about 15.43 h
+READER: CPU-s per pair (loop_markers_one): LB 7 entries 58.3-61.5 (median 60.3); BS2 55 entries 58.3-69.6 (median 61.9, 4 reads at once) [measured]
+READ SCHEDULE every saved pair (LOOP_READ_EVERY = 262,144): 39 pairs, 38 new per run: 39 CPU-min per run; 4 runs 4 at once about 39 min wall (+ M5 and the probe markers, about 1 min) [inferred]
+READ SCHEDULE every 1,048,576 (the parent's F2 grid): 11 pairs, 10 new per run: 10 CPU-min per run; 4 runs 4 at once about 10 min wall (+ M5 and the probe markers, about 1 min) [inferred]
+timing.err
+timing.out
+timing.py.first
+timing_first.out
+v3_control.log
+v3_critic_blind_tail3.log
+v3_frozen_obs_norm.log
+v3_gae_lambda_1.log
+v3_reference.log
+v3_summary.err
+v3_summary.out

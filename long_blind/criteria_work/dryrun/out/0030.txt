@@ -1,0 +1,45 @@
+1:LB CRITERIA v1 -- DESIGN NOTES (the designer of workflow wf_c801f08c-291), 2026-10-30 17:36-18:30 UTC (date -u).
+2:WORK = S2/r10round/long_blind/criteria_work   <LB> = S2/r10round/long_blind   <BS2> = S2/r10round/bias_screen2
+3:S2 = the session scratchpad holding <LB> (WORK's grandparent's grandparent); S1 = the sibling session scratchpad
+6:PY = S2/venv/bin/python (-I -B; OMP 1; nice 10 for every computation). Every command with its date -u times:
+7:WORK/CMD_LOG.txt (run through WORK/lg.sh; outputs in WORK/out/NNNN.txt; one manual note entry for two background
+11:WHAT I DID NOT DO: no training, no optimizer step, no validation run, no continuation, no simulation of any kind;
+20:FILES WRITTEN (all in WORK)
+54:L123, L125 (lines 666-671), the neck mentions. That copy is the records PR's worktree and changed at 18:04 UTC (2,318
+61:NOTES.txt (all), tools/measure_lb.py (header, constants, habit_summary, classify_one), validate/stance6_r10LTSB_s42/
+66:S2/r10round/ecs/criteria.txt (its window, line 52), ecs_common.py (SEEDS).
+71:THE WINDOW [measured: <LB>/tools/bs_common.py lines 90-102; <LB>/logs/notes_design.txt THE WINDOW]
+76:THE PARENT OVER (S, E] [measured, WORK parent_long.out; inputs sha256-equal to FMAN: probe 4e0e7220...,
+104:THE LOOP AT THE PARENTS' F2 PAIRS [computed b* = 1 - G - c0 from ew_r10.jsonl, WORK parent_long.out lines 110-146]
+109:THE ROUND AND ITS PARENTS [measured: RUNLOG line 711; MEAS NOTES.txt VALIDATION RESULT and validate reports; PANELS]
+118:BS2 [measured, <BS2>/score/score.txt]
+127:THE ECS (the s42 lineage from 3,145,728, 1,572,864 steps, E 4,718,592: ECS criteria line 52) [measured: RUNLOG line
+130:THE HARNESS [measured: notes_design.txt, notes_valid.txt, notes_static.txt, bs_common.py, run_waves_bs.sh]
+144:THE MEASUREMENT [measured: MEAS NOTES.txt]
+149:DISK [measured: df -B1 / 3,005,566,976 B free at 17:58 UTC, WORK/out/0061.txt; du -sm: <LB>/validate 176 MB,
+153:DESIGN NUMBERS [computed, WORK design_numbers.out]
+162:SEEDS [measured, WORK seeds_check.out, seeds_grep.out, seeds_triage.out]
+172:D1 THE QUESTIONS. Taken as the task states them, from s42's 2,097,152 state to the parent's own end: Q1 the rail in
+179:D2 ARMS 3 + 1, NOT 2 + 2 (the task's default; argued from BS2):
+198:D3 SEEDS 2701, 2711, 2721 (control 2701, blind 2701 / 2711 / 2721). BS2's pattern (xx01, xx11, xx21) in an unused
+207:D4 OUTCOMES FROM THE ROUND'S PINNED DEFINITIONS. TAIL CLASS, ANY ALARM per actuator, the first TAIL ALARM, GATE CLASS
+226:D5 HABIT ELSEWHERE (Q3; MEAS open item 7). The round defines habits for the tail only. To say "the habit moved", I
+245:D6 THE READ SCHEDULE: LOOP_READ_EVERY 262,144, the builder's value (BS2's reading): 39 loop pairs per FINISHED
+257:D7 THE READING'S RULES.
+281:D8 THE COMPARISONS (C1-C4; descriptive, never a line): the parent's first TAIL ALARM 3,932,160 and the other parent
+287:D9 RUN HANDLING WITH THE RESUME. One continuation = one queue entry: the decided attempt plus the rows stitched from
+295:D10 OUTCOME-BLINDNESS: BS2's allow-list, plus the resume (bs_resume's reads are the pinned tools' own work), the run
+299:D11 DISK. The runner's own floors are the builder's (launch 2,449,473,536 B; pause 1,610,612,736 B); the coordinator's
+309:D12 PINNING (BS2's process lesson M1: RUNLOG line 788 held a compact re-serialisation of APPROVED, not its bytes). Here
+317:D13 THE PREDICTED OUTCOME [inferred]: written before anything runs (BS2's practice); its basis is in criteria_v1.txt
+320:NOT CHOSEN (with reasons)
+334:O1 THE SCORER (the scorer adapter): <LB>/tools/score_bs.py (bs_common.SCORER_FILE) implementing THE READING: the
+345:O2 THE READ SCHEDULE: none needed; the criteria keep the builder's LOOP_READ_EVERY = SAVE_FREQ (its open item 2
+347:O3 HARNESS TEXT, for the build check (no criteria change): run_waves_bs.sh header lines 41-59 still describe BS2 in
+351:O4 THE MEASUREMENT'S DISK (the coordinator; MEAS open item 1): at least 3,309,305,856 B free at each measure_lb.py
+355:O5 PINS: every <to fill> line after the fix and before the re-review; measure_lb.py's sha256 at that time (5fb29b52...
+357:O6 THE GATE AND THE CONTROL: Q4 needs a TAIL ALARM on tail_3 +; a control that rails only at the end (END-ONLY) or on
+360:O7 THE D LINE ON NON-TAIL ACTUATORS (O6 D at 0.60) is the round's tail line; a reviewer may prefer SATURATING only for
+362:O8 THE STOPPED CONTINUATION: the round's GATE FAIL for every STOPPED run is kept; a hop-watch stop at 9M of an otherwise
+365:O9 THE PATH NAMES: S1/S2 are defined without the temp folder's literal name (criteria SHORT NAMES); the harness files
+394:END

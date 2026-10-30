@@ -1,0 +1,98 @@
+34755b030bde78f673358b4f8f96f495932709582efd9425b13f4a7c1fe49b0e  S2/r10round/long_blind/tools/bs_common.py
+15:  TASK2  = BS2's build task of 2026-10-30 (S = 2,097,152; the start pair; the code copy reused read only);
+16:  TASK3  = LB's build task of 2026-10-30 (E = the parent's own end; LENGTH = E - S; validation seeds 9301-9341; the
+37:BS = S2 + "/r10round/long_blind"                # every file the study writes is under it (TASK3)
+39:CODE = BS1 + "/code"                            # BS's cp -a of ECS/code, chmod a-w; tree digest = TREE_DIGEST (never
+41:TOOLS = BS + "/tools"
+42:RUNS = BS + "/runs"                             # <BS>/runs/<arm>_<seed>/
+43:VALIDATE = BS + "/validate"                     # the no-optimizer-step modes write only here
+44:READS = BS + "/reads"                           # read_bs.py's full reads of continuations: <BS>/reads/<name>/
+45:LOGS = BS + "/logs"
+46:TMP = BS + "/tmp"                               # TMPDIR and MPLCONFIGDIR per run
+47:LOST_JSON = BS + "/lost.json"
+48:APPROVED = BS + "/APPROVED"                     # never written by the build
+49:CRITERIA = BS + "/criteria.txt"                 # never written by the build
+50:SCREEN = BS + "/SCREEN.json"                    # never written by the build (the chosen intervention and the queue)
+51:PY = S2 + "/venv/bin/python"
+52:FETCH = S1 + "/foot/stance6/fetch"
+53:FMAN = FETCH + "/manifest.csv"
+58:SEAL_NAME = ".r10m_seal.json"
+61:COMMIT = "8737cd3d86431de1bdd0fcdb49a0d956a45e084d"        # ECS / the seal
+62:TREE_DIGEST = "331fe8fc3f6bdf73acc0d3cc324dd753d9d9d695d7ce914e4e011d5c6437ebf1"   # ECS / the seal (TASK item 1)
+63:TREE_FILES = 1406
+69:STACK = {"python": "3.13.17", "torch": "2.13.0+cpu", "numpy": "2.5.4", "gymnasium": "1.4.0",
+71:DISK_FLOOR_BYTES = 1_610_612_736                # 1.5 GiB (TASK "1.5 GB"; the binary reading, the stricter one)
+75:RUN_BYTES_EST = 200 * 1024**2
+76:MAX_CONTINUATIONS = 4                           # AUTH2: 4 runs
+77:LAUNCH_DISK_BYTES = DISK_FLOOR_BYTES + MAX_CONTINUATIONS * RUN_BYTES_EST   # a fresh queue starts only above this
+78:SCORER_FILE = "score_bs.py"                     # the scorer (the criteria lane's); APPROVED must pin it (runner)
+79:TOOL_FILES = ("run_bs.py", "read_bs.py", "run_waves_bs.sh", "bs_common.py", "bs_hooks.py",
+83:TOTAL_TIMESTEPS = 12_000_000                    # the run's _total_timesteps; the body's total = 12M - S (ECS)
+84:N_ENVS = 4
+85:N_STEPS = 2048
+86:ROLLOUT = N_ENVS * N_STEPS                      # 8,192 steps per rollout / update
+87:EVAL_FREQ = 131_072                             # stage eval_freq (ECS)
+88:EVAL_EPISODES = 10                              # stage eval_episodes (stance.toml [curriculum]; 10 per evaluation)
+89:SAVE_FREQ = 262_144                             # stage checkpoint_freq (ECS)
+90:S = 2_097_152                                   # TASK2: s42's 2,097,152 checkpoint (the early-bias probe's driver)
+95:E = 12_001_280
+96:LENGTH = E - S                                  # 9,904,128 = 1,209 rollouts, 1,208 update rows in (S, E)
+97:MAX_LENGTH = LENGTH                             # AUTH2: to the parent's own end, no further
+98:N_EVALS = LENGTH // EVAL_FREQ                   # 75 evaluations in (S, E]: 2,228,224 ... 11,927,552 (E off the grid)
+101:SAVED_STEPS = tuple(range(S + SAVE_FREQ, E, SAVE_FREQ))       # 2,359,296 ... 11,796,480 (37)
+102:FINAL_ZIP, FINAL_PKL = "stage1_final.zip", "stage1_final_vecnorm.pkl"
+103:VALIDATE_UNTIL = S + 2 * EVAL_FREQ              # V2: S + 262,144 = 2,359,296 (TASK item 5)
+104:# M-LOOP read schedule (read_bs.saved_pairs): the start copy, every saved pair whose (steps - S) is a multiple of
+105:# LOOP_READ_EVERY, and the final pair.  SAVE_FREQ = every saved pair (BS2's reading, 39 pairs at E); 1,048,576 = the
+107:LOOP_READ_EVERY = SAVE_FREQ
+111:HOP_WATCH_AFTER = 7_000_000                     # stance.toml hop_watch_after_timesteps (hop_watch_stop = true)
+112:HOP_WATCH_FIRST_EVAL = -(-HOP_WATCH_AFTER // EVAL_FREQ) * EVAL_FREQ   # 7,077,888: the first evaluation it can stop at
+115:RESUME_GRID = SAVE_FREQ
+116:EVAL_SEED_OFFSET = 1000                         # eval env seed = seed + 1000 (ECS)
+117:STAGE_DIR = "01_stance"
+118:STAGE_KEY = "stance"
+119:ALGORITHM = "ppo"
+120:COLLAPSE_PATIENCE = 10                          # stance.toml (ECS)
+121:PROBE_CHECK_COLUMNS = ("update_timesteps", "ent_coef", "learning_rate")
+124:BANK_STATUE_SETTLED = (0, 5)                    # the probe bank's two statue_settled rows (seeds 3042, 3043)
+127:CONTROL = "control"
+128:INTERVENTIONS = ("critic_blind_tail3", "gae_lambda_1", "frozen_obs_norm")
+129:ARMS = (CONTROL, *INTERVENTIONS)
+132:ARM_PPO_EDIT = {"control": {}, "critic_blind_tail3": {}, "gae_lambda_1": {"gae_lambda": 1.0}, "frozen_obs_norm": {}}
+133:ARM_GAE_LAMBDA = {"control": 0.95, "critic_blind_tail3": 0.95, "gae_lambda_1": 1.0, "frozen_obs_norm": 0.95}
+134:ENT_COEF_AFTER_LOAD = 0.005                     # the config's ent_coef, every arm (ECS arm A)
+137:ARM_CHANGE = {
+156:PARENT_RECORDS = ("eval_episodes.csv", "evaluations.npz", "gate_progress.npz", "train_episodes.csv",
+158:START = {                                       # FMAN F2 COPY rows, copy 1, sha256 in full [measured, check_inputs.py]
+178:# 9201-9241).  (read_bs.ONPOLICY_SEEDS 9301 / 9302 are the reader's on-policy collection seeds, another use.)
+179:VALIDATION_SEEDS = (9301, 9311, 9321, 9331, 9341)
+180:WAVE_SLOTS = 4                                  # TASK item 3
+181:WAVE_NICE = 10
+182:MAX_CRASHES = 3                                 # ECS: a third crash of its own writes it to lost.json
+186:EXIT_POST_CHECK = 5                             # finished, a post-run check failed (ECS)
+187:TORCH_THREADS = 1
+188:STOP_REASONS = ("end", "collapse", "hop_watch", "other")   # hop_watch: the stage's own hop watch (>= 7,077,888)
+191:RUN_SCHEMA = "bs-run/2"                          # bs-run/1 (BS, BS2) + resume, attempts, hop watch
+192:RUN_META = "run_meta.json"
+193:EVIDENCE = "arm_evidence.jsonl"                 # one line per rollout end (bs_hooks.rollout_evidence)
+194:CHECK_JSON = "check.json"
+195:RUN_MODES = ("continuation", "save_loaded_only", "no_update")
+196:APPROVED_KEYS = ("criteria_sha256", "screen_sha256", "code_tree_digest", "tool_sha256")
+197:SCREEN_SCHEMA = "bs-screen/1"
+198:LOST_SCHEMA = "bs-lost/1"
+199:_ARM_RE = "|".join(re.escape(a) for a in ARMS)
+200:RUN_NAME_RE = re.compile(rf"^({_ARM_RE})_(\d+)(?:_(crashed|void|refused)(\d+))?$")
+239:        raise ValueError(f"T - S = {T - S_} is not a positive multiple of {ROLLOUT}")
+243:def derived_seeds(seed: int) -> tuple[int, ...]:
+245:    return (*(int(seed) + r for r in range(N_ENVS)), int(seed) + EVAL_SEED_OFFSET)
+285:# <BS>/SCREEN.json: {"schema": "bs-screen/1", "intervention": one of INTERVENTIONS,
+287:def screen_problems(d) -> list[str]:
+292:    if d.get("schema") != SCREEN_SCHEMA:
+293:        p.append(f"SCREEN: schema {d.get('schema')!r} != {SCREEN_SCHEMA!r}")
+295:    if inter not in INTERVENTIONS:
+296:        p.append(f"SCREEN: intervention {inter!r} not one of {INTERVENTIONS}")
+300:    if len(q) > MAX_CONTINUATIONS:
+301:        p.append(f"SCREEN: {len(q)} continuations > {MAX_CONTINUATIONS} (AUTH)")
+312:        if not 0 < seed < 2**31 - EVAL_SEED_OFFSET - N_ENVS:
+314:        if seed in VALIDATION_SEEDS:
+320:    if inter in INTERVENTIONS and arms != {CONTROL, inter}:

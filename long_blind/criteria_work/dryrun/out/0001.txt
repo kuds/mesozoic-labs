@@ -1,0 +1,160 @@
+     1	T. REX r10 LONG BLIND STUDY (LB): THE CRITIC BLIND TO THE TAIL_3 ANGLE TO THE PARENT'S OWN END (12,001,280), FROM
+     2	STANCE6 s42's 2,097,152 STATE, CPU, SCRATCH.  CRITERIA v1 -- DRAFT FOR INDEPENDENT REVIEW.  NOT APPROVED.  NOTHING
+     3	TRAINS UNTIL <LB>/APPROVED EXISTS.
+     4	
+     5	STATUS: v1 draft, written 2026-10-30 17:36-18:25 UTC (date -u) by the designer of workflow wf_c801f08c-291 (RUNLOG line
+     6	801), under the maintainer's choice of 2026-10-30 16:23 UTC ("Long blind run to 12M (Recommended)": continue s42 from
+     7	2,097,152 to the full 12M, 4 runs, mostly critic_blind_tail3 plus a normal control, about 10 h on this machine, after a
+     8	reviewed pre-registration; RUNLOG line 798). Nothing was trained to write it; no optimizer step was made; no
+     9	continuation exists. Next: the scorer adapter installs it as <LB>/criteria.txt with WORK/SCREEN_v1.json as
+    10	<LB>/SCREEN.json; an independent review (design/measurement and harness/process lenses); a fixer (keeps the
+    11	originals); a RE-REVIEW of the fixed version; the maintainer's confirmation of the final choices; the coordinator's pin
+    12	(HOW THE COORDINATOR PINS). It is not edited after the first optimizer step. Labels: [measured] = read or computed from
+    13	the named file; [inferred] = reasoned, basis named; [computed] = computed by the named script. Every number's source
+    14	and the design's reasoning: WORK/DESIGN_NOTES.txt; every command with its time: WORK/CMD_LOG.txt.
+    15	
+    16	SHORT NAMES
+    17	  S2 = the session scratchpad that holds this study (this file's folder is S2/r10round/long_blind/criteria_work);
+    18	  S1 = the sibling session scratchpad: S2's grandparent folder + /0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad.
+    19	  (Written so to keep the command-line tool's temp-folder name out of this text; LB/tools/bs_common.py and the BS2
+    20	  criteria give the same two paths in full.)
+    21	  <LB> = S2/r10round/long_blind (every file the study writes is under it)     RUNLOG = S1/foot/stance4/live/run_log.txt
+    22	  <BS> = S2/r10round/bias_screen (finished, read only; <BS>/code is the sealed code copy at 8737cd3d, tree digest
+    23	         331fe8fc3f6bdf73acc0d3cc324dd753d9d9d695d7ce914e4e011d5c6437ebf1, 1,406 files, reused read only)
+    24	  <BS2> = S2/r10round/bias_screen2 (finished and verified, read only; its criteria.txt is the form followed here)
+    25	  F2 = S1/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies (the parent's records, read only)
+    26	  FMAN = S1/foot/stance6/fetch/manifest.csv     PANELS = S1/foot/stance6/panels (the round's own M1/M3 outputs)
+    27	  ROUND = S2/r10round/final_lean/criteria_r10round_final.txt, the r10 round's approved criteria (sha256
+    28	          99a44469a387d01c55b98d76595d3633029681866ed14afcb185521eca0164db = S2/r10round/durable/repo/round/APPROVED
+    29	          criteria_sha256); "ROUND line N" is a line of that file
+    30	  MEAS = <LB>/measure (the measurement builder's measure_lb.py, which applies the round's pinned M1/M3/M5 tools and
+    31	         class function to a continuation; its NOTES.txt and validation)
+    32	  WORK = <LB>/criteria_work (this text's computations: parent_long.py/.out, seeds_check.py/.out,
+    33	         design_numbers.py/.out, CMD_LOG.txt, DESIGN_NOTES.txt)
+    34	  AUTH = the maintainer's choice of 2026-10-30 16:23 UTC (RUNLOG line 798): s42 from 2,097,152 to the full 12M, 4
+    35	  runs, mostly critic_blind_tail3 plus a normal control; scratch CPU, report only; pin and launch after the
+    36	  maintainer confirms the final choices (RUNLOG line 801).
+    37	  Steps = training steps. S = 2,097,152. E = 12,001,280 (the parent's own end). T = a continuation's end step (E, or
+    38	  its stop step if STOPPED). "blind" = the arm critic_blind_tail3. "rise" = a value minus B_S.
+    39	
+    40	THE QUESTIONS
+    41	- What is known [measured]:
+    42	  - BS2 (<BS2>/score/score.txt; RUNLOG lines 794, 796): from S to 3,538,944, line 2 REDUCED (exact one-sided
+    43	    permutation p 1/70). Every control climbed (on-policy tail_3 command rise +0.293 to +0.666; 2 of 4 had over-bar
+    44	    episodes, first at 3,407,872); no blinded run climbed (rise -0.061 to +0.016; no over-bar episode, no flag). At
+    45	    3,538,944 the blinded runs' ledger tail command CMD_L was +0.068 to +0.181 (controls +0.475 to +0.955) and their
+    46	    margin to the rail b* +0.983 to +1.301 (controls -0.060 to +0.404).
+    47	  - The parent over this study's window (WORK parent_long.out, from the F2 probe and ledger, each sha256-equal to its
+    48	    FMAN row): the on-policy tail_3 command (8-row mean of rollout_mu_mean[:, 14]) went from B_S = +0.127 to +0.705
+    49	    at 3,538,944, a maximum of +0.971 at 4,669,440, down to -0.463 at 6,922,240 (a swing to the opposite side between
+    50	    spells), and +0.812 over the last 8 updates before E (lines 7-10, 16-30). CMD_L was >= 0.60 at 57 of the 75 window
+    51	    evaluations and +0.908 at the last (11,927,552) (lines 64-67). First over-bar episode 3,670,016; 22 TAIL ALARMs,
+    52	    the first at 3,932,160, in four tail-flagged spells (3,801,088-5,111,808, 11 evaluations; 5,373,952-5,505,024, 2;
+    53	    7,995,392-8,388,608, 4; 9,568,256-10,616,832, 9); all 249 over-bar episodes on tail_3_pitch_act, sign + (lines
+    54	    58-63, equal to the pinned M5's reading, lines 99-107). No other actuator had an over-bar episode, and none had a
+    55	    window evaluation with a ledger command mean of 0.60 or more in size (largest: head_pitch_act -0.577 at
+    56	    9,306,112; neck_pitch_act -0.488 at 11,927,552) (lines 79-94).
+    57	  - The round's reading of the parent (RUNLOG line 711; reproduced by MEAS with the pinned tools, 25 of 25 class keys,
+    58	    MEAS NOTES.txt VALIDATION RESULT): s42 RAIL (RAIL-LEDGER-PERSISTENT, tail_3_pitch_act +), first TAIL ALARM
+    59	    3,932,160, 22 TAIL ALARMs, 26 tail-flagged evaluations, GATE FAIL (hop_or_fall 2 > 1 at all six headings: 2 of 40
+    60	    certificate episodes over max_actuator_saturation_fraction, 0.539 and 0.515 > 0.1, PANELS/stance6_r10LTSB_s42/
+    61	    final/m3/stance_heading_report.txt), NEGATIVE. The other two runs: s60 PARKED (tail_3 MEAN_a +0.642), GATE PASS,
+    62	    NEGATIVE; s80 CLEAR, 6 ANY ALARMs on neck_pitch_act (5,505,024-7,077,888), GATE PASS, POSITIVE.
+    63	  - From s42's later state, 12 of 12 continuations had an ANY-flagged evaluation within 1,572,864 steps of 3,145,728
+    64	    (the ECS, RUNLOG line 740), every over-bar episode of those windows on tail_3_pitch_act, the first flags at
+    65	    3,538,944-4,063,232 (the tail note S2/com_revisit/wt_records2/docs/investigations/
+    66	    TREX_TAIL_SATURATION_HABIT_2026_10.md, ledger rows L123 and L125; that copy is being edited by the records PR
+    67	    workflow: read at 17:39 UTC, sha256 fc94a9ef..., and again at 18:14 UTC, 8d52a76c..., the two rows unchanged).
+    68	- THE QUESTIONS, each about continuations of s42 from its 2,097,152 state to E:
+    69	  Q1 Does a continuation whose critic never sees the tail_3 angle stay off the tail rail to the end?
+    70	  Q2 Does it still pass the stance gate at its final checkpoint?
+    71	  Q3 Does a habit appear on another actuator instead?
+    72	  Q4 Does the normal continuation (the control) rail as the parent did, on this CPU harness? (the positive control)
+    73	- Each question is answered by a pre-registered DESCRIPTIVE line (THE READING). With 3 + 1 continuations no
+    74	  significance test can decide anything: the smallest attainable one-sided p of any within-study comparison is 1/4
+    75	  (Fisher exact, 0 of 3 against 1 of 1; any rank or permutation test likewise; 2 + 2 gives 1/6) [computed, WORK
+    76	  design_numbers.out lines 2-7]. The counts describe what happened in these continuations; they estimate no rate.
+    77	- PREDICTED OUTCOME, stated before anything runs [inferred]: Q4 YES is likely (the parent railed; BS2's 4 controls all
+    78	  climbed in the first 1.44M; 12 of 12 continuations from 3,145,728 flagged). Q1: no rail in the blind arm is the
+    79	  likelier result (BS2's blinded command stayed flat, +0.065 to +0.143, for 1.44M), but a PARK by 12M is a real
+    80	  possibility: both of the round's runs without a tail rail drifted toward the 0.60 line by their end (s60 PARKED,
+    81	  MEAN_a +0.642; s80 tail_3 command +0.588 at its final [measured, MEAS validate/reread_round s80 report.txt line 25])
+    82	  and a drift that does not come through the critic's view of the angle would reach the blind arm too. Q2: a gate
+    83	  pass is likely for a blind run without a rail (s60 and s80 passed; the parent failed only through 2 saturated
+    84	  episodes). Q3: unknown; s80 formed a neck habit with no tail habit, and if the critic valued the angle as a proxy
+    85	  for the episode's phase (the phase probe's reading, not yet verified at writing: S2/com_revisit/notes/phase_probe/
+    86	  NOTES.txt lines 5-12) a blinded critic may find another proxy. Overall: lines 4 or 5 more likely than line 1; line
+    87	  3 unlikely.
+    88	
+    89	WHAT IS TRAINED
+    90	- Start: BS2's start, the r10 stance6 s42 checkpoint pair at S (F2 .copy1 files at FMAN sha256): zip
+    91	  83b6c88edb933005adcb2089bdac67654f4e77809ca5506f4e47364995ef1b61, pkl
+    92	  991d434f385187e87301755ddf9a12fe2b3adb65cf186e7e32b175b3574bed90; with the parent's five records (eval_episodes.csv,
+    93	  evaluations.npz, gate_progress.npz, train_episodes.csv, policy_probe.npz) and stage_config.json, byte-copied and
+    94	  checked against FMAN before use [measured: <LB>/logs/check_inputs.out; <LB>/tools/bs_common.py START].
+    95	- Window: (S, E], E = 12,001,280, the parent's own end (a 12,000,000-step run collects whole 8,192-step rollouts to
+    96	  1,465 x 8,192; the parent's final zip and its last probe row are at 12,001,280). LENGTH 9,904,128 = 1,209 rollouts;
+    97	  1,208 updates, probe rows at S + 8,192 k, k = 1 ... 1,208 (2,105,344 ... 11,993,088; StopAtEnd makes no update on
+    98	  the rollout ending at E, so a continuation has no probe row at E); 75 evaluations of 10 deterministic episodes at
+    99	  2,228,224 ... 11,927,552 (E is 73,728 steps after the last; there is no evaluation at E); 37 periodic checkpoint
+   100	  pairs at 2,359,296 ... 11,796,480 (every 262,144, all kept) and the final pair (stage1_final) at E, which is the
+   101	  policy at the end of the rollout ending at E, one update before the parent's own stage1_final [measured:
+   102	  <LB>/tools/bs_common.py lines 95-102; <LB>/logs/notes_design.txt THE WINDOW and THE END CONVENTION].
+   103	- ARMS, as BS2 (bs_common.ARM_CHANGE, recorded verbatim in each run_meta.json):
+   104	    control: nothing; the run's own same-stage resume, every setting as recorded.
+   105	    critic_blind_tail3: the value path only. The policy's mlp_extractor gets a forward_critic that sets the NORMALISED
+   106	      observation index 6 (qpos tail_3 pitch angle) to 0.0 before the value MLP (bs_hooks.critic_blind_class); every
+   107	      value path of SB3 2.9.0 goes through it (forward, evaluate_actions, predict_values; MirrorKLPPO's mirrored-critic
+   108	      loss and collect_rollouts' bootstraps call predict_values). The actor reads the unchanged features; no
+   109	      parameter, shape, optimizer state or saved-file format changes; the mirror map keeps index 6 in place.
+   110	- HELD EQUAL in both arms: everything BS2's criteria list as held equal (physics r10, reward, task, gate, policy
+   111	  interface; MirrorKLPPO; net_arch [512, 256]; n_steps 2048 x 4 envs, batch 128, 10 epochs, gamma 0.98, gae_lambda
+   112	  0.95, clip 0.2, target_kl 0.03; VecNormalize updating; the evaluation and checkpoint cadence; the code copy; the
+   113	  stack Python 3.13.17, torch 2.13.0+cpu, numpy 2.5.4, gymnasium 1.4.0, SB3 2.9.0, MuJoCo 3.10.0; CPU, 1 thread,
+   114	  DummyVecEnv, nice 10), and over this longer window: the learning rate 3e-5 -> 1e-5 on the cumulative step over
+   115	  12,000,000 (2.6505e-05 at S, 1.0012e-05 at the last update row) and ent_coef 0.005 -> 0 by 7,000,000 (0.0035 at S;
+   116	  0 from 7,004,160 on: 611 of the parent's window rows, 610 of a continuation's) [measured, WORK parent_long.out lines
+   117	  47-51]; the harness sets both
+   118	  from the absolute step and CHECK compares both with the parent's F2 probe at every update row [measured,
+   119	  <LB>/logs/notes_design.txt THE PARENT'S SCHEDULE]. The stage's own early stops stay on: the collapse stop
+   120	  (patience 10; earliest possible stop 3,801,088) and the hop watch (an evaluation at or after 7,077,888 whose
+   121	  unsupported duty exceeds 0.05 ends training) [measured: notes_design.txt EARLY ENDS]. StopAtEnd at E.
+   122	- Named departures from the parent run, the same in both arms: as BS2 (CPU, not the L4's CUDA; a fresh env reset at
+   123	  S; the parent's update on the rollout ending at S is not made; new random streams, so the control is a fresh draw,
+   124	  not a replay; a freshly seeded evaluation env; the in-run K3 panel off) and, for a continuation that crashed, the
+   125	  resume (RUN HANDLING: the work after its resume point discarded, fresh draws from there).
+   126	- THE QUEUE (<LB>/SCREEN.json, pinned; draft WORK/SCREEN_v1.json): 1 control + 3 critic_blind_tail3 = 4
+   127	  continuations (AUTH: 4 runs; bs_common.MAX_CONTINUATIONS 4), in this launch order:
+   128	    control 2701, critic_blind_tail3 2701, critic_blind_tail3 2711, critic_blind_tail3 2721.
+   129	  All four start together (4 slots). The control and blind 2701 share their seeds (the same first rollout; they
+   130	  differ from the first update on). Each seed goes to the model and training env 0 (seed), envs 1-3 (seed + 1 ... + 3)
+   131	  and the evaluation env (seed + 1000): 2701-2704 + 3701, 2711-2714 + 3711, 2721-2724 + 3721. None of these 15
+   132	  numbers is used by BS, BS2, the ECS, any validation (BS 9101-9144, BS2 9201-9244, LB 9301-9344 and their
+   133	  evaluation seeds), the reader (5001-5010, 9301-9305), M1/M2/M3 and the panels (3042-3081), the probes (6001-6002,
+   134	  7001-7216, 7501-7502, 7700-7703, 9101-9133, 12345) or the training runs (42, 52, 60, 70, 80), and a text search of
+   135	  S1 and S2 (125,374 files; then whole-token matches in text files outside the virtual environments) finds none of
+   136	  them in a seed role: 3,190 whole-token hits, of which only 4 lines name a seed or a run, all four other numbers (a
+   137	  probability's numerator, a JSON index) [measured, WORK seeds_check.out, seeds_grep.out, seeds_triage.out].
+   138	  Why 3 + 1 and not 2 + 2 (WORK DESIGN_NOTES.txt D2): Q1-Q3 are about the blind arm, and what may happen there late
+   139	  (a recovered angle, a park, a habit elsewhere) is the unknown; a third blind continuation raises the chance of seeing
+   140	  an escape that happens in a share q of runs from 1 - (1 - q)^2 to 1 - (1 - q)^3 (0.51 -> 0.66 at q 0.3) and lowers
+   141	  the 95% bound a clean arm puts on that share from 0.78 to 0.63 [computed, WORK design_numbers.out lines 10-16].
+   142	  BS2 showed the control side to be the predictable one (4 of 4 climbed, 2 of 4 over the bar by 3,407,872, and 12 of
+   143	  12 from 3,145,728 flagged), so a second control mostly re-confirms an expected rail; its one use, a guard against a
+   144	  lone control that fails to rail by chance, is kept by line 3 (THE READING), which then withholds every "held" line.
+   145	
+   146	WHERE AND HOW
+   147	- This container's CPU (4 cores). No Drive, no GitHub, no push by the study. 0 L4-hours.
+   148	- Harness (the builder's, <LB>/tools): run_bs.py (one continuation; preflight refuses without APPROVED pinning this
+   149	  text, SCREEN.json, the code digest and the tools), run_waves_bs.sh (SCREEN.json's queue, 4 at a time at nice 10,
+   150	  outcome-blind; resumes a crashed continuation), bs_resume.py (the resume point and the stitch digests), read_bs.py
+   151	  (CHECK; the markers once all are decided), bs_common.py, bs_hooks.py; the scorer score_bs.py (the scorer adapter's,
+   152	  implementing THE READING); the measurement measure_lb.py (MEAS, <LB>/measure/tools; the round's pinned
+   153	  measure_r10round.py M1/M3, ledger_r10round.py M5, complete_r10round.py and score_r10round.classes_of, each checked
+   154	  at its pinned sha256 by measure_lb.py before anything).
+   155	- Outputs: <LB>/runs/<arm>_<seed>/, <LB>/reads/<arm>_<seed>/markers.{json,txt} and m5.{json,txt}, <LB>/lost.json,
+   156	  <LB>/logs/, <LB>/measure/reads/<arm>_<seed>/ (measure_lb.json, classes.json, habit.json, report.txt, m5.json,
+   157	  panels/<label>/{m1,m3}/), <LB>/score/score.{json,txt}; harness-owned: <LB>/tmp/<run>/ (each run's TMPDIR and
+   158	  MPLCONFIGDIR; a continuation's holds its live eval_stage1_*/evaluations.npz), <LB>/tmp/read_<run>/,
+   159	  <LB>/reads/_cache/.
+   160	- Disk: DISK below.

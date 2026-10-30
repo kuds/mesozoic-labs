@@ -1,0 +1,35 @@
+[run_waves_bs 2026-10-30T18:29:30Z] launch: 2850459648 bytes free >= the launch floor 0 bytes; queue control_2101 critic_blind_tail3_2101 control_2111 critic_blind_tail3_2111
+[run_waves_bs 2026-10-30T18:29:30Z] queue: 4 pending of 4; 4 slots
+[run_waves_bs 2026-10-30T18:29:30Z] start control_2101 (control_2101.attempt1.log)
+[run_waves_bs 2026-10-30T18:29:30Z] start critic_blind_tail3_2101 (critic_blind_tail3_2101.attempt1.log)
+[run_waves_bs 2026-10-30T18:29:30Z] start control_2111 (control_2111.attempt1.log)
+[run_waves_bs 2026-10-30T18:29:30Z] start critic_blind_tail3_2111 (critic_blind_tail3_2111.attempt1.log)
+[run_waves_bs 2026-10-30T18:29:30Z] critic_blind_tail3_2101 exited 0
+[run_waves_bs 2026-10-30T18:29:30Z] critic_blind_tail3_2101: atimes at exit (I1, lstat): logs/atimes_at_exit/critic_blind_tail3_2101.attempt1.tsv, 4 files
+[run_waves_bs 2026-10-30T18:29:30Z] critic_blind_tail3_2101: COUNTED (CHECK passed, stop reason end)
+[run_waves_bs 2026-10-30T18:29:30Z] critic_blind_tail3_2101: atimes re-armed on 5 files (P4: a later read of any shows in logs/atimes_at_ALL_DECIDED.tsv)
+[run_waves_bs 2026-10-30T18:29:30Z] control_2111 exited 0
+[run_waves_bs 2026-10-30T18:29:30Z] control_2111: atimes at exit (I1, lstat): logs/atimes_at_exit/control_2111.attempt1.tsv, 4 files
+[run_waves_bs 2026-10-30T18:29:30Z] control_2111: COUNTED (CHECK passed, stop reason end)
+[run_waves_bs 2026-10-30T18:29:30Z] control_2111: atimes re-armed on 5 files (P4: a later read of any shows in logs/atimes_at_ALL_DECIDED.tsv)
+[run_waves_bs 2026-10-30T18:29:30Z] critic_blind_tail3_2111 exited 0
+[run_waves_bs 2026-10-30T18:29:31Z] critic_blind_tail3_2111: atimes at exit (I1, lstat): logs/atimes_at_exit/critic_blind_tail3_2111.attempt1.tsv, 4 files
+[run_waves_bs 2026-10-30T18:29:31Z] critic_blind_tail3_2111: COUNTED (CHECK passed, stop reason end)
+[run_waves_bs 2026-10-30T18:29:31Z] critic_blind_tail3_2111: atimes re-armed on 5 files (P4: a later read of any shows in logs/atimes_at_ALL_DECIDED.tsv)
+[run_waves_bs 2026-10-30T18:29:31Z] control_2101 exited 1
+[run_waves_bs 2026-10-30T18:29:31Z] control_2101: atimes at exit (I1, lstat): logs/atimes_at_exit/control_2101.attempt1.tsv, 4 files
+[run_waves_bs 2026-10-30T18:29:31Z] control_2101: CRASH (exit 1; folder control_2101_crashed1; own crash 1 of 3)
+[run_waves_bs 2026-10-30T18:29:31Z] start control_2101 (control_2101.attempt2.log) --resume-from control_2101_crashed1
+[run_waves_bs 2026-10-30T18:29:31Z] control_2101 exited 1
+[run_waves_bs 2026-10-30T18:29:31Z] control_2101: atimes at exit (I1, lstat): logs/atimes_at_exit/control_2101.attempt2.tsv, 5 files
+[run_waves_bs 2026-10-30T18:29:31Z] control_2101: CRASH (exit 1; folder control_2101_crashed2; own crash 2 of 3)
+[run_waves_bs 2026-10-30T18:29:31Z] start control_2101 (control_2101.attempt3.log) --resume-from control_2101_crashed2
+[run_waves_bs 2026-10-30T18:29:31Z] control_2101 exited 1
+[run_waves_bs 2026-10-30T18:29:31Z] control_2101: atimes at exit (I1, lstat): logs/atimes_at_exit/control_2101.attempt3.tsv, 6 files
+[run_waves_bs 2026-10-30T18:29:31Z] control_2101: CRASH (exit 1; folder control_2101_crashed3; own crash 3 of 3)
+[run_waves_bs 2026-10-30T18:29:31Z] control_2101: LOST (3 own crashes)
+[run_waves_bs 2026-10-30T18:29:31Z] atimes at ALL_DECIDED (P4), before the full reads: logs/atimes_at_ALL_DECIDED.tsv, atimes_at_ALL_DECIDED.tsv: 40 files, 15 still re-armed (atime = mtime - 1 ns)
+[run_waves_bs 2026-10-30T18:29:31Z] all 4 decided, none VOID: the full reads (read_bs.py, the markers), 4 at a time
+[run_waves_bs 2026-10-30T18:29:32Z] critic_blind_tail3_2101: read_bs (the markers) exit 0
+[run_waves_bs 2026-10-30T18:29:32Z] control_2111: read_bs (the markers) exit 0
+[run_waves_bs 2026-10-30T18:29:32Z] critic_blind_tail3_2111: read_bs (the markers) exit 0

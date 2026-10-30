@@ -1,0 +1,14 @@
+17:40:26 / 17:40:32  b2511_E and p2097152 --hold -1 --lite finished; 17:46:13 p2097152 --hold 0 and --hold 1 --lite
+  finished; runs/done.txt "all done".  Every condition exit 0; lane_A.err and lane_B.err are empty.
+17:46:29  FINAL `nice -n 10 PY -I -B analyze_rollouts.py > analysis_rollouts.txt` exit 0 (17 s; also
+  analysis_rollouts.json).  The verdicts in the SUMMARY are this run's.  The six non-blind conditions repeat
+  debug_partial6.txt exactly; b2511_E and the clamp arms are new.
+17:46:46  FINAL `nice -n 10 PY -I -B posthoc.py > posthoc.txt` exit 0 (10 s; also posthoc.json).
+17:47:57  du: 91 MB in ME (runs/ 90 MB); df 2.9 GB free.  No process of mine left running.
+17:48-17:50  Wrote the SUMMARY.  Checked two of its claims against the data first.
+  - 17:50:40 check_minima.py > check_minima.txt (exit 0): the 0.732 m / 0.792 m minima shared by the climb-era
+    checkpoints are the spawn pose at t = 0 (shared seeds).  At p1048576 a non-fall episode reached 0.703 m.  The
+    hold -1 arm reached 0.697 m.  The summary now says so.
+  - The R31 range: the draft's "17x to 90x" was wrong for p2097152 (R31 -1.8); the summary now lists every value.
+  Correction to the 17:28:30 line: C = 7.2 is not "at or above every C_c".  The C_c run from 7.02 to 7.28 (final
+  data), so PH1's records budget may be understated by up to 1%.

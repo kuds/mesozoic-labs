@@ -1,0 +1,44 @@
+7a9c8a99fee09f8d005c5ec09857ec853166320156901f85b54b094d72b9450b  S2/r10round/long_blind/tools/read_bs.py
+5:bs_common.LOOP_READ_EVERY, and CHECK extended for the long window: the hop-watch stop, a resumed run's attempts and
+20:    PY -I -B read_bs.py --reference [--out DIR] [--no-onpolicy] [--no-own]
+26:        3,145,728 (REPRO below).  --pairs STEPS[,STEPS...] limits the M-LOOP to those reference pairs (V3).
+42:           (steps - S) is a multiple of bs_common.LOOP_READ_EVERY, and the final pair at T):
+117:OWN_SEEDS = tuple(range(5001, 5011))
+120:ONPOLICY_SEEDS = (9301, 9302)                   # eb_realized.py SEEDS
+125:# Reproduction targets for --reference (parent s42 at its F2 pairs in [S, E]; [measured] by their studies; paths under
+127:#   ew_*   early_warning/ew_r10.jsonl line 3 (2,097,152) and line 1 (3,145,728), full precision: own.primary.G,
+128:#          own.primary.c0, own14_win_median, ref_statue_settled.primary.G;
+137:              "eb_G": -0.6060763597488403, "vew_G_H": -0.625, "vew_G_L": -0.648, "vew_b_star_P": 1.399,
+138:              "vew_b_star_L": 1.413, "wm_b_star_P": 1.399},
+141:              "eb_G": 0.25905266404151917, "vew_G_H": 0.354, "vew_G_L": 0.259, "vew_b_star_P": 0.240,
+142:              "vew_b_star_L": 0.296, "wm_b_star_P": 0.240},
+636:def run_m5(ledger, T, out_dir):
+659:def m5_window(m5, S, T):
+683:def ledger_direct(ledger, S, T):
+707:        per[s] = dict(n=len(rs), cmd_l=sum(cmd) / len(cmd) if cmd else None, cmd_l_max=max(cmd) if cmd else None,
+716:        first[f"cmd_l_ge_{line:.2f}"] = next((s for s, e in per.items() if e["cmd_l"] is not None
+717:                                              and e["cmd_l"] >= line), None)
+720:                cmd_l_max=max((e["cmd_l"] for e in per.values() if e["cmd_l"] is not None), default=None),
+721:                cmd_l_last=per[max(per)]["cmd_l"] if per else None)
+834:    """(a) and (b): the 0-1 deg primary sweep (P), the 0-0.5 deg half (H), the local +-0.25 deg slope (L)."""
+848:    out["P"] = {"G": G, "c0": c0, "FP": c0 / (1.0 - G) if G < 1.0 else None, "b_star": 1.0 - G - c0,
+885:def own_rollouts(net, env, seeds=OWN_SEEDS):
+1003:            out["OWN"]["b_star_L"] = (1.0 - out["OWN"]["L"]["G"]) * (1.0 - float(np.median(w)))
+1005:        sets["ONPOLICY"] = np.concatenate([onpolicy_states(zip_path, pkl_path, s) for s in ONPOLICY_SEEDS], 0)
+1024:    (bs_common.LOOP_READ_EVERY), and T (the final pair) (pure)."""
+1025:    every = int(every or C.LOOP_READ_EVERY)
+1027:        raise InputError(f"LOOP_READ_EVERY {every} is not a multiple of the save grid {C.SAVE_FREQ}")
+1031:def saved_pairs(run_dir, T, every=None):
+1100:            f"G_L {f(g('OWN', 'L', 'G'))} b* {f(g('OWN', 'P', 'b_star'))} | REF G {f(g('REF', 'P', 'G'))} c0 "
+1119:        L.append(f"M-LEDGER CMD_L max {d['cmd_l_max']} last {d['cmd_l_last']}; firsts {d['firsts']}; absent "
+1124:            cmd = e["cmd_l"] if e["cmd_l"] is None else round(e["cmd_l"], 3)
+1177:def reference_pair_files(steps):
+1183:def reference_read(out=None, *, onpolicy=True, own=True, pairs=None):
+1205:        raise InputError(f"--pairs {steps}: not among the reference pairs {REFERENCE_PAIRS}")
+1229:            r["vew_b_star_P"] = [row["OWN"]["P"]["b_star"], want["vew_b_star_P"]]
+1230:            r["vew_b_star_L"] = [row["OWN"].get("b_star_L"), want["vew_b_star_L"]]
+1231:            r["wm_b_star_P"] = [row["OWN"]["P"]["b_star"], want["wm_b_star_P"]]
+1255:    ap.add_argument("--reference", action="store_true")
+1259:    ap.add_argument("--pairs", default=None, help="--reference only: comma-separated reference pair steps")
+1274:            raise InputError("--pairs is for --reference only")
+1276:            raise InputError("RUN, --check RUN or --reference")

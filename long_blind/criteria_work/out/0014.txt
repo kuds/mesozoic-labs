@@ -1,0 +1,136 @@
+==================================================================================================================
+HOW TO LAUNCH (for the coordinator, after the criteria are reviewed; none of this was done here)
+==================================================================================================================
+  1. LB/criteria.txt and LB/SCREEN.json (the criteria lane's; schema bs-screen/1, intervention critic_blind_tail3, a
+     queue of at most 4 [arm, seed] entries with control and the intervention, no seed in 9301-9341); the scorer as
+     LB/tools/score_bs.py (bs_common.SCORER_FILE; another name needs that constant changed and the tests re-run).
+  2. LB/APPROVED (JSON): criteria_sha256, screen_sha256, code_tree_digest 331fe8fc3f6bdf73acc0d3cc324dd753d9d9d695d7ce
+     914e4e011d5c6437ebf1, tool_sha256 {run_bs.py, read_bs.py, run_waves_bs.sh, bs_common.py, bs_hooks.py,
+     bs_resume.py (the six bs_common.TOOL_FILES) = SHA256SUMS.txt, and score_bs.py (the runner refuses without it)}.
+  3. Check: cd /tmp && PY -I -B LB/tools/run_bs.py --arm A --seed N --preflight-only for every queue entry (exit 0);
+     bash LB/tools/run_waves_bs.sh --plan (exit 0); free disk >= the launch floor 2,449,473,536 B (2.28 GiB): the
+     validation folders LB/validate/v1 (72 MB), v2, v4 and smoke can go once their run_meta / check / markers files
+     are kept (as BS2's RR-7 did).
+  4. Launch detached from /tmp: cd /tmp && setsid nohup bash LB/tools/run_waves_bs.sh > LB/logs/run_waves_bs.out 2>&1 &
+     and watch only LB/logs/run_waves_bs.log (outcome-blind).  A crash is resumed by the runner itself (no action); a
+     halt (logs/HALTED) needs the coordinator: runs/<name>_crashed<k>/run_meta.json error / traceback, never a process
+     log.  Before any relaunch after ALL_DECIDED nothing needs copying aside any more (RR-1).
+  5. The parent reference read, if the criteria want it at its default place: PY -I -B LB/tools/read_bs.py --reference
+     (11 pairs, about 11-13 CPU-min; --pairs for a subset).
+
+total 712
+drwxr-xr-x 2 root root   4096 Oct 30 17:38 .
+drwxr-xr-x 9 root root   4096 Oct 30 17:17 ..
+-rw-r--r-- 1 root root  21285 Oct 30 16:58 bs_common.py.versionA
+-rw-r--r-- 1 root root  21285 Oct 30 17:20 bs_common.py.versionB
+-rw-r--r-- 1 root root  20759 Oct 30 16:58 bs_resume.py.versionA
+-rw-r--r-- 1 root root   1135 Oct 30 17:09 disk_estimate.out
+-rw-r--r-- 1 root root   1135 Oct 30 17:12 disk_estimate_2.out
+-rw-r--r-- 1 root root    686 Oct 30 17:38 driverA.log
+-rw-r--r-- 1 root root      0 Oct 30 17:09 driverA.out
+-rw-r--r-- 1 root root    359 Oct 30 17:37 driverB.log
+-rw-r--r-- 1 root root    332 Oct 30 17:37 driverB.out
+-rw-r--r-- 1 root root      0 Oct 30 17:32 find_outside_interim.err
+-rw-r--r-- 1 root root 263205 Oct 30 17:32 find_outside_interim.txt
+-rw-r--r-- 1 root root      0 Oct 30 17:23 find_outside_probe.err
+-rw-r--r-- 1 root root  12998 Oct 30 17:16 hunks_explained.txt.versionA
+-rw-r--r-- 1 root root    340 Oct 30 17:13 lb_listing_after_refusal.txt
+-rw-r--r-- 1 root root    340 Oct 30 17:13 lb_listing_before_refusal.txt
+-rw-r--r-- 1 root root      0 Oct 30 16:47 parent_schedule.err
+-rw-r--r-- 1 root root   7756 Oct 30 16:47 parent_schedule.out
+-rw-r--r-- 1 root root      0 Oct 30 17:12 parent_schedule_2.err
+-rw-r--r-- 1 root root   7756 Oct 30 17:12 parent_schedule_2.out
+-rw-r--r-- 1 root root    375 Oct 30 17:08 preflight_tmp.out
+-rw-r--r-- 1 root root    181 Oct 30 17:05 pytest_1.out
+-rw-r--r-- 1 root root    181 Oct 30 17:08 pytest_2.out
+-rw-r--r-- 1 root root    240 Oct 30 17:31 pytest_3.out
+-rw-r--r-- 1 root root     19 Oct 30 17:31 ruff_final.out
+-rw-r--r-- 1 root root     19 Oct 30 17:31 ruff_validate_final.out
+-rw-r--r-- 1 root root  61384 Oct 30 16:58 run_bs.py.versionA
+-rw-r--r-- 1 root root    211 Oct 30 17:13 runner_plan_stderr.txt
+-rw-r--r-- 1 root root      0 Oct 30 17:13 runner_plan_stdout.txt
+-rw-r--r-- 1 root root    211 Oct 30 17:13 runner_real_stderr.txt
+-rw-r--r-- 1 root root      0 Oct 30 17:13 runner_real_stdout.txt
+-rw-r--r-- 1 root root   1922 Oct 30 17:13 runner_refusal_testmode.out
+-rw-r--r-- 1 root root    238 Oct 30 16:59 smoke_v1.log
+-rw-r--r-- 1 root root    711 Oct 30 16:48 stop_paths.out
+-rw-r--r-- 1 root root      0 Oct 30 17:33 tail_wait.err
+-rw-r--r-- 1 root root    682 Oct 30 17:08 tools_sha256_at_V_launch.txt
+-rw-r--r-- 1 root root    682 Oct 30 17:24 tools_sha256_final_freeze.txt
+-rw-r--r-- 1 root root    682 Oct 30 17:20 tools_sha256_versionB.txt
+-rw-r--r-- 1 root root 143022 Oct 30 17:13 tools_vs_bs2.diff.versionA
+-rw-r--r-- 1 root root    227 Oct 30 17:09 v1_control.log
+-rw-r--r-- 1 root root    238 Oct 30 17:09 v1_critic_blind_tail3.log
+-rw-r--r-- 1 root root    235 Oct 30 17:09 v1_frozen_obs_norm.log
+-rw-r--r-- 1 root root    232 Oct 30 17:09 v1_gae_lambda_1.log
+-rw-r--r-- 1 root root   1989 Oct 30 17:10 v1_independent.out
+-rw-r--r-- 1 root root   1419 Oct 30 17:10 v1_runmeta_summary.out
+-rw-r--r-- 1 root root    594 Oct 30 17:26 v2_control.log
+-rw-r--r-- 1 root root    605 Oct 30 17:37 v2_critic_blind_tail3.log
+-rw-r--r-- 1 root root    168 Oct 30 17:38 v2_gae_lambda_1.log
+-rw-r--r-- 1 root root    168 Oct 30 17:09 v4_attempt1.log
+-rw-r--r-- 1 root root    168 Oct 30 17:37 v4_attempt2.log
+-rw-r--r-- 1 root root      0 Oct 30 17:37 v4_kill0.err
+-rw-r--r-- 1 root root   6320 Oct 30 17:20 versionA_to_B.diff
+-rw-r--r-- 1 root root    433 Oct 30 17:24 versionB_to_C.diff
+
+{
+ "01_stance/models/stage1_2097152_steps.zip": {
+  "sha256": "83b6c88edb933005adcb2089bdac67654f4e77809ca5506f4e47364995ef1b61",
+  "fman_lines": [
+   241
+  ],
+  "manifest_copy1": [
+   "83b6c88edb933005adcb2089bdac67654f4e77809ca5506f4e47364995ef1b61"
+  ],
+  "equal_fman": true,
+  "equal_bs_common_pin": true
+ },
+ "01_stance/models/stage1_vecnormalize_2097152_steps.pkl": {
+  "sha256": "991d434f385187e87301755ddf9a12fe2b3adb65cf186e7e32b175b3574bed90",
+  "fman_lines": [
+   243
+  ],
+  "manifest_copy1": [
+   "991d434f385187e87301755ddf9a12fe2b3adb65cf186e7e32b175b3574bed90"
+  ],
+  "equal_fman": true,
+  "equal_bs_common_pin": true
+ },
+ "01_stance/eval_episodes.csv": {
+  "sha256": "d1bcb78964691cf194e6276f06740d1f24aa69ad36831a046ad6307c1c4db11e",
+  "fman_lines": [
+   71
+  ],
+  "manifest_copy1": [
+   "d1bcb78964691cf194e6276f06740d1f24aa69ad36831a046ad6307c1c4db11e"
+  ],
+  "equal_fman": true,
+  "equal_bs_common_pin": true
+ },
+ "01_stance/evaluations.npz": {
+  "sha256": "3e11136120622b90cc63203c46332004a9989188a0b8fe91620dbabb9f2563e9",
+  "fman_lines": [
+   103
+  ],
+  "manifest_copy1": [
+   "3e11136120622b90cc63203c46332004a9989188a0b8fe91620dbabb9f2563e9"
+  ],
+  "equal_fman": true,
+  "equal_bs_common_pin": true
+ },
+ "01_stance/gate_progress.npz": {
+  "sha256": "4097099b6880fa234a38e1b43819a21a8531f39ca0aa1daefaaeeb35a06c5a0e",
+  "fman_lines": [
+   106
+  ],
+  "manifest_copy1": [
+   "4097099b6880fa234a38e1b43819a21a8531f39ca0aa1daefaaeeb35a06c5a0e"
+  ],
+  "equal_fman": true,
+  "equal_bs_common_pin": true
+ },
+ "01_stance/train_episodes.csv": {
+  "sha256": "14b2f9e49b67e9c90cc79362f740e1768de5a2d159035176d5299b9c476d851d",
+  "fman_lines": [
+   82

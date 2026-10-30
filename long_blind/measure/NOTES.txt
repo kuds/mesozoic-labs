@@ -1,0 +1,156 @@
+LB/measure NOTES.txt -- measurement builder (end-of-run classification of each long continuation with the r10 round's pinned tools)
+Folder: /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/long_blind/measure
+Rules followed: write only inside LB/measure; no training; validation = read-only measurements of existing checkpoints, nice 10, <=4 processes; no /dev/null; label claims [measured]/[inferred].
+Each entry: date -u time, command (abbreviated where long), result.
+
+2026-10-30T16:32:14Z mkdir -p LB/measure/{tools,validate,work} -> created (LB did not exist before)
+2026-10-30T16:33Z sha256sum criteria_r10round_final.txt -> 99a44469a387d01c55b98d76595d3633029681866ed14afcb185521eca0164db = durable/repo/round/APPROVED criteria_sha256 [measured]
+2026-10-30T16:35Z sha256sum laneA/{SHA256SUMS.txt,judge_r10ltsb.py,make_judge_r10ltsb.py,kscore_r10ltsb.py,measure_r10round.py,r10m_common.py,runs/run_validations.sh}
+   and laneB/{SHA256SUMS.txt,ledger,complete,k3panel,score,fetch,v9_bundle,r10round_common,pins_r10round.json} -> every value equal to criteria PINS lines 755-774 [measured];
+   sha256sum -c laneA/SHA256SUMS.txt and laneB/SHA256SUMS.txt -> no line other than OK [measured]
+2026-10-30T16:36Z read: criteria lines 1-829; run log line 711; durable/repo/f2/score.txt (the round's classes); BS2 REPORT.md, bs_common.py, read_bs.py (run_m5, m5_window, ledger_direct)
+2026-10-30T16:41:36Z wait4 semantics test (work/wait4_test.py): see result above
+2026-10-30T16:41:46Z PY -I -B work/wait4_test.py (parent waits a child that runs a busy grandchild) -> rc 0 wall 2.01 utime 1.96 stime 0.0 [measured]: os.wait4 rusage includes the waited grandchild's CPU
+2026-10-30T16:44Z read: laneA REPORT.txt, build/v5/REPORT.txt, build/v6/REPORT.txt (head), measure_r10round.py (all), r10m_common.py (all); laneB ledger_r10round.py (all), r10round_common.py (m5, decode_row, read_trace, trace_cmd, mean_a, resolution_checkpoint, r1_of), score_r10round.py (classes_of, reading, score), complete_r10round.py (c3_pairs, PanelLocator, completeness, binding_problems); the round's c7tools/run_slot.sh and gen_jobs.py (how M1/M3 were run at F2: measure_r10round.py <m1|m3> --copy f2/copy_8737cd3d --zip/--pkl <F2 .copy1> --stage-config <F2 .copy1> --run-id --label, nice 10, 2 slots)
+2026-10-30T16:45Z [measured] the round's M1/M3 wall times (durable/repo/f2/logs/measure/summary_slot{1,2}.tsv): M1 62-75 s per label (18 labels), M3 1,212.8-1,222.9 s child seconds (m3_summary certificate_run.seconds), 2 slots in parallel
+2026-10-30T16:45Z [measured] BS/code seal: commit 8737cd3d, tree_digest 331fe8fc..., 1406 files (code/.r10m_seal.json); f2/copy_8737cd3d has the same seal values; S1/foot/stance6/APPROVED branch_head 8737cd3d; runbranch clone HEAD 8737cd3d
+2026-10-30T16:46Z [measured] import test (M1 and M3 scripts imported from BS/code with -I -B, MPLCONFIGDIR inside LB/measure/work/tmp): matplotlib not imported, no mpl dir created; S2/caches/mpl absent before validation (r10m_common.child_env sets MPLCONFIGDIR=S2/caches/mpl: watched before/after each batch)
+2026-10-30T16:46Z [measured] free bytes on / = 3,644,772,352 (df -B1); measure_r10round.py's disk floor = 3 GiB = 3,221,225,472 (r10m_common.DISK_FLOOR_BYTES): headroom 423,546,880 bytes
+2026-10-30T16:49:52Z measure_lb.py written (tools/); ruff E9,F,B: 2 findings fixed (unused import re, B007 loop var); 'version' and 'pins' -> all 11 pins, the copy's seal and the stack OK [measured]
+2026-10-30T16:51:12Z LAUNCH (background): nice -n 10 PY -I -B tools/measure_lb.py classify F2/stance6_r10LTSB_s42/copies F2/stance6_r10LTSB_s60/copies F2/stance6_r10LTSB_s80/copies --out-root validate --suffix .copy1 --slots 2 --prune-csv  (stdout -> validate/classify_parents.out); 0 simulation processes machine-wide before; free 3,630,366,720 bytes
+2026-10-30T16:53:53Z tests/test_measure_lb.py written; PY -I -B -m pytest -q -p no:cacheprovider --basetemp work/pytest_tmp tools/tests -> 20 passed in 0.53 s [measured]; ruff E9,F,B on tools/ -> see next line
+All checks passed!
+2026-10-30T16:54:33Z read-only check on BS2 runs control_2511 / critic_blind_tail3_2511 (prefix_check, m5, window_reading, read_ending): [measured] control_2511: ledger rows <= 2,097,152 equal the parent's (160 rows, header equal); 27 evaluations 131,072..3,538,944; any/tail-flagged [3,538,944], no alarm in (S, E], none straddling S, 0 over-bar episodes before S. critic_blind_tail3_2511: prefix equal (160 rows), no flagged evaluation. read_ending refuses both (E = 3,538,944 < 12,001,280, stop_reason 'end': a 1.44M screen, neither FINISHED nor STOPPED) as designed
+2026-10-30T16:58Z [measured, read only] the harness builder's LB/tools/bs_common.py (as it stood 16:56 UTC): RUNS = LB/runs/<arm>_<seed>/, SCREEN = LB/SCREEN.json (bs-screen/1), LOST_JSON = LB/lost.json, CHECK_JSON check.json, S 2,097,152, E 12,001,280, SAVED_STEPS 37 periodic pairs (all kept), STOP_REASONS ("end", "collapse", "hop_watch", "other"), RUN_BYTES_EST 200 MiB per run, MAX_CONTINUATIONS 4; LB/tools/read_bs.decided() = BS2's (queue + lost.json + check.json passed and mode continuation)
+   -> measure_lb.py changed to match: the outcome-blind guard applies to any RUN under LB (not only LB/runs); STOPPED also on run_meta stop_reason "hop_watch"; S_note when S != 2,097,152 under LB; tool_sha256 recorded in each output. Tests updated: 20 passed again; ruff clean.
+2026-10-30T16:58:16Z [measured] s42 M1 at 4194304, 5242880, 6291456, 8388608, 10485760, final: csv_sha256.txt (20 per-step trace CSVs) byte-identical to the round's S1/foot/stance6/panels/stance6_r10LTSB_s42/<label>/m1/csv_sha256.txt; each M1 66-68 s CPU, 67-69 s wall
+
+==== DESIGN OF measure_lb.py (what each output is, and the clause it follows) ====
+- Inputs: one finished continuation folder shaped like BS2's runs/<name>/ (01_stance/{eval_episodes.csv, stage_config.json,
+  progress.json, policy_probe.npz, models/stage1_<n>_steps.zip + stage1_vecnormalize_<n>_steps.pkl, models/stage1_final.zip +
+  stage1_final_vecnorm.pkl}, run_meta.json). --suffix .copy1 reads the round's F2 store instead (the validation input).
+- Pins checked before anything (PINS dict, 11 files): the criteria 99a44469, the round's APPROVED 07246480, lane A
+  measure_r10round.py b293a511 + r10m_common.py 97431323, lane B ledger 0d89bcb8, r10round_common ea2c5ea6, complete d322ed0e,
+  score 3de2330a, and in the measuring copy episode_trace_report.py b5923e5c, episode_trace.py 96ced68e,
+  stance_gate_report.py bbfe8016; BS/code's seal (8737cd3d, 331fe8fc, 1406 files); the stack (BS2's STACK).
+- ENDING (C5, criteria lines 228-233): progress.json "ended" at E; stage1_final.zip num_timesteps = E (C.zip_num_timesteps, testzip);
+  FINISHED = E 12,001,280; STOPPED = E < 12,001,280 by the trainer's own stop (run_meta stop_reason collapse / hop_watch, or
+  01_stance/hop_watch.json); else refused (not classified).
+- M5 (lines 134-142, 169-180): ledger_r10round.py --E E --json (subprocess; m5.json, m5.txt) and r10round_common.m5 in process; the two
+  must agree (m5_cli_agrees). C6 (lines 234-245) from ledger_r10round.c6_check.
+- Labels (C7, line 246): complete_r10round.c3_pairs({}, E, m5): J up to E (line 84), R1 = r1_of(E) (line 181), every RESOLUTION
+  checkpoint (lines 175-177), final. Each pair's num_timesteps checked (C.zip_num_timesteps) before launch.
+- M1 / M3 (lines 119-121, 126-128): measure_r10round.py m1|m3 --copy BS/code --zip --pkl --stage-config <run's>
+  --out <out>/panels/<label>/<kind> --approved S1/foot/stance6/APPROVED (no --run-id: not a round RUN_ID). M3 only at final of a
+  FINISHED run. A crash (exit 3) is rerun once on the same files (lines 428-434); a measuring tool's refusal is final (a refused
+  M3 = GATE FAIL with its message, as complete_r10round does); runner refusals (2/4/5) stop that measurement.
+- Reading: complete_r10round.PanelLocator + r10round_common.read_trace / read_certificate / read_refusal; every output bound to
+  the measured pair by complete_r10round.binding_problems (sha256, num_timesteps, not a validation input).
+- CLASSES: score_r10round.classes_of(comp) with comp = {m5, traces, r1, resolution, js, stopped, E, certificate}: TAIL CLASS
+  (lines 269-279), GATE CLASS (280-283), RUN OUTCOME (284-286). Nothing of the class logic is re-implemented.
+- Not applied: C1-C4 (RUNLOG, Drive manifest, provenance sessions, no load key): a continuation is a resume by construction.
+- Report only: window (S, E] (BS2 m5_window's form), prefix check (continuation rows <= S equal the parent's), ANY ALARMs by
+  actuator (classes_of's attribution), over-bar episodes per evaluation, PER-ACTUATOR HABIT SUMMARY (D-1 per actuator; M1
+  cmd_all_actuators and over-bar episodes with sign per traced checkpoint; probe rollout_mu_mean last 8 updates before E;
+  HABIT SITES L/T/D = the round's own lines applied per actuator, never a class).
+- Guards: outcome-blind (a RUN under LB is read only when LB/SCREEN.json's queue is decided: check.json passed + mode
+  continuation, or lost.json), writes only under LB/measure (require_under), slots <= 2 (line 117), machine-wide <= 4
+  simulation processes before each launch, disk: free >= 3 GiB floor + job output + 64 MiB before each launch.
+
+==== USE FOR LB (proposed; the pre-registration decides) ====
+  cd S2/r10round/long_blind/measure/work      (writes stay in LB/measure)
+  1. PY -I -B ../tools/measure_lb.py pins                                   -> "all 11 pins, the copy's seal and the stack OK"
+  2. after every queued continuation is decided (the guard refuses before):
+     PY -I -B ../tools/measure_lb.py plan LB/runs/<name> [...] --out-root LB/measure/reads --start 2097152
+        prints E, FINISHED/STOPPED, the labels C7 names (J, R1, RESOLUTION, final), C6, the jobs and the disk they need
+  3. PY -I -B ../tools/measure_lb.py classify LB/runs/<n1> LB/runs/<n2> LB/runs/<n3> LB/runs/<n4> \
+        --out-root LB/measure/reads --start 2097152 --slots 2 --prune-csv
+        writes LB/measure/reads/<name>/{measure_lb.json, classes.json, habit.json, report.txt, m5.json, m5.txt,
+        panels/<label>/{m1,m3}/, logs/} and LB/measure/reads/summary.json; resumable (a finished panel is reused, never
+        overwritten); --no-simulate re-reads the panels only.
+  Launch measure_lb.py itself at nice 0: the runner then runs at nice 10 and the simulation at nice 19 (measure_r10round.py adds
+  its own nice 10 to its child; the round's run_slot.sh did the same). (The validation below launched measure_lb.py at nice 10,
+  so the runner was at 19 too; on an idle machine this changes no CPU figure.)
+2026-10-30T17:00:42Z [measured] the validation inputs (per run: ledger, stage_config, progress, policy_probe, 6 pairs = 16 files; 48 in all) against FMAN F2 COPY rows: see work/fman_inputs_check.out -> TOTAL 48 of 48 input files equal an F2 COPY row of FMAN (sha256)
+2026-10-30T17:11:52Z [measured] machine load 7.9: besides my 2 M3 (nice 19) there are 2 LB/tools/run_bs.py --no-update validation runs (harness builder, nice 10) and 4 com_revisit probe scripts (termination_probe/run_probe.py x2, phase_probe/phase_rollouts.py x2; another workflow, nice 10) = 8 processes machine-wide; my two started when 0 ran (16:51). Slots.machine_sims broadened to count every python script process but this tool's idle wrappers (for later runs); the running validation keeps its 2 slots at nice 19 (lowest priority); CPU seconds (wait4) are the reported cost, wall times are inflated by the contention
+2026-10-30T17:23:38Z [measured] s42 final M3: rc 0, wall 1,945 s (contention: load 8-11 from other workflows), CPU 1,187 s (os.wait4 user+sys of the runner and the certificate tool)
+2026-10-30T17:23:38Z [measured] DISK FLOOR REACHED: free 3,163,697,152 bytes < 3 GiB floor (3,221,225,472) + job output + 64 MiB margin: measure_lb.py did not launch the 6 s60 M1, the s80 M3 and the 6 s80 M1 ("NOT LAUNCHED (disk)"); measure_r10round.py itself would refuse (exit 5) below 3,221,225,472. Free disk fell 3.63 GB (16:51) -> 3.16 GB (17:24) [measured, df -B1]: my LB/measure 53 MB; LB/validate (harness builder) 116 MB; com_revisit/notes/phase_probe/rollouts/*.npz (another workflow, ~33 MB each, 8 files written 17:04-17:17) and termination_probe/runs [measured, find -newermt 16:45 -size +5M]. The s60 M3 (launched 16:58, before the drop) continues.
+2026-10-30T17:25:33Z PY -I -B tools/reread_round_panels.py (the round's own M1/M3 panels, read only; M5 afresh on the F2 ledgers) -> validate/reread_round/<RUN_ID>/, stdout validate/reread_round.out
+2026-10-30T17:26Z PY -I -B tools/reread_round_panels.py -> rc 0, 19.3 s wall for the three runs (M5 CLI afresh on the F2 ledgers; M1/M3 = the round's own panels S1/foot/stance6/panels/<RUN_ID>/, read only, binding checked with filed_run_id = the RUN_ID) [measured]
+   s42: RAIL (RAIL-LEDGER-PERSISTENT), 22 TAIL ALARMs, first 3,932,160, 26 tail-flagged evaluations, tail_3_pitch_act+; ANY ALARMs 22 (all tail_3); GATE FAIL hop_or_fall 2 > 1 at -90/-45/+0/+45/+90/+180; NEGATIVE; habit sites tail_3_pitch_act L,T,D
+   s60: PARKED; 0 alarms; GATE PASS; NEGATIVE ['PARKED']; habit sites tail_3_pitch_act T,D
+   s80: CLEAR; 6 ANY ALARMs 5,505,024-7,077,888 all on neck_pitch_act (sole); GATE PASS; POSITIVE; habit sites neck_pitch_act L,T,D and head_pitch_act D
+2026-10-30T17:27Z PY -I -B tools/validate_round.py --out-root validate/reread_round --classes-only -> rc 0: each run's 25 class keys equal the round's score.json per_seed classes (S2/r10round/f2/score.json sha256 cb380a7e...) after the same JSON normalisation, and every stated fact OK (validate/reread_round/VALIDATION.txt) [measured]
+2026-10-30T17:27:52Z PY -I -B tools/mutation_checks.py --out-root validate/reread_round --round-panels -> first try 13 of 16 (the 'unmeasured label' check used 2097152, which the round traced as a report-only pair: binding refused it as not a C7 pair, class withheld, but my assertion looked only at 'missing'); label changed to 2359296 (nobody traced) and re-run: see validate/reread_round/mutation_checks.out
+2026-10-30T17:31:22Z [measured] s60 final M3 (fresh, launched 16:58 before the disk drop): rc 0, wall 2,000 s, CPU 1,196 s; then the classify process ended rc 2: s42 CLASSIFIED; s60 and s80 NOT CLASSIFIED (C7: their M1 not launched, disk floor); S2/caches/mpl still absent (never created)
+2026-10-30T17:32Z PY -I -B tools/validate_round.py --out-root validate --runs stance6_r10LTSB_s42 -> REPRODUCED [measured]: 25 class keys equal score.json; every stated fact OK; M1 at all six labels: csv_sha256 20/20 equal, episodes equal, episode_trace.json identical in every key, cmd_a / tail_flags / cmd_all_actuators equal; M3: verdict FAIL = round, failures equal, headings equal, stance_heading_panel_selected.csv sha256 equal, stance_heading_report.json identical in every key
+2026-10-30T17:33Z validate_round.compare_m3(s60) -> all equal [measured]: PASS = round, failures, headings, panel CSV sha256 and report identical (validate/s60_m3_compare.json)
+2026-10-30T17:33Z df -B1 / -> 3,110,387,712 free (below measure_r10round.py's 3 GiB floor): the s60 M1 (6), s80 M3 and s80 M1 (6) cannot be measured afresh now (the pinned runner refuses, exit 5); not retried
+2026-10-30T17:32:58Z first-run outputs kept as *.first_run.* (they hold the measured costs); re-read with the final tool: PY -I -B tools/measure_lb.py classify <3 F2 copies> --out-root validate --suffix .copy1 --no-simulate (stdout validate/classify_parents_reread.out)
+2026-10-30T17:33Z re-read with the final tool (classify --no-simulate) -> s42 CLASSIFIED, classes.json byte-identical to the first run's (cmp); validate_round.py --runs s42 -> REPRODUCED again (validate/VALIDATION_s42.out); mutation_checks.py --runs s42 on the fresh panels -> 6 of 6 PASS (validate/mutation_checks_s42_fresh.out) [measured]
+2026-10-30T17:34Z [measured, validate/stance6_r10LTSB_s42/measure_lb.json] s42 ledger: first over-bar episode 3,670,016 (4 of 10, tail_3 +), first tail-flagged evaluation 3,801,088, first TAIL ALARM 3,932,160; tail-flagged spells 3.80-5.11M (11), 5.37-5.51M (2), 8.00-8.39M (4), 9.57-10.62M (9); C6 PASS (91 evaluations); 0 over-bar episodes at or before 2,097,152
+2026-10-30T17:35Z [measured] habit summaries (report only): s42 tail_3_pitch_act L,T,D (249 over-bar ledger episodes: 32 / 115 / 102 by D-1 window; 22 own alarms 3,932,160-10,616,832; M1 CMD +0.989/+0.884/+0.355/+0.941/+0.936/+0.893 at J..final); s60 tail_3 T,D (24 over-bar, CMD +0.880 at 8,388,608, +0.727 at R1); s80 neck_pitch_act L,T,D (119 over-bar ledger episodes all sign -, 116 in [4.19M, 8.39M); 6 own alarms = the 6 ANY ALARMs 5,505,024-7,077,888; M1 CMD -0.594/-0.793/-0.917 at 4.19/5.24/6.29M with 18 full-horizon over-bar episodes (sign -) at 6,291,456; probe rollout_mu_mean -0.675 over [4.19M, 8.39M); active 3,801,088-8,781,824) and head_pitch_act D (CMD -0.660 at R1, -0.666 at final)
+
+==== VALIDATION RESULT (against the round's reading, RUNLOG line 711 and S2/r10round/f2/score.json) ====
+s42  FULLY RE-MEASURED (6 fresh M1 + fresh M3 on the F2 copies, BS/code): RAIL (RAIL-LEDGER-PERSISTENT), tail_3_pitch_act +, first TAIL ALARM
+     3,932,160, 22 TAIL ALARMs (22 ANY ALARMs), 26 tail-flagged evaluations, trace rail at R1 drive-backed; GATE FAIL hop_or_fall 2 > 1 at
+     -90/-45/+0/+45/+90/+180; NEGATIVE. 25 of 25 class keys equal score.json; every M1 per-step CSV, episode_trace.json, the certificate's
+     report and panel CSV byte- or key-identical to the round's [measured].
+s60  M3 RE-MEASURED fresh: PASS, identical to the round's [measured]. M1 x6 NOT re-measured (disk floor, below). Classes via the same path on
+     the round's own M1/M3 outputs of the same F2 pairs: PARKED (tail_3 MEAN_a +0.642, margin +0.042; J margins +0.2797 at 8,388,608 and
+     +0.1267 at 10,485,760), no ANY ALARM, GATE PASS, NEGATIVE: 25 of 25 class keys equal score.json [measured].
+s80  NOT re-measured (disk floor). Classes via the same path on the round's own M1/M3 outputs: CLEAR, 6 ANY ALARMs on neck_pitch_act
+     (5,505,024-7,077,888), GATE PASS, POSITIVE: 25 of 25 class keys equal score.json [measured].
+Why not reproduced afresh: free disk 3.11-3.16 GB after 17:23 UTC < measure_r10round.py's 3 GiB floor (3,221,225,472 bytes; THIS12 line 958,
+     pinned in r10m_common.DISK_FLOOR_BYTES); the drop came from other workflows' writes (above). Resumable when >= 3,309,305,856 bytes are
+     free (floor + 20 MiB + 64 MiB): cd LB/measure/work && PY -I -B ../tools/measure_lb.py classify <F2>/stance6_r10LTSB_s60/copies
+     <F2>/stance6_r10LTSB_s80/copies --out-root ../validate --suffix .copy1 --slots 2 --prune-csv  (13 measurements, ~44 CPU-min)
+     then PY -I -B ../tools/validate_round.py --out-root ../validate.
+
+==== COSTS [measured, os.wait4 user+sys of the runner and its child; validate/costs_first_run.txt] ====
+M5 (ledger_r10round.py CLI, 91 evaluations): 0.12-0.14 s wall; prepare (inputs, M5 in process, pair checks): 0.11-0.12 s; classification
+     (read traces + certificate, classes_of, habit summary with the probe): 3.3 s.
+M1 per label: 65.7-68.0 s CPU (wall 67.5-69.1 s on a then idle machine), max RSS 431-443 MB; 6 labels per FINISHED run = 401 s CPU (s42);
+     each RESOLUTION checkpoint adds one M1. The round's own M1: 62-75 s wall each.
+M3 (the certificate, 6 headings x 40 episodes): 1,186.9 s CPU (s42), 1,196.1 s CPU (s60); wall 1,945 / 2,000 s under load 8-11 (other
+     workflows); max RSS 627-632 MB. The round's: 1,214.9 / 1,222.9 s (certificate_run.seconds).
+Per FINISHED run: about 1,600 s CPU (27 CPU-min), of which the certificate is 74%. For LB's 4 continuations: about 106 CPU-min, about
+     55 min wall with 2 slots on an idle machine (plus one M1, about 67 s, per RESOLUTION checkpoint).
+Disk per run: M1 output 17.9 MB before pruning (20 gz CSVs ~0.87 MB each); with --prune-csv the CSVs of episodes with no actuator over the
+     BAR are deleted (s42 kept 57 of 120: 49 MB); M3 output 2.5 MB. My whole LB/measure: 57.9 MB.
+
+==== OPEN ITEMS (for the coordinator and the pre-registration) ====
+1. DISK FLOOR (blocks LB's end-of-run measurement as things stand): measure_r10round.py refuses below 3 GiB free (pinned; THIS12 line 958).
+   Free now 3.11 GB (below it); LB's harness estimates 200 MiB per continuation (LB/tools/bs_common.RUN_BYTES_EST; about 800 MiB for 4).
+   The measurement needs >= 3.31 GB free at each launch (floor + one output + 64 MiB margin; the pinned runner itself >= 3.22 GB) plus
+   about 0.11 GB per run before pruning. Options (not mine to take): free disk elsewhere before the reading (e.g. other workflows'
+   scratch); or, after unblinding, run `plan` and delete inside LB/runs the periodic pairs C7 does not name (about 32 pairs x 4.03 MB =
+   129 MB per run); a lower floor would be a change of the round's pinned tool (maintainer).
+2. The harness must keep every 262,144 periodic pair until `plan` has named the RESOLUTION checkpoints (any multiple of 262,144 can be
+   named), and a stitched (resumed) run's ledger must hold exactly 10 rows per evaluation (C6; duplicates would also distort M5).
+3. The outcome-blind guard mirrors LB/tools/read_bs.decided as of 16:56 UTC (LB/SCREEN.json queue; LB/lost.json; runs/<name>/check.json
+   passed and mode continuation); re-check if the harness changes these before pinning.
+4. C1-C4 are not applicable to a continuation (a resume by construction); LB's criteria must say what replaces COMPLETE (the harness's
+   counted / check.json) and that TAIL CLASS, GATE CLASS and RUN OUTCOME are the round's definitions applied to a continuation's records.
+5. Whole ledger vs the window (S, E]: the round's TAIL CLASS reads the whole ledger, which for a continuation includes the parent's 160
+   rows <= 2,097,152 (equal to s42's, none over the bar, so the two readings coincide in alarms); the tool prints the window beside;
+   the pre-registration should name the whole-ledger class as the reading (or decide otherwise) before outcomes are seen.
+6. Pass --start 2097152 explicitly (the default is run_meta.json's S).
+7. The habit summary's sites L/T/D are the round's lines applied per actuator and are report only; if "does the habit move to another
+   joint" is to be read from them, the pre-registration should adopt (or redefine) them before outcomes are seen.
+8. Not re-measured afresh in this validation: s60 M1 x6, s80 M1 x6 and M3 (disk floor, item 1); their classes were reproduced through
+   the same path on the round's own measurements of the same F2 pairs; the resumable command is in VALIDATION RESULT above.
+9. Machine load during the validation: up to 8-9 heavy processes ran machine-wide (other workflows' probes and the harness's validation
+   runs), above the 4-process rule; M3 wall times were inflated about 1.6x, CPU seconds were not. measure_lb.py now waits before each
+   launch while >= 4 python script processes run machine-wide.
+10. M2 (posture panel) and M4 (judge K1-K4) are not run: report only in the round and not needed for the classes.
+11. measure_lb.py and its helpers must be pinned (SHA256SUMS.txt below) in LB/APPROVED; they read S1/foot/stance6/APPROVED (the round's
+    approval, branch_head 8737cd3d) and BS/code's seal at every run.
+
+==== CHECKSUMS AND DISK ====
+2026-10-30T17:35:45Z find . -type f (but work/pytest_tmp, work/tmp, NOTES.txt, SHA256SUMS.txt) | sha256sum > SHA256SUMS.txt -> 170 files; sha256sum -c SHA256SUMS.txt -> all OK [measured]; SHA256SUMS.txt sha256 c9cd85ce64954b54407074b13a292b37276b701684ddd78456c01b9be864615e
+   tools: 5fb29b52f194ffa40f45afed7427d762841d09e1a8860a20c404b283f35459d6=measure_lb.py 4f38a7ec16b86c1485ceabde2e6f4706b878027f937a5a72a729eaebf62f6155=mutation_checks.py 468936ee9f2a80857577c1d9dc602b9db36069dcb2fc0fe39b22d27d514f2bac=reread_round_panels.py ce407fa0a6a4bf4428efd25b5c2e7a77110d5540e1453a20626dc5c1540ca10d=tests/test_measure_lb.py 5f3be6953b592c831751da3728cf4ab15360a1dd45b259e0d662da52fe082c1e=validate_round.py 
+2026-10-30T17:35:45Z du -sb LB/measure -> 57895455 bytes (under 400 MB)
+2026-10-30T17:35:45Z df -h /tmp:
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/vda        252G   36G  2.9G  93% /

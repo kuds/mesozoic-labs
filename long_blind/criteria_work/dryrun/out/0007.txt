@@ -1,0 +1,340 @@
+   561	    """The code copy measured again by M1's check_copy (never the seal file alone)."""
+   562	    if not Path(code_dir).is_dir():
+   563	        return [f"code copy {code_dir} missing: not measured"]
+   564	    rc, problem = _load_pinned_m1_common()
+   565	    if problem:
+   566	        return [f"code copy not measured: {problem}"]
+   567	    try:
+   568	        seal = rc.check_copy(str(code_dir), expect_commit=C.COMMIT)
+   569	    except rc.Refusal as exc:
+   570	        return [f"code copy: {getattr(exc, 'message', exc)}"]
+   571	    except (OSError, ValueError) as exc:
+   572	        return [f"code copy unreadable ({exc})"]
+   573	    if seal.get("tree_digest") != C.TREE_DIGEST or seal.get("files") != C.TREE_FILES:
+   574	        return [f"code copy tree digest {seal.get('tree_digest')} ({seal.get('files')} files) != pinned "
+   575	                f"{C.TREE_DIGEST} ({C.TREE_FILES} files)"]
+   576	    return []
+   577	
+   578	
+   579	def provisional_items(root, classes, checks, metas=None, markers=None):
+   580	    """Every reason the reading is PROVISIONAL (criteria WHEN THE READING IS MADE).  metas / markers None: the screen
+   581	    is incomplete and no run's run_meta.json or markers are opened (outcome-blind); only the pins and check.json."""
+   582	    root = Path(root)
+   583	    items = []
+   584	    sha = {}
+   585	    for name in ("criteria.txt", "SCREEN.json", "APPROVED"):
+   586	        try:
+   587	            sha[name] = C.sha256_file(root / name)
+   588	        except OSError:
+   589	            sha[name] = None
+   590	            items.append(f"no {root / name}")
+   591	    own = C.sha256_file(Path(__file__))
+   592	    tool_now = {}
+   593	    for t in PINNED_TOOLS:
+   594	        try:
+   595	            tool_now[t] = C.sha256_file(TOOLS / t)
+   596	        except OSError:
+   597	            tool_now[t] = None
+   598	    pins = {}
+   599	    if sha["APPROVED"] is not None:
+   600	        try:
+   601	            appr = json.loads((root / "APPROVED").read_text(encoding="utf-8"))
+   602	        except (OSError, ValueError):
+   603	            appr = None
+   604	        if not isinstance(appr, dict):
+   605	            items.append("APPROVED is not a JSON object")
+   606	            appr = {}
+   607	        missing = [k for k in C.APPROVED_KEYS if k not in appr]
+   608	        if missing:
+   609	            items.append(f"APPROVED: missing keys {missing}")
+   610	        for key, name in (("criteria_sha256", "criteria.txt"), ("screen_sha256", "SCREEN.json")):
+   611	            if sha[name] is not None and appr.get(key) != sha[name]:
+   612	                items.append(f"{name} sha256 {sha[name]} != APPROVED {key} {appr.get(key)!r}")
+   613	        if appr.get("code_tree_digest") != C.TREE_DIGEST:
+   614	            items.append(f"APPROVED code_tree_digest {appr.get('code_tree_digest')!r} != {C.TREE_DIGEST}")
+   615	        tp = appr.get("tool_sha256") if isinstance(appr.get("tool_sha256"), dict) else {}
+   616	        for t in PINNED_TOOLS:
+   617	            pins[t] = _hex(tp.get(t))
+   618	            if pins[t] is None:
+   619	                items.append(f"APPROVED has no bare 64-hex tool_sha256[{t!r}]")
+   620	            elif pins[t] != tool_now[t]:
+   621	                items.append(f"tools/{t}: sha256 {tool_now[t]} != APPROVED's {pins[t]}")
+   622	    if sha["criteria.txt"] is not None:
+   623	        text = (root / "criteria.txt").read_text(encoding="utf-8", errors="replace")
+   624	        if own not in text:
+   625	            items.append(f"criteria.txt does not name this scorer's sha256 {own} (its PINS section)")
+   626	    items.extend(f"M5 pin: {x}" for x in C.check_pins())
+   627	    read_pin = pins.get("read_bs.py") or tool_now["read_bs.py"]
+   628	    for c in classes:
+   629	        name = c["name"]
+   630	        check = checks.get(name)
+   631	        if check is not None and check.get("tool_sha256") != read_pin:
+   632	            items.append(f"{name}: check.json made by read_bs.py {check.get('tool_sha256')}, not {read_pin}")
+   633	        if c["cls"] not in (COUNTED, STOPPED) or metas is None:
+   634	            continue
+   635	        meta, msha = metas.get(name, (None, None))
+   636	        if meta is None:
+   637	            items.append(f"{name}: run_meta.json missing")
+   638	            continue
+   639	        src = (check.get("sources") or {}).get("run_meta.json")
+   640	        if not isinstance(src, list) or len(src) != 2 or src[1] != msha:
+   641	            items.append(f"{name}: run_meta.json changed since CHECK")
+   642	        for key, name_ in (("criteria_sha256", "criteria.txt"), ("screen_sha256", "SCREEN.json"),
+   643	                           ("approved_sha256", "APPROVED")):
+   644	            if meta.get(key) != sha[name_] or sha[name_] is None:
+   645	                items.append(f"{name}: ran under {name_} {meta.get(key)!r}, not the current {sha[name_]!r}")
+   646	        rt = meta.get("tool_sha256") if isinstance(meta.get("tool_sha256"), dict) else {}
+   647	        for t in C.TOOL_FILES:
+   648	            want = pins.get(t) or tool_now[t]
+   649	            if rt.get(t) != want:
+   650	                items.append(f"{name}: ran with {t} {rt.get(t)!r}, not {want}")
+   651	        mk = (markers or {}).get(name)
+   652	        if mk is not None and mk.get("tool_sha256") != read_pin:
+   653	            items.append(f"{name}: markers.json made by read_bs.py {mk.get('tool_sha256')}, not {read_pin}")
+   654	        # criteria THE SECONDARIES / RUN HANDLING: a COUNTED continuation's markers must hold exactly one loop row at E
+   655	        # (the final pair, read_bs.saved_pairs); without it the final pair was not read (a tool or file defect), so
+   656	        # SEC-G and SEC-MARGIN read MISSING and the reading is held (review finding D7)
+   657	        if c["cls"] == COUNTED and mk is not None and len(loop_rows_at(mk, C.E)) != 1:
+   658	            items.append(f"{name}: COUNTED but its markers hold {len(loop_rows_at(mk, C.E))} loop rows at E = "
+   659	                         f"{C.E:,} (the final pair was not read: a tool or file defect; SEC-G and SEC-MARGIN MISSING)")
+   660	    # BS2 reuses BS's code copy read only: it is measured where bs_common.CODE names it (not under <root>)
+   661	    items.extend(code_seal_items(Path(C.CODE)))
+   662	    return items
+   663	
+   664	
+   665	# ------------------------------------------------------------------------------------------------ the reading
+   666	def median_rule(values):
+   667	    """THE MEDIAN RULE (criteria STAT-2): the values sorted; 4 -> the midpoint of the two middle ones, 3 -> the middle
+   668	    one, 2 -> the midpoint, 1 -> the value, 0 -> None; exact (statistics.median on Fractions)."""
+   669	    return statistics.median(values) if values else None
+   670	
+   671	
+   672	def decide(classes, primaries):
+   673	    """The reading from the classes and the primaries ({name: Fraction or None}).  The secondaries are not inputs."""
+   674	    vals = {arm: [] for arm in ARM_ORDER}
+   675	    counted = {arm: [] for arm in ARM_ORDER}
+   676	    missing = {arm: [] for arm in ARM_ORDER}
+   677	    for c in classes:
+   678	        v = primaries.get(c["name"])
+   679	        if v is None:
+   680	            vals[c["arm"]].append(INF_CONTROL if c["arm"] == CONTROL else INF_BLIND)
+   681	            missing[c["arm"]].append(c["name"])
+   682	        else:
+   683	            vals[c["arm"]].append((0, v))
+   684	            counted[c["arm"]].append(v)
+   685	    filled = perm_test(vals[CONTROL], vals[INTERVENTION])
+   686	    as_counted = perm_test([(0, v) for v in counted[CONTROL]], [(0, v) for v in counted[INTERVENTION]])
+   687	    n_missing = len(missing[CONTROL]) + len(missing[INTERVENTION])
+   688	    base = Fraction(BASELINE_S)
+   689	    med = {arm: median_rule(counted[arm]) for arm in ARM_ORDER}
+   690	    rise = med[CONTROL] - base if med[CONTROL] is not None else None
+   691	    informative = rise is not None and rise >= RISE_MIN
+   692	    if not informative:
+   693	        line = 1
+   694	    elif filled[0] <= ALPHA:
+   695	        line = 2
+   696	    else:
+   697	        line = 3
+   698	    additions = []
+   699	    if line == 3 and as_counted is not None and as_counted[0] <= ALPHA:
+   700	        additions.append(ADDITION_AS_COUNTED)
+   701	    if line == 1 and filled[0] <= ALPHA:
+   702	        additions.append(ADDITION_NOT_INFORMATIVE)
+   703	    pairs = []
+   704	    for seed in SEEDS:
+   705	        a, b = primaries.get(C.run_name(CONTROL, seed)), primaries.get(C.run_name(INTERVENTION, seed))
+   706	        pairs.append({"seed": seed, "control": a, "blind": b, "diff": (a - b) if a is not None and b is not None
+   707	                      else None})
+   708	    diffs = [p["diff"] for p in pairs if p["diff"] is not None]
+   709	    means = {arm: (sum(counted[arm], Fraction(0)) / len(counted[arm]) if counted[arm] else None) for arm in ARM_ORDER}
+   710	    # each arm's sample SD of the primaries read (report only, never a line: it places the power, criteria KNOWN LIMITS)
+   711	    sds = {arm: (statistics.stdev([float(v) for v in counted[arm]]) if len(counted[arm]) >= 2 else None)
+   712	           for arm in ARM_ORDER}
+   713	    return dict(line=line, key=LINE_KEYS[line], text=LINE_TEXT[line], additions=additions, filled=filled,
+   714	                as_counted=as_counted, n_missing=n_missing, missing=missing, counted=counted, medians=med,
+   715	                means=means, sds=sds, control_rise=rise, informative=informative, pairs=pairs,
+   716	                paired_test=sign_flip_test(diffs), filled_values=vals)
+   717	
+   718	
+   719	def secondary_test(spec, classes, values, causes, line):
+   720	    """One pre-registered secondary (criteria THE SECONDARIES): the exact one-sided test that spec["higher"] is higher,
+   721	    on the difference of arm means (the `higher` arm's sum), its fill (a MISSING value in the `higher` arm counts as
+   722	    -infinity, in the other arm as +infinity), SUPPORTED at filled p <= 0.05 unadjusted.  `line` only selects the
+   723	    printed note under line 1; nothing here feeds the reading."""
+   724	    higher = spec["higher"]
+   725	    other = INTERVENTION if higher == CONTROL else CONTROL
+   726	    vals = {arm: [] for arm in ARM_ORDER}
+   727	    read = {arm: [] for arm in ARM_ORDER}
+   728	    missing = {arm: [] for arm in ARM_ORDER}
+   729	    for c in classes:
+   730	        v = values.get(c["name"])
+   731	        if v is None:
+   732	            vals[c["arm"]].append(NEG_INF if c["arm"] == higher else POS_INF)
+   733	            missing[c["arm"]].append(c["name"])
+   734	        else:
+   735	            vals[c["arm"]].append((0, v))
+   736	            read[c["arm"]].append(v)
+   737	    filled = perm_test(vals[higher], vals[other])
+   738	    as_counted = perm_test([(0, v) for v in read[higher]], [(0, v) for v in read[other]])
+   739	    supported = filled[0] <= ALPHA
+   740	    notes = []
+   741	    if supported and filled[0] <= ALPHA / N_SECONDARIES:
+   742	        notes.append(SEC_BONFERRONI)
+   743	    if line == 1:
+   744	        notes.append(SEC_UNDER_LINE1)
+   745	    return dict(key=spec["key"], title=spec["title"], marker=spec["marker"], higher=higher, lower=other,
+   746	                verdict=SEC_SUPPORTED if supported else SEC_NOT_SUPPORTED, supported=supported, notes=notes,
+   747	                filled=filled, as_counted=as_counted, values=dict(values), causes=dict(causes), missing=missing,
+   748	                n_read={a: len(read[a]) for a in ARM_ORDER},
+   749	                means={a: (sum(read[a], Fraction(0)) / len(read[a]) if read[a] else None) for a in ARM_ORDER},
+   750	                medians={a: median_rule(read[a]) for a in ARM_ORDER})
+   751	
+   752	
+   753	def _f(x):
+   754	    return None if x is None else float(x)
+   755	
+   756	
+   757	def score(root):
+   758	    """(result dict, text lines, exit code)."""
+   759	    root = Path(root)
+   760	    screen_of(root)
+   761	    rows = gather(root)
+   762	    classes = [c for c, _ in rows]
+   763	    checks = {c["name"]: ch for c, ch in rows}
+   764	    L = [VERSION, f"tool sha256 {C.sha256_file(Path(__file__))}  utc {datetime.now(timezone.utc):%Y-%m-%dT%H:%M:%SZ}",
+   765	         f"root {root}"]
+   766	    undecided = [c for c in classes if c["cls"] == UNDECIDED]
+   767	    decided_read = [c for c in classes if c["cls"] in (COUNTED, STOPPED)]
+   768	    unread = [c for c in decided_read if not markers_path(root, c["name"]).is_file()]
+   769	    result = dict(version=VERSION, root=str(root))
+   770	    if undecided or unread:
+   771	        prov = provisional_items(root, classes, checks)
+   772	        result.update(status="incomplete", provisional=prov,
+   773	                      classes=[{k: c[k] for k in ("name", "arm", "seed")} | {"decided": c["cls"] != UNDECIDED}
+   774	                               for c in classes])
+   775	        L += ["", f"STATUS: incomplete ({len(classes) - len(undecided)} of {len(classes)} decided; {len(unread)} "
+   776	                  f"decided without the full read). No line is read; no outcome is printed."]
+   777	        for c in classes:
+   778	            if c["cls"] == UNDECIDED:
+   779	                kept = sorted(p.name for p in (root / "runs").glob(c["name"] + "_*") if p.is_dir()) \
+   780	                    if (root / "runs").is_dir() else []
+   781	                state = f"undecided: {c['cause']}" + (f"; kept folders {kept}" if kept else "")
+   782	            elif c in unread:
+   783	                state = "decided, markers not read yet"
+   784	            else:
+   785	                state = "decided"
+   786	            L.append(f"  {c['name']:<24} {state}")
+   787	        if prov:
+   788	            L.append("PROVISIONAL items (printed; nothing is acted on while any stands):")
+   789	            L.extend(f"  - {x}" for x in prov)
+   790	        return result, L, EXIT_NOT_FINAL
+   791	    # ---- complete: open the reads
+   792	    markers, metas, primaries, causes, reports, ledger_items = {}, {}, {}, {}, {}, []
+   793	    for c in classes:
+   794	        name = c["name"]
+   795	        if c["cls"] in (COUNTED, STOPPED):
+   796	            m, _msha = _read_json(markers_path(root, name))
+   797	            check_markers(m, c, checks[name])
+   798	            markers[name] = m
+   799	            metas[name] = _read_json(root / "runs" / name / C.RUN_META)
+   800	            reports[name], item = report_only(c, m, metas[name][0])
+   801	            if item:
+   802	                ledger_items.append(item)
+   803	        v, cause = primary_of(c, markers.get(name))
+   804	        primaries[name] = v
+   805	        causes[name] = cause
+   806	    prov = provisional_items(root, classes, checks, metas, markers) + ledger_items
+   807	    dec = decide(classes, primaries)
+   808	    secs = []
+   809	    for spec in SECONDARIES:
+   810	        sv, sc = {}, {}
+   811	        for c in classes:
+   812	            sv[c["name"]], sc[c["name"]] = secondary_value(spec["key"], c, markers.get(c["name"]), causes[c["name"]])
+   813	        secs.append(secondary_test(spec, classes, sv, sc, dec["line"]))
+   814	    status = "PROVISIONAL" if prov else "final"
+   815	    L += ["", f"STATUS: {status}" + (" (printed, not acted on)" if prov else "")]
+   816	    L.append(f"THE READING (line {dec['line']}, {dec['key']}):")
+   817	    L.append("  " + dec["text"])
+   818	    L.extend("  " + a for a in dec["additions"])
+   819	    L.append("")
+   820	    L.append("THE PRIMARY (on-policy tail_3 command: mean of rollout_mu14_mean over the probe rows "
+   821	             f"{PRIMARY_STEPS[0]:,} ... {PRIMARY_STEPS[-1]:,}); B_S = {BASELINE_S:+.5f} (the parent's 8 rows ending "
+   822	             f"at S = {C.S:,})")
+   823	    for c in classes:
+   824	        v = primaries[c["name"]]
+   825	        tail = (f"{float(v):+.5f}  (rise from B_S {float(v - Fraction(BASELINE_S)):+.5f})" if v is not None
+   826	                else f"MISSING, filled at {'-inf' if c['arm'] == CONTROL else '+inf'}: {causes[c['name']]}")
+   827	        L.append(f"  {c['name']:<24} {c['cls']:<8} {tail}")
+   828	    for arm in ARM_ORDER:
+   829	        L.append(f"  {arm:<24} n counted {len(dec['counted'][arm])}, missing {len(dec['missing'][arm])}; mean "
+   830	                 f"{fnum(dec['means'][arm], '+.5f')}, median {fnum(dec['medians'][arm], '+.5f')}, SD "
+   831	                 f"{fnum(dec['sds'][arm], '.5f')} (report only)")
+   832	    if dec["means"][CONTROL] is not None and dec["means"][INTERVENTION] is not None:
+   833	        L.append(f"  difference of arm means (control - critic_blind_tail3), as counted: "
+   834	                 f"{float(dec['means'][CONTROL] - dec['means'][INTERVENTION]):+.5f}")
+   835	    L.append("INFORMATIVENESS (line 1): the control arm's median primary must rise by >= 0.20 from B_S (inclusive, "
+   836	             "exact; the median rule: 4 read -> the midpoint of the two middle values, 3 -> the middle one, 2 -> their "
+   837	             "midpoint, 1 -> the value, none -> not informative)")
+   838	    L.append(f"  control median {fnum(dec['medians'][CONTROL], '+.5f')} over {len(dec['counted'][CONTROL])} read, "
+   839	             f"rise {fnum(dec['control_rise'], '+.5f')} -> {'informative' if dec['informative'] else 'NOT INFORMATIVE'}"
+   840	             f" (the parent's own rise over the window +{PARENT_TRAJECTORY[C.E] - BASELINE_S:.5f}, report only)")
+   841	    L.append("THE TEST: exact one-sided permutation test (control higher), difference of arm means, alpha 0.05; "
+   842	             "missing values filled against REDUCED (control -inf, critic_blind_tail3 +inf); size 3/70 when the 8 "
+   843	             "primaries are exchangeable under no effect, about 0.06 (up to about 0.09 given the gate) if blinding "
+   844	             "changes only the spread: read a REDUCED with each arm's SD")
+   845	    L.append(f"  p (filled, decides) = {fmt_p(dec['filled'])}  {'<=' if dec['filled'][0] <= ALPHA else '>'} 0.05; "
+   846	             f"minimum attainable 1/70 (0.0143)")
+   847	    L.append(f"  p as counted (report only) = {fmt_p(dec['as_counted'])}")
+   848	    L.append("PAIRED DIFFERENCES (control - critic_blind_tail3, same seeds; report only, not a test):")
+   849	    for p in dec["pairs"]:
+   850	        L.append(f"  seed {p['seed']}: control {fnum(p['control'], '+.5f')}  blind {fnum(p['blind'], '+.5f')}  "
+   851	                 f"diff {fnum(p['diff'], '+.5f')}")
+   852	    L.append(f"  exact one-sided sign-flip p (report only; 4 pairs cannot reach 0.05: minimum 1/16) = "
+   853	             f"{fmt_p(dec['paired_test'])}")
+   854	    L.append("THE SECONDARIES (pre-registered; each tested one-sided at 0.05, unadjusted; NONE CHANGES THE LINE; under "
+   855	             "the global null at most 9/70 = 0.129 that any reads SUPPORTED when each secondary's 8 values are "
+   856	             "exchangeable, about 0.18 if the arms' spreads differ; only p = 1/70 survives Bonferroni over the 3, "
+   857	             "0.05 / 3 = 0.0167):")
+   858	    for s in secs:
+   859	        L.append(f"  {s['key']}, {s['title']} [{s['marker']}]; direction: {s['higher']} HIGHER; fill: a MISSING "
+   860	                 f"{s['higher']} value -inf, a MISSING {s['lower']} value +inf")
+   861	        L.append("    " + " ".join([s["verdict"], *s["notes"]]))
+   862	        for c in classes:
+   863	            v = s["values"][c["name"]]
+   864	            L.append(f"    {c['name']:<24} " + (f"{float(v):+.5f}" if v is not None else
+   865	                                                f"MISSING, filled at {'-inf' if c['arm'] == s['higher'] else '+inf'}"
+   866	                                                f": {s['causes'][c['name']]}"))
+   867	        for arm in ARM_ORDER:
+   868	            L.append(f"    {arm:<24} n read {s['n_read'][arm]}, missing {len(s['missing'][arm])}; mean "
+   869	                     f"{fnum(s['means'][arm], '+.5f')}, median {fnum(s['medians'][arm], '+.5f')}")
+   870	        L.append(f"    p (filled, decides SUPPORTED) = {fmt_p(s['filled'])}; p as counted (report only) = "
+   871	                 f"{fmt_p(s['as_counted'])}")
+   872	    L.append("MANIPULATION (CHECK passed on every COUNTED / STOPPED one: the per-rollout evidence; summary from "
+   873	             "run_meta arm_evidence):")
+   874	    for c in classes:
+   875	        rp = reports.get(c["name"])
+   876	        if not rp:
+   877	            L.append(f"  {c['name']:<24} {c['cls']} (no run read)")
+   878	            continue
+   879	        mp = rp["manipulation"]
+   880	        if c["arm"] == INTERVENTION:
+   881	            s = (f"value change with obs 6 perturbed, max over {mp['n_rollouts']} rollouts: predict "
+   882	                 f"{mp['max_dv_predict_values']} forward {mp['max_dv_forward']} evaluate "
+   883	                 f"{mp['max_dv_evaluate_actions']} mirrored {mp['max_dv_mirrored']}; buffer values vs the "
+   884	                 f"unblinded value MLP, min {mp['min_buffer_values_vs_raw_value_mlp']}")
+   885	        else:
+   886	            s = (f"value change with obs 6 perturbed, min over {mp['n_rollouts']} rollouts: "
+   887	                 f"{mp['min_dv_predict_values']} (the critic sees it)")
+   888	        L.append(f"  {c['name']:<24} {mp['mlp_extractor_class']}, hook {mp['arm_state_end']}; {s}; actor dmu min "
+   889	                 f"{mp['min_dmu_actor']}; lambda {mp['buffer_gae_lambda']}; |adv - GAE(0.95)| max "
+   890	                 f"{mp['max_adv_err_vs_gae095']}")
+   891	    L.append("REPORT ONLY, PER CONTINUATION (never tested):")
+   892	    for c in classes:
+   893	        rp = reports.get(c["name"])
+   894	        if not rp:
+   895	            L.append(f"  {c['name']:<24} {c['cls']}: {c['cause']}")
+   896	            continue
+   897	        led = rp["ledger"]
+   898	        L.append(f"  {c['name']:<24} {c['cls']} T {c['T']:,}: on-policy first 8 rows "
+   899	                 f"{fnum(rp['early8_rollout_mu14'])}, last 8 before T {fnum(rp['last8_rollout_mu14_before_T'])}; "
+   900	                 f"statue_settled last 8 rows {fnum(rp['statue_settled_last8_mean'])}, 8-row trailing at the last row "

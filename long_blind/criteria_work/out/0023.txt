@@ -1,0 +1,345 @@
+"""LB (long blind run) measurement: the end-of-run classification of a finished continuation with the r10 round's own
+pinned tools.  Report only: it never trains, never steps an optimizer and never writes outside LB/measure.
+
+    PY -I -B measure_lb.py version
+    PY -I -B measure_lb.py pins
+    PY -I -B measure_lb.py plan RUN [RUN ...] --out-root DIR [--suffix .copy1] [--start S]      (nothing simulated)
+    PY -I -B measure_lb.py classify RUN [RUN ...] --out-root DIR [--suffix .copy1] [--slots 2] [--start S]
+                                    [--prune-csv] [--no-simulate] [--parent-ledger CSV]
+
+RUN is a finished continuation folder shaped like BS2's runs/<name>/ (01_stance/eval_episodes.csv, stage_config.json,
+progress.json, models/stage1_<steps>_steps.zip + stage1_vecnormalize_<steps>_steps.pkl, models/stage1_final.zip +
+stage1_final_vecnorm.pkl; run_meta.json and policy_probe.npz when present).  --suffix names a fetch store's copy suffix
+(".copy1" for the round's F2 copies, the validation input); measure_r10round.py accepts the same suffix.  Each RUN's
+outputs go to <out-root>/<name>/ (name = the folder name, or the parent folder's for an F2 "copies" folder).
+
+WHAT IS COMPUTED (criteria = S2/r10round/final_lean/criteria_r10round_final.txt, sha256 99a44469..., the round's
+approved text; "line N" below is a line of that file).  Every rule is executed by the round's pinned code; this file
+only finds the files, launches the pinned runners, and passes their outputs to the pinned class function:
+  M5   ledger_r10round.py (lane B, pinned 0d89bcb8...) on RUN/01_stance/eval_episodes.csv with --E E, as a
+       subprocess (m5.json, m5.txt), and the same r10round_common.m5 in process for the classes (lines 134-142):
+       ANY / TAIL / TAIL-UNRESOLVED counts per evaluation, ANY-FLAGGED and ANY ALARM (lines 169-170), TAIL-FLAGGED
+       and TAIL ALARM (lines 171-172), NEEDS RESOLUTION (lines 173-180); C6 on the whole ledger to E (lines 234-245).
+  M1   measure_r10round.py m1 (lane A, pinned b293a511...) on every checkpoint C7 names (line 246): the J checkpoints
+       up to E (line 84: 4,194,304; 5,242,880; 6,291,456; 8,388,608; 10,485,760; final), R1 (line 181) and every
+       RESOLUTION checkpoint (lines 175-177), chosen by complete_r10round.c3_pairs (pinned d322ed0e...); the trace
+       tool is the measuring copy's episode_trace_report.py (sha256 b5923e5c..., checked by the runner).
+  M3   measure_r10round.py m3 at stage1_final of a FINISHED run (lines 126-128, 246-247): the copy's
+       stance_gate_report.py (sha256 bbfe8016...), the six-heading certificate; PASS = its own verdict.
+  CLASSES  score_r10round.classes_of (lane B, pinned 3de2330a...), the function the round's scorer applied to its
+       three runs, on {M5, the traces read by r10round_common.read_trace, the certificate read by read_certificate or
+       the runner's refusal record}: TAIL CLASS (lines 269-279), GATE CLASS (lines 280-283), RUN OUTCOME (lines
+       284-286); binding of every trace and certificate to the measured pair by complete_r10round.binding_problems.
+  ENDING  C5's facts that apply to a continuation (lines 228-233): progress.json "ended" at E; stage1_final.zip's
+       recorded num_timesteps = E (read by r10round_common.zip_num_timesteps, testzip first); FINISHED when E =
+       12,001,280; STOPPED when E < 12,001,280 by the trainer's own stop (run_meta.json stop_reason "collapse" or
+       "hop_watch", or 01_stance/hop_watch.json present); anything else is not classified (exit 2).
+  NOT APPLIED  C1-C4 (RUNLOG launches, the Drive manifest, provenance sessions and "no load key": a continuation is a
+       same-stage resume by construction, so it is never a run of the round; LB's own criteria decide whether it is
+       counted).  The classes are the round's definitions applied to the continuation's records as measured.
+  REPORT ONLY (never a class): the window (S, E] reading (alarms whose two evaluations both lie after S, alarms
+       straddling S; BS2 read_bs.m5_window's form), the parent prefix check, the PER-ACTUATOR HABIT SUMMARY (D-1,
+       lines 336-339: "the same for every other actuator"; M1's per-actuator outputs, line 119; the probe's
+       rollout_mu_mean, BS2's primary form), costs.
+Outcome-blind guard (BS2 read_bs.decided's rule, = LB/tools/read_bs.decided as of 2026-10-30 16:56 UTC): a RUN anywhere
+under LB is read only when every continuation queued in LB/SCREEN.json has a passing LB/runs/<name>/check.json (mode
+"continuation") or is in LB/lost.json; otherwise refused, nothing read.  A folder outside LB is a validation input.
+Machine-wide: before each launch, at most 4 python script processes (any agent's; this tool's idle wrappers aside)
+may run, else the launch waits.  classify_one(panels_dir=, filed_run_id=) reads M1/M3 outputs from another folder:
+a validation reading only (reread_round_panels.py), refused for a run under LB.
+Disk: measure_r10round.py refuses below 3 GiB free (r10m_common.DISK_FLOOR_BYTES); this tool checks the floor plus
+the job's output before each launch.  --prune-csv deletes, after a trace is read, the per-step CSVs (.csv.gz) of the
+episodes in which no actuator is over the BAR (their sha256 stay in csv_sha256.txt and m1_summary.json; lane B's
+read_trace needs the CSV only of an episode with a tail actuator over the BAR).
+Exit codes: 0 classified (every RUN); 2 refused (pins, guard, inputs, a runner refusal; nothing measured for that RUN);
+3 a measurement crashed twice; 4 a consistency check failed.
+"""
+from __future__ import annotations
+
+import os
+import sys
+....
+DISK_FLOOR = 3 * 1024**3                   # r10m_common.DISK_FLOOR_BYTES (THIS12 line 958)
+M1_OUT_BYTES = 20 * 1024**2                # one M1 output before pruning (about 17.9 MB measured, see NOTES)
+M3_OUT_BYTES = 4 * 1024**2                 # one M3 output (about 2.5 MB measured)
+DISK_MARGIN = 64 * 1024**2
+MACHINE_SIM_MAX = 4                        # the task's limit: at most 4 such processes at once machine-wide
+WRAPPERS = ("measure_lb.py", "measure_r10round.py", "validate_round.py", "mutation_checks.py")  # idle while measuring
+D1_WINDOWS = ((0, 4_194_304), (4_194_304, 8_388_608), (8_388_608, FINAL + 1))   # line 338
+HABIT_LINE = 0.60                          # the PARKED / DRIVEN line (lines 276-279), applied per actuator: report only
+LAST_UPDATES = 8                           # BS2's primary form: the last 8 probe rows before E
+
+CLAUSES = {
+    "M5": "criteria lines 134-142 (M5 LEDGER READER); ledger_r10round.py, r10round_common.m5",
+    "ANY ALARM": "lines 169-170 (ANY-FLAGGED EVALUATION: >= 5 of 10 over the bar on any actuator; ANY ALARM: the "
+                 "second of two consecutive)",
+    "TAIL ALARM": "lines 171-172 (TAIL-FLAGGED EVALUATION: >= 5 of 10 over the bar with a tail actuator named; TAIL "
+                  "ALARM: the second of two consecutive)",
+    "RESOLUTION": "lines 173-180 (TAIL-UNRESOLVED, NEEDS RESOLUTION, RESOLUTION CHECKPOINT, RESOLVED BY TRACE)",
+    "R1 R2 CMD MEAN": "lines 181-187 (R1 10,485,760; R2 stage1_final; CMD_a over episodes beyond step 200; MEAN_a)",
+    "TRACE RAIL": "lines 188-191 (>= 2 full-horizon TAIL FLAGS on one actuator and sign, or 1 with MEAN_a >= 0.60; "
+                  "DRIVE-BACKED)",
+    "TAIL FLAG": "lines 165-168 (TAIL ACTUATORS 11-14, PITCH 11/13/14; BAR share at |command| >= 0.99 > 0.10; "
+                 "full-horizon 1000 steps; tie counts in each sign)",
+    "TAIL CLASS": "lines 269-279 (RAIL kinds 270-272; UNREAD 273-275; PARKED 276-277; CLEAR 278; DRIVEN 279)",
+    "GATE CLASS": "lines 280-283 (PASS: FINISHED and the stage1_final certificate passes; FAIL: fails or refused, "
+                  "and every STOPPED run)",
+    "RUN OUTCOME": "lines 284-286 (POSITIVE = CLEAR and GATE PASS; NEGATIVE = RAIL, UNREAD, PARKED or GATE FAIL)",
+    "M1": "lines 119-121 (episode_trace_report.py, seeds 3042-3061, deterministic, every actuator, window 200..L-1)",
+    "M3": "lines 126-128 (stance_gate_report.py, six headings, seeds 3042-3081; PASS = its own verdict; a "
+          "measurement on a screen task, not certification)",
+    "J": "line 84 (J = 4,194,304; 5,242,880; 6,291,456; 8,388,608; 10,485,760; final)",
+    "C5": "lines 228-233 (progress.json 'ended' at E; stage1_final.zip num_timesteps E; FINISHED / STOPPED)",
+    "C6": "lines 234-245 (every evaluation of the grid up to E, 10 rows each, every ANY and TAIL input measured)",
+    "C7": "lines 246-247 (R1, R2, J up to E and every RESOLUTION checkpoint traced; R2's certificate for FINISHED)",
+    "RERUN": "lines 428-434 (a crash is rerun on the same files; a measuring tool's refusal is final)",
+    "D-1": "lines 336-339 (per evaluation by named actuator and sign; windows [0,4194304), [4194304,8388608), "
+           "[8388608,12001280]; the same for every other actuator; report only)",
+    "MEASURING COPY": "lines 116-118 (the HEAD the runs trained, python -I -B, OMP 1 thread, nice 10, <= 2 processes)",
+}
+
+
+class Refusal(Exception):
+....
+def habit_summary(C, header, rows, res, classes, m1_records: dict, probe: Path | None, S: int, E: int,
+                  js: list, r1, traced: list | None = None) -> dict:
+    """Report only: per actuator (all 15), the ledger's over-bar episodes by named actuator and sign (D-1, lines
+    336-339; the sign is M5 (b)'s saturated_actuator_positive_share >= 0.5 rule, applied to every actuator), the ANY
+    ALARMs naming it (classes_of's any_alarms), its own alarm series (the ANY ALARM rule of lines 169-170 restricted to
+    the episodes naming it), M1's window-mean command (cmd_all_actuators) and full-horizon over-BAR episodes with sign
+    at every traced checkpoint (lane A's m1_summary.json), and the probe's on-policy mean command (rollout_mu_mean over
+    the last 8 updates before E, BS2's primary form).  HABIT SITES: the round's own thresholds applied to each
+    actuator (never a class): L = an own alarm; T = >= 2 full-horizon episodes over the BAR in one sign at one traced
+    checkpoint (TRACE RAIL's first clause); D = |CMD| >= 0.60 in one sign at >= 2 J checkpoints, or |mean of CMD(R1),
+    CMD(R2)| >= 0.60 (PARKED's and DRIVEN's line)."""
+    names = C.ACTUATOR_NAMES
+    by = {}
+    for r in rows:
+        s = C.grid_step(r.get("timesteps"))
+        if s is not None:
+            by.setdefault(s, []).append(r)
+    per = {n: {"over_by_eval": {}, "sign_by_eval": {}} for n in names}
+    for s in sorted(by):
+        for r in by[s]:
+            x = C.decode_row(r, header)
+            if not x["any_over"] or x["act"] is None:
+                continue
+            n = names[x["act"]]
+            pos = _num(r.get("saturated_actuator_positive_share"))
+            sg = "?" if pos is None else ("+" if pos >= 0.5 else "-")
+            per[n]["over_by_eval"][s] = per[n]["over_by_eval"].get(s, 0) + 1
+            d = per[n]["sign_by_eval"].setdefault(s, {})
+            d[sg] = d.get(sg, 0) + 1
+    labels = [str(x) for x in js] + ([str(r1)] if r1 else []) + ["final"] + [str(x) for x in (traced or [])]
+    labels = sorted(set(labels), key=lambda x: (x == "final", int(x) if x != "final" else 0))
+    jl = [str(x) for x in js] + ["final"]
+    probe_d = {}
+    if probe is not None:
+        try:
+            import numpy as np
+            with np.load(probe, allow_pickle=False) as z:
+                ut = z["update_timesteps"]
+                mu = z["rollout_mu_mean"]
+            idx = [i for i in range(len(ut)) if ut[i] < E]
+            last = idx[-LAST_UPDATES:]
+            for a, n in enumerate(names):
+                w = {}
+                for lo, hi in D1_WINDOWS:
+                    sel = [i for i in idx if lo <= ut[i] < hi]
+                    w[f"[{lo},{hi})"] = float(np.mean(mu[sel, a])) if sel else None
+                cont = [i for i in idx if ut[i] > S] if S else []
+                probe_d[n] = dict(last8_before_E=float(np.mean(mu[last, a])) if last else None,
+                                  last8_rows=[int(ut[i]) for i in last], windows=w,
+                                  after_S=float(np.mean(mu[cont, a])) if cont else None)
+        except Exception as exc:  # noqa: BLE001 - report only
+            probe_d = {"error": repr(exc)}
+    out = {}
+    for a, n in enumerate(names):
+        d = per[n]
+        ev = d["over_by_eval"]
+        flagged = sorted(s for s, k in ev.items() if k >= 5)
+        own_alarms = [s for s in flagged if s - C.GRID in flagged]
+        any_named = [x["step"] for x in classes.get("any_alarms", []) if n in (x.get("actuators") or {})]
+        any_sole = [x["step"] for x in classes.get("any_alarms", []) if set((x.get("actuators") or {})) == {n}]
+        win = {}
+        for lo, hi in D1_WINDOWS:
+            win[f"[{lo},{hi})"] = sum(k for s, k in ev.items() if lo <= s < hi)
+        signs = {}
+        for _s, sd in d["sign_by_eval"].items():
+            for k, v in sd.items():
+                signs[k] = signs.get(k, 0) + v
+        m1 = {}
+        for lab in labels:
+            rec = m1_records.get(lab)
+            if not rec:
+                continue
+            cm = (rec.get("cmd_all_actuators") or {}).get(str(a))
+            pos = neg = tie = 0
+            for ep in rec.get("episodes", []):
+                ae = (ep.get("actuators") or {}).get(n) or {}
+                if ep.get("full_horizon") and ae.get("over_bar"):
+                    sg = ae.get("sign")
+                    pos += sg == "+"
+                    neg += sg == "-"
+                    tie += sg == "="
+            fall = sum(1 for ep in rec.get("episodes", []) if not ep.get("full_horizon")
+                       and ((ep.get("actuators") or {}).get(n) or {}).get("over_bar"))
+            m1[lab] = dict(cmd=cm, over_bar_full_plus=pos, over_bar_full_minus=neg, over_bar_full_tie=tie,
+                           over_bar_short=fall)
+        sites = []
+        if own_alarms:
+            sites.append("L")
+        if any((v["over_bar_full_plus"] + v["over_bar_full_tie"]) >= 2 or (v["over_bar_full_minus"] +
+                                                                              v["over_bar_full_tie"]) >= 2
+               for v in m1.values()):
+            sites.append("T")
+        drive = False
+        for sg in (1, -1):
+            hits = [lab for lab in jl if lab in m1 and m1[lab]["cmd"] is not None and sg * m1[lab]["cmd"] >= HABIT_LINE]
+            x = m1.get(str(r1), {}).get("cmd") if r1 else None
+            y = m1.get("final", {}).get("cmd")
+            mean = (x + y) / 2 if (x is not None and y is not None) else (x if x is not None else y)
+            if len(hits) >= 2 or (mean is not None and sg * mean >= HABIT_LINE):
+                drive = True
+        if drive:
+            sites.append("D")
+        span = sorted(set(ev) | {int(lab) if lab != "final" else E for lab, v in m1.items()
+                                  if v["over_bar_full_plus"] + v["over_bar_full_minus"] + v["over_bar_full_tie"]})
+        out[n] = dict(index=a, tail=a in C.TAIL, ledger_over_total=sum(ev.values()), ledger_over_signs=signs,
+                      ledger_over_by_window=win,
+                      ledger_over_after_S=sum(k for s, k in ev.items() if s > S) if S else None,
+                      first_over=min(ev) if ev else None, last_over=max(ev) if ev else None,
+                      flagged_evaluations=flagged, own_alarms=own_alarms, any_alarms_naming=any_named,
+                      any_alarms_sole=any_sole, m1=m1, probe=probe_d.get(n) if isinstance(probe_d, dict) else None,
+                      habit_sites=sites, active_span=[span[0], span[-1]] if span else None)
+    sites = {n: v["habit_sites"] for n, v in out.items() if v["habit_sites"]}
+    return dict(per_actuator=out, habit_sites=sites, labels=labels,
+                probe_error=probe_d.get("error") if isinstance(probe_d, dict) else None,
+                note="report only; HABIT SITES apply the round's own lines to each actuator and are never a class")
+
+
+# ------------------------------------------------------------------------------------------------------------ one run
+def prepare(C, LG, CP, run_dir: Path, suffix: str, out_root: Path, start: int | None) -> dict:
+....
+def classify_one(prep: dict, job_results: list[dict], m5cli: dict, parent_ledger, prune: bool,
+                 panels_dir: Path | None = None, filed_run_id: str | None = None) -> dict:
+    """panels_dir / filed_run_id (validation only): read M1/M3 outputs from another folder (read only), e.g. the
+    round's own <ROUND>/panels/<RUN_ID>/, whose records were filed under that RUN_ID (binding_problems reads it)."""
+    C, LG, CP, SC = lane_b()
+    out = prep["out"]
+    if panels_dir is not None and (prune or Path(os.path.realpath(LB)) in Path(os.path.realpath(prep["run_dir"])).parents):
+        raise Refusal("panels from another folder are a validation reading only (never for a run under LB, never "
+                      "with --prune-csv)")
+    panels = CP.PanelLocator(Path(panels_dir) if panels_dir else out / "panels", "{label}/{kind}")
+    E = prep["E"]
+    traces, missing, refused, other = {}, [], [], []
+    m1_records = {}
+    for lab in prep["labels"]:
+        tr, why = panels.trace(lab)
+        if tr is not None:
+            bad = CP.binding_problems(tr.get("binding") or {}, lab, prep["files"], E, filed_run_id)
+            if bad:
+                other.append(f"M1 {lab}: {bad}")
+                tr = None
+        elif why.startswith("REFUSED"):
+            refused.append(why)
+        else:
+            missing.append(why)
+        traces[lab] = tr
+        if tr is not None:
+            m1_records[lab] = tr["record"]
+    cert, cert_why = None, None
+    if prep["finished"]:
+        cert, cert_why = panels.certificate("final")
+        if cert is not None:
+            bad = CP.binding_problems(cert.get("binding") or {}, "final", prep["files"], E, filed_run_id)
+            if bad:
+                other.append(f"M3 final: {bad}")
+                cert = None
+        elif cert_why.startswith("REFUSED"):
+            ref = panels.refusal("final", "m3") or {}
+            bad = CP.binding_problems(ref.get("binding") or {}, "final", prep["files"], E, filed_run_id)
+            if bad:
+                other.append(f"M3 final refusal: {bad}")
+            else:
+                rec = ref.get("record") or {}
+                cert = dict(passed=False, refused=True, failures=[f"refused: {ref.get('message')}"], seeds=None,
+                            physics_revision=rec.get("physics_revision"), commit=C.record_commit(rec), record=rec,
+                            label_dir=str(panels.path("final", "m3")), binding=ref.get("binding"))
+    c7 = dict(labels=prep["labels"], missing=missing, refused=refused, measured_on_another_file=other,
+              certificate=("measured" if cert is not None and not cert.get("refused") else
+                           "refused (GATE FAIL)" if cert is not None else
+                           ("not needed (STOPPED)" if not prep["finished"] else f"absent: {cert_why}")),
+              clause=CLAUSES["C7"])
+    blocked = missing or refused or other or (prep["finished"] and cert is None)
+    commits = sorted({t.get("commit") for t in traces.values() if t} | ({cert.get("commit")} if cert else set()))
+    phys = sorted({t.get("physics_revision") for t in traces.values() if t} |
+                  ({cert.get("physics_revision")} if cert else set()), key=str)
+    result = dict(schema="lb-measure/1", version=VERSION, tool_sha256=sha256_file(Path(__file__).resolve()),
+                  utc=utcnow(), name=prep["name"], run_dir=prep["run_dir"], S_note=prep.get("S_note"),
+                  suffix=prep["suffix"], guard=prep["guard"], ending=prep["ending"], E=E, S=prep["S"],
+                  stage_config=prep["stage_config"], stage_config_sha256=prep["stage_config_sha256"],
+                  ledger=prep["ledger"], ledger_sha256=prep["ledger_sha256"], pairs=prep["pairs"],
+                  labels=prep["labels"], r1=prep["r1"], js=prep["js"],
+                  resolution={str(k): v for k, v in prep["resolution"].items()},
+                  c6=dict(passed=prep["c6"]["passed"], n_grid=prep["c6"]["n_grid"],
+                          failures=prep["c6"]["failures"][:20], n_failures=len(prep["c6"]["failures"]),
+                          clause=CLAUSES["C6"]),
+                  m5_cli=dict((k, v) for k, v in m5cli.items() if k != "json"),
+                  m5_cli_agrees=m5_agrees(m5cli, prep["res"], prep["c6"]) or "equal",
+                  c7=c7, measuring_commits=commits, physics_revisions=phys, jobs=job_results,
+                  panels_source=str(panels.dir), panels_filed_run_id=filed_run_id,
+                  clauses=CLAUSES, pins={p: PINS[p] for p in PINS})
+    if commits and commits != [CODE_COMMIT]:
+        blocked = True
+        result["blocked_commit"] = f"measured on {commits}, not {CODE_COMMIT}"
+    if phys and phys != [10]:
+        blocked = True
+        result["blocked_physics"] = f"physics_revision {phys}"
+    if blocked:
+        result["classes"] = None
+        result["status"] = "NOT CLASSIFIED (C7: a measurement absent, refused or not of this pair)"
+        return result
+    comp = dict(m5=prep["res"], traces=traces, r1=prep["r1"], resolution=prep["resolution"], js=prep["js"],
+                stopped=prep["stopped"], E=E, certificate=cert)
+    classes = SC.classes_of(comp)
+    result["classes"] = SC._jsonable(classes)
+    result["certificate"] = None if cert is None else dict(
+        passed=cert.get("passed"), refused=bool(cert.get("refused")), failures=cert.get("failures"),
+        physics_revision=cert.get("physics_revision"), commit=cert.get("commit"),
+        label=(cert.get("record") or {}).get("label"),
+        headings=(cert.get("record") or {}).get("headings"), seconds=((cert.get("record") or {}).get(
+            "certificate_run") or {}).get("seconds"))
+    by_act = {}
+    for x in classes["any_alarms"]:                 # classes_of's attribution: the actuators of the alarm's two evals
+        for n in x["actuators"]:
+            d = by_act.setdefault(n, dict(count=0, first=None, last=None, sole=0))
+            d["count"] += 1
+            d["first"] = x["step"] if d["first"] is None else min(d["first"], x["step"])
+            d["last"] = x["step"] if d["last"] is None else max(d["last"], x["step"])
+            d["sole"] += set(x["actuators"]) == {n}
+    result["m5_summary"] = dict(any_flagged=prep["res"]["any_flagged"], tail_flagged=prep["res"]["tail_flagged"],
+                                any_alarms=prep["res"]["any_alarms"], tail_alarms=prep["res"]["tail_alarms"],
+                                needs_resolution=prep["res"]["needs_resolution"],
+                                any_alarms_by_actuator=by_act,
+                                over_bar_per_evaluation={s: {k: e[k] for k in ("n", "any", "tail", "unres", "tail_by",
+                                                                               "any_by", "reasons")}
+                                                         for s, e in sorted(prep["res"]["evals"].items())
+                                                         if e["any"] or e["tail"] or e["unres"]},
+                                d1=LG.d1_summary(prep["res"]), clause=CLAUSES["M5"],
+                                note="every evaluation's line: m5.txt (ledger_r10round.py's own print)")
+    result["window"] = window_reading(C, prep["res"], prep["S"], E)
+    result["prefix"] = prefix_check(Path(prep["ledger"]), parent_ledger, prep["S"])
+    result["habit"] = habit_summary(C, prep["header"], prep["rows"], prep["res"], classes, m1_records,
+                                    Path(prep["probe"]) if prep["probe"] else None, prep["S"], E, prep["js"],
+                                    prep["r1"], traced=prep["labels"])
+    result["m1_cross_check"] = {lab: (t.get("cross_check") if t else None) for lab, t in traces.items()}
+    if prune:
+        result["pruned"] = {lab: prune_csvs(out / "panels" / lab / "m1", m1_records[lab]) for lab in m1_records}
+    result["status"] = "CLASSIFIED"
+    return result
+
+
+# ------------------------------------------------------------------------------------------------------------ text
+def _steps(xs, n=6):
+    xs = list(xs)

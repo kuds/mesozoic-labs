@@ -1,0 +1,118 @@
+conditions loaded: ['p1048576', 'p2097152', 'c2511_3145728', 'c2531_3145728']
+
+==============================================================================================================
+DESCRIPTIVE (per condition, all states)
+==============================================================================================================
+  p1048576        q3 -0.154+-0.258 deg  own14 -0.034  mu14 -0.033  tip 0.9116 (min 0.121)  lowest 0.7985 (min 0.086)  pelvis 0.9263 (min 0.708)  V 4.710  G 4.717  s -0.00439  return 4001.1
+  p2097152        q3 +0.638+-0.342 deg  own14 +0.124  mu14 +0.124  tip 0.9365 (min 0.792)  lowest 0.8071 (min 0.732)  pelvis 0.9261 (min 0.920)  V 4.766  G 4.762  s +0.01923  return 4299.9
+  c2511_3145728   q3 +3.366+-1.287 deg  own14 +0.666  mu14 +0.674  tip 0.9614 (min 0.792)  lowest 0.8028 (min 0.732)  pelvis 0.9258 (min 0.920)  V 4.860  G 4.857  s +0.05513  return 4294.6
+  c2531_3145728   q3 +1.521+-0.661 deg  own14 +0.299  mu14 +0.299  tip 0.9516 (min 0.792)  lowest 0.8100 (min 0.732)  pelvis 0.9265 (min 0.920)  V 4.868  G 4.874  s +0.01962  return 4308.8
+==============================================================================================================
+ITEM 1.  END REASONS OF TRAINING-LIKE EPISODES (128 per condition, seeds 7001-7128)
+==============================================================================================================
+  p1048576        n 128  {'fallen': 1, 'truncated': 127}   tail_contact 0/128 CI 0.0000-0.0284   any termination 1/128 CI 0.0002-0.0428
+  p2097152        n 128  {'truncated': 128}   tail_contact 0/128 CI 0.0000-0.0284   any termination 0/128 CI 0.0000-0.0284
+  c2511_3145728   n 128  {'truncated': 128}   tail_contact 0/128 CI 0.0000-0.0284   any termination 0/128 CI 0.0000-0.0284
+  c2531_3145728   n 128  {'truncated': 128}   tail_contact 0/128 CI 0.0000-0.0284   any termination 0/128 CI 0.0000-0.0284
+  POOLED NON-BLIND (4 conditions): tail_contact 0/512 = 0.0000% CI 0.0000%-0.7179%;  any termination 1/512 = 0.1953% CI 0.0049%-1.0834%
+  P1.1 (prediction: pooled tail_contact <= 2%): SUPPORTED
+
+==============================================================================================================
+ITEM 2.  IS A LOWER TAIL ACTUALLY RISKIER?
+==============================================================================================================
+  tail_contact episodes in the NON-BLIND SET: 0
+  M2.1 q3   H=200: events 0; ranks []; below 0.5: 0/0; sign p nan -> UNTESTABLE
+  M2.1 tip  H=200: events 0; ranks []; below 0.5: 0/0; sign p nan -> secondary
+  M2.1 low  H=200: events 0; ranks []; below 0.5: 0/0; sign p nan -> secondary
+  M2.1 q3   H= 50: events 0; ranks []; below 0.5: 0/0; sign p nan -> secondary
+  M2.1 tip  H= 50: events 0; ranks []; below 0.5: 0/0; sign p nan -> secondary
+  M2.1 low  H= 50: events 0; ranks []; below 0.5: 0/0; sign p nan -> secondary
+  M2.2 q3 H=200: no events
+  M2.2 tip H=200: no events
+  M2.2 low H=200: no events
+  M2.2 q3 H=50: no events
+  M2.2 tip H=50: no events
+  M2.2 low H=50: no events
+  M2.3 [tail_contact] events 0 in 512 episodes, 409536 states t<=800.  C_c {'p1048576': 7.09, 'p2097152': 7.018, 'c2511_3145728': 7.166, 'c2531_3145728': 7.171}
+       s_crit (mean critic slope) +0.02251 per deg (normalised); s_risk -0.000000; F -0.00000 (95% -0.00000 .. +0.00000)
+       bound: CP upper count 3.68, Dbar_u 4.488e-04, F_bound(beta*=1/deg) 0.1417, beta needed for F=0.5: 3.5 per degree -> NOT SUPPORTED (bound (fewer than 5 events))
+  M2.3 [any] events 1 in 512 episodes, 409536 states t<=800.  C_c {'p1048576': 7.09, 'p2097152': 7.018, 'c2511_3145728': 7.166, 'c2531_3145728': 7.171}
+       s_crit (mean critic slope) +0.02251 per deg (normalised); s_risk -0.000783; F -0.03478 (95% -0.10924 .. +0.00000)
+       bound: CP upper count 5.55, Dbar_u 6.772e-04, F_bound(beta*=1/deg) 0.2139, beta needed for F=0.5: 2.3 per degree -> report only (secondary)
+  M2.4 H=200 p1048576        min-ahead lowest tail point: p0.1 0.086  p1 0.763  p5 0.774  min 0.086 m;  Spearman(q3, M) +0.410
+  M2.4 H=200 p2097152        min-ahead lowest tail point: p0.1 0.751  p1 0.773  p5 0.792  min 0.732 m;  Spearman(q3, M) +0.392
+  M2.4 H=200 c2511_3145728   min-ahead lowest tail point: p0.1 0.756  p1 0.781  p5 0.794  min 0.732 m;  Spearman(q3, M) -0.123
+  M2.4 H=200 c2531_3145728   min-ahead lowest tail point: p0.1 0.756  p1 0.776  p5 0.796  min 0.732 m;  Spearman(q3, M) +0.676
+  M2.4 H= 50 p1048576        min-ahead lowest tail point: p0.1 0.666  p1 0.765  p5 0.779  min 0.086 m;  Spearman(q3, M) +0.459
+  M2.4 H= 50 p2097152        min-ahead lowest tail point: p0.1 0.751  p1 0.775  p5 0.794  min 0.732 m;  Spearman(q3, M) +0.392
+  M2.4 H= 50 c2511_3145728   min-ahead lowest tail point: p0.1 0.759  p1 0.783  p5 0.795  min 0.732 m;  Spearman(q3, M) -0.263
+  M2.4 H= 50 c2531_3145728   min-ahead lowest tail point: p0.1 0.758  p1 0.778  p5 0.798  min 0.732 m;  Spearman(q3, M) +0.642
+
+==============================================================================================================
+ITEM 3.  DOES THE CRITIC'S TAIL SLOPE (dV/dq3, normalised V per degree, effective critic) FOLLOW THE RISK?
+==============================================================================================================
+  -- p1048576: s mean -0.00439 median -0.00404 sd 0.01793  (x sigma_R 42.8 = -0.188 raw reward units per degree)
+     by tip decile: [0.121,0.891] +0.0041  [0.891,0.898] +0.0007  [0.898,0.903] -0.0008  [0.903,0.907] -0.0018  [0.907,0.911] -0.0035  [0.911,0.915] -0.0046  [0.915,0.919] -0.0062  [0.919,0.924] -0.0080  [0.924,0.932] -0.0099  [0.932,1.055] -0.0138
+     by pelvis decile: [0.708,0.924] -0.0019  [0.924,0.925] -0.0020  [0.925,0.926] -0.0029  [0.926,0.926] -0.0034  [0.926,0.926] -0.0041  [0.926,0.927] -0.0046  [0.927,0.927] -0.0054  [0.927,0.927] -0.0060  [0.927,0.928] -0.0065  [0.928,0.958] -0.0071
+     by phase: t[0,50) -0.0090 (n 6400)  t[50,200) -0.0050 (n 19200)  t[200,400) -0.0031 (n 25425)  t[400,1000) -0.0043 (n 76200);  last 50 states of terminated episodes: (-0.03170100510120392, 50)
+     M3.1 Spearman(s, tip) -0.300;  M3.1b partial (| q3) +0.176;  M3.3 Spearman(s, pelvis) -0.112;  Spearman(s, q3) -0.659;  M3.4 early/late 1.500
+  -- p2097152: s mean +0.01923 median +0.01970 sd 0.01716  (x sigma_R 45.4 = +0.872 raw reward units per degree)
+     by tip decile: [0.792,0.920] +0.0265  [0.920,0.928] +0.0240  [0.928,0.932] +0.0224  [0.932,0.935] +0.0210  [0.935,0.937] +0.0207  [0.937,0.940] +0.0198  [0.940,0.944] +0.0184  [0.944,0.947] +0.0172  [0.947,0.952] +0.0147  [0.952,1.055] +0.0075
+     by pelvis decile: [0.920,0.925] +0.0245  [0.925,0.925] +0.0234  [0.925,0.926] +0.0225  [0.926,0.926] +0.0210  [0.926,0.926] +0.0199  [0.926,0.926] +0.0188  [0.926,0.926] +0.0176  [0.926,0.927] +0.0166  [0.927,0.927] +0.0155  [0.927,0.958] +0.0126
+     by phase: t[0,50) +0.0042 (n 6400)  t[50,200) +0.0242 (n 19200)  t[200,400) +0.0221 (n 25600)  t[400,1000) +0.0183 (n 76800);  last 50 states of terminated episodes: (None, 0)
+     M3.1 Spearman(s, tip) -0.277;  M3.1b partial (| q3) -0.245;  M3.3 Spearman(s, pelvis) -0.203;  Spearman(s, q3) -0.133;  M3.4 early/late 0.998
+  -- c2511_3145728: s mean +0.05513 median +0.05831 sd 0.01335  (x sigma_R 44.4 = +2.448 raw reward units per degree)
+     by tip decile: [0.792,0.946] +0.0319  [0.946,0.957] +0.0578  [0.957,0.961] +0.0597  [0.961,0.963] +0.0593  [0.963,0.965] +0.0588  [0.965,0.967] +0.0584  [0.967,0.969] +0.0578  [0.969,0.971] +0.0573  [0.971,0.974] +0.0568  [0.974,1.055] +0.0535
+     by pelvis decile: [0.920,0.925] +0.0562  [0.925,0.925] +0.0582  [0.925,0.925] +0.0580  [0.925,0.926] +0.0576  [0.926,0.926] +0.0573  [0.926,0.926] +0.0569  [0.926,0.926] +0.0563  [0.926,0.926] +0.0557  [0.926,0.926] +0.0545  [0.926,0.958] +0.0407
+     by phase: t[0,50) +0.0168 (n 6400)  t[50,200) +0.0491 (n 19200)  t[200,400) +0.0601 (n 25600)  t[400,1000) +0.0582 (n 76800);  last 50 states of terminated episodes: (None, 0)
+     M3.1 Spearman(s, tip) +0.025;  M3.1b partial (| q3) -0.225;  M3.3 Spearman(s, pelvis) -0.236;  Spearman(s, q3) +0.368;  M3.4 early/late 0.699
+  -- c2531_3145728: s mean +0.01962 median +0.02043 sd 0.01379  (x sigma_R 44.4 = +0.871 raw reward units per degree)
+     by tip decile: [0.792,0.930] +0.0138  [0.930,0.941] +0.0259  [0.941,0.948] +0.0245  [0.948,0.952] +0.0228  [0.952,0.955] +0.0213  [0.955,0.958] +0.0197  [0.958,0.961] +0.0183  [0.961,0.964] +0.0177  [0.964,0.968] +0.0172  [0.968,1.055] +0.0151
+     by pelvis decile: [0.920,0.926] +0.0062  [0.926,0.926] +0.0166  [0.926,0.926] +0.0187  [0.926,0.926] +0.0199  [0.926,0.927] +0.0208  [0.927,0.927] +0.0217  [0.927,0.927] +0.0223  [0.927,0.927] +0.0231  [0.927,0.927] +0.0244  [0.927,0.958] +0.0226
+     by phase: t[0,50) -0.0032 (n 6400)  t[50,200) +0.0208 (n 19200)  t[200,400) +0.0232 (n 25600)  t[400,1000) +0.0200 (n 76800);  last 50 states of terminated episodes: (None, 0)
+     M3.1 Spearman(s, tip) -0.196;  M3.1b partial (| q3) -0.282;  M3.3 Spearman(s, pelvis) +0.293;  Spearman(s, q3) -0.031;  M3.4 early/late 0.710
+  M3.1 conditions with rho(s, tip) <= -0.10: 3 of 6 -> NOT SUPPORTED
+  M3.1b (secondary) partial rho <= -0.10: 3 of 6;  M3.3 (secondary) rho(s, pelvis) <= -0.10: 3 of 6
+  M3.2 pooled near-floor (tip < 0.60 m): 43 states from 1 episodes, mean s -0.03072 vs +0.02244 (tip >= 0.60) ratio -1.368669430372732 -> UNTESTABLE
+  pooled pelvis < 0.85 m: 27 states, mean s -0.03108 vs +0.02244
+
+==============================================================================================================
+ITEM 4.  IS THE CRITIC'S TAIL SLOPE EXPLAINED BY THE RISK?  (states t % 4 == 0, |z6| < 10)
+==============================================================================================================
+  -- p1048576: n 31807; critic mean slope FD -0.00442, autograd -0.00436 per deg
+     M4.1 b6 per deg: V M0 -0.02070 [-0.04871,+0.02001]  V M1 +0.82554 [-0.90280,+1.11296]  S +40.875  RF coef V (tip, low, pelvis per SD) [-1.5417, 0.28058, -0.04346]  VIF(z6) 959.7  R2 V M0 0.6618 M1 0.7673 -> UNTESTABLE
+          G M0 -0.01076 [-0.03523,+0.02221]  G M1 +0.58575 [-0.41777,+0.80248]  RF coef G [-1.1085, 0.27547, -0.09718]  R2 G M0 0.6191 M1 0.7120;  M4.4 met False
+     M4.2 V: out-of-sample R2 B0 -21.1463 J -21.0164 R -19.4195  dJ +0.1300  Q +13.287 -> SUPPORTED;  (G: B0 -14.9068 J -14.8516 R -12.6720 Q +40.426)
+     M4.3 [effective] dV/dq per deg q1 +0.00188 q2 -0.00414 q3 -0.00436; dtip/dq mm/deg [23.56, 18.32, 13.09]; V per m of tip q1 +0.080 q2 -0.226 q3 -0.333; R31 -4.170 R32 +1.474 -> NOT SUPPORTED;  (lowest point: R31 -12.658 R32 +3.403 -> NOT SUPPORTED)
+          on-policy SD (deg) q1 0.422 q2 0.337 q3 0.266  flag False;  states with |z3| or |z5| >= 10: 0
+  -- p2097152: n 32000; critic mean slope FD +0.01921, autograd +0.01957 per deg
+     M4.1 b6 per deg: V M0 +0.04935 [+0.03329,+0.07323]  V M1 +1.19763 [+0.12717,+1.96932]  S -23.266  RF coef V (tip, low, pelvis per SD) [-1.39737, 0.01968, 0.06409]  VIF(z6) 6211.0  R2 V M0 0.6970 M1 0.7220 -> UNTESTABLE
+          G M0 +0.06721 [+0.05341,+0.08445]  G M1 +0.37498 [-0.43902,+1.07692]  RF coef G [-0.39069, 0.01932, -0.02852]  R2 G M0 0.5223 M1 0.5434;  M4.4 met True
+     M4.2 V: out-of-sample R2 B0 0.5985 J 0.6095 R 0.6125  dJ +0.0110  Q +1.270 -> SUPPORTED;  (G: B0 0.4564 J 0.4784 R 0.4754 Q +0.860)
+     M4.3 [effective] dV/dq per deg q1 -0.01920 q2 -0.00187 q3 +0.01957; dtip/dq mm/deg [23.55, 18.31, 13.07]; V per m of tip q1 -0.815 q2 -0.102 q3 +1.497; R31 -1.837 R32 -14.694 -> NOT SUPPORTED;  (lowest point: R31 -57.843 R32 -302.838 -> NOT SUPPORTED)
+          on-policy SD (deg) q1 0.372 q2 0.235 q3 0.348  flag False;  states with |z3| or |z5| >= 10: 0
+  -- c2511_3145728: n 32000; critic mean slope FD +0.05504, autograd +0.05507 per deg
+     M4.1 b6 per deg: V M0 +0.06560 [+0.05982,+0.07282]  V M1 +0.68739 [-0.06681,+1.34145]  S -9.478  RF coef V (tip, low, pelvis per SD) [-0.80839, -0.02389, 0.05014]  VIF(z6) 75981.3  R2 V M0 0.8594 M1 0.8632 -> UNTESTABLE
+          G M0 +0.07458 [+0.06927,+0.08046]  G M1 +0.79135 [+0.19226,+1.36179]  RF coef G [-0.92857, -0.04388, 0.06668]  R2 G M0 0.7996 M1 0.8049;  M4.4 met True
+     M4.2 V: out-of-sample R2 B0 0.7630 J 0.8133 R 0.8129  dJ +0.0503  Q +0.992 -> SUPPORTED;  (G: B0 0.7245 J 0.7792 R 0.7849 Q +1.103)
+     M4.3 [effective] dV/dq per deg q1 -0.00197 q2 -0.01768 q3 +0.05507; dtip/dq mm/deg [23.5, 18.26, 13.03]; V per m of tip q1 -0.084 q2 -0.968 q3 +4.228; R31 -50.476 R32 -4.368 -> NOT SUPPORTED;  (lowest point: R31 -1992.643 R32 -112.507 -> NOT SUPPORTED)
+          on-policy SD (deg) q1 0.527 q2 0.254 q3 1.294  flag True;  states with |z3| or |z5| >= 10: 0
+  -- c2531_3145728: n 32000; critic mean slope FD +0.01957, autograd +0.01967 per deg
+     M4.1 b6 per deg: V M0 +0.06654 [+0.05394,+0.07996]  V M1 +2.56568 [+1.66772,+3.44107]  S -37.557  RF coef V (tip, low, pelvis per SD) [-3.47988, -0.01589, 0.21179]  VIF(z6) 19236.4  R2 V M0 0.7659 M1 0.7882 -> UNTESTABLE
+          G M0 +0.08925 [+0.07706,+0.10482]  G M1 +2.19653 [+1.28102,+3.12804]  RF coef G [-2.92871, -0.04527, 0.18438]  R2 G M0 0.6224 M1 0.6372;  M4.4 met True
+     M4.2 V: out-of-sample R2 B0 0.6463 J 0.6764 R 0.6809  dJ +0.0301  Q +1.150 -> SUPPORTED;  (G: B0 0.5411 J 0.5795 R 0.5886 Q +1.236)
+     M4.3 [effective] dV/dq per deg q1 -0.00221 q2 -0.01653 q3 +0.01967; dtip/dq mm/deg [23.54, 18.29, 13.05]; V per m of tip q1 -0.094 q2 -0.903 q3 +1.507; R31 -16.057 R32 -1.668 -> NOT SUPPORTED;  (lowest point: R31 -585.588 R32 -39.729 -> NOT SUPPORTED)
+          on-policy SD (deg) q1 0.324 q2 0.249 q3 0.667  flag False;  states with |z3| or |z5| >= 10: 0
+  OVERALL M4.1 UNTESTABLE (supported 0, untestable 4 of 6);  M4.2 SUPPORTED (supported 4, not 0);  M4.3 NOT SUPPORTED (supported 0, not 4);  M4.3 lowest-point (secondary) NOT SUPPORTED;  M4.4 not met (3 of 6)
+
+==============================================================================================================
+ITEM 5.  REPORT ONLY: p2097152 WITH THE STEPPED tail_3 COMMAND HELD (training-like otherwise)
+==============================================================================================================
+  free     n 128  {'truncated': 128}  tail_contact 0 CI 0.0284(upper)  any 0  q3 +0.638 deg  tip 0.9365 (min 0.792)  lowest 0.8071 (min 0.732) m  return 4299.9  cmd +0.124 own +0.124
+  hold 0: missing
+  hold -1: missing
+  hold +1: missing
+
+==============================================================================================================
+OVERALL (PREREG rules): B-GENUINE NOT SUPPORTED (M2.3 NOT SUPPORTED, M2.1 UNTESTABLE);  B-APPARENT NOT SUPPORTED (M4.3 NOT SUPPORTED, M3.1 NOT SUPPORTED)
+written analysis_rollouts.json

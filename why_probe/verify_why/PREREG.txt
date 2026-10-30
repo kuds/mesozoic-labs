@@ -1,0 +1,129 @@
+VERIFY_WHY (independent verifier and adjudicator of the phase probe, lens A, and the termination probe, lens B):
+PRE-REGISTRATION.  Written 2026-10-30 (UTC) before any statistic of this role was computed: no re-derived number
+from the probes' recorded rollouts, no confound statistic, and no fresh rollout of mine exists yet.  Never edited after
+its sha256 is recorded (PREREG.sha256, NOTES.txt).  Later ideas go in NOTES.txt POSTHOC, labelled post hoc.
+
+WHAT I HAVE ALREADY SEEN (so these are not blind predictions): both probes' PREREG.txt, NOTES.txt and returned
+summaries; phase_probe/analysis.txt (every pre-registered number per checkpoint, incl. beta_G_rest); termination_probe/
+analysis_rollouts.txt (items 1-5).  The phase probe's POST HOC cross-joint correlations (+0.58 P2, +0.88 C11a, +0.93
+C11E, +0.41 C31a, +0.71 C31E, its own definition) are known to me.  I have NOT seen: anything restricted to steps
+>= 400 for the tail-height relation (K1b), the settled-width reference (K2), the deterministic policy's creep (K3),
+the stationary-reward counterfactual (K5), LSTD fixed points (K7), or any fresh rollout.
+
+NOTATION (as the phase probe's PREREG where re-deriving).  gamma 0.98.  sigma_r = sqrt(ret_rms.var + eps) of the pair.
+r~ = clip(r_raw / sigma_r, -50, 50).  G_k = sum_{j=k}^{T-1} gamma^(j-k) r~_j + [time-limit truncation] gamma^(T-k)
+V(s_T) (no bootstrap after a termination).  Bins B0 [0,50), B1 [50,200), B2 [200,400), B3 [400,1000) of the step index
+k (steps taken before the state).  Settled S = 1[k >= 200].  Ramp R(k) = gamma^max(0, 200-k).  q3 = raw obs[6] in
+degrees.  Z = the normalised observation fed to the networks, constant columns (SD < 1e-6) dropped.  Linear models
+(OLS with intercept, all states): M0 y ~ Z; M2 y ~ Z + D0 + D1 + D2 + R(k); W3 y ~ Z on B3 states.  beta_y,m = the
+z6 coefficient converted per degree (b x (pi/180) / sqrt(var6 + eps)).  dS = mean over episodes of (mean q3 over
+[200,1000) - mean q3 over [50,200)).  AUC_q3 = P(q3 of a random settled state > q3 of a random B1 state).
+c_B1 = the D1 coefficient of G in M1 (Z + D0 + D1 + D2).  D_err = mean over episodes of (mean (V - G) over B1 - mean
+(V - G) over B2 and B3).  Critic FD slope = (V(q3 + 0.25 deg) - V(q3 - 0.25 deg)) / 0.5 deg, raw angle perturbed then
+normalised with the frozen statistics, effective critic.  Gated terms = reward_stance_width + reward_lateral_lean +
+reward_stance_stagger + reward_stance_cop_band (as paid, raw).  G_gate = their discounted return-to-go / sigma_r
+(no bootstrap); G_rest = G - G_gate.  Clustered bootstrap: resample episodes with replacement, percentile 95%.
+PS = {P2, C11a, C11E, C31a, C31E} (the phase probe's set).  NB6 = the termination probe's six non-blind conditions.
+
+====================================================================================================================
+PART R.  RE-DERIVATION FROM THE PROBES' RECORDED ROLLOUTS, WITH MY OWN CODE (vw_redo.py)
+====================================================================================================================
+R1 Normalisation used for the critic: for every recorded state of the phase probe, |norm_obs - clip((raw - mean) /
+   sqrt(var + eps), -10, 10)| <= 1e-4 with mean/var/eps loaded by me from the pair's pkl (not from the probe's meta);
+   r_norm = clip(r_raw / sigma_r, +-50) to 1e-9 relative.  The termination probe's sub_z (float16) to 2e-2.
+R2 Network read-back: on 4,000 random states per phase-probe checkpoint, V recomputed by me from the zip's policy at
+   the recorded norm_obs within 1e-4 of the recorded V; my own FD slope (raw +-0.25 deg, renormalised) within 2e-4 per
+   degree of the recorded fd_slope.  Termination probe: the same on 2,000 states per condition (sub_z, all_dV3), 2e-3
+   (float16 inputs).
+R3 Returns-to-go: my G reproduces the phase probe's bin means of G (analysis.txt) within 0.002, and SB3's own
+   rollout buffer in my fresh runs (Part F): the buffer's rewards at a truncation equal r~ + gamma V(s_T) within 1e-5,
+   and my G equals the discounted sum over the buffer's rewards within 1e-5.
+R4 Point estimates of the phase probe at P1, P2, C11a, C11E, C31a, C31E, B11E within: dS 0.005 deg; AUC_q3 0.002;
+   B_bar 2e-5; c_B1 0.002; D_err 0.002; beta_G,M0, beta_G,M2, beta_G,W3, beta_G_rest,M0 0.002 per degree; critic FD
+   mean over all states and over B3 0.0005.
+R5 Interval conclusions (300 episode resamples, numpy default_rng(30101030)) at the 5 PS checkpoints for dS, c_B1,
+   D_err, beta_G,M0 - beta_G,M2, FD_B3 - beta_G,W3: the verdict-relevant conditions (CI excludes 0, sign, size bars of
+   the phase PREREG) agree with the phase probe's verdict file at every PS checkpoint.
+R6 Termination probe: (a) end reasons per condition from runs/*.episodes.jsonl, exact; (b) the parent's training
+   records (F2 train_episodes.csv.copy1), rows 1,048,576 < timesteps <= 3,538,944: 2,495 episodes, 0 tail_contact,
+   5 fallen, exact; BS2's 8 runs' 01_stance/train_episodes.csv, 2,097,152 < timesteps <= 3,538,944: 11,522, 1, 1,
+   exact; (c) pooled critic slope over NB6 states t <= 800 within 0.0002 of +0.03036; C_c within 0.01; F_bound within
+   0.002 of 0.0706; (d) M3.1 Spearman(s, tip) per condition within 0.01; (e) M4.3 v_j, R31, R32 within 2% relative.
+RULE: a miss beyond tolerance is a DISCREPANCY (reported, minor).  It is BLOCKING only if it reverses a pre-registered
+verdict of either probe, flips the sign of a headline number, or moves a headline number by more than 10% relative.
+
+====================================================================================================================
+PART F.  FRESH ROLLOUTS OF MY OWN (vw_roll.py; read only checkpoints; no optimizer; <= 2 processes at nice 10)
+====================================================================================================================
+Build (BS2 reader's on-policy build, read_bs.onpolicy_states): the code copy's stance config, create_vec_env 4 envs
+(DummyVecEnv + Monitor), VecNormalize.load of the pair with training False and norm_reward True, load_sb3_model with the
+stage's [ppo] kwargs, enable_mirror_kl.  STOCHASTIC runs use SB3's OWN model.collect_rollouts (sampled actions, clipped,
+the truncation bootstrap, GAE 0.98 / 0.95 computed by SB3 into the rollout buffer), 6 calls of 2,048 steps x 4 envs
+after one _setup_learn; only complete episodes are analysed.  The DETERMINISTIC run uses my own loop on the same build
+with the Gaussian mean, clipped.
+  FR1  C11E = BS2 control_2511 stage1_final.zip + stage1_final_vecnorm.pkl (sha256 9f5871a0..., acb2d6df...),
+       stochastic, seed 8810 (envs 8810 + rank, torch and numpy 8810).  Expect 48 complete episodes.
+  FR2  C11E deterministic, seed 8820, 6 episodes per env (24).
+  FR3  P2 = parent s42 2,097,152 (F2 copies, sha256 83b6c88e..., 991d434f...), stochastic, seed 8830 (48 episodes).
+Recorded per decision state: env, k, raw and normalised observation, sampled and clipped action, V (SB3's values),
+r~ (before the bootstrap) and raw reward, the reward terms named reward_* that matter here (the 4 gated terms,
+reward_tail_home_pose, reward_total), lateral_lean_quality, stance_stagger_quality, stance_cop_band_quality,
+r/l_foot_terms_supported, stance_width, stance_width_target, termination reason, TimeLimit.truncated, V(terminal
+observation) at a truncation (as SB3 computes it), tail_tip site z, the lowest point of the tail_3/4/5 geoms (capsule
+formula), pelvis z.  Per rollout: SB3's buffer rewards, values, returns, advantages, episode_starts.
+PREDICTIONS (each at FR1 and FR3; FR3's AUC bar is 0.55 instead of 0.85):
+  F1 dS > 0 with CI excluding 0, and AUC_q3 >= 0.85.
+  F2 c_B1 < 0 with CI excluding 0 and |c_B1| >= 0.05.
+  F3 D_err > 0 with CI excluding 0.
+  F4 beta_G,M0 > 0 with CI excluding 0, and beta_G,M2 <= 0.5 beta_G,M0.
+  F5 critic FD slope over B3 > 0, beta_G,W3's CI includes 0 or lies below 0, and the CI of (FD_B3 - beta_G,W3) > 0.
+  F6 0 tail_contact endings in the stochastic episodes (any early end <= 1 per run).
+  RULE: the fresh replication of A HOLDS at a checkpoint iff F1-F5 all hold there.
+
+====================================================================================================================
+PART K.  CONFOUNDS (new statistics; prediction and rule each)
+====================================================================================================================
+K1 PHASE x TAIL HEIGHT (termination probe's runs, NB6).  K1a (report): Spearman(tip, t) over all states and AUC of tip
+   (settled vs B1).  K1b: the termination probe's M3.1 restricted to B3 states (t >= 400), Spearman(s, tip) per
+   condition.  RULE: if rho <= -0.10 in >= 4 of 6, its M3.1 NOT SUPPORTED is phase-confounded and the B-apparent leg is
+   reported unresolved.  My prediction: rho <= -0.10 in <= 3 of 6.  K1c (report): mean s by tip quintile within B3.
+K2 SETTLED-WIDTH REFERENCE (captured at step 200; phase probe's PS rollouts and FR1, FR3).  K2a (report): SD across
+   episodes of stance_width_target and of the B3-mean reward_stance_width (raw).  K2b: Pearson r across episodes between
+   q3 mean over k in [190, 210) and the episode's B3-mean reward_stance_width (report); W3 regression of G_width (the
+   stance-width term's discounted return-to-go / sigma_r, no bootstrap) on Z within B3: tail coefficient per degree.
+   PREDICTION: |beta_G_width,W3| <= 0.005 per degree at each PS checkpoint and <= 20% of the critic's FD_B3 at C11a,
+   C11E, C31a, C31E.  RULE: failure at >= 2 of 5 PS = the width reference is a material hidden variable (co-cause).
+K3 STOCHASTIC vs DETERMINISTIC (FR2).  PREDICTION: deterministic dS > 0 with CI excluding 0 and AUC_q3 >= 0.75.  If it
+   fails, the clock depends on the sampling noise (report; A's mechanism then needs the stochastic policy).
+K4 FEW TERMINATION EVENTS: R6 plus the bound recomputed with the parent's training-record rate (CP upper of 0 /
+   2,495 tail_contact) in place of the rollout rate (report).  Expectation: F_bound <= 0.07.
+K5 STATIONARY-REWARD COUNTERFACTUAL (FR1, FR3).  r_stat = r_raw - (gated terms as paid) + 0.25 lateral_lean_quality x
+   1[both feet supported] - 0.30 (1 - stance_stagger_quality) - 0.30 (1 - stance_cop_band_quality) at EVERY step (the
+   weights read from the env instance; the stance width term dropped); G_stat its return-to-go (same truncation
+   bootstrap with the critic's V(s_T)).  Validation first: for k > 200 the reconstructed lean/stagger/CoP terms equal
+   the paid ones within 1e-6 at >= 99.9% of states (else K5 is not computed).  PREDICTION: beta_G_stat,M0 <= 0.25
+   beta_G,M0 (or its CI includes 0) at FR1; beta_G_gate,M0 >= 0.75 beta_G,M0 at FR1.  Also re-derive (R4)
+   beta_G_rest,M0 at PS: |beta_G_rest,M0| <= 0.25 beta_G,M0 at >= 4 of 5 (already seen; a check, not a test).
+K6 CROSS-JOINT SIGNATURE (A predicts it for every joint; B for none but the tail).  For each of the 21 joint-angle
+   inputs j (obs 0-20): c_j = mean over states of the critic's autograd dV/dz_j (normalised units, effective critic);
+   b_j = (z_j coefficient of G in M0) - (in M2), normalised units.  r6 = Pearson r(c, b) over the 21 joints.
+   PREDICTION: r6 >= 0.4 at >= 4 of the 5 PS checkpoints, and >= 0.4 at FR1.  RULE: K6 SUPPORTED iff the PS part holds.
+   Secondary (report): the same without obs 6.
+K7 TD(lambda) LINEAR FIXED POINT (the critic's own estimator; PS rollouts and FR1, FR3).  LSTD(0.95), gamma 0.98,
+   features [1, Z] (phase-blind) and [1, Z, D0, D1, D2, R(k)] (phase-aware); at a truncation the reward becomes
+   r~ + gamma V_critic(s_T) and the transition is terminal (SB3's form); traces reset at episode starts.  w =
+   A^-1 b with A = sum e_t (phi_t - gamma phi_{t+1})', b = sum e_t r_t.  Tail coefficient per degree; 200 episode
+   resamples.  PREDICTION: phase-blind > 0 with CI excluding 0 at >= 4 of 5 PS; phase-aware <= 0.5 x phase-blind at
+   >= 4 of 5 PS.
+
+====================================================================================================================
+ADJUDICATION (decided by the rules above; written before the numbers)
+====================================================================================================================
+A favoured STRONGLY iff: Part R has no blocking discrepancy in A's headline numbers; the FR1 replication HOLDS; K6
+  SUPPORTED; K2 not material; K3 holds.  MODERATELY iff Part R is clean and FR1 holds but one of K6, K2, K3 fails.
+  WEAKLY / NOT if FR1 fails.
+B (termination risk) DISFAVOURED iff Part R confirms 0 tail_contact in the climb era (rollouts and records), F_bound
+  < 0.5, and K1b does not flip.  B a CO-CAUSE only if K1b flips, or a fresh stochastic run has >= 2 tail_contact
+  endings, or the bound with records reaches 0.5.
+BOTH iff A is favoured and B is a co-cause.  NEITHER iff FR1 fails and B is disfavoured.
+The implication for a fix and the cheapest decisive next test are [inferred] from the adjudication, not tested here.

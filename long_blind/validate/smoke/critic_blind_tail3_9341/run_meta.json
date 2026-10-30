@@ -1,0 +1,251 @@
+{
+ "schema": "bs-run/2",
+ "version": "run_bs 2.0 (2026-10-30; long blind study, s42 2,097,152 -> 12,001,280, resume; derived from run_bs 1.1)",
+ "name": "critic_blind_tail3_9341",
+ "mode": "save_loaded_only",
+ "status": "done",
+ "exit": 0,
+ "utc_start": "2026-10-30T16:59:04Z",
+ "argv": [
+  "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/long_blind/tools/run_bs.py",
+  "--arm",
+  "critic_blind_tail3",
+  "--seed",
+  "9341",
+  "--save-loaded-only",
+  "--out",
+  "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/long_blind/validate/smoke"
+ ],
+ "arm": "critic_blind_tail3",
+ "seed": 9341,
+ "S": 2097152,
+ "E": 12001280,
+ "target": 2097152,
+ "T": 2097152,
+ "stop_reason": null,
+ "run_id_parent": "stance6_r10LTSB_s42",
+ "code": {
+  "dir": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen/code",
+  "commit": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d",
+  "tree_digest": "331fe8fc3f6bdf73acc0d3cc324dd753d9d9d695d7ce914e4e011d5c6437ebf1",
+  "files": 1406
+ },
+ "stack": {
+  "python": "3.13.17",
+  "torch": "2.13.0+cpu",
+  "numpy": "2.5.4",
+  "gymnasium": "1.4.0",
+  "stable_baselines3": "2.9.0",
+  "mujoco": "3.10.0"
+ },
+ "environment": {
+  "OMP_NUM_THREADS": "1",
+  "MKL_NUM_THREADS": "1",
+  "OPENBLAS_NUM_THREADS": "1",
+  "TMPDIR": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/long_blind/tmp/save_loaded_only_critic_blind_tail3_9341",
+  "MPLCONFIGDIR": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/long_blind/tmp/save_loaded_only_critic_blind_tail3_9341/mpl",
+  "GITHUB_SHA": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d",
+  "GIT_CEILING_DIRECTORIES": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/long_blind:/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen"
+ },
+ "criteria_sha256": null,
+ "approved_sha256": null,
+ "screen_sha256": null,
+ "tool_sha256": {
+  "run_bs.py": "cc256fa6762689950e2c4b496d375822c27ea37b4e1549a23b2a38389c3333b9",
+  "read_bs.py": "3b0bada605c0129c0a9781fda6473290ffb6ad79d357c16d10bf396f9e73605c",
+  "run_waves_bs.sh": "53f80e7a4b708f3b16fb11f78b93eeb3a430be066123e00b8be98e94919fc661",
+  "bs_common.py": "022bc97ccc3e540e113cf86fbdb42ff018bec152cd8c10b379b306be0ace6e9d",
+  "bs_hooks.py": "1ff4c8be048297270eea14a24fe59336020e20fbd4aca7c38f5b881b33eef9fc",
+  "bs_resume.py": "08e2cc550af50cf3b9a2829d2b0552b09721f5d44374ca052cbc430f297781ba"
+ },
+ "arm_change": "the value path only: the policy's mlp_extractor gets a forward_critic that replaces the NORMALISED observation index 6 (tail_3 pitch angle) by 0.0 before the value MLP; ActorCriticPolicy.forward, evaluate_actions and predict_values (and MirrorKLPPO's mirrored-critic loss, which calls predict_values) all reach the value MLP through it; the actor's inputs, every parameter, its shape and the optimizer are unchanged (a class swap on the mlp_extractor instance, so the state_dict and the saved zip are stock)",
+ "arm_ppo": "unchanged",
+ "ppo_applied": {
+  "gae_lambda": 0.95,
+  "gamma": 0.98,
+  "ent_coef": 0.005,
+  "ent_coef_end": 0.0,
+  "ent_coef_decay_timesteps": 7000000
+ },
+ "arm_applied": {
+  "arm": "critic_blind_tail3",
+  "policy_class": "ActorCriticPolicy",
+  "mlp_extractor_class_before": "MlpExtractor",
+  "obs_rms_class_before": "SymmetricRunningMeanStd",
+  "gae_lambda": 0.95,
+  "rollout_buffer_gae_lambda": 0.95,
+  "blind_index": 6,
+  "mirror_obs_perm_6": 6,
+  "mirror_obs_sign_6": 1.0,
+  "mlp_extractor_class": "CriticBlindTail3MlpExtractor",
+  "obs_rms_class": "SymmetricRunningMeanStd"
+ },
+ "arm_evidence": null,
+ "attempt": 1,
+ "attempts": [],
+ "resumed_from": null,
+ "load_step": 2097152,
+ "resume": null,
+ "copies": {
+  "stage1_2097152_steps.zip": {
+   "from": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/models/stage1_2097152_steps.zip.copy1",
+   "path": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/long_blind/validate/smoke/critic_blind_tail3_9341/01_stance/models/stage1_2097152_steps.zip",
+   "sha256": "83b6c88edb933005adcb2089bdac67654f4e77809ca5506f4e47364995ef1b61"
+  },
+  "stage1_vecnormalize_2097152_steps.pkl": {
+   "from": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/models/stage1_vecnormalize_2097152_steps.pkl.copy1",
+   "path": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/long_blind/validate/smoke/critic_blind_tail3_9341/01_stance/models/stage1_vecnormalize_2097152_steps.pkl",
+   "sha256": "991d434f385187e87301755ddf9a12fe2b3adb65cf186e7e32b175b3574bed90"
+  },
+  "eval_episodes.csv": {
+   "from": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/eval_episodes.csv.copy1",
+   "path": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/long_blind/validate/smoke/critic_blind_tail3_9341/01_stance/eval_episodes.csv",
+   "sha256": "d1bcb78964691cf194e6276f06740d1f24aa69ad36831a046ad6307c1c4db11e"
+  },
+  "evaluations.npz": {
+   "from": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/evaluations.npz.copy1",
+   "path": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/long_blind/validate/smoke/critic_blind_tail3_9341/01_stance/evaluations.npz",
+   "sha256": "3e11136120622b90cc63203c46332004a9989188a0b8fe91620dbabb9f2563e9"
+  },
+  "gate_progress.npz": {
+   "from": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/gate_progress.npz.copy1",
+   "path": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/long_blind/validate/smoke/critic_blind_tail3_9341/01_stance/gate_progress.npz",
+   "sha256": "4097099b6880fa234a38e1b43819a21a8531f39ca0aa1daefaaeeb35a06c5a0e"
+  },
+  "train_episodes.csv": {
+   "from": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/train_episodes.csv.copy1",
+   "path": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/long_blind/validate/smoke/critic_blind_tail3_9341/01_stance/train_episodes.csv",
+   "sha256": "14b2f9e49b67e9c90cc79362f740e1768de5a2d159035176d5299b9c476d851d"
+  },
+  "policy_probe.npz": {
+   "from": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/policy_probe.npz.copy1",
+   "path": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/long_blind/validate/smoke/critic_blind_tail3_9341/01_stance/policy_probe.npz",
+   "sha256": "4e0e7220668faf124d394bffb760ba246d54bed8f48cb79925cb36234257fc11"
+  }
+ },
+ "start_pair": {
+  "zip": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/long_blind/validate/smoke/critic_blind_tail3_9341/01_stance/models/stage1_2097152_steps.zip",
+  "zip_sha256": "83b6c88edb933005adcb2089bdac67654f4e77809ca5506f4e47364995ef1b61",
+  "pkl": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/long_blind/validate/smoke/critic_blind_tail3_9341/01_stance/models/stage1_vecnormalize_2097152_steps.pkl",
+  "pkl_sha256": "991d434f385187e87301755ddf9a12fe2b3adb65cf186e7e32b175b3574bed90"
+ },
+ "load_pair": {
+  "zip": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/long_blind/validate/smoke/critic_blind_tail3_9341/01_stance/models/stage1_2097152_steps.zip",
+  "zip_sha256": "83b6c88edb933005adcb2089bdac67654f4e77809ca5506f4e47364995ef1b61",
+  "pkl": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/long_blind/validate/smoke/critic_blind_tail3_9341/01_stance/models/stage1_vecnormalize_2097152_steps.pkl",
+  "pkl_sha256": "991d434f385187e87301755ddf9a12fe2b3adb65cf186e7e32b175b3574bed90"
+ },
+ "parent_records": {
+  "eval_episodes.csv": "d1bcb78964691cf194e6276f06740d1f24aa69ad36831a046ad6307c1c4db11e",
+  "evaluations.npz": "3e11136120622b90cc63203c46332004a9989188a0b8fe91620dbabb9f2563e9",
+  "gate_progress.npz": "4097099b6880fa234a38e1b43819a21a8531f39ca0aa1daefaaeeb35a06c5a0e",
+  "train_episodes.csv": "14b2f9e49b67e9c90cc79362f740e1768de5a2d159035176d5299b9c476d851d",
+  "policy_probe.npz": "4e0e7220668faf124d394bffb760ba246d54bed8f48cb79925cb36234257fc11"
+ },
+ "modules_root": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen/code/environments/__init__.py",
+ "recipe_v5": {
+  "problems": [],
+  "recomputed_hyperparameters_sha256": {
+   "control": "sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c",
+   "critic_blind_tail3": "sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c",
+   "gae_lambda_1": "sha256:a9a3e2d5da8910e78c20e2f192e86c59dac5fd705634d420942c85fbe4270695",
+   "frozen_obs_norm": "sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c"
+  },
+  "stage_config_sha256": "f2e688c6814467ead70583d7795fb066b759cd5905af6a75c35eadd1e69ca94e"
+ },
+ "v1": {
+  "start_zip": {
+   "params": "sha256:a1780f451b6823d9e0faa1014d42ee76654c22e69769ce997a40b1a5c32c28d7",
+   "adam": "sha256:84d110d9a8136efc4548bfd38bb91a7af2aaf6076519dce6ec5b5d2c7662b27c"
+  },
+  "saved_zip": {
+   "params": "sha256:a1780f451b6823d9e0faa1014d42ee76654c22e69769ce997a40b1a5c32c28d7",
+   "adam": "sha256:84d110d9a8136efc4548bfd38bb91a7af2aaf6076519dce6ec5b5d2c7662b27c"
+  },
+  "loaded": {
+   "params": "sha256:a1780f451b6823d9e0faa1014d42ee76654c22e69769ce997a40b1a5c32c28d7",
+   "adam": "sha256:84d110d9a8136efc4548bfd38bb91a7af2aaf6076519dce6ec5b5d2c7662b27c"
+  },
+  "start_pkl_vecnormalize": "sha256:585c4d7de6fe92de5f38900e03a87332319457d3aa13a27f5ed32706737345dd",
+  "saved_pkl_vecnormalize": "sha256:585c4d7de6fe92de5f38900e03a87332319457d3aa13a27f5ed32706737345dd",
+  "loaded_vecnormalize": "sha256:585c4d7de6fe92de5f38900e03a87332319457d3aa13a27f5ed32706737345dd",
+  "saved": [
+   "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/long_blind/validate/smoke/critic_blind_tail3_9341/saved/stage1_2097152_steps.zip",
+   "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/long_blind/validate/smoke/critic_blind_tail3_9341/saved/stage1_vecnormalize_2097152_steps.pkl"
+  ],
+  "saved_pkl_rms_classes": {
+   "obs_rms": "RunningMeanStd",
+   "ret_rms": "RunningMeanStd"
+  },
+  "num_timesteps_loaded": 2097152,
+  "saved_sha256": {
+   "stage1_2097152_steps.zip": "00584808f9b479060cfa4294acad1ced0ece87a402e623f2178de7d882ff2a3c",
+   "stage1_vecnormalize_2097152_steps.pkl": "67bb144648eb5b1a77a4e92a72cc209e1f622424aaccb0b1bdb7110e50dafcaa"
+  },
+  "start_zip_sha256": "83b6c88edb933005adcb2089bdac67654f4e77809ca5506f4e47364995ef1b61",
+  "bank": {
+   "probe_row": 255,
+   "labels_statue_settled": [
+    "statue_settled",
+    "statue_settled"
+   ],
+   "tail3_statue_settled": [
+    0.0975351482629776,
+    0.17029765248298645
+   ],
+   "tail3_statue_settled_probe": [
+    0.0975351482629776,
+    0.17029765248298645
+   ],
+   "max_abs_diff_tail3_statue_settled": 0.0,
+   "max_abs_diff_all_actions_bank": 8.940696716308594e-08,
+   "max_abs_diff_value_bank": 0.019623279571533203,
+   "value_bank": [
+    4.697906494140625,
+    4.752907752990723,
+    4.29136323928833,
+    4.3228759765625,
+    -0.2898288369178772,
+    4.547436714172363,
+    4.698820114135742,
+    4.443641662597656,
+    4.48666524887085,
+    2.7251784801483154
+   ],
+   "value_bank_probe": [
+    4.695233345031738,
+    4.749807834625244,
+    4.285161972045898,
+    4.322246551513672,
+    -0.291090190410614,
+    4.52781343460083,
+    4.690802574157715,
+    4.445267200469971,
+    4.486408233642578,
+    2.720397710800171
+   ]
+  },
+  "params_equal": true,
+  "adam_equal": true,
+  "vecnormalize_equal": true,
+  "num_timesteps_S": true,
+  "saved_pkl_stock_classes": true,
+  "bank_tail3_equal": true
+ },
+ "ent_coef_after_load": 0.005,
+ "gae_lambda_after_load": 0.95,
+ "torch_threads": 1,
+ "torch_interop_threads": 4,
+ "digest_start": {
+  "params": "sha256:a1780f451b6823d9e0faa1014d42ee76654c22e69769ce997a40b1a5c32c28d7",
+  "adam": "sha256:84d110d9a8136efc4548bfd38bb91a7af2aaf6076519dce6ec5b5d2c7662b27c",
+  "vecnormalize": "sha256:585c4d7de6fe92de5f38900e03a87332319457d3aa13a27f5ed32706737345dd",
+  "obs_rms": "sha256:ab9568d8ad8ac6647f5c76bd64f2361c16425cf0032dcf0a173a894d0f5174da",
+  "all": "sha256:e227dad47af4d241fcace428033777c32499331f054453a5cced8443fbcccd07",
+  "n_updates": 2471,
+  "num_timesteps": 2097152
+ },
+ "utc_end": "2026-10-30T16:59:11Z",
+ "wall_seconds": 6.5,
+ "code_seal_after": "unchanged"
+}

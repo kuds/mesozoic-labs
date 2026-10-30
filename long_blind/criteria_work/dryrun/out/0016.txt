@@ -1,0 +1,370 @@
+   296	def run_name(run_dir: Path) -> str:
+   297	    """The folder's name; for an F2 store's 'copies' folder, its parent's (the RUN_ID)."""
+   298	    return run_dir.parent.name if run_dir.name == "copies" else run_dir.name
+   299	
+   300	
+   301	def locate(run_dir: Path, rel: str, suffix: str = "") -> Path | None:
+   302	    p = run_dir / (rel + suffix)
+   303	    return p if p.is_file() else None
+   304	
+   305	
+   306	def need(run_dir: Path, rel: str, suffix: str) -> Path:
+   307	    p = locate(run_dir, rel, suffix)
+   308	    if p is None:
+   309	        raise Refusal(f"{run_dir}: {rel}{suffix} is missing")
+   310	    return p
+   311	
+   312	
+   313	def pair_rel(C, label) -> tuple[str, str]:
+   314	    return C.pair_paths("final" if label == "final" else int(label))
+   315	
+   316	
+   317	def blind_guard(run_dir: Path) -> dict:
+   318	    """BS2 read_bs.decided(): a RUN anywhere under LB is read only when every continuation queued in LB/SCREEN.json
+   319	    is decided (its LB/runs/<name>/check.json passed with mode "continuation", or it is in LB/lost.json).  A folder
+   320	    outside LB (the round's F2 copies, BS2's runs) is a validation input: no guard."""
+   321	    real = Path(os.path.realpath(run_dir))
+   322	    runs = Path(os.path.realpath(LB_RUNS))
+   323	    if Path(os.path.realpath(LB)) not in real.parents:
+   324	        return {"applies": False, "note": "outside LB: a validation input (no outcome-blind guard)"}
+   325	    try:
+   326	        screen = json.loads(Path(LB_SCREEN).read_text())
+   327	    except (OSError, ValueError) as exc:
+   328	        raise Refusal(f"outcome-blind guard: {LB_SCREEN} unreadable ({exc}); nothing read") from exc
+   329	    queue = screen.get("queue") if isinstance(screen, dict) else None
+   330	    if not isinstance(queue, list) or not queue:
+   331	        raise Refusal(f"outcome-blind guard: {LB_SCREEN} holds no queue; nothing read")
+   332	    lost = {}
+   333	    if Path(LB_LOST).exists():
+   334	        try:
+   335	            d = json.loads(Path(LB_LOST).read_text())
+   336	            lost = dict(d.get("lost") or {})
+   337	        except (OSError, ValueError, TypeError, AttributeError) as exc:
+   338	            raise Refusal(f"outcome-blind guard: {LB_LOST} unreadable ({exc})") from exc
+   339	    undecided = []
+   340	    for item in queue:
+   341	        name = f"{item[0]}_{int(item[1])}"
+   342	        if name in lost:
+   343	            continue
+   344	        try:
+   345	            c = json.loads((runs / name / CHECK_JSON).read_text())
+   346	        except (OSError, ValueError):
+   347	            undecided.append(name)
+   348	            continue
+   349	        if c.get("passed") is not True or c.get("mode") != "continuation":
+   350	            undecided.append(name)
+   351	    if undecided:
+   352	        raise Refusal(f"outcome-blind guard: {len(undecided)} queued continuation(s) not decided "
+   353	                      f"({', '.join(undecided)}); nothing read")
+   354	    return {"applies": True, "queue": queue, "lost": sorted(lost), "screen_sha256": sha256_file(LB_SCREEN)}
+   355	
+   356	
+   357	def read_ending(C, run_dir: Path, suffix: str) -> dict:
+   358	    """C5's facts that apply to a continuation (lines 228-233)."""
+   359	    prog_p = need(run_dir, "01_stance/progress.json", suffix)
+   360	    prog = json.loads(prog_p.read_text())
+   361	    zip_p = need(run_dir, "01_stance/models/stage1_final.zip", suffix)
+   362	    nts, zprob = C.zip_num_timesteps(zip_p.read_bytes())
+   363	    meta_p = locate(run_dir, "run_meta.json", suffix)
+   364	    meta = json.loads(meta_p.read_text()) if meta_p else None
+   365	    hop = locate(run_dir, "01_stance/hop_watch.json", suffix)
+   366	    gv_p = locate(run_dir, "01_stance/gate_verdict.json", suffix)
+   367	    E = prog.get("timesteps") if prog.get("status") == "ended" and isinstance(prog.get("timesteps"), int) else None
+   368	    out = dict(progress_status=prog.get("status"), progress_timesteps=prog.get("timesteps"),
+   369	               progress_written_at=prog.get("written_at"), final_zip_num_timesteps=nts, zip_problem=zprob,
+   370	               run_meta_stop_reason=(meta or {}).get("stop_reason"), run_meta_status=(meta or {}).get("status"),
+   371	               run_meta_S=(meta or {}).get("S"), hop_watch_present=hop is not None,
+   372	               gate_verdict_present=gv_p is not None, E=E, clause=CLAUSES["C5"])
+   373	    if E is None:
+   374	        raise Refusal(f"{run_dir}: progress.json is not 'ended' with an integer timesteps ({prog.get('status')!r}, "
+   375	                      f"{prog.get('timesteps')!r}): not a finished run (C5)")
+   376	    if zprob or nts != E:
+   377	        raise Refusal(f"{run_dir}: stage1_final.zip records num_timesteps {nts!r} ({zprob}), progress.json ended at "
+   378	                      f"{E}: C5 fails")
+   379	    if E > FINAL:
+   380	        raise Refusal(f"{run_dir}: E = {E} beyond {FINAL}")
+   381	    # the trainer's own stops (line 232: only the collapse stop and the hop watch end train() early); LB's run_meta
+   382	    # names them "collapse" and "hop_watch" (LB/tools/bs_common.STOP_REASONS)
+   383	    own_stop = out["run_meta_stop_reason"] in ("collapse", "hop_watch") or out["hop_watch_present"]
+   384	    if E == FINAL:
+   385	        if meta is not None and out["run_meta_stop_reason"] not in (None, "end"):
+   386	            raise Refusal(f"{run_dir}: E = {FINAL} but run_meta stop_reason {out['run_meta_stop_reason']!r}")
+   387	        out["ending"] = "FINISHED"
+   388	    elif own_stop:
+   389	        out["ending"] = "STOPPED"
+   390	    else:
+   391	        raise Refusal(f"{run_dir}: ended at E = {E} < {FINAL} without the trainer's own stop (run_meta stop_reason "
+   392	                      f"{out['run_meta_stop_reason']!r}, hop_watch.json {'present' if hop else 'absent'}): neither "
+   393	                      "FINISHED nor STOPPED (C5); not classified")
+   394	    return out
+   395	
+   396	
+   397	# ------------------------------------------------------------------------------------------------------------ jobs
+   398	class Slots:
+   399	    """At most `slots` of this tool's measurements at once, and at most MACHINE_SIM_MAX simulation processes
+   400	    machine-wide (counted from /proc by SIM_MARKERS) when a job starts."""
+   401	
+   402	    def __init__(self, slots: int, log):
+   403	        self.slots = slots
+   404	        self.lock = threading.Lock()
+   405	        self.log = log
+   406	
+   407	    @staticmethod
+   408	    def machine_sims() -> int:
+   409	        """Python script processes machine-wide (any agent's), but this tool's own idle wrappers: every simulation
+   410	        or measurement script counts (a run_bs.py continuation or validation run, a probe, M1/M3's child tools)."""
+   411	        n = 0
+   412	        for d in Path("/proc").iterdir():
+   413	            if not d.name.isdigit():
+   414	                continue
+   415	            try:
+   416	                args = (d / "cmdline").read_bytes().decode("utf-8", "replace").split("\0")
+   417	            except OSError:
+   418	                continue
+   419	            if not args or not os.path.basename(args[0]).startswith("python"):
+   420	                continue
+   421	            script = next((a for a in args[1:] if a.endswith(".py")), None)
+   422	            if script is None or os.path.basename(script) in WRAPPERS:
+   423	                continue
+   424	            n += 1
+   425	        return n
+   426	
+   427	    def wait_machine(self, name):
+   428	        waited = 0
+   429	        while self.machine_sims() >= MACHINE_SIM_MAX:
+   430	            if waited % 300 == 0:
+   431	                self.log(f"{name}: {self.machine_sims()} simulation processes machine-wide (max {MACHINE_SIM_MAX}); "
+   432	                         "waiting")
+   433	            time.sleep(15)
+   434	            waited += 15
+   435	
+   436	
+   437	def run_job(job: dict, slots: Slots, log) -> dict:
+   438	    """One measure_r10round.py invocation; a crash (exit 3) is rerun once on the same files (lines 428-434)."""
+   439	    attempts = []
+   440	    for attempt in (1, 2):
+   441	        need_bytes = DISK_FLOOR + (M3_OUT_BYTES if job["kind"] == "m3" else M1_OUT_BYTES) + DISK_MARGIN
+   442	        fb = free_bytes(job["out"])
+   443	        if fb < need_bytes:
+   444	            res = dict(attempt=attempt, rc=None, refused_here=f"free {fb} bytes < floor + output + margin "
+   445	                       f"{need_bytes}: not launched (measure_r10round.py refuses below 3 GiB)")
+   446	            attempts.append(res)
+   447	            log(f"{job['name']}: {res['refused_here']}")
+   448	            return dict(job, attempts=attempts, outcome="NOT LAUNCHED (disk)")
+   449	        slots.wait_machine(job["name"])
+   450	        tmp = require_under(Path(WORK) / "tmp" / f"{job['run']}_{job['label']}_{job['kind']}")
+   451	        tmp.mkdir(parents=True, exist_ok=True)
+   452	        env = {k: v for k, v in os.environ.items() if not k.startswith("PYTHON")}
+   453	        env.update(OMP_NUM_THREADS="1", MKL_NUM_THREADS="1", OPENBLAS_NUM_THREADS="1", PYTHONDONTWRITEBYTECODE="1",
+   454	                   TMPDIR=str(tmp))
+   455	        logp = require_under(Path(job["logs"]) / f"{job['label']}_{job['kind']}.try{attempt}.log")
+   456	        logp.parent.mkdir(parents=True, exist_ok=True)
+   457	        cmd = ["nice", "-n", "10", PY, "-I", "-B", MEASURE_R10, job["kind"], "--copy", CODE, "--zip", job["zip"],
+   458	               "--pkl", job["pkl"], "--stage-config", job["stage_config"], "--out", job["out"],
+   459	               "--approved", ROUND_APPROVED]
+   460	        t0, u0 = time.monotonic(), utcnow()
+   461	        with open(logp, "w") as fh:
+   462	            fh.write(f"start {u0}\ncmd: {' '.join(cmd)}\n")
+   463	            fh.flush()
+   464	            p = subprocess.Popen(cmd, stdout=fh, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, cwd=str(tmp),
+   465	                                 env=env)
+   466	            _pid, status, ru = os.wait4(p.pid, 0)
+   467	            p.returncode = rc = os.waitstatus_to_exitcode(status)
+   468	            wall = time.monotonic() - t0
+   469	            fh.write(f"end {utcnow()} rc={rc} wall_s={wall:.1f} cpu_user_s={ru.ru_utime:.1f} "
+   470	                     f"cpu_sys_s={ru.ru_stime:.1f} maxrss_kb={ru.ru_maxrss}\n")
+   471	        res = dict(attempt=attempt, rc=rc, start=u0, end=utcnow(), wall_s=round(wall, 1),
+   472	                   cpu_user_s=round(ru.ru_utime, 1), cpu_sys_s=round(ru.ru_stime, 1),
+   473	                   cpu_s=round(ru.ru_utime + ru.ru_stime, 1), maxrss_kb=ru.ru_maxrss, log=str(logp))
+   474	        attempts.append(res)
+   475	        log(f"{job['name']}: rc {rc}, wall {wall:.0f} s, cpu {res['cpu_s']:.0f} s (attempt {attempt})")
+   476	        if rc == 3:
+   477	            continue                        # a crash: rerun once on the same files (the runner moves it aside)
+   478	        break
+   479	    rc = attempts[-1]["rc"]
+   480	    refused_file = Path(job["out"]) / f"{job['kind']}_refused.json"
+   481	    if rc == 0 and job["kind"] == "m1" and job.get("prune"):
+   482	        try:                                # free the disk at once (the floor is close): see prune_csvs
+   483	            rec = json.loads((Path(job["out"]) / "m1_summary.json").read_text())
+   484	            job = dict(job, pruned=prune_csvs(Path(job["out"]), rec))
+   485	        except (OSError, ValueError) as exc:
+   486	            job = dict(job, pruned=f"not pruned: {exc}")
+   487	    if rc == 0:
+   488	        outcome = "MEASURED"
+   489	    elif rc == 2 and refused_file.is_file():
+   490	        outcome = "REFUSED BY THE MEASURING TOOL (final)"
+   491	    elif rc == 3:
+   492	        outcome = "CRASHED TWICE"
+   493	    elif rc == 5:
+   494	        outcome = "REFUSED: DISK FLOOR"
+   495	    else:
+   496	        outcome = f"REFUSED BY THE RUNNER (rc {rc}; nothing measured)"
+   497	    return dict(job, attempts=attempts, outcome=outcome)
+   498	
+   499	
+   500	# ------------------------------------------------------------------------------------------------------------ readings
+   501	def window_reading(C, res: dict, S: int, E: int) -> dict:
+   502	    """Report only: M5's flags and alarms read in (S, E] (BS2 read_bs.m5_window's form): an alarm counts in the window
+   503	    when both its evaluations lie after S; an alarm whose first evaluation is at or before S straddles S."""
+   504	    def inwin(s):
+   505	        return S < s <= E
+   506	    return dict(S=S, E=E,
+   507	                any_flagged=[s for s in res["any_flagged"] if inwin(s)],
+   508	                tail_flagged=[s for s in res["tail_flagged"] if inwin(s)],
+   509	                any_alarms=[s for s in res["any_alarms"] if S < s - C.GRID and s <= E],
+   510	                tail_alarms=[s for s in res["tail_alarms"] if S < s - C.GRID and s <= E],
+   511	                needs_resolution=[s for s in res["needs_resolution"] if S < s - C.GRID and s <= E],
+   512	                straddling_S=sorted({s for s in res["any_alarms"] + res["tail_alarms"] if s - C.GRID <= S < s}),
+   513	                before_S=dict(any_flagged=[s for s in res["any_flagged"] if s <= S],
+   514	                              tail_flagged=[s for s in res["tail_flagged"] if s <= S],
+   515	                              over_bar_episodes=sum(e["any"] for s, e in res["evals"].items() if s <= S)))
+   516	
+   517	
+   518	def prefix_check(run_ledger: Path, parent_ledger: Path | None, S: int) -> dict:
+   519	    """Report only: the continuation ledger's rows at or before S equal the parent's rows at or before S (text).
+   520	    Default parent: s42's F2 ledger copy (sha256 checked)."""
+   521	    if not S:
+   522	        return {"checked": False, "note": "S = 0: no continuation prefix"}
+   523	    if parent_ledger is None:
+   524	        parent_ledger = Path(PARENT_LEDGER)
+   525	        if sha256_file(parent_ledger) != PARENT_LEDGER_SHA256:
+   526	            return {"checked": False, "note": f"{parent_ledger} is not at its sha256 {PARENT_LEDGER_SHA256}"}
+   527	
+   528	    def rows_upto(p):
+   529	        with open(p, newline="", encoding="utf-8") as fh:
+   530	            r = list(csv.reader(fh))
+   531	        ti = r[0].index("timesteps")
+   532	        return r[0], [x for x in r[1:] if x and float(x[ti]) <= S]
+   533	    h1, a = rows_upto(run_ledger)
+   534	    h2, b = rows_upto(parent_ledger)
+   535	    return {"checked": True, "parent_ledger": str(parent_ledger), "parent_sha256": sha256_file(parent_ledger),
+   536	            "header_equal": h1 == h2, "rows_run": len(a), "rows_parent": len(b), "rows_equal": a == b}
+   537	
+   538	
+   539	def _num(v):
+   540	    try:
+   541	        x = float(v)
+   542	    except (TypeError, ValueError):
+   543	        return None
+   544	    return x if math.isfinite(x) else None
+   545	
+   546	
+   547	def habit_summary(C, header, rows, res, classes, m1_records: dict, probe: Path | None, S: int, E: int,
+   548	                  js: list, r1, traced: list | None = None) -> dict:
+   549	    """Report only: per actuator (all 15), the ledger's over-bar episodes by named actuator and sign (D-1, lines
+   550	    336-339; the sign is M5 (b)'s saturated_actuator_positive_share >= 0.5 rule, applied to every actuator), the ANY
+   551	    ALARMs naming it (classes_of's any_alarms), its own alarm series (the ANY ALARM rule of lines 169-170 restricted to
+   552	    the episodes naming it), M1's window-mean command (cmd_all_actuators) and full-horizon over-BAR episodes with sign
+   553	    at every traced checkpoint (lane A's m1_summary.json), and the probe's on-policy mean command (rollout_mu_mean over
+   554	    the last 8 updates before E, BS2's primary form).  HABIT SITES: the round's own thresholds applied to each
+   555	    actuator (never a class): L = an own alarm; T = >= 2 full-horizon episodes over the BAR in one sign at one traced
+   556	    checkpoint (TRACE RAIL's first clause); D = |CMD| >= 0.60 in one sign at >= 2 J checkpoints, or |mean of CMD(R1),
+   557	    CMD(R2)| >= 0.60 (PARKED's and DRIVEN's line)."""
+   558	    names = C.ACTUATOR_NAMES
+   559	    by = {}
+   560	    for r in rows:
+   561	        s = C.grid_step(r.get("timesteps"))
+   562	        if s is not None:
+   563	            by.setdefault(s, []).append(r)
+   564	    per = {n: {"over_by_eval": {}, "sign_by_eval": {}} for n in names}
+   565	    for s in sorted(by):
+   566	        for r in by[s]:
+   567	            x = C.decode_row(r, header)
+   568	            if not x["any_over"] or x["act"] is None:
+   569	                continue
+   570	            n = names[x["act"]]
+   571	            pos = _num(r.get("saturated_actuator_positive_share"))
+   572	            sg = "?" if pos is None else ("+" if pos >= 0.5 else "-")
+   573	            per[n]["over_by_eval"][s] = per[n]["over_by_eval"].get(s, 0) + 1
+   574	            d = per[n]["sign_by_eval"].setdefault(s, {})
+   575	            d[sg] = d.get(sg, 0) + 1
+   576	    labels = [str(x) for x in js] + ([str(r1)] if r1 else []) + ["final"] + [str(x) for x in (traced or [])]
+   577	    labels = sorted(set(labels), key=lambda x: (x == "final", int(x) if x != "final" else 0))
+   578	    jl = [str(x) for x in js] + ["final"]
+   579	    probe_d = {}
+   580	    if probe is not None:
+   581	        try:
+   582	            import numpy as np
+   583	            with np.load(probe, allow_pickle=False) as z:
+   584	                ut = z["update_timesteps"]
+   585	                mu = z["rollout_mu_mean"]
+   586	            idx = [i for i in range(len(ut)) if ut[i] < E]
+   587	            last = idx[-LAST_UPDATES:]
+   588	            for a, n in enumerate(names):
+   589	                w = {}
+   590	                for lo, hi in D1_WINDOWS:
+   591	                    sel = [i for i in idx if lo <= ut[i] < hi]
+   592	                    w[f"[{lo},{hi})"] = float(np.mean(mu[sel, a])) if sel else None
+   593	                cont = [i for i in idx if ut[i] > S] if S else []
+   594	                probe_d[n] = dict(last8_before_E=float(np.mean(mu[last, a])) if last else None,
+   595	                                  last8_rows=[int(ut[i]) for i in last], windows=w,
+   596	                                  after_S=float(np.mean(mu[cont, a])) if cont else None)
+   597	        except Exception as exc:  # noqa: BLE001 - report only
+   598	            probe_d = {"error": repr(exc)}
+   599	    out = {}
+   600	    for a, n in enumerate(names):
+   601	        d = per[n]
+   602	        ev = d["over_by_eval"]
+   603	        flagged = sorted(s for s, k in ev.items() if k >= 5)
+   604	        own_alarms = [s for s in flagged if s - C.GRID in flagged]
+   605	        any_named = [x["step"] for x in classes.get("any_alarms", []) if n in (x.get("actuators") or {})]
+   606	        any_sole = [x["step"] for x in classes.get("any_alarms", []) if set((x.get("actuators") or {})) == {n}]
+   607	        win = {}
+   608	        for lo, hi in D1_WINDOWS:
+   609	            win[f"[{lo},{hi})"] = sum(k for s, k in ev.items() if lo <= s < hi)
+   610	        signs = {}
+   611	        for _s, sd in d["sign_by_eval"].items():
+   612	            for k, v in sd.items():
+   613	                signs[k] = signs.get(k, 0) + v
+   614	        m1 = {}
+   615	        for lab in labels:
+   616	            rec = m1_records.get(lab)
+   617	            if not rec:
+   618	                continue
+   619	            cm = (rec.get("cmd_all_actuators") or {}).get(str(a))
+   620	            pos = neg = tie = 0
+   621	            for ep in rec.get("episodes", []):
+   622	                ae = (ep.get("actuators") or {}).get(n) or {}
+   623	                if ep.get("full_horizon") and ae.get("over_bar"):
+   624	                    sg = ae.get("sign")
+   625	                    pos += sg == "+"
+   626	                    neg += sg == "-"
+   627	                    tie += sg == "="
+   628	            fall = sum(1 for ep in rec.get("episodes", []) if not ep.get("full_horizon")
+   629	                       and ((ep.get("actuators") or {}).get(n) or {}).get("over_bar"))
+   630	            m1[lab] = dict(cmd=cm, over_bar_full_plus=pos, over_bar_full_minus=neg, over_bar_full_tie=tie,
+   631	                           over_bar_short=fall)
+   632	        sites = []
+   633	        if own_alarms:
+   634	            sites.append("L")
+   635	        if any((v["over_bar_full_plus"] + v["over_bar_full_tie"]) >= 2 or (v["over_bar_full_minus"] +
+   636	                                                                              v["over_bar_full_tie"]) >= 2
+   637	               for v in m1.values()):
+   638	            sites.append("T")
+   639	        drive = False
+   640	        for sg in (1, -1):
+   641	            hits = [lab for lab in jl if lab in m1 and m1[lab]["cmd"] is not None and sg * m1[lab]["cmd"] >= HABIT_LINE]
+   642	            x = m1.get(str(r1), {}).get("cmd") if r1 else None
+   643	            y = m1.get("final", {}).get("cmd")
+   644	            mean = (x + y) / 2 if (x is not None and y is not None) else (x if x is not None else y)
+   645	            if len(hits) >= 2 or (mean is not None and sg * mean >= HABIT_LINE):
+   646	                drive = True
+   647	        if drive:
+   648	            sites.append("D")
+   649	        span = sorted(set(ev) | {int(lab) if lab != "final" else E for lab, v in m1.items()
+   650	                                  if v["over_bar_full_plus"] + v["over_bar_full_minus"] + v["over_bar_full_tie"]})
+   651	        out[n] = dict(index=a, tail=a in C.TAIL, ledger_over_total=sum(ev.values()), ledger_over_signs=signs,
+   652	                      ledger_over_by_window=win,
+   653	                      ledger_over_after_S=sum(k for s, k in ev.items() if s > S) if S else None,
+   654	                      first_over=min(ev) if ev else None, last_over=max(ev) if ev else None,
+   655	                      flagged_evaluations=flagged, own_alarms=own_alarms, any_alarms_naming=any_named,
+   656	                      any_alarms_sole=any_sole, m1=m1, probe=probe_d.get(n) if isinstance(probe_d, dict) else None,
+   657	                      habit_sites=sites, active_span=[span[0], span[-1]] if span else None)
+   658	    sites = {n: v["habit_sites"] for n, v in out.items() if v["habit_sites"]}
+   659	    return dict(per_actuator=out, habit_sites=sites, labels=labels,
+   660	                probe_error=probe_d.get("error") if isinstance(probe_d, dict) else None,
+   661	                note="report only; HABIT SITES apply the round's own lines to each actuator and are never a class")
+   662	
+   663	
+   664	# ------------------------------------------------------------------------------------------------------------ one run
+   665	def prepare(C, LG, CP, run_dir: Path, suffix: str, out_root: Path, start: int | None) -> dict:

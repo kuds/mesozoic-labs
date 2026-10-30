@@ -1,0 +1,175 @@
+==================================================================================================================
+THE WINDOW (step 2; [measured] validate/logs/parent_schedule.out unless said)
+==================================================================================================================
+S = 2,097,152 (TASK2; FMAN lines 241 / 243 for the start pair).  E = 12,001,280: how a 12M run ends -- SB3's
+OnPolicyAlgorithm.learn collects whole rollouts of 8,192 while num_timesteps < _total_timesteps = 12,000,000, so the
+last rollout ends at 1,465 x 8,192 = 12,001,280 [code read: _train_stage_body, learn(total_timesteps, reset_num_timesteps
+= not resuming)]; the parent's final zip's data num_timesteps is 12,001,280 (_total_timesteps 12,000,000) and its
+probe's last update row is 12,001,280 (row 1,464 of 1,465), so E = both ("E_equals_both": true).
+LENGTH = E - S = 9,904,128; 1,209 rollouts; 1,208 update rows in (S, E) (S + 8,192 ... 11,993,088); 75 evaluations
+in (S, E] (2,228,224 ... 11,927,552; E is off the 131,072 grid by 73,728); saved pairs: 37 periodic (2,359,296 ...
+11,796,480, every 262,144 as the stage saves) and the final pair at E (stage1_final.zip / stage1_final_vecnorm.pkl:
+E is off the save grid by 204,800), 38 saved pairs (39 with the start copy).  MAX_LENGTH = LENGTH (AUTH2).
+The parent's records cover the whole window: probe rows (S, E] 1,209 of 1,209 (all spaced 8,192, unique; 256 rows
+<= S); evaluations.npz, gate_progress.npz and eval_episodes.csv: 75 of 75 window evaluations, 10 episodes each (91 in
+all, the last at 11,927,552); train_episodes.csv to 12,000,664.  So the parent's ledger and probe are a reference over
+the whole window (the reference read reads them over (S, E] as a run's).
+THE END CONVENTION [measured + code]: a continuation stops AT E by StopAtEnd (BS/BS2's rule, unchanged): its _on_step
+returns False at num_timesteps = E, so collect_rollouts returns before the rollout's on_rollout_end and SB3 makes no
+update on the rollout ending at E; the final pair is then the policy at rollout end E (as every periodic pair is the
+policy at its own rollout end, before that rollout's update).  The parent's SB3 loop made that last update (its probe
+row at E exists) and then saved its final pair: the parent's stage1_final is ONE update (of 1,465) later than the
+state a continuation's final pair is comparable to.  For the criteria and measurement lanes: the parent's state at E
+comparable to a continuation's final pair is the parent's probe row at E (bank actions before the update), not its
+stage1_final.zip.
+Seeds: VALIDATION_SEEDS (9301, 9311, 9321, 9331, 9341) (TASK3; BS used 9101-9141, BS2 9201-9241); SCREEN.json may not
+use them.  The reader's on-policy collection seeds read_bs.ONPOLICY_SEEDS (9301, 9302) are another use (state
+collection inside a read, never a run's seed); no folder or record can collide.
+Cap: MAX_CONTINUATIONS 4 (AUTH2: 4 runs); a SCREEN.json queue of 5 is refused (unit test).
+Disk: RUN_BYTES_EST 200 MiB from the measured 184.4 MiB per run (DISK below); LAUNCH_DISK_BYTES = 1.5 GiB + 4 x 200 MiB =
+2,449,473,536 B (2.28 GiB); DISK_FLOOR_BYTES 1.5 GiB (TASK) unchanged.
+
+==================================================================================================================
+THE PARENT'S SCHEDULE OVER THE WHOLE WINDOW (step 4; [measured] parent_schedule.out)
+==================================================================================================================
+On all 1,209 window rows (S, E] (and all 1,465 rows of the run) the probe's ent_coef equals, as float32 with 0.0 error,
+0.005 + min(1, t / 7,000,000) (0 - 0.005) (EntCoefDecayCallback, absolute steps; stance.toml ent_coef_decay_timesteps
+7,000,000) and learning_rate equals 1e-5 + (1 - t / 12,000,000)(3e-5 - 1e-5) (SB3's progress over _total_timesteps
+12,000,000).  ent_coef 0.0034962 -> 0 (0 on all 611 rows from 7,004,160 on); learning_rate 2.6491e-05 -> 9.9979e-06 at
+E (below 1e-5: progress past 12,000,000 on the last rollout).
+What the harness sets at every update row [code + measured]: the body gets total = 12,000,000 - L (L = S, or a
+resume's P) and SB3 adds num_timesteps (reset_num_timesteps False on a same-stage resume), so _total_timesteps =
+12,000,000 at every load (run_bs.loaded_problems refuses another value); ent_coef after the load is the config's 0.005
+and the callback recomputes it from absolute steps; so both columns are functions of num_timesteps alone and equal the
+parent's formulas at every row.  CHECK compares both columns with the parent's F2 probe at every update row of a run
+(float32 equality): measured equal on every row of the V2 runs and of the resumed V4 run (rows before and after its
+resume point) -- see V2, V4.
+n_updates (PPO epochs run; target_kl 0.03 stops some) at the parent's F2 pairs: 2,471 at S, 10,082 at 11,534,336,
+10,607 at E (final, after its last update): 6.73 epochs per update over the window (9.38 before S; 4.72-9.21 between
+F2 pairs).  BS2's continuations ran 7.35-7.99 per update over their window [TIMING].
+
+==================================================================================================================
+EARLY ENDS INSIDE THE WINDOW (step 4)
+==================================================================================================================
+Every way the code copy can end training early [measured: validate/stop_paths.py on BS/code, stop_paths.out]: of 24
+_on_step methods, 4 can return something other than True:
+  - StageAwareEvalCallback: SB3 EvalCallback's continue_training, False only through callback_on_new_best or a
+    callback after evaluation (SB3 callbacks.py l520-532); the stage builds it with callback_on_new_best =
+    SaveVecNormalizeCallback (its _on_step returns True) and no after-evaluation callback: cannot end training.
+  - CurriculumCallback (curriculum/advancement.py): only train_curriculum adds it; the harness calls
+    _train_stage_body with stage_callback = StopAtEnd: never in a continuation.  No stage advances.
+  - EvalCollapseEarlyStopCallback (the collapse backstop): CAN fire in the window (below).
+  - HopRegimeWatchCallback (the hop watch): CAN fire in the window (below).
+The in-training gate cannot pass: [curriculum] eval_episodes 10 < min_eval_episodes 40 (stance.toml lines 1018-1019
+and 737; train_base._eval_episodes_for_stage takes the declared 10), and nothing in this harness acts on a gate
+verdict (the post-stage report is train()'s, not _train_stage_body's).  The parent ran to E (FINISHED at 12,001,280).
+THE COLLAPSE BACKSTOP (curriculum/early_stopping.py l177-265; stance.toml: min_evals 20, patience 10, drop 0.5,
+smoothing 5, peak warm-up 1,000,000, floor 0.45 x 4,470.4 = 2,011.68): the evaluation count includes the 16 evaluations
+seeded at S, so the first counting evaluation is the 4th of the window (2,621,440); each later one is one patience
+observation (72 in the window); 10 consecutive evaluation means below 0.5 x the rolling-median peak (windows starting
+at or after 1,000,000; the parent's peak at S 4,474.5, already above the floor: armed at S) stop training; earliest
+possible stop 3,801,088 (the 13th window evaluation).  A resume restarts the patience counter (a new callback; the
+seeded history, not its count, carries over).  The parent's own window replayed as a continuation sees it: 72
+observations, 0 drops (never close).
+THE HOP WATCH (curriculum/hop_watch.py; stance.toml hop_watch_max_unsupported_duty 0.05, hop_watch_after_timesteps
+7,000,000, hop_watch_stop true): the first evaluation at or after 7,000,000 whose unsupported duty (gate_progress.npz) is
+above 0.05 ends training (and writes hop_watch.json).  First eligible evaluation 7,077,888; 38 eligible evaluations in
+the window.  The parent's duty there: max 0.0 (never near the bar).  BS / BS2 never met it (their windows ended at
+2.49M / 3.54M).  BS2's harness would have called such a stop "other" and CHECK would have failed it (VOID, a halted
+queue); LB records the hop watch's state in run_meta (hop_watch: found, tripped, stop, settings), stop_reason
+"hop_watch", CHECK accepts it (tripped, T an evaluation in [7,077,888, E), the collapse stop not tripped) and the
+runner decides it STOPPED, like a collapse.  How a hop-stopped run is read (the stance gate at the end) is the
+criteria lane's.
+
+==================================================================================================================
+RESUME (step 3)
+==================================================================================================================
+WHAT IS SAVED WHEN (code read): a periodic pair at P = S + 262,144 k is written by SB3's CheckpointCallback on the last
+step of the rollout ending at P, BEFORE that rollout's update (the probe's row at P, recorded at that rollout's end,
+describes the same policy).  The records reach the disk on their own clocks: eval_episodes.csv, evaluations.npz and
+gate_progress.npz at every evaluation (P is one, and the EvalCallback runs before the CheckpointCallback in the same
+step); arm_evidence.jsonl (this harness) at every rollout end; but policy_probe.npz and train_episodes.csv only on the
+checkpoint calls ("rewritten on the checkpoint cadence") and at training end, which a crash never reaches.  So at the
+save of P the probe file holds rows up to P - 8,192 only, and the newest pair of a killed attempt is complete only
+once a later checkpoint call has written its rows.
+THE RESUME POINT (bs_resume.resume_point): the newest saved pair P (S < P < E, on the 262,144 grid) of the attempt's
+folder such that (1) the pair passes the code's own curriculum.checkpoints.checkpoint_pair_problem (sidecar present;
+zip testzip; SB3's "data" and policy.pth in the outer archive; the pkl unpickles) and its data's num_timesteps is P;
+(2) every earlier saved pair is beside it (the reader reads them); (3) records_through: the probe holds exactly one row
+at every 8,192 up to P (the parent's 256 seeded rows and the window's), the evidence file's first (P - S)/8,192 lines
+are one per rollout end in order (a cut or unparsable line fails), the evaluation ledger holds exactly 10 rows at every
+131,072 up to P (no off-grid row, no (timesteps, episode) twice), evaluations.npz and gate_progress.npz one row at every
+131,072 up to P, and the training ledger holds an episode after P (so it was written after P and holds every episode
+that ended by P); (4) [version B] no record is still byte-equal to the copy the attempt started from when P is after
+the attempt's own load step (a never-rewritten record holds rows that are not the attempt's: the parent's, or the
+attempt before's).  Checked by content, never by timing.  Usually the second newest pair; none: a fresh start from S
+(BS2's rerun).  The start pair copy must be at its pinned sha256, else no resume at all.
+THE NEW ATTEMPT (run_bs.py --resume-from <runs>/<name>_crashed<k>; the runner passes its own retired folder): a fresh
+runs/<name>/ whose models/ holds hard links to the last attempt's start copy and saved pairs up to P (a copy where a
+link cannot be made; each sha256-checked; no extra disk), whose stage directory gets copies of the last attempt's five
+records, and whose arm_evidence.jsonl gets the last attempt's lines up to P byte for byte (the in-memory evidence list
+pre-filled from them, so the run_meta summary covers the whole window).  It loads P under the same arm (the hook
+re-installed after the load checks), the same seed and total = 12,000,000 - P: the code's own same-stage resume
+(seed_resume_eval_state, max_timesteps = P) keeps each record's rows up to P (the ledgers' kept cells as the text the
+file holds) and the session appends after P -- the mechanism that starts every continuation at S from the parent's
+records.  The load checks are the start's with P for S (num_timesteps P, the training env's statistics equal to P's
+pkl, ent_coef 0.005, gae_lambda the arm's); V5 compares stage_config.json with run.timesteps 12,000,000 - P and the P
+zip as the lineage.  The last attempt's folder is never changed.
+WHAT A RESUME CHANGES (the resumed run is NOT bitwise the uninterrupted one) [code read; measured in V4 (e)]:
+  - the work after P of the last attempt is discarded: the rollouts after P, and the update on the rollout ending at P
+    (its probe row at P stays in the stitched record, as the parent's row at S does for every continuation, but the
+    loaded parameters are the pair's, saved before it);
+  - the training envs are re-created and reset at P: the episodes running at P are cut (their training-ledger rows are
+    never written) and the envs restart their seeded streams (seed + rank, as at S: the first episodes after P start
+    from the same initial-state draws as the first episodes after S);
+  - the global torch / numpy generators are re-seeded at the load (SB3 set_random_seed(seed)): action sampling and the
+    minibatch order after P differ from the uninterrupted run's;
+  - the evaluation env is re-created (seed + 1000) and its stream restarts at P;
+  - the VecNormalize statistics are P's pkl (exact), then move with the new rollouts;
+  - the collapse backstop's patience counter and the hop watch's cursor restart at P (their history is seeded);
+  - diagnostics.npz (DiagnosticsCallback, not seeded by the code) covers (P, T] only; (S, crash] stays in the last
+    attempt's folder; progress.json is the new session's.
+  So a resumed run is a valid continuation of the same arm, seed and schedule with one discarded update and fresh draws
+  from P on, not a replay.
+HOW IT IS LABELLED: run_meta.json "resumed_from" (P; null for a run that never resumed), "load_step" (S or P),
+"attempt" (k), "attempts" (each earlier attempt's folder, status, exit, resumed_from, load_step, last_step, times;
+no outcome), "resume" (the candidates checked and why each newer one was refused, P, the pair's sha256, the links and
+copies, the seeded sha256, the stitched-row digests), "digest_start" (the S pair's), "digest_load" (P's);
+check.json "resumed_from" / "load_step"; markers.json "resumed_from" / "attempt"; the runner's log "start <name>
+(<name>.attempt<k>.log) --resume-from <name>_crashed<j>" and logs/crash_ledger.tsv.  Whether a resumed run counts as
+such, or is reported apart, is the criteria lane's.
+CHECK ON A STITCHED RUN (read_bs.check_run; every run): exactly one probe row per update step S + 8,192 k in (S, T),
+none at or after T; ent_coef and learning_rate equal to the parent's F2 probe at every one of them; one evidence line
+per rollout end; one evaluation of 10 episodes at every 131,072 up to T in the ledger (no (timesteps, episode) twice,
+no row off the grid or after T), evaluations.npz and gate_progress.npz one row each; for a resumed run also: the
+resume fields consistent (P on the grid inside (S, T), the crashed folder of the same run, the loaded pair = the
+resume point's, attempts), and bs_resume.stitch_digests recomputed on the finished files equal to those recorded from
+the last attempt at the resume (the probe's six CHECK columns, the evidence lines, both ledgers' rows in the last
+attempt's header order, evaluations.npz's timesteps / results / ep_lengths, gate_progress.npz's timesteps; rows up to
+P): the stitched part is the last attempt's, unchanged.
+THE RUNNER: an own crash (not early) is rerun at once with --resume-from its retired folder; a relaunch finds the
+newest retired folder of a pending name in logs/crash_ledger.tsv; the early-crash rule (not counted, halt) is "last
+step below the attempt's load step + 131,072"; three own crashes still write lost.json.  Cost of a crash: the
+discarded steps after P, on average about 1.5 x 262,144 = 393,216 steps (48 rollouts, about 22 min at 4 at once;
+at most 2 x 262,144 + 8,192) instead of everything since S (up to 9.9M steps, about 9.6 h) [inferred from the flush
+rule and TIMING].
+TESTED: unit tests (tests/test_resume.py, 24: the newest complete pair; 6 damaged-pair cases; 9 incomplete-record
+cases; no point; a bad start copy; an earlier pair missing; the never-rewritten-record rule; resume_inputs and the
+stitching, with a changed row caught; an incomplete evidence prefix refused; the evaluation grid; the pair rules) and
+tests in test_run_bs (preflight of --resume-from: 8 refusals; the load checks at P), test_read_bs (resumed run_meta:
+12 mutants x 4 arms), test_waves_bs (the runner's resume, relaunch, early rule).  V4 below: a real no-update run
+killed after its second saved pair and resumed.
+
+==================================================================================================================
+RR-1 AND PROCESS I1 (step 2)
+==================================================================================================================
+RR-1 (BS2 re-review): a relaunch after ALL_DECIDED overwrote logs/atimes_at_ALL_DECIDED.tsv with a post-read
+snapshot.  LB: the first snapshot is never overwritten; a later one goes to logs/atimes_at_ALL_DECIDED.relaunch<k>.tsv
+(and does not list the snapshot files themselves); logs/ALL_DECIDED keeps its first time (the relaunch is noted).
+Unit test test_rr1_a_relaunch_after_all_decided_keeps_the_first_snapshot (bytes equal before and after a relaunch).
+I1 (BS2 process check: relatime cannot show a read made before a decision): right after each attempt exits, before
+CHECK, the re-arm and any rename, the runner writes logs/atimes_at_exit/<name>.attempt<k>.tsv: path, atime_ns,
+mtime_ns, ctime_ns, atime_after_mtime of every regular file under runs/<name>/, tmp/<name>/ and the name's attempt
+logs (lstat only: no file opened, no atime moved).  A later audit compares it with the P4 re-arm and the ALL_DECIDED
+snapshot.  Unit test test_i1_atimes_are_taken_at_exit_before_check (the run's files listed, check.json not yet, the
+re-arm not yet; a crash's snapshot taken before the rename).

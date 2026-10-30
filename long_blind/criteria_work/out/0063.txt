@@ -1,0 +1,61 @@
+7:  B_S (8 rows ending at S) exact 135930855/1073741824 = 0.1265954738482833
+8:  primary form at E (8 rows 11,935,744 .. 11,993,088, the last 8 updates before E): +0.81159 rise +0.68500; the parent's own 8 rows ending at E (incl. its upd
+9:  at 3,538,944 (BS2's E; rows ending 3,530,752): +0.70538 rise +0.57878
+10:  window max of the trailing 8-row mean: +0.9710 at 4,669,440; its minimum from 4,194,304: -0.4630 at 6,922,240
+11:  first trailing 8-row mean >= 0.30: 2,908,160
+12:  first trailing 8-row mean >= 0.60: 3,252,224
+13:  first trailing 8-row mean >= 0.90: 4,521,984
+16:  TRAJECTORY: the 8-row mean of rollout_mu_mean[:, 14] ending at each evaluation step (rise from B_S); at E the 8 rows before E
+31:  PER ACTUATOR (probe, on-policy rollout means): last 8 before E | D-1 window means [S,4.19M) [4.19,8.39M) [8.39M,E) | largest |trailing 8-row mean| (step) |
+32:   neck_pitch_act       -0.364 | +0.030 +0.039 +0.002 | -0.370 (11,878,400) | 0.000 0.000
+34:   head_pitch_act       -0.181 | -0.002 -0.166 -0.330 | -0.505 (9,592,832) | 0.000 0.001
+46:   tail_3_pitch_act     +0.812 | +0.491 +0.546 +0.759 | +0.971 (4,669,440) | 0.156 0.574
+47:  row 2,097,152: tail_3 normaliser mean +0.086 deg SD 0.419 deg; std14 0.1816; ent_coef 0.003502; learning_rate 2.6505e-05
+50:  row 11,993,088: tail_3 normaliser mean +2.510 deg SD 2.137 deg; std14 0.0950; ent_coef 0.000000; learning_rate 1.0012e-05
+51:  ent_coef first 0.0 at 7,004,160; rows with ent_coef 0 in the window: 611
+58:  my re-derivation (fraction > 0.10 only): over-bar episodes in (S, E] 249; first 3,670,016; flagged 26, tail-flagged 26; alarms 22 (first 3,932,160), tail a
+59:  flagged spells (first, last, evaluations): [('3,801,088', '5,111,808', 11), ('5,373,952', '5,505,024', 2), ('7,995,392', '8,388,608', 4), ('9,568,256', '10
+60:  over-bar episodes by actuator and sign: {('tail_3_pitch_act', '+'): 249}
+61:    D-1 window [2,097,152, 4,194,304): over-bar 32
+62:    D-1 window [4,194,304, 8,388,608): over-bar 115
+63:    D-1 window [8,388,608, 12,001,280): over-bar 102
+64:  CMD_L first >= 0.30: 2,883,584; evaluations >= 0.30: 63 of 75
+65:  CMD_L first >= 0.60: 3,407,872; evaluations >= 0.60: 57 of 75
+66:  CMD_L first >= 0.90: 3,670,016; evaluations >= 0.90: 28 of 75
+67:  CMD_L at S +0.1251; at 3,538,944 +0.8296; at the last evaluation 11,927,552 +0.9081; max +1.0000 at 4,587,520; min from 4,194,304 -0.5616 at 6,946,816
+80:   neck_pitch_act       -0.488 (11,927,552); >= +0.60  0; <= -0.60  0; last -0.488
+82:   head_pitch_act       -0.577 (9,306,112); >= +0.60  0; <= -0.60  0; last -0.166
+94:   tail_3_pitch_act     +1.000 (4,587,520); >= +0.60 57; <= -0.60  0; last +0.908
+95:  returns: mean over the window's evaluations 4365.2; first 4453.7, last 4362.5; min 4292.5; falls (length < 1000) 0: []
+99:== PINNED (the measurement builder's measure_lb.json of the parent; the round's pinned M5 and classes)
+105:  any_alarms_by_actuator {'tail_3_pitch_act': {'count': 22, 'first': 3932160, 'last': 10616832, 'sole': 22}}
+106:  my alarms == pinned any_alarms: True; my tail alarms == pinned: True; my flagged == pinned any_flagged: True
+107:  pinned tail-flagged spells: [('3,801,088', '5,111,808', 11), ('5,373,952', '5,505,024', 2), ('7,995,392', '8,388,608', 4), ('9,568,256', '10,616,832', 9)]
+110:  line  1 s42  3,145,728: G +0.349 c0 +0.411 b* +0.240 own14 +0.601 over-bar own episodes 0 of 10
+112:  line  3 s42  2,097,152: G -0.636 c0 +0.238 b* +1.399 own14 +0.143 over-bar own episodes 0 of 10
+113:  line  4 s42  3,670,016: G +0.539 c0 +0.522 b* -0.060 own14 +1.000 over-bar own episodes 9 of 10
+144:  line 35 s42 12,001,280: G +0.483 c0 +0.504 b* +0.014 own14 +0.935 over-bar own episodes 0 of 10
+145:  line 36 s60 12,001,280: G +0.465 c0 +0.322 b* +0.213 own14 +0.601 over-bar own episodes 0 of 10
+146:  line 37 s80 12,001,280: G +0.273 c0 +0.486 b* +0.241 own14 +0.642 over-bar own episodes 0 of 10
+....
+2:   3 + 1: Fisher exact, 0 of 3 against 1 of 1: p = 1/4 = 0.2500
+3:   2 + 2: Fisher exact, 0 of 2 against 2 of 2: p = 1/6 = 0.1667
+5:   (a rank or permutation test on any continuous outcome: 3 + 1 -> 1/4, 2 + 2 -> 1/6; neither can reach 0.05)
+6:   permutation minimum 3 + 1: 1/C(4,1) = 1/4 = 0.2500
+7:   permutation minimum 2 + 2: 1/C(4,2) = 1/6 = 0.1667
+10:   0 of 2 railed: the per-run rail chance under blinding is below 0.776 at 95% (upper bound); 0 of 2 has chance 0.250 if that chance is 0.5
+11:   0 of 3 railed: the per-run rail chance under blinding is below 0.632 at 95% (upper bound); 0 of 3 has chance 0.125 if that chance is 0.5
+16:     q 0.3: 2 runs 0.510, 3 runs 0.657, 4 runs 0.760
+21:   ECS: 12 of 12 s42 continuations from 3,145,728 any-flagged by E (ECS score.txt; RUNLOG l740): one-sided 95% lower bound 0.779; two-sided 95% lower bound 0
+22:   BS2: 4 of 4 controls climbed (rise +0.29 to +0.67 by 3,538,944; 2 of 4 over the bar): one-sided 95% lower bound 0.473; two-sided 95% lower bound 0.398
+29:     p 0.900: 0 of 3 0.0010; 0 of 2 0.0100
+31:     p 0.735: 0 of 3 0.0186; 0 of 2 0.0702
+36:   BS2 82 min for 176 rollouts with 4 running -> 28.0 s per rollout -> LB 1209 rollouts 9.39 h
+37:   BS2 85 min for 176 rollouts with 4 running -> 29.0 s per rollout -> LB 1209 rollouts 9.73 h
+39:   V4 (harness builder, load 6-7): 32 s per rollout -> 10.75 h
+43:   per run 193,386,567 B (184.4 MiB); 4 runs 773,546,268 B (0.72 GiB)
+44:   the runner's launch floor 2,449,473,536 B (2.28 GiB); pause floor 1,610,612,736 B
+45:   the measurement needs 3,309,305,856 B free at each launch (3.31 GB); measure_r10round.py refuses below 3,221,225,472 B
+46:   free now about 2.90 GB -> after 4 runs about 2.13 GB [inferred]; short of the measurement's need by 1.18 GB
+47:   periodic pairs per run 37; on the 1,048,576 schedule 9 (incl. J 4,194,304 ... 10,485,760 and R1); the other 28 x 4,038,055 B = 113 MB per run, 452 MB for 
+48:   so pruning inside LB/runs after the reads gives about 2.58 GB: still short by about 0.73 GB -> space must be freed elsewhere first (the coordinator, with 

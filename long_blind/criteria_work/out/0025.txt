@@ -1,0 +1,37 @@
+#### stance6_r10LTSB_s60
+classes.json
+habit.json
+m5.json
+m5.txt
+measure_lb.json
+report.txt
+7:  TAIL CLASS (lines 269-279): PARKED
+11:    PARKED (lines 276-277): [{'actuator': 'tail_3_pitch_act', 'windows': [['END', 0.042], ['J', [['8388608', 0.2797], ['10485760', 0.1267]]]]}]; DRIVEN (line 279): []
+12:    MEAN_a: {"tail_1_pitch_act": -0.001, "tail_1_yaw_act": 0.0037, "tail_2_pitch_act": 0.1682, "tail_3_pitch_act": 0.642}
+13:  ANY ALARMs (lines 169-170): 0; steps ; by actuator {}
+16:  GATE CLASS (lines 280-283): PASS
+18:  RUN OUTCOME (lines 284-286): NEGATIVE ['PARKED']
+19:  window (S, E] (report only): TAIL ALARMs 0 (first None), ANY ALARMs 0, tail-flagged 0, straddling S []; before S: {'any_flagged': [], 'tail_flagged': [], 'over_bar_episodes': 0}
+21:    habit sites: {"tail_3_pitch_act": ["T", "D"]}
+22:    actuator             over(ledger) [0,4.19M) [4.19,8.39M) [8.39M,E]  own-alarms (first-last)   ANY-alarms  M1 CMD at   4194304   5242880   6291456   8388608  10485760     final
+23:    neck_pitch_act           0         0            0          0    0 (---)        0          -0.220    -0.121    -0.214    -0.236    -0.208    -0.358  
+24:    tail_3_pitch_act        24         0            3         21    0 (---)        0          +0.067    +0.144    +0.273    +0.880    +0.727    +0.557  TD
+#### stance6_r10LTSB_s80
+classes.json
+habit.json
+m5.json
+m5.txt
+measure_lb.json
+report.txt
+7:  TAIL CLASS (lines 269-279): CLEAR
+11:    PARKED (lines 276-277): []; DRIVEN (line 279): []
+12:    MEAN_a: {"tail_1_pitch_act": 0.1859, "tail_1_yaw_act": 0.0032, "tail_2_pitch_act": -0.1225, "tail_3_pitch_act": 0.5052}
+13:  ANY ALARMs (lines 169-170): 6; steps 5,505,024, 5,636,096, 6,029,312, 6,422,528, 6,553,600, 7,077,888; by actuator {"neck_pitch_act": {"count": 6, "first": 5505024, "last": 7077888, "sole": 6}}
+16:  GATE CLASS (lines 280-283): PASS
+18:  RUN OUTCOME (lines 284-286): POSITIVE []
+19:  window (S, E] (report only): TAIL ALARMs 0 (first None), ANY ALARMs 6, tail-flagged 0, straddling S []; before S: {'any_flagged': [], 'tail_flagged': [], 'over_bar_episodes': 0}
+21:    habit sites: {"neck_pitch_act": ["L", "T", "D"], "head_pitch_act": ["D"]}
+22:    actuator             over(ledger) [0,4.19M) [4.19,8.39M) [8.39M,E]  own-alarms (first-last)   ANY-alarms  M1 CMD at   4194304   5242880   6291456   8388608  10485760     final
+23:    neck_pitch_act         119         1          116          2    6 (5505024-7077888)        6          -0.594    -0.793    -0.917    +0.044    -0.392    -0.214  LTD
+24:    head_pitch_act           0         0            0          0    0 (---)        0          -0.423    -0.270    -0.127    -0.110    -0.660    -0.666  D
+25:    tail_3_pitch_act         0         0            0          0    0 (---)        0          +0.020    -0.020    +0.188    +0.116    +0.423    +0.588  

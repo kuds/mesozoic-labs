@@ -1,0 +1,207 @@
+   901	                 f"{fnum(rp['statue_settled_trailing8_at_last_row'])} (max {fnum(rp['statue_settled_trailing8_max'])}),"
+   902	                 f" first above {rp['statue_settled_first_above']}; std14 last {fnum(rp['std14_last'])}; tail_3 "
+   903	                 f"normaliser mean last {fnum(rp['obs6_mean_deg_last'], '+.3f')} deg")
+   904	        L.append(f"      ledger: CMD_L at T {fnum(rp['cmd_l_last'], '+.3f')} (max {fnum(rp['cmd_l_max'], '+.3f')}); "
+   905	                 f"firsts {rp['ledger_firsts']}; M5 ANY flagged {rp['m5_any_flagged']} TAIL flagged "
+   906	                 f"{rp['m5_tail_flagged']} ANY alarms {rp['m5_any_alarms']} TAIL alarms {rp['m5_tail_alarms']}; C6 "
+   907	                 f"counting failures {rp['m5_c6_counting_failures']}")
+   908	        L.append("      CMD_L per evaluation: " + ", ".join(f"{t:,} {fnum(v, '+.3f')}" for t, v in
+   909	                                                          sorted(rp["cmd_l_per_evaluation"].items())))
+   910	        if led.get("status") == "read":
+   911	            L.append(f"      returns: mean at the first / last evaluation {fnum(led['mean_return_first'], '.1f')} / "
+   912	                     f"{fnum(led['mean_return_at_T'], '.1f')}, window {fnum(led['mean_return_window'], '.1f')} over "
+   913	                     f"{led['n_episodes']} episodes in {led['n_evaluations']} evaluations; falls {led['n_falls']} "
+   914	                     + (str([(f['timesteps'], f['length'], f['cause']) for f in led['falls']]) if led["falls"] else ""))
+   915	            L.append("      mean return per evaluation: " + ", ".join(
+   916	                f"{t:,} {fnum(v, '.1f')}" for t, v in led["mean_return_per_evaluation"].items()))
+   917	        else:
+   918	            L.append(f"      returns and falls: {led.get('status')}")
+   919	        for lr in rp["loop"]:
+   920	            L.append(f"      pair {lr['steps']:>9,}: OWN G {fnum(lr['OWN_G'], '+.3f')} c0 {fnum(lr['OWN_c0'], '+.3f')} "
+   921	                     f"b* {fnum(lr['OWN_b_star'], '+.3f')} G_L {fnum(lr['OWN_G_L'], '+.3f')} b*_L "
+   922	                     f"{fnum(lr['OWN_b_star_L'], '+.3f')} own14 {fnum(lr['own14'], '+.3f')} falls {lr['OWN_falls']} | "
+   923	                     f"REF G {fnum(lr['REF_G'], '+.3f')} | critic dV/dq3 per deg eff/raw: on-policy "
+   924	                     f"{fnum(lr['slope_onpolicy_eff'], '+.5f')}/{fnum(lr['slope_onpolicy_raw'], '+.5f')} OWN "
+   925	                     f"{fnum(lr['slope_own_eff'], '+.5f')}/{fnum(lr['slope_own_raw'], '+.5f')} REF "
+   926	                     f"{fnum(lr['slope_ref_eff'], '+.5f')}/{fnum(lr['slope_ref_raw'], '+.5f')}")
+   927	    L.append("REPORT ONLY, THE ON-POLICY TRAJECTORY (the 8-row mean of rollout_mu14_mean ending at each evaluation "
+   928	             "step; at E the primary's rows), beside the parent's (F2 probe); untested:")
+   929	    names = [c["name"] for c in classes]
+   930	    L.append(f"  {'step':>9}  {'parent':>8}  " + "  ".join(f"{n[:4] + n.rsplit('_', 1)[1]:>9}" for n in names)
+   931	             + "  | median control / blind")
+   932	    traj = {n: dict(reports[n]["trajectory"]) if n in reports else {} for n in names}
+   933	    traj_medians = {}
+   934	    for t in EVAL_STEPS:
+   935	        meds = {}
+   936	        for arm in ARM_ORDER:
+   937	            v = [traj[c["name"]].get(t) for c in classes if c["arm"] == arm]
+   938	            v = [x for x in v if x is not None]
+   939	            meds[arm] = median_rule(v)
+   940	        traj_medians[t] = meds
+   941	        L.append(f"  {t:>9,}  {PARENT_TRAJECTORY[t]:>+8.4f}  " + "  ".join(f"{fnum(traj[n].get(t)):>9}" for n in names)
+   942	                 + f"  | {fnum(meds[CONTROL])} / {fnum(meds[INTERVENTION])}")
+   943	    gcount = {}
+   944	    for arm in ARM_ORDER:
+   945	        flags = [reports[c["name"]]["g_end_above_start"] for c in classes if c["arm"] == arm and c["name"] in reports]
+   946	        flags = [x for x in flags if x is not None]
+   947	        gcount[arm] = {"above": sum(1 for x in flags if x), "of": len(flags)}
+   948	    L.append("REPORT ONLY, G AT E ABOVE G AT S (OWN G at the final pair against the start pair's, the same start for "
+   949	             f"all; the parent's G(S) {PARENT_G_S:+.3f}): " + "; ".join(f"{arm} {gcount[arm]['above']} of "
+   950	                                                                         f"{gcount[arm]['of']}" for arm in ARM_ORDER))
+   951	    L.append("REPORT ONLY, ARM MEDIANS OVER THE READ CONTINUATIONS:")
+   952	    for arm in ARM_ORDER:
+   953	        rps = [reports[c["name"]] for c in classes if c["arm"] == arm and c["name"] in reports]
+   954	
+   955	        def med(key, rps=rps):
+   956	            v = [r[key] for r in rps if _finite(r.get(key)) or isinstance(r.get(key), Fraction)]
+   957	            return statistics.median([float(x) for x in v]) if v else None
+   958	
+   959	        def med_end(key, rps=rps):
+   960	            v = [r["end_pair"].get(key) for r in rps if r["end_pair"]]
+   961	            v = [x for x in v if _finite(x)]
+   962	            return statistics.median(v) if v else None
+   963	
+   964	        def med_led(key, rps=rps):
+   965	            v = [r["ledger"].get(key) for r in rps if r["ledger"].get("status") == "read"]
+   966	            v = [x for x in v if _finite(x)]
+   967	            return statistics.median(v) if v else None
+   968	        L.append(f"  {arm:<24} on-policy first 8 rows {fnum(med('early8_rollout_mu14'))}; statue_settled last 8 rows "
+   969	                 f"{fnum(med('statue_settled_last8_mean'))}, trailing at last row "
+   970	                 f"{fnum(med('statue_settled_trailing8_at_last_row'))} (max "
+   971	                 f"{fnum(med('statue_settled_trailing8_max'))}); std14 last {fnum(med('std14_last'))}; tail_3 "
+   972	                 f"normaliser {fnum(med('obs6_mean_deg_last'), '+.3f')} deg; CMD_L at T "
+   973	                 f"{fnum(med('cmd_l_last'), '+.3f')} (max {fnum(med('cmd_l_max'), '+.3f')}); mean return window "
+   974	                 f"{fnum(med_led('mean_return_window'), '.1f')}, falls {fnum(med_led('n_falls'), '.1f')}")
+   975	        L.append(f"  {'':<24} at the end pair (the loop row at T) OWN G {fnum(med_end('OWN_G'), '+.3f')} c0 "
+   976	                 f"{fnum(med_end('OWN_c0'), '+.3f')} b* {fnum(med_end('OWN_b_star'), '+.3f')} G_L "
+   977	                 f"{fnum(med_end('OWN_G_L'), '+.3f')} b*_L {fnum(med_end('OWN_b_star_L'), '+.3f')} own14 "
+   978	                 f"{fnum(med_end('own14'), '+.3f')} REF G {fnum(med_end('REF_G'), '+.3f')}; critic slope on-policy eff "
+   979	                 f"{fnum(med_end('slope_onpolicy_eff'), '+.5f')} raw {fnum(med_end('slope_onpolicy_raw'), '+.5f')}, "
+   980	                 f"OWN eff {fnum(med_end('slope_own_eff'), '+.5f')} raw {fnum(med_end('slope_own_raw'), '+.5f')}, "
+   981	                 f"REF eff {fnum(med_end('slope_ref_eff'), '+.5f')} raw {fnum(med_end('slope_ref_raw'), '+.5f')}; "
+   982	                 f"the reader's own rollouts terminated {fnum(med_end('OWN_falls'), '.1f')}")
+   983	    odd = [c for c in classes if c["cls"] in (STOPPED, LOST) or primaries[c["name"]] is None]
+   984	    L.append("MISSING (STOPPED, LOST or primary unreadable; filled against REDUCED):")
+   985	    L.extend(f"  {c['name']:<24} {c['cls']:<8} {causes[c['name']]}" for c in odd)
+   986	    if not odd:
+   987	        L.append("  none")
+   988	    if prov:
+   989	        L.append("PROVISIONAL items (the reading is printed and not acted on while any stands):")
+   990	        L.extend(f"  - {x}" for x in prov)
+   991	
+   992	    def frac(t):
+   993	        return None if t is None else {"p": str(t[0]), "p_float": float(t[0]), "count": t[1], "total": t[2]}
+   994	    result.update(
+   995	        status=status, provisional=prov, line=dec["line"], line_key=dec["key"], line_text=dec["text"],
+   996	        additions=dec["additions"], p_filled=frac(dec["filled"]), p_as_counted=frac(dec["as_counted"]),
+   997	        alpha=str(ALPHA), informative=dec["informative"], control_median=_f(dec["medians"][CONTROL]),
+   998	        control_rise=_f(dec["control_rise"]), rise_min=str(RISE_MIN), baseline_S=BASELINE_S,
+   999	        primary_steps=list(PRIMARY_STEPS), arm_means={a: _f(v) for a, v in dec["means"].items()},
+  1000	        arm_medians={a: _f(v) for a, v in dec["medians"].items()}, arm_sd_report_only=dict(dec["sds"]),
+  1001	        n_missing=dec["n_missing"],
+  1002	        missing=dec["missing"], paired=[{k: (_f(v) if isinstance(v, Fraction) else v) for k, v in p.items()}
+  1003	                                        for p in dec["pairs"]], paired_sign_flip=frac(dec["paired_test"]),
+  1004	        classes=[{**{k: c[k] for k in ("name", "arm", "seed", "cls", "T", "cause")},
+  1005	                  "primary": _f(primaries[c["name"]]), "primary_exact": str(primaries[c["name"]])
+  1006	                  if primaries[c["name"]] is not None else None, "primary_cause": causes[c["name"]]}
+  1007	                 for c in classes],
+  1008	        secondaries=[{"key": s["key"], "title": s["title"], "marker": s["marker"], "higher": s["higher"],
+  1009	                      "verdict": s["verdict"], "supported": s["supported"], "notes": s["notes"],
+  1010	                      "p_filled": frac(s["filled"]), "p_as_counted": frac(s["as_counted"]),
+  1011	                      "values": {n: _f(v) for n, v in s["values"].items()},
+  1012	                      "values_exact": {n: (str(v) if v is not None else None) for n, v in s["values"].items()},
+  1013	                      "causes": s["causes"], "n_read": s["n_read"],
+  1014	                      "arm_means": {a: _f(v) for a, v in s["means"].items()},
+  1015	                      "arm_medians": {a: _f(v) for a, v in s["medians"].items()}} for s in secs],
+  1016	        parent_trajectory={str(t): v for t, v in PARENT_TRAJECTORY.items()},
+  1017	        trajectory_arm_medians={str(t): {a: _f(v) for a, v in m.items()} for t, m in traj_medians.items()},
+  1018	        g_end_above_start=gcount,
+  1019	        report_only={n: rp for n, rp in reports.items()})
+  1020	    return result, L, (EXIT_NOT_FINAL if prov else EXIT_FINAL)
+  1021	
+  1022	
+  1023	def _jsonable(o):
+  1024	    if isinstance(o, Fraction):
+  1025	        return float(o)
+  1026	    return str(o)
+  1027	
+  1028	
+  1029	def main(argv=None):
+  1030	    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+  1031	    ap.add_argument("--root", default=C.BS, help="the screen's folder (default <BS2>; another root for tests and the "
+  1032	                                                  "dry run)")
+  1033	    ap.add_argument("--out", default=None, help="default <root>/score")
+  1034	    a = ap.parse_args(argv)
+  1035	    root = Path(a.root).resolve()
+  1036	    out = Path(a.out).resolve() if a.out else root / "score"
+  1037	    try:
+  1038	        R.require_under(out, root)
+  1039	        result, lines, code = score(root)
+  1040	    except (InputError, R.InputError) as exc:
+  1041	        print(f"{VERSION}\nINPUT ERROR: {exc}")
+  1042	        return EXIT_INPUT
+  1043	    text = "\n".join(lines)
+  1044	    print(text)
+  1045	    out.mkdir(parents=True, exist_ok=True)
+  1046	    R.atomic_write_text(out / "score.json", json.dumps(result, indent=1, default=_jsonable) + "\n")
+  1047	    R.atomic_write_text(out / "score.txt", text + "\n")
+  1048	    return code
+  1049	
+  1050	
+  1051	if __name__ == "__main__":
+  1052	    sys.exit(main())
+total 144
+drwxr-xr-x 2 root root  4096 Oct 30 12:17 .
+drwxr-xr-x 3 root root  4096 Oct 30 11:27 ..
+-rw-r--r-- 1 root root 16171 Oct 30 04:15 test_bs_hooks.py
+-rw-r--r-- 1 root root 16573 Oct 30 10:40 test_read_bs.py
+-rw-r--r-- 1 root root 14402 Oct 30 10:39 test_run_bs.py
+-rw-r--r-- 1 root root 63980 Oct 30 12:10 test_score_bs.py
+-rw-r--r-- 1 root root 17368 Oct 30 12:17 test_waves_bs.py
+238:def test_constants_match_the_harness_and_screen():
+264:def test_baseline_recomputed_from_the_parent_probe():
+287:def test_perm_test_matches_an_independent_implementation():
+300:def test_perm_test_ties_count_against_and_min_p():
+309:def test_perm_test_boundary(c, b, count):
+315:def test_fill_is_the_supremum_over_completions():
+326:def test_fill_bounds_in_the_criteria():
+340:def test_sign_flip():
+347:def test_line_reduced(tmp_path):
+363:def test_line_at_the_boundary(tmp_path, c, b, line):
+370:def test_line_no_reduction_detected(tmp_path):
+380:def test_ties_are_exact_on_the_recorded_values():
+392:def test_line_not_informative_comes_first(tmp_path):
+407:def test_informativeness_threshold_is_inclusive_and_0_20():
+419:def test_informativeness_uses_the_median_not_the_mean():
+435:def test_the_median_rule_for_4_3_2_1_0_controls_read(n_read, want_rise):
+450:def test_fill_blind_lost(tmp_path):
+461:def test_fill_control_stopped(tmp_path):
+478:def test_primary_unreadable_is_missing(tmp_path):
+489:def test_all_missing_in_one_arm_is_still_decided(tmp_path):
+498:def test_no_control_counted_is_not_informative(tmp_path):
+508:def test_secondaries_direction_exact_p_and_bonferroni(tmp_path):
+530:def test_secondaries_never_change_the_line(tmp_path):
+547:def test_secondary_fill_works_against_its_direction(tmp_path):
+568:def test_secondary_missing_causes(tmp_path):
+587:def test_secondaries_carry_the_note_under_line_1(tmp_path):
+600:def test_bonferroni_note_only_at_1_over_70():
+613:def test_counted_without_the_final_pair_is_provisional(tmp_path):
+633:def test_secondary_needs_its_row_at_E_to_be_the_model_at_E(tmp_path):
+640:def test_incomplete_opens_no_markers_or_run_meta_and_prints_no_outcome(tmp_path):
+652:def test_decided_but_unread_is_incomplete(tmp_path):
+660:def test_check_failed_is_undecided(tmp_path):
+668:def test_input_errors(tmp_path):
+694:def test_markers_that_disagree_are_input_errors(tmp_path, mutate, match):
+704:def test_lost_outside_queue_and_check_mismatch(tmp_path):
+722:def test_out_outside_root_refused(tmp_path):
+739:def test_final_when_every_pin_holds(tmp_path):
+759:def test_provisional_items(tmp_path, monkeypatch, breakage, match):
+796:def test_code_copy_is_measured_at_bs_common_CODE(tmp_path, _no_code_copy_measurement):
+811:def test_report_only_readings(tmp_path):
+832:def test_trajectory_and_g_count(tmp_path):
+853:def test_report_only_never_fails_the_score(tmp_path):
+868:def test_line_texts_are_the_criteria_text():
+889:def test_criteria_pins_name_the_current_files():
+919:def test_dry_run_on_the_parents_markers(tmp_path):
+1150:def test_the_original_passes_every_kill_check(kill_roots):
+1155:def test_each_mutant_is_caught(kill_roots, tag, old, new):

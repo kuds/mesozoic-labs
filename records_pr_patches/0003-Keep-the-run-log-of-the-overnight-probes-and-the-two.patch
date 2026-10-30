@@ -1,0 +1,488 @@
+From 3dae4650704860aef96ce05842ca14215e429cac Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Fri, 30 Oct 2026 18:15:49 +0000
+Subject: [PATCH 3/7] Keep the run log of the overnight probes and the two
+ critic-blind screens (lines 760 to 801), with the overnight report
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Adds docs/investigations/stance_2026_10/critic_blind_results/ with
+run_log.txt, lines 760 to 801 of the session's run log (the entries
+timed 23:47 UTC on 2026-10-29 to 16:32 UTC on 2026-10-30), the
+overnight report the maintainer read before choosing the second screen
+(MORNING_REPORT.md, a byte copy), and a README naming the decision
+entries. The run log holds #653's opening, CI and merge; the
+maintainer's answers of 00:24 and 00:45 UTC (the early-bias probe, then
+the overnight authorisation); the early-bias probe, run and verified
+with corrections; the early-warning curve and its two follow-ups (the
+r9 held-out test and the margin-to-rail test), verified, with an
+incident at about 01:05 UTC (an agent replaced the system's /dev/null
+with a regular file for about 1 to 2 minutes, restored at 01:06 UTC;
+the probe's logs show no error in that window); the intervention chosen
+at 04:22 UTC; the first critic-blind screen's scaffold, pin, launch,
+check-ins, reading (line 1, not informative), independent check,
+APPROVED's full text and durable copy; #654's opening and CI; the
+maintainer's answer of 10:23 UTC (option A); the second screen's build
+and criteria, its pin at the answer of 12:53 UTC, launch, check-ins,
+reading (line 2, reduced), independent check, report and durable copy;
+#654's merge; and the maintainer's answers of 16:23 UTC, with the long
+study's build launched at 16:32 UTC. It was copied at about 16:36 UTC,
+when the source had 802 lines; line 802 (16:33 UTC) starts this
+records change, and it and every later line go to a later records
+change.
+
+It continues ecs_results/run_log.txt (lines 721 to 759) with no line
+in both. As the earlier copies were made: lines (the sha256 given is
+that of the source's first 801 lines, 35b00201...; its first 759 lines
+are unchanged, f2a95d7b..., the value the ecs_results copy's row gives)
+and redact (16 workflow run ids, 9 distinct, a bare one becoming
+'workflow [id removed]'; 3 scheduled-task ids, 2 distinct; and the
+assistant's name in a GitHub check's name, as the stance4 and stance5
+run-log copies did); these lines hold no checkout path, Drive id or
+task-list id. The overnight report is byte-identical; its copy on the
+first screen's durable branch (claude/handoff-bias-screen at cfed2c70,
+FOR_THE_MAINTAINER.md) lacks §4's last bullet, added after that push.
+No new kind of change. SOURCES.txt gains the note and two rows;
+SHA256SUMS now pins 1366 files (sha256sum -c: all OK); the folder's
+README gains the entry, the folder's note under "What changed in the
+copies", its README among the files SHA256SUMS does not pin, and four
+re-check rows, and this change's status row names the folder.
+
+Records only: no library code, configuration, test, notebook, digest or
+generated file changes.
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01X1VjQXgfkABgkidWb1QS9A
+---
+ docs/CONSOLIDATION_PLAN_2026_09.md            |   2 +-
+ docs/investigations/stance_2026_10/README.md  |  26 ++++
+ docs/investigations/stance_2026_10/SHA256SUMS |   4 +-
+ .../investigations/stance_2026_10/SOURCES.txt |  15 ++
+ .../critic_blind_results/MORNING_REPORT.md    | 146 ++++++++++++++++++
+ .../critic_blind_results/README.md            |  87 +++++++++++
+ .../critic_blind_results/run_log.txt          |  42 +++++
+ 7 files changed, 320 insertions(+), 2 deletions(-)
+ create mode 100644 docs/investigations/stance_2026_10/critic_blind_results/MORNING_REPORT.md
+ create mode 100644 docs/investigations/stance_2026_10/critic_blind_results/README.md
+ create mode 100644 docs/investigations/stance_2026_10/critic_blind_results/run_log.txt
+
+diff --git a/docs/CONSOLIDATION_PLAN_2026_09.md b/docs/CONSOLIDATION_PLAN_2026_09.md
+index 2dd9c6c1..47ebe9e0 100644
+--- a/docs/CONSOLIDATION_PLAN_2026_09.md
++++ b/docs/CONSOLIDATION_PLAN_2026_09.md
+@@ -88,7 +88,7 @@ This table and each PR's CHANGELOG entry are the only record of a PR's landing,
+ | Development version 0.4.0.dev2, with the records of #642–#645 and of the first T. rex physics-r10 stance round (outside this sequence) | **Landed** as #647 on 2026-10-27 (measured on its CI, at reduced depth: SB3 job 28:20, coverage 91 percent): `pyproject.toml` reads `0.4.0.dev2`, at the maintainer's decision of 2026-10-25 to bump the development version once the work then in hand was done, carried by this records change as #619 carried `0.4.0.dev1`; a run's provenance records the version, so the runs started from `main` from here on are told apart from the `0.4.0.dev1` runs, the first r10 round's three among them (launched from a branch on `06b1a8e1`). The ROADMAP's version line follows. This change also records the landing of #643, with #642, in its row above and puts the numbers of #642–#645 in their CHANGELOG entries. It records decisions D-D45 to D-D51 (§6): walking pilot 2 retired; the report-only telemetry, no MuJoCo sensor and the in-run K3 panel for the first r10 stance round; that round's design, its all-or-nothing run handling, and its approval and launch on 2026-10-27, its results pending; it appends §26 to [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md) (§1–§25 unchanged), the record of those decisions and of that round's set-up, and dated notes to NEXT_STEPS, KNOWN_ISSUES and the gait plan. The run log of that period, its lines 600 to 680, with its six `STANCE6` launch and launch-check lines also on their own, is the folder `stance6_setup/` of [investigations/stance_2026_10/](investigations/stance_2026_10/README.md), and the folder `stance5/k3extract/` there is the compact per-run K3 extract of the five band runs' judge files that D-D46 asked for, read by the training-history report's `--judged` as the judges' own directories are, with a test (`test_training_history.py`) that checks it against its index and the replication's score of record, and the folder `stance6/` there is that round's pre-registration, approved before any training step: the approved criteria and the two texts they cite (byte copies), the approval record, the launch steps and fetch brief, and the pinned tools with their lanes' lists; every file in it but its README existed before the first training step (`SHA256SUMS` now 701). No library code, config, plant or digest changes. The consolidation stays paused. |
+ | The first T. rex physics-r10 stance round judged, with the records of #647 and #650 (outside this sequence) | **Landed** as #652 on 2026-10-29 (measured on its CI, at reduced depth: SB3 job 28:44, coverage 91 percent): records only. This change records the landing of #647 in its row above and puts the numbers of #647 and #650 in their CHANGELOG entries; #650, the centre-of-mass stance regression tests (tests and test helpers only), has no row here, as #642, #644 and #645 have none. The ROADMAP's version line, "`0.4.0.dev2` (from 2026-10-27 …)", was checked against #647's merge on 2026-10-27 UTC and is unchanged. It records D-D51's amendment of 2026-10-28 and decision D-D52 (§6): the first r10 stance round's outcome, line 1, a tail rail formed on r10 in training (A 2 of 3 against LTSB's r9 2 of 5, nothing significant; one run railed `tail_3_pitch_act` at +1, one parked it, one passed its gate with a neck saturation habit), with how its runs' ends were noted, its final fetch's transfers made and its durable copy pushed; and the next step, a CPU continuation screen of the entropy coefficient from the round's own checkpoints, its criteria to be approved before any training; it appends §27 to [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md) (§1–§26 unchanged), the record of the round's results and of the decisions after them, and dated notes to NEXT_STEPS and KNOWN_ISSUES. The run log of that period, its lines 681 to 720, is in the folder `stance6_results/` of [investigations/stance_2026_10/](investigations/stance_2026_10/README.md), with the round's reading by its approved criteria (the scorer's output, the completeness check per run and the independent check of the reading), the report-only readouts, the review, the next-step proposals and the fixer's record, K1–K4 per run, the D-9 and D-10 summaries and the fetch manifest, byte copies but for the session tool ids and Drive ids they held and the manifest's line ends, the two largest gzipped, and the measurement panels' summaries and the judge's files, 122 byte copies (`SHA256SUMS` now 849). No library code, config, plant or digest changes. The consolidation stays paused. |
+ | The T. rex tail saturation habit's record, with the entropy continuation screen judged and the records of #652 and #653 (outside this sequence) | **Landed** as #654 on 2026-10-30 (measured on its CI, at reduced depth: SB3 job 21:38, coverage 91 percent): records only. This change records the landing of #652 in its row above and puts the numbers of #652 and #653 in their CHANGELOG entries; #653, the centre-of-mass stance tests' absolute targets and calibration ratchet with the reduction's pure move into the gait package (tests, test helpers and that move), has no row here, as #642, #644, #645 and #650 have none. It records D-D52's amendment of 2026-10-29 (§6): the entropy continuation screen's design, approval and outcome, final: line 3, no difference detected (s42 6 of 6 in both arms on the tail-tip actuator, s80 1 of 6 in both on the neck), agreed by two independent checks; and decisions D-D53 to D-D55: the centre-of-mass regression tests revisited with a tail clamp test, the centre-of-mass follow-ups and a no-training normaliser probe of the tail loop, and one record of everything tried on the tail habit, with three no-training posture tests and this records change. The run log of that period, its lines 721 to 759, is in the folder `ecs_results/` of [investigations/stance_2026_10/](investigations/stance_2026_10/README.md) (`SHA256SUMS` now 850), with the entropy continuation screen's approved criteria and approval, its design notes, its pinned tools and their tests, each continuation's run record, the scorer's reading and readouts and the reading's two independent checks, byte copies but for five workflow run ids and one tool gzipped (179 files; `SHA256SUMS` now 1029); and the folders `com_revisit/` (the centre-of-mass revisit's report, its checks on trained policies and the creep scan) and `tail_probes/` (the tail clamp test, the normaliser probe and the posture tests), each lens with its verifier, their notes, tables and scripts, byte copies but for two workflow run ids (328 files; `SHA256SUMS` now 1357). It adds [investigations/TREX_TAIL_SATURATION_HABIT_2026_10.md](investigations/TREX_TAIL_SATURATION_HABIT_2026_10.md), one record of everything tried on the T. rex tail saturation habit, with its ledger, build notes and checks in the folder `tail_record/` (`SHA256SUMS` now 1364), appends §28 to [investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md](investigations/TREX_STANCE_SYMMETRY_AND_FOOT_2026_10.md) (§1–§27 unchanged), a pointer to the note with a dated status note at its top, and adds dated notes to NEXT_STEPS, KNOWN_ISSUES and the docs index. No library code, config, plant or digest changes. The consolidation stays paused. |
+-| The overnight probes of the T. rex tail saturation habit and two critic-blind screens judged, with the records of #654 (outside this sequence) | **Carried out** (2026-10-30; no PR number yet, and the next PR records its landing in this row): records only. This change records the landing of #654 in its row above and puts its number in its two CHANGELOG entries. It records decisions D-D56 to D-D58 (§6): a no-training early-bias probe, its no-training follow-ups and one scratch CPU screen that hid the `tail_3` angle from the critic, from s42's r10 checkpoint at 1,048,576 steps (line 1, not informative); that screen re-run from the 2,097,152 checkpoint (line 2, reduced: every control continuation above every blinded one, p 1/70), each reading agreed by two independent checks; and a long critic-blind study to 12M steps (pending), the second screen's durable copy and this records change. No library code, config, plant or digest changes. The consolidation stays paused. |
++| The overnight probes of the T. rex tail saturation habit and two critic-blind screens judged, with the records of #654 (outside this sequence) | **Carried out** (2026-10-30; no PR number yet, and the next PR records its landing in this row): records only. This change records the landing of #654 in its row above and puts its number in its two CHANGELOG entries. It records decisions D-D56 to D-D58 (§6): a no-training early-bias probe, its no-training follow-ups and one scratch CPU screen that hid the `tail_3` angle from the critic, from s42's r10 checkpoint at 1,048,576 steps (line 1, not informative); that screen re-run from the 2,097,152 checkpoint (line 2, reduced: every control continuation above every blinded one, p 1/70), each reading agreed by two independent checks; and a long critic-blind study to 12M steps (pending), the second screen's durable copy and this records change. The run log of that period, its lines 760 to 801, is in the folder `critic_blind_results/` of [investigations/stance_2026_10/](investigations/stance_2026_10/README.md), with the overnight report (`SHA256SUMS` now 1366). No library code, config, plant or digest changes. The consolidation stays paused. |
+ | Net removal from here | about 4,600 lines by the §3 per-PR estimates for PR-8 .. PR-13 and PR-15 (PR-12's −5,300 less the about 1,130 its notebook-only slice removed, measured); the landed PRs' measured sizes are in their rows above. The assessment counted about 10,500 from 723f58f; PR-1 was net zero and #543 added about 1,200 lines including tests. |
+ | Training | Not on hold. The walker sessions in NEXT_STEPS.md run on the current notebook in parallel with the sequence (G3). Sessions 1–3 ran 2026-09-20 .. 2026-09-23 (the trex seed-44 widen + recovery `20260920_010912`, the compsognathus widen + walker `20260921_203149`, the velociraptor fresh chain `20260922_125248`; every node certified, every bundle `complete`), which meets D-D14's condition. Session 4 (dibothrosuchus, `20260923_020654`, 2026-09-23) was cut short by the collapse backstop at 1.45M steps on both nodes; its re-run after the backstop fix below was started on 2026-09-28 and is recorded when it finishes; session 5 remains; session 6 (compsognathus_robot, `20260924_031815`) passed its stance gate on 2026-09-24 and, resumed on 2026-09-28 after the Colab cap (2.8M of 3M), its locomotion gate the same day (0.227 m/s, every evaluation episode the full 1,000 steps; bundle `complete`); session 7 (the trex seed-44 walker, `20260925_033501`) passed its locomotion gate on 2026-09-25. The maintainer paused the PR sequence after PR-6 on 2026-09-20 and lifted the pause on 2026-09-23: the notebook-only PR-12 slice landed as #552 and PR-14a as #553 and PR-14b as #554 and PR-14c as #555, all on 2026-09-24 (PR-14 complete), and PR-7 as #556 on 2026-09-25; PR-8 follows the deferred cleanup (the maintainer's choice of 2026-10-02). The gait audit of 2026-09-28 ([investigations/GAIT_AUDIT_2026_09.md](investigations/GAIT_AUDIT_2026_09.md)) found that three of the five certified walkers hop (trex seed 42 `20260914_123816` and seed 44 `20260925_033501`, and compsognathus_robot `20260924_031815`; only compsognathus `20260921_203149` walks and velociraptor `20260922_125248` runs), and the gait plan's GQ-3 ([GAIT_QUALITY_PLAN_2026_09.md](GAIT_QUALITY_PLAN_2026_09.md); open, like all its decisions) recommends holding new walker sessions meanwhile: session 5 until brachiosaurus's `gait-r1` revision, and no walker session on today's rewards (it would amend G3). |
+ | Collapse-backstop fix (outside this sequence) | **Landed** as #551 on 2026-09-23 (measured on its CI: SB3 job 35:37, JAX job 53:34, coverage 90 percent): `collapse_peak_warmup_timesteps` on dibothrosuchus and brachiosaurus stages 1–2 (1.0M on stance; on locomotion the D-B5 bound `warmup_timesteps + ramp_timesteps`, 3.3M and 4.0M, conservative since the clip/entropy warm-up and the forward ramp run concurrently), replayed on session 4's evaluation series in `test_curriculum_early_stopping.py`; no task, gate or hyperparameter digest moves. It touches four stage TOMLs and one test file, none of which this sequence edits, and the docs pass of the same PR corrected the living docs (KNOWN_ISSUES gained three entries). |
+diff --git a/docs/investigations/stance_2026_10/README.md b/docs/investigations/stance_2026_10/README.md
+index 6c73ddf2..280fb1f7 100644
+--- a/docs/investigations/stance_2026_10/README.md
++++ b/docs/investigations/stance_2026_10/README.md
+@@ -458,6 +458,14 @@ made LF); `update/CHANGES.txt` and `update_check/FIXES.txt` carry **redact**
+ (2 workflow run ids each); the other four copies are byte-identical. No copy
+ holds a model identifier, an email address or a commit trailer.
+ 
++*Added 2026-10-30 (`critic_blind_results/`):* no new kind of change.
++`critic_blind_results/run_log.txt` carries **lines** (lines 760 to 801 of the
++session's run log; it continues `ecs_results/run_log.txt` with no line in
++both) and **redact** (16 workflow run ids, 9 distinct, 3 scheduled-task ids,
++2 distinct, and the assistant's name in a GitHub check's name);
++`MORNING_REPORT.md` is byte-identical. No copy holds a model identifier, an
++email address or a commit trailer.
++
+ [SHA256SUMS](SHA256SUMS) pins every file here but this README and itself
+ (`sha256sum -c SHA256SUMS` in this directory). *Added 2026-10-19:* nor
+ `stance3/results/README.md`, which, like this README, has no source.
+@@ -473,6 +481,7 @@ holds a model identifier, an email address or a commit trailer.
+ *Added 2026-10-29:* nor `ecs_results/README.md`, likewise.
+ *Added 2026-10-29, later still:* nor `com_revisit/README.md` and `tail_probes/README.md`, likewise.
+ *Added 2026-10-29, latest:* nor `tail_record/README.md`, likewise.
++*Added 2026-10-30:* nor `critic_blind_results/README.md`, likewise.
+ 
+ ## Contents
+ 
+@@ -1527,6 +1536,19 @@ record and number check, the update's changes and its fact check).** Its
+ [README](tail_record/README.md) holds the record's build notes, among them
+ each edit that made the repository note from the session draft.
+ 
++### Added on 2026-10-30 (decisions D-D56 to D-D58: the run log and the overnight report)
++
++**`critic_blind_results/`: the overnight probes of the T. rex tail saturation
++habit and the two critic-blind screens (2026-10-29 23:47 UTC to 2026-10-30
++16:32 UTC; lines 760 to 801 of the session's run log), with the overnight
++report.** The run log holds the maintainer's decisions (D-D56 to D-D58), the
++early-bias probe and the early-warning curve with their follow-ups and
++verifiers, the first critic-blind screen (line 1, not informative), the
++second (line 2, reduced), their independent checks and durable copies, and
++the landings of #653 and #654; the overnight report is the one the
++maintainer read before choosing the second screen. Its
++[README](critic_blind_results/README.md) names the decision entries.
++
+ ## How to re-check each verdict
+ 
+ Commands as run on 2026-10-17 from a copy of this directory (Python 3.13;
+@@ -1638,6 +1660,10 @@ copies.
+ | The files themselves (2026-10-29, later still, with `com_revisit/` and `tail_probes/`) | `sha256sum -c SHA256SUMS` | all 1357 files OK |
+ | The record's ledger (2026-10-29, latest) | `python3 -c "import csv; r = list(csv.DictReader(open('tail_record/ledger.csv', newline=''))); print(len(r), r[0]['id'], r[-1]['id'])"` | `167 L001 L167` |
+ | The files themselves (2026-10-29, latest, with `tail_record/`) | `sha256sum -c SHA256SUMS` | all 1364 files OK |
++| The fourth run-log copy against its source (2026-10-30; session scratch only) | `head -801 scratchpad/foot/stance4/live/run_log.txt \| sha256sum`, and its lines 760 to 801 against `critic_blind_results/run_log.txt` with the ids and the name SOURCES.txt names put back | `35b00201…`, the value SOURCES.txt gives; equal |
++| The run-log copies against each other (2026-10-30) | `tail -1 ecs_results/run_log.txt` and `head -1 critic_blind_results/run_log.txt` | the entries timed 23:21 UTC and 23:47 UTC on 2026-10-29, the source's lines 759 and 760: no gap and no line in both |
++| The overnight report against the first screen's durable copy (2026-10-30; needs the durable branch) | `git show cfed2c70:FOR_THE_MAINTAINER.md` of `claude/handoff-bias-screen` against `critic_blind_results/MORNING_REPORT.md` | equal but for the copy's §4 last bullet (two lines), written after that push |
++| The files themselves (2026-10-30, with `critic_blind_results/`) | `sha256sum -c SHA256SUMS` | all 1366 files OK |
+ 
+ `test_pilot_score.py` prints sample "Walking pilot score" blocks while it runs;
+ they score synthetic panels, not the pilot.
+diff --git a/docs/investigations/stance_2026_10/SHA256SUMS b/docs/investigations/stance_2026_10/SHA256SUMS
+index 12353756..ee36e9ed 100644
+--- a/docs/investigations/stance_2026_10/SHA256SUMS
++++ b/docs/investigations/stance_2026_10/SHA256SUMS
+@@ -1,4 +1,4 @@
+-075c77ba032cfd40aa21c242727cd554514eaba8054e2c477917e26eb684f453  SOURCES.txt
++00ea283fe4902b02323df44e465041b70cd975d5463734817e5f5e1a4a9b0085  SOURCES.txt
+ 2923961aef49684d2e7649f384cc3a1aadc97b5bf73fb8eb6de08626091e262c  audit/foot_ankle_audit.md
+ 4812698885bbd4d3f74d0780994bd14e201220eb5fbfe52a14749ea3a024b156  audit/geometry/geometry_audit.json
+ ef1e071f13599fdadee41c977638a6d2c3fe7efce069b826e4983e8b78722d7b  audit/geometry/geometry_summary.txt
+@@ -241,6 +241,8 @@ b884f23529eb447ec9e273b7daa10cf133b45ef5b379be440371979e7aacc900  com_revisit/ve
+ cdf8bb9ea89e0df11d57b4fd7ca4dac75639d02cc70b8f628775bc343e0f87e6  com_revisit/verify_scan/vs_mech.py
+ fa259b6ab5194b4a684478afb25b59e59f687ba80774d8a4b74264ae117a614c  com_revisit/verify_scan/vs_sample.py
+ 666e8d5b93bf758acaac61141f741103da318d95918b59687ce94ce3189819f2  com_revisit/verify_scan/vs_stats.py
++4e6da8717db540a8216b90f31665db03c28626880f6261924e134cac36a30303  critic_blind_results/MORNING_REPORT.md
++e1a5a68cf7853f2ef003aa0c3b961e1d3510d1b7d9fec949c648923c24393461  critic_blind_results/run_log.txt
+ d0bfc2078b60c935f6cadf7bf48104263f5d5c3f1521a50d74fb724cb32bbc1e  diagnosis/findings_v1_superseded.txt
+ 823d4b69345dc6fc59faea4f29eaacbf43580af34ca49423012129fbf083a545  diagnosis/findings_v3.txt
+ 2c077437ba8a61e70abe19857a84586b3fe0ba7c4496db654b0a7a55acd6e27d  ecs_results/APPROVED
+diff --git a/docs/investigations/stance_2026_10/SOURCES.txt b/docs/investigations/stance_2026_10/SOURCES.txt
+index 1bfbb2aa..a0c08e71 100644
+--- a/docs/investigations/stance_2026_10/SOURCES.txt
++++ b/docs/investigations/stance_2026_10/SOURCES.txt
+@@ -320,6 +320,19 @@
+ # pre-update and pre-check copies of the draft and the ledger, the check's diff and row extract, and the draft itself,
+ # which the note replaces (its sha256, 1f1e7bdd2c7959a5df78a328c3360b3dad1b6c60725c6554b2a187cdf5d58fc7, and the edits
+ # that made the note are in tail_record/README.md).  tail_record/README.md has no source.
++# Added 2026-10-30 (critic_blind_results/): the run log of the overnight probes of the T. rex tail saturation habit and
++# the two critic-blind screens (decisions D-D56 to D-D58), and the overnight report.  No new kind of change.  lines:
++# critic_blind_results/run_log.txt is lines 760 to 801 of the session's run log, whose lines 721 to 759 are
++# ecs_results/run_log.txt (no line in both); the sha256 given is that of the source's first 801 lines (lines 760 to 801
++# alone: 939beeb5a395d6efc4f4f4e0b8d2f4810672d9f80d939b0596126d7ee363ce9c); its first 759 lines are unchanged
++# (f2a95d7b7ebe81ceea2b52372aaee0532683bef181f20a83c69175afd06beebd, as given above).  The source is appended to after
++# it was copied (802 lines at 16:36 UTC on 2026-10-30, 803 at 16:50 UTC); the copy ends with the entry timed 16:32 UTC
++# on 2026-10-30, and the entry that starts this records change (16:33 UTC, the source's line 802) and every later line
++# go to a later records change.  redact, in that copy: 16 workflow run ids (9 distinct; a bare one becomes 'workflow [id
++# removed]') and 3 scheduled-task ids (2 distinct), each by '[id removed]', and the assistant's name in a GitHub check's
++# name by '[name removed]'; these lines hold no checkout path, Drive id or task-list id.
++# critic_blind_results/MORNING_REPORT.md is scratchpad2/overnight/MORNING_REPORT.md, byte-identical, the absolute
++# session-scratch path of its last line included.  critic_blind_results/README.md has no source.
+ 
+ audit/foot_ankle_audit.md foot/audit_2026_10_17/foot_ankle_audit.md e9da4ef84be17a87b70096d1e2aede87609ad22f446b10786f9e14d5064725c8 prefix
+ audit/geometry/geometry_audit.json foot/audit_2026_10_17/geometry/geometry_audit.json 934110bec337b9693f894800efb309bf1a9529ae87f91f129bfefc8fef5b650a prefix,whitespace
+@@ -563,6 +576,8 @@ com_revisit/verify_scan/vs_lib.py scratchpad2/com_revisit/notes/verify_scan/vs_l
+ com_revisit/verify_scan/vs_mech.py scratchpad2/com_revisit/notes/verify_scan/vs_mech.py cdf8bb9ea89e0df11d57b4fd7ca4dac75639d02cc70b8f628775bc343e0f87e6 none
+ com_revisit/verify_scan/vs_sample.py scratchpad2/com_revisit/notes/verify_scan/vs_sample.py fa259b6ab5194b4a684478afb25b59e59f687ba80774d8a4b74264ae117a614c none
+ com_revisit/verify_scan/vs_stats.py scratchpad2/com_revisit/notes/verify_scan/vs_stats.py 666e8d5b93bf758acaac61141f741103da318d95918b59687ce94ce3189819f2 none
++critic_blind_results/MORNING_REPORT.md scratchpad2/overnight/MORNING_REPORT.md 4e6da8717db540a8216b90f31665db03c28626880f6261924e134cac36a30303 none
++critic_blind_results/run_log.txt foot/stance4/live/run_log.txt 35b00201322ec58046156cbe78e5efc731a031393449921e533900ee77e53756 lines,redact
+ diagnosis/findings_v1_superseded.txt foot/meanwhile/diagnosis/previous_v1/findings.txt d0bfc2078b60c935f6cadf7bf48104263f5d5c3f1521a50d74fb724cb32bbc1e none
+ diagnosis/findings_v3.txt foot/meanwhile/diagnosis/findings.txt 514cc3ea717bb572295ceb6b5f0b898bd3af499aea068e509b5e42c951be3c6d whitespace
+ ecs_results/APPROVED scratchpad2/r10round/ecs/APPROVED 2c077437ba8a61e70abe19857a84586b3fe0ba7c4496db654b0a7a55acd6e27d none
+diff --git a/docs/investigations/stance_2026_10/critic_blind_results/MORNING_REPORT.md b/docs/investigations/stance_2026_10/critic_blind_results/MORNING_REPORT.md
+new file mode 100644
+index 00000000..1cf97d00
+--- /dev/null
++++ b/docs/investigations/stance_2026_10/critic_blind_results/MORNING_REPORT.md
+@@ -0,0 +1,146 @@
++# Overnight report: the tail habit (2026-10-29 to 2026-10-30)
++
++Written for the maintainer after the night's runs. Everything below is verified by an independent check unless marked
++otherwise; [inferred] marks reasoning, not measurement. Nothing was merged; one scratch training screen ran under your
++00:45 UTC authorisation.
++
++## In one paragraph
++
++The verified probe narrows what starts the tail rise:
++- Only the policy-gradient part of training moves the tail command.
++- s42 already has an upward push at its onset (1.31M).
++- From 2.1M, the critic's bootstrapped value is supported as the source of that push.
++
++The one training screen you authorised blinded the critic to the tail angle from s42's 1.05M checkpoint. Its
++pre-registered reading is **NOT INFORMATIVE**: the control arm itself did not reliably repeat s42's rise. Only 1 of 4
++controls rose like the parent, a second rose partway, and the control median fell just short of the 0.10 bar (+0.092).
++So the screen says nothing either way about the critic. Report only, and not evidence:
++- no critic-blinded run rose by more than 0.07;
++- the blinded arm's mean was lower (+0.013 against +0.093; p 0.19).
++
++The most useful new fact [measured] is that, from the 1.05M state, the rise is a matter of chance under fresh rollout
++seeds. A follow-up screen needs a later start or more seeds. On early warning, no signal tested tonight separates the
++runs that will rail from those that won't, and the r9 held-out test failed. Nothing was merged. #654 is waiting for your
++review.
++
++## 1. What starts the tail rise (the early-bias probe, verified with corrections)
++
++- **Only the policy-gradient part of training moves the tail command.** The entropy and value terms have exactly zero
++  effect on the tail command's mean; the mirror-symmetry term is small and changes sign.
++- **The first rise is s42's own, and it is a policy-gradient push.** At 1.31M steps, about 0.1M after s42's rise begins
++  (1.204M), s42 already has an upward push on tail_3 carried by tail_3's own exploration noise, and the critic's slope
++  on the tail angle is positive. s80 has neither at that step; it gets the same kind of push about 0.8M steps later.
++  (The verifier fetched the 1.31M checkpoints read-only from Drive to establish this; the first probe had only the
++  1.05M-spaced local checkpoints and missed it.)
++- **From 2.1M the critic is the source.** On the policy's own states, the push is larger than what the actually
++  collected rewards justify: the critic's bootstrapped estimate of future value pays for a higher tail while the
++  short-horizon rewards push it down. The push grows tenfold in s42 by 3.15M and disappears in s80.
++- **Not settled:** whether the critic also drives the very first push (at 1.31M the data cannot separate the critic
++  from the collected rewards), and why the critic comes to value a raised tail. One reading is that the tail angle
++  becomes a stand-in for "how far into the episode" [inferred, a hypothesis the verifier did not settle].
++
++## 2. Can the habit be seen coming? (early-warning curve and two follow-ups, verified)
++
++- **The loop flips just before the rail, but s80 drifts there too.** The tail loop's gain turns positive one saved
++  checkpoint before the first saturated tail episode in s42 and s60. Late s80 reaches the same loop state without ever
++  saturating, so no loop-only rule separates them with any margin.
++- **Signals training already records are as early or earlier** (the tail command on the fixed reference states; the
++  ledger's tail command), but:
++- **They fail on the r9 runs.** Tested out of sample with the rules locked first, the reference-state signal fired in
++  all 5 r9 runs by 2.1M, including the cleanest no-habit run. Evidence against it as a cross-run warning.
++- **How close to the rail (margin test):** the smallest constant push that parks the command at +1:
++  s42 1.09 (2.1M) and 0.28 (3.15M); s60 0.70 (6.3M) and 0.20 (7.3M); s80 0.52, 0.33, 0.30 (10.5, 11.5, 12.0M). Late s80
++  is as close as s42 was one checkpoint before it first saturated, but approaches 4-12 times more slowly. A margin that
++  accounts for the loop's gain ranks all seven checkpoints correctly; none rails on its own at these checkpoints.
++- **Correction to the record:** the early loop-gain values in yesterday's posture results came from a sweep wide enough
++  to hit the normaliser's clip; unclipped they are 2-3 times more negative (signs unchanged).
++
++## 3. The training screen: does blinding the critic to the tail angle stop the early rise?
++
++- **Design (locked before launch):** 8 CPU continuations from s42's 1.05M checkpoint (before the rise) to 2.49M:
++  4 control, 4 with the critic blinded to the tail_3 angle (the actor unchanged). Primary outcome: the tail command on
++  the policy's own states over the last 8 updates; exact one-sided permutation test, alpha 0.05 (smallest possible p
++  1/70); informative only if the control arm's median rises by at least 0.10. The first draft of the criteria and
++  scorer was reviewed independently (9 findings, none blocking). The fixer applied and tested the fixes; the fixed
++  version was not re-reviewed. It was pinned (APPROVED sha256 7bf25afd...) 14 s before launch.
++- **Reading: line 1, NOT INFORMATIVE** (status final; both independent checks agree, 0 blocking findings). The control
++  median's rise was +0.092, against the pre-registered 0.10, so no reading about the critic is made.
++
++  | Seed | Control (rise from 1.05M) | Critic blinded (rise) |
++  |---|---|---|
++  | 2101 | +0.001 | +0.060 |
++  | 2111 | +0.057 | +0.003 |
++  | 2121 | +0.126 | +0.068 |
++  | 2131 | +0.314 | +0.047 |
++  | s42 itself, same window | +0.231 | |
++
++- **Only control_2131 rose like the parent** on the primary and the logged tail command (0.32 against the parent's
++  0.25). control_2121 rose partway on the primary. On the report-only resting-pose tail offset, control_2121 tracked the
++  parent (+0.21 against +0.22) and control_2131 did not (+0.12).
++- **What this does tell us [measured]:** from the same 1.05M networks, the early rise happens in some seeds and not in
++  others. It is not locked in by 1.05M. Even so, every one of the 8 runs was still far from the rail at 2.49M: no tail
++  alarm, and no logged tail command above 0.32.
++- **The manipulation held.** In every blinded rollout (700 of 700), the critic's output did not change at all when the
++  tail angle was perturbed. Returns and falls look alike in both arms (evaluation means 4,400-4,475; 0-2 falls in 110
++  episodes per run).
++- **Report only, not tested, spotted after the fact:**
++  - The blinded runs' tail offsets stayed small (at most 0.09 at the 7 saved checkpoints). Even so, one blinded run's
++    loop gain turned positive (+0.32), the only run of the 8 to do so.
++  - Across the 4 controls, the critic's slope on the tail angle at 2.49M ranks the same way as their rise: +0.060,
++    +0.012, +0.004, -0.019 for 2131, 2121, 2111, 2101. This is consistent with the critic idea, but 4 runs ranked
++    after the fact is not evidence. (These slopes come from the scorer's report-only lines; the checks did not test the
++    pattern.)
++- **Within the authorisation [measured]:**
++  - 8 continuations of 1,441,792 steps each, with one intervention;
++  - outcome-blind (no continuation was read before all 8 were decided);
++  - nothing pushed or merged during the screen.
++
++## 4. Repository
++
++- **#653 merged** (00:15 UTC): the CoM absolute-target tests, the calibration ratchet and the reduction's move into
++  the gait package. CI 10/10.
++- **#654 open, CI green**: the records PR with the tail-habit note, its ledger and evidence, run log lines 721-759, the
++  decisions D-D52 (amended) to D-D55, and #652/#653's landings. It lists a few defaults for you to accept or change.
++- **Durable copy of the screen pushed:** orphan branch `claude/handoff-bias-screen` at cfed2c70. It is text only
++  (633 files, about 20 MB) and carries this report and the night's probe notes. It is never merged and has no PR.
++
++## 5. One incident
++
++At about 01:05 UTC an agent ran a command that replaced the system `/dev/null` with a regular file; it restored it
++within a minute (character device 1:3, mode 666), and I confirmed it is correct. The early-bias probe's logs show no
++error and no file written in that window. Agents were told afterwards never to redirect outside their own folders.
++
++## 6. What I suggest next
++
++These are proposals. Each needs your word, and options A and B need a reviewed and pinned pre-registration first.
++
++- **A. (Recommended) Re-run the critic-blind screen from s42's 2.10M checkpoint.** This is the point where the critic
++  is verified as the source and the push grows tenfold by 3.15M.
++  - Design: 4+4 continuations to about 3.6M, within the 1.5M-step size you allowed. That window covers s42's climb:
++    its tail command went from +0.15 at 2.10M to +0.52 at 3.15M (deterministic traces) and +0.82 at 3.41M (training
++    ledger). It ends just before
++    s42's first over-bar episode, at 3.67M.
++  - Question: does hiding the tail angle from the critic stop the progression toward the rail?
++  - Why: this is the practical question behind a fix, asked where the control is more likely to move. That is
++    [inferred]; the gate should still be pre-registered.
++  - Cost: about 3 h on CPU, the same as tonight. It also needs a small harness change for the start checkpoint
++    (the 2.10M checkpoint is already held locally).
++- **B. A larger onset screen from 1.05M:** 8 per arm, about 6 h on CPU. Use it only if you still want the onset
++  question answered. Tonight's control spread suggests 4 per arm cannot be powered for it.
++- **C. If A shows blinding stops the progression:** a full-length training run with the critic blind to the tail
++  angles, as a candidate fix. This is a model-interface change and needs your approval.
++- **Housekeeping (no approval needed unless you object):**
++  - for future screens, key the reader's cache on the reader's own hash (process check P3);
++  - remove the old scratch worktrees (about 2.2 GB of disk is free);
++  - review #654.
++- **Still parked:** the CoM-P1 report-only reading goes into the next round's pre-registration.
++
++## Files
++
++- Early-bias probe: `S2/com_revisit/notes/early_bias/`, verifier `verify_early_bias/`
++- Early-warning curve: `early_warning/`, `verify_early_warning/`; follow-ups `warning_r9/`, `warning_margin/`,
++  `verify_warning_followups/`
++- Screen: `S2/r10round/bias_screen/` (criteria.txt, APPROVED, score/, independent checks in check/stat and check/proc)
++- Run log: `SP/foot/stance4/live/run_log.txt`
++
++(S2 = /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad)
+diff --git a/docs/investigations/stance_2026_10/critic_blind_results/README.md b/docs/investigations/stance_2026_10/critic_blind_results/README.md
+new file mode 100644
+index 00000000..a25c989a
+--- /dev/null
++++ b/docs/investigations/stance_2026_10/critic_blind_results/README.md
+@@ -0,0 +1,87 @@
++# The overnight probes and the two critic-blind screens: run log and overnight report (2026-10-29 to 2026-10-30)
++
++Evidence for decisions D-D56 to D-D58
++([BEHAVIOR_RECIPES_PLAN.md](../../../BEHAVIOR_RECIPES_PLAN.md) §6.2) and for
++§9 of [TREX_TAIL_SATURATION_HABIT_2026_10.md](../../TREX_TAIL_SATURATION_HABIT_2026_10.md):
++the session's run log from the opening of #653 (23:47 UTC on 2026-10-29) to
++the launch of the long critic-blind study's build (16:32 UTC on 2026-10-30),
++and the overnight report the maintainer read before choosing the second
++screen. It covers the early-bias probe and its verifier, the early-warning
++curve and its two follow-ups, the first critic-blind screen (BS, from seed
++42's r10 checkpoint at 1,048,576 steps), the second (BS2, from its
++checkpoint at 2,097,152), their reviews, readings, independent checks and
++durable copies, and the landings of #653 and #654. Nothing in it is a gate
++reading, and the screens certify nothing.
++
++The probes' files are in `../overnight_probes/`, the screens' in
++`../bias_screen/` and `../bias_screen2/`. The screens continued
++checkpoints of the first r10 stance round, whose results are
++[`../stance6_results/`](../stance6_results/README.md).
++
++[SOURCES.txt](../SOURCES.txt) lists each file's source, its sha256 and the
++changes the copy made; [SHA256SUMS](../SHA256SUMS) pins them (every file of
++the folder but this README).
++
++- **`run_log.txt`**: lines 760 to 801 of the session's run log, the entries
++  timed 23:47 UTC on 2026-10-29 to 16:32 UTC on 2026-10-30, with 16
++  workflow run ids (9 distinct) and 3 scheduled-task ids (2 distinct) each
++  replaced by `[id removed]` (a bare workflow id by `workflow [id removed]`)
++  and the assistant's name in a GitHub check's name by `[name removed]`, as
++  the earlier copies were made. It continues
++  `../ecs_results/run_log.txt` (lines 721 to 759) with no line in both.
++  Copy line = source line - 759.
++  - The maintainer's decisions, with the maintainer's words the records
++    quote, are its entries timed 00:24 UTC ('Early-bias probe
++    (Recommended)'), 00:45 UTC (going to bed, 'Probes + one small screen
++    (Recommended)'), 10:23 UTC ('Go with option a', the overnight report's
++    option A), 12:54 UTC ('Launch with 0.20 (Recommended)'; the answer came
++    at 12:53 UTC) and 16:23 UTC ('Long blind run to 12M (Recommended)',
++    'Push it (Recommended)' and 'Yes, now (Recommended)'). They are D-D56
++    (00:24 and 00:45), D-D57 (10:23 and 12:53) and D-D58 (16:23 UTC). The
++    entry timed 04:22 UTC records the intervention the session chose under
++    the overnight authorisation, `critic_blind_tail3`.
++  - The probes: the early-bias probe launched at 00:24, run at 03:45
++    (unverified) and verified with corrections at 04:21 UTC; the
++    early-warning curve started at 00:46 and done and verified at 02:42 UTC,
++    with its two follow-ups (the r9 held-out warning test and the
++    margin-to-rail test) launched at 02:42 and verified at 04:40 UTC.
++  - The first screen (BS): its scaffold launched at 03:45 and built at 04:58
++    UTC, its criteria pinned and its 8 continuations launched at 06:00 UTC, a
++    check-in at 07:30, all 8 decided by 08:49:39 UTC (the entry timed
++    09:01), the reading at 09:03 and its independent check at 09:13 UTC, with
++    APPROVED's full text on the next line, and its durable copy at 09:17 UTC.
++  - The second screen (BS2): its build and criteria from 10:29 to 12:49 UTC,
++    the pin at 12:54 and the launch at 12:55 UTC entries (launched 12:54:36),
++    check-ins at 14:16 and 15:09, all 8 decided at 15:43:28 UTC (the entry
++    timed 15:44), the reading at 15:57, its independent check launched at
++    15:58 and verified at 16:21, the report at 16:22 and its durable copy at
++    16:26 UTC.
++  - #653 opened at 23:47, its CI at 00:10 and its merge at 00:16 UTC; #654
++    opened at 01:43, its CI at 02:07 and its merge noted at 13:37 UTC (merged
++    at 13:36:32 UTC).
++  - The entry timed 02:42 UTC that reports the early-warning curve done (the
++    copy's line 9) records an incident: at about 01:05 UTC an agent replaced
++    the system's `/dev/null` with a regular file for about 1 to 2 minutes,
++    restored at 01:06 UTC; the next entry records that the early-bias probe's
++    logs show no error and no file written in that window.
++  - The housekeeping entries timed 10:24 and 16:25 UTC decide nothing. The
++    copy ends with the entry timed 16:32 UTC: the long critic-blind study's
++    build-and-criteria workflow launched (its pin and launch wait for the
++    maintainer) and the worktree of this records change created. The entry
++    that starts this records change (16:33 UTC, the source's line 802) and
++    every later line are in no copy; they go to a later records change.
++- **`MORNING_REPORT.md`**: the overnight report, written for the maintainer
++  after the night's runs and finished at 09:17 UTC (byte copy; its last line
++  keeps the scratch root's absolute path). It reports the verified
++  early-bias probe (§1), the early-warning results (§2), the first screen
++  (§3), the repository (§4), the `/dev/null` incident (§5) and the proposed
++  next steps (§6), of which the maintainer chose A at 10:23 UTC. Its §3 table
++  gives each continuation's rise from 1,048,576 rounded to three places
++  (`../bias_screen/score/score.txt` has the scorer's five). The copy on the
++  durable branch `claude/handoff-bias-screen` (`FOR_THE_MAINTAINER.md`) is
++  this text without §4's last bullet (the durable copy pushed), which was
++  added after that push.
++
++Kept as their sources have them: both files end with one newline and have no
++line ending in spaces. Neither holds a model identifier, an email address or
++a commit trailer.
+diff --git a/docs/investigations/stance_2026_10/critic_blind_results/run_log.txt b/docs/investigations/stance_2026_10/critic_blind_results/run_log.txt
+new file mode 100644
+index 00000000..28a58d84
+--- /dev/null
++++ b/docs/investigations/stance_2026_10/critic_blind_results/run_log.txt
+@@ -0,0 +1,42 @@
++2026-10-29 23:47 UTC  CoM PR opened per the maintainer: #653 (claude/com-stance-targets at 5797d20f, 3 commits on 378ae2f8: ratchet b6a6f42c, move fa436483, targets 5797d20f; two reviewers and a fixer, S1/S2/N2/R2-1/R2-2 fixed). Coordinator re-check on the head: CoM + reduction tests 187 passed, 23 xfailed (rc 0); trailers present, no model names or secrets, diff --check clean. Pushed with the push URL enabled for the one command, then DISABLED again. Subscribed to #653's activity.
++2026-10-30 00:10 UTC  #653 CI green on 5797d20f: 10 of 10 (lint, plant-contract, test 3.11/3.12/3.13 shared and species, test-sb3, coverage; run 40975477666); no review threads; no [name removed] Approvals check on this repo. Waiting on the maintainer's review.
++2026-10-30 00:16 UTC  #653 merged by the maintainer (00:15 UTC; CI 10/10 green on 5797d20f). Auto-unsubscribed. The records branch (built on 378ae2f8) will be brought onto the new main before it is pushed, and will record #653's landing and number as #652's.
++2026-10-30 00:24 UTC  MAINTAINER (AskUserQuestion): tail next 'Early-bias probe (Recommended)' (no training). Workflow [id removed] launched: at the r10 stance6 F2 checkpoints (s42 262,144-3,145,728 every 262,144; s80 same steps; s60 around its rise), rebuild one PPO update (rollout, GAE, full MirrorKLPPO loss), compute each loss term's first-order push on the deterministic tail_3 mean (plain and Adam-preconditioned), decompose by reward term and state region, validate against the actual checkpoint-to-checkpoint change; then an adversarial verifier. No optimizer step.
++2026-10-30 00:45 UTC  MAINTAINER (going to bed; AskUserQuestion): overnight 'Probes + one small screen (Recommended)': after the early-bias probe is verified, run without asking again (a) the no-training follow-ups (the probe's lead; the early-warning loop-gain/offset curve across s42/s60/s80 checkpoints and the 24 ECS continuations) and (b) ONE scratch CPU training screen: at most 9 continuations of at most 1.5M steps from r10 stance6 s42's 1,048,576 checkpoint, control vs one intervention on the driver the probe names; criteria written, reviewed and sha-pinned before launch; outcome-blind runner; report only; nothing merged or pushed except a durable text copy. Also: put together the analysis. Records PR push/open already authorised.
++2026-10-30 00:46 UTC  Early-warning curve (no training) started now rather than after the probe, as it does not depend on the probe's result: workflow [id removed] (runner + verifier; nice 15, one process): tail loop gain, offset, fixed point and posture slope at every saved checkpoint of r10 s42/s60/s80 and the 24 ECS continuations, lined up against the ledger events; candidate report-only telemetry.
++2026-10-30 01:43 UTC  Records PR opened per the maintainer: #654 (claude/records-tail-habit at af5935af, 6 commits on 7a96096b: #652 landing and #653's number; D-D52 amended and D-D53 to D-D55; run log 721-759; ECS evidence; CoM revisit and tail probes evidence; the note TREX_TAIL_SATURATION_HABIT_2026_10.md with ledger, §28 pointer, KNOWN_ISSUES Update 23, NEXT_STEPS note, CHANGELOG). Three checkers (2 blocking, all fixed) and a fixer; coordinator corrected two note sentences (§2 'otherwise unchanged', §4.11 fore-aft gap halved) in the note's commit, re-ran sha256sum -c and the guards on the head, scanned trailers, model names and secrets. Pushed with the push URL enabled for the one command, then DISABLED. Subscribed.
++2026-10-30 02:07 UTC  #654 CI green on af5935af: 10 of 10 (run 40987482368); no review threads. Waiting on the maintainer's review.
++2026-10-30 02:42 UTC  Early-warning curve done and verified (workflow [id removed]). Incident (disclosed by its runner): at ~01:05 UTC an agent ran 'mv ew_ecs.jsonl /dev/null' as root, replacing /dev/null with a regular file for ~1-2 min; restored 01:06 (mknod c 1 3, mode 666). Coordinator check at 02:42: /dev/null is a character device 1:3, mode 666, reads empty. Effects on other jobs in that window unverified; the early-bias probe's logs to be checked.
++2026-10-30 02:42 UTC  Early-warning result [measured, verified with corrections]: loop gain G (0-1 deg sweep) turns positive one checkpoint (1.05M resolution) before the first tail over-bar episode in r10 s42 and s60, but late s80 reaches the same loop state (G +0.27, c0 +0.49, command 0.64 at 12M; PARK at 11.80M) with no over-bar episode; margins within training noise; no unseen positive test; the probe's bank tail_3 offset and the ledger CMD_L are as early or earlier and already recorded; the record's early G values (VPOST) came from a clipped 0-6 deg sweep (unclipped G -0.73 at 1.05M in s42, signs hold). Early-bias probe logs: no error, no file written in the 01:04-01:08 /dev/null window. Follow-up workflow [id removed] launched under the overnight authorisation (no training): a pre-registered r9 held-out test of the warning signals, and a pre-registered closed-loop margin-to-rail test (s80 10.5-12M, s60 6.29/7.34M, s42 2.10/3.15M); one verifier.
++2026-10-30 03:45 UTC  Early-bias probe run done (verifier running): [measured, unverified] only the policy-gradient term moves tail_3's mean (entropy/value exactly 0; mirror-KL small); at 1.05M (s42 and s80) the expected update is null, yet the weights raised tail_3 ~+0.15 over 1.05-2.10M in both s42 and s80; from 2.10M an upward pull carried by tail_3's own noise appears, driven by the critic's bootstrapped value (GAE pull exceeds critic-free MC pull; realised rewards push down; critic slope on the tail angle turns positive where the pull appears, 11/11 checkpoints); grows 10x in s42 by 3.15M, gone in s80; r9 '-0.122' pull reproduced in kind (-0.156 at s42 3.15M). [inferred] tail angle as an episode-phase proxy for the critic. Screen scaffold workflow [id removed] launched (arm-agnostic: harness from s42 1,048,576 to 2,490,368, arms control / critic_blind_tail3 / gae_lambda_1 / frozen_obs_norm behind flags, runner 4 at a time, reader, V1-V3 with no optimizer step); no training until the intervention is chosen after the probe's verification and the criteria are reviewed and pinned.
++2026-10-30 04:21 UTC  Early-bias probe VERIFIED with corrections (workflow [id removed]): verifier fetched the 1,310,720 checkpoints read-only from Drive; at 1.31M (0.1M after s42's onset at 1.204M) s42 already has an upward policy-gradient pull on tail_3 carried by its own exploration noise (+0.00115 +- 0.00032/epoch, t 3.6; r9-style bias pull -0.040; critic slope on the tail angle positive); s80 has none then (gets it ~0.8M later); the critic-bootstrap source is supported from 2.10M on (on-policy rows; GAE-MC +0.0037 t 3.7 at 2.10M, +0.024 t 7.9 at 3.15M) but unresolved at the onset (+0.0005 +- 0.00045) and not on the statue_settled state; mirror-KL, entropy and value terms play no part. Probe's own critic-error slope (critic under-values a raised tail unless phase is controlled) was omitted; phase-proxy reading stays a hypothesis.
++2026-10-30 04:22 UTC  Screen intervention chosen under the maintainer's 00:45 UTC authorisation: critic_blind_tail3 (the normalised observation 6, the tail_3 angle, set to 0 before the value network only; actor untouched). Basis: the verified probe puts a policy-gradient pull on tail_3 from s42's onset (1.31M) with the critic's slope on the tail angle positive, and supports a critic-bootstrap source from 2.10M; whether the critic drives the onset is unresolved, which is what this arm tests directly. Not chosen: gae_lambda_1 (changes every actuator's advantages), frozen_obs_norm (the normaliser was shown to oppose the loop). Design: 8 continuations (4 control, 4 critic_blind_tail3) from s42 1,048,576 to 2,490,368; criteria, review and pin to follow once the scaffold is built.
++2026-10-30 04:40 UTC  Warning follow-ups done and verified (workflow [id removed]; pre-registrations hashed before data). r9 held-out: only the probe bank tail_3 signal was testable on r9 (no CMD_L/saturation columns); P1 fired in all 5 r9 runs by 2.06M including the cleanest negative s70 -> FAILS; verifier: evidence against it as a cross-run warning (its s80 'warning' a transient blip); the threshold translation (procedure X) was invalid. Margin-to-rail (bias nudge on action 14; 7 checkpoints x 20 seeds): margins s42 2.10M 1.094, 3.15M 0.281; s60 6.29M 0.703, 7.34M 0.203; s80 10.5M 0.516, 11.5M 0.328, 12.0M 0.297 -> late s80 as close to the rail as s42 one checkpoint before its first over-bar, but approaching 4-12x more slowly; a gain-aware margin (1-G-c0 or 1 - command at the railed angle) ranks the checkpoints; no checkpoint rails itself (G_cl <= 0.43); seed-set dependence up to 0.047. Verifier lead: a training tail-angle series exists in every probe (from obs_rms) and attributes r9's unnamed over-bars.
++2026-10-30 04:58 UTC  Screen scaffold built and validated (workflow [id removed]; S2/r10round/bias_screen; code copy digest 331fe8fc...; arms control/critic_blind_tail3/gae_lambda_1/frozen_obs_norm behind flags; V1 start reproduction, V2 no-update runs proving each arm in force and control unchanged, V3 reader reproduces prior G/c0/critic slope exactly; 72 tests; runner refuses without APPROVED). Estimated 8 continuations at 4 at a time: about 2.5-3 h. Criteria workflow [id removed] launched (writer, independent reviewer, fixer): criteria.txt, SCREEN.json (4+4 paired seeds 2101-2131), score_bs.py; the coordinator pins APPROVED and launches after it.
++2026-10-30 06:00 UTC  BIAS SCREEN PINNED under the maintainer's 00:45 UTC authorisation (RUNLOG l764): criteria v2 S2/r10round/bias_screen/criteria.txt sha256 9c490cc6965084456f9ccdd28f92ab6a0047b42f768550787448944e7f59913d (writer, independent review 9 findings incl. 0 blocking, all fixed; review/FIXES.txt); SCREEN.json a4eca4dc... (control vs critic_blind_tail3, 4+4 paired seeds 2101-2131, S 1,048,576 to E 2,490,368, 175 updates); APPROVED (0444) sha256 7bf25afdd2eedec3bf266d213e02ace3149f4fb93131fcae9707217f7279628b pins the criteria, SCREEN.json, code digest 331fe8fc... (re-verified, 1,406 files) and run_bs 0a5a9851, read_bs 04036e53, run_waves_bs 13fb6182, bs_common 3b3727e2, bs_hooks 1ff4c8be, score_bs 869898c5. Primary: on-policy tail_3 command (probe rollout_mu, action 14) over the last 8 updates before E; exact one-sided unpaired permutation test (blind lower), alpha 0.05, min p 1/70; informative only if control's median rises >= 0.10 from S (-0.0316); lines NOT INFORMATIVE / REDUCED / NO REDUCTION DETECTED. Preflight pass; plan lists 8 entries.
++2026-10-30 06:00 UTC  BIAS SCREEN LAUNCHED 06:00:19 UTC: run_waves_bs.sh detached (setsid, from /tmp), wave 1 = control_2101, critic_blind_tail3_2101, control_2111, critic_blind_tail3_2111, 4 at a time at nice 10; free 2.67 GB >= launch floor. Harness-tracked watcher on run_waves_bs.log only. Outcome-blind: nothing of a continuation is read until all 8 are decided.
++2026-10-30 07:30 UTC  Bias screen check-in: wave 1 decided 07:23-07:24 UTC (control_2101, critic_blind_tail3_2101, control_2111, critic_blind_tail3_2111 all COUNTED, about 83 min each); wave 2 (2121, 2131 pairs) started 07:23-07:24; no HALTED; free 2.3 GB. #654: green, no threads.
++2026-10-30 09:01 UTC  Bias screen: all 8 decided by 08:49:39 UTC, all COUNTED (CHECK passed, stop reason end), none VOID or crashed; the runner's full reads (markers) running (4 of 8 done by 08:56).
++2026-10-30 09:03 UTC  BIAS SCREEN READING (score_bs exit 0, STATUS final, pins OK; score.json e5faa4a3c644e193...): line 1, NOT INFORMATIVE: the control arm did not reproduce the early rise (control median primary +0.0603, rise +0.0918 from B_S -0.0316, against the pre-registered 0.10); no reading about the critic is made. Primary per continuation (control / blind, seeds 2101, 2111, 2121, 2131): -0.031 / +0.029, +0.026 / -0.028, +0.095 / +0.037, +0.283 / +0.016. Report only: arm means +0.093 / +0.013; one-sided p 13/70 (0.19); paired sign-flip 4/16; manipulation check holds on all 175 rollouts of every continuation; all 8 COUNTED, none missing. Report-only notes: only control_2131 rose like the parent (+0.314; CMD_L 0.32, c0 +0.51 at T); the blind arm's offsets c0 stayed <= 0.09, yet critic_blind_tail3_2131's loop gain still turned positive (+0.32 at T). Independent verification next.
++2026-10-30 09:13 UTC  BIAS SCREEN VERIFIED (workflow [id removed], 2 lenses, outputs S2/r10round/bias_screen/check/{stat,proc}): both agree with the scorer, line 1 NOT INFORMATIVE, STATUS final, 0 blocking. STATISTIC lens [measured]: every primary, the median, the rise +0.091843 (exact 3155692807/34359738368), p 13/70 (exact), sign-flip 4/16 and score.json e5faa4a3 reproduced by its own code; the median-of-4 midpoint rule is the pinned one (score_bs and the power script); with the upper middle value the gate would pass but the line would be 3 (NO REDUCTION DETECTED), not REDUCED, since p is 13/70 either way. STAT-1 (minor, wording): the 09:03 note "only control_2131 rose like the parent" holds on the primary (+0.314 vs parent +0.231) and CMD_L (0.32 vs 0.255) only; control_2121 rose partway on the primary (+0.126) and tracked the parent on the report-only statue_settled offset (+0.208 vs +0.217), control_2131 did not (+0.121). STAT-3: blind c0 <= 0.09 at the 7 saved pairs; the G pattern (end G less negative than at S in 4/4 blind, 1/4 control) is post hoc and untested. PROCESS lens [measured]: all pins equal the files (APPROVED born 06:00:05, ctime unchanged, 0444; SHA256SUMS 22/22; code copy 331fe8fc, 1,406 files, none newer than APPROVED); launch 14 s after APPROVED; all 8 run_meta done/exit 0/stop end at 2,490,368 with the pinned hashes; blind value change with obs 6 perturbed exactly 0.0 on all 700 rollouts, control > 0 (min 0.0333); advantages = GAE(0.95); outcome-blind (runner reads only allowed fields; every read/marker born after ALL_DECIDED 08:49:39.615; atimes saved before any log was opened); within the authorisation (8 <= 9, 1,441,792 steps <= 1.5M, one intervention; V1/V2 made no optimizer step; nothing pushed or merged since 01:42:09Z). Info only: P1 APPROVED full text was not in RUNLOG (appended on the next line); P2 the independent review covered criteria v1 (7302a26d) and score_bs v1 (c284d02b), v2 = the fixer's verified fixes, not re-reviewed; P3 read_bs's loop cache key omits read_bs's own sha256, so the report-only S-pair "plain" loop row came from a 04:24:28 entry 90 s before the reader's last edit (ledger truncation and lint only; values match earlier studies); P4 relatime cannot exclude re-reads of CHECK's inputs; use check/proc/pc_atime.out.
++2026-10-30 09:13 UTC  APPROVED full text (record only, per the criteria's pinning rule; file unchanged, sha256 7bf25afdd2eedec3bf266d213e02ace3149f4fb93131fcae9707217f7279628b): {"criteria_sha256":"9c490cc6965084456f9ccdd28f92ab6a0047b42f768550787448944e7f59913d","screen_sha256":"a4eca4dc0269709a81c8aa23f3df0972c4624ff0809d08f28182ad3f1c2150cf","code_tree_digest":"331fe8fc3f6bdf73acc0d3cc324dd753d9d9d695d7ce914e4e011d5c6437ebf1","tool_sha256":{"run_bs.py":"0a5a98515da81f61a0b9f0b4b278f2eb7ab3df4ebdfef850200b684ca55731ff","read_bs.py":"04036e5361348391f13689182a1b759d616e069bd64f9a20bc0bfcc995c83d02","run_waves_bs.sh":"13fb61829ce3d5ba878a804b765a5ddf3927531af9ff8dcbceb9da0b122a027a","bs_common.py":"3b3727e29b66f5b31f14d50af5a682448e46fc5e160069fb463abc03ecebf024","bs_hooks.py":"1ff4c8be048297270eea14a24fe59336020e20fbd4aca7c38f5b881b33eef9fc","score_bs.py":"869898c59439fd7e61aa409b6ed48b1afa48da3b6feec02e26b2c4bf9ff0542b"},"approved_by":"maintainer's overnight authorisation of 2026-10-30 00:45 UTC (RUNLOG l764: one scratch CPU training screen, <= 9 continuations, <= 1.5M steps, from r10 stance6 s42 1,048,576, control vs one intervention on the driver the early-bias probe names; criteria independently reviewed and pinned before launch; outcome-blind; report only); intervention critic_blind_tail3 chosen by the coordinator at 04:2x UTC; criteria v2 reviewed (9 findings, all fixed, none blocking left)","utc":"2026-10-30T06:00:05Z"}
++2026-10-30 09:17 UTC  Bias screen durable copy pushed under the maintainer's 00:45 UTC authorisation ('nothing merged or pushed except a durable text copy'): orphan branch claude/handoff-bias-screen at cfed2c70118dd1bc27373b58c08ac3a8500f1e7c (1 commit, 633 files incl. FILELIST/SHA256SUMS, about 20 MB; never merged, no PR), from S2/r10round/bs_durable/repo, staged by S2/r10round/bs_durable/build_stage_bs.sh (criteria, APPROVED, SCREEN.json, tools, review, validations without run ledgers, each continuation's run_meta/check/arm_evidence/ledger, reads, score, both checks, logs, the overnight report and the night's probe notes' top-level text files; no npz/zip/pkl/gz, no train_episodes.csv, no file over 5 MB; SKIPPED.txt lists the probe data folders and ew_events.json 5.9 MB; sha256sum -c OK; model-name, secret and email scan clean). Push URL back to DISABLED. Morning report filled (S2/overnight/MORNING_REPORT.md).
++2026-10-30 09:17 UTC  Overnight work complete. #654 at af5935af: CI 10/10 green, mergeable clean, no review threads (waiting on the maintainer's review). Overnight check-in [id removed] deleted (its job done); no further safety-net check-ins on #654 (the earlier check-in found nothing new and the maintainer has not written since it opened); subscription stays. Morning report sent: S2/overnight/MORNING_REPORT.md.
++2026-10-30 10:23 UTC  MAINTAINER: 'Go with option a' (morning report section 6, A): re-run the critic-blind screen from r10 stance6 s42's 2,097,152 checkpoint, 4 control + 4 critic_blind_tail3 continuations of at most 1.5M steps (to about 3.6M), scratch CPU, report only; a small harness change for the start checkpoint; criteria written, independently reviewed (the fixed version re-reviewed, per process check P2) and sha-pinned before launch; outcome-blind; nothing merged; housekeeping (old worktrees) not objected to.
++2026-10-30 10:24 UTC  Housekeeping (morning report section 6, not objected to): removed the CoM-revisit worktrees wt_creep, wt_design, wt_policies, wt_targets (their uncommitted lens edits saved first as patches in S2/com_revisit/notes/worktree_snapshots/, each checked to apply cleanly on 378ae2f8; SHA256SUMS there), wt_pr (#653 merged, clean) and wt_scan (clean). Kept base and wt_records (#654).
++2026-10-30 10:29 UTC  BS2 (critic-blind screen from s42 2,097,152, option A) build-and-criteria workflow [id removed] launched (8 agents, no training): builder (S2/r10round/bias_screen2; harness from 2,097,152 to 3,538,944, code copy BS/code reused read-only, P3 cache-key fix, V1-V3 with no optimizer step) || designer (criteria v1 draft from the parent's own probe: B_S, gate, power, secondaries incl. BS's post hoc end-G pattern as an out-of-sample secondary, new seeds); then independent build check || scorer adapter (score_bs.py, drafts installed, dry run); design/statistics and harness/process reviewers; fixer; re-review of the fixed version (P2). The coordinator pins APPROVED (full text to RUNLOG, P1) and launches after it. Free disk 2.9 GB.
++2026-10-30 12:49 UTC  BS2 build-and-criteria workflow done (workflow [id removed], 8 agents, 0 errors; no training). Builder: harness S 2,097,152 to E 3,538,944 (175 updates, 11 evaluations; end pair stage1_final), BS/code reused read only (digest 331fe8fc, unchanged), P3 cache key fixed; 78 tool tests; V1 start reproduced in every arm; V2 no optimizer step (n_updates 2471 unchanged), blind dV exactly 0 on 31/31, control min 0.0706; V3 reproduces the parent's G -0.6364, c0 0.2377, critic slope 0.02143 at 2,097,152 exactly. Designer: B_S 0.1265954738482833 (parent rows 248-255); parent primary at E 0.70538, rise +0.57878; gate: control median rise >= 0.20 (inclusive, midpoint rule); exact one-sided permutation test, alpha 0.05; lines NOT INFORMATIVE / REDUCED / NO REDUCTION DETECTED; three pre-registered secondaries that never change the line (SEC-G end loop gain, blind higher: BS's post hoc pattern out of sample; SEC-CMD; SEC-MARGIN); seeds 2501, 2511, 2521, 2531. Build check ready (0 blocking); scorer 2.x with 101 tests, 32/32 mutants caught; design and process reviews ready (0 blocking; 32 findings in all); fixer: 31 confirmed (25 fixed, 6 not needed/optional with reasons), 1 rejected with evidence. RE-REVIEW of the fixed version (P2): READY TO PIN, 0 blocking, 1 minor RR-1 (a runner relaunch after ALL_DECIDED would overwrite logs/atimes_at_ALL_DECIDED.tsv): handled by procedure, not a pinned-file change: before any relaunch after ALL_DECIDED the coordinator copies that file aside. Re-reviewed sha256: criteria.txt 291ff4573fa1b6030c739ddc1480d2260162c1b2e274c9af9933d6400183066f; SCREEN.json 255d0ba4fae3780a4988a7bebc537d77ce634ca2c761f0dce8e84d80de95ebf0; run_waves_bs.sh 6e0484f68f4202a2ab3f54f59596ae0e01dd7c71fd7af5f68350e57bb353bbf5; score_bs.py 05dd4b38b24a11c0a76fdda9b02685d86eb081781512c46274e8ed07726f5ac7; test_score_bs.py 7ace28fb01ad59fc9829232410f5235b13e809e8cc5786b1a4dc8efd32a8feb8; test_waves_bs.py 72d4f69d59657159be7a2374ab21614c459904f52a37c6caa5763e2f0d17e6c4; bs_common.py 6c4c36ea6b26de4dc8d7250ccea5c122d1cc88e1a9627e1450af96783b5b0d66; bs_hooks.py 1ff4c8be048297270eea14a24fe59336020e20fbd4aca7c38f5b881b33eef9fc; run_bs.py acd5b499e70b6eb76ca6ac4218cf01b86f2beac6f1dd33f701b31d1e68a6471f; read_bs.py 06f4173d90a5a022f90e97bfbf10bb3c19a463240127117183c28674fab95f60. Disk (RR-7): BS2/validate/v1final and v1fix removed after their 25+25 record files and full sha256 lists were kept in validate/*_records; the three durable stages removed (each repo equals its pushed branch: e4733d8b, 067b8a10, cfed2c70); free 2.75 GiB. Pin and launch wait for the maintainer's confirmation of the 0.20 gate.
++2026-10-30 12:54 UTC  MAINTAINER (AskUserQuestion): 'Launch with 0.20 (Recommended)'. BS2 PINNED: criteria.txt sha256 291ff4573fa1b6030c739ddc1480d2260162c1b2e274c9af9933d6400183066f (equal to the re-reviewed file and to every PINS line, 8 of 8); APPROVED (0444) sha256 184f9ab91f284149f15ac192b4a5f318fa01485fbaf0068df64bb03ba5029ad2; code copy BS/code re-verified (digest 331fe8fc..., equal_to_pinned true). APPROVED full text (P1): {"criteria_sha256":"291ff4573fa1b6030c739ddc1480d2260162c1b2e274c9af9933d6400183066f","screen_sha256":"255d0ba4fae3780a4988a7bebc537d77ce634ca2c761f0dce8e84d80de95ebf0","code_tree_digest":"331fe8fc3f6bdf73acc0d3cc324dd753d9d9d695d7ce914e4e011d5c6437ebf1","tool_sha256":{"run_bs.py":"acd5b499e70b6eb76ca6ac4218cf01b86f2beac6f1dd33f701b31d1e68a6471f","read_bs.py":"06f4173d90a5a022f90e97bfbf10bb3c19a463240127117183c28674fab95f60","run_waves_bs.sh":"6e0484f68f4202a2ab3f54f59596ae0e01dd7c71fd7af5f68350e57bb353bbf5","bs_common.py":"6c4c36ea6b26de4dc8d7250ccea5c122d1cc88e1a9627e1450af96783b5b0d66","bs_hooks.py":"1ff4c8be048297270eea14a24fe59336020e20fbd4aca7c38f5b881b33eef9fc","score_bs.py":"05dd4b38b24a11c0a76fdda9b02685d86eb081781512c46274e8ed07726f5ac7"},"approved_by":"maintainer: 'Go with option a' (2026-10-30 10:23 UTC, RUNLOG) and 'Launch with 0.20 (Recommended)' (AskUserQuestion, 2026-10-30 ~12:50 UTC): BS2, the critic-blind screen from r10 stance6 s42 2,097,152 to 3,538,944, 4 control + 4 critic_blind_tail3, report only; criteria reviewed (design and process lenses), fixed, and the fixed version re-reviewed READY TO PIN (workflow [id removed], P2)","utc":"2026-10-30T12:53:50Z"}
++2026-10-30 12:55 UTC  BS2 pre-launch checks (criteria HOW THE COORDINATOR PINS step 4) all pass: (a) score_bs.py prelaunch exit 3, STATUS incomplete (0 of 8), 0 PROVISIONAL; (b) run_bs.py --preflight-only exit 0 for all 8 queue entries, problems []; (c) RUNLOG holds APPROVED 184f9ab9 and all 9 re-reviewed sha256; (d) 2.75 GiB free (>= 2.6 GiB); (e) run_waves_bs.sh --plan exit 0, 8 entries, S 2,097,152, E 3,538,944. BS2 LAUNCHED 12:54:36 UTC: run_waves_bs.sh detached (setsid, from /tmp), wave 1 = control_2501, critic_blind_tail3_2501, control_2511, critic_blind_tail3_2511, 4 at a time at nice 10; free 2,952,146,944 B >= launch floor. Watcher reads only logs/run_waves_bs.log (outcome-blind; nothing of a continuation read until all 8 are decided). RR-1 procedure: before any relaunch after logs/ALL_DECIDED exists, copy logs/atimes_at_ALL_DECIDED.tsv aside first.
++2026-10-30 13:37 UTC  #654 MERGED by the maintainer at 13:36:32 UTC (verified on GitHub: merged true, merged_by kuds, head af5935af, base 7a96096b; origin main now 358651fe); the session was auto-unsubscribed. The tail-habit note, its ledger and evidence, D-D52 amended and D-D53 to D-D55 are on main. Records worktree wt_records removed (clean, at af5935af). Open for the next records change: RUNLOG lines 760 onward (the overnight work, BS and BS2).
++2026-10-30 14:16 UTC  BS2: control_2511 exited 0 at 14:16:18 and COUNTED (CHECK passed, stop reason end; about 82 min); atimes re-armed (P4); control_2521 started 14:16:20. Runner log only read. Watcher re-armed to wake on problems, ALL_DECIDED or the runner's exit. Free 2.73 GiB.
++2026-10-30 15:09 UTC  BS2 check-in (scheduled 14:36, fired 15:09): wave 1 decided, all 4 COUNTED (CHECK passed, stop reason end): control_2511 14:16:20, control_2501 14:17:12, critic_blind_tail3_2501 14:19:04, critic_blind_tail3_2511 14:19:07 (about 82-85 min each); wave 2 (control_2521 14:16:20, critic_blind_tail3_2521 14:17:12, control_2531 and critic_blind_tail3_2531 14:19:07) running; runner alive, no HALTED/PAUSED, free 2.66 GiB. Runner log only read. Expected all decided about 15:40-15:45 UTC, then the full reads (about 15 min).
++2026-10-30 15:44 UTC  BS2: all 8 decided at 15:43:28 UTC, none VOID, all COUNTED (wave 2: control_2521 15:38:41, critic_blind_tail3_2521 15:40:43, control_2531 15:41:26, critic_blind_tail3_2531 15:43:28; CHECK passed, stop reason end); P4 atime snapshot logs/atimes_at_ALL_DECIDED.tsv written before the full reads (278 files, 236 still re-armed); ALL_DECIDED present; the runner's full reads (read_bs.py markers, 4 at a time) running. Free 2.61 GiB.
++2026-10-30 15:57 UTC  BS2 READING (score_bs 2.1 exit 0, STATUS final, 0 PROVISIONAL; runner exit 0 at 15:56:28 after the 8 full reads; score.json sha256 87d07a4e1248042958a31b20c1da9ff290fab99babd1b6f0d93137b84a7524fd, score.txt 71af69cb62b02c61cd90a3f48fe6baa499adde813f3b34f74c79c048834048a6): line 2, REDUCED: 'BLINDING THE CRITIC TO THE TAIL_3 ANGLE (observation 6) REDUCED THE ON-POLICY TAIL_3 COMMAND OVER THE LAST 8 UPDATES BEFORE E, FROM s42's 2,097,152 STATE (exact one-sided permutation test, p <= 0.05)'. Primary control / blind (seeds 2501, 2511, 2521, 2531): +0.67001 / +0.14283, +0.79227 / +0.12485, +0.51081 / +0.13810, +0.41938 / +0.06516; B_S +0.12660; control median +0.59041, rise +0.46382 >= 0.20 (informative; parent's rise +0.57878); exact one-sided permutation p 1/70 (filled and as counted); sign-flip 1/16 (report only). Secondaries (never change the line): SEC-G NOT SUPPORTED (70/70: blind end G lower than control, the opposite of BS's post hoc pattern); SEC-CMD SUPPORTED p 1/70 (survives Bonferroni; CMD_L at E control +0.884/+0.955/+0.597/+0.475, blind +0.181/+0.125/+0.146/+0.068); SEC-MARGIN SUPPORTED p 1/70 (survives Bonferroni; b* control -0.030/-0.060/+0.404/+0.352, blind +0.983/+1.109/+1.301/+1.194). Report only: all 8 COUNTED, none missing; manipulation held on all 175 rollouts of every run (blind dV exactly 0); control_2501 and control_2511 had their first tail over-bar episode at 3,407,872 and control_2511 a TAIL-flagged evaluation at E (no alarm); no blind run had any over-bar episode or flag; arm SDs 0.166 / 0.036. Independent verification next (S2/r10round/bs2_verify.js).
++2026-10-30 15:58 UTC  BS2 independent verification launched (workflow [id removed], S2/r10round/bs2_verify.js, 2 agents: statistic lens incl. the 9 report-only claims for the maintainer's report; process and status lens incl. pins, APPROVED timing, arm evidence per rollout, outcome-blindness with the P4 snapshot, limits). Check-in [id removed] (16:40 UTC) kept as the safety net until the verification is read.
++2026-10-30 16:21 UTC  BS2 VERIFIED (workflow [id removed], 2 lenses, outputs S2/r10round/bias_screen2/check/{stat,proc}): both agree with the scorer, line 2 REDUCED, STATUS final, 0 PROVISIONAL, 0 blocking. STATISTIC [measured]: 104 comparisons with score.json, 0 differences (primaries as exact rationals of probe rows 423-430, B_S 135930855/2^30, control median rise 498021527/2^30 = +0.46382, p 1/70 with the next statistic +0.34211 vs observed +0.48039, sign-flip 1/16, SEC-G 70/70, SEC-CMD 1/70, SEC-MARGIN 1/70, line text verbatim). Wording corrections for the report: S-2 blind c0 0.10-0.25 and b* 0.98-1.30 hold at E (0.08-0.25 and >= 0.95 at every saved pair); S-3 complete separation is what a spread-only effect makes likelier: at the observed SD ratio 4.6 its chance under equal means is about 0.03 (0.025-0.040 for ratios 3-7; normal model), not 0.014; the filled p decides and the line stands (post hoc Welch t 5.67, df 3.3, one-sided 0.004; lowest control minus highest blind 0.277 = 7.7 blind SDs); S-4 control_2501 1/10 over the bar at 3,407,872 (0 at E), control_2511 2/10 at 3,407,872 and 8/10 at E (TAIL-flagged; an alarm cannot show at the last evaluation), all tail_3; no blind over-bar episode or flag; parent's first 4/10 at 3,670,016; S-5 control median on-policy mean within 0.03 of the parent's through 3,145,728, then 0.11-0.12 below (+0.590 vs +0.705 at E; median rise 80% of the parent's); S-6 SEC-G: controls that climb work against it; NOT SUPPORTED does not refute BS's 1.05-2.49M pattern (criteria); S-7 blind window return higher in all 4 pairs (+6 to +34), both falls episode 0 of the same seed-2521 evaluation (shared start state); S-8 claims (1), (4), (8) as worded. PROCESS [measured]: APPROVED born 12:53:50, 46 s before the first start, unchanged; all pins equal the files; code copy digest 331fe8fc, nothing newer than APPROVED; 8 run_meta done/exit 0/end at 3,538,944, n_updates 2471 -> 3758-3870; blind critic exactly invariant to obs 6 on 175/175 rollouts x 4 paths in all 4 blind runs, control min change 0.054; no crash/VOID/lost/HALTED/PAUSED; event order holds for all 8; in the P4 snapshot all 236 re-armed run files unread at ALL_DECIDED; markers and score after ALL_DECIDED; limits held; the only ref change in the window was the maintainer's merge of #654 (13:36:31Z). Info: M1 RUNLOG l788 holds a compact re-serialisation of APPROVED, not its bytes (json.dumps(indent=1)+newline rebuilds sha256 184f9ab9 exactly); I1 relatime cannot see reads before each decision (suggestion: lstat atimes right after each run exits); I3 the 0.20 answer came at 12:53:09 (APPROVED says ~12:50); I4 criteria.txt is 0644 (unchanged since 12:25:05); I5 post-scoring reads of some run files (allowed); I6 the S-row loop cache entries came from V3 by the same reader (P3-compliant).
++2026-10-30 16:22 UTC  BS2 report written (S2/r10round/bias_screen2/REPORT.md, the checkers' wording S-2..S-7 applied). Check-in [id removed] deleted (screen scored and verified). Next: the maintainer's choices (durable copy; next step; records PR).
++2026-10-30 16:23 UTC  MAINTAINER (AskUserQuestion, after the BS2 report): next step 'Long blind run to 12M (Recommended)': continue s42 from 2,097,152 to the full 12M, 4 runs (mostly critic_blind_tail3 plus a normal control), about 10 h on this machine after a ~2 h reviewed pre-registration (does the effect last, does the stance gate still pass, does the habit move to another joint); durable copy 'Push it (Recommended)' (orphan never-merged branch claude/handoff-bias-screen2, text only, no PR); records PR 'Yes, now (Recommended)' (docs-only, like #654: last night's probes and both critic-blind screens with their checks; built and checked locally, then pushed and opened for review).
++2026-10-30 16:25 UTC  Disk housekeeping for the long run: removed 4 pytest base-temp folders (prs/com_tests/notes/{fix,impl}/bt_shared, prs/r10_work/final/tmp_shared, prs/r10_work/build/pytest_full: per-test tmp dirs and SB3 eval temp files, regenerable) and prs/records_r10b/clone (clean, at 3cfb2a18 = the pushed head of #652's merged branch). Free 3.62 GiB.
++2026-10-30 16:26 UTC  BS2 durable copy pushed at the maintainer's word ('Push it (Recommended)'): orphan branch claude/handoff-bias-screen2 at 2d2414107a13e0674cedab8d193b1beb173c076e (1 commit, 3,220 files incl. FILELIST/SHA256SUMS, about 47 MB; never merged, no PR), staged by S2/r10round/bs2_durable/build_stage_bs2.sh (no npz/zip/pkl/gz, no train_episodes.csv, no synthetic dry-run roots, no validation run ledgers, no file over 5 MB; sha256sum -c OK; model-name scan: only a CLI temp-file path, no model name; secret and email scans clean). Push URL back to DISABLED.
++2026-10-30 16:32 UTC  Long blind study (LB, S2/r10round/long_blind) build-and-criteria workflow [id removed] launched (9 agents, no training): harness builder (S 2,097,152 to the parent's end, about 12M; resume from the latest saved pair for a ~10 h run; RR-1 and process I1 if small; V1-V4) || measurement builder (the round's pinned tools: TAIL CLASS, ANY ALARM per actuator, GATE CLASS via the six-heading certificate, POSITIVE; validated against the round's classes for s42, s60, s80) || designer (criteria v1: Q1 stays off the rail, Q2 gate, Q3 habit moves, Q4 control rails; default 3 blind + 1 control, new seeds); then independent build check || scorer adapter; design/measurement and harness/process reviewers; fixer (keeps originals, RR-8); re-review of the fixed version. Pin and launch wait for the maintainer's confirmation. Records PR worktree created: S2/com_revisit/wt_records2, branch claude/records-critic-blind on origin/main 358651fe (push URL DISABLED).
+-- 
+2.43.0
+

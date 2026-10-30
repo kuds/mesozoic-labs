@@ -1,0 +1,147 @@
+rc=0
+== INPUTS (sha256 against FMAN COPY rows)
+  S1/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/policy_probe.npz.copy1: 4e0e7220668faf124d394bffb760ba246d54bed8f48cb79925cb36234257fc11 FMAN 4e0e7220668faf124d394bffb760ba246d54bed8f48cb79925cb36234257fc11 equal True
+  S1/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/eval_episodes.csv.copy1: d1bcb78964691cf194e6276f06740d1f24aa69ad36831a046ad6307c1c4db11e FMAN d1bcb78964691cf194e6276f06740d1f24aa69ad36831a046ad6307c1c4db11e equal True
+  S1/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/evaluations.npz.copy1: 3e11136120622b90cc63203c46332004a9989188a0b8fe91620dbabb9f2563e9 FMAN 3e11136120622b90cc63203c46332004a9989188a0b8fe91620dbabb9f2563e9 equal True
+
+== PROBE: 1465 rows, 8,192 .. 12,001,280; window rows (S, E] present 1209 of 1209 (incl. the parent's row at E, which a continuation lacks)
+  B_S (8 rows ending at S) exact 135930855/1073741824 = 0.1265954738482833
+  primary form at E (8 rows 11,935,744 .. 11,993,088, the last 8 updates before E): +0.81159 rise +0.68500; the parent's own 8 rows ending at E (incl. its update row at E): +0.81288
+  at 3,538,944 (BS2's E; rows ending 3,530,752): +0.70538 rise +0.57878
+  window max of the trailing 8-row mean: +0.9710 at 4,669,440; its minimum from 4,194,304: -0.4630 at 6,922,240
+  first trailing 8-row mean >= 0.30: 2,908,160
+  first trailing 8-row mean >= 0.60: 3,252,224
+  first trailing 8-row mean >= 0.90: 4,521,984
+  window rows with the trailing 8-row mean >= 0.60: 846 of 1209; >= 0.90: 77
+
+  TRAJECTORY: the 8-row mean of rollout_mu_mean[:, 14] ending at each evaluation step (rise from B_S); at E the 8 rows before E
+    2.228M +0.155 |  2.359M +0.169 |  2.490M +0.195 |  2.621M +0.190 |  2.753M +0.241 |  2.884M +0.292
+    3.015M +0.328 |  3.146M +0.432 |  3.277M +0.614 |  3.408M +0.691 |  3.539M +0.694 |  3.670M +0.765
+    3.801M +0.812 |  3.932M +0.823 |  4.063M +0.809 |  4.194M +0.833 |  4.325M +0.831 |  4.456M +0.856
+    4.588M +0.918 |  4.719M +0.967 |  4.850M +0.961 |  4.981M +0.943 |  5.112M +0.897 |  5.243M +0.832
+    5.374M +0.833 |  5.505M +0.878 |  5.636M +0.847 |  5.767M +0.828 |  5.898M +0.844 |  6.029M +0.658
+    6.160M +0.539 |  6.291M +0.364 |  6.423M +0.136 |  6.554M -0.136 |  6.685M -0.342 |  6.816M -0.318
+    6.947M -0.419 |  7.078M -0.100 |  7.209M +0.224 |  7.340M +0.547 |  7.471M +0.536 |  7.602M +0.491
+    7.733M +0.508 |  7.864M +0.562 |  7.995M +0.653 |  8.126M +0.728 |  8.258M +0.643 |  8.389M +0.677
+    8.520M +0.681 |  8.651M +0.669 |  8.782M +0.644 |  8.913M +0.635 |  9.044M +0.639 |  9.175M +0.661
+    9.306M +0.643 |  9.437M +0.672 |  9.568M +0.758 |  9.699M +0.805 |  9.830M +0.828 |  9.961M +0.832
+   10.093M +0.849 | 10.224M +0.892 | 10.355M +0.876 | 10.486M +0.880 | 10.617M +0.833 | 10.748M +0.799
+   10.879M +0.781 | 11.010M +0.779 | 11.141M +0.773 | 11.272M +0.752 | 11.403M +0.745 | 11.534M +0.741
+   11.665M +0.754 | 11.796M +0.775 | 11.928M +0.797 | 12.001M +0.812
+
+  PER ACTUATOR (probe, on-policy rollout means): last 8 before E | D-1 window means [S,4.19M) [4.19,8.39M) [8.39M,E) | largest |trailing 8-row mean| (step) | training-row saturated share: window mean, max trailing-8
+   neck_pitch_act       -0.364 | +0.030 +0.039 +0.002 | -0.370 (11,878,400) | 0.000 0.000
+   neck_yaw_act         +0.001 | -0.000 +0.000 +0.000 | -0.007 (8,978,432) | 0.000 0.000
+   head_pitch_act       -0.181 | -0.002 -0.166 -0.330 | -0.505 (9,592,832) | 0.000 0.001
+   r_hip_pitch_act      -0.008 | -0.000 +0.001 -0.003 | +0.017 (6,701,056) | 0.000 0.000
+   r_hip_roll_act       -0.019 | +0.006 +0.009 +0.041 | -0.113 (5,120,000) | 0.000 0.000
+   r_knee_act           -0.007 | -0.003 -0.007 -0.003 | -0.022 (5,120,000) | 0.000 0.000
+   r_ankle_act          +0.009 | -0.003 +0.001 -0.000 | +0.022 (5,128,192) | 0.000 0.000
+   l_hip_pitch_act      -0.008 | -0.000 +0.001 -0.003 | +0.017 (6,733,824) | 0.000 0.000
+   l_hip_roll_act       +0.020 | -0.006 -0.009 -0.041 | +0.113 (5,120,000) | 0.000 0.000
+   l_knee_act           -0.008 | -0.003 -0.007 -0.003 | -0.022 (5,128,192) | 0.000 0.000
+   l_ankle_act          +0.008 | -0.003 +0.001 -0.000 | +0.022 (5,128,192) | 0.000 0.000
+   tail_1_pitch_act     +0.078 | -0.106 -0.131 -0.070 | -0.206 (4,956,160) | 0.000 0.000
+   tail_1_yaw_act       -0.017 | -0.003 -0.004 +0.001 | +0.075 (8,978,432) | 0.000 0.001
+   tail_2_pitch_act     +0.003 | +0.033 +0.055 +0.033 | +0.101 (5,300,224) | 0.000 0.000
+   tail_3_pitch_act     +0.812 | +0.491 +0.546 +0.759 | +0.971 (4,669,440) | 0.156 0.574
+  row 2,097,152: tail_3 normaliser mean +0.086 deg SD 0.419 deg; std14 0.1816; ent_coef 0.003502; learning_rate 2.6505e-05
+  row 3,530,752: tail_3 normaliser mean +0.765 deg SD 1.198 deg; std14 0.1643; ent_coef 0.002478; learning_rate 2.4115e-05
+  row 6,995,968: tail_3 normaliser mean +1.857 deg SD 2.204 deg; std14 0.1291; ent_coef 0.000003; learning_rate 1.8340e-05
+  row 11,993,088: tail_3 normaliser mean +2.510 deg SD 2.137 deg; std14 0.0950; ent_coef 0.000000; learning_rate 1.0012e-05
+  ent_coef first 0.0 at 7,004,160; rows with ent_coef 0 in the window: 611
+  statue_settled bank tail_3 command, 8 rows ending at S: +0.1340
+  statue_settled bank tail_3 command, 8 rows ending at 3,530,752: +0.1145
+  statue_settled bank tail_3 command, 8 rows ending at E - 8,192: +0.1088
+  statue_settled 8-row max over the window +0.2673 at 2,981,888
+
+== LEDGER: 910 rows, 91 evaluations (131,072 .. 11,927,552); in (S, E]: 75 (2,228,224 .. 11,927,552); rows per evaluation [10]; before or at S: 16 evaluations
+  my re-derivation (fraction > 0.10 only): over-bar episodes in (S, E] 249; first 3,670,016; flagged 26, tail-flagged 26; alarms 22 (first 3,932,160), tail alarms 22
+  flagged spells (first, last, evaluations): [('3,801,088', '5,111,808', 11), ('5,373,952', '5,505,024', 2), ('7,995,392', '8,388,608', 4), ('9,568,256', '10,616,832', 9)]
+  over-bar episodes by actuator and sign: {('tail_3_pitch_act', '+'): 249}
+    D-1 window [2,097,152, 4,194,304): over-bar 32
+    D-1 window [4,194,304, 8,388,608): over-bar 115
+    D-1 window [8,388,608, 12,001,280): over-bar 102
+  CMD_L first >= 0.30: 2,883,584; evaluations >= 0.30: 63 of 75
+  CMD_L first >= 0.60: 3,407,872; evaluations >= 0.60: 57 of 75
+  CMD_L first >= 0.90: 3,670,016; evaluations >= 0.90: 28 of 75
+  CMD_L at S +0.1251; at 3,538,944 +0.8296; at the last evaluation 11,927,552 +0.9081; max +1.0000 at 4,587,520; min from 4,194,304 -0.5616 at 6,946,816
+  CMD_L per evaluation (step in M: value / over-bar count):
+    2.228 +0.163/0   2.359 +0.202/0   2.490 +0.255/0   2.621 +0.197/0   2.753 +0.248/0   2.884 +0.328/0   3.015 +0.394/0   3.146 +0.560/0
+    3.277 +0.596/0   3.408 +0.822/0   3.539 +0.830/0   3.670 +0.932/4   3.801 +0.985/10   3.932 +0.993/10   4.063 +0.968/8   4.194 +0.984/9
+    4.325 +0.962/6   4.456 +0.994/10   4.588 +1.000/10   4.719 +1.000/10   4.850 +0.983/9   4.981 +1.000/10   5.112 +0.992/9   5.243 +0.875/0
+    5.374 +0.963/6   5.505 +0.968/7   5.636 +0.925/2   5.767 +0.897/0   5.898 +0.911/3   6.029 +0.760/0   6.160 +0.576/0   6.291 +0.282/0
+    6.423 +0.171/0   6.554 -0.354/0   6.685 -0.539/0   6.816 -0.364/0   6.947 -0.562/0   7.078 -0.116/0   7.209 +0.459/0   7.340 +0.701/4
+    7.471 +0.664/1   7.602 +0.669/0   7.733 +0.750/0   7.864 +0.772/0   7.995 +0.829/7   8.126 +0.775/5   8.258 +0.872/7   8.389 +0.937/10
+    8.520 +0.836/0   8.651 +0.857/0   8.782 +0.796/0   8.913 +0.779/0   9.044 +0.780/0   9.175 +0.772/0   9.306 +0.784/1   9.437 +0.835/0
+    9.568 +0.958/10   9.699 +0.964/10   9.830 +0.980/10   9.961 +0.985/10  10.093 +0.994/10  10.224 +0.992/10  10.355 +0.985/9  10.486 +0.986/10
+   10.617 +0.942/8  10.748 +0.899/1  10.879 +0.918/2  11.010 +0.845/0  11.141 +0.889/0  11.272 +0.866/0  11.403 +0.823/0  11.534 +0.840/0
+   11.665 +0.853/0  11.796 +0.853/0  11.928 +0.908/1
+  PER ACTUATOR (ledger command means per evaluation, (S, E]): largest |mean| (step); evaluations with mean >= +0.60 / <= -0.60; value at the last evaluation
+   neck_pitch_act       -0.488 (11,927,552); >= +0.60  0; <= -0.60  0; last -0.488
+   neck_yaw_act         +0.014 (6,815,744); >= +0.60  0; <= -0.60  0; last -0.005
+   head_pitch_act       -0.577 (9,306,112); >= +0.60  0; <= -0.60  0; last -0.166
+   r_hip_pitch_act      +0.018 (6,684,672); >= +0.60  0; <= -0.60  0; last -0.009
+   r_hip_roll_act       -0.147 (5,111,808); >= +0.60  0; <= -0.60  0; last -0.032
+   r_knee_act           -0.025 (5,111,808); >= +0.60  0; <= -0.60  0; last -0.010
+   r_ankle_act          +0.028 (5,111,808); >= +0.60  0; <= -0.60  0; last +0.010
+   l_hip_pitch_act      +0.019 (6,553,600); >= +0.60  0; <= -0.60  0; last -0.010
+   l_hip_roll_act       +0.146 (5,111,808); >= +0.60  0; <= -0.60  0; last +0.030
+   l_knee_act           -0.027 (5,111,808); >= +0.60  0; <= -0.60  0; last -0.009
+   l_ankle_act          +0.027 (5,111,808); >= +0.60  0; <= -0.60  0; last +0.012
+   tail_1_pitch_act     -0.224 (4,980,736); >= +0.60  0; <= -0.60  0; last +0.108
+   tail_1_yaw_act       -0.120 (7,077,888); >= +0.60  0; <= -0.60  0; last +0.096
+   tail_2_pitch_act     +0.131 (5,242,880); >= +0.60  0; <= -0.60  0; last +0.006
+   tail_3_pitch_act     +1.000 (4,587,520); >= +0.60 57; <= -0.60  0; last +0.908
+  returns: mean over the window's evaluations 4365.2; first 4453.7, last 4362.5; min 4292.5; falls (length < 1000) 0: []
+
+== evaluations.npz: 91 evaluations; in (S, E] 75; mean return 4365.2; episodes shorter than 1000: 0
+
+== PINNED (the measurement builder's measure_lb.json of the parent; the round's pinned M5 and classes)
+  status CLASSIFIED; E 12,001,280; tail class None; gate None; outcome NEGATIVE
+  any_alarms: 22; first 3932160; last 10616832
+  tail_alarms: 22; first 3932160; last 10616832
+  any_flagged: 26; first 3801088; last 10616832
+  tail_flagged: 26; first 3801088; last 10616832
+  any_alarms_by_actuator {'tail_3_pitch_act': {'count': 22, 'first': 3932160, 'last': 10616832, 'sole': 22}}
+  my alarms == pinned any_alarms: True; my tail alarms == pinned: True; my flagged == pinned any_flagged: True
+  pinned tail-flagged spells: [('3,801,088', '5,111,808', 11), ('5,373,952', '5,505,024', 2), ('7,995,392', '8,388,608', 4), ('9,568,256', '10,616,832', 9)]
+
+== EARLY-WARNING LOOP VALUES at the three parents' F2 pairs (ew_r10.jsonl; OWN primary sweep; b* = 1 - G - c0, computed here)
+  line  1 s42  3,145,728: G +0.349 c0 +0.411 b* +0.240 own14 +0.601 over-bar own episodes 0 of 10
+  line  2 s42  1,048,576: G -0.725 c0 -0.059 b* +1.785 own14 -0.033 over-bar own episodes 0 of 10
+  line  3 s42  2,097,152: G -0.636 c0 +0.238 b* +1.399 own14 +0.143 over-bar own episodes 0 of 10
+  line  4 s42  3,670,016: G +0.539 c0 +0.522 b* -0.060 own14 +1.000 over-bar own episodes 9 of 10
+  line  5 s42  4,194,304: G +0.529 c0 +0.511 b* -0.040 own14 +1.000 over-bar own episodes 10 of 10
+  line  6 s42  5,242,880: G +0.523 c0 +0.414 b* +0.063 own14 +0.844 over-bar own episodes 0 of 10
+  line  7 s42  6,291,456: G +0.507 c0 +0.149 b* +0.343 own14 +0.304 over-bar own episodes 0 of 10
+  line  8 s42  7,340,032: G +0.634 c0 +0.350 b* +0.015 own14 +0.928 over-bar own episodes 5 of 10
+  line  9 s42  8,388,608: G +0.739 c0 +0.306 b* -0.045 own14 +1.000 over-bar own episodes 10 of 10
+  line 10 s42  9,437,184: G +0.831 c0 +0.164 b* +0.005 own14 +0.918 over-bar own episodes 0 of 10
+  line 11 s42 10,485,760: G +0.698 c0 +0.358 b* -0.055 own14 +1.000 over-bar own episodes 10 of 10
+  line 12 s42 11,534,336: G +0.550 c0 +0.415 b* +0.035 own14 +0.894 over-bar own episodes 0 of 10
+  line 13 s60  1,048,576: G -1.381 c0 +0.015 b* +2.366 own14 +0.005 over-bar own episodes 0 of 10
+  line 14 s60  2,097,152: G -1.749 c0 +0.017 b* +2.732 own14 +0.005 over-bar own episodes 0 of 10
+  line 15 s60  3,145,728: G -1.943 c0 +0.040 b* +2.903 own14 +0.013 over-bar own episodes 0 of 10
+  line 16 s60  4,194,304: G -1.573 c0 +0.179 b* +2.393 own14 +0.068 over-bar own episodes 0 of 10
+  line 17 s60  5,242,880: G -0.512 c0 +0.181 b* +1.331 own14 +0.118 over-bar own episodes 0 of 10
+  line 18 s60  6,291,456: G -0.071 c0 +0.287 b* +0.784 own14 +0.264 over-bar own episodes 0 of 10
+  line 19 s60  7,340,032: G +0.313 c0 +0.490 b* +0.198 own14 +0.669 over-bar own episodes 0 of 10
+  line 20 s60  8,388,608: G +0.361 c0 +0.614 b* +0.025 own14 +0.914 over-bar own episodes 3 of 10
+  line 21 s60  9,437,184: G +0.314 c0 +0.641 b* +0.045 own14 +0.908 over-bar own episodes 2 of 10
+  line 22 s60 10,485,760: G +0.364 c0 +0.519 b* +0.117 own14 +0.791 over-bar own episodes 0 of 10
+  line 23 s60 11,534,336: G +0.433 c0 +0.380 b* +0.187 own14 +0.663 over-bar own episodes 0 of 10
+  line 24 s80  1,048,576: G -1.379 c0 -0.036 b* +2.415 own14 -0.015 over-bar own episodes 0 of 10
+  line 25 s80  2,097,152: G -1.977 c0 +0.082 b* +2.895 own14 +0.025 over-bar own episodes 0 of 10
+  line 26 s80  3,145,728: G -1.164 c0 +0.178 b* +1.985 own14 +0.087 over-bar own episodes 0 of 10
+  line 27 s80  4,194,304: G -1.124 c0 +0.034 b* +2.090 own14 +0.014 over-bar own episodes 0 of 10
+  line 28 s80  5,242,880: G -0.571 c0 -0.036 b* +1.607 own14 -0.025 over-bar own episodes 0 of 10
+  line 29 s80  6,291,456: G -0.205 c0 +0.227 b* +0.978 own14 +0.187 over-bar own episodes 0 of 10
+  line 30 s80  7,340,032: G -0.134 c0 +0.155 b* +0.979 own14 +0.140 over-bar own episodes 0 of 10
+  line 31 s80  8,388,608: G +0.066 c0 +0.121 b* +0.814 own14 +0.129 over-bar own episodes 0 of 10
+  line 32 s80  9,437,184: G -0.161 c0 +0.284 b* +0.877 own14 +0.244 over-bar own episodes 0 of 10
+  line 33 s80 10,485,760: G +0.028 c0 +0.466 b* +0.506 own14 +0.455 over-bar own episodes 0 of 10
+  line 34 s80 11,534,336: G +0.199 c0 +0.500 b* +0.301 own14 +0.603 over-bar own episodes 0 of 10
+  line 35 s42 12,001,280: G +0.483 c0 +0.504 b* +0.014 own14 +0.935 over-bar own episodes 0 of 10
+  line 36 s60 12,001,280: G +0.465 c0 +0.322 b* +0.213 own14 +0.601 over-bar own episodes 0 of 10
+  line 37 s80 12,001,280: G +0.273 c0 +0.486 b* +0.241 own14 +0.642 over-bar own episodes 0 of 10

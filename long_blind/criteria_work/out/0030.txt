@@ -1,0 +1,166 @@
+## 7. Open questions and the candidate next steps already proposed
+
+Who decides: the maintainer. Nothing trains, and no gate, reward, plant or
+criterion changes, without the maintainer's approval. Any training change
+needs criteria approved before the first training step, as for D-D43, D-D51
+and the entropy screen.
+
+**Done since the first draft.** The tail normaliser probe (chosen at 17:28
+UTC on 2026-10-29, no training) [L151, L152] and the three posture tests
+(logged at 19:55 UTC) [L160] are done and verified. COMREV §6 item 4
+framed the probe's question: "re-run the end policies with the start's
+normaliser to see whether the loop gain falls back. If it does,
+normalisation drift is the lever to study, not entropy." It does not fall
+back. It rises (closed loop 0.632 -> 1.086, 12/12), and the weights carry the
+growth; whether the drift shaped training is untested [L158, L159] (§4.8).
+The posture tests found a learned posture-to-tail pathway in the s42 lineage
+from mid-rise on, no mechanical push, and no nose-down or CoM-forward shift
+before the tail [L161-L164] (§4.11).
+
+**Open questions**
+
+1. Why does the positive loop form in training, and why does its gain grow
+   (0.27 -> 0.63 over 1,572,864 steps) [L145, L146]?
+   - The earliest event found is now a posture-independent tail bias. In r10
+     s42 the policy's tail_3 command mean began rising at about 1.20M, about
+     0.17M before the nose-down pitch, and at a fixed observation the tail
+     command was rising by 1.3-1.6M. Around then the network had little or
+     no posture-to-tail pathway (+0.005 per degree at 1,048,576; -0.020 at
+     2,097,152, about 1/8 of its 3,145,728 value) and a negative loop (G
+     -0.250 at 1,048,576, -0.386 at 2,097,152); both grew between 2.1M and
+     3.15M [L161, L164]. What changed in the policy at about 1.2M is not
+     known. The fixed-observation reading goes through each checkpoint's own
+     normaliser, so it does not separate the drift [L164].
+   - The weights, not the normaliser, carry the gain's growth: it sits in the
+     second hidden layer and the output layer, not in the first layer's
+     tail_3 column [L158, L159]. Which reward gradient grew them is not
+     known.
+2. Why in some lineages and seeds, and not others [L064, L106, L120]?
+3. What drives the outward drift of the training-row mean while the open-loop
+   reward falls (-0.122 ± 0.037 per mini-batch on tail_3's bias) [L063]?
+4. Did the normaliser's drift shape training [L104]? At fixed weights it is
+   an effect of the rail and lowers the gain (12/12 in every sweep range)
+   [L157, L158]. Whether PPO grew the downstream weights partly in answer to
+   the compressed input (x4.3-4.65 per normalised unit, against the x2.29
+   that full compensation needs) needs a training counterfactual: a
+   continuation with frozen statistics (ECS add-on N) [L116, L159].
+5. Does the entropy schedule matter in the first 3.1M steps, or for when an
+   onset comes [L105, L127]?
+6. Does r10 change the rail rate [L100]?
+7. Is the railed s42 lineage's 5 mm backward CoM drift the rail's doing? It
+   exists only in the tail-up state, with one start checkpoint [L133, L148].
+8. What is tail-up worth at r9 s42's onset (3.1M-3.5M) under full noise, and
+   under the discounted, normalised objective [L071]?
+9. Did r9 s42's 1.3-1.7M forward COM drift track the tail command? Answering
+   it needs `gate_progress.npz` or the 1,572,864 checkpoint, and neither was
+   fetched (SATDIAG §3, §8) [L038].
+10. Why does the hold-0 value change sign at r10 s42's final (-64.46) when it
+    is positive everywhere else (§8.3) [L103]?
+11. Which actuators were never named?
+    - Arm C (narrative only) [L025].
+    - The 2026-09 nodes (8, 1 and 40 episodes) [L019].
+    - The saturated ledger episodes of every r9 run without an alarm but
+      stance4 s60, first at 655,360 (stance3 Run 3, flagged once at
+      4,718,592), 7,864,320 (stance4 s52), 6,946,816 (stance5 s52),
+      11,403,264 (stance5 s60) and 8,126,464 (stance5r s70) (EVID6 Table A,
+      lines 392-401); LTSB's late window held 3 in 840 (s52 2, s60 1), and
+      s52's fresh-seed final failed only the saturation bar (EVID6 lines
+      122-129) [L041, L154].
+    - stance3 Run 1 was never checked for an alarm [L064].
+12. What do the ECS's per-actuator training-row shares for tail_3 show? They
+    are stored in ECS `score/read/<name>/read.json` and were never summarised
+    [L121].
+13. Clamp variants never run: tail_1 or tail_2 clamps, stochastic clamps,
+    other reset-noise levels, and more than one start checkpoint per lineage
+    (COMREV l129-131) [L149].
+14. What feeds r10 s60's tail offset? Its pitch sensitivity is the opposite
+    of s42's (seeing more nose-up raises its command), while its loop also
+    turned positive [L164].
+15. Did training build the s42 posture pathway because of the posture, or
+    did the two grow together? Not testable without training [L162, L165].
+16. Which posture claims stand unverified? VPOST did not check any r9 claim
+    of test 1 (F8 among them), the start-checkpoint clamp reading (F10),
+    test 2's gravity-only arm and 20 s check, or test 3's static plant and
+    pure rotation (T3-3) [L161-L164].
+17. Posture variants never run: the r9 lineage's posture pathway; tail_1 and
+    tail_2 pathways and leg-angle illusions in closed loop; own-noise play;
+    and the r10 F2 `diagnostics.npz` (training-time head height), which is
+    on Drive and was not fetched (PPOL `NOTES.txt` l228-229; PTIME
+    `NOTES.txt` l339-342) [L161, L162].
+
+**Candidate next steps already proposed** (none chosen beyond the probe and
+the posture tests)
+
+- **From the r10 review** (NEXT, ranked) [L112]:
+  - (2) a no-training addendum: the review's named gaps and KI's r10 checks
+    on the finals;
+  - (3) a from-scratch two-arm entropy round, the only test of the early
+    phase, about 170-230 L4-hours. Its power at one-sided alpha 0.05: with a
+    complete cure (true 2/3 against 0), 0.68 at 6 runs per arm and 0.91 at
+    8; with the rate halved (2/3 against 1/3), 0.18 at either size; at r9's
+    rate against a cure (0.4 against 0), 0.18 and 0.41 (REVIEW lines
+    670-673, computed there);
+  - (4) an r10 stance parent and a new walking pilot;
+  - (5) two more unchanged LTSB runs on r10.
+- **The ECS add-ons C, N and S**, each needing its own approval [L116]. N
+  (VecNormalize frozen at the start) is the training-side form of the
+  probe's question. The probe answered the fixed-weight side (the drift
+  follows the rail and lowers the gain), so N is now the one test of whether
+  the drift shaped training [L157-L159].
+- **D-D43's routing for BOUND90**: the deterministic-state bound variant, a
+  stronger dose (about 5.2), or the posture decision [L078, L086].
+- **The posture skeptics' additions**: a BOUND60 persistence screen to the
+  K3 slots, and a lower bound b of about 0.45-0.50 [L085, L086].
+- **Option B**, tail_3 reach: held [L067].
+- **Satdiag's cheapest checks** (SATDIAG §8 lines 130-134):
+  - fetch `gate_progress.npz` and `diagnostics.npz` for stance4 s42, s52 and
+    s60;
+  - fetch and roll the 1,572,864 checkpoint;
+  - run stochastic rollouts of s42 at 2.1M with and without tail_3 held.
+    The noise-value probe ran this third check at 4.19M, not 2.1M [L071].
+- **CoM-P1** as a report-only reading in the next round's pre-registration
+  (chosen at 17:28 UTC on 2026-10-29). It is not specific to the tail [L151].
+
+## 8. Sources and evidence
+
+#### neck mentions
+203:  - r6: 10-12 of 21 actuators pinned (tail, neck, head, toes) [L004].
+205:  - r9 stance3 Run 3, a run with no alarm: `neck_pitch` at a window mean of
+214:  - r10 s80: `neck_pitch_act` at -1, then `head_pitch_act` parked negative
+216:  - The entropy screen's s80 continuations: the neck again [L123].
+367:    parked it (MEAN_a +0.642) and s80 formed a neck habit instead (STANCE
+522:| 2026-08-05 [L004] | Why some stage-1 r6 runs bounce | Per-actuator DC/AC table of runs `20260804_143747`, `20260805_011234`, `20260805_132950` | [measured] "Ten to twelve of 21 actuators sit pinned at \|action\| >= 0.99 -- tail, neck, head, toes -- in both the passing and failing policies. Not
+527:| 2026-08-09 [L010] | Passive-toes run on r7 | Run `20260808_230537`, seed 42, regrouped release ablation (#501) | [measured] "The saturated trio (head_pitch −25.0°, tail_3_pitch +12.0°, tail_1_yaw −8.0°, all with zero AC) is conspicuous and fully exonerated." `only_saturated`, `tail` and
+543:| 2026-10-07 [L021] | The first r8 training runs | Audit §9: `20261006_185704` (seed 44) and `20261006_185343` (seed 42) | [measured] Seed 44's left-foot edge stance comes with "the tail ... commanded into its stop. Every item of (3) is inside every v2 bar." Item 9: "Head, neck and tail explora
+546:| 2026-10-12 [L024] | Is run A's front-edge pad the tail's doing? | Held-mean-action ablation of run A (r9, `20261011_165957`), 20 seeds | [measured] Holding "all but neck, head and tail" still puts the right pad at CoP +1.000, with 19/20 over 0.8. The neck, head and tail are ruled out. In the r
+548:| 2026-10-17 [L026] | Foot and ankle audit on `main` `2e734e29` (r9) | Measurement only | [measured] "The tail cannot lift off its stop, so it has no static fore-aft authority, and the neck and head move the COM rearward only." Among seven undecided candidate physics changes: "a tail that can ho
+557:| 2026-10-19 [L155] | Other actuators parked on r9 without a flag | stance3's saturation readout at 4,194,304 (40 deterministic episodes, seeds 3042-3081, heading 0), Runs 1-3 | [measured] Run 1 and Run 3 had 0 window steps at 0.99 or at 0.9 on any actuator. Run 3 (arm L+T, seed 52, no alarm): l
+565:| 2026-10-21 [L039] | What the habit costs under deterministic play | Satdiag counterfactual, 20 episodes, s42 at 2,097,152 and the final | [measured] 3559.5 -> 3645.4 (+85.9, every episode +53 to +143) at 2.1M; 3562.7 -> 3635.7 (+73.1, +9 to +126) at the final. No falls, none flagged when held.
+567:| 2026-10-21 [L041] | Why s52 and s60 did not rail | Satdiag §1 and §6 | [measured] s52 and s60 put no actuator at \|a\| >= 0.9 in the window at 2.1M, 4.2M or the final. Both passed through tail-up, head-up postures (head tip 1.03 m) and ended tail-down (-0.49, -0.52). `tail_home_pose` costs a
+615:| 2026-10-25 to 2026-10-26 [L095] | Telemetry for the first r10 round (#644, #645) | D-D46 to D-D48. #644: head posture and hip roll. #645: 118 T. rex ledger columns, among them each actuator's window-mean command and the at-rail and parked actuators named with their signs, each tail hinge's ang
+620:| 2026-10-27 18:41 UTC and 2026-10-27 23:59 UTC [L099] | Two report-only looks at the running r10 files | Maintainer-requested snapshots at 3,014,656 steps and at 7.60M-7.73M, kept outside the round's folder; neither entered the reading | [measured] First look: no flag or alarm (max saturated fr
+621:| 2026-10-28, 14:43 UTC [L100] | The first r10 round, read | Three complete 12M LTSB runs on r10, read from one settled final fetch by the approved scorer and independently re-derived | [measured] Line 1, "TAIL RAIL FORMED ON r10 IN TRAINING (ledger)". s60: PARKED (tail_3 MEAN_a +0.642, 0.042 ab
+622:| 2026-10-28 [L101] | Rail and drive timelines on r10 (D-1 to D-3) | Pre-registered report-only readouts on the full ledgers (91 evaluations of 10) and 20-episode deterministic traces every 1,048,576 steps | [measured] s42: first over-bar episode 3,670,016, first tail-flagged evaluation 3,801,08
+623:| 2026-10-28 [L102] | Posture on r10 (D-4 to D-8) | The 40-episode panels at the J checkpoints and the certificates; the pre-registered q3 fit | [inferred fit of measured rows, made before the round, EVID6 lines 47-49] "tail_3 at +1 holds q3 at about +5.1 deg (q3 = 0.018 + 5.149 x CMD deg ...)".
+625:| 2026-10-28 [L106] | Is it only a tail habit? Same seeds across plants | The review's 0.2 (a) and the same-seed comparison D-12/D-13 (report only; GPU training does not pair runs) | [measured] Seed 42 railed tail_3 at +1 on both plants, its first alarm 262,144 steps later on r10 (3,670,016 on r
+626:| 2026-10-28 [L107] | The r10 round against LTSB's five r9 runs | The review's §5 (a historical control on another plant, trained days apart; seeds chosen with their r9 outcomes known) | [measured] Alarm runs 2 of 5 (both tail_3 at +1) against 2 of 3 (one tail_3, one neck); tail rails 2 against
+642:| 2026-10-28, 19:32-19:55 UTC [L114] | Where the habit stood at the candidate starts | The ECS survey read the r10 ledgers, panels and probes | [measured] s42 at 3,145,728: tail_3 CMD +0.524, 0 flags; its first ANY-flagged evaluation came 655,360 steps later. s42 at 3,407,872 already held tail_3
+643:| 2026-10-28 21:00 UTC (draft v2) to 2026-10-29 01:38 UTC (final text) [L115] | The entropy continuation screen (ECS): design | Starts: s42 at S = 3,145,728 (tail_3 CMD +0.524, 0 flags, bonus 0.002753) and s80 at S = 4,194,304 (neck_pitch CMD -0.594, after its one neck over-bar episode at 3,801,
+650:| 2026-10-29 [L122] | Where the test's power came from | The statistic lens's information notes | [measured] s42's stratum is 12 of 12 POSITIVE, so it adds nothing to the conditional test; P_UP and P_DOWN come from s80's 2 POSITIVEs of 12 alone. s80's two POSITIVEs (`s80_A_1341`, `s80_B_1441`) a
+651:| 2026-10-29 [L123] | Which actuators crossed the bar in the 24 windows | The sweep's tally of the per-evaluation over-bar counts by actuator (`any_by`) in the statistic lens's re-derivation | [measured] Summed over evaluations: `tail_3_pitch_act` 651 over-bar episodes, all in s42 continuations;
+653:| 2026-10-29 [L125] | First flags (report only; the design does not test "when") | Each continuation's first ANY-flagged evaluation | [measured] s42 arm A: 3,538,944 / 3,670,016 / 4,063,232 / 3,670,016 / 3,932,160 / 4,063,232 (flagged evaluations 10 / 9 / 3 / 7 / 6 / 3). s42 arm B: 3,932,160 / 3
+668:| 2026-10-29 [L142] | Clamp (ii): impose the rail on the 12 unrailed s80 ends | tail_3 forced to +1, paired by policy and seed | [measured, verified with corrections] Return -179.9 [-582.3, -114.1], 0/12, 0/240 episodes. The open-loop replay gives -96.8, so about half is direct and half the poli
+672:| 2026-10-29 [L147] | The head-up posture follows the observed tail | The same sweep, reading `head_pitch` and `neck_pitch` | [measured] s42 ends: d `head_pitch` command / d tail deg median -0.0431 (< 0 in 12/12); start_s42 -0.0323; s80 ends -0.0066 (< 0 in 8/12). The neck shows no consistent sl
+678:| 2026-10-29, about 20:20 UTC [L161] | Posture test 1: did a posture shift come before the tail rose? | Records only, no simulation: the r10 stance6 F2 ledgers, training episodes and policy probes; r9 stance5 (5 runs) and stance4 (3) ledgers; the 24 ECS continuations; the r9 tail screen's pickle
+679:| 2026-10-29, 18:19-20:30 UTC [L157] | Normaliser probe, steps 1-2: how did the tail_3 angle's statistics move, and why? | All 168 VecNormalize pickles of the 24 continuations (7 checkpoints each) read with `pickle.load`, 36 also through the harness loader (identical); all 63 dimensions ranked b
+681:| 2026-10-29, about 21:00-21:25 UTC [L159] | Verify the normaliser probe | An adversarial verifier with its own code: the actor read from `policy.pth`, its own unpickler, normaliser formula, rollout and sweep. 460 closed-loop episodes (3 s42 ends, 2 s80 ends, both starts), all 73 s42 checkpoints
+882:    states: s42 railed in 6 of 6 against 6 of 6; s80 flagged (on the neck)
+993:    - s80: `qpos.neck_pitch`, at 3,145,728-3,670,016 (first neck over-bar
+1090:    on the neck instead) [L120, L123, L124].
+1095:  - Seed 80 railed tail_3 on r9 and saturated its neck on r10 [L106].
+1096:  - The actuator is not fixed by the plant either: neck and head parking
+1097:    predates r10. On r9 stance3 Run 3 (seed 52) held `neck_pitch` at -0.700
+1137:  - The first r10 round: s42 RAIL, s60 PARKED, s80 a neck habit [L100].
+1275:| 7 | Physics r10, SR3, with `tail_home_pose` re-centred (D-D44, 2026-10-25) [L090] | Plant and reward | `springref` 52.5 / 25.9 / 10.4° on the tail pitch joints | The statue rests the tail level; a level tail costs a command of about 0 [L088] | **The same rail in one run, a park in another, t
+1276:| 8 | `ent_coef` 0 from mid-rise states (ECS arm B, 2026-10-29) [L115, L120] | Training loss, scratch, diagnostic | 24 CPU continuations from r10 s42 and s80; arm B against the recorded schedule | No difference: s42 6 of 6 against 6 of 6 (tail_3), s80 1 of 6 against 1 of 6 (neck); the end std s
+1408:     held `neck_pitch` at -0.700 [L154, L155].

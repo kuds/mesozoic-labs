@@ -1,0 +1,146 @@
+THE DIFF OF LB/tools AGAINST BS2/tools, HUNK BY HUNK (logs/tools_vs_bs2.diff: cd S2/r10round && diff -ruN
+-x score_bs.py -x test_score_bs.py -x __pycache__ bias_screen2/tools long_blind/tools; 85 hunks)
+Files with NO hunk (byte-identical to BS2's, cmp): bs_hooks.py (THE ARM HOOK, unchanged), verify_copy.py,
+tests/test_bs_hooks.py.  Not copied (the criteria lane's): score_bs.py, tests/test_score_bs.py.
+
+bs_common.py
+  #1  (-1,21 +1,26)  docstring: LB; cites BS2's file (sha256 6c4c36ea...), what changed (root, window, seeds, cap, disk;
+                     resume / stop-reason / read-schedule constants added), sources TASK3, AUTH2 (RUNLOG line 799), PARENT.
+  #2  (-29,7 +34,7)  BS = S2/r10round/long_blind (was bias_screen2).  BS1 / CODE (BS's copy, read only) unchanged.
+  #3  (-64,10 +69,15) RUN_BYTES_EST 50 MiB -> 200 MiB (measured per run at E: validate/logs/disk_estimate.out);
+                     MAX_CONTINUATIONS 9 -> 4 (AUTH2: 4 runs); LAUNCH_DISK_BYTES follows (1.5 GiB + 4 x 200 MiB =
+                     2,449,473,536 B); TOOL_FILES adds bs_resume.py (pinned in APPROVED); SCORER_FILE = "score_bs.py"
+                     (the runner's scorer pin reads it).
+  #4  (-75,17 +85,34) EVAL_EPISODES = 10 (stance.toml); E = 12,001,280 (the parent's end; comment: why, and the end
+                     convention), LENGTH = E - S = 9,904,128, MAX_LENGTH = LENGTH (AUTH2), N_EVALS 75, SAVED_STEPS
+                     37 (2,359,296 ... 11,796,480; the expression unchanged), VALIDATE_UNTIL unchanged (2,359,296);
+                     new LOOP_READ_EVERY (= SAVE_FREQ: every saved pair, BS2's reading), HOP_WATCH_AFTER 7,000,000,
+                     HOP_WATCH_FIRST_EVAL 7,077,888, RESUME_GRID (= SAVE_FREQ).
+  #5  (-146,9 +173,10) VALIDATION_SEEDS (9301, 9311, 9321, 9331, 9341) (were 9201-9241); a note that read_bs's
+                     ONPOLICY_SEEDS 9301 / 9302 are another use.
+  #6  (-157,10 +185,10) STOP_REASONS adds "hop_watch"; RUN_SCHEMA "bs-run/2" (resume, attempts, hop watch in run_meta).
+bs_resume.py
+  #7  (-0,0 +1,388)  NEW: the resume (local_pair_problem = the code's checkpoint_pair_problem rules; zip_num_timesteps;
+                     evidence_prefix; records_through; resume_point; resume_inputs (hard links / copies); stitch_digests;
+                     stitch_problems; evaluation_grid_problems for CHECK).  Pure functions over folders; no torch, no
+                     code copy; the grid passed in (tests use a small one).
+check_inputs.py
+  #8  (-1,6 +1,8)    docstring: LB adds the reference read's pairs (FMAN only).
+  #9  (-16,6 +18,11) REF_STEPS = every 1,048,576 in [S, E] and E (= read_bs.REFERENCE_PAIRS); their zip / pkl added with
+                     pin None (FMAN only).
+  #10 (-29,9 +36,10) eq_pin true when not pinned; the output says "not pinned (FMAN only)"; _reference_pairs listed.
+read_bs.py
+  #11 (-1,14 +1,17)  docstring head: LB; cites BS2's reader (sha256 06f4173d...); CHECK now also reads the ledger's step /
+                     episode columns, evaluations.npz / gate_progress.npz timesteps and, for a resumed run, the stitched
+                     digests (digests only).
+  #12 (-16,9 +19,11) docstring of --reference: every 1,048,576 from 2,097,152 to 11,534,336 and the final pair at E
+                     (saved after the parent's update at E), FMAN-checked; --pairs.
+  #13 (-33,7 +38,8)  docstring of M-LOOP: the pairs the schedule names (LOOP_READ_EVERY).
+  #14 (-74,7 +80,7)  VERSION "read_bs 2.0 (... long blind study ...)".
+  #15 (-87,6 +93,7)  loads bs_resume (RS).
+  #16 (-112,8 +119,9) REFERENCE_PAIRS = the F2 multiples of 1,048,576 in [S, E] plus E (11 pairs; BS2's 2).
+  #17 (-142,8 +150,8) DEPS_SHA256 (the loop cache key) also covers bs_resume.py (a module the reader loads).
+  #18 (-324,7 +332,8) check_meta's early return carries load_step / resumed_from (None).
+  #19 (-385,9 +394,36) check_meta: the hop watch must be in the run with the stage's settings (found 1, after 7,000,000,
+                     stop); attempt = len(attempts) + 1; not resumed: load step S and the load pair = FMAN's start pair;
+                     resumed: resumed_from = load_step on the 262,144 grid inside (S, T), resume.P equal, resume.from =
+                     <name>_crashed<k> of the same run, >= 1 earlier attempt, the loaded pair = the resume point's,
+                     digest_load at the resume point.
+  #20 (-401,8 +437,12) stop reason "hop_watch" accepted: hop watch tripped, the collapse stop not, HOP_WATCH_FIRST_EVAL
+                     <= T < end, T on the evaluation grid; the message for other reasons names all three.
+  #21 (-416,9 +456,11) no-update train_calls counted from the load step (a resumed attempt's own updates); the identity
+                     returns load_step / resumed_from.
+  #22 (-467,12 +509,31) check_run: the evaluation grid (ledger 10 rows per evaluation at every 131,072 up to T, none
+                     repeated or after T; evaluations.npz and gate_progress.npz one row each); the ledger / npz files in
+                     sources; for a resumed run stitch_digests recomputed and compared (resume_stitch item).
+  #23 (-486,7 +547,8) check_is_current also covers eval_episodes.csv (the full read's M5 input).
+  #24 (-957,11 +1019,21) loop_schedule(T, every) (pure) and saved_pairs on it (BS2: every saved pair; unchanged when
+                     LOOP_READ_EVERY = SAVE_FREQ).
+  #25 (-1082,7 +1154,8) markers carry resumed_from, attempt and the loop schedule.
+  #26 (-1093,8 +1166,23) fman_copy1_sha256 (FMAN lookup, read only), reference_pair_files (periodic names, or the final
+                     pair at E), reference_read(pairs=...).
+  #27 (-1112,10 +1200,20) the reference read checks every pair against FMAN before reading it; --pairs subset; records
+                     reference_pairs in the markers.
+  #28 (-1158,6 +1256,7) --pairs argument.
+  #29 (-1168,8 +1267,11) --pairs parsed for --reference; refused otherwise.
+run_bs.py
+  #30 (-1,14 +1,28)  docstring: LB, the window, BS2's file (sha256 acd5b499...), the two additions (RESUME, HOP).
+  #31 (-63,8 +77,9)  loads bs_resume (RS); VERSION "run_bs 2.0 (...)".
+  #32 (-138,11 +153,12) recipe_problems(load_steps=S): run.timesteps = 12,000,000 - the load step (S or P).
+  #33 (-171,7 +187,7) the same in the want table.
+  #34 (-210,16 +226,18) loaded_problems(expected_steps=S): num_timesteps = the load step.
+  #35 (-259,11 +277,15) stop_reason(hop_tripped=False): "hop_watch" after "collapse" (collapse wins a tie).
+  #36 (-321,17 +343,21) make_checked_load(expected_steps, start_obs_digest): the load step's checks; the evidence keeps
+                     comparing with the START pair's observation statistics.
+  #37 (-348,7 +374,7) start_obs_digest passed in (None: as BS2, the loaded ones = S's for a fresh run).
+  #38 (-436,6 +462,18) hop_state(callbacks): HopRegimeWatchCallback's found / tripped / stop / settings.
+  #39 (-491,6 +529,36) zip_data (the zip's "data" JSON), pair_start_digest (a resumed attempt's digest_start from the S
+                     pair copy), attempt_summary (an earlier attempt: status, steps, times; no outcome).
+  #40 (-586,6 +654,41) resume_from_problems: --resume-from must be <run root>/<arm>_<seed>_crashed<k> of this arm and
+                     seed, its run_meta the same arm / seed / mode / S / E / target, not done / failed / refused.
+  #41 (-628,6 +731,7) preflight calls it.
+  #42 (-736,19 +840,60) run(): attempt / attempts / resumed_from / load_step / resume in run_meta; with --resume-from:
+                     bootstrap, resume_point (the code's checkpoint_pair_problem), stitch_digests of the last attempt,
+                     resume_inputs, the evidence list pre-filled; no complete pair: copy_inputs from S (BS2's start);
+                     start_pair (S) and load_pair (S or P) recorded; parent_records inherited by a resume.
+  #43 (-789,7 +934,7) total = 12,000,000 - L (the SB3 target stays 12,000,000).
+  #44 (-808,7 +953,10) V5 with the loaded zip's sha256 and load_steps = L; a fresh start's load pair must be FMAN's.
+  #45 (-826,8 +974,11) the S pkl's statistics: the evidence's start digest and obs_rms_end_equal_start compare with S's.
+  #46 (-871,20 +1022,23) hop_state recorded; stop_reason with hop_tripped; digest_start = the load's (fresh) or the S
+                     pair's (resumed); digest_load recorded; obs_rms_end_equal_start against S's.
+  #47 (-892,7 +1046,7) no-update expected calls counted from L.
+  #48 (-969,6 +1123,8) --resume-from argument.
+run_waves_bs.sh
+  #49 (-1,6 +1,18)   header: LB = BS2's runner (sha256 6e0484f6...) with RESUME, HOP, RR-1, I1, SCORER; the rest BS2's.
+  #50 (-58,7 +70,7)  BS_REAL=$S2/r10round/long_blind.
+  #51 (-76,6 +88,7)  SCORER_OVERRIDE (test mode only).
+  #52 (-92,6 +105,7) BS_SCORER honoured only with BS_WAVES_TEST=1 (the tests' stub scorer).
+  #53 (-109,7 +123,7) bs_common's SCORER_FILE read with the other constants.
+  #54 (-120,7 +134,9) read SCORER_FILE; SCORER = tools/<SCORER_FILE> (or the test override).
+  #55 (-142,7 +158,8) --plan states the early-crash rule from the load step and the --resume-from rerun.
+  #56 (-157,22 +174,22) the APPROVED scorer pin (PR-M4) checks tool_sha256[SCORER_FILE] against $SCORER (was the literal
+                     tools/score_bs.py; same behaviour with the default name).
+  #57 (-209,6 +226,53) load_step_of, last_crashed_folder (crash_ledger.tsv), current_attempt, exit_snapshot (I1: lstat of
+                     runs/<name>/**, tmp/<name>/** and the attempt logs into logs/atimes_at_exit/<name>.attempt<k>.tsv).
+  #58 (-247,7 +311,13) atime_snapshot (RR-1): an existing logs/atimes_at_ALL_DECIDED.tsv is kept; a later snapshot goes
+                     to atimes_at_ALL_DECIDED.relaunch<k>.tsv.
+  #59 (-255,7 +325,7) the snapshot does not list the snapshot files themselves.
+  #60 (-268,7 +338,7) its note names the file written.
+  #61 (-342,15 +412,22) RESUME_FROM table; record_crash: the early rule against the attempt's load step; a retired crash
+                     folder becomes the next attempt's --resume-from.
+  #62 (-376,7 +453,12) after_exit: the I1 snapshot first (before CHECK, the re-arm, any rename).
+  #63 (-386,7 +468,7) CHECK passed with stop reason hop_watch: STOPPED (like collapse).
+  #64 (-463,6 +545,8) relaunch: a pending name resumes from its newest retired crash folder in crash_ledger.tsv.
+  #65 (-494,8 +578,10) the start passes --resume-from when set; the note names it.
+  #66 (-536,7 +622,11) ALL_DECIDED kept as first written on a relaunch (RR-1); the relaunch noted.
+tests/test_read_bs.py
+  #67 (-23,7 +23,7)  VS = LB's first validation seed (9301).
+  #68 (-104,6 +104,9) _good_meta: hop_watch, attempt / attempts / resumed_from / load_step / resume / load_pair.
+  #69 (-124,11 +127,20) mutants: BS's and BS2's windows and validation seeds fail; hop watch absent, wrong attempt,
+                     load step, load pair fail.
+  #70 (-287,11 +299,90) reference pairs (11) and REPRO subset; new tests: resumed meta (12 mutants x 4 arms), hop-watch stop
+                     (5 mutants), loop_schedule, the cache key covers bs_resume.py.
+tests/test_resume.py
+  #71 (-0,0 +1,271)  NEW: 23 tests of bs_resume on synthetic attempts (the newest complete pair; damaged pairs x 6;
+                     incomplete records x 9; no point / bad start copy; an earlier pair missing; resume_inputs and the
+                     stitching incl. a changed row; an incomplete evidence prefix refused; the evaluation grid; the pair
+                     rules).
+tests/test_run_bs.py
+  #72 (-27,23 +27,28) V0 / V4 LB's; test_window_and_grid for LB's window, cap, floor, hop / resume / read constants.
+  #73 (-56,9 +61,9)  test_validation_seeds_are_lbs.
+  #74 (-79,10 +84,10) SCREEN: 4 valid, 5 refused (AUTH2).
+  #75 (-192,6 +197,10) stop_reason hop_watch, collapse wins a tie, end wins at the target.
+  #76 (-301,3 +310,78) new: recipe / load checks at a resume point, hop_state, resume_from_problems (8 refusals),
+                     attempt_summary carries no outcome.
+tests/test_waves_bs.py
+  #77 (-5,6 +5,10)   docstring: the LB cases.
+  #78 (-34,6 +38,7)  the stub records --resume-from.
+  #79 (-44,7 +49,7)  ... in calls.log.
+  #80 (-57,14 +62,18) the stub's "resumed..." plans (load step S + 524,288) and the "hop" stop.
+  #81 (-119,7 +128,9) a stub scorer pinned in APPROVED (the real one is the criteria lane's).
+  #82 (-132,8 +143,9) BS_SCORER in the test environment.
+  #83 (-168,7 +180,8) --plan: S 2097152, E 12001280 and the resume rule.
+  #84 (-257,13 +270,19) the scorer pin: also refused through the real tools path when no override is given.
+  #85 (-390,6 +409,96) test_real_root_is_lb; new: an own crash resumes from its retired folder (twice), a relaunch resumes
+                     from the crash ledger, the early-crash rule from the load step, a hop-watch stop is STOPPED, RR-1
+                     (first snapshot and ALL_DECIDED kept), I1 (atimes at exit before check.json and before the re-arm).

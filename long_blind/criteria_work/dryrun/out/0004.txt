@@ -1,0 +1,149 @@
+   481	  construction) beside the parent's from read_bs.py --reference; std of action 14, the tail_3 normaliser and the
+   482	  statue_settled bank command; returns and falls per evaluation (the ledger's return and length columns); the hop
+   483	  watch's and the collapse stop's state; the window (S, T] reading beside the whole-ledger class; for a RESUMED
+   484	  continuation the resume point, the discarded steps and the attempts.
+   485	- Arm figures for the blind arm (medians of the three) of O7, O8, O9; the count with G at the final pair above G at S
+   486	  (the start's -0.636 [measured, ew_r10.jsonl line 3]).
+   487	- Wording (BS2's STAT-1): a summary that says a continuation "railed like the parent" or "stayed clear" names the
+   488	  measure it holds on and gives the numbers; a pattern seen in these readings is labelled post hoc.
+   489	
+   490	VALIDATIONS (before launch; none may make an optimizer step)
+   491	- The builder's: unit tests; V1 (each arm reproduces the 2,097,152 start pair); V2 (no-update runs: each arm in force
+   492	  on every rollout, control unchanged, same-seed pairing); V3 (the reader on V2's outputs reproduces the parent's
+   493	  loop values at S: OWN G -0.636, c0 +0.238, own14 +0.143, critic slope +0.02143 per degree); V4 (a real no-update run
+   494	  killed after its second saved pair and resumed: the resume point, the stitched records and CHECK); the timing; the
+   495	  refusals [the builder's <LB>/NOTES.txt, as it stands at the review].
+   496	- The measurement builder's: measure_lb.py reproduces the round's classes of the three parents (s42 fully re-measured:
+   497	  6 fresh M1 and a fresh M3, 25 of 25 class keys, per-step traces byte-identical; s60's M3 re-measured identical; s60
+   498	  and s80 classes 25 of 25 on the round's own panels) and its mutation checks [measured, MEAS NOTES.txt VALIDATION
+   499	  RESULT]. Open there: s60 M1 and s80 M1/M3 not re-measured afresh (disk floor); resumable when space allows.
+   500	- The scorer adapter's score_bs.py for this text, with unit tests: every count rule of Q1-Q4, every overall line and
+   501	  its text verbatim, the per-continuation table, the comparisons C1-C4 with exact rationals, the sensitivity print,
+   502	  missing and LOST handling (a LOST continuation's ledger TAIL ALARM counted as RAILED; never as off the rail),
+   503	  RESUMED, STOPPED, NOT MEASURED, C6 FAIL, PROVISIONAL and INCOMPLETE; and three dry runs on real measured outputs
+   504	  (the measurement builder's MEAS validate outputs and the F2 probes, read only):
+   505	    (i)   the parent s42 as all four continuations (the blind entries given the arm's critic form): line 1, "THE TAIL
+   506	          RAIL FORMED IN 3 OF 3 ...", Q1 NO (3 RAILED), Q2 NO (0 of 3, GATE FAIL), Q3 NONE (3 FREE), Q4 YES, C1 every
+   507	          difference 0, C2 "DOES NOT REPEAT BS2" (the blind entries' O7 (b) +0.70538 is above +0.41938);
+   508	    (ii)  control s42, blind s60, s80, s80: line 5, "... WITH: 1 PARKED, 2 WITH A HABIT ON ANOTHER ACTUATOR" (s60
+   509	          PARKED and GATE PASS with habit sites only on tail_3; s80 CLEAR and GATE PASS with neck_pitch_act L, A, T, D
+   510	          and head_pitch_act D), Q4 YES;
+   511	    (iii) synthetic sets reaching lines 2, 3 and 4 and every Q word.
+   512	  (The designer's own transcription of these rules reaches every line and gives (i) and (ii) as written [computed,
+   513	  WORK reading_rules_check.out]; it is a check of this text, not the scorer.)
+   514	- The independent review checks this text against the harness, MEAS and the scorer; the fixer keeps the originals;
+   515	  the fixed version is re-reviewed (P2) before the pin.
+   516	
+   517	COMPUTE [inferred from measured CPU costs: the builder's <LB>/validate/logs/timing.out; MEAS NOTES.txt COSTS]
+   518	- Four continuations at once: about 9.3-10.3 h on a free machine (33,052-36,609 CPU-s each, by 6.73-10 epochs per
+   519	  update; BS2's wall / CPU ratio 1.012 at 4 at once); about 11.6-12.9 h with one other busy process on the 4 CPUs and
+   520	  13.9-15.4 h with two. (BS2's own continuations took 82-85 min for 176 rollouts at 4 at once, RUNLOG line 792; the
+   521	  same rate gives 9.4-9.7 h for 1,209 rollouts [computed, WORK design_numbers.out lines 36-37].) Then the full reads
+   522	  (about 39 min), the disk step, the measurement (about 27 CPU-min per FINISHED continuation, 74% of it the
+   523	  certificate; about 1 h with 2 slots) and the scorer (under 1 min). 0 L4-hours.
+   524	
+   525	WHAT THE READING CANNOT SHOW (KNOWN LIMITS)
+   526	- One parent state (s42 at 2,097,152), one plant, one recipe: nothing here is a rate, a result for other seeds or
+   527	  states, or a result from scratch. The policy starts with a small tail bias (B_S +0.127) and the blinded critic from
+   528	  weights trained with the angle (slope +0.0214 per degree on the on-policy states at S [measured,
+   529	  <BS>/reads/parent_s42/markers.txt, as BS2's criteria cite it]).
+   530	- Few runs: 3 + 1. No test can decide (minimum p 1/4); 0 of 3 rails bounds the per-run chance of a rail under blinding
+   531	  only below 0.63 (95%), and one control can fail to rail by chance (line 3).
+   532	- The onset phase (about 1.2M in the parent) is not tested: S is after it, and the screen from 1,048,576 (BS) read NOT
+   533	  INFORMATIVE.
+   534	- The critic still sees the angle's traces: qvel tail_3 (observation 27), the other tail angles and velocities (3-5,
+   535	  24-26) and the pitch channels; and if it valued the angle as a phase proxy, any other slow-moving input could serve.
+   536	  This study tests recovery over 9.9M steps from this state only; a clean result does not say it cannot happen later
+   537	  or from another state. z6 = 0 is "the angle at its running mean"; the normaliser keeps updating (the parent's moved
+   538	  +0.086 -> +2.510 deg over the window [measured, WORK parent_long.out lines 47-50]).
+   539	- The actor still sees the angle: a loop can grow through the actor without the critic's view (BS2's blinded runs'
+   540	  loop gain G rose from -0.636 at S to -0.551 ... -0.197 at 3,538,944, report only [measured, <BS2>/score/score.txt]).
+   541	- Blinding changes the value function for every actuator: a habit elsewhere can be the blinded critic's doing or
+   542	  chance (s80 formed a neck habit unblinded); the control's habits are printed beside.
+   543	- The gate is the six-heading certificate at the final pair: a measurement on a screen task, not certification, and
+   544	  one noisy draw (the parent passed at 6,291,456 with 39 of 40 clean seeds and failed at its final with 38 of 40, by 2
+   545	  episodes over the saturation bar, max_actuator_saturation_fraction 0.539 and 0.515 > 0.1, the actuator not recorded
+   546	  in the certificate [inferred: tail_3, the only actuator over the bar anywhere in the parent's ledger]; s80 the
+   547	  reverse, 5 of 40 then 40 of 40) [measured: PANELS/<run>/{6291456,final}/m3/stance_heading_report.txt]. It reads
+   548	  saturation too (max_hop_or_fall_episodes counts saturated episodes), so it is not independent of Q1 and Q3. A pass
+   549	  here is not a
+   550	  fix: a fix needs a from-scratch run with the critic blinded (a model-interface change, the maintainer's approval),
+   551	  other seeds and the gate's own certification.
+   552	- HABIT ELSEWHERE applies the round's tail lines to every actuator; D's 0.60 line was set for the tail, and a legitimate
+   553	  non-tail posture could reach it (in the three parents only s80's neck and head did) [measured, MEAS validate
+   554	  reports].
+   555	- E is the parent's end, not later; there is no evaluation at E (the last at 11,927,552); the final pair is one update
+   556	  before the parent's own. The parent comparisons are descriptive: the parent trained on an L4 with other draws.
+   557	- A RESUMED continuation is not the uninterrupted one (fresh draws from P); the sensitivity print shows what resumes
+   558	  carry. STOPPED and LOST continuations are read only to T and count against the hypothesis.
+   559	- The reading can wait for disk (DISK). Outcome-blindness is audited from atimes on this relatime filesystem; reads
+   560	  before a decision are seen only through the exit snapshots (I1).
+   561	
+   562	PINS (to be filled from the files as they stand when the fixed version is re-reviewed; any change to a pinned file
+   563	changes its line)
+   564	  This text's sha256 cannot be held in the text itself: it goes into <LB>/APPROVED (criteria_sha256) and RUNLOG.
+   565	    SCREEN.json                          <to fill>
+   566	    tools/score_bs.py                    <to fill>
+   567	    tools/tests/test_score_bs.py         <to fill>
+   568	    tools/bs_common.py                   <to fill>
+   569	    tools/bs_hooks.py                    <to fill> (BS2's, if unchanged:
+   570	                                         1ff4c8be048297270eea14a24fe59336020e20fbd4aca7c38f5b881b33eef9fc)
+   571	    tools/bs_resume.py                   <to fill>
+   572	    tools/run_bs.py                      <to fill>
+   573	    tools/run_waves_bs.sh                <to fill>
+   574	    tools/read_bs.py                     <to fill>
+   575	    measure/tools/measure_lb.py          <to fill> (5fb29b52f194ffa40f45afed7427d762841d09e1a8860a20c404b283f35459d6 at
+   576	                                         17:35 UTC, MEAS SHA256SUMS.txt)
+   577	  The code copy <BS>/code (read only, reused): commit 8737cd3d86431de1bdd0fcdb49a0d956a45e084d, 1,406 files, tree
+   578	    digest 331fe8fc3f6bdf73acc0d3cc324dd753d9d9d695d7ce914e4e011d5c6437ebf1 [to be re-measured]
+   579	  The start pair: F2 01_stance/models/stage1_2097152_steps.zip.copy1
+   580	    83b6c88edb933005adcb2089bdac67654f4e77809ca5506f4e47364995ef1b61, stage1_vecnormalize_2097152_steps.pkl.copy1
+   581	    991d434f385187e87301755ddf9a12fe2b3adb65cf186e7e32b175b3574bed90 [FMAN lines 241 / 243]
+   582	  B_S's source: F2 01_stance/policy_probe.npz.copy1 4e0e7220668faf124d394bffb760ba246d54bed8f48cb79925cb36234257fc11
+   583	  The parent's ledger: F2 01_stance/eval_episodes.csv.copy1
+   584	    d1bcb78964691cf194e6276f06740d1f24aa69ad36831a046ad6307c1c4db11e [FMAN; WORK parent_long.out]
+   585	  The round's criteria: 99a44469a387d01c55b98d76595d3633029681866ed14afcb185521eca0164db; its tools as measure_lb.py's
+   586	    PINS (11 files: the round's APPROVED, measure_r10round.py, r10m_common.py, ledger_r10round.py, r10round_common.py,
+   587	    complete_r10round.py, score_r10round.py, and in the code copy episode_trace_report.py, episode_trace.py,
+   588	    stance_gate_report.py) [MEAS NOTES.txt DESIGN]; M5 and M1-common as bs_common.PIN_SHA256 (ledger_r10round.py
+   589	    0d89bcb8..., r10round_common.py ea2c5ea6..., r10m_common.py 97431323...).
+   590	
+   591	HOW THE COORDINATOR PINS (after the independent review, the fixer, the RE-REVIEW of the fixed version (P2), and the
+   592	maintainer's confirmation of the final choices)
+   593	  0. The maintainer's confirmation of the final choices (the queue 1 + 3 and its seeds, E, the read schedule, the disk
+   594	     plan and which files outside <LB> may be removed for the measurement, DISK (a)) is quoted in RUNLOG before
+   595	     anything below.
+   596	  1. The re-reviewer's verdict and the sha256 of every file it re-reviewed go into RUNLOG; APPROVED pins exactly those.
+   597	  2. sha256sum <LB>/criteria.txt <LB>/SCREEN.json <LB>/tools/{run_bs.py,read_bs.py,run_waves_bs.sh,bs_common.py,
+   598	     bs_hooks.py,bs_resume.py,score_bs.py} <LB>/measure/tools/measure_lb.py; check them against the PINS lines and the
+   599	     re-reviewed list; write <LB>/APPROVED ONCE, as ONE LINE of compact JSON followed by a newline:
+   600	       {"criteria_sha256":...,"screen_sha256":...,"code_tree_digest":"331fe8fc...(full)","tool_sha256":{"run_bs.py":
+   601	       ...,"read_bs.py":...,"run_waves_bs.sh":...,"bs_common.py":...,"bs_hooks.py":...,"bs_resume.py":...,
+   602	       "score_bs.py":...},"measure_sha256":{"measure_lb.py":...},"approved_by":...,"utc":...}
+   603	     (no text in it may contain "APPROVED BYTES: "), and chmod 0444. The runner reads the four keys it needs
+   604	     (bs_common.APPROVED_KEYS) and ignores the extra one; score_bs.py checks measure_sha256.
+   605	  3. P1 with BS2's process lesson M1 (RUNLOG line 788 held a compact re-serialisation of APPROVED, not its bytes): in
+   606	     the SAME RUNLOG entry that records the pin, and before the launch entry, one line ending with "APPROVED BYTES: "
+   607	     followed by the file's exact bytes (its one line, verbatim, appended from the file itself, for instance with
+   608	     printf '%s APPROVED BYTES: ' "<the entry's text>" >> RUNLOG; cat <LB>/APPROVED >> RUNLOG), its sha256 and
+   609	     criteria.txt's sha256 in the same entry. Check, read only: grep -F 'APPROVED BYTES: ' RUNLOG | tail -n 1 | sed
+   610	     's/^.*APPROVED BYTES: //' | sha256sum equals sha256sum <LB>/APPROVED (the RUNLOG line's own newline is the file's).
+   611	  4. Before launch, all read only: (a) cd /tmp && S2/venv/bin/python -I -B <LB>/tools/score_bs.py --out
+   612	     <LB>/logs/prelaunch_score exits 3 with STATUS incomplete (0 of 4 decided) and NO PROVISIONAL item; (b)
+   613	     run_bs.py --preflight-only for all 4 entries (exit 0 each); (c) the check of step 3, and RUNLOG holds every
+   614	     re-reviewed sha256 (grep); (d) cd <LB>/measure/work && S2/venv/bin/python -I -B ../tools/measure_lb.py pins
+   615	     prints "all 11 pins, the copy's seal and the stack OK"; (e) df -B1 /tmp shows at least 2,791,728,742 bytes free
+   616	     (DISK); (f) run_waves_bs.sh --plan (exit 0, 4 entries, S 2,097,152, E 12,001,280); then launch (detached, from
+   617	     /tmp, the builder's HOW TO LAUNCH). The runner itself refuses unless APPROVED pins tools/score_bs.py at its
+   618	     current sha256.
+   619	  APPROVED is written once, before the first start, and never edited. Every run_meta records APPROVED's sha256 at its
+   620	  start (a resumed attempt too), so a later change to APPROVED (a re-pin, only with the maintainer's word) leaves every
+   621	  continuation started before it PROVISIONAL for good (cleared only by running it again).
+   622	END (criteria v1 draft; the designer's notes and every command: WORK/DESIGN_NOTES.txt, WORK/CMD_LOG.txt).
+====
+{
+ "schema": "bs-screen/1",
+ "_note": "LB's queue (criteria THE QUEUE; draft v1, to be installed as <LB>/SCREEN.json by the scorer adapter): control vs critic_blind_tail3 from r10 stance6 s42's 2,097,152 state to the parent's own end 12,001,280, 1 control + 3 critic_blind_tail3 (AUTH, RUNLOG line 798: 4 runs, mostly critic_blind_tail3 plus a normal control). The control shares seed 2701 with one blinded continuation (the same first rollout). Derived seeds 2701-2704, 2711-2714, 2721-2724 and evaluation seeds 3701, 3711, 3721: none used before (criteria_work/seeds_check.out, seeds_grep.out, seeds_triage.out). All four start together (4 slots); the order puts the pair first. Pinned by sha256 in <LB>/APPROVED (screen_sha256).",
+ "intervention": "critic_blind_tail3",
+ "queue": [["control", 2701], ["critic_blind_tail3", 2701], ["critic_blind_tail3", 2711], ["critic_blind_tail3", 2721]]
+}

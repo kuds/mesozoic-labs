@@ -1,0 +1,36 @@
+[
+ {
+  "file": "eval_diagnostics.py",
+  "class": "StageAwareEvalCallback",
+  "line": 1481,
+  "returns_other_than_True": [
+   "bool(continue_training)"
+  ]
+ },
+ {
+  "file": "curriculum/advancement.py",
+  "class": "CurriculumCallback",
+  "line": 193,
+  "returns_other_than_True": [
+   "self._on_step_standalone()",
+   "self._on_step_with_eval_callback()"
+  ]
+ },
+ {
+  "file": "curriculum/early_stopping.py",
+  "class": "EvalCollapseEarlyStopCallback",
+  "line": 177,
+  "returns_other_than_True": [
+   "False"
+  ]
+ },
+ {
+  "file": "curriculum/hop_watch.py",
+  "class": "HopRegimeWatchCallback",
+  "line": 120,
+  "returns_other_than_True": [
+   "not self.stop"
+  ]
+ }
+]
+# 24 _on_step methods, 4 can return non-True

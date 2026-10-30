@@ -1,0 +1,29 @@
+      mean return per evaluation: 2,228,224 4448.3, 2,359,296 4444.7, 2,490,368 4437.8, 2,621,440 4456.9, 2,752,512 4468.5, 2,883,584 4471.9, 3,014,656 4441.1, 3,145,728 4464.3, 3,276,800 4459.7, 3,407,872 4431.8, 3,538,944 4442.7
+      pair 2,097,152: OWN G -0.636 c0 +0.238 b* +1.399 G_L -0.648 b*_L +1.413 own14 +0.143 falls 0 | REF G -0.619 | critic dV/dq3 per deg eff/raw: on-policy +0.00000/+0.02143 OWN +0.00000/+0.03040 REF +0.00000/+0.05960
+      pair 2,359,296: OWN G -0.618 c0 +0.216 b* +1.402 G_L -0.627 b*_L +1.407 own14 +0.135 falls 0 | REF G -0.597 | critic dV/dq3 per deg eff/raw: on-policy +0.00000/+0.01820 OWN +0.00000/+0.02292 REF +0.00000/+0.04619
+      pair 2,621,440: OWN G -0.347 c0 +0.149 b* +1.199 G_L -0.353 b*_L +1.199 own14 +0.114 falls 0 | REF G -0.334 | critic dV/dq3 per deg eff/raw: on-policy +0.00000/+0.02466 OWN +0.00000/+0.03249 REF +0.00000/+0.05126
+      pair 2,883,584: OWN G -0.238 c0 +0.079 b* +1.159 G_L -0.241 b*_L +1.157 own14 +0.067 falls 0 | REF G -0.220 | critic dV/dq3 per deg eff/raw: on-policy +0.00000/+0.03052 OWN +0.00000/+0.03745 REF +0.00000/+0.04860
+      pair 3,145,728: OWN G -0.301 c0 +0.139 b* +1.162 G_L -0.306 b*_L +1.165 own14 +0.108 falls 0 | REF G -0.283 | critic dV/dq3 per deg eff/raw: on-policy +0.00000/+0.01956 OWN +0.00000/+0.02664 REF +0.00000/+0.04388
+      pair 3,407,872: OWN G -0.373 c0 +0.101 b* +1.272 G_L -0.373 b*_L +1.273 own14 +0.073 falls 0 | REF G -0.348 | critic dV/dq3 per deg eff/raw: on-policy +0.00000/+0.03100 OWN +0.00000/+0.03561 REF +0.00000/+0.04786
+      pair 3,538,944: OWN G -0.294 c0 +0.100 b* +1.194 G_L -0.295 b*_L +1.195 own14 +0.077 falls 0 | REF G -0.277 | critic dV/dq3 per deg eff/raw: on-policy +0.00000/+0.03012 OWN +0.00000/+0.03440 REF +0.00000/+0.05222
+REPORT ONLY, THE ON-POLICY TRAJECTORY (the 8-row mean of rollout_mu14_mean ending at each evaluation step; at E the primary's rows), beside the parent's (F2 probe); untested:
+       step    parent   cont2501   crit2501   cont2511   crit2511   cont2521   crit2521   cont2531   crit2531  | median control / blind
+  2,228,224   +0.1551    +0.1352    +0.1196    +0.1284    +0.1201    +0.1300    +0.1147    +0.1460    +0.1313  | +0.1326 / +0.1198
+  2,359,296   +0.1686    +0.1660    +0.1248    +0.1504    +0.1333    +0.1534    +0.1106    +0.1373    +0.1151  | +0.1519 / +0.1200
+  2,490,368   +0.1955    +0.1919    +0.1347    +0.1814    +0.1313    +0.1253    +0.0878    +0.1739    +0.1267  | +0.1777 / +0.1290
+  2,621,440   +0.1902    +0.2357    +0.1317    +0.2362    +0.1227    +0.1783    +0.0983    +0.1849    +0.1031  | +0.2103 / +0.1129
+  2,752,512   +0.2414    +0.2493    +0.1133    +0.3005    +0.1349    +0.2332    +0.0976    +0.1844    +0.0827  | +0.2412 / +0.1055
+  2,883,584   +0.2918    +0.2660    +0.0996    +0.3835    +0.1382    +0.2559    +0.0940    +0.2064    +0.0755  | +0.2610 / +0.0968
+  3,014,656   +0.3277    +0.3667    +0.1199    +0.4815    +0.1295    +0.2962    +0.1066    +0.2512    +0.0774  | +0.3314 / +0.1132
+  3,145,728   +0.4317    +0.4800    +0.1202    +0.6265    +0.1374    +0.3250    +0.1159    +0.2997    +0.0980  | +0.4025 / +0.1181
+  3,276,800   +0.6135    +0.6175    +0.1346    +0.6859    +0.1325    +0.3857    +0.1392    +0.3403    +0.0816  | +0.5016 / +0.1336
+  3,407,872   +0.6914    +0.6801    +0.1382    +0.7309    +0.1376    +0.4669    +0.1339    +0.4035    +0.0754  | +0.5735 / +0.1358
+  3,538,944   +0.7054    +0.6700    +0.1428    +0.7923    +0.1249    +0.5108    +0.1381    +0.4194    +0.0652  | +0.5904 / +0.1315
+REPORT ONLY, G AT E ABOVE G AT S (OWN G at the final pair against the start pair's, the same start for all; the parent's G(S) -0.636): control 4 of 4; critic_blind_tail3 4 of 4
+REPORT ONLY, ARM MEDIANS OVER THE READ CONTINUATIONS:
+  control                  on-policy first 8 rows +0.1263; statue_settled last 8 rows +0.1174, trailing at last row +0.1174 (max +0.1589); std14 last +0.1633; tail_3 normaliser +0.692 deg; CMD_L at T +0.741 (max +0.741); mean return window 4424.2, falls 0.0
+                           at the end pair (the loop row at T) OWN G +0.280 c0 +0.574 b* +0.161 G_L +0.196 b*_L +0.213 own14 +0.791 REF G +0.259; critic slope on-policy eff +0.04736 raw +0.04736, OWN eff +0.05102 raw +0.05102, REF eff +0.00645 raw +0.00645; the reader's own rollouts terminated 0.0
+  critic_blind_tail3       on-policy first 8 rows +0.1204; statue_settled last 8 rows +0.0115, trailing at last row +0.0115 (max +0.1326); std14 last +0.1705; tail_3 normaliser +0.300 deg; CMD_L at T +0.135 (max +0.161); mean return window 4445.0, falls 0.0
+                           at the end pair (the loop row at T) OWN G -0.285 c0 +0.191 b* +1.151 G_L -0.288 b*_L +1.149 own14 +0.150 REF G -0.276; critic slope on-policy eff +0.00000 raw +0.02285, OWN eff +0.00000 raw +0.02531, REF eff +0.00000 raw +0.03129; the reader's own rollouts terminated 0.0
+MISSING (STOPPED, LOST or primary unreadable; filled against REDUCED):
+  none

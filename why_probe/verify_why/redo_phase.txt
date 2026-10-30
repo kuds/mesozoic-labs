@@ -1,0 +1,91 @@
+=== P1 (blind False)  zip/pkl provenance True/True  pkl classes ['VecNormalize', 'RunningMeanStd']  episodes trunc 48 term 0
+  R1 meta mean/var equal to my pkl read: True/True; sigma_r mine 42.822117 meta 42.822117; max |norm_obs - mine| 4.77e-07; max rel |r_norm - mine| 5.92e-08; z6 clipped 0; max |reward_total - r_raw| 0.00e+00
+  R2 max |V mine - V| 9.54e-07; max |FD mine - fd_slope| 3.81e-06
+  G by bin 4.4687 4.5876 4.7693 4.7740; G_gate 0.0072 0.0743 0.2442 0.2207; V 4.4761 4.6601 4.7278 4.7552
+  B_bar +0.004824 raw settled stance_width +0.0881, lateral_lean +0.2239, stance_stagger -0.0012, stance_cop_band -0.1043; max |gated raw| at k<200 0.00e+00, mean at k=200 +0.185
+  dS -0.0388 [-0.0615, -0.0161]  AUC 0.4547  c_B1 -0.1702 [-0.1791, -0.1585]  D_err +0.0970 [+0.0829, +0.1093]
+  beta/deg G M0 -0.0111 [-0.0492, +0.0252] M2 -0.0039 [-0.0285, +0.0174] M0-M2 [-0.0304, +0.0163];  G_rest M0 -0.0075 M2 -0.0034;  G_gate M0 -0.0036 M2 -0.0005;  V M0 -0.0210 M2 -0.0132
+  W3 beta_G -0.0047 [-0.0204, +0.0096] (k 400-800: +0.0066);  critic FD all -0.0053 B3 -0.0045; FD_B3 - W3 [-0.0145, +0.0150];  FD by bin -0.0117 -0.0080 -0.0042 -0.0045
+  K2 width ref: SD target 24.74 mm; B3-mean width reward raw mean 0.0866 SD 0.0062; r(q3@200, B3 width rew) +0.058; r(q3@200, target) -0.021; W3 beta_Gwidth -0.00419 [-0.01268, +0.00570] per deg
+  K6 cross-joint r(c_j, b_j) over 21 joints -0.140 (without obs 6 -0.140); my autograd q3 slope all -0.0053
+  K7 LSTD(0.95) tail coef/deg: phase-blind -0.0089 [-0.0313, +0.0108]  phase-aware -0.0027 [-0.0139, +0.0062]
+  R4 compare: ALL WITHIN TOLERANCE
+  their CIs: dS [-0.0629, -0.0147]; c_B1 [-0.1790, -0.1579]; D_err [+0.0840, +0.1092]; dM0M2 [-0.0295, +0.0134]; W3 [-0.0183, +0.0100]; fdB3_minus_W3 [-0.0151, +0.0135]
+=== P2 (blind False)  zip/pkl provenance True/True  pkl classes ['VecNormalize', 'RunningMeanStd']  episodes trunc 48 term 0
+  R1 meta mean/var equal to my pkl read: True/True; sigma_r mine 45.358707 meta 45.358707; max |norm_obs - mine| 4.73e-07; max rel |r_norm - mine| 5.42e-08; z6 clipped 0; max |reward_total - r_raw| 0.00e+00
+  R2 max |V mine - V| 1.43e-06; max |FD mine - fd_slope| 2.86e-06
+  G by bin 4.4314 4.5766 4.8233 4.8270; G_gate 0.0102 0.1055 0.3419 0.3117; V 4.4538 4.6939 4.7842 4.8093
+  B_bar +0.006800 raw settled stance_width +0.0965, lateral_lean +0.2463, stance_stagger -0.0019, stance_cop_band -0.0325; max |gated raw| at k<200 0.00e+00, mean at k=200 +0.309
+  dS +0.1043 [+0.0668, +0.1413]  AUC 0.6059  c_B1 -0.2342 [-0.2421, -0.2225]  D_err +0.1404 [+0.1280, +0.1540]
+  beta/deg G M0 +0.0825 [+0.0550, +0.1157] M2 -0.0028 [-0.0170, +0.0098] M0-M2 [+0.0600, +0.1138];  G_rest M0 +0.0078 M2 -0.0064;  G_gate M0 +0.0747 M2 +0.0037;  V M0 +0.0588 M2 +0.0144
+  W3 beta_G -0.0052 [-0.0120, +0.0029] (k 400-800: -0.0037);  critic FD all +0.0195 B3 +0.0191; FD_B3 - W3 [+0.0165, +0.0311];  FD by bin +0.0022 +0.0232 +0.0225 +0.0191
+  K2 width ref: SD target 25.79 mm; B3-mean width reward raw mean 0.0955 SD 0.0056; r(q3@200, B3 width rew) -0.312; r(q3@200, target) +0.487; W3 beta_Gwidth -0.00306 [-0.01261, +0.00828] per deg
+  K6 cross-joint r(c_j, b_j) over 21 joints +0.409 (without obs 6 +0.397); my autograd q3 slope all +0.0199
+  K7 LSTD(0.95) tail coef/deg: phase-blind +0.0538 [+0.0373, +0.0718]  phase-aware +0.0008 [-0.0054, +0.0078]
+  R4 compare: ALL WITHIN TOLERANCE
+  their CIs: dS [+0.0636, +0.1431]; c_B1 [-0.2400, -0.2234]; D_err [+0.1283, +0.1525]; dM0M2 [+0.0614, +0.1124]; W3 [-0.0112, +0.0032]; fdB3_minus_W3 [+0.0148, +0.0312]
+=== C11a (blind False)  zip/pkl provenance True/True  pkl classes ['VecNormalize', 'RunningMeanStd']  episodes trunc 48 term 0
+  R1 meta mean/var equal to my pkl read: True/True; sigma_r mine 44.403568 meta 44.403568; max |norm_obs - mine| 4.70e-07; max rel |r_norm - mine| 5.20e-08; z6 clipped 0; max |reward_total - r_raw| 0.00e+00
+  R2 max |V mine - V| 1.43e-06; max |FD mine - fd_slope| 2.86e-06
+  G by bin 4.5589 4.6756 4.9151 4.9164; G_gate 0.0113 0.1167 0.3748 0.3407; V 4.5689 4.7420 4.8839 4.9097
+  B_bar +0.007445 raw settled stance_width +0.0971, lateral_lean +0.2476, stance_stagger -0.0004, stance_cop_band -0.0138; max |gated raw| at k<200 0.00e+00, mean at k=200 +0.337
+  dS +1.8523 [+1.7095, +1.9894]  AUC 0.9334  c_B1 -0.1684 [-0.1797, -0.1523]  D_err +0.0793 [+0.0678, +0.0924]
+  beta/deg G M0 +0.0815 [+0.0761, +0.0921] M2 -0.0047 [-0.0142, +0.0014] M0-M2 [+0.0818, +0.1011];  G_rest M0 -0.0021 M2 -0.0068;  G_gate M0 +0.0836 M2 +0.0021;  V M0 +0.0699 M2 +0.0517
+  W3 beta_G -0.0040 [-0.0099, +0.0023] (k 400-800: -0.0056);  critic FD all +0.0549 B3 +0.0583; FD_B3 - W3 [+0.0556, +0.0686];  FD by bin +0.0119 +0.0490 +0.0598 +0.0583
+  K2 width ref: SD target 26.90 mm; B3-mean width reward raw mean 0.0963 SD 0.0042; r(q3@200, B3 width rew) +0.167; r(q3@200, target) +0.481; W3 beta_Gwidth +0.00064 [-0.00988, +0.01101] per deg
+  K6 cross-joint r(c_j, b_j) over 21 joints +0.630 (without obs 6 +0.325); my autograd q3 slope all +0.0549
+  K7 LSTD(0.95) tail coef/deg: phase-blind +0.0671 [+0.0638, +0.0745]  phase-aware -0.0022 [-0.0094, +0.0023]
+  R4 compare: ALL WITHIN TOLERANCE
+  their CIs: dS [+1.6950, +1.9886]; c_B1 [-0.1789, -0.1525]; D_err [+0.0682, +0.0931]; dM0M2 [+0.0812, +0.1007]; W3 [-0.0091, +0.0028]; fdB3_minus_W3 [+0.0553, +0.0679]
+=== C11E (blind False)  zip/pkl provenance True/True  pkl classes ['VecNormalize', 'RunningMeanStd']  episodes trunc 48 term 0
+  R1 meta mean/var equal to my pkl read: True/True; sigma_r mine 43.852094 meta 43.852094; max |norm_obs - mine| 4.76e-07; max rel |r_norm - mine| 5.61e-08; z6 clipped 0; max |reward_total - r_raw| 0.00e+00
+  R2 max |V mine - V| 1.43e-06; max |FD mine - fd_slope| 2.86e-06
+  G by bin 4.6178 4.7338 4.9666 4.9686; G_gate 0.0111 0.1143 0.3748 0.3433; V 4.6117 4.7581 4.9207 4.9594
+  B_bar +0.007473 raw settled stance_width +0.0968, lateral_lean +0.2406, stance_stagger -0.0005, stance_cop_band -0.0093; max |gated raw| at k<200 0.00e+00, mean at k=200 +0.312
+  dS +2.3535 [+2.1321, +2.5596]  AUC 0.9528  c_B1 -0.1752 [-0.1901, -0.1421]  D_err +0.0427 [+0.0274, +0.0588]
+  beta/deg G M0 +0.0637 [+0.0549, +0.0741] M2 -0.0022 [-0.0142, +0.0045] M0-M2 [+0.0573, +0.0820];  G_rest M0 +0.0018 M2 -0.0035;  G_gate M0 +0.0619 M2 +0.0013;  V M0 +0.0692 M2 +0.0495
+  W3 beta_G -0.0049 [-0.0141, +0.0046] (k 400-800: -0.0076);  critic FD all +0.0531 B3 +0.0575; FD_B3 - W3 [+0.0534, +0.0718];  FD by bin +0.0150 +0.0422 +0.0576 +0.0575
+  K2 width ref: SD target 26.96 mm; B3-mean width reward raw mean 0.0958 SD 0.0040; r(q3@200, B3 width rew) +0.171; r(q3@200, target) +0.519; W3 beta_Gwidth -0.00322 [-0.01563, +0.00865] per deg
+  K6 cross-joint r(c_j, b_j) over 21 joints +0.750 (without obs 6 +0.305); my autograd q3 slope all +0.0531
+  K7 LSTD(0.95) tail coef/deg: phase-blind +0.0554 [+0.0502, +0.0621]  phase-aware -0.0023 [-0.0112, +0.0037]
+  R4 compare: ALL WITHIN TOLERANCE
+  their CIs: dS [+2.1388, +2.5605]; c_B1 [-0.1897, -0.1421]; D_err [+0.0285, +0.0600]; dM0M2 [+0.0570, +0.0819]; W3 [-0.0132, +0.0043]; fdB3_minus_W3 [+0.0533, +0.0708]
+=== C31a (blind False)  zip/pkl provenance True/True  pkl classes ['VecNormalize', 'RunningMeanStd']  episodes trunc 48 term 0
+  R1 meta mean/var equal to my pkl read: True/True; sigma_r mine 44.403444 meta 44.403444; max |norm_obs - mine| 4.77e-07; max rel |r_norm - mine| 5.65e-08; z6 clipped 0; max |reward_total - r_raw| 0.00e+00
+  R2 max |V mine - V| 1.43e-06; max |FD mine - fd_slope| 2.86e-06
+  G by bin 4.5496 4.6926 4.9369 4.9353; G_gate 0.0109 0.1127 0.3691 0.3378; V 4.5554 4.7877 4.8973 4.9167
+  B_bar +0.007357 raw settled stance_width +0.0981, lateral_lean +0.2473, stance_stagger -0.0014, stance_cop_band -0.0173; max |gated raw| at k<200 0.00e+00, mean at k=200 +0.317
+  dS +0.5461 [+0.4591, +0.6257]  AUC 0.7893  c_B1 -0.2246 [-0.2345, -0.2044]  D_err +0.1190 [+0.1031, +0.1330]
+  beta/deg G M0 +0.0934 [+0.0715, +0.1137] M2 -0.0129 [-0.0247, -0.0021] M0-M2 [+0.0847, +0.1298];  G_rest M0 -0.0025 M2 -0.0146;  G_gate M0 +0.0959 M2 +0.0017;  V M0 +0.0680 M2 +0.0254
+  W3 beta_G -0.0178 [-0.0231, -0.0119] (k 400-800: -0.0187);  critic FD all +0.0191 B3 +0.0193; FD_B3 - W3 [+0.0309, +0.0428];  FD by bin -0.0060 +0.0224 +0.0224 +0.0193
+  K2 width ref: SD target 27.26 mm; B3-mean width reward raw mean 0.0975 SD 0.0027; r(q3@200, B3 width rew) +0.064; r(q3@200, target) +0.458; W3 beta_Gwidth -0.00216 [-0.01100, +0.00633] per deg
+  K6 cross-joint r(c_j, b_j) over 21 joints +0.471 (without obs 6 +0.470); my autograd q3 slope all +0.0192
+  K7 LSTD(0.95) tail coef/deg: phase-blind +0.0678 [+0.0544, +0.0819]  phase-aware -0.0053 [-0.0132, +0.0013]
+  R4 compare: ALL WITHIN TOLERANCE
+  their CIs: dS [+0.4517, +0.6354]; c_B1 [-0.2332, -0.2070]; D_err [+0.1005, +0.1361]; dM0M2 [+0.0870, +0.1282]; W3 [-0.0234, -0.0115]; fdB3_minus_W3 [+0.0307, +0.0427]
+=== C31E (blind False)  zip/pkl provenance True/True  pkl classes ['VecNormalize', 'RunningMeanStd']  episodes trunc 48 term 0
+  R1 meta mean/var equal to my pkl read: True/True; sigma_r mine 43.882217 meta 43.882217; max |norm_obs - mine| 4.68e-07; max rel |r_norm - mine| 5.57e-08; z6 clipped 0; max |reward_total - r_raw| 0.00e+00
+  R2 max |V mine - V| 1.43e-06; max |FD mine - fd_slope| 2.86e-06
+  G by bin 4.6141 4.7420 4.9748 4.9850; G_gate 0.0106 0.1095 0.3638 0.3431; V 4.6181 4.7893 4.9392 4.9780
+  B_bar +0.007398 raw settled stance_width +0.0985, lateral_lean +0.2425, stance_stagger -0.0040, stance_cop_band -0.0123; max |gated raw| at k<200 0.00e+00, mean at k=200 +0.301
+  dS +1.2637 [+1.1489, +1.4084]  AUC 0.9349  c_B1 -0.2000 [-0.2148, -0.1721]  D_err +0.0613 [+0.0424, +0.0753]
+  beta/deg G M0 +0.0806 [+0.0641, +0.0989] M2 -0.0025 [-0.0156, +0.0096] M0-M2 [+0.0689, +0.1000];  G_rest M0 +0.0027 M2 -0.0059;  G_gate M0 +0.0779 M2 +0.0034;  V M0 +0.0728 M2 +0.0416
+  W3 beta_G -0.0086 [-0.0176, -0.0009] (k 400-800: -0.0127);  critic FD all +0.0399 B3 +0.0414; FD_B3 - W3 [+0.0425, +0.0597];  FD by bin +0.0004 +0.0380 +0.0468 +0.0414
+  K2 width ref: SD target 28.88 mm; B3-mean width reward raw mean 0.0980 SD 0.0031; r(q3@200, B3 width rew) -0.180; r(q3@200, target) +0.401; W3 beta_Gwidth -0.00366 [-0.01492, +0.00777] per deg
+  K6 cross-joint r(c_j, b_j) over 21 joints +0.650 (without obs 6 +0.594); my autograd q3 slope all +0.0399
+  K7 LSTD(0.95) tail coef/deg: phase-blind +0.0620 [+0.0498, +0.0737]  phase-aware -0.0015 [-0.0094, +0.0050]
+  R4 compare: ALL WITHIN TOLERANCE
+  their CIs: dS [+1.1385, +1.3915]; c_B1 [-0.2111, -0.1723]; D_err [+0.0445, +0.0776]; dM0M2 [+0.0690, +0.0988]; W3 [-0.0176, +0.0004]; fdB3_minus_W3 [+0.0411, +0.0594]
+=== B11E (blind True)  zip/pkl provenance True/True  pkl classes ['VecNormalize', 'RunningMeanStd']  episodes trunc 48 term 0
+  R1 meta mean/var equal to my pkl read: True/True; sigma_r mine 44.177012 meta 44.177012; max |norm_obs - mine| 4.76e-07; max rel |r_norm - mine| 5.56e-08; z6 clipped 0; max |reward_total - r_raw| 0.00e+00
+  R2 max |V mine - V| 1.43e-06; max |FD mine - fd_slope| 0.00e+00; raw MLP FD diff 2.86e-06
+  G by bin 4.5774 4.7444 5.0098 5.0199; G_gate 0.0113 0.1162 0.3773 0.3425; V 4.5696 4.8332 4.9787 5.0140
+  B_bar +0.007482 raw settled stance_width +0.0962, lateral_lean +0.2464, stance_stagger -0.0017, stance_cop_band -0.0104; max |gated raw| at k<200 0.00e+00, mean at k=200 +0.328
+  dS +0.2168 [+0.1627, +0.2808]  AUC 0.6229  c_B1 -0.2618 [-0.2674, -0.2403]  D_err +0.1010 [+0.0818, +0.1197]
+  beta/deg G M0 +0.0355 [+0.0020, +0.0688] M2 -0.0168 [-0.0285, -0.0056] M0-M2 [+0.0219, +0.0779];  G_rest M0 -0.0131 M2 -0.0189;  G_gate M0 +0.0486 M2 +0.0021;  V M0 +0.0160 M2 -0.0105
+  W3 beta_G -0.0157 [-0.0209, -0.0085] (k 400-800: -0.0143);  critic FD all +0.0000 B3 +0.0000; FD_B3 - W3 [+0.0085, +0.0209];  FD by bin +0.0000 +0.0000 +0.0000 +0.0000; raw MLP FD all +0.0107
+  K2 width ref: SD target 25.49 mm; B3-mean width reward raw mean 0.0950 SD 0.0054; r(q3@200, B3 width rew) -0.243; r(q3@200, target) +0.187; W3 beta_Gwidth -0.00201 [-0.01098, +0.00904] per deg
+  K6 cross-joint r(c_j, b_j) over 21 joints +0.388 (without obs 6 +0.421); my autograd q3 slope all +0.0000
+  K7 LSTD(0.95) tail coef/deg: phase-blind +0.0321 [+0.0091, +0.0538]  phase-aware -0.0125 [-0.0213, -0.0054]
+  R4 compare: ALL WITHIN TOLERANCE
+  their CIs: dS [+0.1591, +0.2776]; c_B1 [-0.2687, -0.2385]; D_err [+0.0796, +0.1204]; dM0M2 [+0.0197, +0.0807]; W3 [-0.0207, -0.0087]; fdB3_minus_W3 [+0.0087, +0.0207]

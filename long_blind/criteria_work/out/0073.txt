@@ -1,0 +1,123 @@
+==================================================================================================================
+VALIDATIONS (step 5; no optimizer step anywhere; nice 10, OMP 1, cwd /tmp, PY -I -B; at most 2 processes of this build
+at once; drivers validate/v1v2v3_driver.sh (A) and validate/v4_driver.sh (B), logs validate/logs/driverA.log, driverB.log)
+==================================================================================================================
+UNIT TESTS [measured, validate/logs/pytest_3.out]: 122 passed in 61 s on the final tools (test_bs_hooks 23,
+test_read_bs 24, test_resume 24, test_run_bs 27, test_waves_bs 24; BS2 had 77 + the scorer's).  ruff (E, F, W, B, line
+120) clean on tools/ and validate/*.py; bash -n clean on the runner and both drivers.
+check_inputs.py [measured, logs/check_inputs.out]: exit 0; the start pair, the five records and stage_config.json at
+FMAN's sha256 and the bs_common pins; the 20 reference-pair files at FMAN's.
+BS/code [measured, logs/verify_copy_start.out]: verify_copy.py -> seal 331fe8fc3f6bdf73acc0d3cc324dd753d9d9d695d7ce914e4e
+011d5c6437ebf1 recomputed equal, 1,406 files; no writable file, no __pycache__, nothing newer than LB's marker (the end
+check under OUTSIDE LB).
+SMOKE [measured, validate/logs/smoke_v1.log]: run_bs.py --arm critic_blind_tail3 --seed 9341 --save-loaded-only -> exit
+0, the V1 checks true.
+V1 (load and save, no rollout; the four arms, seed 9301; version A) [measured, validate/logs/v1_independent.out,
+v1_runmeta_summary.out]: every arm exit 0, done; the saved pair equals the loaded one (policy 13 tensors, Adam 39
+entries and param_groups, VecNormalize arrays and settings, stock RunningMeanStd classes), num_timesteps 2,097,152,
+_total_timesteps 12,000,000, _n_updates 2,471, ent_coef 0.005 after the load (the callback recomputes it), gae_lambda
+0.95 (1.0 in gae_lambda_1); the bank's tail_3 action at S +0.0975351482629776 / +0.17029765248298645 = the parent
+probe's row 255 (max |diff| 0.0); the independent check (BS2's v1_independent.py, start files = FMAN) "V1 INDEPENDENT:
+PASS".
+V2 (no-update runs S -> 2,359,296, 32 rollouts, the four arms, seed 9301; control under A, the other three under C)
+[measured, validate/logs/v2_summary.out, v2_compare.out, v2_check_<arm>.log]: every arm exit 0, stop end, T
+2,359,296, 31 train calls skipped (no update on the last rollout: StopAtEnd), n_updates 2,471 -> 2,471, params and Adam
+digests unchanged (a1780f451b68... / 84d110d9a813...), CHECK passed (31 window probe rows, 256 seeded, none at or after
+T; ent_coef 0.003496183 -> 0.003320640 and learning_rate 2.649109e-05 -> 2.608149e-05 equal to the parent's on 31/31
+rows; the evaluation grid; the evidence).  On every one of the 31 rollouts: control's critic sees obs 6 (dV 0.0601 -
+0.1878) and advantages = GAE(0.95); critic_blind_tail3's four value paths exactly 0 (31/31) while the actor still sees
+obs 6 (min dmu 0.173), buffer values = the run's critic (blind) and differ from the raw value MLP's (min 1.96e-2);
+gae_lambda_1's advantages = MC - V (31/31, max 8.4e-06); frozen_obs_norm's obs statistics equal the start's (31/31; one
+digest; the frozen normaliser's calls counted: 2,049 by the first rollout end, 63,489 = 1 + 31 x 2,048 by the
+last) while ret_rms moves.  Same-seed pairing against control: critic_blind and
+gae_lambda_1 env side identical 31/31 (gae_lambda_1 also rewards and values 31/31; advantages differ 31/31;
+critic_blind's values differ 31/31, its buffer rewards too: SB3 adds gamma V(terminal) at truncations), both
+evaluation ledgers identical to control's (180 rows, 193 columns), probe bank actions identical; frozen_obs_norm's env
+side differs 31/31 (normalised observations).  "V2 SUMMARY: PASS", "V2 PAIRING: PASS".
+V4 (THE RESUME TEST; no-update run critic_blind_tail3 9311 --until 2,654,208; attempt 1 under A, attempt 2 under C)
+[measured, validate/logs/driverB.log, v4_check.log, v4_compare.out]:
+  attempt 1 SIGKILLed at heartbeat 2,629,632 (17:37:50Z, exit 137; on disk: the pairs at S, 2,359,296 and 2,621,440);
+  folder renamed critic_blind_tail3_9311_crashed1; attempt 2 = run_bs.py ... --resume-from that folder:
+  (a) the resume point: 2,621,440 refused ("policy_probe.npz: 319 rows <= 2621440, not one at every 8192 (missing e.g.
+      [2621440]) | train_episodes.csv: no episode after 2621440"), 2,359,296 complete -> resumed_from = load_step =
+      2,359,296; the S and P pairs hard-linked (4 files), the five records copied, 32 evidence lines kept;
+  (b) the reloaded state = the P pair's (params, Adam, VecNormalize, num_timesteps 2,359,296, n_updates 2,471; computed
+      from the files by the script); the P pair's params / Adam = the start's (no step in attempt 1) while its
+      VecNormalize moved; attempt 2 made no step; digest_start = the S pair's;
+  (c) continuity: the probe 323 rows, one at every 8,192 up to T - 8,192, none twice, the 288 rows <= P equal attempt
+      1's in every per-update column; evidence 67 lines (32 kept byte for byte + 35 new), one per rollout end;
+      eval_episodes.csv 180 rows <= P equal text for text, 20 after P attempt 2's; train_episodes.csv 2,712 rows <= P
+      equal, 292 after; 20 evaluations of 10 episodes, none twice; evaluations.npz and gate_progress.npz one row per
+      evaluation, rows <= P equal in every key (NaN = NaN);
+  (d) the arm on every rollout of both attempts: critic blind on all 4 value paths 67/67, actor sees obs 6 67/67; the
+      hook re-installed at the load, in force at the end;
+  (e) not bitwise the uninterrupted run: after P the probe's obs statistics, bank values / actions and rollout means
+      differ on 31/31 common rows, the evidence's env side, rewards, values and obs digests on 33/33 common rollouts
+      (the first, 2,367,488, included: the envs restart at P), the evaluation rows after P 20/20;
+  (f) CHECK passed (failures []; resume_stitch [] : the stitched digests recomputed equal; evaluation_grid [] ).
+  "V4: PASS" (validate/v4_compare.py; its first version compared NaN fall-term keys without equal_nan and failed on
+  gate_progress.npz: fixed in the script, the tools untouched, see the command log 17:50Z).
+  Wall: attempt 1 28.6 min to its kill (under load 6-7), attempt 2 740 s for 36 rollouts (load 2.3-4.5).
+  Disk: the crashed folder holds 6.7 MB of its own (records, evidence, the 2,621,440 pair, logs; du -sb), the four
+  linked files counted once.
+======
+==================================================================================================================
+REFUSALS (step 6) [measured]
+==================================================================================================================
+The real runner, LB as it stands (no LB/APPROVED, no LB/SCREEN.json; nothing launched):
+  - bash LB/tools/run_waves_bs.sh -> exit 2, "run_waves_bs: refused: SCREEN-PROBLEMS SCREEN: LB/SCREEN.json missing
+    (the intervention is not chosen yet)" (validate/logs/runner_real_stderr.txt line 1; stdout empty,
+    runner_real_stdout.txt);
+  - bash LB/tools/run_waves_bs.sh --plan -> exit 2, the same line (runner_plan_stderr.txt line 1);
+  - LB's top-level listing before = after (validate/logs/lb_listing_before_refusal.txt = lb_listing_after_refusal.txt,
+    diff: identical): no runs/, no lock, no logs written by the runner.
+  - cd /tmp && PY -I -B LB/tools/run_bs.py --arm control --seed 2501 --preflight-only (a continuation) -> exit 2,
+    problems ["APPROVED: missing", "SCREEN: LB/SCREEN.json missing (the intervention is not chosen yet)"]
+    (validate/logs/preflight_tmp.out lines 3-8).
+The runner in test mode on a throw-away root (validate/runner_test_root; BS_WAVES_TEST=1; every command `false`; a stub
+scorer, a 14-byte comment file; placeholders removed at once) (validate/logs/runner_refusal_testmode.out):
+  - a valid SCREEN.json and criteria.txt, no APPROVED -> exit 2 "refused: no <BS>/APPROVED" (lines 1-2);
+  - the same with --plan -> exit 0: the plan only (4 slots at nice 10, disk floor 1,610,612,736 B, launch floor
+    2,449,473,536 B, crash limit 3, the early-crash rule from the attempt's load step, the --resume-from rerun; S
+    2097152, E 12001280 per entry) (lines 3-10);
+  - an APPROVED pinning the stub scorer and no SCREEN.json -> exit 2 SCREEN-PROBLEMS (lines 11-12).
+Unit tests of the refusals (all pass, validate/logs/pytest_3.out): test_waves_bs.py test_needs_approved_and_criteria,
+test_screen_refusals, test_needs_the_scorer_pin_in_approved (also through the real tools path with no override),
+test_refusal_halts, test_lock_held, test_disk_pause_and_launch_floor, test_refuses_the_real_root_in_test_mode;
+test_run_bs.py test_preflight_continuation_refused_without_approval, test_approval_and_screen_against_a_temp_root,
+test_screen_valid_and_invalid (4 entries valid, 5 refused), test_preflight_validation_modes, test_resume_from_problems
+(9 refusals of a bad --resume-from: a done attempt (nothing to resume), another seed, window end E, target or mode,
+another arm, a folder not named <name>_crashed<k>, a folder outside the run root, --resume-from with
+--save-loaded-only); test_resume.py (a bad start copy: no resume at all).
+
+==================================================================================================================
+OPEN ITEMS (for the coordinator and the criteria lane; none blocks a launch except item 1)
+==================================================================================================================
+  1. THE SCORER: the runner pins and calls LB/tools/score_bs.py (bs_common.SCORER_FILE); this build did not write it
+     (the criteria lane's).  APPROVED must pin its sha256 in tool_sha256; the runner refuses otherwise (tested).
+     Another file name needs SCORER_FILE changed (bs_common's sha256 then changes: re-run the tests, re-pin).
+  2. THE READ SCHEDULE (LOOP_READ_EVERY): set to SAVE_FREQ (every saved pair: BS2's reading).  The alternative is
+     1,048,576 (the parent's F2 grid).  Costs under TIMING.  A change edits bs_common.py (re-pin) before APPROVED.
+  3. A RESUMED RUN: the harness resumes a crashed continuation from its newest complete saved pair and labels it
+     (resumed_from, attempts); it is a valid continuation of the same arm, seed and schedule but NOT the uninterrupted
+     run (RESUME: one discarded update at P, re-seeded draws from P).  Whether it counts as such or is reported apart is
+     the criteria lane's call.
+  4. THE END CONVENTION: a continuation's final pair is the policy at rollout end E (no update on the last rollout,
+     BS / BS2's StopAtEnd); the parent's stage1_final is one update later.  The parent's state comparable to a
+     continuation's final pair is its probe row at E; the reference read's E pair is the parent's stage1_final (as
+     FMAN lists it).  For the criteria and measurement lanes.
+  5. A HOP-WATCH STOP (possible from 7,077,888 on): recorded, CHECK-accepted, decided STOPPED like a collapse; how it is
+     read (the stance gate at the stop, or the run treated apart) is the criteria lane's.
+  6. MAX_CONTINUATIONS = 4 (AUTH2); a queue of 5 is refused.  The launch floor assumes 4.
+  7. PROVENANCE OF THE VALIDATIONS: the tools changed twice after the validation launch (version A at 17:08:09Z,
+     B at 17:20:05Z: the seeded-copy rule of the resume point; C at 17:24:31Z: 2 comment lines).  V1, V2 control and V4
+     attempt 1 ran under A (fresh starts: the same code path in A, B and C); V2's other three arms, V4 attempt 2 (the
+     resume), every CHECK and V3 ran under C, the final tools (SHA256SUMS.txt; validate/logs/versionA_to_B.diff,
+     versionB_to_C.diff).
+  8. THE VALIDATIONS RAN BESIDE OTHER WORKFLOWS' PROCESSES (load 4-9 on 4 CPUs until about 17:45Z): wall times are
+     not the free machine's; TIMING uses CPU-seconds.
+  9. diagnostics.npz after a resume covers (P, T] only ((S, crash] stays in the crashed folder); the code does not
+     seed it.  Nothing in CHECK or the reader uses it.
+ 10. DISK BEFORE LAUNCH: free must be >= 2,449,473,536 B.  This build's validation folders (validate/v1, v2, v4, smoke,
+     tmp/*) can be removed once their run_meta / check / markers files are kept; they are not needed by the runner.
+ 11. validate/runner_test_root/stub_score_bs.py (a 14-byte comment) stays as the test root's stub; harmless.

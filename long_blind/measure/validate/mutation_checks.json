@@ -1,0 +1,70 @@
+{
+ "utc": "2026-10-30T17:33:27Z",
+ "tool_sha256": "5fb29b52f194ffa40f45afed7427d762841d09e1a8860a20c404b283f35459d6",
+ "checks": [
+  {
+   "check": "stance6_r10LTSB_s42 baseline re-read equals the saved classes.json",
+   "ok": true,
+   "detail": {
+    "cls": "RAIL",
+    "gate": "FAIL",
+    "outcome": "NEGATIVE"
+   }
+  },
+  {
+   "check": "stance6_r10LTSB_s42 swapped pair bytes -> NOT CLASSIFIED",
+   "ok": true,
+   "detail": [
+    "M1 4194304: ['checkpoint sha256 d6c66477d809cfdd49e70ab4db75e8ac6995958e473aa4dc6e3d8b641e4f2a68 != the verified 4158e599856d4d04f415f2e5f67edb23f69aa9dd66d52d2ce34c02019986bb92']"
+   ]
+  },
+  {
+   "check": "stance6_r10LTSB_s42 unmeasured C7 label -> NOT CLASSIFIED",
+   "ok": true,
+   "detail": [
+    "no M1 output at /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/long_blind/measure/validate/stance6_r10LTSB_s42/panels/2359296/m1"
+   ]
+  },
+  {
+   "check": "stance6_r10LTSB_s42 read as STOPPED -> RAIL, GATE FAIL, NEGATIVE",
+   "ok": true,
+   "detail": {
+    "cls": "RAIL",
+    "gate": "FAIL",
+    "why": "STOPPED (no stage1_final at 12,001,280)",
+    "reasons": [
+     "RAIL (RAIL-LEDGER-PERSISTENT)",
+     "GATE FAIL (STOPPED (no stage1_final at 12,001,280))"
+    ]
+   }
+  },
+  {
+   "check": "s42 window (2,097,152, E]: 22 TAIL ALARMs, 22 ANY ALARMs, none straddling S, nothing before S",
+   "ok": true,
+   "detail": {
+    "t": 22,
+    "a": 22,
+    "straddling": [],
+    "before": {
+     "any_flagged": [],
+     "tail_flagged": [],
+     "over_bar_episodes": 0
+    }
+   }
+  },
+  {
+   "check": "s42 prefix check against its own F2 ledger",
+   "ok": true,
+   "detail": {
+    "checked": true,
+    "parent_ledger": "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/eval_episodes.csv.copy1",
+    "parent_sha256": "d1bcb78964691cf194e6276f06740d1f24aa69ad36831a046ad6307c1c4db11e",
+    "header_equal": true,
+    "rows_run": 160,
+    "rows_parent": 160,
+    "rows_equal": true
+   }
+  }
+ ],
+ "all_pass": true
+}

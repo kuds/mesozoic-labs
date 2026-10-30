@@ -1,0 +1,26 @@
+measure_lb 1.0 (2026-10-30; LB measurement builder; the r10 round's pinned M1/M3/M5 and classes)
+RUN stance6_r10LTSB_s80  (/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s80/copies suffix .copy1)
+  ending (C5, lines 228-233): FINISHED at E = 12,001,280; S = 0; run_meta stop_reason None
+  ledger b677ce762e739513...; C6 (lines 234-245): PASS (91 grid evaluations, 0 failures)
+  labels traced (C7, line 246): 4194304, 5242880, 6291456, 8388608, 10485760, final; measuring commit ['8737cd3d86431de1bdd0fcdb49a0d956a45e084d']; physics_revision [10]
+  M5 CLI vs in-process: equal
+  TAIL CLASS (lines 269-279): CLEAR
+    TAIL ALARMs (lines 171-172): 0; first None; tail-flagged evaluations 0; resolved by trace []
+    alarm actuators: []
+    TRACE RAIL (lines 188-191): []; single tail flags []
+    PARKED (lines 276-277): []; DRIVEN (line 279): []
+    MEAN_a: {"tail_1_pitch_act": 0.1859, "tail_1_yaw_act": 0.0032, "tail_2_pitch_act": -0.1225, "tail_3_pitch_act": 0.5052}
+  ANY ALARMs (lines 169-170): 6; steps 5,505,024, 5,636,096, 6,029,312, 6,422,528, 6,553,600, 7,077,888; by actuator {"neck_pitch_act": {"count": 6, "first": 5505024, "last": 7077888, "sole": 6}}
+    over-bar episodes per evaluation (M5; every line in m5.txt): 3,801,088: 1 (neck_pitch_act 1); 4,849,664: 6 (neck_pitch_act 6); 5,373,952: 9 (neck_pitch_act 9); 5,505,024: 9 (neck_pitch_act 9); 5,636,096: 9 (neck_pitch_act 9); 5,898,240: 8 (neck_pitch_act 8); 6,029,312: 7 (neck_pitch_act 7); 6,160,384: 3 (neck_pitch_act 3); ... (23 evaluations with any)
+    any-flagged evaluations 12; first over-bar episode None (tail); NEEDS RESOLUTION []
+  GATE CLASS (lines 280-283): PASS
+    GATE CERTIFICATE (final checkpoint, measured on a screen task; not certification): {"passed": true, "refused": false, "failures": [], "physics_revision": 10, "commit": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d", "label": "GATE CERTIFICATE (final checkpoint, measured on a screen task; not certification)", "headings": [{"yaw_deg": -90.0, "n_clean": 40, "clean_lcb": 0.9278424754944773, "full_horizon_fraction": 1.0, "reward_mean": 4386.8715722622655, "n_episodes": 40}, {"yaw_deg": -45.0, "n_clean": 40, "clean_lcb": 0.9278424754944773, "full_horizon_fraction": 1.0, "reward_mean": 4386.871572361116, "n_episodes": 40}, {"yaw_deg": 0.0, "n_clean": 40, "clean_lcb": 0.9278424754944773
+  RUN OUTCOME (lines 284-286): POSITIVE []
+  window (S, E] (report only): TAIL ALARMs 0 (first None), ANY ALARMs 6, tail-flagged 0, straddling S []; before S: {'any_flagged': [], 'tail_flagged': [], 'over_bar_episodes': 0}
+  PER-ACTUATOR HABIT SUMMARY (report only; D-1 and M1 per actuator; HABIT SITES L/T/D are the round's lines applied per actuator, never a class)
+    habit sites: {"neck_pitch_act": ["L", "T", "D"], "head_pitch_act": ["D"]}
+    actuator             over(ledger) [0,4.19M) [4.19,8.39M) [8.39M,E]  own-alarms (first-last)   ANY-alarms  M1 CMD at   4194304   5242880   6291456   8388608  10485760     final
+    neck_pitch_act         119         1          116          2    6 (5505024-7077888)        6          -0.594    -0.793    -0.917    +0.044    -0.392    -0.214  LTD
+    head_pitch_act           0         0            0          0    0 (---)        0          -0.423    -0.270    -0.127    -0.110    -0.660    -0.666  D
+    tail_3_pitch_act         0         0            0          0    0 (---)        0          +0.020    -0.020    +0.188    +0.116    +0.423    +0.588  
+    (rows shown: an actuator with an over-bar ledger episode, an own alarm, a habit site or |CMD| >= 0.3 at a traced checkpoint)

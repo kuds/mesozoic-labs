@@ -1,0 +1,56 @@
+4:#   RESUME a crash that is one of its own is rerun at once with --resume-from <its retired runs/<name>_crashed<k>>:
+10:#   RR-1   a relaunch after ALL_DECIDED keeps the first logs/atimes_at_ALL_DECIDED.tsv; a later snapshot goes to
+11:#          logs/atimes_at_ALL_DECIDED.relaunch<k>.tsv.
+21:#          mtime and sha256 unchanged), so any later read of one moves its atime; at ALL_DECIDED, before
+22:#          logs/ALL_DECIDED is written and before the full reads, logs/atimes_at_ALL_DECIDED.tsv records path, atime,
+53:#          Exit 4: VOID: decided VOID, runs/<name> -> runs/<name>_void<k>; no new start; the runner exits 4 at the
+56:#       2: REFUSED before any optimizer step: runs/<name> (if made) -> runs/<name>_refused<k>, no new start, exit 2.
+57:#       other: CRASH: runs/<name> -> runs/<name>_crashed<k>, logs/crash_ledger.tsv.  An EARLY crash (last recorded step
+59:#          rerun at once from the start pair with the same arguments; a third own crash writes it to <BS>/lost.json.
+61:# run_bs.py processes is alive, then reads logs/decided.tsv and <BS>/lost.json; a runs/<name> found done is checked; one
+63:# run_meta says "crashed", under the early-crash rule).  A VOID in the ledger refuses the relaunch (exit 4).
+64:# When all are COUNTED, STOPPED or LOST and none is VOID: logs/ALL_DECIDED, then the full read (`read_bs.py <run>`,
+112:LOST_JSON=$BS/lost.json
+113:DECIDED=$LOGS/decided.tsv
+125:print(C.WAVE_SLOTS, C.WAVE_NICE, C.DISK_FLOOR_BYTES, C.MAX_CRASHES, C.LOST_SCHEMA, C.LAUNCH_DISK_BYTES, C.EVAL_FREQ,
+137:read -r SLOTS NICE FLOOR MAX_CRASHES LOST_SCHEMA LAUNCH EVAL_FREQ POST_CHECK S_ALL E_ALL MAXN SCORER_FILE \
+160:  echo "slots $SLOTS at nice $NICE; disk floor $FLOOR bytes; launch floor $LAUNCH bytes; crash limit $MAX_CRASHES;" \
+162:       "--resume-from runs/<name>_crashed<k> (its newest complete saved pair, else S)"
+238:last_crashed_folder() {  # LB: the newest retired folder of <name> in the crash ledger that still exists, or nothing
+276:decided() { awk -F'\t' -v n="$1" '$2 == n {d = $3} END {print d}' "$DECIDED"; }
+279:  printf '%s\t%s\t%s\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$1" "$2" "$3" >> "$DECIDED"
+307:    note "$1: atimes re-armed on $n files (P4: a later read of any shows in logs/atimes_at_ALL_DECIDED.tsv)"
+313:atime_snapshot() {  # PR-M2 / P4: logs/atimes_at_ALL_DECIDED.tsv (lstat only: taking it moves no atime)
+314:  # RR-1 (LB): a relaunch after ALL_DECIDED keeps the first snapshot; this one goes to .relaunch<k>.tsv
+315:  local out=$LOGS/atimes_at_ALL_DECIDED.tsv k=1
+317:    while [[ -e "$LOGS/atimes_at_ALL_DECIDED.relaunch$k.tsv" ]]; do k=$((k + 1)); done
+318:    out=$LOGS/atimes_at_ALL_DECIDED.relaunch$k.tsv
+328:            if p in (out, out + ".tmp") or os.path.basename(p).startswith("atimes_at_ALL_DECIDED"):
+358:retire_void() {
+372:in_lost() {
+376:sys.exit(0 if sys.argv[2] in (d.get('lost') or {}) else 1)" "$LOST_JSON" "$1" 9>&-
+379:write_lost() {
+383:d = json.load(open(path)) if os.path.exists(path) else {"schema": schema, "lost": {}}
+386:d.setdefault("lost", {})[name] = {"cause": "crashes", "detail": detail, "by": "run_waves_bs.sh",
+428:    new=$(retire "$name" crashed)
+437:    note "$name: $cause; folder $new; not counted (own crashes $n of $MAX_CRASHES); no new start: the coordinator" \
+441:  note "$name: CRASH ($cause; folder $new; own crash $n of $MAX_CRASHES$( ((counts == 0)) && echo ', not counted'))"
+442:  if (( n >= MAX_CRASHES )); then
+443:    if ! write_lost "$name" "$n own crashes, last: $cause"; then
+444:      note "lost.json could not be written for $name"
+446:      HALT_WHY+=("lost.json not written for $name")
+472:        *) retire_void "$name" "CHECK passed but stop reason '$reason'" ;;
+475:      retire_void "$name" "CHECK failed (logs/$name.check.log; run exit $rc)"
+477:      retire_void "$name" "run exit $rc (a post-run check failed) although CHECK passed (logs/$name.check.log)"
+506:touch "$DECIDED" "$CRASHES"
+511:if [[ ! -s "$DECIDED" && ! -s "$CRASHES" && -z "$(ls -A "$RUNS")" ]]; then
+528:  if in_lost "$name"; then decide "$name" LOST "named in lost.json"; continue; fi
+542:      [[ "$status" == crashed ]] && counts=1
+548:  f=$(last_crashed_folder "$name")
+557:  halt_marker "VOID in logs/decided.tsv: no continuation is started; the coordinator fixes the cause"
+606:  halt_marker "VOID (logs/decided.tsv); the coordinator fixes the cause"
+621:  note "atimes at ALL_DECIDED (P4), before the full reads: logs/atimes_at_ALL_DECIDED.tsv, $snap"
+623:  note "the atime snapshot at ALL_DECIDED failed (P4: re-reads of CHECK's inputs cannot be excluded)"
+625:if [[ -e "$LOGS/ALL_DECIDED" ]]; then   # RR-1 (LB): a relaunch keeps the first ALL_DECIDED
+626:  note "ALL_DECIDED kept as first written ($(head -n 1 "$LOGS/ALL_DECIDED")); relaunch at $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+628:  date -u +%Y-%m-%dT%H:%M:%SZ > "$LOGS/ALL_DECIDED"

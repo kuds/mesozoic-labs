@@ -1,0 +1,178 @@
+P1: analysed in 48.6 s
+P2: analysed in 42.8 s
+C11a: analysed in 51.9 s
+C11E: analysed in 40.9 s
+C31a: analysed in 40.6 s
+C31E: analysed in 39.4 s
+B11E: analysed in 40.1 s
+N80: analysed in 23.6 s
+=== P1 (tail_3_pitch, obs 6) num_timesteps 1048576  episodes 48 (truncated 48, terminated 0 [] at [])  sigma_r 42.822  blind False
+  B_bar (gated terms per settled step, normalised) +0.00482; raw means stance_width +0.0881, lateral_lean +0.2239, stance_stagger -0.0012, stance_cop_band -0.1043
+  1. angle by bin (deg): B0 +0.047 (SD 0.764) mu14 -0.010 cmd -0.008; B1 -0.118 (SD 0.248) mu14 -0.033 cmd -0.032; B2 -0.163 (SD 0.205) mu14 -0.034 cmd -0.034; B3 -0.154 (SD 0.189) mu14 -0.031 cmd -0.032
+     r(q,k) all -0.081, k>=50 -0.027; dB +0.0344 [-0.0071, +0.0738]; dS -0.0388 [-0.0629, -0.0147]; AUC_q 0.455; dS(mu14) +0.0015; A1 holds False
+     q profile: 0-25:+0.16 25-50:-0.07 50-75:-0.00 75-100:+0.03 100-125:-0.12 125-150:-0.20 150-175:-0.22 175-200:-0.19 200-225:-0.18 225-250:-0.16 250-275:-0.18 275-300:-0.17 300-400:-0.15 400-500:-0.17 500-600:-0.16 600-700:-0.16 700-800:-0.15 800-900:-0.14 900-1000:-0.15
+     mu14 profile: 0-25:+0.002 25-50:-0.023 50-75:-0.029 75-100:-0.030 100-125:-0.031 125-150:-0.037 150-175:-0.036 175-200:-0.038 200-225:-0.036 225-250:-0.035 250-275:-0.034 275-300:-0.032 300-400:-0.034 400-500:-0.031 500-600:-0.031 600-700:-0.032 700-800:-0.031 800-900:-0.031 900-1000:-0.031
+  2. by bin: B0 G 4.469 Ggate +0.007 Grest 4.462 V 4.476; B1 G 4.588 Ggate +0.074 Grest 4.513 V 4.660; B2 G 4.769 Ggate +0.244 Grest 4.525 V 4.728; B3 G 4.774 Ggate +0.221 Grest 4.553 V 4.755
+     M1 G: c_B0 -0.2928 [-0.3162, -0.2551], c_B1 -0.1702 [-0.1790, -0.1579], c_B2 +0.0008 [-0.0101, +0.0112]; A2 holds True resolvable True
+     M1 G_rest: c_B0 -0.0910 [-0.1097, -0.0644], c_B1 -0.0322 [-0.0393, -0.0224], c_B2 -0.0224 [-0.0290, -0.0150]
+     M1 V: c_B0 -0.2243 [-0.2569, -0.1691], c_B1 -0.0676 [-0.0769, -0.0521], c_B2 -0.0209 [-0.0265, -0.0144]
+  3. V-G by bin: B0 +0.0074, B1 +0.0725, B2 -0.0415, B3 -0.0188; D_err +0.0970 [+0.0840, +0.1092]; A3 holds True resolvable True
+  4. critic FD slope /deg: all -0.0053, B0 -0.0117, B1 -0.0080, B2 -0.0042, B3 -0.0045, pre_settle -0.0090, settled -0.0044 | autograd: all -0.0053, B0 -0.0118, B1 -0.0080, B2 -0.0041, B3 -0.0045, pre_settle -0.0089, settled -0.0044
+     beta_G /deg: M0 -0.0111 [-0.0454, +0.0177], M1 -0.0024 [-0.0247, +0.0149], M2 -0.0039 [-0.0255, +0.0124], M3 -0.0036 [-0.0251, +0.0124]; M0-M2 -0.0072 [-0.0295, +0.0134]
+     beta_V /deg: M0 -0.0210 [-0.0578, +0.0100], M1 -0.0126 [-0.0413, +0.0125], M2 -0.0132 [-0.0414, +0.0112], M3 -0.0127 [-0.0400, +0.0123]; M0-M2 -0.0077 [-0.0224, +0.0055]
+     beta_G_rest /deg: M0 -0.0075 [-0.0270, +0.0065], M1 -0.0033 [-0.0208, +0.0088], M2 -0.0034 [-0.0208, +0.0086], M3 -0.0011 [-0.0163, +0.0114]; M0-M2 -0.0042 [-0.0105, +0.0011]
+     W3: beta_G -0.0047 [-0.0183, +0.0100], beta_V -0.0078; critic FD B3 -0.0045; FD_B3 - beta_G_W3 +0.0002 [-0.0151, +0.0135]
+     A4 holds False resolvable False; A4c holds False resolvable False
+     MLP FD slopes /deg (mean of 2 seeds; all states | B3): G_nophase -0.0061 | -0.0060; G_phase -0.0017 | -0.0031; V_nophase -0.0057 | -0.0049; V_phase -0.0074 | -0.0059
+  decodability AUC (settled vs not, k>=50): all_Z 0.746, Z_without_q 0.746, q_alone 0.455
+  B side: B0 tip 0.921 m, tail min floor dist mean 0.800 min 0.724, pelvis 0.927; B1 tip 0.916 m, tail min floor dist mean 0.800 min 0.728, pelvis 0.926; B2 tip 0.910 m, tail min floor dist mean 0.798 min 0.770, pelvis 0.926; B3 tip 0.912 m, tail min floor dist mean 0.799 min 0.777, pelvis 0.926; corr(q, tail min dist) +0.518
+=== P2 (tail_3_pitch, obs 6) num_timesteps 2097152  episodes 48 (truncated 48, terminated 0 [] at [])  sigma_r 45.359  blind False
+  B_bar (gated terms per settled step, normalised) +0.00680; raw means stance_width +0.0965, lateral_lean +0.2463, stance_stagger -0.0019, stance_cop_band -0.0325
+  1. angle by bin (deg): B0 -0.133 (SD 0.815) mu14 -0.034 cmd -0.032; B1 +0.608 (SD 0.299) mu14 +0.130 cmd +0.131; B2 +0.726 (SD 0.230) mu14 +0.138 cmd +0.138; B3 +0.708 (SD 0.199) mu14 +0.135 cmd +0.135
+     r(q,k) all +0.258, k>=50 +0.095; dB +0.0033 [-0.0361, +0.0352]; dS +0.1043 [+0.0636, +0.1431]; AUC_q 0.606; dS(mu14) +0.0059; A1 holds True
+     q profile: 0-25:-0.10 25-50:-0.17 50-75:+0.33 75-100:+0.54 100-125:+0.63 125-150:+0.71 150-175:+0.73 175-200:+0.71 200-225:+0.72 225-250:+0.73 250-275:+0.72 275-300:+0.72 300-400:+0.73 400-500:+0.71 500-600:+0.72 600-700:+0.71 700-800:+0.71 800-900:+0.70 900-1000:+0.70
+     mu14 profile: 0-25:-0.130 25-50:+0.061 50-75:+0.112 75-100:+0.130 100-125:+0.135 125-150:+0.132 150-175:+0.133 175-200:+0.139 200-225:+0.142 225-250:+0.140 250-275:+0.137 275-300:+0.139 300-400:+0.137 400-500:+0.139 500-600:+0.138 600-700:+0.135 700-800:+0.133 800-900:+0.134 900-1000:+0.133
+  2. by bin: B0 G 4.431 Ggate +0.010 Grest 4.421 V 4.454; B1 G 4.577 Ggate +0.106 Grest 4.471 V 4.694; B2 G 4.823 Ggate +0.342 Grest 4.481 V 4.784; B3 G 4.827 Ggate +0.312 Grest 4.515 V 4.809
+     M1 G: c_B0 -0.3203 [-0.3412, -0.2826], c_B1 -0.2342 [-0.2400, -0.2234], c_B2 -0.0018 [-0.0066, +0.0019]; A2 holds True resolvable True
+     M1 G_rest: c_B0 -0.0853 [-0.1102, -0.0621], c_B1 -0.0422 [-0.0478, -0.0350], c_B2 -0.0308 [-0.0337, -0.0276]
+     M1 V: c_B0 -0.2163 [-0.2599, -0.1556], c_B1 -0.0801 [-0.0931, -0.0633], c_B2 -0.0173 [-0.0231, -0.0118]
+  3. V-G by bin: B0 +0.0224, B1 +0.1173, B2 -0.0390, B3 -0.0177; D_err +0.1404 [+0.1283, +0.1525]; A3 holds True resolvable True
+  4. critic FD slope /deg: all +0.0195, B0 +0.0022, B1 +0.0232, B2 +0.0225, B3 +0.0191, pre_settle +0.0179, settled +0.0199 | autograd: all +0.0199, B0 +0.0022, B1 +0.0235, B2 +0.0228, B3 +0.0195, pre_settle +0.0182, settled +0.0203
+     beta_G /deg: M0 +0.0825 [+0.0570, +0.1111], M1 +0.0180 [+0.0045, +0.0354], M2 -0.0028 [-0.0173, +0.0083], M3 -0.0037 [-0.0188, +0.0080]; M0-M2 +0.0853 [+0.0614, +0.1124]
+     beta_V /deg: M0 +0.0588 [+0.0348, +0.0873], M1 +0.0234 [-0.0010, +0.0524], M2 +0.0144 [-0.0102, +0.0429], M3 +0.0102 [-0.0156, +0.0389]; M0-M2 +0.0444 [+0.0308, +0.0598]
+     beta_G_rest /deg: M0 +0.0078 [-0.0070, +0.0218], M1 -0.0049 [-0.0207, +0.0092], M2 -0.0064 [-0.0226, +0.0082], M3 -0.0040 [-0.0172, +0.0073]; M0-M2 +0.0142 [+0.0087, +0.0211]
+     W3: beta_G -0.0052 [-0.0112, +0.0032], beta_V +0.0094; critic FD B3 +0.0191; FD_B3 - beta_G_W3 +0.0243 [+0.0148, +0.0312]
+     A4 holds True resolvable False; A4c holds True resolvable True
+     MLP FD slopes /deg (mean of 2 seeds; all states | B3): G_nophase +0.0388 | +0.0411; G_phase +0.0020 | -0.0006; V_nophase +0.0241 | +0.0224; V_phase +0.0300 | +0.0264
+  decodability AUC (settled vs not, k>=50): all_Z 0.837, Z_without_q 0.835, q_alone 0.606
+  B side: B0 tip 0.922 m, tail min floor dist mean 0.802 min 0.724, pelvis 0.927; B1 tip 0.934 m, tail min floor dist mean 0.806 min 0.771, pelvis 0.926; B2 tip 0.937 m, tail min floor dist mean 0.807 min 0.794, pelvis 0.926; B3 tip 0.938 m, tail min floor dist mean 0.808 min 0.796, pelvis 0.926; corr(q, tail min dist) +0.350
+=== C11a (tail_3_pitch, obs 6) num_timesteps 3145728  episodes 48 (truncated 48, terminated 0 [] at [])  sigma_r 44.404  blind False
+  B_bar (gated terms per settled step, normalised) +0.00744; raw means stance_width +0.0971, lateral_lean +0.2476, stance_stagger -0.0004, stance_cop_band -0.0138
+  1. angle by bin (deg): B0 -0.286 (SD 1.075) mu14 -0.092 cmd -0.090; B1 +2.018 (SD 1.296) mu14 +0.497 cmd +0.496; B2 +3.762 (SD 0.613) mu14 +0.744 cmd +0.735; B3 +3.906 (SD 0.507) mu14 +0.765 cmd +0.754
+     r(q,k) all +0.590, k>=50 +0.505; dB +0.4326 [+0.3822, +0.4858]; dS +1.8523 [+1.6950, +1.9886]; AUC_q 0.933; dS(mu14) +0.2631; A1 holds True
+     q profile: 0-25:-0.04 25-50:-0.53 50-75:+0.23 75-100:+1.11 100-125:+1.90 125-150:+2.54 150-175:+3.01 175-200:+3.31 200-225:+3.53 225-250:+3.66 250-275:+3.73 275-300:+3.76 300-400:+3.86 400-500:+3.88 500-600:+3.91 600-700:+3.91 700-800:+3.90 800-900:+3.91 900-1000:+3.92
+     mu14 profile: 0-25:-0.168 25-50:-0.016 50-75:+0.194 75-100:+0.373 100-125:+0.491 125-150:+0.584 150-175:+0.647 175-200:+0.691 200-225:+0.715 225-250:+0.732 250-275:+0.741 275-300:+0.742 300-400:+0.756 400-500:+0.762 500-600:+0.768 600-700:+0.765 700-800:+0.762 800-900:+0.766 900-1000:+0.769
+  2. by bin: B0 G 4.559 Ggate +0.011 Grest 4.548 V 4.569; B1 G 4.676 Ggate +0.117 Grest 4.559 V 4.742; B2 G 4.915 Ggate +0.375 Grest 4.540 V 4.884; B3 G 4.916 Ggate +0.341 Grest 4.576 V 4.910
+     M1 G: c_B0 -0.1768 [-0.1937, -0.1458], c_B1 -0.1684 [-0.1789, -0.1525], c_B2 +0.0062 [+0.0017, +0.0106]; A2 holds True resolvable True
+     M1 G_rest: c_B0 -0.0499 [-0.0721, -0.0314], c_B1 -0.0261 [-0.0370, -0.0183], c_B2 -0.0306 [-0.0333, -0.0275]
+     M1 V: c_B0 -0.0296 [-0.0582, +0.0110], c_B1 -0.0337 [-0.0508, -0.0160], c_B2 -0.0086 [-0.0138, -0.0033]
+  3. V-G by bin: B0 +0.0100, B1 +0.0665, B2 -0.0312, B3 -0.0067; D_err +0.0793 [+0.0682, +0.0931]; A3 holds True resolvable True
+  4. critic FD slope /deg: all +0.0549, B0 +0.0119, B1 +0.0490, B2 +0.0598, B3 +0.0583, pre_settle +0.0397, settled +0.0587 | autograd: all +0.0549, B0 +0.0119, B1 +0.0490, B2 +0.0599, B3 +0.0584, pre_settle +0.0397, settled +0.0587
+     beta_G /deg: M0 +0.0815 [+0.0766, +0.0911], M1 +0.0334 [+0.0282, +0.0400], M2 -0.0047 [-0.0145, +0.0011], M3 -0.0043 [-0.0159, +0.0031]; M0-M2 +0.0862 [+0.0812, +0.1007]
+     beta_V /deg: M0 +0.0699 [+0.0603, +0.0802], M1 +0.0609 [+0.0490, +0.0744], M2 +0.0517 [+0.0351, +0.0684], M3 +0.0476 [+0.0274, +0.0660]; M0-M2 +0.0182 [+0.0086, +0.0303]
+     beta_G_rest /deg: M0 -0.0021 [-0.0098, +0.0044], M1 -0.0073 [-0.0174, +0.0001], M2 -0.0068 [-0.0197, +0.0027], M3 -0.0041 [-0.0158, +0.0034]; M0-M2 +0.0046 [-0.0001, +0.0122]
+     W3: beta_G -0.0040 [-0.0091, +0.0028], beta_V +0.0624; critic FD B3 +0.0583; FD_B3 - beta_G_W3 +0.0623 [+0.0553, +0.0679]
+     A4 holds True resolvable True; A4c holds True resolvable True
+     MLP FD slopes /deg (mean of 2 seeds; all states | B3): G_nophase +0.0540 | +0.0458; G_phase -0.0086 | -0.0085; V_nophase +0.0621 | +0.0625; V_phase +0.0588 | +0.0595
+  decodability AUC (settled vs not, k>=50): all_Z 0.983, Z_without_q 0.966, q_alone 0.933
+  B side: B0 tip 0.921 m, tail min floor dist mean 0.803 min 0.724, pelvis 0.928; B1 tip 0.950 m, tail min floor dist mean 0.805 min 0.780, pelvis 0.926; B2 tip 0.965 m, tail min floor dist mean 0.802 min 0.795, pelvis 0.926; B3 tip 0.967 m, tail min floor dist mean 0.802 min 0.795, pelvis 0.926; corr(q, tail min dist) -0.134
+=== C11E (tail_3_pitch, obs 6) num_timesteps 3538944  episodes 48 (truncated 48, terminated 0 [] at [])  sigma_r 43.852  blind False
+  B_bar (gated terms per settled step, normalised) +0.00747; raw means stance_width +0.0968, lateral_lean +0.2406, stance_stagger -0.0005, stance_cop_band -0.0093
+  1. angle by bin (deg): B0 -0.248 (SD 1.151) mu14 -0.069 cmd -0.068; B1 +2.192 (SD 1.550) mu14 +0.544 cmd +0.537; B2 +4.323 (SD 0.599) mu14 +0.887 cmd +0.850; B3 +4.620 (SD 0.279) mu14 +0.939 cmd +0.893
+     r(q,k) all +0.646, k>=50 +0.586; dB +0.5892 [+0.5184, +0.6622]; dS +2.3535 [+2.1388, +2.5605]; AUC_q 0.953; dS(mu14) +0.3814; A1 holds True
+     q profile: 0-25:-0.10 25-50:-0.39 50-75:+0.34 75-100:+1.22 100-125:+2.03 125-150:+2.70 150-175:+3.24 175-200:+3.63 200-225:+3.93 225-250:+4.12 250-275:+4.25 275-300:+4.34 300-400:+4.49 400-500:+4.57 500-600:+4.62 600-700:+4.63 700-800:+4.62 800-900:+4.64 900-1000:+4.65
+     mu14 profile: 0-25:-0.145 25-50:+0.007 50-75:+0.212 75-100:+0.396 100-125:+0.527 125-150:+0.631 150-175:+0.717 175-200:+0.782 200-225:+0.821 225-250:+0.855 250-275:+0.876 275-300:+0.886 300-400:+0.914 400-500:+0.932 500-600:+0.942 600-700:+0.938 700-800:+0.936 800-900:+0.942 900-1000:+0.944
+  2. by bin: B0 G 4.618 Ggate +0.011 Grest 4.607 V 4.612; B1 G 4.734 Ggate +0.114 Grest 4.620 V 4.758; B2 G 4.967 Ggate +0.375 Grest 4.592 V 4.921; B3 G 4.969 Ggate +0.343 Grest 4.625 V 4.959
+     M1 G: c_B0 -0.2077 [-0.2292, -0.1558], c_B1 -0.1752 [-0.1897, -0.1421], c_B2 +0.0085 [+0.0016, +0.0174]; A2 holds True resolvable True
+     M1 G_rest: c_B0 -0.0627 [-0.0833, -0.0385], c_B1 -0.0313 [-0.0429, -0.0171], c_B2 -0.0306 [-0.0339, -0.0259]
+     M1 V: c_B0 -0.0481 [-0.0717, -0.0069], c_B1 -0.0661 [-0.0826, -0.0408], c_B2 -0.0176 [-0.0236, -0.0105]
+  3. V-G by bin: B0 -0.0061, B1 +0.0243, B2 -0.0460, B3 -0.0092; D_err +0.0427 [+0.0285, +0.0600]; A3 holds False resolvable True
+  4. critic FD slope /deg: all +0.0531, B0 +0.0150, B1 +0.0422, B2 +0.0576, B3 +0.0575, pre_settle +0.0354, settled +0.0576 | autograd: all +0.0531, B0 +0.0150, B1 +0.0422, B2 +0.0576, B3 +0.0576, pre_settle +0.0354, settled +0.0576
+     beta_G /deg: M0 +0.0637 [+0.0544, +0.0739], M1 +0.0291 [+0.0206, +0.0369], M2 -0.0022 [-0.0144, +0.0050], M3 -0.0035 [-0.0175, +0.0042]; M0-M2 +0.0659 [+0.0570, +0.0819]
+     beta_V /deg: M0 +0.0692 [+0.0571, +0.0774], M1 +0.0563 [+0.0433, +0.0661], M2 +0.0495 [+0.0320, +0.0623], M3 +0.0469 [+0.0275, +0.0603]; M0-M2 +0.0197 [+0.0119, +0.0302]
+     beta_G_rest /deg: M0 +0.0018 [-0.0073, +0.0076], M1 -0.0021 [-0.0121, +0.0045], M2 -0.0035 [-0.0166, +0.0042], M3 -0.0052 [-0.0177, +0.0011]; M0-M2 +0.0053 [+0.0006, +0.0112]
+     W3: beta_G -0.0049 [-0.0132, +0.0043], beta_V +0.0750; critic FD B3 +0.0575; FD_B3 - beta_G_W3 +0.0625 [+0.0533, +0.0708]
+     A4 holds True resolvable True; A4c holds True resolvable True
+     MLP FD slopes /deg (mean of 2 seeds; all states | B3): G_nophase +0.0375 | +0.0343; G_phase -0.0142 | -0.0150; V_nophase +0.0584 | +0.0600; V_phase +0.0531 | +0.0539
+  decodability AUC (settled vs not, k>=50): all_Z 0.988, Z_without_q 0.983, q_alone 0.953
+  B side: B0 tip 0.922 m, tail min floor dist mean 0.803 min 0.724, pelvis 0.928; B1 tip 0.950 m, tail min floor dist mean 0.804 min 0.785, pelvis 0.926; B2 tip 0.962 m, tail min floor dist mean 0.798 min 0.791, pelvis 0.926; B3 tip 0.964 m, tail min floor dist mean 0.797 min 0.790, pelvis 0.926; corr(q, tail min dist) -0.419
+=== C31a (tail_3_pitch, obs 6) num_timesteps 3145728  episodes 48 (truncated 48, terminated 0 [] at [])  sigma_r 44.403  blind False
+  B_bar (gated terms per settled step, normalised) +0.00736; raw means stance_width +0.0981, lateral_lean +0.2473, stance_stagger -0.0014, stance_cop_band -0.0173
+  1. angle by bin (deg): B0 -0.056 (SD 0.952) mu14 -0.010 cmd -0.008; B1 +1.226 (SD 0.574) mu14 +0.275 cmd +0.276; B2 +1.742 (SD 0.492) mu14 +0.338 cmd +0.338; B3 +1.783 (SD 0.457) mu14 +0.343 cmd +0.343
+     r(q,k) all +0.412, k>=50 +0.282; dB +0.1177 [+0.0792, +0.1609]; dS +0.5461 [+0.4517, +0.6354]; AUC_q 0.789; dS(mu14) +0.0673; A1 holds True
+     q profile: 0-25:+0.02 25-50:-0.13 50-75:+0.58 75-100:+1.03 100-125:+1.24 125-150:+1.40 150-175:+1.53 175-200:+1.59 200-225:+1.65 225-250:+1.70 250-275:+1.71 275-300:+1.73 300-400:+1.78 400-500:+1.77 500-600:+1.78 600-700:+1.78 700-800:+1.79 800-900:+1.79 900-1000:+1.79
+     mu14 profile: 0-25:-0.079 25-50:+0.060 50-75:+0.209 75-100:+0.254 100-125:+0.269 125-150:+0.291 150-175:+0.307 175-200:+0.317 200-225:+0.327 225-250:+0.332 250-275:+0.334 275-300:+0.335 300-400:+0.343 400-500:+0.344 500-600:+0.344 600-700:+0.342 700-800:+0.343 800-900:+0.343 900-1000:+0.344
+  2. by bin: B0 G 4.550 Ggate +0.011 Grest 4.539 V 4.555; B1 G 4.693 Ggate +0.113 Grest 4.580 V 4.788; B2 G 4.937 Ggate +0.369 Grest 4.568 V 4.897; B3 G 4.935 Ggate +0.338 Grest 4.597 V 4.917
+     M1 G: c_B0 -0.2834 [-0.3052, -0.2367], c_B1 -0.2246 [-0.2332, -0.2070], c_B2 +0.0024 [-0.0040, +0.0087]; A2 holds True resolvable True
+     M1 G_rest: c_B0 -0.0700 [-0.0987, -0.0411], c_B1 -0.0268 [-0.0379, -0.0170], c_B2 -0.0286 [-0.0335, -0.0242]
+     M1 V: c_B0 -0.1343 [-0.1720, -0.0728], c_B1 -0.0740 [-0.0903, -0.0518], c_B2 -0.0128 [-0.0200, -0.0062]
+  3. V-G by bin: B0 +0.0057, B1 +0.0951, B2 -0.0396, B3 -0.0186; D_err +0.1190 [+0.1005, +0.1361]; A3 holds True resolvable True
+  4. critic FD slope /deg: all +0.0191, B0 -0.0060, B1 +0.0224, B2 +0.0224, B3 +0.0193, pre_settle +0.0153, settled +0.0200 | autograd: all +0.0192, B0 -0.0060, B1 +0.0225, B2 +0.0226, B3 +0.0194, pre_settle +0.0154, settled +0.0202
+     beta_G /deg: M0 +0.0934 [+0.0738, +0.1142], M1 +0.0217 [+0.0116, +0.0357], M2 -0.0129 [-0.0256, -0.0036], M3 -0.0142 [-0.0285, -0.0043]; M0-M2 +0.1063 [+0.0870, +0.1282]
+     beta_V /deg: M0 +0.0680 [+0.0518, +0.0852], M1 +0.0399 [+0.0251, +0.0592], M2 +0.0254 [+0.0093, +0.0448], M3 +0.0170 [-0.0013, +0.0375]; M0-M2 +0.0426 [+0.0280, +0.0561]
+     beta_G_rest /deg: M0 -0.0025 [-0.0142, +0.0076], M1 -0.0135 [-0.0282, -0.0019], M2 -0.0146 [-0.0310, -0.0018], M3 -0.0145 [-0.0279, -0.0044]; M0-M2 +0.0121 [+0.0050, +0.0204]
+     W3: beta_G -0.0178 [-0.0234, -0.0115], beta_V +0.0158; critic FD B3 +0.0193; FD_B3 - beta_G_W3 +0.0370 [+0.0307, +0.0427]
+     A4 holds True resolvable False; A4c holds True resolvable True
+     MLP FD slopes /deg (mean of 2 seeds; all states | B3): G_nophase +0.0486 | +0.0437; G_phase -0.0143 | -0.0189; V_nophase +0.0288 | +0.0273; V_phase +0.0260 | +0.0224
+  decodability AUC (settled vs not, k>=50): all_Z 0.926, Z_without_q 0.922, q_alone 0.789
+  B side: B0 tip 0.925 m, tail min floor dist mean 0.804 min 0.724, pelvis 0.927; B1 tip 0.944 m, tail min floor dist mean 0.808 min 0.778, pelvis 0.926; B2 tip 0.955 m, tail min floor dist mean 0.811 min 0.796, pelvis 0.927; B3 tip 0.957 m, tail min floor dist mean 0.811 min 0.797, pelvis 0.927; corr(q, tail min dist) +0.496
+=== C31E (tail_3_pitch, obs 6) num_timesteps 3538944  episodes 48 (truncated 48, terminated 0 [] at [])  sigma_r 43.882  blind False
+  B_bar (gated terms per settled step, normalised) +0.00740; raw means stance_width +0.0985, lateral_lean +0.2425, stance_stagger -0.0040, stance_cop_band -0.0123
+  1. angle by bin (deg): B0 -0.393 (SD 1.073) mu14 -0.109 cmd -0.107; B1 +1.290 (SD 0.830) mu14 +0.314 cmd +0.315; B2 +2.426 (SD 0.448) mu14 +0.477 cmd +0.477; B3 +2.596 (SD 0.387) mu14 +0.500 cmd +0.499
+     r(q,k) all +0.585, k>=50 +0.515; dB +0.3005 [+0.2558, +0.3488]; dS +1.2637 [+1.1385, +1.3915]; AUC_q 0.935; dS(mu14) +0.1798; A1 holds True
+     q profile: 0-25:-0.21 25-50:-0.57 50-75:+0.21 75-100:+0.82 100-125:+1.24 125-150:+1.59 150-175:+1.85 175-200:+2.02 200-225:+2.18 225-250:+2.30 250-275:+2.36 275-300:+2.42 300-400:+2.54 400-500:+2.59 500-600:+2.61 600-700:+2.61 700-800:+2.59 800-900:+2.59 900-1000:+2.59
+     mu14 profile: 0-25:-0.206 25-50:-0.012 50-75:+0.167 75-100:+0.251 100-125:+0.306 125-150:+0.355 150-175:+0.391 175-200:+0.417 200-225:+0.443 225-250:+0.458 250-275:+0.467 275-300:+0.476 300-400:+0.492 400-500:+0.501 500-600:+0.505 600-700:+0.501 700-800:+0.497 800-900:+0.497 900-1000:+0.499
+  2. by bin: B0 G 4.614 Ggate +0.011 Grest 4.603 V 4.618; B1 G 4.742 Ggate +0.110 Grest 4.632 V 4.789; B2 G 4.975 Ggate +0.364 Grest 4.611 V 4.939; B3 G 4.985 Ggate +0.343 Grest 4.642 V 4.978
+     M1 G: c_B0 -0.2370 [-0.2549, -0.1745], c_B1 -0.2000 [-0.2111, -0.1723], c_B2 -0.0044 [-0.0127, +0.0074]; A2 holds True resolvable True
+     M1 G_rest: c_B0 -0.0773 [-0.1023, -0.0385], c_B1 -0.0300 [-0.0408, -0.0156], c_B2 -0.0326 [-0.0374, -0.0270]
+     M1 V: c_B0 -0.1008 [-0.1275, -0.0406], c_B1 -0.0865 [-0.1039, -0.0560], c_B2 -0.0220 [-0.0290, -0.0113]
+  3. V-G by bin: B0 +0.0041, B1 +0.0472, B2 -0.0356, B3 -0.0069; D_err +0.0613 [+0.0445, +0.0776]; A3 holds True resolvable True
+  4. critic FD slope /deg: all +0.0399, B0 +0.0004, B1 +0.0380, B2 +0.0468, B3 +0.0414, pre_settle +0.0286, settled +0.0427 | autograd: all +0.0399, B0 +0.0004, B1 +0.0381, B2 +0.0468, B3 +0.0414, pre_settle +0.0287, settled +0.0428
+     beta_G /deg: M0 +0.0806 [+0.0634, +0.0972], M1 +0.0335 [+0.0233, +0.0470], M2 -0.0025 [-0.0155, +0.0100], M3 -0.0050 [-0.0189, +0.0074]; M0-M2 +0.0831 [+0.0690, +0.0988]
+     beta_V /deg: M0 +0.0728 [+0.0586, +0.0870], M1 +0.0537 [+0.0419, +0.0696], M2 +0.0416 [+0.0281, +0.0601], M3 +0.0343 [+0.0195, +0.0551]; M0-M2 +0.0311 [+0.0168, +0.0405]
+     beta_G_rest /deg: M0 +0.0027 [-0.0101, +0.0132], M1 -0.0050 [-0.0167, +0.0064], M2 -0.0059 [-0.0191, +0.0070], M3 -0.0083 [-0.0203, +0.0028]; M0-M2 +0.0086 [+0.0008, +0.0146]
+     W3: beta_G -0.0086 [-0.0176, +0.0004], beta_V +0.0404; critic FD B3 +0.0414; FD_B3 - beta_G_W3 +0.0500 [+0.0411, +0.0594]
+     A4 holds True resolvable True; A4c holds True resolvable True
+     MLP FD slopes /deg (mean of 2 seeds; all states | B3): G_nophase +0.0293 | +0.0157; G_phase -0.0074 | -0.0097; V_nophase +0.0496 | +0.0491; V_phase +0.0462 | +0.0432
+  decodability AUC (settled vs not, k>=50): all_Z 0.990, Z_without_q 0.988, q_alone 0.935
+  B side: B0 tip 0.918 m, tail min floor dist mean 0.801 min 0.724, pelvis 0.927; B1 tip 0.943 m, tail min floor dist mean 0.807 min 0.776, pelvis 0.926; B2 tip 0.967 m, tail min floor dist mean 0.812 min 0.804, pelvis 0.927; B3 tip 0.972 m, tail min floor dist mean 0.814 min 0.806, pelvis 0.927; corr(q, tail min dist) +0.578
+=== B11E (tail_3_pitch, obs 6) num_timesteps 3538944  episodes 48 (truncated 48, terminated 0 [] at [])  sigma_r 44.177  blind True
+  B_bar (gated terms per settled step, normalised) +0.00748; raw means stance_width +0.0962, lateral_lean +0.2464, stance_stagger -0.0017, stance_cop_band -0.0104
+  1. angle by bin (deg): B0 -0.151 (SD 0.941) mu14 -0.073 cmd -0.071; B1 +0.446 (SD 0.466) mu14 +0.113 cmd +0.114; B2 +0.731 (SD 0.243) mu14 +0.137 cmd +0.137; B3 +0.640 (SD 0.196) mu14 +0.121 cmd +0.121
+     r(q,k) all +0.234, k>=50 +0.104; dB +0.0048 [-0.0419, +0.0458]; dS +0.2168 [+0.1591, +0.2776]; AUC_q 0.623; dS(mu14) +0.0122; A1 holds True
+     q profile: 0-25:+0.02 25-50:-0.32 50-75:-0.18 75-100:+0.19 100-125:+0.49 125-150:+0.66 150-175:+0.75 175-200:+0.77 200-225:+0.77 225-250:+0.76 250-275:+0.72 275-300:+0.72 300-400:+0.72 400-500:+0.67 500-600:+0.65 600-700:+0.64 700-800:+0.64 800-900:+0.63 900-1000:+0.61
+     mu14 profile: 0-25:-0.081 25-50:-0.066 50-75:+0.022 75-100:+0.086 100-125:+0.128 125-150:+0.149 150-175:+0.148 175-200:+0.145 200-225:+0.144 225-250:+0.142 250-275:+0.138 275-300:+0.136 300-400:+0.133 400-500:+0.130 500-600:+0.124 600-700:+0.122 700-800:+0.120 800-900:+0.118 900-1000:+0.115
+  2. by bin: B0 G 4.577 Ggate +0.011 Grest 4.566 V 4.570; B1 G 4.744 Ggate +0.116 Grest 4.628 V 4.833; B2 G 5.010 Ggate +0.377 Grest 4.632 V 4.979; B3 G 5.020 Ggate +0.342 Grest 4.677 V 5.014
+     M1 G: c_B0 -0.3653 [-0.3811, -0.3093], c_B1 -0.2618 [-0.2687, -0.2385], c_B2 -0.0067 [-0.0135, +0.0009]; A2 holds True resolvable True
+     M1 G_rest: c_B0 -0.1166 [-0.1390, -0.0783], c_B1 -0.0579 [-0.0663, -0.0420], c_B2 -0.0358 [-0.0387, -0.0311]
+     M1 V: c_B0 -0.2865 [-0.3259, -0.1959], c_B1 -0.1193 [-0.1379, -0.0786], c_B2 -0.0290 [-0.0377, -0.0184]
+  3. V-G by bin: B0 -0.0078, B1 +0.0888, B2 -0.0311, B3 -0.0059; D_err +0.1010 [+0.0796, +0.1204]; A3 holds True resolvable True
+     raw value MLP V-G by bin: B0 -0.0026, B1 +0.0936, B2 -0.0235, B3 +0.0010
+  4. critic FD slope /deg: all +0.0000, B0 +0.0000, B1 +0.0000, B2 +0.0000, B3 +0.0000, pre_settle +0.0000, settled +0.0000 | autograd: all +0.0000, B0 +0.0000, B1 +0.0000, B2 +0.0000, B3 +0.0000, pre_settle +0.0000, settled +0.0000
+     raw value MLP FD: all +0.0107, B0 -0.0052, B1 +0.0129, B2 +0.0077, B3 +0.0125, pre_settle +0.0084, settled +0.0113
+     beta_G /deg: M0 +0.0355 [+0.0016, +0.0650], M1 +0.0157 [+0.0036, +0.0299], M2 -0.0168 [-0.0274, -0.0073], M3 -0.0194 [-0.0306, -0.0089]; M0-M2 +0.0523 [+0.0197, +0.0807]
+     beta_V /deg: M0 +0.0160 [-0.0128, +0.0399], M1 +0.0081 [-0.0121, +0.0274], M2 -0.0105 [-0.0307, +0.0112], M3 -0.0194 [-0.0398, +0.0027]; M0-M2 +0.0265 [+0.0053, +0.0442]
+     beta_G_rest /deg: M0 -0.0131 [-0.0334, -0.0006], M1 -0.0138 [-0.0294, -0.0014], M2 -0.0189 [-0.0347, -0.0060], M3 -0.0164 [-0.0276, -0.0061]; M0-M2 +0.0058 [-0.0036, +0.0129]
+     W3: beta_G -0.0157 [-0.0207, -0.0087], beta_V -0.0085; critic FD B3 +0.0000; FD_B3 - beta_G_W3 +0.0157 [+0.0087, +0.0207]
+     A4 holds True resolvable False; A4c holds False resolvable True
+     MLP FD slopes /deg (mean of 2 seeds; all states | B3): G_nophase +0.0260 | +0.0141; G_phase -0.0095 | -0.0108; V_nophase +0.0069 | +0.0052; V_phase +0.0030 | -0.0001
+  decodability AUC (settled vs not, k>=50): all_Z 0.900, Z_without_q 0.902, q_alone 0.623
+  B side: B0 tip 0.917 m, tail min floor dist mean 0.801 min 0.724, pelvis 0.929; B1 tip 0.939 m, tail min floor dist mean 0.808 min 0.769, pelvis 0.926; B2 tip 0.944 m, tail min floor dist mean 0.807 min 0.798, pelvis 0.925; B3 tip 0.944 m, tail min floor dist mean 0.808 min 0.799, pelvis 0.925; corr(q, tail min dist) +0.217
+=== N80 (neck_pitch, obs 0) num_timesteps 4194304  episodes 32 (truncated 32, terminated 0 [] at [])  sigma_r 43.546  blind False
+  B_bar (gated terms per settled step, normalised) +0.00750; raw means stance_width +0.0963, lateral_lean +0.2395, stance_stagger -0.0009, stance_cop_band -0.0083
+  1. angle by bin (deg): B0 +4.647 (SD 4.019) mu14 -0.028 cmd -0.026; B1 +1.894 (SD 4.810) mu14 +0.012 cmd +0.014; B2 -3.453 (SD 3.456) mu14 +0.010 cmd +0.010; B3 -5.878 (SD 3.065) mu14 +0.010 cmd +0.009
+     r(q,k) all -0.609, k>=50 -0.553; dB -1.4472 [-1.7925, -1.0896]; dS -7.1658 [-8.1756, -6.2701]; AUC_q 0.114; dS(mu14) -0.0018; A1 holds False
+     q profile: 0-25:+2.74 25-50:+6.56 50-75:+5.74 75-100:+3.69 100-125:+2.10 125-150:+1.02 150-175:-0.17 175-200:-1.01 200-225:-1.69 225-250:-2.38 250-275:-3.00 275-300:-3.44 300-400:-4.28 400-500:-5.26 500-600:-5.44 600-700:-5.79 700-800:-6.21 800-900:-6.39 900-1000:-6.18
+     mu14 profile: 0-25:-0.049 25-50:-0.007 50-75:+0.017 75-100:+0.008 100-125:+0.009 125-150:+0.012 150-175:+0.011 175-200:+0.013 200-225:+0.012 225-250:+0.011 250-275:+0.016 275-300:+0.006 300-400:+0.009 400-500:+0.013 500-600:+0.009 600-700:+0.011 700-800:+0.009 800-900:+0.010 900-1000:+0.008
+  2. by bin: B0 G 4.669 Ggate +0.011 Grest 4.658 V 4.670; B1 G 4.817 Ggate +0.113 Grest 4.704 V 4.891; B2 G 5.070 Ggate +0.369 Grest 4.701 V 5.012; B3 G 5.081 Ggate +0.347 Grest 4.734 V 5.063
+     M1 G: c_B0 -0.3307 [-0.3645, -0.2596], c_B1 -0.2259 [-0.2364, -0.2003], c_B2 +0.0049 [-0.0025, +0.0161]; A2 holds True resolvable True
+     M1 G_rest: c_B0 -0.0635 [-0.0887, -0.0282], c_B1 -0.0299 [-0.0385, -0.0109], c_B2 -0.0285 [-0.0316, -0.0201]
+     M1 V: c_B0 -0.1756 [-0.2166, -0.1080], c_B1 -0.0504 [-0.0632, -0.0279], c_B2 -0.0067 [-0.0158, +0.0048]
+  3. V-G by bin: B0 +0.0011, B1 +0.0740, B2 -0.0572, B3 -0.0182; D_err +0.1019 [+0.0741, +0.1285]; A3 holds True resolvable True
+  4. critic FD slope /deg: all -0.0059, B0 -0.0091, B1 -0.0091, B2 -0.0064, B3 -0.0047, pre_settle -0.0091, settled -0.0051 | autograd: all -0.0059, B0 -0.0091, B1 -0.0091, B2 -0.0064, B3 -0.0047, pre_settle -0.0091, settled -0.0051
+     critic FD on tail_3: all +0.0155, B0 -0.0008, B1 +0.0020, B2 +0.0145, B3 +0.0206
+     beta_G /deg: M0 -0.0159 [-0.0197, -0.0120], M1 -0.0014 [-0.0047, +0.0006], M2 +0.0031 [+0.0002, +0.0050], M3 +0.0033 [+0.0005, +0.0056]; M0-M2 -0.0190 [-0.0216, -0.0157]
+     beta_V /deg: M0 -0.0134 [-0.0158, -0.0104], M1 -0.0096 [-0.0120, -0.0073], M2 -0.0083 [-0.0108, -0.0058], M3 -0.0076 [-0.0102, -0.0050]; M0-M2 -0.0052 [-0.0063, -0.0033]
+     beta_G_rest /deg: M0 -0.0021 [-0.0040, -0.0001], M1 +0.0006 [-0.0021, +0.0027], M2 +0.0007 [-0.0022, +0.0030], M3 +0.0027 [+0.0014, +0.0038]; M0-M2 -0.0028 [-0.0035, -0.0012]
+     W3: beta_G +0.0038 [+0.0024, +0.0048], beta_V -0.0050; critic FD B3 -0.0047; FD_B3 - beta_G_W3 -0.0084 [-0.0097, -0.0068]
+     A4 holds False resolvable True; A4c holds False resolvable True
+     MLP FD slopes /deg (mean of 2 seeds; all states | B3): G_nophase -0.0059 | -0.0034; G_phase +0.0029 | +0.0031; V_nophase -0.0077 | -0.0063; V_phase -0.0071 | -0.0059
+  decodability AUC (settled vs not, k>=50): all_Z 0.972, Z_without_q 0.963, q_alone 0.114
+  B side: B0 tip 0.918 m, tail min floor dist mean 0.799 min 0.724, pelvis 0.929; B1 tip 0.917 m, tail min floor dist mean 0.801 min 0.758, pelvis 0.927; B2 tip 0.919 m, tail min floor dist mean 0.801 min 0.790, pelvis 0.927; B3 tip 0.917 m, tail min floor dist mean 0.801 min 0.790, pelvis 0.926; corr(q, tail min dist) -0.259
+A1: SUPPORTED  (holds at 5/5 PS: ['P2', 'C11a', 'C11E', 'C31a', 'C31E']; resolvable 5/5: ['P2', 'C11a', 'C11E', 'C31a', 'C31E'])
+A2: SUPPORTED  (holds at 5/5 PS: ['P2', 'C11a', 'C11E', 'C31a', 'C31E']; resolvable 5/5: ['P2', 'C11a', 'C11E', 'C31a', 'C31E'])
+A3: SUPPORTED  (holds at 4/5 PS: ['P2', 'C11a', 'C31a', 'C31E']; resolvable 5/5: ['P2', 'C11a', 'C11E', 'C31a', 'C31E'])
+A4: SUPPORTED  (holds at 5/5 PS: ['P2', 'C11a', 'C11E', 'C31a', 'C31E']; resolvable 3/5: ['C11a', 'C11E', 'C31E'])
+A4c: SUPPORTED  (holds at 5/5 PS: ['P2', 'C11a', 'C11E', 'C31a', 'C31E']; resolvable 5/5: ['P2', 'C11a', 'C11E', 'C31a', 'C31E'])
+A5: SUPPORTED  (6/6 match: P1 fd -0.0053 dS -0.039 B_bar +0.00482 match; P2 fd +0.0195 dS +0.104 B_bar +0.00680 match; C11a fd +0.0549 dS +1.852 B_bar +0.00744 match; C11E fd +0.0531 dS +2.354 B_bar +0.00747 match; C31a fd +0.0191 dS +0.546 B_bar +0.00736 match; C31E fd +0.0399 dS +1.264 B_bar +0.00740 match)
+OVERALL: A SUPPORTED  (A1 SUPPORTED, A2 SUPPORTED, A3 SUPPORTED, A4 SUPPORTED; qualifiers A4c SUPPORTED, A5 SUPPORTED)

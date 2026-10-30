@@ -1,0 +1,108 @@
+856 S2/r10round/long_blind/NOTES.txt
+LONG BLIND STUDY (LB) HARNESS -- NOTES (summary first, then the designs, the validations, every command and its result,
+and the diff against BS2 hunk by hunk).  Written by the LB harness builder, 2026-10-30 (date -u).  Folder:
+S2/r10round/long_blind.  NO TRAINING in this build: no optimizer step anywhere, no continuation launched, LB/APPROVED
+never created or touched.
+Short names: S2 = S2;
+S1 = S1; BS = S2/r10round/bias_screen
+(finished; its code copy BS/code reused read only); BS2 = S2/r10round/bias_screen2 (finished; read only); LB =
+S2/r10round/long_blind; PY = S2/venv/bin/python (always -I -B); FMAN = S1/foot/stance6/fetch/manifest.csv; F2 =
+S1/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/.  "<BS>" inside the LB tools means LB.
+Labels: [measured] = I ran or read it (file / line cited); [inferred] = reasoned, basis given.
+
+==================================================================================================================
+SUMMARY
+==================================================================================================================
+STATUS: the LB harness is built, tested and validated; nothing launched.  Done with two process issues of mine to
+report (open items 12 and 14): three read-only du commands referenced the null device against the rules (nothing
+written, nothing outside LB touched), and two of my analysis scripts needed a fix after their first run (the tools
+were not involved).  The coordinator pins APPROVED and launches; the scorer (tools/score_bs.py) is the criteria
+lane's and must exist and be pinned first.
+WHAT: BS2's harness (run_bs, read_bs, the outcome-blind runner, the arm hooks, CHECK) moved to LB and re-pointed to
+the long window; a new crash resume from the newest complete saved pair (bs_resume.py); a hop-watch stop reason;
+RR-1 and I1 in the runner; the reference read over the parent's F2 grid.  The code is BS's sealed copy BS/code (tree
+digest 331fe8fc3f6bdf73acc0d3cc324dd753d9d9d695d7ce914e4e011d5c6437ebf1), read only, verified at start and end
+[measured: logs/verify_copy_start.out, validate/logs/verify_copy_end.out].
+THE WINDOW [measured: validate/logs/parent_schedule.out]: S = 2,097,152; E = 12,001,280 (the parent's end: 1,465 x
+8,192, its final zip's num_timesteps and its probe's last row); LENGTH = 9,904,128; 1,209 rollouts; 1,208 update rows
+(trains) in (S, E); 75 evaluations in (S, E] (2,228,224 ... 11,927,552); saved pairs: 37 periodic (2,359,296 ...
+11,796,480, every 262,144) + the final pair at E = 38 (39 with the start copy).  Seeds for validation 9301, 9311,
+9321, 9331, 9341.  At most 4 continuations.  The SB3 target stays 12,000,000 at every load.
+SCHEDULES AND EARLY ENDS [measured: parent_schedule.out, stop_paths.out]: the parent's ent_coef (0.0034962 -> 0 at
+7,000,000) and learning_rate (2.649e-05 -> 9.998e-06) equal their formulas of num_timesteps on all 1,209 window rows
+(float32, 0 error), and a continuation reproduces them (CHECK compares every update row with the parent's: equal in
+every V2 and V4 run).  No curriculum, stage advance or gate can end a continuation; two stops can: the collapse
+backstop (earliest 3,801,088; the parent's own window never comes close: 0 drops in 72 observations) and the hop watch
+(first eligible evaluation 7,077,888; the parent's unsupported duty there 0.0 against a 0.05 bar).  A hop-watch stop is
+recorded, CHECK-accepted and decided STOPPED like a collapse (BS2 would have called it "other" and halted).
+END CONVENTION [code read + measured]: no update on the rollout ending at E (StopAtEnd), so a continuation's final pair
+is the policy at rollout end E; the parent's stage1_final is one update later; its probe row at E is the comparable
+state (open item 4).
+RESUME [measured: V4; tests]: after a crash the runner reruns the run with --resume-from its retired folder; the new
+attempt loads the newest saved pair P whose records are complete by content (a probe row at every 8,192 up to P, one
+evidence line per rollout end, the evaluation grid in the ledger and both npz files, a training episode after P, and no
+record still equal to the copy the attempt started from), hard-links the pairs up to P, copies the records and the
+evidence prefix, and lets the code's own same-stage resume keep every record's rows up to P (total = 12,000,000 - P).
+Labelled resumed_from / load_step / attempt / attempts in run_meta, check.json and the markers; CHECK recomputes the
+stitched rows' digests.  A resumed run is a valid continuation but not the uninterrupted one (one discarded update at
+P, re-seeded draws and fresh env resets from P).  A crash costs about 393,216 steps (about 22 min at 4 at once) on
+average instead of up to the whole run [inferred: the checkpoint-call flush rule].
+VALIDATIONS [measured]: unit tests 122 passed (test_resume 24 new); ruff clean.  V1 PASS (the loaded pair saved back
+equal, four arms).  V2 PASS (no-update S -> 2,359,296, four arms, seed 9301: each arm in force on every rollout,
+control unchanged, same-seed pairing exact, no optimizer step, CHECK passed).  V3 PASS (the parent's G, c0, own14, REF
+G and critic slope at 2,097,152 and 3,145,728 reproduced exactly; each V2 run's S row = the parent's; the blind arm's
+effective slope 0).  V4 PASS (a no-update critic_blind_tail3 run SIGKILLed at 2,629,632 resumed from 2,359,296 (the
+2,621,440 pair correctly refused: its probe row and training ledger had not reached the disk), ran to 2,654,208,
+CHECK passed; the reloaded state = the P pair's; every row up to P = attempt 1's; one row per step; the arm in force
+67/67; after P not bitwise the uninterrupted run, as designed).  The runner refuses without SCREEN.json / APPROVED
+(exit 2, nothing written).
+TIMING [measured BS2 rates + inferred]: per rollout at 4 at once 19.26 CPU-s without the update, + 0.900 CPU-s per PPO
+epoch, + 32.4 per evaluation: about 27.7 s wall per rollout at the parent's 6.73 epochs per train.  One continuation
+33,052-36,609 CPU-s; four at once on a free machine about 9.3 h (6.73 epochs) to 9.6 h (BS2's 7.80) to 10.3 h (10
+epochs); with one other busy process on the machine about 11.6-12.9 h.
+READ COST AND SCHEDULE [measured + inferred]: 58.3-61.5 CPU-s per saved pair (BS2 median 61.9 at 4 at once).
+Proposed: read every saved pair (as built: 38 new pairs per run, about 40 min wall for the 4 runs after the runs);
+alternative every 1,048,576 (10 new pairs, about 10 min).  Open item 2.
+DISK [measured]: one run folder at E 163.1 MiB; with reads, tmp, logs and one resume 184.4 MiB -> RUN_BYTES_EST 200 MiB;
+launch floor 2,449,473,536 B (1.5 GiB + 4 x 200 MiB).  Free at the end 2,878,758,912 B (df -h /tmp: 2.7G available of
+252G, 94 % used).  This build wrote about 182.7 MB (171 MB of it validation folders that can go).
+TOOLS (the six pinned in APPROVED; sha256): run_bs.py a2e720fe30080250f4aa79118546d4bdc7d3f5fcc6074ec4509812235d1f3d15,
+read_bs.py 7a9c8a99fee09f8d005c5ec09857ec853166320156901f85b54b094d72b9450b, run_waves_bs.sh
+53f80e7a4b708f3b16fb11f78b93eeb3a430be066123e00b8be98e94919fc661, bs_common.py
+34755b030bde78f673358b4f8f96f495932709582efd9425b13f4a7c1fe49b0e, bs_hooks.py
+1ff4c8be048297270eea14a24fe59336020e20fbd4aca7c38f5b881b33eef9fc (BS2's), bs_resume.py
+5da2f62c438cc1d1b7ba80b6a9c8dd9987cbd6d252abd0f1495ccd0dd4133920; also check_inputs.py bf20e04e..., verify_copy.py
+3fb7933d... (BS2's).  The diff against BS2: logs/tools_vs_bs2.diff, 87 hunks, each explained below.
+OUTSIDE LB [measured: validate/logs/find_outside_final.txt]: nothing written outside LB; the 2,158 newer paths outside
+LB are other workflows' and the coordinator's.  No training, no optimizer step, no launch, no APPROVED, no git or
+network write.
+
+==================================================================================================================
+THE WINDOW (step 2; [measured] validate/logs/parent_schedule.out unless said)
+
+a2e720fe30080250f4aa79118546d4bdc7d3f5fcc6074ec4509812235d1f3d15  tools/run_bs.py
+7a9c8a99fee09f8d005c5ec09857ec853166320156901f85b54b094d72b9450b  tools/read_bs.py
+53f80e7a4b708f3b16fb11f78b93eeb3a430be066123e00b8be98e94919fc661  tools/run_waves_bs.sh
+34755b030bde78f673358b4f8f96f495932709582efd9425b13f4a7c1fe49b0e  tools/bs_common.py
+1ff4c8be048297270eea14a24fe59336020e20fbd4aca7c38f5b881b33eef9fc  tools/bs_hooks.py
+5da2f62c438cc1d1b7ba80b6a9c8dd9987cbd6d252abd0f1495ccd0dd4133920  tools/bs_resume.py
+af28ff310ef186ce56c97a8e99755ca2fdc0fa78eb4521cb51244f5a0194d589  NOTES.txt
+4f0f6bb2ac6c8a4d85913c9d769509790c34cf98c105e4a0ac49a0721a944c19  logs/build_cmds.log
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  logs/build_start.marker
+8d59de9fb815b72fd7bf8a81d792bd2928b78d3fb6f4f29bb413bf533329d6aa  logs/check_inputs.out
+b27806e822ce82ba70dda2c77a01d7f1a1b8d98c160d876d7ad9383b4e2655a9  logs/hunks_explained.txt
+c8274f7471f1170197e4089f15e36d8dc3fdf3fe4f9ae034e43815daa19cddd8  logs/tools_sha256_as_copied.txt
+95a7ce226fa8d4a28a9706e5aedc34dfb2538c6725368eef06ea1391fbdd5b35  logs/tools_vs_bs2.diff
+5140fe59b936d3d5e3d750317f5b98581cbec71c260469c33958e869d31923c0  logs/verify_copy_start.out
+65e9a9a4c65aecd384a50164bb50b38311587464b58484d3725f7d3d8476cd52  reads/_cache/r7a9c8a99fee09f8d_d6c8018cb_3c054bd738304965_997f31421d805f6e_plain_on_own.json
+c1f91a997262e44f9fe24c01f140f08649fe51b93e7dfe8289773a4ddfaf5576  reads/_cache/r7a9c8a99fee09f8d_d6c8018cb_5db5f81f39c60a4d_ea75db339d94f2f1_plain_on_own.json
+e0d9d9877eb8a3bca635641d322c900e014604df6c5c09cc39b35c959c386a29  reads/_cache/r7a9c8a99fee09f8d_d6c8018cb_834d2499ae95a351_ea75db339d94f2f1_plain_on_own.json
+d13a6c8d0d2087c098bf6547d4d71c73ddafc56ba36a163857f7f1624e900fca  reads/_cache/r7a9c8a99fee09f8d_d6c8018cb_83b6c88edb933005_991d434f385187e8_blind_on_own.json
+d7b240307091a1e7b5c5cbe1698f9209fcf56cb2738bb7416a708c4702d23c95  reads/_cache/r7a9c8a99fee09f8d_d6c8018cb_83b6c88edb933005_991d434f385187e8_plain_on_own.json
+b63871829e058ec3b49b659f31fb7928b646503641eaec93bf13513768e968ec  reads/_cache/r7a9c8a99fee09f8d_d6c8018cb_e4fa897a69fcb755_270db39e2d909d89_plain_on_own.json
+42f677058387ca619787caf36a8c66ac169379c63bab4f07aacd526d2436f732  reads/_cache/r7a9c8a99fee09f8d_d6c8018cb_e519ba3d3c8746c9_ea75db339d94f2f1_blind_on_own.json
+34755b030bde78f673358b4f8f96f495932709582efd9425b13f4a7c1fe49b0e  tools/bs_common.py
+1ff4c8be048297270eea14a24fe59336020e20fbd4aca7c38f5b881b33eef9fc  tools/bs_hooks.py
+5da2f62c438cc1d1b7ba80b6a9c8dd9987cbd6d252abd0f1495ccd0dd4133920  tools/bs_resume.py
+bf20e04e7a04bf816e2933bc6c9dffa93b78c5a5c952630af91722f9cdb48042  tools/check_inputs.py
+7a9c8a99fee09f8d005c5ec09857ec853166320156901f85b54b094d72b9450b  tools/read_bs.py

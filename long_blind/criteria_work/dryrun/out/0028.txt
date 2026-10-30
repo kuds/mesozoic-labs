@@ -1,0 +1,212 @@
+   586	
+   587	def approval_problems() -> list[str]:
+   588	    """<BS>/APPROVED against <BS>/criteria.txt, <BS>/SCREEN.json, the code digest and the BS tools' sha256."""
+   589	    root = bs_root()
+   590	    approved, err = _read_json(root / "APPROVED")
+   591	    if err:
+   592	        return [f"APPROVED: {err}"]
+   593	    if not isinstance(approved, dict):
+   594	        return ["APPROVED: not a JSON object"]
+   595	    problems = []
+   596	    missing = [k for k in C.APPROVED_KEYS if k not in approved]
+   597	    if missing:
+   598	        problems.append(f"APPROVED: missing keys {missing}")
+   599	    for key, name in (("criteria_sha256", "criteria.txt"), ("screen_sha256", "SCREEN.json")):
+   600	        path = root / name
+   601	        if not path.is_file():
+   602	            problems.append(f"APPROVED: <BS>/{name} missing")
+   603	        elif sha256_file(path) != approved.get(key):
+   604	            problems.append(f"APPROVED: {key} {approved.get(key)!r} != sha256({name})")
+   605	    if approved.get("code_tree_digest") != C.TREE_DIGEST:
+   606	        problems.append(f"APPROVED: code_tree_digest {approved.get('code_tree_digest')!r} != {C.TREE_DIGEST}")
+   607	    pins = approved.get("tool_sha256") if isinstance(approved.get("tool_sha256"), dict) else {}
+   608	    for name in C.TOOL_FILES:
+   609	        path = TOOLS / name
+   610	        got = sha256_file(path) if path.is_file() else None
+   611	        if not pins.get(name) or pins.get(name) != got:
+   612	            problems.append(f"APPROVED: tool_sha256[{name!r}] {pins.get(name)!r} != the file's {got!r}")
+   613	    return problems
+   614	
+   615	
+   616	def screen_entry_problems(arm: str, seed: Any) -> list[str]:
+   617	    d, problems = C.load_screen(str(bs_root() / "SCREEN.json"))
+   618	    if problems:
+   619	        return problems
+   620	    if (arm, seed) not in C.queue_of(d):
+   621	        return [f"SCREEN: ({arm}, {seed}) is not in the queue"]
+   622	    return []
+   623	
+   624	
+   625	def seal_problems() -> list[str]:
+   626	    common = C.M1_COMMON
+   627	    try:
+   628	        if sha256_file(common) != C.PIN_SHA256[common]:
+   629	            return [f"code: {common} is not at its pin; the seal was not checked"]
+   630	    except OSError as exc:
+   631	        return [f"code: {common}: {exc}"]
+   632	    rc = _load("bs_r10m_common", common)
+   633	    try:
+   634	        seal = rc.check_copy(C.CODE, expect_commit=C.COMMIT)
+   635	    except rc.Refusal as exc:
+   636	        return [f"code: {getattr(exc, 'message', exc)}"]
+   637	    problems = []
+   638	    if seal.get("tree_digest") != C.TREE_DIGEST or seal.get("files") != C.TREE_FILES:
+   639	        problems.append(f"code: seal {seal.get('tree_digest')} ({seal.get('files')} files) != pinned "
+   640	                        f"{C.TREE_DIGEST} ({C.TREE_FILES} files)")
+   641	    return problems
+   642	
+   643	
+   644	def input_problems() -> list[str]:
+   645	    st = C.START
+   646	    items = [(C.f2_file(st["zip_rel"]), st["zip_sha256"]), (C.f2_file(st["pkl_rel"]), st["pkl_sha256"])]
+   647	    items += [(C.f2_record(n), st["records"][n]) for n in (*C.PARENT_RECORDS, "stage_config.json")]
+   648	    problems = []
+   649	    for path, want in items:
+   650	        if not os.path.isfile(path):
+   651	            problems.append(f"input: {path} missing")
+   652	        elif sha256_file(path) != want:
+   653	            problems.append(f"input: sha256 of {path} != {want}")
+   654	    return problems
+   655	
+   656	
+   657	def resume_from_problems(ns: Any) -> list[str]:
+   658	    """--resume-from DIR: DIR is the run root's <arm>_<seed>_crashed<k> of this arm and seed (the runner's retired
+   659	    folder of the last attempt), its run_meta names the same arm, seed, mode, S, E and target, and its status says it
+   660	    did not finish (not done / failed / refused).  Reads only.  Whether it holds a complete pair is resume_point's
+   661	    (in run(), with the code's own pair check; none: a fresh start from S)."""
+   662	    src = getattr(ns, "resume_from", None)
+   663	    if src is None:
+   664	        return []
+   665	    problems: list[str] = []
+   666	    mode = mode_of(ns)
+   667	    if mode == "save_loaded_only":
+   668	        return ["args: --resume-from is not for --save-loaded-only"]
+   669	    path = Path(os.path.abspath(src))
+   670	    root = os.path.realpath(run_root(ns))
+   671	    if os.path.realpath(path.parent) != root:
+   672	        problems.append(f"args: --resume-from {path} is not in the run root {root}")
+   673	    parsed = C.parse_run_name(path.name)
+   674	    if parsed is None or parsed["suffix"] != "crashed" or (parsed["arm"], parsed["seed"]) != (
+   675	            getattr(ns, "arm", None), getattr(ns, "seed", None)):
+   676	        problems.append(f"args: --resume-from {path.name} is not <arm>_<seed>_crashed<k> of this arm and seed")
+   677	    if not path.is_dir() or path.is_symlink():
+   678	        return problems + [f"args: --resume-from {path} is not a folder"]
+   679	    meta, err = _read_json(path / C.RUN_META)
+   680	    if err or not isinstance(meta, dict):
+   681	        return problems + [f"resume: {path.name}/run_meta.json {err or 'not a JSON object'}"]
+   682	    want = {"arm": getattr(ns, "arm", None), "seed": getattr(ns, "seed", None), "mode": mode, "S": C.S, "E": C.E,
+   683	            "target": target_of(ns)}
+   684	    for key, value in want.items():
+   685	        if meta.get(key) != value:
+   686	            problems.append(f"resume: {path.name} run_meta {key} {meta.get(key)!r} != {value!r}")
+   687	    if meta.get("status") in ("done", "failed", "refused"):
+   688	        problems.append(f"resume: {path.name} status {meta.get('status')!r}: nothing to resume")
+   689	    return problems
+   690	
+   691	
+   692	def preflight(ns: Any) -> list[str]:
+   693	    """Every reason this run may not start; empty means pass.  Reads only; creates nothing."""
+   694	    problems: list[str] = []
+   695	    arm, seed = getattr(ns, "arm", None), getattr(ns, "seed", None)
+   696	    mode = mode_of(ns)
+   697	    args_ok = True
+   698	    if arm not in C.ARMS:
+   699	        problems.append(f"args: arm {arm!r} not in {list(C.ARMS)}")
+   700	        args_ok = False
+   701	    if isinstance(seed, bool) or not isinstance(seed, int):
+   702	        problems.append(f"args: seed {seed!r} is not an integer")
+   703	        args_ok = False
+   704	    if getattr(ns, "save_loaded_only", False) and getattr(ns, "no_update", False):
+   705	        problems.append("args: --save-loaded-only and --no-update exclude each other")
+   706	    until = getattr(ns, "until", None)
+   707	    if mode == "no_update":
+   708	        if until is None:
+   709	            problems.append("args: --no-update needs --until")
+   710	        elif (isinstance(until, bool) or not isinstance(until, int) or not C.S < until <= C.E
+   711	              or (until - C.S) % C.ROLLOUT):
+   712	            problems.append(f"args: --until {until!r} not in (S, E] = ({C.S}, {C.E}] on the {C.ROLLOUT}-step grid")
+   713	    elif until is not None:
+   714	        problems.append("args: --until is only for --no-update")
+   715	    if C.E - C.S > C.MAX_LENGTH or C.E - C.S != C.LENGTH:
+   716	        problems.append(f"pins: E - S = {C.E - C.S} is not the authorised length {C.LENGTH} (<= {C.MAX_LENGTH})")
+   717	    if mode == "continuation":
+   718	        if getattr(ns, "out", None):
+   719	            problems.append("args: --out is only for the no-optimizer-step modes")
+   720	        problems.extend(approval_problems())
+   721	        if args_ok:
+   722	            problems.extend(screen_entry_problems(arm, seed))
+   723	    else:
+   724	        if args_ok and seed not in C.VALIDATION_SEEDS:
+   725	            problems.append(f"args: a no-optimizer-step run uses a validation seed {C.VALIDATION_SEEDS}, not {seed}")
+   726	        root = os.path.realpath(run_root(ns))
+   727	        validate = os.path.realpath(bs_root() / "validate")
+   728	        if root != validate and not root.startswith(validate + os.sep):
+   729	            problems.append(f"args: {root} is not under {validate} (the no-optimizer-step modes write only there)")
+   730	    if args_ok:
+   731	        path = run_root(ns) / C.run_name(arm, seed)
+   732	        if os.path.lexists(path):
+   733	            problems.append(f"runs: {path} exists")
+   734	    problems.extend(resume_from_problems(ns))
+   735	    problems.extend(input_problems())
+   736	    problems.extend(seal_problems())
+   737	    problems.extend(f"stack: {p}" for p in C.check_stack())
+   738	    problems.extend(f"pins: {p}" for p in C.check_pins())
+   739	    free = free_bytes(bs_root())
+   740	    if free < C.DISK_FLOOR_BYTES:
+   741	        problems.append(f"disk: {free} bytes free < the floor {C.DISK_FLOOR_BYTES}")
+   742	    return problems
+   743	
+   744	
+   745	# ---------------------------------------------------------------------------------------------------- the run
+   746	def setup_environment(tmp_name: str) -> dict:
+   747	    """Before any import of numpy, torch or the code."""
+   748	    tmp = bs_root() / "tmp" / tmp_name
+   749	    (tmp / "mpl").mkdir(parents=True, exist_ok=True)
+   750	    env = {"OMP_NUM_THREADS": "1", "MKL_NUM_THREADS": "1", "OPENBLAS_NUM_THREADS": "1", "TMPDIR": str(tmp),
+   751	           "MPLCONFIGDIR": str(tmp / "mpl"), "GITHUB_SHA": C.COMMIT,
+   752	           "GIT_CEILING_DIRECTORIES": os.pathsep.join((str(bs_root()), os.path.dirname(os.path.realpath(C.CODE))))}
+   753	    os.environ.update(env)
+   754	    tempfile.tempdir = None
+   755	    return env
+   756	
+   757	
+   758	def bootstrap_code() -> str:
+   759	    code = os.path.realpath(C.CODE)
+   760	    if sys.path[:1] != [code]:
+...
+  1120	        traceback.print_exc()
+  1121	        return 1
+  1122	
+  1123	
+  1124	def parse(argv: list[str] | None) -> argparse.Namespace:
+  1125	    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+  1126	    ap.add_argument("--arm", required=True)
+  1127	    ap.add_argument("--seed", type=int, required=True)
+  1128	    ap.add_argument("--save-loaded-only", dest="save_loaded_only", action="store_true")
+  1129	    ap.add_argument("--no-update", dest="no_update", action="store_true")
+  1130	    ap.add_argument("--until", type=int, default=None)
+  1131	    ap.add_argument("--out", default=None, help="the no-optimizer-step modes only: a folder under <BS>/validate/")
+  1132	    ap.add_argument("--resume-from", dest="resume_from", default=None,
+  1133	                    help="<run root>/<arm>_<seed>_crashed<k>: resume from its newest complete saved pair")
+  1134	    ap.add_argument("--preflight-only", dest="preflight_only", action="store_true")
+  1135	    return ap.parse_args(argv)
+  1136	
+  1137	
+  1138	def main(argv: list[str] | None = None) -> int:
+  1139	    ns = parse(argv)
+  1140	    print(VERSION, flush=True)
+  1141	    try:
+  1142	        problems = preflight(ns)
+  1143	    except Exception as exc:  # noqa: BLE001 - an unexpected error in a check is a refusal (nothing made)
+  1144	        problems = [f"preflight error: {exc!r}"]
+  1145	    print(json.dumps({"preflight": "pass" if not problems else "refused", "mode": mode_of(ns), "problems": problems},
+  1146	                     indent=1), flush=True)
+  1147	    if problems:
+  1148	        return 2
+  1149	    if ns.preflight_only:
+  1150	        return 0
+  1151	    return run(ns)
+  1152	
+  1153	
+  1154	if __name__ == "__main__":
+  1155	    sys.exit(main())

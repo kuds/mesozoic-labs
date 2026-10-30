@@ -1,0 +1,213 @@
+     1	"""Long blind study (LB): the reader.  Report only: it never trains; the loop markers simulate (deterministic rollouts
+     2	and stochastic on-policy rollouts with frozen statistics, no update, no optimizer).  BS2's read_bs.py
+     3	(S2/r10round/bias_screen2/tools/read_bs.py, sha256 06f4173d...) with the window from LB's bs_common.py (E = 12,001,280),
+     4	the parent's F2 pairs in [S, E] derived (every 1,048,576 and the final pair), the loop read schedule
+     5	bs_common.LOOP_READ_EVERY, and CHECK extended for the long window: the hop-watch stop, a resumed run's attempts and
+     6	stitched records (bs_resume), and the evaluation grid of the ledger, evaluations.npz and gate_progress.npz.
+     7	
+     8	    PY -I -B read_bs.py --check RUN
+     9	        CHECK (the runner reads only its exit code).  Reads RUN/run_meta.json, RUN/arm_evidence.jsonl, four column
+    10	        groups of RUN/01_stance/policy_probe.npz (update_timesteps, ent_coef, learning_rate, obs_rms_mean/var/count;
+    11	        allow_pickle False), the step and episode columns of eval_episodes.csv, the timesteps of evaluations.npz and
+    12	        gate_progress.npz, and the parent's probe; for a resumed run (run_meta resumed_from) bs_resume.stitch_digests
+    13	        over every record's rows up to the resume point (digests only).  Writes RUN/check.json (pass/fail per item;
+    14	        no marker values).  Exit 0 pass, 4 fail, 2 input error.
+    15	    PY -I -B read_bs.py RUN [--out DIR] [--no-onpolicy] [--no-own]
+    16	        The markers of one finished run (a continuation under <BS>/runs/, refused until every SCREEN.json entry is
+    17	        decided: outcome-blind; or a validation run under <BS>/validate/).  Needs a current passing check.json.
+    18	        Writes DIR/markers.json and DIR/markers.txt (default DIR <BS>/reads/<name>/, or RUN/read/ for a validation
+    19	        run), and DIR/m5.json, DIR/m5.txt.  Exit 0 read, 2 input error.
+    20	    PY -I -B read_bs.py --reference [--out DIR] [--no-onpolicy] [--no-own]
+    21	        The same markers on the PARENT (r10 stance6 s42, F2 copies, read only) over (S, E]: its probe and ledger rows
+    22	        and its F2 checkpoints in [S, E] (every 1,048,576 from 2,097,152 to 11,534,336, and its final pair at E, saved
+    23	        after the parent's update on the rollout ending at E), each sha256-checked against FMAN.  Doubles as the
+    24	        reader's reproduction check against the early-warning (ew_r10.jsonl), early-bias (eb_realized.json), its
+    25	        verifier's (vew_analyze.txt) and the warning-margin (warning_margin/NOTES.txt) values at 2,097,152 and
+    26	        3,145,728 (REPRO below).  --pairs STEPS[,STEPS...] limits the M-LOOP to those reference pairs (V3).
+    27	
+    28	THE MARKERS (what a screen would score; the criteria choose; nothing here is a verdict):
+    29	  M-PROBE  per update row with update_timesteps in (S, T): the probe bank's deterministic tail_3 command
+    30	           (bank_action_now[:, i, 14], the raw Gaussian mean) on the two statue_settled rows (i = 0, 5) and their mean;
+    31	           its 8-row trailing mean (the early-warning T1 form) and the first rows where that crosses 0.10 / 0.14 /
+    32	           0.15 / 0.16; the critic's value on those rows (bank_value_now: the run's own critic, so the BLINDED one under
+    33	           critic_blind_tail3); the tail_3 normaliser (obs_rms_mean[:, 6], obs_rms_var[:, 6]); std and rollout mean of
+    34	           action 14.
+    35	  M-LEDGER the pinned M5 (ledger_r10round.py, unchanged, --E T) on RUN/01_stance/eval_episodes.csv: ANY / TAIL
+    36	           flagged evaluations and alarms in (S, T] (an alarm straddling S not counted), C6; and directly from the
+    37	           ledger per evaluation in (S, T]: CMD_L = the mean over its episodes of tail_3_pitch_act_command_mean, the
+    38	           episodes over the bar (saturated_actuator_fraction > 0.10), those naming a tail actuator (11-14) and
+    39	           tail_3; the first evaluation with a tail over-bar episode (FOB), with CMD_L >= 0.30, >= 0.60 (PARK),
+    40	           >= 0.90 (RAIL) (the early-warning ew_events definitions).
+    41	  M-LOOP   at each saved pair in [S, T] the schedule names (the start copy, the periodic pairs S + 262,144 k whose
+    42	           (steps - S) is a multiple of bs_common.LOOP_READ_EVERY, and the final pair at T):
+    43	           (a) the early-warning study's fixed-state tail sweep (ew_common, verified by verify_early_warning): obs[6]
+    44	               set to 0, 0.25, 0.5, 0.75, 1.0 deg, everything else fixed; least-squares slope per state, median over
+    45	               states; G = slope x 5.16; c0 = the median command at 0 deg; FP = c0 / (1 - G); on OWN settled states
+    46	               (deterministic rollouts, seeds 5001-5010, 1,000 steps, raw observations after steps 500, 600, ..., 1000)
+    47	               and on REF (the probe bank's two statue_settled rows); own14 = the median episode mean of the clipped
+    48	               command over steps 501-1000;
+    49	           (b) the verifier's additions (verify_early_warning/vew_analyze.txt sections B, C, G; its NOTES.txt does not
+    50	               exist): G_H over 0-0.5 deg; G_L, the local slope at each state's own angle +-0.25 deg; the margins to the
+    51	               rail b*_P = 1 - G - c0 and b*_L = (1 - G_L)(1 - own14); the clip and linearity diagnostics;
+    52	           (c) the critic's slope on observation 6, the early-bias probe's method (eb_realized.py sens()): autograd
+    53	               d V / d z6 x (1 / sqrt(var6 + eps)) x pi / 180, per degree of tail_3 angle, mean (and SD) over the
+    54	               states whose z6 is inside the clip, on the probe's ON-POLICY states (eb_common.build: a 4-env DummyVecEnv
+    55	               under the pair's statistics frozen, the model loaded with the stage's [ppo] kwargs and enable_mirror_kl,
+    56	               one collect_rollouts of 2,048 steps per env, seeds 9301 and 9302), and also on OWN and REF; for a
+    57	               critic_blind_tail3 run both the EFFECTIVE critic (the arm's hook installed: exactly 0 by construction)
+    58	               and the raw value MLP are reported.
+    59	Every simulation runs from the sealed code copy bs_common.CODE (BS's, read only), OMP/MKL 1 thread; checkpoints are
+    60	opened read only.  A pair's loop markers are cached under <BS>/reads/_cache/ by (this file's sha256, the sha256 of
+    61	bs_common.py and bs_hooks.py, zip sha256, pkl sha256, critic form, read form): cache_key(); an entry whose recorded
+    62	reader digests differ from this reader's is refused, never used.
+    63	"""
+    64	import os
+    65	import sys
+    66	
+    67	os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
+    68	sys.dont_write_bytecode = True
+    69	
+    70	import argparse  # noqa: E402
+    71	import csv  # noqa: E402
+    72	import hashlib  # noqa: E402
+    73	import importlib.util  # noqa: E402
+    74	import json  # noqa: E402
+    75	import math  # noqa: E402
+    76	import re  # noqa: E402
+    77	import subprocess  # noqa: E402
+    78	import time  # noqa: E402
+    79	from datetime import datetime, timezone  # noqa: E402
+    80	from pathlib import Path  # noqa: E402
+    81	
+    82	TOOLS = Path(__file__).resolve().parent
+    83	VERSION = "read_bs 2.0 (2026-10-30; long blind study, s42 2,097,152 -> 12,001,280; derived from read_bs 1.1)"
+    84	
+    85	
+    86	def _load(name):
+    87	    spec = importlib.util.spec_from_file_location(name, TOOLS / f"{name}.py")
+    88	    mod = importlib.util.module_from_spec(spec)
+    89	    sys.modules[name] = mod
+    90	    spec.loader.exec_module(mod)
+    91	    return mod
+    92	
+    93	
+    94	C = sys.modules.get("bs_common") or _load("bs_common")
+    95	H = sys.modules.get("bs_hooks") or _load("bs_hooks")
+    96	RS = sys.modules.get("bs_resume") or _load("bs_resume")
+    97	
+    98	EXIT_OK, EXIT_INPUT, EXIT_CHECK_FAIL = C.EXIT_OK, C.EXIT_REFUSED, C.EXIT_CHECK_FAIL          # 0, 2, 4
+    99	CHECK_SCHEMA = "bs-check/1"
+   100	MARKERS_SCHEMA = "bs-markers/1"
+   101	PROBE_REL = f"{C.STAGE_DIR}/policy_probe.npz"
+   102	LEDGER_REL = f"{C.STAGE_DIR}/eval_episodes.csv"
+   103	MODELS_REL = f"{C.STAGE_DIR}/models"
+   104	OBS_RMS_COLUMNS = ("obs_rms_mean", "obs_rms_var", "obs_rms_count")
+   105	GRID = C.EVAL_FREQ
+   106	FLAG_ROWS = 5                                   # M5's ANY / TAIL flag: >= 5 of an evaluation's rows (ECS read_ecs)
+   107	BAR = 0.10                                      # over the bar: saturated_actuator_fraction > 0.10 (ew_events)
+   108	TAIL_ACTS = ("tail_1_pitch_act", "tail_1_yaw_act", "tail_2_pitch_act", "tail_3_pitch_act")
+   109	CMD_LINES = (0.30, 0.60, 0.90)                  # CMD_L >= 0.3, PARK, RAIL (ew_events)
+   110	PROBE_LINES = (0.10, 0.14, 0.15, 0.16)          # the 8-row trailing statue_settled mean (ew NOTES T1)
+   111	TRAIL = 8
+   112	M5_TIMEOUT_S = 900
+   113	# The early-warning method (ew_common.py; verify_early_warning/vew_measure.py)
+   114	PLANT = 5.16
+   115	TAIL_P = (0.0, 0.25, 0.5, 0.75, 1.0)
+   116	TAIL_H = (0.0, 0.25, 0.5)
+   117	OWN_SEEDS = tuple(range(5001, 5011))
+   118	HORIZON = 1000
+   119	SNAP_STEPS = (500, 600, 700, 800, 900, 1000)
+   120	ONPOLICY_SEEDS = (9301, 9302)                   # eb_realized.py SEEDS
+   121	F2_EVERY = 1_048_576                            # the F2 fetch holds the parent's pairs at every 1,048,576 (FMAN)
+   122	# The parent's F2 pairs in [S, E] (the reference read's M-LOOP pairs): 2,097,152 ... 11,534,336 (10), then the final
+   123	# pair at E (stage1_final.zip / stage1_final_vecnorm.pkl; FMAN F2 COPY rows; 3,670,016 is off this grid, not read).
+   124	REFERENCE_PAIRS = tuple(s for s in range(F2_EVERY, C.E + 1, F2_EVERY) if s >= C.S) + (C.E,)
+   125	# Reproduction targets for --reference (parent s42 at its F2 pairs in [S, E]; [measured] by their studies; paths under
+   126	# S2/com_revisit/notes/):
+   127	#   ew_*   early_warning/ew_r10.jsonl line 3 (2,097,152) and line 1 (3,145,728), full precision: own.primary.G,
+   128	#          own.primary.c0, own14_win_median, ref_statue_settled.primary.G;
+   129	#   eb_*   early_bias/eb_realized.json lines 88 / 91 (s42_2097152_3145728.sens_N) and 140 / 143
+   130	#          (s42_3145728_3670016.sens_N): dV_dq3_per_deg (compared), loop_gain_G_5p16 (recorded only: another method);
+   131	#   vew_*  verify_early_warning/vew_analyze.txt section C lines 64 / 62 (G_H, G_L) and section G lines 160 / 158
+   132	#          (b*_P, b*_L), printed to 3 decimals;
+   133	#   wm_*   warning_margin/NOTES.txt lines 20 / 21 (the b*_P "(verifier)" column), printed to 3 decimals.
+   134	REPRO = {
+   135	    2097152: {"ew_own": {"G": -0.6363920116424561, "c0": 0.23771291971206665, "own14": 0.14250202003121376},
+   136	              "ew_ref_G": -0.6194893866330384, "eb_dV_dq3_per_deg": 0.02142920531332493,
+   137	              "eb_G": -0.6060763597488403, "vew_G_H": -0.625, "vew_G_L": -0.648, "vew_b_star_P": 1.399,
+   138	              "vew_b_star_L": 1.413, "wm_b_star_P": 1.399},
+   139	    3145728: {"ew_own": {"G": 0.3489333643913269, "c0": 0.4114188253879547, "own14": 0.6013715491890907},
+   140	              "ew_ref_G": 0.32630227160453795, "eb_dV_dq3_per_deg": 0.05854005739092827,
+82:TOOLS = Path(__file__).resolve().parent
+83:VERSION = "read_bs 2.0 (2026-10-30; long blind study, s42 2,097,152 -> 12,001,280; derived from read_bs 1.1)"
+86:def _load(name):
+94:C = sys.modules.get("bs_common") or _load("bs_common")
+95:H = sys.modules.get("bs_hooks") or _load("bs_hooks")
+96:RS = sys.modules.get("bs_resume") or _load("bs_resume")
+99:CHECK_SCHEMA = "bs-check/1"
+100:MARKERS_SCHEMA = "bs-markers/1"
+101:PROBE_REL = f"{C.STAGE_DIR}/policy_probe.npz"
+102:LEDGER_REL = f"{C.STAGE_DIR}/eval_episodes.csv"
+103:MODELS_REL = f"{C.STAGE_DIR}/models"
+104:OBS_RMS_COLUMNS = ("obs_rms_mean", "obs_rms_var", "obs_rms_count")
+105:GRID = C.EVAL_FREQ
+106:FLAG_ROWS = 5                                   # M5's ANY / TAIL flag: >= 5 of an evaluation's rows (ECS read_ecs)
+107:BAR = 0.10                                      # over the bar: saturated_actuator_fraction > 0.10 (ew_events)
+108:TAIL_ACTS = ("tail_1_pitch_act", "tail_1_yaw_act", "tail_2_pitch_act", "tail_3_pitch_act")
+109:CMD_LINES = (0.30, 0.60, 0.90)                  # CMD_L >= 0.3, PARK, RAIL (ew_events)
+110:PROBE_LINES = (0.10, 0.14, 0.15, 0.16)          # the 8-row trailing statue_settled mean (ew NOTES T1)
+111:TRAIL = 8
+114:PLANT = 5.16
+115:TAIL_P = (0.0, 0.25, 0.5, 0.75, 1.0)
+116:TAIL_H = (0.0, 0.25, 0.5)
+117:OWN_SEEDS = tuple(range(5001, 5011))
+118:HORIZON = 1000
+119:SNAP_STEPS = (500, 600, 700, 800, 900, 1000)
+120:ONPOLICY_SEEDS = (9301, 9302)                   # eb_realized.py SEEDS
+124:REFERENCE_PAIRS = tuple(s for s in range(F2_EVERY, C.E + 1, F2_EVERY) if s >= C.S) + (C.E,)
+134:REPRO = {
+146:class InputError(Exception):
+157:def cache_key(zip_sha256, pkl_sha256, *, blind, onpolicy, own, reader=READER_SHA256, deps=DEPS_SHA256):
+164:def cache_entry_problem(row, reader=READER_SHA256, deps=DEPS_SHA256):
+175:def utcnow():
+179:def atomic_write_text(path, text):
+186:def require_under(path, root):
+193:def read_json_file(path):
+207:def run_kind(run_dir, root):
+216:def finite_or_none(v):
+221:def load_probe(path, keys):
+234:def parent_probe(keys):
+243:def window_rows(steps, S, T):
+248:def probe_check(run_cols, parent_cols, arm, S, T, start_stats):
+301:def evidence_check(run, meta, arm, n_expected):
+321:def check_meta(meta, kind, folder):
+466:def check_run(run_dir, root=None):
+541:def pkl_stats(path):
+548:def check_is_current(run, check):
+563:def load_lost(path):
+573:def decided(root=None):
+596:def probe_markers(path, S, T, label):
+636:def run_m5(ledger, T, out_dir):
+659:def m5_window(m5, S, T):
+683:def ledger_direct(ledger, S, T):
+724:def truncate_ledger(src, dst, T):
+745:def ledger_markers(ledger, S, T, out_dir):
+752:def setup_simulation(tmp_name):
+775:def _ls_slopes(xs, ys):
+785:class Net:
+825:def _set_t3(X, deg):
+833:def tail_sweeps(net, X):
+865:def critic_slope(policy, norm, X):
+885:def own_rollouts(net, env, seeds=OWN_SEEDS):
+910:def onpolicy_states(zip_path, pkl_path, seed):
+981:def loop_markers_one(zip_path, pkl_path, *, blind, onpolicy, own, env, factory, bank_ss):
+1022:def loop_schedule(T, every=None):
+1031:def saved_pairs(run_dir, T, every=None):
+1046:def loop_markers(pairs, *, blind, onpolicy, own, tag):
+1088:def loop_line(row):
+1108:def render(markers):
+1134:def full_read(run_dir, out=None, *, onpolicy=True, own=True):
+1169:def fman_copy1_sha256(rel):
+1177:def reference_pair_files(steps):
+1183:def reference_read(out=None, *, onpolicy=True, own=True, pairs=None):
+1251:def main(argv=None):

@@ -1,0 +1,133 @@
+   540	def pair_start_digest(zip_path: str | os.PathLike[str], pkl_path: str | os.PathLike[str]) -> dict:
+   541	    """A resumed attempt's digest_start: the START pair's params / Adam (zip_digests), VecNormalize, n_updates and
+   542	    num_timesteps, from the pair itself (V1: equal to the loaded model's in every arm)."""
+   543	    zd, data = zip_digests(zip_path), zip_data(zip_path)
+   544	    vn = vecnorm_arrays(pkl_stats(pkl_path))
+   545	    return {"params": zd["params"], "adam": zd["adam"], "vecnormalize": _hash_arrays(vn),
+   546	            "obs_rms": _hash_arrays(vn[:3]), "n_updates": int(data.get("_n_updates", -1)),
+   547	            "num_timesteps": int(data.get("num_timesteps", -1)),
+   548	            "source": "the start pair copy (a resumed attempt; the load digest is digest_load)"}
+   549	
+   550	
+   551	def attempt_summary(folder: Path, meta: dict) -> dict:
+   552	    """One earlier attempt, as the next attempt's run_meta lists it (no outcome: status, steps, times)."""
+   553	    hb = meta.get("heartbeat") if isinstance(meta.get("heartbeat"), dict) else {}
+   554	    steps = [x for x in (hb.get("rollout_end"), meta.get("last_step"))
+   555	             if isinstance(x, int) and not isinstance(x, bool)]
+   556	    return {"attempt": meta.get("attempt", 1), "folder": folder.name, "status": meta.get("status"),
+   557	            "exit": meta.get("exit"), "resumed_from": meta.get("resumed_from"), "load_step": meta.get("load_step", C.S),
+   558	            "last_step": max(steps) if steps else None, "utc_start": meta.get("utc_start"),
+   559	            "utc_end": meta.get("utc_end"), "error": str(meta.get("error"))[:300] if meta.get("error") else None}
+   560	
+   561	
+   562	def pkl_stats(pkl_path: str | os.PathLike[str]) -> Any:
+   563	    import pickle
+   564	
+   565	    with open(pkl_path, "rb") as fh:
+   566	        return pickle.load(fh)  # noqa: S301 - a pinned file of the run, read by the code's own loader as well
+   567	
+   568	
+   569	# ---------------------------------------------------------------------------------------------------- preflight
+   570	def free_bytes(path: str | os.PathLike[str]) -> int:
+   571	    p = Path(path)
+   572	    while not p.exists():
+   573	        p = p.parent
+   574	    return shutil.disk_usage(p).free
+   575	
+   576	
+   577	def _read_json(path: Path) -> tuple[Any, str | None]:
+   578	    try:
+   579	        with open(path) as fh:
+   580	            return json.load(fh), None
+   581	    except FileNotFoundError:
+   582	        return None, "missing"
+   583	    except (OSError, ValueError) as exc:
+   584	        return None, f"does not parse ({exc.__class__.__name__})"
+   585	
+...
+   820	    target = target_of(ns)
+   821	    name = C.run_name(arm, seed)
+   822	    root = run_root(ns)
+   823	    run_dir = root / name
+   824	    stage_dir = run_dir / C.STAGE_DIR
+   825	    label = f"BS {arm} {seed}"
+   826	    env = setup_environment(name if mode == "continuation" else f"{mode}_{name}")
+   827	    root.mkdir(parents=True, exist_ok=True)
+   828	    run_dir.mkdir()
+   829	    meta_path = run_dir / C.RUN_META
+   830	    files = {k: bs_root() / k for k in ("criteria.txt", "APPROVED", "SCREEN.json")}
+   831	    meta: dict[str, Any] = {
+   832	        "schema": C.RUN_SCHEMA, "version": VERSION, "name": name, "mode": mode, "status": "starting", "exit": None,
+   833	        "utc_start": utc_now(), "argv": sys.argv, "arm": arm, "seed": seed, "S": S, "E": E,
+   834	        "target": target, "T": None, "stop_reason": None, "run_id_parent": C.START["run_id"],
+   835	        "code": {"dir": C.CODE, "commit": C.COMMIT, "tree_digest": C.TREE_DIGEST, "files": C.TREE_FILES},
+   836	        "stack": C.stack_versions(), "environment": env,
+   837	        "criteria_sha256": sha256_file(files["criteria.txt"]) if files["criteria.txt"].is_file() else None,
+   838	        "approved_sha256": sha256_file(files["APPROVED"]) if files["APPROVED"].is_file() else None,
+   839	        "screen_sha256": sha256_file(files["SCREEN.json"]) if files["SCREEN.json"].is_file() else None,
+   840	        "tool_sha256": {n: sha256_file(TOOLS / n) for n in C.TOOL_FILES if (TOOLS / n).is_file()},
+   841	        "arm_change": C.ARM_CHANGE[arm], "arm_ppo": dict(C.ARM_PPO_EDIT[arm]) or "unchanged", "ppo_applied": None,
+   842	        "arm_applied": None, "arm_evidence": None,
+   843	        "attempt": 1, "attempts": [], "resumed_from": None, "load_step": S, "resume": None,
+   844	    }
+   845	    resume_src = Path(os.path.abspath(ns.resume_from)) if getattr(ns, "resume_from", None) else None
+   846	    src_meta: dict = {}
+   847	    if resume_src is not None:
+   848	        src_meta, _err = _read_json(resume_src / C.RUN_META)
+   849	        src_meta = src_meta if isinstance(src_meta, dict) else {}
+   850	        meta["attempts"] = [*list(src_meta.get("attempts") or []), attempt_summary(resume_src, src_meta)]
+   851	        meta["attempt"] = len(meta["attempts"]) + 1
+   852	    _write_meta(meta_path, meta, "x")
+   853	    holder: dict[str, Any] = {"evidence": []}
+   854	    try:
+   855	        L = S                                           # the load step: S, or the resume point P
+   856	        if resume_src is not None:
+   857	            meta["modules_root"] = bootstrap_code()
+   858	            from environments.shared.curriculum.checkpoints import checkpoint_pair_problem
+   859	
+   860	            own_load = src_meta.get("load_step") if isinstance(src_meta.get("load_step"), int) else S
+   861	            seeded_src = (((src_meta.get("resume") or {}).get("copied") or {}) if src_meta.get("resumed_from")
+   862	                          else (src_meta.get("copies") or {}))
+   863	            seeded = {n: (seeded_src.get(n) or {}).get("sha256") or C.START["records"][n] for n in C.PARENT_RECORDS}
+   864	            plan = RS.resume_point(resume_src, S=S, E=E, saved_steps=C.SAVED_STEPS, periodic_names=C.periodic_names,
+   865	                                   start_sha256=(C.START["zip_sha256"], C.START["pkl_sha256"]),
+   866	                                   stage_dir_name=C.STAGE_DIR, rollout=C.ROLLOUT, eval_freq=C.EVAL_FREQ,
+   867	                                   eval_episodes=C.EVAL_EPISODES, pair_problem=checkpoint_pair_problem,
+   868	                                   seeded=seeded, own_load=own_load)
+   869	            plan.update(seeded_sha256=seeded, own_load=own_load)
+   870	            plan["from"] = os.path.relpath(resume_src, root)
+   871	            meta["resume"] = plan
+   872	            if plan["P"] is not None:
+   873	                L = int(plan["P"])
+   874	                plan["stitch_digests"] = RS.stitch_digests(resume_src / C.STAGE_DIR, resume_src, L, S=S,
+   875	                                                           rollout=C.ROLLOUT)
+   876	                plan.update(RS.resume_inputs(stage_dir, run_dir, resume_src, L, S=S, saved_steps=C.SAVED_STEPS,
+   877	                                             periodic_names=C.periodic_names, stage_dir_name=C.STAGE_DIR,
+   878	                                             records=C.PARENT_RECORDS, rollout=C.ROLLOUT))
+   879	                meta["resumed_from"] = L
+   880	                meta["load_step"] = L
+   881	                with open(run_dir / C.EVIDENCE) as fh:
+   882	                    holder["evidence"] = [json.loads(x) for x in fh if x.strip()]
+   883	                pairs = plan["pairs"]
+   884	                copies = {n: {"from": "the last attempt (link or copy)", "sha256": pairs[n]["sha256"]}
+   885	                          for n in C.periodic_names(S)}
+   886	                parent_records = dict(src_meta.get("parent_records") or {})
+   887	            else:
+   888	                plan["outcome"] = "no complete saved pair: a fresh start from S"
+   889	        if L == S:
+   890	            copies = copy_inputs(stage_dir)
+   891	            parent_records = {n: copies[n]["sha256"] for n in C.PARENT_RECORDS}
+   892	        s_zip, s_pkl = (stage_dir / "models" / n for n in C.periodic_names(S))
+   893	        zip_copy, pkl_copy = (stage_dir / "models" / n for n in C.periodic_names(L))
+   894	        meta.update({"status": "running", "copies": copies,
+   895	                     "start_pair": {"zip": str(s_zip), "zip_sha256": copies[s_zip.name]["sha256"],
+   896	                                    "pkl": str(s_pkl), "pkl_sha256": copies[s_pkl.name]["sha256"]},
+   897	                     "load_pair": {"zip": str(zip_copy), "zip_sha256": sha256_file(zip_copy), "pkl": str(pkl_copy),
+   898	                                   "pkl_sha256": sha256_file(pkl_copy)},
+   899	                     "parent_records": parent_records})
+   900	        _write_meta(meta_path, meta, "w")
+   901	        if resume_src is None:
+   902	            meta["modules_root"] = bootstrap_code()
+   903	        import torch
+   904	
+   905	        torch.set_num_threads(1)

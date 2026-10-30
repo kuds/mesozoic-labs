@@ -1,0 +1,21 @@
+rc=0
+
+E. DISK (bytes; the harness builder's disk_estimate.out and the measurement builder's NOTES)
+   per run 193,386,567 B (184.4 MiB); 4 runs 773,546,268 B (0.72 GiB)
+   the runner's launch floor 2,449,473,536 B (2.28 GiB); pause floor 1,610,612,736 B
+   the measurement needs 3,309,305,856 B free at each launch (3.31 GB); measure_r10round.py refuses below 3,221,225,472 B
+   free now about 2.90 GB -> after 4 runs about 2.13 GB [inferred]; short of the measurement's need by 1.18 GB
+   periodic pairs per run 37; on the 1,048,576 schedule 9 (incl. J 4,194,304 ... 10,485,760 and R1); the other 28 x 4,038,055 B = 113 MB per run, 452 MB for 4 (fewer if M5 names RESOLUTION checkpoints off that grid)
+   so pruning inside LB/runs after the reads gives about 2.58 GB: still short by about 0.73 GB -> space must be freed elsewhere first (the coordinator, with the maintainer's word for other studies' files), or the reading waits (INCOMPLETE)
+   (revised) with every pair read first: the periodic pairs the measurement does not name, 32 x 4,038,055 B = 129 MB per run, 517 MB for 4 (fewer if RESOLUTION checkpoints are named); with LB/validate's 176 MB: 693 MB inside LB; after the runs about 2.13 GB + that = 2.82 GB, short of 3.31 GB by 0.49 GB
+11:   0 of 3 railed: the per-run rail chance under blinding is below 0.632 at 95% (upper bound); 0 o
+16:     q 0.3: 2 runs 0.510, 3 runs 0.657, 4 runs 0.760
+31:     p 0.735: 0 of 3 0.0186; 0 of 2 0.0702
+36:   BS2 82 min for 176 rollouts with 4 running -> 28.0 s per rollout -> LB 1209 rollouts 9.39 h
+39:   V4 (harness builder, load 6-7): 32 s per rollout -> 10.75 h
+43:   per run 193,386,567 B (184.4 MiB); 4 runs 773,546,268 B (0.72 GiB)
+44:   the runner's launch floor 2,449,473,536 B (2.28 GiB); pause floor 1,610,612,736 B
+45:   the measurement needs 3,309,305,856 B free at each launch (3.31 GB); measure_r10round.py refus
+46:   free now about 2.90 GB -> after 4 runs about 2.13 GB [inferred]; short of the measurement's ne
+47:   periodic pairs per run 37; on the 1,048,576 schedule 9 (incl. J 4,194,304 ... 10,485,760 and R
+49:   (revised) with every pair read first: the periodic pairs the measurement does not name, 32 x 4

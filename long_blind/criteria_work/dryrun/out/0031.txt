@@ -1,0 +1,188 @@
+D4 OUTCOMES FROM THE ROUND'S PINNED DEFINITIONS. TAIL CLASS, ANY ALARM per actuator, the first TAIL ALARM, GATE CLASS
+   and RUN OUTCOME are read by measure_lb.py, which runs the round's pinned M1/M3/M5 and score_r10round.classes_of
+   unchanged (MEAS reproduces the round's 25 class keys for all three parents). Choices made here (MEAS's open items):
+   - WHOLE LEDGER, not the window (MEAS open item 5): the round's TAIL CLASS reads the whole ledger; a continuation's
+     ledger holds the parent's 16 evaluations at or before S, none over the bar (the parent's first over-bar episode is
+     3,670,016), so the two readings coincide and the window reading is printed beside.
+   - COMPLETE is replaced by READ TO 12M (MEAS open item 4): COUNTED by the harness's CHECK (stop reason "end" at E)
+     and measured (CLASSIFIED, C6 PASS, M5 agreement, bound traces, commit 8737cd3d, physics_revision 10). C1-C4 (the
+     Colab launch and provenance rules) do not apply to a continuation.
+   - STOPPED: the round's rules (UNREAD without RAIL, GATE FAIL, NEGATIVE). A hop-watch stop (possible from 7,077,888;
+     the builder's open item 5) is a stance failure on its own terms, so GATE FAIL is apt; in THE READING it is NOT
+     READ TO 12M unless RAILED.
+   - CMD_L "at E": E has no evaluation, so O8 is CMD_L at the last evaluation, 11,927,552 (73,728 steps before E).
+   - BS2's primary form (O7) at E is the 8 update rows before E (11,935,744 ... 11,993,088), the rows a continuation
+     has; and at 3,538,944 exactly BS2's 8 rows, so the first 1.44M of LB can be set beside BS2 (C2). The parent's own
+     row at E (after which it made one more update) is printed for the record only.
+   - b* at the final pair (O9): read_bs M-LOOP at stage1_final (T); the parents' final pairs are one update later (the
+     builder's open item 4), said where they are compared (C4).
+
+D5 HABIT ELSEWHERE (Q3; MEAS open item 7). The round defines habits for the tail only. To say "the habit moved", I
+   apply the round's own lines to every other actuator, exactly as measure_lb.py's HABIT SITES do (L an own alarm, T
+   at least 2 full-horizon over-bar episodes in one sign at a traced checkpoint, D the 0.60 drive line at J or at
+   R1/R2), and add A, an ANY ALARM whose attributed actuators include it (the round's alarm; it is what made s80's
+   neck an "alarm run"). Why all four:
+   - they are the round's thresholds, pinned and validated (MEAS reproduces s80's neck as L,T,D and head as D);
+   - in the three parents they fire only where the record calls it a habit: s42 tail_3 only, s60 tail_3 only, s80 neck
+     (the habit the record names) and head (parked negative after the neck, the record's words: "neck_pitch_act at
+     -1, then head_pitch_act parked negative", tail note section 1.1: line 214 in the copy read at 17:39 UTC, line 232
+     in the 18:04 UTC copy); no leg actuator reached |CMD| 0.3 at a traced
+     checkpoint, and in the s42 ledger no non-tail_3 actuator reached a per-evaluation mean of 0.60 (largest head
+     -0.577) [measured, MEAS reports; WORK parent_long.out lines 79-94];
+   - SATURATING (L, A, T) and DRIVE ONLY (D) are kept apart in the counts, since a park without saturation (like s80's
+     head) is a weaker form; line 5 says which.
+   A habit on another TAIL actuator (tail_1, tail_2) is also a TAIL CLASS RAIL or a park (the round counts tail
+   actuators 11-14), so it shows in Q1 and Q3 at once: that is the honest double reading ("the rail moved to tail_2").
+   A tail_3 park on the minus side (the round's DRIVEN on tail_3) is counted in Q1 as dn and blocks line 4: the parent
+   swung to CMD_L -0.56 between spells, so a negative park is a plausible form of a returning habit.
+
+D6 THE READ SCHEDULE: LOOP_READ_EVERY 262,144, the builder's value (BS2's reading): 39 loop pairs per FINISHED
+   continuation (S, the 37 periodic pairs, the final pair). My first draft (18:00 UTC) chose 1,048,576 (11 pairs, the
+   parent's F2 grid) to save CPU; the builder's TIMING, written at 18:12 UTC, measured the reader at 58.3-61.5 CPU-s per
+   pair (median 60.3) and put the two schedules at about 39 and about 10 min wall for the four at 4 at once
+   [<LB>/validate/logs/timing.out]. The saving (about half an hour after a ten-hour run) does not pay for a change to a
+   pinned tool (bs_common.py, re-tests, re-pin), and the 262,144 schedule contains the 1,048,576 grid (S + k x 262,144
+   includes every S + j x 1,048,576), so the parent's reference read (REFERENCE_PAIRS, 11 pairs) still lines up at 11
+   steps; the finer report-only trajectory shows when a blind continuation's loop (G, c0, b*) moves over 9.9M steps.
+   The loop markers carry no line here (O9 at the final pair is a printed comparison). Every periodic pair stays on
+   disk until the reads and measure_lb.py plan are done (RESOLUTION checkpoints can be any multiple of 262,144; MEAS
+   open item 2).
+
+D7 THE READING'S RULES.
+   - "Missing never helps the hypothesis": a blind continuation that is not READ TO 12M (STOPPED without a rail, LOST,
+     COUNTED but not measured) never counts as off the rail, as a gate pass or as free of a habit; it counts only
+     against (NOT READ / NOT MEASURED / NOT SHOWN), and any missing blind continuation keeps lines 3-5 from being read
+     (line 2). A rail it showed before it stopped or was lost counts as RAILED (monotone: it can only move a reading
+     to line 1, as the round's PRESENCE rule). A missing control makes line 3, which withholds lines 4-5.
+   - Line order: an observed blind rail (line 1) is decisive whatever else happened; then missing (2); then the
+     control's failure (3); then the best (4) and the rest (5).
+   - Q1 counts PARKED as off the rail (the round: PARKED is not RAIL) but keeps it out of line 4: a park means the
+     drive came back without saturating, which is not "the effect lasted".
+   - Q2 is the round's GATE CLASS; because the certificate counts saturated episodes as hop_or_fall, a blind run with a
+     late habit can fail the gate through it: Q2 is not independent of Q1/Q3 (KNOWN LIMITS).
+   - Line 4 asks more than the round's POSITIVE (CLEAR and GATE PASS): also no habit elsewhere and no negative tail_3
+     drive. s80 was POSITIVE with a neck habit; for this study's question that is a moved habit, not a success.
+   - RESUMED continuations count (a resume is outcome-blind: chosen by the records' completeness), flagged in every
+     line, with a report-only sensitivity line that treats them as not read.
+   - The text of every line is fixed so the scorer prints it verbatim (BS2's practice; its stat check compared the
+     line text with the criteria's).
+   - Self-check [computed, WORK reading_rules_check.out]: with the three parents' measured classes, the parent s42 as
+     all four reads line 1 (Q1 NO 3 railed, Q2 NO, Q3 NONE, Q4 YES); control s42 with blind s60, s80, s80 reads line
+     5 "WITH: 1 PARKED, 2 WITH A HABIT ON ANOTHER ACTUATOR" (Q1 YES, WITH A PARK; Q2 YES; Q3 HABIT ELSEWHERE); the
+     synthetic sets reach lines 2, 3, 4 and 5 (incl. the DRIVE ONLY and tail_3-negative wording), a LOST blind run
+     with a ledger TAIL ALARM reads line 1, a LOST one without reads line 2, a LOST control reads line 3.
+
+D8 THE COMPARISONS (C1-C4; descriptive, never a line): the parent's first TAIL ALARM 3,932,160 and the other parent
+   figures for the control (C1, the task's suggestion); BS2's ranges at 3,538,944 for the first 1.44M of every
+   continuation, with a fixed "REPEATS BS2" rule (every blind below BS2's lowest control, the control above BS2's
+   highest blind; C2): an out-of-sample look at BS2's result inside LB at no cost; the climb by 12M against BS2's 0.20
+   gate (C3); the margin at the final pair against BS2's and the parents' (C4).
+
+D9 RUN HANDLING WITH THE RESUME. One continuation = one queue entry: the decided attempt plus the rows stitched from
+   earlier attempts up to the resume point; CHECK verifies the stitching (the builder's V4). It counts in full. Why
+   not treat a resumed run as missing: a crash is infrastructure (out of memory, a kill, a container restart), the
+   resume point is chosen by the completeness of the files, not by any outcome, and over a 10 h run a crash is
+   plausible; dropping resumed runs would make the reading depend on the machine. Why print a sensitivity line: a
+   resumed run is a fresh draw from P (one discarded update), not the uninterrupted run (V4 (e)). The harness's counts
+   are kept (3 own crashes -> LOST; an EARLY crash halts; a container restart is not counted).
+
+D10 OUTCOME-BLINDNESS: BS2's allow-list, plus the resume (bs_resume's reads are the pinned tools' own work), the run
+   meta fields the resume adds (load_step, resumed_from, attempt), I1's exit snapshots and RR-1's kept first snapshot
+   (the builder's). Over about 10 h the watch reads logs/run_waves_bs.log only.
+
+D11 DISK. The runner's own floors are the builder's (launch 2,449,473,536 B; pause 1,610,612,736 B); the coordinator's
+   launch floor 2.6 GiB is BS2's. The new problem is the measurement: the round's pinned measure_r10round.py refuses
+   below 3 GiB, and about 2.1-2.3 GB is expected after the runs, short by about 1.2 GB (design_numbers E). Inside <LB>
+   only about 0.69 GB can be freed (<LB>/validate 176 MB after keeping its records; 32 unnamed periodic pairs per
+   continuation, 517 MB, after the reads and the plan) [design_numbers.out line 49], so the maintainer's word is needed
+   for space outside <LB> in any case. The criteria ask for it with the final choices (step 0 of the pinning, DISK
+   (a)), list candidates and sizes, put the inside-<LB> steps after it ((b) validation folders, then (c) the unnamed
+   pairs only if still short, because pruning them stops a later reader fix from re-reading their report-only loop
+   rows), and say the reading waits rather than reading a partial measurement or lowering a pinned floor.
+
+D12 PINNING (BS2's process lesson M1: RUNLOG line 788 held a compact re-serialisation of APPROVED, not its bytes). Here
+   APPROVED is written as ONE line of compact JSON with a newline, so its exact bytes fit on the RUNLOG pin line after
+   a fixed marker ("APPROVED BYTES: "), appended from the file itself (cat), and a read-only command checks it (grep -F,
+   sed, sha256sum equal to the file's). APPROVED also pins measure_lb.py (measure_sha256; the runner ignores the extra
+   key: run_bs.py approval_problems reads APPROVED_KEYS and the six TOOL_FILES only), so the measurement that reads
+   the classes is pinned with the rest. P2 (re-review of the fixed version) and the maintainer's confirmation of the
+   final choices come first (the task: the coordinator pins and launches only after that confirmation).
+
+D13 THE PREDICTED OUTCOME [inferred]: written before anything runs (BS2's practice); its basis is in criteria_v1.txt
+   (THE QUESTIONS). The phase probe's reading is cited as unverified context only (its verifier started 17:52 UTC).
+
+NOT CHOSEN (with reasons)
+   - A test against the record (e.g. P(0 of 3 | rail chance of the ECS)): the record's continuations started elsewhere
+     (3,145,728) and ran 1.57M, so its rate is not this state's over 9.9M; printed in DESIGN_NOTES only (C of
+     design_numbers), never in a line.
+   - Q1 as "CLEAR" only (no PARKED in "off the rail"): the task's question is the rail; the park is kept visible in Q1
+     and blocks line 4.
+   - Window-only TAIL CLASS: the same here (section D4), and the round's definition is the whole ledger.
+   - A primary with a test (BS2's form): no test can decide with 3 + 1.
+   - Every-262,144 loop reads: section D6.
+   - A second control: section D2.
+
+==================================================================================================================
+4. OPEN ITEMS (for the scorer adapter, the reviewers, the harness builder and the coordinator)
+==================================================================================================================
+O1 THE SCORER (the scorer adapter): <LB>/tools/score_bs.py (bs_common.SCORER_FILE) implementing THE READING: the
+   per-continuation status (COUNTED / STOPPED / LOST / RESUMED; READ TO 12M), Q1-Q4 with every count and word, the
+   overall line texts verbatim, C1-C4 with exact rationals (the parent's figures from WORK parent_long.out and MEAS,
+   BS2's from <BS2>/score/score.json), the sensitivity line, MISSING, PROVISIONAL (incl. measure_sha256 and the
+   scorer's own pin), INCOMPLETE (incl. a measurement waiting for disk); inputs: measure_lb.py's outputs (classes.json
+   cls, kind,
+   tail_alarms, tail_alarm_detail, any_alarms, parked, driven, gate, gate_why, outcome; habit.json per_actuator with
+   habit_sites and any_alarms_naming; measure_lb.json status, c6, c7, m5_cli_agrees, measuring_commits,
+   physics_revisions, m5_summary), read_bs.py's markers (probe rows, ledger_direct, the loop row at T), run_meta,
+   check.json, lost.json; for a LOST continuation the pinned M5 on its ledger as it stands. Unit tests and the three
+   dry runs of VALIDATIONS (the parent's MEAS outputs as all four; control s42 with blind s60, s80, s80; synthetic).
+O2 THE READ SCHEDULE: none needed; the criteria keep the builder's LOOP_READ_EVERY = SAVE_FREQ (its open item 2
+   answered: D6).
+O3 HARNESS TEXT, for the build check (no criteria change): run_waves_bs.sh header lines 41-59 still describe BS2 in
+   places ("the 1.5 GiB floor plus 9 x 50 MiB"; an own crash "rerun at once from the start pair"; STOPPED only for
+   "collapse") while lines 4-9 give the LB behaviour (resume, hop watch); bs_common.py's AUTH2 cites RUNLOG line 799
+   for the maintainer's choice, which is line 798 (799 is the disk housekeeping).
+O4 THE MEASUREMENT'S DISK (the coordinator; MEAS open item 1): at least 3,309,305,856 B free at each measure_lb.py
+   launch; plan per DISK in the criteria; the maintainer's word for anything outside <LB> (DISK (a), asked with the
+   final choices). MEAS's own validation left s60 M1 and
+   s80 M1/M3 un-re-measured for the same reason (resumable command in MEAS NOTES.txt).
+O5 PINS: every <to fill> line after the fix and before the re-review; measure_lb.py's sha256 at that time (5fb29b52...
+   at 17:35 UTC).
+O6 THE GATE AND THE CONTROL: Q4 needs a TAIL ALARM on tail_3 +; a control that rails only at the end (END-ONLY) or on
+   another tail actuator reads "RAILED, ANOTHER FORM", which still counts as "the control railed" for lines 4-5. A
+   reviewer may prefer YES only; the change would move such cases from 4/5 to 3.
+O7 THE D LINE ON NON-TAIL ACTUATORS (O6 D at 0.60) is the round's tail line; a reviewer may prefer SATURATING only for
+   Q3's word. As written, DRIVE ONLY is counted but named.
+O8 THE STOPPED CONTINUATION: the round's GATE FAIL for every STOPPED run is kept; a hop-watch stop at 9M of an otherwise
+   clean blind run reads line 2 (NOT READ TO 12M). That is "missing never helps"; a reviewer may want the stop's cause
+   printed in line 2 (it is, in the MISSING list).
+O9 THE PATH NAMES: S1/S2 are defined without the temp folder's literal name (criteria SHORT NAMES); the harness files
+   carry the full paths (as BS2's did; RUNLOG line 800 records that scan's ruling).
+
+==================================================================================================================
+5. LESSONS CARRIED OVER (BS2's checks and the tail note's section 6.2)
+==================================================================================================================
+   - M1 (APPROVED's exact bytes in RUNLOG): D12.
+   - I1 (reads before a decision): the builder's exit snapshots; named in OUTCOME-BLINDNESS.
+   - RR-1 (the ALL_DECIDED snapshot overwritten by a relaunch): the builder keeps the first; named.
+   - P2 (re-review the fixed version): STATUS and HOW THE COORDINATOR PINS.
+   - S-3 (complete separation and spread): no test here, so no p is read; the arm figures are medians with all values
+     printed.
+   - STAT-1 (claims name their measure): REPORT ONLY wording rule kept.
+   - Tail note 6.2 item 1 (judge several checkpoints, read the whole ledger; a gate read only at the final hides rails
+     both ways): the whole-ledger TAIL CLASS, the J traces, and the gate's noise named in KNOWN LIMITS.
+   - Item 9 (keep the pre-registration lean): no secondary tests; the comparisons are fixed prints.
+   - Item 13 (name what a statistic counts): Q1 counts tail rails (TAIL CLASS), Q3 every other actuator, A and L kept
+     apart from D.
+
+==================================================================================================================
+6. DISK OF THIS FOLDER
+==================================================================================================================
+   WORK: 1,762,695 bytes (du -sb, 18:19 UTC; about 2 MB, far under the 400 MB limit). df -h /tmp at 18:19 UTC:
+   /dev/vda 252G size, 36G used, 2.7G available, 94% (df -B1: 2,877,734,912 bytes free) [measured, CMD_LOG entry
+   0086]; 3,005,566,976 bytes were free at 17:58 UTC (entry 0061): the drop is other workflows' writes (the harness
+   builder's validations, the probes), not this folder's.
+   Drafts at 18:19 UTC (before the last edits; the final sha256 are in the last CMD_LOG entry): criteria_v1.txt 622
+   lines, SCREEN_v1.json 6 lines (sha256 a0523d3a27ff7a44e131fd691b2d058fc73aad8cfe06f118c284468e0ad1559e),
+   DESIGN_NOTES.txt 388 lines.
+END

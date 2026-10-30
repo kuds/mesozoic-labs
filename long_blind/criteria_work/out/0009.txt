@@ -1,0 +1,128 @@
+##### p1_check.out
+RUNLOG lines naming APPROVED's sha256: [788]
+RUNLOG lines with 'BS2 LAUNCHED': [789]
+RUNLOG JSON parses; equal to APPROVED parsed: True ; key order equal: True
+RUNLOG text byte-equal to the file: False ; sha256 of the RUNLOG text: d97685b57a70905e
+json.dumps(RUNLOG object, indent=1) + b'\n' reproduces APPROVED byte for byte (sha256 184f9ab9...)
+criteria sha in the same entry: True
+entry header: 2026-10-30 12:54 UTC  MAINTAINER (AskUse
+file has trailing newline: True size 1235
+##### timeline.out
+snapshot born 15:43:28.386; ALL_DECIDED born 15:43:28.394
+control_2501: start 12:54:36Z last run write 14:17:06.975 | check.log born 14:17:10.322 | check.json born 14:17:12.102 | check.json mtime 14:17:12.106 | decided (s) 14:17:12.000 | re-arm ctimes lo 14:17:12.818 | re-arm ctimes hi 14:17:12.818 | snapshot born 15:43:28.386 | ALL_DECIDED born 15:43:28.394 | read.log born 15:43:28.418 | m5.json born 15:43:28.666 | markers.json born 15:49:37.680 | COUNTED | order OK
+critic_blind_tail3_2501: start 12:54:36Z last run write 14:18:57.173 | check.log born 14:19:02.898 | check.json born 14:19:04.366 | check.json mtime 14:19:04.371 | decided (s) 14:19:04.000 | re-arm ctimes lo 14:19:04.878 | re-arm ctimes hi 14:19:04.878 | snapshot born 15:43:28.386 | ALL_DECIDED born 15:43:28.394 | read.log born 15:43:28.418 | m5.json born 15:43:28.686 | markers.json born 15:49:46.631 | COUNTED | order OK
+control_2511: start 12:54:36Z last run write 14:16:08.198 | check.log born 14:16:18.290 | check.json born 14:16:19.754 | check.json mtime 14:16:19.759 | decided (s) 14:16:20.000 | re-arm ctimes lo 14:16:20.266 | re-arm ctimes hi 14:16:20.266 | snapshot born 15:43:28.386 | ALL_DECIDED born 15:43:28.394 | read.log born 15:43:28.418 | m5.json born 15:43:28.638 | markers.json born 15:49:53.936 | COUNTED | order OK
+critic_blind_tail3_2511: start 12:54:36Z last run write 14:18:57.468 | check.log born 14:19:04.890 | check.json born 14:19:06.402 | check.json mtime 14:19:06.408 | decided (s) 14:19:07.000 | re-arm ctimes lo 14:19:07.034 | re-arm ctimes hi 14:19:07.034 | snapshot born 15:43:28.386 | ALL_DECIDED born 15:43:28.394 | read.log born 15:43:28.418 | m5.json born 15:43:28.626 | markers.json born 15:49:51.485 | COUNTED | order OK
+control_2521: start 14:16:20Z last run write 15:38:32.898 | check.log born 15:38:39.114 | check.json born 15:38:40.778 | check.json mtime 15:38:40.783 | decided (s) 15:38:41.000 | re-arm ctimes lo 15:38:41.514 | re-arm ctimes hi 15:38:41.514 | snapshot born 15:43:28.386 | ALL_DECIDED born 15:43:28.394 | read.log born 15:49:38.594 | m5.json born 15:49:38.830 | markers.json born 15:56:04.007 | COUNTED | order OK
+critic_blind_tail3_2521: start 14:17:13Z last run write 15:40:38.860 | check.log born 15:40:41.558 | check.json born 15:40:43.258 | check.json mtime 15:40:43.262 | decided (s) 15:40:43.000 | re-arm ctimes lo 15:40:43.878 | re-arm ctimes hi 15:40:43.878 | snapshot born 15:43:28.386 | ALL_DECIDED born 15:43:28.394 | read.log born 15:49:48.602 | m5.json born 15:49:48.834 | markers.json born 15:56:10.183 | COUNTED | order OK
+control_2531: start 14:19:07Z last run write 15:41:17.554 | check.log born 15:41:23.902 | check.json born 15:41:25.634 | check.json mtime 15:41:25.639 | decided (s) 15:41:26.000 | re-arm ctimes lo 15:41:26.214 | re-arm ctimes hi 15:41:26.214 | snapshot born 15:43:28.386 | ALL_DECIDED born 15:43:28.394 | read.log born 15:49:58.610 | m5.json born 15:49:58.806 | markers.json born 15:56:22.580 | COUNTED | order OK
+critic_blind_tail3_2531: start 14:19:07Z last run write 15:43:16.635 | check.log born 15:43:26.290 | check.json born 15:43:27.886 | check.json mtime 15:43:27.892 | decided (s) 15:43:28.000 | re-arm ctimes lo 15:43:28.342 | re-arm ctimes hi 15:43:28.342 | snapshot born 15:43:28.386 | ALL_DECIDED born 15:43:28.394 | read.log born 15:49:58.610 | m5.json born 15:49:58.830 | markers.json born 15:56:26.227 | COUNTED | order OK
+ALL ORDERS OK
+##### atime_moves_after_my_scan.out
+files unread at my scan (15:58:08) whose atime has moved since: 11
+   16:08:00.214975 runs/control_2501/01_stance/plant_identity.json
+   16:08:00.214975 runs/control_2501/01_stance/stage_config.json
+   16:08:00.214975 runs/control_2501/01_stance/task_fingerprint.json
+   16:08:34.698977 logs/control_2501.attempt1.log
+   16:08:34.702977 logs/control_2511.attempt1.log
+   16:08:34.710977 logs/control_2521.attempt1.log
+   16:08:34.714977 logs/control_2531.attempt1.log
+   16:08:34.718977 logs/critic_blind_tail3_2501.attempt1.log
+   16:08:34.722977 logs/critic_blind_tail3_2511.attempt1.log
+   16:08:34.726977 logs/critic_blind_tail3_2521.attempt1.log
+   16:08:34.734977 logs/critic_blind_tail3_2531.attempt1.log
+##### ctime_since_snapshot.out
+files whose ctime or mtime changed since the P4 snapshot: 3
+   logs/run_waves_bs.log ctime 1793375008346887279 -> 1793375788814933672 mtime 1793375008346887279 -> 1793375788814933672
+   logs/run_waves_bs.out ctime 1793375008346887279 -> 1793375788814933672 mtime 1793375008346887279 -> 1793375788814933672
+   logs/runner_stderr.log ctime 1793375006286887157 -> 1793375788814933672 mtime 1793375006286887157 -> 1793375788814933672
+##### evidence_audit.out
+control_2501: rows 175; dv max over 4 paths 0.607621, dv min over 4 paths 0.0865402; dmu_actor min 0.1664; |buffer - raw value MLP| / scale min 1.9e-07; |buffer - critic| / scale max 2.98e-07; adv rel err max 3.82e-06; distinct obs digests 175; problems 0
+critic_blind_tail3_2501: rows 175; dv max over 4 paths 0, dv min over 4 paths 0; dmu_actor min 0.08216; |buffer - raw value MLP| / scale min 0.00225; |buffer - critic| / scale max 3e-07; adv rel err max 3.67e-06; distinct obs digests 175; problems 0
+control_2511: rows 175; dv max over 4 paths 0.608316, dv min over 4 paths 0.0874734; dmu_actor min 0.1247; |buffer - raw value MLP| / scale min 9.74e-08; |buffer - critic| / scale max 3.02e-07; adv rel err max 3.74e-06; distinct obs digests 175; problems 0
+critic_blind_tail3_2511: rows 175; dv max over 4 paths 0, dv min over 4 paths 0; dmu_actor min 0.07335; |buffer - raw value MLP| / scale min 0.003; |buffer - critic| / scale max 2.98e-07; adv rel err max 4.02e-06; distinct obs digests 175; problems 0
+control_2521: rows 175; dv max over 4 paths 0.346838, dv min over 4 paths 0.0633712; dmu_actor min 0.1421; |buffer - raw value MLP| / scale min 1.92e-07; |buffer - critic| / scale max 2.96e-07; adv rel err max 3.76e-06; distinct obs digests 175; problems 0
+critic_blind_tail3_2521: rows 175; dv max over 4 paths 0, dv min over 4 paths 0; dmu_actor min 0.1149; |buffer - raw value MLP| / scale min 0.00287; |buffer - critic| / scale max 3.84e-07; adv rel err max 3.88e-06; distinct obs digests 175; problems 0
+control_2531: rows 175; dv max over 4 paths 0.382722, dv min over 4 paths 0.0540047; dmu_actor min 0.1028; |buffer - raw value MLP| / scale min 9.64e-08; |buffer - critic| / scale max 3.01e-07; adv rel err max 3.76e-06; distinct obs digests 175; problems 0
+critic_blind_tail3_2531: rows 175; dv max over 4 paths 0, dv min over 4 paths 0; dmu_actor min 0.0501; |buffer - raw value MLP| / scale min 0.00244; |buffer - critic| / scale max 2.98e-07; adv rel err max 3.77e-06; distinct obs digests 175; problems 0
+
+seed 2501: first rollout env side equal True, rewards equal False, values equal False; second rollout env side equal False
+seed 2511: first rollout env side equal True, rewards equal False, values equal False; second rollout env side equal False
+seed 2521: first rollout env side equal True, rewards equal False, values equal False; second rollout env side equal False
+seed 2531: first rollout env side equal True, rewards equal False, values equal False; second rollout env side equal False
+TOTAL PROBLEMS: 0
+##### meta_audit.out
+now: {
+ "approved": "184f9ab91f284149f15ac192b4a5f318fa01485fbaf0068df64bb03ba5029ad2",
+ "criteria": "291ff4573fa1b6030c739ddc1480d2260162c1b2e274c9af9933d6400183066f",
+ "screen": "255d0ba4fae3780a4988a7bebc537d77ce634ca2c761f0dce8e84d80de95ebf0",
+ "tools": {
+  "run_bs.py": "acd5b499e70b6eb76ca6ac4218cf01b86f2beac6f1dd33f701b31d1e68a6471f",
+  "read_bs.py": "06f4173d90a5a022f90e97bfbf10bb3c19a463240127117183c28674fab95f60",
+  "run_waves_bs.sh": "6e0484f68f4202a2ab3f54f59596ae0e01dd7c71fd7af5f68350e57bb353bbf5",
+  "bs_common.py": "6c4c36ea6b26de4dc8d7250ccea5c122d1cc88e1a9627e1450af96783b5b0d66",
+  "bs_hooks.py": "1ff4c8be048297270eea14a24fe59336020e20fbd4aca7c38f5b881b33eef9fc",
+  "score_bs.py": "05dd4b38b24a11c0a76fdda9b02685d86eb081781512c46274e8ed07726f5ac7"
+ }
+}
+control_2501	2026-10-30T12:54:36Z	2026-10-30T14:17:06Z	done	0	end	3538944	2471	3803	4941.3	3530752	[]
+critic_blind_tail3_2501	2026-10-30T12:54:36Z	2026-10-30T14:18:57Z	done	0	end	3538944	2471	3870	5051.0	3530752	[]
+control_2511	2026-10-30T12:54:36Z	2026-10-30T14:16:08Z	done	0	end	3538944	2471	3762	4882.5	3530752	['robust_best_model.zip', 'robust_best_model_vecnorm.pkl']
+critic_blind_tail3_2511	2026-10-30T12:54:36Z	2026-10-30T14:18:57Z	done	0	end	3538944	2471	3869	5052.0	3530752	['robust_best_model.zip', 'robust_best_model_vecnorm.pkl']
+control_2521	2026-10-30T14:16:20Z	2026-10-30T15:38:32Z	done	0	end	3538944	2471	3758	4925.1	3530752	[]
+critic_blind_tail3_2521	2026-10-30T14:17:13Z	2026-10-30T15:40:38Z	done	0	end	3538944	2471	3847	4997.9	3530752	[]
+control_2531	2026-10-30T14:19:07Z	2026-10-30T15:41:17Z	done	0	end	3538944	2471	3826	4922.7	3530752	[]
+critic_blind_tail3_2531	2026-10-30T14:19:07Z	2026-10-30T15:43:16Z	done	0	end	3538944	2471	3854	5041.4	3530752	[]
+PROBLEMS: none
+##### probe_audit.out
+B_S rows [248, 249, 250, 251, 252, 253, 254, 255] B_S 0.1265954738482833 True
+control_2501: window rows 175 at S+8192k: True; rows <= S 256; ent/lr mismatches vs parent 0/0; primary +0.67001
+critic_blind_tail3_2501: window rows 175 at S+8192k: True; rows <= S 256; ent/lr mismatches vs parent 0/0; primary +0.14283
+control_2511: window rows 175 at S+8192k: True; rows <= S 256; ent/lr mismatches vs parent 0/0; primary +0.79227
+critic_blind_tail3_2511: window rows 175 at S+8192k: True; rows <= S 256; ent/lr mismatches vs parent 0/0; primary +0.12485
+control_2521: window rows 175 at S+8192k: True; rows <= S 256; ent/lr mismatches vs parent 0/0; primary +0.51081
+critic_blind_tail3_2521: window rows 175 at S+8192k: True; rows <= S 256; ent/lr mismatches vs parent 0/0; primary +0.13810
+control_2531: window rows 175 at S+8192k: True; rows <= S 256; ent/lr mismatches vs parent 0/0; primary +0.41938
+critic_blind_tail3_2531: window rows 175 at S+8192k: True; rows <= S 256; ent/lr mismatches vs parent 0/0; primary +0.06516
+ppo_applied / stage_config / hyperparameters / stack / threads equal across 8: False
+  argv control_2501 ['--arm', 'control', '--seed', '2501']
+  argv critic_blind_tail3_2501 ['--arm', 'critic_blind_tail3', '--seed', '2501']
+  argv control_2511 ['--arm', 'control', '--seed', '2511']
+  argv critic_blind_tail3_2511 ['--arm', 'critic_blind_tail3', '--seed', '2511']
+  argv control_2521 ['--arm', 'control', '--seed', '2521']
+  argv critic_blind_tail3_2521 ['--arm', 'critic_blind_tail3', '--seed', '2521']
+  argv control_2531 ['--arm', 'control', '--seed', '2531']
+  argv critic_blind_tail3_2531 ['--arm', 'critic_blind_tail3', '--seed', '2531']
+control median 0.5904141645878553 rise 0.46381869073957205 >= 0.20: True
+exact one-sided permutation p = 1 / 70
+sign-flip p = 1 / 16
+##### secondaries_check.out
+G high arm critic p = 70 / 70 NOT SUPPORTED  | {'2501c': 0.589, '2511c': 0.375, '2521c': -0.186, '2531c': 0.185, '2501b': -0.197, '2511b': -0.276, '2521b': -0.551, '2531b': -0.294}
+CMD high arm control p = 1 / 70 SUPPORTED | Bonferroni | {'2501c': 0.884, '2511c': 0.955, '2521c': 0.597, '2531c': 0.475, '2501b': 0.181, '2511b': 0.125, '2521b': 0.146, '2531b': 0.068}
+BSTAR high arm critic p = 1 / 70 SUPPORTED | Bonferroni | {'2501c': -0.03, '2511c': -0.06, '2521c': 0.404, '2531c': 0.352, '2501b': 0.983, '2511b': 1.109, '2521b': 1.301, '2531b': 1.194}
+##### transcript_p1_times.out
+2026-10-30T12:53:49.259Z  |  Bash  |  APPROVED write/chmod
+2026-10-30T12:53:57.048Z  |  Bash  |  RUNLOG pin entry append, APPROVED write/chmod
+2026-10-30T12:54:11.665Z  |  Bash  |  prelaunch score
+2026-10-30T12:54:21.904Z  |  Bash  |  prelaunch score
+2026-10-30T12:54:34.257Z  |  Bash  |  runner launch
+2026-10-30T12:55:12.186Z  |  Bash  |  runner launch, APPROVED write/chmod, RUNLOG launch entry append
+2026-10-30T12:55:21.596Z  |  mcp__remote__send_later  |  runner launch
+result of RUNLOG pin append issued 2026-10-30T12:53:57.048Z -> result at 2026-10-30T12:54:13.776Z | is_error False | "2026-10-30 12:54 UTC  MAINTAINER (AskUserQuestion): 'Launch with 0.20 (Recommended)'. BS2 PINNED: criteria.txt sha256 291ff4573fa1b6030c739ddc1480d2260162c1b2e274c9af9933d6400183066f (equal to the re-"
+result of launch issued 2026-10-30T12:54:34.257Z -> result at 2026-10-30T12:54:56.033Z | is_error False | "Fri Oct 30 12:54:55 UTC 2026\n[run_waves_bs 2026-10-30T12:54:36Z] launch: 2952146944 bytes free >= the launch floor 2082471936 bytes; queue control_2501 critic_blind_tail3_2501 control_2511 critic_blind_tail3_2511 contr
+result of launch issued 2026-10-30T12:55:12.186Z -> result at 2026-10-30T12:55:13.062Z | is_error False | "ok"
+result of launch issued 2026-10-30T12:55:21.596Z -> result at 2026-10-30T12:55:22.969Z | is_error None | [{"type": "text", "text": "{\"fire_at\":\"2026-10-30T14:36:00Z\",\"now\":\"2026-10-30T12:55:22Z\",\"trigger_id\":\"trig_01CNfkUuKjz7xRzjxrTQPKZ9\"}"}]
+AskUserQuestion issued 2026-10-30T12:49:27.916Z
+AskUserQuestion answered 2026-10-30T12:53:09.459Z | answer contains 'Launch with 0.20': True | ut 3 h on CPU)?\"=\"Launch with 0.20 (Recommended)\". You can now continue with 
+##### transcript_push_merge_calls.out
+push / merge / branch-creating tool calls since 12:53 UTC in the session transcript: 0
+##### verify_copy_now.out
+{
+ "S2/r10round/bias_screen/code": {
+  "seal_tree_digest": "331fe8fc3f6bdf73acc0d3cc324dd753d9d9d695d7ce914e4e011d5c6437ebf1",
+  "recomputed": "331fe8fc3f6bdf73acc0d3cc324dd753d9d9d695d7ce914e4e011d5c6437ebf1",
+  "files": 1406,
+  "equal_to_pinned": true
+ }
+}
+verify_copy exit 0

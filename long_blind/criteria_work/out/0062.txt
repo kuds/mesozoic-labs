@@ -1,0 +1,34 @@
+classes.json keys: ['E', 'any_alarm', 'any_alarms', 'cls', 'cmd', 'cmd_episodes', 'cmd_others_ended_by_200', 'driven', 'fall_flags', 'flagged_evaluations', 'gate', 'gate_why', 'kind', 'mean', 'mean_basis', 'open', 'outcome', 'parked', 'reasons', 'resolved_by_trace', 'single_tail_flags', 'stopped', 'tail_alarm_detail', 'tail_alarms', 'trace_rail']
+  E : 12001280
+  any_alarm : true
+  any_alarms : [{"step": 3932160, "actuators": {"tail_3_pitch_act": 20}, "tail_scope": "tail", "reasons": {"> 0.1": 20}}, {"step": 4063232, "actuators": {"tail_3_pitch_act": 18}, "tail_scope": "tail", "reasons": {"> 0.1": 18}}, {"step": 4194304, "actuators": {"tail_3_pitch_a
+  cls : "RAIL"
+  cmd : {"4194304": {"tail_1_pitch_act": -0.16173104586312548, "tail_1_yaw_act": 0.004465420649386944, "tail_2_pitch_act": 0.03587810240921681, "tail_3_pitch_act": 0.9893873514011503}, "5242880": {"tail_1_pitch_act": -0.15331227715220302, "tail_1_yaw_act": 0.017645798
+  cmd_episodes : {"4194304": {"tail_1_pitch_act": 20, "tail_1_yaw_act": 20, "tail_2_pitch_act": 20, "tail_3_pitch_act": 20}, "5242880": {"tail_1_pitch_act": 20, "tail_1_yaw_act": 20, "tail_2_pitch_act": 20, "tail_3_pitch_act": 20}, "6291456": {"tail_1_pitch_act": 20, "tail_1_y
+  cmd_others_ended_by_200 : {"4194304": [], "5242880": [], "6291456": [], "8388608": [], "10485760": [], "final": []}
+  driven : []
+  fall_flags : []
+  flagged_evaluations : 26
+  gate : "FAIL"
+  gate_why : ["heading -90: hop_or_fall_episodes 2 > 1 (episodes ending early or failing min_all_feet_support, max_touchdown_rate, max_window_displacement_m, max_actuator_saturation_fraction; panel rail)", "heading -45: hop_or_fall_episodes 2 > 1 (episodes ending early or 
+  kind : "RAIL-LEDGER-PERSISTENT"
+  mean : {"tail_1_pitch_act": 0.04151702154093072, "tail_1_yaw_act": 0.011939142438874112, "tail_2_pitch_act": 0.007377712859582971, "tail_3_pitch_act": 0.9148334751408547}
+  mean_basis : {"tail_1_pitch_act": "R1 and R2", "tail_1_yaw_act": "R1 and R2", "tail_2_pitch_act": "R1 and R2", "tail_3_pitch_act": "R1 and R2"}
+  open : []
+  outcome : "NEGATIVE"
+  parked : [{"actuator": "tail_3_pitch_act", "windows": [["END", 0.3148], ["J", [["4194304", 0.3894], ["5242880", 0.2842], ["8388608", 0.341], ["10485760", 0.3362], ["final", 0.2934]]]]}]
+  reasons : ["RAIL (RAIL-LEDGER-PERSISTENT)", "GATE FAIL (['heading -90: hop_or_fall_episodes 2 > 1 (episodes ending early or failing min_all_feet_support, max_touchdown_rate, max_window_displacement_m, max_actuator_saturation_fraction; panel rail)', 'heading -45: hop_or_
+  resolved_by_trace : []
+  single_tail_flags : []
+  stopped : false
+  tail_alarm_detail : [{"step": 3932160, "actuators": {"tail_3_pitch_act+": 20}, "flagged_evaluations": 26}, {"step": 4063232, "actuators": {"tail_3_pitch_act+": 18}, "flagged_evaluations": 26}, {"step": 4194304, "actuators": {"tail_3_pitch_act+": 17}, "flagged_evaluations": 26}, {
+  tail_alarms : [3932160, 4063232, 4194304, 4325376, 4456448, 4587520, 4718592, 4849664, 4980736, 5111808, 5505024, 8126464, 8257536, 8388608, 9699328, 9830400, 9961472, 10092544, 10223616, 10354688, 10485760, 10616832]
+  trace_rail : [{"actuator": "tail_3_pitch_act", "sign": "+", "basis": "2+ flags", "drive_backed": true, "drive_backed_by_checkpoint": {"10485760": true}}]
+habit.json keys: ['habit_sites', 'labels', 'note', 'per_actuator', 'probe_error']
+habit_sites: {'tail_3_pitch_act': ['L', 'T', 'D']}
+per_actuator[tail_3] keys: ['active_span', 'any_alarms_naming', 'any_alarms_sole', 'first_over', 'flagged_evaluations', 'habit_sites', 'index', 'last_over', 'ledger_over_after_S', 'ledger_over_by_window', 'ledger_over_signs', 'ledger_over_total', 'm1', 'own_alarms', 'probe', 'tail']
+probe: {"last8_before_E": 0.8115949034690857, "last8_rows": [11935744, 11943936, 11952128, 11960320, 11968512, 11976704, 11984896, 11993088], "windows": {"[0,4194304)": 0.25195059180259705, "[4194304,8388608)": 0.5466384291648865, "[8388608,12001281)": 0.7589230537414551}, "after_S": null}
+measure_lb.json keys: ['E', 'S', 'S_note', 'c6', 'c7', 'certificate', 'classes', 'clauses', 'costs', 'ending', 'free_bytes_after', 'guard', 'habit', 'jobs', 'js', 'labels', 'ledger', 'ledger_sha256', 'm1_cross_check', 'm5_cli', 'm5_cli_agrees', 'm5_summary', 'measuring_commits', 'mpl_dir_outside_exists', 'name', 'pairs', 'panels_filed_run_id', 'panels_source', 'physics_revisions', 'pins', 'prefix', 'r1', 'resolution', 'run_dir', 'schema', 'stage_config', 'stage_config_sha256', 'status', 'suffix', 'tool_sha256', 'utc', 'version', 'window']
+ending: {"progress_status": "ended", "progress_timesteps": 12001280, "progress_written_at": "2026-10-28T05:00:58Z", "final_zip_num_timesteps": 12001280, "zip_problem": null, "run_meta_stop_reason": null, "run_meta_status": null, "run_meta_S": null, "hop_watch_present": false, "gate_verdict_present": true, "E": 12001280, "clause": "lines 228-233 (progress.json 'ended' at E; stage1_final.zip num_timesteps E
+c7: {"labels": ["4194304", "5242880", "6291456", "8388608", "10485760", "final"], "missing": [], "refused": [], "measured_on_another_file": [], "certificate": "measured", "clause": "lines 246-247 (R1, R2, J up to E and every RESOLUTION checkpoint traced; R2's certificate for FINISHED)"}
+window: {"S": 0, "E": 12001280, "any_flagged": [3801088, 3932160, 4063232, 4194304, 4325376, 4456448, 4587520, 4718592, 4849664, 4980736, 5111808, 5373952, 5505024, 7995392, 8126464, 8257536, 8388608, 9568256, 9699328, 9830400, 9961472, 10092544, 10223616, 10354688, 10485760, 10616832], "tail_flagged": [3801088, 3932160, 4063232, 4194304, 4325376, 4456448, 4587520, 4718592, 4849664, 4980736, 5111808, 5373

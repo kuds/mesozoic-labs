@@ -1,0 +1,246 @@
+   665	def prepare(C, LG, CP, run_dir: Path, suffix: str, out_root: Path, start: int | None) -> dict:
+   666	    """Inputs, ending, M5 in process and the labels C7 names (nothing simulated)."""
+   667	    guard = blind_guard(run_dir)
+   668	    name = run_name(run_dir)
+   669	    out = require_under(out_root / name)
+   670	    ending = read_ending(C, run_dir, suffix)
+   671	    E = ending["E"]
+   672	    S = start if start is not None else int(ending.get("run_meta_S") or 0)
+   673	    S_note = None
+   674	    if guard["applies"] and S != LB_S:
+   675	        S_note = f"S = {S:,} is not LB's start {LB_S:,} (pass --start {LB_S} unless the pre-registration says otherwise)"
+   676	    sc = need(run_dir, "01_stance/stage_config.json", suffix)
+   677	    led = need(run_dir, "01_stance/eval_episodes.csv", suffix)
+   678	    header, rows = C.read_ledger(led)
+   679	    res = C.m5(header, rows)
+   680	    c6 = LG.c6_check(header, rows, E)
+   681	    _pairs, r1, js, resolution, _n = CP.c3_pairs({}, E, res)
+   682	    labels = sorted({*(str(s) for s in js), *([str(r1)] if r1 else []),
+   683	                     *(str(v) for v in resolution.values() if v != "final"), "final"},
+   684	                    key=lambda x: (x == "final", int(x) if x != "final" else 0))
+   685	    files, pairs = {}, {}
+   686	    for lab in labels:
+   687	        zr, pr = pair_rel(C, lab)
+   688	        zp, pp = need(run_dir, zr, suffix), need(run_dir, pr, suffix)
+   689	        zb, pb = zp.read_bytes(), pp.read_bytes()
+   690	        nts, prob = C.zip_num_timesteps(zb)
+   691	        want = E if lab == "final" else int(lab)
+   692	        if prob or nts != want:
+   693	            raise Refusal(f"{run_dir}: {zr}{suffix} records num_timesteps {nts!r} ({prob}), not {want}")
+   694	        files[zr], files[pr] = zb, pb
+   695	        pairs[lab] = dict(zip=str(zp), pkl=str(pp), zip_sha256=sha256_bytes(zb), pkl_sha256=sha256_bytes(pb),
+   696	                          num_timesteps=nts)
+   697	    probe = locate(run_dir, "01_stance/policy_probe.npz", suffix)
+   698	    meta = locate(run_dir, "run_meta.json", suffix)
+   699	    return dict(name=name, run_dir=str(run_dir), suffix=suffix, out=out, guard=guard, ending=ending, E=E, S=S,
+   700	                S_note=S_note,
+   701	                stage_config=str(sc), stage_config_sha256=sha256_file(sc), ledger=str(led),
+   702	                ledger_sha256=sha256_file(led), header=header, rows=rows, res=res, c6=c6, r1=r1, js=js,
+   703	                resolution=resolution, labels=labels, files=files, pairs=pairs, probe=str(probe) if probe else None,
+   704	                run_meta=str(meta) if meta else None, finished=ending["ending"] == "FINISHED",
+   705	                stopped=ending["ending"] == "STOPPED")
+   706	
+   707	
+   708	def run_m5_cli(prep: dict) -> dict:
+   709	    """The pinned M5 CLI on the ledger (m5.json, m5.txt), as BS2's reader ran it."""
+   710	    out = prep["out"]
+   711	    out.mkdir(parents=True, exist_ok=True)
+   712	    jp = require_under(out / "m5.json")
+   713	    env = {k: v for k, v in os.environ.items() if not k.startswith("PYTHON")}
+   714	    env.update(OMP_NUM_THREADS="1", PYTHONDONTWRITEBYTECODE="1")
+   715	    cmd = [PY, "-I", "-B", LEDGER_R10, prep["ledger"], "--E", str(prep["E"]), "--json", str(jp)]
+   716	    t0 = time.monotonic()
+   717	    p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.DEVNULL, cwd=WORK,
+   718	                         env=env, text=True)
+   719	    so, se = p.communicate()
+   720	    wall = time.monotonic() - t0
+   721	    write_text(out / "m5.txt", so + ("\n[stderr]\n" + se if se else ""))
+   722	    if p.returncode != 0:
+   723	        raise Refusal(f"M5 exit {p.returncode}: {(so + se)[-400:]}")
+   724	    m5 = json.loads(jp.read_text())
+   725	    return dict(argv=cmd, rc=p.returncode, wall_s=round(wall, 2), json_sha256=sha256_file(jp), json=m5)
+   726	
+   727	
+   728	def m5_agrees(cli: dict, res: dict, c6: dict) -> list[str]:
+   729	    """The CLI's M5 JSON and the in-process m5 (the same pinned function) give the same flags, alarms and C6."""
+   730	    j = cli["json"]
+   731	    bad = []
+   732	    for k in ("any_alarms", "tail_alarms", "needs_resolution", "any_flagged", "tail_flagged"):
+   733	        if [int(x) for x in j.get(k, [])] != [int(x) for x in res[k]]:
+   734	            bad.append(f"{k}: CLI {j.get(k)} != in-process {res[k]}")
+   735	    if (j.get("c6") or {}).get("passed") != c6["passed"]:
+   736	        bad.append(f"C6: CLI {(j.get('c6') or {}).get('passed')} != in-process {c6['passed']}")
+   737	    return bad
+   738	
+   739	
+   740	def jobs_for(prep: dict, simulate: bool, prune: bool = False) -> list[dict]:
+   741	    out = prep["out"]
+   742	    jobs = []
+   743	    if prep["finished"]:
+   744	        jobs.append(("m3", "final"))
+   745	    jobs += [("m1", lab) for lab in prep["labels"]]
+   746	    todo = []
+   747	    for kind, lab in jobs:
+   748	        d = out / "panels" / lab / kind
+   749	        summary = d / f"{kind}_summary.json"
+   750	        refused = d / f"{kind}_refused.json"
+   751	        j = dict(run=prep["name"], name=f"{prep['name']} {lab} {kind}", kind=kind, label=lab,
+   752	                 zip=prep["pairs"][lab]["zip"], pkl=prep["pairs"][lab]["pkl"], stage_config=prep["stage_config"],
+   753	                 out=str(require_under(d)), logs=str(out / "logs"), prune=prune)
+   754	        if summary.is_file() or refused.is_file():
+   755	            j["outcome"] = "ALREADY MEASURED" if summary.is_file() else "ALREADY REFUSED BY THE MEASURING TOOL"
+   756	            j["attempts"] = []
+   757	        elif not simulate:
+   758	            j["outcome"] = "ABSENT (--no-simulate)"
+   759	            j["attempts"] = []
+   760	        todo.append(j)
+   761	    return todo
+   762	
+   763	
+   764	def prune_csvs(label_dir: Path, rec: dict) -> dict:
+   765	    """--prune-csv: delete the .csv.gz of episodes in which no actuator is over the BAR (sha256 kept)."""
+   766	    keep = {e["seed"] for e in rec.get("any_actuator_over_bar_episodes", [])}
+   767	    removed, kept, freed = [], [], 0
+   768	    for ep in rec.get("episodes", []):
+   769	        gz = label_dir / f"episode_trace_seed{ep['seed']}.csv.gz"
+   770	        if not gz.is_file():
+   771	            continue
+   772	        if ep["seed"] in keep:
+   773	            kept.append(gz.name)
+   774	            continue
+   775	        require_under(gz)
+   776	        freed += gz.stat().st_size
+   777	        gz.unlink()
+   778	        removed.append(gz.name)
+   779	    rec_p = label_dir.parent / f"{label_dir.name}_pruned.json"
+   780	    if removed:                             # one record per label, merged when an earlier call removed some
+   781	        old = json.loads(rec_p.read_text()) if rec_p.is_file() else {}
+   782	        write_json(rec_p, dict(utc=utcnow(), removed=sorted(set(old.get("removed", [])) | set(removed)), kept=kept,
+   783	                               freed_bytes=int(old.get("freed_bytes", 0)) + freed,
+   784	                               note="their sha256 are in csv_sha256.txt and m1_summary.json csv_sha256; kept: "
+   785	                                    "episodes with an actuator over the BAR (lane B read_trace needs the tail ones)"))
+   786	    return dict(removed=len(removed), kept=len(kept), freed_bytes=freed, record=str(rec_p) if rec_p.is_file() else None)
+   787	
+   788	
+   789	def classify_one(prep: dict, job_results: list[dict], m5cli: dict, parent_ledger, prune: bool,
+   790	                 panels_dir: Path | None = None, filed_run_id: str | None = None) -> dict:
+   791	    """panels_dir / filed_run_id (validation only): read M1/M3 outputs from another folder (read only), e.g. the
+   792	    round's own <ROUND>/panels/<RUN_ID>/, whose records were filed under that RUN_ID (binding_problems reads it)."""
+   793	    C, LG, CP, SC = lane_b()
+   794	    out = prep["out"]
+   795	    if panels_dir is not None and (prune or Path(os.path.realpath(LB)) in Path(os.path.realpath(prep["run_dir"])).parents):
+   796	        raise Refusal("panels from another folder are a validation reading only (never for a run under LB, never "
+   797	                      "with --prune-csv)")
+   798	    panels = CP.PanelLocator(Path(panels_dir) if panels_dir else out / "panels", "{label}/{kind}")
+   799	    E = prep["E"]
+   800	    traces, missing, refused, other = {}, [], [], []
+   801	    m1_records = {}
+   802	    for lab in prep["labels"]:
+   803	        tr, why = panels.trace(lab)
+   804	        if tr is not None:
+   805	            bad = CP.binding_problems(tr.get("binding") or {}, lab, prep["files"], E, filed_run_id)
+   806	            if bad:
+   807	                other.append(f"M1 {lab}: {bad}")
+   808	                tr = None
+   809	        elif why.startswith("REFUSED"):
+   810	            refused.append(why)
+   811	        else:
+   812	            missing.append(why)
+   813	        traces[lab] = tr
+   814	        if tr is not None:
+   815	            m1_records[lab] = tr["record"]
+   816	    cert, cert_why = None, None
+   817	    if prep["finished"]:
+   818	        cert, cert_why = panels.certificate("final")
+   819	        if cert is not None:
+   820	            bad = CP.binding_problems(cert.get("binding") or {}, "final", prep["files"], E, filed_run_id)
+   821	            if bad:
+   822	                other.append(f"M3 final: {bad}")
+   823	                cert = None
+   824	        elif cert_why.startswith("REFUSED"):
+   825	            ref = panels.refusal("final", "m3") or {}
+   826	            bad = CP.binding_problems(ref.get("binding") or {}, "final", prep["files"], E, filed_run_id)
+   827	            if bad:
+   828	                other.append(f"M3 final refusal: {bad}")
+   829	            else:
+   830	                rec = ref.get("record") or {}
+   831	                cert = dict(passed=False, refused=True, failures=[f"refused: {ref.get('message')}"], seeds=None,
+   832	                            physics_revision=rec.get("physics_revision"), commit=C.record_commit(rec), record=rec,
+   833	                            label_dir=str(panels.path("final", "m3")), binding=ref.get("binding"))
+   834	    c7 = dict(labels=prep["labels"], missing=missing, refused=refused, measured_on_another_file=other,
+   835	              certificate=("measured" if cert is not None and not cert.get("refused") else
+   836	                           "refused (GATE FAIL)" if cert is not None else
+   837	                           ("not needed (STOPPED)" if not prep["finished"] else f"absent: {cert_why}")),
+   838	              clause=CLAUSES["C7"])
+   839	    blocked = missing or refused or other or (prep["finished"] and cert is None)
+   840	    commits = sorted({t.get("commit") for t in traces.values() if t} | ({cert.get("commit")} if cert else set()))
+   841	    phys = sorted({t.get("physics_revision") for t in traces.values() if t} |
+   842	                  ({cert.get("physics_revision")} if cert else set()), key=str)
+   843	    result = dict(schema="lb-measure/1", version=VERSION, tool_sha256=sha256_file(Path(__file__).resolve()),
+   844	                  utc=utcnow(), name=prep["name"], run_dir=prep["run_dir"], S_note=prep.get("S_note"),
+   845	                  suffix=prep["suffix"], guard=prep["guard"], ending=prep["ending"], E=E, S=prep["S"],
+   846	                  stage_config=prep["stage_config"], stage_config_sha256=prep["stage_config_sha256"],
+   847	                  ledger=prep["ledger"], ledger_sha256=prep["ledger_sha256"], pairs=prep["pairs"],
+   848	                  labels=prep["labels"], r1=prep["r1"], js=prep["js"],
+   849	                  resolution={str(k): v for k, v in prep["resolution"].items()},
+   850	                  c6=dict(passed=prep["c6"]["passed"], n_grid=prep["c6"]["n_grid"],
+   851	                          failures=prep["c6"]["failures"][:20], n_failures=len(prep["c6"]["failures"]),
+   852	                          clause=CLAUSES["C6"]),
+   853	                  m5_cli=dict((k, v) for k, v in m5cli.items() if k != "json"),
+   854	                  m5_cli_agrees=m5_agrees(m5cli, prep["res"], prep["c6"]) or "equal",
+   855	                  c7=c7, measuring_commits=commits, physics_revisions=phys, jobs=job_results,
+   856	                  panels_source=str(panels.dir), panels_filed_run_id=filed_run_id,
+   857	                  clauses=CLAUSES, pins={p: PINS[p] for p in PINS})
+   858	    if commits and commits != [CODE_COMMIT]:
+   859	        blocked = True
+   860	        result["blocked_commit"] = f"measured on {commits}, not {CODE_COMMIT}"
+   861	    if phys and phys != [10]:
+   862	        blocked = True
+   863	        result["blocked_physics"] = f"physics_revision {phys}"
+   864	    if blocked:
+   865	        result["classes"] = None
+   866	        result["status"] = "NOT CLASSIFIED (C7: a measurement absent, refused or not of this pair)"
+   867	        return result
+   868	    comp = dict(m5=prep["res"], traces=traces, r1=prep["r1"], resolution=prep["resolution"], js=prep["js"],
+   869	                stopped=prep["stopped"], E=E, certificate=cert)
+   870	    classes = SC.classes_of(comp)
+   871	    result["classes"] = SC._jsonable(classes)
+   872	    result["certificate"] = None if cert is None else dict(
+   873	        passed=cert.get("passed"), refused=bool(cert.get("refused")), failures=cert.get("failures"),
+   874	        physics_revision=cert.get("physics_revision"), commit=cert.get("commit"),
+   875	        label=(cert.get("record") or {}).get("label"),
+   876	        headings=(cert.get("record") or {}).get("headings"), seconds=((cert.get("record") or {}).get(
+   877	            "certificate_run") or {}).get("seconds"))
+   878	    by_act = {}
+   879	    for x in classes["any_alarms"]:                 # classes_of's attribution: the actuators of the alarm's two evals
+   880	        for n in x["actuators"]:
+   881	            d = by_act.setdefault(n, dict(count=0, first=None, last=None, sole=0))
+   882	            d["count"] += 1
+   883	            d["first"] = x["step"] if d["first"] is None else min(d["first"], x["step"])
+   884	            d["last"] = x["step"] if d["last"] is None else max(d["last"], x["step"])
+   885	            d["sole"] += set(x["actuators"]) == {n}
+   886	    result["m5_summary"] = dict(any_flagged=prep["res"]["any_flagged"], tail_flagged=prep["res"]["tail_flagged"],
+   887	                                any_alarms=prep["res"]["any_alarms"], tail_alarms=prep["res"]["tail_alarms"],
+   888	                                needs_resolution=prep["res"]["needs_resolution"],
+   889	                                any_alarms_by_actuator=by_act,
+   890	                                over_bar_per_evaluation={s: {k: e[k] for k in ("n", "any", "tail", "unres", "tail_by",
+   891	                                                                               "any_by", "reasons")}
+   892	                                                         for s, e in sorted(prep["res"]["evals"].items())
+   893	                                                         if e["any"] or e["tail"] or e["unres"]},
+   894	                                d1=LG.d1_summary(prep["res"]), clause=CLAUSES["M5"],
+   895	                                note="every evaluation's line: m5.txt (ledger_r10round.py's own print)")
+   896	    result["window"] = window_reading(C, prep["res"], prep["S"], E)
+   897	    result["prefix"] = prefix_check(Path(prep["ledger"]), parent_ledger, prep["S"])
+   898	    result["habit"] = habit_summary(C, prep["header"], prep["rows"], prep["res"], classes, m1_records,
+   899	                                    Path(prep["probe"]) if prep["probe"] else None, prep["S"], E, prep["js"],
+   900	                                    prep["r1"], traced=prep["labels"])
+   901	    result["m1_cross_check"] = {lab: (t.get("cross_check") if t else None) for lab, t in traces.items()}
+   902	    if prune:
+   903	        result["pruned"] = {lab: prune_csvs(out / "panels" / lab / "m1", m1_records[lab]) for lab in m1_records}
+   904	    result["status"] = "CLASSIFIED"
+   905	    return result
+   906	
+   907	
+   908	# ------------------------------------------------------------------------------------------------------------ text
+   909	def _steps(xs, n=6):
+   910	    xs = list(xs)

@@ -1,0 +1,2353 @@
+diff -ruN -x score_bs.py -x test_score_bs.py -x __pycache__ bias_screen2/tools/bs_common.py long_blind/tools/bs_common.py
+--- bias_screen2/tools/bs_common.py	2026-10-30 10:42:44.574239214 +0000
++++ long_blind/tools/bs_common.py	2026-10-30 16:58:04.527857184 +0000
+@@ -1,21 +1,26 @@
+-"""Bias screen 2 (BS2): pins and constants.  No logic beyond lookups and checks.
++"""Long blind study (LB): pins and constants.  No logic beyond lookups and checks.
+ 
+-Importable without torch, numpy or the code copy.  BS2 is the bias screen (BS, S2/r10round/bias_screen, finished
+-and verified; its bs_common.py sha256 3b3727e2...) re-run from s42's 2,097,152 checkpoint: only the root, the start
+-pair, the window, the validation seeds and the code-copy path (BS's own copy, reused read only) differ from BS's file.
++Importable without torch, numpy or the code copy.  LB continues r10 stance6 s42 from its 2,097,152 checkpoint to the
++parent's own end, 12,001,280.  This file is BS2's bs_common.py (S2/r10round/bias_screen2/tools/bs_common.py, sha256
++6c4c36ea...) with the root, the window (E, LENGTH, the saved pairs, the evaluation count), the validation seeds, the
++continuation cap and the disk estimate changed, and the resume, stop-reason and read-schedule constants added; the
++arms, the start pair, the code copy (BS's, reused read only) and the queue rules are BS2's.
+ Every value cites its source:
+   ECS    = ecs_common.py (the pins it shares with this screen: the code copy, M1/M5, the stack, the s42 records);
+   FMAN   = S1/foot/stance6/fetch/manifest.csv (F2 COPY rows, copy 1) [measured 2026-10-30 03:53 UTC by BS's
+-           check_inputs.py; re-measured for BS2 2026-10-30 by BS2's check_inputs.py: FMAN lines 241 / 243 for the
+-           2,097,152 pair];
+-  TASK   = BS's build task of 2026-10-30 (at most 9 continuations of at most 1.5M steps; 4 at a time at nice 10; disk
+-           floor 1.5 GB; arms control / critic_blind_tail3 / gae_lambda_1 / frozen_obs_norm, none chosen here);
+-  TASK2  = BS2's build task of 2026-10-30 (S = 2,097,152; LENGTH = BS's 1,441,792, so E = 3,538,944; validation seeds
+-           9201-9241; the maintainer's approval of 2026-10-30 10:23 UTC, "Go with option a");
+-  AUTH   = the maintainer's overnight authorisation, S2/r10round/FOLLOW_UPS.txt, last entry (2026-10-30 00:5x UTC).
+-The intervention and the queue are NOT here: they are <BS2>/SCREEN.json, written when the criteria are reviewed, and
+-pinned by sha256 in <BS2>/APPROVED (screen_sha256) with the criteria and these tools.  (In this file and the other BS2
+-tools "<BS>" means the screen's own root, BS2.)
++           check_inputs.py; re-measured for BS2 and for LB by check_inputs.py: FMAN lines 241 / 243 for the 2,097,152
++           pair];
++  TASK   = BS's build task of 2026-10-30 (4 at a time at nice 10; disk floor 1.5 GB; arms control /
++           critic_blind_tail3 / gae_lambda_1 / frozen_obs_norm, none chosen here);
++  TASK2  = BS2's build task of 2026-10-30 (S = 2,097,152; the start pair; the code copy reused read only);
++  TASK3  = LB's build task of 2026-10-30 (E = the parent's own end; LENGTH = E - S; validation seeds 9301-9341; the
++           resume of a crashed continuation from its latest complete saved pair; RR-1; process I1);
++  AUTH2  = the maintainer's choice of 2026-10-30 16:23 UTC (RUNLOG line 799, "Long blind run to 12M (Recommended)"):
++           continue s42 from 2,097,152 to the full 12M, 4 runs (mostly critic_blind_tail3 plus a normal control);
++  PARENT = the parent's F2 records [measured by validate/parent_schedule.py, validate/logs/parent_schedule.out].
++The intervention and the queue are NOT here: they are <LB>/SCREEN.json, written when the criteria are reviewed, and
++pinned by sha256 in <LB>/APPROVED (screen_sha256) with the criteria and these tools.  (In this file and the other LB
++tools "<BS>" means the study's own root, LB.)
+ """
+ from __future__ import annotations
+ 
+@@ -29,7 +34,7 @@
+ # ------------------------------------------------------------------------------------------------------------- paths
+ S1 = "/tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad"
+ S2 = "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad"
+-BS = S2 + "/r10round/bias_screen2"              # every file the screen writes is under it (TASK2)
++BS = S2 + "/r10round/long_blind"                # every file the study writes is under it (TASK3)
+ BS1 = S2 + "/r10round/bias_screen"              # the finished first screen: read only (its code copy is reused)
+ CODE = BS1 + "/code"                            # BS's cp -a of ECS/code, chmod a-w; tree digest = TREE_DIGEST (never
+                                                 # edited; BS2 reads it only: no tool writes under it, see run_bs.py)
+@@ -64,10 +69,15 @@
+ STACK = {"python": "3.13.17", "torch": "2.13.0+cpu", "numpy": "2.5.4", "gymnasium": "1.4.0",
+          "stable_baselines3": "2.9.0", "mujoco": "3.10.0"}           # ECS STACK
+ DISK_FLOOR_BYTES = 1_610_612_736                # 1.5 GiB (TASK "1.5 GB"; the binary reading, the stricter one)
+-RUN_BYTES_EST = 50 * 1024**2                    # one continuation's folder (an ECS one is 36 MB with 8 zips) [measured]
+-MAX_CONTINUATIONS = 9                           # AUTH (b): <= 9 continuations
++# One continuation to E: its folder at E (39 zips of 4.03 MB, the records at the parent's end-of-run sizes, the
++# evidence, diagnostics), its reads, tmp and logs, and one resume's extra files: 182.3 MiB [measured by
++# validate/disk_estimate.py, validate/logs/disk_estimate.out], rounded up with margin to 200 MiB.
++RUN_BYTES_EST = 200 * 1024**2
++MAX_CONTINUATIONS = 4                           # AUTH2: 4 runs
+ LAUNCH_DISK_BYTES = DISK_FLOOR_BYTES + MAX_CONTINUATIONS * RUN_BYTES_EST   # a fresh queue starts only above this
+-TOOL_FILES = ("run_bs.py", "read_bs.py", "run_waves_bs.sh", "bs_common.py", "bs_hooks.py")   # pinned in APPROVED
++SCORER_FILE = "score_bs.py"                     # the scorer (the criteria lane's); APPROVED must pin it (runner)
++TOOL_FILES = ("run_bs.py", "read_bs.py", "run_waves_bs.sh", "bs_common.py", "bs_hooks.py",
++              "bs_resume.py")                   # pinned in APPROVED (LB adds bs_resume.py, the resume)
+ 
+ # ------------------------------------------------------------------------------------------------------------- run grid
+ TOTAL_TIMESTEPS = 12_000_000                    # the run's _total_timesteps; the body's total = 12M - S (ECS)
+@@ -75,17 +85,34 @@
+ N_STEPS = 2048
+ ROLLOUT = N_ENVS * N_STEPS                      # 8,192 steps per rollout / update
+ EVAL_FREQ = 131_072                             # stage eval_freq (ECS)
++EVAL_EPISODES = 10                              # stage eval_episodes (stance.toml [curriculum]; 10 per evaluation)
+ SAVE_FREQ = 262_144                             # stage checkpoint_freq (ECS)
+ S = 2_097_152                                   # TASK2: s42's 2,097,152 checkpoint (the early-bias probe's driver)
+-LENGTH = 1_441_792                              # TASK2 = BS's: 11 evaluations of 131,072; 176 rollouts, 175 updates
+-E = S + LENGTH                                  # 3,538,944 (on the evaluation grid; NOT on the 262,144 save grid)
+-MAX_LENGTH = 1_500_000                          # AUTH (b): <= 1.5M steps each
+-N_EVALS = LENGTH // EVAL_FREQ                   # 11
++# E: the step the parent's own run ended at.  SB3's learn() collects whole rollouts of 8,192 while num_timesteps <
++# 12,000,000 (the run's _total_timesteps), so a 12M run ends at 1,465 x 8,192 = 12,001,280: the parent's probe's last
++# update row, its final pair's num_timesteps and the round's "FINISHED at 12,001,280" (PARENT).  A continuation stops
++# AT E (StopAtEnd) before an update on the rollout ending at E; the parent made that update before its final save.
++E = 12_001_280
++LENGTH = E - S                                  # 9,904,128 = 1,209 rollouts, 1,208 update rows in (S, E)
++MAX_LENGTH = LENGTH                             # AUTH2: to the parent's own end, no further
++N_EVALS = LENGTH // EVAL_FREQ                   # 75 evaluations in (S, E]: 2,228,224 ... 11,927,552 (E off the grid)
+ # The saved pairs of a continuation: the periodic ones at S + 262,144 k inside (S, E), and the final pair at E
+ # (stage1_final.zip / stage1_final_vecnorm.pkl: E is not on the save grid, so no periodic pair is written there).
+-SAVED_STEPS = tuple(range(S + SAVE_FREQ, E, SAVE_FREQ))       # 2,359,296 ... 3,407,872 (5)
++SAVED_STEPS = tuple(range(S + SAVE_FREQ, E, SAVE_FREQ))       # 2,359,296 ... 11,796,480 (37)
+ FINAL_ZIP, FINAL_PKL = "stage1_final.zip", "stage1_final_vecnorm.pkl"
+ VALIDATE_UNTIL = S + 2 * EVAL_FREQ              # V2: S + 262,144 = 2,359,296 (TASK item 5)
++# M-LOOP read schedule (read_bs.saved_pairs): the start copy, every saved pair whose (steps - S) is a multiple of
++# LOOP_READ_EVERY, and the final pair.  SAVE_FREQ = every saved pair (BS2's reading, 39 pairs at E); 1,048,576 = the
++# parent's F2 grid (11 pairs).  The criteria lane chooses; the costs are in NOTES.txt (TIMING).
++LOOP_READ_EVERY = SAVE_FREQ
++# The stage's own early stops inside the window (stance.toml [curriculum]; code read: curriculum/early_stopping.py,
++# curriculum/hop_watch.py): the collapse backstop (min_evals 20, patience 10, drop 0.5, peak floor 0.45 x 4470.4,
++# warm-up 1,000,000) and the hop watch (unsupported duty > 0.05 at an evaluation at or after 7,000,000 stops training).
++HOP_WATCH_AFTER = 7_000_000                     # stance.toml hop_watch_after_timesteps (hop_watch_stop = true)
++HOP_WATCH_FIRST_EVAL = -(-HOP_WATCH_AFTER // EVAL_FREQ) * EVAL_FREQ   # 7,077,888: the first evaluation it can stop at
++# Resume (TASK3): a crashed or killed continuation restarts from the newest saved pair P = S + 262,144 k (k >= 1) of
++# its last attempt whose pair is intact and whose records hold every row up to P (run_bs.resume_point); none: from S.
++RESUME_GRID = SAVE_FREQ
+ EVAL_SEED_OFFSET = 1000                         # eval env seed = seed + 1000 (ECS)
+ STAGE_DIR = "01_stance"
+ STAGE_KEY = "stance"
+@@ -146,9 +173,10 @@
+ }
+ 
+ # ------------------------------------------------------------------------------------------------------------- seeds
+-# Validation runs (V1, V2, timing) use only these seeds and write only under <BS>/validate/; SCREEN.json may not use
+-# them, so a validation folder and a continuation can never share a name.  BS2's own (TASK2; BS used 9101-9141).
+-VALIDATION_SEEDS = (9201, 9211, 9221, 9231, 9241)
++# Validation runs (V1, V2, V4, timing) use only these seeds and write only under <BS>/validate/; SCREEN.json may not use
++# them, so a validation folder and a continuation can never share a name.  LB's own (TASK3; BS used 9101-9141, BS2
++# 9201-9241).  (read_bs.ONPOLICY_SEEDS 9301 / 9302 are the reader's on-policy collection seeds, another use.)
++VALIDATION_SEEDS = (9301, 9311, 9321, 9331, 9341)
+ WAVE_SLOTS = 4                                  # TASK item 3
+ WAVE_NICE = 10
+ MAX_CRASHES = 3                                 # ECS: a third crash of its own writes it to lost.json
+@@ -157,10 +185,10 @@
+ EXIT_OK, EXIT_FAIL, EXIT_REFUSED, EXIT_PROVISIONAL, EXIT_CHECK_FAIL = 0, 1, 2, 3, 4
+ EXIT_POST_CHECK = 5                             # finished, a post-run check failed (ECS)
+ TORCH_THREADS = 1
+-STOP_REASONS = ("end", "collapse", "other")
++STOP_REASONS = ("end", "collapse", "hop_watch", "other")   # hop_watch: the stage's own hop watch (>= 7,077,888)
+ 
+ # ------------------------------------------------------------------------------------------------------------- records
+-RUN_SCHEMA = "bs-run/1"
++RUN_SCHEMA = "bs-run/2"                          # bs-run/1 (BS, BS2) + resume, attempts, hop watch
+ RUN_META = "run_meta.json"
+ EVIDENCE = "arm_evidence.jsonl"                 # one line per rollout end (bs_hooks.rollout_evidence)
+ CHECK_JSON = "check.json"
+diff -ruN -x score_bs.py -x test_score_bs.py -x __pycache__ bias_screen2/tools/bs_resume.py long_blind/tools/bs_resume.py
+--- bias_screen2/tools/bs_resume.py	1970-01-01 00:00:00.000000000 +0000
++++ long_blind/tools/bs_resume.py	2026-10-30 16:58:11.043711198 +0000
+@@ -0,0 +1,388 @@
++"""LB: the resume of a crashed or killed continuation from its latest complete saved pair (TASK3).
++
++    resume_point(crashed_run, pair_problem=...)      the newest complete pair P of the last attempt (or None)
++    records_through(stage_dir, run_dir, P)           why an attempt's records miss a row up to P ([]: they hold all)
++    resume_inputs(stage_dir, run_dir, crashed_run, P)  the new attempt's folder from the last one's (links, copies)
++    stitch_digests(stage_dir, run_dir, P, headers)   digests of every record's rows up to P (CHECK recomputes them)
++    stitch_problems(recorded, now)                   CHECK's comparison of the two (pure)
++    local_pair_problem(zip, pkl)                     the code's checkpoint_pair_problem re-stated (tests, preflight)
++
++A pair at P = S + 262,144 k is written by SB3's CheckpointCallback at the last step of the rollout ending at P, BEFORE
++that rollout's update; the code's records reach the disk on their own clocks: eval_episodes.csv, evaluations.npz and
++gate_progress.npz at every evaluation (P is one), the evidence lines (this harness) at every rollout end, but
++policy_probe.npz and train_episodes.csv only on the checkpoint calls (the probe's row for the rollout ending at P is
++made after that call).  So the newest pair is complete only once a later checkpoint call has written its rows; the
++resume point is the newest pair whose records hold every row up to P (usually the second newest pair), checked by
++content, never by timing.  The code's own same-stage resume (curriculum.checkpoints.seed_resume_eval_state with
++max_timesteps = the loaded step) then keeps every record's rows up to P and the session appends after P: the same
++mechanism that starts every continuation at S from the parent's records.
++Importing this module needs neither torch nor the code copy (numpy is imported inside the functions).
++"""
++from __future__ import annotations
++
++import csv
++import hashlib
++import json
++import os
++import pickle
++import shutil
++import zipfile
++from pathlib import Path
++from typing import Any, Callable
++
++RESUME_SCHEMA = "lb-resume/1"
++PROBE = "policy_probe.npz"
++EVAL_LEDGER = "eval_episodes.csv"
++TRAIN_LEDGER = "train_episodes.csv"
++EVALS_NPZ = "evaluations.npz"
++GATE_NPZ = "gate_progress.npz"
++EVIDENCE = "arm_evidence.jsonl"                 # bs_common.EVIDENCE
++PROBE_DIGEST_COLUMNS = ("update_timesteps", "ent_coef", "learning_rate", "obs_rms_mean", "obs_rms_var", "obs_rms_count")
++
++
++class ResumeError(Exception):
++    """The last attempt's folder cannot be resumed as asked (its folder or its start pair is not what it must be)."""
++
++
++def _sha(path: str | os.PathLike[str]) -> str:
++    h = hashlib.sha256()
++    with open(path, "rb") as fh:
++        for chunk in iter(lambda: fh.read(1 << 20), b""):
++            h.update(chunk)
++    return h.hexdigest()
++
++
++# ------------------------------------------------------------------------------------------------ the pair
++def local_pair_problem(zip_path: str | os.PathLike[str], pkl_path: str | os.PathLike[str]) -> str | None:
++    """None when a checkpoint pair can be loaded, else why not: curriculum.checkpoints.checkpoint_pair_problem's rules
++    (the sidecar exists; the zip passes testzip and holds SB3's "data" and a "*policy.pth" in its OUTER archive; the
++    sidecar unpickles).  run_bs.py passes the code's own function; this copy serves the unit tests and preflight."""
++    zip_path, pkl_path = Path(zip_path), Path(pkl_path)
++    if not pkl_path.exists():
++        return f"missing matched VecNormalize sidecar {pkl_path.name}"
++    try:
++        with zipfile.ZipFile(zip_path) as archive:
++            bad = archive.testzip()
++            names = archive.namelist()
++        if bad is not None:
++            raise zipfile.BadZipFile(f"corrupt archive member {bad!r}")
++        if "data" not in names or not any(n.endswith("policy.pth") for n in names):
++            raise zipfile.BadZipFile(f"outer archive lacks SB3 members (truncated; found {sorted(names)[:5]})")
++    except Exception as exc:  # noqa: BLE001 - every unreadable zip is a problem
++        return f"bad/truncated checkpoint zip {zip_path.name} ({exc})"
++    try:
++        with open(pkl_path, "rb") as fh:
++            pickle.load(fh)  # noqa: S301 - the run's own sidecar (as the code's check does)
++    except Exception as exc:  # noqa: BLE001
++        return f"VecNormalize sidecar {pkl_path.name} does not unpickle ({exc})"
++    return None
++
++
++def zip_num_timesteps(zip_path: str | os.PathLike[str]) -> int | None:
++    """num_timesteps from an SB3 zip's "data" member (JSON; nothing unpickled), or None."""
++    try:
++        with zipfile.ZipFile(zip_path) as z:
++            return int(json.loads(z.read("data"))["num_timesteps"])
++    except Exception:  # noqa: BLE001
++        return None
++
++
++# ------------------------------------------------------------------------------------------------ records
++def _csv(path: Path) -> tuple[list[str], list[list[str]]]:
++    with open(path, newline="", encoding="utf-8") as fh:
++        rows = list(csv.reader(fh))
++    if not rows:
++        raise ValueError(f"{path.name} is empty")
++    return rows[0], rows[1:]
++
++
++def _step(cell: str) -> float | None:
++    try:
++        v = float(cell)
++    except (TypeError, ValueError):
++        return None
++    return v
++
++
++def evidence_prefix(run_dir: Path, S: int, rollout: int, P: int) -> tuple[list[str] | None, str | None]:
++    """The evidence file's first (P - S)/rollout lines (their exact text), if they are one line per rollout end at
++    S + rollout k in order; (None, why) otherwise.  Lines after them (beyond P) are not read past the first."""
++    want = [S + rollout * k for k in range(1, (P - S) // rollout + 1)]
++    path = Path(run_dir) / EVIDENCE
++    out: list[str] = []
++    try:
++        with open(path, encoding="utf-8") as fh:
++            for line in fh:
++                if len(out) == len(want):
++                    break
++                if not line.endswith("\n"):
++                    return None, f"{EVIDENCE}: line {len(out) + 1} is cut short"
++                try:
++                    n = json.loads(line).get("num_timesteps")
++                except ValueError:
++                    return None, f"{EVIDENCE}: line {len(out) + 1} is not JSON"
++                if n != want[len(out)]:
++                    return None, f"{EVIDENCE}: line {len(out) + 1} is for {n}, not {want[len(out)]}"
++                out.append(line)
++    except OSError as exc:
++        return None, f"{EVIDENCE}: {exc}"
++    if len(out) != len(want):
++        return None, f"{EVIDENCE}: {len(out)} lines, not the {len(want)} up to {P}"
++    return out, None
++
++
++def records_through(stage_dir: str | os.PathLike[str], run_dir: str | os.PathLike[str], P: int, *, S: int,
++                    rollout: int, eval_freq: int, eval_episodes: int) -> list[str]:
++    """Every reason the attempt's records do NOT hold every row up to P (empty: they do).  Rows after P are not
++    judged (the code's resume drops them).  Reads only."""
++    import numpy as np
++
++    stage, p = Path(stage_dir), []
++    want_probe = [rollout * k for k in range(1, P // rollout + 1)]           # the seeded rows <= S and (S, P]
++    want_eval = [eval_freq * k for k in range(1, P // eval_freq + 1)]
++    try:
++        with np.load(stage / PROBE, allow_pickle=False) as z:
++            steps = [int(x) for x in np.asarray(z["update_timesteps"]).astype(np.int64).tolist()]
++        got = [s for s in steps if s <= P]
++        if got != want_probe:
++            missing = sorted(set(want_probe) - set(got))[:3]
++            p.append(f"{PROBE}: {len(got)} rows <= {P}, not one at every {rollout} (missing e.g. {missing}, "
++                     f"{len(got) - len(set(got))} repeated)")
++    except Exception as exc:  # noqa: BLE001
++        p.append(f"{PROBE}: {exc.__class__.__name__}: {exc}")
++    _, why = evidence_prefix(Path(run_dir), S, rollout, P)
++    if why:
++        p.append(why)
++    try:
++        head, rows = _csv(stage / EVAL_LEDGER)
++        ti, ei = head.index("timesteps"), head.index("episode")
++        counts: dict[int, int] = {}
++        pairs = set()
++        for r in rows:
++            t = _step(r[ti]) if ti < len(r) else None
++            if t is None or t > P:
++                continue
++            if t != int(t) or int(t) % eval_freq:
++                p.append(f"{EVAL_LEDGER}: a row at {t}, off the {eval_freq} grid")
++                break
++            counts[int(t)] = counts.get(int(t), 0) + 1
++            pairs.add((int(t), r[ei] if ei < len(r) else None))
++        bad = [s for s in want_eval if counts.get(s) != eval_episodes]
++        if bad or set(counts) - set(want_eval):
++            p.append(f"{EVAL_LEDGER}: evaluations up to {P} without exactly {eval_episodes} rows: {bad[:3]}")
++        if len(pairs) != sum(counts.values()):
++            p.append(f"{EVAL_LEDGER}: a (timesteps, episode) row repeated up to {P}")
++    except Exception as exc:  # noqa: BLE001
++        p.append(f"{EVAL_LEDGER}: {exc.__class__.__name__}: {exc}")
++    for name in (EVALS_NPZ, GATE_NPZ):
++        try:
++            with np.load(stage / name, allow_pickle=False) as z:
++                ts = [int(x) for x in np.asarray(z["timesteps"]).astype(np.int64).tolist()]
++            if [t for t in ts if t <= P] != want_eval:
++                p.append(f"{name}: its evaluations up to {P} are not one at every {eval_freq}")
++        except Exception as exc:  # noqa: BLE001
++            p.append(f"{name}: {exc.__class__.__name__}: {exc}")
++    try:
++        head, rows = _csv(stage / TRAIN_LEDGER)
++        ti = head.index("timesteps")
++        steps_t = [t for t in (_step(r[ti]) for r in rows if ti < len(r)) if t is not None]
++        if not steps_t or max(steps_t) <= P:
++            p.append(f"{TRAIN_LEDGER}: no episode after {P}: not written after the pair (its rows up to {P} may be "
++                     f"incomplete)")
++    except Exception as exc:  # noqa: BLE001
++        p.append(f"{TRAIN_LEDGER}: {exc.__class__.__name__}: {exc}")
++    return p
++
++
++# ------------------------------------------------------------------------------------------------ the point
++def resume_point(crashed_run: str | os.PathLike[str], *, S: int, E: int, saved_steps: tuple[int, ...],
++                 periodic_names: Callable[[int], tuple[str, str]], start_sha256: tuple[str, str], stage_dir_name: str,
++                 rollout: int, eval_freq: int, eval_episodes: int,
++                 pair_problem: Callable[[Any, Any], str | None] = local_pair_problem) -> dict:
++    """The newest saved pair P in saved_steps (newest first) of the attempt in crashed_run that is intact, carries
++    num_timesteps P, has every earlier saved pair beside it, and whose records hold every row up to P.  Returns
++    {"P": P or None, "candidates": [{"steps", "problem"}], "problems": [...], and for a P: zip, pkl, their sha256}.
++    "problems" (the start pair copy not at its pin) means no resume at all.  Reads only."""
++    run = Path(crashed_run)
++    models = run / stage_dir_name / "models"
++    out: dict[str, Any] = {"schema": RESUME_SCHEMA, "from": str(run), "P": None, "candidates": [], "problems": []}
++    for name, want in zip(periodic_names(S), start_sha256, strict=True):
++        path = models / name
++        if not path.is_file():
++            out["problems"].append(f"{name}: the start pair copy is missing")
++        elif _sha(path) != want:
++            out["problems"].append(f"{name}: the start pair copy is not at its pinned sha256")
++    if out["problems"]:
++        return out
++    for P in sorted((s for s in saved_steps if S < s < E), reverse=True):
++        z, k = (models / n for n in periodic_names(P))
++        if not z.exists() and not k.exists():
++            continue
++        prob = pair_problem(z, k) if z.exists() else f"{z.name} missing (its sidecar is there)"
++        if prob is None and zip_num_timesteps(z) != P:
++            prob = f"{z.name}: its data's num_timesteps is not {P}"
++        if prob is None:
++            gaps = [s for s in saved_steps if S < s < P and not all((models / n).is_file() for n in periodic_names(s))]
++            if gaps:
++                prob = f"earlier saved pairs missing beside it: {gaps[:3]}"
++        if prob is None:
++            rec = records_through(run / stage_dir_name, run, P, S=S, rollout=rollout, eval_freq=eval_freq,
++                                  eval_episodes=eval_episodes)
++            if rec:
++                prob = "records: " + " | ".join(rec)
++        out["candidates"].append({"steps": P, "problem": prob})
++        if prob is None:
++            out.update(P=P, zip=str(z), pkl=str(k), zip_sha256=_sha(z), pkl_sha256=_sha(k))
++            break
++    return out
++
++
++# ------------------------------------------------------------------------------------------------ the folder
++def _link_or_copy(src: Path, dst: Path) -> str:
++    try:
++        os.link(src, dst)
++        return "link"
++    except OSError:
++        shutil.copyfile(src, dst)
++        return "copy"
++
++
++def resume_inputs(stage_dir: str | os.PathLike[str], run_dir: str | os.PathLike[str],
++                  crashed_run: str | os.PathLike[str], P: int, *, S: int, saved_steps: tuple[int, ...],
++                  periodic_names: Callable[[int], tuple[str, str]], stage_dir_name: str, records: tuple[str, ...],
++                  rollout: int) -> dict:
++    """The new attempt's folder: models/ holds the start copy and every saved pair up to P, hard links to the last
++    attempt's files (a copy where a link cannot be made), each sha256-checked; the stage directory gets copies of the
++    last attempt's records (the code trims them to rows <= P and rewrites them); arm_evidence.jsonl gets the last
++    attempt's lines up to P, byte for byte.  Nothing in crashed_run is changed."""
++    stage, run, src_run = Path(stage_dir), Path(run_dir), Path(crashed_run)
++    src_stage = src_run / stage_dir_name
++    models = stage / "models"
++    models.mkdir(parents=True)
++    pairs: dict[str, Any] = {}
++    for s in (S, *[x for x in saved_steps if S < x <= P]):
++        for name in periodic_names(s):
++            src = src_stage / "models" / name
++            how = _link_or_copy(src, models / name)
++            sha_src, sha_dst = _sha(src), _sha(models / name)
++            if sha_src != sha_dst:
++                raise ResumeError(f"{name}: sha256 changed in the {how}")
++            pairs[name] = {"how": how, "sha256": sha_dst}
++    copied: dict[str, Any] = {}
++    for name in records:
++        src = src_stage / name
++        if not src.is_file():
++            raise ResumeError(f"{src}: missing")
++        shutil.copyfile(src, stage / name)
++        copied[name] = {"from": str(src), "sha256": _sha(stage / name)}
++    lines, why = evidence_prefix(src_run, S, rollout, P)
++    if why:
++        raise ResumeError(why)
++    with open(run / EVIDENCE, "x", encoding="utf-8") as fh:
++        fh.writelines(lines)
++    return {"pairs": pairs, "copied": copied, "evidence_lines": len(lines),
++            "links": sum(1 for v in pairs.values() if v["how"] == "link")}
++
++
++# ------------------------------------------------------------------------------------------------ stitching
++def _digest(parts: list[bytes]) -> str:
++    h = hashlib.sha256()
++    for b in parts:
++        h.update(len(b).to_bytes(8, "little") + b)
++    return h.hexdigest()
++
++
++def stitch_digests(stage_dir: str | os.PathLike[str], run_dir: str | os.PathLike[str], P: int, *, S: int,
++                   rollout: int, headers: dict | None = None) -> dict:
++    """Digests of every record's rows up to P: the probe's CHECK columns (PROBE_DIGEST_COLUMNS), the evidence lines
++    (S, P], the two ledgers' rows (cells in the given header order; the source file's header when headers is None),
++    evaluations.npz's timesteps / results / ep_lengths and gate_progress.npz's timesteps.  run_bs.py records them
++    from the last attempt's files at the resume; CHECK recomputes them on the finished run's files."""
++    import numpy as np
++
++    stage, out = Path(stage_dir), {}
++    with np.load(stage / PROBE, allow_pickle=False) as z:
++        ut = np.asarray(z["update_timesteps"]).astype(np.int64)
++        keep = ut <= P
++        parts = [np.ascontiguousarray(np.asarray(z[c])[keep]).tobytes() for c in PROBE_DIGEST_COLUMNS]
++    out["probe"] = {"rows": int(keep.sum()), "sha256": _digest(parts)}
++    lines, why = evidence_prefix(Path(run_dir), S, rollout, P)
++    out["evidence"] = {"rows": None if lines is None else len(lines),
++                       "sha256": None if lines is None else _digest([x.encode() for x in lines]), "problem": why}
++    for name in (EVAL_LEDGER, TRAIN_LEDGER):
++        head, rows = _csv(stage / name)
++        cols = list((headers or {}).get(name) or head)
++        idx = [head.index(c) if c in head else None for c in cols]
++        ti = head.index("timesteps")
++        kept = [r for r in rows if ti < len(r) and _step(r[ti]) is not None and _step(r[ti]) <= P]
++        cells = [json.dumps([r[i] if i is not None and i < len(r) else "" for i in idx]).encode() for r in kept]
++        out[name] = {"header": cols, "rows": len(kept), "sha256": _digest(cells)}
++    with np.load(stage / EVALS_NPZ, allow_pickle=False) as z:
++        ts = np.asarray(z["timesteps"]).astype(np.int64)
++        k = ts <= P
++        parts = [np.ascontiguousarray(np.asarray(z[c])[k]).tobytes() for c in ("timesteps", "results", "ep_lengths")]
++    out[EVALS_NPZ] = {"rows": int(k.sum()), "sha256": _digest(parts)}
++    with np.load(stage / GATE_NPZ, allow_pickle=False) as z:
++        ts = np.asarray(z["timesteps"]).astype(np.int64)
++        k = ts <= P
++    out[GATE_NPZ] = {"rows": int(k.sum()), "sha256": _digest([np.ascontiguousarray(ts[k]).tobytes()])}
++    return out
++
++
++def stitch_problems(recorded: dict, now: dict) -> list[str]:
++    """CHECK: every record's rows up to P in the finished run equal the last attempt's (pure)."""
++    p = []
++    if not isinstance(recorded, dict) or not recorded:
++        return ["resume: no stitched-row digests recorded"]
++    for key in ("probe", "evidence", EVAL_LEDGER, TRAIN_LEDGER, EVALS_NPZ, GATE_NPZ):
++        a, b = recorded.get(key) or {}, now.get(key) or {}
++        if not a.get("sha256") or (a.get("rows"), a.get("sha256")) != (b.get("rows"), b.get("sha256")):
++            p.append(f"resume: {key}'s rows up to the resume point differ from the last attempt's "
++                     f"({a.get('rows')} -> {b.get('rows')} rows)")
++    return p
++
++
++# ------------------------------------------------------------------------------------------------ CHECK's grid
++def evaluation_grid_problems(stage_dir: str | os.PathLike[str], T: int, *, eval_freq: int,
++                             eval_episodes: int) -> tuple[list[str], dict]:
++    """CHECK: one evaluation at every eval_freq k up to T (the parent's seeded ones and the run's), in
++    eval_episodes.csv (exactly eval_episodes rows each, no (timesteps, episode) row twice, none after T), in
++    evaluations.npz and in gate_progress.npz (one row each, in order, none after T).  Reads the step and episode
++    columns only.  (problems, detail: counts, no values)."""
++    import numpy as np
++
++    stage, p = Path(stage_dir), []
++    want = [eval_freq * k for k in range(1, T // eval_freq + 1)]
++    det: dict[str, Any] = {"evaluations_expected": len(want)}
++    try:
++        head, rows = _csv(stage / EVAL_LEDGER)
++        ti, ei = head.index("timesteps"), head.index("episode")
++        counts: dict[int, int] = {}
++        seen, repeated, off = set(), 0, 0
++        for r in rows:
++            t = _step(r[ti]) if ti < len(r) else None
++            if t is None or t != int(t) or int(t) % eval_freq or t > T:
++                off += 1
++                continue
++            counts[int(t)] = counts.get(int(t), 0) + 1
++            key = (int(t), r[ei] if ei < len(r) else None)
++            repeated += key in seen
++            seen.add(key)
++        bad = [s for s in want if counts.get(s) != eval_episodes]
++        det.update(ledger_rows=len(rows), ledger_evaluations=len(counts), ledger_off_grid_or_after_T=off,
++                   ledger_repeated=repeated)
++        if bad or set(counts) - set(want) or off or repeated:
++            p.append(f"{EVAL_LEDGER}: {len(bad)} evaluations up to T without exactly {eval_episodes} rows (e.g. "
++                     f"{bad[:3]}), {off} rows off the grid or after T, {repeated} repeated")
++    except Exception as exc:  # noqa: BLE001
++        p.append(f"{EVAL_LEDGER}: {exc.__class__.__name__}: {exc}")
++    for name in (EVALS_NPZ, GATE_NPZ):
++        try:
++            with np.load(stage / name, allow_pickle=False) as z:
++                ts = [int(x) for x in np.asarray(z["timesteps"]).astype(np.int64).tolist()]
++            det[f"{name}_rows"] = len(ts)
++            if ts != want:
++                p.append(f"{name}: {len(ts)} evaluations, not one at every {eval_freq} up to T ({len(want)})")
++        except Exception as exc:  # noqa: BLE001
++            p.append(f"{name}: {exc.__class__.__name__}: {exc}")
++    return p, det
+diff -ruN -x score_bs.py -x test_score_bs.py -x __pycache__ bias_screen2/tools/check_inputs.py long_blind/tools/check_inputs.py
+--- bias_screen2/tools/check_inputs.py	2026-10-30 10:38:27.241799407 +0000
++++ long_blind/tools/check_inputs.py	2026-10-30 16:58:46.911155876 +0000
+@@ -1,6 +1,8 @@
+-"""The start pair and the parent records: sha256 of the F2 .copy1 files against the fetch manifest's COPY rows (FMAN)
+-and against the pins in bs_common.START.  BS2: the paths and pins come from bs_common (BS's version listed the
+-1,048,576 pair literally); the FMAN line of each row is printed.  Reads only.  Exit 0 iff every file equals both."""
++"""The start pair, the parent records and the reference read's pairs: sha256 of the F2 .copy1 files against the fetch
++manifest's COPY rows (FMAN) and, for the start pair and the records, against the pins in bs_common.START.  LB: BS2's
++check_inputs.py with the reference read's F2 pairs (read_bs.REFERENCE_PAIRS: every 1,048,576 in [S, E] and the final
++pair) added, FMAN only (read_bs checks them against FMAN again before reading).  Reads only.  Exit 0 iff every file
++equals FMAN and every pinned one its pin."""
+ import csv
+ import hashlib
+ import importlib.util
+@@ -16,6 +18,11 @@
+ RUN = ST["run_id"]
+ PINS = {ST["zip_rel"]: ST["zip_sha256"], ST["pkl_rel"]: ST["pkl_sha256"]}
+ PINS.update({f"{C.STAGE_DIR}/{n}": ST["records"][n] for n in (*C.PARENT_RECORDS, "stage_config.json")})
++REF_STEPS = tuple(s for s in range(1_048_576, C.E + 1, 1_048_576) if s >= C.S) + (C.E,)     # = read_bs.REFERENCE_PAIRS
++for s in REF_STEPS:
++    names = (C.FINAL_ZIP, C.FINAL_PKL) if s == C.E else C.periodic_names(s)
++    for n in names:
++        PINS.setdefault(f"{C.STAGE_DIR}/models/{n}", None)                               # FMAN only
+ with open(C.FMAN, newline="") as fh:
+     rows = list(csv.DictReader(fh))                 # data rows: the file's line number is index + 2
+ out, ok = {}, True
+@@ -29,9 +36,10 @@
+     man = [(i + 2, r["sha256"]) for i, r in enumerate(rows) if r["fetch"] == "F2" and r["run_id"] == RUN
+            and r["path"] == rel and r["status"] == "COPY" and r["copy"] == "1"]
+     eq_man = sorted({s for _, s in man}) == [got]
+-    eq_pin = got == pin
++    eq_pin = pin is None or got == pin
+     ok &= eq_man and eq_pin
+     out[rel] = {"sha256": got, "fman_lines": [ln for ln, _ in man], "manifest_copy1": sorted({s for _, s in man}),
+-                "equal_fman": eq_man, "equal_bs_common_pin": eq_pin}
++                "equal_fman": eq_man, "equal_bs_common_pin": eq_pin if pin is not None else "not pinned (FMAN only)"}
++out["_reference_pairs"] = list(REF_STEPS)
+ print(json.dumps(out, indent=1))
+ sys.exit(0 if ok else 1)
+diff -ruN -x score_bs.py -x test_score_bs.py -x __pycache__ bias_screen2/tools/read_bs.py long_blind/tools/read_bs.py
+--- bias_screen2/tools/read_bs.py	2026-10-30 10:38:08.257524562 +0000
++++ long_blind/tools/read_bs.py	2026-10-30 17:01:35.285788877 +0000
+@@ -1,14 +1,17 @@
+-"""Bias screen 2 (BS2): the reader.  Report only: it never trains; the loop markers simulate (deterministic rollouts and
+-stochastic on-policy rollouts with frozen statistics, no update, no optimizer).  BS's read_bs.py (sha256 04036e53...)
+-with the window from BS2's bs_common.py, the parent's F2 pairs in [S, E] derived (2,097,152 and 3,145,728), their
+-reproduction targets, and the loop cache keyed on this file's own sha256 (and its two modules') as well (BS's process
+-lens P3: an entry can never outlive the reader that wrote it).
++"""Long blind study (LB): the reader.  Report only: it never trains; the loop markers simulate (deterministic rollouts
++and stochastic on-policy rollouts with frozen statistics, no update, no optimizer).  BS2's read_bs.py
++(S2/r10round/bias_screen2/tools/read_bs.py, sha256 06f4173d...) with the window from LB's bs_common.py (E = 12,001,280),
++the parent's F2 pairs in [S, E] derived (every 1,048,576 and the final pair), the loop read schedule
++bs_common.LOOP_READ_EVERY, and CHECK extended for the long window: the hop-watch stop, a resumed run's attempts and
++stitched records (bs_resume), and the evaluation grid of the ledger, evaluations.npz and gate_progress.npz.
+ 
+     PY -I -B read_bs.py --check RUN
+-        CHECK (the runner reads only its exit code).  Reads RUN/run_meta.json, RUN/arm_evidence.jsonl and four column
++        CHECK (the runner reads only its exit code).  Reads RUN/run_meta.json, RUN/arm_evidence.jsonl, four column
+         groups of RUN/01_stance/policy_probe.npz (update_timesteps, ent_coef, learning_rate, obs_rms_mean/var/count;
+-        allow_pickle False) and the parent's probe.  Writes RUN/check.json (pass/fail per item; no marker values).
+-        Exit 0 pass, 4 fail, 2 input error.
++        allow_pickle False), the step and episode columns of eval_episodes.csv, the timesteps of evaluations.npz and
++        gate_progress.npz, and the parent's probe; for a resumed run (run_meta resumed_from) bs_resume.stitch_digests
++        over every record's rows up to the resume point (digests only).  Writes RUN/check.json (pass/fail per item;
++        no marker values).  Exit 0 pass, 4 fail, 2 input error.
+     PY -I -B read_bs.py RUN [--out DIR] [--no-onpolicy] [--no-own]
+         The markers of one finished run (a continuation under <BS>/runs/, refused until every SCREEN.json entry is
+         decided: outcome-blind; or a validation run under <BS>/validate/).  Needs a current passing check.json.
+@@ -16,9 +19,11 @@
+         run), and DIR/m5.json, DIR/m5.txt.  Exit 0 read, 2 input error.
+     PY -I -B read_bs.py --reference [--out DIR] [--no-onpolicy] [--no-own]
+         The same markers on the PARENT (r10 stance6 s42, F2 copies, read only) over (S, E]: its probe and ledger rows
+-        and its two F2 checkpoints in [S, E] (2,097,152 and 3,145,728; F2 holds every 1,048,576).  Doubles as the
++        and its F2 checkpoints in [S, E] (every 1,048,576 from 2,097,152 to 11,534,336, and its final pair at E, saved
++        after the parent's update on the rollout ending at E), each sha256-checked against FMAN.  Doubles as the
+         reader's reproduction check against the early-warning (ew_r10.jsonl), early-bias (eb_realized.json), its
+-        verifier's (vew_analyze.txt) and the warning-margin (warning_margin/NOTES.txt) values (REPRO below).
++        verifier's (vew_analyze.txt) and the warning-margin (warning_margin/NOTES.txt) values at 2,097,152 and
++        3,145,728 (REPRO below).  --pairs STEPS[,STEPS...] limits the M-LOOP to those reference pairs (V3).
+ 
+ THE MARKERS (what a screen would score; the criteria choose; nothing here is a verdict):
+   M-PROBE  per update row with update_timesteps in (S, T): the probe bank's deterministic tail_3 command
+@@ -33,7 +38,8 @@
+            episodes over the bar (saturated_actuator_fraction > 0.10), those naming a tail actuator (11-14) and
+            tail_3; the first evaluation with a tail over-bar episode (FOB), with CMD_L >= 0.30, >= 0.60 (PARK),
+            >= 0.90 (RAIL) (the early-warning ew_events definitions).
+-  M-LOOP   at each saved pair in [S, T] (the start copy, the periodic pairs S + 262,144 k, and the final pair at T):
++  M-LOOP   at each saved pair in [S, T] the schedule names (the start copy, the periodic pairs S + 262,144 k whose
++           (steps - S) is a multiple of bs_common.LOOP_READ_EVERY, and the final pair at T):
+            (a) the early-warning study's fixed-state tail sweep (ew_common, verified by verify_early_warning): obs[6]
+                set to 0, 0.25, 0.5, 0.75, 1.0 deg, everything else fixed; least-squares slope per state, median over
+                states; G = slope x 5.16; c0 = the median command at 0 deg; FP = c0 / (1 - G); on OWN settled states
+@@ -74,7 +80,7 @@
+ from pathlib import Path  # noqa: E402
+ 
+ TOOLS = Path(__file__).resolve().parent
+-VERSION = "read_bs 1.1 (2026-10-30; bias screen 2 from s42 2,097,152; derived from read_bs 1.0)"
++VERSION = "read_bs 2.0 (2026-10-30; long blind study, s42 2,097,152 -> 12,001,280; derived from read_bs 1.1)"
+ 
+ 
+ def _load(name):
+@@ -87,6 +93,7 @@
+ 
+ C = sys.modules.get("bs_common") or _load("bs_common")
+ H = sys.modules.get("bs_hooks") or _load("bs_hooks")
++RS = sys.modules.get("bs_resume") or _load("bs_resume")
+ 
+ EXIT_OK, EXIT_INPUT, EXIT_CHECK_FAIL = C.EXIT_OK, C.EXIT_REFUSED, C.EXIT_CHECK_FAIL          # 0, 2, 4
+ CHECK_SCHEMA = "bs-check/1"
+@@ -112,8 +119,9 @@
+ SNAP_STEPS = (500, 600, 700, 800, 900, 1000)
+ ONPOLICY_SEEDS = (9301, 9302)                   # eb_realized.py SEEDS
+ F2_EVERY = 1_048_576                            # the F2 fetch holds the parent's pairs at every 1,048,576 (FMAN)
+-# The parent's F2 pairs in [S, E] (the reference read's M-LOOP pairs): 2,097,152 and 3,145,728 for BS2.
+-REFERENCE_PAIRS = tuple(s for s in range(F2_EVERY, C.E + 1, F2_EVERY) if s >= C.S)
++# The parent's F2 pairs in [S, E] (the reference read's M-LOOP pairs): 2,097,152 ... 11,534,336 (10), then the final
++# pair at E (stage1_final.zip / stage1_final_vecnorm.pkl; FMAN F2 COPY rows; 3,670,016 is off this grid, not read).
++REFERENCE_PAIRS = tuple(s for s in range(F2_EVERY, C.E + 1, F2_EVERY) if s >= C.S) + (C.E,)
+ # Reproduction targets for --reference (parent s42 at its F2 pairs in [S, E]; [measured] by their studies; paths under
+ # S2/com_revisit/notes/):
+ #   ew_*   early_warning/ew_r10.jsonl line 3 (2,097,152) and line 1 (3,145,728), full precision: own.primary.G,
+@@ -142,8 +150,8 @@
+ # The reader's own digests, for the loop cache (P3): this file, and the two modules it loads (bs_common.py: the pins
+ # and grid; bs_hooks.py: the critic-blind class the EFFECTIVE critic slope installs).
+ READER_SHA256 = C.sha256_file(Path(__file__).resolve())
+-DEPS_SHA256 = hashlib.sha256((C.sha256_file(TOOLS / "bs_common.py") + C.sha256_file(TOOLS / "bs_hooks.py"))
+-                             .encode()).hexdigest()
++DEPS_SHA256 = hashlib.sha256((C.sha256_file(TOOLS / "bs_common.py") + C.sha256_file(TOOLS / "bs_hooks.py")
++                              + C.sha256_file(TOOLS / "bs_resume.py")).encode()).hexdigest()
+ 
+ 
+ def cache_key(zip_sha256, pkl_sha256, *, blind, onpolicy, own, reader=READER_SHA256, deps=DEPS_SHA256):
+@@ -324,7 +332,8 @@
+         fails.append(f"folder {folder} names {p['arm']} {p['seed']}, run_meta {arm} {seed}")
+     if arm not in C.ARMS:
+         fails.append(f"run_meta arm {arm!r} is not one of {C.ARMS}")
+-        return fails, dict(arm=arm, seed=seed, S=None, E=None, T=None, end=None, stop_reason=get("stop_reason"))
++        return fails, dict(arm=arm, seed=seed, S=None, E=None, T=None, end=None, stop_reason=get("stop_reason"),
++                           load_step=None, resumed_from=None)
+     if not isinstance(seed, int) or isinstance(seed, bool):
+         fails.append(f"run_meta seed {seed!r}")
+     elif kind == "continuation":
+@@ -385,9 +394,36 @@
+     if not isinstance(T, int) or isinstance(T, bool):
+         fails.append(f"run_meta T {T!r} is not an integer")
+         T = None
+-    sae, col = get("stop_at_end") or {}, get("collapse") or {}
++    sae, col, hop = get("stop_at_end") or {}, get("collapse") or {}, get("hop_watch") or {}
+     if col.get("found") != 1 or col.get("patience") != C.COLLAPSE_PATIENCE:
+         fails.append(f"the collapse stop is not in the run with patience {C.COLLAPSE_PATIENCE}")
++    if (hop.get("found"), hop.get("after_timesteps"), hop.get("stop")) != (1, C.HOP_WATCH_AFTER, True):
++        fails.append(f"the hop watch is not in the run with the stage's settings (after {C.HOP_WATCH_AFTER}, stop)")
++    load, rf = get("load_step"), get("resumed_from")
++    att, k = get("attempts"), get("attempt")
++    if not isinstance(att, list) or k != len(att) + 1:
++        fails.append(f"run_meta attempt {k!r} with {att!r} earlier attempts")
++    lp, rs = get("load_pair") or {}, get("resume") or {}
++    if rf is None:
++        st0 = (C.START["zip_sha256"], C.START["pkl_sha256"])
++        if load != C.S or (lp.get("zip_sha256"), lp.get("pkl_sha256")) != st0:
++            fails.append(f"not resumed, but the load step {load!r} / load pair {lp} is not S's {st0}")
++        load = C.S
++    else:
++        bad_rf = (not isinstance(rf, int) or isinstance(rf, bool) or (rf - C.S) % C.RESUME_GRID
++                  or not C.S < rf < (T if isinstance(T, int) else C.E) or load != rf)
++        src = Path(str(rs.get("from") or "")).name
++        if bad_rf or rs.get("P") != rf or not re.fullmatch(re.escape(C.run_name(arm, seed if isinstance(seed, int)
++                                                                                 else 0)) + r"_crashed\d+", src):
++            fails.append(f"resumed_from {rf!r} (load step {load!r}, resume P {rs.get('P')!r}, from {src!r}) is not a "
++                         f"saved pair S + {C.RESUME_GRID} k of this run's crashed folder")
++        if not att:
++            fails.append("a resumed run lists no earlier attempt")
++        if (lp.get("zip_sha256"), lp.get("pkl_sha256")) != (rs.get("zip_sha256"), rs.get("pkl_sha256")):
++            fails.append("the loaded pair is not the resume point's pair")
++        if (get("digest_load") or {}).get("num_timesteps") != rf:
++            fails.append("digest_load is not at the resume point")
++        load = rf if isinstance(rf, int) and not isinstance(rf, bool) else C.S
+     end = C.E if kind == "continuation" else target
+     if kind == "continuation" and target != C.E:
+         fails.append(f"run_meta target {target!r} != E = {C.E}")
+@@ -401,8 +437,12 @@
+         elif stop == "collapse":
+             if not C.S < T < end or col.get("tripped") is not True:
+                 fails.append(f"stop reason 'collapse' at T = {T} without the collapse state")
++        elif stop == "hop_watch":
++            if (not C.HOP_WATCH_FIRST_EVAL <= T < end or hop.get("tripped") is not True or col.get("tripped")
++                    or (T - C.S) % C.EVAL_FREQ):
++                fails.append(f"stop reason 'hop_watch' at T = {T} without the hop watch's state or off its window")
+         else:
+-            fails.append(f"stop reason {stop!r}: neither 'end' nor 'collapse'")
++            fails.append(f"stop reason {stop!r}: neither 'end', 'collapse' nor 'hop_watch'")
+         if (T - C.S) % C.ROLLOUT or T <= C.S:
+             fails.append(f"T - S = {T - C.S} is not a positive multiple of {C.ROLLOUT}")
+     d0, d1 = get("digest_start") or {}, get("digest_end") or {}
+@@ -416,9 +456,11 @@
+         for k in ("params", "adam"):
+             if not d0.get(k) or d0.get(k) != d1.get(k):
+                 fails.append(f"no-update run: {k} digest changed")
+-        if T is not None and end is not None and T > C.S and get("train_calls") != C.expected_update_rows(C.S, T):
++        if (T is not None and end is not None and T > load
++                and get("train_calls") != C.expected_update_rows(load, T)):
+             fails.append(f"no-update run: train_calls {get('train_calls')!r}")
+-    return fails, dict(arm=arm, seed=seed, S=C.S, E=C.E, T=T, end=end, stop_reason=stop)
++    return fails, dict(arm=arm, seed=seed, S=C.S, E=C.E, T=T, end=end, stop_reason=stop, load_step=load,
++                       resumed_from=rf)
+ 
+ 
+ def check_run(run_dir, root=None):
+@@ -467,12 +509,31 @@
+                 fails += pf
+             sources[C.EVIDENCE] = [str(run / C.EVIDENCE), C.sha256_file(run / C.EVIDENCE)
+                                    if (run / C.EVIDENCE).is_file() else None]
++            gf, gdet = RS.evaluation_grid_problems(run / C.STAGE_DIR, T, eval_freq=C.EVAL_FREQ,
++                                                   eval_episodes=C.EVAL_EPISODES)
++            items["evaluation_grid"], items["evaluation_grid_detail"] = gf, gdet
++            fails += gf
++            for rel in (LEDGER_REL, f"{C.STAGE_DIR}/{RS.EVALS_NPZ}", f"{C.STAGE_DIR}/{RS.GATE_NPZ}"):
++                sources[Path(rel).name] = [str(run / rel), C.sha256_file(run / rel) if (run / rel).is_file() else None]
++            rf = ident.get("resumed_from")
++            if rf is not None:
++                rec = (meta.get("resume") or {}).get("stitch_digests") or {}
++                try:
++                    now = RS.stitch_digests(run / C.STAGE_DIR, run, int(rf), S=S, rollout=C.ROLLOUT,
++                                            headers={n: (rec.get(n) or {}).get("header")
++                                                     for n in (RS.EVAL_LEDGER, RS.TRAIN_LEDGER)})
++                    sf = RS.stitch_problems(rec, now)
++                except Exception as exc:  # noqa: BLE001 - an unreadable record is a CHECK failure, not a crash
++                    sf = [f"resume: the stitched records cannot be read ({exc.__class__.__name__}: {exc})"]
++                items["resume_stitch"] = sf
++                fails += sf
+         else:
+             fails.append("evidence and probe not checked: T, S or the arm do not allow it")
+     rec = dict(schema=CHECK_SCHEMA, version=VERSION, tool_sha256=C.sha256_file(Path(__file__)), utc=utcnow(),
+                run=str(run), name=(meta or {}).get("name"), mode=kind, passed=not fails, failures=fails,
+                items=items, sources=sources, **{k: ident.get(k) for k in ("arm", "seed", "S", "E", "T", "end",
+-                                                                           "stop_reason")})
++                                                                           "stop_reason", "load_step",
++                                                                           "resumed_from")})
+     atomic_write_text(run / C.CHECK_JSON, json.dumps(rec, indent=1, default=str) + "\n")
+     return (EXIT_OK if not fails else EXIT_CHECK_FAIL), rec
+ 
+@@ -486,7 +547,8 @@
+ 
+ def check_is_current(run, check):
+     src = check.get("sources") or {}
+-    for key, rel in (("run_meta.json", C.RUN_META), ("policy_probe.npz", PROBE_REL), (C.EVIDENCE, C.EVIDENCE)):
++    for key, rel in (("run_meta.json", C.RUN_META), ("policy_probe.npz", PROBE_REL), (C.EVIDENCE, C.EVIDENCE),
++                     ("eval_episodes.csv", LEDGER_REL)):
+         if key not in src:
+             return f"check.json names no {key}"
+         try:
+@@ -957,11 +1019,21 @@
+     return out
+ 
+ 
+-def saved_pairs(run_dir, T):
+-    """[(steps, zip, pkl)] in [S, T]: the start copy, the periodic pairs, and the final pair at T."""
++def loop_schedule(T, every=None):
++    """The steps the M-LOOP reads in [S, T]: S, the saved steps < T whose (steps - S) is a multiple of every
++    (bs_common.LOOP_READ_EVERY), and T (the final pair) (pure)."""
++    every = int(every or C.LOOP_READ_EVERY)
++    if every % C.SAVE_FREQ:
++        raise InputError(f"LOOP_READ_EVERY {every} is not a multiple of the save grid {C.SAVE_FREQ}")
++    return (C.S, *[x for x in C.SAVED_STEPS if x < T and (x - C.S) % every == 0], T)
++
++
++def saved_pairs(run_dir, T, every=None):
++    """[(steps, zip, pkl)] in [S, T] on loop_schedule: the start copy, the periodic pairs it names, and the final
++    pair at T."""
+     models = Path(run_dir) / MODELS_REL
+     out = []
+-    for s in (C.S, *[x for x in C.SAVED_STEPS if x < T]):
++    for s in loop_schedule(T, every)[:-1]:
+         z, p = (models / n for n in C.periodic_names(s))
+         if z.is_file() and p.is_file():
+             out.append((s, z, p))
+@@ -1082,7 +1154,8 @@
+     out.mkdir(parents=True, exist_ok=True)
+     markers = dict(schema=MARKERS_SCHEMA, version=VERSION, tool_sha256=C.sha256_file(Path(__file__)), utc=utcnow(),
+                    label=run.name, run=str(run), kind=kind, arm=arm, seed=meta.get("seed"), S=S, T=T,
+-                   stop_reason=meta.get("stop_reason"))
++                   stop_reason=meta.get("stop_reason"), resumed_from=meta.get("resumed_from"),
++                   attempt=meta.get("attempt"), loop_schedule=list(loop_schedule(T)))
+     markers["probe"] = probe_markers(run / PROBE_REL, S, T, run.name)
+     markers["ledger"] = ledger_markers(run / LEDGER_REL, S, T, out)
+     setup_simulation(f"read_{run.name}")
+@@ -1093,8 +1166,23 @@
+     return markers
+ 
+ 
+-def reference_read(out=None, *, onpolicy=True, own=True):
+-    """The parent's markers over (S, E] and its F2 pairs in [S, E] (REFERENCE_PAIRS), with the reproduction check."""
++def fman_copy1_sha256(rel):
++    """FMAN's sha256 of the parent's F2 COPY copy-1 file at run-relative path rel (read only), or None."""
++    with open(C.FMAN, newline="") as fh:
++        got = {r["sha256"] for r in csv.DictReader(fh) if r.get("fetch") == "F2" and r.get("run_id") ==
++               C.START["run_id"] and r.get("path") == rel and r.get("status") == "COPY" and r.get("copy") == "1"}
++    return got.pop() if len(got) == 1 else None
++
++
++def reference_pair_files(steps):
++    """(zip rel, pkl rel) of the parent's F2 pair at steps: the periodic names, or the final pair at E."""
++    names = (C.FINAL_ZIP, C.FINAL_PKL) if steps == C.E else C.periodic_names(steps)
++    return tuple(f"{C.STAGE_DIR}/models/{n}" for n in names)
++
++
++def reference_read(out=None, *, onpolicy=True, own=True, pairs=None):
++    """The parent's markers over (S, E] and its F2 pairs in [S, E] (REFERENCE_PAIRS, or the given subset), with the
++    reproduction check.  Every pair is checked against FMAN's sha256 before it is read."""
+     root = Path(C.BS).resolve()
+     out = require_under(Path(out) if out else root / "reads" / "parent_s42", root)
+     out.mkdir(parents=True, exist_ok=True)
+@@ -1112,10 +1200,20 @@
+     # V4 form), written under the output folder
+     markers["ledger"] = ledger_markers(truncate_ledger(C.f2_record("eval_episodes.csv"), out / "eval_episodes_le_E.csv",
+                                                        T), S, T, out)
++    steps = tuple(REFERENCE_PAIRS if pairs is None else pairs)
++    if not steps or any(s not in REFERENCE_PAIRS for s in steps):
++        raise InputError(f"--pairs {steps}: not among the reference pairs {REFERENCE_PAIRS}")
++    todo = []
++    for s in steps:
++        rels = reference_pair_files(s)
++        for rel in rels:
++            want = fman_copy1_sha256(rel)
++            if want is None or C.sha256_file(C.f2_file(rel)) != want:
++                raise InputError(f"{rel}: not at FMAN's sha256 ({want})")
++        todo.append((s, C.f2_file(rels[0]), C.f2_file(rels[1])))
++    markers["reference_pairs"] = list(steps)
+     setup_simulation("read_parent_s42")
+-    pairs = [(s, C.f2_file(f"{C.STAGE_DIR}/models/{C.periodic_names(s)[0]}"),
+-              C.f2_file(f"{C.STAGE_DIR}/models/{C.periodic_names(s)[1]}")) for s in REFERENCE_PAIRS]
+-    markers["loop"] = loop_markers(pairs, blind=False, onpolicy=onpolicy, own=own, tag="parent")
++    markers["loop"] = loop_markers(todo, blind=False, onpolicy=onpolicy, own=own, tag="parent")
+     rep = {}
+     for row in markers["loop"]:
+         want = REPRO.get(row["steps"])
+@@ -1158,6 +1256,7 @@
+     ap.add_argument("--out", default=None)
+     ap.add_argument("--no-onpolicy", dest="onpolicy", action="store_false")
+     ap.add_argument("--no-own", dest="own", action="store_false")
++    ap.add_argument("--pairs", default=None, help="--reference only: comma-separated reference pair steps")
+     ns = ap.parse_args(argv)
+     print(VERSION, flush=True)
+     try:
+@@ -1168,8 +1267,11 @@
+             print(json.dumps({"check": "pass" if rec["passed"] else "fail", "failures": rec["failures"]}, indent=1))
+             return code
+         if ns.reference:
+-            reference_read(ns.out, onpolicy=ns.onpolicy, own=ns.own)
++            pairs = None if ns.pairs is None else tuple(int(x) for x in ns.pairs.split(",") if x.strip())
++            reference_read(ns.out, onpolicy=ns.onpolicy, own=ns.own, pairs=pairs)
+             return EXIT_OK
++        if ns.pairs is not None:
++            raise InputError("--pairs is for --reference only")
+         if not ns.run:
+             raise InputError("RUN, --check RUN or --reference")
+         full_read(ns.run, ns.out, onpolicy=ns.onpolicy, own=ns.own)
+diff -ruN -x score_bs.py -x test_score_bs.py -x __pycache__ bias_screen2/tools/run_bs.py long_blind/tools/run_bs.py
+--- bias_screen2/tools/run_bs.py	2026-10-30 10:42:44.574880964 +0000
++++ long_blind/tools/run_bs.py	2026-10-30 16:58:04.529361670 +0000
+@@ -1,14 +1,28 @@
+-"""BS2: one continuation of r10 stance6 s42 from its 2,097,152 pair under one arm, or a run making no optimizer step.
++"""LB: one continuation of r10 stance6 s42 from its 2,097,152 pair under one arm, or a run making no optimizer step.
+ 
+-    PY -I -B run_bs.py --arm ARM --seed N [--preflight-only]                          (a continuation: S -> E)
++    PY -I -B run_bs.py --arm ARM --seed N [--resume-from DIR] [--preflight-only]       (a continuation: S -> E)
+     PY -I -B run_bs.py --arm ARM --seed N --save-loaded-only [--out DIR]              (V1; no learn())
+-    PY -I -B run_bs.py --arm ARM --seed N --no-update --until STEPS [--out DIR]       (V2 / timing; train() a no-op)
++    PY -I -B run_bs.py --arm ARM --seed N --no-update --until STEPS [--resume-from DIR] [--out DIR]
++                                                                                    (V2 / V4 / timing; train() a no-op)
+ 
+ ARM: control | critic_blind_tail3 | gae_lambda_1 | frozen_obs_norm (bs_common.ARMS; what each changes:
+-bs_common.ARM_CHANGE, applied by bs_hooks.install_arm / arm_config here).  S = 2,097,152, E = S + 1,441,792 =
+-3,538,944 (11 evaluations of 131,072; 176 rollouts, 175 updates).  BS2 = BS's run_bs.py (sha256 0a5a9851...) with the
+-window, the start pair and the validation seeds taken from BS2's bs_common.py, the code copy BS's own (read only), and
+-GIT_CEILING_DIRECTORIES also naming the code copy's parent folder (so the code's `git rev-parse` stops there, as in BS).
++bs_common.ARM_CHANGE, applied by bs_hooks.install_arm / arm_config here).  S = 2,097,152, E = 12,001,280, the parent's
++own end (75 evaluations of 131,072; 1,209 rollouts, 1,208 updates; 37 periodic pairs and the final pair).  LB = BS2's
++run_bs.py (S2/r10round/bias_screen2/tools/run_bs.py, sha256 acd5b499...) with the window from LB's bs_common.py, two
++additions and nothing else changed:
++  RESUME  --resume-from DIR (DIR = <run root>/<arm>_<seed>_crashed<k>, the runner's retired folder of the last attempt):
++          resume_point() finds DIR's newest saved pair P = S + 262,144 k whose zip and pkl are intact (the code's own
++          curriculum.checkpoints.checkpoint_pair_problem) and whose records hold every row up to P (the probe's update
++          rows, the evidence lines, the evaluation ledger, evaluations.npz, gate_progress.npz; the training ledger
++          written after P); resume_inputs() builds the new folder from it (the pairs S..P hard-linked, the five records
++          copied, the evidence lines up to P written) and the run loads P under the same seed and arm, total =
++          12,000,000 - P, so the code's own same-stage resume (seed_resume_eval_state, max_timesteps = P) keeps every
++          record's rows up to P and the session appends after P.  No complete pair: a fresh start from S, as BS2.
++          run_meta records resumed_from, load_step, attempt, attempts, resume (sources, sha256, the stitched-row
++          digests CHECK recomputes).  See NOTES.txt (RESUME) for what a resume changes.
++  HOP     the stage's hop watch (stance.toml hop_watch_stop = true, from 7,000,000) can end a continuation inside the
++          window: its state is recorded like the collapse stop's, and stop_reason "hop_watch".
++The code copy is BS's own (read only); GIT_CEILING_DIRECTORIES names its parent folder (as in BS2).
+ 
+ Derived from the entropy continuation screen's run_ecs.py (S2/r10round/ecs/tools/run_ecs.py, sha256 f136b7e3...): the
+ same resume path and records (the run branch's own same-stage resume, train_base._train_stage_body, every keyword
+@@ -63,8 +77,9 @@
+ 
+ C = _load("bs_common")
+ H = _load("bs_hooks")
++RS = _load("bs_resume")
+ 
+-VERSION = "run_bs 1.1 (2026-10-30; bias screen 2 from s42 2,097,152; derived from run_bs 1.0 and run_ecs 1.0)"
++VERSION = "run_bs 2.0 (2026-10-30; long blind study, s42 2,097,152 -> 12,001,280, resume; derived from run_bs 1.1)"
+ LINEAGE_KEYS = ("load_path", "load_mode", "parent_checkpoint_sha256", "parent_task_sha256", "parent_run_id")
+ RUN_KEYS_EXPECTED_TO_DIFFER = frozenset({"seed", "timesteps", "label", "duration_seconds", "hyperparameters_sha256",
+                                          *LINEAGE_KEYS})
+@@ -138,11 +153,12 @@
+ 
+ 
+ def recipe_problems(written: dict, parent: dict, *, arm: str, seed: int, label: str, load_path: str,
+-                    zip_sha256: str, hp_sha256_expected: str) -> list[str]:
++                    zip_sha256: str, hp_sha256_expected: str, load_steps: int = C.S) -> list[str]:
+     """V5 (as run_ecs): the stage_config.json the harness wrote against the parent's stage_config.json.copy1.  Every
+     key equal except: hyperparameters (gae_lambda_1: exactly gae_lambda, 1.0; the other arms none); run.seed,
+-    run.timesteps (= 12,000,000 - S), run.label, run.duration_seconds, run.hyperparameters_sha256 (the run's digest
+-    for every arm but gae_lambda_1, the recomputed one there), the load-lineage keys; gpu.  Empty means pass."""
++    run.timesteps (= 12,000,000 - the load step: S, or the resume point P), run.label, run.duration_seconds,
++    run.hyperparameters_sha256 (the run's digest for every arm but gae_lambda_1, the recomputed one there), the
++    load-lineage keys (the loaded zip and its sha256); gpu.  Empty means pass."""
+     problems: list[str] = []
+     if not isinstance(written, dict) or not isinstance(parent, dict):
+         return ["stage_config: not JSON objects"]
+@@ -171,7 +187,7 @@
+         if rw.get(key, MISSING) != rp.get(key, MISSING):
+             problems.append(f"stage_config.run.{key} {rw.get(key, 'absent')!r} != the parent's "
+                             f"{rp.get(key, 'absent')!r}")
+-    want = {"seed": int(seed), "timesteps": C.TOTAL_TIMESTEPS - C.S, "label": label,
++    want = {"seed": int(seed), "timesteps": C.TOTAL_TIMESTEPS - int(load_steps), "label": label,
+             "hyperparameters_sha256": hp_sha256_expected, "load_path": load_path, "load_mode": "resume_same_stage",
+             "parent_checkpoint_sha256": zip_sha256 if zip_sha256.startswith("sha256:") else f"sha256:{zip_sha256}"}
+     for key, value in want.items():
+@@ -210,16 +226,18 @@
+     return problems
+ 
+ 
+-def loaded_problems(model: Any, *, mirror_cls: type, arm: str, train_env: Any, threads: int | None = None) -> list[str]:
++def loaded_problems(model: Any, *, mirror_cls: type, arm: str, train_env: Any, threads: int | None = None,
++                    expected_steps: int = C.S) -> list[str]:
+     """The post-load checks (run_ecs's, every arm at ent_coef 0.005) plus the arm's gae_lambda on the model and its
+-    rollout buffer (threads: torch's intra-op thread count at the load; None: not checked)."""
++    rollout buffer (threads: torch's intra-op thread count at the load; None: not checked).  expected_steps: the load
++    step (S, or a resume's P)."""
+     problems = []
+     if threads is not None and threads != C.TORCH_THREADS:
+         problems.append(f"torch intra-op threads {threads} != {C.TORCH_THREADS}")
+     if type(model) is not mirror_cls:
+         problems.append(f"the load gave {type(model).__name__}, not {mirror_cls.__name__}")
+-    if int(getattr(model, "num_timesteps", -1)) != C.S:
+-        problems.append(f"num_timesteps {getattr(model, 'num_timesteps', None)} != S {C.S}")
++    if int(getattr(model, "num_timesteps", -1)) != int(expected_steps):
++        problems.append(f"num_timesteps {getattr(model, 'num_timesteps', None)} != the load step {expected_steps}")
+     if int(getattr(model, "_total_timesteps", -1)) != C.TOTAL_TIMESTEPS:
+         problems.append(f"_total_timesteps {getattr(model, '_total_timesteps', None)} != {C.TOTAL_TIMESTEPS}")
+     if str(getattr(model, "device", None)) != "cpu":
+@@ -259,11 +277,15 @@
+     return "done", C.EXIT_OK
+ 
+ 
+-def stop_reason(*, flag: bool, T: int, target: int, collapse_tripped: bool) -> str:
++def stop_reason(*, flag: bool, T: int, target: int, collapse_tripped: bool, hop_tripped: bool = False) -> str:
++    """end (StopAtEnd at the target), collapse (the backstop; it wins when both stop at one evaluation), hop_watch
++    (the stage's hop watch), or other."""
+     if flag and T == target:
+         return "end"
+     if collapse_tripped and T < target:
+         return "collapse"
++    if hop_tripped and T < target:
++        return "hop_watch"
+     return "other"
+ 
+ 
+@@ -321,17 +343,21 @@
+ 
+ 
+ def make_checked_load(original: Any, *, mirror_cls: type, arm: str, start_stats: Any, mode: str,
+-                      holder: dict, save_loaded: Any = None) -> Any:
++                      holder: dict, save_loaded: Any = None, expected_steps: int = C.S,
++                      start_obs_digest: str | None = None) -> Any:
+     """The wrapper around train_base._create_or_load_model: the load as the body makes it, the checks (Refused on any
+-    failure, before learn()), the start digests, then THE ARM HOOK (bs_hooks.install_arm; Refused if it cannot be
+-    applied as specified), then the mode's step."""
++    failure, before learn()), the load digests, then THE ARM HOOK (bs_hooks.install_arm; Refused if it cannot be
++    applied as specified), then the mode's step.  expected_steps and start_stats: the loaded pair's (S's, or a
++    resume's P); start_obs_digest: the START pair's observation statistics (the evidence compares every rollout's
++    with them; None: the loaded ones, which are S's when nothing is resumed)."""
+ 
+     def checked_load(*args: Any, **kwargs: Any) -> Any:
+         model = original(*args, **kwargs)
+         train_env = args[3] if len(args) > 3 else kwargs.get("train_env")
+         intra, interop = torch_threads()
+         holder["torch_threads"], holder["torch_interop_threads"] = intra, interop
+-        problems = loaded_problems(model, mirror_cls=mirror_cls, arm=arm, train_env=train_env, threads=intra)
++        problems = loaded_problems(model, mirror_cls=mirror_cls, arm=arm, train_env=train_env, threads=intra,
++                                   expected_steps=expected_steps)
+         problems += stats_problems(train_env, start_stats)
+         got = getattr(model, "ent_coef", None)
+         holder["ent_coef_after_load"] = float(got) if isinstance(got, (int, float)) else repr(got)
+@@ -348,7 +374,7 @@
+         if state or {k: digest_hooked[k] for k in ("params", "adam", "vecnormalize")} != {
+                 k: holder["digest_start"][k] for k in ("params", "adam", "vecnormalize")}:
+             raise Refused(f"arm hook: state {state}; digests after the hook {digest_hooked} != at the load")
+-        holder["start_obs_digest"] = H.rms_digest(train_env.obs_rms)
++        holder["start_obs_digest"] = start_obs_digest or H.rms_digest(train_env.obs_rms)
+         if mode == "save_loaded_only":
+             holder["v1_bank"] = bank_check(model.policy, train_env)
+             holder["saved"] = save_loaded(model)
+@@ -436,6 +462,18 @@
+     return {"found": 1, "consecutive_drops": drops, "patience": patience, "tripped": patience > 0 and drops >= patience}
+ 
+ 
++def hop_state(callbacks: list[Any]) -> dict:
++    """The stage's hop watch (curriculum.hop_watch.HopRegimeWatchCallback): its settings and whether it tripped."""
++    found = [c for c in callbacks if type(c).__name__ == "HopRegimeWatchCallback"]
++    if len(found) != 1:
++        return {"found": len(found), "tripped": False, "stop": None, "after_timesteps": None,
++                "max_unsupported_duty": None}
++    c = found[0]
++    return {"found": 1, "tripped": bool(getattr(c, "_tripped", False)), "stop": bool(getattr(c, "stop", False)),
++            "after_timesteps": int(getattr(c, "after_timesteps", -1)),
++            "max_unsupported_duty": float(getattr(c, "max_unsupported_duty", float("nan")))}
++
++
+ def _hash_arrays(arrays: list) -> str:
+     import numpy as np
+ 
+@@ -491,6 +529,36 @@
+     return {"params": _hash_arrays(params_arrays(pol)), "adam": _hash_arrays(adam_arrays(opt))}
+ 
+ 
++def zip_data(zip_path: str | os.PathLike[str]) -> dict:
++    """An SB3 zip's "data" member (JSON; nothing unpickled)."""
++    import zipfile
++
++    with zipfile.ZipFile(zip_path) as z:
++        return json.loads(z.read("data"))
++
++
++def pair_start_digest(zip_path: str | os.PathLike[str], pkl_path: str | os.PathLike[str]) -> dict:
++    """A resumed attempt's digest_start: the START pair's params / Adam (zip_digests), VecNormalize, n_updates and
++    num_timesteps, from the pair itself (V1: equal to the loaded model's in every arm)."""
++    zd, data = zip_digests(zip_path), zip_data(zip_path)
++    vn = vecnorm_arrays(pkl_stats(pkl_path))
++    return {"params": zd["params"], "adam": zd["adam"], "vecnormalize": _hash_arrays(vn),
++            "obs_rms": _hash_arrays(vn[:3]), "n_updates": int(data.get("_n_updates", -1)),
++            "num_timesteps": int(data.get("num_timesteps", -1)),
++            "source": "the start pair copy (a resumed attempt; the load digest is digest_load)"}
++
++
++def attempt_summary(folder: Path, meta: dict) -> dict:
++    """One earlier attempt, as the next attempt's run_meta lists it (no outcome: status, steps, times)."""
++    hb = meta.get("heartbeat") if isinstance(meta.get("heartbeat"), dict) else {}
++    steps = [x for x in (hb.get("rollout_end"), meta.get("last_step"))
++             if isinstance(x, int) and not isinstance(x, bool)]
++    return {"attempt": meta.get("attempt", 1), "folder": folder.name, "status": meta.get("status"),
++            "exit": meta.get("exit"), "resumed_from": meta.get("resumed_from"), "load_step": meta.get("load_step", C.S),
++            "last_step": max(steps) if steps else None, "utc_start": meta.get("utc_start"),
++            "utc_end": meta.get("utc_end"), "error": str(meta.get("error"))[:300] if meta.get("error") else None}
++
++
+ def pkl_stats(pkl_path: str | os.PathLike[str]) -> Any:
+     import pickle
+ 
+@@ -586,6 +654,41 @@
+     return problems
+ 
+ 
++def resume_from_problems(ns: Any) -> list[str]:
++    """--resume-from DIR: DIR is the run root's <arm>_<seed>_crashed<k> of this arm and seed (the runner's retired
++    folder of the last attempt), its run_meta names the same arm, seed, mode, S, E and target, and its status says it
++    did not finish (not done / failed / refused).  Reads only.  Whether it holds a complete pair is resume_point's
++    (in run(), with the code's own pair check; none: a fresh start from S)."""
++    src = getattr(ns, "resume_from", None)
++    if src is None:
++        return []
++    problems: list[str] = []
++    mode = mode_of(ns)
++    if mode == "save_loaded_only":
++        return ["args: --resume-from is not for --save-loaded-only"]
++    path = Path(os.path.abspath(src))
++    root = os.path.realpath(run_root(ns))
++    if os.path.realpath(path.parent) != root:
++        problems.append(f"args: --resume-from {path} is not in the run root {root}")
++    parsed = C.parse_run_name(path.name)
++    if parsed is None or parsed["suffix"] != "crashed" or (parsed["arm"], parsed["seed"]) != (
++            getattr(ns, "arm", None), getattr(ns, "seed", None)):
++        problems.append(f"args: --resume-from {path.name} is not <arm>_<seed>_crashed<k> of this arm and seed")
++    if not path.is_dir() or path.is_symlink():
++        return problems + [f"args: --resume-from {path} is not a folder"]
++    meta, err = _read_json(path / C.RUN_META)
++    if err or not isinstance(meta, dict):
++        return problems + [f"resume: {path.name}/run_meta.json {err or 'not a JSON object'}"]
++    want = {"arm": getattr(ns, "arm", None), "seed": getattr(ns, "seed", None), "mode": mode, "S": C.S, "E": C.E,
++            "target": target_of(ns)}
++    for key, value in want.items():
++        if meta.get(key) != value:
++            problems.append(f"resume: {path.name} run_meta {key} {meta.get(key)!r} != {value!r}")
++    if meta.get("status") in ("done", "failed", "refused"):
++        problems.append(f"resume: {path.name} status {meta.get('status')!r}: nothing to resume")
++    return problems
++
++
+ def preflight(ns: Any) -> list[str]:
+     """Every reason this run may not start; empty means pass.  Reads only; creates nothing."""
+     problems: list[str] = []
+@@ -628,6 +731,7 @@
+         path = run_root(ns) / C.run_name(arm, seed)
+         if os.path.lexists(path):
+             problems.append(f"runs: {path} exists")
++    problems.extend(resume_from_problems(ns))
+     problems.extend(input_problems())
+     problems.extend(seal_problems())
+     problems.extend(f"stack: {p}" for p in C.check_stack())
+@@ -736,19 +840,60 @@
+         "tool_sha256": {n: sha256_file(TOOLS / n) for n in C.TOOL_FILES if (TOOLS / n).is_file()},
+         "arm_change": C.ARM_CHANGE[arm], "arm_ppo": dict(C.ARM_PPO_EDIT[arm]) or "unchanged", "ppo_applied": None,
+         "arm_applied": None, "arm_evidence": None,
++        "attempt": 1, "attempts": [], "resumed_from": None, "load_step": S, "resume": None,
+     }
++    resume_src = Path(os.path.abspath(ns.resume_from)) if getattr(ns, "resume_from", None) else None
++    src_meta: dict = {}
++    if resume_src is not None:
++        src_meta, _err = _read_json(resume_src / C.RUN_META)
++        src_meta = src_meta if isinstance(src_meta, dict) else {}
++        meta["attempts"] = [*list(src_meta.get("attempts") or []), attempt_summary(resume_src, src_meta)]
++        meta["attempt"] = len(meta["attempts"]) + 1
+     _write_meta(meta_path, meta, "x")
+     holder: dict[str, Any] = {"evidence": []}
+     try:
+-        copies = copy_inputs(stage_dir)
+-        zip_copy = stage_dir / "models" / C.periodic_names(S)[0]
+-        pkl_copy = stage_dir / "models" / C.periodic_names(S)[1]
++        L = S                                           # the load step: S, or the resume point P
++        if resume_src is not None:
++            meta["modules_root"] = bootstrap_code()
++            from environments.shared.curriculum.checkpoints import checkpoint_pair_problem
++
++            plan = RS.resume_point(resume_src, S=S, E=E, saved_steps=C.SAVED_STEPS, periodic_names=C.periodic_names,
++                                   start_sha256=(C.START["zip_sha256"], C.START["pkl_sha256"]),
++                                   stage_dir_name=C.STAGE_DIR, rollout=C.ROLLOUT, eval_freq=C.EVAL_FREQ,
++                                   eval_episodes=C.EVAL_EPISODES, pair_problem=checkpoint_pair_problem)
++            plan["from"] = os.path.relpath(resume_src, root)
++            meta["resume"] = plan
++            if plan["P"] is not None:
++                L = int(plan["P"])
++                plan["stitch_digests"] = RS.stitch_digests(resume_src / C.STAGE_DIR, resume_src, L, S=S,
++                                                           rollout=C.ROLLOUT)
++                plan.update(RS.resume_inputs(stage_dir, run_dir, resume_src, L, S=S, saved_steps=C.SAVED_STEPS,
++                                             periodic_names=C.periodic_names, stage_dir_name=C.STAGE_DIR,
++                                             records=C.PARENT_RECORDS, rollout=C.ROLLOUT))
++                meta["resumed_from"] = L
++                meta["load_step"] = L
++                with open(run_dir / C.EVIDENCE) as fh:
++                    holder["evidence"] = [json.loads(x) for x in fh if x.strip()]
++                pairs = plan["pairs"]
++                copies = {n: {"from": "the last attempt (link or copy)", "sha256": pairs[n]["sha256"]}
++                          for n in C.periodic_names(S)}
++                parent_records = dict(src_meta.get("parent_records") or {})
++            else:
++                plan["outcome"] = "no complete saved pair: a fresh start from S"
++        if L == S:
++            copies = copy_inputs(stage_dir)
++            parent_records = {n: copies[n]["sha256"] for n in C.PARENT_RECORDS}
++        s_zip, s_pkl = (stage_dir / "models" / n for n in C.periodic_names(S))
++        zip_copy, pkl_copy = (stage_dir / "models" / n for n in C.periodic_names(L))
+         meta.update({"status": "running", "copies": copies,
+-                     "start_pair": {"zip": str(zip_copy), "zip_sha256": copies[zip_copy.name]["sha256"],
+-                                    "pkl": str(pkl_copy), "pkl_sha256": copies[pkl_copy.name]["sha256"]},
+-                     "parent_records": {n: copies[n]["sha256"] for n in C.PARENT_RECORDS}})
++                     "start_pair": {"zip": str(s_zip), "zip_sha256": copies[s_zip.name]["sha256"],
++                                    "pkl": str(s_pkl), "pkl_sha256": copies[s_pkl.name]["sha256"]},
++                     "load_pair": {"zip": str(zip_copy), "zip_sha256": sha256_file(zip_copy), "pkl": str(pkl_copy),
++                                   "pkl_sha256": sha256_file(pkl_copy)},
++                     "parent_records": parent_records})
+         _write_meta(meta_path, meta, "w")
+-        meta["modules_root"] = bootstrap_code()
++        if resume_src is None:
++            meta["modules_root"] = bootstrap_code()
+         import torch
+ 
+         torch.set_num_threads(1)
+@@ -789,7 +934,7 @@
+         plant = current_plant_identity(mid)
+         task_fp = stage_task_fingerprint(mid, stage, stage_config=config, plant_identity=plant)
+         entry = load_stage_manifest(mid).resolve(stage)
+-        total = C.TOTAL_TIMESTEPS - S
++        total = C.TOTAL_TIMESTEPS - L                  # SB3 adds num_timesteps: the target stays 12,000,000
+         refuse_occupied_stage_dir(stage_dir, task_load_mode="resume_same_stage")
+         prior_duration = read_stage_duration(stage_dir)
+         stage_start = time.monotonic()
+@@ -808,7 +953,10 @@
+             recomputed[a] = hyperparameters_sha256({"ppo_kwargs": hp, "curriculum_kwargs": parent_sc["curriculum"]},
+                                                    "ppo")
+         v5 = recipe_problems(written_sc, parent_sc, arm=arm, seed=seed, label=label, load_path=str(zip_copy),
+-                             zip_sha256=C.START["zip_sha256"], hp_sha256_expected=recomputed[arm])
++                             zip_sha256=meta["load_pair"]["zip_sha256"], hp_sha256_expected=recomputed[arm],
++                             load_steps=L)
++        if L == S and meta["load_pair"]["zip_sha256"] != C.START["zip_sha256"]:
++            v5.append("the start pair copy is not FMAN's")
+         if recomputed["control"] != C.HYPERPARAMETERS_SHA256_RUN:
+             v5.append(f"recomputed control digest {recomputed['control']} != {C.HYPERPARAMETERS_SHA256_RUN}")
+         meta["recipe_v5"] = {"problems": v5, "recomputed_hyperparameters_sha256": recomputed,
+@@ -826,8 +974,11 @@
+             saver.on_step()
+             return sorted(str(p) for p in (run_dir / "saved").iterdir())
+ 
++        s_stats = pkl_stats(s_pkl)
++        s_obs_digest = _hash_arrays(vecnorm_arrays(s_stats)[:3])
+         checked_load = make_checked_load(original, mirror_cls=MirrorKLPPO, arm=arm, start_stats=pkl_stats(pkl_copy),
+-                                         mode=mode, holder=holder, save_loaded=save_loaded)
++                                         mode=mode, holder=holder, save_loaded=save_loaded, expected_steps=L,
++                                         start_obs_digest=H.rms_digest(s_stats.obs_rms))
+         stop_cls = make_stop_at_end_class(BaseCallback)
+         evidence_path = run_dir / C.EVIDENCE
+ 
+@@ -871,20 +1022,23 @@
+         digest_end = state_digest(model, train_env)
+         arm_end = H.arm_state_problems(arm, model, train_env)
+         coll = collapse_state(stop.siblings)
++        hop = hop_state(stop.siblings)
+         T = int(model.num_timesteps)
+-        reason = stop_reason(flag=stop.flag, T=T, target=target, collapse_tripped=bool(coll["tripped"]))
++        reason = stop_reason(flag=stop.flag, T=T, target=target, collapse_tripped=bool(coll["tripped"]),
++                             hop_tripped=bool(hop["tripped"] and hop["stop"]))
++        digest_start = holder.get("digest_start") if L == S else pair_start_digest(s_zip, s_pkl)
+         trained.train_env.close()
+         trained.eval_env.close()
+         meta.update({
+             "T": T, "num_timesteps_end": T, "stop_reason": reason,
+             "stop_at_end": {"target": target, "flag": stop.flag, "step": stop.step, "calls": stop.calls,
+                             "last_step": stop.last_step},
+-            "collapse": coll, "ent_coef_after_load": holder.get("ent_coef_after_load"),
++            "collapse": coll, "hop_watch": hop, "ent_coef_after_load": holder.get("ent_coef_after_load"),
+             "gae_lambda_after_load": holder.get("gae_lambda_after_load"), "arm_applied": holder.get("arm_applied"),
+             "arm_evidence": H.summarize(holder["evidence"]), "arm_state_end": arm_end or "in force",
+-            "obs_rms_end_equal_start": digest_end["obs_rms"] == holder["digest_start"]["obs_rms"],
++            "obs_rms_end_equal_start": digest_end["obs_rms"] == s_obs_digest,
+             "torch_threads": holder.get("torch_threads"), "torch_interop_threads": holder.get("torch_interop_threads"),
+-            "digest_start": holder.get("digest_start"), "digest_end": digest_end,
++            "digest_start": digest_start, "digest_load": holder.get("digest_start"), "digest_end": digest_end,
+             "final_path": str(trained.final_path), "learn_seconds": round(trained.learn_seconds, 1),
+             "checkpoints": sorted(p.name for p in (stage_dir / "models").iterdir()),
+         })
+@@ -892,7 +1046,7 @@
+         if mode == "no_update":
+             meta["train_calls"] = holder.get("train_calls")
+             nu = no_update_problems(holder["digest_start"], digest_end, train_calls=holder.get("train_calls", -1),
+-                                    expected_calls=C.expected_update_rows(S, T))
++                                    expected_calls=C.expected_update_rows(L, T))
+             meta["no_update_check"] = {"problems": nu, "pass": not nu}
+         outside = modules_outside_code()
+         seal_after = seal_problems()
+@@ -969,6 +1123,8 @@
+     ap.add_argument("--no-update", dest="no_update", action="store_true")
+     ap.add_argument("--until", type=int, default=None)
+     ap.add_argument("--out", default=None, help="the no-optimizer-step modes only: a folder under <BS>/validate/")
++    ap.add_argument("--resume-from", dest="resume_from", default=None,
++                    help="<run root>/<arm>_<seed>_crashed<k>: resume from its newest complete saved pair")
+     ap.add_argument("--preflight-only", dest="preflight_only", action="store_true")
+     return ap.parse_args(argv)
+ 
+diff -ruN -x score_bs.py -x test_score_bs.py -x __pycache__ bias_screen2/tools/run_waves_bs.sh long_blind/tools/run_waves_bs.sh
+--- bias_screen2/tools/run_waves_bs.sh	2026-10-30 12:12:36.252858178 +0000
++++ long_blind/tools/run_waves_bs.sh	2026-10-30 16:57:47.133191726 +0000
+@@ -1,6 +1,18 @@
+ #!/usr/bin/env bash
+-# BS2: BS's run_waves_bs.sh (sha256 13fb6182...) with the root changed (BS_REAL = S2/r10round/bias_screen2); the
+-# queue mechanics, slots, nice, floors, crash rules and the outcome-blind reads are BS's, unchanged.  "<BS>" below = BS2.
++# LB: BS2's run_waves_bs.sh (S2/r10round/bias_screen2/tools/run_waves_bs.sh, sha256 6e0484f6...) with the root changed
++# (BS_REAL = S2/r10round/long_blind) and these LB changes; "<BS>" below = LB:
++#   RESUME a crash that is one of its own is rerun at once with --resume-from <its retired runs/<name>_crashed<k>>:
++#          run_bs.py resumes from that attempt's newest complete saved pair (bs_resume.resume_point), or starts again
++#          from S when it has none (BS2's rerun).  A relaunch finds the folder in logs/crash_ledger.tsv.  The early
++#          crash rule counts from the attempt's load step (run_meta load_step: S, or the resume point).
++#   HOP    a continuation the stage's hop watch stopped (CHECK passed, stop reason "hop_watch") is STOPPED, like
++#          "collapse".
++#   RR-1   a relaunch after ALL_DECIDED keeps the first logs/atimes_at_ALL_DECIDED.tsv; a later snapshot goes to
++#          logs/atimes_at_ALL_DECIDED.relaunch<k>.tsv.
++#   I1     right after each attempt exits, before CHECK and the re-arm, logs/atimes_at_exit/<name>.attempt<k>.tsv
++#          records path, atime, mtime and ctime (lstat only) of runs/<name>/**, tmp/<name>/** and the attempt log.
++#   SCORER the scorer the APPROVED pin must name is bs_common.SCORER_FILE (score_bs.py).
++# The queue mechanics, slots, nice, floors and the outcome-blind reads are BS2's, unchanged.
+ # BS2 review fixes (the fixer, 2026-10-30; <BS2>/review/FIXES.txt), additions only:
+ #   PR-M4  the runner refuses (exit 2, nothing started) unless APPROVED's tool_sha256["score_bs.py"] equals the current
+ #          tools/score_bs.py (run_bs.py's preflight pins the five bs_common.TOOL_FILES only);
+@@ -58,7 +70,7 @@
+ export PYTHONDONTWRITEBYTECODE=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 LC_ALL=C
+ 
+ S2=/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad
+-BS_REAL=$S2/r10round/bias_screen2
++BS_REAL=$S2/r10round/long_blind
+ PY=$S2/venv/bin/python
+ TOOLS=$BS_REAL/tools
+ 
+@@ -76,6 +88,7 @@
+ SLOTS_OVERRIDE=""
+ FLOOR_OVERRIDE=""
+ LAUNCH_OVERRIDE=""
++SCORER_OVERRIDE=""
+ # Test hook (tests/test_waves_bs.py): honoured only with BS_WAVES_TEST=1 and a root that is not <BS>.
+ if [[ "${BS_WAVES_TEST:-}" == 1 ]]; then
+   [[ -n "${BS_ROOT:-}" ]] || die "BS_WAVES_TEST needs BS_ROOT"
+@@ -92,6 +105,7 @@
+   SLOTS_OVERRIDE=${BS_SLOTS:-}
+   FLOOR_OVERRIDE=${BS_DISK_FLOOR_BYTES:-}
+   LAUNCH_OVERRIDE=${BS_LAUNCH_DISK_BYTES:-}
++  SCORER_OVERRIDE=${BS_SCORER:-}
+ fi
+ RUNS=$BS/runs
+ LOGS=$BS/logs
+@@ -109,7 +123,7 @@
+ s = importlib.util.spec_from_file_location("c", sys.argv[1]); C = importlib.util.module_from_spec(s)
+ s.loader.exec_module(C)
+ print(C.WAVE_SLOTS, C.WAVE_NICE, C.DISK_FLOOR_BYTES, C.MAX_CRASHES, C.LOST_SCHEMA, C.LAUNCH_DISK_BYTES, C.EVAL_FREQ,
+-      C.EXIT_POST_CHECK, C.S, C.E, C.MAX_CONTINUATIONS)
++      C.EXIT_POST_CHECK, C.S, C.E, C.MAX_CONTINUATIONS, C.SCORER_FILE)
+ if len(sys.argv) > 3 and sys.argv[3] == "override":
+     sys.exit(0)
+ d, problems = C.load_screen(sys.argv[2])
+@@ -120,7 +134,9 @@
+     print(arm, seed, C.run_name(arm, seed), C.S, C.E)
+ PYEOF
+ ) || die "bs_common.py could not be read"
+-read -r SLOTS NICE FLOOR MAX_CRASHES LOST_SCHEMA LAUNCH EVAL_FREQ POST_CHECK S_ALL E_ALL MAXN <<< "$(head -n 1 <<< "$COMMON_OUT")"
++read -r SLOTS NICE FLOOR MAX_CRASHES LOST_SCHEMA LAUNCH EVAL_FREQ POST_CHECK S_ALL E_ALL MAXN SCORER_FILE \
++  <<< "$(head -n 1 <<< "$COMMON_OUT")"
++SCORER=${SCORER_OVERRIDE:-$TOOLS/$SCORER_FILE}
+ [[ "$NICE" == 10 ]] || die "bs_common.WAVE_NICE is $NICE; RUN_CMD runs at nice 10"
+ if [[ -n "$QUEUE_OVERRIDE" ]]; then
+   IFS=';' read -r -a QUEUE <<< "$QUEUE_OVERRIDE"
+@@ -142,7 +158,8 @@
+ if [[ "${1:-}" == "--plan" ]]; then
+   [[ $# -eq 1 ]] || die "--plan takes no other argument"
+   echo "slots $SLOTS at nice $NICE; disk floor $FLOOR bytes; launch floor $LAUNCH bytes; crash limit $MAX_CRASHES;" \
+-       "early crash: last step below S + $EVAL_FREQ"
++       "early crash: last step below the attempt's load step + $EVAL_FREQ; an own crash reruns with" \
++       "--resume-from runs/<name>_crashed<k> (its newest complete saved pair, else S)"
+   echo "orphan pattern: $ORPHAN_PATTERN"
+   for name in "${NAMES[@]}"; do
+     read -r arm seed <<< "${ARGS_OF[$name]}"
+@@ -157,22 +174,22 @@
+ [[ -n "$QUEUE_OVERRIDE" || -f "$BS/SCREEN.json" ]] || die "no <BS>/SCREEN.json"
+ # PR-M4: APPROVED must pin the scorer as well (the criteria's PROVISIONAL rule needs tool_sha256["score_bs.py"], and
+ # APPROVED is never edited after the first start); run_bs.py's preflight checks the other pins for each continuation.
+-SCORER_PIN=$("$PY" -I -B - "$BS/APPROVED" "$TOOLS/score_bs.py" <<'PYEOF'
++SCORER_PIN=$("$PY" -I -B - "$BS/APPROVED" "$SCORER" "$SCORER_FILE" <<'PYEOF'
+ import hashlib, json, sys
+ try:
+     d = json.load(open(sys.argv[1]))
+ except Exception as exc:  # noqa: BLE001 - any unreadable APPROVED refuses
+     sys.exit(print(f"APPROVED does not parse ({exc.__class__.__name__})"))
+ tp = d.get("tool_sha256") if isinstance(d, dict) and isinstance(d.get("tool_sha256"), dict) else {}
++key = sys.argv[3]
+ try:
+     got = hashlib.sha256(open(sys.argv[2], "rb").read()).hexdigest()
+ except OSError as exc:
+-    sys.exit(print(f"tools/score_bs.py unreadable ({exc.__class__.__name__})"))
+-print("ok" if tp.get("score_bs.py") == got else f"APPROVED tool_sha256['score_bs.py'] {tp.get('score_bs.py')!r} "
+-      f"!= the file's {got}")
++    sys.exit(print(f"tools/{key} unreadable ({exc.__class__.__name__})"))
++print("ok" if tp.get(key) == got else f"APPROVED tool_sha256[{key!r}] {tp.get(key)!r} != the file's {got}")
+ PYEOF
+ ) || die "the scorer pin in APPROVED could not be checked"
+-[[ "$SCORER_PIN" == ok ]] || die "$SCORER_PIN (APPROVED must pin tools/score_bs.py: criteria, HOW THE COORDINATOR PINS)"
++[[ "$SCORER_PIN" == ok ]] || die "$SCORER_PIN (APPROVED must pin tools/$SCORER_FILE: criteria, HOW THE COORDINATOR PINS)"
+ 
+ # ------------------------------------------------------------------------------------------------------------ helpers
+ sleep() { command sleep "$@" 9>&-; }
+@@ -209,6 +226,53 @@
+ print(max(v) if v else 'none')" "$1/run_meta.json" 9>&-
+ }
+ 
++load_step_of() {  # LB: the attempt's load step (run_meta load_step: S, or the resume point), or S
++  [[ -f "$1/run_meta.json" ]] || { echo "$2"; return; }
++  "$PY" -I -B -c "import json,sys
++try: m = json.load(open(sys.argv[1]))
++except Exception: m = {}
++v = m.get('load_step')
++print(v if isinstance(v, int) and not isinstance(v, bool) else sys.argv[2])" "$1/run_meta.json" "$2" 9>&-
++}
++
++last_crashed_folder() {  # LB: the newest retired folder of <name> in the crash ledger that still exists, or nothing
++  local f
++  f=$(awk -F'\t' -v n="$1" '$2 == n && $3 != "none" {f = $3} END {print f}' "$CRASHES")
++  [[ -n "$f" && -d "$RUNS/$f" ]] && echo "$f"
++  return 0
++}
++
++current_attempt() {  # LB: the number of the newest logs/<name>.attempt<k>.log (0 when none)
++  local k=0
++  while [[ -e "$LOGS/$1.attempt$((k + 1)).log" ]]; do k=$((k + 1)); done
++  echo "$k"
++}
++
++exit_snapshot() {  # LB, process I1: lstat (no file opened) of an attempt's files right after it exits
++  local k
++  k=$(current_attempt "$1")
++  mkdir -p "$LOGS/atimes_at_exit"
++  "$PY" -I -B - "$RUNS/$1" "$BS/tmp/$1" "$LOGS" "$1" "$LOGS/atimes_at_exit/$1.attempt$k.tsv" 9>&- <<'PYEOF'
++import glob, os, stat, sys
++run, tmp, logs, name, out = sys.argv[1:6]
++paths = [os.path.join(d, f) for top in (run, tmp) for d, _dirs, files in os.walk(top) for f in files]
++paths += glob.glob(os.path.join(glob.escape(logs), glob.escape(name) + ".attempt*.log"))
++rows = []
++for p in sorted(paths):
++    try:
++        st = os.lstat(p)
++    except OSError:
++        continue
++    if stat.S_ISREG(st.st_mode):
++        rows.append(f"{p}\t{st.st_atime_ns}\t{st.st_mtime_ns}\t{st.st_ctime_ns}\t{int(st.st_atime_ns > st.st_mtime_ns)}")
++with open(out + ".tmp", "w") as fh:
++    fh.write("path\tatime_ns\tmtime_ns\tctime_ns\tatime_after_mtime\n")
++    fh.writelines(r + "\n" for r in rows)
++os.replace(out + ".tmp", out)
++print(f"{len(rows)} files")
++PYEOF
++}
++
+ decided() { awk -F'\t' -v n="$1" '$2 == n {d = $3} END {print d}' "$DECIDED"; }
+ 
+ decide() {
+@@ -247,7 +311,13 @@
+ }
+ 
+ atime_snapshot() {  # PR-M2 / P4: logs/atimes_at_ALL_DECIDED.tsv (lstat only: taking it moves no atime)
+-  "$PY" -I -B - "$BS" "$LOGS/atimes_at_ALL_DECIDED.tsv" 9>&- <<'PYEOF'
++  # RR-1 (LB): a relaunch after ALL_DECIDED keeps the first snapshot; this one goes to .relaunch<k>.tsv
++  local out=$LOGS/atimes_at_ALL_DECIDED.tsv k=1
++  if [[ -e "$out" ]]; then
++    while [[ -e "$LOGS/atimes_at_ALL_DECIDED.relaunch$k.tsv" ]]; do k=$((k + 1)); done
++    out=$LOGS/atimes_at_ALL_DECIDED.relaunch$k.tsv
++  fi
++  "$PY" -I -B - "$BS" "$out" 9>&- <<'PYEOF'
+ import os, sys
+ root, out = sys.argv[1:3]
+ rows, unread = [], 0
+@@ -255,7 +325,7 @@
+     for d, _dirs, files in os.walk(os.path.join(root, sub)):
+         for f in files:
+             p = os.path.join(d, f)
+-            if p in (out, out + ".tmp"):
++            if p in (out, out + ".tmp") or os.path.basename(p).startswith("atimes_at_ALL_DECIDED"):
+                 continue
+             try:
+                 st = os.lstat(p)
+@@ -268,7 +338,7 @@
+     fh.write("path\tatime_ns\tmtime_ns\tctime_ns\trearmed_unread\n")
+     fh.writelines(r + "\n" for r in sorted(rows))
+ os.replace(out + ".tmp", out)
+-print(f"{len(rows)} files, {unread} still re-armed (atime = mtime - 1 ns)")
++print(f"{os.path.basename(out)}: {len(rows)} files, {unread} still re-armed (atime = mtime - 1 ns)")
+ PYEOF
+ }
+ 
+@@ -342,15 +412,22 @@
+ VOID_SEEN=0
+ REFUSED=()
+ PENDING=()
+-declare -A PID=()
++declare -A PID=() RESUME_FROM=()
+ 
+ record_crash() {  # record_crash <name> <cause> <counts 0|1>
+-  local name=$1 cause=$2 counts=$3 new=none reached=none early=0 n
+-  [[ -d "$RUNS/$name" ]] && reached=$(reached_step "$RUNS/$name")
++  local name=$1 cause=$2 counts=$3 new=none reached=none early=0 n load
++  load=${S_OF[$name]}
++  if [[ -d "$RUNS/$name" ]]; then
++    reached=$(reached_step "$RUNS/$name")
++    load=$(load_step_of "$RUNS/$name" "${S_OF[$name]}")
++  fi
+   if (( counts == 1 )); then
+-    if [[ "$reached" == none ]] || (( reached < ${S_OF[$name]} + EVAL_FREQ )); then early=1; counts=0; fi
++    if [[ "$reached" == none ]] || (( reached < load + EVAL_FREQ )); then early=1; counts=0; fi
++  fi
++  if [[ -d "$RUNS/$name" ]]; then
++    new=$(retire "$name" crashed)
++    RESUME_FROM[$name]=$RUNS/$new
+   fi
+-  [[ -d "$RUNS/$name" ]] && new=$(retire "$name" crashed)
+   (( early )) && cause="EARLY CRASH, no window evaluation (last step $reached): $cause"
+   printf '%s\t%s\t%s\t%s\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$name" "$new" "$cause" "$counts" >> "$CRASHES"
+   n=$(own_crashes "$name")
+@@ -376,7 +453,12 @@
+ }
+ 
+ after_exit() {  # after_exit <name> <rc>
+-  local name=$1 rc=$2 run=$RUNS/$1 crc reason new arm_ seed_
++  local name=$1 rc=$2 run=$RUNS/$1 crc reason new arm_ seed_ snap
++  if snap=$(exit_snapshot "$name"); then   # I1: before CHECK, the re-arm and any rename
++    note "$name: atimes at exit (I1, lstat): logs/atimes_at_exit/$name.attempt$(current_attempt "$name").tsv, $snap"
++  else
++    note "$name: the atime snapshot at exit failed (I1)"
++  fi
+   if (( rc == 0 || rc == POST_CHECK )); then
+     set +e
+     "${CHECK_CMD[@]}" "$run" >> "$LOGS/$name.check.log" 2>&1 9>&-
+@@ -386,7 +468,7 @@
+       reason=$(meta_field "$run" stop_reason)
+       case "$reason" in
+         end) decide "$name" COUNTED "CHECK passed, stop reason end"; rearm "$name" ;;
+-        collapse) decide "$name" STOPPED "CHECK passed, stop reason collapse"; rearm "$name" ;;
++        collapse|hop_watch) decide "$name" STOPPED "CHECK passed, stop reason $reason"; rearm "$name" ;;
+         *) retire_void "$name" "CHECK passed but stop reason '$reason'" ;;
+       esac
+     elif (( crc == 4 )); then
+@@ -463,6 +545,8 @@
+     continue
+   fi
+   PENDING+=("$name")
++  f=$(last_crashed_folder "$name")
++  [[ -n "$f" ]] && RESUME_FROM[$name]=$RUNS/$f
+ done
+ ORDERED=()
+ for name in "${NAMES[@]}"; do
+@@ -494,8 +578,10 @@
+     log=$(attempt_log "$name")
+     LOG_OF[$name]=$log
+     proctable "$name"
+-    note "start $name (${log#"$LOGS"/})"
+-    (exec 9>&-; cd /tmp && exec "${RUN_CMD[@]}" --arm "$arm" --seed "$seed") >> "$log" 2>&1 &
++    extra=()
++    [[ -n "${RESUME_FROM[$name]:-}" ]] && extra=(--resume-from "${RESUME_FROM[$name]}")
++    note "start $name (${log#"$LOGS"/})${extra[1]:+ --resume-from ${extra[1]#"$RUNS"/}}"
++    (exec 9>&-; cd /tmp && exec "${RUN_CMD[@]}" --arm "$arm" --seed "$seed" ${extra[@]+"${extra[@]}"}) >> "$log" 2>&1 &
+     PID[$name]=$!
+   done
+   if (( ${#PID[@]} == 0 )); then
+@@ -536,7 +622,11 @@
+ else
+   note "the atime snapshot at ALL_DECIDED failed (P4: re-reads of CHECK's inputs cannot be excluded)"
+ fi
+-date -u +%Y-%m-%dT%H:%M:%SZ > "$LOGS/ALL_DECIDED"
++if [[ -e "$LOGS/ALL_DECIDED" ]]; then   # RR-1 (LB): a relaunch keeps the first ALL_DECIDED
++  note "ALL_DECIDED kept as first written ($(head -n 1 "$LOGS/ALL_DECIDED")); relaunch at $(date -u +%Y-%m-%dT%H:%M:%SZ)"
++else
++  date -u +%Y-%m-%dT%H:%M:%SZ > "$LOGS/ALL_DECIDED"
++fi
+ note "all ${#NAMES[@]} decided, none VOID: the full reads (read_bs.py, the markers), $SLOTS at a time"
+ 
+ READ_OK=()
+diff -ruN -x score_bs.py -x test_score_bs.py -x __pycache__ bias_screen2/tools/tests/test_read_bs.py long_blind/tools/tests/test_read_bs.py
+--- bias_screen2/tools/tests/test_read_bs.py	2026-10-30 10:40:17.464944517 +0000
++++ long_blind/tools/tests/test_read_bs.py	2026-10-30 17:06:03.632432091 +0000
+@@ -23,7 +23,7 @@
+ _spec.loader.exec_module(RB)
+ C, H = RB.C, RB.H
+ S, R8 = C.S, C.ROLLOUT
+-VS = C.VALIDATION_SEEDS[0]                             # BS2: 9201 (BS's tests used 9101)
++VS = C.VALIDATION_SEEDS[0]                             # LB: 9301 (BS's tests used 9101, BS2's 9201)
+ N_PARENT = C.E // R8 + 8                               # a synthetic parent probe that runs past E (BS's used 399 rows)
+ 
+ 
+@@ -104,6 +104,9 @@
+             "arm_state_end": "in force", "obs_rms_end_equal_start": arm == "frozen_obs_norm",
+             "recipe_v5": {"problems": []}, "torch_threads": 1, "T": T, "target": T, "stop_reason": "end",
+             "stop_at_end": {"flag": True}, "collapse": {"found": 1, "patience": 10, "tripped": False},
++            "hop_watch": {"found": 1, "after_timesteps": C.HOP_WATCH_AFTER, "stop": True, "tripped": False},
++            "attempt": 1, "attempts": [], "resumed_from": None, "load_step": C.S, "resume": None,
++            "load_pair": {"zip_sha256": C.START["zip_sha256"], "pkl_sha256": C.START["pkl_sha256"]},
+             "digest_start": d0, "digest_end": d1, "train_calls": C.expected_update_rows(C.S, T)}
+ 
+ 
+@@ -124,11 +127,20 @@
+     m["digest_end"] = {"params": "changed", "adam": "a0"}
+     assert RB.check_meta(m, "validation", C.run_name(arm, VS))[0] != []
+     m = _good_meta(arm)
+-    m.update(S=1_048_576, E=2_490_368)                    # BS's window is not BS2's
++    m.update(S=1_048_576, E=2_490_368)                    # BS's window is not LB's
+     assert any("S, E" in f for f in RB.check_meta(m, "validation", C.run_name(arm, VS))[0])
+     m = _good_meta(arm)
+-    m.update(seed=9101, name=C.run_name(arm, 9101))      # BS's validation seed is not BS2's
+-    assert any("validation seed" in f for f in RB.check_meta(m, "validation", C.run_name(arm, 9101))[0])
++    m.update(S=2_097_152, E=3_538_944)                    # nor BS2's
++    assert any("S, E" in f for f in RB.check_meta(m, "validation", C.run_name(arm, VS))[0])
++    for old in (9101, 9201):                              # BS's and BS2's validation seeds are not LB's
++        m = _good_meta(arm)
++        m.update(seed=old, name=C.run_name(arm, old))
++        assert any("validation seed" in f for f in RB.check_meta(m, "validation", C.run_name(arm, old))[0])
++    for key, val in (("hop_watch", {"found": 0}), ("attempt", 2), ("load_step", C.S + C.SAVE_FREQ),
++                     ("load_pair", {"zip_sha256": "0" * 64, "pkl_sha256": C.START["pkl_sha256"]})):
++        m = _good_meta(arm)
++        m[key] = val
++        assert RB.check_meta(m, "validation", C.run_name(arm, VS))[0] != [], key
+ 
+ 
+ def test_check_meta_continuation_needs_screen_and_updates(tmp_path, monkeypatch):
+@@ -287,11 +299,90 @@
+ 
+ 
+ def test_reference_pairs_and_reproduction_targets():
+-    assert RB.REFERENCE_PAIRS == (2_097_152, 3_145_728)
+-    assert all(C.S <= s <= C.E for s in RB.REFERENCE_PAIRS) and set(RB.REPRO) == set(RB.REFERENCE_PAIRS)
+-    for s in RB.REFERENCE_PAIRS:
++    assert RB.REFERENCE_PAIRS == (*range(2_097_152, 11_534_337, 1_048_576), C.E) and len(RB.REFERENCE_PAIRS) == 11
++    assert all(C.S <= s <= C.E for s in RB.REFERENCE_PAIRS) and set(RB.REPRO) <= set(RB.REFERENCE_PAIRS)
++    assert set(RB.REPRO) == {2_097_152, 3_145_728}
++    assert RB.reference_pair_files(C.E) == ("01_stance/models/stage1_final.zip",
++                                            "01_stance/models/stage1_final_vecnorm.pkl")
++    assert RB.reference_pair_files(3_145_728)[0] == "01_stance/models/stage1_3145728_steps.zip"
++    for s in RB.REPRO:
+         w = RB.REPRO[s]
+         assert set(w["ew_own"]) == {"G", "c0", "own14"}
+         # the verifier's b*_P = 1 - G - c0 (printed to 3 decimals) agrees with the early-warning values
+         assert abs((1.0 - w["ew_own"]["G"] - w["ew_own"]["c0"]) - w["vew_b_star_P"]) <= 5e-4
+         assert w["wm_b_star_P"] == w["vew_b_star_P"]
++
++
++# ------------------------------------------------------------------------------------------------ LB additions
++def _resumed_meta(arm="critic_blind_tail3", P=None, T=None):
++    P = P or C.SAVED_STEPS[1]
++    T = T or C.SAVED_STEPS[3] + 3 * R8
++    m = _good_meta(arm, T=T)
++    m.update(attempt=2, resumed_from=P, load_step=P, train_calls=C.expected_update_rows(P, T),
++             attempts=[{"attempt": 1, "folder": C.run_name(arm, VS) + "_crashed1", "status": "running"}],
++             resume={"P": P, "from": C.run_name(arm, VS) + "_crashed1", "zip_sha256": "z" * 64,
++                     "pkl_sha256": "k" * 64},
++             load_pair={"zip_sha256": "z" * 64, "pkl_sha256": "k" * 64}, digest_load={"num_timesteps": P})
++    return m
++
++
++@pytest.mark.parametrize("arm", C.ARMS)
++def test_check_meta_resumed(arm):
++    """A resumed run: resumed_from = load_step = a saved step S + 262,144 k inside (S, T), the crashed folder of the
++    same run, at least one earlier attempt, the loaded pair = the resume point's, train_calls counted from the
++    resume."""
++    m = _resumed_meta(arm)
++    fails, ident = RB.check_meta(m, "validation", C.run_name(arm, VS))
++    assert fails == [] and ident["resumed_from"] == ident["load_step"] == C.SAVED_STEPS[1]
++    muts = {"off the save grid": {"resumed_from": C.SAVED_STEPS[1] + R8, "load_step": C.SAVED_STEPS[1] + R8},
++            "load step": {"load_step": C.S}, "at S": {"resumed_from": C.S, "load_step": C.S},
++            "after T": {"resumed_from": C.SAVED_STEPS[4], "load_step": C.SAVED_STEPS[4]},
++            "other folder": {"resume": {**m["resume"], "from": C.run_name(arm, VS + 1) + "_crashed1"}},
++            "not crashed": {"resume": {**m["resume"], "from": C.run_name(arm, VS) + "_void1"}},
++            "P differs": {"resume": {**m["resume"], "P": C.SAVED_STEPS[2]}},
++            "no attempts": {"attempts": [], "attempt": 1},
++            "attempt count": {"attempt": 3},
++            "load pair": {"load_pair": {"zip_sha256": C.START["zip_sha256"], "pkl_sha256": "k" * 64}},
++            "digest_load": {"digest_load": {"num_timesteps": C.S}},
++            "train calls from S": {"train_calls": C.expected_update_rows(C.S, m["T"])}}
++    for why, over in muts.items():
++        bad = copy.deepcopy(m)
++        bad.update(over)
++        assert RB.check_meta(bad, "validation", C.run_name(arm, VS))[0] != [], why
++
++
++def test_check_meta_hop_watch_stop():
++    """stop_reason hop_watch: the stage's hop watch tripped, at an evaluation at or after 7,077,888, before E, the
++    collapse stop not tripped; anything else fails."""
++    T = C.HOP_WATCH_FIRST_EVAL
++    m = _good_meta("critic_blind_tail3", T=T)
++    m.update(target=C.E, stop_reason="hop_watch", stop_at_end={"flag": False},
++             hop_watch={"found": 1, "after_timesteps": C.HOP_WATCH_AFTER, "stop": True, "tripped": True})
++    assert RB.check_meta(m, "validation", C.run_name("critic_blind_tail3", VS))[0] == []
++    for over in ({"T": T - C.EVAL_FREQ}, {"T": T + R8}, {"hop_watch": {**m["hop_watch"], "tripped": False}},
++                 {"collapse": {"found": 1, "patience": 10, "tripped": True}}, {"stop_reason": "other"}):
++        bad = {**m, **over}
++        if "T" in over:
++            bad["train_calls"] = C.expected_update_rows(C.S, over["T"])
++        assert RB.check_meta(bad, "validation", C.run_name("critic_blind_tail3", VS))[0], over
++
++
++def test_loop_schedule():
++    """The M-LOOP read schedule: every saved pair (LOOP_READ_EVERY = SAVE_FREQ: 39 at E) or the parent's F2 grid
++    (1,048,576: 11 at E); never a step off the save grid."""
++    every = RB.loop_schedule(C.E, C.SAVE_FREQ)
++    assert len(every) == 39 and every[0] == C.S and every[-1] == C.E and every[1:-1] == C.SAVED_STEPS
++    f2 = RB.loop_schedule(C.E, 1_048_576)
++    assert f2 == (C.S, *range(3_145_728, 11_534_337, 1_048_576), C.E) and len(f2) == 11
++    assert RB.loop_schedule(C.VALIDATE_UNTIL) == (C.S, C.VALIDATE_UNTIL)
++    assert RB.loop_schedule(C.E) == RB.loop_schedule(C.E, C.LOOP_READ_EVERY)
++    with pytest.raises(RB.InputError):
++        RB.loop_schedule(C.E, 131_072)
++
++
++def test_cache_key_covers_the_resume_module():
++    """The loop cache key's module digest includes bs_resume.py (the reader loads it)."""
++    import hashlib
++    want = hashlib.sha256((C.sha256_file(TOOLS / "bs_common.py") + C.sha256_file(TOOLS / "bs_hooks.py")
++                           + C.sha256_file(TOOLS / "bs_resume.py")).encode()).hexdigest()
++    assert RB.DEPS_SHA256 == want
+diff -ruN -x score_bs.py -x test_score_bs.py -x __pycache__ bias_screen2/tools/tests/test_resume.py long_blind/tools/tests/test_resume.py
+--- bias_screen2/tools/tests/test_resume.py	1970-01-01 00:00:00.000000000 +0000
++++ long_blind/tools/tests/test_resume.py	2026-10-30 17:05:57.153725820 +0000
+@@ -0,0 +1,271 @@
++"""Unit tests of bs_resume.py (the resume of a crashed continuation) on synthetic attempt folders: no simulation, no
++torch, no code copy.  A small grid (S = 64, rollout 8, evaluation 16, save 32) keeps the files tiny; the functions take
++the grid as arguments, and run_bs.py passes bs_common's.
++
++    cd /tmp && OMP_NUM_THREADS=1 nice -n 10 PY -I -B -m pytest -q -p no:cacheprovider <LB>/tools/tests/test_resume.py
++"""
++from __future__ import annotations
++
++import csv
++import hashlib
++import importlib.util
++import json
++import pickle
++import sys
++import zipfile
++from pathlib import Path
++
++import numpy as np
++import pytest
++
++sys.dont_write_bytecode = True
++TOOLS = Path(__file__).resolve().parents[1]
++_spec = importlib.util.spec_from_file_location("bs_resume", str(TOOLS / "bs_resume.py"))
++RS = importlib.util.module_from_spec(_spec)
++_spec.loader.exec_module(RS)
++
++S, R, G, SAVE, E, EP = 64, 8, 16, 32, 64 + 8 * 40, 3          # E = S + 40 rollouts
++SAVED = tuple(range(S + SAVE, E, SAVE))                          # 96, 128, ..., 352
++STAGE = "01_stance"
++
++
++def names(steps):
++    return f"stage1_{steps}_steps.zip", f"stage1_vecnormalize_{steps}_steps.pkl"
++
++
++def _zip(path, steps, members=("data", "policy.pth")):
++    with zipfile.ZipFile(path, "w") as z:
++        for m in members:
++            z.writestr(m, json.dumps({"num_timesteps": steps}) if m == "data" else b"weights" * 50)
++
++
++def _sha(p):
++    return hashlib.sha256(Path(p).read_bytes()).hexdigest()
++
++
++def make_attempt(root, *, probe_to, evidence_to, eval_to, train_to, pairs_to, name="critic_blind_tail3_9301_crashed1"):
++    """A synthetic last attempt: pairs at S and every saved step <= pairs_to; the probe's rows (the parent's seeded ones
++    <= S, then one per rollout) to probe_to; evidence lines (S, evidence_to]; EP ledger rows per evaluation to eval_to;
++    evaluations.npz and gate_progress.npz to eval_to; training-ledger episodes ending every 5 steps to train_to."""
++    run = Path(root) / name
++    st = run / STAGE
++    (st / "models").mkdir(parents=True)
++    for s in (S, *[x for x in SAVED if x <= pairs_to]):
++        z, p = names(s)
++        _zip(st / "models" / z, s)
++        (st / "models" / p).write_bytes(pickle.dumps({"obs_rms": s}))
++    steps = np.arange(R, probe_to + 1, R, dtype=np.int64)
++    n = len(steps)
++    np.savez(st / RS.PROBE, update_timesteps=steps, ent_coef=np.linspace(0.005, 0.004, n).astype(np.float32),
++             learning_rate=np.full(n, 3e-5, np.float32), obs_rms_mean=np.arange(n * 3, dtype=np.float32).reshape(n, 3),
++             obs_rms_var=np.ones((n, 3), np.float32), obs_rms_count=np.arange(n, dtype=np.float64),
++             bank_action_now=np.zeros((n, 2, 2), np.float32))
++    with open(run / RS.EVIDENCE, "w") as fh:
++        for k in range(1, (evidence_to - S) // R + 1):
++            fh.write(json.dumps({"num_timesteps": S + R * k, "dv": 0.0}) + "\n")
++    with open(st / RS.EVAL_LEDGER, "w", newline="") as fh:
++        w = csv.writer(fh, lineterminator="\n")
++        w.writerow(["evaluation", "timesteps", "episode", "reward"])
++        for i, t in enumerate(range(G, eval_to + 1, G)):
++            for e in range(EP):
++                w.writerow([i, t, e, f"{t * 0.5 + e:.3f}"])
++    ts = np.arange(G, eval_to + 1, G, dtype=np.int64)
++    np.savez(st / RS.EVALS_NPZ, timesteps=ts, results=np.ones((len(ts), EP)), ep_lengths=np.full((len(ts), EP), 9))
++    np.savez(st / RS.GATE_NPZ, timesteps=ts, unsupported_duty=np.zeros(len(ts)))
++    with open(st / RS.TRAIN_LEDGER, "w", newline="") as fh:
++        w = csv.writer(fh, lineterminator="\n")
++        w.writerow(["timesteps", "cause", "length"])
++        for t in range(5, train_to + 1, 5):
++            w.writerow([t, "truncated", 5])
++    return run
++
++
++def point(run, **kw):
++    return RS.resume_point(run, S=S, E=E, saved_steps=SAVED, periodic_names=names,
++                           start_sha256=(_sha(run / STAGE / "models" / names(S)[0]),
++                                         _sha(run / STAGE / "models" / names(S)[1])),
++                           stage_dir_name=STAGE, rollout=R, eval_freq=G, eval_episodes=EP, **kw)
++
++
++# ------------------------------------------------------------------------------------------------ the resume point
++def test_the_newest_complete_pair_is_chosen(tmp_path):
++    """The code's flush clocks: the newest pair (224) is saved, its probe row and the training ledger after it are not
++    on disk yet; the pair before it (192) has every row: P = 192, the newer one named with its reason."""
++    run = make_attempt(tmp_path, probe_to=216, evidence_to=232, eval_to=224, train_to=224, pairs_to=224)
++    pt = point(run)
++    assert pt["P"] == 192 and pt["problems"] == []
++    assert [c["steps"] for c in pt["candidates"]] == [224, 192]
++    assert "policy_probe.npz" in pt["candidates"][0]["problem"] and "train_episodes" in pt["candidates"][0]["problem"]
++    assert pt["zip_sha256"] == _sha(run / STAGE / "models" / names(192)[0])
++
++
++def test_all_complete_takes_the_newest(tmp_path):
++    run = make_attempt(tmp_path, probe_to=256, evidence_to=256, eval_to=256, train_to=260, pairs_to=256)
++    assert point(run)["P"] == 256
++
++
++@pytest.mark.parametrize("damage", ["truncated_zip", "no_pkl", "no_members", "bad_pkl", "wrong_steps", "no_zip"])
++def test_a_damaged_newest_pair_falls_back(tmp_path, damage):
++    run = make_attempt(tmp_path, probe_to=256, evidence_to=256, eval_to=256, train_to=260, pairs_to=256)
++    z, p = (run / STAGE / "models" / n for n in names(256))
++    if damage == "truncated_zip":
++        z.write_bytes(z.read_bytes()[: len(z.read_bytes()) // 2])
++    elif damage == "no_pkl":
++        p.unlink()
++    elif damage == "no_members":
++        _zip(z, 256, members=("other",))
++    elif damage == "bad_pkl":
++        p.write_bytes(b"not a pickle")
++    elif damage == "wrong_steps":
++        _zip(z, 224)
++    else:
++        z.unlink()
++    pt = point(run)
++    assert pt["P"] == 224 and pt["candidates"][0]["steps"] == 256 and pt["candidates"][0]["problem"]
++
++
++@pytest.mark.parametrize("damage", ["probe_gap", "probe_repeat", "evidence_cut", "evidence_order", "ledger_short",
++                                    "ledger_repeat", "evals_npz_gap", "gate_gap", "train_before"])
++def test_incomplete_records_are_refused_as_resume_points(tmp_path, damage):
++    """Each record missing (or repeating) a row up to the newest pair (256) makes it no resume point; the attempt's
++    older pair (224) still is when the damage lies after it."""
++    run = make_attempt(tmp_path, probe_to=256, evidence_to=256, eval_to=256, train_to=260, pairs_to=256)
++    st = run / STAGE
++    if damage in ("probe_gap", "probe_repeat"):
++        with np.load(st / RS.PROBE) as z:
++            d = {k: np.asarray(z[k]) for k in z.files}
++        i = int(np.flatnonzero(d["update_timesteps"] == 240)[0])
++        keep = [j for j in range(len(d["update_timesteps"])) if j != i] if damage == "probe_gap" else \
++            sorted([*range(len(d["update_timesteps"])), i])
++        np.savez(st / RS.PROBE, **{k: v[keep] for k, v in d.items()})
++    elif damage == "evidence_cut":
++        lines = (run / RS.EVIDENCE).read_text().splitlines(keepends=True)
++        (run / RS.EVIDENCE).write_text("".join(lines[:-1]) + lines[-1][:-5])
++    elif damage == "evidence_order":
++        lines = (run / RS.EVIDENCE).read_text().splitlines(keepends=True)
++        lines[-2], lines[-1] = lines[-1], lines[-2]
++        (run / RS.EVIDENCE).write_text("".join(lines))
++    elif damage in ("ledger_short", "ledger_repeat"):
++        rows = (st / RS.EVAL_LEDGER).read_text().splitlines(keepends=True)
++        last = [i for i, r in enumerate(rows) if r.split(",")[1] == "240"]
++        if damage == "ledger_short":
++            del rows[last[-1]]
++        else:
++            rows.insert(last[-1], rows[last[-1]])
++        (st / RS.EVAL_LEDGER).write_text("".join(rows))
++    elif damage in ("evals_npz_gap", "gate_gap"):
++        name = RS.EVALS_NPZ if damage == "evals_npz_gap" else RS.GATE_NPZ
++        with np.load(st / name) as z:
++            d = {k: np.asarray(z[k]) for k in z.files}
++        keep = d["timesteps"] != 240
++        np.savez(st / name, **{k: v[keep] for k, v in d.items()})
++    else:
++        rows = (st / RS.TRAIN_LEDGER).read_text().splitlines(keepends=True)
++        kept = [r for r in rows if not r[:1].isdigit() or int(r.split(",")[0]) <= 255]
++        (st / RS.TRAIN_LEDGER).write_text("".join(kept))
++    pt = point(run)
++    assert pt["candidates"][0]["steps"] == 256 and pt["candidates"][0]["problem"]
++    assert pt["P"] == 224, (damage, pt["candidates"])
++
++
++def test_no_resume_point_and_a_bad_start_copy(tmp_path):
++    run = make_attempt(tmp_path, probe_to=88, evidence_to=104, eval_to=96, train_to=96, pairs_to=96)
++    pt = point(run)                          # the only pair (96) is not complete yet: a fresh start from S
++    assert pt["P"] is None and [c["steps"] for c in pt["candidates"]] == [96] and pt["problems"] == []
++    run2 = make_attempt(tmp_path, probe_to=256, evidence_to=256, eval_to=256, train_to=260, pairs_to=256, name="x")
++    pt2 = RS.resume_point(run2, S=S, E=E, saved_steps=SAVED, periodic_names=names, start_sha256=("0" * 64, "1" * 64),
++                          stage_dir_name=STAGE, rollout=R, eval_freq=G, eval_episodes=EP)
++    assert pt2["P"] is None and len(pt2["problems"]) == 2 and pt2["candidates"] == []
++
++
++def test_an_earlier_pair_missing_refuses_the_later_one(tmp_path):
++    run = make_attempt(tmp_path, probe_to=256, evidence_to=256, eval_to=256, train_to=260, pairs_to=256)
++    (run / STAGE / "models" / names(160)[1]).unlink()
++    pt = point(run)
++    assert pt["P"] == 128 and [c["steps"] for c in pt["candidates"]] == [256, 224, 192, 160, 128]
++    assert all("earlier saved pairs" in c["problem"] for c in pt["candidates"][:3])
++    assert "sidecar" in pt["candidates"][3]["problem"] and pt["candidates"][4]["problem"] is None
++
++
++# ------------------------------------------------------------------------------------------------ the new folder
++def test_resume_inputs_and_stitching(tmp_path):
++    """The new folder: the pairs S..P linked (same bytes, same inode), the records copied, the evidence lines up to P
++    byte for byte; the stitched digests over rows <= P equal before and after the session appends rows after P and the
++    code trims the rows after P (simulated as the code does: kept rows' text unchanged); a changed row <= P fails."""
++    src = make_attempt(tmp_path, probe_to=216, evidence_to=232, eval_to=224, train_to=224, pairs_to=224)
++    P = 192
++    before = RS.stitch_digests(src / STAGE, src, P, S=S, rollout=R)
++    new = tmp_path / "critic_blind_tail3_9301"
++    new.mkdir()
++    rec = RS.resume_inputs(new / STAGE, new, src, P, S=S, saved_steps=SAVED, periodic_names=names,
++                           stage_dir_name=STAGE, records=(RS.EVAL_LEDGER, RS.EVALS_NPZ, RS.GATE_NPZ, RS.TRAIN_LEDGER,
++                                                          RS.PROBE), rollout=R)
++    assert set(rec["pairs"]) == {n for s in (S, *[x for x in SAVED if x <= P]) for n in names(s)}
++    assert rec["links"] == len(rec["pairs"]) and rec["evidence_lines"] == (P - S) // R
++    zp = new / STAGE / "models" / names(P)[0]
++    assert zp.stat().st_ino == (src / STAGE / "models" / names(P)[0]).stat().st_ino
++    assert not (new / STAGE / "models" / names(224)[0]).exists()
++    src_lines = (src / RS.EVIDENCE).read_text().splitlines(keepends=True)
++    assert (new / RS.EVIDENCE).read_text() == "".join(src_lines[: (P - S) // R])
++    assert RS.stitch_problems(before, RS.stitch_digests(new / STAGE, new, P, S=S, rollout=R)) == []
++    # the session: rows <= P kept as they were, its own rows after P appended
++    st = new / STAGE
++    with np.load(st / RS.PROBE) as z:
++        d = {k: np.asarray(z[k]) for k in z.files}
++    keep = d["update_timesteps"] <= P
++    d = {k: v[keep] for k, v in d.items()}
++    extra = np.arange(P + R, P + 6 * R, R, dtype=np.int64)
++    d2 = {k: np.concatenate([v, np.repeat(v[-1:], len(extra), axis=0)]) for k, v in d.items()}
++    d2["update_timesteps"] = np.concatenate([d["update_timesteps"], extra])
++    np.savez(st / RS.PROBE, **d2)
++    with open(new / RS.EVIDENCE, "a") as fh:
++        for t in extra:
++            fh.write(json.dumps({"num_timesteps": int(t), "dv": 1.0}) + "\n")
++    rows = (st / RS.EVAL_LEDGER).read_text().splitlines(keepends=True)
++    kept = [r for r in rows if not r[:1].isdigit() or int(r.split(",")[1]) <= P]
++    (st / RS.EVAL_LEDGER).write_text("".join(kept) + "".join(f"9,{P + G},{e},1.0\n" for e in range(EP)))
++    after = RS.stitch_digests(st, new, P, S=S, rollout=R,
++                              headers={n: before[n]["header"] for n in (RS.EVAL_LEDGER, RS.TRAIN_LEDGER)})
++    assert RS.stitch_problems(before, after) == []
++    # a row <= P changed: CHECK fails
++    rows = (st / RS.EVAL_LEDGER).read_text().splitlines(keepends=True)
++    rows[1] = rows[1].replace(",0,", ",7,", 1)
++    (st / RS.EVAL_LEDGER).write_text("".join(rows))
++    bad = RS.stitch_digests(st, new, P, S=S, rollout=R)
++    assert any(RS.EVAL_LEDGER in x for x in RS.stitch_problems(before, bad))
++    assert RS.stitch_problems({}, after) and RS.stitch_problems(before, {})
++
++
++def test_resume_inputs_refuses_an_incomplete_evidence_prefix(tmp_path):
++    src = make_attempt(tmp_path, probe_to=216, evidence_to=120, eval_to=224, train_to=224, pairs_to=224)
++    new = tmp_path / "new"
++    new.mkdir()
++    with pytest.raises(RS.ResumeError):
++        RS.resume_inputs(new / STAGE, new, src, 192, S=S, saved_steps=SAVED, periodic_names=names,
++                         stage_dir_name=STAGE, records=(RS.PROBE,), rollout=R)
++
++
++# ------------------------------------------------------------------------------------------------ CHECK's grid
++def test_evaluation_grid(tmp_path):
++    run = make_attempt(tmp_path, probe_to=256, evidence_to=256, eval_to=256, train_to=260, pairs_to=256)
++    st = run / STAGE
++    p, det = RS.evaluation_grid_problems(st, 256, eval_freq=G, eval_episodes=EP)
++    assert p == [] and det["evaluations_expected"] == 16 and det["ledger_repeated"] == 0
++    assert RS.evaluation_grid_problems(st, 272, eval_freq=G, eval_episodes=EP)[0]        # one missing at 272
++    assert RS.evaluation_grid_problems(st, 240, eval_freq=G, eval_episodes=EP)[0]        # rows after T
++    rows = (st / RS.EVAL_LEDGER).read_text().splitlines(keepends=True)
++    (st / RS.EVAL_LEDGER).write_text("".join(rows + [rows[5]]))
++    assert any("repeated" in x for x in RS.evaluation_grid_problems(st, 256, eval_freq=G, eval_episodes=EP)[0])
++
++
++def test_local_pair_problem_matches_the_code_rules(tmp_path):
++    z, p = tmp_path / "a.zip", tmp_path / "a.pkl"
++    _zip(z, 1)
++    p.write_bytes(pickle.dumps(1))
++    assert RS.local_pair_problem(z, p) is None
++    assert "sidecar" in RS.local_pair_problem(z, tmp_path / "none.pkl")
++    _zip(z, 1, members=("data",))
++    assert "SB3 members" in RS.local_pair_problem(z, p)
++    z.write_bytes(b"PK\x03\x04 truncated")
++    assert "bad/truncated" in RS.local_pair_problem(z, p)
++    assert RS.zip_num_timesteps(z) is None
+diff -ruN -x score_bs.py -x test_score_bs.py -x __pycache__ bias_screen2/tools/tests/test_run_bs.py long_blind/tools/tests/test_run_bs.py
+--- bias_screen2/tools/tests/test_run_bs.py	2026-10-30 10:39:51.849126712 +0000
++++ long_blind/tools/tests/test_run_bs.py	2026-10-30 17:05:57.155181451 +0000
+@@ -27,23 +27,28 @@
+ 
+ R = _load("run_bs")
+ C = R.C
+-V0, V4 = C.VALIDATION_SEEDS[0], C.VALIDATION_SEEDS[-1]     # BS2: 9201, 9241 (BS's tests used 9101 / 9141)
++V0, V4 = C.VALIDATION_SEEDS[0], C.VALIDATION_SEEDS[-1]     # LB: 9301, 9341 (BS 9101 / 9141, BS2 9201 / 9241)
+ 
+ 
+ # ------------------------------------------------------------------------------------------------ bs_common
+ def test_window_and_grid():
+-    assert (C.S, C.E, C.LENGTH) == (2_097_152, 3_538_944, 1_441_792)
+-    assert C.E - C.S <= C.MAX_LENGTH == 1_500_000
+-    assert C.N_EVALS == 11 and C.LENGTH % C.EVAL_FREQ == 0 and C.LENGTH % C.ROLLOUT == 0
+-    assert C.S % C.EVAL_FREQ == 0 and C.E % C.EVAL_FREQ == 0 and C.E // C.EVAL_FREQ == 27   # E on the 131,072 grid
++    assert (C.S, C.E, C.LENGTH) == (2_097_152, 12_001_280, 9_904_128)
++    assert C.E == 1_465 * C.ROLLOUT and C.E - C.S == C.MAX_LENGTH == C.LENGTH     # the parent's own end
++    assert C.N_EVALS == 75 and C.LENGTH % C.ROLLOUT == 0 and C.S % C.EVAL_FREQ == 0
++    assert C.E % C.EVAL_FREQ == 73_728 and C.S + C.N_EVALS * C.EVAL_FREQ == 11_927_552   # E off the evaluation grid
+     assert C.S % C.SAVE_FREQ == 0 and C.S % C.ROLLOUT == 0
+-    assert C.LENGTH // C.ROLLOUT == 176 and C.expected_update_rows(C.S, C.E) == 175
+-    assert C.SAVED_STEPS == (2_359_296, 2_621_440, 2_883_584, 3_145_728, 3_407_872)
++    assert C.LENGTH // C.ROLLOUT == 1_209 and C.expected_update_rows(C.S, C.E) == 1_208
++    assert len(C.SAVED_STEPS) == 37 and C.SAVED_STEPS[0] == 2_359_296 and C.SAVED_STEPS[-1] == 11_796_480
++    assert all(b - a == C.SAVE_FREQ for a, b in zip(C.SAVED_STEPS, C.SAVED_STEPS[1:], strict=False))
+     assert C.E % C.SAVE_FREQ != 0                       # no periodic pair at E: the final pair is the end pair
+     assert C.VALIDATE_UNTIL == C.S + 262_144 == 2_359_296
+-    assert C.WAVE_SLOTS == 4 and C.WAVE_NICE == 10 and C.MAX_CONTINUATIONS == 9
+-    assert C.DISK_FLOOR_BYTES == 1_610_612_736 and C.LAUNCH_DISK_BYTES == 1_610_612_736 + 9 * 50 * 1024**2
+-    assert C.BS.endswith("/r10round/bias_screen2") and C.CODE == C.BS1 + "/code" and C.BS1 != C.BS
++    assert C.WAVE_SLOTS == 4 and C.WAVE_NICE == 10 and C.MAX_CONTINUATIONS == 4
++    assert C.RUN_BYTES_EST == 200 * 1024**2
++    assert C.DISK_FLOOR_BYTES == 1_610_612_736 and C.LAUNCH_DISK_BYTES == 1_610_612_736 + 4 * 200 * 1024**2
++    assert C.BS.endswith("/r10round/long_blind") and C.CODE == C.BS1 + "/code" and C.BS1 != C.BS
++    assert C.HOP_WATCH_AFTER == 7_000_000 and C.HOP_WATCH_FIRST_EVAL == 54 * C.EVAL_FREQ == 7_077_888
++    assert C.RESUME_GRID == C.SAVE_FREQ and C.LOOP_READ_EVERY % C.SAVE_FREQ == 0 and C.EVAL_EPISODES == 10
++    assert "bs_resume.py" in C.TOOL_FILES and len(C.TOOL_FILES) == 6 and C.SCORER_FILE == "score_bs.py"
+ 
+ 
+ def test_start_pair_pins():
+@@ -56,9 +61,9 @@
+     assert set(st["records"]) == {*C.PARENT_RECORDS, "stage_config.json"}
+ 
+ 
+-def test_validation_seeds_are_bs2s():
+-    assert C.VALIDATION_SEEDS == (9201, 9211, 9221, 9231, 9241)
+-    assert all(s not in C.VALIDATION_SEEDS for s in (2101, 2111, 2121, 2131))
++def test_validation_seeds_are_lbs():
++    assert C.VALIDATION_SEEDS == (9301, 9311, 9321, 9331, 9341)
++    assert all(s not in C.VALIDATION_SEEDS for s in (2101, 2111, 2121, 2131, 9201, 9101))
+ 
+ 
+ def test_run_names():
+@@ -79,10 +84,10 @@
+     for inter in C.INTERVENTIONS:
+         assert C.screen_problems(_screen(inter)) == []
+     assert C.queue_of(_screen())[1] == ("critic_blind_tail3", 2101)
+-    nine = [["control", 2000 + i] for i in range(5)] + [["frozen_obs_norm", 3000 + i] for i in range(4)]
+-    assert C.screen_problems(_screen("frozen_obs_norm", nine)) == []
++    four = [["control", 2000]] + [["critic_blind_tail3", 3000 + i] for i in range(3)]       # AUTH2: 4 runs
++    assert C.screen_problems(_screen("critic_blind_tail3", four)) == []
+     bad = {
+-        "ten": _screen("frozen_obs_norm", nine + [["control", 2999]]),
++        "five": _screen("critic_blind_tail3", four + [["control", 2999]]),
+         "unknown intervention": _screen("ent_coef_0"),
+         "two interventions": _screen(queue=[["control", 1], ["critic_blind_tail3", 2], ["gae_lambda_1", 3]]),
+         "control only": _screen(queue=[["control", 1], ["control", 2]]),
+@@ -192,6 +197,10 @@
+     assert R.stop_reason(flag=True, T=C.E, target=C.E, collapse_tripped=False) == "end"
+     assert R.stop_reason(flag=False, T=C.S + 8192 * 20, target=C.E, collapse_tripped=True) == "collapse"
+     assert R.stop_reason(flag=False, T=C.E, target=C.E, collapse_tripped=False) == "other"
++    t = C.HOP_WATCH_FIRST_EVAL
++    assert R.stop_reason(flag=False, T=t, target=C.E, collapse_tripped=False, hop_tripped=True) == "hop_watch"
++    assert R.stop_reason(flag=False, T=t, target=C.E, collapse_tripped=True, hop_tripped=True) == "collapse"
++    assert R.stop_reason(flag=True, T=C.E, target=C.E, collapse_tripped=False, hop_tripped=True) == "end"
+ 
+ 
+ class _BaseCB:
+@@ -301,3 +310,78 @@
+     ceil = env["GIT_CEILING_DIRECTORIES"].split(R.os.pathsep)
+     assert ceil == [str(tmp_path), R.os.path.dirname(R.os.path.realpath(C.CODE))]
+     assert env["TMPDIR"] == str(tmp_path / "tmp" / "x")
++
++
++# ------------------------------------------------------------------------------------------------ LB additions
++def test_recipe_and_load_checks_at_a_resume_point():
++    """A resume at P loads P's pair: run.timesteps = 12,000,000 - P and num_timesteps = P (S's would be refused)."""
++    parent, P = _parent_sc(), C.SAVED_STEPS[3]
++    w = _written(parent, "critic_blind_tail3")
++    w["run"]["timesteps"] = C.TOTAL_TIMESTEPS - P
++    w["run"]["parent_checkpoint_sha256"] = "sha256:" + "a" * 64
++    kw = dict(arm="critic_blind_tail3", seed=V0, label=f"BS critic_blind_tail3 {V0}", load_path="/x/z.zip",
++              zip_sha256="a" * 64, hp_sha256_expected=C.HYPERPARAMETERS_SHA256_RUN)
++    assert R.recipe_problems(w, parent, **kw, load_steps=P) == []
++    assert any("timesteps" in x for x in R.recipe_problems(w, parent, **kw))           # the default load step is S
++    m, env = _fake_loaded("critic_blind_tail3", num_timesteps=P)
++    assert R.loaded_problems(m, mirror_cls=_Mirror, arm="critic_blind_tail3", train_env=env, threads=1,
++                             expected_steps=P) == []
++    assert R.loaded_problems(m, mirror_cls=_Mirror, arm="critic_blind_tail3", train_env=env, threads=1)
++
++
++def test_hop_state():
++    class HopRegimeWatchCallback:
++        _tripped, stop, after_timesteps, max_unsupported_duty = True, True, 7_000_000, 0.05
++
++    class Other:
++        pass
++    st = R.hop_state([Other(), HopRegimeWatchCallback()])
++    assert st == {"found": 1, "tripped": True, "stop": True, "after_timesteps": 7_000_000,
++                  "max_unsupported_duty": 0.05}
++    assert R.hop_state([Other()])["found"] == 0 and R.hop_state([Other()])["tripped"] is False
++
++
++def _crashed(tmp_path, arm="critic_blind_tail3", seed=V0, k=1, **meta):
++    d = tmp_path / f"{arm}_{seed}_crashed{k}"
++    d.mkdir()
++    m = {"arm": arm, "seed": seed, "mode": "no_update", "S": C.S, "E": C.E, "target": C.S + 4 * C.SAVE_FREQ,
++         "status": "running"}
++    m.update(meta)
++    (d / C.RUN_META).write_text(json.dumps(m))
++    return d
++
++
++def test_resume_from_problems(tmp_path):
++    ns = _ns(arm="critic_blind_tail3", no_update=True, until=C.S + 4 * C.SAVE_FREQ, out=str(tmp_path))
++    d = _crashed(tmp_path)
++    assert R.resume_from_problems(SimpleNamespace(**{**vars(ns), "resume_from": str(d)})) == []
++    assert R.resume_from_problems(SimpleNamespace(**{**vars(ns), "resume_from": None})) == []
++    cases = (({"status": "done"}, "nothing to resume"), ({"seed": 1}, "seed"), ({"E": 3_538_944}, "E"),
++             ({"target": C.E}, "target"), ({"mode": "continuation"}, "mode"))
++    for i, (over, why) in enumerate(cases):
++        bad = _crashed(tmp_path, k=2 + i, **over)
++        p = R.resume_from_problems(SimpleNamespace(**{**vars(ns), "resume_from": str(bad)}))
++        assert any(why in x for x in p), (over, p)
++    other = _crashed(tmp_path, arm="control")
++    assert R.resume_from_problems(SimpleNamespace(**{**vars(ns), "resume_from": str(other)}))
++    plain = tmp_path / "critic_blind_tail3_9301"
++    plain.mkdir()
++    assert any("crashed" in x for x in R.resume_from_problems(SimpleNamespace(**{**vars(ns),
++                                                                                  "resume_from": str(plain)})))
++    elsewhere = tmp_path / "sub"
++    elsewhere.mkdir()
++    d2 = _crashed(elsewhere)
++    assert any("run root" in x for x in R.resume_from_problems(SimpleNamespace(**{**vars(ns),
++                                                                                  "resume_from": str(d2)})))
++    assert R.resume_from_problems(SimpleNamespace(**{**vars(ns), "save_loaded_only": True, "no_update": False,
++                                                     "resume_from": str(d)}))
++
++
++def test_attempt_summary_carries_no_outcome(tmp_path):
++    s = R.attempt_summary(tmp_path / "control_9301_crashed1",
++                          {"attempt": 1, "status": "crashed", "exit": 1, "heartbeat": {"rollout_end": 2_400_256},
++                           "last_step": 2_400_260, "utc_start": "a", "utc_end": "b", "error": "x" * 999,
++                           "arm_evidence": {"n": 5}, "stop_reason": None})
++    assert s["last_step"] == 2_400_260 and s["folder"] == "control_9301_crashed1" and len(s["error"]) == 300
++    assert set(s) == {"attempt", "folder", "status", "exit", "resumed_from", "load_step", "last_step", "utc_start",
++                      "utc_end", "error"}
+diff -ruN -x score_bs.py -x test_score_bs.py -x __pycache__ bias_screen2/tools/tests/test_waves_bs.py long_blind/tools/tests/test_waves_bs.py
+--- bias_screen2/tools/tests/test_waves_bs.py	2026-10-30 12:17:08.566151388 +0000
++++ long_blind/tools/tests/test_waves_bs.py	2026-10-30 17:03:46.893762607 +0000
+@@ -5,6 +5,10 @@
+ BS2 review fixes: the refusal without APPROVED's score_bs.py pin (PR-M4); the atime re-arm of a decided continuation's
+ files and the snapshot logs/atimes_at_ALL_DECIDED.tsv before the full reads, which shows a read made after the
+ decision (PR-M2, lesson P4); the REFUSED note naming --preflight-only, not the attempt log (PR-M3).
++LB: a crash reruns with --resume-from its retired folder (also at a relaunch, from the crash ledger); the early-crash
++rule counts from the attempt's load step; a hop-watch stop is STOPPED; RR-1 (a relaunch after ALL_DECIDED keeps the
++first snapshot and ALL_DECIDED); I1 (lstat atimes of an attempt's files right after it exits, before CHECK).  The
++scorer the APPROVED pin names is a stub here (BS_SCORER; the real one is the criteria lane's).
+ 
+ The runner runs in its test mode (BS_WAVES_TEST=1 with a temporary BS_ROOT, never the real <BS>); every command it
+ starts is a stub written here.  Nothing trains, nothing simulates.
+@@ -34,6 +38,7 @@
+ import json, os, sys, time
+ a = sys.argv[1:]
+ arm, seed = a[a.index("--arm") + 1], a[a.index("--seed") + 1]
++resume = os.path.basename(a[a.index("--resume-from") + 1]) if "--resume-from" in a else "-"
+ root = os.environ["BS_ROOT"]
+ name = f"{arm}_{seed}"
+ S = int(os.environ["BS_STUB_S"])
+@@ -44,7 +49,7 @@
+ plan = json.load(open(f"{root}/plan.json")).get(name, [])
+ what = plan[n - 1] if n <= len(plan) else "end"
+ with open(f"{root}/calls.log", "a") as fh:
+-    fh.write(f"run {name} {what}\n")
++    fh.write(f"run {name} {what} resume={resume}\n")
+ print(f"stub attempt {n} of {name}: {what}", flush=True)
+ if what.startswith("vslow"):
+     time.sleep(4.0)
+@@ -57,14 +62,18 @@
+ run = f"{root}/runs/{name}"
+ os.makedirs(f"{run}/01_stance/models")
+ meta = {"status": "running", "exit": None, "stop_reason": None}
+-if what in ("end", "collapse", "checkfail"):
+-    meta = {"status": "done", "exit": 0, "stop_reason": "collapse" if what == "collapse" else "end"}
++load = S + 2 * 262144 if what.startswith("resumed") else S
++if what.startswith("resumed"):
++    what = what[7:] or "end"
++meta = {"status": "running", "exit": None, "stop_reason": None, "load_step": load}
++if what in ("end", "collapse", "checkfail", "hop"):
++    meta = {"status": "done", "exit": 0, "stop_reason": {"collapse": "collapse", "hop": "hop_watch"}.get(what, "end")}
+     if what == "checkfail":
+         meta["stub_check"] = "fail"
+ elif what == "postfail":
+     meta = {"status": "failed", "exit": 5, "stop_reason": "end"}
+ elif what in ("crash", "earlycrash"):
+-    meta.update(status="crashed", exit=1, last_step=S + (8192 if what == "earlycrash" else 3 * 131072))
++    meta.update(status="crashed", exit=1, last_step=load + (8192 if what == "earlycrash" else 3 * 131072))
+ elif what == "kill":
+     meta["heartbeat"] = {"rollout_end": S + 2 * 131072}
+ json.dump(meta, open(f"{run}/run_meta.json", "w"))
+@@ -119,7 +128,9 @@
+ def bs(tmp_path):
+     root = tmp_path / "bs"
+     root.mkdir()
+-    (root / "APPROVED").write_text(json.dumps({"tool_sha256": {"score_bs.py": _sha(TOOLS / "score_bs.py")}}))
++    scorer = tmp_path / "stub_score_bs.py"                 # the criteria lane's scorer is not in this build
++    scorer.write_text("# stub scorer\n")
++    (root / "APPROVED").write_text(json.dumps({"tool_sha256": {"score_bs.py": _sha(scorer)}}))
+     (root / "criteria.txt").write_text("text\n")
+     (root / "SCREEN.json").write_text(json.dumps({"schema": C.SCREEN_SCHEMA, "intervention": "critic_blind_tail3",
+                                                   "queue": [list(q) for q in QUEUE[:4]]}))
+@@ -132,8 +143,9 @@
+     env = {**os.environ, "BS_WAVES_TEST": "1", "BS_ROOT": str(root),
+            "BS_RUN_CMD": f"{py} -I -B {stubs / 'stub_run_bs.py'}", "BS_CHECK_CMD": f"{tool} check",
+            "BS_READ_CMD": f"{tool} read", "BS_ORPHAN_PATTERN": f"{stubs / 'stub_run_bs.py'} --arm",
+-           "BS_POLL_SECONDS": "0.2", "BS_LAUNCH_DISK_BYTES": "0", "BS_STUB_S": str(C.S)}   # BS2: S from bs_common
+-    return {"root": root, "env": env, "stubs": stubs}
++           "BS_POLL_SECONDS": "0.2", "BS_LAUNCH_DISK_BYTES": "0", "BS_STUB_S": str(C.S),   # BS2: S from bs_common
++           "BS_SCORER": str(scorer)}
++    return {"root": root, "env": env, "stubs": stubs, "scorer": scorer}
+ 
+ 
+ def _plan(bs, plan):
+@@ -168,7 +180,8 @@
+     for name in _names(4):
+         arm, seed = name.rsplit("_", 1)
+         assert f"--arm {arm} --seed {seed}" in r.stdout
+-    assert f"S {C.S}, E {C.E}" in r.stdout and "S 2097152, E 3538944" in r.stdout
++    assert f"S {C.S}, E {C.E}" in r.stdout and "S 2097152, E 12001280" in r.stdout
++    assert "--resume-from runs/<name>_crashed<k>" in r.stdout
+ 
+ 
+ def test_all_counted_four_slots_then_read_after_all_decided(bs):
+@@ -257,13 +270,19 @@
+ 
+ 
+ def test_needs_the_scorer_pin_in_approved(bs):
+-    """PR-M4: APPROVED must pin tools/score_bs.py (run_bs.py's preflight pins the five TOOL_FILES only)."""
++    """PR-M4: APPROVED must pin tools/score_bs.py (run_bs.py's preflight pins the TOOL_FILES only)."""
+     _plan(bs, {})
+     for approved in ("{}", json.dumps({"tool_sha256": {"score_bs.py": "0" * 64}}), "not json {"):
+         (bs["root"] / "APPROVED").write_text(approved)
+         r = _run(bs)
+         assert r.returncode == 2 and "score_bs.py" in r.stderr, r.stderr
+         assert _calls(bs) == [] and not (bs["root"] / "runs").exists()
++    # the real scorer path when no test override is given (absent in this build): refused, nothing started
++    (bs["root"] / "APPROVED").write_text(json.dumps({"tool_sha256": {"score_bs.py": _sha(bs["scorer"])}}))
++    env = {k: v for k, v in bs["env"].items() if k != "BS_SCORER"}
++    r = subprocess.run(["bash", str(RUNNER)], env=env, capture_output=True, text=True, timeout=60, cwd="/tmp")
++    if not (TOOLS / "score_bs.py").exists():
++        assert r.returncode == 2 and "score_bs.py" in r.stderr and _calls(bs) == []
+ 
+ 
+ def test_atimes_rearmed_at_the_decision_and_recorded_before_the_reads(bs):
+@@ -390,6 +409,96 @@
+     assert r.returncode == 2 and "may not use the real" in r.stderr
+ 
+ 
+-def test_real_root_is_bs2():
++def test_real_root_is_lb():
+     text = RUNNER.read_text()
+-    assert "BS_REAL=$S2/r10round/bias_screen2\n" in text and C.BS.endswith("/r10round/bias_screen2")
++    assert "BS_REAL=$S2/r10round/long_blind\n" in text and C.BS.endswith("/r10round/long_blind")
++
++
++# ------------------------------------------------------------------------------------------------ LB additions
++def _run_calls(bs, name):
++    return [c for c in _calls(bs) if c.startswith(f"run {name} ")]
++
++
++def test_an_own_crash_resumes_from_its_retired_folder(bs):
++    """RESUME: the rerun of an own crash names the retired folder (--resume-from runs/<name>_crashed1); a second
++    crash of the rerun names _crashed2; a first attempt names none."""
++    first, second = _names(2)
++    _plan(bs, {first: ["crash", "crash"], second: ["end"]})
++    r = _run(bs, BS_SLOTS="1")
++    assert r.returncode == 0, r.stdout + r.stderr
++    calls = _run_calls(bs, first)
++    assert [c.split()[-1] for c in calls] == ["resume=-", f"resume={first}_crashed1", f"resume={first}_crashed2"]
++    assert _run_calls(bs, second)[0].endswith("resume=-")
++    log = (bs["root"] / "logs" / "run_waves_bs.log").read_text()
++    assert f"--resume-from {first}_crashed1" in log and _decided(bs)[first] == "COUNTED"
++
++
++def test_a_relaunch_resumes_from_the_crash_ledger(bs):
++    """A relaunch after a halt: a pending name whose last own crash left runs/<name>_crashed<k> resumes from it."""
++    first = _names(1)[0]
++    (bs["root"] / "logs").mkdir()
++    (bs["root"] / "runs" / f"{first}_crashed1").mkdir(parents=True)
++    (bs["root"] / "runs" / f"{first}_crashed2").mkdir(parents=True)
++    (bs["root"] / "logs" / "crash_ledger.tsv").write_text(
++        f"t\t{first}\t{first}_crashed1\texit 1\t1\nt\t{first}\t{first}_crashed2\texit 1\t1\n")
++    (bs["root"] / "logs" / "decided.tsv").write_text("")
++    _plan(bs, {})
++    r = _run(bs, BS_SLOTS="1")
++    assert r.returncode == 0, r.stdout + r.stderr
++    assert _run_calls(bs, first)[0].endswith(f"resume={first}_crashed2")
++    assert all(c.endswith("resume=-") for n in _names(4)[1:] for c in _run_calls(bs, n))
++
++
++def test_the_early_crash_rule_counts_from_the_load_step(bs):
++    """An attempt resumed at S + 524,288 that crashes 8,192 steps after its load is an EARLY crash (not counted,
++    halt), although its last step is past S + 131,072."""
++    first = _names(1)[0]
++    _plan(bs, {first: ["resumedearlycrash"]})
++    r = _run(bs, BS_SLOTS="1")
++    assert r.returncode == 2
++    row = _crash_rows(bs)[0]
++    assert row[4] == "0" and "EARLY CRASH" in row[3] and str(C.S + 2 * 262144 + 8192) in row[3]
++
++
++def test_a_hop_watch_stop_is_stopped(bs):
++    first = _names(1)[0]
++    _plan(bs, {first: ["hop"]})
++    r = _run(bs)
++    assert r.returncode == 0, r.stdout + r.stderr
++    assert _decided(bs)[first] == "STOPPED" and set(_decided(bs).values()) == {"COUNTED", "STOPPED"}
++
++
++def test_rr1_a_relaunch_after_all_decided_keeps_the_first_snapshot(bs):
++    """RR-1: the second run of the runner (everything decided) writes its snapshot to .relaunch1.tsv; the first
++    snapshot and ALL_DECIDED are unchanged."""
++    _plan(bs, {})
++    assert _run(bs).returncode == 0
++    logs = bs["root"] / "logs"
++    first_tsv, first_marker = (logs / "atimes_at_ALL_DECIDED.tsv").read_bytes(), (logs / "ALL_DECIDED").read_bytes()
++    time.sleep(1.1)
++    r = _run(bs)
++    assert r.returncode == 0, r.stdout + r.stderr
++    assert (logs / "atimes_at_ALL_DECIDED.tsv").read_bytes() == first_tsv
++    assert (logs / "ALL_DECIDED").read_bytes() == first_marker
++    assert (logs / "atimes_at_ALL_DECIDED.relaunch1.tsv").exists()
++    assert "atimes_at_ALL_DECIDED" not in (logs / "atimes_at_ALL_DECIDED.relaunch1.tsv").read_text()
++    assert "ALL_DECIDED kept" in (logs / "run_waves_bs.log").read_text()
++
++
++def test_i1_atimes_are_taken_at_exit_before_check(bs):
++    """I1: logs/atimes_at_exit/<name>.attempt<k>.tsv lists the attempt's files right after it exits (lstat), before
++    CHECK wrote check.json and before the re-arm; a crash's snapshot is taken before the folder is renamed."""
++    first, second = _names(2)
++    _plan(bs, {first: ["crash"]})
++    r = _run(bs)
++    assert r.returncode == 0, r.stdout + r.stderr
++    snap = bs["root"] / "logs" / "atimes_at_exit"
++    a1 = (snap / f"{first}.attempt1.tsv").read_text().splitlines()
++    assert a1[0].split("\t") == ["path", "atime_ns", "mtime_ns", "ctime_ns", "atime_after_mtime"]
++    assert any(f"/runs/{first}/run_meta.json" in ln for ln in a1) and not any("check.json" in ln for ln in a1)
++    assert any(ln.split("\t")[0].endswith(f"logs/{first}.attempt1.log") for ln in a1[1:])
++    a2 = (snap / f"{first}.attempt2.tsv").read_text()
++    assert f"/runs/{first}/run_meta.json" in a2 and "check.json" not in a2
++    s2 = (snap / f"{second}.attempt1.tsv").read_text().splitlines()
++    rows = {ln.split("\t")[0].rsplit("/", 1)[-1]: ln.split("\t") for ln in s2[1:]}
++    assert int(rows["run_meta.json"][1]) != int(rows["run_meta.json"][2]) - 1     # not yet re-armed at exit

@@ -1,0 +1,121 @@
+environments origin: /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen/code/environments/__init__.py
+nq 28 nv 27 nu 15 obs dim (63,)
+joints (name, qposadr, obs index = qposadr - 7):
+   root             qpos   0 obs -
+   neck_pitch       qpos   7 obs 0
+   neck_yaw         qpos   8 obs 1
+   head_pitch       qpos   9 obs 2
+   tail_1_pitch     qpos  10 obs 3
+   tail_1_yaw       qpos  11 obs 4
+   tail_2_pitch     qpos  12 obs 5
+   tail_3_pitch     qpos  13 obs 6
+   r_hip_pitch      qpos  14 obs 7
+   r_hip_roll       qpos  15 obs 8
+   r_knee           qpos  16 obs 9
+   r_ankle          qpos  17 obs 10
+   r_toe_d2_joint   qpos  18 obs 11
+   r_toe_d3_joint   qpos  19 obs 12
+   r_toe_d4_joint   qpos  20 obs 13
+   l_hip_pitch      qpos  21 obs 14
+   l_hip_roll       qpos  22 obs 15
+   l_knee           qpos  23 obs 16
+   l_ankle          qpos  24 obs 17
+   l_toe_d2_joint   qpos  25 obs 18
+   l_toe_d3_joint   qpos  26 obs 19
+   l_toe_d4_joint   qpos  27 obs 20
+obs[6] joint: ['tail_3_pitch']
+actuator 14: tail_3_pitch_act ctrlrange [-0.2094  0.2094]
+actuators: ['neck_pitch_act', 'neck_yaw_act', 'head_pitch_act', 'r_hip_pitch_act', 'r_hip_roll_act', 'r_knee_act', 'r_ankle_act', 'l_hip_pitch_act', 'l_hip_roll_act', 'l_knee_act', 'l_ankle_act', 'tail_1_pitch_act', 'tail_1_yaw_act', 'tail_2_pitch_act', 'tail_3_pitch_act']
+geom tail_3_geom type 3 (capsule=3) size [0.08 0.15 0.  ]
+geom tail_4_geom type 3 (capsule=3) size [0.06       0.12509996 0.        ]
+geom tail_5_geom type 3 (capsule=3) size [0.035      0.10049876 0.        ]
+tail_tip site 2 pelvis body 2
+healthy_z_range (0.7, 1.55) max_tilt_angle 1.047 fall_penalty -100.0 max_episode_steps 1000 action_filter_cutoff_hz 10.0
+
+== env kwargs vs each run's recorded reward_weights
+   p1048576        match=False diffs=[('bite_head_proximity_weight', '<absent>', 0.0), ('command_config', '<absent>', None), ('command_mode', '<absent>', 'none'), ('forward_vel_max', '<absent>', 8.0), ('frame_skip', '<absent>', 5), ('healthy_z_range', '<absent>', [0.7, 1.55]), ('idle_penalty_weight', '<absent>', 0.0), ('idle_velocity_threshold', '<absent>', 0.05), ('lateral_penalty_weight', '<absent>', 0.0), ('natural_pitch', '<absent>', 0.017), ('perturbation_capture_velocity_multiple', '<absent>', 0.0), ('perturbation_direction', '<absent>', 'uniform_horizontal'), ('perturbation_duration', '<absent>', 0.2), ('perturbation_interval', '<absent>', 2.0), ('perturbation_jitter', '<absent>', 0.5), ('prey_lateral_range', '<absent>', [-2.0, 2.0]), ('stance_cop_band_full_price_load_share', '<absent>', 0.25), ('stance_cop_band_lower', '<absent>', -0.6), ('stance_cop_band_min_load_share', '<absent>', 0.35), ('stance_cop_band_pad_lower', '<absent>', -0.65), ('stance_cop_band_pad_upper', '<absent>', 0.65), ('stance_cop_band_tolerance', '<absent>', 0.357), ('stance_cop_band_upper', '<absent>', 0.4)]
+   p2097152        match=False diffs=[('bite_head_proximity_weight', '<absent>', 0.0), ('command_config', '<absent>', None), ('command_mode', '<absent>', 'none'), ('forward_vel_max', '<absent>', 8.0), ('frame_skip', '<absent>', 5), ('healthy_z_range', '<absent>', [0.7, 1.55]), ('idle_penalty_weight', '<absent>', 0.0), ('idle_velocity_threshold', '<absent>', 0.05), ('lateral_penalty_weight', '<absent>', 0.0), ('natural_pitch', '<absent>', 0.017), ('perturbation_capture_velocity_multiple', '<absent>', 0.0), ('perturbation_direction', '<absent>', 'uniform_horizontal'), ('perturbation_duration', '<absent>', 0.2), ('perturbation_interval', '<absent>', 2.0), ('perturbation_jitter', '<absent>', 0.5), ('prey_lateral_range', '<absent>', [-2.0, 2.0]), ('stance_cop_band_full_price_load_share', '<absent>', 0.25), ('stance_cop_band_lower', '<absent>', -0.6), ('stance_cop_band_min_load_share', '<absent>', 0.35), ('stance_cop_band_pad_lower', '<absent>', -0.65), ('stance_cop_band_pad_upper', '<absent>', 0.65), ('stance_cop_band_tolerance', '<absent>', 0.357), ('stance_cop_band_upper', '<absent>', 0.4)]
+   c2511_3145728   match=False diffs=[('bite_head_proximity_weight', '<absent>', 0.0), ('command_config', '<absent>', None), ('command_mode', '<absent>', 'none'), ('forward_vel_max', '<absent>', 8.0), ('frame_skip', '<absent>', 5), ('healthy_z_range', '<absent>', [0.7, 1.55]), ('idle_penalty_weight', '<absent>', 0.0), ('idle_velocity_threshold', '<absent>', 0.05), ('lateral_penalty_weight', '<absent>', 0.0), ('natural_pitch', '<absent>', 0.017), ('perturbation_capture_velocity_multiple', '<absent>', 0.0), ('perturbation_direction', '<absent>', 'uniform_horizontal'), ('perturbation_duration', '<absent>', 0.2), ('perturbation_interval', '<absent>', 2.0), ('perturbation_jitter', '<absent>', 0.5), ('prey_lateral_range', '<absent>', [-2.0, 2.0]), ('stance_cop_band_full_price_load_share', '<absent>', 0.25), ('stance_cop_band_lower', '<absent>', -0.6), ('stance_cop_band_min_load_share', '<absent>', 0.35), ('stance_cop_band_pad_lower', '<absent>', -0.65), ('stance_cop_band_pad_upper', '<absent>', 0.65), ('stance_cop_band_tolerance', '<absent>', 0.357), ('stance_cop_band_upper', '<absent>', 0.4)]
+   c2531_3145728   match=False diffs=[('bite_head_proximity_weight', '<absent>', 0.0), ('command_config', '<absent>', None), ('command_mode', '<absent>', 'none'), ('forward_vel_max', '<absent>', 8.0), ('frame_skip', '<absent>', 5), ('healthy_z_range', '<absent>', [0.7, 1.55]), ('idle_penalty_weight', '<absent>', 0.0), ('idle_velocity_threshold', '<absent>', 0.05), ('lateral_penalty_weight', '<absent>', 0.0), ('natural_pitch', '<absent>', 0.017), ('perturbation_capture_velocity_multiple', '<absent>', 0.0), ('perturbation_direction', '<absent>', 'uniform_horizontal'), ('perturbation_duration', '<absent>', 0.2), ('perturbation_interval', '<absent>', 2.0), ('perturbation_jitter', '<absent>', 0.5), ('prey_lateral_range', '<absent>', [-2.0, 2.0]), ('stance_cop_band_full_price_load_share', '<absent>', 0.25), ('stance_cop_band_lower', '<absent>', -0.6), ('stance_cop_band_min_load_share', '<absent>', 0.35), ('stance_cop_band_pad_lower', '<absent>', -0.65), ('stance_cop_band_pad_upper', '<absent>', 0.65), ('stance_cop_band_tolerance', '<absent>', 0.357), ('stance_cop_band_upper', '<absent>', 0.4)]
+   c2511_E         match=False diffs=[('bite_head_proximity_weight', '<absent>', 0.0), ('command_config', '<absent>', None), ('command_mode', '<absent>', 'none'), ('forward_vel_max', '<absent>', 8.0), ('frame_skip', '<absent>', 5), ('healthy_z_range', '<absent>', [0.7, 1.55]), ('idle_penalty_weight', '<absent>', 0.0), ('idle_velocity_threshold', '<absent>', 0.05), ('lateral_penalty_weight', '<absent>', 0.0), ('natural_pitch', '<absent>', 0.017), ('perturbation_capture_velocity_multiple', '<absent>', 0.0), ('perturbation_direction', '<absent>', 'uniform_horizontal'), ('perturbation_duration', '<absent>', 0.2), ('perturbation_interval', '<absent>', 2.0), ('perturbation_jitter', '<absent>', 0.5), ('prey_lateral_range', '<absent>', [-2.0, 2.0]), ('stance_cop_band_full_price_load_share', '<absent>', 0.25), ('stance_cop_band_lower', '<absent>', -0.6), ('stance_cop_band_min_load_share', '<absent>', 0.35), ('stance_cop_band_pad_lower', '<absent>', -0.65), ('stance_cop_band_pad_upper', '<absent>', 0.65), ('stance_cop_band_tolerance', '<absent>', 0.357), ('stance_cop_band_upper', '<absent>', 0.4)]
+   c2531_E         match=False diffs=[('bite_head_proximity_weight', '<absent>', 0.0), ('command_config', '<absent>', None), ('command_mode', '<absent>', 'none'), ('forward_vel_max', '<absent>', 8.0), ('frame_skip', '<absent>', 5), ('healthy_z_range', '<absent>', [0.7, 1.55]), ('idle_penalty_weight', '<absent>', 0.0), ('idle_velocity_threshold', '<absent>', 0.05), ('lateral_penalty_weight', '<absent>', 0.0), ('natural_pitch', '<absent>', 0.017), ('perturbation_capture_velocity_multiple', '<absent>', 0.0), ('perturbation_direction', '<absent>', 'uniform_horizontal'), ('perturbation_duration', '<absent>', 0.2), ('perturbation_interval', '<absent>', 2.0), ('perturbation_jitter', '<absent>', 0.5), ('prey_lateral_range', '<absent>', [-2.0, 2.0]), ('stance_cop_band_full_price_load_share', '<absent>', 0.25), ('stance_cop_band_lower', '<absent>', -0.6), ('stance_cop_band_min_load_share', '<absent>', 0.35), ('stance_cop_band_pad_lower', '<absent>', -0.65), ('stance_cop_band_pad_upper', '<absent>', 0.65), ('stance_cop_band_tolerance', '<absent>', 0.357), ('stance_cop_band_upper', '<absent>', 0.4)]
+   b2511_E         match=False diffs=[('bite_head_proximity_weight', '<absent>', 0.0), ('command_config', '<absent>', None), ('command_mode', '<absent>', 'none'), ('forward_vel_max', '<absent>', 8.0), ('frame_skip', '<absent>', 5), ('healthy_z_range', '<absent>', [0.7, 1.55]), ('idle_penalty_weight', '<absent>', 0.0), ('idle_velocity_threshold', '<absent>', 0.05), ('lateral_penalty_weight', '<absent>', 0.0), ('natural_pitch', '<absent>', 0.017), ('perturbation_capture_velocity_multiple', '<absent>', 0.0), ('perturbation_direction', '<absent>', 'uniform_horizontal'), ('perturbation_duration', '<absent>', 0.2), ('perturbation_interval', '<absent>', 2.0), ('perturbation_jitter', '<absent>', 0.5), ('prey_lateral_range', '<absent>', [-2.0, 2.0]), ('stance_cop_band_full_price_load_share', '<absent>', 0.25), ('stance_cop_band_lower', '<absent>', -0.6), ('stance_cop_band_min_load_share', '<absent>', 0.35), ('stance_cop_band_pad_lower', '<absent>', -0.65), ('stance_cop_band_pad_upper', '<absent>', 0.65), ('stance_cop_band_tolerance', '<absent>', 0.357), ('stance_cop_band_upper', '<absent>', 0.4)]
+
+== checkpoint pairs
+-- p1048576: zip /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/models/stage1_1048576_steps.zip.copy1
+   zip sha256 0f765bd692371f212555f6b203c4f2ce14aaa05df62f58202017c227424d2b80
+   pkl /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/models/stage1_vecnormalize_1048576_steps.pkl.copy1
+   pkl sha256 52e52a7b9820af808265acb2d4f6d1573e6edebb550393db8ee47d9676229bcb
+   num_timesteps 1048576  critic form plain  class PPO
+   obs6 mean -0.0607 deg  sd 0.3805 deg  eps 1e-08  clip_obs 10.0
+   ret_rms var 1833.73  sqrt(var+eps) 42.8221  count 1.04858e+06  clip_reward 50.0  gamma 0.98  norm_reward(now) False training False
+   net_arch [512, 256]  activation <class 'torch.nn.modules.activation.Tanh'>  share_features True  ortho True  log_std[14] -1.6093 (std 0.2000)  log_std mean -2.0718
+   mlp_extractor class MlpExtractor; value_net Linear(in_features=256, out_features=1, bias=True)
+-- p2097152: zip /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/models/stage1_2097152_steps.zip.copy1
+   zip sha256 83b6c88edb933005adcb2089bdac67654f4e77809ca5506f4e47364995ef1b61
+   pkl /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/models/stage1_vecnormalize_2097152_steps.pkl.copy1
+   pkl sha256 991d434f385187e87301755ddf9a12fe2b3adb65cf186e7e32b175b3574bed90
+   num_timesteps 2097152  critic form plain  class PPO
+   obs6 mean +0.0860 deg  sd 0.4192 deg  eps 1e-08  clip_obs 10.0
+   ret_rms var 2057.41  sqrt(var+eps) 45.3587  count 2.09715e+06  clip_reward 50.0  gamma 0.98  norm_reward(now) False training False
+   net_arch [512, 256]  activation <class 'torch.nn.modules.activation.Tanh'>  share_features True  ortho True  log_std[14] -1.7057 (std 0.1816)  log_std mean -2.4205
+   mlp_extractor class MlpExtractor; value_net Linear(in_features=256, out_features=1, bias=True)
+-- c2511_3145728: zip /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/runs/control_2511/01_stance/models/stage1_3145728_steps.zip
+   zip sha256 591392a21636f27878a2b25aac80da28e077f6f612b63d3b473ad4ab38df5830
+   pkl /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/runs/control_2511/01_stance/models/stage1_vecnormalize_3145728_steps.pkl
+   pkl sha256 4d0a439330c0920bbe780504d8af82ec62d421868a3fc231d250611337d48905
+   num_timesteps 3145728  critic form plain  class PPO
+   obs6 mean +0.5550 deg  sd 0.9531 deg  eps 1e-08  clip_obs 10.0
+   ret_rms var 1971.68  sqrt(var+eps) 44.4036  count 3.14573e+06  clip_reward 50.0  gamma 0.98  norm_reward(now) False training False
+   net_arch [512, 256]  activation <class 'torch.nn.modules.activation.Tanh'>  share_features True  ortho True  log_std[14] -1.7609 (std 0.1719)  log_std mean -2.5905
+   mlp_extractor class MlpExtractor; value_net Linear(in_features=256, out_features=1, bias=True)
+-- c2531_3145728: zip /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/runs/control_2531/01_stance/models/stage1_3145728_steps.zip
+   zip sha256 0945f0d24764bc58dc76c30e7c2d517dce2a7b289172976abdc67ed534b820ae
+   pkl /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/runs/control_2531/01_stance/models/stage1_vecnormalize_3145728_steps.pkl
+   pkl sha256 6ba16a3aa81b1507a4214be44bd741c425d8ba7ec765bba38ce021773130d346
+   num_timesteps 3145728  critic form plain  class PPO
+   obs6 mean +0.3846 deg  sd 0.6337 deg  eps 1e-08  clip_obs 10.0
+   ret_rms var 1971.67  sqrt(var+eps) 44.4034  count 3.14573e+06  clip_reward 50.0  gamma 0.98  norm_reward(now) False training False
+   net_arch [512, 256]  activation <class 'torch.nn.modules.activation.Tanh'>  share_features True  ortho True  log_std[14] -1.7865 (std 0.1675)  log_std mean -2.5854
+   mlp_extractor class MlpExtractor; value_net Linear(in_features=256, out_features=1, bias=True)
+-- c2511_E: zip /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/runs/control_2511/01_stance/models/stage1_final.zip
+   zip sha256 9f5871a00173bd8497992dc8d9567ac3d3ee7589a637cc3c7b913403988df57b
+   pkl /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/runs/control_2511/01_stance/models/stage1_final_vecnorm.pkl
+   pkl sha256 acb2d6dff512a47c01c3670320eeffb043ada94ba4196aeab8e2c6ba0714ab1f
+   num_timesteps 3538944  critic form plain  class PPO
+   obs6 mean +0.8922 deg  sd 1.3898 deg  eps 1e-08  clip_obs 10.0
+   ret_rms var 1923.01  sqrt(var+eps) 43.8521  count 3.53894e+06  clip_reward 50.0  gamma 0.98  norm_reward(now) False training False
+   net_arch [512, 256]  activation <class 'torch.nn.modules.activation.Tanh'>  share_features True  ortho True  log_std[14] -1.8065 (std 0.1642)  log_std mean -2.6406
+   mlp_extractor class MlpExtractor; value_net Linear(in_features=256, out_features=1, bias=True)
+-- c2531_E: zip /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/runs/control_2531/01_stance/models/stage1_final.zip
+   zip sha256 f49d7ba6178a30c886cb8860622276309d2888855f321ee8b9758ba1b372bac3
+   pkl /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/runs/control_2531/01_stance/models/stage1_final_vecnorm.pkl
+   pkl sha256 9071d3ce1cf95da41d0b568dee19b65a946a5569400bc46640300c02b1b76154
+   num_timesteps 3538944  critic form plain  class PPO
+   obs6 mean +0.5483 deg  sd 0.8084 deg  eps 1e-08  clip_obs 10.0
+   ret_rms var 1925.65  sqrt(var+eps) 43.8822  count 3.53894e+06  clip_reward 50.0  gamma 0.98  norm_reward(now) False training False
+   net_arch [512, 256]  activation <class 'torch.nn.modules.activation.Tanh'>  share_features True  ortho True  log_std[14] -1.8173 (std 0.1625)  log_std mean -2.6348
+   mlp_extractor class MlpExtractor; value_net Linear(in_features=256, out_features=1, bias=True)
+-- b2511_E: zip /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/runs/critic_blind_tail3_2511/01_stance/models/stage1_final.zip
+   zip sha256 226bbf623298bcf14b229b77e2ffc671a9a58ddfc6a3d232871776bcd4ee740b
+   pkl /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2/runs/critic_blind_tail3_2511/01_stance/models/stage1_final_vecnorm.pkl
+   pkl sha256 62e09e1695ab0fcf5826aa9d04928ccb6497858b1788ef0c228b019ccece4d5d
+   num_timesteps 3538944  critic form blind  class PPO
+   obs6 mean +0.3275 deg  sd 0.4991 deg  eps 1e-08  clip_obs 10.0
+   ret_rms var 1951.61  sqrt(var+eps) 44.177  count 3.53894e+06  clip_reward 50.0  gamma 0.98  norm_reward(now) False training False
+   net_arch [512, 256]  activation <class 'torch.nn.modules.activation.Tanh'>  share_features True  ortho True  log_std[14] -1.7533 (std 0.1732)  log_std mean -2.6128
+   mlp_extractor class MlpExtractor; value_net Linear(in_features=256, out_features=1, bias=True)
+
+== forward kinematics at the home keyframe (scratch MjData; level pelvis as spawned)
+   pelvis z 0.9266  tail tip z 0.9066  lowest tail_3/4/5 [0.7966 0.8166 0.8516]
+   tail_1_pitch: d tip_z/d q = +23.56 mm/deg; d lowest/d q = +13.09 mm/deg (obs index 3)
+   tail_2_pitch: d tip_z/d q = +18.33 mm/deg; d lowest/d q = +7.85 mm/deg (obs index 5)
+   tail_3_pitch: d tip_z/d q = +13.09 mm/deg; d lowest/d q = +2.62 mm/deg (obs index 6)
+   root rotated -2.0 deg about world +y: tail tip z 0.8525 head tip z 1.2693
+   root rotated +2.0 deg about world +y: tail tip z 0.9607 head tip z 1.1835
+
+== capsule lowest-point formula against mj_geomDistance(floor, geom) at the home keyframe and a pitched state
+   root rotated -0.0 deg about +y: formula [0.7966 0.8166 0.8516]  geomDistance [0.7966 0.8166 0.8516]  tip z 0.9066  pelvis z 0.9266
+   root rotated -20.0 deg about +y: formula [0.42339 0.36729 0.34267]  geomDistance [0.42339 0.36729 0.34267]  tip z 0.3777  pelvis z 0.9266
+   root rotated -30.0 deg about +y: formula [0.2533  0.15696 0.09928]  geomDistance [0.2533  0.15696 0.09928]  tip z 0.1343  pelvis z 0.9266
+done

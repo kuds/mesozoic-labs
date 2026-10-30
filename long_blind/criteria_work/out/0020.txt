@@ -1,0 +1,130 @@
+ROUND READING (read once WHEN THE READING IS MADE allows; the first line that applies is the reading; every line that
+applies is printed). Each seed's run of the round is fixed by RUN HANDLING (LEAN-R). R = COMPLETE runs with TAIL CLASS
+RAIL plus PRESENCE RAILS; U = seeds whose run of the round is not COMPLETE (LOST, or never launched) or is UNREAD
+(STOPPED without RAIL); P = COMPLETE runs PARKED; G+ = POSITIVE runs. Every line prints A of n_A with its figures (TABLE
+E) and D-16 for every LOST run, a replaced first run included.
+1. R >= 1: TAIL RAIL FORMED ON r10 IN TRAINING, with its basis: "(ledger)" when a COMPLETE run's rail rests on a TAIL
+   ALARM; else "(ledger, a LOST run)" when a PRESENCE RAIL; else "(end-only, drive-backed)"; else "(end-only, not
+   drive-backed: weak evidence; false-rail chance if r10 cured the habit 0.003-0.11 per round, up to 0.31 [inferred,
+   EVID])". An existence result for r10 as shipped (weak for the last); not a rate. To the maintainer with the
+   DIAGNOSTIC READOUTS; nothing is proposed by this text.
+2. R = 0 and U >= 1: INCOMPLETE. "No tail rail in the <3 - U> run(s) read to 12M; U seed(s) LOST or STOPPED without a
+   rail: not a no-rail reading." Printed with every COMPLETE run's class, gate and outcome (an UNREAD run with E and
+   its class to E). No parent, confirmation or certification route follows.
+3. R = 0, U = 0, P >= 1: NO RAIL, TAIL DRIVE PERSISTS (PARKED in P of 3). To the posture decision (RUNLOG line 509
+   (3)); the best gate-passing final by stance3's parent rule (most clean panel episodes at final; ties to fewer
+   joint-space plus own-sigma noise falls; ties named) is NAMED with its posture (no automatic offer, D8 (a)).
+4. R = 0, U = 0, P = 0, G+ >= 2 (D11 (a)): NO RAIL IN 3 OF 3, NO PARKED TAIL, GATE CERTIFICATE PASSED IN G+ OF 3.
+   Consistent with r10 removing the habit, not confirmatory. Printed: A of n_A with its Fisher p, P(r10 rate < r9
+   rate), P(r10 rate < half r9's) and the one-sided 95% upper bound (TABLE E; at 0 of 3: 0.36, 0.83, 0.59, 0.63; if
+   nothing had changed, 0 of 3 has probability 0.24). Line 4 needs R = 0 only, so A can be 1 through a non-tail or
+   unresolved any-actuator alarm (1 of 3: 0.71, 0.55, 0.22, 0.86), and that alarm's actuator is named [inferred, V4PKG
+   out/power_v4.json]. To the maintainer: the confirmation or certification step and the best POSITIVE final by
+   stance3's parent rule (as line 3) as the candidate stance parent for a new walking pilot.
+5. R = 0, U = 0, P = 0, G+ <= 1: NO RAIL, GATE CERTIFICATE NOT PASSED; each GATE FAIL's failing criteria and K1 failure
+   modes named; the maintainer chooses the next round.
+Fails stay fails. Nothing in this round is stopped, changed, extended or rerun because of a readout; the readings change
+no gate, criterion, configuration, verdict or parent on main.
+
+PRE-REGISTERED DIAGNOSTIC READOUTS (report only, never in a class or a reading)
+- D-1 Rail timeline (M5 on each COMPLETE run's ledger): per evaluation, episodes over the bar by named actuator and
+  sign, TAIL-UNRESOLVED counts, TEL's rail_actuators beside; first tail-saturated episode, first tail-flagged
+  evaluation, alarm steps, flagged spells; shares in [0, 4,194,304), [4,194,304, 8,388,608), [8,388,608, 12,001,280];
+  the same for every other actuator; the ANY ALARM count.
+- D-2 to D-15 exactly as THIS12 lines 577-630 (training-row drive, deterministic tail commands at every 1,048,576
+  checkpoint and the onset pairs, posture at J, head posture and hip roll, saturation by actuator, K1-K4, the
+  certificate at 6,291,456 and the notebook's own verdict, value of the habit, own-noise behaviour, the training-history
+  report, the same-seed comparison, TEL's columns, the in-run K3 panel, TEL's pages 17-18), for COMPLETE runs, on the
+  readout files F2 fetches (FETCHES); a readout file missing or differing from the manifest leaves that readout absent,
+  nothing else.
+- D-16 LOST runs (L10 (a)): for each, RUNLOG's trigger and times; whether the run's own files support the trigger
+  (complete_r10round.py prints SUPPORTED or NOT SUPPORTED BY ITS FILES: a STALL against 01_stance/progress.json's last
+  written_at, which must be at least 2 hours before the trigger note; "no cell running" against the downloaded
+  notebook's last output, an error or the end of Run all; a launch-check stop against its computed fault; "found gone"
+  as noted); the last error line of its downloaded notebook; its PRESENCE facts p1-p3 for each fetch with the values
+  read; and what its last fetch's files show as they stand (each small file copied twice, read only when the two copies
+  agree; no manifest check): the last evaluation recorded, its ANY and TAIL flags and alarms by M5, the last checkpoint
+  listed. Printed under every reading line as "LOST (report only; not in a class or A; in the reading only as a PRESENCE
+  RAIL)".
+
+RUN HANDLING (all or nothing; no run is ever resumed)
+- Fails stay fails. No run is stopped, changed, restarted, extended or rerun because of a readout, a saturation alarm,
+  a fetch, the in-run panel or anything the notebook prints beyond the configuration the launch check reads; no fetch
+  writes to Drive or acts on a run.
+- Before the first launch: the maintainer's compute-balance check (D18, RUNLOG line 621: about 3 x 15.5 L4-hours plus
+  one _b, at the L4 rate the Colab steps read) and the fetch-budget check (L8 (a): the account's remaining spend against
+  about 195 file copies per round, COMPUTE); both recorded in RUNLOG.
+- Launch: the notebook opened from the branch's own link; on an L4 runtime (Runtime > Change runtime type); cell 3
+  REPO_REF "<cli>/screen-trex-r10-armltsb"; in cell 6 ("# ===== SPECIES SELECTION =====") every setting:
+    SPECIES "tyrannosaurus_rex"; EMBODIMENT "anatomical"; ALGORITHM "ppo"; N_ENVS 4; SEED 60 / 42 / 80; VERBOSE 0;
+    QUICK_TEST False; USE_GOOGLE_DRIVE True; AUTO_DISCONNECT True; BEHAVIOR "stance"; TRUNK_FROM "" (empty, not
+    "auto"); RETRAIN_FROM ""; RUN_LABEL "r10 LTSB s60" / "r10 LTSB s42" / "r10 LTSB s80" (free text, recorded in the
+    unpinned run block); RUN_ID "stance6_r10LTSB_s60" / "stance6_r10LTSB_s42" / "stance6_r10LTSB_s80" (a relaunch:
+    the same with "_b" appended, every other setting the same); K3_PANEL True; K3_PANEL_SIGMA_FILE
+    "/content/mesozoic-labs/docs/investigations/stance_2026_10/stance5/replication/sigma_s70_s80.json";
+    K3_PANEL_SIGMA_KEY "source_vectors.60" / "source_vectors.42" / "control_sigma.80";
+  RESUME_STAGE (cell 18) stays None; Run all; the maintainer notes the UTC time at once (RUNLOG: RUN_ID, seed, runtime
+  type, every cell-6 value above as set). [measured: these 17 are every setting of BR notebooks/sb3_training.ipynb
+  cell 6 (cells counted from 0; cell 3 holds REPO_REF, cell 18 RESUME_STAGE); the r9 steps set the same values for
+  the settings they list, seed, RUN_ID and RUN_LABEL aside, SP/foot/stance5/replication/colab_steps.txt lines 61-80.]
+- Launch check (configuration only), within the first 60 minutes: complete_r10round.py computes from F0's files (1)
+  provenance.json's repository_commit and 01_stance/stage_config.json's git_commit = the branch HEAD recorded in RUNLOG,
+  repository_dirty false; (2) stage_config.json's run.seed is the RUN_ID's; (3) stage_config.json's
+  run.hyperparameters_sha256, task_fingerprint.task_sha256 and plant_identity block are the pins (blocks
+  save_stage_config embeds at the stage's start [measured, BR config.py lines 973-976]; the root plant_identity.json
+  does not exist before the end-of-run bundle [measured, D9: created 14.52 h after provenance.json]); (4)
+  zero_action_baseline.json's results.tyrannosaurus_rex.anatomical.reward_mean [measured, BR
+  environments/shared/scripts/zero_action_baseline.py lines 101 and 341-351] is not within 50 of 3766.6 (main's statue:
+  LTSB off; LTSB's is 4470.4); (5) the first ledger rows carry screen_v2_reasons and #640's saturated_actuator columns;
+  (6) provenance.json holds one "sessions" entry; (7) provenance.json's run_id is the RUN_ID (C2 needs it; stance5 s52's
+  first launch carried the RUN_LABEL text instead and was stopped at 2 min [measured, RUNLOG line 238]). A run failing
+  any is stopped at once by THE ENDING PROCEDURE and is LOST. A fact that cannot be computed within the 60 minutes (its
+  file not yet on Drive) is not a fault: no stop, recorded "not computed", and no relaunch by (ii) below. Recorded only,
+  never a stop: a non-L4 runtime, a K3 panel off or mis-set, a missing TEL column, any other baseline value, and
+  BEHAVIOR as the notebook prints it ("Behavior recipe: ..."; no F0 file records it; a chain past stance keeps the
+  stance record exact and only delays the run's end). A fault first seen after the 60 minutes stops nothing (the run is
+  then LOST by C2, C4 or C6).
+- THE ENDING PROCEDURE (liveness or configuration only, never an outcome), applied to every runtime of the round:
+  (a) the runtime is no longer assigned (Runtime > Manage sessions does not list it): RUNLOG notes "found gone" with the
+  time; nothing else is done but downloading the notebook with its output if the browser still shows it; (b) no cell is
+  running (Run all stopped, a dead kernel, a halt that did not release), (c) a STALL: 2 hours with neither a
+  progress.json rewrite (Drive's file view) nor a new notebook output line, or (d) a launch-check stop: RUNLOG notes the
+  trigger with its time; then Runtime > Interrupt execution (Restart session if it does not stop), File > Download
+  .ipynb to <ROUND>/outputs/<RUN_ID>.ipynb, one new cell "from google.colab import drive; drive.flush_and_unmount()"
+  waited for at most 30 minutes, the runtime deleted, and RUNLOG notes the deletion time. A run has ENDED when its
+  runtime is deleted so or noted found gone (a finished run releases its runtime itself, AUTO_DISCONNECT True). A run
+  that reached its manifest is not harmed by these steps (C1 counts them as the procedure's).
+- Records: RUNLOG holds launch times and actions only, each with its date -u time (launches, launch-check results and
+  stops, triggers, trigger listings, deletions, "found gone", relaunches, F2 and re-fetch starts), each as one line of
+  the form the Colab steps fix and the tools parse: "<date -u> STANCE6 <KIND> <RUN_ID> <fields>", KIND one of LAUNCH,
+  CHECK, STOP, TRIGGER-a, TRIGGER-b, TRIGGER-c, TRIGGER-d, LISTING, DELETED, FOUND-GONE, RELAUNCH, ACTION, F2-START,
+  REFETCH-START (the Colab steps give each kind's fields; ACTION's are
+  "ACTION <RUN_ID> what=<resume|restart|relaunch|cell>", read by C1 as an action); trigger (a) is noted as TRIGGER-a
+  and FOUND-GONE at one time; a launch-check stop as STOP and TRIGGER-d at one time; complete_r10round.py and
+  score_r10round.py read only these lines and print any other RUNLOG line that names a RUN_ID of the round, for the
+  coordinator to restate in this form, with its original time and the KIND its own words name, before F2's start note
+  (F2-START); a line not restated by then is printed and read by no rule. One runtime opens each RUN_ID; RESUME_STAGE
+  stays None; no cell is run in a runtime after its
+  Run all stopped except the flush line; no notebook cell with a RUN_ID is run in any other runtime or after the run
+  ENDED; nobody moves, edits or deletes a file in a run folder.
+- REPLACEMENT (LEAN-R, L1 and L2 (a)): a seed gets one relaunch, <RUN_ID>_b, launched within 1 hour after RUNLOG's note
+  of its first run's trigger and after that runtime's deletion (or "found gone" note) (RUNLOG line 645 (2)), only when
+  that note is within 2 hours of the first run's launch and either (i) the first run ended by itself (trigger (a) or
+  (b)) and its TRIGGER LISTING (FETCHES) holds no 01_stance/models/stage1_<steps>_steps.zip, or (ii) the launch check
+  stopped it for a fault (1)-(5) or (7) computed from F0's files. The approval of this text approves these relaunches in
+  advance; no other judgement enters. The _b is then the seed's run of the round, whatever either run's files show, and
+  the first run is LOST (D-16; it can still be a PRESENCE RAIL). No _c: a _b that is not COMPLETE leaves the seed LOST.
+  A _b launched when the rule does not hold is no run of the round: no class, no PRESENCE, printed with D-16 only.
+  A first run not so replaced stays the seed's run, COMPLETE or LOST. (i) is outcome-blind: a periodic zip still
+  uploading at the trigger makes the listing empty and costs only a relaunch of a run past 262,144 steps; the evaluation
+  callback runs before the checkpoint callback at the same step [measured, BR train_base.py lines 821 and 846-852], so a
+  first run with early evaluations can meet (i).
+- A measurement crash (M1-M8) is rerun on the same files. A tool refusal on a run's own records (commit, seed, task,
+  plant) is reported; it never makes a run COMPLETE. A refusal by the measuring runner's own preflight (copy commit,
+  physics_revision, RUN_ID, seed, label) writes nothing and the measurement is made again with the right inputs. A
+  measurement the measuring tool itself refuses (it exits with its own error, writes no output and prints no traceback;
+  the runner records it REFUSED in m1_refused.json or m3_refused.json) is not a crash and is not rerun: a refused M3 at
+  R2 is the certificate "refused" of GATE CLASS (GATE FAIL, its message the failing criterion); a refused M1 at a label
+  C7 names fails C7 (the run is LOST). Reruns for any other reason are not allowed.
+
+FETCHES FROM DRIVE (read only; the maintainer's Drive is never written; every listing by folder id, never by title

@@ -1,0 +1,58 @@
+   joint" is to be read from them, the pre-registration should adopt (or redefine) them before outcomes are seen.
+8. Not re-measured afresh in this validation: s60 M1 x6, s80 M1 x6 and M3 (disk floor, item 1); their classes were reproduced through
+   the same path on the round's own measurements of the same F2 pairs; the resumable command is in VALIDATION RESULT above.
+9. Machine load during the validation: up to 8-9 heavy processes ran machine-wide (other workflows' probes and the harness's validation
+   runs), above the 4-process rule; M3 wall times were inflated about 1.6x, CPU seconds were not. measure_lb.py now waits before each
+   launch while >= 4 python script processes run machine-wide.
+10. M2 (posture panel) and M4 (judge K1-K4) are not run: report only in the round and not needed for the classes.
+11. measure_lb.py and its helpers must be pinned (SHA256SUMS.txt below) in LB/APPROVED; they read S1/foot/stance6/APPROVED (the round's
+    approval, branch_head 8737cd3d) and BS/code's seal at every run.
+
+==== CHECKSUMS AND DISK ====
+2026-10-30T17:35:45Z find . -type f (but work/pytest_tmp, work/tmp, NOTES.txt, SHA256SUMS.txt) | sha256sum > SHA256SUMS.txt -> 170 files; sha256sum -c SHA256SUMS.txt -> all OK [measured]; SHA256SUMS.txt sha256 c9cd85ce64954b54407074b13a292b37276b701684ddd78456c01b9be864615e
+   tools: 5fb29b52f194ffa40f45afed7427d762841d09e1a8860a20c404b283f35459d6=measure_lb.py 4f38a7ec16b86c1485ceabde2e6f4706b878027f937a5a72a729eaebf62f6155=mutation_checks.py 468936ee9f2a80857577c1d9dc602b9db36069dcb2fc0fe39b22d27d514f2bac=reread_round_panels.py ce407fa0a6a4bf4428efd25b5c2e7a77110d5540e1453a20626dc5c1540ca10d=tests/test_measure_lb.py 5f3be6953b592c831751da3728cf4ab15360a1dd45b259e0d662da52fe082c1e=validate_round.py 
+2026-10-30T17:35:45Z du -sb LB/measure -> 57895455 bytes (under 400 MB)
+2026-10-30T17:35:45Z df -h /tmp:
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/vda        252G   36G  2.9G  93% /
+S2/r10round/long_blind/measure/tools:
+total 104
+drwxr-xr-x 3 root root  4096 Oct 30 17:25 .
+drwxr-xr-x 5 root root  4096 Oct 30 17:35 ..
+-rw-r--r-- 1 root root 66302 Oct 30 17:32 measure_lb.py
+-rw-r--r-- 1 root root  6473 Oct 30 17:27 mutation_checks.py
+-rw-r--r-- 1 root root  2327 Oct 30 17:25 reread_round_panels.py
+drwxr-xr-x 2 root root  4096 Oct 30 16:56 tests
+-rw-r--r-- 1 root root 11574 Oct 30 17:26 validate_round.py
+
+S2/r10round/long_blind/measure/validate:
+total 120
+drwxr-xr-x 6 root root  4096 Oct 30 17:33 .
+drwxr-xr-x 5 root root  4096 Oct 30 17:35 ..
+-rw-r--r-- 1 root root  1750 Oct 30 17:33 VALIDATION.txt
+-rw-r--r-- 1 root root  1750 Oct 30 17:33 VALIDATION_s42.out
+-rw-r--r-- 1 root root 14981 Oct 30 17:31 classify_parents.out
+-rw-r--r-- 1 root root 12450 Oct 30 17:33 classify_parents_reread.out
+-rw-r--r-- 1 root root  2490 Oct 30 17:33 costs_first_run.txt
+-rw-r--r-- 1 root root  6428 Oct 30 17:33 measure_lb.log
+-rw-r--r-- 1 root root  2085 Oct 30 17:33 mutation_checks.json
+-rw-r--r-- 1 root root  1538 Oct 30 17:33 mutation_checks_s42_fresh.out
+drwxr-xr-x 5 root root  4096 Oct 30 17:27 reread_round
+-rw-r--r-- 1 root root 13473 Oct 30 17:25 reread_round.out
+-rw-r--r-- 1 root root   578 Oct 30 17:31 s60_m3_compare.json
+drwxr-xr-x 4 root root  4096 Oct 30 17:33 stance6_r10LTSB_s42
+drwxr-xr-x 4 root root  4096 Oct 30 17:33 stance6_r10LTSB_s60
+drwxr-xr-x 2 root root  4096 Oct 30 17:33 stance6_r10LTSB_s80
+-rw-r--r-- 1 root root  1085 Oct 30 17:31 summary.first_run.json
+-rw-r--r-- 1 root root  1085 Oct 30 17:33 summary.json
+-rw-r--r-- 1 root root  7493 Oct 30 17:33 validation.json
+classes.first_run.json
+classes.json
+habit.first_run.json
+habit.json
+logs
+m5.json
+m5.txt
+measure_lb.first_run.json
+measure_lb.json
+panels

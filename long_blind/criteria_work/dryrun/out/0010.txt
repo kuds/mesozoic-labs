@@ -1,0 +1,300 @@
+   860	    m["ledger"]["sha256"] = _sha(led)
+   861	    _write(p, m)
+   862	    res, _text, _code = _score(tmp_path)
+   863	    assert res["line"] == 2
+   864	    assert res["report_only"][f"{BLIND}_2501"]["ledger"]["status"].startswith("unreadable (UnicodeDecodeError")
+   865	
+   866	
+   867	# ------------------------------------------------------------------------------------------------ the criteria text
+   868	def test_line_texts_are_the_criteria_text():
+   869	    """The scorer's line texts, additions and secondary wordings appear verbatim (whitespace collapsed) in
+   870	    <BS2>/criteria.txt (or the draft it is installed from)."""
+   871	    text = _criteria_text()
+   872	    if text is None:
+   873	        pytest.skip("no criteria text in this build")
+   874	    for line, t in SB.LINE_TEXT.items():
+   875	        assert f'"{" ".join(t.split())}"' in text, line
+   876	    for t in (SB.ADDITION_AS_COUNTED, SB.ADDITION_NOT_INFORMATIVE, SB.SEC_SUPPORTED, SB.SEC_BONFERRONI,
+   877	              SB.SEC_UNDER_LINE1, '"NOT SUPPORTED"'):
+   878	        assert t in text, t
+   879	    for s in SB.SECONDARIES:
+   880	        assert s["key"] in text
+   881	    assert "B_S = 0.1265954738482833 (exactly 135930855/1073741824)" in text and "at least 0.20" in text
+   882	    assert "2501, 2511, 2521, 2531" in text
+   883	
+   884	
+   885	PIN_FILES = ("SCREEN.json", "tools/score_bs.py", "tools/tests/test_score_bs.py", "tools/bs_common.py",
+   886	             "tools/bs_hooks.py", "tools/run_bs.py", "tools/run_waves_bs.sh", "tools/read_bs.py")
+   887	
+   888	
+   889	def test_criteria_pins_name_the_current_files():
+   890	    """PINS: the installed criteria.txt names each pinned file's current sha256 (a change to a pinned file changes its
+   891	    line; P2: the re-reviewed versions are the pinned ones)."""
+   892	    crit = BS2 / "criteria.txt"
+   893	    if not crit.exists():
+   894	        pytest.skip("criteria.txt not installed")
+   895	    raw = crit.read_text(encoding="utf-8")
+   896	    pins = raw.split("\nPINS")[1].split("\nHOW THE COORDINATOR PINS")[0]
+   897	    for rel in PIN_FILES:
+   898	        m = re.search(rf"^\s+{re.escape(rel)}\s+([0-9a-f]{{64}})\b", pins, re.M)
+   899	        assert m, rel
+   900	        assert m.group(1) == _sha(BS2 / rel), rel
+   901	
+   902	
+   903	# ------------------------------------------------------------------------------------------------ the dry run's form
+   904	def _parent_as(m, arm, seed, root):
+   905	    """The parent's reference markers relabelled as one continuation (the criteria's dry run): its probe, ledger and
+   906	    loop rows unchanged, except the blind arm's loop rows carry the arm's form (critic_form, effective slope 0)."""
+   907	    m = json.loads(json.dumps(m))
+   908	    name = C.run_name(arm, seed)
+   909	    m.update(kind="continuation", label=name, arm=arm, seed=seed, stop_reason="end")
+   910	    m.pop("reproduction", None)
+   911	    if arm == BLIND:
+   912	        for row in m["loop"]:
+   913	            row["critic_form"] = "blind+raw"
+   914	            for d in row["critic_slope_obs6"].values():
+   915	                d["effective"] = {**d["effective"], "dV_dq3_per_deg": 0.0}
+   916	    return m
+   917	
+   918	
+   919	def test_dry_run_on_the_parents_markers(tmp_path):
+   920	    if not PARENT_MARKERS.exists():
+   921	        pytest.skip("the builder's reference read is not on this machine")
+   922	    pm = json.loads(PARENT_MARKERS.read_text())
+   923	    s = Screen(tmp_path)
+   924	    for arm, seed in SB.QUEUE:
+   925	        name = C.run_name(arm, seed)
+   926	        rd = tmp_path / "runs" / name
+   927	        meta = _write(rd / C.RUN_META, _meta(arm, seed, tmp_path))
+   928	        _write(rd / C.CHECK_JSON, {
+   929	            "schema": R.CHECK_SCHEMA, "tool_sha256": _sha(TOOLS / "read_bs.py"), "name": name, "mode": "continuation",
+   930	            "passed": True, "failures": [], "arm": arm, "seed": seed, "S": S, "E": E, "T": E, "end": E,
+   931	            "stop_reason": "end", "sources": {"run_meta.json": [str(meta), _sha(meta)],
+   932	                                              "policy_probe.npz": ["p", pm["probe"]["sha256"]]}})
+   933	        _write(tmp_path / "reads" / name / "markers.json", _parent_as(pm, arm, seed, tmp_path))
+   934	    assert s.root == tmp_path
+   935	    res, text, _ = _score(tmp_path)
+   936	    assert res["line"] == 3 and res["p_filled"]["count"] == 70 and res["informative"] is True
+   937	    assert res["control_rise"] == float(Fraction(47337175, 67108864) - Fraction(135930855, 1073741824))
+   938	    assert round(res["control_rise"], 5) == 0.57878
+   939	    assert all(c["primary"] == SB.PARENT_TRAJECTORY[E] for c in res["classes"])
+   940	    for sec in res["secondaries"]:
+   941	        assert sec["verdict"] == SB.SEC_NOT_SUPPORTED and sec["p_filled"]["count"] == 70
+   942	    assert all(v == pm["ledger"]["direct"]["per_evaluation"][str(E)]["cmd_l"]
+   943	               for v in _sec(res, "SEC-CMD")["values"].values())
+   944	    for key in ("SEC-G", "SEC-MARGIN"):
+   945	        assert set(_sec(res, key)["values"].values()) == {None}
+   946	        assert set(_sec(res, key)["causes"].values()) == {"0 M-LOOP rows at E = 3,538,944 (the final pair)"}
+   947	    assert res["g_end_above_start"] == {"control": {"above": 0, "of": 0}, BLIND: {"above": 0, "of": 0}}
+   948	    assert all(ro["end_pair"] is None for ro in res["report_only"].values())     # no loop row at E in the parent's
+   949	    final_items = [x for x in res["provisional"] if "the final pair was not read" in x]     # D7: one per entry
+   950	    assert sorted(x.split(":")[0] for x in final_items) == sorted(C.run_name(a, sd) for a, sd in SB.QUEUE)
+   951	
+   952	
+   953	# ------------------------------------------------------------------------------------------------ mutation tests
+   954	SRC = SRC_PATH.read_text(encoding="utf-8")
+   955	
+   956	
+   957	def _variant(src, tag):
+   958	    mod = types.ModuleType(f"score_bs_mutant_{tag}")
+   959	    mod.__file__ = str(SRC_PATH)
+   960	    exec(compile(src, str(SRC_PATH), "exec"), mod.__dict__)  # noqa: S102 - the scorer's own source, one edit
+   961	    return mod
+   962	
+   963	
+   964	@pytest.fixture(scope="module")
+   965	def kill_roots(tmp_path_factory):
+   966	    """The synthetic screens the kill checks read (built once; the mutants only read them)."""
+   967	    base = tmp_path_factory.mktemp("kill")
+   968	    roots = {}
+   969	    roots["main"] = base / "main"                                         # line 2; SEC-G 1/70, SEC-CMD 2/70
+   970	    _main_screen(roots["main"])
+   971	    roots["notinf"] = base / "notinf"                                     # line 1 (median 0.065, mean 0.27)
+   972	    Screen(roots["notinf"]).all([B_S + x for x in (0.05, 0.06, 0.07, 0.90)],
+   973	                                [B_S - 0.2 + x / 100 for x in range(4)], per_seed=_per_seed_main())
+   974	    roots["lost"] = base / "lost"                                         # line 3, 36/70, the as-counted addition
+   975	    _main_screen(roots["lost"]).lost(C.run_name(BLIND, 2531))
+   976	    roots["odd"] = base / "odd"                                           # UNREADABLE, rows absent, not finite
+   977	    _main_screen(roots["odd"], per_seed_extra={(BLIND, 2511): {"nan_at": SB.PRIMARY_STEPS[0]},
+   978	                                               (C.CONTROL, 2521): {"final": False, "drop_E": True},
+   979	                                               (C.CONTROL, 2531): {"cmd": None}})
+   980	    roots["unread"] = base / "unread"                                     # all decided, one not read
+   981	    _main_screen(roots["unread"])
+   982	    (roots["unread"] / "reads" / "control_2511" / "markers.json").unlink()
+   983	    roots["undecided"] = base / "undecided"                               # one undecided, garbage markers elsewhere
+   984	    _main_screen(roots["undecided"])
+   985	    (roots["undecided"] / "runs" / f"{BLIND}_2531" / C.CHECK_JSON).unlink()
+   986	    (roots["undecided"] / "reads" / "control_2501" / "markers.json").write_text("not json {")
+   987	    roots["badrow"] = base / "badrow"                                     # the row at E is not the model at E
+   988	    _main_screen(roots["badrow"], per_seed_extra={(C.CONTROL, 2501): {"num_ts_E": E - R8}})
+   989	    return roots
+   990	
+   991	
+   992	def _kill_checks(sb, roots):
+   993	    """Decisive checks of score_bs.py's behaviour; returns the names of those that fail (an exception fails)."""
+   994	    failed = []
+   995	    seen = []
+   996	    saved = sb.code_seal_items
+   997	    sb.code_seal_items = lambda d: seen.append(Path(d)) or []
+   998	
+   999	    def chk(name, fn):
+  1000	        try:
+  1001	            ok = fn()
+  1002	        except Exception:  # noqa: BLE001 - any exception is a caught mutant
+  1003	            ok = False
+  1004	        if not ok:
+  1005	            failed.append(name)
+  1006	
+  1007	    def main_ok():
+  1008	        res, text, _ = _score(roots["main"], sb)
+  1009	        g, cmd, mar = (next(s for s in res["secondaries"] if s["key"] == k) for k in ("SEC-G", "SEC-CMD",
+  1010	                                                                                         "SEC-MARGIN"))
+  1011	        traj = dict(res["report_only"]["control_2511"]["trajectory"])
+  1012	        return (res["line"] == 2 and res["p_filled"]["count"] == 1
+  1013	                and [c["primary_exact"] for c in res["classes"]] == [str(Fraction(v)) for pr in
+  1014	                                                                     zip(HIGH, LOW, strict=True) for v in pr]
+  1015	                and g["p_filled"]["count"] == 1 and g["notes"] == [SB.SEC_BONFERRONI]
+  1016	                and cmd["p_filled"]["count"] == 2 and cmd["notes"] == [] and cmd["supported"]
+  1017	                and mar["p_filled"]["count"] == 24 and not mar["supported"]
+  1018	                and [mar["values"][C.run_name(a, sd)] for a, sd in SB.QUEUE] == [SEC_B[a][SB.SEEDS.index(sd)]
+  1019	                                                                               for a, sd in SB.QUEUE]
+  1020	                and res["g_end_above_start"]["control"] == {"above": 0, "of": 4}
+  1021	                and traj[E] == Fraction(HIGH[1]) and set(seen) == {Path(C.CODE)}
+  1022	                and sb.LINE_TEXT[2] in text)
+  1023	
+  1024	    def notinf_ok():
+  1025	        res, _t, _ = _score(roots["notinf"], sb)
+  1026	        return (res["line"] == 1 and res["additions"] == [SB.ADDITION_NOT_INFORMATIVE]
+  1027	                and all(s["notes"][-1] == SB.SEC_UNDER_LINE1 for s in res["secondaries"])
+  1028	                and res["control_rise"] == pytest.approx(0.065))
+  1029	
+  1030	    def lost_ok():
+  1031	        res, _t, _ = _score(roots["lost"], sb)
+  1032	        g = next(s for s in res["secondaries"] if s["key"] == "SEC-G")
+  1033	        return (res["line"] == 3 and res["p_filled"]["count"] == 36 and res["additions"] == [SB.ADDITION_AS_COUNTED]
+  1034	                and g["p_filled"]["count"] == 36)
+  1035	
+  1036	    def odd_ok():
+  1037	        res, _t, _ = _score(roots["odd"], sb)
+  1038	        secs = {s["key"]: s for s in res["secondaries"]}
+  1039	        return (all(s["values"][f"{BLIND}_2511"] is None and s["causes"][f"{BLIND}_2511"].startswith("UNREADABLE")
+  1040	                    for s in secs.values())
+  1041	                and secs["SEC-G"]["values"]["control_2521"] is None
+  1042	                and secs["SEC-CMD"]["values"]["control_2531"] is None
+  1043	                and [x.split(":")[0] for x in res["provisional"] if "the final pair was not read" in x]
+  1044	                == ["control_2521"])
+  1045	
+  1046	    def unread_ok():
+  1047	        res, _t, _ = _score(roots["unread"], sb)
+  1048	        return res["status"] == "incomplete"
+  1049	
+  1050	    def undecided_ok():
+  1051	        res, text, _ = _score(roots["undecided"], sb)
+  1052	        return res["status"] == "incomplete" and "THE READING" not in text
+  1053	
+  1054	    def badrow_ok():
+  1055	        try:
+  1056	            sb.score(roots["badrow"])
+  1057	        except sb.InputError as exc:
+  1058	            return "num_timesteps" in str(exc)
+  1059	        return False
+  1060	
+  1061	    def decide_ok():
+  1062	        cl = _classes()
+  1063	        edge = Fraction(B_S) + Fraction(1, 5)
+  1064	        out = []
+  1065	        for ctrl, inf in ((edge, True), (edge - Fraction(1, 10**12), False),
+  1066	                          (Fraction(B_S) + Fraction(15, 100), False)):
+  1067	            prim = {C.run_name(a, sd): (ctrl if a == C.CONTROL else Fraction(-1)) for a, sd in SB.QUEUE}
+  1068	            out.append(sb.decide(cl, prim)["informative"] is inf)
+  1069	        for c, b, line in (((8, 7, 6, 3.5), (5, 4, 2, 1), 2), ((8, 7, 6, 3), (5, 4, 2, 1), 3)):
+  1070	            prim = {}
+  1071	            for i, sd in enumerate(SB.SEEDS):
+  1072	                prim[C.run_name(C.CONTROL, sd)] = Fraction(0.5 + c[i] / 64)
+  1073	                prim[C.run_name(BLIND, sd)] = Fraction(0.5 + b[i] / 64)
+  1074	            out.append(sb.decide(cl, prim)["line"] == line)
+  1075	        return all(out)
+  1076	
+  1077	    def ties_ok():
+  1078	        same = [(0, Fraction(1, 5))] * 4
+  1079	        return sb.perm_test(same, same)[1] == 70
+  1080	
+  1081	    def texts_ok():
+  1082	        text = _criteria_text()
+  1083	        return text is not None and all(f'"{" ".join(t.split())}"' in text for t in sb.LINE_TEXT.values())
+  1084	
+  1085	    def baseline_ok():
+  1086	        return Fraction(sb.BASELINE_S) == Fraction(135930855, 1073741824)
+  1087	
+  1088	    try:
+  1089	        for name, fn in (("main", main_ok), ("notinf", notinf_ok), ("lost", lost_ok), ("odd", odd_ok),
+  1090	                         ("unread", unread_ok), ("undecided", undecided_ok), ("badrow", badrow_ok),
+  1091	                         ("decide", decide_ok), ("ties", ties_ok), ("texts", texts_ok), ("baseline", baseline_ok)):
+  1092	            chk(name, fn)
+  1093	    finally:
+  1094	        sb.code_seal_items = saved
+  1095	    return failed
+  1096	
+  1097	
+  1098	MUTANTS = [
+  1099	    ("gate_0_10", "RISE_MIN = Fraction(1, 5)", "RISE_MIN = Fraction(1, 10)"),
+  1100	    ("gate_exclusive", "informative = rise is not None and rise >= RISE_MIN",
+  1101	     "informative = rise is not None and rise > RISE_MIN"),
+  1102	    ("mean_not_median", "med = {arm: median_rule(counted[arm]) for arm in ARM_ORDER}",
+  1103	     "med = {arm: (sum(counted[arm], Fraction(0)) / len(counted[arm]) if counted[arm] else None) "
+  1104	     "for arm in ARM_ORDER}"),
+  1105	    ("alpha_4_70", "ALPHA = Fraction(1, 20)", "ALPHA = Fraction(4, 70)"),
+  1106	    ("fill_swapped", "INF_CONTROL, INF_BLIND = NEG_INF, POS_INF", "INF_CONTROL, INF_BLIND = POS_INF, NEG_INF"),
+  1107	    ("ties_for_the_reading", "count = sum(1 for s in sums.values() if s >= obs)",
+  1108	     "count = sum(1 for s in sums.values() if s > obs)"),
+  1109	    ("bs_baseline", "BASELINE_S = 0.1265954738482833", "BASELINE_S = -0.03157372563146055"),
+  1110	    ("primary_rows_shifted", "PRIMARY_STEPS = tuple(C.E - C.ROLLOUT * k for k in range(PRIMARY_K, 0, -1))",
+  1111	     "PRIMARY_STEPS = tuple(C.E - C.ROLLOUT * k for k in range(PRIMARY_K + 1, 1, -1))"),
+  1112	    ("line1_not_first", "    if not informative:\n        line = 1", "    if False:\n        line = 1"),
+  1113	    ("secG_direction", '{"key": "SEC-G", "higher": INTERVENTION', '{"key": "SEC-G", "higher": CONTROL'),
+  1114	    ("secCMD_direction", '{"key": "SEC-CMD", "higher": CONTROL', '{"key": "SEC-CMD", "higher": INTERVENTION'),
+  1115	    ("secMARGIN_direction", '{"key": "SEC-MARGIN", "higher": INTERVENTION', '{"key": "SEC-MARGIN", "higher": CONTROL'),
+  1116	    ("sec_fill_swapped", 'vals[c["arm"]].append(NEG_INF if c["arm"] == higher else POS_INF)',
+  1117	     'vals[c["arm"]].append(POS_INF if c["arm"] == higher else NEG_INF)'),
+  1118	    ("bonferroni_at_alpha", "if supported and filled[0] <= ALPHA / N_SECONDARIES:",
+  1119	     "if supported and filled[0] <= ALPHA:"),
+  1120	    ("secCMD_reads_max", 'v, what = e.get("cmd_l"), "CMD_L at E"', 'v, what = e.get("cmd_l_max"), "CMD_L at E"'),
+  1121	    ("secG_reads_row_at_S", "        rows = loop_rows_at(m, C.E)", "        rows = loop_rows_at(m, C.S)"),
+  1122	    ("secMARGIN_reads_c0", 'field = "G" if key == "SEC-G" else "b_star"', 'field = "G" if key == "SEC-G" else "c0"'),
+  1123	    ("sec_unreadable_read", '    if primary_cause is not None:\n        return None, f"UNREADABLE',
+  1124	     '    if False:\n        return None, f"UNREADABLE'),
+  1125	    ("no_note_under_line1", "    if line == 1:\n        notes.append(SEC_UNDER_LINE1)",
+  1126	     "    if line == 0:\n        notes.append(SEC_UNDER_LINE1)"),
+  1127	    ("secondary_sets_the_line", 'status=status, provisional=prov, line=dec["line"],',
+  1128	     'status=status, provisional=prov, line=(2 if secs[0]["supported"] else dec["line"]),'),
+  1129	    ("blind_to_unread_only", "    if undecided or unread:", "    if undecided:"),
+  1130	    ("blind_to_undecided_only", "    if undecided or unread:", "    if unread:"),
+  1131	    ("code_copy_under_root", "items.extend(code_seal_items(Path(C.CODE)))",
+  1132	     'items.extend(code_seal_items(root / "code"))'),
+  1133	    ("line1_text_0_10", '"primary rose by less than 0.20 from the value at S',
+  1134	     '"primary rose by less than 0.10 from the value at S'),
+  1135	    ("sec_missing_row_unchecked", "        if len(rows) != 1:\n            return None, f\"{len(rows)} M-LOOP",
+  1136	     "        if len(rows) > 1:\n            return None, f\"{len(rows)} M-LOOP"),
+  1137	    ("row_at_E_unchecked", "        if row.get(\"num_timesteps\") != C.E:", "        if False:"),
+  1138	    ("as_counted_addition_lost", "if line == 3 and as_counted is not None and as_counted[0] <= ALPHA:",
+  1139	     "if line == 3 and as_counted is not None and as_counted[0] < 0:"),
+  1140	    ("not_informative_addition_lost", "    if line == 1 and filled[0] <= ALPHA:\n        additions.append",
+  1141	     "    if False:\n        additions.append"),
+  1142	    ("trajectory_at_T_no_row", "end = t if t < T else T - C.ROLLOUT", "end = t if t <= T else T - C.ROLLOUT"),
+  1143	    ("g_count_not_strict", "    return ge > gs", "    return ge >= gs"),
+  1144	    ("final_pair_item_lost", 'if c["cls"] == COUNTED and mk is not None and len(loop_rows_at(mk, C.E)) != 1:',
+  1145	     "if False:"),
+  1146	    ("line3_power_text_0_96", '"0.25-1.00 at half the parent', '"0.25-0.96 at half the parent'),
+  1147	]
+  1148	
+  1149	
+  1150	def test_the_original_passes_every_kill_check(kill_roots):
+  1151	    assert _kill_checks(SB, kill_roots) == []
+  1152	
+  1153	
+  1154	@pytest.mark.parametrize("tag, old, new", MUTANTS, ids=[m[0] for m in MUTANTS])
+  1155	def test_each_mutant_is_caught(kill_roots, tag, old, new):
+  1156	    assert SRC.count(old) == 1, f"mutant {tag}: the edited text must occur exactly once"
+  1157	    mutant = _variant(SRC.replace(old, new), tag)
+  1158	    failed = _kill_checks(mutant, kill_roots)
+  1159	    assert failed, f"mutant {tag} survived every kill check"

@@ -1,0 +1,105 @@
+5fb29b52f194ffa40f45afed7427d762841d09e1a8860a20c404b283f35459d6  S2/r10round/long_blind/measure/tools/measure_lb.py
+41:       straddling S; BS2 read_bs.m5_window's form), the parent prefix check, the PER-ACTUATOR HABIT SUMMARY (D-1,
+42:       lines 336-339: "the same for every other actuator"; M1's per-actuator outputs, line 119; the probe's
+52:episodes in which no actuator is over the BAR (their sha256 stay in csv_sha256.txt and m1_summary.json; lane B's
+53:read_trace needs the CSV only of an episode with a tail actuator over the BAR).
+137:HABIT_LINE = 0.60                          # the PARKED / DRIVEN line (lines 276-279), applied per actuator: report only
+142:    "ANY ALARM": "lines 169-170 (ANY-FLAGGED EVALUATION: >= 5 of 10 over the bar on any actuator; ANY ALARM: the "
+144:    "TAIL ALARM": "lines 171-172 (TAIL-FLAGGED EVALUATION: >= 5 of 10 over the bar with a tail actuator named; TAIL "
+148:    "TRACE RAIL": "lines 188-191 (>= 2 full-horizon TAIL FLAGS on one actuator and sign, or 1 with MEAN_a >= 0.60; "
+150:    "TAIL FLAG": "lines 165-168 (TAIL ACTUATORS 11-14, PITCH 11/13/14; BAR share at |command| >= 0.99 > 0.10; "
+156:    "M1": "lines 119-121 (episode_trace_report.py, seeds 3042-3061, deterministic, every actuator, window 200..L-1)",
+164:    "D-1": "lines 336-339 (per evaluation by named actuator and sign; windows [0,4194304), [4194304,8388608), "
+165:           "[8388608,12001280]; the same for every other actuator; report only)",
+171:    def __init__(self, message: str, code: int = 2):
+178:def utcnow() -> str:
+182:def sha256_file(path) -> str:
+190:def sha256_bytes(b: bytes) -> str:
+194:def require_under(path, root=MEASURE) -> Path:
+203:def write_json(path, obj) -> str:
+212:def write_text(path, text) -> str:
+221:def free_bytes(path) -> int:
+229:def stack_versions() -> dict:
+242:def check_pins() -> list[str]:
+273:def lane_b():
+296:def run_name(run_dir: Path) -> str:
+301:def locate(run_dir: Path, rel: str, suffix: str = "") -> Path | None:
+306:def need(run_dir: Path, rel: str, suffix: str) -> Path:
+313:def pair_rel(C, label) -> tuple[str, str]:
+317:def blind_guard(run_dir: Path) -> dict:
+357:def read_ending(C, run_dir: Path, suffix: str) -> dict:
+402:    def __init__(self, slots: int, log):
+408:    def machine_sims() -> int:
+427:    def wait_machine(self, name):
+437:def run_job(job: dict, slots: Slots, log) -> dict:
+501:def window_reading(C, res: dict, S: int, E: int) -> dict:
+504:    def inwin(s):
+509:                any_alarms=[s for s in res["any_alarms"] if S < s - C.GRID and s <= E],
+512:                straddling_S=sorted({s for s in res["any_alarms"] + res["tail_alarms"] if s - C.GRID <= S < s}),
+518:def prefix_check(run_ledger: Path, parent_ledger: Path | None, S: int) -> dict:
+528:    def rows_upto(p):
+539:def _num(v):
+547:def habit_summary(C, header, rows, res, classes, m1_records: dict, probe: Path | None, S: int, E: int,
+549:    """Report only: per actuator (all 15), the ledger's over-bar episodes by named actuator and sign (D-1, lines
+550:    336-339; the sign is M5 (b)'s saturated_actuator_positive_share >= 0.5 rule, applied to every actuator), the ANY
+551:    ALARMs naming it (classes_of's any_alarms), its own alarm series (the ANY ALARM rule of lines 169-170 restricted to
+552:    the episodes naming it), M1's window-mean command (cmd_all_actuators) and full-horizon over-BAR episodes with sign
+554:    the last 8 updates before E, BS2's primary form).  HABIT SITES: the round's own thresholds applied to each
+555:    actuator (never a class): L = an own alarm; T = >= 2 full-horizon episodes over the BAR in one sign at one traced
+558:    names = C.ACTUATOR_NAMES
+571:            pos = _num(r.get("saturated_actuator_positive_share"))
+605:        any_named = [x["step"] for x in classes.get("any_alarms", []) if n in (x.get("actuators") or {})]
+606:        any_sole = [x["step"] for x in classes.get("any_alarms", []) if set((x.get("actuators") or {})) == {n}]
+619:            cm = (rec.get("cmd_all_actuators") or {}).get(str(a))
+622:                ae = (ep.get("actuators") or {}).get(n) or {}
+629:                       and ((ep.get("actuators") or {}).get(n) or {}).get("over_bar"))
+632:        sites = []
+634:            sites.append("L")
+638:            sites.append("T")
+641:            hits = [lab for lab in jl if lab in m1 and m1[lab]["cmd"] is not None and sg * m1[lab]["cmd"] >= HABIT_LINE]
+645:            if len(hits) >= 2 or (mean is not None and sg * mean >= HABIT_LINE):
+648:            sites.append("D")
+655:                      flagged_evaluations=flagged, own_alarms=own_alarms, any_alarms_naming=any_named,
+656:                      any_alarms_sole=any_sole, m1=m1, probe=probe_d.get(n) if isinstance(probe_d, dict) else None,
+657:                      habit_sites=sites, active_span=[span[0], span[-1]] if span else None)
+658:    sites = {n: v["habit_sites"] for n, v in out.items() if v["habit_sites"]}
+659:    return dict(per_actuator=out, habit_sites=sites, labels=labels,
+661:                note="report only; HABIT SITES apply the round's own lines to each actuator and are never a class")
+665:def prepare(C, LG, CP, run_dir: Path, suffix: str, out_root: Path, start: int | None) -> dict:
+708:def run_m5_cli(prep: dict) -> dict:
+728:def m5_agrees(cli: dict, res: dict, c6: dict) -> list[str]:
+732:    for k in ("any_alarms", "tail_alarms", "needs_resolution", "any_flagged", "tail_flagged"):
+740:def jobs_for(prep: dict, simulate: bool, prune: bool = False) -> list[dict]:
+764:def prune_csvs(label_dir: Path, rec: dict) -> dict:
+765:    """--prune-csv: delete the .csv.gz of episodes in which no actuator is over the BAR (sha256 kept)."""
+766:    keep = {e["seed"] for e in rec.get("any_actuator_over_bar_episodes", [])}
+785:                                    "episodes with an actuator over the BAR (lane B read_trace needs the tail ones)"))
+789:def classify_one(prep: dict, job_results: list[dict], m5cli: dict, parent_ledger, prune: bool,
+879:    for x in classes["any_alarms"]:                 # classes_of's attribution: the actuators of the alarm's two evals
+880:        for n in x["actuators"]:
+885:            d["sole"] += set(x["actuators"]) == {n}
+887:                                any_alarms=prep["res"]["any_alarms"], tail_alarms=prep["res"]["tail_alarms"],
+889:                                any_alarms_by_actuator=by_act,
+898:    result["habit"] = habit_summary(C, prep["header"], prep["rows"], prep["res"], classes, m1_records,
+909:def _steps(xs, n=6):
+915:def render(r: dict) -> str:
+934:          f"    alarm actuators: {sorted({k for d in c['tail_alarm_detail'] for k in d['actuators']})}",
+938:          f"  ANY ALARMs (lines 169-170): {len(c['any_alarms'])}; steps {_steps([x['step'] for x in c['any_alarms']])}; "
+939:          f"by actuator {json.dumps(m['any_alarms_by_actuator'])}",
+953:             f"{w['tail_alarms'][0] if w['tail_alarms'] else None}), ANY ALARMs {len(w['any_alarms'])}, tail-flagged "
+958:    h = r["habit"]
+959:    L.append("  PER-ACTUATOR HABIT SUMMARY (report only; D-1 and M1 per actuator; HABIT SITES L/T/D are the round's "
+960:             "lines applied per actuator, never a class)")
+961:    L.append(f"    habit sites: {json.dumps(h['habit_sites'])}")
+962:    head = "    actuator             over(ledger) [0,4.19M) [4.19,8.39M) [8.39M,E]  own-alarms (first-last)   " \
+965:    for n, v in h["per_actuator"].items():
+970:        if v["ledger_over_total"] or oa or v["habit_sites"] or any(abs(v["m1"].get(lab, {}).get("cmd") or 0) >= 0.3
+974:                     f"{'':>4}{len(v['any_alarms_naming']):>5}       {cm}  {''.join(v['habit_sites'])}")
+975:    L.append("    (rows shown: an actuator with an over-bar ledger episode, an own alarm, a habit site or |CMD| >= 0.3 "
+981:def cmd_classify(a) -> int:
+992:    def log(msg):
+1052:            write_json(p["out"] / "habit.json", res["habit"])
+1062:                            any_alarms=len(c.get("any_alarms") or []),
+1063:                            habit_sites=(res.get("habit") or {}).get("habit_sites")))
+1068:def cmd_plan(a) -> int:
+1096:def main(argv=None) -> int:

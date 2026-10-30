@@ -1,0 +1,61 @@
+53f80e7a4b708f3b16fb11f78b93eeb3a430be066123e00b8be98e94919fc661  S2/r10round/long_blind/tools/run_waves_bs.sh
+4:#   RESUME a crash that is one of its own is rerun at once with --resume-from <its retired runs/<name>_crashed<k>>:
+5:#          run_bs.py resumes from that attempt's newest complete saved pair (bs_resume.resume_point), or starts again
+6:#          from S when it has none (BS2's rerun).  A relaunch finds the folder in logs/crash_ledger.tsv.  The early
+7:#          crash rule counts from the attempt's load step (run_meta load_step: S, or the resume point).
+10:#   RR-1   a relaunch after ALL_DECIDED keeps the first logs/atimes_at_ALL_DECIDED.tsv; a later snapshot goes to
+11:#          logs/atimes_at_ALL_DECIDED.relaunch<k>.tsv.
+28:# crash handling, relaunch, lock, HALTED and VOID rules; the bias screen's queue, slots, nice and floors.  Runs ONLY
+32:#   run_waves_bs.sh            run (or resume) the queue
+38:# reads only logs/run_waves_bs.log.  Nothing relaunches it automatically.  While logs/HALTED exists it refuses to start
+39:# (exit 2); it writes logs/HALTED whenever a halt (exit 2) or a VOID (exit 4) stops the queue; only the coordinator
+47:#     ones go on, logs/PAUSED_disk names the shortfall; it resumes by itself once space is free.  The process table and
+57:#       other: CRASH: runs/<name> -> runs/<name>_crashed<k>, logs/crash_ledger.tsv.  An EARLY crash (last recorded step
+58:#          below S + 131,072, or none) is not counted and halts new starts.  Any other crash is one of its own and is
+59:#          rerun at once from the start pair with the same arguments; a third own crash writes it to <BS>/lost.json.
+60:# Relaunch: logs/run_waves_bs.lock (waiting up to 30 s; another live runner: exit 3), waits while any of this BS's
+61:# run_bs.py processes is alive, then reads logs/decided.tsv and <BS>/lost.json; a runs/<name> found done is checked; one
+63:# run_meta says "crashed", under the early-crash rule).  A VOID in the ledger refuses the relaunch (exit 4).
+64:# When all are COUNTED, STOPPED or LOST and none is VOID: logs/ALL_DECIDED, then the full read (`read_bs.py <run>`,
+67:# Exit codes: 0 all decided and read; 2 refused / halted; 3 another runner holds the lock; 4 VOID.
+112:LOST_JSON=$BS/lost.json
+114:CRASHES=$LOGS/crash_ledger.tsv
+115:HALTED_FILE=$LOGS/HALTED
+125:print(C.WAVE_SLOTS, C.WAVE_NICE, C.DISK_FLOOR_BYTES, C.MAX_CRASHES, C.LOST_SCHEMA, C.LAUNCH_DISK_BYTES, C.EVAL_FREQ,
+137:read -r SLOTS NICE FLOOR MAX_CRASHES LOST_SCHEMA LAUNCH EVAL_FREQ POST_CHECK S_ALL E_ALL MAXN SCORER_FILE \
+160:  echo "slots $SLOTS at nice $NICE; disk floor $FLOOR bytes; launch floor $LAUNCH bytes; crash limit $MAX_CRASHES;" \
+161:       "early crash: last step below the attempt's load step + $EVAL_FREQ; an own crash reruns with" \
+162:       "--resume-from runs/<name>_crashed<k> (its newest complete saved pair, else S)"
+204:halt_marker() {
+205:  printf '%s\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$*" > "$HALTED_FILE"
+206:  note "halted: $* (logs/HALTED; the coordinator fixes the cause and removes it before starting the runner again)"
+229:load_step_of() {  # LB: the attempt's load step (run_meta load_step: S, or the resume point), or S
+314:  # RR-1 (LB): a relaunch after ALL_DECIDED keeps the first snapshot; this one goes to .relaunch<k>.tsv
+317:    while [[ -e "$LOGS/atimes_at_ALL_DECIDED.relaunch$k.tsv" ]]; do k=$((k + 1)); done
+318:    out=$LOGS/atimes_at_ALL_DECIDED.relaunch$k.tsv
+372:in_lost() {
+373:  [[ -f "$LOST_JSON" ]] || return 1
+376:sys.exit(0 if sys.argv[2] in (d.get('lost') or {}) else 1)" "$LOST_JSON" "$1" 9>&-
+379:write_lost() {
+380:  "$PY" -I -B - "$LOST_JSON" "$1" "$2" "$LOST_SCHEMA" 9>&- <<'PYEOF'
+383:d = json.load(open(path)) if os.path.exists(path) else {"schema": schema, "lost": {}}
+386:d.setdefault("lost", {})[name] = {"cause": "crashes", "detail": detail, "by": "run_waves_bs.sh",
+410:HALT=0
+411:HALT_WHY=()
+415:declare -A PID=() RESUME_FROM=()
+418:  local name=$1 cause=$2 counts=$3 new=none reached=none early=0 n load
+425:    if [[ "$reached" == none ]] || (( reached < load + EVAL_FREQ )); then early=1; counts=0; fi
+429:    RESUME_FROM[$name]=$RUNS/$new
+431:  (( early )) && cause="EARLY CRASH, no window evaluation (last step $reached): $cause"
+434:  if (( early )); then
+435:    HALT=1
+436:    HALT_WHY+=("early crash of $name (runs/$new)")
+437:    note "$name: $cause; folder $new; not counted (own crashes $n of $MAX_CRASHES); no new start: the coordinator" \
+441:  note "$name: CRASH ($cause; folder $new; own crash $n of $MAX_CRASHES$( ((counts == 0)) && echo ', not counted'))"
+442:  if (( n >= MAX_CRASHES )); then
+443:    if ! write_lost "$name" "$n own crashes, last: $cause"; then
+444:      note "lost.json could not be written for $name"
+445:      HALT=1
+446:      HALT_WHY+=("lost.json not written for $name")
+449:    decide "$name" LOST "$n own crashes"
+479:      HALT=1

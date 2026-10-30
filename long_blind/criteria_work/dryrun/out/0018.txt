@@ -1,0 +1,228 @@
+   909	def _steps(xs, n=6):
+   910	    xs = list(xs)
+   911	    s = ", ".join(f"{x:,}" if isinstance(x, int) else str(x) for x in xs[:n])
+   912	    return s + (f", ... ({len(xs)} in all)" if len(xs) > n else "")
+   913	
+   914	
+   915	def render(r: dict) -> str:
+   916	    L = [VERSION, f"RUN {r['name']}  ({r['run_dir']}{' suffix ' + r['suffix'] if r['suffix'] else ''})",
+   917	         f"  ending (C5, lines 228-233): {r['ending']['ending']} at E = {r['E']:,}; S = {r['S']:,}; "
+   918	         f"run_meta stop_reason {r['ending']['run_meta_stop_reason']!r}",
+   919	         f"  ledger {r['ledger_sha256'][:16]}...; C6 (lines 234-245): {'PASS' if r['c6']['passed'] else 'FAIL'} "
+   920	         f"({r['c6']['n_grid']} grid evaluations, {r['c6']['n_failures']} failures)",
+   921	         f"  labels traced (C7, line 246): {', '.join(r['labels'])}; measuring commit {r['measuring_commits']}; "
+   922	         f"physics_revision {r['physics_revisions']}",
+   923	         f"  M5 CLI vs in-process: {r['m5_cli_agrees']}"]
+   924	    if r.get("S_note"):
+   925	        L.append(f"  NOTE: {r['S_note']}")
+   926	    if r.get("classes") is None:
+   927	        L.append(f"  STATUS: {r['status']}  {json.dumps(r['c7'])}")
+   928	        return "\n".join(L)
+   929	    c = r["classes"]
+   930	    m = r["m5_summary"]
+   931	    L += [f"  TAIL CLASS (lines 269-279): {c['cls']}{' (' + c['kind'] + ')' if c.get('kind') else ''}",
+   932	          f"    TAIL ALARMs (lines 171-172): {len(c['tail_alarms'])}; first {c['tail_alarms'][0] if c['tail_alarms'] else None}; "
+   933	          f"tail-flagged evaluations {c['flagged_evaluations']}; resolved by trace {c['resolved_by_trace']}",
+   934	          f"    alarm actuators: {sorted({k for d in c['tail_alarm_detail'] for k in d['actuators']})}",
+   935	          f"    TRACE RAIL (lines 188-191): {c['trace_rail']}; single tail flags {c['single_tail_flags']}",
+   936	          f"    PARKED (lines 276-277): {c['parked']}; DRIVEN (line 279): {c['driven']}",
+   937	          f"    MEAN_a: {json.dumps({k: (round(v, 4) if v is not None else None) for k, v in c['mean'].items()})}",
+   938	          f"  ANY ALARMs (lines 169-170): {len(c['any_alarms'])}; steps {_steps([x['step'] for x in c['any_alarms']])}; "
+   939	          f"by actuator {json.dumps(m['any_alarms_by_actuator'])}",
+   940	          "    over-bar episodes per evaluation (M5; every line in m5.txt): "
+   941	          + "; ".join(f"{int(s):,}: {e['any']} ({', '.join(f'{k} {v}' for k, v in e['any_by'].items())})"
+   942	                      for s, e in list(m["over_bar_per_evaluation"].items())[:8])
+   943	          + (f"; ... ({len(m['over_bar_per_evaluation'])} evaluations with any)"
+   944	             if len(m["over_bar_per_evaluation"]) > 8 else ""),
+   945	          f"    any-flagged evaluations {len(m['any_flagged'])}; first over-bar episode "
+   946	          f"{m['d1']['first_tail_saturated_episode']} (tail); NEEDS RESOLUTION {m['needs_resolution']}",
+   947	          f"  GATE CLASS (lines 280-283): {c['gate']}{' ' + json.dumps(c['gate_why']) if c['gate_why'] else ''}",
+   948	          f"    GATE CERTIFICATE (final checkpoint, measured on a screen task; not certification): "
+   949	          f"{json.dumps(r.get('certificate'), default=str)[:600]}",
+   950	          f"  RUN OUTCOME (lines 284-286): {c['outcome']} {c['reasons']}"]
+   951	    w = r["window"]
+   952	    L.append(f"  window (S, E] (report only): TAIL ALARMs {len(w['tail_alarms'])} (first "
+   953	             f"{w['tail_alarms'][0] if w['tail_alarms'] else None}), ANY ALARMs {len(w['any_alarms'])}, tail-flagged "
+   954	             f"{len(w['tail_flagged'])}, straddling S {w['straddling_S']}; before S: {w['before_S']}")
+   955	    if r["prefix"].get("checked"):
+   956	        L.append(f"  parent prefix (report only): rows equal {r['prefix']['rows_equal']} ({r['prefix']['rows_run']} "
+   957	                 f"rows), header equal {r['prefix']['header_equal']}")
+   958	    h = r["habit"]
+   959	    L.append("  PER-ACTUATOR HABIT SUMMARY (report only; D-1 and M1 per actuator; HABIT SITES L/T/D are the round's "
+   960	             "lines applied per actuator, never a class)")
+   961	    L.append(f"    habit sites: {json.dumps(h['habit_sites'])}")
+   962	    head = "    actuator             over(ledger) [0,4.19M) [4.19,8.39M) [8.39M,E]  own-alarms (first-last)   " \
+   963	           "ANY-alarms  M1 CMD at " + " ".join(f"{x:>9}" for x in h["labels"])
+   964	    L.append(head)
+   965	    for n, v in h["per_actuator"].items():
+   966	        wv = list(v["ledger_over_by_window"].values())
+   967	        oa = v["own_alarms"]
+   968	        cm = " ".join((f"{v['m1'][lab]['cmd']:+9.3f}" if v["m1"][lab]["cmd"] is not None else f"{'n/f':>9}")
+   969	                      if lab in v["m1"] else f"{'-':>9}" for lab in h["labels"])
+   970	        if v["ledger_over_total"] or oa or v["habit_sites"] or any(abs(v["m1"].get(lab, {}).get("cmd") or 0) >= 0.3
+   971	                                                                   for lab in h["labels"]):
+   972	            L.append(f"    {n:<20} {v['ledger_over_total']:>5} {wv[0]:>9} {wv[1]:>12} {wv[2]:>10}  "
+   973	                     f"{len(oa):>3} ({oa[0] if oa else '-'}-{oa[-1] if oa else '-'})"
+   974	                     f"{'':>4}{len(v['any_alarms_naming']):>5}       {cm}  {''.join(v['habit_sites'])}")
+   975	    L.append("    (rows shown: an actuator with an over-bar ledger episode, an own alarm, a habit site or |CMD| >= 0.3 "
+   976	             "at a traced checkpoint)")
+   977	    return "\n".join(L)
+   978	
+   979	
+   980	# ------------------------------------------------------------------------------------------------------------ main
+   981	def cmd_classify(a) -> int:
+   982	    out_root = require_under(Path(a.out_root))
+   983	    out_root.mkdir(parents=True, exist_ok=True)
+   984	    problems = check_pins()
+   985	    if problems:
+   986	        print("REFUSED: pins:\n  " + "\n  ".join(problems), file=sys.stderr)
+   987	        return 2
+   988	    C, LG, CP, SC = lane_b()
+   989	    lock = threading.Lock()
+   990	    biglog = require_under(out_root / "measure_lb.log")
+   991	
+   992	    def log(msg):
+   993	        line = f"{utcnow()} {msg}"
+   994	        with lock:
+   995	            print(line, flush=True)
+   996	            with open(biglog, "a") as fh:
+   997	                fh.write(line + "\n")
+   998	
+   999	    log(f"{VERSION}; runs {a.runs}; slots {a.slots}; prune {a.prune_csv}; simulate {not a.no_simulate}; "
+  1000	        f"free {free_bytes(out_root):,} bytes; {MPL_DIR_OUTSIDE} exists {os.path.isdir(MPL_DIR_OUTSIDE)}")
+  1001	    preps, rc = [], 0
+  1002	    for rd in a.runs:
+  1003	        try:
+  1004	            t0 = time.monotonic()
+  1005	            prep = prepare(C, LG, CP, Path(rd), a.suffix, out_root, a.start)
+  1006	            prep["prep_s"] = round(time.monotonic() - t0, 2)
+  1007	            prep["m5cli"] = run_m5_cli(prep)
+  1008	            log(f"{prep['name']}: E {prep['E']:,} ({prep['ending']['ending']}), labels {prep['labels']}, "
+  1009	                f"M5 CLI {prep['m5cli']['wall_s']} s")
+  1010	            preps.append(prep)
+  1011	        except Refusal as exc:
+  1012	            log(f"{rd}: REFUSED: {exc.message}")
+  1013	            rc = max(rc, exc.code)
+  1014	    jobs = [j for p in preps for j in jobs_for(p, not a.no_simulate, a.prune_csv)]
+  1015	    todo = [j for j in jobs if "outcome" not in j]           # per run: the certificate first (longest), then traces
+  1016	    slots = Slots(a.slots, log)
+  1017	    done = [j for j in jobs if "outcome" in j]
+  1018	    t0 = time.monotonic()
+  1019	    if todo:
+  1020	        log(f"launching {len(todo)} measurement(s) on {a.slots} slot(s)")
+  1021	        with ThreadPoolExecutor(max_workers=a.slots) as ex:
+  1022	            done += list(ex.map(lambda j: run_job(j, slots, log), todo))
+  1023	    log(f"measurements done in {time.monotonic() - t0:.0f} s wall; {MPL_DIR_OUTSIDE} exists "
+  1024	        f"{os.path.isdir(MPL_DIR_OUTSIDE)}")
+  1025	    parent_ledger = Path(a.parent_ledger) if a.parent_ledger else None
+  1026	    summary = []
+  1027	    for p in preps:
+  1028	        jr = [j for j in done if j["run"] == p["name"]]
+  1029	        for j in jr:
+  1030	            j.pop("logs", None)
+  1031	        if any(j["outcome"] in ("CRASHED TWICE",) for j in jr):
+  1032	            rc = max(rc, 3)
+  1033	        t1 = time.monotonic()
+  1034	        res = classify_one(p, jr, p["m5cli"], parent_ledger, a.prune_csv)
+  1035	        res["costs"] = dict(prepare_s=p["prep_s"], m5_cli_s=p["m5cli"]["wall_s"],
+  1036	                            classify_s=round(time.monotonic() - t1, 2),
+  1037	                            jobs={f"{j['label']} {j['kind']}": {k: j["attempts"][-1].get(k) for k in
+  1038	                                                                 ("wall_s", "cpu_s", "cpu_user_s", "cpu_sys_s",
+  1039	                                                                  "maxrss_kb")} if j["attempts"] else j["outcome"]
+  1040	                                  for j in jr},
+  1041	                            m1_cpu_s=round(sum(j["attempts"][-1].get("cpu_s") or 0 for j in jr
+  1042	                                               if j["kind"] == "m1" and j["attempts"]), 1),
+  1043	                            m3_cpu_s=round(sum(j["attempts"][-1].get("cpu_s") or 0 for j in jr
+  1044	                                               if j["kind"] == "m3" and j["attempts"]), 1))
+  1045	        res["free_bytes_after"] = free_bytes(out_root)
+  1046	        res["mpl_dir_outside_exists"] = os.path.isdir(MPL_DIR_OUTSIDE)
+  1047	        sha = write_json(p["out"] / "measure_lb.json", res)
+  1048	        text = render(res)
+  1049	        write_text(p["out"] / "report.txt", text + "\n")
+  1050	        if res.get("classes") is not None:
+  1051	            write_json(p["out"] / "classes.json", res["classes"])
+  1052	            write_json(p["out"] / "habit.json", res["habit"])
+  1053	        print(text, flush=True)
+  1054	        log(f"{p['name']}: {res['status']}; measure_lb.json {sha[:16]}")
+  1055	        if res["status"] != "CLASSIFIED":
+  1056	            rc = max(rc, 2)
+  1057	        c = res.get("classes") or {}
+  1058	        summary.append(dict(run=p["name"], status=res["status"], cls=c.get("cls"), kind=c.get("kind"),
+  1059	                            gate=c.get("gate"), outcome=c.get("outcome"),
+  1060	                            tail_alarms=len(c.get("tail_alarms") or []),
+  1061	                            first_tail_alarm=(c.get("tail_alarms") or [None])[0],
+  1062	                            any_alarms=len(c.get("any_alarms") or []),
+  1063	                            habit_sites=(res.get("habit") or {}).get("habit_sites")))
+  1064	    write_json(out_root / "summary.json", dict(utc=utcnow(), version=VERSION, runs=summary, rc=rc))
+  1065	    return rc
+  1066	
+  1067	
+  1068	def cmd_plan(a) -> int:
+  1069	    """Inputs, ending, M5 (in process only) and the jobs C7 names, with the disk they need; nothing simulated and
+  1070	    nothing written.  It reads the ledger, so the outcome-blind guard applies."""
+  1071	    problems = check_pins()
+  1072	    if problems:
+  1073	        print("REFUSED: pins:\n  " + "\n  ".join(problems), file=sys.stderr)
+  1074	        return 2
+  1075	    C, LG, CP, SC = lane_b()
+  1076	    rc = 0
+  1077	    for rd in a.runs:
+  1078	        try:
+  1079	            p = prepare(C, LG, CP, Path(rd), a.suffix, require_under(Path(a.out_root)), a.start)
+  1080	        except Refusal as exc:
+  1081	            print(f"{rd}: REFUSED: {exc.message}")
+  1082	            rc = max(rc, exc.code)
+  1083	            continue
+  1084	        jobs = jobs_for(p, True)
+  1085	        new = [j for j in jobs if "outcome" not in j]
+  1086	        need_b = sum(M3_OUT_BYTES if j["kind"] == "m3" else M1_OUT_BYTES for j in new)
+  1087	        print(json.dumps(dict(run=p["name"], E=p["E"], ending=p["ending"]["ending"], S=p["S"], labels=p["labels"],
+  1088	                              resolution={str(k): v for k, v in p["resolution"].items()},
+  1089	                              c6_passed=p["c6"]["passed"], jobs=[f"{j['label']} {j['kind']}: "
+  1090	                                                                 f"{j.get('outcome', 'TO MEASURE')}" for j in jobs],
+  1091	                              output_bytes_before_prune=need_b, free_bytes=free_bytes(p["out"].parent),
+  1092	                              disk_floor=DISK_FLOOR), indent=1))
+  1093	    return rc
+  1094	
+  1095	
+  1096	def main(argv=None) -> int:
+  1097	    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+  1098	    sub = ap.add_subparsers(dest="cmd", required=True)
+  1099	    sub.add_parser("version")
+  1100	    sub.add_parser("pins")
+  1101	    pl = sub.add_parser("plan")
+  1102	    pl.add_argument("runs", nargs="+")
+  1103	    pl.add_argument("--out-root", required=True)
+  1104	    pl.add_argument("--suffix", default="")
+  1105	    pl.add_argument("--start", type=int, default=None)
+  1106	    c = sub.add_parser("classify")
+  1107	    c.add_argument("runs", nargs="+")
+  1108	    c.add_argument("--out-root", required=True)
+  1109	    c.add_argument("--suffix", default="", help="a fetch store's copy suffix, e.g. .copy1 (validation inputs)")
+  1110	    c.add_argument("--slots", type=int, default=2, help="concurrent measurements (criteria line 117: at most 2)")
+  1111	    c.add_argument("--start", type=int, default=None, help="S, the continuation's start (default run_meta.json S, "
+  1112	                                                           "else 0)")
+  1113	    c.add_argument("--prune-csv", action="store_true")
+  1114	    c.add_argument("--no-simulate", action="store_true", help="read existing panels only; launch nothing")
+  1115	    c.add_argument("--parent-ledger", default=None, help="the parent's ledger for the prefix check (report only)")
+  1116	    a = ap.parse_args(argv)
+  1117	    try:
+  1118	        if a.cmd == "version":
+  1119	            print(VERSION)
+  1120	            return 0
+  1121	        if a.cmd == "pins":
+  1122	            problems = check_pins()
+  1123	            print("\n".join(problems) if problems else f"all {len(PINS)} pins, the copy's seal and the stack OK")
+  1124	            return 2 if problems else 0
+  1125	        if a.cmd == "plan":
+  1126	            return cmd_plan(a)
+  1127	        if a.slots < 1 or a.slots > 2:
+  1128	            raise Refusal("--slots must be 1 or 2 (criteria line 117: at most 2 measuring processes)")
+  1129	        return cmd_classify(a)
+  1130	    except Refusal as exc:
+  1131	        print(f"[measure_lb] REFUSED: {exc.message}", file=sys.stderr, flush=True)
+  1132	        return exc.code
+  1133	
+  1134	
+  1135	if __name__ == "__main__":
+  1136	    raise SystemExit(main())

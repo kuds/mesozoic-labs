@@ -1,0 +1,388 @@
+"""LB: the resume of a crashed or killed continuation from its latest complete saved pair (TASK3).
+
+    resume_point(crashed_run, pair_problem=...)      the newest complete pair P of the last attempt (or None)
+    records_through(stage_dir, run_dir, P)           why an attempt's records miss a row up to P ([]: they hold all)
+    resume_inputs(stage_dir, run_dir, crashed_run, P)  the new attempt's folder from the last one's (links, copies)
+    stitch_digests(stage_dir, run_dir, P, headers)   digests of every record's rows up to P (CHECK recomputes them)
+    stitch_problems(recorded, now)                   CHECK's comparison of the two (pure)
+    local_pair_problem(zip, pkl)                     the code's checkpoint_pair_problem re-stated (tests, preflight)
+
+A pair at P = S + 262,144 k is written by SB3's CheckpointCallback at the last step of the rollout ending at P, BEFORE
+that rollout's update; the code's records reach the disk on their own clocks: eval_episodes.csv, evaluations.npz and
+gate_progress.npz at every evaluation (P is one), the evidence lines (this harness) at every rollout end, but
+policy_probe.npz and train_episodes.csv only on the checkpoint calls (the probe's row for the rollout ending at P is
+made after that call).  So the newest pair is complete only once a later checkpoint call has written its rows; the
+resume point is the newest pair whose records hold every row up to P (usually the second newest pair), checked by
+content, never by timing.  The code's own same-stage resume (curriculum.checkpoints.seed_resume_eval_state with
+max_timesteps = the loaded step) then keeps every record's rows up to P and the session appends after P: the same
+mechanism that starts every continuation at S from the parent's records.
+Importing this module needs neither torch nor the code copy (numpy is imported inside the functions).
+"""
+from __future__ import annotations
+
+import csv
+import hashlib
+import json
+import os
+import pickle
+import shutil
+import zipfile
+from pathlib import Path
+from typing import Any, Callable
+
+RESUME_SCHEMA = "lb-resume/1"
+PROBE = "policy_probe.npz"
+EVAL_LEDGER = "eval_episodes.csv"
+TRAIN_LEDGER = "train_episodes.csv"
+EVALS_NPZ = "evaluations.npz"
+GATE_NPZ = "gate_progress.npz"
+EVIDENCE = "arm_evidence.jsonl"                 # bs_common.EVIDENCE
+PROBE_DIGEST_COLUMNS = ("update_timesteps", "ent_coef", "learning_rate", "obs_rms_mean", "obs_rms_var", "obs_rms_count")
+
+
+class ResumeError(Exception):
+    """The last attempt's folder cannot be resumed as asked (its folder or its start pair is not what it must be)."""
+
+
+def _sha(path: str | os.PathLike[str]) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as fh:
+        for chunk in iter(lambda: fh.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+# ------------------------------------------------------------------------------------------------ the pair
+def local_pair_problem(zip_path: str | os.PathLike[str], pkl_path: str | os.PathLike[str]) -> str | None:
+    """None when a checkpoint pair can be loaded, else why not: curriculum.checkpoints.checkpoint_pair_problem's rules
+    (the sidecar exists; the zip passes testzip and holds SB3's "data" and a "*policy.pth" in its OUTER archive; the
+    sidecar unpickles).  run_bs.py passes the code's own function; this copy serves the unit tests and preflight."""
+    zip_path, pkl_path = Path(zip_path), Path(pkl_path)
+    if not pkl_path.exists():
+        return f"missing matched VecNormalize sidecar {pkl_path.name}"
+    try:
+        with zipfile.ZipFile(zip_path) as archive:
+            bad = archive.testzip()
+            names = archive.namelist()
+        if bad is not None:
+            raise zipfile.BadZipFile(f"corrupt archive member {bad!r}")
+        if "data" not in names or not any(n.endswith("policy.pth") for n in names):
+            raise zipfile.BadZipFile(f"outer archive lacks SB3 members (truncated; found {sorted(names)[:5]})")
+    except Exception as exc:  # noqa: BLE001 - every unreadable zip is a problem
+        return f"bad/truncated checkpoint zip {zip_path.name} ({exc})"
+    try:
+        with open(pkl_path, "rb") as fh:
+            pickle.load(fh)  # noqa: S301 - the run's own sidecar (as the code's check does)
+    except Exception as exc:  # noqa: BLE001
+        return f"VecNormalize sidecar {pkl_path.name} does not unpickle ({exc})"
+    return None
+
+
+def zip_num_timesteps(zip_path: str | os.PathLike[str]) -> int | None:
+    """num_timesteps from an SB3 zip's "data" member (JSON; nothing unpickled), or None."""
+    try:
+        with zipfile.ZipFile(zip_path) as z:
+            return int(json.loads(z.read("data"))["num_timesteps"])
+    except Exception:  # noqa: BLE001
+        return None
+
+
+# ------------------------------------------------------------------------------------------------ records
+def _csv(path: Path) -> tuple[list[str], list[list[str]]]:
+    with open(path, newline="", encoding="utf-8") as fh:
+        rows = list(csv.reader(fh))
+    if not rows:
+        raise ValueError(f"{path.name} is empty")
+    return rows[0], rows[1:]
+
+
+def _step(cell: str) -> float | None:
+    try:
+        v = float(cell)
+    except (TypeError, ValueError):
+        return None
+    return v
+
+
+def evidence_prefix(run_dir: Path, S: int, rollout: int, P: int) -> tuple[list[str] | None, str | None]:
+    """The evidence file's first (P - S)/rollout lines (their exact text), if they are one line per rollout end at
+    S + rollout k in order; (None, why) otherwise.  Lines after them (beyond P) are not read past the first."""
+    want = [S + rollout * k for k in range(1, (P - S) // rollout + 1)]
+    path = Path(run_dir) / EVIDENCE
+    out: list[str] = []
+    try:
+        with open(path, encoding="utf-8") as fh:
+            for line in fh:
+                if len(out) == len(want):
+                    break
+                if not line.endswith("\n"):
+                    return None, f"{EVIDENCE}: line {len(out) + 1} is cut short"
+                try:
+                    n = json.loads(line).get("num_timesteps")
+                except ValueError:
+                    return None, f"{EVIDENCE}: line {len(out) + 1} is not JSON"
+                if n != want[len(out)]:
+                    return None, f"{EVIDENCE}: line {len(out) + 1} is for {n}, not {want[len(out)]}"
+                out.append(line)
+    except OSError as exc:
+        return None, f"{EVIDENCE}: {exc}"
+    if len(out) != len(want):
+        return None, f"{EVIDENCE}: {len(out)} lines, not the {len(want)} up to {P}"
+    return out, None
+
+
+def records_through(stage_dir: str | os.PathLike[str], run_dir: str | os.PathLike[str], P: int, *, S: int,
+                    rollout: int, eval_freq: int, eval_episodes: int) -> list[str]:
+    """Every reason the attempt's records do NOT hold every row up to P (empty: they do).  Rows after P are not
+    judged (the code's resume drops them).  Reads only."""
+    import numpy as np
+
+    stage, p = Path(stage_dir), []
+    want_probe = [rollout * k for k in range(1, P // rollout + 1)]           # the seeded rows <= S and (S, P]
+    want_eval = [eval_freq * k for k in range(1, P // eval_freq + 1)]
+    try:
+        with np.load(stage / PROBE, allow_pickle=False) as z:
+            steps = [int(x) for x in np.asarray(z["update_timesteps"]).astype(np.int64).tolist()]
+        got = [s for s in steps if s <= P]
+        if got != want_probe:
+            missing = sorted(set(want_probe) - set(got))[:3]
+            p.append(f"{PROBE}: {len(got)} rows <= {P}, not one at every {rollout} (missing e.g. {missing}, "
+                     f"{len(got) - len(set(got))} repeated)")
+    except Exception as exc:  # noqa: BLE001
+        p.append(f"{PROBE}: {exc.__class__.__name__}: {exc}")
+    _, why = evidence_prefix(Path(run_dir), S, rollout, P)
+    if why:
+        p.append(why)
+    try:
+        head, rows = _csv(stage / EVAL_LEDGER)
+        ti, ei = head.index("timesteps"), head.index("episode")
+        counts: dict[int, int] = {}
+        pairs = set()
+        for r in rows:
+            t = _step(r[ti]) if ti < len(r) else None
+            if t is None or t > P:
+                continue
+            if t != int(t) or int(t) % eval_freq:
+                p.append(f"{EVAL_LEDGER}: a row at {t}, off the {eval_freq} grid")
+                break
+            counts[int(t)] = counts.get(int(t), 0) + 1
+            pairs.add((int(t), r[ei] if ei < len(r) else None))
+        bad = [s for s in want_eval if counts.get(s) != eval_episodes]
+        if bad or set(counts) - set(want_eval):
+            p.append(f"{EVAL_LEDGER}: evaluations up to {P} without exactly {eval_episodes} rows: {bad[:3]}")
+        if len(pairs) != sum(counts.values()):
+            p.append(f"{EVAL_LEDGER}: a (timesteps, episode) row repeated up to {P}")
+    except Exception as exc:  # noqa: BLE001
+        p.append(f"{EVAL_LEDGER}: {exc.__class__.__name__}: {exc}")
+    for name in (EVALS_NPZ, GATE_NPZ):
+        try:
+            with np.load(stage / name, allow_pickle=False) as z:
+                ts = [int(x) for x in np.asarray(z["timesteps"]).astype(np.int64).tolist()]
+            if [t for t in ts if t <= P] != want_eval:
+                p.append(f"{name}: its evaluations up to {P} are not one at every {eval_freq}")
+        except Exception as exc:  # noqa: BLE001
+            p.append(f"{name}: {exc.__class__.__name__}: {exc}")
+    try:
+        head, rows = _csv(stage / TRAIN_LEDGER)
+        ti = head.index("timesteps")
+        steps_t = [t for t in (_step(r[ti]) for r in rows if ti < len(r)) if t is not None]
+        if not steps_t or max(steps_t) <= P:
+            p.append(f"{TRAIN_LEDGER}: no episode after {P}: not written after the pair (its rows up to {P} may be "
+                     f"incomplete)")
+    except Exception as exc:  # noqa: BLE001
+        p.append(f"{TRAIN_LEDGER}: {exc.__class__.__name__}: {exc}")
+    return p
+
+
+# ------------------------------------------------------------------------------------------------ the point
+def resume_point(crashed_run: str | os.PathLike[str], *, S: int, E: int, saved_steps: tuple[int, ...],
+                 periodic_names: Callable[[int], tuple[str, str]], start_sha256: tuple[str, str], stage_dir_name: str,
+                 rollout: int, eval_freq: int, eval_episodes: int,
+                 pair_problem: Callable[[Any, Any], str | None] = local_pair_problem) -> dict:
+    """The newest saved pair P in saved_steps (newest first) of the attempt in crashed_run that is intact, carries
+    num_timesteps P, has every earlier saved pair beside it, and whose records hold every row up to P.  Returns
+    {"P": P or None, "candidates": [{"steps", "problem"}], "problems": [...], and for a P: zip, pkl, their sha256}.
+    "problems" (the start pair copy not at its pin) means no resume at all.  Reads only."""
+    run = Path(crashed_run)
+    models = run / stage_dir_name / "models"
+    out: dict[str, Any] = {"schema": RESUME_SCHEMA, "from": str(run), "P": None, "candidates": [], "problems": []}
+    for name, want in zip(periodic_names(S), start_sha256, strict=True):
+        path = models / name
+        if not path.is_file():
+            out["problems"].append(f"{name}: the start pair copy is missing")
+        elif _sha(path) != want:
+            out["problems"].append(f"{name}: the start pair copy is not at its pinned sha256")
+    if out["problems"]:
+        return out
+    for P in sorted((s for s in saved_steps if S < s < E), reverse=True):
+        z, k = (models / n for n in periodic_names(P))
+        if not z.exists() and not k.exists():
+            continue
+        prob = pair_problem(z, k) if z.exists() else f"{z.name} missing (its sidecar is there)"
+        if prob is None and zip_num_timesteps(z) != P:
+            prob = f"{z.name}: its data's num_timesteps is not {P}"
+        if prob is None:
+            gaps = [s for s in saved_steps if S < s < P and not all((models / n).is_file() for n in periodic_names(s))]
+            if gaps:
+                prob = f"earlier saved pairs missing beside it: {gaps[:3]}"
+        if prob is None:
+            rec = records_through(run / stage_dir_name, run, P, S=S, rollout=rollout, eval_freq=eval_freq,
+                                  eval_episodes=eval_episodes)
+            if rec:
+                prob = "records: " + " | ".join(rec)
+        out["candidates"].append({"steps": P, "problem": prob})
+        if prob is None:
+            out.update(P=P, zip=str(z), pkl=str(k), zip_sha256=_sha(z), pkl_sha256=_sha(k))
+            break
+    return out
+
+
+# ------------------------------------------------------------------------------------------------ the folder
+def _link_or_copy(src: Path, dst: Path) -> str:
+    try:
+        os.link(src, dst)
+        return "link"
+    except OSError:
+        shutil.copyfile(src, dst)
+        return "copy"
+
+
+def resume_inputs(stage_dir: str | os.PathLike[str], run_dir: str | os.PathLike[str],
+                  crashed_run: str | os.PathLike[str], P: int, *, S: int, saved_steps: tuple[int, ...],
+                  periodic_names: Callable[[int], tuple[str, str]], stage_dir_name: str, records: tuple[str, ...],
+                  rollout: int) -> dict:
+    """The new attempt's folder: models/ holds the start copy and every saved pair up to P, hard links to the last
+    attempt's files (a copy where a link cannot be made), each sha256-checked; the stage directory gets copies of the
+    last attempt's records (the code trims them to rows <= P and rewrites them); arm_evidence.jsonl gets the last
+    attempt's lines up to P, byte for byte.  Nothing in crashed_run is changed."""
+    stage, run, src_run = Path(stage_dir), Path(run_dir), Path(crashed_run)
+    src_stage = src_run / stage_dir_name
+    models = stage / "models"
+    models.mkdir(parents=True)
+    pairs: dict[str, Any] = {}
+    for s in (S, *[x for x in saved_steps if S < x <= P]):
+        for name in periodic_names(s):
+            src = src_stage / "models" / name
+            how = _link_or_copy(src, models / name)
+            sha_src, sha_dst = _sha(src), _sha(models / name)
+            if sha_src != sha_dst:
+                raise ResumeError(f"{name}: sha256 changed in the {how}")
+            pairs[name] = {"how": how, "sha256": sha_dst}
+    copied: dict[str, Any] = {}
+    for name in records:
+        src = src_stage / name
+        if not src.is_file():
+            raise ResumeError(f"{src}: missing")
+        shutil.copyfile(src, stage / name)
+        copied[name] = {"from": str(src), "sha256": _sha(stage / name)}
+    lines, why = evidence_prefix(src_run, S, rollout, P)
+    if why:
+        raise ResumeError(why)
+    with open(run / EVIDENCE, "x", encoding="utf-8") as fh:
+        fh.writelines(lines)
+    return {"pairs": pairs, "copied": copied, "evidence_lines": len(lines),
+            "links": sum(1 for v in pairs.values() if v["how"] == "link")}
+
+
+# ------------------------------------------------------------------------------------------------ stitching
+def _digest(parts: list[bytes]) -> str:
+    h = hashlib.sha256()
+    for b in parts:
+        h.update(len(b).to_bytes(8, "little") + b)
+    return h.hexdigest()
+
+
+def stitch_digests(stage_dir: str | os.PathLike[str], run_dir: str | os.PathLike[str], P: int, *, S: int,
+                   rollout: int, headers: dict | None = None) -> dict:
+    """Digests of every record's rows up to P: the probe's CHECK columns (PROBE_DIGEST_COLUMNS), the evidence lines
+    (S, P], the two ledgers' rows (cells in the given header order; the source file's header when headers is None),
+    evaluations.npz's timesteps / results / ep_lengths and gate_progress.npz's timesteps.  run_bs.py records them
+    from the last attempt's files at the resume; CHECK recomputes them on the finished run's files."""
+    import numpy as np
+
+    stage, out = Path(stage_dir), {}
+    with np.load(stage / PROBE, allow_pickle=False) as z:
+        ut = np.asarray(z["update_timesteps"]).astype(np.int64)
+        keep = ut <= P
+        parts = [np.ascontiguousarray(np.asarray(z[c])[keep]).tobytes() for c in PROBE_DIGEST_COLUMNS]
+    out["probe"] = {"rows": int(keep.sum()), "sha256": _digest(parts)}
+    lines, why = evidence_prefix(Path(run_dir), S, rollout, P)
+    out["evidence"] = {"rows": None if lines is None else len(lines),
+                       "sha256": None if lines is None else _digest([x.encode() for x in lines]), "problem": why}
+    for name in (EVAL_LEDGER, TRAIN_LEDGER):
+        head, rows = _csv(stage / name)
+        cols = list((headers or {}).get(name) or head)
+        idx = [head.index(c) if c in head else None for c in cols]
+        ti = head.index("timesteps")
+        kept = [r for r in rows if ti < len(r) and _step(r[ti]) is not None and _step(r[ti]) <= P]
+        cells = [json.dumps([r[i] if i is not None and i < len(r) else "" for i in idx]).encode() for r in kept]
+        out[name] = {"header": cols, "rows": len(kept), "sha256": _digest(cells)}
+    with np.load(stage / EVALS_NPZ, allow_pickle=False) as z:
+        ts = np.asarray(z["timesteps"]).astype(np.int64)
+        k = ts <= P
+        parts = [np.ascontiguousarray(np.asarray(z[c])[k]).tobytes() for c in ("timesteps", "results", "ep_lengths")]
+    out[EVALS_NPZ] = {"rows": int(k.sum()), "sha256": _digest(parts)}
+    with np.load(stage / GATE_NPZ, allow_pickle=False) as z:
+        ts = np.asarray(z["timesteps"]).astype(np.int64)
+        k = ts <= P
+    out[GATE_NPZ] = {"rows": int(k.sum()), "sha256": _digest([np.ascontiguousarray(ts[k]).tobytes()])}
+    return out
+
+
+def stitch_problems(recorded: dict, now: dict) -> list[str]:
+    """CHECK: every record's rows up to P in the finished run equal the last attempt's (pure)."""
+    p = []
+    if not isinstance(recorded, dict) or not recorded:
+        return ["resume: no stitched-row digests recorded"]
+    for key in ("probe", "evidence", EVAL_LEDGER, TRAIN_LEDGER, EVALS_NPZ, GATE_NPZ):
+        a, b = recorded.get(key) or {}, now.get(key) or {}
+        if not a.get("sha256") or (a.get("rows"), a.get("sha256")) != (b.get("rows"), b.get("sha256")):
+            p.append(f"resume: {key}'s rows up to the resume point differ from the last attempt's "
+                     f"({a.get('rows')} -> {b.get('rows')} rows)")
+    return p
+
+
+# ------------------------------------------------------------------------------------------------ CHECK's grid
+def evaluation_grid_problems(stage_dir: str | os.PathLike[str], T: int, *, eval_freq: int,
+                             eval_episodes: int) -> tuple[list[str], dict]:
+    """CHECK: one evaluation at every eval_freq k up to T (the parent's seeded ones and the run's), in
+    eval_episodes.csv (exactly eval_episodes rows each, no (timesteps, episode) row twice, none after T), in
+    evaluations.npz and in gate_progress.npz (one row each, in order, none after T).  Reads the step and episode
+    columns only.  (problems, detail: counts, no values)."""
+    import numpy as np
+
+    stage, p = Path(stage_dir), []
+    want = [eval_freq * k for k in range(1, T // eval_freq + 1)]
+    det: dict[str, Any] = {"evaluations_expected": len(want)}
+    try:
+        head, rows = _csv(stage / EVAL_LEDGER)
+        ti, ei = head.index("timesteps"), head.index("episode")
+        counts: dict[int, int] = {}
+        seen, repeated, off = set(), 0, 0
+        for r in rows:
+            t = _step(r[ti]) if ti < len(r) else None
+            if t is None or t != int(t) or int(t) % eval_freq or t > T:
+                off += 1
+                continue
+            counts[int(t)] = counts.get(int(t), 0) + 1
+            key = (int(t), r[ei] if ei < len(r) else None)
+            repeated += key in seen
+            seen.add(key)
+        bad = [s for s in want if counts.get(s) != eval_episodes]
+        det.update(ledger_rows=len(rows), ledger_evaluations=len(counts), ledger_off_grid_or_after_T=off,
+                   ledger_repeated=repeated)
+        if bad or set(counts) - set(want) or off or repeated:
+            p.append(f"{EVAL_LEDGER}: {len(bad)} evaluations up to T without exactly {eval_episodes} rows (e.g. "
+                     f"{bad[:3]}), {off} rows off the grid or after T, {repeated} repeated")
+    except Exception as exc:  # noqa: BLE001
+        p.append(f"{EVAL_LEDGER}: {exc.__class__.__name__}: {exc}")
+    for name in (EVALS_NPZ, GATE_NPZ):
+        try:
+            with np.load(stage / name, allow_pickle=False) as z:
+                ts = [int(x) for x in np.asarray(z["timesteps"]).astype(np.int64).tolist()]
+            det[f"{name}_rows"] = len(ts)
+            if ts != want:
+                p.append(f"{name}: {len(ts)} evaluations, not one at every {eval_freq} up to T ({len(want)})")
+        except Exception as exc:  # noqa: BLE001
+            p.append(f"{name}: {exc.__class__.__name__}: {exc}")
+    return p, det

@@ -1,0 +1,153 @@
+PRE-REGISTRATION: TERMINATION-RISK PROBE (lens B)            written 2026-10-30 ~17:00 UTC, before any rollout of the
+analysis and before any count or statistic of the training or evaluation records in the windows below.  Never edited
+after its sha256 is recorded (PREREG.sha256, NOTES.txt).  Later ideas go to NOTES.txt POSTHOC, labelled post hoc.
+
+QUESTION.  Hypothesis (B): the critic values a raised tail_3 (positive dV/dq3) because a lower tail carries a higher
+risk of the episode ending in tail_contact (tail_3/4/5 geoms are unconditional termination geoms), either GENUINELY
+(the risk is real and large enough to account for the slope) or APPARENTLY (an overgeneralised risk gradient: the
+critic values the tail's height as if it were a risk, beyond what the realised risk supports).
+
+Already known before this file (not tested here): the clamp test (deterministic s42 ECS end policies) had no
+termination in any arm; BS2's evaluation ledgers had two falls, both tail_contact, seed 2521 at 2,359,296 in both arms
+(task text); kinematics (probe_static.txt): d tip z / d q = +23.6 / +18.3 / +13.1 mm/deg for tail_1 / tail_2 / tail_3
+pitch, d lowest tail capsule / d q = +13.1 / +7.9 / +2.6 mm/deg, nose-up body pitch lowers the tip ~27 mm/deg, the tip
+sits ~0.91 m and the lowest tail capsule ~0.80 m above the floor at the home keyframe; ret_rms sigma 42.8-45.4.
+
+==================================================================================================================
+DATA
+==================================================================================================================
+Recorder: run_probe.py 1.0 (its docstring is the method).  Training-like: the frozen VecNormalize statistics of the
+pair, the policy's Gaussian SAMPLED and clipped, torch.manual_seed(seed) per episode, env.reset(seed=seed), the stance
+config's own env, horizon 1,000 (truncation), at most 2 processes at nice 10.
+Main conditions (free policy), 128 episodes each, seeds 7001-7128 (the same seeds in every condition):
+  p1048576, p2097152 (parent s42, F2 copies), c2511_3145728, c2531_3145728 (BS2 control_2511 / control_2531 at
+  3,145,728), c2511_E, c2531_E (the same at E = 3,538,944, stage1_final), b2511_E (critic_blind_tail3_2511 at E; its
+  EFFECTIVE critic is the blinded one, normalised obs[6] = 0; the raw value MLP is recorded beside it).
+  NON-BLIND SET = the first six.  b2511_E is reported separately and is never pooled with them.
+Clamp arms (item 5, report only), --lite, seeds 7001-7128: p2097152 with the stepped action 14 held at 0, at -1 and at
+  +1 (the clamp test's override); the free arm is the main p2097152 condition.
+Records (read only): the parent's train_episodes.csv.copy1 and eval_episodes.csv.copy1 (F2), BS2's eight runs'
+  01_stance/train_episodes.csv and 01_stance/eval_episodes.csv.
+Definitions.  State s_t, t = 0..T-1 (T = steps in the episode; s_t precedes the t-th transition).  End reason =
+  info termination_reason on termination, "truncated" at 1,000.  sigma_R = sqrt(ret_rms.var + eps) of the pair;
+  r_norm = clip(r / sigma_R, -50, 50); G_t = sum_{k=t}^{T-1} 0.98^(k-t) r_norm,k + [truncated] 0.98^(T-t) V(s_T)
+  (V_final; SB3's truncation bootstrap).  s(t) = the critic's slope dV/dq3: central finite difference of the
+  EFFECTIVE critic's V (normalised units) in the raw tail_3 angle, +-0.25 deg, all else fixed, per degree (field dV3).
+  q3 in degrees; tip = tail_tip site z (m); low = lowest point of the tail_3/4/5 capsules (m); pelvis = pelvis z (m).
+Bootstrap: clusters = episodes, resampled within condition; numpy default_rng(20261030); 1,000 replicates for items 1-2,
+  200 for item 4; percentile 95% intervals.
+
+==================================================================================================================
+ITEM 1.  HOW OFTEN DO TRAINING-LIKE EPISODES END IN tail_contact (AND IN EACH OTHER TERMINATION)?
+==================================================================================================================
+M1.1 rollouts: per condition, counts by end reason; the tail_contact rate and the any-termination rate with
+     Clopper-Pearson 95% intervals; pooled over the NON-BLIND SET.
+M1.2 parent's training records: rows with 1,048,576 < timesteps <= 3,538,944: counts by cause (and per 262,144-step
+     bin); the tail_contact share of episodes.  Also rows <= 1,048,576, descriptive.
+M1.3 BS2's training records: rows with 2,097,152 < timesteps <= 3,538,944, per run, counts by cause.
+M1.4 evaluation ledgers (parent F2 and BS2 runs, the same windows): counts by cause.  Descriptive.
+P1.1 (prediction, rollouts): pooled over the NON-BLIND SET, tail_contact <= 2% of episodes (and any termination
+     <= 10%).  Verdict SUPPORTED if the pooled tail_contact rate <= 2%, else NOT SUPPORTED.
+P1.2 (prediction, parent's training records over (1,048,576, 3,538,944]): tail_contact <= 2% of training episodes.
+     SUPPORTED if <= 2%, else NOT SUPPORTED.
+P1.3 (test of B, BS2 training records): B-GENUINE predicts that the four blinded runs, which hold the tail lower, end
+     training episodes in tail_contact MORE often than the four controls.  Per-run rate = tail_contact episodes / all
+     episodes in (2,097,152, 3,538,944].  Exact one-sided permutation test (difference of arm means, blind > control,
+     70 relabelings).  B SUPPORTED if p <= 0.05; NOT SUPPORTED if p > 0.05; UNTESTABLE if the eight runs have fewer
+     than 3 tail_contact episodes in total.  My prediction: NOT SUPPORTED or UNTESTABLE.
+P1.4 (test of B, rollouts): B-GENUINE predicts more tail_contact in b2511_E than in c2511_E (paired seed, lower tail).
+     One-sided Fisher exact test on 128 vs 128 episodes.  B SUPPORTED if p <= 0.05; NOT SUPPORTED if p > 0.05;
+     UNTESTABLE if the two conditions have fewer than 3 tail_contact episodes together.  Prediction: NOT SUPPORTED or
+     UNTESTABLE.
+
+==================================================================================================================
+ITEM 2.  IS A LOWER TAIL ACTUALLY RISKIER?
+==================================================================================================================
+Event E_H(t) = 1 if the episode ends in tail_contact and T - 1 - t < H (the terminal transition is within the next H
+transitions), H = 200 (primary) and 50.  Eligible states: every state of a terminated episode; in a truncated episode
+t <= 1000 - H.
+M2.1 (primary, episode-level, robust to few events): for each tail_contact episode in the NON-BLIND SET, the
+     percentile rank of q3 at s_{T-H} (H steps before its terminal transition; if T < H, s_0) within the distribution of
+     q3 over all eligible states of its condition.  Under no relation the ranks are uniform; B predicts low ranks.
+     One-sided sign test (count of ranks < 0.5).  B SUPPORTED if p <= 0.05 at H = 200; NOT SUPPORTED if p > 0.05;
+     UNTESTABLE if the NON-BLIND SET has fewer than 5 tail_contact episodes.  Reported also at H = 50, and for tip and
+     low in place of q3 (secondary).
+M2.2 (secondary): pooled logistic regression of E_H on one standardised feature (q3, tip, low) with a condition
+     intercept (conditions without an event dropped); slope per SD with the cluster-bootstrap interval.  Report only.
+M2.3 (the funding test, primary for B-GENUINE): does the realised tail_contact risk account for the critic's slope?
+     D_t = 0.98^(T-1-t) if the episode ends in tail_contact, else 0; states t <= 800 (censoring at 1,000 then weighs
+     < 0.018).  C_c = 100 / sigma_R + Vbar_c, the normalised value lost to a termination (fall penalty plus the
+     continuation value; Vbar_c = median V over states 200 <= t <= 800 of the condition's truncated episodes).  Pooled
+     OLS of C_c D_t on q3 with a condition intercept -> b; risk-implied slope s_risk = -b (per degree); the critic's
+     slope s_crit = mean s(t) over the same states; funding ratio F = s_risk / s_crit; cluster-bootstrap interval.
+     B-GENUINE (sufficient) SUPPORTED if F >= 0.5 with the interval excluding 0; NOT SUPPORTED if the interval's upper
+     end < 0.5; INCONCLUSIVE otherwise.  If the NON-BLIND SET has fewer than 5 tail_contact episodes, F's interval is
+     not trusted and the bound decides: Dbar_u = (Clopper-Pearson 95% upper count of tail_contact episodes) x
+     sum_{j<800} 0.98^j / (number of eligible states); F_bound = mean(C_c) x beta* x Dbar_u / s_crit with beta* = 1.0
+     per degree (an e-fold change of the discounted tail_contact exposure per degree of tail_3, which I regard as
+     physically generous: 1 deg is 13 mm of tip height); NOT SUPPORTED if F_bound < 0.5, else INCONCLUSIVE; the
+     beta needed for F = 0.5 is reported.  Prediction: NOT SUPPORTED.
+     Secondary (report only): the same with D for ANY termination (F_any): a raised tail can relabel a backward fall
+     (fallen <-> tail_contact) without changing whether the episode ends, and only the ending carries value.
+M2.4 (descriptive): M_H(t) = min of low over s_t..s_{t+H}; its 0.1 / 1 / 5 percentiles per condition and the
+     within-condition Spearman correlation of q3(t) with M_200(t).
+
+==================================================================================================================
+ITEM 3.  DOES THE CRITIC'S TAIL SLOPE FOLLOW THE RISK?
+==================================================================================================================
+s(t) at every state.  Tables per condition: mean and median of s by decile of tip, by decile of pelvis, by phase
+(t in [0,50), [50,200), [200,400), [400,1000)), and for the last 50 states of terminated episodes; pooled near-floor
+bins tip < 0.60 m and pelvis < 0.85 m.  b2511_E: the raw MLP's slope (dV3raw) reported; its effective slope is 0.
+M3.1 (primary): within-condition Spearman rho(s, tip).  B (either form) predicts the slope is largest where the tail
+     is nearest the floor: rho <= -0.10.  SUPPORTED if rho <= -0.10 in >= 4 of the 6 NON-BLIND conditions; NOT
+     SUPPORTED otherwise.  Prediction: NOT SUPPORTED.
+M3.1b (secondary): the same with the partial Spearman correlation controlling for q3 (rank residuals on rank q3).
+M3.2 (secondary): pooled near-floor ratio mean s(tip < 0.60) / mean s(tip >= 0.60); B predicts >= 1.5; UNTESTABLE
+     with fewer than 200 near-floor states or fewer than 3 episodes contributing.
+M3.3 (secondary): rho(s, pelvis) <= -0.10 in >= 4 of 6 (lower pelvis, larger slope) is what B predicts.
+M3.4 (descriptive, lens A's ground): s by phase, early (t < 200) over late (t >= 200).
+
+==================================================================================================================
+ITEM 4.  IS THE CRITIC'S TAIL SLOPE EXPLAINED BY THE RISK?  (states t % 4 == 0; |z6| < 10)
+==================================================================================================================
+Y in {V, G}.  z = the normalised observation (63; constant columns dropped).  Risk features RF = (tip, low, pelvis),
+standardised.  OLS per condition.  b6 = the coefficient on z6, per degree (divided by sd6 in degrees).
+M4.1 (the task's comparison): Model 0: Y ~ 1 + z; Model 1: Y ~ 1 + z + RF.  Shrinkage S = 1 - b6(V, M1) / b6(V, M0);
+     the RF coefficients; VIF of z6 in Model 1.  B predicts S >= 0.5 with a positive tip coefficient.  Per condition:
+     UNTESTABLE if VIF(z6) > 30 (the split between z6 and the height features is then arbitrary); SUPPORTED if S >= 0.5
+     and the tip coefficient > 0; else NOT SUPPORTED.  Overall: UNTESTABLE if >= 3 of 6 conditions are; else
+     SUPPORTED if >= 4 of 6 are SUPPORTED, else NOT SUPPORTED.  Prediction: UNTESTABLE (tip - pelvis is nearly
+     linear in the tail angles and gravity, which z holds).
+M4.2 (collinearity-free form): base Model B0: Y ~ 1 + z without the four tail joint angles (z3, z4, z5, z6); Model J:
+     B0 + those four angles; Model R: B0 + (tip, low).  Out-of-sample R2 (two folds: even / odd episode index,
+     averaged).  Q = [R2(R) - R2(B0)] / [R2(J) - R2(B0)], the share of the tail angles' contribution to V that the
+     tail's height reproduces.  Per condition UNTESTABLE if R2(J) - R2(B0) < 0.005; SUPPORTED if Q >= 0.75; NOT
+     SUPPORTED if Q < 0.5; else INCONCLUSIVE.  Overall SUPPORTED if >= 4 of 6 SUPPORTED, NOT SUPPORTED if >= 4 of 6 NOT
+     SUPPORTED, else INCONCLUSIVE.  Prediction: NOT SUPPORTED.
+M4.3 (proportionality of the critic's own local slopes): autograd dV/dq_j per degree for q1 = tail_1_pitch (z3), q2 =
+     tail_2_pitch (z5), q3 = tail_3_pitch (z6), and the state's forward-kinematics d tip / d q_j.  Value per metre of
+     tip height through joint j: v_j = mean dV/dq_j / mean d tip/dq_j.  R31 = v3 / v1, R32 = v3 / v2.  A critic that
+     values the tail's HEIGHT (a risk gradient, genuine or overgeneralised) gives R ~ 1; a critic that values tail_3
+     itself gives R far from 1.  Per condition SUPPORTED if both R31 and R32 are in [0.5, 2]; NOT SUPPORTED if either
+     is outside (negative included).  Overall SUPPORTED if >= 4 of 6, NOT SUPPORTED if >= 4 of 6 are NOT, else
+     INCONCLUSIVE.  Flag (not exclusion): on-policy SD of q1 or q2 below a quarter of q3's.  Secondary: the same with
+     d low / d q_j.  Prediction: NOT SUPPORTED.
+M4.4 (secondary): b6(G, M0) against b6(V, M0).  B-GENUINE (the critic right about a real risk) predicts b6(G) >=
+     0.5 x b6(V) with b6(G)'s interval above 0, in >= 4 of 6.  Prediction: not met (b6(G) < b6(V)).
+
+==================================================================================================================
+ITEM 5.  REPORT ONLY: HOLDING THE TAIL LOW, p2097152
+==================================================================================================================
+Arms free / hold 0 / hold -1 / hold +1 (seeds 7001-7128): counts by end reason, tail_contact and any-termination rates
+(Clopper-Pearson), two-sided Fisher exact p of each hold arm against free (descriptive), mean q3, tip, low and
+return.  No verdict.  Expectation: no detectable change in tail_contact.
+
+==================================================================================================================
+OVERALL READING FOR LENS B (decided by the rules above, nothing else)
+==================================================================================================================
+B-GENUINE: SUPPORTED only if M2.3 is SUPPORTED and M2.1 is SUPPORTED; NOT SUPPORTED if M2.3 is NOT SUPPORTED;
+  otherwise INCONCLUSIVE.  P1.3 and P1.4 are reported beside it as independent tests.
+B-APPARENT (overgeneralised risk gradient): SUPPORTED if M4.3 and M3.1 are both SUPPORTED; NOT SUPPORTED if both are
+  NOT SUPPORTED; otherwise MIXED.
+Outputs: analyze_rollouts.py -> analysis_rollouts.txt / .json (items 1-5 from the rollouts), analyze_records.py ->
+analysis_records.txt / .json (M1.2-M1.4, P1.2, P1.3).

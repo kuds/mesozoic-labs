@@ -1,0 +1,240 @@
+     1	"""Unit tests of BS2's score_bs.py on synthetic records (no simulation, no training): each reading line, the boundary of
+     2	the test, the gate (0.20, inclusive, the median rule), the fill and its bounds, the missing and void classes,
+     3	outcome-blindness, the input errors, PROVISIONAL and final, the three secondaries (direction, fill, MISSING causes, the
+     4	Bonferroni note, the note under line 1, never the line), the report-only readings (trajectory, G(E) > G(S)), the
+     5	constants against their sources (the parent's F2 probe, the criteria text, SCREEN.json, PINS), a dry run of the parent's
+     6	own markers, and mutation tests (each mutant of score_bs.py is caught by the kill checks; the original passes them).
+     7	
+     8	    cd /tmp && OMP_NUM_THREADS=1 nice -n 10 PY -I -B -m pytest -q -p no:cacheprovider <BS2>/tools/tests/test_score_bs.py
+     9	"""
+    10	from __future__ import annotations
+    11	
+    12	import hashlib
+    13	import importlib.util
+    14	import itertools
+    15	import json
+    16	import math
+    17	import random
+    18	import re
+    19	import statistics
+    20	import sys
+    21	import types
+    22	from fractions import Fraction
+    23	from pathlib import Path
+    24	
+    25	import pytest
+    26	
+    27	sys.dont_write_bytecode = True
+    28	TOOLS = Path(__file__).resolve().parents[1]
+    29	SRC_PATH = TOOLS / "score_bs.py"
+    30	_spec = importlib.util.spec_from_file_location("score_bs", str(SRC_PATH))
+    31	SB = importlib.util.module_from_spec(_spec)
+    32	_spec.loader.exec_module(SB)
+    33	C, R = SB.C, SB.R
+    34	S, E, R8 = C.S, C.E, C.ROLLOUT
+    35	BLIND = SB.INTERVENTION
+    36	B_S = SB.BASELINE_S
+    37	FAKE_PROBE_SHA = "ab" * 32
+    38	BS2 = Path(C.BS)
+    39	PARENT_MARKERS = BS2 / "validate" / "v3final" / "parent_s42" / "markers.json"
+    40	G_S = -0.6363920116424561
+    41	
+    42	
+    43	def _sha(path):
+    44	    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+    45	
+    46	
+    47	def _write(path, obj):
+    48	    path = Path(path)
+    49	    path.parent.mkdir(parents=True, exist_ok=True)
+    50	    path.write_text(json.dumps(obj, indent=1) + "\n")
+    51	    return path
+    52	
+    53	
+    54	def _criteria_text():
+    55	    """The installed <BS2>/criteria.txt, or the draft it was installed from."""
+    56	    for p in (BS2 / "criteria.txt", BS2 / "criteria_work" / "criteria_v1.txt"):
+    57	        if p.exists():
+    58	            return " ".join(p.read_text(encoding="utf-8").split())
+    59	    return None
+    60	
+    61	
+    62	@pytest.fixture(autouse=True)
+    63	def _no_code_copy_measurement(monkeypatch):
+    64	    """The code copy is measured for real in test_code_copy_is_measured_at_bs_common_CODE only."""
+    65	    calls = []
+    66	    monkeypatch.setattr(SB, "code_seal_items", lambda d: calls.append(Path(d)) or [])
+    67	    return calls
+    68	
+    69	
+    70	# ------------------------------------------------------------------------------------------------ synthetic records
+    71	def _ledger(path, T, returns=4000.0, falls=0):
+    72	    path = Path(path)
+    73	    path.parent.mkdir(parents=True, exist_ok=True)
+    74	    lines = ["evaluation,timesteps,episode,env,return,length,full_horizon,cause"]
+    75	    for k, t in enumerate(range(S + C.EVAL_FREQ, T + 1, C.EVAL_FREQ)):
+    76	        for ep in range(10):
+    77	            fell = k == 0 and ep < falls
+    78	            lines.append(f"{k},{t},{ep},0,{returns + k},{292 if fell else 1000},{0 if fell else 1},"
+    79	                         f"{'fall' if fell else 'truncated'}")
+    80	    path.write_text("\n".join(lines) + "\n")
+    81	    return path
+    82	
+    83	
+    84	def _probe(value, T, nan_at=None):
+    85	    steps = [S + R8 * k for k in range(1, (T - S) // R8)]
+    86	    mu = [float(B_S) + (value - B_S) * (i + 1) / len(steps) for i in range(len(steps))]
+    87	    for i, s in enumerate(steps):                      # the last 8 rows carry the value exactly
+    88	        if s in SB.PRIMARY_STEPS:
+    89	            mu[i] = value
+    90	    if nan_at is not None:
+    91	        mu[steps.index(nan_at)] = float("nan")
+    92	    ss = [0.05] * len(steps)
+    93	    trail = [None] * 7 + [0.05] * (len(steps) - 7)
+    94	    return {"file": "x", "sha256": FAKE_PROBE_SHA, "label": "x", "S": S, "T": T, "n_rows": len(steps), "steps": steps,
+    95	            "rollout_mu14_mean": mu, "tail3_statue_settled_mean": ss, "trailing8_mean": trail,
+    96	            "trailing8_first_above": {"0.10": None}, "trailing8_max": 0.05, "std14": [0.19] * len(steps),
+    97	            "obs6_mean_deg": [0.0] * len(steps)}
+    98	
+    99	
+   100	def _loop(arm, T, g=-0.5, b=1.0, final=True, num_ts_E=None):
+   101	    """M-LOOP rows at S, the periodic pairs before T and (final) the final pair at T, as read_bs.saved_pairs gives."""
+   102	    blind = arm == BLIND
+   103	    rows = []
+   104	    for s in (S, *[x for x in C.SAVED_STEPS if x < T], *([T] if final else [])):
+   105	        end = s == T
+   106	        G = g if end else (G_S if s == S else -0.6)
+   107	        bstar = b if end else 1.4
+   108	        crit = {k: {"raw": {"dV_dq3_per_deg": 0.01}, "effective": {"dV_dq3_per_deg": 0.0 if blind else 0.01}}
+   109	                for k in ("REF", "OWN", "ONPOLICY")}
+   110	        rows.append({"steps": s, "num_timesteps": num_ts_E if (end and num_ts_E is not None) else s,
+   111	                     "critic_form": "blind+raw" if blind else "plain",
+   112	                     "OWN": {"P": {"G": G, "c0": 1.0 - G - bstar, "b_star": bstar}, "L": {"G": -0.8},
+   113	                             "own14_median": 0.0, "b_star_L": 1.8, "n_terminated": 0},
+   114	                     "REF": {"P": {"G": -0.7, "c0": -0.1}}, "critic_slope_obs6": crit})
+   115	    return rows
+   116	
+   117	
+   118	def _direct(T, cmd=0.5, cmd_max=0.9, drop_E=False):
+   119	    per = {}
+   120	    for t in range(S + C.EVAL_FREQ, T + 1, C.EVAL_FREQ):
+   121	        if drop_E and t == E:
+   122	            continue
+   123	        at_T = t == T
+   124	        per[str(t)] = {"n": 10, "cmd_l": cmd if at_T else 0.2, "cmd_l_max": cmd_max if at_T else 0.25, "n_cmd": 10,
+   125	                       "n_over": 0, "n_tail_over": 0, "n_t3_over": 0, "over_actuators": []}
+   126	    vals = [e["cmd_l"] for e in per.values() if isinstance(e["cmd_l"], (int, float))]
+   127	    return {"per_evaluation": per, "firsts": {}, "evaluations_absent": [], "cmd_l_max": max(vals) if vals else None,
+   128	            "cmd_l_last": per[max(per, key=int)]["cmd_l"] if per else None}
+   129	
+   130	
+   131	def _meta(arm, seed, root, crit=None, screen=None, appr=None):
+   132	    blind = arm == BLIND
+   133	    ev = {"n": 175, "buffer_gae_lambda": [0.95], "max_adv_err_vs_gae095": 3e-6, "min_dmu_actor": 0.18,
+   134	          "max_dv_predict_values": 0.0 if blind else 0.29, "max_dv_forward": 0.0 if blind else 0.29,
+   135	          "max_dv_evaluate_actions": 0.0 if blind else 0.29, "max_dv_mirrored": 0.0 if blind else 0.30,
+   136	          "min_dv_predict_values": 0.0 if blind else 0.09, "min_buffer_values_vs_raw_value_mlp": 0.005 if blind
+   137	          else 9e-7, "state_problems": []}
+   138	    return {"schema": C.RUN_SCHEMA, "name": C.run_name(arm, seed), "arm": arm, "seed": seed, "arm_evidence": ev,
+   139	            "arm_applied": {"arm": arm, "mlp_extractor_class": "CriticBlindTail3MlpExtractor" if blind
+   140	                            else "MlpExtractor"}, "arm_state_end": "in force",
+   141	            "criteria_sha256": crit, "screen_sha256": screen, "approved_sha256": appr,
+   142	            "tool_sha256": {t: _sha(TOOLS / t) for t in C.TOOL_FILES}}
+   143	
+   144	
+   145	class Screen:
+   146	    """A synthetic <root> with SCREEN.json and, per entry, any of: check.json, run_meta.json, markers.json, ledger."""
+   147	
+   148	    def __init__(self, root):
+   149	        self.root = Path(root)
+   150	        _write(self.root / "SCREEN.json", {"schema": C.SCREEN_SCHEMA, "intervention": BLIND,
+   151	                                           "queue": [list(q) for q in SB.QUEUE]})
+   152	
+   153	    def run(self, arm, seed, value, *, stop="end", T=E, check=True, read=True, passed=True, nan_at=None,
+   154	            meta_kw=None, g=-0.5, cmd=0.5, cmd_max=0.9, b=1.0, final=True, drop_E=False, num_ts_E=None):
+   155	        name = C.run_name(arm, seed)
+   156	        rd = self.root / "runs" / name
+   157	        meta = _write(rd / C.RUN_META, _meta(arm, seed, self.root, **(meta_kw or {})))
+   158	        led = _ledger(rd / "01_stance" / "eval_episodes.csv", T, falls=1 if arm == BLIND else 0)
+   159	        if check:
+   160	            _write(rd / C.CHECK_JSON, {
+   161	                "schema": R.CHECK_SCHEMA, "tool_sha256": _sha(TOOLS / "read_bs.py"), "name": name, "mode":
+   162	                "continuation", "passed": passed, "failures": [] if passed else ["x"], "arm": arm, "seed": seed,
+   163	                "S": S, "E": E, "T": T, "end": E, "stop_reason": stop,
+   164	                "sources": {"run_meta.json": [str(meta), _sha(meta)], "policy_probe.npz": ["p", FAKE_PROBE_SHA]}})
+   165	        if read:
+   166	            direct = _direct(T, cmd, cmd_max, drop_E)
+   167	            _write(self.root / "reads" / name / "markers.json", {
+   168	                "schema": R.MARKERS_SCHEMA, "tool_sha256": _sha(TOOLS / "read_bs.py"), "label": name,
+   169	                "kind": "continuation", "arm": arm, "seed": seed, "S": S, "T": T,
+   170	                "stop_reason": stop, "probe": _probe(value, T, nan_at),
+   171	                "ledger": {"file": str(led), "sha256": _sha(led), "direct": direct,
+   172	                           "m5": {"any_flagged": [], "tail_flagged": [], "any_alarms": [], "tail_alarms": [],
+   173	                                  "n_c6_counting_failures": 0}},
+   174	                "loop": _loop(arm, T, g, b, final, num_ts_E)})
+   175	        return name
+   176	
+   177	    def all(self, control, blind, per_seed=None, **kw):
+   178	        """per_seed: {(arm, seed): {run() keyword: value}} for the secondaries and the odd cases."""
+   179	        for seed, a, b in zip(SB.SEEDS, control, blind, strict=True):
+   180	            self.run(C.CONTROL, seed, a, **{**kw, **(per_seed or {}).get((C.CONTROL, seed), {})})
+   181	            self.run(BLIND, seed, b, **{**kw, **(per_seed or {}).get((BLIND, seed), {})})
+   182	
+   183	    def lost(self, name, cause="crashes"):
+   184	        p = self.root / "lost.json"
+   185	        d = json.loads(p.read_text()) if p.exists() else {"schema": C.LOST_SCHEMA, "lost": {}}
+   186	        d["lost"][name] = {"cause": cause, "detail": "3 own crashes"}
+   187	        _write(p, d)
+   188	
+   189	
+   190	def _score(root, sb=SB):
+   191	    res, lines, code = sb.score(root)
+   192	    return res, "\n".join(lines), code
+   193	
+   194	
+   195	def _brute_p(higher, other):
+   196	    """An independent float implementation of the test (no fill): the share of relabelings whose `higher` sum is at
+   197	    least the observed."""
+   198	    vals = list(higher) + list(other)
+   199	    obs = sum(higher)
+   200	    subs = list(itertools.combinations(range(len(vals)), len(higher)))
+   201	    return sum(1 for s in subs if sum(vals[i] for i in s) >= obs - 1e-12) / len(subs)
+   202	
+   203	
+   204	def _sec(res, key):
+   205	    return next(s for s in res["secondaries"] if s["key"] == key)
+   206	
+   207	
+   208	# The main synthetic screen (line 2): control far above blind on the primary; the secondaries chosen so that SEC-G reads
+   209	# p = 1/70 (SUPPORTED, survives Bonferroni), SEC-CMD p = 2/70 (SUPPORTED, no Bonferroni), SEC-MARGIN p = 24/70 (NOT
+   210	# SUPPORTED); control_2531's G at E equals G at S (G(E) > G(S) is strict).
+   211	HIGH = tuple(B_S + x for x in (0.30, 0.31, 0.32, 0.33))
+   212	LOW = tuple(B_S + x for x in (0.00, 0.01, 0.02, 0.03))
+   213	SEC_G = {C.CONTROL: (-1.0, -0.9, -0.8, G_S), BLIND: (-0.4, -0.3, -0.2, -0.1)}
+   214	SEC_CMD = {C.CONTROL: (0.80, 0.70, 0.60, 0.35), BLIND: (0.40, 0.30, 0.20, 0.10)}
+   215	SEC_CMD_MAX = {C.CONTROL: (0.1, 0.2, 0.3, 0.4), BLIND: (0.9, 0.8, 0.7, 0.6)}   # reversed: reading it would differ
+   216	SEC_B = {C.CONTROL: (1.0, 1.25, 1.5, 1.75), BLIND: (1.125, 1.375, 1.625, 1.875)}   # dyadic: no binary near-ties
+   217	
+   218	
+   219	def _per_seed_main():
+   220	    out = {}
+   221	    for arm in (C.CONTROL, BLIND):
+   222	        for i, seed in enumerate(SB.SEEDS):
+   223	            out[(arm, seed)] = {"g": SEC_G[arm][i], "cmd": SEC_CMD[arm][i], "cmd_max": SEC_CMD_MAX[arm][i],
+   224	                                "b": SEC_B[arm][i]}
+   225	    return out
+   226	
+   227	
+   228	def _main_screen(root, per_seed_extra=None, **kw):
+   229	    s = Screen(root)
+   230	    ps = _per_seed_main()
+   231	    for k, v in (per_seed_extra or {}).items():
+   232	        ps[k] = {**ps.get(k, {}), **v}
+   233	    s.all(HIGH, LOW, per_seed=ps, **kw)
+   234	    return s
+   235	
+   236	
+   237	# ------------------------------------------------------------------------------------------------ constants
+   238	def test_constants_match_the_harness_and_screen():
+   239	    assert SB.QUEUE == (("control", 2501), (BLIND, 2501), ("control", 2511), (BLIND, 2511), ("control", 2521),
+   240	                        (BLIND, 2521), ("control", 2531), (BLIND, 2531))

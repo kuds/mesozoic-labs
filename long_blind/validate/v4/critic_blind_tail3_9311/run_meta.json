@@ -1,0 +1,583 @@
+{
+ "schema": "bs-run/2",
+ "version": "run_bs 2.0 (2026-10-30; long blind study, s42 2,097,152 -> 12,001,280, resume; derived from run_bs 1.1)",
+ "name": "critic_blind_tail3_9311",
+ "mode": "no_update",
+ "status": "done",
+ "exit": 0,
+ "utc_start": "2026-10-30T17:37:50Z",
+ "argv": [
+  "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/long_blind/tools/run_bs.py",
+  "--arm",
+  "critic_blind_tail3",
+  "--seed",
+  "9311",
+  "--no-update",
+  "--until",
+  "2654208",
+  "--out",
+  "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/long_blind/validate/v4",
+  "--resume-from",
+  "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/long_blind/validate/v4/critic_blind_tail3_9311_crashed1"
+ ],
+ "arm": "critic_blind_tail3",
+ "seed": 9311,
+ "S": 2097152,
+ "E": 12001280,
+ "target": 2654208,
+ "T": 2654208,
+ "stop_reason": "end",
+ "run_id_parent": "stance6_r10LTSB_s42",
+ "code": {
+  "dir": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen/code",
+  "commit": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d",
+  "tree_digest": "331fe8fc3f6bdf73acc0d3cc324dd753d9d9d695d7ce914e4e011d5c6437ebf1",
+  "files": 1406
+ },
+ "stack": {
+  "python": "3.13.17",
+  "torch": "2.13.0+cpu",
+  "numpy": "2.5.4",
+  "gymnasium": "1.4.0",
+  "stable_baselines3": "2.9.0",
+  "mujoco": "3.10.0"
+ },
+ "environment": {
+  "OMP_NUM_THREADS": "1",
+  "MKL_NUM_THREADS": "1",
+  "OPENBLAS_NUM_THREADS": "1",
+  "TMPDIR": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/long_blind/tmp/no_update_critic_blind_tail3_9311",
+  "MPLCONFIGDIR": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/long_blind/tmp/no_update_critic_blind_tail3_9311/mpl",
+  "GITHUB_SHA": "8737cd3d86431de1bdd0fcdb49a0d956a45e084d",
+  "GIT_CEILING_DIRECTORIES": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/long_blind:/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen"
+ },
+ "criteria_sha256": null,
+ "approved_sha256": null,
+ "screen_sha256": null,
+ "tool_sha256": {
+  "run_bs.py": "a2e720fe30080250f4aa79118546d4bdc7d3f5fcc6074ec4509812235d1f3d15",
+  "read_bs.py": "7a9c8a99fee09f8d005c5ec09857ec853166320156901f85b54b094d72b9450b",
+  "run_waves_bs.sh": "53f80e7a4b708f3b16fb11f78b93eeb3a430be066123e00b8be98e94919fc661",
+  "bs_common.py": "34755b030bde78f673358b4f8f96f495932709582efd9425b13f4a7c1fe49b0e",
+  "bs_hooks.py": "1ff4c8be048297270eea14a24fe59336020e20fbd4aca7c38f5b881b33eef9fc",
+  "bs_resume.py": "5da2f62c438cc1d1b7ba80b6a9c8dd9987cbd6d252abd0f1495ccd0dd4133920"
+ },
+ "arm_change": "the value path only: the policy's mlp_extractor gets a forward_critic that replaces the NORMALISED observation index 6 (tail_3 pitch angle) by 0.0 before the value MLP; ActorCriticPolicy.forward, evaluate_actions and predict_values (and MirrorKLPPO's mirrored-critic loss, which calls predict_values) all reach the value MLP through it; the actor's inputs, every parameter, its shape and the optimizer are unchanged (a class swap on the mlp_extractor instance, so the state_dict and the saved zip are stock)",
+ "arm_ppo": "unchanged",
+ "ppo_applied": {
+  "gae_lambda": 0.95,
+  "gamma": 0.98,
+  "ent_coef": 0.005,
+  "ent_coef_end": 0.0,
+  "ent_coef_decay_timesteps": 7000000
+ },
+ "arm_applied": {
+  "arm": "critic_blind_tail3",
+  "policy_class": "ActorCriticPolicy",
+  "mlp_extractor_class_before": "MlpExtractor",
+  "obs_rms_class_before": "SymmetricRunningMeanStd",
+  "gae_lambda": 0.95,
+  "rollout_buffer_gae_lambda": 0.95,
+  "blind_index": 6,
+  "mirror_obs_perm_6": 6,
+  "mirror_obs_sign_6": 1.0,
+  "mlp_extractor_class": "CriticBlindTail3MlpExtractor",
+  "obs_rms_class": "SymmetricRunningMeanStd"
+ },
+ "arm_evidence": {
+  "n": 67,
+  "max_adv_err_vs_gae095": 3.5825632125549567e-06,
+  "max_adv_err_vs_mc": 0.6671755041796574,
+  "max_mc_vs_gae_lambda1_recursion": 8.243405957841787e-15,
+  "max_returns_minus_adv_minus_values": 2.384185791015625e-07,
+  "max_dv_predict_values": 0.0,
+  "max_dv_forward": 0.0,
+  "max_dv_evaluate_actions": 0.0,
+  "max_dv_mirrored": 0.0,
+  "max_buffer_values_vs_critic": 1.430511474609375e-06,
+  "min_adv_err_vs_gae095": 2.7919459570716065e-06,
+  "min_adv_err_vs_mc": 0.12578115737993478,
+  "min_gae095_vs_mc": 0.1257800598236747,
+  "min_dmu_actor": 0.14570370316505432,
+  "min_dv_predict_values": 0.0,
+  "min_buffer_values_vs_raw_value_mlp": 0.02689361572265625,
+  "max_adv_scale": 1.0188573518566697,
+  "max_value_scale": 4.859328269958496,
+  "buffer_gae_lambda": [
+   0.95
+  ],
+  "model_gae_lambda": [
+   0.95
+  ],
+  "obs_rms_equal_start_all": false,
+  "obs_rms_equal_start_any": false,
+  "obs_rms_distinct_digests": 67,
+  "ret_rms_count_first_last": [
+   2105344.0001,
+   2646016.0001
+  ],
+  "obs_rms_count_first_last": [
+   4210704.0001,
+   5292056.0001
+  ],
+  "frozen_update_calls_first_last": null,
+  "state_problems": [],
+  "steps_first_last": [
+   2105344,
+   2646016
+  ]
+ },
+ "attempt": 2,
+ "attempts": [
+  {
+   "attempt": 1,
+   "folder": "critic_blind_tail3_9311_crashed1",
+   "status": "running",
+   "exit": null,
+   "resumed_from": null,
+   "load_step": 2097152,
+   "last_step": 2629632,
+   "utc_start": "2026-10-30T17:09:13Z",
+   "utc_end": null,
+   "error": null
+  }
+ ],
+ "resumed_from": 2359296,
+ "load_step": 2359296,
+ "resume": {
+  "schema": "lb-resume/1",
+  "from": "critic_blind_tail3_9311_crashed1",
+  "P": 2359296,
+  "candidates": [
+   {
+    "steps": 2621440,
+    "problem": "records: policy_probe.npz: 319 rows <= 2621440, not one at every 8192 (missing e.g. [2621440], 0 repeated) | train_episodes.csv: no episode after 2621440: not written after the pair (its rows up to 2621440 may be incomplete)"
+   },
+   {
+    "steps": 2359296,
+    "problem": null
+   }
+  ],
+  "problems": [],
+  "zip": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/long_blind/validate/v4/critic_blind_tail3_9311_crashed1/01_stance/models/stage1_2359296_steps.zip",
+  "pkl": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/long_blind/validate/v4/critic_blind_tail3_9311_crashed1/01_stance/models/stage1_vecnormalize_2359296_steps.pkl",
+  "zip_sha256": "80909786c2b2d1afa28db7ff0562a3e2c3bd665e68c7f41c0634f0b083fbe209",
+  "pkl_sha256": "dad1165b4f75d7ffaef4677efc7b3bf3fd3238673283a181d8c63106515ad14e",
+  "seeded_sha256": {
+   "eval_episodes.csv": "d1bcb78964691cf194e6276f06740d1f24aa69ad36831a046ad6307c1c4db11e",
+   "evaluations.npz": "3e11136120622b90cc63203c46332004a9989188a0b8fe91620dbabb9f2563e9",
+   "gate_progress.npz": "4097099b6880fa234a38e1b43819a21a8531f39ca0aa1daefaaeeb35a06c5a0e",
+   "train_episodes.csv": "14b2f9e49b67e9c90cc79362f740e1768de5a2d159035176d5299b9c476d851d",
+   "policy_probe.npz": "4e0e7220668faf124d394bffb760ba246d54bed8f48cb79925cb36234257fc11"
+  },
+  "own_load": 2097152,
+  "stitch_digests": {
+   "probe": {
+    "rows": 288,
+    "sha256": "762c63bcafffd22eb4ebf48932dba6a1335fdb0cfd9d4edc152c6075f5b93e2f"
+   },
+   "evidence": {
+    "rows": 32,
+    "sha256": "f383b2655622161d944fd1417d8c806a570ff08d20c0ac3c41dac665f2207557",
+    "problem": null
+   },
+   "eval_episodes.csv": {
+    "header": [
+     "evaluation",
+     "timesteps",
+     "episode",
+     "env",
+     "return",
+     "length",
+     "full_horizon",
+     "cause",
+     "screen_v2_clean",
+     "screen_v2_reasons",
+     "saturated_actuator",
+     "saturated_actuator_fraction",
+     "saturated_actuator_positive_share",
+     "saturated_actuator_ties",
+     "actuators_saturated",
+     "spawn_stance_width_change_m",
+     "r_spawn_tilt_deg",
+     "l_spawn_tilt_deg",
+     "r_sole_cop_fore_aft",
+     "r_sole_cop_fore_aft_gate",
+     "r_digit_share",
+     "r_foot_cop_fore_aft",
+     "r_foot_cop_fore_aft_gate",
+     "r_toe_margin_nm",
+     "r_sole_tilt_deg",
+     "r_sole_corner_lift_m",
+     "l_sole_cop_fore_aft",
+     "l_sole_cop_fore_aft_gate",
+     "l_digit_share",
+     "l_foot_cop_fore_aft",
+     "l_foot_cop_fore_aft_gate",
+     "l_toe_margin_nm",
+     "l_sole_tilt_deg",
+     "l_sole_corner_lift_m",
+     "max_sole_cop_fore_aft",
+     "max_foot_cop_fore_aft",
+     "max_sole_tilt_deg",
+     "max_sole_corner_lift_m",
+     "com_fore_aft_mean_m",
+     "root_pitch_mean_deg",
+     "xcom_fore_aft_max_m",
+     "hof_cop_term_mean_mps2",
+     "hof_counter_rotation_mean_mps2",
+     "hof_counter_rotation_rms_mps2",
+     "leg_q_l_minus_r_hip_pitch_deg",
+     "leg_q_l_r_mean_hip_pitch_deg",
+     "leg_q_l_minus_r_knee_deg",
+     "leg_q_l_r_mean_knee_deg",
+     "leg_q_l_minus_r_ankle_deg",
+     "leg_q_l_r_mean_ankle_deg",
+     "xcom_toe_margin_min_m",
+     "xcom_toe_margin_mean_m",
+     "xcom_heel_margin_min_m",
+     "xcom_past_toe_fraction",
+     "time_to_toe_min_s",
+     "xcom_toe_lead_s",
+     "xcom_tip_margin_min_m",
+     "actuator_force_frac_max",
+     "actuator_force_limited_fraction",
+     "shear_over_normal",
+     "r_shear_over_normal",
+     "r_cone_use_mean",
+     "r_cone_use_max",
+     "r_ankle_moment_arm_m",
+     "l_shear_over_normal",
+     "l_cone_use_mean",
+     "l_cone_use_max",
+     "l_ankle_moment_arm_m",
+     "head_tip_height_mean_m",
+     "head_tip_height_min_m",
+     "neck_pitch_mean_deg",
+     "head_pitch_mean_deg",
+     "r_hip_roll_mean_deg",
+     "r_hip_roll_max_abs_deg",
+     "l_hip_roll_mean_deg",
+     "l_hip_roll_max_abs_deg",
+     "neck_pitch_act_command_mean",
+     "neck_yaw_act_command_mean",
+     "head_pitch_act_command_mean",
+     "r_hip_pitch_act_command_mean",
+     "r_hip_roll_act_command_mean",
+     "r_knee_act_command_mean",
+     "r_ankle_act_command_mean",
+     "l_hip_pitch_act_command_mean",
+     "l_hip_roll_act_command_mean",
+     "l_knee_act_command_mean",
+     "l_ankle_act_command_mean",
+     "tail_1_pitch_act_command_mean",
+     "tail_1_yaw_act_command_mean",
+     "tail_2_pitch_act_command_mean",
+     "tail_3_pitch_act_command_mean",
+     "actuators_at_rail",
+     "rail_actuators",
+     "actuators_parked",
+     "parked_actuators",
+     "tail_1_pitch_mean_deg",
+     "tail_1_yaw_mean_deg",
+     "tail_2_pitch_mean_deg",
+     "tail_3_pitch_mean_deg",
+     "tail_tip_chord_mean_deg",
+     "tail_tip_chord_min_deg",
+     "tail_tip_chord_max_deg",
+     "root_height_mean_m",
+     "root_height_min_m",
+     "root_pitch_min_deg",
+     "root_pitch_max_deg",
+     "root_roll_mean_deg",
+     "root_roll_min_deg",
+     "root_roll_max_deg",
+     "legs_work_abs_j",
+     "legs_work_net_j",
+     "legs_power_peak_w",
+     "legs_torque_rms_nm",
+     "legs_torque_rms_frac",
+     "legs_command_delta_rms",
+     "tail_work_abs_j",
+     "tail_work_net_j",
+     "tail_power_peak_w",
+     "tail_torque_rms_nm",
+     "tail_torque_rms_frac",
+     "tail_command_delta_rms",
+     "neck_head_work_abs_j",
+     "neck_head_work_net_j",
+     "neck_head_power_peak_w",
+     "neck_head_torque_rms_nm",
+     "neck_head_torque_rms_frac",
+     "neck_head_command_delta_rms",
+     "action_delta_mean",
+     "r_leg_work_abs_j",
+     "l_leg_work_abs_j",
+     "window_displacement_m",
+     "window_displacement_fore_aft_m",
+     "window_displacement_lateral_m",
+     "window_path_length_m",
+     "window_yaw_change_deg",
+     "window_yaw_change_signed_deg",
+     "r_slip_m",
+     "r_slip_speed_max_mps",
+     "r_site_travel_m",
+     "l_slip_m",
+     "l_slip_speed_max_mps",
+     "l_site_travel_m",
+     "tail_1_pitch_stop_share",
+     "tail_1_pitch_stop_torque_mean_nm",
+     "tail_1_yaw_stop_share",
+     "tail_1_yaw_stop_torque_mean_nm",
+     "tail_2_pitch_stop_share",
+     "tail_2_pitch_stop_torque_mean_nm",
+     "tail_3_pitch_stop_share",
+     "tail_3_pitch_stop_torque_mean_nm",
+     "r_hip_pitch_stop_share",
+     "r_hip_pitch_stop_torque_mean_nm",
+     "r_hip_roll_stop_share",
+     "r_hip_roll_stop_torque_mean_nm",
+     "r_knee_stop_share",
+     "r_knee_stop_torque_mean_nm",
+     "r_ankle_stop_share",
+     "r_ankle_stop_torque_mean_nm",
+     "l_hip_pitch_stop_share",
+     "l_hip_pitch_stop_torque_mean_nm",
+     "l_hip_roll_stop_share",
+     "l_hip_roll_stop_torque_mean_nm",
+     "l_knee_stop_share",
+     "l_knee_stop_torque_mean_nm",
+     "l_ankle_stop_share",
+     "l_ankle_stop_torque_mean_nm",
+     "com_toe_margin_min_m",
+     "com_toe_margin_mean_m",
+     "com_heel_margin_min_m",
+     "com_heel_margin_mean_m",
+     "capture_toe_margin_min_m",
+     "capture_toe_margin_mean_m",
+     "capture_heel_margin_min_m",
+     "capture_heel_margin_mean_m",
+     "angular_momentum_pitch_rms_nms",
+     "angular_momentum_pitch_max_abs_nms",
+     "angular_momentum_roll_rms_nms",
+     "angular_momentum_roll_max_abs_nms",
+     "angular_momentum_yaw_rms_nms",
+     "angular_momentum_yaw_max_abs_nms",
+     "tail_base_force_down_mean_n",
+     "tail_base_pitch_moment_mean_nm",
+     "tail_base_pitch_moment_std_nm",
+     "tail_base_roll_moment_mean_nm",
+     "tail_base_yaw_moment_mean_nm",
+     "neck_base_force_down_mean_n",
+     "neck_base_pitch_moment_mean_nm",
+     "neck_base_pitch_moment_std_nm",
+     "neck_base_roll_moment_mean_nm",
+     "neck_base_yaw_moment_mean_nm",
+     "head_angular_rate_rms_dps",
+     "head_pitch_rate_rms_dps",
+     "head_roll_rate_rms_dps",
+     "head_yaw_rate_rms_dps"
+    ],
+    "rows": 180,
+    "sha256": "61a95a4dc16b2711dbd36eca0cc1d40268e2dbe5ca88d1390629dda5aefc3270"
+   },
+   "train_episodes.csv": {
+    "header": [
+     "timesteps",
+     "env",
+     "length",
+     "return",
+     "cause",
+     "com_fore_aft_mean_m",
+     "com_fore_aft_last_m",
+     "root_pitch_mean_deg",
+     "root_pitch_last_deg",
+     "actuator_force_limited_fraction",
+     "r_touch_share_pad",
+     "r_touch_share_toe_d2",
+     "r_touch_share_toe_d3",
+     "r_touch_share_toe_d4",
+     "r_touch_share_digits",
+     "l_touch_share_pad",
+     "l_touch_share_toe_d2",
+     "l_touch_share_toe_d3",
+     "l_touch_share_toe_d4",
+     "l_touch_share_digits"
+    ],
+    "rows": 2712,
+    "sha256": "577e6f3e47824d81cf5170c70996fd622e2c09ff8bac36f3206294aeb3047c12"
+   },
+   "evaluations.npz": {
+    "rows": 18,
+    "sha256": "f14fdc35d7889415a6a7c563fb19ef60c97a3aff9e88a3dbc2bbc124841e5cb7"
+   },
+   "gate_progress.npz": {
+    "rows": 18,
+    "sha256": "c49dbe2a010fe14ace71d52bca568524e1450dd4dc55042ffcc3efddb582409a"
+   }
+  },
+  "pairs": {
+   "stage1_2097152_steps.zip": {
+    "how": "link",
+    "sha256": "83b6c88edb933005adcb2089bdac67654f4e77809ca5506f4e47364995ef1b61"
+   },
+   "stage1_vecnormalize_2097152_steps.pkl": {
+    "how": "link",
+    "sha256": "991d434f385187e87301755ddf9a12fe2b3adb65cf186e7e32b175b3574bed90"
+   },
+   "stage1_2359296_steps.zip": {
+    "how": "link",
+    "sha256": "80909786c2b2d1afa28db7ff0562a3e2c3bd665e68c7f41c0634f0b083fbe209"
+   },
+   "stage1_vecnormalize_2359296_steps.pkl": {
+    "how": "link",
+    "sha256": "dad1165b4f75d7ffaef4677efc7b3bf3fd3238673283a181d8c63106515ad14e"
+   }
+  },
+  "copied": {
+   "eval_episodes.csv": {
+    "from": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/long_blind/validate/v4/critic_blind_tail3_9311_crashed1/01_stance/eval_episodes.csv",
+    "sha256": "7e0a87f64e71422dfe439f51b20ce898950ae56a262902f499b4bb482a1eb7aa"
+   },
+   "evaluations.npz": {
+    "from": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/long_blind/validate/v4/critic_blind_tail3_9311_crashed1/01_stance/evaluations.npz",
+    "sha256": "2a61b1cc697a7a81ec92d08958398168d9f77e4bb7ad60754960ccab5e56fe83"
+   },
+   "gate_progress.npz": {
+    "from": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/long_blind/validate/v4/critic_blind_tail3_9311_crashed1/01_stance/gate_progress.npz",
+    "sha256": "2f41561e029c489549ccf7e23b8c85b828bb00cbb02348c102d18a1fcddbdb1e"
+   },
+   "train_episodes.csv": {
+    "from": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/long_blind/validate/v4/critic_blind_tail3_9311_crashed1/01_stance/train_episodes.csv",
+    "sha256": "0fc7bbd609446e6462d8ae9ccb0d7ff50a7c980ff43a5f6d08ae429de4ba9dd8"
+   },
+   "policy_probe.npz": {
+    "from": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/long_blind/validate/v4/critic_blind_tail3_9311_crashed1/01_stance/policy_probe.npz",
+    "sha256": "3c837164bf3cf742c624d5ea3654bef204d99e754519f64fb595b195552a3438"
+   }
+  },
+  "evidence_lines": 32,
+  "links": 4
+ },
+ "modules_root": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen/code/environments/__init__.py",
+ "copies": {
+  "stage1_2097152_steps.zip": {
+   "from": "the last attempt (link or copy)",
+   "sha256": "83b6c88edb933005adcb2089bdac67654f4e77809ca5506f4e47364995ef1b61"
+  },
+  "stage1_vecnormalize_2097152_steps.pkl": {
+   "from": "the last attempt (link or copy)",
+   "sha256": "991d434f385187e87301755ddf9a12fe2b3adb65cf186e7e32b175b3574bed90"
+  }
+ },
+ "start_pair": {
+  "zip": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/long_blind/validate/v4/critic_blind_tail3_9311/01_stance/models/stage1_2097152_steps.zip",
+  "zip_sha256": "83b6c88edb933005adcb2089bdac67654f4e77809ca5506f4e47364995ef1b61",
+  "pkl": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/long_blind/validate/v4/critic_blind_tail3_9311/01_stance/models/stage1_vecnormalize_2097152_steps.pkl",
+  "pkl_sha256": "991d434f385187e87301755ddf9a12fe2b3adb65cf186e7e32b175b3574bed90"
+ },
+ "load_pair": {
+  "zip": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/long_blind/validate/v4/critic_blind_tail3_9311/01_stance/models/stage1_2359296_steps.zip",
+  "zip_sha256": "80909786c2b2d1afa28db7ff0562a3e2c3bd665e68c7f41c0634f0b083fbe209",
+  "pkl": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/long_blind/validate/v4/critic_blind_tail3_9311/01_stance/models/stage1_vecnormalize_2359296_steps.pkl",
+  "pkl_sha256": "dad1165b4f75d7ffaef4677efc7b3bf3fd3238673283a181d8c63106515ad14e"
+ },
+ "parent_records": {
+  "eval_episodes.csv": "d1bcb78964691cf194e6276f06740d1f24aa69ad36831a046ad6307c1c4db11e",
+  "evaluations.npz": "3e11136120622b90cc63203c46332004a9989188a0b8fe91620dbabb9f2563e9",
+  "gate_progress.npz": "4097099b6880fa234a38e1b43819a21a8531f39ca0aa1daefaaeeb35a06c5a0e",
+  "train_episodes.csv": "14b2f9e49b67e9c90cc79362f740e1768de5a2d159035176d5299b9c476d851d",
+  "policy_probe.npz": "4e0e7220668faf124d394bffb760ba246d54bed8f48cb79925cb36234257fc11"
+ },
+ "recipe_v5": {
+  "problems": [],
+  "recomputed_hyperparameters_sha256": {
+   "control": "sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c",
+   "critic_blind_tail3": "sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c",
+   "gae_lambda_1": "sha256:a9a3e2d5da8910e78c20e2f192e86c59dac5fd705634d420942c85fbe4270695",
+   "frozen_obs_norm": "sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c"
+  },
+  "stage_config_sha256": "8dea4ad3c90def0f6cf9ccf5ec99171f03742b8c6410a2185cf538a2fe1d707b"
+ },
+ "heartbeat": {
+  "rollout_end": 2646016,
+  "utc": "2026-10-30T17:49:52Z",
+  "cpu_seconds": 709.3
+ },
+ "num_timesteps_end": 2654208,
+ "stop_at_end": {
+  "target": 2654208,
+  "flag": true,
+  "step": 2654208,
+  "calls": 73728,
+  "last_step": 2654208
+ },
+ "collapse": {
+  "found": 1,
+  "consecutive_drops": 0,
+  "patience": 10,
+  "tripped": false
+ },
+ "hop_watch": {
+  "found": 1,
+  "tripped": false,
+  "stop": true,
+  "after_timesteps": 7000000,
+  "max_unsupported_duty": 0.05
+ },
+ "ent_coef_after_load": 0.005,
+ "gae_lambda_after_load": 0.95,
+ "arm_state_end": "in force",
+ "obs_rms_end_equal_start": false,
+ "torch_threads": 1,
+ "torch_interop_threads": 4,
+ "digest_start": {
+  "params": "sha256:a1780f451b6823d9e0faa1014d42ee76654c22e69769ce997a40b1a5c32c28d7",
+  "adam": "sha256:84d110d9a8136efc4548bfd38bb91a7af2aaf6076519dce6ec5b5d2c7662b27c",
+  "vecnormalize": "sha256:585c4d7de6fe92de5f38900e03a87332319457d3aa13a27f5ed32706737345dd",
+  "obs_rms": "sha256:ab9568d8ad8ac6647f5c76bd64f2361c16425cf0032dcf0a173a894d0f5174da",
+  "n_updates": 2471,
+  "num_timesteps": 2097152,
+  "source": "the start pair copy (a resumed attempt; the load digest is digest_load)"
+ },
+ "digest_load": {
+  "params": "sha256:a1780f451b6823d9e0faa1014d42ee76654c22e69769ce997a40b1a5c32c28d7",
+  "adam": "sha256:84d110d9a8136efc4548bfd38bb91a7af2aaf6076519dce6ec5b5d2c7662b27c",
+  "vecnormalize": "sha256:ad1a55f6ccffc8ba9a407d1a61ba5702e3d4919602c838305ec49b43b0e91479",
+  "obs_rms": "sha256:828c06e42094a6a994c6f97e5d071f0c402bde297389e8a3ce975d7d021be3e0",
+  "all": "sha256:172b8c521701a84a1dde2421ce3b5c9ebe7016ed6506fce7d56a1c9dc95ca081",
+  "n_updates": 2471,
+  "num_timesteps": 2359296
+ },
+ "digest_end": {
+  "params": "sha256:a1780f451b6823d9e0faa1014d42ee76654c22e69769ce997a40b1a5c32c28d7",
+  "adam": "sha256:84d110d9a8136efc4548bfd38bb91a7af2aaf6076519dce6ec5b5d2c7662b27c",
+  "vecnormalize": "sha256:8db88f932c2db924b7a9ce787e05c69e28d1fc6e4ccd3a801f5cb600941d6b51",
+  "obs_rms": "sha256:181b85ee10074076d0716321817fd5eaaf8f98145684fa45ae15d495a754068c",
+  "all": "sha256:58b8b95da13594a25d7609f65f7b87c1e368c1529d852fed0b79af9e72c1e5bd",
+  "n_updates": 2471,
+  "num_timesteps": 2654208
+ },
+ "final_path": "/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/long_blind/validate/v4/critic_blind_tail3_9311/01_stance/models/stage1_final",
+ "learn_seconds": 733.3,
+ "checkpoints": [
+  "stage1_2097152_steps.zip",
+  "stage1_2359296_steps.zip",
+  "stage1_2621440_steps.zip",
+  "stage1_final.zip",
+  "stage1_final_vecnorm.pkl",
+  "stage1_vecnormalize_2097152_steps.pkl",
+  "stage1_vecnormalize_2359296_steps.pkl",
+  "stage1_vecnormalize_2621440_steps.pkl"
+ ],
+ "train_calls": 35,
+ "no_update_check": {
+  "problems": [],
+  "pass": true
+ },
+ "modules_outside_code": [],
+ "code_seal_after": "unchanged",
+ "utc_end": "2026-10-30T17:50:10Z",
+ "wall_seconds": 740.2,
+ "cpu_seconds": 727.1
+}

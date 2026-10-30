@@ -1,0 +1,77 @@
+45:[17:09:12Z] setsid nohup bash LB/validate/v4_driver.sh (driver B, V4) and v1v2v3_driver.sh (driver A, V1, V2, CHECK, V3).
+47:[17:09:41Z] PY -I -B LB/validate/disk_estimate.py LB/tools -> exit 0 (validate/logs/disk_estimate.out): one continuation's
+48:  folder at E 171,008,240 B = 163.1 MiB (models 157,485,015 B: 39 zips + 38 pkls; the five records at the parent's
+50:  tmp and logs and one resume's extra files 193,386,567 B = 184.4 MiB.  RUN_BYTES_EST 200 MiB.
+54:[17:11-17:13Z] wrote validate/v4_compare.py, timing.py, v3_summary.py; copied BS2's validate/{v1_independent,v2_compare,
+56:  disk_estimate.py re-run after the reflow: outputs identical (cmp; *_2.out).
+71:  passes them from the crashed run_meta (copies, or resume.copied; load_step).  bs_common.py: the disk comment
+72:  182.3 -> 184.4 MiB (the measured value).  New unit test test_a_record_never_rewritten_by_the_attempt_is_not_its_own;
+85:  n_updates 2471 -> 2471, params digest unchanged; wall 977 s, CPU 689 s); V2 critic_blind_tail3 started (version C).
+86:[17:29:55Z] V4 attempt 1 heartbeat 2,449,408 (32 s per rollout wall at load 6-7); its run_meta "copies" hold the seven
+115:  n_updates 2471 -> 2471; wall 700 s, CPU 661 s); V2 gae_lambda_1 started (load 4.10).
+
+S2/r10round/long_blind/validate/v1:
+total 24
+drwxr-xr-x 6 root root 4096 Oct 30 17:09 .
+drwxr-xr-x 9 root root 4096 Oct 30 17:17 ..
+drwxr-xr-x 4 root root 4096 Oct 30 17:09 control_9301
+drwxr-xr-x 4 root root 4096 Oct 30 17:09 critic_blind_tail3_9301
+drwxr-xr-x 4 root root 4096 Oct 30 17:09 frozen_obs_norm_9301
+drwxr-xr-x 4 root root 4096 Oct 30 17:09 gae_lambda_1_9301
+
+S2/r10round/long_blind/validate/v2:
+total 20
+drwxr-xr-x 5 root root 4096 Oct 30 17:38 .
+drwxr-xr-x 9 root root 4096 Oct 30 17:17 ..
+drwxr-xr-x 3 root root 4096 Oct 30 17:26 control_9301
+drwxr-xr-x 3 root root 4096 Oct 30 17:37 critic_blind_tail3_9301
+drwxr-xr-x 3 root root 4096 Oct 30 17:44 gae_lambda_1_9301
+
+S2/r10round/long_blind/validate/v4:
+total 16
+drwxr-xr-x 4 root root 4096 Oct 30 17:37 .
+drwxr-xr-x 9 root root 4096 Oct 30 17:17 ..
+drwxr-xr-x 3 root root 4096 Oct 30 17:44 critic_blind_tail3_9311
+drwxr-xr-x 3 root root 4096 Oct 30 17:37 critic_blind_tail3_9311_crashed1
+{
+ "bs2_run": "S2/r10round/bias_screen2/runs/control_2501",
+ "zip_bytes": {
+  "start": 4033634,
+  "periodic": 4033138,
+  "final": 4033138
+ },
+ "pkl_bytes": {
+  "start": 5291,
+  "periodic": 4917
+ },
+ "n_periodic_pairs": 37,
+ "models_bytes": 157485015,
+ "parent_records_at_E_bytes": {
+  "eval_episodes.csv": 2905418,
+  "evaluations.npz": 16058,
+  "gate_progress.npz": 254784,
+  "train_episodes.csv": 3928933,
+  "policy_probe.npz": 3485432
+ },
+ "evidence": {
+  "bs2_lines": 175,
+  "bs2_bytes": 243511,
+  "bytes_per_line": 1391.4914285714285,
+  "lb_lines": 1208,
+  "lb_bytes": 1680921
+ },
+ "diagnostics": {
+  "bs2_bytes": 176682,
+  "bs2_session_steps": 1441792,
+  "lb_bytes_scaled": 1213684
+ },
+ "small_files_bytes": 37995,
+ "bs2_tmp_reads_logs_bytes": 106040,
+ "reads_scaled_bytes": 672952,
+ "run_folder_bytes_at_E": 171008240,
+ "run_folder_MiB_at_E": 163.08616638183594,
+ "one_resume_extra_bytes": 21599335,
+ "per_run_with_reads_and_one_resume_bytes": 193386567,
+ "per_run_with_reads_and_one_resume_MiB": 184.42780208587646,
+ "lb_validation_runs": []
+}

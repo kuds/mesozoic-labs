@@ -1,0 +1,11 @@
+71:DISK_FLOOR_BYTES = 1_610_612_736                # 1.5 GiB (TASK "1.5 GB"; the binary reading, the stricter one)
+75:RUN_BYTES_EST = 200 * 1024**2
+77:LAUNCH_DISK_BYTES = DISK_FLOOR_BYTES + MAX_CONTINUATIONS * RUN_BYTES_EST   # a fresh queue starts only above this
+110:==== COSTS [measured, os.wait4 user+sys of the runner and its child; validate/costs_first_run.txt] ====
+113:M1 per label: 65.7-68.0 s CPU (wall 67.5-69.1 s on a then idle machine), max RSS 431-443 MB; 6 labels per FINISHED run = 401 s CPU (s42);
+115:M3 (the certificate, 6 headings x 40 episodes): 1,186.9 s CPU (s42), 1,196.1 s CPU (s60); wall 1,945 / 2,000 s under load 8-11 (other
+117:Per FINISHED run: about 1,600 s CPU (27 CPU-min), of which the certificate is 74%. For LB's 4 continuations: about 106 CPU-min, about
+138:  review I3]); below that it first removes <BS2>/validate/v1final, v2final and the fixer's v1fix (about 200 MB in all)
+603 S2/r10round/long_blind/criteria_work/criteria_v1.txt
+  saturation too (max_hop_or_fall_episodes counts saturated episodes), so it is not independent of Q1 and Q3. A pass here is not a
+    tools/bs_hooks.py                    <to fill> (BS2's 1ff4c8be048297270eea14a24fe59336020e20fbd4aca7c38f5b881b33eef9fc

@@ -1,0 +1,47 @@
+## phase_probe
+total 508
+drwxr-xr-x  6 root root   4096 Oct 30 17:29 .
+drwxr-xr-x 34 root root   4096 Oct 30 17:52 ..
+-rw-r--r--  1 root root  17079 Oct 30 17:29 NOTES.txt
+-r--r--r--  1 root root     77 Oct 30 16:56 PREREG.sha256
+172 S2/com_revisit/notes/phase_probe/NOTES.txt
+5:SUMMARY (written 2026-10-30 17:28 UTC, after the pre-registered analysis; numbers in normalised-return units, the
+8:READING: hypothesis A (the phase proxy) is SUPPORTED by every pre-registered prediction (PREREG.txt sha256
+10:  A1 the tail tracks the phase      SUPPORTED 5/5   A2 value depends on phase   SUPPORTED 5/5
+11:  A3 critic error depends on phase  SUPPORTED 4/5   A4 phase explains G slope   SUPPORTED 5/5 (resolvable 3/5)
+12:  A4c within B3 G does not pay      SUPPORTED 5/5   A5 sign tracking            SUPPORTED 6/6     OVERALL: A SUPPORTED
+128:    639cd879...; offline OLS with episode-clustered bootstrap, MLP regressors, verdict rules exactly as PREREG).
+132:2026-10-30 17:04:47 UTC  test run of phase_analyze.py --labels P1,P2 --no-mlp --tag _test (exit 0; verdicts UNTESTABLE
+133:    as only P2 of PS was present: expected).  Outputs analysis_test.json/.txt, verdicts_test.txt (superseded by the
+142:    only; the verdicts come from the full run over all checkpoints.  No change to the analysis.
+151:    exit 0; logs/analyze_full.log).  Outputs analysis.json, analysis.txt, verdicts.txt.  [measured] verdicts:
+152:    A1 SUPPORTED (5/5 PS), A2 SUPPORTED (5/5), A3 SUPPORTED (4/5; C11E fails |D_err| >= 0.05: +0.043), A4 SUPPORTED
+154:    A4c SUPPORTED (5/5), A5 SUPPORTED (6/6).  OVERALL: A SUPPORTED.
+## termination_probe
+total 412
+drwxr-xr-x  4 root root  4096 Oct 30 17:51 .
+drwxr-xr-x 34 root root  4096 Oct 30 17:52 ..
+-rw-r--r--  1 root root 30136 Oct 30 17:51 NOTES.txt
+-rw-r--r--  1 root root    77 Oct 30 17:00 PREREG.sha256
+305 S2/com_revisit/notes/termination_probe/NOTES.txt
+15:SUMMARY
+18:genuine or overgeneralised.  Pre-registered overall reading: B-GENUINE NOT SUPPORTED, B-APPARENT NOT SUPPORTED.
+40:     to change e^7.1 ~ 1,200-fold per degree (13 mm of tail-tip height).  -> NOT SUPPORTED.
+55:     NOT SUPPORTED); near-floor states exist only in the single fall (43 states, M3.2 UNTESTABLE).
+63:5. Cross-lens, POST HOC, no verdict (PH7, lens A's ground).  [measured]  The tail_3 angle climbs WITHIN each episode
+66:   angle about as much as V does (met in 5 of 6, against my prediction); with no terminations that cannot be risk.
+89:PRE-REGISTERED VERDICTS (PREREG.txt; numbers from analysis_rollouts.txt / analysis_records.txt)
+90:  P1.1 rollouts, pooled tail_contact <= 2% ......... SUPPORTED      0 / 768 (CP 95% upper 0.48%); any early end 1 / 768
+91:  P1.2 parent records 1.05M-3.54M, <= 2% ............ SUPPORTED      0 / 2,495 tail_contact (5 fallen, 0.20%)
+96:  M2.3 funding test (primary for B-genuine) ......... NOT SUPPORTED  F_bound 0.071 (beta* 1/deg); beta needed 7.1/deg
+98:  M3.1 slope largest where the tip is lowest ........ NOT SUPPORTED  rho <= -0.10 in 3 of 6 (-0.30, -0.28, +0.03,
+101:  M4.2 tail height reproduces the tail angles' share  SUPPORTED      Q 0.99-1.27 at the five climb-era checkpoints
+102:       (prediction "NOT SUPPORTED" was wrong; see CAVEATS: the fit's signs contradict a risk reading)
+103:  M4.3 critic's own slopes proportional to tip lift . NOT SUPPORTED  0 of 6 in [0.5, 2]; R31 -90.7..+17.6, R32
+104:       -14.7..+32.8; lowest-point version also NOT SUPPORTED
+## verify_why
+total 12
+drwxr-xr-x  2 root root 4096 Oct 30 17:52 .
+drwxr-xr-x 34 root root 4096 Oct 30 17:52 ..
+-rw-r--r--  1 root root  222 Oct 30 17:52 NOTES.txt
+2 S2/com_revisit/notes/verify_why/NOTES.txt

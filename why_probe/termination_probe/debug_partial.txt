@@ -1,0 +1,63 @@
+conditions loaded: ['p1048576', 'p2097152']
+
+==============================================================================================================
+DESCRIPTIVE (per condition, all states)
+==============================================================================================================
+  p1048576        q3 -0.154+-0.258 deg  own14 -0.034  mu14 -0.033  tip 0.9116 (min 0.121)  lowest 0.7985 (min 0.086)  pelvis 0.9263 (min 0.708)  V 4.710  G 4.717  s -0.00439  return 4001.1
+  p2097152        q3 +0.638+-0.342 deg  own14 +0.124  mu14 +0.124  tip 0.9365 (min 0.792)  lowest 0.8071 (min 0.732)  pelvis 0.9261 (min 0.920)  V 4.766  G 4.762  s +0.01923  return 4299.9
+==============================================================================================================
+ITEM 1.  END REASONS OF TRAINING-LIKE EPISODES (128 per condition, seeds 7001-7128)
+==============================================================================================================
+  p1048576        n 128  {'fallen': 1, 'truncated': 127}   tail_contact 0/128 CI 0.0000-0.0284   any termination 1/128 CI 0.0002-0.0428
+  p2097152        n 128  {'truncated': 128}   tail_contact 0/128 CI 0.0000-0.0284   any termination 0/128 CI 0.0000-0.0284
+  POOLED NON-BLIND (2 conditions): tail_contact 0/256 = 0.0000% CI 0.0000%-1.4306%;  any termination 1/256 = 0.3906% CI 0.0099%-2.1571%
+  P1.1 (prediction: pooled tail_contact <= 2%): SUPPORTED
+
+==============================================================================================================
+ITEM 2.  IS A LOWER TAIL ACTUALLY RISKIER?
+==============================================================================================================
+  tail_contact episodes in the NON-BLIND SET: 0
+  M2.1 q3   H=200: events 0; ranks []; below 0.5: 0/0; sign p nan -> UNTESTABLE
+  M2.1 tip  H=200: events 0; ranks []; below 0.5: 0/0; sign p nan -> secondary
+  M2.1 low  H=200: events 0; ranks []; below 0.5: 0/0; sign p nan -> secondary
+  M2.1 q3   H= 50: events 0; ranks []; below 0.5: 0/0; sign p nan -> secondary
+  M2.1 tip  H= 50: events 0; ranks []; below 0.5: 0/0; sign p nan -> secondary
+  M2.1 low  H= 50: events 0; ranks []; below 0.5: 0/0; sign p nan -> secondary
+  M2.2 q3 H=200: no events
+  M2.2 tip H=200: no events
+  M2.2 low H=200: no events
+  M2.2 q3 H=50: no events
+  M2.2 tip H=50: no events
+  M2.2 low H=50: no events
+  M2.3 [tail_contact] events 0 in 256 episodes, 204480 states t<=800.  C_c {'p1048576': 7.09, 'p2097152': 7.018}
+       s_crit (mean critic slope) +0.00785 per deg (normalised); s_risk -0.000000; F -0.00000 (95% -0.00000 .. +0.00000)
+       bound: CP upper count 3.66, Dbar_u 8.955e-04, F_bound(beta*=1/deg) 0.8044, beta needed for F=0.5: 0.6 per degree -> INCONCLUSIVE (bound (fewer than 5 events))
+  M2.3 [any] events 1 in 256 episodes, 204480 states t<=800.  C_c {'p1048576': 7.09, 'p2097152': 7.018}
+       s_crit (mean critic slope) +0.00785 per deg (normalised); s_risk -0.009859; F -1.25543 (95% -4.74720 .. +0.00000)
+       bound: CP upper count 5.52, Dbar_u 1.350e-03, F_bound(beta*=1/deg) 1.2129, beta needed for F=0.5: 0.4 per degree -> report only (secondary)
+  M2.4 H=200 p1048576        min-ahead lowest tail point: p0.1 0.086  p1 0.763  p5 0.774  min 0.086 m;  Spearman(q3, M) +0.410
+  M2.4 H=200 p2097152        min-ahead lowest tail point: p0.1 0.751  p1 0.773  p5 0.792  min 0.732 m;  Spearman(q3, M) +0.392
+  M2.4 H= 50 p1048576        min-ahead lowest tail point: p0.1 0.666  p1 0.765  p5 0.779  min 0.086 m;  Spearman(q3, M) +0.459
+  M2.4 H= 50 p2097152        min-ahead lowest tail point: p0.1 0.751  p1 0.775  p5 0.794  min 0.732 m;  Spearman(q3, M) +0.392
+
+==============================================================================================================
+ITEM 3.  DOES THE CRITIC'S TAIL SLOPE (dV/dq3, normalised V per degree, effective critic) FOLLOW THE RISK?
+==============================================================================================================
+  -- p1048576: s mean -0.00439 median -0.00404 sd 0.01793  (x sigma_R 42.8 = -0.188 raw reward units per degree)
+     by tip decile: [0.121,0.891] +0.0041  [0.891,0.898] +0.0007  [0.898,0.903] -0.0008  [0.903,0.907] -0.0018  [0.907,0.911] -0.0035  [0.911,0.915] -0.0046  [0.915,0.919] -0.0062  [0.919,0.924] -0.0080  [0.924,0.932] -0.0099  [0.932,1.055] -0.0138
+     by pelvis decile: [0.708,0.924] -0.0019  [0.924,0.925] -0.0020  [0.925,0.926] -0.0029  [0.926,0.926] -0.0034  [0.926,0.926] -0.0041  [0.926,0.927] -0.0046  [0.927,0.927] -0.0054  [0.927,0.927] -0.0060  [0.927,0.928] -0.0065  [0.928,0.958] -0.0071
+     by phase: t[0,50) -0.0090 (n 6400)  t[50,200) -0.0050 (n 19200)  t[200,400) -0.0031 (n 25425)  t[400,1000) -0.0043 (n 76200);  last 50 states of terminated episodes: (-0.03170100510120392, 50)
+     M3.1 Spearman(s, tip) -0.300;  M3.1b partial (| q3) +0.176;  M3.3 Spearman(s, pelvis) -0.112;  Spearman(s, q3) -0.659;  M3.4 early/late 1.500
+  -- p2097152: s mean +0.01923 median +0.01970 sd 0.01716  (x sigma_R 45.4 = +0.872 raw reward units per degree)
+     by tip decile: [0.792,0.920] +0.0265  [0.920,0.928] +0.0240  [0.928,0.932] +0.0224  [0.932,0.935] +0.0210  [0.935,0.937] +0.0207  [0.937,0.940] +0.0198  [0.940,0.944] +0.0184  [0.944,0.947] +0.0172  [0.947,0.952] +0.0147  [0.952,1.055] +0.0075
+     by pelvis decile: [0.920,0.925] +0.0245  [0.925,0.925] +0.0234  [0.925,0.926] +0.0225  [0.926,0.926] +0.0210  [0.926,0.926] +0.0199  [0.926,0.926] +0.0188  [0.926,0.926] +0.0176  [0.926,0.927] +0.0166  [0.927,0.927] +0.0155  [0.927,0.958] +0.0126
+     by phase: t[0,50) +0.0042 (n 6400)  t[50,200) +0.0242 (n 19200)  t[200,400) +0.0221 (n 25600)  t[400,1000) +0.0183 (n 76800);  last 50 states of terminated episodes: (None, 0)
+     M3.1 Spearman(s, tip) -0.277;  M3.1b partial (| q3) -0.245;  M3.3 Spearman(s, pelvis) -0.203;  Spearman(s, q3) -0.133;  M3.4 early/late 0.998
+  M3.1 conditions with rho(s, tip) <= -0.10: 2 of 6 -> NOT SUPPORTED
+  M3.1b (secondary) partial rho <= -0.10: 1 of 6;  M3.3 (secondary) rho(s, pelvis) <= -0.10: 2 of 6
+  M3.2 pooled near-floor (tip < 0.60 m): 43 states from 1 episodes, mean s -0.03072 vs +0.00747 (tip >= 0.60) ratio -4.11411614236514 -> UNTESTABLE
+  pooled pelvis < 0.85 m: 27 states, mean s -0.03108 vs +0.00746
+
+==============================================================================================================
+ITEM 4.  IS THE CRITIC'S TAIL SLOPE EXPLAINED BY THE RISK?  (states t % 4 == 0, |z6| < 10)
+==============================================================================================================

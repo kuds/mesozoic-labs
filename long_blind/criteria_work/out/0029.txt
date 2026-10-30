@@ -1,0 +1,135 @@
+### 6.2 Process: screens, pre-registration, outcome-blindness, verification, time
+
+1. **Judge several checkpoints and read the whole ledger.**
+   - The rail forms, clears and re-forms: stance3 Run 2 ran in four spells to
+     11.14M with a clean final. A cleared rail can be a swing to the opposite
+     park, not a return to neutral: r10 s42's tail_3 command went to -0.56 at
+     6.95M between its spells, and stance3 Run 2's fell to +0.191 (tail down)
+     at 8.39M [L028, L099, L101].
+   - The notebook's own gate judged early robust_best pairs (0.9M-2.0M on
+     r10; 917,504 and 393,216 on r9) and "could not see a late rail".
+   - A gate read only at the final hides rails both ways: r10 s80 failed at
+     6,291,456 and passed at the final, and s42 the reverse (STANCE §23.4
+     lines 3430-3433 and RUNLOG l327-330 for the r9 pairs; STANCE §19.5 item
+     3, §27.3 D-8; REVIEW lines 437-448, 743-748) [L031, L108].
+   - "Judge several checkpoints" was already a lesson of the foot work
+     (STANCE §12).
+2. **Watch the training ledger with an alarm, and make it name the
+   actuator.**
+   - stance4 s42's 70 and stance3 Run 2's 44 flagged evaluations (at least 5
+     of 10 episodes; Run 2 had 39 with 8 or more) went unwatched until the
+     alarm [L030].
+   - Naming the actuator took checkpoint downloads and offline rollouts for
+     every run until #640 [L043, L058].
+3. **Do not name what has not been measured.** The stance4 report called
+   s42's actuator "tail" before anything measured it. Its verification caught
+   the claim (RUNLOG l177-180) [L033].
+4. **One draw per arm cannot size an effect.** Two no-change continuations
+   from one state read 0.925 and 0.171 (TAILEXP check 2) [L053]. Use
+   replicates per arm per state (K = 3 in D-D43, 6 in the ECS) and a matched
+   control. "A seed fixes the start, not the run" (STANCE §27.4).
+5. **Small from-scratch rounds cannot show a lower rate.**
+   - 0 of n against 2 of 5 gives p 0.36 (n 3), 0.22 (5), 0.13 (8) and 0.095
+     (10); "a 0 of n result needs n >= 16 to reach 0.05" (BRIEF §4; CRIT6
+     line 294) [L077].
+   - Screen as continuations with replicates first, and read a three-run
+     round as existence, not rate [L100].
+6. **Have skeptics read a design before any compute.** Two skeptics stopped a
+   five-seed round with an unsupported rationale and an endpoint near a
+   manipulation check; all 17 of their findings held (BRIEF Appendix A)
+   [L065]. Their D4 showed that a strict "no worse than the recorded band on
+   K2, K3 and K4" harm rule would pass a bound with no cost at all only
+   0.15-0.68 of the time, so set harm rules with a stated false-veto rate
+   (BRIEF §4 lines 240-243, Appendix A D4 line 287) [L065].
+7. **Pre-register, keep fails as fails, stay outcome-blind.**
+   - D-D40 5a stopped no run on an alarm [L034].
+   - The ECS wrote its predicted outcome before running [L113].
+   - It opened no attempt log before all 24 continuations were decided, and
+     two lenses re-derived its reading with their own code [L119, L121].
+   - The r10 round was read once, from one settled fetch [L100].
+8. **Verify adversarially, and anchor comparisons on bit-identity.**
+   - Verifiers changed five readings of the clamp and the policies lens: the
+     servo-spring split, five head-clearance losers not two, where the 5 mm
+     drift lives, the loop gain measured rather than inferred, and the r9
+     lean explanation refuted [L150].
+   - The clamp reproduced D-9 to 9.095e-12 before it ran anything new
+     [L137].
+   - The verifiers of the normaliser probe and of the posture tests changed
+     readings again: the probe's "how much" (range-dependent, and out of
+     distribution in its swaps), and the posture pathway's origin and
+     generality (it grew after the rise began, and s60 has the opposite
+     sensitivity). Each first re-ran the work with its own code (for the
+     probe, bit-for-bit, 460 of 460 episodes) [L159, L164].
+9. **Keep the pre-registration lean.** The r10 round's criteria grew through
+   twelve versions (v12 1,019 lines, against stance3/4/5's 79, 142 and 190)
+   before the maintainer chose LEAN-R (STANCE §26.5) [L097].
+10. **Run a screen's gate on the untouched base before pinning it.** The D-D43
+    gate failed on an invariant the band commit breaks by design, and had to
+    be re-pinned (RUNLOG l549-553) [L075].
+11. **Keep a durable copy of scratch code.**
+    - P1's code (`scratch_tailfix`, branch `scratch/tail-mean-bound` at
+      `1d2d22b4`) was by decision left out of the handoff branch, which
+      carried small text files only: "the never-push tail-fix code is
+      described, not pushed" (RUNLOG l448, l500;
+      `scratchpad/handoff/HANDOFF.md` lines 106-110, session scratch, not
+      kept; the never-merged branch `<cli>/handoff-stance5r` carries it). The
+      next session did not have it, and the bound was
+      re-created from the report (BRIEF lines 95-96) [L076].
+    - Durable orphan branches came after: `<cli>/handoff-tailscreen`,
+      `<cli>/handoff-stance6`, `<cli>/handoff-ecs` [L069, L128].
+12. **Know what a mid-run fetch holds.** A ledger newer than the placed
+    `progress.json` read as "STALE" without being a resume (RUNLOG l461-467)
+    [L055]. The r10 round fetched once, after the runs ended.
+13. **Name what a statistic counts.** The r10 round's statistic A counted
+    alarms on any actuator, so a neck alarm stood against r9's tail alarms
+    (REVIEW lines 110-112) [L109]. D10 was first decided as tail-alarm runs
+    (19:01 UTC) and re-worded at 22:18 UTC to any-actuator alarm runs, to
+    match how LTSB's r9 2 of 5 had been counted (RUNLOG l621, l627-628)
+    [L096].
+14. **Read long enough.** A 5-10 s window under-reads slow lateral settling;
+    a held lean or creep needs at least 20 s (VPOL `NOTES.txt` l185-187)
+    [L150].
+15. **What saved time** [inferred, from the records].
+    - Report-only telemetry replaced checkpoint downloads (#640, #638) [L058,
+      L060].
+    - CPU continuations and no-training probes answered questions without
+      from-scratch rounds: P1, the D-D43 screen, the noise-value and
+      unclipped probes, D-9, the clamp, the normaliser probe and the
+      posture tests [L049, L071, L072, L078, L141, L158, L162].
+16. **What cost time** [measured events].
+    - Naming the actuator by rollouts each time [L043].
+    - Re-creating lost scratch code [L076].
+    - Twelve criteria versions [L097].
+    - A container restart during the ECS build's fixer (RUNLOG l727) [L117].
+    - A container restart at about 20:50 UTC on 2026-10-29, which stopped
+      the probe's verifier and posture tests 2-3 mid-run; both resumed from
+      their caches (RUNLOG l756) [L159, L160].
+    - A failed gate pin [L075].
+    - The hand transcription of `evaluations.npz` was cut off and replaced by
+      an exact-copy script (STANCE §27.1) [L110].
+17. **Correct the record when a measurement moves it**, and keep both texts
+    visible (§8.3). Examples: tail_2 was not on its stop on r9; the spring
+    was not the limit; the count of affected runs grew from 2 of 5 to 4 of
+    10; stance4 s42's actuator went from "not recorded" to tail_3.
+18. **Probe before the rise, not only from the mid-rise start.** Neither
+    posture report probed a checkpoint before the ECS start (3,145,728),
+    which tests 2-3 took as "the start"; there the deterministic tail command
+    was already 0.60. The r10 F2 checkpoints at
+    1,048,576 and 2,097,152 were local, and probing them changed the reading:
+    no pathway and a negative loop before the rise (VPOST M1, F12) [L164,
+    L167].
+19. **Give a timing or a share with the method that produced it.**
+    - "Started together, within one bin" was an artefact of fixed thresholds
+      (0.1 command against 0.3°). A noise-matched change point with a block
+      bootstrap put the tail about 0.17M ahead (VPOST F1) [L161, L164].
+    - The probe's normaliser share ran from -1.32 to -0.26 with the sweep
+      range, and its "8 of 12 above 1 without the drift" evaluated co-adapted
+      weights out of distribution; only the signs held 12/12 in every range
+      (VPROBE) [L159].
+    - At the same ends, the closed-loop railed share moved with the seed
+      sample (0.82 against 0.67), and s80's loop gain with its definition
+      (-0.72 local, -0.28 by the 0-6° fit) (VPOST M6) [L164].
+    - [inferred] Read the sign that holds across methods, and give each size
+      with its method [L167].
+
+## 7. Open questions and the candidate next steps already proposed

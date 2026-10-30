@@ -1,0 +1,221 @@
+3de2330a4e0451d8c48fa05b53507f6921352e537f15fd5f28558946ba080707  S2/r10round/lean/build/laneB/tools/score_r10round.py
+61:def _load(name):
+88:def listing_names(note):
+96:def _floor_minute(t):
+100:def _within_trigger(utc, trig_time, listing_time):
+109:def _store_listings(lp: Path):
+121:def absent_listing_state(key, round_dir, run_id, trig_time, listing_time=None):
+176:def trigger_listing_state(note, round_dir, run_id, trig_time=None):
+223:def seed_run(seed, notes, f0_checks, round_dir=None) -> dict:
+297:def flags_full(tr):
+301:def classes_of(comp) -> dict:
+437:def reading(per_seed, presence_rails, lost_any) -> dict:
+505:def parent_named(per_seed, round_dir, line, panels_format="{label}/{kind}") -> dict:
+544:def provisional(pins, approved, notes, runs_detail, round_dir) -> list[str]:
+600:def score(round_dir=C.ROUND, runlog=C.RUNLOG, pins_path=None, approved_path=None, panels_format="{label}/{kind}"):
+743:def _brief(comp):
+747:def _bytes_for(store, comp, path):
+755:def render(out) -> str:
+835:def main(argv=None):
+855:def _jsonable(o):
+        1	def classes_of(comp) -> dict:
+        2	    """TAIL CLASS, kind, DRIVEN, GATE and OUTCOME of a COMPLETE run, read on its records as measured (criteria lean v6
+        3	    CLASSES: O-6 CMD_a over the episodes that last beyond step 200, not formed reading as below 0.60 in either sign;
+        4	    v6 MEAN_a, the formed one's CMD_a when one is not formed (r10round_common.mean_a); O-7 an exact sign tie counts
+        5	    once in each sign; O-8 DRIVE-BACKED at any checkpoint holding one of the rail's flags).  out["open"] lists what the
+        6	    text leaves without a reading where it would decide the class: nothing since v6 (it stays in the output, empty)."""
+        7	    res, traces = comp["m5"], comp["traces"]
+        8	    r1 = str(comp["r1"])
+        9	    out = dict(open=[])
+       10	    # RESOLVED BY TRACE: at least 2 full-horizon TAIL FLAGS on one actuator and sign at the RESOLUTION checkpoint
+       11	    resolved = []
+       12	    for s1, ck in sorted(comp["resolution"].items()):
+       13	        tr = traces[str(ck) if ck != "final" else "final"]
+       14	        g = {}
+       15	        for a, sg, _seed in flags_full(tr):
+       16	            for s in C.flag_signs(sg):
+       17	                g[(a, s)] = g.get((a, s), 0) + 1
+       18	        hit = {f"{C.ACTUATOR_NAMES[a]}{'+' if sg > 0 else '-'}": v for (a, sg), v in g.items() if v >= 2}
+       19	        out.setdefault("resolution", []).append(dict(alarm=s1, checkpoint=ck, flags=g and {f"{C.ACTUATOR_NAMES[a]}{sg:+d}": v for (a, sg), v in g.items()},
+       20	                                                     resolved_by_trace=bool(hit)))
+       21	        if hit:
+       22	            resolved.append(s1)
+       23	    tail_alarms = sorted(set(res["tail_alarms"]) | set(resolved))
+       24	    # R1, R2: flags, CMD (v5 O-6), MEAN
+       25	    t1, t2 = traces[r1], traces["final"]
+       26	    f1, f2 = flags_full(t1), flags_full(t2)
+       27	    cmd, cmd_n, cmd_others = {}, {}, {}
+       28	    for lab, tr in traces.items():
+       29	        cmd[lab], cmd_n[lab], cmd_others[lab] = {}, {}, {}
+       30	        for a in C.TAIL:
+       31	            cmd[lab][a], cmd_n[lab][a], cmd_others[lab][a] = C.trace_cmd(tr, a)
+       32	    mean, mean_basis = {}, {}
+       33	    for a in C.TAIL:                                       # v6: MEAN_a always has a reading (None: not formed)
+       34	        x, y = cmd[r1][a], cmd["final"][a]
+       35	        mean[a] = C.mean_a(x, y)
+       36	        mean_basis[a] = ("R1 and R2" if x is not None and y is not None else
+       37	                         "R2 only (CMD_a(R1) not formed)" if y is not None else
+       38	                         "R1 only (CMD_a(R2) not formed)" if x is not None else "not formed (neither formed)")
+       39	    groups = {}
+       40	    for lab, fl in ((r1, f1), ("final", f2)):
+       41	        for a, sg, seed in fl:
+       42	            for s in C.flag_signs(sg):                     # O-7: an exact tie counts once in each sign
+       43	                groups.setdefault((a, s), []).append((lab, seed))
+       44	    trace_rail, single = [], []
+       45	    for (a, sg), seeds in sorted(groups.items()):
+       46	        if len(seeds) >= 2:
+       47	            trace_rail.append((a, sg, "2+ flags"))
+       48	        elif C.mean_reaches(cmd[r1][a], cmd["final"][a], sg):
+       49	            trace_rail.append((a, sg, f"1 flag, MEAN {mean[a]:+.3f} ({mean_basis[a]})"))
+       50	        else:
+       51	            single.append((a, sg, seeds[0][1]))
+       52	    drive = []
+       53	    for a, sg, why in trace_rail:
+       54	        per = {}
+       55	        for lab, fl in ((r1, f1), ("final", f2)):
+       56	            if any(x == a and sg in C.flag_signs(y) for x, y, _s in fl):
+       57	                per[lab] = C.reaches(cmd[lab][a], sg)       # O-6: a CMD_a not formed reads as below 0.60
+       58	        drive.append(dict(actuator=C.ACTUATOR_NAMES[a], sign="+" if sg > 0 else "-", basis=why,
+       59	                          drive_backed=any(per.values()), drive_backed_by_checkpoint=per))
+       60	    any_flag_r1r2 = bool(f1 or f2)
+       61	    if tail_alarms:
+       62	        cls = "RAIL"
+       63	        kind = "RAIL-LEDGER-PERSISTENT" if any_flag_r1r2 else "RAIL-LEDGER-RESOLVED"
+       64	    elif trace_rail:
+       65	        cls, kind = "RAIL", "RAIL-END-ONLY"
+       66	    else:
+       67	        cls, kind = None, None
+       68	    # PARKED (tail pitch actuators, tail-up) on MEAN or J
+       69	    jl = [str(s) for s in comp["js"]] + ["final"]
+       70	    parked = []
+       71	    for a in C.PITCH:
+       72	        fired = []
+       73	        if C.mean_reaches(cmd[r1][a], cmd["final"][a], 1):
+       74	            fired.append(("END", round(mean[a] - C.PARK_LINE, 4)))
+       75	        jv = [(lab, cmd[lab][a]) for lab in jl]
+       76	        hits = [(lab, round(v - C.PARK_LINE, 4)) for lab, v in jv if C.reaches(v, 1)]
+       77	        if len(hits) >= 2:
+       78	            fired.append(("J", hits))
+       79	        if fired:
+       80	            parked.append(dict(actuator=C.ACTUATOR_NAMES[a], windows=fired))
+       81	    driven = []
+       82	    for a in C.TAIL:
+       83	        up, dn = C.mean_reaches(cmd[r1][a], cmd["final"][a], 1), C.mean_reaches(cmd[r1][a], cmd["final"][a], -1)
+       84	        if (up or dn) and not (a in C.PITCH and up):
+       85	            driven.append(dict(actuator=C.ACTUATOR_NAMES[a], mean=round(mean[a], 4)))
+       86	    stopped = comp["stopped"]
+       87	    if cls is None:
+       88	        to_stop = "PARKED" if parked else "CLEAR"
+       89	        cls = "UNREAD" if stopped else to_stop
+       90	        if stopped:
+       91	            out["class_to_stop"] = dict(cls=to_stop, E=comp["E"])
+       92	    # GATE
+       93	    if stopped:
+       94	        gate, gate_why = "FAIL", "STOPPED (no stage1_final at 12,001,280)"
+       95	    else:
+       96	        cert = comp["certificate"]
+       97	        gate = "PASS" if cert["passed"] else "FAIL"
+       98	        gate_why = None if cert["passed"] else (cert.get("failures") or "failed")
+       99	    reasons = []
+      100	    if cls == "RAIL":
+      101	        reasons.append(f"RAIL ({kind})")
+      102	    if cls == "UNREAD":
+      103	        reasons.append("UNREAD (STOPPED without RAIL)")
+      104	    if cls == "PARKED":
+      105	        reasons.append("PARKED")
+      106	    if gate == "FAIL":
+      107	        reasons.append(f"GATE FAIL ({gate_why})")
+      108	    outcome = "POSITIVE" if (cls == "CLEAR" and gate == "PASS") else "NEGATIVE"
+      109	    alarm_detail = [C.tail_alarm_detail(res, s) for s in res["tail_alarms"]]
+      110	    any_detail = []
+      111	    for s in res["any_alarms"]:
+      112	        e0, e1 = res["evals"][s - C.GRID], res["evals"][s]
+      113	        names, reas = {}, {}
+      114	        for e in (e0, e1):
+      115	            for k, v in e["any_by"].items():
+      116	                names[k] = names.get(k, 0) + v
+      117	            for k, v in e["reasons"].items():
+      118	                reas[k] = reas.get(k, 0) + v
+      119	        tail_scope = "tail" if any(n in C.ACTUATOR_NAMES[11:] for n in names) else "non-tail or unnamed"
+      120	        any_detail.append(dict(step=s, actuators=names, tail_scope=tail_scope, reasons=reas))
+      121	    out.update(cls=cls, kind=kind, tail_alarms=tail_alarms, resolved_by_trace=resolved, tail_alarm_detail=alarm_detail,
+      122	               flagged_evaluations=len(res["tail_flagged"]), trace_rail=drive, single_tail_flags=[
+      123	                   dict(actuator=C.ACTUATOR_NAMES[a], sign="+" if sg > 0 else "-", seed=s) for a, sg, s in single],
+      124	               parked=parked, driven=driven, mean={C.ACTUATOR_NAMES[a]: mean[a] for a in C.TAIL},
+      125	               mean_basis={C.ACTUATOR_NAMES[a]: mean_basis[a] for a in C.TAIL},
+      126	               cmd={lab: {C.ACTUATOR_NAMES[a]: v for a, v in d.items()} for lab, d in cmd.items()},
+      127	               cmd_episodes={lab: {C.ACTUATOR_NAMES[a]: v for a, v in d.items()} for lab, d in cmd_n.items()},
+      128	               cmd_others_ended_by_200={lab: sorted({s for v in d.values() for s in v}) for lab, d in cmd_others.items()},
+      129	               gate=gate, gate_why=gate_why, outcome=outcome, reasons=reasons, any_alarm=bool(res["any_alarms"]),
+      130	               any_alarms=any_detail, stopped=stopped, E=comp["E"],
+      131	               fall_flags=[(lab, C.ACTUATOR_NAMES[a], sg, seed) for lab, tr in traces.items()
+      132	                           for (a, sg, full, seed) in C.trace_flags(tr) if not full])
+      133	    return out
+      134	
+      135	
+      136	# ------------------------------------------------------------------------------------------------- the reading
+      137	def reading(per_seed, presence_rails, lost_any) -> dict:
+      138	    """ROUND READING over the seeds' runs: R, U, P, G+; statistic A with TABLE E; "A WITH LOST RUNS"."""
+      139	    R = U = P = G = 0
+      140	    A = nA = 0
+      141	    basis = []
+      142	    for d in per_seed:
+      143	        c = d.get("classes")
+      144	        if d.get("verdict") != "COMPLETE":
+      145	            U += 1
+      146	            continue
+      147	        if c["cls"] == "RAIL":
+      148	            R += 1
+      149	            basis.append("ledger" if c["tail_alarms"] else "end")
+      150	        elif c["cls"] == "UNREAD":
+      151	            U += 1
+      152	        elif c["cls"] == "PARKED":
+      153	            P += 1
+      154	        G += c["outcome"] == "POSITIVE"
+      155	        if c["any_alarm"]:
+      156	            A += 1
+      157	        if not c["stopped"] or c["any_alarm"]:
+      158	            nA += 1
+      159	    R_total = R + len(presence_rails)
+      160	    if R_total >= 1:
+      161	        line = 1
+      162	        if "ledger" in basis:
+      163	            b = "(ledger)"
+      164	        elif presence_rails:
+      165	            b = "(ledger, a LOST run)"
+      166	        else:
+      167	            ends = [x for d in per_seed if d.get("classes") and d["classes"]["kind"] == "RAIL-END-ONLY"
+      168	                    for x in d["classes"]["trace_rail"]]
+      169	            if any(x["drive_backed"] for x in ends):     # the text's else-chain (R-m2); O-8: any flagged checkpoint
+      170	                b = "(end-only, drive-backed)"
+      171	            else:
+      172	                b = WEAK
+      173	        text = (f"{LINE_TEXT[1]} {b}. An existence result for r10 as shipped (weak for the last); not a rate. To the "
+      174	                "maintainer with the DIAGNOSTIC READOUTS; nothing is proposed by this text.")
+      175	    elif U >= 1:
+      176	        line, text = 2, (f"INCOMPLETE. No tail rail in the {3 - U} run(s) read to 12M; {U} seed(s) LOST or STOPPED "
+      177	                         "without a rail: not a no-rail reading. No parent, confirmation or certification route follows.")
+      178	    elif P >= 1:
+      179	        line, text = 3, (f"NO RAIL, TAIL DRIVE PERSISTS (PARKED in {P} of 3). To the posture decision (RUNLOG line 509 "
+      180	                         "(3)); the best gate-passing final by stance3's parent rule is NAMED with its posture (no "
+      181	                         "automatic offer, D8 (a)).")
+      182	    elif G >= 2:
+      183	        line, text = 4, (f"NO RAIL IN 3 OF 3, NO PARKED TAIL, GATE CERTIFICATE PASSED IN {G} OF 3. Consistent with r10 "
+      184	                         "removing the habit, not confirmatory (if nothing had changed, 0 of 3 has probability 0.24). "
+      185	                         "To the maintainer: the confirmation or certification step and the best POSITIVE final by "
+      186	                         "stance3's parent rule as the candidate stance parent for a new walking pilot.")
+      187	    else:
+      188	        line, text = 5, ("NO RAIL, GATE CERTIFICATE NOT PASSED; each GATE FAIL's failing criteria and K1 failure modes "
+      189	                         "named; the maintainer chooses the next round.")
+      190	    if nA == 0:
+      191	        stat = dict(A=A, n_A=nA, text="no run counted", fisher_p=None, table_e=None)
+      192	    else:
+      193	        p = C.fisher_lower(A, nA)
+      194	        te = C.TABLE_E.get((A, nA))
+      195	        stat = dict(A=A, n_A=nA, text=f"{A} of {nA} against LTSB r9's 2 of 5", fisher_p=round(p, 4),
+      196	                    fisher_p_table_e=te[0] if te else None,
+      197	                    table_e=dict(p_r10_below_r9=te[1], p_r10_below_half=te[2], upper_95=te[3]) if te else None)
+      198	    wl_a = A + len(lost_any)
+      199	    wl_n = nA + len(lost_any)
+      200	    return dict(line=line, text=text, R=R_total, R_complete=R, presence_rails=len(presence_rails), U=U, P=P, G=G,
+      201	                stat=stat, with_lost=dict(A=wl_a, n_A=wl_n, runs=lost_any, text=f"{wl_a} of {wl_n} (report only)"),

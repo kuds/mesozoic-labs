@@ -1,0 +1,317 @@
+LB SCORER ADAPTER: NOTES AND COMMAND LOG (LB/criteria_work/ADAPT_NOTES.txt)
+==========================================================================
+Lane: the scorer adapter of the Long Blind study (LB = S2/r10round/long_blind).  Task of 2026-10-30 (computed by the
+coordinator's workflow): write LB/tools/score_lb.py and its tests to implement LB/criteria_work/criteria_v1.txt exactly
+against LB's bs_common and LB/measure/tools/measure_lb.py; fix the DRAFT where the built tools are right (or report the
+tool problem); log every edit here; install LB/criteria.txt and LB/SCREEN.json with the PINS lines filled; dry runs
+(synthetic roots for every line, the parent's own records as a stand-in continuation, the runner's --plan); update
+LB/SHA256SUMS.txt for every file changed.
+Writes: only LB/tools/score_lb.py, LB/tools/tests/test_score_lb.py, LB/criteria.txt, LB/SCREEN.json, this file,
+LB/criteria_work/dryrun/ (dry-run roots, the logger lg.sh, command outputs) and LB/SHA256SUMS.txt.  Never LB/APPROVED.
+Short names: S1, S2 (the two scratchpads), LB, BS, BS2, CW = LB/criteria_work, DR = CW/dryrun, PY = S2/venv/bin/python,
+F2C = the parent's F2 copies (S1/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies), RUNLOG = the run log (read only).
+Every claim is labelled [measured] (file and line cited) or [inferred].  Commands are logged below as they run (times
+are date -u); the output of each is in DR/out/NNNN.txt with paths written back as short names.
+
+COMMAND LOG
+-----------
+=== [C0000a] 2026-10-30T18:21:07Z  (backfilled: run before the logger existed)  rc=0
+CMD: date -u; ls -la LB LB/tools LB/criteria_work LB/measure; df -h /tmp
+  | LB holds NOTES.txt SHA256SUMS.txt check_build criteria_work logs measure reads tmp tools validate (no APPROVED,
+  | no criteria.txt, no SCREEN.json); df -h /tmp: 252G size, 36G used, 2.7G avail, 94%.
+=== [C0000b] 2026-10-30T18:21:19Z  (backfilled)  rc=0
+CMD: cat CW/lg.sh; tail CW/CMD_LOG.txt; ps; uptime
+  | the designer's logger read for its path conventions; one other workflow's pytest at nice 10; load 1.00.
+=== [C0000c] 2026-10-30T18:21:30Z  (backfilled)  rc=0
+CMD: cat -n LB/tools/bs_common.py
+  | read: SCORER_FILE = "score_bs.py" (line 78); TOOL_FILES (79-80); S/E/LENGTH/N_EVALS/SAVED_STEPS (90-101);
+  | STOP_REASONS (188); RUN_META/EVIDENCE/CHECK_JSON (192-194); APPROVED_KEYS (196); screen_problems (287-322).
+=== [C0000d] 2026-10-30T18:22:00Z  (backfilled)  rc=0
+CMD: grep -n -i scor LB/tools/run_bs.py LB/tools/run_waves_bs.sh LB/tools/read_bs.py; ls BS2 BS2/tools BS2/score
+  | the runner (run_waves_bs.sh lines 14-18, 91, 108, 139, 175-192) pins and calls tools/$SCORER_FILE = score_bs.py.
+=== [C0000e] 2026-10-30T18:22:30Z  (backfilled)  rc=0
+CMD: write DR/lg.sh (this lane's logger); mkdir DR/out
+
+=== [C0001] 2026-10-30T18:22:26Z -> 2026-10-30T18:22:26Z  rc=0  (read the draft criteria v1 (lines 1-160))
+CMD: cat -n $CW/criteria_v1.txt | sed -n 1,160p
+OUT: dryrun/out/0001.txt  bytes=16994  sha256[:16]=9551acd3eefade54
+  |      1	T. REX r10 LONG BLIND STUDY (LB): THE CRITIC BLIND TO THE TAIL_3 ANGLE TO THE PARENT'S OWN END (12,001,280), FROM
+  |      2	STANCE6 s42's 2,097,152 STATE, CPU, SCRATCH.  CRITERIA v1 -- DRAFT FOR INDEPENDENT REVIEW.  NOT APPROVED.  NOTHING
+  |      3	TRAINS UNTIL <LB>/APPROVED EXISTS.
+
+=== [C0002] 2026-10-30T18:22:30Z -> 2026-10-30T18:22:30Z  rc=0  (read the draft criteria v1 (lines 161-330))
+CMD: cat -n $CW/criteria_v1.txt | sed -n 161,330p
+OUT: dryrun/out/0002.txt  bytes=18351  sha256[:16]=37b1e9cafa98061c
+  |    161	
+  |    162	THE MANIPULATION CHECK (per rollout; it decides VOID, never the reading) -- as BS2, over 1,208 rollouts
+  |    163	- CHECK (read_bs.py --check, run by the runner as each attempt exits) passes only if, on every rollout of the window
+
+=== [C0003] 2026-10-30T18:22:35Z -> 2026-10-30T18:22:35Z  rc=0  (read the draft criteria v1 (lines 331-480))
+CMD: cat -n $CW/criteria_v1.txt | sed -n 331,480p
+OUT: dryrun/out/0003.txt  bytes=15971  sha256[:16]=e7d8475edcbf40af
+  |    331	    5: the rail did not form, but a named cost or partial return did: a PARKED tail means the drive came back without
+  |    332	       saturating; a GATE FAIL needs its criteria read; a habit elsewhere means the habit moved or a second one formed.
+  |    333	- No line is a test. Fails stay fails. Nothing is stopped, changed, extended or rerun because of an outcome.
+
+=== [C0004] 2026-10-30T18:22:40Z -> 2026-10-30T18:22:40Z  rc=0  (read the draft criteria v1 (lines 481-630) and SCREEN_v1.json)
+CMD: cat -n $CW/criteria_v1.txt | sed -n 481,630p; echo ====; cat $CW/SCREEN_v1.json
+OUT: dryrun/out/0004.txt  bytes=15273  sha256[:16]=2cf0c7c09baf58fc
+  |    481	  construction) beside the parent's from read_bs.py --reference; std of action 14, the tail_3 normaliser and the
+  |    482	  statue_settled bank command; returns and falls per evaluation (the ledger's return and length columns); the hop
+  |    483	  watch's and the collapse stop's state; the window (S, T] reading beside the whole-ledger class; for a RESUMED
+
+=== [C0005] 2026-10-30T18:22:58Z -> 2026-10-30T18:22:58Z  rc=0  (read BS2's scorer score_bs.py (lines 1-250))
+CMD: cat -n $BS2/tools/score_bs.py | sed -n 1,250p
+OUT: dryrun/out/0005.txt  bytes=16064  sha256[:16]=64a4046f02638b1e
+  |      1	"""Bias screen 2 (BS2): the scorer.  Report only: reads files, never trains, never simulates.
+  |      2	
+  |      3	    PY -I -B score_bs.py [--root <BS2>] [--out <root>/score]
+
+=== [C0006] 2026-10-30T18:23:02Z -> 2026-10-30T18:23:02Z  rc=0  (read BS2's scorer score_bs.py (lines 251-560))
+CMD: cat -n $BS2/tools/score_bs.py | sed -n 251,560p
+OUT: dryrun/out/0006.txt  bytes=17662  sha256[:16]=b83e4af2eb83c7ce
+  |    251	
+  |    252	def classify(name, arm, seed, check, csha, lost_entry):
+  |    253	    """One entry's class from check.json and its lost.json entry (criteria RUN HANDLING)."""
+
+=== [C0007] 2026-10-30T18:23:06Z -> 2026-10-30T18:23:06Z  rc=0  (read BS2's scorer score_bs.py (lines 561-900))
+CMD: cat -n $BS2/tools/score_bs.py | sed -n 561,900p
+OUT: dryrun/out/0007.txt  bytes=22209  sha256[:16]=9a20eaaf935d2709
+  |    561	    """The code copy measured again by M1's check_copy (never the seal file alone)."""
+  |    562	    if not Path(code_dir).is_dir():
+  |    563	        return [f"code copy {code_dir} missing: not measured"]
+
+=== [C0008] 2026-10-30T18:23:11Z -> 2026-10-30T18:23:11Z  rc=0  (read BS2's scorer score_bs.py (lines 901-end) and its tests list)
+CMD: cat -n $BS2/tools/score_bs.py | sed -n 901,1200p; ls -la $BS2/tools/tests; grep -n "^def test_" $BS2/tools/tests/test_score_bs.py | head -80
+OUT: dryrun/out/0008.txt  bytes=14625  sha256[:16]=05f399d59ad3dd22
+  |    901	                 f"{fnum(rp['statue_settled_trailing8_at_last_row'])} (max {fnum(rp['statue_settled_trailing8_max'])}),"
+  |    902	                 f" first above {rp['statue_settled_first_above']}; std14 last {fnum(rp['std14_last'])}; tail_3 "
+  |    903	                 f"normaliser mean last {fnum(rp['obs6_mean_deg_last'], '+.3f')} deg")
+
+=== [C0009] 2026-10-30T18:23:15Z -> 2026-10-30T18:23:15Z  rc=0  (read BS2's test_score_bs.py fixtures (lines 1-240))
+CMD: cat -n $BS2/tools/tests/test_score_bs.py | sed -n 1,240p
+OUT: dryrun/out/0009.txt  bytes=13361  sha256[:16]=4f6c006dbdeceb73
+  |      1	"""Unit tests of BS2's score_bs.py on synthetic records (no simulation, no training): each reading line, the boundary of
+  |      2	the test, the gate (0.20, inclusive, the median rule), the fill and its bounds, the missing and void classes,
+  |      3	outcome-blindness, the input errors, PROVISIONAL and final, the three secondaries (direction, fill, MISSING causes, the
+
+=== [C0010] 2026-10-30T18:23:20Z -> 2026-10-30T18:23:20Z  rc=0  (read BS2's test_score_bs.py dry run and mutation part (lines 860-1200))
+CMD: cat -n $BS2/tools/tests/test_score_bs.py | sed -n 860,1200p
+OUT: dryrun/out/0010.txt  bytes=19163  sha256[:16]=a61073b939cca9f1
+  |    860	    m["ledger"]["sha256"] = _sha(led)
+  |    861	    _write(p, m)
+  |    862	    res, _text, _code = _score(tmp_path)
+
+=== [C0011] 2026-10-30T18:23:26Z -> 2026-10-30T18:23:26Z  rc=0  (read LB read_bs.py docstring and structure)
+CMD: cat -n $LB/tools/read_bs.py | sed -n 1,140p; grep -n "^def \|^class \|^[A-Z_]* = " $LB/tools/read_bs.py | head -150
+OUT: dryrun/out/0011.txt  bytes=14708  sha256[:16]=f02fa79e4a46d4ad
+  |      1	"""Long blind study (LB): the reader.  Report only: it never trains; the loop markers simulate (deterministic rollouts
+  |      2	and stochastic on-policy rollouts with frozen statistics, no update, no optimizer).  BS2's read_bs.py
+  |      3	(S2/r10round/bias_screen2/tools/read_bs.py, sha256 06f4173d...) with the window from LB's bs_common.py (E = 12,001,280),
+
+=== [C0012] 2026-10-30T18:23:31Z -> 2026-10-30T18:23:31Z  rc=0  (read LB read_bs.py check_meta/check_run/decided/load_lost (lines 146-600))
+CMD: cat -n $LB/tools/read_bs.py | sed -n 146,600p
+OUT: dryrun/out/0012.txt  bytes=26961  sha256[:16]=9c862d707dcc8157
+  |    146	class InputError(Exception):
+  |    147	    """An input the reader cannot read as required (exit 2)."""
+  |    148	
+
+=== [C0013] 2026-10-30T18:23:38Z -> 2026-10-30T18:23:38Z  rc=0  (read LB read_bs.py probe/ledger markers (lines 596-760))
+CMD: cat -n $LB/tools/read_bs.py | sed -n 596,760p
+OUT: dryrun/out/0013.txt  bytes=9934  sha256[:16]=6614cd6880e8e229
+  |    596	def probe_markers(path, S, T, label):
+  |    597	    import numpy as np
+  |    598	
+
+=== [C0014] 2026-10-30T18:23:54Z -> 2026-10-30T18:23:54Z  rc=0  (read LB read_bs.py loop schedule, saved pairs, loop rows, full_read (lines 981-1170))
+CMD: cat -n $LB/tools/read_bs.py | sed -n 981,1170p
+OUT: dryrun/out/0014.txt  bytes=10831  sha256[:16]=aead1a1e78902086
+  |    981	def loop_markers_one(zip_path, pkl_path, *, blind, onpolicy, own, env, factory, bank_ss):
+  |    982	    """M-LOOP at one pair.  blind: the critic_blind_tail3 hook is installed for the EFFECTIVE critic (both reported)."""
+  |    983	    import numpy as np
+
+=== [C0015] 2026-10-30T18:24:00Z -> 2026-10-30T18:24:00Z  rc=0  (read measure_lb.py docstring and definitions)
+CMD: wc -l $LB/measure/tools/measure_lb.py; cat -n $LB/measure/tools/measure_lb.py | sed -n 1,200p; grep -n "^def \|^class \|^[A-Z_0-9]* = " $LB/measure/tools/measure_lb.py
+OUT: dryrun/out/0015.txt  bytes=20301  sha256[:16]=4412e251e0bd0980
+  | 1136 S2/r10round/long_blind/measure/tools/measure_lb.py
+  |      1	"""LB (long blind run) measurement: the end-of-run classification of a finished continuation with the r10 round's own
+  |      2	pinned tools.  Report only: it never trains, never steps an optimizer and never writes outside LB/measure.
+
+=== [C0016] 2026-10-30T18:24:07Z -> 2026-10-30T18:24:07Z  rc=0  (read measure_lb.py blind_guard, read_ending, window_reading, prefix_check, habit_summary (lines 296-665))
+CMD: cat -n $LB/measure/tools/measure_lb.py | sed -n 296,665p
+OUT: dryrun/out/0016.txt  bytes=22884  sha256[:16]=1fd029c4e11bb75d
+  |    296	def run_name(run_dir: Path) -> str:
+  |    297	    """The folder's name; for an F2 store's 'copies' folder, its parent's (the RUN_ID)."""
+  |    298	    return run_dir.parent.name if run_dir.name == "copies" else run_dir.name
+
+=== [C0017] 2026-10-30T18:24:20Z -> 2026-10-30T18:24:20Z  rc=0  (read measure_lb.py prepare..classify_one (lines 665-910))
+CMD: cat -n $LB/measure/tools/measure_lb.py | sed -n 665,910p
+OUT: dryrun/out/0017.txt  bytes=16337  sha256[:16]=2ac83fac89d1bff5
+  |    665	def prepare(C, LG, CP, run_dir: Path, suffix: str, out_root: Path, start: int | None) -> dict:
+  |    666	    """Inputs, ending, M5 in process and the labels C7 names (nothing simulated)."""
+  |    667	    guard = blind_guard(run_dir)
+
+=== [C0018] 2026-10-30T18:24:28Z -> 2026-10-30T18:24:28Z  rc=0  (read measure_lb.py render, cmd_classify, cmd_plan, main (lines 909-1136))
+CMD: cat -n $LB/measure/tools/measure_lb.py | sed -n 909,1136p
+OUT: dryrun/out/0018.txt  bytes=14907  sha256[:16]=be2a2284002a3e78
+  |    909	def _steps(xs, n=6):
+  |    910	    xs = list(xs)
+  |    911	    s = ", ".join(f"{x:,}" if isinstance(x, int) else str(x) for x in xs[:n])
+
+=== [C0019] 2026-10-30T18:24:33Z -> 2026-10-30T18:24:33Z  rc=0  (list measure validate outputs)
+CMD: cd $LB/measure/validate && find . -maxdepth 3 -not -path "*/panels/*" | sort | head -80; du -sh $LB/measure/validate
+OUT: dryrun/out/0019.txt  bytes=2778  sha256[:16]=9c12178a701682f0
+  | .
+  | ./VALIDATION.txt
+  | ./VALIDATION_s42.out
+
+=== [C0020] 2026-10-30T18:24:44Z -> 2026-10-30T18:24:44Z  rc=0  (inspect the s42 measure_lb.json structure (keys, status, classes keys))
+CMD: cd $LB/measure/validate/stance6_r10LTSB_s42 && $PY -I -B -c "
+import json
+d=json.load(open(\"measure_lb.json\"))
+print(sorted(d.keys()))
+print(\"status\", d[\"status\"], \"E\", d[\"E\"], \"S\", d[\"S\"], \"ending\", d[\"ending\"])
+c=d[\"classes\"]
+print(\"classes keys\", sorted(c.keys()))
+for k in sorted(c.keys()):
+    v=c[k]; s=json.dumps(v)
+    print(\" \",k,\":\", s[:300])
+print(\"c7\", json.dumps(d[\"c7\"])[:500])
+print(\"c6\", json.dumps(d[\"c6\"])[:300])
+print(\"m5_cli_agrees\", d[\"m5_cli_agrees\"])
+print(\"commits\", d[\"measuring_commits\"], d[\"physics_revisions\"])
+print(\"labels\", d[\"labels\"], \"r1\", d[\"r1\"], \"js\", d[\"js\"], \"resolution\", d[\"resolution\"])
+print(\"certificate\", json.dumps(d[\"certificate\"])[:600])
+print(\"m5_summary keys\", sorted(d[\"m5_summary\"].keys()))
+print(\"any_alarms_by_actuator\", d[\"m5_summary\"][\"any_alarms_by_actuator\"])
+print(\"d1\", json.dumps(d[\"m5_summary\"][\"d1\"])[:800])
+print(\"window\", json.dumps(d[\"window\"])[:600])
+print(\"prefix\", d[\"prefix\"])
+print(\"habit keys\", sorted(d[\"habit\"].keys()), d[\"habit\"][\"habit_sites\"], d[\"habit\"][\"labels\"])
+print(\"habit tail3\", json.dumps(d[\"habit\"][\"per_actuator\"][\"tail_3_pitch_act\"])[:1500])
+print(\"pins\", list(d[\"pins\"].values())[:3])
+print(\"tool_sha256\", d[\"tool_sha256\"], \"schema\", d[\"schema\"], d[\"version\"])
+"
+OUT: dryrun/out/0020.txt  bytes=9673  sha256[:16]=b9b235ba4be05373
+  | ['E', 'S', 'S_note', 'c6', 'c7', 'certificate', 'classes', 'clauses', 'costs', 'ending', 'free_bytes_after', 'guard', 'habit', 'jobs', 'js', 'labels', 'ledger', 'ledger_sha256', 'm1_cross_check', 'm5_
+  | status CLASSIFIED E 12001280 S 0 ending {'progress_status': 'ended', 'progress_timesteps': 12001280, 'progress_written_at': '2026-10-28T05:00:58Z', 'final_zip_num_timesteps': 12001280, 'zip_problem': 
+  | classes keys ['E', 'any_alarm', 'any_alarms', 'cls', 'cmd', 'cmd_episodes', 'cmd_others_ended_by_200', 'driven', 'fall_flags', 'flagged_evaluations', 'gate', 'gate_why', 'kind', 'mean', 'mean_basis', 
+
+=== [C0021] 2026-10-30T18:24:53Z -> 2026-10-30T18:24:53Z  rc=0  (read score_r10round.classes_of)
+CMD: F=$S2/r10round/lean/build/laneB/tools/score_r10round.py; sha256sum $F; grep -n "^def \|^class " $F | head -50; n=$(grep -n "^def classes_of" $F | cut -d: -f1); sed -n "$n,$((n+200))p" $F | cat -n | sed "s/^/   /"
+OUT: dryrun/out/0021.txt  bytes=14100  sha256[:16]=c130a49efe0a6073
+  | 3de2330a4e0451d8c48fa05b53507f6921352e537f15fd5f28558946ba080707  S2/r10round/lean/build/laneB/tools/score_r10round.py
+  | 61:def _load(name):
+  | 88:def listing_names(note):
+
+=== [C0022] 2026-10-30T18:25:09Z -> 2026-10-30T18:25:09Z  rc=0  (read the round's criteria lines 76-200)
+CMD: F=$S2/r10round/final_lean/criteria_r10round_final.txt; sha256sum $F; cat -n $F | sed -n 76,200p
+OUT: dryrun/out/0022.txt  bytes=13218  sha256[:16]=b51354f813f58c19
+  | 99a44469a387d01c55b98d76595d3633029681866ed14afcb185521eca0164db  S2/r10round/final_lean/criteria_r10round_final.txt
+  |     76	  21.3-21.4, 23.3-23.4]. The analysis treats the runs as exchangeable draws; seeds do not pair runs (GPU training is not
+  |     77	  bit-reproducible); per-seed comparisons are report only (D-12).
+
+=== [C0023] 2026-10-30T18:25:14Z -> 2026-10-30T18:25:14Z  rc=0  (read the round's criteria lines 200-345)
+CMD: F=$S2/r10round/final_lean/criteria_r10round_final.txt; cat -n $F | sed -n 200,345p
+OUT: dryrun/out/0023.txt  bytes=15604  sha256[:16]=d79611f8526c4409
+  |    200	     schema_version 1; run_id a non-empty string; status partial, failed or complete (complete is not required: a run
+  |    201	     whose gate failed is bundled "failed" (a stance-only run; "partial" when a later stage passes) [measured, V9 (b)]);
+  |    202	     files a list of path/size_bytes/sha256 entries with unique, normalized
+
+=== [C0024] 2026-10-30T18:25:48Z -> 2026-10-30T18:25:48Z  rc=0  (read run_waves_bs.sh header and plan (lines 1-200))
+CMD: cat -n $LB/tools/run_waves_bs.sh | sed -n 1,200p
+OUT: dryrun/out/0024.txt  bytes=14266  sha256[:16]=74603a6011ec8a4d
+  |      1	#!/usr/bin/env bash
+  |      2	# LB: BS2's run_waves_bs.sh (S2/r10round/bias_screen2/tools/run_waves_bs.sh, sha256 6e0484f6...) with the root changed
+  |      3	# (BS_REAL = S2/r10round/long_blind) and these LB changes; "<BS>" below = LB:
+
+=== [C0025] 2026-10-30T18:25:57Z -> 2026-10-30T18:25:57Z  rc=0  (grep run_waves_bs.sh for lost.json, crashed naming, decided.tsv)
+CMD: grep -n "lost\|crashed\|decided.tsv\|DECIDED\|_void\|_refused\|MAX_CRASHES" $LB/tools/run_waves_bs.sh | sed -n 1,120p
+OUT: dryrun/out/0025.txt  bytes=4856  sha256[:16]=0e0a13b8a960b358
+  | 4:#   RESUME a crash that is one of its own is rerun at once with --resume-from <its retired runs/<name>_crashed<k>>:
+  | 10:#   RR-1   a relaunch after ALL_DECIDED keeps the first logs/atimes_at_ALL_DECIDED.tsv; a later snapshot goes to
+  | 11:#          logs/atimes_at_ALL_DECIDED.relaunch<k>.tsv.
+
+=== [C0026] 2026-10-30T18:26:02Z -> 2026-10-30T18:26:02Z  rc=0  (read run_waves_bs.sh retire, lost and decide sections (lines 230-480))
+CMD: cat -n $LB/tools/run_waves_bs.sh | sed -n 230,300p; echo ...; cat -n $LB/tools/run_waves_bs.sh | sed -n 340,480p
+OUT: dryrun/out/0026.txt  bytes=9185  sha256[:16]=296f233ce6f49d46
+  |    230	  [[ -f "$1/run_meta.json" ]] || { echo "$2"; return; }
+  |    231	  "$PY" -I -B -c "import json,sys
+  |    232	try: m = json.load(open(sys.argv[1]))
+
+=== [C0027] 2026-10-30T18:26:27Z -> 2026-10-30T18:26:27Z  rc=0  (read run_bs.py docstring and the preflight / run_meta keys)
+CMD: cat -n $LB/tools/run_bs.py | sed -n 1,80p; grep -n "def preflight\|preflight_only\|approved_sha256\|criteria_sha256\|screen_sha256\|\"tool_sha256\"\|resumed_from\|\"attempts\"\|\"attempt\"\|APPROVED" $LB/tools/run_bs.py | head -60
+OUT: dryrun/out/0027.txt  bytes=8725  sha256[:16]=fd065e9614a56eec
+  |      1	"""LB: one continuation of r10 stance6 s42 from its 2,097,152 pair under one arm, or a run making no optimizer step.
+  |      2	
+  |      3	    PY -I -B run_bs.py --arm ARM --seed N [--resume-from DIR] [--preflight-only]       (a continuation: S -> E)
+
+=== [C0028] 2026-10-30T18:26:32Z -> 2026-10-30T18:26:32Z  rc=0  (read run_bs.py preflight and main (lines 586-760, 1120-1180))
+CMD: cat -n $LB/tools/run_bs.py | sed -n 586,760p; echo ...; cat -n $LB/tools/run_bs.py | sed -n 1120,1180p
+OUT: dryrun/out/0028.txt  bytes=11515  sha256[:16]=68af60616e36efb2
+  |    586	
+  |    587	def approval_problems() -> list[str]:
+  |    588	    """<BS>/APPROVED against <BS>/criteria.txt, <BS>/SCREEN.json, the code digest and the BS tools' sha256."""
+
+=== [C0029] 2026-10-30T18:26:43Z -> 2026-10-30T18:26:43Z  rc=0  (read run_bs.py run_meta construction (lines 540-585, 820-900))
+CMD: cat -n $LB/tools/run_bs.py | sed -n 540,585p; echo ...; cat -n $LB/tools/run_bs.py | sed -n 820,905p
+OUT: dryrun/out/0029.txt  bytes=8900  sha256[:16]=5796b09767e32826
+  |    540	def pair_start_digest(zip_path: str | os.PathLike[str], pkl_path: str | os.PathLike[str]) -> dict:
+  |    541	    """A resumed attempt's digest_start: the START pair's params / Adam (zip_digests), VecNormalize, n_updates and
+  |    542	    num_timesteps, from the pair itself (V1: equal to the loaded model's in every arm)."""
+
+=== [C0030] 2026-10-30T18:26:56Z -> 2026-10-30T18:26:56Z  rc=0  (grep DESIGN_NOTES section heads and the O items)
+CMD: grep -n "^[A-Z][A-Z ]*\|^ *O[0-9]\|^ *D[0-9]" $CW/DESIGN_NOTES.txt | head -80
+OUT: dryrun/out/0030.txt  bytes=4595  sha256[:16]=e751b56d1bdff2e3
+  | 1:LB CRITERIA v1 -- DESIGN NOTES (the designer of workflow wf_c801f08c-291), 2026-10-30 17:36-18:30 UTC (date -u).
+  | 2:WORK = S2/r10round/long_blind/criteria_work   <LB> = S2/r10round/long_blind   <BS2> = S2/r10round/bias_screen2
+  | 3:S2 = the session scratchpad holding <LB> (WORK's grandparent's grandparent); S1 = the sibling session scratchpad
+
+=== [C0031] 2026-10-30T18:27:01Z -> 2026-10-30T18:27:01Z  rc=0  (read DESIGN_NOTES D4-D9 and O1-O9 (lines 207-394))
+CMD: sed -n 207,394p $CW/DESIGN_NOTES.txt
+OUT: dryrun/out/0031.txt  bytes=17393  sha256[:16]=16e00f8b63b155b1
+  | D4 OUTCOMES FROM THE ROUND'S PINNED DEFINITIONS. TAIL CLASS, ANY ALARM per actuator, the first TAIL ALARM, GATE CLASS
+  |    and RUN OUTCOME are read by measure_lb.py, which runs the round's pinned M1/M3/M5 and score_r10round.classes_of
+  |    unchanged (MEAS reproduces the round's 25 class keys for all three parents). Choices made here (MEAS's open items):
+
+=== [C0032] 2026-10-30T18:27:08Z -> 2026-10-30T18:27:08Z  rc=0  (read the designer's parent_long.out)
+CMD: cat -n $CW/parent_long.out | sed -n 1,150p
+OUT: dryrun/out/0032.txt  bytes=14961  sha256[:16]=25a685f35916b33b
+  |      1	== INPUTS (sha256 against FMAN COPY rows)
+  |      2	  S1/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/policy_probe.npz.copy1: 4e0e7220668faf124d394bffb760ba246d54bed8f48cb79925cb36234257fc11 FMAN 4e0e7220668faf124d394bffb760ba246d5
+  |      3	  S1/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/eval_episodes.csv.copy1: d1bcb78964691cf194e6276f06740d1f24aa69ad36831a046ad6307c1c4db11e FMAN d1bcb78964691cf194e6276f06740d1f24
+
+=== [C0033] 2026-10-30T18:28:04Z -> 2026-10-30T18:28:04Z  rc=0  (read measure_lb.py write helpers, check_pins, lane_b (lines 200-296); list LB/validate)
+CMD: cat -n $LB/measure/tools/measure_lb.py | sed -n 200,296p; ls -la $LB/validate; ls $LB/validate/* | head -40
+OUT: dryrun/out/0033.txt  bytes=6777  sha256[:16]=671b791dc63da1de
+  |    200	    return p
+  |    201	
+  |    202	
+
+=== [C0034] 2026-10-30T18:28:11Z -> 2026-10-30T18:28:11Z  rc=0  (list LB/validate/v3 and v2 read outputs)
+CMD: find $LB/validate/v3 $LB/validate/v2 -maxdepth 4 -name "*.json" | head -30; find $LB/validate/v3 -type f | head; du -sh $LB/validate/v3
+OUT: dryrun/out/0034.txt  bytes=2567  sha256[:16]=6d2e5dffe56dbbb0
+  | S2/r10round/long_blind/validate/v3/parent_s42/m5.json
+  | S2/r10round/long_blind/validate/v3/parent_s42/markers.json
+  | S2/r10round/long_blind/validate/v2/critic_blind_tail3_9301/check.json
+
+=== [C0035] 2026-10-30T18:28:25Z -> 2026-10-30T18:28:25Z  rc=0  (inspect LB V3 parent markers.json structure)
+CMD: cd $LB/validate/v3/parent_s42 && $PY -I -B -c "
+import json
+m=json.load(open(\"markers.json\"))
+print(sorted(m.keys()))
+print({k:m[k] for k in (\"schema\",\"kind\",\"label\",\"arm\",\"seed\",\"S\",\"T\",\"stop_reason\",\"tool_sha256\") if k in m})
+print(\"loop_schedule\", m.get(\"loop_schedule\"))
+p=m[\"probe\"]; print(\"probe keys\", sorted(p.keys())); print(\"probe n_rows\", p[\"n_rows\"], p[\"steps\"][:2], p[\"steps\"][-2:], p[\"sha256\"], p[\"file\"][-60:])
+l=m[\"ledger\"]; print(\"ledger keys\", sorted(l.keys()), l[\"sha256\"], l[\"file\"][-70:])
+d=l[\"direct\"]; print(\"direct keys\", sorted(d.keys())); print(\"firsts\", d[\"firsts\"]); print(\"n per_eval\", len(d[\"per_evaluation\"]), list(d[\"per_evaluation\"])[:2], list(d[\"per_evaluation\"])[-1:]); print(\"last\", d[\"cmd_l_last\"])
+print(\"m5 keys\", sorted(l[\"m5\"].keys())); print(\"m5 tail_alarms\", l[\"m5\"][\"tail_alarms\"][:3], len(l[\"m5\"][\"tail_alarms\"]))
+for r in m[\"loop\"]:
+    print(\"loop\", r[\"steps\"], r.get(\"num_timesteps\"), r.get(\"critic_form\"), sorted(r.keys()))
+print(\"reproduction\", str(m.get(\"reproduction\"))[:300])
+"
+OUT: dryrun/out/0035.txt  bytes=2442  sha256[:16]=9665d92426ba0ea0
+  | ['S', 'T', 'arm', 'kind', 'label', 'ledger', 'loop', 'probe', 'reference_pairs', 'reproduction', 'schema', 'tool_sha256', 'utc', 'version']
+  | {'schema': 'bs-markers/1', 'kind': 'reference', 'label': 'parent stance6_r10LTSB_s42 (F2, read only)', 'arm': 'parent', 'S': 2097152, 'T': 12001280, 'tool_sha256': '7a9c8a99fee09f8d005c5ec09857ec85316
+  | loop_schedule None
+

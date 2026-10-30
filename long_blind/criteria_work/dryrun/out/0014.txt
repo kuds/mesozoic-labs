@@ -1,0 +1,190 @@
+   981	def loop_markers_one(zip_path, pkl_path, *, blind, onpolicy, own, env, factory, bank_ss):
+   982	    """M-LOOP at one pair.  blind: the critic_blind_tail3 hook is installed for the EFFECTIVE critic (both reported)."""
+   983	    import numpy as np
+   984	    from stable_baselines3.common.torch_layers import MlpExtractor
+   985	
+   986	    t0 = time.process_time()
+   987	    net = Net(zip_path, pkl_path, factory)
+   988	    out = {"zip": str(zip_path), "zip_sha256": C.sha256_file(zip_path), "pkl": str(pkl_path),
+   989	           "pkl_sha256": C.sha256_file(pkl_path), "num_timesteps": int(net.model.num_timesteps),
+   990	           "t3_norm_mean_deg": math.degrees(net.mean[C.OBS_TAIL3]),
+   991	           "t3_norm_sd_deg": math.degrees(net.std[C.OBS_TAIL3]), "critic_form": "blind+raw" if blind else "plain"}
+   992	    out["REF"] = tail_sweeps(net, bank_ss)
+   993	    sets = {"REF": bank_ss}
+   994	    if own:
+   995	        eps, X = own_rollouts(net, env)
+   996	        sets["OWN"] = X
+   997	        w = [e["own14_win"] for e in eps if e["own14_win"] is not None]
+   998	        out["OWN"] = tail_sweeps(net, X)
+   999	        out["OWN"].update(own14_median=float(np.median(w)) if w else None, episodes=eps,
+  1000	                          n_terminated=int(sum(e["terminated"] for e in eps)),
+  1001	                          n_over_bar=int(sum((e["frac99_win"] or 0) > 0.10 for e in eps)))
+  1002	        if out["OWN"].get("L") and w:
+  1003	            out["OWN"]["b_star_L"] = (1.0 - out["OWN"]["L"]["G"]) * (1.0 - float(np.median(w)))
+  1004	    if onpolicy:
+  1005	        sets["ONPOLICY"] = np.concatenate([onpolicy_states(zip_path, pkl_path, s) for s in ONPOLICY_SEEDS], 0)
+  1006	    crit = {}
+  1007	    for name, X in sets.items():
+  1008	        crit[name] = {"raw": critic_slope(net.policy, net.norm, X)}
+  1009	    if blind:
+  1010	        net.policy.mlp_extractor.__class__ = H.critic_blind_class(MlpExtractor)
+  1011	        for name, X in sets.items():
+  1012	            crit[name]["effective"] = critic_slope(net.policy, net.norm, X)
+  1013	        net.policy.mlp_extractor.__class__ = MlpExtractor
+  1014	    else:
+  1015	        for name in sets:
+  1016	            crit[name]["effective"] = crit[name]["raw"]
+  1017	    out["critic_slope_obs6"] = crit
+  1018	    out["cpu_seconds"] = round(time.process_time() - t0, 1)
+  1019	    return out
+  1020	
+  1021	
+  1022	def loop_schedule(T, every=None):
+  1023	    """The steps the M-LOOP reads in [S, T]: S, the saved steps < T whose (steps - S) is a multiple of every
+  1024	    (bs_common.LOOP_READ_EVERY), and T (the final pair) (pure)."""
+  1025	    every = int(every or C.LOOP_READ_EVERY)
+  1026	    if every % C.SAVE_FREQ:
+  1027	        raise InputError(f"LOOP_READ_EVERY {every} is not a multiple of the save grid {C.SAVE_FREQ}")
+  1028	    return (C.S, *[x for x in C.SAVED_STEPS if x < T and (x - C.S) % every == 0], T)
+  1029	
+  1030	
+  1031	def saved_pairs(run_dir, T, every=None):
+  1032	    """[(steps, zip, pkl)] in [S, T] on loop_schedule: the start copy, the periodic pairs it names, and the final
+  1033	    pair at T."""
+  1034	    models = Path(run_dir) / MODELS_REL
+  1035	    out = []
+  1036	    for s in loop_schedule(T, every)[:-1]:
+  1037	        z, p = (models / n for n in C.periodic_names(s))
+  1038	        if z.is_file() and p.is_file():
+  1039	            out.append((s, z, p))
+  1040	    z, p = models / C.FINAL_ZIP, models / C.FINAL_PKL
+  1041	    if z.is_file() and p.is_file():
+  1042	        out.append((T, z, p))
+  1043	    return out
+  1044	
+  1045	
+  1046	def loop_markers(pairs, *, blind, onpolicy, own, tag):
+  1047	    """M-LOOP over pairs, with the cache under <BS>/reads/_cache/."""
+  1048	    import numpy as np
+  1049	
+  1050	    from environments.shared.config import load_stage_config
+  1051	    from environments.shared.model_id import ModelId
+  1052	    from environments.shared.species_registry import env_class
+  1053	
+  1054	    mid = ModelId("tyrannosaurus_rex", "anatomical")
+  1055	    ctor = dict(load_stage_config(mid, "stance")["env_kwargs"])
+  1056	
+  1057	    def factory():
+  1058	        return env_class(mid)(**ctor)
+  1059	    env = factory()
+  1060	    if env.unwrapped.model.actuator(C.ACT_TAIL3).name != "tail_3_pitch_act":
+  1061	        raise InputError("action 14 is not tail_3_pitch_act")
+  1062	    with np.load(C.f2_record("policy_probe.npz"), allow_pickle=False) as z:
+  1063	        bank_ss = np.asarray(z["bank_raw_obs"], dtype=np.float64)[list(C.BANK_STATUE_SETTLED)]
+  1064	    cache = require_under(Path(C.READS) / "_cache", C.BS)
+  1065	    cache.mkdir(parents=True, exist_ok=True)
+  1066	    rows = []
+  1067	    for steps, z, p in pairs:
+  1068	        key = cache_key(C.sha256_file(z), C.sha256_file(p), blind=blind, onpolicy=onpolicy, own=own)
+  1069	        cpath = cache / f"{key}.json"
+  1070	        if cpath.is_file():
+  1071	            row = json.loads(cpath.read_text())
+  1072	            bad = cache_entry_problem(row)
+  1073	            if bad:
+  1074	                raise InputError(f"loop cache entry {cpath}: {bad}")
+  1075	            row["cache"] = str(cpath)
+  1076	        else:
+  1077	            row = loop_markers_one(z, p, blind=blind, onpolicy=onpolicy, own=own, env=env, factory=factory,
+  1078	                                   bank_ss=bank_ss)
+  1079	            row.update(reader_sha256=READER_SHA256, deps_sha256=DEPS_SHA256, reader_version=VERSION)
+  1080	            atomic_write_text(cpath, json.dumps(row) + "\n")
+  1081	        row["steps"] = steps
+  1082	        rows.append(row)
+  1083	        print(f"[{tag}] {steps}: " + loop_line(row), flush=True)
+  1084	    env.close()
+  1085	    return rows
+  1086	
+  1087	
+  1088	def loop_line(row):
+  1089	    def g(*ks):
+  1090	        d = row
+  1091	        for k in ks:
+  1092	            if not isinstance(d, dict) or k not in d:
+  1093	                return None
+  1094	            d = d[k]
+  1095	        return d
+  1096	
+  1097	    def f(x, fmt="+.3f"):
+  1098	        return "  n/a " if x is None else format(x, fmt)
+  1099	    return (f"OWN G {f(g('OWN', 'P', 'G'))} c0 {f(g('OWN', 'P', 'c0'))} own14 {f(g('OWN', 'own14_median'))} "
+  1100	            f"G_L {f(g('OWN', 'L', 'G'))} b* {f(g('OWN', 'P', 'b_star'))} | REF G {f(g('REF', 'P', 'G'))} c0 "
+  1101	            f"{f(g('REF', 'P', 'c0'))} | dV/dq3 on-policy eff "
+  1102	            f"{f(g('critic_slope_obs6', 'ONPOLICY', 'effective', 'dV_dq3_per_deg'), '+.5f')} "
+  1103	            f"raw {f(g('critic_slope_obs6', 'ONPOLICY', 'raw', 'dV_dq3_per_deg'), '+.5f')} own eff "
+  1104	            f"{f(g('critic_slope_obs6', 'OWN', 'effective', 'dV_dq3_per_deg'), '+.5f')}")
+  1105	
+  1106	
+  1107	# ================================================================================================ the reads
+  1108	def render(markers):
+  1109	    L = [f"BS MARKERS {markers['label']}  ({markers['version']}; {markers['utc']})",
+  1110	         f"window (S, T] = ({markers['S']:,}, {markers['T']:,}]; arm {markers.get('arm')}"]
+  1111	    pm = markers.get("probe")
+  1112	    if pm:
+  1113	        L.append(f"M-PROBE {pm['n_rows']} rows; statue_settled tail_3 mean first/last "
+  1114	                 f"{pm['tail3_ss_mean_first_last']}; "
+  1115	                 f"8-row trailing max {pm['trailing8_max']}; first above {pm['trailing8_first_above']}")
+  1116	    lm = markers.get("ledger")
+  1117	    if lm:
+  1118	        d, m = lm["direct"], lm["m5"]
+  1119	        L.append(f"M-LEDGER CMD_L max {d['cmd_l_max']} last {d['cmd_l_last']}; firsts {d['firsts']}; absent "
+  1120	                 f"{d['evaluations_absent']}")
+  1121	        L.append(f"  M5: ANY flagged {m['any_flagged']} TAIL flagged {m['tail_flagged']} ANY alarms {m['any_alarms']} "
+  1122	                 f"TAIL alarms {m['tail_alarms']}; C6 counting failures {m['n_c6_counting_failures']}")
+  1123	        for s, e in d["per_evaluation"].items():
+  1124	            cmd = e["cmd_l"] if e["cmd_l"] is None else round(e["cmd_l"], 3)
+  1125	            L.append(f"    {int(s):>9}  n {e['n']:>2}  CMD_L {cmd!s:>7}"
+  1126	                     f"  over {e['n_over']}  tail {e['n_tail_over']}  t3 {e['n_t3_over']}")
+  1127	    for row in markers.get("loop") or []:
+  1128	        L.append(f"M-LOOP {row['steps']:>9}: " + loop_line(row))
+  1129	    for k, v in (markers.get("reproduction") or {}).items():
+  1130	        L.append(f"REPRO {k}: {v}")
+  1131	    return "\n".join(L) + "\n"
+  1132	
+  1133	
+  1134	def full_read(run_dir, out=None, *, onpolicy=True, own=True):
+  1135	    root = Path(C.BS).resolve()
+  1136	    run = Path(run_dir).resolve()
+  1137	    kind = run_kind(run, root)
+  1138	    if kind is None:
+  1139	        raise InputError(f"{run} is neither <BS>/runs/<name> nor under <BS>/validate/")
+  1140	    check, _ = read_json_file(run / C.CHECK_JSON)
+  1141	    if check.get("passed") is not True:
+  1142	        raise InputError(f"{run}/check.json does not pass")
+  1143	    stale = check_is_current(run, check)
+  1144	    if stale:
+  1145	        raise InputError(f"check.json is not current: {stale}")
+  1146	    if kind == "continuation":
+  1147	        ok, und = decided(root)
+  1148	        if not ok:
+  1149	            raise InputError(f"outcome-blind: not every SCREEN.json continuation is decided ({und})")
+  1150	    meta, _ = read_json_file(run / C.RUN_META)
+  1151	    S, T, arm = C.S, int(meta["T"]), meta["arm"]
+  1152	    out = require_under(Path(out) if out else (root / "reads" / run.name if kind == "continuation"
+  1153	                                               else run / "read"), root)
+  1154	    out.mkdir(parents=True, exist_ok=True)
+  1155	    markers = dict(schema=MARKERS_SCHEMA, version=VERSION, tool_sha256=C.sha256_file(Path(__file__)), utc=utcnow(),
+  1156	                   label=run.name, run=str(run), kind=kind, arm=arm, seed=meta.get("seed"), S=S, T=T,
+  1157	                   stop_reason=meta.get("stop_reason"), resumed_from=meta.get("resumed_from"),
+  1158	                   attempt=meta.get("attempt"), loop_schedule=list(loop_schedule(T)))
+  1159	    markers["probe"] = probe_markers(run / PROBE_REL, S, T, run.name)
+  1160	    markers["ledger"] = ledger_markers(run / LEDGER_REL, S, T, out)
+  1161	    setup_simulation(f"read_{run.name}")
+  1162	    markers["loop"] = loop_markers(saved_pairs(run, T), blind=(arm == "critic_blind_tail3"), onpolicy=onpolicy,
+  1163	                                   own=own, tag=run.name)
+  1164	    atomic_write_text(out / "markers.json", json.dumps(markers, indent=1, default=str) + "\n")
+  1165	    atomic_write_text(out / "markers.txt", render(markers))
+  1166	    return markers
+  1167	
+  1168	
+  1169	def fman_copy1_sha256(rel):
+  1170	    """FMAN's sha256 of the parent's F2 COPY copy-1 file at run-relative path rel (read only), or None."""

@@ -1,0 +1,111 @@
+     1	"""LB: one continuation of r10 stance6 s42 from its 2,097,152 pair under one arm, or a run making no optimizer step.
+     2	
+     3	    PY -I -B run_bs.py --arm ARM --seed N [--resume-from DIR] [--preflight-only]       (a continuation: S -> E)
+     4	    PY -I -B run_bs.py --arm ARM --seed N --save-loaded-only [--out DIR]              (V1; no learn())
+     5	    PY -I -B run_bs.py --arm ARM --seed N --no-update --until STEPS [--resume-from DIR] [--out DIR]
+     6	                                                                                    (V2 / V4 / timing; train() a no-op)
+     7	
+     8	ARM: control | critic_blind_tail3 | gae_lambda_1 | frozen_obs_norm (bs_common.ARMS; what each changes:
+     9	bs_common.ARM_CHANGE, applied by bs_hooks.install_arm / arm_config here).  S = 2,097,152, E = 12,001,280, the parent's
+    10	own end (75 evaluations of 131,072; 1,209 rollouts, 1,208 updates; 37 periodic pairs and the final pair).  LB = BS2's
+    11	run_bs.py (S2/r10round/bias_screen2/tools/run_bs.py, sha256 acd5b499...) with the window from LB's bs_common.py, two
+    12	additions and nothing else changed:
+    13	  RESUME  --resume-from DIR (DIR = <run root>/<arm>_<seed>_crashed<k>, the runner's retired folder of the last attempt):
+    14	          resume_point() finds DIR's newest saved pair P = S + 262,144 k whose zip and pkl are intact (the code's own
+    15	          curriculum.checkpoints.checkpoint_pair_problem) and whose records hold every row up to P (the probe's update
+    16	          rows, the evidence lines, the evaluation ledger, evaluations.npz, gate_progress.npz; the training ledger
+    17	          written after P); resume_inputs() builds the new folder from it (the pairs S..P hard-linked, the five records
+    18	          copied, the evidence lines up to P written) and the run loads P under the same seed and arm, total =
+    19	          12,000,000 - P, so the code's own same-stage resume (seed_resume_eval_state, max_timesteps = P) keeps every
+    20	          record's rows up to P and the session appends after P.  No complete pair: a fresh start from S, as BS2.
+    21	          run_meta records resumed_from, load_step, attempt, attempts, resume (sources, sha256, the stitched-row
+    22	          digests CHECK recomputes).  See NOTES.txt (RESUME) for what a resume changes.
+    23	  HOP     the stage's hop watch (stance.toml hop_watch_stop = true, from 7,000,000) can end a continuation inside the
+    24	          window: its state is recorded like the collapse stop's, and stop_reason "hop_watch".
+    25	The code copy is BS's own (read only); GIT_CEILING_DIRECTORIES names its parent folder (as in BS2).
+    26	
+    27	Derived from the entropy continuation screen's run_ecs.py (S2/r10round/ecs/tools/run_ecs.py, sha256 f136b7e3...): the
+    28	same resume path and records (the run branch's own same-stage resume, train_base._train_stage_body, every keyword
+    29	named; the start pair byte-copied under the periodic names; the five parent records copied; stage_config.json written
+    30	by the copy's own save_stage_config and compared with the parent's before learn(); the load wrapper's checks; StopAtEnd;
+    31	the heartbeat; the digests; the exit codes).  Changes from run_ecs.py: one start (s42 at S), the four arms (an
+    32	in-memory [ppo] edit for gae_lambda_1, a hook on the loaded objects for critic_blind_tail3 and frozen_obs_norm, applied
+    33	inside the load wrapper after its checks and before learn()); per-rollout arm evidence (bs_hooks.rollout_evidence,
+    34	read only, into <run>/arm_evidence.jsonl and run_meta's arm_evidence summary); the continuation's queue and seeds come
+    35	from <BS>/SCREEN.json (pinned in <BS>/APPROVED), validation runs use only bs_common.VALIDATION_SEEDS and write only
+    36	under <BS>/validate/; V1 also compares the loaded policy's bank outputs with the parent probe's row at S.
+    37	
+    38	Preflight (exit 2, nothing created; every reason listed): the arguments; for a continuation <BS>/APPROVED (JSON,
+    39	bs_common.APPROVED_KEYS) with criteria_sha256 = sha256(<BS>/criteria.txt), screen_sha256 = sha256(<BS>/SCREEN.json),
+    40	code_tree_digest the pinned one and tool_sha256 = every BS tool's sha256, SCREEN.json valid and naming (arm, seed);
+    41	the run folder absent; the start pair, the five parent records and stage_config.json at their FMAN sha256; the code
+    42	copy's seal (M1's r10m_common.check_copy); the stack; the M1-common / M5 pins; free disk >= 1.5 GiB.
+    43	Exit codes: 0 done; 2 refused (no optimizer step); 5 finished but a post-run check failed; 1 crash.
+    44	Importing this module needs neither torch nor the code copy.
+    45	"""
+    46	
+    47	from __future__ import annotations
+    48	
+    49	import sys
+    50	
+    51	sys.dont_write_bytecode = True  # before any import from tools/ or the copy (-I ignores PYTHONDONTWRITEBYTECODE)
+    52	
+    53	import argparse  # noqa: E402
+    54	import copy  # noqa: E402
+    55	import datetime as _dt  # noqa: E402
+    56	import hashlib  # noqa: E402
+    57	import importlib.util  # noqa: E402
+    58	import json  # noqa: E402
+    59	import os  # noqa: E402
+    60	import shutil  # noqa: E402
+    61	import tempfile  # noqa: E402
+    62	import time  # noqa: E402
+    63	import traceback  # noqa: E402
+    64	from pathlib import Path  # noqa: E402
+    65	from typing import Any  # noqa: E402
+    66	
+    67	TOOLS = Path(os.path.realpath(__file__)).parent
+    68	
+    69	
+    70	def _load(name: str, path: str | os.PathLike[str] | None = None) -> Any:
+    71	    spec = importlib.util.spec_from_file_location(name, str(path or TOOLS / f"{name}.py"))
+    72	    assert spec is not None and spec.loader is not None
+    73	    module = importlib.util.module_from_spec(spec)
+    74	    spec.loader.exec_module(module)
+    75	    return module
+    76	
+    77	
+    78	C = _load("bs_common")
+    79	H = _load("bs_hooks")
+    80	RS = _load("bs_resume")
+21:          run_meta records resumed_from, load_step, attempt, attempts, resume (sources, sha256, the stitched-row
+35:from <BS>/SCREEN.json (pinned in <BS>/APPROVED), validation runs use only bs_common.VALIDATION_SEEDS and write only
+38:Preflight (exit 2, nothing created; every reason listed): the arguments; for a continuation <BS>/APPROVED (JSON,
+39:bs_common.APPROVED_KEYS) with criteria_sha256 = sha256(<BS>/criteria.txt), screen_sha256 = sha256(<BS>/SCREEN.json),
+556:    return {"attempt": meta.get("attempt", 1), "folder": folder.name, "status": meta.get("status"),
+557:            "exit": meta.get("exit"), "resumed_from": meta.get("resumed_from"), "load_step": meta.get("load_step", C.S),
+588:    """<BS>/APPROVED against <BS>/criteria.txt, <BS>/SCREEN.json, the code digest and the BS tools' sha256."""
+590:    approved, err = _read_json(root / "APPROVED")
+592:        return [f"APPROVED: {err}"]
+594:        return ["APPROVED: not a JSON object"]
+596:    missing = [k for k in C.APPROVED_KEYS if k not in approved]
+598:        problems.append(f"APPROVED: missing keys {missing}")
+599:    for key, name in (("criteria_sha256", "criteria.txt"), ("screen_sha256", "SCREEN.json")):
+602:            problems.append(f"APPROVED: <BS>/{name} missing")
+604:            problems.append(f"APPROVED: {key} {approved.get(key)!r} != sha256({name})")
+606:        problems.append(f"APPROVED: code_tree_digest {approved.get('code_tree_digest')!r} != {C.TREE_DIGEST}")
+607:    pins = approved.get("tool_sha256") if isinstance(approved.get("tool_sha256"), dict) else {}
+612:            problems.append(f"APPROVED: tool_sha256[{name!r}] {pins.get(name)!r} != the file's {got!r}")
+692:def preflight(ns: Any) -> list[str]:
+830:    files = {k: bs_root() / k for k in ("criteria.txt", "APPROVED", "SCREEN.json")}
+837:        "criteria_sha256": sha256_file(files["criteria.txt"]) if files["criteria.txt"].is_file() else None,
+838:        "approved_sha256": sha256_file(files["APPROVED"]) if files["APPROVED"].is_file() else None,
+839:        "screen_sha256": sha256_file(files["SCREEN.json"]) if files["SCREEN.json"].is_file() else None,
+840:        "tool_sha256": {n: sha256_file(TOOLS / n) for n in C.TOOL_FILES if (TOOLS / n).is_file()},
+843:        "attempt": 1, "attempts": [], "resumed_from": None, "load_step": S, "resume": None,
+850:        meta["attempts"] = [*list(src_meta.get("attempts") or []), attempt_summary(resume_src, src_meta)]
+851:        meta["attempt"] = len(meta["attempts"]) + 1
+861:            seeded_src = (((src_meta.get("resume") or {}).get("copied") or {}) if src_meta.get("resumed_from")
+879:                meta["resumed_from"] = L
+1134:    ap.add_argument("--preflight-only", dest="preflight_only", action="store_true")
+1149:    if ns.preflight_only:

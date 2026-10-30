@@ -1,0 +1,85 @@
+--- validate/logs/bs_common.py.versionA	2026-10-30 16:58:04.527857184 +0000
++++ tools/bs_common.py	2026-10-30 17:20:05.505732130 +0000
+@@ -70,7 +70,7 @@
+          "stable_baselines3": "2.9.0", "mujoco": "3.10.0"}           # ECS STACK
+ DISK_FLOOR_BYTES = 1_610_612_736                # 1.5 GiB (TASK "1.5 GB"; the binary reading, the stricter one)
+ # One continuation to E: its folder at E (39 zips of 4.03 MB, the records at the parent's end-of-run sizes, the
+-# evidence, diagnostics), its reads, tmp and logs, and one resume's extra files: 182.3 MiB [measured by
++# evidence, diagnostics), its reads, tmp and logs, and one resume's extra files: 184.4 MiB [measured by
+ # validate/disk_estimate.py, validate/logs/disk_estimate.out], rounded up with margin to 200 MiB.
+ RUN_BYTES_EST = 200 * 1024**2
+ MAX_CONTINUATIONS = 4                           # AUTH2: 4 runs
+--- validate/logs/bs_resume.py.versionA	2026-10-30 16:58:11.043711198 +0000
++++ tools/bs_resume.py	2026-10-30 17:20:05.493739675 +0000
+@@ -132,12 +132,22 @@
+ 
+ 
+ def records_through(stage_dir: str | os.PathLike[str], run_dir: str | os.PathLike[str], P: int, *, S: int,
+-                    rollout: int, eval_freq: int, eval_episodes: int) -> list[str]:
++                    rollout: int, eval_freq: int, eval_episodes: int, seeded: dict | None = None,
++                    own_load: int | None = None) -> list[str]:
+     """Every reason the attempt's records do NOT hold every row up to P (empty: they do).  Rows after P are not
+-    judged (the code's resume drops them).  Reads only."""
++    judged (the code's resume drops them).  seeded / own_load: the sha256 of each record as it was copied into the
++    attempt's stage directory and the step it loaded (S, or its own resume point): a record still byte-equal to that
++    copy was never rewritten by the attempt, so its rows after own_load are not the attempt's (the parent's, or the
++    attempt before) and no P > own_load is complete for it.  Reads only."""
+     import numpy as np
+ 
+     stage, p = Path(stage_dir), []
++    if seeded and own_load is not None and P > own_load:
++        for name in (PROBE, TRAIN_LEDGER, EVAL_LEDGER, EVALS_NPZ, GATE_NPZ):
++            path = stage / name
++            if seeded.get(name) and path.is_file() and _sha(path) == seeded[name]:
++                p.append(f"{name}: still the copy the attempt started from (never rewritten): its rows after "
++                         f"{own_load} are not the attempt's")
+     want_probe = [rollout * k for k in range(1, P // rollout + 1)]           # the seeded rows <= S and (S, P]
+     want_eval = [eval_freq * k for k in range(1, P // eval_freq + 1)]
+     try:
+@@ -198,11 +208,13 @@
+ def resume_point(crashed_run: str | os.PathLike[str], *, S: int, E: int, saved_steps: tuple[int, ...],
+                  periodic_names: Callable[[int], tuple[str, str]], start_sha256: tuple[str, str], stage_dir_name: str,
+                  rollout: int, eval_freq: int, eval_episodes: int,
+-                 pair_problem: Callable[[Any, Any], str | None] = local_pair_problem) -> dict:
++                 pair_problem: Callable[[Any, Any], str | None] = local_pair_problem, seeded: dict | None = None,
++                 own_load: int | None = None) -> dict:
+     """The newest saved pair P in saved_steps (newest first) of the attempt in crashed_run that is intact, carries
+-    num_timesteps P, has every earlier saved pair beside it, and whose records hold every row up to P.  Returns
+-    {"P": P or None, "candidates": [{"steps", "problem"}], "problems": [...], and for a P: zip, pkl, their sha256}.
+-    "problems" (the start pair copy not at its pin) means no resume at all.  Reads only."""
++    num_timesteps P, has every earlier saved pair beside it, and whose records hold every row up to P (records_through,
++    with the attempt's seeded copies' sha256 and its own load step).  Returns {"P": P or None, "candidates": [{"steps",
++    "problem"}], "problems": [...], and for a P: zip, pkl, their sha256}.  "problems" (the start pair copy not at its
++    pin) means no resume at all.  Reads only."""
+     run = Path(crashed_run)
+     models = run / stage_dir_name / "models"
+     out: dict[str, Any] = {"schema": RESUME_SCHEMA, "from": str(run), "P": None, "candidates": [], "problems": []}
+@@ -227,7 +239,7 @@
+                 prob = f"earlier saved pairs missing beside it: {gaps[:3]}"
+         if prob is None:
+             rec = records_through(run / stage_dir_name, run, P, S=S, rollout=rollout, eval_freq=eval_freq,
+-                                  eval_episodes=eval_episodes)
++                                  eval_episodes=eval_episodes, seeded=seeded, own_load=own_load)
+             if rec:
+                 prob = "records: " + " | ".join(rec)
+         out["candidates"].append({"steps": P, "problem": prob})
+--- validate/logs/run_bs.py.versionA	2026-10-30 16:58:04.529361670 +0000
++++ tools/run_bs.py	2026-10-30 17:20:05.501737315 +0000
+@@ -857,10 +857,16 @@
+             meta["modules_root"] = bootstrap_code()
+             from environments.shared.curriculum.checkpoints import checkpoint_pair_problem
+ 
++            own_load = src_meta.get("load_step") if isinstance(src_meta.get("load_step"), int) else S
++            seeded_src = (((src_meta.get("resume") or {}).get("copied") or {}) if src_meta.get("resumed_from")
++                          else (src_meta.get("copies") or {}))
++            seeded = {n: (seeded_src.get(n) or {}).get("sha256") or C.START["records"][n] for n in C.PARENT_RECORDS}
+             plan = RS.resume_point(resume_src, S=S, E=E, saved_steps=C.SAVED_STEPS, periodic_names=C.periodic_names,
+                                    start_sha256=(C.START["zip_sha256"], C.START["pkl_sha256"]),
+                                    stage_dir_name=C.STAGE_DIR, rollout=C.ROLLOUT, eval_freq=C.EVAL_FREQ,
+-                                   eval_episodes=C.EVAL_EPISODES, pair_problem=checkpoint_pair_problem)
++                                   eval_episodes=C.EVAL_EPISODES, pair_problem=checkpoint_pair_problem,
++                                   seeded=seeded, own_load=own_load)
++            plan.update(seeded_sha256=seeded, own_load=own_load)
+             plan["from"] = os.path.relpath(resume_src, root)
+             meta["resume"] = plan
+             if plan["P"] is not None:

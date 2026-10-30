@@ -1,0 +1,250 @@
+     1	"""Bias screen 2 (BS2): the scorer.  Report only: reads files, never trains, never simulates.
+     2	
+     3	    PY -I -B score_bs.py [--root <BS2>] [--out <root>/score]
+     4	
+     5	It applies <BS2>/criteria.txt (BS2 criteria v1) exactly (THE PRIMARY OUTCOME, THE TEST, THE INFORMATIVENESS CONDITION,
+     6	THE READING, THE SECONDARIES, REPORT ONLY, RUN HANDLING, WHEN THE READING IS MADE); the constants below are the text's
+     7	and are pinned with it (criteria.txt names this file's sha256 in PINS; <BS2>/APPROVED pins it as
+     8	tool_sha256["score_bs.py"]).  Derived from BS's score_bs.py (score_bs 1.1, sha256 869898c5...): the window, B_S, the
+     9	gate (0.20), the queue's seeds and the line texts are BS2's; the three pre-registered secondaries, the report-only
+    10	trajectory and the count of G(E) > G(S) are new; the code copy is measured at bs_common.CODE (BS's copy, reused).
+    11	
+    12	What it reads: <root>/SCREEN.json (it must be the criteria's queue); <root>/lost.json; for each queue entry
+    13	<root>/runs/<name>/check.json (read_bs.py --check).  Only once every entry is decided (COUNTED, STOPPED or LOST) and
+    14	every COUNTED or STOPPED one has its full read: <root>/reads/<name>/markers.json (read_bs.py's markers), the run's
+    15	run_meta.json (the per-rollout manipulation evidence summary and the pins it ran under) and the ledger the markers name
+    16	(returns and falls, report only).  For PROVISIONAL: <root>/APPROVED, <root>/criteria.txt, <root>/SCREEN.json, the five
+    17	BS2 tools and this file (in this file's folder) against APPROVED, M5's pins, and the code copy bs_common.CODE measured
+    18	by M1's own r10m_common.check_copy (loaded only at its pin).
+    19	What it writes: <out>/score.json and <out>/score.txt (default <root>/score; refused outside <root>).
+    20	
+    21	Classes: LOST (named in lost.json); COUNTED (check.json passed, stop reason "end" at E); STOPPED (check.json passed,
+    22	stop reason "collapse" at T < E); UNDECIDED otherwise (running, queued, crashed or VOID).  While any entry is UNDECIDED,
+    23	or a COUNTED / STOPPED one has no markers.json yet, the screen is "incomplete": no markers file and no run_meta.json is
+    24	opened and no outcome is printed (outcome-blind).
+    25	
+    26	THE PRIMARY (one number per COUNTED continuation): the mean of the probe's rollout_mu14_mean (policy_probe.npz
+    27	rollout_mu_mean[:, 14], the actor's raw Gaussian mean for tail_3_pitch_act averaged over the rollout's own 8,192
+    28	states) over the 8 probe rows with update_timesteps E - 65,536 ... E - 8,192 (3,473,408 ... 3,530,752), in exact
+    29	rational arithmetic.  MISSING (filled): a LOST or STOPPED continuation, or a COUNTED one whose 8 rows are not each
+    30	present once and finite ("primary unreadable", UNREADABLE).
+    31	THE TEST: exact one-sided permutation test of control against critic_blind_tail3 on the difference of arm means, over
+    32	all C(8, 4) = 70 relabelings; p = (relabelings whose control-arm sum is >= the observed) / 70, exact rationals (a tie
+    33	counts against the reading).
+    34	THE FILL: a missing control value counts as -infinity and a missing critic_blind_tail3 value as +infinity (the supremum
+    35	of p over every value the missing ones could have had: it never helps REDUCED).
+    36	THE READING, the first line that applies: 1 NOT INFORMATIVE (the median control primary rose by less than 0.20 from
+    37	B_S, or no control primary was read; the median rule: the midpoint of the two middle values for 4, the middle one for
+    38	3, the midpoint for 2, the value for 1, exact); 2 REDUCED (filled p <= 1/20); 3 NO REDUCTION DETECTED, with "(the
+    39	as-counted p, report only, is <= 0.05; the filled p decides)" when the as-counted p is <= 1/20 and the filled one is
+    40	not.
+    41	THE SECONDARIES (tested, never change the line): SEC-G (OWN G at the final pair, E; blind HIGHER), SEC-CMD (CMD_L at the
+    42	evaluation at E; blind LOWER), SEC-MARGIN (OWN b*_P = 1 - G - c0 at the final pair, E; blind HIGHER).  Each: the same
+    43	exact test on its own values with the hypothesis arm's sum as the statistic, its own fill (a MISSING value counts as the
+    44	infinity that works against the secondary's direction), SUPPORTED when the filled p <= 0.05 (unadjusted), with
+    45	"(survives Bonferroni over the 3 secondaries)" when the filled p <= 0.05 / 3 (only 1/70 can), and, under line 1,
+    46	"(the control arm did not climb on the primary)".  A secondary is MISSING for a LOST, STOPPED or UNREADABLE
+    47	continuation and when its marker is absent or not finite (cause printed); a COUNTED continuation whose markers lack the
+    48	loop row at E (the final pair not read: a tool or file defect) is also a PROVISIONAL item (score_bs 2.1, finding D7).
+    49	Each arm's sample SD of the primaries read is printed beside its mean and median (report only: it places the power).
+    50	
+    51	Exit codes (as score_ecs.py): 0 final; 3 provisional or incomplete; 2 input error.
+    52	"""
+    53	import os
+    54	import sys
+    55	
+    56	os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
+    57	sys.dont_write_bytecode = True
+    58	
+    59	import argparse  # noqa: E402
+    60	import csv  # noqa: E402
+    61	import hashlib  # noqa: E402
+    62	import importlib.util  # noqa: E402
+    63	import itertools  # noqa: E402
+    64	import json  # noqa: E402
+    65	import math  # noqa: E402
+    66	import re  # noqa: E402
+    67	import statistics  # noqa: E402
+    68	from datetime import datetime, timezone  # noqa: E402
+    69	from fractions import Fraction  # noqa: E402
+    70	from pathlib import Path  # noqa: E402
+    71	
+    72	TOOLS = Path(__file__).resolve().parent
+    73	VERSION = "score_bs 2.1 (2026-10-30; bias screen 2 criteria v1 as fixed; derived from score_bs 1.1)"
+    74	
+    75	
+    76	def _load(name):
+    77	    spec = importlib.util.spec_from_file_location(name, TOOLS / f"{name}.py")
+    78	    mod = importlib.util.module_from_spec(spec)
+    79	    sys.modules[name] = mod
+    80	    spec.loader.exec_module(mod)
+    81	    return mod
+    82	
+    83	
+    84	C = sys.modules.get("bs_common") or _load("bs_common")
+    85	R = sys.modules.get("read_bs") or _load("read_bs")
+    86	
+    87	EXIT_FINAL, EXIT_NOT_FINAL, EXIT_INPUT = C.EXIT_OK, C.EXIT_PROVISIONAL, C.EXIT_REFUSED      # 0, 3, 2
+    88	
+    89	# ------------------------------------------------------------------------------------------------ the criteria's
+    90	CONTROL = C.CONTROL
+    91	INTERVENTION = "critic_blind_tail3"
+    92	ARM_ORDER = (CONTROL, INTERVENTION)
+    93	SEEDS = (2501, 2511, 2521, 2531)                                          # criteria THE QUEUE
+    94	QUEUE = tuple((arm, seed) for seed in SEEDS for arm in ARM_ORDER)        # interleaved, paired
+    95	PRIMARY_K = 8
+    96	PRIMARY_STEPS = tuple(C.E - C.ROLLOUT * k for k in range(PRIMARY_K, 0, -1))   # 3,473,408 ... 3,530,752
+    97	EARLY_STEPS = tuple(C.S + C.ROLLOUT * k for k in range(1, PRIMARY_K + 1))     # 2,105,344 ... 2,162,688 (report only)
+    98	# B_S: the parent's own value at S in the primary's form: the mean of the parent F2 probe's rollout_mu_mean[:, 14] over
+    99	# its 8 rows with update_timesteps 2,039,808 ... 2,097,152 (rows 248-255; policy_probe.npz.copy1 sha256 4e0e7220...),
+   100	# exactly 135930855/1073741824 [measured 2026-10-30, criteria_work/parent_window.out and the builder's
+   101	# validate/logs/parent_schedule.out; recomputed by tests/test_score_bs.py when the file is present].
+   102	BASELINE_S = 0.1265954738482833
+   103	BASELINE_STEPS = tuple(C.S - C.ROLLOUT * k for k in range(PRIMARY_K - 1, -1, -1))
+   104	RISE_MIN = Fraction(1, 5)                                                 # the gate: 0.20, inclusive, exact
+   105	ALPHA = Fraction(1, 20)
+   106	N_SECONDARIES = 3
+   107	STATUE_LINES = ("0.10", "0.14", "0.15", "0.16")
+   108	EVAL_STEPS = tuple(range(C.S + C.EVAL_FREQ, C.E + 1, C.EVAL_FREQ))       # 2,228,224 ... 3,538,944 (11)
+   109	# The parent's on-policy trajectory (report only): the mean of its F2 probe's rollout_mu_mean[:, 14] over the 8 rows
+   110	# ending at each evaluation step (at E, which has no row, the 8 rows ending at E - 8,192: the primary's rows), exact
+   111	# dyadic values [measured 2026-10-30 from the F2 probe; = criteria_work/parent_window.out "Trajectory"; recomputed by
+   112	# tests/test_score_bs.py when the file is present].
+   113	PARENT_TRAJECTORY = {
+   114	    2228224: 0.15514186304062605, 2359296: 0.16859042644500732, 2490368: 0.19547326490283012,
+   115	    2621440: 0.19018659926950932, 2752512: 0.24137981049716473, 2883584: 0.29176359437406063,
+   116	    3014656: 0.32772068679332733, 3145728: 0.4317394308745861, 3276800: 0.6135170012712479,
+   117	    3407872: 0.6913527101278305, 3538944: 0.7053788751363754,
+   118	}
+   119	PARENT_G_S = -0.6363920116424561      # the parent's OWN G at S (read_bs REPRO 2097152, ew_r10.jsonl line 3; report)
+   120	
+   121	COUNTED, STOPPED, LOST, UNDECIDED = "COUNTED", "STOPPED", "LOST", "UNDECIDED"
+   122	LINE_KEYS = {1: "NOT INFORMATIVE", 2: "REDUCED", 3: "NO REDUCTION DETECTED"}
+   123	LINE_TEXT = {
+   124	    1: ("NOT INFORMATIVE: THE CONTROL ARM DID NOT REPRODUCE THE CLIMB OF THE ON-POLICY TAIL_3 COMMAND (its median "
+   125	        "primary rose by less than 0.20 from the value at S, or no control primary was read); no reading about the "
+   126	        "critic is made"),
+   127	    2: ("REDUCED: BLINDING THE CRITIC TO THE TAIL_3 ANGLE (observation 6) REDUCED THE ON-POLICY TAIL_3 COMMAND "
+   128	        "OVER THE LAST 8 UPDATES BEFORE E, FROM s42's 2,097,152 STATE (exact one-sided permutation test, p <= 0.05)"),
+   129	    3: ("NO REDUCTION DETECTED IN THE ON-POLICY TAIL_3 COMMAND OVER THE LAST 8 UPDATES BEFORE E FROM BLINDING THE "
+   130	        "CRITIC TO THE TAIL_3 ANGLE (not excluded: a reduction of about half the rise or smaller (power about "
+   131	        "0.25-1.00 at half the parent's rise, by the between-continuation spread; about 0.1-0.3 if blinding makes "
+   132	        "climbs rarer rather than smaller), other inputs that carry the angle, the phase after E, the rail)"),
+   133	}
+   134	ADDITION_AS_COUNTED = "(the as-counted p, report only, is <= 0.05; the filled p decides)"
+   135	ADDITION_NOT_INFORMATIVE = "(the filled p is <= 0.05, but the control arm did not climb: no reading about the critic)"
+   136	NEG_INF, POS_INF = (-1, Fraction(0)), (1, Fraction(0))   # THE FILL (lexicographic: the infinite part first)
+   137	INF_CONTROL, INF_BLIND = NEG_INF, POS_INF                # the primary: control -inf, critic_blind_tail3 +inf
+   138	
+   139	# THE SECONDARIES (criteria: pre-registered; tested; none changes the line)
+   140	SEC_SUPPORTED = "SUPPORTED (p <= 0.05, unadjusted)"
+   141	SEC_NOT_SUPPORTED = "NOT SUPPORTED"
+   142	SEC_BONFERRONI = "(survives Bonferroni over the 3 secondaries)"
+   143	SEC_UNDER_LINE1 = "(the control arm did not climb on the primary)"
+   144	SECONDARIES = (
+   145	    {"key": "SEC-G", "higher": INTERVENTION, "marker": "OWN.P.G at the loop row with steps == E (the final pair)",
+   146	     "title": "the end loop gain: OWN G at the final pair (E)"},
+   147	    {"key": "SEC-CMD", "higher": CONTROL, "marker": "ledger.direct.per_evaluation[E].cmd_l",
+   148	     "title": "the ledger tail command CMD_L at the evaluation at E"},
+   149	    {"key": "SEC-MARGIN", "higher": INTERVENTION, "marker": "OWN.P.b_star at the loop row with steps == E (the final "
+   150	     "pair)", "title": "the margin to the rail: OWN b*_P = 1 - G - c0 at the final pair (E)"},
+   151	)
+   152	
+   153	
+   154	class InputError(Exception):
+   155	    """A record the scorer cannot read as the criteria require (exit 2)."""
+   156	
+   157	
+   158	# ------------------------------------------------------------------------------------------------ the test
+   159	def subset_sums(values, k):
+   160	    """{subset (tuple of indices): sum} over all k-subsets; values are (infinite part, finite Fraction) pairs."""
+   161	    out = {}
+   162	    for sub in itertools.combinations(range(len(values)), k):
+   163	        inf = sum(values[i][0] for i in sub)
+   164	        fin = sum((values[i][1] for i in sub), Fraction(0))
+   165	        out[sub] = (inf, fin)
+   166	    return out
+   167	
+   168	
+   169	def perm_test(higher, other):
+   170	    """The exact one-sided permutation test that the arm `higher` is higher (for the primary: control higher = the
+   171	    blind arm lower).  higher, other: lists of (infinite part, Fraction) pairs.  Returns (p, count, total): p =
+   172	    #{relabelings whose `higher`-arm sum is >= the observed} / total (a tie counts against the reading), as an exact
+   173	    Fraction; the sum of one arm is equivalent to the difference of arm means for any arm sizes.  None when an arm is
+   174	    empty."""
+   175	    if not higher or not other:
+   176	        return None
+   177	    values = list(higher) + list(other)
+   178	    k = len(higher)
+   179	    obs = (sum(v[0] for v in higher), sum((v[1] for v in higher), Fraction(0)))
+   180	    sums = subset_sums(values, k)
+   181	    count = sum(1 for s in sums.values() if s >= obs)
+   182	    return Fraction(count, len(sums)), count, len(sums)
+   183	
+   184	
+   185	def sign_flip_test(diffs):
+   186	    """Exact one-sided sign-flip test of paired differences (control - blind; report only).  (p, count, total)."""
+   187	    if not diffs:
+   188	        return None
+   189	    obs = sum(diffs, Fraction(0))
+   190	    total = 0
+   191	    count = 0
+   192	    for signs in itertools.product((1, -1), repeat=len(diffs)):
+   193	        total += 1
+   194	        if sum((s * d for s, d in zip(signs, diffs, strict=True)), Fraction(0)) >= obs:
+   195	            count += 1
+   196	    return Fraction(count, total), count, total
+   197	
+   198	
+   199	def fnum(x, fmt="+.4f"):
+   200	    return "n/a" if x is None else format(float(x), fmt)
+   201	
+   202	
+   203	def fmt_p(t):
+   204	    if t is None:
+   205	        return "n/a"
+   206	    p, count, total = t
+   207	    return f"{count}/{total} ({float(p):.4f})"
+   208	
+   209	
+   210	# ------------------------------------------------------------------------------------------------ records
+   211	def _read_json(path):
+   212	    """(object, sha256) or (None, None) when the file does not exist."""
+   213	    try:
+   214	        raw = Path(path).read_bytes()
+   215	    except FileNotFoundError:
+   216	        return None, None
+   217	    except OSError as exc:
+   218	        raise InputError(f"cannot read {path}: {exc}") from exc
+   219	    try:
+   220	        d = json.loads(raw.decode("utf-8"))
+   221	    except (UnicodeDecodeError, ValueError) as exc:
+   222	        raise InputError(f"{path} is not JSON: {exc}") from exc
+   223	    if not isinstance(d, dict):
+   224	        raise InputError(f"{path} is not a JSON object")
+   225	    return d, hashlib.sha256(raw).hexdigest()
+   226	
+   227	
+   228	def screen_of(root):
+   229	    """SCREEN.json, valid (bs_common.screen_problems) and equal to the criteria's queue."""
+   230	    d, problems = C.load_screen(str(Path(root) / "SCREEN.json"))
+   231	    if problems:
+   232	        raise InputError("SCREEN.json: " + "; ".join(problems))
+   233	    if d.get("intervention") != INTERVENTION:
+   234	        raise InputError(f"SCREEN.json intervention {d.get('intervention')!r} is not the criteria's {INTERVENTION}")
+   235	    if C.queue_of(d) != QUEUE:
+   236	        raise InputError(f"SCREEN.json queue {C.queue_of(d)} is not the criteria's {QUEUE}")
+   237	    return d
+   238	
+   239	
+   240	def lost_of(root):
+   241	    try:
+   242	        lost = R.load_lost(Path(root) / "lost.json")
+   243	    except R.InputError as exc:
+   244	        raise InputError(str(exc)) from exc
+   245	    names = {C.run_name(a, s) for a, s in QUEUE}
+   246	    unknown = sorted(set(lost) - names)
+   247	    if unknown:
+   248	        raise InputError(f"lost.json names continuations outside the queue: {unknown}")
+   249	    return lost
+   250	

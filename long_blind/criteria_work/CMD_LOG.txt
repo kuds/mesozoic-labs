@@ -1,0 +1,1570 @@
+=== [0001] 2026-10-30T17:37:09Z -> 2026-10-30T17:37:09Z  rc=0  (list BS2 top level)
+CMD: S2=S2; ls -la $S2/r10round/bias_screen2; ls -la $S2/r10round/bias_screen2/check $S2/r10round/bias_screen2/score
+OUT: out/0001.txt  bytes=1614  sha256[:16]=9843ac6e184b864b
+  | total 164
+  | drwxr-xr-x 13 root root  4096 Oct 30 16:22 .
+  | drwxr-xr-x 46 root root  4096 Oct 30 16:32 ..
+  | -r--r--r--  1 root root  1235 Oct 30 12:53 APPROVED
+  | -rw-r--r--  1 root root 34467 Oct 30 11:07 NOTES.txt
+  | -rw-r--r--  1 root root  5403 Oct 30 16:22 REPORT.md
+  | -rw-r--r--  1 root root   836 Oct 30 11:32 SCREEN.json
+  | -rw-r--r--  1 root root  3016 Oct 30 12:26 SHA256SUMS.txt
+  | drwxr-xr-x  4 root root  4096 Oct 30 15:58 check
+  | drwxr-xr-x  4 root root  4096 Oct 30 11:08 check_build
+  | -rw-r--r--  1 root root 56130 Oct 30 12:25 criteria.txt
+  | drwxr-xr-x  3 root root  4096 Oct 30 11:10 criteria_work
+  | drwxr-xr-x  3 root root  4096 Oct 30 15:57 logs
+  | drwxr-xr-x 11 root root  4096 Oct 30 15:49 reads
+  | drwxr-xr-x  6 root root  4096 Oct 30 12:28 review
+
+=== [0002] 2026-10-30T17:37:15Z -> 2026-10-30T17:37:15Z  rc=0  (read BS2 criteria.txt part 1)
+CMD: S2=S2; wc -l $S2/r10round/bias_screen2/criteria.txt; sed -n 1,200p $S2/r10round/bias_screen2/criteria.txt
+OUT: out/0002.txt  bytes=19971  sha256[:16]=3a3fa31925e72ebc
+  | 565 S2/r10round/bias_screen2/criteria.txt
+  | T. REX r10 BIAS SCREEN 2 (BS2): CRITIC BLIND TO THE TAIL_3 ANGLE AGAINST CONTROL, FROM STANCE6 s42's 2,097,152
+  | STATE, CPU, SCRATCH.  CRITERIA v1 -- DRAFT FOR INDEPENDENT REVIEW.  NOT APPROVED.  NOTHING TRAINS UNTIL <BS2>/APPROVED
+  | EXISTS.
+  | 
+  | STATUS: v1 draft, written 2026-10-30 10:29-10:53 UTC (date -u) by the designer of workflow wf_0b1ddf2b-955, under the
+  | maintainer's approval of 2026-10-30 10:23 UTC ("Go with option a": RUNLOG 10:23 UTC; the overnight report, section 6,
+  | option A). Nothing was trained to write it; no optimizer step was made; no continuation exists. Every number about the
+  | parent comes from the parent's own records (the F2 copies, read only). A later agent installs it as <BS2>/criteria.txt
+  | with SCREEN_v1.json as <BS2>/SCREEN.json; then an independent review, a fixer, a RE-REVIEW of the fixed version (process
+  | check P2), and the coordinator's pin (sha256 in <BS2>/APPROVED, whose full text goes into RUNLOG at pinning: P1). It is
+  | not edited after the first optimizer step. Labels: [measured] = read or computed from the named file; [inferred] =
+  | reasoned, basis named; [computed] = computed by the named script. The design's reasoning and every number's source:
+  | WORK/DESIGN_NOTES.txt.
+  | INSTALLED as <BS2>/criteria.txt by the scorer adapter (2026-10-30 11:32 UTC, date -u) from WORK/criteria_v1.txt
+
+=== [0003] 2026-10-30T17:37:19Z -> 2026-10-30T17:37:19Z  rc=0  (read BS2 criteria.txt part 2)
+CMD: S2=S2; sed -n 200,400p $S2/r10round/bias_screen2/criteria.txt
+OUT: out/0003.txt  bytes=20063  sha256[:16]=36071c77903db979
+  | - Minimum attainable p = 1/70 = 0.0143. Attainable p <= 0.05: 1/70, 2/70, 3/70 (0.0429); 4/70 = 0.0571 is not. Size:
+  |   3/70 = 0.0429 when the 8 primaries are exchangeable under no effect (continuous values) [computed, WORK
+  |   power_bs2.out A]. If blinding changes only the between-continuation spread (BS: SD 0.137 control, 0.029 blind),
+  |   P(REDUCED) with equal means is about 0.06 (0.057-0.064 for SD ratios 3-7), and up to about 0.09 given the gate at a
+  |   control rise near 0.29 [computed, <BS2>/review/design/work/rd_power.out P2; reproduced by the fixer,
+  |   <BS2>/review/fix/work/mc_check.out]. A studentized statistic does not change this with 4 + 4 (it ranks the 70
+  |   relabelings identically: rd_power2.out). Read a REDUCED with each arm's printed SD.
+  | - Beside it, report only (never a line): the four paired differences control - blind (same seed), their exact
+  |   one-sided sign-flip p (minimum 1/16 = 0.0625: it can never reach 0.05), and the as-counted p.
+  | - Pairing [computed, WORK power_bs2.out F, normal model, total between-continuation SD held fixed]: a shared-seed pair
+  |   effect makes the unpaired test conservative (size 0.032 with a pair SD 0.06, 0.014 with 0.10, total SD 0.137) and
+  |   leaves its power at half the parent's rise about unchanged (0.80 -> 0.82-0.85); a pair effect ADDED to the same own
+  |   SD lowers power through the larger total SD (BS review/rv_sim.out (3b): 0.62 -> 0.38).
+  | - THE FILL (missing never helps the hypothesis): a MISSING control primary counts as -infinity and a MISSING blind
+  |   primary as +infinity (compared infinite part first): the supremum of p over every value the missing ones could have
+
+=== [0004] 2026-10-30T17:37:23Z -> 2026-10-30T17:37:23Z  rc=0  (read BS2 criteria.txt part 3)
+CMD: S2=S2; sed -n 400,565p $S2/r10round/bias_screen2/criteria.txt
+OUT: out/0004.txt  bytes=16453  sha256[:16]=3e7de4ff0693ee68
+  |   the attempt logs, tmp/<name>/) and is not opened. The runner's own records (logs/run_waves_bs.log, decided.tsv,
+  |   crash_ledger.tsv, PAUSED_disk, HALTED, proctable.log, run_waves_bs.exit, atimes_at_ALL_DECIDED.tsv) and
+  |   <BS2>/lost.json may be read. read_bs.py refuses a continuation's markers until all are decided; score_bs.py, while
+  |   any entry is undecided or unread, prints only which are decided and opens no markers and no run_meta.
+  | - P4 (relatime; BS's process lesson, RUNLOG 09:13 UTC): right after the runner decides a continuation COUNTED or
+  |   STOPPED it re-arms every regular file under runs/<name>/ and tmp/<name>/ and its logs/<name>.attempt<k>.log (atime =
+  |   mtime - 1 ns; content, mtime and sha256 unchanged), so any later read of one moves its atime; at ALL_DECIDED, before
+  |   it writes logs/ALL_DECIDED and before the full reads, it writes logs/atimes_at_ALL_DECIDED.tsv (path, atime, mtime,
+  |   ctime and rearmed_unread for runs/**, logs/** and tmp/**; lstat only, which moves no atime). The process
+  |   verification compares them: every such file of a COUNTED or STOPPED continuation must still read rearmed_unread 1
+  |   there, except run_meta.json and check.json (whose allowed fields may have been read); any other 0 is a read after
+  |   the decision and is reported. Reads before a decision (while the run runs, and CHECK's own) are not covered.
+  | - The parent's own data (F2) are not an outcome of this screen and were used for this design (B_S, the parent's
+  |   rise, the gate's basis); BS's finished records were read for the design (its spread and its G pattern).
+  | 
+
+=== [0005] 2026-10-30T17:37:29Z -> 2026-10-30T17:37:29Z  rc=0  (read BS2 REPORT.md, SCREEN.json, APPROVED)
+CMD: S2=S2; B=$S2/r10round/bias_screen2; cat $B/REPORT.md; echo =====SCREEN; cat $B/SCREEN.json; echo; echo =====APPROVED; cat $B/APPROVED; echo; sha256sum $B/APPROVED $B/SCREEN.json $B/criteria.txt
+OUT: out/0005.txt  bytes=8061  sha256[:16]=4b90d4acd138e3a2
+  | # Critic-blind screen from s42's 2.10M checkpoint (BS2): result
+  | 
+  | 2026-10-30. A scratch CPU training screen, report only; nothing merged. Every figure below was reproduced by two
+  | independent checks (statistic and process; 0 blocking findings). [inferred] marks reasoning, not measurement.
+  | 
+  | ## The reading: line 2, REDUCED (status final)
+  | 
+  | > REDUCED: BLINDING THE CRITIC TO THE TAIL_3 ANGLE (observation 6) REDUCED THE ON-POLICY TAIL_3 COMMAND OVER THE
+  | > LAST 8 UPDATES BEFORE E, FROM s42's 2,097,152 STATE (exact one-sided permutation test, p <= 0.05)
+  | 
+  | - **Design (pinned before launch):** 8 continuations of r10 stance6 s42 from 2,097,152 to 3,538,944 (1.44M steps):
+  |   - 4 control;
+  |   - 4 with the critic blind to the tail_3 angle. The angle is zeroed at the critic's input only; the actor still sees
+  |     it.
+  | - **Primary:** the policy's tail_3 command on its own states over the last 8 updates.
+
+=== [0006] 2026-10-30T17:37:34Z -> 2026-10-30T17:37:34Z  rc=0  (read BS2 score.txt part 1)
+CMD: S2=S2; B=$S2/r10round/bias_screen2; wc -l $B/score/score.txt; sed -n 1,170p $B/score/score.txt
+OUT: out/0006.txt  bytes=28832  sha256[:16]=1cf005424ca5c98d
+  | 198 S2/r10round/bias_screen2/score/score.txt
+  | score_bs 2.1 (2026-10-30; bias screen 2 criteria v1 as fixed; derived from score_bs 1.1)
+  | tool sha256 05dd4b38b24a11c0a76fdda9b02685d86eb081781512c46274e8ed07726f5ac7  utc 2026-10-30T15:57:01Z
+  | root S2/r10round/bias_screen2
+  | 
+  | STATUS: final
+  | THE READING (line 2, REDUCED):
+  |   REDUCED: BLINDING THE CRITIC TO THE TAIL_3 ANGLE (observation 6) REDUCED THE ON-POLICY TAIL_3 COMMAND OVER THE LAST 8 UPDATES BEFORE E, FROM s42's 2,097,152 STATE (exact one-sided permutation test, p <= 0.05)
+  | 
+  | THE PRIMARY (on-policy tail_3 command: mean of rollout_mu14_mean over the probe rows 3,473,408 ... 3,530,752); B_S = +0.12660 (the parent's 8 rows ending at S = 2,097,152)
+  |   control_2501             COUNTED  +0.67001  (rise from B_S +0.54342)
+  |   critic_blind_tail3_2501  COUNTED  +0.14283  (rise from B_S +0.01623)
+  |   control_2511             COUNTED  +0.79227  (rise from B_S +0.66568)
+  |   critic_blind_tail3_2511  COUNTED  +0.12485  (rise from B_S -0.00174)
+  |   control_2521             COUNTED  +0.51081  (rise from B_S +0.38422)
+
+=== [0007] 2026-10-30T17:37:40Z -> 2026-10-30T17:37:40Z  rc=0  (read BS2 score.txt part 2)
+CMD: S2=S2; B=$S2/r10round/bias_screen2; sed -n 170,198p $B/score/score.txt
+OUT: out/0007.txt  bytes=4939  sha256[:16]=a329ea6449e82af6
+  |       mean return per evaluation: 2,228,224 4448.3, 2,359,296 4444.7, 2,490,368 4437.8, 2,621,440 4456.9, 2,752,512 4468.5, 2,883,584 4471.9, 3,014,656 4441.1, 3,145,728 4464.3, 3,276,800 4459.7, 3,407,872 4431.8, 3,538,944 4442.7
+  |       pair 2,097,152: OWN G -0.636 c0 +0.238 b* +1.399 G_L -0.648 b*_L +1.413 own14 +0.143 falls 0 | REF G -0.619 | critic dV/dq3 per deg eff/raw: on-policy +0.00000/+0.02143 OWN +0.00000/+0.03040 REF +0.00000/+0.05960
+  |       pair 2,359,296: OWN G -0.618 c0 +0.216 b* +1.402 G_L -0.627 b*_L +1.407 own14 +0.135 falls 0 | REF G -0.597 | critic dV/dq3 per deg eff/raw: on-policy +0.00000/+0.01820 OWN +0.00000/+0.02292 REF +0.00000/+0.04619
+  |       pair 2,621,440: OWN G -0.347 c0 +0.149 b* +1.199 G_L -0.353 b*_L +1.199 own14 +0.114 falls 0 | REF G -0.334 | critic dV/dq3 per deg eff/raw: on-policy +0.00000/+0.02466 OWN +0.00000/+0.03249 REF +0.00000/+0.05126
+  |       pair 2,883,584: OWN G -0.238 c0 +0.079 b* +1.159 G_L -0.241 b*_L +1.157 own14 +0.067 falls 0 | REF G -0.220 | critic dV/dq3 per deg eff/raw: on-policy +0.00000/+0.03052 OWN +0.00000/+0.03745 REF +0.00000/+0.04860
+  |       pair 3,145,728: OWN G -0.301 c0 +0.139 b* +1.162 G_L -0.306 b*_L +1.165 own14 +0.108 falls 0 | REF G -0.283 | critic dV/dq3 per deg eff/raw: on-policy +0.00000/+0.01956 OWN +0.00000/+0.02664 REF +0.00000/+0.04388
+  |       pair 3,407,872: OWN G -0.373 c0 +0.101 b* +1.272 G_L -0.373 b*_L +1.273 own14 +0.073 falls 0 | REF G -0.348 | critic dV/dq3 per deg eff/raw: on-policy +0.00000/+0.03100 OWN +0.00000/+0.03561 REF +0.00000/+0.04786
+  |       pair 3,538,944: OWN G -0.294 c0 +0.100 b* +1.194 G_L -0.295 b*_L +1.195 own14 +0.077 falls 0 | REF G -0.277 | critic dV/dq3 per deg eff/raw: on-policy +0.00000/+0.03012 OWN +0.00000/+0.03440 REF +0.00000/+0.05222
+  | REPORT ONLY, THE ON-POLICY TRAJECTORY (the 8-row mean of rollout_mu14_mean ending at each evaluation step; at E the primary's rows), beside the parent's (F2 probe); untested:
+  |        step    parent   cont2501   crit2501   cont2511   crit2511   cont2521   crit2521   cont2531   crit2531  | median control / blind
+  |   2,228,224   +0.1551    +0.1352    +0.1196    +0.1284    +0.1201    +0.1300    +0.1147    +0.1460    +0.1313  | +0.1326 / +0.1198
+  |   2,359,296   +0.1686    +0.1660    +0.1248    +0.1504    +0.1333    +0.1534    +0.1106    +0.1373    +0.1151  | +0.1519 / +0.1200
+  |   2,490,368   +0.1955    +0.1919    +0.1347    +0.1814    +0.1313    +0.1253    +0.0878    +0.1739    +0.1267  | +0.1777 / +0.1290
+  |   2,621,440   +0.1902    +0.2357    +0.1317    +0.2362    +0.1227    +0.1783    +0.0983    +0.1849    +0.1031  | +0.2103 / +0.1129
+  |   2,752,512   +0.2414    +0.2493    +0.1133    +0.3005    +0.1349    +0.2332    +0.0976    +0.1844    +0.0827  | +0.2412 / +0.1055
+
+=== [0008] 2026-10-30T17:37:44Z -> 2026-10-30T17:37:44Z  rc=0  (list BS2 check folder)
+CMD: S2=S2; B=$S2/r10round/bias_screen2; find $B/check -type f | xargs ls -la
+OUT: out/0008.txt  bytes=8094  sha256[:16]=c8309167a09130ec
+  | -rw-r--r-- 1 root root 1073346 Oct 30 15:58 S2/r10round/bias_screen2/check/proc/my_atime_scan_before_reading.tsv
+  | -rw-r--r-- 1 root root      62 Oct 30 15:58 S2/r10round/bias_screen2/check/proc/my_atime_scan_taken_at.txt
+  | -rw-r--r-- 1 root root     712 Oct 30 16:12 S2/r10round/bias_screen2/check/proc/work/atime_moves_after_my_scan.out
+  | -rw-r--r-- 1 root root     430 Oct 30 16:10 S2/r10round/bias_screen2/check/proc/work/ctime_since_snapshot.out
+  | -rw-r--r-- 1 root root    2543 Oct 30 16:03 S2/r10round/bias_screen2/check/proc/work/evidence_audit.out
+  | -rw-r--r-- 1 root root    5985 Oct 30 16:03 S2/r10round/bias_screen2/check/proc/work/evidence_audit.py
+  | -rw-r--r-- 1 root root       0 Oct 30 16:07 S2/r10round/bias_screen2/check/proc/work/gh_activity_day.err
+  | -rw-r--r-- 1 root root    5766 Oct 30 16:17 S2/r10round/bias_screen2/check/proc/work/gh_activity_day.json
+  | -rw-r--r-- 1 root root     459 Oct 30 16:17 S2/r10round/bias_screen2/check/proc/work/gh_pr654.txt
+  | -rw-r--r-- 1 root root     234 Oct 30 16:07 S2/r10round/bias_screen2/check/proc/work/gh_pr654_events.txt
+  | -rw-r--r-- 1 root root      97 Oct 30 16:06 S2/r10round/bias_screen2/check/proc/work/gh_repo.txt
+  | -rw-r--r-- 1 root root       0 Oct 30 16:06 S2/r10round/bias_screen2/check/proc/work/ls_remote_heads.err
+  | -rw-r--r-- 1 root root   45103 Oct 30 16:17 S2/r10round/bias_screen2/check/proc/work/ls_remote_heads.txt
+  | -rw-r--r-- 1 root root    6921 Oct 30 16:17 S2/r10round/bias_screen2/check/proc/work/markers_audit.out
+  | -rw-r--r-- 1 root root    3545 Oct 30 16:17 S2/r10round/bias_screen2/check/proc/work/markers_audit.py
+
+=== [0009] 2026-10-30T17:37:51Z -> 2026-10-30T17:37:51Z  rc=0  (read BS2 check proc small outs)
+CMD: S2=S2; P=$S2/r10round/bias_screen2/check/proc/work; for f in p1_check.out timeline.out atime_moves_after_my_scan.out ctime_since_snapshot.out evidence_audit.out meta_audit.out probe_audit.out secondaries_check.out transcript_p1_times.out transcript_push_merge_calls.out verify_copy_now.out; do echo "##### $f"; cat $P/$f; done
+OUT: out/0009.txt  bytes=14089  sha256[:16]=9098c78391e4400f
+  | ##### p1_check.out
+  | RUNLOG lines naming APPROVED's sha256: [788]
+  | RUNLOG lines with 'BS2 LAUNCHED': [789]
+  | RUNLOG JSON parses; equal to APPROVED parsed: True ; key order equal: True
+  | RUNLOG text byte-equal to the file: False ; sha256 of the RUNLOG text: d97685b57a70905e
+  | json.dumps(RUNLOG object, indent=1) + b'\n' reproduces APPROVED byte for byte (sha256 184f9ab9...)
+  | criteria sha in the same entry: True
+  | entry header: 2026-10-30 12:54 UTC  MAINTAINER (AskUse
+  | file has trailing newline: True size 1235
+  | ##### timeline.out
+  | snapshot born 15:43:28.386; ALL_DECIDED born 15:43:28.394
+  | control_2501: start 12:54:36Z last run write 14:17:06.975 | check.log born 14:17:10.322 | check.json born 14:17:12.102 | check.json mtime 14:17:12.106 | decided (s) 14:17:12.000 | re-arm ctimes lo 14:17:12.818 | re-arm ctimes hi 14:17:12.818 | snapshot born 15:43:28.386 | ALL_DECIDED born 15:43:28.394 | read.log born 15:43:28.418 | m5.json born 15:43:28.666 | markers.json born 15:49:37.680 | COUNTED | order OK
+  | critic_blind_tail3_2501: start 12:54:36Z last run write 14:18:57.173 | check.log born 14:19:02.898 | check.json born 14:19:04.366 | check.json mtime 14:19:04.371 | decided (s) 14:19:04.000 | re-arm ctimes lo 14:19:04.878 | re-arm ctimes hi 14:19:04.878 | snapshot born 15:43:28.386 | ALL_DECIDED born 15:43:28.394 | read.log born 15:43:28.418 | m5.json born 15:43:28.686 | markers.json born 15:49:46.631 | COUNTED | order OK
+  | control_2511: start 12:54:36Z last run write 14:16:08.198 | check.log born 14:16:18.290 | check.json born 14:16:19.754 | check.json mtime 14:16:19.759 | decided (s) 14:16:20.000 | re-arm ctimes lo 14:16:20.266 | re-arm ctimes hi 14:16:20.266 | snapshot born 15:43:28.386 | ALL_DECIDED born 15:43:28.394 | read.log born 15:43:28.418 | m5.json born 15:43:28.638 | markers.json born 15:49:53.936 | COUNTED | order OK
+  | critic_blind_tail3_2511: start 12:54:36Z last run write 14:18:57.468 | check.log born 14:19:04.890 | check.json born 14:19:06.402 | check.json mtime 14:19:06.408 | decided (s) 14:19:07.000 | re-arm ctimes lo 14:19:07.034 | re-arm ctimes hi 14:19:07.034 | snapshot born 15:43:28.386 | ALL_DECIDED born 15:43:28.394 | read.log born 15:43:28.418 | m5.json born 15:43:28.626 | markers.json born 15:49:51.485 | COUNTED | order OK
+
+=== [0010] 2026-10-30T17:37:57Z -> 2026-10-30T17:37:57Z  rc=0  (read BS2 check stat outs)
+CMD: S2=S2; P=$S2/r10round/bias_screen2/check/stat/work; for f in schedule_check.out extra_check.out; do echo "##### $f"; cat $P/$f; done; echo "##### stat_check.out (tail 80)"; tail -n 80 $P/stat_check.out
+OUT: out/0010.txt  bytes=12694  sha256[:16]=e0d4231775053042
+  | ##### schedule_check.out
+  | control_2501             window rows 175: ent_coef == parent (float32) True; learning_rate == parent True; lr at first/last window row 2.6491e-05/2.4115e-05; ent 0.00350/0.00248
+  | critic_blind_tail3_2501  window rows 175: ent_coef == parent (float32) True; learning_rate == parent True; lr at first/last window row 2.6491e-05/2.4115e-05; ent 0.00350/0.00248
+  | control_2511             window rows 175: ent_coef == parent (float32) True; learning_rate == parent True; lr at first/last window row 2.6491e-05/2.4115e-05; ent 0.00350/0.00248
+  | critic_blind_tail3_2511  window rows 175: ent_coef == parent (float32) True; learning_rate == parent True; lr at first/last window row 2.6491e-05/2.4115e-05; ent 0.00350/0.00248
+  | control_2521             window rows 175: ent_coef == parent (float32) True; learning_rate == parent True; lr at first/last window row 2.6491e-05/2.4115e-05; ent 0.00350/0.00248
+  | critic_blind_tail3_2521  window rows 175: ent_coef == parent (float32) True; learning_rate == parent True; lr at first/last window row 2.6491e-05/2.4115e-05; ent 0.00350/0.00248
+  | control_2531             window rows 175: ent_coef == parent (float32) True; learning_rate == parent True; lr at first/last window row 2.6491e-05/2.4115e-05; ent 0.00350/0.00248
+  | critic_blind_tail3_2531  window rows 175: ent_coef == parent (float32) True; learning_rate == parent True; lr at first/last window row 2.6491e-05/2.4115e-05; ent 0.00350/0.00248
+  | rank by primary: ['critic_blind_tail3_2531', 'critic_blind_tail3_2511', 'critic_blind_tail3_2521', 'critic_blind_tail3_2501', 'control_2531', 'control_2521', 'control_2501', 'control_2511']
+  | rank by CMD_L(E): ['critic_blind_tail3_2531', 'critic_blind_tail3_2511', 'critic_blind_tail3_2521', 'critic_blind_tail3_2501', 'control_2531', 'control_2521', 'control_2501', 'control_2511']
+  | identical ranking: True
+  | ##### extra_check.out
+  | APPROVED sha256 184f9ab91f284149f15ac192b4a5f318fa01485fbaf0068df64bb03ba5029ad2
+  | criteria pin ok True ; SCREEN pin ok True
+
+=== [0011] 2026-10-30T17:38:02Z -> 2026-10-30T17:38:02Z  rc=0  (run log size and line 711)
+CMD: S1=S1; R=$S1/foot/stance4/live/run_log.txt; wc -l -c $R; sha256sum $R; sed -n 711p $R
+OUT: out/0011.txt  bytes=2283  sha256[:16]=651fbda14114ca4a
+  |    803 259415 S1/foot/stance4/live/run_log.txt
+  | a9be282665d83528f1b88e5b223b4e57765e48f5543171edbd654257e3831c45  S1/foot/stance4/live/run_log.txt
+  | 2026-10-28 14:59 UTC  F2 done and scored (wf_07eb7acd-ec5, finished ~14:55 UTC; 10 agents). [measured] Fetch: every RUN_ID "done: every file of this fetch is held as the rules require"; F2 rows s60 75, s42 76, s80 74 (6 listings each; one TRANSFER-ERROR, s60 evaluations.npz transfer 1, before the decision; last F2 row 13:54:48 UTC). C7: 18 M1 traces + 3 M3 certificates on copy_8737cd3d, all rc 0, no refusal or crash. complete_r10round.py: all three COMPLETE (C1-C7 PASS, FINISHED at 12,001,280, 91 evaluations). score_r10round.py exit 0, STATUS FINAL, no PROVISIONAL or incomplete item, no re-fetch: READING line 1: TAIL RAIL FORMED ON r10 IN TRAINING (ledger); R 1 (COMPLETE 1, PRESENCE 0), U 0, P 1, G+ 1. Statistic A 2 of 3 against LTSB r9's 2 of 5, one-sided Fisher p 0.93 (TABLE E 0.26 / 0.05 / 0.98); nothing significant. s42: RAIL-LEDGER-PERSISTENT, tail_3_pitch_act +, first TAIL ALARM 3,932,160, 22 alarms, 26 tail-flagged evaluations, trace rail at R1 drive-backed; GATE FAIL (hop_or_fall 2 > 1 at all six headings); NEGATIVE. s60: PARKED (tail_3 MEAN_a +0.642, margin +0.042; CMD_a(J) 0.880 at 8,388,608 and 0.727 at 10,485,760); no ANY ALARM; GATE PASS; NEGATIVE. s80: CLEAR; 6 ANY ALARMs on neck_pitch_act (non-tail); GATE PASS; POSITIVE. Independent check (own code from F2 copies and M1 CSVs): agrees on every class, A, p and the line; 0 blocking; minor N1 (the scorer's tool-hash check covers lane B files only: lane A and lane B re-checked by the coordinator at 14:59 UTC, sha256sum -c all OK) and N3 (the completeness tool prints a PRESENCE RAIL line for COMPLETE s42: PRESENCE applies to LOST runs only; the reading counts PRESENCE 0). Three duplicate scratch files (S2/r10round/f2/complete_pre/*.withjson.txt) left: their removal was refused by a permission check. Per criteria: line 1 goes to the maintainer with the DIAGNOSTIC READOUTS; nothing is proposed by the text. D17 durable copy (orphan handoff branch, pushed) pending the maintainer.
+
+=== [0012] 2026-10-30T17:38:08Z -> 2026-10-30T17:38:08Z  rc=0  (run log lines 712-803)
+CMD: S1=S1; R=$S1/foot/stance4/live/run_log.txt; sed -n 712,803p $R | cut -c1-2500
+OUT: out/0012.txt  bytes=59820  sha256[:16]=858943155f35dcc1
+  | 2026-10-28 15:05 UTC  MAINTAINER: 'Yes, push the durable copy branch'. D17 durable copy pushed: orphan branch <cli>/handoff-stance6 at 6c3f27b9933d5cc94d8873757bcec43460f8c4fe (1 commit, 178 files, about 20 MB; never merged, no PR), from S2/r10round/durable/repo, staged by S2/r10round/durable/build_stage.sh reading: the criteria, THIS12, EVID, APPROVED, the F2 fetch manifest and folders.json, the C7 panels' summaries (no checkpoints, no per-step traces, no binary; every file <= 5 MB), the completeness and scorer outputs, the independent check, the measuring plans/logs, the statue panel, the exact-copy script, the pinned tools with their sums, this run log; FILELIST.txt and SHA256SUMS (sha256sum -c OK). The fetch manifest and run log carry Drive file ids, as the earlier handoff branches did. A second commit (build_stage.sh review) will add workflow 2's report-only panels, readouts, review and next steps when they are done.
+  | 2026-10-28 17:34 UTC  CoM tests (side task) done: wf_018edf58-bea (8 agents). Local branch <cli>/com-stance-regression-tests in S2/prs/com_tests/clone, commit e76e775e on origin/main 05deef3a (10 files, tests/test helpers + CHANGELOG; 110 tests: 109 pass, 1 strict xfail, a robot spawn that creeps; about 71 s on one core, 104 s under CI flags on 3.11; lint, contract checks, species and shared suites as reported in S2/prs/com_tests/REPORT.txt). The fixer's amend had a model name in its Co-Authored-By trailer: message re-amended by the coordinator to the repo convention (tree unchanged, ff471a07 -> e76e775e). Not pushed; a PR only on the maintainer's word.
+  | 2026-10-28 17:36 UTC  MAINTAINER DECISIONS (CoM tests): push and open a PR; the new tests run on every push (no workflow change). Pushed <cli>/com-stance-regression-tests at e76e775e (on main 05deef3a) and opened PR #650; subscribed to its activity.
+  | 2026-10-28 18:39 UTC  PR #650 (CoM stance regression tests) merged by the maintainer (18:39 UTC; CI 10 of 10 green on e76e775e). Unsubscribed; its check-in cancelled.
+  | 2026-10-28 18:40 UTC  MAINTAINER NOTE (to revisit after the stance6 review): revisit the calibration and the centre-of-mass regression tests (merged in #650): absolute target tests tracked as strict expected failures (e.g. turn under 1 deg from spawn, no rocking after 3 s, Brachiosaurus lean under 5 mm), the ratchet re-calibration after model fixes, the robot creep (seed 111 xfail), and CoM checks on trained policies (gate or pre-registration). Not before the stance6 results are reviewed. Recorded in S2/r10round/FOLLOW_UPS.txt.
+  | 2026-10-28 19:27 UTC  Workflow 2 done (wf_1af46036-f60, 10 agents, ~4.2 h): report-only measurements for all three runs (all rc 0, no crash or refusal), readouts and the entropy check, REVIEW.txt and NEXT_STEPS.txt; three verifier lenses 35 findings (3 blocking: N-1 a probability attached to A vs R, B1 the entropy claim narrowed, B2 Option 3 no longer gated on Option 1), all CONFIRMED-FIXED by the fixer; one fresh re-check (wf_9195cb25-b07): fixes right and complete, every headline figure matches its source, 0 blocking, 2 minor (Option 1 cost 25-26 CPU-h / 8.5-9 h; READOUTS l802-l805 narrowed by REVIEW 4.3) and 1 info applied by the coordinator (FIXES.txt). The reading unchanged. Recommended next step (proposal, needs approval and a pre-registration): CPU continuation screen from the round's own checkpoints, ent_coef as recorded vs 0. Durable copy second commit pushed: <cli>/handoff-stance6 e4733d8 (509 files, text only; FILELIST + SHA256SUMS). REVIEW sha256 5c76f5560f9f6297, NEXT_STEPS sha256 9fd7fe64c69bc6db.
+  | 2026-10-28 19:30 UTC  Disk housekeeping: removed the merged #647 checkers' throwaway trees (prs/records_r10/check_*/{repo,work,walk,suite,copy,drop,wt}: git clones and per-commit tree copies, regenerable); notes and the records clone kept. Free 3.8 -> 5.6G.
+  | 2026-10-28 19:30 UTC  MAINTAINER DECISIONS (after the stance6 review): (1) take forward the CPU continuation screen (NEXT_STEPS Option 1): draft its pre-registration; nothing trains until the maintainer approves it; (2) prepare the records PR for the round's results locally (P2, with #647's and #650's landing records and the ROADMAP date check P3), brought back before any push. GitHub facts read for the records [measured, GitHub API]: #647 merged_at 2026-10-27T22:51:26Z (head f22d11e9, merge 05deef3a), Python CI run 40589544371 all 10 green, test-sb3 21:47:07-22:15:27 (28:20), coverage TOTAL 91%; #650 merged_at 2026-10-28T18:39:33Z (head e76e775e, merge 317adec5), run 40737370508 all 10 green, test-sb3 17:37:41-17:59:07 (21:26), coverage 91%. ROADMAP "from 2026-10-27": #647 merged on 2026-10-27 UTC, so it holds.
+  | 2026-10-28 19:32 UTC  Started: (1) wf_86638249-afc, the entropy continuation screen pre-registration draft (S2/r10round/ecs/; read only, no training or optimizer step; surveys, lean draft with decisions, three-lens review, fixer, FOR_THE_MAINTAINER.txt); (2) wf_53a8578e-43e, the stance6 results records PR built locally (S2/prs/records_r10b/clone, branch <cli>/records-r10-results off main 317adec5, push URL DISABLED; builder, three checkers, fixer). Nothing pushed.
+  | 2026-10-28 21:05 UTC  Container restart (~21:00 UTC): the records-PR workflow wf_53a8578e-43e was stopped after its builder (6 local commits, head 2e7c3066) and two of three checkers; resumed from its cache (task wzir3cnvr). ECS draft v2 done (wf_86638249-afc; S2/r10round/ecs/v2, FOR_THE_MAINTAINER.txt; 41 of 41 review findings handled). MAINTAINER DECISIONS (ECS): D1 (a) arm B ent_coef 0 approved as the screen's one training change (in-memory config edit, scratch continuations only); D2-D9 as recommended (D2 validation through learn() with train() a no-op, no optimizer step, before approval; D3 starts s42 3,145,728 + s80 4,194,304; D4 6 per arm per start; D5 any ANY-flagged evaluation by the end; D6 two-sided 0.025 per side; D7 3 processes at nice 10 under a watcher; D8 keep the collapse stop; D9 durable copy after the reading); D10-D12 add-ons off; T1-T6 as listed. Next: harness build, validation, review, approval request; the launch waits for the maintainer's approval of the final text.
+  | 2026-10-28 21:07 UTC  Disk housekeeping for ECS (T4 6 GiB target): removed tailround/screen/{durable_repo,durable_stage,measure_copy} (the repo equals origin <cli>/handoff-tailscreen 1106cd3; the stage and archive regenerable), tailround/r10cpu/main_clone (clean clone of main), prs/com_tests/clone (#650 merged; notes and REPORT kept), and the uv cache. Free 6.4G.
+  | 2026-10-28 21:08 UTC  ECS build started: wf_fb513a42-0e7 (lane H harness + lane R reader/scorer in parallel, V1-V5 under D2 (a) with no optimizer step, two reviews, fixer, pin + APPROVAL_REQUEST.txt; nothing launches; APPROVED not written). Disk 6.4 GiB free.
+  | 2026-10-28 22:17 UTC  Records PR built locally (wf_53a8578e-43e, resumed after the restart): <cli>/records-r10-results, 6 commits on main 317adec5, head e0d80a3a, push URL DISABLED; three checkers 3 blocking + 11 minor, all CONFIRMED-FIXED into the commits that introduced them; every check passes at every commit (sums 701-849, links, guards) and on the head (lint, contract checks, shared suite 5809 passed, 292 skipped, 0 failed). Open: naming defaults; C-C1 (the durable second commit e4733d8 recorded as pushed with no word quoted). Durable clone push URL set to DISABLED (F3).
+  | 2026-10-28 22:19 UTC  MAINTAINER DECISIONS (records PR): push <cli>/records-r10-results and open the PR with the defaults (stance6_results/; D-D51 amended + D-D52; #650 a CHANGELOG number only; panels in the droppable last commit). MAINTAINER: the 15:05 UTC word ("Yes, push the durable copy branch") covered the durable copy's second commit e4733d8 (pushed 19:27 UTC) as well; section 27 to cite it and drop the "no word quoted" bullet before the push.
+  | 2026-10-28 22:28 UTC  Records PR pushed and opened per the maintainer (22:19 UTC): <cli>/records-r10-results at 3cfb2a18 (6 commits on 317adec5; section 27, its README and two commit messages corrected to cite the 15:05 UTC word for both durable commits, the "no word quoted" bullet dropped; trees otherwise unchanged; per-commit checks re-run: sums 701/701/702/727/727/849, links 0 broken, guards 263 passed at each commit, docs-reading 113 passed 2 skipped and policy_loading 97 at commits 5-6, trailers exact, no model names) -> PR #652; subscribed. Push URL back to DISABLED.
+
+=== [0013] 2026-10-30T17:38:26Z -> 2026-10-30T17:38:26Z  rc=0  (read LB harness builder design notes)
+CMD: LB=S2/r10round/long_blind; cat $LB/logs/notes_design.txt
+OUT: out/0013.txt  bytes=17835  sha256[:16]=ea544649139b0c43
+  | ==================================================================================================================
+  | THE WINDOW (step 2; [measured] validate/logs/parent_schedule.out unless said)
+  | ==================================================================================================================
+  | S = 2,097,152 (TASK2; FMAN lines 241 / 243 for the start pair).  E = 12,001,280: how a 12M run ends -- SB3's
+  | OnPolicyAlgorithm.learn collects whole rollouts of 8,192 while num_timesteps < _total_timesteps = 12,000,000, so the
+  | last rollout ends at 1,465 x 8,192 = 12,001,280 [code read: _train_stage_body, learn(total_timesteps, reset_num_timesteps
+  | = not resuming)]; the parent's final zip's data num_timesteps is 12,001,280 (_total_timesteps 12,000,000) and its
+  | probe's last update row is 12,001,280 (row 1,464 of 1,465), so E = both ("E_equals_both": true).
+  | LENGTH = E - S = 9,904,128; 1,209 rollouts; 1,208 update rows in (S, E) (S + 8,192 ... 11,993,088); 75 evaluations
+  | in (S, E] (2,228,224 ... 11,927,552; E is off the 131,072 grid by 73,728); saved pairs: 37 periodic (2,359,296 ...
+  | 11,796,480, every 262,144 as the stage saves) and the final pair at E (stage1_final.zip / stage1_final_vecnorm.pkl:
+  | E is off the save grid by 204,800), 38 saved pairs (39 with the start copy).  MAX_LENGTH = LENGTH (AUTH2).
+  | The parent's records cover the whole window: probe rows (S, E] 1,209 of 1,209 (all spaced 8,192, unique; 256 rows
+  | <= S); evaluations.npz, gate_progress.npz and eval_episodes.csv: 75 of 75 window evaluations, 10 episodes each (91 in
+  | all, the last at 11,927,552); train_episodes.csv to 12,000,664.  So the parent's ledger and probe are a reference over
+
+=== [0014] 2026-10-30T17:38:35Z -> 2026-10-30T17:38:35Z  rc=0  (read LB launch notes and validate logs list)
+CMD: LB=S2/r10round/long_blind; cat $LB/logs/notes_launch.txt; echo; ls -la $LB/validate/logs; echo; cat $LB/logs/check_inputs.out | head -60
+OUT: out/0014.txt  bytes=7088  sha256[:16]=d33ffdfa0ad23fac
+  | ==================================================================================================================
+  | HOW TO LAUNCH (for the coordinator, after the criteria are reviewed; none of this was done here)
+  | ==================================================================================================================
+  |   1. LB/criteria.txt and LB/SCREEN.json (the criteria lane's; schema bs-screen/1, intervention critic_blind_tail3, a
+  |      queue of at most 4 [arm, seed] entries with control and the intervention, no seed in 9301-9341); the scorer as
+  |      LB/tools/score_bs.py (bs_common.SCORER_FILE; another name needs that constant changed and the tests re-run).
+  |   2. LB/APPROVED (JSON): criteria_sha256, screen_sha256, code_tree_digest 331fe8fc3f6bdf73acc0d3cc324dd753d9d9d695d7ce
+  |      914e4e011d5c6437ebf1, tool_sha256 {run_bs.py, read_bs.py, run_waves_bs.sh, bs_common.py, bs_hooks.py,
+  |      bs_resume.py (the six bs_common.TOOL_FILES) = SHA256SUMS.txt, and score_bs.py (the runner refuses without it)}.
+  |   3. Check: cd /tmp && PY -I -B LB/tools/run_bs.py --arm A --seed N --preflight-only for every queue entry (exit 0);
+  |      bash LB/tools/run_waves_bs.sh --plan (exit 0); free disk >= the launch floor 2,449,473,536 B (2.28 GiB): the
+  |      validation folders LB/validate/v1 (72 MB), v2, v4 and smoke can go once their run_meta / check / markers files
+  |      are kept (as BS2's RR-7 did).
+  |   4. Launch detached from /tmp: cd /tmp && setsid nohup bash LB/tools/run_waves_bs.sh > LB/logs/run_waves_bs.out 2>&1 &
+  |      and watch only LB/logs/run_waves_bs.log (outcome-blind).  A crash is resumed by the runner itself (no action); a
+
+=== [0015] 2026-10-30T17:38:41Z -> 2026-10-30T17:38:41Z  rc=0  (read LB measure NOTES part 1)
+CMD: LB=S2/r10round/long_blind; wc -l $LB/measure/NOTES.txt; sed -n 1,140p $LB/measure/NOTES.txt
+OUT: out/0015.txt  bytes=22432  sha256[:16]=250ff6f5ae25ada0
+  | 156 S2/r10round/long_blind/measure/NOTES.txt
+  | LB/measure NOTES.txt -- measurement builder (end-of-run classification of each long continuation with the r10 round's pinned tools)
+  | Folder: S2/r10round/long_blind/measure
+  | Rules followed: write only inside LB/measure; no training; validation = read-only measurements of existing checkpoints, nice 10, <=4 processes; no /dev/null; label claims [measured]/[inferred].
+  | Each entry: date -u time, command (abbreviated where long), result.
+  | 
+  | 2026-10-30T16:32:14Z mkdir -p LB/measure/{tools,validate,work} -> created (LB did not exist before)
+  | 2026-10-30T16:33Z sha256sum criteria_r10round_final.txt -> 99a44469a387d01c55b98d76595d3633029681866ed14afcb185521eca0164db = durable/repo/round/APPROVED criteria_sha256 [measured]
+  | 2026-10-30T16:35Z sha256sum laneA/{SHA256SUMS.txt,judge_r10ltsb.py,make_judge_r10ltsb.py,kscore_r10ltsb.py,measure_r10round.py,r10m_common.py,runs/run_validations.sh}
+  |    and laneB/{SHA256SUMS.txt,ledger,complete,k3panel,score,fetch,v9_bundle,r10round_common,pins_r10round.json} -> every value equal to criteria PINS lines 755-774 [measured];
+  |    sha256sum -c laneA/SHA256SUMS.txt and laneB/SHA256SUMS.txt -> no line other than OK [measured]
+  | 2026-10-30T16:36Z read: criteria lines 1-829; run log line 711; durable/repo/f2/score.txt (the round's classes); BS2 REPORT.md, bs_common.py, read_bs.py (run_m5, m5_window, ledger_direct)
+  | 2026-10-30T16:41:36Z wait4 semantics test (work/wait4_test.py): see result above
+  | 2026-10-30T16:41:46Z PY -I -B work/wait4_test.py (parent waits a child that runs a busy grandchild) -> rc 0 wall 2.01 utime 1.96 stime 0.0 [measured]: os.wait4 rusage includes the waited grandchild's CPU
+  | 2026-10-30T16:44Z read: laneA REPORT.txt, build/v5/REPORT.txt, build/v6/REPORT.txt (head), measure_r10round.py (all), r10m_common.py (all); laneB ledger_r10round.py (all), r10round_common.py (m5, decode_row, read_trace, trace_cmd, mean_a, resolution_checkpoint, r1_of), score_r10round.py (classes_of, reading, score), complete_r10round.py (c3_pairs, PanelLocator, completeness, binding_problems); the round's c7tools/run_slot.sh and gen_jobs.py (how M1/M3 were run at F2: measure_r10round.py <m1|m3> --copy f2/copy_8737cd3d --zip/--pkl <F2 .copy1> --stage-config <F2 .copy1> --run-id --label, nice 10, 2 slots)
+
+=== [0016] 2026-10-30T17:38:49Z -> 2026-10-30T17:38:49Z  rc=0  (read LB measure NOTES part 2 and folder listing)
+CMD: LB=S2/r10round/long_blind; sed -n 140,156p $LB/measure/NOTES.txt; ls -la $LB/measure/tools $LB/measure/validate; ls $LB/measure/validate/stance6_r10LTSB_s42 2>&1 | head
+OUT: out/0016.txt  bytes=3876  sha256[:16]=c0c74b6534773a0e
+  |    joint" is to be read from them, the pre-registration should adopt (or redefine) them before outcomes are seen.
+  | 8. Not re-measured afresh in this validation: s60 M1 x6, s80 M1 x6 and M3 (disk floor, item 1); their classes were reproduced through
+  |    the same path on the round's own measurements of the same F2 pairs; the resumable command is in VALIDATION RESULT above.
+  | 9. Machine load during the validation: up to 8-9 heavy processes ran machine-wide (other workflows' probes and the harness's validation
+  |    runs), above the 4-process rule; M3 wall times were inflated about 1.6x, CPU seconds were not. measure_lb.py now waits before each
+  |    launch while >= 4 python script processes run machine-wide.
+  | 10. M2 (posture panel) and M4 (judge K1-K4) are not run: report only in the round and not needed for the classes.
+  | 11. measure_lb.py and its helpers must be pinned (SHA256SUMS.txt below) in LB/APPROVED; they read S1/foot/stance6/APPROVED (the round's
+  |     approval, branch_head 8737cd3d) and BS/code's seal at every run.
+  | 
+  | ==== CHECKSUMS AND DISK ====
+  | 2026-10-30T17:35:45Z find . -type f (but work/pytest_tmp, work/tmp, NOTES.txt, SHA256SUMS.txt) | sha256sum > SHA256SUMS.txt -> 170 files; sha256sum -c SHA256SUMS.txt -> all OK [measured]; SHA256SUMS.txt sha256 c9cd85ce64954b54407074b13a292b37276b701684ddd78456c01b9be864615e
+  |    tools: 5fb29b52f194ffa40f45afed7427d762841d09e1a8860a20c404b283f35459d6=measure_lb.py 4f38a7ec16b86c1485ceabde2e6f4706b878027f937a5a72a729eaebf62f6155=mutation_checks.py 468936ee9f2a80857577c1d9dc602b9db36069dcb2fc0fe39b22d27d514f2bac=reread_round_panels.py ce407fa0a6a4bf4428efd25b5c2e7a77110d5540e1453a20626dc5c1540ca10d=tests/test_measure_lb.py 5f3be6953b592c831751da3728cf4ab15360a1dd45b259e0d662da52fe082c1e=validate_round.py 
+  | 2026-10-30T17:35:45Z du -sb LB/measure -> 57895455 bytes (under 400 MB)
+  | 2026-10-30T17:35:45Z df -h /tmp:
+
+=== [0017] 2026-10-30T17:38:55Z -> 2026-10-30T17:38:56Z  rc=0  (round criteria: sha and section headers)
+CMD: S2=S2; C=$S2/r10round/final_lean/criteria_r10round_final.txt; wc -l -c $C; sha256sum $C; grep -n "criteria_sha256" $S2/r10round/durable/repo/round/APPROVED; grep -n -E "^[A-Z][A-Z0-9 ,()/+:.-]{6,}$|^[A-Z][A-Z0-9 ]{3,}[:(]" $C | head -120
+OUT: out/0017.txt  bytes=2411  sha256[:16]=dd5a943eb05c3abb
+  |   829 81717 S2/r10round/final_lean/criteria_r10round_final.txt
+  | 99a44469a387d01c55b98d76595d3633029681866ed14afcb185521eca0164db  S2/r10round/final_lean/criteria_r10round_final.txt
+  | 4: "criteria_sha256": "99a44469a387d01c55b98d76595d3633029681866ed14afcb185521eca0164db",
+  | 4:STATUS: LEAN v6, written 2026-10-27 01:41 UTC (date -u) by the amender, from lean v5
+  | 22:L10 (a). FULL (criteria v12 with a v13) is retired. Still applying: RUNLOG line 645 (2)-(4) where they bear on these
+  | 28:NAMES OF DECISIONS: D<n> is criteria v12's decision n as THIS12 uses it (D1 recipe, D2 seeds, D3 cadence, ... D22);
+  | 31:PRECEDENCE AND FREEZE: this text cites THIS12 and EVID by line or section for definitions, readouts and validations it
+  | 53:WHAT IS TRAINED (D1, D2, D3, D16, D18 decided; as THIS12, shortened)
+  | 72:ARMS AND SEEDS (as THIS12 lines 116-136, shortened)
+  | 81:CHECKPOINTS AND LEDGER CADENCE (D3 (a))
+  | 115:HOW IT IS MEASURED (offline, in session scratch, on files fetched read-only; nothing during a run but M7's panel)
+  | 145:THE TELEMETRY OF TEL (report only; on main, D15)
+  | 163:CLASSES PER RUN
+  | 269:TAIL CLASS (a COMPLETE run, read on its records as measured; the first line that applies)
+  | 279:DRIVEN (report only): any tail actuator with |MEAN_a| >= 0.60 that PARKED does not count.
+
+=== [0018] 2026-10-30T17:39:00Z -> 2026-10-30T17:39:00Z  rc=0  (round criteria lines 53-162)
+CMD: S2=S2; C=$S2/r10round/final_lean/criteria_r10round_final.txt; sed -n 53,162p $C
+OUT: out/0018.txt  bytes=10802  sha256[:16]=ccc2582b0600efc9
+  | WHAT IS TRAINED (D1, D2, D3, D16, D18 decided; as THIS12, shortened)
+  | - Physics r10 (physics_revision 10, policy interface r15), the stance stage, the SB3 notebook, n_envs 4, three Colab L4
+  |   runtimes in parallel, from scratch, 12,000,000 steps (final 12,001,280), main's PPO schedules (STOML; learning_rate
+  |   3e-5 -> 1e-5, n_steps 2048, batch 128, n_epochs 10, gamma 0.98, ent_coef 0.005 -> 0 by 7,000,000, target_kl 0.03,
+  |   net [512, 256], log_std_init -1.5); hyperparameters_sha256.PPO 054ab483..., LTSB's r9 runs' [measured, PW digests].
+  | - Recipe (D1): arm LTSB of stance5 (JC at cf80ecb1) ported to r10; the config keys it changes, the code it carries and
+  |   its measured equivalence are THIS12 lines 66-101 and EVID (WHAT IS TRAINED). checkpoint_freq 262144 (D3 (a));
+  |   collapse_peak_floor_reference 4470.4 (D20 (a): main's 3766.6 plus the measured statue gain +703.8132; floor 2011.68).
+  | - Code: BR = main 06b1a8e1 (both TEL PRs merged, D15 met) + the port's four commits 176af89f, 60c0c1f9, 740fc3f5,
+  |   7fa2f2c3 (each message names its carry onto main 06b1a8e1) + 2ca69a8f (D3) + cf9402bc (D19, amended from 5b38f97b:
+  |   the guard_1 docstring only; accepted, RUNLOG line 646) [measured, BR git log; S2/r10round/runbranch/fixer/logs/
+  |   v0i_head.txt]; recorder.py's one hand-resolved hunk (_configure_decode) accepted and listed in V0 (a) (RUNLOG line
+  |   646); last, the header commit: this text's sha256 in a stance.toml comment, its message naming the branch's carry
+  |   onto main 06b1a8e1 (PINS). No notebook change (D22). Pushed only after the maintainer's OK so Colab's REPO_REF can
+  |   install it (D16); never merged.
+
+=== [0019] 2026-10-30T17:39:04Z -> 2026-10-30T17:39:04Z  rc=0  (round criteria lines 163-306)
+CMD: S2=S2; C=$S2/r10round/final_lean/criteria_r10round_final.txt; sed -n 163,306p $C
+OUT: out/0019.txt  bytes=14254  sha256[:16]=c8584e3900db7cfa
+  | CLASSES PER RUN
+  | Definitions (as THIS12 lines 297-337, unchanged in substance, with PRECEDENCE: no saturation counts, no T).
+  | - TAIL ACTUATORS 11-14; TAIL PITCH ACTUATORS 11, 13, 14; TAIL-UP = a positive command on a tail pitch actuator.
+  | - BAR: an episode's share of window steps at |command| >= 0.99 on an actuator exceeds 0.10.
+  | - TAIL FLAG (M1): a tail actuator over the BAR in a FULL-HORIZON (1000-step) traced episode, with its sign; on an exact
+  |   tie the flag counts once in each sign; flags in shorter episodes are FALL FLAGS (report only).
+  | - ANY-FLAGGED EVALUATION: at least 5 of its 10 ledger episodes over the bar on any actuator (M5 (a)). ANY ALARM: the
+  |   second of two consecutive any-flagged evaluations (D-D40 5a as r9 was read).
+  | - TAIL-FLAGGED EVALUATION: at least 5 of its 10 episodes over the bar with a tail actuator named (M5 (b)). TAIL ALARM:
+  |   the second of two consecutive tail-flagged evaluations.
+  | - TAIL-UNRESOLVED EPISODE: over the bar, a non-tail actuator named, and saturated_actuator_ties >= 1 or
+  |   actuators_saturated >= 2. An ANY ALARM without a TAIL ALARM at its step NEEDS RESOLUTION when counting the
+  |   TAIL-UNRESOLVED episodes of either evaluation as tail episodes would make both tail-flagged; its RESOLUTION CHECKPOINT
+  |   is the pair at the second evaluation's step when that step is a multiple of 262,144, else the pair at the next
+  |   multiple of 262,144 at or before E, else stage1_final (C3 then fails when that pair is not in the manifest). It
+
+=== [0020] 2026-10-30T17:39:11Z -> 2026-10-30T17:39:11Z  rc=0  (round criteria lines 307-436)
+CMD: S2=S2; C=$S2/r10round/final_lean/criteria_r10round_final.txt; sed -n 307,436p $C
+OUT: out/0020.txt  bytes=13570  sha256[:16]=680759590ac49f82
+  | ROUND READING (read once WHEN THE READING IS MADE allows; the first line that applies is the reading; every line that
+  | applies is printed). Each seed's run of the round is fixed by RUN HANDLING (LEAN-R). R = COMPLETE runs with TAIL CLASS
+  | RAIL plus PRESENCE RAILS; U = seeds whose run of the round is not COMPLETE (LOST, or never launched) or is UNREAD
+  | (STOPPED without RAIL); P = COMPLETE runs PARKED; G+ = POSITIVE runs. Every line prints A of n_A with its figures (TABLE
+  | E) and D-16 for every LOST run, a replaced first run included.
+  | 1. R >= 1: TAIL RAIL FORMED ON r10 IN TRAINING, with its basis: "(ledger)" when a COMPLETE run's rail rests on a TAIL
+  |    ALARM; else "(ledger, a LOST run)" when a PRESENCE RAIL; else "(end-only, drive-backed)"; else "(end-only, not
+  |    drive-backed: weak evidence; false-rail chance if r10 cured the habit 0.003-0.11 per round, up to 0.31 [inferred,
+  |    EVID])". An existence result for r10 as shipped (weak for the last); not a rate. To the maintainer with the
+  |    DIAGNOSTIC READOUTS; nothing is proposed by this text.
+  | 2. R = 0 and U >= 1: INCOMPLETE. "No tail rail in the <3 - U> run(s) read to 12M; U seed(s) LOST or STOPPED without a
+  |    rail: not a no-rail reading." Printed with every COMPLETE run's class, gate and outcome (an UNREAD run with E and
+  |    its class to E). No parent, confirmation or certification route follows.
+  | 3. R = 0, U = 0, P >= 1: NO RAIL, TAIL DRIVE PERSISTS (PARKED in P of 3). To the posture decision (RUNLOG line 509
+  |    (3)); the best gate-passing final by stance3's parent rule (most clean panel episodes at final; ties to fewer
+
+=== [0021] 2026-10-30T17:39:16Z -> 2026-10-30T17:39:16Z  rc=0  (round criteria lines 487-502 and 625-704)
+CMD: S2=S2; C=$S2/r10round/final_lean/criteria_r10round_final.txt; sed -n 487,502p $C; echo ......; sed -n 625,704p $C
+OUT: out/0021.txt  bytes=9027  sha256[:16]=1d6f64ad4f83df56
+  | WHEN THE READING IS MADE
+  | - After F2 and every re-fetch, once each run's C1-C7 and each LOST run's p1-p3 are decided: until then "incomplete"
+  |   and no line is read.
+  | - PROVISIONAL, and not acted on, while any of these stands (the scorer prints each): a pin unfilled or a tool's sha256
+  |   other than its pin; this text's, THIS12's or EVID's sha256 or the branch HEAD other than APPROVED's (and, for the
+  |   branch HEAD, the LAUNCH lines' head=); a
+  |   class input measured on a measuring copy of another commit, with other seeds or on a model whose physics_revision is
+  |   not 10; a read file whose sha256 differs from the fetch manifest; V0-V5, V8 (i)-(ii) or V9 not passed. Each is
+  |   cleared only by filling the pin or measuring again, never by a ruling. A configuration or session fact (C1, C4, p1,
+  |   p2) is not PROVISIONAL: it decides COMPLETE, LOST or PRESENCE, and no RUNLOG note or ruling changes a class, A, n_A
+  |   or the line.
+  | - A reading neither incomplete nor provisional is final and goes to the maintainer at once. The durable copy (D17,
+  |   RUNLOG line 613): the round's derived text outputs, this text, THIS12, EVID and the fetch manifest, committed to an
+  |   orphan never-merged handoff branch and pushed, as THIS12 lines 802-807.
+  | 
+
+=== [0022] 2026-10-30T17:39:22Z -> 2026-10-30T17:39:22Z  rc=0  (measure_lb.py habit and class definitions (grep))
+CMD: LB=S2/r10round/long_blind; M=$LB/measure/tools/measure_lb.py; sha256sum $M; grep -n -i -E "habit|site|def |ANY_ALARM|any_alarm|actuator_names|ACTUATOR" $M | head -120
+OUT: out/0022.txt  bytes=8184  sha256[:16]=582b5ad27212c756
+  | 5fb29b52f194ffa40f45afed7427d762841d09e1a8860a20c404b283f35459d6  S2/r10round/long_blind/measure/tools/measure_lb.py
+  | 41:       straddling S; BS2 read_bs.m5_window's form), the parent prefix check, the PER-ACTUATOR HABIT SUMMARY (D-1,
+  | 42:       lines 336-339: "the same for every other actuator"; M1's per-actuator outputs, line 119; the probe's
+  | 52:episodes in which no actuator is over the BAR (their sha256 stay in csv_sha256.txt and m1_summary.json; lane B's
+  | 53:read_trace needs the CSV only of an episode with a tail actuator over the BAR).
+  | 137:HABIT_LINE = 0.60                          # the PARKED / DRIVEN line (lines 276-279), applied per actuator: report only
+  | 142:    "ANY ALARM": "lines 169-170 (ANY-FLAGGED EVALUATION: >= 5 of 10 over the bar on any actuator; ANY ALARM: the "
+  | 144:    "TAIL ALARM": "lines 171-172 (TAIL-FLAGGED EVALUATION: >= 5 of 10 over the bar with a tail actuator named; TAIL "
+  | 148:    "TRACE RAIL": "lines 188-191 (>= 2 full-horizon TAIL FLAGS on one actuator and sign, or 1 with MEAN_a >= 0.60; "
+  | 150:    "TAIL FLAG": "lines 165-168 (TAIL ACTUATORS 11-14, PITCH 11/13/14; BAR share at |command| >= 0.99 > 0.10; "
+  | 156:    "M1": "lines 119-121 (episode_trace_report.py, seeds 3042-3061, deterministic, every actuator, window 200..L-1)",
+  | 164:    "D-1": "lines 336-339 (per evaluation by named actuator and sign; windows [0,4194304), [4194304,8388608), "
+  | 165:           "[8388608,12001280]; the same for every other actuator; report only)",
+  | 171:    def __init__(self, message: str, code: int = 2):
+  | 178:def utcnow() -> str:
+
+=== [0023] 2026-10-30T17:39:27Z -> 2026-10-30T17:39:27Z  rc=0  (measure_lb.py habit_summary body and classify_one any_alarms)
+CMD: LB=S2/r10round/long_blind; M=$LB/measure/tools/measure_lb.py; sed -n 1,60p $M; echo ....; sed -n 130,170p $M; echo ....; sed -n 547,665p $M; echo ....; sed -n 789,910p $M
+OUT: out/0023.txt  bytes=24169  sha256[:16]=a76083b0d7a45b4c
+  | """LB (long blind run) measurement: the end-of-run classification of a finished continuation with the r10 round's own
+  | pinned tools.  Report only: it never trains, never steps an optimizer and never writes outside LB/measure.
+  | 
+  |     PY -I -B measure_lb.py version
+  |     PY -I -B measure_lb.py pins
+  |     PY -I -B measure_lb.py plan RUN [RUN ...] --out-root DIR [--suffix .copy1] [--start S]      (nothing simulated)
+  |     PY -I -B measure_lb.py classify RUN [RUN ...] --out-root DIR [--suffix .copy1] [--slots 2] [--start S]
+  |                                     [--prune-csv] [--no-simulate] [--parent-ledger CSV]
+  | 
+  | RUN is a finished continuation folder shaped like BS2's runs/<name>/ (01_stance/eval_episodes.csv, stage_config.json,
+  | progress.json, models/stage1_<steps>_steps.zip + stage1_vecnormalize_<steps>_steps.pkl, models/stage1_final.zip +
+  | stage1_final_vecnorm.pkl; run_meta.json and policy_probe.npz when present).  --suffix names a fetch store's copy suffix
+  | (".copy1" for the round's F2 copies, the validation input); measure_r10round.py accepts the same suffix.  Each RUN's
+  | outputs go to <out-root>/<name>/ (name = the folder name, or the parent folder's for an F2 "copies" folder).
+  | 
+
+=== [0024] 2026-10-30T17:39:34Z -> 2026-10-30T17:39:34Z  rc=0  (parent s42 measure report (LB/measure validate))
+CMD: LB=S2/r10round/long_blind; V=$LB/measure/validate; ls $V/stance6_r10LTSB_s42 $V/reread_round; cat $V/stance6_r10LTSB_s42/report.txt 2>&1 | head -150
+OUT: out/0024.txt  bytes=6971  sha256[:16]=00c4ba84a8fb33a5
+  | S2/r10round/long_blind/measure/validate/reread_round:
+  | VALIDATION.txt
+  | mutation_checks.json
+  | mutation_checks.out
+  | stance6_r10LTSB_s42
+  | stance6_r10LTSB_s60
+  | stance6_r10LTSB_s80
+  | validation.json
+  | 
+  | S2/r10round/long_blind/measure/validate/stance6_r10LTSB_s42:
+  | classes.first_run.json
+  | classes.json
+  | habit.first_run.json
+  | habit.json
+  | logs
+
+=== [0025] 2026-10-30T17:39:49Z -> 2026-10-30T17:39:49Z  rc=0  (parent s60 and s80 reread reports (habit sections))
+CMD: LB=S2/r10round/long_blind; V=$LB/measure/validate/reread_round; for r in stance6_r10LTSB_s60 stance6_r10LTSB_s80; do echo "#### $r"; ls $V/$r; grep -n -E "TAIL CLASS|PARKED|MEAN_a|ANY ALARMs|GATE CLASS \(|RUN OUTCOME|habit sites|actuator  |_act  " $V/$r/report.txt | cut -c1-400; done
+OUT: out/0025.txt  bytes=2836  sha256[:16]=6dde3ddd9c908358
+  | #### stance6_r10LTSB_s60
+  | classes.json
+  | habit.json
+  | m5.json
+  | m5.txt
+  | measure_lb.json
+  | report.txt
+  | 7:  TAIL CLASS (lines 269-279): PARKED
+  | 11:    PARKED (lines 276-277): [{'actuator': 'tail_3_pitch_act', 'windows': [['END', 0.042], ['J', [['8388608', 0.2797], ['10485760', 0.1267]]]]}]; DRIVEN (line 279): []
+  | 12:    MEAN_a: {"tail_1_pitch_act": -0.001, "tail_1_yaw_act": 0.0037, "tail_2_pitch_act": 0.1682, "tail_3_pitch_act": 0.642}
+  | 13:  ANY ALARMs (lines 169-170): 0; steps ; by actuator {}
+  | 16:  GATE CLASS (lines 280-283): PASS
+  | 18:  RUN OUTCOME (lines 284-286): NEGATIVE ['PARKED']
+  | 19:  window (S, E] (report only): TAIL ALARMs 0 (first None), ANY ALARMs 0, tail-flagged 0, straddling S []; before S: {'any_flagged': [], 'tail_flagged': [], 'over_bar_episodes': 0}
+  | 21:    habit sites: {"tail_3_pitch_act": ["T", "D"]}
+
+=== [0026] 2026-10-30T17:39:57Z -> 2026-10-30T17:39:57Z  rc=0  (MORNING_REPORT size and headings; tail note size and headings)
+CMD: S2=S2; M=$S2/overnight/MORNING_REPORT.md; T=$S2/com_revisit/wt_records2/docs/investigations/TREX_TAIL_SATURATION_HABIT_2026_10.md; wc -l -c $M $T; sha256sum $M $T; grep -n "^#" $M; echo ....; grep -n "^#" $T | head -100
+OUT: out/0026.txt  bytes=3203  sha256[:16]=1d1ae06927eda603
+  |    146  10627 S2/overnight/MORNING_REPORT.md
+  |   1970 256113 S2/com_revisit/wt_records2/docs/investigations/TREX_TAIL_SATURATION_HABIT_2026_10.md
+  |   2116 266740 total
+  | 4e6da8717db540a8216b90f31665db03c28626880f6261924e134cac36a30303  S2/overnight/MORNING_REPORT.md
+  | fc94a9ef5794d8d57cbb122861fed656ca67d2dcf31f934b25f2aaacfd15d193  S2/com_revisit/wt_records2/docs/investigations/TREX_TAIL_SATURATION_HABIT_2026_10.md
+  | 1:# Overnight report: the tail habit (2026-10-29 to 2026-10-30)
+  | 7:## In one paragraph
+  | 26:## 1. What starts the tail rise (the early-bias probe, verified with corrections)
+  | 42:## 2. Can the habit be seen coming? (early-warning curve and two follow-ups, verified)
+  | 58:## 3. The training screen: does blinding the critic to the tail angle stop the early rise?
+  | 98:## 4. Repository
+  | 107:## 5. One incident
+  | 113:## 6. What I suggest next
+  | 138:## Files
+  | ....
+
+=== [0027] 2026-10-30T17:40:01Z -> 2026-10-30T17:40:01Z  rc=0  (read MORNING_REPORT.md in full)
+CMD: S2=S2; cat $S2/overnight/MORNING_REPORT.md
+OUT: out/0027.txt  bytes=10627  sha256[:16]=4e6da8717db540a8
+  | # Overnight report: the tail habit (2026-10-29 to 2026-10-30)
+  | 
+  | Written for the maintainer after the night's runs. Everything below is verified by an independent check unless marked
+  | otherwise; [inferred] marks reasoning, not measurement. Nothing was merged; one scratch training screen ran under your
+  | 00:45 UTC authorisation.
+  | 
+  | ## In one paragraph
+  | 
+  | The verified probe narrows what starts the tail rise:
+  | - Only the policy-gradient part of training moves the tail command.
+  | - s42 already has an upward push at its onset (1.31M).
+  | - From 2.1M, the critic's bootstrapped value is supported as the source of that push.
+  | 
+  | The one training screen you authorised blinded the critic to the tail angle from s42's 1.05M checkpoint. Its
+  | pre-registered reading is **NOT INFORMATIVE**: the control arm itself did not reliably repeat s42's rise. Only 1 of 4
+
+=== [0028] 2026-10-30T17:40:06Z -> 2026-10-30T17:40:06Z  rc=0  (tail note section 2 (lines 351-500))
+CMD: S2=S2; T=$S2/com_revisit/wt_records2/docs/investigations/TREX_TAIL_SATURATION_HABIT_2026_10.md; sed -n 351,500p $T | cut -c1-700
+OUT: out/0028.txt  bytes=8693  sha256[:16]=13de178d203d579b
+  | ## 2. Where it stands (2026-10-29)
+  | 
+  | **Known** [measured unless said]
+  | 
+  | - **On r9 and r10 it is a command habit of one actuator at a time** (on r6
+  |   and r7 many actuators were pinned at once [L004, L011]). It is not a
+  |   saturated joint, motor or force, so force-based telemetry cannot see it [L035, L043,
+  |   L138].
+  | - **It recurs on both plants.**
+  |   - On r9 it raised an alarm in 4 of 10 L+T-family runs, every onset before
+  |     4.5M (BRIEF §1 item 4) [L064]. That count is alarm-based. A fifth run,
+  |     stance5r s70, held tail_2 at +0.767 at its final with no flag; and every
+  |     other non-alarm run but stance4 s60 had saturated ledger episodes with no
+  |     actuator named, so under r10's RAIL rule r9 reads 4 to 6 of 10 (DVREV
+  |     DV5, inferred there) [L154].
+
+=== [0029] 2026-10-30T17:40:12Z -> 2026-10-30T17:40:12Z  rc=0  (tail note 6.2 process lessons (lines 1469-1603))
+CMD: S2=S2; T=$S2/com_revisit/wt_records2/docs/investigations/TREX_TAIL_SATURATION_HABIT_2026_10.md; sed -n 1469,1603p $T | cut -c1-600
+OUT: out/0029.txt  bytes=8528  sha256[:16]=034fd3b9d3f89b4d
+  | ### 6.2 Process: screens, pre-registration, outcome-blindness, verification, time
+  | 
+  | 1. **Judge several checkpoints and read the whole ledger.**
+  |    - The rail forms, clears and re-forms: stance3 Run 2 ran in four spells to
+  |      11.14M with a clean final. A cleared rail can be a swing to the opposite
+  |      park, not a return to neutral: r10 s42's tail_3 command went to -0.56 at
+  |      6.95M between its spells, and stance3 Run 2's fell to +0.191 (tail down)
+  |      at 8.39M [L028, L099, L101].
+  |    - The notebook's own gate judged early robust_best pairs (0.9M-2.0M on
+  |      r10; 917,504 and 393,216 on r9) and "could not see a late rail".
+  |    - A gate read only at the final hides rails both ways: r10 s80 failed at
+  |      6,291,456 and passed at the final, and s42 the reverse (STANCE §23.4
+  |      lines 3430-3433 and RUNLOG l327-330 for the r9 pairs; STANCE §19.5 item
+  |      3, §27.3 D-8; REVIEW lines 437-448, 743-748) [L031, L108].
+  |    - "Judge several checkpoints" was already a lesson of the foot work
+
+=== [0030] 2026-10-30T17:40:18Z -> 2026-10-30T17:40:18Z  rc=0  (tail note section 7 (lines 1603-1726) and neck mentions)
+CMD: S2=S2; T=$S2/com_revisit/wt_records2/docs/investigations/TREX_TAIL_SATURATION_HABIT_2026_10.md; sed -n 1603,1726p $T | cut -c1-500; echo; echo "#### neck mentions"; grep -n -i "neck" $T | cut -c1-300 | head -40
+OUT: out/0030.txt  bytes=16559  sha256[:16]=e5a3758bf6f49d06
+  | ## 7. Open questions and the candidate next steps already proposed
+  | 
+  | Who decides: the maintainer. Nothing trains, and no gate, reward, plant or
+  | criterion changes, without the maintainer's approval. Any training change
+  | needs criteria approved before the first training step, as for D-D43, D-D51
+  | and the entropy screen.
+  | 
+  | **Done since the first draft.** The tail normaliser probe (chosen at 17:28
+  | UTC on 2026-10-29, no training) [L151, L152] and the three posture tests
+  | (logged at 19:55 UTC) [L160] are done and verified. COMREV §6 item 4
+  | framed the probe's question: "re-run the end policies with the start's
+  | normaliser to see whether the loop gain falls back. If it does,
+  | normalisation drift is the lever to study, not entropy." It does not fall
+  | back. It rises (closed loop 0.632 -> 1.086, 12/12), and the weights carry the
+  | growth; whether the drift shaped training is untested [L158, L159] (§4.8).
+
+=== [0031] 2026-10-30T17:40:25Z -> 2026-10-30T17:40:26Z  rc=0  (list parent s42 F2 copies)
+CMD: S1=S1; F=$S1/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies; ls -la $F; ls -la $F/01_stance | head -50; ls $F/01_stance/models | head -80
+OUT: out/0031.txt  bytes=2818  sha256[:16]=adcb1fc734be3293
+  | total 92
+  | drwxr-xr-x 3 root root  4096 Oct 28 12:47 .
+  | drwxr-xr-x 4 root root  4096 Oct 28 12:39 ..
+  | drwxr-xr-x 5 root root  4096 Oct 28 13:48 01_stance
+  | -rw-r--r-- 1 root root 32403 Oct 28 12:39 artifact_manifest.json.copy1
+  | -rw-r--r-- 1 root root 32403 Oct 28 12:44 artifact_manifest.json.copy2
+  | -rw-r--r-- 1 root root  4098 Oct 28 12:45 provenance.json.copy1
+  | -rw-r--r-- 1 root root  4098 Oct 28 12:46 provenance.json.copy2
+  | total 15844
+  | drwxr-xr-x 5 root root    4096 Oct 28 13:48 .
+  | drwxr-xr-x 3 root root    4096 Oct 28 12:47 ..
+  | -rw-r--r-- 1 root root 2905418 Oct 28 12:49 eval_episodes.csv.copy1
+  | -rw-r--r-- 1 root root 2905418 Oct 28 12:50 eval_episodes.csv.copy2
+  | -rw-r--r-- 1 root root   16058 Oct 28 13:35 evaluations.npz.copy1
+  | drwxr-xr-x 3 root root    4096 Oct 28 13:37 figures
+
+=== [0032] 2026-10-30T17:40:32Z -> 2026-10-30T17:40:32Z  rc=0  (list BS2 criteria_work and read parent_window.py)
+CMD: S2=S2; W=$S2/r10round/bias_screen2/criteria_work; ls -la $W; ls -la $W/* | head -30; echo; cat $W/parent_window.py | head -150
+OUT: out/0032.txt  bytes=11668  sha256[:16]=1f1e201ae8e8c72c
+  | total 188
+  | drwxr-xr-x  3 root root  4096 Oct 30 11:10 .
+  | drwxr-xr-x 13 root root  4096 Oct 30 16:22 ..
+  | -rw-r--r--  1 root root 17784 Oct 30 11:36 ADAPT_NOTES.txt
+  | -rw-r--r--  1 root root  3753 Oct 30 10:51 CMDLOG.txt
+  | -rw-r--r--  1 root root 24206 Oct 30 10:51 DESIGN_NOTES.txt
+  | -rw-r--r--  1 root root   810 Oct 30 10:48 SCREEN_v1.json
+  | -rw-r--r--  1 root root   924 Oct 30 10:51 SHA256SUMS_drafts.txt
+  | -rw-r--r--  1 root root   385 Oct 30 10:48 bs_secondaries_posthoc.out
+  | -rw-r--r--  1 root root  1588 Oct 30 10:48 bs_secondaries_posthoc.py
+  | -rw-r--r--  1 root root 45125 Oct 30 10:51 criteria_v1.txt
+  | drwxr-xr-x  6 root root  4096 Oct 30 11:33 dryrun_root
+  | -rw-r--r--  1 root root     0 Oct 30 10:38 find_err.txt
+  | -rw-r--r--  1 root root     0 Oct 30 10:35 grep_seed_err.txt
+  | -rw-r--r--  1 root root  1877 Oct 30 10:40 parent_extras.out
+
+=== [0033] 2026-10-30T17:40:39Z -> 2026-10-30T17:40:39Z  rc=0  (BS2 parent_window.py tail, parent_window.out, parent_extras.py/out)
+CMD: S2=S2; W=$S2/r10round/bias_screen2/criteria_work; sed -n 150,220p $W/parent_window.py; echo =====OUT; cat $W/parent_window.out; echo =====EXTRAS; cat $W/parent_extras.py; echo =====EXTRASOUT; cat $W/parent_extras.out
+OUT: out/0033.txt  bytes=11939  sha256[:16]=4a1f1732ee6a6f82
+  |         t = float(r["timesteps"])
+  |     except (TypeError, ValueError, KeyError):
+  |         continue
+  |     if math.isfinite(t) and t == int(t):
+  |         by.setdefault(int(t), []).append(r)
+  | 
+  | 
+  | def num(r, k):
+  |     try:
+  |         v = float(r.get(k))
+  |     except (TypeError, ValueError):
+  |         return None
+  |     return v if math.isfinite(v) else None
+  | 
+  | 
+
+=== [0034] 2026-10-30T17:40:44Z -> 2026-10-30T17:40:44Z  rc=0  (read BS2 DESIGN_NOTES.txt (first 200 lines))
+CMD: S2=S2; W=$S2/r10round/bias_screen2/criteria_work; wc -l $W/DESIGN_NOTES.txt; sed -n 1,200p $W/DESIGN_NOTES.txt
+OUT: out/0034.txt  bytes=18990  sha256[:16]=0373e0a11464ab3c
+  | 260 S2/r10round/bias_screen2/criteria_work/DESIGN_NOTES.txt
+  | BS2 CRITERIA v1 -- DESIGN NOTES (the designer of workflow wf_0b1ddf2b-955), 2026-10-30 10:29-10:53 UTC (date -u).
+  | WORK = S2/r10round/bias_screen2/criteria_work   <BS2> = S2/r10round/bias_screen2   <BS> = S2/r10round/bias_screen
+  | S1 = S1
+  | S2 = S2
+  | PY = S2/venv/bin/python (-I -B; OMP 1; nice 10 for the computations).  Every command with its time: WORK/CMDLOG.txt.
+  | 
+  | WHAT I DID NOT DO: no training, no optimizer step, no validation run, no continuation; nothing written outside WORK
+  | (BS2 itself did not exist at 10:29 UTC; mkdir -p created <BS2> and WORK only); <BS2>/tools only read (the builder's
+  | bs_common.py and read_bs.py, to align names), never written, no __pycache__ left (ls: 0); <BS2>/APPROVED not created;
+  | <BS> only read; no git, no push, no network; Drive not used.  No permission refusal occurred.
+  | 
+  | FILES WRITTEN (all in WORK)
+  |   criteria_v1.txt          the draft criteria (BS's v2 structure; 120-character lines)
+  |   SCREEN_v1.json           the draft queue (BS's format; schema bs-screen/1; both screen_problems() accept it)
+
+=== [0035] 2026-10-30T17:40:48Z -> 2026-10-30T17:40:48Z  rc=0  (read BS2 DESIGN_NOTES.txt (lines 200-260))
+CMD: S2=S2; W=$S2/r10round/bias_screen2/criteria_work; sed -n 200,260p $W/DESIGN_NOTES.txt
+OUT: out/0035.txt  bytes=5472  sha256[:16]=ce57cb255d5b6eca
+  |        ("stop the progression toward the rail", REPORT section 6) and the margin study's validated ranking (WM;
+  |        RUNLOG 04:40). The parent's +1.399 -> +0.240 -> -0.061. Shares G with (a): stated. On BS's values p 65/70
+  |        (context only: BS's blind margins were lower, because BS's control G became very negative).
+  |    Not tested (reasons): c0 alone (contained in (c); BS's blind c0 stayed low but c0 is measured on each run's own
+  |    settled states, which differ by arm); own14 (another deterministic command, near-duplicate of (b)); b*_L
+  |    (duplicate of (c) in another form); the statue_settled offset (did not climb in the parent's window); first
+  |    over-bar / CMD_L line crossings (censored at E for most runs: the parent's first over-bar is after E; CMD_L >= 0.90
+  |    never inside the window); returns and falls (a safety read: KNOWN LIMITS asks to read a REDUCED with them).
+  |    Family: three tests at 3/70 each -> at most 9/70 = 0.129 for any SUPPORTED under the global null; p = 1/70 alone
+  |    survives Bonferroni (1/70 = 0.0143 <= 0.0167).
+  | 
+  | D6 SEEDS: 2501, 2511, 2521, 2531 (see section 2). The task's example 2201-2231 rejected (ECS eval-env collision).
+  |    SCREEN_v1.json: BS's format and schema "bs-screen/1" (the builder's bs_common.SCREEN_SCHEMA), interleaved queue;
+  |    accepted by both the builder's and BS's screen_problems() (CMDLOG 10:5x).
+  | 
+
+=== [0036] 2026-10-30T17:41:36Z -> 2026-10-30T17:41:36Z  rc=0  (logger rewritten: short names exported, outputs and log sanitised)
+CMD: echo S2=$S2; echo S1=$S1; ls $F2 | head -3; test -f $FMAN && echo FMAN ok; test -x $PY && echo PY ok; test -f $RUNLOG && echo RUNLOG ok
+OUT: out/0036.txt  bytes=106  sha256[:16]=249cd6d4065c5954
+  | S2=S2
+  | S1=S1
+  | eval_episodes.csv.copy1
+  | eval_episodes.csv.copy2
+  | evaluations.npz.copy1
+  | FMAN ok
+  | PY ok
+  | RUNLOG ok
+
+=== [0037] 2026-10-30T17:41:45Z -> 2026-10-30T17:41:45Z  rc=0  (sanitise earlier log entries and outputs (short names; <cli> for the CLI folder name))
+CMD: TMPROOT=$(dirname "$(dirname "$(dirname "$S2")")"); for f in $CW/CMD_LOG.txt $CW/out/00*.txt; do sed -i -e "s#$S1#S1#g" -e "s#$S2#S2#g" -e "s#$TMPROOT#<tmproot>#g" -e "s#[Cc][Ll][Aa][Uu][Dd][Ee]#<cli>#g" "$f"; done; grep -l -i "<cli>" $CW/CMD_LOG.txt $CW/out/*.txt $CW/lg.sh | wc -l; grep -c "^=== " $CW/CMD_LOG.txt
+OUT: out/0037.txt  bytes=5  sha256[:16]=31e8fdb170ffab7f
+  | 0
+  | 36
+
+=== [0038] 2026-10-30T17:44:37Z -> 2026-10-30T17:44:37Z  rc=0  (LB bs_common.py constants (as it stands now))
+CMD: B=$LB/tools/bs_common.py; sha256sum $B; grep -n -E "^[A-Z_]+ *=|def derived_seeds|def screen_problems|SEED|EVAL_SEED|MAX_CONT|SCREEN_SCHEMA|INTERVENTION|ARMS|DISK|BYTES|SAVED|FINAL|E =|S =|READ_PAIRS|LOOP|PAIRS" $B | head -120
+OUT: out/0038.txt  bytes=7333  sha256[:16]=bd71f71cf57bf8c5
+  | 34755b030bde78f673358b4f8f96f495932709582efd9425b13f4a7c1fe49b0e  S2/r10round/long_blind/tools/bs_common.py
+  | 15:  TASK2  = BS2's build task of 2026-10-30 (S = 2,097,152; the start pair; the code copy reused read only);
+  | 16:  TASK3  = LB's build task of 2026-10-30 (E = the parent's own end; LENGTH = E - S; validation seeds 9301-9341; the
+  | 37:BS = S2 + "/r10round/long_blind"                # every file the study writes is under it (TASK3)
+  | 39:CODE = BS1 + "/code"                            # BS's cp -a of ECS/code, chmod a-w; tree digest = TREE_DIGEST (never
+  | 41:TOOLS = BS + "/tools"
+  | 42:RUNS = BS + "/runs"                             # <BS>/runs/<arm>_<seed>/
+  | 43:VALIDATE = BS + "/validate"                     # the no-optimizer-step modes write only here
+  | 44:READS = BS + "/reads"                           # read_bs.py's full reads of continuations: <BS>/reads/<name>/
+  | 45:LOGS = BS + "/logs"
+  | 46:TMP = BS + "/tmp"                               # TMPDIR and MPLCONFIGDIR per run
+  | 47:LOST_JSON = BS + "/lost.json"
+  | 48:APPROVED = BS + "/APPROVED"                     # never written by the build
+  | 49:CRITERIA = BS + "/criteria.txt"                 # never written by the build
+  | 50:SCREEN = BS + "/SCREEN.json"                    # never written by the build (the chosen intervention and the queue)
+
+=== [0039] 2026-10-30T17:44:42Z -> 2026-10-30T17:44:42Z  rc=0  (LB bs_common.py lines 95-115 and 280-330 (read schedule, screen rules))
+CMD: B=$LB/tools/bs_common.py; sed -n 95,115p $B; echo ....; sed -n 280,335p $B
+OUT: out/0039.txt  bytes=4685  sha256[:16]=5c68ae0e1d4fd6f2
+  | E = 12_001_280
+  | LENGTH = E - S                                  # 9,904,128 = 1,209 rollouts, 1,208 update rows in (S, E)
+  | MAX_LENGTH = LENGTH                             # AUTH2: to the parent's own end, no further
+  | N_EVALS = LENGTH // EVAL_FREQ                   # 75 evaluations in (S, E]: 2,228,224 ... 11,927,552 (E off the grid)
+  | # The saved pairs of a continuation: the periodic ones at S + 262,144 k inside (S, E), and the final pair at E
+  | # (stage1_final.zip / stage1_final_vecnorm.pkl: E is not on the save grid, so no periodic pair is written there).
+  | SAVED_STEPS = tuple(range(S + SAVE_FREQ, E, SAVE_FREQ))       # 2,359,296 ... 11,796,480 (37)
+  | FINAL_ZIP, FINAL_PKL = "stage1_final.zip", "stage1_final_vecnorm.pkl"
+  | VALIDATE_UNTIL = S + 2 * EVAL_FREQ              # V2: S + 262,144 = 2,359,296 (TASK item 5)
+  | # M-LOOP read schedule (read_bs.saved_pairs): the start copy, every saved pair whose (steps - S) is a multiple of
+  | # LOOP_READ_EVERY, and the final pair.  SAVE_FREQ = every saved pair (BS2's reading, 39 pairs at E); 1,048,576 = the
+  | # parent's F2 grid (11 pairs).  The criteria lane chooses; the costs are in NOTES.txt (TIMING).
+  | LOOP_READ_EVERY = SAVE_FREQ
+  | # The stage's own early stops inside the window (stance.toml [curriculum]; code read: curriculum/early_stopping.py,
+  | # curriculum/hop_watch.py): the collapse backstop (min_evals 20, patience 10, drop 0.5, peak floor 0.45 x 4470.4,
+
+=== [0040] 2026-10-30T17:44:50Z -> 2026-10-30T17:44:50Z  rc=0  (LB build_cmds.log (timing / read cost / disk lines) and validate listing)
+CMD: grep -n -i -E "timing|read cost|per pair|CPU-min|min per|disk|MiB|wall|hours|h \(" $LB/logs/build_cmds.log | cut -c1-400 | head -60; echo; ls -la $LB/validate/v1 $LB/validate/v2 $LB/validate/v4 2>&1 | head -40; cat $LB/validate/logs/disk_estimate_2.out
+OUT: out/0040.txt  bytes=3249  sha256[:16]=e7c513b5a067c09b
+  | 45:[17:09:12Z] setsid nohup bash LB/validate/v4_driver.sh (driver B, V4) and v1v2v3_driver.sh (driver A, V1, V2, CHECK, V3).
+  | 47:[17:09:41Z] PY -I -B LB/validate/disk_estimate.py LB/tools -> exit 0 (validate/logs/disk_estimate.out): one continuation's
+  | 48:  folder at E 171,008,240 B = 163.1 MiB (models 157,485,015 B: 39 zips + 38 pkls; the five records at the parent's
+  | 50:  tmp and logs and one resume's extra files 193,386,567 B = 184.4 MiB.  RUN_BYTES_EST 200 MiB.
+  | 54:[17:11-17:13Z] wrote validate/v4_compare.py, timing.py, v3_summary.py; copied BS2's validate/{v1_independent,v2_compare,
+  | 56:  disk_estimate.py re-run after the reflow: outputs identical (cmp; *_2.out).
+  | 71:  passes them from the crashed run_meta (copies, or resume.copied; load_step).  bs_common.py: the disk comment
+  | 72:  182.3 -> 184.4 MiB (the measured value).  New unit test test_a_record_never_rewritten_by_the_attempt_is_not_its_own;
+  | 85:  n_updates 2471 -> 2471, params digest unchanged; wall 977 s, CPU 689 s); V2 critic_blind_tail3 started (version C).
+  | 86:[17:29:55Z] V4 attempt 1 heartbeat 2,449,408 (32 s per rollout wall at load 6-7); its run_meta "copies" hold the seven
+  | 115:  n_updates 2471 -> 2471; wall 700 s, CPU 661 s); V2 gae_lambda_1 started (load 4.10).
+  | 
+  | S2/r10round/long_blind/validate/v1:
+  | total 24
+  | drwxr-xr-x 6 root root 4096 Oct 30 17:09 .
+
+=== [0041] 2026-10-30T17:44:59Z -> 2026-10-30T17:44:59Z  rc=0  (LB read_bs.py: saved_pairs, reference, ONPOLICY seeds, loop markers, ledger_direct)
+CMD: R=$LB/tools/read_bs.py; sha256sum $R; grep -n -E "def saved_pairs|LOOP_READ_EVERY|def reference|--reference|--pairs|ONPOLICY_SEEDS|OWN_SEEDS|REF_SEEDS|def ledger_direct|cmd_l|def m_loop|b_star|def run_m5|def m5_window|PRIMARY|primary" $R | head -60
+OUT: out/0041.txt  bytes=3727  sha256[:16]=60d56e294fbbef9c
+  | 7a9c8a99fee09f8d005c5ec09857ec853166320156901f85b54b094d72b9450b  S2/r10round/long_blind/tools/read_bs.py
+  | 5:bs_common.LOOP_READ_EVERY, and CHECK extended for the long window: the hop-watch stop, a resumed run's attempts and
+  | 20:    PY -I -B read_bs.py --reference [--out DIR] [--no-onpolicy] [--no-own]
+  | 26:        3,145,728 (REPRO below).  --pairs STEPS[,STEPS...] limits the M-LOOP to those reference pairs (V3).
+  | 42:           (steps - S) is a multiple of bs_common.LOOP_READ_EVERY, and the final pair at T):
+  | 117:OWN_SEEDS = tuple(range(5001, 5011))
+  | 120:ONPOLICY_SEEDS = (9301, 9302)                   # eb_realized.py SEEDS
+  | 125:# Reproduction targets for --reference (parent s42 at its F2 pairs in [S, E]; [measured] by their studies; paths under
+  | 127:#   ew_*   early_warning/ew_r10.jsonl line 3 (2,097,152) and line 1 (3,145,728), full precision: own.primary.G,
+  | 128:#          own.primary.c0, own14_win_median, ref_statue_settled.primary.G;
+  | 137:              "eb_G": -0.6060763597488403, "vew_G_H": -0.625, "vew_G_L": -0.648, "vew_b_star_P": 1.399,
+  | 138:              "vew_b_star_L": 1.413, "wm_b_star_P": 1.399},
+  | 141:              "eb_G": 0.25905266404151917, "vew_G_H": 0.354, "vew_G_L": 0.259, "vew_b_star_P": 0.240,
+  | 142:              "vew_b_star_L": 0.296, "wm_b_star_P": 0.240},
+  | 636:def run_m5(ledger, T, out_dir):
+
+=== [0042] 2026-10-30T17:45:03Z -> 2026-10-30T17:45:03Z  rc=0  (LB read_bs.py header (lines 1-60) and saved_pairs / reference pairs)
+CMD: R=$LB/tools/read_bs.py; sed -n 1,60p $R; echo ....; sed -n 1018,1060p $R; echo ....; grep -n "REFERENCE_PAIRS" $R | head; sed -n 1170,1185p $R
+OUT: out/0042.txt  bytes=9217  sha256[:16]=b23d10512e45527c
+  | """Long blind study (LB): the reader.  Report only: it never trains; the loop markers simulate (deterministic rollouts
+  | and stochastic on-policy rollouts with frozen statistics, no update, no optimizer).  BS2's read_bs.py
+  | (S2/r10round/bias_screen2/tools/read_bs.py, sha256 06f4173d...) with the window from LB's bs_common.py (E = 12,001,280),
+  | the parent's F2 pairs in [S, E] derived (every 1,048,576 and the final pair), the loop read schedule
+  | bs_common.LOOP_READ_EVERY, and CHECK extended for the long window: the hop-watch stop, a resumed run's attempts and
+  | stitched records (bs_resume), and the evaluation grid of the ledger, evaluations.npz and gate_progress.npz.
+  | 
+  |     PY -I -B read_bs.py --check RUN
+  |         CHECK (the runner reads only its exit code).  Reads RUN/run_meta.json, RUN/arm_evidence.jsonl, four column
+  |         groups of RUN/01_stance/policy_probe.npz (update_timesteps, ent_coef, learning_rate, obs_rms_mean/var/count;
+  |         allow_pickle False), the step and episode columns of eval_episodes.csv, the timesteps of evaluations.npz and
+  |         gate_progress.npz, and the parent's probe; for a resumed run (run_meta resumed_from) bs_resume.stitch_digests
+  |         over every record's rows up to the resume point (digests only).  Writes RUN/check.json (pass/fail per item;
+  |         no marker values).  Exit 0 pass, 4 fail, 2 input error.
+  |     PY -I -B read_bs.py RUN [--out DIR] [--no-onpolicy] [--no-own]
+
+=== [0043] 2026-10-30T17:45:17Z -> 2026-10-30T17:45:17Z  rc=0  (early-warning ew_r10.jsonl: s42 rows (G, c0, b*))
+CMD: EW=$S2/com_revisit/notes/early_warning; ls $EW | head -30; wc -l $EW/ew_r10.jsonl; $PY -I -B -c "
+import json,sys
+p=sys.argv[1]
+for i,l in enumerate(open(p),1):
+    d=json.loads(l)
+    run=d.get(\"run\") or d.get(\"run_id\") or d.get(\"label\")
+    st=d.get(\"steps\") or d.get(\"step\")
+    o=(d.get(\"own\") or {}).get(\"primary\") or {}
+    print(i, run, st, \"G\", o.get(\"G\"), \"c0\", o.get(\"c0\"), \"own14\", d.get(\"own14_win_median\"), \"keys\", sorted(d)[:12])
+" $EW/ew_r10.jsonl
+OUT: out/0043.txt  bytes=9963  sha256[:16]=ceb7f78904a9da99
+  | NOTES.txt
+  | ew_analyze.err
+  | ew_analyze.py
+  | ew_analyze.txt
+  | ew_common.py
+  | ew_ecs.jsonl
+  | ew_events.err
+  | ew_events.json
+  | ew_events.py
+  | ew_events.txt
+  | ew_measure.py
+  | ew_r10.jsonl
+  | ew_series.csv
+  | ew_stats.err
+  | ew_stats.py
+
+=== [0044] 2026-10-30T17:45:36Z -> 2026-10-30T17:45:36Z  rc=0  (round panels: which labels have M3 certificates; verdicts)
+CMD: P=$S1/foot/stance6/panels; ls $P; for r in stance6_r10LTSB_s42 stance6_r10LTSB_s60 stance6_r10LTSB_s80; do echo "## $r"; ls $P/$r; for d in $P/$r/*/m3; do [ -d "$d" ] && { echo "  $d"; ls $d | head -8; }; done; done 2>&1 | head -80
+OUT: out/0044.txt  bytes=1373  sha256[:16]=f3812db0e248617d
+  | stance6_r10LTSB_s42
+  | stance6_r10LTSB_s60
+  | stance6_r10LTSB_s80
+  | ## stance6_r10LTSB_s42
+  | 1048576
+  | 10485760
+  | 11534336
+  | 2097152
+  | 3145728
+  | 3670016
+  | 4194304
+  | 5242880
+  | 6291456
+  | 7340032
+  | 8388608
+
+=== [0045] 2026-10-30T17:45:41Z -> 2026-10-30T17:45:42Z  rc=0  (round M3 summaries at 6,291,456 and final (s42, s60, s80))
+CMD: P=$S1/foot/stance6/panels; for r in stance6_r10LTSB_s42 stance6_r10LTSB_s60 stance6_r10LTSB_s80; do for l in 6291456 final; do f=$P/$r/$l/m3/stance_heading_report.txt; echo "## $r $l"; grep -i -E "verdict|PASS|FAIL|hop_or_fall" $f | head -12; done; done
+OUT: out/0045.txt  bytes=6229  sha256[:16]=21b7f36a55eb930a
+  | ## stance6_r10LTSB_s42 6291456
+  |        -90  39/40   0.8868   1.0000    4412.4      40/40         4470.4  PASS
+  |        -45  39/40   0.8868   1.0000    4412.4      40/40         4470.4  PASS
+  |         +0  39/40   0.8868   1.0000    4412.4      40/40         4470.4  PASS
+  |        +45  39/40   0.8868   1.0000    4412.4      40/40         4470.4  PASS
+  |        +90  39/40   0.8868   1.0000    4412.4      40/40         4470.4  PASS
+  |       +180  39/40   0.8868   1.0000    4412.4      40/40         4470.4  PASS
+  | the 0 deg cell in detail (that heading's v2 decision; the certificate's verdict closes this report):
+  | per-episode criteria (fails = episodes failing it; median and worst over the panel):
+  |   horizon                              reach 1000 steps         fails   0/40
+  |   min_all_feet_support                 >= 0.98         fails   0/40   median 1, worst 1
+  |   max_touchdown_rate                   <= 0.25         fails   0/40   median 0, worst 0
+  |   max_window_displacement_m            <= 0.1          fails   0/40   median 0.003203, worst 0.01097
+  | ## stance6_r10LTSB_s42 final
+  |        -90  38/40   0.8508   1.0000    4353.1      40/40         4470.4  FAIL
+
+=== [0046] 2026-10-30T17:45:51Z -> 2026-10-30T17:45:51Z  rc=0  (s42 final certificate in full (stance_heading_report.txt))
+CMD: cat $S1/foot/stance6/panels/stance6_r10LTSB_s42/final/m3/stance_heading_report.txt
+OUT: out/0046.txt  bytes=6658  sha256[:16]=e7bb9e5e56b2ec70
+  | policy              stage1_final.zip.copy1 — VecNormalize stats applied (clip 10)
+  | stage               Tyrannosaurus Rex (Anatomical) — Stance (stage 1, stance_quality_heading/v1, floor truth)
+  | protocol            whole_scene_yaw/v1: the whole scene turned about vertical through the root (the animal, the prey and the reference direction)
+  | grid                -90, -45, +0, +45, +90, +180 deg; 40 seeds 3042-3081 at every heading
+  | settle_steps        200; horizon 1000; control step 0.01 s
+  | measurement         floor-truth/v2 (sha256:16ecfdedccc43917c95e3a55b619285f3ffccc76ca66f078b998d58334806567)
+  | task                sha256:1e5964b61a4f0e3a76e9af2b6f76f485cf6e3d2409d48f32f3a7799626a6a456
+  | gate                sha256:d26c34e6e6caa7e726fd44ac39534fdbecae4127d92f389393e9d076b2f0deaf
+  | 
+  | seeds clean at every heading     38 / 40   LCB95 0.8508   (>= 0.8000, min_eval_episodes 40: the statistic)
+  | episodes clean, pooled          228 / 240   LCB95 0.9202   (NOT the statistic: the turns of a seed are not independent)
+  | 
+  | each heading's full v2 decision, against the statue rolled at that heading:
+  |    heading   clean   LCB95  full-hz    reward  statue fh  statue reward  v2
+  |        -90  38/40   0.8508   1.0000    4353.1      40/40         4470.4  FAIL
+
+=== [0047] 2026-10-30T17:46:11Z -> 2026-10-30T17:46:11Z  rc=0  (parent ledger header (column names) and probe keys)
+CMD: $PY -I -B -c "
+import csv,sys
+import numpy as np
+f=sys.argv[1]
+with open(f, newline=\"\") as fh:
+    r=csv.reader(fh); h=next(r)
+print(len(h), \"columns\")
+print([c for c in h if \"command_mean\" in c][:40])
+print([c for c in h if \"satur\" in c or \"rail\" in c or \"park\" in c][:40])
+print(h[:25])
+z=np.load(sys.argv[2], allow_pickle=False)
+print(sorted(z.files))
+print({k: z[k].shape for k in z.files})
+e=np.load(sys.argv[3], allow_pickle=False); print(sorted(e.files), {k: e[k].shape for k in e.files})
+" $F2/eval_episodes.csv.copy1 $F2/policy_probe.npz.copy1 $F2/evaluations.npz.copy1
+OUT: out/0047.txt  bytes=3008  sha256[:16]=1e9ea05c456147e2
+  | 194 columns
+  | ['neck_pitch_act_command_mean', 'neck_yaw_act_command_mean', 'head_pitch_act_command_mean', 'r_hip_pitch_act_command_mean', 'r_hip_roll_act_command_mean', 'r_knee_act_command_mean', 'r_ankle_act_command_mean', 'l_hip_pitch_act_command_mean', 'l_hip_roll_act_command_mean', 'l_knee_act_command_mean', 'l_ankle_act_command_mean', 'tail_1_pitch_act_command_mean', 'tail_1_yaw_act_command_mean', 'tail_2_pitch_act_command_mean', 'tail_3_pitch_act_command_mean']
+  | ['saturated_actuator', 'saturated_actuator_fraction', 'saturated_actuator_positive_share', 'saturated_actuator_ties', 'actuators_saturated', 'actuators_at_rail', 'rail_actuators', 'actuators_parked', 'parked_actuators']
+  | ['evaluation', 'timesteps', 'episode', 'env', 'return', 'length', 'full_horizon', 'cause', 'screen_v2_clean', 'screen_v2_reasons', 'saturated_actuator', 'saturated_actuator_fraction', 'saturated_actuator_positive_share', 'saturated_actuator_ties', 'actuators_saturated', 'spawn_stance_width_change_m', 'r_spawn_tilt_deg', 'l_spawn_tilt_deg', 'r_sole_cop_fore_aft', 'r_sole_cop_fore_aft_gate', 'r_digit_share', 'r_foot_cop_fore_aft', 'r_foot_cop_fore_aft_gate', 'r_toe_margin_nm', 'r_sole_tilt_deg']
+  | ['ankle_actuators', 'ankle_signs', 'bank_action_frozen', 'bank_action_now', 'bank_ankle_offset', 'bank_build_seconds', 'bank_com_fore_aft_m', 'bank_horizon', 'bank_labels', 'bank_raw_obs', 'bank_seeds', 'bank_steps', 'bank_value_frozen', 'bank_value_now', 'ent_coef', 'frozen_obs_mean', 'frozen_obs_var', 'frozen_reference_timesteps', 'learning_rate', 'obs_rms_count', 'obs_rms_mean', 'obs_rms_var', 'ret_rms_var', 'rollout_action_clip_high_share', 'rollout_action_clip_low_share', 'rollout_action_saturated_share', 'rollout_mu_beyond_high_share', 'rollout_mu_beyond_low_share', 'rollout_mu_mean', 'rollout_mu_q50', 'rollout_mu_q95', 'rollout_rows', 'std_per_actuator', 'update_timesteps']
+  | {'update_timesteps': (1465,), 'std_per_actuator': (1465, 15), 'obs_rms_mean': (1465, 63), 'obs_rms_var': (1465, 63), 'obs_rms_count': (1465,), 'ret_rms_var': (1465,), 'ent_coef': (1465,), 'learning_rate': (1465,), 'bank_value_now': (1465, 10), 'bank_value_frozen': (1465, 10), 'bank_action_now': (1465, 10, 15), 'bank_action_frozen': (1465, 10, 15), 'frozen_reference_timesteps': (1465,), 'rollout_rows': (1465,), 'rollout_action_clip_high_share': (1465, 15), 'rollout_action_clip_low_share': (1465, 15), 'rollout_action_saturated_share': (1465, 15), 'rollout_mu_beyond_high_share': (1465, 15), 'rollout_mu_beyond_low_share': (1465, 15), 'rollout_mu_mean': (1465, 15), 'rollout_mu_q50': (1465, 15), 'rollout_mu_q95': (1465, 15), 'bank_raw_obs': (10, 63), 'bank_labels': (10,), 'bank_seeds': (10,), 'bank_steps': (10,), 'bank_ankle_offset': (10,), 'bank_com_fore_aft_m': (10,), 'bank_horizon': (), 'bank_build_seconds': (), 'ankle_actuators': (1, 2), 'ankle_signs': (1, 2), 'frozen_obs_mean': (63,), 'frozen_obs_var': (63,)}
+  | ['ep_lengths', 'results', 'timesteps'] {'timesteps': (91,), 'results': (91, 10), 'ep_lengths': (91, 10)}
+
+=== [0048] 2026-10-30T17:47:44Z -> 2026-10-30T17:47:44Z  rc=0  (run parent_long.py (read only; nice 10))
+CMD: cd /tmp && OMP_NUM_THREADS=1 nice -n 10 $PY -I -B $CW/parent_long.py > $CW/parent_long.out 2> $CW/parent_long.err; echo rc=$?; cat $CW/parent_long.err | tail -5; cat $CW/parent_long.out
+OUT: out/0048.txt  bytes=13944  sha256[:16]=05ab183378604920
+  | rc=0
+  | == INPUTS (sha256 against FMAN COPY rows)
+  |   S1/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/policy_probe.npz.copy1: 4e0e7220668faf124d394bffb760ba246d54bed8f48cb79925cb36234257fc11 FMAN 4e0e7220668faf124d394bffb760ba246d54bed8f48cb79925cb36234257fc11 equal True
+  |   S1/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/eval_episodes.csv.copy1: d1bcb78964691cf194e6276f06740d1f24aa69ad36831a046ad6307c1c4db11e FMAN d1bcb78964691cf194e6276f06740d1f24aa69ad36831a046ad6307c1c4db11e equal True
+  |   S1/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/evaluations.npz.copy1: 3e11136120622b90cc63203c46332004a9989188a0b8fe91620dbabb9f2563e9 FMAN 3e11136120622b90cc63203c46332004a9989188a0b8fe91620dbabb9f2563e9 equal True
+  | 
+  | == PROBE: 1465 rows, 8,192 .. 12,001,280; window rows (S, E] present 1209 of 1209 (incl. the parent's row at E, which a continuation lacks)
+  |   B_S (8 rows ending at S) exact 135930855/1073741824 = 0.1265954738482833
+  |   primary form at E (8 rows 11,935,744 .. 11,993,088, the last 8 updates before E): +0.81159 rise +0.68500; the parent's own 8 rows ending at E (incl. its update row at E): +0.81288
+  |   at 3,538,944 (BS2's E; rows ending 3,530,752): +0.70538 rise +0.57878
+  |   window max of the trailing 8-row mean: +0.9710 at 4,669,440; its minimum from 4,194,304: -0.4630 at 6,922,240
+  |   first trailing 8-row mean >= 0.30: 2,908,160
+  |   first trailing 8-row mean >= 0.60: 3,252,224
+  |   first trailing 8-row mean >= 0.90: 4,521,984
+  |   window rows with the trailing 8-row mean >= 0.60: 846 of 1209; >= 0.90: 77
+
+=== [0049] 2026-10-30T17:49:06Z -> 2026-10-30T17:49:07Z  rc=1  (seeds used by today's probes (phase, termination) and other notes)
+CMD: N=$S2/com_revisit/notes; ls $N; for d in phase_probe termination_probe verify_why clamp posture_policy posture_timing normaliser_probe tail_normaliser_probe; do [ -d $N/$d ] && { echo "## $d"; grep -rn -i -E "seed[s]? *[=:(]|SEEDS|range\(" $N/$d --include=*.py 2>&1 | head -12; }; done
+OUT: out/0049.txt  bytes=7180  sha256[:16]=756a3d957bb08f14
+  | clamp
+  | coord
+  | creep
+  | design
+  | early_bias
+  | early_warning
+  | phase_probe
+  | policies
+  | posture_policy
+  | posture_timing
+  | pr_build
+  | pr_fix
+  | pr_review1
+  | pr_review2
+  | probe
+
+=== [0050] 2026-10-30T17:49:13Z -> 2026-10-30T17:49:13Z  rc=0  (actual seed values in the phase and termination probes' notes/logs)
+CMD: N=$S2/com_revisit/notes; for d in phase_probe termination_probe verify_why; do [ -d $N/$d ] || continue; echo "## $d"; ls $N/$d | head -30; grep -rhoE -- "--seeds[ =][0-9:,-]+|seed[s]?[ =:]+[0-9]{3,5}([-:][0-9]{3,5})?|SEEDS *= *[^#]{0,60}" $N/$d 2>&1 | sort | uniq -c | sort -rn | head -20; done
+OUT: out/0050.txt  bytes=1301  sha256[:16]=ae2e2e5364f2532b
+  | ## phase_probe
+  | NOTES.txt
+  | PREREG.sha256
+  | PREREG.txt
+  | SHA256SUMS.txt
+  | analysis.json
+  | analysis.txt
+  | analysis_test.json
+  | analysis_test.txt
+  | analysis_test2.json
+  | analysis_test2.txt
+  | logs
+  | phase_analyze.py
+  | phase_rollouts.py
+  | posthoc_bs2_probe.json
+
+=== [0052] 2026-10-30T17:52:42Z -> 2026-10-30T17:52:42Z  rc=0  (run design_numbers.py)
+CMD: cd /tmp && nice -n 10 $PY -I -B $CW/design_numbers.py > $CW/design_numbers.out 2> $CW/design_numbers.err; echo rc=$?; cat $CW/design_numbers.err; cat $CW/design_numbers.out
+OUT: out/0052.txt  bytes=4252  sha256[:16]=8370a7836cd8cdc5
+  | rc=0
+  | A. THE SMALLEST ATTAINABLE ONE-SIDED P (exact), 'blind rails less often than control'
+  |    3 + 1: Fisher exact, 0 of 3 against 1 of 1: p = 1/4 = 0.2500
+  |    2 + 2: Fisher exact, 0 of 2 against 2 of 2: p = 1/6 = 0.1667
+  |    4 + 0: no within-study comparison
+  |    (a rank or permutation test on any continuous outcome: 3 + 1 -> 1/4, 2 + 2 -> 1/6; neither can reach 0.05)
+  |    permutation minimum 3 + 1: 1/C(4,1) = 1/4 = 0.2500
+  |    permutation minimum 2 + 2: 1/C(4,2) = 1/6 = 0.1667
+  | 
+  | B. WHAT THE BLIND ARM'S COUNT CAN BOUND (one-sided Clopper-Pearson, exact for 0 events)
+  |    0 of 2 railed: the per-run rail chance under blinding is below 0.776 at 95% (upper bound); 0 of 2 has chance 0.250 if that chance is 0.5
+  |    0 of 3 railed: the per-run rail chance under blinding is below 0.632 at 95% (upper bound); 0 of 3 has chance 0.125 if that chance is 0.5
+  |    0 of 4 railed: the per-run rail chance under blinding is below 0.527 at 95% (upper bound); 0 of 4 has chance 0.062 if that chance is 0.5
+  |    chance to see at least one blind rail (an 'escape') if each blind run escapes with chance q:
+  |      q 0.1: 2 runs 0.190, 3 runs 0.271, 4 runs 0.344
+
+=== [0053] 2026-10-30T17:53:05Z -> 2026-10-30T17:53:05Z  rc=0  (LB bs_common.py ARM_CHANGE, START, header lines 1-36, 158-180)
+CMD: B=$LB/tools/bs_common.py; sed -n 1,36p $B; echo ....; sed -n 135,180p $B
+OUT: out/0053.txt  bytes=6578  sha256[:16]=96fc63f83d3c1add
+  | """Long blind study (LB): pins and constants.  No logic beyond lookups and checks.
+  | 
+  | Importable without torch, numpy or the code copy.  LB continues r10 stance6 s42 from its 2,097,152 checkpoint to the
+  | parent's own end, 12,001,280.  This file is BS2's bs_common.py (S2/r10round/bias_screen2/tools/bs_common.py, sha256
+  | 6c4c36ea...) with the root, the window (E, LENGTH, the saved pairs, the evaluation count), the validation seeds, the
+  | continuation cap and the disk estimate changed, and the resume, stop-reason and read-schedule constants added; the
+  | arms, the start pair, the code copy (BS's, reused read only) and the queue rules are BS2's.
+  | Every value cites its source:
+  |   ECS    = ecs_common.py (the pins it shares with this screen: the code copy, M1/M5, the stack, the s42 records);
+  |   FMAN   = S1/foot/stance6/fetch/manifest.csv (F2 COPY rows, copy 1) [measured 2026-10-30 03:53 UTC by BS's
+  |            check_inputs.py; re-measured for BS2 and for LB by check_inputs.py: FMAN lines 241 / 243 for the 2,097,152
+  |            pair];
+  |   TASK   = BS's build task of 2026-10-30 (4 at a time at nice 10; disk floor 1.5 GB; arms control /
+  |            critic_blind_tail3 / gae_lambda_1 / frozen_obs_norm, none chosen here);
+  |   TASK2  = BS2's build task of 2026-10-30 (S = 2,097,152; the start pair; the code copy reused read only);
+
+=== [0054] 2026-10-30T17:53:11Z -> 2026-10-30T17:53:11Z  rc=0  (run log line numbers of key entries)
+CMD: grep -n -E "Long blind run to 12M|LONG BLIND|Long blind study|Go with option a|Launch with 0.20|BS2 PINNED|BS2 READING|BS2 VERIFIED|ECS READING|BIAS SCREEN PINNED|F2 done and scored|Probe it now, no training|MAINTAINER: .Yes, add the tail clamp|Disk housekeeping for the long run|Records PR workflow wf_8ebaf9ac" $RUNLOG | cut -c1-140; wc -l $RUNLOG
+OUT: out/0054.txt  bytes=1870  sha256[:16]=d665de12f27d37ee
+  | 711:2026-10-28 14:59 UTC  F2 done and scored (wf_07eb7acd-ec5, finished ~14:55 UTC; 10 agents). [measured] Fetch: every RUN_ID "done: every 
+  | 740:2026-10-29 12:17 UTC  ECS READING (score_ecs exit 0, STATUS final, provisional []; 12:15:29 UTC; score.json sha256 f86b9923b7bb5d84..., 
+  | 747:2026-10-29 12:42 UTC  MAINTAINER: 'Yes, add the tail clamp test once policies finish.' Plan: after the CoM revisit's policies lens and i
+  | 775:2026-10-30 06:00 UTC  BIAS SCREEN PINNED under the maintainer's 00:45 UTC authorisation (RUNLOG l764): criteria v2 S2/r10round/bias_scre
+  | 784:2026-10-30 10:23 UTC  MAINTAINER: 'Go with option a' (morning report section 6, A): re-run the critic-blind screen from r10 stance6 s42'
+  | 788:2026-10-30 12:54 UTC  MAINTAINER (AskUserQuestion): 'Launch with 0.20 (Recommended)'. BS2 PINNED: criteria.txt sha256 291ff4573fa1b6030c
+  | 794:2026-10-30 15:57 UTC  BS2 READING (score_bs 2.1 exit 0, STATUS final, 0 PROVISIONAL; runner exit 0 at 15:56:28 after the 8 full reads; s
+  | 796:2026-10-30 16:21 UTC  BS2 VERIFIED (wf_02b66595-61c, 2 lenses, outputs S2/r10round/bias_screen2/check/{stat,proc}): both agree with the 
+  | 798:2026-10-30 16:23 UTC  MAINTAINER (AskUserQuestion, after the BS2 report): next step 'Long blind run to 12M (Recommended)': continue s42 
+  | 799:2026-10-30 16:25 UTC  Disk housekeeping for the long run: removed 4 pytest base-temp folders (prs/com_tests/notes/{fix,impl}/bt_shared, 
+  | 801:2026-10-30 16:32 UTC  Long blind study (LB, S2/r10round/long_blind) build-and-criteria workflow wf_c801f08c-291 launched (9 agents, no t
+  | 802:2026-10-30 16:33 UTC  Records PR workflow wf_8ebaf9ac-f11 launched (5 agents: builder, numbers / claims / conventions checkers, fixer; d
+  | 803:2026-10-30 16:42 UTC  MAINTAINER (AskUserQuestion, after asking why blinding the critic would be a good fix): 'Probe it now, no training
+  | 803 S1/foot/stance4/live/run_log.txt
+
+=== [0055] 2026-10-30T17:53:21Z -> 2026-10-30T17:53:21Z  rc=0  (today's why-probes: status and headline lines (context only))
+CMD: N=$S2/com_revisit/notes; for d in phase_probe termination_probe verify_why; do [ -d $N/$d ] || { echo "## $d absent"; continue; }; echo "## $d"; ls -la $N/$d | head -5; f=$N/$d/NOTES.txt; [ -f $f ] && { wc -l $f; grep -n -i -E "^(RESULT|VERDICT|SUMMARY|HEADLINE|CONCLUSION)|verdict|supported|refuted|prediction" $f | head -15 | cut -c1-300; }; done
+OUT: out/0055.txt  bytes=3633  sha256[:16]=78cc8e648663baff
+  | ## phase_probe
+  | total 508
+  | drwxr-xr-x  6 root root   4096 Oct 30 17:29 .
+  | drwxr-xr-x 34 root root   4096 Oct 30 17:52 ..
+  | -rw-r--r--  1 root root  17079 Oct 30 17:29 NOTES.txt
+  | -r--r--r--  1 root root     77 Oct 30 16:56 PREREG.sha256
+  | 172 S2/com_revisit/notes/phase_probe/NOTES.txt
+  | 5:SUMMARY (written 2026-10-30 17:28 UTC, after the pre-registered analysis; numbers in normalised-return units, the
+  | 8:READING: hypothesis A (the phase proxy) is SUPPORTED by every pre-registered prediction (PREREG.txt sha256
+  | 10:  A1 the tail tracks the phase      SUPPORTED 5/5   A2 value depends on phase   SUPPORTED 5/5
+  | 11:  A3 critic error depends on phase  SUPPORTED 4/5   A4 phase explains G slope   SUPPORTED 5/5 (resolvable 3/5)
+  | 12:  A4c within B3 G does not pay      SUPPORTED 5/5   A5 sign tracking            SUPPORTED 6/6     OVERALL: A SUPPORTED
+  | 128:    639cd879...; offline OLS with episode-clustered bootstrap, MLP regressors, verdict rules exactly as PREREG).
+  | 132:2026-10-30 17:04:47 UTC  test run of phase_analyze.py --labels P1,P2 --no-mlp --tag _test (exit 0; verdicts UNTESTABLE
+  | 133:    as only P2 of PS was present: expected).  Outputs analysis_test.json/.txt, verdicts_test.txt (superseded by the
+
+=== [0057] 2026-10-30T17:55:19Z -> 2026-10-30T17:55:19Z  rc=1  (LB run_bs.py / bs_common: APPROVED checks (keys, extra tools allowed?))
+CMD: grep -n -E "def approved_problems|APPROVED_KEYS|tool_sha256|SCORER_FILE|extra|unknown key" $LB/tools/run_bs.py $LB/tools/bs_common.py | head -30; n=$(grep -n "def approved_problems" $LB/tools/bs_common.py | cut -d: -f1); [ -n "$n" ] && sed -n "${n},$((n+45))p" $LB/tools/bs_common.py
+OUT: out/0057.txt  bytes=1778  sha256[:16]=a3787964e506841e
+  | S2/r10round/long_blind/tools/run_bs.py:39:bs_common.APPROVED_KEYS) with criteria_sha256 = sha256(<BS>/criteria.txt), screen_sha256 = sha256(<BS>/SCREEN.json),
+  | S2/r10round/long_blind/tools/run_bs.py:40:code_tree_digest the pinned one and tool_sha256 = every BS tool's sha256, SCREEN.json valid and naming (arm, seed);
+  | S2/r10round/long_blind/tools/run_bs.py:596:    missing = [k for k in C.APPROVED_KEYS if k not in approved]
+  | S2/r10round/long_blind/tools/run_bs.py:607:    pins = approved.get("tool_sha256") if isinstance(approved.get("tool_sha256"), dict) else {}
+  | S2/r10round/long_blind/tools/run_bs.py:612:            problems.append(f"APPROVED: tool_sha256[{name!r}] {pins.get(name)!r} != the file's {got!r}")
+  | S2/r10round/long_blind/tools/run_bs.py:840:        "tool_sha256": {n: sha256_file(TOOLS / n) for n in C.TOOL_FILES if (TOOLS / n).is_file()},
+  | S2/r10round/long_blind/tools/run_bs.py:947:        save_stage_config(stage_dir, stage, config, "PPO", extra={"seed": seed, "n_envs": C.N_ENVS, "timesteps": total},
+  | S2/r10round/long_blind/tools/bs_common.py:73:# evidence, diagnostics), its reads, tmp and logs, and one resume's extra files: 184.4 MiB [measured by
+  | S2/r10round/long_blind/tools/bs_common.py:78:SCORER_FILE = "score_bs.py"                     # the scorer (the criteria lane's); APPROVED must pin it (runner)
+  | S2/r10round/long_blind/tools/bs_common.py:139:    "critic_blind_tail3": ("the value path only: the policy's mlp_extractor gets a forward_critic that replaces the "
+  | S2/r10round/long_blind/tools/bs_common.py:144:                           "on the mlp_extractor instance, so the state_dict and the saved zip are stock)"),
+  | S2/r10round/long_blind/tools/bs_common.py:196:APPROVED_KEYS = ("criteria_sha256", "screen_sha256", "code_tree_digest", "tool_sha256")
+
+=== [0058] 2026-10-30T17:55:24Z -> 2026-10-30T17:55:24Z  rc=0  (LB run_bs.py lines 585-625 (APPROVED checks) and 30-60 (preflight doc))
+CMD: sed -n 30,60p $LB/tools/run_bs.py; echo ....; sed -n 585,625p $LB/tools/run_bs.py
+OUT: out/0058.txt  bytes=3698  sha256[:16]=5970e9622b84d443
+  | by the copy's own save_stage_config and compared with the parent's before learn(); the load wrapper's checks; StopAtEnd;
+  | the heartbeat; the digests; the exit codes).  Changes from run_ecs.py: one start (s42 at S), the four arms (an
+  | in-memory [ppo] edit for gae_lambda_1, a hook on the loaded objects for critic_blind_tail3 and frozen_obs_norm, applied
+  | inside the load wrapper after its checks and before learn()); per-rollout arm evidence (bs_hooks.rollout_evidence,
+  | read only, into <run>/arm_evidence.jsonl and run_meta's arm_evidence summary); the continuation's queue and seeds come
+  | from <BS>/SCREEN.json (pinned in <BS>/APPROVED), validation runs use only bs_common.VALIDATION_SEEDS and write only
+  | under <BS>/validate/; V1 also compares the loaded policy's bank outputs with the parent probe's row at S.
+  | 
+  | Preflight (exit 2, nothing created; every reason listed): the arguments; for a continuation <BS>/APPROVED (JSON,
+  | bs_common.APPROVED_KEYS) with criteria_sha256 = sha256(<BS>/criteria.txt), screen_sha256 = sha256(<BS>/SCREEN.json),
+  | code_tree_digest the pinned one and tool_sha256 = every BS tool's sha256, SCREEN.json valid and naming (arm, seed);
+  | the run folder absent; the start pair, the five parent records and stage_config.json at their FMAN sha256; the code
+  | copy's seal (M1's r10m_common.check_copy); the stack; the M1-common / M5 pins; free disk >= 1.5 GiB.
+  | Exit codes: 0 done; 2 refused (no optimizer step); 5 finished but a post-run check failed; 1 crash.
+  | Importing this module needs neither torch nor the code copy.
+
+=== [0059] 2026-10-30T17:56:29Z -> 2026-10-30T17:56:29Z  rc=0  (LB run_waves_bs.sh: crash, early, restart, relaunch, lost handling (grep))
+CMD: W=$LB/tools/run_waves_bs.sh; sha256sum $W; grep -n -i -E "restart|relaunch|half-way|halfway|early|crash_ledger|lost|resume|own crash|MAX_CRASH|not counted|HALT" $W | cut -c1-220 | head -60
+OUT: out/0059.txt  bytes=4886  sha256[:16]=4159c05b0583391c
+  | 53f80e7a4b708f3b16fb11f78b93eeb3a430be066123e00b8be98e94919fc661  S2/r10round/long_blind/tools/run_waves_bs.sh
+  | 4:#   RESUME a crash that is one of its own is rerun at once with --resume-from <its retired runs/<name>_crashed<k>>:
+  | 5:#          run_bs.py resumes from that attempt's newest complete saved pair (bs_resume.resume_point), or starts again
+  | 6:#          from S when it has none (BS2's rerun).  A relaunch finds the folder in logs/crash_ledger.tsv.  The early
+  | 7:#          crash rule counts from the attempt's load step (run_meta load_step: S, or the resume point).
+  | 10:#   RR-1   a relaunch after ALL_DECIDED keeps the first logs/atimes_at_ALL_DECIDED.tsv; a later snapshot goes to
+  | 11:#          logs/atimes_at_ALL_DECIDED.relaunch<k>.tsv.
+  | 28:# crash handling, relaunch, lock, HALTED and VOID rules; the bias screen's queue, slots, nice and floors.  Runs ONLY
+  | 32:#   run_waves_bs.sh            run (or resume) the queue
+  | 38:# reads only logs/run_waves_bs.log.  Nothing relaunches it automatically.  While logs/HALTED exists it refuses to start
+  | 39:# (exit 2); it writes logs/HALTED whenever a halt (exit 2) or a VOID (exit 4) stops the queue; only the coordinator
+  | 47:#     ones go on, logs/PAUSED_disk names the shortfall; it resumes by itself once space is free.  The process table and
+  | 57:#       other: CRASH: runs/<name> -> runs/<name>_crashed<k>, logs/crash_ledger.tsv.  An EARLY crash (last recorded step
+  | 58:#          below S + 131,072, or none) is not counted and halts new starts.  Any other crash is one of its own and is
+  | 59:#          rerun at once from the start pair with the same arguments; a third own crash writes it to <BS>/lost.json.
+
+=== [0060] 2026-10-30T17:56:36Z -> 2026-10-30T17:56:36Z  rc=0  (LB run_waves_bs.sh header lines 1-70)
+CMD: sed -n 1,70p $LB/tools/run_waves_bs.sh
+OUT: out/0060.txt  bytes=6790  sha256[:16]=df0f4d11f5cf7e55
+  | #!/usr/bin/env bash
+  | # LB: BS2's run_waves_bs.sh (S2/r10round/bias_screen2/tools/run_waves_bs.sh, sha256 6e0484f6...) with the root changed
+  | # (BS_REAL = S2/r10round/long_blind) and these LB changes; "<BS>" below = LB:
+  | #   RESUME a crash that is one of its own is rerun at once with --resume-from <its retired runs/<name>_crashed<k>>:
+  | #          run_bs.py resumes from that attempt's newest complete saved pair (bs_resume.resume_point), or starts again
+  | #          from S when it has none (BS2's rerun).  A relaunch finds the folder in logs/crash_ledger.tsv.  The early
+  | #          crash rule counts from the attempt's load step (run_meta load_step: S, or the resume point).
+  | #   HOP    a continuation the stage's hop watch stopped (CHECK passed, stop reason "hop_watch") is STOPPED, like
+  | #          "collapse".
+  | #   RR-1   a relaunch after ALL_DECIDED keeps the first logs/atimes_at_ALL_DECIDED.tsv; a later snapshot goes to
+  | #          logs/atimes_at_ALL_DECIDED.relaunch<k>.tsv.
+  | #   I1     right after each attempt exits, before CHECK and the re-arm, logs/atimes_at_exit/<name>.attempt<k>.tsv
+  | #          records path, atime, mtime and ctime (lstat only) of runs/<name>/**, tmp/<name>/** and the attempt log.
+  | #   SCORER the scorer the APPROVED pin must name is bs_common.SCORER_FILE (score_bs.py).
+  | # The queue mechanics, slots, nice, floors and the outcome-blind reads are BS2's, unchanged.
+
+=== [note] 2026-10-30T17:57:03Z  (manual entry: commands not run through lg.sh)
+  17:49:06Z lg.sh entry 0051 (seeds_check.py, nice 10, timeout 900) was moved to the background by the tool after 120 s; its lg.sh entry is appended when it ends.
+  17:53:3xZ a background wait loop (until ! pgrep -f seeds_check.py ...; writing pgrep output to out/pgrep_wait.txt) was started; it matched its own shell, so it could not end; stopped at 2026-10-30T17:57:03Z (TaskStop). out/pgrep_wait.txt holds only pgrep PIDs (not an lg output).
+  The CMD_LOG numbering skips where a non-lg file sits in out/ (lg.sh numbers by file count).
+
+=== [0061] 2026-10-30T17:58:44Z -> 2026-10-30T17:58:44Z  rc=0  (disk: sizes of LB parts and of large finished-study folders (du, read only))
+CMD: cd /tmp && nice -n 10 du -sm $LB/validate $LB/tmp $LB/measure $LB/logs $LB/tools $CW $BS/runs $BS2/runs $BS2/validate $BS2/tmp $S2/r10round/ecs/runs $S2/com_revisit/notes/phase_probe $S2/com_revisit/notes/termination_probe 2>&1 | sed "s#$S2#S2#g"; df -B1 /tmp | tail -1
+OUT: out/0061.txt  bytes=497  sha256[:16]=3e32a3d81c1b0ec1
+  | 176	S2/r10round/long_blind/validate
+  | 1	S2/r10round/long_blind/tmp
+  | 57	S2/r10round/long_blind/measure
+  | 1	S2/r10round/long_blind/logs
+  | 1	S2/r10round/long_blind/tools
+  | 1	S2/r10round/long_blind/criteria_work
+  | 284	S2/r10round/bias_screen/runs
+  | 253	S2/r10round/bias_screen2/runs
+  | 111	S2/r10round/bias_screen2/validate
+  | 1	S2/r10round/bias_screen2/tmp
+  | 855	S2/r10round/ecs/runs
+  | 247	S2/com_revisit/notes/phase_probe
+  | 91	S2/com_revisit/notes/termination_probe
+  | /dev/vda       270553174016 38277603328 3005566976  93% /
+
+=== [0062] 2026-10-30T17:59:15Z -> 2026-10-30T17:59:15Z  rc=0  (structure of measure_lb outputs for the parent (classes.json, habit.json keys))
+CMD: $PY -I -B -c "
+import json,sys
+d=json.load(open(sys.argv[1]))
+print(\"classes.json keys:\", sorted(d))
+for k in sorted(d):
+    v=d[k]
+    s=json.dumps(v)
+    print(\" \", k, \":\", s[:260])
+h=json.load(open(sys.argv[2]))
+print(\"habit.json keys:\", sorted(h))
+print(\"habit_sites:\", h.get(\"habit_sites\"))
+pa=h[\"per_actuator\"][\"tail_3_pitch_act\"]
+print(\"per_actuator[tail_3] keys:\", sorted(pa))
+print(\"probe:\", json.dumps(pa.get(\"probe\"))[:400])
+m=json.load(open(sys.argv[3]))
+print(\"measure_lb.json keys:\", sorted(m))
+print(\"ending:\", json.dumps(m.get(\"ending\"))[:400])
+print(\"c7:\", json.dumps(m.get(\"c7\"))[:400])
+print(\"window:\", json.dumps(m.get(\"window\"))[:400])
+" $LB/measure/validate/stance6_r10LTSB_s42/classes.json $LB/measure/validate/stance6_r10LTSB_s42/habit.json $LB/measure/validate/stance6_r10LTSB_s42/measure_lb.json
+OUT: out/0062.txt  bytes=5623  sha256[:16]=0a81abd5f8b822c3
+  | classes.json keys: ['E', 'any_alarm', 'any_alarms', 'cls', 'cmd', 'cmd_episodes', 'cmd_others_ended_by_200', 'driven', 'fall_flags', 'flagged_evaluations', 'gate', 'gate_why', 'kind', 'mean', 'mean_basis', 'open', 'outcome', 'parked', 'reasons', 'resolved_by_trace', 'single_tail_flags', 'stopped', 'tail_alarm_detail', 'tail_alarms', 'trace_rail']
+  |   E : 12001280
+  |   any_alarm : true
+  |   any_alarms : [{"step": 3932160, "actuators": {"tail_3_pitch_act": 20}, "tail_scope": "tail", "reasons": {"> 0.1": 20}}, {"step": 4063232, "actuators": {"tail_3_pitch_act": 18}, "tail_scope": "tail", "reasons": {"> 0.1": 18}}, {"step": 4194304, "actuators": {"tail_3_pitch_a
+  |   cls : "RAIL"
+  |   cmd : {"4194304": {"tail_1_pitch_act": -0.16173104586312548, "tail_1_yaw_act": 0.004465420649386944, "tail_2_pitch_act": 0.03587810240921681, "tail_3_pitch_act": 0.9893873514011503}, "5242880": {"tail_1_pitch_act": -0.15331227715220302, "tail_1_yaw_act": 0.017645798
+  |   cmd_episodes : {"4194304": {"tail_1_pitch_act": 20, "tail_1_yaw_act": 20, "tail_2_pitch_act": 20, "tail_3_pitch_act": 20}, "5242880": {"tail_1_pitch_act": 20, "tail_1_yaw_act": 20, "tail_2_pitch_act": 20, "tail_3_pitch_act": 20}, "6291456": {"tail_1_pitch_act": 20, "tail_1_y
+  |   cmd_others_ended_by_200 : {"4194304": [], "5242880": [], "6291456": [], "8388608": [], "10485760": [], "final": []}
+  |   driven : []
+  |   fall_flags : []
+  |   flagged_evaluations : 26
+  |   gate : "FAIL"
+  |   gate_why : ["heading -90: hop_or_fall_episodes 2 > 1 (episodes ending early or failing min_all_feet_support, max_touchdown_rate, max_window_displacement_m, max_actuator_saturation_fraction; panel rail)", "heading -45: hop_or_fall_episodes 2 > 1 (episodes ending early or 
+  |   kind : "RAIL-LEDGER-PERSISTENT"
+  |   mean : {"tail_1_pitch_act": 0.04151702154093072, "tail_1_yaw_act": 0.011939142438874112, "tail_2_pitch_act": 0.007377712859582971, "tail_3_pitch_act": 0.9148334751408547}
+
+=== [0063] 2026-10-30T18:00:22Z -> 2026-10-30T18:00:22Z  rc=0  (line numbers in parent_long.out and design_numbers.out for citations)
+CMD: grep -n -E "B_S|primary form at E|at 3,538,944|window max|first trailing|TRAJECTORY|tail_3_pitch_act|head_pitch_act|neck_pitch_act|row 2,097,152|row 11,993,088|ent_coef first|my re-derivation|flagged spells|by actuator and sign|D-1 window|CMD_L first|CMD_L at S|returns:|PINNED|my alarms|pinned tail-flagged|line 35|line 36|line 37|line  3 |line  1 |line  4 " $CW/parent_long.out | cut -c1-160; echo ....; grep -n -E "3 \+ 1|2 \+ 2|0 of 3 railed|0 of 2 railed|q 0.3|ECS:|BS2: 4 of 4|p 0.900|p 0.735|BS2 82|BS2 85|V4|per run|launch floor|measurement needs|after 4 runs|pruning" $CW/design_numbers.out | cut -c1-160
+OUT: out/0063.txt  bytes=5983  sha256[:16]=4b0fe18d426aa1e5
+  | 7:  B_S (8 rows ending at S) exact 135930855/1073741824 = 0.1265954738482833
+  | 8:  primary form at E (8 rows 11,935,744 .. 11,993,088, the last 8 updates before E): +0.81159 rise +0.68500; the parent's own 8 rows ending at E (incl. its upd
+  | 9:  at 3,538,944 (BS2's E; rows ending 3,530,752): +0.70538 rise +0.57878
+  | 10:  window max of the trailing 8-row mean: +0.9710 at 4,669,440; its minimum from 4,194,304: -0.4630 at 6,922,240
+  | 11:  first trailing 8-row mean >= 0.30: 2,908,160
+  | 12:  first trailing 8-row mean >= 0.60: 3,252,224
+  | 13:  first trailing 8-row mean >= 0.90: 4,521,984
+  | 16:  TRAJECTORY: the 8-row mean of rollout_mu_mean[:, 14] ending at each evaluation step (rise from B_S); at E the 8 rows before E
+  | 31:  PER ACTUATOR (probe, on-policy rollout means): last 8 before E | D-1 window means [S,4.19M) [4.19,8.39M) [8.39M,E) | largest |trailing 8-row mean| (step) |
+  | 32:   neck_pitch_act       -0.364 | +0.030 +0.039 +0.002 | -0.370 (11,878,400) | 0.000 0.000
+  | 34:   head_pitch_act       -0.181 | -0.002 -0.166 -0.330 | -0.505 (9,592,832) | 0.000 0.001
+  | 46:   tail_3_pitch_act     +0.812 | +0.491 +0.546 +0.759 | +0.971 (4,669,440) | 0.156 0.574
+  | 47:  row 2,097,152: tail_3 normaliser mean +0.086 deg SD 0.419 deg; std14 0.1816; ent_coef 0.003502; learning_rate 2.6505e-05
+  | 50:  row 11,993,088: tail_3 normaliser mean +2.510 deg SD 2.137 deg; std14 0.0950; ent_coef 0.000000; learning_rate 1.0012e-05
+  | 51:  ent_coef first 0.0 at 7,004,160; rows with ent_coef 0 in the window: 611
+
+=== [0064] 2026-10-30T18:00:28Z -> 2026-10-30T18:00:28Z  rc=0  (ECS window (E) and the RUNLOG 740 reading text)
+CMD: sed -n 740p $RUNLOG | cut -c1-900; grep -n -m5 -E "E = |E_s42|4,718,592|1,572,864" $S2/r10round/ecs/criteria.txt | cut -c1-200
+OUT: out/0064.txt  bytes=1258  sha256[:16]=167557295b68532a
+  | 2026-10-29 12:17 UTC  ECS READING (score_ecs exit 0, STATUS final, provisional []; 12:15:29 UTC; score.json sha256 f86b9923b7bb5d84..., score.txt c3ba2144082dd923...): line 3, NO DIFFERENCE DETECTED IN WHETHER AN ANY-FLAGGED EVALUATION CAME BY E FROM THESE STATES. s42 arm A 6 of 6, arm B 6 of 6; s80 arm A 1 of 6, arm B 1 of 6. P_UP = P_DOWN = 17/22 (0.7727), filled = as counted (none missing). Notes: s42 ARM A AT 6 OF 6 (no room for B HIGHER); s80 LOW ARM-A RATE (1 of 6). All 24 COUNTED (stop reason end), none STOPPED, censored, LOST or VOID; crash ledger empty; 24 end traces present. Independent checks (statistic lens, process lens) launched next; the maintainer told at once.
+  | 22:  CLONE = S2/r10round/runbranch/clone (the run branch at 8737cd3d; read only; push URL DISABLED)
+  | 27:  TE = <ECS>/v1/table_e_ecs.out (from v1/table_e_ecs.py, unchanged)      CHK = <ECS>/v2/check_v2.out (from check_v2.py)
+  | 40:  actuator, CRIT6 M5 (a)) within 1,572,864 steps? "When" is not tested (D5 (c) is the option for it). "Pre-onset"
+  | 52:- Length (D3): 1,572,864 steps, so E = 4,718,592 (s42) and 5,767,168 (s80): 12 evaluations, 192 rollouts and 191
+  | 236:- 24 x 1,572,864 = 37,748,736 steps. At about 43-53 min per 1,048,576 steps per process with 3 at a time: about
+
+=== [0065] 2026-10-30T18:01:02Z -> 2026-10-30T18:01:02Z  rc=0  (BS2 criteria: OUTCOME-BLINDNESS and P4 wording lines 388-412 (to adapt))
+CMD: sed -n 384,412p $BS2/criteria.txt
+OUT: out/0065.txt  bytes=3016  sha256[:16]=7a2001fa1a2dcee8
+  |   (it prints the same problems and creates nothing; the runner's REFUSED note names this command), or, if the refusal
+  |   left a folder, from its run_meta.json error and traceback; never from the attempt log.
+  | - The runner is restarted only by the coordinator (after a container restart or a fixed halt); it re-reads its
+  |   ledgers (logs/decided.tsv, crash_ledger.tsv, lost.json).
+  | 
+  | OUTCOME-BLINDNESS -- as BS (an allow-list)
+  | - Until every queue entry is decided (COUNTED, STOPPED or LOST) and none is VOID, nobody (no person and no agent; the
+  |   pinned tools' own work, run_bs.py and CHECK, excepted) opens any file of a continuation (runs/<name> and every
+  |   runs/<name>_crashed<k> / _void<k> / _refused<k>; its TMPDIR <BS2>/tmp/<name>/, which holds its live
+  |   eval_stage1_*/evaluations.npz (the evaluation returns); the reader's <BS2>/tmp/read_<name>/; reads/<name>;
+  |   logs/<name>.attempt<k>.log) except: run_meta.json's fields status, exit, stop_reason, heartbeat, last_step, error and
+  |   traceback (the last two only to find a crash's or a refusal's cause; a preflight refusal that left no folder is
+  |   diagnosed by re-running --preflight-only, RUN HANDLING, never from its attempt log); check.json's pass / fail with
+  |   its failures list and its identity and source fields, and logs/<name>.check.log. Everything else is
+  |   outcome-bearing or may be (01_stance/progress.json, evaluations.npz, train_episodes.csv, eval_episodes.csv,
+
+=== [0051] 2026-10-30T17:49:45Z -> 2026-10-30T18:02:37Z  rc=0  (run seeds_check.py (read only; nice 10))
+CMD: cd /tmp && OMP_NUM_THREADS=1 nice -n 10 timeout 900 $PY -I -B $CW/seeds_check.py > $CW/seeds_check.out 2> $CW/seeds_check.err; echo rc=$?; tail -5 $CW/seeds_check.err; cat $CW/seeds_check.out | head -150
+OUT: out/0051.txt  bytes=23326  sha256[:16]=cb53cb45b3e60fbb
+  | rc=0
+  | LB derived_seeds(2701) = (2701, 2702, 2703, 2704, 3701) (bs_common.N_ENVS 4, EVAL_SEED_OFFSET 1000)
+  | used numbers: 530
+  | 
+  | PROPOSED 2701 / 2711 / 2721:
+  |   2701: derived (2701, 2702, 2703, 2704, 3701) -> collisions with the named sets none; validation seed False
+  |   2711: derived (2711, 2712, 2713, 2714, 3711) -> collisions with the named sets none; validation seed False
+  |   2721: derived (2721, 2722, 2723, 2724, 3721) -> collisions with the named sets none; validation seed False
+  | 
+  | alternative 2801 / 2811 / 2821:
+  |   2801: derived (2801, 2802, 2803, 2804, 3801) -> collisions with the named sets none; validation seed False
+  |   2811: derived (2811, 2812, 2813, 2814, 3811) -> collisions with the named sets none; validation seed False
+  |   2821: derived (2821, 2822, 2823, 2824, 3821) -> collisions with the named sets none; validation seed False
+  | 
+  | text search: 125374 files scanned, 369 skipped (> 2 MiB, symlink or unreadable)
+
+=== [0066] 2026-10-30T18:04:58Z -> 2026-10-30T18:06:32Z  rc=0  (seed text search, whole tokens only (grep -w; no venvs, site-packages, .git; text-like files < 2 MiB), every hit listed)
+CMD: cd /tmp && nice -n 10 timeout 600 grep -rnwE --exclude-dir=venv --exclude-dir="venv*" --exclude-dir=wheelvenv --exclude-dir=site-packages --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=caches --exclude-dir=criteria_work --include="*.py" --include="*.txt" --include="*.json" --include="*.md" --include="*.sh" --include="*.toml" --include="*.log" --include="*.out" --include="*.jsonl" --include="*.tsv" --include="*.csv" --include="*.js" --include="*.err" "(2701|2702|2703|2704|3701|2711|2712|2713|2714|3711|2721|2722|2723|2724|3721)" $S1 $S2 2>&1 | awk "length(\$0) < 4000" | cut -c1-260 > $CW/seeds_grep.out; echo rc=$?; wc -l < $CW/seeds_grep.out; cut -d: -f1 $CW/seeds_grep.out | sort | uniq -c | sort -rn | head -40
+OUT: out/0066.txt  bytes=2858  sha256[:16]=d060c56560c2db44
+  | rc=0
+  | 3190
+  |      15 S2/stageendwork/s70/stance5_LTSB_s70/01_stance/train_episodes.csv
+  |      15 S2/r10round/lean/v6check/out/round_v6_s7.jsonl
+  |      15 S2/r10round/lean/v6check/out/round_v5pin_s7.jsonl
+  |      15 S2/r10round/lean/v6check/out/probe_v6_s3.jsonl
+  |      15 S2/r10round/lean/v6check/out/probe_v6_s2.jsonl
+  |      15 S2/r10round/lean/v6check/out/probe_v6_s1.jsonl
+  |      15 S2/r10round/lean/v6check/out/probe_v5pin_s3.jsonl
+  |      15 S2/r10round/lean/v6check/out/probe_v5pin_s2.jsonl
+  |      15 S2/r10round/lean/v6check/out/probe_v5pin_s1.jsonl
+  |      15 S2/prs/telemetry3_work/implB/legacy/stance5_LTSB_s70/01_stance/train_episodes.csv
+  |      15 S2/handoff-wt/scratchpad/foot/stance5/replication/runs/stance5_LTSB_s70/01_stance/train_episodes.csv
+  |      15 S1/foot/stance5/replication/runs/stance5_LTSB_s70/01_stance/train_episodes.csv
+  |      14 S2/r10round/bs_durable/repo/overnight_probes/warning_margin/episodes.jsonl
+
+=== [0067] 2026-10-30T18:06:41Z -> 2026-10-30T18:06:41Z  rc=0  (triage of the whole-token hits: lines naming a seed, a run name or a seed range)
+CMD: grep -i -E "seed|_(2701|2702|2703|2704|3701|2711|2712|2713|2714|3711|2721|2722|2723|2724|3721)\b|(2701|2711|2721|3701|3711|3721) *(-|\.\.|to) *[0-9]{4}|[0-9]{4} *(-|\.\.|to) *(2701|2711|2721|2704|2714|2724)\b" $CW/seeds_grep.out > $CW/seeds_grep_seedlike.out; wc -l < $CW/seeds_grep_seedlike.out; cut -c1-240 $CW/seeds_grep_seedlike.out | head -60
+OUT: out/0067.txt  bytes=9289  sha256[:16]=c15bd138891026ec
+  | 1385
+  | S1/foot/stance5/k3diag/verify_3/p4.jsonl:2:{"run": "stance5_LTSB_s42", "steps": "final", "cond": "full", "falls": 13, "fall_seeds": [3042, 3044, 3046, 3047,
+  | S1/foot/stance5/k3diag/verify_3/p1.jsonl:5:{"run": "stance5_LTSB_s42", "steps": "5242880", "cond": "full", "falls": 0, "fall_seeds": [], "lengths": [1000, 1
+  | S1/foot/stance5/k3diag/verify_3/p3.jsonl:3:{"run": "stance5_LTSB_s42", "steps": "10485760", "cond": "t3hold0", "falls": 9, "fall_seeds": [3047, 3048, 3050, 
+  | S1/foot/stance5/k3diag/verify_3/p2.jsonl:2:{"run": "stance5_LTSB_s42", "steps": "7340032", "cond": "full", "falls": 9, "fall_seeds": [3042, 3047, 3050, 3051
+  | S1/foot/stance5/k3diag/verify_3/p2.jsonl:6:{"run": "stance5_LTSB_s42", "steps": "6291456", "cond": "t3hold0", "falls": 0, "fall_seeds": [], "lengths": [1000
+  | S1/fix/screen_s3_L/docs/investigations/stance_2026_10/battery/fresh_seeds/offline_certificates.txt:63:     heading    -90: clean 39/40 LCB 0.8868 full-horiz
+  | S1/fix/screen_s3_L/docs/investigations/stance_2026_10/battery/fresh_seeds/offline_certificates.txt:64:     heading    -45: clean 39/40 LCB 0.8868 full-horiz
+  | S1/fix/screen_s3_L/docs/investigations/stance_2026_10/battery/fresh_seeds/offline_certificates.txt:65:     heading     +0: clean 39/40 LCB 0.8868 full-horiz
+  | S1/fix/screen_s3_L/docs/investigations/stance_2026_10/battery/fresh_seeds/offline_certificates.txt:66:     heading    +45: clean 39/40 LCB 0.8868 full-horiz
+  | S1/fix/screen_s3_L/docs/investigations/stance_2026_10/battery/fresh_seeds/offline_certificates.txt:67:     heading    +90: clean 39/40 LCB 0.8868 full-horiz
+  | S1/fix/screen_s3_L/docs/investigations/stance_2026_10/battery/fresh_seeds/offline_certificates.txt:68:     heading   +180: clean 39/40 LCB 0.8868 full-horiz
+  | S1/fix/screen_s3_L/docs/investigations/stance_2026_10/battery/fresh_seeds/fresh_seed_summary.json:2378:       "mean_reward": 3721.924730298268,
+  | S1/fix/screen_s3_L/docs/investigations/stance_2026_10/battery/fresh_seeds/fresh_seed_summary.json:2390:       "mean_reward": 3721.9243876313876,
+  | S1/fix/screen_s3_L/docs/investigations/stance_2026_10/battery/fresh_seeds/fresh_seed_summary.json:2402:       "mean_reward": 3721.9247482994083,
+
+=== [0068] 2026-10-30T18:06:54Z -> 2026-10-30T18:06:54Z  rc=0  (seed triage: hits whose content names a seed or a run _<number>)
+CMD: cd /tmp && $PY -I -B $CW/seeds_triage.py $CW/seeds_grep.out > $CW/seeds_triage.out; echo rc=$?; head -80 $CW/seeds_triage.out
+OUT: out/0068.txt  bytes=778  sha256[:16]=b42c954294467559
+  | rc=0
+  | kept 4 hit(s) whose content names a seed or a run _<number>; dropped 3186
+  |   S2/tail_record/pr/check_conventions/merge_tree_trivial.txt:4155: +P(p <= 0.005) = P(>= 17 of 20 one way) = 2702/1048576 = 0.0026 per key on 20 seeds, <= 0.0052 for LEAN; with th
+  |   S2/com_revisit/notes/policies/PREREG.txt:32: P(p <= 0.005) = P(>= 17 of 20 one way) = 2702/1048576 = 0.0026 per key on 20 seeds, <= 0.0052 for LEAN; with the
+  |   S2/r10round/lean/v6check/out/round_v5pin_s7.jsonl:3722: {"i": 3721, "line": 2, "basis": "INCOMPLETE. No tail rail in the 2 run(s) read to 12M; 1 seed(s) LOST or STOPPED without
+  |   S2/r10round/lean/v6check/out/round_v6_s7.jsonl:3722: {"i": 3721, "line": 2, "basis": "INCOMPLETE. No tail rail in the 2 run(s) read to 12M; 1 seed(s) LOST or STOPPED without a r
+
+=== [0069] 2026-10-30T18:07:09Z -> 2026-10-30T18:07:09Z  rc=0  (SCREEN_v1.json: parse and check with LB bs_common.screen_problems and BS2 bs_common.screen_problems (read only, -B))
+CMD: cd /tmp && $PY -I -B -c "
+import importlib.util, json, sys
+d = json.load(open(sys.argv[1]))
+for tag, p in ((\"LB\", sys.argv[2]), (\"BS2\", sys.argv[3])):
+    spec = importlib.util.spec_from_file_location(\"bsc_\" + tag, p)
+    m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+    print(tag, \"screen_problems:\", m.screen_problems(d), \"queue_of:\", m.queue_of(d) if hasattr(m, \"queue_of\") else None)
+    print(tag, \"derived:\", {s: m.derived_seeds(s) for s in (2701, 2711, 2721)})
+" $CW/SCREEN_v1.json $LB/tools/bs_common.py $BS2/tools/bs_common.py; find $LB/tools $BS2/tools -name __pycache__ | wc -l; sha256sum $CW/SCREEN_v1.json
+OUT: out/0069.txt  bytes=662  sha256[:16]=1fd976ee1b9ee243
+  | LB screen_problems: [] queue_of: (('control', 2701), ('critic_blind_tail3', 2701), ('critic_blind_tail3', 2711), ('critic_blind_tail3', 2721))
+  | LB derived: {2701: (2701, 2702, 2703, 2704, 3701), 2711: (2711, 2712, 2713, 2714, 3711), 2721: (2721, 2722, 2723, 2724, 3721)}
+  | BS2 screen_problems: [] queue_of: (('control', 2701), ('critic_blind_tail3', 2701), ('critic_blind_tail3', 2711), ('critic_blind_tail3', 2721))
+  | BS2 derived: {2701: (2701, 2702, 2703, 2704, 3701), 2711: (2711, 2712, 2713, 2714, 3711), 2721: (2721, 2722, 2723, 2724, 3721)}
+  | 0
+  | a0523d3a27ff7a44e131fd691b2d058fc73aad8cfe06f118c284468e0ad1559e  S2/r10round/long_blind/criteria_work/SCREEN_v1.json
+
+=== [0070] 2026-10-30T18:08:09Z -> 2026-10-30T18:08:09Z  rc=0  (which actuator saturated in the parent's 2 unclean certificate episodes (seeds 3079, 3080; heading 0 panel CSV))
+CMD: f=$S1/foot/stance6/panels/stance6_r10LTSB_s42/final/m3/stance_heading_panel_selected.csv; head -1 $f | tr "," "\n" | grep -n -i -E "seed|heading|satur|actuator" | head -20; $PY -I -B -c "
+import csv,sys
+rows=list(csv.DictReader(open(sys.argv[1])))
+print(len(rows), \"rows\")
+keys=[k for k in rows[0] if \"satur\" in k.lower() or k in (\"seed\",\"heading_deg\",\"heading\")]
+print(keys)
+for r in rows:
+    if str(r.get(\"seed\")) in (\"3079\",\"3080\"):
+        print({k: r[k] for k in keys})
+" $f
+OUT: out/0070.txt  bytes=214  sha256[:16]=3e0d2418df42eb25
+  | 4:panel_seed
+  | 53:max_actuator_saturation_fraction
+  | 54:mean_actuator_saturation_fraction
+  | 74:heading_grid_deg
+  | 75:seed_start
+  | 76:n_seeds
+  | 480 rows
+  | ['max_actuator_saturation_fraction', 'mean_actuator_saturation_fraction']
+
+=== [0071] 2026-10-30T18:08:40Z -> 2026-10-30T18:08:40Z  rc=0  (tail note ledger rows L123 and L125 (ECS over-bar actuators and first flags))
+CMD: T=$S2/com_revisit/wt_records2/docs/investigations/TREX_TAIL_SATURATION_HABIT_2026_10.md; grep -n -E "\[L123\]|\[L125\]|\[L120\]" $T | cut -c1-1200 | head -8
+OUT: out/0071.txt  bytes=2251  sha256[:16]=bbaebad20f7cdf69
+  | 234:  - The entropy screen's s80 continuations: the neck again [L123].
+  | 252:  mid-rise states [L120]. A clamp test then measured the persistence
+  | 442:  [L120].
+  | 462:    [L120]. §4.6.
+  | 666:| 2026-10-29, 12:15:29 UTC [L120] | The ECS reading | `score_ecs` on the 24 ledgers (M5); STATUS final | [measured] Line 3: "NO DIFFERENCE DETECTED IN WHETHER AN ANY-FLAGGED EVALUATION CAME BY E FROM THESE STATES (not tested: a shift of the first flag within the window, a modest effect, the early phase)". s42: arm A 6 of 6, arm B 6 of 6. s80: arm A 1 of 6, arm B 1 of 6. P_UP = P_DOWN = 17/22 (0.7727), both above 1/40. Notes: s42 "ARM A AT 6 OF 6: no room for B HIGHER at this start"; s80 "LOW ARM-A RATE (1 of 6): little power for B LOWER at this start". | narrowed (§4.6) | ECS `score/score.txt` l53-85; RUNLOG l740 |
+  | 669:| 2026-10-29 [L123] | Which actuators crossed the bar in the 24 windows | The sweep's tally of the per-evaluation over-bar counts by actuator (`any_by`) in the statistic lens's re-derivation | [measured] Summed over evaluations: `tail_3_pitch_act` 651 over-bar episodes, all in s42 continuations; `neck_pitch_act` 79, all in s80 continuations; no other actuator. The two habits did not mix: no s42 continuation crossed on the neck and no s80 continuation on the tail. | record | ECS `check/stat/stat_out.txt` (per-evaluation lines); ECS `check/stat/NOTES.txt` l49-52 |
+  | 671:| 2026-10-29 [L125] | First flags (report only; the design does not test "when") | Each continuation's first ANY-flagged evaluation | [measured] s42 arm A: 3,538,944 / 3,670,016 / 4,063,232 / 3,670,016 / 3,932,160 / 4,063,232 (flagged evaluations 10 / 9 / 3 / 7 / 6 / 3). s42 arm B: 3,932,160 / 3,670,016 / 4,063,232 / 3,670,016 / 3,932,160 / 3,932,160 (6 / 6 / 6 / 4 / 6 / 6). The original s42 run's first ANY flag was 3,801,088, with 8 flagged evaluations to E. s80: only `s80_A_1341` (4,849,664, 3 flagged) and `s80_B_1441` (5,111,808, 3 flagged), both on the neck. [inferred] The earliest s42 continuation crossed 393,216 steps after S, earlier than the original run from the same checkpoint. | record | ECS `score/score.txt` l87-110; ECS `check/stat/NOTES.txt` l20-43, l105-111 |
+  | 901:    in 1 of 6 against 1 of 6 [L120]. Arm B's std ended slightly lower, with
+
+=== [0072] 2026-10-30T18:09:00Z -> 2026-10-30T18:09:00Z  rc=0  (LB harness NOTES status: summary, timing, open items (if written yet))
+CMD: wc -l $LB/NOTES.txt; grep -n -E "^@@|TIMING|per rollout|OPEN ITEMS|^==" $LB/NOTES.txt | head -40; ls -la $LB/logs | tail -5
+OUT: out/0072.txt  bytes=366  sha256[:16]=f226fabec4926495
+  | 12 S2/r10round/long_blind/NOTES.txt
+  | 12:@@SUMMARY@@
+  | -rw-r--r-- 1 root root   5881 Oct 30 17:52 notes_static.txt
+  | -rw-r--r-- 1 root root   6416 Oct 30 18:01 notes_valid.txt
+  | -rw-r--r-- 1 root root    908 Oct 30 16:43 tools_sha256_as_copied.txt
+  | -rw-r--r-- 1 root root 147483 Oct 30 17:33 tools_vs_bs2.diff
+  | -rw-r--r-- 1 root root    343 Oct 30 16:43 verify_copy_start.out
+
+=== [0073] 2026-10-30T18:09:04Z -> 2026-10-30T18:09:04Z  rc=0  (LB harness notes_valid.txt and notes_static.txt (validation and timing so far))
+CMD: cat $LB/logs/notes_valid.txt; echo ======; cat $LB/logs/notes_static.txt | head -80
+OUT: out/0073.txt  bytes=12304  sha256[:16]=4daea8501800b3ce
+  | ==================================================================================================================
+  | VALIDATIONS (step 5; no optimizer step anywhere; nice 10, OMP 1, cwd /tmp, PY -I -B; at most 2 processes of this build
+  | at once; drivers validate/v1v2v3_driver.sh (A) and validate/v4_driver.sh (B), logs validate/logs/driverA.log, driverB.log)
+  | ==================================================================================================================
+  | UNIT TESTS [measured, validate/logs/pytest_3.out]: 122 passed in 61 s on the final tools (test_bs_hooks 23,
+  | test_read_bs 24, test_resume 24, test_run_bs 27, test_waves_bs 24; BS2 had 77 + the scorer's).  ruff (E, F, W, B, line
+  | 120) clean on tools/ and validate/*.py; bash -n clean on the runner and both drivers.
+  | check_inputs.py [measured, logs/check_inputs.out]: exit 0; the start pair, the five records and stage_config.json at
+  | FMAN's sha256 and the bs_common pins; the 20 reference-pair files at FMAN's.
+  | BS/code [measured, logs/verify_copy_start.out]: verify_copy.py -> seal 331fe8fc3f6bdf73acc0d3cc324dd753d9d9d695d7ce914e4e
+  | 011d5c6437ebf1 recomputed equal, 1,406 files; no writable file, no __pycache__, nothing newer than LB's marker (the end
+  | check under OUTSIDE LB).
+  | SMOKE [measured, validate/logs/smoke_v1.log]: run_bs.py --arm critic_blind_tail3 --seed 9341 --save-loaded-only -> exit
+  | 0, the V1 checks true.
+  | V1 (load and save, no rollout; the four arms, seed 9301; version A) [measured, validate/logs/v1_independent.out,
+
+=== [0074] 2026-10-30T18:09:21Z -> 2026-10-30T18:09:21Z  rc=0  (BS2 timing lines in RUNLOG (792) and BS2 criteria COMPUTE line numbers; round criteria line numbers for cited clauses)
+CMD: sed -n 792p $RUNLOG | cut -c1-400; grep -n -E "about 83-86 min|about 89 min" $BS2/criteria.txt | cut -c1-160; C=$S2/r10round/final_lean/criteria_r10round_final.txt; grep -n -E "^- BAR:|^- ANY-FLAGGED|^- TAIL-FLAGGED|^- R1 = |^- TRACE RAIL|^TAIL CLASS|^GATE CLASS|^RUN OUTCOME|^  C5 |^  C6 |^  C7 |PRESENCE RAIL \(L3|A measurement crash \(M1-M8\)|J = 4,194,304" $C | cut -c1-120
+OUT: out/0074.txt  bytes=2357  sha256[:16]=962e27c969ea44f8
+  | 2026-10-30 15:09 UTC  BS2 check-in (scheduled 14:36, fired 15:09): wave 1 decided, all 4 COUNTED (CHECK passed, stop reason end): control_2511 14:16:20, control_2501 14:17:12, critic_blind_tail3_2501 14:19:04, critic_blind_tail3_2511 14:19:07 (about 82-85 min each); wave 2 (control_2521 14:16:20, critic_blind_tail3_2521 14:17:12, control_2531 and critic_blind_tail3_2531 14:19:07) running; runner a
+  | 455:- One continuation about 83-86 min with 4 running (BS: 06:00:19 -> 07:23:21 and 07:23:13 -> 08:48:14); 8 at 4 at a
+  | 458:  The builder's estimate for BS2 [inferred, <BS2>/validate/logs/timing.out]: about 89 min per continuation, 2 waves
+  | 84:  robust_best_model. J = 4,194,304; 5,242,880; 6,291,456; 8,388,608; 10,485,760; final. About 0.19 GB of checkpoints 
+  | 166:- BAR: an episode's share of window steps at |command| >= 0.99 on an actuator exceeds 0.10.
+  | 169:- ANY-FLAGGED EVALUATION: at least 5 of its 10 ledger episodes over the bar on any actuator (M5 (a)). ANY ALARM: the
+  | 171:- TAIL-FLAGGED EVALUATION: at least 5 of its 10 episodes over the bar with a tail actuator named (M5 (b)). TAIL ALAR
+  | 181:- R1 = the periodic pair 10,485,760 (for a STOPPED run that ended before it: the pair at the last multiple of 262,14
+  | 188:- TRACE RAIL (D5 (a)): among R1's and R2's 40 traced episodes, at least 2 full-horizon TAIL FLAGS on one actuator an
+  | 228:  C5 the end: 01_stance/progress.json reads "ended" at step E; 01_stance/models/stage1_final.zip's recorded
+  | 234:  C6 eval_episodes.csv holds every evaluation of the grid up to E (91 for a FINISHED run), each with exactly 10 rows
+  | 246:  C7 R1, R2, the J checkpoints up to E and every RESOLUTION checkpoint traced (M1), and, for a FINISHED run, R2's
+  | 253:- PRESENCE RAIL (L3 (b), RUNLOG line 653; one mechanical rule, monotone: it can only add a rail). A LOST run, a repl
+  | 269:TAIL CLASS (a COMPLETE run, read on its records as measured; the first line that applies)
+  | 280:GATE CLASS (D9 (a)): PASS: a FINISHED COMPLETE run whose stage1_final certificate (M3) passes; FAIL: a COMPLETE run
+
+=== [0075] 2026-10-30T18:11:05Z -> 2026-10-30T18:11:05Z  rc=0  (facts for DESIGN_NOTES: BS2 seeds_check precedent, harness disk floor constants, measure costs lines)
+CMD: grep -n -E "DISK_FLOOR_BYTES|RUN_BYTES_EST|LAUNCH_DISK_BYTES" $LB/tools/bs_common.py | head -5; grep -n -E "COSTS|Per FINISHED run|M1 per label|M3 \(the certificate" $LB/measure/NOTES.txt | cut -c1-200; grep -n -E "RR-7|v1final" $BS2/criteria.txt | head -3 | cut -c1-160; wc -l $CW/criteria_v1.txt; awk "length(\$0) > 120" $CW/criteria_v1.txt | head -5
+OUT: out/0075.txt  bytes=1225  sha256[:16]=78f5efe794e0132b
+  | 71:DISK_FLOOR_BYTES = 1_610_612_736                # 1.5 GiB (TASK "1.5 GB"; the binary reading, the stricter one)
+  | 75:RUN_BYTES_EST = 200 * 1024**2
+  | 77:LAUNCH_DISK_BYTES = DISK_FLOOR_BYTES + MAX_CONTINUATIONS * RUN_BYTES_EST   # a fresh queue starts only above this
+  | 110:==== COSTS [measured, os.wait4 user+sys of the runner and its child; validate/costs_first_run.txt] ====
+  | 113:M1 per label: 65.7-68.0 s CPU (wall 67.5-69.1 s on a then idle machine), max RSS 431-443 MB; 6 labels per FINISHED run = 401 s CPU (s42);
+  | 115:M3 (the certificate, 6 headings x 40 episodes): 1,186.9 s CPU (s42), 1,196.1 s CPU (s60); wall 1,945 / 2,000 s under load 8-11 (other
+  | 117:Per FINISHED run: about 1,600 s CPU (27 CPU-min), of which the certificate is 74%. For LB's 4 continuations: about 106 CPU-min, about
+  | 138:  review I3]); below that it first removes <BS2>/validate/v1final, v2final and the fixer's v1fix (about 200 MB in all)
+  | 603 S2/r10round/long_blind/criteria_work/criteria_v1.txt
+  |   saturation too (max_hop_or_fall_episodes counts saturated episodes), so it is not independent of Q1 and Q3. A pass here is not a
+  |     tools/bs_hooks.py                    <to fill> (BS2's 1ff4c8be048297270eea14a24fe59336020e20fbd4aca7c38f5b881b33eef9fc
+
+=== [0076] 2026-10-30T18:11:22Z -> 2026-10-30T18:11:22Z  rc=0  (sha256 of the LB tools and measure_lb.py as they stand now (for DESIGN_NOTES; the PINS are filled later))
+CMD: cd $LB && sha256sum tools/run_bs.py tools/read_bs.py tools/run_waves_bs.sh tools/bs_common.py tools/bs_hooks.py tools/bs_resume.py measure/tools/measure_lb.py; ls tools/score_bs.py 2>&1 | head -1; grep -n "LOOP_READ_EVERY =" tools/bs_common.py
+OUT: out/0076.txt  bytes=698  sha256[:16]=95d7fd328b05fe67
+  | a2e720fe30080250f4aa79118546d4bdc7d3f5fcc6074ec4509812235d1f3d15  tools/run_bs.py
+  | 7a9c8a99fee09f8d005c5ec09857ec853166320156901f85b54b094d72b9450b  tools/read_bs.py
+  | 53f80e7a4b708f3b16fb11f78b93eeb3a430be066123e00b8be98e94919fc661  tools/run_waves_bs.sh
+  | 34755b030bde78f673358b4f8f96f495932709582efd9425b13f4a7c1fe49b0e  tools/bs_common.py
+  | 1ff4c8be048297270eea14a24fe59336020e20fbd4aca7c38f5b881b33eef9fc  tools/bs_hooks.py
+  | 5da2f62c438cc1d1b7ba80b6a9c8dd9987cbd6d252abd0f1495ccd0dd4133920  tools/bs_resume.py
+  | 5fb29b52f194ffa40f45afed7427d762841d09e1a8860a20c404b283f35459d6  measure/tools/measure_lb.py
+  | ls: cannot access 'tools/score_bs.py': No such file or directory
+  | 107:LOOP_READ_EVERY = SAVE_FREQ
+
+=== [0077] 2026-10-30T18:14:01Z -> 2026-10-30T18:14:01Z  rc=0  (verify RUNLOG 801 wording on pin/launch and 800 scan ruling; tail note line 214)
+CMD: sed -n 800,801p $RUNLOG | cut -c1-700; T=$S2/com_revisit/wt_records2/docs/investigations/TREX_TAIL_SATURATION_HABIT_2026_10.md; sed -n 212,216p $T
+OUT: out/0077.txt  bytes=1548  sha256[:16]=65d7fe56d0541c73
+  | 2026-10-30 16:26 UTC  BS2 durable copy pushed at the maintainer's word ('Push it (Recommended)'): orphan branch <cli>/handoff-bias-screen2 at 2d2414107a13e0674cedab8d193b1beb173c076e (1 commit, 3,220 files incl. FILELIST/SHA256SUMS, about 47 MB; never merged, no PR), staged by S2/r10round/bs2_durable/build_stage_bs2.sh (no npz/zip/pkl/gz, no train_episodes.csv, no synthetic dry-run roots, no validation run ledgers, no file over 5 MB; sha256sum -c OK; model-name scan: only a CLI temp-file path, no model name; secret and email scans clean). Push URL back to DISABLED.
+  | 2026-10-30 16:32 UTC  Long blind study (LB, S2/r10round/long_blind) build-and-criteria workflow wf_c801f08c-291 launched (9 agents, no training): harness builder (S 2,097,152 to the parent's end, about 12M; resume from the latest saved pair for a ~10 h run; RR-1 and process I1 if small; V1-V4) || measurement builder (the round's pinned tools: TAIL CLASS, ANY ALARM per actuator, GATE CLASS via the six-heading certificate, POSITIVE; validated against the round's classes for s42, s60, s80) || designer (criteria v1: Q1 stays off the rail, Q2 gate, Q3 habit moves, Q4 control rails; default 3 blind + 1 control, new seeds); then independent build check || scorer adapter; design/measurement and harn
+  |   - On r10, a = 0 holds +0.014° and a = +1 holds +5.19° [L138].
+  | - **What it costs** [measured].
+  |   - It fails the gate's saturation key in deterministic panels, without
+  |     falls [L009, L032, L054].
+  |   - It costs reward, from +73.1 to +85.9 per window on r9 (SATDIAG §4) to
+
+=== [0078] 2026-10-30T18:14:10Z -> 2026-10-30T18:14:10Z  rc=0  (tail note: current sha256, line count, and where the cited passages are now (the records PR may be editing it))
+CMD: T=$S2/com_revisit/wt_records2/docs/investigations/TREX_TAIL_SATURATION_HABIT_2026_10.md; sha256sum $T; wc -l $T; ls -la --time-style=full-iso $T; grep -n -E "then .head_pitch_act. parked negative|\[L123\] \||\[L125\] \||\[L120\] \||^## 2\. Where it stands|^### 6\.2|^## 7\." $T | cut -c1-140
+OUT: out/0078.txt  bytes=1374  sha256[:16]=4d04f9f36186b542
+  | 8d52a76c82c175bfb4859f622412afbf3e65e01bbcfd28b289d8ffc3e9f7993a  S2/com_revisit/wt_records2/docs/investigations/TREX_TAIL_SATURATION_HABIT_2026_10.md
+  | 2318 S2/com_revisit/wt_records2/docs/investigations/TREX_TAIL_SATURATION_HABIT_2026_10.md
+  | -rw-r--r-- 1 root root 285365 2026-10-30 18:04:02.651388639 +0000 S2/com_revisit/wt_records2/docs/investigations/TREX_TAIL_SATURATION_HABIT_2026_10.md
+  | 232:  - r10 s80: `neck_pitch_act` at -1, then `head_pitch_act` parked negative
+  | 369:## 2. Where it stands (2026-10-29)
+  | 666:| 2026-10-29, 12:15:29 UTC [L120] | The ECS reading | `score_ecs` on the 24 ledgers (M5); STATUS final | [measured] Line 3: "NO DIFFEREN
+  | 669:| 2026-10-29 [L123] | Which actuators crossed the bar in the 24 windows | The sweep's tally of the per-evaluation over-bar counts by act
+  | 671:| 2026-10-29 [L125] | First flags (report only; the design does not test "when") | Each continuation's first ANY-flagged evaluation | [m
+  | 1487:### 6.2 Process: screens, pre-registration, outcome-blindness, verification, time
+  | 1621:## 7. Open questions and the candidate next steps already proposed
+  | 1896:| The ECS reading line [L120] | RUNLOG l740 omits the pre-registered parenthesis | RUNLOG l742 and ECS `score/score.txt` l55 | The scor
+  | 1897:| The ANY-flag wording [L120] | THIS12 (`stance6/criteria_v12_cited.txt`) l310-311 also lets a saturation count of at least 5 in the sa
+
+=== [0079] 2026-10-30T18:14:38Z -> 2026-10-30T18:14:38Z  rc=0  (harness builder's TIMING / read cost, if written now)
+CMD: ls -la --time-style=+%H:%M $LB/logs | tail -8; grep -l -E "TIMING" $LB/logs/*.txt $LB/NOTES.txt 2>&1 | head; for f in $LB/logs/notes_timing.txt $LB/validate/logs/timing.out; do [ -f $f ] && { echo "### $f"; cat $f | head -60; }; done; ls $LB/validate/logs | grep -i -E "timing|read_cost|v3" 
+OUT: out/0079.txt  bytes=8210  sha256[:16]=9a79332b9e7889b8
+  | -rw-r--r-- 1 root root   2029 17:24 notes_launch.txt
+  | -rw-r--r-- 1 root root  10219 18:12 notes_more.txt
+  | -rw-r--r-- 1 root root   6716 18:12 notes_static.txt
+  | -rw-r--r-- 1 root root   6832 18:13 notes_summary.txt
+  | -rw-r--r-- 1 root root   6416 18:01 notes_valid.txt
+  | -rw-r--r-- 1 root root    908 16:43 tools_sha256_as_copied.txt
+  | -rw-r--r-- 1 root root 147483 17:33 tools_vs_bs2.diff
+  | -rw-r--r-- 1 root root    343 16:43 verify_copy_start.out
+  | S2/r10round/long_blind/logs/notes_design.txt
+  | S2/r10round/long_blind/logs/notes_more.txt
+  | S2/r10round/long_blind/logs/notes_static.txt
+  | S2/r10round/long_blind/logs/notes_summary.txt
+  | S2/r10round/long_blind/NOTES.txt
+  | ### S2/r10round/long_blind/validate/logs/timing.out
+  | LB no-update (V2, V4; 2 of this build's processes beside other workflows')
+
+=== [0080] 2026-10-30T18:15:40Z -> 2026-10-30T18:15:40Z  rc=0  (re-run design_numbers.py (revised disk lines added))
+CMD: cd /tmp && nice -n 10 $PY -I -B $CW/design_numbers.py > $CW/design_numbers.out 2> $CW/design_numbers.err; echo rc=$?; cat $CW/design_numbers.err; tail -9 $CW/design_numbers.out; grep -n -E "q 0.3|0 of 3 railed|p 0.735|BS2 82|V4|per run|launch floor|measurement needs|after 4 runs|revised" $CW/design_numbers.out | cut -c1-100
+OUT: out/0080.txt  bytes=2179  sha256[:16]=4376cdbd36fb32c4
+  | rc=0
+  | 
+  | E. DISK (bytes; the harness builder's disk_estimate.out and the measurement builder's NOTES)
+  |    per run 193,386,567 B (184.4 MiB); 4 runs 773,546,268 B (0.72 GiB)
+  |    the runner's launch floor 2,449,473,536 B (2.28 GiB); pause floor 1,610,612,736 B
+  |    the measurement needs 3,309,305,856 B free at each launch (3.31 GB); measure_r10round.py refuses below 3,221,225,472 B
+  |    free now about 2.90 GB -> after 4 runs about 2.13 GB [inferred]; short of the measurement's need by 1.18 GB
+  |    periodic pairs per run 37; on the 1,048,576 schedule 9 (incl. J 4,194,304 ... 10,485,760 and R1); the other 28 x 4,038,055 B = 113 MB per run, 452 MB for 4 (fewer if M5 names RESOLUTION checkpoints off that grid)
+  |    so pruning inside LB/runs after the reads gives about 2.58 GB: still short by about 0.73 GB -> space must be freed elsewhere first (the coordinator, with the maintainer's word for other studies' files), or the reading waits (INCOMPLETE)
+  |    (revised) with every pair read first: the periodic pairs the measurement does not name, 32 x 4,038,055 B = 129 MB per run, 517 MB for 4 (fewer if RESOLUTION checkpoints are named); with LB/validate's 176 MB: 693 MB inside LB; after the runs about 2.13 GB + that = 2.82 GB, short of 3.31 GB by 0.49 GB
+  | 11:   0 of 3 railed: the per-run rail chance under blinding is below 0.632 at 95% (upper bound); 0 o
+  | 16:     q 0.3: 2 runs 0.510, 3 runs 0.657, 4 runs 0.760
+  | 31:     p 0.735: 0 of 3 0.0186; 0 of 2 0.0702
+  | 36:   BS2 82 min for 176 rollouts with 4 running -> 28.0 s per rollout -> LB 1209 rollouts 9.39 h
+  | 39:   V4 (harness builder, load 6-7): 32 s per rollout -> 10.75 h
+
+=== [0081] 2026-10-30T18:16:36Z -> 2026-10-30T18:16:36Z  rc=0  (harness builder's final NOTES summary and tool sha256 now)
+CMD: wc -l $LB/NOTES.txt; sed -n 1,80p $LB/NOTES.txt | cut -c1-200; echo; cd $LB && sha256sum tools/run_bs.py tools/read_bs.py tools/run_waves_bs.sh tools/bs_common.py tools/bs_hooks.py tools/bs_resume.py; [ -f SHA256SUMS.txt ] && head -20 SHA256SUMS.txt
+OUT: out/0081.txt  bytes=10672  sha256[:16]=f828f58d33683c91
+  | 856 S2/r10round/long_blind/NOTES.txt
+  | LONG BLIND STUDY (LB) HARNESS -- NOTES (summary first, then the designs, the validations, every command and its result,
+  | and the diff against BS2 hunk by hunk).  Written by the LB harness builder, 2026-10-30 (date -u).  Folder:
+  | S2/r10round/long_blind.  NO TRAINING in this build: no optimizer step anywhere, no continuation launched, LB/APPROVED
+  | never created or touched.
+  | Short names: S2 = S2;
+  | S1 = S1; BS = S2/r10round/bias_screen
+  | (finished; its code copy BS/code reused read only); BS2 = S2/r10round/bias_screen2 (finished; read only); LB =
+  | S2/r10round/long_blind; PY = S2/venv/bin/python (always -I -B); FMAN = S1/foot/stance6/fetch/manifest.csv; F2 =
+  | S1/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/.  "<BS>" inside the LB tools means LB.
+  | Labels: [measured] = I ran or read it (file / line cited); [inferred] = reasoned, basis given.
+  | 
+  | ==================================================================================================================
+  | SUMMARY
+  | ==================================================================================================================
+
+=== [0082] 2026-10-30T18:16:47Z -> 2026-10-30T18:16:47Z  rc=0  (consistency greps in the drafts (read schedule leftovers, long lines, product name))
+CMD: cd $CW; grep -n -E "50 CPU-min|about 15 min|11 per FINISHED|11 loop pairs|LOOP_READ_EVERY = 1|O2|1\.1 CPU-min|19:15" criteria_v1.txt DESIGN_NOTES.txt | cut -c1-160; echo "--- lines > 120:"; awk "length(\$0) > 120 {print FILENAME\": \"FNR\": \"length(\$0)}" criteria_v1.txt DESIGN_NOTES.txt; echo "--- product-name check (files containing it):"; grep -l -i -E "c""laude|<model-name>|<model-name>|<model-name>|<model-name>" $CW -r | wc -l
+OUT: out/0082.txt  bytes=611  sha256[:16]=b7eb7aaf1198ebca
+  | criteria_v1.txt:5:STATUS: v1 draft, written 2026-10-30 17:36-19:15 UTC (date -u) by the designer of workflow wf_c801f08c-291 (RUNLOG line
+  | criteria_v1.txt:197:- O2 ANY ALARMS BY ACTUATOR (ROUND lines 169-170): each ANY ALARM's step and actuators (classes_of's attribution: the
+  | criteria_v1.txt:213:    A  an ANY ALARM whose attributed actuators include a (O2);
+  | DESIGN_NOTES.txt:336:O2 THE READ SCHEDULE: none needed; the criteria keep the builder's LOOP_READ_EVERY = SAVE_FREQ (its open item 2
+  | --- lines > 120:
+  | DESIGN_NOTES.txt: 328: 122
+  | DESIGN_NOTES.txt: 342: 122
+  | --- product-name check (files containing it):
+  | 4
+
+=== [0083] 2026-10-30T18:17:10Z -> 2026-10-30T18:17:11Z  rc=0  (sanitise every text file of WORK: short names for the two scratchpads, <tmproot>, <cli> for the temp-folder name, <model-name> for other model names (patterns written as character classes))
+CMD: TMPROOT=$(dirname "$(dirname "$(dirname "$S2")")"); n=0; for f in $(find $CW -type f \( -name "*.txt" -o -name "*.out" -o -name "*.err" -o -name "*.py" -o -name "*.json" \)); do sed -i -e "s#$S1#S1#g" -e "s#$S2#S2#g" -e "s#$TMPROOT#<tmproot>#g" -e "s#[Cc][Ll][Aa][Uu][Dd][Ee]#<cli>#g" -e "s#[Aa][Nn][Tt][Hh][Rr][Oo][Pp][Ii][Cc]#<model-name>#g" -e "s#[Oo][Pp][Uu][Ss]#<model-name>#g" -e "s#[Ss][Oo][Nn][Nn][Ee][Tt]#<model-name>#g" -e "s#[Hh][Aa][Ii][Kk][Uu]#<model-name>#g" "$f"; n=$((n+1)); done; echo "files processed $n"; grep -r -l -i -E "[c]laude|[a]nthropic|[o]pus|[s]onnet|[h]aiku" $CW | wc -l
+OUT: out/0083.txt  bytes=21  sha256[:16]=d7668964415677da
+  | files processed 99
+  | 0
+
+=== [0084] 2026-10-30T18:17:19Z -> 2026-10-30T18:17:19Z  rc=0  (check that the sanitising pass changed nothing in the drafts and scripts (no placeholder inserted there))
+CMD: cd $CW; grep -c -E "<model-name>|<cli>|<tmproot>" criteria_v1.txt DESIGN_NOTES.txt SCREEN_v1.json parent_long.py seeds_check.py seeds_triage.py design_numbers.py lg.sh; grep -c -E "<model-name>|<cli>|<tmproot>" CMD_LOG.txt seeds_check.out seeds_grep.out seeds_triage.out parent_long.out; $PY -I -B -c "import json,sys; json.load(open(sys.argv[1])); print(\"SCREEN_v1.json parses\")" SCREEN_v1.json
+OUT: out/0084.txt  bytes=243  sha256[:16]=d0a5e18fa102b407
+  | criteria_v1.txt:0
+  | DESIGN_NOTES.txt:1
+  | SCREEN_v1.json:0
+  | parent_long.py:0
+  | seeds_check.py:0
+  | seeds_triage.py:0
+  | design_numbers.py:0
+  | lg.sh:2
+  | CMD_LOG.txt:15
+  | seeds_check.out:0
+  | seeds_grep.out:0
+  | seeds_triage.out:0
+  | parent_long.out:0
+  | SCREEN_v1.json parses
+
+=== [0085] 2026-10-30T18:18:11Z -> 2026-10-30T18:18:11Z  rc=0  (self-check of THE READING's rules on the dry-run sets (designer's transcription; not the scorer))
+CMD: cd /tmp && $PY -I -B $CW/reading_rules_check.py > $CW/reading_rules_check.out 2> $CW/reading_rules_check.err; echo rc=$?; cat $CW/reading_rules_check.err; cat $CW/reading_rules_check.out
+OUT: out/0085.txt  bytes=3664  sha256[:16]=b8d769ade1bc83c6
+  | rc=0
+  | (i)   parent s42 as all four
+  |    line 1: THE TAIL RAIL FORMED IN 3 OF 3 CRITIC-BLIND CONTINUATIONS BY 12M ...
+  |    Q1 {'k': 0, 'c': 0, 'p': 0, 'dn': 0, 'r': 3, 'u': 0, 'word': 'NO'}
+  |    Q2 {'g': 0, 'x': 3, 'm': 0, 'word': 'NO'}
+  |    Q3 {'h': 0, 'hs': 0, 'hd': 0, 'f': 3, 'u': 0, 'word': 'NONE'}
+  |    Q4 YES
+  | (ii)  control s42; blind s60, s80, s80
+  |    line 5: NO TAIL RAIL IN 3 OF 3 ... WHILE THE CONTROL RAILED, WITH: 1 PARKED, 2 WITH A HABIT ON ANOTHER ACTUATOR
+  |    Q1 {'k': 3, 'c': 2, 'p': 1, 'dn': 0, 'r': 0, 'u': 0, 'word': 'YES, WITH A PARK'}
+  |    Q2 {'g': 3, 'x': 0, 'm': 0, 'word': 'YES'}
+  |    Q3 {'h': 2, 'hs': 2, 'hd': 0, 'f': 1, 'u': 0, 'word': 'HABIT ELSEWHERE'}
+  |    Q4 YES
+  | (iii) line 4: control s42; blind clean x3
+  |    line 4: BLINDING HELD TO 12M IN 3 OF 3 ...
+
+=== [0086] 2026-10-30T18:19:43Z -> 2026-10-30T18:19:43Z  rc=0  (final checks: line lengths, model-name scan, JSON and queue check, draft sizes and sha256, folder size, disk)
+CMD: cd $CW; echo "--- lines over 120:"; awk "length(\$0) > 120 {print FILENAME\": \"FNR\": \"length(\$0)}" criteria_v1.txt DESIGN_NOTES.txt; echo "--- files with a model product name (pattern as character classes):"; grep -r -l -i -E "[c]laude|[a]nthropic|[o]pus|[s]onnet|[h]aiku|[g]emini|[c]hatgpt|[g]pt-[0-9]" . | wc -l; echo "--- SCREEN_v1.json:"; $PY -I -B -c "
+import importlib.util, json, sys
+d = json.load(open(sys.argv[1]))
+spec = importlib.util.spec_from_file_location(\"bsc\", sys.argv[2]); m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+print(\"parses; LB screen_problems\", m.screen_problems(d), \"queue\", m.queue_of(d))
+" SCREEN_v1.json $LB/tools/bs_common.py; find $LB/tools -name __pycache__ | wc -l; wc -l -c criteria_v1.txt SCREEN_v1.json DESIGN_NOTES.txt; sha256sum criteria_v1.txt SCREEN_v1.json DESIGN_NOTES.txt; du -sb $CW; du -sh $CW; df -h /tmp; df -B1 /tmp | tail -1
+OUT: out/0086.txt  bytes=840  sha256[:16]=119e34bc02bd0d4c
+  | --- lines over 120:
+  | --- files with a model product name (pattern as character classes):
+  | 0
+  | --- SCREEN_v1.json:
+  | parses; LB screen_problems [] queue (('control', 2701), ('critic_blind_tail3', 2701), ('critic_blind_tail3', 2711), ('critic_blind_tail3', 2721))
+  | 0
+  |   622 61236 criteria_v1.txt
+  |     6   895 SCREEN_v1.json
+  |   388 36747 DESIGN_NOTES.txt
+  |  1016 98878 total
+  | 48dfffc280b5ede8ac2ebbe530acb0910c5de6208232bf22b36676b51d69d6b5  criteria_v1.txt
+  | a0523d3a27ff7a44e131fd691b2d058fc73aad8cfe06f118c284468e0ad1559e  SCREEN_v1.json
+  | 5100b2e118b4ac61679c25f3ed847f762a16e850edbb9d0f44ec75f194e8eef2  DESIGN_NOTES.txt
+  | 1762695	S2/r10round/long_blind/criteria_work
+  | 2.0M	S2/r10round/long_blind/criteria_work
+
+=== [note] 2026-10-30T18:20:06Z  (manual entry: files written with the editor tools, not shell commands)
+  lg.sh (17:37Z, rewritten 17:41Z); parent_long.py (17:46-17:47Z); seeds_check.py (17:49Z); design_numbers.py (17:52Z, revised 18:15Z);
+  criteria_v1.txt (first written about 18:02Z; edited 18:04-18:20Z); SCREEN_v1.json (18:07Z); DESIGN_NOTES.txt (about 18:12Z; edited 18:13-18:20Z);
+  seeds_triage.py (18:06Z, by heredoc inside entry 0068's shell); reading_rules_check.py (18:17Z).
+  Every edit stayed inside WORK. The final sha256 of the three drafts: the next entry.
+
+=== [0087] 2026-10-30T18:20:06Z -> 2026-10-30T18:20:06Z  rc=0  (final: sha256 of the drafts, line limits and model-name scan after the last edits)
+CMD: cd $CW; sha256sum criteria_v1.txt SCREEN_v1.json DESIGN_NOTES.txt; wc -l criteria_v1.txt SCREEN_v1.json DESIGN_NOTES.txt; awk "length(\$0) > 120" criteria_v1.txt DESIGN_NOTES.txt | wc -l; grep -r -l -i -E "[c]laude|[a]nthropic|[o]pus|[s]onnet|[h]aiku|[g]emini|[c]hatgpt|[g]pt-[0-9]" . | wc -l; du -sb $CW; df -h /tmp | tail -1
+OUT: out/0087.txt  bytes=413  sha256[:16]=035091687a2a3d34
+  | 0c61ffcb31de703f4cd203719a3f3867cc583a4f8ceedd750217c1826cc7b3c4  criteria_v1.txt
+  | a0523d3a27ff7a44e131fd691b2d058fc73aad8cfe06f118c284468e0ad1559e  SCREEN_v1.json
+  | ff13c101299809b8cb1dac8d6305059a7eeaa07399cbdc0e783e317ccded0eb2  DESIGN_NOTES.txt
+  |   622 criteria_v1.txt
+  |     6 SCREEN_v1.json
+  |   394 DESIGN_NOTES.txt
+  |  1022 total
+  | 0
+  | 0
+  | 1766409	S2/r10round/long_blind/criteria_work
+  | /dev/vda        252G   36G  2.7G  94% /
+

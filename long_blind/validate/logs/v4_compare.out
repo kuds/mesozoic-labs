@@ -1,0 +1,47 @@
+attempt 1: status running (killed: SIGKILL leaves 'running'), last heartbeat 2,629,632, checkpoints on disk: ['stage1_2097152_steps.zip', 'stage1_2359296_steps.zip', 'stage1_2621440_steps.zip', 'stage1_vecnormalize_2097152_steps.pkl', 'stage1_vecnormalize_2359296_steps.pkl', 'stage1_vecnormalize_2621440_steps.pkl']
+attempt 2: status done exit 0 stop end T 2,654,208 attempt 2 attempts [('critic_blind_tail3_9311_crashed1', 'running', 2629632)]
+(a) THE RESUME POINT
+      candidate 2,621,440: records: policy_probe.npz: 319 rows <= 2621440, not one at every 8192 (missing e.g. [2621440], 0 repeated) | train_episodes.csv: no episode after 2621440: not written after the pair (its rows up to 2621440 may be incomplete)
+      candidate 2,359,296: complete
+  ok    resumed_from = load_step = 2,359,296 (the first pair)
+  ok    the newest pair 2,621,440 refused (its probe row and the training ledger after it never reached the disk)
+      pairs: ['stage1_2097152_steps.zip', 'stage1_2359296_steps.zip', 'stage1_vecnormalize_2097152_steps.pkl', 'stage1_vecnormalize_2359296_steps.pkl'] (4 hard links); records copied: ['eval_episodes.csv', 'evaluations.npz', 'gate_progress.npz', 'policy_probe.npz', 'train_episodes.csv']; evidence lines kept 32
+  ok    the start pair and the P pair linked (4 files), the evidence lines up to P kept
+(b) THE RELOADED STATE
+  ok    loaded params sha256:a1780f451b6823d9 == the P pair's sha256:a1780f451b6823d9
+  ok    loaded adam sha256:84d110d9a8136efc == the P pair's sha256:84d110d9a8136efc
+  ok    loaded vecnormalize sha256:ad1a55f6ccffc8ba == the P pair's sha256:ad1a55f6ccffc8ba
+  ok    loaded num_timesteps 2359296 == the P pair's 2359296
+  ok    loaded n_updates 2471 == the P pair's 2471
+  ok    the P pair's params / Adam / n_updates == the start pair's (no optimizer step in attempt 1)
+  ok    the P pair's VecNormalize moved from S's (attempt 1 ran 32 rollouts)
+  ok    attempt 2 made no optimizer step either (params / Adam at its end == at its load)
+  ok    run_meta digest_start = the start pair's (S)
+(c) RECORD CONTINUITY
+  ok    probe: 323 rows, one at every 8,192 up to T - 8,192 (323), none twice
+  ok    probe rows <= P (288) equal attempt 1's in every per-update column (differing: [])
+  ok    evidence lines up to P (32) equal attempt 1's, byte for byte
+  ok    evidence: 67 lines, one per rollout end S + 8,192 k, none twice
+  ok    eval_episodes.csv: rows <= P (180) equal attempt 1's, text for text; 20 rows after P are attempt 2's
+  ok    train_episodes.csv: rows <= P (2712) equal attempt 1's, text for text; 292 rows after P are attempt 2's
+  ok    eval ledger: 20 evaluations at every 131,072 up to T, 10 episodes each, no (timesteps, episode) twice
+  ok    evaluations.npz: one row per evaluation up to T (20); rows <= P equal attempt 1's in every per-evaluation key
+  ok    gate_progress.npz: one row per evaluation up to T (20); rows <= P equal attempt 1's in every per-evaluation key
+(d) THE ARM ON EVERY ROLLOUT OF BOTH ATTEMPTS
+  ok    critic blind on all 4 value paths 67/67; actor sees obs 6 67/67 (rollouts 32 from attempt 1, 35 from attempt 2)
+  ok    attempt 2 re-installed the hook at its load; in force at its end
+(e) NOT BITWISE THE UNINTERRUPTED RUN (attempt 1's rows after P against attempt 2's, same steps)
+      probe obs_rms_count: differs on 31/31 common rows
+      probe obs_rms_mean: differs on 31/31 common rows
+      probe bank_value_now: differs on 31/31 common rows
+      probe bank_action_now: differs on 31/31 common rows
+      probe rollout_mu_mean: differs on 31/31 common rows
+      evidence digest_env_side: differs on 33/33 common rollouts
+      evidence digest_rewards: differs on 33/33 common rollouts
+      evidence digest_values: differs on 33/33 common rollouts
+      evidence obs_rms_digest: differs on 33/33 common rollouts
+      eval ledger rows after P: 20/20 common rows differ
+      [the first common rollout (2367488): env side differs]
+(f) CHECK
+  ok    check.json passed ([]); items ['evaluation_grid', 'evaluation_grid_detail', 'evidence', 'probe', 'probe_detail', 'resume_stitch', 'run_meta']; resume_stitch []
+V4: PASS

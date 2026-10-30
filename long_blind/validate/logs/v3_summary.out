@@ -1,0 +1,29 @@
+reference read: version read_bs 2.0 (2026-10-30; long blind study, s42 2,097,152 -> 12,001,280; derived from read_bs 1.1); pairs [2097152, 3145728]; probe rows 1208; M5 C6 passed True counting failures 0
+  REPRO 2097152: max_abs_diff_ew 0.0; rel_diff_eb 0.0; max_abs_diff_printed_3dp 0.0004711199389801912
+      ew_own_G: reader -0.6363920116424561 target -0.6363920116424561
+      ew_own_c0: reader 0.23771291971206665 target 0.23771291971206665
+      ew_own14: reader 0.14250202003121376 target 0.14250202003121376
+      ew_ref_G: reader -0.6194893866330384 target -0.6194893866330384
+      eb_dV_dq3_per_deg: reader 0.02142920531332493 target 0.02142920531332493
+      reproduction exact
+  REPRO 3145728: max_abs_diff_ew 0.0; rel_diff_eb 0.0; max_abs_diff_printed_3dp 0.0004577102661132981
+      ew_own_G: reader 0.3489333643913269 target 0.3489333643913269
+      ew_own_c0: reader 0.4114188253879547 target 0.4114188253879547
+      ew_own14: reader 0.6013715491890907 target 0.6013715491890907
+      ew_ref_G: reader 0.32630227160453795 target 0.32630227160453795
+      eb_dV_dq3_per_deg: reader 0.05854005739092827 target 0.05854005739092827
+      reproduction exact
+control: T 2,359,296; loop schedule [2097152, 2359296]; pairs read [2097152, 2359296]; S row = parent's 2,097,152 in G, c0, own14, REF G, raw slope: True; effective on-policy slope 0.02142920531332493; probe rows 31; M5 flags any [] tail [], C6 counting failures 0; resumed_from None
+critic_blind_tail3: T 2,359,296; loop schedule [2097152, 2359296]; pairs read [2097152, 2359296]; S row = parent's 2,097,152 in G, c0, own14, REF G, raw slope: True; effective on-policy slope 0.0; probe rows 31; M5 flags any [] tail [], C6 counting failures 0; resumed_from None
+gae_lambda_1: T 2,359,296; loop schedule [2097152, 2359296]; pairs read [2097152, 2359296]; S row = parent's 2,097,152 in G, c0, own14, REF G, raw slope: True; effective on-policy slope 0.02142920531332493; probe rows 31; M5 flags any [] tail [], C6 counting failures 0; resumed_from None
+frozen_obs_norm: T 2,359,296; loop schedule [2097152, 2359296]; pairs read [2097152, 2359296]; S row = parent's 2,097,152 in G, c0, own14, REF G, raw slope: True; effective on-policy slope 0.02142920531332493; probe rows 31; M5 flags any [] tail [], C6 counting failures 0; resumed_from None
+    frozen: end pair t3 normaliser mean 0.0860009867697733 sd 0.4191563809832562 = start's 0.0860009867697733 0.4191563809832562
+loop cache: 7 entries; cpu_seconds per pair [58.3, 59.1, 61.5, 61.5, 60.0, 61.4, 60.3]
+    (3145728, 'plain', 58.3, 'r7a9c8a99fee09f8d_d6c8018cb_3c054bd73830')
+    (2359296, 'plain', 59.1, 'r7a9c8a99fee09f8d_d6c8018cb_5db5f81f39c6')
+    (2359296, 'plain', 61.5, 'r7a9c8a99fee09f8d_d6c8018cb_834d2499ae95')
+    (2097152, 'blind+raw', 61.5, 'r7a9c8a99fee09f8d_d6c8018cb_83b6c88edb93')
+    (2097152, 'plain', 60.0, 'r7a9c8a99fee09f8d_d6c8018cb_83b6c88edb93')
+    (2359296, 'plain', 61.4, 'r7a9c8a99fee09f8d_d6c8018cb_e4fa897a69fc')
+    (2359296, 'blind+raw', 60.3, 'r7a9c8a99fee09f8d_d6c8018cb_e519ba3d3c87')
+V3: PASS

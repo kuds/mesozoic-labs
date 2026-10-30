@@ -1,0 +1,150 @@
+## 2. Where it stands (2026-10-29)
+
+**Known** [measured unless said]
+
+- **On r9 and r10 it is a command habit of one actuator at a time** (on r6
+  and r7 many actuators were pinned at once [L004, L011]). It is not a
+  saturated joint, motor or force, so force-based telemetry cannot see it [L035, L043,
+  L138].
+- **It recurs on both plants.**
+  - On r9 it raised an alarm in 4 of 10 L+T-family runs, every onset before
+    4.5M (BRIEF §1 item 4) [L064]. That count is alarm-based. A fifth run,
+    stance5r s70, held tail_2 at +0.767 at its final with no flag; and every
+    other non-alarm run but stance4 s60 had saturated ledger episodes with no
+    actuator named, so under r10's RAIL rule r9 reads 4 to 6 of 10 (DVREV
+    DV5, inferred there) [L154].
+  - On r10, in the first round of three runs: s42 railed tail_3 at +1, s60
+    parked it (MEAN_a +0.642) and s80 formed a neck habit instead (STANCE
+    §27.2) [L100, L106].
+  - From s42's r10 3,145,728 checkpoint the rail formed in all 12 CPU
+    continuations. It did not form on the tail in any of the 12 from s80's
+    4,194,304 checkpoint (ECS `score/score.txt` l53-110) [L120, L123].
+- **It costs reward, and the policy keeps paying.** Holding tail_3 at 0
+  gains:
+  - +85.9 and +73.1 per window on r9 stance4 s42, deterministic (SATDIAG §4).
+  - +54.6 and +36.2 per window under the policy's own noise at the r9 4.19M
+    checkpoints (STANCE §24.2).
+  - +78.29 at r10 s42's onset (STANCE §27.3 D-9).
+  - +63.6 per episode at the 12 railed entropy-screen ends (COMREV §4)
+    [L039, L071, L103, L141].
+  - The one exception is the r10 s42 final, which carried a parked command
+    and no rail. There the hold loses 64.46 [L103].
+- **It persists through a learned positive-feedback loop** [measured;
+  mechanism inferred].
+  - The tail_3 command rises with the tail_3 angle the policy observes. In
+    the 12 railed ends the loop gain is +0.630 (median; range +0.480 to
+    +0.910), against +0.268 at their start checkpoint. The loop's fixed point
+    lies past the +1 bound, so the command parks at the rail. The 12 unrailed
+    s80 ends push back (median -0.255) (VCLAMP `loop_summary.txt` l1-49)
+    [L145].
+  - Earlier estimates by other methods agree in sign: satdiag's observation
+    swap, the unclipped probe and the hold cells (§4.7) [L037, L072, L073].
+- **The loop's growth is in the weights, not in the normaliser** [measured,
+  verified; L157-L159].
+  - The tail_3 angle's normaliser scale fell to 0.437 of its start value as
+    the tail rose. At fixed weights that lowers the gain: the start weights
+    with the ends' statistics 0.268 -> 0.141, the end weights with the
+    start's 0.630 -> 1.143 (12/12 each; the sign holds in every sweep range).
+  - The growth sits downstream of the first layer, in the second hidden
+    layer and the output layer. Per normalised unit the network's tail_3
+    sensitivity grew x4.3-4.65 on matched ranges.
+  - [inferred, PROBE §6] The drift is a record of the rail: the frames added
+    between checkpoints sat at +2.77 to +3.89°, against the start's running
+    mean of +0.47°.
+- **From mid-rise on, the s42 networks read their posture as a tail
+  offset** [measured, verified with corrections; L162-L164].
+  - The s42 ends raise the tail command when they see the pelvis more
+    nose-down (-0.157 per degree of nose-up, 0/12 positive) and their own
+    knee and hip angles. The s80 ends' typical posture inputs remove almost
+    the whole offset (a lineage-specific part of about -0.38, of about 0.40)
+    and leave the gain unchanged.
+  - Shown a pelvis 1.1° more nose-up, the s42 ends rail in 0.154 of their
+    episodes instead of 0.671 (closed loop).
+  - The plant plays no part: the tail map and the cost of tail-up are the
+    same in the s42, s80 and statue postures [L163].
+  - It is not where the habit started. In r10 s42 the tail bias rose first,
+    at about 1.20M (at a fixed observation it was rising by 1.3-1.6M); the
+    nose-down pitch followed about 0.17M later. At 1,048,576 the network had no
+    posture-to-tail pathway and a negative loop (G -0.250); both grew
+    between 2.1M and 3.15M. s60, which parked, has the opposite pitch
+    sensitivity [L161, L164].
+- **It forms in training from clean, mid-rise states.** All three D-D43
+  CONTROL replicates from stance5r s80's clean 4,194,304 state read RAIL
+  (STANCE §24.5) [L081]. All twelve r10 s42 continuations railed (ECS)
+  [L120].
+
+**Ruled out or narrowed** (each within the scope tested)
+
+- **The plant forcing the pin.**
+  - The r9 plant enabled the rail but did not force it (BRIEF §1 item 5).
+  - r10, where a level tail costs no command, still railed [L061, L088,
+    L100]. §4.1.
+- **The tail as counterweight or balance aid**, on r10's trained s42 ends.
+  The rail's plant-only effect is 0.2 mm forward and 1.6 mm up, and removing
+  it leaves the stance otherwise unchanged (lean, roll, sway, creep and
+  margins), with the head about 3.5° lower (COMREV §4; RUNLOG l750) [L139,
+  L141]. §4.2.
+- **A reward incentive for tail-up.** None was found open loop, under the
+  policy's own noise at the two r9 4.19M checkpoints, at r10 s42's onset, or
+  at the railed entropy-screen ends [L061, L071, L103, L141]. §4.3.
+- **The entropy bonus as a direct driver.**
+  - Its gradient reaches log-std only (REVIEW §4.3) [L105].
+  - Removing the remaining bonus from two mid-rise r10 states changed
+    nothing: s42 6 of 6 against 6 of 6 (ECS `score/score.txt` l53-57)
+    [L120]. §4.6.
+- **The action dead zone as the cause.** It contributes at most beyond a
+  mean of about 1.2 (BRIEF §1 item 3) [L003]. §4.5.
+- **Normaliser drift as the source of the loop's growth**, at fixed weights.
+  Its direct effect opposes the growth (12/12 in every sweep range), and the
+  weights carry more than all of it [L158, L159]. Whether the drift shaped
+  training is untested. §4.8.
+- **A body position that comes first and pulls the tail up.**
+  - The plant gives no mechanical push: the tail map and the cost of tail-up
+    are the same in every posture tested [L163].
+  - No nose-down or CoM-forward shift came before the tail in any run with
+    a tail signal before its rise (the only earlier shifts, r10 s60's raised
+    head and its nose-up, CoM-back posture, run the other way), and the same
+    shifts came in runs without one [L161, L164]. VPOST did not check the r9
+    runs.
+  - The posture acts only through the s42 networks' learned pathway, as an
+    amplifier from mid-rise on, and s60 parked with the opposite pitch
+    sensitivity [L162, L164]. §4.11.
+- **Bounding the training-row mean.**
+  - P1 (bound 1.0) and BOUND90 (0.90) left the rail in deterministic play
+    [L049, L079].
+  - BOUND60 (0.60) turned the rail into a park at the bound [L080].
+  - All three were screened on r9 only. Whether the results carry over to
+    r10, which changed the tail plant, is untested (NEXT 0.2 (e) lines
+    109-117, inferred there).
+- **Other dead ends.**
+  - The policy probe's bank as an early detector [L070]. That was the r9
+    read; on r10 s42 the bank's statue_settled row rose ahead of the pitch
+    (§8.3) [L164].
+  - The habit as the cause of the band arm's K3 falls [L051].
+
+**Open** (§7)
+
+- Why the loop forms in training, and in which seeds and lineages [L064,
+  L106, L146]. Its growth sits in the weights downstream of the first layer
+  [L158].
+- What changed in the policy at about 1.2M, when r10 s42's tail bias first
+  rose, before any posture shift, posture pathway or positive loop [L164].
+- What drives the outward drift of the training-row mean despite a restoring
+  reward slope [L063].
+- Whether the drift of the observation normaliser shaped training [L104].
+  The no-training normaliser probe of 2026-10-29 [L152] found it an effect of
+  the rail that, at fixed weights, lowers the gain [L157, L158]. Whether PPO
+  grew the downstream weights partly in answer to it needs a continuation
+  with frozen statistics (ECS add-on N), which is training [L159].
+- The entropy schedule's role in the first 3.1M steps and in when an onset
+  comes. The entropy screen tested neither (ECS `criteria.txt` l246-249)
+  [L105, L127].
+- Whether r10 changes the rail rate. The first r10 round gave 2 of 3 alarm
+  runs against r9's 2 of 5, one-sided Fisher p 0.9286 [L100]. Because
+  `ent_coef` reaches 0 at 7,000,000, "no rail by 12M" would not mean
+  "removed" if r10 only delayed onsets (REVIEW lines 759-762).
+- The railed s42 lineage's 5 mm backward CoM drift. It exists only in the
+  tail-up state, and one start checkpoint cannot attribute it [L133, L148].
+- Every candidate fix named but never run (§5.2, §7) [L086, L116].
+
+## 3. Everything tried, in date order

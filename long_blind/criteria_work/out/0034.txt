@@ -1,0 +1,201 @@
+260 S2/r10round/bias_screen2/criteria_work/DESIGN_NOTES.txt
+BS2 CRITERIA v1 -- DESIGN NOTES (the designer of workflow wf_0b1ddf2b-955), 2026-10-30 10:29-10:53 UTC (date -u).
+WORK = S2/r10round/bias_screen2/criteria_work   <BS2> = S2/r10round/bias_screen2   <BS> = S2/r10round/bias_screen
+S1 = S1
+S2 = S2
+PY = S2/venv/bin/python (-I -B; OMP 1; nice 10 for the computations).  Every command with its time: WORK/CMDLOG.txt.
+
+WHAT I DID NOT DO: no training, no optimizer step, no validation run, no continuation; nothing written outside WORK
+(BS2 itself did not exist at 10:29 UTC; mkdir -p created <BS2> and WORK only); <BS2>/tools only read (the builder's
+bs_common.py and read_bs.py, to align names), never written, no __pycache__ left (ls: 0); <BS2>/APPROVED not created;
+<BS> only read; no git, no push, no network; Drive not used.  No permission refusal occurred.
+
+FILES WRITTEN (all in WORK)
+  criteria_v1.txt          the draft criteria (BS's v2 structure; 120-character lines)
+  SCREEN_v1.json           the draft queue (BS's format; schema bs-screen/1; both screen_problems() accept it)
+  power_bs2.py / .out      the power calculation (sections A-H); .err empty
+  parent_window.py / .out  the parent's B_S, primary at E, trajectory, statue_settled, CMD_L (F2, read only)
+  parent_extras.py / .out  schedules, normaliser, std14 at S/E; the seed-collision check
+  bs_secondaries_posthoc.py / .out   BS2's secondaries computed on BS's finished values (context only, post hoc)
+  CMDLOG.txt               every command, with date -u times
+  DESIGN_NOTES.txt         this file
+  find_err.txt, grep_seed_err.txt    empty stderr captures of two searches
+
+==================================================================================================================
+1. INPUTS READ (all read only)
+==================================================================================================================
+<BS>/criteria.txt (v2, all 381 lines), SCREEN.json, SCREEN.template.json, APPROVED, review/NOTES.txt,
+review/FIXES.txt, check/stat/{recompute,classes,linetext,runlog_claims}.out, check/proc/{pc_meta,pc_evidence}.out and
+the head of pc_atime.out, score/score.txt, scratch/criteria_work/{power_bs.py,power_bs.out,ecs_spread.py,
+ecs_spread.out}, reads/parent_s42/markers.txt, reads/control_2101/markers.json (key structure only), logs/
+{run_waves_bs.log (full-read lines), decided.tsv, crash_ledger.tsv}, tools/{read_bs.py header and ledger_direct,
+score_bs.py decide/perm_test/loop_rows/report_only, bs_common.py screen_problems/derived_seeds}; RUNLOG lines 760-786
+(incl. 780 = 09:13 UTC verification STAT-1..3, P1-P4; 781 APPROVED's text; 785 maintainer 10:23; 786 this workflow);
+S2/overnight/MORNING_REPORT.md; EB eb_realized.txt and the job lists' seeds; VEB vb_realized.txt, vb_aggregate.txt
+(s42 2,097,152 and 3,145,728 blocks); EW NOTES.txt (section 0-1) and ew_r10.jsonl (s42 rows); WM wm_run.py seeds;
+S2/r10round/ecs/tools/ecs_common.py (SEEDS, derived_seeds, EVAL_SEED_OFFSET) and runs/ (names); the F2 probe, ledger
+and stage_config (via my scripts); FMAN; the builder's <BS2>/tools/bs_common.py (S, E, SAVED_STEPS, FINAL_ZIP,
+VALIDATION_SEEDS, CODE, LAUNCH_DISK_BYTES) and read_bs.py (cache_key, P3) as they stood at 10:4x UTC, and
+<BS2>/logs/check_inputs.out (the start pair at FMAN).
+
+==================================================================================================================
+2. EVERY NUMBER AND ITS SOURCE
+==================================================================================================================
+The parent over BS2's window [measured, WORK parent_window.out; F2 policy_probe.npz.copy1 and eval_episodes.csv.copy1,
+both sha256-equal to their FMAN COPY rows: 4e0e7220668faf124d394bffb760ba246d54bed8f48cb79925cb36234257fc11 and
+d1bcb78964691cf194e6276f06740d1f24aa69ad36831a046ad6307c1c4db11e]
+  probe: 1,465 rows, update_timesteps 8,192 ... 12,001,280, unique, contiguous on the 8,192 grid; float32 column
+  reproduction of BS: B_S(1,048,576) -0.03157372563146055, primary at 2,490,368 0.19955920986831188, rise
+    0.23113293549977243 -- all equal to BS's criteria and check/stat/recompute.out
+  B_S (BS2) = rows 248-255 (update_timesteps 2,039,808 ... 2,097,152) = exactly 135930855/1073741824 =
+    0.1265954738482833; per-row 0.12619 0.12248 0.12138 0.12800 0.12074 0.11345 0.14987 0.13065; row SD 0.01077
+  parent primary at E = rows 423-430 (3,473,408 ... 3,530,752) = exactly 47337175/67108864 = 0.7053788751363754;
+    per-row 0.76466 0.66342 0.66748 0.68324 0.72632 0.77197 0.69073 0.67521; row SD 0.04342
+  RISE = 0.5787834012880921; first 8 window rows (2,105,344 ... 2,162,688) 0.12512995954602957
+  window: 176 rollouts, 175 updates, rows 2,105,344 ... 3,530,752, all finite; E / 131,072 = 27
+  trajectory (8-row mean ending at each evaluation step; rise): 2,228,224 +0.15514 (+0.029); 2,359,296 +0.16859
+    (+0.042); 2,490,368 +0.19547 (+0.069); 2,621,440 +0.19019 (+0.064); 2,752,512 +0.24138 (+0.115); 2,883,584
+    +0.29176 (+0.165); 3,014,656 +0.32772 (+0.201); 3,145,728 +0.43174 (+0.305); 3,276,800 +0.61352 (+0.487);
+    3,407,872 +0.69135 (+0.565); E (rows ending 3,530,752) +0.70538 (+0.579); beyond E: 3,661,824 +0.750, 4,186,112
+    +0.834
+  statue_settled (bank rows 0 and 5) tail_3 command: 8 rows ending at S +0.1340; last 8 before E +0.1145
+  CMD_L (read_bs.ledger_direct definition) per evaluation: 2,097,152 +0.1251; 2,228,224 +0.1626; 2,359,296 +0.2024;
+    2,490,368 +0.2545; 2,621,440 +0.1974; 2,752,512 +0.2482; 2,883,584 +0.3282; 3,014,656 +0.3944; 3,145,728
+    +0.5597; 3,276,800 +0.5961; 3,407,872 +0.8216; 3,538,944 +0.8296; then 3,670,016 +0.9316 (4 over-bar, all
+    tail_3), 3,801,088 +0.9853 (10), 3,932,160 +0.9932 (10); no over-bar episode in (S, E]; n = 10 per evaluation
+  -> the task's "+0.82 at 3.41M in the training ledger" = CMD_L 0.8216 at 3,407,872 (confirmed); first over-bar
+     3,670,016 (confirmed)
+[measured, WORK parent_extras.out]
+  learning_rate 2.65047e-05 at S, 2.41018e-05 at E (computed from stage_config: 3e-5 -> 1e-5 over 12,000,000); the
+    probe's own 2.65047e-05 at row 255 and 2.41154e-05 at row 430 (3,530,752) agree
+  ent_coef 0.00350 at S, 0.00247 at E (0.005 -> 0 by 7,000,000); probe 0.00350 (row 255), 0.00248 (row 430)
+  obs_rms mean[6] at S +0.001501 rad = +0.086 deg, SD 0.419 deg; at 3,530,752 +0.765 deg, SD 1.198 deg
+  std14 0.1816 at S, 0.1643 at 3,530,752
+  seeds: proposed 2501/2511/2521/2531 (derived 2501-2504, 2511-2514, 2521-2524, 2531-2534; eval 3501, 3511, 3521,
+    3531): no collision with ECS (training 1101-1454, eval 2101-2451), BS (2101-2134, 3101-3131), BS/ECS validation
+    9101-9144/10101-10141, M1/margin 3042-3061, reader 5001-5010 and 9301-9305, EB 9101-9133, VEB 7001-7216 and
+    7501-7502, the round's run seeds; the task's example 2201/2211/2221/2231 collides with the ECS's evaluation-env
+    seeds of s42_B_1201/1211/1221/1231 (seed + 1000). For the record: BS's own 2101-2131 were the ECS s42_A
+    evaluation-env seeds (harmless, another start and role; BS's criteria did not say so). The builder's BS2
+    validation seeds 9201-9241 (derived up to 9244 and 10201-10241) do not collide either. A text search (find + grep
+    over the round's tools, criteria, lean/build and com_revisit/notes, files < 2 MB) for 2501-2504 ... 3531 found
+    nothing (CMDLOG 10:38).
+[measured, other files]
+  parent loop at S (<BS>/reads/parent_s42/markers.txt, M-LOOP 2097152): OWN G -0.636 (-0.6363920116424561), c0 +0.238,
+    own14 +0.143, G_L -0.648, b* +1.399, REF G -0.619, REF c0 +0.124, critic dV/dq3 on-policy +0.02143 per deg
+  parent loop later (EW ew_r10.jsonl, s42; OWN primary sweep): 3,145,728 G +0.349 c0 +0.411 own14 0.601 (b* = 1 - G -
+    c0 = 0.240, computed); 3,670,016 G +0.539 c0 +0.522 own14 1.0, 9 of 10 own episodes over the bar (b* -0.061)
+  VEB vb_aggregate.txt: s42 2,097,152 [roll] Adam per epoch full +0.00181 +- 0.00066 (t 2.8); GAE-MC +0.00372 +-
+    0.00099 (t 3.7); s42 3,145,728 full +0.02295 +- 0.00247 (t 9.3); GAE-MC +0.02386 +- 0.00301 (t 7.9)
+  BS (<BS>/check/stat/recompute.out; score/score.txt): control rises +0.00056 / +0.05725 / +0.12644 / +0.31430, blind
+    +0.06026 / +0.00313 / +0.06847 / +0.04721; control SD 0.13652, blind SD 0.02911; control median rise 0.09184
+    (exact 3155692807/34359738368); p 13/70; sign-flip 4/16
+  BS end loop (score.txt, pair 2,490,368): OWN G control -1.862 / -1.406 / -0.830 / -0.329, blind -0.520 / -0.264 /
+    -0.183 / +0.320 (start -0.725); b* control 2.950 / 2.279 / 1.615 / 0.819, blind 1.470 / 1.289 / 1.100 / 0.672;
+    CMD_L at T control -0.028 / +0.045 / +0.120 / +0.320, blind +0.030 / -0.014 / +0.044 / -0.008
+  BS2's secondaries' statistic on BS's values, post hoc, context only (WORK bs_secondaries_posthoc.out): G blind higher
+    p 2/70; CMD_L blind lower p 9/70; b* blind higher p 65/70
+  ECS spread (<BS>/scratch/criteria_work/ecs_spread.out): s42 from 3,145,728, last-8 SD 0.0757 (A) / 0.0384 (B); rise
+    from own first 8 rows mean 0.377 / 0.296, SD 0.076 / 0.046; every one of the 12 rose
+  BS timing (<BS>/check/proc/pc_meta.out): control_2101 06:00:19 -> 07:23:21 (83 min); control_2121 07:23:13 ->
+    08:48:14 (85 min); all decided 08:49:39; full reads 8 of 8 exit 0 by 09:02:39 (<BS>/logs/run_waves_bs.log)
+  disk: 2.9 GB free at 10:28 UTC, 2.8 GB at 10:45 UTC (df -h /tmp); stage_config collapse_patience 10,
+    collapse_min_evals 20, eval_freq 131,072, checkpoint_freq 262,144
+
+==================================================================================================================
+3. THE DECISIONS AND WHY
+==================================================================================================================
+D1 THE QUESTION: as the task (and BS): does critic_blind_tail3 lower the on-policy tail_3 command over the last 8
+   updates before E, from 2,097,152, relative to control; one-sided; the same arms and hook as BS (the builder reuses
+   bs_hooks.py; its ARM_CHANGE text is BS's).
+
+D2 THE PRIMARY: kept exactly in BS's form. I looked for a concrete reason to change it and found none that holds:
+   - The fixed-state alternative (statue_settled) would be wrong here: it did not climb in the parent's window (+0.134
+     -> +0.115) while the on-policy command climbed +0.579; the climb in this phase is the loop moving the visited
+     states (G turns positive), which only the on-policy measure contains.
+   - CMD_L (the deterministic ledger command) climbs too (+0.705) and is the rail's own measure, but it is 10 episodes
+     per evaluation, one evaluation at E; the on-policy 8-row mean averages 65,536 states, is where the probe located
+     the source, and keeps continuity with BS. CMD_L at E is made a secondary instead (D5).
+   - Saturation: the raw Gaussian mean is unclipped, so a control that rails would still be ordered correctly; the
+     parent's is 0.705 at E.
+   - Late-concentrated climb: a later window would need > 1.5M steps (AUTH); E is fixed by the task.
+   B_S = the parent's 8 rows ending at S = 0.1265954738482833 (exact); the parent's primary at E 0.7053788751363754;
+   the parent's rise 0.5787834012880921.
+
+D3 THE GATE: 0.20 on the control median rise (inclusive, exact), the median rule as BS (midpoint of the two middle
+   values for 4; statistics.median on Fractions; 3 -> middle; 2 -> midpoint; 1 -> the value; 0 -> not informative).
+   Candidates computed: 0.10 (BS's absolute), 0.15, 0.20, 0.25, 0.29 (half the rise; BS's 43% fraction would be 0.25).
+   Reasons for 0.20 (the figures: power_bs2.out C, E, G, H):
+   - It is 35% of the parent's rise and equals its progress at 3,014,656 (+0.201): a control median at the gate is a
+     third of the way up the climb, inside the phase where the critic push grows (t 2.8 -> 9.3).
+   - It is ~3x the parent's drift over the first 0.39M steps (+0.069): a drifting arm does not pass.
+   - A parent-like control passes almost surely: P(informative) >= 0.98 at a true rise >= 0.434 (3/4) with SD <= 0.20;
+     >= 0.979 at the parent's full rise even at SD 0.34 (BS's control SD scaled by 2.50).
+   - In the two-state ("chance") model the midpoint rule passes 0.20 roughly when >= 2 of 4 controls climb:
+     P(informative) 1.00 / 0.995 / 0.944 / 0.680 / 0.257 at q = 1 / 0.9 / 0.75 / 0.5 / 0.25.
+   - The R1 inflation (gate and test share the control values): with 0.20, P(REDUCED | informative) under no effect
+     is 0.045-0.053 at a true rise of 0.29, 0.052-0.062 at 0.25, ~0.081 at 0.20, 0.111-0.152 at 0.15 and 0.147-0.261
+     at 0.10; it is at its nominal ~0.043 from 0.434 up. Gates 0.25 / 0.29 push the inflated range up into rises a
+     climbing control may well have (0.10-0.13 at a true rise of 0.25 with gate 0.29).
+   - Exact on BS's own rises scaled x 2.504 to this window (H1, no effect): P(not informative) 43/256 = 0.168 at 0.10,
+     5/16 = 0.3125 at 0.15, 49/128 = 0.383 at 0.20, 19/32 = 0.594 at 0.25 and 0.29. Unscaled (H3: the rise from
+     2,097,152 no larger than from 1,048,576): 0.594 / 0.738 / 0.832 / 0.949 / 0.949. In that pessimistic world the
+     screen is likely uninformative whatever the gate; 0.20 is not the binding choice there.
+   - Not chosen, 0.10: it is 17% of the parent's rise; an arm whose true rise is 0.10 passes half the time and then a
+     REDUCED is at ~0.08 conditional size (power_bs2.out E, gate 0.10); and with BS's controls' measured median rise
+     (0.092) a 0.10 gate would almost be met by an arm that did not climb as the parent did in this window.
+   - Not chosen, 0.25 / 0.29: higher P(not informative) in every non-ideal scenario (H1 0.59; two-state q 0.5: 0.375 /
+     0.489) for little gain in what "informative" means.
+   What each outcome would mean: in criteria_v1.txt THE INFORMATIVENESS CONDITION.
+   (Reviewer: the gate is a judgment; 0.15 is the closest alternative: H1 P1 0.31 instead of 0.38, at the cost of
+   admitting arms with a true rise of 0.10-0.145 (P(informative) 0.18-0.49 at SD 0.10-0.34, power_bs2.out C) with a
+   conditional size of 0.08-0.15 there (E).)
+
+D4 THE TEST AND LINES: unchanged from BS (exact one-sided unpaired permutation test on the difference of arm means,
+   blind lower, alpha 0.05, minimum p 1/70, ties against, exact rationals; fill control -inf / blind +inf; lines
+   NOT INFORMATIVE / REDUCED / NO REDUCTION DETECTED worded as BS's, with "early rise" -> "climb", 0.10 -> 0.20,
+   1,048,576 -> 2,097,152, and line 3's power clause re-derived for this window). Reasons to keep: 4 + 4 is fixed by
+   the task; the paired sign-flip test cannot reach 0.05 (min 1/16); a rank test has the same 1/70 floor and the same
+   need for near-separation; the difference-of-means test is what BS pinned and verified (STAT lens).
+   Power (power_bs2.out B, D, F, G; normal or two-state models, assumptions labelled):
+     test alone by d = delta/sigma: 0.136 / 0.313 / 0.543 / 0.761 / 0.902 / 0.969 / 0.999 at d 0.5 / 1 / 1.5 / 2 / 2.5
+       / 3 / 4; size check 0.0426 (exact 3/70 = 0.0429)
+     at the gate 0.20, control true rise = R (0.579), P(REDUCED) by reduction f*R and sigma 0.05 / 0.10 / 0.137 /
+       0.20 / 0.34: f 0: 0.043 / 0.043 / 0.042 / 0.044 / 0.043 (size); f 0.25: 0.959 / 0.519 / 0.338 / 0.203 / 0.116;
+       f 0.5: 1.000 / 0.959 / 0.800 / 0.521 / 0.251; f 0.75: 1.000 / 1.000 / 0.981 / 0.818 / 0.436; f 1: 1.000 / 1.000
+       / 0.999 / 0.960 / 0.637; P(NOT INFORMATIVE) 0.000 except 0.021 at sigma 0.34
+     control true rise 3R/4 (0.434), f 1: 1.000 / 1.000 / 0.980 / 0.812 / 0.429; P1 0.000-0.104
+     control true rise R/2 (0.289), f 1: 0.999 / 0.921 / 0.745 / 0.478 / 0.232; P1 0.001 / 0.050 / 0.117 / 0.208 /
+       0.314
+     control true rise R/4 (0.145): mostly NOT INFORMATIVE (0.62-0.98)
+     blind SD 0.05 (BS's blind SD was 0.029), control at R: f 0.5 0.992 / 0.934 / 0.743 / 0.426 at control SD 0.10 /
+       0.137 / 0.20 / 0.34; f 1: 1.000 / 1.000 / 0.993 / 0.837
+     pair effect at fixed total SD: size 0.032 (pair 0.06 of 0.137), 0.014 (0.10 of 0.137), 0.029 (0.10 of 0.20),
+       0.016 (0.14 of 0.20); power at f 0.5 0.816 / 0.848 (vs 0.800 independent, SD 0.137), 0.524 / 0.535 (vs 0.521,
+       SD 0.20). BS's review modelled a pair effect added to the own SD (larger total SD) and found power falling
+       0.62 -> 0.38 (rv_sim (3b)); both statements are in the criteria.
+     two-state (climb ~ N(R, 0.10^2) with probability q, else ~ N(0.04, 0.04^2)), blind climbs with q(1 - f), gate
+       0.20, P1 / P2 / P3: q 1: f 0 0.000/0.043/0.957, f 0.5 0.000/0.312/0.688, f 1 0.000/1.000/0.000; q 0.9: 0.005 /
+       0.043, 0.268, 0.841; q 0.75: 0.056 / 0.042, 0.207, 0.612; q 0.5: 0.320 / 0.041, 0.123, 0.287; q 0.25: 0.743 /
+       0.027, 0.046, 0.074
+     exact on BS's rises (H): H1 scaled no effect, gate 0.20: P1 49/128, P2 1345/65536 (0.0205), P3 39103/65536;
+       H2 scaled with BS's arms: P1 49/128, P2 343/2048 (0.167), P3 921/2048 (0.450); H3 unscaled no effect: P1
+       213/256 (0.832), P2 969/65536 (0.0148), P3 10039/65536 (0.153); H4 unscaled BS's arms: P1 213/256, P2 11/128
+       (0.086), P3 21/256 (0.082). (Ties from repeated draws count against REDUCED, so the no-effect P2 is 0.02, below
+       3/70.)
+   Fill bounds (A, enumerated with exact rationals): one MISSING in either arm -> filled p >= 36/70 (18/35); one in
+   each -> >= 51/70; two controls -> >= 56/70 (4/5).
+
+D5 SECONDARIES (tested, one-sided, unadjusted alpha 0.05, never change the line; Bonferroni note printed):
+   (a) SEC-G, end loop gain OWN G at E, blind HIGHER: taken, as the task asks, in BS's direction, because an
+       out-of-sample test of a post hoc pattern must test that pattern. Caveat written into the criteria: in this
+       window the parent's own G climbs (-0.636 -> +0.349 -> +0.539), so a parent-like control works against it;
+       NOT SUPPORTED does not refute BS's pattern at 1.05-2.49M. On BS's own values the same statistic gives p 2/70
+       (post hoc, context only). The count with G(E) > G(S) (BS's original form) is report only (with one start G(S)
+       is a constant, so the arm comparison of G(E) is the testable form of it).
+   (b) SEC-CMD, CMD_L at E, blind LOWER: taken. The rail's own measure (PARK/RAIL lines are on CMD_L), deterministic
+       evaluation episodes, independent of the training rollouts the primary uses; the parent's +0.705 rise. On BS's
+       values: p 9/70 (context only). Defined as ledger.direct.per_evaluation[E].cmd_l (not cmd_l_max), MISSING if T <
+       E or the evaluation at E is absent / has no finite command.
+   (c) SEC-MARGIN, OWN b*_P = 1 - G - c0 at E, blind HIGHER: taken, as the practical form of option A's question
+       ("stop the progression toward the rail", REPORT section 6) and the margin study's validated ranking (WM;

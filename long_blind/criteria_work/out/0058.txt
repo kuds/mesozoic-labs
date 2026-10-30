@@ -1,0 +1,73 @@
+by the copy's own save_stage_config and compared with the parent's before learn(); the load wrapper's checks; StopAtEnd;
+the heartbeat; the digests; the exit codes).  Changes from run_ecs.py: one start (s42 at S), the four arms (an
+in-memory [ppo] edit for gae_lambda_1, a hook on the loaded objects for critic_blind_tail3 and frozen_obs_norm, applied
+inside the load wrapper after its checks and before learn()); per-rollout arm evidence (bs_hooks.rollout_evidence,
+read only, into <run>/arm_evidence.jsonl and run_meta's arm_evidence summary); the continuation's queue and seeds come
+from <BS>/SCREEN.json (pinned in <BS>/APPROVED), validation runs use only bs_common.VALIDATION_SEEDS and write only
+under <BS>/validate/; V1 also compares the loaded policy's bank outputs with the parent probe's row at S.
+
+Preflight (exit 2, nothing created; every reason listed): the arguments; for a continuation <BS>/APPROVED (JSON,
+bs_common.APPROVED_KEYS) with criteria_sha256 = sha256(<BS>/criteria.txt), screen_sha256 = sha256(<BS>/SCREEN.json),
+code_tree_digest the pinned one and tool_sha256 = every BS tool's sha256, SCREEN.json valid and naming (arm, seed);
+the run folder absent; the start pair, the five parent records and stage_config.json at their FMAN sha256; the code
+copy's seal (M1's r10m_common.check_copy); the stack; the M1-common / M5 pins; free disk >= 1.5 GiB.
+Exit codes: 0 done; 2 refused (no optimizer step); 5 finished but a post-run check failed; 1 crash.
+Importing this module needs neither torch nor the code copy.
+"""
+
+from __future__ import annotations
+
+import sys
+
+sys.dont_write_bytecode = True  # before any import from tools/ or the copy (-I ignores PYTHONDONTWRITEBYTECODE)
+
+import argparse  # noqa: E402
+import copy  # noqa: E402
+import datetime as _dt  # noqa: E402
+import hashlib  # noqa: E402
+import importlib.util  # noqa: E402
+import json  # noqa: E402
+import os  # noqa: E402
+import shutil  # noqa: E402
+....
+
+
+def approval_problems() -> list[str]:
+    """<BS>/APPROVED against <BS>/criteria.txt, <BS>/SCREEN.json, the code digest and the BS tools' sha256."""
+    root = bs_root()
+    approved, err = _read_json(root / "APPROVED")
+    if err:
+        return [f"APPROVED: {err}"]
+    if not isinstance(approved, dict):
+        return ["APPROVED: not a JSON object"]
+    problems = []
+    missing = [k for k in C.APPROVED_KEYS if k not in approved]
+    if missing:
+        problems.append(f"APPROVED: missing keys {missing}")
+    for key, name in (("criteria_sha256", "criteria.txt"), ("screen_sha256", "SCREEN.json")):
+        path = root / name
+        if not path.is_file():
+            problems.append(f"APPROVED: <BS>/{name} missing")
+        elif sha256_file(path) != approved.get(key):
+            problems.append(f"APPROVED: {key} {approved.get(key)!r} != sha256({name})")
+    if approved.get("code_tree_digest") != C.TREE_DIGEST:
+        problems.append(f"APPROVED: code_tree_digest {approved.get('code_tree_digest')!r} != {C.TREE_DIGEST}")
+    pins = approved.get("tool_sha256") if isinstance(approved.get("tool_sha256"), dict) else {}
+    for name in C.TOOL_FILES:
+        path = TOOLS / name
+        got = sha256_file(path) if path.is_file() else None
+        if not pins.get(name) or pins.get(name) != got:
+            problems.append(f"APPROVED: tool_sha256[{name!r}] {pins.get(name)!r} != the file's {got!r}")
+    return problems
+
+
+def screen_entry_problems(arm: str, seed: Any) -> list[str]:
+    d, problems = C.load_screen(str(bs_root() / "SCREEN.json"))
+    if problems:
+        return problems
+    if (arm, seed) not in C.queue_of(d):
+        return [f"SCREEN: ({arm}, {seed}) is not in the queue"]
+    return []
+
+
+def seal_problems() -> list[str]:

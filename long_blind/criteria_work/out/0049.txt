@@ -1,0 +1,96 @@
+clamp
+coord
+creep
+design
+early_bias
+early_warning
+phase_probe
+policies
+posture_policy
+posture_timing
+pr_build
+pr_fix
+pr_review1
+pr_review2
+probe
+scan
+targets
+termination_probe
+verify_clamp
+verify_creep
+verify_early_bias
+verify_early_warning
+verify_policies
+verify_posture
+verify_probe
+verify_scan
+verify_targets
+verify_warning_followups
+warning_margin
+warning_r9
+worktree_snapshots
+## phase_probe
+S2/com_revisit/notes/phase_probe/posthoc_push.py:48:        for t in range(T - 1, -1, -1):
+S2/com_revisit/notes/phase_probe/posthoc_push.py:75:        keep = [c for c in range(X0.shape[1]) if c != 1 + d.zq]
+S2/com_revisit/notes/phase_probe/phase_rollouts.py:7:                               collect_rollouts on a fresh build with the same seeds; writes nothing but OUT.json)
+S2/com_revisit/notes/phase_probe/phase_rollouts.py:149:    venv = create_vec_env(species, {1: {"env_kwargs": dict(cfg["env_kwargs"])}}, 1, 4, seed=seed,
+S2/com_revisit/notes/phase_probe/phase_rollouts.py:166:    vn.seed(seed)
+S2/com_revisit/notes/phase_probe/phase_rollouts.py:167:    torch.manual_seed(seed)
+S2/com_revisit/notes/phase_probe/phase_rollouts.py:168:    np.random.seed(seed)
+S2/com_revisit/notes/phase_probe/phase_rollouts.py:192:    envs = [vn.venv.envs[i].unwrapped for i in range(nE)]
+S2/com_revisit/notes/phase_probe/phase_rollouts.py:195:    cur = [dict(rows=[], k=0) for _ in range(nE)]
+S2/com_revisit/notes/phase_probe/phase_rollouts.py:196:    done_eps = [[] for _ in range(nE)]
+S2/com_revisit/notes/phase_probe/phase_rollouts.py:218:        for i in range(nE):
+S2/com_revisit/notes/phase_probe/phase_rollouts.py:255:    for i in range(len(done_eps)):
+## termination_probe
+S2/com_revisit/notes/termination_probe/run_probe.py:5:    PY -I -B run_probe.py --label LABEL --seeds 7001:7129 --out DIR [--hold V] [--smoke]
+S2/com_revisit/notes/termination_probe/run_probe.py:9:False)), the sample is clipped to the action box and stepped.  torch.manual_seed(seed) at every episode start, so an
+S2/com_revisit/notes/termination_probe/run_probe.py:10:episode is reproducible on its own.  Fresh env per condition, env.reset(seed=seed) per episode; the env is the stance
+S2/com_revisit/notes/termination_probe/run_probe.py:56:    ap.add_argument("--seeds", required=True, help="A:B, half-open")
+S2/com_revisit/notes/termination_probe/run_probe.py:62:    lo, hi = (int(x) for x in a.seeds.split(":"))
+S2/com_revisit/notes/termination_probe/run_probe.py:63:    seeds = list(range(lo, hi))
+S2/com_revisit/notes/termination_probe/run_probe.py:141:    for ei, seed in enumerate(seeds):
+S2/com_revisit/notes/termination_probe/run_probe.py:143:        obs, _ = env.reset(seed=seed)
+S2/com_revisit/notes/termination_probe/run_probe.py:144:        torch.manual_seed(seed)
+S2/com_revisit/notes/termination_probe/run_probe.py:195:        allf["t"].append(np.arange(n, dtype=np.int16))
+S2/com_revisit/notes/termination_probe/run_probe.py:204:        idx = np.arange(0, n, SUB)
+S2/com_revisit/notes/termination_probe/run_probe.py:235:        print(f"smoke total wall {wall:.1f}s for {len(seeds)} episodes")
+## clamp
+S2/com_revisit/notes/clamp/probe_env.py:14:names = [m.actuator(i).name for i in range(m.nu)]
+S2/com_revisit/notes/clamp/probe_env.py:31:obs, _ = env.reset(seed=3042)
+S2/com_revisit/notes/clamp/run_replay.py:4:                                                        [--seeds 3042-3061] [--only name,name]
+S2/com_revisit/notes/clamp/run_replay.py:5:PYTHONPATH=<policies/code_copy> python -B run_replay.py OUT_DIR --statue [--force V] [--seeds 3042-3061]
+S2/com_revisit/notes/clamp/run_replay.py:44:    parser.add_argument("--seeds", default="3042-3061")
+S2/com_revisit/notes/clamp/run_replay.py:47:    lo, hi = (int(x) for x in args.seeds.split("-"))
+S2/com_revisit/notes/clamp/run_replay.py:48:    seeds = list(range(lo, hi + 1))
+S2/com_revisit/notes/clamp/run_replay.py:59:    (args.out / "meta.json").write_text(json.dumps({"argv": sys.argv, "force": args.force, "seeds": seeds,
+S2/com_revisit/notes/clamp/run_replay.py:69:        lens_seeds = None if lens_npz is None else [int(s) for s in lens_npz["seeds"]]
+S2/com_revisit/notes/clamp/run_replay.py:70:        save: dict[str, np.ndarray] = {"seeds": np.array(seeds)}
+S2/com_revisit/notes/clamp/run_replay.py:71:        for i, seed in enumerate(seeds):
+S2/com_revisit/notes/clamp/run_replay.py:76:                j = lens_seeds.index(seed)
+## posture_policy
+S2/com_revisit/notes/posture_policy/verify_loop_copy.py:30:THETAS_DEG = np.arange(0.0, 6.01, 1.0)
+S2/com_revisit/notes/posture_policy/verify_loop_copy.py:34:    obs, _ = env.reset(seed=seed)
+S2/com_revisit/notes/posture_policy/verify_loop_copy.py:36:    for step in range(1, 1001):
+S2/com_revisit/notes/posture_policy/verify_loop_copy.py:68:        env.reset(seed=3042)
+S2/com_revisit/notes/posture_policy/verify_loop_copy.py:72:        for step in range(1, 1001):
+S2/com_revisit/notes/posture_policy/summarize_sweep.py:43:    print("policy's own settled states (120 per policy: steps 500..1000 by 100, seeds 3042-3061).  cmd14 = the raw Gaussian")
+S2/com_revisit/notes/posture_policy/plant_pitch.py:7:the s42 ends' and the s80 ends' typical held qpos = the median over policies of the per-policy median over seeds of the
+S2/com_revisit/notes/posture_policy/plant_pitch.py:76:        for _ in range(60):
+S2/com_revisit/notes/posture_policy/plant_pitch.py:98:    env.reset(seed=3042)
+S2/com_revisit/notes/posture_policy/pp_common.py:25:    [f"s42_A_{n}" for n in range(1101, 1152, 10)]
+S2/com_revisit/notes/posture_policy/pp_common.py:26:    + [f"s42_B_{n}" for n in range(1201, 1252, 10)]
+S2/com_revisit/notes/posture_policy/pp_common.py:27:    + [f"s80_A_{n}" for n in range(1301, 1352, 10)]
+## posture_timing
+S2/com_revisit/notes/posture_timing/r9_timeline.py:60:    edges = np.arange(0, 12_058_624 + 1, 262_144)
+S2/com_revisit/notes/posture_timing/r9_timeline.py:154:    e = np.arange(0, 12_058_624 + 1, 65_536)
+S2/com_revisit/notes/posture_timing/r9_timeline.py:165:            for lag in range(-6, 7):
+S2/com_revisit/notes/posture_timing/pt_common.py:192:    for i in range(len(y)):
+S2/com_revisit/notes/posture_timing/ts_comovement.py:2:steps; arms control, b90, b60 = a training-loss bound on the tail_3 mean at 0.9 / 0.6; 3 seeds each).  Do posture and
+S2/com_revisit/notes/posture_timing/ts_comovement.py:63:    print("SUMMARY PER STATE AND ARM (first interval -> last interval; mean of the 3 seeds; per-seed signs in brackets)")
+S2/com_revisit/notes/posture_timing/inventory.py:81:    print(f"    M1 per-step traces (20 seeds, joint angles + commands, no pelvis pitch/CoM): {', '.join(m1)}")
+S2/com_revisit/notes/posture_timing/r10_timeline.py:85:        edges = np.arange(0, 12_058_624 + 1, 262_144)
+S2/com_revisit/notes/posture_timing/r10_timeline.py:102:    edges = np.arange(0, 12_058_624 + 1, 262_144)
+S2/com_revisit/notes/posture_timing/r10_timeline.py:141:    e = np.arange(0, 12_058_624 + 1, 65_536)
+S2/com_revisit/notes/posture_timing/r10_timeline.py:170:        alarm = next((int(L["t"][i]) for i in range(1, len(ob)) if ob[i] >= 5 and ob[i - 1] >= 5), None)
+S2/com_revisit/notes/posture_timing/r10_timeline.py:226:        e = np.arange(0, 12_058_624 + 1, 65_536)

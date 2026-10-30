@@ -1,0 +1,110 @@
+WHAT IS TRAINED (D1, D2, D3, D16, D18 decided; as THIS12, shortened)
+- Physics r10 (physics_revision 10, policy interface r15), the stance stage, the SB3 notebook, n_envs 4, three Colab L4
+  runtimes in parallel, from scratch, 12,000,000 steps (final 12,001,280), main's PPO schedules (STOML; learning_rate
+  3e-5 -> 1e-5, n_steps 2048, batch 128, n_epochs 10, gamma 0.98, ent_coef 0.005 -> 0 by 7,000,000, target_kl 0.03,
+  net [512, 256], log_std_init -1.5); hyperparameters_sha256.PPO 054ab483..., LTSB's r9 runs' [measured, PW digests].
+- Recipe (D1): arm LTSB of stance5 (JC at cf80ecb1) ported to r10; the config keys it changes, the code it carries and
+  its measured equivalence are THIS12 lines 66-101 and EVID (WHAT IS TRAINED). checkpoint_freq 262144 (D3 (a));
+  collapse_peak_floor_reference 4470.4 (D20 (a): main's 3766.6 plus the measured statue gain +703.8132; floor 2011.68).
+- Code: BR = main 06b1a8e1 (both TEL PRs merged, D15 met) + the port's four commits 176af89f, 60c0c1f9, 740fc3f5,
+  7fa2f2c3 (each message names its carry onto main 06b1a8e1) + 2ca69a8f (D3) + cf9402bc (D19, amended from 5b38f97b:
+  the guard_1 docstring only; accepted, RUNLOG line 646) [measured, BR git log; S2/r10round/runbranch/fixer/logs/
+  v0i_head.txt]; recorder.py's one hand-resolved hunk (_configure_decode) accepted and listed in V0 (a) (RUNLOG line
+  646); last, the header commit: this text's sha256 in a stance.toml comment, its message naming the branch's carry
+  onto main 06b1a8e1 (PINS). No notebook change (D22). Pushed only after the maintainer's OK so Colab's REPO_REF can
+  install it (D16); never merged.
+- The zero-action baseline row reads "reward" and "standing" about 4470.4, 40/40 full horizon (main: 3766.6); only the
+  task digest tells band on from band off (launch check).
+- The in-run K3 panel of TEL is ON at launch (RUNLOG line 645 (4)), per seed with the sigma below; report only.
+
+ARMS AND SEEDS (as THIS12 lines 116-136, shortened)
+- One arm, three runs, no concurrent control; the comparison is historical (THE r9 REFERENCE).
+- Seeds 60, 42, 80 (D2); RUN_IDs stance6_r10LTSB_s60, _s42, _s80 (D16). Stated plainly: three of LTSB's five r9 seeds,
+  chosen with their r9 outcomes known (s60 no alarm; s42 alarm 3,670,016; s80 alarm 4,456,448) [measured, REC sec.
+  21.3-21.4, 23.3-23.4]. The analysis treats the runs as exchangeable draws; seeds do not pair runs (GPU training is not
+  bit-reproducible); per-seed comparisons are report only (D-12).
+- K3 joint-space sigma (report only): seeds 60 and 42 their frozen control_sigma, seed 80 the replication sidecar's mean
+  vector (THIS12 lines 132-136); offline judge (M4) and in-run panel (M7) use the same vector per seed.
+
+CHECKPOINTS AND LEDGER CADENCE (D3 (a))
+- An evaluation of 10 deterministic episodes every 131,072 steps (91, the last at 11,927,552), as every LTSB r9 ledger.
+- A periodic pair every 262,144 steps, all kept (45 pairs), plus stage1_final (12,001,280), best_model,
+  robust_best_model. J = 4,194,304; 5,242,880; 6,291,456; 8,388,608; 10,485,760; final. About 0.19 GB of checkpoints per
+  run [inferred].
+- The notebook's outputs used here [measured, D9 listing.csv and the manifest; BR config.py lines 942-995,
+  reporting/bundles.py lines 770-808]. In 01_stance/: stage_config.json (written at the stage's start with the
+  plant_identity and task_fingerprint blocks embedded, lines 973-976; rewritten at the end with the run's duration),
+  plant_identity.json and task_fingerprint.json (copies of those blocks written just after it, read only by M4's judge,
+  report only),
+  eval_episodes.csv (screen_v2_reasons, #640's saturated_actuator columns, TEL's columns), evaluations.npz,
+  progress.json, gate_verdict.json, policy_probe.npz, train_episodes.csv, hop_watch.json (only when the hop watch
+  trips), k3_panel.csv/json, models/ (the pairs stage1_<steps>_steps.zip with stage1_vecnormalize_<steps>_steps.pkl and
+  stage1_final.zip with stage1_final_vecnorm.pkl, best_model and robust_best_model), figures/ (with
+  figures/training_history/) and replays/. At the run folder's root: provenance.json, trunk_run.json and
+  zero_action_baseline.json, written at launch; and, written by the result bundle at the end, plant_identity.json
+  (bundles.py line 772: the only writer of the root copy in the notebook path), collected_results.csv, summary.json and
+  artifact_manifest.json. The manifest lists every other file of the run folder with its size_bytes and sha256 (written
+  "sha256:<hex>"), with schema_version, the run_id from provenance.json and a status (partial, failed or complete; a run
+  whose gate failed is bundled "failed" (a stance-only run; "partial" when a later stage passes) [measured, V9 (b)]);
+  it is written last, after the
+  gate verdict, the figures and the summary, whether the gate passed or failed, just before the gate line or the halt
+  [measured, BR environments/shared/result_bundle/manifest.py lines 93-129; reporting/bundles.py lines 770-808; notebook
+  sb3_training.ipynb cell 20 lines 306-315]; the notebook flushes Drive before it releases the runtime [measured, BR
+  environments/shared/notebook_runtime.py lines 15-43]. An interrupt never reaches the final save (C5). A chain past
+  stance rewrites the bundle after each later node, stance's files unchanged [inferred, BR notebook cell 20 lines
+  306-309].
+- One Colab-written manifest has been checked (V10, the D9 dry run, read only): stance5_LTSB_s70's, two equal copies
+  (sha256 c245da0b16f2e48900fc24dec22fb3a9dedf93dc920cef3620493a21852c8240), schema_version 1, run_id the RUN_ID, status
+  complete, 98 entries = every other file of the run folder, every size equal to Drive's listing, every C3 file checked
+  equal to its entry; it landed 45.3 min after progress.json's "ended" (gate_verdict.json's judged_at at 30.7 min)
+  [measured, D9]. The code that wrote it (result_bundle/manifest.py, provenance.py, constants.py, reporting/bundles.py;
+  notebook cell 20) is byte-identical on BR [measured, D9].
+
+HOW IT IS MEASURED (offline, in session scratch, on files fetched read-only; nothing during a run but M7's panel)
+- Measuring copy: git archive of the branch HEAD the runs trained (git_commit in stage_config.json), python -I -B,
+  OMP_NUM_THREADS=1, nice -n 10, at most 2 processes; outputs to <ROUND>/panels/<RUN_ID>/<label>/, never into a run
+  folder; every M1-M4 output records the model's physics_revision and the runner refuses anything but 10.
+- M1 TRACE (main's episode_trace_report.py, #638; pinned): deterministic, seeds 3042-3061, every actuator, window
+  200..L-1: per episode and actuator the window-mean command, raw mean, joint position, shares at |command| >= 0.99 and
+  >= 0.9, |raw| > 1 share, first rail step, return, length. Command as THIS12 lines 173-180.
+- M2 POSTURE PANEL (zs_harness_copy.py, sha256 fbb71d22..., validated bit for bit): seeds 3042-3081 deterministic, the
+  statue panel being M2's own zero-action panel on the same measuring copy; tail
+  commands, joint angles, chords, tip height, CoM fore-aft and lateral, pelvis pitch/roll/height, head-tip height,
+  neck/head pitch, fall direction, other actuators' saturation (THIS12 lines 181-193).
+- M3 CERTIFICATE (stance_gate_report.py, sha256 bbfe8016...): the six-heading certificate (-90, -45, 0, +45, +90, +180
+  deg; seeds 3042-3081 each) under the run's own stage config; PASS = its own verdict. A measurement of the gate's
+  criteria on a screen task, not certification.
+- M4 JUDGE (report only, D12 (a)): K1-K4 as REPL, judged at J by judge_r10ltsb.py (REPL's judge_stance5r.py rebound to
+  r10, the branch HEAD, its task and statue, the per-seed sigma), scored with score_stance3.py's code unchanged but for
+  its judge identity (JUDGE_SCHEMA r10ltsb-judge/v1, ARM_ENV LTSB, HEADS the branch HEAD, as score_stance5.py rebinds
+  them) and its r9 plant check, which reads the pinned r10 plant (physics_revision 10, physics_sha256 6a47a0eb...) in
+  place of r9's.
+- M5 LEDGER READER (to build): on ONE ledger, per evaluation: (a) the ANY count: episodes whose ANY input (THIS12 lines
+  351-358) is over the bar: with the screen measured, screen_v2_reasons lists max_actuator_saturation_fraction (the
+  D-D40 5a rule as score_stance4.saturation_alarm reads it); with the screen unmeasured (screen_v2_clean blank or NaN on
+  that evaluation's rows, which the code writes when one episode's stance metrics or the screen judge raised [measured,
+  BR eval_diagnostics.py lines 1596-1630]), saturated_actuator_fraction > 0.10; a row over the bar on a tail actuator is
+  any-over; (b) the TAIL count (saturated_actuator_fraction > 0.10 and saturated_actuator in 11-14, by actuator and
+  sign); (c) the TAIL-UNRESOLVED count (CLASSES). Read on a COMPLETE run's whole ledger, and on a LOST run's ledger as
+  it stands for PRESENCE and D-16. Tested on the eight r9 ledgers (path (a)) and on synthetic ledgers (V2). TEL's
+  rail_actuators column is printed beside (b) and (c), report only.
+- M6 TRAINING-ROW READER, M7 IN-RUN K3 PANEL READER, M8 TELEMETRY READER (to build, small): as THIS12 lines 234-246.
+
+THE TELEMETRY OF TEL (report only; on main, D15)
+- TEL's columns and pages 11-19 sit outside every reward, observation, termination, gate, checkpoint selection and
+  digest [measured, TEL spec Parts 0-5]; no class, reading, statistic or run-handling rule reads them; V8 tests that a
+  failing TEL column changes no class input. Names and the measured invariance: EVID (THE TELEMETRY OF TEL).
+
+THE IN-RUN K3 PANEL (TEL; report only; ON, RUNLOG line 645 (4))
+- At every multiple of 1,048,576 and once after the final save: the replication judge's two K3 noise tests (20 spawns
+  3042-3061 x own-sigma and joint-space noise), on a CPU twin, in its own env and RNGs, written to k3_panel.csv/json
+  only; 12 panels per run, about 17-26 min of paused training per run [RUNLOG line 630]. Not the K3 of record (M4 is).
+- Sigma file and key set at launch in notebook cell 6 (RUN HANDLING, Launch): K3_PANEL_SIGMA_FILE the absolute Colab
+  path /content/mesozoic-labs/docs/investigations/stance_2026_10/stance5/replication/sigma_s70_s80.json (the branch's
+  copy, sha256 939285e30f377e696fef7bdcc30d6d61786e18c593ae39a1b50c936e3822a0ab [measured, BR]); K3_PANEL_SIGMA_KEY
+  "source_vectors.60", "source_vectors.42" or "control_sigma.80" (the bare "60", "42", "80" resolve to the same nodes
+  [measured, BR environments/shared/k3_panel.py lines 215-253; the file's keys]); each row carries its sigma sha256.
+- P-K3, V7 in the measured form decided at RUNLOG line 645 (4) (VALIDATIONS). A panel launched off or mis-set is
+  recorded and the run goes on; an exception inside the panel is caught and recorded [measured, TEL
+  test_curriculum_k3_panel.py line 329]; a crash it cannot catch ends the run (LOST; KNOWN LIMITS).
+

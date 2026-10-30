@@ -1,0 +1,126 @@
+99a44469a387d01c55b98d76595d3633029681866ed14afcb185521eca0164db  S2/r10round/final_lean/criteria_r10round_final.txt
+    76	  21.3-21.4, 23.3-23.4]. The analysis treats the runs as exchangeable draws; seeds do not pair runs (GPU training is not
+    77	  bit-reproducible); per-seed comparisons are report only (D-12).
+    78	- K3 joint-space sigma (report only): seeds 60 and 42 their frozen control_sigma, seed 80 the replication sidecar's mean
+    79	  vector (THIS12 lines 132-136); offline judge (M4) and in-run panel (M7) use the same vector per seed.
+    80	
+    81	CHECKPOINTS AND LEDGER CADENCE (D3 (a))
+    82	- An evaluation of 10 deterministic episodes every 131,072 steps (91, the last at 11,927,552), as every LTSB r9 ledger.
+    83	- A periodic pair every 262,144 steps, all kept (45 pairs), plus stage1_final (12,001,280), best_model,
+    84	  robust_best_model. J = 4,194,304; 5,242,880; 6,291,456; 8,388,608; 10,485,760; final. About 0.19 GB of checkpoints per
+    85	  run [inferred].
+    86	- The notebook's outputs used here [measured, D9 listing.csv and the manifest; BR config.py lines 942-995,
+    87	  reporting/bundles.py lines 770-808]. In 01_stance/: stage_config.json (written at the stage's start with the
+    88	  plant_identity and task_fingerprint blocks embedded, lines 973-976; rewritten at the end with the run's duration),
+    89	  plant_identity.json and task_fingerprint.json (copies of those blocks written just after it, read only by M4's judge,
+    90	  report only),
+    91	  eval_episodes.csv (screen_v2_reasons, #640's saturated_actuator columns, TEL's columns), evaluations.npz,
+    92	  progress.json, gate_verdict.json, policy_probe.npz, train_episodes.csv, hop_watch.json (only when the hop watch
+    93	  trips), k3_panel.csv/json, models/ (the pairs stage1_<steps>_steps.zip with stage1_vecnormalize_<steps>_steps.pkl and
+    94	  stage1_final.zip with stage1_final_vecnorm.pkl, best_model and robust_best_model), figures/ (with
+    95	  figures/training_history/) and replays/. At the run folder's root: provenance.json, trunk_run.json and
+    96	  zero_action_baseline.json, written at launch; and, written by the result bundle at the end, plant_identity.json
+    97	  (bundles.py line 772: the only writer of the root copy in the notebook path), collected_results.csv, summary.json and
+    98	  artifact_manifest.json. The manifest lists every other file of the run folder with its size_bytes and sha256 (written
+    99	  "sha256:<hex>"), with schema_version, the run_id from provenance.json and a status (partial, failed or complete; a run
+   100	  whose gate failed is bundled "failed" (a stance-only run; "partial" when a later stage passes) [measured, V9 (b)]);
+   101	  it is written last, after the
+   102	  gate verdict, the figures and the summary, whether the gate passed or failed, just before the gate line or the halt
+   103	  [measured, BR environments/shared/result_bundle/manifest.py lines 93-129; reporting/bundles.py lines 770-808; notebook
+   104	  sb3_training.ipynb cell 20 lines 306-315]; the notebook flushes Drive before it releases the runtime [measured, BR
+   105	  environments/shared/notebook_runtime.py lines 15-43]. An interrupt never reaches the final save (C5). A chain past
+   106	  stance rewrites the bundle after each later node, stance's files unchanged [inferred, BR notebook cell 20 lines
+   107	  306-309].
+   108	- One Colab-written manifest has been checked (V10, the D9 dry run, read only): stance5_LTSB_s70's, two equal copies
+   109	  (sha256 c245da0b16f2e48900fc24dec22fb3a9dedf93dc920cef3620493a21852c8240), schema_version 1, run_id the RUN_ID, status
+   110	  complete, 98 entries = every other file of the run folder, every size equal to Drive's listing, every C3 file checked
+   111	  equal to its entry; it landed 45.3 min after progress.json's "ended" (gate_verdict.json's judged_at at 30.7 min)
+   112	  [measured, D9]. The code that wrote it (result_bundle/manifest.py, provenance.py, constants.py, reporting/bundles.py;
+   113	  notebook cell 20) is byte-identical on BR [measured, D9].
+   114	
+   115	HOW IT IS MEASURED (offline, in session scratch, on files fetched read-only; nothing during a run but M7's panel)
+   116	- Measuring copy: git archive of the branch HEAD the runs trained (git_commit in stage_config.json), python -I -B,
+   117	  OMP_NUM_THREADS=1, nice -n 10, at most 2 processes; outputs to <ROUND>/panels/<RUN_ID>/<label>/, never into a run
+   118	  folder; every M1-M4 output records the model's physics_revision and the runner refuses anything but 10.
+   119	- M1 TRACE (main's episode_trace_report.py, #638; pinned): deterministic, seeds 3042-3061, every actuator, window
+   120	  200..L-1: per episode and actuator the window-mean command, raw mean, joint position, shares at |command| >= 0.99 and
+   121	  >= 0.9, |raw| > 1 share, first rail step, return, length. Command as THIS12 lines 173-180.
+   122	- M2 POSTURE PANEL (zs_harness_copy.py, sha256 fbb71d22..., validated bit for bit): seeds 3042-3081 deterministic, the
+   123	  statue panel being M2's own zero-action panel on the same measuring copy; tail
+   124	  commands, joint angles, chords, tip height, CoM fore-aft and lateral, pelvis pitch/roll/height, head-tip height,
+   125	  neck/head pitch, fall direction, other actuators' saturation (THIS12 lines 181-193).
+   126	- M3 CERTIFICATE (stance_gate_report.py, sha256 bbfe8016...): the six-heading certificate (-90, -45, 0, +45, +90, +180
+   127	  deg; seeds 3042-3081 each) under the run's own stage config; PASS = its own verdict. A measurement of the gate's
+   128	  criteria on a screen task, not certification.
+   129	- M4 JUDGE (report only, D12 (a)): K1-K4 as REPL, judged at J by judge_r10ltsb.py (REPL's judge_stance5r.py rebound to
+   130	  r10, the branch HEAD, its task and statue, the per-seed sigma), scored with score_stance3.py's code unchanged but for
+   131	  its judge identity (JUDGE_SCHEMA r10ltsb-judge/v1, ARM_ENV LTSB, HEADS the branch HEAD, as score_stance5.py rebinds
+   132	  them) and its r9 plant check, which reads the pinned r10 plant (physics_revision 10, physics_sha256 6a47a0eb...) in
+   133	  place of r9's.
+   134	- M5 LEDGER READER (to build): on ONE ledger, per evaluation: (a) the ANY count: episodes whose ANY input (THIS12 lines
+   135	  351-358) is over the bar: with the screen measured, screen_v2_reasons lists max_actuator_saturation_fraction (the
+   136	  D-D40 5a rule as score_stance4.saturation_alarm reads it); with the screen unmeasured (screen_v2_clean blank or NaN on
+   137	  that evaluation's rows, which the code writes when one episode's stance metrics or the screen judge raised [measured,
+   138	  BR eval_diagnostics.py lines 1596-1630]), saturated_actuator_fraction > 0.10; a row over the bar on a tail actuator is
+   139	  any-over; (b) the TAIL count (saturated_actuator_fraction > 0.10 and saturated_actuator in 11-14, by actuator and
+   140	  sign); (c) the TAIL-UNRESOLVED count (CLASSES). Read on a COMPLETE run's whole ledger, and on a LOST run's ledger as
+   141	  it stands for PRESENCE and D-16. Tested on the eight r9 ledgers (path (a)) and on synthetic ledgers (V2). TEL's
+   142	  rail_actuators column is printed beside (b) and (c), report only.
+   143	- M6 TRAINING-ROW READER, M7 IN-RUN K3 PANEL READER, M8 TELEMETRY READER (to build, small): as THIS12 lines 234-246.
+   144	
+   145	THE TELEMETRY OF TEL (report only; on main, D15)
+   146	- TEL's columns and pages 11-19 sit outside every reward, observation, termination, gate, checkpoint selection and
+   147	  digest [measured, TEL spec Parts 0-5]; no class, reading, statistic or run-handling rule reads them; V8 tests that a
+   148	  failing TEL column changes no class input. Names and the measured invariance: EVID (THE TELEMETRY OF TEL).
+   149	
+   150	THE IN-RUN K3 PANEL (TEL; report only; ON, RUNLOG line 645 (4))
+   151	- At every multiple of 1,048,576 and once after the final save: the replication judge's two K3 noise tests (20 spawns
+   152	  3042-3061 x own-sigma and joint-space noise), on a CPU twin, in its own env and RNGs, written to k3_panel.csv/json
+   153	  only; 12 panels per run, about 17-26 min of paused training per run [RUNLOG line 630]. Not the K3 of record (M4 is).
+   154	- Sigma file and key set at launch in notebook cell 6 (RUN HANDLING, Launch): K3_PANEL_SIGMA_FILE the absolute Colab
+   155	  path /content/mesozoic-labs/docs/investigations/stance_2026_10/stance5/replication/sigma_s70_s80.json (the branch's
+   156	  copy, sha256 939285e30f377e696fef7bdcc30d6d61786e18c593ae39a1b50c936e3822a0ab [measured, BR]); K3_PANEL_SIGMA_KEY
+   157	  "source_vectors.60", "source_vectors.42" or "control_sigma.80" (the bare "60", "42", "80" resolve to the same nodes
+   158	  [measured, BR environments/shared/k3_panel.py lines 215-253; the file's keys]); each row carries its sigma sha256.
+   159	- P-K3, V7 in the measured form decided at RUNLOG line 645 (4) (VALIDATIONS). A panel launched off or mis-set is
+   160	  recorded and the run goes on; an exception inside the panel is caught and recorded [measured, TEL
+   161	  test_curriculum_k3_panel.py line 329]; a crash it cannot catch ends the run (LOST; KNOWN LIMITS).
+   162	
+   163	CLASSES PER RUN
+   164	Definitions (as THIS12 lines 297-337, unchanged in substance, with PRECEDENCE: no saturation counts, no T).
+   165	- TAIL ACTUATORS 11-14; TAIL PITCH ACTUATORS 11, 13, 14; TAIL-UP = a positive command on a tail pitch actuator.
+   166	- BAR: an episode's share of window steps at |command| >= 0.99 on an actuator exceeds 0.10.
+   167	- TAIL FLAG (M1): a tail actuator over the BAR in a FULL-HORIZON (1000-step) traced episode, with its sign; on an exact
+   168	  tie the flag counts once in each sign; flags in shorter episodes are FALL FLAGS (report only).
+   169	- ANY-FLAGGED EVALUATION: at least 5 of its 10 ledger episodes over the bar on any actuator (M5 (a)). ANY ALARM: the
+   170	  second of two consecutive any-flagged evaluations (D-D40 5a as r9 was read).
+   171	- TAIL-FLAGGED EVALUATION: at least 5 of its 10 episodes over the bar with a tail actuator named (M5 (b)). TAIL ALARM:
+   172	  the second of two consecutive tail-flagged evaluations.
+   173	- TAIL-UNRESOLVED EPISODE: over the bar, a non-tail actuator named, and saturated_actuator_ties >= 1 or
+   174	  actuators_saturated >= 2. An ANY ALARM without a TAIL ALARM at its step NEEDS RESOLUTION when counting the
+   175	  TAIL-UNRESOLVED episodes of either evaluation as tail episodes would make both tail-flagged; its RESOLUTION CHECKPOINT
+   176	  is the pair at the second evaluation's step when that step is a multiple of 262,144, else the pair at the next
+   177	  multiple of 262,144 at or before E, else stage1_final (C3 then fails when that pair is not in the manifest). It
+   178	  counts as a TAIL ALARM (kind RESOLVED BY TRACE) when at least 2 full-horizon episodes of that checkpoint's M1 trace
+   179	  carry a TAIL FLAG on one actuator and sign. Every RESOLUTION checkpoint of a COMPLETE run is fetched and traced (no
+   180	  budget).
+   181	- R1 = the periodic pair 10,485,760 (for a STOPPED run that ended before it: the pair at the last multiple of 262,144 at
+   182	  or before E; C3 then fails when that pair is not in the manifest); R2 = stage1_final. CMD_a(X) = the mean, over those
+   183	  of M1's 20 episodes at X that last beyond step 200, of each one's window-mean command of tail actuator a (the others
+   184	  are printed); with none, CMD_a(X) is not formed and reads as below 0.60 in either sign. MEAN_a =
+   185	  (CMD_a(R1) + CMD_a(R2)) / 2; when one of CMD_a(R1), CMD_a(R2) is not formed, MEAN_a is the formed one's CMD_a, so a
+   186	  park the readable checkpoint shows is never hidden; with neither formed, MEAN_a is not formed and reads as below 0.60
+   187	  in either sign.
+   188	- TRACE RAIL (D5 (a)): among R1's and R2's 40 traced episodes, at least 2 full-horizon TAIL FLAGS on one actuator and
+   189	  sign, or 1 on an actuator whose MEAN_a in that sign is >= 0.60. A lone flag otherwise is a SINGLE TAIL FLAG (report
+   190	  only). Each TRACE RAIL is printed DRIVE-BACKED (when, at any checkpoint holding one of its flags, CMD_a is >= 0.60 in
+   191	  the flag's sign) or not.
+   192	- COMPLETE RUN. A run is COMPLETE when all of C1-C7 hold, each computed by complete_r10round.py from the files F2 (or
+   193	  its one re-fetch) holds and from RUNLOG's launches and actions, never transcribed by hand; each fact is printed with
+   194	  the value read:
+   195	  C1 RUNLOG records exactly one launch of the RUN_ID, no launch-check stop, and no action on it but THE ENDING
+   196	     PROCEDURE's (no resume, restart, relaunch under the RUN_ID or other cell run; REPLACEMENT's <RUN_ID>_b is another
+   197	     RUN_ID and is not an action on the first run).
+   198	  C2 the run folder's artifact_manifest.json is in F2: two equal copies (a third on a mismatch, read when two of the
+   199	     three agree); its schema valid as BR result_bundle/manifest.py verify_artifact_manifest checks it (lines 218-237):
+   200	     schema_version 1; run_id a non-empty string; status partial, failed or complete (complete is not required: a run

@@ -1,0 +1,126 @@
+"""Long blind study (LB): the reader.  Report only: it never trains; the loop markers simulate (deterministic rollouts
+and stochastic on-policy rollouts with frozen statistics, no update, no optimizer).  BS2's read_bs.py
+(S2/r10round/bias_screen2/tools/read_bs.py, sha256 06f4173d...) with the window from LB's bs_common.py (E = 12,001,280),
+the parent's F2 pairs in [S, E] derived (every 1,048,576 and the final pair), the loop read schedule
+bs_common.LOOP_READ_EVERY, and CHECK extended for the long window: the hop-watch stop, a resumed run's attempts and
+stitched records (bs_resume), and the evaluation grid of the ledger, evaluations.npz and gate_progress.npz.
+
+    PY -I -B read_bs.py --check RUN
+        CHECK (the runner reads only its exit code).  Reads RUN/run_meta.json, RUN/arm_evidence.jsonl, four column
+        groups of RUN/01_stance/policy_probe.npz (update_timesteps, ent_coef, learning_rate, obs_rms_mean/var/count;
+        allow_pickle False), the step and episode columns of eval_episodes.csv, the timesteps of evaluations.npz and
+        gate_progress.npz, and the parent's probe; for a resumed run (run_meta resumed_from) bs_resume.stitch_digests
+        over every record's rows up to the resume point (digests only).  Writes RUN/check.json (pass/fail per item;
+        no marker values).  Exit 0 pass, 4 fail, 2 input error.
+    PY -I -B read_bs.py RUN [--out DIR] [--no-onpolicy] [--no-own]
+        The markers of one finished run (a continuation under <BS>/runs/, refused until every SCREEN.json entry is
+        decided: outcome-blind; or a validation run under <BS>/validate/).  Needs a current passing check.json.
+        Writes DIR/markers.json and DIR/markers.txt (default DIR <BS>/reads/<name>/, or RUN/read/ for a validation
+        run), and DIR/m5.json, DIR/m5.txt.  Exit 0 read, 2 input error.
+    PY -I -B read_bs.py --reference [--out DIR] [--no-onpolicy] [--no-own]
+        The same markers on the PARENT (r10 stance6 s42, F2 copies, read only) over (S, E]: its probe and ledger rows
+        and its F2 checkpoints in [S, E] (every 1,048,576 from 2,097,152 to 11,534,336, and its final pair at E, saved
+        after the parent's update on the rollout ending at E), each sha256-checked against FMAN.  Doubles as the
+        reader's reproduction check against the early-warning (ew_r10.jsonl), early-bias (eb_realized.json), its
+        verifier's (vew_analyze.txt) and the warning-margin (warning_margin/NOTES.txt) values at 2,097,152 and
+        3,145,728 (REPRO below).  --pairs STEPS[,STEPS...] limits the M-LOOP to those reference pairs (V3).
+
+THE MARKERS (what a screen would score; the criteria choose; nothing here is a verdict):
+  M-PROBE  per update row with update_timesteps in (S, T): the probe bank's deterministic tail_3 command
+           (bank_action_now[:, i, 14], the raw Gaussian mean) on the two statue_settled rows (i = 0, 5) and their mean;
+           its 8-row trailing mean (the early-warning T1 form) and the first rows where that crosses 0.10 / 0.14 /
+           0.15 / 0.16; the critic's value on those rows (bank_value_now: the run's own critic, so the BLINDED one under
+           critic_blind_tail3); the tail_3 normaliser (obs_rms_mean[:, 6], obs_rms_var[:, 6]); std and rollout mean of
+           action 14.
+  M-LEDGER the pinned M5 (ledger_r10round.py, unchanged, --E T) on RUN/01_stance/eval_episodes.csv: ANY / TAIL
+           flagged evaluations and alarms in (S, T] (an alarm straddling S not counted), C6; and directly from the
+           ledger per evaluation in (S, T]: CMD_L = the mean over its episodes of tail_3_pitch_act_command_mean, the
+           episodes over the bar (saturated_actuator_fraction > 0.10), those naming a tail actuator (11-14) and
+           tail_3; the first evaluation with a tail over-bar episode (FOB), with CMD_L >= 0.30, >= 0.60 (PARK),
+           >= 0.90 (RAIL) (the early-warning ew_events definitions).
+  M-LOOP   at each saved pair in [S, T] the schedule names (the start copy, the periodic pairs S + 262,144 k whose
+           (steps - S) is a multiple of bs_common.LOOP_READ_EVERY, and the final pair at T):
+           (a) the early-warning study's fixed-state tail sweep (ew_common, verified by verify_early_warning): obs[6]
+               set to 0, 0.25, 0.5, 0.75, 1.0 deg, everything else fixed; least-squares slope per state, median over
+               states; G = slope x 5.16; c0 = the median command at 0 deg; FP = c0 / (1 - G); on OWN settled states
+               (deterministic rollouts, seeds 5001-5010, 1,000 steps, raw observations after steps 500, 600, ..., 1000)
+               and on REF (the probe bank's two statue_settled rows); own14 = the median episode mean of the clipped
+               command over steps 501-1000;
+           (b) the verifier's additions (verify_early_warning/vew_analyze.txt sections B, C, G; its NOTES.txt does not
+               exist): G_H over 0-0.5 deg; G_L, the local slope at each state's own angle +-0.25 deg; the margins to the
+               rail b*_P = 1 - G - c0 and b*_L = (1 - G_L)(1 - own14); the clip and linearity diagnostics;
+           (c) the critic's slope on observation 6, the early-bias probe's method (eb_realized.py sens()): autograd
+               d V / d z6 x (1 / sqrt(var6 + eps)) x pi / 180, per degree of tail_3 angle, mean (and SD) over the
+               states whose z6 is inside the clip, on the probe's ON-POLICY states (eb_common.build: a 4-env DummyVecEnv
+               under the pair's statistics frozen, the model loaded with the stage's [ppo] kwargs and enable_mirror_kl,
+               one collect_rollouts of 2,048 steps per env, seeds 9301 and 9302), and also on OWN and REF; for a
+               critic_blind_tail3 run both the EFFECTIVE critic (the arm's hook installed: exactly 0 by construction)
+               and the raw value MLP are reported.
+Every simulation runs from the sealed code copy bs_common.CODE (BS's, read only), OMP/MKL 1 thread; checkpoints are
+opened read only.  A pair's loop markers are cached under <BS>/reads/_cache/ by (this file's sha256, the sha256 of
+....
+    out["cpu_seconds"] = round(time.process_time() - t0, 1)
+    return out
+
+
+def loop_schedule(T, every=None):
+    """The steps the M-LOOP reads in [S, T]: S, the saved steps < T whose (steps - S) is a multiple of every
+    (bs_common.LOOP_READ_EVERY), and T (the final pair) (pure)."""
+    every = int(every or C.LOOP_READ_EVERY)
+    if every % C.SAVE_FREQ:
+        raise InputError(f"LOOP_READ_EVERY {every} is not a multiple of the save grid {C.SAVE_FREQ}")
+    return (C.S, *[x for x in C.SAVED_STEPS if x < T and (x - C.S) % every == 0], T)
+
+
+def saved_pairs(run_dir, T, every=None):
+    """[(steps, zip, pkl)] in [S, T] on loop_schedule: the start copy, the periodic pairs it names, and the final
+    pair at T."""
+    models = Path(run_dir) / MODELS_REL
+    out = []
+    for s in loop_schedule(T, every)[:-1]:
+        z, p = (models / n for n in C.periodic_names(s))
+        if z.is_file() and p.is_file():
+            out.append((s, z, p))
+    z, p = models / C.FINAL_ZIP, models / C.FINAL_PKL
+    if z.is_file() and p.is_file():
+        out.append((T, z, p))
+    return out
+
+
+def loop_markers(pairs, *, blind, onpolicy, own, tag):
+    """M-LOOP over pairs, with the cache under <BS>/reads/_cache/."""
+    import numpy as np
+
+    from environments.shared.config import load_stage_config
+    from environments.shared.model_id import ModelId
+    from environments.shared.species_registry import env_class
+
+    mid = ModelId("tyrannosaurus_rex", "anatomical")
+    ctor = dict(load_stage_config(mid, "stance")["env_kwargs"])
+
+    def factory():
+        return env_class(mid)(**ctor)
+    env = factory()
+    if env.unwrapped.model.actuator(C.ACT_TAIL3).name != "tail_3_pitch_act":
+....
+124:REFERENCE_PAIRS = tuple(s for s in range(F2_EVERY, C.E + 1, F2_EVERY) if s >= C.S) + (C.E,)
+1184:    """The parent's markers over (S, E] and its F2 pairs in [S, E] (REFERENCE_PAIRS, or the given subset), with the
+1203:    steps = tuple(REFERENCE_PAIRS if pairs is None else pairs)
+1204:    if not steps or any(s not in REFERENCE_PAIRS for s in steps):
+1205:        raise InputError(f"--pairs {steps}: not among the reference pairs {REFERENCE_PAIRS}")
+    """FMAN's sha256 of the parent's F2 COPY copy-1 file at run-relative path rel (read only), or None."""
+    with open(C.FMAN, newline="") as fh:
+        got = {r["sha256"] for r in csv.DictReader(fh) if r.get("fetch") == "F2" and r.get("run_id") ==
+               C.START["run_id"] and r.get("path") == rel and r.get("status") == "COPY" and r.get("copy") == "1"}
+    return got.pop() if len(got) == 1 else None
+
+
+def reference_pair_files(steps):
+    """(zip rel, pkl rel) of the parent's F2 pair at steps: the periodic names, or the final pair at E."""
+    names = (C.FINAL_ZIP, C.FINAL_PKL) if steps == C.E else C.periodic_names(steps)
+    return tuple(f"{C.STAGE_DIR}/models/{n}" for n in names)
+
+
+def reference_read(out=None, *, onpolicy=True, own=True, pairs=None):
+    """The parent's markers over (S, E] and its F2 pairs in [S, E] (REFERENCE_PAIRS, or the given subset), with the
+    reproduction check.  Every pair is checked against FMAN's sha256 before it is read."""

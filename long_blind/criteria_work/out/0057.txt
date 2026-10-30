@@ -1,0 +1,12 @@
+S2/r10round/long_blind/tools/run_bs.py:39:bs_common.APPROVED_KEYS) with criteria_sha256 = sha256(<BS>/criteria.txt), screen_sha256 = sha256(<BS>/SCREEN.json),
+S2/r10round/long_blind/tools/run_bs.py:40:code_tree_digest the pinned one and tool_sha256 = every BS tool's sha256, SCREEN.json valid and naming (arm, seed);
+S2/r10round/long_blind/tools/run_bs.py:596:    missing = [k for k in C.APPROVED_KEYS if k not in approved]
+S2/r10round/long_blind/tools/run_bs.py:607:    pins = approved.get("tool_sha256") if isinstance(approved.get("tool_sha256"), dict) else {}
+S2/r10round/long_blind/tools/run_bs.py:612:            problems.append(f"APPROVED: tool_sha256[{name!r}] {pins.get(name)!r} != the file's {got!r}")
+S2/r10round/long_blind/tools/run_bs.py:840:        "tool_sha256": {n: sha256_file(TOOLS / n) for n in C.TOOL_FILES if (TOOLS / n).is_file()},
+S2/r10round/long_blind/tools/run_bs.py:947:        save_stage_config(stage_dir, stage, config, "PPO", extra={"seed": seed, "n_envs": C.N_ENVS, "timesteps": total},
+S2/r10round/long_blind/tools/bs_common.py:73:# evidence, diagnostics), its reads, tmp and logs, and one resume's extra files: 184.4 MiB [measured by
+S2/r10round/long_blind/tools/bs_common.py:78:SCORER_FILE = "score_bs.py"                     # the scorer (the criteria lane's); APPROVED must pin it (runner)
+S2/r10round/long_blind/tools/bs_common.py:139:    "critic_blind_tail3": ("the value path only: the policy's mlp_extractor gets a forward_critic that replaces the "
+S2/r10round/long_blind/tools/bs_common.py:144:                           "on the mlp_extractor instance, so the state_dict and the saved zip are stock)"),
+S2/r10round/long_blind/tools/bs_common.py:196:APPROVED_KEYS = ("criteria_sha256", "screen_sha256", "code_tree_digest", "tool_sha256")

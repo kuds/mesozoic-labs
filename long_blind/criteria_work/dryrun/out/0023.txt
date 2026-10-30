@@ -1,0 +1,146 @@
+   200	     schema_version 1; run_id a non-empty string; status partial, failed or complete (complete is not required: a run
+   201	     whose gate failed is bundled "failed" (a stance-only run; "partial" when a later stage passes) [measured, V9 (b)]);
+   202	     files a list of path/size_bytes/sha256 entries with unique, normalized
+   203	     relative paths; and its run_id the RUN_ID.
+   204	  C3 every file the reading uses is listed in the manifest at the path named here and fetched with the manifest's
+   205	     size_bytes and sha256 (the hex after the entry's "sha256:" prefix): provenance.json, 01_stance/stage_config.json,
+   206	     01_stance/progress.json, 01_stance/eval_episodes.csv, 01_stance/gate_verdict.json, 01_stance/hop_watch.json when
+   207	     the manifest lists it, and the pairs 01_stance/models/stage1_<steps>_steps.zip with
+   208	     01_stance/models/stage1_vecnormalize_<steps>_steps.pkl of R1, the J checkpoints up to the run's end and every
+   209	     RESOLUTION checkpoint, and 01_stance/models/stage1_final.zip with 01_stance/models/stage1_final_vecnorm.pkl
+   210	     [measured, D9 manifest paths].
+   211	  C4 one session from step 0 in the round's configuration: provenance.json holds exactly one "sessions" entry, with
+   212	     "started_at" within 60 minutes before or after RUNLOG's launch time and no "resumed_at" (a later process appends
+   213	     one, unless the
+   214	     bundle is complete [measured, PORT result_bundle/provenance.py lines 165-170, 278-341]); stage_config.json carries
+   215	     none of load_path, load_mode, parent_checkpoint_sha256, resume_load_path, resume_checkpoint_sha256 at any depth
+   216	     (written into its run block at every same-stage resume, in any process [measured, PORT config.py lines 570-590,
+   217	     960-971]); its run.seed is the RUN_ID's, run.n_envs 4, and run.hyperparameters_sha256, task_fingerprint.task_sha256
+   218	     and the plant identity (the plant_identity block save_stage_config embeds in it [measured, BR config.py lines
+   219	     973-976]; on stance5_LTSB_s70 that block equals provenance.json's plant_identity and both plant_identity.json files
+   220	     [measured, D9 files/copy1 and the 2026-10-25 copy of its stage_config.json,
+   221	     S2/tailround/r10fetch/stance5_LTSB_s70/A/]) are the pinned ones, each compared as the file writes it ("sha256:"
+   222	     prefix included); its stage_config_view_sha256, computed as THIS12 O0 (lines 376-383) defines it (the canonical
+   223	     JSON sha256 of stage_config.json without digest_snapshot.py's UNPINNED_STAGE_CONFIG_KEYS and without plant_identity
+   224	     and task_fingerprint, which the harness does not pass [measured, BR
+   225	     environments/shared/harnesses/digest_snapshot.py lines 145, 387-402]), is the pinned one; provenance.json's
+   226	     repository_commit and stage_config.json's git_commit are the branch HEAD, repository_dirty false; and k3_panel.csv
+   227	     is absent from the manifest if V7 failed on HEAD (the panel ran only while P-K3 (i) was met).
+   228	  C5 the end: 01_stance/progress.json reads "ended" at step E; 01_stance/models/stage1_final.zip's recorded
+   229	     num_timesteps is E; gate_verdict.json's judged_at is at most 2 hours after progress.json's written_at (the end
+   230	     phase takes about 30-32 min [measured, the five LTSB r9 runs: S2/r10round/v12check/text/notes_v12_text.txt, probe
+   231	     P2]); and either E = 12,001,280 (FINISHED) or E < 12,001,280 by the trainer's own stop rule (STOPPED: only the
+   232	     collapse stop and the hop watch end train() early, and an interrupt never reaches the final save [measured, BR
+   233	     early_stopping.py line 261, hop_watch.py lines 122 and 134; notebook cell 15 line 157]).
+   234	  C6 eval_episodes.csv holds every evaluation of the grid up to E (91 for a FINISHED run), each with exactly 10 rows,
+   235	     episode indices 0-9 once, grouped by timesteps on the grid, and no row at any other timesteps; and every row's ANY
+   236	     and TAIL inputs are measured as
+   237	     THIS12 lines 351-364 define them. An input those lines call missing is a failure; a blank or NaN cell those lines
+   238	     read as measured (a blank saturated_actuator or a NaN positive share in an unsaturated row, a blank
+   239	     screen_v2_reasons on a measured screen) is not. (The code writes such cells in normal rows: 80/80 blank
+   240	     saturated_actuator and 77/80 blank screen_v2_reasons in the run branch's own ledger [measured,
+   241	     S2/r10round/runbranch/build/equiv/k3on/scr_B_head_60_k3default/eval_episodes.csv]. Under this reading the eight r9
+   242	     one-session ledgers have 0 missing ANY inputs and pass the row rules [measured,
+   243	     S2/r10round/lean/check_model/c6_on_r9.out]; their TAIL inputs cannot be read, since they predate #640's columns:
+   244	     1,225 rows in 7 of the 8 list the saturation key with no fraction (stance5_LTSB_s70: 1, at 8,126,464) [measured, D9
+   245	     tail_inputs_r9.out]. r10 ledgers carry the columns.)
+   246	  C7 R1, R2, the J checkpoints up to E and every RESOLUTION checkpoint traced (M1), and, for a FINISHED run, R2's
+   247	     certificate measured (M3). A measurement crash is rerun on the same files; it never fails C7.
+   248	- LOST: every run that is not COMPLETE: interrupted (Colab reclaim, disconnect, kernel death, a cut in the end phase
+   249	  before the manifest), stopped at the launch check, not of the round's configuration, re-opened or resumed against RUN
+   250	  HANDLING, or with any file of C3 missing or different after the re-fetch; and every replaced first run (REPLACEMENT).
+   251	  A LOST run has no class, no gate, no outcome, is in neither A nor n_A, and enters the reading only as a PRESENCE
+   252	  RAIL; otherwise it is printed report only (D-16, "A WITH LOST RUNS", a certificate of an intact final).
+   253	- PRESENCE RAIL (L3 (b), RUNLOG line 653; one mechanical rule, monotone: it can only add a rail). A LOST run, a replaced
+   254	  first run included, is a PRESENCE RAIL when, on the files of any one of its fetches (F2 and, when made, its re-fetch;
+   255	  a PRESENCE RAIL on either counts):
+   256	  (p1) it passes C1;
+   257	  (p2) it passes C4's session and configuration facts, read from its provenance.json and 01_stance/stage_config.json,
+   258	       the plant identity from stage_config.json's plant_identity block (C4's manifest clause aside: no manifest is
+   259	       needed; the run folder's root plant_identity.json is written only by the end-of-run bundle [measured, BR
+   260	       reporting/bundles.py line 772; D9: created 14.52 h after provenance.json], so a run cut before it has none);
+   261	  (p3) its 01_stance/eval_episodes.csv shows a TAIL ALARM by M5 (b) on its rows as they stand: two tail-flagged
+   262	       evaluations at consecutive grid steps, an evaluation tail-flagged when at least 5 of its rows are over the bar
+   263	       with a tail actuator named (a row with a missing input flags nothing; no trace, RESOLUTION or end rail is read).
+   264	  Each of the three files is read only when two copies of it from that fetch agree byte for byte (FETCHES; a third copy
+   265	  on a mismatch, read when two of the three agree); a file absent from a fetch, or without two agreeing copies, fails
+   266	  that fetch. complete_r10round.py computes p1-p3 for each fetch, each fact printed with the value read. A PRESENCE RAIL
+   267	  makes line 1 read (ROUND READING), printed with its actuator, sign and alarm step; it gives the run no class, gate or
+   268	  outcome and never enters A or n_A.
+   269	TAIL CLASS (a COMPLETE run, read on its records as measured; the first line that applies)
+   270	1. RAIL: a TAIL ALARM (RESOLVED BY TRACE included) or a TRACE RAIL. Kind: RAIL-LEDGER-PERSISTENT (a TAIL ALARM and a
+   271	   TAIL FLAG at R1 or R2), RAIL-LEDGER-RESOLVED (a TAIL ALARM, none at R1 or R2), RAIL-END-ONLY (a TRACE RAIL, no TAIL
+   272	   ALARM). Reported with actuator(s), sign(s), alarm step and flagged-evaluation count.
+   273	2. UNREAD (L4 (a), RUNLOG line 628 (1)): a STOPPED run without RAIL. It was not observed to 12,001,280, so it supports
+   274	   no "no rail" or "not parked" reading; its class to its stop (PARKED or CLEAR by lines 3-4, with E) is printed, report
+   275	   only.
+   276	3. PARKED (D6 (a), D7 (a)): for some tail pitch actuator a, MEAN_a >= +0.60, or CMD_a(J) >= +0.60 at 2 or more of the J
+   277	   checkpoints. Reported with the window(s) that fired and each margin.
+   278	4. CLEAR: neither.
+   279	DRIVEN (report only): any tail actuator with |MEAN_a| >= 0.60 that PARKED does not count.
+   280	GATE CLASS (D9 (a)): PASS: a FINISHED COMPLETE run whose stage1_final certificate (M3) passes; FAIL: a COMPLETE run
+   281	whose certificate fails or is refused (failing criteria named), and every STOPPED run. Printed "GATE CERTIFICATE (final
+   282	checkpoint, measured on a screen task; not certification)". A LOST run's intact stage1_final at 12,001,280 may be
+   283	certified, report only.
+   284	RUN OUTCOME (a COMPLETE run): POSITIVE = CLEAR and GATE PASS. NEGATIVE = RAIL, UNREAD, PARKED or GATE FAIL, every reason
+   285	named (D8 (a): a parked tail or a late-resolved rail is not success). Fails stay fails: a STOPPED run is NEGATIVE.
+   286	None of TEL's columns, the in-run panel, the K-criteria or the same-seed comparisons enters a class or an outcome.
+   287	
+   288	STATISTICAL ANALYSIS (ONE, pre-registered; everything else is report only)
+   289	- Statistic A (D10: any-actuator alarm runs, as LTSB's r9 2 of 5 was counted): A = the COMPLETE runs of the round with
+   290	  an ANY ALARM; n_A = the COMPLETE FINISHED runs plus the STOPPED runs with an ANY ALARM (a STOPPED run without one is
+   291	  censored, as decided at RUNLOG line 628 (1)). LOST runs (PRESENCE RAILS included) never count. Printed "A of n_A
+   292	  against LTSB r9's 2 of 5" with each alarm's actuator(s), tail scope and reasons ("> 0.1" or "unmeasured"). Runs are
+   293	  exchangeable; one-sided Fisher exact test (r10 lower), printed with its p; nothing is "significant": 0 of 3 gives
+   294	  0.36, 0 of 2 0.48, 0 of 1 0.67, and a "0 of n" result needs n >= 16 to reach 0.05 [inferred, REFERENCE TABLE E]. With
+   295	  n_A = 0: no test, "no run counted". Every printed figure is computed from the observed A of n_A (TABLE E).
+   296	- Printed beside A, never tested: the family's 4 of 10; the same-seed LTSB record (2 of 3); "A WITH LOST RUNS": A plus
+   297	  the LOST runs whose D-16 records show an ANY ALARM, of n_A plus those runs (report only; it shows what dropping LOST
+   298	  runs did to A); RAIL by kind; PRESENCE RAILS; END-ONLY rails (drive-backed or not); SINGLE TAIL FLAGS; PARKED;
+   299	  DRIVEN; every UNREAD run's class to its stop; and every LOST run with what its files show (D-16).
+   300	
+   301	THE r9 REFERENCE (historical; as THIS12 lines 513-527)
+   302	- Comparator: LTSB's 5 r9 runs (Colab L4, 12M, same notebook path and evaluation cadence): ANY ALARM 2 of 5 (stance5
+   303	  s42 at 3,670,016; stance5r s80 at 4,456,448; both tail_3 at +1); s52, s60, s70 no flagged evaluation. Family context:
+   304	  4 of 10, every first alarm by 4,456,448 [measured, EVID TABLES A and D]. What differs besides the plant is in EVID;
+   305	  the comparison tests "r10 as shipped".
+   306	
+   307	ROUND READING (read once WHEN THE READING IS MADE allows; the first line that applies is the reading; every line that
+   308	applies is printed). Each seed's run of the round is fixed by RUN HANDLING (LEAN-R). R = COMPLETE runs with TAIL CLASS
+   309	RAIL plus PRESENCE RAILS; U = seeds whose run of the round is not COMPLETE (LOST, or never launched) or is UNREAD
+   310	(STOPPED without RAIL); P = COMPLETE runs PARKED; G+ = POSITIVE runs. Every line prints A of n_A with its figures (TABLE
+   311	E) and D-16 for every LOST run, a replaced first run included.
+   312	1. R >= 1: TAIL RAIL FORMED ON r10 IN TRAINING, with its basis: "(ledger)" when a COMPLETE run's rail rests on a TAIL
+   313	   ALARM; else "(ledger, a LOST run)" when a PRESENCE RAIL; else "(end-only, drive-backed)"; else "(end-only, not
+   314	   drive-backed: weak evidence; false-rail chance if r10 cured the habit 0.003-0.11 per round, up to 0.31 [inferred,
+   315	   EVID])". An existence result for r10 as shipped (weak for the last); not a rate. To the maintainer with the
+   316	   DIAGNOSTIC READOUTS; nothing is proposed by this text.
+   317	2. R = 0 and U >= 1: INCOMPLETE. "No tail rail in the <3 - U> run(s) read to 12M; U seed(s) LOST or STOPPED without a
+   318	   rail: not a no-rail reading." Printed with every COMPLETE run's class, gate and outcome (an UNREAD run with E and
+   319	   its class to E). No parent, confirmation or certification route follows.
+   320	3. R = 0, U = 0, P >= 1: NO RAIL, TAIL DRIVE PERSISTS (PARKED in P of 3). To the posture decision (RUNLOG line 509
+   321	   (3)); the best gate-passing final by stance3's parent rule (most clean panel episodes at final; ties to fewer
+   322	   joint-space plus own-sigma noise falls; ties named) is NAMED with its posture (no automatic offer, D8 (a)).
+   323	4. R = 0, U = 0, P = 0, G+ >= 2 (D11 (a)): NO RAIL IN 3 OF 3, NO PARKED TAIL, GATE CERTIFICATE PASSED IN G+ OF 3.
+   324	   Consistent with r10 removing the habit, not confirmatory. Printed: A of n_A with its Fisher p, P(r10 rate < r9
+   325	   rate), P(r10 rate < half r9's) and the one-sided 95% upper bound (TABLE E; at 0 of 3: 0.36, 0.83, 0.59, 0.63; if
+   326	   nothing had changed, 0 of 3 has probability 0.24). Line 4 needs R = 0 only, so A can be 1 through a non-tail or
+   327	   unresolved any-actuator alarm (1 of 3: 0.71, 0.55, 0.22, 0.86), and that alarm's actuator is named [inferred, V4PKG
+   328	   out/power_v4.json]. To the maintainer: the confirmation or certification step and the best POSITIVE final by
+   329	   stance3's parent rule (as line 3) as the candidate stance parent for a new walking pilot.
+   330	5. R = 0, U = 0, P = 0, G+ <= 1: NO RAIL, GATE CERTIFICATE NOT PASSED; each GATE FAIL's failing criteria and K1 failure
+   331	   modes named; the maintainer chooses the next round.
+   332	Fails stay fails. Nothing in this round is stopped, changed, extended or rerun because of a readout; the readings change
+   333	no gate, criterion, configuration, verdict or parent on main.
+   334	
+   335	PRE-REGISTERED DIAGNOSTIC READOUTS (report only, never in a class or a reading)
+   336	- D-1 Rail timeline (M5 on each COMPLETE run's ledger): per evaluation, episodes over the bar by named actuator and
+   337	  sign, TAIL-UNRESOLVED counts, TEL's rail_actuators beside; first tail-saturated episode, first tail-flagged
+   338	  evaluation, alarm steps, flagged spells; shares in [0, 4,194,304), [4,194,304, 8,388,608), [8,388,608, 12,001,280];
+   339	  the same for every other actuator; the ANY ALARM count.
+   340	- D-2 to D-15 exactly as THIS12 lines 577-630 (training-row drive, deterministic tail commands at every 1,048,576
+   341	  checkpoint and the onset pairs, posture at J, head posture and hip roll, saturation by actuator, K1-K4, the
+   342	  certificate at 6,291,456 and the notebook's own verdict, value of the habit, own-noise behaviour, the training-history
+   343	  report, the same-seed comparison, TEL's columns, the in-run K3 panel, TEL's pages 17-18), for COMPLETE runs, on the
+   344	  readout files F2 fetches (FETCHES); a readout file missing or differing from the manifest leaves that readout absent,
+   345	  nothing else.

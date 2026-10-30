@@ -1,0 +1,29 @@
+  (it prints the same problems and creates nothing; the runner's REFUSED note names this command), or, if the refusal
+  left a folder, from its run_meta.json error and traceback; never from the attempt log.
+- The runner is restarted only by the coordinator (after a container restart or a fixed halt); it re-reads its
+  ledgers (logs/decided.tsv, crash_ledger.tsv, lost.json).
+
+OUTCOME-BLINDNESS -- as BS (an allow-list)
+- Until every queue entry is decided (COUNTED, STOPPED or LOST) and none is VOID, nobody (no person and no agent; the
+  pinned tools' own work, run_bs.py and CHECK, excepted) opens any file of a continuation (runs/<name> and every
+  runs/<name>_crashed<k> / _void<k> / _refused<k>; its TMPDIR <BS2>/tmp/<name>/, which holds its live
+  eval_stage1_*/evaluations.npz (the evaluation returns); the reader's <BS2>/tmp/read_<name>/; reads/<name>;
+  logs/<name>.attempt<k>.log) except: run_meta.json's fields status, exit, stop_reason, heartbeat, last_step, error and
+  traceback (the last two only to find a crash's or a refusal's cause; a preflight refusal that left no folder is
+  diagnosed by re-running --preflight-only, RUN HANDLING, never from its attempt log); check.json's pass / fail with
+  its failures list and its identity and source fields, and logs/<name>.check.log. Everything else is
+  outcome-bearing or may be (01_stance/progress.json, evaluations.npz, train_episodes.csv, eval_episodes.csv,
+  diagnostics.npz, gate_progress.npz, policy_probe.npz, the checkpoints, arm_evidence.jsonl, run_meta's other fields,
+  the attempt logs, tmp/<name>/) and is not opened. The runner's own records (logs/run_waves_bs.log, decided.tsv,
+  crash_ledger.tsv, PAUSED_disk, HALTED, proctable.log, run_waves_bs.exit, atimes_at_ALL_DECIDED.tsv) and
+  <BS2>/lost.json may be read. read_bs.py refuses a continuation's markers until all are decided; score_bs.py, while
+  any entry is undecided or unread, prints only which are decided and opens no markers and no run_meta.
+- P4 (relatime; BS's process lesson, RUNLOG 09:13 UTC): right after the runner decides a continuation COUNTED or
+  STOPPED it re-arms every regular file under runs/<name>/ and tmp/<name>/ and its logs/<name>.attempt<k>.log (atime =
+  mtime - 1 ns; content, mtime and sha256 unchanged), so any later read of one moves its atime; at ALL_DECIDED, before
+  it writes logs/ALL_DECIDED and before the full reads, it writes logs/atimes_at_ALL_DECIDED.tsv (path, atime, mtime,
+  ctime and rearmed_unread for runs/**, logs/** and tmp/**; lstat only, which moves no atime). The process
+  verification compares them: every such file of a COUNTED or STOPPED continuation must still read rearmed_unread 1
+  there, except run_meta.json and check.json (whose allowed fields may have been read); any other 0 is a read after
+  the decision and is reported. Reads before a decision (while the run runs, and CHECK's own) are not covered.
+- The parent's own data (F2) are not an outcome of this screen and were used for this design (B_S, the parent's

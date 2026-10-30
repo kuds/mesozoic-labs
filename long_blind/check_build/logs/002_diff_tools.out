@@ -1,0 +1,43 @@
+diff rc=1
+87
+SAME_AS_BUILDER_DIFF
+diff -ruN -x score_bs.py -x test_score_bs.py -x __pycache__ bias_screen2/tools/bs_common.py long_blind/tools/bs_common.py
+diff -ruN -x score_bs.py -x test_score_bs.py -x __pycache__ bias_screen2/tools/bs_resume.py long_blind/tools/bs_resume.py
+diff -ruN -x score_bs.py -x test_score_bs.py -x __pycache__ bias_screen2/tools/check_inputs.py long_blind/tools/check_inputs.py
+diff -ruN -x score_bs.py -x test_score_bs.py -x __pycache__ bias_screen2/tools/read_bs.py long_blind/tools/read_bs.py
+diff -ruN -x score_bs.py -x test_score_bs.py -x __pycache__ bias_screen2/tools/run_bs.py long_blind/tools/run_bs.py
+diff -ruN -x score_bs.py -x test_score_bs.py -x __pycache__ bias_screen2/tools/run_waves_bs.sh long_blind/tools/run_waves_bs.sh
+diff -ruN -x score_bs.py -x test_score_bs.py -x __pycache__ bias_screen2/tools/tests/test_read_bs.py long_blind/tools/tests/test_read_bs.py
+diff -ruN -x score_bs.py -x test_score_bs.py -x __pycache__ bias_screen2/tools/tests/test_resume.py long_blind/tools/tests/test_resume.py
+diff -ruN -x score_bs.py -x test_score_bs.py -x __pycache__ bias_screen2/tools/tests/test_run_bs.py long_blind/tools/tests/test_run_bs.py
+diff -ruN -x score_bs.py -x test_score_bs.py -x __pycache__ bias_screen2/tools/tests/test_waves_bs.py long_blind/tools/tests/test_waves_bs.py
+bias_screen2/tools/tests:
+total 144
+drwxr-xr-x 2 root root  4096 Oct 30 12:17 .
+drwxr-xr-x 3 root root  4096 Oct 30 11:27 ..
+-rw-r--r-- 1 root root 16171 Oct 30 04:15 test_bs_hooks.py
+-rw-r--r-- 1 root root 16573 Oct 30 10:40 test_read_bs.py
+-rw-r--r-- 1 root root 14402 Oct 30 10:39 test_run_bs.py
+-rw-r--r-- 1 root root 63980 Oct 30 12:10 test_score_bs.py
+-rw-r--r-- 1 root root 17368 Oct 30 12:17 test_waves_bs.py
+
+long_blind/tools/tests:
+total 112
+drwxr-xr-x 2 root root  4096 Oct 30 17:02 .
+drwxr-xr-x 3 root root  4096 Oct 30 16:57 ..
+-rw-r--r-- 1 root root 16171 Oct 30 04:15 test_bs_hooks.py
+-rw-r--r-- 1 root root 22287 Oct 30 17:06 test_read_bs.py
+-rw-r--r-- 1 root root 16462 Oct 30 17:20 test_resume.py
+-rw-r--r-- 1 root root 19685 Oct 30 17:24 test_run_bs.py
+-rw-r--r-- 1 root root 23615 Oct 30 17:03 test_waves_bs.py
+identical bs_hooks.py
+identical verify_copy.py
+identical tests/test_bs_hooks.py
+34755b030bde78f673358b4f8f96f495932709582efd9425b13f4a7c1fe49b0e  long_blind/tools/bs_common.py
+1ff4c8be048297270eea14a24fe59336020e20fbd4aca7c38f5b881b33eef9fc  long_blind/tools/bs_hooks.py
+5da2f62c438cc1d1b7ba80b6a9c8dd9987cbd6d252abd0f1495ccd0dd4133920  long_blind/tools/bs_resume.py
+bf20e04e7a04bf816e2933bc6c9dffa93b78c5a5c952630af91722f9cdb48042  long_blind/tools/check_inputs.py
+7a9c8a99fee09f8d005c5ec09857ec853166320156901f85b54b094d72b9450b  long_blind/tools/read_bs.py
+a2e720fe30080250f4aa79118546d4bdc7d3f5fcc6074ec4509812235d1f3d15  long_blind/tools/run_bs.py
+3fb7933d528a77162749c5e3755493ea4db8fad933bbc247187d5f4ce6866189  long_blind/tools/verify_copy.py
+53f80e7a4b708f3b16fb11f78b93eeb3a430be066123e00b8be98e94919fc661  long_blind/tools/run_waves_bs.sh

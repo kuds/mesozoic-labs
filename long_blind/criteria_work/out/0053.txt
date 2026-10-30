@@ -1,0 +1,83 @@
+"""Long blind study (LB): pins and constants.  No logic beyond lookups and checks.
+
+Importable without torch, numpy or the code copy.  LB continues r10 stance6 s42 from its 2,097,152 checkpoint to the
+parent's own end, 12,001,280.  This file is BS2's bs_common.py (S2/r10round/bias_screen2/tools/bs_common.py, sha256
+6c4c36ea...) with the root, the window (E, LENGTH, the saved pairs, the evaluation count), the validation seeds, the
+continuation cap and the disk estimate changed, and the resume, stop-reason and read-schedule constants added; the
+arms, the start pair, the code copy (BS's, reused read only) and the queue rules are BS2's.
+Every value cites its source:
+  ECS    = ecs_common.py (the pins it shares with this screen: the code copy, M1/M5, the stack, the s42 records);
+  FMAN   = S1/foot/stance6/fetch/manifest.csv (F2 COPY rows, copy 1) [measured 2026-10-30 03:53 UTC by BS's
+           check_inputs.py; re-measured for BS2 and for LB by check_inputs.py: FMAN lines 241 / 243 for the 2,097,152
+           pair];
+  TASK   = BS's build task of 2026-10-30 (4 at a time at nice 10; disk floor 1.5 GB; arms control /
+           critic_blind_tail3 / gae_lambda_1 / frozen_obs_norm, none chosen here);
+  TASK2  = BS2's build task of 2026-10-30 (S = 2,097,152; the start pair; the code copy reused read only);
+  TASK3  = LB's build task of 2026-10-30 (E = the parent's own end; LENGTH = E - S; validation seeds 9301-9341; the
+           resume of a crashed continuation from its latest complete saved pair; RR-1; process I1);
+  AUTH2  = the maintainer's choice of 2026-10-30 16:23 UTC (RUNLOG line 799, "Long blind run to 12M (Recommended)"):
+           continue s42 from 2,097,152 to the full 12M, 4 runs (mostly critic_blind_tail3 plus a normal control);
+  PARENT = the parent's F2 records [measured by validate/parent_schedule.py, validate/logs/parent_schedule.out].
+The intervention and the queue are NOT here: they are <LB>/SCREEN.json, written when the criteria are reviewed, and
+pinned by sha256 in <LB>/APPROVED (screen_sha256) with the criteria and these tools.  (In this file and the other LB
+tools "<BS>" means the study's own root, LB.)
+"""
+from __future__ import annotations
+
+import hashlib
+import importlib.metadata
+import json
+import os
+import platform
+import re
+
+# ------------------------------------------------------------------------------------------------------------- paths
+S1 = "S1"
+S2 = "S2"
+....
+HYPERPARAMETERS_SHA256_RUN = "sha256:054ab48303167eda1bd66c8894a64ef516bedd041a9e12f57dbd20e75c026b9c"  # ECS (copy1)
+# What each arm changes, recorded verbatim in run_meta ("arm_change").
+ARM_CHANGE = {
+    "control": "nothing: the run's own same-stage resume, every setting as recorded",
+    "critic_blind_tail3": ("the value path only: the policy's mlp_extractor gets a forward_critic that replaces the "
+                           "NORMALISED observation index 6 (tail_3 pitch angle) by 0.0 before the value MLP; "
+                           "ActorCriticPolicy.forward, evaluate_actions and predict_values (and MirrorKLPPO's "
+                           "mirrored-critic loss, which calls predict_values) all reach the value MLP through it; the "
+                           "actor's inputs, every parameter, its shape and the optimizer are unchanged (a class swap "
+                           "on the mlp_extractor instance, so the state_dict and the saved zip are stock)"),
+    "gae_lambda_1": ("[ppo] gae_lambda 0.95 -> 1.0 in memory before the load (SB3's load applies it and builds the "
+                     "rollout buffer with it): advantages are the bootstrapped Monte Carlo returns minus V; the "
+                     "value target becomes the same Monte Carlo return; hyperparameters_sha256 changes"),
+    "frozen_obs_norm": ("the training VecNormalize's observation statistics are frozen at the start pair's: its "
+                        "obs_rms.update becomes a counted no-op (a class swap on the SymmetricRunningMeanStd "
+                        "instance, pickling as the stock RunningMeanStd); VecNormalize.training stays True, so the "
+                        "return statistics (ret_rms) keep updating and rewards are normalised exactly as the run "
+                        "does; the evaluation env receives the frozen statistics by the run's own sync"),
+}
+
+# ------------------------------------------------------------------------------------------------------------- start
+PARENT_RECORDS = ("eval_episodes.csv", "evaluations.npz", "gate_progress.npz", "train_episodes.csv",
+                  "policy_probe.npz")             # copied under their real names (ECS)
+START = {                                       # FMAN F2 COPY rows, copy 1, sha256 in full [measured, check_inputs.py]
+    "run_id": "stance6_r10LTSB_s42", "own_seed": 42, "S": S,
+    "zip_rel": "01_stance/models/stage1_2097152_steps.zip",                              # FMAN line 241
+    "zip_sha256": "83b6c88edb933005adcb2089bdac67654f4e77809ca5506f4e47364995ef1b61",
+    "pkl_rel": "01_stance/models/stage1_vecnormalize_2097152_steps.pkl",                 # FMAN line 243
+    "pkl_sha256": "991d434f385187e87301755ddf9a12fe2b3adb65cf186e7e32b175b3574bed90",
+    "records": {                                # the same F2 files BS pinned (FMAN lines 71, 103, 106, 82, 80, 68)
+        "eval_episodes.csv": "d1bcb78964691cf194e6276f06740d1f24aa69ad36831a046ad6307c1c4db11e",
+        "evaluations.npz": "3e11136120622b90cc63203c46332004a9989188a0b8fe91620dbabb9f2563e9",
+        "gate_progress.npz": "4097099b6880fa234a38e1b43819a21a8531f39ca0aa1daefaaeeb35a06c5a0e",
+        "train_episodes.csv": "14b2f9e49b67e9c90cc79362f740e1768de5a2d159035176d5299b9c476d851d",
+        "policy_probe.npz": "4e0e7220668faf124d394bffb760ba246d54bed8f48cb79925cb36234257fc11",
+        "stage_config.json": "5d54e6deac8ddda5c37914da97d4d59b6838a8daef52cb7bec237c49d63d24ec",
+    },
+    "probe_row_at_S": 255,                      # update_timesteps == 2,097,152 in the parent's probe [measured]
+}
+
+# ------------------------------------------------------------------------------------------------------------- seeds
+# Validation runs (V1, V2, V4, timing) use only these seeds and write only under <BS>/validate/; SCREEN.json may not use
+# them, so a validation folder and a continuation can never share a name.  LB's own (TASK3; BS used 9101-9141, BS2
+# 9201-9241).  (read_bs.ONPOLICY_SEEDS 9301 / 9302 are the reader's on-policy collection seeds, another use.)
+VALIDATION_SEEDS = (9301, 9311, 9321, 9331, 9341)
+WAVE_SLOTS = 4                                  # TASK item 3

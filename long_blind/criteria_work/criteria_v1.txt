@@ -1,0 +1,622 @@
+T. REX r10 LONG BLIND STUDY (LB): THE CRITIC BLIND TO THE TAIL_3 ANGLE TO THE PARENT'S OWN END (12,001,280), FROM
+STANCE6 s42's 2,097,152 STATE, CPU, SCRATCH.  CRITERIA v1 -- DRAFT FOR INDEPENDENT REVIEW.  NOT APPROVED.  NOTHING
+TRAINS UNTIL <LB>/APPROVED EXISTS.
+
+STATUS: v1 draft, written 2026-10-30 17:36-18:25 UTC (date -u) by the designer of workflow wf_c801f08c-291 (RUNLOG line
+801), under the maintainer's choice of 2026-10-30 16:23 UTC ("Long blind run to 12M (Recommended)": continue s42 from
+2,097,152 to the full 12M, 4 runs, mostly critic_blind_tail3 plus a normal control, about 10 h on this machine, after a
+reviewed pre-registration; RUNLOG line 798). Nothing was trained to write it; no optimizer step was made; no
+continuation exists. Next: the scorer adapter installs it as <LB>/criteria.txt with WORK/SCREEN_v1.json as
+<LB>/SCREEN.json; an independent review (design/measurement and harness/process lenses); a fixer (keeps the
+originals); a RE-REVIEW of the fixed version; the maintainer's confirmation of the final choices; the coordinator's pin
+(HOW THE COORDINATOR PINS). It is not edited after the first optimizer step. Labels: [measured] = read or computed from
+the named file; [inferred] = reasoned, basis named; [computed] = computed by the named script. Every number's source
+and the design's reasoning: WORK/DESIGN_NOTES.txt; every command with its time: WORK/CMD_LOG.txt.
+
+SHORT NAMES
+  S2 = the session scratchpad that holds this study (this file's folder is S2/r10round/long_blind/criteria_work);
+  S1 = the sibling session scratchpad: S2's grandparent folder + /0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad.
+  (Written so to keep the command-line tool's temp-folder name out of this text; LB/tools/bs_common.py and the BS2
+  criteria give the same two paths in full.)
+  <LB> = S2/r10round/long_blind (every file the study writes is under it)     RUNLOG = S1/foot/stance4/live/run_log.txt
+  <BS> = S2/r10round/bias_screen (finished, read only; <BS>/code is the sealed code copy at 8737cd3d, tree digest
+         331fe8fc3f6bdf73acc0d3cc324dd753d9d9d695d7ce914e4e011d5c6437ebf1, 1,406 files, reused read only)
+  <BS2> = S2/r10round/bias_screen2 (finished and verified, read only; its criteria.txt is the form followed here)
+  F2 = S1/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies (the parent's records, read only)
+  FMAN = S1/foot/stance6/fetch/manifest.csv     PANELS = S1/foot/stance6/panels (the round's own M1/M3 outputs)
+  ROUND = S2/r10round/final_lean/criteria_r10round_final.txt, the r10 round's approved criteria (sha256
+          99a44469a387d01c55b98d76595d3633029681866ed14afcb185521eca0164db = S2/r10round/durable/repo/round/APPROVED
+          criteria_sha256); "ROUND line N" is a line of that file
+  MEAS = <LB>/measure (the measurement builder's measure_lb.py, which applies the round's pinned M1/M3/M5 tools and
+         class function to a continuation; its NOTES.txt and validation)
+  WORK = <LB>/criteria_work (this text's computations: parent_long.py/.out, seeds_check.py/.out,
+         design_numbers.py/.out, CMD_LOG.txt, DESIGN_NOTES.txt)
+  AUTH = the maintainer's choice of 2026-10-30 16:23 UTC (RUNLOG line 798): s42 from 2,097,152 to the full 12M, 4
+  runs, mostly critic_blind_tail3 plus a normal control; scratch CPU, report only; pin and launch after the
+  maintainer confirms the final choices (RUNLOG line 801).
+  Steps = training steps. S = 2,097,152. E = 12,001,280 (the parent's own end). T = a continuation's end step (E, or
+  its stop step if STOPPED). "blind" = the arm critic_blind_tail3. "rise" = a value minus B_S.
+
+THE QUESTIONS
+- What is known [measured]:
+  - BS2 (<BS2>/score/score.txt; RUNLOG lines 794, 796): from S to 3,538,944, line 2 REDUCED (exact one-sided
+    permutation p 1/70). Every control climbed (on-policy tail_3 command rise +0.293 to +0.666; 2 of 4 had over-bar
+    episodes, first at 3,407,872); no blinded run climbed (rise -0.061 to +0.016; no over-bar episode, no flag). At
+    3,538,944 the blinded runs' ledger tail command CMD_L was +0.068 to +0.181 (controls +0.475 to +0.955) and their
+    margin to the rail b* +0.983 to +1.301 (controls -0.060 to +0.404).
+  - The parent over this study's window (WORK parent_long.out, from the F2 probe and ledger, each sha256-equal to its
+    FMAN row): the on-policy tail_3 command (8-row mean of rollout_mu_mean[:, 14]) went from B_S = +0.127 to +0.705
+    at 3,538,944, a maximum of +0.971 at 4,669,440, down to -0.463 at 6,922,240 (a swing to the opposite side between
+    spells), and +0.812 over the last 8 updates before E (lines 7-10, 16-30). CMD_L was >= 0.60 at 57 of the 75 window
+    evaluations and +0.908 at the last (11,927,552) (lines 64-67). First over-bar episode 3,670,016; 22 TAIL ALARMs,
+    the first at 3,932,160, in four tail-flagged spells (3,801,088-5,111,808, 11 evaluations; 5,373,952-5,505,024, 2;
+    7,995,392-8,388,608, 4; 9,568,256-10,616,832, 9); all 249 over-bar episodes on tail_3_pitch_act, sign + (lines
+    58-63, equal to the pinned M5's reading, lines 99-107). No other actuator had an over-bar episode, and none had a
+    window evaluation with a ledger command mean of 0.60 or more in size (largest: head_pitch_act -0.577 at
+    9,306,112; neck_pitch_act -0.488 at 11,927,552) (lines 79-94).
+  - The round's reading of the parent (RUNLOG line 711; reproduced by MEAS with the pinned tools, 25 of 25 class keys,
+    MEAS NOTES.txt VALIDATION RESULT): s42 RAIL (RAIL-LEDGER-PERSISTENT, tail_3_pitch_act +), first TAIL ALARM
+    3,932,160, 22 TAIL ALARMs, 26 tail-flagged evaluations, GATE FAIL (hop_or_fall 2 > 1 at all six headings: 2 of 40
+    certificate episodes over max_actuator_saturation_fraction, 0.539 and 0.515 > 0.1, PANELS/stance6_r10LTSB_s42/
+    final/m3/stance_heading_report.txt), NEGATIVE. The other two runs: s60 PARKED (tail_3 MEAN_a +0.642), GATE PASS,
+    NEGATIVE; s80 CLEAR, 6 ANY ALARMs on neck_pitch_act (5,505,024-7,077,888), GATE PASS, POSITIVE.
+  - From s42's later state, 12 of 12 continuations had an ANY-flagged evaluation within 1,572,864 steps of 3,145,728
+    (the ECS, RUNLOG line 740), every over-bar episode of those windows on tail_3_pitch_act, the first flags at
+    3,538,944-4,063,232 (the tail note S2/com_revisit/wt_records2/docs/investigations/
+    TREX_TAIL_SATURATION_HABIT_2026_10.md, ledger rows L123 and L125; that copy is being edited by the records PR
+    workflow: read at 17:39 UTC, sha256 fc94a9ef..., and again at 18:14 UTC, 8d52a76c..., the two rows unchanged).
+- THE QUESTIONS, each about continuations of s42 from its 2,097,152 state to E:
+  Q1 Does a continuation whose critic never sees the tail_3 angle stay off the tail rail to the end?
+  Q2 Does it still pass the stance gate at its final checkpoint?
+  Q3 Does a habit appear on another actuator instead?
+  Q4 Does the normal continuation (the control) rail as the parent did, on this CPU harness? (the positive control)
+- Each question is answered by a pre-registered DESCRIPTIVE line (THE READING). With 3 + 1 continuations no
+  significance test can decide anything: the smallest attainable one-sided p of any within-study comparison is 1/4
+  (Fisher exact, 0 of 3 against 1 of 1; any rank or permutation test likewise; 2 + 2 gives 1/6) [computed, WORK
+  design_numbers.out lines 2-7]. The counts describe what happened in these continuations; they estimate no rate.
+- PREDICTED OUTCOME, stated before anything runs [inferred]: Q4 YES is likely (the parent railed; BS2's 4 controls all
+  climbed in the first 1.44M; 12 of 12 continuations from 3,145,728 flagged). Q1: no rail in the blind arm is the
+  likelier result (BS2's blinded command stayed flat, +0.065 to +0.143, for 1.44M), but a PARK by 12M is a real
+  possibility: both of the round's runs without a tail rail drifted toward the 0.60 line by their end (s60 PARKED,
+  MEAN_a +0.642; s80 tail_3 command +0.588 at its final [measured, MEAS validate/reread_round s80 report.txt line 25])
+  and a drift that does not come through the critic's view of the angle would reach the blind arm too. Q2: a gate
+  pass is likely for a blind run without a rail (s60 and s80 passed; the parent failed only through 2 saturated
+  episodes). Q3: unknown; s80 formed a neck habit with no tail habit, and if the critic valued the angle as a proxy
+  for the episode's phase (the phase probe's reading, not yet verified at writing: S2/com_revisit/notes/phase_probe/
+  NOTES.txt lines 5-12) a blinded critic may find another proxy. Overall: lines 4 or 5 more likely than line 1; line
+  3 unlikely.
+
+WHAT IS TRAINED
+- Start: BS2's start, the r10 stance6 s42 checkpoint pair at S (F2 .copy1 files at FMAN sha256): zip
+  83b6c88edb933005adcb2089bdac67654f4e77809ca5506f4e47364995ef1b61, pkl
+  991d434f385187e87301755ddf9a12fe2b3adb65cf186e7e32b175b3574bed90; with the parent's five records (eval_episodes.csv,
+  evaluations.npz, gate_progress.npz, train_episodes.csv, policy_probe.npz) and stage_config.json, byte-copied and
+  checked against FMAN before use [measured: <LB>/logs/check_inputs.out; <LB>/tools/bs_common.py START].
+- Window: (S, E], E = 12,001,280, the parent's own end (a 12,000,000-step run collects whole 8,192-step rollouts to
+  1,465 x 8,192; the parent's final zip and its last probe row are at 12,001,280). LENGTH 9,904,128 = 1,209 rollouts;
+  1,208 updates, probe rows at S + 8,192 k, k = 1 ... 1,208 (2,105,344 ... 11,993,088; StopAtEnd makes no update on
+  the rollout ending at E, so a continuation has no probe row at E); 75 evaluations of 10 deterministic episodes at
+  2,228,224 ... 11,927,552 (E is 73,728 steps after the last; there is no evaluation at E); 37 periodic checkpoint
+  pairs at 2,359,296 ... 11,796,480 (every 262,144, all kept) and the final pair (stage1_final) at E, which is the
+  policy at the end of the rollout ending at E, one update before the parent's own stage1_final [measured:
+  <LB>/tools/bs_common.py lines 95-102; <LB>/logs/notes_design.txt THE WINDOW and THE END CONVENTION].
+- ARMS, as BS2 (bs_common.ARM_CHANGE, recorded verbatim in each run_meta.json):
+    control: nothing; the run's own same-stage resume, every setting as recorded.
+    critic_blind_tail3: the value path only. The policy's mlp_extractor gets a forward_critic that sets the NORMALISED
+      observation index 6 (qpos tail_3 pitch angle) to 0.0 before the value MLP (bs_hooks.critic_blind_class); every
+      value path of SB3 2.9.0 goes through it (forward, evaluate_actions, predict_values; MirrorKLPPO's mirrored-critic
+      loss and collect_rollouts' bootstraps call predict_values). The actor reads the unchanged features; no
+      parameter, shape, optimizer state or saved-file format changes; the mirror map keeps index 6 in place.
+- HELD EQUAL in both arms: everything BS2's criteria list as held equal (physics r10, reward, task, gate, policy
+  interface; MirrorKLPPO; net_arch [512, 256]; n_steps 2048 x 4 envs, batch 128, 10 epochs, gamma 0.98, gae_lambda
+  0.95, clip 0.2, target_kl 0.03; VecNormalize updating; the evaluation and checkpoint cadence; the code copy; the
+  stack Python 3.13.17, torch 2.13.0+cpu, numpy 2.5.4, gymnasium 1.4.0, SB3 2.9.0, MuJoCo 3.10.0; CPU, 1 thread,
+  DummyVecEnv, nice 10), and over this longer window: the learning rate 3e-5 -> 1e-5 on the cumulative step over
+  12,000,000 (2.6505e-05 at S, 1.0012e-05 at the last update row) and ent_coef 0.005 -> 0 by 7,000,000 (0.0035 at S;
+  0 from 7,004,160 on: 611 of the parent's window rows, 610 of a continuation's) [measured, WORK parent_long.out lines
+  47-51]; the harness sets both
+  from the absolute step and CHECK compares both with the parent's F2 probe at every update row [measured,
+  <LB>/logs/notes_design.txt THE PARENT'S SCHEDULE]. The stage's own early stops stay on: the collapse stop
+  (patience 10; earliest possible stop 3,801,088) and the hop watch (an evaluation at or after 7,077,888 whose
+  unsupported duty exceeds 0.05 ends training) [measured: notes_design.txt EARLY ENDS]. StopAtEnd at E.
+- Named departures from the parent run, the same in both arms: as BS2 (CPU, not the L4's CUDA; a fresh env reset at
+  S; the parent's update on the rollout ending at S is not made; new random streams, so the control is a fresh draw,
+  not a replay; a freshly seeded evaluation env; the in-run K3 panel off) and, for a continuation that crashed, the
+  resume (RUN HANDLING: the work after its resume point discarded, fresh draws from there).
+- THE QUEUE (<LB>/SCREEN.json, pinned; draft WORK/SCREEN_v1.json): 1 control + 3 critic_blind_tail3 = 4
+  continuations (AUTH: 4 runs; bs_common.MAX_CONTINUATIONS 4), in this launch order:
+    control 2701, critic_blind_tail3 2701, critic_blind_tail3 2711, critic_blind_tail3 2721.
+  All four start together (4 slots). The control and blind 2701 share their seeds (the same first rollout; they
+  differ from the first update on). Each seed goes to the model and training env 0 (seed), envs 1-3 (seed + 1 ... + 3)
+  and the evaluation env (seed + 1000): 2701-2704 + 3701, 2711-2714 + 3711, 2721-2724 + 3721. None of these 15
+  numbers is used by BS, BS2, the ECS, any validation (BS 9101-9144, BS2 9201-9244, LB 9301-9344 and their
+  evaluation seeds), the reader (5001-5010, 9301-9305), M1/M2/M3 and the panels (3042-3081), the probes (6001-6002,
+  7001-7216, 7501-7502, 7700-7703, 9101-9133, 12345) or the training runs (42, 52, 60, 70, 80), and a text search of
+  S1 and S2 (125,374 files; then whole-token matches in text files outside the virtual environments) finds none of
+  them in a seed role: 3,190 whole-token hits, of which only 4 lines name a seed or a run, all four other numbers (a
+  probability's numerator, a JSON index) [measured, WORK seeds_check.out, seeds_grep.out, seeds_triage.out].
+  Why 3 + 1 and not 2 + 2 (WORK DESIGN_NOTES.txt D2): Q1-Q3 are about the blind arm, and what may happen there late
+  (a recovered angle, a park, a habit elsewhere) is the unknown; a third blind continuation raises the chance of seeing
+  an escape that happens in a share q of runs from 1 - (1 - q)^2 to 1 - (1 - q)^3 (0.51 -> 0.66 at q 0.3) and lowers
+  the 95% bound a clean arm puts on that share from 0.78 to 0.63 [computed, WORK design_numbers.out lines 10-16].
+  BS2 showed the control side to be the predictable one (4 of 4 climbed, 2 of 4 over the bar by 3,407,872, and 12 of
+  12 from 3,145,728 flagged), so a second control mostly re-confirms an expected rail; its one use, a guard against a
+  lone control that fails to rail by chance, is kept by line 3 (THE READING), which then withholds every "held" line.
+
+WHERE AND HOW
+- This container's CPU (4 cores). No Drive, no GitHub, no push by the study. 0 L4-hours.
+- Harness (the builder's, <LB>/tools): run_bs.py (one continuation; preflight refuses without APPROVED pinning this
+  text, SCREEN.json, the code digest and the tools), run_waves_bs.sh (SCREEN.json's queue, 4 at a time at nice 10,
+  outcome-blind; resumes a crashed continuation), bs_resume.py (the resume point and the stitch digests), read_bs.py
+  (CHECK; the markers once all are decided), bs_common.py, bs_hooks.py; the scorer score_bs.py (the scorer adapter's,
+  implementing THE READING); the measurement measure_lb.py (MEAS, <LB>/measure/tools; the round's pinned
+  measure_r10round.py M1/M3, ledger_r10round.py M5, complete_r10round.py and score_r10round.classes_of, each checked
+  at its pinned sha256 by measure_lb.py before anything).
+- Outputs: <LB>/runs/<arm>_<seed>/, <LB>/reads/<arm>_<seed>/markers.{json,txt} and m5.{json,txt}, <LB>/lost.json,
+  <LB>/logs/, <LB>/measure/reads/<arm>_<seed>/ (measure_lb.json, classes.json, habit.json, report.txt, m5.json,
+  panels/<label>/{m1,m3}/), <LB>/score/score.{json,txt}; harness-owned: <LB>/tmp/<run>/ (each run's TMPDIR and
+  MPLCONFIGDIR; a continuation's holds its live eval_stage1_*/evaluations.npz), <LB>/tmp/read_<run>/,
+  <LB>/reads/_cache/.
+- Disk: DISK below.
+
+THE MANIPULATION CHECK (per rollout; it decides VOID, never the reading) -- as BS2, over 1,208 rollouts
+- CHECK (read_bs.py --check, run by the runner as each attempt exits) passes only if, on every rollout of the window
+  (arm_evidence.jsonl: one line per rollout end at S + 8,192 k, k = 1 ... (T - S) / 8,192 - 1, its summary equal to
+  run_meta's), bs_hooks.evidence_problems finds the arm's signature and no other's:
+    critic_blind_tail3: the critic's output through predict_values, forward, evaluate_actions and the mirrored
+      observations changes by exactly 0.0 when the normalised observation 6 is perturbed three ways (+1, sign flip,
+      set to 3) on the buffer's first 256 rows; the buffer's values equal the run's (blinded) critic and differ from
+      the unblinded value MLP by more than 1e-5 x the value scale on every rollout;
+    control: the critic's output changes with observation 6 on every rollout (min > 0); classes stock;
+    both: the actor's mean changes with observation 6; gae_lambda 0.95 in model and buffer; the advantages equal an
+      independent GAE(0.95) recomputation (relative 1e-4) and differ from the lambda-1 one; buffer returns =
+      advantages + values; the observation statistics move every rollout.
+  And on run_meta / the records: the hook class (CriticBlindTail3MlpExtractor / MlpExtractor) at the load and "in
+  force" at the end; exactly one probe row at every S + 8,192 k in (S, T) with ent_coef and learning_rate equal
+  (float32) to the parent's F2 probe at the same step; one evaluation of 10 episodes at every 131,072 up to T in the
+  ledger, evaluations.npz and gate_progress.npz; parameters changed and n_updates grew; the code seal unchanged; start
+  pair and records at FMAN sha256; stop reason "end" at E, or "collapse" or "hop_watch" (the stage's own stops, the
+  hop watch's state recorded in run_meta) at T < E; for a RESUMED continuation, the resume fields consistent (the
+  resume point P on the 262,144 grid inside (S, T), the loaded pair the resume point's, the earlier attempts listed)
+  and the stitch digests recomputed on the finished files equal to those recorded at the resume (every record's rows
+  up to P are the earlier attempt's, unchanged) [the builder's read_bs.check_run; <LB>/logs/notes_design.txt RESUME].
+- The scorer refuses (input error) a continuation whose critic form is not its arm's, or whose blind-arm effective
+  critic slope on observation 6 is not 0.0 at a loop row.
+
+THE OUTCOMES PER CONTINUATION (each from the round's pinned definitions where one exists; computed by the pinned tools,
+never transcribed by hand)
+- O1 TAIL CLASS (ROUND lines 269-279): RAIL (kinds RAIL-LEDGER-PERSISTENT, RAIL-LEDGER-RESOLVED, RAIL-END-ONLY),
+  UNREAD (a STOPPED continuation without RAIL), PARKED, CLEAR; DRIVEN printed (report only). Read by measure_lb.py
+  (score_r10round.classes_of; classes.json cls and kind) on the continuation's WHOLE ledger to T, which holds the
+  parent's 16 evaluations at or before S (no episode over the bar there: the parent's first is at 3,670,016 [measured,
+  WORK parent_long.out line 58; MEAS NOTES.txt 17:34 UTC entry], so no alarm can straddle S and the whole-ledger reading
+  equals the window's, printed beside) and its own after S, and on its M1 traces at the J checkpoints up to T
+  (J = 4,194,304; 5,242,880; 6,291,456; 8,388,608; 10,485,760; final, ROUND line 84), R1 (10,485,760, or the last
+  multiple of 262,144 at or before T for a STOPPED run; ROUND line 181), R2 (the final pair) and every RESOLUTION
+  checkpoint (ROUND lines 173-180).
+- O2 ANY ALARMS BY ACTUATOR (ROUND lines 169-170): each ANY ALARM's step and actuators (classes_of's attribution: the
+  actuators named over the bar in its two evaluations), and per actuator the count, first, last and sole count
+  (measure_lb.json m5_summary.any_alarms_by_actuator).
+- O3 THE FIRST TAIL ALARM (ROUND lines 171-172, RESOLVED BY TRACE included): its step, actuator and sign; with the
+  TAIL ALARM count, the tail-flagged evaluation count, the flagged spells and the first over-bar episode (M5 on the
+  ledger; classes.json tail_alarms, tail_alarm_detail, flagged_evaluations).
+- O4 GATE CLASS (ROUND lines 280-283): PASS when the continuation is FINISHED (T = E) and the six-heading certificate
+  (M3, stance_gate_report.py, seeds 3042-3081 at -90, -45, 0, +45, +90, +180 deg) of its final pair passes; FAIL when
+  that certificate fails or is refused (the failing criteria named), and for every STOPPED continuation. Printed
+  "GATE CERTIFICATE (final checkpoint, measured on a screen task; not certification)".
+- O5 RUN OUTCOME (ROUND lines 284-286): POSITIVE = CLEAR and GATE PASS; NEGATIVE otherwise, every reason named.
+- O6 HABIT ELSEWHERE (this study's rule; the round's own lines applied per actuator, as measure_lb.py's HABIT SITES
+  compute them, MEAS tools/measure_lb.py habit_summary): an actuator a other than tail_3_pitch_act (any of the other
+  14, tail ones included) carries a HABIT when any of these holds in the continuation's records to T:
+    L  an own alarm: two consecutive evaluations each with at least 5 of 10 ledger episodes over the BAR naming a
+       (the ANY ALARM rule of ROUND lines 169-170 restricted to the episodes naming a);
+    A  an ANY ALARM whose attributed actuators include a (O2);
+    T  at a traced checkpoint (J up to T, R1, R2, any RESOLUTION checkpoint), at least 2 full-horizon M1 episodes over
+       the BAR on a in one sign (the TRACE RAIL's first clause, ROUND lines 188-191, applied to a);
+    D  |CMD_a| >= 0.60 in one sign at 2 or more of the J checkpoints up to T, or the mean of CMD_a(R1) and CMD_a(R2)
+       (the one that is formed, if only one is) >= 0.60 in size in one sign (the PARKED and DRIVEN line, ROUND lines
+       181-187 and 276-279, applied to a; CMD_a from M1's per-actuator window-mean command).
+  The BAR is ROUND line 166's (an episode's share of window steps at |command| >= 0.99 above 0.10). A habit is
+  SATURATING when L, A or T holds, DRIVE ONLY when D alone holds. Each is printed with its actuator, sign(s), sites,
+  first and last over-bar step, alarms and CMD at every traced checkpoint. A continuation is WITH A HABIT ELSEWHERE
+  when at least one actuator other than tail_3_pitch_act carries a habit.
+- O7 THE ON-POLICY TAIL_3 COMMAND (BS2's primary form): from the continuation's probe (policy_probe.npz, numpy
+  allow_pickle False), rollout_mu_mean[:, 14] (per row, the mean over that rollout's 8,192 buffer states of the
+  actor's deterministic mean for action 14, the raw unclipped Gaussian mean, taken at the rollout's end before its
+  update); every value the float32 column widened to float64, averages in exact rational arithmetic:
+    (a) AT E: the mean of the 8 rows 11,935,744, 11,943,936, ..., 11,993,088 (the last 8 updates before E; for a
+        STOPPED continuation the 8 rows before T); UNREADABLE unless each is present once and finite;
+    (b) AT 3,538,944: the mean of the 8 rows 3,473,408 ... 3,530,752 (exactly BS2's primary);
+    (c) THE TRAJECTORY: the 8-row mean ending at each evaluation step in (S, T] (at E, (a)).
+  B_S = 0.1265954738482833 (exactly 135930855/1073741824), BS2's: the parent's 8 rows ending at S, reproduced
+  [measured, WORK parent_long.out line 7]. The parent's own (a) is +0.81159 (rise +0.68500) and (b) +0.70538 (rise
+  +0.57878) [measured, WORK parent_long.out lines 8-9].
+- O8 CMD_L AT THE LAST EVALUATION: the mean over the 10 episodes of the evaluation at 11,927,552 (for a STOPPED
+  continuation, its last evaluation at or before T) of tail_3_pitch_act_command_mean (read_bs.ledger_direct's CMD_L;
+  E has no evaluation); with CMD_L's first crossings of 0.30 / 0.60 / 0.90 and the count of evaluations at or above
+  0.60. The parent: +0.9081 at 11,927,552; 57 of 75 at or above 0.60 [measured, WORK parent_long.out lines 64-67].
+- O9 THE MARGIN TO THE RAIL AT THE FINAL PAIR: OWN b*_P = 1 - G - c0 at the final pair (read_bs M-LOOP (b), the loop
+  row whose steps equal T, from stage1_final.zip / stage1_final_vecnorm.pkl), with G and c0 printed.
+
+THE READ SCHEDULE
+- M-LOOP (read_bs.py, bs_common.LOOP_READ_EVERY = 262,144, the builder's value, BS2's reading): the start pair S,
+  every periodic pair before T (37 for a FINISHED continuation) and the final pair at T: 39 per FINISHED
+  continuation. They include the parent's own F2 grid (S + every 1,048,576 up to 11,534,336, and E), so read_bs.py
+  --reference gives the parent's values at 11 of the same steps (its REFERENCE_PAIRS). Cost about 60 CPU-s per pair
+  (58.3-61.5, median 60.3), 38 new pairs per continuation: about 39 CPU-min each, about 39 min wall for the four at 4
+  at once [measured per pair, inferred in total: <LB>/validate/logs/timing.out]. Every 1,048,576 (11 pairs, about 10
+  min) is not chosen: it would save half an hour after a ten-hour run, change a pinned tool, and lose the finer report-
+  only trajectory that shows when a blind continuation's loop moves (DESIGN_NOTES D6).
+- M-PROBE and M-LEDGER (read_bs.py): every update row and evaluation in (S, T].
+- measure_lb.py: M5 on the whole ledger; M1 at the J checkpoints up to T, R1, R2 and every RESOLUTION checkpoint; M3 at
+  the final pair of a FINISHED continuation (C7's labels, ROUND line 246). Every periodic pair stays in place until
+  the full reads are done and measure_lb.py plan has named its labels (a RESOLUTION checkpoint can be any multiple of
+  262,144) [MEAS NOTES.txt OPEN ITEMS 2].
+- Before the reading, once (read only, not an outcome): read_bs.py --reference (the parent at its 11 pairs).
+
+THE READING
+Per continuation, first (RUN HANDLING gives COUNTED, STOPPED, LOST, RESUMED):
+- READ TO 12M: COUNTED (CHECK passed, stop reason "end", T = E) and measured: measure_lb.py status CLASSIFIED (C7: every
+  label traced, the certificate measured or refused), C6 PASS (ROUND lines 234-245), its M5 command line and in-process
+  readings equal, every trace and the certificate bound to its pair, measured on commit 8737cd3d at physics_revision 10.
+  A continuation that is not READ TO 12M never counts as off the rail, as passing the gate or as free of a habit
+  (missing never helps the hypothesis).
+- RAILED: TAIL CLASS RAIL, for a COUNTED or a STOPPED continuation classified by measure_lb.py (a rail before a stop
+  was observed); or, for a continuation not so classified (LOST, or COUNTED or STOPPED with a measurement refused), a
+  TAIL ALARM in its ledger as it stands by the pinned M5 (b) (the round's PRESENCE form, ROUND lines 253-268, without
+  its fetch rules: the file is the harness's own). Monotone: it can only move a continuation from NOT READ TO 12M to
+  RAILED, never to off the rail.
+Then one line per question, each with every count, printed whatever the overall line:
+  Q1 "Q1 TAIL RAIL (critic-blind): <k> OF 3 OFF THE TAIL RAIL TO 12M (<c> CLEAR, <p> PARKED; <dn> OF THEM WITH
+     TAIL_3 DRIVEN NEGATIVE); <r> RAILED; <u> NOT READ TO 12M -> <word>". OFF THE TAIL RAIL TO 12M = READ TO 12M and
+     TAIL CLASS CLEAR or PARKED; RAILED as above; NOT READ TO 12M = every other blind continuation (STOPPED without
+     RAIL, i.e. UNREAD; LOST without a TAIL ALARM in its ledger; COUNTED but not measured). TAIL_3 DRIVEN NEGATIVE =
+     DRIVEN (ROUND line 279) lists tail_3_pitch_act (PARKED counts its + sign only, so a DRIVEN tail_3 is a park on the
+     minus side; the parent's own command swung to -0.56 between its spells [measured, WORK parent_long.out line
+     67]); every other tail actuator's drive is O6's. <word>: YES when c = 3 and dn = 0; YES, WITH A PARK when k = 3
+     and p + dn >= 1; NO when r >= 1; NOT SHOWN otherwise. Each RAILED one is printed with its kind, actuator(s),
+     sign(s), first TAIL ALARM (or "none: RAIL-END-ONLY"), TAIL ALARM count and spells; each PARKED or DRIVEN one with
+     its windows and margins (classes.json parked, driven, mean); each NOT READ one with its cause and T.
+  Q2 "Q2 STANCE GATE AT THE FINAL CHECKPOINT (critic-blind): <g> OF 3 GATE PASS; <x> GATE FAIL; <m> NOT MEASURED ->
+     <word>". GATE PASS = READ TO 12M and GATE CLASS PASS; GATE FAIL = GATE CLASS FAIL (the certificate failed or was
+     refused, or the continuation STOPPED); NOT MEASURED = the rest (LOST, or COUNTED without the certificate).
+     <word>: YES when g = 3; PARTLY when g is 1 or 2; NO when g = 0 and x >= 1; NOT SHOWN otherwise. Printed with each
+     GATE FAIL's failing criteria, each one's RUN OUTCOME and the count POSITIVE (O5).
+  Q3 "Q3 HABIT ON ANOTHER ACTUATOR (critic-blind): <h> OF 3 WITH A HABIT ELSEWHERE (<hs> SATURATING, <hd> DRIVE
+     ONLY); <f> OF 3 FREE; <s> NOT SHOWN -> <word>". WITH A HABIT ELSEWHERE = O6 holds in the records read (for a
+     continuation not classified by measure_lb.py only its ledger can show one, by L or A on the pinned M5); FREE =
+     READ TO 12M and O6 holds for no actuator; NOT SHOWN = the rest. A continuation is SATURATING when any of its
+     habits elsewhere is. <word>: NONE when f = 3; HABIT ELSEWHERE when hs >= 1; DRIVE ONLY when h >= 1 and hs = 0;
+     NOT SHOWN otherwise. Each habit is printed (O6) with whether tail_3 also railed in that continuation. Beside it,
+     report only, the control's habits elsewhere.
+  Q4 "Q4 THE CONTROL RAILED AS THE PARENT DID (control 2701): <word>". YES = a TAIL ALARM on tail_3_pitch_act with
+     sign + in its records (TAIL CLASS RAIL with such an alarm, any kind, RESOLVED BY TRACE included; or, not
+     classified, such an alarm in its ledger by the pinned M5 (b)); RAILED, ANOTHER FORM = TAIL CLASS RAIL without
+     such an alarm (RAIL-END-ONLY, another tail actuator, or the minus sign); NO (PARKED) and NO (CLEAR) = READ TO
+     12M with that TAIL CLASS; NOT SHOWN = the rest. "The control railed" below means YES or RAILED, ANOTHER FORM.
+THE OVERALL LINE (the first that applies; texts fixed; r, k, u, c, p, dn, g, x, h as in Q1-Q3):
+  1. r >= 1: "THE TAIL RAIL FORMED IN <r> OF 3 CRITIC-BLIND CONTINUATIONS BY 12M FROM s42's 2,097,152 STATE: BLINDING
+     THE CRITIC TO THE TAIL_3 ANGLE DID NOT KEEP EVERY CONTINUATION OFF THE TAIL RAIL". Printed with each railed blind
+     continuation's first TAIL ALARM beside the control's and the parent's 3,932,160.
+  2. r = 0 and u >= 1: "NOT READ TO 12M: NO TAIL RAIL IN THE <k> CRITIC-BLIND CONTINUATION(S) READ TO 12M; <u> NOT
+     READ TO 12M (STOPPED, LOST OR NOT MEASURED): NO READING ON WHETHER THE EFFECT LASTS".
+  3. r = 0, u = 0 and the control did not rail: "NO TAIL RAIL IN 3 OF 3 CRITIC-BLIND CONTINUATIONS TO 12M, BUT THE
+     CONTROL <DID NOT RAIL (PARKED) | DID NOT RAIL (CLEAR) | WAS NOT READ TO 12M>: THE HABIT WAS NOT SHOWN BESIDE THEM
+     ON THIS HARNESS".
+  4. r = 0, u = 0, the control railed, c = 3, dn = 0, g = 3 and f = 3: "BLINDING HELD TO 12M IN 3 OF 3 CRITIC-BLIND
+     CONTINUATIONS FROM s42's 2,097,152 STATE: NO TAIL RAIL OR PARK, THE STANCE GATE PASSED AT THE FINAL CHECKPOINT,
+     NO HABIT ON ANOTHER ACTUATOR; THE CONTROL RAILED".
+  5. r = 0, u = 0, the control railed, otherwise: "NO TAIL RAIL IN 3 OF 3 CRITIC-BLIND CONTINUATIONS TO 12M FROM s42's
+     2,097,152 STATE WHILE THE CONTROL RAILED, WITH: <p> PARKED, <dn> WITH TAIL_3 DRIVEN NEGATIVE, <x> GATE FAIL, <h>
+     WITH A HABIT ON ANOTHER ACTUATOR" (only the items that are not 0, in this order; when every habit elsewhere is
+     DRIVE ONLY the last item reads "<h> WITH A DRIVE ONLY HABIT ON ANOTHER ACTUATOR"). With u = 0 every blind
+     continuation is READ TO 12M, so its gate is measured or refused and x = 3 - g.
+  Every overall line ends "(descriptive: 3 + 1 continuations from one state, no test; KNOWN LIMITS)" and prints the
+  per-continuation table (status, RESUMED from P or not, T, TAIL CLASS and kind, the first TAIL ALARM, the ANY ALARMs
+  by actuator, GATE CLASS with its failing criteria, RUN OUTCOME, the habits elsewhere, O7 (a) and (b) with their
+  rises, O8, O9), Q1-Q4, the comparisons below, the MISSING list (every continuation not READ TO 12M and why) and any
+  PROVISIONAL item.
+- SENSITIVITY TO RESUMES (report only, never the line): when any continuation is RESUMED, the overall line recomputed
+  with every RESUMED continuation taken as NOT READ TO 12M (and a RESUMED control as NOT SHOWN), printed beside.
+- What each line would mean [inferred]:
+    1: in r of 3 continuations the loop came back without the critic seeing the angle (through the angle's other
+       traces in the observation, another phase proxy, or the actor alone): the effect seen by 3,538,944 in BS2 did not
+       last everywhere; the timing beside the control's and the parent's says how much it delayed the rail.
+    2: no reading on whether the effect lasts.
+    3: the positive control failed in its one draw: the blind continuations' record stands as printed, but it is not
+       evidence that blinding prevented a rail that would otherwise have come on this harness (the parent, BS2 and the
+       ECS make a rail likely: context, not a control).
+    4: the most favourable: consistent with hiding the tail_3 angle from the critic preventing the tail habit through
+       12M from this state, without a park, a gate failure or a habit elsewhere. Not a fix (KNOWN LIMITS).
+    5: the rail did not form, but a named cost or partial return did: a PARKED tail means the drive came back without
+       saturating; a GATE FAIL needs its criteria read; a habit elsewhere means the habit moved or a second one formed.
+- No line is a test. Fails stay fails. Nothing is stopped, changed, extended or rerun because of an outcome.
+
+PRE-REGISTERED COMPARISONS (descriptive; printed with every line; none changes a line)
+- C1 THE CONTROL AGAINST THE PARENT [the parent's values measured: WORK parent_long.out; MEAS]: first over-bar episode
+  (parent 3,670,016), first TAIL ALARM (3,932,160), TAIL ALARMs (22), tail-flagged evaluations (26), tail-flagged
+  spells (4), GATE CLASS (FAIL), RUN OUTCOME (NEGATIVE), O7 (b) (+0.70538) and (a) (+0.81159), O8 (+0.9081); for each
+  the control's value and, for a step, "earlier", "the same" or "later" with the difference in evaluations.
+- C2 THE FIRST 1,441,792 STEPS AGAINST BS2: O7 (b) and CMD_L at 3,538,944 of each continuation, beside BS2's (blind
+  O7 (b) +0.06516 to +0.14283, CMD_L +0.068 to +0.181; control O7 (b) +0.41938 to +0.79227, CMD_L +0.475 to +0.955
+  [measured, <BS2>/score/score.txt]). "REPEATS BS2 AT 3,538,944" when every blind O7 (b) is below +0.41938 (BS2's
+  lowest control) and the control's above +0.14283 (BS2's highest blind), compared as exact rationals; otherwise
+  "DOES NOT REPEAT BS2 AT 3,538,944" with the values.
+- C3 THE CLIMB BY 12M: each blind continuation's O7 (a) rise beside BS2's climb gate +0.20 ("CLIMBED BY 12M" when the
+  rise is at least 1/5, exact), the control's rise and the parent's +0.68500.
+- C4 THE MARGIN AT THE FINAL PAIR: O9 per continuation beside BS2's blind range at 3,538,944 (+0.983 to +1.301), BS2's
+  control range (-0.060 to +0.404) and the three parents' final pairs (s42 +0.014, s60 +0.213, s80 +0.241: 1 - G - c0
+  from S2/com_revisit/notes/early_warning/ew_r10.jsonl lines 35-37, each one update after its E state) [computed, WORK
+  parent_long.out lines 144-146].
+- The pair control 2701 / blind 2701 (same seeds): O7, O8, O9 and the first TAIL ALARM side by side (report only).
+
+RUN HANDLING (the harness's rules; one continuation = one queue entry)
+- Fails stay fails. No continuation is stopped, changed, extended or rerun because of an outcome.
+- ONE CONTINUATION = one queue entry (arm, seed): its decided attempt in runs/<name>/ together with the rows its records
+  carry over, stitched, from earlier attempts up to its resume point. The study reads one decided attempt per entry.
+- COUNTED: CHECK passed, stop reason "end" at E.
+- STOPPED: CHECK passed, stop reason "collapse" or "hop_watch" at T < E (the stage's own stops; the collapse stop can
+  fire from 3,801,088 on, the hop watch from 7,077,888 on; the parent never came near either over this window: 0 of 72
+  collapse observations dropped, hop duty 0.0 [measured, <LB>/logs/notes_design.txt EARLY ENDS]). Read to T by the
+  round's rules: TAIL CLASS UNREAD unless RAIL, GATE FAIL, NEGATIVE; in THE READING it is NOT READ TO 12M unless RAILED.
+- RESUMED: a COUNTED or STOPPED continuation whose decided attempt loaded a resume point P > S (run_meta resumed_from,
+  load_step, attempt, attempts). It is one continuation and counts in every line, printed "RESUMED from P (attempt
+  k)". A resume is not a replay: the work after P is discarded (the update on the rollout ending at P included), the
+  envs, the evaluation env and the random generators restart at P under the same seed, the collapse and hop-watch
+  counters restart, and diagnostics.npz covers (P, T] only [measured, notes_design.txt WHAT A RESUME CHANGES]. The
+  resume point is chosen by content, never by outcome (the newest saved pair whose pair and records are complete,
+  bs_resume.resume_point).
+- CRASH: the process died (an exception, out of memory, killed). The runner renames the folder runs/<name>_crashed<k>
+  (kept; never opened by anyone; the resume's own reads of it are the pinned tools' work) and reruns the entry at once
+  with --resume-from that folder: from its newest complete saved pair, else from S. An EARLY crash (the attempt's last
+  recorded step below its load step + 131,072, or none) is not counted and halts new starts until the coordinator has
+  found the cause from run_meta's error and traceback alone. A container restart that leaves attempts half-way (their
+  run_meta not "crashed"): the coordinator relaunches the runner, which resumes them; not counted as own crashes
+  [measured: <LB>/tools/run_waves_bs.sh header lines 4-7 and 60-63].
+- LOST: a third own crash (the runner writes <LB>/lost.json), or the full read or the measurement refused for a cause
+  in the continuation's own files (the coordinator writes it to lost.json with the cause and records it in RUNLOG).
+  Never READ TO 12M; its ledger as it stands is read by the pinned M5 once all are decided (RAILED, Q3, Q4 above).
+  A failure caused by a tool (read_bs.py, measure_lb.py or a round tool) is a tool defect, not LOST: no line is read
+  until it is fixed (the maintainer's word, and a re-pin if a pinned file changes) and every continuation is read
+  again.
+- VOID: CHECK fails, or exit 5 with CHECK failing. The folder becomes runs/<name>_void<k>, kept and never read; the
+  runner starts nothing new and halts (logs/HALTED). The cause is found from the CHECK record alone and fixed; then,
+  with the maintainer's word, the voided continuation reruns from its start pair under its seed. A fix that changes a
+  pinned file or this text needs the maintainer's word and a re-pin first. Unfixed, the study reads VOID: no line.
+- REFUSED by preflight (exit 2, before any optimizer step): as BS2 (fixed and restarted under the same name; its cause
+  found by re-running, read only, cd /tmp && nice -n 10 S2/venv/bin/python -I -B <LB>/tools/run_bs.py --arm ARM --seed
+  N --preflight-only; a pinned-file change needs the maintainer's word and a re-pin; unfixed, VOID).
+- TRAINING ATTEMPTS: at most 3 own crashes per entry (the third makes it LOST); an EARLY crash, a container restart or
+  a VOID rerun is not counted. Every VOID rerun needs the maintainer's word first (RUNLOG).
+- MEASUREMENT: a measurement crash is rerun on the same files (ROUND lines 428-434; measure_lb.py reruns once); a
+  measuring tool's own refusal is final: a refused M3 at the final pair is GATE FAIL with its message (ROUND line 282);
+  a refused M1 at a label C7 names leaves the continuation not READ TO 12M (cause printed). A measurement not made for
+  lack of disk is not a refusal: the reading waits (INCOMPLETE).
+- The runner is restarted only by the coordinator (after a container restart or a fixed halt); it re-reads its
+  ledgers (logs/decided.tsv, crash_ledger.tsv, lost.json).
+
+OUTCOME-BLINDNESS -- as BS2 (an allow-list), over a run of about 10 h
+- Until every queue entry is decided (COUNTED, STOPPED or LOST) and none is VOID, nobody (no person and no agent; the
+  pinned tools' own work, run_bs.py, bs_resume.py and CHECK, excepted) opens any file of a continuation (runs/<name>
+  and every runs/<name>_crashed<k> / _void<k> / _refused<k>; its TMPDIR <LB>/tmp/<name>/, which holds its live
+  eval_stage1_*/evaluations.npz; <LB>/tmp/read_<name>/; reads/<name>; logs/<name>.attempt<k>.log) except:
+  run_meta.json's fields status, exit, stop_reason, heartbeat, last_step, load_step, resumed_from, attempt, error and
+  traceback (the last two only to find a crash's or a refusal's cause); check.json's pass / fail with its failures
+  list and its identity and source fields, and logs/<name>.check.log. Everything else is outcome-bearing or may be
+  and is not opened. The runner's own records (logs/run_waves_bs.log, decided.tsv, crash_ledger.tsv, PAUSED_disk,
+  HALTED, proctable.log, run_waves_bs.exit, atimes_at_exit/*.tsv, atimes_at_ALL_DECIDED*.tsv) and <LB>/lost.json may
+  be read. The watch during the run reads logs/run_waves_bs.log only. read_bs.py and measure_lb.py refuse a
+  continuation until all are decided; score_bs.py, while any entry is undecided or unread, prints only which are
+  decided and opens no outcome file.
+- P4 (BS's lesson) and I1 (BS2's process check): the runner records lstat times of every file of an attempt as it
+  exits (logs/atimes_at_exit/<name>.attempt<k>.tsv, before CHECK and any rename), re-arms the files of a decided
+  COUNTED or STOPPED continuation (atime = mtime - 1 ns) and snapshots all at ALL_DECIDED before the full reads
+  (logs/atimes_at_ALL_DECIDED.tsv; a relaunch writes .relaunch<k>.tsv and keeps the first). The process verification
+  compares the three; any read of an outcome file by anyone but the pinned tools, before the reading, is reported.
+- The parent's records (F2), the round's panels and BS2's finished records are not outcomes of this study; they were
+  read for this design.
+
+WHEN THE READING IS MADE
+- 1. All four decided and none VOID: the runner writes logs/ALL_DECIDED (after the P4 snapshot) and runs the full reads
+  (read_bs.py <run>, the markers, 4 at a time at nice 10).
+- 2. The measurement (DISK first): cd <LB>/measure/work && S2/venv/bin/python -I -B ../tools/measure_lb.py plan
+  <LB>/runs/<name> ... --out-root <LB>/measure/reads --start 2097152; then the same with classify and --slots 2
+  --prune-csv for the four (measure_lb.py waits while 4 or more simulation processes run machine-wide; it is started
+  at nice 0, its runner then runs at nice 10 and the simulations at nice 19, MEAS NOTES.txt USE FOR LB).
+- 3. The scorer: cd /tmp && S2/venv/bin/python -I -B <LB>/tools/score_bs.py, which writes <LB>/score/score.json and
+  score.txt (exit 0 final, 3 provisional or incomplete, 2 input error).
+- INCOMPLETE (no line) while any entry is undecided, a decided COUNTED or STOPPED continuation lacks its markers or its
+  measurement, or a measurement waits for disk.
+- PROVISIONAL (printed, not acted on) while any of: <LB>/APPROVED missing, or not pinning exactly this text's sha256,
+  SCREEN.json's, the code tree digest, the tools' (run_bs.py, read_bs.py, run_waves_bs.sh, bs_common.py, bs_hooks.py,
+  bs_resume.py, score_bs.py) and measure_lb.py's; a pinned file's current sha256 differing; this text not naming
+  score_bs.py's and measure_lb.py's sha256 (PINS); a continuation's run_meta naming another criteria.txt, SCREEN.json,
+  APPROVED or tool sha256, or changed since CHECK; a check.json or markers.json made by another read_bs.py; a ledger or
+  probe changed since its read; measure_lb.py's own pins failing (its 11 round files, the code copy's seal, the stack);
+  a class input measured on another commit than 8737cd3d or another physics_revision than 10; the code copy failing
+  M1's check_copy. Cleared only by measuring again with the pinned files, never by a ruling.
+- A reading neither incomplete nor provisional is final and goes to the maintainer at once. Report only: nothing is
+  merged or pushed by the study.
+
+DISK [measured: df -B1 / 3,005,566,976 bytes free at 17:58 UTC (WORK CMD_LOG entry 0061); the builder's
+<LB>/validate/logs/disk_estimate.out; MEAS NOTES.txt]
+- A continuation takes about 184.4 MiB (models 39 zips and 38 pkls, the records, evidence, diagnostics, reads, one
+  resume) (bs_common.RUN_BYTES_EST 200 MiB): about 0.72 GiB for the four [computed, WORK design_numbers.out line 43].
+- LAUNCH: the runner refuses a fresh queue below 2,449,473,536 bytes free (1.5 GiB + 4 x 200 MiB) and pauses new
+  starts below 1,610,612,736 bytes. The coordinator launches only with at least 2.6 GiB (2,791,728,742 bytes) free
+  (df -B1 /tmp), BS2's floor.
+- THE MEASUREMENT needs more: the round's pinned measure_r10round.py refuses below 3,221,225,472 bytes free
+  (r10m_common.DISK_FLOOR_BYTES) and measure_lb.py launches a job only with that floor plus the job's output plus
+  64 MiB free, about 3,309,305,856 bytes. With 2.88-3.01 GB free now (3,005,566,976 bytes at 17:58 UTC, 2,877,734,912
+  at 18:19 UTC, WORK CMD_LOG entries 0061 and 0086), about 2.1-2.2 GB is expected after the runs, short by about 1.2 GB
+  [inferred, WORK design_numbers.out lines 45-46]. The plan, in this order, reading no outcome while doing it:
+    (a) WITH THE FINAL CHOICES (HOW THE COORDINATOR PINS step 0): the maintainer is asked which finished studies'
+        binary files outside <LB> may go, enough for about 1.2 GB (candidates and sizes, du at 17:58 UTC:
+        S2/r10round/ecs/runs 855 MB, S2/r10round/bias_screen/runs 284 MB, S2/r10round/bias_screen2/runs 253 MB and
+        validate 111 MB, S2/com_revisit/notes/phase_probe 247 MB; each study's text records are in its pushed durable
+        copy, its checkpoints are not); the coordinator removes only what the word names, before launch or before the
+        measurement, and records it in RUNLOG;
+    (b) inside <LB>, after the queue is decided: the validation folders <LB>/validate/* and the validation runs' tmp
+        folders, after copying their run_meta / check / markers files and a full sha256 list to
+        <LB>/validate_records/ (BS2's RR-7; <LB>/validate held 176 MB at 17:58 UTC);
+    (c) only if still short, after the full reads (their loop results are in markers.json) and measure_lb.py plan:
+        the periodic pairs of <LB>/runs/*/01_stance/models that the plan does not name (it names the J checkpoints,
+        R1, every RESOLUTION checkpoint and the final pair; about 32 x 4.04 MB = 129 MB per continuation), their names
+        and sha256 first recorded in <LB>/logs/pruned_pairs.tsv [computed, WORK design_numbers.out line 49]. A later
+        reader fix could then not re-read their report-only loop rows; no line depends on them.
+  (b) and (c) together give about 0.69 GB, not enough alone (design_numbers.out line 49): (a) is needed. If the space is
+  not there the reading waits (INCOMPLETE); no class is read from a partial measurement, and the floor is not lowered
+  without the maintainer's word and a re-pin.
+- Never removed while the study may run or be read: <BS>/code, F2, PANELS, any file of a continuation (but the pairs
+  of (c), after the reads and the plan), <LB>/tmp/<queue name>/ (a running continuation's TMPDIR holds its live
+  evaluations.npz; removing it crashes the run at its next evaluation [inferred, BS2 criteria DISK]).
+
+REPORT ONLY (never tested; no line depends on them)
+- Per continuation: the on-policy trajectory (O7 (c)) beside the parent's; the probe's on-policy command of every
+  actuator (8-row means; the D-1 windows [S, 4,194,304), [4,194,304, 8,388,608), [8,388,608, E)); CMD_L per
+  evaluation; M5's over-bar episodes per evaluation by actuator and sign, its flags, alarms and spells (D-1, ROUND
+  lines 336-339, for every actuator); the habit summary per actuator (measure_lb.py HABIT SITES and its M1 commands at
+  every traced checkpoint); DRIVEN; SINGLE TAIL FLAGS; at each M-LOOP pair G, c0, b*_P, G_L, b*_L, own14, REF G and
+  the critic's slope on observation 6 (per degree, effective and raw; the blind arm's effective slope is 0 by
+  construction) beside the parent's from read_bs.py --reference; std of action 14, the tail_3 normaliser and the
+  statue_settled bank command; returns and falls per evaluation (the ledger's return and length columns); the hop
+  watch's and the collapse stop's state; the window (S, T] reading beside the whole-ledger class; for a RESUMED
+  continuation the resume point, the discarded steps and the attempts.
+- Arm figures for the blind arm (medians of the three) of O7, O8, O9; the count with G at the final pair above G at S
+  (the start's -0.636 [measured, ew_r10.jsonl line 3]).
+- Wording (BS2's STAT-1): a summary that says a continuation "railed like the parent" or "stayed clear" names the
+  measure it holds on and gives the numbers; a pattern seen in these readings is labelled post hoc.
+
+VALIDATIONS (before launch; none may make an optimizer step)
+- The builder's: unit tests; V1 (each arm reproduces the 2,097,152 start pair); V2 (no-update runs: each arm in force
+  on every rollout, control unchanged, same-seed pairing); V3 (the reader on V2's outputs reproduces the parent's
+  loop values at S: OWN G -0.636, c0 +0.238, own14 +0.143, critic slope +0.02143 per degree); V4 (a real no-update run
+  killed after its second saved pair and resumed: the resume point, the stitched records and CHECK); the timing; the
+  refusals [the builder's <LB>/NOTES.txt, as it stands at the review].
+- The measurement builder's: measure_lb.py reproduces the round's classes of the three parents (s42 fully re-measured:
+  6 fresh M1 and a fresh M3, 25 of 25 class keys, per-step traces byte-identical; s60's M3 re-measured identical; s60
+  and s80 classes 25 of 25 on the round's own panels) and its mutation checks [measured, MEAS NOTES.txt VALIDATION
+  RESULT]. Open there: s60 M1 and s80 M1/M3 not re-measured afresh (disk floor); resumable when space allows.
+- The scorer adapter's score_bs.py for this text, with unit tests: every count rule of Q1-Q4, every overall line and
+  its text verbatim, the per-continuation table, the comparisons C1-C4 with exact rationals, the sensitivity print,
+  missing and LOST handling (a LOST continuation's ledger TAIL ALARM counted as RAILED; never as off the rail),
+  RESUMED, STOPPED, NOT MEASURED, C6 FAIL, PROVISIONAL and INCOMPLETE; and three dry runs on real measured outputs
+  (the measurement builder's MEAS validate outputs and the F2 probes, read only):
+    (i)   the parent s42 as all four continuations (the blind entries given the arm's critic form): line 1, "THE TAIL
+          RAIL FORMED IN 3 OF 3 ...", Q1 NO (3 RAILED), Q2 NO (0 of 3, GATE FAIL), Q3 NONE (3 FREE), Q4 YES, C1 every
+          difference 0, C2 "DOES NOT REPEAT BS2" (the blind entries' O7 (b) +0.70538 is above +0.41938);
+    (ii)  control s42, blind s60, s80, s80: line 5, "... WITH: 1 PARKED, 2 WITH A HABIT ON ANOTHER ACTUATOR" (s60
+          PARKED and GATE PASS with habit sites only on tail_3; s80 CLEAR and GATE PASS with neck_pitch_act L, A, T, D
+          and head_pitch_act D), Q4 YES;
+    (iii) synthetic sets reaching lines 2, 3 and 4 and every Q word.
+  (The designer's own transcription of these rules reaches every line and gives (i) and (ii) as written [computed,
+  WORK reading_rules_check.out]; it is a check of this text, not the scorer.)
+- The independent review checks this text against the harness, MEAS and the scorer; the fixer keeps the originals;
+  the fixed version is re-reviewed (P2) before the pin.
+
+COMPUTE [inferred from measured CPU costs: the builder's <LB>/validate/logs/timing.out; MEAS NOTES.txt COSTS]
+- Four continuations at once: about 9.3-10.3 h on a free machine (33,052-36,609 CPU-s each, by 6.73-10 epochs per
+  update; BS2's wall / CPU ratio 1.012 at 4 at once); about 11.6-12.9 h with one other busy process on the 4 CPUs and
+  13.9-15.4 h with two. (BS2's own continuations took 82-85 min for 176 rollouts at 4 at once, RUNLOG line 792; the
+  same rate gives 9.4-9.7 h for 1,209 rollouts [computed, WORK design_numbers.out lines 36-37].) Then the full reads
+  (about 39 min), the disk step, the measurement (about 27 CPU-min per FINISHED continuation, 74% of it the
+  certificate; about 1 h with 2 slots) and the scorer (under 1 min). 0 L4-hours.
+
+WHAT THE READING CANNOT SHOW (KNOWN LIMITS)
+- One parent state (s42 at 2,097,152), one plant, one recipe: nothing here is a rate, a result for other seeds or
+  states, or a result from scratch. The policy starts with a small tail bias (B_S +0.127) and the blinded critic from
+  weights trained with the angle (slope +0.0214 per degree on the on-policy states at S [measured,
+  <BS>/reads/parent_s42/markers.txt, as BS2's criteria cite it]).
+- Few runs: 3 + 1. No test can decide (minimum p 1/4); 0 of 3 rails bounds the per-run chance of a rail under blinding
+  only below 0.63 (95%), and one control can fail to rail by chance (line 3).
+- The onset phase (about 1.2M in the parent) is not tested: S is after it, and the screen from 1,048,576 (BS) read NOT
+  INFORMATIVE.
+- The critic still sees the angle's traces: qvel tail_3 (observation 27), the other tail angles and velocities (3-5,
+  24-26) and the pitch channels; and if it valued the angle as a phase proxy, any other slow-moving input could serve.
+  This study tests recovery over 9.9M steps from this state only; a clean result does not say it cannot happen later
+  or from another state. z6 = 0 is "the angle at its running mean"; the normaliser keeps updating (the parent's moved
+  +0.086 -> +2.510 deg over the window [measured, WORK parent_long.out lines 47-50]).
+- The actor still sees the angle: a loop can grow through the actor without the critic's view (BS2's blinded runs'
+  loop gain G rose from -0.636 at S to -0.551 ... -0.197 at 3,538,944, report only [measured, <BS2>/score/score.txt]).
+- Blinding changes the value function for every actuator: a habit elsewhere can be the blinded critic's doing or
+  chance (s80 formed a neck habit unblinded); the control's habits are printed beside.
+- The gate is the six-heading certificate at the final pair: a measurement on a screen task, not certification, and
+  one noisy draw (the parent passed at 6,291,456 with 39 of 40 clean seeds and failed at its final with 38 of 40, by 2
+  episodes over the saturation bar, max_actuator_saturation_fraction 0.539 and 0.515 > 0.1, the actuator not recorded
+  in the certificate [inferred: tail_3, the only actuator over the bar anywhere in the parent's ledger]; s80 the
+  reverse, 5 of 40 then 40 of 40) [measured: PANELS/<run>/{6291456,final}/m3/stance_heading_report.txt]. It reads
+  saturation too (max_hop_or_fall_episodes counts saturated episodes), so it is not independent of Q1 and Q3. A pass
+  here is not a
+  fix: a fix needs a from-scratch run with the critic blinded (a model-interface change, the maintainer's approval),
+  other seeds and the gate's own certification.
+- HABIT ELSEWHERE applies the round's tail lines to every actuator; D's 0.60 line was set for the tail, and a legitimate
+  non-tail posture could reach it (in the three parents only s80's neck and head did) [measured, MEAS validate
+  reports].
+- E is the parent's end, not later; there is no evaluation at E (the last at 11,927,552); the final pair is one update
+  before the parent's own. The parent comparisons are descriptive: the parent trained on an L4 with other draws.
+- A RESUMED continuation is not the uninterrupted one (fresh draws from P); the sensitivity print shows what resumes
+  carry. STOPPED and LOST continuations are read only to T and count against the hypothesis.
+- The reading can wait for disk (DISK). Outcome-blindness is audited from atimes on this relatime filesystem; reads
+  before a decision are seen only through the exit snapshots (I1).
+
+PINS (to be filled from the files as they stand when the fixed version is re-reviewed; any change to a pinned file
+changes its line)
+  This text's sha256 cannot be held in the text itself: it goes into <LB>/APPROVED (criteria_sha256) and RUNLOG.
+    SCREEN.json                          <to fill>
+    tools/score_bs.py                    <to fill>
+    tools/tests/test_score_bs.py         <to fill>
+    tools/bs_common.py                   <to fill>
+    tools/bs_hooks.py                    <to fill> (BS2's, if unchanged:
+                                         1ff4c8be048297270eea14a24fe59336020e20fbd4aca7c38f5b881b33eef9fc)
+    tools/bs_resume.py                   <to fill>
+    tools/run_bs.py                      <to fill>
+    tools/run_waves_bs.sh                <to fill>
+    tools/read_bs.py                     <to fill>
+    measure/tools/measure_lb.py          <to fill> (5fb29b52f194ffa40f45afed7427d762841d09e1a8860a20c404b283f35459d6 at
+                                         17:35 UTC, MEAS SHA256SUMS.txt)
+  The code copy <BS>/code (read only, reused): commit 8737cd3d86431de1bdd0fcdb49a0d956a45e084d, 1,406 files, tree
+    digest 331fe8fc3f6bdf73acc0d3cc324dd753d9d9d695d7ce914e4e011d5c6437ebf1 [to be re-measured]
+  The start pair: F2 01_stance/models/stage1_2097152_steps.zip.copy1
+    83b6c88edb933005adcb2089bdac67654f4e77809ca5506f4e47364995ef1b61, stage1_vecnormalize_2097152_steps.pkl.copy1
+    991d434f385187e87301755ddf9a12fe2b3adb65cf186e7e32b175b3574bed90 [FMAN lines 241 / 243]
+  B_S's source: F2 01_stance/policy_probe.npz.copy1 4e0e7220668faf124d394bffb760ba246d54bed8f48cb79925cb36234257fc11
+  The parent's ledger: F2 01_stance/eval_episodes.csv.copy1
+    d1bcb78964691cf194e6276f06740d1f24aa69ad36831a046ad6307c1c4db11e [FMAN; WORK parent_long.out]
+  The round's criteria: 99a44469a387d01c55b98d76595d3633029681866ed14afcb185521eca0164db; its tools as measure_lb.py's
+    PINS (11 files: the round's APPROVED, measure_r10round.py, r10m_common.py, ledger_r10round.py, r10round_common.py,
+    complete_r10round.py, score_r10round.py, and in the code copy episode_trace_report.py, episode_trace.py,
+    stance_gate_report.py) [MEAS NOTES.txt DESIGN]; M5 and M1-common as bs_common.PIN_SHA256 (ledger_r10round.py
+    0d89bcb8..., r10round_common.py ea2c5ea6..., r10m_common.py 97431323...).
+
+HOW THE COORDINATOR PINS (after the independent review, the fixer, the RE-REVIEW of the fixed version (P2), and the
+maintainer's confirmation of the final choices)
+  0. The maintainer's confirmation of the final choices (the queue 1 + 3 and its seeds, E, the read schedule, the disk
+     plan and which files outside <LB> may be removed for the measurement, DISK (a)) is quoted in RUNLOG before
+     anything below.
+  1. The re-reviewer's verdict and the sha256 of every file it re-reviewed go into RUNLOG; APPROVED pins exactly those.
+  2. sha256sum <LB>/criteria.txt <LB>/SCREEN.json <LB>/tools/{run_bs.py,read_bs.py,run_waves_bs.sh,bs_common.py,
+     bs_hooks.py,bs_resume.py,score_bs.py} <LB>/measure/tools/measure_lb.py; check them against the PINS lines and the
+     re-reviewed list; write <LB>/APPROVED ONCE, as ONE LINE of compact JSON followed by a newline:
+       {"criteria_sha256":...,"screen_sha256":...,"code_tree_digest":"331fe8fc...(full)","tool_sha256":{"run_bs.py":
+       ...,"read_bs.py":...,"run_waves_bs.sh":...,"bs_common.py":...,"bs_hooks.py":...,"bs_resume.py":...,
+       "score_bs.py":...},"measure_sha256":{"measure_lb.py":...},"approved_by":...,"utc":...}
+     (no text in it may contain "APPROVED BYTES: "), and chmod 0444. The runner reads the four keys it needs
+     (bs_common.APPROVED_KEYS) and ignores the extra one; score_bs.py checks measure_sha256.
+  3. P1 with BS2's process lesson M1 (RUNLOG line 788 held a compact re-serialisation of APPROVED, not its bytes): in
+     the SAME RUNLOG entry that records the pin, and before the launch entry, one line ending with "APPROVED BYTES: "
+     followed by the file's exact bytes (its one line, verbatim, appended from the file itself, for instance with
+     printf '%s APPROVED BYTES: ' "<the entry's text>" >> RUNLOG; cat <LB>/APPROVED >> RUNLOG), its sha256 and
+     criteria.txt's sha256 in the same entry. Check, read only: grep -F 'APPROVED BYTES: ' RUNLOG | tail -n 1 | sed
+     's/^.*APPROVED BYTES: //' | sha256sum equals sha256sum <LB>/APPROVED (the RUNLOG line's own newline is the file's).
+  4. Before launch, all read only: (a) cd /tmp && S2/venv/bin/python -I -B <LB>/tools/score_bs.py --out
+     <LB>/logs/prelaunch_score exits 3 with STATUS incomplete (0 of 4 decided) and NO PROVISIONAL item; (b)
+     run_bs.py --preflight-only for all 4 entries (exit 0 each); (c) the check of step 3, and RUNLOG holds every
+     re-reviewed sha256 (grep); (d) cd <LB>/measure/work && S2/venv/bin/python -I -B ../tools/measure_lb.py pins
+     prints "all 11 pins, the copy's seal and the stack OK"; (e) df -B1 /tmp shows at least 2,791,728,742 bytes free
+     (DISK); (f) run_waves_bs.sh --plan (exit 0, 4 entries, S 2,097,152, E 12,001,280); then launch (detached, from
+     /tmp, the builder's HOW TO LAUNCH). The runner itself refuses unless APPROVED pins tools/score_bs.py at its
+     current sha256.
+  APPROVED is written once, before the first start, and never edited. Every run_meta records APPROVED's sha256 at its
+  start (a resumed attempt too), so a later change to APPROVED (a re-pin, only with the maintainer's word) leaves every
+  continuation started before it PROVISIONAL for good (cleared only by running it again).
+END (criteria v1 draft; the designer's notes and every command: WORK/DESIGN_NOTES.txt, WORK/CMD_LOG.txt).

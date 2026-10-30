@@ -1,0 +1,165 @@
+   596	def probe_markers(path, S, T, label):
+   597	    import numpy as np
+   598	
+   599	    keys = ("update_timesteps", "bank_action_now", "bank_value_now", "obs_rms_mean", "obs_rms_var",
+   600	            "std_per_actuator", "rollout_mu_mean", "bank_labels")
+   601	    cols = load_probe(path, keys)
+   602	    labels = [str(x) for x in cols["bank_labels"]]
+   603	    ss = list(C.BANK_STATUE_SETTLED)
+   604	    if [labels[i] for i in ss] != ["statue_settled", "statue_settled"]:
+   605	        raise InputError(f"{path}: bank rows {ss} are {[labels[i] for i in ss]}, not statue_settled")
+   606	    steps = np.asarray(cols["update_timesteps"]).astype(np.int64)
+   607	    idx = [i for i, u in enumerate(steps.tolist()) if S < int(u) < T]
+   608	    a = np.asarray(cols["bank_action_now"], dtype=np.float64)[idx][:, ss, C.ACT_TAIL3]
+   609	    v = np.asarray(cols["bank_value_now"], dtype=np.float64)[idx][:, ss]
+   610	    mean_ss = a.mean(axis=1)
+   611	    trail = [float(np.mean(mean_ss[max(0, i - TRAIL + 1): i + 1])) if i >= TRAIL - 1 else None
+   612	             for i in range(len(mean_ss))]
+   613	    st = [int(steps[i]) for i in idx]
+   614	    first = {}
+   615	    for line in PROBE_LINES:
+   616	        hit = [st[i] for i, x in enumerate(trail) if x is not None and x > line]
+   617	        first[f"{line:.2f}"] = hit[0] if hit else None
+   618	    var6 = np.asarray(cols["obs_rms_var"], dtype=np.float64)[idx][:, C.OBS_TAIL3]
+   619	    return dict(
+   620	        file=str(path), sha256=C.sha256_file(path), label=label, S=S, T=T, n_rows=len(idx), steps=st,
+   621	        tail3_statue_settled=[[float(x) for x in row] for row in a], tail3_statue_settled_mean=mean_ss.tolist(),
+   622	        trailing8_mean=trail, trailing8_first_above=first,
+   623	        trailing8_max=max((x for x in trail if x is not None), default=None),
+   624	        tail3_ss_mean_first_last=[float(mean_ss[0]), float(mean_ss[-1])] if len(idx) else None,
+   625	        value_statue_settled_mean=v.mean(axis=1).tolist(),
+   626	        obs6_mean_deg=np.degrees(np.asarray(cols["obs_rms_mean"], dtype=np.float64)[idx][:, C.OBS_TAIL3]).tolist(),
+   627	        obs6_sd_deg=np.degrees(np.sqrt(var6)).tolist(),
+   628	        std14=np.asarray(cols["std_per_actuator"], dtype=np.float64)[idx][:, C.ACT_TAIL3].tolist(),
+   629	        rollout_mu14_mean=np.asarray(cols["rollout_mu_mean"], dtype=np.float64)[idx][:, C.ACT_TAIL3].tolist())
+   630	
+   631	
+   632	# ================================================================================================ M-LEDGER
+   633	C6_TAIL_RE = re.compile(r"^evaluation (\d+) episode .*: TAIL input missing \(")
+   634	
+   635	
+   636	def run_m5(ledger, T, out_dir):
+   637	    """The pinned M5, unchanged, as a subprocess: (M5 JSON, sha256, argv)."""
+   638	    out_dir = Path(out_dir)
+   639	    for path, want in C.PIN_SHA256.items():
+   640	        if path in (C.M5, C.M5_COMMON) and C.sha256_file(path) != want:
+   641	            raise InputError(f"{path} is not at its pin")
+   642	    jpath = out_dir / "m5.json"
+   643	    jpath.unlink(missing_ok=True)
+   644	    env = dict(os.environ, OMP_NUM_THREADS="1", MKL_NUM_THREADS="1", OPENBLAS_NUM_THREADS="1",
+   645	               PYTHONDONTWRITEBYTECODE="1")
+   646	    argv = [C.PY, "-I", "-B", C.M5, str(ledger), "--E", str(int(T)), "--json", str(jpath)]
+   647	    try:
+   648	        p = subprocess.run(argv, cwd="/tmp", env=env, capture_output=True, text=True, timeout=M5_TIMEOUT_S,
+   649	                           check=False)
+   650	    except (subprocess.TimeoutExpired, OSError) as exc:
+   651	        raise InputError(f"M5 did not run: {exc}") from exc
+   652	    atomic_write_text(out_dir / "m5.txt", p.stdout + ("\n[stderr]\n" + p.stderr if p.stderr else ""))
+   653	    if p.returncode != 0:
+   654	        raise InputError(f"M5 exit {p.returncode}: {(p.stdout + p.stderr)[-400:]}")
+   655	    m5, jsha = read_json_file(jpath)
+   656	    return m5, jsha, argv
+   657	
+   658	
+   659	def m5_window(m5, S, T):
+   660	    """M5's flags read in (S, T] (read_ecs.window_reading's rules, reduced)."""
+   661	    per = {int(k): v for k, v in (m5.get("per_evaluation") or {}).items()}
+   662	    for key in ("any_flagged", "tail_flagged", "any_alarms", "tail_alarms"):
+   663	        if not isinstance(m5.get(key), list):
+   664	            raise InputError(f"M5 JSON has no {key} list")
+   665	    c6 = m5.get("c6") or {}
+   666	    if c6.get("E") != T:
+   667	        raise InputError(f"M5's C6 was run with E = {c6.get('E')!r}, not T = {T}")
+   668	
+   669	    def inwin(s):
+   670	        return S < int(s) <= T
+   671	    counting = [f for f in c6.get("failures", []) if not C6_TAIL_RE.match(str(f))]
+   672	    return dict(
+   673	        any_flagged=sorted(int(s) for s in m5["any_flagged"] if inwin(s)),
+   674	        tail_flagged=sorted(int(s) for s in m5["tail_flagged"] if inwin(s)),
+   675	        any_alarms=[int(s) for s in m5["any_alarms"] if S < int(s) - GRID and int(s) <= T],
+   676	        tail_alarms=[int(s) for s in m5["tail_alarms"] if S < int(s) - GRID and int(s) <= T],
+   677	        alarms_straddling_S=[int(s) for s in m5["any_alarms"] + m5["tail_alarms"] if int(s) - GRID <= S < int(s)],
+   678	        c6_passed=bool(c6.get("passed")), c6_counting_failures=counting[:20], n_c6_counting_failures=len(counting),
+   679	        per_evaluation={s: {k: per[s].get(k) for k in ("n", "any", "tail", "unres", "any_by", "tail_by")}
+   680	                        for s in sorted(per) if inwin(s)})
+   681	
+   682	
+   683	def ledger_direct(ledger, S, T):
+   684	    """Per evaluation in (S, T], from the ledger's own columns (ew_events.per_eval's definitions)."""
+   685	    with open(ledger, newline="", encoding="utf-8") as fh:
+   686	        rows = list(csv.DictReader(fh))
+   687	    by = {}
+   688	    for r in rows:
+   689	        try:
+   690	            t = float(r.get("timesteps"))
+   691	        except (TypeError, ValueError):
+   692	            continue
+   693	        if math.isfinite(t) and t == int(t) and S < int(t) <= T:
+   694	            by.setdefault(int(t), []).append(r)
+   695	
+   696	    def num(r, k):
+   697	        try:
+   698	            v = float(r.get(k))
+   699	        except (TypeError, ValueError):
+   700	            return None
+   701	        return v if math.isfinite(v) else None
+   702	    per = {}
+   703	    for s, rs in sorted(by.items()):
+   704	        cmd = [num(r, "tail_3_pitch_act_command_mean") for r in rs]
+   705	        cmd = [c for c in cmd if c is not None]
+   706	        over = [r for r in rs if (num(r, "saturated_actuator_fraction") or 0.0) > BAR]
+   707	        per[s] = dict(n=len(rs), cmd_l=sum(cmd) / len(cmd) if cmd else None, cmd_l_max=max(cmd) if cmd else None,
+   708	                      n_cmd=len(cmd), n_over=len(over),
+   709	                      n_tail_over=sum(1 for r in over if r.get("saturated_actuator") in TAIL_ACTS),
+   710	                      n_t3_over=sum(1 for r in over if r.get("saturated_actuator") == "tail_3_pitch_act"),
+   711	                      over_actuators=sorted({str(r.get("saturated_actuator")) for r in over}))
+   712	    first = {"FOB_tail": next((s for s, e in per.items() if e["n_tail_over"] > 0), None),
+   713	             "first_over_any": next((s for s, e in per.items() if e["n_over"] > 0), None),
+   714	             "first_t3_over": next((s for s, e in per.items() if e["n_t3_over"] > 0), None)}
+   715	    for line in CMD_LINES:
+   716	        first[f"cmd_l_ge_{line:.2f}"] = next((s for s, e in per.items() if e["cmd_l"] is not None
+   717	                                              and e["cmd_l"] >= line), None)
+   718	    expected = [S + GRID * k for k in range(1, (T - S) // GRID + 1)]
+   719	    return dict(per_evaluation=per, firsts=first, evaluations_absent=[s for s in expected if s not in per],
+   720	                cmd_l_max=max((e["cmd_l"] for e in per.values() if e["cmd_l"] is not None), default=None),
+   721	                cmd_l_last=per[max(per)]["cmd_l"] if per else None)
+   722	
+   723	
+   724	def truncate_ledger(src, dst, T):
+   725	    """A copy of a ledger with the rows whose timesteps are <= T (header and cell text kept); returns dst."""
+   726	    with open(src, newline="", encoding="utf-8") as fh:
+   727	        rows = list(csv.reader(fh))
+   728	    head, body = rows[0], rows[1:]
+   729	    ti = head.index("timesteps")
+   730	    keep = []
+   731	    for r in body:
+   732	        try:
+   733	            ok = float(r[ti]) <= T
+   734	        except (ValueError, IndexError):
+   735	            ok = True                                    # kept: M5's C6 then names it off the grid
+   736	        if ok:
+   737	            keep.append(r)
+   738	    with open(require_under(dst, C.BS), "w", newline="", encoding="utf-8") as fh:
+   739	        w = csv.writer(fh, lineterminator="\n")
+   740	        w.writerow(head)
+   741	        w.writerows(keep)
+   742	    return Path(dst)
+   743	
+   744	
+   745	def ledger_markers(ledger, S, T, out_dir):
+   746	    m5, jsha, argv = run_m5(ledger, T, out_dir)
+   747	    return dict(file=str(ledger), sha256=C.sha256_file(ledger), m5_argv=argv, m5_json_sha256=jsha,
+   748	                m5=m5_window(m5, S, T), direct=ledger_direct(ledger, S, T))
+   749	
+   750	
+   751	# ================================================================================================ M-LOOP
+   752	def setup_simulation(tmp_name):
+   753	    """Before importing numpy/torch/the code: threads 1, TMPDIR under <BS>/tmp, the copy first on sys.path."""
+   754	    tmp = Path(C.TMP) / tmp_name
+   755	    (tmp / "mpl").mkdir(parents=True, exist_ok=True)
+   756	    os.environ.update({"OMP_NUM_THREADS": "1", "MKL_NUM_THREADS": "1", "OPENBLAS_NUM_THREADS": "1",
+   757	                       "TMPDIR": str(tmp), "MPLCONFIGDIR": str(tmp / "mpl"), "GITHUB_SHA": C.COMMIT})
+   758	    import tempfile
+   759	
+   760	    tempfile.tempdir = None

@@ -1,0 +1,115 @@
+PHASE PROBE (lens A, the phase proxy): PRE-REGISTRATION
+Written 2026-10-30 (UTC) before any rollout of this probe was generated and before any statistic of new rollouts was
+computed.  Never edited after its sha256 is recorded (PREREG.sha256, NOTES.txt).  Later ideas go in NOTES.txt POSTHOC.
+
+QUESTION.  The critic of r10 stance6 s42 (and of BS2's controls) has a positive slope dV/dq3 on the tail_3 angle q3
+(observation 6).  Hypothesis A: the true value depends on a hidden episode phase (four reward terms are paid only after
+step 200: reward_stance_width, reward_lateral_lean, reward_stance_stagger, reward_stance_cop_band; the 63-value
+observation has no clock and no settled flag), and the critic uses slowly drifting posture (q3) as a stand-in clock.
+
+PRIOR EVIDENCE READ BEFORE WRITING (existing files, not new rollouts) [measured by others]: early_bias/eb_proxy.txt
+(univariate tail-only OLS, rows >= 200 steps from a cut, no truncation bootstrap): at s42 2,097,152 corr(tail, episode
+step) +0.34, V-on-tail slope +0.180/deg (with 20 phase bins -0.0035), realised-G-on-tail +0.199/deg (with phase bins
+-0.0087); at 3,145,728 tail by phase 0-50 -0.19 deg, 200-250 +2.58, 950-1000 +2.74.  This probe tests A with full
+1,000-step episodes, SB3's truncation bootstrap, the whole observation as covariates, episode-clustered intervals and
+the critic's own local slope.
+
+DATA (all read only; code = S2/r10round/bias_screen/code, commit 8737cd3d, first on sys.path; python S2/venv -I -B;
+torch 1 thread; OMP/MKL 1 thread; at most 2 simulation processes at a time, nice 10).
+  Checkpoints (label: pair):
+    P1   parent s42 1,048,576   (S1 F2 copies: stage1_1048576_steps.zip.copy1 + stage1_vecnormalize_1048576_steps.pkl.copy1)
+    P2   parent s42 2,097,152   (F2 copies, same naming)
+    C11a control_2511 3,145,728  (BS2 runs/control_2511/01_stance/models/stage1_3145728_steps.zip + its pkl)
+    C11E control_2511 E          (stage1_final.zip + stage1_final_vecnorm.pkl, E = 3,538,944)
+    C31a control_2531 3,145,728
+    C31E control_2531 E
+    B11E critic_blind_tail3_2511 E (contrast; the EFFECTIVE critic is the blinded one, BS2's bs_hooks.critic_blind_class
+         installed for the rollout values; the raw value MLP is also recorded)
+    N80  (optional, report only) parent s80 4,194,304 (F2 copies), in its neck-habit window (first over-bar episode
+         3,801,088); 32 episodes; the neck_pitch angle replaces q3 in measures 1 and 4 (report only, no verdict).
+  PS = {P2, C11a, C11E, C31a, C31E}: the checkpoints with a positive critic tail slope (prior measurements); the
+  verdicts below are taken over PS.  P1 (before the climb) and B11E (blinded) are contrasts.
+  Rollouts: TRAINING-LIKE: the run's stance env (load_stage_config of the code copy; checked equal to the run's
+  stage_config.json reward_weights), create_vec_env with 4 envs (DummyVecEnv, Monitor), the checkpoint's VecNormalize
+  loaded with training False (frozen statistics) and norm_reward True, the model loaded as BS2's reader loads it
+  (load_sb3_model with the stage's [ppo] kwargs, enable_mirror_kl), actions SAMPLED by policy.forward exactly as SB3's
+  collect_rollouts does, clipped to [-1, 1].  Env seeds 7700 + rank (vn.seed(7700)), torch and numpy seeded 7700, the
+  same for every checkpoint.  48 complete episodes per checkpoint (the first 12 complete episodes of each env;
+  N80 32 = 8 per env); partial episodes at the end are dropped.  If the CPU budget forces it, at least 32 (8 per env),
+  logged as a deviation.
+  Recorded per decision state s_k (k = steps taken in the episode before the state, 0..999): raw and normalised
+  observation, the sampled action and the Gaussian mean (mu14 = the tail_3 command), V(s_k) of the effective critic,
+  the raw and normalised reward of the step taken from s_k and every info key named reward_*, stance_width(_target),
+  foot_stagger_m, com_lateral_offset_m, pelvis_height (info, post-step), termination flags and reason, and at s_k
+  (before the step) the tail_tip site clearance, the floor distance of tail_3/4/5 geoms (mj_geomDistance to the floor;
+  their minimum), the pelvis clearance; at a time-limit truncation V(terminal observation) (SB3's bootstrap).
+  After the rollout, through the value network: the critic's own slope on q3 at every state, by FINITE DIFFERENCE
+  (raw q3 +- 0.25 deg, re-normalised with the frozen statistics, (V+ - V-)/0.5 per degree; effective critic) and by
+  autograd (read_bs.critic_slope's form), and for B11E the raw value MLP too.
+
+DEFINITIONS.
+  gamma = 0.98.  sigma_r = sqrt(ret_rms.var + eps) of the checkpoint's pkl.  r~ = the normalised reward VecNormalize
+  returns (the critic's units).  G_k = sum_{j=k}^{T-1} gamma^(j-k) r~_j + [time-limit truncation] gamma^(T-k) V(s_T)
+  (no bootstrap after a termination).  G_gate = the same sum over the four gated terms only (each / sigma_r);
+  G_rest = G - G_gate.  B_bar = mean over settled states (k >= 200) of the four gated terms' sum / sigma_r.
+  Phase bins: B0 = [0,50), B1 = [50,200) (the quiet pre-settle), B2 = [200,400), B3 = [400,1000).  Settled flag
+  S = 1[k >= 200].  Settle ramp R(k) = gamma^max(0, 200 - k).
+  Z = the normalised observation (as fed to the networks), columns with SD < 1e-6 over the checkpoint's states dropped.
+  q3 per degree: a coefficient b on z6 is converted as b * (pi/180) / sqrt(var6 + eps).
+  Regressions (OLS with intercept, all states of all episodes):
+    M0: y ~ Z;  M1: y ~ Z + D0 + D1 + D2 (bin dummies, reference B3; S is spanned);  M2: M1 + R(k) (PRIMARY phase
+    control);  M3 (secondary): Z + 19 dummies of 50-step bins + R(k).  beta_y,m = the q3 coefficient per degree.
+    Within-phase: W3: G ~ Z on B3 states only (no hidden phase change inside B3).
+  Small nonlinear regressors (secondary): an MLP (Z -> 64 -> 64 -> 1, tanh, Adam, early stopping on 20% held-out
+  episodes, 2 seeds) with Z vs Z + {D0, D1, D2, D3, S, R}; the finite-difference q3 slope of the fitted model (raw q3
+  +- 0.25 deg), mean over all states.
+  Intervals: episode-clustered bootstrap (400 resamples of episodes with replacement, seed 12345), percentile 95% CI.
+  "Episode-paired" differences: per-episode means over the two step ranges, differenced, averaged over episodes.
+  Phase decodability (secondary): linear-probability fit of S on Z over B1 to B3 states, AUC; the same without z6.
+
+MEASURES AND PREDICTIONS (each per checkpoint; verdict over PS: SUPPORTED iff the criterion holds at >= 4 of the 5
+PS checkpoints, NOT SUPPORTED otherwise; UNTESTABLE iff fewer than 3 PS checkpoints are resolvable as defined).
+
+  1. THE TAIL TRACKS THE PHASE (A1).  Reported: mean and SD of q3 (deg), mu14 and the clipped sampled command by bin;
+     Pearson r(q3, k) over all states and over k >= 50; the boundary change dB = episode-paired q3 over [200,250)
+     minus [150,200); the settle difference dS = episode-paired q3 over [200,1000) minus [50,200); AUC_q3 = P(q3 of a
+     random settled state > q3 of a random B1 state).
+     PREDICTION A1: dS's CI excludes 0 with sign(dS) = sign(B_bar) (the direction that makes q3 a positive-slope
+     proxy), and AUC_q3 deviates from 0.5 by >= 0.10 in that direction.  Resolvable always.
+     (Descriptive, no verdict: no jump at the boundary, |dB| < 0.1 deg, since the actor cannot see the phase.)
+
+  2. THE TRUE VALUE DEPENDS ON THE PHASE AT MATCHED POSTURE (A2).  Reported: G, G_gate, G_rest, V mean by bin; B_bar;
+     M1 bin coefficients c_B0, c_B1, c_B2 for y = G (and for G_rest).
+     PREDICTION A2: c_B1 (G in the quiet pre-settle relative to B3 at matched Z) has CI excluding 0, sign(c_B1) =
+     -sign(B_bar), |c_B1| >= 0.05 (normalised units).  Resolvable iff the CI half-width of c_B1 <= 0.05.
+
+  3. THE CRITIC'S ERROR DEPENDS ON THE PHASE (A3).  Reported: mean V - G by bin.  D_err = episode-paired mean(V - G)
+     over B1 minus over B2 and B3 together.
+     PREDICTION A3: D_err's CI excludes 0, sign(D_err) = sign(B_bar) (the critic overvalues the quiet pre-settle when
+     the gated terms pay net positive), |D_err| >= 0.05.  Resolvable iff the CI half-width of D_err <= 0.05.
+
+  4. THE CRITIC'S TAIL SLOPE IS EXPLAINED BY THE PHASE (A4).  Reported: beta_G,M0..M3, beta_V,M0..M3, the MLP slopes,
+     beta_G,W3, and the critic's own slope (finite difference, and autograd) as means over B0, B1, B2, B3, pre-settle
+     (k < 200) and settled (k >= 200) states.
+     PREDICTION A4 (primary): beta_G,M0 > 0 with CI excluding 0, AND beta_G,M2 <= 0.5 beta_G,M0, AND the CI of
+     beta_G,M0 - beta_G,M2 lies above 0.  Resolvable iff the CI half-width of beta_G,M0 <= max(|critic FD slope over
+     all states|, 0.01 per degree).
+     PREDICTION A4c: inside B3 the realised returns do not pay for a raised tail while the critic's own slope there is
+     positive: the critic's mean FD slope over B3 states > 0, beta_G,W3's CI includes 0 or lies below 0, and the CI of
+     (critic FD slope over B3 - beta_G,W3) lies above 0.  Resolvable iff the CI half-width of beta_G,W3 <= max(critic
+     FD slope over B3, 0.01).
+     (Descriptive, no verdict: beta_V,M2 / beta_V,M0 near 1, since the critic cannot see the phase; the critic's FD
+     slope positive in both B1 and settled states.)
+
+  5. SIGN TRACKING ACROSS CHECKPOINTS (A5).  Over the 6 non-blinded checkpoints (P1 + PS): sign(critic FD slope over
+     all states) = sign(dS) x sign(B_bar).  SUPPORTED iff >= 5 of 6 match.
+
+  Contrasts (report only): B11E (blinded critic: effective slope 0 by construction; does its D_err keep the controls'
+  sign, does q3 still track the phase); N80 (neck_pitch in place of q3).
+  Hypothesis B side data (report only, not this lens): tail clearances and terminations by bin.
+
+OVERALL READING FOR A (decided only by the verdicts above):
+  A SUPPORTED as the explanation of the critic's tail slope iff A1, A2, A3 and A4 are all SUPPORTED.
+  A NOT SUPPORTED iff A1 or A4 is NOT SUPPORTED (the tail does not track the phase, or the phase does not explain the
+  realised-return tail slope).  Otherwise A PARTIAL.  An UNTESTABLE prediction makes the reading at most PARTIAL.
+  A4c and A5 qualify the reading (they do not change it).

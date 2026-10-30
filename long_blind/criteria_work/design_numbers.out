@@ -1,0 +1,49 @@
+A. THE SMALLEST ATTAINABLE ONE-SIDED P (exact), 'blind rails less often than control'
+   3 + 1: Fisher exact, 0 of 3 against 1 of 1: p = 1/4 = 0.2500
+   2 + 2: Fisher exact, 0 of 2 against 2 of 2: p = 1/6 = 0.1667
+   4 + 0: no within-study comparison
+   (a rank or permutation test on any continuous outcome: 3 + 1 -> 1/4, 2 + 2 -> 1/6; neither can reach 0.05)
+   permutation minimum 3 + 1: 1/C(4,1) = 1/4 = 0.2500
+   permutation minimum 2 + 2: 1/C(4,2) = 1/6 = 0.1667
+
+B. WHAT THE BLIND ARM'S COUNT CAN BOUND (one-sided Clopper-Pearson, exact for 0 events)
+   0 of 2 railed: the per-run rail chance under blinding is below 0.776 at 95% (upper bound); 0 of 2 has chance 0.250 if that chance is 0.5
+   0 of 3 railed: the per-run rail chance under blinding is below 0.632 at 95% (upper bound); 0 of 3 has chance 0.125 if that chance is 0.5
+   0 of 4 railed: the per-run rail chance under blinding is below 0.527 at 95% (upper bound); 0 of 4 has chance 0.062 if that chance is 0.5
+   chance to see at least one blind rail (an 'escape') if each blind run escapes with chance q:
+     q 0.1: 2 runs 0.190, 3 runs 0.271, 4 runs 0.344
+     q 0.2: 2 runs 0.360, 3 runs 0.488, 4 runs 0.590
+     q 0.3: 2 runs 0.510, 3 runs 0.657, 4 runs 0.760
+     q 0.5: 2 runs 0.750, 3 runs 0.875, 4 runs 0.938
+     q 0.7: 2 runs 0.910, 3 runs 0.973, 4 runs 0.992
+
+C. THE CONTROL'S CHANCE TO RAIL, FROM THE RECORD (context, not a test)
+   ECS: 12 of 12 s42 continuations from 3,145,728 any-flagged by E (ECS score.txt; RUNLOG l740): one-sided 95% lower bound 0.779; two-sided 95% lower bound 0.735
+   BS2: 4 of 4 controls climbed (rise +0.29 to +0.67 by 3,538,944; 2 of 4 over the bar): one-sided 95% lower bound 0.473; two-sided 95% lower bound 0.398
+   if one control rails with chance 0.95: P(control does not rail) 0.05 with 1 control; P(neither of 2 rails) 0.0025; P(at least one of 2 fails to rail) 0.098
+   if one control rails with chance 0.90: P(control does not rail) 0.10 with 1 control; P(neither of 2 rails) 0.0100; P(at least one of 2 fails to rail) 0.190
+   if one control rails with chance 0.80: P(control does not rail) 0.20 with 1 control; P(neither of 2 rails) 0.0400; P(at least one of 2 fails to rail) 0.360
+   if one control rails with chance 0.70: P(control does not rail) 0.30 with 1 control; P(neither of 2 rails) 0.0900; P(at least one of 2 fails to rail) 0.510
+   if blinding had no lasting effect and each blind run railed with the record's chance p, P(0 of 3 blind rail):
+     p 0.950: 0 of 3 0.0001; 0 of 2 0.0025
+     p 0.900: 0 of 3 0.0010; 0 of 2 0.0100
+     p 0.800: 0 of 3 0.0080; 0 of 2 0.0400
+     p 0.735: 0 of 3 0.0186; 0 of 2 0.0702
+     p 0.600: 0 of 3 0.0640; 0 of 2 0.1600
+     p 0.500: 0 of 3 0.1250; 0 of 2 0.2500
+
+D. COMPUTE (inferred from BS2's measured wall times; LB's harness builder's TIMING supersedes)
+   BS2 82 min for 176 rollouts with 4 running -> 28.0 s per rollout -> LB 1209 rollouts 9.39 h
+   BS2 85 min for 176 rollouts with 4 running -> 29.0 s per rollout -> LB 1209 rollouts 9.73 h
+   BS2 89 min for 176 rollouts with 4 running -> 30.3 s per rollout -> LB 1209 rollouts 10.19 h
+   V4 (harness builder, load 6-7): 32 s per rollout -> 10.75 h
+   evaluations: BS2 11 in 176 rollouts; LB 75 in 1209 (the same ratio, 0.0625 vs 0.0620), so the per-rollout figure includes them
+
+E. DISK (bytes; the harness builder's disk_estimate.out and the measurement builder's NOTES)
+   per run 193,386,567 B (184.4 MiB); 4 runs 773,546,268 B (0.72 GiB)
+   the runner's launch floor 2,449,473,536 B (2.28 GiB); pause floor 1,610,612,736 B
+   the measurement needs 3,309,305,856 B free at each launch (3.31 GB); measure_r10round.py refuses below 3,221,225,472 B
+   free now about 2.90 GB -> after 4 runs about 2.13 GB [inferred]; short of the measurement's need by 1.18 GB
+   periodic pairs per run 37; on the 1,048,576 schedule 9 (incl. J 4,194,304 ... 10,485,760 and R1); the other 28 x 4,038,055 B = 113 MB per run, 452 MB for 4 (fewer if M5 names RESOLUTION checkpoints off that grid)
+   so pruning inside LB/runs after the reads gives about 2.58 GB: still short by about 0.73 GB -> space must be freed elsewhere first (the coordinator, with the maintainer's word for other studies' files), or the reading waits (INCOMPLETE)
+   (revised) with every pair read first: the periodic pairs the measurement does not name, 32 x 4,038,055 B = 129 MB per run, 517 MB for 4 (fewer if RESOLUTION checkpoints are named); with LB/validate's 176 MB: 693 MB inside LB; after the runs about 2.13 GB + that = 2.82 GB, short of 3.31 GB by 0.49 GB

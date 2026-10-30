@@ -1,0 +1,172 @@
+PHASE PROBE (lens A: the phase proxy) -- NOTES
+Folder: S2/com_revisit/notes/phase_probe/  (S2 = /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad)
+S1 = /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad
+
+SUMMARY (written 2026-10-30 17:28 UTC, after the pre-registered analysis; numbers in normalised-return units, the
+critic's units, unless marked raw; slopes per degree of joint angle)
+
+READING: hypothesis A (the phase proxy) is SUPPORTED by every pre-registered prediction (PREREG.txt sha256
+639cd879facdd2168cee6aa545c14be29f2c7a9125f84cb228f3ac860ab7ee76, recorded 16:56:47 UTC before any rollout).
+  A1 the tail tracks the phase      SUPPORTED 5/5   A2 value depends on phase   SUPPORTED 5/5
+  A3 critic error depends on phase  SUPPORTED 4/5   A4 phase explains G slope   SUPPORTED 5/5 (resolvable 3/5)
+  A4c within B3 G does not pay      SUPPORTED 5/5   A5 sign tracking            SUPPORTED 6/6     OVERALL: A SUPPORTED
+Data: 7 checkpoints x 48 training-like episodes (sampled actions, frozen VecNormalize; this loop bit-identical to
+SB3's collect_rollouts over 60 steps) + s80 4,194,304 x 32; every episode ran to the 1,000-step limit (no falls).
+
+WHAT WAS MEASURED [measured]
+ 1. The hidden phase is real and large.  The four gated terms pay net +0.0068 to +0.0075 per settled step (raw about
+    +0.31: lateral lean +0.24, width +0.10, stagger -0.00, CoP band -0.01 to -0.03).  At matched observation (M1),
+    returns-to-go in the quiet pre-settle bin (steps 50-200) are 0.17-0.23 below the settled bin (all 5 PS; CI
+    half-widths <= 0.02).  The gated terms' own return-to-go rises 0.24-0.26 from steps 50-200 to 200-400: all of
+    G's 0.23-0.25 rise there.
+ 2. The tail angle is a clock.  After each reset the tail creeps up over about 300 steps (C11E: -0.39 deg at steps
+    25-50, +1.2 at 75-100, +3.6 at 175-200, +4.6 from 400), and the policy's own tail command creeps with it (mu14
+    -0.15 -> +0.94), a smooth creep with no jump at 200.  Settled-minus-pre-settle tail angle dS: P2 +0.10 deg,
+    C11a +1.85, C11E +2.35, C31a +0.55, C31E +1.26; AUC of the tail angle alone for settled vs steps 50-200: 0.61,
+    0.93, 0.95, 0.79, 0.94.  Before the climb (P1) the tail does not track the phase (dS -0.04, AUC 0.46).
+ 3. The critic makes a phase error.  V - G is +0.02 to +0.12 in steps 50-200 and -0.03 to -0.05 in steps 200-400:
+    D_err = +0.140 (P2), +0.079, +0.043, +0.119, +0.061.  It shrinks as the tail becomes a better clock (C11E).
+ 4. The phase explains the tail's apparent value.  Realised G on the whole observation (M0): tail coefficient +0.064
+    to +0.093 per degree in all 5 PS; with phase controls (M2) it is -0.013 to -0.002 (drop CI > 0 everywhere).
+    Inside steps 400-1000 the realised returns do not pay for a raised tail (-0.018 to -0.004 per degree) while the
+    critic's own finite-difference slope there is +0.019 to +0.058 (difference CI > 0 at all 5).  The critic's
+    slope is positive in both pre-settle and settled states.  MLP regressors agree: G without phase +0.03 to +0.05
+    per degree, G with phase +0.002 to -0.014.
+ 5. Sign tracking: sign(critic tail slope) = sign(dS) x sign(B_bar) at all 6 non-blinded checkpoints (P1's critic
+    slope is -0.005 and its tail drifts slightly down: the proxy had the opposite sign before the climb).
+ Contrasts: B11E (blinded critic at E): the effective tail slope is 0 by construction, the tail still tracks the
+    phase weakly (dS +0.22, AUC 0.62) and the blinded critic makes the same phase error (D_err +0.101).  N80 (s80,
+    neck habit window, report only): the neck pitch angle is a strong clock in the other direction (dS -7.2 deg,
+    AUC 0.11) and the critic's neck slope has the matching sign (-0.006 per degree, toward the habit's direction),
+    with the same signature: realised G neck coefficient -0.016 -> +0.003 with phase controls, +0.004 inside 400-1000.
+ Phase decodability: a linear readout of the settled flag from the observation reaches AUC 0.84-0.99 and loses
+    almost nothing without the tail angle (0.84-0.99): many joints drift with the phase; the tail is the strongest
+    single clock in the climbing runs.
+ Hypothesis B side data (report only): the lowest tail geom stays >= 0.72 m above the floor in every bin and no
+    episode terminated, so no termination risk is visible in these rollouts.
+
+POST HOC (not pre-registered)
+ - The push on the tail_3 command mean (mean A x (a14 - mu14) / sigma^2): with the run's own critic +0.0032 (C11a),
+   +0.0012 (C11E), +0.0025 (C31E) (CI > 0), +0.0004 / +0.0007 (P2, C31a; CI spans 0); with a linear value that sees
+   the phase -0.0007 to -0.0027 (CI < 0 at 5 of 6 non-P1 checkpoints); with Monte Carlo returns -0.0009 to -0.0035.
+   A phase-blind linear fit of the realised returns that sees the tail pushes up too (+0.001 to +0.006, CI > 0 at 4
+   of 5 PS): the push comes from fitting a phase-blind value, not from a quirk of the network.
+ - Across all 21 joint angles the critic's slopes (per SD) correlate with the phase-explained part of the realised
+   slope: +0.88, +0.93, +0.41, +0.71 at C11a, C11E, C31a, C31E (+0.58 at P2).
+ - Migration hint: in BS2's blinded run 2511 the neighbouring tail_2 command rose +0.118 over the window (other
+   blinded runs +0.009 to +0.019; controls -0.032 to +0.021); at its E the blinded critic's tail_2 slope is +0.031
+   per degree (controls -0.018 to +0.004), the tail_2 angle drifts with the phase (dS +0.24 deg) and its critic
+   pushes the tail_2 command up (+0.0014, CI > 0) while the phase-aware value and the realised returns push down.
+
+WHAT IT MEANS [inferred]
+ - Why the critic values a raised tail: four reward terms switch on at step 200 and the observation has no clock, so
+   the true value depends on a hidden phase; the policy's slow tail creep after each reset makes the tail angle a
+   clock; a phase-blind critic fitted to these returns gives the tail a positive slope that the returns do not
+   support within a phase; the policy gradient follows it, a higher command lengthens and enlarges the creep, and
+   the clock gets better: a loop.
+ - On the maintainer's question, why blind the critic to one aspect of the robot: it is a clean causal test and a
+   working stopgap, not a cure.  It removes the one channel through which the tail's own action changes the
+   critic's estimate (BS2: no climb; here the blinded critic's tail push is -0.0007), but it leaves the cause: the
+   blinded critic still makes the same phase error (+0.10), the phase is still decodable from the other joints, the
+   same signature appears on s80's neck, and in one of four blinded runs the next tail joint started to climb.
+   A root-cause fix would remove the hidden phase from the value target: give the critic alone the step index or a
+   settled flag (the actor need not see it), or make the gated terms stationary (pay from step 0, or centre them on
+   a reference that is not captured at step 200).  Offline, a value that sees the phase has a tail slope <= 0 and
+   pushes the tail command down, the same direction as the realised returns.  No training run has tested this.
+
+CAVEATS: rollouts with frozen statistics at single checkpoints (not the training dynamics); 48 episodes per
+checkpoint; the linear and MLP fits are in-sample summaries; GAE in the post hoc push ignores SB3's 2,048-step
+rollout cuts and PPO's clipping and per-minibatch normalisation; the A4 resolvability rule passed at only 3 of 5;
+the migration hint rests on one run (2511); N80 is one s80 checkpoint, report only.
+Descriptive expectations in PREREG that did not hold as worded: |dB| < 0.1 deg (true at P2 only: the creep is still
+running at step 200 in the controls, a smooth slope, not a jump); beta_V,M2 / beta_V,M0 near 1 holds for the MLP fits
+(0.90-1.24) but not the linear ones (0.24-0.74: the linear V fit is dominated by the steps 0-50 contrast).
+
+LOG (date -u times; [measured] = read from a file or computed; [inferred] = reasoning)
+2026-10-30 16:42:58 UTC  start. Listed the scratchpad and com_revisit/notes (read only).
+2026-10-30 16:43-16:45 UTC  located the roots by find (read only): S2 = this session's scratchpad (holds r10round/,
+    venv/); S1 = .../0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad (holds foot/stance6/fetch/F2/stance6_r10LTSB_s42/).
+    [measured] F2 s42 copies hold stage1_1048576_steps.zip.copy1 and stage1_2097152_steps.zip.copy1 with their
+    stage1_vecnormalize_*.pkl.copy1, train_episodes.csv.copy1, eval_episodes.csv.copy1, stage_config.json.copy1.
+    [measured] BS2 runs: control_2501/2511/2521/2531, critic_blind_tail3_2501/2511/2521/2531.
+    Read BS2 REPORT.md, tools/bs_common.py (paths and pins: CODE = S2/r10round/bias_screen/code, commit 8737cd3d,
+    OBS_TAIL3 = 6, ACT_TAIL3 = 14, E = 3,538,944) and tools/read_bs.py (Net, critic_slope, onpolicy_states).
+2026-10-30 16:46:48 UTC  mkdir of this folder.
+2026-10-30 16:47-16:55 UTC  read (read only) the code copy: environments/tyrannosaurus_rex/base_env.py (reward terms
+    8f-8i: reward_stance_width paid only for _step_count > stance_width_settle_steps (200) and centred on the width
+    captured at _step_count == 200; reward_lateral_lean, reward_stance_stagger, reward_stance_cop_band gated
+    _step_count > 200 and zero command; _get_obs 63 values; _is_terminated incl. tail_3/4/5 floor-contact geoms),
+    shared/base_env.py step() (truncation at _step_count >= 1000), shared/train_base.py (make_env: Monitor;
+    create_vec_env: DummyVecEnv + VecNormalize), shared/mirror_kl_ppo.py (no collect_rollouts override), MJCF
+    (timestep 0.002 x frame_skip 5 = 0.01 s per control step; tail_3_pitch_act position kp 60, ctrlrange +-0.2094).
+    [measured] s42 stage_config.json.copy1: alive_bonus 1.0, fall_penalty -100, max_episode_steps 1000, gamma 0.98,
+    gae_lambda 0.95, stance_width_weight 0.1 (bonus), lateral_lean_weight 0.25 (bonus), stance_stagger_weight 0.3
+    (penalty), stance_cop_band_weight 0.3 (penalty), stance_width_settle_steps 200, reset_noise_scale 0.05.
+    [measured] parent s42 train_episodes.csv.copy1: (1.0M, 1.5M] 502 episodes, 500 truncated at 1000, 2 fallen;
+    (1.5M, 2.097M] 596, all truncated; (2.097M, 3.0M] 905, 904 truncated, 1 fallen.  No tail_contact after 0.5M.
+    Read early_bias/eb_proxy.py and eb_proxy.txt, eb_realized.txt (prior univariate phase-proxy analysis, see PREREG).
+    s80 neck habit: first over-bar 3,801,088 (early_warning NOTES); F2 holds s80 4,194,304 (used as optional N80).
+2026-10-30 16:56:47 UTC  PRE-REGISTERED.  PREREG.txt sha256 639cd879facdd2168cee6aa545c14be29f2c7a9125f84cb228f3ac860ab7ee76
+    (PREREG.sha256; both files chmod a-w).  No rollout of this probe existed before this time.
+2026-10-30 16:57-17:00 UTC  wrote phase_rollouts.py (the rollout recorder) and run_all.sh (two queues, nice 10).
+    First smoke run refused (exit 2): the env-kwargs check compared the code copy's stance env_kwargs with the run's
+    stage_config.json reward_weights literally, and the record lists 23 keys the config leaves to constructor
+    defaults; changed the check to compare effective values (constructor defaults updated with the config).
+2026-10-30 17:00:06 UTC  smoke: phase_rollouts.py --equivalence 60 on P2 (F2 copy, read only), writes only
+    smoke/equiv_P2.json.  [measured] env_kwargs_diffs [] (effective values equal the run's record);
+    this probe's loop vs SB3's own collect_rollouts, same seeds, 60 vector steps: max |diff| actions 0.0, values 0.0,
+    normalised rewards 0.0 (bit-identical).
+2026-10-30 17:00:22 UTC  smoke: --max-vec-steps 500 on P2 (no episode completes; meta only, smoke/time_P2.json).
+    [measured] 450.6 env steps/s per process; sigma_r 45.3587 at P2; clip_reward 50, clip_obs 10, norm_reward True,
+    training False, gamma 0.98, qidx 6, settle_steps 200.  No statistic of any rollout computed.
+2026-10-30 17:01:10 UTC  launched run_all.sh in the background (2 queues, nice 10): q1 = P1, C11a, C31a, B11E; q2 = P2,
+    C11E, C31E, N80; 48 episodes each (N80 32); outputs rollouts/<label>.npz + .json, logs/<label>.log,
+    logs/queue.log.  df before: 3,555,020,800 bytes free.  Other workflows were running at the same time
+    (long_blind stance_gate_report at nice 19, a termination_probe at nice 10): my processes ran at 265-285 env
+    steps/s instead of 450.
+2026-10-30 17:02-17:04 UTC  wrote phase_analyze.py (the pre-registered analysis; refuses unless PREREG.txt's sha256 is
+    639cd879...; offline OLS with episode-clustered bootstrap, MLP regressors, verdict rules exactly as PREREG).
+2026-10-30 17:04:20 / 17:04:30 UTC  P1 and P2 rollouts finished (exit 0): 48 episodes each, all 48 truncated at 1000
+    (no termination); 279 / 263 env steps/s; npz 33.7 / 33.6 MB; max |V recomputed in batch - V in the loop|
+    1.9e-06 / 1.4e-06.
+2026-10-30 17:04:47 UTC  test run of phase_analyze.py --labels P1,P2 --no-mlp --tag _test (exit 0; verdicts UNTESTABLE
+    as only P2 of PS was present: expected).  Outputs analysis_test.json/.txt, verdicts_test.txt (superseded by the
+    full run; kept).  No change to the analysis after seeing these numbers.
+2026-10-30 17:05-17:07 UTC  POSTHOC (not pre-registered): wrote posthoc_joints.py (the value MLP rebuilt from each
+    zip's policy.pth, read only, torch.load weights_only; autograd gradient of V on all 21 joint angles; per joint the
+    phase drift dS, the critic's slope, and G's slopes in M0 / M2 / within B3).  Test on P1,P2 (exit 0): V rebuilt vs
+    recorded max |diff| 1.69e-06 / 1.66e-06 (the rebuild is the network).  Added standardised (per angle SD)
+    cross-joint correlations at 17:07:17 UTC before the full run.
+2026-10-30 17:07:56 / 17:07:58 UTC  C11a and C11E rollouts finished (exit 0; 48 episodes each, all truncated at 1000).
+2026-10-30 17:08:05 UTC  test run phase_analyze.py --labels C11a,C11E --no-mlp --tag _test2 (exit 0).  Interim look
+    only; the verdicts come from the full run over all checkpoints.  No change to the analysis.
+2026-10-30 17:09 UTC  POSTHOC (not pre-registered): wrote posthoc_push.py (the score-function push on the tail_3 command
+    mean, mean A x (a14 - mu14)/sigma14^2, under five value baselines: the run's critic (GAE 0.98/0.95), linear fits
+    of G on Z (lin), on Z without q3 (noq), on Z + bins + settle ramp (phase), and Monte Carlo G - V_phase (mc)).
+    Test run on P1,P2,C11a,C11E at 17:09:52 UTC (exit 0); final numbers come from the full run below.
+2026-10-30 17:12:21 - 17:17:48 UTC  C31E, C31a, N80, B11E rollouts finished (exit 0).  run_all.started 17:01:09,
+    run_all.finished 17:17:48.  rollouts/ holds 8 npz (B11E/C11a/C11E/C31a/C31E/P1/P2 33.6-33.7 MB, N80 22.5 MB).
+    df after: 3,157,835,776 bytes free.
+2026-10-30 17:17:59 - 17:23:30 UTC  FULL pre-registered analysis: phase_analyze.py (all 8 labels, with MLPs; nice 10;
+    exit 0; logs/analyze_full.log).  Outputs analysis.json, analysis.txt, verdicts.txt.  [measured] verdicts:
+    A1 SUPPORTED (5/5 PS), A2 SUPPORTED (5/5), A3 SUPPORTED (4/5; C11E fails |D_err| >= 0.05: +0.043), A4 SUPPORTED
+    (holds 5/5; resolvable 3/5: C11a, C11E, C31E; P2 and C31a not resolvable by the pre-registered half-width rule),
+    A4c SUPPORTED (5/5), A5 SUPPORTED (6/6).  OVERALL: A SUPPORTED.
+2026-10-30 17:24:13 - 17:24:47 UTC  POSTHOC runs: posthoc_push.py (exit 0; posthoc_push.txt/.json) and
+    posthoc_joints.py (exit 0; posthoc_joints.txt/.json).
+2026-10-30 17:25:35 UTC  POSTHOC: wrote and ran posthoc_other.py (tail_2_pitch action 13 / obs 5 and neck_pitch
+    action 0 / obs 0: command and angle by bin, push under crit / phase / mc; exit 0; posthoc_other.txt/.json).
+2026-10-30 17:26:21 UTC  POSTHOC: wrote and ran posthoc_bs2_probe.py (reads BS2's 8 runs' policy_probe.npz, read only,
+    allow_pickle False: rollout_mu_mean and bank_action_now for actions 13, 14, 0, 11; exit 0;
+    posthoc_bs2_probe.txt/.json).  [measured] tail_3 rise first-8 to last-8 updates: control median +0.464 (matches
+    BS2's REPORT), blinded +0.009; tail_2 rise: blinded +0.009 / +0.118 (2511) / +0.018 / +0.019, control +0.021 /
+    -0.011 / -0.032 / -0.008.
+2026-10-30 17:28 UTC  wrote the SUMMARY above (numbers checked against analysis.json, posthoc_push.json,
+    posthoc_joints.json at 17:28:35 UTC; five range statements corrected at 17:28:50 UTC before finishing).
+    [measured] across the 5 PS checkpoints D_err falls as the tail's clock quality rises: AUC 0.606 / 0.789 / 0.933 /
+    0.935 / 0.953 with D_err +0.140 / +0.119 / +0.079 / +0.061 / +0.043 (P2, C31a, C11a, C31E, C11E).
+    [inferred] the better the tail tells the phase, the smaller the critic's phase error and the larger its tail slope.
+2026-10-30 17:29 UTC  wrote SHA256SUMS.txt (every file of this folder except tmp/, NOTES.txt and itself).  Folder
+    size 247 MB (rollouts/ 258 MB decimal).  df: 3,119,198,208 bytes free.  No file outside this folder was written;
+    every checkpoint, record and code file was opened read only.  No policy was trained or updated.
+2026-10-30 17:29:20 UTC  finished; structured summary returned to the workflow.

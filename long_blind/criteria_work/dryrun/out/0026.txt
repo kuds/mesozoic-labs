@@ -1,0 +1,213 @@
+   230	  [[ -f "$1/run_meta.json" ]] || { echo "$2"; return; }
+   231	  "$PY" -I -B -c "import json,sys
+   232	try: m = json.load(open(sys.argv[1]))
+   233	except Exception: m = {}
+   234	v = m.get('load_step')
+   235	print(v if isinstance(v, int) and not isinstance(v, bool) else sys.argv[2])" "$1/run_meta.json" "$2" 9>&-
+   236	}
+   237	
+   238	last_crashed_folder() {  # LB: the newest retired folder of <name> in the crash ledger that still exists, or nothing
+   239	  local f
+   240	  f=$(awk -F'\t' -v n="$1" '$2 == n && $3 != "none" {f = $3} END {print f}' "$CRASHES")
+   241	  [[ -n "$f" && -d "$RUNS/$f" ]] && echo "$f"
+   242	  return 0
+   243	}
+   244	
+   245	current_attempt() {  # LB: the number of the newest logs/<name>.attempt<k>.log (0 when none)
+   246	  local k=0
+   247	  while [[ -e "$LOGS/$1.attempt$((k + 1)).log" ]]; do k=$((k + 1)); done
+   248	  echo "$k"
+   249	}
+   250	
+   251	exit_snapshot() {  # LB, process I1: lstat (no file opened) of an attempt's files right after it exits
+   252	  local k
+   253	  k=$(current_attempt "$1")
+   254	  mkdir -p "$LOGS/atimes_at_exit"
+   255	  "$PY" -I -B - "$RUNS/$1" "$BS/tmp/$1" "$LOGS" "$1" "$LOGS/atimes_at_exit/$1.attempt$k.tsv" 9>&- <<'PYEOF'
+   256	import glob, os, stat, sys
+   257	run, tmp, logs, name, out = sys.argv[1:6]
+   258	paths = [os.path.join(d, f) for top in (run, tmp) for d, _dirs, files in os.walk(top) for f in files]
+   259	paths += glob.glob(os.path.join(glob.escape(logs), glob.escape(name) + ".attempt*.log"))
+   260	rows = []
+   261	for p in sorted(paths):
+   262	    try:
+   263	        st = os.lstat(p)
+   264	    except OSError:
+   265	        continue
+   266	    if stat.S_ISREG(st.st_mode):
+   267	        rows.append(f"{p}\t{st.st_atime_ns}\t{st.st_mtime_ns}\t{st.st_ctime_ns}\t{int(st.st_atime_ns > st.st_mtime_ns)}")
+   268	with open(out + ".tmp", "w") as fh:
+   269	    fh.write("path\tatime_ns\tmtime_ns\tctime_ns\tatime_after_mtime\n")
+   270	    fh.writelines(r + "\n" for r in rows)
+   271	os.replace(out + ".tmp", out)
+   272	print(f"{len(rows)} files")
+   273	PYEOF
+   274	}
+   275	
+   276	decided() { awk -F'\t' -v n="$1" '$2 == n {d = $3} END {print d}' "$DECIDED"; }
+   277	
+   278	decide() {
+   279	  printf '%s\t%s\t%s\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$1" "$2" "$3" >> "$DECIDED"
+   280	  note "$1: $2 ($3)"
+   281	}
+   282	
+   283	own_crashes() { awk -F'\t' -v n="$1" '$2 == n && $5 == 1 {c++} END {print c + 0}' "$CRASHES"; }
+   284	
+   285	rearm_atimes() {  # PR-M2 / P4: atime = mtime - 1 ns on every regular file of a decided continuation (prints the count)
+   286	  "$PY" -I -B - "$RUNS/$1" "$BS/tmp/$1" "$LOGS" "$1" 9>&- <<'PYEOF'
+   287	import glob, os, stat, sys
+   288	run, tmp, logs, name = sys.argv[1:5]
+   289	paths = [os.path.join(d, f) for top in (run, tmp) for d, _dirs, files in os.walk(top) for f in files]
+   290	paths += glob.glob(os.path.join(glob.escape(logs), glob.escape(name) + ".attempt*.log"))
+   291	n = 0
+   292	for p in paths:
+   293	    try:
+   294	        st = os.lstat(p)
+   295	        if stat.S_ISREG(st.st_mode):
+   296	            os.utime(p, ns=(st.st_mtime_ns - 1, st.st_mtime_ns), follow_symlinks=False)
+   297	            n += 1
+   298	    except OSError:
+   299	        pass
+   300	print(n)
+...
+   340	os.replace(out + ".tmp", out)
+   341	print(f"{os.path.basename(out)}: {len(rows)} files, {unread} still re-armed (atime = mtime - 1 ns)")
+   342	PYEOF
+   343	}
+   344	
+   345	next_free() {
+   346	  local k=1
+   347	  while [[ -e "$RUNS/$1_$2$k" ]]; do k=$((k + 1)); done
+   348	  echo "$1_$2$k"
+   349	}
+   350	
+   351	retire() {  # runs/<name> -> runs/<name>_<kind><k> (inside <BS>/runs); prints the new name
+   352	  local new
+   353	  new=$(next_free "$1" "$2")
+   354	  mv "$RUNS/$1" "$RUNS/$new"
+   355	  echo "$new"
+   356	}
+   357	
+   358	retire_void() {
+   359	  local new
+   360	  new=$(next_free "$1" void)
+   361	  VOID_SEEN=1
+   362	  decide "$1" VOID "$2; folder $new"
+   363	  mv "$RUNS/$1" "$RUNS/$new"
+   364	}
+   365	
+   366	attempt_log() {
+   367	  local k=1
+   368	  while [[ -e "$LOGS/$1.attempt$k.log" ]]; do k=$((k + 1)); done
+   369	  echo "$LOGS/$1.attempt$k.log"
+   370	}
+   371	
+   372	in_lost() {
+   373	  [[ -f "$LOST_JSON" ]] || return 1
+   374	  "$PY" -I -B -c "import json,sys
+   375	d = json.load(open(sys.argv[1]))
+   376	sys.exit(0 if sys.argv[2] in (d.get('lost') or {}) else 1)" "$LOST_JSON" "$1" 9>&-
+   377	}
+   378	
+   379	write_lost() {
+   380	  "$PY" -I -B - "$LOST_JSON" "$1" "$2" "$LOST_SCHEMA" 9>&- <<'PYEOF'
+   381	import datetime, json, os, sys
+   382	path, name, detail, schema = sys.argv[1:5]
+   383	d = json.load(open(path)) if os.path.exists(path) else {"schema": schema, "lost": {}}
+   384	if d.get("schema") != schema:
+   385	    sys.exit(f"{path}: schema {d.get('schema')!r} != {schema!r}")
+   386	d.setdefault("lost", {})[name] = {"cause": "crashes", "detail": detail, "by": "run_waves_bs.sh",
+   387	                                  "utc": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}
+   388	tmp = path + ".tmp"
+   389	with open(tmp, "w") as fh:
+   390	    json.dump(d, fh, indent=1)
+   391	    fh.write("\n")
+   392	os.replace(tmp, path)
+   393	PYEOF
+   394	}
+   395	
+   396	free_bytes() {
+   397	  if [[ "${BS_WAVES_TEST:-}" == 1 && -n "${BS_FREE_BYTES_FILE:-}" ]]; then cat "$BS_FREE_BYTES_FILE"; return; fi
+   398	  df -B1 --output=avail "$BS" | tail -n 1 | tr -d ' '
+   399	}
+   400	
+   401	proctable() {
+   402	  { echo "== $(date -u +%Y-%m-%dT%H:%M:%SZ) start $1"; echo "load: $(cat /proc/loadavg)"
+   403	    "${PS_CMD[@]}" 2>> "$ERRLOG" 9>&- | head -n 12 | cut -c1-200 || true; } >> "$LOGS/proctable.log"
+   404	}
+   405	
+   406	alive() { kill -0 "$1" 2>> "$ERRLOG"; }
+   407	
+   408	orphans() { [[ -n "$(pgrep -f "$ORPHAN_PATTERN" 9>&- || true)" ]]; }
+   409	
+   410	HALT=0
+   411	HALT_WHY=()
+   412	VOID_SEEN=0
+   413	REFUSED=()
+   414	PENDING=()
+   415	declare -A PID=() RESUME_FROM=()
+   416	
+   417	record_crash() {  # record_crash <name> <cause> <counts 0|1>
+   418	  local name=$1 cause=$2 counts=$3 new=none reached=none early=0 n load
+   419	  load=${S_OF[$name]}
+   420	  if [[ -d "$RUNS/$name" ]]; then
+   421	    reached=$(reached_step "$RUNS/$name")
+   422	    load=$(load_step_of "$RUNS/$name" "${S_OF[$name]}")
+   423	  fi
+   424	  if (( counts == 1 )); then
+   425	    if [[ "$reached" == none ]] || (( reached < load + EVAL_FREQ )); then early=1; counts=0; fi
+   426	  fi
+   427	  if [[ -d "$RUNS/$name" ]]; then
+   428	    new=$(retire "$name" crashed)
+   429	    RESUME_FROM[$name]=$RUNS/$new
+   430	  fi
+   431	  (( early )) && cause="EARLY CRASH, no window evaluation (last step $reached): $cause"
+   432	  printf '%s\t%s\t%s\t%s\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$name" "$new" "$cause" "$counts" >> "$CRASHES"
+   433	  n=$(own_crashes "$name")
+   434	  if (( early )); then
+   435	    HALT=1
+   436	    HALT_WHY+=("early crash of $name (runs/$new)")
+   437	    note "$name: $cause; folder $new; not counted (own crashes $n of $MAX_CRASHES); no new start: the coordinator" \
+   438	         "finds the cause from runs/$new/run_meta.json (error, traceback; never a process log) and fixes it"
+   439	    return
+   440	  fi
+   441	  note "$name: CRASH ($cause; folder $new; own crash $n of $MAX_CRASHES$( ((counts == 0)) && echo ', not counted'))"
+   442	  if (( n >= MAX_CRASHES )); then
+   443	    if ! write_lost "$name" "$n own crashes, last: $cause"; then
+   444	      note "lost.json could not be written for $name"
+   445	      HALT=1
+   446	      HALT_WHY+=("lost.json not written for $name")
+   447	      return
+   448	    fi
+   449	    decide "$name" LOST "$n own crashes"
+   450	  else
+   451	    PENDING=("$name" "${PENDING[@]+"${PENDING[@]}"}")
+   452	  fi
+   453	}
+   454	
+   455	after_exit() {  # after_exit <name> <rc>
+   456	  local name=$1 rc=$2 run=$RUNS/$1 crc reason new arm_ seed_ snap
+   457	  if snap=$(exit_snapshot "$name"); then   # I1: before CHECK, the re-arm and any rename
+   458	    note "$name: atimes at exit (I1, lstat): logs/atimes_at_exit/$name.attempt$(current_attempt "$name").tsv, $snap"
+   459	  else
+   460	    note "$name: the atime snapshot at exit failed (I1)"
+   461	  fi
+   462	  if (( rc == 0 || rc == POST_CHECK )); then
+   463	    set +e
+   464	    "${CHECK_CMD[@]}" "$run" >> "$LOGS/$name.check.log" 2>&1 9>&-
+   465	    crc=$?
+   466	    set -e
+   467	    if (( crc == 0 && rc == 0 )); then
+   468	      reason=$(meta_field "$run" stop_reason)
+   469	      case "$reason" in
+   470	        end) decide "$name" COUNTED "CHECK passed, stop reason end"; rearm "$name" ;;
+   471	        collapse|hop_watch) decide "$name" STOPPED "CHECK passed, stop reason $reason"; rearm "$name" ;;
+   472	        *) retire_void "$name" "CHECK passed but stop reason '$reason'" ;;
+   473	      esac
+   474	    elif (( crc == 4 )); then
+   475	      retire_void "$name" "CHECK failed (logs/$name.check.log; run exit $rc)"
+   476	    elif (( crc == 0 )); then
+   477	      retire_void "$name" "run exit $rc (a post-run check failed) although CHECK passed (logs/$name.check.log)"
+   478	    else
+   479	      HALT=1
+   480	      HALT_WHY+=("CHECK ERROR on $name")

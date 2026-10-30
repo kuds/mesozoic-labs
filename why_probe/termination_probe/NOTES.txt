@@ -1,0 +1,305 @@
+TERMINATION-RISK PROBE (lens B): does the critic value a raised tail because a lower tail risks tail_contact?
+(com_revisit, role "termination_probe").  Written 2026-10-30 17:50 UTC.  Report only.  No training of any kind: no
+optimizer step, no continuation; checkpoints, records and the sealed code copy (S2/r10round/bias_screen/code, commit
+8737cd3d) were only read.  At most 2 simulation processes, nice 10.
+PRE-REGISTERED: PREREG.txt, sha256 7c69819db2844c5e11b891463077d02af8eb92f07b563aa72f611a5fb2122af9, recorded 17:00:42 UTC
+before any rollout of the analysis seeds and before any count of the records; never edited (read-only since).
+Labels: [measured] = computed by a named script whose output file is named; [inferred] = reasoning, basis given.
+Paths: S1 = /tmp/claude-0/-home-user-mesozoic-labs/0fdf74a4-2989-56c9-a773-92101004d7de/scratchpad
+       S2 = /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad
+       ME = S2/com_revisit/notes/termination_probe   (every file this role wrote is here)
+Units: V, G and slopes are in the critic's normalised units (raw reward / sigma_R, sigma_R = 42.8-45.4); a slope of
++0.03 per degree is about +1.3 raw reward units of discounted value per degree of tail_3.
+
+==================================================================================================================
+SUMMARY
+==================================================================================================================
+ANSWER (lens B): NO.  The critic's preference for a raised tail is not a learned anticipation of tail-floor contact,
+genuine or overgeneralised.  Pre-registered overall reading: B-GENUINE NOT SUPPORTED, B-APPARENT NOT SUPPORTED.
+
+1. The risk is absent in the era the habit grows.  [measured]
+   - Training-like rollouts (sampled actions, frozen normaliser), 128 episodes per checkpoint, seeds 7001-7128:
+     0 tail_contact in all 896 free-policy episodes on the seven checkpoints (the six non-blind: 0 of 768, 95% upper
+     bound 0.48% per episode).  One episode ended early at all: p1048576 seed 7067, "fallen" at step 225, a backward
+     fall (forward_z +0.55, pelvis 0.708 m) that reached the pelvis floor while the tail was still 0.086 m above the
+     floor.  [analysis_rollouts.txt ITEM 1, posthoc.txt PH4]
+   - The parent s42's own training episodes in (1,048,576, 3,538,944]: 0 tail_contact in 2,495; 5 "fallen" (0.20%).
+     BS2's eight continuations: 1 tail_contact (critic_blind_tail3_2521 at 2,310,300) and 1 fallen (control_2521) in
+     11,522.  [analysis_records.txt]
+   - tail_contact was a real outcome only at the very start: 32 of the parent's first 1,402 training episodes, 31 of
+     them in the first 131,072 steps and none after 262,144.  [analysis_records.txt; posthoc.txt PH3]
+   - In standing states the tail is far from the floor.  Over every non-terminated episode, the lowest point of the
+     tail_3/4/5 capsules never drops below 0.732 m (its value in the shared spawn pose; >= 0.751 m after step 50) at
+     the climb-era checkpoints, below 0.703 m at p1048576, or below 0.697 m with tail_3 held fully down.  The tail tip
+     stays >= 0.746 m.  The 0.1st percentile of the lowest point over the next 200 steps is >= 0.751 m at every
+     checkpoint but p1048576, the one fall.  [ITEM 2 M2.4; check_minima.txt]
+2. The risk could not pay for the slope even if it were there.  [measured]
+   - Pre-registered funding test (M2.3): the critic's mean slope over 614,592 states is +0.0304 per degree; with no
+     event, the bound grants the Clopper-Pearson upper count (3.7 tail_contact episodes in 768) and an e-fold change
+     of risk per degree of tail_3: it funds at most 7% of the slope (F_bound 0.071).  Funding half would need the risk
+     to change e^7.1 ~ 1,200-fold per degree (13 mm of tail-tip height).  -> NOT SUPPORTED.
+   - Post hoc budget (PH1): even if the tail controlled ALL early-ending risk the parent's training records show
+     (CP upper 0.47% of episodes), the value at stake is <= 1.7e-3 per state, while the critic spreads +0.017
+     (p2097152) to +0.26 (c2511_E) of value across the tail's on-policy range: 10x to 155x the whole budget.
+3. The critic does not price the tail's HEIGHT, which a risk gradient (genuine or overgeneralised) would.  [measured]
+   - Raising tail_1 or tail_2 lifts the tail tip more per degree (+23.6 and +18.3 mm) than raising tail_3 (+13.1 mm).
+     A height valuation would price each millimetre of lift the same whichever joint does it, but the critic does
+     not.  The value per millimetre via tail_3, over that via tail_1 (R31), is -1.8, -50, -16, +17.6 and -91 at the
+     five climb-era checkpoints (negative means the opposite sign); via tail_2 (R32) it is -14.7, -4.4, -1.7, +32.8
+     and +15.5.  For example: p2097152 dV/dq1 -0.019 vs dV/dq3 +0.020 per degree; c2511_3145728 dV/dq2 -0.018 vs
+     dV/dq3 +0.055.  M4.3: R31 or R32 is outside [0.5, 2] at 6 of 6 non-blind checkpoints.  [ITEM 4]
+   - Post hoc (PH5): regressing V on the tail's heights, the lowest tail point (the part that would touch the floor)
+     carries a NEGATIVE weight at every climb-era checkpoint (-8.4 to -12.9 V per metre).  (PH6: dV/dq3 > 0 in
+     88.5-99.7% of states there, dV/dq1 > 0 in 11-70%.)
+   - The slope is not concentrated near the floor (M3.1, 3 of 6 checkpoints with rho(slope, tip height) <= -0.10:
+     NOT SUPPORTED); near-floor states exist only in the single fall (43 states, M3.2 UNTESTABLE).
+4. A policy with a lower tail did not fall more.  [measured]
+   - b2511_E (critic blind; tail +0.58 deg on average against +3.90 deg for its paired control c2511_E): 0 of 128
+     ended early, and its mean return is the highest of all checkpoints (4,352 against 4,291).  P1.4 UNTESTABLE (0 vs
+     0).  BS2's training records: P1.3 UNTESTABLE (one tail_contact in total, in a blinded run).
+   - Report only (item 5), p2097152 with the stepped tail_3 command held: free / hold 0 / hold -1 / hold +1 gave 0
+     early ends in each 128 episodes; holding -1 put tail_3 at -5.0 deg and the lowest tail point at 0.761 m (min
+     0.697 m).  Mean return 4,300 / 4,309 / 4,161 / 4,138.
+5. Cross-lens, POST HOC, no verdict (PH7, lens A's ground).  [measured]  The tail_3 angle climbs WITHIN each episode
+   (c2511_E: -0.35 deg in steps 0-49, +2.1 in 50-199, +4.3 in 200-399, +4.6 after) and so do V and the realised
+   return-to-go G (steps 0-49 about 4.6, after 200 about 4.97).  The pre-registered M4.4 found G rising with the tail
+   angle about as much as V does (met in 5 of 6, against my prediction); with no terminations that cannot be risk.
+   Adding episode-phase indicators removes 80-99% of G's tail_3 coefficient at the five climb-era checkpoints but
+   only 21-69% of V's.  [inferred] The tail angle behaves like a stand-in clock in the data, and the critic keeps a
+   tail_3 preference beyond what the phase-controlled returns support: this fits hypothesis (A), not (B).
+
+WHAT IT MEANS FOR "WHY BLIND THE CRITIC?"  [inferred]
+- Blinding would be a bad fix if the critic needed the tail angle to foresee a real danger: tail_3/4/5 floor contact
+  does end the episode with -100.  This lens finds no such danger in the era the habit grows.  The critic's tail
+  preference is far larger than any termination risk could justify, and it does not even follow the tail's height.
+  So blinding removed a spurious value gradient, not safety information.  BS2 is consistent with this: the climb
+  stopped and returns did not fall, and here the blinded policy's lower tail ended no episode.
+- Why it works mechanically: in PPO the critic does not act.  Its values enter each action's advantage through
+  r + gamma V(s') - V(s), summed by GAE.  A critic whose V wrongly rises with the tail angle therefore pays the
+  policy for raising the tail, and the policy gradient climbs.  A critic that cannot see the angle cannot pass that
+  bias into the advantage.  Meanwhile the actor still sees the angle, and the real per-step costs of a raised tail
+  (tail_home_pose, action_saturation) still reach the policy through the rewards.
+- It treats the symptom, not the cause.  PH7 suggests the critic used the tail angle as a clock, because the reward
+  changes with hidden episode time and the observation carries none.  A blinded critic can rebuild the shortcut from
+  other slowly drifting inputs: tail_3's own velocity (obs 27) is still visible, and s80's habit was on the neck.  A
+  root-cause fix would give the critic the missing information directly, for example the step index or a settled flag
+  as a critic-only input (the actor's interface unchanged).  Another would make the stance terms not depend on hidden
+  time.  Neither is tested here; lens A owns that question.
+
+PRE-REGISTERED VERDICTS (PREREG.txt; numbers from analysis_rollouts.txt / analysis_records.txt)
+  P1.1 rollouts, pooled tail_contact <= 2% ......... SUPPORTED      0 / 768 (CP 95% upper 0.48%); any early end 1 / 768
+  P1.2 parent records 1.05M-3.54M, <= 2% ............ SUPPORTED      0 / 2,495 tail_contact (5 fallen, 0.20%)
+  P1.3 BS2 records, blind > control (B test) ........ UNTESTABLE     1 tail_contact in 11,522 (< 3); p 35/70
+  P1.4 rollouts, b2511_E > c2511_E (B test) ......... UNTESTABLE     0 / 128 vs 0 / 128
+  M2.1 lower tail before tail_contact (primary) ..... UNTESTABLE     0 tail_contact events in the non-blind set
+  M2.2 logistic (secondary) ......................... no events
+  M2.3 funding test (primary for B-genuine) ......... NOT SUPPORTED  F_bound 0.071 (beta* 1/deg); beta needed 7.1/deg
+       (secondary, any termination: F -0.011, 95% -0.033..0.000; bound 0.107)
+  M3.1 slope largest where the tip is lowest ........ NOT SUPPORTED  rho <= -0.10 in 3 of 6 (-0.30, -0.28, +0.03,
+       -0.20, +0.13, +0.04); secondary M3.1b (partial, given q3) 5 of 6 <= -0.10, M3.3 (pelvis) 4 of 6, M3.2 UNTESTABLE
+  M4.1 risk features absorb V's tail_3 coefficient .. UNTESTABLE     VIF(z6) 960 to 119,398 in 6 of 6 (as predicted)
+  M4.2 tail height reproduces the tail angles' share  SUPPORTED      Q 0.99-1.27 at the five climb-era checkpoints
+       (prediction "NOT SUPPORTED" was wrong; see CAVEATS: the fit's signs contradict a risk reading)
+  M4.3 critic's own slopes proportional to tip lift . NOT SUPPORTED  0 of 6 in [0.5, 2]; R31 -90.7..+17.6, R32
+       -14.7..+32.8; lowest-point version also NOT SUPPORTED
+  M4.4 G's tail_3 coefficient >= half of V's ........ met (5 of 6)   (prediction "not met" was wrong; with no
+       terminations it cannot reflect risk; PH7: episode phase absorbs it)
+  Item 5 clamp ...................................... report only    0 early ends in every arm
+  OVERALL: B-GENUINE NOT SUPPORTED (M2.3 NOT SUPPORTED, M2.1 UNTESTABLE); B-APPARENT NOT SUPPORTED (M4.3 and M3.1
+  NOT SUPPORTED).
+
+CAVEATS
+- One lineage (s42: the parent at 1,048,576 and 2,097,152, BS2's control_2511 and control_2531 at 3,145,728 and E,
+  critic_blind_tail3_2511 at E), the stance task, physics r10, training-like rollouts with frozen normalisers.
+- No tail_contact occurred in the rollouts, so whether a lower tail raises the risk could not be measured directly
+  (M2.1 UNTESTABLE); the conclusion rests on the absence of the risk, the bound and the critic's own slopes.
+- M4.2 says "SUPPORTED" because two height features (tip, lowest point) can reproduce any two-parameter linear mix of
+  the tail angles and also carry pitch and pelvis height.  Their fitted signs (tip positive, lowest point negative)
+  are not a risk valuation [inferred; PH5].  At p1048576 its out-of-sample R2 is -21 for every model because the one
+  fall episode is far outside the other fold (Q 13.3 is meaningless there); the overall verdict holds without it
+  (5 of 6), and PH5 recomputes it without terminated episodes (Q -0.88).
+- M4.4 was mis-framed in the PREREG as a B-genuine check.  With zero terminations, G's association with the tail
+  cannot come from termination risk.  Linear coefficients are not the network's partial derivatives: the blinded
+  critic, whose V cannot depend on obs 6, still gets a z6 coefficient of +0.020 from the linear fit.
+- Secondary M3.1b and M3.3 lean the other way.  The slope is somewhat larger where the rest of the body holds the
+  tail tip or pelvis lower (5 of 6 and 4 of 6 checkpoints).  That variation spans tip heights of 0.79-1.05 m, far
+  from the floor [inferred: not a floor-proximity effect].
+- PH1's records budget uses C = 7.2.  The checkpoints' C_c range from 7.02 to 7.28, so the budget may be understated
+  by up to 1%; the 17:28:30 log line saying C = 7.2 is "at or above every C_c" is corrected here.
+
+FILES (all in ME)
+  PREREG.txt, PREREG.sha256            the pre-registration and its hash
+  NOTES.txt                            this file
+  tp_common.py                         paths, checkpoint table, loaders, capsule lowest point
+  probe_static.py -> probe_static.txt  model/config/checkpoint checks, kinematics (16:51)
+  check_blind_equiv.py -> .txt         blinded-critic equivalence with BS2's hook; autograd vs FD (16:57)
+  run_probe.py, run_all.sh             the training-like recorder and the two-lane runner; runs/lane_A.log, lane_B.log
+  runs/<label>_free.{npz,meta.json,episodes.jsonl}   the seven main conditions (128 episodes each)
+  runs/p2097152_hold{0.0,-1.0,1.0}.*   the clamp arms
+  analyze_records.py -> analysis_records.txt / .json   M1.2-M1.4, P1.2, P1.3
+  analyze_rollouts.py -> analysis_rollouts.txt / .json items 1-5 and the overall reading (final run 17:46:29)
+  posthoc.py -> posthoc.txt / .json    POST HOC PH1-PH7 (labelled; descriptive)
+  check_minima.py -> check_minima.txt  minima of the tail heights over non-terminated episodes (17:50)
+  debug_*.txt                          debug passes on partial data (kept for the record; superseded by the finals)
+  smoke.log, smoke2.log                timing smoke tests (seeds 6001-6002; their data were deleted unread)
+  Disk: 91 MB (runs/ 90 MB); df 2.9 GB free at 17:47.
+
+==================================================================================================================
+POSTHOC (labelled post hoc; not pre-registered; descriptive; posthoc.py -> posthoc.txt / posthoc.json)
+==================================================================================================================
+PH1 risk budget: with the rollouts' own counts (0 early ends at six of seven checkpoints) the CP upper budget is
+    ~1.3e-2 per state, and the tail's value spread is 1.1x (b2511_E raw MLP) to 20x (c2511_E) that.  With the training
+    records' early-end rate (parent 5/2,495, CP upper 0.47%) the budget is <= 1.7e-3 and the spread is 10x (p2097152),
+    24x (c2531_3145728), 71x (c2531_E), 139x (c2511_3145728), 155x (c2511_E).  With BS2's rate (2/11,522) the multiples
+    are 76x to 1,158x.
+PH2 critic slope vs realised risk: -0.0044 (1.05M) -> +0.019 (2.10M) -> +0.020/+0.055 (3.15M) -> +0.040/+0.053 (E)
+    per degree, with 0 tail_contact at every checkpoint.  The blinded run's raw MLP still carries +0.013.
+PH3 record terminations by time: all 32 parent tail_contacts were before 262,144 steps; in the window, 5 fallen at
+    1.25M, 1.33M, 2.52M, 3.38M, 3.45M (lengths 185-304); BS2: tail_contact critic_blind_tail3_2521 at 2,310,300
+    (length 287), fallen control_2521 at 2,826,696 (length 386).
+PH4 the one terminated rollout: p1048576 seed 7067, fallen at step 225; last 50 steps: forward_z +0.31 (nose up),
+    tip 0.43 m, lowest point 0.40 m, pelvis 0.83 m, critic slope -0.032 (it valued a LOWER tail_3 while falling back).
+PH5 M4.2 without terminated episodes: p1048576 Q -0.88 (the tail angles add nothing out of sample); the other five
+    unchanged (no terminated episode).  Model R weights V per metre: tip +3.1..+5.6, lowest point -8.4..-12.9 at the
+    climb-era checkpoints; model J weights per degree: q1 -0.001..-0.032, q3 +0.049..+0.073.
+PH6 per-state gradients: share of states with dV/dq3 > 0: 0.89 (p2097152), 0.99, 0.93, 1.00, 0.97 (climb era); with
+    dV/dq1 > 0: 0.11, 0.41, 0.42, 0.70, 0.45; sign agreement q1~q3 0.20-0.70.
+PH7 (cross-lens) b6 per degree without -> with phase indicators: V +0.049 -> +0.015, +0.066 -> +0.044, +0.067 ->
+    +0.024, +0.067 -> +0.053, +0.073 -> +0.031; G +0.067 -> +0.008, +0.075 -> +0.005, +0.089 -> +0.001, +0.060 ->
+    +0.012, +0.082 -> +0.006 (p2097152, c2511_3145728, c2531_3145728, c2511_E, c2531_E).  b2511_E: V +0.020 -> -0.017,
+    G +0.048 -> -0.013.  p1048576 (no climb): V +0.006 -> +0.017, G +0.012 -> +0.020.
+
+==================================================================================================================
+LOG (date -u times; every command and its result)
+==================================================================================================================
+16:42:57  Started.  Read the task.  Located S1 (has foot/stance6/fetch/F2) and S2 (has r10round/bias_screen2).
+16:43-16:48  Read (no statistics computed from any rollout):
+  - S2/r10round/bias_screen2/REPORT.md (BS2 result: critic blind to obs 6 stops the climb, p 1/70).
+  - S2/r10round/bias_screen2/tools/read_bs.py (Net loader, critic_slope, onpolicy_states), bs_common.py (paths,
+    pins, S = 2,097,152, E = 3,538,944, saved pairs), bs_hooks.py (critic_blind_class: zeroes NORMALISED obs[6]
+    before the value MLP).
+  - Code copy (sealed, read only) S2/r10round/bias_screen/code: tyrannosaurus_rex/base_env.py _get_obs (l974),
+    _get_reward_info (l1031-1570), _is_terminated (l1572: root height/tilt -> nosedive -> head_contact (head tip
+    substep min < 0.12) -> skull_low -> floor contact of torso/skull/snout/tail_3/4/5, latched over substeps,
+    categorised tail_contact / head_contact / torso_contact); shared/base_env.py step (fall_penalty added on any
+    non-success termination; truncation at step_count >= max_episode_steps = 1000), _root_termination ("fallen"
+    style reasons from _check_height_tilt_pure: healthy_z_range (0.70, 1.55)), reset.
+  - configs/tyrannosaurus_rex/anatomical/stance.toml (fall_penalty -100, gamma 0.98, gae 0.95, n_steps 2048,
+    tail_home_pose_weight 0.25 tol 0.05 rad, action_saturation 0.5 from |a| 0.9, settle 200).
+  - train_base.make_env/create_vec_env: env = Monitor(env_class(**env_kwargs)); DummyVecEnv; VecNormalize(norm_obs,
+    norm_reward, clip_obs 10, clip_reward 50, gamma 0.98).
+  - The clamp test (com_revisit/notes/clamp/NOTES.txt, run_clamp.py): policy's own action each step with entry 14
+    replaced before env.step; command +1 reaches +5.19 deg, 0 reaches +0.014 deg; no terminations in any arm
+    (deterministic policies).
+  - The header of the parent's train_episodes.csv.copy1 (columns timesteps, env, length, return, cause, ...; 12,362
+    rows) and of eval_episodes.csv.copy1 (cause column present; 910 rows).  The `head -c 3000` that showed the header
+    also showed the first 14 training episodes (timesteps 700-3584, all early terminations: fallen, nosedive,
+    tail_contact), far outside the 1.05M-3.5M window.  NO counts or statistics of these records in any window were
+    computed before PREREG.txt was written.
+16:48:24  mkdir ME.
+16:49-16:51  Wrote tp_common.py (paths, the checkpoint table ORDER = p1048576, p2097152, c2511_3145728,
+  c2531_3145728, c2511_E, c2531_E, b2511_E; loaders; capsule lowest point) and probe_static.py.
+16:51:25  `nice -n 10 S2/venv/bin/python -I -B probe_static.py > probe_static.txt` exit 0 (4 s).  [measured]
+  - obs[6] = tail_3_pitch (qpos 13); action 14 = tail_3_pitch_act (ctrlrange +-0.2094); tail_3/4/5 are capsules.
+  - Every run's recorded reward_weights equal the code copy's stance env_kwargs where both name a key; the 23 keys
+    only the record names equal the constructor defaults (checked by reading the signature, base_env.py l233-345).
+  - All seven pairs load (PPO, Tanh, net_arch [512, 256], separate pi/vf MLPs, shared Flatten features); sha256 of
+    every zip and pkl recorded; ret_rms sqrt(var+eps) 42.8 (1.05M) to 45.4 (2.10M), so a raw reward of -100 (the fall
+    penalty) is -2.2 normalised and never clipped (clip 50).  log_std[14] -1.61 .. -1.82 (std 0.20 .. 0.16).
+  - Forward kinematics at the home keyframe: tail tip z 0.907 m, lowest tail capsule (tail_3) 0.797 m, pelvis 0.927;
+    d tip/d q = +23.6 / +18.3 / +13.1 mm per degree of tail_1 / tail_2 / tail_3 pitch; d lowest/d q = +13.1 / +7.9
+    / +2.6 mm/deg; pitching the body nose-up lowers the tip about 27 mm/deg; tail_5 reaches the floor near 32 deg
+    nose-up.  The capsule formula equals mujoco.mj_geomDistance to the floor to 1e-5 m at 0, 20, 30 deg.
+16:52-16:56  Wrote run_probe.py (the training-like recorder; docstring = the method).
+16:56:24  Smoke test (timing and array shapes only; seeds 6001-6002, outside the analysis seeds; no outcome read):
+  `run_probe.py --label b2511_E --seeds 6001:6003 --out ME/smoke --smoke` exit 0: 2.5 s per 1,000-step episode.
+  Cut the stored gradient to 11 observation indices (disk) and added --lite (clamp arms: no z, no gradient).
+16:57:23  check_blind_equiv.py > check_blind_equiv.txt exit 0 [measured]: on 256 synthetic normal inputs the
+  recorder's effective blinded value (normalised obs[6] zeroed before predict_values) equals BS2's hook class
+  (bs_hooks.critic_blind_class) exactly (max |diff| 0.0; the raw MLP differs by up to 0.149); on p2097152 autograd
+  dV/dz6 equals a finite difference to 7e-5 (mean |g| 0.019).
+16:57:30  Smoke test 2 (c2511_E 2 episodes; p2097152 --hold -1 --lite 1 episode; seeds 6001-6002): exit 0, 2.5 s per
+  episode; npz 88 KB per episode (main) and 51 KB (lite), so the planned 10 x 128 episodes take about 100 MB of disk
+  (df: 3.4 GB free at 16:46).  The smoke folders (smoke/, smoke2/) were deleted unread; smoke*.log keep the timing.
+16:59-17:00  Wrote PREREG.txt (before any rollout of the analysis seeds and before any count of the records in any
+  window).  17:00:42 `sha256sum PREREG.txt > PREREG.sha256; chmod a-w PREREG.txt`:
+  PREREG sha256 7c69819db2844c5e11b891463077d02af8eb92f07b563aa72f611a5fb2122af9 (recorded 17:00:42 UTC).
+17:01:03 launch run_all.sh (2 lanes)
+17:01:03  `nohup run_all.sh > run_all.out &`: lane A p1048576, c2511_3145728, c2511_E, b2511_E, p2097152 --hold 0
+  --lite; lane B p2097152, c2531_3145728, c2531_E, p2097152 --hold -1 --lite, p2097152 --hold 1 --lite; seeds
+  7001-7128; nice 10; logs runs/lane_A.log, runs/lane_B.log.  (Two long_blind measure processes at nice 19 were also
+  running on the machine.)
+17:01-17:02  Wrote analyze_records.py (PREREG M1.2-M1.4, P1.2, P1.3).
+17:02:15  `analyze_records.py > analysis_records.txt` exit 0.  [measured: analysis_records.txt / .json]
+  - Parent s42 training episodes, (1,048,576, 3,538,944]: 2,495 episodes: 2,490 truncated at 1,000, 5 fallen,
+    0 tail_contact (0.00%).  P1.2 SUPPORTED.  Before 1,048,576: 1,402 episodes: 896 truncated, 284 fallen, 190
+    nosedive, 32 tail_contact.
+  - BS2 continuations' training episodes, (2,097,152, 3,538,944]: 11,522 episodes over 8 runs: 1 fallen
+    (control_2521), 1 tail_contact (critic_blind_tail3_2521), everything else truncated.  P1.3 UNTESTABLE (1 < 3).
+  - Evaluation ledgers: parent 190 episodes in the window, 1 fallen; BS2 880 episodes, 2 tail_contact (control_2521
+    and critic_blind_tail3_2521, both episode 0 of the 2,359,296 evaluation, lengths 303 and 249).
+17:02-17:06  Wrote analyze_rollouts.py (PREREG items 1-5, the overall reading; offline) and posthoc.py (labelled
+  POST HOC: risk budget, slope vs realised risk across checkpoints, record terminations by time, terminated rollout
+  episodes).  Fixed before any use: the M2.2 cluster bootstrap rebuilt its episode index inside the replicate loop
+  (too slow) and used 200 replicates; it now indexes once and uses the PREREG's 1,000.
+17:05  load average ~7 on 4 CPUs (two long_blind measure processes at nice 19 and another agent's simulation at nice
+  10 besides my two lanes): my lanes run at ~60% CPU each, so the rollouts take ~50 min instead of ~27.
+17:07  Cross-check targets (read from BS2's reads, S2/r10round/bias_screen2/reads/<run>/markers.txt M-LOOP lines and
+  read_bs.py REPRO): the critic's on-policy dV/dq3 (autograd, normalised V per degree) is +0.0214 for the parent at
+  2,097,152; control_2511 +0.0555 (3,145,728) / +0.0532 (E); control_2531 +0.0199 / +0.0415; critic_blind_tail3_2511
+  at E effective 0, raw MLP +0.0156.  My recorder's slopes should land near these (other states, same networks).
+17:10:54 / 17:11:10  p1048576 and p2097152 finished (583 s / 600 s for 128 episodes; exit 0).
+17:11:23  DEBUG pass of analyze_rollouts.py on those two conditions (allowed: the PREREG was fixed at 17:00:42) ->
+  debug_partial.txt.  Items 1-3 ran; item 4 was too slow (800 full refits per condition) and the process was not
+  thread-limited: stopped at 17:21:50 (pkill, exit 144).  Changes to analyze_rollouts.py, none to a rule: OMP/MKL/
+  OPENBLAS threads 1; item 4's cluster bootstrap now solves from per-episode Gram blocks (sum m_e X_e'X_e, sum m_e
+  X_e'y_e), the same OLS estimator (full-data Gram and direct estimates agree to 1e-10: debug_item4.txt).
+17:22:42  item 4 alone on the two conditions (debug_item4.txt, 6 s).  Seen there, to be decided only on all data:
+  - M4.1 VIF(z6) 960 and 6211: UNTESTABLE, as the PREREG expected.
+  - M4.2 at p1048576: two-fold out-of-sample R2 of -21 for every model: the one fall episode (pelvis to 0.708 m)
+    puts states far outside the other fold's range and the linear fit extrapolates wildly, so Q (+13.3) means
+    nothing there.  The PREREG has no rule for this; its verdict will be reported as computed and flagged, and
+    posthoc.py PH5 recomputes M4.2 without terminated episodes (labelled post hoc).
+  - M4.3 at p2097152: dV/dq1 -0.019, dV/dq2 -0.002, dV/dq3 +0.020 per degree, although raising any of the three
+    lifts the tail tip (+23.6 / +18.3 / +13.1 mm/deg).  posthoc.py PH6 added (state-by-state sign agreement).
+17:26:48  DEBUG pass 2 of analyze_rollouts.py on the four finished conditions (p1048576, p2097152, c2511_3145728,
+  c2531_3145728) -> debug_partial4.txt (16 s).  No rule changed.  Recorder cross-check [measured]: the mean FD slope
+  dV/dq3 is +0.0192 (p2097152; BS2/early-bias +0.0214 on other states), +0.0551 (c2511_3145728; BS2 +0.0555),
+  +0.0196 (c2531_3145728; BS2 +0.0199); autograd and FD agree to <= 0.0004.  p1048576's slope is NEGATIVE (-0.0044).
+  Interpretation note [inferred, written now, before the last conditions]: M4.2's two height features can
+  reproduce any two-parameter linear mix of the tail angles (and carry pitch and pelvis height too), so M4.2 can
+  say "SUPPORTED" without the critic valuing height; M4.3 (the critic's own derivative along each joint) is the
+  sharper reading.  PH5 now also prints model R's tip / lowest-point coefficients and model J's per-joint ones.
+17:28:01  DEBUG run of posthoc.py on the four finished conditions -> debug_posthoc4.txt (6 s, exit 0).  Seen (post hoc,
+  to be re-run on all data): tail_contact in the parent's training ended after 262,144 steps (31 of 460 episodes
+  in the first 131,072, 1 in the next bin, 0 after); the one terminated rollout (p1048576 seed 7067) was a
+  backward fall labelled "fallen" at step 225 with the lowest tail point 0.086 m from the floor (pelvis 0.708 m,
+  forward_z +0.55); at the climb-era checkpoints model R prices the lowest tail point NEGATIVELY (about -8 to -11 V
+  per metre) and the critic's dV/dq1 is negative in most states while dV/dq3 is positive in 89-99%.
+17:28:30  posthoc.py PH1: added the risk budget from the training records' early-end rates (C = 7.2, at or above
+  every condition's C_c of 7.0-7.2, so the budget is not understated).
+17:26:23 / 17:26:37  c2511_3145728 and c2531_3145728 finished (919 s / 916 s; load ~7-9).  17:34:38 / 17:34:49
+  c2511_E and c2531_E finished; b2511_E and p2097152 --hold -1 --lite started.
+17:35:05  DEBUG pass 3 (six NON-BLIND conditions) -> debug_partial6.txt (15 s).  The NON-BLIND verdicts are fixed by
+  these six (only P1.4 and item 5 wait for the remaining runs); the final run below repeats them on all data.
+17:35:40  posthoc.py: added PH7 (cross-lens, labelled; added because M4.4 came out "met" with no terminations to
+  explain it).  17:35:55 debug run -> debug_posthoc6.txt: the tail_3 angle climbs within the episode at every
+  climb-era checkpoint (c2511_E: -0.35 deg in t < 50, +2.1 in 50-200, +4.3 in 200-400, +4.6 after), V and G rise
+  with the phase too (G 4.61 -> 4.74 -> 4.97 -> 4.96), and phase indicators absorb most of G's tail_3 coefficient
+  (+0.060..+0.089 -> +0.001..+0.012 per degree at the five climb-era checkpoints) but less of V's (+0.049..+0.073 ->
+  +0.015..+0.053).  [measured, post hoc]
+17:40:26 / 17:40:32  b2511_E and p2097152 --hold -1 --lite finished; 17:46:13 p2097152 --hold 0 and --hold 1 --lite
+  finished; runs/done.txt "all done".  Every condition exit 0; lane_A.err and lane_B.err are empty.
+17:46:29  FINAL `nice -n 10 PY -I -B analyze_rollouts.py > analysis_rollouts.txt` exit 0 (17 s; also
+  analysis_rollouts.json).  The verdicts in the SUMMARY are this run's.  The six non-blind conditions repeat
+  debug_partial6.txt exactly; b2511_E and the clamp arms are new.
+17:46:46  FINAL `nice -n 10 PY -I -B posthoc.py > posthoc.txt` exit 0 (10 s; also posthoc.json).
+17:47:57  du: 91 MB in ME (runs/ 90 MB); df 2.9 GB free.  No process of mine left running.
+17:48-17:50  Wrote the SUMMARY.  Checked two of its claims against the data first.
+  - 17:50:40 check_minima.py > check_minima.txt (exit 0): the 0.732 m / 0.792 m minima shared by the climb-era
+    checkpoints are the spawn pose at t = 0 (shared seeds).  At p1048576 a non-fall episode reached 0.703 m.  The
+    hold -1 arm reached 0.697 m.  The summary now says so.
+  - The R31 range: the draft's "17x to 90x" was wrong for p2097152 (R31 -1.8); the summary now lists every value.
+  Correction to the 17:28:30 line: C = 7.2 is not "at or above every C_c".  The C_c run from 7.02 to 7.28 (final
+  data), so PH1's records budget may be understated by up to 1%.
+17:51:26  sha256sum -c PREREG.sha256: OK (PREREG.txt unchanged, mode r--r--r--); wrote SHA256SUMS.txt over every file in ME but tmp/ (76 files).

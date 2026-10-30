@@ -1,0 +1,275 @@
+1136 S2/r10round/long_blind/measure/tools/measure_lb.py
+     1	"""LB (long blind run) measurement: the end-of-run classification of a finished continuation with the r10 round's own
+     2	pinned tools.  Report only: it never trains, never steps an optimizer and never writes outside LB/measure.
+     3	
+     4	    PY -I -B measure_lb.py version
+     5	    PY -I -B measure_lb.py pins
+     6	    PY -I -B measure_lb.py plan RUN [RUN ...] --out-root DIR [--suffix .copy1] [--start S]      (nothing simulated)
+     7	    PY -I -B measure_lb.py classify RUN [RUN ...] --out-root DIR [--suffix .copy1] [--slots 2] [--start S]
+     8	                                    [--prune-csv] [--no-simulate] [--parent-ledger CSV]
+     9	
+    10	RUN is a finished continuation folder shaped like BS2's runs/<name>/ (01_stance/eval_episodes.csv, stage_config.json,
+    11	progress.json, models/stage1_<steps>_steps.zip + stage1_vecnormalize_<steps>_steps.pkl, models/stage1_final.zip +
+    12	stage1_final_vecnorm.pkl; run_meta.json and policy_probe.npz when present).  --suffix names a fetch store's copy suffix
+    13	(".copy1" for the round's F2 copies, the validation input); measure_r10round.py accepts the same suffix.  Each RUN's
+    14	outputs go to <out-root>/<name>/ (name = the folder name, or the parent folder's for an F2 "copies" folder).
+    15	
+    16	WHAT IS COMPUTED (criteria = S2/r10round/final_lean/criteria_r10round_final.txt, sha256 99a44469..., the round's
+    17	approved text; "line N" below is a line of that file).  Every rule is executed by the round's pinned code; this file
+    18	only finds the files, launches the pinned runners, and passes their outputs to the pinned class function:
+    19	  M5   ledger_r10round.py (lane B, pinned 0d89bcb8...) on RUN/01_stance/eval_episodes.csv with --E E, as a
+    20	       subprocess (m5.json, m5.txt), and the same r10round_common.m5 in process for the classes (lines 134-142):
+    21	       ANY / TAIL / TAIL-UNRESOLVED counts per evaluation, ANY-FLAGGED and ANY ALARM (lines 169-170), TAIL-FLAGGED
+    22	       and TAIL ALARM (lines 171-172), NEEDS RESOLUTION (lines 173-180); C6 on the whole ledger to E (lines 234-245).
+    23	  M1   measure_r10round.py m1 (lane A, pinned b293a511...) on every checkpoint C7 names (line 246): the J checkpoints
+    24	       up to E (line 84: 4,194,304; 5,242,880; 6,291,456; 8,388,608; 10,485,760; final), R1 (line 181) and every
+    25	       RESOLUTION checkpoint (lines 175-177), chosen by complete_r10round.c3_pairs (pinned d322ed0e...); the trace
+    26	       tool is the measuring copy's episode_trace_report.py (sha256 b5923e5c..., checked by the runner).
+    27	  M3   measure_r10round.py m3 at stage1_final of a FINISHED run (lines 126-128, 246-247): the copy's
+    28	       stance_gate_report.py (sha256 bbfe8016...), the six-heading certificate; PASS = its own verdict.
+    29	  CLASSES  score_r10round.classes_of (lane B, pinned 3de2330a...), the function the round's scorer applied to its
+    30	       three runs, on {M5, the traces read by r10round_common.read_trace, the certificate read by read_certificate or
+    31	       the runner's refusal record}: TAIL CLASS (lines 269-279), GATE CLASS (lines 280-283), RUN OUTCOME (lines
+    32	       284-286); binding of every trace and certificate to the measured pair by complete_r10round.binding_problems.
+    33	  ENDING  C5's facts that apply to a continuation (lines 228-233): progress.json "ended" at E; stage1_final.zip's
+    34	       recorded num_timesteps = E (read by r10round_common.zip_num_timesteps, testzip first); FINISHED when E =
+    35	       12,001,280; STOPPED when E < 12,001,280 by the trainer's own stop (run_meta.json stop_reason "collapse" or
+    36	       "hop_watch", or 01_stance/hop_watch.json present); anything else is not classified (exit 2).
+    37	  NOT APPLIED  C1-C4 (RUNLOG launches, the Drive manifest, provenance sessions and "no load key": a continuation is a
+    38	       same-stage resume by construction, so it is never a run of the round; LB's own criteria decide whether it is
+    39	       counted).  The classes are the round's definitions applied to the continuation's records as measured.
+    40	  REPORT ONLY (never a class): the window (S, E] reading (alarms whose two evaluations both lie after S, alarms
+    41	       straddling S; BS2 read_bs.m5_window's form), the parent prefix check, the PER-ACTUATOR HABIT SUMMARY (D-1,
+    42	       lines 336-339: "the same for every other actuator"; M1's per-actuator outputs, line 119; the probe's
+    43	       rollout_mu_mean, BS2's primary form), costs.
+    44	Outcome-blind guard (BS2 read_bs.decided's rule, = LB/tools/read_bs.decided as of 2026-10-30 16:56 UTC): a RUN anywhere
+    45	under LB is read only when every continuation queued in LB/SCREEN.json has a passing LB/runs/<name>/check.json (mode
+    46	"continuation") or is in LB/lost.json; otherwise refused, nothing read.  A folder outside LB is a validation input.
+    47	Machine-wide: before each launch, at most 4 python script processes (any agent's; this tool's idle wrappers aside)
+    48	may run, else the launch waits.  classify_one(panels_dir=, filed_run_id=) reads M1/M3 outputs from another folder:
+    49	a validation reading only (reread_round_panels.py), refused for a run under LB.
+    50	Disk: measure_r10round.py refuses below 3 GiB free (r10m_common.DISK_FLOOR_BYTES); this tool checks the floor plus
+    51	the job's output before each launch.  --prune-csv deletes, after a trace is read, the per-step CSVs (.csv.gz) of the
+    52	episodes in which no actuator is over the BAR (their sha256 stay in csv_sha256.txt and m1_summary.json; lane B's
+    53	read_trace needs the CSV only of an episode with a tail actuator over the BAR).
+    54	Exit codes: 0 classified (every RUN); 2 refused (pins, guard, inputs, a runner refusal; nothing measured for that RUN);
+    55	3 a measurement crashed twice; 4 a consistency check failed.
+    56	"""
+    57	from __future__ import annotations
+    58	
+    59	import os
+    60	import sys
+    61	
+    62	os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
+    63	sys.dont_write_bytecode = True
+    64	
+    65	import argparse  # noqa: E402
+    66	import csv  # noqa: E402
+    67	import hashlib  # noqa: E402
+    68	import importlib.util  # noqa: E402
+    69	import json  # noqa: E402
+    70	import math  # noqa: E402
+    71	import subprocess  # noqa: E402
+    72	import threading  # noqa: E402
+    73	import time  # noqa: E402
+    74	from concurrent.futures import ThreadPoolExecutor  # noqa: E402
+    75	from datetime import datetime, timezone  # noqa: E402
+    76	from pathlib import Path  # noqa: E402
+    77	
+    78	VERSION = "measure_lb 1.0 (2026-10-30; LB measurement builder; the r10 round's pinned M1/M3/M5 and classes)"
+    79	
+    80	# ------------------------------------------------------------------------------------------------------------ paths
+    81	S1 = "S1"
+    82	S2 = "S2"
+    83	LB = S2 + "/r10round/long_blind"
+    84	MEASURE = LB + "/measure"
+    85	LB_RUNS = LB + "/runs"                     # the continuations: the outcome-blind guard applies under it
+    86	LB_SCREEN = LB + "/SCREEN.json"            # the queue (BS2's bs-screen/1 form)
+    87	LB_LOST = LB + "/lost.json"                # BS2's bs-lost/1 form
+    88	CHECK_JSON = "check.json"                  # BS2's per-run check (bs-check/1: passed, mode)
+    89	WORK = MEASURE + "/work"
+    90	PY = S2 + "/venv/bin/python"
+    91	CODE = S2 + "/r10round/bias_screen/code"   # BS's sealed copy of 8737cd3d (read only; the continuations' own code)
+    92	CODE_COMMIT = "8737cd3d86431de1bdd0fcdb49a0d956a45e084d"
+    93	CODE_TREE = "331fe8fc3f6bdf73acc0d3cc324dd753d9d9d695d7ce914e4e011d5c6437ebf1"
+    94	CODE_FILES = 1406
+    95	ROUND_APPROVED = S1 + "/foot/stance6/APPROVED"   # the round's approval record (branch_head 8737cd3d)
+    96	CRITERIA = S2 + "/r10round/final_lean/criteria_r10round_final.txt"
+    97	LANE_A = S2 + "/r10round/lean/build/laneA/tools"
+    98	LANE_B = S2 + "/r10round/lean/build/laneB/tools"
+    99	MEASURE_R10 = LANE_A + "/measure_r10round.py"
+   100	LEDGER_R10 = LANE_B + "/ledger_r10round.py"
+   101	MPL_DIR_OUTSIDE = S2 + "/caches/mpl"       # r10m_common.child_env's MPLCONFIGDIR (watched, never written by us)
+   102	# The parent's ledger (s42, the F2 copy BS2 pinned: FMAN line 71), for the prefix check of a continuation (S > 0)
+   103	PARENT_LEDGER = S1 + "/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/eval_episodes.csv.copy1"
+   104	PARENT_LEDGER_SHA256 = "d1bcb78964691cf194e6276f06740d1f24aa69ad36831a046ad6307c1c4db11e"
+   105	
+   106	# ------------------------------------------------------------------------------------------------------------ pins
+   107	PINS = {                                   # criteria PINS lines 749-771 and S1/foot/stance6/APPROVED
+   108	    CRITERIA: "99a44469a387d01c55b98d76595d3633029681866ed14afcb185521eca0164db",
+   109	    ROUND_APPROVED: "072464809f9c0072eb17b3c05821ed0d154ee0378c09bef757e70329240001bf",
+   110	    MEASURE_R10: "b293a511d8beb5b6d6f24cec8744e601382748ce9b2f89e6bb653b6c97f5840c",
+   111	    LANE_A + "/r10m_common.py": "97431323a84a45026671d681dbd0dc5fe3914aa4068ab20a49e428620b26f5bf",
+   112	    LEDGER_R10: "0d89bcb858e19f780c3ce0ac7a5886fc01b33d78164d9ee37d2e50dc1d4b0511",
+   113	    LANE_B + "/r10round_common.py": "ea2c5ea6984b8dc00c1c066a4441a59526c515ceb111da17eaf1688a009226c5",
+   114	    LANE_B + "/complete_r10round.py": "d322ed0efddec7a4f5f5eb75964fdfdec847c50fc5a4bb07fb7762d1696d533b",
+   115	    LANE_B + "/score_r10round.py": "3de2330a4e0451d8c48fa05b53507f6921352e537f15fd5f28558946ba080707",
+   116	    CODE + "/environments/shared/scripts/episode_trace_report.py":
+   117	        "b5923e5cfbcafd9f6e108df207a268500313de9bff44572121c8e3b48aad0af2",
+   118	    CODE + "/environments/shared/reporting/episode_trace.py":
+   119	        "96ced68e124ddf4fa225ce32d93831a3e3261a2ba5b3ef502a0b900ce7b16c0b",
+   120	    CODE + "/environments/shared/scripts/stance_gate_report.py":
+   121	        "bbfe80168c200332b0997181a1efbb13b01b522eb8b755203a85b5a0eeaf299b",
+   122	}
+   123	STACK = {"python": "3.13.17", "torch": "2.13.0+cpu", "numpy": "2.5.4", "gymnasium": "1.4.0",
+   124	         "stable_baselines3": "2.9.0", "mujoco": "3.10.0"}     # BS2 bs_common.STACK (the round's measuring stack)
+   125	
+   126	# ------------------------------------------------------------------------------------------------------------ grid
+   127	FINAL = 12_001_280                         # line 55 / line 84 (12,000,000 rounded up to the 8,192 rollout)
+   128	LB_S = 2_097_152                           # LB's start: s42's 2,097,152 pair (the study's design)
+   129	GRID = 131_072                             # line 82
+   130	DISK_FLOOR = 3 * 1024**3                   # r10m_common.DISK_FLOOR_BYTES (THIS12 line 958)
+   131	M1_OUT_BYTES = 20 * 1024**2                # one M1 output before pruning (about 17.9 MB measured, see NOTES)
+   132	M3_OUT_BYTES = 4 * 1024**2                 # one M3 output (about 2.5 MB measured)
+   133	DISK_MARGIN = 64 * 1024**2
+   134	MACHINE_SIM_MAX = 4                        # the task's limit: at most 4 such processes at once machine-wide
+   135	WRAPPERS = ("measure_lb.py", "measure_r10round.py", "validate_round.py", "mutation_checks.py")  # idle while measuring
+   136	D1_WINDOWS = ((0, 4_194_304), (4_194_304, 8_388_608), (8_388_608, FINAL + 1))   # line 338
+   137	HABIT_LINE = 0.60                          # the PARKED / DRIVEN line (lines 276-279), applied per actuator: report only
+   138	LAST_UPDATES = 8                           # BS2's primary form: the last 8 probe rows before E
+   139	
+   140	CLAUSES = {
+   141	    "M5": "criteria lines 134-142 (M5 LEDGER READER); ledger_r10round.py, r10round_common.m5",
+   142	    "ANY ALARM": "lines 169-170 (ANY-FLAGGED EVALUATION: >= 5 of 10 over the bar on any actuator; ANY ALARM: the "
+   143	                 "second of two consecutive)",
+   144	    "TAIL ALARM": "lines 171-172 (TAIL-FLAGGED EVALUATION: >= 5 of 10 over the bar with a tail actuator named; TAIL "
+   145	                  "ALARM: the second of two consecutive)",
+   146	    "RESOLUTION": "lines 173-180 (TAIL-UNRESOLVED, NEEDS RESOLUTION, RESOLUTION CHECKPOINT, RESOLVED BY TRACE)",
+   147	    "R1 R2 CMD MEAN": "lines 181-187 (R1 10,485,760; R2 stage1_final; CMD_a over episodes beyond step 200; MEAN_a)",
+   148	    "TRACE RAIL": "lines 188-191 (>= 2 full-horizon TAIL FLAGS on one actuator and sign, or 1 with MEAN_a >= 0.60; "
+   149	                  "DRIVE-BACKED)",
+   150	    "TAIL FLAG": "lines 165-168 (TAIL ACTUATORS 11-14, PITCH 11/13/14; BAR share at |command| >= 0.99 > 0.10; "
+   151	                 "full-horizon 1000 steps; tie counts in each sign)",
+   152	    "TAIL CLASS": "lines 269-279 (RAIL kinds 270-272; UNREAD 273-275; PARKED 276-277; CLEAR 278; DRIVEN 279)",
+   153	    "GATE CLASS": "lines 280-283 (PASS: FINISHED and the stage1_final certificate passes; FAIL: fails or refused, "
+   154	                  "and every STOPPED run)",
+   155	    "RUN OUTCOME": "lines 284-286 (POSITIVE = CLEAR and GATE PASS; NEGATIVE = RAIL, UNREAD, PARKED or GATE FAIL)",
+   156	    "M1": "lines 119-121 (episode_trace_report.py, seeds 3042-3061, deterministic, every actuator, window 200..L-1)",
+   157	    "M3": "lines 126-128 (stance_gate_report.py, six headings, seeds 3042-3081; PASS = its own verdict; a "
+   158	          "measurement on a screen task, not certification)",
+   159	    "J": "line 84 (J = 4,194,304; 5,242,880; 6,291,456; 8,388,608; 10,485,760; final)",
+   160	    "C5": "lines 228-233 (progress.json 'ended' at E; stage1_final.zip num_timesteps E; FINISHED / STOPPED)",
+   161	    "C6": "lines 234-245 (every evaluation of the grid up to E, 10 rows each, every ANY and TAIL input measured)",
+   162	    "C7": "lines 246-247 (R1, R2, J up to E and every RESOLUTION checkpoint traced; R2's certificate for FINISHED)",
+   163	    "RERUN": "lines 428-434 (a crash is rerun on the same files; a measuring tool's refusal is final)",
+   164	    "D-1": "lines 336-339 (per evaluation by named actuator and sign; windows [0,4194304), [4194304,8388608), "
+   165	           "[8388608,12001280]; the same for every other actuator; report only)",
+   166	    "MEASURING COPY": "lines 116-118 (the HEAD the runs trained, python -I -B, OMP 1 thread, nice 10, <= 2 processes)",
+   167	}
+   168	
+   169	
+   170	class Refusal(Exception):
+   171	    def __init__(self, message: str, code: int = 2):
+   172	        super().__init__(message)
+   173	        self.message = message
+   174	        self.code = code
+   175	
+   176	
+   177	# ------------------------------------------------------------------------------------------------------------ helpers
+   178	def utcnow() -> str:
+   179	    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+   180	
+   181	
+   182	def sha256_file(path) -> str:
+   183	    h = hashlib.sha256()
+   184	    with open(path, "rb") as fh:
+   185	        for chunk in iter(lambda: fh.read(1 << 20), b""):
+   186	            h.update(chunk)
+   187	    return h.hexdigest()
+   188	
+   189	
+   190	def sha256_bytes(b: bytes) -> str:
+   191	    return hashlib.sha256(b).hexdigest()
+   192	
+   193	
+   194	def require_under(path, root=MEASURE) -> Path:
+   195	    """Every file this tool writes lies under LB/measure (the task's write rule)."""
+   196	    p = Path(os.path.realpath(path))
+   197	    r = Path(os.path.realpath(root))
+   198	    if p != r and r not in p.parents:
+   199	        raise Refusal(f"{path} is not under {root}: refused (this tool writes only under LB/measure)")
+   200	    return p
+78:VERSION = "measure_lb 1.0 (2026-10-30; LB measurement builder; the r10 round's pinned M1/M3/M5 and classes)"
+81:S1 = "S1"
+82:S2 = "S2"
+83:LB = S2 + "/r10round/long_blind"
+84:MEASURE = LB + "/measure"
+85:LB_RUNS = LB + "/runs"                     # the continuations: the outcome-blind guard applies under it
+86:LB_SCREEN = LB + "/SCREEN.json"            # the queue (BS2's bs-screen/1 form)
+87:LB_LOST = LB + "/lost.json"                # BS2's bs-lost/1 form
+88:CHECK_JSON = "check.json"                  # BS2's per-run check (bs-check/1: passed, mode)
+89:WORK = MEASURE + "/work"
+90:PY = S2 + "/venv/bin/python"
+91:CODE = S2 + "/r10round/bias_screen/code"   # BS's sealed copy of 8737cd3d (read only; the continuations' own code)
+92:CODE_COMMIT = "8737cd3d86431de1bdd0fcdb49a0d956a45e084d"
+93:CODE_TREE = "331fe8fc3f6bdf73acc0d3cc324dd753d9d9d695d7ce914e4e011d5c6437ebf1"
+94:CODE_FILES = 1406
+95:ROUND_APPROVED = S1 + "/foot/stance6/APPROVED"   # the round's approval record (branch_head 8737cd3d)
+96:CRITERIA = S2 + "/r10round/final_lean/criteria_r10round_final.txt"
+97:LANE_A = S2 + "/r10round/lean/build/laneA/tools"
+98:LANE_B = S2 + "/r10round/lean/build/laneB/tools"
+99:MEASURE_R10 = LANE_A + "/measure_r10round.py"
+100:LEDGER_R10 = LANE_B + "/ledger_r10round.py"
+101:MPL_DIR_OUTSIDE = S2 + "/caches/mpl"       # r10m_common.child_env's MPLCONFIGDIR (watched, never written by us)
+103:PARENT_LEDGER = S1 + "/foot/stance6/fetch/F2/stance6_r10LTSB_s42/copies/01_stance/eval_episodes.csv.copy1"
+104:PARENT_LEDGER_SHA256 = "d1bcb78964691cf194e6276f06740d1f24aa69ad36831a046ad6307c1c4db11e"
+107:PINS = {                                   # criteria PINS lines 749-771 and S1/foot/stance6/APPROVED
+123:STACK = {"python": "3.13.17", "torch": "2.13.0+cpu", "numpy": "2.5.4", "gymnasium": "1.4.0",
+127:FINAL = 12_001_280                         # line 55 / line 84 (12,000,000 rounded up to the 8,192 rollout)
+128:LB_S = 2_097_152                           # LB's start: s42's 2,097,152 pair (the study's design)
+129:GRID = 131_072                             # line 82
+130:DISK_FLOOR = 3 * 1024**3                   # r10m_common.DISK_FLOOR_BYTES (THIS12 line 958)
+131:M1_OUT_BYTES = 20 * 1024**2                # one M1 output before pruning (about 17.9 MB measured, see NOTES)
+132:M3_OUT_BYTES = 4 * 1024**2                 # one M3 output (about 2.5 MB measured)
+133:DISK_MARGIN = 64 * 1024**2
+134:MACHINE_SIM_MAX = 4                        # the task's limit: at most 4 such processes at once machine-wide
+135:WRAPPERS = ("measure_lb.py", "measure_r10round.py", "validate_round.py", "mutation_checks.py")  # idle while measuring
+136:D1_WINDOWS = ((0, 4_194_304), (4_194_304, 8_388_608), (8_388_608, FINAL + 1))   # line 338
+137:HABIT_LINE = 0.60                          # the PARKED / DRIVEN line (lines 276-279), applied per actuator: report only
+138:LAST_UPDATES = 8                           # BS2's primary form: the last 8 probe rows before E
+140:CLAUSES = {
+170:class Refusal(Exception):
+178:def utcnow() -> str:
+182:def sha256_file(path) -> str:
+190:def sha256_bytes(b: bytes) -> str:
+194:def require_under(path, root=MEASURE) -> Path:
+203:def write_json(path, obj) -> str:
+212:def write_text(path, text) -> str:
+221:def free_bytes(path) -> int:
+229:def stack_versions() -> dict:
+242:def check_pins() -> list[str]:
+270:_LANE_B = {}
+273:def lane_b():
+296:def run_name(run_dir: Path) -> str:
+301:def locate(run_dir: Path, rel: str, suffix: str = "") -> Path | None:
+306:def need(run_dir: Path, rel: str, suffix: str) -> Path:
+313:def pair_rel(C, label) -> tuple[str, str]:
+317:def blind_guard(run_dir: Path) -> dict:
+357:def read_ending(C, run_dir: Path, suffix: str) -> dict:
+398:class Slots:
+437:def run_job(job: dict, slots: Slots, log) -> dict:
+501:def window_reading(C, res: dict, S: int, E: int) -> dict:
+518:def prefix_check(run_ledger: Path, parent_ledger: Path | None, S: int) -> dict:
+539:def _num(v):
+547:def habit_summary(C, header, rows, res, classes, m1_records: dict, probe: Path | None, S: int, E: int,
+665:def prepare(C, LG, CP, run_dir: Path, suffix: str, out_root: Path, start: int | None) -> dict:
+708:def run_m5_cli(prep: dict) -> dict:
+728:def m5_agrees(cli: dict, res: dict, c6: dict) -> list[str]:
+740:def jobs_for(prep: dict, simulate: bool, prune: bool = False) -> list[dict]:
+764:def prune_csvs(label_dir: Path, rec: dict) -> dict:
+789:def classify_one(prep: dict, job_results: list[dict], m5cli: dict, parent_ledger, prune: bool,
+909:def _steps(xs, n=6):
+915:def render(r: dict) -> str:
+981:def cmd_classify(a) -> int:
+1068:def cmd_plan(a) -> int:
+1096:def main(argv=None) -> int:

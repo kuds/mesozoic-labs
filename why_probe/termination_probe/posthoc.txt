@@ -1,0 +1,99 @@
+POST HOC (not pre-registered).  Descriptive.
+
+PH1  the termination-risk budget against the tail's value spread (normalised V units)
+  p1048576        C_c 7.09; terminated 1/128; risk budget mean C*D_any 3.44e-03 (upper 1.90e-02); q3 5-95% -0.49..+0.19 deg; slope -0.00439/deg -> tail value spread -0.0030; spread / upper budget -0.2
+  p2097152        C_c 7.02; terminated 0/128; risk budget mean C*D_any 0.00e+00 (upper 1.24e-02); q3 5-95% +0.14..+1.04 deg; slope +0.01923/deg -> tail value spread +0.0173; spread / upper budget 1.4
+  c2511_3145728   C_c 7.17; terminated 0/128; risk budget mean C*D_any 0.00e+00 (upper 1.27e-02); q3 5-95% +0.11..+4.34 deg; slope +0.05513/deg -> tail value spread +0.2332; spread / upper budget 18.4
+  c2531_3145728   C_c 7.17; terminated 0/128; risk budget mean C*D_any 0.00e+00 (upper 1.27e-02); q3 5-95% +0.21..+2.25 deg; slope +0.01962/deg -> tail value spread +0.0400; spread / upper budget 3.1
+  c2511_E         C_c 7.24; terminated 0/128; risk budget mean C*D_any 0.00e+00 (upper 1.28e-02); q3 5-95% +0.02..+4.91 deg; slope +0.05346/deg -> tail value spread +0.2613; spread / upper budget 20.3
+  c2531_E         C_c 7.26; terminated 0/128; risk budget mean C*D_any 0.00e+00 (upper 1.29e-02); q3 5-95% +0.03..+3.04 deg; slope +0.03983/deg -> tail value spread +0.1201; spread / upper budget 9.3
+  b2511_E         C_c 7.28; terminated 0/128; risk budget mean C*D_any 0.00e+00 (upper 1.29e-02); q3 5-95% -0.05..+1.06 deg; slope +0.01274/deg -> tail value spread +0.0142; spread / upper budget 1.1
+  records: parent 5/2495 training episodes ended early; BS2 2/11522
+  parent records: early-end rate 0.2004% (CP upper 0.4670%); risk budget with C = 7.2: 7.21e-04 (upper 1.68e-03) normalised V per state
+     p1048576        tail value spread -0.0030 = -2 x the upper budget
+     p2097152        tail value spread +0.0173 = +10 x the upper budget
+     c2511_3145728   tail value spread +0.2332 = +139 x the upper budget
+     c2531_3145728   tail value spread +0.0400 = +24 x the upper budget
+     c2511_E         tail value spread +0.2613 = +155 x the upper budget
+     c2531_E         tail value spread +0.1201 = +71 x the upper budget
+     b2511_E         tail value spread +0.0142 = +8 x the upper budget
+  BS2 records: early-end rate 0.0174% (CP upper 0.0627%); risk budget with C = 7.2: 6.25e-05 (upper 2.26e-04) normalised V per state
+     p1048576        tail value spread -0.0030 = -13 x the upper budget
+     p2097152        tail value spread +0.0173 = +76 x the upper budget
+     c2511_3145728   tail value spread +0.2332 = +1033 x the upper budget
+     c2531_3145728   tail value spread +0.0400 = +177 x the upper budget
+     c2511_E         tail value spread +0.2613 = +1158 x the upper budget
+     c2531_E         tail value spread +0.1201 = +532 x the upper budget
+     b2511_E         tail value spread +0.0142 = +63 x the upper budget
+
+PH2  critic's mean slope (FD, normalised per degree; raw MLP for b2511_E) and realised terminations
+  p1048576        slope -0.00439 (x sigma_R = -0.188 raw/deg)  q3 -0.154 deg  terminated 1/128  tail_contact 0
+  p2097152        slope +0.01923 (x sigma_R = +0.872 raw/deg)  q3 +0.638 deg  terminated 0/128  tail_contact 0
+  c2511_3145728   slope +0.05513 (x sigma_R = +2.448 raw/deg)  q3 +3.366 deg  terminated 0/128  tail_contact 0
+  c2531_3145728   slope +0.01962 (x sigma_R = +0.871 raw/deg)  q3 +1.521 deg  terminated 0/128  tail_contact 0
+  c2511_E         slope +0.05346 (x sigma_R = +2.344 raw/deg)  q3 +3.896 deg  terminated 0/128  tail_contact 0
+  c2531_E         slope +0.03983 (x sigma_R = +1.748 raw/deg)  q3 +2.175 deg  terminated 0/128  tail_contact 0
+  b2511_E         slope +0.01274 (x sigma_R = +0.563 raw/deg)  q3 +0.584 deg  terminated 0/128  tail_contact 0
+
+PH3  terminations in the training records (timesteps, env, length, cause)
+   ('parent s42', 1246104, '0', '241', 'fallen')
+   ('parent s42', 1326936, '1', '276', 'fallen')
+   ('parent s42', 2518180, '2', '192', 'fallen')
+   ('parent s42', 3382844, '0', '185', 'fallen')
+   ('parent s42', 3452152, '1', '304', 'fallen')
+   ('control_2521', 2826696, '0', '386', 'fallen')
+   ('critic_blind_tail3_2521', 2310300, '0', '287', 'tail_contact')
+  parent s42, (0, 1,048,576] by 131,072-step bins: episodes, tail_contact, fallen, nosedive
+    (        0,   131,072]: n  460  tail_contact  31  fallen 254  nosedive 171  truncated    4
+    (  131,072,   262,144]: n  148  tail_contact   1  fallen  20  nosedive  19  truncated  108
+    (  262,144,   393,216]: n  132  tail_contact   0  fallen   0  nosedive   0  truncated  132
+    (  393,216,   524,288]: n  131  tail_contact   0  fallen   0  nosedive   0  truncated  131
+    (  524,288,   655,360]: n  131  tail_contact   0  fallen   1  nosedive   0  truncated  130
+    (  655,360,   786,432]: n  135  tail_contact   0  fallen   4  nosedive   0  truncated  131
+    (  786,432,   917,504]: n  133  tail_contact   0  fallen   3  nosedive   0  truncated  130
+    (  917,504, 1,048,576]: n  132  tail_contact   0  fallen   2  nosedive   0  truncated  130
+
+PH4  terminated rollout episodes: last-50-step means (and the final state)
+  p1048576        ep  66 seed 7067 len  225 fallen        last50: q3 +0.64 deg, tip 0.434, low 0.395, pelvis 0.831, fwd_z +0.308, slope -0.0317;  final: tip 0.121 low 0.086 pelvis 0.708 fwd_z +0.549  episode-mean q3 -0.00 (condition mean -0.15)
+
+PH5  M4.2 again (the PREREG's form had no rule for outlier episodes): terminated episodes excluded, and the
+     in-sample R2 beside the two-fold out-of-sample R2 (V, NON-BLIND conditions and b2511_E)
+  p1048576        (terminated episodes excluded: 1)  out-of-sample R2 B0 0.4010 J 0.3981 R 0.4035 -> Q -0.880 (dJ -0.0029);  in-sample B0 0.4777 J 0.4788 R 0.4856 -> Q +7.383
+       model R coefficients, V per metre: tip -2.776, lowest point +5.236;  model J coefficients, V per degree: q1 -0.00816 q1yaw -0.00532 q2 -0.00263 q3 +0.00637
+  p2097152        (terminated episodes excluded: 0)  out-of-sample R2 B0 0.5985 J 0.6095 R 0.6125 -> Q +1.270 (dJ +0.0110);  in-sample B0 0.6819 J 0.6970 R 0.6939 -> Q +0.790
+       model R coefficients, V per metre: tip +3.050, lowest point -8.426;  model J coefficients, V per degree: q1 -0.03167 q1yaw +0.00034 q2 +0.00587 q3 +0.04935
+  c2511_3145728   (terminated episodes excluded: 0)  out-of-sample R2 B0 0.7630 J 0.8133 R 0.8129 -> Q +0.992 (dJ +0.0503);  in-sample B0 0.8097 J 0.8594 R 0.8565 -> Q +0.942
+       model R coefficients, V per metre: tip +4.518, lowest point -11.108;  model J coefficients, V per degree: q1 -0.01790 q1yaw +0.00084 q2 -0.01583 q3 +0.06560
+  c2531_3145728   (terminated episodes excluded: 0)  out-of-sample R2 B0 0.6463 J 0.6764 R 0.6809 -> Q +1.150 (dJ +0.0301);  in-sample B0 0.7385 J 0.7659 R 0.7664 -> Q +1.020
+       model R coefficients, V per metre: tip +4.718, lowest point -10.952;  model J coefficients, V per degree: q1 -0.01532 q1yaw +0.00053 q2 -0.00340 q3 +0.06654
+  c2511_E         (terminated episodes excluded: 0)  out-of-sample R2 B0 0.7650 J 0.8220 R 0.8230 -> Q +1.017 (dJ +0.0571);  in-sample B0 0.8324 J 0.8809 R 0.8786 -> Q +0.954
+       model R coefficients, V per metre: tip +4.840, lowest point -10.290;  model J coefficients, V per degree: q1 -0.00102 q1yaw -0.00075 q2 -0.00601 q3 +0.06696
+  c2531_E         (terminated episodes excluded: 0)  out-of-sample R2 B0 0.7011 J 0.7379 R 0.7476 -> Q +1.263 (dJ +0.0368);  in-sample B0 0.7713 J 0.8063 R 0.8132 -> Q +1.197
+       model R coefficients, V per metre: tip +5.597, lowest point -12.935;  model J coefficients, V per degree: q1 -0.01663 q1yaw +0.00394 q2 -0.00965 q3 +0.07306
+  b2511_E         (terminated episodes excluded: 0)  out-of-sample R2 B0 0.5397 J 0.5673 R 0.5570 -> Q +0.626 (dJ +0.0276);  in-sample B0 0.6450 J 0.6714 R 0.6633 -> Q +0.693
+       model R coefficients, V per metre: tip +4.476, lowest point -10.381;  model J coefficients, V per degree: q1 -0.04285 q1yaw -0.00547 q2 +0.06512 q3 +0.01989
+
+PH6  the critic's own tail-joint gradients state by state (effective critic; raw MLP for b2511_E):
+     share of states where raising tail_1 (or tail_2) and raising tail_3 move V the same way, and the
+     correlation of the per-state slopes; a height (risk) valuation makes them agree in sign everywhere
+  p1048576        mean dV/dq per deg q1 +0.00188 q2 -0.00414 q3 -0.00436;  share > 0: q1 0.591 q3 0.402;  sign agreement q1~q3 0.537, q2~q3 0.498;  corr q1~q3 +0.162, q2~q3 -0.067
+  p2097152        mean dV/dq per deg q1 -0.01920 q2 -0.00187 q3 +0.01957;  share > 0: q1 0.108 q3 0.885;  sign agreement q1~q3 0.202, q2~q3 0.489;  corr q1~q3 +0.391, q2~q3 +0.185
+  c2511_3145728   mean dV/dq per deg q1 -0.00197 q2 -0.01768 q3 +0.05507;  share > 0: q1 0.412 q3 0.993;  sign agreement q1~q3 0.410, q2~q3 0.112;  corr q1~q3 -0.178, q2~q3 +0.042
+  c2531_3145728   mean dV/dq per deg q1 -0.00221 q2 -0.01653 q3 +0.01967;  share > 0: q1 0.422 q3 0.928;  sign agreement q1~q3 0.392, q2~q3 0.189;  corr q1~q3 -0.261, q2~q3 +0.135
+  c2511_E         mean dV/dq per deg q1 +0.00548 q2 +0.00229 q3 +0.05340;  share > 0: q1 0.697 q3 0.997;  sign agreement q1~q3 0.695, q2~q3 0.588;  corr q1~q3 -0.292, q2~q3 +0.225
+  c2531_E         mean dV/dq per deg q1 -0.00079 q2 +0.00361 q3 +0.03982;  share > 0: q1 0.449 q3 0.967;  sign agreement q1~q3 0.426, q2~q3 0.606;  corr q1~q3 -0.396, q2~q3 +0.127
+  b2511_E         mean dV/dq per deg q1 -0.00679 q2 +0.02855 q3 +0.01288;  share > 0: q1 0.356 q3 0.781;  sign agreement q1~q3 0.453, q2~q3 0.808;  corr q1~q3 +0.247, q2~q3 +0.549
+
+PH7  (cross-lens, lens A's ground; no verdict) M4.4 found the realised return-to-go G rising with q3 about as much
+     as V does, with no terminations to explain it.  Does the episode PHASE absorb the tail_3 coefficient?  Model 0
+     (V or G ~ 1 + z) against Model 0 + phase (indicators of t in 25-step bins up to 300, then 100-step bins).
+     Also mean q3, V and G by phase.  States t % 4 == 0, |z6| < 10, terminated episodes excluded.
+  p1048576        b6 per deg  V: +0.00637 -> +0.01686 with phase;  G: +0.01228 -> +0.01998 with phase;  by t [0,50) [50,200) [200,400) [400,1000): q3 +0.03 -0.15 -0.17 -0.16 deg; V 4.468 4.651 4.717 4.748; G 4.462 4.579 4.764 4.763
+  p2097152        b6 per deg  V: +0.04935 -> +0.01517 with phase;  G: +0.06721 -> +0.00767 with phase;  by t [0,50) [50,200) [200,400) [400,1000): q3 -0.15 +0.59 +0.71 +0.69 deg; V 4.445 4.682 4.782 4.808; G 4.418 4.573 4.824 4.817
+  c2511_3145728   b6 per deg  V: +0.06560 -> +0.04445 with phase;  G: +0.07458 -> +0.00524 with phase;  by t [0,50) [50,200) [200,400) [400,1000): q3 -0.35 +1.93 +3.74 +3.91 deg; V 4.553 4.726 4.880 4.911; G 4.546 4.672 4.915 4.910
+  c2531_3145728   b6 per deg  V: +0.06654 -> +0.02403 with phase;  G: +0.08925 -> +0.00102 with phase;  by t [0,50) [50,200) [200,400) [400,1000): q3 -0.09 +1.13 +1.65 +1.71 deg; V 4.546 4.767 4.888 4.912; G 4.534 4.686 4.936 4.928
+  c2511_E         b6 per deg  V: +0.06696 -> +0.05307 with phase;  G: +0.06013 -> +0.01224 with phase;  by t [0,50) [50,200) [200,400) [400,1000): q3 -0.35 +2.12 +4.25 +4.57 deg; V 4.607 4.755 4.919 4.959; G 4.608 4.737 4.970 4.963
+  c2531_E         b6 per deg  V: +0.07306 -> +0.03057 with phase;  G: +0.08215 -> +0.00589 with phase;  by t [0,50) [50,200) [200,400) [400,1000): q3 -0.44 +1.25 +2.40 +2.55 deg; V 4.606 4.777 4.939 4.975; G 4.597 4.735 4.977 4.978
+  b2511_E         b6 per deg  V: +0.01989 -> -0.01734 with phase;  G: +0.04767 -> -0.01310 with phase;  by t [0,50) [50,200) [200,400) [400,1000): q3 -0.12 +0.44 +0.72 +0.64 deg; V 4.588 4.836 4.978 5.015; G 4.562 4.744 5.015 5.014
+
+written posthoc.json

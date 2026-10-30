@@ -1,0 +1,111 @@
+CHECK_BUILD NOTES (independent build checker of LB harness and measurement tool)
+Started 2026-10-30T18:17:06Z. Every command below is logged by x.sh with UTC start/end times, exit code and output file.
+Claims are labelled [measured] (file:line) or [inferred].
+=== [2026-10-30T18:17:10Z -> 2026-10-30T18:17:10Z] label=ls_lb rc=0 out=/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/long_blind/check_build/logs/000_ls_lb.out
+CMD: LB=/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/long_blind; cd $LB && find . -path ./check_build -prune -o -maxdepth 3 -print | grep -v "^./validate/v[0-9]/runs/.*/" | sort | head -150; echo; ls -la tools tools/tests logs criteria_work measure reads tmp validate
+RESULT (first 15 lines):
+  | .
+  | ./NOTES.txt
+  | ./SHA256SUMS.txt
+  | ./criteria_work
+  | ./criteria_work/CMD_LOG.txt
+  | ./criteria_work/DESIGN_NOTES.txt
+  | ./criteria_work/SCREEN_v1.json
+  | ./criteria_work/criteria_v1.txt
+  | ./criteria_work/design_numbers.err
+  | ./criteria_work/design_numbers.out
+  | ./criteria_work/design_numbers.py
+  | ./criteria_work/lg.sh
+  | ./criteria_work/out
+  | ./criteria_work/out/0001.txt
+  | ./criteria_work/out/0002.txt
+=== [2026-10-30T18:17:16Z -> 2026-10-30T18:17:16Z] label=ls_bs2 rc=0 out=/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/long_blind/check_build/logs/001_ls_bs2.out
+CMD: S2=/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad; BS2=$S2/r10round/bias_screen2; ls -la $BS2 $BS2/tools $BS2/tools/tests 2>&1; ls $BS2/runs 2>&1 | head; ls -la $S2/r10round/bias_screen | head -30
+RESULT (first 15 lines):
+  | /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/bias_screen2:
+  | total 164
+  | drwxr-xr-x 13 root root  4096 Oct 30 16:22 .
+  | drwxr-xr-x 46 root root  4096 Oct 30 16:32 ..
+  | -r--r--r--  1 root root  1235 Oct 30 12:53 APPROVED
+  | -rw-r--r--  1 root root 34467 Oct 30 11:07 NOTES.txt
+  | -rw-r--r--  1 root root  5403 Oct 30 16:22 REPORT.md
+  | -rw-r--r--  1 root root   836 Oct 30 11:32 SCREEN.json
+  | -rw-r--r--  1 root root  3016 Oct 30 12:26 SHA256SUMS.txt
+  | drwxr-xr-x  4 root root  4096 Oct 30 15:58 check
+  | drwxr-xr-x  4 root root  4096 Oct 30 11:08 check_build
+  | -rw-r--r--  1 root root 56130 Oct 30 12:25 criteria.txt
+  | drwxr-xr-x  3 root root  4096 Oct 30 11:10 criteria_work
+  | drwxr-xr-x  3 root root  4096 Oct 30 15:57 logs
+  | drwxr-xr-x 11 root root  4096 Oct 30 15:49 reads
+=== [2026-10-30T18:19:35Z -> 2026-10-30T18:19:35Z] label=diff_tools rc=0 out=/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/long_blind/check_build/logs/002_diff_tools.out
+CMD: cd /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round && diff -ruN -x score_bs.py -x test_score_bs.py -x __pycache__ bias_screen2/tools long_blind/tools > long_blind/check_build/out/tools_vs_bs2.mine.diff; echo "diff rc=$?"; grep -c "^@@" long_blind/check_build/out/tools_vs_bs2.mine.diff; cmp long_blind/check_build/out/tools_vs_bs2.mine.diff long_blind/logs/tools_vs_bs2.diff && echo SAME_AS_BUILDER_DIFF; grep "^diff \|^Only" long_blind/check_build/out/tools_vs_bs2.mine.diff; ls -la bias_screen2/tools/tests long_blind/tools/tests; for f in bs_hooks.py verify_copy.py tests/test_bs_hooks.py; do cmp bias_screen2/tools/$f long_blind/tools/$f && echo "identical $f"; done; sha256sum long_blind/tools/*.py long_blind/tools/*.sh
+RESULT (first 15 lines):
+  | diff rc=1
+  | 87
+  | SAME_AS_BUILDER_DIFF
+  | diff -ruN -x score_bs.py -x test_score_bs.py -x __pycache__ bias_screen2/tools/bs_common.py long_blind/tools/bs_common.py
+  | diff -ruN -x score_bs.py -x test_score_bs.py -x __pycache__ bias_screen2/tools/bs_resume.py long_blind/tools/bs_resume.py
+  | diff -ruN -x score_bs.py -x test_score_bs.py -x __pycache__ bias_screen2/tools/check_inputs.py long_blind/tools/check_inputs.py
+  | diff -ruN -x score_bs.py -x test_score_bs.py -x __pycache__ bias_screen2/tools/read_bs.py long_blind/tools/read_bs.py
+  | diff -ruN -x score_bs.py -x test_score_bs.py -x __pycache__ bias_screen2/tools/run_bs.py long_blind/tools/run_bs.py
+  | diff -ruN -x score_bs.py -x test_score_bs.py -x __pycache__ bias_screen2/tools/run_waves_bs.sh long_blind/tools/run_waves_bs.sh
+  | diff -ruN -x score_bs.py -x test_score_bs.py -x __pycache__ bias_screen2/tools/tests/test_read_bs.py long_blind/tools/tests/test_read_bs.py
+  | diff -ruN -x score_bs.py -x test_score_bs.py -x __pycache__ bias_screen2/tools/tests/test_resume.py long_blind/tools/tests/test_resume.py
+  | diff -ruN -x score_bs.py -x test_score_bs.py -x __pycache__ bias_screen2/tools/tests/test_run_bs.py long_blind/tools/tests/test_run_bs.py
+  | diff -ruN -x score_bs.py -x test_score_bs.py -x __pycache__ bias_screen2/tools/tests/test_waves_bs.py long_blind/tools/tests/test_waves_bs.py
+  | bias_screen2/tools/tests:
+  | total 144
+=== [2026-10-30T18:25:42Z -> 2026-10-30T18:25:42Z] label=mk_rp rc=1 out=/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/long_blind/check_build/logs/003_mk_rp.out
+CMD: CB=/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/long_blind/check_build; LB=$CB/..; mkdir -p $CB/rp/tools $CB/rp/validate $CB/rp/cwd && cp -p $LB/tools/bs_common.py $LB/tools/bs_hooks.py $LB/tools/bs_resume.py $LB/tools/run_bs.py $LB/tools/read_bs.py $LB/tools/check_inputs.py $LB/tools/verify_copy.py $LB/tools/run_waves_bs.sh $CB/rp/tools/ && sed -i "s#^BS = S2 + \"/r10round/long_blind\"  #BS = S2 + \"/r10round/long_blind/check_build/rp\"#" $CB/rp/tools/bs_common.py && diff $LB/tools/bs_common.py $CB/rp/tools/bs_common.py; for f in bs_hooks.py bs_resume.py run_bs.py read_bs.py check_inputs.py verify_copy.py run_waves_bs.sh; do cmp $LB/tools/$f $CB/rp/tools/$f && echo "same $f"; done; ls $CB/../venv 2>&1 | head -2; /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python -I -B -c "import importlib.util as u; print(\"py-spy\", u.find_spec(\"py_spy\"))"; ls /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin | grep -i "spy\|inotify" ; which inotifywait gdb py-spy
+RESULT (first 15 lines):
+  | 37c37
+  | < BS = S2 + "/r10round/long_blind"                # every file the study writes is under it (TASK3)
+  | ---
+  | > BS = S2 + "/r10round/long_blind/check_build/rp"              # every file the study writes is under it (TASK3)
+  | same bs_hooks.py
+  | same bs_resume.py
+  | same run_bs.py
+  | same read_bs.py
+  | same check_inputs.py
+  | same verify_copy.py
+  | same run_waves_bs.sh
+  | ls: cannot access '/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/long_blind/check_build/../venv': No such file or directory
+  | py-spy None
+  | /usr/bin/gdb
+=== [2026-10-30T18:27:46Z -> 2026-10-30T18:27:46Z] label=preflight_k1 rc=0 out=/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/long_blind/check_build/logs/004_preflight_k1.out
+CMD: CB=/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/long_blind/check_build; PY=/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/venv/bin/python; cd $CB/rp/cwd && nice -n 10 $PY -I -B $CB/rp/tools/run_bs.py --arm critic_blind_tail3 --seed 9321 --no-update --until 2916352 --out $CB/rp/validate/k1 --preflight-only; echo "rc=$?"; ls -la $CB/rp $CB/rp/cwd
+RESULT (first 15 lines):
+  | run_bs 2.0 (2026-10-30; long blind study, s42 2,097,152 -> 12,001,280, resume; derived from run_bs 1.1)
+  | {
+  |  "preflight": "pass",
+  |  "mode": "no_update",
+  |  "problems": []
+  | }
+  | rc=0
+  | /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/long_blind/check_build/rp:
+  | total 20
+  | drwxr-xr-x 5 root root 4096 Oct 30 18:25 .
+  | drwxr-xr-x 6 root root 4096 Oct 30 18:26 ..
+  | drwxr-xr-x 2 root root 4096 Oct 30 18:25 cwd
+  | drwxr-xr-x 2 root root 4096 Oct 30 18:25 tools
+  | drwxr-xr-x 2 root root 4096 Oct 30 18:25 validate
+  | 
+=== [2026-10-30T18:27:56Z] label=kill_k1 (background) CMD: cd /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/long_blind/check_build/rp/cwd && PY -I -B /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/long_blind/check_build/kill/driver.py critic_blind_tail3 9321 2916352 k1 > /tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/long_blind/check_build/kill/driver_k1.stdout 2>&1  (attempt-1 no-update run of the repointed tool copy, frozen at chosen moments and copied; result logged later)
+=== [2026-10-30T18:28:38Z -> 2026-10-30T18:28:38Z] label=lb_listing_before_pytest rc=0 out=/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/long_blind/check_build/logs/005_lb_listing_before_pytest.out
+CMD: LB=/tmp/claude-0/-home-user-mesozoic-labs/184ee67c-2802-5235-8e52-6dc7daa72cd3/scratchpad/r10round/long_blind; cd $LB && find . -path ./check_build -prune -o -path ./criteria_work -prune -o -path ./measure -prune -o -printf "%p %s %T@\n" | sort > check_build/pytest/lb_listing_before.txt; wc -l check_build/pytest/lb_listing_before.txt; find /tmp -maxdepth 1 -newer $LB/logs/build_start.marker -printf "%p %T@\n" | sort > check_build/pytest/tmp_top_newer_before.txt; cat check_build/pytest/tmp_top_newer_before.txt
+RESULT (first 15 lines):
+  | 2478 check_build/pytest/lb_listing_before.txt
+  | /tmp 1793384906.7349654490
+  | /tmp/SB3-2026-10-30-17-56-19-895449 1793382979.8913611310
+  | /tmp/SB3-2026-10-30-17-56-20-737148 1793382980.7321347090
+  | /tmp/SB3-2026-10-30-17-56-20-760631 1793382980.7553611830
+  | /tmp/SB3-2026-10-30-17-56-22-737133 1793382982.7313613000
+  | /tmp/SB3-2026-10-30-17-56-22-775103 1793382982.7713613020
+  | /tmp/SB3-2026-10-30-17-56-22-823669 1793382982.8193613050
+  | /tmp/SB3-2026-10-30-17-56-22-843626 1793382982.8393613060
+  | /tmp/SB3-2026-10-30-17-56-22-875179 1793382982.8713868140
+  | /tmp/SB3-2026-10-30-17-56-22-898179 1793382982.8953613100
+  | /tmp/SB3-2026-10-30-17-56-22-934631 1793382982.9313613120
+  | /tmp/SB3-2026-10-30-17-56-22-960603 1793382982.9553613130
+  | /tmp/SB3-2026-10-30-17-56-23-006119 1793382983.0033613160
+  | /tmp/SB3-2026-10-30-17-56-23-042647 1793382983.0393613180

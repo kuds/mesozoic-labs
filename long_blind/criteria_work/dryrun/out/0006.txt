@@ -1,0 +1,310 @@
+   251	
+   252	def classify(name, arm, seed, check, csha, lost_entry):
+   253	    """One entry's class from check.json and its lost.json entry (criteria RUN HANDLING)."""
+   254	    out = dict(name=name, arm=arm, seed=seed, cls=UNDECIDED, T=None, cause=None, check_sha256=csha)
+   255	    if lost_entry is not None:
+   256	        cause = lost_entry.get("cause") if isinstance(lost_entry, dict) else None
+   257	        detail = lost_entry.get("detail") if isinstance(lost_entry, dict) else None
+   258	        out.update(cls=LOST, cause=f"lost.json: {cause or 'listed'}" + (f" ({detail})" if detail else ""))
+   259	        return out
+   260	    if check is None:
+   261	        out["cause"] = "no check.json (queued, running, crashed or VOID)"
+   262	        return out
+   263	    want = dict(name=name, arm=arm, seed=seed, S=C.S, E=C.E, mode="continuation")
+   264	    for key, value in want.items():
+   265	        if check.get(key) != value:
+   266	            raise InputError(f"{name}: check.json {key} = {check.get(key)!r}, expected {value!r}")
+   267	    if check.get("passed") is not True or check.get("failures"):
+   268	        out["cause"] = "CHECK failed (VOID until the cause is fixed and it reruns)"
+   269	        return out
+   270	    T, stop = check.get("T"), check.get("stop_reason")
+   271	    if stop == "end" and T == C.E:
+   272	        out.update(cls=COUNTED, T=T)
+   273	    elif stop == "collapse" and isinstance(T, int) and not isinstance(T, bool) and C.S < T < C.E:
+   274	        out.update(cls=STOPPED, T=T, cause=f"the collapse stop at T = {T:,} (no rows before E: filled)")
+   275	    else:
+   276	        raise InputError(f"{name}: a passing check.json with stop reason {stop!r} at T = {T!r}")
+   277	    return out
+   278	
+   279	
+   280	def gather(root):
+   281	    """[(class dict, check)] in the criteria's queue order."""
+   282	    root = Path(root)
+   283	    lost = lost_of(root)
+   284	    out = []
+   285	    for arm, seed in QUEUE:
+   286	        name = C.run_name(arm, seed)
+   287	        check, csha = _read_json(root / "runs" / name / C.CHECK_JSON)
+   288	        out.append((classify(name, arm, seed, check, csha, lost.get(name)), check))
+   289	    return out
+   290	
+   291	
+   292	def markers_path(root, name):
+   293	    return Path(root) / "reads" / name / "markers.json"
+   294	
+   295	
+   296	def _get(d, *keys):
+   297	    for k in keys:
+   298	        if not isinstance(d, dict) or k not in d:
+   299	            return None
+   300	        d = d[k]
+   301	    return d
+   302	
+   303	
+   304	def loop_rows_at(m, steps):
+   305	    """The markers' M-LOOP rows whose steps equal `steps` (the final pair at E has steps == T: read_bs.saved_pairs)."""
+   306	    return [r for r in (m.get("loop") or []) if isinstance(r, dict) and type(r.get("steps")) is int
+   307	            and r.get("steps") == steps]
+   308	
+   309	
+   310	def check_markers(m, c, check):
+   311	    """markers.json against its class and check.json (raises InputError on a record that disagrees)."""
+   312	    name = c["name"]
+   313	    if not isinstance(m, dict):
+   314	        raise InputError(f"{name}: no markers.json")
+   315	    for key, value in (("schema", R.MARKERS_SCHEMA), ("kind", "continuation"), ("label", name), ("arm", c["arm"]),
+   316	                       ("seed", c["seed"]), ("S", C.S), ("T", c["T"]),
+   317	                       ("stop_reason", "end" if c["cls"] == COUNTED else "collapse")):
+   318	        if m.get(key) != value:
+   319	            raise InputError(f"{name}: markers.json {key} = {m.get(key)!r}, expected {value!r}")
+   320	    probe = m.get("probe")
+   321	    if not isinstance(probe, dict):
+   322	        raise InputError(f"{name}: markers.json has no probe markers")
+   323	    src = (check.get("sources") or {}).get("policy_probe.npz")
+   324	    if not isinstance(src, list) or len(src) != 2 or probe.get("sha256") != src[1]:
+   325	        raise InputError(f"{name}: markers.json was read from another policy_probe.npz than the one CHECK passed "
+   326	                         f"({probe.get('sha256')!r} vs {src!r})")
+   327	    steps = probe.get("steps")
+   328	    want = [C.S + C.ROLLOUT * k for k in range(1, (c["T"] - C.S) // C.ROLLOUT)]
+   329	    if steps != want or probe.get("n_rows") != len(want):
+   330	        raise InputError(f"{name}: markers' probe rows are not S + 8,192 k in (S, T) ({probe.get('n_rows')!r} rows)")
+   331	    for key in ("rollout_mu14_mean", "tail3_statue_settled_mean", "trailing8_mean"):
+   332	        if not isinstance(probe.get(key), list) or len(probe[key]) != len(want):
+   333	            raise InputError(f"{name}: markers' probe {key} is not one value per row")
+   334	    blind = c["arm"] == INTERVENTION
+   335	    form = "blind+raw" if blind else "plain"
+   336	    for row in m.get("loop") or []:
+   337	        if row.get("critic_form") != form:
+   338	            raise InputError(f"{name}: markers' loop row {row.get('steps')} critic form {row.get('critic_form')!r} "
+   339	                             f"is not {form!r} (the arm's reading)")
+   340	        if blind:
+   341	            for states, d in (row.get("critic_slope_obs6") or {}).items():
+   342	                eff = (((d or {}).get("effective")) or {}).get("dV_dq3_per_deg")
+   343	                if eff not in (None, 0.0):
+   344	                    raise InputError(f"{name}: a critic_blind_tail3 run's effective critic slope on observation 6 "
+   345	                                     f"is {eff} on the {states} states at {row.get('steps')} (must be 0.0)")
+   346	    # the final pair's loop row (SEC-G, SEC-MARGIN) is the model at E: its recorded num_timesteps must be E
+   347	    for row in loop_rows_at(m, C.E):
+   348	        if row.get("num_timesteps") != C.E:
+   349	            raise InputError(f"{name}: markers' loop row at E = {C.E:,} records num_timesteps "
+   350	                             f"{row.get('num_timesteps')!r} (the final pair must be the model at E)")
+   351	
+   352	
+   353	def _finite(x):
+   354	    return isinstance(x, (int, float)) and not isinstance(x, bool) and math.isfinite(x)
+   355	
+   356	
+   357	def mean_over(probe, key, steps):
+   358	    """(Fraction mean, None) of probe[key] over the rows at the given steps, or (None, cause)."""
+   359	    st = probe.get("steps") or []
+   360	    vals = []
+   361	    for s in steps:
+   362	        idx = [i for i, x in enumerate(st) if x == s]
+   363	        if len(idx) != 1:
+   364	            return None, f"{len(idx)} probe rows at update_timesteps {s:,}"
+   365	        v = probe[key][idx[0]]
+   366	        if not _finite(v):
+   367	            return None, f"{key} at {s:,} is {v!r}"
+   368	        vals.append(Fraction(v))
+   369	    return sum(vals, Fraction(0)) / len(vals), None
+   370	
+   371	
+   372	def primary_of(c, m):
+   373	    """(Fraction, None) or (None, cause): THE PRIMARY of one COUNTED continuation."""
+   374	    if c["cls"] != COUNTED:
+   375	        return None, c.get("cause") or c["cls"]
+   376	    v, cause = mean_over(m["probe"], "rollout_mu14_mean", PRIMARY_STEPS)
+   377	    if v is None:
+   378	        return None, f"primary unreadable: {cause}"
+   379	    return v, None
+   380	
+   381	
+   382	def secondary_value(key, c, m, primary_cause):
+   383	    """(Fraction, None) or (None, cause): one secondary's value for one continuation (criteria THE SECONDARIES).
+   384	    MISSING for a LOST, STOPPED or UNREADABLE continuation, and when its marker is absent or not finite."""
+   385	    if c["cls"] != COUNTED:
+   386	        return None, c.get("cause") or c["cls"]
+   387	    if primary_cause is not None:
+   388	        return None, f"UNREADABLE ({primary_cause})"
+   389	    if key in ("SEC-G", "SEC-MARGIN"):
+   390	        rows = loop_rows_at(m, C.E)
+   391	        if len(rows) != 1:
+   392	            return None, f"{len(rows)} M-LOOP rows at E = {C.E:,} (the final pair)"
+   393	        field = "G" if key == "SEC-G" else "b_star"
+   394	        v, what = _get(rows[0], "OWN", "P", field), f"OWN.P.{field} at E"
+   395	    elif key == "SEC-CMD":
+   396	        per = _get(m, "ledger", "direct", "per_evaluation")
+   397	        e = per.get(str(C.E)) if isinstance(per, dict) else None
+   398	        if not isinstance(e, dict):
+   399	            return None, f"the evaluation at E = {C.E:,} is absent from the ledger markers"
+   400	        v, what = e.get("cmd_l"), "CMD_L at E"
+   401	    else:
+   402	        raise ValueError(key)
+   403	    if not _finite(v):
+   404	        return None, f"{what} is {v!r} (no finite value)"
+   405	    return Fraction(v), None
+   406	
+   407	
+   408	def ledger_report(m):
+   409	    """Returns and falls in (S, T] from the ledger the markers name (report only; never fails the score).
+   410	    (dict, provisional item or None)."""
+   411	    lm = m.get("ledger") or {}
+   412	    path, want = lm.get("file"), lm.get("sha256")
+   413	    if not path:
+   414	        return {"status": "no ledger named"}, None
+   415	    try:
+   416	        got = C.sha256_file(path)
+   417	    except OSError as exc:
+   418	        return {"status": f"unreadable ({exc})"}, None
+   419	    if got != want:
+   420	        return ({"status": "changed since the read (sha256 differs)"},
+   421	                f"{m.get('label')}: the ledger {path} changed since the read ({got} != {want})")
+   422	    per = {}
+   423	    falls = []
+   424	    try:
+   425	        with open(path, newline="", encoding="utf-8") as fh:
+   426	            rows = list(csv.DictReader(fh))
+   427	    except (OSError, UnicodeDecodeError, csv.Error) as exc:
+   428	        return {"status": f"unreadable ({exc.__class__.__name__}: {exc})"}, None
+   429	    for r in rows:
+   430	        try:
+   431	            t = float(r.get("timesteps"))
+   432	            ret = float(r.get("return"))
+   433	        except (TypeError, ValueError):
+   434	            continue
+   435	        if not (math.isfinite(t) and t == int(t) and C.S < int(t) <= m["T"]):
+   436	            continue
+   437	        per.setdefault(int(t), []).append(ret)
+   438	        if str(r.get("full_horizon")).strip() not in ("1", "1.0", "True", "true"):
+   439	            falls.append({"timesteps": int(t), "episode": r.get("episode"), "length": r.get("length"),
+   440	                          "cause": r.get("cause")})
+   441	    rets = [x for v in per.values() for x in v]
+   442	    return {"status": "read", "n_episodes": len(rets), "n_evaluations": len(per),
+   443	            "mean_return_window": statistics.fmean(rets) if rets else None,
+   444	            "mean_return_at_T": statistics.fmean(per[max(per)]) if per else None,
+   445	            "mean_return_first": statistics.fmean(per[min(per)]) if per else None,
+   446	            "mean_return_per_evaluation": {t: statistics.fmean(v) for t, v in sorted(per.items())},
+   447	            "n_falls": len(falls), "falls": falls[:20]}, None
+   448	
+   449	
+   450	def loop_rows(m):
+   451	    out = []
+   452	    for row in m.get("loop") or []:
+   453	        def g(*ks, row=row):
+   454	            return _get(row, *ks)
+   455	        out.append({"steps": row.get("steps"), "OWN_G": g("OWN", "P", "G"), "OWN_c0": g("OWN", "P", "c0"),
+   456	                    "OWN_b_star": g("OWN", "P", "b_star"), "OWN_G_L": g("OWN", "L", "G"),
+   457	                    "OWN_b_star_L": g("OWN", "b_star_L"), "own14": g("OWN", "own14_median"),
+   458	                    "OWN_falls": g("OWN", "n_terminated"), "REF_G": g("REF", "P", "G"), "REF_c0": g("REF", "P", "c0"),
+   459	                    "slope_onpolicy_eff": g("critic_slope_obs6", "ONPOLICY", "effective", "dV_dq3_per_deg"),
+   460	                    "slope_onpolicy_raw": g("critic_slope_obs6", "ONPOLICY", "raw", "dV_dq3_per_deg"),
+   461	                    "slope_own_eff": g("critic_slope_obs6", "OWN", "effective", "dV_dq3_per_deg"),
+   462	                    "slope_own_raw": g("critic_slope_obs6", "OWN", "raw", "dV_dq3_per_deg"),
+   463	                    "slope_ref_eff": g("critic_slope_obs6", "REF", "effective", "dV_dq3_per_deg"),
+   464	                    "slope_ref_raw": g("critic_slope_obs6", "REF", "raw", "dV_dq3_per_deg")})
+   465	    return out
+   466	
+   467	
+   468	def trajectory(probe, T):
+   469	    """[(evaluation step t, Fraction or None)] for t in (S, T] on the 131,072 grid: the mean of rollout_mu14_mean over
+   470	    the 8 probe rows ending at t (at t = T, which has no row, the 8 rows ending at T - 8,192: at E the primary's rows).
+   471	    Report only."""
+   472	    out = []
+   473	    for t in range(C.S + C.EVAL_FREQ, T + 1, C.EVAL_FREQ):
+   474	        end = t if t < T else T - C.ROLLOUT
+   475	        v, _ = mean_over(probe, "rollout_mu14_mean", tuple(end - C.ROLLOUT * k for k in range(PRIMARY_K - 1, -1, -1)))
+   476	        out.append((t, v))
+   477	    return out
+   478	
+   479	
+   480	def g_end_above_start(m):
+   481	    """True / False: OWN G at the loop row at E above OWN G at the loop row at S (the start pair); None if either row
+   482	    or value is absent (report only)."""
+   483	    rs, re_ = loop_rows_at(m, C.S), loop_rows_at(m, C.E)
+   484	    if len(rs) != 1 or len(re_) != 1:
+   485	        return None
+   486	    gs, ge = _get(rs[0], "OWN", "P", "G"), _get(re_[0], "OWN", "P", "G")
+   487	    if not (_finite(gs) and _finite(ge)):
+   488	        return None
+   489	    return ge > gs
+   490	
+   491	
+   492	def report_only(c, m, meta):
+   493	    """Everything the criteria print and never test.  (dict, provisional item from the ledger or None)."""
+   494	    probe = m["probe"]
+   495	    early, _ = mean_over(probe, "rollout_mu14_mean", EARLY_STEPS)
+   496	    last_t = [s for s in probe["steps"][-PRIMARY_K:]]
+   497	    last_mu, _ = mean_over(probe, "rollout_mu14_mean", last_t)
+   498	    ss_last, _ = mean_over(probe, "tail3_statue_settled_mean", last_t)
+   499	    tr = probe.get("trailing8_mean") or []
+   500	    lm = (m.get("ledger") or {})
+   501	    d, m5 = lm.get("direct") or {}, lm.get("m5") or {}
+   502	    per = d.get("per_evaluation") if isinstance(d.get("per_evaluation"), dict) else {}
+   503	    cmd_per = {}
+   504	    for k, e in per.items():
+   505	        try:
+   506	            cmd_per[int(k)] = e.get("cmd_l") if isinstance(e, dict) else None
+   507	        except (TypeError, ValueError):
+   508	            continue
+   509	    ev = (meta or {}).get("arm_evidence") or {}
+   510	    aa = (meta or {}).get("arm_applied") or {}
+   511	    manip = {"n_rollouts": ev.get("n"), "buffer_gae_lambda": ev.get("buffer_gae_lambda"),
+   512	             "max_adv_err_vs_gae095": ev.get("max_adv_err_vs_gae095"), "min_dmu_actor": ev.get("min_dmu_actor"),
+   513	             "max_dv_predict_values": ev.get("max_dv_predict_values"), "max_dv_forward": ev.get("max_dv_forward"),
+   514	             "max_dv_evaluate_actions": ev.get("max_dv_evaluate_actions"), "max_dv_mirrored": ev.get("max_dv_mirrored"),
+   515	             "min_dv_predict_values": ev.get("min_dv_predict_values"),
+   516	             "min_buffer_values_vs_raw_value_mlp": ev.get("min_buffer_values_vs_raw_value_mlp"),
+   517	             "state_problems": ev.get("state_problems"), "mlp_extractor_class": aa.get("mlp_extractor_class"),
+   518	             "arm_state_end": (meta or {}).get("arm_state_end")}
+   519	    led, item = ledger_report(m)
+   520	    loop = loop_rows(m)
+   521	    end = [lr for lr in loop if type(lr["steps"]) is int and lr["steps"] == c["T"]]
+   522	    return {"early8_rollout_mu14": early, "last8_rollout_mu14_before_T": last_mu,
+   523	            "trajectory": trajectory(probe, c["T"]), "g_end_above_start": g_end_above_start(m),
+   524	            "statue_settled_last8_mean": ss_last, "statue_settled_trailing8_at_last_row": tr[-1] if tr else None,
+   525	            "statue_settled_trailing8_max": probe.get("trailing8_max"),
+   526	            "statue_settled_first_above": probe.get("trailing8_first_above"),
+   527	            "std14_last": (probe.get("std14") or [None])[-1], "obs6_mean_deg_last": (probe.get("obs6_mean_deg")
+   528	                                                                                     or [None])[-1],
+   529	            "cmd_l_last": d.get("cmd_l_last"), "cmd_l_max": d.get("cmd_l_max"), "cmd_l_per_evaluation": cmd_per,
+   530	            "ledger_firsts": d.get("firsts"),
+   531	            "m5_any_flagged": m5.get("any_flagged"), "m5_tail_flagged": m5.get("tail_flagged"),
+   532	            "m5_any_alarms": m5.get("any_alarms"), "m5_tail_alarms": m5.get("tail_alarms"),
+   533	            "m5_c6_counting_failures": m5.get("n_c6_counting_failures"), "loop": loop,
+   534	            "end_pair": end[0] if len(end) == 1 else None, "ledger": led,
+   535	            "manipulation": manip}, item
+   536	
+   537	
+   538	# ------------------------------------------------------------------------------------------------ PROVISIONAL
+   539	HEX64 = re.compile(r"[0-9a-f]{64}")
+   540	PINNED_TOOLS = (*C.TOOL_FILES, "score_bs.py")
+   541	
+   542	
+   543	def _hex(v):
+   544	    return v if isinstance(v, str) and HEX64.fullmatch(v) else None
+   545	
+   546	
+   547	def _load_pinned_m1_common():
+   548	    common = C.M1_COMMON
+   549	    try:
+   550	        if C.sha256_file(common) != C.PIN_SHA256[common]:
+   551	            return None, f"{common} is not at its pin"
+   552	    except OSError as exc:
+   553	        return None, f"{common}: {exc}"
+   554	    spec = importlib.util.spec_from_file_location("score_bs_r10m_common", common)
+   555	    mod = importlib.util.module_from_spec(spec)
+   556	    spec.loader.exec_module(mod)
+   557	    return mod, None
+   558	
+   559	
+   560	def code_seal_items(code_dir):

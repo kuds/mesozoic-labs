@@ -1,0 +1,159 @@
+   200	    return p
+   201	
+   202	
+   203	def write_json(path, obj) -> str:
+   204	    p = require_under(path)
+   205	    p.parent.mkdir(parents=True, exist_ok=True)
+   206	    tmp = p.with_name(p.name + ".partial")
+   207	    tmp.write_text(json.dumps(obj, indent=1, default=str) + "\n", encoding="utf-8")
+   208	    tmp.replace(p)
+   209	    return sha256_file(p)
+   210	
+   211	
+   212	def write_text(path, text) -> str:
+   213	    p = require_under(path)
+   214	    p.parent.mkdir(parents=True, exist_ok=True)
+   215	    tmp = p.with_name(p.name + ".partial")
+   216	    tmp.write_text(text, encoding="utf-8")
+   217	    tmp.replace(p)
+   218	    return sha256_file(p)
+   219	
+   220	
+   221	def free_bytes(path) -> int:
+   222	    p = Path(path)
+   223	    while not p.exists():
+   224	        p = p.parent
+   225	    st = os.statvfs(p)
+   226	    return st.f_bavail * st.f_frsize
+   227	
+   228	
+   229	def stack_versions() -> dict:
+   230	    import importlib.metadata
+   231	    import platform
+   232	
+   233	    out = {"python": platform.python_version()}
+   234	    for key in ("torch", "numpy", "gymnasium", "stable_baselines3", "mujoco"):
+   235	        try:
+   236	            out[key] = importlib.metadata.version(key)
+   237	        except importlib.metadata.PackageNotFoundError:
+   238	            out[key] = None
+   239	    return out
+   240	
+   241	
+   242	def check_pins() -> list[str]:
+   243	    """Every pinned file at its sha256, the measuring copy's seal values, the stack."""
+   244	    out = []
+   245	    for path, want in PINS.items():
+   246	        try:
+   247	            got = sha256_file(path)
+   248	        except OSError as exc:
+   249	            out.append(f"{path}: {exc}")
+   250	            continue
+   251	        if got != want:
+   252	            out.append(f"{path}: sha256 {got} != pinned {want}")
+   253	    try:
+   254	        seal = json.loads(Path(CODE, ".r10m_seal.json").read_text())
+   255	        if seal.get("commit") != CODE_COMMIT or seal.get("tree_digest") != CODE_TREE or seal.get("files") != CODE_FILES:
+   256	            out.append(f"{CODE}: seal {seal.get('commit')} / {seal.get('tree_digest')} / {seal.get('files')} is not "
+   257	                       f"{CODE_COMMIT} / {CODE_TREE} / {CODE_FILES}")
+   258	    except (OSError, ValueError) as exc:
+   259	        out.append(f"{CODE}: seal unreadable ({exc})")
+   260	    try:
+   261	        if json.loads(Path(ROUND_APPROVED).read_text()).get("branch_head") != CODE_COMMIT:
+   262	            out.append(f"{ROUND_APPROVED}: branch_head is not {CODE_COMMIT}")
+   263	    except (OSError, ValueError) as exc:
+   264	        out.append(f"{ROUND_APPROVED}: unreadable ({exc})")
+   265	    got = stack_versions()
+   266	    out += [f"stack {k}: running {got.get(k)} != {v}" for k, v in STACK.items() if got.get(k) != v]
+   267	    return out
+   268	
+   269	
+   270	_LANE_B = {}
+   271	
+   272	
+   273	def lane_b():
+   274	    """The round's lane B modules, loaded by path after their sha256 check: (r10round_common, ledger_r10round,
+   275	    complete_r10round, score_r10round).  score_r10round loads the other three from its own folder (its _load)."""
+   276	    if _LANE_B:
+   277	        return _LANE_B["C"], _LANE_B["LG"], _LANE_B["CP"], _LANE_B["SC"]
+   278	    names = ("r10round_common.py", "ledger_r10round.py", "complete_r10round.py", "score_r10round.py")
+   279	    bad = [p for p in check_pins() if any(p.startswith(f"{LANE_B}/{n}") for n in names)]
+   280	    if bad:
+   281	        raise Refusal("lane B tools not at their pins: " + "; ".join(bad))
+   282	    spec = importlib.util.spec_from_file_location("score_r10round", f"{LANE_B}/score_r10round.py")
+   283	    mod = importlib.util.module_from_spec(spec)
+   284	    sys.modules["score_r10round"] = mod
+   285	    spec.loader.exec_module(mod)
+   286	    for n in names:                        # the files read are still the pinned ones
+   287	        if sha256_file(f"{LANE_B}/{n}") != PINS[f"{LANE_B}/{n}"]:
+   288	            raise Refusal(f"{LANE_B}/{n} changed while it was loaded")
+   289	    if Path(mod.C.__file__).resolve() != Path(LANE_B, "r10round_common.py").resolve():
+   290	        raise Refusal(f"r10round_common was loaded from {mod.C.__file__}, not {LANE_B}")
+   291	    _LANE_B.update(C=mod.C, LG=mod.LG, CP=mod.CP, SC=mod)
+   292	    return mod.C, mod.LG, mod.CP, mod
+   293	
+   294	
+   295	# ------------------------------------------------------------------------------------------------------------ inputs
+   296	def run_name(run_dir: Path) -> str:
+total 124
+drwxr-xr-x 10 root root  4096 Oct 30 18:00 .
+drwxr-xr-x 10 root root  4096 Oct 30 18:17 ..
+-rw-r--r--  1 root root  4577 Oct 30 17:12 disk_estimate.py
+drwxr-xr-x  2 root root  4096 Oct 30 18:15 logs
+-rw-r--r--  1 root root 13794 Oct 30 17:12 parent_schedule.py
+drwxr-xr-x  2 root root  4096 Oct 30 17:13 runner_test_root
+drwxr-xr-x  3 root root  4096 Oct 30 16:59 smoke
+-rw-r--r--  1 root root  1214 Oct 30 16:47 stop_paths.py
+-rw-r--r--  1 root root  7101 Oct 30 18:08 timing.py
+drwxr-xr-x  4 root root  4096 Oct 30 17:52 tmp_pytest
+drwxr-xr-x  6 root root  4096 Oct 30 17:09 v1
+-rw-r--r--  1 root root  4312 Oct 30 17:12 v1_independent.py
+-rwxr-xr-x  1 root root  2815 Oct 30 17:09 v1v2v3_driver.sh
+drwxr-xr-x  6 root root  4096 Oct 30 17:49 v2
+-rw-r--r--  1 root root  5827 Oct 30 17:10 v2_compare.py
+-rw-r--r--  1 root root  7337 Oct 30 17:12 v2_summary.py
+drwxr-xr-x  3 root root  4096 Oct 30 18:00 v3
+-rw-r--r--  1 root root  4012 Oct 30 17:17 v3_summary.py
+drwxr-xr-x  4 root root  4096 Oct 30 17:37 v4
+-rw-r--r--  1 root root 11511 Oct 30 17:50 v4_compare.py
+-rwxr-xr-x  1 root root  2596 Oct 30 17:06 v4_driver.sh
+S2/r10round/long_blind/validate/disk_estimate.py
+S2/r10round/long_blind/validate/parent_schedule.py
+S2/r10round/long_blind/validate/stop_paths.py
+S2/r10round/long_blind/validate/timing.py
+S2/r10round/long_blind/validate/v1_independent.py
+S2/r10round/long_blind/validate/v1v2v3_driver.sh
+S2/r10round/long_blind/validate/v2_compare.py
+S2/r10round/long_blind/validate/v2_summary.py
+S2/r10round/long_blind/validate/v3_summary.py
+S2/r10round/long_blind/validate/v4_compare.py
+S2/r10round/long_blind/validate/v4_driver.sh
+
+S2/r10round/long_blind/validate/logs:
+bs_common.py.versionA
+bs_common.py.versionB
+bs_resume.py.versionA
+df_end.txt
+disk_estimate.out
+disk_estimate_2.out
+disk_estimate_3.err
+disk_estimate_3.out
+driverA.log
+driverA.out
+driverB.log
+driverB.out
+du_end.txt
+find_bs_end.err
+find_outside_final.err
+find_outside_final.txt
+find_outside_interim.err
+find_outside_interim.txt
+find_outside_probe.err
+grep_names.err
+hunks_explained.txt.versionA
+lb_listing_after_refusal.txt
+lb_listing_before_refusal.txt
+parent_schedule.err
+parent_schedule.out
+parent_schedule_2.err
+parent_schedule_2.out
